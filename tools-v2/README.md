@@ -47,8 +47,11 @@ A tool for CurveFS & CurveBs.
         - [list server](#list-server)
         - [list client](#list-client)
         - [list dir](#list-dir)
+        - [list space](#list-space)
     - [query](#query-1)
         - [query file](#query-file)
+        - [query chunk](#query-chunk)
+        - [query segment](#query-segment)
     - [status](#status-1)
       - [staus etcd](#staus-etcd)
       - [staus mds](#staus-mds)
@@ -56,6 +59,10 @@ A tool for CurveFS & CurveBs.
       - [delete peer](#delete-peer)
     - [update](#update)
       - [update peer](#update-peer)
+      - [update file](#update-file)
+    - [create](#create-1)
+      - [create file](#create-file)
+      - [create dir](#create-dir)
   - [Comparison of old and new commands](#comparison-of-old-and-new-commands)
     - [curve fs](#curve-fs)
     - [curve bs](#curve-bs)
@@ -884,6 +891,26 @@ Output:
 +------+-------------+----------+-----------------+------------+---------------------+---------------+-------------+
 ```
 
+##### list space
+
+show curvebs all disk type space, include total space and used space
+
+```bash
+curve bs list space
+```
+
+Output:
+
+```bash
++----------+---------+---------+---------+------------+---------+
+|   TYPE   | TOTAL   |  USED   |  LEFT   | RECYCLABLE | CREATED |
++----------+---------+---------+---------+------------+---------+
+| physical | *** GiB | *** GiB | *** GiB | -          | -       |
++----------+---------+---------+---------+------------+---------+
+| logical  | *** GiB | *** GiB | *** GiB | *** GiB    | *** GiB |
++----------+---------+---------+---------+------------+---------+
+```
+
 ### query
 
 ##### query file
@@ -907,6 +934,56 @@ Output:
 |      |      |                |       |        |         |        |     |                     |              |         | type:BPS_TOTAL  |          |
 |      |      |                |       |        |         |        |     |                     |              |         | limit:125829120 |          |
 +------+------+----------------+-------+--------+---------+--------+-----+---------------------+--------------+---------+-----------------+----------+
+```
+
+##### query chunk
+
+query the location of the chunk corresponding to the offset
+
+Usage:
+
+```bash
+curve bs query chunk --path /test1 --offset 1008600000 
+```
+
+Output:
+
+```bash
++-------+-------------+---------+------------+----------------------+
+| CHUNK | LOGICALPOOL | COPYSET |   GROUP    |       LOCATION       |
++-------+-------------+---------+------------+----------------------+
+| 61    | 1           | 61      | 4294967357 | ***.***.***.***:**** |
+|       |             |         |            | ***.***.***.***:**** |
+|       |             |         |            | ***.***.***.***:**** |
++-------+-------------+---------+------------+----------------------+
+```
+
+##### query segment
+
+query the segments info of the file
+
+Usage:
+
+```bash
+curve bs query seginfo --path /test1 
+```
+
+Output:
+
+```bash
++-------------+-------------+-----------+------------+---------+-------+
+| LOGICALPOOL | SEGMENTSIZE | CHUNKSIZE |   START    | COPYSET | CHUNK |
++-------------+-------------+-----------+------------+---------+-------+
+| 1           | 1073741824  | 16777216  | 0          | 1       | 1     |
++             +             +           +            +---------+-------+
+|                        ......                                        |
++             +             +           +------------+---------+-------+
+|             |             |           | 9663676416 | 1       | 101   |
++             +             +           +            +---------+-------+
+|                        ......                                        |
++             +             +           +            +---------+-------+
+|             |             |           |            | 99      | 99    |
++-------------+-------------+-----------+------------+---------+-------+
 ```
 
 ### status
@@ -1003,71 +1080,127 @@ Output:
 +----------------------+---------+---------+--------+
 ```
 
+#### update file
+
+expand pagefile
+
+Usage:
+```bash
+curve bs update file --path /test2/test1 --size 10
+```
+
+Output:
+```
++---------+
+| RESULT  |
++---------+
+| success |
++---------+
+```
+
+### create
+
+#### create file
+
+create pagefile
+
+Usage:
+```bash
+curve bs create file --path /test2/test4  --size 10GiB
+```
+
+Output:
+```
++---------+
+| RESULT  |
++---------+
+| success |
++---------+
+```
+
+#### create dir
+
+create directory
+
+Usage:
+```bash
+curve bs create dir --path /test2/test5 
+```
+
+Output:
+```
++---------+
+| RESULT  |
++---------+
+| success |
++---------+
+```
+
 ## Comparison of old and new commands
 
 ### curve fs
 
-|  old   | new  |
-|  ----  | ----  |
-| curvefs_tool check-copyset  | curve fs check copyset |
-| curvefs_tool create-fs  | curve fs create fs |
-| curvefs_tool create-topology  | curve fs create topology |
-| curvefs_tool delete-fs  | curve fs delete fs |
-| curvefs_tool list-copyset  | curve fs list copyset |
-| curvefs_tool list-fs  | curve fs list fs |
-| curvefs_tool list-fs  | curve fs list mountpoint |
-| curvefs_tool list-partition  | curve fs list partition |
-| curvefs_tool query-copyset  | curve fs query copyset |
-| curvefs_tool query-fs  | curve fs query fs |
-| curvefs_tool query-inode  | curve fs query inode |
-| curvefs_tool query-metaserver  | curve fs query metaserver |
-| curvefs_tool query-partition  | curve fs query partition |
-| curvefs_tool status-mds  | curve fs status mds |
-| curvefs_tool status-metaserver  | curve fs status metaserver |
-| curvefs_tool status-etcd  | curve fs status etcd |
-| curvefs_tool status-copyset  | curve fs status copyset |
-| curvefs_tool status-cluster  | curve fs status cluster |
-| curvefs_tool umount-fs  | curve fs umount fs |
-| curvefs_tool usage-inode  | curve fs usage inode |
-| curvefs_tool usage-metadata  | curve fs usage metadata |
+| old                            | new                        |
+| ------------------------------ | -------------------------- |
+| curvefs_tool check-copyset     | curve fs check copyset     |
+| curvefs_tool create-fs         | curve fs create fs         |
+| curvefs_tool create-topology   | curve fs create topology   |
+| curvefs_tool delete-fs         | curve fs delete fs         |
+| curvefs_tool list-copyset      | curve fs list copyset      |
+| curvefs_tool list-fs           | curve fs list fs           |
+| curvefs_tool list-fs           | curve fs list mountpoint   |
+| curvefs_tool list-partition    | curve fs list partition    |
+| curvefs_tool query-copyset     | curve fs query copyset     |
+| curvefs_tool query-fs          | curve fs query fs          |
+| curvefs_tool query-inode       | curve fs query inode       |
+| curvefs_tool query-metaserver  | curve fs query metaserver  |
+| curvefs_tool query-partition   | curve fs query partition   |
+| curvefs_tool status-mds        | curve fs status mds        |
+| curvefs_tool status-metaserver | curve fs status metaserver |
+| curvefs_tool status-etcd       | curve fs status etcd       |
+| curvefs_tool status-copyset    | curve fs status copyset    |
+| curvefs_tool status-cluster    | curve fs status cluster    |
+| curvefs_tool umount-fs         | curve fs umount fs         |
+| curvefs_tool usage-inode       | curve fs usage inode       |
+| curvefs_tool usage-metadata    | curve fs usage metadata    |
 
 ### curve bs
 
-|  old   | new  |
-|  ----  | ----  |
+| old                              | new                        |
+| -------------------------------- | -------------------------- |
 | curve_ops_tool logical-pool-list | curve bs list logical-pool |
-| curve_ops_tool get -fileName= | curve bs query file -path |
-| curve_ops_tool etcd-status | curve bs status etcd |
-| curve_ops_tool mds-status | curve bs status mds |
-| curve_ops_tool server-list | curve bs list server |
-| curve_ops_tool client-list | curve bs list client |
-| curve_ops_tool delete | curve bs delete file |
-| curve_ops_tool list | curve bs list dir |
-| create | curve bs create file/dir |
-| seginfo | curve bs query seginfo |
-| chunk-location | curve bs query chunk |
-| remove-peer | curve bs delete peer |
-| reset-peer | curve bs update peer |
-| space | |
-| status | |
-| chunkserver-status | |
-| client-status | |
-| snapshot-clone-status | |
-| copysets-status | |
-| chunkserver-list | |
-| cluster-status | |
-| clean-recycle | |
-| check-consistency | |
-| transfer-leader | |
-| do-snapshot | |
-| do-snapshot-all | |
-| check-chunkserver | |
-| check-copyset | |
-| check-server | |
-| check-operator | |
-| list-may-broken-vol | |
-| set-copyset-availflag | |
-| update-throttle | |
-| rapid-leader-schedule | |
-| set-scan-state | |
-| scan-status | |
+| curve_ops_tool get -fileName=    | curve bs query file -path  |
+| curve_ops_tool etcd-status       | curve bs status etcd       |
+| curve_ops_tool mds-status        | curve bs status mds        |
+| curve_ops_tool server-list       | curve bs list server       |
+| curve_ops_tool client-list       | curve bs list client       |
+| curve_ops_tool delete            | curve bs delete file       |
+| curve_ops_tool list              | curve bs list dir          |
+| create                           | curve bs create file/dir   |
+| seginfo                          | curve bs query seginfo     |
+| chunk-location                   | curve bs query chunk       |
+| remove-peer                      | curve bs delete peer       |
+| reset-peer                       | curve bs update peer       |
+| space                            | curve bs list space        |
+| status                           |                            |
+| chunkserver-status               |                            |
+| client-status                    |                            |
+| snapshot-clone-status            |                            |
+| copysets-status                  |                            |
+| chunkserver-list                 |                            |
+| cluster-status                   |                            |
+| clean-recycle                    |                            |
+| check-consistency                |                            |
+| transfer-leader                  |                            |
+| do-snapshot                      |                            |
+| do-snapshot-all                  |                            |
+| check-chunkserver                |                            |
+| check-copyset                    |                            |
+| check-server                     |                            |
+| check-operator                   |                            |
+| list-may-broken-vol              |                            |
+| set-copyset-availflag            |                            |
+| update-throttle                  |                            |
+| rapid-leader-schedule            |                            |
+| set-scan-state                   |                            |
+| scan-status                      |                            |

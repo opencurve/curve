@@ -41,6 +41,9 @@ const (
 	IP_PORT_REGEX = "((\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5]):([0-9]|[1-9]\\d{1,3}|[1-5]\\d{4}|6[0-4]\\d{4}|65[0-4]\\d{2}|655[0-2]\\d|6553[0-5]))|(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])"
 	PATH_REGEX    = `^(/[^/ ]*)+/?$`
 	FS_NAME_REGEX = "^([a-z0-9]+\\-?)+$"
+
+	ROOT_PATH       = "/"
+	RECYCLEBIN_PATH = "/RecycleBin"
 )
 
 func IsValidAddr(addr string) bool {
@@ -146,7 +149,7 @@ func ToUnderscoredName(src string) string {
 				if i != 0 && !IsUpper(rune(src[i-1])) && ret[len(ret)-1] != '-' {
 					ret += "_"
 				}
-				ret += string(c-'A'+'a')
+				ret += string(c - 'A' + 'a')
 			} else {
 				ret += string(c)
 			}

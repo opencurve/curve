@@ -405,6 +405,9 @@ var (
 	ErrBsCreateFileOrDirectoryType = func() *CmdError {
 		return NewInternalCmdError(48, "create file or directory fail, err: %s")
 	}
+	ErrBsListLogicalPoolInfo = func() *CmdError {
+		return NewInternalCmdError(49, "list logical pool info fail, the error is: %s")
+	}
 
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {

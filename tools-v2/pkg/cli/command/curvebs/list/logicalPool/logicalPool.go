@@ -43,8 +43,6 @@ import (
 
 const (
 	logicalPoolExample = `$ curve bs list logical-pool`
-	RECYCLEBINDIRNAME  = "RecycleBin"
-	RECYCLEBINDIR      = "/" + RECYCLEBINDIRNAME
 )
 
 type ListLogicalPoolRpc struct {
@@ -57,9 +55,13 @@ var _ basecmd.RpcFunc = (*ListLogicalPoolRpc)(nil) // check interface
 
 type LogicalPoolCommand struct {
 	basecmd.FinalCurveCmd
-	Rpc            []*ListLogicalPoolRpc
-	Metric *basecmd.Metric
-	RecycleAlloc   *nameserver2.GetAllocatedSizeResponse
+	Rpc              []*ListLogicalPoolRpc
+	Metric           *basecmd.Metric
+	recycleAllocRes  *nameserver2.GetAllocatedSizeResponse
+	logicalPoolInfo  []*topology.ListLogicalPoolResponse
+	totalCapacity    uint64
+	allocatedSize    uint64
+	recycleAllocSize uint64
 }
 
 var _ basecmd.FinalCurveCmdFunc = (*LogicalPoolCommand)(nil) // check interface
@@ -124,14 +126,15 @@ func (lCmd *LogicalPoolCommand) Init(cmd *cobra.Command, args []string) error {
 	lCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
 		lCmd.Header, []string{cobrautil.ROW_PHYPOOL},
 	))
-	lCmd.Cmd.Flags().String(config.CURVEBS_PATH, RECYCLEBINDIR, "file path")
+	lCmd.Cmd.Flags().String(config.CURVEBS_PATH, cobrautil.RECYCLEBIN_PATH, "file path")
 	lCmd.Cmd.Flag(config.CURVEBS_PATH).Changed = true
 	lCmd.Metric = basecmd.NewMetric(mdsAddrs, "", timeout)
 	res, err := file.GetAllocatedSize(lCmd.Cmd)
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		return err.ToError()
 	}
-	lCmd.RecycleAlloc = res
+	lCmd.recycleAllocRes = res
+	lCmd.recycleAllocSize = res.GetAllocatedSize()
 	return nil
 }
 
@@ -163,52 +166,30 @@ func (lCmd *LogicalPoolCommand) RunCommand(cmd *cobra.Command, args []string) er
 			row[cobrautil.ROW_TYPE] = loPoolInfo.GetType().String()
 			row[cobrautil.ROW_ALLOC] = loPoolInfo.GetAllocateStatus().String()
 			row[cobrautil.ROW_SCAN] = fmt.Sprintf("%t", loPoolInfo.GetScanEnable())
-			
+
 			total := uint64(0)
 			// capacity
 			metricName := cobrautil.GetPoolLogicalCapacitySubUri(loPoolInfo.GetLogicalPoolName())
-			lCmd.Metric.SubUri = metricName
-			metric, err := basecmd.QueryMetric(lCmd.Metric)
+			value, err := lCmd.queryMetric(metricName)
 			if err.TypeCode() != cmderror.CODE_SUCCESS {
 				errors = append(errors, err)
-			} else {
-				valueStr, err := basecmd.GetMetricValue(metric)
-				if err.TypeCode() != cmderror.CODE_SUCCESS {
-					errors = append(errors, err)
-				}
-				value, errP := strconv.ParseUint(valueStr, 10, 64)
-				if errP != nil {
-					pErr := cmderror.ErrParse()
-					pErr.Format(metricName, pErr)
-					errors = append(errors, pErr)
-				}
-				row[cobrautil.ROW_TOTAL] = humanize.IBytes(value)
-				total = value
 			}
+			row[cobrautil.ROW_TOTAL] = humanize.IBytes(value)
+			total = value
+			lCmd.totalCapacity += value
 
 			// alloc size
 			metricName = cobrautil.GetPoolLogicalAllocSubUri(loPoolInfo.GetLogicalPoolName())
-			lCmd.Metric.SubUri = metricName
-			metric, err = basecmd.QueryMetric(lCmd.Metric)
+			value, err = lCmd.queryMetric(metricName)
 			if err.TypeCode() != cmderror.CODE_SUCCESS {
 				errors = append(errors, err)
-			} else {
-				valueStr, err := basecmd.GetMetricValue(metric)
-				if err.TypeCode() != cmderror.CODE_SUCCESS {
-					errors = append(errors, err)
-				}
-				value, errP := strconv.ParseUint(valueStr, 10, 64)
-				if errP != nil {
-					pErr := cmderror.ErrParse()
-					pErr.Format(metricName, pErr)
-					errors = append(errors, pErr)
-				}
-				row[cobrautil.ROW_USED] = humanize.IBytes(value)
-				row[cobrautil.ROW_LEFT] = humanize.IBytes(total - value)
 			}
+			row[cobrautil.ROW_USED] = humanize.IBytes(value)
+			row[cobrautil.ROW_LEFT] = humanize.IBytes(total - value)
+			lCmd.allocatedSize += value
 
 			// recycle
-			recycle := lCmd.RecycleAlloc.AllocSizeMap[loPoolInfo.GetLogicalPoolID()]
+			recycle := lCmd.recycleAllocRes.AllocSizeMap[loPoolInfo.GetLogicalPoolID()]
 			row[cobrautil.ROW_RECYCLE] = humanize.IBytes(recycle)
 			rows = append(rows, row)
 		}
@@ -219,9 +200,47 @@ func (lCmd *LogicalPoolCommand) RunCommand(cmd *cobra.Command, args []string) er
 	lCmd.TableNew.AppendBulk(list)
 	errRet := cmderror.MergeCmdError(errors)
 	lCmd.Error = errRet
+	lCmd.Result = rows
 	return nil
 }
 
 func (lCmd *LogicalPoolCommand) ResultPlainOutput() error {
 	return output.FinalCmdOutputPlain(&lCmd.FinalCurveCmd)
+}
+
+func (lCmd *LogicalPoolCommand) queryMetric(metricName string) (uint64, *cmderror.CmdError) {
+	lCmd.Metric.SubUri = metricName
+	metric, err := basecmd.QueryMetric(lCmd.Metric)
+	if err.TypeCode() != cmderror.CODE_SUCCESS {
+		return 0, err
+	} else {
+		valueStr, err := basecmd.GetMetricValue(metric)
+		if err.TypeCode() != cmderror.CODE_SUCCESS {
+			return 0, err
+		}
+		value, errP := strconv.ParseUint(valueStr, 10, 64)
+		if errP != nil {
+			pErr := cmderror.ErrParse()
+			pErr.Format(metricName, pErr)
+			return 0, err
+		}
+		return value, cmderror.Success()
+	}
+}
+
+func ListLogicalPoolInfoAndAllocSize(caller *cobra.Command) ([]*topology.ListLogicalPoolResponse, uint64, uint64, uint64, *cmderror.CmdError) {
+	listCmd := NewListLogicalPoolCommand()
+	config.AlignFlagsValue(caller, listCmd.Cmd, []string{
+		config.CURVEBS_MDSADDR, config.RPCRETRYTIMES, config.RPCTIMEOUT,
+	})
+	listCmd.Cmd.SilenceErrors = true
+	listCmd.Cmd.SilenceUsage = true
+	listCmd.Cmd.SetArgs([]string{"--format", config.FORMAT_NOOUT})
+	err := listCmd.Cmd.Execute()
+	if err != nil {
+		retErr := cmderror.ErrBsListLogicalPoolInfo()
+		retErr.Format(err.Error())
+		return nil, 0, 0, 0, retErr
+	}
+	return listCmd.logicalPoolInfo, listCmd.totalCapacity, listCmd.allocatedSize, listCmd.recycleAllocSize, cmderror.Success()
 }

@@ -36,6 +36,7 @@ const (
 	ROW_COPYSET_ID      = "copysetId"
 	ROW_COPYSET_KEY     = "copysetKey"
 	ROW_CREATE_TIME     = "createTime"
+	ROW_CREATED         = "created"
 	ROW_CTIME           = "ctime"
 	ROW_DUMMY_ADDR      = "dummyAddr"
 	ROW_END             = "end"
@@ -59,6 +60,7 @@ const (
 	ROW_LEADER_PEER     = "leaderPeer"
 	ROW_LEFT            = "left"
 	ROW_LENGTH          = "length"
+	ROW_LOCATION        = "location"
 	ROW_LOG_GAP         = "logGap"
 	ROW_LOGICALPOOL     = "logicalpool"
 	ROW_METASERVER      = "metaserver"
@@ -85,6 +87,7 @@ const (
 	ROW_PORT            = "port"
 	ROW_READONLY        = "readonly"
 	ROW_REASON          = "reason"
+	ROW_RECYCLABLE      = "recyclable"
 	ROW_RECYCLE         = "recycle"
 	ROW_RESULT          = "result"
 	ROW_SCAN            = "scan"
@@ -105,7 +108,6 @@ const (
 	ROW_USED            = "used"
 	ROW_VERSION         = "version"
 	ROW_ZONE            = "zone"
-	ROW_LOCATION		= "location"
 
 	// s3
 	ROW_S3CHUNKINFO_CHUNKID = "s3ChunkId"
@@ -114,14 +116,17 @@ const (
 	ROW_S3CHUNKINFO_SIZE    = "s3Size"
 
 	// vale
-	ROW_VALUE_ADD     = "add"
-	ROW_VALUE_DEL     = "del"
-	ROW_VALUE_DNE     = "DNE"
-	ROW_VALUE_OFFLINE = "offline"
-	ROW_VALUE_UNKNOWN = "unknown"
-	ROW_VALUE_SUCCESS = "success"
-	ROW_VALUE_FAILED  = "failed"
-	ROW_VALUE_NULL    = "null"
+	ROW_VALUE_ADD      = "add"
+	ROW_VALUE_DEL      = "del"
+	ROW_VALUE_DNE      = "DNE"
+	ROW_VALUE_FAILED   = "failed"
+	ROW_VALUE_LOGICAL  = "logical"
+	ROW_VALUE_NO_VALUE = "-"
+	ROW_VALUE_NULL     = "null"
+	ROW_VALUE_OFFLINE  = "offline"
+	ROW_VALUE_PHYSICAL = "physical"
+	ROW_VALUE_SUCCESS  = "success"
+	ROW_VALUE_UNKNOWN  = "unknown"
 )
 
 // topology type
