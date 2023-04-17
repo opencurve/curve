@@ -68,7 +68,7 @@ const (
 	VIPER_CURVEBS_OFFSET         = "curvebs.offset"
 	CURVEBS_SIZE                 = "size"
 	VIPER_CURVEBS_SIZE           = "curvebs.size"
-	CURVEBS_DEFAULT_SIZE         = "10 GiB"
+	CURVEBS_DEFAULT_SIZE         = uint64(10)
 	CURVEBS_TYPE                 = "type"
 	VIPER_CURVEBS_TYPE           = "curvebs.type"
 	CURVEBS_STRIPE_UNIT          = "stripeunit"
@@ -281,7 +281,7 @@ func AddBsOffsetRequiredFlag(cmd *cobra.Command) {
 }
 
 func AddBsSizeRequiredFlag(cmd *cobra.Command) {
-	AddBsStringRequiredFlag(cmd, CURVEBS_SIZE, "size, just like: 10GiB")
+	AddBsUint64RequiredFlag(cmd, CURVEBS_SIZE, "size, uint is GiB")
 }
 
 func AddBsFileTypeRequiredFlag(cmd *cobra.Command) {
