@@ -23,7 +23,6 @@ package file
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/dustin/go-humanize"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
@@ -93,11 +92,8 @@ func (uCmd *FileCommand) AddFlags() {
 
 func (uCmd *FileCommand) Init(cmd *cobra.Command, args []string) error {
 	fileName := config.GetBsFlagString(uCmd.Cmd, config.CURVEBS_PATH)
-	sizeStr := config.GetBsFlagString(uCmd.Cmd, config.CURVEBS_SIZE)
-	newSize, err := humanize.ParseBytes(sizeStr)
-	if err != nil {
-		return fmt.Errorf("parse size failed, err: %v", err)
-	}
+	newSize := config.GetBsFlagUint64(uCmd.Cmd, config.CURVEBS_SIZE)
+	newSize = newSize * humanize.GiByte
 	date, errDat := cobrautil.GetTimeofDayUs()
 	owner := config.GetBsFlagString(uCmd.Cmd, config.CURVEBS_USER)
 	if errDat.TypeCode() != cmderror.CODE_SUCCESS {

@@ -92,11 +92,8 @@ func (cCmd *CreateCommand) Init(cmd *cobra.Command, args []string) error {
 		FileType:   &fileType,
 	}
 	if fileType == nameserver2.FileType_INODE_PAGEFILE {
-		sizeStr := config.GetBsFlagString(cCmd.Cmd, config.CURVEBS_SIZE)
-		size, err := humanize.ParseBytes(sizeStr)
-		if err != nil {
-			return fmt.Errorf("parse size[%s] failed, err: %v", sizeStr, err)
-		}
+		size := config.GetBsFlagUint64(cCmd.Cmd, config.CURVEBS_SIZE)
+		size = size * humanize.GiByte
 		createRequest.FileLength = &size
 
 		stripeCount := config.GetBsFlagUint64(cCmd.Cmd, config.CURVEBS_STRIPE_COUNT)
