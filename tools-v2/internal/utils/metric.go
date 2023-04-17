@@ -33,3 +33,11 @@ func GetPoolLogicalCapacitySubUri(poolName string) string {
 func GetPoolLogicalAllocSubUri(poolName string) string {
 	return kVars+ToUnderscoredName(kLogicalPoolMetricPrefix + poolName + "_logicalAlloc")
 }
+
+func GetPoolTotalChunkSizeName(poolName string) string {
+	return kVars+ToUnderscoredName(kLogicalPoolMetricPrefix + poolName + "_chunkSizeTotalBytes")
+}
+
+func GetPoolUsedChunkSizeName(poolName string) string {
+	return kVars+ToUnderscoredName(kLogicalPoolMetricPrefix + poolName + "_chunkSizeUsedBytes")
+}

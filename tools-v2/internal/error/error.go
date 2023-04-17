@@ -412,7 +412,13 @@ var (
 	ErrBsCreateFileOrDirectoryType = func() *CmdError {
 		return NewInternalCmdError(48, "create file or directory fail, err: %s")
 	}
+<<<<<<< HEAD
 >>>>>>> efcbe1c7... [feta]tools-v2:create
+=======
+	ErrBsListLogicalPoolInfo = func() *CmdError {
+		return NewInternalCmdError(49, "list logical pool info fail, the error is: %s")
+	}
+>>>>>>> 4e73df5e... [feat]tools-v2: add space
 
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {
