@@ -1,0 +1,7 @@
+#!/bin/bash
+
+set -e
+
+systemctl disable map_curve_disk.service
+
+exit 0

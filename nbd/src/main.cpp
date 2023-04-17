@@ -93,6 +93,24 @@ static void Usage() {
         << std::endl;
 }
 
+// use for record image and device info to auto map when boot
+static int AddRecord(int flag) {
+    std::string record;
+    int fd = open(CURVETAB_PATH, O_WRONLY | O_APPEND);
+    if (fd < 0) {
+        std::cerr << "curve-nbd: open curvetab file failed.";
+        return -EINVAL;
+    }
+    if (1 == flag) {
+        record = "+\t" + nbdConfig->devpath + "\t" + nbdConfig->imgname + "\n";
+    } else if (-1 == flag) {
+        record = "-\t" + nbdConfig->devpath + "\n";
+    }
+    write(fd, record.c_str(), record.size());
+    close(fd);
+    return 0;
+}
+
 static int NBDConnect() {
     int waitConnectPipe[2];
 
@@ -138,6 +156,10 @@ static int NBDConnect() {
     if (ret < 0) {
         ::write(waitConnectPipe[1], &connectionRes, sizeof(connectionRes));
     } else {
+        ret = AddRecord(1);
+        if (0 != ret) {
+            return ret;
+        }
         connectionRes = 0;
         ::write(waitConnectPipe[1], &connectionRes, sizeof(connectionRes));
         nbdTool->RunServerUntilQuit();
@@ -190,6 +212,10 @@ static int CurveNbdMain(int argc, const char* argv[]) {
                 return -EINVAL;
             }
 
+            r = AddRecord(-1);
+            if (0 != r) {
+                return r;
+            }
             break;
         }
         case Command::List: {

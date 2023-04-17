@@ -30,6 +30,8 @@ local_nbd_package_path: ../../nbd-package
 snapshot_clone_server_log_dir: /data/log/curve/snapshotclone
 local_snapshotcloneserver_package_path: ../curve-snapshotcloneserver
 local_monitor_package_path: ../../curve-monitor
+curvetab_path: /etc/curve
+curve_service_path: /etc/systemd/system
 
 local_snapshotcloneserver_nginx_package_path: ../curve-nginx
 snapshotcloneserver_nginx_dir: /etc/curve/nginx

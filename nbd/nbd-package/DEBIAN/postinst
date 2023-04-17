@@ -1,0 +1,19 @@
+#!/bin/bash
+
+set -e
+
+chmod +x /usr/bin/map_curve_disk.sh
+
+systemctl daemon-reload
+systemctl enable map_curve_disk.service
+systemctl start map_curve_disk.service
+
+CURVETAB=/etc/curve/curvetab
+CURVETABBAK=/etc/curve/curvetab-bak
+
+if [ -f ${CURVETABBAK} ]; then
+    cp -f -p ${CURVETABBAK} ${CURVETAB}
+    rm -f ${CURVETABBAK}
+fi
+
+exit 0
