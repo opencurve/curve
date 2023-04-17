@@ -25,6 +25,8 @@ package create
 import (
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/create/cluster"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/create/dir"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/create/file"
 	"github.com/spf13/cobra"
 )
 
@@ -37,6 +39,8 @@ var _ basecmd.MidCurveCmdFunc = (*CreateCmd)(nil) // check interface
 func (createCmd *CreateCmd) AddSubCommands() {
 	createCmd.Cmd.AddCommand(
 		cluster.NewClusterTopoCmd(),
+		dir.NewDirectoryCommand(),
+		file.NewFileCommand(),
 	)
 }
 

@@ -29,6 +29,7 @@ import (
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	"github.com/opencurve/curve/tools-v2/proto/curvefs/proto/common"
 	"github.com/opencurve/curve/tools-v2/proto/curvefs/proto/topology"
+	"github.com/opencurve/curve/tools-v2/proto/proto/nameserver2"
 )
 
 func TranslateFsType(fsType string) (common.FSType, *cmderror.CmdError) {
@@ -192,4 +193,21 @@ func Topology2Map(topo *topology.ListTopologyResponse) (map[string]interface{}, 
 	ret[POOL_LIST] = poolList
 	retErr := cmderror.MergeCmdErrorExceptSuccess(errs)
 	return ret, retErr
+}
+
+const (
+	TYPE_DIR = "dir"
+	TYPE_FILE = "file"
+)
+
+func TranslateFileType(fileType string) (nameserver2.FileType, *cmderror.CmdError) {
+	switch fileType {
+	case TYPE_DIR:
+		return nameserver2.FileType_INODE_DIRECTORY, cmderror.ErrSuccess()
+	case TYPE_FILE:
+		return nameserver2.FileType_INODE_PAGEFILE, cmderror.ErrSuccess()
+	}
+	retErr := cmderror.ErrBsUnknownFileType()
+	retErr.Format(fileType)
+	return nameserver2.FileType_INODE_DIRECTORY, retErr
 }

@@ -152,7 +152,7 @@ func GetSegment(caller *cobra.Command) (*nameserver2.GetOrAllocateSegmentRespons
 	getCmd.Cmd.SetArgs([]string{"--format", config.FORMAT_NOOUT})
 	err := getCmd.Cmd.Execute()
 	if err != nil {
-		retErr := cmderror.ErrBsGetSegment()
+		retErr := cmderror.ErrBsCreateFileOrDirectoryType()
 		retErr.Format(err.Error())
 		return getCmd.Response, retErr
 	}

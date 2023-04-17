@@ -1040,15 +1040,27 @@ Output:
 | curve_ops_tool etcd-status | curve bs status etcd |
 | curve_ops_tool mds-status | curve bs status mds |
 | curve_ops_tool server-list | curve bs list server |
+| curve_ops_tool client-list | curve bs list client |
+| curve_ops_tool delete | curve bs delete file |
+| curve_ops_tool list | curve bs list dir |
+| create | curve bs create file/dir |
+| seginfo | curve bs query seginfo |
+| chunk-location | curve bs query chunk |
+| remove-peer | curve bs delete peer |
+| reset-peer | curve bs update peer |
 | space | |
 | status | |
 | chunkserver-status | |
 | client-status | |
+<<<<<<< HEAD
 | client-list | curve bs list client |
+=======
+>>>>>>> efcbe1c7... [feta]tools-v2:create
 | snapshot-clone-status | |
 | copysets-status | |
 | chunkserver-list | |
 | cluster-status | |
+<<<<<<< HEAD
 <<<<<<< HEAD
 | list | |
 | seginfo | |
@@ -1058,13 +1070,11 @@ Output:
 | seginfo | curve bs query seginfo |
 | curve_ops_tool delete | curve bs delete file |
 >>>>>>> 747436ee... [feat]tools-v2: bs query chunk
+=======
+>>>>>>> efcbe1c7... [feta]tools-v2:create
 | clean-recycle | |
-| create | |
-| chunk-location | curve bs query chunk |
 | check-consistency | |
-| remove-peer | curve bs delete peer |
 | transfer-leader | |
-| reset-peer | curve bs update peer |
 | do-snapshot | |
 | do-snapshot-all | |
 | check-chunkserver | |
