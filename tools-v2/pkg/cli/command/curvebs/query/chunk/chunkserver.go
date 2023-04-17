@@ -62,9 +62,7 @@ var _ basecmd.FinalCurveCmdFunc = (*ChunkServerListInCoysetCommand)(nil) // chec
 
 func NewQueryChunkServerListCommand() *ChunkServerListInCoysetCommand {
 	chunkCmd := &ChunkServerListInCoysetCommand{
-		FinalCurveCmd: basecmd.FinalCurveCmd{
-			Use: "chunkservers",
-		},
+		FinalCurveCmd: basecmd.FinalCurveCmd{},
 	}
 
 	basecmd.NewFinalCurveCli(&chunkCmd.FinalCurveCmd, chunkCmd)

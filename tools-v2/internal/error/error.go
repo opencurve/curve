@@ -403,7 +403,16 @@ var (
 	ErrBsChunkServerListInCopySets = func() *CmdError {
 		return NewInternalCmdError(46, "get chunkserver list in copysets fail, err: %s")
 	}
+<<<<<<< HEAD
 >>>>>>> 747436ee... [feat]tools-v2: bs query chunk
+=======
+	ErrBsUnknownFileType = func() *CmdError {
+		return NewInternalCmdError(47, "unknown file type[%s], only support: dir, file")
+	}
+	ErrBsCreateFileOrDirectoryType = func() *CmdError {
+		return NewInternalCmdError(48, "create file or directory fail, err: %s")
+	}
+>>>>>>> efcbe1c7... [feta]tools-v2:create
 
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {
@@ -701,6 +710,17 @@ var (
 			message = "successfully expanded the file"
 		default:
 			message = fmt.Sprintf("failed to expand file[%s] to %s, err: %s", path, size, statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
+	ErrCreateFile = func(statusCode nameserver2.StatusCode, path string) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case nameserver2.StatusCode_kOK:
+			message = "Created successfully"
+		default:
+			message = fmt.Sprintf("failed to create file[%s], err: %s", path, statusCode.String())
 		}
 		return NewRpcReultCmdError(code, message)
 	}
