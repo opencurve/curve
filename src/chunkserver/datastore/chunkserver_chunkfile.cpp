@@ -92,7 +92,7 @@ void ChunkFileMetaPage::encode(char *buf) {
     memcpy(buf + len, &beCorrectedSn, sizeof(beCorrectedSn));
     len += sizeof(beCorrectedSn);
 
-    // long unsigned int loc_size 4/8 bytes need convert to big endian
+    // long unsigned int loc_size 8 bytes need convert to big endian
     size_t loc_size = location.size();
     size_t be_loc_size;
     be_loc_size = htobe64(loc_size);
@@ -106,9 +106,9 @@ void ChunkFileMetaPage::encode(char *buf) {
 
         // uint32_t bits 4 bytes need convert to big endian
         uint32_t bits = bitmap->Size();
-        uint32_t netBits = htobe32(bits);
-        memcpy(buf + len, &netBits, sizeof(netBits));
-        len += sizeof(netBits);
+        uint32_t beBits = htobe32(bits);
+        memcpy(buf + len, &beBits, sizeof(beBits));
+        len += sizeof(beBits);
 
         // unsigned long bitmapBytes 4 bytes
         // bitmap char  (bits + 8 - 1) / 8 bytes
@@ -119,13 +119,15 @@ void ChunkFileMetaPage::encode(char *buf) {
 
     // uint32_t crc 4 bytes need convert to network endianness
     uint32_t crc = ::curve::common::CRC32(buf, len);
-    uint32_t netCrc = htobe32(crc);
-    memcpy(buf + len, &netCrc, sizeof(netCrc));
+    uint32_t beCrc = htobe32(crc);
+    memcpy(buf + len, &beCrc, sizeof(beCrc));
+
+    LOG(ERROR) << "calculate crc:" << crc;
+    LOG(ERROR) << "big endian crc:" << beCrc;
 }
 
 CSErrorCode ChunkFileMetaPage::decode(const char *buf) {
     size_t len = 0;
-
     // uint8_t version 1 byte
     memcpy(&version, buf, sizeof(version));
     len += sizeof(version);
@@ -142,14 +144,13 @@ CSErrorCode ChunkFileMetaPage::decode(const char *buf) {
     correctedSn = hostCorrectedSn;
     len += sizeof(correctedSn);
 
-    // long unsigned int loc_size 4/8 bytes need convert to host endianness
+    // long unsigned int loc_size 8 bytes need convert to host endianness
     size_t loc_size;
     size_t host_loc_size;
+    memcpy(&loc_size, buf + len, sizeof(loc_size));
     host_loc_size = be64toh(loc_size);
     loc_size = host_loc_size;
-    memcpy(&loc_size, buf + len, sizeof(loc_size));
     len += sizeof(loc_size);
-
 
     if (loc_size > 0) {
         location = string(buf + len, loc_size);
@@ -173,10 +174,12 @@ CSErrorCode ChunkFileMetaPage::decode(const char *buf) {
     uint32_t crc = ::curve::common::CRC32(buf, len);
     uint32_t recordCrc;
     memcpy(&recordCrc, buf + len, sizeof(recordCrc));
-    uint32_t hostRecordCrc = be32toh(recordCrc);
-    recordCrc = hostRecordCrc;
+    uint32_t hostCrc = be32toh(recordCrc);
+    LOG(ERROR) << "calculate crc:" << crc;
+    LOG(ERROR) << "record crc(big endian):" << recordCrc;
+    LOG(ERROR) << "host crc:" << hostCrc;
     // check crc
-    if (crc != recordCrc) {
+    if (crc != hostCrc) {
         LOG(ERROR) << "Checking Crc32 failed.";
         return CSErrorCode::CrcCheckError;
     }
