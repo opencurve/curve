@@ -231,7 +231,7 @@ func AddBsEtcdAddrFlag(cmd *cobra.Command) {
 }
 
 func AddBsSizeOptionFlag(cmd *cobra.Command) {
-	AddBsStringOptionFlag(cmd, CURVEBS_SIZE, "size, just like: 10GiB")
+	AddBsUint64OptionFlag(cmd, CURVEBS_SIZE, "size, unit is GiB")
 }
 
 func AddBsStripeUnitOptionFlag(cmd *cobra.Command) {
