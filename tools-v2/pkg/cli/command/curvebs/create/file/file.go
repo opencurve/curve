@@ -42,7 +42,6 @@ type fileCommand struct {
 
 var _ basecmd.FinalCurveCmdFunc = (*fileCommand)(nil)
 
-
 func (fCmd *fileCommand) Init(cmd *cobra.Command, args []string) error {
 	config.AddBsFileTypeRequiredFlag(fCmd.Cmd)
 	fCmd.Cmd.ParseFlags([]string{
@@ -77,7 +76,7 @@ func (fCmd *fileCommand) AddFlags() {
 	config.AddBsPathRequiredFlag(fCmd.Cmd)
 	config.AddBsUserOptionFlag(fCmd.Cmd)
 	config.AddBsPasswordOptionFlag(fCmd.Cmd)
-	config.AddBsSizeRequiredFlag(fCmd.Cmd)
+	config.AddBsSizeOptionFlag(fCmd.Cmd)
 	config.AddBsStripeUnitOptionFlag(fCmd.Cmd)
 	config.AddBsStripeCountOptionFlag(fCmd.Cmd)
 }
