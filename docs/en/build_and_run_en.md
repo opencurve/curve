@@ -32,7 +32,7 @@ docker build -t opencurvedocker/curve-base:build-debian9
 docker run -it opencurvedocker/curve-base:build-debian9 /bin/bash
 cd <workspace>
 git clone https://github.com/opencurve/curve.git or git clone https://gitee.com/mirrors/curve.git
-# (Mainland China optional) Replace external dependencies with domestic download points or mirror warehouses, which can speed up compilation： bash replace-curve-repo.sh
+# (Optional for Chinese mainland) Replace external dependencies with domestic download points or mirror warehouses, which can speed up compilation： bash replace-curve-repo.sh
 # before curve v2.0
 bash mk-tar.sh （compile curvebs and make tar package）
 bash mk-deb.sh （compile curvebs and make debian package）
