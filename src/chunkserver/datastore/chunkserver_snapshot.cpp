@@ -51,7 +51,7 @@ void SnapshotMetaPage::encode(char *buf) {
     len += sizeof(beBits);
 
     // unsigned long bitmapBytes 4 bytes
-    // bitmap char  (bits + 8 - 1) / 3 bytes
+    // bitmap char  (bits + 8 - 1) / 8 bytes
     size_t bitmapBytes = (bits + 8 - 1) >> 3;
     memcpy(buf + len, bitmap->GetBitmap(), bitmapBytes);
     len += bitmapBytes;
@@ -61,8 +61,8 @@ void SnapshotMetaPage::encode(char *buf) {
     uint32_t beCrc = htobe32(crc);
     memcpy(buf + len, &beCrc, sizeof(beCrc));
 
-    LOG(ERROR) << "calculate crc:" << crc;
-    LOG(ERROR) << "big endian crc:" << beCrc;
+    LOG(INFO) << "calculate crc:" << crc;
+    LOG(INFO) << "big endian crc:" << beCrc;
 }
 
 CSErrorCode SnapshotMetaPage::decode(const char *buf) {
@@ -101,9 +101,9 @@ CSErrorCode SnapshotMetaPage::decode(const char *buf) {
     memcpy(&recordCrc, buf + len, sizeof(recordCrc));
     uint32_t hostCrc = be32toh(recordCrc);
 
-    LOG(ERROR) << "calculate crc:" << crc;
-    LOG(ERROR) << "record crc(big endian):" << recordCrc;
-    LOG(ERROR) << "host crc:" << hostCrc;
+    LOG(INFO) << "calculate crc:" << crc;
+    LOG(INFO) << "record crc(big endian):" << recordCrc;
+    LOG(INFO) << "host crc:" << hostCrc;
 
     // Verify crc, return an error code if the verification fails
     if (crc != hostCrc) {
@@ -130,6 +130,7 @@ CSErrorCode SnapshotMetaPage::decode(const char *buf) {
     }
     return CSErrorCode::Success;
 }
+
 SnapshotMetaPage::SnapshotMetaPage(const SnapshotMetaPage &metaPage) {
     version = metaPage.version;
     damaged = metaPage.damaged;

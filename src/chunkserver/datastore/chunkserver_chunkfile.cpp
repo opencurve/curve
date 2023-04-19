@@ -122,8 +122,8 @@ void ChunkFileMetaPage::encode(char *buf) {
     uint32_t beCrc = htobe32(crc);
     memcpy(buf + len, &beCrc, sizeof(beCrc));
 
-    LOG(ERROR) << "calculate crc:" << crc;
-    LOG(ERROR) << "big endian crc:" << beCrc;
+    LOG(INFO) << "calculate crc:" << crc;
+    LOG(INFO) << "big endian crc:" << beCrc;
 }
 
 CSErrorCode ChunkFileMetaPage::decode(const char *buf) {
@@ -176,9 +176,9 @@ CSErrorCode ChunkFileMetaPage::decode(const char *buf) {
     uint32_t recordCrc;
     memcpy(&recordCrc, buf + len, sizeof(recordCrc));
     uint32_t hostCrc = be32toh(recordCrc);
-    LOG(ERROR) << "calculate crc:" << crc;
-    LOG(ERROR) << "record crc(big endian):" << recordCrc;
-    LOG(ERROR) << "host crc:" << hostCrc;
+    LOG(INFO) << "calculate crc:" << crc;
+    LOG(INFO) << "record crc(big endian):" << recordCrc;
+    LOG(INFO) << "host crc:" << hostCrc;
     // check crc
     if (crc != hostCrc) {
         LOG(ERROR) << "Checking Crc32 failed.";
@@ -187,8 +187,8 @@ CSErrorCode ChunkFileMetaPage::decode(const char *buf) {
 
     // TODO(yyk) check version compatibility, currrent simple error handing,
     // need detailed implementation later
-    if (!(version == FORMAT_VERSION || version == FORMAT_VERSION_V2 ||
-          version == FORMAT_VERSION_V4)) {
+    if (version != FORMAT_VERSION && version != FORMAT_VERSION_V3 &&
+        version != FORMAT_VERSION_V2 && version != FORMAT_VERSION_V4) {
         LOG(ERROR) << "File format version incompatible."
                    << "file version: " << version << ", valid version: ["
                    << FORMAT_VERSION << ", " << FORMAT_VERSION_V2 << ", "
