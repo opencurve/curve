@@ -5,6 +5,9 @@
 **Note:**
 1. If you just want to experience the deployment and basic functions of Curve, **you do not need to compile Curve**, please refer to [deployment](https://github.com/opencurve/curveadm/wiki).
 2. This document is only used to help you build the Curve code compilation environment, which is convenient for you to participate in the development, debugging and run tests of Curve.
+3. The following image and build procedures are currently only supported on x86 systems.
+4. To compile [arm branch](https://github.com/opencurve/curve/pull/2408), please follow [Dockerfile](https://github.com/opencurve/curve/blob/master/docker/debian9/compile/Dockerfile) to package and compile the image.
+5. Currently the master branch does not support compiling and running on the arm system
 
 ## Compile with docker (recommended)
 
