@@ -119,7 +119,8 @@ void ChunkFileMetaPage::encode(char *buf) {
 
     // uint32_t crc 4 bytes need convert to network endianness
     uint32_t crc = ::curve::common::CRC32(buf, len);
-    uint32_t beCrc = htobe32(crc);
+    // uint32_t beCrc = htobe32(crc);
+    uint32_t beCrc = crc;
     memcpy(buf + len, &beCrc, sizeof(beCrc));
 
     LOG(INFO) << "calculate crc:" << crc;
@@ -175,7 +176,8 @@ CSErrorCode ChunkFileMetaPage::decode(const char *buf) {
     uint32_t crc = ::curve::common::CRC32(buf, len);
     uint32_t recordCrc;
     memcpy(&recordCrc, buf + len, sizeof(recordCrc));
-    uint32_t hostCrc = be32toh(recordCrc);
+    // uint32_t hostCrc = be32toh(recordCrc);
+    uint32_t hostCrc = recordCrc;
     LOG(INFO) << "calculate crc:" << crc;
     LOG(INFO) << "record crc(big endian):" << recordCrc;
     LOG(INFO) << "host crc:" << hostCrc;
