@@ -128,6 +128,7 @@ void ChunkFileMetaPage::encode(char *buf) {
 
 CSErrorCode ChunkFileMetaPage::decode(const char *buf) {
     size_t len = 0;
+
     // uint8_t version 1 byte
     memcpy(&version, buf, sizeof(version));
     len += sizeof(version);
@@ -191,7 +192,7 @@ CSErrorCode ChunkFileMetaPage::decode(const char *buf) {
         LOG(ERROR) << "File format version incompatible."
                    << "file version: " << version << ", valid version: ["
                    << FORMAT_VERSION << ", " << FORMAT_VERSION_V2 << ", "
-                   << FORMAT_VERSION_V4 << "]";
+                   << FORMAT_VERSION_V3 << ", " << FORMAT_VERSION_V4 << "]";
         return CSErrorCode::IncompatibleError;
     } else if (version == FORMAT_VERSION) {
         version = FORMAT_VERSION_V3;

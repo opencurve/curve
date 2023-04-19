@@ -40,9 +40,9 @@ void SnapshotMetaPage::encode(char *buf) {
     len += sizeof(damaged);
 
     // uint64_t sn 8 bytes need convert to big endian in encode
-    uint64_t u64BeSn = htobe64(sn);
-    memcpy(buf + len, &u64BeSn, sizeof(u64BeSn));
-    len += sizeof(u64BeSn);
+    uint64_t beSn = htobe64(sn);
+    memcpy(buf + len, &beSn, sizeof(beSn));
+    len += sizeof(beSn);
 
     // uint32_t bits 4 bytes need convert to big endian
     uint32_t bits = bitmap->Size();
@@ -51,8 +51,8 @@ void SnapshotMetaPage::encode(char *buf) {
     len += sizeof(beBits);
 
     // unsigned long bitmapBytes 4 bytes
-    // bitmap char  (bits + 8 - 1) / 8 bytes
-    size_t bitmapBytes = (bits + 8 - 1) / 8;
+    // bitmap char  (bits + 8 - 1) / 3 bytes
+    size_t bitmapBytes = (bits + 8 - 1) >> 3;
     memcpy(buf + len, bitmap->GetBitmap(), bitmapBytes);
     len += bitmapBytes;
 
@@ -60,6 +60,9 @@ void SnapshotMetaPage::encode(char *buf) {
     uint32_t crc = ::curve::common::CRC32(buf, len);
     uint32_t beCrc = htobe32(crc);
     memcpy(buf + len, &beCrc, sizeof(beCrc));
+
+    LOG(ERROR) << "calculate crc:" << crc;
+    LOG(ERROR) << "big endian crc:" << beCrc;
 }
 
 CSErrorCode SnapshotMetaPage::decode(const char *buf) {
@@ -83,41 +86,50 @@ CSErrorCode SnapshotMetaPage::decode(const char *buf) {
     uint32_t bits = 0;
     memcpy(&bits, buf + len, sizeof(bits));
     uint32_t hostBits = be32toh(bits);
+    bits = hostBits;
     len += sizeof(hostBits);
-    bitmap = std::make_shared<Bitmap>(hostBits, buf + len);
 
     // unsigned long bitmapBytes 4 bytes
     // bitmap char  (bits + 8 - 1) / 8 bytes
-    size_t bitmapBytes = (bitmap->Size() + 8 - 1) / 8;
+    bitmap = std::make_shared<Bitmap>(bits, buf + len);
+    size_t bitmapBytes = (bitmap->Size() + 8 - 1) >> 3;
     len += bitmapBytes;
 
     // uint32_t crc 4 bytes need convert to host endianness
     uint32_t crc = ::curve::common::CRC32(buf, len);
     uint32_t recordCrc;
     memcpy(&recordCrc, buf + len, sizeof(recordCrc));
-    uint32_t hostRecordCrc = be32toh(recordCrc);
+    uint32_t hostCrc = be32toh(recordCrc);
+
+    LOG(ERROR) << "calculate crc:" << crc;
+    LOG(ERROR) << "record crc(big endian):" << recordCrc;
+    LOG(ERROR) << "host crc:" << hostCrc;
 
     // Verify crc, return an error code if the verification fails
-    if (crc != hostRecordCrc) {
+    if (crc != hostCrc) {
         LOG(ERROR) << "Checking Crc32 failed.";
         return CSErrorCode::CrcCheckError;
     }
 
     // TODO(yyk) judge version compatibility, simple processing at present,
     // detailed implementation later
-    if (version != FORMAT_VERSION || version != FORMAT_VERSION_V3) {
+    if (version != FORMAT_VERSION && version != FORMAT_VERSION_V3 &&
+        version != FORMAT_VERSION_V2 && version != FORMAT_VERSION_V4) {
         LOG(ERROR) << "File format version incompatible."
                    << "file version: " << static_cast<uint32_t>(version)
                    << ", format version: "
                    << static_cast<uint32_t>(FORMAT_VERSION) << "/"
-                   << static_cast<uint32_t>(FORMAT_VERSION_V3);
+                   << static_cast<uint32_t>(FORMAT_VERSION_V2) << "/"
+                   << static_cast<uint32_t>(FORMAT_VERSION_V3) << "/"
+                   << static_cast<uint32_t>(FORMAT_VERSION_V4) << "/";
         return CSErrorCode::IncompatibleError;
-    } else if (version != FORMAT_VERSION_V3) {
+    } else if (version == FORMAT_VERSION) {
         version = FORMAT_VERSION_V3;
+    } else if (version == FORMAT_VERSION_V2) {
+        version = FORMAT_VERSION_V4;
     }
     return CSErrorCode::Success;
 }
-
 SnapshotMetaPage::SnapshotMetaPage(const SnapshotMetaPage &metaPage) {
     version = metaPage.version;
     damaged = metaPage.damaged;
