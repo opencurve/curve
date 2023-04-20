@@ -9,6 +9,7 @@
 3. 以下镜像和编译过程目前仅支持 x86 系统
 4. 如要编译[arm分支](https://github.com/opencurve/curve/pull/2408)，请根据 [Dockerfile](https://github.com/opencurve/curve/blob/master/docker/debian9/compile/Dockerfile)打包编译镜像
 5. 目前master分支不支持在arm系统上编译运行
+6. 推荐 debian 10及以上版本的操作系统
 
 ## 使用Docker进行编译（推荐方式）
 
@@ -33,16 +34,27 @@ docker build -t opencurvedocker/curve-base:build-debian9
 ### 在docker镜像中编译
 
 ```bash
-docker run -it opencurvedocker/curve-base:build-debian9 /bin/bash
-cd <workspace>
 git clone https://github.com/opencurve/curve.git 或者 git clone https://gitee.com/mirrors/curve.git
+cd curve
+# 如果你想在容器内完成编译+制作+上传镜像的操作，可以添加以下参数
+# -v /var/run/docker.sock:/var/run/docker.sock -v /root/.docker:/root/.docker
+# --rm 会在容器退出后自动删除容器,如果你想保留容器，可以去掉该参数
+docker run --rm -v $(pwd):/curve -w /curve -v ${HOME}/.cache:${HOME}/.cache -v ${HOME}/go:${HOME}/go --user $(id -u ${USER}):$(id -g ${USER}) -v /etc/passwd:/etc/passwd:ro -v /etc/group:/etc/group:ro --privileged -it opencurvedocker/curve-base:build-debian9 bash
 # （中国大陆可选）将外部依赖替换为国内下载点或镜像仓库，可以加快编译速度： bash replace-curve-repo.sh
+
 # curve v2.0 之前
 bash mk-tar.sh （编译 curvebs 并打tar包）
 bash mk-deb.sh （编译 curvebs 并打debian包）
+
 # （当前）curve v2.0 及之后
-编译 curvebs: cd curve && make build stor=bs dep=1
-编译 curvefs: cd curve && make build stor=fs dep=1
+# 编译 curvebs:
+make build stor=bs dep=1
+# or
+make dep stor=bs && make build stor=bs
+# 编译 curvefs:
+make build stor=fs dep=1
+# or
+make dep stor=fs && make build stor=fs
 ```
 
 **注意：** `mk-tar.sh` 和 `mk-deb.sh` 用于 curve v2.0 之前版本的编译打包，v2.0 版本之后不再维护。
@@ -73,9 +85,35 @@ git clone https://github.com/opencurve/curve.git 或者 git clone https://gitee.
 # curve v2.0 之前
 bash mk-tar.sh （编译 curvebs 并打tar包）
 bash mk-deb.sh （编译 curvebs 并打debian包）
+
 # （当前）curve v2.0 及之后
-编译 curvebs: cd curve && make build stor=bs dep=1
-编译 curvefs: cd curve && make build stor=fs dep=1
+# 编译 curvebs:
+make build stor=bs dep=1
+# or
+make dep stor=bs && make build stor=bs
+# 编译 curvefs: 
+make build stor=fs dep=1
+# or
+make dep stor=fs && make build stor=fs
+```
+### 制作镜像
+
+该步骤可以在容器内执行也可以在物理机上执行。
+注意若是在容器内执行，需要在执行 `docker run` 命令时添加 `-v /var/run/docker.sock:/var/run/docker.sock -v /root/.docker:/root/.docker` 参数。
+
+```bash
+# 编译 curvebs:
+# 后面的tag参数可以自定义，用于上传到镜像仓库
+make image stor=bs tag=test
+# 编译 curvefs: 
+make image stor=fs tag=test
+```
+
+### 上传镜像
+
+```bash
+# test 为上一步中的tag参数
+docker push test
 ```
 
 ## 测试用例编译及执行
