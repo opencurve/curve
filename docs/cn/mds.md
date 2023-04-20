@@ -15,7 +15,7 @@ MDS是中心节点，负责元数据管理、集群状态收集与调度。MDS�
 - Heartbeat: 心跳模块。跟chunkserver进行交互，收集chunkserver上的负载信息，copyset信息等。
 - Schedule: 调度模块。用于自动容错和负载均衡。
 
-## Topoloy
+## Topology
 
  topology用于管理和组织机器，利用底层机器的放置、网络的规划以面向业务提供如下功能和非功能需求。
 

@@ -36,38 +36,47 @@ import (
 
 const (
 	// curvebs
-	CURVEBS_MDSADDR             = "mdsaddr"
-	VIPER_CURVEBS_MDSADDR       = "curvebs.mdsAddr"
-	CURVEBS_MDSDUMMYADDR        = "mdsdummyaddr"
-	VIPER_CURVEBS_MDSDUMMYADDR  = "curvebs.mdsDummyAddr"
-	CURVEBS_ETCDADDR            = "etcdaddr"
-	VIPER_CURVEBS_ETCDADDR      = "curvebs.etcdAddr"
-	CURVEBS_PATH                = "path"
-	VIPER_CURVEBS_PATH          = "curvebs.path"
-	CURVEBS_USER                = "user"
-	VIPER_CURVEBS_USER          = "curvebs.root.user"
-	CURVEBS_DEFAULT_USER        = "root"
-	CURVEBS_PASSWORD            = "password"
-	VIPER_CURVEBS_PASSWORD      = "curvebs.root.password"
-	CURVEBS_DEFAULT_PASSWORD    = "root_password"
-	CURVEBS_CLUSTERMAP          = "clustermap"
-	VIPER_CURVEBS_CLUSTERMAP    = "curvebs.clustermap"
-	CURVEBS_FILENAME            = "filename"
-	VIPER_CURVEBS_FILENAME      = "curvebs.filename"
-	CURVEBS_FORCEDELETE         = "forcedelete"
-	CURVEBS_DEFAULT_FORCEDELETE = false
-	CURVEBS_DIR                 = "dir"
-	VIPER_CURVEBS_DIR           = "curvebs.dir"
-	CURVEBS_LOGIC_POOL_ID       = "logicalpoolid"
-	VIPER_CURVEBS_LOGIC_POOL_ID = "curvebs.logicalpoolid"
-	CURVEBS_COPYSET_ID          = "copysetid"
-	VIPER_CURVEBS_COPYSET_ID    = "curvebs.copysetid"
-	CURVEBS_PEERS_ADDRESS       = "peers"
-	VIPER_CURVEBS_PEERS_ADDRESS = "curvebs.peers"
-	CURVEBS_OFFSET              = "offset"
-	VIPER_CURVEBS_OFFSET        = "curvebs.offset"
-	CURVEBS_SIZE                = "size"
-	VIPER_CURVEBS_SIZE          = "curvebs.size"
+	CURVEBS_MDSADDR              = "mdsaddr"
+	VIPER_CURVEBS_MDSADDR        = "curvebs.mdsAddr"
+	CURVEBS_MDSDUMMYADDR         = "mdsdummyaddr"
+	VIPER_CURVEBS_MDSDUMMYADDR   = "curvebs.mdsDummyAddr"
+	CURVEBS_ETCDADDR             = "etcdaddr"
+	VIPER_CURVEBS_ETCDADDR       = "curvebs.etcdAddr"
+	CURVEBS_PATH                 = "path"
+	VIPER_CURVEBS_PATH           = "curvebs.path"
+	CURVEBS_USER                 = "user"
+	VIPER_CURVEBS_USER           = "curvebs.root.user"
+	CURVEBS_DEFAULT_USER         = "root"
+	CURVEBS_PASSWORD             = "password"
+	VIPER_CURVEBS_PASSWORD       = "curvebs.root.password"
+	CURVEBS_DEFAULT_PASSWORD     = "root_password"
+	CURVEBS_CLUSTERMAP           = "clustermap"
+	VIPER_CURVEBS_CLUSTERMAP     = "curvebs.clustermap"
+	CURVEBS_FILENAME             = "filename"
+	VIPER_CURVEBS_FILENAME       = "curvebs.filename"
+	CURVEBS_FORCEDELETE          = "forcedelete"
+	CURVEBS_DEFAULT_FORCEDELETE  = false
+	CURVEBS_DIR                  = "dir"
+	VIPER_CURVEBS_DIR            = "curvebs.dir"
+	CURVEBS_LOGIC_POOL_ID        = "logicalpoolid"
+	VIPER_CURVEBS_LOGIC_POOL_ID  = "curvebs.logicalpoolid"
+	CURVEBS_COPYSET_ID           = "copysetid"
+	VIPER_CURVEBS_COPYSET_ID     = "curvebs.copysetid"
+	CURVEBS_PEERS_ADDRESS        = "peers"
+	VIPER_CURVEBS_PEERS_ADDRESS  = "curvebs.peers"
+	CURVEBS_OFFSET               = "offset"
+	VIPER_CURVEBS_OFFSET         = "curvebs.offset"
+	CURVEBS_SIZE                 = "size"
+	VIPER_CURVEBS_SIZE           = "curvebs.size"
+	CURVEBS_DEFAULT_SIZE         = uint64(10)
+	CURVEBS_TYPE                 = "type"
+	VIPER_CURVEBS_TYPE           = "curvebs.type"
+	CURVEBS_STRIPE_UNIT          = "stripeunit"
+	VIPER_CURVEBS_STRIPE_UNIT    = "curvebs.stripeunit"
+	CURVEBS_DEFAULT_STRIPE_UNIT  = "32 KiB"
+	CURVEBS_STRIPE_COUNT         = "stripecount"
+	VIPER_CURVEBS_STRIPE_COUNT   = "curvebs.stripecount"
+	CURVEBS_DEFAULT_STRIPE_COUNT = uint64(32)
 )
 
 var (
@@ -90,13 +99,18 @@ var (
 		CURVEBS_CLUSTERMAP:    VIPER_CURVEBS_CLUSTERMAP,
 		CURVEBS_OFFSET:        VIPER_CURVEBS_OFFSET,
 		CURVEBS_SIZE:          VIPER_CURVEBS_SIZE,
+		CURVEBS_STRIPE_UNIT:   VIPER_CURVEBS_STRIPE_UNIT,
+		CURVEBS_STRIPE_COUNT:  VIPER_CURVEBS_STRIPE_COUNT,
 	}
 
 	BSFLAG2DEFAULT = map[string]interface{}{
 		// bs
-		CURVEBS_USER:        CURVEBS_DEFAULT_USER,
-		CURVEBS_PASSWORD:    CURVEBS_DEFAULT_PASSWORD,
-		CURVEBS_FORCEDELETE: CURVEBS_DEFAULT_FORCEDELETE,
+		CURVEBS_USER:         CURVEBS_DEFAULT_USER,
+		CURVEBS_PASSWORD:     CURVEBS_DEFAULT_PASSWORD,
+		CURVEBS_FORCEDELETE:  CURVEBS_DEFAULT_FORCEDELETE,
+		CURVEBS_SIZE:         CURVEBS_DEFAULT_SIZE,
+		CURVEBS_STRIPE_UNIT:  CURVEBS_DEFAULT_STRIPE_UNIT,
+		CURVEBS_STRIPE_COUNT: CURVEBS_DEFAULT_STRIPE_COUNT,
 	}
 )
 
@@ -124,11 +138,23 @@ func AddBsStringSliceRequiredFlag(cmd *cobra.Command, name string, usage string)
 }
 
 func AddBsStringOptionFlag(cmd *cobra.Command, name string, usage string) {
-	defaultValue := FLAG2DEFAULT[name]
+	defaultValue := BSFLAG2DEFAULT[name]
 	if defaultValue == nil {
 		defaultValue = ""
 	}
 	cmd.Flags().String(name, defaultValue.(string), usage)
+	err := viper.BindPFlag(BSFLAG2VIPER[name], cmd.Flags().Lookup(name))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
+func AddBsUint64OptionFlag(cmd *cobra.Command, name string, usage string) {
+	defaultValue := BSFLAG2DEFAULT[name]
+	if defaultValue == nil {
+		defaultValue = 0
+	}
+	cmd.Flags().Uint64(name, defaultValue.(uint64), usage)
 	err := viper.BindPFlag(BSFLAG2VIPER[name], cmd.Flags().Lookup(name))
 	if err != nil {
 		cobra.CheckErr(err)
@@ -204,6 +230,18 @@ func AddBsEtcdAddrFlag(cmd *cobra.Command) {
 	AddBsStringOptionFlag(cmd, CURVEBS_ETCDADDR, "etcd address, should be like 127.0.0.1:8700,127.0.0.1:8701,127.0.0.1:8702")
 }
 
+func AddBsSizeOptionFlag(cmd *cobra.Command) {
+	AddBsUint64OptionFlag(cmd, CURVEBS_SIZE, "size, unit is GiB")
+}
+
+func AddBsStripeUnitOptionFlag(cmd *cobra.Command) {
+	AddBsStringOptionFlag(cmd, CURVEBS_STRIPE_UNIT, "stripe volume uint, just like: 32KiB")
+}
+
+func AddBsStripeCountOptionFlag(cmd *cobra.Command) {
+	AddBsUint64OptionFlag(cmd, CURVEBS_STRIPE_COUNT, "stripe volume count")
+}
+
 // add flag required
 // add path[required]
 func AddBsPathRequiredFlag(cmd *cobra.Command) {
@@ -243,7 +281,11 @@ func AddBsOffsetRequiredFlag(cmd *cobra.Command) {
 }
 
 func AddBsSizeRequiredFlag(cmd *cobra.Command) {
-	AddBsStringRequiredFlag(cmd, CURVEBS_SIZE, "size, just like: 10GiB")
+	AddBsUint64RequiredFlag(cmd, CURVEBS_SIZE, "size, uint is GiB")
+}
+
+func AddBsFileTypeRequiredFlag(cmd *cobra.Command) {
+	AddBsStringRequiredFlag(cmd, CURVEBS_TYPE, "file type, file or dir")
 }
 
 // get stingslice flag
@@ -290,7 +332,7 @@ func GetBsFlagUint64(cmd *cobra.Command, flagName string) uint64 {
 	if cmd.Flag(flagName).Changed {
 		value, _ = cmd.Flags().GetUint64(flagName)
 	} else {
-		value = viper.GetUint64(FLAG2VIPER[flagName])
+		value = viper.GetUint64(BSFLAG2VIPER[flagName])
 	}
 	return value
 }
