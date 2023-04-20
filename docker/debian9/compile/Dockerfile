@@ -19,7 +19,7 @@ RUN echo "deb http://mirrors.163.com/debian/ stretch main\n" \
     && apt-get -y install \
     g++ \
     wget \
-    clang \
+    clang-11 \
     git \
     libnl-genl-3-dev \
     libssl-dev \
@@ -54,6 +54,8 @@ RUN echo "deb http://mirrors.163.com/debian/ stretch main\n" \
     unzip \
     musl-tools \
     libunwind8-dev \
+    && ln -s /usr/bin/clang-11 /usr/bin/clang  \
+    && ln -s /usr/bin/clang++-11 /usr/bin/clang++  \
     && mkdir -p /etc/apt/keyrings \
     && curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg \
     && echo  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
