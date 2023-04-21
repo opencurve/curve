@@ -159,8 +159,7 @@ class MdsClient {
 
 class MdsClientImpl : public MdsClient {
  public:
-    explicit MdsClientImpl(const std::string &metricPrefix = "")
-        : mdsClientMetric_(metricPrefix) {}
+    MdsClientImpl() = default;
 
     FSStatusCode Init(const ::curve::client::MetaServerOption &mdsOpt,
                       MDSBaseClient *baseclient) override;
