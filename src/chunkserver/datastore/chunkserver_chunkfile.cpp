@@ -119,7 +119,10 @@ void ChunkFileMetaPage::encode(char *buf) {
 
     // uint32_t crc 4 bytes
     uint32_t crc = ::curve::common::CRC32(buf, len);
-    memcpy(buf + len, &crc, sizeof(crc));
+    uint32_t beCrc = crc;
+    memcpy(buf + len, &beCrc, sizeof(beCrc));
+
+    LOG(INFO) << "calculate crc:" << crc;
 }
 
 CSErrorCode ChunkFileMetaPage::decode(const char *buf) {
@@ -172,8 +175,11 @@ CSErrorCode ChunkFileMetaPage::decode(const char *buf) {
     uint32_t recordCrc;
     memcpy(&recordCrc, buf + len, sizeof(recordCrc));
 
+    uint32_t hostCrc = recordCrc;
+    LOG(INFO) << "calculate crc:" << crc;
+    LOG(INFO) << "host crc:" << hostCrc;
     // check crc
-    if (crc != recordCrc) {
+    if (crc != hostCrc) {
         LOG(ERROR) << "Checking Crc32 failed.";
         return CSErrorCode::CrcCheckError;
     }
@@ -194,7 +200,6 @@ CSErrorCode ChunkFileMetaPage::decode(const char *buf) {
     }
     return CSErrorCode::Success;
 }
-
 uint64_t CSChunkFile::syncChunkLimits_ = 2 * 1024 * 1024;
 uint64_t CSChunkFile::syncThreshold_ = 64 * 1024;
 
