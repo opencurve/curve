@@ -63,7 +63,7 @@ curve 的命令分为两大类：
    根命令是一种特殊的中间命令，即为 curve。
 
 以命令 curve bs list server 为例：
-curve bs list 为中间命令，server 为最终命令。其中 bs list 对应的 go 文件分别为：[bs.go](pkg/cli/command/curvebs/bs.go) 和 [list.go](pkg/cli/command/curvebs/list/list.go)；server 对应的 go 文件为：[server.go](pkg/cli/command/curvebs/list/server/server.go)。
+curve bs list 为中间命令，server 为最终命令。其中 bs list 对应的 go 文件分别为：[bs.go](../../pkg/cli/command/curvebs/bs.go) 和 [list.go](../../pkg/cli/command/curvebs/list/list.go)；server 对应的 go 文件为：[server.go](../../pkg/cli/command/curvebs/list/server/server.go)。
 该命令的输出为：
 
 ```shell
@@ -107,7 +107,7 @@ func NewListCommand() *cobra.Command {
 }
 ```
 
-类 ListCommand 继承接口 `basecmd.MidCurveCmd`表示它是一个中间命令；`func (listCmd *ListCommand) AddSubCommands() {...}` 用来添加子命令，该条命令的子命令包括在包 `logicalpool` 和 `server` 包下各自 New 函数返回的 cobra.Command 命令，后面会以。
+类 ListCommand 继承接口 `basecmd.MidCurveCmd`，表示它是一个中间命令；`func (listCmd *ListCommand) AddSubCommands() {...}` 用来添加子命令，该条命令的子命令包括在 `logicalpool` 、 `server` 等包下各自 New 函数返回的 cobra.Command 命令。中间命令的子命令可以是中间命令或最终命令，但最终会以最终命令结束。
 
 下面是最终命令 `server` (pkg/cli/command/curvebs/list/server/server.go) 中的 rpc 相关的部分代码：
 
