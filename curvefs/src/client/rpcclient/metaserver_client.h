@@ -172,8 +172,7 @@ class MetaServerClient {
 
 class MetaServerClientImpl : public MetaServerClient {
  public:
-    explicit MetaServerClientImpl(const std::string &metricPrefix = "")
-        : metric_(metricPrefix) {}
+    MetaServerClientImpl() = default;
 
     MetaStatusCode
     Init(const ExcutorOpt &excutorOpt, const ExcutorOpt &excutorInternalOpt,
