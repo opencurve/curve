@@ -93,11 +93,11 @@ class FuseClient {
         dentryManager_(std::make_shared<DentryCacheManagerImpl>(metaClient_)),
         dirBuf_(std::make_shared<DirBuffer>()),
         fsInfo_(nullptr),
-        mdsBase_(nullptr),
-        isStop_(true),
         init_(false),
         enableSumInDir_(false),
-        warmupManager_(nullptr) {}
+        warmupManager_(nullptr),
+        mdsBase_(nullptr),
+        isStop_(true) {}
 
     virtual ~FuseClient() {}
 
@@ -112,11 +112,11 @@ class FuseClient {
             dentryManager_(dentryManager),
             dirBuf_(std::make_shared<DirBuffer>()),
             fsInfo_(nullptr),
-            mdsBase_(nullptr),
-            isStop_(true),
             init_(false),
             enableSumInDir_(false),
-            warmupManager_(warmupManager) {}
+            warmupManager_(warmupManager),
+            mdsBase_(nullptr),
+            isStop_(true) {}
 
     virtual CURVEFS_ERROR Init(const FuseClientOption &option);
 
@@ -221,11 +221,16 @@ class FuseClient {
                                       struct fuse_file_info* fi) = 0;
     virtual CURVEFS_ERROR FuseOpFlush(fuse_req_t req, fuse_ino_t ino,
                                       struct fuse_file_info *fi) {
+        (void)req;
+        (void)ino;
+        (void)fi;
         return CURVEFS_ERROR::OK;
     }
 
     virtual CURVEFS_ERROR FuseOpStatFs(fuse_req_t req, fuse_ino_t ino,
                                        struct statvfs* stbuf) {
+        (void)req;
+        (void)ino;
         // TODO(chengyi01,wuhanqing): implement in s3 and volume client
         stbuf->f_frsize = stbuf->f_bsize = fsInfo_->blocksize();
         stbuf->f_blocks = 10UL << 30;

@@ -66,7 +66,6 @@ TEST(MDSChangeTest, MDSFailoverTest) {
 
     rpcexcutor.SetOption(metaopt.rpcRetryOpt);
 
-    int currentWorkMDSIndex = 1;
     int mds0RetryTimes = 0;
     int mds1RetryTimes = 0;
     int mds2RetryTimes = 0;

@@ -54,8 +54,8 @@ using ::curve::kvstorage::EtcdClientImp;
 namespace curvefs {
 namespace mds {
 
-const char* kEtcdAddr = "127.0.0.1:20032";
-const char* kMdsListenAddr = "127.0.0.1:20035";
+const char *kEtcdAddr = "127.0.0.1:20032";
+const char *kMdsListenAddr = "127.0.0.1:20035";
 
 class MdsTest : public ::testing::Test {
  protected:
@@ -63,9 +63,7 @@ class MdsTest : public ::testing::Test {
 
     void TearDown() override {}
 
-    static void ClearEnv() {
-        system("rm -rf curve_fs_test_mds.etcd");
-    }
+    static void ClearEnv() { system("rm -rf curve_fs_test_mds.etcd"); }
 
     static void StartEtcd() {
         etcdPid_ = fork();
@@ -88,7 +86,8 @@ class MdsTest : public ::testing::Test {
         }
 
         auto client = std::make_shared<EtcdClientImp>();
-        EtcdConf conf{const_cast<char*>(kEtcdAddr), strlen(kEtcdAddr), 1000};
+        EtcdConf conf{const_cast<char *>(kEtcdAddr),
+                      static_cast<int>(strlen(kEtcdAddr)), 1000};
         uint64_t now = curve::common::TimeUtility::GetTimeofDaySec();
         bool initSucc = false;
         while (curve::common::TimeUtility::GetTimeofDaySec() - now <= 50) {
@@ -124,7 +123,7 @@ class MdsTest : public ::testing::Test {
 pid_t MdsTest::etcdPid_ = 0;
 
 void GetChunkIds(std::shared_ptr<curve::common::Configuration> conf,
-                 int numChunkIds, vector<uint64_t>* data) {
+                 int numChunkIds, vector<uint64_t> *data) {
     brpc::Channel channel;
     std::string allocateServer(kMdsListenAddr);
     if (channel.Init(allocateServer.c_str(), NULL) != 0) {
@@ -134,7 +133,7 @@ void GetChunkIds(std::shared_ptr<curve::common::Configuration> conf,
         return;
     }
 
-    brpc::Controller* cntl = new brpc::Controller();
+    brpc::Controller *cntl = new brpc::Controller();
     AllocateS3ChunkRequest request;
     AllocateS3ChunkResponse response;
     curvefs::mds::MdsService_Stub stub(&channel);

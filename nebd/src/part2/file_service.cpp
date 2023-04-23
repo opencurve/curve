@@ -118,6 +118,7 @@ void NebdFileServiceImpl::OpenFile(
     const nebd::client::OpenFileRequest* request,
     nebd::client::OpenFileResponse* response,
     google::protobuf::Closure* done) {
+    (void)cntl_base;
     brpc::ClosureGuard doneGuard(done);
     response->set_retcode(RetCode::kNoOK);
 
@@ -282,6 +283,7 @@ void NebdFileServiceImpl::GetInfo(
     const nebd::client::GetInfoRequest* request,
     nebd::client::GetInfoResponse* response,
     google::protobuf::Closure* done) {
+    (void)cntl_base;
     brpc::ClosureGuard doneGuard(done);
     response->set_retcode(RetCode::kNoOK);
 
@@ -306,6 +308,7 @@ void NebdFileServiceImpl::CloseFile(
     const nebd::client::CloseFileRequest* request,
     nebd::client::CloseFileResponse* response,
     google::protobuf::Closure* done) {
+    (void)cntl_base;
     brpc::ClosureGuard doneGuard(done);
     response->set_retcode(RetCode::kNoOK);
 
@@ -326,6 +329,7 @@ void NebdFileServiceImpl::ResizeFile(
     const nebd::client::ResizeRequest* request,
     nebd::client::ResizeResponse* response,
     google::protobuf::Closure* done) {
+    (void)cntl_base;
     brpc::ClosureGuard doneGuard(done);
     response->set_retcode(RetCode::kNoOK);
 
@@ -345,6 +349,7 @@ void NebdFileServiceImpl::InvalidateCache(
     const nebd::client::InvalidateCacheRequest* request,
     nebd::client::InvalidateCacheResponse* response,
     google::protobuf::Closure* done) {
+    (void)cntl_base;
     brpc::ClosureGuard doneGuard(done);
     response->set_retcode(RetCode::kNoOK);
 

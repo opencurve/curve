@@ -259,7 +259,7 @@ TEST_F(S3CompactTest, test_GetNeedCompact) {
             ref->set_offset(i + 64 * j);
             ref->set_len(1);
         }
-        s3chunkinfoMap.insert({j, l});
+        s3chunkinfoMap.insert({static_cast<uint64_t>(j), l});
     }
     ASSERT_EQ(impl_->GetNeedCompact(s3chunkinfoMap, 64 * 19 + 30, 64).size(),
               opts_.maxChunksPerCompact);

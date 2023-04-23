@@ -339,7 +339,6 @@ TEST_F(IOTrackerSplitorTest, AsyncStartRead) {
     mockschuler->DelegateToFake();
 
     curve::client::IOManager4File* iomana = fileinstance_->GetIOManager4File();
-    MetaCache* mc = fileinstance_->GetIOManager4File()->GetMetaCache();
     iomana->SetRequestScheduler(mockschuler);
 
     CurveAioContext aioctx;
@@ -374,7 +373,6 @@ TEST_F(IOTrackerSplitorTest, AsyncStartWrite) {
     mockschuler->DelegateToFake();
 
     curve::client::IOManager4File* iomana = fileinstance_->GetIOManager4File();
-    MetaCache* mc = fileinstance_->GetIOManager4File()->GetMetaCache();
     iomana->SetRequestScheduler(mockschuler);
 
     CurveAioContext aioctx;
@@ -420,7 +418,6 @@ TEST_F(IOTrackerSplitorTest, StartRead) {
     mockschuler->DelegateToFake();
 
     curve::client::IOManager4File* iomana = fileinstance_->GetIOManager4File();
-    MetaCache* mc = fileinstance_->GetIOManager4File()->GetMetaCache();
     iomana->SetRequestScheduler(mockschuler);
 
     uint64_t offset = 4 * 1024 * 1024 - 4 * 1024;
@@ -451,7 +448,6 @@ TEST_F(IOTrackerSplitorTest, StartWrite) {
     mockschuler->DelegateToFake();
 
     curve::client::IOManager4File* iomana = fileinstance_->GetIOManager4File();
-    MetaCache* mc = fileinstance_->GetIOManager4File()->GetMetaCache();
     iomana->SetRequestScheduler(mockschuler);
 
     uint64_t offset = 4 * 1024 * 1024 - 4 * 1024;
@@ -518,7 +514,6 @@ TEST_F(IOTrackerSplitorTest, ManagerAsyncStartWrite) {
     MockRequestScheduler* mockschuler = new MockRequestScheduler;
     mockschuler->DelegateToFake();
 
-    MetaCache* mc = fileinstance_->GetIOManager4File()->GetMetaCache();
     auto ioctxmana = fileinstance_->GetIOManager4File();
     ioctxmana->SetRequestScheduler(mockschuler);
 
@@ -656,7 +651,6 @@ TEST_F(IOTrackerSplitorTest, ManagerStartRead) {
     MockRequestScheduler* mockschuler = new MockRequestScheduler;
     mockschuler->DelegateToFake();
 
-    MetaCache* mc = fileinstance_->GetIOManager4File()->GetMetaCache();
     auto ioctxmana = fileinstance_->GetIOManager4File();
     ioctxmana->SetRequestScheduler(mockschuler);
 
@@ -687,7 +681,6 @@ TEST_F(IOTrackerSplitorTest, ManagerStartWrite) {
     MockRequestScheduler* mockschuler = new MockRequestScheduler;
     mockschuler->DelegateToFake();
 
-    MetaCache* mc = fileinstance_->GetIOManager4File()->GetMetaCache();
     auto ioctxmana = fileinstance_->GetIOManager4File();
     ioctxmana->SetRequestScheduler(mockschuler);
 
@@ -781,7 +774,6 @@ TEST_F(IOTrackerSplitorTest, BoundaryTEST) {
     MockRequestScheduler* mockschuler = new MockRequestScheduler;
     mockschuler->DelegateToFake();
 
-    MetaCache* mc = fileinstance_->GetIOManager4File()->GetMetaCache();
     auto ioctxmana = fileinstance_->GetIOManager4File();
     ioctxmana->SetRequestScheduler(mockschuler);
 
@@ -1179,7 +1171,6 @@ TEST_F(IOTrackerSplitorTest, StartReadNotAllocateSegment) {
     mockschuler->DelegateToFake();
 
     curve::client::IOManager4File* iomana = fileinstance_->GetIOManager4File();
-    MetaCache* mc = fileinstance_->GetIOManager4File()->GetMetaCache();
     iomana->SetRequestScheduler(mockschuler);
 
     uint64_t offset = 1 * 1024 * 1024 * 1024 + 4 * 1024 * 1024 - 4 * 1024;
@@ -1207,7 +1198,6 @@ TEST_F(IOTrackerSplitorTest, AsyncStartReadNotAllocateSegment) {
     mockschuler->DelegateToFake();
 
     curve::client::IOManager4File* iomana = fileinstance_->GetIOManager4File();
-    MetaCache* mc = fileinstance_->GetIOManager4File()->GetMetaCache();
     iomana->SetRequestScheduler(mockschuler);
 
     CurveAioContext aioctx;

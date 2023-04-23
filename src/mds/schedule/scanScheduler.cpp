@@ -35,44 +35,44 @@ int ScanScheduler::Schedule() {
     LOG(INFO) << "ScanScheduler begin.";
 
     auto currentHour = ::curve::common::TimeUtility::GetCurrentHour();
-    bool duringScanTime = currentHour >= scanStartHour_ &&
-                          currentHour <= scanEndHour_;
+    bool duringScanTime =
+        currentHour >= scanStartHour_ && currentHour <= scanEndHour_;
 
     auto count = 0;
     ::curve::mds::topology::LogicalPool lpool;
     auto logicPoolIds = topo_->GetLogicalpools();
-    for (const auto& lpid : logicPoolIds) {
+    for (const auto &lpid : logicPoolIds) {
         CopySetInfos copysets2start, copysets2cancel;
         auto copysetInfos = topo_->GetCopySetInfosInLogicalPool(lpid);
         topo_->GetLogicalPool(lpid, &lpool);
         if (!duringScanTime || !lpool.ScanEnable()) {
-            for (const auto& copysetInfo : copysetInfos) {
+            for (const auto &copysetInfo : copysetInfos) {
                 if (StartOrReadyToScan(copysetInfo)) {
                     copysets2cancel.push_back(copysetInfo);
                 }
             }
         } else {
-            SelectCopysetsForScan(
-                copysetInfos, &copysets2start, &copysets2cancel);
+            SelectCopysetsForScan(copysetInfos, &copysets2start,
+                                  &copysets2cancel);
         }
 
-        count += GenScanOperator(copysets2start,
-                                 ConfigChangeType::START_SCAN_PEER);
+        count +=
+            GenScanOperator(copysets2start, ConfigChangeType::START_SCAN_PEER);
         count += GenScanOperator(copysets2cancel,
                                  ConfigChangeType::CANCEL_SCAN_PEER);
     }
 
-    LOG(INFO) << "ScanScheduelr generate "
-              << count << " operators at this round";
+    LOG(INFO) << "ScanScheduelr generate " << count
+              << " operators at this round";
     return 1;
 }
 
-bool ScanScheduler::StartOrReadyToScan(const CopySetInfo& copysetInfo) {
+bool ScanScheduler::StartOrReadyToScan(const CopySetInfo &copysetInfo) {
     Operator op;
     if (copysetInfo.scaning) {
         return true;
     } else if (opController_->GetOperatorById(copysetInfo.id, &op)) {
-        auto step = dynamic_cast<ScanPeer*>(op.step.get());
+        auto step = dynamic_cast<ScanPeer *>(op.step.get());
         return nullptr != step && step->IsStartScanOp();
     } else if (copysetInfo.HasCandidate()) {
         return copysetInfo.configChangeInfo.type() ==
@@ -82,12 +82,11 @@ bool ScanScheduler::StartOrReadyToScan(const CopySetInfo& copysetInfo) {
     return false;
 }
 
-void ScanScheduler::SelectCopysetsToStartScan(CopySetInfos* copysetInfos,
-                                              int count,
-                                              Selected* selected,
-                                              CopySetInfos* copysets2start) {
+void ScanScheduler::SelectCopysetsToStartScan(CopySetInfos *copysetInfos,
+                                              int count, Selected *selected,
+                                              CopySetInfos *copysets2start) {
     std::sort(copysetInfos->begin(), copysetInfos->end(),
-              [](const CopySetInfo& a, const CopySetInfo& b) {
+              [](const CopySetInfo &a, const CopySetInfo &b) {
                   if (a.lastScanSec == b.lastScanSec) {
                       return a.id < b.id;
                   }
@@ -95,14 +94,15 @@ void ScanScheduler::SelectCopysetsToStartScan(CopySetInfos* copysetInfos,
               });
 
     auto nowSec = ::curve::common::TimeUtility::GetTimeofDaySec();
-    for (const auto& copysetInfo : *copysetInfos) {
+    for (const auto &copysetInfo : *copysetInfos) {
         if (nowSec - copysetInfo.lastScanSec < scanIntervalSec_ || count <= 0) {
             return;
         }
 
         bool succ = true;
-        for (const auto& peer : copysetInfo.peers) {
-            if ((*selected)[peer.id] >= scanConcurrentPerChunkserver_) {
+        for (const auto &peer : copysetInfo.peers) {
+            if ((*selected)[peer.id] >=
+                static_cast<int>(scanConcurrentPerChunkserver_)) {
                 succ = false;
                 break;
             }
@@ -112,25 +112,25 @@ void ScanScheduler::SelectCopysetsToStartScan(CopySetInfos* copysetInfos,
         if (succ) {
             count--;
             copysets2start->push_back(copysetInfo);
-            for (const auto& peer : copysetInfo.peers) {
+            for (const auto &peer : copysetInfo.peers) {
                 (*selected)[peer.id]++;
             }
         }
     }
 }
 
-void ScanScheduler::SelectCopysetsToCancelScan(CopySetInfos* copysetInfos,
+void ScanScheduler::SelectCopysetsToCancelScan(CopySetInfos *copysetInfos,
                                                int count,
-                                               CopySetInfos* copysets2cancel) {
+                                               CopySetInfos *copysets2cancel) {
     std::sort(copysetInfos->begin(), copysetInfos->end(),
-              [](const CopySetInfo& a, const CopySetInfo& b) {
+              [](const CopySetInfo &a, const CopySetInfo &b) {
                   if (a.scaning == b.scaning) {
                       return a.id < b.id;
                   }
                   return a.scaning == false;
               });
 
-    for (const auto& copysetInfo : *copysetInfos) {
+    for (const auto &copysetInfo : *copysetInfos) {
         if (count-- <= 0) {
             return;
         }
@@ -138,15 +138,15 @@ void ScanScheduler::SelectCopysetsToCancelScan(CopySetInfos* copysetInfos,
     }
 }
 
-void ScanScheduler::SelectCopysetsForScan(const CopySetInfos& copysetInfos,
-                                          CopySetInfos* copysets2start,
-                                          CopySetInfos* copysets2cancel) {
+void ScanScheduler::SelectCopysetsForScan(const CopySetInfos &copysetInfos,
+                                          CopySetInfos *copysets2start,
+                                          CopySetInfos *copysets2cancel) {
     CopySetInfos scaning, nonScan;
     Selected selected;  // scaning chunk server
-    for (const auto& copysetInfo : copysetInfos) {
+    for (const auto &copysetInfo : copysetInfos) {
         if (StartOrReadyToScan(copysetInfo)) {
             scaning.push_back(copysetInfo);
-            for (const auto& peer : copysetInfo.peers) {
+            for (const auto &peer : copysetInfo.peers) {
                 selected[peer.id]++;
             }
             LOG(INFO) << "Copyset is on scaning: "
@@ -168,11 +168,11 @@ void ScanScheduler::SelectCopysetsForScan(const CopySetInfos& copysetInfos,
     }
 }
 
-int ScanScheduler::GenScanOperator(const CopySetInfos& copysetInfos,
+int ScanScheduler::GenScanOperator(const CopySetInfos &copysetInfos,
                                    ConfigChangeType opType) {
     auto count = 0;
     bool ready2start = (opType == ConfigChangeType::START_SCAN_PEER);
-    for (auto& copysetInfo : copysetInfos) {
+    for (auto &copysetInfo : copysetInfos) {
         auto priority = ready2start ? OperatorPriority::LowPriority
                                     : OperatorPriority::HighPriority;
 
@@ -182,17 +182,15 @@ int ScanScheduler::GenScanOperator(const CopySetInfos& copysetInfos,
 
         auto succ = opController_->AddOperator(op);
         count += succ ? 1 : 0;
-        LOG(INFO) << "Generate operator " << op.OpToString()
-                  << " for " << copysetInfo.CopySetInfoStr()
+        LOG(INFO) << "Generate operator " << op.OpToString() << " for "
+                  << copysetInfo.CopySetInfoStr()
                   << (succ ? " success" : " fail");
     }
 
     return count;
 }
 
-int64_t ScanScheduler::GetRunningInterval() {
-    return runInterval_;
-}
+int64_t ScanScheduler::GetRunningInterval() { return runInterval_; }
 
 }  // namespace schedule
 }  // namespace mds

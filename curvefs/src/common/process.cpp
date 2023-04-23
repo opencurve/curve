@@ -24,37 +24,39 @@
 
 #include "curvefs/src/common/process.h"
 
-extern char** environ;
+extern char **environ;
 
 namespace curvefs {
 namespace common {
 
-char** Process::OsArgv_ = nullptr;
-char* Process::OsArgvLast_ = nullptr;
+char **Process::OsArgv_ = nullptr;
+char *Process::OsArgvLast_ = nullptr;
 
 pid_t Process::SpawnProcess(ProcFunc proc) {
     pid_t pid = fork();
 
     switch (pid) {
-        case -1:
-            return -1;
-        case 0:
-            proc();
-            break;
-        default:
-            break;
+    case -1:
+        return -1;
+    case 0:
+        proc();
+        break;
+    default:
+        break;
     }
 
     return pid;
 }
 
-void Process::InitSetProcTitle(int argc, char* const* argv) {
+void Process::InitSetProcTitle(int argc, char *const *argv) {
+    (void)argc;  // Silence the warning
+
     size_t size = 0;
     for (auto i = 0; environ[i]; i++) {
         size += strlen(environ[i]) + 1;
     }
 
-    OsArgv_ = (char**) argv;  // NOLINT
+    OsArgv_ = (char **)argv;  // NOLINT
     OsArgvLast_ = OsArgv_[0];
     for (auto i = 0; OsArgv_[i]; i++) {
         if (OsArgvLast_ == OsArgv_[i]) {
@@ -62,7 +64,7 @@ void Process::InitSetProcTitle(int argc, char* const* argv) {
         }
     }
 
-    char* p = new (std::nothrow) char[size];
+    char *p = new (std::nothrow) char[size];
     for (auto i = 0; environ[i]; i++) {
         if (OsArgvLast_ == environ[i]) {
             size = strlen(environ[i]) + 1;
@@ -78,15 +80,15 @@ void Process::InitSetProcTitle(int argc, char* const* argv) {
     OsArgvLast_--;
 }
 
-void Process::SetProcTitle(const std::string& title) {
+void Process::SetProcTitle(const std::string &title) {
     OsArgv_[1] = NULL;
     strncpy(OsArgv_[0], title.c_str(), OsArgvLast_ - OsArgv_[0]);
 }
 
-bool Process::InitSignals(const std::vector<Signal>& signals) {
+bool Process::InitSignals(const std::vector<Signal> &signals) {
     struct sigaction sa;
 
-    for (const auto& signal : signals) {
+    for (const auto &signal : signals) {
         memset(&sa, 0, sizeof(struct sigaction));
         if (signal.handler) {
             sa.sa_sigaction = signal.handler;

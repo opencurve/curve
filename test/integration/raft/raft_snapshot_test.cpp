@@ -45,7 +45,7 @@ const char* kFakeMdsAddr = "127.0.0.1:9320";
 
 const uint32_t kOpRequestAlignSize = 4096;
 
-static char *raftVoteParam[4][16] = {
+static const char *raftVoteParam[4][16] = {
     {
         "chunkserver",
         "-chunkServerIp=127.0.0.1",
@@ -190,10 +190,10 @@ class RaftSnapshotTest : public testing::Test {
         paramsIndexs_[PeerCluster::PeerToId(peer3_)] = 2;
         paramsIndexs_[PeerCluster::PeerToId(peer4_)] = 3;
 
-        params_.push_back(raftVoteParam[0]);
-        params_.push_back(raftVoteParam[1]);
-        params_.push_back(raftVoteParam[2]);
-        params_.push_back(raftVoteParam[3]);
+        params_.push_back(const_cast<char**>(raftVoteParam[0]));
+        params_.push_back(const_cast<char**>(raftVoteParam[1]));
+        params_.push_back(const_cast<char**>(raftVoteParam[2]));
+        params_.push_back(const_cast<char**>(raftVoteParam[3]));
 
         // 配置默认raft client option
         defaultCliOpt_.max_retry = 3;

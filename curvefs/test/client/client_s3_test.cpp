@@ -111,7 +111,6 @@ TEST_F(ClientS3Test, uploadync) {
 
 TEST_F(ClientS3Test, downloadAsync) {
     const std::string obj("test");
-    uint64_t offset = 0;
     uint64_t len = 1024;
     char* buf = new char[len];
 

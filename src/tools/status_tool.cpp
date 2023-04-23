@@ -856,7 +856,7 @@ int PrintChunkserverOnlineStatus(
     int i = 0;
     for (ChunkServerIdType csId :  offlineRecover) {
         i++;
-        if (i == offlineRecover.size()) {
+        if (i == static_cast<int>(offlineRecover.size())) {
             std::cout << csId;
         } else {
             std::cout << csId << ", ";

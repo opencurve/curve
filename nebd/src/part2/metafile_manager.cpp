@@ -118,7 +118,7 @@ int NebdMetaFileManager::AtomicWriteFile(const Json::Value& root) {
     int writeSize = wrapper_->pwrite(fd, jsonString.c_str(),
                                      jsonString.size(), 0);
     wrapper_->close(fd);
-    if (writeSize != jsonString.size()) {
+    if (writeSize != static_cast<int>(jsonString.size())) {
         LOG(ERROR) << "Write tmp file " << tmpFilePath << " fail";
         return -1;
     }
@@ -206,7 +206,6 @@ int NebdMetaFileParser::Parse(Json::Value root,
 
     for (const auto& volume : volumes) {
         std::string fileName;
-        int fd;
         NebdFileMeta meta;
 
         if (volume[kFileName].isNull()) {

@@ -333,6 +333,7 @@ int S3ClientAdaptorImpl::Stop() {
 int S3ClientAdaptorImpl::ExecAsyncDownloadTask(
     void *meta,
     bthread::TaskIterator<AsyncDownloadTask> &iter) {  // NOLINT
+    (void)meta;
     if (iter.is_queue_stopped()) {
         return 0;
     }

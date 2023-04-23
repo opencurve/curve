@@ -36,11 +36,11 @@
 #include "src/common/configuration.h"
 #include "src/chunkserver/datastore/file_pool.h"
 
-using curve::common::Uncopyable;
-using curve::common::RWLock;
-using curve::common::ReadLockGuard;
-using curve::common::WriteLockGuard;
 using curve::common::Configuration;
+using curve::common::ReadLockGuard;
+using curve::common::RWLock;
+using curve::common::Uncopyable;
+using curve::common::WriteLockGuard;
 
 namespace curve {
 namespace chunkserver {
@@ -54,8 +54,7 @@ class Trash;
 template <typename Tp>
 using PassiveStatusPtr = std::shared_ptr<bvar::PassiveStatus<Tp>>;
 
-template <typename Tp>
-using AdderPtr = std::shared_ptr<bvar::Adder<Tp>>;
+template <typename Tp> using AdderPtr = std::shared_ptr<bvar::Adder<Tp>>;
 
 // 使用LatencyRecorder的实现来统计读写请求的size情况
 // 可以统计分位值、最大值、中位数、平均值等情况
@@ -72,7 +71,7 @@ class IOMetric {
      * @param prefix: 用于bvar曝光时使用的前缀
      * @return 成功返回0，失败返回-1
      */
-    int Init(const std::string& prefix);
+    int Init(const std::string &prefix);
     /**
      * IO请求到来时统计requestNum
      */
@@ -88,25 +87,25 @@ class IOMetric {
 
  public:
     // io请求的数量
-    bvar::Adder<uint64_t>    reqNum_;
+    bvar::Adder<uint64_t> reqNum_;
     // 成功io的数量
-    bvar::Adder<uint64_t>    ioNum_;
+    bvar::Adder<uint64_t> ioNum_;
     // 失败的io个数
-    bvar::Adder<uint64_t>    errorNum_;
+    bvar::Adder<uint64_t> errorNum_;
     // 所有io的数据量
-    bvar::Adder<uint64_t>    ioBytes_;
+    bvar::Adder<uint64_t> ioBytes_;
     // io的延时情况（分位值、最大值、中位数、平均值）
-    bvar::LatencyRecorder    latencyRecorder_;
+    bvar::LatencyRecorder latencyRecorder_;
     // io大小的情况（分位值、最大值、中位数、平均值）
-    IOSizeRecorder           sizeRecorder_;
+    IOSizeRecorder sizeRecorder_;
     // 最近1秒请求的IO数量
-    bvar::PerSecond<bvar::Adder<uint64_t>>    rps_;
+    bvar::PerSecond<bvar::Adder<uint64_t>> rps_;
     // 最近1秒的iops
-    bvar::PerSecond<bvar::Adder<uint64_t>>    iops_;
+    bvar::PerSecond<bvar::Adder<uint64_t>> iops_;
     // 最近1秒的出错IO数量
-    bvar::PerSecond<bvar::Adder<uint64_t>>    eps_;
+    bvar::PerSecond<bvar::Adder<uint64_t>> eps_;
     // 最近1秒的数据量
-    bvar::PerSecond<bvar::Adder<uint64_t>>    bps_;
+    bvar::PerSecond<bvar::Adder<uint64_t>> bps_;
 };
 using IOMetricPtr = std::shared_ptr<IOMetric>;
 
@@ -121,11 +120,8 @@ enum class CSIOMetricType {
 class CSIOMetric {
  public:
     CSIOMetric()
-        : readMetric_(nullptr)
-        , writeMetric_(nullptr)
-        , recoverMetric_(nullptr)
-        , pasteMetric_(nullptr)
-        , downloadMetric_(nullptr) {}
+        : readMetric_(nullptr), writeMetric_(nullptr), recoverMetric_(nullptr),
+          pasteMetric_(nullptr), downloadMetric_(nullptr) {}
 
     ~CSIOMetric() {}
 
@@ -143,9 +139,7 @@ class CSIOMetric {
      * @param latUS: 此次io的延时
      * @param hasError: 此次io是否有错误产生
      */
-    void OnResponse(CSIOMetricType type,
-                    size_t size,
-                    int64_t latUs,
+    void OnResponse(CSIOMetricType type, size_t size, int64_t latUs,
                     bool hasError);
 
     /**
@@ -159,7 +153,7 @@ class CSIOMetric {
      * 初始化各项op的metric统计项
      * @return 成功返回0，失败返回-1
      */
-    int Init(const std::string& prefix);
+    int Init(const std::string &prefix);
     /**
      * 释放各项op的metric资源
      */
@@ -181,12 +175,9 @@ class CSIOMetric {
 class CSCopysetMetric {
  public:
     CSCopysetMetric()
-        : logicPoolId_(0)
-        , copysetId_(0)
-        , chunkCount_(nullptr)
-        , snapshotCount_(nullptr)
-        , cloneChunkCount_(nullptr)
-        , walSegmentCount_(nullptr) {}
+        : logicPoolId_(0), copysetId_(0), chunkCount_(nullptr),
+          walSegmentCount_(nullptr), snapshotCount_(nullptr),
+          cloneChunkCount_(nullptr) {}
 
     ~CSCopysetMetric() {}
 
@@ -196,27 +187,25 @@ class CSCopysetMetric {
      * @param copysetId: copyset的id
      * @return 成功返回0，失败返回-1
      */
-    int Init(const LogicPoolID& logicPoolId, const CopysetID& copysetId);
+    int Init(const LogicPoolID &logicPoolId, const CopysetID &copysetId);
 
     /**
      * 监控DataStore指标，主要包括chunk的数量、快照的数量等
      * @param datastore: 该copyset下的datastore指针
      */
-    void MonitorDataStore(CSDataStore* datastore);
+    void MonitorDataStore(CSDataStore *datastore);
 
     /**
      * @brief: Monitor log storage's metric, like the number of WAL segment file
      * @param logStorage: The pointer to CurveSegmentLogStorage
      */
-    void MonitorCurveSegmentLogStorage(CurveSegmentLogStorage* logStorage);
+    void MonitorCurveSegmentLogStorage(CurveSegmentLogStorage *logStorage);
 
     /**
      * 执行请求前记录metric
      * @param type: 请求对应的metric类型
      */
-    void OnRequest(CSIOMetricType type) {
-        ioMetrics_.OnRequest(type);
-    }
+    void OnRequest(CSIOMetricType type) { ioMetrics_.OnRequest(type); }
 
     /**
      * 执行请求后记录metric
@@ -226,9 +215,7 @@ class CSCopysetMetric {
      * @param latUS: 此次io的延时
      * @param hasError: 此次io是否有错误产生
      */
-    void OnResponse(CSIOMetricType type,
-                    size_t size,
-                    int64_t latUs,
+    void OnResponse(CSIOMetricType type, size_t size, int64_t latUs,
                     bool hasError) {
         ioMetrics_.OnResponse(type, size, latUs, hasError);
     }
@@ -272,10 +259,8 @@ class CSCopysetMetric {
 
  private:
     inline std::string Prefix() {
-        return "copyset_"
-               + std::to_string(logicPoolId_)
-               + "_"
-               + std::to_string(copysetId_);
+        return "copyset_" + std::to_string(logicPoolId_) + "_" +
+               std::to_string(copysetId_);
     }
 
  private:
@@ -375,7 +360,7 @@ class ChunkServerMetric : public Uncopyable {
      * @pa)ram option: 初始化配置项
      * @return 成功返回0，失败返回-1
      */
-    int Init(const ChunkServerMetricOptions& option);
+    int Init(const ChunkServerMetricOptions &option);
 
     /**
      * 释放metric资源
@@ -389,8 +374,7 @@ class ChunkServerMetric : public Uncopyable {
      * @param copysetId: 此次io操作所在的copysetid
      * @param type: 请求类型
      */
-    void OnRequest(const LogicPoolID& logicPoolId,
-                   const CopysetID& copysetId,
+    void OnRequest(const LogicPoolID &logicPoolId, const CopysetID &copysetId,
                    CSIOMetricType type);
 
     /**
@@ -403,11 +387,8 @@ class ChunkServerMetric : public Uncopyable {
      * @param latUS: 此次io的延时
      * @param hasError: 此次io是否有错误产生
      */
-    void OnResponse(const LogicPoolID& logicPoolId,
-                    const CopysetID& copysetId,
-                    CSIOMetricType type,
-                    size_t size,
-                    int64_t latUs,
+    void OnResponse(const LogicPoolID &logicPoolId, const CopysetID &copysetId,
+                    CSIOMetricType type, size_t size, int64_t latUs,
                     bool hasError);
 
     /**
@@ -417,8 +398,8 @@ class ChunkServerMetric : public Uncopyable {
      * @param copysetId: copyset的id
      * @return 成功返回0，失败返回-1，如果指定metric已存在返回失败
      */
-    int CreateCopysetMetric(const LogicPoolID& logicPoolId,
-                            const CopysetID& copysetId);
+    int CreateCopysetMetric(const LogicPoolID &logicPoolId,
+                            const CopysetID &copysetId);
 
     /**
      * 获取指定copyset的metric
@@ -426,8 +407,8 @@ class ChunkServerMetric : public Uncopyable {
      * @param copysetId: copyset的id
      * @return 成功返回指定的copyset metric，失败返回nullptr
      */
-    CopysetMetricPtr GetCopysetMetric(const LogicPoolID& logicPoolId,
-                                      const CopysetID& copysetId);
+    CopysetMetricPtr GetCopysetMetric(const LogicPoolID &logicPoolId,
+                                      const CopysetID &copysetId);
 
     /**
      * 删除指定copyset的metric
@@ -435,26 +416,26 @@ class ChunkServerMetric : public Uncopyable {
      * @param copysetId: copyset的id
      * @return 成功返回0，失败返回-1
      */
-    int RemoveCopysetMetric(const LogicPoolID& logicPoolId,
-                            const CopysetID& copysetId);
+    int RemoveCopysetMetric(const LogicPoolID &logicPoolId,
+                            const CopysetID &copysetId);
 
     /**
      * 监视chunk分配池，主要监视池中chunk的数量
      * @param chunkFilePool: chunkfilePool的对象指针
      */
-    void MonitorChunkFilePool(FilePool* chunkFilePool);
+    void MonitorChunkFilePool(FilePool *chunkFilePool);
 
     /**
      * 监视wal segment分配池，主要监视池中segment的数量
      * @param walFilePool: walfilePool的对象指针
      */
-    void MonitorWalFilePool(FilePool* walFilePool);
+    void MonitorWalFilePool(FilePool *walFilePool);
 
     /**
      * 监视回收站
      * @param trash: trash的对象指针
      */
-    void MonitorTrash(Trash* trash);
+    void MonitorTrash(Trash *trash);
 
     /**
      * 增加 leader count 计数
@@ -470,7 +451,7 @@ class ChunkServerMetric : public Uncopyable {
      * 更新配置项数据
      * @param conf: 配置内容
      */
-    void ExposeConfigMetric(common::Configuration* conf);
+    void ExposeConfigMetric(common::Configuration *conf);
 
     /**
      * 获取指定类型的IOMetric
@@ -481,13 +462,9 @@ class ChunkServerMetric : public Uncopyable {
         return ioMetrics_.GetIOMetric(type);
     }
 
-    CopysetMetricMap* GetCopysetMetricMap() {
-        return &copysetMetricMap_;
-    }
+    CopysetMetricMap *GetCopysetMetricMap() { return &copysetMetricMap_; }
 
-    uint32_t GetCopysetCount() {
-        return copysetMetricMap_.Size();
-    }
+    uint32_t GetCopysetCount() { return copysetMetricMap_.Size(); }
 
     uint32_t GetLeaderCount() const {
         if (leaderCount_ == nullptr)
@@ -570,7 +547,7 @@ class ChunkServerMetric : public Uncopyable {
     // chunkserver上的IO类型的metric统计
     CSIOMetric ioMetrics_;
     // 用于单例模式的自指指针
-    static ChunkServerMetric* self_;
+    static ChunkServerMetric *self_;
 };
 
 }  // namespace chunkserver

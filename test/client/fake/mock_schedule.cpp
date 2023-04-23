@@ -43,9 +43,7 @@ int Schedule::ScheduleRequest(
     const std::vector<curve::client::RequestContext*>& reqlist) {
     // LOG(INFO) << "ENTER MOCK ScheduleRequest";
     char fakedate[10] = {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'k'};
-    curve::client::OpType type = curve::client::OpType::UNKNOWN;
     int processed = 0;
-    int totallength = 0;
     std::vector<datastruct> datavec;
 
     if (enableScheduleFailed) {
@@ -71,9 +69,10 @@ int Schedule::ScheduleRequest(
 
         auto req = iter->done_->GetReqCtx();
         if (iter->optype_ == curve::client::OpType::READ_SNAP) {
-            char buf[iter->rawlength_];  // NOLINT
+            char *buf = new char[iter->rawlength_];
             memset(buf, fakedate[processed % 10], iter->rawlength_);
             iter->readData_.append(buf, iter->rawlength_);
+            delete[] buf;
         }
 
         if (iter->optype_ == curve::client::OpType::GET_CHUNK_INFO) {
@@ -82,9 +81,10 @@ int Schedule::ScheduleRequest(
         }
 
         if (iter->optype_ == curve::client::OpType::READ) {
-            char buffer[iter->rawlength_];  // NOLINT
+            char *buffer = new char[iter->rawlength_];
             memset(buffer, fakedate[processed % 10], iter->rawlength_);
             iter->readData_.append(buffer, iter->rawlength_);
+            delete[] buffer;
 
             // LOG(ERROR)  << "request split"
             //            << ", off = " << iter->offset_
@@ -96,7 +96,6 @@ int Schedule::ScheduleRequest(
         }
 
         if (iter->optype_ == curve::client::OpType::WRITE) {
-            type = curve::client::OpType::WRITE;
             writeData.append(iter->writeData_);
         }
         processed++;

@@ -35,11 +35,13 @@ using curve::common::CountDownEvent;
 
 void TestAdd1(int a, double b, CountDownEvent *cond) {
     double c = a + b;
+    (void)c;
     cond->Signal();
 }
 
 int TestAdd2(int a, double b, CountDownEvent *cond) {
     double c = a + b;
+    (void)c;
     cond->Signal();
     return 0;
 }

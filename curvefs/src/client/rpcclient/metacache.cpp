@@ -50,13 +50,11 @@ void MetaCache::GetTxId(uint32_t partitionId, uint64_t *txId) {
     }
 }
 
-bool MetaCache::GetTxId(uint32_t fsId,
-                        uint64_t inodeId,
-                        uint32_t *partitionId,
+bool MetaCache::GetTxId(uint32_t fsId, uint64_t inodeId, uint32_t *partitionId,
                         uint64_t *txId) {
     for (const auto &partition : partitionInfos_) {
-        if (fsId == partition.fsid() &&
-            inodeId >= partition.start() && inodeId <= partition.end()) {
+        if (fsId == partition.fsid() && inodeId >= partition.start() &&
+            inodeId <= partition.end()) {
             *partitionId = partition.partitionid();
             *txId = partition.txid();
             GetTxId(*partitionId, txId);
@@ -85,7 +83,7 @@ bool MetaCache::RefreshTxId() {
         return false;
     }
 
-    for (const auto& item : txIds) {
+    for (const auto &item : txIds) {
         SetTxId(item.partitionid(), item.txid());
     }
     return true;
@@ -215,7 +213,7 @@ bool MetaCache::GetTargetLeader(CopysetTarget *target, uint64_t *applyindex,
     // if cacahe do not have invalid leader, refresh leader
     VLOG(3) << "refresh leader for " << target->groupID.ToString();
     bool ret = true;
-    uint32_t retry = 0;
+    int retry = 0;
     while (retry++ < metacacheopt_.metacacheGetLeaderRetry) {
         // refresh from metaserver
         ret = UpdateLeaderInternal(target->groupID, &copysetInfo);
@@ -272,7 +270,7 @@ bool MetaCache::CreatePartitions(int currentNum,
     // already create
     {
         ReadLockGuard rl(rwlock4Partitions_);
-        if (partitionInfos_.size() > currentNum) {
+        if (static_cast<int>(partitionInfos_.size()) > currentNum) {
             newPartitions->reserve(partitionInfos_.size() - currentNum);
             newPartitions->insert(newPartitions->end(),
                                   partitionInfos_.begin() + currentNum,
@@ -290,8 +288,8 @@ bool MetaCache::CreatePartitions(int currentNum,
     // add partition and copyset info
     WriteLockGuard wl4PartitionMap(rwlock4Partitions_);
     WriteLockGuard wl4CopysetMap(rwlock4copysetInfoMap_);
-    DoAddOrResetPartitionAndCopyset(*newPartitions,
-                                    std::move(copysetMap), false);
+    DoAddOrResetPartitionAndCopyset(*newPartitions, std::move(copysetMap),
+                                    false);
 
     return true;
 }
@@ -476,6 +474,7 @@ void MetaCache::UpdateCopysetInfoIfMatchCurrentLeader(
     std::vector<CopysetInfo<MetaserverID>> metaServerInfos;
     bool ret = mdsClient_->GetMetaServerListInCopysets(
         groupID.poolID, {groupID.copysetID}, &metaServerInfos);
+    (void)ret;
 
     bool needUpdate = (!metaServerInfos.empty()) &&
                       (metaServerInfos[0].HasPeerInCopyset(leaderAddr));
@@ -562,7 +561,8 @@ bool MetaCache::GetCopysetInfowithCopySetID(
 }
 
 bool TryGetPartitionIdByInodeId(const std::vector<PartitionInfo> &plist,
-    RWLock *lock, uint64_t inodeID, PartitionID *pid) {
+                                RWLock *lock, uint64_t inodeID,
+                                PartitionID *pid) {
     ReadLockGuard rl(*lock);
     for (const auto &it : plist) {
         if (it.start() <= inodeID && it.end() >= inodeID) {
@@ -574,17 +574,17 @@ bool TryGetPartitionIdByInodeId(const std::vector<PartitionInfo> &plist,
 }
 
 bool MetaCache::GetPartitionIdByInodeId(uint32_t fsID, uint64_t inodeID,
-    PartitionID *pid) {
-    if (!TryGetPartitionIdByInodeId(partitionInfos_,
-                                    &rwlock4Partitions_, inodeID, pid)) {
+                                        PartitionID *pid) {
+    if (!TryGetPartitionIdByInodeId(partitionInfos_, &rwlock4Partitions_,
+                                    inodeID, pid)) {
         // list form mds
         if (!ListPartitions(fsID)) {
             LOG(ERROR) << "ListPartitions for {fsid:" << fsID
                        << "} fail, partition list not exist";
             return false;
         }
-        return TryGetPartitionIdByInodeId(partitionInfos_,
-            &rwlock4Partitions_, inodeID, pid);
+        return TryGetPartitionIdByInodeId(partitionInfos_, &rwlock4Partitions_,
+                                          inodeID, pid);
     }
     return true;
 }

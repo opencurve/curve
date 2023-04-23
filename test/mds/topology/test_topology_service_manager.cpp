@@ -840,7 +840,6 @@ TEST_F(TestTopologyServiceManager, test_RegistServer_PhysicalPoolNotFound) {
 
 TEST_F(TestTopologyServiceManager,
     test_RegistServer_ByNamePhysicalPoolNotFound) {
-    ServerIdType id = 0x31;
     PoolIdType physicalPoolId = 0x11;
     ZoneIdType zoneId = 0x21;
     PrepareAddPhysicalPool(physicalPoolId, "PhysicalPool1");
@@ -885,7 +884,6 @@ TEST_F(TestTopologyServiceManager, test_RegistServer_ZoneNotFound) {
 }
 
 TEST_F(TestTopologyServiceManager, test_RegistServer_ByNameZoneNotFound) {
-    ServerIdType id = 0x31;
     PoolIdType physicalPoolId = 0x11;
     ZoneIdType zoneId = 0x21;
     PrepareAddPhysicalPool(physicalPoolId, "PhysicalPool1");
@@ -946,7 +944,6 @@ TEST_F(TestTopologyServiceManager,
 
 TEST_F(TestTopologyServiceManager,
     test_RegistServer_InvalidParamMissingPhysicalPoolIdAndName) {
-    ServerIdType id = 0x31;
     PoolIdType physicalPoolId = 0x11;
     ZoneIdType zoneId = 0x21;
     PrepareAddPhysicalPool(physicalPoolId, "PhysicalPool1");
@@ -968,7 +965,6 @@ TEST_F(TestTopologyServiceManager,
 }
 
 TEST_F(TestTopologyServiceManager, test_RegistServer_AllocateIdFail) {
-    ServerIdType id = 0x31;
     PoolIdType physicalPoolId = 0x11;
     ZoneIdType zoneId = 0x21;
     PrepareAddPhysicalPool(physicalPoolId);
@@ -1476,7 +1472,6 @@ TEST_F(TestTopologyServiceManager, test_CreateZone_success) {
 
 TEST_F(TestTopologyServiceManager, test_CreateZone_AllocateIdFail) {
     PoolIdType physicalPoolId = 0x11;
-    ZoneIdType zoneId = 0x21;
     PrepareAddPhysicalPool(physicalPoolId, "poolname1");
 
     ZoneRequest request;

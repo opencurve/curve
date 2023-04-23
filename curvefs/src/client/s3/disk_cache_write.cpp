@@ -336,8 +336,6 @@ int DiskCacheWrite::UploadAllCacheWriteFile() {
     VLOG(3) << "upload all cached write file start.";
     std::string fileFullPath;
     bool ret;
-    DIR *cacheWriteDir = NULL;
-    struct dirent *cacheWriteDirent = NULL;
     int doRet;
     fileFullPath = GetCacheIoFullDir();
     ret = IsFileExist(fileFullPath);
@@ -472,7 +470,7 @@ int DiskCacheWrite::WriteDiskFile(const std::string fileName, const char *buf,
         return fd;
     }
     ssize_t writeLen = posixWrapper_->write(fd, buf, length);
-    if (writeLen < 0 || writeLen < length) {
+    if (writeLen < static_cast<ssize_t>(length)) {
         LOG(ERROR) << "write disk file error. ret: " << writeLen
                    << ", file: " << fileName
                    << ", error: " << errno;

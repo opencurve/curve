@@ -24,6 +24,7 @@
 #define SRC_CLIENT_CHUNKSERVER_BROADCASTER_H_
 
 #include <list>
+#include <memory>
 
 #include "include/client/libcurve_define.h"
 #include "src/client/client_common.h"

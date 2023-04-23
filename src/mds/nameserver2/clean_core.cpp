@@ -172,7 +172,6 @@ StatusCode CleanCore::CleanDiscardSegment(
     const DiscardSegmentInfo& discardSegmentInfo, TaskProgress* progress) {
     const FileInfo& fileInfo = discardSegmentInfo.fileinfo();
     const PageFileSegment& segment = discardSegmentInfo.pagefilesegment();
-    const LogicalPoolID logicalPoolId = segment.logicalpoolid();
     const SeqNum seq = fileInfo.seqnum();
 
     LOG(INFO) << "Start CleanDiscardSegment, filename = " << fileInfo.filename()

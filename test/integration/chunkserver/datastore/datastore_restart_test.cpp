@@ -156,8 +156,8 @@ class ExecWrite : public ExecStep {
     }
 
     void Dump() override {
-        printf("WriteChunk, id = %llu, sn = %llu, offset = %llu, "
-                "size = %llu, data = %c.\n",
+        printf("WriteChunk, id = %lu, sn = %lu, offset = %lu, "
+                "size = %lu, data = %c.\n",
                 id_, sn_, data_.offset, data_.length, data_.data);
     }
 
@@ -182,8 +182,8 @@ class ExecPaste : public ExecStep {
     }
 
     void Dump() override {
-        printf("PasteChunk, id = %llu, offset = %llu, "
-                "size = %llu, data = %c.\n",
+        printf("PasteChunk, id = %lu, offset = %lu, "
+                "size = %lu, data = %c.\n",
                 id_, data_.offset, data_.length, data_.data);
     }
 
@@ -204,7 +204,7 @@ class ExecDelete : public ExecStep {
     }
 
     void Dump() override {
-        printf("DeleteChunk, id = %llu, sn = %llu.\n", id_, sn_);
+        printf("DeleteChunk, id = %lu, sn = %lu.\n", id_, sn_);
     }
 
  private:
@@ -226,7 +226,7 @@ class ExecDeleteSnapshot : public ExecStep {
 
     void Dump() override {
         printf("DeleteSnapshotChunkOrCorrectSn, "
-               "id = %llu, correctedSn = %llu.\n", id_, correctedSn_);
+               "id = %lu, correctedSn = %lu.\n", id_, correctedSn_);
     }
 
  private:
@@ -251,8 +251,8 @@ class ExecCreateClone : public ExecStep {
     }
 
     void Dump() override {
-        printf("CreateCloneChunk, id = %llu, sn = %llu, correctedSn = %llu, "
-               "chunk size = %llu, location = %s.\n",
+        printf("CreateCloneChunk, id = %lu, sn = %lu, correctedSn = %lu, "
+               "chunk size = %u, location = %s.\n",
                id_, sn_, correctedSn_, size_, location_.c_str());
     }
 

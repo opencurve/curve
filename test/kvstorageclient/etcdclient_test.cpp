@@ -54,7 +54,7 @@ class TestEtcdClinetImp : public ::testing::Test {
 
         client_ = std::make_shared<EtcdClientImp>();
         char endpoints[] = "127.0.0.1:2377";
-        EtcdConf conf = { endpoints, strlen(endpoints), 1000 };
+        EtcdConf conf = {endpoints, static_cast<int>(strlen(endpoints)), 1000};
         ASSERT_EQ(EtcdErrCode::EtcdDeadlineExceeded,
                   client_->Init(conf, 200, 3));
 
@@ -204,13 +204,15 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
     }
 
     // 5. rename file: rename file9 ~ file10, file10本来不存在
-    Operation op1{ OpType::OpDelete, const_cast<char *>(keyMap[9].c_str()),
-                   const_cast<char *>(fileInfo9.c_str()), keyMap[9].size(),
-                   fileInfo9.size() };
-    Operation op2{ OpType::OpPut, const_cast<char *>(fileKey10.c_str()),
-                   const_cast<char *>(fileInfo10.c_str()), fileKey10.size(),
-                   fileInfo10.size() };
-    std::vector<Operation> ops{ op1, op2 };
+    Operation op1{OpType::OpDelete, const_cast<char *>(keyMap[9].c_str()),
+                  const_cast<char *>(fileInfo9.c_str()),
+                  static_cast<int>(keyMap[9].size()),
+                  static_cast<int>(fileInfo9.size())};
+    Operation op2{OpType::OpPut, const_cast<char *>(fileKey10.c_str()),
+                  const_cast<char *>(fileInfo10.c_str()),
+                  static_cast<int>(fileKey10.size()),
+                  static_cast<int>(fileInfo10.size())};
+    std::vector<Operation> ops{op1, op2};
     ASSERT_EQ(EtcdErrCode::EtcdOK, client_->TxnN(ops));
     // cannot get file9
     std::string out;
@@ -222,12 +224,14 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
     ASSERT_EQ(fileName10, fileinfo.filename());
 
     // 6. snapshot of keyMap[6]
-    Operation op3{ OpType::OpPut, const_cast<char *>(keyMap[6].c_str()),
-                   const_cast<char *>(fileInfo6.c_str()), keyMap[6].size(),
-                   fileInfo6.size() };
-    Operation op4{ OpType::OpPut, const_cast<char *>(snapshotKey6.c_str()),
-                   const_cast<char *>(snapshotInfo6.c_str()),
-                   snapshotKey6.size(), snapshotInfo6.size() };
+    Operation op3{OpType::OpPut, const_cast<char *>(keyMap[6].c_str()),
+                  const_cast<char *>(fileInfo6.c_str()),
+                  static_cast<int>(keyMap[6].size()),
+                  static_cast<int>(fileInfo6.size())};
+    Operation op4{OpType::OpPut, const_cast<char *>(snapshotKey6.c_str()),
+                  const_cast<char *>(snapshotInfo6.c_str()),
+                  static_cast<int>(snapshotKey6.size()),
+                  static_cast<int>(snapshotInfo6.size())};
     ops.clear();
     ops.emplace_back(op3);
     ops.emplace_back(op4);
@@ -256,8 +260,9 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
     ASSERT_EQ("200", out);
 
     // 8. rename file: rename file7 ~ file8
-    Operation op8{ OpType::OpDelete, const_cast<char *>(keyMap[7].c_str()), "",
-                   keyMap[7].size(), 0 };
+    Operation op8{OpType::OpDelete, const_cast<char *>(keyMap[7].c_str()),
+                  const_cast<char *>(""), static_cast<int>(keyMap[7].size()),
+                  0};
     FileInfo newFileInfo7;
     newFileInfo7.CopyFrom(fileInfo7);
     newFileInfo7.set_parentid(fileInfo8.parentid());
@@ -267,10 +272,11 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
                                                   newFileInfo7.filename());
     std::string encodeNewFileInfo7;
     ASSERT_TRUE(newFileInfo7.SerializeToString(&encodeNewFileInfo7));
-    Operation op9{ OpType::OpPut,
-                   const_cast<char *>(encodeNewFileInfo7Key.c_str()),
-                   const_cast<char *>(encodeNewFileInfo7.c_str()),
-                   encodeNewFileInfo7Key.size(), encodeNewFileInfo7.size() };
+    Operation op9{OpType::OpPut,
+                  const_cast<char *>(encodeNewFileInfo7Key.c_str()),
+                  const_cast<char *>(encodeNewFileInfo7.c_str()),
+                  static_cast<int>(encodeNewFileInfo7Key.size()),
+                  static_cast<int>(encodeNewFileInfo7.size())};
     ops.clear();
     ops.emplace_back(op8);
     ops.emplace_back(op9);
@@ -300,9 +306,10 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
     ASSERT_EQ(EtcdErrCode::EtcdDeadlineExceeded, client_->TxnN(ops));
 
     client_->SetTimeout(5000);
-    Operation op5{ OpType(5), const_cast<char *>(snapshotKey6.c_str()),
-                   const_cast<char *>(snapshotInfo6.c_str()),
-                   snapshotKey6.size(), snapshotInfo6.size() };
+    Operation op5{OpType(5), const_cast<char *>(snapshotKey6.c_str()),
+                  const_cast<char *>(snapshotInfo6.c_str()),
+                  static_cast<int>(snapshotKey6.size()),
+                  static_cast<int>(snapshotInfo6.size())};
     ops.clear();
     ops.emplace_back(op3);
     ops.emplace_back(op5);
@@ -384,7 +391,7 @@ TEST_F(TestEtcdClinetImp, test_CampaignLeader) {
     int dialtTimeout = 10000;
     int retryTimes = 3;
     char endpoints[] = "127.0.0.1:2377";
-    EtcdConf conf = { endpoints, strlen(endpoints), 20000 };
+    EtcdConf conf = {endpoints, static_cast<int>(strlen(endpoints)), 20000};
     std::string leaderName1("leader1");
     std::string leaderName2("leader2");
     uint64_t leaderOid;

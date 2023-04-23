@@ -29,13 +29,13 @@
 #include "curvefs/test/mds/mock/mock_coordinator.h"
 #include "curvefs/test/mds/mock/mock_topology.h"
 
+using ::curvefs::mds::MockCoordinator;
+using ::curvefs::mds::topology::CopySetIdType;
 using ::curvefs::mds::topology::MockIdGenerator;
 using ::curvefs::mds::topology::MockStorage;
 using ::curvefs::mds::topology::MockTokenGenerator;
 using ::curvefs::mds::topology::MockTopology;
-using ::curvefs::mds::MockCoordinator;
 using ::curvefs::mds::topology::TopoStatusCode;
-using ::curvefs::mds::topology::CopySetIdType;
 using ::curvefs::mds::topology::UNINITIALIZE_ID;
 using ::testing::_;
 using ::testing::DoAll;
@@ -72,15 +72,14 @@ class TestCopysetConfGenerator : public ::testing::Test {
 };
 
 TEST_F(TestCopysetConfGenerator, get_copyset_fail) {
-    MetaServerIdType reportId;
+    MetaServerIdType reportId = 1;
     PoolIdType poolId = 1;
     CopySetIdType copysetId = 2;
     ::curvefs::mds::topology::CopySetInfo reportCopySetInfo(poolId, copysetId);
     ::curvefs::mds::heartbeat::ConfigChangeInfo configChInfo;
     ::curvefs::mds::heartbeat::CopySetConf copysetConf;
 
-    EXPECT_CALL(*topology_, GetCopySet(_, _))
-        .WillOnce(Return(false));
+    EXPECT_CALL(*topology_, GetCopySet(_, _)).WillOnce(Return(false));
 
     bool ret = generator_->GenCopysetConf(reportId, reportCopySetInfo,
                                           configChInfo, &copysetConf);
@@ -206,8 +205,8 @@ TEST_F(TestCopysetConfGenerator, get_report_copyset_follower2) {
     recordCopySetInfo.SetEpoch(3);
     EXPECT_CALL(*topology_, GetCopySet(_, _))
         .WillOnce(DoAll(SetArgPointee<1>(recordCopySetInfo), Return(true)));
-    ret = generator_->GenCopysetConf(reportId, reportCopySetInfo,
-                                          configChInfo, &copysetConf);
+    ret = generator_->GenCopysetConf(reportId, reportCopySetInfo, configChInfo,
+                                     &copysetConf);
     ASSERT_FALSE(ret);
 }
 
@@ -342,8 +341,7 @@ TEST_F(TestCopysetConfGenerator, get_report_copyset_follower7) {
     EXPECT_CALL(*coordinator_, MetaserverGoingToAdd(_, _))
         .WillOnce(Return(false));
 
-    EXPECT_CALL(*topology_, GetMetaServer(_, _))
-        .WillOnce(Return(false));
+    EXPECT_CALL(*topology_, GetMetaServer(_, _)).WillOnce(Return(false));
 
     sleep(1);
     bool ret = generator_->GenCopysetConf(reportId, reportCopySetInfo,

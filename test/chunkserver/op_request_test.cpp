@@ -735,11 +735,7 @@ TEST(ChunkOpRequestTest, OnApplyErrorTest) {
 TEST(ChunkOpRequestTest, OnApplyFromLogTest) {
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 10001;
-    uint64_t chunkId = 12345;
-    size_t offset = 0;
-    uint32_t size = 16;
     uint64_t sn = 1;
-    uint64_t appliedIndex = 12;
     uint32_t followScanRpcTimeoutMs = 1000;
 
     Configuration conf;

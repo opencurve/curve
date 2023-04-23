@@ -77,11 +77,11 @@ int RecoverScheduler::Schedule() {
 
         // alarm if over half of the replicas are offline
         int deadBound =
-            copysetInfo.peers.size() - (copysetInfo.peers.size()/2 + 1);
-        if (offlinelists.size() > deadBound) {
+            copysetInfo.peers.size() - (copysetInfo.peers.size() / 2 + 1);
+        if (static_cast<int>(offlinelists.size()) > deadBound) {
             LOG(ERROR) << "recoverSchdeuler find "
-                       << copysetInfo.CopySetInfoStr()
-                       << " has " << offlinelists.size()
+                       << copysetInfo.CopySetInfoStr() << " has "
+                       << offlinelists.size()
                        << " replica offline, cannot repair, please check";
             continue;
         }
@@ -90,10 +90,10 @@ int RecoverScheduler::Schedule() {
         for (auto it = offlinelists.begin(); it != offlinelists.end();) {
             if (excludes.count(*it) > 0) {
                 LOG(ERROR) << "can not recover offline chunkserver " << *it
-                          << " on " << copysetInfo.CopySetInfoStr()
-                          << ", because it's server has more than "
-                          << chunkserverFailureTolerance_
-                          << " offline chunkservers";
+                           << " on " << copysetInfo.CopySetInfoStr()
+                           << ", because it's server has more than "
+                           << chunkserverFailureTolerance_
+                           << " offline chunkservers";
                 it = offlinelists.erase(it);
             } else {
                 ++it;
@@ -108,22 +108,21 @@ int RecoverScheduler::Schedule() {
         Operator fixRes;
         ChunkServerIdType target;
         // failed to recover the replica
-        if (!FixOfflinePeer(
-                copysetInfo, *offlinelists.begin(), &fixRes, &target)) {
+        if (!FixOfflinePeer(copysetInfo, *offlinelists.begin(), &fixRes,
+                            &target)) {
             continue;
-        // succeeded but failed to add the operator to the controller
+            // succeeded but failed to add the operator to the controller
         } else if (!opController_->AddOperator(fixRes)) {
             LOG(WARNING) << "recover scheduler add operator "
-                       << fixRes.OpToString() << " on "
-                       << copysetInfo.CopySetInfoStr() << " fail";
+                         << fixRes.OpToString() << " on "
+                         << copysetInfo.CopySetInfoStr() << " fail";
             continue;
-        // succeeded in recovering replica and adding it to the controller
+            // succeeded in recovering replica and adding it to the controller
         } else {
             LOG(INFO) << "recoverScheduler generate operator:"
-                        << fixRes.OpToString() << " for "
-                        << copysetInfo.CopySetInfoStr()
-                        << ", remove offlinePeer: "
-                        << *offlinelists.begin();
+                      << fixRes.OpToString() << " for "
+                      << copysetInfo.CopySetInfoStr()
+                      << ", remove offlinePeer: " << *offlinelists.begin();
             // if the target returned has the initial value, that means offline
             // replicas are removed directly.
             if (target == UNINTIALIZE_ID) {
@@ -135,10 +134,11 @@ int RecoverScheduler::Schedule() {
             // should be generated on target. If failed to generate, delete the
             // operator.
             if (!topo_->CreateCopySetAtChunkServer(copysetInfo.id, target)) {
-                LOG(WARNING) << "recoverScheduler create "
-                           << copysetInfo.CopySetInfoStr()
-                           << " on chunkServer: " << target
-                           << " error, delete operator" << fixRes.OpToString();
+                LOG(WARNING)
+                    << "recoverScheduler create "
+                    << copysetInfo.CopySetInfoStr()
+                    << " on chunkServer: " << target
+                    << " error, delete operator" << fixRes.OpToString();
                 opController_->RemoveOperator(copysetInfo.id);
                 continue;
             }
@@ -150,24 +150,21 @@ int RecoverScheduler::Schedule() {
     return 1;
 }
 
-int64_t RecoverScheduler::GetRunningInterval() {
-    return runInterval_;
-}
+int64_t RecoverScheduler::GetRunningInterval() { return runInterval_; }
 
-bool RecoverScheduler::FixOfflinePeer(
-    const CopySetInfo &info, ChunkServerIdType peerId,
-    Operator *op, ChunkServerIdType *target) {
+bool RecoverScheduler::FixOfflinePeer(const CopySetInfo &info,
+                                      ChunkServerIdType peerId, Operator *op,
+                                      ChunkServerIdType *target) {
     assert(op != nullptr);
     // check the standard number of replicas first
     auto standardReplicaNum =
         topo_->GetStandardReplicaNumInLogicalPool(info.id.first);
     if (standardReplicaNum <= 0) {
-        LOG(WARNING) << "RecoverScheduler find logical pool "
-                     << info.id.first << " standard num "
-                     << standardReplicaNum << " invalid";
+        LOG(WARNING) << "RecoverScheduler find logical pool " << info.id.first
+                     << " standard num " << standardReplicaNum << " invalid";
         return false;
     }
-    if (info.peers.size() > standardReplicaNum) {
+    if (static_cast<int>(info.peers.size()) > standardReplicaNum) {
         // remove the offline replica
         *op = operatorFactory.CreateRemovePeerOperator(
             info, peerId, OperatorPriority::HighPriority);
@@ -180,8 +177,9 @@ bool RecoverScheduler::FixOfflinePeer(
     auto csId = SelectBestPlacementChunkServer(info, peerId);
     if (csId == UNINTIALIZE_ID) {
         LOG(WARNING) << "recoverScheduler can not select chunkServer to "
-                        "repair " << info.CopySetInfoStr()
-                     << ", which replica: " << peerId << " is offline";
+                        "repair "
+                     << info.CopySetInfoStr() << ", which replica: " << peerId
+                     << " is offline";
         return false;
     } else {
         *op = operatorFactory.CreateChangePeerOperator(
@@ -220,17 +218,19 @@ void RecoverScheduler::CalculateExcludesChunkServer(
     // tolerance threshold. If it does, the chunkservers on this server will not
     // be recovered
     for (auto item : unhealthyStateCS) {
-        if (item.second.size() < chunkserverFailureTolerance_) {
+        if (static_cast<int>(item.second.size()) <
+            chunkserverFailureTolerance_) {
             continue;
         }
-        LOG(WARNING) << "server " << item.first << " has "
-                    << item.second.size() << " offline chunkservers";
+        LOG(WARNING) << "server " << item.first << " has " << item.second.size()
+                     << " offline chunkservers";
         for (auto cs : item.second) {
             excludes->emplace(cs);
         }
     }
 
-    // if the chunkserver is in pending status, it will be considered recoverable //NOLINT
+    // if the chunkserver is in pending status, it will be considered
+    // recoverable //NOLINT
     for (auto it : pendingCS) {
         excludes->erase(it);
     }
@@ -238,4 +238,3 @@ void RecoverScheduler::CalculateExcludesChunkServer(
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curve
-

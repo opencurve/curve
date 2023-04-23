@@ -174,7 +174,7 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
             return kErrCodeInternalError;
     }
 
-    //是否为快照
+    // 是否为快照
     SnapshotInfo snapInfo;
     CloneFileType fileType;
 
@@ -290,6 +290,7 @@ int CloneCoreImpl::FlattenPre(
     const std::string &user,
     const TaskIdType &taskId,
     CloneInfo *cloneInfo) {
+    (void)user;
     int ret = metaStore_->GetCloneInfo(taskId, cloneInfo);
     if (ret < 0) {
         return kErrCodeFileNotExist;
@@ -868,6 +869,8 @@ int CloneCoreImpl::CompleteCloneMeta(
     std::shared_ptr<CloneTaskInfo> task,
     const FInfo &fInfo,
     const CloneSegmentMap &segInfos) {
+    (void)fInfo;
+    (void)segInfos;
     std::string origin =
         cloneTempDir_ + "/" + task->GetCloneInfo().GetTaskId();
     std::string user = task->GetCloneInfo().GetUser();
@@ -1077,6 +1080,7 @@ int CloneCoreImpl::ContinueAsyncRecoverChunkPartAndWaitSomeChunkEnd(
 int CloneCoreImpl::ChangeOwner(
     std::shared_ptr<CloneTaskInfo> task,
     const FInfo &fInfo) {
+    (void)fInfo;
     std::string user = task->GetCloneInfo().GetUser();
     std::string origin =
         cloneTempDir_ + "/" + task->GetCloneInfo().GetTaskId();
@@ -1171,6 +1175,8 @@ int CloneCoreImpl::CompleteCloneFile(
     std::shared_ptr<CloneTaskInfo> task,
     const FInfo &fInfo,
     const CloneSegmentMap &segInfos) {
+    (void)fInfo;
+    (void)segInfos;
     std::string fileName;
     if (IsLazy(task)) {
         fileName = task->GetCloneInfo().GetDest();
@@ -1542,7 +1548,7 @@ void CloneCoreImpl::HandleCleanCloneOrRecoverTask(
     if (CloneStatus::errorCleaning == task->GetCloneInfo().GetStatus()) {
         // 错误情况下可能未清除镜像被克隆标志
         if (IsFile(task)) {
-            //重新发送
+            // 重新发送
             std::string source = task->GetCloneInfo().GetSrc();
             NameLockGuard lockGuard(cloneRef_->GetLock(), source);
             if (cloneRef_->GetRef(source) == 0) {

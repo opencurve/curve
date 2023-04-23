@@ -209,7 +209,6 @@ TEST_F(TestFuseS3Client, test_Init_with_KVCache) {
 // GetInode failed; bad fd
 TEST_F(TestFuseS3Client, warmUp_inodeBadFd) {
     sleep(1);
-    fuse_ino_t parent = 1;
     std::string name = "test";
     fuse_ino_t inodeid = 2;
 
@@ -863,9 +862,9 @@ TEST_F(TestFuseS3Client, warmUp_FetchChildDentry_suc_ListDentry) {
 TEST_F(TestFuseS3Client, FuseInit_when_fs_exist) {
     MountOption mOpts;
     memset(&mOpts, 0, sizeof(mOpts));
-    mOpts.fsName = "s3fs";
-    mOpts.mountPoint = "host1:/test";
-    mOpts.fsType = "s3";
+    mOpts.fsName = const_cast<char*>("s3fs");
+    mOpts.mountPoint = const_cast<char*>("host1:/test");
+    mOpts.fsType = const_cast<char*>("s3");
 
     std::string fsName = mOpts.fsName;
     FsInfo fsInfoExp;
@@ -886,9 +885,9 @@ TEST_F(TestFuseS3Client, FuseInit_when_fs_exist) {
 TEST_F(TestFuseS3Client, FuseOpDestroy) {
     MountOption mOpts;
     memset(&mOpts, 0, sizeof(mOpts));
-    mOpts.fsName = "s3fs";
-    mOpts.mountPoint = "host1:/test";
-    mOpts.fsType = "s3";
+    mOpts.fsName = const_cast<char*>("s3fs");
+    mOpts.mountPoint = const_cast<char*>("host1:/test");
+    mOpts.fsType = const_cast<char*>("s3");
 
     std::string fsName = mOpts.fsName;
 
@@ -899,7 +898,7 @@ TEST_F(TestFuseS3Client, FuseOpDestroy) {
 }
 
 TEST_F(TestFuseS3Client, FuseOpWriteSmallSize) {
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t ino = 1;
     const char *buf = "xxx";
     size_t size = 4;
@@ -929,7 +928,7 @@ TEST_F(TestFuseS3Client, FuseOpWriteSmallSize) {
 }
 
 TEST_F(TestFuseS3Client, FuseOpWriteFailed) {
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t ino = 1;
     const char *buf = "xxx";
     size_t size = 4;
@@ -959,7 +958,7 @@ TEST_F(TestFuseS3Client, FuseOpWriteFailed) {
 }
 
 TEST_F(TestFuseS3Client, FuseOpReadOverRange) {
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t ino = 1;
     size_t size = 4;
     off_t off = 5000;
@@ -985,7 +984,7 @@ TEST_F(TestFuseS3Client, FuseOpReadOverRange) {
 }
 
 TEST_F(TestFuseS3Client, FuseOpReadFailed) {
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t ino = 1;
     size_t size = 4;
     off_t off = 0;
@@ -1016,9 +1015,9 @@ TEST_F(TestFuseS3Client, FuseOpReadFailed) {
 }
 
 TEST_F(TestFuseS3Client, FuseOpFsync) {
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t ino = 1;
-    struct fuse_file_info *fi;
+    struct fuse_file_info *fi = nullptr;
 
     Inode inode;
     inode.set_inodeid(ino);
@@ -1046,9 +1045,9 @@ TEST_F(TestFuseS3Client, FuseOpFsync) {
 }
 
 TEST_F(TestFuseS3Client, FuseOpFlush) {
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t ino = 1;
-    struct fuse_file_info *fi;
+    struct fuse_file_info *fi = nullptr;
     Inode inode;
     inode.set_inodeid(ino);
     inode.set_length(0);
@@ -1086,7 +1085,7 @@ TEST_F(TestFuseS3Client, FuseOpFlush) {
 
 TEST_F(TestFuseS3Client, FuseOpGetXattr_NotSummaryInfo) {
     // in
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t ino = 1;
     const char name[] = "security.selinux";
     size_t size = 100;
@@ -1098,7 +1097,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotSummaryInfo) {
 
 TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir) {
     // in
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t ino = 1;
     const char rname[] = "curve.dir.rfbytes";
     const char name[] = "curve.dir.fbytes";
@@ -1200,7 +1199,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir) {
 
 TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir_Failed) {
     // in
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t ino = 1;
     const char rname[] = "curve.dir.rfbytes";
     const char name[] = "curve.dir.fbytes";
@@ -1328,7 +1327,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir_Failed) {
 TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir) {
     client_->SetEnableSumInDir(true);
     // in
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t ino = 1;
     const char name[] = "curve.dir.rentries";
     size_t size = 100;
@@ -1396,7 +1395,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir) {
 TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir_Failed) {
     client_->SetEnableSumInDir(true);
     // in
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t ino = 1;
     const char name[] = "curve.dir.entries";
     const char rname[] = "curve.dir.rentries";
@@ -1604,7 +1603,7 @@ TEST_F(TestFuseS3Client, FuseOpCreate_EnableSummary) {
 TEST_F(TestFuseS3Client, FuseOpWrite_EnableSummary) {
     client_->SetEnableSumInDir(true);
 
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t ino = 1;
     const char* buf = "xxx";
     size_t size = 4;
@@ -1628,8 +1627,6 @@ TEST_F(TestFuseS3Client, FuseOpWrite_EnableSummary) {
     parentInode.mutable_xattr()->insert({XATTRSUBDIRS, "0"});
     parentInode.mutable_xattr()->insert({XATTRENTRIES, "1"});
     parentInode.mutable_xattr()->insert({XATTRFBYTES, "0"});
-
-    uint64_t parentId = 1;
 
     auto parentInodeWrapper = std::make_shared<InodeWrapper>(
         parentInode, metaClient_);
@@ -1660,7 +1657,7 @@ TEST_F(TestFuseS3Client, FuseOpWrite_EnableSummary) {
 TEST_F(TestFuseS3Client, FuseOpLink_EnableSummary) {
     client_->SetEnableSumInDir(true);
 
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t ino = 1;
     fuse_ino_t newparent = 2;
     const char* newname = "xxxx";
@@ -1705,7 +1702,7 @@ TEST_F(TestFuseS3Client, FuseOpLink_EnableSummary) {
 TEST_F(TestFuseS3Client, FuseOpUnlink_EnableSummary) {
     client_->SetEnableSumInDir(true);
 
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t parent = 1;
     std::string name = "xxx";
     uint32_t nlink = 100;
@@ -1788,7 +1785,7 @@ TEST_F(TestFuseS3Client, FuseOpUnlink_EnableSummary) {
 TEST_F(TestFuseS3Client, FuseOpOpen_Trunc_EnableSummary) {
     client_->SetEnableSumInDir(true);
 
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t ino = 1;
     struct fuse_file_info fi;
     fi.flags = O_TRUNC | O_WRONLY;
@@ -1815,8 +1812,6 @@ TEST_F(TestFuseS3Client, FuseOpOpen_Trunc_EnableSummary) {
 
     auto parentInodeWrapper = std::make_shared<InodeWrapper>(
         parentInode, metaClient_);
-
-    uint64_t parentId = 1;
 
     EXPECT_CALL(*inodeManager_, GetInode(_, _))
         .WillOnce(
@@ -1846,9 +1841,8 @@ TEST_F(TestFuseS3Client, FuseOpListXattr) {
     std::memset(buf, 0, 256);
     size_t size = 0;
 
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t ino = 1;
-    struct fuse_file_info fi;
     InodeAttr inode;
     inode.set_inodeid(ino);
     inode.set_length(4096);
@@ -1907,7 +1901,7 @@ TEST_F(TestFuseS3Client, FuseOpListXattr) {
 
 TEST_F(TestFuseS3Client, FuseOpSetXattr_TooLong) {
     // in
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t ino = 1;
     const char name[] = "security.selinux";
     size_t size = 64 * 1024 + 1;
@@ -1921,7 +1915,7 @@ TEST_F(TestFuseS3Client, FuseOpSetXattr_TooLong) {
 
 TEST_F(TestFuseS3Client, FuseOpSetXattr) {
     // in
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t ino = 1;
     const char name[] = "security.selinux";
     size_t size = 100;

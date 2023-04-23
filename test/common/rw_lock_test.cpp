@@ -80,6 +80,7 @@ TEST(RWLockTest, basic_test) {
         for (uint64_t i = 0; i < 10000; ++i) {
             ReadLockGuard readLockGuard(rwlock);
             auto j = writeCnt + i;
+            (void)j;
         }
     };
     {
@@ -149,6 +150,7 @@ TEST(BthreadRWLockTest, basic_test) {
         for (uint64_t i = 0; i < 10000; ++i) {
             ReadLockGuard readLockGuard(rwlock);
             auto j = writeCnt + i;
+            (void)j;
         }
     };
     {

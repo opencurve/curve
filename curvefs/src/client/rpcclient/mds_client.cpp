@@ -59,6 +59,8 @@ MdsClientImpl::Init(const ::curve::client::MetaServerOption &mdsOpt,
 FSStatusCode MdsClientImpl::MountFs(const std::string& fsName,
                                     const Mountpoint& mountPt, FsInfo* fsInfo) {
     auto task = RPCTask {
+        (void)addrindex;
+        (void)rpctimeoutMS;
         mdsClientMetric_.mountFs.qps.count << 1;
         LatencyUpdater updater(&mdsClientMetric_.mountFs.latency);
         MountFsResponse response;
@@ -88,6 +90,8 @@ FSStatusCode MdsClientImpl::MountFs(const std::string& fsName,
 FSStatusCode MdsClientImpl::UmountFs(const std::string& fsName,
                                      const Mountpoint& mountPt) {
     auto task = RPCTask {
+        (void)addrindex;
+        (void)rpctimeoutMS;
         mdsClientMetric_.umountFs.qps.count << 1;
         LatencyUpdater updater(&mdsClientMetric_.umountFs.latency);
         UmountFsResponse response;
@@ -113,6 +117,8 @@ FSStatusCode MdsClientImpl::UmountFs(const std::string& fsName,
 FSStatusCode MdsClientImpl::GetFsInfo(const std::string &fsName,
                                       FsInfo *fsInfo) {
     auto task = RPCTask {
+        (void)addrindex;
+        (void)rpctimeoutMS;
         mdsClientMetric_.getFsInfo.qps.count << 1;
         LatencyUpdater updater(&mdsClientMetric_.getFsInfo.latency);
         GetFsInfoResponse response;
@@ -143,6 +149,8 @@ FSStatusCode MdsClientImpl::GetFsInfo(const std::string &fsName,
 
 FSStatusCode MdsClientImpl::GetFsInfo(uint32_t fsId, FsInfo *fsInfo) {
     auto task = RPCTask {
+        (void)addrindex;
+        (void)rpctimeoutMS;
         mdsClientMetric_.getFsInfo.qps.count << 1;
         LatencyUpdater updater(&mdsClientMetric_.getFsInfo.latency);
         GetFsInfoResponse response;
@@ -203,6 +211,9 @@ bool MdsClientImpl::GetMetaServerInfo(
     ::curve::common::StringToUll(strs[1], &port);
 
     auto task = RPCTask {
+        (void)addrindex;
+        (void)rpctimeoutMS;
+        (void)addrindex;
         mdsClientMetric_.getMetaServerInfo.qps.count << 1;
         LatencyUpdater updater(&mdsClientMetric_.getMetaServerInfo.latency);
         GetMetaServerInfoResponse response;
@@ -239,6 +250,8 @@ bool MdsClientImpl::GetMetaServerListInCopysets(
     const LogicPoolID &logicalpooid, const std::vector<CopysetID> &copysetidvec,
     std::vector<CopysetInfo<MetaserverID>> *cpinfoVec) {
     auto task = RPCTask {
+        (void)addrindex;
+        (void)rpctimeoutMS;
         mdsClientMetric_.getMetaServerListInCopysets.qps.count << 1;
         LatencyUpdater updater(
             &mdsClientMetric_.getMetaServerListInCopysets.latency);
@@ -290,6 +303,8 @@ bool MdsClientImpl::GetMetaServerListInCopysets(
 bool MdsClientImpl::CreatePartition(
     uint32_t fsID, uint32_t count, std::vector<PartitionInfo> *partitionInfos) {
     auto task = RPCTask {
+        (void)addrindex;
+        (void)rpctimeoutMS;
         mdsClientMetric_.createPartition.qps.count << 1;
         LatencyUpdater updater(&mdsClientMetric_.createPartition.latency);
         CreatePartitionResponse response;
@@ -335,6 +350,8 @@ bool MdsClientImpl::GetCopysetOfPartitions(
     const std::vector<uint32_t> &partitionIDList,
     std::map<uint32_t, Copyset> *copysetMap) {
     auto task = RPCTask {
+        (void)addrindex;
+        (void)rpctimeoutMS;
         mdsClientMetric_.getCopysetOfPartitions.qps.count << 1;
         LatencyUpdater updater(
             &mdsClientMetric_.getCopysetOfPartitions.latency);
@@ -379,6 +396,8 @@ bool MdsClientImpl::GetCopysetOfPartitions(
 bool MdsClientImpl::ListPartition(uint32_t fsID,
                                   std::vector<PartitionInfo> *partitionInfos) {
     auto task = RPCTask {
+        (void)addrindex;
+        (void)rpctimeoutMS;
         mdsClientMetric_.listPartition.qps.count << 1;
         LatencyUpdater updater(&mdsClientMetric_.listPartition.latency);
         ListPartitionResponse response;
@@ -416,6 +435,8 @@ bool MdsClientImpl::ListPartition(uint32_t fsID,
 bool MdsClientImpl::AllocOrGetMemcacheCluster(uint32_t fsId,
                                               MemcacheClusterInfo* cluster) {
     auto task = RPCTask {
+        (void)addrindex;
+        (void)rpctimeoutMS;
         mdsClientMetric_.allocOrGetMemcacheCluster.qps.count << 1;
         LatencyUpdater updater(
             &mdsClientMetric_.allocOrGetMemcacheCluster.latency);
@@ -447,6 +468,8 @@ bool MdsClientImpl::AllocOrGetMemcacheCluster(uint32_t fsId,
 FSStatusCode MdsClientImpl::AllocS3ChunkId(uint32_t fsId, uint32_t idNum,
                                            uint64_t *chunkId) {
     auto task = RPCTask {
+        (void)addrindex;
+        (void)rpctimeoutMS;
         mdsClientMetric_.allocS3ChunkId.qps.count << 1;
         LatencyUpdater updater(&mdsClientMetric_.allocS3ChunkId.latency);
         AllocateS3ChunkResponse response;
@@ -480,6 +503,8 @@ MdsClientImpl::RefreshSession(const std::vector<PartitionTxId> &txIds,
                               const std::string& fsName,
                               const Mountpoint& mountpoint) {
     auto task = RPCTask {
+        (void)addrindex;
+        (void)rpctimeoutMS;
         mdsClientMetric_.refreshSession.qps.count << 1;
         LatencyUpdater updater(&mdsClientMetric_.refreshSession.latency);
         RefreshSessionRequest request;
@@ -517,6 +542,8 @@ MdsClientImpl::RefreshSession(const std::vector<PartitionTxId> &txIds,
 FSStatusCode MdsClientImpl::GetLatestTxId(const GetLatestTxIdRequest& request,
                                           GetLatestTxIdResponse* response) {
     auto task = RPCTask {
+        (void)addrindex;
+        (void)rpctimeoutMS;
         VLOG(3) << "GetLatestTxId [request]: " << request.DebugString();
         mdsClientMetric_.getLatestTxId.qps.count << 1;
         LatencyUpdater updater(&mdsClientMetric_.getLatestTxId.latency);
@@ -552,6 +579,8 @@ FSStatusCode MdsClientImpl::GetLatestTxId(const GetLatestTxIdRequest& request,
 
 FSStatusCode MdsClientImpl::CommitTx(const CommitTxRequest& request) {
     auto task = RPCTask {
+        (void)addrindex;
+        (void)rpctimeoutMS;
         VLOG(3) << "CommitTx [request]: " << request.DebugString();
         mdsClientMetric_.commitTx.qps.count << 1;
         LatencyUpdater updater(&mdsClientMetric_.commitTx.latency);
@@ -670,6 +699,8 @@ SpaceErrCode MdsClientImpl::AllocateVolumeBlockGroup(
     const std::string &owner,
     std::vector<curvefs::mds::space::BlockGroup> *groups) {
     auto task = RPCTask {
+        (void)addrindex;
+        (void)rpctimeoutMS;
         AllocateBlockGroupResponse response;
         mdsbasecli_->AllocateVolumeBlockGroup(fsId, count, owner, &response,
                                               cntl, channel);
@@ -705,6 +736,8 @@ SpaceErrCode MdsClientImpl::AcquireVolumeBlockGroup(
     const std::string &owner,
     curvefs::mds::space::BlockGroup *groups) {
     auto task = RPCTask {
+        (void)addrindex;
+        (void)rpctimeoutMS;
         AcquireBlockGroupResponse response;
         mdsbasecli_->AcquireVolumeBlockGroup(fsId, blockGroupOffset, owner,
                                              &response, cntl, channel);
@@ -730,6 +763,8 @@ SpaceErrCode MdsClientImpl::ReleaseVolumeBlockGroup(
     const std::string &owner,
     const std::vector<curvefs::mds::space::BlockGroup> &blockGroups) {
     auto task = RPCTask {
+        (void)addrindex;
+        (void)rpctimeoutMS;
         ReleaseBlockGroupResponse response;
         mdsbasecli_->ReleaseVolumeBlockGroup(fsId, owner, blockGroups,
                                              &response, cntl, channel);

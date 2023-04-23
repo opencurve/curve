@@ -31,6 +31,7 @@
 #include <algorithm>
 #include <cctype>
 #include <climits>
+#include <cstring>
 #include <memory>
 #include <vector>
 
@@ -44,10 +45,10 @@ using curve::common::kFilePoolMaigic;
 
 namespace curve {
 namespace chunkserver {
-const char* FilePoolHelper::kFileSize = "chunkSize";
-const char* FilePoolHelper::kMetaPageSize = "metaPageSize";
-const char* FilePoolHelper::kFilePoolPath = "chunkfilepool_path";
-const char* FilePoolHelper::kCRC = "crc";
+const char *FilePoolHelper::kFileSize = "chunkSize";
+const char *FilePoolHelper::kMetaPageSize = "metaPageSize";
+const char *FilePoolHelper::kFilePoolPath = "chunkfilepool_path";
+const char *FilePoolHelper::kCRC = "crc";
 const uint32_t FilePoolHelper::kPersistSize = 4096;
 const std::string FilePool::kCleanChunkSuffix_ = ".clean";  // NOLINT
 const std::chrono::milliseconds FilePool::kSuccessSleepMsec_(10);
@@ -55,8 +56,8 @@ const std::chrono::milliseconds FilePool::kFailSleepMsec_(500);
 
 int FilePoolHelper::PersistEnCodeMetaInfo(
     std::shared_ptr<LocalFileSystem> fsptr, uint32_t chunkSize,
-    uint32_t metaPageSize, const std::string& filePoolPath,
-    const std::string& persistPath) {
+    uint32_t metaPageSize, const std::string &filePoolPath,
+    const std::string &persistPath) {
     Json::Value root;
     root[kFileSize] = chunkSize;
     root[kMetaPageSize] = metaPageSize;
@@ -64,7 +65,7 @@ int FilePoolHelper::PersistEnCodeMetaInfo(
 
     uint32_t crcsize = sizeof(kFilePoolMaigic) + sizeof(chunkSize) +
                        sizeof(metaPageSize) + filePoolPath.size();
-    char* crcbuf = new char[crcsize];
+    char *crcbuf = new char[crcsize];
 
     ::memcpy(crcbuf, kFilePoolMaigic, sizeof(kFilePoolMaigic));
     ::memcpy(crcbuf + sizeof(kFilePoolMaigic), &chunkSize, sizeof(uint32_t));
@@ -85,7 +86,7 @@ int FilePoolHelper::PersistEnCodeMetaInfo(
 
     LOG(INFO) << root.toStyledString().c_str();
 
-    char* writeBuffer = new char[kPersistSize];
+    char *writeBuffer = new char[kPersistSize];
     memset(writeBuffer, 0, kPersistSize);
     memcpy(writeBuffer, root.toStyledString().c_str(),
            root.toStyledString().size());
@@ -105,9 +106,9 @@ int FilePoolHelper::PersistEnCodeMetaInfo(
 }
 
 int FilePoolHelper::DecodeMetaInfoFromMetaFile(
-    std::shared_ptr<LocalFileSystem> fsptr, const std::string& metaFilePath,
-    uint32_t metaFileSize, uint32_t* chunksize, uint32_t* metapagesize,
-    std::string* chunkfilePath) {
+    std::shared_ptr<LocalFileSystem> fsptr, const std::string &metaFilePath,
+    uint32_t metaFileSize, uint32_t *chunksize, uint32_t *metapagesize,
+    std::string *chunkfilePath) {
     int fd = fsptr->Open(metaFilePath, O_RDWR);
     if (fd < 0) {
         LOG(ERROR) << "meta file open failed, " << metaFilePath;
@@ -117,7 +118,7 @@ int FilePoolHelper::DecodeMetaInfoFromMetaFile(
     std::unique_ptr<char[]> readvalid(new char[metaFileSize]);
     memset(readvalid.get(), 0, metaFileSize);
     int ret = fsptr->Read(fd, readvalid.get(), 0, metaFileSize);
-    if (ret != metaFileSize) {
+    if (ret != static_cast<int>(metaFileSize)) {
         fsptr->Close(fd);
         LOG(ERROR) << "meta file read failed, " << metaFilePath;
         return -1;
@@ -128,10 +129,14 @@ int FilePoolHelper::DecodeMetaInfoFromMetaFile(
     uint32_t crcvalue = 0;
     bool parse = false;
     do {
-        Json::Reader reader;
+        Json::CharReaderBuilder builder;
+        std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
         Json::Value value;
-        if (!reader.parse(readvalid.get(), value)) {
-            LOG(ERROR) << "chunkfile meta file got error!";
+        char *str = readvalid.get();
+        JSONCPP_STRING errormsg;
+        if (!reader->parse(str, str + strlen(str), &value, &errormsg)) {
+            LOG(ERROR) << "chunkfile meta file got error!"
+                       << " error: " << errormsg;
             break;
         }
 
@@ -210,7 +215,7 @@ FilePool::FilePool(std::shared_ptr<LocalFileSystem> fsptr)
     memset(writeBuffer_.get(), 0, poolOpt_.bytesPerWrite);
 }
 
-bool FilePool::Initialize(const FilePoolOptions& cfopt) {
+bool FilePool::Initialize(const FilePoolOptions &cfopt) {
     poolOpt_ = cfopt;
     if (poolOpt_.getFileFromPool) {
         if (!CheckValid()) {
@@ -261,7 +266,7 @@ bool FilePool::CleanChunk(uint64_t chunkid, bool onlyMarked) {
     }
 
     int fd = ret;
-    auto defer = [&](...){ fsptr_->Close(fd); };
+    auto defer = [&](...) { fsptr_->Close(fd); };
     std::shared_ptr<void> _(nullptr, defer);
 
     uint64_t chunklen = poolOpt_.fileSize + poolOpt_.metaPageSize;
@@ -276,10 +281,11 @@ bool FilePool::CleanChunk(uint64_t chunkid, bool onlyMarked) {
         uint64_t nwrite = 0;
         uint64_t ntotal = chunklen;
         uint32_t bytesPerWrite = poolOpt_.bytesPerWrite;
-        char* buffer = writeBuffer_.get();
+        char *buffer = writeBuffer_.get();
 
         while (nwrite < ntotal) {
-            nbytes = fsptr_->Write(fd, buffer, nwrite,
+            nbytes = fsptr_->Write(
+                fd, buffer, nwrite,
                 std::min(ntotal - nwrite, (uint64_t)bytesPerWrite));
             if (nbytes < 0) {
                 LOG(ERROR) << "Write file failed: " << chunkpath;
@@ -305,8 +311,8 @@ bool FilePool::CleanChunk(uint64_t chunkid, bool onlyMarked) {
 }
 
 bool FilePool::CleaningChunk() {
-    auto popBack = [this](std::vector<uint64_t>* chunks,
-        uint64_t* chunksLeft) -> uint64_t {
+    auto popBack = [this](std::vector<uint64_t> *chunks,
+                          uint64_t *chunksLeft) -> uint64_t {
         std::unique_lock<std::mutex> lk(mtx_);
         if (chunks->empty()) {
             return 0;
@@ -319,8 +325,8 @@ bool FilePool::CleaningChunk() {
         return chunkid;
     };
 
-    auto pushBack = [this](std::vector<uint64_t>* chunks,
-        uint64_t chunkid, uint64_t* chunksLeft) {
+    auto pushBack = [this](std::vector<uint64_t> *chunks, uint64_t chunkid,
+                           uint64_t *chunksLeft) {
         std::unique_lock<std::mutex> lk(mtx_);
         chunks->push_back(chunkid);
         (*chunksLeft)++;
@@ -374,9 +380,9 @@ bool FilePool::StopCleaning() {
     return true;
 }
 
-bool FilePool::GetChunk(bool needClean, uint64_t* chunkid, bool* isCleaned) {
-    auto pop = [&](std::vector<uint64_t>* chunks,
-        uint64_t* chunksLeft, bool isCleanChunks) -> bool {
+bool FilePool::GetChunk(bool needClean, uint64_t *chunkid, bool *isCleaned) {
+    auto pop = [&](std::vector<uint64_t> *chunks, uint64_t *chunksLeft,
+                   bool isCleanChunks) -> bool {
         std::unique_lock<std::mutex> lk(mtx_);
         if (chunks->empty()) {
             return false;
@@ -391,14 +397,14 @@ bool FilePool::GetChunk(bool needClean, uint64_t* chunkid, bool* isCleaned) {
     };
 
     if (!needClean) {
-        return pop(&dirtyChunks_, &currentState_.dirtyChunksLeft, false)
-            || pop(&cleanChunks_, &currentState_.cleanChunksLeft, true);
+        return pop(&dirtyChunks_, &currentState_.dirtyChunksLeft, false) ||
+               pop(&cleanChunks_, &currentState_.cleanChunksLeft, true);
     }
 
     // Need clean chunk
     *isCleaned = false;
-    bool ret = pop(&cleanChunks_, &currentState_.cleanChunksLeft, true)
-        || pop(&dirtyChunks_, &currentState_.dirtyChunksLeft, false);
+    bool ret = pop(&cleanChunks_, &currentState_.cleanChunksLeft, true) ||
+               pop(&dirtyChunks_, &currentState_.dirtyChunksLeft, false);
 
     if (true == ret && false == *isCleaned && CleanChunk(*chunkid, true)) {
         *isCleaned = true;
@@ -407,8 +413,7 @@ bool FilePool::GetChunk(bool needClean, uint64_t* chunkid, bool* isCleaned) {
     return *isCleaned;
 }
 
-int FilePool::GetFile(const std::string& targetpath,
-                      const char* metapage,
+int FilePool::GetFile(const std::string &targetpath, const char *metapage,
                       bool needClean) {
     int ret = -1;
     int retry = 0;
@@ -470,7 +475,7 @@ int FilePool::GetFile(const std::string& targetpath,
     return ret;
 }
 
-int FilePool::AllocateChunk(const std::string& chunkpath) {
+int FilePool::AllocateChunk(const std::string &chunkpath) {
     uint64_t chunklen = poolOpt_.fileSize + poolOpt_.metaPageSize;
 
     int ret = fsptr_->Open(chunkpath.c_str(), O_RDWR | O_CREAT);
@@ -487,7 +492,7 @@ int FilePool::AllocateChunk(const std::string& chunkpath) {
         return -1;
     }
 
-    char* data = new (std::nothrow) char[chunklen];
+    char *data = new (std::nothrow) char[chunklen];
     memset(data, 0, chunklen);
 
     ret = fsptr_->Write(fd, data, 0, chunklen);
@@ -513,7 +518,7 @@ int FilePool::AllocateChunk(const std::string& chunkpath) {
     return ret;
 }
 
-bool FilePool::WriteMetaPage(const std::string& sourcepath, const char* page) {
+bool FilePool::WriteMetaPage(const std::string &sourcepath, const char *page) {
     int fd = -1;
     int ret = -1;
 
@@ -526,7 +531,7 @@ bool FilePool::WriteMetaPage(const std::string& sourcepath, const char* page) {
     fd = ret;
 
     ret = fsptr_->Write(fd, page, 0, poolOpt_.metaPageSize);
-    if (ret != poolOpt_.metaPageSize) {
+    if (ret != static_cast<int>(poolOpt_.metaPageSize)) {
         fsptr_->Close(fd);
         LOG(ERROR) << "write metapage failed, " << sourcepath.c_str();
         return false;
@@ -547,7 +552,7 @@ bool FilePool::WriteMetaPage(const std::string& sourcepath, const char* page) {
     return true;
 }
 
-int FilePool::RecycleFile(const std::string& chunkpath) {
+int FilePool::RecycleFile(const std::string &chunkpath) {
     if (!poolOpt_.getFileFromPool) {
         int ret = fsptr_->Delete(chunkpath.c_str());
         if (ret < 0) {
@@ -574,7 +579,7 @@ int FilePool::RecycleFile(const std::string& chunkpath) {
             return fsptr_->Delete(chunkpath.c_str());
         }
 
-        if (info.st_size != chunklen) {
+        if (info.st_size != static_cast<int64_t>(chunklen)) {
             LOG(ERROR) << "file size illegal, " << chunkpath.c_str()
                        << ", delete file dirctly"
                        << ", standard size = " << chunklen
@@ -634,7 +639,7 @@ bool FilePool::ScanInternal() {
 
     size_t suffixLen = kCleanChunkSuffix_.size();
     uint64_t chunklen = poolOpt_.fileSize + poolOpt_.metaPageSize;
-    for (auto& iter : tmpvec) {
+    for (auto &iter : tmpvec) {
         bool isCleaned = false;
         std::string chunkNum = iter;
         if (::curve::common::StringEndsWith(iter, kCleanChunkSuffix_)) {
@@ -642,10 +647,9 @@ bool FilePool::ScanInternal() {
             chunkNum = iter.substr(0, iter.size() - suffixLen);
         }
 
-        auto it = std::find_if(chunkNum.begin(), chunkNum.end(),
-            [](unsigned char c) {
-            return !std::isdigit(c);
-        });
+        auto it =
+            std::find_if(chunkNum.begin(), chunkNum.end(),
+                         [](unsigned char c) { return !std::isdigit(c); });
         if (it != chunkNum.end()) {
             LOG(ERROR) << "file name illegal! [" << iter << "]";
             return false;
@@ -664,7 +668,7 @@ bool FilePool::ScanInternal() {
         struct stat info;
         int ret = fsptr_->Fstat(fd, &info);
 
-        if (ret != 0 || info.st_size != chunklen) {
+        if (ret != 0 || info.st_size != static_cast<int64_t>(chunklen)) {
             LOG(ERROR) << "file size illegal, " << filepath.c_str()
                        << ", standard size = " << chunklen
                        << ", current size = " << info.st_size;
@@ -690,8 +694,8 @@ bool FilePool::ScanInternal() {
     currentmaxfilenum_.store(maxnum + 1);
     currentState_.dirtyChunksLeft = dirtyChunks_.size();
     currentState_.cleanChunksLeft = cleanChunks_.size();
-    currentState_.preallocatedChunksLeft = currentState_.dirtyChunksLeft
-                                         + currentState_.cleanChunksLeft;
+    currentState_.preallocatedChunksLeft =
+        currentState_.dirtyChunksLeft + currentState_.cleanChunksLeft;
 
     LOG(INFO) << "scan done, pool size = "
               << currentState_.preallocatedChunksLeft;
@@ -703,9 +707,7 @@ size_t FilePool::Size() {
     return currentState_.preallocatedChunksLeft;
 }
 
-FilePoolState_t FilePool::GetState() {
-    return currentState_;
-}
+FilePoolState_t FilePool::GetState() { return currentState_; }
 
 }  // namespace chunkserver
 }  // namespace curve

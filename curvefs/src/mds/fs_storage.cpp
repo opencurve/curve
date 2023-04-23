@@ -424,14 +424,14 @@ bool PersisKVStorage::RenameFromStorage(const FsInfoWrapper& oldFs,
         OpType::OpDelete,
         const_cast<char*>(oldKey.c_str()),
         const_cast<char*>(""),
-        oldKey.size(),
+        static_cast<int>(oldKey.size()),
         0};
     Operation op2{
         OpType::OpPut,
         const_cast<char*>(newKey.c_str()),
         const_cast<char*>(newValue.c_str()),
-        newKey.size(),
-        newValue.size()};
+        static_cast<int>(newKey.size()),
+        static_cast<int>(newValue.size())};
     std::vector<Operation> ops{op1, op2};
     int ret = storage_->TxnN(ops);
     if (ret != EtcdErrCode::EtcdOK) {

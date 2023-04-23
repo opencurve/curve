@@ -300,6 +300,7 @@ CSErrorCode CSChunkFile::Write(SequenceNum sn,
                                off_t offset,
                                size_t length,
                                uint32_t* cost) {
+    (void)cost;
     WriteLockGuard writeGuard(rwLock_);
     if (!CheckOffsetAndLength(
             offset, length, isCloneChunk_ ? pageSize_ : FLAGS_minIoAlignment)) {

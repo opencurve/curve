@@ -53,8 +53,8 @@ int LeaderScheduler::DoLeaderSchedule(PoolIdType lid) {
     int maxId = -1;
     int minLeaderCount = -1;
     int minId = -1;
-    std::vector<ChunkServerInfo> csInfos
-        = topo_->GetChunkServersInLogicalPool(lid);
+    std::vector<ChunkServerInfo> csInfos =
+        topo_->GetChunkServersInLogicalPool(lid);
     static std::random_device rd;
     static std::mt19937 g(rd());
     std::shuffle(csInfos.begin(), csInfos.end(), g);
@@ -65,12 +65,14 @@ int LeaderScheduler::DoLeaderSchedule(PoolIdType lid) {
             continue;
         }
 
-        if (maxLeaderCount == -1 || csInfo.leaderCount > maxLeaderCount) {
+        if (maxLeaderCount == -1 ||
+            static_cast<int>(csInfo.leaderCount) > maxLeaderCount) {
             maxId = csInfo.info.id;
             maxLeaderCount = csInfo.leaderCount;
         }
 
-        if (minLeaderCount == -1 || csInfo.leaderCount < minLeaderCount) {
+        if (minLeaderCount == -1 ||
+            static_cast<int>(csInfo.leaderCount) < minLeaderCount) {
             // the chunkserver with minLeaderCount and not in coolingTime
             // can be the transfer target
             if (!coolingTimeExpired(csInfo.startUpTime)) {
@@ -85,9 +87,9 @@ int LeaderScheduler::DoLeaderSchedule(PoolIdType lid) {
               << ", maxLeaderCount:" << maxLeaderCount << "), (id:" << minId
               << ", minleaderCount:" << minLeaderCount << ")";
 
-    // leader scheduling is not required when (maxLeaderCount-minLeaderCount <= 1) //NOLINT
-    if (maxLeaderCount >= 0 &&
-        minLeaderCount >= 0 &&
+    // leader scheduling is not required when
+    // (maxLeaderCount-minLeaderCount <= 1)
+    if (maxLeaderCount >= 0 && minLeaderCount >= 0 &&
         maxLeaderCount - minLeaderCount <= 1) {
         LOG(INFO) << "leaderScheduler no need to generate transferLeader op";
         return oneRoundGenOp;
@@ -101,12 +103,12 @@ int LeaderScheduler::DoLeaderSchedule(PoolIdType lid) {
         Operator transferLeaderOutOp;
         CopySetInfo selectedCopySet;
         if (transferLeaderOut(maxId, maxLeaderCount, lid, &transferLeaderOutOp,
-            &selectedCopySet)) {
+                              &selectedCopySet)) {
             if (opController_->AddOperator(transferLeaderOutOp)) {
                 oneRoundGenOp += 1;
                 LOG(INFO) << "leaderScheduler generatre operator "
-                          << transferLeaderOutOp.OpToString()
-                          << " for " << selectedCopySet.CopySetInfoStr()
+                          << transferLeaderOutOp.OpToString() << " for "
+                          << selectedCopySet.CopySetInfoStr()
                           << " from transfer leader out";
                 return oneRoundGenOp;
             }
@@ -120,12 +122,12 @@ int LeaderScheduler::DoLeaderSchedule(PoolIdType lid) {
         Operator transferLeaderInOp;
         CopySetInfo selectedCopySet;
         if (transferLeaderIn(minId, minLeaderCount, lid, &transferLeaderInOp,
-            &selectedCopySet)) {
+                             &selectedCopySet)) {
             if (opController_->AddOperator(transferLeaderInOp)) {
                 oneRoundGenOp += 1;
                 LOG(INFO) << "leaderScheduler generatre operator "
-                          << transferLeaderInOp.OpToString()
-                          << " for " << selectedCopySet.CopySetInfoStr()
+                          << transferLeaderInOp.OpToString() << " for "
+                          << selectedCopySet.CopySetInfoStr()
                           << " from transfer leader in";
                 return oneRoundGenOp;
             }
@@ -136,13 +138,14 @@ int LeaderScheduler::DoLeaderSchedule(PoolIdType lid) {
 }
 
 bool LeaderScheduler::transferLeaderOut(ChunkServerIdType source, int count,
-    PoolIdType lid, Operator *op, CopySetInfo *selectedCopySet) {
+                                        PoolIdType lid, Operator *op,
+                                        CopySetInfo *selectedCopySet) {
     // find all copyset with source chunkserver as its leader as the candidate
     std::vector<CopySetInfo> candidateInfos;
     for (auto &cInfo : topo_->GetCopySetInfosInLogicalPool(lid)) {
         // skip those copysets that the source is the follower in it
         if (cInfo.leader != source) {
-           continue;
+            continue;
         }
 
         // skip the copyset under configuration changing
@@ -162,7 +165,7 @@ bool LeaderScheduler::transferLeaderOut(ChunkServerIdType source, int count,
     while (retryTimes < maxRetryTransferLeader) {
         // select a copyset from candidates randomly
         srand((unsigned)time(NULL));
-        *selectedCopySet = candidateInfos[rand()%candidateInfos.size()];
+        *selectedCopySet = candidateInfos[rand() % candidateInfos.size()];
         // choose the chunkserver with least leaders from follower
         ChunkServerIdType targetId = UNINTIALIZE_ID;
         uint32_t targetLeaderCount = std::numeric_limits<uint32_t>::max();
@@ -199,15 +202,14 @@ bool LeaderScheduler::transferLeaderOut(ChunkServerIdType source, int count,
         }
 
         if (targetId == UNINTIALIZE_ID ||
-            count - 1 < targetLeaderCount + 1 ||
+            count - 1 < static_cast<int>(targetLeaderCount + 1) ||
             !coolingTimeExpired(targetStartUpTime)) {
             retryTimes++;
             continue;
         } else {
             *op = operatorFactory.CreateTransferLeaderOperator(
-            *selectedCopySet, targetId, OperatorPriority::NormalPriority);
-            op->timeLimit =
-                std::chrono::seconds(transTimeSec_);
+                *selectedCopySet, targetId, OperatorPriority::NormalPriority);
+            op->timeLimit = std::chrono::seconds(transTimeSec_);
             return true;
         }
     }
@@ -216,7 +218,8 @@ bool LeaderScheduler::transferLeaderOut(ChunkServerIdType source, int count,
 }
 
 bool LeaderScheduler::transferLeaderIn(ChunkServerIdType target, int count,
-    PoolIdType lid, Operator *op, CopySetInfo *selectedCopySet) {
+                                       PoolIdType lid, Operator *op,
+                                       CopySetInfo *selectedCopySet) {
     // find the copyset on follower and transfer leader to the target
     std::vector<CopySetInfo> candidateInfos;
     for (auto &cInfo : topo_->GetCopySetInfosInLogicalPool(lid)) {
@@ -246,7 +249,7 @@ bool LeaderScheduler::transferLeaderIn(ChunkServerIdType target, int count,
     int retryTimes = 1;
     while (retryTimes < maxRetryTransferLeader) {
         // select a copyset randomly from candidates
-        *selectedCopySet = candidateInfos[rand()%candidateInfos.size()];
+        *selectedCopySet = candidateInfos[rand() % candidateInfos.size()];
 
         // fetch the leader number of the leader of the selected copyset and
         // the target
@@ -258,7 +261,7 @@ bool LeaderScheduler::transferLeaderIn(ChunkServerIdType target, int count,
             continue;
         }
 
-        if (sourceInfo.leaderCount - 1 < count + 1) {
+        if (static_cast<int>(sourceInfo.leaderCount - 1) < count + 1) {
             retryTimes++;
             continue;
         }
@@ -279,7 +282,7 @@ bool LeaderScheduler::copySetHealthy(const CopySetInfo &cInfo) {
         ChunkServerInfo csInfo;
         if (!topo_->GetChunkServerInfo(peer.id, &csInfo)) {
             LOG(ERROR) << "leaderScheduler cannot get info of chukServer:"
-                        << peer.id;
+                       << peer.id;
             healthy = false;
             break;
         }
@@ -302,9 +305,7 @@ bool LeaderScheduler::coolingTimeExpired(uint64_t startUpTime) {
     return tm.tv_sec - startUpTime > chunkserverCoolingTimeSec_;
 }
 
-int64_t LeaderScheduler::GetRunningInterval() {
-    return runInterval_;
-}
+int64_t LeaderScheduler::GetRunningInterval() { return runInterval_; }
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curve

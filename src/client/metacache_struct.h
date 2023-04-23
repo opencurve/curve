@@ -55,7 +55,7 @@ template <typename T> struct CURVE_CACHELINE_ALIGNMENT CopysetPeerInfo {
 
     CopysetPeerInfo() = default;
 
-    CopysetPeerInfo(const CopysetPeerInfo&) = default;
+    CopysetPeerInfo(const CopysetPeerInfo &) = default;
     CopysetPeerInfo &operator=(const CopysetPeerInfo &other) = default;
 
     CopysetPeerInfo(const T &cid, const PeerAddr &internal,
@@ -160,7 +160,7 @@ template <typename T> struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
 
     bool GetCurrentLeaderID(T *id) const {
         if (leaderindex_ >= 0) {
-            if (csinfos_.size() < leaderindex_) {
+            if (static_cast<int>(csinfos_.size()) < leaderindex_) {
                 return false;
             } else {
                 *id = csinfos_[leaderindex_].peerID;
@@ -212,7 +212,8 @@ template <typename T> struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
      */
     int GetLeaderInfo(T *peerid, EndPoint *ep) {
         // 第一次获取leader,如果当前leader信息没有确定，返回-1，由外部主动发起更新leader
-        if (leaderindex_ < 0 || leaderindex_ >= csinfos_.size()) {
+        if (leaderindex_ < 0 ||
+            leaderindex_ >= static_cast<int>(csinfos_.size())) {
             LOG(INFO) << "GetLeaderInfo pool " << lpid_ << ", copyset " << cpid_
                       << " has no leader";
 

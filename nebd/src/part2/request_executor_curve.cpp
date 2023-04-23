@@ -270,6 +270,7 @@ int CurveRequestExecutor::AioWrite(
 
 int CurveRequestExecutor::Flush(
     NebdFileInstance* fd, NebdServerAioContext* aioctx) {
+    (void)fd;
 
     aioctx->ret = 0;
     aioctx->cb(aioctx);

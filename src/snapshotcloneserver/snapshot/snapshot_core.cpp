@@ -73,7 +73,7 @@ int SnapshotCoreImpl::CreateSnapshotPre(const std::string &file,
             snapshotNum--;
         }
     }
-    if (snapshotNum >= maxSnapshotLimit_) {
+    if (snapshotNum >= static_cast<int>(maxSnapshotLimit_)) {
         LOG(ERROR) << "Snapshot count reach the max limit.";
         return kErrCodeSnapshotCountReachLimit;
     }

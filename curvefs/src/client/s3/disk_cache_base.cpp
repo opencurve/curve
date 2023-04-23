@@ -88,7 +88,7 @@ std::string DiskCacheBase::GetCacheIoFullDir() {
 int DiskCacheBase::CreateDir(const std::string dir) {
     size_t p = dir.find_last_of('/');
     std::string dirPath = dir;
-    if (p != -1) {
+    if (p != -1ULL) {
         dirPath.erase(dirPath.begin()+p, dirPath.end());
     }
     std::vector<std::string> names;

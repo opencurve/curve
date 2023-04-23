@@ -121,7 +121,7 @@ int CurveMetaTool::PrintChunkMeta(const std::string& chunkFileName) {
     memset(buf.get(), 0, FLAGS_pageSize);
     int rc = localFS_->Read(fd, buf.get(), 0, FLAGS_pageSize);
     localFS_->Close(fd);
-    if (rc != FLAGS_pageSize) {
+    if (rc != static_cast<int64_t>(FLAGS_pageSize)) {
         if (rc < 0) {
             std::cout << "Fail to read metaPage from "
                   << chunkFileName << ", " << berror() << std::endl;
@@ -157,7 +157,7 @@ int CurveMetaTool::PrintSnapshotMeta(const std::string& snapFileName) {
     memset(buf.get(), 0, FLAGS_pageSize);
     int rc = localFS_->Read(fd, buf.get(), 0, FLAGS_pageSize);
     localFS_->Close(fd);
-    if (rc != FLAGS_pageSize) {
+    if (rc != static_cast<int64_t>(FLAGS_pageSize)) {
         if (rc < 0) {
             std::cout << "Fail to read metaPage from "
                   << snapFileName << ", " << berror() << std::endl;

@@ -34,60 +34,38 @@
 #include "src/common/concurrent/name_lock.h"
 #include "src/common/concurrent/dlock.h"
 
-using ::google::protobuf::RpcController;
-using ::google::protobuf::Closure;
-using ::curve::common::NameLockGuard;
 using ::curve::common::DLock;
+using ::curve::common::NameLockGuard;
+using ::google::protobuf::Closure;
+using ::google::protobuf::RpcController;
 
 namespace curve {
 namespace snapshotcloneserver {
 
 class CloneClosure : public Closure {
  public:
-    CloneClosure(brpc::Controller* bcntl = nullptr,
-                 Closure* done = nullptr)
-        : bcntl_(bcntl),
-          done_(done),
-          requestId_(""),
-          taskId_(""),
-          dlock_(nullptr),
-          retCode_(kErrCodeInternalError) {}
+    explicit CloneClosure(brpc::Controller *bcntl = nullptr,
+                          Closure *done = nullptr)
+        : dlock_(nullptr), bcntl_(bcntl), done_(done), requestId_(""),
+          taskId_(""), retCode_(kErrCodeInternalError) {}
 
-    brpc::Controller * GetController() {
-        return bcntl_;
-    }
+    brpc::Controller *GetController() { return bcntl_; }
 
-    void SetRequestId(const UUID &requestId) {
-        requestId_ = requestId;
-    }
+    void SetRequestId(const UUID &requestId) { requestId_ = requestId; }
 
-    void SetTaskId(const TaskIdType &taskId) {
-        taskId_ = taskId;
-    }
+    void SetTaskId(const TaskIdType &taskId) { taskId_ = taskId; }
 
-    TaskIdType GetTaskId() {
-        return taskId_;
-    }
+    TaskIdType GetTaskId() { return taskId_; }
 
-    void SetErrCode(int retCode) {
-        retCode_ = retCode;
-    }
+    void SetErrCode(int retCode) { retCode_ = retCode; }
 
-    int GetErrCode() {
-        return retCode_;
-    }
+    int GetErrCode() { return retCode_; }
 
-    void SetDestFileLock(std::shared_ptr<NameLock> lock) {
-        lock_ = lock;
-    }
+    void SetDestFileLock(std::shared_ptr<NameLock> lock) { lock_ = lock; }
 
-    void SetDLock(std::shared_ptr<DLock> lock) {
-        dlock_ = lock;
-    }
+    void SetDLock(std::shared_ptr<DLock> lock) { dlock_ = lock; }
 
-    std::shared_ptr<DLock> GetDLock() {
-        return dlock_;
-    }
+    std::shared_ptr<DLock> GetDLock() { return dlock_; }
 
     void SetDestFileName(const std::string &destFileName) {
         destFileName_ = destFileName;
@@ -100,9 +78,8 @@ class CloneClosure : public Closure {
                 bcntl_->http_response().set_status_code(
                     brpc::HTTP_STATUS_INTERNAL_SERVER_ERROR);
                 butil::IOBufBuilder os;
-                std::string msg = BuildErrorMessage(retCode_,
-                                                    requestId_,
-                                                    taskId_);
+                std::string msg =
+                    BuildErrorMessage(retCode_, requestId_, taskId_);
                 os << msg;
                 os.move_to(bcntl_->response_attachment());
             } else {
@@ -137,7 +114,7 @@ class CloneClosure : public Closure {
     std::shared_ptr<DLock> dlock_;
     std::string destFileName_;
     brpc::Controller *bcntl_;
-    Closure* done_;
+    Closure *done_;
     UUID requestId_;
     TaskIdType taskId_;
     int retCode_;

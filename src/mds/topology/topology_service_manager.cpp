@@ -347,6 +347,7 @@ void TopologyServiceManager::GetChunkServer(
 void TopologyServiceManager::GetChunkServerInCluster(
     const GetChunkServerInClusterRequest *request,
     GetChunkServerInClusterResponse *response) {
+    (void)request;
     response->set_statuscode(kTopoErrCodeSuccess);
     auto chunkserverIds = topology_->GetChunkServerInCluster();
     for (const auto id : chunkserverIds) {
@@ -863,6 +864,7 @@ void TopologyServiceManager::GetPhysicalPool(const PhysicalPoolRequest *request,
 void TopologyServiceManager::ListPhysicalPool(
     const ListPhysicalPoolRequest *request,
     ListPhysicalPoolResponse *response) {
+    (void)request;
     response->set_statuscode(kTopoErrCodeSuccess);
     auto poolList = topology_->GetPhysicalPoolInCluster();
     for (PoolIdType id : poolList) {
@@ -1570,6 +1572,7 @@ void TopologyServiceManager::GetCopyset(const GetCopysetRequest* request,
 void TopologyServiceManager::GetClusterInfo(
     const GetClusterInfoRequest* request,
     GetClusterInfoResponse* response) {
+    (void)request;
     ClusterInformation info;
     if (topology_->GetClusterInfo(&info)) {
         response->set_statuscode(kTopoErrCodeSuccess);
@@ -1599,6 +1602,7 @@ void TopologyServiceManager::SetCopysetsAvailFlag(
 void TopologyServiceManager::ListUnAvailCopySets(
           const ListUnAvailCopySetsRequest* request,
           ListUnAvailCopySetsResponse* response) {
+    (void)request;
     std::vector<CopySetKey> copysets =
                     topology_->GetCopySetsInCluster();
     for (const CopySetKey& copyset : copysets) {

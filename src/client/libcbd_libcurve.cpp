@@ -91,6 +91,7 @@ int cbd_libcurve_aio_pdiscard(int fd, CurveAioContext* context) {
 
 int cbd_libcurve_sync(int fd) {
     // Ignored as it always sync writes to chunkserver currently
+    (void)fd;
     return 0;
 }
 

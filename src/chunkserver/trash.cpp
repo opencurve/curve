@@ -185,7 +185,7 @@ bool Trash::IsCopysetInTrash(const std::string &dirName) {
     // 目录是十进制形式
     // 例如：2860448220024 (poolId: 666, copysetId: 888)
     uint64_t groupId;
-    int n = dirName.find(".");
+    auto n = dirName.find(".");
     if (n == std::string::npos) {
         return false;
     }
@@ -259,6 +259,7 @@ bool Trash::RecycleChunksAndWALInDir(
 
 bool Trash::RecycleChunkfile(
     const std::string &filepath, const std::string &filename) {
+    (void)filename;
     LockGuard lg(mtx_);
     if (0 != chunkFilePool_->RecycleFile(filepath)) {
         LOG(ERROR) << "Trash  failed recycle chunk " << filepath
@@ -272,6 +273,7 @@ bool Trash::RecycleChunkfile(
 
 bool Trash::RecycleWAL(
     const std::string &filepath, const std::string &filename) {
+    (void)filename;
     LockGuard lg(mtx_);
     if (walPool_ != nullptr && 0 != walPool_->RecycleFile(filepath)) {
         LOG(ERROR) << "Trash  failed recycle WAL " << filepath

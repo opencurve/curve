@@ -159,7 +159,6 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
     };
     WaitpidGuard waitpidGuard(pid1, pid2, pid3);
 
-    const uint32_t kMaxChunkSize = 16 * 1024 * 1024;
     PeerId leader;
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 100001;

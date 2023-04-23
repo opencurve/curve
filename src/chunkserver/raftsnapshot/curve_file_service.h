@@ -70,7 +70,7 @@ class BAIDU_CACHELINE_ALIGNMENT CurveFileService : public braft::FileService {
     void set_snapshot_attachment(SnapshotAttachment *snapshot_attachment);
     void clear_snapshot_attachment() {
         BAIDU_SCOPED_LOCK(_mutex);
-        auto ret = _snapshot_attachment.release();
+        (void)_snapshot_attachment.release();
     }
 
  private:

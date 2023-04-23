@@ -126,13 +126,13 @@ class XattrManager {
     // dentry cache manager
     std::shared_ptr<DentryCacheManager> dentryManager_;
 
-    Atomic<bool> isStop_;
-
     InterruptibleSleeper sleeper_;
 
     uint32_t listDentryLimit_;
 
     uint32_t listDentryThreads_;
+
+    Atomic<bool> isStop_;
 };
 
 }  // namespace client

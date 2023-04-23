@@ -159,13 +159,12 @@ int DiskCacheManager::ClearReadCache(const std::list<std::string> &files) {
     return cacheRead_->ClearReadCache(files);
 }
 
-void DiskCacheManager::AddCache(const std::string name,
-  bool cacheWriteExist) {
+void DiskCacheManager::AddCache(const std::string &name) {
     cachedObjName_->Put(name);
     VLOG(9) << "cache size is: " << cachedObjName_->Size();
 }
 
-bool DiskCacheManager::IsCached(const std::string name) {
+bool DiskCacheManager::IsCached(const std::string &name) {
     if (!cachedObjName_->IsCached(name)) {
         VLOG(9) << "not cached, name = " << name;
         return false;

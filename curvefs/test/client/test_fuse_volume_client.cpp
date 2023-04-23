@@ -215,7 +215,7 @@ TEST_F(TestFuseVolumeClient, FuseOpDestroy) {
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpLookup) {
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t parent = 1;
     std::string name = "test";
 
@@ -241,7 +241,7 @@ TEST_F(TestFuseVolumeClient, FuseOpLookup) {
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpLookupFail) {
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t parent = 1;
     std::string name = "test";
 
@@ -269,7 +269,7 @@ TEST_F(TestFuseVolumeClient, FuseOpLookupFail) {
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpLookupNameTooLong) {
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t parent = 1;
     std::string name = "aaaaaaaaaaaaaaaaaaaaa";
 
@@ -336,7 +336,7 @@ TEST_F(TestFuseVolumeClient, FuseOpRead) {
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpOpen) {
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t ino = 1;
     struct fuse_file_info fi;
     fi.flags = 0;
@@ -357,7 +357,7 @@ TEST_F(TestFuseVolumeClient, FuseOpOpen) {
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpOpenFailed) {
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t ino = 1;
     struct fuse_file_info fi;
     fi.flags = 0;
@@ -428,8 +428,6 @@ TEST_F(TestFuseVolumeClient, FuseOpMkDir) {
     fuse_ino_t parent = 1;
     const char *name = "xxx";
     mode_t mode = 1;
-    struct fuse_file_info fi;
-    fi.flags = 0;
 
     fuse_ino_t ino = 2;
     Inode inode;
@@ -512,7 +510,7 @@ TEST_F(TestFuseVolumeClient, FuseOpCreateNameTooLong) {
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpUnlink) {
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t parent = 1;
     std::string name = "xxx";
     uint32_t nlink = 100;
@@ -573,7 +571,7 @@ TEST_F(TestFuseVolumeClient, FuseOpUnlink) {
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpRmDir) {
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t parent = 1;
     std::string name = "xxx";
     uint32_t nlink = 100;
@@ -637,7 +635,7 @@ TEST_F(TestFuseVolumeClient, FuseOpRmDir) {
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpUnlinkFailed) {
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t parent = 1;
     std::string name = "xxx";
     uint32_t nlink = 100;
@@ -713,7 +711,7 @@ TEST_F(TestFuseVolumeClient, FuseOpUnlinkFailed) {
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpUnlinkNameTooLong) {
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t parent = 1;
     std::string name = "aaaaaaaaaaaaaaaaaaaaa";
 
@@ -722,7 +720,7 @@ TEST_F(TestFuseVolumeClient, FuseOpUnlinkNameTooLong) {
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpOpenDir) {
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t ino = 1;
     struct fuse_file_info fi;
 
@@ -742,7 +740,7 @@ TEST_F(TestFuseVolumeClient, FuseOpOpenDir) {
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpOpenDirFaild) {
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t ino = 1;
     struct fuse_file_info fi;
 
@@ -762,7 +760,7 @@ TEST_F(TestFuseVolumeClient, FuseOpOpenDirFaild) {
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpOpenAndFuseOpReadDir) {
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t ino = 1;
     size_t size = 100;
     off_t off = 0;
@@ -808,7 +806,7 @@ TEST_F(TestFuseVolumeClient, FuseOpOpenAndFuseOpReadDir) {
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpOpenAndFuseOpReadDirFailed) {
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t ino = 1;
     size_t size = 100;
     off_t off = 0;
@@ -851,7 +849,7 @@ TEST_F(TestFuseVolumeClient, FuseOpOpenAndFuseOpReadDirFailed) {
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpRenameBasic) {
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t parent = 1;
     std::string name = "A";
     fuse_ino_t newparent = 3;
@@ -977,7 +975,7 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameBasic) {
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpRenameOverwrite) {
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t parent = 1;
     std::string name = "A";
     fuse_ino_t newparent = 3;
@@ -1119,7 +1117,7 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameOverwrite) {
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpRenameOverwriteDir) {
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t parent = 1;
     std::string name = "A";
     fuse_ino_t newparent = 3;
@@ -1162,7 +1160,7 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameOverwriteDir) {
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpRenameNameTooLong) {
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t parent = 1;
     std::string name1 = "aaaaaaaaaaaaaaaaaaaaa";
     std::string name2 = "xxx";
@@ -1184,7 +1182,7 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameNameTooLong) {
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpRenameParallel) {
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     uint64_t txId = 0;
     auto dentry = GenDentry(1, 1, "A", 0, 10, FILE);
     dentry.set_type(FsFileType::TYPE_DIRECTORY);
@@ -1308,7 +1306,7 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameParallel) {
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpGetAttr) {
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t ino = 1;
     struct fuse_file_info fi;
     memset(&fi, 0, sizeof(fi));
@@ -1327,7 +1325,7 @@ TEST_F(TestFuseVolumeClient, FuseOpGetAttr) {
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpGetAttrFailed) {
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t ino = 1;
     struct fuse_file_info fi;
     memset(&fi, 0, sizeof(fi));
@@ -1348,7 +1346,7 @@ TEST_F(TestFuseVolumeClient, FuseOpGetAttrFailed) {
 TEST_F(TestFuseVolumeClient, FuseOpGetAttrEnableCto) {
     curvefs::client::common::FLAGS_enableCto = true;
 
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t ino = 1;
     struct fuse_file_info fi;
     memset(&fi, 0, sizeof(fi));
@@ -1372,7 +1370,7 @@ TEST_F(TestFuseVolumeClient, FuseOpGetAttrEnableCto) {
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpSetAttr) {
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t ino = 1;
     struct stat attr;
     int to_set;
@@ -1418,7 +1416,7 @@ TEST_F(TestFuseVolumeClient, FuseOpSetAttr) {
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpSetAttrFailed) {
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t ino = 1;
     struct stat attr;
     int to_set;
@@ -1566,7 +1564,7 @@ TEST_F(TestFuseVolumeClient, FuseOpSymlinkNameTooLong) {
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpLink) {
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t ino = 1;
     fuse_ino_t newparent = 2;
     const char *newname = "xxxx";
@@ -1617,7 +1615,7 @@ TEST_F(TestFuseVolumeClient, FuseOpLink) {
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpLinkFailed) {
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t ino = 1;
     fuse_ino_t newparent = 2;
     const char *newname = "xxxx";
@@ -1686,7 +1684,7 @@ TEST_F(TestFuseVolumeClient, FuseOpLinkFailed) {
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpReadLink) {
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t ino = 1;
     const char *link = "/a/b/xxx";
 
@@ -1709,7 +1707,7 @@ TEST_F(TestFuseVolumeClient, FuseOpReadLink) {
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpReadLinkFailed) {
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t ino = 1;
 
     EXPECT_CALL(*inodeManager_, GetInodeAttr(ino, _))
@@ -1721,7 +1719,7 @@ TEST_F(TestFuseVolumeClient, FuseOpReadLinkFailed) {
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpRelease) {
-    fuse_req_t req;
+    fuse_req_t req = nullptr;
     fuse_ino_t ino = 1;
     struct fuse_file_info fi;
     memset(&fi, 0, sizeof(fi));

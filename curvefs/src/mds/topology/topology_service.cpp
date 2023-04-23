@@ -755,6 +755,8 @@ void TopologyServiceImpl::StatMetadataUsage(
     const ::curvefs::mds::topology::StatMetadataUsageRequest* request,
     ::curvefs::mds::topology::StatMetadataUsageResponse* response,
     ::google::protobuf::Closure* done) {
+    (void)controller;
+    (void)request;
     brpc::ClosureGuard guard(done);
     LOG(INFO) << "start to state metadata usage.";
     topologyManager_->GetMetaServersSpace(response->mutable_metadatausages());

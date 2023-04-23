@@ -42,7 +42,7 @@ TEST(TestLibcbdExt4, InitTest) {
 
     memset(&opt, 0, sizeof(opt));
 
-    opt.datahome = ".";
+    opt.datahome = const_cast<char*>(".");
     ret = cbd_lib_init(&opt);
     ASSERT_EQ(ret, 0);
 
@@ -67,7 +67,7 @@ TEST(TestLibcbdExt4, ReadWriteTest) {
     memset(&opt, 0, sizeof(opt));
     memset(buf, 'a', BUFSIZE);
 
-    opt.datahome = ".";
+    opt.datahome = const_cast<char*>(".");
     ret = cbd_lib_init(&opt);
     ASSERT_EQ(ret, 0);
 
@@ -122,7 +122,7 @@ TEST(TestLibcbdExt4, AioReadWriteTest) {
     memset(&opt, 0, sizeof(opt));
     memset(buf, 'a', BUFSIZE);
 
-    opt.datahome = ".";
+    opt.datahome = const_cast<char*>(".");
     ret = cbd_lib_init(&opt);
     ASSERT_EQ(ret, 0);
 
@@ -175,7 +175,7 @@ TEST(TestLibcbdExt4, IncreaseEpochTest) {
 
     memset(&opt, 0, sizeof(opt));
 
-    opt.datahome = ".";
+    opt.datahome = const_cast<char*>(".");
     ret = cbd_lib_init(&opt);
     ASSERT_EQ(ret, 0);
 

@@ -40,8 +40,11 @@ std::map<FsIdType, FsMetricPtr> gFsMetrics;
 
 void TopologyMetricService::UpdateTopologyMetrics() {
     // process metaserver
-    std::vector<MetaServerIdType> metaservers = topo_->GetMetaServerInCluster(
-        [](const MetaServer &ms) { return true; });
+    std::vector<MetaServerIdType> metaservers =
+        topo_->GetMetaServerInCluster([](const MetaServer &ms) {
+            (void)ms;
+            return true;
+        });
 
     for (auto msId : metaservers) {
         auto it = gMetaServerMetrics.find(msId);
@@ -103,10 +106,10 @@ void TopologyMetricService::UpdateTopologyMetrics() {
             auto fileType2InodeNum = pit->GetFileType2InodeNum();
             auto itFsId2FileType2InodeNum = fsId2FileType2InodeNum.find(fsId);
             if (itFsId2FileType2InodeNum == fsId2FileType2InodeNum.end()) {
-                fsId2FileType2InodeNum.emplace(
-                    fsId, std::move(fileType2InodeNum));
+                fsId2FileType2InodeNum.emplace(fsId,
+                                               std::move(fileType2InodeNum));
             } else {
-                for (auto const& fileType2Inode : fileType2InodeNum) {
+                for (auto const &fileType2Inode : fileType2InodeNum) {
                     auto itFileType2InodeNum =
                         itFsId2FileType2InodeNum->second.find(
                             fileType2Inode.first);
@@ -202,7 +205,7 @@ void TopologyMetricService::UpdateTopologyMetrics() {
     }
 
     // set fsId2FileType2InodeNum metric
-    for (auto const& fsId2FileType2InodeNumPair : fsId2FileType2InodeNum) {
+    for (auto const &fsId2FileType2InodeNumPair : fsId2FileType2InodeNum) {
         auto it = gFsMetrics.find(fsId2FileType2InodeNumPair.first);
         if (it == gFsMetrics.end()) {
             FsMetricPtr cptr(new FsMetric(fsId2FileType2InodeNumPair.first));
@@ -211,7 +214,7 @@ void TopologyMetricService::UpdateTopologyMetrics() {
                      .first;
         }
         // set according to fstype
-        for (auto const& fileType2InodeNumPair :
+        for (auto const &fileType2InodeNumPair :
              fsId2FileType2InodeNumPair.second) {
             auto it2 = it->second->fileType2InodeNum_.find(
                 fileType2InodeNumPair.first);  //  find file type

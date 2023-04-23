@@ -37,8 +37,8 @@ namespace curvefs {
 namespace metaserver {
 namespace storage {
 
-using ::curve::common::StringToUl;
 using ::curve::common::SplitString;
+using ::curve::common::StringToUl;
 using ::curvefs::common::PartitionInfo;
 
 enum class ENTRY_TYPE {
@@ -63,7 +63,7 @@ static const std::vector<Pair> pairs{
 };
 
 static std::string Type2Str(ENTRY_TYPE t) {
-    for (const auto& pair : pairs) {
+    for (const auto &pair : pairs) {
         if (pair.first == t) {
             return pair.second;
         }
@@ -71,8 +71,8 @@ static std::string Type2Str(ENTRY_TYPE t) {
     return "";
 }
 
-static ENTRY_TYPE Str2Type(const std::string& s) {
-    for (const auto& pair : pairs) {
+static ENTRY_TYPE Str2Type(const std::string &s) {
+    for (const auto &pair : pairs) {
         if (pair.second == s) {
             return pair.first;
         }
@@ -80,13 +80,12 @@ static ENTRY_TYPE Str2Type(const std::string& s) {
     return ENTRY_TYPE::UNKNOWN;
 }
 
-static std::string InternalKey(ENTRY_TYPE t,
-                               uint32_t partitionId,
-                               const std::string& ukey) {
+static std::string InternalKey(ENTRY_TYPE t, uint32_t partitionId,
+                               const std::string &ukey) {
     return absl::StrCat(Type2Str(t), partitionId, ":", ukey);
 }
 
-static std::pair<std::string, std::string> UserKey(const std::string& ikey) {
+static std::pair<std::string, std::string> UserKey(const std::string &ikey) {
     std::string prefix, ukey;
     std::vector<std::string> items;
     SplitString(ikey, ":", &items);
@@ -99,14 +98,14 @@ static std::pair<std::string, std::string> UserKey(const std::string& ikey) {
     return std::make_pair(prefix, ukey);
 }
 
-static std::pair<ENTRY_TYPE, uint32_t> Extract(const std::string& prefix) {
+static std::pair<ENTRY_TYPE, uint32_t> Extract(const std::string &prefix) {
     if (prefix.size() == 0) {
         return std::make_pair(ENTRY_TYPE::UNKNOWN, 0);
     }
 
     std::vector<std::string> items{
         prefix.substr(0, 1),  // eg: i
-        prefix.substr(1),  // eg: 100
+        prefix.substr(1),     // eg: 100
     };
 
     ENTRY_TYPE entryType = Str2Type(items[0]);
@@ -117,10 +116,9 @@ static std::pair<ENTRY_TYPE, uint32_t> Extract(const std::string& prefix) {
     return std::make_pair(entryType, partitionId);
 }
 
-inline bool SaveToFile(const std::string& pathname,
-                       std::shared_ptr<MergeIterator> iterator,
-                       bool background,
-                       DumpFileClosure* done = nullptr) {
+inline bool SaveToFile(const std::string &pathname,
+                       std::shared_ptr<MergeIterator> iterator, bool background,
+                       DumpFileClosure *done = nullptr) {
     auto dumpfile = DumpFile(pathname);
     if (dumpfile.Open() != DUMPFILE_ERROR::OK) {
         LOG(ERROR) << "Open dumpfile failed";
@@ -144,15 +142,12 @@ inline bool SaveToFile(const std::string& pathname,
     return (rc == DUMPFILE_ERROR::OK) && (iterator->Status() == 0);
 }
 
-template<typename Callback>
-inline bool InvokeCallback(uint8_t version,
-                           ENTRY_TYPE entryType,
-                           uint32_t partitionId,
-                           const std::string& key,
-                           const std::string& value,
-                           Callback&& callback) {
-    bool succ = std::forward<Callback>(callback)(
-        version, entryType, partitionId, key, value);
+template <typename Callback>
+inline bool InvokeCallback(uint8_t version, ENTRY_TYPE entryType,
+                           uint32_t partitionId, const std::string &key,
+                           const std::string &value, Callback &&callback) {
+    bool succ = std::forward<Callback>(callback)(version, entryType,
+                                                 partitionId, key, value);
     if (!succ) {
         LOG(ERROR) << "Invoke callback for entry failed.";
         return false;
@@ -160,16 +155,16 @@ inline bool InvokeCallback(uint8_t version,
     return true;
 }
 
-#define CASE_TYPE_CALLBACK(TYPE)                             \
-    case ENTRY_TYPE::TYPE:                                   \
-        if (!InvokeCallback(version, entryType, partitionId, \
-                            key, value, callback)) {         \
-            return false;                                    \
-        }                                                    \
+#define CASE_TYPE_CALLBACK(TYPE)                                               \
+    case ENTRY_TYPE::TYPE:                                                     \
+        if (!InvokeCallback(version, entryType, partitionId, key, value,       \
+                            callback)) {                                       \
+            return false;                                                      \
+        }                                                                      \
         break
 
 template <typename Callback>
-inline bool LoadFromFile(const std::string& pathname, uint8_t* version,
+inline bool LoadFromFile(const std::string &pathname, uint8_t *version,
                          Callback callback) {
     auto dumpfile = DumpFile(pathname);
     if (dumpfile.Open() != DUMPFILE_ERROR::OK) {
@@ -179,8 +174,8 @@ inline bool LoadFromFile(const std::string& pathname, uint8_t* version,
 
     auto iter = dumpfile.Load();
     for (iter->SeekToFirst(); iter->Valid(); iter->Next()) {
-        auto ikey = iter->Key();  // internal key
-        auto ukey = UserKey(ikey);  // <prefix, ukey>
+        auto ikey = iter->Key();          // internal key
+        auto ukey = UserKey(ikey);        // <prefix, ukey>
         auto pair = Extract(ukey.first);  // prefix
 
         ENTRY_TYPE entryType = pair.first;
@@ -195,9 +190,9 @@ inline bool LoadFromFile(const std::string& pathname, uint8_t* version,
             CASE_TYPE_CALLBACK(PENDING_TX);
             CASE_TYPE_CALLBACK(S3_CHUNK_INFO_LIST);
             CASE_TYPE_CALLBACK(VOLUME_EXTENT);
-            default:
-                LOG(ERROR) << "Unknown entry type, key = " << key;
-                return false;
+        default:
+            LOG(ERROR) << "Unknown entry type, key = " << key;
+            return false;
         }
     }
 
@@ -209,45 +204,29 @@ inline bool LoadFromFile(const std::string& pathname, uint8_t* version,
 // contain entry type and partition id.
 class IteratorWrapper : public Iterator {
  public:
-    IteratorWrapper(ENTRY_TYPE entryType,
-                    uint32_t partitionId,
+    IteratorWrapper(ENTRY_TYPE entryType, uint32_t partitionId,
                     std::shared_ptr<Iterator> iterator)
-        : entryType_(entryType),
-          partitionId_(partitionId),
+        : entryType_(entryType), partitionId_(partitionId),
           iterator_(std::move(iterator)) {}
 
-    uint64_t Size() override {
-        return iterator_->Size();
-    }
+    uint64_t Size() override { return iterator_->Size(); }
 
-    bool Valid() override {
-        return iterator_->Valid();
-    }
+    bool Valid() override { return iterator_->Valid(); }
 
-    void SeekToFirst() override {
-        iterator_->SeekToFirst();
-    }
+    void SeekToFirst() override { iterator_->SeekToFirst(); }
 
-    void Next() override {
-        iterator_->Next();
-    }
+    void Next() override { iterator_->Next(); }
 
     std::string Key() override {
         auto key = iterator_->Key();
         return InternalKey(entryType_, partitionId_, key);
     }
 
-    std::string Value() override {
-        return iterator_->Value();
-    }
+    std::string Value() override { return iterator_->Value(); }
 
-    bool ParseFromValue(ValueType* value) override {
-        return true;
-    }
+    bool ParseFromValue(ValueType * /*value*/) override { return true; }
 
-    int Status() override {
-        return iterator_->Status();
-    }
+    int Status() override { return iterator_->Status(); }
 
  protected:
     ENTRY_TYPE entryType_;

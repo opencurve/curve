@@ -1512,7 +1512,6 @@ TEST_F(CurveFSTest, testRenameFile) {
 
     // new file exist, rename success
     {
-        uint64_t fileId = 10;
         FileInfo fileInfo1;
         FileInfo fileInfo2;
         FileInfo fileInfo3;

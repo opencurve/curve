@@ -149,7 +149,7 @@ ChunkServerIdType RapidLeaderScheduler::SelectTargetPeer(
 
     // the replica with least leader number
     int possibleSelected = MinLeaderNumInCopySetPeers(info, stat);
-    if (possibleSelected == curChunkServerId) {
+    if (possibleSelected == static_cast<int>(curChunkServerId)) {
         return selected;
     }
 

@@ -32,6 +32,7 @@ namespace fs {
 std::shared_ptr<LocalFileSystem> LocalFsFactory::CreateFs(
     FileSystemType type,
     const std::string& deviceID) {
+    (void)deviceID;
     std::shared_ptr<LocalFileSystem> localFs;
     if (type == FileSystemType::EXT4) {
         localFs = Ext4FileSystemImpl::getInstance();

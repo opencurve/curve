@@ -301,11 +301,14 @@ StorageOptions MemoryStorage::GetStorageOptions() const {
 
 bool MemoryStorage::Checkpoint(const std::string& dir,
                                std::vector<std::string>* files) {
+    (void)dir;
+    (void)files;
     LOG(WARNING) << "Not supported";
     return false;
 }
 
 bool MemoryStorage::Recover(const std::string& dir) {
+    (void)dir;
     LOG(WARNING) << "Not supported";
     return false;
 }

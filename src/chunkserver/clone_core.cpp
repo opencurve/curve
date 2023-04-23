@@ -47,9 +47,9 @@ DownloadClosure::DownloadClosure(std::shared_ptr<ReadChunkRequest> readRequest,
                                  Closure* done)
     : isFailed_(false)
     , beginTime_(TimeUtility::GetTimeofDayUs())
-    , readRequest_(readRequest)
-    , cloneCore_(cloneCore)
     , downloadCtx_(downloadCtx)
+    , cloneCore_(cloneCore)
+    , readRequest_(readRequest)
     , done_(done) {
     // 记录初始metric
     if (readRequest_ != nullptr) {
@@ -354,7 +354,6 @@ int CloneCore::ReadThenMerge(std::shared_ptr<ReadChunkRequest> readRequest,
                              const butil::IOBuf* cloneData,
                              char* chunkData) {
     const ChunkRequest* request = readRequest->request_;
-    ChunkID id = readRequest->ChunkId();
     std::shared_ptr<CSDataStore> dataStore = readRequest->datastore_;
 
     off_t offset = request->offset();

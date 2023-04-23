@@ -25,6 +25,7 @@
 #include <brpc/channel.h>
 #include <bthread/bthread.h>
 #include <algorithm>
+#include <memory>
 
 using curve::chunkserver::ChunkService_Stub;
 using curve::chunkserver::CHUNK_OP_STATUS;

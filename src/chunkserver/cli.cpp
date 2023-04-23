@@ -206,6 +206,8 @@ butil::Status Snapshot(const LogicPoolID &logicPoolId,
                        const CopysetID &copysetId,
                        const PeerId &peer,
                        const braft::cli::CliOptions &options) {
+    (void)logicPoolId;
+    (void)copysetId;
     brpc::Channel channel;
     if (channel.Init(peer.addr, NULL) != 0) {
         return butil::Status(-1, "Fail to init channel to %s",

@@ -845,7 +845,6 @@ void TestMixOperator(std::shared_ptr<KVStorage> kvStorage) {
 
 void TestTransaction(std::shared_ptr<KVStorage> kvStorage) {
     Status s;
-    size_t size;
     Dentry value;
     std::shared_ptr<Iterator> iterator;
     std::shared_ptr<StorageTransaction> txn;

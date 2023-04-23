@@ -113,7 +113,7 @@ TEST(TestLibcurveInterface, InterfaceTest) {
     ASSERT_EQ(GetClusterId(clusterId, 1), -LIBCURVE_ERROR::FAILED);
 
     // libcurve file operation
-    int temp = Create(filename.c_str(), &userinfo, FLAGS_test_disk_size);
+    (void)Create(filename.c_str(), &userinfo, FLAGS_test_disk_size);
 
     int fd = Open(filename.c_str(), &userinfo);
 
@@ -895,7 +895,6 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
 
     ASSERT_NE(fd, -1);
 
-    CliServiceFake *cliservice = mds.GetCliService();
     std::vector<FakeChunkService *> chunkservice = mds.GetFakeChunkService();
 
     char *buffer = new char[8 * 1024];

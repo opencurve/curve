@@ -37,34 +37,32 @@ namespace curvefs {
 namespace metaserver {
 
 using ::curvefs::common::PartitionInfo;
-using ::curvefs::metaserver::Inode;
 using ::curvefs::metaserver::Dentry;
-using ::curvefs::metaserver::storage::ENTRY_TYPE;
-using ::curvefs::metaserver::storage::SaveToFile;
-using ::curvefs::metaserver::storage::LoadFromFile;
-using ::curvefs::metaserver::storage::IteratorWrapper;
+using ::curvefs::metaserver::Inode;
 using ::curvefs::metaserver::storage::ContainerIterator;
+using ::curvefs::metaserver::storage::ENTRY_TYPE;
+using ::curvefs::metaserver::storage::IteratorWrapper;
+using ::curvefs::metaserver::storage::LoadFromFile;
+using ::curvefs::metaserver::storage::SaveToFile;
 
 using ContainerType = std::unordered_map<std::string, std::string>;
 using STORAGE_TYPE = ::curvefs::metaserver::storage::KVStorage::STORAGE_TYPE;
-using ChildrenType = ::curvefs::metaserver::storage::MergeIterator::ChildrenType;  // NOLINT
+using ChildrenType =
+    ::curvefs::metaserver::storage::MergeIterator::ChildrenType;  // NOLINT
 using DumpFileClosure = ::curvefs::metaserver::storage::DumpFileClosure;
 using Key4S3ChunkInfoList = ::curvefs::metaserver::storage::Key4S3ChunkInfoList;
 
 using ::curvefs::metaserver::storage::Key4VolumeExtentSlice;
 
-MetaStoreFStream::MetaStoreFStream(PartitionMap* partitionMap,
+MetaStoreFStream::MetaStoreFStream(PartitionMap *partitionMap,
                                    std::shared_ptr<KVStorage> kvStorage,
-                                   PoolId poolId,
-                                   CopysetId copysetId)
-    : partitionMap_(partitionMap),
-      kvStorage_(std::move(kvStorage)),
-      conv_(std::make_shared<Converter>()),
-      poolId_(poolId),
+                                   PoolId poolId, CopysetId copysetId)
+    : partitionMap_(partitionMap), kvStorage_(std::move(kvStorage)),
+      conv_(std::make_shared<Converter>()), poolId_(poolId),
       copysetId_(copysetId) {}
 
-std::shared_ptr<Partition> MetaStoreFStream::GetPartition(
-    uint32_t partitionId) {
+std::shared_ptr<Partition>
+MetaStoreFStream::GetPartition(uint32_t partitionId) {
     auto iter = partitionMap_->find(partitionId);
     if (iter != partitionMap_->end()) {
         return iter->second;
@@ -73,8 +71,9 @@ std::shared_ptr<Partition> MetaStoreFStream::GetPartition(
 }
 
 bool MetaStoreFStream::LoadPartition(uint32_t partitionId,
-                                     const std::string& key,
-                                     const std::string& value) {
+                                     const std::string &key,
+                                     const std::string &value) {
+    (void)key;
     PartitionInfo partitionInfo;
     if (!conv_->ParseFromString(value, &partitionInfo)) {
         LOG(ERROR) << "Decode PartitionInfo failed";
@@ -97,9 +96,9 @@ bool MetaStoreFStream::LoadPartition(uint32_t partitionId,
     return true;
 }
 
-bool MetaStoreFStream::LoadInode(uint32_t partitionId,
-                                 const std::string& key,
-                                 const std::string& value) {
+bool MetaStoreFStream::LoadInode(uint32_t partitionId, const std::string &key,
+                                 const std::string &value) {
+    (void)key;
     auto partition = GetPartition(partitionId);
     if (nullptr == partition) {
         LOG(ERROR) << "Partition not found, partitionId = " << partitionId;
@@ -121,10 +120,10 @@ bool MetaStoreFStream::LoadInode(uint32_t partitionId,
     return true;
 }
 
-bool MetaStoreFStream::LoadDentry(uint8_t version,
-                                  uint32_t partitionId,
-                                  const std::string& key,
-                                  const std::string& value) {
+bool MetaStoreFStream::LoadDentry(uint8_t version, uint32_t partitionId,
+                                  const std::string &key,
+                                  const std::string &value) {
+    (void)key;
     auto partition = GetPartition(partitionId);
     if (nullptr == partition) {
         LOG(ERROR) << "Partition not found, partitionId = " << partitionId;
@@ -154,8 +153,9 @@ bool MetaStoreFStream::LoadDentry(uint8_t version,
 }
 
 bool MetaStoreFStream::LoadPendingTx(uint32_t partitionId,
-                                     const std::string& key,
-                                     const std::string& value) {
+                                     const std::string &key,
+                                     const std::string &value) {
+    (void)key;
     auto partition = GetPartition(partitionId);
     if (nullptr == partition) {
         LOG(ERROR) << "Partition not found, partitionId = " << partitionId;
@@ -176,8 +176,8 @@ bool MetaStoreFStream::LoadPendingTx(uint32_t partitionId,
 }
 
 bool MetaStoreFStream::LoadInodeS3ChunkInfoList(uint32_t partitionId,
-                                                const std::string& key,
-                                                const std::string& value) {
+                                                const std::string &key,
+                                                const std::string &value) {
     auto partition = GetPartition(partitionId);
     if (nullptr == partition) {
         LOG(ERROR) << "Partition not found, partitionId = " << partitionId;
@@ -209,8 +209,8 @@ bool MetaStoreFStream::LoadInodeS3ChunkInfoList(uint32_t partitionId,
 }
 
 bool MetaStoreFStream::LoadVolumeExtentList(uint32_t partitionId,
-                                            const std::string& key,
-                                            const std::string& value) {
+                                            const std::string &key,
+                                            const std::string &value) {
     auto partition = GetPartition(partitionId);
     if (!partition) {
         LOG(ERROR) << "Partition not found, partitionId: " << partitionId;
@@ -244,7 +244,7 @@ bool MetaStoreFStream::LoadVolumeExtentList(uint32_t partitionId,
 std::shared_ptr<Iterator> MetaStoreFStream::NewPartitionIterator() {
     std::string value;
     auto container = std::make_shared<ContainerType>();
-    for (const auto& item : *partitionMap_) {
+    for (const auto &item : *partitionMap_) {
         auto partitionId = item.first;
         auto partition = item.second;
         auto partitionInfo = partition->GetPartitionInfo();
@@ -256,36 +256,36 @@ std::shared_ptr<Iterator> MetaStoreFStream::NewPartitionIterator() {
         container->emplace(std::to_string(partitionId), value);
     }
 
-    auto iterator = std::make_shared<ContainerIterator<ContainerType>>(
-        container);
-    return std::make_shared<IteratorWrapper>(
-        ENTRY_TYPE::PARTITION, 0, iterator);
+    auto iterator =
+        std::make_shared<ContainerIterator<ContainerType>>(container);
+    return std::make_shared<IteratorWrapper>(ENTRY_TYPE::PARTITION, 0,
+                                             iterator);
 }
 
-std::shared_ptr<Iterator> MetaStoreFStream::NewInodeIterator(
-    std::shared_ptr<Partition> partition) {
+std::shared_ptr<Iterator>
+MetaStoreFStream::NewInodeIterator(std::shared_ptr<Partition> partition) {
     auto partitionId = partition->GetPartitionId();
     auto iterator = partition->GetAllInode();
     if (iterator->Status() != 0) {
         return nullptr;
     }
-    return std::make_shared<IteratorWrapper>(
-        ENTRY_TYPE::INODE, partitionId, iterator);
+    return std::make_shared<IteratorWrapper>(ENTRY_TYPE::INODE, partitionId,
+                                             iterator);
 }
 
-std::shared_ptr<Iterator> MetaStoreFStream::NewDentryIterator(
-    std::shared_ptr<Partition> partition) {
+std::shared_ptr<Iterator>
+MetaStoreFStream::NewDentryIterator(std::shared_ptr<Partition> partition) {
     auto partitionId = partition->GetPartitionId();
     auto iterator = partition->GetAllDentry();
     if (iterator->Status() != 0) {
         return nullptr;
     }
-    return std::make_shared<IteratorWrapper>(
-        ENTRY_TYPE::DENTRY, partitionId, iterator);
+    return std::make_shared<IteratorWrapper>(ENTRY_TYPE::DENTRY, partitionId,
+                                             iterator);
 }
 
-std::shared_ptr<Iterator> MetaStoreFStream::NewPendingTxIterator(
-    std::shared_ptr<Partition> partition) {
+std::shared_ptr<Iterator>
+MetaStoreFStream::NewPendingTxIterator(std::shared_ptr<Partition> partition) {
     std::string value;
     PrepareRenameTxRequest pendingTx;
     auto container = std::make_shared<ContainerType>();
@@ -297,10 +297,10 @@ std::shared_ptr<Iterator> MetaStoreFStream::NewPendingTxIterator(
     }
 
     auto partitionId = partition->GetPartitionId();
-    auto iterator = std::make_shared<ContainerIterator<ContainerType>>(
-        container);
-    return std::make_shared<IteratorWrapper>(
-        ENTRY_TYPE::PENDING_TX, partitionId, iterator);
+    auto iterator =
+        std::make_shared<ContainerIterator<ContainerType>>(container);
+    return std::make_shared<IteratorWrapper>(ENTRY_TYPE::PENDING_TX,
+                                             partitionId, iterator);
 }
 
 std::shared_ptr<Iterator> MetaStoreFStream::NewInodeS3ChunkInfoListIterator(
@@ -310,12 +310,12 @@ std::shared_ptr<Iterator> MetaStoreFStream::NewInodeS3ChunkInfoListIterator(
     if (iterator->Status() != 0) {
         return nullptr;
     }
-    return std::make_shared<IteratorWrapper>(
-        ENTRY_TYPE::S3_CHUNK_INFO_LIST, partitionId, iterator);
+    return std::make_shared<IteratorWrapper>(ENTRY_TYPE::S3_CHUNK_INFO_LIST,
+                                             partitionId, iterator);
 }
 
-std::shared_ptr<Iterator> MetaStoreFStream::NewVolumeExtentListIterator(
-    Partition* partition) {
+std::shared_ptr<Iterator>
+MetaStoreFStream::NewVolumeExtentListIterator(Partition *partition) {
     auto partitionId = partition->GetPartitionId();
     auto iterator = partition->GetAllVolumeExtentList();
     if (iterator->Status() != 0) {
@@ -326,7 +326,7 @@ std::shared_ptr<Iterator> MetaStoreFStream::NewVolumeExtentListIterator(
                                              partitionId, std::move(iterator));
 }
 
-bool MetaStoreFStream::Load(const std::string& pathname, uint8_t* version) {
+bool MetaStoreFStream::Load(const std::string &pathname, uint8_t *version) {
     uint64_t totalPartition = 0;
     uint64_t totalInode = 0;
     uint64_t totalDentry = 0;
@@ -334,32 +334,30 @@ bool MetaStoreFStream::Load(const std::string& pathname, uint8_t* version) {
     uint64_t totalVolumeExtent = 0;
     uint64_t totalPendingTx = 0;
 
-    auto callback = [&](uint8_t version,
-                        ENTRY_TYPE entryType,
-                        uint32_t partitionId,
-                        const std::string& key,
-                        const std::string& value) -> bool {
+    auto callback = [&](uint8_t version, ENTRY_TYPE entryType,
+                        uint32_t partitionId, const std::string &key,
+                        const std::string &value) -> bool {
         switch (entryType) {
-            case ENTRY_TYPE::PARTITION:
-                ++totalPartition;
-                return LoadPartition(partitionId, key, value);
-            case ENTRY_TYPE::INODE:
-                ++totalInode;
-                return LoadInode(partitionId, key, value);
-            case ENTRY_TYPE::DENTRY:
-                ++totalDentry;
-                return LoadDentry(version, partitionId, key, value);
-            case ENTRY_TYPE::PENDING_TX:
-                ++totalPendingTx;
-                return LoadPendingTx(partitionId, key, value);
-            case ENTRY_TYPE::S3_CHUNK_INFO_LIST:
-                ++totalS3ChunkInfoList;
-                return LoadInodeS3ChunkInfoList(partitionId, key, value);
-            case ENTRY_TYPE::VOLUME_EXTENT:
-                ++totalVolumeExtent;
-                return LoadVolumeExtentList(partitionId, key, value);
-            case ENTRY_TYPE::UNKNOWN:
-                break;
+        case ENTRY_TYPE::PARTITION:
+            ++totalPartition;
+            return LoadPartition(partitionId, key, value);
+        case ENTRY_TYPE::INODE:
+            ++totalInode;
+            return LoadInode(partitionId, key, value);
+        case ENTRY_TYPE::DENTRY:
+            ++totalDentry;
+            return LoadDentry(version, partitionId, key, value);
+        case ENTRY_TYPE::PENDING_TX:
+            ++totalPendingTx;
+            return LoadPendingTx(partitionId, key, value);
+        case ENTRY_TYPE::S3_CHUNK_INFO_LIST:
+            ++totalS3ChunkInfoList;
+            return LoadInodeS3ChunkInfoList(partitionId, key, value);
+        case ENTRY_TYPE::VOLUME_EXTENT:
+            ++totalVolumeExtent;
+            return LoadVolumeExtentList(partitionId, key, value);
+        case ENTRY_TYPE::UNKNOWN:
+            break;
         }
 
         LOG(ERROR) << "Load failed, unknown entry type";
@@ -388,16 +386,15 @@ bool MetaStoreFStream::Load(const std::string& pathname, uint8_t* version) {
     return ret;
 }
 
-bool MetaStoreFStream::Save(const std::string& path,
-                            DumpFileClosure* done) {
+bool MetaStoreFStream::Save(const std::string &path, DumpFileClosure *done) {
     ChildrenType children;
 
     children.push_back(NewPartitionIterator());
-    for (const auto& item : *partitionMap_) {
+    for (const auto &item : *partitionMap_) {
         children.push_back(NewPendingTxIterator(item.second));
     }
 
-    for (const auto& child : children) {
+    for (const auto &child : children) {
         if (nullptr == child) {
             if (done != nullptr) {
                 done->Runned();

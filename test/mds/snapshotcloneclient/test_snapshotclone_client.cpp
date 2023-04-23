@@ -90,7 +90,6 @@ TEST_F(TestSnapshotCloneClient, TestInitSuccess) {
 }
 
 TEST_F(TestSnapshotCloneClient, TestInitFalse) {
-    uint32_t port = listenAddr_.port;
     option.snapshotCloneAddr = "";
     client_->Init(option);
     ASSERT_FALSE(client_->GetInitStatus());
@@ -107,7 +106,6 @@ TEST_F(TestSnapshotCloneClient, TestGetCloneRefStatusFalseNotInit) {
 }
 
 TEST_F(TestSnapshotCloneClient, TestGetCloneRefStatusFalseConnectFail) {
-    uint32_t port = listenAddr_.port;
     option.snapshotCloneAddr = "aa";
     client_->Init(option);
     ASSERT_TRUE(client_->GetInitStatus());
@@ -122,7 +120,6 @@ TEST_F(TestSnapshotCloneClient, TestGetCloneRefStatusFalseConnectFail) {
 }
 
 TEST_F(TestSnapshotCloneClient, TestGetCloneRefStatusFalseCallFail) {
-    uint32_t port = listenAddr_.port;
     option.snapshotCloneAddr = "127.0.0.1:" + std::to_string(0);
     client_->Init(option);
     ASSERT_TRUE(client_->GetInitStatus());
@@ -216,7 +213,6 @@ TEST_F(TestSnapshotCloneClient, TestGetCloneRefStatusFalseInvalidStatus) {
                         butil::IOBufBuilder os;
                         Json::Value mainObj;
                         mainObj[kCodeStr] = std::to_string(kErrCodeSuccess);
-                        CloneRefStatus refStatus = CloneRefStatus::kNoRef;
                         mainObj[kRefStatusStr] = 4;
                         os << mainObj.toStyledString();
                         os.move_to(bcntl->response_attachment());

@@ -22,6 +22,7 @@
 
 #include "curvefs/src/metaserver/s3compact_manager.h"
 
+#include <cstdint>
 #include <list>
 #include <mutex>
 
@@ -45,7 +46,7 @@ void S3AdapterManager::Init() {
     std::lock_guard<std::mutex> lock(mtx_);
     if (inited_) return;
     used_.resize(size_);
-    for (int i = 0; i < size_; i++) {
+    for (uint64_t i = 0; i < size_; i++) {
         s3adapters_.emplace_back(new S3Adapter());
     }
     for (auto& s3adapter : s3adapters_) {

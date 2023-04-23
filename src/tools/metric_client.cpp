@@ -22,23 +22,24 @@
 
 #include "src/tools/metric_client.h"
 
+#include <memory>
+
 DECLARE_uint64(rpcTimeout);
 DECLARE_uint64(rpcRetryTimes);
 
 namespace curve {
 namespace tool {
 
-MetricRet MetricClient::GetMetric(const std::string& addr,
-                         const std::string& metricName,
-                         std::string* value) {
+MetricRet MetricClient::GetMetric(const std::string &addr,
+                                  const std::string &metricName,
+                                  std::string *value) {
     brpc::Channel httpChannel;
     brpc::ChannelOptions options;
     brpc::Controller cntl;
     options.protocol = brpc::PROTOCOL_HTTP;
     int res = httpChannel.Init(addr.c_str(), &options);
     if (res != 0) {
-        std::cout << "Init httpChannel to " << addr << " fail!"
-                  << std::endl;
+        std::cout << "Init httpChannel to " << addr << " fail!" << std::endl;
         return MetricRet::kOtherErr;
     }
 
@@ -46,17 +47,15 @@ MetricRet MetricClient::GetMetric(const std::string& addr,
     cntl.set_timeout_ms(FLAGS_rpcTimeout);
     httpChannel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
     if (!cntl.Failed()) {
-        std::string attachment =
-                cntl.response_attachment().to_string();
+        std::string attachment = cntl.response_attachment().to_string();
         res = GetValueFromAttachment(attachment, value);
         return (res == 0) ? MetricRet::kOK : MetricRet::kOtherErr;
     }
 
-    bool needRetry = (cntl.Failed() &&
-                      cntl.ErrorCode() != EHOSTDOWN &&
-                      cntl.ErrorCode() != ETIMEDOUT &&
-                      cntl.ErrorCode() != brpc::ELOGOFF &&
-                      cntl.ErrorCode() != brpc::ERPCTIMEDOUT);
+    bool needRetry =
+        (cntl.Failed() && cntl.ErrorCode() != EHOSTDOWN &&
+         cntl.ErrorCode() != ETIMEDOUT && cntl.ErrorCode() != brpc::ELOGOFF &&
+         cntl.ErrorCode() != brpc::ERPCTIMEDOUT);
     uint64_t retryTimes = 0;
     while (needRetry && retryTimes < FLAGS_rpcRetryTimes) {
         cntl.Reset();
@@ -67,8 +66,7 @@ MetricRet MetricClient::GetMetric(const std::string& addr,
             retryTimes++;
             continue;
         }
-        std::string attachment =
-                cntl.response_attachment().to_string();
+        std::string attachment = cntl.response_attachment().to_string();
         res = GetValueFromAttachment(attachment, value);
         return (res == 0) ? MetricRet::kOK : MetricRet::kOtherErr;
     }
@@ -78,14 +76,13 @@ MetricRet MetricClient::GetMetric(const std::string& addr,
     return notExist ? MetricRet::kNotFound : MetricRet::kOtherErr;
 }
 
-MetricRet MetricClient::GetMetricUint(const std::string& addr,
-                  const std::string& metricName,
-                  uint64_t* value) {
+MetricRet MetricClient::GetMetricUint(const std::string &addr,
+                                      const std::string &metricName,
+                                      uint64_t *value) {
     std::string str;
     MetricRet res = GetMetric(addr, metricName, &str);
     if (res != MetricRet::kOK) {
-        std::cout << "get metric " << metricName << " from "
-                  << addr << " fail";
+        std::cout << "get metric " << metricName << " from " << addr << " fail";
         return res;
     }
     if (!curve::common::StringToUll(str, value)) {
@@ -95,31 +92,37 @@ MetricRet MetricClient::GetMetricUint(const std::string& addr,
     return MetricRet::kOK;
 }
 
-MetricRet MetricClient::GetConfValueFromMetric(const std::string& addr,
-                                               const std::string& metricName,
-                                               std::string* confValue) {
+MetricRet MetricClient::GetConfValueFromMetric(const std::string &addr,
+                                               const std::string &metricName,
+                                               std::string *confValue) {
     std::string jsonString;
     brpc::Controller cntl;
     MetricRet res = GetMetric(addr, metricName, &jsonString);
     if (res != MetricRet::kOK) {
         return res;
     }
-    Json::Reader reader(Json::Features::strictMode());
+
+    Json::CharReaderBuilder builder;
+    Json::CharReaderBuilder::strictMode(&builder.settings_);
+    std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
     Json::Value value;
-    if (!reader.parse(jsonString, value)) {
-        std::cout << "Parse metric as json fail" << std::endl;
+    JSONCPP_STRING errormsg;
+    if (!reader->parse(jsonString.data(),
+                       jsonString.data() + jsonString.length(), &value,
+                       &errormsg)) {
+        std::cout << "Parse metric as json fail: " << errormsg << std::endl;
         return MetricRet::kOtherErr;
     }
+
     *confValue = value[kConfValue].asString();
     return MetricRet::kOK;
 }
 
-int MetricClient::GetValueFromAttachment(const std::string& attachment,
-                                       std::string* value) {
+int MetricClient::GetValueFromAttachment(const std::string &attachment,
+                                         std::string *value) {
     auto pos = attachment.find(":");
     if (pos == std::string::npos) {
-        std::cout << "parse response attachment fail!"
-                  << std::endl;
+        std::cout << "parse response attachment fail!" << std::endl;
         return -1;
     }
     *value = attachment.substr(pos + 1);

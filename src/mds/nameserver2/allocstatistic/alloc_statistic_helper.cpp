@@ -32,22 +32,21 @@
 namespace curve {
 namespace mds {
 
-using ::curve::common::SEGMENTALLOCSIZEKEYEND;
 using ::curve::common::SEGMENTALLOCSIZEKEY;
-using ::curve::common::SEGMENTINFOKEYPREFIX;
+using ::curve::common::SEGMENTALLOCSIZEKEYEND;
 using ::curve::common::SEGMENTINFOKEYEND;
+using ::curve::common::SEGMENTINFOKEYPREFIX;
 const int GETBUNDLE = 1000;
 int AllocStatisticHelper::GetExistSegmentAllocValues(
     std::map<PoolIdType, int64_t> *out,
     const std::shared_ptr<EtcdClientImp> &client) {
     // Obtain the segmentSize value of corresponding logical pools from Etcd
     std::vector<std::string> allocVec;
-    int res = client->List(
-        SEGMENTALLOCSIZEKEY, SEGMENTALLOCSIZEKEYEND, &allocVec);
+    int res =
+        client->List(SEGMENTALLOCSIZEKEY, SEGMENTALLOCSIZEKEYEND, &allocVec);
     if (res != EtcdErrCode::EtcdOK) {
         LOG(ERROR) << "list [" << SEGMENTALLOCSIZEKEY << ","
-                   << SEGMENTALLOCSIZEKEYEND << ") fail, errorCode: "
-                   << res;
+                   << SEGMENTALLOCSIZEKEYEND << ") fail, errorCode: " << res;
         return -1;
     }
 
@@ -55,8 +54,8 @@ int AllocStatisticHelper::GetExistSegmentAllocValues(
     for (auto &item : allocVec) {
         PoolIdType lid;
         uint64_t alloc;
-        bool res = NameSpaceStorageCodec::DecodeSegmentAllocValue(
-            item, &lid, &alloc);
+        bool res =
+            NameSpaceStorageCodec::DecodeSegmentAllocValue(item, &lid, &alloc);
         if (false == res) {
             LOG(ERROR) << "decode segment alloc value: " << item << " fail";
             continue;
@@ -83,8 +82,9 @@ int AllocStatisticHelper::CalculateSegmentAlloc(
 
         // get segments in bundles from Etcd, GETBUNDLE is the number of items
         // to fetch
-        int res = client->ListWithLimitAndRevision(
-           startKey, SEGMENTINFOKEYEND, GETBUNDLE, revision, &values, &lastKey);
+        int res = client->ListWithLimitAndRevision(startKey, SEGMENTINFOKEYEND,
+                                                   GETBUNDLE, revision, &values,
+                                                   &lastKey);
         if (res != EtcdErrCode::EtcdOK) {
             LOG(ERROR) << "list [" << startKey << "," << SEGMENTINFOKEYEND
                        << ") at revision: " << revision
@@ -94,17 +94,17 @@ int AllocStatisticHelper::CalculateSegmentAlloc(
         }
 
         // decode the obtained value
-        int startPos = 1;
+        size_t startPos = 1;
         if (startKey == SEGMENTINFOKEYPREFIX) {
             startPos = 0;
         }
-        for ( ; startPos < values.size(); startPos++) {
+        for (; startPos < values.size(); startPos++) {
             PageFileSegment segment;
-            bool res = NameSpaceStorageCodec::DecodeSegment(
-                values[startPos], &segment);
+            bool res = NameSpaceStorageCodec::DecodeSegment(values[startPos],
+                                                            &segment);
             if (false == res) {
-                LOG(ERROR) << "decode segment item{"
-                          << values[startPos] << "} fail";
+                LOG(ERROR) << "decode segment item{" << values[startPos]
+                           << "} fail";
                 return -1;
             } else {
                 (*out)[segment.logicalpoolid()] += segment.segmentsize();

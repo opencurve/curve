@@ -34,10 +34,8 @@ namespace chunkserver {
 const uint32_t kConfEpochFileMaxSize = 4096;
 const uint64_t kConfEpochFileMagic = 0x6225929368674119;
 
-int ConfEpochFile::Load(const std::string &path,
-                        LogicPoolID *logicPoolID,
-                        CopysetID *copysetID,
-                        uint64_t *epoch) {
+int ConfEpochFile::Load(const std::string &path, LogicPoolID *logicPoolID,
+                        CopysetID *copysetID, uint64_t *epoch) {
     int fd = fs_->Open(path.c_str(), O_RDWR);
     if (0 > fd) {
         LOG(ERROR) << "LoadConfEpoch failed open file " << path
@@ -86,16 +84,13 @@ int ConfEpochFile::Load(const std::string &path,
 
     LOG(INFO) << "Load conf epoch " << path << " success. "
               << "logicPoolID: " << *logicPoolID
-              << ", copysetID: " << *copysetID
-              << ", epoch: " << *epoch;
+              << ", copysetID: " << *copysetID << ", epoch: " << *epoch;
 
     return 0;
 }
 
-int ConfEpochFile::Save(const std::string &path,
-                        const LogicPoolID logicPoolID,
-                        const CopysetID copysetID,
-                        const uint64_t epoch) {
+int ConfEpochFile::Save(const std::string &path, const LogicPoolID logicPoolID,
+                        const CopysetID copysetID, const uint64_t epoch) {
     // 1. 转换成conf message
     ConfEpoch confEpoch;
     confEpoch.set_logicpoolid(logicPoolID);
@@ -113,7 +108,8 @@ int ConfEpochFile::Save(const std::string &path,
     opt.enum_option = json2pb::OUTPUT_ENUM_BY_NUMBER;
 
     if (!json2pb::ProtoMessageToJson(confEpoch, &out, opt, &err)) {
-        LOG(ERROR) << "Failed to encode conf epoch," << " error: " << err;
+        LOG(ERROR) << "Failed to encode conf epoch,"
+                   << " error: " << err;
         return -1;
     }
 
@@ -127,7 +123,8 @@ int ConfEpochFile::Save(const std::string &path,
     }
 
     // 3. write文件
-    if (out.size() != fs_->Write(fd, out.c_str(), 0, out.size())) {
+    if (static_cast<int>(out.size()) !=
+        fs_->Write(fd, out.c_str(), 0, out.size())) {
         LOG(ERROR) << "SaveConfEpoch write failed, path: " << path
                    << ", errno: " << errno
                    << ", error message: " << strerror(errno);
@@ -150,22 +147,18 @@ int ConfEpochFile::Save(const std::string &path,
 
 uint32_t ConfEpochFile::ConfEpochCrc(const ConfEpoch &confEpoch) {
     uint32_t crc32c = 0;
-    uint32_t logicPoolId    = confEpoch.logicpoolid();
-    uint32_t copysetId      = confEpoch.copysetid();
-    uint64_t epoch          = confEpoch.epoch();
-    uint64_t magic          = kConfEpochFileMagic;
+    uint32_t logicPoolId = confEpoch.logicpoolid();
+    uint32_t copysetId = confEpoch.copysetid();
+    uint64_t epoch = confEpoch.epoch();
+    uint64_t magic = kConfEpochFileMagic;
 
-    crc32c = curve::common::CRC32(crc32c,
-                                  reinterpret_cast<char *>(&logicPoolId),
-                                  sizeof(logicPoolId));
-    crc32c = curve::common::CRC32(crc32c,
-                                  reinterpret_cast<char *>(&copysetId),
+    crc32c = curve::common::CRC32(
+        crc32c, reinterpret_cast<char *>(&logicPoolId), sizeof(logicPoolId));
+    crc32c = curve::common::CRC32(crc32c, reinterpret_cast<char *>(&copysetId),
                                   sizeof(copysetId));
-    crc32c = curve::common::CRC32(crc32c,
-                                  reinterpret_cast<char *>(&epoch),
+    crc32c = curve::common::CRC32(crc32c, reinterpret_cast<char *>(&epoch),
                                   sizeof(epoch));
-    crc32c = curve::common::CRC32(crc32c,
-                                  reinterpret_cast<char *>(&magic),
+    crc32c = curve::common::CRC32(crc32c, reinterpret_cast<char *>(&magic),
                                   sizeof(magic));
 
     return crc32c;
