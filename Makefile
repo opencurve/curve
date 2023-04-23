@@ -9,7 +9,7 @@ dep?= 0
 only?= "*"
 tag?= "curvebs:unknown"
 case?= "*"
-os?= "debian9"
+os?= "debian11"
 ci?=0
 
 define help_msg
