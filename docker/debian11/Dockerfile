@@ -1,4 +1,4 @@
-FROM opencurvedocker/curve-base:debian9
+FROM opencurvedocker/curve-base:debian11
 COPY --from=opencurvedocker/curve-base:curve-tgt-debian9 /curve-tgt/  /curve-tgt/
 COPY --from=opencurvedocker/curve-base:curve-tgt-debian9 /curve/curve-sdk /curve-tgt/curve-sdk
 RUN apt update \
