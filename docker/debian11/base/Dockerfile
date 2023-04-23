@@ -1,4 +1,4 @@
-FROM debian:9
+FROM debian:11
 ENV TZ=Asia/Shanghai
 RUN echo "deb http://mirrors.163.com/debian/ stretch main\n" \
          "deb http://mirrors.163.com/debian/ stretch-updates main non-free contrib\n" \
@@ -33,8 +33,5 @@ RUN echo "deb http://mirrors.163.com/debian/ stretch main\n" \
     && wget https://curve-build.nos-eastchina1.126.net/curve-base.tar.gz \
     && tar -xzvf curve-base.tar.gz \
     && mv fusermount3 /usr/local/bin \
-    && mv libetcdclient.so /usr/lib/ \
-    && mv libfuse3.so libfuse3.so.3 libfuse3.so.3.10.5 libnl-3.so.200 libnl-genl-3.so.200 /usr/lib/x86_64-linux-gnu/ \
-    && mv libjemalloc.so libjemalloc.so.1 libjemalloc.so.2 /usr/local/lib/ \
     && rm curve-base.tar.gz \
     && mkdir -p /core
