@@ -1,4 +1,4 @@
-FROM opencurvedocker/curve-base:build-debian9 AS curve-sdk
+FROM opencurvedocker/curve-base:build-debian11 AS curve-sdk
 ENV GITHUB_PROXY=https://ghproxy.com/
 RUN git clone ${GITHUB_PROXY}https://github.com/opencurve/curve \
     && cd /curve \
@@ -7,7 +7,7 @@ RUN git clone ${GITHUB_PROXY}https://github.com/opencurve/curve \
     && bash mk-tar.sh \
     && mv curve_*.tar.gz curve_sdk.tar.gz
 
-FROM opencurvedocker/curve-base:build-debian9 AS curve-tgt
+FROM opencurvedocker/curve-base:build-debian11 AS curve-tgt
 ENV GITHUB_PROXY=https://ghproxy.com/
 COPY --from=curve-sdk /curve/curve_sdk.tar.gz /
 RUN tar -zxvf curve_sdk.tar.gz \
