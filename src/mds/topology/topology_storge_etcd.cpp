@@ -45,7 +45,7 @@ bool TopologyStorageEtcd::LoadLogicalPool(
         LOG(ERROR) << "etcd list err:" << errCode;
         return false;
     }
-    for (int i = 0; i < out.size(); i++) {
+    for (size_t i = 0; i < out.size(); i++) {
         LogicalPool data;
         errCode = codec_->DecodeLogicalPoolData(out[i], &data);
         if (!errCode) {
@@ -82,7 +82,7 @@ bool TopologyStorageEtcd::LoadPhysicalPool(
         LOG(ERROR) << "etcd list err:" << errCode;
         return false;
     }
-    for (int i = 0; i < out.size(); i++) {
+    for (size_t i = 0; i < out.size(); i++) {
         PhysicalPool data;
         errCode = codec_->DecodePhysicalPoolData(out[i], &data);
         if (!errCode) {
@@ -118,7 +118,7 @@ bool TopologyStorageEtcd::LoadZone(
         LOG(ERROR) << "etcd list err:" << errCode;
         return false;
     }
-    for (int i = 0; i < out.size(); i++) {
+    for (size_t i = 0; i < out.size(); i++) {
         Zone data;
         errCode = codec_->DecodeZoneData(out[i], &data);
         if (!errCode) {
@@ -154,7 +154,7 @@ bool TopologyStorageEtcd::LoadServer(
         LOG(ERROR) << "etcd list err:" << errCode;
         return false;
     }
-    for (int i = 0; i < out.size(); i++) {
+    for (size_t i = 0; i < out.size(); i++) {
         Server data;
         errCode = codec_->DecodeServerData(out[i], &data);
         if (!errCode) {
@@ -190,7 +190,7 @@ bool TopologyStorageEtcd::LoadChunkServer(
         LOG(ERROR) << "etcd list err:" << errCode;
         return false;
     }
-    for (int i = 0; i < out.size(); i++) {
+    for (size_t i = 0; i < out.size(); i++) {
         ChunkServer data;
         errCode = codec_->DecodeChunkServerData(out[i], &data);
         if (!errCode) {
@@ -228,7 +228,7 @@ bool TopologyStorageEtcd::LoadCopySet(
         LOG(ERROR) << "etcd list err:" << errCode;
         return false;
     }
-    for (int i = 0; i < out.size(); i++) {
+    for (size_t i = 0; i < out.size(); i++) {
         CopySetInfo data;
         errCode = codec_->DecodeCopySetData(out[i], &data);
         if (!errCode) {

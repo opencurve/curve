@@ -63,7 +63,6 @@ auto localfs = curve::fs::Ext4FileSystemImpl::getInstance();
 class InodeManagerTest : public ::testing::Test {
  protected:
     void SetUp() override {
-        auto tablename = "partition:1";
         dataDir_ = RandomStoragePath();
         StorageOptions options;
         options.dataDir = dataDir_;
@@ -415,7 +414,6 @@ TEST_F(InodeManagerTest, GetOrModifyS3ChunkInfo) {
 
 TEST_F(InodeManagerTest, UpdateInode) {
     // create inode
-    uint32_t fsId = 1;
     uint64_t ino = 2;
 
     Inode inode;

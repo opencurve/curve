@@ -34,6 +34,7 @@ void NebdHeartbeatServiceImpl::KeepAlive(
         const nebd::client::HeartbeatRequest* request,
         nebd::client::HeartbeatResponse* response,
         google::protobuf::Closure* done) {
+    (void)cntl_base;
     brpc::ClosureGuard doneGuard(done);
     bool ok = true;
     uint64_t curTime = TimeUtility::GetTimeofDayMs();

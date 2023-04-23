@@ -63,7 +63,7 @@ bool RecycleCleaner::IsDirTimeOut(const std::string& dir) {
 
     struct tm tmDir;
     memset(&tmDir, 0, sizeof(tmDir));
-    char* c = strptime(dir.c_str(), "%Y-%m-%d-%H", &tmDir);
+    (void)strptime(dir.c_str(), "%Y-%m-%d-%H", &tmDir);
 
     time_t dirTime = mktime(&tmDir);
     if (dirTime <= 0) {

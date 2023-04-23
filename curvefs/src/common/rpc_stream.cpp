@@ -257,6 +257,8 @@ std::shared_ptr<StreamConnection> StreamServer::Accept(brpc::Controller* cntl) {
 int StreamServer::on_received_messages(brpc::StreamId id,
                                        butil::IOBuf* const buffers[],
                                        size_t size) {
+    (void)buffers;  // Slience the warnings
+    (void)size;
     LOG(ERROR) << "on_received_messages: stream (streamId=" << id
                << ") in server-side should not reveice any message"
                << ", but now we received";

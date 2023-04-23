@@ -49,7 +49,7 @@ const ChunkSizeType CHUNK_SIZE = 16 * kMB;
 
 const char* kFakeMdsAddr = "127.0.0.1:9079";
 
-static char *chunkServerParams[1][16] = {
+static const char *chunkServerParams[1][16] = {
     { "chunkserver", "-chunkServerIp=127.0.0.1",
       "-chunkServerPort=" BASIC_TEST_CHUNK_SERVER_PORT,
       "-chunkServerStoreUri=local://./" BASIC_TEST_CHUNK_SERVER_PORT "/",
@@ -103,7 +103,7 @@ class ChunkServerIoTest : public testing::Test {
         ASSERT_TRUE(cg1_.Generate());
 
         paramsIndexs_[PeerCluster::PeerToId(peer1_)] = 0;
-        params_.push_back(chunkServerParams[0]);
+        params_.push_back(const_cast<char**>(chunkServerParams[0]));
 
         // 初始化chunkfilepool，这里会预先分配一些chunk
         lfs_ = LocalFsFactory::CreateFs(FileSystemType::EXT4, "");
@@ -157,9 +157,7 @@ class ChunkServerIoTest : public testing::Test {
 
     void TestBasicIO(std::shared_ptr<ChunkServiceVerify> verify) {
         uint64_t chunkId = 1;
-        off_t offset = 0;
         int length = kOpRequestAlignSize;
-        int ret = 0;
         const SequenceNum sn1 = 1;
         std::string data(length * 4, 0);
         // Now we will zeroing chunk file, even though it fill '0' in start
@@ -214,9 +212,7 @@ class ChunkServerIoTest : public testing::Test {
         const SequenceNum sn1 = 1;
         const SequenceNum sn2 = 2;
         const SequenceNum sn3 = 3;
-        off_t offset = 0;
         int length = kOpRequestAlignSize;
-        int ret = 0;
         std::string data(length * 4, 0);
         std::string chunkData1a(kChunkSize, 0);  // chunk1版本1预期数据
         std::string chunkData1b(kChunkSize, 0);  // chunk1版本2预期数据

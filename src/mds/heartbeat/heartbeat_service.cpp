@@ -36,6 +36,7 @@ void HeartbeatServiceImpl::ChunkServerHeartbeat(
     const ::curve::mds::heartbeat::ChunkServerHeartbeatRequest *request,
     ::curve::mds::heartbeat::ChunkServerHeartbeatResponse *response,
     ::google::protobuf::Closure *done) {
+    (void)controller;
     brpc::ClosureGuard doneGuard(done);
     heartbeatManager_->ChunkServerHeartbeat(*request, response);
 }

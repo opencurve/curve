@@ -374,13 +374,13 @@ class RocksDBStorageIterator : public Iterator {
     }
 
  private:
+    RocksDBStorage* storage_;
     std::string prefix_;
     uint64_t size_;
     int status_;
-    bool ordered_;
     bool prefixChecking_;
+    bool ordered_;
     std::unique_ptr<rocksdb::Iterator> iter_;
-    RocksDBStorage* storage_;
     rocksdb::ReadOptions readOptions_;
 };
 

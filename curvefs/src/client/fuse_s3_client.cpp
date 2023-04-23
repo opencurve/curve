@@ -146,6 +146,7 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
                                         const char *buf, size_t size, off_t off,
                                         struct fuse_file_info *fi,
                                         size_t *wSize) {
+    (void)req;
     // check align
     if (fi->flags & O_DIRECT) {
         if (!(is_aligned(off, DirectIOAlignment) &&
@@ -214,6 +215,7 @@ CURVEFS_ERROR FuseS3Client::FuseOpRead(fuse_req_t req, fuse_ino_t ino,
                                        size_t size, off_t off,
                                        struct fuse_file_info *fi, char *buffer,
                                        size_t *rSize) {
+    (void)req;
     // check align
     if (fi->flags & O_DIRECT) {
         if (!(is_aligned(off, DirectIOAlignment) &&
@@ -232,7 +234,7 @@ CURVEFS_ERROR FuseS3Client::FuseOpRead(fuse_req_t req, fuse_ino_t ino,
     uint64_t fileSize = inodeWrapper->GetLength();
 
     size_t len = 0;
-    if (fileSize <= off) {
+    if (static_cast<int64_t>(fileSize) <= off) {
         *rSize = 0;
         return CURVEFS_ERROR::OK;
     } else if (fileSize < off + size) {
@@ -306,6 +308,8 @@ CURVEFS_ERROR FuseS3Client::FuseOpUnlink(fuse_req_t req, fuse_ino_t parent,
 CURVEFS_ERROR FuseS3Client::FuseOpFsync(fuse_req_t req, fuse_ino_t ino,
                                         int datasync,
                                         struct fuse_file_info *fi) {
+    (void)req;
+    (void)fi;
     VLOG(1) << "FuseOpFsync, ino: " << ino << ", datasync: " << datasync;
 
     CURVEFS_ERROR ret = s3Adaptor_->Flush(ino);
@@ -334,6 +338,8 @@ CURVEFS_ERROR FuseS3Client::Truncate(InodeWrapper *inode, uint64_t length) {
 
 CURVEFS_ERROR FuseS3Client::FuseOpFlush(fuse_req_t req, fuse_ino_t ino,
                                         struct fuse_file_info *fi) {
+    (void)req;
+    (void)fi;
     VLOG(1) << "FuseOpFlush, ino: " << ino;
     CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
 

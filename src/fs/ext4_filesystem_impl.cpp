@@ -337,7 +337,7 @@ int Ext4FileSystemImpl::Write(int fd,
                               butil::IOBuf buf,
                               uint64_t offset,
                               int length) {
-    if (length != buf.size()) {
+    if (length != static_cast<int>(buf.size())) {
         LOG(ERROR) << "IOBuf::pcut_into_file_descriptor failed, fd: " << fd
                    << ", data size doesn't equal to length, data size: "
                    << buf.size() << ", length: " << length;
@@ -345,7 +345,6 @@ int Ext4FileSystemImpl::Write(int fd,
     }
 
     int remainLength = length;
-    int relativeOffset = 0;
     int retryTimes = 0;
 
     while (remainLength > 0) {
@@ -380,6 +379,9 @@ int Ext4FileSystemImpl::Sync(int fd) {
 int Ext4FileSystemImpl::Append(int fd,
                                const char *buf,
                                int length) {
+    (void)fd;
+    (void)buf;
+    (void)length;
     // TODO(yyk)
     return 0;
 }

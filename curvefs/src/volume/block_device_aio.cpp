@@ -41,29 +41,29 @@ using ::curve::common::is_aligned;
 
 namespace {
 
-const char* ToString(LIBCURVE_OP op) {
+const char *ToString(LIBCURVE_OP op) {
     switch (op) {
-        case LIBCURVE_OP_READ:
-            return "Read";
-        case LIBCURVE_OP_WRITE:
-            return "Write";
-        case LIBCURVE_OP_DISCARD:
-            return "Discard";
-        default:
-            return "Unknown";
+    case LIBCURVE_OP_READ:
+        return "Read";
+    case LIBCURVE_OP_WRITE:
+        return "Write";
+    case LIBCURVE_OP_DISCARD:
+        return "Discard";
+    default:
+        return "Unknown";
     }
 }
 
-std::ostream& operator<<(std::ostream& os, CurveAioContext* aio) {
+std::ostream &operator<<(std::ostream &os, CurveAioContext *aio) {
     os << "[off: " << aio->offset << ", len: " << aio->length
        << ", ret: " << aio->ret << ", type: " << ToString(aio->op) << "]";
 
     return os;
 }
 
-void AioReadCallBack(CurveAioContext* aio) {
-    AioRead* read = reinterpret_cast<AioRead*>(reinterpret_cast<char*>(aio) -
-                                               offsetof(AioRead, aio));
+void AioReadCallBack(CurveAioContext *aio) {
+    AioRead *read = reinterpret_cast<AioRead *>(reinterpret_cast<char *>(aio) -
+                                                offsetof(AioRead, aio));
 
     {
         std::lock_guard<std::mutex> lock(read->mtx);
@@ -72,9 +72,9 @@ void AioReadCallBack(CurveAioContext* aio) {
     read->cond.notify_one();
 }
 
-void AioWriteCallBack(CurveAioContext* aio) {
-    AioWrite* write = reinterpret_cast<AioWrite*>(reinterpret_cast<char*>(aio) -
-                                                  offsetof(AioWrite, aio));
+void AioWriteCallBack(CurveAioContext *aio) {
+    AioWrite *write = reinterpret_cast<AioWrite *>(
+        reinterpret_cast<char *>(aio) - offsetof(AioWrite, aio));
 
     {
         std::lock_guard<std::mutex> lock(write->mtx);
@@ -83,19 +83,16 @@ void AioWriteCallBack(CurveAioContext* aio) {
     write->cond.notify_one();
 }
 
-void AioWritePaddingReadCallBack(CurveAioContext* aio) {
-    AioWrite::PaddingRead* padding = reinterpret_cast<AioWrite::PaddingRead*>(
-        reinterpret_cast<char*>(aio) - offsetof(AioWrite::PaddingRead, aio));
+void AioWritePaddingReadCallBack(CurveAioContext *aio) {
+    AioWrite::PaddingRead *padding = reinterpret_cast<AioWrite::PaddingRead *>(
+        reinterpret_cast<char *>(aio) - offsetof(AioWrite::PaddingRead, aio));
 
     padding->base->OnPaddingReadComplete(aio);
 }
 
 }  // namespace
 
-AioRead::AioRead(off_t offset,
-                 size_t length,
-                 char* data,
-                 FileClient* dev,
+AioRead::AioRead(off_t offset, size_t length, char *data, FileClient *dev,
                  int fd)
     : aio(), offset(offset), length(length), data(data), dev(dev), fd(fd) {}
 
@@ -158,11 +155,8 @@ ssize_t AioRead::Wait() {
     return length;
 }
 
-AioWrite::AioWrite(off_t offset,
-                   size_t length,
-                   const char* data,
-                   FileClient* dev,
-                   int fd)
+AioWrite::AioWrite(off_t offset, size_t length, const char *data,
+                   FileClient *dev, int fd)
     : offset(offset), length(length), data(data), dev(dev), fd(fd) {}
 
 void AioWrite::Issue() {
@@ -173,7 +167,7 @@ void AioWrite::Issue() {
         aio.cb = AioWriteCallBack;
         aio.offset = offset;
         aio.length = length;
-        aio.buf = const_cast<char*>(data);
+        aio.buf = const_cast<char *>(data);
 
         int ret = dev->AioWrite(fd, &aio);
         if (ret < 0) {
@@ -207,7 +201,8 @@ void AioWrite::Issue() {
         ++idx;
     }
 
-    if (offset + length > lastPaddingEnd && offset + length != alignedEnd) {
+    if (static_cast<off_t>(offset + length) > lastPaddingEnd &&
+        offset + length != alignedEnd) {
         off_t start = alignedEnd - IO_ALIGNED_BLOCK_SIZE;
         if (paddingStart && start == lastPaddingEnd) {
             aux->paddingReads[idx - 1].length += IO_ALIGNED_BLOCK_SIZE;
@@ -226,7 +221,7 @@ void AioWrite::Issue() {
     aux->npadding.store(idx, std::memory_order_release);
 
     for (int i = 0; i < idx; ++i) {
-        auto& pad = aux->paddingReads[i];
+        auto &pad = aux->paddingReads[i];
 
         pad.aio.ret = -1;
         pad.aio.op = LIBCURVE_OP_READ;
@@ -255,7 +250,7 @@ ssize_t AioWrite::Wait() {
     return length;
 }
 
-void AioWrite::OnPaddingReadComplete(CurveAioContext* read) {
+void AioWrite::OnPaddingReadComplete(CurveAioContext *read) {
     if (static_cast<ssize_t>(read->ret) != static_cast<ssize_t>(read->length)) {
         LOG(ERROR) << "AioRead error: " << read;
         aux->error.store(true, std::memory_order_release);

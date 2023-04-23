@@ -64,8 +64,7 @@ TEST_F(StressTestSuit, StressTest) {
 
     auto RunStress = [&](int threadNum, int rwPercent, int ioNum) {
         uint64_t beginTime = TimeUtility::GetTimeofDayUs();
-        const int kThreadNum = threadNum;
-        Thread threads[kThreadNum];
+        Thread *threads = new Thread[threadNum];
         int readThreadNum = threadNum * rwPercent / 100;
         int ioNumAvg = ioNum / threadNum;
         int idRange = 100;
@@ -77,17 +76,18 @@ TEST_F(StressTestSuit, StressTest) {
             threads[i] = std::thread(RunWrite, idRange, ioNumAvg);
         }
 
-        for (auto& t : threads) {
-            t.join();
+        for (int i = 0; i < threadNum; ++i) {
+            threads[i].join();
         }
 
         uint64_t endTime = TimeUtility::GetTimeofDayUs();
         uint64_t iops = ioNum * 1000000L / (endTime - beginTime);
-        printf("Total time used: %llu us\n", endTime - beginTime);
+        printf("Total time used: %lu us\n", endTime - beginTime);
         printf("Thread number: %d\n", threadNum);
         printf("read write percent: %d\n", rwPercent);
         printf("io num: %d\n", ioNum);
-        printf("iops: %llu\n", iops);
+        printf("iops: %lu\n", iops);
+        delete[] threads;
     };
 
     printf("===============TEST WRITE==================\n");

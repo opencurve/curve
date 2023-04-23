@@ -304,7 +304,7 @@ int SnapshotCloneMetaStoreEtcd::LoadSnapshotInfos() {
         LOG(ERROR) << "etcd list err:" << errCode;
         return -1;
     }
-    for (int i = 0; i < out.size(); i++) {
+    for (size_t i = 0; i < out.size(); i++) {
         SnapshotInfo data;
         errCode = codec_->DecodeSnapshotData(out[i], &data);
         if (!errCode) {
@@ -327,7 +327,7 @@ int SnapshotCloneMetaStoreEtcd::LoadCloneInfos() {
         LOG(ERROR) << "etcd list err:" << errCode;
         return -1;
     }
-    for (int i = 0; i < out.size(); i++) {
+    for (size_t i = 0; i < out.size(); i++) {
         CloneInfo data;
         errCode = codec_->DecodeCloneInfoData(out[i], &data);
         if (!errCode) {

@@ -45,7 +45,7 @@ using curve::common::Thread;
 
 const char* kFakeMdsAddr = "127.0.0.1:9329";
 
-static char *chunkConcurrencyParams1[1][16] = {
+static const char *chunkConcurrencyParams1[1][16] = {
     {
         "chunkserver",
         "-chunkServerIp=127.0.0.1",
@@ -66,7 +66,7 @@ static char *chunkConcurrencyParams1[1][16] = {
     },
 };
 
-static char *chunkConcurrencyParams2[1][16] = {
+static const char *chunkConcurrencyParams2[1][16] = {
     {
         "chunkserver",
         "-chunkServerIp=127.0.0.1",
@@ -121,7 +121,7 @@ class ChunkServerConcurrentNotFromFilePoolTest : public testing::Test {
 
         paramsIndexs[PeerCluster::PeerToId(peer1)] = 0;
 
-        params.push_back(chunkConcurrencyParams1[0]);
+        params.push_back(const_cast<char**>(chunkConcurrencyParams1[0]));
     }
     virtual void TearDown() {
         std::string rmdir1("rm -fr ");
@@ -192,7 +192,7 @@ class ChunkServerConcurrentFromFilePoolTest : public testing::Test {
 
         paramsIndexs[PeerCluster::PeerToId(peer1)] = 0;
 
-        params.push_back(chunkConcurrencyParams2[0]);
+        params.push_back(const_cast<char**>(chunkConcurrencyParams2[0]));
 
         // 初始化FilePool，这里会预先分配一些chunk
         lfs = LocalFsFactory::CreateFs(FileSystemType::EXT4, "");
@@ -1401,7 +1401,6 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, DeleteMultiChunk) {
 TEST_F(ChunkServerConcurrentFromFilePoolTest, CreateCloneMultiChunk) {
     const int kThreadNum = 10;
     ChunkID chunkIdRange = kChunkNum;
-    const int sn = 1;
 
     // 1. 启动一个成员的复制组
     PeerCluster cluster("InitShutdown-cluster",

@@ -204,6 +204,7 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
             LOG(INFO) << "request filename = " << request->filename();
             ASSERT_EQ(request->filename()[0], '/');
         };
+        (void)checkFullpath;
 
         fiu_do_on("test/client/fake/fakeMDS.GetOrAllocateSegment",
                  checkFullpath());

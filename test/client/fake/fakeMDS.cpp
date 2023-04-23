@@ -293,7 +293,7 @@ bool FakeMDS::StartService() {
     /**
      * set get snap allocate info
      */
-    FakeReturn* snapfakeret = new FakeReturn(nullptr, static_cast<void*>(getallocateresponse));      // NOLINT
+    // FakeReturn* snapfakeret = new FakeReturn(nullptr, static_cast<void*>(getallocateresponse));      // NOLINT
     fakecurvefsservice_.SetGetSnapshotSegmentInfo(fakeret);
 
     /**
@@ -328,7 +328,6 @@ bool FakeMDS::StartService() {
     /**
      * set list physical pool response
      */
-    ListPhysicalPoolResponse* listphypoolresp = new ListPhysicalPoolResponse();
     FakeReturn* fakeListPPRet = new FakeReturn(nullptr, response);
     faketopologyservice_.fakelistpoolret_ = fakeListPPRet;
 

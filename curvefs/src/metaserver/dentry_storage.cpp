@@ -77,7 +77,7 @@ void DentryVector::Insert(const Dentry& dentry) {
 }
 
 void DentryVector::Delete(const Dentry& dentry) {
-    for (size_t i = 0; i < vec_->dentrys_size(); i++) {
+    for (int i = 0; i < vec_->dentrys_size(); i++) {
         if (vec_->dentrys(i) == dentry) {
             vec_->mutable_dentrys()->DeleteSubrange(i, 1);
             nPendingDel_ += 1;

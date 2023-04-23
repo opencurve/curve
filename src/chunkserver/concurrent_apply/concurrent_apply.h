@@ -61,8 +61,8 @@ class CURVE_CACHELINE_ALIGNMENT ConcurrentApplyModule {
  public:
     ConcurrentApplyModule(): start_(false),
                              rconcurrentsize_(0),
-                             wconcurrentsize_(0),
                              rqueuedepth_(0),
+                             wconcurrentsize_(0),
                              wqueuedepth_(0),
                              cond_(0) {}
 

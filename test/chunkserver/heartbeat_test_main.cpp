@@ -31,7 +31,7 @@
 #include "test/chunkserver/heartbeat_test_common.h"
 #include "test/integration/common/config_generator.h"
 
-static char *param[3][15] = {
+static const char *param[3][15] = {
     {
         "heartbeat_test",
         "-chunkServerIp=127.0.0.1",
@@ -135,7 +135,7 @@ int main(int argc, char *argv[]) {
              * RunChunkServer内部会调用LOG(), 有较低概率因不兼容fork()而卡死
              */
             return RunChunkServer(i, sizeof(param[i]) / sizeof(char *),
-                                  param[i]);
+                                  const_cast<char **>(param[i]));
         }
     }
 
@@ -172,8 +172,8 @@ int main(int argc, char *argv[]) {
             /*
              * RunChunkServer内部会调用LOG(), 有较低概率因不兼容fork()而卡死
              */
-            ret =
-                RunChunkServer(1, sizeof(param[1]) / sizeof(char *), param[1]);
+            ret = RunChunkServer(1, sizeof(param[1]) / sizeof(char *),
+                                 const_cast<char **>(param[1]));
             return ret;
         }
         sleep(2);

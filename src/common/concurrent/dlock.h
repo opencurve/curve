@@ -32,8 +32,8 @@
 namespace curve {
 namespace common {
 
-using curve::kvstorage::KVStorageClient;
 using curve::common::Uncopyable;
+using curve::kvstorage::KVStorageClient;
 
 struct DLockOpts {
     std::string pfx;
@@ -47,19 +47,19 @@ struct DLockOpts {
 
 class DLock : public Uncopyable {
  public:
-    explicit DLock(const DLockOpts &opts) : opts_(opts), locker_(0) {}
+    explicit DLock(const DLockOpts &opts) : locker_(0), opts_(opts) {}
     virtual ~DLock();
 
     /**
      * @brief Init the etcd Mutex
-     * 
+     *
      * @return lock leaseid
      */
     virtual int64_t Init();
 
     /**
      * @brief lock the object
-     * 
+     *
      * @return error code EtcdErrCode
      */
     virtual int Lock();
@@ -97,8 +97,8 @@ class DLock : public Uncopyable {
     const DLockOpts &opts_;
 };
 
-}   // namespace common
-}   // namespace curve
+}  // namespace common
+}  // namespace curve
 
 
 #endif  // SRC_COMMON_CONCURRENT_DLOCK_H_

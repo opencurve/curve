@@ -143,8 +143,6 @@ bool Splitor::AssignInternal(IOTracker* iotracker, MetaCache* metaCache,
                              MDSClient* mdsclient, const FInfo_t* fileInfo,
                              const FileEpoch_t* fEpoch,
                              ChunkIndex chunkidx) {
-    const auto maxSplitSizeBytes = 1024 * iosplitopt_.fileIOSplitMaxSizeKB;
-
     lldiv_t res = std::div(
         static_cast<long long>(chunkidx) * fileInfo->chunksize,  // NOLINT
         static_cast<long long>(fileInfo->segmentsize));          // NOLINT
@@ -369,7 +367,6 @@ int Splitor::SplitForStripe(IOTracker* iotracker, MetaCache* metaCache,
 
     uint64_t cur = offset;
     uint64_t left = length;
-    uint64_t curChunkIndex = 0;
 
     while (left > 0) {
         uint64_t blockIndex = cur / stripeUnit;
@@ -427,11 +424,11 @@ uint64_t Splitor::ProcessUnalignedRequests(const off_t currentOffset,
     uint64_t alignedEndOffset =
         common::align_down(currentEndOff, iosplitopt_.alignment.cloneVolume);
 
-    if (currentOffset == alignedStartOffset &&
+    if (static_cast<uint64_t>(currentOffset) == alignedStartOffset &&
         currentEndOff == alignedEndOffset) {
         padding->aligned = true;
     } else {
-        if (currentOffset == alignedStartOffset) {
+        if (static_cast<uint64_t>(currentOffset) == alignedStartOffset) {
             padding->aligned = false;
             padding->type = RequestContext::Padding::Right;
             padding->offset = alignedEndOffset;

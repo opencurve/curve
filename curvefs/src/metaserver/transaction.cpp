@@ -81,7 +81,7 @@ inline bool RenameTx::operator==(const RenameTx& rhs) {
 std::ostream& operator<<(std::ostream& os, const RenameTx& renameTx) {
     auto dentrys = renameTx.dentrys_;
     os << "txId = " << renameTx.txId_;
-    for (int i = 0; i < dentrys.size(); i++) {
+    for (size_t i = 0; i < dentrys.size(); i++) {
         os << ", dentry[" << i << "] = ("
            << dentrys[i].ShortDebugString() << ")";
     }

@@ -960,7 +960,7 @@ int MDSClient::GetMetric(const std::string& metricName, std::string* value) {
 
 bool MDSClient::ChangeMDServer() {
     currentMdsIndex_++;
-    if (currentMdsIndex_ > mdsAddrVec_.size() - 1) {
+    if (currentMdsIndex_ > static_cast<int>(mdsAddrVec_.size() - 1)) {
         currentMdsIndex_ = 0;
     }
     if (channel_.Init(mdsAddrVec_[currentMdsIndex_].c_str(),

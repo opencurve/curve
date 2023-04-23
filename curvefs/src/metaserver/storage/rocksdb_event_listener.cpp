@@ -44,6 +44,7 @@ MetricEventListener::MetricEventListener()
 
 void MetricEventListener::OnFlushBegin(rocksdb::DB* db,
                                        const rocksdb::FlushJobInfo& /*info*/) {
+    (void)db;
     flushing_ << 1;
     rocksdbFlushStart = butil::cpuwide_time_us();
 }
@@ -51,6 +52,7 @@ void MetricEventListener::OnFlushBegin(rocksdb::DB* db,
 void MetricEventListener::OnFlushCompleted(
     rocksdb::DB* db,
     const rocksdb::FlushJobInfo& info) {
+    (void)db;
     flushing_ << -1;
     flushLatency_ << (butil::cpuwide_time_us() - rocksdbFlushStart);
     flushedBytes_ << info.table_properties.data_size;
@@ -64,6 +66,7 @@ void MetricEventListener::OnMemTableSealed(
 void MetricEventListener::OnCompactionBegin(
     rocksdb::DB* db,
     const rocksdb::CompactionJobInfo& /*info*/) {
+    (void)db;
     compacting_ << 1;
     rocksdbCompactionStart = butil::cpuwide_time_us();
 }
@@ -71,6 +74,7 @@ void MetricEventListener::OnCompactionBegin(
 void MetricEventListener::OnCompactionCompleted(
     rocksdb::DB* db,
     const rocksdb::CompactionJobInfo& /*info*/) {
+    (void)db;
     compacting_ << -1;
     compactionLatency_ << (butil::cpuwide_time_us() - rocksdbCompactionStart);
 }

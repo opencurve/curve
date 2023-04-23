@@ -149,10 +149,10 @@ class MemoryStorageIterator : public Iterator {
  public:
     MemoryStorageIterator(std::shared_ptr<ContainerType> container,
                           const std::string& prefix)
-        : container_(container),
-          prefix_(prefix),
+        : prefix_(prefix),
+          status_(0),
           prefixChecking_(true),
-          status_(0) {}
+          container_(container) {}
 
     // NOTE: now we can't caclute the size for range operate
     uint64_t Size() override {

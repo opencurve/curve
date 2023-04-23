@@ -247,7 +247,7 @@ class CloneInfo {
 
 std::ostream& operator<<(std::ostream& os, const CloneInfo &cloneInfo);
 
-//快照处理状态
+// 快照处理状态
 enum class Status{
     done = 0,
     pending,
@@ -257,7 +257,7 @@ enum class Status{
     error
 };
 
-//快照信息
+// 快照信息
 class SnapshotInfo {
  public:
     SnapshotInfo()
@@ -427,7 +427,7 @@ class SnapshotInfo {
     uint32_t chunkSize_;
     // 文件的segment大小
     uint64_t segmentSize_;
-    //文件大小
+    // 文件大小
     uint64_t fileLength_;
     // stripe size
     uint64_t stripeUnit_;

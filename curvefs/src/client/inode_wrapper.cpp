@@ -559,6 +559,7 @@ class UpdateInodeAsyncS3Done : public MetaServerClientDone {
 }  // namespace
 
 void InodeWrapper::AsyncS3(MetaServerClientDone *done, bool internal) {
+    (void)internal;
     if (dirty_ || !s3ChunkInfoAdd_.empty()) {
         LockSyncingInode();
         LockSyncingS3ChunkInfo();

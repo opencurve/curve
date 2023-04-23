@@ -38,8 +38,8 @@
 //          Zhangyi Chen(chenzhangyi01@baidu.com)
 //          Xiong,Kai(xiongkai@baidu.com)
 
-#ifndef  SRC_CHUNKSERVER_RAFTLOG_CURVE_SEGMENT_LOG_STORAGE_H_
-#define  SRC_CHUNKSERVER_RAFTLOG_CURVE_SEGMENT_LOG_STORAGE_H_
+#ifndef SRC_CHUNKSERVER_RAFTLOG_CURVE_SEGMENT_LOG_STORAGE_H_
+#define SRC_CHUNKSERVER_RAFTLOG_CURVE_SEGMENT_LOG_STORAGE_H_
 
 #include <butil/atomicops.h>
 #include <butil/iobuf.h>
@@ -64,25 +64,23 @@ class CurveSegmentLogStorage;
 
 struct LogStorageOptions {
     std::shared_ptr<FilePool> walFilePool;
-    std::function<void(CurveSegmentLogStorage*)> monitorMetricCb;
+    std::function<void(CurveSegmentLogStorage *)> monitorMetricCb;
 
     LogStorageOptions() = default;
-    LogStorageOptions(std::shared_ptr<FilePool> walFilePool,
-        std::function<void(CurveSegmentLogStorage*)> monitorMetricCb)
-        : walFilePool(walFilePool), monitorMetricCb(monitorMetricCb) {
-    }
+    LogStorageOptions(
+        std::shared_ptr<FilePool> walFilePool,
+        std::function<void(CurveSegmentLogStorage *)> monitorMetricCb)
+        : walFilePool(walFilePool), monitorMetricCb(monitorMetricCb) {}
 };
 
 struct LogStorageStatus {
     explicit LogStorageStatus(uint32_t walSegmentFileCount)
-        : walSegmentFileCount(walSegmentFileCount) {
-    }
+        : walSegmentFileCount(walSegmentFileCount) {}
 
     uint32_t walSegmentFileCount;
 };
 
-LogStorageOptions StoreOptForCurveSegmentLogStorage(
-    LogStorageOptions options);
+LogStorageOptions StoreOptForCurveSegmentLogStorage(LogStorageOptions options);
 
 void RegisterCurveSegmentLogStorageOrDie();
 
@@ -96,31 +94,23 @@ void RegisterCurveSegmentLogStorageOrDie();
 //      log_inprogress_0001001: open segment
 class CurveSegmentLogStorage : public braft::LogStorage {
  public:
-    typedef std::map<int64_t, scoped_refptr<Segment> > SegmentMap;
+    typedef std::map<int64_t, scoped_refptr<Segment>> SegmentMap;
 
-    explicit CurveSegmentLogStorage(const std::string& path,
-        bool enable_sync = true,
+    explicit CurveSegmentLogStorage(
+        const std::string &path, bool enable_sync = true,
         std::shared_ptr<FilePool> walFilePool = nullptr)
-        : _path(path)
-        , _first_log_index(1)
-        , _last_log_index(0)
-        , _checksum_type(0)
-        , _enable_sync(enable_sync)
-        , _walFilePool(walFilePool)
-    {}
+        : _path(path), _first_log_index(1), _last_log_index(0),
+          _walFilePool(walFilePool), _checksum_type(0),
+          _enable_sync(enable_sync) {}
 
     CurveSegmentLogStorage()
-        : _first_log_index(1)
-        , _last_log_index(0)
-        , _checksum_type(0)
-        , _enable_sync(true)
-        , _walFilePool(nullptr)
-    {}
+        : _first_log_index(1), _last_log_index(0), _walFilePool(nullptr),
+          _checksum_type(0), _enable_sync(true) {}
 
     virtual ~CurveSegmentLogStorage() {}
 
     // init logstorage, check consistency and integrity
-    virtual int init(braft::ConfigurationManager* configuration_manager);
+    virtual int init(braft::ConfigurationManager *configuration_manager);
 
     // first log index in log
     virtual int64_t first_log_index() {
@@ -131,18 +121,17 @@ class CurveSegmentLogStorage : public braft::LogStorage {
     virtual int64_t last_log_index();
 
     // get logentry by index
-    virtual braft::LogEntry* get_entry(const int64_t index);
+    virtual braft::LogEntry *get_entry(const int64_t index);
 
     // get logentry's term by index
     virtual int64_t get_term(const int64_t index);
 
     // append entry to log
-    int append_entry(const braft::LogEntry* entry);
+    int append_entry(const braft::LogEntry *entry);
 
     // append entries to log and update IOMetric, return success append number
-    virtual int append_entries(
-        const std::vector<braft::LogEntry*>& entries,
-        braft::IOMetric* metric);
+    virtual int append_entries(const std::vector<braft::LogEntry *> &entries,
+                               braft::IOMetric *metric);
 
     // delete logs from storage's head, [1, first_index_kept) will be discarded
     virtual int truncate_prefix(const int64_t first_index_kept);
@@ -153,13 +142,11 @@ class CurveSegmentLogStorage : public braft::LogStorage {
 
     virtual int reset(const int64_t next_log_index);
 
-    LogStorage* new_instance(const std::string& uri) const;
+    LogStorage *new_instance(const std::string &uri) const;
 
-    SegmentMap& segments() {
-        return _segments;
-    }
+    SegmentMap &segments() { return _segments; }
 
-    void list_files(std::vector<std::string>* seg_files);
+    void list_files(std::vector<std::string> *seg_files);
 
     void sync();
 
@@ -170,15 +157,13 @@ class CurveSegmentLogStorage : public braft::LogStorage {
     int save_meta(const int64_t log_index);
     int load_meta();
     int list_segments(bool is_empty);
-    int load_segments(braft::ConfigurationManager* configuration_manager);
-    int get_segment(int64_t log_index, scoped_refptr<Segment>* ptr);
-    void pop_segments(
-            int64_t first_index_kept,
-            std::vector<scoped_refptr<Segment> >* poped);
-    void pop_segments_from_back(
-            const int64_t first_index_kept,
-            std::vector<scoped_refptr<Segment> >* popped,
-            scoped_refptr<Segment>* last_segment);
+    int load_segments(braft::ConfigurationManager *configuration_manager);
+    int get_segment(int64_t log_index, scoped_refptr<Segment> *ptr);
+    void pop_segments(int64_t first_index_kept,
+                      std::vector<scoped_refptr<Segment>> *poped);
+    void pop_segments_from_back(const int64_t first_index_kept,
+                                std::vector<scoped_refptr<Segment>> *popped,
+                                scoped_refptr<Segment> *last_segment);
 
 
     std::string _path;

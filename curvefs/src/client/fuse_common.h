@@ -34,9 +34,9 @@ extern "C" {
 #endif
 
 struct MountOption {
-    char* mountPoint;
-    char* fsName;
-    char* fsType;
+    const char* mountPoint;
+    const char* fsName;
+    const char* fsType;
     char* conf;
     char* mdsAddr;
 };

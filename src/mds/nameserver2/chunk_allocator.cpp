@@ -63,7 +63,7 @@ bool ChunkSegmentAllocatorImpl::AllocateChunkSegment(FileType type,
             return false;
         }
         auto logicalpoolId = copysets[0].logicalPoolId;
-        for (auto i = 0; i < copysets.size(); i++) {
+        for (size_t i = 0; i < copysets.size(); i++) {
             if (copysets[i].logicalPoolId !=  logicalpoolId) {
                 LOG(ERROR) << "Allocate Copysets id not same, copysets["
                             << i << "] = "

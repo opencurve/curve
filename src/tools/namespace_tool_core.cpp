@@ -203,7 +203,7 @@ int NameSpaceToolCore::UpdateFileThrottle(const std::string& fileName,
     params.set_limit(limit);
     params.set_type(type);
     if (burst >= 0) {
-        if (burst < limit) {
+        if (burst < static_cast<int64_t>(limit)) {
             std::cout << "burst should greater equal to limit" << std::endl;
             return -1;
         }
@@ -253,7 +253,7 @@ int NameSpaceToolCore::QueryChunkCopyset(const std::string& fileName,
         return -1;
     }
     uint64_t chunkIndex = (offset - segOffset) / segment.chunksize();
-    if (chunkIndex >= segment.chunks_size()) {
+    if (static_cast<int64_t>(chunkIndex) >= segment.chunks_size()) {
         std::cout << "ChunkIndex exceed chunks num in segment!" << std::endl;
         return -1;
     }

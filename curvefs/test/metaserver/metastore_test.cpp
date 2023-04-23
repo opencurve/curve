@@ -1645,7 +1645,7 @@ TEST_F(MetastoreTest, GetInodeWithPaddingS3Meta) {
         request.set_mode(777);
         request.set_type(FsFileType::TYPE_FILE);
 
-        auto rc = metastore.CreateInode(&request, &response);
+        (void)metastore.CreateInode(&request, &response);
         ASSERT_EQ(response.statuscode(), MetaStatusCode::OK);
         inodeId = response.inode().inodeid();
     }

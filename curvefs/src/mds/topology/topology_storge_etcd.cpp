@@ -490,8 +490,8 @@ bool TopologyStorageEtcd::UpdatePartitions(
             OpType::OpPut,
             const_cast<char*>(keys[i].data()),
             const_cast<char*>(values[i].data()),
-            keys[i].size(),
-            values[i].size()
+            static_cast<int>(keys[i].size()),
+            static_cast<int>(values[i].size())
         };
         ops.emplace_back(op);
     }

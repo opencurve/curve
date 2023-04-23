@@ -80,7 +80,7 @@ int CurveSegment::create() {
         return -1;
     }
     res = ::lseek(_fd, _meta_page_size, SEEK_SET);
-    if (res != _meta_page_size) {
+    if (res != static_cast<int>(_meta_page_size)) {
         LOG(ERROR) << "lseek fail! error: " << strerror(errno);
         return -1;
     }
@@ -231,7 +231,7 @@ int CurveSegment::load(braft::ConfigurationManager* configuration_manager) {
 int CurveSegment::_load_meta() {
     char* metaPage = new char[_meta_page_size];
     int res = ::pread(_fd, metaPage, _meta_page_size, 0);
-    if (res != _meta_page_size) {
+    if (res != static_cast<int>(_meta_page_size)) {
         delete metaPage;
         return -1;
     }
@@ -437,7 +437,7 @@ int CurveSegment::append(const braft::LogEntry* entry) {
         data.copy_to(write_buf + kEntryHeaderSize, real_length);
         int ret = ::pwrite(_direct_fd, write_buf, to_write, _meta.bytes);
         free(write_buf);
-        if (ret != to_write) {
+        if (ret != static_cast<int>(to_write)) {
             LOG(ERROR) << "Fail to write directly to fd=" << _direct_fd
                        << ", buf=" << write_buf << ", size=" << to_write
                        << ", offset=" << _meta.bytes << ", error=" << berror();
@@ -486,7 +486,7 @@ int CurveSegment::_update_meta_page() {
         ret = ::pwrite(_fd, metaPage, _meta_page_size, 0);
     }
     free(metaPage);
-    if (ret != _meta_page_size) {
+    if (ret != static_cast<int>(_meta_page_size)) {
         LOG(ERROR) << "Fail to write meta page into fd="
                    << (FLAGS_enableWalDirectWrite ? _direct_fd : _fd)
                    << ", path: " << _path << berror();
@@ -642,7 +642,6 @@ int CurveSegment::sync(bool will_sync) {
 }
 
 int CurveSegment::unlink() {
-    int ret = 0;
     std::string path(_path);
     if (_is_open) {
         butil::string_appendf(&path, "/" CURVE_SEGMENT_OPEN_PATTERN,

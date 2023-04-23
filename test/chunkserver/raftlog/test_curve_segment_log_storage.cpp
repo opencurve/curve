@@ -155,13 +155,13 @@ TEST_F(CurveSegmentLogStorageTest, basic_test) {
 
     // append entry
     std::string path = kRaftLogDataDir;
-    butil::string_appendf(&path, "/" CURVE_SEGMENT_OPEN_PATTERN, 1);
+    butil::string_appendf(&path, "/" CURVE_SEGMENT_OPEN_PATTERN, 1L);
     ASSERT_EQ(0,  prepare_segment(path));
     path = kRaftLogDataDir;
-    butil::string_appendf(&path, "/" CURVE_SEGMENT_OPEN_PATTERN, 2049);
+    butil::string_appendf(&path, "/" CURVE_SEGMENT_OPEN_PATTERN, 2049L);
     ASSERT_EQ(0,  prepare_segment(path));
     path = kRaftLogDataDir;
-    butil::string_appendf(&path, "/" CURVE_SEGMENT_OPEN_PATTERN, 4097);
+    butil::string_appendf(&path, "/" CURVE_SEGMENT_OPEN_PATTERN, 4097L);
     ASSERT_EQ(0,  prepare_segment(path));
     append_entries(storage, 1000, 5);
 
@@ -200,7 +200,7 @@ TEST_F(CurveSegmentLogStorageTest, basic_test) {
 
     // append
     path = kRaftLogDataDir;
-    butil::string_appendf(&path, "/" CURVE_SEGMENT_OPEN_PATTERN, 6145);
+    butil::string_appendf(&path, "/" CURVE_SEGMENT_OPEN_PATTERN, 6145L);
     ASSERT_EQ(0,  prepare_segment(path));
     for (int i = 5001; i <= 7000; i++) {
         int64_t index = i;
@@ -273,10 +273,10 @@ TEST_F(CurveSegmentLogStorageTest, append_close_load_append) {
 
     // append entry
     std::string path = kRaftLogDataDir;
-    butil::string_appendf(&path, "/" CURVE_SEGMENT_OPEN_PATTERN, 1);
+    butil::string_appendf(&path, "/" CURVE_SEGMENT_OPEN_PATTERN, 1L);
     ASSERT_EQ(0,  prepare_segment(path));
     path = kRaftLogDataDir;
-    butil::string_appendf(&path, "/" CURVE_SEGMENT_OPEN_PATTERN, 2049);
+    butil::string_appendf(&path, "/" CURVE_SEGMENT_OPEN_PATTERN, 2049L);
     ASSERT_EQ(0,  prepare_segment(path));
     append_entries(storage, 600, 5);
     ASSERT_EQ(countWalSegmentFile(), storage->GetStatus().walSegmentFileCount);
@@ -293,7 +293,7 @@ TEST_F(CurveSegmentLogStorageTest, append_close_load_append) {
 
     // append entry
     path = kRaftLogDataDir;
-    butil::string_appendf(&path, "/" CURVE_SEGMENT_OPEN_PATTERN, 4097);
+    butil::string_appendf(&path, "/" CURVE_SEGMENT_OPEN_PATTERN, 4097L);
     ASSERT_EQ(0,  prepare_segment(path));
     braft::IOMetric metric;
     for (int i = 600; i < 1000; i++) {
@@ -349,7 +349,7 @@ TEST_F(CurveSegmentLogStorageTest, data_lost) {
 
     // append entry
     std::string path = kRaftLogDataDir;
-    butil::string_appendf(&path, "/" CURVE_SEGMENT_OPEN_PATTERN, 1);
+    butil::string_appendf(&path, "/" CURVE_SEGMENT_OPEN_PATTERN, 1L);
     ASSERT_EQ(0,  prepare_segment(path));
     append_entries(storage, 100, 5);
     ASSERT_EQ(countWalSegmentFile(), storage->GetStatus().walSegmentFileCount);
@@ -393,7 +393,7 @@ TEST_F(CurveSegmentLogStorageTest, compatibility) {
 
     // append entry
     std::string path = kRaftLogDataDir;
-    butil::string_appendf(&path, "/" CURVE_SEGMENT_OPEN_PATTERN, 3001);
+    butil::string_appendf(&path, "/" CURVE_SEGMENT_OPEN_PATTERN, 3001L);
     ASSERT_EQ(0,  prepare_segment(path));
     braft::IOMetric metric;
     for (int i = 600; i < 1000; i++) {
@@ -451,13 +451,13 @@ TEST_F(CurveSegmentLogStorageTest, basic_test_without_direct) {
 
     // append entry
     std::string path = kRaftLogDataDir;
-    butil::string_appendf(&path, "/" CURVE_SEGMENT_OPEN_PATTERN, 1);
+    butil::string_appendf(&path, "/" CURVE_SEGMENT_OPEN_PATTERN, 1L);
     ASSERT_EQ(0,  prepare_segment(path));
     path = kRaftLogDataDir;
-    butil::string_appendf(&path, "/" CURVE_SEGMENT_OPEN_PATTERN, 2049);
+    butil::string_appendf(&path, "/" CURVE_SEGMENT_OPEN_PATTERN, 2049L);
     ASSERT_EQ(0,  prepare_segment(path));
     path = kRaftLogDataDir;
-    butil::string_appendf(&path, "/" CURVE_SEGMENT_OPEN_PATTERN, 4097);
+    butil::string_appendf(&path, "/" CURVE_SEGMENT_OPEN_PATTERN, 4097L);
     ASSERT_EQ(0,  prepare_segment(path));
     append_entries(storage, 1000, 5);
 
@@ -496,7 +496,7 @@ TEST_F(CurveSegmentLogStorageTest, basic_test_without_direct) {
 
     // append
     path = kRaftLogDataDir;
-    butil::string_appendf(&path, "/" CURVE_SEGMENT_OPEN_PATTERN, 6145);
+    butil::string_appendf(&path, "/" CURVE_SEGMENT_OPEN_PATTERN, 6145L);
     ASSERT_EQ(0,  prepare_segment(path));
     for (int i = 5001; i <= 7000; i++) {
         int64_t index = i;

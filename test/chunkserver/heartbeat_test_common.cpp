@@ -26,7 +26,7 @@
 uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
 uint32_t chunk_size = 16 * 1024 * 1024;   // NOLINT
 
-static char* confPath[3] = {
+static const char* confPath[3] = {
     "./8200/chunkserver.conf",
     "./8201/chunkserver.conf",
     "./8202/chunkserver.conf",
@@ -73,10 +73,6 @@ void HeartbeatTestCommon::CleanPeer(
                 req->copysetinfos(i);
 
             std::string peersStr = info.peers(0).address();
-
-            if (info.has_configchangeinfo()) {
-                const ConfigChangeInfo& cxInfo = info.configchangeinfo();
-            }
 
             {
                 // answer with cleaning peer response

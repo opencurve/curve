@@ -207,6 +207,7 @@ void BRaftCliServiceImpl::transfer_leader(
     const TransferLeaderRequest *request,
     TransferLeaderResponse *response,
     ::google::protobuf::Closure *done) {
+    (void)response;
     brpc::Controller *cntl = (brpc::Controller *) controller;
     brpc::ClosureGuard done_guard(done);
     scoped_refptr<braft::NodeImpl> node;

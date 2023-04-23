@@ -512,7 +512,7 @@ TEST_F(TrashTest, recycle_wal_failed) {
                             "curve_log_inprogress_10088"))
         .WillOnce(Return(-1));
 
-    //失败的情况下不应删除
+    // 失败的情况下不应删除
     EXPECT_CALL(*lfs, Delete("./runlog/trash_test0/trash/4294967493.55555"))
         .Times(0);
 

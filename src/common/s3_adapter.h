@@ -22,6 +22,7 @@
 
 #ifndef SRC_COMMON_S3_ADAPTER_H_
 #define SRC_COMMON_S3_ADAPTER_H_
+#include <cstdint>
 #include <map>
 #include <list>
 #include <string>
@@ -54,7 +55,7 @@
 #include <aws/core/utils/memory/stl/AWSStringStream.h>    //NOLINT
 #include <aws/s3/model/BucketLocationConstraint.h>        //NOLINT
 #include <aws/s3/model/CreateBucketConfiguration.h>       //NOLINT
-#include <aws/core/utils/threading/Executor.h>            // NOLINT
+#include <aws/core/utils/threading/Executor.h>            //NOLINT
 #include "src/common/configuration.h"
 #include "src/common/throttle.h"
 
@@ -116,7 +117,7 @@ struct GetObjectAsyncContext : public Aws::Client::AsyncCallerContext {
     size_t len;
     GetObjectAsyncCallBack cb;
     int retCode;
-    int retry;
+    uint32_t retry;
     size_t actualLen;
 };
 
@@ -144,9 +145,7 @@ class S3Adapter {
         s3Client_ = nullptr;
         throttle_ = nullptr;
     }
-    virtual ~S3Adapter() {
-        Deinit();
-    }
+    virtual ~S3Adapter() { Deinit(); }
     /**
      * 初始化S3Adapter
      */
@@ -360,10 +359,15 @@ class FakeS3Adapter : public S3Adapter {
 
     int PutObject(const Aws::String &key, const char *buffer,
                   const size_t bufferSize) override {
+        (void)key;
+        (void)buffer;
+        (void)bufferSize;
         return 0;
     }
 
     int PutObject(const Aws::String &key, const std::string &data) override {
+        (void)key;
+        (void)data;
         return 0;
     }
 
@@ -374,6 +378,8 @@ class FakeS3Adapter : public S3Adapter {
     }
 
     int GetObject(const Aws::String &key, std::string *data) override {
+        (void)key;
+        (void)data;
         // just return 4M data
         data->resize(4 * 1024 * 1024, '1');
         return 0;
@@ -381,6 +387,8 @@ class FakeS3Adapter : public S3Adapter {
 
     int GetObject(const std::string &key, char *buf, off_t offset,
                   size_t len) override {
+        (void)key;
+        (void)offset;
         // juset return len data
         memset(buf, '1', len);
         return 0;
@@ -393,13 +401,20 @@ class FakeS3Adapter : public S3Adapter {
         context->cb(this, context);
     }
 
-    int DeleteObject(const Aws::String &key) override { return 0; }
-
-    int DeleteObjects(const std::list<Aws::String> &keyList) override {
+    int DeleteObject(const Aws::String &key) override {
+        (void)key;
         return 0;
     }
 
-    bool ObjectExist(const Aws::String &key) override { return true; }
+    int DeleteObjects(const std::list<Aws::String> &keyList) override {
+        (void)keyList;
+        return 0;
+    }
+
+    bool ObjectExist(const Aws::String &key) override {
+        (void)key;
+        return true;
+    }
 };
 
 

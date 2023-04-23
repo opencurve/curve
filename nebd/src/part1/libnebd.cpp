@@ -80,11 +80,19 @@ int nebd_lib_close(int fd) {
 }
 
 int nebd_lib_pread(int fd, void* buf, off_t offset, size_t length) {
+    (void)fd;
+    (void)buf;
+    (void)offset;
+    (void)length;
     // not support sync read
     return -1;
 }
 
 int nebd_lib_pwrite(int fd, const void* buf, off_t offset, size_t length) {
+    (void)fd;
+    (void)buf;
+    (void)offset;
+    (void)length;
     // not support sync write
     return -1;
 }
@@ -102,6 +110,7 @@ int nebd_lib_aio_pwrite(int fd, NebdClientAioContext* context) {
 }
 
 int nebd_lib_sync(int fd) {
+    (void)fd;
     return 0;
 }
 

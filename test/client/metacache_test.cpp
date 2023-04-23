@@ -91,7 +91,6 @@ TEST_F(MetaCacheTest, TestCleanChunksInSegment) {
         InsertMetaCache(fileLength, segmentSize, chunkSize);
 
         uint64_t totalChunks = fileLength / chunkSize;
-        uint64_t totalSegments = fileLength / segmentSize;
         uint64_t chunksInSegment = segmentSize / chunkSize;
 
         ASSERT_EQ(totalChunks,

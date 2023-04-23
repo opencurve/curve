@@ -989,7 +989,7 @@ TEST_F(TestSnapshotCoreImpl,
     std::vector<SnapshotInfo> snapInfos;
     SnapshotInfo info2(uuid2, user, fileName, desc2);
     info.SetSeqNum(seqNum);
-    info2.SetSeqNum(seqNum - 1);  //上一个快照
+    info2.SetSeqNum(seqNum - 1);  // 上一个快照
     info2.SetStatus(Status::done);
     snapInfos.push_back(info);
     snapInfos.push_back(info2);

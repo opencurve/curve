@@ -50,8 +50,8 @@ IOTracker::IOTracker(IOManager* iomanager,
                      FileMetric* clientMetric,
                      bool disableStripe)
     : mc_(mc),
-      iomanager_(iomanager),
       scheduler_(scheduler),
+      iomanager_(iomanager),
       fileMetric_(clientMetric),
       disableStripe_(disableStripe) {
     id_         = tracekerID_.fetch_add(1, std::memory_order_relaxed);

@@ -154,7 +154,7 @@ TEST_F(RecycleCleanerTest, time_func_test) {
 
     struct tm tmDir;
     memset(&tmDir, 0, sizeof(tmDir));
-    char* c = strptime(now, "%Y-%m-%d-%H", &tmDir);
+    (void)strptime(now, "%Y-%m-%d-%H", &tmDir);
 
     time_t dirTime = mktime(&tmDir);
     LOG(INFO) << "befor, time = " << timeStamp;

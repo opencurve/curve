@@ -196,12 +196,12 @@ TEST_F(TestDiskCacheManager, IsCached) {
     bool ret = diskCacheManager_->IsCached(fileName);
     ASSERT_EQ(false, ret);
 
-    diskCacheManager_->AddCache(fileName, false);
+    diskCacheManager_->AddCache(fileName);
     diskCacheManager_->AddCache(fileName2);
     ret = diskCacheManager_->IsCached(fileName2);
     ASSERT_EQ(true, ret);
 
-    diskCacheManager_->AddCache(fileName, false);
+    diskCacheManager_->AddCache(fileName);
     diskCacheManager_->AddCache(fileName2);
     ret = diskCacheManager_->IsCached(fileName);
     ASSERT_EQ(true, ret);
@@ -236,11 +236,6 @@ TEST_F(TestDiskCacheManager, IsDiskCacheFull) {
     int ret = diskCacheManager_->IsDiskCacheFull();
     ASSERT_EQ(true, ret);
 
-    struct statfs stat;
-    stat.f_frsize = 1;
-    stat.f_blocks = 1;
-    stat.f_bfree = 0;
-    stat.f_bavail = 0;
     ret = diskCacheManager_->IsDiskCacheFull();
     ASSERT_EQ(true, ret);
 }
@@ -285,7 +280,7 @@ TEST_F(TestDiskCacheManager, TrimRun_1) {
     diskCacheManager_->InitMetrics("test");
     EXPECT_CALL(*wrapper, statfs(NotNull(), NotNull()))
         .WillRepeatedly(Return(-1));
-    int ret = diskCacheManager_->TrimRun();
+    (void)diskCacheManager_->TrimRun();
     sleep(6);
     diskCacheManager_->UmountDiskCache();
 }
@@ -318,7 +313,7 @@ TEST_F(TestDiskCacheManager, TrimCache_2) {
     diskCacheManager_->Init(client_, option);
     diskCacheManager_->InitMetrics("test");
     diskCacheManager_->AddCache("test");
-    int ret = diskCacheManager_->TrimRun();
+    (void)diskCacheManager_->TrimRun();
     sleep(6);
     diskCacheManager_->UmountDiskCache();
 }
@@ -354,7 +349,7 @@ TEST_F(TestDiskCacheManager, TrimCache_4) {
     diskCacheManager_->Init(client_, option);
     diskCacheManager_->InitMetrics("test");
     diskCacheManager_->AddCache("test");
-    int ret = diskCacheManager_->TrimRun();
+    (void)diskCacheManager_->TrimRun();
     sleep(6);
     diskCacheManager_->UmountDiskCache();
 }
@@ -391,7 +386,7 @@ TEST_F(TestDiskCacheManager, TrimCache_5) {
     diskCacheManager_->Init(client_, option);
     diskCacheManager_->InitMetrics("test");
     diskCacheManager_->AddCache("test");
-    int ret = diskCacheManager_->TrimRun();
+    (void)diskCacheManager_->TrimRun();
     sleep(6);
     diskCacheManager_->UmountDiskCache();
 }
@@ -432,7 +427,7 @@ TEST_F(TestDiskCacheManager, TrimCache_noexceed) {
         .Times(2)
         .WillOnce(Return(-1))
         .WillOnce(DoAll(SetArgPointee<1>(rf), Return(0)));
-    int ret = diskCacheManager_->TrimRun();
+    (void)diskCacheManager_->TrimRun();
     diskCacheManager_->InitMetrics("test");
     sleep(6);
     diskCacheManager_->UmountDiskCache();

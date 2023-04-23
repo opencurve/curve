@@ -62,7 +62,7 @@ void OriginCopyer::DeleteExpiredCurveCache(void* arg) {
     while (taskCopyer->curveOpenTime_.size() > 0) {
         CurveOpenTimestamp oldestCache = *taskCopyer->curveOpenTime_.begin();
         if (now.tv_sec - oldestCache.lastUsedSec <
-            taskCopyer->curveFileTimeoutSec_) {
+            static_cast<int64_t>(taskCopyer->curveFileTimeoutSec_)) {
             break;
         }
 
@@ -186,6 +186,7 @@ void OriginCopyer::DownloadFromS3(const string& objectName,
     GetObjectAsyncCallBack cb =
         [=] (const S3Adapter* adapter,
              const std::shared_ptr<GetObjectAsyncContext>& context) {
+            (void)adapter;
             brpc::ClosureGuard doneGuard(done);
             if (context->retCode != 0) {
                 done->SetFailed();

@@ -134,6 +134,7 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpWrite(fuse_req_t req,
                                             off_t off,
                                             struct fuse_file_info *fi,
                                             size_t *wSize) {
+    (void)req;
     VLOG(9) << "write start, ino: " << ino << ", offset: " << off
             << ", length: " << size;
 
@@ -189,6 +190,7 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpRead(fuse_req_t req,
                                            struct fuse_file_info *fi,
                                            char *buffer,
                                            size_t *rSize) {
+    (void)req;
     VLOG(3) << "read start, ino: " << ino << ", offset: " << off
             << ", length: " << size;
 
@@ -272,6 +274,8 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpUnlink(fuse_req_t req, fuse_ino_t parent,
 CURVEFS_ERROR FuseVolumeClient::FuseOpFsync(fuse_req_t req, fuse_ino_t ino,
                                             int datasync,
                                             struct fuse_file_info *fi) {
+    (void)req;
+    (void)fi;
     VLOG(3) << "FuseOpFsync start, ino: " << ino << ", datasync: " << datasync;
 
     CURVEFS_ERROR ret = storage_->Flush(ino);
@@ -298,12 +302,16 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpFsync(fuse_req_t req, fuse_ino_t ino,
 }
 
 CURVEFS_ERROR FuseVolumeClient::Truncate(InodeWrapper *inode, uint64_t length) {
+    (void)inode;
+    (void)length;
     // Todo: call volume truncate
     return CURVEFS_ERROR::OK;
 }
 
 CURVEFS_ERROR FuseVolumeClient::FuseOpFlush(fuse_req_t req, fuse_ino_t ino,
                                             struct fuse_file_info *fi) {
+    (void)req;
+    (void)fi;
     VLOG(9) << "FuseOpFlush, ino: " << ino;
 
     CURVEFS_ERROR ret = storage_->Flush(ino);

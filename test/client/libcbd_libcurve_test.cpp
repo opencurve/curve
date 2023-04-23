@@ -133,7 +133,7 @@ TEST_F(TestLibcbdLibcurve, InitTest) {
     globalclientinited_ = false;
     memset(&opt, 0, sizeof(opt));
     // testing with no conf specified
-    opt.conf = "";
+    opt.conf = const_cast<char*>("");
     ret = cbd_lib_init(&opt);
     ASSERT_NE(ret, 0);
     ret = cbd_lib_fini();

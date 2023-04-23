@@ -164,7 +164,6 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
     CopysetID copysetId = 100001;
     uint64_t chunkId = 1;
     uint64_t sn = 1;
-    char ch = 'a';
     char expectData[kOpRequestAlignSize + 1];
     ::memset(expectData, 'a', kOpRequestAlignSize);
     expectData[kOpRequestAlignSize] = '\0';

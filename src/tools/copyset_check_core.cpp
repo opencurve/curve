@@ -19,8 +19,9 @@
  * Created Date: 2019-10-30
  * Author: charisu
  */
-#include <math.h>
 #include "src/tools/copyset_check_core.h"
+#include <math.h>
+#include <cstdint>
 
 DEFINE_uint64(margin, 1000, "The threshold of the gap between peers");
 DEFINE_uint64(replicasNum, 3, "the number of replicas that required");
@@ -404,7 +405,7 @@ int CopysetCheckCore::CheckCopysetsOnServer(const ServerIdType& serverId,
     std::vector<Thread> threadpool;
     std::map<std::string, std::pair<int, butil::IOBuf>> queryCsResult;
     uint32_t index = 0;
-    for (int i = 0; i < FLAGS_rpcConcurrentNum; i++) {
+    for (uint64_t i = 0; i < FLAGS_rpcConcurrentNum; i++) {
         threadpool.emplace_back(Thread(
                         &CopysetCheckCore::ConcurrentCheckCopysetsOnServer,
                         this, std::ref(chunkservers), &index,
@@ -751,7 +752,7 @@ CheckResult CopysetCheckCore::CheckPeerOnlineStatus(
     }
     if (notOnlineNum > 0) {
         uint32_t majority = peers.size() / 2 + 1;
-        if (notOnlineNum < majority) {
+        if (notOnlineNum < static_cast<int>(majority)) {
             return CheckResult::kMinorityPeerNotOnline;
         } else {
             return CheckResult::kMajorityPeerNotOnline;
@@ -928,6 +929,7 @@ int CopysetCheckCore::ListMayBrokenVolumes(
 
 void CopysetCheckCore::GetCopysetInfos(const char* key,
                                 std::vector<CopysetInfo>* copysets) {
+    (void)key;
     for (auto iter = copysets_[kMajorityPeerNotOnline].begin();
                     iter != copysets_[kMajorityPeerNotOnline].end(); ++iter) {
         std::string gid = *iter;

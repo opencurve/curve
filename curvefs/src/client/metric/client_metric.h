@@ -269,7 +269,6 @@ struct DiskCacheMetric {
 
 struct KVClientMetric {
     static const std::string prefix;
-
     InterfaceMetric kvClientGet;
     InterfaceMetric kvClientSet;
 

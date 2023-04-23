@@ -114,7 +114,6 @@ TEST_F(TestTopologyStat, TestUpdateAndGetChunkServerStat) {
     cstat3.writeIOPS = 3;
     stat3.copysetStats.push_back(cstat3);
 
-    PoolIdType pPid = 2;
     EXPECT_CALL(*topology_, GetBelongPhysicalPoolId(_, _))
         .WillRepeatedly(DoAll(SetArgPointee<1>(2),
                             Return(kTopoErrCodeSuccess)));

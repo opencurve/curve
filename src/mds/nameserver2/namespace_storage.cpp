@@ -26,43 +26,40 @@
 #include "src/mds/nameserver2/helper/namespace_helper.h"
 #include "src/common/namespace_define.h"
 
-using ::curve::common::SNAPSHOTFILEINFOKEYPREFIX;
-using ::curve::common::SNAPSHOTFILEINFOKEYEND;
-using ::curve::common::DISCARDSEGMENTKEYPREFIX;
 using ::curve::common::DISCARDSEGMENTKEYEND;
+using ::curve::common::DISCARDSEGMENTKEYPREFIX;
+using ::curve::common::SNAPSHOTFILEINFOKEYEND;
+using ::curve::common::SNAPSHOTFILEINFOKEYPREFIX;
 
 namespace curve {
 namespace mds {
 
-std::ostream& operator << (std::ostream & os, StoreStatus &s) {
+std::ostream &operator<<(std::ostream &os, StoreStatus &s) {
     os << static_cast<std::underlying_type<StoreStatus>::type>(s);
     return os;
 }
 
 NameServerStorageImp::NameServerStorageImp(
     std::shared_ptr<KVStorageClient> client, std::shared_ptr<Cache> cache)
-    : client_(client), cache_(cache), discardMetric_() {}
+    : cache_(cache), client_(client), discardMetric_() {}
 
 StoreStatus NameServerStorageImp::PutFile(const FileInfo &fileInfo) {
     std::string storeKey;
-    if (GetStoreKey(fileInfo.filetype(),
-                    fileInfo.parentid(),
-                    fileInfo.filename(),
-                    &storeKey)
-            != StoreStatus::OK) {
+    if (GetStoreKey(fileInfo.filetype(), fileInfo.parentid(),
+                    fileInfo.filename(), &storeKey) != StoreStatus::OK) {
         LOG(ERROR) << "get store key failed,filename = " << fileInfo.filename();
         return StoreStatus::InternalError;
     }
     std::string encodeFileInfo;
     if (!NameSpaceStorageCodec::EncodeFileInfo(fileInfo, &encodeFileInfo)) {
-        LOG(ERROR) << "encode file: " << fileInfo.filename()<< "err";
+        LOG(ERROR) << "encode file: " << fileInfo.filename() << "err";
         return StoreStatus::InternalError;
     }
 
     int errCode = client_->Put(storeKey, encodeFileInfo);
     if (errCode != EtcdErrCode::EtcdOK) {
-        LOG(ERROR) << "put file: [" << fileInfo.filename() << "] err: "
-                    << errCode;
+        LOG(ERROR) << "put file: [" << fileInfo.filename()
+                   << "] err: " << errCode;
     } else {
         // update to cache
         cache_->Put(storeKey, encodeFileInfo);
@@ -75,8 +72,8 @@ StoreStatus NameServerStorageImp::GetFile(InodeID parentid,
                                           const std::string &filename,
                                           FileInfo *fileInfo) {
     std::string storeKey;
-    if (GetStoreKey(FileType::INODE_PAGEFILE, parentid, filename, &storeKey)
-        != StoreStatus::OK) {
+    if (GetStoreKey(FileType::INODE_PAGEFILE, parentid, filename, &storeKey) !=
+        StoreStatus::OK) {
         LOG(ERROR) << "get store key failed, filename = " << filename;
         return StoreStatus::InternalError;
     }
@@ -112,10 +109,10 @@ StoreStatus NameServerStorageImp::GetFile(InodeID parentid,
 }
 
 StoreStatus NameServerStorageImp::DeleteFile(InodeID id,
-                                            const std::string &filename) {
+                                             const std::string &filename) {
     std::string storeKey;
-    if (GetStoreKey(FileType::INODE_PAGEFILE, id, filename, &storeKey)
-        != StoreStatus::OK) {
+    if (GetStoreKey(FileType::INODE_PAGEFILE, id, filename, &storeKey) !=
+        StoreStatus::OK) {
         LOG(ERROR) << "get store key failed,filename = " << filename;
         return StoreStatus::InternalError;
     }
@@ -131,11 +128,12 @@ StoreStatus NameServerStorageImp::DeleteFile(InodeID id,
     return getErrorCode(resCode);
 }
 
-StoreStatus NameServerStorageImp::DeleteSnapshotFile(InodeID id,
-                                                const std::string &filename) {
+StoreStatus
+NameServerStorageImp::DeleteSnapshotFile(InodeID id,
+                                         const std::string &filename) {
     std::string storeKey;
-    if (GetStoreKey(FileType::INODE_SNAPSHOT_PAGEFILE,
-                    id, filename, &storeKey) != StoreStatus::OK) {
+    if (GetStoreKey(FileType::INODE_SNAPSHOT_PAGEFILE, id, filename,
+                    &storeKey) != StoreStatus::OK) {
         LOG(ERROR) << "get store key failed, filename = " << filename;
         return StoreStatus::InternalError;
     }
@@ -152,12 +150,10 @@ StoreStatus NameServerStorageImp::DeleteSnapshotFile(InodeID id,
 }
 
 StoreStatus NameServerStorageImp::RenameFile(const FileInfo &oldFInfo,
-                                            const FileInfo &newFInfo) {
+                                             const FileInfo &newFInfo) {
     std::string oldStoreKey;
-    auto res = GetStoreKey(FileType::INODE_PAGEFILE,
-                    oldFInfo.parentid(),
-                    oldFInfo.filename(),
-                    &oldStoreKey);
+    auto res = GetStoreKey(FileType::INODE_PAGEFILE, oldFInfo.parentid(),
+                           oldFInfo.filename(), &oldStoreKey);
     if (res != StoreStatus::OK) {
         LOG(ERROR) << "get store key failed, filename = "
                    << oldFInfo.filename();
@@ -165,10 +161,8 @@ StoreStatus NameServerStorageImp::RenameFile(const FileInfo &oldFInfo,
     }
 
     std::string newStoreKey;
-    res = GetStoreKey(FileType::INODE_PAGEFILE,
-                    newFInfo.parentid(),
-                    newFInfo.filename(),
-                    &newStoreKey);
+    res = GetStoreKey(FileType::INODE_PAGEFILE, newFInfo.parentid(),
+                      newFInfo.filename(), &newStoreKey);
     if (res != StoreStatus::OK) {
         LOG(ERROR) << "get store key failed, filename = "
                    << newFInfo.filename();
@@ -179,33 +173,29 @@ StoreStatus NameServerStorageImp::RenameFile(const FileInfo &oldFInfo,
     std::string encodeNewFileInfo;
     if (!NameSpaceStorageCodec::EncodeFileInfo(oldFInfo, &encodeOldFileInfo) ||
         !NameSpaceStorageCodec::EncodeFileInfo(newFInfo, &encodeNewFileInfo)) {
-       LOG(ERROR) << "encode oldfile inodeid : " << oldFInfo.id()
-                  << ", oldfile: " << oldFInfo.filename()
-                  << " or newfile inodeid : " << newFInfo.id()
-                  << ", newfile: " << newFInfo.filename() << "err";
-       return StoreStatus::InternalError;
+        LOG(ERROR) << "encode oldfile inodeid : " << oldFInfo.id()
+                   << ", oldfile: " << oldFInfo.filename()
+                   << " or newfile inodeid : " << newFInfo.id()
+                   << ", newfile: " << newFInfo.filename() << "err";
+        return StoreStatus::InternalError;
     }
 
     // delete the data in the cache first
     cache_->Remove(oldStoreKey);
 
     // update Etcd
-    Operation op1{
-        OpType::OpDelete,
-        const_cast<char*>(oldStoreKey.c_str()), "",
-        oldStoreKey.size(), 0};
-    Operation op2{
-        OpType::OpPut,
-        const_cast<char*>(newStoreKey.c_str()),
-        const_cast<char*>(encodeNewFileInfo.c_str()),
-         newStoreKey.size(), encodeNewFileInfo.size()};
+    Operation op1{OpType::OpDelete, const_cast<char *>(oldStoreKey.c_str()), "",
+                  static_cast<int>(oldStoreKey.size()), 0};
+    Operation op2{OpType::OpPut, const_cast<char *>(newStoreKey.c_str()),
+                  const_cast<char *>(encodeNewFileInfo.c_str()),
+                  static_cast<int>(newStoreKey.size()),
+                  static_cast<int>(encodeNewFileInfo.size())};
     std::vector<Operation> ops{op1, op2};
     int errCode = client_->TxnN(ops);
     if (errCode != EtcdErrCode::EtcdOK) {
         LOG(ERROR) << "rename file from [" << oldFInfo.id() << ", "
-                   << oldFInfo.filename() << "] to [" << newFInfo.id()
-                   << ", " << newFInfo.filename() << "] err: "
-                   << errCode;
+                   << oldFInfo.filename() << "] to [" << newFInfo.id() << ", "
+                   << newFInfo.filename() << "] err: " << errCode;
     } else {
         // update to cache at last
         cache_->Put(newStoreKey, encodeNewFileInfo);
@@ -214,13 +204,11 @@ StoreStatus NameServerStorageImp::RenameFile(const FileInfo &oldFInfo,
 }
 
 StoreStatus NameServerStorageImp::ReplaceFileAndRecycleOldFile(
-                                            const FileInfo &oldFInfo,
-                                            const FileInfo &newFInfo,
-                                            const FileInfo &conflictFInfo,
-                                            const FileInfo &recycleFInfo) {
+    const FileInfo &oldFInfo, const FileInfo &newFInfo,
+    const FileInfo &conflictFInfo, const FileInfo &recycleFInfo) {
     std::string oldStoreKey, newStoreKey, conflictStoreKey, recycleStoreKey;
     auto res = GetStoreKey(oldFInfo.filetype(), oldFInfo.parentid(),
-        oldFInfo.filename(), &oldStoreKey);
+                           oldFInfo.filename(), &oldStoreKey);
     if (res != StoreStatus::OK) {
         LOG(ERROR) << "get store key failed, filename = "
                    << oldFInfo.filename();
@@ -228,7 +216,7 @@ StoreStatus NameServerStorageImp::ReplaceFileAndRecycleOldFile(
     }
 
     res = GetStoreKey(newFInfo.filetype(), newFInfo.parentid(),
-        newFInfo.filename(), &newStoreKey);
+                      newFInfo.filename(), &newStoreKey);
     if (res != StoreStatus::OK) {
         LOG(ERROR) << "get store key failed, filename = "
                    << newFInfo.filename();
@@ -236,7 +224,7 @@ StoreStatus NameServerStorageImp::ReplaceFileAndRecycleOldFile(
     }
 
     res = GetStoreKey(conflictFInfo.filetype(), conflictFInfo.parentid(),
-        conflictFInfo.filename(), &conflictStoreKey);
+                      conflictFInfo.filename(), &conflictStoreKey);
     if (res != StoreStatus::OK) {
         LOG(ERROR) << "get store key failed, filename = "
                    << conflictFInfo.filename();
@@ -249,7 +237,7 @@ StoreStatus NameServerStorageImp::ReplaceFileAndRecycleOldFile(
     }
 
     res = GetStoreKey(recycleFInfo.filetype(), recycleFInfo.parentid(),
-        recycleFInfo.filename(), &recycleStoreKey);
+                      recycleFInfo.filename(), &recycleStoreKey);
     if (res != StoreStatus::OK) {
         LOG(ERROR) << "get store key failed, filename = "
                    << recycleFInfo.filename();
@@ -258,16 +246,15 @@ StoreStatus NameServerStorageImp::ReplaceFileAndRecycleOldFile(
 
     std::string encodeRecycleFInfo;
     std::string encodeNewFInfo;
-    if (!NameSpaceStorageCodec::EncodeFileInfo(
-        recycleFInfo, &encodeRecycleFInfo)) {
+    if (!NameSpaceStorageCodec::EncodeFileInfo(recycleFInfo,
+                                               &encodeRecycleFInfo)) {
         LOG(ERROR) << "encode recycle file: " << recycleFInfo.filename()
-                  << " err";
+                   << " err";
         return StoreStatus::InternalError;
     }
 
     if (!NameSpaceStorageCodec::EncodeFileInfo(newFInfo, &encodeNewFInfo)) {
-        LOG(ERROR) << "encode recycle file: " << newFInfo.filename()
-                  << " err";
+        LOG(ERROR) << "encode recycle file: " << newFInfo.filename() << " err";
         return StoreStatus::InternalError;
     }
 
@@ -276,27 +263,22 @@ StoreStatus NameServerStorageImp::ReplaceFileAndRecycleOldFile(
     cache_->Remove(oldStoreKey);
 
     // put recycleFInfo; delete oldFInfo; put newFInfo
-    Operation op1{
-        OpType::OpPut,
-        const_cast<char*>(recycleStoreKey.c_str()),
-        const_cast<char*>(encodeRecycleFInfo.c_str()),
-        recycleStoreKey.size(), encodeRecycleFInfo.size()};
-    Operation op2{
-        OpType::OpDelete,
-        const_cast<char*>(oldStoreKey.c_str()), "",
-        oldStoreKey.size(), 0};
-    Operation op3{
-        OpType::OpPut,
-        const_cast<char*>(newStoreKey.c_str()),
-        const_cast<char*>(encodeNewFInfo.c_str()),
-        newStoreKey.size(), encodeNewFInfo.size()};
+    Operation op1{OpType::OpPut, const_cast<char *>(recycleStoreKey.c_str()),
+                  const_cast<char *>(encodeRecycleFInfo.c_str()),
+                  static_cast<int>(recycleStoreKey.size()),
+                  static_cast<int>(encodeRecycleFInfo.size())};
+    Operation op2{OpType::OpDelete, const_cast<char *>(oldStoreKey.c_str()), "",
+                  static_cast<int>(oldStoreKey.size()), 0};
+    Operation op3{OpType::OpPut, const_cast<char *>(newStoreKey.c_str()),
+                  const_cast<char *>(encodeNewFInfo.c_str()),
+                  static_cast<int>(newStoreKey.size()),
+                  static_cast<int>(encodeNewFInfo.size())};
 
     std::vector<Operation> ops{op1, op2, op3};
     int errCode = client_->TxnN(ops);
     if (errCode != EtcdErrCode::EtcdOK) {
-        LOG(ERROR) << "rename file from [" << oldFInfo.filename()
-                   << "] to [" << newFInfo.filename() << "] err: "
-                   << errCode;
+        LOG(ERROR) << "rename file from [" << oldFInfo.filename() << "] to ["
+                   << newFInfo.filename() << "] err: " << errCode;
     } else {
         // update to cache
         cache_->Put(recycleStoreKey, encodeRecycleFInfo);
@@ -305,11 +287,12 @@ StoreStatus NameServerStorageImp::ReplaceFileAndRecycleOldFile(
     return getErrorCode(errCode);
 }
 
-StoreStatus NameServerStorageImp::MoveFileToRecycle(
-    const FileInfo &originFileInfo, const FileInfo &recycleFileInfo) {
+StoreStatus
+NameServerStorageImp::MoveFileToRecycle(const FileInfo &originFileInfo,
+                                        const FileInfo &recycleFileInfo) {
     std::string originFileInfoKey;
     auto res = GetStoreKey(originFileInfo.filetype(), originFileInfo.parentid(),
-        originFileInfo.filename(), &originFileInfoKey);
+                           originFileInfo.filename(), &originFileInfoKey);
     if (res != StoreStatus::OK) {
         LOG(ERROR) << "get store key failed, filename = "
                    << originFileInfo.filename();
@@ -318,7 +301,7 @@ StoreStatus NameServerStorageImp::MoveFileToRecycle(
 
     std::string recycleFileInfoKey;
     res = GetStoreKey(recycleFileInfo.filetype(), recycleFileInfo.parentid(),
-        recycleFileInfo.filename(), &recycleFileInfoKey);
+                      recycleFileInfo.filename(), &recycleFileInfoKey);
     if (res != StoreStatus::OK) {
         LOG(ERROR) << "get store key failed, filename = "
                    << recycleFileInfo.filename();
@@ -326,10 +309,10 @@ StoreStatus NameServerStorageImp::MoveFileToRecycle(
     }
 
     std::string encodeRecycleFInfo;
-    if (!NameSpaceStorageCodec::EncodeFileInfo(
-        recycleFileInfo, &encodeRecycleFInfo)) {
+    if (!NameSpaceStorageCodec::EncodeFileInfo(recycleFileInfo,
+                                               &encodeRecycleFInfo)) {
         LOG(ERROR) << "encode recycle file: " << recycleFileInfo.filename()
-                  << " err";
+                   << " err";
         return StoreStatus::InternalError;
     }
 
@@ -337,23 +320,20 @@ StoreStatus NameServerStorageImp::MoveFileToRecycle(
     cache_->Remove(originFileInfoKey);
 
     // remove originFileInfo from Etcd, and put recycleFileInfo
-    Operation op1{
-        OpType::OpDelete,
-        const_cast<char*>(originFileInfoKey.c_str()), "",
-        originFileInfoKey.size(), 0};
-    Operation op2{
-        OpType::OpPut,
-        const_cast<char*>(recycleFileInfoKey.c_str()),
-        const_cast<char*>(encodeRecycleFInfo.c_str()),
-        recycleFileInfoKey.size(), encodeRecycleFInfo.size()};
+    Operation op1{OpType::OpDelete,
+                  const_cast<char *>(originFileInfoKey.c_str()), "",
+                  static_cast<int>(originFileInfoKey.size()), 0};
+    Operation op2{OpType::OpPut, const_cast<char *>(recycleFileInfoKey.c_str()),
+                  const_cast<char *>(encodeRecycleFInfo.c_str()),
+                  static_cast<int>(recycleFileInfoKey.size()),
+                  static_cast<int>(encodeRecycleFInfo.size())};
 
     std::vector<Operation> ops{op1, op2};
     int errCode = client_->TxnN(ops);
     if (errCode != EtcdErrCode::EtcdOK) {
         LOG(ERROR) << "move file [" << originFileInfo.filename()
-                   << "] to recycle file ["
-                   << recycleFileInfo.filename() << "] err: "
-                   << errCode;
+                   << "] to recycle file [" << recycleFileInfo.filename()
+                   << "] err: " << errCode;
     } else {
         // update to cache
         cache_->Put(recycleFileInfoKey, encodeRecycleFInfo);
@@ -361,8 +341,7 @@ StoreStatus NameServerStorageImp::MoveFileToRecycle(
     return getErrorCode(errCode);
 }
 
-StoreStatus NameServerStorageImp::ListFile(InodeID startid,
-                                           InodeID endid,
+StoreStatus NameServerStorageImp::ListFile(InodeID startid, InodeID endid,
                                            std::vector<FileInfo> *files) {
     std::string startStoreKey;
     auto res =
@@ -382,26 +361,25 @@ StoreStatus NameServerStorageImp::ListFile(InodeID startid,
     return ListFileInternal(startStoreKey, endStoreKey, files);
 }
 
-StoreStatus NameServerStorageImp::ListSegment(InodeID id,
-                                    std::vector<PageFileSegment> *segments) {
+StoreStatus
+NameServerStorageImp::ListSegment(InodeID id,
+                                  std::vector<PageFileSegment> *segments) {
     std::string startStoreKey =
-                NameSpaceStorageCodec::EncodeSegmentStoreKey(id, 0);
+        NameSpaceStorageCodec::EncodeSegmentStoreKey(id, 0);
     std::string endStoreKey =
-                NameSpaceStorageCodec::EncodeSegmentStoreKey(id + 1, 0);
+        NameSpaceStorageCodec::EncodeSegmentStoreKey(id + 1, 0);
 
     std::vector<std::string> out;
-    int errCode = client_->List(
-        startStoreKey, endStoreKey, &out);
+    int errCode = client_->List(startStoreKey, endStoreKey, &out);
 
     if (errCode != EtcdErrCode::EtcdOK) {
         LOG(ERROR) << "list segment err:" << errCode;
         return getErrorCode(errCode);
     }
 
-    for (int i = 0; i < out.size(); i++) {
+    for (size_t i = 0; i < out.size(); i++) {
         PageFileSegment segment;
-        bool decodeOK = NameSpaceStorageCodec::DecodeSegment(out[i],
-                                                             &segment);
+        bool decodeOK = NameSpaceStorageCodec::DecodeSegment(out[i], &segment);
         if (decodeOK) {
             segments->emplace_back(segment);
         } else {
@@ -412,20 +390,20 @@ StoreStatus NameServerStorageImp::ListSegment(InodeID id,
     return StoreStatus::OK;
 }
 
-StoreStatus NameServerStorageImp::ListSnapshotFile(InodeID startid,
-                                           InodeID endid,
-                                           std::vector<FileInfo> *files) {
+StoreStatus
+NameServerStorageImp::ListSnapshotFile(InodeID startid, InodeID endid,
+                                       std::vector<FileInfo> *files) {
     std::string startStoreKey;
-    auto res = GetStoreKey(FileType::INODE_SNAPSHOT_PAGEFILE,
-                    startid, "", &startStoreKey);
+    auto res = GetStoreKey(FileType::INODE_SNAPSHOT_PAGEFILE, startid, "",
+                           &startStoreKey);
     if (res != StoreStatus::OK) {
         LOG(ERROR) << "get store key failed, id = " << startid;
         return StoreStatus::InternalError;
     }
 
     std::string endStoreKey;
-    res = GetStoreKey(FileType::INODE_SNAPSHOT_PAGEFILE,
-                    endid, "", &endStoreKey);
+    res =
+        GetStoreKey(FileType::INODE_SNAPSHOT_PAGEFILE, endid, "", &endStoreKey);
     if (res != StoreStatus::OK) {
         LOG(ERROR) << "get store key failed, id = " << endid;
         return StoreStatus::InternalError;
@@ -434,23 +412,22 @@ StoreStatus NameServerStorageImp::ListSnapshotFile(InodeID startid,
     return ListFileInternal(startStoreKey, endStoreKey, files);
 }
 
-StoreStatus NameServerStorageImp::ListFileInternal(
-                                           const std::string& startStoreKey,
-                                           const std::string& endStoreKey,
-                                           std::vector<FileInfo> *files) {
+StoreStatus
+NameServerStorageImp::ListFileInternal(const std::string &startStoreKey,
+                                       const std::string &endStoreKey,
+                                       std::vector<FileInfo> *files) {
     std::vector<std::string> out;
-    int errCode = client_->List(
-        startStoreKey, endStoreKey, &out);
+    int errCode = client_->List(startStoreKey, endStoreKey, &out);
 
     if (errCode != EtcdErrCode::EtcdOK) {
         LOG(ERROR) << "list file err:" << errCode;
         return getErrorCode(errCode);
     }
 
-    for (int i = 0; i < out.size(); i++) {
+    for (size_t i = 0; i < out.size(); i++) {
         FileInfo fileInfo;
-        bool decodeOK = NameSpaceStorageCodec::DecodeFileInfo(out[i],
-                                                              &fileInfo);
+        bool decodeOK =
+            NameSpaceStorageCodec::DecodeFileInfo(out[i], &fileInfo);
         if (decodeOK) {
             files->emplace_back(fileInfo);
         } else {
@@ -461,8 +438,7 @@ StoreStatus NameServerStorageImp::ListFileInternal(
     return StoreStatus::OK;
 }
 
-StoreStatus NameServerStorageImp::PutSegment(InodeID id,
-                                             uint64_t off,
+StoreStatus NameServerStorageImp::PutSegment(InodeID id, uint64_t off,
                                              const PageFileSegment *segment,
                                              int64_t *revision) {
     std::string storeKey =
@@ -482,8 +458,7 @@ StoreStatus NameServerStorageImp::PutSegment(InodeID id,
     return getErrorCode(errCode);
 }
 
-StoreStatus NameServerStorageImp::GetSegment(InodeID id,
-                                             uint64_t off,
+StoreStatus NameServerStorageImp::GetSegment(InodeID id, uint64_t off,
                                              PageFileSegment *segment) {
     std::string storeKey =
         NameSpaceStorageCodec::EncodeSegmentStoreKey(id, off);
@@ -498,21 +473,21 @@ StoreStatus NameServerStorageImp::GetSegment(InodeID id,
         if (decodeOK) {
             return StoreStatus::OK;
         } else {
-            LOG(ERROR) << "decode segment inodeid: " << id
-                       << ", off: " << off <<" err";
+            LOG(ERROR) << "decode segment inodeid: " << id << ", off: " << off
+                       << " err";
             return StoreStatus::InternalError;
         }
     } else if (errCode == EtcdErrCode::EtcdKeyNotExist) {
         LOG(INFO) << "segment not exist. inodeid: " << id << ", off: " << off;
     } else {
-        LOG(ERROR) << "get segment inodeid: " << id
-                   << ", off: " << off << " err: " << errCode;
+        LOG(ERROR) << "get segment inodeid: " << id << ", off: " << off
+                   << " err: " << errCode;
     }
     return getErrorCode(errCode);
 }
 
-StoreStatus NameServerStorageImp::DeleteSegment(
-    InodeID id, uint64_t off, int64_t *revision) {
+StoreStatus NameServerStorageImp::DeleteSegment(InodeID id, uint64_t off,
+                                                int64_t *revision) {
     std::string storeKey =
         NameSpaceStorageCodec::EncodeSegmentStoreKey(id, off);
     int errCode = client_->DeleteRewithRevision(storeKey, revision);
@@ -520,14 +495,14 @@ StoreStatus NameServerStorageImp::DeleteSegment(
     // update the cache first, then update Etcd
     cache_->Remove(storeKey);
     if (errCode != EtcdErrCode::EtcdOK) {
-        LOG(ERROR) << "delete segment of inodeid: " << id
-                   << "off: " << off << ", err:" << errCode;
+        LOG(ERROR) << "delete segment of inodeid: " << id << "off: " << off
+                   << ", err:" << errCode;
     }
     return getErrorCode(errCode);
 }
 
 StoreStatus NameServerStorageImp::ListDiscardSegment(
-    std::map<std::string, DiscardSegmentInfo>* discardSegments) {
+    std::map<std::string, DiscardSegmentInfo> *discardSegments) {
     assert(discardSegments != nullptr);
 
     std::vector<std::pair<std::string, std::string>> out;
@@ -538,7 +513,7 @@ StoreStatus NameServerStorageImp::ListDiscardSegment(
         return StoreStatus::InternalError;
     }
 
-    for (const auto& kv : out) {
+    for (const auto &kv : out) {
         DiscardSegmentInfo info;
         if (!NameSpaceStorageCodec::DecodeDiscardSegment(kv.second, &info)) {
             LOG(ERROR) << "Decode DiscardSegment failed";
@@ -551,8 +526,9 @@ StoreStatus NameServerStorageImp::ListDiscardSegment(
     return StoreStatus::OK;
 }
 
-StoreStatus NameServerStorageImp::DiscardSegment(
-    const FileInfo& fileInfo, const PageFileSegment& segment) {
+StoreStatus
+NameServerStorageImp::DiscardSegment(const FileInfo &fileInfo,
+                                     const PageFileSegment &segment) {
     const uint64_t inodeId = fileInfo.id();
     const uint64_t offset = segment.startoffset();
     const std::string segmentKey =
@@ -574,16 +550,14 @@ StoreStatus NameServerStorageImp::DiscardSegment(
         return StoreStatus::InternalError;
     }
 
-    Operation op1{
-        OpType::OpDelete,
-        const_cast<char*>(segmentKey.c_str()),
-        const_cast<char*>(encodeSegment.c_str()),
-        segmentKey.size(), encodeSegment.size()};
-    Operation op2{
-        OpType::OpPut,
-        const_cast<char*>(cleanSegmentKey.c_str()),
-        const_cast<char*>(encodeDiscardSegment.c_str()),
-        cleanSegmentKey.size(), encodeDiscardSegment.size()};
+    Operation op1{OpType::OpDelete, const_cast<char *>(segmentKey.c_str()),
+                  const_cast<char *>(encodeSegment.c_str()),
+                  static_cast<int>(segmentKey.size()),
+                  static_cast<int>(encodeSegment.size())};
+    Operation op2{OpType::OpPut, const_cast<char *>(cleanSegmentKey.c_str()),
+                  const_cast<char *>(encodeDiscardSegment.c_str()),
+                  static_cast<int>(cleanSegmentKey.size()),
+                  static_cast<int>(encodeDiscardSegment.size())};
 
     std::vector<Operation> ops{op1, op2};
     auto errCode = client_->TxnN(ops);
@@ -600,8 +574,8 @@ StoreStatus NameServerStorageImp::DiscardSegment(
 }
 
 StoreStatus NameServerStorageImp::CleanDiscardSegment(uint64_t segmentSize,
-                                                      const std::string& key,
-                                                      int64_t* revision) {
+                                                      const std::string &key,
+                                                      int64_t *revision) {
     int errCode = client_->DeleteRewithRevision(key, revision);
     if (errCode != EtcdErrCode::EtcdOK) {
         LOG(ERROR) << "CleanDiscardSegment failed, key = " << key
@@ -614,12 +588,10 @@ StoreStatus NameServerStorageImp::CleanDiscardSegment(uint64_t segmentSize,
 }
 
 StoreStatus NameServerStorageImp::SnapShotFile(const FileInfo *originFInfo,
-                                            const FileInfo *snapshotFInfo) {
+                                               const FileInfo *snapshotFInfo) {
     std::string originFileKey;
-    auto res = GetStoreKey(originFInfo->filetype(),
-                    originFInfo->parentid(),
-                    originFInfo->filename(),
-                    &originFileKey);
+    auto res = GetStoreKey(originFInfo->filetype(), originFInfo->parentid(),
+                           originFInfo->filename(), &originFileKey);
     if (res != StoreStatus::OK) {
         LOG(ERROR) << "get store key failed, filename = "
                    << originFInfo->filename();
@@ -627,10 +599,8 @@ StoreStatus NameServerStorageImp::SnapShotFile(const FileInfo *originFInfo,
     }
 
     std::string snapshotFileKey;
-    res = GetStoreKey(snapshotFInfo->filetype(),
-                    snapshotFInfo->parentid(),
-                    snapshotFInfo->filename(),
-                    &snapshotFileKey);
+    res = GetStoreKey(snapshotFInfo->filetype(), snapshotFInfo->parentid(),
+                      snapshotFInfo->filename(), &snapshotFileKey);
     if (res != StoreStatus::OK) {
         LOG(ERROR) << "get store key failed, filename = "
                    << snapshotFInfo->filename();
@@ -640,7 +610,8 @@ StoreStatus NameServerStorageImp::SnapShotFile(const FileInfo *originFInfo,
     std::string encodeFileInfo;
     std::string encodeSnapshot;
     if (!NameSpaceStorageCodec::EncodeFileInfo(*originFInfo, &encodeFileInfo) ||
-    !NameSpaceStorageCodec::EncodeFileInfo(*snapshotFInfo, &encodeSnapshot)) {
+        !NameSpaceStorageCodec::EncodeFileInfo(*snapshotFInfo,
+                                               &encodeSnapshot)) {
         LOG(ERROR) << "encode originfile inodeid: " << originFInfo->id()
                    << ", originfile: " << originFInfo->filename()
                    << " or snapshotfile inodeid: " << snapshotFInfo->id()
@@ -652,16 +623,14 @@ StoreStatus NameServerStorageImp::SnapShotFile(const FileInfo *originFInfo,
     cache_->Remove(originFileKey);
 
     // then update Etcd
-    Operation op1{
-        OpType::OpPut,
-        const_cast<char*>(originFileKey.c_str()),
-        const_cast<char*>(encodeFileInfo.c_str()),
-        originFileKey.size(), encodeFileInfo.size()};
-    Operation op2{
-        OpType::OpPut,
-        const_cast<char*>(snapshotFileKey.c_str()),
-        const_cast<char*>(encodeSnapshot.c_str()),
-        snapshotFileKey.size(), encodeSnapshot.size()};
+    Operation op1{OpType::OpPut, const_cast<char *>(originFileKey.c_str()),
+                  const_cast<char *>(encodeFileInfo.c_str()),
+                  static_cast<int>(originFileKey.size()),
+                  static_cast<int>(encodeFileInfo.size())};
+    Operation op2{OpType::OpPut, const_cast<char *>(snapshotFileKey.c_str()),
+                  const_cast<char *>(encodeSnapshot.c_str()),
+                  static_cast<int>(snapshotFileKey.size()),
+                  static_cast<int>(encodeSnapshot.size())};
 
     std::vector<Operation> ops{op1, op2};
     int errCode = client_->TxnN(ops);
@@ -678,63 +647,62 @@ StoreStatus NameServerStorageImp::SnapShotFile(const FileInfo *originFInfo,
     return getErrorCode(errCode);
 }
 
-StoreStatus NameServerStorageImp::LoadSnapShotFile(
-    std::vector<FileInfo> *snapshotFiles) {
-    return ListFileInternal(SNAPSHOTFILEINFOKEYPREFIX,
-                            SNAPSHOTFILEINFOKEYEND, snapshotFiles);
+StoreStatus
+NameServerStorageImp::LoadSnapShotFile(std::vector<FileInfo> *snapshotFiles) {
+    return ListFileInternal(SNAPSHOTFILEINFOKEYPREFIX, SNAPSHOTFILEINFOKEYEND,
+                            snapshotFiles);
 }
 
 StoreStatus NameServerStorageImp::getErrorCode(int errCode) {
     switch (errCode) {
-        case EtcdErrCode::EtcdOK:
-            return StoreStatus::OK;
+    case EtcdErrCode::EtcdOK:
+        return StoreStatus::OK;
 
-        case EtcdErrCode::EtcdKeyNotExist:
-            return StoreStatus::KeyNotExist;
+    case EtcdErrCode::EtcdKeyNotExist:
+        return StoreStatus::KeyNotExist;
 
-        case EtcdErrCode::EtcdUnknown:
-        case EtcdErrCode::EtcdInvalidArgument:
-        case EtcdErrCode::EtcdAlreadyExists:
-        case EtcdErrCode::EtcdPermissionDenied:
-        case EtcdErrCode::EtcdOutOfRange:
-        case EtcdErrCode::EtcdUnimplemented:
-        case EtcdErrCode::EtcdInternal:
-        case EtcdErrCode::EtcdNotFound:
-        case EtcdErrCode::EtcdDataLoss:
-        case EtcdErrCode::EtcdUnauthenticated:
-        case EtcdErrCode::EtcdCanceled:
-        case EtcdErrCode::EtcdDeadlineExceeded:
-        case EtcdErrCode::EtcdResourceExhausted:
-        case EtcdErrCode::EtcdFailedPrecondition:
-        case EtcdErrCode::EtcdAborted:
-        case EtcdErrCode::EtcdUnavailable:
-        case EtcdErrCode::EtcdTxnUnkownOp:
-        case EtcdErrCode::EtcdObjectNotExist:
-        case EtcdErrCode::EtcdErrObjectType:
-            return StoreStatus::InternalError;
+    case EtcdErrCode::EtcdUnknown:
+    case EtcdErrCode::EtcdInvalidArgument:
+    case EtcdErrCode::EtcdAlreadyExists:
+    case EtcdErrCode::EtcdPermissionDenied:
+    case EtcdErrCode::EtcdOutOfRange:
+    case EtcdErrCode::EtcdUnimplemented:
+    case EtcdErrCode::EtcdInternal:
+    case EtcdErrCode::EtcdNotFound:
+    case EtcdErrCode::EtcdDataLoss:
+    case EtcdErrCode::EtcdUnauthenticated:
+    case EtcdErrCode::EtcdCanceled:
+    case EtcdErrCode::EtcdDeadlineExceeded:
+    case EtcdErrCode::EtcdResourceExhausted:
+    case EtcdErrCode::EtcdFailedPrecondition:
+    case EtcdErrCode::EtcdAborted:
+    case EtcdErrCode::EtcdUnavailable:
+    case EtcdErrCode::EtcdTxnUnkownOp:
+    case EtcdErrCode::EtcdObjectNotExist:
+    case EtcdErrCode::EtcdErrObjectType:
+        return StoreStatus::InternalError;
 
-        default:
-            return StoreStatus::InternalError;
+    default:
+        return StoreStatus::InternalError;
     }
 }
 
-StoreStatus NameServerStorageImp::GetStoreKey(FileType filetype,
-                                              InodeID id,
-                                              const std::string& filename,
-                                              std::string* storeKey) {
+StoreStatus NameServerStorageImp::GetStoreKey(FileType filetype, InodeID id,
+                                              const std::string &filename,
+                                              std::string *storeKey) {
     switch (filetype) {
-        case FileType::INODE_PAGEFILE:
-        case FileType::INODE_DIRECTORY:
-            *storeKey = NameSpaceStorageCodec::EncodeFileStoreKey(id, filename);
-            break;
-        case FileType::INODE_SNAPSHOT_PAGEFILE:
-            *storeKey =
-                NameSpaceStorageCodec::EncodeSnapShotFileStoreKey(id, filename);
-            break;
-        default:
-            LOG(ERROR) << "filetype: "
-                       << filetype << " of " << filename << " not exist";
-            return StoreStatus::InternalError;
+    case FileType::INODE_PAGEFILE:
+    case FileType::INODE_DIRECTORY:
+        *storeKey = NameSpaceStorageCodec::EncodeFileStoreKey(id, filename);
+        break;
+    case FileType::INODE_SNAPSHOT_PAGEFILE:
+        *storeKey =
+            NameSpaceStorageCodec::EncodeSnapShotFileStoreKey(id, filename);
+        break;
+    default:
+        LOG(ERROR) << "filetype: " << filetype << " of " << filename
+                   << " not exist";
+        return StoreStatus::InternalError;
     }
     return StoreStatus::OK;
 }

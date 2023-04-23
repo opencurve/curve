@@ -36,6 +36,7 @@ void HeartbeatServiceImpl::MetaServerHeartbeat(
     const ::curvefs::mds::heartbeat::MetaServerHeartbeatRequest *request,
     ::curvefs::mds::heartbeat::MetaServerHeartbeatResponse *response,
     ::google::protobuf::Closure *done) {
+    (void)controller;
     brpc::ClosureGuard doneGuard(done);
     heartbeatManager_->MetaServerHeartbeat(*request, response);
 }

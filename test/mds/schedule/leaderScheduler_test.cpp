@@ -132,7 +132,6 @@ TEST_F(TestLeaderSchedule, test_copySet_has_candidate) {
     PeerInfo peer2(2, 2, 2, "192.168.10.2", 9000);
     PeerInfo peer3(3, 3, 3, "192.168.10.3", 9000);
     auto onlineState = ::curve::mds::topology::OnlineState::ONLINE;
-    auto offlineState = ::curve::mds::topology::OnlineState::OFFLINE;
     auto diskState = ::curve::mds::topology::DiskState::DISKNORMAL;
     auto statInfo = ::curve::mds::heartbeat::ChunkServerStatisticInfo();
     ChunkServerInfo csInfo1(
@@ -173,7 +172,6 @@ TEST_F(TestLeaderSchedule, test_cannot_get_chunkServerInfo) {
     PeerInfo peer2(2, 2, 2, "192.168.10.2", 9000);
     PeerInfo peer3(3, 3, 3, "192.168.10.3", 9000);
     auto onlineState = ::curve::mds::topology::OnlineState::ONLINE;
-    auto offlineState = ::curve::mds::topology::OnlineState::OFFLINE;
     auto diskState = ::curve::mds::topology::DiskState::DISKNORMAL;
     auto statInfo = ::curve::mds::heartbeat::ChunkServerStatisticInfo();
     ChunkServerInfo csInfo1(
@@ -218,7 +216,6 @@ TEST_F(TestLeaderSchedule, test_no_need_tranferLeaderOut) {
     PeerInfo peer2(2, 2, 2, "192.168.10.2", 9000);
     PeerInfo peer3(3, 3, 3, "192.168.10.3", 9000);
     auto onlineState = ::curve::mds::topology::OnlineState::ONLINE;
-    auto offlineState = ::curve::mds::topology::OnlineState::OFFLINE;
     auto diskState = ::curve::mds::topology::DiskState::DISKNORMAL;
     auto statInfo = ::curve::mds::heartbeat::ChunkServerStatisticInfo();
     ChunkServerInfo csInfo1(
@@ -265,7 +262,6 @@ TEST_F(TestLeaderSchedule, test_tranferLeaderout_normal) {
     PeerInfo peer5(5, 5, 5, "192.168.10.5", 9000);
     PeerInfo peer6(6, 6, 6, "192.168.10.6", 9000);
     auto onlineState = ::curve::mds::topology::OnlineState::ONLINE;
-    auto offlineState = ::curve::mds::topology::OnlineState::OFFLINE;
     auto diskState = ::curve::mds::topology::DiskState::DISKNORMAL;
     auto statInfo = ::curve::mds::heartbeat::ChunkServerStatisticInfo();
     ChunkServerInfo csInfo1(
@@ -361,7 +357,6 @@ TEST_F(TestLeaderSchedule, test_tranferLeaderout_pendding) {
     PeerInfo peer5(5, 5, 5, "192.168.10.5", 9000);
     PeerInfo peer6(6, 6, 6, "192.168.10.6", 9000);
     auto onlineState = ::curve::mds::topology::OnlineState::ONLINE;
-    auto offlineState = ::curve::mds::topology::OnlineState::OFFLINE;
     auto diskState = ::curve::mds::topology::DiskState::DISKNORMAL;
     auto statInfo = ::curve::mds::heartbeat::ChunkServerStatisticInfo();
     ChunkServerInfo csInfo1(
@@ -452,7 +447,6 @@ TEST_F(TestLeaderSchedule, test_transferLeaderIn_normal) {
     PeerInfo peer3(3, 3, 3, "192.168.10.3", 9000);
     PeerInfo peer4(3, 4, 4, "192.168.10.4", 9000);
     auto onlineState = ::curve::mds::topology::OnlineState::ONLINE;
-    auto offlineState = ::curve::mds::topology::OnlineState::OFFLINE;
     auto diskState = ::curve::mds::topology::DiskState::DISKNORMAL;
     auto statInfo = ::curve::mds::heartbeat::ChunkServerStatisticInfo();
     ChunkServerInfo csInfo1(
@@ -535,7 +529,6 @@ TEST_F(TestLeaderSchedule, test_transferLeaderIn_pendding) {
     PeerInfo peer3(3, 3, 3, "192.168.10.3", 9000);
     PeerInfo peer4(3, 4, 4, "192.168.10.4", 9000);
     auto onlineState = ::curve::mds::topology::OnlineState::ONLINE;
-    auto offlineState = ::curve::mds::topology::OnlineState::OFFLINE;
     auto diskState = ::curve::mds::topology::DiskState::DISKNORMAL;
     auto statInfo = ::curve::mds::heartbeat::ChunkServerStatisticInfo();
     ChunkServerInfo csInfo1(

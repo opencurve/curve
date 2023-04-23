@@ -44,7 +44,7 @@ const char kRaftConfigChangeTestLogDir[] = "./runlog/RaftConfigChange";
 const char* kFakeMdsAddr = "127.0.0.1:9080";
 const uint32_t kOpRequestAlignSize = 4096;
 
-static char* raftConfigParam[5][16] = {
+static const char* raftConfigParam[5][16] = {
     {
         "chunkserver",
         "-chunkServerIp=127.0.0.1",
@@ -224,11 +224,11 @@ class RaftConfigChangeTest : public testing::Test {
         paramsIndexs[PeerCluster::PeerToId(peer4)] = 3;
         paramsIndexs[PeerCluster::PeerToId(peer5)] = 4;
 
-        params.push_back(raftConfigParam[0]);
-        params.push_back(raftConfigParam[1]);
-        params.push_back(raftConfigParam[2]);
-        params.push_back(raftConfigParam[3]);
-        params.push_back(raftConfigParam[4]);
+        params.push_back(const_cast<char**>(raftConfigParam[0]));
+        params.push_back(const_cast<char**>(raftConfigParam[1]));
+        params.push_back(const_cast<char**>(raftConfigParam[2]));
+        params.push_back(const_cast<char**>(raftConfigParam[3]));
+        params.push_back(const_cast<char**>(raftConfigParam[4]));
     }
     virtual void TearDown() {
         // wait for process exit
@@ -1415,7 +1415,6 @@ TEST_F(RaftConfigChangeTest, ThreeNodeHangPeerAndThenAddNewFollowerFromInstallSn
     braft::cli::CliOptions options;
     options.max_retry = 3;
     options.timeout_ms = confChangeTimeoutMs;
-    const int kMaxLoop = 10;
     butil::Status st = AddPeer(logicPoolId, copysetId, conf, peer4, options);
     ASSERT_TRUE(st.ok());
 

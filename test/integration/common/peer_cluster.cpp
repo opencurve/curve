@@ -52,8 +52,8 @@ PeerCluster::PeerCluster(const std::string &clusterName,
     clusterName_(clusterName),
     snapshotIntervalS_(1),
     electionTimeoutMs_(1000),
-    params_(params),
     paramsIndexs_(paramsIndexs),
+    params_(params),
     isFakeMdsStart_(false) {
     logicPoolID_ = logicPoolID;
     copysetID_ = copysetID;

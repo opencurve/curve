@@ -201,6 +201,7 @@ bool LeaderScheduler::TransferLeaderOut(MetaServerIdType source,
                                         uint16_t replicaNum, PoolIdType poolId,
                                         Operator *op,
                                         CopySetInfo *selectedCopySet) {
+    (void)poolId;
     // find all copyset with source metaserver as its leader as the candidate
     std::vector<CopySetInfo> candidateInfos;
     for (auto &cInfo : topo_->GetCopySetInfosInMetaServer(source)) {

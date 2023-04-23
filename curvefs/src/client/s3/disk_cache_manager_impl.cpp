@@ -151,7 +151,7 @@ int DiskCacheManagerImpl::WriteReadDirect(const std::string fileName,
         return ret;
     }
     // add cache.
-    diskCacheManager_->AddCache(fileName, false);
+    diskCacheManager_->AddCache(fileName);
     return ret;
 }
 
@@ -165,7 +165,7 @@ int DiskCacheManagerImpl::Read(const std::string name, char *buf,
     }
     // read disk file maybe fail because of disk file has been removed.
     int ret = diskCacheManager_->ReadDiskFile(name, buf, offset, length);
-    if (ret < 0 || ret < length) {
+    if (ret < static_cast<int64_t>(length)) {
         LOG(ERROR) << "read disk file error. readRet = " << ret;
         ret = client_->Download(name, buf, offset, length);
         if (ret < 0) {

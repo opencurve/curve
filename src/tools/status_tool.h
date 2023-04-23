@@ -49,13 +49,13 @@
 #include "src/tools/snapshot_clone_client.h"
 #include "src/common/uri_parser.h"
 
+using curve::mds::topology::ChunkServerInfo;
 using curve::mds::topology::ChunkServerStatus;
 using curve::mds::topology::DiskState;
+using curve::mds::topology::LogicalPoolInfo;
 using curve::mds::topology::OnlineState;
 using curve::mds::topology::PhysicalPoolInfo;
-using curve::mds::topology::LogicalPoolInfo;
 using curve::mds::topology::PoolIdType;
-using curve::mds::topology::ChunkServerInfo;
 
 namespace curve {
 namespace tool {
@@ -99,14 +99,11 @@ class StatusTool : public CurveTool {
                std::shared_ptr<CopysetCheckCore> copysetCheckCore,
                std::shared_ptr<VersionTool> versionTool,
                std::shared_ptr<MetricClient> metricClient,
-               std::shared_ptr<SnapshotCloneClient> snapshotClient) :
-                  mdsClient_(mdsClient), etcdClient_(etcdClient),
-                  copysetCheckCore_(copysetCheckCore),
-                  versionTool_(versionTool),
-                  metricClient_(metricClient),
-                  snapshotClient_(snapshotClient),
-                  mdsInited_(false), etcdInited_(false),
-                  noSnapshotServer_(false) {}
+               std::shared_ptr<SnapshotCloneClient> snapshotClient)
+        : mdsClient_(mdsClient), copysetCheckCore_(copysetCheckCore),
+          etcdClient_(etcdClient), metricClient_(metricClient),
+          snapshotClient_(snapshotClient), versionTool_(versionTool),
+          mdsInited_(false), etcdInited_(false), noSnapshotServer_(false) {}
     ~StatusTool() = default;
 
     /**
@@ -128,7 +125,7 @@ class StatusTool : public CurveTool {
      *  @param command：执行的命令
      *  @return true / false
      */
-    static bool SupportCommand(const std::string& command);
+    static bool SupportCommand(const std::string &command);
 
     /**
      *  @brief 判断集群是否健康
@@ -136,16 +133,16 @@ class StatusTool : public CurveTool {
     bool IsClusterHeatlhy();
 
  private:
-    int Init(const std::string& command);
+    int Init(const std::string &command);
     int SpaceCmd();
     int StatusCmd();
     int ChunkServerListCmd();
     int ServerListCmd();
     int LogicalPoolListCmd();
     int ChunkServerStatusCmd();
-    int GetPoolsInCluster(std::vector<PhysicalPoolInfo>* phyPools,
-                          std::vector<LogicalPoolInfo>* lgPools);
-    int GetSpaceInfo(SpaceInfo* spaceInfo);
+    int GetPoolsInCluster(std::vector<PhysicalPoolInfo> *phyPools,
+                          std::vector<LogicalPoolInfo> *lgPools);
+    int GetSpaceInfo(SpaceInfo *spaceInfo);
     int PrintClusterStatus();
     int PrintMdsStatus();
     int PrintEtcdStatus();
@@ -153,9 +150,9 @@ class StatusTool : public CurveTool {
     int PrintClientStatus();
     int ClientListCmd();
     int ScanStatusCmd();
-    void PrintCsLeftSizeStatistics(const std::string& name,
-                        const std::map<PoolIdType,
-                        std::vector<uint64_t>>& poolLeftSize);
+    void PrintCsLeftSizeStatistics(
+        const std::string &name,
+        const std::map<PoolIdType, std::vector<uint64_t>> &poolLeftSize);
     int PrintSnapshotCloneStatus();
 
     /**
@@ -163,7 +160,7 @@ class StatusTool : public CurveTool {
      *  @param command：执行的命令
      *  @return 需要返回true，否则返回false
      */
-    bool CommandNeedEtcd(const std::string& command);
+    bool CommandNeedEtcd(const std::string &command);
 
 
     /**
@@ -171,22 +168,22 @@ class StatusTool : public CurveTool {
      *  @param command：执行的命令
      *  @return 需要返回true，否则返回false
      */
-    bool CommandNeedMds(const std::string& command);
+    bool CommandNeedMds(const std::string &command);
 
     /**
      *  @brief 判断命令是否需要snapshot clone server
      *  @param command：执行的命令
      *  @return 需要返回true，否则返回false
      */
-    bool CommandNeedSnapshotClone(const std::string& command);
+    bool CommandNeedSnapshotClone(const std::string &command);
 
     /**
      *  @brief 打印在线状态
      *  @param name : 在线状态对应的名字
      *  @param onlineStatus 在线状态的map
      */
-    void PrintOnlineStatus(const std::string& name,
-                           const std::map<std::string, bool>& onlineStatus);
+    void PrintOnlineStatus(const std::string &name,
+                           const std::map<std::string, bool> &onlineStatus);
 
     /**
      *  @brief 获取并打印mds version信息
@@ -197,7 +194,7 @@ class StatusTool : public CurveTool {
      *  @brief 检查服务是否健康
      *  @param name 服务名
      */
-    bool CheckServiceHealthy(const ServiceName& name);
+    bool CheckServiceHealthy(const ServiceName &name);
 
  private:
     // 向mds发送RPC的client

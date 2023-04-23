@@ -178,7 +178,7 @@ DUMPFILE_ERROR DumpFile::Write(const char* buffer,
     if (ret < 0) {
         LOG(ERROR) << "Write file failed, retCode = " << ret;
         return DUMPFILE_ERROR::WRITE_FAILED;
-    } else if (ret != length) {
+    } else if (ret != static_cast<int>(length)) {
         LOG(ERROR) << "Write file failed, expect write " << length
                    << " bytes, actual write " << ret << " bytes";
         return DUMPFILE_ERROR::WRITE_FAILED;
@@ -192,7 +192,7 @@ DUMPFILE_ERROR DumpFile::Read(char* buffer, off_t offset, size_t length) {
     if (ret < 0) {
         LOG(ERROR) << "Read file failed, retCode = " << ret;
         return DUMPFILE_ERROR::READ_FAILED;
-    } else if (ret != length) {
+    } else if (ret != static_cast<int>(length)) {
         LOG(ERROR) << "Read file failed, expect read " << length
                    << " bytes, actual read " << ret << " bytes";
         return DUMPFILE_ERROR::READ_FAILED;
@@ -375,6 +375,7 @@ DUMPFILE_ERROR DumpFile::WaitSaveDone(pid_t childpid) {
 }
 
 void DumpFile::SignalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
+    (void)ucontext;
     auto pid = (siginfo && siginfo->si_pid) ? siginfo->si_pid : -1;
     LOG(INFO) << "Signal " << signo << " received from " << pid;
     _exit(2);
@@ -398,7 +399,6 @@ DUMPFILE_ERROR DumpFile::InitSignals() {
 
 DUMPFILE_ERROR DumpFile::CloseSockets() {
     std::vector<std::string> names;
-    pid_t pid = getpid();
     if (fs_->List("/proc/self/fd", &names) != 0) {
         return DUMPFILE_ERROR::LIST_FAILED;
     }

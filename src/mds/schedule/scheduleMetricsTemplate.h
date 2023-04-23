@@ -242,6 +242,9 @@ void ScheduleMetricsT<
     TopoCopySetInfoT>::RemoveUpdateOperatorsMap(const Operator &op,
                                                 std::string type,
                                                 IdType target) {
+    (void)type;
+    (void)target;
+
     auto findOp = operators.find(op.copysetID);
     if (findOp == operators.end()) {
         return;
@@ -306,7 +309,7 @@ void ScheduleMetricsT<IdType, CopySetInfoT, CopySetConfT, TopologyT,
         if (peerId == out.GetLeader()) {
             copysetLeaderPeer = hostPort;
         }
-        if (count == members.size()) {
+        if (count == static_cast<int>(members.size())) {
             copysetPeers += hostPort;
         } else {
             copysetPeers += hostPort + ",";

@@ -80,6 +80,7 @@ int RequestSender::ReadChunk(const ChunkIDInfo& idinfo,
                              uint64_t appliedindex,
                              const RequestSourceInfo& sourceInfo,
                              ClientClosure *done) {
+    (void)sn;
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller *cntl = new brpc::Controller();
     ChunkResponse *response = new ChunkResponse();
