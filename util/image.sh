@@ -19,6 +19,7 @@ prefix="$(pwd)/docker/curvebs"
 mkdir -p $prefix $prefix/conf
 make install prefix="$prefix"
 make install prefix="$prefix" only=etcd
+make install prefix="$prefix" only=monitor
 [[ -f ${tgt_pkg} ]] && cp "${tgt_pkg}" "${prefix}/curvebs_tgt.deb"
 for path in `ls conf/* nebd/etc/nebd/*`;
 do

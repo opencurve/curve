@@ -116,7 +116,7 @@ create_project_dir() {
 }
 
 copy_file() {
-    cp -f "$1" "$2"
+    cp -rf "$1" "$2"
     if [ $? -eq 0 ]; then
         success "copy file $1 to $2 success\n"
     else
@@ -223,6 +223,16 @@ install_etcd() {
     success "install $project_name success\n"
 }
 
+install_monitor() {
+    local project_name="monitor"
+    g_project_name=$project_name
+
+    local project_prefix="$g_prefix/monitor"
+    local dst="monitor"
+    copy_file $dst $g_prefix
+    success "install $project_name success\n"
+}
+
 install_lib() {
     local bazel_dir="${g_curve_dir}/bazel-bin/"
     local dest="${g_prefix}/lib"
@@ -252,6 +262,8 @@ main() {
         exit 1
     elif [ "$g_only" == "etcd" ]; then
         install_etcd
+    elif [ "$g_only" == "monitor" ]; then
+        install_monitor
     else
         install_curvebs
         install_lib
