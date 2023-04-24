@@ -8,7 +8,7 @@
 3. The following image and build procedures are currently only supported on x86 systems.
 4. To compile [arm branch](https://github.com/opencurve/curve/pull/2408), please follow [Dockerfile](https://github.com/opencurve/curve/blob/master/docker/debian9/compile/Dockerfile) to package and compile the image.
 5. Currently the master branch does not support compiling and running on the arm system
-6. Recommend operating systems with Debian 9 or later.
+6. Recommend using Debian 10 or later versions of the operating system. Other operating systems have not been thoroughly tested.
 
 ## Compile with docker (recommended)
 
