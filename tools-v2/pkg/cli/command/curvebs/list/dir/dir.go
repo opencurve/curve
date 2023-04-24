@@ -42,7 +42,7 @@ import (
 )
 
 const (
-	dirExample = `$ curve bs list dir --dir /`
+	dirExample = `$ curve bs list dir --path /`
 )
 
 type ListDirRpc struct {
@@ -90,7 +90,7 @@ func (pCmd *DirCommand) AddFlags() {
 	config.AddBsMdsFlagOption(pCmd.Cmd)
 	config.AddRpcRetryTimesFlag(pCmd.Cmd)
 	config.AddRpcTimeoutFlag(pCmd.Cmd)
-	config.AddBsDirOptionFlag(pCmd.Cmd)
+	config.AddBsPathOptionFlag(pCmd.Cmd)
 	config.AddBsUserOptionFlag(pCmd.Cmd)
 	config.AddBsPasswordOptionFlag(pCmd.Cmd)
 }
@@ -104,7 +104,7 @@ func (pCmd *DirCommand) Init(cmd *cobra.Command, args []string) error {
 
 	timeout := config.GetFlagDuration(pCmd.Cmd, config.RPCTIMEOUT)
 	retrytimes := config.GetFlagInt32(pCmd.Cmd, config.RPCRETRYTIMES)
-	fileName := config.GetBsFlagString(pCmd.Cmd, config.CURVEBS_DIR)
+	fileName := config.GetBsFlagString(pCmd.Cmd, config.CURVEBS_PATH)
 	owner := config.GetBsFlagString(pCmd.Cmd, config.CURVEBS_USER)
 	date, errDat := cobrautil.GetTimeofDayUs()
 	if errDat.TypeCode() != cmderror.CODE_SUCCESS {
@@ -168,7 +168,7 @@ func (pCmd *DirCommand) RunCommand(cmd *cobra.Command, args []string) error {
 		infos := res.(*nameserver2.ListDirResponse).GetFileInfo()
 		for _, info := range infos {
 			row := make(map[string]string)
-			dirName := config.GetBsFlagString(pCmd.Cmd, config.CURVEBS_DIR)
+			dirName := config.GetBsFlagString(pCmd.Cmd, config.CURVEBS_PATH)
 			var fileName string
 			if dirName == "/" {
 				fileName = dirName + info.GetFileName()

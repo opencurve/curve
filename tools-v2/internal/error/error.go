@@ -418,7 +418,13 @@ var (
 	ErrBsListLogicalPoolInfo = func() *CmdError {
 		return NewInternalCmdError(49, "list logical pool info fail, the error is: %s")
 	}
+<<<<<<< HEAD
 >>>>>>> 4e73df5e... [feat]tools-v2: add space
+=======
+	ErrBsUnknownThrottleType = func() *CmdError {
+		return NewInternalCmdError(50, "unknown throttle type[%s], only support: iops_total|iops_read|iops_write|bps_total|bps_read|bps_write")
+	}
+>>>>>>> b9b6bfdf... [feat] add bs update throttle
 
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {
@@ -727,6 +733,17 @@ var (
 			message = "Created successfully"
 		default:
 			message = fmt.Sprintf("failed to create file[%s], err: %s", path, statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
+	ErrUpdateFileThrottle = func(statusCode nameserver2.StatusCode, path string) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case nameserver2.StatusCode_kOK:
+			message = "successfully update the file throttle"
+		default:
+			message = fmt.Sprintf("failed to update file[%s] throttle, err: %s", path, statusCode.String())
 		}
 		return NewRpcReultCmdError(code, message)
 	}

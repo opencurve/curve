@@ -28,6 +28,7 @@ import (
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/update/file"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/update/peer"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/update/throttle"
 )
 
 type UpdateCommand struct {
@@ -40,6 +41,7 @@ func (updateCmd *UpdateCommand) AddSubCommands() {
 	updateCmd.Cmd.AddCommand(
 		peer.NewPeerCommand(),
 		file.NewFileCommand(),
+		throttle.NewThrottleCommand(),
 	)
 }
 
