@@ -9,7 +9,7 @@
 3. 以下镜像和编译过程目前仅支持 x86 系统
 4. 如要编译[arm分支](https://github.com/opencurve/curve/pull/2408)，请根据 [Dockerfile](https://github.com/opencurve/curve/blob/master/docker/debian9/compile/Dockerfile)打包编译镜像
 5. 目前master分支不支持在arm系统上编译运行
-6. 推荐 debian 10及以上版本的操作系统
+6. 推荐 debian 10及以上版本的操作系统,其他操作系统未经过全面测试
 
 ## 使用Docker进行编译（推荐方式）
 
