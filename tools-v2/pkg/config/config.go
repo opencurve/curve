@@ -165,3 +165,11 @@ func AlignFlagsValue(caller *cobra.Command, callee *cobra.Command, flagNames []s
 		}
 	}
 }
+
+func GetFlagChanged(cmd *cobra.Command, flagName string) bool {
+	flag := cmd.Flag(flagName)
+	if flag != nil {
+		return flag.Changed
+	}
+	return false
+}

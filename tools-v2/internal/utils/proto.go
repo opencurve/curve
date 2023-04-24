@@ -196,7 +196,7 @@ func Topology2Map(topo *topology.ListTopologyResponse) (map[string]interface{}, 
 }
 
 const (
-	TYPE_DIR = "dir"
+	TYPE_DIR  = "dir"
 	TYPE_FILE = "file"
 )
 
@@ -210,4 +210,25 @@ func TranslateFileType(fileType string) (nameserver2.FileType, *cmderror.CmdErro
 	retErr := cmderror.ErrBsUnknownFileType()
 	retErr.Format(fileType)
 	return nameserver2.FileType_INODE_DIRECTORY, retErr
+}
+
+const (
+	IOPS_TOTAL = "iops_total"
+	IOPS_READ  = "iops_read"
+	IOPS_WRITE = "iops_write"
+	BPS_TOTAL  = "bps_total"
+	BPS_READ   = "bps_read"
+	BPS_WRITE  = "bps_write"
+)
+
+func ParseThrottleType(typeStr string) (nameserver2.ThrottleType, *cmderror.CmdError) {
+	throttleType := nameserver2.ThrottleType_value[strings.ToUpper(typeStr)]
+	var retErr *cmderror.CmdError
+	if throttleType == 0 {
+		retErr = cmderror.ErrBsUnknownThrottleType()
+		retErr.Format(typeStr)
+	} else {
+		retErr = cmderror.ErrSuccess()
+	}
+	return nameserver2.ThrottleType(throttleType), retErr
 }
