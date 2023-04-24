@@ -122,7 +122,7 @@ create_project_dir() {
 }
 
 copy_file() {
-    cp -f "$1" "$2"
+    cp -rf "$1" "$2"
     if [ $? -eq 0 ]; then
         success "copy file $1 to $2 success\n"
     else
@@ -306,12 +306,7 @@ install_monitor() {
     else
         local dst="curvefs/monitor"
     fi
-    mkdir -p $project_prefix
-    mkdir -p "$project_prefix/prometheus"
-    mkdir -p "$project_prefix/data"
-    copy_file "$dst/target_json.py" "$project_prefix"
-    copy_file "$dst/target.ini" "$project_prefix"
-
+    copy_file $dst $g_prefix
     success "install $project_name success\n"
 }
 
