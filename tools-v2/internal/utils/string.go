@@ -192,4 +192,19 @@ func StringList2Uint64List(strList []string) ([]uint64, error) {
 	}
 	return retList, nil
 }
+<<<<<<< HEAD
 >>>>>>> a7135515... [feat]tools-v2: add bs scan status
+=======
+
+func StringList2Uint32List(strList []string) ([]uint32, error) {
+	retList := make([]uint32, 0)
+	for _, str := range strList {
+		v, err := strconv.ParseUint(str, 10, 32)
+		if err != nil {
+			return nil, err
+		}
+		retList = append(retList, uint32(v))
+	}
+	return retList, nil
+}
+>>>>>>> 202b2707... [feat]tools-v2: add check copyset

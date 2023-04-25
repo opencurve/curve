@@ -63,6 +63,8 @@ A tool for CurveFS & CurveBs.
       - [update throttle](#update-throttle)
       - [create dir](#create-dir)
     - [clean-recycle](#clean-recycle)
+    - [check](#check-1)
+      - [check copyset](#check-copyset)  
   - [Comparison of old and new commands](#comparison-of-old-and-new-commands)
     - [curve fs](#curve-fs)
     - [curve bs](#curve-bs)
@@ -1173,6 +1175,28 @@ Output:
 +---------+
 ```
 
+### check
+
+#### check copyset
+
+check copysets health in curvebs
+
+Usage:
+
+```shell
+curve bs check copyset --copysetid 1 --logicalpoolid 1
+```
+
+Output:
+
+```shell
++------------+-----------+--------+--------+--------+---------+
+| COPYSETKEY | COPYSETID | POOLID | STATUS | LOGGAP | EXPLAIN |
++------------+-----------+--------+--------+--------+---------+
+| 4294967297 | 1         | 1      | ok     | 0      |         |
++------------+-----------+--------+--------+--------+---------+
+```
+
 ## Comparison of old and new commands
 
 ### curve fs
@@ -1273,6 +1297,7 @@ Output:
 | reset-peer                       | curve bs update peer       |
 | space                            | curve bs list space        |
 | update-throttle                  | curve bs update throttle   |
+| check-copyset                    | curve bs check copyset     |
 | status                           |                            |
 | chunkserver-status               |                            |
 | client-status                    |                            |
@@ -1286,7 +1311,6 @@ Output:
 | do-snapshot                      |                            |
 | do-snapshot-all                  |                            |
 | check-chunkserver                |                            |
-| check-copyset                    |                            |
 | check-server                     |                            |
 | check-operator                   |                            |
 | list-may-broken-vol              |                            |

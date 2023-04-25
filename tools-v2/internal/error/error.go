@@ -437,6 +437,7 @@ var (
 	ErrBsListDir = func() *CmdError {
 		return NewInternalCmdError(51, "list directory fail, err: %s")
 	}
+<<<<<<< HEAD
 >>>>>>> 61c07b30... code for clean-recycle
 =======
 	ErrBsListDir = func() *CmdError {
@@ -444,6 +445,11 @@ var (
 	}
 >>>>>>> 61c07b30... code for clean-recycle
 
+=======
+	ErrBsGetCopysetStatus = func() *CmdError {
+		return NewInternalCmdError(52, "get copyset status fail, err: %s")
+	}
+>>>>>>> 202b2707... [feat]tools-v2: add check copyset
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {
 		return NewHttpResultCmdError(1, "http response is unreadable, the uri is: %s, the error is: %s")
