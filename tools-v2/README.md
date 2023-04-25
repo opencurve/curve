@@ -1136,6 +1136,28 @@ Output:
 +---------+
 ```
 
+### check
+
+#### check copyset
+
+check copysets health in curvebs
+
+Usage:
+
+```shell
+curve bs check copyset --copysetid 1 --logicalpoolid 1
+```
+
+Output:
+
+```shell
++------------+-----------+--------+--------+--------+---------+
+| COPYSETKEY | COPYSETID | POOLID | STATUS | LOGGAP | EXPLAIN |
++------------+-----------+--------+--------+--------+---------+
+| 4294967297 | 1         | 1      | ok     | 0      |         |
++------------+-----------+--------+--------+--------+---------+
+```
+
 ## Comparison of old and new commands
 
 ### curve fs
@@ -1182,7 +1204,7 @@ Output:
 | remove-peer                      | curve bs delete peer       |
 | reset-peer                       | curve bs update peer       |
 | space                            | curve bs list space        |
-| status                           |                            |
+| check-copyset                    | curve bs check copyset     |
 | chunkserver-status               |                            |
 | client-status                    |                            |
 | snapshot-clone-status            |                            |
@@ -1195,7 +1217,7 @@ Output:
 | do-snapshot                      |                            |
 | do-snapshot-all                  |                            |
 | check-chunkserver                |                            |
-| check-copyset                    |                            |
+| status                           |                            |
 | check-server                     |                            |
 | check-operator                   |                            |
 | list-may-broken-vol              |                            |
