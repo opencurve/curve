@@ -87,6 +87,9 @@ const (
 	CURVEBS_BURST_LENGTH         = "burstlength"
 	VIPER_CURVEBS_BURST_LENGTH   = "curvebs.burstlength"
 	CURVEBS_DEFAULT_BURST_LENGTH = uint64(10)
+	CURVEBS_MARGIN               = "margin"
+	VIPER_CURVEBS_MARGIN         = "curvebs.margin"
+	CURVEBS_DEFAULT_MARGIN       = uint64(1000)
 )
 
 var (
@@ -117,6 +120,7 @@ var (
 		CURVEBS_TYPE:           VIPER_CURVEBS_TYPE,
 		CURVE_EXPIRED_TIME:     VIPER_CURVE_EXPIRED_TIME,
 		CURVEBS_RECYCLE_PREFIX: VIPER_RECYCLE_PREFIX,
+		CURVEBS_MARGIN:         VIPER_CURVEBS_MARGIN,
 	}
 
 	BSFLAG2DEFAULT = map[string]interface{}{
@@ -130,6 +134,7 @@ var (
 		CURVEBS_BURST_LENGTH: CURVEBS_DEFAULT_BURST_LENGTH,
 		CURVEBS_PATH:         CURVEBS_DEFAULT_PATH,
 		CURVEBS_FORCE:        CURVEBS_DEFAULT_FORCE,
+		CURVEBS_MARGIN:       CURVEBS_DEFAULT_MARGIN,
 	}
 )
 
@@ -280,6 +285,15 @@ func AddBsPathOptionFlag(cmd *cobra.Command) {
 	AddBsStringOptionFlag(cmd, CURVEBS_PATH, "file or directory path")
 }
 
+// marigin
+func AddBsMarginOptionFlag(cmd *cobra.Command) {
+	AddUint64OptionFlag(cmd, CURVEBS_MARGIN, "the maximum gap between peers")
+}
+
+func GetBsMargin(cmd *cobra.Command) uint64 {
+	return GetFlagUint64(cmd, CURVEBS_MARGIN)
+}
+
 // add flag required
 // add path[required]
 func AddBsPathRequiredFlag(cmd *cobra.Command) {
@@ -295,7 +309,7 @@ func AddBSCopysetIdRequiredFlag(cmd *cobra.Command) {
 }
 
 func AddBsCopysetIdSliceRequiredFlag(cmd *cobra.Command) {
-	AddBsStringSliceRequiredFlag(cmd, CURVEBS_COPYSET_ID, "copyset ids")
+	AddBsStringSliceRequiredFlag(cmd, CURVEBS_COPYSET_ID, "copyset id")
 }
 
 func AddBsLogicalPoolIdSliceRequiredFlag(cmd *cobra.Command) {
