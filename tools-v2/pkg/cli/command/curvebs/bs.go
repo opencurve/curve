@@ -26,6 +26,7 @@ import (
 	"github.com/spf13/cobra"
 
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/check"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/create"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/delete"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list"
@@ -48,6 +49,7 @@ func (bsCmd *CurveBsCommand) AddSubCommands() {
 		delete.NewDeleteCommand(),
 		create.NewCreateCmd(),
 		update.NewUpdateCommand(),
+		check.NewCheckCommand(),
 	)
 }
 

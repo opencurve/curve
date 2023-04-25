@@ -86,13 +86,7 @@ func (cCmd *ChunkCommand) Init(cmd *cobra.Command, args []string) error {
 	}
 	config.AddBSLogicalPoolIdRequiredFlag(cCmd.Cmd)
 	config.AddBSCopysetIdSliceRequiredFlag(cCmd.Cmd)
-	cCmd.Cmd.ParseFlags([]string{
-		fmt.Sprintf("--%s", config.CURVEBS_LOGIC_POOL_ID),
-		fmt.Sprintf("%d", cCmd.LogicalpoolId),
-		fmt.Sprintf("--%s", config.CURVEBS_COPYSET_ID),
-		fmt.Sprintf("%d", cCmd.CopysetId),
-	})
-	chunkSeverListRes, err := GetChunkServerListInCopySets(cCmd.Cmd)
+	chunkSeverListRes, err := GetChunkServerListInCopySets(cCmd.Cmd, cCmd.LogicalpoolId, cCmd.CopysetId)
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		return err.ToError()
 	}

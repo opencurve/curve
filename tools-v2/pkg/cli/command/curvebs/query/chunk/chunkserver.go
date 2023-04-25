@@ -132,7 +132,7 @@ func (cCmd *ChunkServerListInCoysetCommand) ResultPlainOutput() error {
 	return output.FinalCmdOutputPlain(&cCmd.FinalCurveCmd)
 }
 
-func GetChunkServerListInCopySets(caller *cobra.Command) (*topology.GetChunkServerListInCopySetsResponse, *cmderror.CmdError) {
+func GetChunkServerListInCopySets(caller *cobra.Command, logicalpoolId uint32, copysetId uint32) (*topology.GetChunkServerListInCopySetsResponse, *cmderror.CmdError) {
 	getCmd := NewQueryChunkServerListCommand()
 	config.AlignFlagsValue(caller, getCmd.Cmd, []string{
 		config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEBS_MDSADDR,
@@ -140,7 +140,13 @@ func GetChunkServerListInCopySets(caller *cobra.Command) (*topology.GetChunkServ
 	})
 	getCmd.Cmd.SilenceErrors = true
 	getCmd.Cmd.SilenceUsage = true
-	getCmd.Cmd.SetArgs([]string{"--format", config.FORMAT_NOOUT})
+	getCmd.Cmd.SetArgs([]string{
+		"--format", config.FORMAT_NOOUT,
+		fmt.Sprintf("--%s", config.CURVEBS_LOGIC_POOL_ID),
+		fmt.Sprintf("%d", logicalpoolId),
+		fmt.Sprintf("--%s", config.CURVEBS_COPYSET_ID),
+		fmt.Sprintf("%d", copysetId),
+	})
 	err := getCmd.Cmd.Execute()
 	if err != nil {
 		retErr := cmderror.ErrBsChunkServerListInCopySets()
