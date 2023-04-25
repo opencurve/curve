@@ -13,7 +13,6 @@ curve 工具是 Curve 团队为了提高系统的易用性，解决旧工具种�
   - [Curve 命令的实现（添加）](#curve-命令的实现添加)
   - [Curve 命令开发调试](#curve-命令开发调试)
     - [部署 Curve 集群](#部署-curve-集群)
-    - [编译和调试 tools-v2](#编译和调试-tools-v2)
     - [环境准备](#环境准备)
     - [编译](#编译)
     - [调试](#调试)
@@ -274,8 +273,6 @@ sudo usermod -aG docker $USER
 >
 > 2. [Run the Docker daemon as a non-root user (Rootless mode)](https://docs.docker.com/engine/security/rootless/)
 
-### 编译和调试 tools-v2
-
 ### 环境准备
 
 1. 安装 [golang 1.19](https://go.dev/doc/install) 版本及以上
@@ -361,7 +358,7 @@ dlv exec sbin/curve --${命令行参数}
 3. 将编译好的 Curve 文件拷贝进 playground 容器内：
 
    ```shell
-   docker cp /sbin/curve de7603f17cf9:/
+   docker cp ./sbin/curve de7603f17cf9:/
    ```
 
 4. 准备配置文件，将之拷贝进 playground 容器内：
