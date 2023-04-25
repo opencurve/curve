@@ -27,11 +27,18 @@ import (
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	"github.com/opencurve/curve/tools-v2/proto/curvefs/proto/copyset"
 	"github.com/opencurve/curve/tools-v2/proto/curvefs/proto/heartbeat"
+	bscopyset "github.com/opencurve/curve/tools-v2/proto/proto/copyset"
+	bsheartbeat "github.com/opencurve/curve/tools-v2/proto/proto/heartbeat"
 )
 
 type CopysetInfoStatus struct {
 	Info        *heartbeat.CopySetInfo                    `json:"info,omitempty"`
 	Peer2Status map[string]*copyset.CopysetStatusResponse `json:"peer status,omitempty"`
+}
+
+type BsCopysetInfoStatus struct {
+	Info        *bsheartbeat.CopySetInfo                    `json:"info,omitempty"`
+	Peer2Status map[string]*bscopyset.CopysetStatusResponse `json:"peer status,omitempty"`
 }
 
 type COPYSET_HEALTH_STATUS int32
@@ -134,6 +141,45 @@ func CheckCopySetHealth(copysetIS *CopysetInfoStatus) (COPYSET_HEALTH_STATUS, []
 			avalibalePeerNum++
 		} else if opStatus != copyset.COPYSET_OP_STATUS_COPYSET_OP_STATUS_SUCCESS {
 			err := cmderror.ErrCopysetOpStatus(opStatus, addr)
+			errs = append(errs, err)
+		} else {
+			err := cmderror.ErrStateCopysetPeer()
+			err.Format(peer.String(), CopysetState_name[state])
+			errs = append(errs, err)
+		}
+	}
+
+	n := len(peers)
+	switch {
+	case avalibalePeerNum == n:
+		return COPYSET_OK, errs
+	case avalibalePeerNum >= n/2+1:
+		return COPYSET_WARN, errs
+	default:
+		return COPYSET_ERROR, errs
+	}
+}
+
+func CheckBsCopySetHealth(copysetIS *BsCopysetInfoStatus) (COPYSET_HEALTH_STATUS, []*cmderror.CmdError) {
+	peers := copysetIS.Info.GetPeers()
+	peer2Status := copysetIS.Peer2Status
+	avalibalePeerNum := 0
+	var errs []*cmderror.CmdError
+	for addr, status := range peer2Status {
+		if status == nil {
+			// peer is offline
+			err := cmderror.ErrOfflineCopysetPeer()
+			err.Format(addr)
+			errs = append(errs, err)
+			continue
+		}
+		opStatus := status.GetStatus()
+		state := status.GetState()
+		peer := status.GetPeer()
+		if opStatus == bscopyset.COPYSET_OP_STATUS_COPYSET_OP_STATUS_SUCCESS && CopysetState_Avaliable[state] {
+			avalibalePeerNum++
+		} else if opStatus != bscopyset.COPYSET_OP_STATUS_COPYSET_OP_STATUS_SUCCESS {
+			err := cmderror.ErrBsCopysetOpStatus(opStatus, addr)
 			errs = append(errs, err)
 		} else {
 			err := cmderror.ErrStateCopysetPeer()

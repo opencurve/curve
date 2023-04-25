@@ -414,7 +414,9 @@ var (
 	ErrBsListDir = func() *CmdError {
 		return NewInternalCmdError(51, "list directory fail, err: %s")
 	}
-
+	ErrBsGetCopysetStatus = func() *CmdError {
+		return NewInternalCmdError(52, "get copyset status fail, err: %s")
+	}
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {
 		return NewHttpResultCmdError(1, "http response is unreadable, the uri is: %s, the error is: %s")
