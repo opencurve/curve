@@ -386,7 +386,7 @@ docker cp ./sbin/curve de7603f17cf9:/
 4. 准备配置文件，将之拷贝进 playground 容器内：
 
 ```shell
-docker cp ./pkg/config/template.yaml de7603f17cf9:/etc/curve/curve.yaml
+docker cp ./pkg/config/curve.yaml de7603f17cf9:/etc/curve/curve.yaml
 ```
 
 5. 进入对应的容器：
@@ -558,10 +558,10 @@ curveadm status
 make
 ```
 
-3. 准备配置文件，将项目目录下的 `tools-v2/pkg/config/template.yaml` 复制到 `$(HOME)/.curve/curve.yaml`：
+3. 准备配置文件，将项目目录下的 `tools-v2/pkg/config/curve.yaml` 复制到 `$(HOME)/.curve/curve.yaml`：
 
 ```shell
-cp ./pkg/config/template.yaml ~/.curve/curve.yaml
+cp ./pkg/config/curve.yaml ~/.curve/curve.yaml
 ```
 
 4. 在项目目录（`curve/tools-v2`） 下执行命令/调试：
