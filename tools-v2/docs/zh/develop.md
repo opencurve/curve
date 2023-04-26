@@ -12,11 +12,18 @@ curve 工具是 Curve 团队为了提高系统的易用性，解决旧工具种�
   - [项目组织结构](#项目组织结构)
   - [Curve 命令的实现（添加）](#curve-命令的实现添加)
   - [Curve 命令开发调试](#curve-命令开发调试)
-    - [部署 Curve 集群](#部署-curve-集群)
-    - [环境准备](#环境准备)
-    - [编译](#编译)
-    - [调试](#调试)
-    - [调试流程](#调试流程)
+    - [利用提供的playground docker镜像部署](#利用提供的playground-docker镜像部署)
+      - [部署 Curve 集群](#部署-curve-集群)
+      - [环境准备](#环境准备)
+      - [编译](#编译)
+      - [调试](#调试)
+      - [调试流程](#调试流程)
+    - [在物理机上部署](#在物理机上部署)
+      - [部署curve集群](#部署curve集群)
+      - [环境准备](#环境准备-1)
+      - [编译](#编译-1)
+      - [调试](#调试-1)
+      - [调试流程](#调试流程-1)
 
 ## 整体设计
 
@@ -245,8 +252,16 @@ func (pCmd *ServerCommand) RunCommand(cmd *cobra.Command, args []string) error {
 > ```
 >
 > 推荐操作系统：debian10、11。
+>
+> ---
+>
+> 目前snapshot 相关的命令不能使用 curveadm palygroud 部署的集群(没有s3,所以没有snapshot)。所以要实现/运行snapshot相关指令请参考[在物理机上部署](#在物理机上部署)
 
-### 部署 Curve 集群
+
+
+### 利用提供的playground docker镜像部署
+
+#### 部署 Curve 集群
 
 首先你需要部署一个 Curve 集群，curve集群拉起方式如下：
 
@@ -256,7 +271,14 @@ func (pCmd *ServerCommand) RunCommand(cmd *cobra.Command, args []string) error {
 CURVEADM_VERSION=v0.1.12-dev bash -c "$(curl -fsSL https://curveadm.nos-eastchina1.126.net/script/install.sh)"
 ```
 
-2. 执行 playground 命令时得确保当前用户有 root 权限，或者给 docker 的 socket 加上任意用户读写权限，或者将用户加入 docker 用户组：
+2. 升级curveadm：
+
+ ```shell
+ CURVEADM_VERSION=v0.2.0 curveadm -u
+ ```
+
+
+3. 执行 playground 命令时得确保当前用户有 root 权限，或者给 docker 的 socket 加上任意用户读写权限，或者将用户加入 docker 用户组：
 
 ```shell
  curveadm playground run --kind curvebs --container_image harbor.cloud.netease.com/curve/curvebs:playground
@@ -273,7 +295,7 @@ sudo usermod -aG docker $USER
 >
 > 2. [Run the Docker daemon as a non-root user (Rootless mode)](https://docs.docker.com/engine/security/rootless/)
 
-### 环境准备
+#### 环境准备
 
 1. 安装 [golang 1.19](https://go.dev/doc/install) 版本及以上
 2. 安装 [protoc-v21.8](https://github.com/protocolbuffers/protobuf/releases/tag/v21.8)，请保证命令 `protoc` 可执行
@@ -289,7 +311,7 @@ go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 > go env -w  GOPROXY=https://goproxy.io,direct
 > ```
 
-### 编译
+#### 编译
 
 在 tools-v2 目录下执行 `make debug` 即可完成编译：
 
@@ -328,7 +350,7 @@ make
 > go build -o sbin/curve ./cmd/curve/main.go
 > ```
 
-### 调试
+#### 调试
 
 你可以通过一下两种方式来对生成的二进制文件进行调试：
 
@@ -341,39 +363,39 @@ make
 dlv exec sbin/curve --${命令行参数}
 ```
 
-### 调试流程
+#### 调试流程
 
 1. 检查环境是否拉起成功，记录容器ID，后续有用：
 
-   ```shell
-   docker ps -a
-   ```
+```shell
+docker ps -a
+```
 
-2. 编写好代码后，在 /curve/tools-v2 目录下编译成二进制文件。
+2. 编写好代码后，在 `curve/tools-v2` 目录下编译成二进制文件：
 
-   ```shell
-   make
-   ```
+```shell
+make
+```
 
 3. 将编译好的 Curve 文件拷贝进 playground 容器内：
 
-   ```shell
-   docker cp ./sbin/curve de7603f17cf9:/
-   ```
+```shell
+docker cp ./sbin/curve de7603f17cf9:/
+```
 
 4. 准备配置文件，将之拷贝进 playground 容器内：
 
-   ```shell
-   docker cp /pkg/config/template.yaml de7603f17cf9:/etc/curve/curve.yaml
-   ```
+```shell
+docker cp ./pkg/config/template.yaml de7603f17cf9:/etc/curve/curve.yaml
+```
 
 5. 进入对应的容器：
 
-   ```shell
-   docker exec -it de7603f17cf9 bash
-   ```
+```shell
+docker exec -it de7603f17cf9 bash
+```
 
-6. 执行命令/调试。
+6. 执行命令/调试：
 
    > 查看状态：
    >
@@ -392,3 +414,158 @@ dlv exec sbin/curve --${命令行参数}
    > ```shell
    > ./curve bs list dir --dir /
    > ```
+
+### 在物理机上部署
+
+#### 部署curve集群
+
+首先你需要部署一个 Curve 集群，curve集群拉起方式如下：
+
+1. 安装curveadm：
+
+```shell
+CURVEADM_VERSION=v0.1.12-dev bash -c "$(curl -fsSL https://curveadm.nos-eastchina1.126.net/script/install.sh)"
+```
+
+2. 升级curveadm：
+
+ ```shell
+CURVEADM_VERSION=v0.2.0 curveadm -u
+ ```
+
+
+3. [部署一个MinIO](https://github.com/opencurve/curveadm/wiki/curvefs-cluster-deployment#第-3-步部署-minio可选)。
+
+   + 拉取镜像：
+
+   ```shell
+   docker pull minio/minio
+   ```
+
+   + 挂载命令执行：
+
+   ```shell
+   mkdir -p /data/minio/config
+   mkdir -p /data/minio/data
+   ```
+
+   + 运行MinIO：
+
+   ```shell
+   docker run -p 9000:9000 -p 9090:9090 --name minio \
+              -d --restart=always \
+              -e "MINIO_ACCESS_KEY=minioadmin" \
+              -e "MINIO_SECRET_KEY=minioadmin" \
+              -v /data/minio/data:/data \
+              -v /data/minio/config:/root/.minio \minio/minio \
+              server /data --console-address ":9090"
+   ```
+
+   + 查看MinIO是否启动成功，并创建桶：
+
+     + 图形界面方法：打开 http://ip:9090，密码为上面设置的admin admin123456，要记得**在web页面上创建桶**。
+     + 命令行方法：[使用mc工具创建桶](https://min.io/docs/minio/linux/reference/minio-mc.html)，主要是采用[mc mb命令](https://min.io/docs/minio/linux/reference/minio-mc/mc-mb.html)。
+     + 后续配置文件（topology.yaml）中的ak(Access Key)和sk(Secret Key) 都为 minioadmin。
+     + nos_address 为 ip:9000 为minio部署的ip和端口号（此处就是9000，MinIO有两个监听端口，一个是给接口调用的,另一个是浏览器访问用的）。
+     + snapshot_bucket_name 为创建的桶名。
+
+4. 按照[部署文档](https://github.com/opencurve/curveadm/wiki/curvebs-cluster-deployment)部署一个单机集群，可以跳过格式化磁盘，然后填写topology.yaml的配置项（此处仅列出关键步骤，具体还请参考[部署文档](https://github.com/opencurve/curveadm/wiki/curvebs-cluster-deployment)）:
+
+   + 导入主机列表：`hosts.yaml`（将其中IP，user替换为自己的，再通过 `ssh-copy-id username@IP` 的形式上传密钥）:
+
+   ```yaml
+   # hosts.yaml
+   global:
+     user: curve
+     ssh_port: 22
+     private_key_file: /home/curve/.ssh/id_rsa
+   
+   hosts:
+     - host: server-host
+       hostname: 10.0.1.1
+   ```
+
+   + 准备集群拓扑文件（[单机部署模板](https://github.com/opencurve/curveadm/blob/master/configs/bs/stand-alone/topology.yaml)）：修改其中的s3相关属性为上述MinIO部署的值，同时禁用chunkfile pool。
+
+   ```yaml
+   # topology.yaml
+   kind: curvebs
+   global:
+   ...
+      s3.nos_address: <> // ip:9000 is the ip and port number deployed by minio
+      s3.snapshot_bucket_name: <> // created bucket name
+      s3.ak: <> // ak minioadmin
+      s3.sk: <> //sk minioadmin
+   ...
+   
+   chunkserver_services:
+      config:
+   ...
+        copiesets: 100
+         chunkfilepool.enable_get_chunk_from_pool: false
+      deploy:
+        - host: ${target}
+        - host: ${target}
+        - host: ${target}
+   ...
+   ```
+
+   + 添加集群并切换集群：
+
+   ```shell
+   # 添加 'my-cluster' 集群，并指定集群拓扑文件
+   curveadm cluster add my-cluster -f topology.yaml
+   # 切换 'my-cluster' 集群为当前管理集群
+   curveadm cluster checkout my-cluster
+   ```
+
+   + 部署集群：
+
+   ```shell
+   curveadm deploy
+   ```
+
+   + 查看集群状态：
+
+   ```shell
+   curveadm status
+   ```
+
+
+#### 环境准备
+
+请参照[利用docker部署-环境准备](#环境准备)完成环境准备步骤。
+
+#### 编译
+
+请参照[利用docker部署-编译](#编译)完成编译步骤。
+
+#### 调试
+
+请参照[利用docker部署-调试](#调试)完成调试步骤。
+
+#### 调试流程
+
+1. 检查curve是否部署成功：
+
+```shell
+curveadm status
+```
+
+2. 编写好代码后，在 `/curve/tools-v2` 目录下编译成二进制文件：
+
+```shell
+make
+```
+
+3. 准备配置文件，将项目目录下的 `tools-v2/pkg/config/template.yaml` 复制到 `$(HOME)/.curve/curve.yaml`：
+
+```shell
+cp ./pkg/config/template.yaml ~/.curve/curve.yaml
+```
+
+4. 在项目目录（`curve/tools-v2`） 下执行命令/调试：
+
+```shell
+./sbin/curve bs status mds
+```
