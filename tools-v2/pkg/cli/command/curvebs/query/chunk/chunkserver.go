@@ -27,9 +27,11 @@ import (
 	"strconv"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
+	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
+	"github.com/opencurve/curve/tools-v2/proto/proto/common"
 	"github.com/opencurve/curve/tools-v2/proto/proto/topology"
 	"github.com/opencurve/curve/tools-v2/proto/proto/topology/statuscode"
 	"github.com/spf13/cobra"
@@ -54,8 +56,8 @@ func (gRpc *GetChunkServerListRpc) Stub_Func(ctx context.Context) (interface{}, 
 
 type ChunkServerListInCoysetCommand struct {
 	basecmd.FinalCurveCmd
-	Rpc      *GetChunkServerListRpc
-	Response *topology.GetChunkServerListInCopySetsResponse
+	Rpc          []*GetChunkServerListRpc
+	key2Location *map[uint64][]*common.ChunkServerLocation
 }
 
 var _ basecmd.FinalCurveCmdFunc = (*ChunkServerListInCoysetCommand)(nil) // check interface
@@ -77,35 +79,52 @@ func (cCmd *ChunkServerListInCoysetCommand) AddFlags() {
 	config.AddBsMdsFlagOption(cCmd.Cmd)
 	config.AddRpcRetryTimesFlag(cCmd.Cmd)
 	config.AddRpcTimeoutFlag(cCmd.Cmd)
-	config.AddBSLogicalPoolIdRequiredFlag(cCmd.Cmd)
+	config.AddBSLogicalPoolIdSliceRequiredFlag(cCmd.Cmd)
 	config.AddBSCopysetIdSliceRequiredFlag(cCmd.Cmd)
 }
 
 func (cCmd *ChunkServerListInCoysetCommand) Init(cmd *cobra.Command, args []string) error {
-	logicalpool := config.GetBsFlagUint32(cCmd.Cmd, config.CURVEBS_LOGIC_POOL_ID)
-	copysetidList := config.GetBsFlagStringSlice(cCmd.Cmd, config.CURVEBS_COPYSET_ID)
-	copysetIds := make([]uint32, len(copysetidList))
-	for i, s := range copysetidList {
-		id, err := strconv.ParseUint(s, 10, 32)
-		if err != nil {
-			return fmt.Errorf("converting %s to uint32 err: %s", s, err.Error())
-		}
-		copysetIds[i] = uint32(id)
-	}
-	request := topology.GetChunkServerListInCopySetsRequest{
-		LogicalPoolId: &logicalpool,
-		CopysetId:     copysetIds,
-	}
-
 	mdsAddrs, err := config.GetBsMdsAddrSlice(cCmd.Cmd)
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		return err.ToError()
 	}
 	timeout := config.GetFlagDuration(cCmd.Cmd, config.RPCTIMEOUT)
 	retrytimes := config.GetFlagInt32(cCmd.Cmd, config.RPCRETRYTIMES)
-	cCmd.Rpc = &GetChunkServerListRpc{
-		Info:    basecmd.NewRpc(mdsAddrs, timeout, retrytimes, "GetFileInfo"),
-		Request: &request,
+	logicalpoolidList := config.GetBsFlagStringSlice(cCmd.Cmd, config.CURVEBS_LOGIC_POOL_ID)
+	copysetidList := config.GetBsFlagStringSlice(cCmd.Cmd, config.CURVEBS_COPYSET_ID)
+	if len(logicalpoolidList) != len(copysetidList) {
+		return fmt.Errorf("logicalpoolidList and copysetidList length not equal")
+	}
+
+	logicalpoolIds := make([]uint32, len(logicalpoolidList))
+	copysetIds := make([]uint32, len(copysetidList))
+	logicalpool2copysets := make(map[uint32][]uint32)
+	for i := 0; i < len(logicalpoolidList); i++ {
+		id, err := strconv.ParseUint(logicalpoolidList[i], 10, 32)
+		if err != nil {
+			return fmt.Errorf("converting %s to uint32 err: %s", logicalpoolidList[i], err.Error())
+		}
+		logicalpoolIds[i] = uint32(id)
+
+		id, err = strconv.ParseUint(copysetidList[i], 10, 32)
+		if err != nil {
+			return fmt.Errorf("converting %s to uint32 err: %s", copysetidList[i], err.Error())
+		}
+		copysetIds[i] = uint32(id)
+
+		logicalpool2copysets[logicalpoolIds[i]] = append(logicalpool2copysets[logicalpoolIds[i]], copysetIds[i])
+	}
+
+	for logicalpoolId, copysetIds := range logicalpool2copysets {
+		// for get pointer
+		logicalpoolId := logicalpoolId
+		cCmd.Rpc = append(cCmd.Rpc, &GetChunkServerListRpc{
+			Info: basecmd.NewRpc(mdsAddrs, timeout, retrytimes, "GetFileInfo"),
+			Request: &topology.GetChunkServerListInCopySetsRequest{
+				LogicalPoolId: &logicalpoolId,
+				CopysetId:     copysetIds,
+			},
+		})
 	}
 	return nil
 }
@@ -115,16 +134,37 @@ func (cCmd *ChunkServerListInCoysetCommand) Print(cmd *cobra.Command, args []str
 }
 
 func (cCmd *ChunkServerListInCoysetCommand) RunCommand(cmd *cobra.Command, args []string) error {
-	result, err := basecmd.GetRpcResponse(cCmd.Rpc.Info, cCmd.Rpc)
-	if err.TypeCode() != cmderror.CODE_SUCCESS {
-		return err.ToError()
+	var infos []*basecmd.Rpc
+	var funcs []basecmd.RpcFunc
+	for _, rpc := range cCmd.Rpc {
+		infos = append(infos, rpc.Info)
+		funcs = append(funcs, rpc)
 	}
-	cCmd.Response = result.(*topology.GetChunkServerListInCopySetsResponse)
-	if cCmd.Response.GetStatusCode() != int32(statuscode.TopoStatusCode_Success) {
-		retErr := cmderror.ErrGetChunkServerListInCopySets(statuscode.TopoStatusCode(cCmd.Response.GetStatusCode()),
-			cCmd.Rpc.Request.GetLogicalPoolId(), cCmd.Rpc.Request.GetCopysetId())
-		return retErr.ToError()
+	results, errs := basecmd.GetRpcListResponse(infos, funcs)
+	if len(errs) == len(infos) {
+		mergeErr := cmderror.MergeCmdErrorExceptSuccess(errs)
+		return mergeErr.ToError()
 	}
+
+	key2Location := make(map[uint64][]*common.ChunkServerLocation)
+	cCmd.key2Location = &key2Location
+	for i, result := range results {
+		logicalpoolid := cCmd.Rpc[i].Request.GetLogicalPoolId()
+		copysetids := cCmd.Rpc[i].Request.GetCopysetId()
+		response := result.(*topology.GetChunkServerListInCopySetsResponse)
+		if response.GetStatusCode() != int32(statuscode.TopoStatusCode_Success) {
+			err := cmderror.ErrGetChunkServerListInCopySets(statuscode.TopoStatusCode(response.GetStatusCode()),
+				logicalpoolid, copysetids)
+			errs = append(errs, err)
+			continue
+		}
+		for _, info := range response.CsInfo {
+			key := cobrautil.GetCopysetKey(uint64(logicalpoolid), uint64(*info.CopysetId))
+			(*cCmd.key2Location)[key] = info.CsLocs
+		}
+	}
+	errRet := cmderror.MergeCmdError(errs)
+	cCmd.Error = errRet
 	return nil
 }
 
@@ -132,7 +172,7 @@ func (cCmd *ChunkServerListInCoysetCommand) ResultPlainOutput() error {
 	return output.FinalCmdOutputPlain(&cCmd.FinalCurveCmd)
 }
 
-func GetChunkServerListInCopySets(caller *cobra.Command) (*topology.GetChunkServerListInCopySetsResponse, *cmderror.CmdError) {
+func GetChunkServerListInCopySets(caller *cobra.Command) (*map[uint64][]*common.ChunkServerLocation, *cmderror.CmdError) {
 	getCmd := NewQueryChunkServerListCommand()
 	config.AlignFlagsValue(caller, getCmd.Cmd, []string{
 		config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEBS_MDSADDR,
@@ -147,5 +187,5 @@ func GetChunkServerListInCopySets(caller *cobra.Command) (*topology.GetChunkServ
 		retErr.Format(err.Error())
 		return nil, retErr
 	}
-	return getCmd.Response, cmderror.Success()
+	return getCmd.key2Location, cmderror.Success()
 }
