@@ -162,3 +162,34 @@ func ToUnderscoredName(src string) string {
 	}
 	return ret
 }
+<<<<<<< HEAD
+=======
+
+func Addr2IpPort(addr string) (string, uint32, *cmderror.CmdError) {
+	ipPort := strings.Split(addr, ":")
+	if len(ipPort) != 2 {
+		err := cmderror.ErrGetAddr()
+		err.Format("server", addr)
+		return "", 0, err
+	}
+	u64Port, err := strconv.ParseUint(ipPort[1], 10, 32)
+	if err != nil {
+		pErr := cmderror.ErrGetAddr()
+		pErr.Format("server", addr)
+		return "", 0, pErr
+	}
+	return ipPort[0], uint32(u64Port), cmderror.Success()
+}
+
+func StringList2Uint64List(strList []string) ([]uint64, error) {
+	retList := make([]uint64, 0)
+	for _, str := range strList {
+		v, err := strconv.ParseUint(str, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		retList = append(retList, v)
+	}
+	return retList, nil
+}
+>>>>>>> a7135515... [feat]tools-v2: add bs scan status

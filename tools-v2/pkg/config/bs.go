@@ -294,11 +294,11 @@ func AddBSCopysetIdRequiredFlag(cmd *cobra.Command) {
 	AddBsUint32RequiredFlag(cmd, CURVEBS_COPYSET_ID, "copyset id")
 }
 
-func AddBSCopysetIdSliceRequiredFlag(cmd *cobra.Command) {
+func AddBsCopysetIdSliceRequiredFlag(cmd *cobra.Command) {
 	AddBsStringSliceRequiredFlag(cmd, CURVEBS_COPYSET_ID, "copyset ids")
 }
 
-func AddBSLogicalPoolIdSliceRequiredFlag(cmd *cobra.Command) {
+func AddBsLogicalPoolIdSliceRequiredFlag(cmd *cobra.Command) {
 	AddBsStringSliceRequiredFlag(cmd, CURVEBS_LOGIC_POOL_ID, "logical pool id")
 }
 

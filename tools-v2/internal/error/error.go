@@ -765,4 +765,15 @@ var (
 		}
 		return NewRpcReultCmdError(code, message)
 	}
+	ErrBsGetCopyset = func(statusCode statuscode.TopoStatusCode, logicalpoolid, copysetid uint32) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case statuscode.TopoStatusCode_Success:
+			message = "success"
+		default:
+			message = fmt.Sprintf("get copyset(id: %d,logicalPoolid: %d) info fail, err: %s", copysetid, logicalpoolid, statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
 )
