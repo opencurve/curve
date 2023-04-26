@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2022 NetEase Inc.
+ *  Copyright (c) 2023 NetEase Inc.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -16,11 +16,11 @@
 
 /*
  * Project: CurveCli
- * Created Date: 2022-09-08
- * Author: chengyi (Cyber-SiKu)
+ * Created Date: 2023-04-25
+ * Author: Xinlong-Chen
  */
 
-package mds
+package snapshot
 
 import (
 	"fmt"
@@ -37,10 +37,10 @@ import (
 )
 
 const (
-	mdsExample = `$ curve bs status mds`
+	snapshotExample = `$ curve bs status snapshotserver`
 )
 
-type MdsCommand struct {
+type SnapshotCommand struct {
 	basecmd.FinalCurveCmd
 	metrics []*basecmd.Metric
 	rows    []map[string]string
@@ -48,39 +48,46 @@ type MdsCommand struct {
 }
 
 const (
-	STATUS_SUBURI  = "/vars/mds_status"
+	STATUS_SUBURI  = "/vars/snapshotcloneserver_status"
 	VERSION_SUBURI = "/vars/curve_version"
 )
 
-var _ basecmd.FinalCurveCmdFunc = (*MdsCommand)(nil) // check interface
+var (
+	SnapshotCloneStatusMap = map[string]string{
+		"active":  "leader",
+		"standby": "follower",
+	}
+)
 
-func NewMdsCommand() *cobra.Command {
-	return NewStatusMdsCommand().Cmd
+var _ basecmd.FinalCurveCmdFunc = (*SnapshotCommand)(nil) // check interface
+
+func NewSnapshotCommand() *cobra.Command {
+	return NewStatusSnapshotCommand().Cmd
 }
 
-func (mCmd *MdsCommand) AddFlags() {
-	config.AddHttpTimeoutFlag(mCmd.Cmd)
-	config.AddBsMdsFlagOption(mCmd.Cmd)
-	config.AddBsMdsDummyFlagOption(mCmd.Cmd)
+func (sCmd *SnapshotCommand) AddFlags() {
+	config.AddHttpTimeoutFlag(sCmd.Cmd)
+	config.AddBsSnapshotCloneFlagOption(sCmd.Cmd)
+	config.AddBsSnapshotCloneDummyFlagOption(sCmd.Cmd)
 }
 
-func (mCmd *MdsCommand) Init(cmd *cobra.Command, args []string) error {
-	mCmd.health = cobrautil.HEALTH_ERROR
+func (sCmd *SnapshotCommand) Init(cmd *cobra.Command, args []string) error {
+	sCmd.health = cobrautil.HEALTH_ERROR
 
 	header := []string{cobrautil.ROW_ADDR, cobrautil.ROW_DUMMY_ADDR, cobrautil.ROW_VERSION, cobrautil.ROW_STATUS}
-	mCmd.SetHeader(header)
-	mCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
-		mCmd.Header, []string{cobrautil.ROW_STATUS, cobrautil.ROW_VERSION},
+	sCmd.SetHeader(header)
+	sCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
+		sCmd.Header, []string{cobrautil.ROW_STATUS, cobrautil.ROW_VERSION},
 	))
 
 	// set main addr
-	mainAddrs, addrErr := config.GetBsMdsAddrSlice(mCmd.Cmd)
+	mainAddrs, addrErr := config.GetBsSnapshotAddrSlice(sCmd.Cmd)
 	if addrErr.TypeCode() != cmderror.CODE_SUCCESS {
 		return fmt.Errorf(addrErr.Message)
 	}
 
 	// set dummy addr
-	dummyAddrs, addrErr := config.GetBsMdsDummyAddrSlice(mCmd.Cmd)
+	dummyAddrs, addrErr := config.GetBsSnapshotDummyAddrSlice(sCmd.Cmd)
 	if addrErr.TypeCode() != cmderror.CODE_SUCCESS {
 		return fmt.Errorf(addrErr.Message)
 	}
@@ -91,9 +98,9 @@ func (mCmd *MdsCommand) Init(cmd *cobra.Command, args []string) error {
 
 		addrs := []string{addr}
 		statusMetric := basecmd.NewMetric(addrs, STATUS_SUBURI, timeout)
-		mCmd.metrics = append(mCmd.metrics, statusMetric)
+		sCmd.metrics = append(sCmd.metrics, statusMetric)
 		versionMetric := basecmd.NewMetric(addrs, VERSION_SUBURI, timeout)
-		mCmd.metrics = append(mCmd.metrics, versionMetric)
+		sCmd.metrics = append(sCmd.metrics, versionMetric)
 	}
 
 	for i := range mainAddrs {
@@ -102,26 +109,25 @@ func (mCmd *MdsCommand) Init(cmd *cobra.Command, args []string) error {
 		row[cobrautil.ROW_DUMMY_ADDR] = dummyAddrs[i]
 		row[cobrautil.ROW_STATUS] = cobrautil.ROW_VALUE_OFFLINE
 		row[cobrautil.ROW_VERSION] = cobrautil.ROW_VALUE_UNKNOWN
-		mCmd.rows = append(mCmd.rows, row)
+		sCmd.rows = append(sCmd.rows, row)
 	}
 
 	return nil
 }
 
-func (mCmd *MdsCommand) Print(cmd *cobra.Command, args []string) error {
-	return output.FinalCmdOutput(&mCmd.FinalCurveCmd, mCmd)
+func (sCmd *SnapshotCommand) Print(cmd *cobra.Command, args []string) error {
+	return output.FinalCmdOutput(&sCmd.FinalCurveCmd, sCmd)
 }
 
-func (mCmd *MdsCommand) RunCommand(cmd *cobra.Command, args []string) error {
+func (sCmd *SnapshotCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	results := make(chan basecmd.MetricResult, config.MaxChannelSize())
 	size := 0
-	for _, metric := range mCmd.metrics {
+	for _, metric := range sCmd.metrics {
 		size++
 		go func(m *basecmd.Metric) {
 			result, err := basecmd.QueryMetric(m)
 
 			var key string
-
 			if m.SubUri == STATUS_SUBURI {
 				key = "status"
 			} else {
@@ -146,9 +152,13 @@ func (mCmd *MdsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	var errs []*cmderror.CmdError
 	var recordAddrs []string
 	for res := range results {
-		for _, row := range mCmd.rows {
+		for _, row := range sCmd.rows {
 			if res.Err.TypeCode() == cmderror.CODE_SUCCESS && row[cobrautil.ROW_DUMMY_ADDR] == res.Addr {
-				row[res.Key] = res.Value
+				if res.Key == "status" {
+					row[res.Key] = SnapshotCloneStatusMap[res.Value]
+				} else {
+					row[res.Key] = res.Value
+				}
 			} else if res.Err.TypeCode() != cmderror.CODE_SUCCESS {
 				index := slices.Index(recordAddrs, res.Addr)
 				if index == -1 {
@@ -163,46 +173,48 @@ func (mCmd *MdsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	if len(errs) > 0 && len(errs) < len(mCmd.rows) {
-		mCmd.health = cobrautil.HEALTH_WARN
+	if len(errs) > 0 && len(errs) < len(sCmd.rows) {
+		sCmd.health = cobrautil.HEALTH_WARN
 	} else if len(errs) == 0 {
-		mCmd.health = cobrautil.HEALTH_OK
+		sCmd.health = cobrautil.HEALTH_OK
 	}
 
 	mergeErr := cmderror.MergeCmdErrorExceptSuccess(errs)
-	mCmd.Error = mergeErr
-	list := cobrautil.ListMap2ListSortByKeys(mCmd.rows, mCmd.Header, []string{
+	sCmd.Error = mergeErr
+	list := cobrautil.ListMap2ListSortByKeys(sCmd.rows, sCmd.Header, []string{
 		cobrautil.ROW_STATUS, cobrautil.ROW_VERSION,
 	})
-	mCmd.TableNew.AppendBulk(list)
-	mCmd.Result = mCmd.rows
+	sCmd.TableNew.AppendBulk(list)
+	sCmd.Result = sCmd.rows
 
 	return nil
 }
 
-func (mCmd *MdsCommand) ResultPlainOutput() error {
-	return output.FinalCmdOutputPlain(&mCmd.FinalCurveCmd)
+func (sCmd *SnapshotCommand) ResultPlainOutput() error {
+	return output.FinalCmdOutputPlain(&sCmd.FinalCurveCmd)
 }
 
-func NewStatusMdsCommand() *MdsCommand {
-	mdsCmd := &MdsCommand{
+func NewStatusSnapshotCommand() *SnapshotCommand {
+	snapshotCmd := &SnapshotCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
-			Use:     "mds",
-			Short:   "get status of mds",
-			Example: mdsExample,
+			Use:     "snapshotserver",
+			Short:   "get the snapshot clone status of curvebs",
+			Example: snapshotExample,
 		},
 	}
-	basecmd.NewFinalCurveCli(&mdsCmd.FinalCurveCmd, mdsCmd)
-	return mdsCmd
+	basecmd.NewFinalCurveCli(&snapshotCmd.FinalCurveCmd, snapshotCmd)
+	return snapshotCmd
 }
 
-func GetMdsStatus(caller *cobra.Command) (*interface{}, *tablewriter.Table, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS) {
-	mdsCmd := NewStatusMdsCommand()
-	mdsCmd.Cmd.SetArgs([]string{
+func GetSnapshotStatus(caller *cobra.Command) (*interface{}, *tablewriter.Table, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS) {
+	snapshotCmd := NewStatusSnapshotCommand()
+	snapshotCmd.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
 	})
-	config.AlignFlagsValue(caller, mdsCmd.Cmd, []string{config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEBS_MDSADDR})
-	mdsCmd.Cmd.SilenceErrors = true
-	mdsCmd.Cmd.Execute()
-	return &mdsCmd.Result, mdsCmd.TableNew, mdsCmd.Error, mdsCmd.health
+	config.AlignFlagsValue(caller, snapshotCmd.Cmd, []string{
+		config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEBS_SNAPSHOTADDR,
+	})
+	snapshotCmd.Cmd.SilenceErrors = true
+	snapshotCmd.Cmd.Execute()
+	return &snapshotCmd.Result, snapshotCmd.TableNew, snapshotCmd.Error, snapshotCmd.health
 }
