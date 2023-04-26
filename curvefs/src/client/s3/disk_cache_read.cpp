@@ -37,9 +37,9 @@ namespace curvefs {
 namespace client {
 
 void DiskCacheRead::Init(std::shared_ptr<PosixWrapper> posixWrapper,
-                         const std::string cacheDir) {
+                         const std::string cacheDir, uint32_t objectPrefix) {
     posixWrapper_ = posixWrapper;
-    DiskCacheBase::Init(posixWrapper, cacheDir);
+    DiskCacheBase::Init(posixWrapper, cacheDir, objectPrefix);
 }
 
 int DiskCacheRead::ReadDiskFile(const std::string name, char *buf,
@@ -85,7 +85,7 @@ int DiskCacheRead::LinkWriteToRead(const std::string fileName,
                                    const std::string fullWriteDir,
                                    const std::string fullReadDir) {
     VLOG(6) << "LinkWriteToRead start. name = " << fileName;
-    std::string fullReadPath, fullWritePath;
+    std::string fullReadPath, fullWritePath, dirPath;
     fullWritePath = fullWriteDir + "/" + fileName;
     fullReadPath = fullReadDir + "/" + fileName;
     int ret;
@@ -94,6 +94,16 @@ int DiskCacheRead::LinkWriteToRead(const std::string fileName,
                    << ", file = " << fullWritePath;
         return -1;
     }
+
+    if (objectPrefix_ != 0) {
+        ret = CreateDir(fullReadPath);
+        if (ret < 0 && errno != EEXIST) {
+            LOG(ERROR) << "Mkdir error. ret = " << ret << ", errno = " << errno
+                       << ", path is " << fullReadPath;
+            return -1;
+        }
+    }
+
     ret = posixWrapper_->link(fullWritePath.c_str(), fullReadPath.c_str());
     if (ret < 0 &&
       errno != EEXIST ) {

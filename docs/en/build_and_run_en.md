@@ -8,6 +8,7 @@
 3. The following image and build procedures are currently only supported on x86 systems.
 4. To compile [arm branch](https://github.com/opencurve/curve/pull/2408), please follow [Dockerfile](https://github.com/opencurve/curve/blob/master/docker/debian9/compile/Dockerfile) to package and compile the image.
 5. Currently the master branch does not support compiling and running on the arm system
+6. Recommend using Debian 10 or later versions of the operating system. Other operating systems have not been thoroughly tested.
 
 ## Compile with docker (recommended)
 
@@ -32,16 +33,27 @@ docker build -t opencurvedocker/curve-base:build-debian9
 ### Compile in docker image
 
 ```bash
-docker run -it opencurvedocker/curve-base:build-debian9 /bin/bash
-cd <workspace>
-git clone https://github.com/opencurve/curve.git or git clone https://gitee.com/mirrors/curve.git
+git clone https://github.com/opencurve/curve.git 或者 git clone https://gitee.com/mirrors/curve.git
+cd curve
+# If you want to complete the operation of compiling + making + uploading the image in the container, you can add the following parameters
+# -v /var/run/docker.sock:/var/run/docker.sock -v /root/.docker:/root/.docker
+#--rm will automatically delete the container after the container exits, if you want to keep the container, you can remove this parameter
+docker run --rm -v $(pwd):/curve -w /curve -v ${HOME}:${HOME} --user $(id -u ${USER}):$(id -g ${USER}) -v /etc/passwd:/etc/passwd:ro -v /etc/group:/etc/group:ro --privileged -it opencurvedocker/curve-base:build-debian9 bash
 # (Optional for Chinese mainland) Replace external dependencies with domestic download points or mirror warehouses, which can speed up compilation： bash replace-curve-repo.sh
+
 # before curve v2.0
 bash mk-tar.sh （compile curvebs and make tar package）
 bash mk-deb.sh （compile curvebs and make debian package）
+
 # (current) after curve v2.0
-compile curvebs: cd curve && make build stor=bs dep=1
-compile curvefs: cd curve && make build stor=fs dep=1
+# compile curvebs:
+make build stor=bs dep=1
+# or 
+make dep stor=bs && make build stor=bs
+# compile curvefs:
+make build stor=fs dep=1
+# or 
+make dep stor=fs && make build stor=fs
 ```
 
 **Note:** `mk-tar.sh` and `mk-deb.sh` are used for compiling and packaging curve v2.0. They are no longer maintained after v2.0.
@@ -72,9 +84,36 @@ git clone https://github.com/opencurve/curve.git or git clone https://gitee.com/
 # before curve v2.0
 bash mk-tar.sh （compile curvebs and make tar package）
 bash mk-deb.sh （compile curvebs and make debian package）
+
 # (current) after curve v2.0
-compile curvebs: cd curve && make build stor=bs dep=1
-compile curvefs: cd curve && make build stor=fs dep=1
+# compile curvebs:
+make build stor=bs dep=1
+# or 
+make dep stor=bs && make build stor=bs
+# compile curvefs:
+make build stor=fs dep=1
+# or
+make dep stor=fs && make build stor=fs
+```
+
+### Make a mirror image
+
+This step can be performed in a container or on a physical machine.
+Note that if it is executed in a container, you need to add `-v /var/run/docker.sock:/var/run/docker.sock -v /root/.docker:/root/.docker when executing the `docker run` command ` parameter.
+
+```bash
+# Compile curvebs:
+# The following tag parameter can be customized for uploading to the mirror warehouse
+make image stor=bs tag=test
+# Compile curvefs:
+make image stor=fs tag=test
+```
+
+### Upload image
+
+```bash
+# test is the tag parameter in the previous step
+docker push test
 ```
 
 ## Test case compilation and execution

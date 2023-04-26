@@ -28,6 +28,7 @@ import (
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/dir"
 	logicalpool "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/logicalPool"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/server"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/space"
 	"github.com/spf13/cobra"
 )
 
@@ -43,6 +44,7 @@ func (listCmd *ListCommand) AddSubCommands() {
 		server.NewServerCommand(),
 		client.NewClientCommand(),
 		dir.NewDirCommand(),
+		space.NewSpaceCommand(),
 	)
 }
 

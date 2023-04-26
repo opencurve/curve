@@ -33,6 +33,7 @@ void S3ClientAdaptorImpl::Init(const S3ClientAdaptorOption &option,
     chunkSize_ = option.chunkSize;
     batchSize_ = option.batchSize;
     enableDeleteObjects_ = option.enableDeleteObjects;
+    objectPrefix_ = option.objectPrefix;
     client_ = client;
 }
 
@@ -43,6 +44,7 @@ void S3ClientAdaptorImpl::Reinit(const S3ClientAdaptorOption& option,
     chunkSize_ = option.chunkSize;
     batchSize_ = option.batchSize;
     enableDeleteObjects_ = option.enableDeleteObjects;
+    objectPrefix_ = option.objectPrefix;
     client_->Reinit(ak, sk, endpoint, bucketName);
 }
 
@@ -98,7 +100,7 @@ int S3ClientAdaptorImpl::DeleteChunk(uint64_t fsId, uint64_t inodeId,
     while (length > blockSize_ * count - blockPos || count == 0) {
         // divide chunks to blocks, and delete these blocks
         std::string objectName = curvefs::common::s3util::GenObjName(
-            chunkId, blockIndex, compaction, fsId, inodeId);
+            chunkId, blockIndex, compaction, fsId, inodeId, objectPrefix_);
         int delStat = client_->Delete(objectName);
         if (delStat < 0) {
             // fail
@@ -197,7 +199,7 @@ void S3ClientAdaptorImpl::GenObjNameListForChunkInfo(
     for (int i = 0; i < count; i++) {
         // divide chunks to blocks, and delete these blocks
         std::string objectName = curvefs::common::s3util::GenObjName(
-            chunkId, blockIndex, compaction, fsId, inodeId);
+            chunkId, blockIndex, compaction, fsId, inodeId, objectPrefix_);
         objList->push_back(objectName);
 
         ++blockIndex;
@@ -211,6 +213,7 @@ void S3ClientAdaptorImpl::GetS3ClientAdaptorOption(
     option->chunkSize = chunkSize_;
     option->batchSize = batchSize_;
     option->enableDeleteObjects = enableDeleteObjects_;
+    option->objectPrefix = objectPrefix_;
 }
 
 }  // namespace metaserver

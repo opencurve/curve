@@ -364,6 +364,7 @@ void WarmupManagerS3Impl::TravelChunk(fuse_ino_t ino,
                                       ObjectListType *prefetchObjs) {
     uint64_t blockSize = s3Adaptor_->GetBlockSize();
     uint64_t chunkSize = s3Adaptor_->GetChunkSize();
+    uint32_t objectPrefix = s3Adaptor_->GetObjectPrefix();
     uint64_t offset, len, chunkid, compaction;
     for (size_t i = 0; i < chunkInfo.s3chunks_size(); i++) {
         auto const &chunkinfo = chunkInfo.s3chunks(i);
@@ -381,7 +382,7 @@ void WarmupManagerS3Impl::TravelChunk(fuse_ino_t ino,
 
         if (len < blockSize) {  // just one block
             auto objectName = curvefs::common::s3util::GenObjName(
-                chunkid, blockIndexBegin, compaction, fsId, ino);
+                chunkid, blockIndexBegin, compaction, fsId, ino, objectPrefix);
             prefetchObjs->push_back(std::make_pair(objectName, len));
         } else {
             // the offset in the block
@@ -413,7 +414,8 @@ void WarmupManagerS3Impl::TravelChunk(fuse_ino_t ino,
             if (!firstBlockFull) {
                 travelStartIndex = blockIndexBegin + 1;
                 auto objectName = curvefs::common::s3util::GenObjName(
-                    chunkid, blockIndexBegin, compaction, fsId, ino);
+                    chunkid, blockIndexBegin, compaction,
+                    fsId, ino, objectPrefix);
                 prefetchObjs->push_back(
                     std::make_pair(objectName, firstBlockSize));
             } else {
@@ -425,7 +427,8 @@ void WarmupManagerS3Impl::TravelChunk(fuse_ino_t ino,
                                      ? blockIndexEnd
                                      : blockIndexEnd - 1;
                 auto objectName = curvefs::common::s3util::GenObjName(
-                    chunkid, blockIndexEnd, compaction, fsId, ino);
+                    chunkid, blockIndexEnd, compaction,
+                    fsId, ino, objectPrefix);
                 // there is no need to care about the order
                 // in which objects are downloaded
                 prefetchObjs->push_back(
@@ -446,7 +449,7 @@ void WarmupManagerS3Impl::TravelChunk(fuse_ino_t ino,
             for (auto blockIndex = travelStartIndex;
                  blockIndex <= travelEndIndex; blockIndex++) {
                 auto objectName = curvefs::common::s3util::GenObjName(
-                    chunkid, blockIndex, compaction, fsId, ino);
+                    chunkid, blockIndex, compaction, fsId, ino, objectPrefix);
                 prefetchObjs->push_back(std::make_pair(objectName, blockSize));
             }
         }

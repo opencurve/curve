@@ -127,8 +127,8 @@ github.com/checkpoint-restore/go-criu/v5 v5.0.0/go.mod h1:cfwC0EG7HMUenopBsUf9d8
 github.com/chzyer/logex v1.1.10/go.mod h1:+Ywpsq7O8HXn0nuIou7OrIPyXbp3wmkHB+jjWRnGsAI=
 github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e/go.mod h1:nSuG5e5PlCu98SY8svDHJxuZscDgtXS6KTTbou5AhLI=
 github.com/chzyer/test v0.0.0-20180213035817-a1ea475d72b1/go.mod h1:Q3SI9o4m/ZMnBNeIyt5eFwwo7qiLfzFZmjNmxjkiQlU=
-github.com/cilium/cilium v1.12.8 h1:yxlmOmWbObcTg0SUQm0ov3fHyGBU9JpwfwqdU4uHuiQ=
-github.com/cilium/cilium v1.12.8/go.mod h1:JsAUFtYyB9LymeD0t56u2sBhN5W729AjDHegzAw8JXc=
+github.com/cilium/cilium v1.12.9 h1:tUVFqhI6lKamOn35/kLCr+vy6yxwIduV2Yn6bqfw6O0=
+github.com/cilium/cilium v1.12.9/go.mod h1:ZpbQlJvfGBBPP4him5qTNwdy8wX/lhPVjFwTeWDkDOU=
 github.com/cilium/ebpf v0.0.0-20200110133405-4032b1d8aae3/go.mod h1:MA5e5Lr8slmEg9bt0VpxxWqJlO4iwu3FBdHUzV7wQVg=
 github.com/cilium/ebpf v0.0.0-20200702112145-1c8d4c9ef775/go.mod h1:7cR51M8ViRLIdUjrmSXlK9pkrsDlLHbO8jiB8X8JnOc=
 github.com/cilium/ebpf v0.2.0/go.mod h1:To2CFviqOWL/M0gIMsvSMlqe7em/l1ALkX1PyjrX2Qs=

@@ -36,8 +36,7 @@ namespace client {
 namespace metric {
 
 struct MDSClientMetric {
-    std::string prefix;
-    std::string mdsAddrs;
+    static const std::string prefix;
 
     InterfaceMetric mountFs;
     InterfaceMetric umountFs;
@@ -53,11 +52,8 @@ struct MDSClientMetric {
     InterfaceMetric commitTx;
     InterfaceMetric allocOrGetMemcacheCluster;
 
-    explicit MDSClientMetric(const std::string& prefix_ = "")
-        : prefix(!prefix_.empty() ? prefix_
-                                  : "curvefs_mds_client_" +
-                                        curve::common::ToHexString(this)),
-          mountFs(prefix, "mountFs"),
+    MDSClientMetric()
+        : mountFs(prefix, "mountFs"),
           umountFs(prefix, "umountFs"),
           getFsInfo(prefix, "getFsInfo"),
           getMetaServerInfo(prefix, "getMetaServerInfo"),
@@ -73,7 +69,7 @@ struct MDSClientMetric {
 };
 
 struct MetaServerClientMetric {
-    std::string prefix;
+    static const std::string prefix;
 
     // dentry
     InterfaceMetric getDentry;
@@ -97,11 +93,8 @@ struct MetaServerClientMetric {
     InterfaceMetric updateVolumeExtent;
     InterfaceMetric getVolumeExtent;
 
-    explicit MetaServerClientMetric(const std::string &prefix_ = "")
-        : prefix(!prefix_.empty() ? prefix_
-                                  : "curvefs_metaserver_client_" +
-                                        curve::common::ToHexString(this)),
-          getDentry(prefix, "getDentry"),
+    MetaServerClientMetric()
+        : getDentry(prefix, "getDentry"),
           listDentry(prefix, "listDentry"),
           createDentry(prefix, "createDentry"),
           deleteDentry(prefix, "deleteDentry"),
@@ -142,7 +135,7 @@ struct OpMetric {
 };
 
 struct ClientOpMetric {
-    std::string prefix;
+    static const std::string prefix;
 
     OpMetric opLookup;
     OpMetric opOpen;
@@ -169,10 +162,8 @@ struct ClientOpMetric {
     OpMetric opWrite;
 
 
-    explicit ClientOpMetric(const std::string &prefix_ = "")
-        : prefix(!prefix_.empty() ? prefix_
-                                  : "curvefs_client"),
-          opLookup(prefix, "opLookup"),
+    ClientOpMetric()
+        : opLookup(prefix, "opLookup"),
           opOpen(prefix, "opOpen"),
           opCreate(prefix, "opCreate"),
           opMkNod(prefix, "opMkNod"),
@@ -198,7 +189,8 @@ struct ClientOpMetric {
 };
 
 struct S3MultiManagerMetric {
-    const std::string prefix;
+    static const std::string prefix;
+
     bvar::Adder<int64_t> fileManagerNum;
     bvar::Adder<int64_t> chunkManagerNum;
     bvar::Adder<int64_t> writeDataCacheNum;
@@ -206,9 +198,7 @@ struct S3MultiManagerMetric {
     bvar::Adder<int64_t> readDataCacheNum;
     bvar::Adder<int64_t> readDataCacheByte;
 
-    explicit S3MultiManagerMetric(
-        const std::string &prefix_ = "curvefs_client_manager")
-        : prefix(prefix_) {
+    S3MultiManagerMetric() {
         fileManagerNum.expose_as(prefix, "file_manager_num");
         chunkManagerNum.expose_as(prefix, "chunk_manager_num");
         writeDataCacheNum.expose_as(prefix, "write_data_cache_num");
@@ -219,7 +209,7 @@ struct S3MultiManagerMetric {
 };
 
 struct FSMetric {
-    const std::string prefix = "curvefs_client";
+    static const std::string prefix;
 
     std::string fsName;
 
@@ -238,7 +228,7 @@ struct FSMetric {
 };
 
 struct S3Metric {
-    const std::string prefix = "curvefs_s3";
+    static const std::string prefix;
 
     std::string fsName;
     InterfaceMetric adaptorWrite;
@@ -264,7 +254,7 @@ struct S3Metric {
 };
 
 struct DiskCacheMetric {
-    const std::string prefix = "curvefs_disk_cache";
+    static const std::string prefix;
 
     std::string fsName;
     InterfaceMetric writeS3;
@@ -278,16 +268,17 @@ struct DiskCacheMetric {
 };
 
 struct KVClientMetric {
-    const std::string prefix = "curvefs_kvclient";
-    InterfaceMetric kvClientSet;
+    static const std::string prefix;
+
     InterfaceMetric kvClientGet;
+    InterfaceMetric kvClientSet;
 
     KVClientMetric()
         : kvClientGet(prefix, "get"), kvClientSet(prefix, "set") {}
 };
 
 struct S3ChunkInfoMetric {
-    const std::string prefix = "inode_s3_chunk_info";
+    static const std::string prefix;
 
     bvar::Adder<int64_t> s3ChunkInfoSize;
 
@@ -295,7 +286,8 @@ struct S3ChunkInfoMetric {
 };
 
 struct WarmupManagerS3Metric {
-    static constexpr const char* prefix = "curvefs_warmup";
+    static const std::string prefix;
+
     InterfaceMetric warmupS3Cached;
     bvar::Adder<uint64_t> warmupS3CacheSize;
 

@@ -138,6 +138,7 @@ class ClientS3IntegrationTest : public testing::Test {
         option.writeCacheMaxByte = 10485760000;
         option.diskCacheOpt.diskCacheType = (DiskCacheType)0;
         option.chunkFlushThreads = 5;
+        option.objectPrefix = 0;
         std::shared_ptr<MockInodeCacheManager> mockInodeManager(
             &mockInodeManager_);
         std::shared_ptr<MockMdsClient> mockMdsClient(&mockMdsClient_);

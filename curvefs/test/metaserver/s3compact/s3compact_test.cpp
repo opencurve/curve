@@ -484,7 +484,7 @@ TEST_F(S3CompactTest, test_ReadFullChunk) {
     int ret;
     std::list<struct CompactInodeJob::Node> validList;
     struct CompactInodeJob::S3CompactCtx ctx {
-        1, 1, PartitionInfo(), 4, 64, 0, s3adapter_.get()
+        1, 1, PartitionInfo(), 4, 64, 0, 0, s3adapter_.get()
     };
     struct CompactInodeJob::S3NewChunkInfo newChunkInfo;
     std::string fullChunk;
@@ -529,7 +529,7 @@ TEST_F(S3CompactTest, test_ReadFullChunk) {
 
 TEST_F(S3CompactTest, test_WriteFullChunk) {
     struct CompactInodeJob::S3CompactCtx ctx {
-        100, 1, PartitionInfo(), 4, 16, 0, s3adapter_.get()
+        100, 1, PartitionInfo(), 4, 16, 0, 0, s3adapter_.get()
     };
     struct CompactInodeJob::S3NewChunkInfo newChunkInfo {
         2, 0, 3
@@ -595,6 +595,7 @@ TEST_F(S3CompactTest, test_CompactChunks) {
         s3info->set_bucketname("4");
         s3info->set_blocksize(blockSize);
         s3info->set_chunksize(chunkSize);
+        s3info->set_objectprefix(0);
         return 0;
     };
 

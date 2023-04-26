@@ -35,6 +35,7 @@ class MetaserverS3AdaptorTest : public testing::Test {
         option.blockSize = 1 * 1024 * 1024;
         option.chunkSize = 4 * 1024 * 1024;
         option.batchSize = 5;
+        option.objectPrefix = 0;
         option.enableDeleteObjects = false;
         mockMetaserverS3Client_ = new MockS3Client();
         metaserverS3ClientAdaptor_ = new S3ClientAdaptorImpl();
@@ -206,6 +207,7 @@ TEST_F(MetaserverS3AdaptorTest, test_delete_batch_chunks) {
     option.blockSize = 1 * 1024 * 1024;
     option.chunkSize = 4 * 1024 * 1024;
     option.batchSize = 5;
+    option.objectPrefix = 0;
     option.enableDeleteObjects = true;
     metaserverS3ClientAdaptor_->Init(option, mockMetaserverS3Client_);
 
@@ -234,6 +236,7 @@ TEST_F(MetaserverS3AdaptorTest, test_delete_batch_idempotence) {
     option.blockSize = 1 * 1024 * 1024;
     option.chunkSize = 4 * 1024 * 1024;
     option.batchSize = 5;
+    option.objectPrefix = 0;
     option.enableDeleteObjects = true;
     metaserverS3ClientAdaptor_->Init(option, mockMetaserverS3Client_);
 
@@ -279,6 +282,7 @@ TEST_F(MetaserverS3AdaptorTest, test_delete_batch_deleted) {
     option.blockSize = 1 * 1024 * 1024;
     option.chunkSize = 4 * 1024 * 1024;
     option.batchSize = 5;
+    option.objectPrefix = 0;
     option.enableDeleteObjects = true;
     metaserverS3ClientAdaptor_->Init(option, mockMetaserverS3Client_);
 

@@ -44,6 +44,7 @@ const (
 	VIPER_CURVEBS_ETCDADDR       = "curvebs.etcdAddr"
 	CURVEBS_PATH                 = "path"
 	VIPER_CURVEBS_PATH           = "curvebs.path"
+	CURVEBS_DEFAULT_PATH         = "/"
 	CURVEBS_USER                 = "user"
 	VIPER_CURVEBS_USER           = "curvebs.root.user"
 	CURVEBS_DEFAULT_USER         = "root"
@@ -56,8 +57,6 @@ const (
 	VIPER_CURVEBS_FILENAME       = "curvebs.filename"
 	CURVEBS_FORCEDELETE          = "forcedelete"
 	CURVEBS_DEFAULT_FORCEDELETE  = false
-	CURVEBS_DIR                  = "dir"
-	VIPER_CURVEBS_DIR            = "curvebs.dir"
 	CURVEBS_LOGIC_POOL_ID        = "logicalpoolid"
 	VIPER_CURVEBS_LOGIC_POOL_ID  = "curvebs.logicalpoolid"
 	CURVEBS_COPYSET_ID           = "copysetid"
@@ -77,6 +76,14 @@ const (
 	CURVEBS_STRIPE_COUNT         = "stripecount"
 	VIPER_CURVEBS_STRIPE_COUNT   = "curvebs.stripecount"
 	CURVEBS_DEFAULT_STRIPE_COUNT = uint64(32)
+	CURVEBS_LIMIT                = "limit"
+	VIPER_CURVEBS_LIMIT          = "curvebs.limit"
+	CURVEBS_BURST                = "burst"
+	VIPER_CURVEBS_BURST          = "curvebs.burst"
+	CURVEBS_DEFAULT_BURST        = uint64(30000)
+	CURVEBS_BURST_LENGTH         = "burstlength"
+	VIPER_CURVEBS_BURST_LENGTH   = "curvebs.burstlength"
+	CURVEBS_DEFAULT_BURST_LENGTH = uint64(10)
 )
 
 var (
@@ -92,7 +99,6 @@ var (
 		CURVEBS_USER:          VIPER_CURVEBS_USER,
 		CURVEBS_PASSWORD:      VIPER_CURVEBS_PASSWORD,
 		CURVEBS_ETCDADDR:      VIPER_CURVEBS_ETCDADDR,
-		CURVEBS_DIR:           VIPER_CURVEBS_DIR,
 		CURVEBS_LOGIC_POOL_ID: VIPER_CURVEBS_LOGIC_POOL_ID,
 		CURVEBS_COPYSET_ID:    VIPER_CURVEBS_COPYSET_ID,
 		CURVEBS_PEERS_ADDRESS: VIPER_CURVEBS_PEERS_ADDRESS,
@@ -101,6 +107,9 @@ var (
 		CURVEBS_SIZE:          VIPER_CURVEBS_SIZE,
 		CURVEBS_STRIPE_UNIT:   VIPER_CURVEBS_STRIPE_UNIT,
 		CURVEBS_STRIPE_COUNT:  VIPER_CURVEBS_STRIPE_COUNT,
+		CURVEBS_LIMIT:         VIPER_CURVEBS_LIMIT,
+		CURVEBS_BURST:         VIPER_CURVEBS_BURST,
+		CURVEBS_BURST_LENGTH:  VIPER_CURVEBS_BURST_LENGTH,
 	}
 
 	BSFLAG2DEFAULT = map[string]interface{}{
@@ -111,6 +120,9 @@ var (
 		CURVEBS_SIZE:         CURVEBS_DEFAULT_SIZE,
 		CURVEBS_STRIPE_UNIT:  CURVEBS_DEFAULT_STRIPE_UNIT,
 		CURVEBS_STRIPE_COUNT: CURVEBS_DEFAULT_STRIPE_COUNT,
+		CURVEBS_BURST:        CURVEBS_DEFAULT_BURST,
+		CURVEBS_BURST_LENGTH: CURVEBS_DEFAULT_BURST_LENGTH,
+		CURVEBS_PATH:         CURVEBS_DEFAULT_PATH,
 	}
 )
 
@@ -155,6 +167,18 @@ func AddBsUint64OptionFlag(cmd *cobra.Command, name string, usage string) {
 		defaultValue = 0
 	}
 	cmd.Flags().Uint64(name, defaultValue.(uint64), usage)
+	err := viper.BindPFlag(BSFLAG2VIPER[name], cmd.Flags().Lookup(name))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
+func AddBsInt64OptionFlag(cmd *cobra.Command, name string, usage string) {
+	defaultValue := BSFLAG2DEFAULT[name]
+	if defaultValue == nil {
+		defaultValue = 0
+	}
+	cmd.Flags().Int64(name, defaultValue.(int64), usage)
 	err := viper.BindPFlag(BSFLAG2VIPER[name], cmd.Flags().Lookup(name))
 	if err != nil {
 		cobra.CheckErr(err)
@@ -220,10 +244,6 @@ func AddBsPasswordOptionFlag(cmd *cobra.Command) {
 	AddBsStringOptionFlag(cmd, CURVEBS_PASSWORD, "user password")
 }
 
-// dir
-func AddBsDirOptionFlag(cmd *cobra.Command) {
-	AddBsStringOptionFlag(cmd, CURVEBS_DIR, "directory path")
-}
 
 // etcd
 func AddBsEtcdAddrFlag(cmd *cobra.Command) {
@@ -240,6 +260,18 @@ func AddBsStripeUnitOptionFlag(cmd *cobra.Command) {
 
 func AddBsStripeCountOptionFlag(cmd *cobra.Command) {
 	AddBsUint64OptionFlag(cmd, CURVEBS_STRIPE_COUNT, "stripe volume count")
+}
+
+func AddBsBurstOptionFlag(cmd *cobra.Command) {
+	AddBsUint64OptionFlag(cmd, CURVEBS_BURST, "burst")
+}
+
+func AddBsBurstLengthOptionFlag(cmd *cobra.Command) {
+	AddBsUint64OptionFlag(cmd, CURVEBS_BURST_LENGTH, "burst length")
+}
+
+func AddBsPathOptionFlag(cmd *cobra.Command) {
+	AddBsStringOptionFlag(cmd, CURVEBS_PATH, "file or directory path")
 }
 
 // add flag required
@@ -288,6 +320,14 @@ func AddBsFileTypeRequiredFlag(cmd *cobra.Command) {
 	AddBsStringRequiredFlag(cmd, CURVEBS_TYPE, "file type, file or dir")
 }
 
+func AddBsThrottleTypeRequiredFlag(cmd *cobra.Command) {
+	AddBsStringRequiredFlag(cmd, CURVEBS_TYPE, "throttle type,  iops_total or iops_read or iops_write or bps_total or bps_read or bps_write")
+}
+
+func AddBsLimitRequiredFlag(cmd *cobra.Command) {
+	AddBsUint64RequiredFlag(cmd, CURVEBS_LIMIT, "limit")
+}
+
 // get stingslice flag
 func GetBsFlagStringSlice(cmd *cobra.Command, flagName string) []string {
 	var value []string
@@ -333,6 +373,16 @@ func GetBsFlagUint64(cmd *cobra.Command, flagName string) uint64 {
 		value, _ = cmd.Flags().GetUint64(flagName)
 	} else {
 		value = viper.GetUint64(BSFLAG2VIPER[flagName])
+	}
+	return value
+}
+
+func GetBsFlagInt64(cmd *cobra.Command, flagName string) int64 {
+	var value int64
+	if cmd.Flag(flagName).Changed {
+		value, _ = cmd.Flags().GetInt64(flagName)
+	} else {
+		value = viper.GetInt64(BSFLAG2VIPER[flagName])
 	}
 	return value
 }

@@ -98,6 +98,7 @@ class CompactInodeJob {
         uint64_t blockSize;
         uint64_t chunkSize;
         uint64_t s3adapterIndex;
+        uint32_t objectPrefix;
         S3Adapter* s3adapter;
     };
 
@@ -170,7 +171,8 @@ class CompactInodeJob {
         uint64_t inodeLen, uint64_t chunkSize);
     bool CompactPrecheck(const struct S3CompactTask& task, Inode* inode);
     S3Adapter* SetupS3Adapter(uint64_t fsid, uint64_t* s3adapterIndex,
-                              uint64_t* blockSize, uint64_t* chunkSize);
+                              uint64_t* blockSize, uint64_t* chunkSize,
+                              uint32_t* objectPrefix);
     void DeleteObjs(const std::vector<std::string>& objsAdded,
                     S3Adapter* s3adapter);
     std::list<struct Node> BuildValidList(
