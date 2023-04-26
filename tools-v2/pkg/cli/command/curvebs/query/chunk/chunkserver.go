@@ -24,7 +24,6 @@ package chunk
 import (
 	"context"
 	"fmt"
-	"strconv"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
@@ -79,8 +78,8 @@ func (cCmd *ChunkServerListInCoysetCommand) AddFlags() {
 	config.AddBsMdsFlagOption(cCmd.Cmd)
 	config.AddRpcRetryTimesFlag(cCmd.Cmd)
 	config.AddRpcTimeoutFlag(cCmd.Cmd)
-	config.AddBSLogicalPoolIdSliceRequiredFlag(cCmd.Cmd)
-	config.AddBSCopysetIdSliceRequiredFlag(cCmd.Cmd)
+	config.AddBsLogicalPoolIdSliceRequiredFlag(cCmd.Cmd)
+	config.AddBsCopysetIdSliceRequiredFlag(cCmd.Cmd)
 }
 
 func (cCmd *ChunkServerListInCoysetCommand) Init(cmd *cobra.Command, args []string) error {
@@ -95,24 +94,19 @@ func (cCmd *ChunkServerListInCoysetCommand) Init(cmd *cobra.Command, args []stri
 	if len(logicalpoolidList) != len(copysetidList) {
 		return fmt.Errorf("logicalpoolidList and copysetidList length not equal")
 	}
-
-	logicalpoolIds := make([]uint32, len(logicalpoolidList))
-	copysetIds := make([]uint32, len(copysetidList))
+	logicalpoolIds, errParse := cobrautil.StringList2Uint64List(logicalpoolidList)
+	if errParse != nil {
+		return fmt.Errorf("Parse logicalpoolid", logicalpoolidList, " fail!")
+	}
+	copysetIds, errParse := cobrautil.StringList2Uint64List(copysetidList)
+	if errParse != nil {
+		return fmt.Errorf("Parse copysetid", copysetidList, " fail!")
+	}
 	logicalpool2copysets := make(map[uint32][]uint32)
 	for i := 0; i < len(logicalpoolidList); i++ {
-		id, err := strconv.ParseUint(logicalpoolidList[i], 10, 32)
-		if err != nil {
-			return fmt.Errorf("converting %s to uint32 err: %s", logicalpoolidList[i], err.Error())
-		}
-		logicalpoolIds[i] = uint32(id)
-
-		id, err = strconv.ParseUint(copysetidList[i], 10, 32)
-		if err != nil {
-			return fmt.Errorf("converting %s to uint32 err: %s", copysetidList[i], err.Error())
-		}
-		copysetIds[i] = uint32(id)
-
-		logicalpool2copysets[logicalpoolIds[i]] = append(logicalpool2copysets[logicalpoolIds[i]], copysetIds[i])
+		lpid := logicalpoolIds[i]
+		cpid := copysetIds[i]
+		logicalpool2copysets[uint32(lpid)] = append(logicalpool2copysets[uint32(lpid)], uint32(cpid))
 	}
 
 	for logicalpoolId, copysetIds := range logicalpool2copysets {

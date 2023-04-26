@@ -85,7 +85,7 @@ func (cCmd *ChunkCommand) Init(cmd *cobra.Command, args []string) error {
 		return err.ToError()
 	}
 	config.AddBSLogicalPoolIdRequiredFlag(cCmd.Cmd)
-	config.AddBSCopysetIdSliceRequiredFlag(cCmd.Cmd)
+	config.AddBsCopysetIdSliceRequiredFlag(cCmd.Cmd)
 	cCmd.Cmd.ParseFlags([]string{
 		fmt.Sprintf("--%s", config.CURVEBS_LOGIC_POOL_ID),
 		fmt.Sprintf("%d", cCmd.LogicalpoolId),
