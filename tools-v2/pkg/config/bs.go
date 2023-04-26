@@ -129,13 +129,13 @@ var (
 		// bs
 		CURVEBS_USER:         CURVEBS_DEFAULT_USER,
 		CURVEBS_PASSWORD:     CURVEBS_DEFAULT_PASSWORD,
-		CURVEBS_FORCEDELETE:  CURVEBS_DEFAULT_FORCEDELETE,
 		CURVEBS_SIZE:         CURVEBS_DEFAULT_SIZE,
 		CURVEBS_STRIPE_UNIT:  CURVEBS_DEFAULT_STRIPE_UNIT,
 		CURVEBS_STRIPE_COUNT: CURVEBS_DEFAULT_STRIPE_COUNT,
 		CURVEBS_BURST:        CURVEBS_DEFAULT_BURST,
 		CURVEBS_BURST_LENGTH: CURVEBS_DEFAULT_BURST_LENGTH,
 		CURVEBS_PATH:         CURVEBS_DEFAULT_PATH,
+		CURVEBS_FORCE:        CURVEBS_DEFAULT_FORCE,
 	}
 )
 
@@ -302,14 +302,6 @@ func AddBsPathRequiredFlag(cmd *cobra.Command) {
 	AddBsStringRequiredFlag(cmd, CURVEBS_PATH, "file path")
 }
 
-func AddBsUsernameRequiredFlag(cmd *cobra.Command) {
-	AddBsStringRequiredFlag(cmd, CURVEBS_USER, "username")
-}
-
-func AddBsFilenameRequiredFlag(cmd *cobra.Command) {
-	AddBsStringRequiredFlag(cmd, CURVEBS_FILENAME, "the full path of file")
-}
-
 func AddBSLogicalPoolIdRequiredFlag(cmd *cobra.Command) {
 	AddBsUint32RequiredFlag(cmd, CURVEBS_LOGIC_POOL_ID, "logical pool id")
 }
@@ -327,7 +319,7 @@ func AddBSPeersConfFlag(cmd *cobra.Command) {
 }
 
 func AddBsForceDeleteOptionFlag(cmd *cobra.Command) {
-	AddBsBoolOptionFlag(cmd, CURVEBS_FORCEDELETE, "whether to force delete the file")
+	AddBsBoolOptionFlag(cmd, CURVEBS_FORCE, "whether to force delete the file")
 }
 
 func AddBsOffsetRequiredFlag(cmd *cobra.Command) {
@@ -480,4 +472,21 @@ func GetBsFlagInt32(cmd *cobra.Command, flagName string) int32 {
 		value = viper.GetInt32(BSFLAG2VIPER[flagName])
 	}
 	return value
+}
+
+// flag for clean recycle bin
+func AddBsRecyclePrefixOptionFlag(cmd *cobra.Command) {
+	AddBsStringOptionFlag(cmd, CURVEBS_RECYCLE_PREFIX, "recycle prefix (default \"\")")
+}
+
+func AddBsExpireTimeOptionFlag(cmd *cobra.Command) {
+	AddBsStringOptionFlag(cmd, CURVE_EXPIRED_TIME, "expire time (default 0s)")
+}
+
+func GetBsRecyclePrefix(cmd *cobra.Command) string {
+	return GetBsFlagString(cmd, CURVEBS_RECYCLE_PREFIX)
+}
+
+func GetBsExpireTime(cmd *cobra.Command) time.Duration {
+	return GetBsFlagDuration(cmd, CURVE_EXPIRED_TIME)
 }

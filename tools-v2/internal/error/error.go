@@ -411,6 +411,9 @@ var (
 	ErrBsUnknownThrottleType = func() *CmdError {
 		return NewInternalCmdError(50, "unknown throttle type[%s], only support: iops_total|iops_read|iops_write|bps_total|bps_read|bps_write")
 	}
+	ErrBsListDir = func() *CmdError {
+		return NewInternalCmdError(51, "list directory fail, err: %s")
+	}
 
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {
