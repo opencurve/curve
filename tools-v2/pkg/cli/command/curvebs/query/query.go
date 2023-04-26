@@ -41,7 +41,6 @@ func (queryCmd *QueryCommand) AddSubCommands() {
 		file.NewFileCommand(),
 		seginfo.NewSeginfoCommand(),
 		chunk.NewChunkCommand(),
-		chunk.NewChunkServerListCommand(),
 	)
 }
 
