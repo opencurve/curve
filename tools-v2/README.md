@@ -60,8 +60,7 @@ A tool for CurveFS & CurveBs.
     - [update](#update)
       - [update peer](#update-peer)
       - [update file](#update-file)
-    - [create](#create-1)
-      - [create file](#create-file)
+      - [update throttle](#update-throttle)
       - [create dir](#create-dir)
     - [clean-recycle](#clean-recycle)
   - [Comparison of old and new commands](#comparison-of-old-and-new-commands)
@@ -1119,6 +1118,23 @@ Output:
 +---------+
 ```
 
+#### update throttle
+
+update file throttle params
+
+Usage:
+```bash
+curve bs update throttle --path /test1 --type=bps_total --limit 20000
+
+Output:
+```
++---------+
+| RESULT  |
++---------+
+| success |
++---------+
+```
+
 ### create
 
 #### create file
@@ -1203,6 +1219,7 @@ Output:
 | remove-peer                      | curve bs delete peer       |
 | reset-peer                       | curve bs update peer       |
 | space                            | curve bs list space        |
+| update-throttle                  | curve bs update throttle   |
 | status                           |                            |
 | chunkserver-status               |                            |
 | client-status                    |                            |
@@ -1221,7 +1238,6 @@ Output:
 | check-operator                   |                            |
 | list-may-broken-vol              |                            |
 | set-copyset-availflag            |                            |
-| update-throttle                  |                            |
 | rapid-leader-schedule            |                            |
 | set-scan-state                   |                            |
 | scan-status                      |                            |

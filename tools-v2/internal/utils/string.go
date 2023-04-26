@@ -178,3 +178,15 @@ func Addr2IpPort(addr string) (string, uint32, *cmderror.CmdError) {
 	}
 	return ipPort[0], uint32(u64Port), cmderror.Success()
 }
+
+func StringList2Uint64List(strList []string) ([]uint64, error) {
+	retList := make([]uint64, 0)
+	for _, str := range strList {
+		v, err := strconv.ParseUint(str, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		retList = append(retList, v)
+	}
+	return retList, nil
+}
