@@ -54,9 +54,10 @@ A tool for CurveFS & CurveBs.
         - [query chunk](#query-chunk)
         - [query segment](#query-segment)
     - [status](#status-1)
-      - [staus etcd](#staus-etcd)
-      - [staus mds](#staus-mds)
+      - [status etcd](#status-etcd-1)
+      - [status mds](#status-mds-1)
       - [status client](#status-client)
+      - [status snapshotserver](#status-snapshotserver)
     - [delete](#delete-1)
       - [delete peer](#delete-peer)
     - [update](#update)
@@ -1011,7 +1012,7 @@ Output:
 
 ### status
 
-#### staus etcd
+#### status etcd
 
 get the etcd status of curvebs
 
@@ -1035,7 +1036,7 @@ Output:
 +---------------------+---------+----------+
 ```
 
-#### staus mds
+#### status mds
 
 get the mds status of curvebs
 
@@ -1059,6 +1060,7 @@ Output:
 +-------------------+-------------------+-------------------+----------+
 ```
 
+
 #### status client
 
 get the client status of curvebs
@@ -1080,6 +1082,31 @@ Output:
 |             |                | ***.***.**.***:**** |     |
 +-------------+----------------+---------------------+-----+
 ```
+
+#### status snapshotserver
+
+get the mds status of curvebs
+
+Usage:
+
+```bash
+curve bs status snapshotserver
+```
+
+Output:
+
+```bash
++---------------------+---------------------+-------------------+----------+
+|        ADDR         |      DUMMYADDR      |    VERSION        |  STATUS  |
++---------------------+---------------------+-------------------+----------+
+| ***.***.**.***:**** | ***.***.**.***:**** | ci+562296c7+debug | follower |
++---------------------+---------------------+                   +          +
+| ***.***.**.***:**** | ***.***.**.***:**** |                   |          |
++---------------------+---------------------+                   +----------+
+| ***.***.**.***:**** | ***.***.**.***:**** |                   | leader   |
++---------------------+---------------------+-------------------+----------+
+```
+
 
 ### delete
 
@@ -1273,6 +1300,8 @@ Output:
 | status                           |                            |
 | chunkserver-status               |                            |
 | snapshot-clone-status            |                            |
+| client-status                    | curve bs status client     |
+| snapshot-clone-status            | curve bs status snapshotserver |
 | copysets-status                  |                            |
 | chunkserver-list                 |                            |
 | cluster-status                   |                            |
