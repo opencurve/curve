@@ -495,9 +495,9 @@ int CopysetNode::on_snapshot_load(::braft::SnapshotReader *reader) {
 }
 
 void CopysetNode::on_leader_start(int64_t term) {
-    leaderTerm_.store(term, std::memory_order_release);
     ChunkServerMetric::GetInstance()->IncreaseLeaderCount();
     concurrentapply_->Flush();
+    leaderTerm_.store(term, std::memory_order_release);
     LOG(INFO) << "Copyset: " << GroupIdString()
               << ", peer id: " << peerId_.to_string()
               << " become leader, term is: " << leaderTerm_;
