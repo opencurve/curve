@@ -354,6 +354,7 @@ func GetRpcResponse(rpc *Rpc, rpcFunc RpcFunc) (interface{}, *cmderror.CmdError)
 }
 
 type RpcResult struct {
+	position int
 	Response interface{}
 	Error    *cmderror.CmdError
 }
@@ -367,21 +368,21 @@ func GetRpcListResponse(rpcList []*Rpc, rpcFunc []RpcFunc) ([]interface{}, []*cm
 	size := 0
 	for i := range rpcList {
 		size++
-		go func(rpc *Rpc, rpcFunc RpcFunc) {
+		go func(position int, rpc *Rpc, rpcFunc RpcFunc) {
 			res, err := GetRpcResponse(rpc, rpcFunc)
-			results <- RpcResult{res, err}
-		}(rpcList[i], rpcFunc[i])
+			results <- RpcResult{position, res, err}
+		}(i, rpcList[i], rpcFunc[i])
 	}
 
 	count := 0
-	var retRes []interface{}
+	retRes := make([]interface{}, chanSize)
 	var vecErrs []*cmderror.CmdError
 	for res := range results {
 		if res.Error.TypeCode() != cmderror.CODE_SUCCESS {
 			// get fail
 			vecErrs = append(vecErrs, res.Error)
 		} else {
-			retRes = append(retRes, res.Response)
+			retRes[res.position] = res.Response
 		}
 
 		count++

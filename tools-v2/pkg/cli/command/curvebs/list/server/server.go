@@ -138,6 +138,9 @@ func (pCmd *ServerCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	var errors []*cmderror.CmdError
 	rows := make([]map[string]string, 0)
 	for _, res := range results {
+		if res == nil {
+			continue
+		}
 		infos := res.(*topology.ListZoneServerResponse).GetServerInfo()
 		for _, info := range infos {
 			row := make(map[string]string)

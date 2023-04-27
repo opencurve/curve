@@ -122,6 +122,9 @@ func (pCmd *PoolZoneCommand) RunCommand(cmd *cobra.Command, args []string) error
 	}
 	var errors []*cmderror.CmdError
 	for _, res := range results {
+		if res == nil {
+			continue
+		}
 		info := res.(*topology.ListPoolZoneResponse)
 		if info.GetStatusCode() != int32(statuscode.TopoStatusCode_Success) {
 			err := cmderror.ErrBsListPoolZoneRpc(
