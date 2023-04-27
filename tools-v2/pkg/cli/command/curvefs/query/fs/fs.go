@@ -190,6 +190,9 @@ func (fCmd *FsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	}
 	var resList []interface{}
 	for _, result := range results {
+		if result == nil {
+			continue
+		}
 		response := result.(*mds.GetFsInfoResponse)
 		res, err := output.MarshalProtoJson(response)
 		if err != nil {
