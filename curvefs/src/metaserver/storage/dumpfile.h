@@ -29,6 +29,7 @@
 #include <utility>
 #include <condition_variable>
 
+#include "absl/strings/string_view.h"
 #include "curvefs/src/metaserver/storage/iterator.h"
 
 namespace curve {
@@ -174,11 +175,11 @@ class DumpFile {
     template <typename Int>
     DUMPFILE_ERROR SaveInt(Int num, off_t* offset, uint32_t* checkSum);
 
-    DUMPFILE_ERROR SaveString(const std::string& str,
+    DUMPFILE_ERROR SaveString(absl::string_view str,
                               off_t* offset,
                               uint32_t* checkSum);
 
-    DUMPFILE_ERROR SaveEntry(const std::string& entry,
+    DUMPFILE_ERROR SaveEntry(absl::string_view entry,
                              off_t* offset,
                              uint32_t* checkSum);
 
@@ -246,9 +247,9 @@ class DumpFileIterator : public Iterator {
 
     void Next() override;
 
-    std::string Key() override;
+    absl::string_view Key() override;
 
-    std::string Value() override;
+    absl::string_view Value() override;
 
     bool ParseFromValue(ValueType* value) override;
 

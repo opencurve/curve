@@ -28,6 +28,7 @@
 #include <string>
 #include <type_traits>
 
+#include "absl/strings/string_view.h"
 #include "curvefs/src/metaserver/storage/common.h"
 
 namespace curvefs {
@@ -81,6 +82,10 @@ class StorageKey {
 
     virtual std::string SerializeToString() const = 0;
     virtual bool ParseFromString(const std::string& value) = 0;
+
+    virtual bool ParseFromStringView(absl::string_view value) {
+      return ParseFromString(std::string(value));
+    }
 };
 
 /* rules for key serialization:
@@ -343,6 +348,22 @@ class Converter {
                   std::is_base_of<StorageKey, Entry>::value>::type>
     bool ParseFromString(const std::string& value, Entry* entry) {
         return entry->ParseFromString(value);
+    }
+
+    template <typename Entry,
+              typename = typename std::enable_if<
+                  std::is_base_of<google::protobuf::Message, Entry>::value ||
+                  std::is_base_of<StorageKey, Entry>::value>::type>
+    bool ParseFromStringView(absl::string_view value, Entry* entry) {
+        return entry->ParseFromStringView(value);
+    }
+
+    template <typename Entry,
+              typename = typename std::enable_if<
+                  std::is_base_of<google::protobuf::Message, Entry>::value ||
+                  std::is_base_of<StorageKey, Entry>::value>::type>
+    bool ParseFromArray(absl::string_view value, Entry* entry) {
+        return entry->ParseFromArray(value.data(), value.size());
     }
 };
 

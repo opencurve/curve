@@ -194,8 +194,8 @@ std::string RocksDBStorage::ToInternalKey(const std::string& name,
 }
 
 // extract user key from internal key: prefix:key => key
-std::string RocksDBStorage::ToUserKey(const std::string& ikey) {
-    return ikey.substr(GetKeyPrefixLength() + kDelimiter_.size());
+absl::string_view RocksDBStorage::ToUserKey(absl::string_view ikey_view) {
+    return ikey_view.substr(GetKeyPrefixLength() + kDelimiter_.size());
 }
 
 Status RocksDBStorage::Get(const std::string& name,

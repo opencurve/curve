@@ -133,8 +133,8 @@ void StorageFstreamTest::TestSave(std::shared_ptr<KVStorage> kvStorage,
     auto callback = [&](uint8_t version,
                         ENTRY_TYPE type,
                         uint32_t partitionId,
-                        const std::string& key,
-                        const std::string& value) {
+                        absl::string_view key,
+                        absl::string_view value) {
         if (version == 2) {
             nVersion++;
         }
@@ -241,8 +241,8 @@ TEST_F(StorageFstreamTest, MiscTest) {
         auto callback = [&](uint8_t version,
                             ENTRY_TYPE type,
                             uint32_t partitionId,
-                            const std::string& key,
-                            const std::string& value) {
+                            absl::string_view key,
+                            absl::string_view value) {
             return true;
         };
         bool succ = LoadFromFile("__not_found__", &dummyVersion, callback);
@@ -254,8 +254,8 @@ TEST_F(StorageFstreamTest, MiscTest) {
         auto callback = [&](uint8_t version,
                             ENTRY_TYPE type,
                             uint32_t partitionId,
-                            const std::string& key,
-                            const std::string& value) {
+                            absl::string_view key,
+                            absl::string_view value) {
             return false;
         };
         bool succ = LoadFromFile(pathname_, &dummyVersion, callback);

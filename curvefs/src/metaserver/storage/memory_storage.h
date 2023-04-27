@@ -177,11 +177,11 @@ class MemoryStorageIterator : public Iterator {
         current_++;
     }
 
-    std::string Key() override {
+    absl::string_view Key() override {
         return current_->first;
     }
 
-    std::string Value() override {
+    absl::string_view Value() override {
         return "";
     }
 
@@ -203,6 +203,8 @@ class MemoryStorageIterator : public Iterator {
 
 template<typename ContainerType>
 class UnorderedContainerIterator : public MemoryStorageIterator<ContainerType> {
+private:
+    std::string svalue_;
  public:
     using MemoryStorageIterator<ContainerType>::MemoryStorageIterator;
 
@@ -210,13 +212,13 @@ class UnorderedContainerIterator : public MemoryStorageIterator<ContainerType> {
         this->current_ = this->container_->begin();
     }
 
-    std::string Value() override {
-        std::string svalue;
+    absl::string_view Value() override {
+        svalue_.clear();
         auto message = this->current_->second.Message();
-        if (!message->SerializeToString(&svalue)) {
+        if (!message->SerializeToString(&svalue_)) {
             this->status_ = -1;
         }
-        return svalue;
+        return svalue_;
     }
 
     const ValueType* RawValue() const override {
@@ -240,7 +242,7 @@ public MemoryStorageIterator<ContainerType> {
         this->current_ = this->container_->begin();
     }
 
-    std::string Value() override {
+    absl::string_view Value() override {
         return this->current_->second;
     }
 
@@ -254,6 +256,8 @@ public MemoryStorageIterator<ContainerType> {
 
 template<typename ContainerType>
 class OrderedContainerIterator : public MemoryStorageIterator<ContainerType> {
+ private:
+    std::string svalue_;
  public:
     using MemoryStorageIterator<ContainerType>::MemoryStorageIterator;
 
@@ -261,13 +265,13 @@ class OrderedContainerIterator : public MemoryStorageIterator<ContainerType> {
         this->current_ = this->container_->lower_bound(this->prefix_);
     }
 
-    std::string Value() override {
-        std::string svalue;
+    absl::string_view Value() override {
+        svalue_.clear();
         auto message = this->current_->second.Message();
-        if (!message->SerializeToString(&svalue)) {
+        if (!message->SerializeToString(&svalue_)) {
             this->status_ = -1;
         }
-        return svalue;
+        return svalue_;
     }
 
     const ValueType* RawValue() const override {
@@ -291,7 +295,7 @@ public MemoryStorageIterator<ContainerType> {
         this->current_ = this->container_->lower_bound(this->prefix_);
     }
 
-    std::string Value() override {
+    absl::string_view Value() override {
         return this->current_->second;
     }
 

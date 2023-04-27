@@ -379,8 +379,7 @@ MetaStatusCode DentryStorage::List(const Dentry& dentry,
     time.start();
     for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
         seekTimes++;
-        std::string skey = iterator->Key();
-        std::string svalue = iterator->Value();
+        absl::string_view skey = iterator->Key();
         if (!StringStartWith(skey, sprefix)) {
             break;
         } else if (!iterator->ParseFromValue(&current)) {

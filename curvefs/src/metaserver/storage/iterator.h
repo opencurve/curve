@@ -27,6 +27,7 @@
 #include <vector>
 #include <memory>
 
+#include "absl/strings/string_view.h"
 #include "curvefs/src/metaserver/storage/common.h"
 
 namespace curvefs {
@@ -46,9 +47,9 @@ class Iterator {
 
     virtual void Next() = 0;
 
-    virtual std::string Key() = 0;
+    virtual absl::string_view Key() = 0;
 
-    virtual std::string Value() = 0;
+    virtual absl::string_view Value() = 0;
 
     virtual const ValueType* RawValue() const { return nullptr; }
 
@@ -92,11 +93,11 @@ class MergeIterator : public Iterator {
         FindCurrent();
     }
 
-    std::string Key() override {
+    absl::string_view Key() override {
         return current_->Key();
     }
 
-    std::string Value() override {
+    absl::string_view Value() override {
         return current_->Value();
     }
 
@@ -147,11 +148,11 @@ class ContainerIterator : public Iterator {
         iter_++;
     }
 
-    std::string Key() override {
+    absl::string_view Key() override {
         return iter_->first;
     }
 
-    std::string Value() override {
+    absl::string_view Value() override {
         return iter_->second;
     }
 

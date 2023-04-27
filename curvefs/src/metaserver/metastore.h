@@ -30,6 +30,7 @@
 #include <memory>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/common/rpc_stream.h"
 #include "curvefs/src/metaserver/copyset/snapshot_closure.h"
@@ -275,7 +276,7 @@ class MetaStoreImpl : public MetaStore {
 
     void PrepareStreamBuffer(butil::IOBuf* buffer,
                              uint64_t chunkIndex,
-                             const std::string& value);
+                             absl::string_view value);
 
     void SaveBackground(const std::string& path,
                         DumpFileClosure* child,

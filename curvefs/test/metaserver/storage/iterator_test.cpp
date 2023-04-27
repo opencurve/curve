@@ -49,8 +49,8 @@ class HashIterator : public Iterator {
     bool Valid() override { return iter_ != hash_->end(); }
     void SeekToFirst() override { iter_ = hash_->begin(); }
     void Next() override { iter_++; }
-    std::string Key() override { return iter_->first; }
-    std::string Value() override { return iter_->second; }
+    absl::string_view Key() override { return iter_->first; }
+    absl::string_view Value() override { return iter_->second; }
     bool ParseFromValue(ValueType* value) { return true; }
     int Status() override { return 0; }
 
@@ -171,7 +171,7 @@ TEST_F(IteratorTest, MergeIterator) {
         for (auto& hash : hashs) {
             children.push_back(std::make_shared<HashIterator>(&hash));
             for (const auto& item : hash) {
-                except.push_back(std::make_pair(item.first, item.second));
+                except.push_back(std::make_pair(std::string(item.first), std::string(item.second)));
             }
         }
 
@@ -179,7 +179,7 @@ TEST_F(IteratorTest, MergeIterator) {
         for (iter.SeekToFirst(); iter.Valid(); iter.Next()) {
             auto key = iter.Key();
             auto value = iter.Value();
-            out.push_back(std::make_pair(key, value));
+            out.push_back(std::make_pair(std::string(key), std::string(value)));
         }
 
         ASSERT_EQ(except, out);

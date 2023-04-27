@@ -216,20 +216,20 @@ DUMPFILE_ERROR DumpFile::SaveInt(Int num, off_t* offset, uint32_t* checkSum) {
     return retCode;
 }
 
-DUMPFILE_ERROR DumpFile::SaveString(const std::string& str,
+DUMPFILE_ERROR DumpFile::SaveString(absl::string_view str,
                                     off_t* offset,
                                     uint32_t* checkSum) {
     size_t length = str.size();
-    auto retCode = Write(str.c_str(), *offset, length);
+    auto retCode = Write(str.data(), *offset, length);
     if (retCode == DUMPFILE_ERROR::OK) {
         *offset = (*offset) + length;
-        *checkSum = CRC32(*checkSum, str.c_str(), length);
+        *checkSum = CRC32(*checkSum, str.data(), length);
     }
 
     return retCode;
 }
 
-DUMPFILE_ERROR DumpFile::SaveEntry(const std::string& entry,
+DUMPFILE_ERROR DumpFile::SaveEntry(absl::string_view entry,
                                    off_t* offset,
                                    uint32_t* checkSum) {
     auto retCode = SaveInt<uint32_t>(entry.size(), offset, checkSum);
@@ -613,11 +613,11 @@ void DumpFileIterator::Next() {
     iter_.second = value;
 }
 
-std::string DumpFileIterator::Key() {
+absl::string_view DumpFileIterator::Key() {
     return iter_.first;
 }
 
-std::string DumpFileIterator::Value() {
+absl::string_view DumpFileIterator::Value() {
     return iter_.second;
 }
 
