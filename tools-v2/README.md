@@ -55,6 +55,7 @@ A tool for CurveFS & CurveBs.
     - [status](#status-1)
       - [staus etcd](#staus-etcd)
       - [staus mds](#staus-mds)
+      - [status client](#status-client)
     - [delete](#delete-1)
       - [delete peer](#delete-peer)
     - [update](#update)
@@ -1012,7 +1013,7 @@ Output:
 
 #### staus etcd
 
-get the etcd status of curvefs
+get the etcd status of curvebs
 
 Usage:
 
@@ -1036,7 +1037,7 @@ Output:
 
 #### staus mds
 
-get the mds status of curvefs
+get the mds status of curvebs
 
 Usage:
 
@@ -1056,6 +1057,28 @@ Output:
 +-------------------+-------------------+                   +----------+
 | **.***.**.**:**** | **.***.**.**:**** |                   | leader   |
 +-------------------+-------------------+-------------------+----------+
+```
+
+#### status client
+
+get the client status of curvebs
+
+Usage:
+
+```bash
+curve bs status client
+```
+
+Output:
+
+```bash
++-------------+----------------+---------------------+-----+
+|    TYPE     |    VERSION     |        ADDR         | NUM |
++-------------+----------------+---------------------+-----+
+| nebd-server | 9.9.9+2c4861ca | ***.***.**.***:**** | 2   |
++             +                +---------------------+     +
+|             |                | ***.***.**.***:**** |     |
++-------------+----------------+---------------------+-----+
 ```
 
 ### delete
@@ -1247,7 +1270,7 @@ Output:
 | check-copyset                    | curve bs check copyset     |
 | status                           |                            |
 | chunkserver-status               |                            |
-| client-status                    |                            |
+| client-status                    | curve bs status client     |
 | snapshot-clone-status            |                            |
 | copysets-status                  |                            |
 | chunkserver-list                 |                            |
