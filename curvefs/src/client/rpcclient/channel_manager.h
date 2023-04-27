@@ -72,11 +72,6 @@ ChannelManager<T>::GetOrCreateChannel(const T &id,
     }
 
     curve::common::WriteLockGuard guard(rwlock_);
-    auto iter = channelPool_.find(id);
-    if (channelPool_.end() != iter) {
-        return iter->second;
-    }
-
     auto channel = std::make_shared<brpc::Channel>();
     if (0 != channel->Init(leaderAddr, nullptr)) {
         LOG(ERROR) << "failed to init channel to server, " << id << ", "
@@ -101,11 +96,6 @@ ChannelManager<T>::GetOrCreateStreamChannel(const T &id,
     }
 
     curve::common::WriteLockGuard guard(rwlock_);
-    auto iter = streamChannelPool_.find(id);
-    if (streamChannelPool_.end() != iter) {
-        return iter->second;
-    }
-
     // NOTE: we must sperate normal channel and streaming channel,
     // because the BRPC can't distinguish the normal RPC
     // with streaming RPC in one connection.
