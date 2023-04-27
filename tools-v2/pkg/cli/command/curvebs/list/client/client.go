@@ -149,11 +149,25 @@ func (pCmd *ClientCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	pCmd.TableNew.AppendBulk(list)
 	errRet := cmderror.MergeCmdError(errors)
 	pCmd.Error = errRet
-	pCmd.Result = results
+	pCmd.Result = rows
 	return nil
 }
 
 // ResultPlainOutput implements basecmd.FinalCurveCmdFunc
 func (pCmd *ClientCommand) ResultPlainOutput() error {
 	return output.FinalCmdOutputPlain(&pCmd.FinalCurveCmd)
+}
+
+func GetClientList(caller *cobra.Command) (*interface{}, *cmderror.CmdError) {
+	listClientCmd := NewListCLientCommand()
+	listClientCmd.Cmd.SetArgs([]string{
+		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
+	})
+	config.AlignFlagsValue(caller, listClientCmd.Cmd, []string{config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEBS_MDSADDR})
+	listClientCmd.Cmd.SilenceErrors = true
+	err := listClientCmd.Cmd.Execute()
+	if err != nil {
+		return nil, listClientCmd.Error
+	}
+	return &listClientCmd.Result, listClientCmd.Error
 }
