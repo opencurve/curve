@@ -132,6 +132,9 @@ func (pCmd *ClientCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	var errors []*cmderror.CmdError
 	rows := make([]map[string]string, 0)
 	for _, res := range results {
+		if res == nil {
+			continue
+		}
 		infos := res.(*nameserver2.ListClientResponse).GetClientInfos()
 		for _, info := range infos {
 			row := make(map[string]string)

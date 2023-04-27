@@ -168,6 +168,9 @@ func (pCmd *PartitionCommand) RunCommand(cmd *cobra.Command, args []string) erro
 	}
 	var resList []interface{}
 	for _, result := range results {
+		if result == nil {
+			continue
+		}
 		response := result.(*topology.ListPartitionResponse)
 		res, err := output.MarshalProtoJson(response)
 		if err != nil {

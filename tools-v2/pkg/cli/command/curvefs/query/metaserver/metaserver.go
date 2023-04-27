@@ -184,6 +184,9 @@ func (mCmd *MetaserverCommand) RunCommand(cmd *cobra.Command, args []string) err
 	}
 	var resList []interface{}
 	for _, result := range results {
+		if result == nil {
+			continue
+		}
 		response := result.(*topology.GetMetaServerInfoResponse)
 		res, err := output.MarshalProtoJson(response)
 		if err != nil {
