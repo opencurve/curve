@@ -64,6 +64,9 @@ A tool for CurveFS & CurveBs.
       - [update peer](#update-peer)
       - [update file](#update-file)
       - [update throttle](#update-throttle)
+      - [update leader](#update-leader)
+    - [create](#create-1)
+      - [create file](#create-file)
       - [create dir](#create-dir)
     - [check](#check-1)
       - [check copyset](#check-copyset-1)
@@ -1152,6 +1155,24 @@ Output:
 +----------------------+---------+---------+--------+
 ```
 
+#### update leader
+
+transfer leader
+
+Usage:
+```bash
+curve bs update leader 127.0.0.1:8202:0 --logicalpoolid=1 --copysetid=1 --peers=127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0
+```
+
+Output:
+```
++-----------------------+-----------------------+---------+---------+
+|        LEADER         |       OLDLEADER       | COPYSET | RESULT  |
++-----------------------+-----------------------+---------+---------+
+| ***.***.**.***:****:* | ***.***.**.***:****:* | (1:1)   | success |
++-----------------------+-----------------------+---------+---------+
+```
+
 #### update file
 
 expand pagefile
@@ -1177,6 +1198,7 @@ update file throttle params
 Usage:
 ```bash
 curve bs update throttle --path /test1 --type=bps_total --limit 20000
+```
 
 Output:
 ```
@@ -1277,6 +1299,7 @@ Output:
 
 ### curve bs
 
+<<<<<<< HEAD
 | old                                  | new                            |
 | ------------------------------------ | ------------------------------ |
 | curve_ops_tool logical-pool-list     | curve bs list logical-pool     |
@@ -1298,13 +1321,13 @@ Output:
 | curve_ops_tool client-status         | curve bs status client         |
 | curve_ops_tool check-operator        | curve bs check operator        |
 | curve_ops_tool snapshot-clone-status | curve bs status snapshotserver |
+| transfer-leader                      | curve bs update leader         |
 | curve_ops_tool status                |                                |
 | curve_ops_tool chunkserver-status    |                                |
 | curve_ops_tool copysets-status       |                                |
 | curve_ops_tool chunkserver-list      |                                |
 | curve_ops_tool clean-recycle         |                                |
 | curve_ops_tool check-consistency     |                                |
-| curve_ops_tool transfer-leader       |                                |
 | curve_ops_tool do-snapshot           |                                |
 | curve_ops_tool do-snapshot-all       |                                |
 | curve_ops_tool check-chunkserver     |                                |

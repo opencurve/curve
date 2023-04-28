@@ -57,6 +57,7 @@ const (
 	ROW_IP              = "ip"
 	ROW_KEY             = "key"
 	ROW_LEADER          = "leader"
+	ROW_OLDLEADER       = "oldLeader"
 	ROW_LEADER_PEER     = "leaderPeer"
 	ROW_LEFT            = "left"
 	ROW_LENGTH          = "length"
