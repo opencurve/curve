@@ -70,6 +70,9 @@ A tool for CurveFS & CurveBs.
       - [create dir](#create-dir)
     - [check](#check-1)
       - [check copyset](#check-copyset-1)
+    - [snapshot](#snapshot)
+      - [snapshot copyset](#snapshot-copyset)
+    - [clean-recycle](#clean-recycle)
   - [Comparison of old and new commands](#comparison-of-old-and-new-commands)
     - [curve fs](#curve-fs)
     - [curve bs](#curve-bs)
@@ -1269,6 +1272,26 @@ Output:
 +------------+-----------+--------+--------+--------+---------+
 ```
 
+### snapshot
+
+#### snapshot copyset
+
+take snapshot for copyset
+
+Usage:
+```bash
+curve bs snapshot copyset 127.0.0.0:8200:0 --logicalpoolid=1 --copysetid=1
+```
+
+Output:
+```
++-----------------------+---------+---------+
+|         PEER          | COPYSET | RESULT  |
++-----------------------+---------+---------+
+| ***.***.**.***:****:* | (**:**) | success |
++-----------------------+---------+---------+
+```
+
 ## Comparison of old and new commands
 
 ### curve fs
@@ -1299,6 +1322,7 @@ Output:
 
 ### curve bs
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 | old                              | new                        |
 | -------------------------------- | -------------------------- |
@@ -1396,6 +1420,8 @@ Output:
 >>>>>>> 4e73df5e... [feat]tools-v2: add space
 =======
 <<<<<<< HEAD
+=======
+>>>>>>> 3aa74350... [feat] tools-v2: add do-snapshot
 | old                                  | new                            |
 | ------------------------------------ | ------------------------------ |
 | curve_ops_tool logical-pool-list     | curve bs list logical-pool     |
@@ -1417,14 +1443,14 @@ Output:
 | curve_ops_tool client-status         | curve bs status client         |
 | curve_ops_tool check-operator        | curve bs check operator        |
 | curve_ops_tool snapshot-clone-status | curve bs status snapshotserver |
-| transfer-leader                      | curve bs update leader         |
+| curve_ops_tool transfer-leader       | curve bs update leader         |
+| curve_ops_tool do-snapshot           | curve bs snapshot copyset      |
 | curve_ops_tool status                |                                |
 | curve_ops_tool chunkserver-status    |                                |
 | curve_ops_tool copysets-status       |                                |
 | curve_ops_tool chunkserver-list      |                                |
 | curve_ops_tool clean-recycle         |                                |
 | curve_ops_tool check-consistency     |                                |
-| curve_ops_tool do-snapshot           |                                |
 | curve_ops_tool do-snapshot-all       |                                |
 | curve_ops_tool check-chunkserver     |                                |
 | curve_ops_tool check-server          |                                |
