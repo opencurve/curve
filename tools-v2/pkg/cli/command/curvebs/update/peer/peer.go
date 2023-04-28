@@ -42,7 +42,7 @@ import (
 )
 
 const (
-	updateExample = `$ curve bs update peer 127.0.0.0:8200:0 --logicalpoolid=1 --copysetid=1`
+	peerExample = `$ curve bs update peer 127.0.0.0:8200:0 --logicalpoolid=1 --copysetid=1`
 )
 
 type ResetRpc struct {
@@ -84,7 +84,7 @@ func NewPeerCommand() *cobra.Command {
 		FinalCurveCmd: basecmd.FinalCurveCmd{
 			Use:     "peer",
 			Short:   "update(reset) the peer from the copyset",
-			Example: updateExample,
+			Example: peerExample,
 		},
 	}
 	basecmd.NewFinalCurveCli(&peerCmd.FinalCurveCmd, peerCmd)
@@ -128,7 +128,7 @@ func (pCmd *PeerCommand) Init(cmd *cobra.Command, args []string) error {
 	pCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
 		pCmd.Header, []string{},
 	))
-	
+
 	var e *cmderror.CmdError
 
 	pCmd.opts.Timeout = config.GetFlagDuration(pCmd.Cmd, config.RPCTIMEOUT)
