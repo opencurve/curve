@@ -449,7 +449,14 @@ var (
 	ErrBsGetCopysetStatus = func() *CmdError {
 		return NewInternalCmdError(52, "get copyset status fail, err: %s")
 	}
+<<<<<<< HEAD
 >>>>>>> 202b2707... [feat]tools-v2: add check copyset
+=======
+	ErrBsOpNameNotSupport = func() *CmdError {
+		return NewInternalCmdError(53, "not support op[%s], only support: operator, change_peer, add_peer, remove_peer, transfer_leader")
+	}
+
+>>>>>>> daf9bb4e... [feat] tools-v2: add bs check-operator
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {
 		return NewHttpResultCmdError(1, "http response is unreadable, the uri is: %s, the error is: %s")
