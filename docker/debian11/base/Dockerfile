@@ -41,11 +41,8 @@ RUN echo "deb http://mirrors.163.com/debian/ bullseye main non-free contrib\n" \
     && wget https://curve-build.nos-eastchina1.126.net/curve-base.tar.gz \
     && tar -xzvf curve-base.tar.gz \
     && mv fusermount3 /usr/local/bin \
-    # && mv libetcdclient.so /usr/lib/ \
-    # && mv libfuse3.so libfuse3.so.3 libfuse3.so.3.10.5 libnl-3.so.200 libnl-genl-3.so.200 /usr/lib/x86_64-linux-gnu/ \
-    # && mv libjemalloc.so libjemalloc.so.1 libjemalloc.so.2 /usr/local/lib/ \
     && rm curve-base.tar.gz \
     && mkdir -p /core \
     && ln -sf /usr/lib/x86_64-linux-gnu/libjemalloc.so.2 /usr/local/lib/libjemalloc.so
 
-#  COPY libetcdclient.so /usr/lib/
+ COPY libetcdclient.so /usr/lib/
