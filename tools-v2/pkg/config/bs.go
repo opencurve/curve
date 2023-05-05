@@ -23,10 +23,9 @@ package config
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
-
-	"strconv"
 
 	"github.com/gookit/color"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
@@ -36,84 +35,93 @@ import (
 
 const (
 	// curvebs
-	CURVEBS_MDSADDR                 = "mdsaddr"
-	VIPER_CURVEBS_MDSADDR           = "curvebs.mdsAddr"
-	CURVEBS_MDSDUMMYADDR            = "mdsdummyaddr"
-	VIPER_CURVEBS_MDSDUMMYADDR      = "curvebs.mdsDummyAddr"
-	CURVEBS_ETCDADDR                = "etcdaddr"
-	VIPER_CURVEBS_ETCDADDR          = "curvebs.etcdAddr"
-	CURVEBS_PATH                    = "path"
-	VIPER_CURVEBS_PATH              = "curvebs.path"
-	CURVEBS_DEFAULT_PATH            = "/test"
-	CURVEBS_USER                    = "user"
-	VIPER_CURVEBS_USER              = "curvebs.root.user"
-	CURVEBS_DEFAULT_USER            = "root"
-	CURVEBS_PASSWORD                = "password"
-	VIPER_CURVEBS_PASSWORD          = "curvebs.root.password"
-	CURVEBS_DEFAULT_PASSWORD        = "root_password"
-	CURVEBS_CLUSTERMAP              = "clustermap"
-	VIPER_CURVEBS_CLUSTERMAP        = "curvebs.clustermap"
-	CURVEBS_FORCE                   = "force"
-	VIPER_CURVEBS_FORCE             = "curvebs.force"
-	CURVEBS_DEFAULT_FORCE           = false
-	CURVEBS_LOGIC_POOL_ID           = "logicalpoolid"
-	VIPER_CURVEBS_LOGIC_POOL_ID     = "curvebs.logicalpoolid"
-	CURVEBS_COPYSET_ID              = "copysetid"
-	VIPER_CURVEBS_COPYSET_ID        = "curvebs.copysetid"
-	CURVEBS_PEERS_ADDRESS           = "peers"
-	VIPER_CURVEBS_PEERS_ADDRESS     = "curvebs.peers"
-	CURVEBS_OFFSET                  = "offset"
-	VIPER_CURVEBS_OFFSET            = "curvebs.offset"
-	CURVEBS_SIZE                    = "size"
-	VIPER_CURVEBS_SIZE              = "curvebs.size"
-	CURVEBS_DEFAULT_SIZE            = uint64(10)
-	CURVEBS_TYPE                    = "type"
-	VIPER_CURVEBS_TYPE              = "curvebs.type"
-	CURVEBS_STRIPE_UNIT             = "stripeunit"
-	VIPER_CURVEBS_STRIPE_UNIT       = "curvebs.stripeunit"
-	CURVEBS_DEFAULT_STRIPE_UNIT     = "32 KiB"
-	CURVEBS_STRIPE_COUNT            = "stripecount"
-	VIPER_CURVEBS_STRIPE_COUNT      = "curvebs.stripecount"
-	CURVEBS_DEFAULT_STRIPE_COUNT    = uint64(32)
-	CURVEBS_RECYCLE_PREFIX          = "recycleprefix"
-	VIPER_RECYCLE_PREFIX            = "curvebs.recycleprefix"
-	CURVEBS_EXPIRED_TIME            = "expiredtime"
-	VIPER_CURVEBS_EXPIRED_TIME      = "curvebs.expiredtime"
-	CURVEBS_LIMIT                   = "limit"
-	VIPER_CURVEBS_LIMIT             = "curvebs.limit"
-	CURVEBS_BURST                   = "burst"
-	VIPER_CURVEBS_BURST             = "curvebs.burst"
-	CURVEBS_DEFAULT_BURST           = uint64(30000)
-	CURVEBS_BURST_LENGTH            = "burstlength"
-	VIPER_CURVEBS_BURST_LENGTH      = "curvebs.burstlength"
-	CURVEBS_DEFAULT_BURST_LENGTH    = uint64(10)
-	CURVEBS_OP                      = "op"
-	VIPER_CURVEBS_OP                = "curvebs.op"
-	CURVEBS_DEFAULT_OP              = "operator"
-	CURVEBS_CHECK_TIME              = "checktime"
-	VIPER_CURVEBS_CHECK_TIME        = "curvebs.checktime"
-	CURVEBS_DEFAULT_CHECK_TIME      = 30 * time.Second
-	CURVEBS_MARGIN                  = "margin"
-	VIPER_CURVEBS_MARGIN            = "curvebs.margin"
-	CURVEBS_DEFAULT_MARGIN          = uint64(1000)
-	CURVEBS_SNAPSHOTADDR            = "snapshotaddr"
-	VIPER_CURVEBS_SNAPSHOTADDR      = "curvebs.snapshotAddr"
-	CURVEBS_SNAPSHOTDUMMYADDR       = "snapshotdummyaddr"
-	VIPER_CURVEBS_SNAPSHOTDUMMYADDR = "curvebs.snapshotDummyAddr"
-	CURVEBS_SCAN                    = "scan"
-	VIPER_CURVEBS_SCAN              = "curvebs.scan"
-	CURVEBS_DEFAULT_SCAN            = true
-	CURVEBS_CHUNKSERVER_ID          = "chunkserverid"
-	VIPER_CHUNKSERVER_ID            = "curvebs.chunkserverid"
-	CURVEBS_DEFAULT_CHUNKSERVER_ID  = "*"
-	CURVEBS_CHECK_CSALIVE           = "checkalive"
-	VIPER_CURVEBS_CHECK_CSALIVE     = "curvebs.checkalive"
-	CURVEBS_CHECK_HEALTH            = "checkhealth"
-	VIPER_CURVEBS_CHECK_HEALTH      = "curvebs.checkHealth"
-	CURVEBS_CS_OFFLINE              = "offline"
-	VIPER_CURVEBS_CS_OFFLINE        = "curvebs.offline"
-	CURVEBS_CS_UNHEALTHY            = "unhealthy"
-	VIPER_CURVEBS_CS_UNHEALTHY      = "curvebs.unhealthy"
+	CURVEBS_MDSADDR                   = "mdsaddr"
+	VIPER_CURVEBS_MDSADDR             = "curvebs.mdsAddr"
+	CURVEBS_MDSDUMMYADDR              = "mdsdummyaddr"
+	VIPER_CURVEBS_MDSDUMMYADDR        = "curvebs.mdsDummyAddr"
+	CURVEBS_ETCDADDR                  = "etcdaddr"
+	VIPER_CURVEBS_ETCDADDR            = "curvebs.etcdAddr"
+	CURVEBS_PATH                      = "path"
+	VIPER_CURVEBS_PATH                = "curvebs.path"
+	CURVEBS_DEFAULT_PATH              = "/test"
+	CURVEBS_USER                      = "user"
+	VIPER_CURVEBS_USER                = "curvebs.root.user"
+	CURVEBS_DEFAULT_USER              = "root"
+	CURVEBS_PASSWORD                  = "password"
+	VIPER_CURVEBS_PASSWORD            = "curvebs.root.password"
+	CURVEBS_DEFAULT_PASSWORD          = "root_password"
+	CURVEBS_CLUSTERMAP                = "clustermap"
+	VIPER_CURVEBS_CLUSTERMAP          = "curvebs.clustermap"
+	CURVEBS_FORCE                     = "force"
+	VIPER_CURVEBS_FORCE               = "curvebs.force"
+	CURVEBS_DEFAULT_FORCE             = false
+	CURVEBS_LOGIC_POOL_ID             = "logicalpoolid"
+	VIPER_CURVEBS_LOGIC_POOL_ID       = "curvebs.logicalpoolid"
+	CURVEBS_COPYSET_ID                = "copysetid"
+	VIPER_CURVEBS_COPYSET_ID          = "curvebs.copysetid"
+	CURVEBS_PEERS_ADDRESS             = "peers"
+	VIPER_CURVEBS_PEERS_ADDRESS       = "curvebs.peers"
+	CURVEBS_OFFSET                    = "offset"
+	VIPER_CURVEBS_OFFSET              = "curvebs.offset"
+	CURVEBS_SIZE                      = "size"
+	VIPER_CURVEBS_SIZE                = "curvebs.size"
+	CURVEBS_DEFAULT_SIZE              = uint64(10)
+	CURVEBS_TYPE                      = "type"
+	VIPER_CURVEBS_TYPE                = "curvebs.type"
+	CURVEBS_STRIPE_UNIT               = "stripeunit"
+	VIPER_CURVEBS_STRIPE_UNIT         = "curvebs.stripeunit"
+	CURVEBS_DEFAULT_STRIPE_UNIT       = "32 KiB"
+	CURVEBS_STRIPE_COUNT              = "stripecount"
+	VIPER_CURVEBS_STRIPE_COUNT        = "curvebs.stripecount"
+	CURVEBS_DEFAULT_STRIPE_COUNT      = uint64(32)
+	CURVEBS_RECYCLE_PREFIX            = "recycleprefix"
+	VIPER_RECYCLE_PREFIX              = "curvebs.recycleprefix"
+	CURVEBS_EXPIRED_TIME              = "expiredtime"
+	VIPER_CURVEBS_EXPIRED_TIME        = "curvebs.expiredtime"
+	CURVEBS_LIMIT                     = "limit"
+	VIPER_CURVEBS_LIMIT               = "curvebs.limit"
+	CURVEBS_BURST                     = "burst"
+	VIPER_CURVEBS_BURST               = "curvebs.burst"
+	CURVEBS_DEFAULT_BURST             = uint64(30000)
+	CURVEBS_BURST_LENGTH              = "burstlength"
+	VIPER_CURVEBS_BURST_LENGTH        = "curvebs.burstlength"
+	CURVEBS_DEFAULT_BURST_LENGTH      = uint64(10)
+	CURVEBS_OP                        = "op"
+	VIPER_CURVEBS_OP                  = "curvebs.op"
+	CURVEBS_DEFAULT_OP                = "operator"
+	CURVEBS_CHECK_TIME                = "checktime"
+	VIPER_CURVEBS_CHECK_TIME          = "curvebs.checktime"
+	CURVEBS_DEFAULT_CHECK_TIME        = 30 * time.Second
+	CURVEBS_MARGIN                    = "margin"
+	VIPER_CURVEBS_MARGIN              = "curvebs.margin"
+	CURVEBS_DEFAULT_MARGIN            = uint64(1000)
+	CURVEBS_SNAPSHOTADDR              = "snapshotaddr"
+	VIPER_CURVEBS_SNAPSHOTADDR        = "curvebs.snapshotAddr"
+	CURVEBS_SNAPSHOTDUMMYADDR         = "snapshotdummyaddr"
+	VIPER_CURVEBS_SNAPSHOTDUMMYADDR   = "curvebs.snapshotDummyAddr"
+	CURVEBS_SCAN                      = "scan"
+	VIPER_CURVEBS_SCAN                = "curvebs.scan"
+	CURVEBS_DEFAULT_SCAN              = true
+	CURVEBS_CHUNKSERVER_ID            = "chunkserverid"
+	VIPER_CHUNKSERVER_ID              = "curvebs.chunkserverid"
+	CURVEBS_DEFAULT_CHUNKSERVER_ID    = "*"
+	CURVEBS_CHECK_CSALIVE             = "checkalive"
+	VIPER_CURVEBS_CHECK_CSALIVE       = "curvebs.checkalive"
+	CURVEBS_CHECK_HEALTH              = "checkhealth"
+	VIPER_CURVEBS_CHECK_HEALTH        = "curvebs.checkHealth"
+	CURVEBS_CS_OFFLINE                = "offline"
+	VIPER_CURVEBS_CS_OFFLINE          = "curvebs.offline"
+	CURVEBS_CS_UNHEALTHY              = "unhealthy"
+	VIPER_CURVEBS_CS_UNHEALTHY        = "curvebs.unhealthy"
+	CURVEBS_DRYRUN                    = "dryrun"
+	VIPER_CURVEBS_DRYRUN              = "curvebs.dryrun"
+	CURVEBS_DEFAULT_DRYRUN            = true
+	CURVEBS_AVAILFLAG                 = "availflag"
+	VIPER_CURVEBS_AVAILFLAG           = "curvebs.availflag"
+	CURVEBS_CHUNK_ID                  = "chunkid"
+	VIPER_CURVEBS_CHUNK_ID            = "curvebs.chunkid"
+	CURVEBS_CHUNKSERVER_ADDRESS       = "chunkserveraddr"
+	VIPER_CURVEBS_CHUNKSERVER_ADDRESS = "curvebs.chunkserverAddr"
 )
 
 var (
@@ -123,38 +131,42 @@ var (
 		RPCRETRYTIMES: VIPER_GLOBALE_RPCRETRYTIMES,
 
 		// bs
-		CURVEBS_MDSADDR:           VIPER_CURVEBS_MDSADDR,
-		CURVEBS_MDSDUMMYADDR:      VIPER_CURVEBS_MDSDUMMYADDR,
-		CURVEBS_PATH:              VIPER_CURVEBS_PATH,
-		CURVEBS_USER:              VIPER_CURVEBS_USER,
-		CURVEBS_PASSWORD:          VIPER_CURVEBS_PASSWORD,
-		CURVEBS_ETCDADDR:          VIPER_CURVEBS_ETCDADDR,
-		CURVEBS_LOGIC_POOL_ID:     VIPER_CURVEBS_LOGIC_POOL_ID,
-		CURVEBS_COPYSET_ID:        VIPER_CURVEBS_COPYSET_ID,
-		CURVEBS_PEERS_ADDRESS:     VIPER_CURVEBS_PEERS_ADDRESS,
-		CURVEBS_CLUSTERMAP:        VIPER_CURVEBS_CLUSTERMAP,
-		CURVEBS_OFFSET:            VIPER_CURVEBS_OFFSET,
-		CURVEBS_SIZE:              VIPER_CURVEBS_SIZE,
-		CURVEBS_STRIPE_UNIT:       VIPER_CURVEBS_STRIPE_UNIT,
-		CURVEBS_STRIPE_COUNT:      VIPER_CURVEBS_STRIPE_COUNT,
-		CURVEBS_LIMIT:             VIPER_CURVEBS_LIMIT,
-		CURVEBS_BURST:             VIPER_CURVEBS_BURST,
-		CURVEBS_BURST_LENGTH:      VIPER_CURVEBS_BURST_LENGTH,
-		CURVEBS_FORCE:             VIPER_CURVEBS_FORCE,
-		CURVEBS_TYPE:              VIPER_CURVEBS_TYPE,
-		CURVEBS_EXPIRED_TIME:      VIPER_CURVEBS_EXPIRED_TIME,
-		CURVEBS_RECYCLE_PREFIX:    VIPER_RECYCLE_PREFIX,
-		CURVEBS_MARGIN:            VIPER_CURVEBS_MARGIN,
-		CURVEBS_OP:                VIPER_CURVEBS_OP,
-		CURVEBS_CHECK_TIME:        VIPER_CURVEBS_CHECK_TIME,
-		CURVEBS_SNAPSHOTADDR:      VIPER_CURVEBS_SNAPSHOTADDR,
-		CURVEBS_SNAPSHOTDUMMYADDR: VIPER_CURVEBS_SNAPSHOTDUMMYADDR,
-		CURVEBS_SCAN:              VIPER_CURVEBS_SCAN,
-		CURVEBS_CHUNKSERVER_ID:    VIPER_CHUNKSERVER_ID,
-		CURVEBS_CHECK_CSALIVE:     VIPER_CURVEBS_CHECK_CSALIVE,
-		CURVEBS_CHECK_HEALTH:      VIPER_CURVEBS_CHECK_HEALTH,
-		CURVEBS_CS_OFFLINE:        VIPER_CURVEBS_CS_OFFLINE,
-		CURVEBS_CS_UNHEALTHY:      VIPER_CURVEBS_CS_UNHEALTHY,
+		CURVEBS_MDSADDR:             VIPER_CURVEBS_MDSADDR,
+		CURVEBS_MDSDUMMYADDR:        VIPER_CURVEBS_MDSDUMMYADDR,
+		CURVEBS_PATH:                VIPER_CURVEBS_PATH,
+		CURVEBS_USER:                VIPER_CURVEBS_USER,
+		CURVEBS_PASSWORD:            VIPER_CURVEBS_PASSWORD,
+		CURVEBS_ETCDADDR:            VIPER_CURVEBS_ETCDADDR,
+		CURVEBS_LOGIC_POOL_ID:       VIPER_CURVEBS_LOGIC_POOL_ID,
+		CURVEBS_COPYSET_ID:          VIPER_CURVEBS_COPYSET_ID,
+		CURVEBS_PEERS_ADDRESS:       VIPER_CURVEBS_PEERS_ADDRESS,
+		CURVEBS_CLUSTERMAP:          VIPER_CURVEBS_CLUSTERMAP,
+		CURVEBS_OFFSET:              VIPER_CURVEBS_OFFSET,
+		CURVEBS_SIZE:                VIPER_CURVEBS_SIZE,
+		CURVEBS_STRIPE_UNIT:         VIPER_CURVEBS_STRIPE_UNIT,
+		CURVEBS_STRIPE_COUNT:        VIPER_CURVEBS_STRIPE_COUNT,
+		CURVEBS_LIMIT:               VIPER_CURVEBS_LIMIT,
+		CURVEBS_BURST:               VIPER_CURVEBS_BURST,
+		CURVEBS_BURST_LENGTH:        VIPER_CURVEBS_BURST_LENGTH,
+		CURVEBS_FORCE:               VIPER_CURVEBS_FORCE,
+		CURVEBS_TYPE:                VIPER_CURVEBS_TYPE,
+		CURVEBS_EXPIRED_TIME:        VIPER_CURVEBS_EXPIRED_TIME,
+		CURVEBS_RECYCLE_PREFIX:      VIPER_RECYCLE_PREFIX,
+		CURVEBS_MARGIN:              VIPER_CURVEBS_MARGIN,
+		CURVEBS_OP:                  VIPER_CURVEBS_OP,
+		CURVEBS_CHECK_TIME:          VIPER_CURVEBS_CHECK_TIME,
+		CURVEBS_SNAPSHOTADDR:        VIPER_CURVEBS_SNAPSHOTADDR,
+		CURVEBS_SNAPSHOTDUMMYADDR:   VIPER_CURVEBS_SNAPSHOTDUMMYADDR,
+		CURVEBS_SCAN:                VIPER_CURVEBS_SCAN,
+		CURVEBS_CHUNKSERVER_ID:      VIPER_CHUNKSERVER_ID,
+		CURVEBS_CHECK_CSALIVE:       VIPER_CURVEBS_CHECK_CSALIVE,
+		CURVEBS_CHECK_HEALTH:        VIPER_CURVEBS_CHECK_HEALTH,
+		CURVEBS_CS_OFFLINE:          VIPER_CURVEBS_CS_OFFLINE,
+		CURVEBS_CS_UNHEALTHY:        VIPER_CURVEBS_CS_UNHEALTHY,
+		CURVEBS_DRYRUN:              VIPER_CURVEBS_DRYRUN,
+		CURVEBS_AVAILFLAG:           VIPER_CURVEBS_AVAILFLAG,
+		CURVEBS_CHUNK_ID:            VIPER_CURVEBS_CHUNK_ID,
+		CURVEBS_CHUNKSERVER_ADDRESS: VIPER_CURVEBS_CHUNKSERVER_ADDRESS,
 	}
 
 	BSFLAG2DEFAULT = map[string]interface{}{
@@ -173,6 +185,7 @@ var (
 		CURVEBS_CHECK_TIME:     CURVEBS_DEFAULT_CHECK_TIME,
 		CURVEBS_SCAN:           CURVEBS_DEFAULT_SCAN,
 		CURVEBS_CHUNKSERVER_ID: CURVEBS_DEFAULT_CHUNKSERVER_ID,
+		CURVEBS_DRYRUN:         CURVEBS_DEFAULT_DRYRUN,
 	}
 )
 
@@ -296,6 +309,19 @@ func AddBsUint32SliceOptionFlag(cmd *cobra.Command, name string, usage string) {
 	if err != nil {
 		cobra.CheckErr(err)
 	}
+}
+
+func AddBsBoolRequireFlag(cmd *cobra.Command, name string, usage string) {
+	cmd.Flags().Bool(name, false, usage+color.Red.Sprint("[required]"))
+	cmd.MarkFlagRequired(name)
+	err := viper.BindPFlag(BSFLAG2VIPER[name], cmd.Flags().Lookup(name))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
+func AddBsDryrunOptionFlag(cmd *cobra.Command) {
+	AddBsBoolOptionFlag(cmd, CURVEBS_DRYRUN, "when dry run set true, no changes will be made")
 }
 
 // add bs required flag
@@ -499,6 +525,18 @@ func AddBSCSOfflineOptionFlag(cmd *cobra.Command) {
 
 func AddBSCSUnhealthyOptionFlag(cmd *cobra.Command) {
 	AddBsBoolOptionFlag(cmd, CURVEBS_CS_UNHEALTHY, "unhealthy")
+}
+
+func AddBsAvailFlagRequireFlag(cmd *cobra.Command) {
+	AddBsBoolRequireFlag(cmd, CURVEBS_AVAILFLAG, "copysets available flag")
+}
+
+func AddBsChunkIdSliceRequiredFlag(cmd *cobra.Command) {
+	AddBsStringSliceRequiredFlag(cmd, CURVEBS_CHUNK_ID, "chunk ids")
+}
+
+func AddBsChunkServerAddressSliceRequiredFlag(cmd *cobra.Command) {
+	AddBsStringSliceRequiredFlag(cmd, CURVEBS_CHUNKSERVER_ADDRESS, "chunk server address")
 }
 
 // get stingslice flag

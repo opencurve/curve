@@ -23,6 +23,7 @@
 package update
 
 import (
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/update/copyset"
 	"github.com/spf13/cobra"
 
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -46,6 +47,7 @@ func (updateCmd *UpdateCommand) AddSubCommands() {
 		throttle.NewThrottleCommand(),
 		leader.NewleaderCommand(),
 		scan_state.NewScanStateCommand(),
+		copyset.NewCopysetCommand(),
 	)
 }
 

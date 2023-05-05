@@ -28,6 +28,7 @@ import (
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/query/chunkserver"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
 	"github.com/opencurve/curve/tools-v2/proto/proto/common"
@@ -92,7 +93,7 @@ func (cCmd *ChunkCommand) Init(cmd *cobra.Command, args []string) error {
 		fmt.Sprintf("--%s", config.CURVEBS_COPYSET_ID),
 		fmt.Sprintf("%d", cCmd.CopysetId),
 	})
-	key2Location, err := GetChunkServerListInCopySets(cCmd.Cmd)
+	key2Location, err := chunkserver.GetChunkServerListInCopySets(cCmd.Cmd)
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		return err.ToError()
 	}

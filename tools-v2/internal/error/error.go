@@ -477,10 +477,22 @@ var (
 		return NewInternalCmdError(60, "query chunkserver recover status fail, err: %s")
 	}
 	ErrBsListChunkServer = func() *CmdError {
-		return NewInternalCmdError(54, "list chunkserver fail, err: %s")
+		return NewInternalCmdError(61, "list chunkserver fail, err: %s")
 	}
+	ErrBsGetCopysetInChunkServer = func() *CmdError {
+		return NewInternalCmdError(62, "get copyset in chunkserver fail, err: %s")
+	}
+	ErrBsGetChunkInfo = func() *CmdError {
+		return NewInternalCmdError(63, "get chunk info fail, err: %s")
+	}
+	ErrBsGetUnavailCopysets = func() *CmdError {
+		return NewInternalCmdError(64, "get unavail copysets fail, err: %s")
+	}
+<<<<<<< HEAD
 
 >>>>>>> daf9bb4e... [feat] tools-v2: add bs check-operator
+=======
+>>>>>>> 26a51f0d... [feat]tools-v2: add update copyset availflag
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {
 		return NewHttpResultCmdError(1, "http response is unreadable, the uri is: %s, the error is: %s")
@@ -659,6 +671,18 @@ var (
 	}
 	ErrBsListPoolZoneRpc = func(statuscode bs_topo_statuscode.TopoStatusCode) *CmdError {
 		message := fmt.Sprintf("Rpc[ListPoolZone] faild status code: %s", statuscode.String())
+		return NewInternalCmdError(int(statuscode), message)
+	}
+	ErrBsGetChunkserverInClusterRpc = func(statuscode bs_topo_statuscode.TopoStatusCode) *CmdError {
+		message := fmt.Sprintf("Rpc[GetChunkserverInCluster] faild status code: %s", statuscode.String())
+		return NewInternalCmdError(int(statuscode), message)
+	}
+	ErrBsSetCopysetAvailFlagRpc = func(statuscode bs_topo_statuscode.TopoStatusCode) *CmdError {
+		message := fmt.Sprintf("Rpc[SetCopysetAvailFlag] faild status code: %s", statuscode.String())
+		return NewInternalCmdError(int(statuscode), message)
+	}
+	ErrBsGetCopysetInChunkServerRpc = func(statuscode bs_topo_statuscode.TopoStatusCode) *CmdError {
+		message := fmt.Sprintf("Rpc[GetCopySetsInChunkServer] faild status code: %s", statuscode.String())
 		return NewInternalCmdError(int(statuscode), message)
 	}
 
