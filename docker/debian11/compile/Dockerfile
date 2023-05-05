@@ -1,18 +1,17 @@
-FROM debian:9
+FROM debian:11
 
 ENV GITHUB_PROXY=https://ghproxy.com/
-ENV ETCD_VERSION=v3.4.0 \
+ENV ETCD_VERSION=v3.5.1 \
     DOWNLOAD_ETCD_URL=${GITHUB_PROXY}https://github.com/etcd-io/etcd/releases/download \
     GOPROXY=https://goproxy.io,direct \
     PROTOC_VERSION=21.8 \
     GO_VERSION=1.19.6 \
     PROTOC_GEN_GO_VERSION=v1.28 \
     PROTOC_GEN_GO_GRPC_VERSION=v1.2
-RUN echo "deb http://mirrors.163.com/debian/ stretch main\n" \
-    "deb http://mirrors.163.com/debian/ stretch-updates main non-free contrib\n" \
-    "deb-src http://mirrors.163.com/debian/ stretch-updates main non-free contrib\n" \
-    "deb http://mirrors.163.com/debian-security/ stretch/updates main non-free contrib\n" \
-    "deb http://httpredir.debian.org/debian stretch-backports main contrib non-free\n" \
+RUN echo "deb http://mirrors.163.com/debian/ bullseye main non-free contrib\n" \
+         "deb http://mirrors.163.com/debian/ bullseye-updates main non-free contrib\n" \
+         "deb http://mirrors.163.com/debian/ bullseye-backports main non-free contrib\n" \
+         "deb http://mirrors.163.com/debian-security/ stable-security main non-free contrib\n" \ 
     > /etc/apt/sources.list \
     && apt-get clean \
     && apt-get -y update \
@@ -26,16 +25,16 @@ RUN echo "deb http://mirrors.163.com/debian/ stretch main\n" \
     uuid-dev \
     libcurl4-gnutls-dev \
     libfiu-dev \
-    openjdk-8-jdk \
+    openjdk-11-jdk \
     sudo \
     python-dev \
     python-setuptools \
-    python-wheel \
     python3-dev \
     python3-setuptools \
     python3-wheel \
     zlib1g-dev \
     libsnappy-dev \
+    make \
     liblz4-dev \
     ca-certificates \
     curl \
@@ -86,7 +85,7 @@ RUN echo "deb http://mirrors.163.com/debian/ stretch main\n" \
     && ln -sf /usr/local/etcd/etcd /usr/bin/etcd && ln -sf /usr/local/etcd/etcdctl /usr/bin/etcdctl \
     && wget https://curve-build.nos-eastchina1.126.net/memcache/memcached-1.6.17.tar.gz \
     && tar xvf memcached-1.6.17.tar.gz && cd memcached-1.6.17/ \
-    && ./configure && make && make install \
+    && ./configure --disable-dependency-tracking && make && make install \
     && cd / && rm -rf memcached-1.6.17/ memcached-1.6.17.tar.gz \
     && wget https://curve-build.nos-eastchina1.126.net/curve-base.tar.gz \
     && tar -xzf curve-base.tar.gz \
@@ -99,10 +98,11 @@ RUN echo "deb http://mirrors.163.com/debian/ stretch main\n" \
     && tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz \
     && rm go${GO_VERSION}.linux-amd64.tar.gz \
     && export PATH=$PATH:/usr/local/go/bin \
+    && export GOPATH=/usr/local/go \
     && go env -w GO111MODULE=on && go env -w GOPROXY=https://goproxy.cn,direct \
     && wget ${GITHUB_PROXY}https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip \
     && unzip protoc-${PROTOC_VERSION}-linux-x86_64.zip "bin/protoc" -d /usr/ \
     && rm protoc-${PROTOC_VERSION}-linux-x86_64.zip \
     && go install google.golang.org/protobuf/cmd/protoc-gen-go@${PROTOC_GEN_GO_VERSION} \
     && go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@${PROTOC_GEN_GO_GRPC_VERSION}
-ENV PATH=$PATH:/usr/local/go/bin:/root/go/bin
+ENV PATH=$PATH:/usr/local/go/bin
