@@ -33,7 +33,7 @@ import (
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
-	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/query/chunk"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/query/chunkserver"
 	status "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/status/copyset"
 	fscopyset "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/check/copyset"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
@@ -103,7 +103,7 @@ func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("parse copysetid%v fail", copysetidList)
 	}
 
-	key2Location, err := chunk.GetChunkServerListInCopySets(cCmd.Cmd)
+	key2Location, err := chunkserver.GetChunkServerListInCopySets(cCmd.Cmd)
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		return err.ToError()
 	}
@@ -235,7 +235,6 @@ func (cCmd *CopysetCommand) RunCommand(cmd *cobra.Command, args []string) error 
 					} else {
 						explain += e.Message
 					}
-					errs = append(errs, e)
 				}
 			}
 			margin := config.GetMarginOptionFlag(cCmd.Cmd)
@@ -360,11 +359,12 @@ func CheckCopysets(caller *cobra.Command) (*map[uint64]cobrautil.ClUSTER_HEALTH_
 		config.CURVEBS_COPYSET_ID, config.CURVEBS_LOGIC_POOL_ID, config.CURVEBS_MARGIN,
 	})
 	cCmd.Cmd.SilenceErrors = true
+	cCmd.Cmd.SilenceUsage = true
 	err := cCmd.Cmd.Execute()
 	if err != nil {
 		retErr := cmderror.ErrCheckCopyset()
 		retErr.Format(err.Error())
 		return cCmd.Key2Health, retErr
 	}
-	return cCmd.Key2Health, cCmd.Error
+	return cCmd.Key2Health, cmderror.Success()
 }

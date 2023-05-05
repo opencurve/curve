@@ -61,7 +61,7 @@ func (lRpc *GetCopySetsInChunkServerRpc) Stub_Func(ctx context.Context) (interfa
 	return lRpc.topologyServiceClient.GetCopySetsInChunkServer(ctx, lRpc.Request)
 }
 
-func NewCopySetsInChenkServerCommand() *cobra.Command {
+func NewCopySetsInChunkServerCommand() *cobra.Command {
 	return NewGetCopySetsInCopySetCommand().Cmd
 }
 
