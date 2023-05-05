@@ -25,6 +25,7 @@ package check
 import (
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/check/copyset"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/check/operator"
 	"github.com/spf13/cobra"
 )
 
@@ -37,6 +38,7 @@ var _ basecmd.MidCurveCmdFunc = (*CheckCommand)(nil) // check interface
 func (checkCmd *CheckCommand) AddSubCommands() {
 	checkCmd.Cmd.AddCommand(
 		copyset.NewCopysetCommand(),
+		operator.NewOperatorCommand(),
 	)
 }
 
