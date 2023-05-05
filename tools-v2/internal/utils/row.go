@@ -111,6 +111,8 @@ const (
 	ROW_USED            = "used"
 	ROW_VERSION         = "version"
 	ROW_ZONE            = "zone"
+	ROW_AVAILFLAG       = "availFlag"
+	ROW_DRYRUN          = "dryrun"
 
 	ROW_RW_STATUS         = "rwStatus"
 	ROW_DISK_STATE        = "diskState"
@@ -141,6 +143,8 @@ const (
 	ROW_VALUE_RECOVERING_OUT = "recovering from out"
 	ROW_VALUE_SUCCESS        = "success"
 	ROW_VALUE_UNKNOWN        = "unknown"
+	ROW_VALUE_TRUE           = "true"
+	ROW_VALUE_FALSE          = "false"
 )
 
 // topology type

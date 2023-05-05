@@ -113,6 +113,9 @@ func NewFinalCurveCli(cli *FinalCurveCmd, funcs FinalCurveCmdFunc) *cobra.Comman
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
 			err := funcs.Init(cmd, args)
+			if cli.Cmd.Flag(config.VERBOSE) == nil {
+				cli.Cmd.PersistentFlags().BoolP(config.VERBOSE, "v", false, "verbose output")
+			}
 			show := config.GetFlagBool(cli.Cmd, config.VERBOSE)
 			process.SetShow(show)
 			if err != nil {

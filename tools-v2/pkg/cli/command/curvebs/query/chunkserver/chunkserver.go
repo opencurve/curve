@@ -19,7 +19,7 @@
 * Author: chengyi01
  */
 
-package chunk
+package chunkserver
 
 import (
 	"context"
