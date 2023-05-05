@@ -72,6 +72,7 @@ const (
 	ROW_NUM             = "num"
 	ROW_ONLINE_STATE    = "onlineState"
 	ROW_OPERATION       = "operation"
+	ROW_OPNAME          = "opname"
 	ROW_ORIGINAL_PATH   = "originalPath"
 	ROW_OWNER           = "owner"
 	ROW_PARENT          = "parent"

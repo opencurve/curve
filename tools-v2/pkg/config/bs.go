@@ -77,8 +77,8 @@ const (
 	CURVEBS_DEFAULT_STRIPE_COUNT = uint64(32)
 	CURVEBS_RECYCLE_PREFIX       = "recycleprefix"
 	VIPER_RECYCLE_PREFIX         = "curvebs.recycleprefix"
-	CURVE_EXPIRED_TIME           = "expiredtime"
-	VIPER_CURVE_EXPIRED_TIME     = "curvebs.expiredtime"
+	CURVEBS_EXPIRED_TIME         = "expiredtime"
+	VIPER_CURVEBS_EXPIRED_TIME   = "curvebs.expiredtime"
 	CURVEBS_LIMIT                = "limit"
 	VIPER_CURVEBS_LIMIT          = "curvebs.limit"
 	CURVEBS_BURST                = "burst"
@@ -87,6 +87,12 @@ const (
 	CURVEBS_BURST_LENGTH         = "burstlength"
 	VIPER_CURVEBS_BURST_LENGTH   = "curvebs.burstlength"
 	CURVEBS_DEFAULT_BURST_LENGTH = uint64(10)
+	CURVEBS_OP                   = "op"
+	VIPER_CURVEBS_OP             = "curvebs.op"
+	CURVEBS_DEFAULT_OP           = "operator"
+	CURVEBS_CHECK_TIME           = "checktime"
+	VIPER_CURVEBS_CHECK_TIME     = "curvebs.checktime"
+	CURVEBS_DEFAULT_CHECK_TIME   = 30 * time.Second
 	CURVEBS_MARGIN               = "margin"
 	VIPER_CURVEBS_MARGIN         = "curvebs.margin"
 	CURVEBS_DEFAULT_MARGIN       = uint64(1000)
@@ -118,9 +124,11 @@ var (
 		CURVEBS_BURST_LENGTH:   VIPER_CURVEBS_BURST_LENGTH,
 		CURVEBS_FORCE:          VIPER_CURVEBS_FORCE,
 		CURVEBS_TYPE:           VIPER_CURVEBS_TYPE,
-		CURVE_EXPIRED_TIME:     VIPER_CURVE_EXPIRED_TIME,
+		CURVEBS_EXPIRED_TIME:   VIPER_CURVEBS_EXPIRED_TIME,
 		CURVEBS_RECYCLE_PREFIX: VIPER_RECYCLE_PREFIX,
 		CURVEBS_MARGIN:         VIPER_CURVEBS_MARGIN,
+		CURVEBS_OP:             VIPER_CURVEBS_OP,
+		CURVEBS_CHECK_TIME:     VIPER_CURVEBS_CHECK_TIME,
 	}
 
 	BSFLAG2DEFAULT = map[string]interface{}{
@@ -135,6 +143,8 @@ var (
 		CURVEBS_PATH:         CURVEBS_DEFAULT_PATH,
 		CURVEBS_FORCE:        CURVEBS_DEFAULT_FORCE,
 		CURVEBS_MARGIN:       CURVEBS_DEFAULT_MARGIN,
+		CURVEBS_OP:           CURVEBS_DEFAULT_OP,
+		CURVEBS_CHECK_TIME:   CURVEBS_DEFAULT_CHECK_TIME,
 	}
 )
 
@@ -197,6 +207,18 @@ func AddBsInt64OptionFlag(cmd *cobra.Command, name string, usage string) {
 	}
 }
 
+func AddBsDurationOptionFlag(cmd *cobra.Command, name string, usage string) {
+	defaultValue := BSFLAG2DEFAULT[name]
+	if defaultValue == nil {
+		defaultValue = 0
+	}
+	cmd.Flags().Duration(name, defaultValue.(time.Duration), usage)
+	err := viper.BindPFlag(BSFLAG2VIPER[name], cmd.Flags().Lookup(name))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
 // add bs required flag
 func AddBsStringRequiredFlag(cmd *cobra.Command, name string, usage string) {
 	cmd.Flags().String(name, "", usage+color.Red.Sprint("[required]"))
@@ -230,6 +252,15 @@ func AddBsUint32RequiredFlag(cmd *cobra.Command, name string, usage string) {
 
 func AddBsUint64RequiredFlag(cmd *cobra.Command, name string, usage string) {
 	cmd.Flags().Uint64(name, uint64(0), usage+color.Red.Sprint("[required]"))
+	cmd.MarkFlagRequired(name)
+	err := viper.BindPFlag(BSFLAG2VIPER[name], cmd.Flags().Lookup(name))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
+func AddBsDurationRequiredFlag(cmd *cobra.Command, name string, usage string) {
+	cmd.Flags().Duration(name, 1*time.Second, usage+color.Red.Sprint("[required]"))
 	cmd.MarkFlagRequired(name)
 	err := viper.BindPFlag(BSFLAG2VIPER[name], cmd.Flags().Lookup(name))
 	if err != nil {
@@ -285,6 +316,10 @@ func AddBsPathOptionFlag(cmd *cobra.Command) {
 	AddBsStringOptionFlag(cmd, CURVEBS_PATH, "file or directory path")
 }
 
+func AddBsCheckTimeOptionFlag(cmd *cobra.Command) {
+	AddBsDurationOptionFlag(cmd, CURVEBS_CHECK_TIME, "check time")
+}
+
 // marigin
 func AddBsMarginOptionFlag(cmd *cobra.Command) {
 	AddUint64OptionFlag(cmd, CURVEBS_MARGIN, "the maximum gap between peers")
@@ -337,11 +372,15 @@ func AddBsFileTypeRequiredFlag(cmd *cobra.Command) {
 }
 
 func AddBsThrottleTypeRequiredFlag(cmd *cobra.Command) {
-	AddBsStringRequiredFlag(cmd, CURVEBS_TYPE, "throttle type,  iops_total or iops_read or iops_write or bps_total or bps_read or bps_write")
+	AddBsStringRequiredFlag(cmd, CURVEBS_TYPE, "throttle type, iops_total|iops_read|iops_write|bps_total|bps_read|bps_write")
 }
 
 func AddBsLimitRequiredFlag(cmd *cobra.Command) {
 	AddBsUint64RequiredFlag(cmd, CURVEBS_LIMIT, "limit")
+}
+
+func AddBsOpRequiredFlag(cmd *cobra.Command) {
+	AddBsStringRequiredFlag(cmd, CURVEBS_OP, "check operator name, operator|change_peer|add_peer|remove_peer|transfer_leader")
 }
 
 // get stingslice flag
@@ -473,7 +512,7 @@ func AddBsRecyclePrefixOptionFlag(cmd *cobra.Command) {
 }
 
 func AddBsExpireTimeOptionFlag(cmd *cobra.Command) {
-	AddBsStringOptionFlag(cmd, CURVE_EXPIRED_TIME, "expire time (default 0s)")
+	AddBsStringOptionFlag(cmd, CURVEBS_EXPIRED_TIME, "expire time (default 0s)")
 }
 
 func GetBsRecyclePrefix(cmd *cobra.Command) string {
@@ -481,5 +520,5 @@ func GetBsRecyclePrefix(cmd *cobra.Command) string {
 }
 
 func GetBsExpireTime(cmd *cobra.Command) time.Duration {
-	return GetBsFlagDuration(cmd, CURVE_EXPIRED_TIME)
+	return GetBsFlagDuration(cmd, CURVEBS_EXPIRED_TIME)
 }
