@@ -22,6 +22,7 @@
 package config
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -29,7 +30,6 @@ import (
 
 	"github.com/gookit/color"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -44,7 +44,7 @@ const (
 	VIPER_CURVEBS_ETCDADDR       = "curvebs.etcdAddr"
 	CURVEBS_PATH                 = "path"
 	VIPER_CURVEBS_PATH           = "curvebs.path"
-	CURVEBS_DEFAULT_PATH         = "/"
+	CURVEBS_DEFAULT_PATH         = "/test"
 	CURVEBS_USER                 = "user"
 	VIPER_CURVEBS_USER           = "curvebs.root.user"
 	CURVEBS_DEFAULT_USER         = "root"
@@ -147,6 +147,44 @@ var (
 		CURVEBS_CHECK_TIME:   CURVEBS_DEFAULT_CHECK_TIME,
 	}
 )
+
+const (
+	CURVEBS_OP_OPERATOR         = "operator"
+	CURVEBS_OP_CHANGE_PEER      = "change_peer"
+	CURVEBS_OP_ADD_PEER         = "add_peer"
+	CURVEBS_OP_REMOVE_PEER      = "remove_peer"
+	CURVEBS_OP_TRANSFER__LEADER = "transfer_leader"
+
+	CURVEBS_IOPS_TOTAL = "iops_total"
+	CURVEBS_IOPS_READ  = "iops_read"
+	CURVEBS_IOPS_WRITE = "iops_write"
+	CURVEBS_BPS_TOTAL  = "bps_total"
+	CURVEBS_BPS_READ   = "bps_read"
+	CURVEBS_BPS_WRITE  = "bps_write"
+)
+
+var (
+	CURVEBS_OP_VALUE_SLICE = []string{CURVEBS_OP_OPERATOR, CURVEBS_OP_CHANGE_PEER, CURVEBS_OP_ADD_PEER, CURVEBS_OP_REMOVE_PEER, CURVEBS_OP_TRANSFER__LEADER}
+
+	CURVEBS_THROTTLE_TYPE_SLICE = []string{CURVEBS_IOPS_TOTAL, CURVEBS_IOPS_READ, CURVEBS_IOPS_WRITE, CURVEBS_BPS_TOTAL, CURVEBS_BPS_READ, CURVEBS_BPS_WRITE}
+)
+
+var (
+	BS_STRING_FLAG2AVAILABLE = map[string][]string{
+		CURVEBS_OP:   CURVEBS_OP_VALUE_SLICE,
+		CURVEBS_TYPE: CURVEBS_THROTTLE_TYPE_SLICE,
+	}
+)
+
+func BsAvailableValueStr(flagName string) string {
+	ret := ""
+	if slice, ok := BS_STRING_FLAG2AVAILABLE[flagName]; ok {
+		ret = strings.Join(slice, "|")
+	} else if ret, ok = BSFLAG2DEFAULT[flagName].(string); !ok {
+		ret = ""
+	}
+	return ret
+}
 
 // curvebs
 // add bs option flag
@@ -372,7 +410,7 @@ func AddBsFileTypeRequiredFlag(cmd *cobra.Command) {
 }
 
 func AddBsThrottleTypeRequiredFlag(cmd *cobra.Command) {
-	AddBsStringRequiredFlag(cmd, CURVEBS_TYPE, "throttle type, iops_total|iops_read|iops_write|bps_total|bps_read|bps_write")
+	AddBsStringRequiredFlag(cmd, CURVEBS_TYPE, fmt.Sprintf("throttle type, %s", BsAvailableValueStr(CURVEBS_TYPE)))
 }
 
 func AddBsLimitRequiredFlag(cmd *cobra.Command) {
@@ -380,7 +418,7 @@ func AddBsLimitRequiredFlag(cmd *cobra.Command) {
 }
 
 func AddBsOpRequiredFlag(cmd *cobra.Command) {
-	AddBsStringRequiredFlag(cmd, CURVEBS_OP, "check operator name, operator|change_peer|add_peer|remove_peer|transfer_leader")
+	AddBsStringRequiredFlag(cmd, CURVEBS_OP, fmt.Sprintf("check operator name, %s", BsAvailableValueStr(CURVEBS_OP)))
 }
 
 // get stingslice flag
@@ -452,7 +490,7 @@ func GetBsAddrSlice(cmd *cobra.Command, addrType string) ([]string, *cmderror.Cm
 	}
 	addrslice := strings.Split(addrsStr, ",")
 	for _, addr := range addrslice {
-		if !cobrautil.IsValidAddr(addr) {
+		if !IsValidAddr(addr) {
 			err := cmderror.ErrGetAddr()
 			err.Format(addrType, addr)
 			return addrslice, err

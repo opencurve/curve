@@ -22,6 +22,19 @@
 
 package cobrautil
 
+import (
+	"github.com/opencurve/curve/tools-v2/pkg/config"
+	"github.com/spf13/pflag"
+)
+
 func IsAligned(value uint64, alignment uint64) bool {
 	return value&(alignment-1) == 0
+}
+
+func AvailableValueStr(flag *pflag.Flag, cmdtype cmdType) string {
+	switch cmdtype {
+	case BsCmd:
+		return config.BsAvailableValueStr(flag.Name)
+	}
+	return ""
 }

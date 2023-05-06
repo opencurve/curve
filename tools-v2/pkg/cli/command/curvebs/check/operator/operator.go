@@ -126,9 +126,9 @@ func (oCmd *OperatorCommand) ResultPlainOutput() error {
 func NewCheckOperatorCommand() *OperatorCommand {
 	operatorCmd := &OperatorCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
-			Use:     "operator",
-			Short:   "check the operators",
-			Example: operatorExample,
+			Use:   "operator",
+			Short: "check the operators",
+			// Example: operatorExample,
 		}}
 	basecmd.NewFinalCurveCli(&operatorCmd.FinalCurveCmd, operatorCmd)
 	return operatorCmd

@@ -71,6 +71,8 @@ func newCurveCommand() *cobra.Command {
 	config.AddShowErrorPFlag(rootCmd)
 	rootCmd.PersistentFlags().BoolP("verbose", "", false, "show some log")
 	viper.BindPFlag("useViper", rootCmd.PersistentFlags().Lookup("viper"))
+	// config.AddFormatFlag(rootCmd)
+	rootCmd.PersistentFlags().StringP("format", "f", config.FORMAT_PLAIN, "output format (json|plain)")
 
 	addSubCommands(rootCmd)
 	setupRootCommand(rootCmd)
