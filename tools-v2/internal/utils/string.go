@@ -38,7 +38,6 @@ import (
 )
 
 const (
-	IP_PORT_REGEX = "((\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5]):([0-9]|[1-9]\\d{1,3}|[1-5]\\d{4}|6[0-4]\\d{4}|65[0-4]\\d{2}|655[0-2]\\d|6553[0-5]))|(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])"
 	PATH_REGEX    = `^(/[^/ ]*)+/?$`
 	FS_NAME_REGEX = "^([a-z0-9]+\\-?)+$"
 	K_STRING_TRUE = "true"
@@ -46,14 +45,6 @@ const (
 	ROOT_PATH       = "/"
 	RECYCLEBIN_PATH = "/RecycleBin"
 )
-
-func IsValidAddr(addr string) bool {
-	matched, err := regexp.MatchString(IP_PORT_REGEX, addr)
-	if err != nil || !matched {
-		return false
-	}
-	return true
-}
 
 func IsValidFsname(fsName string) bool {
 	matched, err := regexp.MatchString(FS_NAME_REGEX, fsName)

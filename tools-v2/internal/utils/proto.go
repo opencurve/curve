@@ -212,15 +212,6 @@ func TranslateFileType(fileType string) (nameserver2.FileType, *cmderror.CmdErro
 	return nameserver2.FileType_INODE_DIRECTORY, retErr
 }
 
-const (
-	IOPS_TOTAL = "iops_total"
-	IOPS_READ  = "iops_read"
-	IOPS_WRITE = "iops_write"
-	BPS_TOTAL  = "bps_total"
-	BPS_READ   = "bps_read"
-	BPS_WRITE  = "bps_write"
-)
-
 func ParseThrottleType(typeStr string) (nameserver2.ThrottleType, *cmderror.CmdError) {
 	throttleType := nameserver2.ThrottleType_value[strings.ToUpper(typeStr)]
 	var retErr *cmderror.CmdError

@@ -35,10 +35,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-const (
-	throttleExample = `$ curve bs update throttle --path /test --throttleType iops_total|iops_read|iops_write|bps_total|bps_read|bps_write --limit 20000 [--burst 30000] [--burstlength 10]`
-)
-
 type UpdateFileThrottleRpc struct {
 	Info      *basecmd.Rpc
 	Request   *nameserver2.UpdateFileThrottleParamsRequest
@@ -68,7 +64,6 @@ func NewUpdateThrottleCommand() *ThrottleCommand {
 		FinalCurveCmd: basecmd.FinalCurveCmd{
 			Use:     "throttle",
 			Short:   "update file throttle params",
-			Example: throttleExample,
 		},
 	}
 	basecmd.NewFinalCurveCli(&throttleCmd.FinalCurveCmd, throttleCmd)
