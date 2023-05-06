@@ -50,6 +50,7 @@ A tool for CurveFS & CurveBs.
         - [list space](#list-space)
     - [query](#query-1)
         - [query file](#query-file)
+    - [clean-recycle](#clean-recycle)
         - [query chunk](#query-chunk)
         - [query segment](#query-segment)
     - [status](#status-1)
@@ -63,9 +64,8 @@ A tool for CurveFS & CurveBs.
       - [update file](#update-file)
       - [update throttle](#update-throttle)
       - [create dir](#create-dir)
-    - [clean-recycle](#clean-recycle)
     - [check](#check-1)
-      - [check copyset](#check-copyset)  
+      - [check copyset](#check-copyset-1)
   - [Comparison of old and new commands](#comparison-of-old-and-new-commands)
     - [curve fs](#curve-fs)
     - [curve bs](#curve-bs)
@@ -1321,9 +1321,10 @@ Output:
 | space                            | curve bs list space        |
 | update-throttle                  | curve bs update throttle   |
 | check-copyset                    | curve bs check copyset     |
+| client-status                    | curve bs status client     |
+| check-operator                   | curve bs check operator    |
 | status                           |                            |
 | chunkserver-status               |                            |
-| client-status                    | curve bs status client     |
 | snapshot-clone-status            |                            |
 | copysets-status                  |                            |
 | chunkserver-list                 |                            |
@@ -1335,7 +1336,6 @@ Output:
 | do-snapshot-all                  |                            |
 | check-chunkserver                |                            |
 | check-server                     |                            |
-| check-operator                   |                            |
 | list-may-broken-vol              |                            |
 | set-copyset-availflag            |                            |
 | rapid-leader-schedule            |                            |
