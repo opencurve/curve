@@ -102,8 +102,8 @@
 	 ROW_COPYSET                 = "copyset"
 	 ROW_LEADER                  = "leader"
 	 ROW_COPYSET_COUNT           = "copysetCount"
-	 ROW_UNHEALTHY_COPYSET_COUNT = "unhealthy_copyset_count"
-	 ROW_UNHEALTHY_COPYSET_RATIO = "unhealthy_copyset_ratio"
+	 ROW_UNHEALTHY_COPYSET_COUNT = "unhealthy copyset count"
+	 ROW_UNHEALTHY_COPYSET_RATIO = "unhealthy copyset ratio"
  
 	 // s3
 	 ROW_S3CHUNKINFO_CHUNKID = "s3ChunkId"
