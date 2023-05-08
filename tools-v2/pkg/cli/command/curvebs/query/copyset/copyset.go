@@ -37,25 +37,29 @@ import (
 	"google.golang.org/grpc"
 )
 
-type GetCoysetRpc struct {
+const (
+	copysetExample = `$ curve bs query copyset --copysetid 1 --logicalpoolid 1`
+)
+
+type GetCopysetRpc struct {
 	Info      *basecmd.Rpc
 	Request   *topology.GetCopysetRequest
 	mdsClient topology.TopologyServiceClient
 }
 
-var _ basecmd.RpcFunc = (*GetCoysetRpc)(nil) // check interface
+var _ basecmd.RpcFunc = (*GetCopysetRpc)(nil) // check interface
 
-func (gRpc *GetCoysetRpc) NewRpcClient(cc grpc.ClientConnInterface) {
+func (gRpc *GetCopysetRpc) NewRpcClient(cc grpc.ClientConnInterface) {
 	gRpc.mdsClient = topology.NewTopologyServiceClient(cc)
 }
 
-func (gRpc *GetCoysetRpc) Stub_Func(ctx context.Context) (interface{}, error) {
+func (gRpc *GetCopysetRpc) Stub_Func(ctx context.Context) (interface{}, error) {
 	return gRpc.mdsClient.GetCopyset(ctx, gRpc.Request)
 }
 
 type CopysetCommand struct {
 	CopysetInfoList []*common.CopysetInfo
-	Rpc             []*GetCoysetRpc
+	Rpc             []*GetCopysetRpc
 	basecmd.FinalCurveCmd
 }
 
@@ -63,7 +67,11 @@ var _ basecmd.FinalCurveCmdFunc = (*CopysetCommand)(nil) // check interface
 
 func NewQueryCopysetCommand() *CopysetCommand {
 	copysetCmd := &CopysetCommand{
-		FinalCurveCmd: basecmd.FinalCurveCmd{},
+		FinalCurveCmd: basecmd.FinalCurveCmd{
+			Use:     "copyset",
+			Short:   "query the copyset info",
+			Example: copysetExample,
+		},
 	}
 
 	basecmd.NewFinalCurveCli(&copysetCmd.FinalCurveCmd, copysetCmd)
@@ -105,7 +113,7 @@ func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
 	for i, logicalPool := range logicalpoolIds {
 		lpId := uint32(logicalPool)
 		cpId := uint32(copysetIds[i])
-		cCmd.Rpc = append(cCmd.Rpc, &GetCoysetRpc{
+		cCmd.Rpc = append(cCmd.Rpc, &GetCopysetRpc{
 			Info: basecmd.NewRpc(mdsAddrs, timeout, retrytimes, "GetCopyset"),
 			Request: &topology.GetCopysetRequest{
 				LogicalPoolId: &lpId,
@@ -113,6 +121,15 @@ func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
 			},
 		})
 	}
+
+	header := []string{
+		cobrautil.ROW_LOGICALPOOL,
+		cobrautil.ROW_COPYSET_ID,
+		cobrautil.ROW_SCAN,
+		"lastScanSec",
+		"lastScanConsistent",
+	}
+	cCmd.SetHeader(header)
 
 	return nil
 }
@@ -134,7 +151,7 @@ func (cCmd *CopysetCommand) RunCommand(cmd *cobra.Command, args []string) error 
 		return mergeErr.ToError()
 	}
 	for i, result := range results {
-		if result != nil {
+		if result == nil {
 			continue
 		}
 		res := result.(*topology.GetCopysetResponse)
@@ -147,6 +164,21 @@ func (cCmd *CopysetCommand) RunCommand(cmd *cobra.Command, args []string) error 
 		}
 	}
 	cCmd.Result = cCmd.CopysetInfoList
+	rows := make([]map[string]string, 0)
+	for _, info := range cCmd.CopysetInfoList {
+		row := make(map[string]string)
+		row[cobrautil.ROW_LOGICALPOOL] = fmt.Sprintf("%d", info.GetLogicalPoolId())
+		row[cobrautil.ROW_COPYSET_ID] = fmt.Sprintf("%d", info.GetCopysetId())
+		row[cobrautil.ROW_SCAN] = fmt.Sprintf("%v", info.GetScaning())
+		row["lastScanSec"] = fmt.Sprintf("%v", info.GetLastScanSec())
+		row["lastScanConsistent"] = fmt.Sprintf("%v", info.GetLastScanConsistent())
+		rows = append(rows, row)
+	}
+	list := cobrautil.ListMap2ListSortByKeys(rows, cCmd.Header, []string{
+		cobrautil.ROW_LOGICALPOOL,
+		cobrautil.ROW_COPYSET_ID,
+	})
+	cCmd.TableNew.AppendBulk(list)
 	cCmd.Error = cmderror.MergeCmdErrorExceptSuccess(errs)
 	return nil
 }
