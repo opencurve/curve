@@ -69,6 +69,7 @@ class ClientS3AdaptorTest : public testing::Test {
         option.flushIntervalSec = 5000;
         option.readCacheMaxByte = 104857600;
         option.writeCacheMaxByte = 10485760000;
+        option.readCacheThreads = 5;
         option.fuseMaxSize = 131072;
         option.chunkFlushThreads = 5;
         option.objectPrefix = 0;

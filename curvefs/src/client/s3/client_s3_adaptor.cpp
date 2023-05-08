@@ -100,6 +100,7 @@ S3ClientAdaptorImpl::Init(
               << ", flushIntervalSec: " << option.flushIntervalSec
               << ", writeCacheMaxByte: " << option.writeCacheMaxByte
               << ", readCacheMaxByte: " << option.readCacheMaxByte
+              << ", readCacheThreads: " << option.readCacheThreads
               << ", nearfullRatio: " << option.nearfullRatio
               << ", baseSleepUs: " << option.baseSleepUs;
     // start chunk flush threads

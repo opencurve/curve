@@ -36,12 +36,9 @@
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/client/error_code.h"
 #include "curvefs/src/client/s3/client_s3.h"
-#include "curvefs/src/client/common/common.h"
 #include "src/common/concurrent/concurrent.h"
-#include "src/common/timeutility.h"
-#include "curvefs/src/client/metric/client_metric.h"
+#include "src/common/concurrent/task_thread_pool.h"
 #include "curvefs/src/client/kvclient/kvclient_manager.h"
-#include "curvefs/src/client/kvclient/kvclient.h"
 #include "curvefs/src/client/inode_wrapper.h"
 
 using curve::common::ReadLockGuard;
@@ -70,7 +67,7 @@ using curvefs::metaserver::S3ChunkInfoList;
 
 enum CacheType { Write = 1, Read = 2 };
 
-enum class CachePoily {
+enum class CachePolicy {
     NCache,
     RCache,
     WRCache,
@@ -219,11 +216,11 @@ class DataCache : public std::enable_shared_from_this<DataCache> {
         uint64_t *chunkId, uint64_t *writeOffset);
 
     void FlushTaskExecute(
-        CachePoily cachePoily,
+        CachePolicy cachePolicy,
         const std::vector<std::shared_ptr<PutObjectAsyncContext>> &s3Tasks,
         const std::vector<std::shared_ptr<SetKVCacheTask>> &kvCacheTasks);
 
-    CachePoily GetCachePolicy(bool toS3);
+    CachePolicy GetCachePolicy(bool toS3);
 
  private:
     S3ClientAdaptorImpl *s3ClientAdaptor_;
@@ -335,10 +332,13 @@ class FileCacheManager {
  public:
     FileCacheManager(uint32_t fsid, uint64_t inode,
                      S3ClientAdaptorImpl *s3ClientAdaptor,
-                     std::shared_ptr<KVClientManager> kvClientManager)
+                     std::shared_ptr<KVClientManager> kvClientManager,
+                     std::shared_ptr<TaskThreadPool<>> threadPool)
         : fsId_(fsid), inode_(inode), s3ClientAdaptor_(s3ClientAdaptor),
-          kvClientManager_(std::move(kvClientManager)) {}
-    FileCacheManager() {}
+          kvClientManager_(std::move(kvClientManager)),
+          readTaskPool_(threadPool) {}
+    FileCacheManager() = default;
+    ~FileCacheManager() = default;
 
     ChunkCacheManagerPtr FindOrCreateChunkCacheManager(uint64_t index);
 
@@ -403,19 +403,41 @@ class FileCacheManager {
 
     // miss read from memory read/write cache, need read from
     // kv(localdisk/remote cache/s3)
-    int GenerateKVReuqest(const std::shared_ptr<InodeWrapper> &inodeWrapper,
+    int GenerateKVRequest(const std::shared_ptr<InodeWrapper> &inodeWrapper,
                           const std::vector<ReadRequest> &readRequest,
                           char *dataBuf, std::vector<S3ReadRequest> *kvRequest);
 
+    enum class ReadStatus {
+        OK = 0,
+        S3_READ_FAIL = -1,
+        S3_NOT_EXIST = -2,
+    };
+
+    ReadStatus toReadStatus(const int retCode) {
+        ReadStatus st = ReadStatus::OK;
+        if (retCode < 0) {
+            st = (retCode == -2) ? ReadStatus::S3_NOT_EXIST
+                                 : ReadStatus::S3_READ_FAIL;
+        }
+        return st;
+    }
+
     // read kv request, need
-    int ReadKVRequest(const std::vector<S3ReadRequest> &kvRequests,
-                      char *dataBuf, uint64_t fileLen);
+    ReadStatus ReadKVRequest(const std::vector<S3ReadRequest> &kvRequests,
+                             char *dataBuf, uint64_t fileLen);
+
+    // thread function for ReadKVRequest
+    void ProcessKVRequest(const S3ReadRequest &req, char *dataBuf,
+                          uint64_t fileLen,
+                          std::once_flag &cancelFlag,     // NOLINT
+                          std::atomic<bool> &isCanceled,  // NOLINT
+                          std::atomic<int> &retCode);     // NOLINT
 
     // read kv request from local disk cache
     bool ReadKVRequestFromLocalCache(const std::string &name, char *databuf,
                                      uint64_t offset, uint64_t len);
 
-    // read kv reuqest from remote cache like memcached
+    // read kv request from remote cache like memcached
     bool ReadKVRequestFromRemoteCache(const std::string &name, char *databuf,
                                       uint64_t offset, uint64_t length);
 
@@ -424,7 +446,7 @@ class FileCacheManager {
                              uint64_t offset, uint64_t length, int *ret);
 
     // read retry policy when read from s3 occur not exist error
-    int HandleReadS3NotExist(int ret, uint32_t retry,
+    int HandleReadS3NotExist(uint32_t retry,
                              const std::shared_ptr<InodeWrapper> &inodeWrapper);
 
     // prefetch for block
@@ -445,19 +467,24 @@ class FileCacheManager {
     std::set<std::string> downloadingObj_;
 
     std::shared_ptr<KVClientManager> kvClientManager_;
+    std::shared_ptr<TaskThreadPool<>> readTaskPool_;
 };
 
 class FsCacheManager {
  public:
     FsCacheManager(S3ClientAdaptorImpl *s3ClientAdaptor,
                    uint64_t readCacheMaxByte, uint64_t writeCacheMaxByte,
+                   uint32_t readCacheThreads,
                    std::shared_ptr<KVClientManager> kvClientManager)
         : lruByte_(0), wDataCacheNum_(0), wDataCacheByte_(0),
           readCacheMaxByte_(readCacheMaxByte),
           writeCacheMaxByte_(writeCacheMaxByte),
           s3ClientAdaptor_(s3ClientAdaptor), isWaiting_(false),
-          kvClientManager_(std::move(kvClientManager)) {}
-    FsCacheManager() {}
+          kvClientManager_(std::move(kvClientManager)) {
+        readTaskPool_->Start(readCacheThreads);
+    }
+    FsCacheManager() = default;
+    virtual ~FsCacheManager() { readTaskPool_->Stop(); }
     virtual FileCacheManagerPtr FindFileCacheManager(uint64_t inodeId);
     virtual FileCacheManagerPtr FindOrCreateFileCacheManager(uint64_t fsId,
                                                      uint64_t inodeId);
@@ -566,6 +593,9 @@ class FsCacheManager {
     ReadCacheReleaseExecutor releaseReadCache_;
 
     std::shared_ptr<KVClientManager> kvClientManager_;
+
+    std::shared_ptr<TaskThreadPool<>> readTaskPool_ =
+        std::make_shared<TaskThreadPool<>>();
 };
 
 }  // namespace client

@@ -146,6 +146,7 @@ class TestFuseS3Client : public ::testing::Test {
     }
 
     void InitOptionBasic(FuseClientOption *opt) {
+        opt->s3Opt.s3ClientAdaptorOpt.readCacheThreads = 2;
         opt->s3Opt.s3AdaptrOpt.asyncThreadNum = 1;
         opt->dummyServerStartPort = 5000;
         opt->maxNameLength = 20u;
