@@ -25,6 +25,7 @@ package query
 import (
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/query/chunk"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/query/copyset"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/query/file"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/query/seginfo"
 	"github.com/spf13/cobra"
@@ -41,6 +42,7 @@ func (queryCmd *QueryCommand) AddSubCommands() {
 		file.NewFileCommand(),
 		seginfo.NewSeginfoCommand(),
 		chunk.NewChunkCommand(),
+		copyset.NewCopysetCommand(),
 	)
 }
 
