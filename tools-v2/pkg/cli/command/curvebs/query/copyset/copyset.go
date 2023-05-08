@@ -37,25 +37,25 @@ import (
 	"google.golang.org/grpc"
 )
 
-type GetCoysetRpc struct {
+type GetCopysetRpc struct {
 	Info      *basecmd.Rpc
 	Request   *topology.GetCopysetRequest
 	mdsClient topology.TopologyServiceClient
 }
 
-var _ basecmd.RpcFunc = (*GetCoysetRpc)(nil) // check interface
+var _ basecmd.RpcFunc = (*GetCopysetRpc)(nil) // check interface
 
-func (gRpc *GetCoysetRpc) NewRpcClient(cc grpc.ClientConnInterface) {
+func (gRpc *GetCopysetRpc) NewRpcClient(cc grpc.ClientConnInterface) {
 	gRpc.mdsClient = topology.NewTopologyServiceClient(cc)
 }
 
-func (gRpc *GetCoysetRpc) Stub_Func(ctx context.Context) (interface{}, error) {
+func (gRpc *GetCopysetRpc) Stub_Func(ctx context.Context) (interface{}, error) {
 	return gRpc.mdsClient.GetCopyset(ctx, gRpc.Request)
 }
 
 type CopysetCommand struct {
 	CopysetInfoList []*common.CopysetInfo
-	Rpc             []*GetCoysetRpc
+	Rpc             []*GetCopysetRpc
 	basecmd.FinalCurveCmd
 }
 
@@ -105,7 +105,7 @@ func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
 	for i, logicalPool := range logicalpoolIds {
 		lpId := uint32(logicalPool)
 		cpId := uint32(copysetIds[i])
-		cCmd.Rpc = append(cCmd.Rpc, &GetCoysetRpc{
+		cCmd.Rpc = append(cCmd.Rpc, &GetCopysetRpc{
 			Info: basecmd.NewRpc(mdsAddrs, timeout, retrytimes, "GetCopyset"),
 			Request: &topology.GetCopysetRequest{
 				LogicalPoolId: &lpId,
@@ -134,7 +134,7 @@ func (cCmd *CopysetCommand) RunCommand(cmd *cobra.Command, args []string) error 
 		return mergeErr.ToError()
 	}
 	for i, result := range results {
-		if result != nil {
+		if result == nil {
 			continue
 		}
 		res := result.(*topology.GetCopysetResponse)
@@ -158,7 +158,7 @@ func (cCmd *CopysetCommand) ResultPlainOutput() error {
 func GetCopyset(caller *cobra.Command) ([]*common.CopysetInfo, *cmderror.CmdError) {
 	getCmd := NewQueryCopysetCommand()
 	config.AlignFlagsValue(caller, getCmd.Cmd, []string{
-		config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEBS_MDSADDR,
+		config.CURVEBS_MDSADDR, config.RPCRETRYTIMES, config.RPCTIMEOUT,
 		config.CURVEBS_LOGIC_POOL_ID, config.CURVEBS_COPYSET_ID,
 	})
 	getCmd.Cmd.SilenceErrors = true
@@ -166,7 +166,7 @@ func GetCopyset(caller *cobra.Command) ([]*common.CopysetInfo, *cmderror.CmdErro
 	getCmd.Cmd.SetArgs([]string{"--format", config.FORMAT_NOOUT})
 	err := getCmd.Cmd.Execute()
 	if err != nil {
-		retErr := cmderror.ErrBsCreateFileOrDirectoryType()
+		retErr := cmderror.ErrBsGetScanStatus()
 		retErr.Format(err.Error())
 		return getCmd.CopysetInfoList, retErr
 	}

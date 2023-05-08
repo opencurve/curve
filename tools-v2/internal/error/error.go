@@ -453,6 +453,13 @@ var (
 	ErrBsGetUnavailCopysets = func() *CmdError {
 		return NewInternalCmdError(64, "get unavail copysets fail, err: %s")
 	}
+	ErrBsGetScanStatus = func() *CmdError {
+		return NewInternalCmdError(65, "query scan-status fail, err: %s")
+	}
+	ErrBsListScanStatus = func() *CmdError {
+		return NewInternalCmdError(66, "list scan-status fail, err: %s")
+	}
+
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {
 		return NewHttpResultCmdError(1, "http response is unreadable, the uri is: %s, the error is: %s")
