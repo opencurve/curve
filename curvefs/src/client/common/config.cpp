@@ -175,6 +175,8 @@ void InitS3Option(Configuration *conf, S3Option *s3Opt) {
                               &s3Opt->s3ClientAdaptorOpt.writeCacheMaxByte);
     conf->GetValueFatalIfFail("s3.readCacheMaxByte",
                               &s3Opt->s3ClientAdaptorOpt.readCacheMaxByte);
+    conf->GetValueFatalIfFail("s3.readCacheThreads",
+                              &s3Opt->s3ClientAdaptorOpt.readCacheThreads);
     conf->GetValueFatalIfFail("s3.nearfullRatio",
                               &s3Opt->s3ClientAdaptorOpt.nearfullRatio);
     conf->GetValueFatalIfFail("s3.baseSleepUs",
