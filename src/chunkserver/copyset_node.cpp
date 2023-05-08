@@ -208,7 +208,10 @@ int CopysetNode::Run() {
                    << "Copyset: " << GroupIdString();
         return -1;
     }
-    syncThread_.Run();
+
+    if (!enableOdsyncWhenOpenChunkFile_) {
+        syncThread_.Run();
+    }
 
     LOG(INFO) << "Run copyset success."
               << "Copyset: " << GroupIdString();
