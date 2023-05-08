@@ -93,7 +93,7 @@ const (
 )
 
 func AddFormatFlag(cmd *cobra.Command) {
-	cmd.PersistentFlags().StringP("format", "f", FORMAT_PLAIN, "output format (json|plain)")
+	cmd.Flags().StringP("format", "f", FORMAT_PLAIN, "output format (json|plain)")
 	err := viper.BindPFlag("format", cmd.Flags().Lookup("format"))
 	if err != nil {
 		cobra.CheckErr(err)

@@ -125,6 +125,7 @@ func NewFinalCurveCli(cli *FinalCurveCmd, funcs FinalCurveCmdFunc) *cobra.Comman
 		},
 		SilenceUsage: false,
 	}
+	config.AddFormatFlag(cli.Cmd)
 	funcs.AddFlags()
 	cobrautil.SetFlagErrorFunc(cli.Cmd)
 
