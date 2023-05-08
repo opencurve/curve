@@ -489,10 +489,20 @@ var (
 		return NewInternalCmdError(64, "get unavail copysets fail, err: %s")
 	}
 <<<<<<< HEAD
+<<<<<<< HEAD
 
 >>>>>>> daf9bb4e... [feat] tools-v2: add bs check-operator
 =======
 >>>>>>> 26a51f0d... [feat]tools-v2: add update copyset availflag
+=======
+	ErrBsGetScanStatus = func() *CmdError {
+		return NewInternalCmdError(65, "query scan-status fail, err: %s")
+	}
+	ErrBsListScanStatus = func() *CmdError {
+		return NewInternalCmdError(66, "list scan-status fail, err: %s")
+	}
+
+>>>>>>> 4762448b... [curve/toos-v2]: add bs scan-status
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {
 		return NewHttpResultCmdError(1, "http response is unreadable, the uri is: %s, the error is: %s")
