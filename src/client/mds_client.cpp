@@ -244,6 +244,8 @@ int MDSClient::MDSRPCExcutor::GetNextMDSIndex(bool needChangeMDS,
 int MDSClient::MDSRPCExcutor::ExcuteTask(int mdsindex,
                                          uint64_t rpcTimeOutMS,
                                          RPCFunc task) {
+    assert(mdsindex >= 0 &&
+           mdsindex < static_cast<int>(retryOpt_.addrs.size()));
     const std::string& mdsaddr = metaServerOpt_.mdsAddrs[mdsindex];
 
     brpc::Channel channel;
