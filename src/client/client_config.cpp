@@ -179,8 +179,14 @@ int ClientConfig::Init(const char* configpath) {
 
     std::vector<std::string> mdsAddr;
     common::SplitString(metaAddr, ",", &mdsAddr);
+    if (mdsAddr.empty()) {
+        LOG(ERROR) << "mds.listen.addr seems invalid or empty, `" << metaAddr
+                   << "`'";
+        return -1;
+    }
+
     fileServiceOption_.metaServerOpt.mdsAddrs.assign(mdsAddr.begin(),
-                                                        mdsAddr.end());
+                                                     mdsAddr.end());
     for (auto& addr : fileServiceOption_.metaServerOpt.mdsAddrs) {
         if (!curve::common::NetCommon::CheckAddressValid(addr)) {
             LOG(ERROR) << "address valid!";
