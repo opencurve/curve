@@ -184,6 +184,12 @@ int ClientConfig::Init(const std::string& configpath) {
 
     std::vector<std::string> mdsAddr;
     common::SplitString(metaAddr, ",", &mdsAddr);
+    if (mdsAddr.empty()) {
+        LOG(ERROR) << "mds.listen.addr seems invalid or empty, `" << metaAddr
+                   << "`'";
+        return -1;
+    }
+
     fileServiceOption_.metaServerOpt.rpcRetryOpt.addrs.assign(mdsAddr.begin(),
                                                         mdsAddr.end());
     for (auto& addr : fileServiceOption_.metaServerOpt.rpcRetryOpt.addrs) {
