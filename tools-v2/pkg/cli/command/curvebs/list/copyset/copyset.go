@@ -40,26 +40,26 @@ const (
 	copysetExample = `$ curve bs list copyset`
 )
 
-type ListCoysetRpc struct {
+type ListCopysetRpc struct {
 	Info      *basecmd.Rpc
 	Request   *topology.GetCopySetsInClusterRequest
 	mdsClient topology.TopologyServiceClient
 }
 
-var _ basecmd.RpcFunc = (*ListCoysetRpc)(nil) // check interface
+var _ basecmd.RpcFunc = (*ListCopysetRpc)(nil) // check interface
 
-func (gRpc *ListCoysetRpc) NewRpcClient(cc grpc.ClientConnInterface) {
+func (gRpc *ListCopysetRpc) NewRpcClient(cc grpc.ClientConnInterface) {
 	gRpc.mdsClient = topology.NewTopologyServiceClient(cc)
 }
 
-func (gRpc *ListCoysetRpc) Stub_Func(ctx context.Context) (interface{}, error) {
+func (gRpc *ListCopysetRpc) Stub_Func(ctx context.Context) (interface{}, error) {
 	return gRpc.mdsClient.GetCopySetsInCluster(ctx, gRpc.Request)
 }
 
 type CopysetCommand struct {
 	basecmd.FinalCurveCmd
 	Response *topology.GetCopySetsInClusterResponse
-	Rpc      *ListCoysetRpc
+	Rpc      *ListCopysetRpc
 }
 
 var _ basecmd.FinalCurveCmdFunc = (*CopysetCommand)(nil) // check interface
@@ -97,7 +97,7 @@ func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
 
 	// FilterScanning 赋值 true
 	fiterscanning := true
-	cCmd.Rpc = &ListCoysetRpc{
+	cCmd.Rpc = &ListCopysetRpc{
 		Info: basecmd.NewRpc(mdsAddrs, timeout, retrytimes, "ListCopyset"),
 		Request: &topology.GetCopySetsInClusterRequest{
 			FilterScaning: &fiterscanning,
