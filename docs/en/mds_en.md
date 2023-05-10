@@ -7,8 +7,8 @@
 MDS is the center node of the system, responsible for managing metadata, collecting cluster status data and scheduling. MDS consists of following components:
 
 - Topology: Managing topology metadata of the cluster
-- Nameserver: Managing file metadata
-- Copyset: Replica placement strategy
+- NameServer: Managing file metadata
+- CopySet: Replica placement strategy
 - Heartbeat: Receiving and replying to heartbeat message from chunkserver, collecting load status and copyset info of chunkserver
 - Schedule: Module for fault tolerance and load balance
 
@@ -26,13 +26,13 @@ Figure 1 shows the topological diagram of CURVE and the explanation of correspon
 	<font size=3>Figure 1: Topological diagram of CURVE</font>
 </p>
 
-**chunkserver**：A chunkserver is an abstraction of a physical disk (SSD in our scenario) in a server (physical), and disk is the service unit of chunkserver.
+**chunkserver**: A chunkserver is an abstraction of a physical disk (SSD in our scenario) in a server (physical), and disk is the service unit of chunkserver.
 
-**server:** Server represent an actual physical server, to one of which any chunkservers must belong.
+**server**: Server represent an actual physical server, to one of which any chunkservers must belong.
 
-**zone:** Zone is the unit of failure isolation. In common cases, servers (a physical machine) of different zones should at least be deployed under different racks. To become stricter for some scenarios, they should be deployed under different groups of racks (racks that share the same set of leaf switches). A server must be owned by a certain zone.
+**zone**: Zone is the unit of failure isolation. In common cases, servers (a physical machine) of different zones should at least be deployed under different racks. To become stricter for some scenarios, they should be deployed under different groups of racks (racks that share the same set of leaf switches). A server must be owned by a certain zone.
 
-**pool:** Pool is for implementing physical isolation of resources. Servers are not able to communicate across their pool. In the maintenance of the system, we can arrange a pool for a new set of machines, and extend the storage by pools. Extending storage by adding machines inside a pool is supported, but this is not recommended since it will affect the copyset number of every chunkserver.
+**pool**: Pool is for implementing physical isolation of resources. Servers are not able to communicate across their pool. In the maintenance of the system, we can arrange a pool for a new set of machines, and extend the storage by pools. Extending storage by adding machines inside a pool is supported, but this is not recommended since it will affect the copyset number of every chunkserver.
 
 Learned from the design of Ceph, CURVE introduced the concept of logical pool on top of a physical pool in order to satisfy the requirement of building a unified storage system. In our design, we support the coexist of block storage (based on multi-replica), online object storage (based on three replicas storage that support appends, to be implemented) and nearline object storage (based on Erasure Code storage that support appends, to be implemented).
 
@@ -100,7 +100,7 @@ Figure 5 demonstrates the relation between ChunkServer, Copyset and Chunk:
 
 ## Heartbeat
 
-Heartbeat is for data exchange between center node and data nodes, and it works in following ways:
+Heartbeat is for data exchange between center nodes and data nodes, and it works in following ways:
 
 	1. Monitor online status(online/offline) of chunkservers by regular heartbeats from chunkserver.
 	2. Record status information(disk capacity, disk load, copyset load etc.) reported by chunkservers for Ops tools.
@@ -123,7 +123,7 @@ On MDS side, heartbeat module consists of three parts:
 
 *ConfGenerator*: Forward info reported by copyset to scheduler, and fetch operations for copyset to execute.
 
-*HealthyChecker:* Update chunkserver status by checking the time gap between current time and the last heartbeat of a chunkserver.
+*HealthyChecker*: Update chunkserver status by checking the time gap between current time and the last heartbeat of a chunkserver.
 
 ##### Chunkserver side
 
@@ -144,8 +144,8 @@ System scheduling is for implementing auto fault tolerance and load balancing, w
 
 Figure 7 shows the structure of the scheduler module.
 
-**Coordinator:** Coordinator serves as the interface of the scheduler module. After receiving copyset info provided by heartbeats from chunkserver, coordinator will decide whether there's any configuration change for current copyset, and will distribute the change if there is.
+**Coordinator**: Coordinator serves as the interface of the scheduler module. After receiving copyset info provided by heartbeats from chunkserver, coordinator will decide whether there's any configuration change for current copyset, and will distribute the change if there is.
 
-**Task calculation：**Task calculation module is for generating tasks by calculating data of corresponding status. This module consists of a few regular tasks and a triggerable task. Regular tasks include CopySetScheduler, LeaderScheduler, ReplicaScheduler and RecoverScheduler. CopySetScheduler is the scheduler for copyset balancing, generating copysets immigration tasks according to their distribution. LeaderScheduler is the scheduler for leader balancing, which responsible for changing leader according to leaders' distribution. ReplicaScheduler is for scheduling replica number, managing the generation and deletion of replica by analysing current replica numbers of a copyset, while RecoverScheduler controls the immigration of copysets according to their liveness. For triggerable task, RapidLeaderScheduler is for quick leader balancing, triggered by external events, and generates multiple leader changing task at a time to make leaders of the cluster balance as quick as possible. Another two modules are TopoAdapter and CommonStrategy. The former one is for fetching data required by topology module, while the later one implements general strategies for adding and removing replica.
+**Task calculation**: Task calculation module is for generating tasks by calculating data of corresponding status. This module consists of a few regular tasks and a triggerable task. Regular tasks include CopySetScheduler, LeaderScheduler, ReplicaScheduler and RecoverScheduler. CopySetScheduler is the scheduler for copyset balancing, generating copysets immigration tasks according to their distribution. LeaderScheduler is the scheduler for leader balancing, which responsible for changing leader according to leaders' distribution. ReplicaScheduler is for scheduling replica number, managing the generation and deletion of replica by analysing current replica numbers of a copyset, while RecoverScheduler controls the immigration of copysets according to their liveness. For triggerable task, RapidLeaderScheduler is for quick leader balancing, triggered by external events, and generates multiple leader changing task at a time to make leaders of the cluster balance as quick as possible. Another two modules are TopoAdapter and CommonStrategy. The former one is for fetching data required by topology module, while the later one implements general strategies for adding and removing replica.
 
-**Task managing：**Task managing module manages tasks generated by task calculation module. Inside this module we can see components OperatorController, OperatorStateUpdate and Metric, responsible for fetching and storing tasks, updating status according to copyset info reported and measuring tasks number respectively.
+**Task managing**: Task managing module manages tasks generated by task calculation module. Inside this module we can see components OperatorController, OperatorStateUpdate and Metric, responsible for fetching and storing tasks, updating status according to copyset info reported and measuring tasks number respectively.

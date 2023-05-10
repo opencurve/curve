@@ -8,16 +8,15 @@
 
 MDS是中心节点，负责元数据管理、集群状态收集与调度。MDS包含以下几个部分：
 
-- Topoloy: 管理集群的 **topo 元数据**信息。
-- Nameserver: 管理**文件的元数据**信息。
-- Copyset: 副本放置策略。
-
+- Topology: 管理集群的 **topo 元数据**信息。
+- NameServer: 管理**文件的元数据**信息。
+- CopySet: 副本放置策略。
 - Heartbeat: 心跳模块。跟chunkserver进行交互，收集chunkserver上的负载信息，copyset信息等。
 - Schedule: 调度模块。用于自动容错和负载均衡。
 
 ## Topology
 
- topology用于管理和组织机器，利用底层机器的放置、网络的规划以面向业务提供如下功能和非功能需求。
+topology用于管理和组织机器，利用底层机器的放置、网络的规划以面向业务提供如下功能和非功能需求。
 
 1. **故障域的隔离**：比如副本的方式分布在不同机器，不同机架，或是不同的交换机下面。
 2. **隔离和共享**：不同用户的数据可以实现固定物理资源的隔离和共享。
@@ -26,13 +25,13 @@ curve整体的拓扑结构如下图：
 
 <img src="../images/mds-topology-all.png" alt="mds-topology-all.png" width="900">
 
-**chunkserver**：用于抽象描述物理服务器上的一块物理磁盘(SSD)，chunkserver以一块磁盘作为最小的服务单元。
+**chunkserver**: 用于抽象描述物理服务器上的一块物理磁盘(SSD)，chunkserver以一块磁盘作为最小的服务单元。
 
-**server:** 用于抽象描述一台物理服务器，chunkserver必须归属于server。
+**server**: 用于抽象描述一台物理服务器，chunkserver必须归属于server。
 
-**zone:** 故障隔离的基本单元，一般来说属于不同zone的机器至少是部署在不同的机架，再要求严格一点的话，属于不同zone的机器可以部署在不同机架组下面（一个机架组共享一组堆叠 leaf switch），一个server必须归属于一个zone。
+**zone**: 故障隔离的基本单元，一般来说属于不同zone的机器至少是部署在不同的机架，再要求严格一点的话，属于不同zone的机器可以部署在不同机架组下面（一个机架组共享一组堆叠 leaf switch），一个server必须归属于一个zone。
 
-**pool:** 用于实现对机器资源进行物理隔离，pool中server之间的交互仅限于pool之内的server。运维上，可以在上架一批新的机器的时候，规划一个全新的pool，以pool为单元进行物理资源的扩容（pool内扩容也可以支持，但是不建议pool内扩容，因为会影响每个chunkserver上的copyset的数量）。
+**pool**: 用于实现对机器资源进行物理隔离，pool中server之间的交互仅限于pool之内的server。运维上，可以在上架一批新的机器的时候，规划一个全新的pool，以pool为单元进行物理资源的扩容（pool内扩容也可以支持，但是不建议pool内扩容，因为会影响每个chunkserver上的copyset的数量）。
 
 借鉴ceph的设计，curve在如上物理pool之上又引入逻辑pool的概念，以实现统一存储系统的需求，即在单个存储系统中多副本PageFile支持块设备、三副本AppendFile（待开发）支持在线对象存储、AppendECFile（待开发）支持近线对象存储可以共存。
 
@@ -42,7 +41,7 @@ curve整体的拓扑结构如下图：
 
 通过结合curve的用户系统，LogicalPool可以通过配置限定特定user使用的方式，实现多个租户数据物理隔离（待开发）。
 
-**logicalPool**：用于在逻辑层面建立不同特性的pool，比如如上AppendECFile pool、AppendEC pool 、PageFile pool；实现user级别的数据隔离和共享。
+**logicalPool**: 用于在逻辑层面建立不同特性的pool，比如如上AppendECFile pool、AppendEC pool 、PageFile pool；实现user级别的数据隔离和共享。
 
 ## NameServer
 
@@ -94,7 +93,7 @@ ChunkServer，Copyset和Chunk三者之间的关系如下图：
 
 ​	3.	通过上述信息的定期更新，作为schedule 模块进行均衡及配置变更的依据
 
-​	4.	通过chunkserver定期上报copyset的copyset的epoch， 检测chunkserver的copyset与mds差异，同步两者的copyset信息
+​	4.	通过chunkserver定期上报copyset的epoch，检测chunkserver的copyset与mds差异，同步两者的copyset信息
 
 ​	5.	支持配置变更功能，在心跳回复报文中下发mds发起的配置变更命令，并在后续心跳中获取配置变更进度。
 
@@ -106,19 +105,19 @@ ChunkServer，Copyset和Chunk三者之间的关系如下图：
 
 mds 端的心跳主要由三个部分组成：
 
-*TopoUpdater:*  根据 chunkserver 上报的 copyset 信息更新拓扑中的信息。
+*TopoUpdater*: 根据 chunkserver 上报的 copyset 信息更新拓扑中的信息。
 
-*ConfGenerator:* 将当前上报的 copyset 信息提交给调度模块，获取该 copyset 上可能需要执行的任务。
+*ConfGenerator*: 将当前上报的 copyset 信息提交给调度模块，获取该 copyset 上可能需要执行的任务。
 
-*HealthyChecker:* 检查集群中的 chunkserver 在当前时间点距离上一次心跳的时间，根据这个时间差更新chunkserver状态。
+*HealthyChecker*: 检查集群中的 chunkserver 在当前时间点距离上一次心跳的时间，根据这个时间差更新chunkserver状态。
 
 ##### Chunkserver端
 
 chunkserver 端的心跳由两个部分组成：
 
-*ChunkServerInfo/CopySetInfo：* 获取当前 chunkserver 上的 copyset 信息上报给 MDS。
+*ChunkServerInfo/CopySetInfo*: 获取当前 chunkserver 上的 copyset 信息上报给 MDS。
 
-*Order ConfigChange:* 将 MDS 下发的任务提交给对应的 copyset 复制组。
+*Order ConfigChange*: 将 MDS 下发的任务提交给对应的 copyset 复制组。
 
 ## Schedule
 
@@ -130,9 +129,9 @@ chunkserver 端的心跳由两个部分组成：
 
 
 
-**Coordinator:** 调度模块的对外接口。心跳会将chunkserver上报上来的copyset信息提交给Coordinator，内部根据该信息判断当前copyset是否有配置变更任务执行，如果有任务则下发。
+**Coordinator**: 调度模块的对外接口。心跳会将chunkserver上报上来的copyset信息提交给Coordinator，内部根据该信息判断当前copyset是否有配置变更任务执行，如果有任务则下发。
 
-**任务计算：** 任务计算模块包含了多个*定时任务* 和 *触发任务*。*定时任务* 中，``CopySetScheduler`` 是copyset均衡调度器，根据集群中copyset的分布情况生成copyset迁移任务；``LeaderScheduler`` 是leader均衡调度器，根据集群中leader的分布情况生成leader变更任务；``ReplicaScheduler`` 是副本数量调度器，根据当前copyset的副本数生成副本增删任务；``RecoverScheduler`` 是恢复调度器，根据当前copyset副本的存活状态生成迁移任务。*触发任务* 中，``RapidLeaderScheduler`` 是快速leader均衡器，由外部触发，一次生成多个leader变更任务，使得集群的leader尽快大达到均衡状态。``TopoAdapter`` 用于获取Topology中调度需要使用的数据。``Common Strategy`` 中是通用的副本添加和移除策略。
+**任务计算**: 任务计算模块包含了多个*定时任务* 和 *触发任务*。*定时任务* 中，``CopySetScheduler`` 是copyset均衡调度器，根据集群中copyset的分布情况生成copyset迁移任务；``LeaderScheduler`` 是leader均衡调度器，根据集群中leader的分布情况生成leader变更任务；``ReplicaScheduler`` 是副本数量调度器，根据当前copyset的副本数生成副本增删任务；``RecoverScheduler`` 是恢复调度器，根据当前copyset副本的存活状态生成迁移任务。*触发任务* 中，``RapidLeaderScheduler`` 是快速leader均衡器，由外部触发，一次生成多个leader变更任务，使得集群的leader尽快达到均衡状态。``TopoAdapter`` 用于获取Topology中调度需要使用的数据。``Common Strategy`` 中是通用的副本添加和移除策略。
 
-**任务管理：** 任务管理模块用于管理计算模块产生的任务。``operatorController`` 是任务集合，用于存放和获取任务；``operatorStateUpdate`` 根据上报的copyset信息更新状态；``Metric``用于统计不同任务个数。 
+**任务管理**: 任务管理模块用于管理计算模块产生的任务。``operatorController`` 是任务集合，用于存放和获取任务；``operatorStateUpdate`` 根据上报的copyset信息更新状态；``Metric``用于统计不同任务个数。 
 
