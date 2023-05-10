@@ -6,6 +6,8 @@
 
 **A cloud-native distributed storage system**
 
+**A sandbox project hosted by the CNCF Foundation**
+
 #### English | [简体中文](README_cn.md)
 ### 📄 [Documents](https://github.com/opencurve/curve/tree/master/docs) || 🌐 [Official Website](https://www.opencurve.io/Curve/HOME) || 🏠 [Forum](https://ask.opencurve.io/t/topic/7)
 <div align=left>

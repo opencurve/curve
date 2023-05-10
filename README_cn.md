@@ -4,7 +4,9 @@
 
 <div align=center> <image src="docs/images/cncf-icon-color.png" width = 8%>
 
-**A cloud-native distributed storage system**
+**云原生高性能分布式存储系统**
+
+**CNCF基金会的沙箱托管项目**
 
 #### [English](README.md) | 简体中文
 ### 📄 [文档](https://github.com/opencurve/curve/tree/master/docs) || 🌐 [官网](https://www.opencurve.io/Curve/HOME) || 🏠 [论坛](https://ask.opencurve.io/t/topic/7)
