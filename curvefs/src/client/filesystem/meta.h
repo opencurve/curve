@@ -81,6 +81,20 @@ struct DirEntry {
     InodeAttr attr;
 };
 
+struct FileOut {
+    FileOut() = default;
+
+    FileOut(FileInfo* fi, InodeAttr attr)
+        : fi(fi), attr(attr), nwritten(0) {}
+
+    FileOut(InodeAttr attr, size_t nwritten)
+        : fi(nullptr), attr(attr), nwritten(nwritten) {}
+
+    FileInfo* fi;
+    InodeAttr attr;
+    size_t nwritten;
+};
+
 struct TimeSpec {
     TimeSpec() : seconds(0), nanoSeconds(0) {}
 

@@ -90,11 +90,13 @@ class FileSystem {
 
     void ReplyOpen(Request req, FileInfo *fi);
 
+    void ReplyOpen(Request req, FileOut* fileOut);
+
     void ReplyData(Request req,
                    struct fuse_bufvec *bufv,
 		           enum fuse_buf_copy_flags flags);
 
-    void ReplyWrite(Request req, size_t count);
+    void ReplyWrite(Request req, FileOut* fileOut);
 
     void ReplyBuffer(Request req, const char *buf, size_t size);
 

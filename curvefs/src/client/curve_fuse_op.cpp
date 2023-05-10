@@ -59,6 +59,7 @@ using ::curvefs::common::LatencyUpdater;
 using ::curvefs::client::metric::InflightGuard;
 using ::curvefs::client::filesystem::EntryOut;
 using ::curvefs::client::filesystem::AttrOut;
+using ::curvefs::client::filesystem::FileOut;
 using ::curvefs::client::filesystem::AccessLogGuard;
 using ::curvefs::client::filesystem::StrFormat;
 using ::curvefs::client::filesystem::InitAccessLog;
@@ -552,6 +553,7 @@ void FuseOpLink(fuse_req_t req,
 
 void FuseOpOpen(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi) {
     CURVEFS_ERROR rc;
+    FileOut fileOut;
     auto client = Client();
     auto fs = client->GetFileSystem();
     MetricGuard(Open);
@@ -559,12 +561,12 @@ void FuseOpOpen(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi) {
         return StrFormat("open (%d): %s [fh:%d]", ino, StrErr(rc), fi->fh);
     });
 
-    rc = client->FuseOpOpen(req, ino, fi);
+    rc = client->FuseOpOpen(req, ino, fi, &fileOut);
     if (rc != CURVEFS_ERROR::OK) {
         fs->ReplyError(req, rc);
         return;
     }
-    return fs->ReplyOpen(req, fi);
+    return fs->ReplyOpen(req, &fileOut);
 }
 
 void FuseOpRead(fuse_req_t req,
@@ -599,20 +601,20 @@ void FuseOpWrite(fuse_req_t req,
                  off_t off,
                  struct fuse_file_info *fi) {
     CURVEFS_ERROR rc;
-    size_t wSize = 0;
+    FileOut fileOut;
     auto client = Client();
     auto fs = client->GetFileSystem();
     MetricGuard(Read);
     AccessLogGuard log([&](){
         return StrFormat("write (%d,%d,%d,%d): %s (%d)",
-                         ino, size, off, fi->fh, StrErr(rc), wSize);
+                         ino, size, off, fi->fh, StrErr(rc), fileOut.nwritten);
     });
 
-    rc = client->FuseOpWrite(req, ino, buf, size, off, fi, &wSize);
+    rc = client->FuseOpWrite(req, ino, buf, size, off, fi, &fileOut);
     if (rc != CURVEFS_ERROR::OK) {
         return fs->ReplyError(req, rc);
     }
-    return fs->ReplyWrite(req, wSize);
+    return fs->ReplyWrite(req, &fileOut);
 }
 
 void FuseOpFlush(fuse_req_t req,

@@ -82,6 +82,7 @@ using rpcclient::MetaServerClientImpl;
 using ::curvefs::client::filesystem::FileSystem;
 using ::curvefs::client::filesystem::EntryOut;
 using ::curvefs::client::filesystem::AttrOut;
+using ::curvefs::client::filesystem::FileOut;
 
 using curvefs::common::is_aligned;
 
@@ -137,7 +138,7 @@ class FuseClient {
     virtual CURVEFS_ERROR FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
                                       const char* buf, size_t size, off_t off,
                                       struct fuse_file_info* fi,
-                                      size_t* wSize) = 0;
+                                      FileOut* fileOut) = 0;
 
     virtual CURVEFS_ERROR FuseOpRead(fuse_req_t req, fuse_ino_t ino,
                                      size_t size, off_t off,
@@ -151,7 +152,8 @@ class FuseClient {
 
     virtual CURVEFS_ERROR FuseOpOpen(fuse_req_t req,
                                      fuse_ino_t ino,
-                                     struct fuse_file_info* fi);
+                                     struct fuse_file_info* fi,
+                                     FileOut* fileOut);
 
     virtual CURVEFS_ERROR FuseOpCreate(fuse_req_t req,
                                        fuse_ino_t parent,
@@ -341,7 +343,8 @@ class FuseClient {
 
     CURVEFS_ERROR HandleOpenFlags(fuse_req_t req,
                                   fuse_ino_t ino,
-                                  struct fuse_file_info* fi);
+                                  struct fuse_file_info* fi,
+                                  FileOut* fileOut);
 
     int SetHostPortInMountPoint(Mountpoint* out) {
         char hostname[kMaxHostNameLength];

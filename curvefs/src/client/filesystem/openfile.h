@@ -53,8 +53,7 @@ class OpenFiles {
 
  public:
     explicit OpenFiles(OpenFileOption option,
-                       std::shared_ptr<DeferSync> deferSync,
-                       std::shared_ptr<DirCache> dirCache);
+                       std::shared_ptr<DeferSync> deferSync);
 
     void Open(Ino ino, std::shared_ptr<InodeWrapper> inode);
 
@@ -67,9 +66,6 @@ class OpenFiles {
     bool GetFileAttr(Ino ino, InodeAttr* inode);
 
  private:
-    void UpdateDirEntryLength(Ino ino,
-                              const std::shared_ptr<OpenFile>& file);
-
     void Delete(Ino ino, const std::shared_ptr<OpenFile>& file, bool flush);
 
     void Evit(size_t size);
@@ -78,7 +74,6 @@ class OpenFiles {
     RWLock rwlock_;
     OpenFileOption option_;
     std::shared_ptr<DeferSync> deferSync_;
-    std::shared_ptr<DirCache> dirCache_;
     std::shared_ptr<LRUType> files_;
 };
 

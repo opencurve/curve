@@ -65,7 +65,7 @@ class FuseVolumeClient : public FuseClient {
 
     CURVEFS_ERROR FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
         const char *buf, size_t size, off_t off,
-        struct fuse_file_info *fi, size_t *wSize) override;
+        struct fuse_file_info *fi, FileOut* fileOut) override;
 
     CURVEFS_ERROR FuseOpRead(fuse_req_t req,
             fuse_ino_t ino, size_t size, off_t off,

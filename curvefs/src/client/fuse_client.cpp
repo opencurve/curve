@@ -58,6 +58,7 @@ using ::curvefs::client::common::MAX_XATTR_VALUE_LENGTH;
 using ::curvefs::client::filesystem::ExternalMember;
 using ::curvefs::client::filesystem::DirEntry;
 using ::curvefs::client::filesystem::DirEntryList;
+using ::curvefs::client::filesystem::FileOut;
 
 #define RETURN_IF_UNSUCCESS(action)                                            \
     do {                                                                       \
@@ -275,7 +276,8 @@ CURVEFS_ERROR FuseClient::FuseOpLookup(fuse_req_t req,
 
 CURVEFS_ERROR FuseClient::HandleOpenFlags(fuse_req_t req,
                                           fuse_ino_t ino,
-                                          struct fuse_file_info* fi) {
+                                          struct fuse_file_info* fi,
+                                          FileOut* fileOut) {
     std::shared_ptr<InodeWrapper> inodeWrapper;
     // alredy opened
     CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWrapper);
@@ -284,9 +286,14 @@ CURVEFS_ERROR FuseClient::HandleOpenFlags(fuse_req_t req,
                    << ", inodeid = " << ino;
         return ret;
     }
-    ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
+
+    fileOut->fi = fi;
+    inodeWrapper->GetInodeAttr(&fileOut->attr);
+
     if (fi->flags & O_TRUNC) {
         if (fi->flags & O_WRONLY || fi->flags & O_RDWR) {
+            ::curve::common::UniqueLock lgGuard =
+                inodeWrapper->GetUniqueLock();
             uint64_t length = inodeWrapper->GetLengthLocked();
             CURVEFS_ERROR tRet = Truncate(inodeWrapper.get(), 0);
             if (tRet != CURVEFS_ERROR::OK) {
@@ -321,6 +328,7 @@ CURVEFS_ERROR FuseClient::HandleOpenFlags(fuse_req_t req,
                     }
                 }
             }
+            inodeWrapper->GetInodeAttrLocked(&fileOut->attr);
         } else {
             return CURVEFS_ERROR::NOPERMISSION;
         }
@@ -330,13 +338,14 @@ CURVEFS_ERROR FuseClient::HandleOpenFlags(fuse_req_t req,
 
 CURVEFS_ERROR FuseClient::FuseOpOpen(fuse_req_t req,
                                      fuse_ino_t ino,
-                                     struct fuse_file_info* fi) {
+                                     struct fuse_file_info* fi,
+                                     FileOut* fileOut) {
     CURVEFS_ERROR rc = fs_->Open(req, ino, fi);
     if (rc != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "open(" << ino << ") failed, retCode = " << rc;
         return rc;
     }
-    return HandleOpenFlags(req, ino, fi);
+    return HandleOpenFlags(req, ino, fi, fileOut);
 }
 
 CURVEFS_ERROR FuseClient::UpdateParentMCTimeAndNlink(

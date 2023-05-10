@@ -133,10 +133,11 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpWrite(fuse_req_t req,
                                             size_t size,
                                             off_t off,
                                             struct fuse_file_info *fi,
-                                            size_t *wSize) {
+                                            FileOut* fileOut) {
     VLOG(9) << "write start, ino: " << ino << ", offset: " << off
             << ", length: " << size;
 
+    size_t* wSize = &fileOut->nwritten;
     if (fi->flags & O_DIRECT) {
         if (!(is_aligned(off, DirectIOAlignment) &&
               is_aligned(size, DirectIOAlignment))) {
@@ -148,7 +149,7 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpWrite(fuse_req_t req,
     butil::Timer timer;
     timer.start();
 
-    CURVEFS_ERROR ret = storage_->Write(ino, off, size, buf);
+    CURVEFS_ERROR ret = storage_->Write(ino, off, size, buf, fileOut);
     if (ret != CURVEFS_ERROR::OK) {
         if (fsMetric_) {
             fsMetric_->userWrite.eps.count << 1;

@@ -28,45 +28,21 @@ namespace client {
 namespace filesystem {
 
 OpenFiles::OpenFiles(OpenFileOption option,
-                     std::shared_ptr<DeferSync> deferSync,
-                     std::shared_ptr<DirCache> dirCache)
+                     std::shared_ptr<DeferSync> deferSync)
     : rwlock_(),
       option_(option),
       deferSync_(deferSync),
-      dirCache_(dirCache),
       files_(std::make_shared<LRUType>(option.lruSize)) {
-}
-
-void OpenFiles::UpdateDirEntryLength(Ino ino,
-                                     const std::shared_ptr<OpenFile>& file) {
-    InodeAttr attr;
-    std::shared_ptr<DirEntryList> entries;
-    file->inode->GetInodeAttr(&attr);
-    for (const auto parent : attr.parent()) {
-        bool yes = dirCache_->Get(parent, &entries);
-        if (!yes) {
-            continue;
-        }
-
-        entries->UpdateLength(ino, attr);
-
-        VLOG(1) << "Write back file length to dir entry cache: ino = " << ino
-                << ", length = " << attr.length()
-                << ", mtime = " << AttrMtime(attr)
-                << ", ctime = " << AttrCtime(attr);
-    }
 }
 
 /*
  * Delete(...) does:
- *   1) write back file length to dir entry cache
- *   2) publish to message queue which will flush file to server with async
- *   3) delete file from lru cache
+ *   1) publish to message queue which will flush file to server with async
+ *   2) delete file from lru cache
  */
 void OpenFiles::Delete(Ino ino,
                        const std::shared_ptr<OpenFile>& file,
                        bool flush) {
-    UpdateDirEntryLength(ino, file);  // write back file length to dir cache
     if (flush) {
         deferSync_->Push(file->inode);
     }

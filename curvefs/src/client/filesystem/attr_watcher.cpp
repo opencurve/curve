@@ -59,30 +59,41 @@ void AttrWatcher::UpdateDirEntryAttr(Ino ino, const InodeAttr& attr) {
     }
 }
 
-AttrWatcherGuard::AttrWatcherGuard(std::shared_ptr<AttrWatcher> watcher,
-                                   InodeAttr* attr,
-                                   bool writeBack)
-    : watcher(watcher), attr(attr), writeBack(writeBack) {
-    InodeAttr open;
-    Ino ino = attr->inodeid();
-    bool yes = watcher->openFiles_->GetFileAttr(ino, &open);
-    if (!yes) {
-        return;
-    }
+void AttrWatcher::UpdateDirEntryLength(Ino ino, const InodeAttr& open) {
+    std::shared_ptr<DirEntryList> entries;
+    for (const auto parent : open.parent()) {
+        bool yes = dirCache_->Get(parent, &entries);
+        if (!yes) {
+            continue;
+        }
 
-    attr->set_length(open.length());
-    attr->set_mtime(open.mtime());
-    attr->set_mtime_ns(open.mtime_ns());
-    if (AttrCtime(open) > AttrCtime(*attr)) {
-        attr->set_ctime(open.ctime());
-        attr->set_ctime_ns(open.ctime_ns());
+        entries->UpdateLength(ino, open);
+
+        VLOG(1) << "Write back file length to dir entry cache: ino = " << ino
+                << ", attr = " << open.ShortDebugString();
     }
 }
 
+AttrWatcherGuard::AttrWatcherGuard(std::shared_ptr<AttrWatcher> watcher,
+                                   InodeAttr* attr,
+                                   ReplyType type,
+                                   bool writeBack)
+    : watcher(watcher), attr(attr), type(type), writeBack(writeBack) {}
+
 AttrWatcherGuard::~AttrWatcherGuard() {
-    watcher->RemeberMtime(*attr);
-    if (writeBack) {
-        watcher->UpdateDirEntryAttr(attr->inodeid(), *attr);
+    switch (type) {
+        case ReplyType::ATTR:
+            watcher->RemeberMtime(*attr);
+            if (writeBack) {
+                watcher->UpdateDirEntryAttr(attr->inodeid(), *attr);
+            }
+            break;
+
+        case ReplyType::ONLY_LENGTH:
+            if (writeBack) {
+                watcher->UpdateDirEntryLength(attr->inodeid(), *attr);
+            }
+            break;
     }
 }
 

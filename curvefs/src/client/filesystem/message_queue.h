@@ -97,6 +97,10 @@ class MessageQueue {
         while (running_.load(std::memory_order_relaxed)) {
             queue_.Pop()();
         }
+
+        while (queue_.Size() > 0) {
+            queue_.Pop()();
+        }
     }
 
  private:

@@ -35,7 +35,7 @@ FileSystem::FileSystem(FileSystemOption option, ExternalMember member)
     negative_ = std::make_shared<LookupCache>(option.lookupCacheOption);
     dirCache_ = std::make_shared<DirCache>(option.dirCacheOption);
     openFiles_ = std::make_shared<OpenFiles>(option_.openFileOption,
-                                             deferSync_, dirCache_);
+                                             deferSync_);
     attrWatcher_ = std::make_shared<AttrWatcher>(option_.attrWatcherOption,
                                                  openFiles_, dirCache_);
     handlerManager_ = std::make_shared<HandlerManager>();
@@ -68,7 +68,7 @@ void FileSystem::Attr2Stat(InodeAttr* attr, struct stat* stat) {
     stat->st_mtim.tv_nsec = attr->mtime_ns();
     stat->st_ctim.tv_sec = attr->ctime();
     stat->st_ctim.tv_nsec = attr->ctime_ns();
-    stat->st_blksize = option_.blockSize;;
+    stat->st_blksize = option_.blockSize;
     stat->st_blocks = 0;
     if (IsS3File(*attr) || IsDir(*attr)) {
         stat->st_blocks = (attr->length() + 511) / 512;
@@ -112,7 +112,8 @@ void FileSystem::ReplyError(Request req, CURVEFS_ERROR code) {
 
 void FileSystem::ReplyEntry(Request req,
                             EntryOut* entryOut) {
-    AttrWatcherGuard watcher(attrWatcher_, &entryOut->attr, true);
+    AttrWatcherGuard watcher(attrWatcher_, &entryOut->attr,
+                             ReplyType::ATTR, true);
     fuse_entry_param e;
     SetEntryTimeout(entryOut);
     Entry2Param(entryOut, &e);
@@ -121,7 +122,8 @@ void FileSystem::ReplyEntry(Request req,
 
 void FileSystem::ReplyAttr(Request req,
                            AttrOut* attrOut) {
-    AttrWatcherGuard watcher(attrWatcher_, &attrOut->attr, true);
+    AttrWatcherGuard watcher(attrWatcher_, &attrOut->attr,
+                             ReplyType::ATTR, true);
     struct stat stat;
     SetAttrTimeout(attrOut);
     Attr2Stat(&attrOut->attr, &stat);
@@ -132,8 +134,14 @@ void FileSystem::ReplyReadlink(Request req, const std::string& link) {
     fuse_reply_readlink(req, link.c_str());
 }
 
-void FileSystem::ReplyOpen(Request req, FileInfo *fi) {
+void FileSystem::ReplyOpen(Request req, FileInfo* fi) {
     fuse_reply_open(req, fi);
+}
+
+void FileSystem::ReplyOpen(Request req, FileOut* fileOut) {
+    AttrWatcherGuard watcher(attrWatcher_, &fileOut->attr,
+                             ReplyType::ONLY_LENGTH, true);
+    fuse_reply_open(req, fileOut->fi);
 }
 
 void FileSystem::ReplyData(Request req,
@@ -142,8 +150,10 @@ void FileSystem::ReplyData(Request req,
     fuse_reply_data(req, bufv, flags);
 }
 
-void FileSystem::ReplyWrite(Request req, size_t count) {
-    fuse_reply_write(req, count);
+void FileSystem::ReplyWrite(Request req, FileOut* fileOut) {
+    AttrWatcherGuard watcher(attrWatcher_, &fileOut->attr,
+                             ReplyType::ONLY_LENGTH, true);
+    fuse_reply_write(req, fileOut->nwritten);
 }
 
 void FileSystem::ReplyBuffer(Request req, const char *buf, size_t size) {
@@ -159,7 +169,8 @@ void FileSystem::ReplyXattr(Request req, size_t size) {
 }
 
 void FileSystem::ReplyCreate(Request req, EntryOut* entryOut, FileInfo* fi) {
-    AttrWatcherGuard watcher(attrWatcher_, &entryOut->attr, true);
+    AttrWatcherGuard watcher(attrWatcher_, &entryOut->attr,
+                             ReplyType::ATTR, true);
     fuse_entry_param e;
     SetEntryTimeout(entryOut);
     Entry2Param(entryOut, &e);
@@ -187,7 +198,8 @@ void FileSystem::AddDirEntry(Request req,
 void FileSystem::AddDirEntryPlus(Request req,
                                  DirBufferHead* buffer,
                                  DirEntry* dirEntry) {
-    AttrWatcherGuard watcher(attrWatcher_, &dirEntry->attr, false);
+    AttrWatcherGuard watcher(attrWatcher_, &dirEntry->attr,
+                             ReplyType::ATTR, false);
     struct fuse_entry_param e;
     EntryOut entryOut(dirEntry->attr);
     SetEntryTimeout(&entryOut);

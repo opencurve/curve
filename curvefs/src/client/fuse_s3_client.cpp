@@ -145,7 +145,8 @@ CURVEFS_ERROR FuseS3Client::FuseOpInit(void *userdata,
 CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
                                         const char *buf, size_t size, off_t off,
                                         struct fuse_file_info *fi,
-                                        size_t *wSize) {
+                                        FileOut* fileOut) {
+    size_t *wSize = &fileOut->nwritten;
     // check align
     if (fi->flags & O_DIRECT) {
         if (!(is_aligned(off, DirectIOAlignment) &&
@@ -207,6 +208,8 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
             }
         }
     }
+
+    inodeWrapper->GetInodeAttrLocked(&fileOut->attr);
     return ret;
 }
 

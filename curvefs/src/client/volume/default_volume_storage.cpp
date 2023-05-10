@@ -74,7 +74,8 @@ std::ostream& operator<<(std::ostream& os, const std::vector<IOPart>& iov) {
 CURVEFS_ERROR DefaultVolumeStorage::Write(uint64_t ino,
                                           off_t offset,
                                           size_t len,
-                                          const char* data) {
+                                          const char* data,
+                                          FileOut* fileOut) {
     std::shared_ptr<InodeWrapper> inodeWrapper;
     LatencyUpdater updater(&metric_.writeLatency);
     auto ret = inodeCacheManager_->GetInode(ino, inodeWrapper);
@@ -116,6 +117,7 @@ CURVEFS_ERROR DefaultVolumeStorage::Write(uint64_t ino,
         }
 
         inodeWrapper->UpdateTimestampLocked(kModifyTime | kChangeTime);
+        inodeWrapper->GetInodeAttrLocked(&fileOut->attr);
     }
 
     inodeCacheManager_->ShipToFlush(inodeWrapper);

@@ -53,6 +53,8 @@ class AttrWatcher {
 
     void UpdateDirEntryAttr(Ino ino, const InodeAttr& attr);
 
+    void UpdateDirEntryLength(Ino ino, const InodeAttr& open);
+
  private:
     friend class AttrWatcherGuard;
 
@@ -63,10 +65,14 @@ class AttrWatcher {
     std::shared_ptr<DirCache> dirCache_;
 };
 
+
+enum class ReplyType {
+    ATTR,
+    ONLY_LENGTH
+};
+
 /*
  * each attribute reply to kernel, the watcher will:
- *    before reply:
- *      1) set attibute length if the corresponding file is opened
  *    after reply:
  *     1) remeber attribute modified time
  *     2) write back attribute to dir entry cache if |writeBack| it true
@@ -75,6 +81,7 @@ struct AttrWatcherGuard {
  public:
     AttrWatcherGuard(std::shared_ptr<AttrWatcher> watcher,
                      InodeAttr* attr,
+                     ReplyType type,
                      bool writeBack);
 
     ~AttrWatcherGuard();
@@ -82,6 +89,7 @@ struct AttrWatcherGuard {
  private:
     std::shared_ptr<AttrWatcher> watcher;
     InodeAttr* attr;
+    ReplyType type;
     bool writeBack;
 };
 
