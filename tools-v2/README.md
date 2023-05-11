@@ -65,6 +65,7 @@ A tool for CurveFS & CurveBs.
       - [update file](#update-file)
       - [update throttle](#update-throttle)
       - [update leader](#update-leader)
+      - [update scan-state](#update-scan-state)
     - [create](#create-1)
       - [create file](#create-file)
       - [create dir](#create-dir)
@@ -1212,6 +1213,24 @@ Output:
 +---------+
 ```
 
+#### update scan-state
+
+enable/disable scan for logical pool
+
+Usage:
+```bash
+curve bs update scan-state --logicalpoolid 1 [--scan=true/false]
+```
+
+Output:
+```
++----+------+---------+--------+
+| ID | SCAN | RESULT  | REASON |
++----+------+---------+--------+
+| 1  | true | success | null   |
++----+------+---------+--------+
+```
+
 ### create
 
 #### create file
@@ -1445,6 +1464,7 @@ Output:
 | curve_ops_tool snapshot-clone-status | curve bs status snapshotserver |
 | curve_ops_tool transfer-leader       | curve bs update leader         |
 | curve_ops_tool do-snapshot           | curve bs snapshot copyset      |
+| curve_ops_tool set-scan-state        | curve bs update scan-state     |
 | curve_ops_tool status                |                                |
 | curve_ops_tool chunkserver-status    |                                |
 | curve_ops_tool copysets-status       |                                |
@@ -1457,6 +1477,5 @@ Output:
 | curve_ops_tool list-may-broken-vol   |                                |
 | curve_ops_tool set-copyset-availflag |                                |
 | curve_ops_tool rapid-leader-schedule |                                |
-| curve_ops_tool set-scan-state        |                                |
 | curve_ops_tool scan-status           |                                |
 >>>>>>> c581f66e... [feat] tools-v2: add transfer-leader
