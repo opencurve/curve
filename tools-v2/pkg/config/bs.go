@@ -514,7 +514,12 @@ func GetBsAddrSlice(cmd *cobra.Command, addrType string) ([]string, *cmderror.Cm
 	} else {
 		addrsStr = viper.GetString(BSFLAG2VIPER[addrType])
 	}
+
 	addrslice := strings.Split(addrsStr, ",")
+	for i, addr := range addrslice {
+		addrslice[i] = strings.TrimSpace(addr)
+	}
+
 	for _, addr := range addrslice {
 		if !IsValidAddr(addr) {
 			err := cmderror.ErrGetAddr()
