@@ -23,12 +23,7 @@
 #include "src/tools/namespace_tool.h"
 
 DEFINE_string(fileName, "", "file name");
-<<<<<<< HEAD
-=======
 DEFINE_string(dirName, "", "directory name");
-DEFINE_string(expireTime, "7d", "Time for file in recyclebin exceed expire time "  // NOLINT
-                                "will be deleted (default: 7d)");
->>>>>>> 81b57146 (support create volume directory by curve_ops_tool)
 DEFINE_bool(forcedelete, false, "force delete file or not");
 DEFINE_uint64(fileLength, 20, "file length (GB)");
 DEFINE_uint64(newSize, 30, "the new size of expanded volume(GB)");

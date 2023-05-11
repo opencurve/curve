@@ -35,6 +35,7 @@
 #include "src/chunkserver/heartbeat.h"
 #include "src/chunkserver/uri_paser.h"
 #include "src/chunkserver/heartbeat_helper.h"
+#include "src/common/curve_version.h"
 
 using curve::fs::FileSystemInfo;
 
@@ -285,6 +286,7 @@ int Heartbeat::BuildRequest(HeartbeatRequest* req) {
         }
     }
     req->set_leadercount(leaders);
+    req->set_version(curve::common::CurveVersion());
 
     return 0;
 }

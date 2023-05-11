@@ -111,6 +111,7 @@ message ChunkServerData {
     required string mountPoint = 10;
     required int64 diskCapacity = 11;
     required int64 diskUsed = 12;
+    optional string version = 13;
 }
 
 message CopysetData {
@@ -136,6 +137,7 @@ message ChunkServerInfo {
     required uint64 diskCapacity = 9;
     required uint64 diskUsed = 10;
     optional string externalIp = 11;
+    optional string version = 12;
 }
 
 //chunkserver message
