@@ -22,6 +22,9 @@
 #include "src/mds/topology/topology.h"
 
 #include <glog/logging.h>
+#include "src/common/timeutility.h"
+#include "src/common/uuid.h"
+#include "src/mds/common/mds_define.h"
 
 #include <chrono>  //NOLINT
 #include <utility>
@@ -1443,6 +1446,20 @@ bool TopologyImpl::CreateDefaultPoolset() {
     poolsetMap_.emplace(kDefaultPoolsetId, std::move(data));
     LOG(INFO) << "Create default poolset success";
     return true;
+}
+
+int TopologyImpl::UpdateChunkServerVersion(const std::string &version,
+                                           ChunkServerIdType id) {
+    int ret = kTopoErrCodeSuccess;
+    ReadLockGuard rlockChunkServerMap(chunkServerMutex_);
+    auto iter = chunkServerMap_.find(id);
+    if (iter != chunkServerMap_.end()) {
+        WriteLockGuard wlockChunkServer(iter->second.GetRWLockRef());
+        iter->second.SetVersion(version);
+    } else {
+        ret = kTopoErrCodeChunkServerNotFound;
+    }
+    return ret;
 }
 
 }  // namespace topology

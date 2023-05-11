@@ -282,6 +282,9 @@ class MockTopology : public Topology {
         std::vector<CopySetKey>(ChunkServerIdType id,
             CopySetFilter filter));
 
+    MOCK_METHOD1(GetHostNameAndPortById,
+        std::string(ChunkServerIdType csId));
+
     MOCK_METHOD2(UpdateChunkServerVersion,
                  int(const std::string &, ChunkServerIdType));
 };
