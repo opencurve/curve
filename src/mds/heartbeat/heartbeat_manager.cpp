@@ -205,6 +205,9 @@ void HeartbeatManager::ChunkServerHeartbeat(
     UpdateChunkServerDiskStatus(request);
 
     UpdateChunkServerStatistics(request);
+
+    UpdateChunkServerVersion(request);
+
     // no copyset info in the request
     if (request.copysetinfos_size() == 0) {
         response->set_statuscode(HeartbeatStatusCode::hbRequestNoCopyset);
@@ -373,6 +376,22 @@ ChunkServerIdType HeartbeatManager::GetChunkserverIdByPeerStr(
                << ", port: " << port << " from topology";
     return UNINTIALIZE_ID;
 }
+
+void HeartbeatManager::UpdateChunkServerVersion(
+    const ChunkServerHeartbeatRequest &request) {
+    // update chunkServer version
+    if (request.has_version()) {
+        int ret = topology_->UpdateChunkServerVersion(request.version(),
+                                                      request.chunkserverid());
+        if (ret != 0) {
+            LOG(ERROR)
+                << "heartbeat UpdateChunkServerVersion failed, chunkServerId: "
+                << request.chunkserverid() << ", version: " << request.version()
+                << ", error is: " << ret;
+        }
+    }
+}
+
 }  // namespace heartbeat
 }  // namespace mds
 }  // namespace curve

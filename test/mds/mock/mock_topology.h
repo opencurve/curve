@@ -249,6 +249,9 @@ class MockTopology : public Topology {
     MOCK_CONST_METHOD2(GetCopySetsInChunkServer,
         std::vector<CopySetKey>(ChunkServerIdType id,
             CopySetFilter filter));
+
+    MOCK_METHOD2(UpdateChunkServerVersion,
+                 int(const std::string &, ChunkServerIdType));
 };
 
 class MockTopologyStat : public TopologyStat {

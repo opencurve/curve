@@ -486,7 +486,8 @@ class ChunkServer {
                 const std::string &diskPath,
                 ChunkServerStatus status = READWRITE,
                 OnlineState onlineState = OnlineState::OFFLINE,
-                const std::string &externalHostIp = "")
+                const std::string &externalHostIp = "",
+                std::string version = "")
         : id_(id),
           token_(token),
           diskType_(diskType),
@@ -498,6 +499,7 @@ class ChunkServer {
           startUpTime_(0),
           status_(status),
           onlineState_(onlineState),
+          version_(std::move(version)),
           dirty_(false) {}
 
     ChunkServer(const ChunkServer& v) :
@@ -512,6 +514,7 @@ class ChunkServer {
         status_(v.status_),
         onlineState_(v.onlineState_),
         state_(v.state_),
+        version_(v.version_),
         dirty_(v.dirty_) {}
 
     ChunkServer& operator= (const ChunkServer& v) {
@@ -531,6 +534,7 @@ class ChunkServer {
         onlineState_ = v.onlineState_;
         state_ = v.state_;
         dirty_ = v.dirty_;
+        version_ = v.version_;
         return *this;
     }
 
@@ -616,6 +620,8 @@ class ChunkServer {
         dirty_ = dirty;
     }
 
+    void SetVersion(const std::string &version) { version_ = version; }
+
     ::curve::common::RWLock& GetRWLockRef() const {
         return mutex_;
     }
@@ -623,6 +629,8 @@ class ChunkServer {
     bool SerializeToString(std::string *value) const;
 
     bool ParseFromString(const std::string &value);
+
+    void ToChunkServerInfo(ChunkServerInfo *csinfo) const;
 
  private:
     ChunkServerIdType id_;
@@ -643,6 +651,8 @@ class ChunkServer {
     OnlineState onlineState_;  // 0:online、1: offline
 
     ChunkServerState state_;
+
+    std::string version_;  // chunk server version
 
     /**
      * @brief to mark whether data is dirty, for writing to storage regularly

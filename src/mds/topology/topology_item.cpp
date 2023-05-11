@@ -276,6 +276,7 @@ bool ChunkServer::SerializeToString(std::string *value) const {
     data.set_mountpoint(mountPoint_);
     data.set_diskcapacity(state_.GetDiskCapacity());
     data.set_diskused(state_.GetDiskUsed());
+    data.set_version(version_);
     return data.SerializeToString(value);
 }
 
@@ -294,6 +295,7 @@ bool ChunkServer::ParseFromString(const std::string &value) {
     state_.SetDiskState(data.diskstate());
     state_.SetDiskCapacity(data.diskcapacity());
     state_.SetDiskUsed(data.diskused());
+    version_ = data.version();
     return ret;
 }
 
@@ -363,6 +365,22 @@ bool SplitPeerId(
         return true;
     }
     return false;
+}
+
+void ChunkServer::ToChunkServerInfo(ChunkServerInfo *csInfo) const {
+    csInfo->set_chunkserverid(id_);
+    csInfo->set_disktype(diskType_);
+    csInfo->set_hostip(internalHostIp_);
+    csInfo->set_externalip(externalHostIp_);
+    csInfo->set_port(port_);
+    csInfo->set_status(status_);
+    csInfo->set_onlinestate(onlineState_);
+    csInfo->set_version(version_);
+
+    csInfo->set_diskstatus(state_.GetDiskState());
+    csInfo->set_mountpoint(GetMountPoint());
+    csInfo->set_diskcapacity(state_.GetDiskCapacity());
+    csInfo->set_diskused(state_.GetDiskUsed());
 }
 
 }  // namespace topology

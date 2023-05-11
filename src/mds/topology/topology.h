@@ -152,6 +152,17 @@ class Topology {
     virtual int UpdateChunkServerDiskStatus(const ChunkServerState &state,
                                        ChunkServerIdType id) = 0;
 
+    /**
+     * @brief update chunkserver version
+     *
+     * @param version disk status
+     * @param id chunkserverid
+     * @return error code
+     *        kTopoErrCodeSuccess: success
+     *        kTopoErrCodeChunkServerNotFound: no this chunkserver
+     */
+    virtual int UpdateChunkServerVersion(const std::string &version,
+                                         ChunkServerIdType id) = 0;
 
     /**
      * @brief update chunkserver start up time
@@ -384,6 +395,8 @@ class TopologyImpl : public Topology {
                          ChunkServerIdType id) override;
     int UpdateChunkServerStartUpTime(uint64_t time,
                          ChunkServerIdType id) override;
+    int UpdateChunkServerVersion(const std::string &version,
+                                 ChunkServerIdType id) override;
 
     int UpdateCopySetTopo(const CopySetInfo &data) override;
 
