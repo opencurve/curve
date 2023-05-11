@@ -221,12 +221,22 @@ then
     echo "build phase1 failed"
     exit
 fi
-bash ./curvefs_python/configure.sh python2
-if [ $? -ne 0 ]
+fail_count=0
+for python in "python2" "python3"; do 
+    bash ./curvefs_python/configure.sh ${python}
+    if [ $? -ne 0 ]
+    then
+        echo "configure ${python} failed"
+        let fail_count++
+    fi
+done
+
+if [ $fail_count -ge 2] 
 then
-    echo "configure failed"
+    echo "configure python2/3 failed"
     exit
 fi
+
 bazel build curvefs_python:curvefs  --copt -DHAVE_ZLIB=1 --copt -O2 -s \
 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google \
 --copt \
