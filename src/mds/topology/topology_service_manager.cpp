@@ -280,20 +280,7 @@ void TopologyServiceManager::ListChunkServer(
     for (ChunkServerIdType id : chunkserverList) {
         ChunkServer cs;
         if (topology_->GetChunkServer(id, &cs)) {
-            ChunkServerInfo *csInfo = response->add_chunkserverinfos();
-            csInfo->set_chunkserverid(cs.GetId());
-            csInfo->set_disktype(cs.GetDiskType());
-            csInfo->set_hostip(cs.GetHostIp());
-            csInfo->set_externalip(cs.GetExternalHostIp());
-            csInfo->set_port(cs.GetPort());
-            csInfo->set_status(cs.GetStatus());
-            csInfo->set_onlinestate(cs.GetOnlineState());
-
-            ChunkServerState st = cs.GetChunkServerState();
-            csInfo->set_diskstatus(st.GetDiskState());
-            csInfo->set_mountpoint(cs.GetMountPoint());
-            csInfo->set_diskcapacity(st.GetDiskCapacity());
-            csInfo->set_diskused(st.GetDiskUsed());
+            cs.ToChunkServerInfo(response->add_chunkserverinfos());
         } else {
             LOG(ERROR) << "Topology has counter an internal error: "
                        << "[func:] ListChunkServer, "
@@ -356,20 +343,7 @@ void TopologyServiceManager::GetChunkServerInCluster(
             response->set_statuscode(kTopoErrCodeChunkServerNotFound);
             return;
         }
-        auto *csInfo = response->add_chunkserverinfos();
-        csInfo->set_chunkserverid(cs.GetId());
-        csInfo->set_disktype(cs.GetDiskType());
-        csInfo->set_hostip(cs.GetHostIp());
-        csInfo->set_externalip(cs.GetExternalHostIp());
-        csInfo->set_port(cs.GetPort());
-        csInfo->set_status(cs.GetStatus());
-        csInfo->set_onlinestate(cs.GetOnlineState());
-
-        ChunkServerState st = cs.GetChunkServerState();
-        csInfo->set_diskstatus(st.GetDiskState());
-        csInfo->set_mountpoint(cs.GetMountPoint());
-        csInfo->set_diskcapacity(st.GetDiskCapacity());
-        csInfo->set_diskused(st.GetDiskUsed());
+        cs.ToChunkServerInfo(response->add_chunkserverinfos());
     }
 }
 

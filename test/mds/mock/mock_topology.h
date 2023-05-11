@@ -264,6 +264,9 @@ class MockTopology : public Topology {
 
     MOCK_METHOD1(GetHostNameAndPortById,
         std::string(ChunkServerIdType csId));
+
+    MOCK_METHOD2(UpdateChunkServerVersion,
+                 int(const std::string &, ChunkServerIdType));
 };
 
 class MockTopologyStat : public TopologyStat {
