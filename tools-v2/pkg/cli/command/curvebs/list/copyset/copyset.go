@@ -24,7 +24,6 @@ package copyset
 import (
 	"context"
 	"fmt"
-	"log"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
@@ -117,16 +116,13 @@ func (cCmd *CopysetCommand) Print(cmd *cobra.Command, args []string) error {
 }
 
 func (cCmd *CopysetCommand) RunCommand(cmd *cobra.Command, args []string) error {
-	log.Printf("rpc request = %v", cCmd.Rpc.Request)
 	result, err := basecmd.GetRpcResponse(cCmd.Rpc.Info, cCmd.Rpc)
-	log.Printf("result = %v", result)
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		cCmd.Error = err
 		cCmd.Result = result
 		return err.ToError()
 	}
 	cCmd.Response = result.(*topology.GetCopySetsInClusterResponse)
-	log.Printf("response = %v", cCmd.Response)
 	infos := cCmd.Response.GetCopysetInfos()
 	rows := make([]map[string]string, 0)
 	var errs []*cmderror.CmdError
