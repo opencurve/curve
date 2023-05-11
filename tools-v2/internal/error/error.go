@@ -435,6 +435,12 @@ var (
 	ErrBsGetSnapshotServerStatus = func() *CmdError {
 		return NewInternalCmdError(58, "get snapshotserver status fail, err: %s")
 	}
+	ErrBsGetChunkServerInCluster = func() *CmdError {
+		return NewInternalCmdError(59, "get chunkserver in cluster fail, err: %s")
+	}
+	ErrBsQueryChunkServerRecoverStatus = func() *CmdError {
+		return NewInternalCmdError(60, "query chunkserver recover status fail, err: %s")
+	}
 
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {
@@ -796,7 +802,29 @@ var (
 		case statuscode.TopoStatusCode_Success:
 			message = "success"
 		default:
-			message = fmt.Sprintf("get copyset(id: %d,logicalPoolid: %d) info fail, err: %s", copysetid, logicalpoolid, statusCode.String())
+			message = fmt.Sprintf("rpc get copyset(id: %d,logicalPoolid: %d) info fail, err: %s", copysetid, logicalpoolid, statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
+	ErrBsGetChunkServerInClusterRpc = func(statusCode statuscode.TopoStatusCode) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case statuscode.TopoStatusCode_Success:
+			message = "success"
+		default:
+			message = fmt.Sprintf("Rpc[GetChunkServerInCluster] fail, err: %s", statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
+	ErrBsQueryChunkserverRecoverStatus = func(statusCode statuscode.TopoStatusCode) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case statuscode.TopoStatusCode_Success:
+			message = "success"
+		default:
+			message = fmt.Sprintf("Rpc[QueryChunkserverRecoverStatus] fail, err: %s", statusCode.String())
 		}
 		return NewRpcReultCmdError(code, message)
 	}

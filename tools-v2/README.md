@@ -48,9 +48,9 @@ A tool for CurveFS & CurveBs.
         - [list client](#list-client)
         - [list dir](#list-dir)
         - [list space](#list-space)
+    - [clean-recycle](#clean-recycle)
     - [query](#query-1)
         - [query file](#query-file)
-    - [clean-recycle](#clean-recycle)
         - [query chunk](#query-chunk)
         - [query segment](#query-segment)
     - [status](#status-1)
@@ -58,13 +58,14 @@ A tool for CurveFS & CurveBs.
       - [status mds](#status-mds-1)
       - [status client](#status-client)
       - [status snapshotserver](#status-snapshotserver)
+      - [status chunkserver](#status-chunkserver)
     - [delete](#delete-1)
       - [delete peer](#delete-peer)
     - [update](#update)
       - [update peer](#update-peer)
+      - [update leader](#update-leader)
       - [update file](#update-file)
       - [update throttle](#update-throttle)
-      - [update leader](#update-leader)
       - [update scan-state](#update-scan-state)
     - [create](#create-1)
       - [create file](#create-file)
@@ -73,7 +74,6 @@ A tool for CurveFS & CurveBs.
       - [check copyset](#check-copyset-1)
     - [snapshot](#snapshot)
       - [snapshot copyset](#snapshot-copyset)
-    - [clean-recycle](#clean-recycle)
   - [Comparison of old and new commands](#comparison-of-old-and-new-commands)
     - [curve fs](#curve-fs)
     - [curve bs](#curve-bs)
@@ -922,6 +922,26 @@ Output:
 +----------+---------+---------+---------+------------+---------+
 ```
 
+### clean-recycle
+
+clean the recycle bin 
+
+Usage:
+
+```bash
+curve bs clean-recycle --recycleprefix=/test --expiredtime=1h
+```
+
+Output:
+
+```bash
++---------+
+| RESULT  | 
++---------+
+| success |        
++---------+
+```
+
 ### query
 
 ##### query file
@@ -945,26 +965,6 @@ Output:
 |      |      |                |       |        |         |        |     |                     |              |         | type:BPS_TOTAL  |          |
 |      |      |                |       |        |         |        |     |                     |              |         | limit:125829120 |          |
 +------+------+----------------+-------+--------+---------+--------+-----+---------------------+--------------+---------+-----------------+----------+
-```
-
-### clean-recycle
-
-clean the recycle bin 
-
-Usage:
-
-```bash
-curve bs clean-recycle --recycleprefix=/test --expiredtime=1h
-```
-
-Output:
-
-```bash
-+---------+
-| RESULT  | 
-+---------+
-| success |        
-+---------+
 ```
 
 ##### query chunk
@@ -1114,6 +1114,29 @@ Output:
 +---------------------+---------------------+-------------------+----------+
 ```
 
+#### status chunkserver
+
+get the chunkserver status of curvebs
+
+Usage:
+
+```bash
+curve bs status chunkserver
+```
+
+Output:
+
+```bash
++------------------+------------------+----------------+--------+------------+
+|   EXTERNALADDR   |   INTERNALADDR   |    VERSION     | STATUS | RECOVERING |
++------------------+------------------+----------------+--------+------------+
+| **************** | **************** | d9b6bb98+debug | online | false      |
++------------------+------------------+                +        +            +
+| **************** | **************** |                |        |            |
++------------------+------------------+                +        +            +
+| **************** | **************** |                |        |            |
++------------------+------------------+----------------+--------+------------+
+```
 
 ### delete
 
@@ -1135,8 +1158,6 @@ Output:
 +------------------+------------------+---------+---------+--------+
 | 127.0.0.1:8201:0 | 127.0.0.1:8202:0 | (1:29)  | success | null   |
 +------------------+------------------+---------+---------+--------+
-
-
 ```
 
 ### update
@@ -1365,8 +1386,8 @@ Output:
 | curve_ops_tool transfer-leader       | curve bs update leader         |
 | curve_ops_tool do-snapshot           | curve bs snapshot copyset      |
 | curve_ops_tool set-scan-state        | curve bs update scan-state     |
+| curve_ops_tool chunkserver-status    | curve bs status chunkserver    |
 | curve_ops_tool status                |                                |
-| curve_ops_tool chunkserver-status    |                                |
 | curve_ops_tool copysets-status       |                                |
 | curve_ops_tool chunkserver-list      |                                |
 | curve_ops_tool clean-recycle         |                                |

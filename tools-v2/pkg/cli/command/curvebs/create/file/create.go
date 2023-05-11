@@ -56,7 +56,6 @@ var _ basecmd.FinalCurveCmdFunc = (*CreateCommand)(nil)
 
 func (gRpc *CreateFileRpc) NewRpcClient(cc grpc.ClientConnInterface) {
 	gRpc.mdsClient = nameserver2.NewCurveFSServiceClient(cc)
-
 }
 
 func (gRpc *CreateFileRpc) Stub_Func(ctx context.Context) (interface{}, error) {
