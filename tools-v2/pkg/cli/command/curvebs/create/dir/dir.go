@@ -34,7 +34,6 @@ import (
 
 const (
 	dirExample = `$ curve bs create dir --path /test`
-	TYOE_DIR
 )
 
 type DirectoryCommand struct {

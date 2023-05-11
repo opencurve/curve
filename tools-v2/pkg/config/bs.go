@@ -103,6 +103,9 @@ const (
 	CURVEBS_SCAN                    = "scan"
 	VIPER_CURVEBS_SCAN              = "curvebs.scan"
 	CURVEBS_DEFAULT_SCAN            = true
+	CUERVEBS_CHUNKSERVER_ID         = "chunkserverid"
+	VIPER_CHUNKSERVER_ID            = "curvebs.chunkserverid"
+	CURVEBS_DEFAULT_CHUNKSERVER_ID  = "*"
 )
 
 var (
@@ -139,23 +142,25 @@ var (
 		CURVEBS_SNAPSHOTADDR:      VIPER_CURVEBS_SNAPSHOTADDR,
 		CURVEBS_SNAPSHOTDUMMYADDR: VIPER_CURVEBS_SNAPSHOTDUMMYADDR,
 		CURVEBS_SCAN:              VIPER_CURVEBS_SCAN,
+		CUERVEBS_CHUNKSERVER_ID:   VIPER_CHUNKSERVER_ID,
 	}
 
 	BSFLAG2DEFAULT = map[string]interface{}{
 		// bs
-		CURVEBS_USER:         CURVEBS_DEFAULT_USER,
-		CURVEBS_PASSWORD:     CURVEBS_DEFAULT_PASSWORD,
-		CURVEBS_SIZE:         CURVEBS_DEFAULT_SIZE,
-		CURVEBS_STRIPE_UNIT:  CURVEBS_DEFAULT_STRIPE_UNIT,
-		CURVEBS_STRIPE_COUNT: CURVEBS_DEFAULT_STRIPE_COUNT,
-		CURVEBS_BURST:        CURVEBS_DEFAULT_BURST,
-		CURVEBS_BURST_LENGTH: CURVEBS_DEFAULT_BURST_LENGTH,
-		CURVEBS_PATH:         CURVEBS_DEFAULT_PATH,
-		CURVEBS_FORCE:        CURVEBS_DEFAULT_FORCE,
-		CURVEBS_MARGIN:       CURVEBS_DEFAULT_MARGIN,
-		CURVEBS_OP:           CURVEBS_DEFAULT_OP,
-		CURVEBS_CHECK_TIME:   CURVEBS_DEFAULT_CHECK_TIME,
-		CURVEBS_SCAN:         CURVEBS_DEFAULT_SCAN,
+		CURVEBS_USER:            CURVEBS_DEFAULT_USER,
+		CURVEBS_PASSWORD:        CURVEBS_DEFAULT_PASSWORD,
+		CURVEBS_SIZE:            CURVEBS_DEFAULT_SIZE,
+		CURVEBS_STRIPE_UNIT:     CURVEBS_DEFAULT_STRIPE_UNIT,
+		CURVEBS_STRIPE_COUNT:    CURVEBS_DEFAULT_STRIPE_COUNT,
+		CURVEBS_BURST:           CURVEBS_DEFAULT_BURST,
+		CURVEBS_BURST_LENGTH:    CURVEBS_DEFAULT_BURST_LENGTH,
+		CURVEBS_PATH:            CURVEBS_DEFAULT_PATH,
+		CURVEBS_FORCE:           CURVEBS_DEFAULT_FORCE,
+		CURVEBS_MARGIN:          CURVEBS_DEFAULT_MARGIN,
+		CURVEBS_OP:              CURVEBS_DEFAULT_OP,
+		CURVEBS_CHECK_TIME:      CURVEBS_DEFAULT_CHECK_TIME,
+		CURVEBS_SCAN:            CURVEBS_DEFAULT_SCAN,
+		CUERVEBS_CHUNKSERVER_ID: CURVEBS_DEFAULT_CHUNKSERVER_ID,
 	}
 )
 
@@ -204,6 +209,7 @@ func AddBsStringSliceOptionFlag(cmd *cobra.Command, name string, usage string) {
 	if defaultValue == nil {
 		defaultValue = []string{}
 	}
+
 	cmd.Flags().StringSlice(name, defaultValue.([]string), usage)
 	err := viper.BindPFlag(BSFLAG2VIPER[name], cmd.Flags().Lookup(name))
 	if err != nil {
@@ -262,6 +268,18 @@ func AddBsDurationOptionFlag(cmd *cobra.Command, name string, usage string) {
 		defaultValue = 0
 	}
 	cmd.Flags().Duration(name, defaultValue.(time.Duration), usage)
+	err := viper.BindPFlag(BSFLAG2VIPER[name], cmd.Flags().Lookup(name))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
+func AddBsUint32SliceOptionFlag(cmd *cobra.Command, name string, usage string) {
+	defaultValue := BSFLAG2DEFAULT[name]
+	if defaultValue == nil {
+		defaultValue = []uint32{1, 2, 3}
+	}
+	cmd.Flags().UintSlice(name, defaultValue.([]uint), usage)
 	err := viper.BindPFlag(BSFLAG2VIPER[name], cmd.Flags().Lookup(name))
 	if err != nil {
 		cobra.CheckErr(err)
@@ -377,6 +395,10 @@ func AddBsPathOptionFlag(cmd *cobra.Command) {
 
 func AddBsCheckTimeOptionFlag(cmd *cobra.Command) {
 	AddBsDurationOptionFlag(cmd, CURVEBS_CHECK_TIME, "check time")
+}
+
+func AddBsChunkServerIdOptionFlag(cmd *cobra.Command) {
+	AddBsStringOptionFlag(cmd, CUERVEBS_CHUNKSERVER_ID, "chunkserver id")
 }
 
 // marigin
@@ -594,4 +616,23 @@ func GetBsRecyclePrefix(cmd *cobra.Command) string {
 
 func GetBsExpireTime(cmd *cobra.Command) time.Duration {
 	return GetBsFlagDuration(cmd, CURVEBS_EXPIRED_TIME)
+}
+
+func GetBsChunkServerId(cmd *cobra.Command) []uint32 {
+	chunkserveridStr := GetBsFlagString(cmd, CUERVEBS_CHUNKSERVER_ID)
+	if chunkserveridStr == "" || chunkserveridStr == "*" {
+		return []uint32{}
+	}
+	chunkserveridStrSlice := strings.Split(chunkserveridStr, ",")
+	var chunkserveridSlice []uint32
+	for _, id := range chunkserveridStrSlice {
+		idUint, err := strconv.ParseUint(id, 10, 32)
+		if err != nil {
+			parseError := cmderror.ErrParse()
+			parseError.Format("chunkserver id", id)
+			cobra.CheckErr(parseError.ToError())
+		}
+		chunkserveridSlice = append(chunkserveridSlice, uint32(idUint))
+	}
+	return chunkserveridSlice
 }
