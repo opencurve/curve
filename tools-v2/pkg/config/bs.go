@@ -100,6 +100,9 @@ const (
 	VIPER_CURVEBS_SNAPSHOTADDR      = "curvebs.snapshotAddr"
 	CURVEBS_SNAPSHOTDUMMYADDR       = "snapshotdummyaddr"
 	VIPER_CURVEBS_SNAPSHOTDUMMYADDR = "curvebs.snapshotDummyAddr"
+	CURVEBS_SCAN                    = "scan"
+	VIPER_CURVEBS_SCAN              = "curvebs.scan"
+	CURVEBS_DEFAULT_SCAN            = true
 )
 
 var (
@@ -135,6 +138,7 @@ var (
 		CURVEBS_CHECK_TIME:        VIPER_CURVEBS_CHECK_TIME,
 		CURVEBS_SNAPSHOTADDR:      VIPER_CURVEBS_SNAPSHOTADDR,
 		CURVEBS_SNAPSHOTDUMMYADDR: VIPER_CURVEBS_SNAPSHOTDUMMYADDR,
+		CURVEBS_SCAN:              VIPER_CURVEBS_SCAN,
 	}
 
 	BSFLAG2DEFAULT = map[string]interface{}{
@@ -151,6 +155,7 @@ var (
 		CURVEBS_MARGIN:       CURVEBS_DEFAULT_MARGIN,
 		CURVEBS_OP:           CURVEBS_DEFAULT_OP,
 		CURVEBS_CHECK_TIME:   CURVEBS_DEFAULT_CHECK_TIME,
+		CURVEBS_SCAN:         CURVEBS_DEFAULT_SCAN,
 	}
 )
 
@@ -381,6 +386,11 @@ func AddBsMarginOptionFlag(cmd *cobra.Command) {
 
 func GetBsMargin(cmd *cobra.Command) uint64 {
 	return GetFlagUint64(cmd, CURVEBS_MARGIN)
+}
+
+// scan-state
+func AddBsScanOptionFlag(cmd *cobra.Command) {
+	AddBsBoolOptionFlag(cmd, CURVEBS_SCAN, "enable/disable scan for logical pool")
 }
 
 // add flag required
