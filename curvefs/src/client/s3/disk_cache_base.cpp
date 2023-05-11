@@ -26,6 +26,7 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <dirent.h>
+#include <functional>
 
 #include "curvefs/src/client/s3/disk_cache_base.h"
 
