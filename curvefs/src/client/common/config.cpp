@@ -262,6 +262,8 @@ void InitFileSystemOption(Configuration* c, FileSystemOption* option) {
         c->GetValueFatalIfFail("fs.lookupCache.lruSize", &o->lruSize);
         c->GetValueFatalIfFail("fs.lookupCache.negativeTimeout",
                                &o->negativeTimeout);
+        c->GetValueFatalIfFail("fs.lookupCache.minUses",
+                               &o->minUses);
     }
     { // dir cache option
         auto o = &option->dirCacheOption;

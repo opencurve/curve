@@ -248,7 +248,9 @@ CURVEFS_ERROR FileSystem::Lookup(Request req,
     }
 
     auto rc = rpc_->Lookup(parent, name, entryOut);
-    if (rc == CURVEFS_ERROR::NOTEXIST) {
+    if (rc == CURVEFS_ERROR::OK) {
+        negative_->Delete(parent, name);
+    } else if (rc == CURVEFS_ERROR::NOTEXIST) {
         negative_->Put(parent, name);
     }
     return rc;

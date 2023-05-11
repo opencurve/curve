@@ -32,6 +32,14 @@ namespace curvefs {
 namespace client {
 namespace filesystem {
 
+#define RETURN_FALSE_IF_DISABLED() \
+    do {                           \
+        if (!enable_) {            \
+            return false;          \
+        }                          \
+    } while (0)
+
+
 LookupCache::LookupCache(LookupCacheOption option)
     : enable_(option.negativeTimeout > 0),
       rwlock_(),
@@ -39,36 +47,49 @@ LookupCache::LookupCache(LookupCacheOption option)
     lru_ = std::make_shared<LRUType>(option.lruSize);
 }
 
-std::string LookupCache::Entry2Key(Ino parent, const std::string& name) {
+std::string LookupCache::CacheKey(Ino parent, const std::string& name) {
     return absl::StrFormat("%d:%s", parent, name);
 }
 
 bool LookupCache::Get(Ino parent, const std::string& name) {
-    if (!enable_) {
-        return false;
-    }
-
+    RETURN_FALSE_IF_DISABLED();
     ReadLockGuard lk(rwlock_);
-    std::string key = Entry2Key(parent, name);
-    TimeSpec expireTime;
-    bool yes = lru_->Get(key, &expireTime);
+    CacheEntry entry;
+    auto key = CacheKey(parent, name);
+    bool yes = lru_->Get(key, &entry);
     if (!yes) {
         return false;
-    } else if (Now() > expireTime) {
+    } else if (entry.uses < option_.minUses) {
+        return false;
+    } else if (entry.expireTime > Now()) {
         return false;
     }
     return true;
 }
 
-void LookupCache::Put(Ino parent, const std::string& name) {
-    if (!enable_) {
-        return;
+bool LookupCache::Put(Ino parent, const std::string& name) {
+    RETURN_FALSE_IF_DISABLED();
+    WriteLockGuard lk(rwlock_);
+    CacheEntry entry;
+    auto key = CacheKey(parent, name);
+    bool yes = lru_->Get(key, &entry);
+    if (yes) {
+        entry.uses++;
+    } else {
+        entry.uses = 0;
     }
 
+    entry.expireTime = Now() + TimeSpec(option_.negativeTimeout, 0);
+    lru_->Put(key, entry);
+    return true;
+}
+
+bool LookupCache::Delete(Ino parent, const std::string& name) {
+    RETURN_FALSE_IF_DISABLED();
     WriteLockGuard lk(rwlock_);
-    auto key = Entry2Key(parent, name);
-    TimeSpec expireTime = Now() + TimeSpec(option_.negativeTimeout, 0);
-    lru_->Put(key, expireTime);
+    auto key = CacheKey(parent, name);
+    lru_->Remove(key);
+    return true;
 }
 
 }  // namespace filesystem

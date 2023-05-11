@@ -41,17 +41,24 @@ using ::curvefs::client::common::LookupCacheOption;
 // other positive entry will be cached in kernel.
 class LookupCache {
  public:
-    using LRUType = LRUCache<std::string, TimeSpec>;
+    struct CacheEntry {
+        uint32_t uses;
+        TimeSpec expireTime;
+    };
+
+    using LRUType = LRUCache<std::string, CacheEntry>;
 
  public:
     explicit LookupCache(LookupCacheOption option);
 
     bool Get(Ino parent, const std::string& name);
 
-    void Put(Ino parent, const std::string& name);
+    bool Put(Ino parent, const std::string& name);
+
+    bool Delete(Ino parent, const std::string& name);
 
  private:
-    std::string Entry2Key(Ino parent, const std::string& name);
+    std::string CacheKey(Ino parent, const std::string& name);
 
  private:
     bool enable_;

@@ -187,6 +187,7 @@ struct KernelCacheOption {
 struct LookupCacheOption {
     uint64_t lruSize;
     uint32_t negativeTimeout;
+    uint32_t minUses;
 };
 
 struct DirCacheOption {
