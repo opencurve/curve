@@ -141,6 +141,7 @@ curvefs/docker/curvefs
 curvefs/docker/*/curvefs
 storage_*
 
+tools-v2/go/*
 tools-v2/sbin/*
 tools-v2/proto/proto/*
 tools-v2/proto/curvefs/*

@@ -9,7 +9,7 @@ dep?= 0
 only?= "*"
 tag?= "curvebs:unknown"
 case?= "*"
-os?= "debian9"
+os?= "debian11"
 ci?=0
 
 define help_msg
@@ -60,10 +60,10 @@ list:
 	@bash util/build.sh --stor=$(stor) --list
 
 build:
-	@bash util/build.sh --stor=${stor} --only=$(only) --dep=$(dep) --release=$(release) --ci=$(ci) --os=$(os)
+	@bash util/build_in_image.sh --stor=${stor} --only=$(only) --dep=$(dep) --release=$(release) --ci=$(ci) --os=$(os)
 
 dep:
-	@bash util/build.sh --stor=$(stor) --only="" --dep=1
+	@bash util/build_in_image.sh --stor=$(stor) --only="" --dep=1
 
 install:
 	@bash util/install.sh --stor=$(stor) --prefix=$(prefix) --only=$(only)

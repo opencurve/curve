@@ -19,7 +19,7 @@ g_build_opts=(
     "--copt -DUSE_BTHREAD_MUTEX"
 )
 
-g_os="debian9"
+g_os="debian11"
 
 ############################  BASIC FUNCTIONS
 get_version() {
