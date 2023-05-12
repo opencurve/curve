@@ -47,7 +47,7 @@ const std::string kTestPrefix = "RcvSCSTest";  // NOLINT
 const uint64_t testFile1Length = 10ULL * 1024 * 1024 * 1024;
 const uint64_t chunkSize = 16ULL * 1024 * 1024;
 const uint64_t segmentSize = 32ULL * 1024 * 1024;
-const uint64_t chunkSplitSize = 65536;
+const uint64_t chunkSplitSize = 8388608;
 
 // 测试文件只写2个segment
 const uint64_t testFile1AllocSegmentNum = 2;
@@ -120,11 +120,11 @@ const std::vector<std::string> mdsConfigOptions{
 };
 
 const std::vector<std::string> mdsConf1{
-    { " --graceful_quit_on_sigterm" },
-    std::string(" --confPath=") + kMdsConfigPath,
-    std::string(" --log_dir=") + kLogPath,
-    std::string(" --segmentSize=") + std::to_string(segmentSize),
-    { " --stderrthreshold=3" },
+    { "--graceful_quit_on_sigterm" },
+    std::string("--confPath=") + kMdsConfigPath,
+    std::string("--log_dir=") + kLogPath,
+    std::string("--segmentSize=") + std::to_string(segmentSize),
+    { "--stderrthreshold=3" },
 };
 
 const std::vector<std::string> chunkserverConfigOptions{
@@ -150,65 +150,65 @@ const std::vector<std::string> snapClientConfigOptions{
 const std::vector<std::string> s3ConfigOptions{};
 
 const std::vector<std::string> chunkserverConf1{
-    { " --graceful_quit_on_sigterm" },
-    { " -chunkServerStoreUri=local://./" + kTestPrefix + "1/" },
-    { " -chunkServerMetaUri=local://./" + kTestPrefix +
+    { "--graceful_quit_on_sigterm" },
+    { "-chunkServerStoreUri=local://./" + kTestPrefix + "1/" },
+    { "-chunkServerMetaUri=local://./" + kTestPrefix +
       "1/chunkserver.dat" },  // NOLINT
-    { " -copySetUri=local://./" + kTestPrefix + "1/copysets" },
-    { " -raftSnapshotUri=curve://./" + kTestPrefix + "1/copysets" },
-    { " -recycleUri=local://./" + kTestPrefix + "1/recycler" },
-    { " -chunkFilePoolDir=./" + kTestPrefix + "1/chunkfilepool/" },
-    { " -chunkFilePoolMetaPath=./" + kTestPrefix +
+    { "-copySetUri=local://./" + kTestPrefix + "1/copysets" },
+    { "-raftSnapshotUri=curve://./" + kTestPrefix + "1/copysets" },
+    { "-recycleUri=local://./" + kTestPrefix + "1/recycler" },
+    { "-chunkFilePoolDir=./" + kTestPrefix + "1/chunkfilepool/" },
+    { "-chunkFilePoolMetaPath=./" + kTestPrefix +
       "1/chunkfilepool.meta" },  // NOLINT
-    std::string(" -conf=") + kCSConfigPath,
-    { " -raft_sync_segments=true" },
-    std::string(" --log_dir=") + kLogPath,
-    { " --stderrthreshold=3" },
-    { " -raftLogUri=curve://./" + kTestPrefix + "1/copysets" },
-    { " -walFilePoolDir=./" + kTestPrefix + "1/walfilepool/" },
-    { " -walFilePoolMetaPath=./" + kTestPrefix +
+    std::string("-conf=") + kCSConfigPath,
+    { "-raft_sync_segments=true" },
+    std::string("--log_dir=") + kLogPath,
+    { "--stderrthreshold=3" },
+    { "-raftLogUri=curve://./" + kTestPrefix + "1/copysets" },
+    { "-walFilePoolDir=./" + kTestPrefix + "1/walfilepool/" },
+    { "-walFilePoolMetaPath=./" + kTestPrefix +
         "1/walfilepool.meta" },
 };
 
 const std::vector<std::string> chunkserverConf2{
-    { " --graceful_quit_on_sigterm" },
-    { " -chunkServerStoreUri=local://./" + kTestPrefix + "2/" },
-    { " -chunkServerMetaUri=local://./" + kTestPrefix +
+    { "--graceful_quit_on_sigterm" },
+    { "-chunkServerStoreUri=local://./" + kTestPrefix + "2/" },
+    { "-chunkServerMetaUri=local://./" + kTestPrefix +
       "2/chunkserver.dat" },  // NOLINT
-    { " -copySetUri=local://./" + kTestPrefix + "2/copysets" },
-    { " -raftSnapshotUri=curve://./" + kTestPrefix + "2/copysets" },
-    { " -recycleUri=local://./" + kTestPrefix + "2/recycler" },
-    { " -chunkFilePoolDir=./" + kTestPrefix + "2/chunkfilepool/" },
-    { " -chunkFilePoolMetaPath=./" + kTestPrefix +
+    { "-copySetUri=local://./" + kTestPrefix + "2/copysets" },
+    { "-raftSnapshotUri=curve://./" + kTestPrefix + "2/copysets" },
+    { "-recycleUri=local://./" + kTestPrefix + "2/recycler" },
+    { "-chunkFilePoolDir=./" + kTestPrefix + "2/chunkfilepool/" },
+    { "-chunkFilePoolMetaPath=./" + kTestPrefix +
       "2/chunkfilepool.meta" },  // NOLINT
-    std::string(" -conf=") + kCSConfigPath,
-    { " -raft_sync_segments=true" },
-    std::string(" --log_dir=") + kLogPath,
-    { " --stderrthreshold=3" },
-    { " -raftLogUri=curve://./" + kTestPrefix + "2/copysets" },
-    { " -walFilePoolDir=./" + kTestPrefix + "2/walfilepool/" },
-    { " -walFilePoolMetaPath=./" + kTestPrefix +
+    std::string("-conf=") + kCSConfigPath,
+    { "-raft_sync_segments=true" },
+    std::string("--log_dir=") + kLogPath,
+    { "--stderrthreshold=3" },
+    { "-raftLogUri=curve://./" + kTestPrefix + "2/copysets" },
+    { "-walFilePoolDir=./" + kTestPrefix + "2/walfilepool/" },
+    { "-walFilePoolMetaPath=./" + kTestPrefix +
         "2/walfilepool.meta" },
 };
 
 const std::vector<std::string> chunkserverConf3{
-    { " --graceful_quit_on_sigterm" },
-    { " -chunkServerStoreUri=local://./" + kTestPrefix + "3/" },
-    { " -chunkServerMetaUri=local://./" + kTestPrefix +
+    { "--graceful_quit_on_sigterm" },
+    { "-chunkServerStoreUri=local://./" + kTestPrefix + "3/" },
+    { "-chunkServerMetaUri=local://./" + kTestPrefix +
       "3/chunkserver.dat" },  // NOLINT
-    { " -copySetUri=local://./" + kTestPrefix + "3/copysets" },
-    { " -raftSnapshotUri=curve://./" + kTestPrefix + "3/copysets" },
-    { " -recycleUri=local://./" + kTestPrefix + "3/recycler" },
-    { " -chunkFilePoolDir=./" + kTestPrefix + "3/chunkfilepool/" },
-    { " -chunkFilePoolMetaPath=./" + kTestPrefix +
+    { "-copySetUri=local://./" + kTestPrefix + "3/copysets" },
+    { "-raftSnapshotUri=curve://./" + kTestPrefix + "3/copysets" },
+    { "-recycleUri=local://./" + kTestPrefix + "3/recycler" },
+    { "-chunkFilePoolDir=./" + kTestPrefix + "3/chunkfilepool/" },
+    { "-chunkFilePoolMetaPath=./" + kTestPrefix +
       "3/chunkfilepool.meta" },  // NOLINT
-    std::string(" -conf=") + kCSConfigPath,
-    { " -raft_sync_segments=true" },
-    std::string(" --log_dir=") + kLogPath,
-    { " --stderrthreshold=3" },
-    { " -raftLogUri=curve://./" + kTestPrefix + "3/copysets" },
-    { " -walFilePoolDir=./" + kTestPrefix + "3/walfilepool/" },
-    { " -walFilePoolMetaPath=./" + kTestPrefix +
+    std::string("-conf=") + kCSConfigPath,
+    { "-raft_sync_segments=true" },
+    std::string("--log_dir=") + kLogPath,
+    { "--stderrthreshold=3" },
+    { "-raftLogUri=curve://./" + kTestPrefix + "3/copysets" },
+    { "-walFilePoolDir=./" + kTestPrefix + "3/walfilepool/" },
+    { "-walFilePoolMetaPath=./" + kTestPrefix +
         "3/walfilepool.meta" },
 };
 
@@ -234,9 +234,9 @@ const std::vector<std::string> snapshotcloneserverConfigOptions{
 };
 
 const std::vector<std::string> snapshotcloneConf{
-    std::string(" --conf=") + kSCSConfigPath,
-    std::string(" --log_dir=") + kLogPath,
-    { " --stderrthreshold=3" },
+    std::string("--conf=") + kSCSConfigPath,
+    std::string("--log_dir=") + kLogPath,
+    { "--stderrthreshold=3" },
 };
 
 const std::vector<std::string> clientConfigOptions{
@@ -270,7 +270,7 @@ class SnapshotCloneServerTest : public ::testing::Test {
         // 启动etcd
         pid_t pid = cluster_->StartSingleEtcd(
             1, kEtcdClientIpPort, kEtcdPeerIpPort,
-            std::vector<std::string>{ " --name " + kTestPrefix });
+            std::vector<std::string>{ "--name=" + kTestPrefix });
         LOG(INFO) << "etcd 1 started on " << kEtcdClientIpPort
                   << "::" << kEtcdPeerIpPort << ", pid = " << pid;
         ASSERT_GT(pid, 0);

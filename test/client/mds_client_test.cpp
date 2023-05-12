@@ -31,6 +31,7 @@
 
 #include "test/client/mock/mock_namespace_service.h"
 #include "test/client/mock/mock_topology_service.h"
+#include "src/client/lease_executor.h"
 
 namespace curve {
 namespace client {
@@ -613,6 +614,213 @@ TEST_F(MDSClientTest, TestListPoolset) {
         ASSERT_EQ(2, out.size());
         ASSERT_EQ("default", out[0]);
         ASSERT_EQ("system", out[1]);
+    }
+}
+
+TEST_F(MDSClientTest, TestCreateFile) {
+    CreateFileContext ctx;
+
+    // rpc always failed
+    {
+        EXPECT_CALL(mockNameService_, CreateFile(_, _, _, _))
+            .WillRepeatedly(Invoke(FakeRpcService<true>{}));
+
+        auto startMs = TimeUtility::GetTimeofDayMs();
+        ASSERT_EQ(LIBCURVE_ERROR::FAILED, mdsClient_.CreateFile(ctx));
+        auto endMs = TimeUtility::GetTimeofDayMs();
+        ASSERT_LE(option_.mdsMaxRetryMS, endMs - startMs);
+    }
+
+    // rpc response failed
+    {
+        curve::mds::CreateFileResponse response;
+        response.set_statuscode(curve::mds::StatusCode::kFileExists);
+
+        EXPECT_CALL(mockNameService_, CreateFile(_, _, _, _))
+            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
+                                  Invoke(FakeRpcService<false>{})));
+
+        ASSERT_EQ(LIBCURVE_ERROR::EXISTS, mdsClient_.CreateFile(ctx));
+    }
+
+    // create normal file success
+    {
+        curve::mds::CreateFileResponse response;
+        response.set_statuscode(curve::mds::StatusCode::kOK);
+
+        EXPECT_CALL(mockNameService_, CreateFile(_, _, _, _))
+            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
+                                  Invoke(FakeRpcService<false>{})));
+
+        ASSERT_EQ(LIBCURVE_ERROR::OK, mdsClient_.CreateFile(ctx));
+    }
+}
+
+TEST_F(MDSClientTest, TestRefreshSession) {
+    UserInfo userInfo;
+    std::string fileName = "/TestRefreshSession";
+    std::string sessionId = "1";
+    struct LeaseRefreshResult result;
+    LeaseSession session;
+
+    // rpc always failed
+    {
+        EXPECT_CALL(mockNameService_, RefreshSession(_, _, _, _))
+            .WillRepeatedly(Invoke(FakeRpcService<true>{}));
+
+        auto startMs = TimeUtility::GetTimeofDayMs();
+        ASSERT_EQ(LIBCURVE_ERROR::FAILED,
+                  mdsClient_.RefreshSession(fileName, userInfo, sessionId,
+                                             &result, &session));
+        auto endMs = TimeUtility::GetTimeofDayMs();
+        ASSERT_LE(option_.mdsMaxRetryMS, endMs - startMs);
+    }
+
+    // refresh session success
+    {
+        curve::mds::ReFreshSessionResponse response;
+        response.set_statuscode(curve::mds::StatusCode::kOK);
+        response.set_sessionid("1");
+        response.set_allocated_fileinfo(new curve::mds::FileInfo());
+        response.mutable_protosession()->set_sessionid("1");
+        response.mutable_protosession()->set_createtime(1);
+        response.mutable_protosession()->set_leasetime(1);
+        response.mutable_protosession()->set_sessionstatus(
+            curve::mds::SessionStatus::kSessionOK);
+        EXPECT_CALL(mockNameService_, RefreshSession(_, _, _, _))
+            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
+                                  Invoke(FakeRpcService<false>{})));
+        ASSERT_EQ(LIBCURVE_ERROR::OK,
+                  mdsClient_.RefreshSession(fileName, userInfo, sessionId,
+                                             &result, &session));
+    }
+}
+
+TEST_F(MDSClientTest, TestCloseFile) {
+    UserInfo userInfo;
+    const std::string fileName = "/TestCloseFile";
+    const std::string sessionId = "1";
+
+    // rpc always failed
+    {
+        EXPECT_CALL(mockNameService_, CloseFile(_, _, _, _))
+            .WillRepeatedly(Invoke(FakeRpcService<true>{}));
+
+        auto startMs = TimeUtility::GetTimeofDayMs();
+        ASSERT_EQ(LIBCURVE_ERROR::FAILED,
+                  mdsClient_.CloseFile(fileName, userInfo, sessionId));
+        auto endMs = TimeUtility::GetTimeofDayMs();
+        ASSERT_LE(option_.mdsMaxRetryMS, endMs - startMs);
+    }
+
+    // rpc response failed
+    {
+        curve::mds::CloseFileResponse response;
+        response.set_statuscode(curve::mds::StatusCode::kFileNotExists);
+
+        EXPECT_CALL(mockNameService_, CloseFile(_, _, _, _))
+            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
+                                  Invoke(FakeRpcService<false>{})));
+
+        ASSERT_EQ(LIBCURVE_ERROR::NOTEXIST,
+                  mdsClient_.CloseFile(fileName, userInfo, sessionId));
+    }
+
+    // close normal file success
+    {
+        curve::mds::CloseFileResponse response;
+        response.set_statuscode(curve::mds::StatusCode::kOK);
+
+        EXPECT_CALL(mockNameService_, CloseFile(_, _, _, _))
+            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
+                                  Invoke(FakeRpcService<false>{})));
+
+        ASSERT_EQ(LIBCURVE_ERROR::OK,
+                  mdsClient_.CloseFile(fileName, userInfo, sessionId));
+    }
+}
+
+TEST_F(MDSClientTest, TestGetFileInfo) {
+    UserInfo userInfo;
+    const std::string fileName = "/TestFile";
+    FInfo_t finfo;
+    FileEpoch_t fEpoch;
+
+    // rpc always failed
+    {
+        EXPECT_CALL(mockNameService_, GetFileInfo(_, _, _, _))
+            .WillRepeatedly(Invoke(FakeRpcService<true>{}));
+
+        auto startMs = TimeUtility::GetTimeofDayMs();
+        ASSERT_EQ(LIBCURVE_ERROR::FAILED,
+                  mdsClient_.GetFileInfo(fileName, userInfo, &finfo, &fEpoch));
+        auto endMs = TimeUtility::GetTimeofDayMs();
+        ASSERT_LE(option_.mdsMaxRetryMS, endMs - startMs);
+    }
+
+    // rpc response failed
+    {
+        curve::mds::GetFileInfoResponse response;
+        response.set_statuscode(curve::mds::StatusCode::kFileNotExists);
+
+        EXPECT_CALL(mockNameService_, GetFileInfo(_, _, _, _))
+            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
+                                  Invoke(FakeRpcService<false>{})));
+
+        ASSERT_EQ(LIBCURVE_ERROR::NOTEXIST,
+                  mdsClient_.GetFileInfo(fileName, userInfo, &finfo, &fEpoch));
+    }
+
+    // get fileInfo success
+    {
+        curve::mds::GetFileInfoResponse response;
+        response.set_statuscode(curve::mds::StatusCode::kOK);
+
+        EXPECT_CALL(mockNameService_, GetFileInfo(_, _, _, _))
+            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
+                                  Invoke(FakeRpcService<false>{})));
+
+        ASSERT_EQ(LIBCURVE_ERROR::OK,
+                  mdsClient_.GetFileInfo(fileName, userInfo, &finfo, &fEpoch));
+    }
+}
+
+TEST_F(MDSClientTest, TestRecoverFile) {
+    std::string fileName = "/TestRecoverFile";
+    UserInfo userInfo;
+    uint64_t fileId = 1;
+
+    // rpc always failed
+    {
+        EXPECT_CALL(mockNameService_, RecoverFile(_, _, _, _))
+            .WillRepeatedly(Invoke(FakeRpcService<true>{}));
+
+        ASSERT_EQ(LIBCURVE_ERROR::FAILED,
+                  mdsClient_.RecoverFile(fileName, userInfo, fileId));
+    }
+
+    // rpc response failed
+    {
+        curve::mds::RecoverFileResponse response;
+        response.set_statuscode(curve::mds::StatusCode::kFileNotExists);
+
+        EXPECT_CALL(mockNameService_, RecoverFile(_, _, _, _))
+            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
+                                  Invoke(FakeRpcService<false>{})));
+        ASSERT_EQ(LIBCURVE_ERROR::NOTEXIST,
+                  mdsClient_.RecoverFile(fileName, userInfo, fileId));
+    }
+
+    // scucess
+    {
+        curve::mds::RecoverFileResponse response;
+        response.set_statuscode(curve::mds::StatusCode::kOK);
+
+        EXPECT_CALL(mockNameService_, RecoverFile(_, _, _, _))
+            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
+                                  Invoke(FakeRpcService<false>{})));
+        ASSERT_EQ(LIBCURVE_ERROR::OK,
+                  mdsClient_.RecoverFile(fileName, userInfo, fileId));
     }
 }
 

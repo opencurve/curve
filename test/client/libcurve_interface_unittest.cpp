@@ -71,7 +71,14 @@ void readcallbacktest(CurveAioContext* context) {
     LOG(INFO) << "aio call back here, errorcode = " << context->ret;
 }
 
-TEST(TestLibcurveInterface, InterfaceTest) {
+class TestLibcurveInterface : public ::testing::Test {
+ protected:
+    void SetUp() override {}
+
+    void TearDown() override {}
+};
+
+TEST_F(TestLibcurveInterface, InterfaceTest) {
     FLAGS_chunkserver_list =
          "127.0.0.1:9115:0,127.0.0.1:9116:0,127.0.0.1:9117:0";
 
@@ -225,7 +232,7 @@ TEST(TestLibcurveInterface, InterfaceTest) {
     UnInit();
 }
 
-TEST(TestLibcurveInterface, FileClientTest) {
+TEST_F(TestLibcurveInterface, FileClientTest) {
     fiu_init(0);
     FLAGS_chunkserver_list =
          "127.0.0.1:9115:0,127.0.0.1:9116:0,127.0.0.1:9117:0";
@@ -578,7 +585,7 @@ TEST(TestLibcurveInterface, ChunkserverUnstableTest) {
     delete[] buffer;
 }
 */
-TEST(TestLibcurveInterface, InterfaceExceptionTest) {
+TEST_F(TestLibcurveInterface, InterfaceExceptionTest) {
     std::string filename = "/1_userinfo_";
 
     C_UserInfo_t userinfo;
@@ -639,7 +646,7 @@ TEST(TestLibcurveInterface, InterfaceExceptionTest) {
     mds.UnInitialize();
 }
 
-TEST(TestLibcurveInterface, UnstableChunkserverTest) {
+TEST_F(TestLibcurveInterface, UnstableChunkserverTest) {
     std::string filename = "/1_userinfo_";
 
     UserInfo_t userinfo;
@@ -827,7 +834,7 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
     delete[] buffer;
 }
 
-TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
+TEST_F(TestLibcurveInterface, ResumeTimeoutBackoff) {
     std::string filename = "/1_userinfo_";
 
     UserInfo_t userinfo;
@@ -939,7 +946,7 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
     delete[] buffer;
 }
 
-TEST(TestLibcurveInterface, InterfaceStripeTest) {
+TEST_F(TestLibcurveInterface, InterfaceStripeTest) {
     FLAGS_chunkserver_list =
          "127.0.0.1:9115:0,127.0.0.1:9116:0,127.0.0.1:9117:0";
 

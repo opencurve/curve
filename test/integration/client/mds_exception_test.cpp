@@ -51,77 +51,77 @@ bool testIORead = false;
 
 using curve::CurveCluster;
 const std::vector<std::string> mdsConf{
-    { " --confPath=./conf/mds.conf" },
-    { " --log_dir=./runlog/MDSExceptionTest" },
-    { " --mdsDbName=module_exception_curve_mds" },
-    { " --sessionInterSec=20" },
-    { " --etcdAddr=127.0.0.1:22230" },
+    { "--confPath=./conf/mds.conf" },
+    { "--log_dir=./runlog/MDSExceptionTest" },
+    { "--mdsDbName=module_exception_curve_mds" },
+    { "--sessionInterSec=20" },
+    { "--etcdAddr=127.0.0.1:22230" },
 };
 
 const std::vector<std::string> chunkserverConf1{
-    { " -chunkServerStoreUri=local://./moduleException1/" },
-    { " -chunkServerMetaUri=local://./moduleException1/chunkserver.dat" },
-    { " -copySetUri=local://./moduleException1/copysets" },
-    { " -raftSnapshotUri=curve://./moduleException1/copysets" },
-    { " -raftLogUri=curve://./moduleException1/copysets" },
-    { " -recycleUri=local://./moduleException1/recycler" },
-    { " -chunkFilePoolDir=./moduleException1/chunkfilepool/" },
-    { " -chunkFilePoolMetaPath=./moduleException1/chunkfilepool.meta" },
-    { " -conf=./conf/chunkserver.conf.example" },
-    { " -raft_sync_segments=true" },
-    { " --log_dir=./runlog/MDSExceptionTest" },
-    { " --graceful_quit_on_sigterm" },
-    { " -chunkServerIp=127.0.0.1" },
-    { " -chunkServerPort=22225" },
-    { " -enableChunkfilepool=false" },
-    { " -mdsListenAddr=127.0.0.1:22222,127.0.0.1:22223,127.0.0.1:22224" },
-    { " -enableWalfilepool=false" },
-    { " -walFilePoolDir=./moduleException1/walfilepool/" },
-    { " -walFilePoolMetaPath=./moduleException1/walfilepool.meta" }
+    { "-chunkServerStoreUri=local://./moduleException1/" },
+    { "-chunkServerMetaUri=local://./moduleException1/chunkserver.dat" },
+    { "-copySetUri=local://./moduleException1/copysets" },
+    { "-raftSnapshotUri=curve://./moduleException1/copysets" },
+    { "-raftLogUri=curve://./moduleException1/copysets" },
+    { "-recycleUri=local://./moduleException1/recycler" },
+    { "-chunkFilePoolDir=./moduleException1/chunkfilepool/" },
+    { "-chunkFilePoolMetaPath=./moduleException1/chunkfilepool.meta" },
+    { "-conf=./conf/chunkserver.conf.example" },
+    { "-raft_sync_segments=true" },
+    { "--log_dir=./runlog/MDSExceptionTest" },
+    { "--graceful_quit_on_sigterm" },
+    { "-chunkServerIp=127.0.0.1" },
+    { "-chunkServerPort=22225" },
+    { "-enableChunkfilepool=false" },
+    { "-mdsListenAddr=127.0.0.1:22222,127.0.0.1:22223,127.0.0.1:22224" },
+    { "-enableWalfilepool=false" },
+    { "-walFilePoolDir=./moduleException1/walfilepool/" },
+    { "-walFilePoolMetaPath=./moduleException1/walfilepool.meta" }
 };
 
 const std::vector<std::string> chunkserverConf2{
-    { " -chunkServerStoreUri=local://./moduleException2/" },
-    { " -chunkServerMetaUri=local://./moduleException2/chunkserver.dat" },
-    { " -copySetUri=local://./moduleException2/copysets" },
-    { " -raftSnapshotUri=curve://./moduleException2/copysets" },
-    { " -raftLogUri=curve://./moduleException2/copysets" },
-    { " -recycleUri=local://./moduleException2/recycler" },
-    { " -chunkFilePoolDir=./moduleException2/chunkfilepool/" },
-    { " -chunkFilePoolMetaPath=./moduleException2/chunkfilepool.meta" },
-    { " -conf=./conf/chunkserver.conf.example" },
-    { " -raft_sync_segments=true" },
-    { " --log_dir=./runlog/MDSExceptionTest" },
-    { " --graceful_quit_on_sigterm" },
-    { " -chunkServerIp=127.0.0.1" },
-    { " -chunkServerPort=22226" },
-    { " -enableChunkfilepool=false" },
-    { " -mdsListenAddr=127.0.0.1:22222,127.0.0.1:22223,127.0.0.1:22224" },
-    { " -enableWalfilepool=false" },
-    { " -walFilePoolDir=./moduleException2/walfilepool/" },
-    { " -walFilePoolMetaPath=./moduleException2/walfilepool.meta" }
+    { "-chunkServerStoreUri=local://./moduleException2/" },
+    { "-chunkServerMetaUri=local://./moduleException2/chunkserver.dat" },
+    { "-copySetUri=local://./moduleException2/copysets" },
+    { "-raftSnapshotUri=curve://./moduleException2/copysets" },
+    { "-raftLogUri=curve://./moduleException2/copysets" },
+    { "-recycleUri=local://./moduleException2/recycler" },
+    { "-chunkFilePoolDir=./moduleException2/chunkfilepool/" },
+    { "-chunkFilePoolMetaPath=./moduleException2/chunkfilepool.meta" },
+    { "-conf=./conf/chunkserver.conf.example" },
+    { "-raft_sync_segments=true" },
+    { "--log_dir=./runlog/MDSExceptionTest" },
+    { "--graceful_quit_on_sigterm" },
+    { "-chunkServerIp=127.0.0.1" },
+    { "-chunkServerPort=22226" },
+    { "-enableChunkfilepool=false" },
+    { "-mdsListenAddr=127.0.0.1:22222,127.0.0.1:22223,127.0.0.1:22224" },
+    { "-enableWalfilepool=false" },
+    { "-walFilePoolDir=./moduleException2/walfilepool/" },
+    { "-walFilePoolMetaPath=./moduleException2/walfilepool.meta" }
 };
 
 const std::vector<std::string> chunkserverConf3{
-    { " -chunkServerStoreUri=local://./moduleException3/" },
-    { " -chunkServerMetaUri=local://./moduleException3/chunkserver.dat" },
-    { " -copySetUri=local://./moduleException3/copysets" },
-    { " -raftSnapshotUri=curve://./moduleException3/copysets" },
-    { " -raftLogUri=curve://./moduleException3/copysets" },
-    { " -recycleUri=local://./moduleException3/recycler" },
-    { " -chunkFilePoolDir=./moduleException3/chunkfilepool/" },
-    { " -chunkFilePoolMetaPath=./moduleException3/chunkfilepool.meta" },
-    { " -conf=./conf/chunkserver.conf.example" },
-    { " -raft_sync_segments=true" },
-    { " --log_dir=./runlog/MDSExceptionTest" },
-    { " --graceful_quit_on_sigterm" },
-    { " -chunkServerIp=127.0.0.1" },
-    { " -chunkServerPort=22227" },
-    { " -enableChunkfilepool=false" },
-    { " -mdsListenAddr=127.0.0.1:22222,127.0.0.1:22223,127.0.0.1:22224" },
-    { " -enableWalfilepool=false" },
-    { " -walFilePoolDir=./moduleException3/walfilepool/" },
-    { " -walFilePoolMetaPath=./moduleException3/walfilepool.meta" }
+    { "-chunkServerStoreUri=local://./moduleException3/" },
+    { "-chunkServerMetaUri=local://./moduleException3/chunkserver.dat" },
+    { "-copySetUri=local://./moduleException3/copysets" },
+    { "-raftSnapshotUri=curve://./moduleException3/copysets" },
+    { "-raftLogUri=curve://./moduleException3/copysets" },
+    { "-recycleUri=local://./moduleException3/recycler" },
+    { "-chunkFilePoolDir=./moduleException3/chunkfilepool/" },
+    { "-chunkFilePoolMetaPath=./moduleException3/chunkfilepool.meta" },
+    { "-conf=./conf/chunkserver.conf.example" },
+    { "-raft_sync_segments=true" },
+    { "--log_dir=./runlog/MDSExceptionTest" },
+    { "--graceful_quit_on_sigterm" },
+    { "-chunkServerIp=127.0.0.1" },
+    { "-chunkServerPort=22227" },
+    { "-enableChunkfilepool=false" },
+    { "-mdsListenAddr=127.0.0.1:22222,127.0.0.1:22223,127.0.0.1:22224" },
+    { "-enableWalfilepool=false" },
+    { "-walFilePoolDir=./moduleException3/walfilepool/" },
+    { "-walFilePoolMetaPath=./moduleException3/walfilepool.meta" }
 };
 
 std::string mdsaddr =                                   // NOLINT
@@ -152,7 +152,7 @@ class MDSModuleException : public ::testing::Test {
         // 1. 启动etcd
         pid_t pid = cluster->StartSingleEtcd(
             1, "127.0.0.1:22230", "127.0.0.1:22231",
-            std::vector<std::string>{ " --name module_exception_test_mds" });
+            std::vector<std::string>{"--name=module_exception_test_mds"});
         LOG(INFO) << "etcd 1 started on 127.0.0.1:22230:22231, pid = " << pid;
         ASSERT_GT(pid, 0);
 

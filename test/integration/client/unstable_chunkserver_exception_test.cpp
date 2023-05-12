@@ -78,30 +78,30 @@ const std::vector<std::string> clientConfigOpts{
 };
 
 const std::vector<std::string> mdsConf{
-    std::string(" --confPath=") + kMdsConfPath,
-    std::string(" --mdsAddr=") + kMdsIpPort,
-    std::string(" --etcdAddr=") + kEtcdClientIpPort,
-    { " --log_dir=./runlog/mds" },
-    { " --stderrthreshold=3" }
+    std::string("--confPath=") + kMdsConfPath,
+    std::string("--mdsAddr=") + kMdsIpPort,
+    std::string("--etcdAddr=") + kEtcdClientIpPort,
+    { "--log_dir=./runlog/mds" },
+    { "--stderrthreshold=3" }
 };
 
 const std::vector<std::string> chunkserverConfTemplate{
-    { " -raft_sync_segments=true" },
-    std::string(" -conf=") + kCSConfPath,
-    { " -chunkServerPort=%d" },
-    { " -chunkServerStoreUri=local://./ttt/%d/" },
-    { " -chunkServerMetaUri=local://./ttt/%d/chunkserver.dat" },
-    { " -copySetUri=local://./ttt/%d/copysets" },
-    { " -raftSnapshotUri=curve://./ttt/%d/copysets" },
-    { " -raftLogUri=curve://./ttt/%d/copysets" },
-    { " -recycleUri=local://./ttt/%d/recycler" },
-    { " -chunkFilePoolDir=./ttt/%d/chunkfilepool/" },
-    { " -chunkFilePoolMetaPath=./ttt/%d/chunkfilepool.meta" },
-    { " -walFilePoolDir=./ttt/%d/walfilepool/" },
-    { " -walFilePoolMetaPath=./ttt/%d/walfilepool.meta" },
-    { " -mdsListenAddr=127.0.0.1:30010,127.0.0.1:30011,127.0.0.1:30012" },
-    { " -log_dir=./runlog/cs_%d" },
-    { " --stderrthreshold=3" }
+    { "-raft_sync_segments=true" },
+    std::string("-conf=") + kCSConfPath,
+    { "-chunkServerPort=%d" },
+    { "-chunkServerStoreUri=local://./ttt/%d/" },
+    { "-chunkServerMetaUri=local://./ttt/%d/chunkserver.dat" },
+    { "-copySetUri=local://./ttt/%d/copysets" },
+    { "-raftSnapshotUri=curve://./ttt/%d/copysets" },
+    { "-raftLogUri=curve://./ttt/%d/copysets" },
+    { "-recycleUri=local://./ttt/%d/recycler" },
+    { "-chunkFilePoolDir=./ttt/%d/chunkfilepool/" },
+    { "-chunkFilePoolMetaPath=./ttt/%d/chunkfilepool.meta" },
+    { "-walFilePoolDir=./ttt/%d/walfilepool/" },
+    { "-walFilePoolMetaPath=./ttt/%d/walfilepool.meta" },
+    { "-mdsListenAddr=127.0.0.1:30010,127.0.0.1:30011,127.0.0.1:30012" },
+    { "-log_dir=./runlog/cs_%d" },
+    { "--stderrthreshold=3" }
 };
 
 const std::vector<int> chunkserverPorts{
@@ -187,7 +187,7 @@ class UnstableCSModuleException : public ::testing::Test {
         pid_t pid = cluster->StartSingleEtcd(
             1, kEtcdClientIpPort, kEtcdPeerIpPort,
             std::vector<std::string>{
-                " --name module_exception_curve_unstable_cs" });
+                "--name=module_exception_curve_unstable_cs" });
         LOG(INFO) << "etcd 1 started on " << kEtcdClientIpPort << ":"
                   << kEtcdPeerIpPort << ", pid = " << pid;
         ASSERT_GT(pid, 0);
