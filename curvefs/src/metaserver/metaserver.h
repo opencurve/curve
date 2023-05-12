@@ -68,6 +68,7 @@ struct MetaserverOptions {
     std::string externalIp;
     int externalPort;
     int bthreadWorkerCount = -1;
+    int idleTimeoutSec = -1;
     bool enableExternalServer;
 };
 

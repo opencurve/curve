@@ -66,6 +66,8 @@ void MDS::InitOptions(std::shared_ptr<Configuration> conf) {
     conf_ = std::move(conf);
     conf_->GetValueFatalIfFail("mds.listen.addr", &options_.mdsListenAddr);
     conf_->GetValueFatalIfFail("mds.dummy.port", &options_.dummyPort);
+    conf_->GetValueFatalIfFail("mds.server.idleTimeoutSec",
+                               &options_.idleTimeoutSec);
 
     InitMetaServerOption(&options_.metaserverOptions);
     InitTopologyOption(&options_.topologyOptions);
@@ -275,6 +277,7 @@ void MDS::Run() {
 
     // start rpc server
     brpc::ServerOptions option;
+    option.idle_timeout_sec = options_.idleTimeoutSec;
     LOG_IF(FATAL, server.Start(options_.mdsListenAddr.c_str(), &option) != 0)
         << "start brpc server error";
     running_ = true;

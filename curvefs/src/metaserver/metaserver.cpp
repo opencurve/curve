@@ -99,6 +99,9 @@ void Metaserver::InitOptions(std::shared_ptr<Configuration> conf) {
             << "Parse bthread.worker_count to int failed, string value: "
             << value;
     }
+    conf_->GetValueFatalIfFail("server.idleTimeoutSec",
+                               &options_.idleTimeoutSec);
+
 
     InitBRaftFlags(conf);
 }
@@ -455,6 +458,7 @@ void Metaserver::Run() {
     if (options_.bthreadWorkerCount != -1) {
         option.num_threads = options_.bthreadWorkerCount;
     }
+    option.idle_timeout_sec = options_.idleTimeoutSec;
     LOG_IF(FATAL, server_->Start(listenAddr, &option) != 0)
         << "start internal brpc server error";
 
