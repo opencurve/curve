@@ -23,7 +23,6 @@
 package client
 
 import (
-	"errors"
 	"strconv"
 	"strings"
 
@@ -89,11 +88,13 @@ func (cCmd *ClientCommand) Init(cmd *cobra.Command, args []string) error {
 	// get client list
 	results, err := client.GetClientList(cmd)
 	if err.Code != cmderror.CODE_SUCCESS {
-		return errors.New("Get Client List fail!")
+		return err.ToError()
 	}
 
 	if len((*results).([]map[string]string)) == 0 {
-		return errors.New("Client List is null!")
+		retErr := cmderror.ErrBsGetClientStatus()
+		retErr.Format("Client List is null!")
+		return retErr.ToError()
 	}
 
 	clientAddr := make([]string, 0)
