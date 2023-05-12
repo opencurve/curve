@@ -23,54 +23,21 @@
 package cobrautil
 
 import (
-	"github.com/gookit/color"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	"github.com/opencurve/curve/tools-v2/proto/curvefs/proto/copyset"
+	fscopyset "github.com/opencurve/curve/tools-v2/proto/curvefs/proto/copyset"
 	"github.com/opencurve/curve/tools-v2/proto/curvefs/proto/heartbeat"
 	bscopyset "github.com/opencurve/curve/tools-v2/proto/proto/copyset"
 	bsheartbeat "github.com/opencurve/curve/tools-v2/proto/proto/heartbeat"
 )
 
-type CopysetInfoStatus struct {
-	Info        *heartbeat.CopySetInfo                    `json:"info,omitempty"`
-	Peer2Status map[string]*copyset.CopysetStatusResponse `json:"peer status,omitempty"`
+type FsCopysetInfoStatus struct {
+	Info        *heartbeat.CopySetInfo                      `json:"info,omitempty"`
+	Peer2Status map[string]*fscopyset.CopysetStatusResponse `json:"peer status,omitempty"`
 }
 
 type BsCopysetInfoStatus struct {
 	Info        *bsheartbeat.CopySetInfo                    `json:"info,omitempty"`
 	Peer2Status map[string]*bscopyset.CopysetStatusResponse `json:"peer status,omitempty"`
-}
-
-type COPYSET_HEALTH_STATUS int32
-
-const (
-	COPYSET_OK       COPYSET_HEALTH_STATUS = 1
-	COPYSET_WARN     COPYSET_HEALTH_STATUS = 2
-	COPYSET_ERROR    COPYSET_HEALTH_STATUS = 3
-	COPYSET_NOTEXIST COPYSET_HEALTH_STATUS = 4
-)
-
-const (
-	COPYSET_OK_STR       = "ok"
-	COPYSET_WARN_STR     = "warn"
-	COPYSET_ERROR_STR    = "error"
-	COPYSET_NOTEXIST_STR = "not exist"
-)
-
-var (
-	CopysetHealthStatus_Str = map[int32]string{
-		1: COPYSET_OK_STR,
-		2: COPYSET_WARN_STR,
-		3: COPYSET_ERROR_STR,
-		4: COPYSET_NOTEXIST_STR,
-	}
-)
-
-var CopysetHealthStatus_StrWithColor = map[int32]string{
-	1: color.Green.Sprint(CopysetHealthStatus_Str[1]),
-	2: color.Yellow.Sprint(CopysetHealthStatus_Str[2]),
-	3: color.Red.Sprint(CopysetHealthStatus_Str[3]),
-	4: color.Red.Sprint(CopysetHealthStatus_Str[4]),
 }
 
 type COPYSET_STATE uint32
@@ -109,6 +76,32 @@ var (
 	}
 )
 
+type COPYSET_CHECK_RESULT int32
+
+const (
+	HEALTHY COPYSET_CHECK_RESULT = iota
+	PARSE_ERROR
+	PEERS_NO_SUFFICIENT
+	LOG_INDEX_GAP_TOO_BIG
+	INSTALLING_SNAPSHOT
+	MINORITY_NOT_ONLINE
+	MAJORITY_NOT_ONLINE
+	OTHER_ERROR
+)
+
+var (
+	CopysetResultStr = map[COPYSET_CHECK_RESULT]string{
+		0: "healthy",
+		1: "parse error",
+		2: "peers no sufficient",
+		3: "log index gap too big",
+		4: "some peers are installing snapshot",
+		5: "minority peers are not online",
+		6: "majority peers are not online",
+		7: "other error",
+	}
+)
+
 // The copyset is stored in n peers.
 // Note the number of available peers as p.
 // When p==n, the copy status is ok;
@@ -121,7 +114,7 @@ var (
 //
 // For the state available status of copysetStatus,
 // please refer to CopysetState_Avaliable.
-func CheckCopySetHealth(copysetIS *CopysetInfoStatus) (COPYSET_HEALTH_STATUS, []*cmderror.CmdError) {
+func CheckFsCopySetHealth(copysetIS *FsCopysetInfoStatus) (COPYSET_HEALTH_STATUS, []*cmderror.CmdError) {
 	peers := copysetIS.Info.GetPeers()
 	peer2Status := copysetIS.Peer2Status
 	avalibalePeerNum := 0
@@ -137,49 +130,10 @@ func CheckCopySetHealth(copysetIS *CopysetInfoStatus) (COPYSET_HEALTH_STATUS, []
 		opStatus := status.GetStatus()
 		state := status.GetCopysetStatus().GetState()
 		peer := status.GetCopysetStatus().GetPeer()
-		if opStatus == copyset.COPYSET_OP_STATUS_COPYSET_OP_STATUS_SUCCESS && CopysetState_Avaliable[state] {
+		if opStatus == fscopyset.COPYSET_OP_STATUS_COPYSET_OP_STATUS_SUCCESS && CopysetState_Avaliable[state] {
 			avalibalePeerNum++
-		} else if opStatus != copyset.COPYSET_OP_STATUS_COPYSET_OP_STATUS_SUCCESS {
+		} else if opStatus != fscopyset.COPYSET_OP_STATUS_COPYSET_OP_STATUS_SUCCESS {
 			err := cmderror.ErrCopysetOpStatus(opStatus, addr)
-			errs = append(errs, err)
-		} else {
-			err := cmderror.ErrStateCopysetPeer()
-			err.Format(peer.String(), CopysetState_name[state])
-			errs = append(errs, err)
-		}
-	}
-
-	n := len(peers)
-	switch {
-	case avalibalePeerNum == n:
-		return COPYSET_OK, errs
-	case avalibalePeerNum >= n/2+1:
-		return COPYSET_WARN, errs
-	default:
-		return COPYSET_ERROR, errs
-	}
-}
-
-func CheckBsCopySetHealth(copysetIS *BsCopysetInfoStatus) (COPYSET_HEALTH_STATUS, []*cmderror.CmdError) {
-	peers := copysetIS.Info.GetPeers()
-	peer2Status := copysetIS.Peer2Status
-	avalibalePeerNum := 0
-	var errs []*cmderror.CmdError
-	for addr, status := range peer2Status {
-		if status == nil {
-			// peer is offline
-			err := cmderror.ErrOfflineCopysetPeer()
-			err.Format(addr)
-			errs = append(errs, err)
-			continue
-		}
-		opStatus := status.GetStatus()
-		state := status.GetState()
-		peer := status.GetPeer()
-		if opStatus == bscopyset.COPYSET_OP_STATUS_COPYSET_OP_STATUS_SUCCESS && CopysetState_Avaliable[state] {
-			avalibalePeerNum++
-		} else if opStatus != bscopyset.COPYSET_OP_STATUS_COPYSET_OP_STATUS_SUCCESS {
-			err := cmderror.ErrBsCopysetOpStatus(opStatus, addr)
 			errs = append(errs, err)
 		} else {
 			err := cmderror.ErrStateCopysetPeer()

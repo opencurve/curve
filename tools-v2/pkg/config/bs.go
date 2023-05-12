@@ -122,6 +122,9 @@ const (
 	VIPER_CURVEBS_CHUNK_ID            = "curvebs.chunkid"
 	CURVEBS_CHUNKSERVER_ADDRESS       = "chunkserveraddr"
 	VIPER_CURVEBS_CHUNKSERVER_ADDRESS = "curvebs.chunkserverAddr"
+	CURVEBS_DETAIL                    = "detail"
+	VIPER_CURVEBS_DETAIL              = "curvebs.detail"
+	CURVEBS_DEFAULT_DETAIL            = false
 )
 
 var (
@@ -167,6 +170,7 @@ var (
 		CURVEBS_AVAILFLAG:           VIPER_CURVEBS_AVAILFLAG,
 		CURVEBS_CHUNK_ID:            VIPER_CURVEBS_CHUNK_ID,
 		CURVEBS_CHUNKSERVER_ADDRESS: VIPER_CURVEBS_CHUNKSERVER_ADDRESS,
+		CURVEBS_DETAIL:              VIPER_CURVEBS_DETAIL,
 	}
 
 	BSFLAG2DEFAULT = map[string]interface{}{
@@ -186,6 +190,7 @@ var (
 		CURVEBS_SCAN:           CURVEBS_DEFAULT_SCAN,
 		CURVEBS_CHUNKSERVER_ID: CURVEBS_DEFAULT_CHUNKSERVER_ID,
 		CURVEBS_DRYRUN:         CURVEBS_DEFAULT_DRYRUN,
+		CURVEBS_DETAIL:         CURVEBS_DEFAULT_DETAIL,
 	}
 )
 
@@ -467,16 +472,16 @@ func AddBSCopysetIdRequiredFlag(cmd *cobra.Command) {
 	AddBsUint32RequiredFlag(cmd, CURVEBS_COPYSET_ID, "copyset id")
 }
 
-func AddBsCopysetIdSliceRequiredFlag(cmd *cobra.Command) {
-	AddBsStringSliceRequiredFlag(cmd, CURVEBS_COPYSET_ID, "copyset id")
+func AddBSPeersConfFlag(cmd *cobra.Command) {
+	AddBsStringSliceRequiredFlag(cmd, CURVEBS_PEERS_ADDRESS, "peers info.")
 }
 
 func AddBsLogicalPoolIdSliceRequiredFlag(cmd *cobra.Command) {
 	AddBsStringSliceRequiredFlag(cmd, CURVEBS_LOGIC_POOL_ID, "logical pool id")
 }
 
-func AddBSPeersConfFlag(cmd *cobra.Command) {
-	AddBsStringSliceRequiredFlag(cmd, CURVEBS_PEERS_ADDRESS, "peers info.")
+func AddBsCopysetIdSliceRequiredFlag(cmd *cobra.Command) {
+	AddBsStringSliceRequiredFlag(cmd, CURVEBS_COPYSET_ID, "copyset id")
 }
 
 func AddBsForceDeleteOptionFlag(cmd *cobra.Command) {
@@ -710,4 +715,13 @@ func GetBsChunkServerId(cmd *cobra.Command) []uint32 {
 		chunkserveridSlice = append(chunkserveridSlice, uint32(idUint))
 	}
 	return chunkserveridSlice
+}
+
+// flag for whether to print detail
+func AddBsDetailOptionFlag(cmd *cobra.Command) {
+	AddBoolOptionFlag(cmd, CURVEBS_DETAIL, "print detail (default false)")
+}
+
+func GetBsDetail(cmd *cobra.Command) bool {
+	return GetBsFlagBool(cmd, CURVEBS_DETAIL)
 }

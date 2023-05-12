@@ -29,13 +29,12 @@ import (
 	"sync"
 	"time"
 
-	mapset "github.com/deckarep/golang-set/v2"
+	copysetutil "github.com/opencurve/curve/tools-v2/internal/copyset"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/query/chunkserver"
 	status "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/status/copyset"
-	fscopyset "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/check/copyset"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
 	"github.com/opencurve/curve/tools-v2/proto/proto/common"
@@ -49,10 +48,11 @@ const (
 
 type CopysetCommand struct {
 	basecmd.FinalCurveCmd
-	key2Copyset    *map[uint64]*cobrautil.BsCopysetInfoStatus
-	Key2LeaderInfo *map[uint64]*fscopyset.CopysetLeaderInfo
-	Key2Health     *map[uint64]cobrautil.ClUSTER_HEALTH_STATUS
-	leaderAddr     mapset.Set[string]
+	CopysetKeySlice []uint64
+	key2copysetInfo map[uint64]*cobrautil.BsCopysetInfoStatus
+	key2leaderAddr  map[uint64]string
+	key2leaderInfo  map[uint64]copysetutil.CopysetLeaderInfo
+	key2checkResult map[uint64]cobrautil.COPYSET_CHECK_RESULT
 }
 
 var _ basecmd.FinalCurveCmdFunc = (*CopysetCommand)(nil) // check interface
@@ -84,11 +84,6 @@ func (cCmd *CopysetCommand) AddFlags() {
 }
 
 func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
-	mdsAddrs := config.GetBsFlagString(cmd, config.CURVEBS_MDSADDR)
-	retrytime := config.GetBsFlagInt32(cmd, config.RPCRETRYTIMES)
-	timeout := config.GetFlagDuration(cCmd.Cmd, config.RPCTIMEOUT)
-	margin := config.GetBsMargin(cCmd.Cmd)
-
 	logicalpoolidList := config.GetBsFlagStringSlice(cCmd.Cmd, config.CURVEBS_LOGIC_POOL_ID)
 	copysetidList := config.GetBsFlagStringSlice(cCmd.Cmd, config.CURVEBS_COPYSET_ID)
 	if len(logicalpoolidList) != len(copysetidList) {
@@ -102,106 +97,46 @@ func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
 	if errParse != nil {
 		return fmt.Errorf("parse copysetid%v fail", copysetidList)
 	}
-
-	key2Location, err := chunkserver.GetChunkServerListInCopySets(cCmd.Cmd)
-	if err.TypeCode() != cmderror.CODE_SUCCESS {
-		return err.ToError()
-	}
-
+	cCmd.key2checkResult = make(map[uint64]cobrautil.COPYSET_CHECK_RESULT)
+	cCmd.key2copysetInfo = make(map[uint64]*cobrautil.BsCopysetInfoStatus)
+	cCmd.key2leaderAddr = make(map[uint64]string)
+	cCmd.key2leaderInfo = make(map[uint64]copysetutil.CopysetLeaderInfo)
 	for i := 0; i < len(logicalpoolIds); i++ {
-		logicpoolid := logicalpoolIds[i]
-		copysetid := copysetIds[i]
-		key := cobrautil.GetCopysetKey(uint64(logicpoolid), uint64(copysetid))
-
-		var peerAddress []string
-		for _, cs := range (*key2Location)[key] {
-			address := fmt.Sprintf("%s:%d", *cs.HostIp, *cs.Port)
-			peerAddress = append(peerAddress, address)
+		key := cobrautil.GetCopysetKey(uint64(logicalpoolIds[i]), uint64(copysetIds[i]))
+		if _, ok := cCmd.key2checkResult[key]; ok {
+			return fmt.Errorf("duplicate (copysetid, logicalpoolid) pair: %d, %d", copysetIds[i], logicalpoolIds[i])
 		}
-
-		cCmd.Cmd.ResetFlags()
-		config.AddBsMdsFlagOption(cCmd.Cmd)
-		config.AddRpcRetryTimesFlag(cCmd.Cmd)
-		config.AddRpcTimeoutFlag(cCmd.Cmd)
-		config.AddBSCopysetIdRequiredFlag(cCmd.Cmd)
-		config.AddBSLogicalPoolIdRequiredFlag(cCmd.Cmd)
-		config.AddBSPeersConfFlag(cCmd.Cmd)
-		cCmd.Cmd.ParseFlags([]string{
-			fmt.Sprintf("--%s", config.CURVEBS_MDSADDR), mdsAddrs,
-			fmt.Sprintf("--%s", config.RPCRETRYTIMES), fmt.Sprintf("%d", retrytime),
-			fmt.Sprintf("--%s", config.CURVEBS_LOGIC_POOL_ID), logicalpoolidList[i],
-			fmt.Sprintf("--%s", config.CURVEBS_COPYSET_ID), copysetidList[i],
-			fmt.Sprintf("--%s", config.CURVEBS_PEERS_ADDRESS),
-			strings.Join(peerAddress, ","),
-		})
-		peer2Status, err := status.GetCopysetStatus(cCmd.Cmd)
-		if err.TypeCode() != cmderror.CODE_SUCCESS {
-			return err.ToError()
-		}
-		peers := make([]*common.Peer, 0, len(*peer2Status))
-		var leaderPeer *common.Peer
-		for _, result := range *peer2Status {
-			if result != nil {
-				if *result.Leader.Address == *result.Peer.Address {
-					leaderPeer = result.Peer
-				}
-				peers = append(peers, result.Peer)
-			} else {
-				peers = append(peers, nil)
-			}
-		}
-
-		copysetKey := cobrautil.GetCopysetKey(uint64(logicpoolid), uint64(copysetid))
-		if cCmd.key2Copyset == nil {
-			key2copyset := make(map[uint64]*cobrautil.BsCopysetInfoStatus)
-			cCmd.key2Copyset = &key2copyset
-		}
-
-		(*cCmd.key2Copyset)[copysetKey] = &cobrautil.BsCopysetInfoStatus{
-			Info: &heartbeat.CopySetInfo{
-				CopysetId:  &copysetid,
-				Peers:      peers,
-				LeaderPeer: leaderPeer,
-			},
-			Peer2Status: *peer2Status,
+		cCmd.CopysetKeySlice = append(cCmd.CopysetKeySlice, key)
+		cCmd.key2checkResult[key] = cobrautil.HEALTHY
+	}
+	// get copysets info
+	err := cCmd.GetCopysetsInfo()
+	if err.Code != cmderror.CODE_SUCCESS {
+		cCmd.RemoveUnhealthyCopyset()
+	}
+	// update leaderAddr
+	for _, key := range cCmd.CopysetKeySlice {
+		leader := cCmd.key2copysetInfo[key].Info.GetLeaderPeer()
+		adder, err := cobrautil.PeerAddressToAddr(leader.GetAddress())
+		if err.Code == cmderror.CODE_SUCCESS {
+			cCmd.key2leaderAddr[key] = adder
 		}
 	}
-	config.AddMarginOptionFlag(cCmd.Cmd)
-	config.AddFormatFlag(cCmd.Cmd)
-	cCmd.Cmd.ParseFlags([]string{
-		fmt.Sprintf("--%s", config.CURVEBS_MARGIN),
-		fmt.Sprintf("%d", margin),
-	})
-
-	header := []string{cobrautil.ROW_COPYSET_KEY, cobrautil.ROW_COPYSET_ID,
-		cobrautil.ROW_POOL_ID, cobrautil.ROW_STATUS, cobrautil.ROW_LOG_GAP,
-		cobrautil.ROW_EXPLAIN,
+	// get leader info
+	timeout := config.GetRpcTimeout(cCmd.Cmd)
+	err = cCmd.UpdateCopysetGap(timeout)
+	if err.TypeCode() != cmderror.CODE_SUCCESS {
+		cCmd.RemoveUnhealthyCopyset()
 	}
+
+	header := []string{cobrautil.ROW_COPYSET_KEY, cobrautil.ROW_POOL_ID,
+		cobrautil.ROW_COPYSET_ID, cobrautil.ROW_RESULT}
 	cCmd.SetHeader(header)
 	cCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
 		cCmd.Header, []string{cobrautil.ROW_COPYSET_ID, cobrautil.ROW_POOL_ID,
-			cobrautil.ROW_STATUS,
+			cobrautil.ROW_RESULT,
 		},
 	))
-
-	// update leaderAddr
-	cCmd.leaderAddr = mapset.NewSet[string]()
-	for _, cs := range *cCmd.key2Copyset {
-		addr, err := cobrautil.PeerAddressToAddr(cs.Info.LeaderPeer.GetAddress())
-		if err.TypeCode() != cmderror.CODE_SUCCESS {
-			err := cmderror.ErrCopysetInfo()
-			err.Format(cs.Info.CopysetId)
-		} else {
-			cCmd.leaderAddr.Add(addr)
-		}
-	}
-
-	key2LeaderInfo := make(map[uint64]*fscopyset.CopysetLeaderInfo)
-	cCmd.Key2LeaderInfo = &key2LeaderInfo
-	err = cCmd.UpdateCopysteGap(timeout)
-	if err.TypeCode() != cmderror.CODE_SUCCESS {
-		return err.ToError()
-	}
 	return nil
 }
 
@@ -210,78 +145,55 @@ func (cCmd *CopysetCommand) Print(cmd *cobra.Command, args []string) error {
 }
 
 func (cCmd *CopysetCommand) RunCommand(cmd *cobra.Command, args []string) error {
-	key2Health := make(map[uint64]cobrautil.ClUSTER_HEALTH_STATUS)
-	cCmd.Key2Health = &key2Health
 	rows := make([]map[string]string, 0)
-	var errs []*cmderror.CmdError
-	for k, v := range *cCmd.key2Copyset {
-		copysetHealthCount := make(map[cobrautil.COPYSET_HEALTH_STATUS]uint32)
+	for _, key := range cCmd.CopysetKeySlice {
 		row := make(map[string]string)
-		row[cobrautil.ROW_COPYSET_KEY] = fmt.Sprintf("%d", k)
-		poolid, copysetid := cobrautil.CopysetKey2PoolidCopysetid(k)
+		poolid, copysetid := cobrautil.CopysetKey2PoolidCopysetid(key)
+		row[cobrautil.ROW_COPYSET_KEY] = fmt.Sprintf("%d", key)
 		row[cobrautil.ROW_POOL_ID] = fmt.Sprintf("%d", poolid)
 		row[cobrautil.ROW_COPYSET_ID] = fmt.Sprintf("%d", copysetid)
-		if v == nil {
-			row[cobrautil.ROW_STATUS] = cobrautil.CopysetHealthStatus_Str[int32(cobrautil.COPYSET_NOTEXIST)]
-		} else {
-			status, errsCheck := cobrautil.CheckBsCopySetHealth(v)
-			copysetHealthCount[status]++
-			row[cobrautil.ROW_STATUS] = cobrautil.CopysetHealthStatus_Str[int32(status)]
-			explain := ""
-			if status != cobrautil.COPYSET_OK {
-				for i, e := range errsCheck {
-					if i != len(errsCheck) {
-						explain += fmt.Sprintf("%s\n", e.Message)
-					} else {
-						explain += e.Message
-					}
-				}
-			}
-			margin := config.GetMarginOptionFlag(cCmd.Cmd)
-			leaderInfo := (*cCmd.Key2LeaderInfo)[k]
-			if leaderInfo == nil {
-				explain = "no leader peer"
-				copysetHealthCount[cobrautil.COPYSET_ERROR]++
-				row[cobrautil.ROW_STATUS] = cobrautil.CopysetHealthStatus_Str[int32(cobrautil.COPYSET_ERROR)]
-			} else if leaderInfo.Snapshot {
-				installSnapshot := "installing snapshot"
-				if len(explain) > 0 {
-					explain += "\n"
-				}
-				explain += installSnapshot
-				if row[cobrautil.ROW_STATUS] == cobrautil.COPYSET_OK_STR {
-					row[cobrautil.ROW_STATUS] = cobrautil.COPYSET_WARN_STR
-					copysetHealthCount[cobrautil.COPYSET_WARN]++
-				}
-			} else {
-				gap := leaderInfo.Gap
-				row[cobrautil.ROW_LOG_GAP] = fmt.Sprintf("%d", gap)
-				if gap >= margin {
-					behind := fmt.Sprintf("log behind %d", gap)
-					if len(explain) > 0 {
-						explain += "\n"
-					}
-					explain += behind
-					if row[cobrautil.ROW_STATUS] == cobrautil.COPYSET_OK_STR {
-						row[cobrautil.ROW_STATUS] = cobrautil.COPYSET_WARN_STR
-						copysetHealthCount[cobrautil.COPYSET_WARN]++
-					}
-				}
-
-			}
-			row[cobrautil.ROW_EXPLAIN] = explain
+		info := cCmd.key2copysetInfo[key]
+		if len(info.Peer2Status) < 3 {
+			row[cobrautil.ROW_RESULT] = cobrautil.CopysetResultStr[cobrautil.PEERS_NO_SUFFICIENT]
+			cCmd.key2checkResult[key] = cobrautil.PEERS_NO_SUFFICIENT
+			rows = append(rows, row)
+			continue
 		}
-		if copysetHealthCount[cobrautil.COPYSET_NOTEXIST] > 0 || copysetHealthCount[cobrautil.COPYSET_ERROR] > 0 {
-			(*cCmd.Key2Health)[k] = cobrautil.HEALTH_ERROR
-		} else if copysetHealthCount[cobrautil.COPYSET_WARN] > 0 {
-			(*cCmd.Key2Health)[k] = cobrautil.HEALTH_WARN
+		majority := len(info.Peer2Status)/2 + 1
+		offlinePeers := 0
+		for _, status := range info.Peer2Status {
+			if status == nil {
+				offlinePeers++
+			}
+			if status.Leader != nil && status.Peer != nil && status.Leader.Address == status.Peer.Address {
+				margin := config.GetMarginOptionFlag(cCmd.Cmd)
+				leaderInfo := cCmd.key2leaderInfo[key]
+				result := cobrautil.HEALTHY
+				if leaderInfo.Snapshot {
+					result = cobrautil.INSTALLING_SNAPSHOT
+				} else if leaderInfo.Gap >= margin {
+					result = cobrautil.LOG_INDEX_GAP_TOO_BIG
+				}
+				if result != cobrautil.HEALTHY {
+					row[cobrautil.ROW_RESULT] = cobrautil.CopysetResultStr[result]
+					cCmd.key2checkResult[key] = result
+					rows = append(rows, row)
+					continue
+				}
+			}
+		}
+		if offlinePeers >= majority {
+			row[cobrautil.ROW_RESULT] = cobrautil.CopysetResultStr[cobrautil.MAJORITY_NOT_ONLINE]
+			cCmd.key2checkResult[key] = cobrautil.MAJORITY_NOT_ONLINE
+		} else if offlinePeers > 0 {
+			row[cobrautil.ROW_RESULT] = cobrautil.CopysetResultStr[cobrautil.MINORITY_NOT_ONLINE]
+			cCmd.key2checkResult[key] = cobrautil.MINORITY_NOT_ONLINE
 		} else {
-			(*cCmd.Key2Health)[k] = cobrautil.HEALTH_OK
+			row[cobrautil.ROW_RESULT] = cobrautil.CopysetResultStr[cobrautil.HEALTHY]
+			cCmd.key2checkResult[key] = cobrautil.HEALTHY
 		}
 		rows = append(rows, row)
 	}
-	retErr := cmderror.MergeCmdErrorExceptSuccess(errs)
-	cCmd.Error = retErr
 	sort.Slice(rows, func(i, j int) bool {
 		return rows[i][cobrautil.ROW_COPYSET_KEY] < rows[j][cobrautil.ROW_COPYSET_KEY]
 	})
@@ -297,16 +209,78 @@ func (cCmd *CopysetCommand) ResultPlainOutput() error {
 	return output.FinalCmdOutputPlain(&cCmd.FinalCurveCmd)
 }
 
+func (cCmd *CopysetCommand) RemoveUnhealthyCopyset() {
+	for index, key := range cCmd.CopysetKeySlice {
+		if cCmd.key2checkResult[key] != cobrautil.HEALTHY {
+			cCmd.CopysetKeySlice = append(cCmd.CopysetKeySlice[:index], cCmd.CopysetKeySlice[index+1:]...)
+		}
+	}
+}
+
+func (cCmd *CopysetCommand) GetCopysetsInfo() (retErr *cmderror.CmdError) {
+	retErr = cmderror.ErrSuccess()
+	key2Location, err := chunkserver.GetChunkServerListInCopySets(cCmd.Cmd)
+	if err.TypeCode() != cmderror.CODE_SUCCESS {
+		for _, key := range cCmd.CopysetKeySlice {
+			cCmd.key2checkResult[key] = cobrautil.OTHER_ERROR
+		}
+		return err
+	}
+	for _, key := range cCmd.CopysetKeySlice {
+		location := (*key2Location)[key]
+		var peerAddress []string
+		for _, cs := range location {
+			address := fmt.Sprintf("%s:%d", *cs.HostIp, *cs.Port)
+			peerAddress = append(peerAddress, address)
+		}
+
+		csCmd := status.NewGetCopysetStatusCommand()
+		config.AlignFlagsValue(cCmd.Cmd, csCmd.Cmd, []string{
+			config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEBS_MDSADDR,
+			config.CURVEBS_COPYSET_ID, config.CURVEBS_LOGIC_POOL_ID,
+		})
+		csCmd.Cmd.Flags().Set(config.CURVEBS_PEERS_ADDRESS, strings.Join(peerAddress, ","))
+		peer2Status, err := status.GetCopysetStatus(csCmd.Cmd)
+		if err.TypeCode() != cmderror.CODE_SUCCESS {
+			cCmd.key2checkResult[key] = cobrautil.OTHER_ERROR
+			retErr = err
+			continue
+		}
+		peers := make([]*common.Peer, 0, len(peer2Status))
+		var leaderPeer *common.Peer
+		for _, result := range peer2Status {
+			if result != nil {
+				if result.Leader != nil && result.Peer != nil && *result.Leader.Address == *result.Peer.Address {
+					leaderPeer = result.Peer
+				}
+				peers = append(peers, result.Peer)
+			} else {
+				peers = append(peers, nil)
+			}
+		}
+		_, copysetid := cobrautil.CopysetKey2PoolidCopysetid(key)
+		cCmd.key2copysetInfo[key] = &cobrautil.BsCopysetInfoStatus{
+			Info: &heartbeat.CopySetInfo{
+				CopysetId:  &copysetid,
+				Peers:      peers,
+				LeaderPeer: leaderPeer,
+			},
+			Peer2Status: peer2Status,
+		}
+	}
+	return
+}
+
 func (cCmd *CopysetCommand) UpdateCopysetGap(timeout time.Duration) *cmderror.CmdError {
 	var key2LeaderInfo sync.Map
 	size := config.MaxChannelSize()
 	errChan := make(chan *cmderror.CmdError, size)
 	count := 0
-	for iter := range cCmd.leaderAddr.Iter() {
+	for _, leaderAddr := range cCmd.key2leaderAddr {
 		go func(addr string) {
-			err := fscopyset.GetLeaderCopysetGap(addr, &key2LeaderInfo, timeout)
+			err := copysetutil.GetLeaderCopysetGap(leaderAddr, &key2LeaderInfo, timeout)
 			errChan <- err
-		}(iter)
+		}(leaderAddr)
 		count++
 	}
 	var errs []*cmderror.CmdError
@@ -317,41 +291,14 @@ func (cCmd *CopysetCommand) UpdateCopysetGap(timeout time.Duration) *cmderror.Cm
 		}
 	}
 	key2LeaderInfo.Range(func(key, value interface{}) bool {
-		(*cCmd.Key2LeaderInfo)[key.(uint64)] = value.(*fscopyset.CopysetLeaderInfo)
+		cCmd.key2leaderInfo[key.(uint64)] = value.(copysetutil.CopysetLeaderInfo)
 		return true
 	})
 	retErr := cmderror.MergeCmdErrorExceptSuccess(errs)
 	return retErr
 }
 
-func (cCmd *CopysetCommand) UpdateCopysteGap(timeout time.Duration) *cmderror.CmdError {
-	var key2LeaderInfo sync.Map
-	size := config.MaxChannelSize()
-	errChan := make(chan *cmderror.CmdError, size)
-	count := 0
-	for iter := range cCmd.leaderAddr.Iter() {
-		go func(addr string) {
-			err := fscopyset.GetLeaderCopysetGap(addr, &key2LeaderInfo, timeout)
-			errChan <- err
-		}(iter)
-		count++
-	}
-	var errs []*cmderror.CmdError
-	for i := 0; i < count; i++ {
-		err := <-errChan
-		if err.TypeCode() != cmderror.CODE_SUCCESS {
-			errs = append(errs, err)
-		}
-	}
-	key2LeaderInfo.Range(func(key, value interface{}) bool {
-		(*cCmd.Key2LeaderInfo)[key.(uint64)] = value.(*fscopyset.CopysetLeaderInfo)
-		return true
-	})
-	retErr := cmderror.MergeCmdErrorExceptSuccess(errs)
-	return retErr
-}
-
-func CheckCopysets(caller *cobra.Command) (*map[uint64]cobrautil.ClUSTER_HEALTH_STATUS, *cmderror.CmdError) {
+func CheckCopysets(caller *cobra.Command) (map[uint64]cobrautil.COPYSET_CHECK_RESULT, *cmderror.CmdError) {
 	cCmd := NewCheckCopysetCommand()
 	cCmd.Cmd.SetArgs([]string{"--format", config.FORMAT_NOOUT})
 	config.AlignFlagsValue(caller, cCmd.Cmd, []string{
@@ -359,12 +306,6 @@ func CheckCopysets(caller *cobra.Command) (*map[uint64]cobrautil.ClUSTER_HEALTH_
 		config.CURVEBS_COPYSET_ID, config.CURVEBS_LOGIC_POOL_ID, config.CURVEBS_MARGIN,
 	})
 	cCmd.Cmd.SilenceErrors = true
-	cCmd.Cmd.SilenceUsage = true
-	err := cCmd.Cmd.Execute()
-	if err != nil {
-		retErr := cmderror.ErrCheckCopyset()
-		retErr.Format(err.Error())
-		return cCmd.Key2Health, retErr
-	}
-	return cCmd.Key2Health, cmderror.Success()
+	cCmd.Cmd.Execute()
+	return cCmd.key2checkResult, cmderror.ErrSuccess()
 }

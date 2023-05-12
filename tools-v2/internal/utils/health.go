@@ -26,6 +26,38 @@ import (
 	"github.com/gookit/color"
 )
 
+type COPYSET_HEALTH_STATUS int32
+
+const (
+	COPYSET_OK       COPYSET_HEALTH_STATUS = 1
+	COPYSET_WARN     COPYSET_HEALTH_STATUS = 2
+	COPYSET_ERROR    COPYSET_HEALTH_STATUS = 3
+	COPYSET_NOTEXIST COPYSET_HEALTH_STATUS = 4
+)
+
+const (
+	COPYSET_OK_STR       = "ok"
+	COPYSET_WARN_STR     = "warn"
+	COPYSET_ERROR_STR    = "error"
+	COPYSET_NOTEXIST_STR = "not exist"
+)
+
+var (
+	CopysetHealthStatus_Str = map[int32]string{
+		1: COPYSET_OK_STR,
+		2: COPYSET_WARN_STR,
+		3: COPYSET_ERROR_STR,
+		4: COPYSET_NOTEXIST_STR,
+	}
+)
+
+var CopysetHealthStatus_StrWithColor = map[int32]string{
+	1: color.Green.Sprint(CopysetHealthStatus_Str[1]),
+	2: color.Yellow.Sprint(CopysetHealthStatus_Str[2]),
+	3: color.Red.Sprint(CopysetHealthStatus_Str[3]),
+	4: color.Red.Sprint(CopysetHealthStatus_Str[4]),
+}
+
 type ClUSTER_HEALTH_STATUS int32
 
 const (

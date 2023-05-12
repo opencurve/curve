@@ -200,7 +200,7 @@ func GetLeaderCopysetGap(addr string, key2LeaderInfo *sync.Map, timeout time.Dur
 						leader.Gap = gap
 						leader.Snapshot = snapshot
 						act, loaded := key2LeaderInfo.LoadOrStore(key, leader)
-						if loaded  {
+						if loaded {
 							actLeader := act.(*CopysetLeaderInfo)
 							if actLeader.Gap < gap ||
 								(!actLeader.Snapshot && snapshot) {

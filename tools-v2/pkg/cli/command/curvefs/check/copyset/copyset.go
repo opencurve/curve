@@ -30,6 +30,7 @@ import (
 
 	mapset "github.com/deckarep/golang-set/v2"
 	"github.com/olekukonko/tablewriter"
+	copysetutil "github.com/opencurve/curve/tools-v2/internal/copyset"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -45,9 +46,9 @@ const (
 
 type CopysetCommand struct {
 	basecmd.FinalCurveCmd
-	key2Copyset           *map[uint64]*cobrautil.CopysetInfoStatus
+	key2Copyset           *map[uint64]*cobrautil.FsCopysetInfoStatus
 	copysetKey2Status     *map[uint64]cobrautil.COPYSET_HEALTH_STATUS
-	copysetKey2LeaderInfo *map[uint64]*CopysetLeaderInfo
+	copysetKey2LeaderInfo *map[uint64]*copysetutil.CopysetLeaderInfo
 	health                cobrautil.ClUSTER_HEALTH_STATUS
 	leaderAddr            mapset.Set[string]
 }
@@ -133,9 +134,9 @@ func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
 		cCmd.leaderAddr.Add(addr)
 	}
 	timeout := config.GetRpcTimeout(cCmd.Cmd)
-	key2LeaderInfo := make(map[uint64]*CopysetLeaderInfo)
+	key2LeaderInfo := make(map[uint64]*copysetutil.CopysetLeaderInfo)
 	cCmd.copysetKey2LeaderInfo = &key2LeaderInfo
-	err := cCmd.UpdateCopysteGap(timeout)
+	err := cCmd.UpdateCopysetGap(timeout)
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		return err.ToError()
 	}
@@ -160,7 +161,7 @@ func (cCmd *CopysetCommand) RunCommand(cmd *cobra.Command, args []string) error 
 			row[cobrautil.ROW_STATUS] = cobrautil.CopysetHealthStatus_Str[int32(cobrautil.COPYSET_NOTEXIST)]
 			(*cCmd.copysetKey2Status)[k] = cobrautil.COPYSET_NOTEXIST
 		} else {
-			status, errsCheck := cobrautil.CheckCopySetHealth(v)
+			status, errsCheck := cobrautil.CheckFsCopySetHealth(v)
 			copysetHealthCount[status]++
 			row[cobrautil.ROW_STATUS] = cobrautil.CopysetHealthStatus_Str[int32(status)]
 			(*cCmd.copysetKey2Status)[k] = status
@@ -237,14 +238,14 @@ func (cCmd *CopysetCommand) ResultPlainOutput() error {
 	return output.FinalCmdOutputPlain(&cCmd.FinalCurveCmd)
 }
 
-func (cCmd *CopysetCommand) UpdateCopysteGap(timeout time.Duration) *cmderror.CmdError {
+func (cCmd *CopysetCommand) UpdateCopysetGap(timeout time.Duration) *cmderror.CmdError {
 	var key2LeaderInfo sync.Map
 	size := config.MaxChannelSize()
 	errChan := make(chan *cmderror.CmdError, size)
 	count := 0
 	for iter := range cCmd.leaderAddr.Iter() {
 		go func(addr string) {
-			err := GetLeaderCopysetGap(addr, &key2LeaderInfo, timeout)
+			err := copysetutil.GetLeaderCopysetGap(addr, &key2LeaderInfo, timeout)
 			errChan <- err
 		}(iter)
 		count++
@@ -257,7 +258,7 @@ func (cCmd *CopysetCommand) UpdateCopysteGap(timeout time.Duration) *cmderror.Cm
 		}
 	}
 	key2LeaderInfo.Range(func(key, value interface{}) bool {
-		(*cCmd.copysetKey2LeaderInfo)[key.(uint64)] = value.(*CopysetLeaderInfo)
+		(*cCmd.copysetKey2LeaderInfo)[key.(uint64)] = value.(*copysetutil.CopysetLeaderInfo)
 		return true
 	})
 	retErr := cmderror.MergeCmdErrorExceptSuccess(errs)

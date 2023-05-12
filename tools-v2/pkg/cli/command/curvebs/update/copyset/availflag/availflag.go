@@ -173,7 +173,7 @@ func (cCmd *CopysetAvailflagCommand) Init(cmd *cobra.Command, args []string) err
 				fmt.Sprintf("--%s", config.CURVEBS_LOGIC_POOL_ID), strings.Join(logicalpoolids, ","),
 				fmt.Sprintf("--%s", config.CURVEBS_COPYSET_ID), strings.Join(copysetIds, ","),
 			})
-			key2Health, errCmd := copyset2.CheckCopysets(cCmd.Cmd)
+			key2checkResult, errCmd := copyset2.CheckCopysets(cCmd.Cmd)
 			if errCmd.TypeCode() != cmderror.CODE_SUCCESS {
 				return errCmd.ToError()
 			}
@@ -181,7 +181,7 @@ func (cCmd *CopysetAvailflagCommand) Init(cmd *cobra.Command, args []string) err
 			for _, infos := range *addr2Copysets {
 				for _, info := range infos {
 					key := cobrautil.GetCopysetKey(uint64(info.GetLogicalPoolId()), uint64(info.GetCopysetId()))
-					if health, ok := (*key2Health)[key]; !ok || health == cobrautil.HEALTH_ERROR {
+					if health, ok := key2checkResult[key]; !ok || health != cobrautil.HEALTHY {
 						copysets = append(copysets, info)
 					}
 				}

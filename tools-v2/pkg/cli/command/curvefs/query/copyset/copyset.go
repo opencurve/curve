@@ -58,7 +58,7 @@ type CopysetCommand struct {
 	basecmd.FinalCurveCmd
 	Rpc         *QueryCopysetRpc
 	Rows        []map[string]string
-	key2Copyset map[uint64]*cobrautil.CopysetInfoStatus
+	key2Copyset map[uint64]*cobrautil.FsCopysetInfoStatus
 }
 
 var _ basecmd.FinalCurveCmdFunc = (*CopysetCommand)(nil) // check interface
@@ -130,7 +130,7 @@ func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
 	timeout := viper.GetDuration(config.VIPER_GLOBALE_RPCTIMEOUT)
 	retrytimes := viper.GetInt32(config.VIPER_GLOBALE_RPCRETRYTIMES)
 	getRequest := &topology.GetCopysetsInfoRequest{}
-	cCmd.key2Copyset = make(map[uint64]*cobrautil.CopysetInfoStatus)
+	cCmd.key2Copyset = make(map[uint64]*cobrautil.FsCopysetInfoStatus)
 	for i := range poolids {
 		poolid := poolids[i]
 		copysetid := copysetids[i]
@@ -182,7 +182,7 @@ func (cCmd *CopysetCommand) RunCommand(cmd *cobra.Command, args []string) error 
 				copysetid := copysetInfo.GetCopysetId()
 				copysetKey = cobrautil.GetCopysetKey(uint64(poolid), uint64(copysetid))
 				if cCmd.key2Copyset[copysetKey] == nil {
-					cCmd.key2Copyset[copysetKey] = &cobrautil.CopysetInfoStatus{
+					cCmd.key2Copyset[copysetKey] = &cobrautil.FsCopysetInfoStatus{
 						Info: copysetInfo,
 					}
 				}
@@ -353,7 +353,7 @@ func (cCmd *CopysetCommand) ResultPlainOutput() error {
 }
 
 // copsetIds,poolId just like: 1,2,3
-func QueryCopysetInfoStatus(caller *cobra.Command) (*map[uint64]*cobrautil.CopysetInfoStatus, *cmderror.CmdError) {
+func QueryCopysetInfoStatus(caller *cobra.Command) (*map[uint64]*cobrautil.FsCopysetInfoStatus, *cmderror.CmdError) {
 	queryCopyset := NewQueryCopysetCommand()
 	queryCopyset.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.CURVEFS_DETAIL),
@@ -371,7 +371,7 @@ func QueryCopysetInfoStatus(caller *cobra.Command) (*map[uint64]*cobrautil.Copys
 	return &queryCopyset.key2Copyset, cmderror.ErrSuccess()
 }
 
-func QueryCopysetInfo(caller *cobra.Command) (*map[uint64]*cobrautil.CopysetInfoStatus, *cmderror.CmdError) {
+func QueryCopysetInfo(caller *cobra.Command) (*map[uint64]*cobrautil.FsCopysetInfoStatus, *cmderror.CmdError) {
 	queryCopyset := NewQueryCopysetCommand()
 	queryCopyset.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
