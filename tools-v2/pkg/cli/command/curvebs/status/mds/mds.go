@@ -25,7 +25,6 @@ package mds
 import (
 	"fmt"
 
-	"github.com/olekukonko/tablewriter"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -196,13 +195,18 @@ func NewStatusMdsCommand() *MdsCommand {
 	return mdsCmd
 }
 
-func GetMdsStatus(caller *cobra.Command) (*interface{}, *tablewriter.Table, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS) {
+func GetMdsStatus(caller *cobra.Command) (*interface{}, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS) {
 	mdsCmd := NewStatusMdsCommand()
 	mdsCmd.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
 	})
 	config.AlignFlagsValue(caller, mdsCmd.Cmd, []string{config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEBS_MDSADDR})
 	mdsCmd.Cmd.SilenceErrors = true
-	mdsCmd.Cmd.Execute()
-	return &mdsCmd.Result, mdsCmd.TableNew, mdsCmd.Error, mdsCmd.health
+	err := mdsCmd.Cmd.Execute()
+	if err != nil {
+		retErr := cmderror.ErrBsGetMdsStatus()
+		retErr.Format(err.Error())
+		return nil, retErr, cobrautil.HEALTH_ERROR
+	}
+	return &mdsCmd.Result, cmderror.Success(), mdsCmd.health
 }
