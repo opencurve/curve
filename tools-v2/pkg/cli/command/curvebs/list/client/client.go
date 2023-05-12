@@ -167,7 +167,9 @@ func GetClientList(caller *cobra.Command) (*interface{}, *cmderror.CmdError) {
 	listClientCmd.Cmd.SilenceErrors = true
 	err := listClientCmd.Cmd.Execute()
 	if err != nil {
-		return nil, listClientCmd.Error
+		retErr := cmderror.ErrBsGetClientList()
+		retErr.Format(err.Error())
+		return nil, retErr
 	}
-	return &listClientCmd.Result, listClientCmd.Error
+	return &listClientCmd.Result, cmderror.Success()
 }

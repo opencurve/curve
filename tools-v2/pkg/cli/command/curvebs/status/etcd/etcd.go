@@ -25,7 +25,6 @@ package etcd
 import (
 	"fmt"
 
-	"github.com/olekukonko/tablewriter"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -205,7 +204,7 @@ func NewStatusEtcdCommand() *EtcdCommand {
 	return etcdCmd
 }
 
-func GetEtcdStatus(caller *cobra.Command) (*interface{}, *tablewriter.Table, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS) {
+func GetEtcdStatus(caller *cobra.Command) (*interface{}, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS) {
 	etcdCmd := NewStatusEtcdCommand()
 	etcdCmd.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
@@ -214,6 +213,11 @@ func GetEtcdStatus(caller *cobra.Command) (*interface{}, *tablewriter.Table, *cm
 		config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_ETCDADDR,
 	})
 	etcdCmd.Cmd.SilenceErrors = true
-	etcdCmd.Cmd.Execute()
-	return &etcdCmd.Result, etcdCmd.TableNew, etcdCmd.Error, etcdCmd.health
+	err := etcdCmd.Cmd.Execute()
+	if err != nil {
+		retErr := cmderror.ErrBsGetEtcdStatus()
+		retErr.Format(err.Error())
+		return nil, retErr, cobrautil.HEALTH_ERROR
+	}
+	return &etcdCmd.Result, cmderror.Success(), etcdCmd.health
 }

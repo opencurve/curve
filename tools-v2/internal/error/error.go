@@ -420,6 +420,21 @@ var (
 	ErrBsOpNameNotSupport = func() *CmdError {
 		return NewInternalCmdError(53, "not support op[%s], only support: operator, change_peer, add_peer, remove_peer, transfer_leader")
 	}
+	ErrBsGetClientList = func() *CmdError {
+		return NewInternalCmdError(54, "get client list fail, err: %s")
+	}
+	ErrBsGetClientStatus = func() *CmdError {
+		return NewInternalCmdError(55, "get client status fail, err: %s")
+	}
+	ErrBsGetEtcdStatus = func() *CmdError {
+		return NewInternalCmdError(56, "get etcd status fail, err: %s")
+	}
+	ErrBsGetMdsStatus = func() *CmdError {
+		return NewInternalCmdError(57, "get mds status fail, err: %s")
+	}
+	ErrBsGetSnapshotServerStatus = func() *CmdError {
+		return NewInternalCmdError(58, "get snapshotserver status fail, err: %s")
+	}
 
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {
