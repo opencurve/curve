@@ -298,6 +298,8 @@ TEST_F(CopysetNodeTest, error_test) {
     }
     // ShipToSync & handle sync time out
     {
+        CopysetNode::copysetSyncPool_ =
+            std::make_shared<common::TaskThreadPool<>>();
         LogicPoolID logicPoolID = 123;
         CopysetID copysetID = 1345;
         Configuration conf;
@@ -1088,6 +1090,7 @@ TEST_F(CopysetNodeTest, is_lease_leader) {
             = std::make_shared<MockNode>(logicPoolID,
                                          copysetID);
     CopysetNode copysetNode(logicPoolID, copysetID, conf);
+    copysetNode.Init(defaultOptions_);
     copysetNode.SetCopysetNode(mockNode);
 
     EXPECT_FALSE(copysetNode.IsLeaderTerm());
