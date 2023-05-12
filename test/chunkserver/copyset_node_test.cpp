@@ -301,6 +301,8 @@ TEST_F(CopysetNodeTest, error_test) {
     }
     // ShipToSync & handle sync time out
     {
+        CopysetNode::copysetSyncPool_ =
+            std::make_shared<common::TaskThreadPool<>>();
         LogicPoolID logicPoolID = 123;
         CopysetID copysetID = 1345;
         Configuration conf;

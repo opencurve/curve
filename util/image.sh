@@ -17,11 +17,25 @@ function tmpl() {
 
 prefix="$(pwd)/docker/curvebs"
 mkdir -p $prefix $prefix/conf
-make install prefix="$prefix"
-make install prefix="$prefix" only=etcd
-make install prefix="$prefix" only=monitor
-[[ -f ${tgt_pkg} ]] && cp "${tgt_pkg}" "${prefix}/curvebs_tgt.deb"
-for path in `ls conf/* nebd/etc/nebd/*`;
+install_pkg $1 $prefix
+install_pkg $1 $prefix etcd
+install_pkg $1 $prefix monitor
+
+if [ "$1" == "fs" ];then 
+    copy_file ./thirdparties/memcache/libmemcached-1.1.2/build-libmemcached/src/libmemcached/libmemcached.so $docker_prefix
+    copy_file ./thirdparties/memcache/libmemcached-1.1.2/build-libmemcached/src/libmemcached/libmemcached.so.11 $docker_prefix
+    copy_file ./thirdparties/memcache/libmemcached-1.1.2/build-libmemcached/src/libhashkit/libhashkit.so.2 $docker_prefix 
+fi
+copy_file thirdparties/etcdclient/libetcdclient.so $docker_prefix
+
+
+if [ "$1" == "bs" ]; then
+    paths=`ls conf/* nebd/etc/nebd/*`
+else
+    paths=`ls curvefs/conf/*`
+fi
+paths="$paths tools-v2/pkg/config/curve.yaml"
+for path in $paths;
 do
     dir=`dirname $path`
     file=`basename $path`

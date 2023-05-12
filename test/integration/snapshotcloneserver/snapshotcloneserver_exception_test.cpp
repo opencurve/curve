@@ -41,7 +41,7 @@ class SnapshotCloneServerTest : public ::testing::Test {
         options_->addr = kSnapshotCloneServerIpPort;
         options_->snapshotPoolThreadNum = 8;
         options_->snapshotTaskManagerScanIntervalMs = 1000;
-        options_->chunkSplitSize = 1048576;
+        options_->chunkSplitSize = 8388608;
         options_->checkSnapshotStatusIntervalMs = 1000;
         options_->maxSnapshotLimit = 64;
         options_->snapshotCoreThreadNum = 8;
