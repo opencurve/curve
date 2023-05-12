@@ -1222,7 +1222,7 @@ Output:
 ```
 ##### query segment
 
-query the copyset info with logicalpoolid and copyset id
+query the copyset info with logicalpoolid and copysetid
 Usage:
 
 ```bash
