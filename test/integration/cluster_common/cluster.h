@@ -124,8 +124,8 @@ class CurveCluster {
      * @param[in] ipPort 指定mds的ipPort
      * @param[in] mdsConf mds启动参数项, 示例：
      *   const std::vector<std::string> mdsConf{
-            {" --graceful_quit_on_sigterm"},
-            {" --confPath=./test/integration/cluster_common/mds.basic.conf"},
+            {"--graceful_quit_on_sigterm"},
+            {"--confPath=./test/integration/cluster_common/mds.basic.conf"},
         };
      * @param[in] expectLeader 是否预期是leader
      * @return 成功则返回pid; 失败则返回-1
@@ -188,7 +188,7 @@ class CurveCluster {
      * @param clientIpPort
      * @param peerIpPort
      * @param etcdConf etcd启动项参数, 建议按照模块指定name,防止并发运行时冲突
-     *      std::vector<std::string>{" --name basic_test_start_stop_module1"}
+     *      std::vector<std::string>{"--name basic_test_start_stop_module1"}
      * @return 成功则返回pid; 失败则返回-1
      */
     int StartSingleEtcd(int id, const std::string &clientIpPort,
@@ -233,15 +233,15 @@ class CurveCluster {
      * @param[in] ipPort
      * @param[in] chunkserverConf chunkserver启动项，示例:
      *  const std::vector<std::string> chunkserverConf1{
-            {" --graceful_quit_on_sigterm"},
-            {" -chunkServerStoreUri=local://./basic1/"},
-            {" -chunkServerMetaUri=local://./basic1/chunkserver.dat"},
-            {" -copySetUri=local://./basic1/copysets"},
-            {" -recycleUri=local://./basic1/recycler"},
-            {" -chunkFilePoolDir=./basic1/chunkfilepool/"},
-            {" -chunkFilePoolMetaPath=./basic1/chunkfilepool.meta"},
-            {" -conf=./test/integration/cluster_common/chunkserver.basic.conf"},
-            {" -raft_sync_segments=true"},
+            {"--graceful_quit_on_sigterm"},
+            {"-chunkServerStoreUri=local://./basic1/"},
+            {"-chunkServerMetaUri=local://./basic1/chunkserver.dat"},
+            {"-copySetUri=local://./basic1/copysets"},
+            {"-recycleUri=local://./basic1/recycler"},
+            {"-chunkFilePoolDir=./basic1/chunkfilepool/"},
+            {"-chunkFilePoolMetaPath=./basic1/chunkfilepool.meta"},
+            {"-conf=./test/integration/cluster_common/chunkserver.basic.conf"},
+            {"-raft_sync_segments=true"},
         };
         建议文件名也按模块的缩写来，文件名不能太长，否则注册到数据库会失败
      * @return 成功则返回pid; 失败则返回-1

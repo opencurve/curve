@@ -38,6 +38,26 @@ class MockNameService : public CurveFSService {
                                 OpenFileResponse* response,
                                 google::protobuf::Closure* done));
 
+    MOCK_METHOD4(CloseFile, void(google::protobuf::RpcController *cntl,
+                                 const CloseFileRequest *request,
+                                 CloseFileResponse *response,
+                                 google::protobuf::Closure *done));
+
+    MOCK_METHOD4(CreateFile, void(google::protobuf::RpcController *cntl,
+                                  const CreateFileRequest *request,
+                                  CreateFileResponse *response,
+                                  google::protobuf::Closure *done));
+
+    MOCK_METHOD4(GetFileInfo, void(google::protobuf::RpcController *cntl,
+                                   const GetFileInfoRequest *request,
+                                   GetFileInfoResponse *response,
+                                   google::protobuf::Closure *done));
+
+    MOCK_METHOD4(RecoverFile, void(google::protobuf::RpcController *cntl,
+                                   const RecoverFileRequest *request,
+                                   RecoverFileResponse *response,
+                                   google::protobuf::Closure *done));
+
     MOCK_METHOD4(DeleteFile, void(google::protobuf::RpcController* cntl,
                                   const DeleteFileRequest* request,
                                   DeleteFileResponse* response,
