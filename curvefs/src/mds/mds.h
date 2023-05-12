@@ -85,6 +85,8 @@ using ::curvefs::mds::space::MdsProxyOptions;
 struct MDSOptions {
     int dummyPort;
     std::string mdsListenAddr;
+    int idleTimeoutSec;
+
     MetaserverOptions metaserverOptions;
     // TODO(add EtcdConf): add etcd configure
 
