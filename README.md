@@ -225,6 +225,7 @@ Please refer to the [Test environment configuration](docs/cn/测试环境配置�
 
 ## Practical
 - [CurveBS+NFS Build NFS Server](docs/practical/curvebs_nfs.md)
+- [CurveFS+MinIO S3 Gateway](https://github.com/opencurve/curve-meetup-slides/blob/main/PrePaper/2023/%E6%94%AF%E6%8C%81POSIX%E5%92%8CS3%E7%BB%9F%E4%B8%80%E5%91%BD%E5%90%8D%E7%A9%BA%E9%97%B4%E2%80%94%E2%80%94Curve%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9FS3%E7%BD%91%E5%85%B3%E9%83%A8%E7%BD%B2%E5%AE%9E%E8%B7%B5.md)
 
 ## Governance
 See [Governance](https://github.com/opencurve/community/blob/master/GOVERNANCE.md).
