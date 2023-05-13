@@ -54,6 +54,14 @@ namespace client {
 namespace common {
 DECLARE_bool(enableCto);
 DECLARE_bool(supportKVcache);
+
+DECLARE_uint64(fuseClientAvgWriteBytes);
+DECLARE_uint64(fuseClientBurstWriteBytes);
+DECLARE_uint64(fuseClientBurstWriteBytesSecs);
+
+DECLARE_uint64(fuseClientAvgReadBytes);
+DECLARE_uint64(fuseClientBurstReadBytes);
+DECLARE_uint64(fuseClientBurstReadBytesSecs);
 }  // namespace common
 }  // namespace client
 }  // namespace curvefs
@@ -1949,6 +1957,88 @@ TEST_F(TestFuseS3Client, FuseOpSetXattr) {
     ret = client_->FuseOpSetXattr(
         req, ino, name, value, size, 0);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+}
+
+TEST_F(TestFuseS3Client, FuseOpWriteQosTest) {
+    curvefs::client::common::FLAGS_fuseClientAvgWriteBytes = 100;
+    curvefs::client::common::FLAGS_fuseClientBurstWriteBytes = 150;
+    curvefs::client::common::FLAGS_fuseClientBurstWriteBytesSecs = 180;
+    std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+
+    auto qosWriteTest = [&] (int id, int len) {
+        fuse_ino_t ino = id;
+        Inode inode;
+        inode.set_inodeid(ino);
+        inode.set_length(0);
+        auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
+
+        EXPECT_CALL(*inodeManager_, GetInode(ino, _))
+           .WillOnce(
+              DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
+
+        fuse_req_t req = nullptr;
+        off_t off = 0;
+        struct fuse_file_info fi;
+        fi.flags = O_WRONLY;
+        std::string buf('a', len);
+        size_t size = buf.size();
+        size_t s3Size = size;
+        size_t wSize = 0;
+
+        EXPECT_CALL(*s3ClientAdaptor_, Write(_, _, _, _))
+            .WillOnce(Return(s3Size));
+
+        client_->Add(false, size);
+
+        CURVEFS_ERROR ret = client_->FuseOpWrite(
+            req, ino, buf.c_str(), size, off, &fi, &wSize);
+        ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+        ASSERT_EQ(s3Size, wSize);
+    };
+
+    qosWriteTest(1, 90);
+    qosWriteTest(2, 100);
+    qosWriteTest(3, 160);
+    qosWriteTest(4, 200);
+}
+
+TEST_F(TestFuseS3Client, FuseOpReadQosTest) {
+    curvefs::client::common::FLAGS_fuseClientAvgReadBytes = 100;
+    curvefs::client::common::FLAGS_fuseClientBurstReadBytes = 150;
+    curvefs::client::common::FLAGS_fuseClientBurstReadBytesSecs = 180;
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+
+    auto qosReadTest = [&] (int id, int size) {
+        fuse_req_t req = nullptr;
+        fuse_ino_t ino = id;
+        off_t off = 0;
+        struct fuse_file_info fi;
+        fi.flags = O_RDONLY;
+
+        Inode inode;
+        inode.set_fsid(fsId);
+        inode.set_inodeid(ino);
+        inode.set_length(4096);
+        auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
+
+        EXPECT_CALL(*inodeManager_, GetInode(ino, _))
+          .WillOnce(
+             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
+
+        std::unique_ptr<char[]> buffer(new char[size]);
+        size_t rSize = 0;
+        client_->Add(true, size);
+        CURVEFS_ERROR ret = client_->FuseOpRead(
+            req, ino, size, off, &fi, buffer.get(), &rSize);
+        ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+        ASSERT_EQ(0, rSize);
+    };
+
+    qosReadTest(1, 90);
+    qosReadTest(2, 100);
+    qosReadTest(3, 160);
+    qosReadTest(4, 200);
 }
 
 }  // namespace client

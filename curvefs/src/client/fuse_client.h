@@ -25,6 +25,7 @@
 
 #include <unistd.h>
 #include <sys/stat.h>
+#include <bthread/unstable.h>
 
 #include <map>
 #include <memory>
@@ -53,6 +54,7 @@
 #include "curvefs/src/client/lease/lease_excutor.h"
 #include "curvefs/src/client/xattr_manager.h"
 #include "curvefs/src/client/warmup/warmup_manager.h"
+#include "src/common/throttle.h"
 
 #define DirectIOAlignment 512
 
@@ -296,6 +298,10 @@ class FuseClient {
 
     CURVEFS_ERROR SetMountStatus(const struct MountOption *mountOption);
 
+    void Add(bool isRead, size_t size) { throttle_.Add(isRead, size); }
+
+    void InitQosParam();
+
  protected:
     CURVEFS_ERROR MakeNode(fuse_req_t req, fuse_ino_t parent, const char* name,
                            mode_t mode, FsFileType type, dev_t rdev,
@@ -403,6 +409,10 @@ class FuseClient {
     Atomic<bool> isStop_;
 
     curve::common::Mutex renameMutex_;
+
+    Throttle throttle_;
+
+    bthread_timer_t throttleTimer_;
 };
 
 }  // namespace client
