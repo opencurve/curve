@@ -32,9 +32,9 @@ The specific usage of bvar in CURVE can be viewed:
 
 [chunkserver metric](../../src/chunkserver/chunkserver_metrics.h)   
 
-[mds topoloy metric](../../src/mds/topology/topology_metric.h)
+[mds topology metric](../../src/mds/topology/topology_metric.h)
 
-[mds shedule metric](../../src/mds/schedule/scheduleMetrics.h)
+[mds schedule metric](../../src/mds/schedule/scheduleMetrics.h)
 
 ## prometheus + grafana
 

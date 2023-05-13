@@ -411,6 +411,15 @@ var (
 	ErrBsUnknownThrottleType = func() *CmdError {
 		return NewInternalCmdError(50, "unknown throttle type[%s], only support: iops_total|iops_read|iops_write|bps_total|bps_read|bps_write")
 	}
+	ErrBsListDir = func() *CmdError {
+		return NewInternalCmdError(51, "list directory fail, err: %s")
+	}
+	ErrBsGetCopysetStatus = func() *CmdError {
+		return NewInternalCmdError(52, "get copyset status fail, err: %s")
+	}
+	ErrBsOpNameNotSupport = func() *CmdError {
+		return NewInternalCmdError(53, "not support op[%s], only support: operator, change_peer, add_peer, remove_peer, transfer_leader")
+	}
 
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {
@@ -762,6 +771,17 @@ var (
 			message = "successfully update the file throttle"
 		default:
 			message = fmt.Sprintf("failed to update file[%s] throttle, err: %s", path, statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
+	ErrBsGetCopyset = func(statusCode statuscode.TopoStatusCode, logicalpoolid, copysetid uint32) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case statuscode.TopoStatusCode_Success:
+			message = "success"
+		default:
+			message = fmt.Sprintf("get copyset(id: %d,logicalPoolid: %d) info fail, err: %s", copysetid, logicalpoolid, statusCode.String())
 		}
 		return NewRpcReultCmdError(code, message)
 	}

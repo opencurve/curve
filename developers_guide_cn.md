@@ -136,7 +136,7 @@ CI 检查点有:
   
 重新 push 会触发 CI, 若暂时无反应, 请耐心等待, 测试处于排队中.
 
-若 CI 不稳定, 可 comment ```recheck```, 重新触发 CI.
+若 CI 不稳定, 可重复 comment ```cicheck``` 以重新触发 CI.
 
 ## 社区交流
 

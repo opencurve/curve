@@ -98,6 +98,7 @@ OperatorT<IdType, CopySetInfoT, CopySetConfT>::OperatorT(
     EpochType startEpoch, const CopySetKey &id, OperatorPriority pri,
     const steady_clock::time_point &timeLimit,
     std::shared_ptr<OperatorStep> step) {
+    (void)timeLimit;
     this->startEpoch = startEpoch;
     this->copysetID.first = id.first;
     this->copysetID.second = id.second;

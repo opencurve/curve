@@ -139,7 +139,7 @@ bool SchedulerHelper::SatisfyZoneAndScatterWidthLimit(
         zoneList[targetZone] += 1;
     }
 
-    if (zoneList.size() < minZone) {
+    if (static_cast<int>(zoneList.size()) < minZone) {
         return false;
     }
 

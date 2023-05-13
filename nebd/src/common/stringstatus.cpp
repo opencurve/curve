@@ -42,7 +42,7 @@ void StringStatus::Update() {
     int count = 0;
     for (auto &item : kvs_) {
         count += 1;
-        if (count == kvs_.size()) {
+        if (count == static_cast<int>(kvs_.size())) {
             jsonStr +=
                 "\"" + item.first + "\"" + ":" + "\"" + item.second + "\"";
         } else {

@@ -77,7 +77,6 @@ class ChunkCacheManagerTest : public testing::Test {
 TEST_F(ChunkCacheManagerTest, test_write_new_data) {
     uint64_t offset = 0;
     uint64_t len = 1024;
-    int length = len;
     char *buf = new char[len];
 
     chunkCacheManager_->WriteNewDataCache(s3ClientAdaptor_, offset, len, buf);

@@ -32,12 +32,12 @@
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/interruptible_sleeper.h"
 
-using ::curve::mds::topology::PoolIdType;
 using ::curve::common::Atomic;
+using ::curve::common::InterruptibleSleeper;
 using ::curve::common::Mutex;
 using ::curve::common::RWLock;
 using ::curve::common::Thread;
-using ::curve::common::InterruptibleSleeper;
+using ::curve::mds::topology::PoolIdType;
 
 namespace curve {
 namespace mds {
@@ -49,7 +49,8 @@ using ::curve::kvstorage::EtcdClientImp;
  * The statistics are divided into two parts:
  * part1:
  *     1. statistics of the allocation amount before the designated revision
- *     2. record the segment allocation amount of each revision since mds started
+ *     2. record the segment allocation amount of each revision since mds
+ * started
  *     3. combine the data in 1 and 2
  * part2: the background periodically persists the merged data in part1
  *
@@ -76,17 +77,12 @@ class AllocStatistic {
      * @param[in] client Etcd client
      */
     AllocStatistic(uint64_t periodicPersistInterMs, uint64_t retryInterMs,
-        std::shared_ptr<EtcdClientImp> client) :
-        client_(client),
-        currentValueAvalible_(false),
-        segmentAllocFromEtcdOK_(false),
-        stop_(true),
-        periodicPersistInterMs_(periodicPersistInterMs),
-        retryInterMs_(retryInterMs) {}
+                   std::shared_ptr<EtcdClientImp> client)
+        : client_(client), segmentAllocFromEtcdOK_(false),
+          currentValueAvalible_(false), retryInterMs_(retryInterMs),
+          periodicPersistInterMs_(periodicPersistInterMs), stop_(true) {}
 
-    ~AllocStatistic() {
-        Stop();
-    }
+    ~AllocStatistic() { Stop(); }
 
     /**
      * @brief Init Obtains the allocated segment information and information in
@@ -97,7 +93,7 @@ class AllocStatistic {
      */
     int Init();
 
-   /**
+    /**
      * @brief Run 1. get all the segments under the specified revision
      *            2. persist the statistics of allocated segment size in memory
      *               under each logicalPool regularly
@@ -138,11 +134,10 @@ class AllocStatistic {
      * @param[in] changeSize Segment reduction
      * @param[in] revision Version corresponding to this change
      */
-    virtual void DeAllocSpace(
-        PoolIdType, int64_t changeSize, int64_t revision);
+    virtual void DeAllocSpace(PoolIdType, int64_t changeSize, int64_t revision);
 
  private:
-     /**
+    /**
      * @brief CalculateSegmentAlloc Get all the segment records of the
      *                         specified revision from Etcd
      */
@@ -154,14 +149,15 @@ class AllocStatistic {
      */
     void PeriodicPersist();
 
-     /**
+    /**
      * @brief HandleResult Dealing with the situation that error occur when
      *                     obtaining all segment records of specified revision
      */
     bool HandleResult(int res);
 
     /**
-     * @brief DoMerge For each logicalPool, merge the change amount and data read in Etcd //NOLINT
+     * @brief DoMerge For each logicalPool, merge the change amount and data
+     * read in Etcd //NOLINT
      */
     void DoMerge();
 
@@ -201,7 +197,8 @@ class AllocStatistic {
     std::map<PoolIdType, int64_t> existSegmentAllocValues_;
     RWLock existSegmentAllocValuesLock_;
 
-    // At the beginning, stores allocation data of the segment before specified revision //NOLINT
+    // At the beginning, stores allocation data of the segment before specified
+    // revision
     // Later, stores the merged value
     std::map<PoolIdType, int64_t> segmentAlloc_;
     RWLock segmentAllocLock_;
@@ -230,7 +227,8 @@ class AllocStatistic {
 
     InterruptibleSleeper sleeper_;
 
-    // thread for periodically persisting allocated segment size of each logical pool //NOLINT
+    // thread for periodically persisting allocated segment size of each logical
+    // pool
     Thread periodicPersist_;
 
     // thread for calculating allocated segment size under specified revision
@@ -240,4 +238,3 @@ class AllocStatistic {
 }  // namespace curve
 
 #endif  // SRC_MDS_NAMESERVER2_ALLOCSTATISTIC_ALLOC_STATISTIC_H_
-

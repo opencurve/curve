@@ -652,7 +652,6 @@ TEST_F(TestTopologyManager, test_RegistServer_PoolNotFound) {
 }
 
 TEST_F(TestTopologyManager, test_RegistServer_ZoneNotFound) {
-    ServerIdType id = 0x31;
     PoolIdType poolId = 0x11;
     ZoneIdType zoneId = 0x21;
     PrepareAddPool(poolId, "pool1");
@@ -674,7 +673,6 @@ TEST_F(TestTopologyManager, test_RegistServer_ZoneNotFound) {
 }
 
 TEST_F(TestTopologyManager, test_RegistServer_AllocateIdFail) {
-    ServerIdType id = 0x31;
     PoolIdType poolId = 0x11;
     ZoneIdType zoneId = 0x21;
     PrepareAddPool(poolId, "pool");
@@ -1110,7 +1108,6 @@ TEST_F(TestTopologyManager, test_CreateZone_success) {
 
 TEST_F(TestTopologyManager, test_CreateZone_AllocateIdFail) {
     PoolIdType poolId = 0x11;
-    ZoneIdType zoneId = 0x21;
     PrepareAddPool(poolId, "poolname1");
 
     CreateZoneRequest request;
@@ -1930,8 +1927,6 @@ TEST_F(TestTopologyManager,
 TEST_F(TestTopologyManager,
        test_CreatePartitionWithOutAvailableCopyset_HaveNoAvailableMetaserver) {
     PoolIdType poolId = 0x11;
-    CopySetIdType copysetId = 0x51;
-    PartitionIdType partitionId = 0x61;
 
     Pool::RedundanceAndPlaceMentPolicy policy;
     policy.replicaNum = 3;
@@ -1969,8 +1964,6 @@ TEST_F(TestTopologyManager,
 TEST_F(TestTopologyManager,
        test_CreatePartitionWithOutAvailableCopyset_MetaServerSpaceIsFull) {
     PoolIdType poolId = 0x11;
-    CopySetIdType copysetId = 0x51;
-    PartitionIdType partitionId = 0x61;
 
     Pool::RedundanceAndPlaceMentPolicy policy;
     policy.replicaNum = 3;
@@ -2081,8 +2074,6 @@ TEST_F(TestTopologyManager,
 TEST_F(TestTopologyManager,
        test_CreatePartitionWithOutAvailableCopyset_HaveOfflineMetaserver1) {
     PoolIdType poolId = 0x11;
-    CopySetIdType copysetId = 0x51;
-    PartitionIdType partitionId = 0x61;
 
     Pool::RedundanceAndPlaceMentPolicy policy;
     policy.replicaNum = 3;
@@ -2681,8 +2672,6 @@ TEST_F(TestTopologyManager, test_ListPartitionEmpty_Success) {
     PoolIdType poolId = 0x11;
     CopySetIdType copysetId = 0x51;
     PartitionIdType pId1 = 0x61;
-    PartitionIdType pId2 = 0x62;
-    PartitionIdType pId3 = 0x63;
 
     Pool::RedundanceAndPlaceMentPolicy policy;
     policy.replicaNum = 3;
@@ -2818,7 +2807,6 @@ TEST_F(TestTopologyManager, test_GetCopysetOfPartition_CopysetNotFound) {
 }
 
 TEST_F(TestTopologyManager, test_GetCopysetMembers_Success) {
-    FsIdType fsId = 0x01;
     PoolIdType poolId = 0x11;
     CopySetIdType copysetId = 0x51;
 
@@ -2892,8 +2880,6 @@ TEST_F(TestTopologyManager, test_RegistMemcacheCluster_AllocateIdFail) {
     server.set_ip("127.0.0.1");
     server.set_port(1);
     *request.add_servers() = server;
-
-    MemcacheClusterIdType mcCId(1);
 
     EXPECT_CALL(*idGenerator_, GenMemCacheClusterId())
         .WillOnce(Return(UNINITIALIZE_ID));

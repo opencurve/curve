@@ -39,18 +39,14 @@ using curve::common::TimeUtility;
 using curve::mds::SessionStatus;
 
 FileInstance::FileInstance()
-    : finfo_(),
-      fileopt_(),
-      mdsclient_(nullptr),
-      leaseExecutor_(),
-      iomanager4file_(),
-      readonly_(false) {}
+    : finfo_(), fileopt_(), mdsclient_(nullptr), leaseExecutor_(),
+      iomanager4file_(), readonly_(false) {}
 
-bool FileInstance::Initialize(const std::string& filename,
+bool FileInstance::Initialize(const std::string &filename,
                               std::shared_ptr<MDSClient> mdsclient,
-                              const UserInfo_t& userinfo,
-                              const OpenFlags& openflags,
-                              const FileServiceOption& fileservicopt,
+                              const UserInfo_t &userinfo,
+                              const OpenFlags &openflags,
+                              const FileServiceOption &fileservicopt,
                               bool readonly) {
     readonly_ = readonly;
     fileopt_ = fileservicopt;
@@ -105,39 +101,37 @@ void FileInstance::UnInitialize() {
     mdsclient_.reset();
 }
 
-int FileInstance::Read(char* buf, off_t offset, size_t length) {
-    DLOG_EVERY_SECOND(INFO) << "begin Read "<< finfo_.fullPathName
-                            << ", offset = " << offset
-                            << ", len = " << length;
+int FileInstance::Read(char *buf, off_t offset, size_t length) {
+    DLOG_EVERY_SECOND(INFO) << "begin Read " << finfo_.fullPathName
+                            << ", offset = " << offset << ", len = " << length;
     return iomanager4file_.Read(buf, offset, length, mdsclient_.get());
 }
 
-int FileInstance::Write(const char* buf, off_t offset, size_t len) {
+int FileInstance::Write(const char *buf, off_t offset, size_t len) {
     if (readonly_) {
         DVLOG(9) << "open with read only, do not support write!";
         return -1;
     }
     DLOG_EVERY_SECOND(INFO) << "begin write " << finfo_.fullPathName
-                            << ", offset = " << offset
-                            << ", len = " << len;
+                            << ", offset = " << offset << ", len = " << len;
     return iomanager4file_.Write(buf, offset, len, mdsclient_.get());
 }
 
-int FileInstance::AioRead(CurveAioContext* aioctx, UserDataType dataType) {
-    DLOG_EVERY_SECOND(INFO) << "begin AioRead " << finfo_.fullPathName
-                            << ", offset = " << aioctx->offset
-                            << ", len = " << aioctx->length;
+int FileInstance::AioRead(CurveAioContext *aioctx, UserDataType dataType) {
+    DLOG_EVERY_SECOND(INFO)
+        << "begin AioRead " << finfo_.fullPathName
+        << ", offset = " << aioctx->offset << ", len = " << aioctx->length;
     return iomanager4file_.AioRead(aioctx, mdsclient_.get(), dataType);
 }
 
-int FileInstance::AioWrite(CurveAioContext* aioctx, UserDataType dataType) {
+int FileInstance::AioWrite(CurveAioContext *aioctx, UserDataType dataType) {
     if (readonly_) {
         DVLOG(9) << "open with read only, do not support write!";
         return -1;
     }
-    DLOG_EVERY_SECOND(INFO) << "begin AioWrite " << finfo_.fullPathName
-                            << ", offset = " << aioctx->offset
-                            << ", len = " << aioctx->length;
+    DLOG_EVERY_SECOND(INFO)
+        << "begin AioWrite " << finfo_.fullPathName
+        << ", offset = " << aioctx->offset << ", len = " << aioctx->length;
     return iomanager4file_.AioWrite(aioctx, mdsclient_.get(), dataType);
 }
 
@@ -150,7 +144,7 @@ int FileInstance::Discard(off_t offset, size_t length) {
     return -1;
 }
 
-int FileInstance::AioDiscard(CurveAioContext* aioctx) {
+int FileInstance::AioDiscard(CurveAioContext *aioctx) {
     if (!readonly_) {
         return iomanager4file_.AioDiscard(aioctx, mdsclient_.get());
     }
@@ -167,15 +161,16 @@ int FileInstance::AioDiscard(CurveAioContext* aioctx) {
 //    这时候当前还没有成功打开，所以还没有存储该session信息，所以无法通过refresh
 //    再去打开，所以这时候需要获取mds一侧session lease时长，然后在client这一侧
 //    等待一段时间再去Open，如果依然失败，就向上层返回失败。
-int FileInstance::Open(const std::string& filename,
-                       const UserInfo& userinfo,
-                       std::string* sessionId) {
-    LeaseSession_t  lease;
+int FileInstance::Open(const std::string &filename, const UserInfo &userinfo,
+                       std::string *sessionId) {
+    (void)userinfo;
+
+    LeaseSession_t lease;
     int ret = LIBCURVE_ERROR::FAILED;
 
     FileEpoch_t fEpoch;
-    ret = mdsclient_->OpenFile(filename, finfo_.userinfo,
-        &finfo_, &fEpoch, &lease);
+    ret = mdsclient_->OpenFile(filename, finfo_.userinfo, &finfo_, &fEpoch,
+                               &lease);
     if (ret == LIBCURVE_ERROR::OK) {
         iomanager4file_.UpdateFileThrottleParams(finfo_.throttleParams);
         ret = leaseExecutor_->Start(finfo_, lease) ? LIBCURVE_ERROR::OK
@@ -188,17 +183,17 @@ int FileInstance::Open(const std::string& filename,
     return -ret;
 }
 
-int FileInstance::ReOpen(const std::string& filename,
-                         const std::string& sessionId,
-                         const UserInfo& userInfo,
-                         std::string* newSessionId) {
+int FileInstance::ReOpen(const std::string &filename,
+                         const std::string &sessionId, const UserInfo &userInfo,
+                         std::string *newSessionId) {
+    (void)sessionId;
     return Open(filename, userInfo, newSessionId);
 }
 
-int FileInstance::GetFileInfo(const std::string& filename,
-    FInfo_t* fi, FileEpoch_t *fEpoch) {
-    LIBCURVE_ERROR ret = mdsclient_->GetFileInfo(filename, finfo_.userinfo,
-                                                 fi, fEpoch);
+int FileInstance::GetFileInfo(const std::string &filename, FInfo_t *fi,
+                              FileEpoch_t *fEpoch) {
+    LIBCURVE_ERROR ret =
+        mdsclient_->GetFileInfo(filename, finfo_.userinfo, fi, fEpoch);
     return -ret;
 }
 
@@ -215,14 +210,14 @@ int FileInstance::Close() {
     return -ret;
 }
 
-FileInstance* FileInstance::NewInitedFileInstance(
-    const FileServiceOption& fileServiceOption,
-    std::shared_ptr<MDSClient> mdsClient,
-    const std::string& filename,
-    const UserInfo& userInfo,
-    const OpenFlags& openflags,  // TODO(all): maybe we can put userinfo and readonly into openflags  // NOLINT
+FileInstance *FileInstance::NewInitedFileInstance(
+    const FileServiceOption &fileServiceOption,
+    std::shared_ptr<MDSClient> mdsClient, const std::string &filename,
+    const UserInfo &userInfo,
+    const OpenFlags &openflags,  // TODO(all): maybe we can put userinfo and
+                                 // readonly into openflags  // NOLINT
     bool readonly) {
-    FileInstance* instance = new (std::nothrow) FileInstance();
+    FileInstance *instance = new (std::nothrow) FileInstance();
     if (instance == nullptr) {
         LOG(ERROR) << "Create FileInstance failed, filename: " << filename;
         return nullptr;
@@ -242,12 +237,12 @@ FileInstance* FileInstance::NewInitedFileInstance(
     return instance;
 }
 
-FileInstance* FileInstance::Open4Readonly(const FileServiceOption& opt,
+FileInstance *FileInstance::Open4Readonly(const FileServiceOption &opt,
                                           std::shared_ptr<MDSClient> mdsclient,
-                                          const std::string& filename,
-                                          const UserInfo& userInfo,
-                                          const OpenFlags& openflags) {
-    FileInstance* instance = FileInstance::NewInitedFileInstance(
+                                          const std::string &filename,
+                                          const UserInfo &userInfo,
+                                          const OpenFlags &openflags) {
+    FileInstance *instance = FileInstance::NewInitedFileInstance(
         opt, std::move(mdsclient), filename, userInfo, openflags, true);
     if (instance == nullptr) {
         LOG(ERROR) << "NewInitedFileInstance failed, filename = " << filename;
@@ -280,5 +275,5 @@ void FileInstance::StopLease() {
     }
 }
 
-}   // namespace client
-}   // namespace curve
+}  // namespace client
+}  // namespace curve

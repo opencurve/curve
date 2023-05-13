@@ -135,7 +135,7 @@ TEST_F(CurveSegmentTest, open_segment) {
 
     // create and open
     std::string path = kRaftLogDataDir;
-    butil::string_appendf(&path, "/" CURVE_SEGMENT_OPEN_PATTERN, 1);
+    butil::string_appendf(&path, "/" CURVE_SEGMENT_OPEN_PATTERN, 1L);
     ASSERT_EQ(0, prepare_segment(path));
     ASSERT_EQ(0, seg1->create());
     ASSERT_TRUE(seg1->is_open());
@@ -191,7 +191,7 @@ TEST_F(CurveSegmentTest, closed_segment) {
 
     // create and open
     std::string path = kRaftLogDataDir;
-    butil::string_appendf(&path, "/" CURVE_SEGMENT_OPEN_PATTERN, 1);
+    butil::string_appendf(&path, "/" CURVE_SEGMENT_OPEN_PATTERN, 1L);
     ASSERT_EQ(0, prepare_segment(path));
     ASSERT_EQ(0, seg1->create());
     ASSERT_TRUE(seg1->is_open());

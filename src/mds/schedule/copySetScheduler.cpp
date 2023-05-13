@@ -208,12 +208,12 @@ void CopySetScheduler::StatsCopysetDistribute(
     for (auto &item : distribute) {
         num += item.second.size();
 
-        if (max == -1 || item.second.size() > max) {
+        if (max == -1 || static_cast<int>(item.second.size()) > max) {
             max = item.second.size();
             maxcsId = item.first;
         }
 
-        if (min == -1 || item.second.size() < min) {
+        if (min == -1 || static_cast<int>(item.second.size()) < min) {
             min = item.second.size();
             mincsId = item.first;
         }
@@ -357,7 +357,7 @@ bool CopySetScheduler::CopySetSatisfiyBasicMigrationCond(
     }
 
     // the replica num of copyset is not standard
-    if (info.peers.size() !=
+    if (static_cast<int>(info.peers.size()) !=
         topo_->GetStandardReplicaNumInLogicalPool(info.id.first)) {
         return false;
     }

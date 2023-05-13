@@ -1223,7 +1223,6 @@ void TestCloneCoreImpl::MockCloneMetaSuccess(
     std::shared_ptr<CloneTaskInfo> task) {
     uint32_t chunksize = 1024 * 1024;
     uint64_t segmentsize = 2 * chunksize;
-    uint64_t filelength = 1 * segmentsize;
     SegmentInfo segInfoOut;
     segInfoOut.segmentsize = segmentsize;
     segInfoOut.chunksize = chunksize;

@@ -311,9 +311,9 @@ TEST_F(UnstableCSModuleException, TestCommonReadAndWrite) {
 
     ::Create(filename.c_str(), &info, 10ull * 1024 * 1024 * 1024);
     int fd = ::Open(filename.c_str(), &info);
-    int ret = ::Read(fd, readBuff.get(), offset, length);
+    (void)::Read(fd, readBuff.get(), offset, length);
     LOG(INFO) << "Read finish, here";
-    ret = ::Write(fd, readBuff.get(), offset, length);
+    (void)::Write(fd, readBuff.get(), offset, length);
     LOG(INFO) << "Write finish, here";
 
     ::Close(fd);

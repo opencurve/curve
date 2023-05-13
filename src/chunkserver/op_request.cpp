@@ -208,6 +208,7 @@ void DeleteChunkRequest::OnApply(uint64_t index,
 void DeleteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                                         const ChunkRequest &request,
                                         const butil::IOBuf &data) {
+    (void)data;
     // NOTE: 处理过程中优先使用参数传入的datastore/request
     auto ret = datastore->DeleteChunk(request.chunkid(),
                                       request.sn());
@@ -363,6 +364,9 @@ void ReadChunkRequest::OnApply(uint64_t index,
 void ReadChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                                       const ChunkRequest &request,
                                       const butil::IOBuf &data) {
+    (void)datastore;
+    (void)request;
+    (void)data;
     // NOTE: 处理过程中优先使用参数传入的datastore/request
     // read什么都不用做
 }
@@ -571,6 +575,9 @@ void ReadSnapshotRequest::OnApply(uint64_t index,
 void ReadSnapshotRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                                          const ChunkRequest &request,
                                          const butil::IOBuf &data) {
+    (void)datastore;
+    (void)request;
+    (void)data;
     // NOTE: 处理过程中优先使用参数传入的datastore/request
     // read什么都不用做
 }
@@ -607,6 +614,7 @@ void DeleteSnapshotRequest::OnApply(uint64_t index,
 void DeleteSnapshotRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,  //NOLINT
                                            const ChunkRequest &request,
                                            const butil::IOBuf &data) {
+    (void)data;
     // NOTE: 处理过程中优先使用参数传入的datastore/request
     auto ret = datastore->DeleteSnapshotChunkOrCorrectSn(
         request.chunkid(), request.correctedsn());
@@ -669,6 +677,7 @@ void CreateCloneChunkRequest::OnApply(uint64_t index,
 void CreateCloneChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,  //NOLINT
                                              const ChunkRequest &request,
                                              const butil::IOBuf &data) {
+    (void)data;
     // NOTE: 处理过程中优先使用参数传入的datastore/request
     auto ret = datastore->CreateCloneChunk(request.chunkid(),
                                            request.sn(),
@@ -806,6 +815,7 @@ void ScanChunkRequest::OnApply(uint64_t index,
 void ScanChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,  //NOLINT
                                                const ChunkRequest &request,
                                                const butil::IOBuf &data) {
+    (void)data;
     uint32_t crc = 0;
     size_t size = request.size();
     std::unique_ptr<char[]> readBuffer(new(std::nothrow)char[size]);

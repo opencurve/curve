@@ -68,12 +68,13 @@ func NewEtcdCommand() *cobra.Command {
 }
 
 func (eCmd *EtcdCommand) AddFlags() {
-	config.AddBsEtcdAddrFlag(eCmd.Cmd)
 	config.AddHttpTimeoutFlag(eCmd.Cmd)
+	config.AddBsEtcdAddrFlag(eCmd.Cmd)
 }
 
 func (eCmd *EtcdCommand) Init(cmd *cobra.Command, args []string) error {
 	eCmd.health = cobrautil.HEALTH_ERROR
+
 	header := []string{cobrautil.ROW_ADDR, cobrautil.ROW_VERSION, cobrautil.ROW_STATUS}
 	eCmd.SetHeader(header)
 	eCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
@@ -85,6 +86,7 @@ func (eCmd *EtcdCommand) Init(cmd *cobra.Command, args []string) error {
 	if addrErr.TypeCode() != cmderror.CODE_SUCCESS {
 		return fmt.Errorf(addrErr.Message)
 	}
+
 	for _, addr := range etcdAddrs {
 		// set metric
 		timeout := viper.GetDuration(config.VIPER_GLOBALE_HTTPTIMEOUT)
@@ -117,6 +119,7 @@ func (eCmd *EtcdCommand) RunCommand(cmd *cobra.Command, args []string) error {
 		size++
 		go func(m *basecmd.Metric) {
 			result, err := basecmd.QueryMetric(m)
+
 			var key string
 			var metricKey string
 			if m.SubUri == STATUS_SUBURI {
@@ -126,6 +129,7 @@ func (eCmd *EtcdCommand) RunCommand(cmd *cobra.Command, args []string) error {
 				key = "version"
 				metricKey = VARSION_METRIC_KEY
 			}
+
 			var value string
 			if err.TypeCode() == cmderror.CODE_SUCCESS {
 				value, err = basecmd.GetKeyValueFromJsonMetric(result, metricKey)
@@ -133,6 +137,7 @@ func (eCmd *EtcdCommand) RunCommand(cmd *cobra.Command, args []string) error {
 					errs = append(errs, err)
 				}
 			}
+
 			results <- basecmd.MetricResult{
 				Addr:  m.Addrs[0],
 				Key:   key,
@@ -166,8 +171,6 @@ func (eCmd *EtcdCommand) RunCommand(cmd *cobra.Command, args []string) error {
 			break
 		}
 	}
-	mergeErr := cmderror.MergeCmdErrorExceptSuccess(errs)
-	eCmd.Error = mergeErr
 
 	if len(errs) > 0 && len(errs) < len(eCmd.rows) {
 		eCmd.health = cobrautil.HEALTH_WARN
@@ -175,12 +178,14 @@ func (eCmd *EtcdCommand) RunCommand(cmd *cobra.Command, args []string) error {
 		eCmd.health = cobrautil.HEALTH_OK
 	}
 
+	mergeErr := cmderror.MergeCmdErrorExceptSuccess(errs)
+	eCmd.Error = mergeErr
 	list := cobrautil.ListMap2ListSortByKeys(eCmd.rows, eCmd.Header, []string{
 		cobrautil.ROW_STATUS, cobrautil.ROW_VERSION,
 	})
 	eCmd.TableNew.AppendBulk(list)
-
 	eCmd.Result = eCmd.rows
+
 	return nil
 }
 
@@ -206,7 +211,7 @@ func GetEtcdStatus(caller *cobra.Command) (*interface{}, *tablewriter.Table, *cm
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
 	})
 	config.AlignFlagsValue(caller, etcdCmd.Cmd, []string{
-		config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR,
+		config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_ETCDADDR,
 	})
 	etcdCmd.Cmd.SilenceErrors = true
 	etcdCmd.Cmd.Execute()

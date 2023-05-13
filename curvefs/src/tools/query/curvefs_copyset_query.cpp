@@ -126,7 +126,7 @@ bool CopysetQueryTool::AfterSendRequestToHost(const std::string& host) {
                     for (auto const& j : key2Status_[i]) {
                         std::cout << j.ShortDebugString() << std::endl;
                     }
-                    if (key2Status_[i].size() !=
+                    if (static_cast<int>(key2Status_[i].size()) !=
                         key2Info_[i][0].copysetinfo().peers().size()) {
                         std::cerr << "copysetStatus not match the number of "
                                      "copysetInfo's peers!"

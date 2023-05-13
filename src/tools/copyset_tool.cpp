@@ -84,7 +84,7 @@ int CopysetTool::Init() {
 }
 
 void PrintCopysets(const std::vector<CopysetInfo>& copysets) {
-    for (int i = 0; i < copysets.size(); ++i) {
+    for (size_t i = 0; i < copysets.size(); ++i) {
         if (i != 0) {
             std::cout << ",";
         }

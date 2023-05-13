@@ -142,7 +142,7 @@ TEST_F(FileCacheManagerTest, test_flush_fail) {
 TEST_F(FileCacheManagerTest, test_new_write) {
     uint64_t offset = 0;
     uint64_t len = 5 * 1024 * 1024;
-    char buf[len] = {0};
+    char *buf = new char[len];
 
     memset(buf, 'a', len);
     EXPECT_CALL(*mockChunkCacheManager_, FindWriteableDataCache(_, _, _, _))
@@ -154,13 +154,15 @@ TEST_F(FileCacheManagerTest, test_new_write) {
     fileCacheManager_->SetChunkCacheManagerForTest(0, mockChunkCacheManager_);
     fileCacheManager_->SetChunkCacheManagerForTest(1, mockChunkCacheManager_);
     ASSERT_EQ(len, fileCacheManager_->Write(offset, len, buf));
+    delete[] buf;
 }
 
 TEST_F(FileCacheManagerTest, test_old_write) {
     uint64_t offset = 0;
     uint64_t len = 1024;
-    char buf[len] = {0};
+    char *buf = new char[len];
 
+    memset(buf, 0, len);
     auto dataCache = std::make_shared<MockDataCache>(
         s3ClientAdaptor_, nullptr, offset, 0, nullptr, nullptr);
     EXPECT_CALL(*dataCache, Write(_, _, _, _)).WillOnce(Return());
@@ -170,14 +172,16 @@ TEST_F(FileCacheManagerTest, test_old_write) {
     fileCacheManager_->SetChunkCacheManagerForTest(0, mockChunkCacheManager_);
     ASSERT_EQ(len, fileCacheManager_->Write(offset, len, buf));
     fileCacheManager_->ReleaseCache();
+    delete[] buf;
 }
 
 TEST_F(FileCacheManagerTest, test_read_cache) {
     uint64_t inodeId = 1;
     uint64_t offset = 0;
     uint64_t len = 5 * 1024 * 1024;
-    char buf[len] = {0};
+    char *buf = new char[len];
     ReadRequest request;
+        memset(buf, 0, len);
     std::vector<ReadRequest> requests;
     std::vector<ReadRequest> emptyRequests;
     requests.emplace_back(request);
@@ -191,14 +195,16 @@ TEST_F(FileCacheManagerTest, test_read_cache) {
     fileCacheManager_->SetChunkCacheManagerForTest(1, mockChunkCacheManager_);
 
     ASSERT_EQ(len, fileCacheManager_->Read(inodeId, offset, len, buf));
+    delete[] buf;
 }
 
 TEST_F(FileCacheManagerTest, test_read_getinode_fail) {
     uint64_t inodeId = 1;
     uint64_t offset = 0;
     uint64_t len = 1024;
-    char buf[len] = {0};
+    char *buf = new char[len];
 
+    memset(buf, 0, len);
     ReadRequest request;
     std::vector<ReadRequest> requests;
     request.index = 0;
@@ -214,13 +220,13 @@ TEST_F(FileCacheManagerTest, test_read_getinode_fail) {
     EXPECT_CALL(*mockInodeManager_, GetInode(_, _))
         .WillOnce(Return(CURVEFS_ERROR::NOTEXIST));
     ASSERT_EQ(-1, fileCacheManager_->Read(inodeId, offset, len, buf));
+    delete[] buf;
 }
 
 TEST_F(FileCacheManagerTest, test_read_s3) {
     uint64_t inodeId = 1;
     uint64_t offset = 0;
     uint64_t len = 1024;
-    int length = len;
     char *buf = new char[len];
     char *tmpbuf = new char[len];
 

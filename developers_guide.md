@@ -138,7 +138,7 @@ For PR we have the following requirements:
 
 Repush will trigger CI, If github page have no reaction. Please wait.
 
-If CI is not stabled, comment ```recheck``` will trigger CI.
+If CI is not stabled, repeatedly comment ```cicheck``` will trigger CI again.
 
 ## Communication
 

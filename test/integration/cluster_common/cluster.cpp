@@ -772,7 +772,6 @@ int CurveCluster::ProbePort(const std::string &ipPort, int64_t timeoutMs,
     addr.sin_port = htons(port);
     addr.sin_addr.s_addr = inet_addr(res[0].c_str());
 
-    bool satisfy = false;
     uint64_t start = ::curve::common::TimeUtility::GetTimeofDayMs();
     while (::curve::common::TimeUtility::GetTimeofDayMs() - start < timeoutMs) {
         int connectRes =

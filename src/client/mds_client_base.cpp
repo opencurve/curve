@@ -377,7 +377,6 @@ void MDSClientBase::GetOrAllocateSegment(bool allocate,
 
     // convert the user offset to seg  offset
     uint64_t segmentsize = fi->segmentsize;
-    uint64_t chunksize = fi->chunksize;
     uint64_t seg_offset = (offset / segmentsize) * segmentsize;
     request.set_filename(fi->fullPathName);
     request.set_offset(seg_offset);

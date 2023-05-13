@@ -244,7 +244,7 @@ void MDS::InitEtcdClient(const EtcdConf& etcdConf,
     auto res = etcdClient_->Init(etcdConf, etcdTimeout, retryTimes);
     LOG_IF(FATAL, res != EtcdErrCode::EtcdOK)
         << "init etcd client err! "
-        << "etcdaddr: " << std::string{etcdConf.Endpoints, etcdConf.len}
+        << "etcdaddr: " << std::string(etcdConf.Endpoints, etcdConf.len)
         << ", etcdaddr len: " << etcdConf.len
         << ", etcdtimeout: " << etcdConf.DialTimeout
         << ", operation timeout: " << etcdTimeout
@@ -258,7 +258,7 @@ void MDS::InitEtcdClient(const EtcdConf& etcdConf,
         << "Run mds err. Check if etcd is running.";
 
     LOG(INFO) << "init etcd client ok! "
-            << "etcdaddr: " << std::string{etcdConf.Endpoints, etcdConf.len}
+            << "etcdaddr: " << std::string(etcdConf.Endpoints, etcdConf.len)
             << ", etcdaddr len: " << etcdConf.len
             << ", etcdtimeout: " << etcdConf.DialTimeout
             << ", operation timeout: " << etcdTimeout
@@ -510,7 +510,6 @@ void MDS::InitCurveFSOptions(CurveFSOption *curveFSOptions) {
         "mds.curvefs.minFileLength", &curveFSOptions->minFileLength);
     conf_->GetValueFatalIfFail(
         "mds.curvefs.maxFileLength", &curveFSOptions->maxFileLength);
-    FileRecordOptions fileRecordOptions;
     InitFileRecordOptions(&curveFSOptions->fileRecordOptions);
 
     RootAuthOption authOptions;

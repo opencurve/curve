@@ -668,7 +668,7 @@ TEST_F(OpRequestTest, ReadChunkTest) {
             .WillOnce(
                 DoAll(SetArgPointee<1>(info), Return(CSErrorCode::Success)));
 
-        char chunkData[length];  // NOLINT
+        char *chunkData = new char[length];
         memset(chunkData, 'a', length);
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
             .WillOnce(DoAll(SetArrayArgument<2>(chunkData, chunkData + length),
@@ -687,6 +687,7 @@ TEST_F(OpRequestTest, ReadChunkTest) {
         }
 
         ASSERT_TRUE(closure->isDone_);
+        delete[] chunkData;
     }
 
     /**
@@ -704,7 +705,7 @@ TEST_F(OpRequestTest, ReadChunkTest) {
             .WillOnce(
                 DoAll(SetArgPointee<1>(info), Return(CSErrorCode::Success)));
         // 读chunk文件
-        char chunkData[length];  // NOLINT
+        char *chunkData = new char[length];
         memset(chunkData, 'a', length);
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
             .WillOnce(DoAll(SetArrayArgument<2>(chunkData, chunkData + length),
@@ -723,6 +724,7 @@ TEST_F(OpRequestTest, ReadChunkTest) {
                    cntl->response_attachment().to_string().c_str(),  // NOLINT
                    length),
             0);
+        delete[] chunkData;
     }
 
     /**
@@ -741,7 +743,7 @@ TEST_F(OpRequestTest, ReadChunkTest) {
             .WillOnce(
                 DoAll(SetArgPointee<1>(info), Return(CSErrorCode::Success)));
         // 读chunk文件
-        char chunkData[length];  // NOLINT
+        char *chunkData = new char[length];
         memset(chunkData, 'a', length);
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
             .WillOnce(DoAll(SetArrayArgument<2>(chunkData, chunkData + length),
@@ -762,6 +764,7 @@ TEST_F(OpRequestTest, ReadChunkTest) {
                              .c_str(),  // NOLINT
                          length),
                   0);
+        delete[] chunkData;
     }
 
     /**
@@ -879,7 +882,7 @@ TEST_F(OpRequestTest, ReadChunkTest) {
             .WillOnce(DoAll(SetArgPointee<1>(info),
                             Return(CSErrorCode::Success)));
         // 读chunk文件
-        char chunkData[length];  // NOLINT
+        char *chunkData = new char[length];
         memset(chunkData, 'a', length);
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
             .WillOnce(DoAll(SetArrayArgument<2>(chunkData,
@@ -899,6 +902,7 @@ TEST_F(OpRequestTest, ReadChunkTest) {
         ASSERT_EQ(memcmp(chunkData,
                          closure->cntl_->response_attachment().to_string().c_str(),  //NOLINT
                          length), 0);
+        delete[] chunkData;
     }
     /**
      * 测试OnApply

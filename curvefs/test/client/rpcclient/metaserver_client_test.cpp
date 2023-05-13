@@ -345,12 +345,8 @@ TEST_F(MetaServerClientImplTest, test_CreateDentry_rpc_error) {
     d.set_txid(10);
 
     // out
-    MetaserverID metaServerID = 1;
     butil::EndPoint target;
     butil::str2endpoint(addr_.c_str(), &target);
-    LogicPoolID poolID = 1;
-    CopysetID copysetID = 100;
-    uint32_t partitionID = 200;
     uint64_t applyIndex = 10;
 
     curvefs::metaserver::CreateDentryResponse response;
@@ -379,12 +375,8 @@ TEST_F(MetaServerClientImplTest, test_CreateDentry_create_dentry_ok) {
     d.set_txid(10);
 
     // out
-    MetaserverID metaServerID = 1;
     butil::EndPoint target;
     butil::str2endpoint(addr_.c_str(), &target);
-    LogicPoolID poolID = 1;
-    CopysetID copysetID = 100;
-    uint32_t partitionID = 200;
     uint64_t applyIndex = 10;
 
     curvefs::metaserver::CreateDentryResponse response;
@@ -414,12 +406,8 @@ TEST_F(MetaServerClientImplTest, test_CreateDentry_copyset_not_exist) {
     d.set_txid(10);
 
     // out
-    MetaserverID metaServerID = 1;
     butil::EndPoint target;
     butil::str2endpoint(addr_.c_str(), &target);
-    LogicPoolID poolID = 1;
-    CopysetID copysetID = 100;
-    uint32_t partitionID = 200;
     uint64_t applyIndex = 10;
 
     curvefs::metaserver::CreateDentryResponse response;
@@ -460,12 +448,8 @@ TEST_F(MetaServerClientImplTest,
     d.set_txid(10);
 
     // out
-    MetaserverID metaServerID = 1;
     butil::EndPoint target;
     butil::str2endpoint(addr_.c_str(), &target);
-    LogicPoolID poolID = 1;
-    CopysetID copysetID = 100;
-    uint32_t partitionID = 200;
     uint64_t applyIndex = 10;
 
     curvefs::metaserver::CreateDentryResponse response;
@@ -492,12 +476,8 @@ TEST_F(MetaServerClientImplTest, test_DeleteDentry) {
     std::string name = "test";
 
     // out
-    MetaserverID metaServerID = 1;
     butil::EndPoint target;
     butil::str2endpoint(addr_.c_str(), &target);
-    LogicPoolID poolID = 1;
-    CopysetID copysetID = 100;
-    uint32_t partitionID = 200;
     uint64_t applyIndex = 10;
 
     curvefs::metaserver::DeleteDentryResponse response;
@@ -614,12 +594,8 @@ TEST_F(MetaServerClientImplTest, test_GetInode) {
     uint64_t inodeid = 2;
 
     // out
-    MetaserverID metaServerID = 1;
     butil::EndPoint target;
     butil::str2endpoint(addr_.c_str(), &target);
-    LogicPoolID poolID = 1;
-    CopysetID copysetID = 100;
-    uint32_t partitionID = 200;
     uint64_t applyIndex = 10;
     curvefs::metaserver::Inode out;
     out.set_inodeid(inodeid);
@@ -725,12 +701,8 @@ TEST_F(MetaServerClientImplTest, test_UpdateInodeAttr) {
     inode.set_symlink("test9");
 
     // out
-    MetaserverID metaServerID = 1;
     butil::EndPoint target;
     butil::str2endpoint(addr_.c_str(), &target);
-    LogicPoolID poolID = 1;
-    CopysetID copysetID = 100;
-    uint32_t partitionID = 200;
     uint64_t applyIndex = 10;
     curvefs::metaserver::Inode out;
 
@@ -950,12 +922,8 @@ TEST_F(MetaServerClientImplTest, test_CreateInode) {
     inode.symlink = "test9";
 
     // out
-    MetaserverID metaServerID = 1;
     butil::EndPoint target;
     butil::str2endpoint(addr_.c_str(), &target);
-    LogicPoolID poolID = 1;
-    CopysetID copysetID = 100;
-    uint32_t partitionID = 200;
     uint64_t applyIndex = 10;
     curvefs::metaserver::Inode out;
     out.set_inodeid(100);
@@ -1062,12 +1030,8 @@ TEST_F(MetaServerClientImplTest, test_DeleteInode) {
     uint64_t inodeid = 1;
 
     // out
-    MetaserverID metaServerID = 1;
     butil::EndPoint target;
     butil::str2endpoint(addr_.c_str(), &target);
-    LogicPoolID poolID = 1;
-    CopysetID copysetID = 100;
-    uint32_t partitionID = 200;
     uint64_t applyIndex = 10;
 
     curvefs::metaserver::DeleteInodeResponse response;

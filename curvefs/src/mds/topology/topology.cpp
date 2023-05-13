@@ -300,8 +300,9 @@ TopoStatusCode TopologyImpl::UpdateServer(const Server &data) {
     }
 }
 
-TopoStatusCode TopologyImpl::UpdateMetaServerOnlineState(
-    const OnlineState &onlineState, MetaServerIdType id) {
+TopoStatusCode
+TopologyImpl::UpdateMetaServerOnlineState(const OnlineState &onlineState,
+                                          MetaServerIdType id) {
     ReadLockGuard rlockMetaServerMap(metaServerMutex_);
     auto it = metaServerMap_.find(id);
     if (it != metaServerMap_.end()) {
@@ -454,8 +455,8 @@ ZoneIdType TopologyImpl::FindZone(const std::string &zoneName,
     return static_cast<ZoneIdType>(UNINITIALIZE_ID);
 }
 
-ServerIdType TopologyImpl::FindServerByHostName(
-    const std::string &hostName) const {
+ServerIdType
+TopologyImpl::FindServerByHostName(const std::string &hostName) const {
     ReadLockGuard rlockServer(serverMutex_);
     for (auto it = serverMap_.begin(); it != serverMap_.end(); it++) {
         if (it->second.GetHostName() == hostName) {
@@ -616,8 +617,9 @@ TopoStatusCode TopologyImpl::UpdatePartition(const Partition &data) {
     }
 }
 
-TopoStatusCode TopologyImpl::UpdatePartitionStatistic(
-    uint32_t partitionId, PartitionStatistic statistic) {
+TopoStatusCode
+TopologyImpl::UpdatePartitionStatistic(uint32_t partitionId,
+                                       PartitionStatistic statistic) {
     WriteLockGuard wlockPartition(partitionMutex_);
     auto it = partitionMap_.find(partitionId);
     if (it != partitionMap_.end()) {
@@ -686,8 +688,8 @@ std::list<CopySetKey> TopologyImpl::GetAvailableCopysetKeyList() const {
     ReadLockGuard rlockCopySet(copySetMutex_);
     std::list<CopySetKey> result;
     for (auto const &it : copySetMap_) {
-        if (it.second.GetPartitionNum()
-                            >= option_.maxPartitionNumberInCopyset) {
+        if (it.second.GetPartitionNum() >=
+            option_.maxPartitionNumberInCopyset) {
             continue;
         }
         result.push_back(it.first);
@@ -700,8 +702,8 @@ std::vector<CopySetInfo> TopologyImpl::GetAvailableCopysetList() const {
     ReadLockGuard rlockCopySet(copySetMutex_);
     std::vector<CopySetInfo> result;
     for (auto const &it : copySetMap_) {
-        if (it.second.GetPartitionNum()
-                            >= option_.maxPartitionNumberInCopyset) {
+        if (it.second.GetPartitionNum() >=
+            option_.maxPartitionNumberInCopyset) {
             continue;
         }
         result.push_back(it.second);
@@ -740,8 +742,8 @@ int TopologyImpl::GetAvailableCopysetNum() const {
     ReadLockGuard rlockCopySet(copySetMutex_);
     int num = 0;
     for (auto const &it : copySetMap_) {
-        if (it.second.GetPartitionNum()
-                            >= option_.maxPartitionNumberInCopyset) {
+        if (it.second.GetPartitionNum() >=
+            option_.maxPartitionNumberInCopyset) {
             continue;
         }
         num++;
@@ -749,8 +751,8 @@ int TopologyImpl::GetAvailableCopysetNum() const {
     return num;
 }
 
-std::list<Partition> TopologyImpl::GetPartitionOfFs(
-    FsIdType id, PartitionFilter filter) const {
+std::list<Partition>
+TopologyImpl::GetPartitionOfFs(FsIdType id, PartitionFilter filter) const {
     std::list<Partition> ret;
     ReadLockGuard rlockPartitionMap(partitionMutex_);
     for (auto it = partitionMap_.begin(); it != partitionMap_.end(); it++) {
@@ -761,8 +763,9 @@ std::list<Partition> TopologyImpl::GetPartitionOfFs(
     return ret;
 }
 
-std::list<Partition> TopologyImpl::GetPartitionInfosInPool(
-    PoolIdType poolId, PartitionFilter filter) const {
+std::list<Partition>
+TopologyImpl::GetPartitionInfosInPool(PoolIdType poolId,
+                                      PartitionFilter filter) const {
     std::list<Partition> ret;
     ReadLockGuard rlockPartitionMap(partitionMutex_);
     for (auto it = partitionMap_.begin(); it != partitionMap_.end(); it++) {
@@ -773,8 +776,8 @@ std::list<Partition> TopologyImpl::GetPartitionInfosInPool(
     return ret;
 }
 
-std::list<Partition> TopologyImpl::GetPartitionInfosInCopyset(
-    CopySetIdType copysetId) const {
+std::list<Partition>
+TopologyImpl::GetPartitionInfosInCopyset(CopySetIdType copysetId) const {
     std::list<Partition> ret;
     ReadLockGuard rlockPartitionMap(partitionMutex_);
     for (auto it = partitionMap_.begin(); it != partitionMap_.end(); it++) {
@@ -786,8 +789,8 @@ std::list<Partition> TopologyImpl::GetPartitionInfosInCopyset(
 }
 
 // getList
-std::vector<MetaServerIdType> TopologyImpl::GetMetaServerInCluster(
-    MetaServerFilter filter) const {
+std::vector<MetaServerIdType>
+TopologyImpl::GetMetaServerInCluster(MetaServerFilter filter) const {
     std::vector<MetaServerIdType> ret;
     ReadLockGuard rlockMetaServerMap(metaServerMutex_);
     for (auto it = metaServerMap_.begin(); it != metaServerMap_.end(); it++) {
@@ -799,8 +802,8 @@ std::vector<MetaServerIdType> TopologyImpl::GetMetaServerInCluster(
     return ret;
 }
 
-std::vector<ServerIdType> TopologyImpl::GetServerInCluster(
-    ServerFilter filter) const {
+std::vector<ServerIdType>
+TopologyImpl::GetServerInCluster(ServerFilter filter) const {
     std::vector<ServerIdType> ret;
     ReadLockGuard rlockServer(serverMutex_);
     for (auto it = serverMap_.begin(); it != serverMap_.end(); it++) {
@@ -811,8 +814,8 @@ std::vector<ServerIdType> TopologyImpl::GetServerInCluster(
     return ret;
 }
 
-std::vector<ZoneIdType> TopologyImpl::GetZoneInCluster(
-    ZoneFilter filter) const {
+std::vector<ZoneIdType>
+TopologyImpl::GetZoneInCluster(ZoneFilter filter) const {
     std::vector<ZoneIdType> ret;
     ReadLockGuard rlockZone(zoneMutex_);
     for (auto it = zoneMap_.begin(); it != zoneMap_.end(); it++) {
@@ -823,8 +826,8 @@ std::vector<ZoneIdType> TopologyImpl::GetZoneInCluster(
     return ret;
 }
 
-std::vector<PoolIdType> TopologyImpl::GetPoolInCluster(
-    PoolFilter filter) const {
+std::vector<PoolIdType>
+TopologyImpl::GetPoolInCluster(PoolFilter filter) const {
     std::vector<PoolIdType> ret;
     ReadLockGuard rlockPool(poolMutex_);
     for (auto it = poolMap_.begin(); it != poolMap_.end(); it++) {
@@ -835,8 +838,9 @@ std::vector<PoolIdType> TopologyImpl::GetPoolInCluster(
     return ret;
 }
 
-std::list<MetaServerIdType> TopologyImpl::GetMetaServerInServer(
-    ServerIdType id, MetaServerFilter filter) const {
+std::list<MetaServerIdType>
+TopologyImpl::GetMetaServerInServer(ServerIdType id,
+                                    MetaServerFilter filter) const {
     std::list<MetaServerIdType> ret;
     ReadLockGuard rlockMetaServerMap(metaServerMutex_);
     for (auto it = metaServerMap_.begin(); it != metaServerMap_.end(); it++) {
@@ -848,8 +852,9 @@ std::list<MetaServerIdType> TopologyImpl::GetMetaServerInServer(
     return ret;
 }
 
-std::list<MetaServerIdType> TopologyImpl::GetMetaServerInZone(
-    ZoneIdType id, MetaServerFilter filter) const {
+std::list<MetaServerIdType>
+TopologyImpl::GetMetaServerInZone(ZoneIdType id,
+                                  MetaServerFilter filter) const {
     std::list<MetaServerIdType> ret;
     std::list<ServerIdType> serverList = GetServerInZone(id);
     for (ServerIdType s : serverList) {
@@ -859,8 +864,9 @@ std::list<MetaServerIdType> TopologyImpl::GetMetaServerInZone(
     return ret;
 }
 
-std::list<MetaServerIdType> TopologyImpl::GetMetaServerInPool(
-    PoolIdType id, MetaServerFilter filter) const {
+std::list<MetaServerIdType>
+TopologyImpl::GetMetaServerInPool(PoolIdType id,
+                                  MetaServerFilter filter) const {
     std::list<MetaServerIdType> ret;
     std::list<ZoneIdType> zoneList = GetZoneInPool(id);
     for (ZoneIdType z : zoneList) {
@@ -870,13 +876,13 @@ std::list<MetaServerIdType> TopologyImpl::GetMetaServerInPool(
     return ret;
 }
 
-uint32_t TopologyImpl::GetMetaServerNumInPool(
-    PoolIdType id, MetaServerFilter filter) const {
+uint32_t TopologyImpl::GetMetaServerNumInPool(PoolIdType id,
+                                              MetaServerFilter filter) const {
     return GetMetaServerInPool(id, filter).size();
 }
 
-std::list<ServerIdType> TopologyImpl::GetServerInZone(
-    ZoneIdType id, ServerFilter filter) const {
+std::list<ServerIdType>
+TopologyImpl::GetServerInZone(ZoneIdType id, ServerFilter filter) const {
     std::list<ServerIdType> ret;
     ReadLockGuard rlockServer(serverMutex_);
     for (auto it = serverMap_.begin(); it != serverMap_.end(); it++) {
@@ -899,8 +905,8 @@ std::list<ZoneIdType> TopologyImpl::GetZoneInPool(PoolIdType id,
     return ret;
 }
 
-std::vector<CopySetIdType> TopologyImpl::GetCopySetsInPool(
-    PoolIdType poolId, CopySetFilter filter) const {
+std::vector<CopySetIdType>
+TopologyImpl::GetCopySetsInPool(PoolIdType poolId, CopySetFilter filter) const {
     std::vector<CopySetIdType> ret;
     ReadLockGuard rlockCopySet(copySetMutex_);
     for (const auto &it : copySetMap_) {
@@ -911,14 +917,14 @@ std::vector<CopySetIdType> TopologyImpl::GetCopySetsInPool(
     return ret;
 }
 
-uint32_t TopologyImpl::GetCopySetNumInPool(
-    PoolIdType poolId, CopySetFilter filter) const {
+uint32_t TopologyImpl::GetCopySetNumInPool(PoolIdType poolId,
+                                           CopySetFilter filter) const {
     return GetCopySetsInPool(poolId, filter).size();
 }
 
 
-std::vector<CopySetKey> TopologyImpl::GetCopySetsInCluster(
-    CopySetFilter filter) const {
+std::vector<CopySetKey>
+TopologyImpl::GetCopySetsInCluster(CopySetFilter filter) const {
     std::vector<CopySetKey> ret;
     ReadLockGuard rlockCopySet(copySetMutex_);
     for (const auto &it : copySetMap_) {
@@ -929,8 +935,9 @@ std::vector<CopySetKey> TopologyImpl::GetCopySetsInCluster(
     return ret;
 }
 
-std::vector<CopySetInfo> TopologyImpl::GetCopySetInfosInPool(
-    PoolIdType poolId, CopySetFilter filter) const {
+std::vector<CopySetInfo>
+TopologyImpl::GetCopySetInfosInPool(PoolIdType poolId,
+                                    CopySetFilter filter) const {
     std::vector<CopySetInfo> ret;
     ReadLockGuard rlockCopySet(copySetMutex_);
     for (const auto &it : copySetMap_) {
@@ -941,8 +948,9 @@ std::vector<CopySetInfo> TopologyImpl::GetCopySetInfosInPool(
     return ret;
 }
 
-std::vector<CopySetKey> TopologyImpl::GetCopySetsInMetaServer(
-    MetaServerIdType id, CopySetFilter filter) const {
+std::vector<CopySetKey>
+TopologyImpl::GetCopySetsInMetaServer(MetaServerIdType id,
+                                      CopySetFilter filter) const {
     std::vector<CopySetKey> ret;
     ReadLockGuard rlockCopySet(copySetMutex_);
     for (const auto &it : copySetMap_) {
@@ -1052,8 +1060,9 @@ TopoStatusCode TopologyImpl::Init(const TopologyOption &option) {
     }
 
     // for upgrade and keep compatibility
-    // the old version have no partitionIndex in etcd, so need update here of upgrade  // NOLINT
-    // if the fs in old cluster already delete some partitions, it is incompatible.    // NOLINT
+    // the old version have no partitionIndex in etcd, so need update here of
+    // upgrade  // NOLINT if the fs in old cluster already delete some
+    // partitions, it is incompatible.    // NOLINT
     if (!RefreshPartitionIndexOfFS(partitionMap_)) {
         LOG(ERROR) << "[TopologyImpl::init],  RefreshPartitionIndexOfFS fail.";
         return TopoStatusCode::TOPO_STORGE_FAIL;
@@ -1278,8 +1287,8 @@ bool TopologyImpl::GetClusterInfo(ClusterInformation *info) {
 }
 
 // update partition tx, and ensure atomicity
-TopoStatusCode TopologyImpl::UpdatePartitionTxIds(
-    std::vector<PartitionTxId> txIds) {
+TopoStatusCode
+TopologyImpl::UpdatePartitionTxIds(std::vector<PartitionTxId> txIds) {
     std::vector<Partition> partitions;
     WriteLockGuard wlockPartition(partitionMutex_);
     for (auto item : txIds) {
@@ -1380,20 +1389,20 @@ uint32_t TopologyImpl::GetLeaderNumInMetaserver(MetaServerIdType id) const {
 }
 
 void TopologyImpl::GetAvailableMetaserversUnlock(
-                    std::vector<const MetaServer *>* vec) {
+    std::vector<const MetaServer *> *vec) {
     for (const auto &it : metaServerMap_) {
-        if (it.second.GetOnlineState() == OnlineState::ONLINE
-            && it.second.GetMetaServerSpace().IsMetaserverResourceAvailable()
-            && GetCopysetNumInMetaserver(it.first)
-                                    < option_.maxCopysetNumInMetaserver) {
+        if (it.second.GetOnlineState() == OnlineState::ONLINE &&
+            it.second.GetMetaServerSpace().IsMetaserverResourceAvailable() &&
+            GetCopysetNumInMetaserver(it.first) <
+                option_.maxCopysetNumInMetaserver) {
             vec->emplace_back(&(it.second));
         }
     }
 }
 
 TopoStatusCode TopologyImpl::GenCandidateMapUnlock(
-        PoolIdType poolId,
-        std::map<ZoneIdType, std::vector<MetaServerIdType>>* candidateMap) {
+    PoolIdType poolId,
+    std::map<ZoneIdType, std::vector<MetaServerIdType>> *candidateMap) {
     // 1. get all online and available metaserver
     std::vector<const MetaServer *> metaservers;
     GetAvailableMetaserversUnlock(&metaservers);
@@ -1402,7 +1411,7 @@ TopoStatusCode TopologyImpl::GenCandidateMapUnlock(
         Server server;
         if (!GetServer(serverId, &server)) {
             LOG(ERROR) << "get server failed when choose metaservers,"
-                    << " the serverId = " << serverId;
+                       << " the serverId = " << serverId;
             return TopoStatusCode::TOPO_SERVER_NOT_FOUND;
         }
 
@@ -1418,8 +1427,8 @@ TopoStatusCode TopologyImpl::GenCandidateMapUnlock(
 }
 
 TopoStatusCode TopologyImpl::GenCopysetAddrBatchForPool(
-            PoolIdType poolId, uint16_t replicaNum,
-            std::list<CopysetCreateInfo>* copysetList) {
+    PoolIdType poolId, uint16_t replicaNum,
+    std::list<CopysetCreateInfo> *copysetList) {
     // 1. genarate candidateMap
     std::map<ZoneIdType, std::vector<MetaServerIdType>> candidateMap;
     auto ret = GenCandidateMapUnlock(poolId, &candidateMap);
@@ -1432,8 +1441,9 @@ TopoStatusCode TopologyImpl::GenCopysetAddrBatchForPool(
     // 2. return error if candidate map has no enough replicaNum
     if (candidateMap.size() < replicaNum) {
         LOG(WARNING) << "can not find available metaserver for copyset, "
-                     << "poolId = " << poolId << " need replica num = "
-                     << replicaNum << ", but only has available zone num = "
+                     << "poolId = " << poolId
+                     << " need replica num = " << replicaNum
+                     << ", but only has available zone num = "
                      << candidateMap.size();
         return TopoStatusCode::TOPO_METASERVER_NOT_FOUND;
     }
@@ -1461,13 +1471,13 @@ TopoStatusCode TopologyImpl::GenCopysetAddrBatchForPool(
         std::shuffle(zoneIds.begin(), zoneIds.end(), randomGenerator);
 
         std::vector<MetaServerIdType> msIds;
-        for (int i = 0; i < minSize; i++) {
+        for (uint32_t i = 0; i < minSize; i++) {
             for (const auto &zoneId : zoneIds) {
                 msIds.push_back(candidateMap[zoneId][i]);
             }
         }
 
-        for (int i = 0; i < msIds.size() / replicaNum; i++) {
+        for (size_t i = 0; i < msIds.size() / replicaNum; i++) {
             CopysetCreateInfo copysetInfo;
             copysetInfo.poolId = poolId;
             copysetInfo.copysetId = UNINITIALIZE_ID;
@@ -1485,7 +1495,7 @@ TopoStatusCode TopologyImpl::GenCopysetAddrBatchForPool(
 // Check if there is no copy on the pool.
 // Generate copyset on the empty copyset pools.
 void TopologyImpl::GenCopysetIfPoolEmptyUnlocked(
-        std::list<CopysetCreateInfo>* copysetList) {
+    std::list<CopysetCreateInfo> *copysetList) {
     for (const auto &it : poolMap_) {
         PoolIdType poolId = it.first;
         uint32_t metaserverNum = GetMetaServerNumInPool(poolId);
@@ -1494,7 +1504,7 @@ void TopologyImpl::GenCopysetIfPoolEmptyUnlocked(
         }
 
         uint32_t copysetNum = GetCopySetNumInPool(poolId);
-        if (copysetNum !=0) {
+        if (copysetNum != 0) {
             continue;
         }
 
@@ -1505,17 +1515,16 @@ void TopologyImpl::GenCopysetIfPoolEmptyUnlocked(
             continue;
         }
         std::list<CopysetCreateInfo> tempCopysetList;
-        TopoStatusCode ret = GenCopysetAddrBatchForPool(poolId, replicaNum,
-                                                        &tempCopysetList);
+        TopoStatusCode ret =
+            GenCopysetAddrBatchForPool(poolId, replicaNum, &tempCopysetList);
         if (TopoStatusCode::TOPO_OK == ret) {
             LOG(INFO) << "Initial Generate copyset addr for pool " << poolId
                       << " success, gen copyset num = "
                       << tempCopysetList.size();
             copysetList->splice(copysetList->end(), tempCopysetList);
         } else {
-            LOG(WARNING) << "Initial Generate copyset addr for pool "
-                         << poolId << " fail, statusCode = "
-                         << TopoStatusCode_Name(ret);
+            LOG(WARNING) << "Initial Generate copyset addr for pool " << poolId
+                         << " fail, statusCode = " << TopoStatusCode_Name(ret);
         }
     }
 
@@ -1529,10 +1538,10 @@ void TopologyImpl::GenCopysetIfPoolEmptyUnlocked(
 // 3. according to the pool order of step 2, generate copyset add in the pool
 //    in turn until enough copyset add is generated
 TopoStatusCode TopologyImpl::GenSubsequentCopysetAddrBatchUnlocked(
-    uint32_t needCreateNum, std::list<CopysetCreateInfo>* copysetList) {
+    uint32_t needCreateNum, std::list<CopysetCreateInfo> *copysetList) {
     LOG(INFO) << "GenSubsequentCopysetAddrBatch needCreateNum = "
-              << needCreateNum << ", copysetList size = "
-              << copysetList->size() << " begin";
+              << needCreateNum << ", copysetList size = " << copysetList->size()
+              << " begin";
 
     MetaServerFilter filter = [](const MetaServer &ms) {
         return ms.GetOnlineState() == OnlineState::ONLINE;
@@ -1546,8 +1555,8 @@ TopoStatusCode TopologyImpl::GenSubsequentCopysetAddrBatchUnlocked(
     }
 
     // sort pool list by copyset average num
-    std::sort(poolList.begin(), poolList.end(),
-        [=](const Pool& a, const Pool& b) {
+    std::sort(
+        poolList.begin(), poolList.end(), [=](const Pool &a, const Pool &b) {
             PoolIdType poolId1 = a.GetId();
             PoolIdType poolId2 = b.GetId();
             uint32_t copysetNum1 = GetCopySetNumInPool(poolId1);
@@ -1564,8 +1573,8 @@ TopoStatusCode TopologyImpl::GenSubsequentCopysetAddrBatchUnlocked(
             PoolIdType poolId = it->GetId();
             uint16_t replicaNum = it->GetReplicaNum();
             std::list<CopysetCreateInfo> tempCopysetList;
-            TopoStatusCode ret = GenCopysetAddrBatchForPool(poolId,
-                                    replicaNum, &tempCopysetList);
+            TopoStatusCode ret = GenCopysetAddrBatchForPool(poolId, replicaNum,
+                                                            &tempCopysetList);
             if (TopoStatusCode::TOPO_OK == ret) {
                 copysetList->splice(copysetList->end(), tempCopysetList);
                 if (copysetList->size() >= needCreateNum) {
@@ -1573,9 +1582,10 @@ TopoStatusCode TopologyImpl::GenSubsequentCopysetAddrBatchUnlocked(
                 }
                 it++;
             } else {
-                LOG(WARNING) << "Generate " << needCreateNum
-                        << " copyset addr for pool " << poolId
-                        << "fail, statusCode = " << TopoStatusCode_Name(ret);
+                LOG(WARNING)
+                    << "Generate " << needCreateNum << " copyset addr for pool "
+                    << poolId
+                    << "fail, statusCode = " << TopoStatusCode_Name(ret);
                 it = poolList.erase(it);
             }
         }
@@ -1596,8 +1606,9 @@ TopoStatusCode TopologyImpl::GenSubsequentCopysetAddrBatchUnlocked(
 //    in this step is enough, return the list.
 // 2. Sort the pools according to the average number of copies,
 //    and traverse each pool to create copies until the number is sufficient.
-TopoStatusCode TopologyImpl::GenCopysetAddrBatch(uint32_t needCreateNum,
-                             std::list<CopysetCreateInfo>* copysetList) {
+TopoStatusCode
+TopologyImpl::GenCopysetAddrBatch(uint32_t needCreateNum,
+                                  std::list<CopysetCreateInfo> *copysetList) {
     ReadLockGuard rlockPool(poolMutex_);
     ReadLockGuard rlockMetaserver(metaServerMutex_);
     ReadLockGuard rlockCopyset(copySetMutex_);
@@ -1680,14 +1691,14 @@ bool TopologyImpl::RefreshPartitionIndexOfFS(
 std::list<MemcacheServer> TopologyImpl::ListMemcacheServers() const {
     ReadLockGuard rlockMemcacheCluster(memcacheClusterMutex_);
     std::list<MemcacheServer> ret;
-    for (auto const& cluster : memcacheClusterMap_) {
-        auto const& servers = cluster.second.GetServers();
+    for (auto const &cluster : memcacheClusterMap_) {
+        auto const &servers = cluster.second.GetServers();
         ret.insert(ret.begin(), servers.cbegin(), servers.cend());
     }
     return ret;
 }
 
-TopoStatusCode TopologyImpl::AddMemcacheCluster(const MemcacheCluster& data) {
+TopoStatusCode TopologyImpl::AddMemcacheCluster(const MemcacheCluster &data) {
     WriteLockGuard wlockMemcacheCluster(memcacheClusterMutex_);
     // storage_ to storage
     TopoStatusCode ret = TopoStatusCode::TOPO_OK;
@@ -1700,7 +1711,7 @@ TopoStatusCode TopologyImpl::AddMemcacheCluster(const MemcacheCluster& data) {
     return ret;
 }
 
-TopoStatusCode TopologyImpl::AddMemcacheCluster(MemcacheCluster&& data) {
+TopoStatusCode TopologyImpl::AddMemcacheCluster(MemcacheCluster &&data) {
     WriteLockGuard wlockMemcacheCluster(memcacheClusterMutex_);
     // storage_ to storage
     TopoStatusCode ret = TopoStatusCode::TOPO_OK;
@@ -1716,14 +1727,15 @@ TopoStatusCode TopologyImpl::AddMemcacheCluster(MemcacheCluster&& data) {
 std::list<MemcacheCluster> TopologyImpl::ListMemcacheClusters() const {
     std::list<MemcacheCluster> ret;
     ReadLockGuard rlockMemcacheCluster(memcacheClusterMutex_);
-    for (auto const& cluster : memcacheClusterMap_) {
+    for (auto const &cluster : memcacheClusterMap_) {
         ret.emplace_back(cluster.second);
     }
     return ret;
 }
 
-TopoStatusCode TopologyImpl::AllocOrGetMemcacheCluster(
-    FsIdType fsId, MemcacheClusterInfo* cluster) {
+TopoStatusCode
+TopologyImpl::AllocOrGetMemcacheCluster(FsIdType fsId,
+                                        MemcacheClusterInfo *cluster) {
     TopoStatusCode ret = TopoStatusCode::TOPO_OK;
     WriteLockGuard wlockFs2MemcacheCluster(fs2MemcacheClusterMutex_);
     ReadLockGuard rlockMemcacheCluster(memcacheClusterMutex_);

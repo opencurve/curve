@@ -29,13 +29,13 @@ namespace mds {
 
 using mds::Mountpoint;
 
-void MdsServiceImpl::CreateFs(::google::protobuf::RpcController* controller,
-                              const ::curvefs::mds::CreateFsRequest* request,
-                              ::curvefs::mds::CreateFsResponse* response,
-                              ::google::protobuf::Closure* done) {
+void MdsServiceImpl::CreateFs(::google::protobuf::RpcController *controller,
+                              const ::curvefs::mds::CreateFsRequest *request,
+                              ::curvefs::mds::CreateFsResponse *response,
+                              ::google::protobuf::Closure *done) {
+    (void)controller;
     brpc::ClosureGuard doneGuard(done);
-    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    const std::string& fsName = request->fsname();
+    const std::string &fsName = request->fsname();
     uint64_t blockSize = request->blocksize();
     FSType type = request->fstype();
     bool enableSumInDir = request->enablesumindir();
@@ -46,59 +46,56 @@ void MdsServiceImpl::CreateFs(::google::protobuf::RpcController* controller,
     LOG(INFO) << "CreateFs request: " << request->ShortDebugString();
 
     // create volume fs
-    auto createVolumeFs =
-        [&]() {
-            if (!request->fsdetail().has_volume()) {
-                response->set_statuscode(FSStatusCode::PARAM_ERROR);
-                LOG(ERROR)
-                    << "CreateFs request, type is volume, but has no volume"
-                    << ", fsName = " << fsName;
-                return;
-            }
-            const auto& volume = request->fsdetail().volume();
-            FSStatusCode status =
-                fsManager_->CreateFs(request, response->mutable_fsinfo());
+    auto createVolumeFs = [&]() {
+        if (!request->fsdetail().has_volume()) {
+            response->set_statuscode(FSStatusCode::PARAM_ERROR);
+            LOG(ERROR) << "CreateFs request, type is volume, but has no volume"
+                       << ", fsName = " << fsName;
+            return;
+        }
+        const auto &volume = request->fsdetail().volume();
+        FSStatusCode status =
+            fsManager_->CreateFs(request, response->mutable_fsinfo());
 
-            if (status != FSStatusCode::OK) {
-                response->clear_fsinfo();
-                response->set_statuscode(status);
-                LOG(ERROR) << "CreateFs fail, fsName = " << fsName
-                           << ", blockSize = " << blockSize
-                           << ", volume.volumeName = " << volume.volumename()
-                           << ", enableSumInDir = " << enableSumInDir
-                           << ", owner = " << request->owner()
-                           << ", capacity = " << request->capacity()
-                           << ", errCode = " << FSStatusCode_Name(status);
-                return;
-            }
-        };
+        if (status != FSStatusCode::OK) {
+            response->clear_fsinfo();
+            response->set_statuscode(status);
+            LOG(ERROR) << "CreateFs fail, fsName = " << fsName
+                       << ", blockSize = " << blockSize
+                       << ", volume.volumeName = " << volume.volumename()
+                       << ", enableSumInDir = " << enableSumInDir
+                       << ", owner = " << request->owner()
+                       << ", capacity = " << request->capacity()
+                       << ", errCode = " << FSStatusCode_Name(status);
+            return;
+        }
+    };
 
     // create s3 fs
-    auto createS3Fs =
-        [&]() {
-            if (!request->fsdetail().has_s3info()) {
-                response->set_statuscode(FSStatusCode::PARAM_ERROR);
-                LOG(ERROR) << "CreateFs request, type is s3, but has no s3info"
-                           << ", fsName = " << fsName;
-                return;
-            }
-            const auto& s3Info = request->fsdetail().s3info();
-            FSStatusCode status =
-                fsManager_->CreateFs(request, response->mutable_fsinfo());
+    auto createS3Fs = [&]() {
+        if (!request->fsdetail().has_s3info()) {
+            response->set_statuscode(FSStatusCode::PARAM_ERROR);
+            LOG(ERROR) << "CreateFs request, type is s3, but has no s3info"
+                       << ", fsName = " << fsName;
+            return;
+        }
+        const auto &s3Info = request->fsdetail().s3info();
+        FSStatusCode status =
+            fsManager_->CreateFs(request, response->mutable_fsinfo());
 
-            if (status != FSStatusCode::OK) {
-                response->clear_fsinfo();
-                response->set_statuscode(status);
-                LOG(ERROR) << "CreateFs fail, fsName = " << fsName
-                           << ", blockSize = " << blockSize
-                           << ", s3Info.bucketname = " << s3Info.bucketname()
-                           << ", enableSumInDir = " << enableSumInDir
-                           << ", owner = " << request->owner()
-                           << ", capacity = " << request->capacity()
-                           << ", errCode = " << FSStatusCode_Name(status);
-                return;
-            }
-        };
+        if (status != FSStatusCode::OK) {
+            response->clear_fsinfo();
+            response->set_statuscode(status);
+            LOG(ERROR) << "CreateFs fail, fsName = " << fsName
+                       << ", blockSize = " << blockSize
+                       << ", s3Info.bucketname = " << s3Info.bucketname()
+                       << ", enableSumInDir = " << enableSumInDir
+                       << ", owner = " << request->owner()
+                       << ", capacity = " << request->capacity()
+                       << ", errCode = " << FSStatusCode_Name(status);
+            return;
+        }
+    };
 
     auto createHybridFs = [&]() {
         // not support now
@@ -118,23 +115,22 @@ void MdsServiceImpl::CreateFs(::google::protobuf::RpcController* controller,
     };
 
     switch (type) {
-        case ::curvefs::common::FSType::TYPE_VOLUME:
-            createVolumeFs();
-            break;
-        case ::curvefs::common::FSType::TYPE_S3:
-            createS3Fs();
-            break;
-        case ::curvefs::common::FSType::TYPE_HYBRID:
-            createHybridFs();
-            break;
-        default:
-            response->set_statuscode(FSStatusCode::PARAM_ERROR);
-            LOG(ERROR) << "CreateFs fail, fs type is invalid"
-                       << ", fsName = " << fsName
-                       << ", blockSize = " << blockSize << ", fsType = " << type
-                       << ", errCode = "
-                       << FSStatusCode_Name(FSStatusCode::PARAM_ERROR);
-            break;
+    case ::curvefs::common::FSType::TYPE_VOLUME:
+        createVolumeFs();
+        break;
+    case ::curvefs::common::FSType::TYPE_S3:
+        createS3Fs();
+        break;
+    case ::curvefs::common::FSType::TYPE_HYBRID:
+        createHybridFs();
+        break;
+    default:
+        response->set_statuscode(FSStatusCode::PARAM_ERROR);
+        LOG(ERROR) << "CreateFs fail, fs type is invalid"
+                   << ", fsName = " << fsName << ", blockSize = " << blockSize
+                   << ", fsType = " << type << ", errCode = "
+                   << FSStatusCode_Name(FSStatusCode::PARAM_ERROR);
+        break;
     }
 
     if (response->statuscode() != FSStatusCode::OK) {
@@ -146,14 +142,14 @@ void MdsServiceImpl::CreateFs(::google::protobuf::RpcController* controller,
               << ", capacity = " << request->capacity();
 }
 
-void MdsServiceImpl::MountFs(::google::protobuf::RpcController* controller,
-                             const ::curvefs::mds::MountFsRequest* request,
-                             ::curvefs::mds::MountFsResponse* response,
-                             ::google::protobuf::Closure* done) {
+void MdsServiceImpl::MountFs(::google::protobuf::RpcController *controller,
+                             const ::curvefs::mds::MountFsRequest *request,
+                             ::curvefs::mds::MountFsResponse *response,
+                             ::google::protobuf::Closure *done) {
+    (void)controller;
     brpc::ClosureGuard doneGuard(done);
-    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    const std::string& fsName = request->fsname();
-    const Mountpoint& mount = request->mountpoint();
+    const std::string &fsName = request->fsname();
+    const Mountpoint &mount = request->mountpoint();
     LOG(INFO) << "MountFs request, fsName = " << fsName
               << ", mountPoint = " << mount.ShortDebugString();
     FSStatusCode status =
@@ -173,14 +169,14 @@ void MdsServiceImpl::MountFs(::google::protobuf::RpcController* controller,
               << ", mps: " << response->mutable_fsinfo()->mountpoints_size();
 }
 
-void MdsServiceImpl::UmountFs(::google::protobuf::RpcController* controller,
-                              const ::curvefs::mds::UmountFsRequest* request,
-                              ::curvefs::mds::UmountFsResponse* response,
-                              ::google::protobuf::Closure* done) {
+void MdsServiceImpl::UmountFs(::google::protobuf::RpcController *controller,
+                              const ::curvefs::mds::UmountFsRequest *request,
+                              ::curvefs::mds::UmountFsResponse *response,
+                              ::google::protobuf::Closure *done) {
+    (void)controller;
     brpc::ClosureGuard doneGuard(done);
-    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    const std::string& fsName = request->fsname();
-    const Mountpoint& mount = request->mountpoint();
+    const std::string &fsName = request->fsname();
+    const Mountpoint &mount = request->mountpoint();
     LOG(INFO) << "UmountFs request, " << request->ShortDebugString();
     FSStatusCode status = fsManager_->UmountFs(fsName, mount);
     if (status != FSStatusCode::OK) {
@@ -196,16 +192,16 @@ void MdsServiceImpl::UmountFs(::google::protobuf::RpcController* controller,
               << ", mountPoint = " << mount.ShortDebugString();
 }
 
-void MdsServiceImpl::GetFsInfo(::google::protobuf::RpcController* controller,
-                               const ::curvefs::mds::GetFsInfoRequest* request,
-                               ::curvefs::mds::GetFsInfoResponse* response,
-                               ::google::protobuf::Closure* done) {
+void MdsServiceImpl::GetFsInfo(::google::protobuf::RpcController *controller,
+                               const ::curvefs::mds::GetFsInfoRequest *request,
+                               ::curvefs::mds::GetFsInfoResponse *response,
+                               ::google::protobuf::Closure *done) {
+    (void)controller;
     brpc::ClosureGuard doneGuard(done);
-    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
 
     LOG(INFO) << "GetFsInfo request: " << request->ShortDebugString();
 
-    FsInfo* fsInfo = response->mutable_fsinfo();
+    FsInfo *fsInfo = response->mutable_fsinfo();
     FSStatusCode status = FSStatusCode::OK;
     if (request->has_fsid() && request->has_fsname()) {
         status =
@@ -231,13 +227,13 @@ void MdsServiceImpl::GetFsInfo(::google::protobuf::RpcController* controller,
               << response->ShortDebugString();
 }
 
-void MdsServiceImpl::DeleteFs(::google::protobuf::RpcController* controller,
-                              const ::curvefs::mds::DeleteFsRequest* request,
-                              ::curvefs::mds::DeleteFsResponse* response,
-                              ::google::protobuf::Closure* done) {
+void MdsServiceImpl::DeleteFs(::google::protobuf::RpcController *controller,
+                              const ::curvefs::mds::DeleteFsRequest *request,
+                              ::curvefs::mds::DeleteFsResponse *response,
+                              ::google::protobuf::Closure *done) {
+    (void)controller;
     brpc::ClosureGuard doneGuard(done);
-    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    const std::string& fsName = request->fsname();
+    const std::string &fsName = request->fsname();
     LOG(INFO) << "DeleteFs request, fsName = " << fsName;
     FSStatusCode status = fsManager_->DeleteFs(fsName);
     response->set_statuscode(status);
@@ -251,10 +247,12 @@ void MdsServiceImpl::DeleteFs(::google::protobuf::RpcController* controller,
 }
 
 void MdsServiceImpl::AllocateS3Chunk(
-    ::google::protobuf::RpcController* controller,
-    const ::curvefs::mds::AllocateS3ChunkRequest* request,
-    ::curvefs::mds::AllocateS3ChunkResponse* response,
-    ::google::protobuf::Closure* done) {
+    ::google::protobuf::RpcController *controller,
+    const ::curvefs::mds::AllocateS3ChunkRequest *request,
+    ::curvefs::mds::AllocateS3ChunkResponse *response,
+    ::google::protobuf::Closure *done) {
+    (void)controller;
+
     brpc::ClosureGuard guard(done);
     VLOG(9) << "start to allocate chunkId.";
 
@@ -286,10 +284,13 @@ void MdsServiceImpl::AllocateS3Chunk(
 }
 
 void MdsServiceImpl::ListClusterFsInfo(
-    ::google::protobuf::RpcController* controller,
-    const ::curvefs::mds::ListClusterFsInfoRequest* request,
-    ::curvefs::mds::ListClusterFsInfoResponse* response,
-    ::google::protobuf::Closure* done) {
+    ::google::protobuf::RpcController *controller,
+    const ::curvefs::mds::ListClusterFsInfoRequest *request,
+    ::curvefs::mds::ListClusterFsInfoResponse *response,
+    ::google::protobuf::Closure *done) {
+    (void)controller;
+    (void)request;
+
     brpc::ClosureGuard guard(done);
     LOG(INFO) << "start to check cluster fs info.";
     fsManager_->GetAllFsInfo(response->mutable_fsinfo());
@@ -302,26 +303,28 @@ void MdsServiceImpl::RefreshSession(
     const ::curvefs::mds::RefreshSessionRequest *request,
     ::curvefs::mds::RefreshSessionResponse *response,
     ::google::protobuf::Closure *done) {
+    (void)controller;
     brpc::ClosureGuard guard(done);
     fsManager_->RefreshSession(request, response);
     response->set_statuscode(FSStatusCode::OK);
 }
 
 void MdsServiceImpl::GetLatestTxId(
-    ::google::protobuf::RpcController* controller,
-    const GetLatestTxIdRequest* request,
-    GetLatestTxIdResponse* response,
-    ::google::protobuf::Closure* done) {
+    ::google::protobuf::RpcController *controller,
+    const GetLatestTxIdRequest *request, GetLatestTxIdResponse *response,
+    ::google::protobuf::Closure *done) {
+    (void)controller;
     brpc::ClosureGuard guard(done);
     VLOG(3) << "GetLatestTxId [request]: " << request->DebugString();
     fsManager_->GetLatestTxId(request, response);
     VLOG(3) << "GetLatestTxId [response]: " << response->DebugString();
 }
 
-void MdsServiceImpl::CommitTx(::google::protobuf::RpcController* controller,
-                              const CommitTxRequest* request,
-                              CommitTxResponse* response,
-                              ::google::protobuf::Closure* done) {
+void MdsServiceImpl::CommitTx(::google::protobuf::RpcController *controller,
+                              const CommitTxRequest *request,
+                              CommitTxResponse *response,
+                              ::google::protobuf::Closure *done) {
+    (void)controller;
     brpc::ClosureGuard guard(done);
     VLOG(3) << "CommitTx [request]: " << request->DebugString();
     fsManager_->CommitTx(request, response);

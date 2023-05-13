@@ -64,7 +64,7 @@ class MDSTest : public ::testing::Test {
         }
         // 一定时间内尝试init直到etcd完全起来
         auto client = std::make_shared<EtcdClientImp>();
-        EtcdConf conf = { kEtcdAddr, strlen(kEtcdAddr), 1000 };
+        EtcdConf conf = {kEtcdAddr, static_cast<int>(strlen(kEtcdAddr)), 1000};
         uint64_t now = ::curve::common::TimeUtility::GetTimeofDaySec();
         bool initSuccess = false;
         while (::curve::common::TimeUtility::GetTimeofDaySec() - now <= 5) {
@@ -176,7 +176,7 @@ TEST_F(MDSTest, common) {
     request1.set_token("123");
     request1.set_ip("127.0.0.1");
     request1.set_port(8888);
-    heartbeat::DiskState* diskState = new heartbeat::DiskState();
+    heartbeat::DiskState *diskState = new heartbeat::DiskState();
     diskState->set_errtype(0);
     diskState->set_errmsg("");
     request1.set_allocated_diskstate(diskState);

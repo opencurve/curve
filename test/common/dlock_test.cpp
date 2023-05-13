@@ -46,7 +46,7 @@ class TestDLock : public ::testing::Test {
         system("rm -fr testDLock.etcd");
         client_ = std::make_shared<EtcdClientImp>();
         char endpoints[] = "127.0.0.1:2375";
-        EtcdConf conf = { endpoints, strlen(endpoints), 1000 };
+        EtcdConf conf = {endpoints, static_cast<int>(strlen(endpoints)), 1000};
         ASSERT_EQ(EtcdErrCode::EtcdDeadlineExceeded,
                   client_->Init(conf, 200, 3));
 

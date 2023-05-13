@@ -120,8 +120,10 @@ func (pCmd *PoolZoneCommand) RunCommand(cmd *cobra.Command, args []string) error
 		mergeErr := cmderror.MergeCmdErrorExceptSuccess(errs)
 		return mergeErr.ToError()
 	}
-	var errors []*cmderror.CmdError
 	for _, res := range results {
+		if res == nil {
+			continue
+		}
 		info := res.(*topology.ListPoolZoneResponse)
 		if info.GetStatusCode() != int32(statuscode.TopoStatusCode_Success) {
 			err := cmderror.ErrBsListPoolZoneRpc(
@@ -133,7 +135,7 @@ func (pCmd *PoolZoneCommand) RunCommand(cmd *cobra.Command, args []string) error
 		zones := info.GetZones()
 		pCmd.Zones = append(pCmd.Zones, zones...)
 	}
-	errRet := cmderror.MergeCmdError(errors)
+	errRet := cmderror.MergeCmdError(errs)
 	pCmd.Error = errRet
 	return nil
 }

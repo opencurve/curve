@@ -80,7 +80,7 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
     InodeWrapper(Inode inode,
                  std::shared_ptr<MetaServerClient> metaClient,
                  std::shared_ptr<S3ChunkInfoMetric> s3ChunkInfoMetric = nullptr,
-                 uint64_t maxDataSize = ULONG_MAX,
+                 int64_t maxDataSize = LONG_MAX,
                  uint32_t refreshDataInterval = UINT_MAX)
         : inode_(std::move(inode)),
           status_(InodeStatus::kNormal),
@@ -400,8 +400,8 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
     InodeAttr dirtyAttr_;
 
     InodeStatus status_;
-    uint64_t baseMaxDataSize_;
-    uint64_t maxDataSize_;
+    int64_t baseMaxDataSize_;
+    int64_t maxDataSize_;
     uint32_t refreshDataInterval_;
     uint64_t lastRefreshTime_;
 

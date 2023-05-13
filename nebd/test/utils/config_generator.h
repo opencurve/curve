@@ -33,7 +33,6 @@ namespace nebd {
 namespace common {
 
 static const char* kNebdClientConfigPath = "nebd/etc/nebd/nebd-client.conf";
-static const char* kNebdServerConfigPath = "nebd/etc/nebd/nebd-server.conf";
 
 class NebdClientConfigGenerator {
  public:

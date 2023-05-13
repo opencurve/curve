@@ -160,7 +160,6 @@ class CopysetNodeTest : public ::testing::Test {
 TEST_F(CopysetNodeTest, error_test) {
     std::shared_ptr<LocalFileSystem>
         fs(LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));    //NOLINT
-    const uint32_t kMaxChunkSize = 16 * 1024 * 1024;
     std::string rmCmd("rm -f ");
     rmCmd += kCurveConfEpochFilename;
 
@@ -173,7 +172,7 @@ TEST_F(CopysetNodeTest, error_test) {
         files.push_back("test-1.txt");
         files.push_back("test-2.txt");
 
-        char *json = "{\"logicPoolId\":123,\"copysetId\":1345,\"epoch\":0,\"checksum\":774340440}";  // NOLINT
+        const char *json = "{\"logicPoolId\":123,\"copysetId\":1345,\"epoch\":0,\"checksum\":774340440}";  // NOLINT
         std::string jsonStr(json);
 
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
@@ -235,7 +234,7 @@ TEST_F(CopysetNodeTest, error_test) {
         files.push_back("test-1.txt");
         files.push_back("test-2.txt");
 
-        char *json = "{\"logicPoolId\":123,\"copysetId\":1345,\"epoch\":0,\"checksum\":774340440}";  // NOLINT
+        const char *json = "{\"logicPoolId\":123,\"copysetId\":1345,\"epoch\":0,\"checksum\":774340440}";  // NOLINT
         std::string jsonStr(json);
 
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
@@ -270,7 +269,7 @@ TEST_F(CopysetNodeTest, error_test) {
         files.push_back("test-1.txt");
         files.push_back("test-2.txt");
 
-        char *json = "{\"logicPoolId\":123,\"copysetId\":1345,\"epoch\":0,\"checksum\":774340440}";  // NOLINT
+        const char *json = "{\"logicPoolId\":123,\"copysetId\":1345,\"epoch\":0,\"checksum\":774340440}";  // NOLINT
         std::string jsonStr(json);
 
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
@@ -590,7 +589,6 @@ TEST_F(CopysetNodeTest, error_test) {
 TEST_F(CopysetNodeTest, get_conf_change) {
     std::shared_ptr<LocalFileSystem>
         fs(LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));    //NOLINT
-    const uint32_t kMaxChunkSize = 16 * 1024 * 1024;
     std::string rmCmd("rm -f ");
     rmCmd += kCurveConfEpochFilename;
 
@@ -794,7 +792,6 @@ TEST_F(CopysetNodeTest, get_conf_change) {
 TEST_F(CopysetNodeTest, get_hash) {
     std::shared_ptr<LocalFileSystem>
         fs(LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));    //NOLINT
-    const uint32_t kMaxChunkSize = 16 * 1024 * 1024;
     std::string rmCmd("rm -f ");
     rmCmd += kCurveConfEpochFilename;
 

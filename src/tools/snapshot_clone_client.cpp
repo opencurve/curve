@@ -104,8 +104,7 @@ std::vector<std::string> SnapshotCloneClient::GetActiveAddrs() {
 void SnapshotCloneClient::GetOnlineStatus(
                                 std::map<std::string, bool>* onlineStatus) {
     onlineStatus->clear();
-    int result = 0;
-    for (const auto item : dummyServerMap_) {
+    for (const auto &item : dummyServerMap_) {
         std::string listenAddr;
         int res = GetListenAddrFromDummyPort(item.second, &listenAddr);
         // 如果获取到的监听地址与记录的mds地址不一致，也认为不在线

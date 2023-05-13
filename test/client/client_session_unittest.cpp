@@ -159,8 +159,6 @@ TEST(ClientSession, LeaseTaskTest) {
         }
     }
 
-    auto iomanager = fileinstance.GetIOManager4File();
-
     curve::client::LeaseExecutor* lease = fileinstance.GetLeaseExecutor();
 
     // 5. set refresh AuthFail

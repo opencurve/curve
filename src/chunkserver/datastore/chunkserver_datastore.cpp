@@ -39,8 +39,8 @@ CSDataStore::CSDataStore(std::shared_ptr<LocalFileSystem> lfs,
                          const DataStoreOptions& options)
     : chunkSize_(options.chunkSize),
       pageSize_(options.pageSize),
-      baseDir_(options.baseDir),
       locationLimit_(options.locationLimit),
+      baseDir_(options.baseDir),
       chunkFilePool_(chunkFilePool),
       lfs_(lfs),
       enableOdsyncWhenOpenChunkFile_(options.enableOdsyncWhenOpenChunkFile) {
@@ -147,6 +147,7 @@ CSErrorCode CSDataStore::ReadChunk(ChunkID id,
                                    char * buf,
                                    off_t offset,
                                    size_t length) {
+    (void)sn;
     auto chunkFile = metaCache_.Get(id);
     if (chunkFile == nullptr) {
         return CSErrorCode::ChunkNotExistError;
@@ -163,6 +164,7 @@ CSErrorCode CSDataStore::ReadChunk(ChunkID id,
 
 CSErrorCode CSDataStore::ReadChunkMetaPage(ChunkID id, SequenceNum sn,
                                            char * buf) {
+    (void)sn;
     auto chunkFile = metaCache_.Get(id);
     if (chunkFile == nullptr) {
         return CSErrorCode::ChunkNotExistError;

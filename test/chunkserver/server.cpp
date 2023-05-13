@@ -35,32 +35,30 @@
 #include "src/common/uri_parser.h"
 #include "src/chunkserver/raftsnapshot/curve_snapshot_storage.h"
 
-using curve::chunkserver::CopysetNodeOptions;
+using curve::chunkserver::ConcurrentApplyModule;
 using curve::chunkserver::Configuration;
+using curve::chunkserver::CopysetID;
 using curve::chunkserver::CopysetNodeManager;
+using curve::chunkserver::CopysetNodeOptions;
+using curve::chunkserver::FilePool;
+using curve::chunkserver::FilePoolHelper;
+using curve::chunkserver::FilePoolOptions;
+using curve::chunkserver::LogicPoolID;
+using curve::chunkserver::PeerId;
 using curve::chunkserver::concurrent::ConcurrentApplyModule;
 using curve::chunkserver::concurrent::ConcurrentApplyOption;
-using curve::chunkserver::FilePool;
-using curve::chunkserver::FilePoolOptions;
-using curve::chunkserver::ConcurrentApplyModule;
-using curve::common::UriParser;
-using curve::chunkserver::LogicPoolID;
-using curve::chunkserver::CopysetID;
 using curve::common::Peer;
-using curve::chunkserver::PeerId;
+using curve::common::UriParser;
+using curve::fs::FileSystemType;
 using curve::fs::LocalFileSystem;
 using curve::fs::LocalFsFactory;
-using curve::fs::FileSystemType;
-using curve::chunkserver::FilePoolHelper;
 
-DEFINE_string(ip,
-              "127.0.0.1",
+DEFINE_string(ip, "127.0.0.1",
               "Initial configuration of the replication group");
 DEFINE_int32(port, 8200, "Listen port of this peer");
 DEFINE_string(copyset_dir, "local://./runlog/chunkserver_test0",
-             "copyset data dir");
-DEFINE_string(conf,
-              "127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0",
+              "copyset data dir");
+DEFINE_string(conf, "127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0",
               "Initial configuration of the replication group");
 DEFINE_int32(election_timeout_ms, 1000, "election timeout");
 DEFINE_int32(snapshot_interval_s, 5, "snapshot interval");
@@ -72,8 +70,7 @@ DEFINE_bool(create_chunkfilepool, true, "create chunkfile pool");
 
 butil::AtExitManager atExitManager;
 
-void CreateChunkFilePool(const std::string& dirname,
-                         uint64_t chunksize,
+void CreateChunkFilePool(const std::string &dirname, uint64_t chunksize,
                          std::shared_ptr<LocalFileSystem> fsptr) {
     std::string datadir = dirname + "/chunkfilepool";
     std::string metapath = dirname + "/chunkfilepool.meta";
@@ -83,9 +80,8 @@ void CreateChunkFilePool(const std::string& dirname,
     memset(data, 0, 8192);
     fsptr->Mkdir(datadir);
     while (count <= 20) {
-        std::string filename = dirname +
-                               "/chunkfilepool/" +
-                               std::to_string(count);
+        std::string filename =
+            dirname + "/chunkfilepool/" + std::to_string(count);
         int fd = fsptr->Open(filename.c_str(), O_RDWR | O_CREAT);
         if (fd < 0) {
             LOG(ERROR) << "Create file failed!";
@@ -93,8 +89,8 @@ void CreateChunkFilePool(const std::string& dirname,
         } else {
             LOG(INFO) << filename.c_str() << " created!";
         }
-        for (int i = 0; i <= chunksize/4096; i++) {
-            fsptr->Write(fd, data, i*4096, 4096);
+        for (int i = 0; i <= chunksize / 4096; i++) {
+            fsptr->Write(fd, data, i * 4096, 4096);
         }
         fsptr->Close(fd);
         count++;
@@ -109,12 +105,8 @@ void CreateChunkFilePool(const std::string& dirname,
     memcpy(cpopt.filePoolDir, datadir.c_str(), datadir.size());
     memcpy(cpopt.metaPath, metapath.c_str(), metapath.size());
 
-    int ret = FilePoolHelper::PersistEnCodeMetaInfo(
-                                            fsptr,
-                                            chunksize,
-                                            4096,
-                                            datadir,
-                                            metapath);
+    (void)FilePoolHelper::PersistEnCodeMetaInfo(fsptr, chunksize, 4096, datadir,
+                                                metapath);
 }
 
 int main(int argc, char *argv[]) {
@@ -131,13 +123,13 @@ int main(int argc, char *argv[]) {
     curve::chunkserver::CurveSnapshotStorage::set_server_addr(addr);
 
     if (server.Start(FLAGS_port, NULL) != 0) {
-        LOG(ERROR) << "Fail to start Server: "
-                   << errno << ", " << strerror(errno);
+        LOG(ERROR) << "Fail to start Server: " << errno << ", "
+                   << strerror(errno);
         return -1;
     }
 
-    std::shared_ptr<LocalFileSystem>
-        fs(LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));
+    std::shared_ptr<LocalFileSystem> fs(
+        LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));
     const uint32_t kMaxChunkSize = 16 * 1024 * 1024;
     // TODO(yyk) 这部分实现不太优雅，后续进行重构
     std::string copysetUri = FLAGS_copyset_dir + "/copysets";
@@ -161,8 +153,8 @@ int main(int argc, char *argv[]) {
     copysetNodeOptions.localFileSystem = fs;
 
     std::string chunkDataDir;
-    std::string
-        protocol = UriParser::ParseUri(FLAGS_copyset_dir, &chunkDataDir);
+    std::string protocol =
+        UriParser::ParseUri(FLAGS_copyset_dir, &chunkDataDir);
     if (protocol.empty()) {
         LOG(FATAL) << "not support chunk data uri's protocol"
                    << " error chunkDataDir is: " << chunkDataDir;
@@ -197,7 +189,7 @@ int main(int argc, char *argv[]) {
 
     ConcurrentApplyOption opt{2, 1, 2, 1};
     LOG_IF(FATAL, false == copysetNodeOptions.concurrentapply->Init(opt))
-    << "Failed to init concurrent apply module";
+        << "Failed to init concurrent apply module";
 
     curve::chunkserver::Configuration conf;
     if (conf.parse_from(FLAGS_conf) != 0) {
@@ -215,16 +207,15 @@ int main(int argc, char *argv[]) {
 
     CopysetNodeManager::GetInstance().Init(copysetNodeOptions);
     CopysetNodeManager::GetInstance().Run();
-    CopysetNodeManager::GetInstance().CreateCopysetNode(FLAGS_logic_pool_id,
-                                                        FLAGS_copyset_id,
-                                                        peers);
+    CopysetNodeManager::GetInstance().CreateCopysetNode(
+        FLAGS_logic_pool_id, FLAGS_copyset_id, peers);
 
     /* Wait until 'CTRL-C' is pressed. then Stop() and Join() the service */
     server.RunUntilAskedToQuit();
 
     LOG(INFO) << "server test service is going to quit";
-    CopysetNodeManager::GetInstance().DeleteCopysetNode(
-        FLAGS_logic_pool_id, FLAGS_copyset_id);
+    CopysetNodeManager::GetInstance().DeleteCopysetNode(FLAGS_logic_pool_id,
+                                                        FLAGS_copyset_id);
 
     return 0;
 }

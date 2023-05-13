@@ -192,7 +192,6 @@ TEST_F(TestRecoverSheduler, test_all_metaServer_online_offline) {
     MetaServerIdType id1 = 1;
     MetaServerIdType id2 = 2;
     MetaServerIdType id3 = 3;
-    MetaServerIdType id4 = 4;
     Operator op;
     EXPECT_CALL(*topoAdapter_, GetAvgScatterWidthInPool(_))
         .WillRepeatedly(Return(90));

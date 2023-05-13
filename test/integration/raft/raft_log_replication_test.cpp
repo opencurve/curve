@@ -46,7 +46,7 @@ const uint32_t kOpRequestAlignSize = 4096;
 const char kRaftLogRepTestLogDir[] = "./runlog/RaftLogRep";
 const char* kFakeMdsAddr = "127.0.0.1:9070";
 
-static char* raftLogParam[5][16] = {
+static const char* raftLogParam[5][16] = {
     {
         "chunkserver",
         "-chunkServerIp=127.0.0.1",
@@ -224,11 +224,11 @@ class RaftLogReplicationTest : public testing::Test {
         paramsIndexs[PeerCluster::PeerToId(peer4)] = 3;
         paramsIndexs[PeerCluster::PeerToId(peer5)] = 4;
 
-        params.push_back(raftLogParam[0]);
-        params.push_back(raftLogParam[1]);
-        params.push_back(raftLogParam[2]);
-        params.push_back(raftLogParam[3]);
-        params.push_back(raftLogParam[4]);
+        params.push_back(const_cast<char**>(raftLogParam[0]));
+        params.push_back(const_cast<char**>(raftLogParam[1]));
+        params.push_back(const_cast<char**>(raftLogParam[2]));
+        params.push_back(const_cast<char**>(raftLogParam[3]));
+        params.push_back(const_cast<char**>(raftLogParam[4]));
     }
     virtual void TearDown() {
         std::string rmdir1("rm -fr ");

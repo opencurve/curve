@@ -161,6 +161,7 @@ static void change_peers_returned(brpc::Controller* cntl,
                                   scoped_refptr<braft::NodeImpl> /*node*/,
                                   ::google::protobuf::Closure* done,
                                   const butil::Status& st) {
+    (void)request;
     brpc::ClosureGuard done_guard(done);
     if (!st.ok()) {
         cntl->SetFailed(st.error_code(), "%s", st.error_cstr());
@@ -275,6 +276,7 @@ void BRaftCliServiceImpl2::TransferLeader(
     const TransferLeaderRequest2 *request,
     TransferLeaderResponse2 *response,
     ::google::protobuf::Closure *done) {
+    (void)response;
     brpc::Controller *cntl = (brpc::Controller *) controller;
     brpc::ClosureGuard done_guard(done);
     scoped_refptr<braft::NodeImpl> node;
@@ -305,6 +307,7 @@ void BRaftCliServiceImpl2::ResetPeer(RpcController* controller,
                                      const ResetPeerRequest2* request,
                                      ResetPeerResponse2* response,
                                      Closure* done) {
+    (void)response;
     brpc::Controller* cntl = (brpc::Controller*)controller;
     brpc::ClosureGuard done_guard(done);
     scoped_refptr<braft::NodeImpl> node;
@@ -342,6 +345,7 @@ static void snapshot_returned(brpc::Controller* cntl,
                               scoped_refptr<braft::NodeImpl> node,
                               ::google::protobuf::Closure* done,
                               const butil::Status& st) {
+    (void)node;
     brpc::ClosureGuard done_guard(done);
     if (!st.ok()) {
         cntl->SetFailed(st.error_code(), "%s", st.error_cstr());
@@ -352,6 +356,7 @@ void BRaftCliServiceImpl2::Snapshot(RpcController* controller,
                                     const SnapshotRequest2* request,
                                     SnapshotResponse2* response,
                                     Closure* done) {
+    (void)response;
     brpc::Controller* cntl = (brpc::Controller*)controller;
     brpc::ClosureGuard done_guard(done);
     scoped_refptr<braft::NodeImpl> node;
@@ -374,6 +379,8 @@ void BRaftCliServiceImpl2::SnapshotAll(RpcController* controller,
                                        const SnapshotAllRequest* request,
                                        SnapshotAllResponse* response,
                                        Closure* done) {
+    (void)request;
+    (void)response;
     brpc::Controller* cntl = (brpc::Controller*)controller;
     brpc::ClosureGuard done_guard(done);
     braft::NodeManager *const nm = braft::NodeManager::GetInstance();

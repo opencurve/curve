@@ -49,11 +49,10 @@ int CopysetInfoListTool::Init() {
     return 0;
 }
 
-void CopysetInfoListTool::AddUpdateFlags() {
-    AddUpdateFlagsFunc(SetMdsAddr);
-}
+void CopysetInfoListTool::AddUpdateFlags() { AddUpdateFlagsFunc(SetMdsAddr); }
 
-bool CopysetInfoListTool::AfterSendRequestToHost(const std::string& host) {
+bool CopysetInfoListTool::AfterSendRequestToHost(const std::string &host) {
+    (void)host;
     bool ret = true;
     if (controller_->Failed()) {
         errorOutput_ << "get all copysetInfo from [ " << FLAGS_mdsAddr
@@ -62,11 +61,12 @@ bool CopysetInfoListTool::AfterSendRequestToHost(const std::string& host) {
                      << std::endl;
         ret = false;
     } else if (show_) {
-        for (auto const& i : response_->copysetvalues()) {
+        for (auto const &i : response_->copysetvalues()) {
             std::cout << "copyset["
                       << copyset::GetCopysetKey(i.copysetinfo().poolid(),
                                                 i.copysetinfo().copysetid())
-                      << "]:" << std::endl << i.DebugString() << std::endl;
+                      << "]:" << std::endl
+                      << i.DebugString() << std::endl;
         }
         std::cout << std::endl;
     }

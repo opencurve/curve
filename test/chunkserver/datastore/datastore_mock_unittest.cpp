@@ -669,8 +669,8 @@ TEST_F(CSDataStore_test, WriteChunkTest1) {
     SequenceNum sn = 1;
     off_t offset = 0;
     size_t length = PAGE_SIZE;
-    char buf[length];  // NOLINT
-    memset(buf, 0, sizeof(buf));
+    char *buf = new char[length];
+    memset(buf, 0, length);
     // create new chunk and open it
     string chunk3Path = string(baseDir) + "/" +
                         FileNameOperator::GenerateChunkFileName(id);
@@ -733,6 +733,7 @@ TEST_F(CSDataStore_test, WriteChunkTest1) {
         .Times(1);
     EXPECT_CALL(*lfs_, Close(4))
         .Times(1);
+    delete[] buf;
 }
 
 /**
@@ -751,8 +752,8 @@ TEST_F(CSDataStore_test, WriteChunkTest2) {
     SequenceNum sn = 3;
     off_t offset = 0;
     size_t length = PAGE_SIZE;
-    char buf[length];  // NOLINT
-    memset(buf, 0, sizeof(buf));
+    char *buf = new char[length];
+    memset(buf, 0, length);
 
     // sn<chunk.sn  sn>chunk.correctedsn
     EXPECT_EQ(CSErrorCode::BackwardRequestError,
@@ -789,6 +790,7 @@ TEST_F(CSDataStore_test, WriteChunkTest2) {
         .Times(1);
     EXPECT_CALL(*lfs_, Close(3))
         .Times(1);
+    delete[] buf;
 }
 
 /**
@@ -812,8 +814,8 @@ TEST_F(CSDataStore_test, WriteChunkTest3) {
     SequenceNum sn = 3;
     off_t offset = 0;
     size_t length = PAGE_SIZE;
-    char buf[length];  // NOLINT
-    memset(buf, 0, sizeof(buf));
+    char *buf = new char[length];
+    memset(buf, 0, length);
 
     // sn>chunk.sn  sn<chunk.correctedsn
     EXPECT_EQ(CSErrorCode::BackwardRequestError,
@@ -850,6 +852,7 @@ TEST_F(CSDataStore_test, WriteChunkTest3) {
         .Times(1);
     EXPECT_CALL(*lfs_, Close(3))
         .Times(1);
+    delete[] buf;
 }
 
 /**
@@ -867,8 +870,8 @@ TEST_F(CSDataStore_test, WriteChunkTest4) {
     SequenceNum sn = 2;
     off_t offset = 0;
     size_t length = PAGE_SIZE;
-    char buf[length];  // NOLINT
-    memset(buf, 0, sizeof(buf));
+    char *buf = new char[length];
+    memset(buf, 0, length);
 
     // will write data
     EXPECT_CALL(*lfs_,
@@ -930,6 +933,7 @@ TEST_F(CSDataStore_test, WriteChunkTest4) {
         .Times(1);
     EXPECT_CALL(*lfs_, Close(3))
         .Times(1);
+    delete[] buf;
 }
 
 /**
@@ -954,8 +958,8 @@ TEST_F(CSDataStore_test, WriteChunkTest6) {
     SequenceNum sn = 3;
     off_t offset = 0;
     size_t length = PAGE_SIZE;
-    char buf[length];  // NOLINT
-    memset(buf, 0, sizeof(buf));
+    char *buf = new char[length];
+    memset(buf, 0, length);
     // will update metapage
     EXPECT_CALL(*lfs_, Write(3, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
         .Times(1);
@@ -982,6 +986,7 @@ TEST_F(CSDataStore_test, WriteChunkTest6) {
         .Times(1);
     EXPECT_CALL(*lfs_, Close(3))
         .Times(1);
+    delete[] buf;
 }
 
 /**
@@ -1000,8 +1005,8 @@ TEST_F(CSDataStore_test, WriteChunkTest7) {
     SequenceNum sn = 3;
     off_t offset = 0;
     size_t length = PAGE_SIZE;
-    char buf[length];  // NOLINT
-    memset(buf, 0, sizeof(buf));
+    char *buf = new char[length];
+    memset(buf, 0, length);
     // will Open snapshot file, snap sn equals 2
     string snapPath = string(baseDir) + "/" +
         FileNameOperator::GenerateSnapshotName(id, 2);
@@ -1079,6 +1084,7 @@ TEST_F(CSDataStore_test, WriteChunkTest7) {
         .Times(1);
     EXPECT_CALL(*lfs_, Close(4))
         .Times(1);
+    delete[] buf;
 }
 
 /**
@@ -1096,8 +1102,8 @@ TEST_F(CSDataStore_test, WriteChunkTest9) {
     SequenceNum sn = 2;
     off_t offset = 0;
     size_t length = PAGE_SIZE;
-    char buf[length];  // NOLINT
-    memset(buf, 0, sizeof(buf));
+    char *buf = new char[length];
+    memset(buf, 0, length);
     // will not create snapshot
     // will copy on write
     EXPECT_CALL(*lfs_, Read(1, NotNull(), PAGE_SIZE + offset, length))
@@ -1131,6 +1137,7 @@ TEST_F(CSDataStore_test, WriteChunkTest9) {
         .Times(1);
     EXPECT_CALL(*lfs_, Close(3))
         .Times(1);
+    delete[] buf;
 }
 
 /**
@@ -1155,8 +1162,8 @@ TEST_F(CSDataStore_test, WriteChunkTest10) {
     SequenceNum sn = 3;
     off_t offset = 0;
     size_t length = PAGE_SIZE;
-    char buf[length];  // NOLINT
-    memset(buf, 0, sizeof(buf));
+    char *buf = new char[length];
+    memset(buf, 0, length);
     // will update metapage
     EXPECT_CALL(*lfs_, Write(1, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
         .Times(1);
@@ -1184,6 +1191,7 @@ TEST_F(CSDataStore_test, WriteChunkTest10) {
         .Times(1);
     EXPECT_CALL(*lfs_, Close(3))
         .Times(1);
+    delete[] buf;
 }
 
 /**
@@ -1208,8 +1216,8 @@ TEST_F(CSDataStore_test, WriteChunkTest11) {
     SequenceNum sn = 4;
     off_t offset = 0;
     size_t length = PAGE_SIZE;
-    char buf[length];  // NOLINT
-    memset(buf, 0, sizeof(buf));
+    char *buf = new char[length];
+    memset(buf, 0, length);
 
     // sn>chunk.sn, sn>chunk.correctedsn
     EXPECT_EQ(CSErrorCode::SnapshotConflictError,
@@ -1231,6 +1239,7 @@ TEST_F(CSDataStore_test, WriteChunkTest11) {
         .Times(1);
     EXPECT_CALL(*lfs_, Close(3))
         .Times(1);
+    delete[] buf;
 }
 
 /**
@@ -1255,8 +1264,8 @@ TEST_F(CSDataStore_test, WriteChunkTest13) {
     SequenceNum correctedSn = 0;
     off_t offset = 0;
     size_t length = PAGE_SIZE;
-    char buf[length];  // NOLINT
-    memset(buf, 0, sizeof(buf));
+    char *buf = new char[length];
+    memset(buf, 0, length);
     CSChunkInfo info;
     // 创建 clone chunk
     {
@@ -1417,6 +1426,7 @@ TEST_F(CSDataStore_test, WriteChunkTest13) {
         .Times(1);
     EXPECT_CALL(*lfs_, Close(4))
         .Times(1);
+    delete[] buf;
 }
 
 /**
@@ -1441,8 +1451,8 @@ TEST_F(CSDataStore_test, WriteChunkTest14) {
     SequenceNum correctedSn = 3;
     off_t offset = 0;
     size_t length = PAGE_SIZE;
-    char buf[length];  // NOLINT
-    memset(buf, 0, sizeof(buf));
+    char *buf = new char[length];
+    memset(buf, 0, length);
     CSChunkInfo info;
     // 创建 clone chunk
     {
@@ -1612,6 +1622,7 @@ TEST_F(CSDataStore_test, WriteChunkTest14) {
         .Times(1);
     EXPECT_CALL(*lfs_, Close(4))
         .Times(1);
+    delete[] buf;
 }
 
 /**
@@ -1646,8 +1657,8 @@ TEST_F(CSDataStore_test, WriteChunkTest15) {
     SequenceNum sn = 2;
     off_t offset = 0;
     size_t length = PAGE_SIZE;
-    char buf[length];  // NOLINT
-    memset(buf, 0, sizeof(buf));
+    char *buf = new char[length];
+    memset(buf, 0, length);
     // will not create snapshot
     // will not copy on write
     EXPECT_CALL(*lfs_, Write(2, Matcher<const char*>(NotNull()), _, _))
@@ -1671,6 +1682,7 @@ TEST_F(CSDataStore_test, WriteChunkTest15) {
         .Times(1);
     EXPECT_CALL(*lfs_, Close(3))
         .Times(1);
+    delete[] buf;
 }
 
 /**
@@ -1705,8 +1717,8 @@ TEST_F(CSDataStore_test, WriteChunkTest16) {
     SequenceNum sn = 3;
     off_t offset = 0;
     size_t length = PAGE_SIZE;
-    char buf[length];  // NOLINT
-    memset(buf, 0, sizeof(buf));
+    char *buf = new char[length];
+    memset(buf, 0, length);
     // will not create snapshot
     // will not copy on write
     EXPECT_CALL(*lfs_, Write(2, Matcher<const char*>(NotNull()), _, _))
@@ -1733,6 +1745,7 @@ TEST_F(CSDataStore_test, WriteChunkTest16) {
         .Times(1);
     EXPECT_CALL(*lfs_, Close(3))
         .Times(1);
+    delete[] buf;
 }
 
 /**
@@ -1749,8 +1762,8 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest1) {
     SequenceNum sn = 3;
     off_t offset = 0;
     size_t length = PAGE_SIZE;
-    char buf[length];  // NOLINT
-    memset(buf, 0, sizeof(buf));
+    char *buf = new char[length];
+    memset(buf, 0, length);
     string snapPath = string(baseDir) + "/" +
         FileNameOperator::GenerateSnapshotName(id, 2);
 
@@ -1817,6 +1830,7 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest1) {
         .Times(1);
     EXPECT_CALL(*lfs_, Close(3))
         .Times(1);
+    delete[] buf;
 }
 
 /**
@@ -1834,8 +1848,8 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest2) {
     SequenceNum sn = 3;
     off_t offset = 0;
     size_t length = PAGE_SIZE;
-    char buf[length];  // NOLINT
-    memset(buf, 0, sizeof(buf));
+    char *buf = new char[length];
+    memset(buf, 0, length);
     // will Open snapshot file, snap sn equals 2
     string snapPath = string(baseDir) + "/" +
         FileNameOperator::GenerateSnapshotName(id, 2);
@@ -1879,6 +1893,7 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest2) {
         .Times(1);
     EXPECT_CALL(*lfs_, Close(4))
         .Times(1);
+    delete[] buf;
 }
 
 /**
@@ -1896,8 +1911,8 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest3) {
     SequenceNum sn = 3;
     off_t offset = 0;
     size_t length = PAGE_SIZE;
-    char buf[length];  // NOLINT
-    memset(buf, 0, sizeof(buf));
+    char *buf = new char[length];
+    memset(buf, 0, length);
     // will Open snapshot file, snap sn equals 2
     string snapPath = string(baseDir) + "/" +
         FileNameOperator::GenerateSnapshotName(id, 2);
@@ -2011,6 +2026,7 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest3) {
         .Times(1);
     EXPECT_CALL(*lfs_, Close(4))
         .Times(1);
+    delete[] buf;
 }
 
 /**
@@ -2028,8 +2044,8 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest4) {
     SequenceNum sn = 3;
     off_t offset = 0;
     size_t length = PAGE_SIZE;
-    char buf[length];  // NOLINT
-    memset(buf, 0, sizeof(buf));
+    char *buf = new char[length];
+    memset(buf, 0, length);
     // will Open snapshot file, snap sn equals 2
     string snapPath = string(baseDir) + "/" +
         FileNameOperator::GenerateSnapshotName(id, 2);
@@ -2093,6 +2109,7 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest4) {
         .Times(1);
     EXPECT_CALL(*lfs_, Close(4))
         .Times(1);
+    delete[] buf;
 }
 
 /**
@@ -2109,8 +2126,8 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest5) {
     SequenceNum sn = 1;
     off_t offset = 0;
     size_t length = PAGE_SIZE;
-    char buf[length];  // NOLINT
-    memset(buf, 0, sizeof(buf));
+    char *buf = new char[length];
+    memset(buf, 0, length);
     // create new chunk and open it
     string chunk3Path = string(baseDir) + "/" +
                         FileNameOperator::GenerateChunkFileName(id);
@@ -2211,6 +2228,7 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest5) {
         .Times(1);
     EXPECT_CALL(*lfs_, Close(3))
         .Times(1);
+    delete[] buf;
 }
 
 /*
@@ -2233,8 +2251,8 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest6) {
     SequenceNum correctedSn = 0;
     off_t offset = 0;
     size_t length = PAGE_SIZE;
-    char buf[length];  // NOLINT
-    memset(buf, 0, sizeof(buf));
+    char *buf = new char[length];
+    memset(buf, 0, length);
     CSChunkInfo info;
     // 创建 clone chunk
     {
@@ -2333,6 +2351,7 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest6) {
         .Times(1);
     EXPECT_CALL(*lfs_, Close(4))
         .Times(1);
+    delete[] buf;
 }
 
 /**
@@ -2349,8 +2368,8 @@ TEST_F(CSDataStore_test, ReadChunkTest1) {
     SequenceNum sn = 2;
     off_t offset = PAGE_SIZE;
     size_t length = PAGE_SIZE;
-    char buf[length];  // NOLINT
-    memset(buf, 0, sizeof(buf));
+    char *buf = new char[length];
+    memset(buf, 0, length);
     // test chunk not exists
     EXPECT_EQ(CSErrorCode::ChunkNotExistError,
               dataStore->ReadChunk(id,
@@ -2365,6 +2384,7 @@ TEST_F(CSDataStore_test, ReadChunkTest1) {
         .Times(1);
     EXPECT_CALL(*lfs_, Close(3))
         .Times(1);
+    delete[] buf;
 }
 
 /**
@@ -2381,8 +2401,8 @@ TEST_F(CSDataStore_test, ReadChunkTest2) {
     SequenceNum sn = 2;
     off_t offset = CHUNK_SIZE;
     size_t length = PAGE_SIZE;
-    char buf[length];  // NOLINT
-    memset(buf, 0, sizeof(buf));
+    char *buf = new char[length];
+    memset(buf, 0, length);
     // test read out of range
     EXPECT_EQ(CSErrorCode::InvalidArgError,
               dataStore->ReadChunk(id,
@@ -2415,6 +2435,7 @@ TEST_F(CSDataStore_test, ReadChunkTest2) {
         .Times(1);
     EXPECT_CALL(*lfs_, Close(3))
         .Times(1);
+    delete[] buf;
 }
 
 /**
@@ -2431,8 +2452,8 @@ TEST_F(CSDataStore_test, ReadChunkTest3) {
     SequenceNum sn = 2;
     off_t offset = PAGE_SIZE;
     size_t length = PAGE_SIZE;
-    char buf[length];  // NOLINT
-    memset(buf, 0, sizeof(buf));
+    char *buf = new char[length];
+    memset(buf, 0, length);
     // test chunk exists
     EXPECT_CALL(*lfs_, Read(1, NotNull(), offset + PAGE_SIZE, length))
         .Times(1);
@@ -2449,6 +2470,7 @@ TEST_F(CSDataStore_test, ReadChunkTest3) {
         .Times(1);
     EXPECT_CALL(*lfs_, Close(3))
         .Times(1);
+    delete[] buf;
 }
 
 /**
@@ -2502,8 +2524,8 @@ TEST_F(CSDataStore_test, ReadChunkTest4) {
     // case1: 读取未写过区域
     off_t offset = 1 * PAGE_SIZE;
     size_t length = PAGE_SIZE;
-    char buf[2 * length];  // NOLINT
-    memset(buf, 0, sizeof(buf));
+    char *buf = new char[2 * length];
+    memset(buf, 0, 2 * length);
     EXPECT_CALL(*lfs_, Read(_, _, _, _))
         .Times(0);
     EXPECT_EQ(CSErrorCode::PageNerverWrittenError,
@@ -2561,8 +2583,8 @@ TEST_F(CSDataStore_test, ReadChunkErrorTest1) {
     SequenceNum sn = 2;
     off_t offset = PAGE_SIZE;
     size_t length = PAGE_SIZE;
-    char buf[length];  // NOLINT
-    memset(buf, 0, sizeof(buf));
+    char *buf = new char[length];
+    memset(buf, 0, length);
     // test read chunk failed
     EXPECT_CALL(*lfs_, Read(1, NotNull(), offset + PAGE_SIZE, length))
         .WillOnce(Return(-UT_ERRNO));
@@ -2579,6 +2601,7 @@ TEST_F(CSDataStore_test, ReadChunkErrorTest1) {
         .Times(1);
     EXPECT_CALL(*lfs_, Close(3))
         .Times(1);
+    delete[] buf;
 }
 
 /**
@@ -2595,8 +2618,8 @@ TEST_F(CSDataStore_test, ReadSnapshotChunkTest1) {
     SequenceNum sn = 2;
     off_t offset = PAGE_SIZE;
     size_t length = PAGE_SIZE;
-    char buf[length];  // NOLINT
-    memset(buf, 0, sizeof(buf));
+    char *buf = new char[length];
+    memset(buf, 0, length);
     // test chunk not exists
     EXPECT_EQ(CSErrorCode::ChunkNotExistError,
               dataStore->ReadSnapshotChunk(id,
@@ -2611,6 +2634,7 @@ TEST_F(CSDataStore_test, ReadSnapshotChunkTest1) {
         .Times(1);
     EXPECT_CALL(*lfs_, Close(3))
         .Times(1);
+    delete[] buf;
 }
 
 /**
@@ -2627,8 +2651,8 @@ TEST_F(CSDataStore_test, ReadSnapshotChunkTest2) {
     SequenceNum sn = 2;
     off_t offset = CHUNK_SIZE;
     size_t length = 2 * PAGE_SIZE;
-    char buf[length];  // NOLINT
-    memset(buf, 0, sizeof(buf));
+    char *buf = new char[length];
+    memset(buf, 0, length);
     // test out of range
     EXPECT_EQ(CSErrorCode::InvalidArgError,
               dataStore->ReadSnapshotChunk(id,
@@ -2672,6 +2696,7 @@ TEST_F(CSDataStore_test, ReadSnapshotChunkTest2) {
         .Times(1);
     EXPECT_CALL(*lfs_, Close(3))
         .Times(1);
+    delete[] buf;
 }
 
 /**
@@ -2688,8 +2713,8 @@ TEST_F(CSDataStore_test, ReadSnapshotChunkTest3) {
     SequenceNum sn = 2;
     off_t offset = PAGE_SIZE;
     size_t length = PAGE_SIZE * 2;
-    char writeBuf[length];  // NOLINT
-    memset(writeBuf, 0, sizeof(writeBuf));
+    char *writeBuf = new char[length];
+    memset(writeBuf, 0, length);
     // data in [PAGE_SIZE, 2*PAGE_SIZE) will be cow
     EXPECT_CALL(*lfs_, Read(1, NotNull(), offset + PAGE_SIZE, length))
         .Times(1);
@@ -2715,8 +2740,8 @@ TEST_F(CSDataStore_test, ReadSnapshotChunkTest3) {
     sn = 1;
     offset = CHUNK_SIZE;
     length = PAGE_SIZE * 4;
-    char readBuf[length];  // NOLINT
-    memset(readBuf, 0, sizeof(readBuf));
+    char *readBuf = new char[length];
+    memset(readBuf, 0, length);
     EXPECT_EQ(CSErrorCode::InvalidArgError,
               dataStore->ReadSnapshotChunk(id,
                                            sn,
@@ -2746,6 +2771,8 @@ TEST_F(CSDataStore_test, ReadSnapshotChunkTest3) {
         .Times(1);
     EXPECT_CALL(*lfs_, Close(3))
         .Times(1);
+    delete[] writeBuf;
+    delete[] readBuf;
 }
 
 /**
@@ -2762,8 +2789,8 @@ TEST_F(CSDataStore_test, ReadSnapshotChunkTest4) {
     SequenceNum sn = 3;
     off_t offset = PAGE_SIZE;
     size_t length = PAGE_SIZE;
-    char buf[length];  // NOLINT
-    memset(buf, 0, sizeof(buf));
+    char *buf = new char[length];
+    memset(buf, 0, length);
     // test sn not exists
     EXPECT_EQ(CSErrorCode::ChunkNotExistError,
               dataStore->ReadSnapshotChunk(id,
@@ -2778,6 +2805,7 @@ TEST_F(CSDataStore_test, ReadSnapshotChunkTest4) {
         .Times(1);
     EXPECT_CALL(*lfs_, Close(3))
         .Times(1);
+    delete[] buf;
 }
 
 /**
@@ -2794,8 +2822,8 @@ TEST_F(CSDataStore_test, ReadSnapshotChunkErrorTest1) {
     SequenceNum sn = 2;
     off_t offset = PAGE_SIZE;
     size_t length = PAGE_SIZE * 2;
-    char writeBuf[length];  // NOLINT
-    memset(writeBuf, 0, sizeof(writeBuf));
+    char *writeBuf = new char[length];
+    memset(writeBuf, 0, length);
     // data in [PAGE_SIZE, 2*PAGE_SIZE) will be cow
     EXPECT_CALL(*lfs_, Read(1, NotNull(), offset + PAGE_SIZE, length))
         .Times(1);
@@ -2821,8 +2849,8 @@ TEST_F(CSDataStore_test, ReadSnapshotChunkErrorTest1) {
     sn = 1;
     offset = 0;
     length = PAGE_SIZE * 4;
-    char readBuf[length];  // NOLINT
-    memset(readBuf, 0, sizeof(readBuf));
+    char *readBuf = new char[length];
+    memset(readBuf, 0, length);
     // read chunk failed
     EXPECT_CALL(*lfs_, Read(1, NotNull(), PAGE_SIZE, PAGE_SIZE))
         .WillOnce(Return(-UT_ERRNO));
@@ -2853,6 +2881,8 @@ TEST_F(CSDataStore_test, ReadSnapshotChunkErrorTest1) {
         .Times(1);
     EXPECT_CALL(*lfs_, Close(3))
         .Times(1);
+    delete[] writeBuf;
+    delete[] readBuf;
 }
 
 /**
@@ -2869,8 +2899,8 @@ TEST_F(CSDataStore_test, ReadSnapshotChunkErrorTest2) {
     SequenceNum sn = 2;
     off_t offset = PAGE_SIZE;
     size_t length = 2 * PAGE_SIZE;
-    char buf[length];  // NOLINT
-    memset(buf, 0, sizeof(buf));
+    char *buf = new char[length];
+    memset(buf, 0, length);
     // test in range
     offset = PAGE_SIZE;
     EXPECT_CALL(*lfs_, Read(1, NotNull(), offset + PAGE_SIZE, length))
@@ -2888,6 +2918,7 @@ TEST_F(CSDataStore_test, ReadSnapshotChunkErrorTest2) {
         .Times(1);
     EXPECT_CALL(*lfs_, Close(3))
         .Times(1);
+    delete[] buf;
 }
 
 /**
@@ -3040,7 +3071,6 @@ TEST_F(CSDataStore_test, DeleteChunkTest4) {
     EXPECT_TRUE(dataStore->Initialize());
 
     ChunkID id = 2;
-    SequenceNum sn = 2;
 
     // case1
     {
@@ -3811,8 +3841,8 @@ TEST_F(CSDataStore_test, PasteChunkTest1) {
     SequenceNum correctedSn = 2;
     off_t offset = 0;
     size_t length = PAGE_SIZE;
-    char buf[length];  // NOLINT
-    memset(buf, 0, sizeof(buf));
+    char *buf = new char[length];
+    memset(buf, 0, length);
     CSChunkInfo info;
     // 创建 clone chunk
     {
@@ -4013,6 +4043,7 @@ TEST_F(CSDataStore_test, PasteChunkTest1) {
         .Times(1);
     EXPECT_CALL(*lfs_, Close(4))
         .Times(1);
+    delete[] buf;
 }
 
 /*
@@ -4032,8 +4063,8 @@ TEST_F(CSDataStore_test, PasteChunkErrorTest1) {
     SequenceNum correctedSn = 2;
     off_t offset = 0;
     size_t length = PAGE_SIZE;
-    char buf[length];  // NOLINT
-    memset(buf, 0, sizeof(buf));
+    char *buf = new char[length];
+    memset(buf, 0, length);
     CSChunkInfo info;
     // 创建 clone chunk
     {
@@ -4118,6 +4149,7 @@ TEST_F(CSDataStore_test, PasteChunkErrorTest1) {
         .Times(1);
     EXPECT_CALL(*lfs_, Close(4))
         .Times(1);
+    delete[] buf;
 }
 
 /*
@@ -4156,8 +4188,6 @@ TEST_F(CSDataStore_test, GetHashErrorTest2) {
 
     ChunkID id = 1;
     std::string hash;
-    off_t offset = 0;
-    size_t length = PAGE_SIZE + CHUNK_SIZE;
     // test read chunk failed
     EXPECT_CALL(*lfs_, Read(1, NotNull(), 0, 4096))
         .WillOnce(Return(-UT_ERRNO));
@@ -4203,10 +4233,9 @@ TEST_F(CSDataStore_test, CloneChunkUnAlignedTest) {
     ChunkID id = 3;
     SequenceNum sn = 2;
     SequenceNum correctedSn = 3;
-    off_t offset = 0;
     size_t length = PAGE_SIZE;
-    char buf[length];  // NOLINT
-    memset(buf, 0, sizeof(buf));
+    char *buf = new char[length];
+    memset(buf, 0, length);
     CSChunkInfo info;
     // 创建 clone chunk
     {
@@ -4370,6 +4399,7 @@ TEST_F(CSDataStore_test, CloneChunkUnAlignedTest) {
         .Times(1);
     EXPECT_CALL(*lfs_, Close(4))
         .Times(1);
+    delete[] buf;
 }
 
 TEST_F(CSDataStore_test, CloneChunkAlignedTest) {
@@ -4382,8 +4412,8 @@ TEST_F(CSDataStore_test, CloneChunkAlignedTest) {
     SequenceNum correctedSn = 3;
     off_t offset = 0;
     size_t length = PAGE_SIZE;
-    char buf[length];  // NOLINT
-    memset(buf, 0, sizeof(buf));
+    char *buf = new char[length];
+    memset(buf, 0, length);
     CSChunkInfo info;
     // 创建 clone chunk
     {
@@ -4468,6 +4498,7 @@ TEST_F(CSDataStore_test, CloneChunkAlignedTest) {
         .Times(1);
     EXPECT_CALL(*lfs_, Close(4))
         .Times(1);
+    delete[] buf;
 }
 
 TEST_F(CSDataStore_test, NormalChunkAlignmentTest) {
@@ -4477,10 +4508,9 @@ TEST_F(CSDataStore_test, NormalChunkAlignmentTest) {
 
     ChunkID id = 2;
     SequenceNum sn = 2;
-    off_t offset = 0;
     size_t length = 512;
-    char buf[length];  // NOLINT
-    memset(buf, 0, sizeof(buf));
+    char *buf = new char[length];
+    memset(buf, 0, length);
 
     // write unaligned test
     {
@@ -4546,6 +4576,7 @@ TEST_F(CSDataStore_test, NormalChunkAlignmentTest) {
         .Times(1);
     EXPECT_CALL(*lfs_, Close(3))
         .Times(1);
+    delete[] buf;
 }
 
 }  // namespace chunkserver

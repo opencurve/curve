@@ -157,6 +157,9 @@ func (lCmd *LogicalPoolCommand) RunCommand(cmd *cobra.Command, args []string) er
 	rows := make([]map[string]string, 0)
 	var errors []*cmderror.CmdError
 	for _, res := range results {
+		if res == nil {
+			continue
+		}
 		infos := res.(*topology.ListLogicalPoolResponse)
 		for _, loPoolInfo := range infos.GetLogicalPoolInfos() {
 			row := make(map[string]string)

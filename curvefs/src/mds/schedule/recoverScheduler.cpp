@@ -71,7 +71,7 @@ int RecoverScheduler::Schedule() {
         // alarm if over half of the replicas are offline
         int deadBound =
             copysetInfo.peers.size() - (copysetInfo.peers.size() / 2 + 1);
-        if (offlinelists.size() > deadBound) {
+        if (static_cast<int>(offlinelists.size()) > deadBound) {
             LOG(ERROR) << "recoverSchdeuler find "
                        << copysetInfo.CopySetInfoStr() << " has "
                        << offlinelists.size()

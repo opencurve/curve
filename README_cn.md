@@ -4,7 +4,9 @@
 
 <div align=center> <image src="docs/images/cncf-icon-color.png" width = 8%>
 
-**A cloud-native distributed storage system**
+**云原生高性能分布式存储系统**
+
+**CNCF基金会的沙箱托管项目**
 
 #### [English](README.md) | 简体中文
 ### 📄 [文档](https://github.com/opencurve/curve/tree/master/docs) || 🌐 [官网](https://www.opencurve.io/Curve/HOME) || 🏠 [论坛](https://ask.opencurve.io/t/topic/7)
@@ -225,6 +227,7 @@ $ ./fio --thread --rw=randwrite --bs=4k --ioengine=nebd --nebd=cbd:pool//pfstest
 
 ## 最佳实践
 - [CurveBS+NFS搭建NFS存储](docs/practical/curvebs_nfs.md)
+- [CurveFS+S3网关部署实践](https://github.com/opencurve/curve-meetup-slides/blob/main/PrePaper/2023/%E6%94%AF%E6%8C%81POSIX%E5%92%8CS3%E7%BB%9F%E4%B8%80%E5%91%BD%E5%90%8D%E7%A9%BA%E9%97%B4%E2%80%94%E2%80%94Curve%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9FS3%E7%BD%91%E5%85%B3%E9%83%A8%E7%BD%B2%E5%AE%9E%E8%B7%B5.md)
 
 ##  行为守则
 Curve 的行为守则遵循[CNCF Code of Conduct](https://github.com/cncf/foundation/blob/master/code-of-conduct.md)。

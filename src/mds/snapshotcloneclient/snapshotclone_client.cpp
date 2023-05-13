@@ -24,32 +24,32 @@
 #include <brpc/channel.h>
 #include <json/json.h>
 
-using curve::snapshotcloneserver::kServiceName;
+#include <memory>
+
 using curve::snapshotcloneserver::kActionStr;
-using curve::snapshotcloneserver::kGetCloneRefStatusAction;
-using curve::snapshotcloneserver::kVersionStr;
-using curve::snapshotcloneserver::kUserStr;
-using curve::snapshotcloneserver::kSourceStr;
-using curve::snapshotcloneserver::kCodeStr;
-using curve::snapshotcloneserver::kRefStatusStr;
-using curve::snapshotcloneserver::kTotalCountStr;
 using curve::snapshotcloneserver::kCloneFileInfoStr;
+using curve::snapshotcloneserver::kCodeStr;
 using curve::snapshotcloneserver::kFileStr;
+using curve::snapshotcloneserver::kGetCloneRefStatusAction;
 using curve::snapshotcloneserver::kInodeStr;
+using curve::snapshotcloneserver::kRefStatusStr;
+using curve::snapshotcloneserver::kServiceName;
+using curve::snapshotcloneserver::kSourceStr;
+using curve::snapshotcloneserver::kTotalCountStr;
+using curve::snapshotcloneserver::kUserStr;
+using curve::snapshotcloneserver::kVersionStr;
 
 
 namespace curve {
 namespace mds {
 namespace snapshotcloneclient {
 
-StatusCode SnapshotCloneClient::GetCloneRefStatus(std::string filename,
-                                    std::string user,
-                                    CloneRefStatus *status,
-                                    std::vector<DestFileInfo> *fileCheckList) {
+StatusCode SnapshotCloneClient::GetCloneRefStatus(
+    std::string filename, std::string user, CloneRefStatus *status,
+    std::vector<DestFileInfo> *fileCheckList) {
     if (!inited_) {
         LOG(WARNING) << "GetCloneRefStatus, snapshot clone server not inited"
-                     << ", filename = " << filename
-                     << ", user = " << user;
+                     << ", filename = " << filename << ", user = " << user;
         return StatusCode::kSnapshotCloneServerNotInit;
     }
 
@@ -57,17 +57,13 @@ StatusCode SnapshotCloneClient::GetCloneRefStatus(std::string filename,
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = addr_
-                    + "/" + kServiceName + "?"
-                    + kActionStr+ "=" + kGetCloneRefStatusAction + "&"
-                    + kVersionStr + "=1&"
-                    + kUserStr + "=" + user + "&"
-                    + kSourceStr + "=" + filename;
+    std::string url = addr_ + "/" + kServiceName + "?" + kActionStr + "=" +
+                      kGetCloneRefStatusAction + "&" + kVersionStr + "=1&" +
+                      kUserStr + "=" + user + "&" + kSourceStr + "=" + filename;
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         LOG(ERROR) << "GetCloneRefStatus, Fail to init channel, url is " << url
-                   << ", filename = " << filename
-                   << ", user = " << user;
+                   << ", filename = " << filename << ", user = " << user;
         return StatusCode::kSnapshotCloneConnectFail;
     }
 
@@ -77,8 +73,7 @@ StatusCode SnapshotCloneClient::GetCloneRefStatus(std::string filename,
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
     if (cntl.Failed()) {
         LOG(ERROR) << "GetCloneRefStatus, CallMethod faile, errMsg :"
-                   << cntl.ErrorText()
-                   << ", filename = " << filename
+                   << cntl.ErrorText() << ", filename = " << filename
                    << ", user = " << user;
         return StatusCode::KInternalError;
     }
@@ -86,12 +81,16 @@ StatusCode SnapshotCloneClient::GetCloneRefStatus(std::string filename,
     std::stringstream ss;
     ss << cntl.response_attachment();
     std::string data = ss.str();
-    Json::Reader jsonReader;
+
+    Json::CharReaderBuilder jsonBuilder;
+    std::unique_ptr<Json::CharReader> jsonReader(jsonBuilder.newCharReader());
     Json::Value jsonObj;
-    if (!jsonReader.parse(data, jsonObj)) {
+    JSONCPP_STRING errormsg;
+    if (!jsonReader->parse(data.data(), data.data() + data.length(), &jsonObj,
+                           &errormsg)) {
         LOG(ERROR) << "GetCloneRefStatus, parse json fail, data = " << data
-                   << ", filename = " << filename
-                   << ", user = " << user;
+                   << ", filename = " << filename << ", user = " << user
+                   << ", error = " << errormsg;
         return StatusCode::KInternalError;
     }
 
@@ -100,27 +99,24 @@ StatusCode SnapshotCloneClient::GetCloneRefStatus(std::string filename,
     std::string requestCode = jsonObj[kCodeStr].asCString();
     if (requestCode != "0") {
         LOG(ERROR) << "GetCloneRefStatus, Code is not 0, data = " << data
-                   << ", filename = " << filename
-                   << ", user = " << user;
+                   << ", filename = " << filename << ", user = " << user;
         return StatusCode::KInternalError;
     }
 
     CloneRefStatus tempStatus =
-            static_cast<CloneRefStatus>(jsonObj[kRefStatusStr].asInt());
+        static_cast<CloneRefStatus>(jsonObj[kRefStatusStr].asInt());
     *status = tempStatus;
-    if (tempStatus == CloneRefStatus::kNoRef
-        || tempStatus == CloneRefStatus::kHasRef) {
+    if (tempStatus == CloneRefStatus::kNoRef ||
+        tempStatus == CloneRefStatus::kHasRef) {
         return StatusCode::kOK;
     }
 
     if (tempStatus != CloneRefStatus::kNeedCheck) {
         LOG(ERROR) << "GetCloneRefStatus, invalid status, data = " << data
-                   << ", filename = " << filename
-                   << ", user = " << user;
+                   << ", filename = " << filename << ", user = " << user;
         return StatusCode::KInternalError;
     }
 
-    int totalCount = jsonObj[kTotalCountStr].asInt();
     int listSize = jsonObj[kCloneFileInfoStr].size();
     for (int i = 0; i < listSize; i++) {
         DestFileInfo file;
@@ -138,10 +134,7 @@ void SnapshotCloneClient::Init(const SnapshotCloneClientOption &option) {
     }
 }
 
-bool SnapshotCloneClient::GetInitStatus() {
-    return inited_;
-}
+bool SnapshotCloneClient::GetInitStatus() { return inited_; }
 }  // namespace snapshotcloneclient
 }  // namespace mds
 }  // namespace curve
-

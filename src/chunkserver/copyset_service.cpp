@@ -84,6 +84,7 @@ void CopysetServiceImpl::CreateCopysetNode2(RpcController *controller,
                                             const CopysetRequest2 *request,
                                             CopysetResponse2 *response,
                                             Closure *done) {
+    (void)controller;
     brpc::ClosureGuard doneGuard(done);
 
     Copyset copyset;
@@ -138,6 +139,7 @@ void CopysetServiceImpl::DeleteBrokenCopyset(RpcController* controller,
                                              const CopysetRequest* request,
                                              CopysetResponse* response,
                                              Closure* done) {
+    (void)controller;
     LOG(INFO) << "Receive delete broken copyset request";
 
     brpc::ClosureGuard doneGuard(done);
@@ -163,6 +165,7 @@ void CopysetServiceImpl::GetCopysetStatus(RpcController *controller,
                                         const CopysetStatusRequest *request,
                                         CopysetStatusResponse *response,
                                         Closure *done) {
+    (void)controller;
     brpc::ClosureGuard doneGuard(done);
 
     LOG(INFO) << "Received GetCopysetStatus request: "

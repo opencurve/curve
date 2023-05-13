@@ -50,19 +50,30 @@ A tool for CurveFS & CurveBs.
         - [list space](#list-space)
     - [query](#query-1)
         - [query file](#query-file)
+    - [clean-recycle](#clean-recycle)
         - [query chunk](#query-chunk)
         - [query segment](#query-segment)
     - [status](#status-1)
-      - [staus etcd](#staus-etcd)
-      - [staus mds](#staus-mds)
+      - [status etcd](#status-etcd-1)
+      - [status mds](#status-mds-1)
+      - [status client](#status-client)
+      - [status snapshotserver](#status-snapshotserver)
     - [delete](#delete-1)
       - [delete peer](#delete-peer)
     - [update](#update)
       - [update peer](#update-peer)
       - [update file](#update-file)
+      - [update throttle](#update-throttle)
+      - [update leader](#update-leader)
+      - [update scan-state](#update-scan-state)
     - [create](#create-1)
       - [create file](#create-file)
       - [create dir](#create-dir)
+    - [check](#check-1)
+      - [check copyset](#check-copyset-1)
+    - [snapshot](#snapshot)
+      - [snapshot copyset](#snapshot-copyset)
+    - [clean-recycle](#clean-recycle)
   - [Comparison of old and new commands](#comparison-of-old-and-new-commands)
     - [curve fs](#curve-fs)
     - [curve bs](#curve-bs)
@@ -94,7 +105,7 @@ wget https://curve-tool.nos-eastchina1.126.net/config/curve.yaml
 Please modify the `mdsAddr, mdsDummyAddr, etcdAddr` under `curvefs/bs` in the template.yaml file as required
 
 ```bash
-mv template.yaml ~/.curve/curve.yaml
+mv curve.yaml ~/.curve/curve.yaml
 ```
 
 ### Introduction
@@ -936,6 +947,26 @@ Output:
 +------+------+----------------+-------+--------+---------+--------+-----+---------------------+--------------+---------+-----------------+----------+
 ```
 
+### clean-recycle
+
+clean the recycle bin 
+
+Usage:
+
+```bash
+curve bs clean-recycle --recycleprefix=/test --expiredtime=1h
+```
+
+Output:
+
+```bash
++---------+
+| RESULT  | 
++---------+
+| success |        
++---------+
+```
+
 ##### query chunk
 
 query the location of the chunk corresponding to the offset
@@ -988,9 +1019,9 @@ Output:
 
 ### status
 
-#### staus etcd
+#### status etcd
 
-get the etcd status of curvefs
+get the etcd status of curvebs
 
 Usage:
 
@@ -1012,9 +1043,9 @@ Output:
 +---------------------+---------+----------+
 ```
 
-#### staus mds
+#### status mds
 
-get the mds status of curvefs
+get the mds status of curvebs
 
 Usage:
 
@@ -1035,6 +1066,54 @@ Output:
 | **.***.**.**:**** | **.***.**.**:**** |                   | leader   |
 +-------------------+-------------------+-------------------+----------+
 ```
+
+
+#### status client
+
+get the client status of curvebs
+
+Usage:
+
+```bash
+curve bs status client
+```
+
+Output:
+
+```bash
++-------------+----------------+---------------------+-----+
+|    TYPE     |    VERSION     |        ADDR         | NUM |
++-------------+----------------+---------------------+-----+
+| nebd-server | 9.9.9+2c4861ca | ***.***.**.***:**** | 2   |
++             +                +---------------------+     +
+|             |                | ***.***.**.***:**** |     |
++-------------+----------------+---------------------+-----+
+```
+
+#### status snapshotserver
+
+get the mds status of curvebs
+
+Usage:
+
+```bash
+curve bs status snapshotserver
+```
+
+Output:
+
+```bash
++---------------------+---------------------+-------------------+----------+
+|        ADDR         |      DUMMYADDR      |    VERSION        |  STATUS  |
++---------------------+---------------------+-------------------+----------+
+| ***.***.**.***:**** | ***.***.**.***:**** | ci+562296c7+debug | follower |
++---------------------+---------------------+                   +          +
+| ***.***.**.***:**** | ***.***.**.***:**** |                   |          |
++---------------------+---------------------+                   +----------+
+| ***.***.**.***:**** | ***.***.**.***:**** |                   | leader   |
++---------------------+---------------------+-------------------+----------+
+```
+
 
 ### delete
 
@@ -1080,6 +1159,24 @@ Output:
 +----------------------+---------+---------+--------+
 ```
 
+#### update leader
+
+transfer leader
+
+Usage:
+```bash
+curve bs update leader 127.0.0.1:8202:0 --logicalpoolid=1 --copysetid=1 --peers=127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0
+```
+
+Output:
+```
++-----------------------+-----------------------+---------+---------+
+|        LEADER         |       OLDLEADER       | COPYSET | RESULT  |
++-----------------------+-----------------------+---------+---------+
+| ***.***.**.***:****:* | ***.***.**.***:****:* | (1:1)   | success |
++-----------------------+-----------------------+---------+---------+
+```
+
 #### update file
 
 expand pagefile
@@ -1096,6 +1193,42 @@ Output:
 +---------+
 | success |
 +---------+
+```
+
+#### update throttle
+
+update file throttle params
+
+Usage:
+```bash
+curve bs update throttle --path /test1 --type=bps_total --limit 20000
+```
+
+Output:
+```
++---------+
+| RESULT  |
++---------+
+| success |
++---------+
+```
+
+#### update scan-state
+
+enable/disable scan for logical pool
+
+Usage:
+```bash
+curve bs update scan-state --logicalpoolid 1 [--scan=true/false]
+```
+
+Output:
+```
++----+------+---------+--------+
+| ID | SCAN | RESULT  | REASON |
++----+------+---------+--------+
+| 1  | true | success | null   |
++----+------+---------+--------+
 ```
 
 ### create
@@ -1136,6 +1269,48 @@ Output:
 +---------+
 ```
 
+### check
+
+#### check copyset
+
+check copysets health in curvebs
+
+Usage:
+
+```shell
+curve bs check copyset --copysetid 1 --logicalpoolid 1
+```
+
+Output:
+
+```shell
++------------+-----------+--------+--------+--------+---------+
+| COPYSETKEY | COPYSETID | POOLID | STATUS | LOGGAP | EXPLAIN |
++------------+-----------+--------+--------+--------+---------+
+| 4294967297 | 1         | 1      | ok     | 0      |         |
++------------+-----------+--------+--------+--------+---------+
+```
+
+### snapshot
+
+#### snapshot copyset
+
+take snapshot for copyset
+
+Usage:
+```bash
+curve bs snapshot copyset 127.0.0.0:8200:0 --logicalpoolid=1 --copysetid=1
+```
+
+Output:
+```
++-----------------------+---------+---------+
+|         PEER          | COPYSET | RESULT  |
++-----------------------+---------+---------+
+| ***.***.**.***:****:* | (**:**) | success |
++-----------------------+---------+---------+
+```
+
 ## Comparison of old and new commands
 
 ### curve fs
@@ -1166,41 +1341,40 @@ Output:
 
 ### curve bs
 
-| old                              | new                        |
-| -------------------------------- | -------------------------- |
-| curve_ops_tool logical-pool-list | curve bs list logical-pool |
-| curve_ops_tool get -fileName=    | curve bs query file -path  |
-| curve_ops_tool etcd-status       | curve bs status etcd       |
-| curve_ops_tool mds-status        | curve bs status mds        |
-| curve_ops_tool server-list       | curve bs list server       |
-| curve_ops_tool client-list       | curve bs list client       |
-| curve_ops_tool delete            | curve bs delete file       |
-| curve_ops_tool list              | curve bs list dir          |
-| create                           | curve bs create file/dir   |
-| seginfo                          | curve bs query seginfo     |
-| chunk-location                   | curve bs query chunk       |
-| remove-peer                      | curve bs delete peer       |
-| reset-peer                       | curve bs update peer       |
-| space                            | curve bs list space        |
-| status                           |                            |
-| chunkserver-status               |                            |
-| client-status                    |                            |
-| snapshot-clone-status            |                            |
-| copysets-status                  |                            |
-| chunkserver-list                 |                            |
-| cluster-status                   |                            |
-| clean-recycle                    |                            |
-| check-consistency                |                            |
-| transfer-leader                  |                            |
-| do-snapshot                      |                            |
-| do-snapshot-all                  |                            |
-| check-chunkserver                |                            |
-| check-copyset                    |                            |
-| check-server                     |                            |
-| check-operator                   |                            |
-| list-may-broken-vol              |                            |
-| set-copyset-availflag            |                            |
-| update-throttle                  |                            |
-| rapid-leader-schedule            |                            |
-| set-scan-state                   |                            |
-| scan-status                      |                            |
+| old                                  | new                            |
+| ------------------------------------ | ------------------------------ |
+| curve_ops_tool logical-pool-list     | curve bs list logical-pool     |
+| curve_ops_tool get -fileName=        | curve bs query file -path      |
+| curve_ops_tool etcd-status           | curve bs status etcd           |
+| curve_ops_tool mds-status            | curve bs status mds            |
+| curve_ops_tool server-list           | curve bs list server           |
+| curve_ops_tool client-list           | curve bs list client           |
+| curve_ops_tool delete                | curve bs delete file           |
+| curve_ops_tool list                  | curve bs list dir              |
+| curve_ops_tool create                | curve bs create file/dir       |
+| curve_ops_tool seginfo               | curve bs query seginfo         |
+| curve_ops_tool chunk-location        | curve bs query chunk           |
+| curve_ops_tool remove-peer           | curve bs delete peer           |
+| curve_ops_tool reset-peer            | curve bs update peer           |
+| curve_ops_tool space                 | curve bs list space            |
+| curve_ops_tool update-throttle       | curve bs update throttle       |
+| curve_ops_tool check-copyset         | curve bs check copyset         |
+| curve_ops_tool client-status         | curve bs status client         |
+| curve_ops_tool check-operator        | curve bs check operator        |
+| curve_ops_tool snapshot-clone-status | curve bs status snapshotserver |
+| curve_ops_tool transfer-leader       | curve bs update leader         |
+| curve_ops_tool do-snapshot           | curve bs snapshot copyset      |
+| curve_ops_tool set-scan-state        | curve bs update scan-state     |
+| curve_ops_tool status                |                                |
+| curve_ops_tool chunkserver-status    |                                |
+| curve_ops_tool copysets-status       |                                |
+| curve_ops_tool chunkserver-list      |                                |
+| curve_ops_tool clean-recycle         |                                |
+| curve_ops_tool check-consistency     |                                |
+| curve_ops_tool do-snapshot-all       |                                |
+| curve_ops_tool check-chunkserver     |                                |
+| curve_ops_tool check-server          |                                |
+| curve_ops_tool list-may-broken-vol   |                                |
+| curve_ops_tool set-copyset-availflag |                                |
+| curve_ops_tool rapid-leader-schedule |                                |
+| curve_ops_tool scan-status           |                                |

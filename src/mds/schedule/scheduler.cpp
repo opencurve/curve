@@ -116,7 +116,7 @@ ChunkServerIdType Scheduler::SelectBestPlacementChunkServer(
                    << " invalid";
         return UNINTIALIZE_ID;
     }
-    if (excludeZones.size() >= standardZoneNum) {
+    if (static_cast<int>(excludeZones.size()) >= standardZoneNum) {
         excludeZones.clear();
     }
 
@@ -210,7 +210,7 @@ ChunkServerIdType Scheduler::SelectRedundantReplicaToRemove(
                    " replicaNum must >=0, please check";
         return UNINTIALIZE_ID;
     }
-    if (copySetInfo.peers.size() <= standardReplicaNum) {
+    if (static_cast<int>(copySetInfo.peers.size()) <= standardReplicaNum) {
         LOG(ERROR) << "topoAdapter cannot select redundent replica for "
                    << copySetInfo.CopySetInfoStr() << ", beacuse replicaNum "
                    << copySetInfo.peers.size()
@@ -242,7 +242,7 @@ ChunkServerIdType Scheduler::SelectRedundantReplicaToRemove(
 
     // 1. alarm if the zone number is lass than the standard
     // TODO(lixiaocui): adjust by adding or deleting replica in this case
-    if (zoneList.size() < standardZoneNum) {
+    if (static_cast<int>(zoneList.size()) < standardZoneNum) {
         LOG(ERROR) << "topoAdapter find " << copySetInfo.CopySetInfoStr()
                    << " replicas distribute in "
                    << zoneList.size() << " zones, less than standard zoneNum "
@@ -265,7 +265,7 @@ ChunkServerIdType Scheduler::SelectRedundantReplicaToRemove(
     std::vector<ChunkServerIdType> candidateChunkServer;
     for (auto item : zoneList) {
         if (item.second.size() == 1) {
-            if (zoneList.size() == standardZoneNum) {
+            if (static_cast<int>(zoneList.size()) == standardZoneNum) {
                 continue;
             }
         }

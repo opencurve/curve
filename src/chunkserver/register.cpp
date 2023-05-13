@@ -53,8 +53,8 @@ Register::Register(const RegisterOptions &ops) {
 }
 
 int Register::RegisterToMDS(const ChunkServerMetadata *localMetadata,
-    ChunkServerMetadata *metadata,
-    const std::shared_ptr<EpochMap> &epochMap) {
+                            ChunkServerMetadata *metadata,
+                            const std::shared_ptr<EpochMap> &epochMap) {
     ::curve::mds::topology::ChunkServerRegistRequest req;
     ::curve::mds::topology::ChunkServerRegistResponse resp;
     req.set_disktype(ops_.chunkserverDiskType);
@@ -65,7 +65,7 @@ int Register::RegisterToMDS(const ChunkServerMetadata *localMetadata,
     }
     req.set_port(ops_.chunkserverPort);
     uint64_t chunkPoolSize = ops_.chunkFilepool->Size() *
-                ops_.chunkFilepool->GetFilePoolOpt().fileSize;
+                             ops_.chunkFilepool->GetFilePoolOpt().fileSize;
     req.set_chunkfilepoolsize(chunkPoolSize);
     if (ops_.chunkFilepool->GetFilePoolOpt().getFileFromPool) {
         req.set_usechunkfilepoolaswalpool(ops_.useChunkFilePoolAsWalPool);
@@ -107,8 +107,7 @@ int Register::RegisterToMDS(const ChunkServerMetadata *localMetadata,
             break;
         } else {
             LOG(ERROR) << ops_.chunkserverInternalIp << ":"
-                       << ops_.chunkserverPort
-                       << " Fail to register to MDS "
+                       << ops_.chunkserverPort << " Fail to register to MDS "
                        << mdsEps_[inServiceIndex_]
                        << ", cntl errorCode: " << cntl.ErrorCode() << ","
                        << " cntl error: " << cntl.ErrorText() << ","
@@ -131,8 +130,8 @@ int Register::RegisterToMDS(const ChunkServerMetadata *localMetadata,
     }
 
     if (resp.epochmap_size() != 0) {
-        for (auto it = resp.epochmap().begin();
-            it != resp.epochmap().end(); it++) {
+        for (auto it = resp.epochmap().begin(); it != resp.epochmap().end();
+             it++) {
             epochMap->UpdateEpoch(it->first, it->second);
         }
     }
@@ -173,8 +172,8 @@ int Register::PersistChunkServerMeta(const ChunkServerMetadata &metadata) {
         return -1;
     }
 
-    if (ops_.fs->Write(
-        fd, metaStr.c_str(), 0, metaStr.size()) < metaStr.size()) {
+    if (ops_.fs->Write(fd, metaStr.c_str(), 0, metaStr.size()) <
+        static_cast<int>(metaStr.size())) {
         LOG(ERROR) << "Failed to write chunkserver metadata file";
         return -1;
     }

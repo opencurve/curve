@@ -75,10 +75,10 @@ CopysetNode::CopysetNode(const LogicPoolID &logicPoolId,
     chunkDataRpath_(),
     appliedIndex_(0),
     leaderTerm_(-1),
+    configChange_(std::make_shared<ConfigurationChange>()),
+    lastSnapshotIndex_(0),
     scaning_(false),
     lastScanSec_(0),
-    lastSnapshotIndex_(0),
-    configChange_(std::make_shared<ConfigurationChange>()),
     enableOdsyncWhenOpenChunkFile_(false),
     isSyncing_(false),
     checkSyncingIntervalMs_(500) {
@@ -504,6 +504,7 @@ void CopysetNode::on_leader_start(int64_t term) {
 }
 
 void CopysetNode::on_leader_stop(const butil::Status &status) {
+    (void)status;
     leaderTerm_.store(-1, std::memory_order_release);
     ChunkServerMetric::GetInstance()->DecreaseLeaderCount();
     LOG(INFO) << "Copyset: " << GroupIdString()

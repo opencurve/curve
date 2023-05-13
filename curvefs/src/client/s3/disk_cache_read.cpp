@@ -47,7 +47,7 @@ int DiskCacheRead::ReadDiskFile(const std::string name, char *buf,
     VLOG(6) << "ReadDiskFile start. name = " << name << ", offset = " << offset
             << ", length = " << length;
     std::string fileFullPath;
-    int fd, ret;
+    int fd;
     fileFullPath = GetCacheIoFullDir() + "/" + name;
     fd = posixWrapper_->open(fileFullPath.c_str(), O_RDONLY, MODE);
     if (fd < 0) {
@@ -69,7 +69,7 @@ int DiskCacheRead::ReadDiskFile(const std::string name, char *buf,
         posixWrapper_->close(fd);
         return readLen;
     }
-    if (readLen < length) {
+    if (readLen < static_cast<ssize_t>(length)) {
         LOG(ERROR) << "read disk file is not entirely. read len = " << readLen
                    << ", but want len = " << length << ", file = " << name;
         posixWrapper_->close(fd);
@@ -148,7 +148,7 @@ int DiskCacheRead::WriteDiskFile(const std::string fileName, const char *buf,
         return fd;
     }
     ssize_t writeLen = posixWrapper_->write(fd, buf, length);
-    if (writeLen < 0 || writeLen < length) {
+    if (writeLen < static_cast<ssize_t>(length)) {
         LOG(ERROR) << "write disk file error. ret = " << writeLen
                    << ", file = " << fileName;
         posixWrapper_->close(fd);

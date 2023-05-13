@@ -90,7 +90,6 @@ bool ChunkserverHealthyChecker::ChunkServerStateNeedUpdate(
         return false;
     }
 
-    bool shouldOffline = true;
     if (OnlineState::OFFLINE != info.state) {
         LOG(WARNING) << "chunkserver " << info.csId << " is offline. "
                 << timePass / milliseconds(1) << "ms from last heartbeat";

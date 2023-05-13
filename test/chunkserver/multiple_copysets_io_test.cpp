@@ -145,7 +145,7 @@ int64_t chunk_size = 0;
 int64_t nr_chunks = 0;
 int64_t nr_copysets = 0;
 int64_t chunks_per_copyset = 0;
-ThreadInfo thread_infos[8] = {0};
+ThreadInfo thread_infos[8] = {};
 
 LogicPoolID poolId = 10000;
 CopysetID copysetIdBase = 100;
@@ -791,7 +791,7 @@ int main(int argc, char *argv[]) {
 
     clock_gettime(CLOCK_REALTIME, &t1);
 
-    ThreadInfo total_info = {0};
+    ThreadInfo total_info = {};
     total_info.io_time = time_diff(t0, t1);
     total_info.iodepth = FLAGS_iodepth;
     threads_stats(FLAGS_thread_num, &total_info);

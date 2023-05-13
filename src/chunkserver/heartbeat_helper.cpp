@@ -89,6 +89,7 @@ bool HeartbeatHelper::CopySetConfValid(
 
 bool HeartbeatHelper::NeedPurge(const butil::EndPoint &csEp,
     const CopySetConf &conf, const CopysetNodePtr &copyset) {
+    (void)copyset;
     // CLDCFS-1004 bug-fix: mds下发epoch为0, 配置为空的copyset
     if (0 == conf.epoch() && conf.peers().empty()) {
         LOG(INFO) << "Clean copyset "

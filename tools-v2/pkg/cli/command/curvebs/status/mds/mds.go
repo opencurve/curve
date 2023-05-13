@@ -59,8 +59,8 @@ func NewMdsCommand() *cobra.Command {
 }
 
 func (mCmd *MdsCommand) AddFlags() {
-	config.AddBsMdsFlagOption(mCmd.Cmd)
 	config.AddHttpTimeoutFlag(mCmd.Cmd)
+	config.AddBsMdsFlagOption(mCmd.Cmd)
 	config.AddBsMdsDummyFlagOption(mCmd.Cmd)
 }
 
@@ -84,6 +84,7 @@ func (mCmd *MdsCommand) Init(cmd *cobra.Command, args []string) error {
 	if addrErr.TypeCode() != cmderror.CODE_SUCCESS {
 		return fmt.Errorf(addrErr.Message)
 	}
+
 	for _, addr := range dummyAddrs {
 		// Use the dummy port to access the metric service
 		timeout := viper.GetDuration(config.VIPER_GLOBALE_HTTPTIMEOUT)
@@ -118,16 +119,20 @@ func (mCmd *MdsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 		size++
 		go func(m *basecmd.Metric) {
 			result, err := basecmd.QueryMetric(m)
+
 			var key string
+
 			if m.SubUri == STATUS_SUBURI {
 				key = "status"
 			} else {
 				key = "version"
 			}
+
 			var value string
 			if err.TypeCode() == cmderror.CODE_SUCCESS {
 				value, err = basecmd.GetMetricValue(result)
 			}
+
 			results <- basecmd.MetricResult{
 				Addr:  m.Addrs[0],
 				Key:   key,
@@ -157,11 +162,13 @@ func (mCmd *MdsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 			break
 		}
 	}
+
 	if len(errs) > 0 && len(errs) < len(mCmd.rows) {
 		mCmd.health = cobrautil.HEALTH_WARN
 	} else if len(errs) == 0 {
 		mCmd.health = cobrautil.HEALTH_OK
 	}
+
 	mergeErr := cmderror.MergeCmdErrorExceptSuccess(errs)
 	mCmd.Error = mergeErr
 	list := cobrautil.ListMap2ListSortByKeys(mCmd.rows, mCmd.Header, []string{
@@ -169,6 +176,7 @@ func (mCmd *MdsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	})
 	mCmd.TableNew.AppendBulk(list)
 	mCmd.Result = mCmd.rows
+
 	return nil
 }
 

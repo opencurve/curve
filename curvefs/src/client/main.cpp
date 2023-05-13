@@ -109,7 +109,7 @@ void extra_options_help() {
 
 std::string match_any_pattern(
     const std::unordered_map<std::string, char**>& patterns, const char* src) {
-    int src_len = strlen(src);
+    size_t src_len = strlen(src);
     for (const auto& pair : patterns) {
         const auto& pattern = pair.first;
         if (pattern.length() < src_len &&

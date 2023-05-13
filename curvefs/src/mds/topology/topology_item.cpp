@@ -24,6 +24,7 @@
 
 #include <string>
 #include <vector>
+#include <memory>
 
 #include "json/json.h"
 #include "src/common/string_util.h"
@@ -53,11 +54,15 @@ bool ClusterInformation::ParseFromString(const std::string &value) {
 
 bool Pool::TransRedundanceAndPlaceMentPolicyFromJsonStr(
     const std::string &jsonStr, RedundanceAndPlaceMentPolicy *rap) {
-    Json::Reader reader;
+    Json::CharReaderBuilder builder;
+    std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
     Json::Value rapJson;
-    if (!reader.parse(jsonStr, rapJson)) {
+    JSONCPP_STRING errormsg;
+    if (!reader->parse(jsonStr.data(), jsonStr.data() + jsonStr.length(),
+                       &rapJson, &errormsg)) {
         return false;
     }
+
     if (!rapJson["replicaNum"].isNull()) {
         rap->replicaNum = rapJson["replicaNum"].asInt();
     } else {
@@ -204,13 +209,17 @@ std::string CopySetInfo::GetCopySetMembersStr() const {
 }
 
 bool CopySetInfo::SetCopySetMembersByJson(const std::string &jsonStr) {
-    Json::Reader reader;
+    Json::CharReaderBuilder builder;
+    std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
     Json::Value copysetMemJson;
-    if (!reader.parse(jsonStr, copysetMemJson)) {
+    JSONCPP_STRING errormsg;
+    if (!reader->parse(jsonStr.data(), jsonStr.data() + jsonStr.length(),
+                       &copysetMemJson, &errormsg)) {
         return false;
     }
+
     peers_.clear();
-    for (int i = 0; i < copysetMemJson.size(); i++) {
+    for (uint32_t i = 0; i < copysetMemJson.size(); i++) {
         if (copysetMemJson[i].isInt()) {
             peers_.insert(copysetMemJson[i].asInt());
         } else {
@@ -299,14 +308,14 @@ common::PartitionInfo Partition::ToPartitionInfo() {
     return info;
 }
 
-bool MemcacheCluster::ParseFromString(const std::string& value) {
+bool MemcacheCluster::ParseFromString(const std::string &value) {
     MemcacheClusterInfo data;
     bool ret = data.ParseFromString(value);
     (*this) = static_cast<MemcacheCluster>(data);
     return ret;
 }
 
-bool MemcacheCluster::SerializeToString(std::string* value) const {
+bool MemcacheCluster::SerializeToString(std::string *value) const {
     return static_cast<MemcacheClusterInfo>(*this).SerializeToString(value);
 }
 

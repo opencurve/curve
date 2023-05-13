@@ -243,6 +243,7 @@ int NebdClient::Extend(int fd, int64_t newsize) {
     auto task = [&](brpc::Controller* cntl,
                     brpc::Channel* channel,
                     bool* rpcFailed) -> int64_t {
+        (void)channel;
         nebd::client::NebdFileService_Stub stub(&channel_);
         nebd::client::ResizeRequest request;
         nebd::client::ResizeResponse response;
@@ -359,7 +360,9 @@ int NebdClient::AioRead(int fd, NebdClientAioContext* aioctx) {
     return 0;
 }
 
-static void EmptyDeleter(void* m) {}
+static void EmptyDeleter(void* m) {
+    (void)m;
+}
 
 int NebdClient::AioWrite(int fd, NebdClientAioContext* aioctx) {
     auto task = [this, fd, aioctx]() {
@@ -622,6 +625,7 @@ void NebdClient::InitLogger(const LogOption& logOption) {
 
 int NebdClient::ExecAsyncRpcTask(void* meta,
                                  bthread::TaskIterator<AsyncRpcTask>& iter) {  // NOLINT
+    (void)meta;
     if (iter.is_queue_stopped()) {
         return 0;
     }

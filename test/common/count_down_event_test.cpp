@@ -85,7 +85,6 @@ TEST(CountDownEventTest, basic) {
         t1.join();
     }
     {
-        int i = 0;
         CountDownEvent cond(0);
         cond.WaitFor(1000);
     }

@@ -41,6 +41,8 @@ void SnapshotCloneServiceImpl::default_method(RpcController* cntl,
                     const HttpRequest* req,
                     HttpResponse* resp,
                     Closure* done) {
+    (void)req;
+    (void)resp;
     brpc::ClosureGuard done_guard(done);
     brpc::Controller* bcntl =
         static_cast<brpc::Controller*>(cntl);
@@ -913,7 +915,7 @@ void SnapshotCloneServiceImpl::HandleGetCloneRefStatusAction(
     if (refStatus == CloneRefStatus::kNeedCheck) {
         mainObj[kTotalCountStr] = cloneInfos.size();
         Json::Value listObj;
-        for (int i = 0; i < cloneInfos.size(); i++) {
+        for (size_t i = 0; i < cloneInfos.size(); i++) {
             Json::Value cloneTaskObj;
             cloneTaskObj[kUserStr] = cloneInfos[i].GetUser();
             cloneTaskObj[kFileStr] = cloneInfos[i].GetDest();

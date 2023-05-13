@@ -269,6 +269,8 @@ int CurveCli::DoSnapshot() {
 
 int CurveCli::DoSnapshot(uint32_t lgPoolId, uint32_t copysetId,
                          const curve::common::Peer& peer) {
+    (void)lgPoolId;
+    (void)copysetId;
     braft::cli::CliOptions opt;
     opt.timeout_ms = FLAGS_timeout_ms;
     opt.max_retry = FLAGS_max_retry;

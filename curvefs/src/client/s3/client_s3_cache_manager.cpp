@@ -23,6 +23,7 @@
 #include "curvefs/src/client/s3/client_s3_cache_manager.h"
 
 #include <bvar/bvar.h>
+#include <sys/types.h>
 #include <utility>
 
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
@@ -46,11 +47,11 @@ namespace curvefs {
 namespace client {
 
 void FsCacheManager::DataCacheNumInc() {
-        g_s3MultiManagerMetric->writeDataCacheNum << 1;
-        VLOG(9) << "DataCacheNumInc() v: 1,wDataCacheNum:"
-                << wDataCacheNum_.load(std::memory_order_relaxed);
-        wDataCacheNum_.fetch_add(1, std::memory_order_relaxed);
-    }
+    g_s3MultiManagerMetric->writeDataCacheNum << 1;
+    VLOG(9) << "DataCacheNumInc() v: 1,wDataCacheNum:"
+            << wDataCacheNum_.load(std::memory_order_relaxed);
+    wDataCacheNum_.fetch_add(1, std::memory_order_relaxed);
+}
 
 void FsCacheManager::DataCacheNumFetchSub(uint64_t v) {
     g_s3MultiManagerMetric->writeDataCacheNum << -1 * v;
@@ -137,7 +138,7 @@ bool FsCacheManager::Set(DataCachePtr dataCache,
 
         while (lruByte_ >= readCacheMaxByte_) {
             --iter;
-            auto& trim = *iter;
+            auto &trim = *iter;
             trim->SetReadCacheState(false);
             lruByte_ -= trim->GetActualLen();
             retiredBytes += trim->GetActualLen();
@@ -278,8 +279,7 @@ void FileCacheManager::WriteChunk(uint64_t index, uint64_t chunkPos,
         chunkCacheManager->WriteNewDataCache(s3ClientAdaptor_, chunkPos,
                                              writeLen, dataBuf);
     }
-    VLOG(9) << "WriteChunk end, index: " << index
-            << ", chunkPos: " << chunkPos;
+    VLOG(9) << "WriteChunk end, index: " << index << ", chunkPos: " << chunkPos;
     return;
 }
 
@@ -359,8 +359,7 @@ void FileCacheManager::ReadFromMemCache(
 
     *actualReadLen = dataBufferOffset;
 
-    VLOG_IF(3, memCacheMissRequest->empty())
-        << "greate! memory cache all hit.";
+    VLOG_IF(3, memCacheMissRequest->empty()) << "greate! memory cache all hit.";
 }
 
 int FileCacheManager::GenerateKVReuqest(
@@ -400,6 +399,8 @@ int FileCacheManager::GenerateKVReuqest(
 int FileCacheManager::HandleReadS3NotExist(
     int ret, uint32_t retry,
     const std::shared_ptr<InodeWrapper> &inodeWrapper) {
+    (void)ret;
+    (void)retry;
     uint32_t maxIntervalMs =
         s3ClientAdaptor_->GetMaxReadRetryIntervalMs();  // hardcode, fixme
     uint32_t retryIntervalMs = s3ClientAdaptor_->GetReadRetryIntervalMs();
@@ -426,7 +427,7 @@ int FileCacheManager::HandleReadS3NotExist(
 }
 
 int FileCacheManager::Read(uint64_t inodeId, uint64_t offset, uint64_t length,
-                            char *dataBuf) {
+                           char *dataBuf) {
     // 1. read from memory cache
     uint64_t actualReadLen = 0;
     std::vector<ReadRequest> memCacheMissRequest;
@@ -482,9 +483,9 @@ int FileCacheManager::Read(uint64_t inodeId, uint64_t offset, uint64_t length,
 }
 
 bool FileCacheManager::ReadKVRequestFromLocalCache(const std::string &name,
-                                                      char *databuf,
-                                                      uint64_t offset,
-                                                      uint64_t len) {
+                                                   char *databuf,
+                                                   uint64_t offset,
+                                                   uint64_t len) {
     uint64_t start = butil::cpuwide_time_us();
 
     bool mayCached = s3ClientAdaptor_->HasDiskCache() &&
@@ -517,6 +518,7 @@ bool FileCacheManager::ReadKVRequestFromRemoteCache(const std::string &name,
     auto task = std::make_shared<GetKVCacheTask>(name, databuf, offset, length);
     CountDownEvent event(1);
     task->done = [&](const std::shared_ptr<GetKVCacheTask> &task) {
+        (void)task;
         event.Signal();
         return;
     };
@@ -627,9 +629,9 @@ int FileCacheManager::ReadKVRequest(
 }
 
 void FileCacheManager::PrefetchForBlock(const S3ReadRequest &req,
-                                       uint64_t fileLen, uint64_t blockSize,
-                                       uint64_t chunkSize,
-                                       uint64_t startBlockIndex) {
+                                        uint64_t fileLen, uint64_t blockSize,
+                                        uint64_t chunkSize,
+                                        uint64_t startBlockIndex) {
     uint32_t prefetchBlocks = s3ClientAdaptor_->GetPrefetchBlocks();
     uint32_t objectPrefix = s3ClientAdaptor_->GetObjectPrefix();
     std::vector<std::pair<std::string, uint64_t>> prefetchObjs;
@@ -640,9 +642,8 @@ void FileCacheManager::PrefetchForBlock(const S3ReadRequest &req,
             req.chunkId, blockIndex, req.compaction,
             req.fsId, req.inodeId, objectPrefix);
         uint64_t maxReadLen = (blockIndex + 1) * blockSize;
-        uint64_t needReadLen = maxReadLen > fileLen
-                                   ? fileLen - blockIndex * blockSize
-                                   : blockSize;
+        uint64_t needReadLen =
+            maxReadLen > fileLen ? fileLen - blockIndex * blockSize : blockSize;
 
         prefetchObjs.push_back(std::make_pair(name, needReadLen));
 
@@ -663,7 +664,7 @@ class AsyncPrefetchCallback {
     void operator()(const S3Adapter *,
                     const std::shared_ptr<GetObjectAsyncContext> &context) {
         VLOG(9) << "prefetch end: " << context->key << ", len " << context->len
-                << "actual len: " <<  context->actualLen;
+                << "actual len: " << context->actualLen;
         std::unique_ptr<char[]> guard(context->buf);
         auto fileCache =
             s3Client_->GetFsCacheManager()->FindFileCacheManager(inode_);
@@ -683,8 +684,8 @@ class AsyncPrefetchCallback {
         int ret = s3Client_->GetDiskCacheManager()->WriteReadDirect(
             context->key, context->buf, context->actualLen);
         if (ret < 0) {
-            LOG_EVERY_SECOND(INFO) <<
-              "write read directly failed, key: " << context->key;
+            LOG_EVERY_SECOND(INFO)
+                << "write read directly failed, key: " << context->key;
         }
         {
             curve::common::LockGuard lg(fileCache->downloadMtx_);
@@ -982,7 +983,7 @@ void FileCacheManager::ReleaseCache() {
     WriteLockGuard writeLockGuard(rwLock_);
 
     uint64_t chunNum = chunkCacheMap_.size();
-    for (auto& chunk : chunkCacheMap_) {
+    for (auto &chunk : chunkCacheMap_) {
         chunk.second->ReleaseCache();
     }
 
@@ -1016,6 +1017,7 @@ void FileCacheManager::TruncateCache(uint64_t offset, uint64_t fileSize) {
 }
 
 CURVEFS_ERROR FileCacheManager::Flush(bool force, bool toS3) {
+    (void)toS3;
     // Todo: concurrent flushes within one file
     // instead of multiple file flushes may be better
     CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
@@ -1088,9 +1090,10 @@ CURVEFS_ERROR FileCacheManager::Flush(bool force, bool toS3) {
 }
 
 void ChunkCacheManager::ReadChunk(uint64_t index, uint64_t chunkPos,
-                                 uint64_t readLen, char *dataBuf,
-                                 uint64_t dataBufOffset,
-                                 std::vector<ReadRequest> *requests) {
+                                  uint64_t readLen, char *dataBuf,
+                                  uint64_t dataBufOffset,
+                                  std::vector<ReadRequest> *requests) {
+    (void)index;
     ReadLockGuard readLockGuard(rwLockChunk_);
     std::vector<ReadRequest> cacheMissWriteRequests, cacheMissFlushDataRequest;
     // read by write cache
@@ -1103,9 +1106,8 @@ void ChunkCacheManager::ReadChunk(uint64_t index, uint64_t chunkPos,
         // read by flushing data cache
         for (auto request : cacheMissWriteRequests) {
             std::vector<ReadRequest> tmpRequests;
-            ReadByFlushData(request.chunkPos, request.len,
-                                               dataBuf, request.bufOffset,
-                                               &tmpRequests);
+            ReadByFlushData(request.chunkPos, request.len, dataBuf,
+                            request.bufOffset, &tmpRequests);
             cacheMissFlushDataRequest.insert(cacheMissFlushDataRequest.end(),
                                              tmpRequests.begin(),
                                              tmpRequests.end());
@@ -1115,9 +1117,8 @@ void ChunkCacheManager::ReadChunk(uint64_t index, uint64_t chunkPos,
         // read by read cache
         for (auto request : cacheMissFlushDataRequest) {
             std::vector<ReadRequest> tmpRequests;
-            ReadByReadCache(request.chunkPos, request.len,
-                                               dataBuf, request.bufOffset,
-                                               &tmpRequests);
+            ReadByReadCache(request.chunkPos, request.len, dataBuf,
+                            request.bufOffset, &tmpRequests);
             requests->insert(requests->end(), tmpRequests.begin(),
                              tmpRequests.end());
         }
@@ -1128,11 +1129,10 @@ void ChunkCacheManager::ReadChunk(uint64_t index, uint64_t chunkPos,
     // read by read cache
     for (auto request : cacheMissWriteRequests) {
         std::vector<ReadRequest> tmpRequests;
-        ReadByReadCache(request.chunkPos, request.len,
-                                               dataBuf, request.bufOffset,
-                                               &tmpRequests);
+        ReadByReadCache(request.chunkPos, request.len, dataBuf,
+                        request.bufOffset, &tmpRequests);
         requests->insert(requests->end(), tmpRequests.begin(),
-                             tmpRequests.end());
+                         tmpRequests.end());
     }
 
     return;
@@ -1208,8 +1208,8 @@ void ChunkCacheManager::ReadByWriteCache(uint64_t chunkPos, uint64_t readLen,
                    ---------           DataCache
             */
             if (chunkPos + readLen <= dcChunkPos + dcLen) {
-                iter->second->CopyDataCacheToBuf(
-                    chunkPos - dcChunkPos, readLen, dataBuf + dataBufOffset);
+                iter->second->CopyDataCacheToBuf(chunkPos - dcChunkPos, readLen,
+                                                 dataBuf + dataBufOffset);
                 readLen = 0;
                 break;
                 /*
@@ -1218,8 +1218,8 @@ void ChunkCacheManager::ReadByWriteCache(uint64_t chunkPos, uint64_t readLen,
                 */
             } else {
                 iter->second->CopyDataCacheToBuf(chunkPos - dcChunkPos,
-                                                  dcChunkPos + dcLen - chunkPos,
-                                                  dataBuf + dataBufOffset);
+                                                 dcChunkPos + dcLen - chunkPos,
+                                                 dataBuf + dataBufOffset);
                 readLen = chunkPos + readLen - dcChunkPos - dcLen;
                 dataBufOffset = dcChunkPos + dcLen - chunkPos + dataBufOffset;
                 chunkPos = dcChunkPos + dcLen;
@@ -1314,7 +1314,7 @@ void ChunkCacheManager::ReadByReadCache(uint64_t chunkPos, uint64_t readLen,
             */
             if (chunkPos + readLen <= dcChunkPos + dcLen) {
                 dataCache->CopyDataCacheToBuf(chunkPos - dcChunkPos, readLen,
-                                                dataBuf + dataBufOffset);
+                                              dataBuf + dataBufOffset);
                 readLen = 0;
                 break;
                 /*
@@ -1323,8 +1323,8 @@ void ChunkCacheManager::ReadByReadCache(uint64_t chunkPos, uint64_t readLen,
                 */
             } else {
                 dataCache->CopyDataCacheToBuf(chunkPos - dcChunkPos,
-                                                dcChunkPos + dcLen - chunkPos,
-                                                dataBuf + dataBufOffset);
+                                              dcChunkPos + dcLen - chunkPos,
+                                              dataBuf + dataBufOffset);
                 readLen = chunkPos + readLen - dcChunkPos - dcLen;
                 dataBufOffset = dcChunkPos + dcLen - chunkPos + dataBufOffset;
                 chunkPos = dcChunkPos + dcLen;
@@ -1346,8 +1346,8 @@ void ChunkCacheManager::ReadByReadCache(uint64_t chunkPos, uint64_t readLen,
 }
 
 void ChunkCacheManager::ReadByFlushData(uint64_t chunkPos, uint64_t readLen,
-                                 char *dataBuf, uint64_t dataBufOffset,
-                                 std::vector<ReadRequest> *requests) {
+                                        char *dataBuf, uint64_t dataBufOffset,
+                                        std::vector<ReadRequest> *requests) {
     uint64_t dcChunkPos = flushingDataCache_->GetChunkPos();
     uint64_t dcLen = flushingDataCache_->GetLen();
     ReadRequest request;
@@ -1405,9 +1405,9 @@ void ChunkCacheManager::ReadByFlushData(uint64_t chunkPos, uint64_t readLen,
                    ---------                DataCache
             */
         } else {
-            flushingDataCache_->CopyDataCacheToBuf(chunkPos - dcChunkPos,
-                                             dcChunkPos + dcLen - chunkPos,
-                                             dataBuf + dataBufOffset);
+            flushingDataCache_->CopyDataCacheToBuf(
+                chunkPos - dcChunkPos, dcChunkPos + dcLen - chunkPos,
+                dataBuf + dataBufOffset);
             readLen = chunkPos + readLen - dcChunkPos - dcLen;
             dataBufOffset = dcChunkPos + dcLen - chunkPos + dataBufOffset;
             chunkPos = dcChunkPos + dcLen;
@@ -1525,18 +1525,15 @@ void ChunkCacheManager::AddReadDataCache(DataCachePtr dataCache) {
         uint64_t actualLen = (*dcpIter)->GetActualLen();
         if (s3ClientAdaptor_->GetFsCacheManager()->Delete(dcpIter)) {
             g_s3MultiManagerMetric->readDataCacheNum << -1;
-            g_s3MultiManagerMetric->readDataCacheByte
-                << -1 * actualLen;
+            g_s3MultiManagerMetric->readDataCacheByte << -1 * actualLen;
             dataRCacheMap_.erase(iter);
         }
     }
     std::list<DataCachePtr>::iterator outIter;
-    bool ret =
-        s3ClientAdaptor_->GetFsCacheManager()->Set(dataCache, &outIter);
+    bool ret = s3ClientAdaptor_->GetFsCacheManager()->Set(dataCache, &outIter);
     if (ret) {
         g_s3MultiManagerMetric->readDataCacheNum << 1;
-        g_s3MultiManagerMetric->readDataCacheByte
-            << dataCache->GetActualLen();
+        g_s3MultiManagerMetric->readDataCacheByte << dataCache->GetActualLen();
         dataRCacheMap_.emplace(chunkPos, outIter);
     }
 }
@@ -1550,7 +1547,7 @@ void ChunkCacheManager::ReleaseReadDataCache(uint64_t key) {
     }
     g_s3MultiManagerMetric->readDataCacheNum << -1;
     g_s3MultiManagerMetric->readDataCacheByte
-                << -1 * (*(iter->second))->GetActualLen();
+        << -1 * (*(iter->second))->GetActualLen();
     dataRCacheMap_.erase(iter);
     return;
 }
@@ -1620,8 +1617,7 @@ void ChunkCacheManager::TruncateReadCache(uint64_t chunkPos) {
         if ((dcChunkPos + dcLen) > chunkPos) {
             if (s3ClientAdaptor_->GetFsCacheManager()->Delete(rIter->second)) {
                 g_s3MultiManagerMetric->readDataCacheNum << -1;
-                g_s3MultiManagerMetric->readDataCacheByte
-                    << -1 * dcActualLen;
+                g_s3MultiManagerMetric->readDataCacheByte << -1 * dcActualLen;
                 dataRCacheMap_.erase(next(rIter).base());
             }
         } else {
@@ -1632,8 +1628,7 @@ void ChunkCacheManager::TruncateReadCache(uint64_t chunkPos) {
 
 void ChunkCacheManager::ReleaseWriteDataCache(const DataCachePtr &dataCache) {
     s3ClientAdaptor_->GetFsCacheManager()->DataCacheNumFetchSub(1);
-    VLOG(9) << "chunk flush DataCacheByteDec len:"
-            << dataCache->GetActualLen();
+    VLOG(9) << "chunk flush DataCacheByteDec len:" << dataCache->GetActualLen();
     s3ClientAdaptor_->GetFsCacheManager()->DataCacheByteDec(
         dataCache->GetActualLen());
     if (!s3ClientAdaptor_->GetFsCacheManager()->WriteCacheIsFull()) {
@@ -1713,7 +1708,7 @@ CURVEFS_ERROR ChunkCacheManager::Flush(uint64_t inodeId, bool force,
 }
 
 void ChunkCacheManager::UpdateWriteCacheMap(uint64_t oldChunkPos,
-                                           DataCache *pDataCache) {
+                                            DataCache *pDataCache) {
     auto iter = dataWCacheMap_.find(oldChunkPos);
     DataCachePtr datacache;
     if (iter != dataWCacheMap_.end()) {
@@ -1739,10 +1734,10 @@ void ChunkCacheManager::AddWriteDataCacheForTest(DataCachePtr dataCache) {
 DataCache::DataCache(S3ClientAdaptorImpl *s3ClientAdaptor,
                      ChunkCacheManagerPtr chunkCacheManager, uint64_t chunkPos,
                      uint64_t len, const char *data,
-              std::shared_ptr<KVClientManager> kvClientManager)
+                     std::shared_ptr<KVClientManager> kvClientManager)
     : s3ClientAdaptor_(std::move(s3ClientAdaptor)),
-      chunkCacheManager_(chunkCacheManager),
-      status_(DataCacheStatus::Dirty), inReadCache_(false) {
+      chunkCacheManager_(chunkCacheManager), status_(DataCacheStatus::Dirty),
+      inReadCache_(false) {
     uint64_t blockSize = s3ClientAdaptor->GetBlockSize();
     uint32_t pageSize = s3ClientAdaptor->GetPageSize();
     chunkPos_ = chunkPos;
@@ -1803,7 +1798,7 @@ DataCache::DataCache(S3ClientAdaptorImpl *s3ClientAdaptor,
 }
 
 void DataCache::CopyBufToDataCache(uint64_t dataCachePos, uint64_t len,
-                                    const char *data) {
+                                   const char *data) {
     uint64_t blockSize = s3ClientAdaptor_->GetBlockSize();
     uint32_t pageSize = s3ClientAdaptor_->GetPageSize();
     uint64_t pos = chunkPos_ + dataCachePos;
@@ -1944,7 +1939,7 @@ void DataCache::MergeDataCacheToDataCache(DataCachePtr mergeDataCache,
     char *data = nullptr;
     PageData *meragePage = nullptr;
     PageDataMap *pdMap = &dataMap_[blockIndex];
-    int n = 0;
+    uint64_t n = 0;
 
     VLOG(9) << "MergeDataCacheToDataCache dataOffset:" << dataOffset
             << ", len:" << len << ",dataCache chunkPos:" << chunkPos_
@@ -1996,10 +1991,8 @@ void DataCache::MergeDataCacheToDataCache(DataCachePtr mergeDataCache,
 
 void DataCache::Write(uint64_t chunkPos, uint64_t len, const char *data,
                       const std::vector<DataCachePtr> &mergeDataCacheVer) {
-    uint64_t totalSize = 0;
     uint64_t addByte = 0;
     uint64_t oldSize = 0;
-    uint32_t pageSize = s3ClientAdaptor_->GetPageSize();
     VLOG(9) << "DataCache Write() chunkPos:" << chunkPos << ",len:" << len
             << ",dataCache's chunkPos:" << chunkPos_
             << ",actualChunkPos:" << actualChunkPos_
@@ -2021,7 +2014,7 @@ void DataCache::Write(uint64_t chunkPos, uint64_t len, const char *data,
             chunkCacheManager_->rwLockWrite_.WRLock();
             oldSize = actualLen_;
             CopyBufToDataCache(0, chunkPos + len - chunkPos_,
-                                data + chunkPos_ - chunkPos);
+                               data + chunkPos_ - chunkPos);
             AddDataBefore(chunkPos_ - chunkPos, data);
             addByte = actualLen_ - oldSize;
             s3ClientAdaptor_->GetFsCacheManager()->DataCacheByteInc(addByte);
@@ -2041,7 +2034,7 @@ void DataCache::Write(uint64_t chunkPos, uint64_t len, const char *data,
                     chunkCacheManager_->rwLockWrite_.WRLock();
                     oldSize = actualLen_;
                     CopyBufToDataCache(0, chunkPos + len - chunkPos_,
-                                        data + chunkPos_ - chunkPos);
+                                       data + chunkPos_ - chunkPos);
                     MergeDataCacheToDataCache(
                         (*iter), chunkPos + len - (*iter)->GetChunkPos(),
                         (*iter)->GetChunkPos() + (*iter)->GetLen() - chunkPos -
@@ -2051,7 +2044,7 @@ void DataCache::Write(uint64_t chunkPos, uint64_t len, const char *data,
                     s3ClientAdaptor_->GetFsCacheManager()->DataCacheByteInc(
                         addByte);
                     chunkCacheManager_->UpdateWriteCacheMap(oldChunkPos, this);
-                     chunkCacheManager_->rwLockWrite_.Unlock();
+                    chunkCacheManager_->rwLockWrite_.Unlock();
                     return;
                 }
             }
@@ -2062,7 +2055,7 @@ void DataCache::Write(uint64_t chunkPos, uint64_t len, const char *data,
             chunkCacheManager_->rwLockWrite_.WRLock();
             oldSize = actualLen_;
             CopyBufToDataCache(0, chunkPos + len - chunkPos_,
-                                data + chunkPos_ - chunkPos);
+                               data + chunkPos_ - chunkPos);
             AddDataBefore(chunkPos_ - chunkPos, data);
             addByte = actualLen_ - oldSize;
             s3ClientAdaptor_->GetFsCacheManager()->DataCacheByteInc(addByte);
@@ -2181,7 +2174,7 @@ void DataCache::Truncate(uint64_t size) {
             ((chunkPos_ + len_ - actualChunkPos_) / pageSize + 1) * pageSize;
     }
     assert(tmpActualLen == actualLen_);
-    (void) tmpActualLen;
+    (void)tmpActualLen;
     return;
 }
 
@@ -2266,8 +2259,8 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool toS3) {
 
     // inode ship to flush
     std::shared_ptr<InodeWrapper> inodeWrapper;
-    ret = s3ClientAdaptor_->GetInodeCacheManager()->GetInode(
-        inodeId, inodeWrapper);
+    ret = s3ClientAdaptor_->GetInodeCacheManager()->GetInode(inodeId,
+                                                             inodeWrapper);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(WARNING) << "get inode fail, ret:" << ret;
         status_.store(DataCacheStatus::Dirty, std::memory_order_release);
@@ -2285,8 +2278,9 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool toS3) {
     return CURVEFS_ERROR::OK;
 }
 
-CURVEFS_ERROR DataCache::PrepareFlushTasks(uint64_t inodeId,
-    char *data, std::vector<std::shared_ptr<PutObjectAsyncContext>> *s3Tasks,
+CURVEFS_ERROR DataCache::PrepareFlushTasks(
+    uint64_t inodeId, char *data,
+    std::vector<std::shared_ptr<PutObjectAsyncContext>> *s3Tasks,
     std::vector<std::shared_ptr<SetKVCacheTask>> *kvCacheTasks,
     uint64_t *chunkId, uint64_t *writeOffset) {
     // allocate chunkid
@@ -2298,7 +2292,6 @@ CURVEFS_ERROR DataCache::PrepareFlushTasks(uint64_t inodeId,
     }
 
     // generate flush task
-    uint64_t chunkSize = s3ClientAdaptor_->GetChunkSize();
     uint64_t blockSize = s3ClientAdaptor_->GetBlockSize();
     uint32_t objectPrefix = s3ClientAdaptor_->GetObjectPrefix();
     uint64_t blockPos = chunkPos_ % blockSize;
@@ -2311,8 +2304,6 @@ CURVEFS_ERROR DataCache::PrepareFlushTasks(uint64_t inodeId,
         // generate flush to disk or s3 task
         std::string objectName = curvefs::common::s3util::GenObjName(
             *chunkId, blockIndex, 0, fsId, inodeId, objectPrefix);
-        int ret = 0;
-        uint64_t start = butil::cpuwide_time_us();
         auto context = std::make_shared<PutObjectAsyncContext>();
         context->key = objectName;
         context->buffer = data + (*writeOffset);
@@ -2389,6 +2380,7 @@ void DataCache::FlushTaskExecute(
         };
 
     SetKVCacheDone kvdone = [&](const std::shared_ptr<SetKVCacheTask> &task) {
+        (void)task;
         kvTaskEnvent.Signal();
         return;
     };
@@ -2420,7 +2412,7 @@ void DataCache::FlushTaskExecute(
 }
 
 void DataCache::PrepareS3ChunkInfo(uint64_t chunkId, uint64_t offset,
-    uint64_t len, S3ChunkInfo *info) {
+                                   uint64_t len, S3ChunkInfo *info) {
     info->set_chunkid(chunkId);
     info->set_compaction(0);
     info->set_offset(offset);
@@ -2471,7 +2463,7 @@ void FsCacheManager::ReadCacheReleaseExecutor::ReleaseCache() {
             tmp.swap(retired_);
         }
 
-        for (auto& c : tmp) {
+        for (auto &c : tmp) {
             c->Release();
             c.reset();
         }
@@ -2493,7 +2485,7 @@ FsCacheManager::ReadCacheReleaseExecutor::~ReadCacheReleaseExecutor() {
 }
 
 void FsCacheManager::ReadCacheReleaseExecutor::Release(
-    std::list<DataCachePtr>* caches) {
+    std::list<DataCachePtr> *caches) {
     std::lock_guard<std::mutex> lk(mtx_);
     retired_.splice(retired_.end(), *caches);
     cond_.notify_one();

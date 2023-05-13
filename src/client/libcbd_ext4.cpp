@@ -28,7 +28,7 @@ extern "C" {
 
 CurveOptions g_cbd_ext4_options = {false, 0};
 
-int cbd_ext4_init(const CurveOptions* options) {
+int cbd_ext4_init(const CurveOptions *options) {
     if (g_cbd_ext4_options.inited) {
         return 0;
     }
@@ -45,47 +45,47 @@ int cbd_ext4_init(const CurveOptions* options) {
     return 0;
 }
 
-int cbd_ext4_fini() {
-    return 0;
-}
+int cbd_ext4_fini() { return 0; }
 
-int cbd_ext4_open(const char* filename) {
+int cbd_ext4_open(const char *filename) {
     int fd = -1;
     char path[CBD_MAX_FILE_PATH_LEN] = {0};
 #ifdef CBD_BACKEND_EXT4
-    strcat(path, g_cbd_ext4_options.datahome);  //NOLINT
-    strcat(path, "/");  //NOLINT
+    strcat(path, g_cbd_ext4_options.datahome);  // NOLINT
+    strcat(path, "/");                          // NOLINT
 #endif
-    strcat(path, filename);    //NOLINT
+    strcat(path, filename);  // NOLINT
 
     fd = open(path, O_RDWR | O_CREAT, 0660);
 
     return fd;
 }
 
-int cbd_ext4_close(int fd) {
-    return close(fd);
-}
+int cbd_ext4_close(int fd) { return close(fd); }
 
-int cbd_ext4_pread(int fd, void* buf, off_t offset, size_t length) {
+int cbd_ext4_pread(int fd, void *buf, off_t offset, size_t length) {
     return pread(fd, buf, length, offset);
 }
 
-int cbd_ext4_pwrite(int fd, const void* buf, off_t offset, size_t length) {
+int cbd_ext4_pwrite(int fd, const void *buf, off_t offset, size_t length) {
     return pwrite(fd, buf, length, offset);
 }
 
 int cbd_ext4_pdiscard(int fd, off_t offset, size_t length) {
+    (void)fd;
+    (void)offset;
+    (void)length;
     return 0;
 }
 
 void cbd_ext4_aio_callback(union sigval sigev_value) {
-    CurveAioContext* context = (CurveAioContext *)sigev_value.sival_ptr;    //NOLINT
+    CurveAioContext *context =
+        (CurveAioContext *)sigev_value.sival_ptr;  // NOLINT
     context->cb(context);
 }
 
-int cbd_ext4_aio_pread(int fd, CurveAioContext* context) {
-    struct aiocb* cb;
+int cbd_ext4_aio_pread(int fd, CurveAioContext *context) {
+    struct aiocb *cb;
 
     cb = (struct aiocb *)malloc(sizeof(struct aiocb));
     if (!cb) {
@@ -98,14 +98,14 @@ int cbd_ext4_aio_pread(int fd, CurveAioContext* context) {
     cb->aio_nbytes = context->length;
     cb->aio_buf = context->buf;
     cb->aio_sigevent.sigev_notify = SIGEV_THREAD;
-    cb->aio_sigevent.sigev_value.sival_ptr = (void*)context;    //NOLINT
+    cb->aio_sigevent.sigev_value.sival_ptr = (void *)context;  // NOLINT
     cb->aio_sigevent.sigev_notify_function = cbd_ext4_aio_callback;
 
     return aio_read(cb);
 }
 
-int cbd_ext4_aio_pwrite(int fd, CurveAioContext* context) {
-    struct aiocb* cb;
+int cbd_ext4_aio_pwrite(int fd, CurveAioContext *context) {
+    struct aiocb *cb;
 
     cb = (struct aiocb *)malloc(sizeof(struct aiocb));
     if (!cb) {
@@ -118,32 +118,31 @@ int cbd_ext4_aio_pwrite(int fd, CurveAioContext* context) {
     cb->aio_nbytes = context->length;
     cb->aio_buf = context->buf;
     cb->aio_sigevent.sigev_notify = SIGEV_THREAD;
-    cb->aio_sigevent.sigev_value.sival_ptr = (void*)context;    //NOLINT
+    cb->aio_sigevent.sigev_value.sival_ptr = (void *)context;  // NOLINT
     cb->aio_sigevent.sigev_notify_function = cbd_ext4_aio_callback;
 
     return aio_write(cb);
 }
 
-int cbd_ext4_aio_pdiscard(int fd, CurveAioContext* aioctx) {
+int cbd_ext4_aio_pdiscard(int fd, CurveAioContext *aioctx) {
+    (void)fd;
     aioctx->ret = aioctx->length;
     aioctx->cb(aioctx);
     return 0;
 }
 
-int cbd_ext4_sync(int fd) {
-    return fsync(fd);
-}
+int cbd_ext4_sync(int fd) { return fsync(fd); }
 
-int64_t cbd_ext4_filesize(const char* filename) {
+int64_t cbd_ext4_filesize(const char *filename) {
     struct stat st;
     int ret;
 
     char path[CBD_MAX_FILE_PATH_LEN] = {0};
 #ifdef CBD_BACKEND_EXT4
-    strcat(path, g_cbd_ext4_options.datahome);  //NOLINT
-    strcat(path, "/");  //NOLINT
+    strcat(path, g_cbd_ext4_options.datahome);  // NOLINT
+    strcat(path, "/");                          // NOLINT
 #endif
-    strcat(path, filename);    //NOLINT
+    strcat(path, filename);  // NOLINT
 
     ret = stat(path, &st);
     if (ret) {
@@ -153,9 +152,9 @@ int64_t cbd_ext4_filesize(const char* filename) {
     }
 }
 
-int cbd_ext4_increase_epoch(const char* filename) {
+int cbd_ext4_increase_epoch(const char *filename) {
+    (void)filename;
     return 0;
 }
 
 }  // extern "C"
-

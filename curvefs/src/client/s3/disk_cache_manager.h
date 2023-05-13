@@ -65,7 +65,7 @@ class DiskCacheManager {
         const S3ClientAdaptorOption option);
 
     virtual int UmountDiskCache();
-    virtual bool IsCached(const std::string name);
+    virtual bool IsCached(const std::string &name);
 
     /**
      * @brief add obj to cachedObjName
@@ -73,8 +73,7 @@ class DiskCacheManager {
      * @param[in] cacheWriteExist whether the obj is
      *                            exist in cache write
      */
-    void AddCache(const std::string name,
-      bool cacheWriteExist = true);
+    void AddCache(const std::string &name);
 
     int CreateDir();
     std::string GetCacheReadFullDir();

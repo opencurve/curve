@@ -22,10 +22,12 @@
 
 #include "src/tools/etcd_client.h"
 
+#include <memory>
+
 namespace curve {
 namespace tool {
 
-int EtcdClient::Init(const std::string& etcdAddr) {
+int EtcdClient::Init(const std::string &etcdAddr) {
     curve::common::SplitString(etcdAddr, ",", &etcdAddrVec_);
     if (etcdAddrVec_.empty()) {
         std::cout << "Split etcd address fail!" << std::endl;
@@ -34,8 +36,8 @@ int EtcdClient::Init(const std::string& etcdAddr) {
     return 0;
 }
 
-int EtcdClient::GetEtcdClusterStatus(std::vector<std::string>* leaderAddrVec,
-                                     std::map<std::string, bool>* onlineState) {
+int EtcdClient::GetEtcdClusterStatus(std::vector<std::string> *leaderAddrVec,
+                                     std::map<std::string, bool> *onlineState) {
     if (!leaderAddrVec || !onlineState) {
         std::cout << "The argument is a null pointer!" << std::endl;
         return -1;
@@ -43,7 +45,7 @@ int EtcdClient::GetEtcdClusterStatus(std::vector<std::string>* leaderAddrVec,
     brpc::Channel httpChannel;
     brpc::ChannelOptions options;
     options.protocol = brpc::PROTOCOL_HTTP;
-    for (const auto& addr : etcdAddrVec_) {
+    for (const auto &addr : etcdAddrVec_) {
         int res = httpChannel.Init(addr.c_str(), &options);
         if (res != 0) {
             (*onlineState)[addr] = false;
@@ -59,12 +61,18 @@ int EtcdClient::GetEtcdClusterStatus(std::vector<std::string>* leaderAddrVec,
         }
         (*onlineState)[addr] = true;
         std::string resp = cntl.response_attachment().to_string();
-        Json::Reader reader(Json::Features::strictMode());
+        Json::CharReaderBuilder builder;
+        Json::CharReaderBuilder::strictMode(&builder.settings_);
+        std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
         Json::Value value;
-        if (!reader.parse(resp, value)) {
-            std::cout << "Parse the response fail!" << std::endl;
+        JSONCPP_STRING errormsg;
+        if (!reader->parse(resp.data(), resp.data() + resp.length(), &value,
+                           &errormsg)) {
+            std::cout << "Parse the response fail! Error: " << errormsg
+                      << std::endl;
             return -1;
         }
+
         if (!value[kEtcdLeader].isNull()) {
             if (value[kEtcdLeader] == value[kEtcdHeader][kEtcdMemberId]) {
                 leaderAddrVec->emplace_back(addr);
@@ -74,13 +82,13 @@ int EtcdClient::GetEtcdClusterStatus(std::vector<std::string>* leaderAddrVec,
     return 0;
 }
 
-int EtcdClient::GetAndCheckEtcdVersion(std::string* version,
-                                       std::vector<std::string>* failedList) {
+int EtcdClient::GetAndCheckEtcdVersion(std::string *version,
+                                       std::vector<std::string> *failedList) {
     brpc::Channel httpChannel;
     brpc::ChannelOptions options;
     options.protocol = brpc::PROTOCOL_HTTP;
     VersionMapType versionMap;
-    for (const auto& addr : etcdAddrVec_) {
+    for (const auto &addr : etcdAddrVec_) {
         int res = httpChannel.Init(addr.c_str(), &options);
         if (res != 0) {
             std::cout << "Init channel to " << addr << " failed" << std::endl;
@@ -98,10 +106,16 @@ int EtcdClient::GetAndCheckEtcdVersion(std::string* version,
             continue;
         }
         std::string resp = cntl.response_attachment().to_string();
-        Json::Reader reader(Json::Features::strictMode());
+
+        Json::CharReaderBuilder builder;
+        Json::CharReaderBuilder::strictMode(&builder.settings_);
+        std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
         Json::Value value;
-        if (!reader.parse(resp, value)) {
-            std::cout << "Parse the response fail!" << std::endl;
+        JSONCPP_STRING errormsg;
+        if (!reader->parse(resp.data(), resp.data() + resp.length(), &value,
+                           &errormsg)) {
+            std::cout << "Parse the response fail! Error: " << errormsg
+                      << std::endl;
             return -1;
         }
         if (value[kEtcdCluster].isNull()) {

@@ -453,6 +453,7 @@ StatusCode CurveFS::GetAllocatedSize(const std::string& fileName,
 StatusCode CurveFS::GetFileAllocSize(const std::string& fileName,
                                      const FileInfo& fileInfo,
                                      AllocatedSize* allocSize) {
+    (void)fileName;
     std::vector<PageFileSegment> segments;
     auto listSegmentRet = storage_->ListSegment(fileInfo.id(), &segments);
 
@@ -470,6 +471,7 @@ StatusCode CurveFS::GetFileAllocSize(const std::string& fileName,
 StatusCode CurveFS::GetDirAllocSize(const std::string& fileName,
                                     const FileInfo& fileInfo,
                                     AllocatedSize* allocSize) {
+    (void)fileInfo;
     std::vector<FileInfo> files;
     StatusCode ret = ReadDir(fileName, &files);
     if (ret != StatusCode::kOK) {
@@ -1955,6 +1957,7 @@ StatusCode CurveFS::CheckPathOwnerInternal(const std::string &filename,
                               const std::string &signature,
                               std::string *lastEntry,
                               uint64_t *parentID) {
+    (void)signature;
     std::vector<std::string> paths;
     ::curve::common::SplitString(filename, "/", &paths);
 
@@ -2247,6 +2250,7 @@ bool CurveFS::CheckSignature(const std::string& owner,
 
 StatusCode CurveFS::ListClient(bool listAllClient,
                                std::vector<ClientInfo>* clientInfos) {
+    (void)listAllClient;
     std::set<butil::EndPoint> allClients = fileRecordManager_->ListAllClient();
 
     for (const auto &c : allClients) {

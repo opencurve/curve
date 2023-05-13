@@ -45,7 +45,7 @@ const char* kFakeMdsAddr = "127.0.0.1:9089";
 
 const uint32_t kOpRequestAlignSize = 4096;
 
-static char* raftVoteParam[3][16] = {
+static const char* raftVoteParam[3][16] = {
     {
         "chunkserver",
         "-chunkServerIp=127.0.0.1",
@@ -159,9 +159,9 @@ class RaftVoteTest : public testing::Test {
         paramsIndexs[PeerCluster::PeerToId(peer2)] = 1;
         paramsIndexs[PeerCluster::PeerToId(peer3)] = 2;
 
-        params.push_back(raftVoteParam[0]);
-        params.push_back(raftVoteParam[1]);
-        params.push_back(raftVoteParam[2]);
+        params.push_back(const_cast<char**>(raftVoteParam[0]));
+        params.push_back(const_cast<char**>(raftVoteParam[1]));
+        params.push_back(const_cast<char**>(raftVoteParam[2]));
     }
     virtual void TearDown() {
         std::string rmdir1("rm -fr ");

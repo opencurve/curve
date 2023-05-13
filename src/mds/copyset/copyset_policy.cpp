@@ -131,6 +131,8 @@ void CopysetZoneShufflePolicy::GetMinCopySetFromScatterWidth(
 int CopysetZoneShufflePolicy::GetMaxPermutationNum(int numCopysets,
     int numChunkServers,
     int numReplicas) {
+    (void)numChunkServers;
+    (void)numReplicas;
     return numCopysets;
 }
 

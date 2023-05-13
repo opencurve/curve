@@ -24,6 +24,7 @@
 
 #include <string>
 #include <vector>
+#include <memory>
 
 #include "json/json.h"
 #include "src/common/string_util.h"
@@ -47,51 +48,57 @@ bool ClusterInformation::ParseFromString(const std::string &value) {
 }
 
 bool LogicalPool::TransRedundanceAndPlaceMentPolicyFromJsonStr(
-    const std::string &jsonStr,
-    LogicalPoolType type,
+    const std::string &jsonStr, LogicalPoolType type,
     RedundanceAndPlaceMentPolicy *rap) {
-    Json::Reader reader;
+    Json::CharReaderBuilder builder;
+    std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
     Json::Value rapJson;
-    if (!reader.parse(jsonStr, rapJson)) {
+    JSONCPP_STRING errormsg;
+    if (!reader->parse(jsonStr.data(), jsonStr.data() + jsonStr.length(),
+                       &rapJson, &errormsg)) {
         return false;
     }
 
     switch (type) {
-        case LogicalPoolType::PAGEFILE: {
-            if (!rapJson["replicaNum"].isNull()) {
-                rap->pageFileRAP.replicaNum = rapJson["replicaNum"].asInt();
-            } else {
-                return false;
-            }
-            if (!rapJson["copysetNum"].isNull()) {
-                rap->pageFileRAP.copysetNum = rapJson["copysetNum"].asInt();
-            } else {
-                return false;
-            }
-            if (!rapJson["zoneNum"].isNull()) {
-                rap->pageFileRAP.zoneNum = rapJson["zoneNum"].asInt();
-            } else {
-                return false;
-            }
-            break;
-        }
-        case LogicalPoolType::APPENDFILE: {
-            // TODO(xuchaojie): it is not done.
+    case LogicalPoolType::PAGEFILE: {
+        if (!rapJson["replicaNum"].isNull()) {
+            rap->pageFileRAP.replicaNum = rapJson["replicaNum"].asInt();
+        } else {
             return false;
         }
-        case LogicalPoolType::APPENDECFILE: {
-            // TODO(xuchaojie): it is not done.
+        if (!rapJson["copysetNum"].isNull()) {
+            rap->pageFileRAP.copysetNum = rapJson["copysetNum"].asInt();
+        } else {
             return false;
         }
-        default: {
+        if (!rapJson["zoneNum"].isNull()) {
+            rap->pageFileRAP.zoneNum = rapJson["zoneNum"].asInt();
+        } else {
             return false;
         }
+        break;
+    }
+    case LogicalPoolType::APPENDFILE: {
+        // TODO(xuchaojie): it is not done.
+        return false;
+    }
+    case LogicalPoolType::APPENDECFILE: {
+        // TODO(xuchaojie): it is not done.
+        return false;
+    }
+    default: {
+        return false;
+    }
     }
     return true;
 }
 
-bool LogicalPool::TransUserPolicyFromJsonStr(
-    const std::string &jsonStr, LogicalPoolType type, UserPolicy *policy) {
+bool LogicalPool::TransUserPolicyFromJsonStr(const std::string &jsonStr,
+                                             LogicalPoolType type,
+                                             UserPolicy *policy) {
+    (void)jsonStr;
+    (void)type;
+    (void)policy;
     // TODO(xuchaojie): to finish it.
     return true;
 }
@@ -99,32 +106,30 @@ bool LogicalPool::TransUserPolicyFromJsonStr(
 bool LogicalPool::SetRedundanceAndPlaceMentPolicyByJson(
     const std::string &jsonStr) {
     return LogicalPool::TransRedundanceAndPlaceMentPolicyFromJsonStr(
-               jsonStr,
-               GetLogicalPoolType(),
-               &rap_);
+        jsonStr, GetLogicalPoolType(), &rap_);
 }
 
 std::string LogicalPool::GetRedundanceAndPlaceMentPolicyJsonStr() const {
     std::string rapStr;
     Json::Value rapJson;
     switch (GetLogicalPoolType()) {
-        case LogicalPoolType::PAGEFILE : {
-            rapJson["replicaNum"] = rap_.pageFileRAP.replicaNum;
-            rapJson["copysetNum"] = rap_.pageFileRAP.copysetNum;
-            rapJson["zoneNum"] = rap_.pageFileRAP.zoneNum;
-            rapStr = rapJson.toStyledString();
-            break;
-        }
-        case LogicalPoolType::APPENDFILE : {
-            // TODO(xuchaojie): fix it
-            break;
-        }
-        case LogicalPoolType::APPENDECFILE : {
-            // TODO(xuchaojie): fix it
-            break;
-        }
-        default:
-            break;
+    case LogicalPoolType::PAGEFILE: {
+        rapJson["replicaNum"] = rap_.pageFileRAP.replicaNum;
+        rapJson["copysetNum"] = rap_.pageFileRAP.copysetNum;
+        rapJson["zoneNum"] = rap_.pageFileRAP.zoneNum;
+        rapStr = rapJson.toStyledString();
+        break;
+    }
+    case LogicalPoolType::APPENDFILE: {
+        // TODO(xuchaojie): fix it
+        break;
+    }
+    case LogicalPoolType::APPENDECFILE: {
+        // TODO(xuchaojie): fix it
+        break;
+    }
+    default:
+        break;
     }
     return rapStr;
 }
@@ -132,9 +137,7 @@ std::string LogicalPool::GetRedundanceAndPlaceMentPolicyJsonStr() const {
 
 bool LogicalPool::SetUserPolicyByJson(const std::string &jsonStr) {
     return LogicalPool::TransUserPolicyFromJsonStr(
-               jsonStr,
-               GetLogicalPoolType(),
-               &policy_);
+        jsonStr, GetLogicalPoolType(), &policy_);
 }
 
 std::string LogicalPool::GetUserPolicyJsonStr() const {
@@ -145,20 +148,20 @@ std::string LogicalPool::GetUserPolicyJsonStr() const {
 uint16_t LogicalPool::GetReplicaNum() const {
     uint16_t ret = 0;
     switch (GetLogicalPoolType()) {
-        case LogicalPoolType::PAGEFILE : {
-            ret = rap_.pageFileRAP.replicaNum;
-            break;
-        }
-        case LogicalPoolType::APPENDFILE : {
-            // TODO(xuchaojie): fix it
-            break;
-        }
-        case LogicalPoolType::APPENDECFILE : {
-            // TODO(xuchaojie): fix it
-            break;
-        }
-        default:
-            break;
+    case LogicalPoolType::PAGEFILE: {
+        ret = rap_.pageFileRAP.replicaNum;
+        break;
+    }
+    case LogicalPoolType::APPENDFILE: {
+        // TODO(xuchaojie): fix it
+        break;
+    }
+    case LogicalPoolType::APPENDECFILE: {
+        // TODO(xuchaojie): fix it
+        break;
+    }
+    default:
+        break;
     }
     return ret;
 }
@@ -187,10 +190,8 @@ bool LogicalPool::ParseFromString(const std::string &value) {
     name_ = data.logicalpoolname();
     physicalPoolId_ = data.physicalpoolid();
     type_ = data.type();
-    SetRedundanceAndPlaceMentPolicyByJson(
-        data.redundanceandplacementpolicy());
-    SetUserPolicyByJson(
-        data.userpolicy());
+    SetRedundanceAndPlaceMentPolicyByJson(data.redundanceandplacementpolicy());
+    SetUserPolicyByJson(data.userpolicy());
     initialScatterWidth_ = data.initialscatterwidth();
     createTime_ = data.createtime();
     status_ = data.status();
@@ -309,13 +310,17 @@ std::string CopySetInfo::GetCopySetMembersStr() const {
 }
 
 bool CopySetInfo::SetCopySetMembersByJson(const std::string &jsonStr) {
-    Json::Reader reader;
+    Json::CharReaderBuilder builder;
+    std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
     Json::Value copysetMemJson;
-    if (!reader.parse(jsonStr, copysetMemJson)) {
+    JSONCPP_STRING errormsg;
+    if (!reader->parse(jsonStr.data(), jsonStr.data() + jsonStr.length(),
+                       &copysetMemJson, &errormsg)) {
         return false;
     }
+
     peers_.clear();
-    for (int i = 0; i < copysetMemJson.size(); i++) {
+    for (int i = 0; i < static_cast<int>(copysetMemJson.size()); i++) {
         if (copysetMemJson[i].isInt()) {
             peers_.insert(copysetMemJson[i].asInt());
         } else {
@@ -355,16 +360,13 @@ bool CopySetInfo::ParseFromString(const std::string &value) {
         peers_.insert(data.chunkserverids(i));
     }
     lastScanSec_ = data.has_lastscansec() ? data.lastscansec() : 0;
-    lastScanConsistent_ = data.has_lastscanconsistent() ?
-                          data.lastscanconsistent() : true;
+    lastScanConsistent_ =
+        data.has_lastscanconsistent() ? data.lastscanconsistent() : true;
     return ret;
 }
 
-bool SplitPeerId(
-    const std::string &peerId,
-    std::string *ip,
-    uint32_t *port,
-    uint32_t *idx) {
+bool SplitPeerId(const std::string &peerId, std::string *ip, uint32_t *port,
+                 uint32_t *idx) {
     std::vector<std::string> items;
     curve::common::SplitString(peerId, ":", &items);
     if (3 == items.size()) {

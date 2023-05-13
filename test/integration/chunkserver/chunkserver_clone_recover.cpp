@@ -778,7 +778,6 @@ TEST_F(CSCloneRecoverTest, CloneFromCurveByReadChunkWhenLazyAlloc) {
     // 1. chunk文件不存在
     ChunkServiceVerify verify(&opConf_);
     ChunkID cloneChunk1 = 331;
-    SequenceNum sn0 = 0;
     SequenceNum sn1 = 1;
     SequenceNum sn2 = 2;
     string sourceFile = CURVEFS_FILENAME;
@@ -1006,7 +1005,6 @@ TEST_F(CSCloneRecoverTest, RecoverFromS3ByReadChunk) {
     // 1. 创建克隆文件
     ChunkServiceVerify verify(&opConf_);
     ChunkID cloneChunk1 = 339;
-    ChunkID cloneChunk2 = 340;
     SequenceNum sn2 = 2;
     SequenceNum sn3 = 3;
     SequenceNum sn4 = 4;
@@ -1074,7 +1072,6 @@ TEST_F(CSCloneRecoverTest, RecoverFromS3ByRecoverChunk) {
     // 1. 创建克隆文件
     ChunkServiceVerify verify(&opConf_);
     ChunkID cloneChunk1 = 341;
-    ChunkID cloneChunk2 = 342;
     SequenceNum sn2 = 2;
     SequenceNum sn3 = 3;
     SequenceNum sn4 = 4;

@@ -30,19 +30,19 @@ import (
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
+	"github.com/opencurve/curve/tools-v2/proto/proto/common"
 	"github.com/opencurve/curve/tools-v2/proto/proto/nameserver2"
-	"github.com/opencurve/curve/tools-v2/proto/proto/topology"
 	"github.com/spf13/cobra"
 )
 
 type ChunkCommand struct {
 	basecmd.FinalCurveCmd
-	FileInfo          *nameserver2.FileInfo
-	ChunkId           uint64
-	LogicalpoolId     uint32
-	CopysetId         uint32
-	GroupId           uint64
-	CopysetServerList []*topology.CopySetServerInfo
+	FileInfo        *nameserver2.FileInfo
+	ChunkId         uint64
+	LogicalpoolId   uint32
+	CopysetId       uint32
+	GroupId         uint64
+	ChunkServerList []*common.ChunkServerLocation
 }
 
 var _ basecmd.FinalCurveCmdFunc = (*ChunkCommand)(nil) // check interface
@@ -85,18 +85,19 @@ func (cCmd *ChunkCommand) Init(cmd *cobra.Command, args []string) error {
 		return err.ToError()
 	}
 	config.AddBSLogicalPoolIdRequiredFlag(cCmd.Cmd)
-	config.AddBSCopysetIdSliceRequiredFlag(cCmd.Cmd)
+	config.AddBsCopysetIdSliceRequiredFlag(cCmd.Cmd)
 	cCmd.Cmd.ParseFlags([]string{
 		fmt.Sprintf("--%s", config.CURVEBS_LOGIC_POOL_ID),
 		fmt.Sprintf("%d", cCmd.LogicalpoolId),
 		fmt.Sprintf("--%s", config.CURVEBS_COPYSET_ID),
 		fmt.Sprintf("%d", cCmd.CopysetId),
 	})
-	chunkSeverListRes, err := GetChunkServerListInCopySets(cCmd.Cmd)
+	key2Location, err := GetChunkServerListInCopySets(cCmd.Cmd)
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		return err.ToError()
 	}
-	cCmd.CopysetServerList = chunkSeverListRes.GetCsInfo()
+	key := cobrautil.GetCopysetKey(uint64(cCmd.LogicalpoolId), uint64(cCmd.CopysetId))
+	cCmd.ChunkServerList = (*key2Location)[key]
 	header := []string{cobrautil.ROW_CHUNK, cobrautil.ROW_LOGICALPOOL,
 		cobrautil.ROW_COPYSET, cobrautil.ROW_GROUP, cobrautil.ROW_LOCATION,
 	}
@@ -117,10 +118,8 @@ func (cCmd *ChunkCommand) Print(cmd *cobra.Command, args []string) error {
 func (cCmd *ChunkCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	cCmd.GroupId = (uint64(cCmd.LogicalpoolId) << 32) | uint64(cCmd.CopysetId)
 	locations := []string{}
-	for _, copysetServer := range cCmd.CopysetServerList {
-		for _, chunkServer := range copysetServer.GetCsLocs() {
-			locations = append(locations, fmt.Sprintf("%s:%d", chunkServer.GetHostIp(), chunkServer.GetPort()))
-		}
+	for _, chunkServer := range cCmd.ChunkServerList {
+		locations = append(locations, fmt.Sprintf("%s:%d", chunkServer.GetHostIp(), chunkServer.GetPort()))
 	}
 	location := strings.Join(locations, "\n")
 	row := make(map[string]string)

@@ -211,6 +211,8 @@ void ChunkServiceImpl::CreateS3CloneChunk(RpcController* controller,
                        const CreateS3CloneChunkRequest* request,
                        CreateS3CloneChunkResponse* response,
                        Closure* done) {
+    (void)controller;
+    (void)request;
     brpc::ClosureGuard doneGuard(done);
     response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
     LOG(INFO) << "Invalid request, serverSide Not implement yet";
@@ -238,7 +240,6 @@ void ChunkServiceImpl::ReadChunk(RpcController *controller,
     }
 
     // 判断request参数是否合法
-    auto maxSize = copysetNodeManager_->GetCopysetNodeOptions().maxChunkSize;
     if (!CheckRequestOffsetAndLength(request->offset(), request->size())) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
         LOG(ERROR) << "I/O request, op: " << request->optype()
@@ -425,6 +426,7 @@ void ChunkServiceImpl::GetChunkInfo(RpcController *controller,
                                     const GetChunkInfoRequest *request,
                                     GetChunkInfoResponse *response,
                                     Closure *done) {
+    (void)controller;
     ChunkServiceClosure* closure =
         new (std::nothrow) ChunkServiceClosure(inflightThrottle_,
                                                nullptr,
@@ -494,6 +496,7 @@ void ChunkServiceImpl::GetChunkHash(RpcController *controller,
                                     const GetChunkHashRequest *request,
                                     GetChunkHashResponse *response,
                                     Closure *done) {
+    (void)controller;
     brpc::ClosureGuard doneGuard(done);
 
     // 判断request参数是否合法
@@ -553,6 +556,7 @@ void ChunkServiceImpl::UpdateEpoch(RpcController *controller,
                 const UpdateEpochRequest *request,
                 UpdateEpochResponse *response,
                 Closure *done) {
+    (void)controller;
     brpc::ClosureGuard doneGuard(done);
     bool success = epochMap_->UpdateEpoch(request->fileid(), request->epoch());
     if (success) {

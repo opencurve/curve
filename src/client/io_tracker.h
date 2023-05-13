@@ -336,12 +336,12 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
     // store segment indices that can be discarded
     std::unordered_set<SegmentIndex> discardSegments_;
 
+    // metacache为当前fileinstance的元数据信息
+    MetaCache* mc_;
+
     // scheduler用来将用户线程与client自己的线程切分
     // 大IO被切分之后，将切分的reqlist传给scheduler向下发送
     RequestScheduler* scheduler_;
-
-    // metacache为当前fileinstance的元数据信息
-    MetaCache* mc_;
 
     // 对于异步IO，Tracker需要向上层通知当前IO已经处理结束
     // iomanager可以将该tracker释放

@@ -26,6 +26,7 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <dirent.h>
+#include <functional>
 
 #include "curvefs/src/client/s3/disk_cache_base.h"
 
@@ -88,7 +89,7 @@ std::string DiskCacheBase::GetCacheIoFullDir() {
 int DiskCacheBase::CreateDir(const std::string dir) {
     size_t p = dir.find_last_of('/');
     std::string dirPath = dir;
-    if (p != -1) {
+    if (p != -1ULL) {
         dirPath.erase(dirPath.begin()+p, dirPath.end());
     }
     std::vector<std::string> names;

@@ -565,7 +565,6 @@ TEST(SnapInstance, DeleteChunkSnapshotTest) {
 
     SnapshotClient cl;
     ASSERT_TRUE(!cl.Init(opt));
-    auto max_split_size_kb = 1024 * 64;
     MockRequestScheduler* mocksch = new MockRequestScheduler;
     mocksch->DelegateToFake();
 

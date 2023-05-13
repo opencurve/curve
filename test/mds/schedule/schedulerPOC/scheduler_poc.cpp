@@ -44,16 +44,16 @@
 
 using ::curve::mds::topology::MockTopology;
 
-using ::curve::mds::topology::Server;
 using ::curve::mds::topology::ChunkServer;
-using ::curve::mds::topology::CopySetInfo;
 using ::curve::mds::topology::ChunkServerState;
+using ::curve::mds::topology::CopySetInfo;
+using ::curve::mds::topology::Server;
 using ::curve::mds::topology::TopologyOption;
 
-using ::curve::mds::topology::ZoneIdType;
-using ::curve::mds::topology::ServerIdType;
 using ::curve::mds::topology::ChunkServerIdType;
 using ::curve::mds::topology::LogicalPoolType;
+using ::curve::mds::topology::ServerIdType;
+using ::curve::mds::topology::ZoneIdType;
 
 using ::curve::mds::topology::ChunkServerStatus;
 using ::curve::mds::topology::OnlineState;
@@ -62,14 +62,14 @@ using ::curve::mds::topology::ChunkServerFilter;
 using ::curve::mds::topology::CopySetFilter;
 
 using ::curve::mds::copyset::ChunkServerInfo;
-using ::curve::mds::copyset::CopysetPolicy;
+using ::curve::mds::copyset::ClusterInfo;
+using ::curve::mds::copyset::Copyset;
+using ::curve::mds::copyset::CopysetConstrait;
+using ::curve::mds::copyset::CopysetManager;
 using ::curve::mds::copyset::CopysetPermutationPolicy;
 using ::curve::mds::copyset::CopysetPermutationPolicyNXX;
+using ::curve::mds::copyset::CopysetPolicy;
 using ::curve::mds::copyset::CopysetZoneShufflePolicy;
-using ::curve::mds::copyset::Copyset;
-using ::curve::mds::copyset::ClusterInfo;
-using ::curve::mds::copyset::CopysetManager;
-using ::curve::mds::copyset::CopysetConstrait;
 namespace curve {
 namespace mds {
 namespace schedule {
@@ -78,10 +78,10 @@ class FakeTopologyStat;
 
 class FakeTopo : public ::curve::mds::topology::TopologyImpl {
  public:
-    FakeTopo() : TopologyImpl(
-        std::make_shared<MockIdGenerator>(),
-        std::make_shared<MockTokenGenerator>(),
-        std::make_shared<MockStorage>()) {}
+    FakeTopo()
+        : TopologyImpl(std::make_shared<MockIdGenerator>(),
+                       std::make_shared<MockTokenGenerator>(),
+                       std::make_shared<MockStorage>()) {}
 
     void BuildMassiveTopo() {
         constexpr int serverNum = 9;
@@ -91,18 +91,20 @@ class FakeTopo : public ::curve::mds::topology::TopologyImpl {
 
         // gen server
         for (int i = 1; i <= serverNum; i++) {
-            std::string internalHostIP = "10.192.0." + std::to_string(i+1);
-                serverMap_[i]= Server(static_cast<ServerIdType>(i), "",
-                    internalHostIP, 0, "", 0, i % zoneNum + 1, 1, "");
+            std::string internalHostIP = "10.192.0." + std::to_string(i + 1);
+            serverMap_[i] =
+                Server(static_cast<ServerIdType>(i), "", internalHostIP, 0, "",
+                       0, i % zoneNum + 1, 1, "");
         }
 
         // gen chunkserver
         for (int i = 1; i <= serverNum; i++) {
             for (int j = 1; j <= diskNumPerServer; j++) {
-                ChunkServerIdType id = j + diskNumPerServer * (i-1);
-                ChunkServer chunkserver(static_cast<ChunkServerIdType>(id),
-                    "", "sata", i, serverMap_[i].GetInternalHostIp(), 9000+j,
-                    "", ChunkServerStatus::READWRITE);
+                ChunkServerIdType id = j + diskNumPerServer * (i - 1);
+                ChunkServer chunkserver(
+                    static_cast<ChunkServerIdType>(id), "", "sata", i,
+                    serverMap_[i].GetInternalHostIp(), 9000 + j, "",
+                    ChunkServerStatus::READWRITE);
                 chunkserver.SetOnlineState(OnlineState::ONLINE);
                 chunkServerMap_[id] = chunkserver;
             }
@@ -133,15 +135,16 @@ class FakeTopo : public ::curve::mds::topology::TopologyImpl {
             ::curve::mds::topology::CopySetInfo info(0, id++);
             info.SetCopySetMembers(it.replicas);
             info.SetLeader(*it.replicas.begin());
-            copySetMap_[info.GetCopySetKey()]  = info;
+            copySetMap_[info.GetCopySetKey()] = info;
         }
 
         logicalPoolSet_.insert(0);
     }
 
-    std::vector<PoolIdType> GetLogicalPoolInCluster(
-        LogicalPoolFilter filter = [](const LogicalPool&) {
-            return true;}) const override {
+    std::vector<PoolIdType>
+    GetLogicalPoolInCluster(LogicalPoolFilter filter = [](const LogicalPool &) {
+        return true;
+    }) const override {
         std::vector<PoolIdType> ret;
         for (auto lid : logicalPoolSet_) {
             ret.emplace_back(lid);
@@ -149,35 +152,34 @@ class FakeTopo : public ::curve::mds::topology::TopologyImpl {
         return ret;
     }
 
-    std::vector<ChunkServerIdType> GetChunkServerInCluster(
-        ChunkServerFilter filter = [](const ChunkServer&) {
-            return true;}) const override {
+    std::vector<ChunkServerIdType>
+    GetChunkServerInCluster(ChunkServerFilter filter = [](const ChunkServer &) {
+        return true;
+    }) const override {
         std::vector<ChunkServerIdType> ret;
-        for (auto it = chunkServerMap_.begin();
-            it != chunkServerMap_.end();
-            it++) {
+        for (auto it = chunkServerMap_.begin(); it != chunkServerMap_.end();
+             it++) {
             ret.emplace_back(it->first);
         }
         return ret;
     }
 
     std::list<ChunkServerIdType> GetChunkServerInLogicalPool(
-        PoolIdType id,
-        ChunkServerFilter filter = [](const ChunkServer&) {
-            return true;}) const override {
+        PoolIdType id, ChunkServerFilter filter = [](const ChunkServer &) {
+            return true;
+        }) const override {
         std::list<ChunkServerIdType> ret;
-        for (auto it = chunkServerMap_.begin();
-            it != chunkServerMap_.end();
-            it++) {
+        for (auto it = chunkServerMap_.begin(); it != chunkServerMap_.end();
+             it++) {
             ret.emplace_back(it->first);
         }
         return ret;
     }
 
     std::list<ChunkServerIdType> GetChunkServerInServer(
-        ServerIdType id,
-        ChunkServerFilter filter = [](const ChunkServer&) {
-            return true;}) const override {
+        ServerIdType id, ChunkServerFilter filter = [](const ChunkServer &) {
+            return true;
+        }) const override {
         std::list<ChunkServerIdType> res;
         for (auto it : chunkServerMap_) {
             if (it.second.GetServerId() == id) {
@@ -188,8 +190,9 @@ class FakeTopo : public ::curve::mds::topology::TopologyImpl {
     }
 
     std::vector<CopySetKey> GetCopySetsInCluster(
-        CopySetFilter filter = [](const ::curve::mds::topology::CopySetInfo&) {
-            return true;}) const override {
+        CopySetFilter filter = [](const ::curve::mds::topology::CopySetInfo &) {
+            return true;
+        }) const override {
         std::vector<CopySetKey> ret;
         for (auto it : copySetMap_) {
             ret.emplace_back(it.first);
@@ -199,8 +202,9 @@ class FakeTopo : public ::curve::mds::topology::TopologyImpl {
 
     std::vector<CopySetKey> GetCopySetsInChunkServer(
         ChunkServerIdType csId,
-        CopySetFilter filter = [](const ::curve::mds::topology::CopySetInfo&) {
-            return true;}) const override {
+        CopySetFilter filter = [](const ::curve::mds::topology::CopySetInfo &) {
+            return true;
+        }) const override {
         std::vector<CopySetKey> ret;
         for (auto it : copySetMap_) {
             if (it.second.GetCopySetMembers().count(csId) > 0) {
@@ -211,9 +215,11 @@ class FakeTopo : public ::curve::mds::topology::TopologyImpl {
     }
 
     std::vector<::curve::mds::topology::CopySetInfo>
-    GetCopySetInfosInLogicalPool(PoolIdType logicalPoolId,
-        CopySetFilter filter = [](const ::curve::mds::topology::CopySetInfo&) {
-            return true;}) const override {
+    GetCopySetInfosInLogicalPool(
+        PoolIdType logicalPoolId,
+        CopySetFilter filter = [](const ::curve::mds::topology::CopySetInfo &) {
+            return true;
+        }) const override {
         std::vector<::curve::mds::topology::CopySetInfo> ret;
         for (auto it : copySetMap_) {
             if (it.first.first == logicalPoolId) {
@@ -234,7 +240,7 @@ class FakeTopo : public ::curve::mds::topology::TopologyImpl {
     }
 
     bool GetCopySet(::curve::mds::topology::CopySetKey key,
-        ::curve::mds::topology::CopySetInfo *out) const override {
+                    ::curve::mds::topology::CopySetInfo *out) const override {
         auto it = copySetMap_.find(key);
         if (it != copySetMap_.end()) {
             *out = it->second;
@@ -244,8 +250,8 @@ class FakeTopo : public ::curve::mds::topology::TopologyImpl {
         }
     }
 
-    bool GetChunkServer(
-        ChunkServerIdType chunkserverId, ChunkServer *out) const override {
+    bool GetChunkServer(ChunkServerIdType chunkserverId,
+                        ChunkServer *out) const override {
         auto it = chunkServerMap_.find(chunkserverId);
         if (it != chunkServerMap_.end()) {
             *out = it->second;
@@ -260,15 +266,15 @@ class FakeTopo : public ::curve::mds::topology::TopologyImpl {
         rap.pageFileRAP.replicaNum = 3;
         rap.pageFileRAP.zoneNum = 3;
 
-        LogicalPool pool(0, "logicalpool-0", 1, LogicalPoolType::PAGEFILE,
-            rap, LogicalPool::UserPolicy{}, 0, true, true);
+        LogicalPool pool(0, "logicalpool-0", 1, LogicalPoolType::PAGEFILE, rap,
+                         LogicalPool::UserPolicy{}, 0, true, true);
         pool.SetScatterWidth(100);
         *out = pool;
         return true;
     }
 
-    int UpdateChunkServerOnlineState(
-        const OnlineState &onlineState, ChunkServerIdType id) override {
+    int UpdateChunkServerOnlineState(const OnlineState &onlineState,
+                                     ChunkServerIdType id) override {
         auto it = chunkServerMap_.find(id);
         if (it == chunkServerMap_.end()) {
             return -1;
@@ -279,7 +285,7 @@ class FakeTopo : public ::curve::mds::topology::TopologyImpl {
     }
 
     int UpdateChunkServerRwState(const ChunkServerStatus &rwStatus,
-                                  ChunkServerIdType id) {
+                                 ChunkServerIdType id) {
         auto it = chunkServerMap_.find(id);
         if (it == chunkServerMap_.end()) {
             return -1;
@@ -312,13 +318,15 @@ class FakeTopo : public ::curve::mds::topology::TopologyImpl {
 
 class FakeTopologyServiceManager : public TopologyServiceManager {
  public:
-    FakeTopologyServiceManager() :
-        TopologyServiceManager(std::make_shared<FakeTopo>(),
-            std::static_pointer_cast<TopologyStat>(
-                std::make_shared<FakeTopologyStat>(
-                            std::make_shared<FakeTopo>())), nullptr,
-            std::make_shared<CopysetManager>(
-                ::curve::mds::copyset::CopysetOption{}), nullptr) {}
+    FakeTopologyServiceManager()
+        : TopologyServiceManager(std::make_shared<FakeTopo>(),
+                                 std::static_pointer_cast<TopologyStat>(
+                                     std::make_shared<FakeTopologyStat>(
+                                         std::make_shared<FakeTopo>())),
+                                 nullptr,
+                                 std::make_shared<CopysetManager>(
+                                     ::curve::mds::copyset::CopysetOption{}),
+                                 nullptr) {}
 
     bool CreateCopysetNodeOnChunkServer(
         ChunkServerIdType csId,
@@ -332,7 +340,7 @@ class FakeTopologyStat : public TopologyStat {
     explicit FakeTopologyStat(const std::shared_ptr<Topology> &topo)
         : topo_(topo) {}
     void UpdateChunkServerStat(ChunkServerIdType csId,
-        const ChunkServerStat &stat) {}
+                               const ChunkServerStat &stat) {}
 
     bool GetChunkServerStat(ChunkServerIdType csId, ChunkServerStat *stat) {
         if (!leaderCountOn) {
@@ -352,8 +360,7 @@ class FakeTopologyStat : public TopologyStat {
         stat->leaderCount = leaderCount;
         return true;
     }
-    bool GetChunkPoolSize(PoolIdType pId,
-    uint64_t *chunkPoolSize) {
+    bool GetChunkPoolSize(PoolIdType pId, uint64_t *chunkPoolSize) {
         return true;
     }
 
@@ -439,10 +446,9 @@ class CopysetSchedulerPOC : public testing::Test {
         }
         variance /= factorMap.size();
         LOG(INFO) << "###print scatter-with in online chunkserver###\n"
-                  << "均值：" << avg
-                  << ", 方差：" << variance
-                  << ", 标准差： " << std::sqrt(variance)
-                  << ", 最大值：(" << max << "," << maxId << ")"
+                  << "均值：" << avg << ", 方差：" << variance << ", 标准差： "
+                  << std::sqrt(variance) << ", 最大值：(" << max << "," << maxId
+                  << ")"
                   << ", 最小值：(" << min << "," << minId << ")";
     }
 
@@ -480,10 +486,9 @@ class CopysetSchedulerPOC : public testing::Test {
         }
         variance /= factorMap.size();
         LOG(INFO) << "###print scatter-with in cluster###\n"
-                  << "均值：" << avg
-                  << ", 方差：" << variance
-                  << ", 标准差： " << std::sqrt(variance)
-                  << ", 最大值：(" << max << "," << maxId << ")"
+                  << "均值：" << avg << ", 方差：" << variance << ", 标准差： "
+                  << std::sqrt(variance) << ", 最大值：(" << max << "," << maxId
+                  << ")"
                   << ", 最小值：(" << min << "," << minId << ")";
     }
 
@@ -523,17 +528,16 @@ class CopysetSchedulerPOC : public testing::Test {
 
         // 打印方差
         float avg = static_cast<float>(sumNumber) /
-            static_cast<float>(numberMap.size());
+                    static_cast<float>(numberMap.size());
         float variance = 0;
         for (auto it : numberMap) {
             variance += std::pow(it.second - avg, 2);
         }
         variance /= numberMap.size();
         LOG(INFO) << "###print copyset-num in online chunkserver###\n"
-                  << "均值：" << avg
-                  << ", 方差：" << variance
-                  << ", 标准差： " << std::sqrt(variance)
-                  << ", 最大值：(" << max << "," << maxId << ")"
+                  << "均值：" << avg << ", 方差：" << variance << ", 标准差： "
+                  << std::sqrt(variance) << ", 最大值：(" << max << "," << maxId
+                  << ")"
                   << "), 最小值：(" << min << "," << minId << ")";
     }
 
@@ -559,18 +563,16 @@ class CopysetSchedulerPOC : public testing::Test {
 
         // 打印方差
         float avg = static_cast<float>(sumNumber) /
-            static_cast<float>(numberMap.size());
+                    static_cast<float>(numberMap.size());
         float variance = 0;
         for (auto it : numberMap) {
             variance += std::pow(it.second - avg, 2);
         }
         variance /= numberMap.size();
         LOG(INFO) << "###print copyset-num in cluster###\n"
-                  << "均值：" << avg
-                  << ", 方差：" << variance
-                  << ", 标准差： " << std::sqrt(variance)
-                  << ", 最大值： " << max
-                  << ", 最小值：" << min;
+                  << "均值：" << avg << ", 方差：" << variance << ", 标准差： "
+                  << std::sqrt(variance) << ", 最大值： " << max << ", 最小值："
+                  << min;
     }
 
     void PrintLeaderCountInChunkServer(PoolIdType lid = 0) {
@@ -598,22 +600,21 @@ class CopysetSchedulerPOC : public testing::Test {
 
                 sumNumber += out.leaderCount;
                 LOG(INFO) << "PRINT chunkserverid:" << it
-                      << ", leader num:" << out.leaderCount;
+                          << ", leader num:" << out.leaderCount;
             }
         }
 
         float avg = static_cast<float>(sumNumber) /
-            static_cast<float>(leaderDistribute.size());
+                    static_cast<float>(leaderDistribute.size());
         float variance = 0;
         for (auto it : leaderDistribute) {
             variance += std::pow(it.second - avg, 2);
         }
         variance /= leaderDistribute.size();
         LOG(INFO) << "###print leader-num in cluster###\n"
-                  << "均值：" << avg
-                  << ", 方差：" << variance
-                  << ", 标准差： " << std::sqrt(variance)
-                  << ", 最大值：(" << max << "," << maxId << ")"
+                  << "均值：" << avg << ", 方差：" << variance << ", 标准差： "
+                  << std::sqrt(variance) << ", 最大值：(" << max << "," << maxId
+                  << ")"
                   << "), 最小值：(" << min << "," << minId << ")";
     }
 
@@ -703,36 +704,33 @@ class CopysetSchedulerPOC : public testing::Test {
     }
 
     void BuildLeaderScheduler(int opConcurrent) {
-        topoAdapter_ =  std::make_shared<TopoAdapterImpl>(
+        topoAdapter_ = std::make_shared<TopoAdapterImpl>(
             topo_, std::make_shared<FakeTopologyServiceManager>(), topoStat_);
 
-        opController_ =
-            std::make_shared<OperatorController>(
-                opConcurrent, std::make_shared<ScheduleMetrics>(topo_));
+        opController_ = std::make_shared<OperatorController>(
+            opConcurrent, std::make_shared<ScheduleMetrics>(topo_));
 
-        leaderScheduler_ = std::make_shared<LeaderScheduler>(
-            opt, topoAdapter_, opController_);
+        leaderScheduler_ =
+            std::make_shared<LeaderScheduler>(opt, topoAdapter_, opController_);
     }
 
     void BuildRapidLeaderScheduler(int opConcurrent) {
-        topoAdapter_ =  std::make_shared<TopoAdapterImpl>(
+        topoAdapter_ = std::make_shared<TopoAdapterImpl>(
             topo_, std::make_shared<FakeTopologyServiceManager>(), topoStat_);
 
-        opController_ =
-            std::make_shared<OperatorController>(
-                opConcurrent, std::make_shared<ScheduleMetrics>(topo_));
+        opController_ = std::make_shared<OperatorController>(
+            opConcurrent, std::make_shared<ScheduleMetrics>(topo_));
 
         rapidLeaderScheduler_ = std::make_shared<RapidLeaderScheduler>(
             opt, topoAdapter_, opController_, 0);
     }
 
     void BuilRecoverScheduler(int opConcurrent) {
-        topoAdapter_ =  std::make_shared<TopoAdapterImpl>(
+        topoAdapter_ = std::make_shared<TopoAdapterImpl>(
             topo_, std::make_shared<FakeTopologyServiceManager>(), topoStat_);
 
-        opController_ =
-            std::make_shared<OperatorController>(
-                opConcurrent, std::make_shared<ScheduleMetrics>(topo_));
+        opController_ = std::make_shared<OperatorController>(
+            opConcurrent, std::make_shared<ScheduleMetrics>(topo_));
 
         recoverScheduler_ = std::make_shared<RecoverScheduler>(
             opt, topoAdapter_, opController_);
@@ -743,8 +741,7 @@ class CopysetSchedulerPOC : public testing::Test {
             opt, topoAdapter_, opController_);
     }
 
-    void ApplyOperatorsInOpController(
-        const std::set<ChunkServerIdType> &list) {
+    void ApplyOperatorsInOpController(const std::set<ChunkServerIdType> &list) {
         std::vector<CopySetKey> keys;
         for (auto op : opController_->GetOperators()) {
             auto type = dynamic_cast<ChangePeer *>(op.step.get());
@@ -860,9 +857,11 @@ TEST_F(CopysetSchedulerPOC, DISABLED_test_scatterwith_after_recover_1) {
     // 均值：97.9556, 方差：11.5314, 标准差： 3.39579, 最大值：106, 最小值：88
     // ###print copyset-num in cluster###
     // 均值：100, 方差：0, 标准差： 0, 最大值： 100, 最小值：100
-    // ==========================恢复之后的状态================================= //NOLINT
+    // ==========================恢复之后的状态=================================
+    // //NOLINT
     // ###print scatter-with in online chunkserver###
-    // 均值：均值：98.8156, 方差：10.3403, 标准差： 3.21564, 最大值：106, 最小值：95 //NOLINT
+    // 均值：均值：98.8156, 方差：10.3403, 标准差： 3.21564, 最大值：106,
+    // 最小值：95 //NOLINT
     // ###print scatter-with in cluster###
     // 均值：98.2667, 方差：64.2289, 标准差： 8.0143, 最大值：106, 最小值：0
     // ###print copyset-num in online chunkserver###
@@ -923,7 +922,7 @@ TEST_F(CopysetSchedulerPOC, DISABLED_test_scatterwith_after_recover_2) {
 TEST_F(CopysetSchedulerPOC, DISABLED_test_scatterwith_after_recover_3) {
     // 测试一个chunkserver offline恢复过程中，接连有5个chunkserver offline
     // 1. 创建recoverScheduler
-     BuilRecoverScheduler(1);
+    BuilRecoverScheduler(1);
 
     // 2. 任意选择两个chunkserver处于offline状态
     std::set<ChunkServerIdType> idlist;
@@ -948,7 +947,7 @@ TEST_F(CopysetSchedulerPOC, DISABLED_test_scatterwith_after_recover_3) {
             }
         }
 
-      ApplyOperatorsInOpController(idlist);
+        ApplyOperatorsInOpController(idlist);
     } while (!SatisfyStopCondition(idlist));
 
     // 4. 打印最终的scatter-with
@@ -977,7 +976,7 @@ TEST_F(CopysetSchedulerPOC, DISABLED_test_scatterwith_after_recover_3) {
 TEST_F(CopysetSchedulerPOC, DISABLED_test_scatterwith_after_recover_4) {
     // 测试20个chunkserver 接连 offline
     // 1. 创建recoverScheduler
-     BuilRecoverScheduler(1);
+    BuilRecoverScheduler(1);
 
     // 2. 任意选择两个chunkserver处于offline状态
     std::set<ChunkServerIdType> idlist;
@@ -1002,7 +1001,7 @@ TEST_F(CopysetSchedulerPOC, DISABLED_test_scatterwith_after_recover_4) {
             }
         }
 
-      ApplyOperatorsInOpController(idlist);
+        ApplyOperatorsInOpController(idlist);
     } while (!SatisfyStopCondition(idlist));
 
     // 4. 打印最终的scatter-with
@@ -1037,7 +1036,8 @@ TEST_F(CopysetSchedulerPOC, test_chunkserver_offline_over_concurrency) {
     ASSERT_EQ(targetOpNum, opNum);
 }
 
-TEST_F(CopysetSchedulerPOC, test_scatterwith_after_copysetRebalance_1) { //NOLINT
+TEST_F(CopysetSchedulerPOC,
+       test_scatterwith_after_copysetRebalance_1) {  // NOLINT
     // 测试一个chunkserver offline, 集群回迁的情况
 
     // 1. 一个chunkserver offline后恢复
@@ -1084,7 +1084,7 @@ TEST_F(CopysetSchedulerPOC, test_scatterwith_after_copysetRebalance_1) { //NOLIN
     PrintCopySetNumInLogicalPool();
     LOG(INFO) << "offline one:" << choose;
     ASSERT_TRUE(GetChunkServerScatterwith(choose) <=
-        minScatterwidth_ * (1 + scatterwidthPercent_));
+                minScatterwidth_ * (1 + scatterwidthPercent_));
     ASSERT_TRUE(GetChunkServerScatterwith(choose) >= minScatterwidth_);
 
     // ============================结果====================================
@@ -1095,7 +1095,8 @@ TEST_F(CopysetSchedulerPOC, test_scatterwith_after_copysetRebalance_1) { //NOLIN
     // 均值：100, 方差：0.5, 标准差： 0.707107, 最大值： 101, 最小值：91
 }
 
-TEST_F(CopysetSchedulerPOC, DISABLED_test_scatterwith_after_copysetRebalance_2) { //NOLINT
+TEST_F(CopysetSchedulerPOC,
+       DISABLED_test_scatterwith_after_copysetRebalance_2) {  // NOLINT
     // 测试一个chunkserver offline恢复过程中，另一个chunkserver offline
     // 集群回迁的情况
 
@@ -1146,7 +1147,8 @@ TEST_F(CopysetSchedulerPOC, DISABLED_test_scatterwith_after_copysetRebalance_2) 
     int removeOne = 0;
     do {
         removeOne = copySetScheduler_->Schedule();
-        ApplyOperatorsInOpController(std::set<ChunkServerIdType>{removeOne});
+        ApplyOperatorsInOpController(std::set<ChunkServerIdType>{
+            static_cast<ChunkServerIdType>(removeOne)});
     } while (removeOne > 0);
     PrintScatterWithInLogicalPool();
     PrintCopySetNumInLogicalPool();
@@ -1158,7 +1160,8 @@ TEST_F(CopysetSchedulerPOC, DISABLED_test_scatterwith_after_copysetRebalance_2) 
     // 均值：100, 方差：1, 标准差： 1, 最大值： 101, 最小值：91
 }
 
-TEST_F(CopysetSchedulerPOC, test_scatterwith_after_copysetRebalance_3) { //NOLINT
+TEST_F(CopysetSchedulerPOC,
+       test_scatterwith_after_copysetRebalance_3) {  // NOLINT
     // 测试一个chunkserver offline恢复过程中，接连有5个chunkserver offline
     // 回迁的情况
 
@@ -1187,7 +1190,7 @@ TEST_F(CopysetSchedulerPOC, test_scatterwith_after_copysetRebalance_3) { //NOLIN
             }
         }
 
-      ApplyOperatorsInOpController(idlist);
+        ApplyOperatorsInOpController(idlist);
     } while (!SatisfyStopCondition(idlist));
     PrintScatterWithInOnlineChunkServer();
     PrintScatterWithInLogicalPool();
@@ -1228,7 +1231,7 @@ TEST_F(CopysetSchedulerPOC, test_scatterwith_after_copysetRebalance_3) { //NOLIN
 
     for (auto choose : idlist) {
         ASSERT_TRUE(GetChunkServerScatterwith(choose) <=
-            minScatterwidth_ * (1 + scatterwidthPercent_));
+                    minScatterwidth_ * (1 + scatterwidthPercent_));
         ASSERT_TRUE(GetChunkServerScatterwith(choose) >= minScatterwidth_);
     }
 
@@ -1240,8 +1243,10 @@ TEST_F(CopysetSchedulerPOC, test_scatterwith_after_copysetRebalance_3) { //NOLIN
     // 均值：100, 方差：1, 标准差： 1, 最大值： 101, 最小值：91
 }
 
-TEST_F(CopysetSchedulerPOC, test_scatterwith_after_copysetRebalance_4) { //NOLINT
-    // set one chunkserver status from online to pendding, and the copyset on it will schedule out  //NOLINT
+TEST_F(CopysetSchedulerPOC,
+       test_scatterwith_after_copysetRebalance_4) {  // NOLINT
+    // set one chunkserver status from online to pendding, and the copyset on it
+    // will schedule out  //NOLINT
 
     // set one chunkserver status to pendding
     auto chunkserverlist = topo_->GetChunkServerInServer(1);
@@ -1257,8 +1262,7 @@ TEST_F(CopysetSchedulerPOC, test_scatterwith_after_copysetRebalance_4) { //NOLIN
         removeOne = copySetScheduler_->Schedule();
         opNum += removeOne;
         if (removeOne > 0) {
-            ApplyOperatorsInOpController(
-                std::set<ChunkServerIdType>{target});
+            ApplyOperatorsInOpController(std::set<ChunkServerIdType>{target});
         }
     } while (removeOne > 0);
     ASSERT_EQ(opNum, targetOpNum);
@@ -1267,8 +1271,10 @@ TEST_F(CopysetSchedulerPOC, test_scatterwith_after_copysetRebalance_4) { //NOLIN
     PrintCopySetNumInOnlineChunkServer();
 }
 
-TEST_F(CopysetSchedulerPOC, test_scatterwith_after_copysetRebalance_5) { //NOLINT
-    // set two chunkserver status from online to pendding, and the copyset on it will schedule out  //NOLINT
+TEST_F(CopysetSchedulerPOC,
+       test_scatterwith_after_copysetRebalance_5) {  // NOLINT
+    // set two chunkserver status from online to pendding, and the copyset on it
+    // will schedule out  //NOLINT
 
     // set two chunkserver status to pendding
     auto chunkserverlist = topo_->GetChunkServerInServer(1);

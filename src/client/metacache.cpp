@@ -214,8 +214,7 @@ void MetaCache::UpdateCopysetInfoIfMatchCurrentLeader(
     CopysetID copysetId,
     const PeerAddr& leaderAddr) {
     std::vector<CopysetInfo<ChunkServerID>> copysetInfos;
-    int ret =
-        mdsclient_->GetServerList(logicPoolId, {copysetId}, &copysetInfos);
+    (void)mdsclient_->GetServerList(logicPoolId, {copysetId}, &copysetInfos);
 
     bool needUpdate = (!copysetInfos.empty()) &&
                       (copysetInfos[0].HasPeerInCopyset(leaderAddr));

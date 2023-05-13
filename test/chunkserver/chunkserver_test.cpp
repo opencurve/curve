@@ -34,11 +34,9 @@
 
 #include "test/client/fake/fakeMDS.h"
 
-uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
-uint32_t chunk_size = 16 * 1024 * 1024;   // NOLINT
-std::string mdsMetaServerAddr = "127.0.0.1:9301";   // NOLINT
-
-char* confPath = "conf/client.conf";
+uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;  // NOLINT
+uint32_t chunk_size = 16 * 1024 * 1024;            // NOLINT
+std::string mdsMetaServerAddr = "127.0.0.1:9301";  // NOLINT
 
 butil::AtExitManager atExitManager;
 
@@ -53,17 +51,17 @@ struct ChunkServerPackage {
     char **argv;
 };
 
-void* run_chunkserver_thread(void *arg) {
+void *run_chunkserver_thread(void *arg) {
     ChunkServerPackage *package = reinterpret_cast<ChunkServerPackage *>(arg);
     package->chunkserver->Run(package->argc, package->argv);
 
     return NULL;
 }
 
-using curve::fs::LocalFsFactory;
 using curve::fs::FileSystemType;
+using curve::fs::LocalFsFactory;
 
-static int ExecCmd(const std::string& cmd) {
+static int ExecCmd(const std::string &cmd) {
     LOG(INFO) << "executing command: " << cmd;
 
     return system(cmd.c_str());
@@ -73,7 +71,6 @@ class ChunkserverTest : public ::testing::Test {
  public:
     void SetUp() {
         std::string filename = "test.img";
-        size_t filesize =  10uL * 1024 * 1024 * 1024;
 
         mds_ = new FakeMDS(filename);
 
@@ -87,8 +84,7 @@ class ChunkserverTest : public ::testing::Test {
     }
 
  private:
-    FakeMDS* mds_;
-    int fd_;
+    FakeMDS *mds_;
 };
 
 TEST(ChunkserverCommonTest, GroupIdTest) {
@@ -111,25 +107,26 @@ TEST(ChunkserverCommonTest, GroupIdTest) {
 
 TEST(ChunkServerGflagTest, test_load_gflag) {
     int argc = 1;
-    char *argvv[] = {""};
+    char *argvv[] = {const_cast<char *>("")};
     char **argv = argvv;
     gflags::ParseCommandLineFlags(&argc, &argv, true);
     google::CommandLineFlagInfo info;
     ASSERT_TRUE(GetCommandLineFlagInfo("chunkservertest", &info));
     ASSERT_TRUE(info.is_default);
     ASSERT_EQ("testdefault", FLAGS_chunkservertest);
-    ASSERT_FALSE(
-        GetCommandLineFlagInfo("chunkservertest", &info) && !info.is_default);
+    ASSERT_FALSE(GetCommandLineFlagInfo("chunkservertest", &info) &&
+                 !info.is_default);
 
-    char *argvj[] = {"", "-chunkservertest=test1"};
+    char *argvj[] = {const_cast<char *>(""),
+                     const_cast<char *>("-chunkservertest=test1")};
     argv = argvj;
     argc = 2;
     gflags::ParseCommandLineFlags(&argc, &argv, true);
     ASSERT_TRUE(GetCommandLineFlagInfo("chunkservertest", &info));
     ASSERT_FALSE(info.is_default);
     ASSERT_EQ("test1", FLAGS_chunkservertest);
-    ASSERT_TRUE(
-        GetCommandLineFlagInfo("chunkservertest", &info) && !info.is_default);
+    ASSERT_TRUE(GetCommandLineFlagInfo("chunkservertest", &info) &&
+                !info.is_default);
 }
 }  // namespace chunkserver
 }  // namespace curve
