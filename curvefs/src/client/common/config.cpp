@@ -51,6 +51,55 @@ DEFINE_bool(useFakeS3, false,
             "Use fake s3 to inject more metadata for testing metaserver");
 DEFINE_bool(supportKVcache, false, "use kvcache to speed up sharing");
 
+/**
+ * use curl -L fuseclient:port/flags/fuseClientAvgWriteBytes?setvalue=true
+ * for dynamic parameter configuration
+ */
+static bool pass_uint64(const char *, uint64_t) { return true; }
+
+DEFINE_uint64(fuseClientAvgWriteBytes, 0,
+              "the write throttle bps of fuse client");
+DEFINE_validator(fuseClientAvgWriteBytes, &pass_uint64);
+DEFINE_uint64(fuseClientBurstWriteBytes, 0,
+              "the write burst bps of fuse client");
+DEFINE_validator(fuseClientBurstWriteBytes, &pass_uint64);
+DEFINE_uint64(fuseClientBurstWriteBytesSecs, 180,
+              "the times that write burst bps can continue");
+DEFINE_validator(fuseClientBurstWriteBytesSecs, &pass_uint64);
+
+
+DEFINE_uint64(fuseClientAvgWriteIops, 0,
+              "the write throttle iops of fuse client");
+DEFINE_validator(fuseClientAvgWriteIops, &pass_uint64);
+DEFINE_uint64(fuseClientBurstWriteIops, 0,
+              "the write burst iops of fuse client");
+DEFINE_validator(fuseClientBurstWriteIops, &pass_uint64);
+DEFINE_uint64(fuseClientBurstWriteIopsSecs, 180,
+              "the times that write burst iops can continue");
+DEFINE_validator(fuseClientBurstWriteIopsSecs, &pass_uint64);
+
+
+DEFINE_uint64(fuseClientAvgReadBytes, 0,
+              "the Read throttle bps of fuse client");
+DEFINE_validator(fuseClientAvgReadBytes, &pass_uint64);
+DEFINE_uint64(fuseClientBurstReadBytes, 0,
+              "the Read burst bps of fuse client");
+DEFINE_validator(fuseClientBurstReadBytes, &pass_uint64);
+DEFINE_uint64(fuseClientBurstReadBytesSecs, 180,
+              "the times that Read burst bps can continue");
+DEFINE_validator(fuseClientBurstReadBytesSecs, &pass_uint64);
+
+
+DEFINE_uint64(fuseClientAvgReadIops, 0,
+              "the Read throttle iops of fuse client");
+DEFINE_validator(fuseClientAvgReadIops, &pass_uint64);
+DEFINE_uint64(fuseClientBurstReadIops, 0,
+              "the Read burst iops of fuse client");
+DEFINE_validator(fuseClientBurstReadIops, &pass_uint64);
+DEFINE_uint64(fuseClientBurstReadIopsSecs, 180,
+              "the times that Read burst iops can continue");
+DEFINE_validator(fuseClientBurstReadIopsSecs, &pass_uint64);
+
 void InitMdsOption(Configuration *conf, MdsOption *mdsOpt) {
     conf->GetValueFatalIfFail("mdsOpt.mdsMaxRetryMS", &mdsOpt->mdsMaxRetryMS);
     conf->GetValueFatalIfFail("mdsOpt.rpcRetryOpt.maxRPCTimeoutMS",
@@ -308,6 +357,33 @@ void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption) {
         clientOption->entryTimeOut = 0;
     }
 
+    conf->GetValueFatalIfFail("fuseClient.throttle.avgWriteBytes",
+                              &FLAGS_fuseClientAvgWriteBytes);
+    conf->GetValueFatalIfFail("fuseClient.throttle.burstWriteBytes",
+                              &FLAGS_fuseClientBurstWriteBytes);
+    conf->GetValueFatalIfFail("fuseClient.throttle.burstWriteBytesSecs",
+                              &FLAGS_fuseClientBurstWriteBytesSecs);
+
+    conf->GetValueFatalIfFail("fuseClient.throttle.avgWriteIops",
+                              &FLAGS_fuseClientAvgWriteIops);
+    conf->GetValueFatalIfFail("fuseClient.throttle.burstWriteIops",
+                              &FLAGS_fuseClientBurstWriteIops);
+    conf->GetValueFatalIfFail("fuseClient.throttle.burstWriteIopsSecs",
+                              &FLAGS_fuseClientBurstWriteIopsSecs);
+
+    conf->GetValueFatalIfFail("fuseClient.throttle.avgReadBytes",
+                              &FLAGS_fuseClientAvgReadBytes);
+    conf->GetValueFatalIfFail("fuseClient.throttle.burstReadBytes",
+                              &FLAGS_fuseClientBurstReadBytes);
+    conf->GetValueFatalIfFail("fuseClient.throttle.burstReadBytesSecs",
+                              &FLAGS_fuseClientBurstReadBytesSecs);
+
+    conf->GetValueFatalIfFail("fuseClient.throttle.avgReadIops",
+                              &FLAGS_fuseClientAvgReadIops);
+    conf->GetValueFatalIfFail("fuseClient.throttle.burstReadIops",
+                              &FLAGS_fuseClientBurstReadIops);
+    conf->GetValueFatalIfFail("fuseClient.throttle.burstReadIopsSecs",
+                              &FLAGS_fuseClientBurstReadIopsSecs);
     SetBrpcOpt(conf);
 }
 

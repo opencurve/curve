@@ -70,6 +70,21 @@ namespace curvefs {
 namespace client {
 namespace common {
 DECLARE_bool(enableCto);
+DECLARE_uint64(fuseClientAvgWriteIops);
+DECLARE_uint64(fuseClientBurstWriteIops);
+DECLARE_uint64(fuseClientBurstWriteIopsSecs);
+
+DECLARE_uint64(fuseClientAvgWriteBytes);
+DECLARE_uint64(fuseClientBurstWriteBytes);
+DECLARE_uint64(fuseClientBurstWriteBytesSecs);
+
+DECLARE_uint64(fuseClientAvgReadIops);
+DECLARE_uint64(fuseClientBurstReadIops);
+DECLARE_uint64(fuseClientBurstReadIopsSecs);
+
+DECLARE_uint64(fuseClientAvgReadBytes);
+DECLARE_uint64(fuseClientBurstReadBytes);
+DECLARE_uint64(fuseClientBurstReadBytesSecs);
 }  // namespace common
 }  // namespace client
 }  // namespace curvefs
@@ -82,6 +97,27 @@ using rpcclient::ChannelManager;
 using rpcclient::Cli2ClientImpl;
 using rpcclient::MetaCache;
 using common::FLAGS_enableCto;
+
+using common::FLAGS_fuseClientAvgWriteIops;
+using common::FLAGS_fuseClientBurstWriteIops;
+using common::FLAGS_fuseClientBurstWriteIopsSecs;
+
+using common::FLAGS_fuseClientAvgWriteBytes;
+using common::FLAGS_fuseClientBurstWriteBytes;
+using common::FLAGS_fuseClientBurstWriteBytesSecs;
+
+using common::FLAGS_fuseClientAvgReadIops;
+using common::FLAGS_fuseClientBurstReadIops;
+using common::FLAGS_fuseClientBurstReadIopsSecs;
+
+using common::FLAGS_fuseClientAvgReadBytes;
+using common::FLAGS_fuseClientBurstReadBytes;
+using common::FLAGS_fuseClientBurstReadBytesSecs;
+
+static void on_throttle_timer(void *arg) {
+    FuseClient *fuseClient = reinterpret_cast<FuseClient *>(arg);
+    fuseClient->InitQosParam();
+}
 
 CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
     option_ = option;
@@ -143,6 +179,8 @@ CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
         warmupManager_->SetFsInfo(fsInfo_);
     }
 
+    InitQosParam();
+
     return ret3;
 }
 
@@ -153,6 +191,10 @@ void FuseClient::UnInit() {
 
     delete mdsBase_;
     mdsBase_ = nullptr;
+
+    while (bthread_timer_del(throttleTimer_) == 1) {
+        bthread_usleep(1000);
+    }
 }
 
 CURVEFS_ERROR FuseClient::Run() {
@@ -1469,6 +1511,33 @@ FuseClient::SetMountStatus(const struct MountOption *mountOption) {
         warmupManager_->SetMounted(true);
     }
     return CURVEFS_ERROR::OK;
+}
+
+void FuseClient::InitQosParam() {
+    ReadWriteThrottleParams params;
+    params.iopsWrite = ThrottleParams(FLAGS_fuseClientAvgWriteIops,
+                                      FLAGS_fuseClientBurstWriteIops,
+                                      FLAGS_fuseClientBurstWriteIopsSecs);
+
+    params.bpsWrite = ThrottleParams(FLAGS_fuseClientAvgWriteBytes,
+                                     FLAGS_fuseClientBurstWriteBytes,
+                                     FLAGS_fuseClientBurstWriteBytesSecs);
+
+    params.iopsRead = ThrottleParams(FLAGS_fuseClientAvgReadIops,
+                                     FLAGS_fuseClientBurstReadIops,
+                                     FLAGS_fuseClientBurstReadIopsSecs);
+
+    params.bpsRead = ThrottleParams(FLAGS_fuseClientAvgReadBytes,
+                                    FLAGS_fuseClientBurstReadBytes,
+                                    FLAGS_fuseClientBurstReadBytesSecs);
+
+    throttle_.UpdateThrottleParams(params);
+
+    int ret = bthread_timer_add(&throttleTimer_, butil::seconds_from_now(1),
+                                on_throttle_timer, this);
+    if (ret != 0) {
+        LOG(ERROR) << "Create fuse client throttle timer failed!";
+    }
 }
 
 }  // namespace client

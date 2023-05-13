@@ -478,6 +478,7 @@ void FuseOpRead(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
     InflightGuard guard(&g_clientOpMetric->opRead.inflightOpNum);
     LatencyUpdater updater(&g_clientOpMetric->opRead.latency);
     std::unique_ptr<char[]> buffer(new char[size]);
+    g_ClientInstance->Add(true, size);
     size_t rSize = 0;
     CURVEFS_ERROR ret = g_ClientInstance->FuseOpRead(req, ino, size, off, fi,
                                                      buffer.get(), &rSize);
@@ -497,6 +498,7 @@ void FuseOpWrite(fuse_req_t req, fuse_ino_t ino, const char *buf, size_t size,
                  off_t off, struct fuse_file_info *fi) {
     InflightGuard guard(&g_clientOpMetric->opWrite.inflightOpNum);
     LatencyUpdater updater(&g_clientOpMetric->opWrite.latency);
+    g_ClientInstance->Add(false, size);
     size_t wSize = 0;
     CURVEFS_ERROR ret =
         g_ClientInstance->FuseOpWrite(req, ino, buf, size, off, fi, &wSize);
