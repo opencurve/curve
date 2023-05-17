@@ -39,7 +39,6 @@ import (
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
 	"github.com/opencurve/curve/tools-v2/proto/proto/common"
-	"github.com/opencurve/curve/tools-v2/proto/proto/copyset"
 	"github.com/opencurve/curve/tools-v2/proto/proto/heartbeat"
 	"github.com/spf13/cobra"
 )
@@ -135,19 +134,21 @@ func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
 			fmt.Sprintf("--%s", config.CURVEBS_PEERS_ADDRESS),
 			strings.Join(peerAddress, ","),
 		})
-		results, err := status.GetCopysetStatus(cCmd.Cmd)
+		peer2Status, err := status.GetCopysetStatus(cCmd.Cmd)
 		if err.TypeCode() != cmderror.CODE_SUCCESS {
 			return err.ToError()
 		}
-		peers := make([]*common.Peer, 0, len(results))
-		peer2Status := make(map[string]*copyset.CopysetStatusResponse)
+		peers := make([]*common.Peer, 0, len(*peer2Status))
 		var leaderPeer *common.Peer
-		for _, result := range results {
-			if *result.Leader.Address == *result.Peer.Address {
-				leaderPeer = result.Peer
+		for _, result := range *peer2Status {
+			if result != nil {
+				if *result.Leader.Address == *result.Peer.Address {
+					leaderPeer = result.Peer
+				}
+				peers = append(peers, result.Peer)
+			} else {
+				peers = append(peers, nil)
 			}
-			peers = append(peers, result.Peer)
-			peer2Status[*result.Peer.Address] = result
 		}
 
 		copysetKey := cobrautil.GetCopysetKey(uint64(logicpoolid), uint64(copysetid))
@@ -162,7 +163,7 @@ func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
 				Peers:      peers,
 				LeaderPeer: leaderPeer,
 			},
-			Peer2Status: peer2Status,
+			Peer2Status: *peer2Status,
 		}
 	}
 	config.AddMarginOptionFlag(cCmd.Cmd)
@@ -356,7 +357,7 @@ func CheckCopysets(caller *cobra.Command) (*map[uint64]cobrautil.ClUSTER_HEALTH_
 	cCmd.Cmd.SetArgs([]string{"--format", config.FORMAT_NOOUT})
 	config.AlignFlagsValue(caller, cCmd.Cmd, []string{
 		config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEBS_MDSADDR,
-		config.CURVEFS_COPYSETID, config.CURVEFS_POOLID, config.CURVEBS_MARGIN,
+		config.CURVEBS_COPYSET_ID, config.CURVEBS_LOGIC_POOL_ID, config.CURVEBS_MARGIN,
 	})
 	cCmd.Cmd.SilenceErrors = true
 	err := cCmd.Cmd.Execute()
