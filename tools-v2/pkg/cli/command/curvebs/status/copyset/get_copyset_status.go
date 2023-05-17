@@ -52,8 +52,8 @@ func (gRpc *GetCopysetStatusRpc) Stub_Func(ctx context.Context) (interface{}, er
 
 type GetCopysetStatusCommand struct {
 	basecmd.FinalCurveCmd
-	Rpc      []*GetCopysetStatusRpc
-	response []*copyset.CopysetStatusResponse
+	Rpc         []*GetCopysetStatusRpc
+	peer2Status *map[string]*copyset.CopysetStatusResponse
 }
 
 var _ basecmd.FinalCurveCmdFunc = (*GetCopysetStatusCommand)(nil) // check interface
@@ -105,8 +105,14 @@ func (cCmd *GetCopysetStatusCommand) RunCommand(cmd *cobra.Command, args []strin
 		mergeErr := cmderror.MergeCmdErrorExceptSuccess(errs)
 		return mergeErr.ToError()
 	}
-	for _, result := range results {
-		cCmd.response = append(cCmd.response, result.(*copyset.CopysetStatusResponse))
+	addr2Status := make(map[string]*copyset.CopysetStatusResponse)
+	cCmd.peer2Status = &addr2Status
+	for i, result := range results {
+		if respone, ok := result.(*copyset.CopysetStatusResponse); ok {
+			(*cCmd.peer2Status)[infos[i].Addrs[0]] = respone
+		} else {
+			(*cCmd.peer2Status)[infos[i].Addrs[0]] = nil
+		}
 	}
 	return nil
 }
@@ -129,7 +135,7 @@ func (cCmd *GetCopysetStatusCommand) AddFlags() {
 	config.AddBSPeersConfFlag(cCmd.Cmd)
 }
 
-func GetCopysetStatus(caller *cobra.Command) ([]*copyset.CopysetStatusResponse, *cmderror.CmdError) {
+func GetCopysetStatus(caller *cobra.Command) (*map[string]*copyset.CopysetStatusResponse, *cmderror.CmdError) {
 	sCmd := NewGetCopysetStatusCommand()
 	config.AlignFlagsValue(caller, sCmd.Cmd, []string{
 		config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEBS_MDSADDR,
@@ -144,5 +150,5 @@ func GetCopysetStatus(caller *cobra.Command) ([]*copyset.CopysetStatusResponse, 
 		retErr.Format(err.Error())
 		return nil, retErr
 	}
-	return sCmd.response, cmderror.Success()
+	return sCmd.peer2Status, cmderror.Success()
 }
