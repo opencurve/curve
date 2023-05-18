@@ -48,6 +48,7 @@ A tool for CurveFS & CurveBs.
         - [list client](#list-client)
         - [list dir](#list-dir)
         - [list space](#list-space)
+        - [list chunkserver](#list-chunkserver)
     - [clean-recycle](#clean-recycle)
     - [query](#query-1)
         - [query file](#query-file)
@@ -922,6 +923,28 @@ Output:
 +----------+---------+---------+---------+------------+---------+
 ```
 
+##### list chunkserver
+
+list chunkserver information in curvebs
+
+```bash
+curve bs list chunkserver
+```
+
+Output:
+
+```bash        
++----+------+-----------+------+-----------+------------+------------+-----------------------------------------------+--------------+-------------+------------------+-----------+
+| ID | TYPE |    IP     | PORT | RWSTATUS  | DISKSTATE  | COPYSETNUM |                  MOUNTPOINT                   | DISKCAPACITY |  DISKUSED   | UNHEALTHYCOPYSET |  EXTADDR  |
++----+------+-----------+------+-----------+------------+------------+-----------------------------------------------+--------------+-------------+------------------+-----------+
+| 1  | nvme | 127.0.0.1 | 8201 | READWRITE | DISKNORMAL | 100        | local:///curvebs/playground/chunkserver1/data | 39 GiB       | 42140479488 | 0 %              | 127.0.0.1 |
++----+      +           +------+           +            +------------+-----------------------------------------------+--------------+-------------+------------------+           +
+| 2  |      |           | 8202 |           |            | 100        | local:///curvebs/playground/chunkserver2/data | 39 GiB       | 42140479488 | 0 %              |           |
++----+      +           +------+           +            +------------+-----------------------------------------------+--------------+-------------+------------------+           +
+| 3  |      |           | 8200 |           |            | 100        | local:///curvebs/playground/chunkserver0/data | 39 GiB       | 42140479488 | 0 %              |           |
++----+------+-----------+------+-----------+------------+------------+-----------------------------------------------+--------------+-------------+------------------+-----------+
+```
+
 ### clean-recycle
 
 clean the recycle bin 
@@ -1389,7 +1412,7 @@ Output:
 | curve_ops_tool chunkserver-status    | curve bs status chunkserver    |
 | curve_ops_tool status                |                                |
 | curve_ops_tool copysets-status       |                                |
-| curve_ops_tool chunkserver-list      |                                |
+| curve_ops_tool chunkserver-list      | curve bs list chunkserver      |
 | curve_ops_tool clean-recycle         |                                |
 | curve_ops_tool check-consistency     |                                |
 | curve_ops_tool do-snapshot-all       |                                |
