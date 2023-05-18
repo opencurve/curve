@@ -111,8 +111,10 @@ TEST_F(CopysetNodeTest, TestInit) {
     // apply queue init failed
     {
         CopysetNodeOptions options = options_;
-        options.applyQueueOption.queueDepth = 0;
-        options.applyQueueOption.workerCount = 0;
+        options.applyQueueOption.wconcurrentsize = 0;
+        options.applyQueueOption.wqueuedepth = 0;
+        options.applyQueueOption.rconcurrentsize = 0;
+        options.applyQueueOption.rqueuedepth = 0;
         options.dataUri = "local:///mnt/data";
         options.localFileSystem = &mockfs_;
 

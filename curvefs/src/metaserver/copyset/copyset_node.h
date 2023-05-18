@@ -31,7 +31,7 @@
 #include <vector>
 
 #include "curvefs/src/metaserver/common/types.h"
-#include "curvefs/src/metaserver/copyset/apply_queue.h"
+#include "curvefs/src/metaserver/copyset/concurrent_apply_queue.h"
 #include "curvefs/src/metaserver/copyset/conf_epoch_file.h"
 #include "curvefs/src/metaserver/copyset/config.h"
 #include "curvefs/src/metaserver/copyset/copyset_conf_change.h"
@@ -123,7 +123,7 @@ class CopysetNode : public braft::StateMachine {
 #ifdef UNIT_TEST
     void SetMetaStore(MetaStore* metastore) { metaStore_.reset(metastore); }
 
-    void FlushApplyQueue() { applyQueue_->Flush(); }
+    void FlushApplyQueue() { applyQueue_->FlushAll(); }
 
     void SetRaftNode(RaftNode* raftNode) { raftNode_.reset(raftNode); }
 #endif  // UNIT_TEST

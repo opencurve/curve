@@ -120,9 +120,8 @@ bool CopysetNode::Init(const CopysetNodeOptions& options) {
 
     // init apply queue
     applyQueue_ = absl::make_unique<ApplyQueue>();
-    options_.applyQueueOption.copysetNode = this;
-    if (!applyQueue_->Start(options_.applyQueueOption)) {
-        LOG(ERROR) << "Start apply queue failed";
+    if (!applyQueue_->Init(options_.applyQueueOption)) {
+        LOG(ERROR) << "init concurrent apply queue failed";
         return false;
     }
 
@@ -258,6 +257,7 @@ void CopysetNode::on_apply(braft::Iterator& iter) {
                           iter.index(), doneGuard.release(),
                           TimeUtility::GetTimeofDayUs());
             applyQueue_->Push(metaClosure->GetOperator()->HashCode(),
+                              metaClosure->GetOperator()->GetOperatorType(),
                               std::move(task));
             timer.stop();
             g_concurrent_apply_wait_latency << timer.u_elapsed();
@@ -268,10 +268,11 @@ void CopysetNode::on_apply(braft::Iterator& iter) {
             butil::Timer timer;
             timer.start();
             auto hashcode = metaOperator->HashCode();
+            auto type = metaOperator->GetOperatorType();
             auto task =
                 std::bind(&MetaOperator::OnApplyFromLog, metaOperator.release(),
                           TimeUtility::GetTimeofDayUs());
-            applyQueue_->Push(hashcode, std::move(task));
+            applyQueue_->Push(hashcode, type, std::move(task));
             timer.stop();
             g_concurrent_apply_from_log_wait_latency << timer.u_elapsed();
         }
@@ -426,6 +427,9 @@ int CopysetNode::on_snapshot_load(braft::SnapshotReader* reader) {
 }
 
 void CopysetNode::on_leader_start(int64_t term) {
+    LOG(INFO) << "Copyset: " << name_ << ", peer id: " << peerId_.to_string()
+          << " going to flush apply queue, term is " << term;
+    applyQueue_->Flush();
     leaderTerm_.store(term, std::memory_order_release);
 
     LOG(INFO) << "Copyset: " << name_ << ", peer id: " << peerId_.to_string()

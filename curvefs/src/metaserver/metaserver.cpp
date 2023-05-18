@@ -68,7 +68,6 @@ using ::curve::fs::FileSystemType;
 using ::curve::fs::LocalFsFactory;
 using ::curve::fs::LocalFileSystemOption;
 
-using ::curvefs::metaserver::copyset::ApplyQueueOption;
 using ::curvefs::client::rpcclient::MetaServerClientImpl;
 using ::curvefs::client::rpcclient::ChannelManager;
 using ::curvefs::client::rpcclient::MetaCache;
@@ -653,13 +652,18 @@ void Metaserver::InitCopysetNodeOptions() {
                       "copyset.check_loadmargin_interval_ms",
                       &copysetNodeOptions_.checkLoadMarginIntervalMs));
 
-    LOG_IF(FATAL, !conf_->GetUInt32Value(
-                      "applyqueue.worker_count",
-                      &copysetNodeOptions_.applyQueueOption.workerCount));
-    LOG_IF(FATAL, !conf_->GetUInt32Value(
-                      "applyqueue.queue_depth",
-                      &copysetNodeOptions_.applyQueueOption.queueDepth));
-
+    LOG_IF(FATAL, !conf_->GetIntValue(
+                      "applyqueue.write_worker_count",
+                      &copysetNodeOptions_.applyQueueOption.wconcurrentsize));
+    LOG_IF(FATAL, !conf_->GetIntValue(
+                      "applyqueue.write_queue_depth",
+                      &copysetNodeOptions_.applyQueueOption.wqueuedepth));
+    LOG_IF(FATAL, !conf_->GetIntValue(
+                      "applyqueue.read_worker_count",
+                      &copysetNodeOptions_.applyQueueOption.rconcurrentsize));
+    LOG_IF(FATAL, !conf_->GetIntValue(
+                      "applyqueue.read_queue_depth",
+                      &copysetNodeOptions_.applyQueueOption.rqueuedepth));
     LOG_IF(FATAL,
            !conf_->GetStringValue("copyset.trash.uri",
                                   &copysetNodeOptions_.trashOptions.trashUri));
