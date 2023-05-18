@@ -112,6 +112,14 @@ const (
 	ROW_VERSION         = "version"
 	ROW_ZONE            = "zone"
 
+	ROW_RW_STATUS         = "rwStatus"
+	ROW_DISK_STATE        = "diskState"
+	ROW_COPYSET_NUM       = "copysetNum"
+	ROW_DISK_CAPACITY     = "diskCapacity"
+	ROW_DISK_USED         = "diskUsed"
+	ROW_UNHEALTHY_COPYSET = "unhealthyCopyset"
+	ROW_EXT_ADDR          = "extAddr"
+
 	// s3
 	ROW_S3CHUNKINFO_CHUNKID = "s3ChunkId"
 	ROW_S3CHUNKINFO_LENGTH  = "s3Length"

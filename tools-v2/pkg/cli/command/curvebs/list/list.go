@@ -24,6 +24,7 @@ package list
 
 import (
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/chunkserver"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/client"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/dir"
 	logicalpool "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/logicalPool"
@@ -45,6 +46,7 @@ func (listCmd *ListCommand) AddSubCommands() {
 		client.NewClientCommand(),
 		dir.NewDirCommand(),
 		space.NewSpaceCommand(),
+		chunkserver.NewChunkServerCommand(),
 	)
 }
 

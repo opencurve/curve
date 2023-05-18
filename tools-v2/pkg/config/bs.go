@@ -103,9 +103,17 @@ const (
 	CURVEBS_SCAN                    = "scan"
 	VIPER_CURVEBS_SCAN              = "curvebs.scan"
 	CURVEBS_DEFAULT_SCAN            = true
-	CUERVEBS_CHUNKSERVER_ID         = "chunkserverid"
+	CURVEBS_CHUNKSERVER_ID          = "chunkserverid"
 	VIPER_CHUNKSERVER_ID            = "curvebs.chunkserverid"
 	CURVEBS_DEFAULT_CHUNKSERVER_ID  = "*"
+	CURVEBS_CHECK_CSALIVE           = "checkalive"
+	VIPER_CURVEBS_CHECK_CSALIVE     = "curvebs.checkalive"
+	CURVEBS_CHECK_HEALTH            = "checkhealth"
+	VIPER_CURVEBS_CHECK_HEALTH      = "curvebs.checkHealth"
+	CURVEBS_CS_OFFLINE              = "offline"
+	VIPER_CURVEBS_CS_OFFLINE        = "curvebs.offline"
+	CURVEBS_CS_UNHEALTHY            = "unhealthy"
+	VIPER_CURVEBS_CS_UNHEALTHY      = "curvebs.unhealthy"
 )
 
 var (
@@ -142,25 +150,29 @@ var (
 		CURVEBS_SNAPSHOTADDR:      VIPER_CURVEBS_SNAPSHOTADDR,
 		CURVEBS_SNAPSHOTDUMMYADDR: VIPER_CURVEBS_SNAPSHOTDUMMYADDR,
 		CURVEBS_SCAN:              VIPER_CURVEBS_SCAN,
-		CUERVEBS_CHUNKSERVER_ID:   VIPER_CHUNKSERVER_ID,
+		CURVEBS_CHUNKSERVER_ID:    VIPER_CHUNKSERVER_ID,
+		CURVEBS_CHECK_CSALIVE:     VIPER_CURVEBS_CHECK_CSALIVE,
+		CURVEBS_CHECK_HEALTH:      VIPER_CURVEBS_CHECK_HEALTH,
+		CURVEBS_CS_OFFLINE:        VIPER_CURVEBS_CS_OFFLINE,
+		CURVEBS_CS_UNHEALTHY:      VIPER_CURVEBS_CS_UNHEALTHY,
 	}
 
 	BSFLAG2DEFAULT = map[string]interface{}{
 		// bs
-		CURVEBS_USER:            CURVEBS_DEFAULT_USER,
-		CURVEBS_PASSWORD:        CURVEBS_DEFAULT_PASSWORD,
-		CURVEBS_SIZE:            CURVEBS_DEFAULT_SIZE,
-		CURVEBS_STRIPE_UNIT:     CURVEBS_DEFAULT_STRIPE_UNIT,
-		CURVEBS_STRIPE_COUNT:    CURVEBS_DEFAULT_STRIPE_COUNT,
-		CURVEBS_BURST:           CURVEBS_DEFAULT_BURST,
-		CURVEBS_BURST_LENGTH:    CURVEBS_DEFAULT_BURST_LENGTH,
-		CURVEBS_PATH:            CURVEBS_DEFAULT_PATH,
-		CURVEBS_FORCE:           CURVEBS_DEFAULT_FORCE,
-		CURVEBS_MARGIN:          CURVEBS_DEFAULT_MARGIN,
-		CURVEBS_OP:              CURVEBS_DEFAULT_OP,
-		CURVEBS_CHECK_TIME:      CURVEBS_DEFAULT_CHECK_TIME,
-		CURVEBS_SCAN:            CURVEBS_DEFAULT_SCAN,
-		CUERVEBS_CHUNKSERVER_ID: CURVEBS_DEFAULT_CHUNKSERVER_ID,
+		CURVEBS_USER:           CURVEBS_DEFAULT_USER,
+		CURVEBS_PASSWORD:       CURVEBS_DEFAULT_PASSWORD,
+		CURVEBS_SIZE:           CURVEBS_DEFAULT_SIZE,
+		CURVEBS_STRIPE_UNIT:    CURVEBS_DEFAULT_STRIPE_UNIT,
+		CURVEBS_STRIPE_COUNT:   CURVEBS_DEFAULT_STRIPE_COUNT,
+		CURVEBS_BURST:          CURVEBS_DEFAULT_BURST,
+		CURVEBS_BURST_LENGTH:   CURVEBS_DEFAULT_BURST_LENGTH,
+		CURVEBS_PATH:           CURVEBS_DEFAULT_PATH,
+		CURVEBS_FORCE:          CURVEBS_DEFAULT_FORCE,
+		CURVEBS_MARGIN:         CURVEBS_DEFAULT_MARGIN,
+		CURVEBS_OP:             CURVEBS_DEFAULT_OP,
+		CURVEBS_CHECK_TIME:     CURVEBS_DEFAULT_CHECK_TIME,
+		CURVEBS_SCAN:           CURVEBS_DEFAULT_SCAN,
+		CURVEBS_CHUNKSERVER_ID: CURVEBS_DEFAULT_CHUNKSERVER_ID,
 	}
 )
 
@@ -398,7 +410,7 @@ func AddBsCheckTimeOptionFlag(cmd *cobra.Command) {
 }
 
 func AddBsChunkServerIdOptionFlag(cmd *cobra.Command) {
-	AddBsStringOptionFlag(cmd, CUERVEBS_CHUNKSERVER_ID, "chunkserver id")
+	AddBsStringOptionFlag(cmd, CURVEBS_CHUNKSERVER_ID, "chunkserver id")
 }
 
 // marigin
@@ -467,6 +479,26 @@ func AddBsLimitRequiredFlag(cmd *cobra.Command) {
 
 func AddBsOpRequiredFlag(cmd *cobra.Command) {
 	AddBsStringRequiredFlag(cmd, CURVEBS_OP, fmt.Sprintf("check operator name, %s", BsAvailableValueStr(CURVEBS_OP)))
+}
+
+func AddBSChunkServerIdFlag(cmd *cobra.Command) {
+	AddBsUint32RequiredFlag(cmd, CURVEBS_CHUNKSERVER_ID, "chunkserver id")
+}
+
+func AddBSCheckCSAliveOptionFlag(cmd *cobra.Command) {
+	AddBsBoolOptionFlag(cmd, CURVEBS_CHECK_CSALIVE, "check chunkserver alive")
+}
+
+func AddBSCheckHealthOptionFlag(cmd *cobra.Command) {
+	AddBsBoolOptionFlag(cmd, CURVEBS_CHECK_HEALTH, "check chunkserver health")
+}
+
+func AddBSCSOfflineOptionFlag(cmd *cobra.Command) {
+	AddBsBoolOptionFlag(cmd, CURVEBS_CS_OFFLINE, "offline")
+}
+
+func AddBSCSUnhealthyOptionFlag(cmd *cobra.Command) {
+	AddBsBoolOptionFlag(cmd, CURVEBS_CS_UNHEALTHY, "unhealthy")
 }
 
 // get stingslice flag
@@ -619,7 +651,7 @@ func GetBsExpireTime(cmd *cobra.Command) time.Duration {
 }
 
 func GetBsChunkServerId(cmd *cobra.Command) []uint32 {
-	chunkserveridStr := GetBsFlagString(cmd, CUERVEBS_CHUNKSERVER_ID)
+	chunkserveridStr := GetBsFlagString(cmd, CURVEBS_CHUNKSERVER_ID)
 	if chunkserveridStr == "" || chunkserveridStr == "*" {
 		return []uint32{}
 	}
