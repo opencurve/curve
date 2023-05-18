@@ -71,6 +71,7 @@ func NewListSpaceCommand() *SpaceCommand {
 }
 
 func (sCmd *SpaceCommand) AddFlags() {
+	config.AddHttpTimeoutFlag(sCmd.Cmd)
 	config.AddBsMdsFlagOption(sCmd.Cmd)
 	config.AddRpcRetryTimesFlag(sCmd.Cmd)
 	config.AddRpcTimeoutFlag(sCmd.Cmd)
@@ -90,6 +91,12 @@ func (sCmd *SpaceCommand) Init(cmd *cobra.Command, args []string) error {
 	sCmd.RecycleAllocSize = recycleAllocSize
 
 	sCmd.TotalChunkSize = 0
+	timeout := config.GetFlagDuration(sCmd.Cmd, config.HTTPTIMEOUT)
+	mainAddrs, addrErr := config.GetBsMdsAddrSlice(sCmd.Cmd)
+	if addrErr.TypeCode() != cmderror.CODE_SUCCESS {
+		return addrErr.ToError()
+	}
+	sCmd.Metric = basecmd.NewMetric(mainAddrs, "", timeout)
 	for _, lgPool := range logicalPoolInfos {
 		// total chunk size
 		metricName := cobrautil.GetPoolTotalChunkSizeName(lgPool.GetLogicalPoolName())
@@ -143,7 +150,7 @@ func (sCmd *SpaceCommand) queryMetric(metricName string) (uint64, *cmderror.CmdE
 			pErr.Format(metricName, pErr)
 			return 0, err
 		}
-		return value, nil
+		return value, cmderror.Success()
 	}
 }
 
