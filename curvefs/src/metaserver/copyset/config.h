@@ -31,7 +31,7 @@
 #include <memory>
 #include <string>
 
-#include "curvefs/src/metaserver/copyset/apply_queue.h"
+#include "curvefs/src/metaserver/copyset/concurrent_apply_queue.h"
 #include "curvefs/src/metaserver/copyset/trash.h"
 #include "curvefs/src/metaserver/storage/config.h"
 #include "src/fs/local_filesystem.h"
@@ -74,7 +74,7 @@ struct CopysetNodeOptions {
     uint32_t checkLoadMarginIntervalMs;
 
     // apply queue options
-    ApplyQueueOption applyQueueOption;
+    ApplyOption applyQueueOption;
 
     // filesystem adaptor
     curve::fs::LocalFileSystem* localFileSystem;

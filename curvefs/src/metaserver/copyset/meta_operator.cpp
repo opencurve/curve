@@ -107,7 +107,8 @@ void MetaOperator::FastApplyTask() {
     auto task =
         std::bind(&MetaOperator::OnApply, this, node_->GetAppliedIndex(),
                   new MetaOperatorClosure(this), TimeUtility::GetTimeofDayUs());
-    node_->GetApplyQueue()->Push(HashCode(), std::move(task));
+    node_->GetApplyQueue()->Push(HashCode(),
+                                 GetOperatorType(), std::move(task));
     timer.stop();
     g_concurrent_fast_apply_wait_latency << timer.u_elapsed();
 }
