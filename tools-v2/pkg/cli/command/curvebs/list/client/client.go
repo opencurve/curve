@@ -27,7 +27,7 @@ import (
 	"fmt"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -103,9 +103,9 @@ func (pCmd *ClientCommand) Init(cmd *cobra.Command, args []string) error {
 	}
 	pCmd.Rpc = append(pCmd.Rpc, rpc)
 
-	header := []string{cobrautil.ROW_IP, cobrautil.ROW_PORT}
+	header := []string{curveutil.ROW_IP, curveutil.ROW_PORT}
 	pCmd.SetHeader(header)
-	pCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
+	pCmd.TableNew.SetAutoMergeCellsByColumnIndex(curveutil.GetIndexSlice(
 		pCmd.Header, header,
 	))
 	return nil
@@ -138,13 +138,13 @@ func (pCmd *ClientCommand) RunCommand(cmd *cobra.Command, args []string) error {
 		infos := res.(*nameserver2.ListClientResponse).GetClientInfos()
 		for _, info := range infos {
 			row := make(map[string]string)
-			row[cobrautil.ROW_IP] = info.GetIp()
-			row[cobrautil.ROW_PORT] = fmt.Sprintf("%d", info.GetPort())
+			row[curveutil.ROW_IP] = info.GetIp()
+			row[curveutil.ROW_PORT] = fmt.Sprintf("%d", info.GetPort())
 			rows = append(rows, row)
 		}
 	}
-	list := cobrautil.ListMap2ListSortByKeys(rows, pCmd.Header, []string{
-		cobrautil.ROW_IP,
+	list := curveutil.ListMap2ListSortByKeys(rows, pCmd.Header, []string{
+		curveutil.ROW_IP,
 	})
 	pCmd.TableNew.AppendBulk(list)
 	errRet := cmderror.MergeCmdError(errors)

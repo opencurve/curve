@@ -26,7 +26,7 @@ import (
 	"fmt"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/list/fs"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
@@ -73,7 +73,7 @@ func (mpCmd *MountpointCommand) Init(cmd *cobra.Command, args []string) error {
 	}
 	mpCmd.Error = fsInfoErr
 
-	header := []string{cobrautil.ROW_FS_ID, cobrautil.ROW_FS_NAME, cobrautil.ROW_MOUNTPOINT}
+	header := []string{curveutil.ROW_FS_ID, curveutil.ROW_FS_NAME, curveutil.ROW_MOUNTPOINT}
 	mpCmd.SetHeader(header)
 	mpCmd.TableNew.SetAutoMergeCells(true)
 
@@ -99,14 +99,14 @@ func (mpCmd *MountpointCommand) updateTable() {
 		for _, mountpoint := range fsInfo.GetMountpoints() {
 			mpCmd.number++
 			row := make(map[string]string)
-			row[cobrautil.ROW_FS_ID] = fmt.Sprintf("%d", fsInfo.GetFsId())
-			row[cobrautil.ROW_FS_NAME] = fsInfo.GetFsName()
+			row[curveutil.ROW_FS_ID] = fmt.Sprintf("%d", fsInfo.GetFsId())
+			row[curveutil.ROW_FS_NAME] = fsInfo.GetFsName()
 			mountpointStr := fmt.Sprintf("%s:%d:%s", mountpoint.GetHostname(), mountpoint.GetPort(), mountpoint.GetPath())
-			row[cobrautil.ROW_MOUNTPOINT] = mountpointStr
+			row[curveutil.ROW_MOUNTPOINT] = mountpointStr
 			rows = append(rows, row)
 		}
 	}
-	list := cobrautil.ListMap2ListSortByKeys(rows, mpCmd.Header, []string{cobrautil.ROW_FS_ID})
+	list := curveutil.ListMap2ListSortByKeys(rows, mpCmd.Header, []string{curveutil.ROW_FS_ID})
 	mpCmd.TableNew.AppendBulk(list)
 	mpCmd.Result = rows
 }

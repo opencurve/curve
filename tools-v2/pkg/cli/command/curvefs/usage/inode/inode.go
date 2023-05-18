@@ -28,7 +28,7 @@ import (
 	"strings"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	config "github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -104,9 +104,9 @@ func (iCmd *InodeNumCommand) Init(cmd *cobra.Command, args []string) error {
 		filetype2Metric["inode_num"] = metric
 		iCmd.FsId2Filetype2Metric[fsId] = filetype2Metric
 	}
-	header := []string{cobrautil.ROW_FS_ID, cobrautil.ROW_FS_TYPE, cobrautil.ROW_NUM}
+	header := []string{curveutil.ROW_FS_ID, curveutil.ROW_FS_TYPE, curveutil.ROW_NUM}
 	iCmd.SetHeader(header)
-	iCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(header, []string{cobrautil.ROW_FS_ID}))
+	iCmd.TableNew.SetAutoMergeCellsByColumnIndex(curveutil.GetIndexSlice(header, []string{curveutil.ROW_FS_ID}))
 
 	return nil
 }
@@ -141,7 +141,7 @@ func (iCmd *InodeNumCommand) RunCommand(cmd *cobra.Command, args []string) error
 				if data == "" {
 					continue
 				}
-				data = cobrautil.RmWitespaceStr(data)
+				data = curveutil.RmWitespaceStr(data)
 				resMap := strings.Split(data, ":")
 				preMap := strings.Split(resMap[0], "_")
 				if len(resMap) != 2 && len(preMap) < 4 {
@@ -160,9 +160,9 @@ func (iCmd *InodeNumCommand) RunCommand(cmd *cobra.Command, args []string) error
 					filetype = filetype[0 : len(filetype)-1]
 					if errNum == nil && errId == nil {
 						row := make(map[string]string)
-						row[cobrautil.ROW_FS_ID] = strconv.FormatUint(uint64(id), 10)
-						row[cobrautil.ROW_FS_TYPE] = filetype
-						row[cobrautil.ROW_NUM] = strconv.FormatInt(num, 10)
+						row[curveutil.ROW_FS_ID] = strconv.FormatUint(uint64(id), 10)
+						row[curveutil.ROW_FS_TYPE] = filetype
+						row[curveutil.ROW_NUM] = strconv.FormatInt(num, 10)
 						rows = append(rows, row)
 					} else {
 						toErr := cmderror.ErrDataNoExpected()
@@ -185,7 +185,7 @@ func (iCmd *InodeNumCommand) RunCommand(cmd *cobra.Command, args []string) error
 	iCmd.Error = mergeErr
 
 	if len(rows) > 0 {
-		list := cobrautil.ListMap2ListSortByKeys(rows, iCmd.Header, []string{
+		list := curveutil.ListMap2ListSortByKeys(rows, iCmd.Header, []string{
 			config.CURVEFS_FSID,
 		})
 		iCmd.TableNew.AppendBulk(list)

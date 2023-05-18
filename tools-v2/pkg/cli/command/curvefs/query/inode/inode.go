@@ -27,7 +27,7 @@ import (
 	"fmt"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/list/partition"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/query/copyset"
@@ -90,7 +90,7 @@ func (iCmd *InodeCommand) AddFlags() {
 
 func (iCmd *InodeCommand) Init(cmd *cobra.Command, args []string) error {
 	header := []string{
-		cobrautil.ROW_FS_ID, cobrautil.ROW_INODE_ID, cobrautil.ROW_LENGTH, cobrautil.ROW_TYPE, cobrautil.ROW_NLINK, cobrautil.ROW_PARENT,
+		curveutil.ROW_FS_ID, curveutil.ROW_INODE_ID, curveutil.ROW_LENGTH, curveutil.ROW_TYPE, curveutil.ROW_NLINK, curveutil.ROW_PARENT,
 	}
 	iCmd.Header = header
 
@@ -150,9 +150,9 @@ func (iCmd *InodeCommand) Prepare() error {
 	if len(*key2Copyset) == 0 {
 		return fmt.Errorf("no copysetinfo found")
 	}
-	key := cobrautil.GetCopysetKey(uint64(poolId), uint64(copyetId))
+	key := curveutil.GetCopysetKey(uint64(poolId), uint64(copyetId))
 	leader := (*key2Copyset)[key].Info.GetLeaderPeer()
-	addr, peerErr := cobrautil.PeertoAddr(leader)
+	addr, peerErr := curveutil.PeertoAddr(leader)
 	if peerErr.TypeCode() != cmderror.CODE_SUCCESS {
 		return fmt.Errorf("pares leader peer[%s] failed: %s", leader, peerErr.Message)
 	}
@@ -182,33 +182,33 @@ func (iCmd *InodeCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	tableRows := make([]map[string]string, 0)
 	if len(inode.S3ChunkInfoMap) == 0 {
 		row := make(map[string]string)
-		row[cobrautil.ROW_FS_ID] = fmt.Sprintf("%d", inode.GetFsId())
-		row[cobrautil.ROW_INODE_ID] = fmt.Sprintf("%d", inode.GetInodeId())
-		row[cobrautil.ROW_LENGTH] = fmt.Sprintf("%d", inode.GetLength())
-		row[cobrautil.ROW_TYPE] = inode.GetType().String()
-		row[cobrautil.ROW_NLINK] = fmt.Sprintf("%d", inode.GetNlink())
-		row[cobrautil.ROW_PARENT] = fmt.Sprintf("%d", inode.GetParent())
+		row[curveutil.ROW_FS_ID] = fmt.Sprintf("%d", inode.GetFsId())
+		row[curveutil.ROW_INODE_ID] = fmt.Sprintf("%d", inode.GetInodeId())
+		row[curveutil.ROW_LENGTH] = fmt.Sprintf("%d", inode.GetLength())
+		row[curveutil.ROW_TYPE] = inode.GetType().String()
+		row[curveutil.ROW_NLINK] = fmt.Sprintf("%d", inode.GetNlink())
+		row[curveutil.ROW_PARENT] = fmt.Sprintf("%d", inode.GetParent())
 		tableRows = append(tableRows, row)
 	} else {
 		rows := make([]map[string]string, 0)
 		infoMap := inode.GetS3ChunkInfoMap()
-		iCmd.Header = append(iCmd.Header, cobrautil.ROW_S3CHUNKINFO_CHUNKID)
-		iCmd.Header = append(iCmd.Header, cobrautil.ROW_S3CHUNKINFO_OFFSET)
-		iCmd.Header = append(iCmd.Header, cobrautil.ROW_S3CHUNKINFO_LENGTH)
-		iCmd.Header = append(iCmd.Header, cobrautil.ROW_S3CHUNKINFO_SIZE)
+		iCmd.Header = append(iCmd.Header, curveutil.ROW_S3CHUNKINFO_CHUNKID)
+		iCmd.Header = append(iCmd.Header, curveutil.ROW_S3CHUNKINFO_OFFSET)
+		iCmd.Header = append(iCmd.Header, curveutil.ROW_S3CHUNKINFO_LENGTH)
+		iCmd.Header = append(iCmd.Header, curveutil.ROW_S3CHUNKINFO_SIZE)
 		for _, infoList := range infoMap {
 			for _, info := range infoList.GetS3Chunks() {
 				row := make(map[string]string)
-				row[cobrautil.ROW_FS_ID] = fmt.Sprintf("%d", inode.GetFsId())
-				row[cobrautil.ROW_INODE_ID] = fmt.Sprintf("%d", inode.GetInodeId())
-				row[cobrautil.ROW_LENGTH] = fmt.Sprintf("%d", inode.GetLength())
-				row[cobrautil.ROW_TYPE] = inode.GetType().String()
-				row[cobrautil.ROW_NLINK] = fmt.Sprintf("%d", inode.GetNlink())
-				row[cobrautil.ROW_PARENT] = fmt.Sprintf("%d", inode.GetParent())
-				row[cobrautil.ROW_S3CHUNKINFO_CHUNKID] = fmt.Sprintf("%d", info.GetChunkId())
-				row[cobrautil.ROW_S3CHUNKINFO_OFFSET] = fmt.Sprintf("%d", info.GetOffset())
-				row[cobrautil.ROW_S3CHUNKINFO_LENGTH] = fmt.Sprintf("%d", info.GetLen())
-				row[cobrautil.ROW_S3CHUNKINFO_SIZE] = fmt.Sprintf("%d", info.GetSize())
+				row[curveutil.ROW_FS_ID] = fmt.Sprintf("%d", inode.GetFsId())
+				row[curveutil.ROW_INODE_ID] = fmt.Sprintf("%d", inode.GetInodeId())
+				row[curveutil.ROW_LENGTH] = fmt.Sprintf("%d", inode.GetLength())
+				row[curveutil.ROW_TYPE] = inode.GetType().String()
+				row[curveutil.ROW_NLINK] = fmt.Sprintf("%d", inode.GetNlink())
+				row[curveutil.ROW_PARENT] = fmt.Sprintf("%d", inode.GetParent())
+				row[curveutil.ROW_S3CHUNKINFO_CHUNKID] = fmt.Sprintf("%d", info.GetChunkId())
+				row[curveutil.ROW_S3CHUNKINFO_OFFSET] = fmt.Sprintf("%d", info.GetOffset())
+				row[curveutil.ROW_S3CHUNKINFO_LENGTH] = fmt.Sprintf("%d", info.GetLen())
+				row[curveutil.ROW_S3CHUNKINFO_SIZE] = fmt.Sprintf("%d", info.GetSize())
 				rows = append(rows, row)
 			}
 		}
@@ -216,7 +216,7 @@ func (iCmd *InodeCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	}
 
 	iCmd.SetHeader(iCmd.Header)
-	list := cobrautil.ListMap2ListSortByKeys(tableRows, iCmd.Header, []string{})
+	list := curveutil.ListMap2ListSortByKeys(tableRows, iCmd.Header, []string{})
 	iCmd.TableNew.AppendBulk(list)
 	iCmd.Result = getInodeResponse
 	iCmd.Error = cmderror.ErrSuccess()

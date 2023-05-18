@@ -26,7 +26,7 @@ import (
 
 	"github.com/dustin/go-humanize"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -94,7 +94,7 @@ func (uCmd *FileCommand) Init(cmd *cobra.Command, args []string) error {
 	fileName := config.GetBsFlagString(uCmd.Cmd, config.CURVEBS_PATH)
 	newSize := config.GetBsFlagUint64(uCmd.Cmd, config.CURVEBS_SIZE)
 	newSize = newSize * humanize.GiByte
-	date, errDat := cobrautil.GetTimeofDayUs()
+	date, errDat := curveutil.GetTimeofDayUs()
 	owner := config.GetBsFlagString(uCmd.Cmd, config.CURVEBS_USER)
 	if errDat.TypeCode() != cmderror.CODE_SUCCESS {
 		return errDat.ToError()
@@ -107,8 +107,8 @@ func (uCmd *FileCommand) Init(cmd *cobra.Command, args []string) error {
 	}
 	password := config.GetBsFlagString(uCmd.Cmd, config.CURVEBS_PASSWORD)
 	if owner == viper.GetString(config.VIPER_CURVEBS_USER) && len(password) != 0 {
-		strSig := cobrautil.GetString2Signature(date, owner)
-		sig := cobrautil.CalcString2Signature(strSig, password)
+		strSig := curveutil.GetString2Signature(date, owner)
+		sig := curveutil.CalcString2Signature(strSig, password)
 		request.Signature = &sig
 	}
 	mdsAddrs, errMds := config.GetBsMdsAddrSlice(uCmd.Cmd)
@@ -121,7 +121,7 @@ func (uCmd *FileCommand) Init(cmd *cobra.Command, args []string) error {
 		Info: basecmd.NewRpc(mdsAddrs, timeout, retrytimes, "ExtendFile"),
 		Request: request,
 	}
-	uCmd.SetHeader([]string{cobrautil.ROW_RESULT})
+	uCmd.SetHeader([]string{curveutil.ROW_RESULT})
 	return nil
 }
 

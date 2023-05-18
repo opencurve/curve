@@ -26,7 +26,7 @@ import (
 
 	"github.com/dustin/go-humanize"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	logicalpool "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/logicalPool"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/query/file"
@@ -92,7 +92,7 @@ func (sCmd *SpaceCommand) Init(cmd *cobra.Command, args []string) error {
 	sCmd.TotalChunkSize = 0
 	for _, lgPool := range logicalPoolInfos {
 		// total chunk size
-		metricName := cobrautil.GetPoolTotalChunkSizeName(lgPool.GetLogicalPoolName())
+		metricName := curveutil.GetPoolTotalChunkSizeName(lgPool.GetLogicalPoolName())
 		value, err := sCmd.queryMetric(metricName)
 		if err.TypeCode() != cmderror.CODE_SUCCESS {
 			return err.ToError()
@@ -100,7 +100,7 @@ func (sCmd *SpaceCommand) Init(cmd *cobra.Command, args []string) error {
 		sCmd.TotalChunkSize += value
 
 		// used chunk size
-		metricName = cobrautil.GetPoolUsedChunkSizeName(lgPool.GetLogicalPoolName())
+		metricName = curveutil.GetPoolUsedChunkSizeName(lgPool.GetLogicalPoolName())
 		value, err = sCmd.queryMetric(metricName)
 		if err.TypeCode() != cmderror.CODE_SUCCESS {
 			return err.ToError()
@@ -111,7 +111,7 @@ func (sCmd *SpaceCommand) Init(cmd *cobra.Command, args []string) error {
 	config.AddBsPathRequiredFlag(sCmd.Cmd)
 	sCmd.Cmd.ParseFlags([]string{
 		fmt.Sprintf("--%s", config.CURVEBS_PATH),
-		cobrautil.ROOT_PATH,
+		curveutil.ROOT_PATH,
 	})
 
 	rootSizeRes, err := file.GetFileSize(sCmd.Cmd)
@@ -120,8 +120,8 @@ func (sCmd *SpaceCommand) Init(cmd *cobra.Command, args []string) error {
 	}
 	sCmd.CurrentFileSize = rootSizeRes.GetFileSize()
 
-	sCmd.SetHeader([]string{cobrautil.ROW_TYPE, cobrautil.ROW_TOTAL, cobrautil.ROW_USED,
-		cobrautil.ROW_LEFT, cobrautil.ROW_RECYCLABLE, cobrautil.ROW_CREATED,
+	sCmd.SetHeader([]string{curveutil.ROW_TYPE, curveutil.ROW_TOTAL, curveutil.ROW_USED,
+		curveutil.ROW_LEFT, curveutil.ROW_RECYCLABLE, curveutil.ROW_CREATED,
 	})
 
 	return nil
@@ -154,23 +154,23 @@ func (sCmd *SpaceCommand) Print(cmd *cobra.Command, args []string) error {
 func (sCmd *SpaceCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	rows := make([]map[string]string, 0)
 	row := make(map[string]string)
-	row[cobrautil.ROW_TYPE] = cobrautil.ROW_VALUE_PHYSICAL
-	row[cobrautil.ROW_TOTAL] = humanize.IBytes(sCmd.TotalChunkSize)
-	row[cobrautil.ROW_USED] = humanize.IBytes(sCmd.UsedChunkSize)
-	row[cobrautil.ROW_LEFT] = humanize.IBytes(sCmd.TotalChunkSize - sCmd.UsedChunkSize)
-	row[cobrautil.ROW_RECYCLABLE] = cobrautil.ROW_VALUE_NO_VALUE
-	row[cobrautil.ROW_CREATED] = cobrautil.ROW_VALUE_NO_VALUE
+	row[curveutil.ROW_TYPE] = curveutil.ROW_VALUE_PHYSICAL
+	row[curveutil.ROW_TOTAL] = humanize.IBytes(sCmd.TotalChunkSize)
+	row[curveutil.ROW_USED] = humanize.IBytes(sCmd.UsedChunkSize)
+	row[curveutil.ROW_LEFT] = humanize.IBytes(sCmd.TotalChunkSize - sCmd.UsedChunkSize)
+	row[curveutil.ROW_RECYCLABLE] = curveutil.ROW_VALUE_NO_VALUE
+	row[curveutil.ROW_CREATED] = curveutil.ROW_VALUE_NO_VALUE
 	rows = append(rows, row)
 
 	row = make(map[string]string)
-	row[cobrautil.ROW_TYPE] = cobrautil.ROW_VALUE_LOGICAL
-	row[cobrautil.ROW_TOTAL] = humanize.IBytes(sCmd.TotalCapacity)
-	row[cobrautil.ROW_USED] = humanize.IBytes(sCmd.AllocatedSize)
-	row[cobrautil.ROW_LEFT] = humanize.IBytes(sCmd.TotalCapacity - sCmd.AllocatedSize)
-	row[cobrautil.ROW_RECYCLABLE] = humanize.IBytes(sCmd.RecycleAllocSize)
-	row[cobrautil.ROW_CREATED] = humanize.IBytes(sCmd.CurrentFileSize)
+	row[curveutil.ROW_TYPE] = curveutil.ROW_VALUE_LOGICAL
+	row[curveutil.ROW_TOTAL] = humanize.IBytes(sCmd.TotalCapacity)
+	row[curveutil.ROW_USED] = humanize.IBytes(sCmd.AllocatedSize)
+	row[curveutil.ROW_LEFT] = humanize.IBytes(sCmd.TotalCapacity - sCmd.AllocatedSize)
+	row[curveutil.ROW_RECYCLABLE] = humanize.IBytes(sCmd.RecycleAllocSize)
+	row[curveutil.ROW_CREATED] = humanize.IBytes(sCmd.CurrentFileSize)
 	rows = append(rows, row)
-	list := cobrautil.ListMap2ListSortByKeys(rows, sCmd.Header, []string{})
+	list := curveutil.ListMap2ListSortByKeys(rows, sCmd.Header, []string{})
 	sCmd.TableNew.AppendBulk(list)
 	sCmd.Error = cmderror.Success()
 	sCmd.Result = rows

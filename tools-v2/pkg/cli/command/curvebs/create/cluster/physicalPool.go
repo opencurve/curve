@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/proto/proto/topology"
 	"github.com/opencurve/curve/tools-v2/proto/proto/topology/statuscode"
@@ -110,11 +110,11 @@ func (ctCmd *ClusterTopoCmd) scanPhyPools() *cmderror.CmdError {
 			}
 			ctCmd.phyPoolsToBeDeleted = append(ctCmd.phyPoolsToBeDeleted, request)
 			row := make(map[string]string)
-			row[cobrautil.ROW_NAME] = phyPoolInfo.GetPhysicalPoolName()
-			row[cobrautil.ROW_PHYPOOL] = cobrautil.TYPE_PHYPOOL
-			row[cobrautil.ROW_OPERATION] = cobrautil.ROW_VALUE_DEL
+			row[curveutil.ROW_NAME] = phyPoolInfo.GetPhysicalPoolName()
+			row[curveutil.ROW_PHYPOOL] = curveutil.TYPE_PHYPOOL
+			row[curveutil.ROW_OPERATION] = curveutil.ROW_VALUE_DEL
 			ctCmd.rows = append(ctCmd.rows, row)
-			ctCmd.TableNew.Append(cobrautil.Map2List(row, ctCmd.Header))
+			ctCmd.TableNew.Append(curveutil.Map2List(row, ctCmd.Header))
 		}
 	}
 	// update create physical pool
@@ -133,12 +133,12 @@ func (ctCmd *ClusterTopoCmd) scanPhyPools() *cmderror.CmdError {
 			}
 			ctCmd.phyPoolsToBeCreated = append(ctCmd.phyPoolsToBeCreated, request)
 			row := make(map[string]string)
-			row[cobrautil.ROW_NAME] = phyPool.Name
-			row[cobrautil.ROW_TYPE] = cobrautil.TYPE_PHYPOOL
-			row[cobrautil.ROW_OPERATION] = cobrautil.ROW_VALUE_ADD
-			row[cobrautil.ROW_PARENT] = ""
+			row[curveutil.ROW_NAME] = phyPool.Name
+			row[curveutil.ROW_TYPE] = curveutil.TYPE_PHYPOOL
+			row[curveutil.ROW_OPERATION] = curveutil.ROW_VALUE_ADD
+			row[curveutil.ROW_PARENT] = ""
 			ctCmd.rows = append(ctCmd.rows, row)
-			ctCmd.TableNew.Append(cobrautil.Map2List(row, ctCmd.Header))
+			ctCmd.TableNew.Append(curveutil.Map2List(row, ctCmd.Header))
 		}
 	}
 
@@ -164,7 +164,7 @@ func (ctCmd *ClusterTopoCmd) removePhyPools() *cmderror.CmdError {
 		}
 		response := result.(*topology.PhysicalPoolResponse)
 		if response.GetStatusCode() != 0 {
-			return cmderror.ErrDelPhyPool(statuscode.TopoStatusCode(response.GetStatusCode()), cobrautil.TYPE_PHYPOOL, fmt.Sprintf("%d", delReq.GetPhysicalPoolID()))
+			return cmderror.ErrDelPhyPool(statuscode.TopoStatusCode(response.GetStatusCode()), curveutil.TYPE_PHYPOOL, fmt.Sprintf("%d", delReq.GetPhysicalPoolID()))
 		}
 	}
 	return cmderror.ErrSuccess()
@@ -189,7 +189,7 @@ func (ctCmd *ClusterTopoCmd) CreatePhysicalPools() *cmderror.CmdError {
 		}
 		response := result.(*topology.PhysicalPoolResponse)
 		if response.GetStatusCode() != 0 {
-			return cmderror.ErrCreateBsTopology(statuscode.TopoStatusCode(response.GetStatusCode()), cobrautil.TYPE_PHYPOOL, req.GetPhysicalPoolName())
+			return cmderror.ErrCreateBsTopology(statuscode.TopoStatusCode(response.GetStatusCode()), curveutil.TYPE_PHYPOOL, req.GetPhysicalPoolName())
 		}
 	}
 	return cmderror.ErrSuccess()

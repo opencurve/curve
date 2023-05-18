@@ -28,7 +28,7 @@ import (
 	"sort"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -129,11 +129,11 @@ func (tCmd *TopologyCommand) Init(cmd *cobra.Command, args []string) error {
 	retrytimes := viper.GetInt32(config.VIPER_GLOBALE_RPCRETRYTIMES)
 	tCmd.Rpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "ListTopology")
 
-	// header := []string{cobrautil.ROW_ID, cobrautil.ROW_TYPE, cobrautil.ROW_NAME, cobrautil.ROW_CHILD_TYPE, cobrautil.ROW_CHILD_LIST}
-	header := []string{cobrautil.ROW_POOL, cobrautil.ROW_ZONE, cobrautil.ROW_SERVER, cobrautil.ROW_METASERVER}
+	// header := []string{curveutil.ROW_ID, curveutil.ROW_TYPE, curveutil.ROW_NAME, curveutil.ROW_CHILD_TYPE, curveutil.ROW_CHILD_LIST}
+	header := []string{curveutil.ROW_POOL, curveutil.ROW_ZONE, curveutil.ROW_SERVER, curveutil.ROW_METASERVER}
 	tCmd.SetHeader(header)
 	var mergeIndex []int
-	mergeRow := []string{cobrautil.ROW_POOL, cobrautil.ROW_ZONE, cobrautil.ROW_SERVER}
+	mergeRow := []string{curveutil.ROW_POOL, curveutil.ROW_ZONE, curveutil.ROW_SERVER}
 	for _, row := range mergeRow {
 		index := slices.Index(header, row)
 		mergeIndex = append(mergeIndex, index)
@@ -156,7 +156,7 @@ func (tCmd *TopologyCommand) RunCommand(cmd *cobra.Command, args []string) error
 	topologyResponse := response.(*topology.ListTopologyResponse)
 	tCmd.Rpc.Response = topologyResponse
 	tCmd.updateMetaserverAddr(topologyResponse.GetMetaservers().MetaServerInfos)
-	topologyMap, topoErr := cobrautil.Topology2Map(topologyResponse)
+	topologyMap, topoErr := curveutil.Topology2Map(topologyResponse)
 	tCmd.Error = topoErr
 	tCmd.updateTable(&topologyMap)
 	tCmd.Result = topologyMap
@@ -170,7 +170,7 @@ func (tCmd *TopologyCommand) ResultPlainOutput() error {
 
 func (tCmd *TopologyCommand) updateTable(topoMap *map[string]interface{}) *cmderror.CmdError {
 	errs := make([]*cmderror.CmdError, 0)
-	poolList := (*topoMap)[cobrautil.POOL_LIST].([]*cobrautil.PoolInfo)
+	poolList := (*topoMap)[curveutil.POOL_LIST].([]*curveutil.PoolInfo)
 	sort.SliceStable(poolList, func(i, j int) bool {
 		return *poolList[i].PoolID <
 			*poolList[j].PoolID

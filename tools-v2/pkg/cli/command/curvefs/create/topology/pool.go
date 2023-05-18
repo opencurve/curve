@@ -28,7 +28,7 @@ import (
 	"fmt"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/proto/curvefs/proto/topology"
 	"golang.org/x/exp/slices"
@@ -134,12 +134,12 @@ func (tCmd *TopologyCommand) scanPools() *cmderror.CmdError {
 			}
 			tCmd.deletePool = append(tCmd.deletePool, request)
 			row := make(map[string]string)
-			row[cobrautil.ROW_NAME] = poolInfo.GetPoolName()
-			row[cobrautil.ROW_TYPE] = cobrautil.TYPE_POOL
-			row[cobrautil.ROW_OPERATION] = cobrautil.ROW_VALUE_DEL
-			row[cobrautil.ROW_PARENT] = ""
+			row[curveutil.ROW_NAME] = poolInfo.GetPoolName()
+			row[curveutil.ROW_TYPE] = curveutil.TYPE_POOL
+			row[curveutil.ROW_OPERATION] = curveutil.ROW_VALUE_DEL
+			row[curveutil.ROW_PARENT] = ""
 			tCmd.rows = append(tCmd.rows, row)
-			tCmd.TableNew.Append(cobrautil.Map2List(row, tCmd.Header))
+			tCmd.TableNew.Append(curveutil.Map2List(row, tCmd.Header))
 		}
 	}
 
@@ -161,12 +161,12 @@ func (tCmd *TopologyCommand) scanPools() *cmderror.CmdError {
 			}
 			tCmd.createPool = append(tCmd.createPool, request)
 			row := make(map[string]string)
-			row[cobrautil.ROW_NAME] = pool.Name
-			row[cobrautil.ROW_TYPE] = cobrautil.TYPE_POOL
-			row[cobrautil.ROW_OPERATION] = cobrautil.ROW_VALUE_ADD
-			row[cobrautil.ROW_PARENT] = ""
+			row[curveutil.ROW_NAME] = pool.Name
+			row[curveutil.ROW_TYPE] = curveutil.TYPE_POOL
+			row[curveutil.ROW_OPERATION] = curveutil.ROW_VALUE_ADD
+			row[curveutil.ROW_PARENT] = ""
 			tCmd.rows = append(tCmd.rows, row)
-			tCmd.TableNew.Append(cobrautil.Map2List(row, tCmd.Header))
+			tCmd.TableNew.Append(curveutil.Map2List(row, tCmd.Header))
 		}
 	}
 
@@ -184,7 +184,7 @@ func (tCmd *TopologyCommand) removePools() *cmderror.CmdError {
 		}
 		response := result.(*topology.DeletePoolResponse)
 		if response.GetStatusCode() != topology.TopoStatusCode_TOPO_OK {
-			return cmderror.ErrDeleteTopology(response.GetStatusCode(), cobrautil.TYPE_POOL, fmt.Sprintf("%d", delReuest.GetPoolID()))
+			return cmderror.ErrDeleteTopology(response.GetStatusCode(), curveutil.TYPE_POOL, fmt.Sprintf("%d", delReuest.GetPoolID()))
 		}
 	}
 	return cmderror.ErrSuccess()
@@ -201,7 +201,7 @@ func (tCmd *TopologyCommand) createPools() *cmderror.CmdError {
 		}
 		response := result.(*topology.CreatePoolResponse)
 		if response.GetStatusCode() != topology.TopoStatusCode_TOPO_OK {
-			return cmderror.ErrCreateTopology(response.GetStatusCode(), cobrautil.TYPE_POOL, crtReuest.GetPoolName())
+			return cmderror.ErrCreateTopology(response.GetStatusCode(), curveutil.TYPE_POOL, crtReuest.GetPoolName())
 		}
 	}
 	return cmderror.ErrSuccess()

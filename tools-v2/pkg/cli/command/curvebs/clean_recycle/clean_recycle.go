@@ -11,7 +11,7 @@ import (
 	"time"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/delete/file"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/dir"
@@ -51,9 +51,9 @@ func NewCleanRecycleCommand() *cobra.Command {
 func (crCmd *CleanRecycleCommand) Init(cmd *cobra.Command, args []string) error {
 	crCmd.recyclePrefix = config.GetBsRecyclePrefix(crCmd.Cmd)
 	crCmd.expireTime = config.GetBsExpireTime(crCmd.Cmd)
-	header := []string{cobrautil.ROW_RESULT}
+	header := []string{curveutil.ROW_RESULT}
 	crCmd.SetHeader(header)
-	crCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
+	crCmd.TableNew.SetAutoMergeCellsByColumnIndex(curveutil.GetIndexSlice(
 		crCmd.Header, header,
 	))
 	return nil
@@ -69,7 +69,7 @@ func (crCmd *CleanRecycleCommand) RunCommand(cmd *cobra.Command, args []string) 
 	resp, err := dir.ListDir(crCmd.Cmd)
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		crCmd.Error = err
-		crCmd.Result = cobrautil.ROW_VALUE_FAILED
+		crCmd.Result = curveutil.ROW_VALUE_FAILED
 		return err.ToError()
 	}
 
@@ -92,7 +92,7 @@ func (crCmd *CleanRecycleCommand) RunCommand(cmd *cobra.Command, args []string) 
 
 		filename := RECYCLEBINDIR + "/" + fileInfo.GetFileName()
 		crCmd.Cmd.Flags().Set(config.CURVEBS_PATH, filename)
-		crCmd.Cmd.Flags().Set(config.CURVEBS_FORCE, cobrautil.K_STRING_TRUE)
+		crCmd.Cmd.Flags().Set(config.CURVEBS_FORCE, curveutil.K_STRING_TRUE)
 		deleteResult, err := file.DeleteFile(crCmd.Cmd)
 		if deleteResult.GetStatusCode() != nameserver2.StatusCode_kOK {
 			errs = append(errs, err)
@@ -101,14 +101,14 @@ func (crCmd *CleanRecycleCommand) RunCommand(cmd *cobra.Command, args []string) 
 	}
 
 	if len(errs) != 0 {
-		crCmd.Result = cobrautil.ROW_VALUE_FAILED
+		crCmd.Result = curveutil.ROW_VALUE_FAILED
 		crCmd.Error = cmderror.MergeCmdError(errs)
 		return crCmd.Error.ToError()
 	}
 
 	out := make(map[string]string)
-	out[cobrautil.ROW_RESULT] = cobrautil.ROW_VALUE_SUCCESS
-	list := cobrautil.Map2List(out, []string{cobrautil.ROW_RESULT})
+	out[curveutil.ROW_RESULT] = curveutil.ROW_VALUE_SUCCESS
+	list := curveutil.Map2List(out, []string{curveutil.ROW_RESULT})
 	crCmd.TableNew.Append(list)
 
 	crCmd.Result = out

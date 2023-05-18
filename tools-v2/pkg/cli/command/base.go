@@ -34,7 +34,8 @@ import (
 
 	"github.com/olekukonko/tablewriter"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
+	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils/cobra"
 	process "github.com/opencurve/curve/tools-v2/internal/utils/process"
 	config "github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/spf13/cobra"
@@ -203,7 +204,7 @@ func QueryMetric(m *Metric) (string, *cmderror.CmdError) {
 }
 
 func GetMetricValue(metricRet string) (string, *cmderror.CmdError) {
-	kv := cobrautil.RmWitespaceStr(metricRet)
+	kv := curveutil.RmWitespaceStr(metricRet)
 	kvVec := strings.Split(kv, ":")
 	if len(kvVec) != 2 {
 		err := cmderror.ErrParseMetric()

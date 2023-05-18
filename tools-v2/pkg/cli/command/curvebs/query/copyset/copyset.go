@@ -26,7 +26,7 @@ import (
 	"fmt"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -88,11 +88,11 @@ func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
 	if len(logicalpoolidList) != len(copysetidList) {
 		return fmt.Errorf("logicalpoolidList and copysetidList length not equal")
 	}
-	logicalpoolIds, errParse := cobrautil.StringList2Uint64List(logicalpoolidList)
+	logicalpoolIds, errParse := curveutil.StringList2Uint64List(logicalpoolidList)
 	if errParse != nil {
 		return fmt.Errorf("parse logicalpoolid%v fail", logicalpoolidList)
 	}
-	copysetIds, errParse := cobrautil.StringList2Uint64List(copysetidList)
+	copysetIds, errParse := curveutil.StringList2Uint64List(copysetidList)
 	if errParse != nil {
 		return fmt.Errorf("parse copysetid%v fail", copysetidList)
 	}

@@ -27,7 +27,7 @@ import (
 
 	"github.com/olekukonko/tablewriter"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	config "github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -44,7 +44,7 @@ type MdsCommand struct {
 	basecmd.FinalCurveCmd
 	metrics []*basecmd.Metric
 	rows    []map[string]string
-	health  cobrautil.ClUSTER_HEALTH_STATUS
+	health  curveutil.ClUSTER_HEALTH_STATUS
 }
 
 const (
@@ -65,12 +65,12 @@ func (mCmd *MdsCommand) AddFlags() {
 }
 
 func (mCmd *MdsCommand) Init(cmd *cobra.Command, args []string) error {
-	mCmd.health = cobrautil.HEALTH_ERROR
+	mCmd.health = curveutil.HEALTH_ERROR
 
-	header := []string{cobrautil.ROW_ADDR, cobrautil.ROW_DUMMY_ADDR, cobrautil.ROW_VERSION, cobrautil.ROW_STATUS}
+	header := []string{curveutil.ROW_ADDR, curveutil.ROW_DUMMY_ADDR, curveutil.ROW_VERSION, curveutil.ROW_STATUS}
 	mCmd.SetHeader(header)
-	mCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
-		mCmd.Header, []string{cobrautil.ROW_STATUS, cobrautil.ROW_VERSION},
+	mCmd.TableNew.SetAutoMergeCellsByColumnIndex(curveutil.GetIndexSlice(
+		mCmd.Header, []string{curveutil.ROW_STATUS, curveutil.ROW_VERSION},
 	))
 
 	// set main addr
@@ -97,10 +97,10 @@ func (mCmd *MdsCommand) Init(cmd *cobra.Command, args []string) error {
 
 	for i := range mainAddrs {
 		row := make(map[string]string)
-		row[cobrautil.ROW_ADDR] = mainAddrs[i]
-		row[cobrautil.ROW_DUMMY_ADDR] = dummyAddrs[i]
-		row[cobrautil.ROW_STATUS] = cobrautil.ROW_VALUE_OFFLINE
-		row[cobrautil.ROW_VERSION] = cobrautil.ROW_VALUE_UNKNOWN
+		row[curveutil.ROW_ADDR] = mainAddrs[i]
+		row[curveutil.ROW_DUMMY_ADDR] = dummyAddrs[i]
+		row[curveutil.ROW_STATUS] = curveutil.ROW_VALUE_OFFLINE
+		row[curveutil.ROW_VERSION] = curveutil.ROW_VALUE_UNKNOWN
 		mCmd.rows = append(mCmd.rows, row)
 	}
 
@@ -142,7 +142,7 @@ func (mCmd *MdsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	var recordAddrs []string
 	for res := range results {
 		for _, row := range mCmd.rows {
-			if res.Err.TypeCode() == cmderror.CODE_SUCCESS && row[cobrautil.ROW_DUMMY_ADDR] == res.Addr {
+			if res.Err.TypeCode() == cmderror.CODE_SUCCESS && row[curveutil.ROW_DUMMY_ADDR] == res.Addr {
 				row[res.Key] = res.Value
 			} else if res.Err.TypeCode() != cmderror.CODE_SUCCESS {
 				index := slices.Index(recordAddrs, res.Addr)
@@ -158,14 +158,14 @@ func (mCmd *MdsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 		}
 	}
 	if len(errs) > 0 && len(errs) < len(mCmd.rows) {
-		mCmd.health = cobrautil.HEALTH_WARN
+		mCmd.health = curveutil.HEALTH_WARN
 	} else if len(errs) == 0 {
-		mCmd.health = cobrautil.HEALTH_OK
+		mCmd.health = curveutil.HEALTH_OK
 	}
 	mergeErr := cmderror.MergeCmdErrorExceptSuccess(errs)
 	mCmd.Error = mergeErr
-	list := cobrautil.ListMap2ListSortByKeys(mCmd.rows, mCmd.Header, []string{
-		cobrautil.ROW_STATUS, cobrautil.ROW_VERSION,
+	list := curveutil.ListMap2ListSortByKeys(mCmd.rows, mCmd.Header, []string{
+		curveutil.ROW_STATUS, curveutil.ROW_VERSION,
 	})
 	mCmd.TableNew.AppendBulk(list)
 	mCmd.Result = mCmd.rows
@@ -188,7 +188,7 @@ func NewStatusMdsCommand() *MdsCommand {
 	return mdsCmd
 }
 
-func GetMdsStatus(caller *cobra.Command) (*interface{}, *tablewriter.Table, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS) {
+func GetMdsStatus(caller *cobra.Command) (*interface{}, *tablewriter.Table, *cmderror.CmdError, curveutil.ClUSTER_HEALTH_STATUS) {
 	mdsCmd := NewStatusMdsCommand()
 	mdsCmd.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,

@@ -205,14 +205,14 @@ func (pCmd *ServerCommand) RunCommand(cmd *cobra.Command, args []string) error {
  }
 
  # 设置plain输出的标题 
- header := []string{cobrautil.ROW_ID, cobrautil.ROW_HOSTNAME, 
-  cobrautil.ROW_ZONE, cobrautil.ROW_PHYPOOL, cobrautil.ROW_INTERNAL_ADDR,
-  cobrautil.ROW_EXTERNAL_ADDR,
+ header := []string{curveutil.ROW_ID, curveutil.ROW_HOSTNAME, 
+  curveutil.ROW_ZONE, curveutil.ROW_PHYPOOL, curveutil.ROW_INTERNAL_ADDR,
+  curveutil.ROW_EXTERNAL_ADDR,
  }
  pCmd.SetHeader(header)
  # 设置plain输出可以合并的项
- pCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
-  pCmd.Header, []string{cobrautil.ROW_PHYPOOL, cobrautil.ROW_ZONE},
+ pCmd.TableNew.SetAutoMergeCellsByColumnIndex(curveutil.GetIndexSlice(
+  pCmd.Header, []string{curveutil.ROW_PHYPOOL, curveutil.ROW_ZONE},
  ))
 ```
 
@@ -230,8 +230,8 @@ func (pCmd *ServerCommand) RunCommand(cmd *cobra.Command, args []string) error {
   }
  }
  # 将数据转换成plain的输出接受的数据类型并添加
- list := cobrautil.ListMap2ListSortByKeys(rows, pCmd.Header, []string {
-  cobrautil.ROW_PHYPOOL, cobrautil.ROW_ZONE,
+ list := curveutil.ListMap2ListSortByKeys(rows, pCmd.Header, []string {
+  curveutil.ROW_PHYPOOL, curveutil.ROW_ZONE,
  })
  pCmd.TableNew.AppendBulk(list)
  # 设置错误和json格式输出

@@ -27,7 +27,7 @@ import (
 	"fmt"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -101,10 +101,10 @@ func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
 	retrytimes := viper.GetInt32(config.VIPER_GLOBALE_RPCRETRYTIMES)
 	cCmd.Rpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "ListCopysetInfo")
 
-	header := []string{cobrautil.ROW_KEY, cobrautil.ROW_COPYSET_ID, cobrautil.ROW_POOL_ID, cobrautil.ROW_EPOCH, cobrautil.ROW_LEADER_PEER, cobrautil.ROW_PEER_NUMBER}
+	header := []string{curveutil.ROW_KEY, curveutil.ROW_COPYSET_ID, curveutil.ROW_POOL_ID, curveutil.ROW_EPOCH, curveutil.ROW_LEADER_PEER, curveutil.ROW_PEER_NUMBER}
 	cCmd.SetHeader(header)
-	index_pool := slices.Index(header, cobrautil.ROW_POOL_ID)
-	index_leader := slices.Index(header, cobrautil.ROW_LEADER_PEER)
+	index_pool := slices.Index(header, curveutil.ROW_POOL_ID)
+	index_leader := slices.Index(header, curveutil.ROW_LEADER_PEER)
 	cCmd.TableNew.SetAutoMergeCellsByColumnIndex([]int{index_pool, index_leader})
 
 	return nil
@@ -138,27 +138,27 @@ func (cCmd *CopysetCommand) updateTable() {
 		info := copyset.GetCopysetInfo()
 		code := copyset.GetStatusCode()
 		row := make(map[string]string)
-		key := cobrautil.GetCopysetKey(uint64(info.GetPoolId()), uint64(info.GetCopysetId()))
-		row[cobrautil.ROW_KEY] = fmt.Sprintf("%d", key)
-		row[cobrautil.ROW_COPYSET_ID] = fmt.Sprintf("%d", info.GetCopysetId())
-		row[cobrautil.ROW_POOL_ID] = fmt.Sprintf("%d", info.GetPoolId())
-		row[cobrautil.ROW_EPOCH] = fmt.Sprintf("%d", info.GetEpoch())
+		key := curveutil.GetCopysetKey(uint64(info.GetPoolId()), uint64(info.GetCopysetId()))
+		row[curveutil.ROW_KEY] = fmt.Sprintf("%d", key)
+		row[curveutil.ROW_COPYSET_ID] = fmt.Sprintf("%d", info.GetCopysetId())
+		row[curveutil.ROW_POOL_ID] = fmt.Sprintf("%d", info.GetPoolId())
+		row[curveutil.ROW_EPOCH] = fmt.Sprintf("%d", info.GetEpoch())
 		if code != topology.TopoStatusCode_TOPO_OK && info.GetLeaderPeer() == nil {
-			row[cobrautil.ROW_LEADER_PEER] = ""
-			row[cobrautil.ROW_PEER_NUMBER] = fmt.Sprintf("%d", len(info.GetPeers()))
+			row[curveutil.ROW_LEADER_PEER] = ""
+			row[curveutil.ROW_PEER_NUMBER] = fmt.Sprintf("%d", len(info.GetPeers()))
 		} else {
-			row[cobrautil.ROW_LEADER_PEER] = info.GetLeaderPeer().String()
+			row[curveutil.ROW_LEADER_PEER] = info.GetLeaderPeer().String()
 			peerNum := 0
 			for _, peer := range info.GetPeers() {
 				if peer != nil {
 					peerNum++
 				}
 			}
-			row[cobrautil.ROW_PEER_NUMBER] = fmt.Sprintf("%d", peerNum)
+			row[curveutil.ROW_PEER_NUMBER] = fmt.Sprintf("%d", peerNum)
 		}
 		rows = append(rows, row)
 	}
-	list := cobrautil.ListMap2ListSortByKeys(rows, cCmd.Header, []string{cobrautil.ROW_LEADER_PEER, cobrautil.ROW_KEY})
+	list := curveutil.ListMap2ListSortByKeys(rows, cCmd.Header, []string{curveutil.ROW_LEADER_PEER, curveutil.ROW_KEY})
 	cCmd.TableNew.AppendBulk(list)
 }
 

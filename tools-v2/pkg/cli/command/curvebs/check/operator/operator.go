@@ -26,7 +26,7 @@ import (
 	"time"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -63,26 +63,26 @@ func (oCmd *OperatorCommand) AddFlags() {
 
 func (oCmd *OperatorCommand) Init(cmd *cobra.Command, args []string) error {
 	opName := config.GetBsFlagString(cmd, config.CURVEBS_OP)
-	opType, cmdErr := cobrautil.SupportOpName(opName)
+	opType, cmdErr := curveutil.SupportOpName(opName)
 	if cmdErr.TypeCode() != cmderror.CODE_SUCCESS {
 		return cmdErr.ToError()
 	}
 	if oCmd.Cmd.Flags().Changed(config.CURVEBS_CHECK_TIME) {
 		oCmd.checkTime = config.GetBsFlagDuration(cmd, config.CURVEBS_CHECK_TIME)
 	} else {
-		oCmd.checkTime = cobrautil.GetDefaultCheckTime(opType)
+		oCmd.checkTime = curveutil.GetDefaultCheckTime(opType)
 	}
 	addrs, cmdErr := config.GetBsMdsAddrSlice(oCmd.Cmd)
 	if cmdErr.TypeCode() != cmderror.CODE_SUCCESS {
 		return cmdErr.ToError()
 	}
 	timeout := config.GetBsFlagDuration(oCmd.Cmd, config.HTTPTIMEOUT)
-	subUri := cobrautil.GetOpNumSubUri(opName)
+	subUri := curveutil.GetOpNumSubUri(opName)
 	oCmd.metric = basecmd.NewMetric(addrs, subUri, timeout)
 
-	oCmd.SetHeader([]string{cobrautil.ROW_OPNAME, cobrautil.ROW_NUM})
+	oCmd.SetHeader([]string{curveutil.ROW_OPNAME, curveutil.ROW_NUM})
 	oCmd.row = make(map[string]string)
-	oCmd.row[cobrautil.ROW_OPNAME] = opName
+	oCmd.row[curveutil.ROW_OPNAME] = opName
 
 	return nil
 }
@@ -108,13 +108,13 @@ func (oCmd *OperatorCommand) RunCommand(cmd *cobra.Command, args []string) error
 			metricErr.Format(resValueStr)
 			return metricErr.ToError()
 		}
-		oCmd.row[cobrautil.ROW_NUM] = resValueStr
+		oCmd.row[curveutil.ROW_NUM] = resValueStr
 		if resValue != 0 || time.Since(start) >= oCmd.checkTime {
 			break
 		}
 		time.Sleep(CHECK_SLEEP_TIME)
 	}
-	list := cobrautil.Map2List(oCmd.row, oCmd.Header)
+	list := curveutil.Map2List(oCmd.row, oCmd.Header)
 	oCmd.TableNew.Append(list)
 	return nil
 }

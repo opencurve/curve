@@ -28,7 +28,7 @@ import (
 	"strconv"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -101,10 +101,10 @@ func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
 	retrytimes := viper.GetInt32(config.VIPER_GLOBALE_RPCRETRYTIMES)
 	fCmd.Rpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "ListClusterFsInfo")
 
-	header := []string{cobrautil.ROW_ID, cobrautil.ROW_NAME, cobrautil.ROW_STATUS, cobrautil.ROW_CAPACITY, cobrautil.ROW_BLOCKSIZE, cobrautil.ROW_FS_TYPE, cobrautil.ROW_SUM_IN_DIR, cobrautil.ROW_OWNER, cobrautil.ROW_MOUNT_NUM}
+	header := []string{curveutil.ROW_ID, curveutil.ROW_NAME, curveutil.ROW_STATUS, curveutil.ROW_CAPACITY, curveutil.ROW_BLOCKSIZE, curveutil.ROW_FS_TYPE, curveutil.ROW_SUM_IN_DIR, curveutil.ROW_OWNER, curveutil.ROW_MOUNT_NUM}
 	fCmd.SetHeader(header)
-	index_owner := slices.Index(header, cobrautil.ROW_OWNER)
-	index_type := slices.Index(header, cobrautil.ROW_FS_TYPE)
+	index_owner := slices.Index(header, curveutil.ROW_OWNER)
+	index_type := slices.Index(header, curveutil.ROW_FS_TYPE)
 	fCmd.TableNew.SetAutoMergeCellsByColumnIndex([]int{index_owner, index_type})
 
 	return nil
@@ -136,18 +136,18 @@ func (fCmd *FsCommand)updateTable() {
 	rows := make([]map[string]string, 0)
 	for _, fsInfo := range fssInfo {
 		row := make(map[string]string)
-		row[cobrautil.ROW_ID] = fmt.Sprintf("%d", fsInfo.GetFsId())
-		row[cobrautil.ROW_NAME] = fsInfo.GetFsName()
-		row[cobrautil.ROW_STATUS] = fsInfo.GetStatus().String()
-		row[cobrautil.ROW_CAPACITY] = fmt.Sprintf("%d", fsInfo.GetCapacity())
-		row[cobrautil.ROW_BLOCKSIZE] = fmt.Sprintf("%d", fsInfo.GetBlockSize())
-		row[cobrautil.ROW_FS_TYPE] = fsInfo.GetFsType().String()
-		row[cobrautil.ROW_SUM_IN_DIR] = fmt.Sprintf("%t", fsInfo.GetEnableSumInDir())
-		row[cobrautil.ROW_OWNER] = fsInfo.GetOwner()
-		row[cobrautil.ROW_MOUNT_NUM] = fmt.Sprintf("%d", fsInfo.GetMountNum())
+		row[curveutil.ROW_ID] = fmt.Sprintf("%d", fsInfo.GetFsId())
+		row[curveutil.ROW_NAME] = fsInfo.GetFsName()
+		row[curveutil.ROW_STATUS] = fsInfo.GetStatus().String()
+		row[curveutil.ROW_CAPACITY] = fmt.Sprintf("%d", fsInfo.GetCapacity())
+		row[curveutil.ROW_BLOCKSIZE] = fmt.Sprintf("%d", fsInfo.GetBlockSize())
+		row[curveutil.ROW_FS_TYPE] = fsInfo.GetFsType().String()
+		row[curveutil.ROW_SUM_IN_DIR] = fmt.Sprintf("%t", fsInfo.GetEnableSumInDir())
+		row[curveutil.ROW_OWNER] = fsInfo.GetOwner()
+		row[curveutil.ROW_MOUNT_NUM] = fmt.Sprintf("%d", fsInfo.GetMountNum())
 		rows = append(rows, row)
 	}
-	list := cobrautil.ListMap2ListSortByKeys(rows, fCmd.Header, []string{cobrautil.ROW_OWNER, cobrautil.ROW_FS_TYPE, cobrautil.ROW_ID})
+	list := curveutil.ListMap2ListSortByKeys(rows, fCmd.Header, []string{curveutil.ROW_OWNER, curveutil.ROW_FS_TYPE, curveutil.ROW_ID})
 	fCmd.TableNew.AppendBulk(list)
 }
 

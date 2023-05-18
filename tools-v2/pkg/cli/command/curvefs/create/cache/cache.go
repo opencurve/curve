@@ -27,7 +27,7 @@ import (
 	"fmt"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -100,7 +100,7 @@ func (cCmd *CacheCommand) Init(cmd *cobra.Command, args []string) error {
 		return addrErr.ToError()
 	}
 	for _, server := range servers {
-		ip, port, addrErr := cobrautil.Addr2IpPort(server)
+		ip, port, addrErr := curveutil.Addr2IpPort(server)
 		if addrErr.TypeCode() != cmderror.CODE_SUCCESS {
 			return addrErr.ToError()
 		}
@@ -114,7 +114,7 @@ func (cCmd *CacheCommand) Init(cmd *cobra.Command, args []string) error {
 	retrytimes := viper.GetInt32(config.VIPER_GLOBALE_RPCRETRYTIMES)
 	cCmd.Rpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "ResistMemcacheCluster")
 
-	header := []string{cobrautil.ROW_ID, cobrautil.ROW_RESULT}
+	header := []string{curveutil.ROW_ID, curveutil.ROW_RESULT}
 	cCmd.SetHeader(header)
 
 	return nil
@@ -139,12 +139,12 @@ func (cCmd *CacheCommand) RunCommand(cmd *cobra.Command, args []string) error {
 
 	row := make(map[string]string)
 	if cCmd.Error.TypeCode() == cmderror.CODE_SUCCESS {
-		row[cobrautil.ROW_ID] = fmt.Sprintf("%d", result.GetClusterId())
+		row[curveutil.ROW_ID] = fmt.Sprintf("%d", result.GetClusterId())
 	} else {
-		row[cobrautil.ROW_ID] = "nil"
+		row[curveutil.ROW_ID] = "nil"
 	}
-	row[cobrautil.ROW_RESULT] = cCmd.Error.Message
-	list := cobrautil.Map2List(row, cCmd.Header)
+	row[curveutil.ROW_RESULT] = cCmd.Error.Message
+	list := curveutil.Map2List(row, cCmd.Header)
 	cCmd.TableNew.Append(list)
 	cCmd.Cmd.SilenceErrors = true
 	return nil

@@ -27,7 +27,7 @@ import (
 	"fmt"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/zone"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
@@ -108,13 +108,13 @@ func (pCmd *ServerCommand) Init(cmd *cobra.Command, args []string) error {
 		}
 		pCmd.Rpc = append(pCmd.Rpc, rpc)
 	}
-	header := []string{cobrautil.ROW_ID, cobrautil.ROW_HOSTNAME, 
-		cobrautil.ROW_ZONE, cobrautil.ROW_PHYPOOL, cobrautil.ROW_INTERNAL_ADDR,
-		cobrautil.ROW_EXTERNAL_ADDR,
+	header := []string{curveutil.ROW_ID, curveutil.ROW_HOSTNAME, 
+		curveutil.ROW_ZONE, curveutil.ROW_PHYPOOL, curveutil.ROW_INTERNAL_ADDR,
+		curveutil.ROW_EXTERNAL_ADDR,
 	}
 	pCmd.SetHeader(header)
-	pCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
-		pCmd.Header, []string{cobrautil.ROW_PHYPOOL, cobrautil.ROW_ZONE},
+	pCmd.TableNew.SetAutoMergeCellsByColumnIndex(curveutil.GetIndexSlice(
+		pCmd.Header, []string{curveutil.ROW_PHYPOOL, curveutil.ROW_ZONE},
 	))
 	return nil
 }
@@ -144,19 +144,19 @@ func (pCmd *ServerCommand) RunCommand(cmd *cobra.Command, args []string) error {
 		infos := res.(*topology.ListZoneServerResponse).GetServerInfo()
 		for _, info := range infos {
 			row := make(map[string]string)
-			row[cobrautil.ROW_ID] = fmt.Sprintf("%d", info.GetServerID())
-			row[cobrautil.ROW_HOSTNAME] = info.GetHostName()
-			row[cobrautil.ROW_ZONE] = fmt.Sprintf("%d", info.GetZoneID())
-			row[cobrautil.ROW_PHYPOOL] = fmt.Sprintf("%d", info.GetPhysicalPoolID())
-			row[cobrautil.ROW_INTERNAL_ADDR] = fmt.Sprintf("%s:%d", 
+			row[curveutil.ROW_ID] = fmt.Sprintf("%d", info.GetServerID())
+			row[curveutil.ROW_HOSTNAME] = info.GetHostName()
+			row[curveutil.ROW_ZONE] = fmt.Sprintf("%d", info.GetZoneID())
+			row[curveutil.ROW_PHYPOOL] = fmt.Sprintf("%d", info.GetPhysicalPoolID())
+			row[curveutil.ROW_INTERNAL_ADDR] = fmt.Sprintf("%s:%d", 
 				info.GetInternalIp(), info.GetInternalPort())
-			row[cobrautil.ROW_EXTERNAL_ADDR] = fmt.Sprintf("%s:%d",
+			row[curveutil.ROW_EXTERNAL_ADDR] = fmt.Sprintf("%s:%d",
 				info.GetExternalIp(), info.GetExternalPort())
 			rows = append(rows, row)
 		}
 	}
-	list := cobrautil.ListMap2ListSortByKeys(rows, pCmd.Header, []string {
-		cobrautil.ROW_PHYPOOL, cobrautil.ROW_ZONE,
+	list := curveutil.ListMap2ListSortByKeys(rows, pCmd.Header, []string {
+		curveutil.ROW_PHYPOOL, curveutil.ROW_ZONE,
 	})
 	pCmd.TableNew.AppendBulk(list)
 	errRet := cmderror.MergeCmdError(errors)

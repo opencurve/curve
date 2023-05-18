@@ -27,7 +27,7 @@ import (
 	"fmt"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -99,10 +99,10 @@ func (cCmd *CacheCommand) Init(cmd *cobra.Command, args []string) error {
 	retrytimes := viper.GetInt32(config.VIPER_GLOBALE_RPCRETRYTIMES)
 	cCmd.Rpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "ListMemcacheCluster")
 
-	header := []string{cobrautil.ROW_ID, cobrautil.ROW_SERVER}
+	header := []string{curveutil.ROW_ID, curveutil.ROW_SERVER}
 	cCmd.SetHeader(header)
-	cCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
-		cCmd.Header, []string{cobrautil.ROW_ID},
+	cCmd.TableNew.SetAutoMergeCellsByColumnIndex(curveutil.GetIndexSlice(
+		cCmd.Header, []string{curveutil.ROW_ID},
 	))
 
 	return nil
@@ -129,12 +129,12 @@ func (cCmd *CacheCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	for _, cluster := range result.GetMemcacheClusters() {
 		for _, server := range cluster.GetServers() {
 			row := make(map[string]string)
-			row[cobrautil.ROW_ID] = fmt.Sprintf("%d", cluster.GetClusterId())
-			row[cobrautil.ROW_SERVER] = fmt.Sprintf("%s:%d", server.GetIp(), server.GetPort())
+			row[curveutil.ROW_ID] = fmt.Sprintf("%d", cluster.GetClusterId())
+			row[curveutil.ROW_SERVER] = fmt.Sprintf("%s:%d", server.GetIp(), server.GetPort())
 			rows = append(rows, row)
 		}
 	}
-	list := cobrautil.ListMap2ListSortByKeys(rows, cCmd.Header, []string{cobrautil.ROW_ID})
+	list := curveutil.ListMap2ListSortByKeys(rows, cCmd.Header, []string{curveutil.ROW_ID})
 	cCmd.TableNew.AppendBulk(list)
 	return nil
 }

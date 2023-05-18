@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/proto/proto/topology"
 	"github.com/opencurve/curve/tools-v2/proto/proto/topology/statuscode"
@@ -114,12 +114,12 @@ func (ctCmd *ClusterTopoCmd) scanZones() *cmderror.CmdError {
 			}
 			ctCmd.zonesToBeDeleted = append(ctCmd.zonesToBeDeleted, request)
 			row := make(map[string]string)
-			row[cobrautil.ROW_NAME] = zoneInfo.GetZoneName()
-			row[cobrautil.ROW_TYPE] = cobrautil.TYPE_ZONE
-			row[cobrautil.ROW_OPERATION] = cobrautil.ROW_VALUE_DEL
-			row[cobrautil.ROW_PARENT] = zoneInfo.GetPhysicalPoolName()
+			row[curveutil.ROW_NAME] = zoneInfo.GetZoneName()
+			row[curveutil.ROW_TYPE] = curveutil.TYPE_ZONE
+			row[curveutil.ROW_OPERATION] = curveutil.ROW_VALUE_DEL
+			row[curveutil.ROW_PARENT] = zoneInfo.GetPhysicalPoolName()
 			ctCmd.rows = append(ctCmd.rows, row)
-			ctCmd.TableNew.Append(cobrautil.Map2List(row, ctCmd.Header))
+			ctCmd.TableNew.Append(curveutil.Map2List(row, ctCmd.Header))
 		}
 	}
 
@@ -138,12 +138,12 @@ func (ctCmd *ClusterTopoCmd) scanZones() *cmderror.CmdError {
 			}
 			ctCmd.zonesToBeCreated = append(ctCmd.zonesToBeCreated, request)
 			row := make(map[string]string)
-			row[cobrautil.ROW_NAME] = z.Name
-			row[cobrautil.ROW_TYPE] = cobrautil.TYPE_ZONE
-			row[cobrautil.ROW_OPERATION] = cobrautil.ROW_VALUE_ADD
-			row[cobrautil.ROW_PARENT] = z.PhysicalPool
+			row[curveutil.ROW_NAME] = z.Name
+			row[curveutil.ROW_TYPE] = curveutil.TYPE_ZONE
+			row[curveutil.ROW_OPERATION] = curveutil.ROW_VALUE_ADD
+			row[curveutil.ROW_PARENT] = z.PhysicalPool
 			ctCmd.rows = append(ctCmd.rows, row)
-			ctCmd.TableNew.Append(cobrautil.Map2List(row, ctCmd.Header))
+			ctCmd.TableNew.Append(curveutil.Map2List(row, ctCmd.Header))
 		}
 	}
 
@@ -169,7 +169,7 @@ func (ctCmd *ClusterTopoCmd) removeZones() *cmderror.CmdError {
 		}
 		response := result.(*topology.ZoneResponse)
 		if response.GetStatusCode() != 0 {
-			return cmderror.ErrDelZone(statuscode.TopoStatusCode(response.GetStatusCode()), cobrautil.TYPE_ZONE, fmt.Sprintf("%d", delReq.GetZoneID()))
+			return cmderror.ErrDelZone(statuscode.TopoStatusCode(response.GetStatusCode()), curveutil.TYPE_ZONE, fmt.Sprintf("%d", delReq.GetZoneID()))
 		}
 	}
 	return cmderror.ErrSuccess()
@@ -194,7 +194,7 @@ func (ctCmd *ClusterTopoCmd) CreateZones() *cmderror.CmdError {
 		}
 		response := result.(*topology.ZoneResponse)
 		if response.GetStatusCode() != 0 {
-			return cmderror.ErrCreateBsTopology(statuscode.TopoStatusCode(response.GetStatusCode()), cobrautil.TYPE_ZONE, req.GetZoneName())
+			return cmderror.ErrCreateBsTopology(statuscode.TopoStatusCode(response.GetStatusCode()), curveutil.TYPE_ZONE, req.GetZoneName())
 		}
 	}
 	return cmderror.ErrSuccess()

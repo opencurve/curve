@@ -27,7 +27,7 @@ import (
 
 	"github.com/olekukonko/tablewriter"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/status/copyset"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/status/etcd"
@@ -48,9 +48,9 @@ const (
 type ClusterCommand struct {
 	basecmd.FinalCurveCmd
 	type2Table map[string]*tablewriter.Table
-	type2Func  map[string]func(caller *cobra.Command) (*interface{}, *tablewriter.Table, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS)
+	type2Func  map[string]func(caller *cobra.Command) (*interface{}, *tablewriter.Table, *cmderror.CmdError, curveutil.ClUSTER_HEALTH_STATUS)
 	serverList []string
-	health  cobrautil.ClUSTER_HEALTH_STATUS
+	health  curveutil.ClUSTER_HEALTH_STATUS
 }
 
 var _ basecmd.FinalCurveCmdFunc = (*ClusterCommand)(nil) // check interface
@@ -78,7 +78,7 @@ func (cCmd *ClusterCommand) AddFlags() {
 }
 
 func (cCmd *ClusterCommand) Init(cmd *cobra.Command, args []string) error {
-	cCmd.type2Func = map[string]func(caller *cobra.Command) (*interface{}, *tablewriter.Table, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS){
+	cCmd.type2Func = map[string]func(caller *cobra.Command) (*interface{}, *tablewriter.Table, *cmderror.CmdError, curveutil.ClUSTER_HEALTH_STATUS){
 		TYPE_ETCD:        etcd.GetEtcdStatus,
 		TYPE_MDS:         mds.GetMdsStatus,
 		TYPE_MEATASERVER: metaserver.GetMetaserverStatus,
@@ -86,7 +86,7 @@ func (cCmd *ClusterCommand) Init(cmd *cobra.Command, args []string) error {
 	}
 	cCmd.type2Table = make(map[string]*tablewriter.Table)
 	cCmd.serverList = []string{TYPE_ETCD, TYPE_MDS, TYPE_MEATASERVER, TYPE_COPYSET}
-	cCmd.health = cobrautil.HEALTH_OK
+	cCmd.health = curveutil.HEALTH_OK
 	return nil
 }
 
@@ -102,11 +102,11 @@ func (cCmd *ClusterCommand) RunCommand(cmd *cobra.Command, args []string) error 
 		cCmd.type2Table[key] = table
 		results[key] = *result
 		errs = append(errs, err)
-		cCmd.health = cobrautil.CompareHealth(cCmd.health, health)
+		cCmd.health = curveutil.CompareHealth(cCmd.health, health)
 	}
 	finalErr := cmderror.MergeCmdErrorExceptSuccess(errs)
 	cCmd.Error = finalErr
-	results["health"] = cobrautil.ClusterHealthStatus_Str[int32(cCmd.health)]
+	results["health"] = curveutil.ClusterHealthStatus_Str[int32(cCmd.health)]
 	cCmd.Result = results
 	return nil
 }
@@ -120,6 +120,6 @@ func (cCmd *ClusterCommand) ResultPlainOutput() error {
 			fmt.Printf("No found %s\n", server)
 		}
 	}
-	fmt.Println("Cluster health is:", cobrautil.ClusterHealthStatus_Str[int32(cCmd.health)])
+	fmt.Println("Cluster health is:", curveutil.ClusterHealthStatus_Str[int32(cCmd.health)])
 	return nil
 }

@@ -31,7 +31,7 @@ import (
 	mapset "github.com/deckarep/golang-set/v2"
 	"github.com/olekukonko/tablewriter"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/query/copyset"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
@@ -45,10 +45,10 @@ const (
 
 type CopysetCommand struct {
 	basecmd.FinalCurveCmd
-	key2Copyset           *map[uint64]*cobrautil.CopysetInfoStatus
-	copysetKey2Status     *map[uint64]cobrautil.COPYSET_HEALTH_STATUS
+	key2Copyset           *map[uint64]*curveutil.CopysetInfoStatus
+	copysetKey2Status     *map[uint64]curveutil.COPYSET_HEALTH_STATUS
 	copysetKey2LeaderInfo *map[uint64]*CopysetLeaderInfo
-	health                cobrautil.ClUSTER_HEALTH_STATUS
+	health                curveutil.ClUSTER_HEALTH_STATUS
 	leaderAddr            mapset.Set[string]
 }
 
@@ -70,7 +70,7 @@ func NewCheckCopysetCommand() *CopysetCommand {
 	return copysetCmd
 }
 
-func GetCopysetsStatus(caller *cobra.Command, copysetIds string, poolIds string) (interface{}, *tablewriter.Table, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS) {
+func GetCopysetsStatus(caller *cobra.Command, copysetIds string, poolIds string) (interface{}, *tablewriter.Table, *cmderror.CmdError, curveutil.ClUSTER_HEALTH_STATUS) {
 	checkCopyset := NewCheckCopysetCommand()
 	checkCopyset.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.CURVEFS_COPYSETID), copysetIds,
@@ -101,30 +101,30 @@ func (cCmd *CopysetCommand) AddFlags() {
 }
 
 func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
-	cCmd.health = cobrautil.HEALTH_ERROR
+	cCmd.health = curveutil.HEALTH_ERROR
 	var queryCopysetErr *cmderror.CmdError
 	cCmd.key2Copyset, queryCopysetErr = copyset.QueryCopysetInfoStatus(cCmd.Cmd)
 	if queryCopysetErr.TypeCode() != cmderror.CODE_SUCCESS {
 		return queryCopysetErr.ToError()
 	}
 	cCmd.Error = queryCopysetErr
-	header := []string{cobrautil.ROW_COPYSET_KEY, cobrautil.ROW_COPYSET_ID,
-		cobrautil.ROW_POOL_ID, cobrautil.ROW_STATUS, cobrautil.ROW_LOG_GAP,
-		cobrautil.ROW_EXPLAIN,
+	header := []string{curveutil.ROW_COPYSET_KEY, curveutil.ROW_COPYSET_ID,
+		curveutil.ROW_POOL_ID, curveutil.ROW_STATUS, curveutil.ROW_LOG_GAP,
+		curveutil.ROW_EXPLAIN,
 	}
 	cCmd.SetHeader(header)
-	cCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
-		cCmd.Header, []string{cobrautil.ROW_COPYSET_ID, cobrautil.ROW_POOL_ID,
-			cobrautil.ROW_STATUS,
+	cCmd.TableNew.SetAutoMergeCellsByColumnIndex(curveutil.GetIndexSlice(
+		cCmd.Header, []string{curveutil.ROW_COPYSET_ID, curveutil.ROW_POOL_ID,
+			curveutil.ROW_STATUS,
 		}))
-	copysetKey2Status := make(map[uint64]cobrautil.COPYSET_HEALTH_STATUS)
+	copysetKey2Status := make(map[uint64]curveutil.COPYSET_HEALTH_STATUS)
 	cCmd.copysetKey2Status = &copysetKey2Status
 
 	// update leaderAddr
 	cCmd.leaderAddr = mapset.NewSet[string]()
 	for _, copysetInfo := range *cCmd.key2Copyset {
 		leader := copysetInfo.Info.GetLeaderPeer()
-		addr, err := cobrautil.PeertoAddr(leader)
+		addr, err := curveutil.PeertoAddr(leader)
 		if err.TypeCode() != cmderror.CODE_SUCCESS {
 			err := cmderror.ErrCopysetInfo()
 			err.Format(copysetInfo.Info.CopysetId)
@@ -149,23 +149,23 @@ func (cCmd *CopysetCommand) Print(cmd *cobra.Command, args []string) error {
 func (cCmd *CopysetCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	rows := make([]map[string]string, 0)
 	var errs []*cmderror.CmdError
-	copysetHealthCount := make(map[cobrautil.COPYSET_HEALTH_STATUS]uint32)
+	copysetHealthCount := make(map[curveutil.COPYSET_HEALTH_STATUS]uint32)
 	for k, v := range *cCmd.key2Copyset {
 		row := make(map[string]string)
-		row[cobrautil.ROW_COPYSET_KEY] = fmt.Sprintf("%d", k)
-		poolid, copysetid := cobrautil.CopysetKey2PoolidCopysetid(k)
-		row[cobrautil.ROW_POOL_ID] = fmt.Sprintf("%d", poolid)
-		row[cobrautil.ROW_COPYSET_ID] = fmt.Sprintf("%d", copysetid)
+		row[curveutil.ROW_COPYSET_KEY] = fmt.Sprintf("%d", k)
+		poolid, copysetid := curveutil.CopysetKey2PoolidCopysetid(k)
+		row[curveutil.ROW_POOL_ID] = fmt.Sprintf("%d", poolid)
+		row[curveutil.ROW_COPYSET_ID] = fmt.Sprintf("%d", copysetid)
 		if v == nil {
-			row[cobrautil.ROW_STATUS] = cobrautil.CopysetHealthStatus_Str[int32(cobrautil.COPYSET_NOTEXIST)]
-			(*cCmd.copysetKey2Status)[k] = cobrautil.COPYSET_NOTEXIST
+			row[curveutil.ROW_STATUS] = curveutil.CopysetHealthStatus_Str[int32(curveutil.COPYSET_NOTEXIST)]
+			(*cCmd.copysetKey2Status)[k] = curveutil.COPYSET_NOTEXIST
 		} else {
-			status, errsCheck := cobrautil.CheckCopySetHealth(v)
+			status, errsCheck := curveutil.CheckCopySetHealth(v)
 			copysetHealthCount[status]++
-			row[cobrautil.ROW_STATUS] = cobrautil.CopysetHealthStatus_Str[int32(status)]
+			row[curveutil.ROW_STATUS] = curveutil.CopysetHealthStatus_Str[int32(status)]
 			(*cCmd.copysetKey2Status)[k] = status
 			explain := ""
-			if status != cobrautil.COPYSET_OK {
+			if status != curveutil.COPYSET_OK {
 				for i, e := range errsCheck {
 					if i != len(errsCheck) {
 						explain += fmt.Sprintf("%s\n", e.Message)
@@ -179,9 +179,9 @@ func (cCmd *CopysetCommand) RunCommand(cmd *cobra.Command, args []string) error 
 			leaderInfo := (*cCmd.copysetKey2LeaderInfo)[k]
 			if leaderInfo == nil {
 				explain = "no leader peer"
-				if row[cobrautil.ROW_STATUS] == cobrautil.COPYSET_OK_STR {
-					row[cobrautil.ROW_STATUS] = cobrautil.COPYSET_ERROR_STR
-					copysetHealthCount[cobrautil.COPYSET_ERROR]++
+				if row[curveutil.ROW_STATUS] == curveutil.COPYSET_OK_STR {
+					row[curveutil.ROW_STATUS] = curveutil.COPYSET_ERROR_STR
+					copysetHealthCount[curveutil.COPYSET_ERROR]++
 				}
 			} else if leaderInfo.Snapshot {
 				installSnapshot := "installing snapshot"
@@ -189,44 +189,44 @@ func (cCmd *CopysetCommand) RunCommand(cmd *cobra.Command, args []string) error 
 					explain += "\n"
 				}
 				explain += installSnapshot
-				if row[cobrautil.ROW_STATUS] == cobrautil.COPYSET_OK_STR {
-					row[cobrautil.ROW_STATUS] = cobrautil.COPYSET_WARN_STR
-					copysetHealthCount[cobrautil.COPYSET_WARN]++
+				if row[curveutil.ROW_STATUS] == curveutil.COPYSET_OK_STR {
+					row[curveutil.ROW_STATUS] = curveutil.COPYSET_WARN_STR
+					copysetHealthCount[curveutil.COPYSET_WARN]++
 				}
 			} else {
 				gap := leaderInfo.Gap
-				row[cobrautil.ROW_LOG_GAP] = fmt.Sprintf("%d", gap)
+				row[curveutil.ROW_LOG_GAP] = fmt.Sprintf("%d", gap)
 				if gap >= magrin {
 					behind := fmt.Sprintf("log behind %d", gap)
 					if len(explain) > 0 {
 						explain += "\n"
 					}
 					explain += behind
-					if row[cobrautil.ROW_STATUS] == cobrautil.COPYSET_OK_STR {
-						row[cobrautil.ROW_STATUS] = cobrautil.COPYSET_WARN_STR
-						copysetHealthCount[cobrautil.COPYSET_WARN]++
+					if row[curveutil.ROW_STATUS] == curveutil.COPYSET_OK_STR {
+						row[curveutil.ROW_STATUS] = curveutil.COPYSET_WARN_STR
+						copysetHealthCount[curveutil.COPYSET_WARN]++
 					}
 				}
 
 			}
-			row[cobrautil.ROW_EXPLAIN] = explain
+			row[curveutil.ROW_EXPLAIN] = explain
 		}
 		rows = append(rows, row)
 	}
-	if copysetHealthCount[cobrautil.COPYSET_NOTEXIST] > 0 || copysetHealthCount[cobrautil.COPYSET_ERROR] > 0 {
-		cCmd.health = cobrautil.HEALTH_ERROR
-	} else if copysetHealthCount[cobrautil.COPYSET_WARN] > 0 {
-		cCmd.health = cobrautil.HEALTH_WARN
+	if copysetHealthCount[curveutil.COPYSET_NOTEXIST] > 0 || copysetHealthCount[curveutil.COPYSET_ERROR] > 0 {
+		cCmd.health = curveutil.HEALTH_ERROR
+	} else if copysetHealthCount[curveutil.COPYSET_WARN] > 0 {
+		cCmd.health = curveutil.HEALTH_WARN
 	} else {
-		cCmd.health = cobrautil.HEALTH_OK
+		cCmd.health = curveutil.HEALTH_OK
 	}
 	retErr := cmderror.MergeCmdErrorExceptSuccess(errs)
 	cCmd.Error = retErr
 	sort.Slice(rows, func(i, j int) bool {
-		return rows[i][cobrautil.ROW_COPYSET_KEY] < rows[j][cobrautil.ROW_COPYSET_KEY]
+		return rows[i][curveutil.ROW_COPYSET_KEY] < rows[j][curveutil.ROW_COPYSET_KEY]
 	})
-	list := cobrautil.ListMap2ListSortByKeys(rows, cCmd.Header, []string{
-		cobrautil.ROW_POOL_ID, cobrautil.ROW_STATUS, cobrautil.ROW_COPYSET_ID,
+	list := curveutil.ListMap2ListSortByKeys(rows, cCmd.Header, []string{
+		curveutil.ROW_POOL_ID, curveutil.ROW_STATUS, curveutil.ROW_COPYSET_ID,
 	})
 	cCmd.TableNew.AppendBulk(list)
 	cCmd.Result = rows

@@ -27,7 +27,7 @@ import (
 	"fmt"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -100,7 +100,7 @@ func (sCmd *ScanStateCommand) Init(cmd *cobra.Command, args []string) error {
 		return err.ToError()
 	}
 
-	header := []string{cobrautil.ROW_ID, cobrautil.ROW_SCAN, cobrautil.ROW_RESULT, cobrautil.ROW_REASON}
+	header := []string{curveutil.ROW_ID, curveutil.ROW_SCAN, curveutil.ROW_RESULT, curveutil.ROW_REASON}
 	sCmd.SetHeader(header)
 
 	Timeout := config.GetFlagDuration(sCmd.Cmd, config.RPCTIMEOUT)
@@ -123,22 +123,22 @@ func (sCmd *ScanStateCommand) Print(cmd *cobra.Command, args []string) error {
 
 func (sCmd *ScanStateCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	out := make(map[string]string)
-	out[cobrautil.ROW_ID] = fmt.Sprintf("%d", sCmd.LogicalPoolID)
-	out[cobrautil.ROW_SCAN] = fmt.Sprintf("%t", sCmd.Scan)
+	out[curveutil.ROW_ID] = fmt.Sprintf("%d", sCmd.LogicalPoolID)
+	out[curveutil.ROW_SCAN] = fmt.Sprintf("%t", sCmd.Scan)
 	result, err := basecmd.GetRpcResponse(sCmd.Rpc.Info, sCmd.Rpc)
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		return err.ToError()
 	}
 	sCmd.Response = result.(*topology.SetLogicalPoolScanStateResponse)
 	if *sCmd.Response.StatusCode != int32(statuscode.TopoStatusCode_Success) {
-		out[cobrautil.ROW_RESULT] = cobrautil.ROW_VALUE_FAILED
-		out[cobrautil.ROW_REASON] = statuscode.TopoStatusCode_name[*sCmd.Response.StatusCode]
+		out[curveutil.ROW_RESULT] = curveutil.ROW_VALUE_FAILED
+		out[curveutil.ROW_REASON] = statuscode.TopoStatusCode_name[*sCmd.Response.StatusCode]
 	} else {
-		out[cobrautil.ROW_RESULT] = cobrautil.ROW_VALUE_SUCCESS
-		out[cobrautil.ROW_REASON] = cobrautil.ROW_VALUE_NULL
+		out[curveutil.ROW_RESULT] = curveutil.ROW_VALUE_SUCCESS
+		out[curveutil.ROW_REASON] = curveutil.ROW_VALUE_NULL
 	}
 
-	res := cobrautil.Map2List(out, sCmd.Header)
+	res := curveutil.Map2List(out, sCmd.Header)
 	sCmd.TableNew.Append(res)
 
 	sCmd.Result = out

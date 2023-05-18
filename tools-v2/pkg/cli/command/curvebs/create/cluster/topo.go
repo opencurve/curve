@@ -30,7 +30,7 @@ import (
 	"time"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -175,7 +175,7 @@ func (ctCmd *ClusterTopoCmd) Init(cmd *cobra.Command, args []string) error {
 		return genZoneErr.ToError()
 	}
 
-	header := []string{cobrautil.ROW_NAME, cobrautil.ROW_TYPE, cobrautil.ROW_OPERATION, cobrautil.ROW_PARENT}
+	header := []string{curveutil.ROW_NAME, curveutil.ROW_TYPE, curveutil.ROW_OPERATION, curveutil.ROW_PARENT}
 	ctCmd.SetHeader(header)
 	ctCmd.TableNew.SetAutoMergeCells(true)
 	scanErr := ctCmd.scanCluster()

@@ -28,7 +28,7 @@ import (
 
 	"github.com/dustin/go-humanize"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -115,12 +115,12 @@ func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(addrErr.Message)
 	}
 
-	header := []string{cobrautil.ROW_FS_NAME, cobrautil.ROW_RESULT}
+	header := []string{curveutil.ROW_FS_NAME, curveutil.ROW_RESULT}
 	fCmd.SetHeader(header)
 
 	fsName := config.GetFlagString(cmd, config.CURVEFS_FSNAME)
-	if !cobrautil.IsValidFsname(fsName) {
-		return fmt.Errorf("fsname[%s] is not vaild, it should be match regex: %s", fsName, cobrautil.FS_NAME_REGEX)
+	if !curveutil.IsValidFsname(fsName) {
+		return fmt.Errorf("fsname[%s] is not vaild, it should be match regex: %s", fsName, curveutil.FS_NAME_REGEX)
 	}
 
 	blocksizeStr := config.GetFlagString(cmd, config.CURVEFS_BLOCKSIZE)
@@ -130,7 +130,7 @@ func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
 	}
 
 	fsTypeStr := config.GetFlagString(cmd, config.CURVEFS_FSTYPE)
-	fsType, errFstype := cobrautil.TranslateFsType(fsTypeStr)
+	fsType, errFstype := curveutil.TranslateFsType(fsTypeStr)
 	if errFstype.TypeCode() != cmderror.CODE_SUCCESS {
 		return errFstype.ToError()
 	}
@@ -245,7 +245,7 @@ func setVolumeInfo(detail *mds.FsDetail, cmd *cobra.Command) *cmderror.CmdError 
 		errParse.Format(config.CURVEFS_VOLUME_BLOCKGROUPSIZE, groupSizeStr)
 	}
 	bitmapLocationStr := config.GetFlagString(cmd, config.CURVEFS_VOLUME_BITMAPLOCATION)
-	bitmapLocation, errTrans := cobrautil.TranslateBitmapLocation(bitmapLocationStr)
+	bitmapLocation, errTrans := curveutil.TranslateBitmapLocation(bitmapLocationStr)
 	if errTrans.TypeCode() != cmderror.CODE_SUCCESS {
 		return errTrans
 	}
@@ -256,26 +256,26 @@ func setVolumeInfo(detail *mds.FsDetail, cmd *cobra.Command) *cmderror.CmdError 
 		errParse.Format(config.CURVEFS_VOLUME_SLICESIZE, sliceStr)
 	}
 
-	if !cobrautil.IsAligned(blocksize, 4096) {
+	if !curveutil.IsAligned(blocksize, 4096) {
 		alignErr := cmderror.ErrAligned()
 		alignErr.Format(config.CURVEFS_VOLUME_BLOCKSIZE, "4 kib")
 		return alignErr
 	}
 
-	if !cobrautil.IsAligned(groupSize, blocksize) {
+	if !curveutil.IsAligned(groupSize, blocksize) {
 		alignErr := cmderror.ErrAligned()
 		alignErr.Format(config.CURVEFS_VOLUME_BLOCKGROUPSIZE, config.CURVEFS_VOLUME_BLOCKSIZE)
 		return alignErr
 	}
 
 	align128MiB, _ := humanize.ParseBytes("128 MiB")
-	if !cobrautil.IsAligned(groupSize, align128MiB) {
+	if !curveutil.IsAligned(groupSize, align128MiB) {
 		alignErr := cmderror.ErrAligned()
 		alignErr.Format(config.CURVEFS_VOLUME_BLOCKGROUPSIZE, "128 MiB")
 		return alignErr
 	}
 
-	if !cobrautil.IsAligned(size, groupSize) {
+	if !curveutil.IsAligned(size, groupSize) {
 		alignErr := cmderror.ErrAligned()
 		alignErr.Format(config.CURVEFS_VOLUME_SIZE, config.CURVEFS_VOLUME_BLOCKGROUPSIZE)
 		return alignErr
@@ -304,21 +304,21 @@ func (fCmd *FsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	response := result.(*mds.CreateFsResponse)
 	errCreate := cmderror.ErrCreateFs(int(response.GetStatusCode()))
 	row := map[string]string{
-		cobrautil.ROW_FS_NAME: fCmd.Rpc.Request.GetFsName(),
-		cobrautil.ROW_RESULT:  errCreate.Message,
+		curveutil.ROW_FS_NAME: fCmd.Rpc.Request.GetFsName(),
+		curveutil.ROW_RESULT:  errCreate.Message,
 	}
 	if response.GetStatusCode() == mds.FSStatusCode_OK {
 		fsInfo := response.GetFsInfo()
-		row[cobrautil.ROW_ID] = fmt.Sprintf("%d", fsInfo.GetFsId())
-		row[cobrautil.ROW_STATUS] = fsInfo.GetStatus().String()
-		row[cobrautil.ROW_CAPACITY] = fmt.Sprintf("%d", fsInfo.GetCapacity())
-		row[cobrautil.ROW_BLOCKSIZE] = fmt.Sprintf("%d", fsInfo.GetBlockSize())
-		row[cobrautil.ROW_FS_TYPE] = fsInfo.GetFsType().String()
-		row[cobrautil.ROW_SUM_IN_DIR] = fmt.Sprintf("%t", fsInfo.GetEnableSumInDir())
-		row[cobrautil.ROW_OWNER] = fsInfo.GetOwner()
+		row[curveutil.ROW_ID] = fmt.Sprintf("%d", fsInfo.GetFsId())
+		row[curveutil.ROW_STATUS] = fsInfo.GetStatus().String()
+		row[curveutil.ROW_CAPACITY] = fmt.Sprintf("%d", fsInfo.GetCapacity())
+		row[curveutil.ROW_BLOCKSIZE] = fmt.Sprintf("%d", fsInfo.GetBlockSize())
+		row[curveutil.ROW_FS_TYPE] = fsInfo.GetFsType().String()
+		row[curveutil.ROW_SUM_IN_DIR] = fmt.Sprintf("%t", fsInfo.GetEnableSumInDir())
+		row[curveutil.ROW_OWNER] = fsInfo.GetOwner()
 	}
 
-	fCmd.TableNew.Append(cobrautil.Map2List(row, fCmd.Header))
+	fCmd.TableNew.Append(curveutil.Map2List(row, fCmd.Header))
 
 	var errs []*cmderror.CmdError
 	res, errTranslate := output.MarshalProtoJson(response)

@@ -26,7 +26,7 @@ import (
 	"fmt"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/query/file"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
@@ -81,12 +81,12 @@ func (sCmd *SeginfoCommand) Init(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("file %s is not a pagefile", filepath)
 	}
 
-	header := []string{cobrautil.ROW_LOGICALPOOL, cobrautil.ROW_SEGMENT_SIZE, cobrautil.ROW_CHUNK_SIZE, cobrautil.ROW_START, cobrautil.ROW_COPYSET, cobrautil.ROW_CHUNK}
+	header := []string{curveutil.ROW_LOGICALPOOL, curveutil.ROW_SEGMENT_SIZE, curveutil.ROW_CHUNK_SIZE, curveutil.ROW_START, curveutil.ROW_COPYSET, curveutil.ROW_CHUNK}
 	sCmd.SetHeader(header)
 	sCmd.TableNew.SetAutoMergeCellsByColumnIndex(
-		cobrautil.GetIndexSlice(header, []string{
-			cobrautil.ROW_LOGICALPOOL, cobrautil.ROW_SEGMENT_SIZE, cobrautil.ROW_CHUNK_SIZE, cobrautil.ROW_START, cobrautil.ROW_COPYSET,
-			cobrautil.ROW_CHUNK,
+		curveutil.GetIndexSlice(header, []string{
+			curveutil.ROW_LOGICALPOOL, curveutil.ROW_SEGMENT_SIZE, curveutil.ROW_CHUNK_SIZE, curveutil.ROW_START, curveutil.ROW_COPYSET,
+			curveutil.ROW_CHUNK,
 		}),
 	)
 	return nil
@@ -130,18 +130,18 @@ TaverSegment:
 	for _, segment := range segments {
 		for _, chunk := range segment.GetChunks() {
 			row := make(map[string]string)
-			row[cobrautil.ROW_LOGICALPOOL] = fmt.Sprintf("%d", segment.GetLogicalPoolID())
-			row[cobrautil.ROW_SEGMENT_SIZE] = fmt.Sprintf("%d", segment.GetSegmentSize())
-			row[cobrautil.ROW_CHUNK_SIZE] = fmt.Sprintf("%d", segment.GetChunkSize())
-			row[cobrautil.ROW_START] = fmt.Sprintf("%d", segment.GetStartOffset())
-			row[cobrautil.ROW_COPYSET] = fmt.Sprintf("%d", chunk.GetCopysetID())
-			row[cobrautil.ROW_CHUNK] = fmt.Sprintf("%d", chunk.GetChunkID())
+			row[curveutil.ROW_LOGICALPOOL] = fmt.Sprintf("%d", segment.GetLogicalPoolID())
+			row[curveutil.ROW_SEGMENT_SIZE] = fmt.Sprintf("%d", segment.GetSegmentSize())
+			row[curveutil.ROW_CHUNK_SIZE] = fmt.Sprintf("%d", segment.GetChunkSize())
+			row[curveutil.ROW_START] = fmt.Sprintf("%d", segment.GetStartOffset())
+			row[curveutil.ROW_COPYSET] = fmt.Sprintf("%d", chunk.GetCopysetID())
+			row[curveutil.ROW_CHUNK] = fmt.Sprintf("%d", chunk.GetChunkID())
 			rows = append(rows, row)
 		}
 	}
-	list := cobrautil.ListMap2ListSortByKeys(rows, sCmd.Header, []string{
-			cobrautil.ROW_LOGICALPOOL, cobrautil.ROW_SEGMENT_SIZE, cobrautil.ROW_CHUNK_SIZE, cobrautil.ROW_START, cobrautil.ROW_COPYSET,
-			cobrautil.ROW_CHUNK,
+	list := curveutil.ListMap2ListSortByKeys(rows, sCmd.Header, []string{
+			curveutil.ROW_LOGICALPOOL, curveutil.ROW_SEGMENT_SIZE, curveutil.ROW_CHUNK_SIZE, curveutil.ROW_START, curveutil.ROW_COPYSET,
+			curveutil.ROW_CHUNK,
 	})
 	sCmd.TableNew.AppendBulk(list)
 	return nil

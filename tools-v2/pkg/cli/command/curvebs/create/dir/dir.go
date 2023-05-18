@@ -24,7 +24,7 @@ import (
 	"fmt"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/create/file"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
@@ -48,9 +48,9 @@ func (dCmd *DirectoryCommand) Init(cmd *cobra.Command, args []string) error {
 	config.AddBsFileTypeRequiredFlag(dCmd.Cmd)
 	dCmd.Cmd.ParseFlags([]string{
 		fmt.Sprintf("--%s", config.CURVEBS_TYPE),
-		fmt.Sprint(cobrautil.TYPE_DIR),
+		fmt.Sprint(curveutil.TYPE_DIR),
 	})
-	dCmd.SetHeader([]string{cobrautil.ROW_RESULT})
+	dCmd.SetHeader([]string{curveutil.ROW_RESULT})
 	return nil
 }
 

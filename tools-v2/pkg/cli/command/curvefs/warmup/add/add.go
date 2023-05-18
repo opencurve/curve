@@ -32,7 +32,7 @@ import (
 
 	mountinfo "github.com/cilium/cilium/pkg/mountinfo"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/warmup/query"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
@@ -93,7 +93,7 @@ func (aCmd *AddCommand) AddFlags() {
 
 func (aCmd *AddCommand) Init(cmd *cobra.Command, args []string) error {
 	// check has curvefs mountpoint
-	mountpoints, err := cobrautil.GetCurveFSMountPoints()
+	mountpoints, err := curveutil.GetCurveFSMountPoints()
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		return err.ToError()
 	} else if len(mountpoints) == 0 {
@@ -140,7 +140,7 @@ func (aCmd *AddCommand) Init(cmd *cobra.Command, args []string) error {
 				// test-1 mount in /a/b
 				// warmup /a/b/c.
 				aCmd.Mountpoint = mountpoint
-				aCmd.CurvefsPath = cobrautil.Path2CurvefsPath(aCmd.Path, mountpoint)
+				aCmd.CurvefsPath = curveutil.Path2CurvefsPath(aCmd.Path, mountpoint)
 			}
 		}
 	}
@@ -175,7 +175,7 @@ func (aCmd *AddCommand) convertFilelist() *cmderror.CmdError {
 		rel, err := filepath.Rel(aCmd.Mountpoint.MountPoint, line)
 		if err == nil && !strings.HasPrefix(rel, "..") {
 			// convert to curvefs path
-			curvefsAbspath := cobrautil.Path2CurvefsPath(line, aCmd.Mountpoint)
+			curvefsAbspath := curveutil.Path2CurvefsPath(line, aCmd.Mountpoint)
 			validPath += (curvefsAbspath + "\n")
 		} else {
 			convertFail := fmt.Sprintf("[%s] is not saved in curvefs", line)

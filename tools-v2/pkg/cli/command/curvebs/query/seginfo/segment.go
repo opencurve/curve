@@ -26,7 +26,7 @@ import (
 	"context"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -92,7 +92,7 @@ func (sCmd *SegmentCommand) Init(cmd *cobra.Command, args []string) error {
 	retrytimes := config.GetFlagInt32(sCmd.Cmd, config.RPCRETRYTIMES)
 	filepath := config.GetBsFlagString(sCmd.Cmd, config.CURVEBS_PATH)
 	owner := config.GetBsFlagString(sCmd.Cmd, config.CURVEBS_USER)
-	date, errDat := cobrautil.GetTimeofDayUs()
+	date, errDat := curveutil.GetTimeofDayUs()
 	if errDat.TypeCode() != cmderror.CODE_SUCCESS {
 		return errDat.ToError()
 	}
@@ -107,8 +107,8 @@ func (sCmd *SegmentCommand) Init(cmd *cobra.Command, args []string) error {
 	}
 	password := config.GetBsFlagString(sCmd.Cmd, config.CURVEBS_PASSWORD)
 	if owner == viper.GetString(config.VIPER_CURVEBS_USER) && len(password) != 0 {
-		strSig := cobrautil.GetString2Signature(date, owner)
-		sig := cobrautil.CalcString2Signature(strSig, password)
+		strSig := curveutil.GetString2Signature(date, owner)
+		sig := curveutil.CalcString2Signature(strSig, password)
 		request.Signature = &sig
 	}
 	sCmd.Rpc = &GetSegmentRpc{

@@ -29,7 +29,7 @@ import (
 
 	"github.com/dustin/go-humanize"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/query/file"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
@@ -106,7 +106,7 @@ func (pCmd *DirCommand) Init(cmd *cobra.Command, args []string) error {
 	retrytimes := config.GetFlagInt32(pCmd.Cmd, config.RPCRETRYTIMES)
 	path := config.GetBsFlagString(pCmd.Cmd, config.CURVEBS_PATH)
 	owner := config.GetBsFlagString(pCmd.Cmd, config.CURVEBS_USER)
-	date, errDat := cobrautil.GetTimeofDayUs()
+	date, errDat := curveutil.GetTimeofDayUs()
 	if errDat.TypeCode() != cmderror.CODE_SUCCESS {
 		return errDat.ToError()
 	}
@@ -122,24 +122,24 @@ func (pCmd *DirCommand) Init(cmd *cobra.Command, args []string) error {
 	// auth
 	password := config.GetBsFlagString(pCmd.Cmd, config.CURVEBS_PASSWORD)
 	if owner == viper.GetString(config.VIPER_CURVEBS_USER) && len(password) != 0 {
-		strSig := cobrautil.GetString2Signature(date, owner)
-		sig := cobrautil.CalcString2Signature(strSig, password)
+		strSig := curveutil.GetString2Signature(date, owner)
+		sig := curveutil.CalcString2Signature(strSig, password)
 		pCmd.Rpc.Request.Signature = &sig
 	}
 
 	header := []string{
-		cobrautil.ROW_ID,
-		cobrautil.ROW_FILE_NAME,
-		cobrautil.ROW_PARENT_ID,
-		cobrautil.ROW_FILE_TYPE,
-		cobrautil.ROW_OWNER,
-		cobrautil.ROW_CTIME,
-		cobrautil.ROW_ALLOC_SIZE,
-		cobrautil.ROW_FILE_SIZE,
+		curveutil.ROW_ID,
+		curveutil.ROW_FILE_NAME,
+		curveutil.ROW_PARENT_ID,
+		curveutil.ROW_FILE_TYPE,
+		curveutil.ROW_OWNER,
+		curveutil.ROW_CTIME,
+		curveutil.ROW_ALLOC_SIZE,
+		curveutil.ROW_FILE_SIZE,
 	}
 	pCmd.SetHeader(header)
-	pCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
-		pCmd.Header, []string{cobrautil.ROW_OWNER, cobrautil.ROW_FILE_TYPE, cobrautil.ROW_PARENT_ID},
+	pCmd.TableNew.SetAutoMergeCellsByColumnIndex(curveutil.GetIndexSlice(
+		pCmd.Header, []string{curveutil.ROW_OWNER, curveutil.ROW_FILE_TYPE, curveutil.ROW_PARENT_ID},
 	))
 	return nil
 }
@@ -170,12 +170,12 @@ func (pCmd *DirCommand) RunCommand(cmd *cobra.Command, args []string) error {
 		} else {
 			fileName = path + "/" + info.GetFileName()
 		}
-		row[cobrautil.ROW_ID] = fmt.Sprintf("%d", info.GetId())
-		row[cobrautil.ROW_FILE_NAME] = fileName
-		row[cobrautil.ROW_PARENT_ID] = fmt.Sprintf("%d", info.GetParentId())
-		row[cobrautil.ROW_FILE_TYPE] = fmt.Sprintf("%v", info.GetFileType())
-		row[cobrautil.ROW_OWNER] = info.GetOwner()
-		row[cobrautil.ROW_CTIME] = time.Unix(int64(info.GetCtime()/1000000), 0).Format("2006-01-02 15:04:05")
+		row[curveutil.ROW_ID] = fmt.Sprintf("%d", info.GetId())
+		row[curveutil.ROW_FILE_NAME] = fileName
+		row[curveutil.ROW_PARENT_ID] = fmt.Sprintf("%d", info.GetParentId())
+		row[curveutil.ROW_FILE_TYPE] = fmt.Sprintf("%v", info.GetFileType())
+		row[curveutil.ROW_OWNER] = info.GetOwner()
+		row[curveutil.ROW_CTIME] = time.Unix(int64(info.GetCtime()/1000000), 0).Format("2006-01-02 15:04:05")
 
 		// generate a query file command
 		fInfoCmd := file.NewQueryFileCommand()
@@ -190,17 +190,17 @@ func (pCmd *DirCommand) RunCommand(cmd *cobra.Command, args []string) error {
 			errs = append(errs, err)
 			continue
 		}
-		row[cobrautil.ROW_FILE_SIZE] = fmt.Sprintf("%s", humanize.IBytes(sizeRes.GetFileSize()))
+		row[curveutil.ROW_FILE_SIZE] = fmt.Sprintf("%s", humanize.IBytes(sizeRes.GetFileSize()))
 		// Get allocated size
 		allocRes, err := file.GetAllocatedSize(fInfoCmd.Cmd)
 		if err.TypeCode() != cmderror.CODE_SUCCESS {
 			errs = append(errs, err)
 			continue
 		}
-		row[cobrautil.ROW_ALLOC_SIZE] = fmt.Sprintf("%s", humanize.IBytes(allocRes.GetAllocatedSize()))
+		row[curveutil.ROW_ALLOC_SIZE] = fmt.Sprintf("%s", humanize.IBytes(allocRes.GetAllocatedSize()))
 		rows = append(rows, row)
 	}
-	list := cobrautil.ListMap2ListSortByKeys(rows, pCmd.Header, []string{cobrautil.ROW_OWNER, cobrautil.ROW_FILE_TYPE, cobrautil.ROW_PARENT_ID})
+	list := curveutil.ListMap2ListSortByKeys(rows, pCmd.Header, []string{curveutil.ROW_OWNER, curveutil.ROW_FILE_TYPE, curveutil.ROW_PARENT_ID})
 	pCmd.TableNew.AppendBulk(list)
 	if len(errs) != 0 {
 		mergeErr := cmderror.MergeCmdError(errs)

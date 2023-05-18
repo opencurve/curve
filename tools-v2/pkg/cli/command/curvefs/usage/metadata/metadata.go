@@ -28,7 +28,7 @@ import (
 
 	"github.com/dustin/go-humanize"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -96,7 +96,7 @@ func (mCmd *MetadataCommand) Init(cmd *cobra.Command, args []string) error {
 	retrytimes := viper.GetInt32(config.VIPER_GLOBALE_RPCRETRYTIMES)
 	mCmd.Rpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "StatMetadataUsage")
 
-	header := []string{cobrautil.ROW_METASERVER_ADDR, cobrautil.ROW_TOTAL, cobrautil.ROW_USED, cobrautil.ROW_LEFT}
+	header := []string{curveutil.ROW_METASERVER_ADDR, curveutil.ROW_TOTAL, curveutil.ROW_USED, curveutil.ROW_LEFT}
 	mCmd.SetHeader(header)
 
 	return nil
@@ -133,13 +133,13 @@ func (mCmd *MetadataCommand) updateTable() {
 	rows := make([]map[string]string, 0)
 	for _, md := range mCmd.response.GetMetadataUsages() {
 		row := make(map[string]string)
-		row[cobrautil.ROW_METASERVER_ADDR] = md.GetMetaserverAddr()
-		row[cobrautil.ROW_TOTAL] = humanize.IBytes(md.GetTotal())
-		row[cobrautil.ROW_USED] = humanize.IBytes(md.GetUsed())
-		row[cobrautil.ROW_LEFT] = humanize.IBytes(md.GetTotal() - md.GetUsed())
+		row[curveutil.ROW_METASERVER_ADDR] = md.GetMetaserverAddr()
+		row[curveutil.ROW_TOTAL] = humanize.IBytes(md.GetTotal())
+		row[curveutil.ROW_USED] = humanize.IBytes(md.GetUsed())
+		row[curveutil.ROW_LEFT] = humanize.IBytes(md.GetTotal() - md.GetUsed())
 		rows = append(rows, row)
 	}
-	list := cobrautil.ListMap2ListSortByKeys(rows, mCmd.Header, []string{})
+	list := curveutil.ListMap2ListSortByKeys(rows, mCmd.Header, []string{})
 	mCmd.TableNew.AppendBulk(list)
 }
 

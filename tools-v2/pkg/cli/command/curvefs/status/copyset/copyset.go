@@ -28,7 +28,7 @@ import (
 
 	"github.com/olekukonko/tablewriter"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	checkCopyset "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/check/copyset"
 	listCopyset "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/list/copyset"
@@ -39,7 +39,7 @@ import (
 
 type CopysetCommand struct {
 	basecmd.FinalCurveCmd
-	health cobrautil.ClUSTER_HEALTH_STATUS
+	health curveutil.ClUSTER_HEALTH_STATUS
 }
 
 var _ basecmd.FinalCurveCmdFunc = (*CopysetCommand)(nil) // check interface
@@ -60,7 +60,7 @@ func (cCmd *CopysetCommand) AddFlags() {
 }
 
 func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
-	cCmd.health = cobrautil.HEALTH_ERROR
+	cCmd.health = curveutil.HEALTH_ERROR
 	response, err := listCopyset.GetCopysetsInfos(cCmd.Cmd)
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		cCmd.Error = err
@@ -77,7 +77,7 @@ func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
 		var err error
 		cCmd.Error = cmderror.ErrSuccess()
 		cCmd.Result = "No copyset found"
-		cCmd.health = cobrautil.HEALTH_OK
+		cCmd.health = curveutil.HEALTH_OK
 		return err
 	}
 	copysetIds := strings.Join(copysetIdVec, ",")
@@ -114,7 +114,7 @@ func NewStatusCopysetCommand() *CopysetCommand {
 	return copysetCmd
 }
 
-func GetCopysetStatus(caller *cobra.Command) (*interface{}, *tablewriter.Table, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS) {
+func GetCopysetStatus(caller *cobra.Command) (*interface{}, *tablewriter.Table, *cmderror.CmdError, curveutil.ClUSTER_HEALTH_STATUS) {
 	copysetCmd := NewStatusCopysetCommand()
 	copysetCmd.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,

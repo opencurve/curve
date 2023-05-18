@@ -20,7 +20,7 @@
  * Author: chengyi (Cyber-SiKu)
  */
 
-package cobrautil
+package curveutil
 
 import (
 	"path/filepath"

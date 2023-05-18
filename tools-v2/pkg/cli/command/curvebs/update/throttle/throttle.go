@@ -25,7 +25,7 @@ import (
 	"context"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -90,7 +90,7 @@ func (tCmd *ThrottleCommand) AddFlags() {
 func (tCmd *ThrottleCommand) Init(cmd *cobra.Command, args []string) error {
 	path := config.GetBsFlagString(cmd, config.CURVEBS_PATH)
 	throttleTypeStr := config.GetBsFlagString(cmd, config.CURVEBS_TYPE)
-	throttleType, err := cobrautil.ParseThrottleType(throttleTypeStr)
+	throttleType, err := curveutil.ParseThrottleType(throttleTypeStr)
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		return err.ToError()
 	}
@@ -108,7 +108,7 @@ func (tCmd *ThrottleCommand) Init(cmd *cobra.Command, args []string) error {
 		params.Burst = &burst
 		params.BurstLength = &burstLength
 	}
-	date, errDat := cobrautil.GetTimeofDayUs()
+	date, errDat := curveutil.GetTimeofDayUs()
 	owner := config.GetBsFlagString(tCmd.Cmd, config.CURVEBS_USER)
 	if errDat.TypeCode() != cmderror.CODE_SUCCESS {
 		return errDat.ToError()
@@ -121,8 +121,8 @@ func (tCmd *ThrottleCommand) Init(cmd *cobra.Command, args []string) error {
 	}
 	password := config.GetBsFlagString(tCmd.Cmd, config.CURVEBS_PASSWORD)
 	if owner == viper.GetString(config.VIPER_CURVEBS_USER) && len(password) != 0 {
-		strSig := cobrautil.GetString2Signature(date, owner)
-		sig := cobrautil.CalcString2Signature(strSig, password)
+		strSig := curveutil.GetString2Signature(date, owner)
+		sig := curveutil.CalcString2Signature(strSig, password)
 		request.Signature = &sig
 	}
 	mdsAddrs, errMds := config.GetBsMdsAddrSlice(tCmd.Cmd)
@@ -135,7 +135,7 @@ func (tCmd *ThrottleCommand) Init(cmd *cobra.Command, args []string) error {
 		Info:    basecmd.NewRpc(mdsAddrs, timeout, retrytimes, "UpdateFileThrottle"),
 		Request: request,
 	}
-	tCmd.SetHeader([]string{cobrautil.ROW_RESULT})
+	tCmd.SetHeader([]string{curveutil.ROW_RESULT})
 	return nil
 }
 

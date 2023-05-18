@@ -29,7 +29,7 @@ import (
 
 	"github.com/dustin/go-humanize"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	physicalpool "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/physicalPool"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/query/file"
@@ -117,16 +117,16 @@ func (lCmd *LogicalPoolCommand) Init(cmd *cobra.Command, args []string) error {
 		}
 		lCmd.Rpc = append(lCmd.Rpc, rpc)
 	}
-	header := []string{cobrautil.ROW_ID, cobrautil.ROW_NAME,
-		cobrautil.ROW_PHYPOOL, cobrautil.ROW_TYPE, cobrautil.ROW_ALLOC,
-		cobrautil.ROW_SCAN, cobrautil.ROW_TOTAL, cobrautil.ROW_USED,
-		cobrautil.ROW_LEFT, cobrautil.ROW_RECYCLE,
+	header := []string{curveutil.ROW_ID, curveutil.ROW_NAME,
+		curveutil.ROW_PHYPOOL, curveutil.ROW_TYPE, curveutil.ROW_ALLOC,
+		curveutil.ROW_SCAN, curveutil.ROW_TOTAL, curveutil.ROW_USED,
+		curveutil.ROW_LEFT, curveutil.ROW_RECYCLE,
 	}
 	lCmd.SetHeader(header)
-	lCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
-		lCmd.Header, []string{cobrautil.ROW_PHYPOOL},
+	lCmd.TableNew.SetAutoMergeCellsByColumnIndex(curveutil.GetIndexSlice(
+		lCmd.Header, []string{curveutil.ROW_PHYPOOL},
 	))
-	lCmd.Cmd.Flags().String(config.CURVEBS_PATH, cobrautil.RECYCLEBIN_PATH, "file path")
+	lCmd.Cmd.Flags().String(config.CURVEBS_PATH, curveutil.RECYCLEBIN_PATH, "file path")
 	lCmd.Cmd.Flag(config.CURVEBS_PATH).Changed = true
 	lCmd.Metric = basecmd.NewMetric(mdsAddrs, "", timeout)
 	res, err := file.GetAllocatedSize(lCmd.Cmd)
@@ -163,42 +163,42 @@ func (lCmd *LogicalPoolCommand) RunCommand(cmd *cobra.Command, args []string) er
 		infos := res.(*topology.ListLogicalPoolResponse)
 		for _, loPoolInfo := range infos.GetLogicalPoolInfos() {
 			row := make(map[string]string)
-			row[cobrautil.ROW_ID] = fmt.Sprintf("%d", loPoolInfo.GetLogicalPoolID())
-			row[cobrautil.ROW_NAME] = loPoolInfo.GetLogicalPoolName()
-			row[cobrautil.ROW_PHYPOOL] = fmt.Sprintf("%d", loPoolInfo.GetPhysicalPoolID())
-			row[cobrautil.ROW_TYPE] = loPoolInfo.GetType().String()
-			row[cobrautil.ROW_ALLOC] = loPoolInfo.GetAllocateStatus().String()
-			row[cobrautil.ROW_SCAN] = fmt.Sprintf("%t", loPoolInfo.GetScanEnable())
+			row[curveutil.ROW_ID] = fmt.Sprintf("%d", loPoolInfo.GetLogicalPoolID())
+			row[curveutil.ROW_NAME] = loPoolInfo.GetLogicalPoolName()
+			row[curveutil.ROW_PHYPOOL] = fmt.Sprintf("%d", loPoolInfo.GetPhysicalPoolID())
+			row[curveutil.ROW_TYPE] = loPoolInfo.GetType().String()
+			row[curveutil.ROW_ALLOC] = loPoolInfo.GetAllocateStatus().String()
+			row[curveutil.ROW_SCAN] = fmt.Sprintf("%t", loPoolInfo.GetScanEnable())
 
 			total := uint64(0)
 			// capacity
-			metricName := cobrautil.GetPoolLogicalCapacitySubUri(loPoolInfo.GetLogicalPoolName())
+			metricName := curveutil.GetPoolLogicalCapacitySubUri(loPoolInfo.GetLogicalPoolName())
 			value, err := lCmd.queryMetric(metricName)
 			if err.TypeCode() != cmderror.CODE_SUCCESS {
 				errors = append(errors, err)
 			}
-			row[cobrautil.ROW_TOTAL] = humanize.IBytes(value)
+			row[curveutil.ROW_TOTAL] = humanize.IBytes(value)
 			total = value
 			lCmd.totalCapacity += value
 
 			// alloc size
-			metricName = cobrautil.GetPoolLogicalAllocSubUri(loPoolInfo.GetLogicalPoolName())
+			metricName = curveutil.GetPoolLogicalAllocSubUri(loPoolInfo.GetLogicalPoolName())
 			value, err = lCmd.queryMetric(metricName)
 			if err.TypeCode() != cmderror.CODE_SUCCESS {
 				errors = append(errors, err)
 			}
-			row[cobrautil.ROW_USED] = humanize.IBytes(value)
-			row[cobrautil.ROW_LEFT] = humanize.IBytes(total - value)
+			row[curveutil.ROW_USED] = humanize.IBytes(value)
+			row[curveutil.ROW_LEFT] = humanize.IBytes(total - value)
 			lCmd.allocatedSize += value
 
 			// recycle
 			recycle := lCmd.recycleAllocRes.AllocSizeMap[loPoolInfo.GetLogicalPoolID()]
-			row[cobrautil.ROW_RECYCLE] = humanize.IBytes(recycle)
+			row[curveutil.ROW_RECYCLE] = humanize.IBytes(recycle)
 			rows = append(rows, row)
 		}
 	}
-	list := cobrautil.ListMap2ListSortByKeys(rows, lCmd.Header, []string{
-		cobrautil.ROW_PHYPOOL, cobrautil.ROW_ID,
+	list := curveutil.ListMap2ListSortByKeys(rows, lCmd.Header, []string{
+		curveutil.ROW_PHYPOOL, curveutil.ROW_ID,
 	})
 	lCmd.TableNew.AppendBulk(list)
 	errRet := cmderror.MergeCmdError(errors)

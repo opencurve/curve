@@ -31,7 +31,7 @@ import (
 	"google.golang.org/grpc"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/delete/peer"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
@@ -92,8 +92,8 @@ func (lCmd *leaderCommand) AddFlags() {
 }
 
 func (lCmd *leaderCommand) Init(cmd *cobra.Command, args []string) error {
-	lCmd.SetHeader([]string{cobrautil.ROW_LEADER, cobrautil.ROW_OLDLEADER, cobrautil.ROW_COPYSET, cobrautil.ROW_RESULT})
-	lCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
+	lCmd.SetHeader([]string{curveutil.ROW_LEADER, curveutil.ROW_OLDLEADER, curveutil.ROW_COPYSET, curveutil.ROW_RESULT})
+	lCmd.TableNew.SetAutoMergeCellsByColumnIndex(curveutil.GetIndexSlice(
 		lCmd.Header, []string{},
 	))
 
@@ -141,9 +141,9 @@ func (lCmd *leaderCommand) Init(cmd *cobra.Command, args []string) error {
 	}
 
 	out := make(map[string]string)
-	out[cobrautil.ROW_OLDLEADER] = oldLeader.GetAddress()
-	out[cobrautil.ROW_LEADER] = fmt.Sprintf("%s:%d", leaderPeer.GetAddress(), leaderPeer.GetId())
-	out[cobrautil.ROW_COPYSET] = fmt.Sprintf("(%d:%d)", logicalPoolID, copysetID)
+	out[curveutil.ROW_OLDLEADER] = oldLeader.GetAddress()
+	out[curveutil.ROW_LEADER] = fmt.Sprintf("%s:%d", leaderPeer.GetAddress(), leaderPeer.GetId())
+	out[curveutil.ROW_COPYSET] = fmt.Sprintf("(%d:%d)", logicalPoolID, copysetID)
 	lCmd.row = out
 
 	lCmd.Rpc = &LeaderRpc{
@@ -171,10 +171,10 @@ func (lCmd *leaderCommand) RunCommand(cmd *cobra.Command, args []string) error {
 		return err.ToError()
 	}
 
-	lCmd.row[cobrautil.ROW_RESULT] = "success"
+	lCmd.row[curveutil.ROW_RESULT] = "success"
 	lCmd.Response = response.(*cli2.TransferLeaderResponse2)
 
-	list := cobrautil.Map2List(lCmd.row, lCmd.Header)
+	list := curveutil.Map2List(lCmd.row, lCmd.Header)
 	lCmd.TableNew.Append(list)
 	return nil
 }

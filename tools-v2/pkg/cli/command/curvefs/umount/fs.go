@@ -29,7 +29,7 @@ import (
 	"strings"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -117,7 +117,7 @@ func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
 	retrytimes := viper.GetInt32(config.VIPER_GLOBALE_RPCRETRYTIMES)
 	fCmd.Rpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "UmountFs")
 
-	header := []string{cobrautil.ROW_FS_NAME, cobrautil.ROW_MOUNTPOINT, cobrautil.ROW_RESULT}
+	header := []string{curveutil.ROW_FS_NAME, curveutil.ROW_MOUNTPOINT, curveutil.ROW_RESULT}
 	fCmd.SetHeader(header)
 	return nil
 }
@@ -140,12 +140,12 @@ func (fCmd *FsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 
 func (fCmd *FsCommand) updateTable(info *mds.UmountFsResponse) *cmderror.CmdError {
 	row := make(map[string]string)
-	row[cobrautil.ROW_FS_NAME] = fCmd.fsName
-	row[cobrautil.ROW_MOUNTPOINT] = fCmd.mountpoint
+	row[curveutil.ROW_FS_NAME] = fCmd.fsName
+	row[curveutil.ROW_MOUNTPOINT] = fCmd.mountpoint
 	err := cmderror.ErrUmountFs(int(info.GetStatusCode()))
-	row[cobrautil.ROW_RESULT] = err.Message
+	row[curveutil.ROW_RESULT] = err.Message
 	
-	list := cobrautil.Map2List(row, fCmd.Header)
+	list := curveutil.Map2List(row, fCmd.Header)
 	fCmd.TableNew.Append(list)
 
 	fCmd.Result = row

@@ -26,7 +26,7 @@ import (
 	"fmt"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	config "github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -39,7 +39,7 @@ type EtcdCommand struct {
 	basecmd.FinalCurveCmd
 	metrics []*basecmd.Metric
 	rows    []map[string]string
-	health  cobrautil.ClUSTER_HEALTH_STATUS
+	health  curveutil.ClUSTER_HEALTH_STATUS
 }
 
 const (
@@ -72,12 +72,12 @@ func (eCmd *EtcdCommand) AddFlags() {
 }
 
 func (eCmd *EtcdCommand) Init(cmd *cobra.Command, args []string) error {
-	eCmd.health = cobrautil.HEALTH_ERROR
+	eCmd.health = curveutil.HEALTH_ERROR
 
-	header := []string{cobrautil.ROW_ADDR, cobrautil.ROW_VERSION, cobrautil.ROW_STATUS}
+	header := []string{curveutil.ROW_ADDR, curveutil.ROW_VERSION, curveutil.ROW_STATUS}
 	eCmd.SetHeader(header)
-	eCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
-		eCmd.Header, []string{cobrautil.ROW_STATUS, cobrautil.ROW_VERSION},
+	eCmd.TableNew.SetAutoMergeCellsByColumnIndex(curveutil.GetIndexSlice(
+		eCmd.Header, []string{curveutil.ROW_STATUS, curveutil.ROW_VERSION},
 	))
 
 	// set main addr
@@ -97,9 +97,9 @@ func (eCmd *EtcdCommand) Init(cmd *cobra.Command, args []string) error {
 
 		// set rows
 		row := make(map[string]string)
-		row[cobrautil.ROW_ADDR] = addr
-		row[cobrautil.ROW_STATUS] = cobrautil.ROW_VALUE_OFFLINE
-		row[cobrautil.ROW_VERSION] = cobrautil.ROW_VALUE_UNKNOWN
+		row[curveutil.ROW_ADDR] = addr
+		row[curveutil.ROW_STATUS] = curveutil.ROW_VALUE_OFFLINE
+		row[curveutil.ROW_VERSION] = curveutil.ROW_VALUE_UNKNOWN
 		eCmd.rows = append(eCmd.rows, row)
 	}
 
@@ -157,7 +157,7 @@ func (eCmd *EtcdCommand) RunCommand(cmd *cobra.Command, args []string) error {
 			}
 		}
 		for _, row := range eCmd.rows {
-			if res.Err.TypeCode() == cmderror.CODE_SUCCESS && row[cobrautil.ROW_ADDR] == res.Addr {
+			if res.Err.TypeCode() == cmderror.CODE_SUCCESS && row[curveutil.ROW_ADDR] == res.Addr {
 				if res.Key == "status" {
 					row[res.Key] = EtcdStatusMap[res.Value]
 				} else {
@@ -172,15 +172,15 @@ func (eCmd *EtcdCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(errs) > 0 && len(errs) < len(eCmd.rows) {
-		eCmd.health = cobrautil.HEALTH_WARN
+		eCmd.health = curveutil.HEALTH_WARN
 	} else if len(errs) == 0 {
-		eCmd.health = cobrautil.HEALTH_OK
+		eCmd.health = curveutil.HEALTH_OK
 	}
 
 	mergeErr := cmderror.MergeCmdErrorExceptSuccess(errs)
 	eCmd.Error = mergeErr
-	list := cobrautil.ListMap2ListSortByKeys(eCmd.rows, eCmd.Header, []string{
-		cobrautil.ROW_STATUS, cobrautil.ROW_VERSION,
+	list := curveutil.ListMap2ListSortByKeys(eCmd.rows, eCmd.Header, []string{
+		curveutil.ROW_STATUS, curveutil.ROW_VERSION,
 	})
 	eCmd.TableNew.AppendBulk(list)
 	eCmd.Result = eCmd.rows
@@ -204,7 +204,7 @@ func NewStatusEtcdCommand() *EtcdCommand {
 	return etcdCmd
 }
 
-func GetEtcdStatus(caller *cobra.Command) (*interface{}, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS) {
+func GetEtcdStatus(caller *cobra.Command) (*interface{}, *cmderror.CmdError, curveutil.ClUSTER_HEALTH_STATUS) {
 	etcdCmd := NewStatusEtcdCommand()
 	etcdCmd.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
@@ -217,7 +217,7 @@ func GetEtcdStatus(caller *cobra.Command) (*interface{}, *cmderror.CmdError, cob
 	if err != nil {
 		retErr := cmderror.ErrBsGetEtcdStatus()
 		retErr.Format(err.Error())
-		return nil, retErr, cobrautil.HEALTH_ERROR
+		return nil, retErr, curveutil.HEALTH_ERROR
 	}
 	return &etcdCmd.Result, cmderror.Success(), etcdCmd.health
 }

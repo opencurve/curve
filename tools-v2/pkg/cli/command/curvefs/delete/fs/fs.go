@@ -27,7 +27,7 @@ import (
 	"fmt"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -90,7 +90,7 @@ func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(addrErr.Message)
 	}
 
-	header := []string{cobrautil.ROW_FS_NAME, cobrautil.ROW_RESULT}
+	header := []string{curveutil.ROW_FS_NAME, curveutil.ROW_RESULT}
 	fCmd.SetHeader(header)
 
 	fsName := config.GetFlagString(fCmd.Cmd, config.CURVEFS_FSNAME)
@@ -114,7 +114,7 @@ func (fCmd *FsCommand) Print(cmd *cobra.Command, args []string) error {
 
 func (fCmd *FsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	fsName := fCmd.Rpc.Request.GetFsName()
-	if !viper.GetBool(config.VIPER_CURVEFS_NOCONFIRM) && !cobrautil.AskConfirmation(fmt.Sprintf("Are you sure to delete fs %s?", fsName), fsName) {
+	if !viper.GetBool(config.VIPER_CURVEFS_NOCONFIRM) && !curveutil.AskConfirmation(fmt.Sprintf("Are you sure to delete fs %s?", fsName), fsName) {
 		return fmt.Errorf("abort delete fs")
 	}
 
@@ -125,10 +125,10 @@ func (fCmd *FsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	response := result.(*mds.DeleteFsResponse)
 	errDel := cmderror.ErrDeleteFs(int(response.GetStatusCode()))
 	row := map[string]string{
-		cobrautil.ROW_FS_NAME: fCmd.Rpc.Request.GetFsName(),
-		cobrautil.ROW_RESULT:  errDel.Message,
+		curveutil.ROW_FS_NAME: fCmd.Rpc.Request.GetFsName(),
+		curveutil.ROW_RESULT:  errDel.Message,
 	}
-	fCmd.TableNew.Append(cobrautil.Map2List(row, fCmd.Header))
+	fCmd.TableNew.Append(curveutil.Map2List(row, fCmd.Header))
 
 	res, errTranslate := output.MarshalProtoJson(response)
 	if errTranslate != nil {

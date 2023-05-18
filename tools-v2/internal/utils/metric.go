@@ -19,7 +19,7 @@
  * Created Date: 2022-09-02
  * Author: chengyi (Cyber-SiKu)
  */
-package cobrautil
+package curveutil
 
 import (
 	"time"

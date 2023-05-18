@@ -27,7 +27,7 @@ import (
 	"strings"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/client"
 	config "github.com/opencurve/curve/tools-v2/pkg/config"
@@ -79,10 +79,10 @@ func (cCmd *ClientCommand) AddFlags() {
 }
 
 func (cCmd *ClientCommand) Init(cmd *cobra.Command, args []string) error {
-	header := []string{cobrautil.ROW_TYPE, cobrautil.ROW_VERSION, cobrautil.ROW_ADDR, cobrautil.ROW_NUM}
+	header := []string{curveutil.ROW_TYPE, curveutil.ROW_VERSION, curveutil.ROW_ADDR, curveutil.ROW_NUM}
 	cCmd.SetHeader(header)
-	cCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
-		cCmd.Header, []string{cobrautil.ROW_TYPE, cobrautil.ROW_VERSION, cobrautil.ROW_NUM},
+	cCmd.TableNew.SetAutoMergeCellsByColumnIndex(curveutil.GetIndexSlice(
+		cCmd.Header, []string{curveutil.ROW_TYPE, curveutil.ROW_VERSION, curveutil.ROW_NUM},
 	))
 
 	// get client list
@@ -99,7 +99,7 @@ func (cCmd *ClientCommand) Init(cmd *cobra.Command, args []string) error {
 
 	clientAddr := make([]string, 0)
 	for _, res := range (*results).([]map[string]string) {
-		clientAddr = append(clientAddr, res[cobrautil.ROW_IP]+":"+res[cobrautil.ROW_PORT])
+		clientAddr = append(clientAddr, res[curveutil.ROW_IP]+":"+res[curveutil.ROW_PORT])
 	}
 
 	// Init RPC
@@ -191,10 +191,10 @@ func (cCmd *ClientCommand) RunCommand(cmd *cobra.Command, args []string) error {
 		for version, addrs := range mp {
 			for _, addr := range addrs {
 				row := make(map[string]string)
-				row[cobrautil.ROW_TYPE] = process_type
-				row[cobrautil.ROW_VERSION] = version
-				row[cobrautil.ROW_ADDR] = addr
-				row[cobrautil.ROW_NUM] = strconv.Itoa(len(addrs))
+				row[curveutil.ROW_TYPE] = process_type
+				row[curveutil.ROW_VERSION] = version
+				row[curveutil.ROW_ADDR] = addr
+				row[curveutil.ROW_NUM] = strconv.Itoa(len(addrs))
 				cCmd.rows = append(cCmd.rows, row)
 			}
 		}
@@ -202,8 +202,8 @@ func (cCmd *ClientCommand) RunCommand(cmd *cobra.Command, args []string) error {
 
 	mergeErr := cmderror.MergeCmdErrorExceptSuccess(errs)
 	cCmd.Error = mergeErr
-	list := cobrautil.ListMap2ListSortByKeys(cCmd.rows, cCmd.Header, []string{
-		cobrautil.ROW_TYPE, cobrautil.ROW_VERSION, cobrautil.ROW_ADDR,
+	list := curveutil.ListMap2ListSortByKeys(cCmd.rows, cCmd.Header, []string{
+		curveutil.ROW_TYPE, curveutil.ROW_VERSION, curveutil.ROW_ADDR,
 	})
 	cCmd.TableNew.AppendBulk(list)
 	cCmd.Result = cCmd.rows

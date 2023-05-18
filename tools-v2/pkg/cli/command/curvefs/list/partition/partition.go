@@ -28,7 +28,7 @@ import (
 	"strconv"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/list/fs"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
@@ -95,12 +95,12 @@ func (pCmd *PartitionCommand) Init(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(addrErr.Message)
 	}
 
-	header := []string{cobrautil.ROW_PARTITION_ID, cobrautil.ROW_FS_ID, cobrautil.ROW_POOL_ID, cobrautil.ROW_COPYSET_ID, cobrautil.ROW_START, cobrautil.ROW_END, cobrautil.ROW_STATUS}
+	header := []string{curveutil.ROW_PARTITION_ID, curveutil.ROW_FS_ID, curveutil.ROW_POOL_ID, curveutil.ROW_COPYSET_ID, curveutil.ROW_START, curveutil.ROW_END, curveutil.ROW_STATUS}
 	pCmd.SetHeader(header)
 
-	pCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
-		pCmd.Header, []string{cobrautil.ROW_FS_ID, cobrautil.ROW_POOL_ID,
-			cobrautil.ROW_COPYSET_ID},
+	pCmd.TableNew.SetAutoMergeCellsByColumnIndex(curveutil.GetIndexSlice(
+		pCmd.Header, []string{curveutil.ROW_FS_ID, curveutil.ROW_POOL_ID,
+			curveutil.ROW_COPYSET_ID},
 	))
 
 	fsIds := config.GetFlagStringSliceDefaultAll(pCmd.Cmd, config.CURVEFS_FSID)
@@ -131,13 +131,13 @@ func (pCmd *PartitionCommand) Init(cmd *cobra.Command, args []string) error {
 		pCmd.Rpc = append(pCmd.Rpc, rpc)
 		pCmd.fsId2Rows[id32] = make([]map[string]string, 1)
 		pCmd.fsId2Rows[id32][0] = make(map[string]string)
-		pCmd.fsId2Rows[id32][0][cobrautil.ROW_FS_ID] = fsId
-		pCmd.fsId2Rows[id32][0][cobrautil.ROW_POOL_ID] = cobrautil.ROW_VALUE_DNE
-		pCmd.fsId2Rows[id32][0][cobrautil.ROW_COPYSET_ID] = cobrautil.ROW_VALUE_DNE
-		pCmd.fsId2Rows[id32][0][cobrautil.ROW_PARTITION_ID] = cobrautil.ROW_VALUE_DNE
-		pCmd.fsId2Rows[id32][0][cobrautil.ROW_START] = cobrautil.ROW_VALUE_DNE
-		pCmd.fsId2Rows[id32][0][cobrautil.ROW_END] = cobrautil.ROW_VALUE_DNE
-		pCmd.fsId2Rows[id32][0][cobrautil.ROW_STATUS] = cobrautil.ROW_VALUE_DNE
+		pCmd.fsId2Rows[id32][0][curveutil.ROW_FS_ID] = fsId
+		pCmd.fsId2Rows[id32][0][curveutil.ROW_POOL_ID] = curveutil.ROW_VALUE_DNE
+		pCmd.fsId2Rows[id32][0][curveutil.ROW_COPYSET_ID] = curveutil.ROW_VALUE_DNE
+		pCmd.fsId2Rows[id32][0][curveutil.ROW_PARTITION_ID] = curveutil.ROW_VALUE_DNE
+		pCmd.fsId2Rows[id32][0][curveutil.ROW_START] = curveutil.ROW_VALUE_DNE
+		pCmd.fsId2Rows[id32][0][curveutil.ROW_END] = curveutil.ROW_VALUE_DNE
+		pCmd.fsId2Rows[id32][0][curveutil.ROW_STATUS] = curveutil.ROW_VALUE_DNE
 		pCmd.fsId2PartitionList[id32] = make([]*common.PartitionInfo, 0)
 	}
 
@@ -185,20 +185,20 @@ func (pCmd *PartitionCommand) RunCommand(cmd *cobra.Command, args []string) erro
 			fsId := partition.GetFsId()
 			pCmd.fsId2PartitionList[fsId] = append(pCmd.fsId2PartitionList[fsId], partition)
 			var row *map[string]string
-			if len(pCmd.fsId2Rows[fsId]) == 1 && pCmd.fsId2Rows[fsId][0][cobrautil.ROW_POOL_ID] == cobrautil.ROW_VALUE_DNE {
+			if len(pCmd.fsId2Rows[fsId]) == 1 && pCmd.fsId2Rows[fsId][0][curveutil.ROW_POOL_ID] == curveutil.ROW_VALUE_DNE {
 				row = &pCmd.fsId2Rows[fsId][0]
 				pCmd.fsId2Rows[fsId] = make([]map[string]string, 0)
 			} else {
 				temp := make(map[string]string)
 				row = &temp
-				(*row)[cobrautil.ROW_FS_ID] = strconv.FormatUint(uint64(fsId), 10)
+				(*row)[curveutil.ROW_FS_ID] = strconv.FormatUint(uint64(fsId), 10)
 			}
-			(*row)[cobrautil.ROW_POOL_ID] = strconv.FormatUint(uint64(partition.GetPoolId()), 10)
-			(*row)[cobrautil.ROW_COPYSET_ID] = strconv.FormatUint(uint64(partition.GetCopysetId()), 10)
-			(*row)[cobrautil.ROW_PARTITION_ID] = strconv.FormatUint(uint64(partition.GetPartitionId()), 10)
-			(*row)[cobrautil.ROW_START] = strconv.FormatUint(uint64(partition.GetStart()), 10)
-			(*row)[cobrautil.ROW_END] = strconv.FormatUint(uint64(partition.GetEnd()), 10)
-			(*row)[cobrautil.ROW_STATUS] = partition.GetStatus().String()
+			(*row)[curveutil.ROW_POOL_ID] = strconv.FormatUint(uint64(partition.GetPoolId()), 10)
+			(*row)[curveutil.ROW_COPYSET_ID] = strconv.FormatUint(uint64(partition.GetCopysetId()), 10)
+			(*row)[curveutil.ROW_PARTITION_ID] = strconv.FormatUint(uint64(partition.GetPartitionId()), 10)
+			(*row)[curveutil.ROW_START] = strconv.FormatUint(uint64(partition.GetStart()), 10)
+			(*row)[curveutil.ROW_END] = strconv.FormatUint(uint64(partition.GetEnd()), 10)
+			(*row)[curveutil.ROW_STATUS] = partition.GetStatus().String()
 			pCmd.fsId2Rows[fsId] = append(pCmd.fsId2Rows[fsId], (*row))
 		}
 	}
@@ -223,9 +223,9 @@ func (pCmd *PartitionCommand) updateTable() {
 	for _, rows := range pCmd.fsId2Rows {
 		total = append(total, rows...)
 	}
-	list := cobrautil.ListMap2ListSortByKeys(total, pCmd.Header, []string{
-		cobrautil.ROW_FS_ID, cobrautil.ROW_POOL_ID, cobrautil.ROW_COPYSET_ID,
-		cobrautil.ROW_START, cobrautil.ROW_PARTITION_ID,
+	list := curveutil.ListMap2ListSortByKeys(total, pCmd.Header, []string{
+		curveutil.ROW_FS_ID, curveutil.ROW_POOL_ID, curveutil.ROW_COPYSET_ID,
+		curveutil.ROW_START, curveutil.ROW_PARTITION_ID,
 	})
 	pCmd.TableNew.AppendBulk(list)
 }

@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/proto/proto/topology"
 	"github.com/opencurve/curve/tools-v2/proto/proto/topology/statuscode"
@@ -93,12 +93,12 @@ func (ctCmd *ClusterTopoCmd) scanServers() *cmderror.CmdError {
 			}
 			ctCmd.serversToBeDeleted = append(ctCmd.serversToBeDeleted, request)
 			row := make(map[string]string)
-			row[cobrautil.ROW_NAME] = serverInfo.GetHostName()
-			row[cobrautil.ROW_TYPE] = cobrautil.TYPE_SERVER
-			row[cobrautil.ROW_OPERATION] = cobrautil.ROW_VALUE_DEL
-			row[cobrautil.ROW_PARENT] = serverInfo.GetZoneName()
+			row[curveutil.ROW_NAME] = serverInfo.GetHostName()
+			row[curveutil.ROW_TYPE] = curveutil.TYPE_SERVER
+			row[curveutil.ROW_OPERATION] = curveutil.ROW_VALUE_DEL
+			row[curveutil.ROW_PARENT] = serverInfo.GetZoneName()
 			ctCmd.rows = append(ctCmd.rows, row)
-			ctCmd.TableNew.Append(cobrautil.Map2List(row, ctCmd.Header))
+			ctCmd.TableNew.Append(curveutil.Map2List(row, ctCmd.Header))
 		}
 	}
 
@@ -122,12 +122,12 @@ func (ctCmd *ClusterTopoCmd) scanServers() *cmderror.CmdError {
 			}
 			ctCmd.serversToBeReg = append(ctCmd.serversToBeReg, request)
 			row := make(map[string]string)
-			row[cobrautil.ROW_NAME] = s.Name
-			row[cobrautil.ROW_TYPE] = cobrautil.TYPE_SERVER
-			row[cobrautil.ROW_OPERATION] = cobrautil.ROW_VALUE_ADD
-			row[cobrautil.ROW_PARENT] = s.Zone
+			row[curveutil.ROW_NAME] = s.Name
+			row[curveutil.ROW_TYPE] = curveutil.TYPE_SERVER
+			row[curveutil.ROW_OPERATION] = curveutil.ROW_VALUE_ADD
+			row[curveutil.ROW_PARENT] = s.Zone
 			ctCmd.rows = append(ctCmd.rows, row)
-			ctCmd.TableNew.Append(cobrautil.Map2List(row, ctCmd.Header))
+			ctCmd.TableNew.Append(curveutil.Map2List(row, ctCmd.Header))
 		}
 	}
 
@@ -151,7 +151,7 @@ func (ctCmd *ClusterTopoCmd) removeServers() *cmderror.CmdError {
 		}
 		response := result.(*topology.DeleteServerResponse)
 		if response.GetStatusCode() != 0 {
-			return cmderror.ErrDelServer(statuscode.TopoStatusCode(response.GetStatusCode()), cobrautil.TYPE_SERVER, fmt.Sprintf("%d", delReq.GetServerID()))
+			return cmderror.ErrDelServer(statuscode.TopoStatusCode(response.GetStatusCode()), curveutil.TYPE_SERVER, fmt.Sprintf("%d", delReq.GetServerID()))
 		}
 	}
 	return cmderror.ErrSuccess()
@@ -176,7 +176,7 @@ func (ctCmd *ClusterTopoCmd) RegistServers() *cmderror.CmdError {
 		}
 		response := result.(*topology.ServerRegistResponse)
 		if response.GetStatusCode() != 0 {
-			return cmderror.ErrCreateBsTopology(statuscode.TopoStatusCode(response.GetStatusCode()), cobrautil.TYPE_SERVER, req.GetHostName())
+			return cmderror.ErrCreateBsTopology(statuscode.TopoStatusCode(response.GetStatusCode()), curveutil.TYPE_SERVER, req.GetHostName())
 		}
 	}
 	return cmderror.ErrSuccess()

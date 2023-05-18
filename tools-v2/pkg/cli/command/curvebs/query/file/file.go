@@ -28,7 +28,7 @@ import (
 
 	"github.com/dustin/go-humanize"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -117,24 +117,24 @@ func updateByFileInfo(data *map[string]string, header *[]string, fileInfo *names
 		typeName := string(fd.Name())
 		switch typeName {
 		case "fileName":
-			setHeaderData(cobrautil.ROW_NAME, v.String())
+			setHeaderData(curveutil.ROW_NAME, v.String())
 		case "fileType":
-			setHeaderData(cobrautil.ROW_TYPE, nameserver2.FileType_name[int32(v.Enum())])
+			setHeaderData(curveutil.ROW_TYPE, nameserver2.FileType_name[int32(v.Enum())])
 		case "chunkSize":
-			setHeaderData(cobrautil.ROW_CHUNK, humanize.IBytes(v.Uint()))
+			setHeaderData(curveutil.ROW_CHUNK, humanize.IBytes(v.Uint()))
 		case "segmentSize":
-			setHeaderData(cobrautil.ROW_SEGMENT, humanize.IBytes(v.Uint()))
+			setHeaderData(curveutil.ROW_SEGMENT, humanize.IBytes(v.Uint()))
 		case "length":
 			setHeaderData(typeName, humanize.IBytes(v.Uint()))
 		case "fileStatus":
-			setHeaderData(cobrautil.ROW_STATUS, nameserver2.FileStatus_name[int32(v.Enum())])
+			setHeaderData(curveutil.ROW_STATUS, nameserver2.FileStatus_name[int32(v.Enum())])
 		case "ctime":
 			cTimeStr := time.Unix(int64(v.Uint()/1000000), 0).Format("2006-01-02 15:04:05")
-			setHeaderData(cobrautil.ROW_CTIME, cTimeStr)
+			setHeaderData(curveutil.ROW_CTIME, cTimeStr)
 		case "seqNum":
-			setHeaderData(cobrautil.ROW_SEQ, v.String())
+			setHeaderData(curveutil.ROW_SEQ, v.String())
 		case "originalFullPathName":
-			setHeaderData(cobrautil.ROW_ORIGINAL_PATH, v.String())
+			setHeaderData(curveutil.ROW_ORIGINAL_PATH, v.String())
 		case "stripeUnit":
 		case "stripeCount":
 		case "throttleParams":
@@ -147,7 +147,7 @@ func updateByFileInfo(data *map[string]string, header *[]string, fileInfo *names
 	if fileInfo.StripeCount != nil && fileInfo.StripeUnit != nil {
 		message := fmt.Sprintf("count:%d\nuint:%d",
 			fileInfo.GetStripeCount(), fileInfo.GetStripeUnit())
-		setHeaderData(cobrautil.ROW_STRIPE, message)
+		setHeaderData(curveutil.ROW_STRIPE, message)
 	}
 	if fileInfo.ThrottleParams != nil {
 		message := ""
@@ -160,12 +160,12 @@ func updateByFileInfo(data *map[string]string, header *[]string, fileInfo *names
 			}
 		}
 		message = message[1:]
-		setHeaderData(cobrautil.ROW_THROTTLE, message)
+		setHeaderData(curveutil.ROW_THROTTLE, message)
 	}
 }
 
 func updateByAllocSize(data *map[string]string, header *[]string, allocSize *nameserver2.GetAllocatedSizeResponse) {
-	name := cobrautil.ROW_ALLOC
+	name := curveutil.ROW_ALLOC
 	message := ""
 	if allocSize.AllocatedSize != nil {
 		message += fmt.Sprintf("size:%s", humanize.IBytes(allocSize.GetAllocatedSize()))
@@ -180,7 +180,7 @@ func updateByAllocSize(data *map[string]string, header *[]string, allocSize *nam
 
 func updateByFileSize(data *map[string]string, header *[]string, size *nameserver2.GetFileSizeResponse) {
 	if 	size != nil && size.FileSize != nil {
-		name := cobrautil.ROW_SIZE
+		name := curveutil.ROW_SIZE
 		message := fmt.Sprintf("size:%s", humanize.IBytes(size.GetFileSize()))
 		(*data)[name] = message
 		(*header) = append((*header), name)
@@ -194,7 +194,7 @@ func (fCmd *FileCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	updateByAllocSize(&data, &header, fCmd.allocSize)
 	updateByFileSize(&data, &header, fCmd.fileSize)
 	fCmd.SetHeader(header)
-	list := cobrautil.Map2List(data, header)
+	list := curveutil.Map2List(data, header)
 	fCmd.TableNew.Append(list)
 	fCmd.Result = map[string]interface{}{
 		"info": fCmd.fileInfo,

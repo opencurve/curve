@@ -26,7 +26,7 @@ import (
 	"strings"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -96,15 +96,15 @@ func (cCmd *ChunkCommand) Init(cmd *cobra.Command, args []string) error {
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		return err.ToError()
 	}
-	key := cobrautil.GetCopysetKey(uint64(cCmd.LogicalpoolId), uint64(cCmd.CopysetId))
+	key := curveutil.GetCopysetKey(uint64(cCmd.LogicalpoolId), uint64(cCmd.CopysetId))
 	cCmd.ChunkServerList = (*key2Location)[key]
-	header := []string{cobrautil.ROW_CHUNK, cobrautil.ROW_LOGICALPOOL,
-		cobrautil.ROW_COPYSET, cobrautil.ROW_GROUP, cobrautil.ROW_LOCATION,
+	header := []string{curveutil.ROW_CHUNK, curveutil.ROW_LOGICALPOOL,
+		curveutil.ROW_COPYSET, curveutil.ROW_GROUP, curveutil.ROW_LOCATION,
 	}
 	cCmd.SetHeader(header)
 	cCmd.TableNew.SetAutoMergeCellsByColumnIndex(
-		cobrautil.GetIndexSlice(header, []string{cobrautil.ROW_CHUNK,
-			cobrautil.ROW_LOGICALPOOL, cobrautil.ROW_COPYSET, cobrautil.ROW_GROUP,
+		curveutil.GetIndexSlice(header, []string{curveutil.ROW_CHUNK,
+			curveutil.ROW_LOGICALPOOL, curveutil.ROW_COPYSET, curveutil.ROW_GROUP,
 		}),
 	)
 
@@ -123,12 +123,12 @@ func (cCmd *ChunkCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	}
 	location := strings.Join(locations, "\n")
 	row := make(map[string]string)
-	row[cobrautil.ROW_CHUNK] = fmt.Sprintf("%d", cCmd.ChunkId)
-	row[cobrautil.ROW_LOGICALPOOL] = fmt.Sprintf("%d", cCmd.LogicalpoolId)
-	row[cobrautil.ROW_COPYSET] = fmt.Sprintf("%d", cCmd.CopysetId)
-	row[cobrautil.ROW_GROUP] = fmt.Sprintf("%d", cCmd.GroupId)
-	row[cobrautil.ROW_LOCATION] = location
-	list := cobrautil.Map2List(row, cCmd.Header)
+	row[curveutil.ROW_CHUNK] = fmt.Sprintf("%d", cCmd.ChunkId)
+	row[curveutil.ROW_LOGICALPOOL] = fmt.Sprintf("%d", cCmd.LogicalpoolId)
+	row[curveutil.ROW_COPYSET] = fmt.Sprintf("%d", cCmd.CopysetId)
+	row[curveutil.ROW_GROUP] = fmt.Sprintf("%d", cCmd.GroupId)
+	row[curveutil.ROW_LOCATION] = location
+	list := curveutil.Map2List(row, cCmd.Header)
 	cCmd.TableNew.Append(list)
 	return nil
 }

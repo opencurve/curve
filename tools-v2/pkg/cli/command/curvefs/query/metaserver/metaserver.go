@@ -29,7 +29,7 @@ import (
 	"strings"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -108,7 +108,7 @@ func (mCmd *MetaserverCommand) Init(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("%s or %s is required", config.CURVEFS_METASERVERADDR, config.CURVEFS_METASERVERID)
 	}
 
-	header := []string{cobrautil.ROW_ID, cobrautil.ROW_HOSTNAME, cobrautil.ROW_INTERNAL_ADDR, cobrautil.ROW_EXTERNAL_ADDR, cobrautil.ROW_ONLINE_STATE}
+	header := []string{curveutil.ROW_ID, curveutil.ROW_HOSTNAME, curveutil.ROW_INTERNAL_ADDR, curveutil.ROW_EXTERNAL_ADDR, curveutil.ROW_ONLINE_STATE}
 	mCmd.SetHeader(header)
 
 	mCmd.Rows = make([]map[string]string, 0)
@@ -134,11 +134,11 @@ func (mCmd *MetaserverCommand) Init(cmd *cobra.Command, args []string) error {
 		rpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "GetMetaServerInfo")
 		mCmd.Rpc = append(mCmd.Rpc, rpc)
 		row := make(map[string]string)
-		row[cobrautil.ROW_ID] = cobrautil.ROW_VALUE_DNE
-		row[cobrautil.ROW_HOSTNAME] = cobrautil.ROW_VALUE_DNE
-		row[cobrautil.ROW_INTERNAL_ADDR] = cobrautil.ROW_VALUE_DNE
-		row[cobrautil.ROW_EXTERNAL_ADDR] = metaserverAddrs[i]
-		row[cobrautil.ROW_ONLINE_STATE] = cobrautil.ROW_VALUE_DNE
+		row[curveutil.ROW_ID] = curveutil.ROW_VALUE_DNE
+		row[curveutil.ROW_HOSTNAME] = curveutil.ROW_VALUE_DNE
+		row[curveutil.ROW_INTERNAL_ADDR] = curveutil.ROW_VALUE_DNE
+		row[curveutil.ROW_EXTERNAL_ADDR] = metaserverAddrs[i]
+		row[curveutil.ROW_ONLINE_STATE] = curveutil.ROW_VALUE_DNE
 		mCmd.Rows = append(mCmd.Rows, row)
 	}
 
@@ -157,8 +157,8 @@ func (mCmd *MetaserverCommand) Init(cmd *cobra.Command, args []string) error {
 		rpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "GetMetaServerInfo")
 		mCmd.Rpc = append(mCmd.Rpc, rpc)
 		row := make(map[string]string)
-		row[cobrautil.ROW_ID] = metaserverIds[i]
-		row[cobrautil.ROW_EXTERNAL_ADDR] = ""
+		row[curveutil.ROW_ID] = metaserverIds[i]
+		row[curveutil.ROW_EXTERNAL_ADDR] = ""
 		mCmd.Rows = append(mCmd.Rows, row)
 	}
 
@@ -206,18 +206,18 @@ func (mCmd *MetaserverCommand) RunCommand(cmd *cobra.Command, args []string) err
 		for _, row := range mCmd.Rows {
 			id := strconv.FormatUint(uint64(metaserverInfo.GetMetaServerID()), 10)
 			externalAddr := fmt.Sprintf("%s:%d", metaserverInfo.GetExternalIp(), metaserverInfo.GetExternalPort())
-			if row[cobrautil.ROW_ID] == id || row[cobrautil.ROW_EXTERNAL_ADDR] == externalAddr {
-				row[cobrautil.ROW_ID] = id
-				row[cobrautil.ROW_HOSTNAME] = metaserverInfo.GetHostname()
+			if row[curveutil.ROW_ID] == id || row[curveutil.ROW_EXTERNAL_ADDR] == externalAddr {
+				row[curveutil.ROW_ID] = id
+				row[curveutil.ROW_HOSTNAME] = metaserverInfo.GetHostname()
 				internalAddr := fmt.Sprintf("%s:%d", metaserverInfo.GetInternalIp(), metaserverInfo.GetInternalPort())
-				row[cobrautil.ROW_INTERNAL_ADDR] = internalAddr
-				row[cobrautil.ROW_EXTERNAL_ADDR] = externalAddr
-				row[cobrautil.ROW_ONLINE_STATE] = metaserverInfo.GetOnlineState().String()
+				row[curveutil.ROW_INTERNAL_ADDR] = internalAddr
+				row[curveutil.ROW_EXTERNAL_ADDR] = externalAddr
+				row[curveutil.ROW_ONLINE_STATE] = metaserverInfo.GetOnlineState().String()
 			}
 		}
 	}
 
-	list := cobrautil.ListMap2ListSortByKeys(mCmd.Rows, mCmd.Header, []string{cobrautil.ROW_ID})
+	list := curveutil.ListMap2ListSortByKeys(mCmd.Rows, mCmd.Header, []string{curveutil.ROW_ID})
 	mCmd.TableNew.AppendBulk(list)
 	mCmd.Result = resList
 	mCmd.Error = cmderror.MostImportantCmdError(errs)

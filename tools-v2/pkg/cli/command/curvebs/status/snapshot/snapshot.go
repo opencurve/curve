@@ -26,7 +26,7 @@ import (
 	"fmt"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	config "github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -43,7 +43,7 @@ type SnapshotCommand struct {
 	basecmd.FinalCurveCmd
 	metrics []*basecmd.Metric
 	rows    []map[string]string
-	health  cobrautil.ClUSTER_HEALTH_STATUS
+	health  curveutil.ClUSTER_HEALTH_STATUS
 }
 
 const (
@@ -71,12 +71,12 @@ func (sCmd *SnapshotCommand) AddFlags() {
 }
 
 func (sCmd *SnapshotCommand) Init(cmd *cobra.Command, args []string) error {
-	sCmd.health = cobrautil.HEALTH_ERROR
+	sCmd.health = curveutil.HEALTH_ERROR
 
-	header := []string{cobrautil.ROW_ADDR, cobrautil.ROW_DUMMY_ADDR, cobrautil.ROW_VERSION, cobrautil.ROW_STATUS}
+	header := []string{curveutil.ROW_ADDR, curveutil.ROW_DUMMY_ADDR, curveutil.ROW_VERSION, curveutil.ROW_STATUS}
 	sCmd.SetHeader(header)
-	sCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
-		sCmd.Header, []string{cobrautil.ROW_STATUS, cobrautil.ROW_VERSION},
+	sCmd.TableNew.SetAutoMergeCellsByColumnIndex(curveutil.GetIndexSlice(
+		sCmd.Header, []string{curveutil.ROW_STATUS, curveutil.ROW_VERSION},
 	))
 
 	// set main addr
@@ -104,10 +104,10 @@ func (sCmd *SnapshotCommand) Init(cmd *cobra.Command, args []string) error {
 
 	for i := range mainAddrs {
 		row := make(map[string]string)
-		row[cobrautil.ROW_ADDR] = mainAddrs[i]
-		row[cobrautil.ROW_DUMMY_ADDR] = dummyAddrs[i]
-		row[cobrautil.ROW_STATUS] = cobrautil.ROW_VALUE_OFFLINE
-		row[cobrautil.ROW_VERSION] = cobrautil.ROW_VALUE_UNKNOWN
+		row[curveutil.ROW_ADDR] = mainAddrs[i]
+		row[curveutil.ROW_DUMMY_ADDR] = dummyAddrs[i]
+		row[curveutil.ROW_STATUS] = curveutil.ROW_VALUE_OFFLINE
+		row[curveutil.ROW_VERSION] = curveutil.ROW_VALUE_UNKNOWN
 		sCmd.rows = append(sCmd.rows, row)
 	}
 
@@ -152,7 +152,7 @@ func (sCmd *SnapshotCommand) RunCommand(cmd *cobra.Command, args []string) error
 	var recordAddrs []string
 	for res := range results {
 		for _, row := range sCmd.rows {
-			if res.Err.TypeCode() == cmderror.CODE_SUCCESS && row[cobrautil.ROW_DUMMY_ADDR] == res.Addr {
+			if res.Err.TypeCode() == cmderror.CODE_SUCCESS && row[curveutil.ROW_DUMMY_ADDR] == res.Addr {
 				if res.Key == "status" {
 					row[res.Key] = SnapshotCloneStatusMap[res.Value]
 				} else {
@@ -173,15 +173,15 @@ func (sCmd *SnapshotCommand) RunCommand(cmd *cobra.Command, args []string) error
 	}
 
 	if len(errs) > 0 && len(errs) < len(sCmd.rows) {
-		sCmd.health = cobrautil.HEALTH_WARN
+		sCmd.health = curveutil.HEALTH_WARN
 	} else if len(errs) == 0 {
-		sCmd.health = cobrautil.HEALTH_OK
+		sCmd.health = curveutil.HEALTH_OK
 	}
 
 	mergeErr := cmderror.MergeCmdErrorExceptSuccess(errs)
 	sCmd.Error = mergeErr
-	list := cobrautil.ListMap2ListSortByKeys(sCmd.rows, sCmd.Header, []string{
-		cobrautil.ROW_STATUS, cobrautil.ROW_VERSION,
+	list := curveutil.ListMap2ListSortByKeys(sCmd.rows, sCmd.Header, []string{
+		curveutil.ROW_STATUS, curveutil.ROW_VERSION,
 	})
 	sCmd.TableNew.AppendBulk(list)
 	sCmd.Result = sCmd.rows
@@ -205,7 +205,7 @@ func NewStatusSnapshotCommand() *SnapshotCommand {
 	return snapshotCmd
 }
 
-func GetSnapshotStatus(caller *cobra.Command) (*interface{}, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS) {
+func GetSnapshotStatus(caller *cobra.Command) (*interface{}, *cmderror.CmdError, curveutil.ClUSTER_HEALTH_STATUS) {
 	snapshotCmd := NewStatusSnapshotCommand()
 	snapshotCmd.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
@@ -218,7 +218,7 @@ func GetSnapshotStatus(caller *cobra.Command) (*interface{}, *cmderror.CmdError,
 	if err != nil {
 		retErr := cmderror.ErrBsGetSnapshotServerStatus()
 		retErr.Format(err.Error())
-		return nil, retErr, cobrautil.HEALTH_ERROR
+		return nil, retErr, curveutil.HEALTH_ERROR
 	}
 	return &snapshotCmd.Result, cmderror.Success(), snapshotCmd.health
 }

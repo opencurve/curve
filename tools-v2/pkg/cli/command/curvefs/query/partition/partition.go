@@ -28,7 +28,7 @@ import (
 	"strconv"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -91,12 +91,12 @@ func (pCmd *PartitionCommand) Init(cmd *cobra.Command, args []string) error {
 	}
 
 	header := []string{
-		cobrautil.ROW_ID, cobrautil.ROW_POOL_ID, cobrautil.ROW_COPYSET_ID, cobrautil.ROW_PEER_ID, cobrautil.ROW_PEER_ADDR,
+		curveutil.ROW_ID, curveutil.ROW_POOL_ID, curveutil.ROW_COPYSET_ID, curveutil.ROW_PEER_ID, curveutil.ROW_PEER_ADDR,
 	}
 	pCmd.SetHeader(header)
-	pCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
+	pCmd.TableNew.SetAutoMergeCellsByColumnIndex(curveutil.GetIndexSlice(
 		pCmd.Header, []string{
-			cobrautil.ROW_POOL_ID,cobrautil.ROW_COPYSET_ID, cobrautil.ROW_ID,
+			curveutil.ROW_POOL_ID,curveutil.ROW_COPYSET_ID, curveutil.ROW_ID,
 	}))
 
 	partitionIds := viper.GetStringSlice(config.VIPER_CURVEFS_PARTITIONID)
@@ -149,17 +149,17 @@ func (pCmd *PartitionCommand) RunCommand(cmd *cobra.Command, args []string) erro
 	for k, v := range copysetMap {
 		for _, peer := range v.GetPeers() {
 			row := make(map[string]string)
-			row[cobrautil.ROW_ID] = strconv.Itoa(int(k))
-			row[cobrautil.ROW_POOL_ID] = strconv.Itoa(int(v.GetPoolId()))
-			row[cobrautil.ROW_COPYSET_ID] = strconv.Itoa(int(v.GetCopysetId()))
-			row[cobrautil.ROW_PEER_ID] = strconv.Itoa(int(peer.GetId()))
-			row[cobrautil.ROW_PEER_ADDR] = peer.GetAddress()
+			row[curveutil.ROW_ID] = strconv.Itoa(int(k))
+			row[curveutil.ROW_POOL_ID] = strconv.Itoa(int(v.GetPoolId()))
+			row[curveutil.ROW_COPYSET_ID] = strconv.Itoa(int(v.GetCopysetId()))
+			row[curveutil.ROW_PEER_ID] = strconv.Itoa(int(peer.GetId()))
+			row[curveutil.ROW_PEER_ADDR] = peer.GetAddress()
 			rows = append(rows, row)
 		}
 	}
 
-	list := cobrautil.ListMap2ListSortByKeys(rows, pCmd.Header, []string{
-		cobrautil.ROW_POOL_ID, cobrautil.ROW_COPYSET_ID, cobrautil.ROW_ID,
+	list := curveutil.ListMap2ListSortByKeys(rows, pCmd.Header, []string{
+		curveutil.ROW_POOL_ID, curveutil.ROW_COPYSET_ID, curveutil.ROW_ID,
 	})
 	pCmd.TableNew.AppendBulk(list)
 	pCmd.Result = res

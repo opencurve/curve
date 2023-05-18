@@ -27,7 +27,7 @@ import (
 
 	"github.com/olekukonko/tablewriter"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/list/topology"
 	config "github.com/opencurve/curve/tools-v2/pkg/config"
@@ -40,7 +40,7 @@ type MetaserverCommand struct {
 	basecmd.FinalCurveCmd
 	metrics []*basecmd.Metric
 	rows    []map[string]string
-	health  cobrautil.ClUSTER_HEALTH_STATUS
+	health  curveutil.ClUSTER_HEALTH_STATUS
 }
 
 const (
@@ -73,17 +73,17 @@ func (mCmd *MetaserverCommand) AddFlags() {
 }
 
 func (mCmd *MetaserverCommand) Init(cmd *cobra.Command, args []string) error {
-	mCmd.health = cobrautil.HEALTH_ERROR
+	mCmd.health = curveutil.HEALTH_ERROR
 	externalAddrs, internalAddrs, errMetaserver := topology.GetMetaserverAddrs(mCmd.Cmd)
 	if errMetaserver.TypeCode() != cmderror.CODE_SUCCESS {
 		mCmd.Error = errMetaserver
 		return fmt.Errorf(errMetaserver.Message)
 	}
 
-	header := []string{cobrautil.ROW_EXTERNAL_ADDR, cobrautil.ROW_INTERNAL_ADDR, cobrautil.ROW_VERSION, cobrautil.ROW_STATUS}
+	header := []string{curveutil.ROW_EXTERNAL_ADDR, curveutil.ROW_INTERNAL_ADDR, curveutil.ROW_VERSION, curveutil.ROW_STATUS}
 	mCmd.SetHeader(header)
-	mCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
-		mCmd.Header, []string{cobrautil.ROW_STATUS, cobrautil.ROW_VERSION},
+	mCmd.TableNew.SetAutoMergeCellsByColumnIndex(curveutil.GetIndexSlice(
+		mCmd.Header, []string{curveutil.ROW_STATUS, curveutil.ROW_VERSION},
 	))
 
 	for i, addr := range externalAddrs {
@@ -101,10 +101,10 @@ func (mCmd *MetaserverCommand) Init(cmd *cobra.Command, args []string) error {
 
 		// set rows
 		row := make(map[string]string)
-		row[cobrautil.ROW_EXTERNAL_ADDR] = addr
-		row[cobrautil.ROW_INTERNAL_ADDR] = internalAddrs[i]
-		row[cobrautil.ROW_STATUS] = cobrautil.ROW_VALUE_OFFLINE
-		row[cobrautil.ROW_VERSION] = cobrautil.ROW_VALUE_UNKNOWN
+		row[curveutil.ROW_EXTERNAL_ADDR] = addr
+		row[curveutil.ROW_INTERNAL_ADDR] = internalAddrs[i]
+		row[curveutil.ROW_STATUS] = curveutil.ROW_VALUE_OFFLINE
+		row[curveutil.ROW_VERSION] = curveutil.ROW_VALUE_UNKNOWN
 		mCmd.rows = append(mCmd.rows, row)
 	}
 	return nil
@@ -144,7 +144,7 @@ func (mCmd *MetaserverCommand) RunCommand(cmd *cobra.Command, args []string) err
 	var errs []*cmderror.CmdError
 	for res := range results {
 		for _, row := range mCmd.rows {
-			if res.Err.TypeCode() == cmderror.CODE_SUCCESS && row[cobrautil.ROW_EXTERNAL_ADDR] == res.Addr {
+			if res.Err.TypeCode() == cmderror.CODE_SUCCESS && row[curveutil.ROW_EXTERNAL_ADDR] == res.Addr {
 				if res.Key == "status" {
 					row[res.Key] = "online"
 				} else {
@@ -164,13 +164,13 @@ func (mCmd *MetaserverCommand) RunCommand(cmd *cobra.Command, args []string) err
 	mCmd.Error = mergeErr
 
 	if len(errs) > 0 && len(errs) < len(mCmd.rows) {
-		mCmd.health = cobrautil.HEALTH_WARN
+		mCmd.health = curveutil.HEALTH_WARN
 	} else if len(errs) == 0 {
-		mCmd.health = cobrautil.HEALTH_OK
+		mCmd.health = curveutil.HEALTH_OK
 	}
 
-	list := cobrautil.ListMap2ListSortByKeys(mCmd.rows, mCmd.Header, []string{
-		cobrautil.ROW_STATUS, cobrautil.ROW_VERSION,
+	list := curveutil.ListMap2ListSortByKeys(mCmd.rows, mCmd.Header, []string{
+		curveutil.ROW_STATUS, curveutil.ROW_VERSION,
 	})
 	mCmd.TableNew.AppendBulk(list)
 	mCmd.Result = mCmd.rows
@@ -192,7 +192,7 @@ func NewStatusMetaserverCommand() *MetaserverCommand {
 	return mdsCmd
 }
 
-func GetMetaserverStatus(caller *cobra.Command) (*interface{}, *tablewriter.Table, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS) {
+func GetMetaserverStatus(caller *cobra.Command) (*interface{}, *tablewriter.Table, *cmderror.CmdError, curveutil.ClUSTER_HEALTH_STATUS) {
 	metaserverCmd := NewStatusMetaserverCommand()
 	metaserverCmd.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,

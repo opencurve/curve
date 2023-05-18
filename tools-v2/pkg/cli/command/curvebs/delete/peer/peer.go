@@ -29,7 +29,7 @@ import (
 	"google.golang.org/grpc"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -99,8 +99,8 @@ func (cCmd *Command) AddFlags() {
 func (cCmd *Command) Init(cmd *cobra.Command, args []string) error {
 	cCmd.opts = Options{}
 
-	cCmd.SetHeader([]string{cobrautil.ROW_LEADER, cobrautil.ROW_PEER, cobrautil.ROW_COPYSET, cobrautil.ROW_RESULT, cobrautil.ROW_REASON})
-	cCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
+	cCmd.SetHeader([]string{curveutil.ROW_LEADER, curveutil.ROW_PEER, curveutil.ROW_COPYSET, curveutil.ROW_RESULT, curveutil.ROW_REASON})
+	cCmd.TableNew.SetAutoMergeCellsByColumnIndex(curveutil.GetIndexSlice(
 		cCmd.Header, []string{},
 	))
 
@@ -139,30 +139,30 @@ func (cCmd *Command) Print(cmd *cobra.Command, args []string) error {
 
 func (cCmd *Command) RunCommand(cmd *cobra.Command, args []string) error {
 	out := make(map[string]string)
-	out[cobrautil.ROW_PEER] = fmt.Sprintf("%s:%d", cCmd.removePeer.GetAddress(), cCmd.removePeer.GetId())
-	out[cobrautil.ROW_COPYSET] = fmt.Sprintf("(%d:%d)", cCmd.logicalPoolID, cCmd.copysetID)
+	out[curveutil.ROW_PEER] = fmt.Sprintf("%s:%d", cCmd.removePeer.GetAddress(), cCmd.removePeer.GetId())
+	out[curveutil.ROW_COPYSET] = fmt.Sprintf("(%d:%d)", cCmd.logicalPoolID, cCmd.copysetID)
 
 	// 1. acquire leader peer info.
 	leader, err := GetLeader(cCmd.logicalPoolID, cCmd.copysetID, cCmd.conf, cCmd.opts)
 	if err != nil {
-		out[cobrautil.ROW_RESULT] = "failed"
-		out[cobrautil.ROW_REASON] = err.ToError().Error()
+		out[curveutil.ROW_RESULT] = "failed"
+		out[curveutil.ROW_REASON] = err.ToError().Error()
 		cCmd.Error = err
 		return nil
 	}
 
-	out[cobrautil.ROW_LEADER] = fmt.Sprintf("%s", leader.GetAddress())
+	out[curveutil.ROW_LEADER] = fmt.Sprintf("%s", leader.GetAddress())
 	// 2. remove peer
 	cCmd.Result, err = cCmd.execRemovePeer(leader)
 	if err != nil {
-		out[cobrautil.ROW_RESULT] = "failed"
-		out[cobrautil.ROW_REASON] = err.ToError().Error()
+		out[curveutil.ROW_RESULT] = "failed"
+		out[curveutil.ROW_REASON] = err.ToError().Error()
 		cCmd.Error = err
 		return nil
 	}
-	out[cobrautil.ROW_RESULT] = "success"
-	out[cobrautil.ROW_REASON] = "null"
-	list := cobrautil.Map2List(out, cCmd.Header)
+	out[curveutil.ROW_RESULT] = "success"
+	out[curveutil.ROW_REASON] = "null"
+	list := curveutil.Map2List(out, cCmd.Header)
 	cCmd.TableNew.Append(list)
 	return nil
 }

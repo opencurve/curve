@@ -30,7 +30,7 @@ import (
 	"google.golang.org/grpc"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/delete/peer"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
@@ -88,8 +88,8 @@ func (sCmd *SnapshotOneCommand) AddFlags() {
 }
 
 func (sCmd *SnapshotOneCommand) Init(cmd *cobra.Command, args []string) error {
-	sCmd.SetHeader([]string{cobrautil.ROW_PEER, cobrautil.ROW_COPYSET, cobrautil.ROW_RESULT})
-	sCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
+	sCmd.SetHeader([]string{curveutil.ROW_PEER, curveutil.ROW_COPYSET, curveutil.ROW_RESULT})
+	sCmd.TableNew.SetAutoMergeCellsByColumnIndex(curveutil.GetIndexSlice(
 		sCmd.Header, []string{},
 	))
 
@@ -112,8 +112,8 @@ func (sCmd *SnapshotOneCommand) Init(cmd *cobra.Command, args []string) error {
 	}
 
 	out := make(map[string]string)
-	out[cobrautil.ROW_PEER] = fmt.Sprintf("%s:%d", snapshotPeer.GetAddress(), snapshotPeer.GetId())
-	out[cobrautil.ROW_COPYSET] = fmt.Sprintf("(%d:%d)", logicalPoolID, copysetID)
+	out[curveutil.ROW_PEER] = fmt.Sprintf("%s:%d", snapshotPeer.GetAddress(), snapshotPeer.GetId())
+	out[curveutil.ROW_COPYSET] = fmt.Sprintf("(%d:%d)", logicalPoolID, copysetID)
 	sCmd.row = out
 
 	sCmd.Rpc = &SnapshotRpc{
@@ -139,10 +139,10 @@ func (sCmd *SnapshotOneCommand) RunCommand(cmd *cobra.Command, args []string) er
 		return err.ToError()
 	}
 
-	sCmd.row[cobrautil.ROW_RESULT] = "success"
+	sCmd.row[curveutil.ROW_RESULT] = "success"
 	sCmd.Response = response.(*cli2.SnapshotResponse2)
 
-	list := cobrautil.Map2List(sCmd.row, sCmd.Header)
+	list := curveutil.Map2List(sCmd.row, sCmd.Header)
 	sCmd.TableNew.Append(list)
 	return nil
 }

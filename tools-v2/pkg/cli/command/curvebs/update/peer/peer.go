@@ -33,7 +33,7 @@ import (
 	"google.golang.org/grpc"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -124,8 +124,8 @@ func ParsePeer(peer string) (*common.Peer, *cmderror.CmdError) {
 func (pCmd *PeerCommand) Init(cmd *cobra.Command, args []string) error {
 	pCmd.opts = Options{}
 
-	pCmd.SetHeader([]string{cobrautil.ROW_PEER, cobrautil.ROW_COPYSET, cobrautil.ROW_RESULT, cobrautil.ROW_REASON})
-	pCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
+	pCmd.SetHeader([]string{curveutil.ROW_PEER, curveutil.ROW_COPYSET, curveutil.ROW_RESULT, curveutil.ROW_REASON})
+	pCmd.TableNew.SetAutoMergeCellsByColumnIndex(curveutil.GetIndexSlice(
 		pCmd.Header, []string{},
 	))
 
@@ -157,20 +157,20 @@ func (pCmd *PeerCommand) Print(cmd *cobra.Command, args []string) error {
 
 func (pCmd *PeerCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	out := make(map[string]string)
-	out[cobrautil.ROW_PEER] = fmt.Sprintf("%s:%d", pCmd.resetPeer.GetAddress(), pCmd.resetPeer.GetId())
-	out[cobrautil.ROW_COPYSET] = fmt.Sprintf("(%d:%d)", pCmd.logicalPoolID, pCmd.copysetID)
+	out[curveutil.ROW_PEER] = fmt.Sprintf("%s:%d", pCmd.resetPeer.GetAddress(), pCmd.resetPeer.GetId())
+	out[curveutil.ROW_COPYSET] = fmt.Sprintf("(%d:%d)", pCmd.logicalPoolID, pCmd.copysetID)
 
 	var err *cmderror.CmdError
 	pCmd.Result, err = pCmd.execResetPeer()
 	if err != nil {
-		out[cobrautil.ROW_RESULT] = cobrautil.ROW_VALUE_FAILED
-		out[cobrautil.ROW_REASON] = err.ToError().Error()
+		out[curveutil.ROW_RESULT] = curveutil.ROW_VALUE_FAILED
+		out[curveutil.ROW_REASON] = err.ToError().Error()
 		pCmd.Error = err
 		return nil
 	}
-	out[cobrautil.ROW_RESULT] = cobrautil.ROW_VALUE_SUCCESS
-	out[cobrautil.ROW_REASON] = cobrautil.ROW_VALUE_NULL
-	list := cobrautil.Map2List(out, pCmd.Header)
+	out[curveutil.ROW_RESULT] = curveutil.ROW_VALUE_SUCCESS
+	out[curveutil.ROW_REASON] = curveutil.ROW_VALUE_NULL
+	list := curveutil.Map2List(out, pCmd.Header)
 	pCmd.TableNew.Append(list)
 	return nil
 }

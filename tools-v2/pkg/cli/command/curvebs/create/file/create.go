@@ -27,7 +27,7 @@ import (
 
 	"github.com/dustin/go-humanize"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	curveutil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -74,14 +74,14 @@ func (cCmd *CreateCommand) Init(cmd *cobra.Command, args []string) error {
 	filename := config.GetBsFlagString(cCmd.Cmd, config.CURVEBS_PATH)
 	username := config.GetBsFlagString(cCmd.Cmd, config.CURVEBS_USER)
 	password := config.GetBsFlagString(cCmd.Cmd, config.CURVEBS_PASSWORD)
-	date, errDat := cobrautil.GetTimeofDayUs()
+	date, errDat := curveutil.GetTimeofDayUs()
 	if errDat.TypeCode() != cmderror.CODE_SUCCESS {
 		return errDat.ToError()
 	}
 
 	fileTypeStr := config.GetBsFlagString(cCmd.Cmd, config.CURVEBS_TYPE)
 	//fileTypeStr := "dir or file"
-	fileType, errType := cobrautil.TranslateFileType(fileTypeStr)
+	fileType, errType := curveutil.TranslateFileType(fileTypeStr)
 	if errType.TypeCode() != cmderror.CODE_SUCCESS {
 		return errType.ToError()
 	}
@@ -106,8 +106,8 @@ func (cCmd *CreateCommand) Init(cmd *cobra.Command, args []string) error {
 		createRequest.StripeUnit = &stripeUnit
 	}
 	if username == viper.GetString(config.VIPER_CURVEBS_USER) && len(password) != 0 {
-		strSig := cobrautil.GetString2Signature(date, username)
-		sig := cobrautil.CalcString2Signature(strSig, password)
+		strSig := curveutil.GetString2Signature(date, username)
+		sig := curveutil.CalcString2Signature(strSig, password)
 		createRequest.Signature = &sig
 	}
 	cCmd.Rpc = &CreateFileRpc{
