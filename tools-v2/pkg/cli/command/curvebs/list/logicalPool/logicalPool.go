@@ -161,6 +161,7 @@ func (lCmd *LogicalPoolCommand) RunCommand(cmd *cobra.Command, args []string) er
 			continue
 		}
 		infos := res.(*topology.ListLogicalPoolResponse)
+		lCmd.logicalPoolInfo = append(lCmd.logicalPoolInfo, infos)
 		for _, loPoolInfo := range infos.GetLogicalPoolInfos() {
 			row := make(map[string]string)
 			row[cobrautil.ROW_ID] = fmt.Sprintf("%d", loPoolInfo.GetLogicalPoolID())
