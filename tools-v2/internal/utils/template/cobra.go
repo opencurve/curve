@@ -19,7 +19,7 @@
  * Created Date: 2022-05-09
  * Author: chengyi (Cyber-SiKu)
  */
-package cobrautil
+package cobratemplate
 
 import (
 	"fmt"
@@ -27,6 +27,7 @@ import (
 	"github.com/docker/cli/cli"
 	"github.com/docker/cli/cli/command"
 	"github.com/moby/term"
+	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -194,4 +195,12 @@ func SetUsageTemplate(cmd *cobra.Command) {
 	cobra.AddTemplateFunc("wrapInheritedFlagUsages", wrapInheritedFlagUsages)
 	cobra.AddTemplateFunc("genExample", genExample)
 	cmd.SetUsageTemplate(usageTemplate)
+}
+
+func AvailableValueStr(flag *pflag.Flag, cmdtype cmdType) string {
+	switch cmdtype {
+	case BsCmd:
+		return config.BsAvailableValueStr(flag.Name)
+	}
+	return ""
 }

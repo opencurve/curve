@@ -36,6 +36,7 @@ import (
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	process "github.com/opencurve/curve/tools-v2/internal/utils/process"
+	cobratemplate "github.com/opencurve/curve/tools-v2/internal/utils/template"
 	config "github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
@@ -127,7 +128,7 @@ func NewFinalCurveCli(cli *FinalCurveCmd, funcs FinalCurveCmdFunc) *cobra.Comman
 	}
 	config.AddFormatFlag(cli.Cmd)
 	funcs.AddFlags()
-	cobrautil.SetFlagErrorFunc(cli.Cmd)
+	cobratemplate.SetFlagErrorFunc(cli.Cmd)
 
 	// set table
 	cli.TableNew = tablewriter.NewWriter(os.Stdout)
@@ -143,7 +144,7 @@ func NewMidCurveCli(cli *MidCurveCmd, add MidCurveCmdFunc) *cobra.Command {
 	cli.Cmd = &cobra.Command{
 		Use:   cli.Use,
 		Short: cli.Short,
-		Args:  cobrautil.NoArgs,
+		Args:  cobratemplate.NoArgs,
 	}
 	add.AddSubCommands()
 	return cli.Cmd
