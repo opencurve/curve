@@ -157,8 +157,11 @@ func (cCmd *ChunkServerListInCoysetCommand) RunCommand(cmd *cobra.Command, args 
 			(*cCmd.key2Location)[key] = info.CsLocs
 		}
 	}
-	errRet := cmderror.MergeCmdError(errs)
+	errRet := cmderror.MergeCmdErrorExceptSuccess(errs)
 	cCmd.Error = errRet
+	if errRet.TypeCode() != cmderror.CODE_SUCCESS {
+		return errRet.ToError()
+	}
 	return nil
 }
 

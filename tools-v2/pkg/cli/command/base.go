@@ -295,7 +295,7 @@ func GetRpcResponse(rpc *Rpc, rpcFunc RpcFunc) (interface{}, *cmderror.CmdError)
 	results := make(chan Result, size)
 	for _, addr := range rpc.Addrs {
 		go func(address string) {
-			log.Printf("%s: start to dial", address)
+			log.Printf("%s: start to dial [%s]", address, rpc.RpcFuncName)
 			ctx, cancel := context.WithTimeout(context.Background(), rpc.RpcTimeout)
 			defer cancel()
 			conn, err := grpc.DialContext(ctx, address, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
@@ -377,7 +377,7 @@ func GetRpcListResponse(rpcList []*Rpc, rpcFunc []RpcFunc) ([]interface{}, []*cm
 	}
 
 	count := 0
-	retRes := make([]interface{}, chanSize)
+	retRes := make([]interface{}, len(rpcList))
 	var vecErrs []*cmderror.CmdError
 	for res := range results {
 		if res.Error.TypeCode() != cmderror.CODE_SUCCESS {

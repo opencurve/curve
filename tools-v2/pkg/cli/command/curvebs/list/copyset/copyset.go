@@ -23,6 +23,7 @@ package copyset
 
 import (
 	"context"
+	"fmt"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -75,6 +76,7 @@ func (cCmd *CopysetCommand) AddFlags() {
 	config.AddRpcTimeoutFlag(cCmd.Cmd)
 	config.AddRpcRetryTimesFlag(cCmd.Cmd)
 	config.AddBsMdsFlagOption(cCmd.Cmd)
+	config.AddBsFilterOptionFlag(cCmd.Cmd)
 }
 
 func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
@@ -84,13 +86,12 @@ func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
 	}
 	timeout := config.GetFlagDuration(cCmd.Cmd, config.RPCTIMEOUT)
 	retrytimes := config.GetFlagInt32(cCmd.Cmd, config.RPCRETRYTIMES)
+	filterscanning := config.GetBsFlagBool(cCmd.Cmd, config.CURVEBS_FIlTER)
 
-	// FilterScanning is true by default
-	fiterscanning := true
 	cCmd.Rpc = &GetCopySetsInClusterRpc{
 		Info: basecmd.NewRpc(mdsAddrs, timeout, retrytimes, "GetCopySetsInCluster"),
 		Request: &topology.GetCopySetsInClusterRequest{
-			FilterScaning: &fiterscanning,
+			FilterScaning: &filterscanning,
 		},
 	}
 	return nil
@@ -120,11 +121,11 @@ func (cCmd *CopysetCommand) ResultPlainOutput() error {
 func GetCopySetsInCluster(caller *cobra.Command) ([]*common.CopysetInfo, *cmderror.CmdError) {
 	getCmd := NewListCopysetCommand()
 	config.AlignFlagsValue(caller, getCmd.Cmd, []string{
-		config.CURVEBS_MDSADDR, config.RPCRETRYTIMES, config.RPCTIMEOUT,
+		config.CURVEBS_MDSADDR, config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEBS_FIlTER,
 	})
 	getCmd.Cmd.SilenceErrors = true
 	getCmd.Cmd.SilenceUsage = true
-	getCmd.Cmd.SetArgs([]string{"--format", config.FORMAT_NOOUT})
+	getCmd.Cmd.SetArgs([]string{fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT})
 	err := getCmd.Cmd.Execute()
 	if err != nil {
 		retErr := cmderror.ErrBsListScanStatus()
