@@ -33,6 +33,7 @@
 #include <list>
 #include <utility>
 #include <vector>
+#include <atomic>
 
 #include "curvefs/proto/common.pb.h"
 #include "curvefs/proto/mds.pb.h"
@@ -394,7 +395,7 @@ class FuseClient {
     bool init_;
 
     // enable record summary info in dir inode xattr
-    bool enableSumInDir_;
+    std::atomic<bool> enableSumInDir_;
 
     std::shared_ptr<FSMetric> fsMetric_;
 

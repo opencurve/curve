@@ -26,6 +26,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <atomic>
 
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/proto/topology.pb.h"
@@ -115,7 +116,8 @@ class MdsClient {
     RefreshSession(const std::vector<PartitionTxId> &txIds,
                    std::vector<PartitionTxId> *latestTxIdList,
                    const std::string& fsName,
-                   const Mountpoint& mountpoint) = 0;
+                   const Mountpoint& mountpoint,
+                   std::atomic<bool>* enableSumInDir) = 0;
 
     virtual FSStatusCode GetLatestTxId(uint32_t fsId,
                                        std::vector<PartitionTxId>* txIds) = 0;
@@ -202,7 +204,8 @@ class MdsClientImpl : public MdsClient {
     FSStatusCode RefreshSession(const std::vector<PartitionTxId> &txIds,
                                 std::vector<PartitionTxId> *latestTxIdList,
                                 const std::string& fsName,
-                                const Mountpoint& mountpoint) override;
+                                const Mountpoint& mountpoint,
+                                std::atomic<bool>* enableSumInDir) override;
 
     FSStatusCode GetLatestTxId(uint32_t fsId,
                                std::vector<PartitionTxId>* txIds) override;

@@ -134,7 +134,8 @@ CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
     auto channelManager = std::make_shared<ChannelManager<MetaserverID>>();
 
     leaseExecutor_ = absl::make_unique<LeaseExecutor>(option.leaseOpt,
-                                                      metaCache, mdsClient_);
+                                                      metaCache, mdsClient_,
+                                                      &enableSumInDir_);
 
     xattrManager_ = std::make_shared<XattrManager>(inodeManager_,
         dentryManager_, option_.listDentryLimit, option_.listDentryThreads);
@@ -360,7 +361,7 @@ CURVEFS_ERROR FuseClient::FuseOpOpen(fuse_req_t req, fuse_ino_t ino,
                 inodeWrapper->MarkDirty();
             }
 
-            if (enableSumInDir_ && length != 0) {
+            if (enableSumInDir_.load() && length != 0) {
                 // update parent summary info
                 const Inode *inode = inodeWrapper->GetInodeLocked();
                 XAttr xattr;
@@ -495,7 +496,7 @@ CURVEFS_ERROR FuseClient::MakeNode(fuse_req_t req, fuse_ino_t parent,
             << ", parent = " << parent << ", name = " << name
             << ", mode = " << mode;
 
-    if (enableSumInDir_) {
+    if (enableSumInDir_.load()) {
         // update parent summary info
         XAttr xattr;
         xattr.mutable_xattrinfos()->insert({XATTRENTRIES, "1"});
@@ -568,7 +569,7 @@ CURVEFS_ERROR FuseClient::DeleteNode(uint64_t ino, fuse_ino_t parent,
                    << ", parent = " << parent << ", name = " << name;
     }
 
-    if (enableSumInDir_) {
+    if (enableSumInDir_.load()) {
         // update parent summary info
         XAttr xattr;
         xattr.mutable_xattrinfos()->insert({XATTRENTRIES, "1"});
@@ -668,7 +669,7 @@ CURVEFS_ERROR FuseClient::CreateManageNode(fuse_req_t req, uint64_t parent,
             << ", parent = " << parent << ", name = " << name
             << ", mode = " << mode;
 
-    if (enableSumInDir_) {
+    if (enableSumInDir_.load()) {
         // update parent summary info
         XAttr xattr;
         xattr.mutable_xattrinfos()->insert({XATTRENTRIES, "1"});
@@ -1025,7 +1026,7 @@ CURVEFS_ERROR FuseClient::FuseOpRename(fuse_req_t req, fuse_ino_t parent,
     renameOp.UpdateInodeCtime();
     renameOp.UpdateCache();
 
-    if (enableSumInDir_) {
+    if (enableSumInDir_.load()) {
         xattrManager_->UpdateParentXattrAfterRename(
             parent, newparent, newname, &renameOp);
     }
@@ -1117,7 +1118,7 @@ CURVEFS_ERROR FuseClient::FuseOpSetAttr(fuse_req_t req, fuse_ino_t ino,
         inodeWrapper->GetInodeAttrLocked(&inodeAttr);
         InodeAttr2ParamAttr(inodeAttr, attrOut);
 
-        if (enableSumInDir_ && changeSize != 0) {
+        if (enableSumInDir_.load() && changeSize != 0) {
             // update parent summary info
             const Inode* inode = inodeWrapper->GetInodeLocked();
             XAttr xattr;
@@ -1164,7 +1165,8 @@ CURVEFS_ERROR FuseClient::FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino,
         return ret;
     }
 
-    ret = xattrManager_->GetXattr(name, value, &inodeAttr, enableSumInDir_);
+    ret = xattrManager_->GetXattr(name, value,
+                    &inodeAttr, enableSumInDir_.load());
     if (CURVEFS_ERROR::OK != ret) {
         LOG(ERROR) << "xattrManager get xattr failed, name = " << name;
         return ret;
@@ -1334,7 +1336,7 @@ CURVEFS_ERROR FuseClient::FuseOpSymlink(fuse_req_t req, const char *link,
         return ret;
     }
 
-    if (enableSumInDir_) {
+    if (enableSumInDir_.load()) {
         // update parent summary info
         XAttr xattr;
         xattr.mutable_xattrinfos()->insert({XATTRENTRIES, "1"});
@@ -1405,7 +1407,7 @@ CURVEFS_ERROR FuseClient::FuseOpLink(fuse_req_t req, fuse_ino_t ino,
         return ret;
     }
 
-    if (enableSumInDir_) {
+    if (enableSumInDir_.load()) {
         // update parent summary info
         XAttr xattr;
         xattr.mutable_xattrinfos()->insert({XATTRENTRIES, "1"});
@@ -1488,14 +1490,15 @@ FuseClient::SetMountStatus(const struct MountOption *mountOption) {
     }
     inodeManager_->SetFsId(fsInfo_->fsid());
     dentryManager_->SetFsId(fsInfo_->fsid());
-    enableSumInDir_ = fsInfo_->enablesumindir() && !FLAGS_enableCto;
+    enableSumInDir_.store(fsInfo_->enablesumindir());
     if (fsInfo_->has_recycletimehour()) {
-        enableSumInDir_ = enableSumInDir_ && (fsInfo_->recycletimehour() == 0);
+        enableSumInDir_.store(enableSumInDir_.load() &&
+        (fsInfo_->recycletimehour() == 0));
     }
 
     LOG(INFO) << "Mount " << fsName << " on " << mountpoint_.ShortDebugString()
               << " success!"
-              << " enableSumInDir = " << enableSumInDir_;
+              << " enableSumInDir = " << enableSumInDir_.load();
 
     fsMetric_ = std::make_shared<FSMetric>(fsName);
 

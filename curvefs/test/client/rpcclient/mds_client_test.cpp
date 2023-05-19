@@ -25,6 +25,7 @@
 #include <google/protobuf/util/message_differencer.h>
 #include <gtest/gtest.h>
 #include <cstdint>
+#include <atomic>
 
 #include "curvefs/src/client/rpcclient/mds_client.h"
 #include "curvefs/test/client/rpcclient/mock_mds_base_client.h"
@@ -837,7 +838,7 @@ TEST_F(MdsClientImplTest, RefreshSession) {
 
     // out
     std::vector<PartitionTxId> out;
-
+    std::atomic<bool>* enableSumInDir = new std::atomic<bool> (true);
     RefreshSessionResponse response;
 
     {
@@ -846,7 +847,7 @@ TEST_F(MdsClientImplTest, RefreshSession) {
         EXPECT_CALL(mockmdsbasecli_, RefreshSession(_, _, _, _))
             .WillOnce(SetArgPointee<1>(response));
         ASSERT_FALSE(mdsclient_.RefreshSession(txIds, &out,
-                                               fsName, mountpoint));
+                                fsName, mountpoint, enableSumInDir));
         ASSERT_TRUE(out.empty());
     }
 
@@ -857,7 +858,7 @@ TEST_F(MdsClientImplTest, RefreshSession) {
         EXPECT_CALL(mockmdsbasecli_, RefreshSession(_, _, _, _))
             .WillOnce(SetArgPointee<1>(response));
         ASSERT_FALSE(mdsclient_.RefreshSession(txIds, &out,
-                                               fsName, mountpoint));
+                            fsName, mountpoint, enableSumInDir));
         ASSERT_EQ(1, out.size());
         ASSERT_TRUE(
             google::protobuf::util::MessageDifferencer::Equals(out[0], tmp))
@@ -873,7 +874,8 @@ TEST_F(MdsClientImplTest, RefreshSession) {
         EXPECT_CALL(mockmdsbasecli_, RefreshSession(_, _, _, _))
             .WillRepeatedly(Invoke(RefreshSessionRpcFailed));
         ASSERT_EQ(FSStatusCode::RPC_ERROR,
-                  mdsclient_.RefreshSession(txIds, &out, fsName, mountpoint));
+            mdsclient_.RefreshSession(txIds, &out, fsName, mountpoint,
+            enableSumInDir));
     }
 }
 

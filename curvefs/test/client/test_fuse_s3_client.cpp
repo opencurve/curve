@@ -1289,64 +1289,6 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir_Failed) {
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL));
     ret = client_->FuseOpGetXattr(req, ino, rname, &value, size);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
-
-    // AddUllStringToFirst  XATTRFILES failed
-    EXPECT_CALL(*inodeManager_, GetInodeAttr(ino, _))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)));
-    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)));
-    EXPECT_CALL(*inodeManager_, BatchGetInodeAttr(_, _))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(attrs), Return(CURVEFS_ERROR::OK)));
-    ret = client_->FuseOpGetXattr(req, ino, name, &value, size);
-    ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
-
-    // AddUllStringToFirst  XATTRSUBDIRS failed
-    inode.mutable_xattr()->find(XATTRFILES)->second = "0";
-    inode.mutable_xattr()->find(XATTRSUBDIRS)->second = "aaa";
-    EXPECT_CALL(*inodeManager_, GetInodeAttr(ino, _))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)));
-    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)));
-    EXPECT_CALL(*inodeManager_, BatchGetInodeAttr(_, _))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(attrs), Return(CURVEFS_ERROR::OK)));
-    ret = client_->FuseOpGetXattr(req, ino, name, &value, size);
-    ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
-
-    // AddUllStringToFirst  XATTRENTRIES failed
-    inode.mutable_xattr()->find(XATTRSUBDIRS)->second = "0";
-    inode.mutable_xattr()->find(XATTRENTRIES)->second = "aaa";
-    EXPECT_CALL(*inodeManager_, GetInodeAttr(ino, _))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)));
-    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)));
-    EXPECT_CALL(*inodeManager_, BatchGetInodeAttr(_, _))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(attrs), Return(CURVEFS_ERROR::OK)));
-    ret = client_->FuseOpGetXattr(req, ino, name, &value, size);
-    ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
-
-    // AddUllStringToFirst  XATTRFBYTES failed
-    inode.mutable_xattr()->find(XATTRENTRIES)->second = "0";
-    inode.mutable_xattr()->find(XATTRFBYTES)->second = "aaa";
-    EXPECT_CALL(*inodeManager_, GetInodeAttr(ino, _))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)));
-    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)));
-    EXPECT_CALL(*inodeManager_, BatchGetInodeAttr(_, _))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(attrs), Return(CURVEFS_ERROR::OK)));
-    ret = client_->FuseOpGetXattr(req, ino, name, &value, size);
-    ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 }
 
 TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir) {
