@@ -90,10 +90,10 @@ func (cCmd *Command) AddFlags() {
 	config.AddRpcRetryTimesFlag(cCmd.Cmd)
 	config.AddRpcTimeoutFlag(cCmd.Cmd)
 
-	config.AddBSLogicalPoolIdRequiredFlag(cCmd.Cmd)
-	config.AddBSCopysetIdRequiredFlag(cCmd.Cmd)
+	config.AddBsLogicalPoolIdRequiredFlag(cCmd.Cmd)
+	config.AddBsCopysetIdRequiredFlag(cCmd.Cmd)
 
-	config.AddBSPeersConfFlag(cCmd.Cmd)
+	config.AddBsPeersConfFlag(cCmd.Cmd)
 }
 
 func (cCmd *Command) Init(cmd *cobra.Command, args []string) error {

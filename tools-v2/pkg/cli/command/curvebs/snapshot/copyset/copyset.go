@@ -83,8 +83,8 @@ func (sCmd *SnapshotOneCommand) AddFlags() {
 	config.AddRpcRetryTimesFlag(sCmd.Cmd)
 	config.AddRpcTimeoutFlag(sCmd.Cmd)
 
-	config.AddBSLogicalPoolIdRequiredFlag(sCmd.Cmd)
-	config.AddBSCopysetIdRequiredFlag(sCmd.Cmd)
+	config.AddBsLogicalPoolIdRequiredFlag(sCmd.Cmd)
+	config.AddBsCopysetIdRequiredFlag(sCmd.Cmd)
 }
 
 func (sCmd *SnapshotOneCommand) Init(cmd *cobra.Command, args []string) error {

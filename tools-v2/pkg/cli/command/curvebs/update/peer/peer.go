@@ -95,8 +95,8 @@ func (pCmd *PeerCommand) AddFlags() {
 	config.AddRpcRetryTimesFlag(pCmd.Cmd)
 	config.AddRpcTimeoutFlag(pCmd.Cmd)
 
-	config.AddBSLogicalPoolIdRequiredFlag(pCmd.Cmd)
-	config.AddBSCopysetIdRequiredFlag(pCmd.Cmd)
+	config.AddBsLogicalPoolIdRequiredFlag(pCmd.Cmd)
+	config.AddBsCopysetIdRequiredFlag(pCmd.Cmd)
 }
 
 // ParsePeer parse the peer string

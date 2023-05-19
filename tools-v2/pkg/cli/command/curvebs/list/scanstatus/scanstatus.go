@@ -89,6 +89,8 @@ func (sCmd *ScanStatusCommand) Print(cmd *cobra.Command, args []string) error {
 }
 
 func (sCmd *ScanStatusCommand) RunCommand(cmd *cobra.Command, args []string) error {
+	config.AddBsFilterOptionFlag(sCmd.Cmd)
+	sCmd.Cmd.ParseFlags([]string{fmt.Sprintf("--%s=%s", config.CURVEBS_FIlTER, cobrautil.FALSE_STRING)})
 	copysetInfoList, err := copyset.GetCopySetsInCluster(cmd)
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		return err.ToError()

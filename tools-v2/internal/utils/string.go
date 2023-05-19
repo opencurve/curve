@@ -44,6 +44,8 @@ const (
 
 	ROOT_PATH       = "/"
 	RECYCLEBIN_PATH = "/RecycleBin"
+
+	FALSE_STRING = "false"
 )
 
 func IsValidFsname(fsName string) bool {
