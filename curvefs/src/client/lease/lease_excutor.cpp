@@ -41,7 +41,7 @@ LeaseExecutor::~LeaseExecutor() {
 bool LeaseExecutor::Start() {
     if (opt_.leaseTimeUs <= 0 || opt_.refreshTimesPerLease <= 0) {
         LOG(ERROR) << "LeaseExecutor start fail. Invalid param in leaseopt, "
-                      "leasTimesUs = "
+                      "leaseTimeUs = "
                    << opt_.leaseTimeUs
                    << ", refreshTimePerLease = " << opt_.refreshTimesPerLease;
         return false;
@@ -78,7 +78,8 @@ bool LeaseExecutor::RefreshLease() {
     // refresh from mds
     std::vector<PartitionTxId> latestTxIdList;
     FSStatusCode ret = mdsCli_->RefreshSession(txIds, &latestTxIdList,
-                                               fsName_, mountpoint_);
+                                               fsName_, mountpoint_,
+                                               enableSumInDir_);
     if (ret != FSStatusCode::OK) {
         LOG(ERROR) << "LeaseExecutor refresh session fail, ret = " << ret
                    << ", errorName = " << FSStatusCode_Name(ret);

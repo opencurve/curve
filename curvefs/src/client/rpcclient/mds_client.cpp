@@ -501,7 +501,8 @@ FSStatusCode
 MdsClientImpl::RefreshSession(const std::vector<PartitionTxId> &txIds,
                               std::vector<PartitionTxId> *latestTxIdList,
                               const std::string& fsName,
-                              const Mountpoint& mountpoint) {
+                              const Mountpoint& mountpoint,
+                              std::atomic<bool>* enableSumInDir) {
     auto task = RPCTask {
         (void)addrindex;
         (void)rpctimeoutMS;
@@ -531,6 +532,11 @@ MdsClientImpl::RefreshSession(const std::vector<PartitionTxId> &txIds,
                                response.latesttxidlist().end()};
             LOG(INFO) << "RefreshSession need update partition txid list: "
                       << response.DebugString();
+        }
+        if (enableSumInDir->load() && !response.enablesumindir()) {
+            enableSumInDir->store(response.enablesumindir());
+            LOG(INFO) << "update enableSumInDir to "
+                      << response.enablesumindir();
         }
 
         return ret;

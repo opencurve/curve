@@ -78,20 +78,14 @@ CURVEFS_ERROR XattrManager::CalOneLayerSumInfo(InodeAttr *attr) {
             summaryInfo.entries++;
             summaryInfo.fbytes += it.length();
         }
-        if (!(AddUllStringToFirst(
-                &(attr->mutable_xattr()->find(XATTRFILES)->second),
-                summaryInfo.files, true) &&
-            AddUllStringToFirst(
-                &(attr->mutable_xattr()->find(XATTRSUBDIRS)->second),
-                summaryInfo.subdirs, true) &&
-            AddUllStringToFirst(
-                &(attr->mutable_xattr()->find(XATTRENTRIES)->second),
-                summaryInfo.entries, true) &&
-            AddUllStringToFirst(
-                &(attr->mutable_xattr()->find(XATTRFBYTES)->second),
-                summaryInfo.fbytes + attr->length(), true))) {
-            ret = CURVEFS_ERROR::INTERNAL;
-        }
+        (*attr->mutable_xattr())[XATTRFILES] =
+            std::to_string(summaryInfo.files);
+        (*attr->mutable_xattr())[XATTRSUBDIRS] =
+            std::to_string(summaryInfo.subdirs);
+        (*attr->mutable_xattr())[XATTRENTRIES] =
+            std::to_string(summaryInfo.entries);
+        (*attr->mutable_xattr())[XATTRFBYTES] =
+            std::to_string(summaryInfo.fbytes + attr->length());
     }
     return ret;
 }
