@@ -25,6 +25,8 @@ package chunkserver
 import (
 	"context"
 	"fmt"
+	"strconv"
+
 	"github.com/dustin/go-humanize"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
@@ -35,7 +37,6 @@ import (
 	"github.com/opencurve/curve/tools-v2/proto/proto/topology"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
-	"strconv"
 )
 
 const (
@@ -91,10 +92,10 @@ func (pCmd *ChunkServerCommand) AddFlags() {
 	config.AddRpcTimeoutFlag(pCmd.Cmd)
 	config.AddBsUserOptionFlag(pCmd.Cmd)
 	config.AddBsPasswordOptionFlag(pCmd.Cmd)
-	config.AddBSCheckCSAliveOptionFlag(pCmd.Cmd)
-	config.AddBSCheckHealthOptionFlag(pCmd.Cmd)
-	config.AddBSCSOfflineOptionFlag(pCmd.Cmd)
-	config.AddBSCSUnhealthyOptionFlag(pCmd.Cmd)
+	config.AddBsCheckCSAliveOptionFlag(pCmd.Cmd)
+	config.AddBsCheckHealthOptionFlag(pCmd.Cmd)
+	config.AddBsCSOfflineOptionFlag(pCmd.Cmd)
+	config.AddBsCSUnhealthyOptionFlag(pCmd.Cmd)
 }
 
 // Init implements basecmd.FinalCurveCmdFunc

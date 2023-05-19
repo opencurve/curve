@@ -77,7 +77,7 @@ func (sCmd *ScanStateCommand) AddFlags() {
 	config.AddRpcRetryTimesFlag(sCmd.Cmd)
 	config.AddRpcTimeoutFlag(sCmd.Cmd)
 
-	config.AddBSLogicalPoolIdRequiredFlag(sCmd.Cmd)
+	config.AddBsLogicalPoolIdRequiredFlag(sCmd.Cmd)
 	config.AddBsScanOptionFlag(sCmd.Cmd)
 }
 

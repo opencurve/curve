@@ -24,6 +24,7 @@ package copyset
 
 import (
 	"context"
+
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
@@ -58,7 +59,7 @@ type GetCopysetStatusCommand struct {
 
 var _ basecmd.FinalCurveCmdFunc = (*GetCopysetStatusCommand)(nil) // check interface
 
-func NewCopysetCommand() *cobra.Command {
+func NewCopysetStatusCommand() *cobra.Command {
 	return NewGetCopysetStatusCommand().Cmd
 }
 
@@ -130,9 +131,9 @@ func (cCmd *GetCopysetStatusCommand) AddFlags() {
 	config.AddRpcRetryTimesFlag(cCmd.Cmd)
 	config.AddRpcTimeoutFlag(cCmd.Cmd)
 
-	config.AddBSCopysetIdRequiredFlag(cCmd.Cmd)
-	config.AddBSLogicalPoolIdRequiredFlag(cCmd.Cmd)
-	config.AddBSPeersConfFlag(cCmd.Cmd)
+	config.AddBsCopysetIdRequiredFlag(cCmd.Cmd)
+	config.AddBsLogicalPoolIdRequiredFlag(cCmd.Cmd)
+	config.AddBsPeersConfFlag(cCmd.Cmd)
 }
 
 func GetCopysetStatus(caller *cobra.Command) (*map[string]*copyset.CopysetStatusResponse, *cmderror.CmdError) {

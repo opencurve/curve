@@ -24,6 +24,8 @@ package chunkserver
 
 import (
 	"context"
+	"strconv"
+
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -33,7 +35,6 @@ import (
 	"github.com/opencurve/curve/tools-v2/proto/proto/topology"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
-	"strconv"
 )
 
 type GetCopySetsInChunkServerRpc struct {
@@ -81,7 +82,7 @@ func (pCmd *CopySetCommand) AddFlags() {
 	config.AddRpcTimeoutFlag(pCmd.Cmd)
 	config.AddBsUserOptionFlag(pCmd.Cmd)
 	config.AddBsPasswordOptionFlag(pCmd.Cmd)
-	config.AddBSChunkServerIdFlag(pCmd.Cmd)
+	config.AddBsChunkServerIdFlag(pCmd.Cmd)
 }
 
 // Init implements basecmd.FinalCurveCmdFunc

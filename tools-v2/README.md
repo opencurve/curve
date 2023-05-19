@@ -62,6 +62,7 @@ A tool for CurveFS & CurveBs.
       - [status client](#status-client)
       - [status snapshotserver](#status-snapshotserver)
       - [status chunkserver](#status-chunkserver)
+      - [status copyset](#status-copyset-1)
     - [delete](#delete-1)
       - [delete peer](#delete-peer)
     - [update](#update)
@@ -1395,6 +1396,30 @@ Output:
 +------------------+------------------+----------------+--------+------------+
 ```
 
+#### status copyset
+
+get the copyset status of curvebs
+
+Usage:
+
+```bash
+curve bs status copyset
+```
+
+Output:
+
+```bash
++------------+-----------+--------+--------+--------+---------+
+| COPYSETKEY | COPYSETID | POOLID | STATUS | LOGGAP | EXPLAIN |
++------------+-----------+--------+--------+--------+---------+
+| 4294967297 | 1         | 1      | ok     | 0      |         |
++------------+-----------+        +        +--------+---------+
+| ......     |  ......   | ...... | ...... | ...... | ......  |
++------------+-----------+        +        +--------+---------+
+| 4294967395 | 99        |        |        | 0      |         |
++------------+-----------+--------+--------+--------+---------+
+```
+
 ### delete
 
 #### delete peer
@@ -1778,7 +1803,7 @@ Output:
 >>>>>>> c581f66e... [feat] tools-v2: add transfer-leader
 =======
 | old                                  | new                               |
-|--------------------------------------|-----------------------------------|
+| ------------------------------------ | --------------------------------- |
 | curve_ops_tool logical-pool-list     | curve bs list logical-pool        |
 | curve_ops_tool get -fileName=        | curve bs query file -path         |
 | curve_ops_tool etcd-status           | curve bs status etcd              |
@@ -1805,9 +1830,9 @@ Output:
 | curve_ops_tool chunkserver-list      | curve bs list chunkserver         |
 | curve_ops_tool set-copyset-availflag | curve bs update copyset availflag |
 | curve_ops_tool scan-status           | curve bs list/query scan-status   |
+| curve_ops_tool clean-recycle         | curve bs clean-recycle            |
+| curve_ops_tool copysets-status       | curve bs status copyset           |
 | curve_ops_tool status                |                                   |
-| curve_ops_tool copysets-status       |                                   |
-| curve_ops_tool clean-recycle         |                                   |
 | curve_ops_tool check-consistency     |                                   |
 | curve_ops_tool do-snapshot-all       |                                   |
 | curve_ops_tool check-chunkserver     |                                   |
