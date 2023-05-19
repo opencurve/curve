@@ -239,7 +239,7 @@ func ListLogicalPoolInfoAndAllocSize(caller *cobra.Command) ([]*topology.ListLog
 	})
 	listCmd.Cmd.SilenceErrors = true
 	listCmd.Cmd.SilenceUsage = true
-	listCmd.Cmd.SetArgs([]string{"--format", config.FORMAT_NOOUT})
+	listCmd.Cmd.SetArgs([]string{fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT})
 	err := listCmd.Cmd.Execute()
 	if err != nil {
 		retErr := cmderror.ErrBsListLogicalPoolInfo()

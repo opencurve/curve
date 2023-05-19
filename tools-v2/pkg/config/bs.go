@@ -122,6 +122,9 @@ const (
 	VIPER_CURVEBS_CHUNK_ID            = "curvebs.chunkid"
 	CURVEBS_CHUNKSERVER_ADDRESS       = "chunkserveraddr"
 	VIPER_CURVEBS_CHUNKSERVER_ADDRESS = "curvebs.chunkserverAddr"
+	CURVEBS_FIlTER                    = "filter"
+	VIPER_CURVEBS_FILTER              = "curvebs.filter"
+	CURVEBS_DEFAULT_FILTER            = false
 )
 
 var (
@@ -167,6 +170,7 @@ var (
 		CURVEBS_AVAILFLAG:           VIPER_CURVEBS_AVAILFLAG,
 		CURVEBS_CHUNK_ID:            VIPER_CURVEBS_CHUNK_ID,
 		CURVEBS_CHUNKSERVER_ADDRESS: VIPER_CURVEBS_CHUNKSERVER_ADDRESS,
+		CURVEBS_FIlTER:              VIPER_CURVEBS_FILTER,
 	}
 
 	BSFLAG2DEFAULT = map[string]interface{}{
@@ -186,6 +190,7 @@ var (
 		CURVEBS_SCAN:           CURVEBS_DEFAULT_SCAN,
 		CURVEBS_CHUNKSERVER_ID: CURVEBS_DEFAULT_CHUNKSERVER_ID,
 		CURVEBS_DRYRUN:         CURVEBS_DEFAULT_DRYRUN,
+		CURVEBS_FIlTER:         CURVEBS_DEFAULT_FILTER,
 	}
 )
 
@@ -324,6 +329,10 @@ func AddBsDryrunOptionFlag(cmd *cobra.Command) {
 	AddBsBoolOptionFlag(cmd, CURVEBS_DRYRUN, "when dry run set true, no changes will be made")
 }
 
+func AddBsFilterOptionFlag(cmd *cobra.Command) {
+	AddBsBoolOptionFlag(cmd, CURVEBS_FIlTER, "filter scanning or not")
+}
+
 // add bs required flag
 func AddBsStringRequiredFlag(cmd *cobra.Command, name string, usage string) {
 	cmd.Flags().String(name, "", usage+color.Red.Sprint("[required]"))
@@ -459,11 +468,11 @@ func AddBsPathRequiredFlag(cmd *cobra.Command) {
 	AddBsStringRequiredFlag(cmd, CURVEBS_PATH, "file path")
 }
 
-func AddBSLogicalPoolIdRequiredFlag(cmd *cobra.Command) {
+func AddBsLogicalPoolIdRequiredFlag(cmd *cobra.Command) {
 	AddBsUint32RequiredFlag(cmd, CURVEBS_LOGIC_POOL_ID, "logical pool id")
 }
 
-func AddBSCopysetIdRequiredFlag(cmd *cobra.Command) {
+func AddBsCopysetIdRequiredFlag(cmd *cobra.Command) {
 	AddBsUint32RequiredFlag(cmd, CURVEBS_COPYSET_ID, "copyset id")
 }
 
@@ -475,7 +484,7 @@ func AddBsLogicalPoolIdSliceRequiredFlag(cmd *cobra.Command) {
 	AddBsStringSliceRequiredFlag(cmd, CURVEBS_LOGIC_POOL_ID, "logical pool id")
 }
 
-func AddBSPeersConfFlag(cmd *cobra.Command) {
+func AddBsPeersConfFlag(cmd *cobra.Command) {
 	AddBsStringSliceRequiredFlag(cmd, CURVEBS_PEERS_ADDRESS, "peers info.")
 }
 
@@ -507,23 +516,23 @@ func AddBsOpRequiredFlag(cmd *cobra.Command) {
 	AddBsStringRequiredFlag(cmd, CURVEBS_OP, fmt.Sprintf("check operator name, %s", BsAvailableValueStr(CURVEBS_OP)))
 }
 
-func AddBSChunkServerIdFlag(cmd *cobra.Command) {
+func AddBsChunkServerIdFlag(cmd *cobra.Command) {
 	AddBsUint32RequiredFlag(cmd, CURVEBS_CHUNKSERVER_ID, "chunkserver id")
 }
 
-func AddBSCheckCSAliveOptionFlag(cmd *cobra.Command) {
+func AddBsCheckCSAliveOptionFlag(cmd *cobra.Command) {
 	AddBsBoolOptionFlag(cmd, CURVEBS_CHECK_CSALIVE, "check chunkserver alive")
 }
 
-func AddBSCheckHealthOptionFlag(cmd *cobra.Command) {
+func AddBsCheckHealthOptionFlag(cmd *cobra.Command) {
 	AddBsBoolOptionFlag(cmd, CURVEBS_CHECK_HEALTH, "check chunkserver health")
 }
 
-func AddBSCSOfflineOptionFlag(cmd *cobra.Command) {
+func AddBsCSOfflineOptionFlag(cmd *cobra.Command) {
 	AddBsBoolOptionFlag(cmd, CURVEBS_CS_OFFLINE, "offline")
 }
 
-func AddBSCSUnhealthyOptionFlag(cmd *cobra.Command) {
+func AddBsCSUnhealthyOptionFlag(cmd *cobra.Command) {
 	AddBsBoolOptionFlag(cmd, CURVEBS_CS_UNHEALTHY, "unhealthy")
 }
 

@@ -30,11 +30,12 @@ import (
 	"time"
 
 	mapset "github.com/deckarep/golang-set/v2"
+	"github.com/olekukonko/tablewriter"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/query/chunkserver"
-	status "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/status/copyset"
+	status "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/query/copyset"
 	fscopyset "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/check/copyset"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -84,10 +85,7 @@ func (cCmd *CopysetCommand) AddFlags() {
 }
 
 func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
-	mdsAddrs := config.GetBsFlagString(cmd, config.CURVEBS_MDSADDR)
-	retrytime := config.GetBsFlagInt32(cmd, config.RPCRETRYTIMES)
 	timeout := config.GetFlagDuration(cCmd.Cmd, config.RPCTIMEOUT)
-	margin := config.GetBsMargin(cCmd.Cmd)
 
 	logicalpoolidList := config.GetBsFlagStringSlice(cCmd.Cmd, config.CURVEBS_LOGIC_POOL_ID)
 	copysetidList := config.GetBsFlagStringSlice(cCmd.Cmd, config.CURVEBS_COPYSET_ID)
@@ -107,7 +105,7 @@ func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		return err.ToError()
 	}
-
+	config.AddBsPeersConfFlag(cCmd.Cmd)
 	for i := 0; i < len(logicalpoolIds); i++ {
 		logicpoolid := logicalpoolIds[i]
 		copysetid := copysetIds[i]
@@ -118,19 +116,9 @@ func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
 			address := fmt.Sprintf("%s:%d", *cs.HostIp, *cs.Port)
 			peerAddress = append(peerAddress, address)
 		}
-
-		cCmd.Cmd.ResetFlags()
-		config.AddBsMdsFlagOption(cCmd.Cmd)
-		config.AddRpcRetryTimesFlag(cCmd.Cmd)
-		config.AddRpcTimeoutFlag(cCmd.Cmd)
-		config.AddBSCopysetIdRequiredFlag(cCmd.Cmd)
-		config.AddBSLogicalPoolIdRequiredFlag(cCmd.Cmd)
-		config.AddBSPeersConfFlag(cCmd.Cmd)
+		config.ResetStringSliceFlag(cCmd.Cmd.Flag(config.CURVEBS_LOGIC_POOL_ID), logicalpoolidList[i])
+		config.ResetStringSliceFlag(cCmd.Cmd.Flag(config.CURVEBS_COPYSET_ID), copysetidList[i])
 		cCmd.Cmd.ParseFlags([]string{
-			fmt.Sprintf("--%s", config.CURVEBS_MDSADDR), mdsAddrs,
-			fmt.Sprintf("--%s", config.RPCRETRYTIMES), fmt.Sprintf("%d", retrytime),
-			fmt.Sprintf("--%s", config.CURVEBS_LOGIC_POOL_ID), logicalpoolidList[i],
-			fmt.Sprintf("--%s", config.CURVEBS_COPYSET_ID), copysetidList[i],
 			fmt.Sprintf("--%s", config.CURVEBS_PEERS_ADDRESS),
 			strings.Join(peerAddress, ","),
 		})
@@ -141,7 +129,8 @@ func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
 		peers := make([]*common.Peer, 0, len(*peer2Status))
 		var leaderPeer *common.Peer
 		for _, result := range *peer2Status {
-			if result != nil {
+			if result != nil && result.Leader != nil && result.Peer != nil &&
+				result.Leader.Address != nil && result.Peer.Address != nil {
 				if *result.Leader.Address == *result.Peer.Address {
 					leaderPeer = result.Peer
 				}
@@ -166,12 +155,6 @@ func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
 			Peer2Status: *peer2Status,
 		}
 	}
-	config.AddMarginOptionFlag(cCmd.Cmd)
-	config.AddFormatFlag(cCmd.Cmd)
-	cCmd.Cmd.ParseFlags([]string{
-		fmt.Sprintf("--%s", config.CURVEBS_MARGIN),
-		fmt.Sprintf("%d", margin),
-	})
 
 	header := []string{cobrautil.ROW_COPYSET_KEY, cobrautil.ROW_COPYSET_ID,
 		cobrautil.ROW_POOL_ID, cobrautil.ROW_STATUS, cobrautil.ROW_LOG_GAP,
@@ -353,7 +336,7 @@ func (cCmd *CopysetCommand) UpdateCopysteGap(timeout time.Duration) *cmderror.Cm
 
 func CheckCopysets(caller *cobra.Command) (*map[uint64]cobrautil.ClUSTER_HEALTH_STATUS, *cmderror.CmdError) {
 	cCmd := NewCheckCopysetCommand()
-	cCmd.Cmd.SetArgs([]string{"--format", config.FORMAT_NOOUT})
+	cCmd.Cmd.SetArgs([]string{fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT})
 	config.AlignFlagsValue(caller, cCmd.Cmd, []string{
 		config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEBS_MDSADDR,
 		config.CURVEBS_COPYSET_ID, config.CURVEBS_LOGIC_POOL_ID, config.CURVEBS_MARGIN,
@@ -367,4 +350,22 @@ func CheckCopysets(caller *cobra.Command) (*map[uint64]cobrautil.ClUSTER_HEALTH_
 		return cCmd.Key2Health, retErr
 	}
 	return cCmd.Key2Health, cmderror.Success()
+}
+
+func GetCopysetsStatus(caller *cobra.Command) (*tablewriter.Table, *cmderror.CmdError) {
+	cCmd := NewCheckCopysetCommand()
+	cCmd.Cmd.SetArgs([]string{fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT})
+	config.AlignFlagsValue(caller, cCmd.Cmd, []string{
+		config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEBS_MDSADDR,
+		config.CURVEBS_COPYSET_ID, config.CURVEBS_LOGIC_POOL_ID, config.CURVEBS_MARGIN,
+	})
+	cCmd.Cmd.SilenceErrors = true
+	cCmd.Cmd.SilenceUsage = true
+	err := cCmd.Cmd.Execute()
+	if err != nil {
+		retErr := cmderror.ErrCheckCopyset()
+		retErr.Format(err.Error())
+		return nil, retErr
+	}
+	return cCmd.TableNew, cCmd.Error
 }

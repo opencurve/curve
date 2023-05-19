@@ -58,7 +58,7 @@ func FinalCmdOutputPlain(finalCmd *basecmd.FinalCurveCmd) error {
 
 func FinalCmdOutput(finalCmd *basecmd.FinalCurveCmd,
 	funcs basecmd.FinalCurveCmdFunc) error {
-	format := finalCmd.Cmd.Flag("format").Value.String()
+	format := finalCmd.Cmd.Flag(config.FORMAT).Value.String()
 	var err error
 	switch format {
 	case config.FORMAT_JSON:
