@@ -73,6 +73,7 @@ A tool for CurveFS & CurveBs.
       - [create dir](#create-dir)
     - [check](#check-1)
       - [check copyset](#check-copyset-1)
+      - [check server](#check-server)
     - [snapshot](#snapshot)
       - [snapshot copyset](#snapshot-copyset)
   - [Comparison of old and new commands](#comparison-of-old-and-new-commands)
@@ -1335,6 +1336,28 @@ Output:
 +------------+-----------+--------+--------+--------+---------+
 ```
 
+####  check server
+
+check copysets health in server
+
+Usage:
+
+```shell
+curve bs check server --serverid 1
+curve bs check server --serverip 127.0.0.1 --port 8200
+```
+
+Output:
+
+```shell
++--------+-----------+-------+-------------------------+-------------------------+
+| SERVER |    IP     | TOTAL | UNHEALTHY COPYSET COUNT | UNHEALTHY COPYSET RATIO |
++--------+-----------+-------+-------------------------+-------------------------+
+| 1      | 127.0.0.1 | 100   | 0                       | 0                       |
++--------+-----------+-------+-------------------------+-------------------------+
+```
+
+
 ### snapshot
 
 #### snapshot copyset
@@ -1405,6 +1428,7 @@ Output:
 | curve_ops_tool check-copyset         | curve bs check copyset         |
 | curve_ops_tool client-status         | curve bs status client         |
 | curve_ops_tool check-operator        | curve bs check operator        |
+| curve_ops_tool check-server          | curve bs check server          |
 | curve_ops_tool snapshot-clone-status | curve bs status snapshotserver |
 | curve_ops_tool transfer-leader       | curve bs update leader         |
 | curve_ops_tool do-snapshot           | curve bs snapshot copyset      |
