@@ -100,7 +100,6 @@ func (sCmd *ServerCommand) ResultPlainOutput() error {
 }
 
 func (sCmd *ServerCommand) RunCommand(cmd *cobra.Command, args []string) error {
-	// 这里就可以得到指定的server下的所有的chunkserver
 	chunkServerInfos, err := chunkserver.ListChunkServerInfos(sCmd.Cmd)
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		return err.ToError()
@@ -109,14 +108,13 @@ func (sCmd *ServerCommand) RunCommand(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// 需要遍历所有的chunkserver下的copyset,获取copyset的健康情况
 	config.AddBsChunkServerIdFlag(sCmd.Cmd)
 	config.AddBsLogicalPoolIdRequiredFlag(sCmd.Cmd)
 	config.AddBsCopysetIdRequiredFlag(sCmd.Cmd)
 	for _, item := range chunkServerInfos {
 		row := make(map[string]string)
 		chunkId := item.GetChunkServerID()
-		// 得到对应的chunkserver下面的所有的copyset info
+
 		sCmd.Cmd.Flags().Set(config.CURVEBS_CHUNKSERVER_ID, strconv.FormatUint(uint64(chunkId), 10))
 		copySets, err := chunkserver.GetCopySetsInChunkServer(sCmd.Cmd)
 		if err.TypeCode() != cmderror.CODE_SUCCESS {
@@ -128,16 +126,10 @@ func (sCmd *ServerCommand) RunCommand(cmd *cobra.Command, args []string) error {
 		for _, copyset := range copySets {
 			logicalPoolId := copyset.GetLogicalPoolId()
 			copysetId := copyset.GetCopysetId()
-
 			copysetKey := cobrautil.GetCopysetKey(uint64(logicalPoolId), uint64(copysetId))
 			sCmd.Cmd.Flags().Set(config.CURVEBS_COPYSET_ID, strconv.FormatUint(uint64(copysetId), 10))
 			sCmd.Cmd.Flags().Set(config.CURVEBS_LOGIC_POOL_ID, strconv.FormatUint(uint64(logicalPoolId), 10))
-			// sCmd.Cmd.ParseFlags([]string{
-			// 	fmt.Sprintf("--%s", config.CURVEBS_COPYSET_ID),
-			// 	strconv.FormatUint(uint64(copysetId), 10),
-			// 	fmt.Sprintf("--%s", config.CURVEBS_LOGIC_POOL_ID),
-			// 	strconv.FormatUint(uint64(logicalPoolId), 10),
-			// })
+
 			copysetKey2Status, err := checkcopyset.CheckCopysets(sCmd.Cmd)
 			if err.TypeCode() != cmderror.CODE_SUCCESS {
 				return err.ToError()

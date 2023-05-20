@@ -591,14 +591,6 @@ func AddBsChunkServerAddressSliceRequiredFlag(cmd *cobra.Command) {
 	AddBsStringSliceRequiredFlag(cmd, CURVEBS_CHUNKSERVER_ADDRESS, "chunk server address")
 }
 
-func AddBsIpOptionFlag(cmd *cobra.Command) {
-	AddBsStringOptionFlag(cmd, CURVEBS_SERVER_IP, "server ip")
-}
-
-func AddBsPortOptionFlag(cmd *cobra.Command) {
-	AddBSUint32OptionFlag(cmd, CURVEBS_SERVER_PORT, "port")
-}
-
 // serverid
 func AddBsServerIdOptionFlag(cmd *cobra.Command) {
 	AddBsUint32OptionFlag(cmd, CURVEBS_SERVER_ID, "server id")
@@ -612,22 +604,6 @@ func AddBsServerIpOptionFlag(cmd *cobra.Command) {
 // port(server)
 func AddBsServerPortOptionFlag(cmd *cobra.Command) {
 	AddBsUint32OptionFlag(cmd, CURVEBS_SERVER_PORT, "port")
-}
-
-func AddBsChunkServerIDOptionFlag(cmd *cobra.Command) {
-	AddBsStringOptionFlag(cmd, CURVEBS_CHUNKSERVER_ID, "chunk server id")
-}
-
-func AddBSUint32OptionFlag(cmd *cobra.Command, name string, usage string) {
-	defaultValue := BSFLAG2DEFAULT[name]
-	if defaultValue == nil {
-		defaultValue = 0
-	}
-	cmd.Flags().Int(name, defaultValue.(int), usage)
-	err := viper.BindPFlag(BSFLAG2VIPER[name], cmd.Flags().Lookup(name))
-	if err != nil {
-		cobra.CheckErr(err)
-	}
 }
 
 // get stingslice flag
