@@ -23,29 +23,33 @@ package server
 
 import (
 	"fmt"
-	"time"
+	"strconv"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
-
-	copysetbs "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/status/copyset"
+	checkcopyset "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/check/copyset"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/chunkserver"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
+
 	"github.com/opencurve/curve/tools-v2/pkg/output"
-	"github.com/opencurve/curve/tools-v2/proto/proto/copyset"
-	"github.com/opencurve/curve/tools-v2/proto/proto/topology"
 	"github.com/spf13/cobra"
 )
 
 const (
-	serverExample = `$ curve bs check server`
+	serverExample = `$ curve bs check server \
+$ curve bs check server --serverid=1 \
+$ curve bs check server --ip 127.0.0.1 --port 8200`
 )
 
 type ServerCommand struct {
 	basecmd.FinalCurveCmd
-	ServerID uint32
-	ServerIP string
-	Port     uint32
+
+	ServerID   uint32
+	ServerIP   string
+	ServerPort uint32
+
+	rows []map[string]string
 }
 
 var _ basecmd.FinalCurveCmdFunc = (*ServerCommand)(nil)
@@ -58,9 +62,10 @@ func (sCmd *ServerCommand) AddFlags() {
 	config.AddBsMdsFlagOption(sCmd.Cmd)
 	config.AddRpcRetryTimesFlag(sCmd.Cmd)
 	config.AddRpcTimeoutFlag(sCmd.Cmd)
+
 	config.AddBsServerIdOptionFlag(sCmd.Cmd)
-	config.AddBsIpOptionFlag(sCmd.Cmd)
-	config.AddBsPortOptionFlag(sCmd.Cmd)
+	config.AddBsServerIpOptionFlag(sCmd.Cmd)
+	config.AddBsServerPortOptionFlag(sCmd.Cmd)
 }
 
 func NewCheckServerCommand() *ServerCommand {
@@ -77,16 +82,12 @@ func NewCheckServerCommand() *ServerCommand {
 }
 
 func (sCmd *ServerCommand) Init(cmd *cobra.Command, args []string) error {
-
-	serverID := config.GetBsFlagUint32(sCmd.Cmd, config.CURVEBS_SERVER_ID)
-	serverIP := config.GetBsFlagString(sCmd.Cmd, config.CURVEBS_IP)
-	port := config.GetBsFlagUint32(sCmd.Cmd, config.CURVEBS_PORT)
-	sCmd.ServerID = serverID
-	sCmd.ServerIP = serverIP
-	sCmd.Port = port
+	sCmd.ServerID = config.GetBsFlagUint32(sCmd.Cmd, config.CURVEBS_SERVER_ID)
+	sCmd.ServerIP = config.GetBsFlagString(sCmd.Cmd, config.CURVEBS_SERVER_IP)
+	sCmd.ServerPort = config.GetBsFlagUint32(sCmd.Cmd, config.CURVEBS_SERVER_PORT)
 
 	header := []string{cobrautil.ROW_SERVER, cobrautil.ROW_IP, cobrautil.ROW_TOTAL,
-		cobrautil.ROW_UNHEALTHY_COPYSET,
+		cobrautil.ROW_UNHEALTHY_COPYSET, cobrautil.ROW_UNHEALTHY_COPYSET_RATIO,
 	}
 	sCmd.SetHeader(header)
 	return nil
@@ -101,113 +102,58 @@ func (sCmd *ServerCommand) ResultPlainOutput() error {
 }
 
 func (sCmd *ServerCommand) RunCommand(cmd *cobra.Command, args []string) error {
-	// 1 send RPCs to get all ChunkServerInfo on server
-	timeout := config.GetFlagDuration(sCmd.Cmd, config.RPCTIMEOUT)
-	retrytimes := config.GetFlagInt32(sCmd.Cmd, config.RPCRETRYTIMES)
-	mdsAddr := config.GetBsFlagString(cmd, config.CURVEBS_MDSADDR)
-	copysetid2Status := make(map[uint32]*copyset.COPYSET_OP_STATUS)
-	ip_out := sCmd.ServerIP
-
-	total := 0
-	healthy := 0
-	unhelthy := 0
-
-	chunkServerInfos, err := GetChunkserverInfos(sCmd.Cmd)
+	chunkServerInfos, err := chunkserver.ListChunkServerInfos(sCmd.Cmd)
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
+		sCmd.Error = err
 		return err.ToError()
 	}
-
-	if len(chunkServerInfos) != 0 {
-		ip_out = chunkServerInfos[0].GetHostIp()
+	if len(chunkServerInfos) == 0 {
+		return nil
 	}
 
+	config.AddBsChunkServerIdFlag(sCmd.Cmd)
+	config.AddBsLogicalPoolIdRequiredFlag(sCmd.Cmd)
+	config.AddBsCopysetIdRequiredFlag(sCmd.Cmd)
 	for _, item := range chunkServerInfos {
-		err := sCmd.GetStatus(item, &timeout, uint32(retrytimes), mdsAddr, &copysetid2Status)
+		row := make(map[string]string)
+		chunkId := item.GetChunkServerID()
+		sCmd.Cmd.Flags().Set(config.CURVEBS_CHUNKSERVER_ID, strconv.FormatUint(uint64(chunkId), 10))
+		copySets, err := chunkserver.GetCopySetsInChunkServer(sCmd.Cmd)
 		if err.TypeCode() != cmderror.CODE_SUCCESS {
-			sCmd.Error = err
 			return err.ToError()
 		}
 
-		for _, status := range copysetid2Status {
-			total++
-			if status.Enum() == copyset.COPYSET_OP_STATUS_COPYSET_OP_STATUS_SUCCESS.Enum() {
-				healthy++
-			} else {
-				unhelthy++
+		total := len(copySets)
+		var unhealthy int
+		for _, copyset := range copySets {
+			logicalPoolId := copyset.GetLogicalPoolId()
+			copysetId := copyset.GetCopysetId()
+
+			copysetKey := cobrautil.GetCopysetKey(uint64(logicalPoolId), uint64(copysetId))
+			sCmd.Cmd.Flags().Set(config.CURVEBS_COPYSET_ID, strconv.FormatUint(uint64(copysetId), 10))
+			sCmd.Cmd.Flags().Set(config.CURVEBS_LOGIC_POOL_ID, strconv.FormatUint(uint64(logicalPoolId), 10))
+			copysetKey2Status, err := checkcopyset.CheckCopysets(sCmd.Cmd)
+			if err.TypeCode() != cmderror.CODE_SUCCESS {
+				return err.ToError()
+			}
+
+			if copysetKey2Status[copysetKey] != cobrautil.HEALTH_OK {
+				unhealthy++
 			}
 		}
-
-	}
-	row := make(map[string]string)
-	row[cobrautil.ROW_SERVER] = fmt.Sprintf("%d", sCmd.ServerID)
-	row[cobrautil.ROW_TOTAL] = fmt.Sprintf("%d", total)
-	row[cobrautil.ROW_IP] = ip_out
-	if total == 0 {
-		row[cobrautil.ROW_UNHEALTHY_COPYSET] = fmt.Sprintf("%d(%d%%)", 0, 0)
-	} else {
-		row[cobrautil.ROW_UNHEALTHY_COPYSET] = fmt.Sprintf("%d(%v%%)", unhelthy, (unhelthy/total)*100)
+		row[cobrautil.ROW_SERVER] = strconv.FormatUint(uint64(chunkId), 10)
+		row[cobrautil.ROW_IP] = item.GetExternalIp()
+		row[cobrautil.ROW_TOTAL] = strconv.FormatUint(uint64(total), 10)
+		row[cobrautil.ROW_UNHEALTHY_COPYSET] = strconv.FormatUint(uint64(unhealthy), 10)
+		row[cobrautil.ROW_UNHEALTHY_COPYSET_RATIO] = fmt.Sprintf("%v%%", (unhealthy/total)*100)
+		sCmd.rows = append(sCmd.rows, row)
+		sCmd.Error = err
 	}
 
-	list := cobrautil.Map2List(row, sCmd.Header)
-	sCmd.TableNew.Append(list)
-	return nil
-}
-
-func (sCmd *ServerCommand) GetStatus(item *topology.ChunkServerInfo, timeout *time.Duration,
-	retrytimes uint32, mdsAddrs string, copysetid2Status *map[uint32]*copyset.COPYSET_OP_STATUS) *cmderror.CmdError {
-	chunkServerID := item.GetChunkServerID()
-
-	hostip := item.GetHostIp()
-	port := item.GetPort()
-	sCmd.Cmd.ResetFlags()
-	config.AddBsMdsFlagOption(sCmd.Cmd)
-	config.AddRpcRetryTimesFlag(sCmd.Cmd)
-	config.AddRpcTimeoutFlag(sCmd.Cmd)
-	config.AddBsChunkServerIDOptionFlag(sCmd.Cmd)
-	config.AddBsIpOptionFlag(sCmd.Cmd)
-	config.AddBsPortOptionFlag(sCmd.Cmd)
-
-	sCmd.Cmd.ParseFlags([]string{
-		fmt.Sprintf("--%s", config.CURVEBS_MDSADDR), mdsAddrs,
-		fmt.Sprintf("--%s", config.RPCRETRYTIMES), fmt.Sprintf("%d", retrytimes),
-		fmt.Sprintf("--%s", config.RPCTIMEOUT), timeout.String(),
-		fmt.Sprintf("--%s", config.CURVEBS_CHUNKSERVER_ID), fmt.Sprintf("%d", chunkServerID),
-		fmt.Sprintf("--%s", config.VIPER_CURVEBS_SERVER_ID), hostip,
-		fmt.Sprintf("--%s", config.CURVEBS_PORT), fmt.Sprintf("%d", port),
+	list := cobrautil.ListMap2ListSortByKeys(sCmd.rows, sCmd.Header, []string{
+		cobrautil.ROW_SERVER,
 	})
-
-	copysetids2poolids, err := GetCopysetids(sCmd.Cmd)
-	if err.TypeCode() != cmderror.CODE_SUCCESS {
-		return err
-	}
-
-	// get copyset status
-	peerAddr := fmt.Sprintf("%s:%d", hostip, port)
-
-	for copysetid, poolid := range *copysetids2poolids {
-		sCmd.Cmd.ResetFlags()
-		config.AddBsMdsFlagOption(sCmd.Cmd)
-		config.AddRpcRetryTimesFlag(sCmd.Cmd)
-		config.AddRpcTimeoutFlag(sCmd.Cmd)
-		config.AddBSCopysetIdRequiredFlag(sCmd.Cmd)
-		config.AddBSLogicalPoolIdRequiredFlag(sCmd.Cmd)
-		config.AddBSPeersConfFlag(sCmd.Cmd)
-		sCmd.Cmd.ParseFlags([]string{
-			fmt.Sprintf("--%s", config.CURVEBS_MDSADDR), mdsAddrs,
-			fmt.Sprintf("--%s", config.RPCRETRYTIMES), fmt.Sprintf("%d", retrytimes),
-			fmt.Sprintf("--%s", config.RPCTIMEOUT), timeout.String(),
-			fmt.Sprintf("--%s", config.CURVEBS_COPYSET_ID), fmt.Sprintf("%d", copysetid),
-			fmt.Sprintf("--%s", config.CURVEBS_LOGIC_POOL_ID), fmt.Sprintf("%d", poolid),
-			fmt.Sprintf("--%s", config.CURVEBS_PEERS_ADDRESS), peerAddr,
-		})
-
-		result, err := copysetbs.GetCopysetStatus(sCmd.Cmd)
-		if err.TypeCode() != cmderror.CODE_SUCCESS {
-			return err
-		}
-		for _, staRes := range *result {
-			(*copysetid2Status)[copysetid] = staRes.Status
-		}
-	}
-	return cmderror.Success()
+	sCmd.TableNew.AppendBulk(list)
+	sCmd.Result = sCmd.rows
+	return nil
 }
