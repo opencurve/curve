@@ -134,7 +134,6 @@ func (pCmd *CopySetCommand) Print(cmd *cobra.Command, args []string) error {
 
 // RunCommand implements basecmd.FinalCurveCmdFunc
 func (pCmd *CopySetCommand) RunCommand(cmd *cobra.Command, args []string) error {
-
 	result, err := basecmd.GetRpcResponse(pCmd.Rpc.Info, pCmd.Rpc)
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		pCmd.Error = err

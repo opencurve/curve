@@ -119,13 +119,14 @@ const (
 	ROW_AVAILFLAG            = "availFlag"
 	ROW_DRYRUN               = "dryrun"
 
-	ROW_RW_STATUS         = "rwStatus"
-	ROW_DISK_STATE        = "diskState"
-	ROW_COPYSET_NUM       = "copysetNum"
-	ROW_DISK_CAPACITY     = "diskCapacity"
-	ROW_DISK_USED         = "diskUsed"
-	ROW_UNHEALTHY_COPYSET = "unhealthyCopyset"
-	ROW_EXT_ADDR          = "extAddr"
+	ROW_RW_STATUS               = "rwStatus"
+	ROW_DISK_STATE              = "diskState"
+	ROW_COPYSET_NUM             = "copysetNum"
+	ROW_DISK_CAPACITY           = "diskCapacity"
+	ROW_DISK_USED               = "diskUsed"
+	ROW_UNHEALTHY_COPYSET       = "unhealthyCopyset"
+	ROW_UNHEALTHY_COPYSET_RATIO = "unhealthyCopysetRatio"
+	ROW_EXT_ADDR                = "extAddr"
 
 	// s3
 	ROW_S3CHUNKINFO_CHUNKID = "s3ChunkId"

@@ -475,9 +475,6 @@ var (
 	ErrBsGetAllSnapshotResult = func() *CmdError {
 		return NewInternalCmdError(72, "get all snapshot results fail, err: %s")
 	}
-	ErrBsGetChunkServerInfos = func() *CmdError {
-		return NewInternalCmdError(55, "get chunkserver infos fail, err: %s")
-	}
 
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {

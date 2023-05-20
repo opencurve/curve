@@ -96,6 +96,11 @@ func (pCmd *ChunkServerCommand) AddFlags() {
 	config.AddBsCheckHealthOptionFlag(pCmd.Cmd)
 	config.AddBsCSOfflineOptionFlag(pCmd.Cmd)
 	config.AddBsCSUnhealthyOptionFlag(pCmd.Cmd)
+
+	// use either ip or serverID to list Chunkserver under one server
+	config.AddBsServerIdOptionFlag(pCmd.Cmd)
+	config.AddBsServerIpOptionFlag(pCmd.Cmd)
+	config.AddBsServerPortOptionFlag(pCmd.Cmd)
 }
 
 // Init implements basecmd.FinalCurveCmdFunc
@@ -107,17 +112,38 @@ func (pCmd *ChunkServerCommand) Init(cmd *cobra.Command, args []string) error {
 
 	timeout := config.GetFlagDuration(pCmd.Cmd, config.RPCTIMEOUT)
 	retrytimes := config.GetFlagInt32(pCmd.Cmd, config.RPCRETRYTIMES)
+	serverId := config.GetBsFlagUint32(pCmd.Cmd, config.CURVEBS_SERVER_ID)
+	serverIp := config.GetBsFlagString(pCmd.Cmd, config.CURVEBS_SERVER_IP)
+	serverPort := config.GetBsFlagUint32(pCmd.Cmd, config.CURVEBS_SERVER_PORT)
+
 	servers, err := server.ListServer(pCmd.Cmd)
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		return err.ToError()
 	}
+
+	// Filter servers by serverId or serverIp
+	if serverId != 0 && serverIp != "" {
+		return fmt.Errorf("flag --%s and --%s cannot be specified together",
+			config.CURVEBS_SERVER_ID, config.CURVEBS_SERVER_IP)
+	}
+
 	for _, server := range servers {
-		id := server.GetServerID()
 		rpc := &ListChunkServerRpc{
-			Request: &topology.ListChunkServerRequest{
-				ServerID: &id,
-			},
-			Info: basecmd.NewRpc(mdsAddrs, timeout, retrytimes, "ListChunkServer"),
+			Request: &topology.ListChunkServerRequest{},
+			Info:    basecmd.NewRpc(mdsAddrs, timeout, retrytimes, "ListChunkServer"),
+		}
+		if serverIp != "" {
+			rpc.Request.Ip = &serverIp
+			rpc.Request.Port = &serverPort
+			pCmd.Rpc = append(pCmd.Rpc, rpc)
+			break
+		} else if serverId != 0 {
+			rpc.Request.ServerID = &serverId
+			pCmd.Rpc = append(pCmd.Rpc, rpc)
+			break
+		} else {
+			id := server.GetServerID()
+			rpc.Request.ServerID = &id
 		}
 		pCmd.Rpc = append(pCmd.Rpc, rpc)
 	}
@@ -256,6 +282,7 @@ func ListChunkServerInfos(caller *cobra.Command) ([]*topology.ChunkServerInfo, *
 	lCmd := NewListChunkServerCommand()
 	config.AlignFlagsValue(caller, lCmd.Cmd, []string{
 		config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEBS_MDSADDR,
+		config.CURVEBS_SERVER_IP, config.CURVEBS_SERVER_PORT, config.CURVEBS_SERVER_ID,
 	})
 	lCmd.Cmd.SilenceErrors = true
 	lCmd.Cmd.SilenceUsage = true
