@@ -79,6 +79,7 @@ A tool for CurveFS & CurveBs.
       - [create dir](#create-dir)
     - [check](#check-1)
       - [check copyset](#check-copyset-1)
+      - [check server](#check-server)
     - [snapshot](#snapshot)
       - [snapshot copyset](#snapshot-copyset)
   - [Comparison of old and new commands](#comparison-of-old-and-new-commands)
@@ -1659,6 +1660,28 @@ Output:
 +------------+-----------+--------+--------+--------+---------+
 ```
 
+####  check server
+
+check copysets health in server
+
+Usage:
+
+```shell
+curve bs check server --serverid 1
+curve bs check server --ip 127.0.0.1 --port 8200
+```
+
+Output:
+
+```shell
++--------+-----------+-------+------------------+
+| SERVER |    IP     | TOTAL | UNHEALTHYCOPYSET |
++--------+-----------+-------+------------------+
+| 1      | 127.0.0.1 | 100   | 0(0%)            |
++--------+-----------+-------+------------------+
+```
+
+
 ### snapshot
 
 #### snapshot copyset
@@ -1726,6 +1749,7 @@ Output:
 
 ### curve bs
 
+<<<<<<< HEAD
 | old                                  | new                               |
 | ------------------------------------ | --------------------------------- |
 | curve_ops_tool logical-pool-list     | curve bs list logical-pool        |
@@ -1764,3 +1788,42 @@ Output:
 | curve_ops_tool check-chunkserver     |                                   |
 | curve_ops_tool check-server          |                                   |
 
+=======
+| old                                  | new                            |
+| ------------------------------------ | ------------------------------ |
+| curve_ops_tool logical-pool-list     | curve bs list logical-pool     |
+| curve_ops_tool get -fileName=        | curve bs query file -path      |
+| curve_ops_tool etcd-status           | curve bs status etcd           |
+| curve_ops_tool mds-status            | curve bs status mds            |
+| curve_ops_tool server-list           | curve bs list server           |
+| curve_ops_tool client-list           | curve bs list client           |
+| curve_ops_tool delete                | curve bs delete file           |
+| curve_ops_tool list                  | curve bs list dir              |
+| curve_ops_tool create                | curve bs create file/dir       |
+| curve_ops_tool seginfo               | curve bs query seginfo         |
+| curve_ops_tool chunk-location        | curve bs query chunk           |
+| curve_ops_tool remove-peer           | curve bs delete peer           |
+| curve_ops_tool reset-peer            | curve bs update peer           |
+| curve_ops_tool space                 | curve bs list space            |
+| curve_ops_tool update-throttle       | curve bs update throttle       |
+| curve_ops_tool check-copyset         | curve bs check copyset         |
+| curve_ops_tool client-status         | curve bs status client         |
+| curve_ops_tool check-operator        | curve bs check operator        |
+| curve_ops_tool check-server          | curve bs check server          |
+| curve_ops_tool snapshot-clone-status | curve bs status snapshotserver |
+| curve_ops_tool transfer-leader       | curve bs update leader         |
+| curve_ops_tool do-snapshot           | curve bs snapshot copyset      |
+| curve_ops_tool set-scan-state        | curve bs update scan-state     |
+| curve_ops_tool chunkserver-status    | curve bs status chunkserver    |
+| curve_ops_tool status                |                                |
+| curve_ops_tool copysets-status       |                                |
+| curve_ops_tool chunkserver-list      | curve bs list chunkserver      |
+| curve_ops_tool clean-recycle         |                                |
+| curve_ops_tool check-consistency     |                                |
+| curve_ops_tool do-snapshot-all       |                                |
+| curve_ops_tool check-chunkserver     |                                |
+| curve_ops_tool list-may-broken-vol   |                                |
+| curve_ops_tool set-copyset-availflag |                                |
+| curve_ops_tool rapid-leader-schedule |                                |
+| curve_ops_tool scan-status           |                                |
+>>>>>>> fix bs check server
