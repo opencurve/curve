@@ -79,6 +79,7 @@ A tool for CurveFS & CurveBs.
       - [create dir](#create-dir)
     - [check](#check-1)
       - [check copyset](#check-copyset-1)
+      - [check server](#check-server)
     - [snapshot](#snapshot)
       - [snapshot copyset](#snapshot-copyset)
   - [Comparison of old and new commands](#comparison-of-old-and-new-commands)
@@ -1658,6 +1659,28 @@ Output:
 | 4294967297 | 1         | 1      | ok     | 0      |         |
 +------------+-----------+--------+--------+--------+---------+
 ```
+
+####  check server
+
+check copysets health in server
+
+Usage:
+
+```shell
+curve bs check server --serverid 1
+curve bs check server --ip 127.0.0.1 --port 8200
+```
+
+Output:
+
+```shell
++--------+-----------+-------+------------------+
+| SERVER |    IP     | TOTAL | UNHEALTHYCOPYSET |
++--------+-----------+-------+------------------+
+| 1      | 127.0.0.1 | 100   | 0(0%)            |
++--------+-----------+-------+------------------+
+```
+
 
 ### snapshot
 

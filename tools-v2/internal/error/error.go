@@ -469,6 +469,9 @@ var (
 	ErrSnapShotAddrNotConfigured = func() *CmdError {
 		return NewInternalCmdError(70, "get snapshotAddr fail, err: %s")
 	}
+	ErrBsGetChunkServerInfos = func() *CmdError {
+		return NewInternalCmdError(55, "get chunkserver infos fail, err: %s")
+	}
 
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {

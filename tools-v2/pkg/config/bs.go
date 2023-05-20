@@ -125,6 +125,12 @@ const (
 	CURVEBS_FIlTER                    = "filter"
 	VIPER_CURVEBS_FILTER              = "curvebs.filter"
 	CURVEBS_DEFAULT_FILTER            = false
+	CURVEBS_SERVER_ID                 = "serverid"
+	VIPER_CURVEBS_SERVER_ID           = "curvebs.serverid"
+	CURVEBS_SERVER_IP                 = "ip"
+	VIPER_CURVEBS_SERVER_IP           = "curvebs.ip"
+	CURVEBS_SERVER_PORT               = "port"
+	VIPER_CURVEBS_SERVER_PORT         = "curvebs.port"
 	CURVEBS_ALL                       = "all"
 	VIPER_CURVEBS_ALL                 = "curvebs.all"
 	CURVEBS_DEFAULT_ALL               = false
@@ -174,6 +180,9 @@ var (
 		CURVEBS_CHUNK_ID:            VIPER_CURVEBS_CHUNK_ID,
 		CURVEBS_CHUNKSERVER_ADDRESS: VIPER_CURVEBS_CHUNKSERVER_ADDRESS,
 		CURVEBS_FIlTER:              VIPER_CURVEBS_FILTER,
+		CURVEBS_SERVER_ID:           VIPER_CURVEBS_SERVER_ID,
+		CURVEBS_SERVER_IP:           VIPER_CURVEBS_SERVER_IP,
+		CURVEBS_SERVER_PORT:         VIPER_CURVEBS_SERVER_PORT,
 		CURVEBS_ALL:                 VIPER_CURVEBS_ALL,
 	}
 
@@ -482,6 +491,21 @@ func AddBsScanOptionFlag(cmd *cobra.Command) {
 // leader-schedule
 func AddBsLogicalPoolIdOptionFlag(cmd *cobra.Command) {
 	AddBsUint32OptionFlag(cmd, CURVEBS_LOGIC_POOL_ID, "logical pool id")
+}
+
+// serverid
+func AddBsServerIdOptionFlag(cmd *cobra.Command) {
+	AddBsUint32OptionFlag(cmd, CURVEBS_SERVER_ID, "server id")
+}
+
+// ip(server)
+func AddBsServerIpOptionFlag(cmd *cobra.Command) {
+	AddBsStringOptionFlag(cmd, CURVEBS_SERVER_IP, "server ip")
+}
+
+// port(server)
+func AddBsServerPortOptionFlag(cmd *cobra.Command) {
+	AddBsUint32OptionFlag(cmd, CURVEBS_SERVER_PORT, "port")
 }
 
 func AddBsAllOptionFlag(cmd *cobra.Command) {
