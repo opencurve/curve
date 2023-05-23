@@ -67,12 +67,20 @@ CURVEFS_ERROR FuseS3Client::Init(const FuseClientOption &option) {
 
     auto s3Client = std::make_shared<S3ClientImpl>();
     s3Client->Init(opt.s3Opt.s3AdaptrOpt);
+
+    const uint64_t writeCacheMaxByte =
+        opt.s3Opt.s3ClientAdaptorOpt.writeCacheMaxByte;
+    if (writeCacheMaxByte < MIN_WRITE_CACHE_SIZE) {
+        LOG(ERROR) << "writeCacheMaxByte is too small"
+                   << ", at least " << MIN_WRITE_CACHE_SIZE << " (8MB)"
+                      ", writeCacheMaxByte = " << writeCacheMaxByte;
+        return CURVEFS_ERROR::CACHETOOSMALL;
+    }
+
     auto fsCacheManager = std::make_shared<FsCacheManager>(
         dynamic_cast<S3ClientAdaptorImpl *>(s3Adaptor_.get()),
-        opt.s3Opt.s3ClientAdaptorOpt.readCacheMaxByte,
-        opt.s3Opt.s3ClientAdaptorOpt.writeCacheMaxByte,
-        opt.s3Opt.s3ClientAdaptorOpt.readCacheThreads,
-        kvClientManager_);
+        opt.s3Opt.s3ClientAdaptorOpt.readCacheMaxByte, writeCacheMaxByte,
+        opt.s3Opt.s3ClientAdaptorOpt.readCacheThreads, kvClientManager_);
     if (opt.s3Opt.s3ClientAdaptorOpt.diskCacheOpt.diskCacheType !=
         DiskCacheType::Disable) {
         auto s3DiskCacheClient = std::make_shared<S3ClientImpl>();
