@@ -157,8 +157,6 @@ void InitDiskCacheOption(Configuration *conf,
 
 void InitS3Option(Configuration *conf, S3Option *s3Opt) {
     conf->GetValueFatalIfFail("s3.fakeS3", &FLAGS_useFakeS3);
-    conf->GetValueFatalIfFail("s3.fuseMaxSize",
-                              &s3Opt->s3ClientAdaptorOpt.fuseMaxSize);
     conf->GetValueFatalIfFail("s3.pageSize",
                               &s3Opt->s3ClientAdaptorOpt.pageSize);
     conf->GetValueFatalIfFail("s3.prefetchBlocks",
