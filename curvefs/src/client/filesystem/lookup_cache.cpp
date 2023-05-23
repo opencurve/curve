@@ -61,7 +61,7 @@ bool LookupCache::Get(Ino parent, const std::string& name) {
         return false;
     } else if (entry.uses < option_.minUses) {
         return false;
-    } else if (entry.expireTime > Now()) {
+    } else if (entry.expireTime < Now()) {
         return false;
     }
     return true;
