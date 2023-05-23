@@ -147,6 +147,7 @@ class TestFuseS3Client : public ::testing::Test {
 
     void InitOptionBasic(FuseClientOption *opt) {
         opt->s3Opt.s3ClientAdaptorOpt.readCacheThreads = 2;
+        opt->s3Opt.s3ClientAdaptorOpt.writeCacheMaxByte = 838860800;
         opt->s3Opt.s3AdaptrOpt.asyncThreadNum = 1;
         opt->dummyServerStartPort = 5000;
         opt->maxNameLength = 20u;
@@ -205,6 +206,21 @@ TEST_F(TestFuseS3Client, test_Init_with_KVCache) {
         testclient->UnInit();
     }
     curvefs::client::common::FLAGS_supportKVcache = false;
+}
+
+TEST_F(TestFuseS3Client, test_Init_with_cache_size_0) {
+    curvefs::client::common::FLAGS_supportKVcache = false;
+    auto testClient = std::make_shared<FuseS3Client>(
+        mdsClient_, metaClient_, inodeManager_, dentryManager_,
+        s3ClientAdaptor_, nullptr);
+    FuseClientOption opt;
+    InitOptionBasic(&opt);
+    InitFSInfo(testClient);
+
+    // test init when write cache is 0
+    opt.s3Opt.s3ClientAdaptorOpt.writeCacheMaxByte = 0;
+    ASSERT_EQ(CURVEFS_ERROR::CACHETOOSMALL, testClient->Init(opt));
+    testClient->UnInit();
 }
 
 // GetInode failed; bad fd
