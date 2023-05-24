@@ -444,6 +444,9 @@ var (
 	ErrBsListChunkServer = func() *CmdError {
 		return NewInternalCmdError(54, "list chunkserver fail, err: %s")
 	}
+	ErrBsGetChunkServerInfos = func() *CmdError {
+		return NewInternalCmdError(55, "get chunkserver infos fail, err: %s")
+	}
 
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {

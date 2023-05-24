@@ -29,7 +29,6 @@ import (
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 
-	listchunkserver "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/chunkserver"
 	copysetbs "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/status/copyset"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -105,48 +104,22 @@ func (sCmd *ServerCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	// 1 send RPCs to get all ChunkServerInfo on server
 	timeout := config.GetFlagDuration(sCmd.Cmd, config.RPCTIMEOUT)
 	retrytimes := config.GetFlagInt32(sCmd.Cmd, config.RPCRETRYTIMES)
-	mdsAddrs, err := config.GetBsMdsAddrSlice(sCmd.Cmd)
-	if err.TypeCode() != cmderror.CODE_SUCCESS {
-		return err.ToError()
-	}
-
-	var rpc *listchunkserver.ListChunkServerRpc
-	if sCmd.ServerIP != "" {
-		rpc = &listchunkserver.ListChunkServerRpc{
-			Request: &topology.ListChunkServerRequest{
-				Ip:   &sCmd.ServerIP,
-				Port: &sCmd.Port,
-			},
-			Info: basecmd.NewRpc(mdsAddrs, timeout, retrytimes, "ListChunkServer"),
-		}
-	} else {
-		rpc = &listchunkserver.ListChunkServerRpc{
-			Request: &topology.ListChunkServerRequest{
-				ServerID: &sCmd.ServerID,
-			},
-			Info: basecmd.NewRpc(mdsAddrs, timeout, retrytimes, "ListChunkServer"),
-		}
-	}
-
-	response, errCmd := basecmd.GetRpcResponse(rpc.Info, rpc)
-	if errCmd.TypeCode() != cmderror.CODE_SUCCESS {
-		sCmd.Error = errCmd
-		return errCmd.ToError()
-	}
-
-	chunkServerInfos := response.(*topology.ListChunkServerResponse).ChunkServerInfos
-	ip_out := sCmd.ServerIP
-	if len(chunkServerInfos) != 0 {
-		ip_out = chunkServerInfos[0].GetHostIp()
-	}
-
 	mdsAddr := config.GetBsFlagString(cmd, config.CURVEBS_MDSADDR)
-
 	copysetid2Status := make(map[uint32]*copyset.COPYSET_OP_STATUS)
+	ip_out := sCmd.ServerIP
 
 	total := 0
 	healthy := 0
 	unhelthy := 0
+
+	chunkServerInfos, err := GetChunkserverInfos(sCmd.Cmd)
+	if err.TypeCode() != cmderror.CODE_SUCCESS {
+		return err.ToError()
+	}
+
+	if len(chunkServerInfos) != 0 {
+		ip_out = chunkServerInfos[0].GetHostIp()
+	}
 
 	for _, item := range chunkServerInfos {
 		err := sCmd.GetStatus(item, &timeout, uint32(retrytimes), mdsAddr, &copysetid2Status)
@@ -169,11 +142,14 @@ func (sCmd *ServerCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	row[cobrautil.ROW_SERVER] = fmt.Sprintf("%d", sCmd.ServerID)
 	row[cobrautil.ROW_TOTAL] = fmt.Sprintf("%d", total)
 	row[cobrautil.ROW_IP] = ip_out
-	row[cobrautil.ROW_UNHEALTHY_COPYSET] = fmt.Sprintf("%d(%v%%)", unhelthy, (unhelthy/total)*100)
+	if total == 0 {
+		row[cobrautil.ROW_UNHEALTHY_COPYSET] = fmt.Sprintf("%d(%d%%)", 0, 0)
+	} else {
+		row[cobrautil.ROW_UNHEALTHY_COPYSET] = fmt.Sprintf("%d(%v%%)", unhelthy, (unhelthy/total)*100)
+	}
 
 	list := cobrautil.Map2List(row, sCmd.Header)
 	sCmd.TableNew.Append(list)
-	config.AddFormatFlag(sCmd.Cmd)
 	return nil
 }
 

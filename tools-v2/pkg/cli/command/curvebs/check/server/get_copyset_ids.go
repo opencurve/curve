@@ -109,7 +109,7 @@ func (cCmd *CopysetidsCommand) ResultPlainOutput() error {
 func (cCmd *CopysetidsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	result, err := basecmd.GetRpcResponse(cCmd.Rpc.Info, cCmd.Rpc)
 
-	if err.Message != "success" {
+	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		fmt.Print(err.Message)
 		return err.ToError()
 	}
