@@ -116,12 +116,13 @@ const (
 	VIPER_CURVEBS_CS_UNHEALTHY      = "curvebs.unhealthy"
 	CURVEBS_SERVER_ID               = "serverid"
 	VIPER_CURVEBS_SERVER_ID         = "curvebs.serverid"
-	CURVEBS_SERVER_IP               = "serverip"
-	VIPER_CURVEBS_SERVER_IP         = "curvebs.serverip"
-	CURVEBS_HOST_IP                 = "hostip"
-	VIPER_CURVEBS_HOST_IP           = "curvebs.hostip"
+	CURVEBS_DEFAULT_SERVER_ID       = 1
+	CURVEBS_IP                      = "ip"
+	VIPER_CURVEBS_IP                = "curvebs.ip"
+	CURVEBS_DEFAULT_IP              = "127.0.0.1"
 	CURVEBS_PORT                    = "port"
 	VIPER_CURVEBS_PORT              = "curvebs.port"
+	CURVEBS_DEFAULT_PORT            = 8200
 )
 
 var (
@@ -164,8 +165,7 @@ var (
 		CURVEBS_CS_OFFLINE:        VIPER_CURVEBS_CS_OFFLINE,
 		CURVEBS_CS_UNHEALTHY:      VIPER_CURVEBS_CS_UNHEALTHY,
 		CURVEBS_SERVER_ID:         VIPER_CURVEBS_SERVER_ID,
-		CURVEBS_SERVER_IP:         VIPER_CURVEBS_SERVER_IP,
-		CURVEBS_HOST_IP:           VIPER_CURVEBS_HOST_IP,
+		CURVEBS_IP:                VIPER_CURVEBS_IP,
 		CURVEBS_PORT:              VIPER_CURVEBS_PORT,
 	}
 
@@ -185,6 +185,9 @@ var (
 		CURVEBS_CHECK_TIME:     CURVEBS_DEFAULT_CHECK_TIME,
 		CURVEBS_SCAN:           CURVEBS_DEFAULT_SCAN,
 		CURVEBS_CHUNKSERVER_ID: CURVEBS_DEFAULT_CHUNKSERVER_ID,
+		CURVEBS_SERVER_ID:      CURVEBS_DEFAULT_SERVER_ID,
+		CURVEBS_IP:             CURVEBS_DEFAULT_IP,
+		CURVEBS_PORT:           CURVEBS_DEFAULT_PORT,
 	}
 )
 
@@ -513,24 +516,20 @@ func AddBSCSUnhealthyOptionFlag(cmd *cobra.Command) {
 	AddBsBoolOptionFlag(cmd, CURVEBS_CS_UNHEALTHY, "unhealthy")
 }
 
-func AddBsServerIdFlag(cmd *cobra.Command) {
+func AddBsServerIdOptionFlag(cmd *cobra.Command) {
 	AddBSUint32OptionFlag(cmd, CURVEBS_SERVER_ID, "server id")
 }
 
-func AddBsServerIpFlag(cmd *cobra.Command) {
-	AddBsStringOptionFlag(cmd, CURVEBS_SERVER_IP, "server ip")
+func AddBsIpOptionFlag(cmd *cobra.Command) {
+	AddBsStringOptionFlag(cmd, CURVEBS_IP, "server ip")
 }
 
-func AddBsPortFlag(cmd *cobra.Command) {
+func AddBsPortOptionFlag(cmd *cobra.Command) {
 	AddBSUint32OptionFlag(cmd, CURVEBS_PORT, "port")
 }
 
 func AddBsChunkServerIDOptionFlag(cmd *cobra.Command) {
 	AddBsStringOptionFlag(cmd, CURVEBS_CHUNKSERVER_ID, "chunk server id")
-}
-
-func AddBsHostIpFlag(cmd *cobra.Command) {
-	AddBsStringRequiredFlag(cmd, CURVEBS_HOST_IP, "host ip")
 }
 
 func AddBSUint32OptionFlag(cmd *cobra.Command, name string, usage string) {

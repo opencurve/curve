@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2022 NetEase Inc.
+ *  Copyright (c) 2023 NetEase Inc.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -44,8 +44,6 @@ const (
 
 type ServerCommand struct {
 	basecmd.FinalCurveCmd
-	Rpc      *listchunkserver.ListChunkServerRpc
-	Response *topology.ListChunkServerResponse
 	ServerID uint32
 	ServerIP string
 	Port     uint32
@@ -61,9 +59,9 @@ func (sCmd *ServerCommand) AddFlags() {
 	config.AddBsMdsFlagOption(sCmd.Cmd)
 	config.AddRpcRetryTimesFlag(sCmd.Cmd)
 	config.AddRpcTimeoutFlag(sCmd.Cmd)
-	config.AddBsServerIdFlag(sCmd.Cmd)
-	config.AddBsServerIpFlag(sCmd.Cmd)
-	config.AddBsPortFlag(sCmd.Cmd)
+	config.AddBsServerIdOptionFlag(sCmd.Cmd)
+	config.AddBsIpOptionFlag(sCmd.Cmd)
+	config.AddBsPortOptionFlag(sCmd.Cmd)
 }
 
 func NewCheckServerCommand() *ServerCommand {
@@ -80,42 +78,16 @@ func NewCheckServerCommand() *ServerCommand {
 }
 
 func (sCmd *ServerCommand) Init(cmd *cobra.Command, args []string) error {
-	mdsAddrs, err := config.GetBsMdsAddrSlice(sCmd.Cmd)
-	if err.TypeCode() != cmderror.CODE_SUCCESS {
-		return err.ToError()
-	}
-
-	timeout := config.GetFlagDuration(sCmd.Cmd, config.RPCTIMEOUT)
-	retrytimes := config.GetFlagInt32(sCmd.Cmd, config.RPCRETRYTIMES)
 
 	serverID := config.GetBsFlagUint32(sCmd.Cmd, config.CURVEBS_SERVER_ID)
-	serverIP := config.GetBsFlagString(sCmd.Cmd, config.CURVEBS_SERVER_IP)
+	serverIP := config.GetBsFlagString(sCmd.Cmd, config.CURVEBS_IP)
 	port := config.GetBsFlagUint32(sCmd.Cmd, config.CURVEBS_PORT)
 	sCmd.ServerID = serverID
 	sCmd.ServerIP = serverIP
 	sCmd.Port = port
 
-	if serverIP != "" {
-		rpc := &listchunkserver.ListChunkServerRpc{
-			Request: &topology.ListChunkServerRequest{
-				Ip:   &serverIP,
-				Port: &port,
-			},
-			Info: basecmd.NewRpc(mdsAddrs, timeout, retrytimes, "ListChunkServer"),
-		}
-		sCmd.Rpc = rpc
-	} else {
-		rpc := &listchunkserver.ListChunkServerRpc{
-			Request: &topology.ListChunkServerRequest{
-				ServerID: &serverID,
-			},
-			Info: basecmd.NewRpc(mdsAddrs, timeout, retrytimes, "ListChunkServer"),
-		}
-		sCmd.Rpc = rpc
-	}
-
 	header := []string{cobrautil.ROW_SERVER, cobrautil.ROW_IP, cobrautil.ROW_TOTAL,
-		cobrautil.ROW_UNHEALTHY_COPYSET_COUNT, cobrautil.ROW_UNHEALTHY_COPYSET_RATIO,
+		cobrautil.ROW_UNHEALTHY_COPYSET,
 	}
 	sCmd.SetHeader(header)
 	return nil
@@ -131,22 +103,44 @@ func (sCmd *ServerCommand) ResultPlainOutput() error {
 
 func (sCmd *ServerCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	// 1 send RPCs to get all ChunkServerInfo on server
-	response, errCmd := basecmd.GetRpcResponse(sCmd.Rpc.Info, sCmd.Rpc)
+	timeout := config.GetFlagDuration(sCmd.Cmd, config.RPCTIMEOUT)
+	retrytimes := config.GetFlagInt32(sCmd.Cmd, config.RPCRETRYTIMES)
+	mdsAddrs, err := config.GetBsMdsAddrSlice(sCmd.Cmd)
+	if err.TypeCode() != cmderror.CODE_SUCCESS {
+		return err.ToError()
+	}
+
+	var rpc *listchunkserver.ListChunkServerRpc
+	if sCmd.ServerIP != "" {
+		rpc = &listchunkserver.ListChunkServerRpc{
+			Request: &topology.ListChunkServerRequest{
+				Ip:   &sCmd.ServerIP,
+				Port: &sCmd.Port,
+			},
+			Info: basecmd.NewRpc(mdsAddrs, timeout, retrytimes, "ListChunkServer"),
+		}
+	} else {
+		rpc = &listchunkserver.ListChunkServerRpc{
+			Request: &topology.ListChunkServerRequest{
+				ServerID: &sCmd.ServerID,
+			},
+			Info: basecmd.NewRpc(mdsAddrs, timeout, retrytimes, "ListChunkServer"),
+		}
+	}
+
+	response, errCmd := basecmd.GetRpcResponse(rpc.Info, rpc)
 	if errCmd.TypeCode() != cmderror.CODE_SUCCESS {
 		sCmd.Error = errCmd
 		return errCmd.ToError()
 	}
-	timeout := config.GetFlagDuration(sCmd.Cmd, config.RPCTIMEOUT)
-	retrytimes := config.GetFlagInt32(sCmd.Cmd, config.RPCRETRYTIMES)
 
-	sCmd.Response = response.(*topology.ListChunkServerResponse)
-	chunkServerInfos := sCmd.Response.ChunkServerInfos
+	chunkServerInfos := response.(*topology.ListChunkServerResponse).ChunkServerInfos
 	ip_out := sCmd.ServerIP
 	if len(chunkServerInfos) != 0 {
 		ip_out = chunkServerInfos[0].GetHostIp()
 	}
 
-	mdsAddrs := config.GetBsFlagString(cmd, config.CURVEBS_MDSADDR)
+	mdsAddr := config.GetBsFlagString(cmd, config.CURVEBS_MDSADDR)
 
 	copysetid2Status := make(map[uint32]*copyset.COPYSET_OP_STATUS)
 
@@ -155,8 +149,8 @@ func (sCmd *ServerCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	unhelthy := 0
 
 	for _, item := range chunkServerInfos {
-		err := sCmd.GetStatus(item, &timeout, uint32(retrytimes), mdsAddrs, &copysetid2Status)
-		if err.Code != cmderror.CODE_SUCCESS {
+		err := sCmd.GetStatus(item, &timeout, uint32(retrytimes), mdsAddr, &copysetid2Status)
+		if err.TypeCode() != cmderror.CODE_SUCCESS {
 			sCmd.Error = err
 			return err.ToError()
 		}
@@ -175,8 +169,7 @@ func (sCmd *ServerCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	row[cobrautil.ROW_SERVER] = fmt.Sprintf("%d", sCmd.ServerID)
 	row[cobrautil.ROW_TOTAL] = fmt.Sprintf("%d", total)
 	row[cobrautil.ROW_IP] = ip_out
-	row[cobrautil.ROW_UNHEALTHY_COPYSET_COUNT] = fmt.Sprintf("%d", unhelthy)
-	row[cobrautil.ROW_UNHEALTHY_COPYSET_RATIO] = fmt.Sprintf("%v", unhelthy/total)
+	row[cobrautil.ROW_UNHEALTHY_COPYSET] = fmt.Sprintf("%d(%v%%)", unhelthy, (unhelthy/total)*100)
 
 	list := cobrautil.Map2List(row, sCmd.Header)
 	sCmd.TableNew.Append(list)
@@ -195,20 +188,20 @@ func (sCmd *ServerCommand) GetStatus(item *topology.ChunkServerInfo, timeout *ti
 	config.AddRpcRetryTimesFlag(sCmd.Cmd)
 	config.AddRpcTimeoutFlag(sCmd.Cmd)
 	config.AddBsChunkServerIDOptionFlag(sCmd.Cmd)
-	config.AddBsHostIpFlag(sCmd.Cmd)
-	config.AddBsPortFlag(sCmd.Cmd)
+	config.AddBsIpOptionFlag(sCmd.Cmd)
+	config.AddBsPortOptionFlag(sCmd.Cmd)
 
 	sCmd.Cmd.ParseFlags([]string{
 		fmt.Sprintf("--%s", config.CURVEBS_MDSADDR), mdsAddrs,
 		fmt.Sprintf("--%s", config.RPCRETRYTIMES), fmt.Sprintf("%d", retrytimes),
 		fmt.Sprintf("--%s", config.RPCTIMEOUT), timeout.String(),
 		fmt.Sprintf("--%s", config.CURVEBS_CHUNKSERVER_ID), fmt.Sprintf("%d", chunkServerID),
-		fmt.Sprintf("--%s", config.CURVEBS_HOST_IP), hostip,
+		fmt.Sprintf("--%s", config.VIPER_CURVEBS_SERVER_ID), hostip,
 		fmt.Sprintf("--%s", config.CURVEBS_PORT), fmt.Sprintf("%d", port),
 	})
 
 	copysetids2poolids, err := GetCopysetids(sCmd.Cmd)
-	if err.Code != cmderror.CODE_SUCCESS {
+	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		return err
 	}
 
@@ -233,7 +226,7 @@ func (sCmd *ServerCommand) GetStatus(item *topology.ChunkServerInfo, timeout *ti
 		})
 
 		result, err := copysetbs.GetCopysetStatus(sCmd.Cmd)
-		if err.Code != cmderror.CODE_SUCCESS {
+		if err.TypeCode() != cmderror.CODE_SUCCESS {
 			return err
 		}
 		for _, staRes := range *result {

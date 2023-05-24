@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2022 NetEase Inc.
+ *  Copyright (c) 2023 NetEase Inc.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -53,11 +53,11 @@ func NewCopysetCommand() *cobra.Command {
 }
 
 func NewCopysetidsCommand() *CopysetidsCommand {
-	ccCmd := &CopysetidsCommand{
+	cCmd := &CopysetidsCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{},
 	}
-	basecmd.NewFinalCurveCli(&ccCmd.FinalCurveCmd, ccCmd)
-	return ccCmd
+	basecmd.NewFinalCurveCli(&cCmd.FinalCurveCmd, cCmd)
+	return cCmd
 }
 
 func (tRpc *GetChunkServerCopysetsRpc) NewRpcClient(cc grpc.ClientConnInterface) {
@@ -73,8 +73,8 @@ func (cCmd *CopysetidsCommand) AddFlags() {
 	config.AddRpcRetryTimesFlag(cCmd.Cmd)
 	config.AddRpcTimeoutFlag(cCmd.Cmd)
 	config.AddBsChunkServerIDOptionFlag(cCmd.Cmd)
-	config.AddBsHostIpFlag(cCmd.Cmd)
-	config.AddBsPortFlag(cCmd.Cmd)
+	config.AddBsIpOptionFlag(cCmd.Cmd)
+	config.AddBsPortOptionFlag(cCmd.Cmd)
 }
 
 func (cCmd *CopysetidsCommand) Init(cmd *cobra.Command, args []string) error {
@@ -83,10 +83,8 @@ func (cCmd *CopysetidsCommand) Init(cmd *cobra.Command, args []string) error {
 	mdsAddrs, _ := config.GetBsMdsAddrSlice(cCmd.Cmd)
 
 	chunkserverId := config.GetBsFlagUint32(cCmd.Cmd, config.CURVEBS_CHUNKSERVER_ID)
-	hostip := config.GetBsFlagString(cCmd.Cmd, config.CURVEBS_HOST_IP)
+	hostip := config.GetBsFlagString(cCmd.Cmd, config.CURVEBS_IP)
 	port := config.GetBsFlagUint32(cCmd.Cmd, config.CURVEBS_PORT)
-
-	// fmt.Printf("%d %s %d", chunkserverId, hostip, port)
 
 	rpc := &GetChunkServerCopysetsRpc{
 		Request: &topology.GetCopySetsInChunkServerRequest{
@@ -124,7 +122,7 @@ func GetCopysetids(caller *cobra.Command) (*map[uint32]uint32, *cmderror.CmdErro
 	cCmd := NewCopysetidsCommand()
 	config.AlignFlagsValue(caller, cCmd.Cmd, []string{
 		config.CURVEBS_MDSADDR, config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEBS_CHUNKSERVER_ID,
-		config.CURVEBS_HOST_IP, config.CURVEBS_PORT,
+		config.CURVEBS_IP, config.CURVEBS_PORT,
 	})
 	cCmd.Cmd.SilenceErrors = true
 	cCmd.Cmd.SilenceUsage = true

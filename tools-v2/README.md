@@ -1441,7 +1441,6 @@ Output:
 | curve_ops_tool check-consistency     |                                |
 | curve_ops_tool do-snapshot-all       |                                |
 | curve_ops_tool check-chunkserver     |                                |
-| curve_ops_tool check-server          |                                |
 | curve_ops_tool list-may-broken-vol   |                                |
 | curve_ops_tool set-copyset-availflag |                                |
 | curve_ops_tool rapid-leader-schedule |                                |

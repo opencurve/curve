@@ -109,8 +109,6 @@ const (
 	ROW_TOTAL           = "total"
 	ROW_TYPE            = "type"
 	ROW_USED            = "used"
-	ROW_UNHEALTHY_COPYSET_RATIO = "unhealthy coyset ratio"
-	ROW_UNHEALTHY_COPYSET_COUNT = "unhealthy copyset count"
 	ROW_VERSION         = "version"
 	ROW_ZONE            = "zone"
 
