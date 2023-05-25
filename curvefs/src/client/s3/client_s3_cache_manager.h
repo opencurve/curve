@@ -34,7 +34,7 @@
 #include <set>
 
 #include "curvefs/proto/metaserver.pb.h"
-#include "curvefs/src/client/error_code.h"
+#include "curvefs/src/client/filesystem/error.h"
 #include "curvefs/src/client/s3/client_s3.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/concurrent/task_thread_pool.h"

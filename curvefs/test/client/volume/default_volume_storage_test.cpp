@@ -25,7 +25,8 @@
 #include <string>
 #include <vector>
 
-#include "curvefs/src/client/error_code.h"
+#include "curvefs/src/client/filesystem/error.h"
+#include "curvefs/src/client/filesystem/meta.h"
 #include "curvefs/test/client/mock_inode_cache_manager.h"
 #include "curvefs/test/client/mock_metaserver_client.h"
 #include "curvefs/test/volume/mock/mock_block_device_client.h"
@@ -35,6 +36,7 @@
 namespace curvefs {
 namespace client {
 
+using ::curvefs::client::filesystem::FileOut;
 using ::curvefs::client::rpcclient::MockMetaServerClient;
 using ::curvefs::volume::AllocateHint;
 using ::curvefs::volume::Extent;
@@ -74,11 +76,12 @@ TEST_F(DefaultVolumeStorageTest, WriteAndReadTest_InodeNotFound) {
     off_t offset = 0;
     size_t len = 4096;
     std::unique_ptr<char[]> data(new char[len]);
+    FileOut fileOut;
 
     ASSERT_EQ(CURVEFS_ERROR::NOTEXIST,
               storage_.Read(ino, offset, len, data.get()));
     ASSERT_EQ(CURVEFS_ERROR::NOTEXIST,
-              storage_.Write(ino, offset, len, data.get()));
+              storage_.Write(ino, offset, len, data.get(), &fileOut));
 }
 
 TEST_F(DefaultVolumeStorageTest, ReadTest_BlockDevReadError) {
@@ -245,9 +248,10 @@ TEST_F(DefaultVolumeStorageTest, WriteTest_PrepareError) {
     off_t offset = 0;
     size_t len = 4096;
     std::unique_ptr<char[]> data(new char[len]);
+    FileOut fileOut;
 
     ASSERT_EQ(CURVEFS_ERROR::NO_SPACE,
-              storage_.Write(ino, offset, len, data.get()));
+              storage_.Write(ino, offset, len, data.get(), &fileOut));
 }
 
 TEST_F(DefaultVolumeStorageTest, WriteTest_BlockDevWriteError) {
@@ -286,12 +290,13 @@ TEST_F(DefaultVolumeStorageTest, WriteTest_BlockDevWriteError) {
     off_t offset = 0;
     size_t len = 4096;
     std::unique_ptr<char[]> data(new char[len]);
+    FileOut fileOut;
 
     EXPECT_CALL(blockDev_, Writev(_))
         .WillOnce(Return(-1));
 
     ASSERT_EQ(CURVEFS_ERROR::IO_ERROR,
-              storage_.Write(ino, offset, len, data.get()));
+              storage_.Write(ino, offset, len, data.get(), &fileOut));
 }
 
 TEST_F(DefaultVolumeStorageTest, WriteTest_BlockDevWriteSuccess) {
@@ -331,6 +336,7 @@ TEST_F(DefaultVolumeStorageTest, WriteTest_BlockDevWriteSuccess) {
     off_t offset = 0;
     size_t len = 4096;
     std::unique_ptr<char[]> data(new char[len]);
+    FileOut fileOut;
 
     EXPECT_CALL(blockDev_, Writev(_))
         .WillOnce(Return(len));
@@ -338,7 +344,8 @@ TEST_F(DefaultVolumeStorageTest, WriteTest_BlockDevWriteSuccess) {
     EXPECT_CALL(inodeCacheMgr_, ShipToFlush(inodeWrapper))
         .Times(1);
 
-    ASSERT_EQ(CURVEFS_ERROR::OK, storage_.Write(ino, offset, len, data.get()));
+    ASSERT_EQ(CURVEFS_ERROR::OK,
+              storage_.Write(ino, offset, len, data.get(), &fileOut));
 
     ASSERT_EQ(offset + len, inodeWrapper->GetInode().length());
 }

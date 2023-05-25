@@ -57,7 +57,6 @@ class TestDentryCacheManager : public ::testing::Test {
         metaClient_ = std::make_shared<MockMetaServerClient>();
         dCacheManager_ = std::make_shared<DentryCacheManagerImpl>(metaClient_);
         dCacheManager_->SetFsId(fsId_);
-        dCacheManager_->Init(10, true, timeout_);
     }
 
     virtual void TearDown() {
@@ -87,6 +86,8 @@ TEST_F(TestDentryCacheManager, GetDentry) {
 
     EXPECT_CALL(*metaClient_, GetDentry(fsId_, parent, name, _))
         .WillOnce(Return(MetaStatusCode::NOT_FOUND))
+        .WillOnce(DoAll(SetArgPointee<3>(dentryExp),
+                Return(MetaStatusCode::OK)))
         .WillOnce(DoAll(SetArgPointee<3>(dentryExp),
                 Return(MetaStatusCode::OK)));
 
@@ -133,6 +134,10 @@ TEST_F(TestDentryCacheManager, CreateAndGetDentry) {
     EXPECT_CALL(*metaClient_, CreateDentry(_))
         .WillOnce(Return(MetaStatusCode::UNKNOWN_ERROR))
         .WillOnce(Return(MetaStatusCode::OK));
+
+    EXPECT_CALL(*metaClient_, GetDentry(fsId_, parent, name, _))
+        .WillOnce(DoAll(SetArgPointee<3>(dentryExp),
+                        Return(MetaStatusCode::OK)));
 
     CURVEFS_ERROR ret = dCacheManager_->CreateDentry(dentryExp);
     ASSERT_EQ(CURVEFS_ERROR::UNKNOWN, ret);
@@ -248,6 +253,10 @@ TEST_F(TestDentryCacheManager, GetTimeOutDentry) {
 
     EXPECT_CALL(*metaClient_, CreateDentry(_))
         .WillOnce(Return(MetaStatusCode::OK));
+
+    EXPECT_CALL(*metaClient_, GetDentry(fsId_, parent, name, _))
+        .WillOnce(DoAll(SetArgPointee<3>(dentryExp),
+                        Return(MetaStatusCode::OK)));
 
     auto ret = dCacheManager_->CreateDentry(dentryExp);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);

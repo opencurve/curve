@@ -34,12 +34,12 @@
 
 #include "curvefs/src/common/define.h"
 #include "curvefs/proto/metaserver.pb.h"
-#include "curvefs/src/client/error_code.h"
 #include "curvefs/src/client/rpcclient/metaserver_client.h"
 #include "src/common/concurrent/concurrent.h"
 #include "curvefs/src/client/volume/extent_cache.h"
 #include "curvefs/src/client/metric/client_metric.h"
 #include "src/common/timeutility.h"
+#include "curvefs/src/client/filesystem/error.h"
 
 using ::curvefs::metaserver::Inode;
 using ::curvefs::metaserver::S3ChunkInfoList;
@@ -53,14 +53,12 @@ constexpr int kChangeTime = 1 << 1;
 constexpr int kModifyTime = 1 << 2;
 
 using ::curvefs::metaserver::VolumeExtentList;
+using ::curvefs::client::filesystem::CURVEFS_ERROR;
 
 enum class InodeStatus {
     kNormal = 0,
     kError = -1,
 };
-
-// TODO(xuchaojie) : get from conf maybe?
-const uint32_t kOptimalIOBlockSize = 0x10000u;
 
 using rpcclient::MetaServerClient;
 using rpcclient::MetaServerClientImpl;

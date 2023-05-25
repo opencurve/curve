@@ -1,6 +1,6 @@
 # Copyright (C) 2021 Jingli Chen (Wine93), NetEase Inc.
 
-.PHONY: list build dep install image
+.PHONY: list build dep install image playground check test
 
 stor?=""
 prefix?= "$(PWD)/projects"
@@ -70,3 +70,12 @@ install:
 
 image:
 	@bash util/image.sh $(stor) $(tag) $(os)
+
+playground:
+	@bash util/playground.sh
+
+check:
+	@bash util/check.sh $(stor)
+
+test:
+	@bash util/test.sh $(stor) $(only)
