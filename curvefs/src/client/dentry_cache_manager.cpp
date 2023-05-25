@@ -44,31 +44,13 @@ namespace client {
 
 using curve::common::WriteLockGuard;
 using NameLockGuard = ::curve::common::GenericNameLockGuard<Mutex>;
-
-void DentryCacheManagerImpl::InsertOrReplaceCache(const Dentry &dentry) {
-    std::string key = GetDentryCacheKey(dentry.parentinodeid(), dentry.name());
-    if (!curvefs::client::common::FLAGS_enableCto) {
-        NameLockGuard lock(nameLock_, key);
-        dCache_->Put(key, dentry);
-    }
-}
-
-void DentryCacheManagerImpl::DeleteCache(uint64_t parentId,
-                                         const std::string &name) {
-    std::string key = GetDentryCacheKey(parentId, name);
-    NameLockGuard lock(nameLock_, key);
-    dCache_->Remove(key);
-}
+using ::curvefs::client::filesystem::ToFSError;
 
 CURVEFS_ERROR DentryCacheManagerImpl::GetDentry(uint64_t parent,
                                                 const std::string &name,
                                                 Dentry *out) {
     std::string key = GetDentryCacheKey(parent, name);
     NameLockGuard lock(nameLock_, key);
-    bool ok = dCache_->Get(key, out);
-    if (ok) {
-        return CURVEFS_ERROR::OK;
-    }
 
     MetaStatusCode ret = metaClient_->GetDentry(fsId_, parent, name, out);
     if (ret != MetaStatusCode::OK) {
@@ -76,10 +58,7 @@ CURVEFS_ERROR DentryCacheManagerImpl::GetDentry(uint64_t parent,
             << "metaClient_ GetDentry failed, MetaStatusCode = " << ret
             << ", MetaStatusCode_Name = " << MetaStatusCode_Name(ret)
             << ", parent = " << parent << ", name = " << name;
-        return MetaStatusCodeToCurvefsErrCode(ret);
-    }
-    if (!curvefs::client::common::FLAGS_enableCto) {
-        dCache_->Put(key, *out);
+        return ToFSError(ret);
     }
     return CURVEFS_ERROR::OK;
 }
@@ -94,12 +73,9 @@ CURVEFS_ERROR DentryCacheManagerImpl::CreateDentry(const Dentry &dentry) {
                    << ", MetaStatusCode_Name = " << MetaStatusCode_Name(ret)
                    << ", parent = " << dentry.parentinodeid()
                    << ", name = " << dentry.name();
-        return MetaStatusCodeToCurvefsErrCode(ret);
+        return ToFSError(ret);
     }
 
-    if (!curvefs::client::common::FLAGS_enableCto) {
-        dCache_->Put(key, dentry);
-    }
     return CURVEFS_ERROR::OK;
 }
 
@@ -108,14 +84,13 @@ CURVEFS_ERROR DentryCacheManagerImpl::DeleteDentry(uint64_t parent,
                                                    FsFileType type) {
     std::string key = GetDentryCacheKey(parent, name);
     NameLockGuard lock(nameLock_, key);
-    dCache_->Remove(key);
 
     MetaStatusCode ret = metaClient_->DeleteDentry(fsId_, parent, name, type);
     if (ret != MetaStatusCode::OK && ret != MetaStatusCode::NOT_FOUND) {
         LOG(ERROR) << "metaClient_ DeleteInode failed, MetaStatusCode = " << ret
                    << ", MetaStatusCode_Name = " << MetaStatusCode_Name(ret)
                    << ", parent = " << parent << ", name = " << name;
-        return MetaStatusCodeToCurvefsErrCode(ret);
+        return ToFSError(ret);
     }
     return CURVEFS_ERROR::OK;
 }
@@ -149,7 +124,7 @@ CURVEFS_ERROR DentryCacheManagerImpl::ListDentry(uint64_t parent,
                        << ", MetaStatusCode_Name = " << MetaStatusCode_Name(ret)
                        << ", parent = " << parent << ", last = " << last
                        << ", count = " << limit << ", onlyDir = " << onlyDir;
-            return MetaStatusCodeToCurvefsErrCode(ret);
+            return ToFSError(ret);
         }
 
         if (!onlyDir) {

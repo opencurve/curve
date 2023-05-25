@@ -28,7 +28,7 @@
 #include <mutex>
 
 #include "curvefs/proto/metaserver.pb.h"
-#include "curvefs/src/client/error_code.h"
+#include "curvefs/src/client/filesystem/error.h"
 #include "curvefs/src/client/inode_wrapper.h"
 
 namespace curvefs {
@@ -63,7 +63,7 @@ CURVEFS_ERROR UpdateVolumeExtentClosure::Wait() {
         cond_.wait(lk);
     }
 
-    return MetaStatusCodeToCurvefsErrCode(GetStatusCode());
+    return ToFSError(GetStatusCode());
 }
 
 void UpdateVolumeExtentClosure::Run() {

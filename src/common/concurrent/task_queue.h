@@ -13,25 +13,20 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-
 /*
  * Project: curve
  * File Created: Tuesday, 18th December 2018 4:52:44 pm
  * Author: tongguangxun
  */
-
 #ifndef SRC_COMMON_CONCURRENT_TASK_QUEUE_H_
 #define SRC_COMMON_CONCURRENT_TASK_QUEUE_H_
-
 #include <future>       // NOLINT
 #include <queue>        // NOLINT
 #include <mutex>        // NOLINT
 #include <functional>   // NOLINT
 #include <utility>
-
 namespace curve {
 namespace common {
-
 template <typename MutexT, typename CondVarT>
 class GenericTaskQueue {
  public:
@@ -47,22 +42,24 @@ class GenericTaskQueue {
             while (tasks_.size() >= capacity_) {
                 notfullcv_.wait(lk);
             }
-
             tasks_.push(std::move(task));
         }
         notemptycv_.notify_one();
     }
-
     Task Pop() {
         std::unique_lock<MutexT> lk(mtx_);
         while (tasks_.empty()) {
             notemptycv_.wait(lk);
         }
-
         Task t = std::move(tasks_.front());
         tasks_.pop();
         notfullcv_.notify_one();
         return t;
+    }
+
+    size_t Size() {
+        std::unique_lock<MutexT> lk(mtx_);
+        return tasks_.size();
     }
 
  private:

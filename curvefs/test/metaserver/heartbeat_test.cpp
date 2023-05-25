@@ -120,6 +120,8 @@ TEST_F(HeartbeatTest, test1) {
     options.copysetNodeManager = &CopysetNodeManager::GetInstance();
     options.storeUri = "local://./metaserver_data/copysets";
     options.fs = LocalFsFactory::CreateFs(FileSystemType::EXT4, "");
+    options.resourceCollector = absl::make_unique<ResourceCollector>(
+        0, 0, options_.dataDir).get();
 
     // mds service not start
     ASSERT_EQ(heartbeat.Init(options), 0);

@@ -50,6 +50,7 @@ DEFINE_bool(enableCto, true, "acheieve cto consistency");
 DEFINE_bool(useFakeS3, false,
             "Use fake s3 to inject more metadata for testing metaserver");
 DEFINE_bool(supportKVcache, false, "use kvcache to speed up sharing");
+DEFINE_bool(access_logging, true, "enable access log");
 
 /**
  * use curl -L fuseclient:port/flags/fuseClientAvgWriteBytes?setvalue=true
@@ -292,6 +293,55 @@ void InitKVClientManagerOpt(Configuration *conf,
                               &config->getThreadPooln);
 }
 
+void InitFileSystemOption(Configuration* c, FileSystemOption* option) {
+    c->GetValueFatalIfFail("fs.cto", &option->cto);
+    c->GetValueFatalIfFail("fs.cto", &FLAGS_enableCto);
+    c->GetValueFatalIfFail("fs.disableXattr", &option->disableXattr);
+    c->GetValueFatalIfFail("fs.maxNameLength", &option->maxNameLength);
+    c->GetValueFatalIfFail("fs.accessLogging", &FLAGS_access_logging);
+    {  // kernel cache option
+        auto o = &option->kernelCacheOption;
+        c->GetValueFatalIfFail("fs.kernelCache.attrTimeoutSec",
+                               &o->attrTimeoutSec);
+        c->GetValueFatalIfFail("fs.kernelCache.dirAttrTimeoutSec",
+                               &o->dirAttrTimeoutSec);
+        c->GetValueFatalIfFail("fs.kernelCache.entryTimeoutSec",
+                               &o->entryTimeoutSec);
+        c->GetValueFatalIfFail("fs.kernelCache.dirEntryTimeoutSec",
+                               &o->dirEntryTimeoutSec);
+    }
+    {  // lookup cache option
+        auto o = &option->lookupCacheOption;
+        c->GetValueFatalIfFail("fs.lookupCache.lruSize",
+                               &o->lruSize);
+        c->GetValueFatalIfFail("fs.lookupCache.negativeTimeoutSec",
+                               &o->negativeTimeoutSec);
+        c->GetValueFatalIfFail("fs.lookupCache.minUses",
+                               &o->minUses);
+    }
+    {  // dir cache option
+        auto o = &option->dirCacheOption;
+        c->GetValueFatalIfFail("fs.dirCache.lruSize", &o->lruSize);
+    }
+    {  // open file option
+        auto o = &option->openFilesOption;
+        c->GetValueFatalIfFail("fs.openFile.lruSize", &o->lruSize);
+    }
+    {  // attr watcher option
+        auto o = &option->attrWatcherOption;
+        c->GetValueFatalIfFail("fs.attrWatcher.lruSize", &o->lruSize);
+    }
+    {  // rpc option
+        auto o = &option->rpcOption;
+        c->GetValueFatalIfFail("fs.rpc.listDentryLimit", &o->listDentryLimit);
+    }
+    {  // defer sync option
+        auto o = &option->deferSyncOption;
+        c->GetValueFatalIfFail("fs.deferSync.delay", &o->delay);
+        c->GetValueFatalIfFail("fs.deferSync.deferDirMtime", &o->deferDirMtime);
+    }
+}
+
 void SetBrpcOpt(Configuration *conf) {
     curve::common::GflagsLoadValueFromConfIfCmdNotSet dummy;
     dummy.Load(conf, "defer_close_second", "rpc.defer.close.second",
@@ -312,36 +362,16 @@ void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption) {
     InitLeaseOpt(conf, &clientOption->leaseOpt);
     InitRefreshDataOpt(conf, &clientOption->refreshDataOption);
     InitKVClientManagerOpt(conf, &clientOption->kvClientManagerOpt);
+    InitFileSystemOption(conf, &clientOption->fileSystemOption);
 
-    conf->GetValueFatalIfFail("fuseClient.attrTimeOut",
-                              &clientOption->attrTimeOut);
-    conf->GetValueFatalIfFail("fuseClient.entryTimeOut",
-                              &clientOption->entryTimeOut);
     conf->GetValueFatalIfFail("fuseClient.listDentryLimit",
                               &clientOption->listDentryLimit);
     conf->GetValueFatalIfFail("fuseClient.listDentryThreads",
                               &clientOption->listDentryThreads);
-    conf->GetValueFatalIfFail("fuseClient.flushPeriodSec",
-                              &clientOption->flushPeriodSec);
-    conf->GetValueFatalIfFail("fuseClient.maxNameLength",
-                              &clientOption->maxNameLength);
-    conf->GetValueFatalIfFail("fuseClient.iCacheLruSize",
-                              &clientOption->iCacheLruSize);
-    conf->GetValueFatalIfFail("fuseClient.dCacheLruSize",
-                              &clientOption->dCacheLruSize);
-    conf->GetValueFatalIfFail("fuseClient.enableICacheMetrics",
-                              &clientOption->enableICacheMetrics);
-    conf->GetValueFatalIfFail("fuseClient.enableDCacheMetrics",
-                              &clientOption->enableDCacheMetrics);
-    conf->GetValueFatalIfFail("fuseClient.lruTimeOutSec",
-                              &clientOption->lruTimeOutSec);
     conf->GetValueFatalIfFail("client.dummyServer.startPort",
                               &clientOption->dummyServerStartPort);
     conf->GetValueFatalIfFail("fuseClient.enableMultiMountPointRename",
                               &clientOption->enableMultiMountPointRename);
-    conf->GetValueFatalIfFail("fuseClient.disableXattr",
-                              &clientOption->disableXattr);
-    conf->GetValueFatalIfFail("fuseClient.cto", &FLAGS_enableCto);
     conf->GetValueFatalIfFail("fuseClient.downloadMaxRetryTimes",
                               &clientOption->downloadMaxRetryTimes);
     conf->GetValueFatalIfFail("fuseClient.warmupThreadsNum",
@@ -350,12 +380,6 @@ void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption) {
                                        &clientOption->enableFuseSplice))
         << "Not found `fuseClient.enableSplice` in conf, use default value `"
         << std::boolalpha << clientOption->enableFuseSplice << '`';
-
-    // if enableCto, attr and entry cache must invalid
-    if (FLAGS_enableCto) {
-        clientOption->attrTimeOut = 0;
-        clientOption->entryTimeOut = 0;
-    }
 
     conf->GetValueFatalIfFail("fuseClient.throttle.avgWriteBytes",
                               &FLAGS_fuseClientAvgWriteBytes);

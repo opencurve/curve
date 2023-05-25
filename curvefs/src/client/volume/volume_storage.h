@@ -28,10 +28,14 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "curvefs/src/client/error_code.h"
+#include "curvefs/src/client/filesystem/error.h"
+#include "curvefs/src/client/filesystem/meta.h"
 
 namespace curvefs {
 namespace client {
+
+using ::curvefs::client::filesystem::CURVEFS_ERROR;
+using ::curvefs::client::filesystem::FileOut;
 
 class VolumeStorage {
  public:
@@ -45,7 +49,8 @@ class VolumeStorage {
     virtual CURVEFS_ERROR Write(uint64_t ino,
                                 off_t offset,
                                 size_t len,
-                                const char* data) = 0;
+                                const char* data,
+                                FileOut* fileOut) = 0;
 
     virtual CURVEFS_ERROR Flush(uint64_t ino) = 0;
 
