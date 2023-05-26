@@ -1,4 +1,3 @@
-
 /*
  *  Copyright (c) 2021 NetEase Inc.
  *
@@ -50,8 +49,13 @@ FsInfoWrapper::FsInfoWrapper(const ::curvefs::mds::CreateFsRequest* request,
     fsInfo.set_enablesumindir(request->enablesumindir());
     fsInfo.set_txsequence(0);
     fsInfo.set_txowner("");
+    // TODO(@lixiaocui1): Currently, curveadm does not support setting recycling
+    // when creating a file system. It is expected to be supported in
+    // curveadm 3.0
     if (request->has_recycletimehour()) {
         fsInfo.set_recycletimehour(request->recycletimehour());
+    } else {
+        fsInfo.set_recycletimehour(1);
     }
 
     const auto& detail = request->fsdetail();

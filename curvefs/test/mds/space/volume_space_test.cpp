@@ -78,8 +78,9 @@ class VolumeSpaceTest : public ::testing::Test {
                 return SpaceOk;
             }));
 
+        // disable background threads during testing.
         auto space = VolumeSpace::Create(kFsId, volume_, storage_.get(),
-                                         fsStorage_.get(), 1);
+                                         fsStorage_.get(), 60000);
         EXPECT_NE(nullptr, space);
         return space;
     }
@@ -529,15 +530,11 @@ TEST_F(VolumeSpaceTest, Test_CalBlockGroupAvailableForDeAllocate) {
     // 1. test cal none
     {
         auto space = CreateOneEmptyVolumeSpace();
-        space->Run();
         sleep(1);
-        space->Stop();
         ASSERT_EQ(0, space->waitDeallocateGroups_.size());
 
         space = CreateVolumeSpaceWithTwoGroups(false);
-        space->Run();
         sleep(1);
-        space->Stop();
         ASSERT_EQ(0, space->waitDeallocateGroups_.size());
         ASSERT_EQ(2, space->availableGroups_.size());
     }
@@ -643,12 +640,6 @@ TEST_F(VolumeSpaceTest, Test_CalBlockGroupAvailableForDeAllocate) {
         ASSERT_EQ(1, space->availableGroups_.size());
     }
 }
-
-// TEST_F(VolumeSpaceTest, Test_UpdateBlockGroupDeallocatableSpace) {}
-
-// TEST_F(VolumeSpaceTest, Test_UpdnaateDeallocatingBlockGroup) {}
-
-// TEST_F(VolumeSpaceTest, Test_UpdateDeallocatingBlockGroupError) {}
 
 }  // namespace space
 }  // namespace mds

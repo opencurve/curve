@@ -187,8 +187,9 @@ class HeartbeatTaskExecutor {
 
     void ExecTasks(const HeartbeatResponse& response);
 
-    void SetDeallocFsId(uint64_t fsid) {
-        deallocfsid_ = fsid;
+    // for unit test
+    void SetDeallocTask(uint32_t fsid, uint64_t offset) {
+        deallocTask_[fsid] = offset;
     }
 
  private:
@@ -207,7 +208,9 @@ class HeartbeatTaskExecutor {
 
     CopysetNodeManager* copysetMgr_;
     butil::EndPoint ep_;
-    absl::optional<uint64_t> deallocfsid_;
+
+    // key is fsid, value is blockgroupOffset
+    std::map<uint32_t, uint64_t> deallocTask_;
 };
 
 }  // namespace metaserver

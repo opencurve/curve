@@ -69,8 +69,10 @@ class AbstractVolumeSpace {
                                            const std::string& owner,
                                            BlockGroup* group) = 0;
 
-    virtual SpaceErrCode ReleaseBlockGroups(
-        const std::vector<BlockGroup>& blockGroups) = 0;
+    virtual SpaceErrCode
+    ReleaseBlockGroups(const std::vector<BlockGroup> &blockGroups) = 0;
+
+    virtual SpaceErrCode ReleaseBlockGroups(const std::string &owner) = 0;
 
     virtual bool
     UpdateDeallocatableBlockGroup(uint32_t metaserverId, uint32_t metaserverNum,
@@ -90,7 +92,7 @@ class VolumeSpace final : public AbstractVolumeSpace {
 
     VolumeSpace(const VolumeSpace&) = delete;
     VolumeSpace& operator=(const VolumeSpace&) = delete;
-    ~VolumeSpace() {}
+    ~VolumeSpace() { Stop(); }
 
     /**
      * @brief Allocate block groups
@@ -114,6 +116,11 @@ class VolumeSpace final : public AbstractVolumeSpace {
         const std::vector<BlockGroup>& blockGroups) override;
 
     /**
+     * @brief Release block groups by owner
+     */
+    SpaceErrCode ReleaseBlockGroups(const std::string &owner) override;
+
+    /**
      * @brief Remove all block groups and persistent records that belong to
      *        current volume
      * @return return SpaceOk if success, otherwise return error code
@@ -127,18 +134,16 @@ class VolumeSpace final : public AbstractVolumeSpace {
                                   const BlockGroupDeallcateStatusMap &stats,
                                   uint64_t *issue);
 
+ private:
+    VolumeSpace(uint32_t fsId, Volume volume, BlockGroupStorage *storage,
+                FsStorage *fsStorage);
+
     /**
      * @brief Calculate block group that can be recycled
      */
     void Run();
 
     void Stop();
-
- private:
-    VolumeSpace(uint32_t fsId,
-                Volume volume,
-                BlockGroupStorage* storage,
-                FsStorage* fsStorage);
 
  private:
     SpaceErrCode AllocateBlockGroupsInternal(

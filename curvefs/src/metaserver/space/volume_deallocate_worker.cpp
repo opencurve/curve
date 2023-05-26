@@ -60,12 +60,14 @@ bool VolumeDeallocateWorker::WaitDeallocate() {
     // wait for task arrive
     std::unique_lock<std::mutex> lock(ctx_->mtx);
     if (ctx_->allTasks.empty()) {
+        VLOG(6) << "VolumeDeallocateWorker task empty, wait";
         ctx_->cond.wait(
             lock, [this] { return !ctx_->allTasks.empty() || !ctx_->running; });
     }
 
     // cancel by manager
     if (!ctx_->running) {
+        LOG(INFO) << "VolumeDeallocateWorker running was canceled";
         return false;
     }
 
@@ -95,14 +97,18 @@ void VolumeDeallocateWorker::Cleanup() {
     ctx_->allTasks.emplace_back(std::move(current_.value()));
     ctx_->cond.notify_one();
 
+    VLOG(3) << "VolumeDeallocateWorker current tasks num:"
+            << ctx_->allTasks.size();
     current_.reset();
 }
 
 void VolumeDeallocateWorker::DeallocatetWorker() {
     common::SetThreadName("CalVolumeDeallocateWorker");
     while (ctx_->running) {
+        sleeper_.wait_for(std::chrono::seconds(10));
+
         if (!WaitDeallocate()) {
-            break;
+            continue;
         }
 
         CHECK(current_.has_value());
@@ -115,7 +121,7 @@ void VolumeDeallocateWorker::DeallocatetWorker() {
             if (current_->HasDeallocateTask()) {
                 current_->ResetDeallocateTask();
             }
-            break;
+            continue;
         }
 
         if (current_->HasDeallocateTask()) {
@@ -131,6 +137,8 @@ void VolumeDeallocateWorker::DeallocatetWorker() {
                     << current_->GetPartitionID() << " ok";
         }
     }
+
+    LOG(INFO) << "VolumeDeallocateWorker stopped";
 }
 
 }  // namespace metaserver

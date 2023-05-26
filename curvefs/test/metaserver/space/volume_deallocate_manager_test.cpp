@@ -118,7 +118,7 @@ TEST(VolumeDeallocateManager, Run) {
         });
 
         // wait and stop
-        sleep(1);
+        sleep(30);
         t.join();
         ASSERT_FALSE(instance.HasDeallocate());
         instance.Stop();

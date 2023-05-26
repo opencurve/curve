@@ -28,14 +28,18 @@
 #include "curvefs/src/client/async_request_closure.h"
 
 using curvefs::client::UpdateVolumeExtentClosure;
+using curvefs::client::CURVEFS_ERROR;
 
 namespace curvefs {
 namespace metaserver {
 
 void InodeVolumeSpaceDeallocate::CalDeallocatableSpace() {
     // get all deallocatable inode
-    auto iter = calOpt_.kvStorage->HGetAll(
-        calOpt_.nameGen->GetDeallocatableInodeTableName());
+    auto table = calOpt_.nameGen->GetDeallocatableInodeTableName();
+    VLOG(3) << "InodeVolumeSpaceDeallocate cal deallocatable space for table="
+            << StringToHex(table);
+
+    auto iter = calOpt_.kvStorage->HGetAll(table);
     if (iter->Status() != 0) {
         LOG(ERROR) << "InodeVolumeSpaceDeallocate failed to get iterator for "
                       "all deallocatable indoe";
@@ -53,13 +57,19 @@ void InodeVolumeSpaceDeallocate::CalDeallocatableSpace() {
         iter->Next();
         if (!ok) {
             LOG(ERROR) << "InodeVolumeSpaceDeallocate parse inode key from "
-                       << iter->Key() << "fail";
+                       << iter->Key() << "fail, fsId=" << fsId_
+                       << ", partitionId=" << partitionId_
+                       << ", blockGroupSize=" << blockGroupSize_;
             continue;
         }
 
         // fill IncreaseDeallocatableBlockGroup
         ok = DeallocatableSapceForInode(key, &increase);
         if (!ok) {
+            LOG(ERROR) << "InodeVolumeSpaceDeallocate cal space for inode="
+                       << key.inodeId << " fail, fsId=" << fsId_
+                       << ", partitionId=" << partitionId_
+                       << ", blockGroupSize=" << blockGroupSize_;
             continue;
         }
 
@@ -72,7 +82,10 @@ void InodeVolumeSpaceDeallocate::CalDeallocatableSpace() {
                 LOG(ERROR) << "InodeVolumeSpaceDeallocate update "
                            << "deallocatable block group fail";
             }
-            LOG(INFO) << "InodeVolumeSpaceDeallocate cal success this round";
+            LOG(INFO)
+                << "InodeVolumeSpaceDeallocate cal success this round, fsId="
+                << fsId_ << ", partitionId=" << partitionId_
+                << ", blockGroupSize=" << blockGroupSize_;
             increase.clear();
         }
     }
@@ -103,6 +116,10 @@ InodeVolumeSpaceDeallocate::DeallocateOneBlockGroup(uint64_t blockGroupOffset) {
         return MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
 
+    VLOG(3) << "InodeVolumeSpaceDeallocate begin to deallocate blockgroup: "
+            << blockGroupOffset << ", fsId=" << fsId_
+            << ", partitionId=" << partitionId_;
+
     // batch processing of inodelists involving space deallocatable
     DeallocatableBlockGroupMap mark;
     auto &onemark = mark[blockGroupOffset];
@@ -116,6 +133,8 @@ InodeVolumeSpaceDeallocate::DeallocateOneBlockGroup(uint64_t blockGroupOffset) {
 
         auto size = onemark.mark().inodeidunderdeallocate_size();
         if (size >= executeOpt_.batchClean || (iter == boundary && size > 0)) {
+            VLOG(3) << "InodeVolumeSpaceDeallocate process specify inode:"
+                    << onemark.DebugString();
             ProcessSepcifyInodeList(blockGroupOffset, &mark);
             onemark.mutable_mark()->clear_inodeidunderdeallocate();
         }
@@ -139,6 +158,12 @@ bool InodeVolumeSpaceDeallocate::DeallocatableSapceForInode(
                        << key.fsId << ", inodeId=" << key.inodeId;
             return false;
         }
+
+        VLOG(9) << "InodeVolumeSpaceDeallocate deallocate space for inode="
+                << key.inodeId << ", table="
+                << StringToHex(
+                       calOpt_.nameGen->GetDeallocatableInodeTableName())
+                << ", extent=" << slice.DebugString();
 
         DeallocatbleSpaceForVolumeExtent(slice, key, increaseMap);
     }
@@ -177,6 +202,10 @@ void InodeVolumeSpaceDeallocate::DeallocatbleSpaceForVolumeExtent(
     for (const auto &item : relatedBlockGroup) {
         auto &exist = (*increaseMap)[item.first];
         exist.mutable_increase()->add_inodeidlistadd(key.inodeId);
+        VLOG(6) << "InodeVolumeSpaceDeallocate deallocatable space for inode:"
+                << key.SerializeToString()
+                << ", related block group:" << item.first << ", increase size:"
+                << exist.increase().increasedeallocatablesize();
     }
 }
 
@@ -199,7 +228,8 @@ void InodeVolumeSpaceDeallocate::ProcessSepcifyInodeList(
     if (st != MetaStatusCode::OK) {
         LOG(ERROR) << "InodeVolumeSpaceDeallocate mark inodelist to be "
                       "deallocatable failed, fsId="
-                   << fsId_ << ", blockGroupOffset=" << blockGroupOffset;
+                   << fsId_ << ", partitionId=" << partitionId_
+                   << ", blockGroupOffset=" << blockGroupOffset;
         return;
     }
     auto &onemark = (*markMap)[blockGroupOffset];
@@ -230,7 +260,8 @@ void InodeVolumeSpaceDeallocate::ProcessSepcifyInodeList(
     if (st != MetaStatusCode::OK) {
         LOG(ERROR) << "InodeVolumeSpaceDeallocate update deallocatable size "
                       "failed, fsId="
-                   << fsId_ << ", blockGroupOffset=" << blockGroupOffset;
+                   << fsId_ << ", partitionId=" << partitionId_
+                   << ", blockGroupOffset=" << blockGroupOffset;
         return;
     }
 }
@@ -255,9 +286,13 @@ bool InodeVolumeSpaceDeallocate::DeallocateInode(uint64_t blockGroupOffset,
         if (st != MetaStatusCode::OK) {
             LOG(ERROR) << "InodeVolumeSpaceDeallocate get inode extent "
                           "failed, fsId="
-                       << fsId_ << ", inodeId=" << inodeId;
+                       << fsId_ << "partitionId=" << partitionId_
+                       << ", inodeId=" << inodeId;
             return false;
         }
+        VLOG(6) << "InodeVolumeSpaceDeallocate will update inode:" << inodeId
+                << ", blockGroupOffset:" << blockGroupOffset
+                << ", sliceList:" << sliceList.DebugString();
 
         // 1
         UpdateDeallocateInodeExtentSlice(blockGroupOffset, inodeId, decrease,
@@ -265,8 +300,16 @@ bool InodeVolumeSpaceDeallocate::DeallocateInode(uint64_t blockGroupOffset,
         auto closure = new UpdateVolumeExtentClosure(nullptr, true);
         executeOpt_.metaClient->AsyncUpdateVolumeExtent(fsId_, inodeId,
                                                         sliceList, closure);
-        closure->Wait();
-        // TODO(ilixiaocui): AsyncUpdateVolumeExtent update failed
+        if (CURVEFS_ERROR::OK != closure->Wait()) {
+            LOG(ERROR) << "InodeVolumeSpaceDeallocate update inode:" << inodeId
+                       << ", blockGroupOffset:" << blockGroupOffset
+                       << ", to sliceList:" << sliceList.DebugString()
+                       << " failed";
+            return false;
+        }
+        VLOG(6) << "InodeVolumeSpaceDeallocate update inode:" << inodeId
+                << ", blockGroupOffset:" << blockGroupOffset
+                << ", to sliceList:" << sliceList.DebugString();
     }
 
     // 2
@@ -275,6 +318,10 @@ bool InodeVolumeSpaceDeallocate::DeallocateInode(uint64_t blockGroupOffset,
     if (!ok) {
         // TODO(ilixiaocui): this part of the non-recyclable space should be
         // included in the metric statistics
+        LOG(ERROR) << "InodeVolumeSpaceDeallocate deallocate volume space "
+                      "failed, fsId="
+                   << fsId_ << ", partitionId=" << partitionId_
+                   << ", blockGroupOffset=" << blockGroupOffset << " fail";
     }
 
     return ok;
@@ -290,18 +337,22 @@ void InodeVolumeSpaceDeallocate::UpdateDeallocateInodeExtentSlice(
     for (auto &slice : *sliceList->mutable_slices()) {
         auto extents = slice.mutable_extents();
         extents->erase(
-            std::remove_if(extents->begin(), extents->end(),
-                           [&](const VolumeExtent &extent) {
-                               bool res = (extent.volumeoffset() >=
-                                           blockGroupOffset) &&
-                                          (extent.volumeoffset() < boundary);
-                               if (res) {
-                                   *decrease += extent.length();
-                                   deallocatableVolumeSpace->emplace_back(
-                                       extent.volumeoffset(), extent.length());
-                               }
-                               return res;
-                           }),
+            std::remove_if(
+                extents->begin(), extents->end(),
+                [&](const VolumeExtent &extent) {
+                    bool res = (extent.volumeoffset() >= blockGroupOffset) &&
+                               (extent.volumeoffset() < boundary);
+                    if (res) {
+                        *decrease += extent.length();
+                        deallocatableVolumeSpace->emplace_back(
+                            extent.volumeoffset(), extent.length());
+                        VLOG(6) << "InodeVolumeSpaceDeallocate cal "
+                                   "deallocatable volume space, volumeoffset:"
+                                << extent.volumeoffset()
+                                << ", length:" << extent.length();
+                    }
+                    return res;
+                }),
             extents->end());
     }
 }

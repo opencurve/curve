@@ -86,6 +86,10 @@ class InodeVolumeSpaceDeallocate {
 
         blockGroupSize_ =
             executeOpt_.volumeSpaceManager->GetBlockGroupSize(fsId_);
+        assert(blockGroupSize_ != 0);
+        LOG(INFO) << "InodeVolumeSpaceDeallocate init, fsid=" << fsId_
+                  << ", partitionId=" << partitionId_
+                  << ", blockGroupSize=" << blockGroupSize_;
     }
 
     // used to traverse the list of inodes to be deleted, and count the
@@ -116,10 +120,12 @@ class InodeVolumeSpaceDeallocate {
 
     void ResetDeallocateTask() {
         waitingBlockGroupOffset_.reset();
-    }
+     }
 
     void SetDeallocateTask(uint64_t blockGroupOffset) {
         waitingBlockGroupOffset_ = blockGroupOffset;
+        LOG(INFO) << "InodeVolumeSpaceDeallocate set deallocate task, "
+                  << "blockGroupOffset=" << blockGroupOffset;
     }
 
     bool CanStart() {

@@ -44,13 +44,14 @@ void VolumeSpaceManager::Destroy(uint32_t fsId) {
 }
 
 uint64_t VolumeSpaceManager::GetBlockGroupSize(uint32_t fsId) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    auto it = spaceManagers_.find(fsId);
-    if (it == spaceManagers_.end()) {
+    auto spaceManager = GetSpaceManager(fsId);
+    if (spaceManager == nullptr) {
+        LOG(ERROR) << "VolumeSpaceManager get block group size failed, could "
+                      "not get space manager, fsId "
+                   << fsId << " not exist";
         return 0;
     }
-
-    return it->second->GetBlockGroupSize();
+    return spaceManager->GetBlockGroupSize();
 }
 
 bool VolumeSpaceManager::DeallocVolumeSpace(
@@ -111,6 +112,7 @@ bool VolumeSpaceManager::GenerateSpaceManager(uint32_t fsId) {
         fsInfo.detail().volume().blockgroupsize();
     spaceManagerOpt.blockGroupManagerOption.blockSize =
         fsInfo.detail().volume().blocksize();
+    spaceManagerOpt.allocatorOption.type = "bitmap";
 
     spaceManagers_[fsId] = std::make_shared<SpaceManagerImpl>(
         spaceManagerOpt, options_.mdsClient, blockDeviceClient);

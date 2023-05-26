@@ -236,6 +236,10 @@ void SpaceManagerImpl::ReleaseFullBlockGroups() {
                 double total = alloc.second->Total();
                 double available = alloc.second->AvailableSize();
                 double usedPer = 1.0 - available / total;
+                VLOG(6) << "SpaceManagerImpl find block group=" << alloc.first
+                        << " usedPer=" << usedPer << " total=" << (int64_t)total
+                        << " available=" << (int64_t)available
+                        << ", threshold_=" << threshold_;
 
                 if (usedPer > threshold_) {
                     selectBlockGroups.push_back(alloc.first);
@@ -255,19 +259,21 @@ void SpaceManagerImpl::ReleaseFullBlockGroups() {
             for (auto &id : selectBlockGroups) {
                 auto iter = allocators_.find(id);
                 assert(iter != allocators_.end());
+                auto availableSize = iter->second->AvailableSize();
 
-                availableBytes_.fetch_sub(iter->second->AvailableSize(),
+                availableBytes_.fetch_sub(availableSize,
                                           std::memory_order_relaxed);
-                totalBytes_.fetch_sub(iter->second->AvailableSize(),
-                                      std::memory_order_release);
+                totalBytes_.fetch_sub(availableSize, std::memory_order_release);
+
                 allocators_.erase(id);
                 bitmapUpdaters_.erase(id);
 
-                bool ret = blockGroupManager_->ReleaseBlockGroup(id);
+                bool ret =
+                    blockGroupManager_->ReleaseBlockGroup(id, availableSize);
                 if (ret) {
-                    LOG(INFO) << "Release block group success, id: " << id;
+                    VLOG(3) << "Release block group success, id: " << id;
                 } else {
-                    LOG(ERROR) << "Release block group failed, id: " << id;
+                    VLOG(3) << "Release block group failed, id: " << id;
                 }
             }
         }

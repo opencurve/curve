@@ -1356,8 +1356,8 @@ MetaStatusCode MetaServerClientImpl::CreateManageInode(const InodeParam &param,
 
     auto taskCtx = std::make_shared<TaskContext>(
         MetaServerOpType::CreateManageInode, task, param.fsId, 0);
-    CreateInodeExcutor excutor(opt_, metaCache_, channelManager_,
-                               std::move(taskCtx));
+    CreateManagerInodeExcutor excutor(opt_, metaCache_, channelManager_,
+                                      std::move(taskCtx));
     return ConvertToMetaStatusCode(excutor.DoRPCTask());
 }
 

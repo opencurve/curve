@@ -620,6 +620,8 @@ bool CopysetNode::GetBlockStatInfo(
 
         for (const auto &item : partitionSnap) {
             auto partition = item.second;
+            VLOG(6) << "CopysetNode get block stat info from partition:"
+                    << item.first;
             if (!AggregateBlockStatInfo(partition, blockStatInfoMap,
                                         &blockGroupNum)) {
                 return false;
@@ -689,7 +691,11 @@ bool CopysetNode::AggregateBlockStatInfo(
                 break;
             }
         }
+        VLOG(6) << "CopysetNode get block group info, fsId = " << fsId
+                << ", block info:" << blockGroup.DebugString();
     }
+
+    VLOG(6) << "CopysetNode get block group num:" << *blockGroupNum;
 
     return true;
 }

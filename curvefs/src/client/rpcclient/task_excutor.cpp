@@ -27,8 +27,10 @@
 
 #include "curvefs/src/client/rpcclient/task_excutor.h"
 #include "curvefs/proto/metaserver.pb.h"
+#include "curvefs/src/common/define.h"
 
 using ::curvefs::metaserver::MetaStatusCode;
+using ::curvefs::RECYCLEINODEID;
 
 namespace curvefs {
 namespace client {
@@ -334,6 +336,17 @@ bool CreateInodeExcutor::GetTarget() {
                                   &task_->applyIndex)) {
         LOG(ERROR) << "select target for task fail, "
                    << task_->TaskContextStr();
+        return false;
+    }
+    return true;
+}
+
+bool CreateManagerInodeExcutor::GetTarget() {
+    if (!metaCache_->GetTarget(task_->fsID, RECYCLEINODEID, &task_->target,
+                               &task_->applyIndex)) {
+        LOG(ERROR) << "CreateManagerInodeExcutor select target for task fail, "
+                   << task_->TaskContextStr()
+                   << ", recycleInodeId = " << RECYCLEINODEID;
         return false;
     }
     return true;

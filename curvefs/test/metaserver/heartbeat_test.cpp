@@ -226,10 +226,11 @@ TEST_F(HeartbeatTest, Test_BuildRequest) {
 
     BlockGroupStatInfoMap blockGroupStatInfoMap;
     uint32_t fsId = 1;
+    uint64_t offset = 0;
     auto &statInfo = blockGroupStatInfoMap[fsId];
     statInfo.set_fsid(1);
     auto de = statInfo.add_deallocatableblockgroups();
-    de->set_blockgroupoffset(0);
+    de->set_blockgroupoffset(offset);
     de->set_deallocatablesize(1024);
 
     EXPECT_CALL(mockCopysetManager_, GetAllCopysets(_))
@@ -248,7 +249,7 @@ TEST_F(HeartbeatTest, Test_BuildRequest) {
         .WillOnce(DoAll(SetArgPointee<0>(blockGroupStatInfoMap), Return(true)));
 
     HeartbeatRequest req;
-    heartbeat.taskExecutor_->SetDeallocFsId(1);
+    heartbeat.taskExecutor_->SetDeallocTask(fsId, offset);
     heartbeat.BuildRequest(&req);
 
     // assert block group stat info
@@ -273,7 +274,7 @@ TEST_F(HeartbeatTest, Test_BuildRequest) {
         auto outStatus = outOne.blockgroupdeallocatestatus();
         ASSERT_EQ(outStatus.size(), 1);
 
-        auto outStatusOne = outStatus[fsId];
+        auto outStatusOne = outStatus[offset];
         ASSERT_EQ(outStatusOne, BlockGroupDeallcateStatusCode::BGDP_DONE);
     }
 }

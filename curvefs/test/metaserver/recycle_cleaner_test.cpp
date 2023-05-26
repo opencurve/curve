@@ -30,6 +30,7 @@
 #include "curvefs/test/client/rpcclient/mock_mds_client.h"
 #include "curvefs/test/metaserver/copyset/mock/mock_copyset_node.h"
 #include "curvefs/test/metaserver/storage/utils.h"
+#include "curvefs/src/metaserver/mds/fsinfo_manager.h"
 #include "src/fs/ext4_filesystem_impl.h"
 
 using ::testing::_;
@@ -70,7 +71,8 @@ class RecycleCleanerTest : public testing::Test {
         partitionInfo.set_fsid(fsId);
         partitionInfo.set_start(0);
         partitionInfo.set_end(2000);
-        partition_ = std::make_shared<Partition>(partitionInfo, kvStorage_);
+        partition_ = std::make_shared<Partition>(partitionInfo, kvStorage_,
+                                                 false, false);
         cleaner_ = std::make_shared<RecycleCleaner>(partition_);
         mdsclient_ = std::make_shared<MockMdsClient>();
         metaClient_ = std::make_shared<MockMetaServerClient>();
@@ -79,6 +81,7 @@ class RecycleCleanerTest : public testing::Test {
         cleaner_->SetMdsClient(mdsclient_);
         cleaner_->SetMetaClient(metaClient_);
         cleaner_->SetScanLimit(5);
+        FsInfoManager::GetInstance().SetMdsClient(mdsclient_);
 
         // create recycle dir and root dir
         InodeParam rootPram;

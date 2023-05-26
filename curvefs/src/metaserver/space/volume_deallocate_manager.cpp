@@ -131,6 +131,7 @@ void VolumeDeallocateManager::Run() {
 
 void VolumeDeallocateManager::Stop() {
     if (!workerCtx_.running.exchange(false)) {
+        LOG(INFO) << "VolumeDeallocateManager has no worker running, skip";
         return;
     }
 
@@ -138,6 +139,7 @@ void VolumeDeallocateManager::Stop() {
     for (auto &worker : workers_) {
         worker->Stop();
     }
+    LOG(INFO) << "VolumeDeallocateManager stop all workers ok";
 }
 
 }  // namespace metaserver
