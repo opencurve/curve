@@ -49,6 +49,8 @@ class MockVolumeSpace : public AbstractVolumeSpace {
     MOCK_METHOD1(ReleaseBlockGroups,
                  SpaceErrCode(const std::vector<BlockGroup>& blockGroups));
 
+    MOCK_METHOD1(ReleaseBlockGroups, SpaceErrCode(const std::string &));
+
     MOCK_METHOD5(UpdateDeallocatableBlockGroup,
                  bool(uint32_t metaserverId, uint32_t metaserverNum,
                       const DeallocatableBlockGroupVec &groups,

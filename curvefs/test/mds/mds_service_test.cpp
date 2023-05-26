@@ -36,6 +36,7 @@
 #include "curvefs/test/mds/mock/mock_cli2.h"
 #include "test/common/mock_s3_adapter.h"
 #include "curvefs/test/mds/mock/mock_space_manager.h"
+#include "curvefs/test/mds/mock/mock_volume_space.h"
 #include "proto/nameserver2.pb.h"
 #include "curvefs/test/mds/utils.h"
 
@@ -73,6 +74,7 @@ using ::curvefs::metaserver::FakeMetaserverImpl;
 using ::curvefs::metaserver::copyset::GetLeaderResponse2;
 using ::curvefs::metaserver::copyset::MockCliService2;
 
+
 using ::testing::_;
 using ::testing::AtLeast;
 using ::testing::DoAll;
@@ -87,6 +89,7 @@ using ::testing::StrEq;
 
 using ::curve::common::MockS3Adapter;
 using ::curvefs::mds::space::MockSpaceManager;
+using ::curvefs::mds::space::MockVolumeSpace;
 using ::google::protobuf::util::MessageDifferencer;
 
 namespace curvefs {
@@ -581,6 +584,12 @@ TEST_F(MdsServiceTest, test1) {
     }
 
     // TEST unmount
+    auto volumeSpace = new MockVolumeSpace();
+    EXPECT_CALL(*spaceManager_, GetVolumeSpace(_))
+        .WillRepeatedly(Return(volumeSpace));
+    EXPECT_CALL(*volumeSpace,
+                ReleaseBlockGroups(Matcher<const std::string &>(_)))
+        .WillRepeatedly(Return(space::SpaceOk));
     cntl.Reset();
     UmountFsRequest umountRequest;
     UmountFsResponse umountResponse;
@@ -740,6 +749,7 @@ TEST_F(MdsServiceTest, test1) {
     // stop rpc server
     server.Stop(10);
     server.Join();
+    delete volumeSpace;
 }
 }  // namespace mds
 }  // namespace curvefs

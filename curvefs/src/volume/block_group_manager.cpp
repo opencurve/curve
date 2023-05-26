@@ -20,14 +20,12 @@
  * Author: wuhanqing
  */
 
-#include "curvefs/src/volume/block_group_manager.h"
-
 #include <glog/logging.h>
-
 #include <utility>
-
 #include "absl/memory/memory.h"
 #include "curvefs/proto/space.pb.h"
+#include "curvefs/src/volume/block_group_manager.h"
+#include "curvefs/src/volume/space_manager.h"
 
 namespace curvefs {
 namespace volume {
@@ -115,7 +113,8 @@ bool BlockGroupManagerImpl::AcquireBlockGroup(uint64_t blockGroupOffset,
 }
 
 
-bool BlockGroupManagerImpl::ReleaseBlockGroup(uint64_t blockGroupOffset) {
+bool BlockGroupManagerImpl::ReleaseBlockGroup(uint64_t blockGroupOffset,
+                                              uint64_t available) {
     WriteLockGuard lk(groupsLock_);
     auto iter = std::find_if(groups_.begin(), groups_.end(),
                              [blockGroupOffset](const BlockGroup &group) {
@@ -126,6 +125,8 @@ bool BlockGroupManagerImpl::ReleaseBlockGroup(uint64_t blockGroupOffset) {
                    << blockGroupOffset << " failed";
         return false;
     }
+
+    iter->set_available(available);
 
     SpaceErrCode err = mdsClient_->ReleaseVolumeBlockGroup(
         option_.fsId, option_.owner, {*iter});
@@ -138,8 +139,8 @@ bool BlockGroupManagerImpl::ReleaseBlockGroup(uint64_t blockGroupOffset) {
     }
 
     groups_.erase(iter);
-    LOG(INFO) << "BlockGroupManagerImpl release one volume block group "
-                 "successfully";
+    LOG(INFO) << "BlockGroupManagerImpl release one volume block group="
+              << blockGroupOffset << " successfully";
     return true;
 }
 

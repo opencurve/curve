@@ -364,17 +364,6 @@ bool Key4DeallocatableBlockGroup::ParseFromString(const std::string &value) {
            StringToUl(items[1], &fsId) && StringToUll(items[2], &volumeOffset);
 }
 
-std::string Key4DeallocatableInode::SerializeToString() const {
-    return absl::StrCat(keyType_, kDelimiter, fsId, kDelimiter, inodeId);
-}
-
-bool Key4DeallocatableInode::ParseFromString(const std::string &value) {
-    std::vector<std::string> items;
-    SplitString(value, kDelimiter, &items);
-    return items.size() == 3 && CompareType(items[0], keyType_) &&
-           StringToUl(items[1], &fsId) && StringToUll(items[2], &inodeId);
-}
-
 std::string Prefix4AllDeallocatableBlockGroup::SerializeToString() const {
     return absl::StrCat(keyType_, ":");
 }

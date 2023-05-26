@@ -50,7 +50,8 @@ class BlockGroupManager {
 
     virtual bool ReleaseAllBlockGroups() = 0;
 
-    virtual bool ReleaseBlockGroup(uint64_t blockGroupOffset) = 0;
+    virtual bool ReleaseBlockGroup(uint64_t blockGroupOffset,
+                                   uint64_t available) = 0;
 
     virtual bool AcquireBlockGroup(uint64_t blockGroupOffset,
                                    AllocatorAndBitmapUpdater *out) = 0;
@@ -74,7 +75,8 @@ class BlockGroupManagerImpl final : public BlockGroupManager {
 
     bool ReleaseAllBlockGroups() override;
 
-    bool ReleaseBlockGroup(uint64_t blockGroupOffset) override;
+    bool ReleaseBlockGroup(uint64_t blockGroupOffset,
+                           uint64_t available) override;
 
  private:
     SpaceManager* spaceManager_;

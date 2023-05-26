@@ -24,6 +24,9 @@
 #define CURVEFS_SRC_METASERVER_COMMON_TYPES_H_
 
 #include <cstdint>
+#include <string>
+#include <sstream>
+#include <iomanip>
 
 namespace curvefs {
 namespace metaserver {
@@ -32,6 +35,14 @@ using PoolId = uint32_t;
 using CopysetId = uint32_t;
 using PartitionId = uint32_t;
 
+inline std::string StringToHex(const std::string &str) {
+    std::stringstream ss;
+    ss << std::hex << std::setfill('0');
+    for (const auto &c : str) {
+        ss << std::setw(2) << static_cast<int>(static_cast<unsigned char>(c));
+    }
+    return ss.str();
+}
 
 }  // namespace metaserver
 }  // namespace curvefs

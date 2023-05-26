@@ -44,6 +44,7 @@ using ::curvefs::metaserver::storage::KVStorage;
 using ::curvefs::metaserver::storage::RandomStoragePath;
 using ::curvefs::metaserver::storage::RocksDBStorage;
 using ::curvefs::metaserver::storage::StorageOptions;
+using ::curvefs::metaserver::copyset::MockCopysetNode;
 
 namespace curvefs {
 namespace metaserver {
@@ -63,6 +64,8 @@ class PartitionCleanManagerTest : public testing::Test {
         ASSERT_TRUE(kvStorage_->Open());
 
         mdsCli_ = std::make_shared<MockMdsClient>();
+        s3Adaptor_ = std::make_shared<MockS3ClientAdaptor>();
+        copyset_ = new MockCopysetNode();
         FsInfoManager::GetInstance().SetMdsClient(mdsCli_);
     }
 
@@ -70,6 +73,8 @@ class PartitionCleanManagerTest : public testing::Test {
         ASSERT_TRUE(kvStorage_->Close());
         auto output = execShell("rm -rf " + dataDir_);
         ASSERT_EQ(output.size(), 0);
+
+        delete copyset_;
     }
 
     std::string execShell(const string &cmd) {
@@ -90,6 +95,8 @@ class PartitionCleanManagerTest : public testing::Test {
     std::string dataDir_;
     std::shared_ptr<KVStorage> kvStorage_;
     std::shared_ptr<MockMdsClient> mdsCli_;
+    std::shared_ptr<MockS3ClientAdaptor> s3Adaptor_;
+    MockCopysetNode *copyset_;
 };
 
 TEST_F(PartitionCleanManagerTest, test1) {
@@ -99,9 +106,7 @@ TEST_F(PartitionCleanManagerTest, test1) {
     PartitionCleanOption option;
     option.scanPeriodSec = 1;
     option.inodeDeletePeriodMs = 500;
-    std::shared_ptr<MockS3ClientAdaptor> s3Adaptor =
-        std::make_shared<MockS3ClientAdaptor>();
-    option.s3Adaptor = s3Adaptor;
+    option.s3Adaptor = s3Adaptor_;
     option.mdsClient = mdsCli_;
     manager->Init(option);
     manager->Run();
@@ -148,13 +153,11 @@ TEST_F(PartitionCleanManagerTest, test1) {
     std::shared_ptr<PartitionCleaner> partitionCleaner =
         std::make_shared<PartitionCleaner>(partition);
 
-    copyset::MockCopysetNode copysetNode;
-
-    EXPECT_CALL(copysetNode, IsLeaderTerm())
+    EXPECT_CALL(*copyset_, IsLeaderTerm())
         .WillOnce(Return(false))
         .WillRepeatedly(Return(true));
 
-    EXPECT_CALL(copysetNode, Propose(_))
+    EXPECT_CALL(*copyset_, Propose(_))
         .WillOnce(Invoke([partition, fsId](const braft::Task &task) {
             ASSERT_EQ(partition->DeleteInode(fsId, ROOTINODEID),
                       MetaStatusCode::OK);
@@ -174,39 +177,33 @@ TEST_F(PartitionCleanManagerTest, test1) {
             task.done->Run();
         }));
 
-    EXPECT_CALL(*s3Adaptor, Delete(_)).WillOnce(Return(0));
-    EXPECT_CALL(*mdsCli_, GetFsInfo(Matcher<uint32_t>(_), _))
-        .WillOnce(Return(FSStatusCode::OK));
-    EXPECT_CALL(*s3Adaptor, GetS3ClientAdaptorOption(_));
-    EXPECT_CALL(*s3Adaptor, Reinit(_, _, _, _, _));
+    EXPECT_CALL(*s3Adaptor_, Delete(_)).WillOnce(Return(0));
+    EXPECT_CALL(*s3Adaptor_, GetS3ClientAdaptorOption(_));
+    EXPECT_CALL(*s3Adaptor_, Reinit(_, _, _, _, _));
 
-    manager->Add(partitionId, partitionCleaner, &copysetNode);
+    manager->Add(partitionId, partitionCleaner, copyset_);
 
     sleep(4);
     manager->Fini();
     ASSERT_EQ(manager->GetCleanerCount(), 0);
 }
 
-TEST_F(PartitionCleanManagerTest, fsinfo_not_found) {
+TEST_F(PartitionCleanManagerTest, GetFsInfoFail) {
     PartitionInfo partition;
     PartitionCleaner cleaner(
         std::make_shared<Partition>(partition, kvStorage_));
     cleaner.SetMdsClient(mdsCli_);
+    cleaner.SetS3Aapter(s3Adaptor_);
+    cleaner.SetCopysetNode(copyset_);
     Inode inode;
     inode.set_type(FsFileType::TYPE_S3);
+    inode.set_fsid(10);
     EXPECT_CALL(*mdsCli_, GetFsInfo(Matcher<uint32_t>(_), _))
         .WillOnce(Return(FSStatusCode::NOT_FOUND));
     ASSERT_EQ(cleaner.CleanDataAndDeleteInode(inode),
               MetaStatusCode::S3_DELETE_ERR);
-}
 
-TEST_F(PartitionCleanManagerTest, fsinfo_other_error) {
-    PartitionInfo partition;
-    PartitionCleaner cleaner(
-        std::make_shared<Partition>(partition, kvStorage_));
-    cleaner.SetMdsClient(mdsCli_);
-    Inode inode;
-    inode.set_type(FsFileType::TYPE_S3);
+    inode.set_fsid(11);
     EXPECT_CALL(*mdsCli_, GetFsInfo(Matcher<uint32_t>(_), _))
         .WillOnce(Return(FSStatusCode::UNKNOWN_ERROR));
     ASSERT_EQ(cleaner.CleanDataAndDeleteInode(inode),

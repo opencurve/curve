@@ -55,7 +55,9 @@ SpaceErrCode SpaceManagerImpl::AddVolume(const FsInfo& fsInfo) {
     {
         ReadLockGuard lk(rwlock_);
         if (volumes_.count(fsInfo.fsid()) != 0) {
-            return SpaceErrCode::SpaceErrExist;
+            LOG(WARNING) << "Volume space already exists, fsId: "
+                         << fsInfo.fsid();
+            return SpaceOk;
         }
     }
 

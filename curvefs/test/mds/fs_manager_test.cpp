@@ -32,6 +32,7 @@
 #include "curvefs/test/mds/mock/mock_topology.h"
 #include "test/common/mock_s3_adapter.h"
 #include "curvefs/test/mds/mock/mock_space_manager.h"
+#include "curvefs/test/mds/mock/mock_volume_space.h"
 #include "curvefs/test/mds/utils.h"
 
 using ::testing::AtLeast;
@@ -44,6 +45,7 @@ using ::testing::SetArgPointee;
 using ::testing::SaveArg;
 using ::testing::Mock;
 using ::testing::Invoke;
+using ::testing::Matcher;
 using ::curvefs::metaserver::MockMetaserverService;
 using ::curvefs::metaserver::CreateRootInodeRequest;
 using ::curvefs::metaserver::CreateRootInodeResponse;
@@ -82,6 +84,7 @@ using ::curvefs::metaserver::copyset::MockCliService2;
 using ::curvefs::metaserver::copyset::GetLeaderResponse2;
 using ::curve::common::MockS3Adapter;
 using ::curvefs::mds::space::MockSpaceManager;
+using ::curvefs::mds::space::MockVolumeSpace;
 
 namespace curvefs {
 namespace mds {
@@ -541,9 +544,13 @@ TEST_F(FSManagerTest, test1) {
     ASSERT_TRUE(fsManager_->GetClientAliveTime(mountpath, &tpair));
     ASSERT_EQ(fsName1, tpair.first);
     // test client timeout and restore session later
+    auto volumeSpace = new MockVolumeSpace();
     {
         fsManager_->Run();
-        EXPECT_CALL(*spaceManager_, RemoveVolume(_))
+        EXPECT_CALL(*spaceManager_, GetVolumeSpace(_))
+            .WillOnce(Return(volumeSpace));
+        EXPECT_CALL(*volumeSpace,
+                    ReleaseBlockGroups(Matcher<const std::string &>(_)))
             .WillOnce(Return(space::SpaceOk));
         // clientTimeoutSec in option
         sleep(4);
@@ -581,18 +588,21 @@ TEST_F(FSManagerTest, test1) {
 
     // TEST UmountFs
     // umount UnInitSpace fail
-    EXPECT_CALL(*spaceManager_, RemoveVolume(_))
-        .WillOnce(Return(space::SpaceErrNotFound));
+    EXPECT_CALL(*spaceManager_, GetVolumeSpace(_)).WillOnce(Return(nullptr));
     ret = fsManager_->UmountFs(fsName1, mountPoint);
     ASSERT_EQ(ret, FSStatusCode::UNINIT_SPACE_ERROR);
 
     // for persistence consider
     // umount UnInitSpace success
-    EXPECT_CALL(*spaceManager_, RemoveVolume(_))
+    EXPECT_CALL(*spaceManager_, GetVolumeSpace(_))
+        .WillOnce(Return(volumeSpace));
+    EXPECT_CALL(*volumeSpace,
+                ReleaseBlockGroups(Matcher<const std::string &>(_)))
         .WillOnce(Return(space::SpaceOk));
     ret = fsManager_->UmountFs(fsName1, mountPoint);
     ASSERT_EQ(ret, FSStatusCode::OK);
     ASSERT_FALSE(fsManager_->GetClientAliveTime(mountpath, &tpair));
+    delete volumeSpace;
 
     // umount not exist mountpoint
     ret = fsManager_->UmountFs(fsName1, mountPoint);

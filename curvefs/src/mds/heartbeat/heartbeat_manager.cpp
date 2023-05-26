@@ -191,8 +191,14 @@ void HeartbeatManager::UpdateDeallocatableBlockGroup(
     const MetaServerHeartbeatRequest &request,
     MetaServerHeartbeatResponse *response) {
     uint32_t metaserverId = request.metaserverid();
+    VLOG(6) << "HeartbeatManager get block group stat info from metaserver:"
+            << request.metaserverid()
+            << ", size:" << request.blockgroupstatinfos_size();
 
     for (auto &info : request.blockgroupstatinfos()) {
+        VLOG(9) << "HeartbeatManager handle request from metaserver:"
+                << request.metaserverid() << ", fsid:" << info.fsid()
+                << ", block stat info:" << info.DebugString();
         auto volumeSpace = spaceManager_->GetVolumeSpace(info.fsid());
         if (volumeSpace == nullptr) {
             LOG(ERROR) << "HeartbeatManager fsid=" << info.fsid()
@@ -250,6 +256,8 @@ HeartbeatStatusCode HeartbeatManager::CheckRequest(
                    << metaServer.GetToken();
         return HeartbeatStatusCode::hbMetaServerTokenNotMatch;
     }
+
+    VLOG(6) << "HeartbeatManager get request:" << request.DebugString();
     return HeartbeatStatusCode::hbOK;
 }
 

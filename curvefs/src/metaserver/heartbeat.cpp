@@ -271,6 +271,8 @@ int Heartbeat::BuildRequest(HeartbeatRequest* req) {
 
         if (copyset->IsLeaderTerm()) {
             // build block group info
+            VLOG(6) << "Heartbeat build block group stat info for copyset:"
+                    << info->DebugString();
             BuildBlockGroupStatInfo(copyset, &blockGroupStatInfoMap);
             ++leaders;
         }
@@ -278,20 +280,30 @@ int Heartbeat::BuildRequest(HeartbeatRequest* req) {
 
     // get deallocate task status
     for (auto &item : blockGroupStatInfoMap) {
-        if (taskExecutor_->deallocfsid_.has_value() &&
-            item.second.fsid() == taskExecutor_->deallocfsid_.value()) {
+        auto iterTask = taskExecutor_->deallocTask_.find(item.first);
+        if (iterTask != taskExecutor_->deallocTask_.end()) {
+            uint32_t fsId = iterTask->first;
+            uint64_t blockGroupOffset = iterTask->second;
+
             bool doing = VolumeDeallocateManager::GetInstance().HasDeallocate();
             auto status = item.second.mutable_blockgroupdeallocatestatus();
             if (doing) {
                 status->insert(
-                    {item.second.fsid(),
+                    {blockGroupOffset,
                      BlockGroupDeallcateStatusCode::BGDP_PROCESSING});
             } else {
-                status->insert({item.second.fsid(),
+                status->insert({blockGroupOffset,
                                 BlockGroupDeallcateStatusCode::BGDP_DONE});
-                taskExecutor_->deallocfsid_.reset();
+                taskExecutor_->deallocTask_.erase(iterTask);
             }
+
+            VLOG(6) << "Heartbeat find fsId=" << fsId
+                    << " in deallocTask, blockgroupOffset=" << blockGroupOffset
+                    << ", status=" << status;
         }
+
+        VLOG(6) << "Heartbeat find fsId=" << item.first
+                << " not in deallocTask";
         *req->add_blockgroupstatinfos() = std::move(item.second);
     }
 
@@ -307,21 +319,7 @@ int Heartbeat::BuildRequest(HeartbeatRequest* req) {
 }
 
 void Heartbeat::DumpHeartbeatRequest(const HeartbeatRequest& request) {
-    VLOG(6) << "Heartbeat request: Metaserver ID: " << request.metaserverid()
-             << ", IP = " << request.ip() << ", port = " << request.port()
-             << ", copyset count = " << request.copysetcount()
-             << ", leader count = " << request.leadercount()
-             << ", diskThresholdByte = "
-             << request.spacestatus().diskthresholdbyte()
-             << ", diskCopysetMinRequireByte = "
-             << request.spacestatus().diskcopysetminrequirebyte()
-             << ", diskUsedByte = "
-             << request.spacestatus().diskusedbyte()
-             << ", memoryThresholdByte = "
-             << request.spacestatus().memorythresholdbyte()
-             << ", memoryCopySetMinRequireByte = "
-             << request.spacestatus().memorycopysetminrequirebyte()
-             << ", memoryUsedByte = " << request.spacestatus().memoryusedbyte();
+    VLOG(6) << "Heartbeat reuqest: " << request.DebugString();
 
     for (int i = 0; i < request.copysetinfos_size(); i++) {
         const curvefs::mds::heartbeat::CopySetInfo &info =
@@ -441,21 +439,32 @@ HeartbeatTaskExecutor::HeartbeatTaskExecutor(CopysetNodeManager* mgr,
                                              const butil::EndPoint& endpoint)
     : copysetMgr_(mgr), ep_(endpoint) {}
 
-void HeartbeatTaskExecutor::ExecTasks(const HeartbeatResponse& response) {
-    for (auto& conf : response.needupdatecopysets()) {
+void HeartbeatTaskExecutor::ExecTasks(const HeartbeatResponse &response) {
+    for (auto &conf : response.needupdatecopysets()) {
         ExecOneTask(conf);
     }
 
     std::vector<CopysetNode *> copysets;
     copysetMgr_->GetAllCopysets(&copysets);
     for (auto &issue : response.issuedblockgroups()) {
+        auto iter = deallocTask_.find(issue.first);
+        if (iter != deallocTask_.end()) {
+            VLOG(6) << "HeartbeatTaskExecutor dealloc task fsid=" << issue.first
+                    << ", blockgroupoffset=" << issue.second << " is excuting";
+            assert(iter->second == issue.second);
+            continue;
+        }
+
         for (auto &copyset : copysets) {
             if (copyset->IsLeaderTerm()) {
                 copyset->Deallocate(issue.first, issue.second);
+                VLOG(6) << "HeartbeatTaskExecutor issue dealloc task fsid="
+                        << issue.first << ", blockgroupoffset=" << issue.second
+                        << " to copyset " << copyset->Name();
             }
         }
 
-        deallocfsid_ = issue.first;
+        deallocTask_.emplace(issue.first, issue.second);
     }
 }
 

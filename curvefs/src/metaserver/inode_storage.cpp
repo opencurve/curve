@@ -34,6 +34,7 @@
 #include "curvefs/src/metaserver/storage/status.h"
 #include "curvefs/src/metaserver/inode_storage.h"
 #include "curvefs/src/metaserver/storage/converter.h"
+#include "curvefs/src/metaserver/common/types.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -52,7 +53,6 @@ using ::curvefs::metaserver::storage::Prefix4InodeS3ChunkInfoList;
 using ::curvefs::metaserver::storage::Prefix4AllInode;
 using ::curvefs::metaserver::storage::Key4InodeAuxInfo;
 using ::curvefs::metaserver::storage::Key4DeallocatableBlockGroup;
-using ::curvefs::metaserver::storage::Key4DeallocatableInode;
 using ::curvefs::metaserver::storage::Prefix4AllDeallocatableBlockGroup;
 
 InodeStorage::InodeStorage(std::shared_ptr<KVStorage> kvStorage,
@@ -713,6 +713,8 @@ InodeStorage::Increase(Transaction txn, uint32_t fsId,
     MetaStatusCode st = MetaStatusCode::OK;
 
     // update DeallocatableBlockGroup
+    VLOG(6) << "InodeStorage handle increase=" << increase.DebugString();
+
     uint64_t oldSize =
         out->has_deallocatablesize() ? out->deallocatablesize() : 0;
     out->set_deallocatablesize(oldSize + increase.increasedeallocatablesize());
@@ -724,15 +726,23 @@ InodeStorage::Increase(Transaction txn, uint32_t fsId,
         out->mutable_inodeidlist()->Add(elem);
     }
 
+    VLOG(6) << "InodeStorage handle increase set out="
+            << out->DebugString();
+
     // remove related inode in table4DeallocatableInode_
     for (auto &inodeid : increase.inodeidlistadd()) {
         auto s = txn->HDel(
             table4DeallocatableInode_,
-            conv_.SerializeToString(Key4DeallocatableInode{fsId, inodeid}));
+            conv_.SerializeToString(Key4Inode{fsId, inodeid}));
         if (!s.ok()) {
             st = MetaStatusCode::STORAGE_INTERNAL_ERROR;
+            VLOG(6) << "InodeStorage delete inodeid=" << inodeid << " from "
+                    << table4DeallocatableInode_ << " fail";
+            break;
         }
-        break;
+
+        VLOG(6) << "InodeStorage delete inodeid=" << inodeid << " from "
+                << StringToHex(table4DeallocatableInode_) << " success";
     }
 
     return st;
@@ -743,6 +753,7 @@ InodeStorage::Decrease(const DecreaseDeallocatableBlockGroup &decrease,
                        DeallocatableBlockGroup *out) {
     MetaStatusCode st = MetaStatusCode::OK;
 
+    VLOG(6) << "InodeStorage handle increase=" << decrease.DebugString();
     if (!out->IsInitialized() || !out->has_deallocatablesize()) {
         LOG(ERROR)
             << "UpdateDeallocatableBlockGroup record missing required fields";
@@ -772,6 +783,9 @@ InodeStorage::Decrease(const DecreaseDeallocatableBlockGroup &decrease,
                                                     inodeid) != search.end();
                                }),
                 inodeidlist->end());
+
+            VLOG(6) << "InodeStorage handle decrease ok, and set out="
+                    << out->DebugString();
         }
     }
 
@@ -782,6 +796,7 @@ MetaStatusCode InodeStorage::Mark(const MarkDeallocatableBlockGroup &mark,
                                   DeallocatableBlockGroup *out) {
     MetaStatusCode st = MetaStatusCode::OK;
 
+    VLOG(6) << "InodeStorage handle mark=" << mark.DebugString();
     if (!out->IsInitialized() || !out->has_deallocatablesize()) {
         LOG(ERROR)
             << "UpdateDeallocatableBlockGroup record missing required fields";
@@ -801,6 +816,8 @@ MetaStatusCode InodeStorage::Mark(const MarkDeallocatableBlockGroup &mark,
                                                 inodeid) != search.end();
                            }),
             inodeidlist->end());
+        VLOG(6) << "InodeStorage handle mark ok, and set out="
+                << out->DebugString();
     }
     return st;
 }

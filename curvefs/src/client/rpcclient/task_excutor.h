@@ -275,6 +275,18 @@ class CreateInodeExcutor : public TaskExecutor {
     bool GetTarget() override;
 };
 
+class CreateManagerInodeExcutor : public TaskExecutor {
+ public:
+    explicit CreateManagerInodeExcutor(
+        const ExcutorOpt &opt, const std::shared_ptr<MetaCache> &metaCache,
+        const std::shared_ptr<ChannelManager<MetaserverID>> &channelManager,
+        const std::shared_ptr<TaskContext> &task)
+        : TaskExecutor(opt, metaCache, channelManager, task) {}
+
+ protected:
+    bool GetTarget() override;
+};
+
 }  // namespace rpcclient
 }  // namespace client
 }  // namespace curvefs

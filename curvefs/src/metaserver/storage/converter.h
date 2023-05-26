@@ -110,7 +110,6 @@ class StorageKey {
  *   Key4InodeAuxInfo                 : kTypeInodeAuxInfo:fsId:inodeId
  *   Key4DeallocatableBlockGroup      : kTypeBlockGroup:fsId:volumeOffset
  *   Prefix4AllDeallocatableBlockGroup: kTypeBlockGroup:
- *   Key4DeallocatableInode           : kTypeDeallocatableInode:fsId:inodeId
  */
 
 class Key4Inode : public StorageKey {
@@ -355,25 +354,6 @@ class Key4DeallocatableBlockGroup : public StorageKey {
 
  private:
     static constexpr KEY_TYPE keyType_ = kTypeDeallocatableBlockGroup;
-};
-
-class Key4DeallocatableInode : public StorageKey {
- public:
-    Key4DeallocatableInode() = default;
-
-    Key4DeallocatableInode(uint32_t fsId, uint64_t inodeId)
-        : fsId(fsId), inodeId(inodeId) {}
-
-    std::string SerializeToString() const override;
-
-    bool ParseFromString(const std::string &value) override;
-
- public:
-    uint32_t fsId;
-    uint64_t inodeId;
-
- private:
-    static constexpr KEY_TYPE keyType_ = kTypeDeallocatableInode;
 };
 
 class Prefix4AllDeallocatableBlockGroup : public StorageKey {

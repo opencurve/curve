@@ -33,9 +33,11 @@
 #include "curvefs/src/metaserver/storage/rocksdb_storage.h"
 #include "curvefs/src/metaserver/storage/converter.h"
 #include "curvefs/src/metaserver/copyset/copyset_node.h"
+#include "curvefs/src/metaserver/mds/fsinfo_manager.h"
 #include "curvefs/test/metaserver/storage/utils.h"
 #include "src/common/uuid.h"
 #include "src/fs/ext4_filesystem_impl.h"
+#include "curvefs/test/client/rpcclient/mock_mds_client.h"
 
 using ::testing::_;
 using ::testing::AtLeast;
@@ -55,6 +57,7 @@ using ::curvefs::metaserver::storage::RocksDBStorage;
 using ::curvefs::metaserver::storage::Key4S3ChunkInfoList;
 using ::curvefs::metaserver::storage::RandomStoragePath;
 using ::curvefs::metaserver::copyset::CopysetNode;
+using ::curvefs::client::rpcclient::MockMdsClient;
 
 namespace {
 
@@ -95,6 +98,10 @@ class MetastoreTest : public ::testing::Test {
         conv_ = std::make_shared<Converter>();
         braft::Configuration conf;
         copyset_ = std::make_shared<CopysetNode>(1, 1, conf, nullptr);
+
+        // init fsinfo
+        mdsCli_ = std::make_shared<MockMdsClient>();
+        FsInfoManager::GetInstance().SetMdsClient(mdsCli_);
     }
 
     void TearDown() override {
@@ -276,6 +283,7 @@ class MetastoreTest : public ::testing::Test {
     std::shared_ptr<KVStorage> kvStorage_;
     std::shared_ptr<Converter> conv_;
     std::shared_ptr<CopysetNode> copyset_;
+    std::shared_ptr<MockMdsClient> mdsCli_;
     StorageOptions options_;
 };
 

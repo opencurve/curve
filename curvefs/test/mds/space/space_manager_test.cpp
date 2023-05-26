@@ -103,7 +103,8 @@ TEST_F(SpaceManagerTest, TestGetVolumeSpace) {
     // add one volume space
     {
         AddOneNewVolume();
-        ASSERT_NE(nullptr, spaceManager_->GetVolumeSpace(kFsId));
+        auto space = spaceManager_->GetVolumeSpace(kFsId);
+        ASSERT_NE(nullptr, space);
     }
 }
 
@@ -116,7 +117,7 @@ TEST_F(SpaceManagerTest, TestAddVolume_AlreadyExists) {
     using type = std::vector<std::string>*;
     EXPECT_CALL(*etcdclient_, List(_, _, Matcher<type>(_))).Times(0);
 
-    ASSERT_EQ(SpaceErrExist, spaceManager_->AddVolume(fsInfo));
+    ASSERT_EQ(SpaceOk, spaceManager_->AddVolume(fsInfo));
 }
 
 TEST_F(SpaceManagerTest, TestAddVolume_LoadBlockGroupsError) {

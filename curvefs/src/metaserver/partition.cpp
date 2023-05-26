@@ -509,6 +509,9 @@ void Partition::StartVolumeDeallocate() {
     task.Init(calOpt);
 
     VolumeDeallocateManager::GetInstance().Register(std::move(task));
+
+    VLOG(3) << "Partition start volume deallocate success. partitionInfo="
+            << partitionInfo_.DebugString();
 }
 
 void Partition::CancelVolumeDeallocate() {

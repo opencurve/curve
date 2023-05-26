@@ -105,10 +105,16 @@ std::unique_ptr<VolumeSpace> VolumeSpace::Create(uint32_t fsId,
         assert(group.bitmaplocation() == location);
         assert((group.has_owner() && group.deallocating_size()) == 0);
         if (group.has_owner()) {
+            VLOG(6) << "VolumeSpace init blockgroup=" << group.DebugString()
+                    << " to allocatedGroups_";
             space->allocatedGroups_.emplace(offset, std::move(group));
-        } else if (group.deallocating_size()) {
+        } else if (group.deallocating_size() || group.deallocated_size()) {
+            VLOG(6) << "VolumeSpace init blockgroup=" << group.DebugString()
+                    << " to deallocatingGroups_";
             space->deallocatingGroups_.emplace(offset, std::move(group));
         } else {
+            VLOG(6) << "VolumeSpace init blockgroup=" << group.DebugString()
+                    << " to availableGroups_";
             space->availableGroups_.emplace(offset, std::move(group));
             availableSize += group.available();
         }
@@ -140,6 +146,7 @@ std::unique_ptr<VolumeSpace> VolumeSpace::Create(uint32_t fsId,
               << ", deallocating groups: " << space->deallocatingGroups_.size()
               << ", clean groups: " << space->cleanGroups_.size();
 
+    space->Run();
     return space;
 }
 
@@ -151,6 +158,7 @@ VolumeSpace::VolumeSpace(uint32_t fsId,
       volume_(std::move(volume)),
       storage_(storage),
       fsStorage_(fsStorage) {}
+
 
 SpaceErrCode VolumeSpace::AllocateBlockGroups(
     uint32_t count,
@@ -164,8 +172,10 @@ SpaceErrCode VolumeSpace::AllocateBlockGroups(
         return err;
     }
 
-    for (auto& group : *blockGroups) {
+    for (auto &group : *blockGroups) {
         allocatedGroups_.emplace(group.offset(), group);
+        VLOG(9) << "VolumeSpace allocate blockgroup=" << group.DebugString()
+                << " to owner:" << owner;
     }
 
     err = PersistBlockGroups(*blockGroups);
@@ -252,6 +262,7 @@ SpaceErrCode VolumeSpace::AcquireBlockGroup(uint64_t blockGroupOffset,
                                             const std::string& owner,
                                             BlockGroup* group) {
     LockGuard lk(mtx_);
+
     auto err = AcquireBlockGroupInternal(blockGroupOffset, owner, group);
     if (err != SpaceOk) {
         LOG(WARNING) << "Acquire block group failed, fsId: " << fsId_
@@ -275,6 +286,22 @@ SpaceErrCode VolumeSpace::AcquireBlockGroup(uint64_t blockGroupOffset,
 SpaceErrCode VolumeSpace::AcquireBlockGroupInternal(uint64_t blockGroupOffset,
                                                     const std::string& owner,
                                                     BlockGroup* group) {
+    if (owner.empty()) {
+        // find in deallocating
+        auto it = deallocatingGroups_.find(blockGroupOffset);
+        if (it != deallocatingGroups_.end()) {
+            *group = it->second;
+            VLOG(6) << "VolumeSpace recieve acquire blockgroup="
+                    << group->DebugString()
+                    << " rquest from metaserver, current block group is under "
+                       "deallocating";
+        } else {
+            return SpaceErrNotFound;
+        }
+        return SpaceOk;
+    }
+
+
     // find in availables
     {
         auto it = availableGroups_.find(blockGroupOffset);
@@ -325,6 +352,8 @@ SpaceErrCode VolumeSpace::ReleaseBlockGroups(
     LockGuard lk(mtx_);
 
     for (auto& group : blockGroups) {
+        VLOG(3) << "VolumeSpace need release block group:"
+                  << group.DebugString();
         auto it = allocatedGroups_.find(group.offset());
         if (it != allocatedGroups_.end()) {
             if (it->second.owner() != group.owner()) {
@@ -345,6 +374,8 @@ SpaceErrCode VolumeSpace::ReleaseBlockGroups(
                 }
 
                 cleanGroups_.insert(group.offset());
+                VLOG(6) << "VolumeSpace return block group to cleanGroups:"
+                        << group.DebugString();
             } else {
                 auto copy = group;
                 copy.clear_owner();
@@ -356,14 +387,53 @@ SpaceErrCode VolumeSpace::ReleaseBlockGroups(
                         << ", err: " << SpaceErrCode_Name(err);
                     return err;
                 }
-
+                VLOG(6) << "VolumeSpace return block group to availableGroups:"
+                        << group.DebugString();
                 availableGroups_.emplace(group.offset(), std::move(copy));
             }
 
             allocatedGroups_.erase(group.offset());
+            VLOG(6) << "VolumeSpace erase block group from allocatedGroups:"
+                    << group.DebugString();
+            continue;
+        }
+        LOG(WARNING) << "VolumeSpace could not get release block gorup:"
+                     << group.DebugString() << " in allocatedGroups_";
+        // and if it's not allocated, this request must be a retry request
+    }
+
+    return SpaceOk;
+}
+
+SpaceErrCode VolumeSpace::ReleaseBlockGroups(const std::string &owner) {
+    LockGuard lk(mtx_);
+
+    LOG(INFO) << "Release all block groups for " << owner;
+    auto iter = allocatedGroups_.begin();
+    while (iter != allocatedGroups_.end()) {
+        auto &group = iter->second;
+        if (group.owner() != owner) {
+            VLOG(9) << "VolumeSpace expect owner:" << owner
+                    << ", current block group:" << group.DebugString();
+            iter++;
+            continue;
         }
 
-        // and if it's not allocated, this request must be a retry request
+        auto copy = group;
+        copy.clear_owner();
+        auto err = PersistBlockGroup(copy);
+        if (err != SpaceOk) {
+            LOG(WARNING) << "Persist block group failed, fsId: " << fsId_
+                         << ", block group offset: " << group.offset()
+                         << ", err: " << SpaceErrCode_Name(err);
+            return err;
+        }
+
+        VLOG(3) << "VolumeSpace return to available block group:"
+                << group.DebugString();
+
+        availableGroups_.emplace(group.offset(), std::move(copy));
+        iter = allocatedGroups_.erase(iter);
     }
 
     return SpaceOk;
@@ -461,13 +531,16 @@ void VolumeSpace::CalBlockGroupAvailableForDeAllocate() {
     // check whether deallocatingGroups_ need move to availableGroups_
     auto iter = deallocatingGroups_.begin();
     while (iter != deallocatingGroups_.end()) {
-        uint32_t expectMetaserverNum =
-            metaserverNum_.load(std::memory_order_acquire);
-        uint32_t actualMetaserverNum = iter->second.deallocated().size();
-        if (actualMetaserverNum != expectMetaserverNum) {
+        if (iter->second.deallocating_size()) {
+            VLOG(6) << "VolumeSpace skip cal, fsId=" << fsId_
+                    << ", block group offset=" << iter->first
+                    << " is under deallocating";
+
             ++iter;
             continue;
         }
+
+        assert(iter->second.deallocated_size() > 0);
 
         LOG(INFO)
             << "VolumeSpace move deallocatingGroups_ to availableGroups_, "
@@ -491,13 +564,14 @@ void VolumeSpace::CalBlockGroupAvailableForDeAllocate() {
     // check whether the cal conditions are met
     if (!waitDeallocateGroups_.empty() || !deallocatingGroups_.empty() ||
         availableGroups_.empty() || summary_.empty()) {
-        LOG_EVERY_N(INFO, 50)
-            << "VolumeSpace wait for cal, "
-               "waitDeallocateGroups_ size="
-            << waitDeallocateGroups_.size()
-            << ",deallocatingGroups_ size=" << deallocatingGroups_.size()
-            << ",availableGroups_ size=" << availableGroups_.size()
-            << ",summary_ size=" << summary_.size();
+        VLOG(3) << "VolumeSpace wait for cal, "
+                     "waitDeallocateGroups_ size="
+                  << waitDeallocateGroups_.size()
+                  << ",deallocatingGroups_ size=" << deallocatingGroups_.size()
+                  << ",availableGroups_ size=" << availableGroups_.size()
+                  << ", allocatedGroups_ size=" << allocatedGroups_.size()
+                  << ", cleanGroups_ size=" << cleanGroups_.size()
+                  << ",summary_ size=" << summary_.size();
         return;
     }
 
@@ -515,9 +589,12 @@ void VolumeSpace::CalBlockGroupAvailableForDeAllocate() {
                  const std::pair<uint64_t, uint64_t> &b) {
                   return a.second > b.second;
               });
-    uint64_t selectKey = commonKeys[0].first;
-    LOG(INFO) << "VolumeSpace cal blockgroup=" << selectKey
-              << ",fsid=" << fsId_ << " wait for deallocate";
+
+    srand(time(nullptr));
+    uint64_t size = (commonKeys.size() <= 1 ? 1 : commonKeys.size() / 2);
+    uint64_t selectKey = commonKeys[rand() % size].first;
+    LOG(INFO) << "VolumeSpace cal blockgroup=" << selectKey << ",fsid=" << fsId_
+              << " wait for deallocate";
 
     // move key from availableGroups_ to waitDeallocateGroups_
     BlockGroup selectGroup;
@@ -579,13 +656,16 @@ void VolumeSpace::Run() {
             CalBlockGroupAvailableForDeAllocate();
         }
     });
+    LOG(INFO) << "VolumeSpace start background, fsid=" << fsId_;
 }
 
 void VolumeSpace::Stop() {
     LOG(INFO) << "VolumeSpace stopping, fsid=" << fsId_;
 
     sleeper_.interrupt();
-    calThread_.join();
+    if (calThread_.joinable()) {
+        calThread_.join();
+    }
 
     LOG(INFO) << "VolumeSpace stopped, fsid=" << fsId_;
 }
@@ -608,6 +688,8 @@ bool VolumeSpace::UpdateDeallocatableBlockGroup(
 void VolumeSpace::UpdateBlockGroupDeallocatableSpace(
     uint32_t metaserverId, const DeallocatableBlockGroupVec &groups) {
     LockGuard statlk(statmtx_);
+    VLOG(6) << "VolumeSpace update from metaserver:" << metaserverId
+            << ", fsId=" << fsId_ << ", groups size=" << groups.size();
 
     // update summary_ with latest groups
     std::unordered_map<uint64_t, uint64_t> reportGroups;
@@ -658,6 +740,10 @@ void VolumeSpace::UpdateDeallocatingBlockGroup(
     uint32_t metaserverId, const BlockGroupDeallcateStatusMap &stats) {
     LockGuard lk(mtx_);
 
+    VLOG(6) << "VolumeSpace update deallocating block group from metaserver="
+            << metaserverId << ", fsId=" << fsId_
+            << ", stats size=" << stats.size();
+
     // get completed deallocate blockgroup
     std::vector<uint64_t> doneGroups;
     for (auto &stat : stats) {
@@ -667,17 +753,21 @@ void VolumeSpace::UpdateDeallocatingBlockGroup(
         auto iter = deallocatingGroups_.find(offset);
         if (iter == deallocatingGroups_.end()) {
             LOG(ERROR) << "VolumeSpace block group not found in "
-                          "deallocatingGroups_, "
-                          "fsId: "
-                       << fsId_ << ", blcokGroupOffset: " << offset;
+                          "deallocatingGroups_, fsId="
+                       << fsId_  << ", blockGroupOffset=" << offset;
             continue;
         }
 
-        auto arlreadyDeallocated =
+        VLOG(6) << "VolumeSpace get block group stat from metaserver="
+                << metaserverId << ", fsId=" << fsId_
+                << ", blockGroupOffset=" << offset
+                << ", status=" << BlockGroupDeallcateStatusCode_Name(status);
+
+        auto alreadyDeallocated =
             std::find(iter->second.deallocated().begin(),
                       iter->second.deallocated().end(), metaserverId);
         if (status == BlockGroupDeallcateStatusCode::BGDP_DONE &&
-            arlreadyDeallocated == iter->second.deallocated().end()) {
+            alreadyDeallocated == iter->second.deallocated().end()) {
             doneGroups.emplace_back(offset);
             LOG(INFO) << "VolumeSpace block group is deallocated done, fsId: "
                       << fsId_ << ", blcokGroupOffset: " << offset
@@ -722,6 +812,11 @@ bool VolumeSpace::SelectBlockGroupForDeAllocate(uint32_t metaserverId,
     LockGuard lk(mtx_);
 
     // TODO(ilixiaocui): support more groups to be issued
+    VLOG(3)
+        << "VolumeSpace select block group to be deallocate for metaserverId="
+        << metaserverId << ", fsId=" << fsId_
+        << ", waitDeallocateGroups_size=" << waitDeallocateGroups_.size();
+
     if (!waitDeallocateGroups_.empty()) {
         auto iter = waitDeallocateGroups_.begin();
         auto offset = iter->first;
