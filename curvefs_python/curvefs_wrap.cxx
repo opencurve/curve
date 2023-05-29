@@ -6492,7 +6492,11 @@ SWIGINTERN PyObject *_wrap_CBDClient_Read(PyObject *SWIGUNUSEDPARM(self), PyObje
       if (alloc3 == SWIG_NEWOBJ) delete[] buf3;
       return resultobj;
   }
+#if PY_MAJOR_VERSION == 3
+  resultobj = PyBytes_FromStringAndSize(arg3, arg5);
+#else
   resultobj = SWIG_Python_AppendOutput(resultobj, SWIG_FromCharPtrAndSize(arg3, arg5));
+#endif
   if (alloc3 == SWIG_NEWOBJ) delete[] buf3;
   delete[] arg3;
   return resultobj;
@@ -6516,6 +6520,9 @@ SWIGINTERN PyObject *_wrap_CBDClient_Write(PyObject *SWIGUNUSEDPARM(self), PyObj
   int ecode2 = 0 ;
   int res3 ;
   char *buf3 = 0 ;
+#if PY_MAJOR_VERSION == 3
+  Py_ssize_t input_len;
+#endif
   int alloc3 = 0 ;
   unsigned long val4 ;
   int ecode4 = 0 ;
@@ -6528,7 +6535,11 @@ SWIGINTERN PyObject *_wrap_CBDClient_Write(PyObject *SWIGUNUSEDPARM(self), PyObj
   PyObject * obj4 = 0 ;
   int result;
   
+#if PY_MAJOR_VERSION == 3
+  if (!PyArg_ParseTuple(args,(char *)"OOy#OO:CBDClient_Write",&obj0,&obj1,&buf3,&input_len,&obj3,&obj4)) SWIG_fail;
+#else
   if (!PyArg_ParseTuple(args,(char *)"OOOOO:CBDClient_Write",&obj0,&obj1,&obj2,&obj3,&obj4)) SWIG_fail;
+#endif
   res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CBDClient, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CBDClient_Write" "', argument " "1"" of type '" "CBDClient *""'"); 
@@ -6539,10 +6550,13 @@ SWIGINTERN PyObject *_wrap_CBDClient_Write(PyObject *SWIGUNUSEDPARM(self), PyObj
     SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "CBDClient_Write" "', argument " "2"" of type '" "int""'");
   } 
   arg2 = static_cast< int >(val2);
+#if PY_MAJOR_VERSION == 3
+#else
   res3 = SWIG_AsCharPtrAndSize(obj2, &buf3, NULL, &alloc3);
   if (!SWIG_IsOK(res3)) {
     SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "CBDClient_Write" "', argument " "3"" of type '" "char const *""'");
   }
+#endif
   arg3 = reinterpret_cast< char * >(buf3);
   ecode4 = SWIG_AsVal_unsigned_SS_long(obj3, &val4);
   if (!SWIG_IsOK(ecode4)) {
