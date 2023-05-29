@@ -130,7 +130,7 @@ func (sCmd *ServerCommand) RunCommand(cmd *cobra.Command, args []string) error {
 
 		for _, status := range copysetid2Status {
 			total++
-			if status.String() == "COPYSET_OP_STATUS_SUCCESS" {
+			if status.Enum() == copyset.COPYSET_OP_STATUS_COPYSET_OP_STATUS_SUCCESS.Enum() {
 				healthy++
 			} else {
 				unhelthy++
