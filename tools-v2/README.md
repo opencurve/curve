@@ -110,6 +110,12 @@ Please modify the `mdsAddr, mdsDummyAddr, etcdAddr` under `curvefs/bs` in the te
 mv curve.yaml ~/.curve/curve.yaml
 ```
 
+or
+
+```bash
+mv curve.yaml /etc/curve/curve.yaml
+```
+
 ### Introduction
 
 Here's how to use the tool
