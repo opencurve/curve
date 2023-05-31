@@ -256,15 +256,15 @@ class StorageAdaptor {
        diskCacheType_ = type;
     }
 
-    CachePoily GetCachePolicy(bool sync) {
+    CachePolicy GetCachePolicy(bool sync) {
       const bool mayCache =
         HasDiskCache() && !GetDiskCacheManager()->IsDiskCacheFull() && !sync;
         if (IsReadCache() && mayCache) {
-            return CachePoily::RCache;
+            return CachePolicy::RCache;
         } else if (IsReadWriteCache() && mayCache) {
-            return CachePoily::WRCache;
+            return CachePolicy::WRCache;
         } else {
-            return CachePoily::NCache;
+            return CachePolicy::NCache;
         }
     }
 
@@ -303,7 +303,6 @@ class StorageAdaptor {
     uint64_t blockSize_;
     uint64_t chunkSize_;
     uint32_t pageSize_;
-    uint32_t fuseMaxSize_;
     uint32_t flushIntervalSec_;
     uint32_t chunkFlushThreads_;
     uint32_t memCacheNearfullRatio_;
@@ -317,7 +316,6 @@ class StorageAdaptor {
     std::shared_ptr<InodeCacheManager> inodeManager_;
     std::shared_ptr<DiskCacheManagerImpl> diskCacheManagerImpl_;
     DiskCacheType diskCacheType_;
-    std::atomic<uint64_t> pendingReq_;
     uint32_t fsId_;
     std::string fsName_;
     std::string mountOwner_;

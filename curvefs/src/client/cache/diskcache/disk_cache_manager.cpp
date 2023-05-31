@@ -19,6 +19,9 @@
  * Created Date: 21-08-13
  * Author: hzwuhongsong
  */
+
+#include "curvefs/src/client/cache/diskcache/disk_cache_manager.h"
+
 #include <sys/vfs.h>
 #include <errno.h>
 #include <string>
@@ -27,7 +30,7 @@
 #include <list>
 
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
-#include "curvefs/src/client/cache/diskcache/disk_cache_manager.h"
+#include "curvefs/src/common/s3util.h"
 
 namespace curvefs {
 

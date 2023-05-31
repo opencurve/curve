@@ -99,7 +99,7 @@ FsCacheManager::FindOrCreateFileCacheManager(uint64_t fsId, uint64_t inodeId) {
     }
 
     FileCacheManagerPtr fileCacheManager = std::make_shared<FileCacheManager>(
-        fsId, inodeId, s3ClientAdaptor_, kvClientManager_, readTaskPool_);
+        fsId, inodeId, storageAdaptor_, kvClientManager_, readTaskPool_);
     auto ret = fileCacheManagerMap_.emplace(inodeId, fileCacheManager);
     g_s3MultiManagerMetric->fileManagerNum << 1;
     assert(ret.second);

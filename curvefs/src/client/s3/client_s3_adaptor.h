@@ -170,7 +170,8 @@ class S3ClientAdaptorImpl : public StorageAdaptor {
         return st;
     }
 
-    int ReadKVRequest(const std::vector<S3ReadRequest> &kvRequests,
+    S3ClientAdaptorImpl::ReadStatus ReadKVRequest(
+      const std::vector<S3ReadRequest> &kvRequests,
       char *dataBuf, uint64_t fileLen);
 
     CURVEFS_ERROR PrepareFlushTasks(const UperFlushRequest& req,
@@ -178,7 +179,7 @@ class S3ClientAdaptorImpl : public StorageAdaptor {
       std::vector<std::shared_ptr<SetKVCacheTask>> *kvCacheTasks,
       uint64_t* writeOffset);
 
-    void FlushTaskExecute(CachePoily cachePoily,
+    void FlushTaskExecute(CachePolicy cachePoily,
       const std::vector<std::shared_ptr<PutObjectAsyncContext>> &s3Tasks,
       const std::vector<std::shared_ptr<SetKVCacheTask>> &kvCacheTasks);
 
@@ -204,7 +205,7 @@ class S3ClientAdaptorImpl : public StorageAdaptor {
                           const std::vector<ReadRequest> &readRequest,
                           char *dataBuf, std::vector<S3ReadRequest> *kvRequest);
 
-    int HandleReadS3NotExist(int ret, uint32_t retry,
+    int HandleReadS3NotExist(uint32_t retry,
       const std::shared_ptr<InodeWrapper> &inodeWrapper);
 
     bool ReadKVRequestFromS3(const std::string &name,
@@ -215,6 +216,13 @@ class S3ClientAdaptorImpl : public StorageAdaptor {
 
     bool ReadKVRequestFromLocalCache(const std::string &name, char *databuf,
       uint64_t offset, uint64_t len);
+
+    // thread function for ReadKVRequest
+    void ProcessKVRequest(const S3ReadRequest &req, char *dataBuf,
+        uint64_t fileLen,
+        std::once_flag &cancelFlag,     // NOLINT
+        std::atomic<bool> &isCanceled,  // NOLINT
+        std::atomic<int> &retCode);     // NOLINT
 
     void PrefetchForBlock(const S3ReadRequest &req, uint64_t fileLen,
       uint64_t blockSize, uint64_t chunkSize, uint64_t startBlockIndex);

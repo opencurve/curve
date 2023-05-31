@@ -127,8 +127,6 @@ class FuseS3Client : public FuseClient {
     std::shared_ptr<StorageAdaptor> s3Adaptor_;
     // kv client manager
     std::shared_ptr<KVClientManager> kvClientManager_;
-
-    static constexpr auto MIN_WRITE_CACHE_SIZE = 8 * kMiB;
 };
 
 

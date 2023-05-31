@@ -57,6 +57,7 @@ CURVEFS_ERROR FuseVolumeClient::Init(const FuseClientOption &option) {
         dynamic_cast<StorageAdaptor*>(storageAdaptor_.get()),
         option.s3Opt.s3ClientAdaptorOpt.readCacheMaxByte,
         option.s3Opt.s3ClientAdaptorOpt.writeCacheMaxByte,
+        option.s3Opt.s3ClientAdaptorOpt.readCacheThreads,
         nullptr);  // bs no need cache cluster
     ret = storageAdaptor_->Init(option,
         inodeManager_, mdsClient_, fsCacheManager,

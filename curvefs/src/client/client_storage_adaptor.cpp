@@ -46,8 +46,14 @@ StorageAdaptor::Init(const FuseClientOption &fuseOption,
     std::shared_ptr<FsInfo> fsInfo) {
         const S3ClientAdaptorOption option =
           fuseOption.s3Opt.s3ClientAdaptorOpt;
-        LOG(INFO) << "storage Adaptor init start.";
-        pendingReq_ = 0;
+        LOG(INFO) << "StorageAdaptor Init. block size:" << blockSize_
+            << ", chunk size: " << chunkSize_
+            << ", intervalSec: " << option.intervalSec
+            << ", flushIntervalSec: " << option.flushIntervalSec
+            << ", writeCacheMaxByte: " << option.writeCacheMaxByte
+            << ", readCacheMaxByte: " << option.readCacheMaxByte
+            << ", nearfullRatio: " << option.nearfullRatio
+            << ", baseSleepUs: " << option.baseSleepUs;
         pageSize_ = option.pageSize;
         if (chunkSize_ % blockSize_ != 0) {
             LOG(ERROR) << "chunkSize:" << chunkSize_
@@ -55,7 +61,6 @@ StorageAdaptor::Init(const FuseClientOption &fuseOption,
                     << blockSize_;
             return CURVEFS_ERROR::INVALIDPARAM;
         }
-        fuseMaxSize_ = option.fuseMaxSize;
         diskCacheType_ = option.diskCacheOpt.diskCacheType;
         memCacheNearfullRatio_ = option.nearfullRatio;
         throttleBaseSleepUs_ = option.baseSleepUs;
@@ -79,17 +84,10 @@ StorageAdaptor::Init(const FuseClientOption &fuseOption,
             toStop_.store(false, std::memory_order_release);
             bgFlushThread_ = Thread(&StorageAdaptor::BackGroundFlush, this);
         }
-        LOG(INFO) << "StorageAdaptor Init. block size:" << blockSize_
-                << ", chunk size: " << chunkSize_
-                << ", intervalSec: " << option.intervalSec
-                << ", flushIntervalSec: " << option.flushIntervalSec
-                << ", writeCacheMaxByte: " << option.writeCacheMaxByte
-                << ", readCacheMaxByte: " << option.readCacheMaxByte
-                << ", nearfullRatio: " << option.nearfullRatio
-                << ", baseSleepUs: " << option.baseSleepUs;
 
         // start chunk flush threads
         taskPool_.Start(chunkFlushThreads_);
+        LOG(INFO) << "storage Adaptor init success.";
         return CURVEFS_ERROR::OK;
 }
 
@@ -118,7 +116,7 @@ int StorageAdaptor::Stop() {
 }
 
 int StorageAdaptor::Write(uint64_t inodeId, uint64_t offset,
-                               uint64_t length, const char *buf) {
+  uint64_t length, const char *buf) {
     VLOG(6) << "write start offset:" << offset << ", len:" << length
             << ", fsId:" << fsId_ << ", inodeId:" << inodeId;
     uint64_t start = butil::cpuwide_time_us();
@@ -126,13 +124,10 @@ int StorageAdaptor::Write(uint64_t inodeId, uint64_t offset,
         fsCacheManager_->FindOrCreateFileCacheManager(fsId_, inodeId);
     {
         std::lock_guard<std::mutex> lockguard(ioMtx_);
-        pendingReq_.fetch_add(1, std::memory_order_seq_cst);
-        VLOG(6) << "pendingReq_ is: " << pendingReq_;
-        uint64_t pendingReq = pendingReq_.load(std::memory_order_seq_cst);
         fsCacheManager_->DataCacheByteInc(length);
         uint64_t size = fsCacheManager_->GetDataCacheSize();
         uint64_t maxSize = fsCacheManager_->GetDataCacheMaxSize();
-        if ((size + pendingReq * fuseMaxSize_) >= maxSize) {
+        if (size >= maxSize) {
             VLOG(6) << "write cache is full, wait flush. size: " << size
                     << ", maxSize:" << maxSize;
             // offer to do flush
@@ -157,15 +152,12 @@ int StorageAdaptor::Write(uint64_t inodeId, uint64_t offset,
         }
     }
     int ret = fileCacheManager->Write(offset, length, buf);
-    pendingReq_.fetch_sub(1, std::memory_order_seq_cst);
-
     fsCacheManager_->DataCacheByteDec(length);
     if (ioMetric_.get() != nullptr) {
         CollectMetrics(&ioMetric_->adaptorWrite, ret, start);
         ioMetric_->writeSize.set_value(length);
     }
-    VLOG(6) << "write end inodeId:" << inodeId << ",ret:" << ret
-            << ", pendingReq_ is: " << pendingReq_;
+    VLOG(6) << "write end inodeId:" << inodeId << ",ret:" << ret;
     return ret;
 }
 

@@ -57,6 +57,7 @@ using FileCacheManagerPtr = std::shared_ptr<FileCacheManager>;
 using ChunkCacheManagerPtr = std::shared_ptr<ChunkCacheManager>;
 using DataCachePtr = std::shared_ptr<DataCache>;
 using WeakDataCachePtr = std::weak_ptr<DataCache>;
+using curve::common::TaskThreadPool;
 using curvefs::metaserver::Inode;
 using curvefs::metaserver::S3ChunkInfo;
 using curvefs::metaserver::S3ChunkInfoList;
@@ -193,7 +194,7 @@ class DataCache : public std::enable_shared_from_this<DataCache> {
                              const char *data);
     void AddDataBefore(uint64_t len, const char *data);
 
-    CachePoily GetCachePolicy(bool toS3);
+    CachePolicy GetCachePolicy(bool toS3);
 
  private:
     StorageAdaptor *storageAdaptor_;
@@ -291,11 +292,11 @@ class FileCacheManager {
  public:
     FileCacheManager(uint32_t fsid, uint64_t inode,
       StorageAdaptor *s3ClientAdaptor,
-      std::shared_ptr<KVClientManager> kvClientManager),
+      std::shared_ptr<KVClientManager> kvClientManager,
       std::shared_ptr<TaskThreadPool<>> threadPool)
         : fsId_(fsid), inode_(inode), storageAdaptor_(s3ClientAdaptor),
           kvClientManager_(std::move(kvClientManager)),
-          readTaskPool_(threadPool) {}{}
+          readTaskPool_(threadPool) {}
     FileCacheManager() = default;
     ~FileCacheManager() = default;
 
@@ -385,12 +386,16 @@ class FsCacheManager {
           writeCacheMaxByte_(writeCacheMaxByte),
           storageAdaptor_(s3ClientAdaptor), isWaiting_(false),
           kvClientManager_(std::move(kvClientManager)) {
+            LOG(INFO) << "whs read task pool start. " << readCacheThreads;
             readTaskPool_->Start(readCacheThreads);
+            LOG(INFO) << "whs read task pool start end";
     }
 
     FsCacheManager() = default;
     virtual ~FsCacheManager() {
+        LOG(INFO) << "whs read task pool stop";
         readTaskPool_->Stop();
+        LOG(INFO) << "whs read task pool stop end";
     }
 
     virtual FileCacheManagerPtr FindFileCacheManager(uint64_t inodeId);
@@ -455,6 +460,11 @@ class FsCacheManager {
         assert(ret.second);
         (void)ret;
     }
+
+    std::shared_ptr<TaskThreadPool<>> GetReadTaskPool() {
+        return readTaskPool_;
+    }
+
     void DataCacheNumInc();
     void DataCacheNumFetchSub(uint64_t v);
     void DataCacheByteInc(uint64_t v);

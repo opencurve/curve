@@ -67,6 +67,7 @@ using ::curvefs::common::FSType;
 using ::curvefs::metaserver::DentryFlag;
 using ::curvefs::metaserver::ManageInodeType;
 using ::curvefs::client::metric::FSMetric;
+using curvefs::volume::kMiB;
 
 namespace curvefs {
 namespace client {
@@ -302,15 +303,12 @@ class FuseClient {
 
     CURVEFS_ERROR SetMountStatus(const struct MountOption *mountOption);
 
-<<<<<<< HEAD
     void Add(bool isRead, size_t size) { throttle_.Add(isRead, size); }
 
     void InitQosParam();
-=======
     Mountpoint& GetMountPoint() {
         return mountpoint_;
     }
->>>>>>> curvefs/client: opt of bs for fs storage backend
 
  protected:
     CURVEFS_ERROR MakeNode(fuse_req_t req, fuse_ino_t parent, const char* name,
@@ -423,6 +421,8 @@ class FuseClient {
     Throttle throttle_;
 
     bthread_timer_t throttleTimer_;
+
+    static constexpr auto MIN_WRITE_CACHE_SIZE = 8 * kMiB;
 };
 
 }  // namespace client

@@ -119,6 +119,15 @@ static void on_throttle_timer(void *arg) {
 CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
     LOG(INFO) << "fuse client init start.";
     option_ = option;
+    const uint64_t writeCacheMaxByte =
+      option_.s3Opt.s3ClientAdaptorOpt.writeCacheMaxByte;
+    if (writeCacheMaxByte < MIN_WRITE_CACHE_SIZE) {
+        LOG(ERROR) << "writeCacheMaxByte is too small"
+                   << ", at least " << MIN_WRITE_CACHE_SIZE << " (8MB)"
+                      ", writeCacheMaxByte = " << writeCacheMaxByte;
+        return CURVEFS_ERROR::CACHETOOSMALL;
+    }
+
     mdsBase_ = new MDSBaseClient();
     auto ret = mdsClient_->Init(option.mdsOpt, mdsBase_);
     if (ret != FSStatusCode::OK) {

@@ -48,8 +48,7 @@ using curvefs::mds::topology::MemcacheServerInfo;
 
 CURVEFS_ERROR FuseS3Client::Init(const FuseClientOption &option) {
     LOG(INFO) << "fuse init start.";
-    auto opt(option);
-    auto ret = FuseClient::Init(opt);
+    auto ret = FuseClient::Init(option);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(INFO) << "fuse init failed, " << ret;
         return ret;
@@ -107,6 +106,7 @@ bool FuseS3Client::InitKVCache(const KVClientManagerOpt &opt) {
 CURVEFS_ERROR FuseS3Client::InitStorageAdaptor(const FuseClientOption &option) {
     auto opt(option);
     auto ret = CURVEFS_ERROR::OK;
+
     // set fs S3Option
     const auto& s3Info = fsInfo_->detail().s3info();
     ::curve::common::S3InfoOption fsS3Option;
@@ -117,20 +117,11 @@ CURVEFS_ERROR FuseS3Client::InitStorageAdaptor(const FuseClientOption &option) {
     auto s3Client = std::make_shared<S3ClientImpl>();
     s3Client->Init(opt.s3Opt.s3AdaptrOpt);
 
-    const uint64_t writeCacheMaxByte =
-        opt.s3Opt.s3ClientAdaptorOpt.writeCacheMaxByte;
-    if (writeCacheMaxByte < MIN_WRITE_CACHE_SIZE) {
-        LOG(ERROR) << "writeCacheMaxByte is too small"
-                   << ", at least " << MIN_WRITE_CACHE_SIZE << " (8MB)"
-                      ", writeCacheMaxByte = " << writeCacheMaxByte;
-        return CURVEFS_ERROR::CACHETOOSMALL;
-    }
-
     auto fsCacheManager = std::make_shared<FsCacheManager>(
         dynamic_cast<S3ClientAdaptorImpl *>(s3Adaptor_.get()),
-        opt.s3Opt.s3ClientAdaptorOpt.readCacheMaxByte,
-        opt.s3Opt.s3ClientAdaptorOpt.readCacheThreads,
-        opt.s3Opt.s3ClientAdaptorOpt.writeCacheMaxByte,
+        option.s3Opt.s3ClientAdaptorOpt.readCacheMaxByte,
+        option.s3Opt.s3ClientAdaptorOpt.writeCacheMaxByte,
+        option.s3Opt.s3ClientAdaptorOpt.readCacheThreads,
         kvClientManager_);
 
     if (opt.s3Opt.s3ClientAdaptorOpt.diskCacheOpt.diskCacheType !=
@@ -152,6 +143,7 @@ CURVEFS_ERROR FuseS3Client::InitStorageAdaptor(const FuseClientOption &option) {
         ret = s3Adaptor_->Init(opt, inodeManager_, mdsClient_, fsCacheManager,
                                nullptr, kvClientManager_, fsInfo_);
     }
+    LOG(INFO) << "init storage adaptor success.";
     return ret;
 }
 
