@@ -24,6 +24,7 @@ package copyset
 
 import (
 	"context"
+
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
@@ -126,7 +127,6 @@ func (cCmd *GetCopysetStatusCommand) ResultPlainOutput() error {
 }
 
 func (cCmd *GetCopysetStatusCommand) AddFlags() {
-	config.AddBsMdsFlagOption(cCmd.Cmd)
 	config.AddRpcRetryTimesFlag(cCmd.Cmd)
 	config.AddRpcTimeoutFlag(cCmd.Cmd)
 

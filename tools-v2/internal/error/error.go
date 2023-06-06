@@ -442,7 +442,16 @@ var (
 		return NewInternalCmdError(60, "query chunkserver recover status fail, err: %s")
 	}
 	ErrBsListChunkServer = func() *CmdError {
-		return NewInternalCmdError(54, "list chunkserver fail, err: %s")
+		return NewInternalCmdError(61, "list chunkserver fail, err: %s")
+	}
+	ErrBsGetChunkserverInfo = func() *CmdError {
+		return NewInternalCmdError(62, "get chunkserver info fail, err: %s")
+	}
+	ErrBsNoCopysets = func() *CmdError {
+		return NewInternalCmdError(63, "no copysets on chunkserver %d")
+	}
+	ErrBsGetChunkServerStatus = func() *CmdError {
+		return NewInternalCmdError(63, "get copyset status on chunkserver fail, err: %s")
 	}
 
 	// http error
@@ -482,6 +491,9 @@ var (
 	}
 	ErrGetMetaserverInfo = func(statusCode int) *CmdError {
 		return NewRpcReultCmdError(statusCode, "get metaserver info failed: status code is %s")
+	}
+	ErrGetChunkserverInfo = func(statusCode int) *CmdError {
+		return NewRpcReultCmdError(statusCode, "get chunkserver info failed: status code is %s")
 	}
 	ErrGetCopysetOfPartition = func(statusCode int) *CmdError {
 		code := topology.TopoStatusCode(statusCode)

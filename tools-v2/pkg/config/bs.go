@@ -30,6 +30,7 @@ import (
 
 	"github.com/gookit/color"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
+	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -104,7 +105,7 @@ const (
 	VIPER_CURVEBS_SCAN              = "curvebs.scan"
 	CURVEBS_DEFAULT_SCAN            = true
 	CURVEBS_CHUNKSERVER_ID          = "chunkserverid"
-	VIPER_CHUNKSERVER_ID            = "curvebs.chunkserverid"
+	VIPER_CURVEBS_CHUNKSERVER_ID    = "curvebs.chunkserverid"
 	CURVEBS_DEFAULT_CHUNKSERVER_ID  = "*"
 	CURVEBS_CHECK_CSALIVE           = "checkalive"
 	VIPER_CURVEBS_CHECK_CSALIVE     = "curvebs.checkalive"
@@ -114,6 +115,8 @@ const (
 	VIPER_CURVEBS_CS_OFFLINE        = "curvebs.offline"
 	CURVEBS_CS_UNHEALTHY            = "unhealthy"
 	VIPER_CURVEBS_CS_UNHEALTHY      = "curvebs.unhealthy"
+	CURVEBS_CHUNKSERVER_ADDR        = "chunkserveraddr"
+	VIPER_CURVEBS_CHUNKSERVER_ADDR  = "curvebs.chunkserveraddr"
 )
 
 var (
@@ -150,11 +153,12 @@ var (
 		CURVEBS_SNAPSHOTADDR:      VIPER_CURVEBS_SNAPSHOTADDR,
 		CURVEBS_SNAPSHOTDUMMYADDR: VIPER_CURVEBS_SNAPSHOTDUMMYADDR,
 		CURVEBS_SCAN:              VIPER_CURVEBS_SCAN,
-		CURVEBS_CHUNKSERVER_ID:    VIPER_CHUNKSERVER_ID,
+		CURVEBS_CHUNKSERVER_ID:    VIPER_CURVEBS_CHUNKSERVER_ID,
 		CURVEBS_CHECK_CSALIVE:     VIPER_CURVEBS_CHECK_CSALIVE,
 		CURVEBS_CHECK_HEALTH:      VIPER_CURVEBS_CHECK_HEALTH,
 		CURVEBS_CS_OFFLINE:        VIPER_CURVEBS_CS_OFFLINE,
 		CURVEBS_CS_UNHEALTHY:      VIPER_CURVEBS_CS_UNHEALTHY,
+		CURVEBS_CHUNKSERVER_ADDR:  VIPER_CURVEBS_CHUNKSERVER_ADDR,
 	}
 
 	BSFLAG2DEFAULT = map[string]interface{}{
@@ -366,6 +370,10 @@ func AddBsSnapshotCloneDummyFlagOption(cmd *cobra.Command) {
 	AddBsStringOptionFlag(cmd, CURVEBS_SNAPSHOTDUMMYADDR, "snapshot clone dummy address, should be like 127.0.0.1:8100,127.0.0.1:8101,127.0.0.1:8102")
 }
 
+func AddBsChunkServerAddrOptionFlag(cmd *cobra.Command) {
+	AddBsStringOptionFlag(cmd, CURVEBS_CHUNKSERVER_ADDR, "chunkserver address, should be like 127.0.0.1:6700,127.0.0.1:6701,127.0.0.1:6702")
+}
+
 // user
 func AddBsUserOptionFlag(cmd *cobra.Command) {
 	AddBsStringOptionFlag(cmd, CURVEBS_USER, "user name")
@@ -575,7 +583,7 @@ func GetBsAddrSlice(cmd *cobra.Command, addrType string) ([]string, *cmderror.Cm
 	}
 
 	for _, addr := range addrslice {
-		if !IsValidAddr(addr) {
+		if !cobrautil.IsValidAddr(addr) {
 			err := cmderror.ErrGetAddr()
 			err.Format(addrType, addr)
 			return addrslice, err
@@ -602,6 +610,10 @@ func GetBsSnapshotAddrSlice(cmd *cobra.Command) ([]string, *cmderror.CmdError) {
 
 func GetBsSnapshotDummyAddrSlice(cmd *cobra.Command) ([]string, *cmderror.CmdError) {
 	return GetBsAddrSlice(cmd, CURVEBS_SNAPSHOTDUMMYADDR)
+}
+
+func GetBsChunkserverAddrSlice(cmd *cobra.Command) ([]string, *cmderror.CmdError) {
+	return GetBsAddrSlice(cmd, CURVEBS_CHUNKSERVER_ADDR)
 }
 
 func GetBsFlagBool(cmd *cobra.Command, flagName string) bool {

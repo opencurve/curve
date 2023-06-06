@@ -44,6 +44,7 @@ const (
 
 	ROOT_PATH       = "/"
 	RECYCLEBIN_PATH = "/RecycleBin"
+	IP_PORT_REGEX   = "((\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5]):([0-9]|[1-9]\\d{1,3}|[1-5]\\d{4}|6[0-4]\\d{4}|65[0-4]\\d{2}|655[0-2]\\d|6553[0-5]))|(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])"
 )
 
 func IsValidFsname(fsName string) bool {
@@ -170,6 +171,11 @@ func Addr2IpPort(addr string) (string, uint32, *cmderror.CmdError) {
 	return ipPort[0], uint32(u64Port), cmderror.Success()
 }
 
+func IpPort2Addr(ip string, port uint32) string {
+	addr := fmt.Sprintf("%s:%d", ip, port)
+	return addr
+}
+
 func StringList2Uint64List(strList []string) ([]uint64, error) {
 	retList := make([]uint64, 0)
 	for _, str := range strList {
@@ -192,4 +198,12 @@ func StringList2Uint32List(strList []string) ([]uint32, error) {
 		retList = append(retList, uint32(v))
 	}
 	return retList, nil
+}
+
+func IsValidAddr(addr string) bool {
+	matched, err := regexp.MatchString(IP_PORT_REGEX, addr)
+	if err != nil || !matched {
+		return false
+	}
+	return true
 }

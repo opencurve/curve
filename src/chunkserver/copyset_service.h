@@ -71,6 +71,16 @@ class CopysetServiceImpl : public CopysetService {
                           CopysetStatusResponse *response,
                           Closure *done);
 
+    void GetCopysetsStatusOnChunkServer(RpcController *controller,
+                          const CopysetsStatusOnChunkserverRequest *request,
+                          CopysetsStatusOnChunkserverResponse *response,
+                          Closure *done);
+
+ private:
+    private:
+    void GetCopysetStatusFromNode(CopysetStatusResponse *response,
+                                    const CopysetNodePtr nodePtr);
+
  private:
     // 复制组管理者
     CopysetNodeManager* copysetNodeManager_;

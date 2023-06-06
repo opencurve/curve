@@ -109,6 +109,28 @@ var (
 	}
 )
 
+type CHUNKSERVER_HEALTH_STATUS int32
+
+const (
+	CHUNKSERVER_HEALTHY   CHUNKSERVER_HEALTH_STATUS = 1
+	CHUNKSERVER_UNHEALTHY CHUNKSERVER_HEALTH_STATUS = 2
+	CHUNKSERVER_OFFLINE   CHUNKSERVER_HEALTH_STATUS = 3
+)
+
+const (
+	CHUNKSERVER_HEALTHY_STE   = "healthy"
+	CHUNKSERVER_UNHEALTHY_STR = "unhealthy"
+	CHUNKSERVER_OFFLINE_STR   = "offline"
+)
+
+var (
+	ChunkserverHealthStatus_Str = map[int32]string{
+		1: CHUNKSERVER_HEALTHY_STE,
+		2: CHUNKSERVER_UNHEALTHY_STR,
+		3: CHUNKSERVER_OFFLINE_STR,
+	}
+)
+
 // The copyset is stored in n peers.
 // Note the number of available peers as p.
 // When p==n, the copy status is ok;

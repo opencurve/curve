@@ -183,29 +183,7 @@ void CopysetServiceImpl::GetCopysetStatus(RpcController *controller,
         return;
     }
 
-    // 获取raft node status
-    NodeStatus status;
-    nodePtr->GetStatus(&status);
-    response->set_state(status.state);
-    Peer *peer = new Peer();
-    response->set_allocated_peer(peer);
-    peer->set_address(status.peer_id.to_string());
-    Peer *leader = new Peer();
-    response->set_allocated_leader(leader);
-    leader->set_address(status.leader_id.to_string());
-    response->set_readonly(status.readonly);
-    response->set_term(status.term);
-    response->set_committedindex(status.committed_index);
-    response->set_knownappliedindex(status.known_applied_index);
-    response->set_pendingindex(status.pending_index);
-    response->set_pendingqueuesize(status.pending_queue_size);
-    response->set_applyingindex(status.applying_index);
-    response->set_firstindex(status.first_index);
-    response->set_lastindex(status.last_index);
-    response->set_diskindex(status.disk_index);
-
-    // 获取配置的版本
-    response->set_epoch(nodePtr->GetConfEpoch());
+    GetCopysetStatusFromNode(response,nodePtr);
 
     /**
      * 考虑到query hash需要读取copyset的所有chunk数据，然后计算hash值
@@ -232,5 +210,53 @@ void CopysetServiceImpl::GetCopysetStatus(RpcController *controller,
                                   request->copysetid());
 }
 
+void GetCopysetsStatusOnChunkServer(
+    RpcController *controller,
+    const CopysetsStatusOnChunkserverRequest *request,
+    CopysetsStatusOnChunkserverResponse *response, Closure *done) {
+    (void)controller;
+    brpc::ClosureGuard doneGuard(done);
+
+    LOG(INFO) << "Received GetCopysetsStatusOnChunkServer request";
+
+    std::vector<CopysetNodePtr> nodes;
+    copysetNodeManager_->GetAllCopysetNodes(&nodes);
+    for (const auto nodePtr : nodes) {
+        auto copyset = response->add_copysets();
+        auto copysetResponse = response->add_copysetresponse();
+        copyset->set_logicalpoolid(nodePtr->GetLogicPoolId());
+        copyset->set_copysetid(nodePtr->GetCopysetId());
+        GetCopysetStatusFromNode(copysetResponse, nodePtr);
+    }
+    response->set_status(COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
+    LOG(INFO) << "GetCopysetsStatusOnChunkServer success";
+}
+
+void GetCopysetStatusFromNode(CopysetStatusResponse *response,
+                            const CopysetNodePtr nodePtr) {
+    // get raft node status
+    NodeStatus status;
+    nodePtr->GetStatus(&status);
+    response->set_state(status.state);
+    Peer *peer = new Peer();
+    response->set_allocated_peer(peer);
+    peer->set_address(status.peer_id.to_string());
+    Peer *leader = new Peer();
+    response->set_allocated_leader(leader);
+    leader->set_address(status.leader_id.to_string());
+    response->set_readonly(status.readonly);
+    response->set_term(status.term);
+    response->set_committedindex(status.committed_index);
+    response->set_knownappliedindex(status.known_applied_index);
+    response->set_pendingindex(status.pending_index);
+    response->set_pendingqueuesize(status.pending_queue_size);
+    response->set_applyingindex(status.applying_index);
+    response->set_firstindex(status.first_index);
+    response->set_lastindex(status.last_index);
+    response->set_diskindex(status.disk_index);
+
+    // get epoch of the conf
+    response->set_epoch(nodePtr->GetConfEpoch());
+}
 }  // namespace chunkserver
 }  // namespace curve

@@ -23,7 +23,6 @@ package config
 
 import (
 	"os"
-	"regexp"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -173,16 +172,4 @@ func GetFlagChanged(cmd *cobra.Command, flagName string) bool {
 		return flag.Changed
 	}
 	return false
-}
-
-const (
-	IP_PORT_REGEX = "((\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5]):([0-9]|[1-9]\\d{1,3}|[1-5]\\d{4}|6[0-4]\\d{4}|65[0-4]\\d{2}|655[0-2]\\d|6553[0-5]))|(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])"
-)
-
-func IsValidAddr(addr string) bool {
-	matched, err := regexp.MatchString(IP_PORT_REGEX, addr)
-	if err != nil || !matched {
-		return false
-	}
-	return true
 }

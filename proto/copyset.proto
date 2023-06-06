@@ -92,6 +92,14 @@ message CopysetStatusResponse {
     optional string hash                    = 16;   // 当前copyset的数据hash值
 }
 
+message CopysetsStatusOnChunkserverRequest {
+}
+
+message CopysetsStatusOnChunkserverResponse { 
+    repeated Copyset copysets = 1;
+    repeated CopysetStatusResponse copysetResponses = 2;
+}
+
 service CopysetService {
     rpc CreateCopysetNode (CopysetRequest) returns (CopysetResponse);
 
@@ -100,4 +108,6 @@ service CopysetService {
     rpc DeleteBrokenCopyset(CopysetRequest) returns (CopysetResponse);
 
     rpc GetCopysetStatus (CopysetStatusRequest) returns (CopysetStatusResponse);
+
+    rpc GetCopysetsStatusOnChunkserver(CopysetsStatusOnChunkserverRequest) returns (CopysetsStatusOnChunkserverResponse);
 };

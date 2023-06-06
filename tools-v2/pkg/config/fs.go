@@ -27,6 +27,7 @@ import (
 
 	"github.com/gookit/color"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
+	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -374,7 +375,7 @@ func GetAddrSlice(cmd *cobra.Command, addrType string) ([]string, *cmderror.CmdE
 	}
 	addrslice := strings.Split(addrsStr, ",")
 	for _, addr := range addrslice {
-		if !IsValidAddr(addr) {
+		if !cobrautil.IsValidAddr(addr) {
 			err := cmderror.ErrGetAddr()
 			err.Format(addrType, addr)
 			return addrslice, err

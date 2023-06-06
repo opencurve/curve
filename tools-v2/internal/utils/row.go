@@ -126,7 +126,7 @@ const (
 	ROW_S3CHUNKINFO_OFFSET  = "s3Offset"
 	ROW_S3CHUNKINFO_SIZE    = "s3Size"
 
-	// vale
+	// value
 	ROW_VALUE_ADD            = "add"
 	ROW_VALUE_DEL            = "del"
 	ROW_VALUE_DNE            = "DNE"
@@ -141,6 +141,9 @@ const (
 	ROW_VALUE_RECOVERING_OUT = "recovering from out"
 	ROW_VALUE_SUCCESS        = "success"
 	ROW_VALUE_UNKNOWN        = "unknown"
+
+	// ratio
+	ROW_UNHEALTHY_RATIO = "unhealthy ratio"
 )
 
 // topology type

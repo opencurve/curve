@@ -87,7 +87,7 @@ func (mCmd *MetaserverCommand) Init(cmd *cobra.Command, args []string) error {
 	))
 
 	for i, addr := range externalAddrs {
-		if !config.IsValidAddr(addr) {
+		if !cobrautil.IsValidAddr(addr) {
 			return fmt.Errorf("invalid metaserver external addr: %s", addr)
 		}
 
