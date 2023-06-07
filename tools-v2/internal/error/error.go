@@ -501,6 +501,9 @@ var (
 	ErrBsListScanStatus = func() *CmdError {
 		return NewInternalCmdError(66, "list scan-status fail, err: %s")
 	}
+	ErrBsListOfflineChunkServer = func() *CmdError {
+		return NewInternalCmdError(67, "list offline chunkserver fail, err: %s")
+	}
 
 >>>>>>> 4762448b... [curve/toos-v2]: add bs scan-status
 	// http error
