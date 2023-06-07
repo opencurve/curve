@@ -30,6 +30,7 @@
 #include <thread>  //NOLINT
 #include <chrono>  //NOLINT
 #include <unordered_map>
+#include <map>
 #include "proto/nameserver2.pb.h"
 #include "src/mds/nameserver2/namespace_storage.h"
 #include "src/mds/common/mds_define.h"
@@ -73,6 +74,7 @@ struct CurveFSOption {
     RootAuthOption authOptions;
     FileRecordOptions fileRecordOptions;
     ThrottleOption throttleOption;
+    std::map<std::string, std::string> poolsetRules;
 };
 
 struct AllocatedSize {
@@ -220,7 +222,8 @@ class CurveFS {
      *  @param[in|out] poolset: poolset name
      *  @return StatusCode::kOK if success
      */
-    StatusCode CheckOrAssignPoolset(std::string* poolset) const;
+    StatusCode CheckOrAssignPoolset(const std::string& filename,
+                                    std::string* poolset) const;
 
     /**
      * @brief increase file epoch
@@ -827,6 +830,8 @@ class CurveFS {
     uint64_t minFileLength_;
     uint64_t maxFileLength_;
     std::chrono::steady_clock::time_point startTime_;
+
+    std::map<std::string, std::string> poolsetRules_;
 };
 extern CurveFS &kCurveFS;
 
@@ -848,6 +853,10 @@ StatusCode CheckStripeParam(uint64_t segmentSize,
                             uint64_t chunkSize,
                             uint64_t stripeUnit,
                             uint64_t stripeCount);
+
+std::string SelectPoolsetByRules(
+        const std::string& filename,
+        const std::map<std::string, std::string>& rules);
 
 }   // namespace mds
 }   // namespace curve

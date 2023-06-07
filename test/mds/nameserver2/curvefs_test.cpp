@@ -415,6 +415,45 @@ TEST_F(CurveFSTest, testCreateFileWithPoolset) {
     }
 }
 
+TEST(TestSelectPoolsetByRules, Test) {
+    ASSERT_EQ(kDefaultPoolsetName, SelectPoolsetByRules("/filename", {}));
+
+    {
+        std::map<std::string, std::string> rules{
+            {"/system/", "system"}
+        };
+        ASSERT_EQ("system", SelectPoolsetByRules("/system/file", rules));
+    }
+
+    {
+        std::map<std::string, std::string> rules{
+                {"/system/", "system"}
+        };
+        ASSERT_EQ(kDefaultPoolsetName, SelectPoolsetByRules("/systems", rules));
+    }
+
+    {
+        std::map<std::string, std::string> rules{
+                {"/system/", "system"},
+                {"/systems/", "system1"},
+        };
+        ASSERT_EQ("system1", SelectPoolsetByRules("/systems/file", rules));
+    }
+
+    // subdir rules
+    {
+        std::map<std::string, std::string> rules{
+                {"/system/", "system"},
+                {"/system/sub/", "system-sub"}
+        };
+        ASSERT_EQ("system-sub",
+                  SelectPoolsetByRules("/system/sub/file", rules));
+
+        ASSERT_EQ("system-sub",
+                  SelectPoolsetByRules("/system/sub/sub/file", rules));
+    }
+}
+
 TEST_F(CurveFSTest, testGetFileInfo) {
     // test parm error
     FileInfo fileInfo;
