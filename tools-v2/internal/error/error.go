@@ -459,6 +459,9 @@ var (
 	ErrBsListScanStatus = func() *CmdError {
 		return NewInternalCmdError(66, "list scan-status fail, err: %s")
 	}
+	ErrBsListOfflineChunkServer = func() *CmdError {
+		return NewInternalCmdError(67, "list offline chunkserver fail, err: %s")
+	}
 
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {
