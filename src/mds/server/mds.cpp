@@ -21,9 +21,12 @@
  */
 
 #include <glog/logging.h>
+#include <map>
 #include "src/mds/server/mds.h"
 #include "src/mds/nameserver2/helper/namespace_helper.h"
 #include "src/mds/topology/topology_storge_etcd.h"
+
+#include "absl/strings/str_split.h"
 
 using ::curve::mds::topology::TopologyStorageEtcd;
 using ::curve::mds::topology::TopologyStorageCodec;
@@ -470,8 +473,11 @@ void MDS::InitCurveFSOptions(CurveFSOption *curveFSOptions) {
     FileRecordOptions fileRecordOptions;
     InitFileRecordOptions(&curveFSOptions->fileRecordOptions);
 
-    RootAuthOption authOptions;
     InitAuthOptions(&curveFSOptions->authOptions);
+
+    LOG_IF(FATAL, !ParsePoolsetRules(conf_->GetStringValue("mds.poolset.rules"),
+                                     &curveFSOptions->poolsetRules))
+            << "Fail to parse poolset rules";
 }
 
 void MDS::InitCleanManager() {
@@ -580,5 +586,32 @@ void MDS::InitHeartbeatOption(HeartbeatOption* heartbeatOption) {
     conf_->GetValueFatalIfFail("mds.heartbeat.clean_follower_afterMs",
                         &heartbeatOption->cleanFollowerAfterMs);
 }
+
+bool ParsePoolsetRules(const std::string& str,
+                       std::map<std::string, std::string>* rules) {
+    rules->clear();
+
+    if (str.empty()) {
+        return true;
+    }
+
+    for (absl::string_view sp : absl::StrSplit(str, ';')) {
+        rules->insert(absl::StrSplit(sp, ':'));
+    }
+
+    for (const auto& rule : *rules) {
+        const auto& key = rule.first;
+
+        if (key.empty() || key.front() != '/' || key.back() != '/') {
+            LOG(ERROR) << "Invalid poolset rules, key must starts and ends "
+                          "with `/`, rules: `"
+                       << str << "`";
+            return false;
+        }
+    }
+
+    return true;
+}
+
 }  // namespace mds
 }  // namespace curve
