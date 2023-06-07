@@ -50,6 +50,7 @@ A tool for CurveFS & CurveBs.
         - [list space](#list-space)
         - [list chunkserver](#list-chunkserver)
         - [list scan-status](#list-scan-status)
+        - [list may-broken-vol](#list-may-broken-vol)
     - [clean-recycle](#clean-recycle)
     - [query](#query-1)
         - [query file](#query-file)
@@ -1165,6 +1166,26 @@ Output:
 +-------------+-----------+
 ```
 
+##### list may-broken-vol
+
+list may broken volumes
+
+Usage:
+
+```bash
+curve bs list may-broken-vol
+```
+
+Output:
+
+```bash
++----------+
+| FILENAME | 
++----------+
+|   test   |        
++----------+
+```
+
 ### clean-recycle
 
 clean the recycle bin 
@@ -1832,12 +1853,12 @@ Output:
 | curve_ops_tool scan-status           | curve bs list/query scan-status   |
 | curve_ops_tool clean-recycle         | curve bs clean-recycle            |
 | curve_ops_tool copysets-status       | curve bs status copyset           |
+| curve_ops_tool list-may-broken-vol   | curve bs list may-broken-vol      |
 | curve_ops_tool status                |                                   |
 | curve_ops_tool check-consistency     |                                   |
 | curve_ops_tool do-snapshot-all       |                                   |
 | curve_ops_tool check-chunkserver     |                                   |
 | curve_ops_tool check-server          |                                   |
-| curve_ops_tool list-may-broken-vol   |                                   |
 | curve_ops_tool rapid-leader-schedule |                                   |
 <<<<<<< HEAD
 | curve_ops_tool scan-status           |                                   |
