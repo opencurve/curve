@@ -36,6 +36,8 @@
 #include "src/mds/nameserver2/helper/namespace_helper.h"
 #include "src/common/math_util.h"
 
+#include "absl/strings/match.h"
+
 using curve::common::TimeUtility;
 using curve::common::kDefaultPoolsetName;
 using curve::mds::topology::LogicalPool;
@@ -142,6 +144,7 @@ bool CurveFS::Init(std::shared_ptr<NameServerStorage> storage,
     maxFileLength_ = curveFSOptions.maxFileLength;
     topology_ = topology;
     snapshotCloneClient_ = snapshotCloneClient;
+    poolsetRules_ = curveFSOptions.poolsetRules;
 
     InitRootFile();
     bool ret = InitRecycleBinDir();
@@ -265,7 +268,7 @@ StatusCode CurveFS::CreateFile(const std::string& fileName,
 
     // check param
     if (filetype == FileType::INODE_PAGEFILE) {
-        StatusCode retCode = CheckOrAssignPoolset(&poolset);
+        StatusCode retCode = CheckOrAssignPoolset(fileName, &poolset);
         if (retCode != StatusCode::kOK) {
             return retCode;
         }
@@ -785,7 +788,8 @@ StatusCode CurveFS::DeleteFile(const std::string & filename, uint64_t fileId,
     }
 }
 
-StatusCode CurveFS::CheckOrAssignPoolset(std::string* poolset) const {
+StatusCode CurveFS::CheckOrAssignPoolset(const std::string& filename,
+                                         std::string* poolset) const {
     const auto names = topology_->GetPoolsetNameInCluster();
     if (names.empty()) {
         LOG(WARNING) << "Cluster doesn't have poolsets";
@@ -793,9 +797,8 @@ StatusCode CurveFS::CheckOrAssignPoolset(std::string* poolset) const {
     }
 
     if (poolset->empty()) {
-        *poolset = kDefaultPoolsetName;
-        LOG(INFO) << "Poolset is empty, set to: " << kDefaultPoolsetName;
-        return StatusCode::kOK;
+        *poolset = SelectPoolsetByRules(filename, poolsetRules_);
+        LOG(INFO) << "Poolset is empty, set to: " << *poolset;
     }
 
     auto it = std::find(names.begin(), names.end(), *poolset);
@@ -1848,7 +1851,7 @@ StatusCode CurveFS::CreateCloneFile(const std::string &fileName,
         return ret;
     }
 
-    ret = CheckOrAssignPoolset(&poolset);
+    ret = CheckOrAssignPoolset(fileName, &poolset);
     if (ret != StatusCode::kOK) {
         return ret;
     }
@@ -2698,5 +2701,29 @@ uint64_t GetOpenFileNum(void *varg) {
 bvar::PassiveStatus<uint64_t> g_open_file_num_bvar(
                         CURVE_MDS_CURVEFS_METRIC_PREFIX, "open_file_num",
                         GetOpenFileNum, &kCurveFS);
+
+std::string SelectPoolsetByRules(
+        const std::string& filename,
+        const std::map<std::string, std::string>& rules) {
+    if (rules.empty()) {
+        return kDefaultPoolsetName;
+    }
+
+    // using reverse order, so that we support subdir rules
+    //
+    // for example
+    //   /A/    -> poolset1
+    //   /A/B/  -> poolset2
+    //
+    // if filename is /A/B/C, then we select `poolset2`
+    for (auto it = rules.rbegin(); it != rules.rend(); ++it) {
+        if (absl::StartsWith(filename, it->first)) {
+            return it->second;
+        }
+    }
+
+    return kDefaultPoolsetName;
+}
+
 }   // namespace mds
 }   // namespace curve

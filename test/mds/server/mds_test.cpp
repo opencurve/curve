@@ -217,5 +217,42 @@ TEST_F(MDSTest, common) {
     ASSERT_LE(stopTime - startTime, 100);
 }
 
+TEST(TestParsePoolsetRules, Test) {
+    std::map<std::string, std::string> rules;
+
+    {
+        ASSERT_TRUE(ParsePoolsetRules("", &rules));
+        ASSERT_TRUE(rules.empty());
+    }
+
+    {
+        ASSERT_TRUE(ParsePoolsetRules("/:hello", &rules));
+        ASSERT_EQ(1, rules.size());
+        ASSERT_EQ("hello", rules["/"]);
+    }
+
+    {
+        ASSERT_TRUE(ParsePoolsetRules("/system/:system;/data/:data", &rules));
+        ASSERT_EQ(2, rules.size());
+        ASSERT_EQ("system", rules["/system/"]);
+        ASSERT_EQ("data", rules["/data/"]);
+    }
+
+    {
+        // key must starts and ends with '/'
+        ASSERT_FALSE(ParsePoolsetRules("/system:system;/data/:data", &rules));
+    }
+
+    {
+        // subdir rules
+        ASSERT_TRUE(ParsePoolsetRules(
+                "/system/:system;/data/:data;/system/sub/:system-sub", &rules));
+        ASSERT_EQ(3, rules.size());
+        ASSERT_EQ("system", rules["/system/"]);
+        ASSERT_EQ("data", rules["/data/"]);
+        ASSERT_EQ("system-sub", rules["/system/sub/"]);
+    }
+}
+
 }  // namespace mds
 }  // namespace curve
