@@ -211,6 +211,8 @@ TEST_F(TestFuseVolumeClient, FuseOpInit_when_fs_exist) {
 
     ASSERT_EQ(fsInfo->fsid(), fsInfoExp.fsid());
     ASSERT_EQ(fsInfo->fsname(), fsInfoExp.fsname());
+
+    client_->GetFileSystem()->Destory();
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpDestroy) {
