@@ -219,6 +219,7 @@ CURVEFS_ERROR FuseClient::FuseOpInit(void *userdata,
                                      struct fuse_conn_info *conn) {
     (void)userdata;
     (void)conn;
+    fs_->Run();
     return CURVEFS_ERROR::OK;
 }
 
@@ -368,10 +369,7 @@ CURVEFS_ERROR FuseClient::UpdateParentMCTimeAndNlink(
         if (option_.fileSystemOption.deferSyncOption.deferDirMtime) {
             inodeManager_->ShipToFlush(parentInodeWrapper);
         } else {
-            ret = parentInodeWrapper->SyncAttr();
-            if (ret != CURVEFS_ERROR::OK) {
-                return CURVEFS_ERROR::OK;
-            }
+            return parentInodeWrapper->SyncAttr();
         }
     }
 
