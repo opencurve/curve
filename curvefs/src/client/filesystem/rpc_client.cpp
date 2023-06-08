@@ -104,9 +104,11 @@ CURVEFS_ERROR RPCClient::ReadDir(Ino ino,
             continue;
         }
 
+        // NOTE: we can't use std::move() for attribute for hard link
+        // which will sharing inode attribute.
         dirEntry.ino = ino;
         dirEntry.name = std::move(dentry.name());
-        dirEntry.attr = std::move(iter->second);
+        dirEntry.attr = iter->second;
         (*entries)->Add(dirEntry);
     }
     return CURVEFS_ERROR::OK;
