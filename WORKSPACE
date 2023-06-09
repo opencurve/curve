@@ -174,6 +174,12 @@ new_local_repository(
 )
 
 new_local_repository(
+    name = "mysqlclient",
+    build_file = "//:thirdparties/mysqlclient.BUILD",
+    path = "thirdparties/mysqlclient",
+)
+
+new_local_repository(
     name = "libmemcached",
     build_file = "//:thirdparties/memcache/memcache.BUILD",
     path = "thirdparties/memcache/libmemcached-1.1.2",

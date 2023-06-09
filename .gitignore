@@ -157,3 +157,7 @@ GPATH
 GRTAGS
 GTAGS
 core.*
+etcd*
+core
+.bazelrc
+.gitignore

@@ -28,6 +28,7 @@
 DEFINE_string(confPath, "conf/mds.conf", "mds confPath");
 DEFINE_string(mdsAddr, "127.0.0.1:6666", "mds listen addr");
 DEFINE_string(etcdAddr, "127.0.0.1:2379", "etcd client");
+//TODO
 DEFINE_string(mdsDbName, "curve_mds", "mds db name");
 DEFINE_int32(sessionInterSec, 5, "mds session expired second");
 DEFINE_int32(updateToRepoSec, 5, "interval of update data in mds to repo");

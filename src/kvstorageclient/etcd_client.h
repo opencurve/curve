@@ -92,7 +92,7 @@ class KVStorageClient {
                      std::vector<std::pair<std::string, std::string>>* out) = 0;
 
     /**
-     * @brief Delete Delete the value of the specified key
+     * @brief Delete the value of the specified key
      *
      * @param[in] key
      *

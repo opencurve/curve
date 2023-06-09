@@ -28,6 +28,7 @@
 #include <string>
 
 #include "src/kvstorageclient/etcd_client.h"
+#include "src/mysqlstorageclient/mysql_client.h"
 #include "src/common/namespace_define.h"
 
 namespace curve {

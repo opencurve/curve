@@ -161,6 +161,8 @@ class MDS {
 
     void InitEtcdConf(EtcdConf* etcdConf);
 
+    //TODO
+
     void InitMdsLeaderElectionOption(LeaderElectionOptions* electionOp);
 
     void InitTopologyOption(TopologyOption *topologyOption);
