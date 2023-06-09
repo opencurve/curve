@@ -166,3 +166,7 @@ test/integration/snapshotcloneserver/config/*.conf
 
 *.deb
 *.whl
+etcd*
+core
+.bazelrc
+.gitignore

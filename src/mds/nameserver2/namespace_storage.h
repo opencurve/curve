@@ -33,6 +33,7 @@
 #include "src/common/encode.h"
 #include "src/mds/common/mds_define.h"
 #include "src/kvstorageclient/etcd_client.h"
+#include "src/mysqlstorageclient/mysql_client.h"
 #include "src/mds/nameserver2/metric.h"
 #include "src/common/lru_cache.h"
 
@@ -41,6 +42,7 @@ namespace mds {
 
 using ::curve::kvstorage::EtcdClientImp;
 using ::curve::kvstorage::KVStorageClient;
+using ::curve::mysqlstorage::MysqlClientImp;
 using Cache =
     ::curve::common::LRUCacheInterface<std::string, std::string>;
 
@@ -280,7 +282,11 @@ class NameServerStorage {
 class NameServerStorageImp : public NameServerStorage {
  public:
     explicit NameServerStorageImp(
-        std::shared_ptr<KVStorageClient> client, std::shared_ptr<Cache> cache);
+        std::shared_ptr<KVStorageClient> client, std::shared_ptr<Cache> cache, bool is_kvstorage = true);
+    
+    explicit NameServerStorageImp(
+        std::shared_ptr<MysqlClientImp> mysqlclient, std::shared_ptr<Cache> cache, bool is_kvstorage = false);
+    
     ~NameServerStorageImp() {}
 
     StoreStatus PutFile(const FileInfo & fileInfo) override;
@@ -360,6 +366,11 @@ class NameServerStorageImp : public NameServerStorage {
 
     // underlying storage
     std::shared_ptr<KVStorageClient> client_;
+
+    bool is_kvstorage_;
+
+    // mysql storage
+    std::shared_ptr<MysqlClientImp> mysqlclient_;
 
     // metric for discard
     SegmentDiscardMetric discardMetric_;

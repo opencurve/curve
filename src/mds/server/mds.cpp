@@ -239,6 +239,7 @@ void MDS::StartServer() {
     // when starting the process: --graceful_quit_on_sigterm
     server.RunUntilAskedToQuit();
 }
+//TODO
 
 void MDS::InitEtcdClient(const EtcdConf& etcdConf,
                          int etcdTimeout,

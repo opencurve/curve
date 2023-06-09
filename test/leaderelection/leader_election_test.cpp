@@ -43,6 +43,7 @@ using ::curve::election::LeaderElectionOptions;
 
 TEST(TestLeaderElection, test_leader_election) {
     auto client = std::make_shared<MockEtcdClient>();
+    //TODO
     LeaderElectionOptions opts;
     opts.etcdCli = client;
     opts.leaderUniqueName = "leader1";
