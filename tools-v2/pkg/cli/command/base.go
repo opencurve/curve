@@ -27,6 +27,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"strings"
@@ -300,7 +301,13 @@ func GetRpcResponse(rpc *Rpc, rpcFunc RpcFunc) (interface{}, *cmderror.CmdError)
 			log.Printf("%s: start to dial [%s]", address, rpc.RpcFuncName)
 			ctx, cancel := context.WithTimeout(context.Background(), rpc.RpcTimeout)
 			defer cancel()
-			conn, err := grpc.DialContext(ctx, address, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+			conn, err := grpc.DialContext(
+				ctx,
+				address,
+				grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock(),
+				grpc.WithInitialConnWindowSize(math.MaxInt32),
+				grpc.WithInitialWindowSize(math.MaxInt32),
+			)
 			if err != nil {
 				errDial := cmderror.ErrRpcDial()
 				errDial.Format(address, err.Error())

@@ -25,6 +25,7 @@ package copyset
 import (
 	"context"
 	"fmt"
+	"math"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
@@ -65,7 +66,10 @@ func (cRpc *ListCopysetRpc) NewRpcClient(cc grpc.ClientConnInterface) {
 }
 
 func (cRpc *ListCopysetRpc) Stub_Func(ctx context.Context) (interface{}, error) {
-	return cRpc.topologyClient.ListCopysetInfo(ctx, cRpc.Request)
+	return cRpc.topologyClient.ListCopysetInfo(ctx, 
+		cRpc.Request, 
+		grpc.MaxCallRecvMsgSize(math.MaxInt32),
+	)
 }
 
 func NewCopysetCommand() *cobra.Command {
