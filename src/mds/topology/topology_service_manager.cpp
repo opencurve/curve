@@ -1680,7 +1680,7 @@ void TopologyServiceManager::GetCopySetsInCluster(
     const GetCopySetsInClusterRequest* request,
     GetCopySetsInClusterResponse* response) {
     auto filter = [&](const CopySetInfo& copysetInfo) {
-        if (request->has_filterscaning() && !copysetInfo.GetScaning()) {
+        if (request->filterscaning() && !copysetInfo.GetScaning()) {
             return false;
         }
 
