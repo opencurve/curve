@@ -370,10 +370,7 @@ CURVEFS_ERROR FuseClient::UpdateParentMCTimeAndNlink(
         if (option_.fileSystemOption.deferSyncOption.deferDirMtime) {
             inodeManager_->ShipToFlush(parentInodeWrapper);
         } else {
-            ret = parentInodeWrapper->SyncAttr();
-            if (ret != CURVEFS_ERROR::OK) {
-                return CURVEFS_ERROR::OK;
-            }
+            return parentInodeWrapper->SyncAttr();
         }
     }
 

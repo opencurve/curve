@@ -101,7 +101,7 @@ CURVEFS_ERROR RPCClient::ReadDir(Ino ino, std::shared_ptr<DirEntryList>* entries
 
         dirEntry.ino = ino;
         dirEntry.name = std::move(dentry.name());
-        dirEntry.attr = std::move(iter->second);
+        dirEntry.attr = iter->second;
         (*entries)->Add(dirEntry);
     }
     return CURVEFS_ERROR::OK;
