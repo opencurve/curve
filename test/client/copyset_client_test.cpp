@@ -651,7 +651,6 @@ TEST_F(CopysetClientTest, write_error_test) {
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
                  reqDone->GetErrorCode());
     }
-
     /* 不是 leader，返回正确的 leader */
     {
         RequestContext *reqCtx = new FakeRequestContext();
@@ -692,7 +691,6 @@ TEST_F(CopysetClientTest, write_error_test) {
 
         ASSERT_EQ(1, fm.writeRPC.redirectQps.count.get_value());
     }
-
     /* 不是 leader，没有返回 leader，刷新 meta cache 成功 */
     {
         RequestContext *reqCtx = new FakeRequestContext();
@@ -730,7 +728,6 @@ TEST_F(CopysetClientTest, write_error_test) {
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
-
     /* 不是 leader，没有返回 leader，刷新 meta cache 失败 */
     {
         RequestContext *reqCtx = new FakeRequestContext();
@@ -771,7 +768,6 @@ TEST_F(CopysetClientTest, write_error_test) {
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
-
     /* 不是 leader，但返回的是错误 leader */
     {
         RequestContext *reqCtx = new FakeRequestContext();
@@ -816,7 +812,6 @@ TEST_F(CopysetClientTest, write_error_test) {
                   reqDone->GetErrorCode());
         ASSERT_EQ(3, fm.writeRPC.redirectQps.count.get_value());
     }
-
     /* copyset 不存在，更新 leader 依然失败 */
     {
         RequestContext *reqCtx = new FakeRequestContext();

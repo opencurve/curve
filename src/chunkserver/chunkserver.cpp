@@ -109,12 +109,6 @@ int ChunkServer::Run(int argc, char** argv) {
     // ============================初始化各模块==========================//
     LOG(INFO) << "Initializing ChunkServer modules";
 
-    LOG_IF(FATAL, !conf.GetUInt32Value("global.min_io_alignment",
-                                       &FLAGS_minIoAlignment))
-        << "Failed to get global.min_io_alignment";
-    LOG_IF(FATAL, !common::is_aligned(FLAGS_minIoAlignment, 512))
-        << "minIoAlignment should align to 512";
-
     // 优先初始化 metric 收集模块
     ChunkServerMetricOptions metricOptions;
     InitMetricOptions(&conf, &metricOptions);
@@ -588,8 +582,6 @@ void ChunkServer::InitCopysetNodeOptions(
         &copysetNodeOptions->maxChunkSize));
     LOG_IF(FATAL, !conf->GetUInt32Value("global.location_limit",
         &copysetNodeOptions->locationLimit));
-    LOG_IF(FATAL, !conf->GetUInt32Value("global.meta_page_size",
-        &copysetNodeOptions->pageSize));
     LOG_IF(FATAL, !conf->GetUInt32Value("copyset.load_concurrency",
         &copysetNodeOptions->loadConcurrency));
     LOG_IF(FATAL, !conf->GetUInt32Value("copyset.check_retrytimes",
@@ -869,10 +861,6 @@ void ChunkServer::LoadConfigFromCmdline(common::Configuration *conf) {
         !info.is_default) {
         conf->SetIntValue("copyset.load_concurrency",
             FLAGS_copysetLoadConcurrency);
-    }
-
-    if (GetCommandLineFlagInfo("minIoAlignment", &info) && !info.is_default) {
-        conf->SetUInt32Value("global.min_io_alignment", FLAGS_minIoAlignment);
     }
 }
 

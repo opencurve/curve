@@ -183,11 +183,6 @@ void Configuration::SetUInt64Value(
     SetValue(key, std::to_string(value));
 }
 
-void Configuration::SetUInt32Value(const std::string &key,
-                                   const uint32_t value) {
-    SetValue(key, std::to_string(value));
-}
-
 bool Configuration::GetInt64Value(const std::string& key, int64_t* out) {
     std::string res;
     if (GetValue(key, &res)) {
