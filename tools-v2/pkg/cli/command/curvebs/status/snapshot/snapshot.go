@@ -25,6 +25,7 @@ package snapshot
 import (
 	"fmt"
 
+	"github.com/olekukonko/tablewriter"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -205,7 +206,7 @@ func NewStatusSnapshotCommand() *SnapshotCommand {
 	return snapshotCmd
 }
 
-func GetSnapshotStatus(caller *cobra.Command) (*interface{}, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS) {
+func GetSnapshotStatus(caller *cobra.Command) (*interface{}, *tablewriter.Table, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS) {
 	snapshotCmd := NewStatusSnapshotCommand()
 	snapshotCmd.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
@@ -218,7 +219,7 @@ func GetSnapshotStatus(caller *cobra.Command) (*interface{}, *cmderror.CmdError,
 	if err != nil {
 		retErr := cmderror.ErrBsGetSnapshotServerStatus()
 		retErr.Format(err.Error())
-		return nil, retErr, cobrautil.HEALTH_ERROR
+		return nil, nil, retErr, cobrautil.HEALTH_ERROR
 	}
-	return &snapshotCmd.Result, cmderror.Success(), snapshotCmd.health
+	return &snapshotCmd.Result, snapshotCmd.TableNew, cmderror.Success(), snapshotCmd.health
 }

@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/olekukonko/tablewriter"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -103,4 +104,20 @@ func NewStatusCopysetCommand() *CopysetCommand {
 	}
 	basecmd.NewFinalCurveCli(&copysetCmd.FinalCurveCmd, copysetCmd)
 	return copysetCmd
+}
+
+func GetCopysetsStatus(caller *cobra.Command) (*interface{}, *tablewriter.Table, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS) {
+	cCmd := NewStatusCopysetCommand()
+	cCmd.Cmd.SetArgs([]string{
+		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
+	})
+	config.AlignFlagsValue(caller, cCmd.Cmd, []string{config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEBS_MDSADDR, config.CURVEBS_MARGIN})
+	cCmd.Cmd.SilenceErrors = true
+	err := cCmd.Cmd.Execute()
+	if err != nil {
+		retErr := cmderror.ErrBsGetMdsStatus()
+		retErr.Format(err.Error())
+		return nil, nil, retErr, cobrautil.HEALTH_ERROR
+	}
+	return &cCmd.Result, cCmd.TableNew, cmderror.Success(), cobrautil.HEALTH_OK
 }

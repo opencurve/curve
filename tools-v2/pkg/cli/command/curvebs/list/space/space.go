@@ -25,6 +25,7 @@ import (
 	"strconv"
 
 	"github.com/dustin/go-humanize"
+	"github.com/olekukonko/tablewriter"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -186,4 +187,21 @@ func (sCmd *SpaceCommand) RunCommand(cmd *cobra.Command, args []string) error {
 
 func (sCmd *SpaceCommand) ResultPlainOutput() error {
 	return output.FinalCmdOutputPlain(&sCmd.FinalCurveCmd)
+}
+
+func GetSpaceStatus(caller *cobra.Command) (*interface{}, *tablewriter.Table, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS) {
+	sCmd := NewListSpaceCommand()
+	sCmd.Cmd.SetArgs([]string{
+		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
+	})
+	config.AlignFlagsValue(caller, sCmd.Cmd, []string{config.HTTPTIMEOUT, config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEBS_MDSADDR})
+	sCmd.Cmd.SilenceErrors = true
+	err := sCmd.Cmd.Execute()
+	if err != nil {
+		retErr := cmderror.ErrBsListSpaceStatus()
+		retErr.Format(err.Error())
+		return nil, nil, retErr, cobrautil.HEALTH_ERROR
+	}
+	fmt.Sprintln(sCmd.Result)
+	return &sCmd.Result, sCmd.TableNew, cmderror.Success(), cobrautil.HEALTH_OK
 }

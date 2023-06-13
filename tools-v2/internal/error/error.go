@@ -459,6 +459,9 @@ var (
 	ErrBsListScanStatus = func() *CmdError {
 		return NewInternalCmdError(66, "list scan-status fail, err: %s")
 	}
+	ErrBsListSpaceStatus = func() *CmdError {
+		return NewInternalCmdError(66, "list space status fail, err: %s")
+	}
 
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {

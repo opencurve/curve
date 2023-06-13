@@ -23,9 +23,11 @@
 package client
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 
+	"github.com/olekukonko/tablewriter"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -92,9 +94,7 @@ func (cCmd *ClientCommand) Init(cmd *cobra.Command, args []string) error {
 	}
 
 	if len((*results).([]map[string]string)) == 0 {
-		retErr := cmderror.ErrBsGetClientStatus()
-		retErr.Format("Client List is null!")
-		return retErr.ToError()
+		return nil
 	}
 
 	clientAddr := make([]string, 0)
@@ -123,6 +123,10 @@ func (cCmd *ClientCommand) Print(cmd *cobra.Command, args []string) error {
 }
 
 func (cCmd *ClientCommand) RunCommand(cmd *cobra.Command, args []string) error {
+	if len(cCmd.metrics) == 0 {
+		return nil
+	}
+
 	// run metrics request
 	results := make(chan basecmd.MetricResult, config.MaxChannelSize())
 	size := 0
@@ -237,4 +241,20 @@ func NewStatusClientCommand() *ClientCommand {
 	}
 	basecmd.NewFinalCurveCli(&clientCmd.FinalCurveCmd, clientCmd)
 	return clientCmd
+}
+
+func GetClientStatus(caller *cobra.Command) (*interface{}, *tablewriter.Table, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS) {
+	cCmd := NewStatusClientCommand()
+	cCmd.Cmd.SetArgs([]string{
+		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
+	})
+	config.AlignFlagsValue(caller, cCmd.Cmd, []string{config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEBS_MDSADDR})
+	cCmd.Cmd.SilenceErrors = true
+	err := cCmd.Cmd.Execute()
+	if err != nil {
+		retErr := cmderror.ErrBsGetClientStatus()
+		retErr.Format(err.Error())
+		return nil, nil, retErr, cobrautil.HEALTH_ERROR
+	}
+	return &cCmd.Result, cCmd.TableNew, cmderror.Success(), cobrautil.HEALTH_OK
 }
