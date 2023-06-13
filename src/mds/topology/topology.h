@@ -660,7 +660,7 @@ class TopologyImpl : public Topology {
      * @return error code
      */
     int GetBelongPhysicalPoolId(ChunkServerIdType csId,
-        PoolIdType *physicalPoolIdOut);
+        PoolIdType *physicalPoolIdOut) override;
 
     /**
      * @brief  get physicalPool Id that the server belongs to

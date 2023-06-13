@@ -72,7 +72,6 @@ static const char *chunkServerParams[1][16] = {
 butil::AtExitManager atExitManager;
 const int kChunkNum = 10;
 const ChunkSizeType kChunkSize = 16 * 1024 * 1024;
-const uint32_t kOpRequestAlignSize = 4096;
 const PageSizeType kPageSize = kOpRequestAlignSize;
 
 class ChunkServerIoTest : public testing::Test {

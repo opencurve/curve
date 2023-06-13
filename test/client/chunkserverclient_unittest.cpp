@@ -300,12 +300,3 @@ TEST_F(ChunkServerClientTest, UpdateFileEpochFailedForRetryTimesExceed) {
 
 }   // namespace client
 }   // namespace curve
-
-int main(int argc, char ** argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    ::testing::InitGoogleMock(&argc, argv);
-    google::ParseCommandLineFlags(&argc, &argv, false);
-
-    int ret = RUN_ALL_TESTS();
-    return ret;
-}

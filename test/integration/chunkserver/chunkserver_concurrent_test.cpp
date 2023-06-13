@@ -90,7 +90,6 @@ static const char *chunkConcurrencyParams2[1][16] = {
 butil::AtExitManager atExitManager;
 const int kChunkNum = 10;
 const ChunkSizeType kChunkSize = 16 * 1024 * 1024;
-const uint32_t kOpRequestAlignSize = 4096;
 const PageSizeType kPageSize = kOpRequestAlignSize;
 
 // chunk不从FilePool获取的chunkserver并发测试
