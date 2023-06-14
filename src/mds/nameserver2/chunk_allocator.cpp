@@ -77,7 +77,7 @@ bool ChunkSegmentAllocatorImpl::AllocateChunkSegment(FileType type,
         segment->set_logicalpoolid(logicalpoolId);
 
         for (uint32_t i = 0; i < chunkNum ; i++) {
-            PageFileChunkInfo* chunkinfo =  segment->add_chunks();
+            PageFileChunkInfo* chunkinfo = segment->add_chunks();
 
             ChunkID chunkID;
             if (!chunkIDGenerator_->GenChunkID(&chunkID)) {
@@ -88,6 +88,27 @@ bool ChunkSegmentAllocatorImpl::AllocateChunkSegment(FileType type,
             chunkinfo->set_copysetid(copysets[i].copySetId);
         }
         return true;
+}
+
+bool ChunkSegmentAllocatorImpl::CloneChunkSegment(const PageFileSegment &srcSegment,
+    PageFileSegment *segment) {
+    segment->set_iscloned(true);
+    segment->set_logicalpoolid(srcSegment.logicalpoolid());
+    segment->set_segmentsize(srcSegment.segmentsize());
+    segment->set_chunksize(srcSegment.chunksize());
+    segment->set_startoffset(srcSegment.startoffset());
+    for (uint32_t i = 0; i < srcSegment.chunks_size(); i++) {
+        PageFileChunkInfo* chunkinfo = segment->add_chunks();
+
+        ChunkID chunkID;
+        if (!chunkIDGenerator_->GenChunkID(&chunkID)) {
+            LOG(ERROR) << "allocate error";
+            return false;
+        }
+        chunkinfo->set_chunkid(chunkID);
+        chunkinfo->set_copysetid(srcSegment.chunks(i).copysetid());
+    }
+    return true;
 }
 
 }   // namespace mds

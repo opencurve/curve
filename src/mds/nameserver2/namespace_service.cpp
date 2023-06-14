@@ -347,32 +347,40 @@ void NameSpaceService::GetFileInfo(
 
     FileReadLockGuard guard(fileLockManager_, request->filename());
 
-    std::string signature;
-    if (request->has_signature()) {
-        signature = request->signature();
-    }
-
     StatusCode retCode;
-    retCode = kCurveFS.CheckFileOwner(request->filename(), request->owner(),
-                                      signature, request->date());
-    if (retCode != StatusCode::kOK) {
-        response->set_statuscode(retCode);
-        if (google::ERROR != GetMdsLogLevel(retCode)) {
-            LOG(WARNING) << "logid = " << cntl->log_id()
-                << ", CheckFileOwner fail, filename = " <<  request->filename()
-                << ", owner = " << request->owner()
-                << ", statusCode = " << retCode;
-        } else {
-            LOG(ERROR) << "logid = " << cntl->log_id()
-                << ", CheckFileOwner fail, filename = " <<  request->filename()
-                << ", owner = " << request->owner()
-                << ", statusCode = " << retCode;
+    if (kCurveFS.isVirtualCloneVol(request->filename()) == true) {
+        retCode = kCurveFS.GetVirtualCloneVolFileInfo(
+             request->filename(),
+             response->mutable_fileinfo());
+    } else {
+        std::string signature;
+        if (request->has_signature()) {
+            signature = request->signature();
         }
-        return;
+        retCode = kCurveFS.CheckFileOwner(request->filename(), request->owner(),
+                                          signature, request->date());
+        if (retCode != StatusCode::kOK) {
+            response->set_statuscode(retCode);
+            if (google::ERROR != GetMdsLogLevel(retCode)) {
+                LOG(WARNING) << "logid = " << cntl->log_id()
+                    << ", CheckFileOwner fail, filename = " 
+                    <<  request->filename()
+                    << ", owner = " << request->owner()
+                    << ", statusCode = " << retCode;
+            } else {
+                LOG(ERROR) << "logid = " << cntl->log_id()
+                    << ", CheckFileOwner fail, filename = " 
+                    <<  request->filename()
+                    << ", owner = " << request->owner()
+                    << ", statusCode = " << retCode;
+            }
+            return;
+        }
+
+        retCode = kCurveFS.GetFileInfoWithCloneChain(request->filename(),
+            response->mutable_fileinfo());
     }
 
-    retCode = kCurveFS.GetFileInfo(request->filename(),
-        response->mutable_fileinfo());
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
         if (google::ERROR != GetMdsLogLevel(retCode)) {
@@ -424,46 +432,48 @@ void NameSpaceService::GetOrAllocateSegment(
 
     FileWriteLockGuard guard(fileLockManager_, request->filename());
 
-    std::string signature;
-    if (request->has_signature()) {
-        signature = request->signature();
-    }
-
     StatusCode retCode;
-    retCode = kCurveFS.CheckFileOwner(request->filename(), request->owner(),
-                                      signature, request->date());
-    if (retCode != StatusCode::kOK) {
-        response->set_statuscode(retCode);
-        if (google::ERROR != GetMdsLogLevel(retCode)) {
-            LOG(WARNING) << "logid = " << cntl->log_id()
-                << ", CheckFileOwner fail, filename = " <<  request->filename()
-                << ", owner = " << request->owner()
-                << ", statusCode = " << retCode;
-        } else {
-            LOG(ERROR) << "logid = " << cntl->log_id()
-                << ", CheckFileOwner fail, filename = " <<  request->filename()
-                << ", owner = " << request->owner()
-                << ", statusCode = " << retCode;
+    if (kCurveFS.isVirtualCloneVol(request->filename()) != true) {
+        std::string signature;
+        if (request->has_signature()) {
+            signature = request->signature();
         }
-        return;
-    }
 
-    if (request->allocateifnotexist() && request->has_epoch()) {
-        retCode = kCurveFS.CheckEpoch(request->filename(), request->epoch());
+        retCode = kCurveFS.CheckFileOwner(request->filename(), request->owner(),
+                                          signature, request->date());
         if (retCode != StatusCode::kOK) {
             response->set_statuscode(retCode);
             if (google::ERROR != GetMdsLogLevel(retCode)) {
                 LOG(WARNING) << "logid = " << cntl->log_id()
-                    << ", CheckEpoch fail, filename = " <<  request->filename()
-                    << ", epoch = " << request->epoch()
+                    << ", CheckFileOwner fail, filename = " <<  request->filename()
+                    << ", owner = " << request->owner()
                     << ", statusCode = " << retCode;
             } else {
                 LOG(ERROR) << "logid = " << cntl->log_id()
-                    << ", CheckEpoch fail, filename = " <<  request->filename()
-                    << ", epoch = " << request->epoch()
+                    << ", CheckFileOwner fail, filename = " <<  request->filename()
+                    << ", owner = " << request->owner()
                     << ", statusCode = " << retCode;
             }
             return;
+        }
+
+        if (request->allocateifnotexist() && request->has_epoch()) {
+            retCode = kCurveFS.CheckEpoch(request->filename(), request->epoch());
+            if (retCode != StatusCode::kOK) {
+                response->set_statuscode(retCode);
+                if (google::ERROR != GetMdsLogLevel(retCode)) {
+                    LOG(WARNING) << "logid = " << cntl->log_id()
+                        << ", CheckEpoch fail, filename = " <<  request->filename()
+                        << ", epoch = " << request->epoch()
+                        << ", statusCode = " << retCode;
+                } else {
+                    LOG(ERROR) << "logid = " << cntl->log_id()
+                        << ", CheckEpoch fail, filename = " <<  request->filename()
+                        << ", epoch = " << request->epoch()
+                        << ", statusCode = " << retCode;
+                }
+                return;
+            }
         }
     }
 
@@ -1058,16 +1068,25 @@ void NameSpaceService::ListSnapShot(
 
     if (retCode == StatusCode::kOK) {
         auto size =  request->seq_size();
-        for (int i = 0; i != size; i++) {
-            auto tofindseq = request->seq(i);
-            LOG(INFO) << "tofindseq = " << tofindseq;
-            auto iter =
-                std::find_if(snapShotFiles.begin(), snapShotFiles.end(),
-                [&](const FileInfo &val){ return val.seqnum() == tofindseq; });
-
-            if (iter != snapShotFiles.end()) {
+        // if not have seq, return all snapshots
+        if (0 == size) {
+            for (const auto &item: snapShotFiles) {
                 FileInfo *fileinfo = response->add_fileinfo();
-                fileinfo->CopyFrom(*iter);
+                fileinfo->CopyFrom(item);
+            }
+        }  else {
+            for (int i = 0; i != size; i++) {
+                auto tofindseq = request->seq(i);
+                LOG(INFO) << "tofindseq = " << tofindseq;
+                auto iter =
+                    std::find_if(snapShotFiles.begin(), snapShotFiles.end(),
+                    [&](const FileInfo &val){
+                        return val.seqnum() == tofindseq; });
+
+                if (iter != snapShotFiles.end()) {
+                    FileInfo *fileinfo = response->add_fileinfo();
+                    fileinfo->CopyFrom(*iter);
+                }
             }
         }
     }
@@ -1350,6 +1369,100 @@ void NameSpaceService::GetSnapShotFileSegment(
                   << expiredTime.ExpiredMs() << " ms";
     }
 
+    return;
+}
+
+void NameSpaceService::Clone(::google::protobuf::RpcController* controller,
+                            const ::curve::mds::CloneRequest* request,
+                            ::curve::mds::CloneResponse* response,
+                            ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard doneGuard(done);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
+    ExpiredTime expiredTime;
+    
+    LOG(INFO) << "logid = " << cntl->log_id()
+        << ", Clone request " << request->ShortDebugString();
+
+    if (((!request->has_srcfilename()) || 
+         (!request->has_seq())) &&
+        (!request->has_snapfilename())) {
+        LOG(WARNING) << "logid = " << cntl->log_id()
+                     << ", snapFileName or srcFileName + seq must be set"
+                     << ", filename = " << request->filename();
+
+        response->set_statuscode(StatusCode::kParaError);
+        return;
+    }
+
+    std::string signature = "";
+    if (request->has_signature()) {
+        signature = request->signature();
+    }
+
+    FileWriteLockGuard guard(fileLockManager_, request->filename());
+
+    // check authority
+    StatusCode ret = kCurveFS.CheckPathOwner(request->filename(),
+                                             request->owner(),
+                                             signature, request->date());
+
+    if (ret != StatusCode::kOK) {
+        response->set_statuscode(ret);
+        if (google::ERROR != GetMdsLogLevel(ret)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", Clone CheckPathOwner fail, filename = "
+                <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << ret;
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", Clone CheckPathOwner fail, filename = "
+                <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << ret;
+        }
+        return;
+    }
+
+    std::string srcFileName = request->srcfilename();
+    uint64_t seq = request->seq();
+
+    if (request->has_snapfilename()) {
+        bool rb = SplitSnapshotPath(request->snapfilename(),
+            &srcFileName, &seq);
+        if (!rb) {
+            LOG(WARNING) << "SplitSnapshotPath failed"
+                         << ", snapFileName: " << request->snapfilename();
+            response->set_statuscode(StatusCode::kParaError);
+            return;
+        }
+    }
+
+    ret = kCurveFS.Clone(request->filename(),
+                                    request->owner(),
+                                    srcFileName,
+                                    seq,
+                                    response->mutable_fileinfo());
+    response->set_statuscode(ret);
+    if (ret != StatusCode::kOK) {
+        if (google::ERROR != GetMdsLogLevel(ret)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", Clone fail, filename = " <<  request->filename()
+                << ", statusCode = " << ret
+                << ", StatusCode_Name = " << StatusCode_Name(ret)
+                << ", cost " << expiredTime.ExpiredMs() << " ms";
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", Clone fail, filename = " <<  request->filename()
+                << ", statusCode = " << ret
+                << ", StatusCode_Name = " << StatusCode_Name(ret)
+                << ", cost " << expiredTime.ExpiredMs() << " ms";
+        }
+    } else {
+        LOG(INFO) << "logid = " << cntl->log_id()
+                  << ", Clone ok, filename = " << request->filename()
+                  << ", cost " << expiredTime.ExpiredMs() << " ms";
+    }
     return;
 }
 

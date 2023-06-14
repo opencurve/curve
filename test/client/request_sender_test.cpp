@@ -128,8 +128,9 @@ TEST_F(RequestSenderTest, TestReadChunkAppliedIndex) {
         FakeChunkClosure closure(&event);
 
         appliedIndex = 100;
-        requestSender.ReadChunk(ChunkIDInfo(), 0, 0, 0, appliedIndex, {},
-                                &closure);
+        RequestContext ctx;
+        ctx.appliedindex_ = appliedIndex;
+        requestSender.ReadChunk(&ctx, &closure);
 
         event.Wait();
         ASSERT_TRUE(chunkRequest.has_appliedindex());
@@ -146,8 +147,9 @@ TEST_F(RequestSenderTest, TestReadChunkAppliedIndex) {
         FakeChunkClosure closure(&event);
 
         appliedIndex = 0;
-        requestSender.ReadChunk(ChunkIDInfo(), 0, 0, 0, appliedIndex, {},
-                                &closure);
+        RequestContext ctx;
+        ctx.appliedindex_ = appliedIndex;
+        requestSender.ReadChunk(&ctx, &closure);
 
         event.Wait();
         ASSERT_FALSE(chunkRequest.has_appliedindex());
@@ -173,9 +175,11 @@ TEST_F(RequestSenderTest, TestWriteChunkSourceInfo) {
         CountDownEvent event(1);
         FakeChunkClosure closure(&event);
 
-        sourceInfo.cloneFileSource.clear();
-        requestSender.WriteChunk(ChunkIDInfo(), 1, 1, 0, {}, {}, 0, 0,
-                                 sourceInfo, &closure);
+        RequestContext ctx;
+        ctx.seq_ = 1;
+        ctx.offset_ = 1;
+        ctx.rawlength_ = 0;
+        requestSender.WriteChunk(&ctx, &closure);
 
         event.Wait();
         ASSERT_FALSE(chunkRequest.has_clonefilesource());
@@ -196,8 +200,12 @@ TEST_F(RequestSenderTest, TestWriteChunkSourceInfo) {
         sourceInfo.cloneFileOffset = 0;
         sourceInfo.valid = true;
 
-        requestSender.WriteChunk(ChunkIDInfo(), 1, 1, 0,{}, {}, 0, 0,
-                                 sourceInfo, &closure);
+        RequestContext ctx;
+        ctx.seq_ = 1;
+        ctx.offset_ = 1;
+        ctx.rawlength_ = 0;
+        ctx.sourceInfo_ = sourceInfo;
+        requestSender.WriteChunk(&ctx, &closure);
 
         event.Wait();
         ASSERT_TRUE(chunkRequest.has_clonefilesource());
@@ -227,9 +235,9 @@ TEST_F(RequestSenderTest, TestReadChunkSourceInfo) {
         CountDownEvent event(1);
         FakeChunkClosure closure(&event);
 
-        sourceInfo.cloneFileSource.clear();
-        requestSender.ReadChunk(ChunkIDInfo(), 0, 0, 0, appliedIndex,
-                                sourceInfo, &closure);
+        RequestContext ctx;
+        ctx.appliedindex_ = appliedIndex;
+        requestSender.ReadChunk(&ctx, &closure);
 
         event.Wait();
         ASSERT_FALSE(chunkRequest.has_clonefilesource());
@@ -250,8 +258,10 @@ TEST_F(RequestSenderTest, TestReadChunkSourceInfo) {
         sourceInfo.cloneFileOffset = 0;
         sourceInfo.valid = true;
 
-        requestSender.ReadChunk(ChunkIDInfo(), 0, 0, 0, appliedIndex,
-                                sourceInfo, &closure);
+        RequestContext ctx;
+        ctx.appliedindex_ = appliedIndex;
+        ctx.sourceInfo_ = sourceInfo;
+        requestSender.ReadChunk(&ctx, &closure);
 
         event.Wait();
         ASSERT_TRUE(chunkRequest.has_clonefilesource());

@@ -125,6 +125,12 @@ class Splitor {
                            const FileEpoch_t* fEpoch,
                            ChunkIndex chunkidx);
 
+    static int AssignCloneFileInfo(IOTracker* iotracker,
+                                   std::vector<RequestContext*>* targetlist,
+                                   MDSClient* mdsclient,
+                                   const FInfo_t* fi,
+                                   ChunkIndex chunkidx);
+
     static bool GetOrAllocateSegment(bool allocateIfNotExist,
                                      uint64_t offset,
                                      MDSClient* mdsClient,

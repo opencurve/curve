@@ -78,11 +78,13 @@ typedef struct ChunkIDInfo {
     LogicPoolID     lpid_ = 0;
 
     bool chunkExist = true;
+    bool isCloned_ = false;
 
     ChunkIDInfo() = default;
 
-    ChunkIDInfo(ChunkID cid, LogicPoolID lpid, CopysetID cpid)
-        : cid_(cid), cpid_(cpid), lpid_(lpid) {}
+    ChunkIDInfo(ChunkID cid, LogicPoolID lpid, CopysetID cpid,
+        bool isCloned = false)
+          : cid_(cid), cpid_(cpid), lpid_(lpid), isCloned_(isCloned) {}
 
     bool Valid() const {
         return lpid_ > 0 && cpid_ > 0;
@@ -131,6 +133,22 @@ struct CloneSourceInfo {
     bool IsSegmentAllocated(uint64_t offset) const;
 };
 
+struct CloneInfos {
+    uint64_t cloneNo;
+    uint64_t cloneSn;
+    CloneInfos()
+      : cloneNo(0), cloneSn(0) {}
+};
+
+struct CloneFileInfo {
+    uint64_t cloneNo;
+    uint64_t cloneSn;
+    std::string cloneOrigin;
+    std::vector<CloneInfos> clones;
+    CloneFileInfo()
+      : cloneNo(0), cloneSn(0) {}
+};
+
 typedef struct FInfo {
     uint64_t id;
     uint64_t parentid;
@@ -159,6 +177,8 @@ typedef struct FInfo {
     std::string poolset;
 
     OpenFlags       openflags;
+
+    CloneFileInfo   cfinfo;
 
     FInfo() {
         id = 0;

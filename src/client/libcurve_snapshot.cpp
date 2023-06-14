@@ -160,6 +160,16 @@ int SnapshotClient::CheckSnapShotStatus(const std::string& filename,
     return -ret;
 }
 
+int SnapshotClient::Clone(const std::string& source,
+        const std::string& destination,
+        const UserInfo_t& userinfo,
+        uint64_t seq,
+        FInfo* finfo) {
+    LIBCURVE_ERROR ret = mdsclient_.Clone(
+        source, destination, userinfo, seq, finfo);
+    return -ret;
+}
+
 int SnapshotClient::CreateCloneFile(const std::string& source,
                                     const std::string& destination,
                                     const UserInfo_t& userinfo,

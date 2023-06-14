@@ -150,6 +150,13 @@ class SnapshotClient {
                                 uint64_t seq,
                                 FileStatus* filestatus,
                                 uint32_t* progress = nullptr);
+
+  int Clone(const std::string& source,
+            const std::string& destination,
+            const UserInfo_t& userinfo,
+            uint64_t seq,
+            FInfo* finfo);
+
   /**
    * @brief 创建clone文件
    * @detail

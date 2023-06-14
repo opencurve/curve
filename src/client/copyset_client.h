@@ -79,46 +79,18 @@ class CopysetClient {
     }
 
     /**
-     * 读Chunk
-     * @param idinfo为chunk相关的id信息
-     * @param sn:文件版本号
-     * @param offset:读的偏移
-     * @param length:读的长度
-     * @param appliedindex:需要读到>=appliedIndex的数据
-     * @param souceInfo chunk克隆源信息
-     * @param done:上一层异步回调的closure
-     */
-    int ReadChunk(const ChunkIDInfo& idinfo,
-                  uint64_t sn,
-                  off_t offset,
-                  size_t length,
-                  uint64_t appliedindex,
-                  const RequestSourceInfo& sourceInfo,
-                  google::protobuf::Closure *done);
+    * write Chunk
+    * @param ctx: request context
+    * @param done: request closure
+    */
+    int WriteChunk(RequestContext* ctx, Closure *done);
 
     /**
-    * 写Chunk
-    * @param idinfo为chunk相关的id信息
-    * @param fileId: file id
-    * @param epoch: file epoch
-    * @param sn:文件版本号
-    * @param snaps: 现有快照版本号集合
-    * @param writeData:要写入的数据
-     *@param offset:写的偏移
-    * @param length:写的长度
-    * @param sourceInfo chunk克隆源信息
-    * @param done:上一层异步回调的closure
+    * read Chunk
+    * @param ctx: request context
+    * @param done: request closure
     */
-    int WriteChunk(const ChunkIDInfo& idinfo,
-                   uint64_t fileId,
-                   uint64_t epoch,
-                   uint64_t sn,
-                   const std::vector<uint64_t>& snaps,
-                   const butil::IOBuf& writeData,
-                   off_t offset,
-                   size_t length,
-                   const RequestSourceInfo& sourceInfo,
-                   Closure *done);
+    int ReadChunk(RequestContext* ctx, Closure* done);
 
     /**
      * 读Chunk快照文件

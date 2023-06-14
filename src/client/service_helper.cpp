@@ -100,6 +100,25 @@ void ServiceHelper::ProtoFileInfo2Local(const curve::mds::FileInfo& finfo,
     } else {
         fEpoch->epoch = 0;
     }
+
+    if ((finfo.has_filetype()) && 
+        (finfo.filetype() == curve::mds::FileType::INODE_CLONE_PAGEFILE)) {
+        if (finfo.has_cloneno()) {
+            fi->cfinfo.cloneNo = finfo.cloneno();
+        }
+        if (finfo.has_clonesn()) {
+            fi->cfinfo.cloneSn = finfo.clonesn();
+        }
+        if (finfo.has_cloneorigin()) {
+            fi->cfinfo.cloneOrigin = finfo.cloneorigin();
+        }
+        for (int i = 0; i < finfo.clones_size(); i++) {
+            CloneInfos cinfo;
+            cinfo.cloneNo = finfo.clones(i).cloneno();
+            cinfo.cloneSn = finfo.clones(i).clonesn();
+            fi->cfinfo.clones.push_back(cinfo);
+        }
+    }
 }
 
 void ServiceHelper::ProtoCloneSourceInfo2Local(

@@ -144,6 +144,8 @@ const char ROOTFILENAME[] = "/";
 const InodeID RECYCLEBININODEID = 1;
 const std::string RECYCLEBINDIRNAME = "RecycleBin"; //NOLINT
 const std::string RECYCLEBINDIR = "/" + RECYCLEBINDIRNAME;  //NOLINT
+                                                            //
+const InodeID VIRTUALCLONEVOLINODEID = 2;
 const InodeID USERSTARTINODEID = 2;
 
 // curve root user name

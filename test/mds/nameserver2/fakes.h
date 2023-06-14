@@ -35,6 +35,7 @@
 #include "src/mds/nameserver2/namespace_storage.h"
 #include "src/mds/nameserver2/idgenerator/chunk_id_generator.h"
 #include "src/mds/topology/topology_chunk_allocator.h"
+#include "src/mds/nameserver2/idgenerator/clone_id_generator.h"
 
 using ::curve::mds::topology::TopologyChunkAllocator;
 using ::curve::common::SNAPSHOTFILEINFOKEYPREFIX;
@@ -64,6 +65,19 @@ class FackChunkIDGenerator: public ChunkIDGenerator {
         value_ = val;
     }
     bool GenChunkID(ChunkID *id) override {
+        *id = ++value_;
+        return true;
+    }
+ private:
+    std::atomic<uint64_t> value_;
+};
+
+class FakeCloneIDGenerator: public CloneIDGenerator {
+ public:
+    explicit FakeCloneIDGenerator(uint64_t val = CLONEIDINITIALIZE) {
+        value_ = val;
+    }
+    bool GenCloneID(uint64_t *id) override {
         *id = ++value_;
         return true;
     }
@@ -139,6 +153,20 @@ class FakeNameServerStorage : public NameServerStorage {
         std::lock_guard<std::mutex> guard(lock_);
         std::string storeKey =
             NameSpaceStorageCodec::EncodeFileStoreKey(id, filename);
+        auto iter = memKvMap_.find(storeKey);
+        if (iter == memKvMap_.end()) {
+            return StoreStatus::KeyNotExist;
+        }
+        fileInfo->ParseFromString(iter->second);
+        return StoreStatus::OK;
+    }
+
+    StoreStatus GetSnapFile(InodeID id,
+                        const std::string &filename,
+                        FileInfo * fileInfo) override {
+        std::lock_guard<std::mutex> guard(lock_);
+        std::string storeKey =
+            NameSpaceStorageCodec::EncodeSnapShotFileStoreKey(id, filename);
         auto iter = memKvMap_.find(storeKey);
         if (iter == memKvMap_.end()) {
             return StoreStatus::KeyNotExist;

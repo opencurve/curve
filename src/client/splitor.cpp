@@ -33,6 +33,9 @@
 #include "src/client/metacache_struct.h"
 #include "src/client/request_closure.h"
 #include "src/common/location_operator.h"
+#include "src/common/fast_align.h"
+#include "src/client/global_metacache.h"
+#include "src/common//namespace_define.h"
 
 namespace curve {
 namespace client {
@@ -179,8 +182,13 @@ bool Splitor::AssignInternal(IOTracker* iotracker, MetaCache* metaCache,
         ret = SingleChunkIO2ChunkRequests(iotracker, metaCache, &templist,
                                           chunkIdInfo, data, off, len,
                                           (iotracker->Optype() == OpType::READ_SNAP? fileInfo->snapSeqnum : fileInfo->seqnum), fileInfo->snaps);
+        if (ret != 0) {
+            LOG(ERROR) << "SingleChunkIO2ChunkRequests return ret: " << ret;
+            return false;
+        }
 
         for (auto& ctx : templist) {
+            ctx->filetype_ = fileInfo->filetype;
             ctx->fileId_ = fileInfo->id;
             if (fEpoch != nullptr) {
                 ctx->epoch_ = fEpoch->epoch;
@@ -190,6 +198,10 @@ bool Splitor::AssignInternal(IOTracker* iotracker, MetaCache* metaCache,
             ctx->appliedindex_ = appliedindex_;
             ctx->sourceInfo_ =
                 CalcRequestSourceInfo(iotracker, metaCache, chunkidx);
+        }
+        if (fileInfo->filetype == FileType::INODE_CLONE_PAGEFILE) {
+            ret = AssignCloneFileInfo(
+                iotracker, &templist, mdsclient, fileInfo, chunkidx);
         }
 
         targetlist->insert(targetlist->end(), templist.begin(),
@@ -425,6 +437,83 @@ bool Splitor::NeedGetOrAllocateSegment(MetaCacheErrorType error, OpType opType,
     }
 
     return false;
+}
+
+int Splitor::AssignCloneFileInfo(IOTracker* iotracker,
+    std::vector<RequestContext*>* targetlist,
+    MDSClient* mdsclient,
+    const FInfo_t* fileInfo,
+    ChunkIndex chunkidx) {
+    MetaCache* virtualVolCache = GlobalMetaCache::GetInstance().
+        GetOrNewMetaCacheInstance(curve::common::kVirtualCloneVol,
+            fileInfo->userinfo,
+            mdsclient);
+    if (virtualVolCache == nullptr) {
+        LOG(ERROR) << "GetOrNewMetaCacheInstance failed";
+        return -1;
+    }
+    ChunkIDInfo virtualChunkIdInfo;
+    auto errCode =
+        virtualVolCache->GetChunkInfoByIndex(chunkidx, &virtualChunkIdInfo);
+
+    if (NeedGetOrAllocateSegment(errCode, iotracker->Optype(), 
+                                 virtualChunkIdInfo,
+                                 virtualVolCache)) {
+        if (false == GetOrAllocateSegment(
+                         true,
+                         static_cast<uint64_t>(chunkidx) * fileInfo->chunksize,
+                         mdsclient, virtualVolCache, 
+                         virtualVolCache->GetFileInfo(), 
+                         virtualVolCache->GetFileEpoch(), chunkidx)) {
+            return -1;
+        }
+        errCode = virtualVolCache->GetChunkInfoByIndex(chunkidx, &virtualChunkIdInfo);
+    }
+
+    if (errCode == MetaCacheErrorType::OK) {
+        for (auto& ctx : *targetlist) {
+            ctx->cfinfo_ = fileInfo->cfinfo;
+            ctx->virtualChunkIdInfo_ = virtualChunkIdInfo;
+        }
+    } else {
+        return -1;
+    }
+
+
+    MetaCache* cloneOriginCache = GlobalMetaCache::GetInstance().
+        GetOrNewMetaCacheInstance(fileInfo->cfinfo.cloneOrigin,
+            fileInfo->userinfo,
+            mdsclient);
+    if (cloneOriginCache == nullptr) {
+        LOG(ERROR) << "GetOrNewMetaCacheInstance failed";
+        return -1;
+    }
+    ChunkIDInfo chunkIdInfo;
+    errCode =
+        cloneOriginCache->GetChunkInfoByIndex(chunkidx, &chunkIdInfo);
+
+    if (NeedGetOrAllocateSegment(errCode, iotracker->Optype(), chunkIdInfo,
+                                 cloneOriginCache)) {
+        if (false == GetOrAllocateSegment(
+                         false,
+                         static_cast<uint64_t>(chunkidx) * fileInfo->chunksize,
+                         mdsclient, cloneOriginCache, 
+                         cloneOriginCache->GetFileInfo(), 
+                         cloneOriginCache->GetFileEpoch(), chunkidx)) {
+            return -1;
+        }
+        errCode = cloneOriginCache->GetChunkInfoByIndex(chunkidx, &chunkIdInfo);
+    }
+
+    if (errCode == MetaCacheErrorType::OK) {
+        for (auto& ctx : *targetlist) {
+            ctx->originChunkIdInfo_ = chunkIdInfo;
+        }
+    } else {
+        return -1;
+    }
+
+    return 0;
 }
 
 }   // namespace client

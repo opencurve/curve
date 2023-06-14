@@ -70,7 +70,7 @@ void IOTracker::StartRead(void* buf, off_t offset, size_t length,
     length_ = length;
     type_ = OpType::READ;
 
-    DVLOG(9) << "read op, offset = " << offset << ", length = " << length;
+    DLOG(INFO) << "read op, offset = " << offset << ", length = " << length;
 
     DoRead(mdsclient, fileInfo);
 }
@@ -83,8 +83,8 @@ void IOTracker::StartAioRead(CurveAioContext* ctx, MDSClient* mdsclient,
     length_ = ctx->length;
     type_ = OpType::READ;
 
-    DVLOG(9) << "aioread op, offset = " << ctx->offset
-             << ", length = " << ctx->length;
+    DLOG(INFO) << "aioread op, offset = " << ctx->offset
+               << ", length = " << ctx->length;
 
     DoRead(mdsclient, fileInfo);
 }
@@ -166,7 +166,7 @@ void IOTracker::StartWrite(const void* buf, off_t offset, size_t length,
     length_ = length;
     type_ = OpType::WRITE;
 
-    DVLOG(9) << "write op, offset = " << offset << ", length = " << length;
+    DLOG(INFO) << "write op, offset = " << offset << ", length = " << length;
 
     DoWrite(mdsclient, fileInfo, fEpoch);
 }
@@ -180,8 +180,8 @@ void IOTracker::StartAioWrite(CurveAioContext* ctx, MDSClient* mdsclient,
     length_ = ctx->length;
     type_ = OpType::WRITE;
 
-    DVLOG(9) << "aiowrite op, offset = " << ctx->offset
-             << ", length = " << ctx->length;
+    DLOG(INFO) << "aiowrite op, offset = " << ctx->offset
+               << ", length = " << ctx->length;
 
     DoWrite(mdsclient, fileInfo, fEpoch);
 }

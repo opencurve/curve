@@ -165,16 +165,11 @@ void RequestScheduler::ProcessOne(RequestContext* ctx) {
     switch (ctx->optype_) {
         case OpType::READ:
             ctx->done_->GetInflightRPCToken();
-            client_.ReadChunk(ctx->idinfo_, ctx->seq_, ctx->offset_,
-                              ctx->rawlength_, ctx->appliedindex_,
-                              ctx->sourceInfo_, guard.release());
+            client_.ReadChunk(ctx, guard.release());
             break;
         case OpType::WRITE:
             ctx->done_->GetInflightRPCToken();
-            client_.WriteChunk(ctx->idinfo_, ctx->fileId_, ctx->epoch_,
-                               ctx->seq_, ctx->snaps_, ctx->writeData_,
-                               ctx->offset_, ctx->rawlength_, ctx->sourceInfo_,
-                               guard.release());
+            client_.WriteChunk(ctx, guard.release());
             break;
         case OpType::READ_SNAP:
             client_.ReadChunkSnapshot(ctx->idinfo_, ctx->seq_, ctx->snaps_, ctx->offset_,

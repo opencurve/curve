@@ -99,7 +99,8 @@ int NameSpaceToolCore::GetFileSegments(const std::string& fileName,
                                   const FileInfo& fileInfo,
                                   std::vector<PageFileSegment>* segments) {
     // 只能获取page file的segment
-    if (fileInfo.filetype() != curve::mds::FileType::INODE_PAGEFILE) {
+    if ((fileInfo.filetype() != curve::mds::FileType::INODE_PAGEFILE) &&
+        (fileInfo.filetype() != curve::mds::FileType::INODE_CLONE_PAGEFILE)) {
         std::cout << "It is not a page file!" << std::endl;
         return -1;
     }
@@ -173,7 +174,8 @@ int NameSpaceToolCore::QueryChunkCopyset(const std::string& fileName,
         std::cout << "Get file info failed!" << std::endl;
         return -1;
     }
-    if (fileInfo.filetype() != curve::mds::FileType::INODE_PAGEFILE) {
+    if ((fileInfo.filetype() != curve::mds::FileType::INODE_PAGEFILE) &&
+        (fileInfo.filetype() != curve::mds::FileType::INODE_CLONE_PAGEFILE)) {
         std::cout << "It is not a page file!" << std::endl;
         return -1;
     }

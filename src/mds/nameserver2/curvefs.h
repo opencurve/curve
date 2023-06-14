@@ -39,10 +39,12 @@
 #include "src/mds/nameserver2/async_delete_snapshot_entity.h"
 #include "src/mds/nameserver2/file_record.h"
 #include "src/mds/nameserver2/idgenerator/inode_id_generator.h"
+#include "src/mds/nameserver2/idgenerator/clone_id_generator.h"
 #include "src/common/authenticator.h"
 #include "src/mds/nameserver2/allocstatistic/alloc_statistic.h"
 #include "src/mds/snapshotcloneclient/snapshotclone_client.h"
 #include "src/mds/topology/topology_service_manager.h"
+#include "src/common/namespace_define.h"
 
 using curve::common::Authenticator;
 using curve::mds::snapshotcloneclient::SnapshotCloneClient;
@@ -77,6 +79,11 @@ struct AllocatedSize {
 
 using ::curve::mds::DeleteSnapShotResponse;
 
+
+std::string MakeSnapshotName(const std::string &fileName, FileSeqType seq);
+bool SplitSnapshotPath(const std::string &snapFilePath,
+    std::string *filePath, FileSeqType *seq);
+
 class CurveFS {
  public:
     // singleton, supported in c++11
@@ -98,6 +105,7 @@ class CurveFS {
      */
     bool Init(std::shared_ptr<NameServerStorage>,
               std::shared_ptr<InodeIDGenerator>,
+              std::shared_ptr<CloneIDGenerator>,
               std::shared_ptr<ChunkSegmentAllocator>,
               std::shared_ptr<CleanManagerInterface>,
               std::shared_ptr<FileRecordManager> fileRecordManager,
@@ -163,6 +171,15 @@ class CurveFS {
     StatusCode GetRecoverFileInfo(const std::string& originFileName,
                                   const uint64_t fileId,
                                   FileInfo* recoverFileInfo);
+    StatusCode GetFileInfoWithCloneChain(const std::string & filename,
+                           FileInfo * inode) const;
+
+    bool isVirtualCloneVol(const std::string & filename) {
+        return filename == curve::common::kVirtualCloneVol;
+    }
+
+    StatusCode GetVirtualCloneVolFileInfo(const std::string & filename,
+                           FileInfo * inode) const;
 
      /**
      *  @brief get the allocated file size
@@ -395,6 +412,13 @@ class CurveFS {
             FileSeqType seq,
             offset_t offset,
             PageFileSegment *segment);
+
+
+    StatusCode Clone(const std::string &fileName,
+            const std::string& owner,
+            const std::string &srcFileName,
+            FileSeqType seq,
+            FileInfo *fileInfo);
 
     // session ops
     /**
@@ -657,6 +681,12 @@ class CurveFS {
                           const std::string & fileName,
                           FileInfo *fileInfo) const;
 
+    StatusCode LookUpSnapFile(const FileInfo & parentFileInfo,
+                    const std::string &fileName, FileInfo *fileInfo) const;
+
+    StatusCode LookUpCloneChain(
+        const FileInfo &srcFileInfo, FileInfo *fileInfo) const;
+
     StatusCode PutFile(const FileInfo & fileInfo);
 
     /**
@@ -668,7 +698,7 @@ class CurveFS {
     StatusCode SnapShotFile(const FileInfo * originalFileInfo,
         const FileInfo * SnapShotFile) const;
 
-    std::string GetRootOwner() {
+    std::string GetRootOwner() const {
         return rootAuthOptions_.rootOwner;
     }
 
@@ -819,6 +849,7 @@ class CurveFS {
     FileInfo rootFileInfo_;
     std::shared_ptr<NameServerStorage> storage_;
     std::shared_ptr<InodeIDGenerator> InodeIDGenerator_;
+    std::shared_ptr<CloneIDGenerator> cloneIdGenerator_;
     std::shared_ptr<ChunkSegmentAllocator> chunkSegAllocator_;
     std::shared_ptr<FileRecordManager> fileRecordManager_;
     std::shared_ptr<CleanManagerInterface> cleanManager_;

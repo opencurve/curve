@@ -64,6 +64,8 @@ class NameSpaceServiceTest : public ::testing::Test {
         // init the kcurvefs, use the fake element
         storage_ =  std::make_shared<FakeNameServerStorage>();
         inodeGenerator_ = std::make_shared<FakeInodeIDGenerator>(0);
+        cloneIdGenerator_ = 
+            std::make_shared<FakeCloneIDGenerator>();
 
         topology_ = std::make_shared<MockTopology>();
         ChunkServerClientOption option;
@@ -105,7 +107,9 @@ class NameSpaceServiceTest : public ::testing::Test {
         curveFSOptions.fileRecordOptions = fileRecordOptions;
         curveFSOptions.authOptions = authOptions;
 
-        kCurveFS.Init(storage_, inodeGenerator_, chunkSegmentAllocate_,
+        kCurveFS.Init(storage_, inodeGenerator_,
+                        cloneIdGenerator_,
+                        chunkSegmentAllocate_,
                         cleanManager_,
                         fileRecordManager_,
                         allocStatistic_,
@@ -141,6 +145,7 @@ class NameSpaceServiceTest : public ::testing::Test {
  public:
     std::shared_ptr<NameServerStorage> storage_;
     std::shared_ptr<InodeIDGenerator> inodeGenerator_;
+    std::shared_ptr<CloneIDGenerator> cloneIdGenerator_;
     std::shared_ptr<ChunkSegmentAllocator> chunkSegmentAllocate_;
 
     std::shared_ptr<CleanCore> cleanCore_;

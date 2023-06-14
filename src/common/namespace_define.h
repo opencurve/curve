@@ -60,6 +60,8 @@ const char SNAPINFOKEYPREFIX[] = "11";
 const char SNAPINFOKEYEND[] = "12";
 const char CLONEINFOKEYPREFIX[] = "12";
 const char CLONEINFOKEYEND[] = "13";
+const char CLONEIDSTOREKEY[] = "13";
+const char CLONEIDSTOREKEYEND[] = "14";
 
 // "13" and "14" are used by discard
 
@@ -73,6 +75,8 @@ const int SEGMENTKEYLEN = 18;
 
 constexpr int kDefaultPoolsetId = 1;
 constexpr char kDefaultPoolsetName[] = "default";
+
+const char kVirtualCloneVol[] = "/virutalCloneVol";
 
 }  // namespace common
 }  // namespace curve

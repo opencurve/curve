@@ -42,6 +42,10 @@ class MockNameServerStorage : public NameServerStorage {
                                       const std::string &,
                                       FileInfo *));
 
+    MOCK_METHOD3(GetSnapFile, StoreStatus(InodeID id,
+                        const std::string &filename,
+                        FileInfo * fileInfo));
+
     MOCK_METHOD2(DeleteFile, StoreStatus(InodeID,
                                         const std::string &));
 
