@@ -484,15 +484,7 @@ void ClientClosure::OnInvalidRequest() {
 }
 
 void WriteChunkClosure::SendRetryRequest() {
-    client_->WriteChunk(reqCtx_->idinfo_,
-                        reqCtx_->fileId_,
-                        reqCtx_->epoch_,
-                        reqCtx_->seq_,
-                        reqCtx_->snaps_,
-                        reqCtx_->writeData_,
-                        reqCtx_->offset_,
-                        reqCtx_->rawlength_,
-                        reqCtx_->sourceInfo_,
+    client_->WriteChunk(reqCtx_,
                         done_);
 }
 
@@ -506,11 +498,7 @@ void WriteChunkClosure::OnSuccess() {
 }
 
 void ReadChunkClosure::SendRetryRequest() {
-    client_->ReadChunk(reqCtx_->idinfo_, reqCtx_->seq_,
-                       reqCtx_->offset_,
-                       reqCtx_->rawlength_,
-                       reqCtx_->appliedindex_,
-                       reqCtx_->sourceInfo_,
+    client_->ReadChunk(reqCtx_,
                        done_);
 }
 

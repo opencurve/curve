@@ -79,6 +79,11 @@ class NameServerStorage {
                                 const std::string &filename,
                                 FileInfo * fileInfo) = 0;
 
+
+    virtual StoreStatus GetSnapFile(InodeID id,
+                        const std::string &filename,
+                        FileInfo * fileInfo) = 0;
+
     /**
      * @brief DeleteFile
      *
@@ -255,6 +260,10 @@ class NameServerStorageImp : public NameServerStorage {
                         const std::string &filename,
                         FileInfo * fileInfo) override;
 
+    StoreStatus GetSnapFile(InodeID id,
+                        const std::string &filename,
+                        FileInfo * fileInfo) override;
+
     StoreStatus DeleteFile(InodeID id,
                             const std::string &filename) override;
 
@@ -301,6 +310,11 @@ class NameServerStorageImp : public NameServerStorage {
     StoreStatus LoadSnapShotFile(std::vector<FileInfo> *snapShotFiles) override;
 
  private:
+
+    StoreStatus GetFileInternal(FileType type,
+                                InodeID parentid,
+                                const std::string &filename,
+                                FileInfo *fileInfo);
     StoreStatus ListFileInternal(const std::string& startStoreKey,
                                  const std::string& endStoreKey,
                                  std::vector<FileInfo> *files);

@@ -44,6 +44,9 @@
 #include "src/common/curve_version.h"
 #include "src/common/net_common.h"
 #include "src/common/uuid.h"
+#include "src/common/string_util.h"
+#include "src/common/fast_align.h"
+#include "src/client/global_metacache.h"
 
 #define PORT_LIMIT  65535
 
@@ -136,6 +139,9 @@ int FileClient::Init(const std::string& configpath) {
     if (clientconfig_.GetFileServiceOption().commonOpt.turnOffHealthCheck) {
         brpc::FLAGS_health_check_interval = -1;
     }
+
+    GlobalMetaCache::GetInstance().SetMetaCacheOption(
+        clientconfig_.GetFileServiceOption().ioOpt.metaCacheOpt);
 
     // set option for source reader
     SourceReader::GetInstance().SetOption(clientconfig_.GetFileServiceOption());

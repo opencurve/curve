@@ -73,8 +73,22 @@ StoreStatus NameServerStorageImp::PutFile(const FileInfo &fileInfo) {
 StoreStatus NameServerStorageImp::GetFile(InodeID parentid,
                                           const std::string &filename,
                                           FileInfo *fileInfo) {
+    return GetFileInternal(FileType::INODE_PAGEFILE, parentid, filename, fileInfo);
+}
+
+StoreStatus NameServerStorageImp::GetSnapFile(InodeID parentid,
+                                          const std::string &filename,
+                                          FileInfo *fileInfo) {
+    return GetFileInternal(FileType::INODE_SNAPSHOT_PAGEFILE, parentid, filename,
+        fileInfo);
+}
+
+StoreStatus NameServerStorageImp::GetFileInternal(FileType type,
+                                          InodeID parentid,
+                                          const std::string &filename,
+                                          FileInfo *fileInfo) {
     std::string storeKey;
-    if (GetStoreKey(FileType::INODE_PAGEFILE, parentid, filename, &storeKey)
+    if (GetStoreKey(type, parentid, filename, &storeKey)
         != StoreStatus::OK) {
         LOG(ERROR) << "get store key failed, filename = " << filename;
         return StoreStatus::InternalError;
@@ -637,6 +651,7 @@ StoreStatus NameServerStorageImp::GetStoreKey(FileType filetype,
     switch (filetype) {
         case FileType::INODE_PAGEFILE:
         case FileType::INODE_DIRECTORY:
+        case FileType::INODE_CLONE_PAGEFILE:
             *storeKey = NameSpaceStorageCodec::EncodeFileStoreKey(id, filename);
             break;
         case FileType::INODE_SNAPSHOT_PAGEFILE:

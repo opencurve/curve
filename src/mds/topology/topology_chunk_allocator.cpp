@@ -42,7 +42,8 @@ bool TopologyChunkAllocatorImpl::AllocateChunkRandomInSingleLogicalPool(
     uint32_t chunkNumber, ChunkSizeType chunkSize,
     std::vector<CopysetIdInfo> *infos) {
     (void)chunkSize;
-    if (fileType != INODE_PAGEFILE) {
+    if ((fileType != INODE_PAGEFILE) &&
+        (fileType != INODE_CLONE_PAGEFILE)) {
         LOG(ERROR) << "Invalid FileType, fileType = "
                    << fileType;
         return false;
@@ -76,7 +77,8 @@ bool TopologyChunkAllocatorImpl::AllocateChunkRoundRobinInSingleLogicalPool(
     uint32_t chunkNumber, ChunkSizeType chunkSize,
     std::vector<CopysetIdInfo> *infos) {
     (void)chunkSize;
-    if (fileType != INODE_PAGEFILE) {
+    if ((fileType != INODE_PAGEFILE) &&
+        (fileType != INODE_CLONE_PAGEFILE)) {
         LOG(ERROR) << "Invalid FileType, fileType = "
                    << fileType;
         return false;
@@ -132,7 +134,8 @@ bool TopologyChunkAllocatorImpl::ChooseSingleLogicalPool(
 
     LogicalPoolType poolType;
     switch (fileType) {
-    case INODE_PAGEFILE: {
+    case INODE_PAGEFILE: 
+    case INODE_CLONE_PAGEFILE: {
         poolType = LogicalPoolType::PAGEFILE;
         break;
     }

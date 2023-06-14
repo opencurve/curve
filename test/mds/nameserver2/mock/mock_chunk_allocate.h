@@ -47,6 +47,9 @@ class MockChunkAllocator: public ChunkSegmentAllocator {
                  void(const std::vector<PoolIdType>&,
                       std::map<PoolIdType, double>*,
                       const std::string&));
+
+    MOCK_METHOD2(CloneChunkSegment, bool(const PageFileSegment &srcSegment,
+        PageFileSegment *segment));
 };
 }  // namespace mds
 }  // namespace curve

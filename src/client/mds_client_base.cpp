@@ -323,6 +323,29 @@ void MDSClientBase::ListPoolset(ListPoolsetResponse* response,
     stub.ListPoolset(cntl, &request, response, nullptr);
 }
 
+void MDSClientBase::Clone(const std::string& source,
+    const std::string& destination,
+    const UserInfo_t& userinfo,
+    uint64_t seq,
+    CloneResponse* response,
+    brpc::Controller* cntl,
+    brpc::Channel* channel) {
+    CloneRequest request; 
+    request.set_filename(destination);
+    FillUserInfo(&request, userinfo);
+
+    request.set_srcfilename(source);
+    request.set_seq(seq);
+
+    LOG(INFO) << "Clone: source = " << source
+              << ", destination = " << destination
+              << ", owner = " << userinfo.owner << ", seqnum = " << seq
+              << ", log id = " << cntl->log_id();
+
+    curve::mds::CurveFSService_Stub stub(channel);
+    stub.Clone(cntl, &request, response, NULL);
+}
+
 void MDSClientBase::CreateCloneFile(const std::string& source,
                                     const std::string& destination,
                                     const UserInfo_t& userinfo,

@@ -65,6 +65,17 @@ message ChunkRequest {
     optional uint64 fileId = 18;  // for io fence
     optional uint64 epoch = 19;  // for io fence
     repeated uint64 snaps = 20 [packed = true];
+
+    //about clone parameter clone tree root id
+    //cloneParentId means that it is maybe the clone parent Id
+    message CloneInfos {
+        required uint64 cloneNo = 1;//the org chunk, the root chunk is 0
+        required uint64 cloneSn = 2;//the snapshot used to create the next clone;
+    }
+    optional uint64 virtualChunkId = 21; // use virtualChunkId + cloneNo to addressing node in clone chain
+    optional uint64 originChunkId = 22; // if origin is not a clone file, use this field to addressing, and cloneno is 0
+    optional uint64 cloneNo = 23; //for look for the clone number
+    repeated CloneInfos clones = 24;
 };
 
 enum CHUNK_OP_STATUS {

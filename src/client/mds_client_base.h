@@ -85,6 +85,8 @@ using curve::mds::IncreaseFileEpochRequest;
 using curve::mds::IncreaseFileEpochResponse;
 using curve::mds::topology::ListPoolsetRequest;
 using curve::mds::topology::ListPoolsetResponse;
+using curve::mds::CloneRequest;
+using curve::mds::CloneResponse;
 
 extern const char* kRootUserName;
 
@@ -284,6 +286,14 @@ class MDSClientBase {
     void ListPoolset(ListPoolsetResponse* response,
                      brpc::Controller* cntl,
                      brpc::Channel* channel);
+
+    void Clone(const std::string& source,
+         const std::string& destination,
+         const UserInfo_t& userinfo,
+         uint64_t seq,
+         CloneResponse* response,
+         brpc::Controller* cntl,
+         brpc::Channel* channel);
 
     /**
      * 创建clone文件

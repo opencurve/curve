@@ -140,7 +140,12 @@ class NameSpaceService: public CurveFSService {
     void GetSnapShotFileSegment(::google::protobuf::RpcController* controller,
                        const ::curve::mds::GetOrAllocateSegmentRequest* request,
                        ::curve::mds::GetOrAllocateSegmentResponse* response,
-                       ::google::protobuf::Closure* done);
+                       ::google::protobuf::Closure* done) override;
+
+    void Clone(::google::protobuf::RpcController* controller,
+        const ::curve::mds::CloneRequest* request,
+        ::curve::mds::CloneResponse* response,
+        ::google::protobuf::Closure* done) override;
 
     void OpenFile(::google::protobuf::RpcController* controller,
                        const ::curve::mds::OpenFileRequest* request,

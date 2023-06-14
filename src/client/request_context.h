@@ -119,6 +119,11 @@ struct CURVE_CACHELINE_ALIGNMENT RequestContext {
     // 当前request context id
     uint64_t            id_ = 0;
 
+    FileType            filetype_;
+    CloneFileInfo       cfinfo_;
+    ChunkIDInfo         originChunkIdInfo_;
+    ChunkIDInfo         virtualChunkIdInfo_;
+
     static RequestContext* NewInitedRequestContext() {
         RequestContext* ctx = new (std::nothrow) RequestContext();
         if (ctx && ctx->Init()) {

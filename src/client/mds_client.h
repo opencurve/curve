@@ -280,6 +280,13 @@ class MDSClient : public MDSClientBase,
                              const UserInfo_t& userinfo,
                              const std::string& sessionid);
 
+
+    LIBCURVE_ERROR Clone(const std::string& source,
+            const std::string& destination,
+            const UserInfo_t& userinfo,
+            uint64_t seq,
+            FInfo* finfo);
+
     /**
      * @brief 创建clone文件
      * @detail
