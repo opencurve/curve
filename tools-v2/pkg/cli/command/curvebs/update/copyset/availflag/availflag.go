@@ -32,10 +32,9 @@ import (
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
-	copyset2 "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/check/copyset"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/check/copyset"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/chunkserver"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/unavailcopysets"
-	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/query/chunk"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
 	"github.com/opencurve/curve/tools-v2/proto/proto/common"
@@ -114,76 +113,53 @@ func (cCmd *CopysetAvailflagCommand) Init(cmd *cobra.Command, args []string) err
 			return err.ToError()
 		}
 	} else {
-		// list chunkserver
-		chunkserverInfos, errCmd := chunkserver.GetChunkServerInCluster(cCmd.Cmd)
+		offlineChunkServer, errCmd := chunkserver.ListOfflineChunkServer(cCmd.Cmd)
 		if errCmd.TypeCode() != cmderror.CODE_SUCCESS {
 			return errCmd.ToError()
 		}
 
-		// check chunkserver offline
-		config.AddBsCopysetIdSliceRequiredFlag(cCmd.Cmd)
-		config.AddBsLogicalPoolIdSliceRequiredFlag(cCmd.Cmd)
-		config.AddBsChunkIdSliceRequiredFlag(cCmd.Cmd)
-		config.AddBsChunkServerAddressSliceRequiredFlag(cCmd.Cmd)
-		for _, info := range chunkserverInfos {
-			address := fmt.Sprintf("%s:%d", *info.HostIp, *info.Port)
-			cCmd.Cmd.ParseFlags([]string{
-				fmt.Sprintf("--%s", config.CURVEBS_LOGIC_POOL_ID), "1",
-				fmt.Sprintf("--%s", config.CURVEBS_COPYSET_ID), "1",
-				fmt.Sprintf("--%s", config.CURVEBS_CHUNK_ID), "1",
-				fmt.Sprintf("--%s", config.CURVEBS_CHUNKSERVER_ADDRESS), address,
-			})
-		}
-		addr2Chunk, errCmd := chunk.GetChunkInfo(cCmd.Cmd)
-		if errCmd.TypeCode() != cmderror.CODE_SUCCESS {
-			return errCmd.ToError()
-		}
-		var offlineChunkServer []string
-		for addr, info := range *addr2Chunk {
-			if info == nil {
-				offlineChunkServer = append(offlineChunkServer, addr)
-			}
-		}
 		if len(offlineChunkServer) > 0 {
-			cCmd.Cmd.ResetFlags()
-			cCmd.AddFlags()
-			config.AddBsChunkServerAddressSliceRequiredFlag(cCmd.Cmd)
-			config.AddFormatFlag(cCmd.Cmd)
-			cCmd.Cmd.SetArgs([]string{
-				fmt.Sprintf("--%s", config.CURVEBS_CHUNKSERVER_ADDRESS), strings.Join(offlineChunkServer, ","),
-			})
-			addr2Copysets, errCmd := chunkserver.GetCopySetsInChunkServerByHost(cCmd.Cmd)
-			if errCmd.TypeCode() != cmderror.CODE_SUCCESS {
-				return errCmd.ToError()
-			}
+			config.AddBsChunkServerIdFlag(cCmd.Cmd)
 			copysetIds := make([]string, 0)
 			logicalpoolids := make([]string, 0)
-			for _, infos := range *addr2Copysets {
-				for _, info := range infos {
-					copysetid := info.GetCopysetId()
-					logicalpoolid := info.GetLogicalPoolId()
+			addr2Copysets := make(map[uint64]*common.CopysetInfo)
+			for i, info := range offlineChunkServer {
+				if i > 0 {
+					cCmd.Cmd.Flag(config.CURVEBS_CHUNKSERVER_ID).Value.Set(fmt.Sprintf("%d", *info.ChunkServerID))
+				} else {
+					cCmd.Cmd.ParseFlags([]string{
+						fmt.Sprintf("--%s", config.CURVEBS_CHUNKSERVER_ID), fmt.Sprintf("%d", *info.ChunkServerID),
+					})
+				}
+				copysetInChunkserver, err := chunkserver.GetCopySetsInChunkServer(cCmd.Cmd)
+				if err.TypeCode() != cmderror.CODE_SUCCESS {
+					return err.ToError()
+				}
+				for i, copysetInfo := range copysetInChunkserver {
+					copysetid := copysetInfo.GetCopysetId()
+					logicalpoolid := copysetInfo.GetLogicalPoolId()
 					copysetIds = append(copysetIds, strconv.FormatUint(uint64(copysetid), 10))
 					logicalpoolids = append(logicalpoolids, strconv.FormatUint(uint64(logicalpoolid), 10))
+					key := cobrautil.GetCopysetKey(uint64(copysetInfo.GetLogicalPoolId()), uint64(copysetInfo.GetCopysetId()))
+					addr2Copysets[key] = copysetInChunkserver[i]
 				}
 			}
 
 			config.AddBsCopysetIdSliceRequiredFlag(cCmd.Cmd)
 			config.AddBsLogicalPoolIdSliceRequiredFlag(cCmd.Cmd)
-			cCmd.Cmd.SetArgs([]string{
+			cCmd.Cmd.ParseFlags([]string{
 				fmt.Sprintf("--%s", config.CURVEBS_LOGIC_POOL_ID), strings.Join(logicalpoolids, ","),
 				fmt.Sprintf("--%s", config.CURVEBS_COPYSET_ID), strings.Join(copysetIds, ","),
 			})
-			key2Health, errCmd := copyset2.CheckCopysets(cCmd.Cmd)
+			key2Health, errCmd := copyset.CheckCopysets(cCmd.Cmd)
 			if errCmd.TypeCode() != cmderror.CODE_SUCCESS {
 				return errCmd.ToError()
 			}
 
-			for _, infos := range *addr2Copysets {
-				for _, info := range infos {
-					key := cobrautil.GetCopysetKey(uint64(info.GetLogicalPoolId()), uint64(info.GetCopysetId()))
-					if health, ok := (*key2Health)[key]; !ok || health == cobrautil.HEALTH_ERROR {
-						copysets = append(copysets, info)
-					}
+			for _, info := range addr2Copysets {
+				key := cobrautil.GetCopysetKey(uint64(info.GetLogicalPoolId()), uint64(info.GetCopysetId()))
+				if health, ok := (*key2Health)[key]; !ok || health == cobrautil.HEALTH_ERROR {
+					copysets = append(copysets, info)
 				}
 			}
 		}
