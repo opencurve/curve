@@ -1258,6 +1258,10 @@ void TopologyManager::GetTopology(ListTopologyResponse *response) {
     ListMetaserverOfCluster(response->mutable_metaservers());
 }
 
+std::shared_ptr<MetaserverClient> TopologyManager::GetMetaserverClient(){
+    return metaserverclient_;
+}
+
 void TopologyManager::ListZone(ListZoneResponse *response) {
     response->set_statuscode(TopoStatusCode::TOPO_OK);
     auto zoneIdVec = topology_->GetZoneInCluster();

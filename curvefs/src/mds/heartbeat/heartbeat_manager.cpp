@@ -42,8 +42,9 @@ namespace mds {
 namespace heartbeat {
 HeartbeatManager::HeartbeatManager(
     const HeartbeatOption &option, const std::shared_ptr<Topology> &topology,
-    const std::shared_ptr<Coordinator> &coordinator)
-    : topology_(topology) {
+    const std::shared_ptr<Coordinator> &coordinator,
+    const std::shared_ptr<TopologyManager> &topologyManager)
+    : topology_(topology), topologyManager_(topologyManager){
     healthyChecker_ =
         std::make_shared<MetaserverHealthyChecker>(option, topology);
 
@@ -161,8 +162,9 @@ void HeartbeatManager::MetaServerHeartbeat(
         if (request.metaserverid() == reportCopySetInfo.GetLeader()) {
             topoUpdater_->UpdateCopysetTopo(reportCopySetInfo);
             if (!value.has_iscopysetloading() || !value.iscopysetloading()) {
-                topoUpdater_->UpdatePartitionTopo(reportCopySetInfo.GetId(),
-                                                  partitionList);
+                topoUpdater_ onTopo(reportCopySetInfo.GetId(),
+                                                  partitionList,
+                                                  topologyManager_);
             }
         }
     }

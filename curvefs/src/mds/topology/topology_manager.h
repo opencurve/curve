@@ -162,6 +162,8 @@ class TopologyManager {
 
     virtual void GetTopology(ListTopologyResponse* response);
 
+    virtual std::shared_ptr<MetaserverClient> GetMetaserverClient();
+
     virtual void ListZone(ListZoneResponse* response);
 
     virtual void ListServer(ListServerResponse* response);

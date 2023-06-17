@@ -65,7 +65,8 @@ class HeartbeatManager {
  public:
     HeartbeatManager(const HeartbeatOption &option,
                      const std::shared_ptr<Topology> &topology,
-                     const std::shared_ptr<Coordinator> &coordinator);
+                     const std::shared_ptr<Coordinator> &coordinator,
+                     const std::shared_ptr<TopologyManager> &topologyManager);
 
     ~HeartbeatManager() { Stop(); }
 
@@ -143,6 +144,7 @@ class HeartbeatManager {
  private:
     // Dependencies of heartbeat
     std::shared_ptr<Topology> topology_;
+    std::shared_ptr<TopologyManager> topologyManager_;
     std::shared_ptr<Coordinator> coordinator_;
 
     // healthyChecker_ health checker running in background thread
