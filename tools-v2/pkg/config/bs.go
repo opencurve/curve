@@ -621,6 +621,12 @@ func GetBsAddrSlice(cmd *cobra.Command, addrType string) ([]string, *cmderror.Cm
 		addrslice[i] = strings.TrimSpace(addr)
 	}
 
+	if addrType == CURVEBS_SNAPSHOTADDR && len(strings.TrimSpace(addrsStr)) == 0 {
+		err := cmderror.ErrSnapShotAddrNotConfigured()
+		err.Format(fmt.Sprint(CURVEBS_SNAPSHOTADDR, " is not configured"))
+		return nil, err
+	}
+
 	for _, addr := range addrslice {
 		if !IsValidAddr(addr) {
 			err := cmderror.ErrGetAddr()
