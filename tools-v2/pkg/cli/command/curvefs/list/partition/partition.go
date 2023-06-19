@@ -184,22 +184,22 @@ func (pCmd *PartitionCommand) RunCommand(cmd *cobra.Command, args []string) erro
 		for _, partition := range partitionList {
 			fsId := partition.GetFsId()
 			pCmd.fsId2PartitionList[fsId] = append(pCmd.fsId2PartitionList[fsId], partition)
-			var row *map[string]string
+			var row map[string]string
 			if len(pCmd.fsId2Rows[fsId]) == 1 && pCmd.fsId2Rows[fsId][0][cobrautil.ROW_POOL_ID] == cobrautil.ROW_VALUE_DNE {
-				row = &pCmd.fsId2Rows[fsId][0]
+				row = pCmd.fsId2Rows[fsId][0]
 				pCmd.fsId2Rows[fsId] = make([]map[string]string, 0)
 			} else {
 				temp := make(map[string]string)
-				row = &temp
-				(*row)[cobrautil.ROW_FS_ID] = strconv.FormatUint(uint64(fsId), 10)
+				row = temp
+				row[cobrautil.ROW_FS_ID] = strconv.FormatUint(uint64(fsId), 10)
 			}
-			(*row)[cobrautil.ROW_POOL_ID] = strconv.FormatUint(uint64(partition.GetPoolId()), 10)
-			(*row)[cobrautil.ROW_COPYSET_ID] = strconv.FormatUint(uint64(partition.GetCopysetId()), 10)
-			(*row)[cobrautil.ROW_PARTITION_ID] = strconv.FormatUint(uint64(partition.GetPartitionId()), 10)
-			(*row)[cobrautil.ROW_START] = strconv.FormatUint(uint64(partition.GetStart()), 10)
-			(*row)[cobrautil.ROW_END] = strconv.FormatUint(uint64(partition.GetEnd()), 10)
-			(*row)[cobrautil.ROW_STATUS] = partition.GetStatus().String()
-			pCmd.fsId2Rows[fsId] = append(pCmd.fsId2Rows[fsId], (*row))
+			row[cobrautil.ROW_POOL_ID] = strconv.FormatUint(uint64(partition.GetPoolId()), 10)
+			row[cobrautil.ROW_COPYSET_ID] = strconv.FormatUint(uint64(partition.GetCopysetId()), 10)
+			row[cobrautil.ROW_PARTITION_ID] = strconv.FormatUint(uint64(partition.GetPartitionId()), 10)
+			row[cobrautil.ROW_START] = strconv.FormatUint(uint64(partition.GetStart()), 10)
+			row[cobrautil.ROW_END] = strconv.FormatUint(uint64(partition.GetEnd()), 10)
+			row[cobrautil.ROW_STATUS] = partition.GetStatus().String()
+			pCmd.fsId2Rows[fsId] = append(pCmd.fsId2Rows[fsId], row)
 		}
 	}
 
@@ -211,7 +211,7 @@ func (pCmd *PartitionCommand) RunCommand(cmd *cobra.Command, args []string) erro
 }
 
 func (pCmd *PartitionCommand) ResultPlainOutput() error {
-	if pCmd.TableNew.NumLines() ==0 {
+	if pCmd.TableNew.NumLines() == 0 {
 		fmt.Println("no partition in cluster")
 		return nil
 	}
@@ -241,7 +241,7 @@ func NewListPartitionCommand() *PartitionCommand {
 	return pCmd
 }
 
-func GetFsPartition(caller *cobra.Command) (*map[uint32][]*common.PartitionInfo, *cmderror.CmdError) {
+func GetFsPartition(caller *cobra.Command) (map[uint32][]*common.PartitionInfo, *cmderror.CmdError) {
 	listPartionCmd := NewListPartitionCommand()
 	listPartionCmd.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
@@ -257,5 +257,5 @@ func GetFsPartition(caller *cobra.Command) (*map[uint32][]*common.PartitionInfo,
 		retErr.Format(err.Error())
 		return nil, retErr
 	}
-	return &listPartionCmd.fsId2PartitionList, cmderror.ErrSuccess()
+	return listPartionCmd.fsId2PartitionList, cmderror.ErrSuccess()
 }

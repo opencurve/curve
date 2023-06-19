@@ -107,10 +107,10 @@ func (fCmd *FileCommand) Print(cmd *cobra.Command, args []string) error {
 	return output.FinalCmdOutput(&fCmd.FinalCurveCmd, fCmd)
 }
 
-func updateByFileInfo(data *map[string]string, header *[]string, fileInfo *nameserver2.FileInfo) {
+func updateByFileInfo(data map[string]string, header *[]string, fileInfo *nameserver2.FileInfo) {
 	pref := fileInfo.ProtoReflect()
 	setHeaderData := func(name, value string) {
-		(*data)[name] = value
+		data[name] = value
 		(*header) = append((*header), name)
 	}
 	pref.Range(func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
@@ -164,7 +164,7 @@ func updateByFileInfo(data *map[string]string, header *[]string, fileInfo *names
 	}
 }
 
-func updateByAllocSize(data *map[string]string, header *[]string, allocSize *nameserver2.GetAllocatedSizeResponse) {
+func updateByAllocSize(data map[string]string, header *[]string, allocSize *nameserver2.GetAllocatedSizeResponse) {
 	name := cobrautil.ROW_ALLOC
 	message := ""
 	if allocSize.AllocatedSize != nil {
@@ -174,15 +174,15 @@ func updateByAllocSize(data *map[string]string, header *[]string, allocSize *nam
 	for k, v := range allocMap {
 		message += fmt.Sprintf("\nlogical pool:%d, size:%s", k, humanize.IBytes(v))
 	}
-	(*data)[name] = message
+	data[name] = message
 	(*header) = append((*header), name)
 }
 
-func updateByFileSize(data *map[string]string, header *[]string, size *nameserver2.GetFileSizeResponse) {
-	if 	size != nil && size.FileSize != nil {
+func updateByFileSize(data map[string]string, header *[]string, size *nameserver2.GetFileSizeResponse) {
+	if size != nil && size.FileSize != nil {
 		name := cobrautil.ROW_SIZE
 		message := fmt.Sprintf("size:%s", humanize.IBytes(size.GetFileSize()))
-		(*data)[name] = message
+		data[name] = message
 		(*header) = append((*header), name)
 	}
 }
@@ -190,20 +190,20 @@ func updateByFileSize(data *map[string]string, header *[]string, size *nameserve
 func (fCmd *FileCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	data := make(map[string]string, 0)
 	header := make([]string, 0)
-	updateByFileInfo(&data, &header, fCmd.fileInfo.GetFileInfo())
-	updateByAllocSize(&data, &header, fCmd.allocSize)
-	updateByFileSize(&data, &header, fCmd.fileSize)
+	updateByFileInfo(data, &header, fCmd.fileInfo.GetFileInfo())
+	updateByAllocSize(data, &header, fCmd.allocSize)
+	updateByFileSize(data, &header, fCmd.fileSize)
 	fCmd.SetHeader(header)
 	list := cobrautil.Map2List(data, header)
 	fCmd.TableNew.Append(list)
 	fCmd.Result = map[string]interface{}{
-		"info": fCmd.fileInfo,
+		"info":  fCmd.fileInfo,
 		"alloc": fCmd.allocSize,
 	}
 	if fCmd.fileSize != nil {
 		fCmd.Result.(map[string]interface{})["size"] = fCmd.fileSize
 	}
-	
+
 	return nil
 }
 

@@ -98,7 +98,7 @@ func (cCmd *ChunkCommand) Init(cmd *cobra.Command, args []string) error {
 		return err.ToError()
 	}
 	key := cobrautil.GetCopysetKey(uint64(cCmd.LogicalpoolId), uint64(cCmd.CopysetId))
-	cCmd.ChunkServerList = (*key2Location)[key]
+	cCmd.ChunkServerList = key2Location[key]
 	header := []string{cobrautil.ROW_CHUNK, cobrautil.ROW_LOGICALPOOL,
 		cobrautil.ROW_COPYSET, cobrautil.ROW_GROUP, cobrautil.ROW_LOCATION,
 	}
