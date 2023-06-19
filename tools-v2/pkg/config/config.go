@@ -169,7 +169,7 @@ func AlignFlagsValue(caller *cobra.Command, callee *cobra.Command, flagNames []s
 }
 
 type stringSlice struct {
-	value []string
+	value  []string
 	change bool
 }
 
@@ -190,7 +190,7 @@ func (s *stringSlice) Type() string {
 func ResetStringSliceFlag(flag *pflag.Flag, value string) {
 	flag.Changed = false
 	flag.Value = &stringSlice{
-		value: strings.Split(value, ","),
+		value:  strings.Split(value, ","),
 		change: true,
 	}
 	flag.Changed = true

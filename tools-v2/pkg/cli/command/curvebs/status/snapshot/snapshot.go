@@ -43,6 +43,7 @@ type SnapshotCommand struct {
 	basecmd.FinalCurveCmd
 	metrics []*basecmd.Metric
 	rows    []map[string]string
+	errCode int
 	health  cobrautil.ClUSTER_HEALTH_STATUS
 }
 
@@ -82,12 +83,14 @@ func (sCmd *SnapshotCommand) Init(cmd *cobra.Command, args []string) error {
 	// set main addr
 	mainAddrs, addrErr := config.GetBsSnapshotAddrSlice(sCmd.Cmd)
 	if addrErr.TypeCode() != cmderror.CODE_SUCCESS {
+		sCmd.errCode = addrErr.Code
 		return fmt.Errorf(addrErr.Message)
 	}
 
 	// set dummy addr
 	dummyAddrs, addrErr := config.GetBsSnapshotDummyAddrSlice(sCmd.Cmd)
 	if addrErr.TypeCode() != cmderror.CODE_SUCCESS {
+		sCmd.errCode = addrErr.Code
 		return fmt.Errorf(addrErr.Message)
 	}
 
@@ -135,6 +138,7 @@ func (sCmd *SnapshotCommand) RunCommand(cmd *cobra.Command, args []string) error
 
 			var value string
 			if err.TypeCode() == cmderror.CODE_SUCCESS {
+				sCmd.errCode = err.Code
 				value, err = basecmd.GetMetricValue(result)
 			}
 
@@ -159,6 +163,7 @@ func (sCmd *SnapshotCommand) RunCommand(cmd *cobra.Command, args []string) error
 					row[res.Key] = res.Value
 				}
 			} else if res.Err.TypeCode() != cmderror.CODE_SUCCESS {
+				sCmd.errCode = res.Err.Code
 				index := slices.Index(recordAddrs, res.Addr)
 				if index == -1 {
 					errs = append(errs, res.Err)
@@ -216,9 +221,16 @@ func GetSnapshotStatus(caller *cobra.Command) (*interface{}, *cmderror.CmdError,
 	snapshotCmd.Cmd.SilenceErrors = true
 	err := snapshotCmd.Cmd.Execute()
 	if err != nil {
-		retErr := cmderror.ErrBsGetSnapshotServerStatus()
-		retErr.Format(err.Error())
-		return nil, retErr, cobrautil.HEALTH_ERROR
+		if snapshotCmd.errCode == cmderror.ErrSnapShotAddrNotConfigured().Code {
+			retErr := cmderror.ErrSnapShotAddrNotConfigured()
+			retErr.Format(err.Error())
+			return nil, retErr, cobrautil.HEALTH_ERROR
+		} else {
+			retErr := cmderror.ErrBsGetSnapshotServerStatus()
+			retErr.Format(err.Error())
+			return nil, retErr, cobrautil.HEALTH_ERROR
+		}
 	}
+
 	return &snapshotCmd.Result, cmderror.Success(), snapshotCmd.health
 }

@@ -460,6 +460,15 @@ var (
 	ErrBsListOfflineChunkServer = func() *CmdError {
 		return NewInternalCmdError(66, "list offline chunkserver fail, err: %s")
 	}
+	ErrBsListSpaceStatus = func() *CmdError {
+		return NewInternalCmdError(68, "list space status fail, err: %s")
+	}
+	ErrConverResult = func() *CmdError {
+		return NewInternalCmdError(69, "conver results fail, err: %s")
+	}
+	ErrSnapShotAddrNotConfigured = func() *CmdError {
+		return NewInternalCmdError(70, "get snapshotAddr fail, err: %s")
+	}
 
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {
@@ -471,7 +480,6 @@ var (
 	ErrHttpStatus = func(statusCode int) *CmdError {
 		return NewHttpError(statusCode, "the url is: %s, http status code is: %d")
 	}
-
 	// rpc error
 	ErrRpcCall = func() *CmdError {
 		return NewRpcReultCmdError(1, "rpc[%s] is fail, the error is: %s")

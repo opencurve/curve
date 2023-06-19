@@ -28,6 +28,8 @@ import (
 
 type ClUSTER_HEALTH_STATUS int32
 
+const HEALTH = "health"
+
 const (
 	HEALTH_OK    ClUSTER_HEALTH_STATUS = 1
 	HEALTH_WARN  ClUSTER_HEALTH_STATUS = 2

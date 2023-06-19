@@ -23,6 +23,7 @@ package copyset
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
@@ -53,6 +54,17 @@ func (cCmd *CopysetCommand) AddFlags() {
 }
 
 func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
+	header := []string{cobrautil.ROW_COPYSET_KEY, cobrautil.ROW_COPYSET_ID,
+		cobrautil.ROW_POOL_ID, cobrautil.ROW_STATUS, cobrautil.ROW_LOG_GAP,
+		cobrautil.ROW_EXPLAIN,
+	}
+	cCmd.SetHeader(header)
+	cCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
+		cCmd.Header, []string{cobrautil.ROW_COPYSET_ID, cobrautil.ROW_POOL_ID,
+			cobrautil.ROW_STATUS,
+		},
+	))
+
 	config.AddBsFilterOptionFlag(cCmd.Cmd)
 	cCmd.Cmd.ParseFlags([]string{fmt.Sprintf("--%s=%s", config.CURVEBS_FIlTER, cobrautil.FALSE_STRING)})
 	copysetsInfo, err := clustercopyset.GetCopySetsInCluster(cCmd.Cmd)
@@ -72,13 +84,22 @@ func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
 		fmt.Sprintf("--%s", config.CURVEBS_LOGIC_POOL_ID), strings.Join(poolIds, ","),
 	})
 
-	checkRes, err := checkcopyset.GetCopysetsStatus(cCmd.Cmd)
+	results, err := checkcopyset.GetCopysetsStatus(cCmd.Cmd)
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		return err.ToError()
 	}
-	cCmd.TableNew = checkRes
 	cCmd.Error = err
-
+	if results != nil && *results != nil {
+		cCmd.Result = *results
+		rows := (*results).([]map[string]string)
+		sort.Slice(rows, func(i, j int) bool {
+			return rows[i][cobrautil.ROW_COPYSET_KEY] < rows[j][cobrautil.ROW_COPYSET_KEY]
+		})
+		list := cobrautil.ListMap2ListSortByKeys(rows, cCmd.Header, []string{
+			cobrautil.ROW_POOL_ID, cobrautil.ROW_STATUS, cobrautil.ROW_COPYSET_ID,
+		})
+		cCmd.TableNew.AppendBulk(list)
+	}
 	return nil
 }
 
@@ -103,4 +124,20 @@ func NewStatusCopysetCommand() *CopysetCommand {
 	}
 	basecmd.NewFinalCurveCli(&copysetCmd.FinalCurveCmd, copysetCmd)
 	return copysetCmd
+}
+
+func GetCopysetsStatus(caller *cobra.Command) (*interface{}, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS) {
+	cCmd := NewStatusCopysetCommand()
+	cCmd.Cmd.SetArgs([]string{
+		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
+	})
+	config.AlignFlagsValue(caller, cCmd.Cmd, []string{config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEBS_MDSADDR, config.CURVEBS_MARGIN})
+	cCmd.Cmd.SilenceErrors = true
+	err := cCmd.Cmd.Execute()
+	if err != nil {
+		retErr := cmderror.ErrBsGetCopysetStatus()
+		retErr.Format(err.Error())
+		return nil, retErr, cobrautil.HEALTH_ERROR
+	}
+	return &cCmd.Result, cmderror.Success(), cobrautil.HEALTH_OK
 }

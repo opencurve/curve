@@ -37,7 +37,7 @@ func TestCmdError(t *testing.T) {
 			Code:    0,
 			Message: "123%s",
 		}
-		tmp = tmp.Format("4")
+		tmp.Format("4")
 		tmp_json, err := json.Marshal(tmp)
 		So(err, ShouldBeNil)
 
