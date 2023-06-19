@@ -23,6 +23,7 @@
 package cobrautil
 
 const (
+	ROW_ROLE                 = "role"
 	ROW_ADDR                 = "addr"
 	ROW_ALLOC                = "alloc"
 	ROW_ALLOC_SIZE           = "allocatedSize"
@@ -57,6 +58,7 @@ const (
 	ROW_IP                   = "ip"
 	ROW_KEY                  = "key"
 	ROW_LEADER               = "leader"
+	ROW_FOLLOWER             = "follower"
 	ROW_OLDLEADER            = "oldLeader"
 	ROW_LEADER_PEER          = "leaderPeer"
 	ROW_LEFT                 = "left"

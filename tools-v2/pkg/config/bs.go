@@ -647,6 +647,19 @@ func GetBsAddrSlice(cmd *cobra.Command, addrType string) ([]string, *cmderror.Cm
 		addrsStr = viper.GetString(BSFLAG2VIPER[addrType])
 	}
 	addrslice := strings.Split(addrsStr, ",")
+<<<<<<< HEAD
+=======
+	for i, addr := range addrslice {
+		addrslice[i] = strings.TrimSpace(addr)
+	}
+
+	if addrType == CURVEBS_SNAPSHOTADDR && len(strings.TrimSpace(addrsStr)) == 0 {
+		err := cmderror.ErrSnapShotAddrNotConfigured()
+		err.Format(fmt.Sprint(CURVEBS_SNAPSHOTADDR, " is not configured"))
+		return nil, err
+	}
+
+>>>>>>> 746f2c17... add bs status cluster
 	for _, addr := range addrslice {
 		if !IsValidAddr(addr) {
 			err := cmderror.ErrGetAddr()
