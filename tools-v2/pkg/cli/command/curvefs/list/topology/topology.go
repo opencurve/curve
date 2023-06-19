@@ -158,7 +158,7 @@ func (tCmd *TopologyCommand) RunCommand(cmd *cobra.Command, args []string) error
 	tCmd.updateMetaserverAddr(topologyResponse.GetMetaservers().MetaServerInfos)
 	topologyMap, topoErr := cobrautil.Topology2Map(topologyResponse)
 	tCmd.Error = topoErr
-	tCmd.updateTable(&topologyMap)
+	tCmd.updateTable(topologyMap)
 	tCmd.Result = topologyMap
 
 	return nil
@@ -168,9 +168,9 @@ func (tCmd *TopologyCommand) ResultPlainOutput() error {
 	return output.FinalCmdOutputPlain(&tCmd.FinalCurveCmd)
 }
 
-func (tCmd *TopologyCommand) updateTable(topoMap *map[string]interface{}) *cmderror.CmdError {
+func (tCmd *TopologyCommand) updateTable(topoMap map[string]interface{}) *cmderror.CmdError {
 	errs := make([]*cmderror.CmdError, 0)
-	poolList := (*topoMap)[cobrautil.POOL_LIST].([]*cobrautil.PoolInfo)
+	poolList := topoMap[cobrautil.POOL_LIST].([]*cobrautil.PoolInfo)
 	sort.SliceStable(poolList, func(i, j int) bool {
 		return *poolList[i].PoolID <
 			*poolList[j].PoolID

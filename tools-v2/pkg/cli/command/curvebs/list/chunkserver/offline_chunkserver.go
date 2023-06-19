@@ -82,7 +82,7 @@ func (oCmd *OfflineChunkServerCommand) Init(cmd *cobra.Command, args []string) e
 		})
 	}
 	addr2Chunk, errCmd := chunk.GetChunkInfo(oCmd.Cmd)
-	for addr, info := range *addr2Chunk {
+	for addr, info := range addr2Chunk {
 		if info == nil {
 			oCmd.csInfos = append(oCmd.csInfos, addr2CsInfo[addr])
 		}

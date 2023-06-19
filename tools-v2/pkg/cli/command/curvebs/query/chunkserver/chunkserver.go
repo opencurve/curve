@@ -56,7 +56,7 @@ func (gRpc *GetChunkServerListRpc) Stub_Func(ctx context.Context) (interface{}, 
 type ChunkServerListInCoysetCommand struct {
 	basecmd.FinalCurveCmd
 	Rpc          []*GetChunkServerListRpc
-	key2Location *map[uint64][]*common.ChunkServerLocation
+	key2Location map[uint64][]*common.ChunkServerLocation
 }
 
 var _ basecmd.FinalCurveCmdFunc = (*ChunkServerListInCoysetCommand)(nil) // check interface
@@ -141,7 +141,7 @@ func (cCmd *ChunkServerListInCoysetCommand) RunCommand(cmd *cobra.Command, args 
 	}
 
 	key2Location := make(map[uint64][]*common.ChunkServerLocation)
-	cCmd.key2Location = &key2Location
+	cCmd.key2Location = key2Location
 	for i, result := range results {
 		logicalpoolid := cCmd.Rpc[i].Request.GetLogicalPoolId()
 		copysetids := cCmd.Rpc[i].Request.GetCopysetId()
@@ -154,7 +154,7 @@ func (cCmd *ChunkServerListInCoysetCommand) RunCommand(cmd *cobra.Command, args 
 		}
 		for _, info := range response.CsInfo {
 			key := cobrautil.GetCopysetKey(uint64(logicalpoolid), uint64(*info.CopysetId))
-			(*cCmd.key2Location)[key] = info.CsLocs
+			cCmd.key2Location[key] = info.CsLocs
 		}
 	}
 	errRet := cmderror.MergeCmdErrorExceptSuccess(errs)
@@ -169,7 +169,7 @@ func (cCmd *ChunkServerListInCoysetCommand) ResultPlainOutput() error {
 	return output.FinalCmdOutputPlain(&cCmd.FinalCurveCmd)
 }
 
-func GetChunkServerListInCopySets(caller *cobra.Command) (*map[uint64][]*common.ChunkServerLocation, *cmderror.CmdError) {
+func GetChunkServerListInCopySets(caller *cobra.Command) (map[uint64][]*common.ChunkServerLocation, *cmderror.CmdError) {
 	getCmd := NewQueryChunkServerListCommand()
 	config.AlignFlagsValue(caller, getCmd.Cmd, []string{
 		config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEBS_MDSADDR,
