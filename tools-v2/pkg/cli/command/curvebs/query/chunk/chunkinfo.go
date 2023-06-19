@@ -55,7 +55,7 @@ func (gRpc *GetChunkInfoRpc) Stub_Func(ctx context.Context) (interface{}, error)
 type GetChunkInfoCommand struct {
 	basecmd.FinalCurveCmd
 	Rpc        []*GetChunkInfoRpc
-	addr2Chunk *map[string]*chunk.GetChunkInfoResponse
+	addr2Chunk map[string]*chunk.GetChunkInfoResponse
 }
 
 var _ basecmd.FinalCurveCmdFunc = (*GetChunkInfoCommand)(nil) // check interface
@@ -122,12 +122,12 @@ func (cCmd *GetChunkInfoCommand) RunCommand(cmd *cobra.Command, args []string) e
 		return mergeErr.ToError()
 	}
 	addr2Chunk := make(map[string]*chunk.GetChunkInfoResponse)
-	cCmd.addr2Chunk = &addr2Chunk
+	cCmd.addr2Chunk = addr2Chunk
 	for i, result := range results {
 		if resp, ok := result.(*chunk.GetChunkInfoResponse); ok {
-			(*cCmd.addr2Chunk)[cCmd.Rpc[i].Info.Addrs[0]] = resp
+			cCmd.addr2Chunk[cCmd.Rpc[i].Info.Addrs[0]] = resp
 		} else {
-			(*cCmd.addr2Chunk)[cCmd.Rpc[i].Info.Addrs[0]] = nil
+			cCmd.addr2Chunk[cCmd.Rpc[i].Info.Addrs[0]] = nil
 		}
 	}
 	return nil
@@ -152,7 +152,7 @@ func (cCmd *GetChunkInfoCommand) AddFlags() {
 	config.AddBsChunkServerAddressSliceRequiredFlag(cCmd.Cmd)
 }
 
-func GetChunkInfo(caller *cobra.Command) (*map[string]*chunk.GetChunkInfoResponse, *cmderror.CmdError) {
+func GetChunkInfo(caller *cobra.Command) (map[string]*chunk.GetChunkInfoResponse, *cmderror.CmdError) {
 	sCmd := NewGetChunkInfoCommand()
 	config.AlignFlagsValue(caller, sCmd.Cmd, []string{
 		config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEBS_MDSADDR,

@@ -158,7 +158,7 @@ func (cCmd *CopysetAvailflagCommand) Init(cmd *cobra.Command, args []string) err
 
 			for _, info := range addr2Copysets {
 				key := cobrautil.GetCopysetKey(uint64(info.GetLogicalPoolId()), uint64(info.GetCopysetId()))
-				if health, ok := (*key2Health)[key]; !ok || health == cobrautil.HEALTH_ERROR {
+				if health, ok := key2Health[key]; !ok || health == cobrautil.HEALTH_ERROR {
 					copysets = append(copysets, info)
 				}
 			}

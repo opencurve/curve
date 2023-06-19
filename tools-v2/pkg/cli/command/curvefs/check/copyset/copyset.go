@@ -45,9 +45,9 @@ const (
 
 type CopysetCommand struct {
 	basecmd.FinalCurveCmd
-	key2Copyset           *map[uint64]*cobrautil.CopysetInfoStatus
-	copysetKey2Status     *map[uint64]cobrautil.COPYSET_HEALTH_STATUS
-	copysetKey2LeaderInfo *map[uint64]*CopysetLeaderInfo
+	key2Copyset           map[uint64]*cobrautil.CopysetInfoStatus
+	copysetKey2Status     map[uint64]cobrautil.COPYSET_HEALTH_STATUS
+	copysetKey2LeaderInfo map[uint64]*CopysetLeaderInfo
 	health                cobrautil.ClUSTER_HEALTH_STATUS
 	leaderAddr            mapset.Set[string]
 }
@@ -118,11 +118,11 @@ func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
 			cobrautil.ROW_STATUS,
 		}))
 	copysetKey2Status := make(map[uint64]cobrautil.COPYSET_HEALTH_STATUS)
-	cCmd.copysetKey2Status = &copysetKey2Status
+	cCmd.copysetKey2Status = copysetKey2Status
 
 	// update leaderAddr
 	cCmd.leaderAddr = mapset.NewSet[string]()
-	for _, copysetInfo := range *cCmd.key2Copyset {
+	for _, copysetInfo := range cCmd.key2Copyset {
 		leader := copysetInfo.Info.GetLeaderPeer()
 		addr, err := cobrautil.PeertoAddr(leader)
 		if err.TypeCode() != cmderror.CODE_SUCCESS {
@@ -134,7 +134,7 @@ func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
 	}
 	timeout := config.GetRpcTimeout(cCmd.Cmd)
 	key2LeaderInfo := make(map[uint64]*CopysetLeaderInfo)
-	cCmd.copysetKey2LeaderInfo = &key2LeaderInfo
+	cCmd.copysetKey2LeaderInfo = key2LeaderInfo
 	err := cCmd.UpdateCopysteGap(timeout)
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		return err.ToError()
@@ -150,7 +150,7 @@ func (cCmd *CopysetCommand) RunCommand(cmd *cobra.Command, args []string) error 
 	rows := make([]map[string]string, 0)
 	var errs []*cmderror.CmdError
 	copysetHealthCount := make(map[cobrautil.COPYSET_HEALTH_STATUS]uint32)
-	for k, v := range *cCmd.key2Copyset {
+	for k, v := range cCmd.key2Copyset {
 		row := make(map[string]string)
 		row[cobrautil.ROW_COPYSET_KEY] = fmt.Sprintf("%d", k)
 		poolid, copysetid := cobrautil.CopysetKey2PoolidCopysetid(k)
@@ -158,12 +158,12 @@ func (cCmd *CopysetCommand) RunCommand(cmd *cobra.Command, args []string) error 
 		row[cobrautil.ROW_COPYSET_ID] = fmt.Sprintf("%d", copysetid)
 		if v == nil {
 			row[cobrautil.ROW_STATUS] = cobrautil.CopysetHealthStatus_Str[int32(cobrautil.COPYSET_NOTEXIST)]
-			(*cCmd.copysetKey2Status)[k] = cobrautil.COPYSET_NOTEXIST
+			cCmd.copysetKey2Status[k] = cobrautil.COPYSET_NOTEXIST
 		} else {
 			status, errsCheck := cobrautil.CheckCopySetHealth(v)
 			copysetHealthCount[status]++
 			row[cobrautil.ROW_STATUS] = cobrautil.CopysetHealthStatus_Str[int32(status)]
-			(*cCmd.copysetKey2Status)[k] = status
+			cCmd.copysetKey2Status[k] = status
 			explain := ""
 			if status != cobrautil.COPYSET_OK {
 				for i, e := range errsCheck {
@@ -176,7 +176,7 @@ func (cCmd *CopysetCommand) RunCommand(cmd *cobra.Command, args []string) error 
 				}
 			}
 			magrin := config.GetMarginOptionFlag(cCmd.Cmd)
-			leaderInfo := (*cCmd.copysetKey2LeaderInfo)[k]
+			leaderInfo := cCmd.copysetKey2LeaderInfo[k]
 			if leaderInfo == nil {
 				explain = "no leader peer"
 				if row[cobrautil.ROW_STATUS] == cobrautil.COPYSET_OK_STR {
@@ -257,7 +257,7 @@ func (cCmd *CopysetCommand) UpdateCopysteGap(timeout time.Duration) *cmderror.Cm
 		}
 	}
 	key2LeaderInfo.Range(func(key, value interface{}) bool {
-		(*cCmd.copysetKey2LeaderInfo)[key.(uint64)] = value.(*CopysetLeaderInfo)
+		cCmd.copysetKey2LeaderInfo[key.(uint64)] = value.(*CopysetLeaderInfo)
 		return true
 	})
 	retErr := cmderror.MergeCmdErrorExceptSuccess(errs)

@@ -295,7 +295,7 @@ func (cCmd *CopysetCommand) UpdateCopysetsStatus(values []*topology.CopysetValue
 	retrytimes := viper.GetInt32(config.VIPER_GLOBALE_RPCRETRYTIMES)
 	var results []*StatusResult
 	if len(addr2Request) != 0 {
-		results = GetCopysetsStatus(&addr2Request, timeout, retrytimes)
+		results = GetCopysetsStatus(addr2Request, timeout, retrytimes)
 		for _, result := range results {
 			ret = append(ret, result.Error)
 			copysets := result.Request.GetCopysets()
@@ -353,7 +353,7 @@ func (cCmd *CopysetCommand) ResultPlainOutput() error {
 }
 
 // copsetIds,poolId just like: 1,2,3
-func QueryCopysetInfoStatus(caller *cobra.Command) (*map[uint64]*cobrautil.CopysetInfoStatus, *cmderror.CmdError) {
+func QueryCopysetInfoStatus(caller *cobra.Command) (map[uint64]*cobrautil.CopysetInfoStatus, *cmderror.CmdError) {
 	queryCopyset := NewQueryCopysetCommand()
 	queryCopyset.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.CURVEFS_DETAIL),
@@ -368,10 +368,10 @@ func QueryCopysetInfoStatus(caller *cobra.Command) (*map[uint64]*cobrautil.Copys
 		return nil, retErr
 	}
 
-	return &queryCopyset.key2Copyset, cmderror.ErrSuccess()
+	return queryCopyset.key2Copyset, cmderror.ErrSuccess()
 }
 
-func QueryCopysetInfo(caller *cobra.Command) (*map[uint64]*cobrautil.CopysetInfoStatus, *cmderror.CmdError) {
+func QueryCopysetInfo(caller *cobra.Command) (map[uint64]*cobrautil.CopysetInfoStatus, *cmderror.CmdError) {
 	queryCopyset := NewQueryCopysetCommand()
 	queryCopyset.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
@@ -385,5 +385,5 @@ func QueryCopysetInfo(caller *cobra.Command) (*map[uint64]*cobrautil.CopysetInfo
 		return nil, retErr
 	}
 
-	return &queryCopyset.key2Copyset, cmderror.ErrSuccess()
+	return queryCopyset.key2Copyset, cmderror.ErrSuccess()
 }
