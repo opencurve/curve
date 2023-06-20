@@ -118,7 +118,8 @@ CSSnapshot::CSSnapshot(std::shared_ptr<LocalFileSystem> lfs,
       baseDir_(options.baseDir),
       lfs_(lfs),
       chunkFilePool_(chunkFilePool),
-      metric_(options.metric) {
+      metric_(options.metric),
+      cloneNo_ (options.cloneNo) {
     CHECK(!baseDir_.empty()) << "Create snapshot failed";
     CHECK(lfs_ != nullptr) << "Create snapshot failed";
     uint32_t bits = size_ / blockSize_;
@@ -194,13 +195,16 @@ CSErrorCode CSSnapshot::Read(char * buf, off_t offset, size_t length) {
 }
 
 CSErrorCode CSSnapshot::ReadRanges(char * buf, off_t offset, size_t length, std::vector<BitRange>& ranges) {
-    CSErrorCode errorCode = CSErrorCode::Success;
     off_t readOff;
     size_t readSize;
 
     for (auto& range : ranges) {
         readOff = range.beginIndex * blockSize_;
         readSize = (range.endIndex - range.beginIndex + 1) * blockSize_;
+        DLOG(INFO) << "ReadRanges: readOff " << readOff << ", readSize " << readSize
+                  << ", offset " << offset << ",  length " << length
+                  << ", range.beginIndex " << range.beginIndex << ", range.endIndex " << range.endIndex
+                  << ", chunkid " << chunkId_ << ", sn " << metaPage_.sn;
         int rc = readData(buf + (readOff - offset),
                           readOff,
                           readSize);
@@ -453,6 +457,16 @@ CSErrorCode CSSnapshots::Read(SequenceNum sn, char * buf, off_t offset, size_t l
                           blockEndIndex,
                           nullptr,
                           &copiedRange);
+
+        string rangInfo = "";
+        for (auto range: copiedRange) {
+            rangInfo += "(" + std::to_string(range.beginIndex) + "," + std::to_string(range.endIndex) + ")";
+        }
+        DLOG(INFO) << "Read from snapshot: " << snapshot->GetSn()
+                  << ", buf " << static_cast<const void*>(buf)
+                  << ", offset " << offset << ", length " << length 
+                  << ", copiedRange: " << rangInfo;
+
         CSErrorCode errorCode = snapshot->ReadRanges(buf, offset, length, copiedRange);
         if (errorCode != CSErrorCode::Success) {
             return errorCode;
@@ -464,6 +478,91 @@ CSErrorCode CSSnapshots::Read(SequenceNum sn, char * buf, off_t offset, size_t l
                        clearRanges,
                        nullptr);
     return CSErrorCode::Success;
+}
+
+/*
+    Given the sn and Bit Range range to search to
+    get the 
+    notInRanges
+    and objInfos, which indicate that which snapshot the obj lies in
+    and when the snap ptr is null, means that the data is in the chunk its self
+*/
+bool CSSnapshots::DivideSnapshotObjInfoByIndex (SequenceNum sn, std::vector<BitRange>& range, 
+                                                std::vector<BitRange>& notInRanges, 
+                                                std::vector<ObjectInfo>& objInfos) {
+    CSSnapshot* snapshot = nullptr;
+    bool isFinish = false;
+    bool isFound = false;
+
+    std::vector<BitRange> clearRanges;
+    std::vector<BitRange> setRanges;
+    std::vector<BitRange> tmpRanges;
+    std::vector<BitRange> searchRanges;
+    
+    searchRanges = range;
+
+    if (0 == sn) { //sn == 0 means that this is not a snapshot
+        for (auto& tmpc : searchRanges) {
+            notInRanges.push_back (tmpc);
+        }
+        return isFinish;
+    }
+
+    for (auto it = snapshots_.begin(); it != snapshots_.end(); it++) {
+        if (false == isFound) {
+            if ((*it)->GetSn() >= sn) {
+                snapshot = *it;
+                isFound = true;
+            } else {
+                continue;
+            }
+        }
+
+        if (true == isFound) {
+            snapshot = *it;
+            if (nullptr == snapshot) {
+                continue;
+            }
+
+            for (auto& r : searchRanges) {
+                clearRanges.clear();
+                setRanges.clear();
+                snapshot->GetPageStatus()->Divide(r.beginIndex, r.endIndex, &clearRanges, &setRanges);
+                if (true != clearRanges.empty()) {
+                    for (auto & ctmp: clearRanges) {
+                        tmpRanges.push_back (ctmp);
+                    }
+                }
+
+                for (auto& tmpr : setRanges) {
+                    ObjectInfo objInfo;
+                    objInfo.sn = sn;
+                    objInfo.snapptr = snapshot;
+                    objInfo.offset = tmpr.beginIndex << PAGE_SIZE_SHIFT;
+                    objInfo.length = (tmpr.endIndex - tmpr.beginIndex + 1) << PAGE_SIZE_SHIFT;
+                    objInfos.push_back(objInfo);
+                }
+            }
+
+            if (true == tmpRanges.empty()) {
+                isFinish = true;
+                break;
+            }
+
+            //for next snapshot search
+            searchRanges = tmpRanges;
+            tmpRanges.clear();
+        }
+    }
+
+    if (false == isFinish) {
+        //not any snapshot also lead the tmpRanges to empty
+        for (auto& tmpc : searchRanges) {
+            notInRanges.push_back (tmpc);
+        }
+    }
+
+    return isFinish;
 }
 
 /**

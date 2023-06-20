@@ -46,6 +46,7 @@ namespace chunkserver {
 using curve::fs::LocalFileSystem;
 using ::curve::common::Atomic;
 using CSChunkFilePtr = std::shared_ptr<CSChunkFile>;
+using CSSnapshotPtr = std::shared_ptr<CSSnapshot>;
 
 inline void TrivialDeleter(void* ptr) {}
 
@@ -155,6 +156,101 @@ class CSMetaCache {
     ChunkMap    chunkMap_;
 };
 
+using CloneMap = std::map<uint64_t, CSChunkFilePtr>;
+
+struct CloneMapInfo {
+    RWLock rwLock_;
+    CloneMap map_;
+};
+
+using CloneMapInfoPtr = std::shared_ptr<CloneMapInfo>;
+using ChunkCloneMap = std::unordered_map<ChunkID, CloneMapInfoPtr>;
+
+
+class CSMetaCloneCache {
+
+public:
+    CSMetaCloneCache() {}
+    virtual ~CSMetaCloneCache() {}
+
+    ChunkCloneMap& GetMap() {
+        ReadLockGuard readGuard(rwLock_);
+        return chunkCloneMap_;
+    }
+
+    CSChunkFilePtr Get(ChunkID id, uint64_t cloneNo) {
+        ReadLockGuard readGuard(rwLock_);
+        auto it = chunkCloneMap_.find(id);
+        if (it == chunkCloneMap_.end()) {
+            return nullptr;
+        }
+
+        CloneMapInfoPtr cinfo = it->second;
+        ReadLockGuard c_readGuard(cinfo->rwLock_);
+        auto iter = cinfo->map_.find(cloneNo);
+        if (iter == cinfo->map_.end()) {
+            return nullptr;
+        }
+
+        return iter->second;
+    }
+
+    CSChunkFilePtr Set(ChunkID id, uint64_t cloneNo, CSChunkFilePtr cfile) {
+        CloneMapInfoPtr cinfo = nullptr;
+        WriteLockGuard wGuard(rwLock_);
+        auto iter = chunkCloneMap_.find(id);
+        if (iter == chunkCloneMap_.end()) {
+            cinfo = std::make_shared<CloneMapInfo>();
+            chunkCloneMap_[id] = cinfo;
+        } else {
+            cinfo = iter->second;
+        }
+
+        WriteLockGuard wCGuard(cinfo->rwLock_);
+        auto it = cinfo->map_.find(cloneNo);
+
+        if (it == cinfo->map_.end()) {
+            cinfo->map_.insert(std::pair<uint64_t, CSChunkFilePtr>(cloneNo, cfile));
+        } else {
+            it->second = nullptr;
+            it->second = cfile;
+        }
+
+        return cinfo->map_[cloneNo];
+    }
+
+    void Remove(ChunkID id, uint64_t cloneNo) {
+        CloneMapInfoPtr cinfo = nullptr;
+        WriteLockGuard writeGuard(rwLock_);
+        auto it = chunkCloneMap_.find(id);
+        if (it != chunkCloneMap_.end()) {
+            cinfo = it->second;
+            WriteLockGuard wCGuard(cinfo->rwLock_);
+            auto iter = cinfo->map_.find(cloneNo);
+            if (iter != cinfo->map_.end()) {
+                cinfo->map_.erase(iter);
+            }
+        }
+    }
+
+    void Remove(ChunkID id) {
+        WriteLockGuard writeGuard(rwLock_);
+        if (chunkCloneMap_.find(id) != chunkCloneMap_.end()) {
+            chunkCloneMap_.erase(id);
+        }
+    }
+
+    void Clear() {
+        WriteLockGuard writeGuard(rwLock_);
+        chunkCloneMap_.clear();
+    }
+
+private:
+    RWLock rwLock_;
+    ChunkCloneMap chunkCloneMap_;
+
+};
+
 class CSDataStore {
  public:
     // for ut mock
@@ -205,6 +301,13 @@ class CSDataStore {
                                   char * buf,
                                   off_t offset,
                                   size_t length);
+    CSErrorCode ReadChunk(ChunkID id,
+                                SequenceNum sn,
+                                char * buf,
+                                off_t offset,
+                                size_t length,
+                                std::unique_ptr<CloneContext>& ctx);
+
     /**
      * Read the data of the specified sequence, it may read the current
      * chunk file, or it may read the snapshot file
@@ -222,6 +325,15 @@ class CSDataStore {
                                           off_t offset,
                                           size_t length,
                                           std::shared_ptr<SnapContext> ctx = nullptr);
+
+    CSErrorCode ReadSnapshotChunk(ChunkID id,
+                                SequenceNum sn,
+                                char * buf,
+                                off_t offset,
+                                size_t length,
+                                std::shared_ptr<SnapContext> ctx,
+                                std::unique_ptr<CloneContext>& cloneCtx);
+
     /**
      * Write data
      * @param id: the chunk id to be written
@@ -242,6 +354,16 @@ class CSDataStore {
                                 uint32_t* cost,
                                 std::shared_ptr<SnapContext> ctx,
                                 const std::string & cloneSourceLocation = "");
+
+    //WriteChunk interface for the clone chunk
+    CSErrorCode WriteChunk (ChunkID id, 
+                                SequenceNum sn,
+                                const butil::IOBuf& buf, 
+                                off_t offset, 
+                                size_t length,
+                                uint32_t* cost, 
+                                std::shared_ptr<SnapContext> ctx, 
+                                std::unique_ptr<CloneContext>& cloneCtx);
 
 
     virtual CSErrorCode SyncChunk(ChunkID id);
@@ -335,10 +457,36 @@ class CSDataStore {
         metaCache_.SetSyncChunkLimits(limit, threshold);
     }
 
- private:
-    CSErrorCode loadChunkFile(ChunkID id);
+    virtual ChunkMap GetChunkMap();
+
+    static struct CloneInfos getParentClone (std::vector<struct CloneInfos>& clones, uint64_t cloneNo);
+
+
+    static void searchChunkForObj (SequenceNum sn, 
+                            std::vector<File_ObjectInfoPtr>& objInfos, 
+                            uint32_t beginIndex, uint32_t endIndex, 
+                            std::unique_ptr<CloneContext>& ctx,
+                            CSDataStore& datastore);
+
+    CSChunkFilePtr GetCloneCache(ChunkID virtualid, uint64_t cloneno);
+
+    static CSErrorCode ReadByObjInfo (CSChunkFilePtr fileptr, char* buf, ObjectInfo& objinfo);
+
+    static void SplitDataIntoObjs (SequenceNum sn,
+                            std::vector<File_ObjectInfoPtr>& objInfos, 
+                            off_t offset, 
+                            size_t length,
+                            std::unique_ptr<CloneContext>& ctx,
+                            CSDataStore& datastore);
+
+
     CSErrorCode CreateChunkFile(const ChunkOptions & ops,
                                 CSChunkFilePtr* chunkFile);
+    
+    CSChunkFilePtr GetChunkFile(ChunkID id);
+
+ private:
+    CSErrorCode loadChunkFile(ChunkID id);
 
  private:
     // The size of each chunk
@@ -352,6 +500,8 @@ class CSDataStore {
     std::string baseDir_;
     // the mapping of chunkid->chunkfile
     CSMetaCache metaCache_;
+    // the mapping of chunkid, clondNo -->chunkfile
+    CSMetaCloneCache cloneCache_;
     // chunkfile pool, rely on this pool to create and recycle chunk files
     // or snapshot files
     std::shared_ptr<FilePool> chunkFilePool_;

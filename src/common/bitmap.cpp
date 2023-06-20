@@ -240,5 +240,13 @@ const char* Bitmap::GetBitmap() const {
     return bitmap_;
 }
 
+uint32_t Bitmap::initialize(char *buf) {
+    int count = unitCount();
+
+    CHECK(bitmap_ != nullptr) << "allocate bitmap failed.";
+    memcpy(bitmap_, buf, count);
+    return count;
+}
+
 }  // namespace common
 }  // namespace curve
