@@ -714,4 +714,29 @@ var (
 		}
 		return NewRpcReultCmdError(code, message)
 	}
+	ErrBsCreateSnapShot = func(statusCode nameserver2.StatusCode, path string) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case nameserver2.StatusCode_kOK:
+			message = "Create snapshot successfully"
+		default:
+			message = fmt.Sprintf("failed to snapshot from [%s], err: %s", path, statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
+	ErrBsListSnapShot = func() *CmdError {
+		return NewInternalCmdError(666, "list snapshot fail, err: %s")
+	}
+	ErrBsClone = func(statusCode nameserver2.StatusCode, path string) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case nameserver2.StatusCode_kOK:
+			message = "Clone successfully"
+		default:
+			message = fmt.Sprintf("failed to clone from [%s], err: %s", path, statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
 )
