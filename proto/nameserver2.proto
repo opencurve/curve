@@ -84,6 +84,7 @@ message FileInfo {
 
     // cloneSource 当前用于存放克隆源(当前主要用于curvefs)
     // 后期可以考虑存放 s3相关信息
+    // 本地克隆时用于存放父节点(卷名), 快照名可以加上cloneSn组成
     optional    string      cloneSource   =    13;
 
     // cloneLength 克隆源文件的长度，用于clone过程中进行extent
@@ -93,7 +94,23 @@ message FileInfo {
 
     optional    FileThrottleParams throttleParams = 17;
     optional    uint64      epoch = 18;
-    optional    string      poolset = 19;
+
+    // sequence numbers of snapshots
+    repeated    uint64      snaps = 19;
+
+    optional    bool initCloneSegment = 20;  // 是否已经初始化克隆的segment$
+
+    optional    uint64      cloneNo = 21;  // 如果该卷是克隆卷，保存当前cloneNo
+    optional    uint64      cloneSn = 22;  // 如果该卷是克隆卷，保存源快照sn
+    optional    string      cloneOrigin = 23;  // 克隆源, 用于访问克隆源的segment
+
+    //clone tree
+    message CloneInfos {
+        required uint64 cloneNo = 1;
+        required uint64 cloneSn = 2;
+    }
+    repeated    CloneInfos  clones = 24;  // 向client端返回的克隆链，不持久化
+    optional    string      poolset = 25;
 }
 
 // status code
@@ -402,6 +419,23 @@ message CheckSnapShotStatusResponse {
     optional uint32 progress  = 3;
 }
 
+// clone rpcs
+message CloneRequest {
+    required string     fileName = 1;
+    required string     owner = 2;
+    optional string     signature = 5;
+    required uint64     date = 6;
+
+    optional string    snapFileName = 7;
+    optional string    srcFileName = 8;
+    optional uint64    seq = 9;
+}
+
+message CloneResponse {
+    required StatusCode statusCode = 1;
+    optional FileInfo fileInfo = 2;
+}
+
 // session rpcs
 enum SessionStatus {
     kSessionOK = 0;
@@ -630,6 +664,10 @@ service CurveFSService {
             returns (CheckSnapShotStatusResponse);
     rpc     GetSnapShotFileSegment(GetOrAllocateSegmentRequest)
                 returns (GetOrAllocateSegmentResponse);
+
+    // local clone rpcs
+    rpc     Clone(CloneRequest)
+                returns(CloneResponse);
 
     // session rpcs
     rpc     OpenFile(OpenFileRequest) returns (OpenFileResponse);
