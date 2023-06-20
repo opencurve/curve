@@ -365,7 +365,7 @@ TEST_F(ChunkServerSnapshotTest, OneNode) {
 
     CopysetStatusResponse expectResp;
     // read、write、1次配置变更
-    int64_t commitedIndex = 2 * loop + 1;
+    int64_t commitedIndex = loop + 1;
     expectResp.set_status(COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
     expectResp.set_state(braft::STATE_LEADER);
     Peer *peer = new Peer();
@@ -447,7 +447,7 @@ TEST_F(ChunkServerSnapshotTest, OneNodeShutdown) {
                         loop);
 
     CopysetStatusResponse expectResp;
-    int64_t commitedIndex = 2 * 2 * loop + loop + 2;
+    int64_t commitedIndex = 2 * loop + 2;
     expectResp.set_status(COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
     expectResp.set_state(braft::STATE_LEADER);
     Peer *peer = new Peer();
@@ -557,6 +557,12 @@ TEST_F(ChunkServerSnapshotTest, TwoNodesShutdownOnePeer) {
         shutdownPeerid = peer1;
     }
     ASSERT_EQ(0, cluster.ShutdownPeer(shutdownPeerid));
+
+    // leader lease, can read from local
+    ReadVerify(leaderId, logicPoolId, copysetId, chunkId, length, ch, 1);
+
+    ::usleep(2000 * electionTimeoutMs);
+
     // 测试发现集群不可用
     ReadVerifyNotAvailable(leaderId,
                            logicPoolId,

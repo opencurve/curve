@@ -218,7 +218,6 @@ TEST_F(CurveClientUserAuthFail, CurveSnapClientUserAuthFailTest) {
     opt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
     opt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
     opt.ioOpt.metaCacheOpt.metacacheGetLeaderRetry = 3;
-    opt.ioOpt.ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
     opt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = 64;
     opt.ioOpt.reqSchdulerOpt.ioSenderOpt = opt.ioOpt.ioSenderOpt;
     opt.loginfo.logLevel = 0;
@@ -352,7 +351,6 @@ TEST_F(CurveClientUserAuthFail, CurveSnapClientRootUserAuthTest) {
     opt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
     opt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
     opt.ioOpt.metaCacheOpt.metacacheGetLeaderRetry = 3;
-    opt.ioOpt.ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
     opt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = 64;
     opt.ioOpt.reqSchdulerOpt.ioSenderOpt = opt.ioOpt.ioSenderOpt;
     opt.loginfo.logLevel = 0;

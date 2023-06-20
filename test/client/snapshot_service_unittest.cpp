@@ -61,7 +61,6 @@ TEST(SnapInstance, SnapShotTest) {
     opt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
     opt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
     opt.ioOpt.metaCacheOpt.metacacheGetLeaderRetry = 3;
-    opt.ioOpt.ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
     opt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = 64;
     opt.ioOpt.reqSchdulerOpt.ioSenderOpt = opt.ioOpt.ioSenderOpt;
     opt.loginfo.logLevel = 0;
@@ -501,7 +500,6 @@ TEST(SnapInstance, ReadChunkSnapshotTest) {
     opt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
     opt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
     opt.ioOpt.metaCacheOpt.metacacheGetLeaderRetry = 3;
-    opt.ioOpt.ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
     opt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = 64;
     opt.ioOpt.reqSchdulerOpt.ioSenderOpt = opt.ioOpt.ioSenderOpt;
     opt.loginfo.logLevel = 0;
@@ -558,7 +556,6 @@ TEST(SnapInstance, DeleteChunkSnapshotTest) {
     opt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
     opt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
     opt.ioOpt.metaCacheOpt.metacacheGetLeaderRetry = 3;
-    opt.ioOpt.ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
     opt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = 64;
     opt.ioOpt.reqSchdulerOpt.ioSenderOpt = opt.ioOpt.ioSenderOpt;
     opt.loginfo.logLevel = 0;
@@ -597,7 +594,6 @@ TEST(SnapInstance, GetChunkInfoTest) {
     opt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
     opt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
     opt.ioOpt.metaCacheOpt.metacacheGetLeaderRetry = 3;
-    opt.ioOpt.ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
     opt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = 64;
     opt.ioOpt.reqSchdulerOpt.ioSenderOpt = opt.ioOpt.ioSenderOpt;
     opt.loginfo.logLevel = 0;
@@ -637,7 +633,6 @@ TEST(SnapInstance, RecoverChunkTest) {
     opt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
     opt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
     opt.ioOpt.metaCacheOpt.metacacheGetLeaderRetry = 3;
-    opt.ioOpt.ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
     opt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = 64;
     opt.ioOpt.reqSchdulerOpt.ioSenderOpt = opt.ioOpt.ioSenderOpt;
     opt.loginfo.logLevel = 0;
@@ -679,7 +674,6 @@ TEST(SnapInstance, CreateCloneChunkTest) {
     opt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
     opt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
     opt.ioOpt.metaCacheOpt.metacacheGetLeaderRetry = 3;
-    opt.ioOpt.ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
     opt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = 64;
     opt.ioOpt.reqSchdulerOpt.ioSenderOpt = opt.ioOpt.ioSenderOpt;
     opt.loginfo.logLevel = 0;

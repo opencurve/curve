@@ -76,6 +76,7 @@ DEFINE_string(walFilePoolDir, "./0/", "WAL filepool location");
 DEFINE_string(walFilePoolMetaPath, "./walfilepool.meta",
                                     "WAL filepool meta path");
 
+
 const char* kProtocalCurve = "curve";
 
 namespace curve {
@@ -583,6 +584,11 @@ void ChunkServer::InitCopysetNodeOptions(
         &copysetNodeOptions->electionTimeoutMs));
     LOG_IF(FATAL, !conf->GetIntValue("copyset.snapshot_interval_s",
         &copysetNodeOptions->snapshotIntervalS));
+    bool ret = conf->GetBoolValue("copyset.enable_lease_read",
+        &copysetNodeOptions->enbaleLeaseRead);
+    LOG_IF(WARNING, ret == false)
+        << "config no copyset.enable_lease_read info, using default value "
+        << copysetNodeOptions->enbaleLeaseRead;
     LOG_IF(FATAL, !conf->GetIntValue("copyset.catchup_margin",
         &copysetNodeOptions->catchupMargin));
     LOG_IF(FATAL, !conf->GetStringValue("copyset.chunk_data_uri",
@@ -612,7 +618,7 @@ void ChunkServer::InitCopysetNodeOptions(
     LOG_IF(FATAL, !conf->GetUInt32Value("copyset.check_loadmargin_interval_ms",
         &copysetNodeOptions->checkLoadMarginIntervalMs));
     LOG_IF(FATAL, !conf->GetUInt32Value("copyset.sync_concurrency",
-            &copysetNodeOptions->syncConcurrency));
+        &copysetNodeOptions->syncConcurrency));
 
     LOG_IF(FATAL, !conf->GetBoolValue(
         "copyset.enable_odsync_when_open_chunkfile",

@@ -166,8 +166,8 @@ void RequestScheduler::ProcessOne(RequestContext* ctx) {
         case OpType::READ:
             ctx->done_->GetInflightRPCToken();
             client_.ReadChunk(ctx->idinfo_, ctx->seq_, ctx->offset_,
-                              ctx->rawlength_, ctx->appliedindex_,
-                              ctx->sourceInfo_, guard.release());
+                              ctx->rawlength_, ctx->sourceInfo_,
+                              guard.release());
             break;
         case OpType::WRITE:
             ctx->done_->GetInflightRPCToken();

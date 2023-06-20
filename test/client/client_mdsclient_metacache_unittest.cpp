@@ -1054,16 +1054,8 @@ TEST_F(MDSClientTest, GetOrAllocateSegment) {
     ASSERT_EQ(ep1, toep);
     ASSERT_EQ(0, mc.UpdateLeader(1234, 0, ep1));
 
-    ASSERT_EQ(0, mc.GetAppliedIndex(1111, 0));
-
-    // test applied index update
     curve::client::CopysetInfo<ChunkServerID> csinfo;
     mc.UpdateCopysetInfo(111, 123, csinfo);
-    ASSERT_EQ(0, mc.GetAppliedIndex(111, 123));
-    mc.UpdateAppliedIndex(111, 123, 4);
-    ASSERT_EQ(4, mc.GetAppliedIndex(111, 123));
-    mc.UpdateAppliedIndex(111, 123, 100000);
-    ASSERT_EQ(100000, mc.GetAppliedIndex(111, 123));
 
     // Boundary test metacache.
     // we fake the disk size = 1G.

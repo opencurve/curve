@@ -1080,5 +1080,53 @@ TEST_F(CopysetNodeTest, get_leader_status) {
     }
 }
 
+TEST_F(CopysetNodeTest, is_lease_leader) {
+    LogicPoolID logicPoolID = 1;
+    CopysetID copysetID = 1;
+    Configuration conf;
+    std::shared_ptr<MockNode> mockNode
+            = std::make_shared<MockNode>(logicPoolID,
+                                         copysetID);
+    CopysetNode copysetNode(logicPoolID, copysetID, conf);
+    copysetNode.SetCopysetNode(mockNode);
+
+    EXPECT_FALSE(copysetNode.IsLeaderTerm());
+    EXPECT_EQ(-1, copysetNode.LeaderTerm());
+
+    // not leader now
+    {
+        std::vector<braft::LeaseState> states = {
+            braft::LEASE_DISABLED,
+            braft::LEASE_VALID,
+            braft::LEASE_NOT_READY,
+            braft::LEASE_EXPIRED
+        };
+        braft::LeaderLeaseStatus status;
+        for (auto &state : states) {
+            status.state = state;
+            ASSERT_FALSE(copysetNode.IsLeaseLeader(status));
+        }
+    }
+
+    // ABA problem, current node is term 8(on leader start),
+    // but leader lease term is 10
+    {
+        copysetNode.on_leader_start(8);
+        braft::LeaderLeaseStatus status;
+        status.term = 10;
+        status.state = braft::LEASE_NOT_READY;
+        ASSERT_FALSE(copysetNode.IsLeaseLeader(status));
+    }
+
+    // normal condition
+    {
+        copysetNode.on_leader_start(10);
+        braft::LeaderLeaseStatus status;
+        status.term = 10;
+        status.state = braft::LEASE_VALID;
+        ASSERT_TRUE(copysetNode.IsLeaseLeader(status));
+    }
+}
+
 }  // namespace chunkserver
 }  // namespace curve

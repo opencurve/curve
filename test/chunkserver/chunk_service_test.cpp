@@ -206,7 +206,7 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                           response.status());
                 appliedIndex = response.appliedindex();
-                ASSERT_EQ(i + 2 + i, appliedIndex);
+                ASSERT_EQ(i + 2, appliedIndex);
             }
             /* Read */
             {
@@ -229,7 +229,7 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 ASSERT_STREQ(expectData,
                              cntl.response_attachment().to_string().c_str());
                 appliedIndex = response.appliedindex();
-                ASSERT_EQ(i + 2 + i, appliedIndex);
+                ASSERT_EQ(i + 2, appliedIndex);
             }
             /* Repeat read with illegal applied index */
             {
@@ -244,6 +244,8 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 request.set_sn(sn);
                 request.set_offset(kOpRequestAlignSize * i);
                 request.set_size(kOpRequestAlignSize);
+                // lease read will not exec log read,
+                // so log index only plus 1 in one turn
                 request.set_appliedindex(appliedIndex + 1);
                 stub.ReadChunk(&cntl, &request, &response, nullptr);
                 ASSERT_FALSE(cntl.Failed());
