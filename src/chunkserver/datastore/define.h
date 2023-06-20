@@ -33,11 +33,67 @@ namespace curve {
 namespace chunkserver {
 
 class ChunkRequest;
+class CSChunkFile;
+class CSSnapshot;
+
+using CSChunkFilePtr = std::shared_ptr<CSChunkFile>;
+using CSSnapshotPtr = std::shared_ptr<CSSnapshot>;
 
 using curve::common::Bitmap;
 
 const uint8_t FORMAT_VERSION = 1;
 const SequenceNum kInvalidSeq = 0;
+
+DECLARE_uint32(minIoAlignment);
+
+/*
+#define OBJ_SIZE 65536
+#define OBJ_SIZE_SHIFT 16
+#define OBJ_SIZE_MASK 0xFFFF
+*/
+#define OBJ_SIZE 4096
+#define OBJ_SIZE_SHIFT 12
+#define OBJ_SIZE_MASK 0xFFF
+
+#define PAGE_SIZE_SHIFT 12
+#define PAGE_SIZE_MASK 0xFFF
+
+#define OBJECTINFO_SIZE 16
+struct ObjectInfo {
+    ObjectInfo() : snapptr (nullptr)
+                 , sn (0)
+                 , offset (0)
+                 , length (0) {}
+
+    CSSnapshot* snapptr;
+    SequenceNum sn;
+    uint32_t offset;
+    uint32_t length;
+};
+
+struct File_ObjectInfo {
+    CSChunkFilePtr fileptr;
+    std::vector<struct ObjectInfo> obj_infos;
+};
+
+using File_ObjectInfoPtr = std::unique_ptr<File_ObjectInfo>;
+
+struct File_Object {
+
+    File_Object(CSChunkFilePtr& ptr, struct ObjectInfo info): fileptr(ptr)
+                                                            , obj(info) { }
+
+    CSChunkFilePtr& fileptr;
+    struct ObjectInfo obj;
+};
+
+struct Offset_Info {
+    uint32_t offset;
+    uint32_t length;
+    std::vector<File_Object> objs;
+};
+
+using Offset_InfoPtr = std::unique_ptr<Offset_Info>;
 
 // define error code
 enum CSErrorCode {
