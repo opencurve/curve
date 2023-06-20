@@ -57,6 +57,9 @@ class MockMetaStore : public curvefs::metaserver::MetaStore {
     MOCK_METHOD2(ListDentry,
                  MetaStatusCode(const ListDentryRequest*, ListDentryResponse*));
 
+    MOCK_METHOD2(IsDirEmpty,
+                 MetaStatusCode(const IsDirEmptyRequest*, IsDirEmptyResponse*));
+
     MOCK_METHOD2(CreateInode, MetaStatusCode(const CreateInodeRequest*,
                                              CreateInodeResponse*));
     MOCK_METHOD2(CreateRootInode, MetaStatusCode(const CreateRootInodeRequest*,

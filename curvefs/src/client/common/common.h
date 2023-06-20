@@ -60,6 +60,7 @@ enum class MetaServerOpType {
     GetVolumeExtent,
     UpdateVolumeExtent,
     CreateManageInode,
+    IsDirEmpty,
 };
 
 std::ostream &operator<<(std::ostream &os, MetaServerOpType optype);

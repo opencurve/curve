@@ -53,6 +53,8 @@ using curvefs::metaserver::CreateDentryRequest;
 using curvefs::metaserver::CreateDentryResponse;
 using curvefs::metaserver::DeleteDentryRequest;
 using curvefs::metaserver::DeleteDentryResponse;
+using curvefs::metaserver::IsDirEmptyRequest;
+using curvefs::metaserver::IsDirEmptyResponse;
 
 // inode
 using curvefs::metaserver::GetInodeRequest;
@@ -121,6 +123,8 @@ class MetaStore {
 
     virtual MetaStatusCode ListDentry(const ListDentryRequest* request,
                                       ListDentryResponse* response) = 0;
+    virtual MetaStatusCode IsDirEmpty(const IsDirEmptyRequest* request,
+                                      IsDirEmptyResponse* response) = 0;
 
     virtual MetaStatusCode PrepareRenameTx(
         const PrepareRenameTxRequest* request,
@@ -207,6 +211,9 @@ class MetaStoreImpl : public MetaStore {
 
     MetaStatusCode ListDentry(const ListDentryRequest* request,
                               ListDentryResponse* response) override;
+
+    MetaStatusCode IsDirEmpty(const IsDirEmptyRequest* request,
+                              IsDirEmptyResponse* response) override;
 
     MetaStatusCode PrepareRenameTx(const PrepareRenameTxRequest* request,
                                    PrepareRenameTxResponse* response) override;

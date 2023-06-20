@@ -58,6 +58,10 @@ class MetaServerServiceImpl : public MetaServerService {
                       const ::curvefs::metaserver::DeleteDentryRequest* request,
                       ::curvefs::metaserver::DeleteDentryResponse* response,
                       ::google::protobuf::Closure* done) override;
+    void IsDirEmpty(::google::protobuf::RpcController* controller,
+                    const ::curvefs::metaserver::IsDirEmptyRequest* request,
+                    ::curvefs::metaserver::IsDirEmptyResponse* response,
+                    ::google::protobuf::Closure* done) override;
     void GetInode(::google::protobuf::RpcController* controller,
                   const ::curvefs::metaserver::GetInodeRequest* request,
                   ::curvefs::metaserver::GetInodeResponse* response,

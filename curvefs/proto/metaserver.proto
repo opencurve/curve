@@ -137,6 +137,23 @@ message DeleteDentryResponse {
     optional uint64 appliedIndex = 2;
 }
 
+message IsDirEmptyRequest {
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+    required uint32 partitionId = 3;
+    required uint32 fsId = 4;
+    required uint64 txId = 5;
+    required uint64 dirInodeId = 6;
+    required string name = 7;
+    optional uint64 appliedIndex = 8;
+}
+
+message IsDirEmptyResponse {
+    required MetaStatusCode statusCode = 1;
+    required bool empty = 2;
+    optional uint64 appliedIndex = 3;
+}
+
 message PrepareRenameTxRequest {
     required uint32 poolId = 1;
     required uint32 copysetId = 2;
@@ -488,6 +505,7 @@ service MetaServerService {
     rpc CreateDentry(CreateDentryRequest) returns (CreateDentryResponse);
     rpc DeleteDentry(DeleteDentryRequest) returns (DeleteDentryResponse);
     rpc PrepareRenameTx(PrepareRenameTxRequest) returns (PrepareRenameTxResponse);
+    rpc IsDirEmpty(IsDirEmptyRequest) returns(IsDirEmptyResponse);
 
     // inode interface
     rpc GetInode(GetInodeRequest) returns (GetInodeResponse);

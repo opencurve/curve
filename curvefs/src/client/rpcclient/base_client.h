@@ -57,6 +57,8 @@ using curvefs::metaserver::GetInodeResponse;
 using curvefs::metaserver::Inode;
 using curvefs::metaserver::ListDentryRequest;
 using curvefs::metaserver::ListDentryResponse;
+using curvefs::metaserver::IsDirEmptyRequest;
+using curvefs::metaserver::IsDirEmptyResponse;
 using curvefs::metaserver::PrepareRenameTxRequest;
 using curvefs::metaserver::PrepareRenameTxResponse;
 using curvefs::metaserver::UpdateInodeRequest;

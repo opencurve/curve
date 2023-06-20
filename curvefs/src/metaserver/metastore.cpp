@@ -36,6 +36,7 @@
 #include "absl/types/optional.h"
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/metaserver/copyset/copyset_node.h"
+#include "curvefs/src/metaserver/metaserver_service.h"
 #include "curvefs/src/metaserver/partition_clean_manager.h"
 #include "curvefs/src/metaserver/recycle_cleaner.h"
 #include "curvefs/src/metaserver/recycle_manager.h"
@@ -432,6 +433,33 @@ MetaStatusCode MetaStoreImpl::ListDentry(const ListDentryRequest *request,
     if (rc == MetaStatusCode::OK && !dentrys.empty()) {
         *response->mutable_dentrys() = {dentrys.begin(), dentrys.end()};
     }
+    return rc;
+}
+
+MetaStatusCode
+MetaStoreImpl::IsDirEmpty(const IsDirEmptyRequest *request,
+                          IsDirEmptyResponse *response) {
+    uint32_t fsId = request->fsid();
+    uint64_t dirInodeId = request->dirinodeid();
+    auto txId = request->txid();
+    auto name = request->name();
+    ReadLockGuard readLockGuard(rwLock_);
+    std::shared_ptr<Partition> partition = GetPartition(request->partitionid());
+    if (partition == nullptr) {
+        MetaStatusCode status = MetaStatusCode::PARTITION_NOT_FOUND;
+        response->set_statuscode(status);
+        return status;
+    }
+
+    Dentry dentry;
+    dentry.set_fsid(fsId);
+    dentry.set_inodeid(dirInodeId);
+    dentry.set_txid(txId);
+    dentry.set_name(name);
+    bool empty;
+    auto rc = partition->IsDirEmpty(dentry, &empty);
+    response->set_statuscode(rc);
+    response->set_empty(empty);
     return rc;
 }
 

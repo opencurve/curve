@@ -1116,6 +1116,7 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameOverwriteDir) {
     uint32_t partitionId = 10;  // bleong on partiion
     uint64_t txId = 3;
     unsigned int flags = 0;
+    bool empty = false;
 
     // step1: get txid
     EXPECT_CALL(*metaClient_, GetTxId(fsId, parent, _, _))
@@ -1138,11 +1139,9 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameOverwriteDir) {
         .WillOnce(
             DoAll(SetArgPointee<2>(dstDentry), Return(CURVEFS_ERROR::OK)));
 
-    // step3: list directory
-    auto dentrys = std::list<Dentry>();
-    dentrys.push_back(Dentry());
-    EXPECT_CALL(*dentryManager_, ListDentry(oldInodeId, _, 1, _, _))
-        .WillOnce(DoAll(SetArgPointee<1>(dentrys), Return(CURVEFS_ERROR::OK)));
+    // step3: check dst dentry
+    EXPECT_CALL(*dentryManager_, CheckDirEmpty(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(empty), Return(CURVEFS_ERROR::OK)));
 
     auto rc = client_->FuseOpRename(req, parent, name.c_str(), newparent,
                                     newname.c_str(), flags);

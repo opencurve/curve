@@ -51,6 +51,9 @@ class MockDentryCacheManager : public DentryCacheManager {
                                            uint32_t limit,
                                            bool onlyDir,
                                            uint32_t nlink));
+
+    MOCK_METHOD2(CheckDirEmpty, CURVEFS_ERROR(const Dentry &dentry,
+                                              bool *empty));
 };
 
 

@@ -52,6 +52,7 @@ enum class OperatorType : uint32_t {
     GetVolumeExtent = 15,
     UpdateVolumeExtent = 16,
     CreateManageInode = 17,
+    IsDirEmpty = 18,
     // NOTE:
     //   Add new operator before `OperatorTypeMax`
     //   And DO NOT recorder or delete previous types

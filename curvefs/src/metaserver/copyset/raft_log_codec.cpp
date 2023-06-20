@@ -121,6 +121,9 @@ std::unique_ptr<MetaOperator> RaftLogCodec::Decode(CopysetNode* node,
         case OperatorType::DeleteDentry:
             return ParseFromRaftLog<DeleteDentryOperator, DeleteDentryRequest>(
                 node, type, meta);
+        case OperatorType::IsDirEmpty:
+            return ParseFromRaftLog<IsDirEmptyOperator, IsDirEmptyRequest>(
+                node, type, meta);
         case OperatorType::GetInode:
             return ParseFromRaftLog<GetInodeOperator, GetInodeRequest>(
                 node, type, meta);

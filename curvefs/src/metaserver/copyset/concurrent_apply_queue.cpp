@@ -188,6 +188,7 @@ ThreadPoolType ApplyQueue::Schedule(OperatorType optype) {
     case OperatorType::BatchGetInodeAttr:
     case OperatorType::BatchGetXAttr:
     case OperatorType::GetVolumeExtent:
+    case OperatorType::IsDirEmpty:
         return ThreadPoolType::READ;
     default:
         return ThreadPoolType::WRITE;

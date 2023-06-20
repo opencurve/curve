@@ -125,6 +125,9 @@ class DentryStorage {
                         uint32_t limit,
                         bool onlyDir = false);
 
+    MetaStatusCode IsDirEmpty(const Dentry& dentry,
+                              bool* empty);
+
     MetaStatusCode HandleTx(TX_OP_TYPE type, const Dentry& dentry);
 
     std::shared_ptr<Iterator> GetAll();

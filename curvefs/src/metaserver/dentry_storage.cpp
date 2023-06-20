@@ -404,6 +404,33 @@ MetaStatusCode DentryStorage::List(const Dentry& dentry,
     return MetaStatusCode::OK;
 }
 
+MetaStatusCode DentryStorage::IsDirEmpty(const Dentry& dentry, bool* empty) {
+    ReadLockGuard lg(rwLock_);
+    uint32_t fsId = dentry.fsid();
+    uint64_t inodeId = dentry.inodeid();
+    std::string name = dentry.name();
+    Prefix4SameParentDentry prefix(fsId, inodeId);
+    std::string sprefix = conv_.SerializeToString(prefix);  // "1:1:"
+    Key4Dentry key(fsId, inodeId, name);
+    std::string lower = conv_.SerializeToString(key);  // "1:1:", "1:1:/a/b/c"
+
+    auto iterator = kvStorage_->SSeek(table4Dentry_, lower);
+    iterator->DisablePrefixChecking();
+    if (iterator->Status() < 0) {
+        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    }
+    *empty = true;
+    for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
+        std::string skey = iterator->Key();
+        std::string svalue = iterator->Value();
+        if (StringStartWith(skey, sprefix)) {
+            *empty = false;
+            break;
+        }
+    }
+    return MetaStatusCode::OK;
+}
+
 MetaStatusCode DentryStorage::HandleTx(TX_OP_TYPE type, const Dentry& dentry) {
     WriteLockGuard lg(rwLock_);
 
