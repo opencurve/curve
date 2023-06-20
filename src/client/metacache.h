@@ -133,22 +133,6 @@ class MetaCache {
     virtual void UpdateChunkInfoByID(ChunkID cid, const ChunkIDInfo &cidinfo);
 
     /**
-     * 当读写请求返回后，更新当前copyset的applyindex信息
-     * @param: lpid逻辑池id
-     * @param: cpid是copysetid
-     * @param: appliedindex是需要更新的applyindex
-     */
-    virtual void UpdateAppliedIndex(LogicPoolID logicPoolId,
-                                    CopysetID copysetId, uint64_t appliedindex);
-    /**
-     * 当读数据时，需要获取当前copyset的applyindex信息
-     * @param: lpid逻辑池id
-     * @param: cpid是copysetid
-     * @return: 当前copyset的applyin信息
-     */
-    uint64_t GetAppliedIndex(LogicPoolID logicPoolId, CopysetID copysetId);
-
-    /**
      * 获取当前copyset的server list信息
      * @param: lpid逻辑池id
      * @param: cpid是copysetid

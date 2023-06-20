@@ -77,7 +77,6 @@ int RequestSender::ReadChunk(const ChunkIDInfo& idinfo,
                              uint64_t sn,
                              off_t offset,
                              size_t length,
-                             uint64_t appliedindex,
                              const RequestSourceInfo& sourceInfo,
                              ClientClosure *done) {
     (void)sn;
@@ -99,10 +98,6 @@ int RequestSender::ReadChunk(const ChunkIDInfo& idinfo,
     if (sourceInfo.IsValid()) {
         request.set_clonefilesource(sourceInfo.cloneFileSource);
         request.set_clonefileoffset(sourceInfo.cloneFileOffset);
-    }
-
-    if (iosenderopt_.chunkserverEnableAppliedIndexRead && appliedindex > 0) {
-        request.set_appliedindex(appliedindex);
     }
 
     ChunkService_Stub stub(&channel_);

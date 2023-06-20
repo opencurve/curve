@@ -174,13 +174,6 @@ bool Splitor::AssignInternal(IOTracker* iotracker, MetaCache* metaCache,
 
     if (errCode == MetaCacheErrorType::OK) {
         int ret = 0;
-        uint64_t appliedindex_ = 0;
-
-        // only read needs applied-index
-        if (iotracker->Optype() == OpType::READ) {
-            appliedindex_ = metaCache->GetAppliedIndex(chunkIdInfo.lpid_,
-                                                       chunkIdInfo.cpid_);
-        }
 
         std::vector<RequestContext*> templist;
         ret = SingleChunkIO2ChunkRequests(iotracker, metaCache, &templist,
@@ -194,7 +187,6 @@ bool Splitor::AssignInternal(IOTracker* iotracker, MetaCache* metaCache,
             } else {
                 ctx->epoch_ = 0;
             }
-            ctx->appliedindex_ = appliedindex_;
             ctx->sourceInfo_ =
                 CalcRequestSourceInfo(iotracker, metaCache, chunkidx);
         }

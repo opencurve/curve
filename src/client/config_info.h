@@ -156,12 +156,10 @@ struct FailureRequestOption {
 
 /**
  * 发送rpc给chunkserver的配置
- * @chunkserverEnableAppliedIndexRead: 是否开启使用appliedindex read
  * @inflightOpt: 一个文件向chunkserver发送请求时的inflight 请求控制配置
  * @failRequestOpt: rpc发送失败之后，需要进行rpc重试的相关配置
  */
 struct IOSenderOption {
-    bool chunkserverEnableAppliedIndexRead;
     InFlightIOCntlInfo inflightOpt;
     FailureRequestOption failRequestOpt;
 };

@@ -63,7 +63,6 @@ int main(int argc, char ** argv) {
             "chunkserverOPMaxRetry=3\n"\
             "pre_allocate_context_num=1024\n"\
             "fileIOSplitMaxSizeKB=64\n"\
-            "chunkserverEnableAppliedIndexRead=1\n"\
             "logLevel=0";
 
             int fd_ =  open(configpath.c_str(), O_CREAT | O_RDWR, 0644);

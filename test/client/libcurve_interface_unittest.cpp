@@ -355,7 +355,6 @@ TEST(TestLibcurveInterface, ChunkserverUnstableTest) {
     fopt.metaServerOpt.chunkserverRPCTimeoutMS = 500;
     fopt.loginfo.logLevel = 0;
     fopt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = 64;
-    fopt.ioOpt.ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
     fopt.ioOpt.ioSenderOpt.chunkserverRPCTimeoutMS = 1000;
     fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
     fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
@@ -657,7 +656,6 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
     fopt.metaServerOpt.rpcRetryOpt.rpcTimeoutMs = 500;
     fopt.loginfo.logLevel = 0;
     fopt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = 64;
-    fopt.ioOpt.ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
     fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 1000;
     fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
     fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
@@ -850,7 +848,6 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
     fopt.metaServerOpt.rpcRetryOpt.rpcTimeoutMs = 500;
     fopt.loginfo.logLevel = 0;
     fopt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = 64;
-    fopt.ioOpt.ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
     fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 1000;
     fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverMaxRPCTimeoutMS = 8000;
     fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 11;

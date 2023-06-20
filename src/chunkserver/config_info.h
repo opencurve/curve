@@ -52,6 +52,11 @@ struct CopysetNodeOptions {
     // 定期打快照的时间间隔，默认3600s，也就是1小时
     int snapshotIntervalS;
 
+    // If true, read requests will be invoked in current lease leader node.
+    // If false, all requests will propose to raft (log read).
+    // Default: true
+    bool enbaleLeaseRead;
+
     // 如果follower和leader日志相差超过catchupMargin，
     // 就会执行install snapshot进行恢复，默认: 1000
     int catchupMargin;
@@ -151,6 +156,7 @@ struct ChunkServiceOptions {
 inline CopysetNodeOptions::CopysetNodeOptions()
     : electionTimeoutMs(1000),
       snapshotIntervalS(3600),
+      enbaleLeaseRead(true),
       catchupMargin(1000),
       usercodeInPthread(false),
       logUri("/log"),

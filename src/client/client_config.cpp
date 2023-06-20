@@ -67,11 +67,6 @@ int ClientConfig::Init(const std::string& configpath) {
     LOG_IF(ERROR, ret == false) << "config no global.fileIOSplitMaxSizeKB info";           // NOLINT
     RETURN_IF_FALSE(ret);
 
-    ret = conf_.GetBoolValue("chunkserver.enableAppliedIndexRead",
-          &fileServiceOption_.ioOpt.ioSenderOpt.chunkserverEnableAppliedIndexRead);        // NOLINT
-    LOG_IF(ERROR, ret == false) << "config no chunkserver.enableAppliedIndexRead info";     // NOLINT
-    RETURN_IF_FALSE(ret);
-
     ret = conf_.GetUInt32Value("chunkserver.opMaxRetry",
           &fileServiceOption_.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry);    // NOLINT
     LOG_IF(ERROR, ret == false) << "config no chunkserver.opMaxRetry info";

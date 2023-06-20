@@ -106,54 +106,6 @@ TEST_F(RequestSenderTest, BasicTest) {
     ASSERT_EQ(-1, requestSender.Init(ioSenderOption_));
 }
 
-TEST_F(RequestSenderTest, TestReadChunkAppliedIndex) {
-    ioSenderOption_.chunkserverEnableAppliedIndexRead = true;
-
-    butil::EndPoint serverEndpoint;
-    butil::str2endpoint(serverAddr_.c_str(), &serverEndpoint);
-
-    RequestSender requestSender(0, serverEndpoint);
-    ASSERT_EQ(0, requestSender.Init(ioSenderOption_));
-
-    uint64_t appliedIndex = 0;
-
-    {
-        curve::chunkserver::ChunkRequest chunkRequest;
-        EXPECT_CALL(mockChunkService_, ReadChunk(_, _, _, _))
-            .Times(1)
-            .WillOnce(DoAll(SaveArgPointee<1>(&chunkRequest),
-                            Invoke(MockChunkRequestService)));
-
-        CountDownEvent event(1);
-        FakeChunkClosure closure(&event);
-
-        appliedIndex = 100;
-        requestSender.ReadChunk(ChunkIDInfo(), 0, 0, 0, appliedIndex, {},
-                                &closure);
-
-        event.Wait();
-        ASSERT_TRUE(chunkRequest.has_appliedindex());
-    }
-
-    {
-        curve::chunkserver::ChunkRequest chunkRequest;
-        EXPECT_CALL(mockChunkService_, ReadChunk(_, _, _, _))
-            .Times(1)
-            .WillOnce(DoAll(SaveArgPointee<1>(&chunkRequest),
-                            Invoke(MockChunkRequestService)));
-
-        CountDownEvent event(1);
-        FakeChunkClosure closure(&event);
-
-        appliedIndex = 0;
-        requestSender.ReadChunk(ChunkIDInfo(), 0, 0, 0, appliedIndex, {},
-                                &closure);
-
-        event.Wait();
-        ASSERT_FALSE(chunkRequest.has_appliedindex());
-    }
-}
-
 TEST_F(RequestSenderTest, TestWriteChunkSourceInfo) {
     butil::EndPoint serverEndpoint;
     butil::str2endpoint(serverAddr_.c_str(), &serverEndpoint);
@@ -206,15 +158,12 @@ TEST_F(RequestSenderTest, TestWriteChunkSourceInfo) {
 }
 
 TEST_F(RequestSenderTest, TestReadChunkSourceInfo) {
-    ioSenderOption_.chunkserverEnableAppliedIndexRead = true;
-
     butil::EndPoint serverEndpoint;
     butil::str2endpoint(serverAddr_.c_str(), &serverEndpoint);
 
     RequestSender requestSender(0, serverEndpoint);
     ASSERT_EQ(0, requestSender.Init(ioSenderOption_));
 
-    uint64_t appliedIndex = 100;
     RequestSourceInfo sourceInfo;
 
     {
@@ -228,8 +177,7 @@ TEST_F(RequestSenderTest, TestReadChunkSourceInfo) {
         FakeChunkClosure closure(&event);
 
         sourceInfo.cloneFileSource.clear();
-        requestSender.ReadChunk(ChunkIDInfo(), 0, 0, 0, appliedIndex,
-                                sourceInfo, &closure);
+        requestSender.ReadChunk(ChunkIDInfo(), 0, 0, 0, sourceInfo, &closure);
 
         event.Wait();
         ASSERT_FALSE(chunkRequest.has_clonefilesource());
@@ -250,8 +198,7 @@ TEST_F(RequestSenderTest, TestReadChunkSourceInfo) {
         sourceInfo.cloneFileOffset = 0;
         sourceInfo.valid = true;
 
-        requestSender.ReadChunk(ChunkIDInfo(), 0, 0, 0, appliedIndex,
-                                sourceInfo, &closure);
+        requestSender.ReadChunk(ChunkIDInfo(), 0, 0, 0, sourceInfo, &closure);
 
         event.Wait();
         ASSERT_TRUE(chunkRequest.has_clonefilesource());
