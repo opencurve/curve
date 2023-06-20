@@ -22,8 +22,13 @@ all: intall-go install-etcdclient libetcdclient
 
 intall-go:
 	mkdir -p $(pwd)/tmp
+ifneq (, $(findstring aarch64, $(shell uname -i) $(shell uname -m)))
+	cd $(pwd)/tmp && wget -N https://golang.google.cn/dl/go1.12.8.linux-arm64.tar.gz
+	cd $(pwd)/tmp && tar zxvf go1.12.8.linux-arm64.tar.gz
+else
 	cd $(pwd)/tmp && wget -N https://golang.google.cn/dl/go1.12.8.linux-amd64.tar.gz
 	cd $(pwd)/tmp && tar zxvf go1.12.8.linux-amd64.tar.gz
+endif
 
 install-etcdclient:
 	mkdir -p $(pwd)/tmp/gosrc/src/go.etcd.io

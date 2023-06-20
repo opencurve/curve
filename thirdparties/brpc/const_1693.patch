@@ -1,0 +1,73 @@
+diff --git a/BUILD b/BUILD
+index 185f44fe..6b895d6e 100644
+--- a/BUILD
++++ b/BUILD
+@@ -35,7 +35,7 @@ config_setting(
+ 
+ COPTS = [
+     "-DBTHREAD_USE_FAST_PTHREAD_MUTEX",
+-    "-D__const__=",
++    "-D__const__=__unused__",
+     "-D_GNU_SOURCE",
+     "-DUSE_SYMBOLIZE",
+     "-DNO_TCMALLOC",
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 7f221dc4..b4ec74b8 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -86,7 +86,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+ endif()
+ 
+ set(CMAKE_CPP_FLAGS "${DEFINE_CLOCK_GETTIME} -DBRPC_WITH_GLOG=${WITH_GLOG_VAL} -DGFLAGS_NS=${GFLAGS_NS}")
+-set(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS} -DBTHREAD_USE_FAST_PTHREAD_MUTEX -D__const__= -D_GNU_SOURCE -DUSE_SYMBOLIZE -DNO_TCMALLOC -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -DBRPC_REVISION=\\\"${BRPC_REVISION}\\\" -D__STRICT_ANSI__")
++set(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS} -DBTHREAD_USE_FAST_PTHREAD_MUTEX -D__const__=__unused__ -D_GNU_SOURCE -DUSE_SYMBOLIZE -DNO_TCMALLOC -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -DBRPC_REVISION=\\\"${BRPC_REVISION}\\\" -D__STRICT_ANSI__")
+ set(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS} ${DEBUG_SYMBOL} ${THRIFT_CPP_FLAG}")
+ set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -O2 -pipe -Wall -W -fPIC -fstrict-aliasing -Wno-invalid-offsetof -Wno-unused-parameter -fno-omit-frame-pointer")
+ set(CMAKE_C_FLAGS "${CMAKE_CPP_FLAGS} -O2 -pipe -Wall -W -fPIC -fstrict-aliasing -Wno-unused-parameter -fno-omit-frame-pointer")
+diff --git a/Makefile b/Makefile
+index 21e30811..232ae187 100644
+--- a/Makefile
++++ b/Makefile
+@@ -6,7 +6,7 @@ include config.mk
+ # 2. Added -D__const__= : Avoid over-optimizations of TLS variables by GCC>=4.8
+ # 3. Removed -Werror: Not block compilation for non-vital warnings, especially when the
+ #    code is tested on newer systems. If the code is used in production, add -Werror back
+-CPPFLAGS+=-DBTHREAD_USE_FAST_PTHREAD_MUTEX -D__const__= -D_GNU_SOURCE -DUSE_SYMBOLIZE -DNO_TCMALLOC -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -DNDEBUG -DBRPC_REVISION=\"$(shell git rev-parse --short HEAD)\"
++CPPFLAGS+=-DBTHREAD_USE_FAST_PTHREAD_MUTEX -D__const__=__unused__ -D_GNU_SOURCE -DUSE_SYMBOLIZE -DNO_TCMALLOC -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -DNDEBUG -DBRPC_REVISION=\"$(shell git rev-parse --short HEAD)\"
+ CXXFLAGS=$(CPPFLAGS) -O2 -pipe -Wall -W -fPIC -fstrict-aliasing -Wno-invalid-offsetof -Wno-unused-parameter -fno-omit-frame-pointer -std=c++0x
+ CFLAGS=$(CPPFLAGS) -O2 -pipe -Wall -W -fPIC -fstrict-aliasing -Wno-unused-parameter -fno-omit-frame-pointer
+ DEBUG_CXXFLAGS = $(filter-out -DNDEBUG,$(CXXFLAGS)) -DUNIT_TEST -DBVAR_NOT_LINK_DEFAULT_VARIABLES
+diff --git a/src/bthread/mutex.cpp b/src/bthread/mutex.cpp
+index 0de00b27..eb5bb3e2 100644
+--- a/src/bthread/mutex.cpp
++++ b/src/bthread/mutex.cpp
+@@ -41,7 +41,8 @@
+ #include "bthread/log.h"
+ 
+ extern "C" {
+-extern void* _dl_sym(void* handle, const char* symbol, void* caller);
++//extern void* _dl_sym(void* handle, const char* symbol, void* caller);
++extern void* __attribute__((weak)) _dl_sym(void* handle, const char* symbol, void* caller);
+ }
+ 
+ namespace bthread {
+@@ -405,8 +406,17 @@ static void init_sys_mutex_lock() {
+ #if defined(OS_LINUX)
+     // TODO: may need dlvsym when GLIBC has multiple versions of a same symbol.
+     // http://blog.fesnel.com/blog/2009/08/25/preloading-with-multiple-symbol-versions
+-    sys_pthread_mutex_lock = (MutexOp)_dl_sym(RTLD_NEXT, "pthread_mutex_lock", (void*)init_sys_mutex_lock);
+-    sys_pthread_mutex_unlock = (MutexOp)_dl_sym(RTLD_NEXT, "pthread_mutex_unlock", (void*)init_sys_mutex_lock);
++//    sys_pthread_mutex_lock = (MutexOp)_dl_sym(RTLD_NEXT, "pthread_mutex_lock", (void*)init_sys_mutex_lock);
++//    sys_pthread_mutex_unlock = (MutexOp)_dl_sym(RTLD_NEXT, "pthread_mutex_unlock", (void*)init_sys_mutex_lock);
++    if (_dl_sym) {
++        sys_pthread_mutex_lock = (MutexOp)_dl_sym(RTLD_NEXT, "pthread_mutex_lock", (void*)init_sys_mutex_lock);
++        sys_pthread_mutex_unlock = (MutexOp)_dl_sym(RTLD_NEXT, "pthread_mutex_unlock", (void*)init_sys_mutex_lock);
++    } else {
++        // _dl_sym may be undefined reference in some system, fallback to dlsym
++        sys_pthread_mutex_lock = (MutexOp)dlsym(RTLD_NEXT, "pthread_mutex_lock");
++        sys_pthread_mutex_unlock = (MutexOp)dlsym(RTLD_NEXT, "pthread_mutex_unlock");
++    }
++
+ #elif defined(OS_MACOSX)
+     // TODO: look workaround for dlsym on mac
+     sys_pthread_mutex_lock = (MutexOp)dlsym(RTLD_NEXT, "pthread_mutex_lock");

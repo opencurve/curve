@@ -1,0 +1,17 @@
+diff --git a/BUILD b/BUILD
+index 34dcf5a..732c2a1 100644
+--- a/BUILD
++++ b/BUILD
+@@ -20,12 +20,10 @@ cc_library(
+         "-DGFLAGS=gflags",
+         "-DOS_LINUX",
+         "-DSNAPPY",
+-        "-DHAVE_SSE42",
+         "-DNDEBUG",
+         "-D__STDC_FORMAT_MACROS",
+         "-fno-omit-frame-pointer",
+         "-momit-leaf-frame-pointer",
+-        "-msse4.2",
+         "-pthread",
+         "-Wsign-compare",
+         "-Wno-unused-parameter",

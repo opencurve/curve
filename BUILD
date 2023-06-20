@@ -37,3 +37,10 @@ config_setting(
         "@bazel_tools//tools/cpp:compiler": "clang",
     },
 )
+
+config_setting(
+    name = "gcc_compiler_arm64",
+    define_values = {
+        "compile_flags": "gcc_arm64",
+    }
+)
