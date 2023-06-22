@@ -41,10 +41,15 @@
 namespace curvefs {
 namespace client {
 
+namespace common {
+DECLARE_bool(enableCto);
+}  // namespace common
+
 using ::curvefs::volume::SpaceManagerImpl;
 using ::curvefs::volume::SpaceManagerOption;
 using ::curvefs::volume::BlockDeviceClientOptions;
 using ::curvefs::volume::BlockDeviceClientImpl;
+using ::curvefs::client::common::FLAGS_enableCto;
 
 CURVEFS_ERROR FuseVolumeClient::Init(const FuseClientOption &option) {
     CURVEFS_ERROR ret = FuseClient::Init(option);
@@ -306,8 +311,20 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpFlush(fuse_req_t req, fuse_ino_t ino,
     (void)fi;
     VLOG(9) << "FuseOpFlush, ino: " << ino;
 
-    CURVEFS_ERROR ret =   dynamic_cast< VolumeClientAdaptorImpl *>(
-      storageAdaptor_.get())->getUnderStorage()->Flush(ino);
+    if (FLAGS_enableCto) {
+        auto ret = storageAdaptor_->FlushAllCache(ino);
+        if (ret != CURVEFS_ERROR::OK) {
+            LOG(ERROR) << "FuseOpFlush, flush all cache fail, ret = " << ret
+                       << ", ino: " << ino;
+            return ret;
+        }
+        VLOG(3) << "FuseOpFlush, ino: " << ino << " flush to volume ok";
+    }
+
+    CURVEFS_ERROR ret =
+        dynamic_cast<VolumeClientAdaptorImpl *>(storageAdaptor_.get())
+            ->getUnderStorage()
+            ->Flush(ino);
     LOG_IF(ERROR, ret != CURVEFS_ERROR::OK)
         << "Flush error, ino: " << ino << ", error: " << ret;
 

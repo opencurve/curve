@@ -251,6 +251,8 @@ void InodeWrapper::FlushS3ChunkInfoAsync() {
 CURVEFS_ERROR InodeWrapper::FlushVolumeExtent() {
     std::lock_guard<::curve::common::Mutex> guard(syncingVolumeExtentsMtx_);
     if (!extentCache_.HasDirtyExtents()) {
+        VLOG(9) << "FlushVolumeExtent, ino: " << inode_.inodeid()
+                << ", no dirty extents";
         return CURVEFS_ERROR::OK;
     }
 
@@ -476,12 +478,18 @@ void InodeWrapper::Async(MetaServerClientDone *done, bool internal) {
 
 void InodeWrapper::AsyncFlushAttrAndExtents(MetaServerClientDone *done,
                                             bool /*internal*/) {
+    VLOG(9) << "async inode: " << inode_.ShortDebugString()
+            << ", is dirty: " << dirty_
+            << ", has dirty extents: " << extentCache_.HasDirtyExtents();
     if (dirty_ || extentCache_.HasDirtyExtents()) {
         LockSyncingInode();
         syncingVolumeExtentsMtx_.lock();
         DataIndices indices;
         if (extentCache_.HasDirtyExtents()) {
             indices.volumeExtents = extentCache_.GetDirtyExtents();
+            VLOG(9) << "aync inode: " << inode_.ShortDebugString()
+                    << ", volume extents: "
+                    << indices.volumeExtents->ShortDebugString();
         }
 
         metaClient_->UpdateInodeWithOutNlinkAsync(

@@ -622,9 +622,6 @@ MetaStatusCode InodeStorage::GetVolumeExtentByOffset(uint32_t fsId,
 
 MetaStatusCode InodeStorage::GeAllBlockGroup(
     std::vector<DeallocatableBlockGroup> *deallocatableBlockGroupVec) {
-    std::string sprefix =
-        conv_.SerializeToString(Prefix4AllDeallocatableBlockGroup());
-
     auto iter = kvStorage_->HGetAll(table4DeallocatableBlockGroup_);
     if (iter->Status() != 0) {
         LOG(ERROR) << "InodeStorage failed to get iterator for all "

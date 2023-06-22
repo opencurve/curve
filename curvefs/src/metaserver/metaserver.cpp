@@ -47,6 +47,7 @@
 #include "src/common/uri_parser.h"
 #include "curvefs/src/metaserver/resource_statistic.h"
 #include "src/fs/ext4_filesystem_impl.h"
+#include "curvefs/src/metaserver/metacli_manager.h"
 
 namespace braft {
 
@@ -291,6 +292,15 @@ void Metaserver::InitMetaClient() {
     InitExcutorOption(conf_, &excutorOpt, false);
     InitExcutorOption(conf_, &internalOpt, true);
     metaClient_->Init(excutorOpt, internalOpt, metaCache, channelManager);
+
+    MetaCliManagerOpt opt;
+    opt.metaCacheOpt = std::move(metaCacheOpt);
+    opt.executorOpt = std::move(excutorOpt);
+    opt.internalOpt = std::move(internalOpt);
+    opt.cli2Cli = cli2Client;
+    opt.mdsCli = mdsClient_;
+    opt.channelManager = channelManager;
+    MetaCliManager::GetInstance().Init(std::move(opt));
 }
 
 void Metaserver::GetMetaserverDataByLoadOrRegister() {

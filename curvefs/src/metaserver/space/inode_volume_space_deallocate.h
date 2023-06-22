@@ -40,6 +40,7 @@
 #include "curvefs/src/client/rpcclient/metaserver_client.h"
 #include "curvefs/src/volume/common.h"
 #include "curvefs/src/metaserver/copyset/copyset_node_manager.h"
+#include "curvefs/src/metaserver/metacli_manager.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -75,21 +76,27 @@ class InodeVolumeSpaceDeallocate {
     InodeVolumeSpaceDeallocate(
         uint64_t fsId, uint32_t partitionId,
         std::shared_ptr<copyset::CopysetNode> copysetNode)
-        : fsId_(fsId), partitionId_(partitionId), copysetNode_(copysetNode) {}
+        : fsId_(fsId), partitionId_(partitionId), copysetNode_(copysetNode) {
+        metaCli_ = MetaCliManager::GetInstance().GetMetaCli(fsId_);
+    }
 
     void Init(VolumeDeallocateCalOption calOpt) { calOpt_ = std::move(calOpt); }
 
-    void Init(const VolumeDeallocateExecuteOption &executeOpt) {
+    int Init(const VolumeDeallocateExecuteOption &executeOpt) {
         executeOpt_.volumeSpaceManager = executeOpt.volumeSpaceManager;
         executeOpt_.metaClient = executeOpt.metaClient;
         executeOpt_.batchClean = executeOpt.batchClean;
 
         blockGroupSize_ =
             executeOpt_.volumeSpaceManager->GetBlockGroupSize(fsId_);
-        assert(blockGroupSize_ != 0);
+        if (blockGroupSize_ <= 0) {
+            return -1;
+        }
+
         LOG(INFO) << "InodeVolumeSpaceDeallocate init, fsid=" << fsId_
                   << ", partitionId=" << partitionId_
                   << ", blockGroupSize=" << blockGroupSize_;
+        return 0;
     }
 
     // used to traverse the list of inodes to be deleted, and count the
@@ -138,6 +145,7 @@ class InodeVolumeSpaceDeallocate {
     }
 
  private:
+    friend class InodeVolumeSpaceDeallocateTest;
     FRIEND_TEST(InodeVolumeSpaceDeallocateTest,
                 Test_DeallocatableSapceForInode);
     FRIEND_TEST(InodeVolumeSpaceDeallocateTest, Test_ProcessSepcifyInodeList);
@@ -177,6 +185,7 @@ class InodeVolumeSpaceDeallocate {
     bool canceled_{false};
 
     std::shared_ptr<copyset::CopysetNode> copysetNode_;
+    std::shared_ptr<MetaServerClient> metaCli_;
 };
 }  // namespace metaserver
 }  // namespace curvefs

@@ -971,6 +971,7 @@ void MetaServerClientImpl::UpdateInodeAsync(const UpdateInodeRequest &request,
         req.set_poolid(poolID);
         req.set_copysetid(copysetID);
         req.set_partitionid(partitionID);
+        VLOG(9) << "update inode async req: " << req.ShortDebugString();
 
         auto *rpcDone = new UpdateInodeRpcDone(taskExecutorDone, &metric_);
         curvefs::metaserver::MetaServerService_Stub stub(channel);

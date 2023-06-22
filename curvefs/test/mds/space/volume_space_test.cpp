@@ -254,6 +254,7 @@ TEST_F(VolumeSpaceTest, TestAllocateBlockGroups) {
     ASSERT_EQ(0, *offsets.begin());
     ASSERT_EQ(kVolumeSize - kBlockGroupSize, *offsets.rbegin());
 
+    groups.clear();
     ASSERT_EQ(SpaceErrNoSpace,
               space->AllocateBlockGroups(kAllocateOnce, kOwner, &groups));
 }

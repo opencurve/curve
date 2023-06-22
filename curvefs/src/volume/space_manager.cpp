@@ -161,6 +161,11 @@ int64_t SpaceManagerImpl::AllocInternal(int64_t size,
                                         const AllocateHint& hint,
                                         std::vector<Extent>* exts) {
     ReadLockGuard lk(allocatorsLock_);
+    if (allocators_.empty()) {
+        VLOG(6) << "space manager has no allocator";
+        return 0;
+    }
+
     int64_t left = size;
     auto it = FindAllocator(hint);
     const auto beginIt = it;

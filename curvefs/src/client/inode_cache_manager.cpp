@@ -113,7 +113,8 @@ InodeCacheManagerImpl::GetInode(uint64_t inodeId,
         if (out->GetType() == FsFileType::TYPE_FILE) {
             return CURVEFS_ERROR::OK;
         }
-
+        VLOG(9) << "get inode: " << inodeId
+                << " from icache ok, need refresh data";
         REFRESH_DATA_REMOTE(out, out->NeedRefreshData());
         return CURVEFS_ERROR::OK;
     }
@@ -127,6 +128,7 @@ InodeCacheManagerImpl::GetInode(uint64_t inodeId,
         option_.refreshDataIntervalSec);
 
     // refresh data
+    VLOG(9) << "get inode: " << inodeId << " from icache fail, get from remote";
     REFRESH_DATA_REMOTE(out, streaming);
 
     // put to cache
@@ -544,6 +546,7 @@ bool InodeCacheManagerImpl::NeedUseCache(uint64_t inodeId,
     const std::shared_ptr<InodeWrapper> &inodeWrapper,
     bool onlyAttr) {
     auto lock = inodeWrapper->GetUniqueLock();
+
     if (onlyAttr) {
         if (inodeWrapper->IsDirty()) {
             return true;
@@ -558,6 +561,8 @@ bool InodeCacheManagerImpl::NeedUseCache(uint64_t inodeId,
         && !IsTimeOut(inodeWrapper)) {
         return true;
     }
+
+    VLOG(9) << "inodeId " << inodeId << " is not need use cache";
     return false;
 }
 
