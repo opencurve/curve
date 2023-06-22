@@ -90,6 +90,10 @@ void ExtentCache::Merge(uint64_t loffset, const PExtent& pExt) {
 
     slice->second.Merge(loffset, pExt);
     dirties_.insert(&slice->second);
+    VLOG(9) << "merge extent, loffset: " << loffset
+            << ", physical offset: " << pExt.pOffset << ", len: " << pExt.len
+            << ", written: " << !pExt.UnWritten
+            << ", slice: " << slice->second.ToVolumeExtentSlice().DebugString();
 }
 
 void ExtentCache::DivideForWrite(uint64_t offset,
@@ -162,12 +166,24 @@ void ExtentCache::MarkWritten(uint64_t offset, uint64_t len) {
     auto cur = align_down(offset, option_.blockSize);
     const auto end = align_up(offset + len, option_.blockSize);
 
+    VLOG(9) << "mark written for offset: " << offset << ", len: " << len
+            << ", cur: " << cur << ", end: " << end;
+
     while (cur < end) {
         const auto length =
             std::min(end - cur, option_.sliceSize - (cur & ~option_.sliceSize));
         auto slice = slices_.find(align_down(cur, option_.sliceSize));
         assert(slice != slices_.end());
+        VLOG(9) << "mark written for offset: " << offset << ", len: " << len
+                << ", cur: " << cur << ", end: " << end
+                << ", before mark written slice: "
+                << slice->second.ToVolumeExtentSlice().DebugString();
         auto changed = slice->second.MarkWritten(cur, length);
+        VLOG(9) << "mark written for offset: " << offset << ", len: " << len
+                << ", cur: " << cur << ", end: " << end
+                << ", after mark written slice changed: " << changed
+                << ", slice: "
+                << slice->second.ToVolumeExtentSlice().DebugString();
         cur += length;
         if (changed) {
             dirties_.insert((&slice->second));
@@ -194,6 +210,8 @@ void ExtentCache::DivideForRead(uint64_t offset,
                                 std::vector<ReadPart>* holes) {
     LatencyUpdater updater(&g_read_divide_latency);
     ReadLockGuard lk(lock_);
+    VLOG(9) << "extent cache divide for read offset: " << offset
+            << ", length: " << len;
 
     const auto end = offset + len;
     char* datap = data;
@@ -205,8 +223,15 @@ void ExtentCache::DivideForRead(uint64_t offset,
         auto slice = slices_.find(align_down(offset, option_.sliceSize));
         if (slice != slices_.end()) {
             slice->second.DivideForRead(offset, length, datap, reads, holes);
+            VLOG(9) << "extent cache find slice for read offset: " << offset
+                    << ", length: " << len << ", slice: "
+                    << slice->second.ToVolumeExtentSlice().DebugString()
+                    << ", slices size: " << slices_.size();
         } else {
             holes->emplace_back(offset, length, datap);
+            VLOG(9) << "extent cache not find slice for read offset: " << offset
+                    << ", length: " << len
+                    << ", slices size: " << slices_.size();
         }
 
         datap += length;
@@ -246,6 +271,7 @@ VolumeExtentSliceList ExtentCache::GetDirtyExtents() {
     }
 
     dirties_.clear();
+    VLOG(9) << "extent cache get and clear dirty extents";
     return result;
 }
 

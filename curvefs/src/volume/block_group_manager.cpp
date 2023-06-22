@@ -55,11 +55,12 @@ bool BlockGroupManagerImpl::AllocateBlockGroup(
     std::vector<BlockGroup> groups;
     auto err = mdsClient_->AllocateVolumeBlockGroup(
         option_.fsId, option_.blockGroupAllocateOnce, option_.owner, &groups);
-    if (err != SpaceErrCode::SpaceOk) {
-        LOG(ERROR) << "Allocate volume block group failed, err: "
-                   << SpaceErrCode_Name(err);
-        return false;
-    } else if (groups.empty()) {
+
+    LOG_IF(ERROR, err != SpaceErrCode::SpaceOk)
+        << "Allocate volume block group failed, err: "
+        << SpaceErrCode_Name(err);
+
+    if (groups.empty()) {
         LOG(ERROR)
             << "Allocate volume block group failed, no block group allocated";
         return false;

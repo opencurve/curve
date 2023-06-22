@@ -186,6 +186,8 @@ CURVEFS_ERROR DefaultVolumeStorage::Flush(uint64_t ino) {
         return CURVEFS_ERROR::OK;
     }
 
+    VLOG(9) << "volume storage flush: " << ino;
+
     LatencyUpdater updater(&metric_.flushLatency);
     std::shared_ptr<InodeWrapper> inodeWrapper;
     auto ret = inodeCacheManager_->GetInode(ino, inodeWrapper);

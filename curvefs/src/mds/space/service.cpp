@@ -51,16 +51,19 @@ void SpaceServiceImpl::AllocateBlockGroup(
     std::vector<BlockGroup> groups;
     auto err =
         space->AllocateBlockGroups(request->count(), request->owner(), &groups);
-    if (err != SpaceOk) {
-        LOG(ERROR) << "Allocate block groups failed, err: "
-                   << SpaceErrCode_Name(err);
-    } else {
-        for (auto& group : groups) {
-            response->add_blockgroups()->Swap(&group);
-        }
+    response->set_status(err);
+
+    LOG_IF(WARNING, err != SpaceOk)
+        << "Allocate block groups failed, err: " << SpaceErrCode_Name(err)
+        << ", allocated size: " << groups.size()
+        << ", request: " << request->ShortDebugString();
+    if (err == SpaceErrEncode) {
+        return;
     }
 
-    response->set_status(err);
+    for (auto &group : groups) {
+        response->add_blockgroups()->Swap(&group);
+    }
 }
 
 void SpaceServiceImpl::AcquireBlockGroup(

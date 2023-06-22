@@ -26,9 +26,12 @@
 namespace curvefs {
 namespace metaserver {
 void VolumeDeallocateManager::Register(InodeVolumeSpaceDeallocate task) {
+    if (task.Init(executeOpt_) != 0) {
+        return;
+    }
+
     {
         std::lock_guard<std::mutex> lk(workerCtx_.mtx);
-        task.Init(executeOpt_);
         workerCtx_.allTasks.emplace_back(std::move(task));
     }
 

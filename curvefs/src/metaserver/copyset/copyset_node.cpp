@@ -620,11 +620,12 @@ bool CopysetNode::GetBlockStatInfo(
 
         for (const auto &item : partitionSnap) {
             auto partition = item.second;
-            VLOG(6) << "CopysetNode get block stat info from partition:"
-                    << item.first;
+            VLOG(6) << "CopysetNode get block stat info from partition="
+                    << partition->GetPartitionId()
+                    << ", fsId=" << partition->GetFsId();
             if (!AggregateBlockStatInfo(partition, blockStatInfoMap,
                                         &blockGroupNum)) {
-                return false;
+                continue;
             }
         }
 
@@ -652,13 +653,14 @@ bool CopysetNode::AggregateBlockStatInfo(
     std::map<uint32_t, BlockGroupStatInfo> *blockStatInfoMap,
     uint32_t *blockGroupNum) {
     uint32_t fsId = partition->GetFsId();
+    uint64_t partitionId = partition->GetPartitionId();
 
     // get block group info in partition
     std::vector<DeallocatableBlockGroup> deallocatableBlockGroupVec;
     if (MetaStatusCode::OK !=
         partition->GeAllBlockGroup(&deallocatableBlockGroupVec)) {
-        LOG(WARNING) << "CopysetNode get all blockgroup fail, partitionId = "
-                     << partition->GetPartitionId();
+        LOG(WARNING) << "CopysetNode get all blockgroup fail, partitionId= "
+                     << partitionId << ", fsId=" << fsId;
         return false;
     }
 

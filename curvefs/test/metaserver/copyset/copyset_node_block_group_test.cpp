@@ -106,7 +106,9 @@ TEST_F(CopysetNodeBlockGroupTest, Test_AggregateBlockStatInfo) {
         EXPECT_CALL(*partition, GetFsId()).WillOnce(Return(fsId));
         EXPECT_CALL(*partition, GeAllBlockGroup(_))
             .WillOnce(Return(MetaStatusCode::PARAM_ERROR));
-        EXPECT_CALL(*partition, GetPartitionId()).WillOnce(Return(partitionId));
+        EXPECT_CALL(*partition, GetPartitionId())
+            .Times(2)
+            .WillRepeatedly(Return(partitionId));
         ASSERT_FALSE(copyset->AggregateBlockStatInfo(
             partition, &blockStatInfoMap, &blockGroupNum));
         ASSERT_EQ(0, blockGroupNum);

@@ -105,18 +105,21 @@ std::unique_ptr<VolumeSpace> VolumeSpace::Create(uint32_t fsId,
         assert(group.bitmaplocation() == location);
         assert((group.has_owner() && group.deallocating_size()) == 0);
         if (group.has_owner()) {
-            VLOG(6) << "VolumeSpace init blockgroup=" << group.DebugString()
+            VLOG(6) << "VolumeSpace init for fsid=" << fsId
+                    << ", blockgroup=" << group.DebugString()
                     << " to allocatedGroups_";
             space->allocatedGroups_.emplace(offset, std::move(group));
         } else if (group.deallocating_size() || group.deallocated_size()) {
-            VLOG(6) << "VolumeSpace init blockgroup=" << group.DebugString()
+            VLOG(6) << "VolumeSpace init for fsid=" << fsId
+                    << ", blockgroup=" << group.DebugString()
                     << " to deallocatingGroups_";
             space->deallocatingGroups_.emplace(offset, std::move(group));
         } else {
-            VLOG(6) << "VolumeSpace init blockgroup=" << group.DebugString()
+            group.set_available(group.size());
+            VLOG(6) << "VolumeSpace init for fsid=" << fsId
+                    << ", blockgroup=" << group.DebugString()
                     << " to availableGroups_";
             space->availableGroups_.emplace(offset, std::move(group));
-            availableSize += group.available();
         }
     }
 
@@ -166,26 +169,31 @@ SpaceErrCode VolumeSpace::AllocateBlockGroups(
     std::vector<BlockGroup>* blockGroups) {
     LockGuard lk(mtx_);
     auto err = AllocateBlockGroupsInternal(count, owner, blockGroups);
-    if (err != SpaceOk) {
-        LOG(WARNING) << "Allocate block groups failed, fsId: " << fsId_
-                     << ", err: " << SpaceErrCode_Name(err);
-        return err;
+    if (blockGroups->size() < count) {
+        LOG(WARNING) << "Allocate block groups not enough, fsId: " << fsId_
+                     << ", err: " << SpaceErrCode_Name(err)
+                     << ", need count: " << count
+                     << ", allocated count: " << blockGroups->size();
     }
 
-    for (auto &group : *blockGroups) {
-        allocatedGroups_.emplace(group.offset(), group);
-        VLOG(9) << "VolumeSpace allocate blockgroup=" << group.DebugString()
-                << " to owner:" << owner;
+    if (blockGroups->size() > 0) {
+        for (auto &group : *blockGroups) {
+            allocatedGroups_.emplace(group.offset(), group);
+            VLOG(9) << "VolumeSpace fsid=" << fsId_
+                    << ", allocate blockgroup=" << group.DebugString()
+                    << " to owner:" << owner;
+        }
+
+        // TODO(@wu-hanqing): if persist fail, we should rollback
+        err = PersistBlockGroups(*blockGroups);
+        if (err != SpaceOk) {
+            LOG(WARNING) << "Mark group allocated failed, fsId: " << fsId_
+                         << ", err: " << SpaceErrCode_Name(err);
+            return err;
+        }
     }
 
-    err = PersistBlockGroups(*blockGroups);
-    if (err != SpaceOk) {
-        LOG(WARNING) << "Mark group allocated failed, fsId: " << fsId_
-                     << ", err: " << SpaceErrCode_Name(err);
-        return err;
-    }
-
-    return SpaceOk;
+    return err;
 }
 
 SpaceErrCode VolumeSpace::AllocateBlockGroupsInternal(
@@ -195,6 +203,8 @@ SpaceErrCode VolumeSpace::AllocateBlockGroupsInternal(
     bool extend = false;
     uint32_t allocated = 0;
 
+    VLOG(9) << "owner " << owner << " need allocate " << count
+            << " block groups";
     while (allocated < count) {
         allocated += AllocateFromCleanGroups(count, owner, blockGroups);
         if (allocated >= count) {
@@ -217,6 +227,8 @@ SpaceErrCode VolumeSpace::AllocateBlockGroupsInternal(
                 return SpaceErrNoSpace;
             }
         } else {
+            VLOG(9) << "only allocate " << count << " block groups to owner "
+                    << owner;
             break;
         }
     }
@@ -245,10 +257,27 @@ uint32_t VolumeSpace::AllocateFromAvailableGroups(
     uint32_t count,
     const std::string& owner,
     std::vector<BlockGroup>* groups) {
+    VLOG(9) << "VolumeSpace fsid=" << fsId_
+            << ", allocate from available groups, count: " << count
+            << ", owner: " << owner
+            << ", available size:" << availableGroups_.size();
     uint32_t allocated = 0;
     auto it = availableGroups_.begin();
     while (allocated < count && it != availableGroups_.end()) {
         assert(!it->second.has_owner());
+
+        float usePer = 1.0 - static_cast<float>(it->second.available()) /
+                                 static_cast<float>(it->second.size());
+        if (usePer > 0.95) {
+            LOG(WARNING) << "VolumeSpace fsid=" << fsId_
+                         << " available group=" << it->second.DebugString()
+                         << " has no available space";
+            it++;
+            continue;
+        }
+        VLOG(9) << "VolumeSpace fsid=" << fsId_
+                << ", allocate blockgroup=" << it->second.DebugString()
+                << " to owner:" << owner;
         ++allocated;
         it->second.set_owner(owner);
         groups->push_back(std::move(it->second));
@@ -291,9 +320,9 @@ SpaceErrCode VolumeSpace::AcquireBlockGroupInternal(uint64_t blockGroupOffset,
         auto it = deallocatingGroups_.find(blockGroupOffset);
         if (it != deallocatingGroups_.end()) {
             *group = it->second;
-            VLOG(6) << "VolumeSpace recieve acquire blockgroup="
-                    << group->DebugString()
-                    << " rquest from metaserver, current block group is under "
+            VLOG(6) << "VolumeSpace fsid=" << fsId_
+                    << ", recieve acquire blockgroup=" << group->DebugString()
+                    << " request from metaserver, current block group is under "
                        "deallocating";
         } else {
             return SpaceErrNotFound;
@@ -352,15 +381,17 @@ SpaceErrCode VolumeSpace::ReleaseBlockGroups(
     LockGuard lk(mtx_);
 
     for (auto& group : blockGroups) {
-        VLOG(3) << "VolumeSpace need release block group:"
-                  << group.DebugString();
+        VLOG(3) << "VolumeSpace fsid=" << fsId_
+                << ", need release block group:" << group.DebugString();
         auto it = allocatedGroups_.find(group.offset());
         if (it != allocatedGroups_.end()) {
             if (it->second.owner() != group.owner()) {
                 LOG(WARNING)
                     << "Owner is not identical, block group may "
                        "assign to others, fsId: "
-                    << fsId_ << ", block group offset: " << group.offset();
+                    << fsId_ << ", block group offset: " << group.offset()
+                    << ", record owner: " << it->second.owner()
+                    << ", report owner: " << group.owner();
                 return SpaceErrConflict;
             }
 
@@ -374,7 +405,8 @@ SpaceErrCode VolumeSpace::ReleaseBlockGroups(
                 }
 
                 cleanGroups_.insert(group.offset());
-                VLOG(6) << "VolumeSpace return block group to cleanGroups:"
+                VLOG(6) << "VolumeSpace fsid=" << fsId_
+                        << " return block group to cleanGroups:"
                         << group.DebugString();
             } else {
                 auto copy = group;
@@ -387,17 +419,19 @@ SpaceErrCode VolumeSpace::ReleaseBlockGroups(
                         << ", err: " << SpaceErrCode_Name(err);
                     return err;
                 }
-                VLOG(6) << "VolumeSpace return block group to availableGroups:"
-                        << group.DebugString();
+                VLOG(6) << "VolumeSpace return block group for fsid=" << fsId_
+                        << " to availableGroups:" << group.DebugString();
                 availableGroups_.emplace(group.offset(), std::move(copy));
             }
 
             allocatedGroups_.erase(group.offset());
-            VLOG(6) << "VolumeSpace erase block group from allocatedGroups:"
+            VLOG(6) << "VolumeSpace fsid=" << fsId_
+                    << " erase block group from allocatedGroups:"
                     << group.DebugString();
             continue;
         }
-        LOG(WARNING) << "VolumeSpace could not get release block gorup:"
+        LOG(WARNING) << "VolumeSpace fsid=" << fsId_
+                     << " could not get release block gorup:"
                      << group.DebugString() << " in allocatedGroups_";
         // and if it's not allocated, this request must be a retry request
     }
@@ -408,12 +442,12 @@ SpaceErrCode VolumeSpace::ReleaseBlockGroups(
 SpaceErrCode VolumeSpace::ReleaseBlockGroups(const std::string &owner) {
     LockGuard lk(mtx_);
 
-    LOG(INFO) << "Release all block groups for " << owner;
+    LOG(INFO) << "Release all block groups for " << owner << ", fsid=" << fsId_;
     auto iter = allocatedGroups_.begin();
     while (iter != allocatedGroups_.end()) {
         auto &group = iter->second;
         if (group.owner() != owner) {
-            VLOG(9) << "VolumeSpace expect owner:" << owner
+            VLOG(9) << "VolumeSpace fsid=" << fsId_ << " expect owner:" << owner
                     << ", current block group:" << group.DebugString();
             iter++;
             continue;
@@ -423,14 +457,14 @@ SpaceErrCode VolumeSpace::ReleaseBlockGroups(const std::string &owner) {
         copy.clear_owner();
         auto err = PersistBlockGroup(copy);
         if (err != SpaceOk) {
-            LOG(WARNING) << "Persist block group failed, fsId: " << fsId_
+            LOG(WARNING) << "Persist block group failed, fsId=" << fsId_
                          << ", block group offset: " << group.offset()
                          << ", err: " << SpaceErrCode_Name(err);
             return err;
         }
 
-        VLOG(3) << "VolumeSpace return to available block group:"
-                << group.DebugString();
+        VLOG(3) << "VolumeSpace fsid=" << fsId_
+                << " return to available block group:" << group.DebugString();
 
         availableGroups_.emplace(group.offset(), std::move(copy));
         iter = allocatedGroups_.erase(iter);
@@ -545,7 +579,8 @@ void VolumeSpace::CalBlockGroupAvailableForDeAllocate() {
         LOG(INFO)
             << "VolumeSpace move deallocatingGroups_ to availableGroups_, "
                "fsId="
-            << fsId_ << ", block group offset=" << iter->first;
+            << fsId_ << ", block group offset=" << iter->first
+            << ", available size=" << availableGroups_.size();
 
         iter->second.clear_deallocated();
         auto err = PersistBlockGroup(iter->second);
@@ -556,7 +591,12 @@ void VolumeSpace::CalBlockGroupAvailableForDeAllocate() {
             continue;
         }
 
+        iter->second.set_available(iter->second.size());
         availableGroups_.emplace(iter->first, std::move(iter->second));
+        VLOG(9) << "VolumeSpace move deallocatingGroups_ to availableGroups_, "
+                   "fsId="
+                << fsId_ << ", block group offset=" << iter->first
+                << ", available size=" << availableGroups_.size();
         iter = deallocatingGroups_.erase(iter);
         metric_.dealloc << 1;
     }
@@ -571,7 +611,8 @@ void VolumeSpace::CalBlockGroupAvailableForDeAllocate() {
                   << ",availableGroups_ size=" << availableGroups_.size()
                   << ", allocatedGroups_ size=" << allocatedGroups_.size()
                   << ", cleanGroups_ size=" << cleanGroups_.size()
-                  << ",summary_ size=" << summary_.size();
+                  << ",summary_ size=" << summary_.size()
+                  << ", fsid=" << fsId_;
         return;
     }
 
@@ -622,30 +663,31 @@ SpaceErrCode VolumeSpace::ExtendVolume() {
         ExtendedSize(origin, volume_.extendfactor(), volume_.extendalignment());
 
     LOG(INFO) << "Going to extend volume size from " << volume_.volumesize()
-              << " to " << extended;
+              << " to " << extended << ", fsid=" << fsId_;
 
     auto *proxy = MdsProxyManager::GetInstance().GetOrCreateProxy(
         {volume_.cluster().begin(), volume_.cluster().end()});
     if (proxy == nullptr) {
-        LOG(WARNING) << "Fail to get or create proxy";
+        LOG(WARNING) << "Fail to get or create proxy, fsid=" << fsId_;
         return SpaceErrUnknown;
     }
 
     auto ret = proxy->ExtendVolume(volume_, extended);
     if (!ret) {
-        LOG(WARNING) << "Fail to extend volume";
+        LOG(WARNING) << "Fail to extend volume, fsid=" << fsId_;
         return SpaceErrExtendVolumeError;
     }
 
     if (!UpdateFsInfo(origin, extended)) {
-        LOG(WARNING) << "Fail to update fs info";
+        LOG(WARNING) << "Fail to update fs info, fsid=" << fsId_;
         return SpaceErrStorage;
     }
 
     volume_.set_volumesize(extended);
     AddCleanGroups(origin, extended);
 
-    LOG(INFO) << "Extended volume size from " << origin << " to " << extended;
+    LOG(INFO) << "Extended volume size from " << origin << " to " << extended
+              << ", fsid=" << fsId_;
 
     return SpaceOk;
 }

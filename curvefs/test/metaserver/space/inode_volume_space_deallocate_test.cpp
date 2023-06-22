@@ -92,6 +92,7 @@ class InodeVolumeSpaceDeallocateTest : public ::testing::Test {
                                                          copysetNode_);
         inodeVolumeSpaceDeallocate_->Init(calOpt);
         inodeVolumeSpaceDeallocate_->Init(executeOpt);
+        inodeVolumeSpaceDeallocate_->metaCli_ = metaClient_;
     }
 
     void TearDown() override {

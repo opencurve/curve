@@ -37,12 +37,14 @@ void InodeVolumeSpaceDeallocate::CalDeallocatableSpace() {
     // get all deallocatable inode
     auto table = calOpt_.nameGen->GetDeallocatableInodeTableName();
     VLOG(3) << "InodeVolumeSpaceDeallocate cal deallocatable space for table="
-            << StringToHex(table);
+            << StringToHex(table) << ", fsid=" << fsId_
+            << ", partitionId=" << partitionId_;
 
     auto iter = calOpt_.kvStorage->HGetAll(table);
     if (iter->Status() != 0) {
         LOG(ERROR) << "InodeVolumeSpaceDeallocate failed to get iterator for "
-                      "all deallocatable indoe";
+                      "all deallocatable indoe"
+                   << ", fsid=" << fsId_ << ", partitionId=" << partitionId_;
         return;
     } else {
         iter->SeekToFirst();
@@ -51,6 +53,10 @@ void InodeVolumeSpaceDeallocate::CalDeallocatableSpace() {
     // key is volume offset
     DeallocatableBlockGroupMap increase;
     while (iter->Valid()) {
+        VLOG(9) << "InodeVolumeSpaceDeallocate cal spac for inode="
+                << iter->Key() << ", fsId=" << fsId_
+                << ", partitionId=" << partitionId_;
+
         Key4Inode key;
         bool ok = calOpt_.conv.ParseFromString(iter->Key(), &key);
         uint64_t typicalInode = key.inodeId;
@@ -59,6 +65,7 @@ void InodeVolumeSpaceDeallocate::CalDeallocatableSpace() {
             LOG(ERROR) << "InodeVolumeSpaceDeallocate parse inode key from "
                        << iter->Key() << "fail, fsId=" << fsId_
                        << ", partitionId=" << partitionId_
+                       << ", typicalInode=" << typicalInode
                        << ", blockGroupSize=" << blockGroupSize_;
             continue;
         }
@@ -69,23 +76,28 @@ void InodeVolumeSpaceDeallocate::CalDeallocatableSpace() {
             LOG(ERROR) << "InodeVolumeSpaceDeallocate cal space for inode="
                        << key.inodeId << " fail, fsId=" << fsId_
                        << ", partitionId=" << partitionId_
+                       << ", typicalInode=" << typicalInode
                        << ", blockGroupSize=" << blockGroupSize_;
             continue;
         }
 
         if (increase.size() >= executeOpt_.batchClean || !iter->Valid()) {
             // update according to metaserver client
-            MetaStatusCode st =
-                executeOpt_.metaClient->UpdateDeallocatableBlockGroup(
-                    fsId_, typicalInode, &increase);
+            MetaStatusCode st = metaCli_->UpdateDeallocatableBlockGroup(
+                fsId_, typicalInode, &increase);
             if (st != MetaStatusCode::OK) {
                 LOG(ERROR) << "InodeVolumeSpaceDeallocate update "
-                           << "deallocatable block group fail";
+                           << "deallocatable block group fail"
+                           << ", fsid=" << fsId_
+                           << ", partitionId=" << partitionId_
+                           << ", typicalInode=" << typicalInode;
+            } else {
+                LOG(INFO) << "InodeVolumeSpaceDeallocate cal success this "
+                             "round, fsId="
+                          << fsId_ << ", partitionId=" << partitionId_
+                          << ", typicalInode=" << typicalInode
+                          << ", blockGroupSize=" << blockGroupSize_;
             }
-            LOG(INFO)
-                << "InodeVolumeSpaceDeallocate cal success this round, fsId="
-                << fsId_ << ", partitionId=" << partitionId_
-                << ", blockGroupSize=" << blockGroupSize_;
             increase.clear();
         }
     }
@@ -223,8 +235,9 @@ void InodeVolumeSpaceDeallocate::ProcessSepcifyInodeList(
     // 1
     uint64_t typicalInode =
         (*markMap)[blockGroupOffset].mark().inodeidunderdeallocate(0);
-    MetaStatusCode st = executeOpt_.metaClient->UpdateDeallocatableBlockGroup(
-        fsId_, typicalInode, markMap);
+
+    MetaStatusCode st =
+        metaCli_->UpdateDeallocatableBlockGroup(fsId_, typicalInode, markMap);
     if (st != MetaStatusCode::OK) {
         LOG(ERROR) << "InodeVolumeSpaceDeallocate mark inodelist to be "
                       "deallocatable failed, fsId="
@@ -255,8 +268,8 @@ void InodeVolumeSpaceDeallocate::ProcessSepcifyInodeList(
     onedecrease.mutable_decrease()->mutable_inodeddeallocated()->Swap(
         inodeUnderDeallocate);
 
-    st = executeOpt_.metaClient->UpdateDeallocatableBlockGroup(
-        fsId_, typicalInode, &decrease);
+    st =
+        metaCli_->UpdateDeallocatableBlockGroup(fsId_, typicalInode, &decrease);
     if (st != MetaStatusCode::OK) {
         LOG(ERROR) << "InodeVolumeSpaceDeallocate update deallocatable size "
                       "failed, fsId="
@@ -298,7 +311,7 @@ bool InodeVolumeSpaceDeallocate::DeallocateInode(uint64_t blockGroupOffset,
         UpdateDeallocateInodeExtentSlice(blockGroupOffset, inodeId, decrease,
                                          &sliceList, &deallocatableVolumeSpace);
         auto closure = new UpdateVolumeExtentClosure(nullptr, true);
-        executeOpt_.metaClient->AsyncUpdateVolumeExtent(fsId_, inodeId,
+        metaCli_->AsyncUpdateVolumeExtent(fsId_, inodeId,
                                                         sliceList, closure);
         if (CURVEFS_ERROR::OK != closure->Wait()) {
             LOG(ERROR) << "InodeVolumeSpaceDeallocate update inode:" << inodeId
