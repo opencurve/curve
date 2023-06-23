@@ -39,8 +39,15 @@ using ::curve::mds::kTB;
 
 DEFINE_uint64(chunkSize, 16 * kMB, "chunk size");
 DEFINE_uint64(segmentSize, 1 * kGB, "segment size");
+/**
+ * use curl -L mds:port/flags/minFileLength?setvalue=10737418240
+ * for dynamic parameter configuration
+ */
+static bool pass_uint64(const char *, uint64_t) { return true; }
 DEFINE_uint64(minFileLength, 10 * kGB, "min filelength");
+DEFINE_validator(minFileLength, &pass_uint64);
 DEFINE_uint64(maxFileLength, 20 * kTB, "max filelength");
+DEFINE_validator(maxFileLength, &pass_uint64);
 
 void LoadConfigFromCmdline(Configuration *conf) {
     google::CommandLineFlagInfo info;
