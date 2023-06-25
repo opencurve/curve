@@ -29,6 +29,7 @@ import (
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/update/file"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/update/leader"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/update/leader_schedule"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/update/peer"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/update/scan_state"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/update/throttle"
@@ -48,6 +49,7 @@ func (updateCmd *UpdateCommand) AddSubCommands() {
 		leader.NewleaderCommand(),
 		scan_state.NewScanStateCommand(),
 		copyset.NewCopysetCommand(),
+		leader_schedule.NewLeaderScheduleCommand(),
 	)
 }
 
