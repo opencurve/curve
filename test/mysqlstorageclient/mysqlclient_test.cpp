@@ -74,13 +74,10 @@ TEST_F(TestMysqlClinetImp,test_MysqlClientInterface) {
         ASSERT_TRUE(fileinfo.SerializeToString(&encodeFileInfo));
         std::string encodeKey =
             NameSpaceStorageCodec::EncodeFileStoreKey(i << 8, filename);
-        LOG(INFO) << "encodeKey: " << encodeKey << ", encodeFileInfo: "
-                  << encodeFileInfo;
         if (i <= 9) {
             ASSERT_EQ(0,
                       client_->Put(encodeKey, encodeFileInfo));
             keyMap[i] = encodeKey;
-            LOG(INFO) << keyMap[i];
             fileName[i] = filename;
         }
 
@@ -119,8 +116,7 @@ TEST_F(TestMysqlClinetImp,test_MysqlClientInterface) {
     // 2. get file, 可以正确获取并解码file0~file9
     for (int i = 0; i < keyMap.size(); i++) {
         std::string out;
-        int errCode = client_->Get(keyMap[i], out);
-        LOG(INFO) << keyMap[i]<< "," << out;
+        int errCode = client_->Get(keyMap[i], &out);
         ASSERT_EQ(0, errCode);
         FileInfo fileinfo;
         ASSERT_TRUE(NameSpaceStorageCodec::DecodeFileInfo(out, &fileinfo));
@@ -135,11 +131,9 @@ TEST_F(TestMysqlClinetImp,test_MysqlClientInterface) {
     ASSERT_EQ(keyMap.size(), listRes2.size());
     for (int i = 0; i < listRes2.size(); i++) {
         FileInfo finfo;
-        LOG(INFO) << listRes2[i].first << "," << listRes2[i].second;
         ASSERT_TRUE(
             NameSpaceStorageCodec::DecodeFileInfo(listRes2[i].second, &finfo));
         ASSERT_EQ(fileName[i], finfo.filename());
-        LOG(INFO) << "list file: " << finfo.filename();
     }
 
     // 4. delete file, 删除file0~file4，and the fileinfo will be "" 
@@ -147,77 +141,58 @@ TEST_F(TestMysqlClinetImp,test_MysqlClientInterface) {
         ASSERT_EQ(0, client_->Delete(keyMap[i]));
         // can not get delete file
         std::string out;
-        ASSERT_EQ(-1, client_->Get(keyMap[i], out));
-        client_->Get(keyMap[i], out);
+        ASSERT_EQ(-1, client_->Get(keyMap[i], &out));
+        client_->Get(keyMap[i], &out);
         FileInfo fileinfo;
         ASSERT_TRUE(NameSpaceStorageCodec::DecodeFileInfo(out, &fileinfo));
         ASSERT_EQ("", fileinfo.filename());
-        LOG(INFO)<<fileinfo.filename();
     }
 
     // 5. rename file: rename file9 ~ file10, file10本来不存在
-    // 事务开始
-    client_->conn_->setAutoCommit(false);
+    Operation op1{OpType::OpDelete, const_cast<char *>(keyMap[9].c_str()),
+                  const_cast<char *>(fileInfo9.c_str()),
+                  static_cast<int>(keyMap[9].size()),
+                  static_cast<int>(fileInfo9.size())};
+    Operation op2{OpType::OpPut, const_cast<char *>(fileKey10.c_str()),
+                  const_cast<char *>(fileInfo10.c_str()),
+                  static_cast<int>(fileKey10.size()),
+                  static_cast<int>(fileInfo10.size())};
+    std::vector<Operation> ops{op1, op2};
+    ASSERT_EQ(EtcdErrCode::EtcdOK, client_->TxnN(ops));
 
-    try {
-        // 1. delete file9
-        client_->Delete(keyMap[9]);
-
-        // 2. put file10
-        client_->Put(fileKey10, fileInfo10);
-
-        // 3. commit 
-        client_->conn_->commit();
-    } catch (const std::exception &e) {
-        // if exception, rollback
-        client_->conn_->rollback();
-        // deal with exception
-        LOG(ERROR) << "exception: " << e.what();
-    }
-
-    // 恢复自动提交模式
-    client_->conn_->setAutoCommit(true);
-    // cannot get file9
     std::string out;
-    ASSERT_EQ(-1, client_->Get(keyMap[9], out));
+    // cannot get file9 
+    client_->Get(keyMap[9], &out);
+    ASSERT_EQ(-1, client_->Get(keyMap[9], &out));
+    
     // get file10 ok
-    ASSERT_EQ(0, client_->Get(fileKey10, out));
+    ASSERT_EQ(0, client_->Get(fileKey10, &out));
     FileInfo fileinfo;
     ASSERT_TRUE(NameSpaceStorageCodec::DecodeFileInfo(out, &fileinfo));
     ASSERT_EQ(fileName10, fileinfo.filename());
-
-
-
+    
     // 6. snapshot of keyMap[6]
     // 事务开始
-    client_->conn_->setAutoCommit(false);
-
-    try {
-        // 1. put file6
-        client_->Put(keyMap[6], fileInfo6);
-
-        // 2. put snapshot6
-        client_->Put(snapshotKey6, snapshotInfo6);
-
-        // 3. commit 
-        client_->conn_->commit();
-    } catch (const std::exception &e) {
-        // if exception, rollback
-        client_->conn_->rollback();
-        // deal with exception
-        // ...
-    }
-
-    // 恢复自动提交模式
-    client_->conn_->setAutoCommit(true);
+    Operation op3{OpType::OpPut, const_cast<char *>(keyMap[6].c_str()),
+                  const_cast<char *>(fileInfo6.c_str()),
+                  static_cast<int>(keyMap[6].size()),
+                  static_cast<int>(fileInfo6.size())};
+    Operation op4{OpType::OpPut, const_cast<char *>(snapshotKey6.c_str()),
+                  const_cast<char *>(snapshotInfo6.c_str()),
+                  static_cast<int>(snapshotKey6.size()),
+                  static_cast<int>(snapshotInfo6.size())};
+    ops.clear();
+    ops.emplace_back(op3);
+    ops.emplace_back(op4);
+    ASSERT_EQ(EtcdErrCode::EtcdOK, client_->TxnN(ops));
 
     // get file6 ok
-    ASSERT_EQ(0, client_->Get(keyMap[6], out));
+    ASSERT_EQ(0, client_->Get(keyMap[6], &out));
     ASSERT_TRUE(NameSpaceStorageCodec::DecodeFileInfo(out, &fileinfo));
     ASSERT_EQ(2, fileinfo.seqnum());
     ASSERT_EQ(fileName[6], fileinfo.filename());
     // get snapshot6
-    ASSERT_EQ(0, client_->Get(snapshotKey6, out));
+    ASSERT_EQ(0, client_->Get(snapshotKey6, &out));
     ASSERT_TRUE(NameSpaceStorageCodec::DecodeFileInfo(out, &fileinfo));
     ASSERT_EQ(1, fileinfo.seqnum());
     ASSERT_EQ(snapshotName6, fileinfo.filename());
@@ -231,17 +206,19 @@ TEST_F(TestMysqlClinetImp,test_MysqlClientInterface) {
     // 7. compare and swap
     std::string outforCAS;
     ASSERT_EQ(0, client_->CompareAndSwap("04", "", "100"));
-    ASSERT_EQ(0, client_->Get("04",outforCAS));
+    ASSERT_EQ(0, client_->Get("04",&outforCAS));
     LOG(INFO) << "outforCAS: " << outforCAS;
     ASSERT_EQ("100",  outforCAS);
 
     ASSERT_EQ(0, client_->CompareAndSwap("04", "100", "200"));
-    ASSERT_EQ(0, client_->Get("04",outforCAS));
+    ASSERT_EQ(0, client_->Get("04",&outforCAS));
     ASSERT_EQ("200",  outforCAS);
     LOG(INFO) << "test_CAS";
 
     // 8. rename file: rename file7 ~ file8
-    //file7 的storekey 和 file8 的storekey 相同,应该覆盖file8
+    Operation op8{OpType::OpDelete, const_cast<char *>(keyMap[7].c_str()),
+                  const_cast<char *>(""), static_cast<int>(keyMap[7].size()),
+                  0};
     FileInfo newFileInfo7;
     newFileInfo7.CopyFrom(fileInfo7);
     newFileInfo7.set_parentid(fileInfo8.parentid());
@@ -252,35 +229,39 @@ TEST_F(TestMysqlClinetImp,test_MysqlClientInterface) {
     std::string encodeNewFileInfo7;
     ASSERT_TRUE(newFileInfo7.SerializeToString(&encodeNewFileInfo7));
 
-    // 事务开始
-    client_->conn_->setAutoCommit(false);
+    Operation op9{OpType::OpPut,
+                  const_cast<char *>(encodeNewFileInfo7Key.c_str()),
+                  const_cast<char *>(encodeNewFileInfo7.c_str()),
+                  static_cast<int>(encodeNewFileInfo7Key.size()),
+                  static_cast<int>(encodeNewFileInfo7.size())};
+    ops.clear();
+    ops.emplace_back(op8);
+    ops.emplace_back(op9);
+    ASSERT_EQ(EtcdErrCode::EtcdOK, client_->TxnN(ops));
 
-    try {
-        // 1. delete file7
-        client_->Delete(keyMap[7]);
-
-        // 2. put file8
-        client_->Put(encodeNewFileInfo7Key, encodeNewFileInfo7);
-
-        // 3. commit 
-        client_->conn_->commit();
-    } catch (const std::exception &e) {
-        // if exception, rollback
-        client_->conn_->rollback();
-        // deal with exception
-        // ...
-    }
-
-    // 恢复自动提交模式
-    client_->conn_->setAutoCommit(true);
     std:: string outforRename;
-    ASSERT_EQ(-1, client_->Get(keyMap[7], outforRename));
+    // 不能获取 file7
+    ASSERT_EQ(-1, client_->Get(keyMap[7], &outforRename));
     LOG(INFO) << "out: " << outforRename;
     // 成功获取rename以后的file7
-    ASSERT_EQ(0, client_->Get(keyMap[8], outforRename));
+    ASSERT_EQ(0, client_->Get(keyMap[8], &outforRename));
     ASSERT_TRUE(NameSpaceStorageCodec::DecodeFileInfo(outforRename, &fileinfo));
     ASSERT_EQ(newFileInfo7.filename(), fileinfo.filename());
     ASSERT_EQ(newFileInfo7.filetype(), fileinfo.filetype());
+
+    // 9. test more Txn err
+    ops.emplace_back(op8);
+    ops.emplace_back(op9);
+    ASSERT_EQ(-1, client_->TxnN(ops));
+
+     Operation op5{OpType(5), const_cast<char *>(snapshotKey6.c_str()),
+                  const_cast<char *>(snapshotInfo6.c_str()),
+                  static_cast<int>(snapshotKey6.size()),
+                  static_cast<int>(snapshotInfo6.size())};
+    ops.clear();
+    ops.emplace_back(op3);
+    ops.emplace_back(op5);
+    ASSERT_EQ(-1, client_->TxnN(ops));
 
     client_->CloseClient();
 
@@ -345,7 +326,7 @@ TEST_F(TestMysqlClinetImp, test_return_with_revision) {
     ASSERT_EQ(0, res);
     ASSERT_EQ(startRevision + 1, revision);
     std::string out;
-    client_->Get("hello", out);
+    client_->Get("hello", &out);
     ASSERT_EQ("everyOne", out);
     res = client_->DeleteRewithRevision("hello", &revision);
     ASSERT_EQ(0, res);

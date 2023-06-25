@@ -181,7 +181,7 @@ class MemoryFsStorage : public FsStorage {
 class PersisKVStorage : public FsStorage {
  public:
     PersisKVStorage(
-        const std::shared_ptr<curve::kvstorage::KVStorageClient>& storage);
+        const std::shared_ptr<curve::kvstorage::StorageClient>& storage);
     ~PersisKVStorage();
 
     bool Init() override;
@@ -218,7 +218,7 @@ class PersisKVStorage : public FsStorage {
 
  private:
     // for persist data
-    std::shared_ptr<curve::kvstorage::KVStorageClient> storage_;
+    std::shared_ptr<curve::kvstorage::StorageClient> storage_;
 
     // fs id generator
     std::unique_ptr<FsIdGenerator> idGen_;

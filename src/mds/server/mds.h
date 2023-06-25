@@ -84,6 +84,7 @@ using ::curve::election::LeaderElectionOptions;
 using ::curve::election::LeaderElection;
 using ::curve::common::Configuration;
 using ::curve::common::DLockOpts;
+using ::curve::mysqlstorage::MysqlClientImp;
 
 namespace curve {
 namespace mds {
@@ -225,6 +226,7 @@ class MDS {
     MDSOptions options_;
 
     std::shared_ptr<EtcdClientImp> etcdClient_;
+    std::shared_ptr<MysqlClientImp> mysqlClient_;
     std::shared_ptr<LeaderElection> leaderElection_;
     std::shared_ptr<AllocStatistic> segmentAllocStatistic_;
     std::shared_ptr<NameServerStorage> nameServerStorage_;

@@ -51,7 +51,7 @@ class BlockGroupStorage {
 class BlockGroupStorageImpl final : public BlockGroupStorage {
  public:
     explicit BlockGroupStorageImpl(
-        const std::shared_ptr<curve::kvstorage::KVStorageClient>& store)
+        const std::shared_ptr<curve::kvstorage::StorageClient>& store)
         : store_(store) {}
 
     BlockGroupStorageImpl(const BlockGroupStorageImpl&) = delete;
@@ -78,7 +78,7 @@ class BlockGroupStorageImpl final : public BlockGroupStorage {
                                  std::vector<BlockGroup>* blockGroups) override;
 
  private:
-    std::shared_ptr<curve::kvstorage::KVStorageClient> store_;
+    std::shared_ptr<curve::kvstorage::StorageClient> store_;
 };
 
 }  // namespace space

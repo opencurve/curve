@@ -37,11 +37,11 @@ namespace mds {
 namespace topology {
 
 using ::curve::kvstorage::EtcdClientImp;
-using ::curve::kvstorage::KVStorageClient;
+using ::curve::kvstorage::StorageClient;
 
 class TopologyStorageEtcd : public TopologyStorage {
  public:
-    TopologyStorageEtcd(std::shared_ptr<KVStorageClient> client,
+    TopologyStorageEtcd(std::shared_ptr<StorageClient> client,
                         std::shared_ptr<TopologyStorageCodec> codec)
         : client_(client), codec_(codec) {}
 
@@ -100,7 +100,7 @@ class TopologyStorageEtcd : public TopologyStorage {
 
  private:
     // underlying storage media
-    std::shared_ptr<KVStorageClient> client_;
+    std::shared_ptr<StorageClient> client_;
     // codec module
     std::shared_ptr<TopologyStorageCodec> codec_;
 };

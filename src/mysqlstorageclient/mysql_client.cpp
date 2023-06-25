@@ -89,8 +89,8 @@ int MysqlClientImp::PutRewithRevision(const std::string &key,
     }
     return 0;
 }
-
-int MysqlClientImp::Get(const std::string &key, std::string &out) {
+	
+int MysqlClientImp::Get(const std::string &key, std::string *out) {
     MySQLError ret= MySQLError::MysqlOK;
     try {
         std::string sql = "select storevalue from curvebs_kv where storekey=? ORDER BY revision DESC LIMIT 1;";
@@ -98,28 +98,28 @@ int MysqlClientImp::Get(const std::string &key, std::string &out) {
         pstmt->setString(1, key);
         std::unique_ptr<sql::ResultSet> res(pstmt->executeQuery());
         while(res->next())
-		{
-			std::unique_ptr<std::istream> is(res->getBlob("storevalue"));
-			is->seekg(0, is->end);
-			int len = is->tellg();
-			is->seekg(0, is->beg);
-			if(len > 0)
-			{
-				out.resize(len);
-				is->read(&out[0], len);
-			}
-			else
-			{
-				out.clear();
-			}
-		}
+        {
+            std::unique_ptr<std::istream> is(res->getBlob("storevalue"));
+            is->seekg(0, is->end);
+            int len = is->tellg();
+            is->seekg(0, is->beg);
+            if(len > 0)
+            {
+                out->resize(len);
+                is->read(&(*out)[0], len);
+            }
+            else
+            {
+                out->clear();
+            }
+        }
 
     } catch (sql::SQLException &e) {
         LOG(ERROR) << "MysqlClientImp Get failed, error: " << e.what();
         ret = MySQLError::QueryError;
         return -1;
     }
-    if(out.empty())
+    if(out->empty())
     {
         return -1;
     }
@@ -204,6 +204,13 @@ int MysqlClientImp::DropTable(const std::string &tableName) {
 
 int MysqlClientImp::Delete(const std::string &key) {
     try {
+        std::string out;
+        Get(key, &out);
+        if(out.empty())
+        {
+            LOG(INFO)<<"key: "<<key<<" not exist";
+            return -1;
+        }
         Put("dummy", "dummy");
         std::string sql = "delete from curvebs_kv where storekey='" + key + "'";
         stmt_->execute(sql);     
@@ -342,12 +349,53 @@ int MysqlClientImp::GetCurrentRevision(int64_t *revision) {
             LOG(INFO)<<"no revision";
             *revision = 0;
         }
-        LOG(INFO)<<"revision:"<<*revision;
         delete res;
     } catch (sql::SQLException &e) {
         LOG(ERROR) << "MysqlClientImp GetCurrentRevision failed, error: " << e.what();
         return -1;
     }
+    return 0;
+}
+
+int MysqlClientImp::TxnN(const std::vector<Operation> &ops) {
+    conn_->setAutoCommit(false);
+    try {
+        for (auto op : ops) { 
+            std::string* key= new std::string(op.key,op.key+op.keyLen);
+            std::string* value= new std::string(op.value,op.value+op.valueLen);
+            if(op.opType == OpType::OpPut)
+            {
+                if(this->Put(*key, *value)==-1)
+                {
+                    LOG(ERROR) << "MysqlClientImp TxnN failed, error: " << "Put failed";
+                    conn_->rollback();
+                    return -1;
+                }
+            }
+            else if(op.opType == OpType::OpDelete)
+            {
+                if(this->Delete(*key)==-1)
+                {
+                    LOG(ERROR) << "MysqlClientImp TxnN failed, error: " << "Delete failed";
+                    conn_->rollback();
+                    return -1;
+                }
+            }
+            else
+            {
+                LOG(ERROR) << "MysqlClientImp TxnN do not support! ";
+                conn_->rollback();
+                return -1;
+            }
+        }
+        conn_->commit();
+    } catch (sql::SQLException &e) {
+        LOG(ERROR) << "MysqlClientImp TxnN failed, error: " << e.what();
+        conn_->rollback();
+        return -1;
+    }
+    conn_->setAutoCommit(true);
+    LOG(INFO) << "MysqlClientImp TxnN success and setAutoCommit true";
     return 0;
 }
 

@@ -30,7 +30,7 @@
 #include "curvefs/test/mds/mock/mock_topology.h"
 #include "curvefs/test/mds/topology/test_topology_helper.h"
 
-using ::curve::kvstorage::MockKVStorageClient;
+using ::curve::kvstorage::MockStorageClient;
 
 using ::testing::Return;
 using ::testing::_;
@@ -48,7 +48,7 @@ namespace topology {
 class TestTopologyStorageEtcd : public ::testing::Test {
  public:
     void SetUp() {
-        kvStorageClient_ = std::make_shared<MockKVStorageClient>();
+        kvStorageClient_ = std::make_shared<MockStorageClient>();
         codec_ = std::make_shared<TopologyStorageCodec>();
         storage_ =
             std::make_shared<TopologyStorageEtcd>(kvStorageClient_, codec_);
@@ -58,7 +58,7 @@ class TestTopologyStorageEtcd : public ::testing::Test {
 
  protected:
     std::shared_ptr<TopologyStorageEtcd> storage_;
-    std::shared_ptr<MockKVStorageClient> kvStorageClient_;
+    std::shared_ptr<MockStorageClient> kvStorageClient_;
     std::shared_ptr<TopologyStorageCodec> codec_;
 };
 

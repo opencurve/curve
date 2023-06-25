@@ -33,7 +33,7 @@
 namespace curvefs {
 namespace mds {
 
-class MockEtcdClientImpl : public curve::kvstorage::KVStorageClient {
+class MockEtcdClientImpl : public curve::kvstorage::StorageClient {
  public:
     ~MockEtcdClientImpl() override = default;
 

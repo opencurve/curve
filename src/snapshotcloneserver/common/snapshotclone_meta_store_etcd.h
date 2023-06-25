@@ -34,7 +34,7 @@
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/concurrent/rw_lock.h"
 
-using ::curve::kvstorage::KVStorageClient;
+using ::curve::kvstorage::StorageClient;
 using ::curve::common::RWLock;
 using ::curve::common::ReadLockGuard;
 using ::curve::common::WriteLockGuard;
@@ -44,7 +44,7 @@ namespace snapshotcloneserver {
 
 class SnapshotCloneMetaStoreEtcd : public SnapshotCloneMetaStore {
  public:
-    SnapshotCloneMetaStoreEtcd(std::shared_ptr<KVStorageClient> client,
+    SnapshotCloneMetaStoreEtcd(std::shared_ptr<StorageClient> client,
         std::shared_ptr<SnapshotCloneCodec> codec)
     : client_(client),
       codec_(codec) {}
@@ -97,7 +97,7 @@ class SnapshotCloneMetaStoreEtcd : public SnapshotCloneMetaStore {
     int LoadCloneInfos();
 
  private:
-    std::shared_ptr<KVStorageClient> client_;
+    std::shared_ptr<StorageClient> client_;
     std::shared_ptr<SnapshotCloneCodec> codec_;
 
     // key is UUID, map 需要考虑并发保护

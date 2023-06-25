@@ -53,7 +53,7 @@ class SpaceManager {
 class SpaceManagerImpl final : public SpaceManager {
  public:
     SpaceManagerImpl(
-        const std::shared_ptr<curve::kvstorage::KVStorageClient>& kvstore,
+        const std::shared_ptr<curve::kvstorage::StorageClient>& kvstore,
         std::shared_ptr<FsStorage> fsStorage)
         : storage_(new BlockGroupStorageImpl(kvstore)),
           fsStorage_(std::move(fsStorage)) {}

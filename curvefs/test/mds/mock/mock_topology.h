@@ -51,14 +51,14 @@ using ::testing::Return;
 using ::testing::_;
 
 using ::curve::kvstorage::EtcdClientImp;
-using ::curve::kvstorage::KVStorageClient;
+using ::curve::kvstorage::StorageClient;
 
 namespace curve {
 namespace kvstorage {
 
-class MockKVStorageClient : public KVStorageClient {
+class MockStorageClient : public StorageClient {
  public:
-    virtual ~MockKVStorageClient() {}
+    virtual ~MockStorageClient() {}
     MOCK_METHOD2(Put, int(const std::string &, const std::string &));
     MOCK_METHOD2(Get, int(const std::string &, std::string *));
     MOCK_METHOD3(List, int(const std::string &, const std::string &,

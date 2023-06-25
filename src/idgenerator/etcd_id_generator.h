@@ -31,11 +31,11 @@
 namespace curve {
 namespace idgenerator {
 
-using curve::kvstorage::KVStorageClient;
+using curve::kvstorage::StorageClient;
 
 class EtcdIdGenerator {
  public:
-    EtcdIdGenerator(const std::shared_ptr<KVStorageClient>& client,
+    EtcdIdGenerator(const std::shared_ptr<StorageClient>& client,
                     const std::string& storeKey, uint64_t initial,
                     uint64_t bundle)
         : storeKey_(storeKey),
@@ -66,7 +66,7 @@ class EtcdIdGenerator {
     uint64_t initialize_;
     uint64_t bundle_;
 
-    std::shared_ptr<KVStorageClient> client_;
+    std::shared_ptr<StorageClient> client_;
     uint64_t nextId_;
     uint64_t bundleEnd_;
 

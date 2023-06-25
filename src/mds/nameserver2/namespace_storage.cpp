@@ -40,12 +40,8 @@ std::ostream &operator<<(std::ostream &os, StoreStatus &s) {
 }
 
 NameServerStorageImp::NameServerStorageImp(
-    std::shared_ptr<KVStorageClient> client, std::shared_ptr<Cache> cache, bool is_kvstorage )
-    : cache_(cache), client_(client), discardMetric_(),is_kvstorage_(is_kvstorage) {}
-
-NameServerStorageImp::NameServerStorageImp(
-    std::shared_ptr<MysqlClientImp> mysqlclient, std::shared_ptr<Cache> cache, bool is_kvstorage )
-    : cache_(cache), mysqlclient_(mysqlclient), discardMetric_(),is_kvstorage_(is_kvstorage) {}
+    std::shared_ptr<StorageClient> client, std::shared_ptr<Cache> cache)
+    : cache_(cache), client_(client), discardMetric_() {}
 
 StoreStatus NameServerStorageImp::PutFile(const FileInfo &fileInfo) {
     std::string storeKey;
@@ -60,10 +56,7 @@ StoreStatus NameServerStorageImp::PutFile(const FileInfo &fileInfo) {
         return StoreStatus::InternalError;
     }
 
-    int errCode = EtcdErrCode::EtcdOK;
-    if(is_kvstorage_)  errCode = client_->Put(storeKey, encodeFileInfo);
-    else errCode = mysqlclient_->Put(storeKey, encodeFileInfo);
-
+    int errCode = client_->Put(storeKey, encodeFileInfo);
     if (errCode != EtcdErrCode::EtcdOK) {
         LOG(ERROR) << "put file: [" << fileInfo.filename()
                    << "] err: " << errCode;
@@ -88,8 +81,7 @@ StoreStatus NameServerStorageImp::GetFile(InodeID parentid,
     int errCode = EtcdErrCode::EtcdOK;
     std::string out;
     if (!cache_->Get(storeKey, &out)) {
-        if(is_kvstorage_) errCode = client_->Get(storeKey, &out);
-        else errCode = mysqlclient_->Get(storeKey, out);
+        errCode = client_->Get(storeKey, &out);
 
         if (errCode == EtcdErrCode::EtcdOK) {
             cache_->Put(storeKey, out);
@@ -127,9 +119,8 @@ StoreStatus NameServerStorageImp::DeleteFile(InodeID id,
 
     // delete cache first, then Etcd
     cache_->Remove(storeKey);
-    int resCode = EtcdErrCode::EtcdOK;
-    if(is_kvstorage_) resCode=client_->Delete(storeKey);
-    else resCode=mysqlclient_->Delete(storeKey);
+    int resCode = client_->Delete(storeKey);
+
     if (resCode != EtcdErrCode::EtcdOK) {
         LOG(ERROR) << "delete file err: " << resCode << ","
                    << " inode id: " << id << ", filename: " << filename;
@@ -149,10 +140,7 @@ NameServerStorageImp::DeleteSnapshotFile(InodeID id,
 
     // delete cache first, then Etcd
     cache_->Remove(storeKey);
-    int resCode = EtcdErrCode::EtcdOK;
-    if(is_kvstorage_) resCode=client_->Delete(storeKey);
-    else resCode=mysqlclient_->Delete(storeKey);
-
+    int resCode = client_->Delete(storeKey);
 
     if (resCode != EtcdErrCode::EtcdOK) {
         LOG(ERROR) << "delete file err: " << resCode << "."
@@ -195,8 +183,6 @@ StoreStatus NameServerStorageImp::RenameFile(const FileInfo &oldFInfo,
     // delete the data in the cache first
     cache_->Remove(oldStoreKey);
 
-    int errCode = EtcdErrCode::EtcdOK;
-    if(is_kvstorage_){
     // update Etcd
     Operation op1{OpType::OpDelete, const_cast<char *>(oldStoreKey.c_str()), "",
                   static_cast<int>(oldStoreKey.size()), 0};
@@ -205,27 +191,7 @@ StoreStatus NameServerStorageImp::RenameFile(const FileInfo &oldFInfo,
                   static_cast<int>(newStoreKey.size()),
                   static_cast<int>(encodeNewFileInfo.size())};
     std::vector<Operation> ops{op1, op2};
-    errCode = client_->TxnN(ops);
-    }
-    else{
-    // update mysql
-    mysqlclient_->conn_->setAutoCommit(false);
-    try
-    {
-        mysqlclient_->Delete(oldStoreKey);
-        mysqlclient_->Put(newStoreKey, encodeNewFileInfo);
-        mysqlclient_->conn_->commit();
-        errCode=EtcdErrCode::EtcdOK;
-    }
-    catch(const std::exception& e)
-    {
-        mysqlclient_->conn_->rollback();
-        LOG(ERROR) <<  "exception: " << e.what();
-        errCode=-1;
-    }
-    mysqlclient_->conn_->setAutoCommit(true);
-    }
-
+    int errCode = client_->TxnN(ops);
     if (errCode != EtcdErrCode::EtcdOK) {
         LOG(ERROR) << "rename file from [" << oldFInfo.id() << ", "
                    << oldFInfo.filename() << "] to [" << newFInfo.id() << ", "
@@ -309,26 +275,7 @@ StoreStatus NameServerStorageImp::ReplaceFileAndRecycleOldFile(
                   static_cast<int>(encodeNewFInfo.size())};
 
     std::vector<Operation> ops{op1, op2, op3};
-    int errCode = 0;
-    if(is_kvstorage_)errCode = client_->TxnN(ops);
-    else{
-        mysqlclient_->conn_->setAutoCommit(false);
-        try
-        {
-            mysqlclient_->Put(recycleStoreKey, encodeRecycleFInfo);
-            mysqlclient_->Delete(oldStoreKey);
-            mysqlclient_->Put(newStoreKey, encodeNewFInfo);
-            mysqlclient_->conn_->commit();
-            errCode=EtcdErrCode::EtcdOK;
-        }
-        catch(const std::exception& e)
-        {
-            mysqlclient_->conn_->rollback();
-            LOG(ERROR) <<  "exception: " << e.what();
-            errCode=-1;
-        }
-        mysqlclient_->conn_->setAutoCommit(true);
-    }
+    int errCode = client_->TxnN(ops);
     if (errCode != EtcdErrCode::EtcdOK) {
         LOG(ERROR) << "rename file from [" << oldFInfo.filename() << "] to ["
                    << newFInfo.filename() << "] err: " << errCode;
@@ -382,25 +329,7 @@ NameServerStorageImp::MoveFileToRecycle(const FileInfo &originFileInfo,
                   static_cast<int>(encodeRecycleFInfo.size())};
 
     std::vector<Operation> ops{op1, op2};
-    int errCode = 0;
-    if(is_kvstorage_) errCode = client_->TxnN(ops);
-    else{
-        mysqlclient_->conn_->setAutoCommit(false);
-        try
-        {
-            mysqlclient_->Delete(originFileInfoKey);
-            mysqlclient_->Put(recycleFileInfoKey, encodeRecycleFInfo);
-            mysqlclient_->conn_->commit();
-            errCode=EtcdErrCode::EtcdOK;
-        }
-        catch(const std::exception& e)
-        {
-            mysqlclient_->conn_->rollback();
-            LOG(ERROR) <<  "exception: " << e.what();
-            errCode=-1;
-        }
-        mysqlclient_->conn_->setAutoCommit(true);
-    }
+    int errCode = client_->TxnN(ops);
     if (errCode != EtcdErrCode::EtcdOK) {
         LOG(ERROR) << "move file [" << originFileInfo.filename()
                    << "] to recycle file [" << recycleFileInfo.filename()

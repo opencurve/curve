@@ -34,7 +34,7 @@ namespace mds {
 class FsIdGenerator {
  public:
     explicit FsIdGenerator(
-        const std::shared_ptr<curve::kvstorage::KVStorageClient>& client)
+        const std::shared_ptr<curve::kvstorage::StorageClient>& client)
         : generator_(new curve::idgenerator::EtcdIdGenerator(
               client, FS_ID_KEY_PREFIX, FS_ID_INIT, FS_ID_ALLOCATE_BUNDLE)) {}
 

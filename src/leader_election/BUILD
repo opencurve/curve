@@ -27,6 +27,7 @@ cc_library(
         "//external:glog",
         "//src/kvstorageclient:kvstorage_client",
         "//src/mds/nameserver2/helper",
+        "//src/mysqlstorageclient:mysqlstorage_client",
     ],
 )
 
@@ -43,5 +44,6 @@ cc_library(
         "//external:glog",
         "//src/common:curve_common",
         "//src/kvstorageclient:kvstorage_client",
+        "//src/mysqlstorageclient:mysqlstorage_client",
     ],
 )

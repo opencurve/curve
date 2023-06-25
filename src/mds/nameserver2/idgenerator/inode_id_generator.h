@@ -39,7 +39,7 @@ namespace mds {
 const uint64_t INODEBUNDLEALLOCATED = 1000;
 
 using curve::idgenerator::EtcdIdGenerator;
-using curve::kvstorage::KVStorageClient;
+using curve::kvstorage::StorageClient;
 
 class InodeIDGenerator {
  public:
@@ -57,7 +57,7 @@ class InodeIDGenerator {
 
 class InodeIdGeneratorImp : public InodeIDGenerator {
  public:
-    explicit InodeIdGeneratorImp(std::shared_ptr<KVStorageClient> client) {
+    explicit InodeIdGeneratorImp(std::shared_ptr<StorageClient> client) {
         generator_ = std::make_shared<EtcdIdGenerator>(
             client, INODESTOREKEY, USERSTARTINODEID, INODEBUNDLEALLOCATED);
     }

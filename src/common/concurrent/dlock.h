@@ -33,7 +33,7 @@ namespace curve {
 namespace common {
 
 using curve::common::Uncopyable;
-using curve::kvstorage::KVStorageClient;
+using curve::kvstorage::StorageClient;
 
 struct DLockOpts {
     std::string pfx;

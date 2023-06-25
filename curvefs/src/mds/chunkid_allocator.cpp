@@ -50,7 +50,7 @@ int ChunkIdAllocatorImpl::GenChunkId(uint64_t idNum, uint64_t *chunkId) {
     return ret;
 }
 
-void ChunkIdAllocatorImpl::Init(const std::shared_ptr<KVStorageClient> &client,
+void ChunkIdAllocatorImpl::Init(const std::shared_ptr<StorageClient> &client,
                                 const std::string &StoreKey,
                                 uint64_t bundleSize) {
     client_ = std::move(client);

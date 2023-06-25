@@ -176,7 +176,7 @@ new_local_repository(
 new_local_repository(
     name = "mysqlclient",
     build_file = "//:thirdparties/mysqlclient.BUILD",
-    path = "thirdparties/mysqlclient",
+    path = "/usr/local/mysql/connector-c++-8.0.32",
 )
 
 new_local_repository(

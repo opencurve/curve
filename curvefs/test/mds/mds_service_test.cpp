@@ -94,7 +94,7 @@ namespace mds {
 class MdsServiceTest : public ::testing::Test {
  protected:
     void SetUp() override {
-        kvstorage_ = std::make_shared<MockKVStorageClient>();
+        kvstorage_ = std::make_shared<MockStorageClient>();
 
         MetaserverOptions metaserverOptions;
         metaserverOptions.metaserverAddr = "127.0.0.1:6703";
@@ -151,7 +151,7 @@ class MdsServiceTest : public ::testing::Test {
     std::shared_ptr<FsStorage> fsStorage_;
     std::shared_ptr<MockSpaceManager> spaceManager_;
     std::shared_ptr<MetaserverClient> metaserverClient_;
-    std::shared_ptr<MockKVStorageClient> kvstorage_;
+    std::shared_ptr<MockStorageClient> kvstorage_;
     std::shared_ptr<MockTopologyManager> topoManager_;
     std::shared_ptr<MockS3Adapter> s3Adapter_;
 };

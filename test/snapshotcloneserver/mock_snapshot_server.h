@@ -39,7 +39,7 @@
 #include "src/kvstorageclient/etcd_client.h"
 #include "src/common/concurrent/dlock.h"
 
-using ::curve::kvstorage::KVStorageClient;
+using ::curve::kvstorage::StorageClient;
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -422,9 +422,9 @@ class MockCloneServiceManagerBackend : public CloneServiceManagerBackend {
     MOCK_METHOD0(Stop, void());
 };
 
-class MockKVStorageClient : public KVStorageClient {
+class MockStorageClient : public StorageClient {
  public:
-    virtual ~MockKVStorageClient() {}
+    virtual ~MockStorageClient() {}
     MOCK_METHOD2(Put, int(const std::string&, const std::string&));
     MOCK_METHOD2(Get, int(const std::string&, std::string*));
     MOCK_METHOD3(List,

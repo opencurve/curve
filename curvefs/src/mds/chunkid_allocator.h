@@ -34,7 +34,7 @@ namespace curvefs {
 namespace mds {
 
 using ::curve::common::StringToUll;
-using ::curve::kvstorage::KVStorageClient;
+using ::curve::kvstorage::StorageClient;
 
 const uint64_t CHUNKIDINITIALIZE = 0;
 const uint64_t CHUNKBUNDLEALLOCATED = 1000;
@@ -61,14 +61,14 @@ class ChunkIdAllocator {
      * @details
      */
     virtual void Init(
-        const std::shared_ptr<KVStorageClient>& client = nullptr,
+        const std::shared_ptr<StorageClient>& client = nullptr,
         const std::string& chunkIdStoreKey = CHUNKID_NAME_KEY_PREFIX,
         uint64_t bundleSize = CHUNKBUNDLEALLOCATED) = 0;
 };
 
 class ChunkIdAllocatorImpl : public ChunkIdAllocator {
  public:
-    ChunkIdAllocatorImpl(std::shared_ptr<KVStorageClient> client = nullptr,
+    ChunkIdAllocatorImpl(std::shared_ptr<StorageClient> client = nullptr,
                          std::string storeKey = CHUNKID_NAME_KEY_PREFIX,
                          uint64_t initId = CHUNKIDINITIALIZE,
                          uint64_t bundleSize = CHUNKBUNDLEALLOCATED)
@@ -102,7 +102,7 @@ class ChunkIdAllocatorImpl : public ChunkIdAllocator {
      * until the chunkIds in the current bundle is exhausted.
      */
     virtual void Init(
-        const std::shared_ptr<KVStorageClient>& client = nullptr,
+        const std::shared_ptr<StorageClient>& client = nullptr,
         const std::string& chunkIdStoreKey = CHUNKID_NAME_KEY_PREFIX,
         uint64_t bundleSize = CHUNKBUNDLEALLOCATED);
     /**
@@ -132,7 +132,7 @@ class ChunkIdAllocatorImpl : public ChunkIdAllocator {
     };
 
  private:
-    std::shared_ptr<KVStorageClient> client_;  // the etcd client
+    std::shared_ptr<StorageClient> client_;  // the etcd client
     std::string storeKey_;  // the key of ChunkId stored in etcd
     uint64_t nextId_;       // the next ChunkId can be allocated in this bunlde
     uint64_t lastId_;       // the last ChunkId can be allocated in this bunlde

@@ -73,7 +73,7 @@ using ::curve::common::Configuration;
 using ::curve::election::LeaderElection;
 using ::curve::election::LeaderElectionOptions;
 using curve::kvstorage::EtcdClientImp;
-using ::curve::kvstorage::KVStorageClient;
+using ::curve::kvstorage::StorageClient;
 
 // TODO(split InitEtcdConf): split this InitEtcdConf to a single module
 

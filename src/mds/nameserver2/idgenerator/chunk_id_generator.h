@@ -39,7 +39,7 @@ const uint64_t CHUNKINITIALIZE = 0;
 const uint64_t CHUNKBUNDLEALLOCATED = 1000;
 
 using curve::idgenerator::EtcdIdGenerator;
-using curve::kvstorage::KVStorageClient;
+using curve::kvstorage::StorageClient;
 
 class ChunkIDGenerator {
  public:
@@ -57,7 +57,7 @@ class ChunkIDGenerator {
 
 class ChunkIDGeneratorImp : public ChunkIDGenerator {
  public:
-    explicit ChunkIDGeneratorImp(std::shared_ptr<KVStorageClient> client) {
+    explicit ChunkIDGeneratorImp(std::shared_ptr<StorageClient> client) {
         generator_ = std::make_shared<EtcdIdGenerator>(
             client, CHUNKSTOREKEY, CHUNKINITIALIZE, CHUNKBUNDLEALLOCATED);
     }

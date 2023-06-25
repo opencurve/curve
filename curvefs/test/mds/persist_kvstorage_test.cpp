@@ -41,7 +41,7 @@ using ::testing::SetArgPointee;
 class PersistKVStorageTest : public ::testing::Test {
  protected:
     void SetUp() override {
-        storageCli_ = std::make_shared<MockKVStorageClient>();
+        storageCli_ = std::make_shared<MockStorageClient>();
     }
 
     void TearDown() override {}
@@ -119,7 +119,7 @@ class PersistKVStorageTest : public ::testing::Test {
     }
 
  protected:
-    std::shared_ptr<MockKVStorageClient> storageCli_;
+    std::shared_ptr<MockStorageClient> storageCli_;
 };
 
 TEST_F(PersistKVStorageTest, TestInit) {

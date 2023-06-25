@@ -35,7 +35,7 @@
 #include "src/common/concurrent/rw_lock.h"
 #include "test/snapshotcloneserver/mock_snapshot_server.h"
 
-using ::curve::kvstorage::KVStorageClient;
+using ::curve::kvstorage::StorageClient;
 using ::curve::common::RWLock;
 using ::curve::common::ReadLockGuard;
 using ::curve::common::WriteLockGuard;
@@ -60,7 +60,7 @@ class TestSnapshotCloneMetaStoreEtcd : public ::testing::Test {
     virtual ~TestSnapshotCloneMetaStoreEtcd() {}
 
     void SetUp() {
-        kvStorageClient_ = std::make_shared<MockKVStorageClient>();
+        kvStorageClient_ = std::make_shared<MockStorageClient>();
         codec_ = std::make_shared<SnapshotCloneCodec>();
         metaStore_ = std::make_shared<SnapshotCloneMetaStoreEtcd>(
             kvStorageClient_, codec_);
@@ -71,7 +71,7 @@ class TestSnapshotCloneMetaStoreEtcd : public ::testing::Test {
     }
 
  protected:
-    std::shared_ptr<MockKVStorageClient> kvStorageClient_;
+    std::shared_ptr<MockStorageClient> kvStorageClient_;
     std::shared_ptr<SnapshotCloneCodec> codec_;
     std::shared_ptr<SnapshotCloneMetaStoreEtcd> metaStore_;
 };

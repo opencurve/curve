@@ -318,12 +318,12 @@ message GetLCRulesResponse {
 
 class LCRuleStorage {
  public:
-   LCRuleStorage(std::shared_ptr<KVStorageClient> client = nullptr,
+   LCRuleStorage(std::shared_ptr<StorageClient> client = nullptr,
         std::string storeKey = CHUNKID_NAME_KEY_PREFIX) :
         client_(client),
         storeKey_(storeKey) {}
  private:
-    std::shared_ptr<KVStorageClient> client_;
+    std::shared_ptr<StorageClient> client_;
     std::string storeKey_;
 };
 

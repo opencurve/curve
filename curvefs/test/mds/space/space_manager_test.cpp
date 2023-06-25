@@ -33,7 +33,7 @@ namespace curvefs {
 namespace mds {
 namespace space {
 
-using ::curve::kvstorage::KVStorageClient;
+using ::curve::kvstorage::StorageClient;
 using ::curvefs::common::Volume;
 using ::curvefs::mds::FsInfo;
 using ::testing::_;

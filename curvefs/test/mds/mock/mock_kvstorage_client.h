@@ -37,10 +37,10 @@
 namespace curvefs {
 namespace mds {
 
-class MockKVStorageClient : public curve::kvstorage::KVStorageClient {
+class MockStorageClient : public curve::kvstorage::StorageClient {
  public:
-    MockKVStorageClient() = default;
-    ~MockKVStorageClient() = default;
+    MockStorageClient() = default;
+    ~MockStorageClient() = default;
 
     MOCK_METHOD2(Put, int(const std::string&, const std::string&));
     MOCK_METHOD2(Get, int(const std::string&, std::string*));
