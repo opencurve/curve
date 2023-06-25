@@ -1,7 +1,7 @@
 FROM debian:9
 
 ENV GITHUB_PROXY=https://ghproxy.com/
-ENV ETCD_VERSION=v3.4.0 \
+ENV ETCD_DOWNLOAD_VERSION=3.4.0 \
     DOWNLOAD_ETCD_URL=${GITHUB_PROXY}https://github.com/etcd-io/etcd/releases/download \
     GOPROXY=https://goproxy.io,direct \
     PROTOC_VERSION=21.8 \
@@ -78,11 +78,11 @@ RUN echo "deb http://mirrors.163.com/debian/ stretch main\n" \
     && ln -s /usr/share/cmake-3.13.4-Linux-x86_64/bin/cmake /usr/bin/cmake \
     && wget https://curve-build.nos-eastchina1.126.net/fuse3.tar.gz \
     && tar Cxzf /usr/include/ fuse3.tar.gz && rm fuse3.tar.gz \
-    && rm -f /usr/local/etcd-${ETCD_VERSION}-linux-amd64.tar.gz \
+    && rm -f /usr/local/etcd-v${ETCD_DOWNLOAD_VERSION}-linux-amd64.tar.gz \
     && rm -rf /usr/local/etcd && mkdir -p /usr/local/etcd \
-    && curl -L ${DOWNLOAD_ETCD_URL}/${ETCD_VERSION}/etcd-${ETCD_VERSION}-linux-amd64.tar.gz -o /usr/local/etcd-${ETCD_VERSION}-linux-amd64.tar.gz \
-    && tar xzvf /usr/local/etcd-${ETCD_VERSION}-linux-amd64.tar.gz -C /usr/local/etcd --strip-components=1 \
-    && rm -f /usr/local/etcd-${ETCD_VERSION}-linux-amd64.tar.gz \
+    && curl -L ${DOWNLOAD_ETCD_URL}/v${ETCD_DOWNLOAD_VERSION}/etcd-v${ETCD_DOWNLOAD_VERSION}-linux-amd64.tar.gz -o /usr/local/etcd-v${ETCD_DOWNLOAD_VERSION}-linux-amd64.tar.gz \
+    && tar xzvf /usr/local/etcd-v${ETCD_DOWNLOAD_VERSION}-linux-amd64.tar.gz -C /usr/local/etcd --strip-components=1 \
+    && rm -f /usr/local/etcd-v${ETCD_DOWNLOAD_VERSION}-linux-amd64.tar.gz \
     && ln -sf /usr/local/etcd/etcd /usr/bin/etcd && ln -sf /usr/local/etcd/etcdctl /usr/bin/etcdctl \
     && wget https://curve-build.nos-eastchina1.126.net/memcache/memcached-1.6.17.tar.gz \
     && tar xvf memcached-1.6.17.tar.gz && cd memcached-1.6.17/ \

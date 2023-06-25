@@ -54,15 +54,20 @@ class TestDLock : public ::testing::Test {
         if (0 > etcdPid) {
             ASSERT_TRUE(false);
         } else if (0 == etcdPid) {
-            std::string runEtcd =
-                std::string("etcd --listen-client-urls") +
-                std::string(" 'http://localhost:2375'") +
-                std::string(" --advertise-client-urls") +
-                std::string(" 'http://localhost:2375'") +
-                std::string(" --listen-peer-urls 'http://localhost:2374'") +
-                std::string(" --name testDLock");
+//            std::string runEtcd =
+//                std::string("etcd --listen-client-urls") +
+//                std::string(" 'http://localhost:2375'") +
+//                std::string(" --advertise-client-urls") +
+//                std::string(" 'http://localhost:2375'") +
+//                std::string(" --listen-peer-urls 'http://localhost:2374'") +
+//                std::string(" --name testDLock");
 
-            ASSERT_EQ(0, execl("/bin/sh", "sh", "-c", runEtcd.c_str(), NULL));
+//            ASSERT_EQ(0, execl("/bin/sh", "sh", "-c", runEtcd.c_str(), NULL));
+            ASSERT_EQ(
+                0, execlp("etcd", "etcd", "--listen-client-urls",
+                          "http://localhost:2375", "--advertise-client-urls",
+                          "http://localhost:2375", "--listen-peer-urls",
+                          "http://localhost:2374", "--name", "testDLock", NULL));
             exit(0);
         }
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 WORKSPACE="/var/lib/jenkins/workspace/curve/curve_multijob/"
-sudo mkdir /var/lib/jenkins/log/curve_unittest/$BUILD_NUMBER
+sudo mkdir -p /var/lib/jenkins/log/curve_unittest/$BUILD_NUMBER
 set -e
 
 echo "core_%e_%p_%t_%s" | sudo tee /proc/sys/kernel/core_pattern

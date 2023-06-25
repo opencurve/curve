@@ -35,22 +35,31 @@ class EtcdClientTest : public ::testing::Test {
         if (0 > etcdPid) {
             ASSERT_TRUE(false);
         } else if (0 == etcdPid) {
-            std::string runEtcd =
-                std::string("etcd --listen-client-urls") +
-                std::string(" http://127.0.0.1:2366") +
-                std::string(" --advertise-client-urls") +
-                std::string(" http://127.0.0.1:2366") +
-                std::string(" --listen-peer-urls http://127.0.0.1:2367") +
-                std::string(" --initial-advertise-peer-urls "
-                                                "http://127.0.0.1:2367") +
-                std::string(" --initial-cluster toolEtcdClientTest="
-                                                "http://127.0.0.1:2367") +
-                std::string(" --name toolEtcdClientTest");
+//            std::string runEtcd =
+//                std::string("etcd --listen-client-urls") +
+//                std::string(" http://127.0.0.1:2366") +
+//                std::string(" --advertise-client-urls") +
+//                std::string(" http://127.0.0.1:2366") +
+//                std::string(" --listen-peer-urls http://127.0.0.1:2367") +
+//                std::string(" --initial-advertise-peer-urls "
+//                                                "http://127.0.0.1:2367") +
+//                std::string(" --initial-cluster toolEtcdClientTest="
+//                                                "http://127.0.0.1:2367") +
+//                std::string(" --name toolEtcdClientTest");
             /**
              *  重要提示！！！！
              *  fork后，子进程尽量不要用LOG()打印，可能死锁！！！
              */
-            ASSERT_EQ(0, execl("/bin/sh", "sh", "-c", runEtcd.c_str(), NULL));
+//            ASSERT_EQ(0, execl("/bin/sh", "sh", "-c", runEtcd.c_str(), NULL));
+            ASSERT_EQ(0,
+                      execlp("etcd", "etcd", "--listen-client-urls",
+                             "http://127.0.0.1:2366", "--advertise-client-urls",
+                             "http://127.0.0.1:2366", "--listen-peer-urls",
+                             "http://127.0.0.1:2367",
+                             "--initial-advertise-peer-urls",
+                             "http://127.0.0.1:2367", "--initial-cluster",
+                             "toolEtcdClientTest=http://127.0.0.1:2367",
+                             "--name", "toolEtcdClientTest", nullptr));
             exit(0);
         }
         // 一定时间内尝试check直到etcd完全起来

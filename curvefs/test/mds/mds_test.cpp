@@ -71,17 +71,22 @@ class MdsTest : public ::testing::Test {
         ASSERT_GE(etcdPid_, 0);
 
         if (etcdPid_ == 0) {
-            std::string cmd =
-                std::string("etcd --listen-client-urls") +
-                std::string(" 'http://localhost:20032'") +
-                std::string(" --advertise-client-urls") +
-                std::string(" 'http://localhost:20032'") +
-                std::string(" --listen-peer-urls 'http://localhost:20033'") +
-                std::string(" --name curve_fs_test_mds");
+//            std::string cmd =
+//                std::string("etcd --listen-client-urls") +
+//                std::string(" 'http://localhost:20032'") +
+//                std::string(" --advertise-client-urls") +
+//                std::string(" 'http://localhost:20032'") +
+//                std::string(" --listen-peer-urls 'http://localhost:20033'") +
+//                std::string(" --name curve_fs_test_mds");
+//
+//            LOG(INFO) << "start etcd: " << cmd;
 
-            LOG(INFO) << "start etcd: " << cmd;
-
-            ASSERT_EQ(0, execl("/bin/sh", "sh", "-c", cmd.c_str(), nullptr));
+//            ASSERT_EQ(0, execl("/bin/sh", "sh", "-c", cmd.c_str(), nullptr));
+            ASSERT_EQ(0,
+                      execlp("etcd", "etcd", "--advertise-client-urls",
+                             "http://localhost:20032", "--listen-client-urls",
+                             "http://localhost:20032", "--name",
+                             "curve_fs_test_mds", nullptr));
             exit(0);
         }
 

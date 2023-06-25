@@ -62,18 +62,24 @@ class TestEtcdClinetImp : public ::testing::Test {
         if (0 > etcdPid) {
             ASSERT_TRUE(false);
         } else if (0 == etcdPid) {
-            std::string runEtcd =
-                std::string("etcd --listen-client-urls") +
-                std::string(" 'http://localhost:2377'") +
-                std::string(" --advertise-client-urls") +
-                std::string(" 'http://localhost:2377'") +
-                std::string(" --listen-peer-urls 'http://localhost:2376'") +
-                std::string(" --name testEtcdClinetImp");
+//            std::string runEtcd =
+//                std::string("etcd --listen-client-urls") +
+//                std::string(" 'http://localhost:2377'") +
+//                std::string(" --advertise-client-urls") +
+//                std::string(" 'http://localhost:2377'") +
+//                std::string(" --listen-peer-urls 'http://localhost:2376'") +
+//                std::string(" --name testEtcdClinetImp");
             /**
              *  重要提示！！！！
              *  fork后，子进程尽量不要用LOG()打印，可能死锁！！！
              */
-            ASSERT_EQ(0, execl("/bin/sh", "sh", "-c", runEtcd.c_str(), NULL));
+//            ASSERT_EQ(0, execl("/bin/sh", "sh", "-c", runEtcd.c_str(), NULL));
+            ASSERT_EQ(0,
+                      execlp("etcd", "etcd", "--listen-client-urls",
+                             "http://localhost:2377", "--advertise-client-urls",
+                             "http://localhost:2377", "--listen-peer-urls",
+                             "http://localhost:2376", "--name",
+                             "testEtcdClinetImp", nullptr));
             exit(0);
         }
 
