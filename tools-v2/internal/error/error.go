@@ -30,6 +30,7 @@ import (
 	"github.com/opencurve/curve/tools-v2/proto/curvefs/proto/topology"
 	"github.com/opencurve/curve/tools-v2/proto/proto/copyset"
 	"github.com/opencurve/curve/tools-v2/proto/proto/nameserver2"
+	bs_schedule_statuscode "github.com/opencurve/curve/tools-v2/proto/proto/schedule/statuscode"
 	"github.com/opencurve/curve/tools-v2/proto/proto/topology/statuscode"
 	bs_topo_statuscode "github.com/opencurve/curve/tools-v2/proto/proto/topology/statuscode"
 )
@@ -741,7 +742,7 @@ var (
 		code := int(statusCode)
 		switch statusCode {
 		case bs_topo_statuscode.TopoStatusCode_Success:
-			message = "list zones successfully"
+			message = "delete zones successfully"
 		default:
 			message = fmt.Sprintf("delete %s[%s], err: %s", topoType, name, statusCode.String())
 		}
@@ -753,7 +754,7 @@ var (
 		code := int(statusCode)
 		switch statusCode {
 		case bs_topo_statuscode.TopoStatusCode_Success:
-			message = "list physicalpools successfully"
+			message = "delete physicalpools successfully"
 		default:
 			message = fmt.Sprintf("delete %s[%s], err: %s", topoType, name, statusCode.String())
 		}
@@ -847,6 +848,21 @@ var (
 			message = "success"
 		default:
 			message = fmt.Sprintf("Rpc[QueryChunkserverRecoverStatus] fail, err: %s", statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
+	ErrBsRapidLeaderSchedule = func(statusCode bs_schedule_statuscode.ScheduleStatusCode) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case bs_schedule_statuscode.ScheduleStatusCode_ScheduleSuccess:
+			message = "null"
+		case bs_schedule_statuscode.ScheduleStatusCode_InvalidLogicalPool:
+			message = "invalid logical pool id"
+		case bs_schedule_statuscode.ScheduleStatusCode_InvalidQueryChunkserverID:
+			message = "invalid query chunkserver id"
+		default:
+			message = "unknown error"
 		}
 		return NewRpcReultCmdError(code, message)
 	}

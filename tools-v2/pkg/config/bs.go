@@ -125,6 +125,9 @@ const (
 	CURVEBS_FIlTER                    = "filter"
 	VIPER_CURVEBS_FILTER              = "curvebs.filter"
 	CURVEBS_DEFAULT_FILTER            = false
+	CURVEBS_ALL                       = "all"
+	VIPER_CURVEBS_ALL                 = "curvebs.all"
+	CURVEBS_DEFAULT_ALL               = false
 )
 
 var (
@@ -171,6 +174,7 @@ var (
 		CURVEBS_CHUNK_ID:            VIPER_CURVEBS_CHUNK_ID,
 		CURVEBS_CHUNKSERVER_ADDRESS: VIPER_CURVEBS_CHUNKSERVER_ADDRESS,
 		CURVEBS_FIlTER:              VIPER_CURVEBS_FILTER,
+		CURVEBS_ALL:                 VIPER_CURVEBS_ALL,
 	}
 
 	BSFLAG2DEFAULT = map[string]interface{}{
@@ -191,6 +195,7 @@ var (
 		CURVEBS_CHUNKSERVER_ID: CURVEBS_DEFAULT_CHUNKSERVER_ID,
 		CURVEBS_DRYRUN:         CURVEBS_DEFAULT_DRYRUN,
 		CURVEBS_FIlTER:         CURVEBS_DEFAULT_FILTER,
+		CURVEBS_ALL:            CURVEBS_DEFAULT_ALL,
 	}
 )
 
@@ -298,6 +303,18 @@ func AddBsDurationOptionFlag(cmd *cobra.Command, name string, usage string) {
 		defaultValue = 0
 	}
 	cmd.Flags().Duration(name, defaultValue.(time.Duration), usage)
+	err := viper.BindPFlag(BSFLAG2VIPER[name], cmd.Flags().Lookup(name))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
+func AddBsUint32OptionFlag(cmd *cobra.Command, name string, usage string) {
+	defaultValue := BSFLAG2DEFAULT[name]
+	if defaultValue == nil {
+		defaultValue = uint32(0)
+	}
+	cmd.Flags().Uint32(name, defaultValue.(uint32), usage)
 	err := viper.BindPFlag(BSFLAG2VIPER[name], cmd.Flags().Lookup(name))
 	if err != nil {
 		cobra.CheckErr(err)
@@ -462,6 +479,15 @@ func AddBsScanOptionFlag(cmd *cobra.Command) {
 	AddBsBoolOptionFlag(cmd, CURVEBS_SCAN, "enable/disable scan for logical pool")
 }
 
+// leader-schedule
+func AddBsLogicalPoolIdOptionFlag(cmd *cobra.Command) {
+	AddBsUint32OptionFlag(cmd, CURVEBS_LOGIC_POOL_ID, "logical pool id")
+}
+
+func AddBsAllOptionFlag(cmd *cobra.Command) {
+	AddBsBoolOptionFlag(cmd, CURVEBS_ALL, "all")
+}
+
 // add flag required
 // add path[required]
 func AddBsPathRequiredFlag(cmd *cobra.Command) {
@@ -605,6 +631,11 @@ func GetBsFlagInt64(cmd *cobra.Command, flagName string) int64 {
 		value = viper.GetInt64(BSFLAG2VIPER[flagName])
 	}
 	return value
+}
+
+// determine whether the flag is changed
+func GetBsFlagChanged(cmd *cobra.Command, flagName string) bool {
+	return cmd.Flag(flagName).Changed
 }
 
 // get mdsaddr

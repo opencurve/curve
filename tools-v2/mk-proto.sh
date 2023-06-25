@@ -3,6 +3,8 @@ mkdir -p proto
 # proto
 protoc --go_out=proto --proto_path=internal/proto \
     internal/proto/curvebs/topology/statuscode.proto
+protoc --go_out=proto --proto_path=internal/proto \
+    internal/proto/curvebs/schedule/statuscode.proto
 ## curvebs
 ### proto/chunk.proto
 protoc --go_out=proto --proto_path=.. \
