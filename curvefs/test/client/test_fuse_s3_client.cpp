@@ -21,8 +21,6 @@
  */
 
 
-#include <gmock/gmock-generated-actions.h>
-#include <gmock/gmock-more-actions.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -75,6 +73,7 @@ namespace client {
 using ::curve::common::Configuration;
 using ::curvefs::mds::topology::PartitionTxId;
 using ::testing::_;
+using ::testing::DoAll;
 using ::testing::AtLeast;
 using ::testing::Contains;
 using ::testing::Invoke;

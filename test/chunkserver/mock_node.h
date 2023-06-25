@@ -24,8 +24,6 @@
 #define TEST_CHUNKSERVER_MOCK_NODE_H_
 
 #include <gmock/gmock.h>
-#include <gmock/gmock-generated-function-mockers.h>
-#include <gmock/internal/gmock-generated-internal-utils.h>
 #include <braft/raft.h>
 
 #include <string>

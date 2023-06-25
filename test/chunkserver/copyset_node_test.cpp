@@ -23,8 +23,6 @@
 #include <gtest/gtest.h>
 #include <unistd.h>
 #include <brpc/server.h>
-#include <gmock/gmock-more-actions.h>
-#include <gmock/gmock-generated-function-mockers.h>
 
 #include <memory>
 #include <cstdio>

@@ -66,6 +66,8 @@ namespace curve {
 namespace mds {
 namespace chunkserverclient {
 
+using ::testing::DoAll;
+
 class TestCopysetClient : public ::testing::Test {
  protected:
     TestCopysetClient() {}
@@ -404,7 +406,3 @@ TEST_F(TestCopysetClient, TestDeleteChunkRedirectFail) {
 }  // namespace chunkserverclient
 }  // namespace mds
 }  // namespace curve
-
-
-
-

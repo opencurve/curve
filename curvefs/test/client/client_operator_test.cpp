@@ -34,6 +34,7 @@ namespace curvefs {
 namespace client {
 
 using ::testing::SetArgPointee;
+using ::testing::DoAll;
 using rpcclient::MockMetaServerClient;
 using rpcclient::MockMdsClient;
 

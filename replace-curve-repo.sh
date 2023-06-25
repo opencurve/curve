@@ -14,9 +14,6 @@ sed -i "s;https://zlib.net/zlib-1.2.11.tar.gz;https://curve-build.nos-eastchina1
 # protobuf
 sed -i "s;https://github.com/google/protobuf/archive/v3.6.1.3.zip;https://curve-build.nos-eastchina1.126.net/protobuf-3.6.1.3.zip;g" WORKSPACE
 
-# googletest
-sed -i "s;https://github.com/google/googletest;https://gitee.com/mirrors/googletest;g" WORKSPACE
-
 # gflags
 sed -i "s;https://github.com/gflags/gflags/archive/v2.2.2.tar.gz;https://curve-build.nos-eastchina1.126.net/gflags-2.2.2.tar.gz;g" WORKSPACE
 
