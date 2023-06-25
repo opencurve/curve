@@ -73,6 +73,7 @@ A tool for CurveFS & CurveBs.
       - [update throttle](#update-throttle)
       - [update scan-state](#update-scan-state)
       - [update copyset availflag](#update-copyset-availflag)
+      - [update leader-schedule](#update-leader-schedule)
     - [create](#create-1)
       - [create file](#create-file)
       - [create dir](#create-dir)
@@ -1573,6 +1574,25 @@ Output:
 +--------+-----------+---------------+--------+
 ```
 
+#### update leader-schedule
+
+"rapidly transfer leader
+
+Usage:
+```bash
+curve bs update leader-schedule --logicalpoolid 1
+curve bs update leader-schedule --all
+```
+
+Output:
+```
++---------+--------+
+| RESULT  | REASON |
++---------+--------+
+| success | null   |
++---------+--------+
+```
+
 ### create
 
 #### create file
@@ -1854,14 +1874,19 @@ Output:
 | curve_ops_tool clean-recycle         | curve bs clean-recycle            |
 | curve_ops_tool copysets-status       | curve bs status copyset           |
 | curve_ops_tool list-may-broken-vol   | curve bs list may-broken-vol      |
+| curve_ops_tool rapid-leader-schedule | curve bs update leader-schedule   |                                  |
 | curve_ops_tool status                |                                   |
 | curve_ops_tool check-consistency     |                                   |
 | curve_ops_tool do-snapshot-all       |                                   |
 | curve_ops_tool check-chunkserver     |                                   |
 | curve_ops_tool check-server          |                                   |
+<<<<<<< HEAD
 | curve_ops_tool rapid-leader-schedule |                                   |
 <<<<<<< HEAD
 | curve_ops_tool scan-status           |                                   |
 >>>>>>> 26a51f0d... [feat]tools-v2: add update copyset availflag
 =======
 >>>>>>> 4762448b... [curve/toos-v2]: add bs scan-status
+=======
+
+>>>>>>> cb8d72f6... [feat] tools-v2: add update leader-schedule

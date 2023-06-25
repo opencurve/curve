@@ -1,6 +1,13 @@
 # proto
+<<<<<<< HEAD
 protoc --go_out=proto --proto_path=proto \
     proto/topology/statuscode.proto
+=======
+protoc --go_out=proto --proto_path=internal/proto \
+    internal/proto/curvebs/topology/statuscode.proto
+protoc --go_out=proto --proto_path=internal/proto \
+    internal/proto/curvebs/schedule/statuscode.proto
+>>>>>>> cb8d72f6... [feat] tools-v2: add update leader-schedule
 ## curvebs
 ### proto/chunk.proto
 protoc --go_out=proto --proto_path=.. \
