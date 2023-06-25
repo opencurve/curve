@@ -23,7 +23,6 @@
 #ifndef CURVEFS_TEST_METASERVER_MOCK_MOCK_KV_STORAGE_H_
 #define CURVEFS_TEST_METASERVER_MOCK_MOCK_KV_STORAGE_H_
 
-#include <gmock/gmock-generated-function-mockers.h>
 #include <gmock/gmock.h>
 
 #include <memory>

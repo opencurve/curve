@@ -20,8 +20,6 @@
  * @Author: chenwei
  */
 
-#include <gmock/gmock-generated-matchers.h>
-#include <gmock/gmock-spec-builders.h>
 #include <gmock/gmock.h>
 #include <google/protobuf/util/message_differencer.h>
 #include <gtest/gtest.h>

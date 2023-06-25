@@ -46,6 +46,7 @@ using ::testing::Return;
 using ::testing::_;
 using ::testing::SetArgPointee;
 using ::testing::Invoke;
+using ::testing::DoAll;
 
 namespace curve {
 namespace mds {
@@ -351,4 +352,3 @@ TEST_F(TestSnapshotCloneClient, TestGetCloneRefStatusSuccessNeedCheck) {
 }  // namespace snapshotcloneclient
 }  // namespace mds
 }  // namespace curve
-

@@ -37,6 +37,7 @@ using ::testing::_;
 using ::testing::Contains;
 using ::testing::SetArgPointee;
 using ::testing::SaveArg;
+using ::testing::DoAll;
 using ::curve::common::Configuration;
 using ::curve::common::kDefaultPoolsetId;
 using ::curve::common::kDefaultPoolsetName;

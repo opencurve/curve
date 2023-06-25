@@ -56,6 +56,7 @@ namespace client {
 using ::curve::common::Configuration;
 using ::curvefs::mds::topology::PartitionTxId;
 using ::testing::_;
+using ::testing::DoAll;
 using ::testing::Contains;
 using ::testing::Invoke;
 using ::testing::Return;

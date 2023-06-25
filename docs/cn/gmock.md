@@ -23,23 +23,24 @@
 
 1. 从Turtle派生一个类MockTurtle。
 2. 使用Turtle的虚函数，计算它有多少参数。
-3. 在子类的public：部分，写MOCK_METHODn（）; （或MOCK_CONST_METHODn（）;如果你是一个const方法），其中n是参数的数量;如果你计数错误，产生一个一个编译器错误。
-4. 使用函数名作为宏的第一个参数，第二个参数是函数的类型。
+3. 在子类的public：部分，使用 `MOCK_METHOD` 创建 mock 函数
 
 例：
+```cpp
+#include "gmock/gmock.h"  // Brings in Google Mock.
 
-    #include "gmock/gmock.h"  // Brings in Google Mock.
-    class MockTurtle : public Turtle {
-     public:
-      ...
-      MOCK_METHOD0(PenUp, void());
-      MOCK_METHOD0(PenDown, void());
-      MOCK_METHOD1(Forward, void(int distance));
-      MOCK_METHOD1(Turn, void(int degrees));
-      MOCK_METHOD2(GoTo, void(int x, int y));
-      MOCK_CONST_METHOD0(GetX, int());
-      MOCK_CONST_METHOD0(GetY, int());
-    };
+class MockTurtle : public Turtle {
+ public:
+    // ...
+   MOCK_METHOD(void, PenUp, (), (override));
+   MOCK_METHOD(void, PenDown, (), (override));
+   MOCK_METHOD(void, Forward, (int), (override));
+   MOCK_METHOD(void, Turn, (int), (override));
+   MOCK_METHOD(void, GoTo, (int, int), (override));
+   MOCK_METHOD(int, GetX, (), (const, override));
+   MOCK_METHOD(int, GetY, (), (const, override));
+};
+```
 
 ### 在测试中使用mock类
 
