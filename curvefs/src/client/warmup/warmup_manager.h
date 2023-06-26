@@ -413,8 +413,9 @@ class WarmupManagerS3Impl : public WarmupManager {
 
     void AddFetchS3objectsTask(fuse_ino_t key, std::function<void()> task);
 
-    void PutObjectToCache(fuse_ino_t key, const std::string &filename,
-                          const char *data, uint64_t len);
+    void
+    PutObjectToCache(fuse_ino_t key,
+                     const std::shared_ptr<GetObjectAsyncContext> &context);
 
  protected:
     std::deque<WarmupFilelist> warmupFilelistDeque_;
