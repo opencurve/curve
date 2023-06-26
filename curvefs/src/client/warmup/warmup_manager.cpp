@@ -472,7 +472,7 @@ void WarmupManagerS3Impl::WarmUpAllObjs(
             }
             if (context->retCode == 0) {
                 VLOG(9) << "Get Object success: " << context->key;
-                PutObjectToCache(key, context->key, context->buf, context->len);
+                PutObjectToCache(key, context);
                 CollectMetrics(&warmupS3Metric_.warmupS3Cached, context->len,
                                start);
                 warmupS3Metric_.warmupS3CacheSize << context->len;
@@ -480,7 +480,6 @@ void WarmupManagerS3Impl::WarmUpAllObjs(
                     VLOG(6) << "pendingReq is over";
                     cond.Signal();
                 }
-                delete[] context->buf;
                 return;
             }
             warmupS3Metric_.warmupS3Cached.eps.count << 1;
@@ -677,9 +676,8 @@ void WarmupManagerS3Impl::AddFetchS3objectsTask(fuse_ino_t key,
     }
 }
 
-void WarmupManagerS3Impl::PutObjectToCache(fuse_ino_t key,
-                                           const std::string &filename,
-                                           const char *data, uint64_t len) {
+void WarmupManagerS3Impl::PutObjectToCache(
+    fuse_ino_t key, const std::shared_ptr<GetObjectAsyncContext> &context) {
     ReadLockGuard lock(inode2ProgressMutex_);
     auto iter = FindWarmupProgressByKeyLocked(key);
     if (iter == inode2Progress_.end()) {
@@ -691,17 +689,21 @@ void WarmupManagerS3Impl::PutObjectToCache(fuse_ino_t key,
     iter->second.FinishedPlusOne();
     switch (iter->second.GetStorageType()) {
     case curvefs::client::common::WarmupStorageType::kWarmupStorageTypeDisk:
-        ret = s3Adaptor_->GetDiskCacheManager()->WriteReadDirect(filename, data,
-                                                                 len);
+        ret = s3Adaptor_->GetDiskCacheManager()->WriteReadDirect(
+            context->key, context->buf, context->len);
         if (ret < 0) {
             LOG_EVERY_SECOND(INFO)
-                << "write read directly failed, key: " << filename;
+                << "write read directly failed, key: " << context->key;
         }
+        delete[] context->buf;
         break;
     case curvefs::client::common::WarmupStorageType::kWarmupStorageTypeKvClient:
         if (kvClientManager_ != nullptr) {
-            kvClientManager_->Set(
-                std::make_shared<SetKVCacheTask>(filename, data, len));
+            kvClientManager_->Set(std::make_shared<SetKVCacheTask>(
+                context->key, context->buf, context->len,
+                [context](const std::shared_ptr<SetKVCacheTask> &) {
+                    delete[] context->buf;
+                }));
         }
         break;
     default:
