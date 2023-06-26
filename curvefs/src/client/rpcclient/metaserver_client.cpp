@@ -227,7 +227,7 @@ MetaStatusCode MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
                                          response.appliedindex());
 
             auto dentrys = response.dentrys();
-            for_each(dentrys.begin(), dentrys.end(),
+            std::for_each(dentrys.begin(), dentrys.end(),
                      [&](Dentry &d) { dentryList->push_back(d); });
         } else {
             LOG(WARNING) << "ListDentry: fsId = " << fsId

@@ -19,6 +19,10 @@ workspace(name = "curve")
 load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository", "new_git_repository")
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
+load("//thirdparties/brpc:brpc_workspace.bzl", "brpc_workspace")
+
+brpc_workspace();
+
 # skylib
 http_archive(
     name = "bazel_skylib",
@@ -74,7 +78,7 @@ bind(
     actual = "@com_google_protobuf//:protobuf",
 )
 
-#import the  gtest files.
+# import the  gtest files.
 new_git_repository(
     name = "com_google_googletest",
     build_file = "//:thirdparties/gmock.BUILD",
@@ -87,8 +91,17 @@ bind(
     actual = "@com_google_googletest//:gtest",
 )
 
-#Import the glog files.
-# brpc内BUILD文件在依赖glog时, 直接指定的依赖是"@com_github_google_glog//:glog"
+
+# glog depends on gflags-2.2.2
+http_archive(
+    name = "com_github_gflags_gflags",
+    strip_prefix = "gflags-2.2.2",
+    urls = [
+        "https://mirror.bazel.build/github.com/gflags/gflags/archive/v2.2.2.tar.gz",
+        "https://github.com/gflags/gflags/archive/v2.2.2.tar.gz",
+    ],
+)
+
 git_repository(
     name = "com_github_google_glog",
     remote = "https://github.com/google/glog",
@@ -100,13 +113,6 @@ git_repository(
 bind(
     name = "glog",
     actual = "@com_github_google_glog//:glog"
-)
-
-# glog depends on gflags-2.2.2
-http_archive(
-    name = "com_github_gflags_gflags",
-    strip_prefix = "gflags-2.2.2",
-    urls = ["https://github.com/gflags/gflags/archive/v2.2.2.tar.gz"],
 )
 
 bind(
@@ -126,13 +132,6 @@ bind(
     actual = "@com_github_google_leveldb//:leveldb",
 )
 
-git_repository(
-    name = "com_github_brpc_brpc",
-    remote = "https://github.com/apache/incubator-brpc",
-    commit = "1b9e00641cbec1c8803da6a1f7f555398c954cb0",
-    patches = ["//:thirdparties/brpc/brpc.patch"],
-    patch_args = ["-p1"],
-)
 
 bind(
     name = "brpc",
