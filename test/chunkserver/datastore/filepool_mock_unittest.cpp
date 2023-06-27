@@ -43,6 +43,7 @@ using ::testing::Mock;
 using ::testing::Truly;
 using ::testing::DoAll;
 using ::testing::ReturnArg;
+using ::testing::Invoke;
 using ::testing::ElementsAre;
 using ::testing::SetArgPointee;
 using ::testing::SetArrayArgument;
@@ -101,16 +102,20 @@ class CSChunkfilePoolMockTest : public testing::Test {
     }
 
     void FakeMetaFile() {
-        char buf[metaFileSize] = {0};
-        Json::Value root = GenerateMetaJson();
-        memcpy(buf, root.toStyledString().c_str(),
-               root.toStyledString().size());
-
         EXPECT_CALL(*lfs_, Open(poolMetaPath, _))
             .WillOnce(Return(100));
         EXPECT_CALL(*lfs_, Read(100, NotNull(), 0, metaFileSize))
-            .WillOnce(DoAll(SetArrayArgument<1>(buf, buf + metaFileSize),
-                            Return(metaFileSize)));
+            .WillOnce(Invoke(
+                [this](int /*fd*/, char* buf, uint64_t offset, int length) {
+                    EXPECT_EQ(offset, 0);
+                    EXPECT_EQ(length, metaFileSize);
+
+                    Json::Value root = GenerateMetaJson();
+                    auto json = root.toStyledString();
+                    strncpy(buf, json.c_str(), json.size() + 1);
+                    return metaFileSize;
+                }));
+
         EXPECT_CALL(*lfs_, Close(100))
             .Times(1);
     }
