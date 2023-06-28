@@ -40,6 +40,7 @@ using ::testing::SetArgPointee;
 
 const char* kWrongFileName = "xxxxx";
 const char* kValidFileName = "/filename_user_";
+int kVlidFileFd = 123;
 
 constexpr uint64_t kTiB = 1ull * 1024 * 1024 * 1024 * 1024;
 
@@ -90,12 +91,21 @@ TEST_F(CurveClientTest, TestOpen) {
                   client_.Open(kWrongFileName, {}));
     }
 
-    // open success
+    // open success without confPath
     {
         EXPECT_CALL(*mockFileClient_, Open(_, _, _))
             .WillOnce(Return(1));
 
         ASSERT_EQ(1, client_.Open(kValidFileName, {}));
+    }
+
+    // open success with confPath
+    {
+        OpenFlags openflags;
+        openflags.confPath = "/etc/curve/client.conf";
+        EXPECT_CALL(*mockFileClient_, Open(_, _, _))
+            .WillOnce(Return(1));
+        ASSERT_EQ(1, client_.Open(kValidFileName, openflags));
     }
 }
 
@@ -126,24 +136,16 @@ TEST_F(CurveClientTest, TestExtend) {
 }
 
 TEST_F(CurveClientTest, TestStatFile) {
-    // parse filename and user info failed
-    {
-        EXPECT_CALL(*mockFileClient_, StatFile(_, _, _))
-            .Times(0);
-
-        ASSERT_EQ(-LIBCURVE_ERROR::FAILED, client_.StatFile(kWrongFileName));
-    }
-
     // statfile return failed
     {
         FileStatInfo info;
         info.length = 1 * kTiB;
 
-        EXPECT_CALL(*mockFileClient_, StatFile(_, _, _))
+        EXPECT_CALL(*mockFileClient_, StatFile(_, _))
             .WillOnce(
-                DoAll(SetArgPointee<2>(info), Return(-LIBCURVE_ERROR::FAILED)));
+                DoAll(SetArgPointee<1>(info), Return(-LIBCURVE_ERROR::FAILED)));
 
-        ASSERT_EQ(-LIBCURVE_ERROR::FAILED, client_.StatFile(kValidFileName));
+        ASSERT_EQ(-LIBCURVE_ERROR::FAILED, client_.StatFile(kVlidFileFd));
     }
 
     // statfile success
@@ -151,10 +153,12 @@ TEST_F(CurveClientTest, TestStatFile) {
         FileStatInfo info;
         info.length = 1 * kTiB;
         EXPECT_CALL(*mockFileClient_, StatFile(_, _, _))
+            .Times(0);
+        EXPECT_CALL(*mockFileClient_, StatFile(_, _))
             .WillOnce(
-                DoAll(SetArgPointee<2>(info), Return(LIBCURVE_ERROR::OK)));
+                DoAll(SetArgPointee<1>(info), Return(LIBCURVE_ERROR::OK)));
 
-        ASSERT_EQ(1 * kTiB, client_.StatFile(kValidFileName));
+        ASSERT_EQ(1 * kTiB, client_.StatFile(kVlidFileFd));
     }
 }
 

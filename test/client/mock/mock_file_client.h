@@ -47,6 +47,7 @@ class MockFileClient : public FileClient {
     MOCK_METHOD4(Write, int(int, const char*, off_t, size_t));
     MOCK_METHOD3(AioRead, int(int, CurveAioContext*, UserDataType));
     MOCK_METHOD3(AioWrite, int(int, CurveAioContext*, UserDataType));
+    MOCK_METHOD2(StatFile, int(int fd, FileStatInfo *finfo));
     MOCK_METHOD3(StatFile, int(const std::string&,
                                const UserInfo_t&,
                                FileStatInfo*));
