@@ -26,12 +26,13 @@
 #include <string>
 #include <memory>
 #include "src/kvstorageclient/etcd_client.h"
+#include "include/etcdclient/storageclient.h"
 #include "src/common/concurrent/concurrent.h"
 
 namespace curve {
 namespace idgenerator {
 
-using curve::kvstorage::StorageClient;
+//using curve::kvstorage::StorageClient;
 
 class EtcdIdGenerator {
  public:

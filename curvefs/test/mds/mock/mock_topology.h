@@ -51,7 +51,7 @@ using ::testing::Return;
 using ::testing::_;
 
 using ::curve::kvstorage::EtcdClientImp;
-using ::curve::kvstorage::StorageClient;
+//using ::curve::kvstorage::StorageClient;
 
 namespace curve {
 namespace kvstorage {

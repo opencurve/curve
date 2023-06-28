@@ -26,5 +26,6 @@ cc_library(
         "//external:glog",
         "//src/common:curve_common",
         "//src/kvstorageclient:kvstorage_client",
+        "//include/etcdclient:etcd_client",
     ],
 )

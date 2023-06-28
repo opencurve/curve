@@ -18,7 +18,7 @@ load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
 
 cc_library(
     name = "etcd_client",
-    srcs = ["etcdclient.h"],
+    srcs = ["etcdclient.h", "storageclient.h"],
     copts = CURVE_DEFAULT_COPTS,
     linkopts = [
         "-letcdclient",

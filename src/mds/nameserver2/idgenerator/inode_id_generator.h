@@ -39,7 +39,7 @@ namespace mds {
 const uint64_t INODEBUNDLEALLOCATED = 1000;
 
 using curve::idgenerator::EtcdIdGenerator;
-using curve::kvstorage::StorageClient;
+//using curve::kvstorage::StorageClient;
 
 class InodeIDGenerator {
  public:

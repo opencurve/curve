@@ -30,6 +30,7 @@
 
 #include "src/mds/topology/topology_storge.h"
 #include "src/kvstorageclient/etcd_client.h"
+#include "include/etcdclient/storageclient.h"
 #include "src/mds/topology/topology_storage_codec.h"
 
 namespace curve {
@@ -37,7 +38,7 @@ namespace mds {
 namespace topology {
 
 using ::curve::kvstorage::EtcdClientImp;
-using ::curve::kvstorage::StorageClient;
+////using ::curve::kvstorage::StorageClient;
 
 
 

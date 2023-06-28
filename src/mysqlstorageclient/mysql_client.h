@@ -6,7 +6,7 @@
 #include <utility>
 #include <mysql_connection.h>
 #include <mysql_driver.h>
-#include "src/kvstorageclient/etcd_client.h"
+#include "include/etcdclient/storageclient.h"
 #include <cppconn/driver.h>
 #include <cppconn/exception.h>
 #include <cppconn/prepared_statement.h>
@@ -15,7 +15,7 @@
 
 namespace curve {
 namespace mysqlstorage {
-using curve::kvstorage::StorageClient;
+//using curve::kvstorage::StorageClient;
 
 enum class MySQLError {
     MysqlOK= 0,
@@ -27,7 +27,7 @@ enum class MySQLError {
 
 class MysqlConf {
  public:
-    MysqlConf(std::string host = "tcp://59.110.14.62:3306",
+    MysqlConf(std::string host = "tcp://60.205.6.120:3306",
               std::string user = "curve", std::string passwd = "021013Jbk.",
               std::string db = "curve")
         : host_(host), user_(user), passwd_(passwd), db_(db) {}
@@ -75,13 +75,21 @@ public:
     int CompareAndSwap(const std::string &key, const std::string &preV,
         const std::string &target) ;
 
-    int GetCurrentRevision(int64_t *revision);
+    virtual int GetCurrentRevision(int64_t *revision);
 
-    int ListWithLimitAndRevision(const std::string &startKey,
+    virtual int ListWithLimitAndRevision(const std::string &startKey,
         const std::string &endKey, int64_t limit, int64_t revision,
         std::vector<std::string> *values, std::string *lastKey);
     
     int TxnN(const std::vector<Operation> &ops);
+
+    virtual int CampaignLeader( const std::string &pfx, const std::string &leaderName,
+        uint32_t sessionInterSec, uint32_t electionTimeoutMs,
+        uint64_t *leaderOid);
+    
+    virtual int LeaderObserve(uint64_t leaderOid, const std::string &leaderName);
+
+    virtual int LeaderResign(uint64_t leaderOid, uint64_t timeoutMs);
 
     sql::Connection *conn_;
     sql::Statement *stmt_;

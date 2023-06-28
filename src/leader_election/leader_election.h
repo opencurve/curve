@@ -34,12 +34,14 @@
 namespace curve {
 namespace election {
 
+////using ::curve::kvstorage::StorageClient;
 using ::curve::kvstorage::EtcdClientImp;
+using ::curve::mysqlstorage::MysqlClientImp;
 using ::curve::common::LEADERCAMPAIGNNPFX;
 
 struct LeaderElectionOptions {
     // etcd客户端
-    std::shared_ptr<EtcdClientImp> etcdCli;
+    std::shared_ptr<StorageClient> etcdCli;
 
     // 带ttl的session，ttl超时时间内
     uint32_t sessionInterSec;

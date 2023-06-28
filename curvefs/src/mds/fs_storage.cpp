@@ -34,7 +34,7 @@ namespace curvefs {
 namespace mds {
 
 using ::curve::idgenerator::EtcdIdGenerator;
-using ::curve::kvstorage::StorageClient;
+//using ::curve::kvstorage::StorageClient;
 
 bool MemoryFsStorage::Init() {
     WriteLockGuard writeLockGuard(rwLock_);

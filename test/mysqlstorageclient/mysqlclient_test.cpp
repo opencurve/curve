@@ -36,6 +36,8 @@ class TestMysqlClinetImp : public ::testing::Test {
         ASSERT_EQ(0, client_->Init(conf, 1000, 3));
         ASSERT_EQ(0, client_->DropTable("curvebs_kv"));
         ASSERT_EQ(0, client_->CreateTable("curvebs_kv"));
+
+        LOG(INFO) << "SetUp";   
        
     }
     void TearDown() override {

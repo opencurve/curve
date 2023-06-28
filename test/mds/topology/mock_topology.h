@@ -370,7 +370,7 @@ class MockCopysetServiceImpl : public CopysetService {
 }  // namespace curve
 
 using ::curve::kvstorage::EtcdClientImp;
-using ::curve::kvstorage::StorageClient;
+//using ::curve::kvstorage::StorageClient;
 
 namespace curve {
 namespace kvstorage {

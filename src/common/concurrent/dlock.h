@@ -26,6 +26,7 @@
 #include <string>
 #include <memory>
 #include "src/kvstorageclient/etcd_client.h"
+#include "include/etcdclient/storageclient.h"
 #include "src/common/uncopyable.h"
 
 
@@ -33,7 +34,7 @@ namespace curve {
 namespace common {
 
 using curve::common::Uncopyable;
-using curve::kvstorage::StorageClient;
+//using curve::kvstorage::StorageClient;
 
 struct DLockOpts {
     std::string pfx;

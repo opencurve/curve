@@ -30,6 +30,18 @@ int MysqlClientImp::CreateTable(const std::string &tableName) {
                "revision BIGINT NOT NULL"
                ")";
         stmt_->execute(sql);
+        LOG(INFO) << "MysqlClientImp CreateTable success: " << tableName;
+        sql = "CREATE TABLE IF NOT EXISTS leader_election ("
+	"elect_key varchar(255) NOT NULL ,"
+	"version bigint NOT NULL DEFAULT 0 ,"
+	"tick_time datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP ,"
+	"leader_id bigint NOT NULL DEFAULT 0 ,"
+	"create_time datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ,"
+	"update_time datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP ,"
+	"PRIMARY KEY (elect_key),"
+	"KEY idx_version (version)"
+")";
+        stmt_->execute(sql);
     } catch (sql::SQLException &e) {
         LOG(ERROR) << "MysqlClientImp CreateTable failed, error: " << e.what();
         return -1;
@@ -399,6 +411,60 @@ int MysqlClientImp::TxnN(const std::vector<Operation> &ops) {
     return 0;
 }
 
+int MysqlClientImp::CampaignLeader( const std::string &pfx, const std::string &leaderName,
+    uint32_t sessionInterSec, uint32_t electionTimeoutMs,
+    uint64_t *leaderOid) {
+    try {
+        std::string sql = "insert into leader_election(elect_key, leader_id, create_time, update_time) values(?,?,now(),now());";
+        sql::PreparedStatement *pstmt = conn_->prepareStatement(sql);
+        pstmt->setString(1, pfx);
+        pstmt->setString(2, leaderName);
+        pstmt->executeUpdate();
+        delete pstmt;
+        sql = "select last_insert_id() as leader_id;";
+        sql::ResultSet *res = stmt_->executeQuery(sql);
+        if (res->next()) {
+            *leaderOid = res->getInt64("leader_id");
+        }else{
+            LOG(ERROR)<<"no leader_id";
+            *leaderOid = 0;
+        }
+        delete res;
+    } catch (sql::SQLException &e) {
+        LOG(ERROR) << "MysqlClientImp CampaignLeader failed, error: " << e.what();
+        return -1;
+    }
+    return 0;
+}
+
+int MysqlClientImp::LeaderObserve(uint64_t leaderOid, const std::string &leaderName){
+    try {
+        std::string sql = "select leader_id from leader_election where leader_id=" + std::to_string(leaderOid) + " and leader_id=(select max(leader_id) from leader_election where elect_key='" + leaderName + "');";
+        sql::ResultSet *res = stmt_->executeQuery(sql);
+        if (res->next()) {
+            LOG(INFO)<<"leader_id:"<<res->getInt64("leader_id");
+        }else{
+            LOG(ERROR)<<"no leader_id";
+            return -1;
+        }
+        delete res;
+    } catch (sql::SQLException &e) {
+        LOG(ERROR) << "MysqlClientImp LeaderObserve failed, error: " << e.what();
+        return -1;
+    }
+    return 0;
+}
+
+int MysqlClientImp::LeaderResign(uint64_t leaderOid, uint64_t timeoutMs){
+    try {
+        std::string sql = "update leader_election set leader_id=0, update_time=now() where leader_id=" + std::to_string(leaderOid) + ";";
+        stmt_->execute(sql);
+    } catch (sql::SQLException &e) {
+        LOG(ERROR) << "MysqlClientImp LeaderResign failed, error: " << e.what();
+        return -1;
+    }
+    return 0;
+}
 
 }  // namespace mysqlstorage
 }  // namespace curve

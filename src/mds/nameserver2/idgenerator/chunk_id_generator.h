@@ -39,7 +39,7 @@ const uint64_t CHUNKINITIALIZE = 0;
 const uint64_t CHUNKBUNDLEALLOCATED = 1000;
 
 using curve::idgenerator::EtcdIdGenerator;
-using curve::kvstorage::StorageClient;
+//using curve::kvstorage::StorageClient;
 
 class ChunkIDGenerator {
  public:

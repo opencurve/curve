@@ -39,7 +39,7 @@
 #include "src/kvstorageclient/etcd_client.h"
 #include "src/common/concurrent/dlock.h"
 
-using ::curve::kvstorage::StorageClient;
+////using ::curve::kvstorage::StorageClient;
 
 namespace curve {
 namespace snapshotcloneserver {

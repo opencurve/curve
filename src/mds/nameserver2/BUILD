@@ -34,6 +34,7 @@ cc_library(
         "//src/common:curve_common",
         "//src/common/concurrent:curve_dlock",
         "//src/kvstorageclient:kvstorage_client",
+        "//src/mysqlstorageclient:mysqlstorage_client",
         "//src/mds/chunkserverclient",
         "//src/mds/common:mds_common",
         "//src/mds/nameserver2/allocstatistic:alloc_statistic",

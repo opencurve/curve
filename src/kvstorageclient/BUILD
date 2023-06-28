@@ -27,5 +27,6 @@ cc_library(
         "//external:glog",
         "//src/common:curve_common",
         "@etcdclient",
+        "//include/etcdclient:etcd_client",
     ],
 )

@@ -34,7 +34,7 @@
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/concurrent/rw_lock.h"
 
-using ::curve::kvstorage::StorageClient;
+////using ::curve::kvstorage::StorageClient;
 using ::curve::common::RWLock;
 using ::curve::common::ReadLockGuard;
 using ::curve::common::WriteLockGuard;

@@ -33,7 +33,7 @@ namespace curvefs {
 namespace mds {
 namespace space {
 
-using ::curve::kvstorage::StorageClient;
+//using ::curve::kvstorage::StorageClient;
 using ::curvefs::mds::codec::DecodeProtobufMessage;
 using ::curvefs::mds::codec::EncodeBlockGroupKey;
 using ::curvefs::mds::codec::EncodeProtobufMessage;

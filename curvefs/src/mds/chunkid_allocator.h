@@ -34,7 +34,7 @@ namespace curvefs {
 namespace mds {
 
 using ::curve::common::StringToUll;
-using ::curve::kvstorage::StorageClient;
+//using ::curve::kvstorage::StorageClient;
 
 const uint64_t CHUNKIDINITIALIZE = 0;
 const uint64_t CHUNKBUNDLEALLOCATED = 1000;

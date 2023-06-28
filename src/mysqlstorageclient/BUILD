@@ -10,7 +10,8 @@ cc_library(
         "//external:gflags",
         "//external:glog",
         "//src/common:curve_common",
-        "//src/kvstorageclient:kvstorage_client",
+        #"//src/kvstorageclient:kvstorage_client",#need to be modified
         "@mysqlclient",
+        "//include/etcdclient:etcd_client",
     ],
 )

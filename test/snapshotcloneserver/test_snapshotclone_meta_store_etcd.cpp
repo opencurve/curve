@@ -35,7 +35,7 @@
 #include "src/common/concurrent/rw_lock.h"
 #include "test/snapshotcloneserver/mock_snapshot_server.h"
 
-using ::curve::kvstorage::StorageClient;
+////using ::curve::kvstorage::StorageClient;
 using ::curve::common::RWLock;
 using ::curve::common::ReadLockGuard;
 using ::curve::common::WriteLockGuard;

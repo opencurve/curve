@@ -59,5 +59,6 @@ cc_library(
     deps = [
         "//external:glog",
         "//src/kvstorageclient:kvstorage_client",
+         "//include/etcdclient:etcd_client",
     ],
 )

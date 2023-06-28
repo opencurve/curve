@@ -40,7 +40,7 @@ namespace curve {
 namespace mds {
 
 using ::curve::kvstorage::EtcdClientImp;
-using ::curve::kvstorage::StorageClient;
+////using ::curve::kvstorage::StorageClient;
 using Cache =
     ::curve::common::LRUCacheInterface<std::string, std::string>;
 
