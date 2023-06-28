@@ -226,36 +226,37 @@ TEST_F(TestReuqestExecutorCurve, test_Extend) {
 TEST_F(TestReuqestExecutorCurve, test_GetInfo) {
     auto executor = CurveRequestExecutor::GetInstance();
     NebdFileInfo fileInfo;
-    std::string curveFilename("/cinder/volume-1234_cinder_");
+    int curveFd = 123;
 
     // 1. nebdFileIns不是CurveFileInstance类型, stat失败
     {
         auto nebdFileIns = new NebdFileInstance();
-        EXPECT_CALL(*curveClient_, StatFile(_)).Times(0);
+        EXPECT_CALL(*curveClient_, StatFile(curveFd)).Times(0);
         ASSERT_EQ(-1, executor.GetInfo(nebdFileIns, &fileInfo));
     }
 
-    // 2. nebdFileIns中的fileName为空, extend失败
+    // 2. nebdFileIns中的fd为空, stat失败
     {
         auto curveFileIns = new CurveFileInstance();
-        EXPECT_CALL(*curveClient_, StatFile(_)).Times(0);
+        EXPECT_CALL(*curveClient_, StatFile(curveFd)).Times(0);
         ASSERT_EQ(-1, executor.GetInfo(curveFileIns, &fileInfo));
     }
 
-    // 3. 调用curveclient的extend接口失败， extend失败
+
+    // 3. 调用curveclient的stat接口失败, stat失败
     {
         auto curveFileIns = new CurveFileInstance();
-        curveFileIns->fileName = curveFilename;
-        EXPECT_CALL(*curveClient_, StatFile(curveFilename))
+        curveFileIns->fd = curveFd;
+        EXPECT_CALL(*curveClient_, StatFile(curveFd))
             .WillOnce(Return(-1));
         ASSERT_EQ(-1, executor.GetInfo(curveFileIns, &fileInfo));
     }
 
-    // 4. extend成功
+    // 4. stat成功
     {
         auto curveFileIns = new CurveFileInstance();
-        curveFileIns->fileName = curveFilename;
-        EXPECT_CALL(*curveClient_, StatFile(curveFilename)).WillOnce(Return(1));
+        curveFileIns->fd = curveFd;
+        EXPECT_CALL(*curveClient_, StatFile(curveFd)).WillOnce(Return(1));
         ASSERT_EQ(0, executor.GetInfo(curveFileIns, &fileInfo));
         ASSERT_EQ(1, fileInfo.size);
     }
@@ -432,20 +433,23 @@ TEST_F(TestReuqestExecutorCurve, test_InvalidCache) {
 
 TEST(TestFileNameParser, test_Parse) {
     std::string fileName("cbd:pool1//cinder/volume-1234_cinder_:/client.conf");
-    std::string res("/cinder/volume-1234_cinder_");
+    std::pair<std::string, std::string> res(
+        "/cinder/volume-1234_cinder_", "/client.conf");
+    ASSERT_EQ(res, FileNameParser::Parse(fileName));
+
+    fileName = "cbd:pool1//cinder/volume-1234_cinder_";
+    res = std::make_pair("/cinder/volume-1234_cinder_", "");
     ASSERT_EQ(res, FileNameParser::Parse(fileName));
 
     fileName = "cbd:pool1";
-    ASSERT_EQ("", FileNameParser::Parse(fileName));
-
-    fileName = "cbd:pool1//cinder/volume-1234_cinder_";
+    res = std::make_pair("", "");
     ASSERT_EQ(res, FileNameParser::Parse(fileName));
 
     fileName = "cbd:pool1//:";
-    ASSERT_EQ("", FileNameParser::Parse(fileName));
+    ASSERT_EQ(res, FileNameParser::Parse(fileName));
 
     fileName = "cbd:pool1//";
-    ASSERT_EQ("", FileNameParser::Parse(fileName));
+    ASSERT_EQ(res, FileNameParser::Parse(fileName));
 }
 
 

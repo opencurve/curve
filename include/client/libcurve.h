@@ -346,6 +346,7 @@ typedef struct UserInfo {
 
 struct OpenFlags {
     bool exclusive;
+    std::string confPath;
 
     OpenFlags() : exclusive(true) {}
 };
@@ -412,10 +413,10 @@ class CurveClient {
 
     /**
      * 获取文件大小
-     * @param filename 文件名，格式为：文件名_用户名_
+     * @param fd 文件fd
      * @return 返回错误码
      */
-    virtual int64_t StatFile(const std::string& filename);
+    virtual int64_t StatFile(int fd);
 
     /**
      * 异步读
