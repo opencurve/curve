@@ -41,7 +41,7 @@ class MockCurveClient : public ::curve::client::CurveClient {
                  int(const std::string&, const ::curve::client::OpenFlags&));
     MOCK_METHOD1(Close, int(int));
     MOCK_METHOD2(Extend, int(const std::string&, int64_t));
-    MOCK_METHOD1(StatFile, int64_t(const std::string&));
+    MOCK_METHOD1(StatFile, int64_t(int));
     MOCK_METHOD3(AioRead,
                  int(int, CurveAioContext*, curve::client::UserDataType));
     MOCK_METHOD3(AioWrite,

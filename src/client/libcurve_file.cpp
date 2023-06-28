@@ -193,8 +193,26 @@ int FileClient::Open(const std::string& filename,
                      const UserInfo_t& userinfo,
                      const OpenFlags& openflags) {
     LOG(INFO) << "Opening filename: " << filename << ", flags: " << openflags;
-    FileInstance* fileserv = FileInstance::NewInitedFileInstance(
-        clientconfig_.GetFileServiceOption(), mdsClient_, filename, userinfo,
+    ClientConfig clientConfig;
+    if (openflags.confPath.empty()) {
+        clientConfig = clientconfig_;
+    } else {
+        if (-1 == clientConfig.Init(openflags.confPath)) {
+            LOG(ERROR) << "config init client failed!";
+            return -LIBCURVE_ERROR::FAILED;
+        }
+    }
+
+    auto mdsClient = std::make_shared<MDSClient>();
+    auto res = mdsClient->Initialize(
+        clientConfig.GetFileServiceOption().metaServerOpt);
+    if (LIBCURVE_ERROR::OK != res) {
+        LOG(ERROR) << "Init mds client failed!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
+    FileInstance *fileserv = FileInstance::NewInitedFileInstance(
+        clientConfig.GetFileServiceOption(), mdsClient, filename, userinfo,
         openflags, false);
     if (fileserv == nullptr) {
         LOG(ERROR) << "NewInitedFileInstance fail";
@@ -474,8 +492,25 @@ int FileClient::Recover(const std::string& filename,
     return -ret;
 }
 
-int FileClient::StatFile(const std::string& filename,
-    const UserInfo_t& userinfo, FileStatInfo* finfo) {
+int FileClient::StatFile(int fd, FileStatInfo *finfo) {
+    FInfo_t fi;
+    {
+        ReadLockGuard lk(rwlock_);
+        auto iter = fileserviceMap_.find(fd);
+        if (iter == fileserviceMap_.end()) {
+            LOG(ERROR) << "StatFile failed not found fd = " << fd;
+            return -LIBCURVE_ERROR::FAILED;
+        }
+        FileInstance *instance = fileserviceMap_[fd];
+        fi = instance->GetCurrentFileInfo();
+    }
+    BuildFileStatInfo(fi, finfo);
+
+    return LIBCURVE_ERROR::OK;
+}
+
+int FileClient::StatFile(const std::string &filename,
+                         const UserInfo_t &userinfo, FileStatInfo *finfo) {
     FInfo_t fi;
     FileEpoch_t fEpoch;
     int ret;
@@ -489,20 +524,7 @@ int FileClient::StatFile(const std::string& filename,
     }
 
     if (ret == LIBCURVE_ERROR::OK) {
-        finfo->id       = fi.id;
-        finfo->parentid = fi.parentid;
-        finfo->ctime    = fi.ctime;
-        finfo->length   = fi.length;
-        finfo->filetype = fi.filetype;
-        finfo->stripeUnit = fi.stripeUnit;
-        finfo->stripeCount = fi.stripeCount;
-
-        memcpy(finfo->filename, fi.filename.c_str(),
-                std::min(sizeof(finfo->filename), fi.filename.size() + 1));
-        memcpy(finfo->owner, fi.owner.c_str(),
-                std::min(sizeof(finfo->owner), fi.owner.size() + 1));
-
-        finfo->fileStatus = static_cast<int>(fi.filestatus);
+        BuildFileStatInfo(fi, finfo);
     }
 
     return -ret;
@@ -668,6 +690,23 @@ std::vector<std::string> FileClient::ListPoolset() {
     LOG_IF(WARNING, ret != LIBCURVE_ERROR::OK)
             << "Failed to list poolset, error: " << ret;
     return out;
+}
+
+void FileClient::BuildFileStatInfo(const FInfo_t &fi, FileStatInfo *finfo) {
+    finfo->id = fi.id;
+    finfo->parentid = fi.parentid;
+    finfo->ctime = fi.ctime;
+    finfo->length = fi.length;
+    finfo->filetype = fi.filetype;
+    finfo->stripeUnit = fi.stripeUnit;
+    finfo->stripeCount = fi.stripeCount;
+
+    memcpy(finfo->filename, fi.filename.c_str(),
+               std::min(sizeof(finfo->filename), fi.filename.size() + 1));
+    memcpy(finfo->owner, fi.owner.c_str(),
+            std::min(sizeof(finfo->owner), fi.owner.size() + 1));
+
+    finfo->fileStatus = static_cast<int>(fi.filestatus);
 }
 
 bool FileClient::StartDummyServer() {

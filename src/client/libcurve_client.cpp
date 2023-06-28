@@ -94,19 +94,9 @@ int CurveClient::Extend(const std::string& filename,
     return fileClient_->Extend(realFileName, userInfo, newsize);
 }
 
-int64_t CurveClient::StatFile(const std::string& filename) {
+int64_t CurveClient::StatFile(int fd) {
     FileStatInfo fileStatInfo;
-    curve::client::UserInfo userInfo;
-    std::string realFileName;
-    bool ret = curve::client::ServiceHelper::GetUserInfoFromFilename(
-        filename, &realFileName, &userInfo.owner);
-
-    if (!ret) {
-        LOG(ERROR) << "Get User Info from filename failed!";
-        return -LIBCURVE_ERROR::FAILED;
-    }
-
-    int rc = fileClient_->StatFile(realFileName, userInfo, &fileStatInfo);
+    int rc = fileClient_->StatFile(fd, &fileStatInfo);
     return rc == LIBCURVE_ERROR::OK ? fileStatInfo.length : rc;
 }
 

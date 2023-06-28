@@ -41,7 +41,7 @@ namespace client {
 
 extern uint32_t kMinIOAlignment;
 
-int ClientConfig::Init(const char* configpath) {
+int ClientConfig::Init(const std::string& configpath) {
     conf_.SetConfigPath(configpath);
     if (!conf_.LoadConfig()) {
         LOG(ERROR) << "Load config failed, config path = " << configpath;

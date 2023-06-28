@@ -31,7 +31,7 @@ namespace client {
 
 class ClientConfig {
  public:
-    int Init(const char* configpath);
+    int Init(const std::string& configpath);
 
     FileServiceOption GetFileServiceOption() const {
         return fileServiceOption_;

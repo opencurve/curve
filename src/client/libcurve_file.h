@@ -234,6 +234,15 @@ class FileClient {
                          const UserInfo_t& userinfo,
                          FileStatInfo* finfo);
 
+     /**
+      * stat file
+      * @param: fd is file descriptor.
+      * @param: finfo is an output para, carry the base info of current file.
+      * @return: returns int::ok if success, 
+      *          otherwise returns an error code less than 0
+      */
+    virtual int StatFile(int fd, FileStatInfo* finfo);
+
     /**
      * 变更owner
      * @param: filename待变更的文件名
@@ -291,6 +300,8 @@ class FileClient {
     }
 
  private:
+    static void BuildFileStatInfo(const FInfo_t &fi, FileStatInfo *finfo);
+
     bool StartDummyServer();
 
     bool CheckAligned(off_t offset, size_t length) const;
