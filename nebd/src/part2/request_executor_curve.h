@@ -25,6 +25,7 @@
 
 #include <string>
 #include <memory>
+#include <utility>
 #include "nebd/src/part2/request_executor.h"
 #include "nebd/src/part2/define.h"
 #include "include/client/libcurve.h"
@@ -58,9 +59,12 @@ class FileNameParser {
      *    qemu "cbd:pool1//cinder/volume-6f30d296-07f7-452e-a983-513191f8cd95_cinder_:/etc/curve/client.conf" //NOLINT
      *    nbd  "cbd:pool1//cinder/volume-6f30d296-07f7-452e-a983-513191f8cd95_cinder_"  // NOLINT
      * @param[in] fileName
-     * @return 解析出的字符串: "/cinder/volume-6f30d296-07f7-452e-a983-513191f8cd95_cinder_" //NOLINT
+     * @return 解析结果
+     *  qemu "/cinder/volume-6f30d296-07f7-452e-a983-513191f8cd95_cinder_", "/etc/curve/client.conf" //NOLINT
+     *  nbd  "/cinder/volume-6f30d296-07f7-452e-a983-513191f8cd95_cinder_", "" //NOLINT
      */
-    static std::string Parse(const std::string& fileName);
+    static std::pair<std::string, std::string>
+            Parse(const std::string& fileName);
 };
 
 class CurveRequestExecutor : public NebdRequestExecutor {
