@@ -26,7 +26,6 @@ cc_test(
             "mock_metaserver_s3.h",
             "metaserver_s3_adaptor_test.h",
             "metaserver_s3_adaptor_test.cpp",
-            "mock_metaserver_s3_adaptor.h",
             "metaserver_s3_test.cpp",
             "mock_s3compact_inode.h",
             "s3compact_test.cpp",
