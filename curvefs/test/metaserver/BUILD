@@ -35,7 +35,6 @@ cc_test(
             "mock_metaserver_s3.h",
             "metaserver_s3_adaptor_test.h",
             "metaserver_s3_adaptor_test.cpp",
-            "mock_metaserver_s3_adaptor.h",
             "metaserver_s3_test.cpp",
             "mock_s3compactwq_impl.h",
             "s3compactwq_test.cpp",
@@ -53,6 +52,7 @@ cc_test(
             "//curvefs/test/metaserver/copyset/mock:metaserver_copyset_test_mock",
             "//curvefs/src/metaserver:metaserver_s3_lib",
             "//curvefs/test/metaserver:metaserver_storage_test_utils",
+            "//curvefs/test/client/rpcclient:rpcclient_test_mock",
     ],
 )
 
