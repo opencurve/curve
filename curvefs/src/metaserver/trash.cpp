@@ -168,6 +168,21 @@ MetaStatusCode TrashImpl::DeleteInodeAndData(const TrashItem &item) {
         clientAdaptorOption.chunkSize = s3Info.chunksize();
         s3Adaptor_->Reinit(clientAdaptorOption, s3Info.ak(), s3Info.sk(),
             s3Info.endpoint(), s3Info.bucketname());
+        ret = inodeStorage_->PaddingInodeS3ChunkInfo(item.fsId,
+          item.inodeId, inode.mutable_s3chunkinfomap());
+        if (ret != MetaStatusCode::OK) {
+            LOG(ERROR) << "GetInode chunklist fail, fsId = " << item.fsId
+                << ", inodeId = " << item.inodeId
+                << ", retCode = " << MetaStatusCode_Name(ret);
+            return ret;
+        }
+        if (inode.s3chunkinfomap().empty()) {
+            LOG(WARNING) << "GetInode chunklist empty, fsId = " << item.fsId
+                << ", inodeId = " << item.inodeId;
+            return MetaStatusCode::NOT_FOUND;
+        }
+        VLOG(9) << "DeleteInodeAndData, inode: "
+            << inode.ShortDebugString();
         int retVal = s3Adaptor_->Delete(inode);
         if (retVal != 0) {
             LOG(ERROR) << "S3ClientAdaptor delete s3 data failed"
@@ -176,7 +191,6 @@ MetaStatusCode TrashImpl::DeleteInodeAndData(const TrashItem &item) {
             return MetaStatusCode::S3_DELETE_ERR;
         }
     }
-
     ret = inodeStorage_->Delete(Key4Inode(item.fsId, item.inodeId));
     if (ret != MetaStatusCode::OK && ret != MetaStatusCode::NOT_FOUND) {
         LOG(ERROR) << "Delete Inode fail, fsId = " << item.fsId
