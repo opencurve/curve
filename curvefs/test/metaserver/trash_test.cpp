@@ -29,6 +29,7 @@
 #include "curvefs/test/metaserver/storage/utils.h"
 #include "src/fs/ext4_filesystem_impl.h"
 #include "curvefs/test/client/rpcclient/mock_mds_client.h"
+#include "curvefs/test/metaserver/mock_metaserver_s3_adaptor.h"
 
 using ::testing::AtLeast;
 using ::testing::StrEq;
@@ -105,7 +106,29 @@ class TestTrash : public ::testing::Test {
         inode.set_gid(0);
         inode.set_mode(0);
         inode.set_nlink(0);
-        inode.set_type(FsFileType::TYPE_FILE);
+        inode.set_type(FsFileType::TYPE_S3);
+        return inode;
+    }
+
+    Inode GenInodeHasChunks(uint32_t fsId, uint64_t inodeId) {
+        Inode inode;
+        inode.set_fsid(fsId);
+        inode.set_inodeid(inodeId);
+        inode.set_length(4096);
+        inode.set_ctime(0);
+        inode.set_ctime_ns(0);
+        inode.set_mtime(0);
+        inode.set_mtime_ns(0);
+        inode.set_atime(0);
+        inode.set_atime_ns(0);
+        inode.set_uid(0);
+        inode.set_gid(0);
+        inode.set_mode(0);
+        inode.set_nlink(0);
+        inode.set_type(FsFileType::TYPE_S3);
+
+        S3ChunkInfoList s3ChunkInfoList;
+        inode.mutable_s3chunkinfomap()->insert({0, s3ChunkInfoList});
         return inode;
     }
 
@@ -121,18 +144,17 @@ TEST_F(TestTrash, testAdd3ItemAndDelete) {
     option.scanPeriodSec = 1;
     option.expiredAfterSec = 1;
     option.mdsClient = std::make_shared<MockMdsClient>();
-
+    option.s3Adaptor = std::make_shared<MockS3ClientAdaptor>();
     trashManager_->Init(option);
     trashManager_->Run();
-
     auto trash1 = std::make_shared<TrashImpl>(inodeStorage_);
     auto trash2 = std::make_shared<TrashImpl>(inodeStorage_);
     trashManager_->Add(1, trash1);
     trashManager_->Add(2, trash2);
 
-    inodeStorage_->Insert(GenInode(1, 1));
-    inodeStorage_->Insert(GenInode(1, 2));
-    inodeStorage_->Insert(GenInode(2, 1));
+    inodeStorage_->Insert(GenInodeHasChunks(1, 1));
+    inodeStorage_->Insert(GenInodeHasChunks(1, 2));
+    inodeStorage_->Insert(GenInodeHasChunks(2, 1));
 
     ASSERT_EQ(inodeStorage_->Size(), 3);
 
@@ -141,15 +163,40 @@ TEST_F(TestTrash, testAdd3ItemAndDelete) {
     trash2->Add(2, 1, 0);
 
     std::this_thread::sleep_for(std::chrono::seconds(5));
-
     std::list<TrashItem> list;
 
     trashManager_->ListItems(&list);
 
     ASSERT_EQ(0, list.size());
-
     ASSERT_EQ(inodeStorage_->Size(), 0);
 
+    trashManager_->Fini();
+}
+
+TEST_F(TestTrash, testAdd3ItemAndNoDelete) {
+    TrashOption option;
+    option.scanPeriodSec = 1;
+    option.expiredAfterSec = 1;
+    option.mdsClient = std::make_shared<MockMdsClient>();
+    option.s3Adaptor = std::make_shared<MockS3ClientAdaptor>();
+    trashManager_->Init(option);
+    trashManager_->Run();
+
+    auto trash1 = std::make_shared<TrashImpl>(inodeStorage_);
+    trashManager_->Add(1, trash1);
+
+    inodeStorage_->Insert(GenInode(1, 1));
+    inodeStorage_->Insert(GenInode(1, 2));
+    inodeStorage_->Insert(GenInode(2, 1));
+    ASSERT_EQ(inodeStorage_->Size(), 3);
+    trash1->Add(1, 1, 0);
+    trash1->Add(1, 2, 0);
+    std::this_thread::sleep_for(std::chrono::seconds(5));
+    std::list<TrashItem> list;
+
+    trashManager_->ListItems(&list);
+    ASSERT_EQ(0, list.size());
+    ASSERT_EQ(inodeStorage_->Size(), 3);
     trashManager_->Fini();
 }
 
