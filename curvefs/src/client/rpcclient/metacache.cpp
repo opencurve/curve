@@ -90,8 +90,7 @@ bool MetaCache::RefreshTxId() {
 }
 
 bool MetaCache::GetTarget(uint32_t fsID, uint64_t inodeID,
-                          CopysetTarget *target, uint64_t *applyIndex,
-                          bool refresh) {
+                          CopysetTarget *target, bool refresh) {
     // get copysetID with inodeID
     if (!GetCopysetIDwithInodeID(inodeID, &target->groupID,
                                  &target->partitionID, &target->txId)) {
@@ -111,11 +110,10 @@ bool MetaCache::GetTarget(uint32_t fsID, uint64_t inodeID,
     }
 
     // get target copyset leader with (poolID, copysetID)
-    return GetTargetLeader(target, applyIndex, refresh);
+    return GetTargetLeader(target, refresh);
 }
 
-bool MetaCache::SelectTarget(uint32_t fsID, CopysetTarget *target,
-                             uint64_t *applyIndex) {
+bool MetaCache::SelectTarget(uint32_t fsID, CopysetTarget *target) {
     // select a partition
     if (!SelectPartition(target)) {
         // list from mds
@@ -133,36 +131,7 @@ bool MetaCache::SelectTarget(uint32_t fsID, CopysetTarget *target,
     }
 
     // get target copyset leader with (poolID, copysetID)
-    return GetTargetLeader(target, applyIndex);
-}
-
-void MetaCache::UpdateApplyIndex(const CopysetGroupID &groupID,
-                                 uint64_t applyIndex) {
-    const auto key = CalcLogicPoolCopysetID(groupID);
-
-    ReadLockGuard rl(rwlock4copysetInfoMap_);
-    auto iter = copysetInfoMap_.find(key);
-    if (iter == copysetInfoMap_.end()) {
-        LOG(WARNING) << "update apply index for copyset:" << groupID.ToString()
-                     << " fail, copyset not found.";
-        return;
-    }
-
-    iter->second.UpdateAppliedIndex(applyIndex);
-}
-
-uint64_t MetaCache::GetApplyIndex(const CopysetGroupID &groupID) {
-    const auto key = CalcLogicPoolCopysetID(groupID);
-
-    ReadLockGuard rl(rwlock4copysetInfoMap_);
-    auto iter = copysetInfoMap_.find(key);
-    if (iter == copysetInfoMap_.end()) {
-        LOG(WARNING) << "get apply index for copyset:" << groupID.ToString()
-                     << " fail, copyset not found.";
-        return 0;
-    }
-
-    return iter->second.GetAppliedIndex();
+    return GetTargetLeader(target);
 }
 
 bool MetaCache::IsLeaderMayChange(const CopysetGroupID &groupID) {
@@ -172,7 +141,7 @@ bool MetaCache::IsLeaderMayChange(const CopysetGroupID &groupID) {
     ReadLockGuard rl(rwlock4copysetInfoMap_);
     auto iter = copysetInfoMap_.find(key);
     if (iter == copysetInfoMap_.end()) {
-        LOG(WARNING) << "get apply index for copyset:" << groupID.ToString()
+        LOG(WARNING) << "get information for copyset:" << groupID.ToString()
                      << " fail, copyset not found.";
         return false;
     }
@@ -188,8 +157,7 @@ void MetaCache::UpdateCopysetInfo(const CopysetGroupID &groupID,
     copysetInfoMap_[key] = csinfo;
 }
 
-bool MetaCache::GetTargetLeader(CopysetTarget *target, uint64_t *applyindex,
-                                bool refresh) {
+bool MetaCache::GetTargetLeader(CopysetTarget *target, bool refresh) {
     // get copyset with (poolid, copysetid)
     CopysetInfo<MetaserverID> copysetInfo;
     if (!GetCopysetInfowithCopySetID(target->groupID, &copysetInfo)) {
@@ -202,7 +170,6 @@ bool MetaCache::GetTargetLeader(CopysetTarget *target, uint64_t *applyindex,
     if (!refresh && !copysetInfo.LeaderMayChange()) {
         if (0 == copysetInfo.GetLeaderInfo(&target->metaServerID,
                                            &target->endPoint)) {
-            *applyindex = copysetInfo.GetAppliedIndex();
             return true;
         }
         LOG(WARNING) << "{copyset:" << target->groupID.ToString()
@@ -242,7 +209,6 @@ bool MetaCache::GetTargetLeader(CopysetTarget *target, uint64_t *applyindex,
         return false;
     }
 
-    *applyindex = copysetInfo.GetAppliedIndex();
     return 0 ==
            copysetInfo.GetLeaderInfo(&target->metaServerID, &target->endPoint);
 }

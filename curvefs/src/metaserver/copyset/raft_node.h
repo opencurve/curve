@@ -114,6 +114,10 @@ class RaftNode {
         node_->get_status(status);
     }
 
+    virtual void get_leader_lease_status(braft::LeaderLeaseStatus* status) {
+        node_->get_leader_lease_status(status);
+    }
+
  private:
     std::unique_ptr<braft::Node> node_;
 };

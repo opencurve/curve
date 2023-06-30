@@ -39,8 +39,8 @@ TEST(CreateInodeTaskExecutorTest, TestPartitionAllocIdFail) {
     auto context = std::make_shared<TaskContext>();
     context->rpctask = [](LogicPoolID poolID, CopysetID copysetID,
                           PartitionID partitionID, uint64_t txId,
-                          uint64_t applyIndex, brpc::Channel *channel,
-                          brpc::Controller *cntl, TaskExecutorDone *done) {
+                          brpc::Channel *channel, brpc::Controller *cntl,
+                          TaskExecutorDone *done) {
         static int count = 0;
         ++count;
         if (count == 1) {
@@ -59,10 +59,10 @@ TEST(CreateInodeTaskExecutorTest, TestPartitionAllocIdFail) {
     EXPECT_CALL(*mockMetaCache, MarkPartitionUnavailable(_))
         .WillOnce(Return(true));
 
-    EXPECT_CALL(*mockMetaCache, SelectTarget(_, _, _))
+    EXPECT_CALL(*mockMetaCache, SelectTarget(_, _))
         .Times(2)
         .WillRepeatedly(Invoke(
-            [](uint32_t /*fsId*/, CopysetTarget *target, uint64_t *applyIndex) {
+            [](uint32_t /*fsId*/, CopysetTarget *target) {
                 target->groupID = CopysetGroupID{1, 1};
                 target->partitionID = 1;
                 target->txId = 1;
@@ -73,7 +73,6 @@ TEST(CreateInodeTaskExecutorTest, TestPartitionAllocIdFail) {
 
                 target->endPoint = std::move(ep);
 
-                *applyIndex = 1;
                 return true;
             }));
 

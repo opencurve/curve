@@ -35,31 +35,26 @@ class MockMetaCache : public MetaCache {
  public:
     MockMetaCache() : MetaCache() {}
     ~MockMetaCache() = default;
-    MOCK_METHOD5(GetTarget,
-                 bool(uint32_t fsID, uint64_t inodeID, CopysetTarget *target,
-                      uint64_t *applyIndex, bool refresh));
 
-    MOCK_METHOD3(SelectTarget, bool(uint32_t fsID, CopysetTarget *target,
-                                    uint64_t *applyIndex));
+    MOCK_METHOD4(GetTarget,
+                 bool(uint32_t fsID, uint64_t inodeID,
+                      CopysetTarget *target, bool refresh));
+
+    MOCK_METHOD2(SelectTarget, bool(uint32_t fsID, CopysetTarget *target));
 
     MOCK_METHOD1(GetAllTxIds, void(std::vector<PartitionTxId> *txIds));
 
     MOCK_METHOD2(SetTxId, void(uint32_t partitionId, uint64_t txId));
-
-    MOCK_METHOD2(UpdateApplyIndex,
-                 void(const CopysetGroupID &groupID, uint64_t applyIndex));
-
-    MOCK_METHOD1(GetApplyIndex, uint64_t(const CopysetGroupID &groupID));
 
     MOCK_METHOD1(IsLeaderMayChange, bool(const CopysetGroupID &groupID));
 
     MOCK_METHOD2(UpdateCopysetInfo,
                  void(const CopysetGroupID &groupID,
                       const CopysetInfo<MetaserverID> &csinfo));
+
     MOCK_METHOD1(MarkPartitionUnavailable, bool(PartitionID pid));
 
-    MOCK_METHOD3(GetTargetLeader, bool(CopysetTarget *target,
-                                       uint64_t *applyindex, bool refresh));
+    MOCK_METHOD2(GetTargetLeader, bool(CopysetTarget *target, bool refresh));
 
     MOCK_METHOD3(GetPartitionIdByInodeId,
                  bool(uint32_t fsID, uint64_t inodeID, PartitionID *pid));

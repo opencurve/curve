@@ -131,7 +131,6 @@ TEST_F(MetaServerClientImplTest, test_GetDentry) {
 
     // out
     Dentry out;
-    uint64_t applyIndex = 10;
     uint64_t txID = 1;
 
     // set response
@@ -143,15 +142,13 @@ TEST_F(MetaServerClientImplTest, test_GetDentry) {
     d->set_name(name);
     d->set_txid(txID);
     response.set_allocated_dentry(d);
-    response.set_appliedindex(100);
 
     // test0: test rpc error
     EXPECT_CALL(mockMetaServerService_, GetDentry(_, _, _, _))
         .WillRepeatedly(
             Invoke(SetRpcService<GetDentryRequest, GetDentryResponse, true>));
-    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
-        .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
-                              SetArgPointee<3>(applyIndex), Return(true)));
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(target_),  Return(true)));
 
     MetaStatusCode status = metaserverCli_.GetDentry(fsID, inodeID, name, &out);
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
@@ -163,10 +160,8 @@ TEST_F(MetaServerClientImplTest, test_GetDentry) {
             DoAll(SetArgPointee<2>(response),
                   Invoke(SetRpcService<GetDentryRequest, GetDentryResponse>)));
 
-    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(target_), SetArgPointee<3>(applyIndex),
-                        Return(true)));
-    EXPECT_CALL(*mockMetacache_.get(), UpdateApplyIndex(_, _));
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(target_), Return(true)));
 
     status = metaserverCli_.GetDentry(fsID, inodeID, name, &out);
     ASSERT_EQ(MetaStatusCode::OK, status);
@@ -176,16 +171,14 @@ TEST_F(MetaServerClientImplTest, test_GetDentry) {
         << d->ShortDebugString();
 
     // test2: get dentry get target fail
-    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
         .WillRepeatedly(Return(false));
     status = metaserverCli_.GetDentry(fsID, inodeID, name, &out);
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 
     // test3: get dentry over load and fail retry ok
-    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(target_),
-                        SetArgPointee<3>(applyIndex),
-                        Return(true)));
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(target_), Return(true)));
     curvefs::metaserver::GetDentryResponse responsefail;
     responsefail.set_statuscode(MetaStatusCode::OVERLOAD);
     EXPECT_CALL(mockMetaServerService_, GetDentry(_, _, _, _))
@@ -196,35 +189,20 @@ TEST_F(MetaServerClientImplTest, test_GetDentry) {
         .WillOnce(
             DoAll(SetArgPointee<2>(response),
                   Invoke(SetRpcService<GetDentryRequest, GetDentryResponse>)));
-    EXPECT_CALL(*mockMetacache_.get(), UpdateApplyIndex(_, _));
 
     status = metaserverCli_.GetDentry(fsID, inodeID, name, &out);
     ASSERT_EQ(MetaStatusCode::OK, status);
 
-    // test4: test response do not have applyindex
-    response.set_statuscode(MetaStatusCode::OK);
-    response.clear_appliedindex();
+    // test4: test response do not have dentry
+    response.clear_dentry();
+
     EXPECT_CALL(mockMetaServerService_, GetDentry(_, _, _, _))
         .WillRepeatedly(
             DoAll(SetArgPointee<2>(response),
                   Invoke(SetRpcService<GetDentryRequest, GetDentryResponse>)));
 
-    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
-        .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
-                              SetArgPointee<3>(applyIndex), Return(true)));
-
-    status = metaserverCli_.GetDentry(fsID, inodeID, name, &out);
-    ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
-
-    // test5: test response do not have dentry
-    response.set_appliedindex(100);
-    response.clear_dentry();
-    status = metaserverCli_.GetDentry(fsID, inodeID, name, &out);
-    ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
-
-    // test6: do not have both dentry and appliedindex
-    response.clear_dentry();
-    response.clear_appliedindex();
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(target_), Return(true)));
 
     status = metaserverCli_.GetDentry(fsID, inodeID, name, &out);
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
@@ -239,7 +217,6 @@ TEST_F(MetaServerClientImplTest, test_ListDentry) {
     bool onlyDir = false;
     // out
     std::list<Dentry> out;
-    uint64_t applyIndex = 10;
     uint64_t txID = 10;
 
     curvefs::metaserver::ListDentryResponse response;
@@ -254,9 +231,8 @@ TEST_F(MetaServerClientImplTest, test_ListDentry) {
     EXPECT_CALL(mockMetaServerService_, ListDentry(_, _, _, _))
         .WillRepeatedly(
             Invoke(SetRpcService<ListDentryRequest, ListDentryResponse, true>));
-    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
-        .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
-                              SetArgPointee<3>(applyIndex), Return(true)));
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(target_), Return(true)));
 
     MetaStatusCode status =
         metaserverCli_.ListDentry(fsID, inodeID, last, count, onlyDir, &out);
@@ -265,15 +241,12 @@ TEST_F(MetaServerClientImplTest, test_ListDentry) {
 
     // test1: list dentry ok
     response.set_statuscode(MetaStatusCode::OK);
-    response.set_appliedindex(10);
     EXPECT_CALL(mockMetaServerService_, ListDentry(_, _, _, _))
         .WillOnce(DoAll(
             SetArgPointee<2>(response),
             Invoke(SetRpcService<ListDentryRequest, ListDentryResponse>)));
-    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(target_), SetArgPointee<3>(applyIndex),
-                        Return(true)));
-    EXPECT_CALL(*mockMetacache_.get(), UpdateApplyIndex(_, _));
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(target_), Return(true)));
 
     status = metaserverCli_.ListDentry(
         fsID, inodeID, last, count, onlyDir, &out);
@@ -286,10 +259,8 @@ TEST_F(MetaServerClientImplTest, test_ListDentry) {
         << d->ShortDebugString();
 
     // test2: list dentry redirect
-    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(target_),
-                        SetArgPointee<3>(applyIndex),
-                        Return(true)));
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(target_), Return(true)));
     curvefs::metaserver::ListDentryResponse responsefail;
     responsefail.set_statuscode(MetaStatusCode::REDIRECTED);
     EXPECT_CALL(mockMetaServerService_, ListDentry(_, _, _, _))
@@ -300,39 +271,23 @@ TEST_F(MetaServerClientImplTest, test_ListDentry) {
         .WillOnce(DoAll(
             SetArgPointee<2>(response),
             Invoke(SetRpcService<ListDentryRequest, ListDentryResponse>)));
-    EXPECT_CALL(*mockMetacache_.get(), UpdateApplyIndex(_, _));
     status = metaserverCli_.ListDentry(
         fsID, inodeID, last, count, onlyDir, &out);
     ASSERT_EQ(MetaStatusCode::OK, status);
 
-    // test3: test response do not have applyindex
-    response.clear_appliedindex();
-    response.set_statuscode(MetaStatusCode::OK);
+    // test3: test response do not have dentrys
+    response.clear_dentrys();
+
     EXPECT_CALL(mockMetaServerService_, ListDentry(_, _, _, _))
         .WillRepeatedly(DoAll(
             SetArgPointee<2>(response),
             Invoke(SetRpcService<ListDentryRequest, ListDentryResponse>)));
-    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
-        .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
-                              SetArgPointee<3>(applyIndex), Return(true)));
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(target_), Return(true)));
 
     status = metaserverCli_.ListDentry(
         fsID, inodeID, last, count, onlyDir, &out);
-    ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
-
-    // test4: test response do not have dentrys
-    response.set_appliedindex(100);
-    response.clear_dentrys();
-    status = metaserverCli_.ListDentry(
-        fsID, inodeID, last, count, onlyDir, &out);
-    ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
-
-    // test5: do not have both dentrys and appliedindex
-    response.clear_dentrys();
-    response.clear_appliedindex();
-    status = metaserverCli_.ListDentry(
-        fsID, inodeID, last, count, onlyDir, &out);
-    ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
+    ASSERT_EQ(MetaStatusCode::OK, status);
 }
 
 TEST_F(MetaServerClientImplTest, test_CreateDentry_rpc_error) {
@@ -347,17 +302,15 @@ TEST_F(MetaServerClientImplTest, test_CreateDentry_rpc_error) {
     // out
     butil::EndPoint target;
     butil::str2endpoint(addr_.c_str(), &target);
-    uint64_t applyIndex = 10;
 
     curvefs::metaserver::CreateDentryResponse response;
 
     EXPECT_CALL(mockMetaServerService_, CreateDentry(_, _, _, _))
         .WillRepeatedly(Invoke(
             SetRpcService<CreateDentryRequest, CreateDentryResponse, true>));
-    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
-        .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
-                              SetArgPointee<3>(applyIndex), Return(true)));
-    EXPECT_CALL(*mockMetacache_.get(), GetTargetLeader(_, _, _))
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(target_), Return(true)));
+    EXPECT_CALL(*mockMetacache_.get(), GetTargetLeader(_, _))
         .Times(1 + opt_.maxRetry)
         .WillRepeatedly(Return(true));
 
@@ -377,20 +330,16 @@ TEST_F(MetaServerClientImplTest, test_CreateDentry_create_dentry_ok) {
     // out
     butil::EndPoint target;
     butil::str2endpoint(addr_.c_str(), &target);
-    uint64_t applyIndex = 10;
 
     curvefs::metaserver::CreateDentryResponse response;
 
     response.set_statuscode(MetaStatusCode::OK);
-    response.set_appliedindex(10);
     EXPECT_CALL(mockMetaServerService_, CreateDentry(_, _, _, _))
         .WillOnce(DoAll(
             SetArgPointee<2>(response),
             Invoke(SetRpcService<CreateDentryRequest, CreateDentryResponse>)));
-    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(target_), SetArgPointee<3>(applyIndex),
-                        Return(true)));
-    EXPECT_CALL(*mockMetacache_.get(), UpdateApplyIndex(_, _));
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(target_), Return(true)));
 
     auto status = metaserverCli_.CreateDentry(d);
     ASSERT_EQ(MetaStatusCode::OK, status);
@@ -408,18 +357,15 @@ TEST_F(MetaServerClientImplTest, test_CreateDentry_copyset_not_exist) {
     // out
     butil::EndPoint target;
     butil::str2endpoint(addr_.c_str(), &target);
-    uint64_t applyIndex = 10;
 
     curvefs::metaserver::CreateDentryResponse response;
 
-    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(target_), SetArgPointee<3>(applyIndex),
-                        Return(true)));
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(target_), Return(true)));
     curvefs::metaserver::CreateDentryResponse responsefail;
     responsefail.set_statuscode(MetaStatusCode::COPYSET_NOTEXIST);
 
     response.set_statuscode(MetaStatusCode::OK);
-    response.set_appliedindex(applyIndex);
 
     EXPECT_CALL(mockMetaServerService_, CreateDentry(_, _, _, _))
         .Times(2)
@@ -429,44 +375,11 @@ TEST_F(MetaServerClientImplTest, test_CreateDentry_copyset_not_exist) {
         .WillOnce(DoAll(
             SetArgPointee<2>(response),
             Invoke(SetRpcService<CreateDentryRequest, CreateDentryResponse>)));
-    EXPECT_CALL(*mockMetacache_.get(), UpdateApplyIndex(_, _));
-    EXPECT_CALL(*mockMetacache_.get(), GetTargetLeader(_, _, _))
+    EXPECT_CALL(*mockMetacache_.get(), GetTargetLeader(_, _))
         .WillOnce(Return(true));
 
     auto status = metaserverCli_.CreateDentry(d);
     ASSERT_EQ(MetaStatusCode::OK, status);
-}
-
-TEST_F(MetaServerClientImplTest,
-       test_CreateDentry_response_doesnt_have_applyindex) {
-    // in
-    Dentry d;
-    d.set_fsid(1);
-    d.set_inodeid(2);
-    d.set_parentinodeid(1);
-    d.set_name("test11");
-    d.set_txid(10);
-
-    // out
-    butil::EndPoint target;
-    butil::str2endpoint(addr_.c_str(), &target);
-    uint64_t applyIndex = 10;
-
-    curvefs::metaserver::CreateDentryResponse response;
-
-    response.clear_appliedindex();
-    EXPECT_CALL(mockMetaServerService_, CreateDentry(_, _, _, _))
-        .WillRepeatedly(DoAll(
-            SetArgPointee<2>(response),
-            Invoke(SetRpcService<CreateDentryRequest, CreateDentryResponse>)));
-    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
-        .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
-                              SetArgPointee<3>(applyIndex), Return(true)));
-    EXPECT_CALL(*mockMetacache_.get(), GetTargetLeader(_, _, _))
-        .WillRepeatedly(Return(true));
-
-    auto status = metaserverCli_.CreateDentry(d);
-    ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 }
 
 TEST_F(MetaServerClientImplTest, test_DeleteDentry) {
@@ -478,7 +391,6 @@ TEST_F(MetaServerClientImplTest, test_DeleteDentry) {
     // out
     butil::EndPoint target;
     butil::str2endpoint(addr_.c_str(), &target);
-    uint64_t applyIndex = 10;
 
     curvefs::metaserver::DeleteDentryResponse response;
 
@@ -489,10 +401,8 @@ TEST_F(MetaServerClientImplTest, test_DeleteDentry) {
         .WillOnce(DoAll(
             SetArgPointee<2>(response),
             Invoke(SetRpcService<DeleteDentryRequest, DeleteDentryResponse>)));
-    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(target_), SetArgPointee<3>(applyIndex),
-                        Return(true)));
-    EXPECT_CALL(*mockMetacache_.get(), UpdateApplyIndex(_, _));
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(target_), Return(true)));
 
     MetaStatusCode status = metaserverCli_.DeleteDentry(
         fsid, inodeid, name, FsFileType::TYPE_FILE);
@@ -502,9 +412,8 @@ TEST_F(MetaServerClientImplTest, test_DeleteDentry) {
     EXPECT_CALL(mockMetaServerService_, DeleteDentry(_, _, _, _))
         .WillRepeatedly(Invoke(
             SetRpcService<DeleteDentryRequest, DeleteDentryResponse, true>));
-    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
-        .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
-                              SetArgPointee<3>(applyIndex), Return(true)));
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(target_), Return(true)));
 
     status = metaserverCli_.DeleteDentry(
             fsid, inodeid, name, FsFileType::TYPE_FILE);
@@ -516,33 +425,15 @@ TEST_F(MetaServerClientImplTest, test_DeleteDentry) {
         .WillOnce(DoAll(
             SetArgPointee<2>(response),
             Invoke(SetRpcService<DeleteDentryRequest, DeleteDentryResponse>)));
-    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
-        .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
-                              SetArgPointee<3>(applyIndex), Return(true)));
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(target_), Return(true)));
     status = metaserverCli_.DeleteDentry(
             fsid, inodeid, name, FsFileType::TYPE_FILE);
     ASSERT_EQ(MetaStatusCode::UNKNOWN_ERROR, status);
-
-    // test4: test response has applyindex
-    response.set_statuscode(MetaStatusCode::OK);
-    response.clear_appliedindex();
-    EXPECT_CALL(mockMetaServerService_, DeleteDentry(_, _, _, _))
-        .WillRepeatedly(DoAll(
-            SetArgPointee<2>(response),
-            Invoke(SetRpcService<DeleteDentryRequest, DeleteDentryResponse>)));
-    EXPECT_CALL(mockMetaServerService_, DeleteDentry(_, _, _, _))
-        .WillRepeatedly(DoAll(
-            SetArgPointee<2>(response),
-            Invoke(SetRpcService<DeleteDentryRequest, DeleteDentryResponse>)));
-
-    status = metaserverCli_.DeleteDentry(
-        fsid, inodeid, name, FsFileType::TYPE_FILE);
-    ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 }
 
 TEST_F(MetaServerClientImplTest, PrepareRenameTx) {
     curvefs::metaserver::PrepareRenameTxResponse response;
-    uint64_t applyIndex = 10;
     Dentry dentry;
     dentry.set_fsid(1);
     dentry.set_inodeid(2);
@@ -550,18 +441,15 @@ TEST_F(MetaServerClientImplTest, PrepareRenameTx) {
     dentry.set_name("A");
     dentry.set_txid(4);
 
-    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
-        .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
-                              SetArgPointee<3>(applyIndex), Return(true)));
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(target_), Return(true)));
 
     // CASE 1: PrepareRenameTx success
     response.set_statuscode(MetaStatusCode::OK);
-    response.set_appliedindex(applyIndex);
     EXPECT_CALL(mockMetaServerService_, PrepareRenameTx(_, _, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(response),
                         Invoke(SetRpcService<PrepareRenameTxRequest,
                                              PrepareRenameTxResponse>)));
-    EXPECT_CALL(*mockMetacache_.get(), UpdateApplyIndex(_, _));
 
     auto dentrys = std::vector<Dentry>{dentry};
     auto rc = metaserverCli_.PrepareRenameTx(dentrys);
@@ -596,7 +484,6 @@ TEST_F(MetaServerClientImplTest, test_GetInode) {
     // out
     butil::EndPoint target;
     butil::str2endpoint(addr_.c_str(), &target);
-    uint64_t applyIndex = 10;
     curvefs::metaserver::Inode out;
     out.set_inodeid(inodeid);
     out.set_fsid(fsid);
@@ -623,9 +510,8 @@ TEST_F(MetaServerClientImplTest, test_GetInode) {
     EXPECT_CALL(mockMetaServerService_, GetInode(_, _, _, _))
         .WillRepeatedly(
             Invoke(SetRpcService<GetInodeRequest, GetInodeResponse, true>));
-    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
-        .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
-                              SetArgPointee<3>(applyIndex), Return(true)));
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(target_),  Return(true)));
 
     MetaStatusCode status = metaserverCli_.GetInode(
         fsid, inodeid, &out, &streaming);
@@ -633,7 +519,6 @@ TEST_F(MetaServerClientImplTest, test_GetInode) {
 
     // test1: get inode ok
     response.set_statuscode(MetaStatusCode::OK);
-    response.set_appliedindex(10);
     auto tmpInode = new curvefs::metaserver::Inode();
     tmpInode->CopyFrom(out);
     response.set_allocated_inode(tmpInode);
@@ -641,7 +526,6 @@ TEST_F(MetaServerClientImplTest, test_GetInode) {
         .WillOnce(
             DoAll(SetArgPointee<2>(response),
                   Invoke(SetRpcService<GetInodeRequest, GetInodeResponse>)));
-    EXPECT_CALL(*mockMetacache_.get(), UpdateApplyIndex(_, _));
 
     status = metaserverCli_.GetInode(fsid, inodeid, &out, &streaming);
     ASSERT_EQ(MetaStatusCode::OK, status);
@@ -655,26 +539,14 @@ TEST_F(MetaServerClientImplTest, test_GetInode) {
     status = metaserverCli_.GetInode(fsid, inodeid, &out, &streaming);
     ASSERT_EQ(MetaStatusCode::NOT_FOUND, status);
 
-    // test3: test response do not have applyindex
+    // test3: test response do not have inode
     response.set_statuscode(MetaStatusCode::OK);
-    response.clear_appliedindex();
+    response.clear_inode();
+
     EXPECT_CALL(mockMetaServerService_, GetInode(_, _, _, _))
         .WillRepeatedly(
             DoAll(SetArgPointee<2>(response),
                   Invoke(SetRpcService<GetInodeRequest, GetInodeResponse>)));
-
-    status = metaserverCli_.GetInode(fsid, inodeid, &out, &streaming);
-    ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
-
-    // test4: test response do not have inode
-    response.set_appliedindex(10);
-    response.clear_inode();
-    status = metaserverCli_.GetInode(fsid, inodeid, &out, &streaming);
-    ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
-
-    // test5: do not have both dentrys and appliedindex
-    response.clear_inode();
-    response.clear_appliedindex();
 
     status = metaserverCli_.GetInode(fsid, inodeid, &out, &streaming);
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
@@ -703,7 +575,6 @@ TEST_F(MetaServerClientImplTest, test_UpdateInodeAttr) {
     // out
     butil::EndPoint target;
     butil::str2endpoint(addr_.c_str(), &target);
-    uint64_t applyIndex = 10;
     curvefs::metaserver::Inode out;
 
     curvefs::metaserver::UpdateInodeResponse response;
@@ -712,9 +583,8 @@ TEST_F(MetaServerClientImplTest, test_UpdateInodeAttr) {
     EXPECT_CALL(mockMetaServerService_, UpdateInode(_, _, _, _))
         .WillRepeatedly(Invoke(
             SetRpcService<UpdateInodeRequest, UpdateInodeResponse, true>));
-    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
-        .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
-                              SetArgPointee<3>(applyIndex), Return(true)));
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(target_), Return(true)));
 
     MetaStatusCode status = metaserverCli_.UpdateInodeAttr(
         inode.fsid(), inode.inodeid(), ToInodeAttr(inode));
@@ -727,10 +597,8 @@ TEST_F(MetaServerClientImplTest, test_UpdateInodeAttr) {
         .WillOnce(DoAll(
             SetArgPointee<2>(response),
             Invoke(SetRpcService<UpdateInodeRequest, UpdateInodeResponse>)));
-    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
-        .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
-                              SetArgPointee<3>(applyIndex), Return(true)));
-    EXPECT_CALL(*mockMetacache_.get(), UpdateApplyIndex(_, _));
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(target_), Return(true)));
     status = metaserverCli_.UpdateInodeAttr(
         inode.fsid(), inode.inodeid(), ToInodeAttr(inode));
     ASSERT_EQ(MetaStatusCode::OK, status);
@@ -745,20 +613,8 @@ TEST_F(MetaServerClientImplTest, test_UpdateInodeAttr) {
                                             ToInodeAttr(inode));
     ASSERT_EQ(MetaStatusCode::OVERLOAD, status);
 
-    // test3: response has no applyindex
-    response.set_statuscode(curvefs::metaserver::OK);
-    response.clear_appliedindex();
-    EXPECT_CALL(mockMetaServerService_, UpdateInode(_, _, _, _))
-        .WillRepeatedly(DoAll(
-            SetArgPointee<2>(response),
-            Invoke(SetRpcService<UpdateInodeRequest, UpdateInodeResponse>)));
-
-    status = metaserverCli_.UpdateInodeAttr(inode.fsid(), inode.inodeid(),
-                                            ToInodeAttr(inode));
-    ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
-
-    // test4: get target always fail
-    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
+    // test3: get target always fail
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
         .WillRepeatedly(Return(false));
     status = metaserverCli_.UpdateInodeAttr(inode.fsid(), inode.inodeid(),
                                             ToInodeAttr(inode));
@@ -773,22 +629,18 @@ TEST_F(MetaServerClientImplTest, test_GetOrModifyS3ChunkInfo) {
     bool returnS3ChunkInfoMap = false;
     google::protobuf::Map<
         uint64_t, S3ChunkInfoList> out;
-    uint64_t applyIndex = 10;
 
     // test1: success
     curvefs::metaserver::GetOrModifyS3ChunkInfoResponse response;
     response.set_statuscode(curvefs::metaserver::OK);
-    response.set_appliedindex(applyIndex);
     EXPECT_CALL(mockMetaServerService_, GetOrModifyS3ChunkInfo(_, _, _, _))
         .WillOnce(DoAll(
             SetArgPointee<2>(response),
             Invoke(SetRpcService<
                 curvefs::metaserver::GetOrModifyS3ChunkInfoRequest,
                 curvefs::metaserver::GetOrModifyS3ChunkInfoResponse>)));
-    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
-        .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
-                              SetArgPointee<3>(applyIndex), Return(true)));
-    EXPECT_CALL(*mockMetacache_.get(), UpdateApplyIndex(_, _));
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(target_), Return(true)));
 
     MetaStatusCode status = metaserverCli_.GetOrModifyS3ChunkInfo(
         fsId, inodeId, s3ChunkInfos, returnS3ChunkInfoMap, &out);
@@ -807,21 +659,8 @@ TEST_F(MetaServerClientImplTest, test_GetOrModifyS3ChunkInfo) {
         fsId, inodeId, s3ChunkInfos, returnS3ChunkInfoMap, &out);
     ASSERT_EQ(MetaStatusCode::OVERLOAD, status);
 
-    // test3: has no applyIndex
-    response.set_statuscode(curvefs::metaserver::OK);
-    response.clear_appliedindex();
-    EXPECT_CALL(mockMetaServerService_, GetOrModifyS3ChunkInfo(_, _, _, _))
-        .WillRepeatedly(DoAll(
-            SetArgPointee<2>(response),
-            Invoke(SetRpcService<
-                curvefs::metaserver::GetOrModifyS3ChunkInfoRequest,
-                curvefs::metaserver::GetOrModifyS3ChunkInfoResponse>)));
-    status = metaserverCli_.GetOrModifyS3ChunkInfo(
-        fsId, inodeId, s3ChunkInfos, returnS3ChunkInfoMap, &out);
-    ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
-
-    // test4: get target always fail
-    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
+    // test3: get target always fail
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
         .WillRepeatedly(Return(false));
     status = metaserverCli_.GetOrModifyS3ChunkInfo(
         fsId, inodeId, s3ChunkInfos, returnS3ChunkInfoMap, &out);
@@ -831,7 +670,6 @@ TEST_F(MetaServerClientImplTest, test_GetOrModifyS3ChunkInfo) {
 TEST_F(MetaServerClientImplTest, GetOrModifyS3ChunkInfo_ReturnS3ChunkInfoMap) {
     uint32_t fsId = 1;
     uint64_t inodeId = 100;
-    uint64_t applyIndex = 10;
     uint64_t chunkIndex = 100;
     S3ChunkInfoList list;
     S3ChunkInofMap out, map2add;
@@ -860,7 +698,6 @@ TEST_F(MetaServerClientImplTest, GetOrModifyS3ChunkInfo_ReturnS3ChunkInfoMap) {
                     LOG(ERROR) << "Accept stream connection failed";
                     return;
                 }
-                response->set_appliedindex(applyIndex);
                 response->set_statuscode(curvefs::metaserver::OK);
             }
 
@@ -885,11 +722,8 @@ TEST_F(MetaServerClientImplTest, GetOrModifyS3ChunkInfo_ReturnS3ChunkInfoMap) {
             }
         }));
 
-    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
-        .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
-                              SetArgPointee<3>(applyIndex),
-                              Return(true)));
-    EXPECT_CALL(*mockMetacache_.get(), UpdateApplyIndex(_, _));
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(target_), Return(true)));
 
     MetaStatusCode status = metaserverCli_.GetOrModifyS3ChunkInfo(
         fsId, inodeId, map2add, true, &out);
@@ -924,7 +758,6 @@ TEST_F(MetaServerClientImplTest, test_CreateInode) {
     // out
     butil::EndPoint target;
     butil::str2endpoint(addr_.c_str(), &target);
-    uint64_t applyIndex = 10;
     curvefs::metaserver::Inode out;
     out.set_inodeid(100);
     out.set_fsid(inode.fsId);
@@ -949,14 +782,13 @@ TEST_F(MetaServerClientImplTest, test_CreateInode) {
     EXPECT_CALL(mockMetaServerService_, CreateInode(_, _, _, _))
         .WillRepeatedly(Invoke(
             SetRpcService<CreateInodeRequest, CreateInodeResponse, true>));
-    EXPECT_CALL(*mockMetacache_.get(), SelectTarget(_, _, _))
+    EXPECT_CALL(*mockMetacache_.get(), SelectTarget(_, _))
         .WillRepeatedly(Return(true));
     MetaStatusCode status = metaserverCli_.CreateInode(inode, &out);
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 
     // test1: create inode ok
     response.set_statuscode(MetaStatusCode::OK);
-    response.set_appliedindex(10);
     auto tmpInode = new curvefs::metaserver::Inode();
     tmpInode->CopyFrom(out);
     response.set_allocated_inode(tmpInode);
@@ -964,10 +796,8 @@ TEST_F(MetaServerClientImplTest, test_CreateInode) {
         .WillOnce(DoAll(
             SetArgPointee<2>(response),
             Invoke(SetRpcService<CreateInodeRequest, CreateInodeResponse>)));
-    EXPECT_CALL(*mockMetacache_.get(), SelectTarget(_, _, _))
-        .WillOnce(DoAll(SetArgPointee<1>(target_), SetArgPointee<2>(applyIndex),
-                        Return(true)));
-    EXPECT_CALL(*mockMetacache_.get(), UpdateApplyIndex(_, _));
+    EXPECT_CALL(*mockMetacache_.get(), SelectTarget(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(target_), Return(true)));
     status = metaserverCli_.CreateInode(inode, &out);
     ASSERT_EQ(MetaStatusCode::OK, status);
 
@@ -977,15 +807,14 @@ TEST_F(MetaServerClientImplTest, test_CreateInode) {
         .WillOnce(DoAll(
             SetArgPointee<2>(response),
             Invoke(SetRpcService<CreateInodeRequest, CreateInodeResponse>)));
-    EXPECT_CALL(*mockMetacache_.get(), SelectTarget(_, _, _))
-        .WillRepeatedly(DoAll(SetArgPointee<1>(target_),
-                              SetArgPointee<2>(applyIndex), Return(true)));
+    EXPECT_CALL(*mockMetacache_.get(), SelectTarget(_, _))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(target_), Return(true)));
 
     status = metaserverCli_.CreateInode(inode, &out);
     ASSERT_EQ(MetaStatusCode::INODE_EXIST, status);
 
-    // test3: response do not have applyindex
-    response.clear_appliedindex();
+    // test3: response do not have inode
+    response.clear_inode();
     response.set_statuscode(curvefs::metaserver::OK);
     EXPECT_CALL(mockMetaServerService_, CreateInode(_, _, _, _))
         .WillRepeatedly(DoAll(
@@ -994,34 +823,6 @@ TEST_F(MetaServerClientImplTest, test_CreateInode) {
 
     status = metaserverCli_.CreateInode(inode, &out);
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
-
-    // test4: response do not have inode
-    response.set_appliedindex(10);
-    response.clear_inode();
-
-    status = metaserverCli_.CreateInode(inode, &out);
-    ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
-
-    // test5: do not have both inode and appliedindex
-    response.clear_inode();
-    response.clear_appliedindex();
-
-    status = metaserverCli_.CreateInode(inode, &out);
-    ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
-
-    // test6: create inode with partition alloc id fail
-    response.set_statuscode(MetaStatusCode::PARTITION_ALLOC_ID_FAIL);
-    EXPECT_CALL(mockMetaServerService_, CreateInode(_, _, _, _))
-        .WillRepeatedly(DoAll(
-            SetArgPointee<2>(response),
-            Invoke(SetRpcService<CreateInodeRequest, CreateInodeResponse>)));
-    EXPECT_CALL(*mockMetacache_.get(), SelectTarget(_, _, _))
-        .WillRepeatedly(DoAll(SetArgPointee<1>(target_),
-                              SetArgPointee<2>(applyIndex), Return(true)));
-    EXPECT_CALL(*mockMetacache_.get(), MarkPartitionUnavailable(_))
-        .Times(1 + opt_.maxRetry);
-    status = metaserverCli_.CreateInode(inode, &out);
-    ASSERT_EQ(MetaStatusCode::PARTITION_ALLOC_ID_FAIL, status);
 }
 
 TEST_F(MetaServerClientImplTest, test_DeleteInode) {
@@ -1032,7 +833,6 @@ TEST_F(MetaServerClientImplTest, test_DeleteInode) {
     // out
     butil::EndPoint target;
     butil::str2endpoint(addr_.c_str(), &target);
-    uint64_t applyIndex = 10;
 
     curvefs::metaserver::DeleteInodeResponse response;
 
@@ -1040,9 +840,8 @@ TEST_F(MetaServerClientImplTest, test_DeleteInode) {
     EXPECT_CALL(mockMetaServerService_, DeleteInode(_, _, _, _))
         .WillRepeatedly(Invoke(
             SetRpcService<DeleteInodeRequest, DeleteInodeResponse, true>));
-    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
-        .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
-                              SetArgPointee<3>(applyIndex), Return(true)));
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(target_), Return(true)));
     MetaStatusCode status = metaserverCli_.DeleteInode(fsId, inodeid);
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 
@@ -1053,10 +852,8 @@ TEST_F(MetaServerClientImplTest, test_DeleteInode) {
         .WillOnce(DoAll(
             SetArgPointee<2>(response),
             Invoke(SetRpcService<DeleteInodeRequest, DeleteInodeResponse>)));
-    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
-        .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
-                              SetArgPointee<3>(applyIndex), Return(true)));
-    EXPECT_CALL(*mockMetacache_.get(), UpdateApplyIndex(_, _));
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(target_), Return(true)));
     status = metaserverCli_.DeleteInode(fsId, inodeid);
     ASSERT_EQ(MetaStatusCode::OK, status);
 
@@ -1068,17 +865,6 @@ TEST_F(MetaServerClientImplTest, test_DeleteInode) {
             Invoke(SetRpcService<DeleteInodeRequest, DeleteInodeResponse>)));
     status = metaserverCli_.DeleteInode(fsId, inodeid);
     ASSERT_EQ(MetaStatusCode::NOT_FOUND, status);
-
-    // test3: response do not have apply index
-    response.clear_appliedindex();
-    response.set_statuscode(MetaStatusCode::OK);
-    EXPECT_CALL(mockMetaServerService_, DeleteInode(_, _, _, _))
-        .WillRepeatedly(DoAll(
-            SetArgPointee<2>(response),
-            Invoke(SetRpcService<DeleteInodeRequest, DeleteInodeResponse>)));
-
-    status = metaserverCli_.DeleteInode(fsId, inodeid);
-    ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 }
 
 TEST_F(MetaServerClientImplTest, test_BatchGetInodeAttr) {
@@ -1096,7 +882,6 @@ TEST_F(MetaServerClientImplTest, test_BatchGetInodeAttr) {
     butil::EndPoint target;
     butil::str2endpoint(addr_.c_str(), &target);
     uint32_t partitionID = 200;
-    uint64_t applyIndex = 10;
     curvefs::metaserver::InodeAttr out;
     out.set_inodeid(inodeId1);
     out.set_fsid(fsid);
@@ -1128,9 +913,8 @@ TEST_F(MetaServerClientImplTest, test_BatchGetInodeAttr) {
         .WillRepeatedly(
             Invoke(SetRpcService<BatchGetInodeAttrRequest,
             BatchGetInodeAttrResponse, true>));
-    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
-        .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
-                              SetArgPointee<3>(applyIndex), Return(true)));
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(target_), Return(true)));
 
     MetaStatusCode status = metaserverCli_.BatchGetInodeAttr(
         fsid, inodeIds, &attr);
@@ -1138,7 +922,6 @@ TEST_F(MetaServerClientImplTest, test_BatchGetInodeAttr) {
 
     // test1: batchGetInodeAttr ok
     response.set_statuscode(MetaStatusCode::OK);
-    response.set_appliedindex(10);
     auto attr1 = response.add_attr();
     attr1->CopyFrom(out);
     auto attr2 = response.add_attr();
@@ -1151,7 +934,6 @@ TEST_F(MetaServerClientImplTest, test_BatchGetInodeAttr) {
             DoAll(SetArgPointee<2>(response),
                   Invoke(SetRpcService<BatchGetInodeAttrRequest,
                   BatchGetInodeAttrResponse>)));
-    EXPECT_CALL(*mockMetacache_.get(), UpdateApplyIndex(_, _));
 
     status = metaserverCli_.BatchGetInodeAttr(fsid, inodeIds, &attr);
     ASSERT_EQ(MetaStatusCode::OK, status);
@@ -1169,20 +951,6 @@ TEST_F(MetaServerClientImplTest, test_BatchGetInodeAttr) {
                   BatchGetInodeAttrResponse>)));
     status = metaserverCli_.BatchGetInodeAttr(fsid, inodeIds, &attr);
     ASSERT_EQ(MetaStatusCode::NOT_FOUND, status);
-
-    // test3: test response do not have applyindex
-    response.set_statuscode(MetaStatusCode::OK);
-    response.clear_appliedindex();
-    EXPECT_CALL(*mockMetacache_.get(), GetPartitionIdByInodeId(_, _, _))
-        .WillRepeatedly(DoAll(SetArgPointee<2>(partitionID), Return(true)));
-    EXPECT_CALL(mockMetaServerService_, BatchGetInodeAttr(_, _, _, _))
-        .WillRepeatedly(
-            DoAll(SetArgPointee<2>(response),
-                  Invoke(SetRpcService<BatchGetInodeAttrRequest,
-                  BatchGetInodeAttrResponse>)));
-
-    status = metaserverCli_.BatchGetInodeAttr(fsid, inodeIds, &attr);
-    ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 }
 
 TEST_F(MetaServerClientImplTest, test_BatchGetXAttr) {
@@ -1200,7 +968,6 @@ TEST_F(MetaServerClientImplTest, test_BatchGetXAttr) {
     butil::EndPoint target;
     butil::str2endpoint(addr_.c_str(), &target);
     uint32_t partitionID = 200;
-    uint64_t applyIndex = 10;
     curvefs::metaserver::XAttr out;
     out.set_fsid(fsid);
     out.set_inodeid(inodeId1);
@@ -1222,9 +989,8 @@ TEST_F(MetaServerClientImplTest, test_BatchGetXAttr) {
         .WillRepeatedly(
             Invoke(SetRpcService<BatchGetXAttrRequest,
             BatchGetXAttrResponse, true>));
-    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
-        .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
-                              SetArgPointee<3>(applyIndex), Return(true)));
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(target_), Return(true)));
 
     MetaStatusCode status = metaserverCli_.BatchGetXAttr(
         fsid, inodeIds, &xattr);
@@ -1245,7 +1011,6 @@ TEST_F(MetaServerClientImplTest, test_BatchGetXAttr) {
             DoAll(SetArgPointee<2>(response),
                   Invoke(SetRpcService<BatchGetXAttrRequest,
                   BatchGetXAttrResponse>)));
-    EXPECT_CALL(*mockMetacache_.get(), UpdateApplyIndex(_, _));
 
     status = metaserverCli_.BatchGetXAttr(fsid, inodeIds, &xattr);
     ASSERT_EQ(MetaStatusCode::OK, status);
@@ -1263,20 +1028,6 @@ TEST_F(MetaServerClientImplTest, test_BatchGetXAttr) {
                   BatchGetXAttrResponse>)));
     status = metaserverCli_.BatchGetXAttr(fsid, inodeIds, &xattr);
     ASSERT_EQ(MetaStatusCode::NOT_FOUND, status);
-
-    // test3: test response do not have applyindex
-    response.set_statuscode(MetaStatusCode::OK);
-    response.clear_appliedindex();
-    EXPECT_CALL(*mockMetacache_.get(), GetPartitionIdByInodeId(_, _, _))
-        .WillRepeatedly(DoAll(SetArgPointee<2>(partitionID), Return(true)));
-    EXPECT_CALL(mockMetaServerService_, BatchGetXAttr(_, _, _, _))
-        .WillRepeatedly(
-            DoAll(SetArgPointee<2>(response),
-                  Invoke(SetRpcService<BatchGetXAttrRequest,
-                  BatchGetXAttrResponse>)));
-
-    status = metaserverCli_.BatchGetXAttr(fsid, inodeIds, &xattr);
-    ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 }
 
 namespace {
@@ -1334,17 +1085,14 @@ TEST_F(MetaServerClientImplTest, TestGetVolumeExtent) {
     const uint32_t fsid = 1;
     const uint64_t ino = 2;
     const uint32_t partitionID = 200;
-    const uint64_t applyIndex = 10;
 
     for (auto streaming : {true, false}) {
         metaserver::VolumeExtentList out;
 
-        EXPECT_CALL(*mockMetacache_, GetTarget(_, _, _, _, _))
+        EXPECT_CALL(*mockMetacache_, GetTarget(_, _, _, _))
             .WillRepeatedly(
-                Invoke([&](uint32_t, uint64_t, CopysetTarget *target,
-                           uint64_t *applyindex, bool) {
+                Invoke([&](uint32_t, uint64_t, CopysetTarget *target, bool) {
                     *target = target_;
-                    *applyindex = applyIndex;
                     return true;
                 }));
 
