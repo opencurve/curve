@@ -40,16 +40,19 @@ class MockMetaServerService : public curvefs::metaserver::MetaServerService {
                       const ::curvefs::metaserver::GetDentryRequest *request,
                       ::curvefs::metaserver::GetDentryResponse *response,
                       ::google::protobuf::Closure *done));
+
     MOCK_METHOD4(ListDentry,
                  void(::google::protobuf::RpcController *controller,
                       const ::curvefs::metaserver::ListDentryRequest *request,
                       ::curvefs::metaserver::ListDentryResponse *response,
                       ::google::protobuf::Closure *done));
+
     MOCK_METHOD4(CreateDentry,
                  void(::google::protobuf::RpcController *controller,
                       const ::curvefs::metaserver::CreateDentryRequest *request,
                       ::curvefs::metaserver::CreateDentryResponse *response,
                       ::google::protobuf::Closure *done));
+
     MOCK_METHOD4(DeleteDentry,
                  void(::google::protobuf::RpcController *controller,
                       const ::curvefs::metaserver::DeleteDentryRequest *request,

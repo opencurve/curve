@@ -77,6 +77,18 @@ class CopysetNode : public braft::StateMachine {
 
     virtual bool IsLeaderTerm() const;
 
+    /**
+     * check if current node is in lease leader
+     * @return
+     */
+    virtual bool IsLeaseLeader(const braft::LeaderLeaseStatus &lease_status) const;  // NOLINT
+
+    /**
+     * check if current node is expired
+     * @return
+     */
+    virtual bool IsLeaseExpired(const braft::LeaderLeaseStatus &lease_status) const;  // NOLINT
+
     PoolId GetPoolId() const;
 
     const braft::PeerId& GetPeerId() const;
@@ -105,6 +117,12 @@ class CopysetNode : public braft::StateMachine {
      * @brief Get current copyset node's status
      */
     void GetStatus(braft::NodeStatus* status);
+
+    /**
+     * @brief: get raft node leader lease status
+     * @param status[out]: raft node leader lease status
+     */
+    virtual void GetLeaderLeaseStatus(braft::LeaderLeaseStatus *status);
 
     virtual void ListPeers(std::vector<Peer>* peers) const;
 
@@ -271,6 +289,10 @@ inline uint64_t CopysetNode::GetAppliedIndex() const {
 
 inline void CopysetNode::GetStatus(braft::NodeStatus* status) {
     raftNode_->get_status(status);
+}
+
+inline void CopysetNode::GetLeaderLeaseStatus(braft::LeaderLeaseStatus *status) {  // NOLINT
+    raftNode_->get_leader_lease_status(status);
 }
 
 inline ApplyQueue* CopysetNode::GetApplyQueue() const {

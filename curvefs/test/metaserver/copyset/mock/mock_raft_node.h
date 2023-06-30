@@ -58,6 +58,7 @@ class MockRaftNode : public RaftNode {
     MOCK_METHOD2(read_committed_user_log,
                  butil::Status(const int64_t, braft::UserLog*));
     MOCK_METHOD1(get_status, void(braft::NodeStatus*));
+    MOCK_METHOD(void, get_leader_lease_status, (braft::LeaderLeaseStatus*), (override));  // NOLINT
 };
 
 }  // namespace copyset

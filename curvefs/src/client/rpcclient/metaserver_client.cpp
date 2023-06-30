@@ -85,12 +85,12 @@ MetaStatusCode MetaServerClientImpl::Init(
 
 #define RPCTask                                                                \
     [&](LogicPoolID poolID, CopysetID copysetID, PartitionID partitionID,      \
-        uint64_t txId, uint64_t applyIndex, brpc::Channel * channel,           \
+        uint64_t txId, brpc::Channel * channel,                                \
         brpc::Controller * cntl, TaskExecutorDone * taskExecutorDone) -> int
 
 #define AsyncRPCTask                                                           \
     [=](LogicPoolID poolID, CopysetID copysetID, PartitionID partitionID,      \
-        uint64_t txId, uint64_t applyIndex, brpc::Channel * channel,           \
+        uint64_t txId, brpc::Channel * channel,                                \
         brpc::Controller * cntl, TaskExecutorDone * taskExecutorDone) -> int
 
 class MetaServerClientRpcDoneBase : public google::protobuf::Closure {
@@ -135,7 +135,6 @@ MetaStatusCode MetaServerClientImpl::GetDentry(uint32_t fsId, uint64_t inodeid,
         request.set_parentinodeid(inodeid);
         request.set_name(name);
         request.set_txid(txId);
-        request.set_appliedindex(applyIndex);
 
         curvefs::metaserver::MetaServerService_Stub stub(channel);
         stub.GetDentry(cntl, &request, &response, nullptr);
@@ -156,15 +155,12 @@ MetaStatusCode MetaServerClientImpl::GetDentry(uint32_t fsId, uint64_t inodeid,
                 << ", name = " << name << ", errcode = " << ret
                 << ", errmsg = " << MetaStatusCode_Name(ret);
 
-        } else if (response.has_dentry() && response.has_appliedindex()) {
+        } else if (response.has_dentry()) {
             *out = response.dentry();
-
-            metaCache_->UpdateApplyIndex(CopysetGroupID(poolID, copysetID),
-                                         response.appliedindex());
         } else {
             LOG(WARNING) << "GetDentry: fsId = " << fsId
                          << ", inodeid = " << inodeid << ", name = " << name
-                         << " ok, but dentry or applyIndex not set in response:"
+                         << " ok, but dentry not set in response:"
                          << response.DebugString();
             return -1;
         }
@@ -201,7 +197,6 @@ MetaStatusCode MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
         request.set_last(last);
         request.set_count(count);
         request.set_onlydir(onlyDir);
-        request.set_appliedindex(applyIndex);
 
         curvefs::metaserver::MetaServerService_Stub stub(channel);
         stub.ListDentry(cntl, &request, &response, nullptr);
@@ -222,20 +217,10 @@ MetaStatusCode MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
                          << ", count = " << count << ", onlyDir = " << onlyDir
                          << ", errcode = " << ret
                          << ", errmsg = " << MetaStatusCode_Name(ret);
-        } else if (response.has_appliedindex()) {
-            metaCache_->UpdateApplyIndex(CopysetGroupID(poolID, copysetID),
-                                         response.appliedindex());
-
+        } else {
             auto dentrys = response.dentrys();
             for_each(dentrys.begin(), dentrys.end(),
-                     [&](Dentry &d) { dentryList->push_back(d); });
-        } else {
-            LOG(WARNING) << "ListDentry: fsId = " << fsId
-                         << ", inodeid = " << inodeid << ", last = " << last
-                         << ", count = " << count << ", onlyDir = " << onlyDir
-                         << " ok, but applyIndex not set in response:"
-                         << response.DebugString();
-            return -1;
+                        [&](Dentry &d) { dentryList->push_back(d); });
         }
 
         VLOG(6) << "ListDentry done, request: " << request.DebugString()
@@ -253,7 +238,6 @@ MetaStatusCode MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
 
 MetaStatusCode MetaServerClientImpl::CreateDentry(const Dentry &dentry) {
     auto task = RPCTask {
-        (void)applyIndex;
         (void)taskExecutorDone;
         metric_.createDentry.qps.count << 1;
         LatencyUpdater updater(&metric_.createDentry.latency);
@@ -293,14 +277,6 @@ MetaStatusCode MetaServerClientImpl::CreateDentry(const Dentry &dentry) {
             LOG(WARNING) << "CreateDentry:  dentry = " << dentry.DebugString()
                          << ", errcode = " << ret
                          << ", errmsg = " << MetaStatusCode_Name(ret);
-        } else if (response.has_appliedindex()) {
-            metaCache_->UpdateApplyIndex(CopysetGroupID(poolID, copysetID),
-                                         response.appliedindex());
-        } else {
-            LOG(WARNING) << "CreateDentry:  dentry = " << dentry.DebugString()
-                         << " ok, but applyIndex not set in response:"
-                         << response.DebugString();
-            return -1;
         }
 
         VLOG(6) << "CreateDentry "
@@ -325,7 +301,6 @@ MetaStatusCode MetaServerClientImpl::DeleteDentry(uint32_t fsId,
                                                   const std::string &name,
                                                   FsFileType type) {
     auto task = RPCTask {
-        (void)applyIndex;
         (void)taskExecutorDone;
         metric_.deleteDentry.qps.count << 1;
         LatencyUpdater updater(&metric_.deleteDentry.latency);
@@ -358,15 +333,6 @@ MetaStatusCode MetaServerClientImpl::DeleteDentry(uint32_t fsId,
                          << ", inodeid = " << inodeid << ", name = " << name
                          << ", errcode = " << ret
                          << ", errmsg = " << MetaStatusCode_Name(ret);
-        } else if (response.has_appliedindex()) {
-            metaCache_->UpdateApplyIndex(CopysetGroupID(poolID, copysetID),
-                                         response.appliedindex());
-        } else {
-            LOG(WARNING) << "DeleteDentry:  fsid = " << fsId
-                         << ", inodeid = " << inodeid << ", name = " << name
-                         << " ok, but applyIndex not set in response:"
-                         << response.DebugString();
-            return -1;
         }
 
         VLOG(6) << "DeleteDentry done, request: " << request.DebugString()
@@ -386,7 +352,6 @@ MetaStatusCode
 MetaServerClientImpl::PrepareRenameTx(const std::vector<Dentry> &dentrys) {
     auto task = RPCTask {
         (void)txId;
-        (void)applyIndex;
         (void)taskExecutorDone;
         metric_.prepareRenameTx.qps.count << 1;
         LatencyUpdater updater(&metric_.prepareRenameTx.latency);
@@ -413,14 +378,6 @@ MetaServerClientImpl::PrepareRenameTx(const std::vector<Dentry> &dentrys) {
         if (rc != MetaStatusCode::OK) {
             LOG(WARNING) << "PrepareRenameTx: retCode = " << rc
                          << ", message = " << MetaStatusCode_Name(rc);
-        } else if (response.has_appliedindex()) {
-            metaCache_->UpdateApplyIndex(CopysetGroupID(poolID, copysetID),
-                                         response.appliedindex());
-        } else {
-            LOG(WARNING) << "PrepareRenameTx OK"
-                         << ", but applyIndex not set in response:"
-                         << response.DebugString();
-            return -1;
         }
 
         VLOG(6) << "PrepareRenameTx done, request: " << request.DebugString()
@@ -451,7 +408,6 @@ MetaStatusCode MetaServerClientImpl::GetInode(uint32_t fsId, uint64_t inodeid,
         request.set_partitionid(partitionID);
         request.set_fsid(fsId);
         request.set_inodeid(inodeid);
-        request.set_appliedindex(applyIndex);
         request.set_supportstreaming(true);
 
         curvefs::metaserver::MetaServerService_Stub stub(channel);
@@ -470,14 +426,11 @@ MetaStatusCode MetaServerClientImpl::GetInode(uint32_t fsId, uint64_t inodeid,
             LOG_IF(WARNING, ret != MetaStatusCode::NOT_FOUND)
                 << "GetInode: inodeid:" << inodeid << ", errcode = " << ret
                 << ", errmsg = " << MetaStatusCode_Name(ret);
-        } else if (response.has_inode() && response.has_appliedindex()) {
+        } else if (response.has_inode()) {
             out->CopyFrom(response.inode());
-
-            metaCache_->UpdateApplyIndex(CopysetGroupID(poolID, copysetID),
-                                         response.appliedindex());
         } else {
             LOG(WARNING) << "GetInode: inodeid:" << inodeid
-                         << " ok, but applyIndex or inode not set in response: "
+                         << " ok, but inode not set in response: "
                          << response.DebugString();
             return -1;
         }
@@ -574,15 +527,6 @@ void BatchGetInodeAttrRpcDone::Run() {
         LOG(WARNING) << "batchGetInodeAttr failed"
                      << ", errcode = " << ret
                      << ", errmsg = " << MetaStatusCode_Name(ret);
-    } else if (response.has_appliedindex()) {
-        metaCache->UpdateApplyIndex(taskCtx->target.groupID,
-                                    response.appliedindex());
-    } else {
-        LOG(WARNING) << "batchGetInodeAttr ok,"
-                     << " but applyIndex not set in response:"
-                     << response.DebugString();
-        done_->SetRetCode(-1);
-        return;
     }
 
     VLOG(6) << "batchGetInodeAttr done, "
@@ -621,7 +565,6 @@ MetaServerClientImpl::BatchGetInodeAttr(uint32_t fsId,
             request.set_copysetid(copysetID);
             request.set_partitionid(partitionID);
             request.set_fsid(fsId);
-            request.set_appliedindex(applyIndex);
             *request.mutable_inodeid() = {it.begin(), it.end()};
 
             curvefs::metaserver::MetaServerService_Stub stub(channel);
@@ -640,17 +583,14 @@ MetaServerClientImpl::BatchGetInodeAttr(uint32_t fsId,
             if (ret != MetaStatusCode::OK) {
                 LOG(WARNING) << "BatchGetInodeAttr failed, errcode = " << ret
                              << ", errmsg = " << MetaStatusCode_Name(ret);
-            } else if (response.attr_size() > 0 &&
-                       response.has_appliedindex()) {
+            } else if (response.attr_size() > 0) {
                 auto *attrs = response.mutable_attr();
                 attr->insert(attr->end(),
                              std::make_move_iterator(attrs->begin()),
                              std::make_move_iterator(attrs->end()));
-                metaCache_->UpdateApplyIndex(CopysetGroupID(poolID, copysetID),
-                                             response.appliedindex());
             } else {
                 LOG(WARNING) << "BatchGetInodeAttr ok, but"
-                             << " applyIndex or attr not set in response: "
+                             << " attr not set in response: "
                              << response.DebugString();
                 return -1;
             }
@@ -687,7 +627,6 @@ MetaStatusCode MetaServerClientImpl::BatchGetInodeAttrAsync(
         request.set_copysetid(copysetID);
         request.set_partitionid(partitionID);
         request.set_fsid(fsId);
-        request.set_appliedindex(applyIndex);
         *request.mutable_inodeid() = {inodeIds.begin(), inodeIds.end()};
         auto *rpcDone =
             new BatchGetInodeAttrRpcDone(taskExecutorDone, &metric_);
@@ -734,7 +673,6 @@ MetaServerClientImpl::BatchGetXAttr(uint32_t fsId,
             request.set_copysetid(copysetID);
             request.set_partitionid(partitionID);
             request.set_fsid(fsId);
-            request.set_appliedindex(applyIndex);
             *request.mutable_inodeid() = {it.begin(), it.end()};
 
             curvefs::metaserver::MetaServerService_Stub stub(channel);
@@ -753,17 +691,14 @@ MetaServerClientImpl::BatchGetXAttr(uint32_t fsId,
             if (ret != MetaStatusCode::OK) {
                 LOG(WARNING) << "BatchGetXAttr failed, errcode = " << ret
                              << ", errmsg = " << MetaStatusCode_Name(ret);
-            } else if (response.xattr_size() > 0 &&
-                       response.has_appliedindex()) {
+            } else if (response.xattr_size() > 0) {
                 auto *xattrs = response.mutable_xattr();
                 xattr->insert(xattr->end(),
                               std::make_move_iterator(xattrs->begin()),
                               std::make_move_iterator(xattrs->end()));
-                metaCache_->UpdateApplyIndex(CopysetGroupID(poolID, copysetID),
-                                             response.appliedindex());
             } else {
                 LOG(WARNING) << "BatchGetXAttr ok, but"
-                             << " applyIndex or attr not set in response: "
+                             << " attr not set in response: "
                              << response.DebugString();
                 return -1;
             }
@@ -787,7 +722,6 @@ MetaServerClientImpl::UpdateInode(const UpdateInodeRequest &request,
                                   bool internal) {
     auto task = RPCTask {
         (void)txId;
-        (void)applyIndex;
         (void)taskExecutorDone;
         metric_.updateInode.qps.count << 1;
         LatencyUpdater updater(&metric_.updateInode.latency);
@@ -815,14 +749,6 @@ MetaServerClientImpl::UpdateInode(const UpdateInodeRequest &request,
             LOG(WARNING) << "UpdateInode:  request: " << request.DebugString()
                          << ", errcode = " << ret
                          << ", errmsg = " << MetaStatusCode_Name(ret);
-        } else if (response.has_appliedindex()) {
-            metaCache_->UpdateApplyIndex(CopysetGroupID(poolID, copysetID),
-                                         response.appliedindex());
-        } else {
-            LOG(WARNING) << "UpdateInode:  request: " << request.DebugString()
-                         << "ok, but applyIndex not set in response:"
-                         << response.DebugString();
-            return -1;
         }
 
         VLOG(6) << "UpdateInode done, request: " << request.DebugString()
@@ -943,15 +869,6 @@ void UpdateInodeRpcDone::Run() {
         LOG(WARNING) << "UpdateInode:  inodeid = " << taskCtx->inodeID
                      << ", errcode = " << ret
                      << ", errmsg = " << MetaStatusCode_Name(ret);
-    } else if (response.has_appliedindex()) {
-        metaCache->UpdateApplyIndex(taskCtx->target.groupID,
-                                    response.appliedindex());
-    } else {
-        LOG(WARNING) << "UpdateInode:  inodeid = " << taskCtx->inodeID
-                     << "ok, but applyIndex not set in response:"
-                     << response.DebugString();
-        done_->SetRetCode(-1);
-        return;
     }
 
     VLOG(6) << "UpdateInode done, "
@@ -963,7 +880,6 @@ void MetaServerClientImpl::UpdateInodeAsync(const UpdateInodeRequest &request,
                                             MetaServerClientDone *done) {
     auto task = AsyncRPCTask {
         (void)txId;
-        (void)applyIndex;
         metric_.updateInode.qps.count << 1;
 
         UpdateInodeRequest req = request;
@@ -1044,7 +960,6 @@ MetaStatusCode MetaServerClientImpl::GetOrModifyS3ChunkInfo(
     google::protobuf::Map<uint64_t, S3ChunkInfoList> *out, bool internal) {
     auto task = RPCTask {
         (void)txId;
-        (void)applyIndex;
         (void)taskExecutorDone;
         metric_.appendS3ChunkInfo.qps.count << 1;
         LatencyUpdater updater(&metric_.appendS3ChunkInfo.latency);
@@ -1097,25 +1012,18 @@ MetaStatusCode MetaServerClientImpl::GetOrModifyS3ChunkInfo(
                          << ", fsId: " << fsId << ", errorcode: " << ret
                          << ", errmsg: " << MetaStatusCode_Name(ret);
             return ret;
-        } else if (response.has_appliedindex()) {
-            metaCache_->UpdateApplyIndex(CopysetGroupID(poolID, copysetID),
-                                         response.appliedindex());
+        } else {
             if (returnS3ChunkInfoMap) {
                 CHECK(out != nullptr) << "out ptr should be set.";
                 auto status = connection->WaitAllDataReceived();
                 if (status != StreamStatus::STREAM_OK) {
                     LOG(ERROR) << "Receive stream data failed"
-                               << ", status=" << status;
+                                << ", status=" << status;
                     return MetaStatusCode::RPC_STREAM_ERROR;
                 }
             }
-        } else {
-            LOG(WARNING) << "GetOrModifyS3ChunkInfo,  inodeId: " << inodeId
-                         << ", fsId: " << fsId
-                         << " ok, but applyIndex or inode not set in response: "
-                         << response.DebugString();
-            return -1;
         }
+
         VLOG(6) << "GetOrModifyS3ChunkInfo done, request: "
                 << request.DebugString()
                 << "response: " << response.DebugString();
@@ -1168,17 +1076,8 @@ void GetOrModifyS3ChunkInfoRpcDone::Run() {
                      << ", errmsg: " << MetaStatusCode_Name(ret);
         done_->SetRetCode(ret);
         return;
-    } else if (response.has_appliedindex()) {
-        metaCache->UpdateApplyIndex(taskCtx->target.groupID,
-                                    response.appliedindex());
-    } else {
-        LOG(WARNING) << "GetOrModifyS3ChunkInfo,  inodeId: " << taskCtx->inodeID
-                     << ", fsId: " << taskCtx->fsID
-                     << "ok, but applyIndex or inode not set in response: "
-                     << response.DebugString();
-        done_->SetRetCode(-1);
-        return;
     }
+
     VLOG(6) << "GetOrModifyS3ChunkInfo done, response: "
             << response.DebugString();
     done_->SetRetCode(ret);
@@ -1191,7 +1090,6 @@ void MetaServerClientImpl::GetOrModifyS3ChunkInfoAsync(
     MetaServerClientDone *done) {
     auto task = AsyncRPCTask {
         (void)txId;
-        (void)applyIndex;
         metric_.appendS3ChunkInfo.qps.count << 1;
 
         GetOrModifyS3ChunkInfoRequest request;
@@ -1224,7 +1122,6 @@ MetaStatusCode MetaServerClientImpl::CreateInode(const InodeParam &param,
                                                  Inode *out) {
     auto task = RPCTask {
         (void)txId;
-        (void)applyIndex;
         (void)taskExecutorDone;
         metric_.createInode.qps.count << 1;
         LatencyUpdater updater(&metric_.createInode.latency);
@@ -1270,14 +1167,11 @@ MetaStatusCode MetaServerClientImpl::CreateInode(const InodeParam &param,
                          << ", request: " << request.ShortDebugString()
                          << ", pool: " << poolID << ", copyset: " << copysetID
                          << ", partition: " << partitionID;
-        } else if (response.has_inode() && response.has_appliedindex()) {
+        } else if (response.has_inode()) {
             *out = response.inode();
-
-            metaCache_->UpdateApplyIndex(CopysetGroupID(poolID, copysetID),
-                                         response.appliedindex());
         } else {
             LOG(WARNING) << "CreateInode:  param = " << param
-                         << " ok, but applyIndex or inode not set in response:"
+                         << " ok, but inode not set in response:"
                          << response.DebugString();
             return -1;
         }
@@ -1298,7 +1192,6 @@ MetaStatusCode MetaServerClientImpl::CreateManageInode(const InodeParam &param,
                                                        Inode *out) {
     auto task = RPCTask {
         (void)txId;
-        (void)applyIndex;
         (void)taskExecutorDone;
         metric_.createInode.qps.count << 1;
         LatencyUpdater updater(&metric_.createInode.latency);
@@ -1336,14 +1229,11 @@ MetaStatusCode MetaServerClientImpl::CreateManageInode(const InodeParam &param,
                          << ", request: " << request.ShortDebugString()
                          << ", pool: " << poolID << ", copyset: " << copysetID
                          << ", partition: " << partitionID;
-        } else if (response.has_inode() && response.has_appliedindex()) {
+        } else if (response.has_inode()) {
             *out = response.inode();
-
-            metaCache_->UpdateApplyIndex(CopysetGroupID(poolID, copysetID),
-                                         response.appliedindex());
         } else {
             LOG(WARNING) << "CreateManageInode:  param = " << param
-                         << " ok, but applyIndex or inode not set in response:"
+                         << " ok, but inode not set in response:"
                          << response.DebugString();
             return -1;
         }
@@ -1364,7 +1254,6 @@ MetaStatusCode MetaServerClientImpl::DeleteInode(uint32_t fsId,
                                                  uint64_t inodeid) {
     auto task = RPCTask {
         (void)txId;
-        (void)applyIndex;
         (void)taskExecutorDone;
         metric_.deleteInode.qps.count << 1;
         LatencyUpdater updater(&metric_.deleteInode.latency);
@@ -1392,15 +1281,6 @@ MetaStatusCode MetaServerClientImpl::DeleteInode(uint32_t fsId,
             LOG(WARNING) << "DeleteInode:  fsid = " << fsId
                          << ", inodeid = " << inodeid << ", errcode = " << ret
                          << ", errmsg = " << MetaStatusCode_Name(ret);
-        } else if (response.has_appliedindex()) {
-            metaCache_->UpdateApplyIndex(CopysetGroupID(poolID, copysetID),
-                                         response.appliedindex());
-        } else {
-            LOG(WARNING) << "DeleteInode:  fsid = " << fsId
-                         << ", inodeid = " << inodeid
-                         << " ok, but applyIndex not set in response:"
-                         << response.DebugString();
-            return -1;
         }
 
         VLOG(6) << "DeleteInode done, request: " << request.DebugString()
@@ -1445,9 +1325,6 @@ void UpdateVolumeExtentRpcDone::Run() {
         LOG(WARNING) << "UpdateVolumeExtent failed, error: "
                      << MetaStatusCode_Name(st)
                      << ", inode: " << taskCtx->inodeID;
-    } else if (response.has_appliedindex()) {
-        metaCache->UpdateApplyIndex(taskCtx->target.groupID,
-                                    response.appliedindex());
     }
 
     VLOG(6) << "UpdateVolumeExtent done, response: "
@@ -1469,7 +1346,6 @@ void MetaServerClientImpl::AsyncUpdateVolumeExtent(
     MetaServerClientDone *done) {
     auto task = AsyncRPCTask {
         (void)txId;
-        (void)applyIndex;
         metric_.updateVolumeExtent.qps.count << 1;
         metaserver::UpdateVolumeExtentRequest request;
         SET_COMMON_FIELDS;
@@ -1517,7 +1393,6 @@ MetaServerClientImpl::GetVolumeExtent(uint32_t fsId, uint64_t inodeId,
                                       VolumeExtentList *extents) {
     auto task = RPCTask {
         (void)txId;
-        (void)applyIndex;
         (void)taskExecutorDone;
         metric_.getVolumeExtent.qps.count << 1;
         LatencyUpdater updater(&metric_.getVolumeExtent.latency);
@@ -1527,7 +1402,6 @@ MetaServerClientImpl::GetVolumeExtent(uint32_t fsId, uint64_t inodeId,
         SET_COMMON_FIELDS;
 
         request.set_streaming(streaming);
-        request.set_appliedindex(applyIndex);
 
         VLOG(9) << "GetVolumeExtent request, " << request.ShortDebugString();
 
@@ -1568,9 +1442,6 @@ MetaServerClientImpl::GetVolumeExtent(uint32_t fsId, uint64_t inodeId,
             LOG(WARNING) << "GetVolumeExtent failed, inodeid: " << inodeId
                          << ", error: " << MetaStatusCode_Name(st);
             return st;
-        } else if (response.has_appliedindex()) {
-            metaCache_->UpdateApplyIndex(CopysetGroupID(poolID, copysetID),
-                                         response.appliedindex());
         }
 
         if (!streaming) {

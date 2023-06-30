@@ -45,6 +45,7 @@ class MockCopysetNode : public CopysetNode {
     MOCK_CONST_METHOD1(ListPeers, void(std::vector<Peer>*));
     MOCK_CONST_METHOD0(IsLeaderTerm, bool());
     MOCK_METHOD1(Propose, void(const braft::Task& task));
+    MOCK_METHOD(void, GetLeaderLeaseStatus, (braft::LeaderLeaseStatus*), (override));  // NOLINT
 };
 
 }  // namespace copyset

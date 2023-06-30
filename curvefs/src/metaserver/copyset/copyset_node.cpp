@@ -51,6 +51,10 @@ static bvar::LatencyRecorder g_concurrent_apply_wait_latency(
 static bvar::LatencyRecorder g_concurrent_apply_from_log_wait_latency(
     "concurrent_apply_from_log_wait");
 
+namespace braft {
+DECLARE_bool(raft_enable_leader_lease);
+}  // namespace braft
+
 namespace curvefs {
 namespace metaserver {
 namespace copyset {
@@ -123,6 +127,11 @@ bool CopysetNode::Init(const CopysetNodeOptions& options) {
     if (!applyQueue_->Init(options_.applyQueueOption)) {
         LOG(ERROR) << "init concurrent apply queue failed";
         return false;
+    }
+
+    // init braft lease
+    if (options.enbaleLeaseRead) {
+        braft::FLAGS_raft_enable_leader_lease = true;
     }
 
     options_.storageOptions.dataDir = copysetDataPath_ + "/" + kStorageDataPath;
@@ -220,6 +229,29 @@ void CopysetNode::UpdateAppliedIndex(uint64_t index) {
             return;
         }
     }
+}
+
+bool CopysetNode::IsLeaseLeader(const braft::LeaderLeaseStatus &lease_status) const {  // NOLINT
+    /*
+     * Why not use lease_status.state==LEASE_VALID directly to judge?
+     *
+     * Because of the existence of concurrent apply queue,
+     * maybe there are some read/write requests in apply queue,
+     * so the FSM is not up-to-date.
+     * If we local read from this FSM,
+     * we will meet some stale read problems.
+     *
+     * According to aforementioned reasons,
+     * we judge leader lease when FSM had invoke on_leader_start,
+     * and flush the concurrent apply queue.
+     */
+    auto term = leaderTerm_.load(std::memory_order_acquire);
+    // if term == lease_status.term, the lease status must be LEASE_VALID
+    return term > 0 && term == lease_status.term;
+}
+
+bool CopysetNode::IsLeaseExpired(const braft::LeaderLeaseStatus &lease_status) const {  // NOLINT
+    return lease_status.state == braft::LEASE_EXPIRED;
 }
 
 bool CopysetNode::GetLeaderStatus(braft::NodeStatus* leaderStatus) {
@@ -427,6 +459,26 @@ int CopysetNode::on_snapshot_load(braft::SnapshotReader* reader) {
 }
 
 void CopysetNode::on_leader_start(int64_t term) {
+    /*
+     * Invoke order in on_leader_start: 
+     *   1. flush concurrent apply queue.
+     *   2. set term in states machine.
+     *
+     * Why is this order?
+     *   If we want to invoke local read (lease read)
+     *   in the leader state machine,
+     *   states machine which raft leader node located must be newest.
+     *   However, some tasks will accumulate in concurrent apply queue,
+     *   so we must flush it before we enable local read.
+     *
+     * Connotation of order:
+     *   If we set `leaderTerm_` in `on_leader_start`,
+     *   it means that we will enable local read in current node.
+     *
+     * Corner case can reference by following pr:
+     *   https://github.com/opencurve/curve/pull/2448
+     */
+
     LOG(INFO) << "Copyset: " << name_ << ", peer id: " << peerId_.to_string()
           << " going to flush apply queue, term is " << term;
     applyQueue_->Flush();

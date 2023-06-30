@@ -49,6 +49,12 @@ struct CopysetNodeOptions {
     std::string ip;
     uint32_t port;
 
+    // enable lease read
+    // If true, read requests will be invoked in current lease leader node.
+    // If false, all requests will propose to raft (log read).
+    // Default: true
+    bool enbaleLeaseRead;
+
     // the number of concurrent recovery loads of copyset
     // Default: 1
     uint32_t loadConcurrency;
@@ -92,6 +98,7 @@ inline CopysetNodeOptions::CopysetNodeOptions()
     : dataUri(),
       ip(),
       port(-1),
+      enbaleLeaseRead(true),
       loadConcurrency(1),
       checkRetryTimes(3),
       finishLoadMargin(2000),
