@@ -1,9 +1,7 @@
 FROM opencurvedocker/curve-base:debian9
 COPY --from=opencurvedocker/curve-base:curve-tgt-debian9 /curve-tgt/  /curve-tgt/
 COPY --from=opencurvedocker/curve-base:curve-tgt-debian9 /curve/curve-sdk /curve-tgt/curve-sdk
-RUN apt update \
-    && apt install -y kmod \
-    && cd /curve-tgt/curve-sdk \
+RUN cd /curve-tgt/curve-sdk \
     && cp -f lib/* /usr/lib \
     && cp -f bin/* /usr/bin \
     && mkdir -p /usr/curvefs \
