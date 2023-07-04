@@ -102,11 +102,11 @@ int InodeQueryTool::RunCommand() {
     }
     inode2InodeBaseInfoList_ = inodeTool_.GetInode2InodeBaseInfoList();
 
-    // get s3chunkinfo
+    // get ChunkInfo
     if (inodeS3InfoMapTool_.Run() != 0) {
         ret = -1;
     }
-    inode2S3ChunkInfoList_ = inodeS3InfoMapTool_.GetInode2S3ChunkInfoList();
+    inode2ChunkInfoList_ = inodeS3InfoMapTool_.GetInode2ChunkInfoList();
 
     // print
     for (auto const& i : inodeBases_) {
@@ -128,19 +128,19 @@ int InodeQueryTool::RunCommand() {
         }
 
         // s3 chunk info map
-        auto iter2 = inode2S3ChunkInfoList_.find(i);
-        if (iter2 != inode2S3ChunkInfoList_.end()) {
+        auto iter2 = inode2ChunkInfoList_.find(i);
+        if (iter2 != inode2ChunkInfoList_.end()) {
             if (iter2->second.s3chunks().empty()) {
-                std::cout << "no s3chunkinfo" << std::endl;
+                std::cout << "no ChunkInfo" << std::endl;
             }
-            for (auto const& s3Chunkinfo : iter2->second.s3chunks()) {
-                std::cout << "-----------------\n-s3ChunkInfo:\n"
-                          << s3Chunkinfo.DebugString() << std::endl;
+            for (auto const& ChunkInfo : iter2->second.s3chunks()) {
+                std::cout << "-----------------\n-ChunkInfo:\n"
+                          << ChunkInfo.DebugString() << std::endl;
             }
-            std::cout << "Total s3chunkinfo: "
+            std::cout << "Total ChunkInfo: "
                       << iter2->second.s3chunks().size() << std::endl;
         } else {
-            std::cerr << "inode s3ChunkinfoMap not found" << std::endl;
+            std::cerr << "inode ChunkInfoMap not found" << std::endl;
             ret = -1;
         }
 

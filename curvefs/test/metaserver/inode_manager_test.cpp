@@ -50,7 +50,7 @@ using ::curvefs::metaserver::storage::KVStorage;
 using ::curvefs::metaserver::storage::StorageOptions;
 using ::curvefs::metaserver::storage::RocksDBStorage;
 using ::curvefs::metaserver::storage::NameGenerator;
-using ::curvefs::metaserver::storage::Key4S3ChunkInfoList;
+using ::curvefs::metaserver::storage::Key4ChunkInfoList;
 using ::curvefs::metaserver::storage::RandomStoragePath;
 
 namespace curvefs {
@@ -123,7 +123,7 @@ class InodeManagerTest : public ::testing::Test {
                first.nlink() == second.nlink();
     }
 
-    bool EqualS3ChunkInfo(const S3ChunkInfo& lhs, const S3ChunkInfo& rhs) {
+    bool EqualChunkInfo(const ChunkInfo& lhs, const ChunkInfo& rhs) {
         return lhs.chunkid() == rhs.chunkid() &&
             lhs.compaction() == rhs.compaction() &&
             lhs.offset() == rhs.offset() &&
@@ -132,26 +132,26 @@ class InodeManagerTest : public ::testing::Test {
             lhs.zero() == rhs.zero();
     }
 
-    bool EqualS3ChunkInfoList(const S3ChunkInfoList& lhs,
-                              const S3ChunkInfoList& rhs) {
+    bool EqualChunkInfoList(const ChunkInfoList& lhs,
+                              const ChunkInfoList& rhs) {
         size_t size = lhs.s3chunks_size();
         if (size != rhs.s3chunks_size()) {
             return false;
         }
 
         for (size_t i = 0; i < size; i++) {
-            if (!EqualS3ChunkInfo(lhs.s3chunks(i), rhs.s3chunks(i))) {
+            if (!EqualChunkInfo(lhs.s3chunks(i), rhs.s3chunks(i))) {
                 return false;
             }
         }
         return true;
     }
 
-    S3ChunkInfoList GenS3ChunkInfoList(uint64_t firstChunkId,
+    ChunkInfoList GenChunkInfoList(uint64_t firstChunkId,
                                        uint64_t lastChunkId) {
-        S3ChunkInfoList list;
+        ChunkInfoList list;
         for (uint64_t id = firstChunkId; id <= lastChunkId; id++) {
-            S3ChunkInfo* info = list.add_s3chunks();
+            ChunkInfo* info = list.add_s3chunks();
             info->set_chunkid(id);
             info->set_compaction(0);
             info->set_offset(0);
@@ -162,19 +162,19 @@ class InodeManagerTest : public ::testing::Test {
         return list;
     }
 
-    void CHECK_ITERATOR_S3CHUNKINFOLIST(
+    void CHECK_ITERATOR_ChunkInfoLIST(
         std::shared_ptr<Iterator> iterator,
         const std::vector<uint64_t> chunkIndexs,
-        const std::vector<S3ChunkInfoList> lists) {
+        const std::vector<ChunkInfoList> lists) {
         size_t size = 0;
-        Key4S3ChunkInfoList key;
-        S3ChunkInfoList list4get;
+        Key4ChunkInfoList key;
+        ChunkInfoList list4get;
         ASSERT_EQ(iterator->Status(), 0);
         for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
             ASSERT_TRUE(conv_->ParseFromString(iterator->Key(), &key));
             ASSERT_TRUE(conv_->ParseFromString(iterator->Value(), &list4get));
             ASSERT_EQ(key.chunkIndex, chunkIndexs[size]);
-            ASSERT_TRUE(EqualS3ChunkInfoList(list4get, lists[size]));
+            ASSERT_TRUE(EqualChunkInfoList(list4get, lists[size]));
             size++;
         }
         ASSERT_EQ(size, chunkIndexs.size());
@@ -274,140 +274,140 @@ TEST_F(InodeManagerTest, test1) {
     ASSERT_TRUE(CompareInode(inode5, temp6));
 }
 
-TEST_F(InodeManagerTest, GetOrModifyS3ChunkInfo) {
+TEST_F(InodeManagerTest, GetOrModifyChunkInfo) {
     uint32_t fsId = 1;
     uint32_t inodeId = 1;
 
-    // CASE 1: GetOrModifyS3ChunkInfo() success
+    // CASE 1: GetOrModifyChunkInfo() success
     {
-        LOG(INFO) << "CASE 1: GetOrModifyS3ChunkInfo() success";
-        google::protobuf::Map<uint64_t, S3ChunkInfoList> map2add;
-        google::protobuf::Map<uint64_t, S3ChunkInfoList> map2del;
+        LOG(INFO) << "CASE 1: GetOrModifyChunkInfo() success";
+        google::protobuf::Map<uint64_t, ChunkInfoList> map2add;
+        google::protobuf::Map<uint64_t, ChunkInfoList> map2del;
 
-        map2add[1] = GenS3ChunkInfoList(1, 1);
-        map2add[2] = GenS3ChunkInfoList(2, 2);
-        map2add[3] = GenS3ChunkInfoList(3, 3);
+        map2add[1] = GenChunkInfoList(1, 1);
+        map2add[2] = GenChunkInfoList(2, 2);
+        map2add[3] = GenChunkInfoList(3, 3);
 
         std::shared_ptr<Iterator> iterator;
-        MetaStatusCode rc = manager->GetOrModifyS3ChunkInfo(
+        MetaStatusCode rc = manager->GetOrModifyChunkInfo(
             fsId, inodeId, map2add, map2del, true, &iterator);
         ASSERT_EQ(rc, MetaStatusCode::OK);
 
-        CHECK_ITERATOR_S3CHUNKINFOLIST(iterator,
+        CHECK_ITERATOR_ChunkInfoLIST(iterator,
             std::vector<uint64_t>{ 1, 2, 3 },
-            std::vector<S3ChunkInfoList>{
-                GenS3ChunkInfoList(1, 1),
-                GenS3ChunkInfoList(2, 2),
-                GenS3ChunkInfoList(3, 3),
+            std::vector<ChunkInfoList>{
+                GenChunkInfoList(1, 1),
+                GenChunkInfoList(2, 2),
+                GenChunkInfoList(3, 3),
             });
 
-        LOG(INFO) << "CASE 1.1: check idempotent for GetOrModifyS3ChunkInfo()";
-        rc = manager->GetOrModifyS3ChunkInfo(
+        LOG(INFO) << "CASE 1.1: check idempotent for GetOrModifyChunkInfo()";
+        rc = manager->GetOrModifyChunkInfo(
             fsId, inodeId, map2add, map2del, true, &iterator);
         ASSERT_EQ(rc, MetaStatusCode::OK);
 
-        CHECK_ITERATOR_S3CHUNKINFOLIST(iterator,
+        CHECK_ITERATOR_ChunkInfoLIST(iterator,
             std::vector<uint64_t>{ 1, 2, 3 },
-            std::vector<S3ChunkInfoList>{
-                GenS3ChunkInfoList(1, 1),
-                GenS3ChunkInfoList(2, 2),
-                GenS3ChunkInfoList(3, 3),
+            std::vector<ChunkInfoList>{
+                GenChunkInfoList(1, 1),
+                GenChunkInfoList(2, 2),
+                GenChunkInfoList(3, 3),
             });
     }
 
-    // CASE 2: GetOrModifyS3ChunkInfo() with delete
+    // CASE 2: GetOrModifyChunkInfo() with delete
     {
-        LOG(INFO) << "CASE 2: GetOrModifyS3ChunkInfo() with delete";
-        google::protobuf::Map<uint64_t, S3ChunkInfoList> map2add;
-        google::protobuf::Map<uint64_t, S3ChunkInfoList> map2del;
+        LOG(INFO) << "CASE 2: GetOrModifyChunkInfo() with delete";
+        google::protobuf::Map<uint64_t, ChunkInfoList> map2add;
+        google::protobuf::Map<uint64_t, ChunkInfoList> map2del;
 
-        map2del[1] = GenS3ChunkInfoList(1, 1);
-        map2del[2] = GenS3ChunkInfoList(2, 2);
-        map2del[3] = GenS3ChunkInfoList(3, 3);
+        map2del[1] = GenChunkInfoList(1, 1);
+        map2del[2] = GenChunkInfoList(2, 2);
+        map2del[3] = GenChunkInfoList(3, 3);
 
         std::shared_ptr<Iterator> iterator;
-        MetaStatusCode rc = manager->GetOrModifyS3ChunkInfo(
+        MetaStatusCode rc = manager->GetOrModifyChunkInfo(
             fsId, inodeId, map2add, map2del, true, &iterator);
         ASSERT_EQ(rc, MetaStatusCode::OK);
 
-        CHECK_ITERATOR_S3CHUNKINFOLIST(iterator,
+        CHECK_ITERATOR_ChunkInfoLIST(iterator,
             std::vector<uint64_t>{},
-            std::vector<S3ChunkInfoList>{});
+            std::vector<ChunkInfoList>{});
     }
 
-    // CASE 3: GetOrModifyS3ChunkInfo() with add and delete
+    // CASE 3: GetOrModifyChunkInfo() with add and delete
     {
-        LOG(INFO) << "CASE 3: GetOrModifyS3ChunkInfo() with add and delete";
-        google::protobuf::Map<uint64_t, S3ChunkInfoList> map2add;
-        google::protobuf::Map<uint64_t, S3ChunkInfoList> map2del;
+        LOG(INFO) << "CASE 3: GetOrModifyChunkInfo() with add and delete";
+        google::protobuf::Map<uint64_t, ChunkInfoList> map2add;
+        google::protobuf::Map<uint64_t, ChunkInfoList> map2del;
 
-        // step1: append s3chunkinfo
-        map2add[0] = GenS3ChunkInfoList(1, 100);
-        map2add[1] = GenS3ChunkInfoList(1, 100);
-        map2add[2] = GenS3ChunkInfoList(1, 100);
-        map2add[7] = GenS3ChunkInfoList(1, 100);
-        map2add[8] = GenS3ChunkInfoList(1, 100);
-        map2add[9] = GenS3ChunkInfoList(1, 100);
+        // step1: append ChunkInfo
+        map2add[0] = GenChunkInfoList(1, 100);
+        map2add[1] = GenChunkInfoList(1, 100);
+        map2add[2] = GenChunkInfoList(1, 100);
+        map2add[7] = GenChunkInfoList(1, 100);
+        map2add[8] = GenChunkInfoList(1, 100);
+        map2add[9] = GenChunkInfoList(1, 100);
 
         std::shared_ptr<Iterator> iterator;
-        MetaStatusCode rc = manager->GetOrModifyS3ChunkInfo(
+        MetaStatusCode rc = manager->GetOrModifyChunkInfo(
             fsId, inodeId, map2add, map2del, true, &iterator);
         ASSERT_EQ(rc, MetaStatusCode::OK);
         ASSERT_EQ(iterator->Status(), 0);
 
-        // step2: delete s3chunkinfo
+        // step2: delete ChunkInfo
         map2add.clear();
         map2del.clear();
 
-        map2add[0] = GenS3ChunkInfoList(100, 100);
-        map2add[7] = GenS3ChunkInfoList(100, 100);
-        map2add[8] = GenS3ChunkInfoList(100, 100);
-        map2add[9] = GenS3ChunkInfoList(100, 100);
+        map2add[0] = GenChunkInfoList(100, 100);
+        map2add[7] = GenChunkInfoList(100, 100);
+        map2add[8] = GenChunkInfoList(100, 100);
+        map2add[9] = GenChunkInfoList(100, 100);
 
-        map2del[0] = GenS3ChunkInfoList(1, 100);
-        map2del[7] = GenS3ChunkInfoList(1, 100);
-        map2del[8] = GenS3ChunkInfoList(1, 100);
-        map2del[9] = GenS3ChunkInfoList(1, 100);
+        map2del[0] = GenChunkInfoList(1, 100);
+        map2del[7] = GenChunkInfoList(1, 100);
+        map2del[8] = GenChunkInfoList(1, 100);
+        map2del[9] = GenChunkInfoList(1, 100);
 
-        rc = manager->GetOrModifyS3ChunkInfo(
+        rc = manager->GetOrModifyChunkInfo(
             fsId, inodeId, map2add, map2del, true, &iterator);
         ASSERT_EQ(rc, MetaStatusCode::OK);
         ASSERT_EQ(iterator->Status(), 0);
 
-        CHECK_ITERATOR_S3CHUNKINFOLIST(iterator,
+        CHECK_ITERATOR_ChunkInfoLIST(iterator,
             std::vector<uint64_t>{ 0, 1, 2, 7, 8, 9 },
-            std::vector<S3ChunkInfoList>{
-                GenS3ChunkInfoList(100, 100),
-                GenS3ChunkInfoList(1, 100),
-                GenS3ChunkInfoList(1, 100),
-                GenS3ChunkInfoList(100, 100),
-                GenS3ChunkInfoList(100, 100),
-                GenS3ChunkInfoList(100, 100),
+            std::vector<ChunkInfoList>{
+                GenChunkInfoList(100, 100),
+                GenChunkInfoList(1, 100),
+                GenChunkInfoList(1, 100),
+                GenChunkInfoList(100, 100),
+                GenChunkInfoList(100, 100),
+                GenChunkInfoList(100, 100),
             });
 
-        // step3: delete all s3chunkinfo
+        // step3: delete all ChunkInfo
         map2add.clear();
         map2del.clear();
-        map2add[1] = GenS3ChunkInfoList(100, 100);
-        map2add[2] = GenS3ChunkInfoList(100, 100);
+        map2add[1] = GenChunkInfoList(100, 100);
+        map2add[2] = GenChunkInfoList(100, 100);
 
-        map2del[1] = GenS3ChunkInfoList(1, 100);
-        map2del[2] = GenS3ChunkInfoList(1, 100);
+        map2del[1] = GenChunkInfoList(1, 100);
+        map2del[2] = GenChunkInfoList(1, 100);
 
-        rc = manager->GetOrModifyS3ChunkInfo(
+        rc = manager->GetOrModifyChunkInfo(
             fsId, inodeId, map2add, map2del, true, &iterator);
         ASSERT_EQ(rc, MetaStatusCode::OK);
         ASSERT_EQ(iterator->Status(), 0);
 
-        CHECK_ITERATOR_S3CHUNKINFOLIST(iterator,
+        CHECK_ITERATOR_ChunkInfoLIST(iterator,
             std::vector<uint64_t>{ 0, 1, 2, 7, 8, 9 },
-            std::vector<S3ChunkInfoList>{
-                GenS3ChunkInfoList(100, 100),
-                GenS3ChunkInfoList(100, 100),
-                GenS3ChunkInfoList(100, 100),
-                GenS3ChunkInfoList(100, 100),
-                GenS3ChunkInfoList(100, 100),
-                GenS3ChunkInfoList(100, 100),
+            std::vector<ChunkInfoList>{
+                GenChunkInfoList(100, 100),
+                GenChunkInfoList(100, 100),
+                GenChunkInfoList(100, 100),
+                GenChunkInfoList(100, 100),
+                GenChunkInfoList(100, 100),
+                GenChunkInfoList(100, 100),
             });
     }
 }

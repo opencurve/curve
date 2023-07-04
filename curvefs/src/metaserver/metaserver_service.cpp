@@ -44,7 +44,7 @@ using ::curvefs::metaserver::copyset::CreateInodeOperator;
 using ::curvefs::metaserver::copyset::CreateRootInodeOperator;
 using ::curvefs::metaserver::copyset::CreateManageInodeOperator;
 using ::curvefs::metaserver::copyset::UpdateInodeOperator;
-using ::curvefs::metaserver::copyset::GetOrModifyS3ChunkInfoOperator;
+using ::curvefs::metaserver::copyset::GetOrModifyChunkInfoOperator;
 using ::curvefs::metaserver::copyset::DeleteInodeOperator;
 using ::curvefs::metaserver::copyset::UpdateInodeS3VersionOperator;
 using ::curvefs::metaserver::copyset::CreatePartitionOperator;
@@ -224,13 +224,13 @@ void MetaServerServiceImpl::UpdateInode(
                                            request->copysetid());
 }
 
-void MetaServerServiceImpl::GetOrModifyS3ChunkInfo(
+void MetaServerServiceImpl::GetOrModifyChunkInfo(
     ::google::protobuf::RpcController* controller,
-    const ::curvefs::metaserver::GetOrModifyS3ChunkInfoRequest* request,
-    ::curvefs::metaserver::GetOrModifyS3ChunkInfoResponse* response,
+    const ::curvefs::metaserver::GetOrModifyChunkInfoRequest* request,
+    ::curvefs::metaserver::GetOrModifyChunkInfoResponse* response,
     ::google::protobuf::Closure* done) {
     OperatorHelper helper(copysetNodeManager_, inflightThrottle_);
-    helper.operator()<GetOrModifyS3ChunkInfoOperator>(
+    helper.operator()<GetOrModifyChunkInfoOperator>(
                                                  controller, request, response,
                                                  done, request->poolid(),
                                                  request->copysetid());

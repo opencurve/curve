@@ -180,7 +180,7 @@ func (iCmd *InodeCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	}
 	inode := getInodeResponse.GetInode()
 	tableRows := make([]map[string]string, 0)
-	if len(inode.S3ChunkInfoMap) == 0 {
+	if len(inode.ChunkInfoMap) == 0 {
 		row := make(map[string]string)
 		row[cobrautil.ROW_FS_ID] = fmt.Sprintf("%d", inode.GetFsId())
 		row[cobrautil.ROW_INODE_ID] = fmt.Sprintf("%d", inode.GetInodeId())
@@ -191,11 +191,11 @@ func (iCmd *InodeCommand) RunCommand(cmd *cobra.Command, args []string) error {
 		tableRows = append(tableRows, row)
 	} else {
 		rows := make([]map[string]string, 0)
-		infoMap := inode.GetS3ChunkInfoMap()
-		iCmd.Header = append(iCmd.Header, cobrautil.ROW_S3CHUNKINFO_CHUNKID)
-		iCmd.Header = append(iCmd.Header, cobrautil.ROW_S3CHUNKINFO_OFFSET)
-		iCmd.Header = append(iCmd.Header, cobrautil.ROW_S3CHUNKINFO_LENGTH)
-		iCmd.Header = append(iCmd.Header, cobrautil.ROW_S3CHUNKINFO_SIZE)
+		infoMap := inode.GetChunkInfoMap()
+		iCmd.Header = append(iCmd.Header, cobrautil.ROW_ChunkInfo_CHUNKID)
+		iCmd.Header = append(iCmd.Header, cobrautil.ROW_ChunkInfo_OFFSET)
+		iCmd.Header = append(iCmd.Header, cobrautil.ROW_ChunkInfo_LENGTH)
+		iCmd.Header = append(iCmd.Header, cobrautil.ROW_ChunkInfo_SIZE)
 		for _, infoList := range infoMap {
 			for _, info := range infoList.GetS3Chunks() {
 				row := make(map[string]string)
@@ -205,10 +205,10 @@ func (iCmd *InodeCommand) RunCommand(cmd *cobra.Command, args []string) error {
 				row[cobrautil.ROW_TYPE] = inode.GetType().String()
 				row[cobrautil.ROW_NLINK] = fmt.Sprintf("%d", inode.GetNlink())
 				row[cobrautil.ROW_PARENT] = fmt.Sprintf("%d", inode.GetParent())
-				row[cobrautil.ROW_S3CHUNKINFO_CHUNKID] = fmt.Sprintf("%d", info.GetChunkId())
-				row[cobrautil.ROW_S3CHUNKINFO_OFFSET] = fmt.Sprintf("%d", info.GetOffset())
-				row[cobrautil.ROW_S3CHUNKINFO_LENGTH] = fmt.Sprintf("%d", info.GetLen())
-				row[cobrautil.ROW_S3CHUNKINFO_SIZE] = fmt.Sprintf("%d", info.GetSize())
+				row[cobrautil.ROW_ChunkInfo_CHUNKID] = fmt.Sprintf("%d", info.GetChunkId())
+				row[cobrautil.ROW_ChunkInfo_OFFSET] = fmt.Sprintf("%d", info.GetOffset())
+				row[cobrautil.ROW_ChunkInfo_LENGTH] = fmt.Sprintf("%d", info.GetLen())
+				row[cobrautil.ROW_ChunkInfo_SIZE] = fmt.Sprintf("%d", info.GetSize())
 				rows = append(rows, row)
 			}
 		}

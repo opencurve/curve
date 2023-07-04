@@ -187,13 +187,13 @@ class S3ClientAdaptorImpl : public StorageAdaptor {
       const std::vector<std::pair<std::string, uint64_t>> &prefetchObjs);
 
     void HandleReadRequest(
-      const ReadRequest &request, const S3ChunkInfo &s3ChunkInfo,
+      const ReadRequest &request, const ChunkInfo &ChunkInfo,
       std::vector<ReadRequest> *addReadRequests,
       std::vector<uint64_t> *deletingReq, std::vector<S3ReadRequest> *requests,
       char *dataBuf, uint64_t fsId, uint64_t inodeId);
 
     void GenerateS3Request(ReadRequest request,
-      const S3ChunkInfoList &s3ChunkInfoList,
+      const ChunkInfoList &ChunkInfoList,
       char *dataBuf,
       std::vector<S3ReadRequest> *requests,
       uint64_t fsId,

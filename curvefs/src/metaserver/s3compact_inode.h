@@ -146,7 +146,7 @@ class CompactInodeJob {
     };
 
     // closure for updating inode, simply wait
-    class GetOrModifyS3ChunkInfoClosure : public google::protobuf::Closure {
+    class GetOrModifyChunkInfoClosure : public google::protobuf::Closure {
      private:
         std::mutex mutex_;
         std::condition_variable cond_;
@@ -166,8 +166,8 @@ class CompactInodeJob {
     };
 
     std::vector<uint64_t> GetNeedCompact(
-        const ::google::protobuf::Map<uint64_t, S3ChunkInfoList>&
-            s3chunkinfoMap,
+        const ::google::protobuf::Map<uint64_t, ChunkInfoList>&
+            ChunkInfoMap,
         uint64_t inodeLen, uint64_t chunkSize);
     bool CompactPrecheck(const struct S3CompactTask& task, Inode* inode);
     S3Adapter* SetupS3Adapter(uint64_t fsid, uint64_t* s3adapterIndex,
@@ -176,7 +176,7 @@ class CompactInodeJob {
     void DeleteObjs(const std::vector<std::string>& objsAdded,
                     S3Adapter* s3adapter);
     std::list<struct Node> BuildValidList(
-        const S3ChunkInfoList& s3chunkinfolist, uint64_t inodeLen,
+        const ChunkInfoList& ChunkInfolist, uint64_t inodeLen,
         uint64_t index, uint64_t chunkSize);
     void GenS3ReadRequests(const struct S3CompactCtx& ctx,
                            const std::list<struct Node>& validList,
@@ -188,8 +188,8 @@ class CompactInodeJob {
                       struct S3NewChunkInfo* newChunkInfo);
     virtual MetaStatusCode UpdateInode(
         CopysetNode* copysetNode, const PartitionInfo& pinfo, uint64_t inodeId,
-        ::google::protobuf::Map<uint64_t, S3ChunkInfoList>&& s3ChunkInfoAdd,
-        ::google::protobuf::Map<uint64_t, S3ChunkInfoList>&& s3ChunkInfoRemove);
+        ::google::protobuf::Map<uint64_t, ChunkInfoList>&& ChunkInfoAdd,
+        ::google::protobuf::Map<uint64_t, ChunkInfoList>&& ChunkInfoRemove);
     int WriteFullChunk(const struct S3CompactCtx& ctx,
                        const struct S3NewChunkInfo& newChunkInfo,
                        const std::string& fullChunk,
@@ -198,11 +198,11 @@ class CompactInodeJob {
         const struct S3CompactCtx& compactCtx, uint64_t index,
         const Inode& inode,
         std::unordered_map<uint64_t, std::vector<std::string>>* objsAddedMap,
-        ::google::protobuf::Map<uint64_t, S3ChunkInfoList>* s3ChunkInfoAdd,
-        ::google::protobuf::Map<uint64_t, S3ChunkInfoList>* s3ChunkInfoRemove);
+        ::google::protobuf::Map<uint64_t, ChunkInfoList>* ChunkInfoAdd,
+        ::google::protobuf::Map<uint64_t, ChunkInfoList>* ChunkInfoRemove);
 
-    void DeleteObjsOfS3ChunkInfoList(const struct S3CompactCtx& ctx,
-                                     const S3ChunkInfoList& s3chunkinfolist);
+    void DeleteObjsOfChunkInfoList(const struct S3CompactCtx& ctx,
+                                     const ChunkInfoList& ChunkInfolist);
     // func bind with task
     void CompactChunks(const S3CompactTask& task);
 };

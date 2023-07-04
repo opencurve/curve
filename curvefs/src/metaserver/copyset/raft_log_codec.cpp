@@ -154,9 +154,9 @@ std::unique_ptr<MetaOperator> RaftLogCodec::Decode(CopysetNode* node,
         case OperatorType::PrepareRenameTx:
             return ParseFromRaftLog<PrepareRenameTxOperator,
                                     PrepareRenameTxRequest>(node, type, meta);
-        case OperatorType::GetOrModifyS3ChunkInfo:
-            return ParseFromRaftLog<GetOrModifyS3ChunkInfoOperator,
-                                    GetOrModifyS3ChunkInfoRequest>(
+        case OperatorType::GetOrModifyChunkInfo:
+            return ParseFromRaftLog<GetOrModifyChunkInfoOperator,
+                                    GetOrModifyChunkInfoRequest>(
                                         node, type, meta);
         case OperatorType::GetVolumeExtent:
             return ParseFromRaftLog<GetVolumeExtentOperator,

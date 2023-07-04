@@ -121,10 +121,10 @@ const (
 	ROW_EXT_ADDR          = "extAddr"
 
 	// s3
-	ROW_S3CHUNKINFO_CHUNKID = "s3ChunkId"
-	ROW_S3CHUNKINFO_LENGTH  = "s3Length"
-	ROW_S3CHUNKINFO_OFFSET  = "s3Offset"
-	ROW_S3CHUNKINFO_SIZE    = "s3Size"
+	ROW_ChunkInfo_CHUNKID = "s3ChunkId"
+	ROW_ChunkInfo_LENGTH  = "s3Length"
+	ROW_ChunkInfo_OFFSET  = "s3Offset"
+	ROW_ChunkInfo_SIZE    = "s3Size"
 
 	// vale
 	ROW_VALUE_ADD            = "add"

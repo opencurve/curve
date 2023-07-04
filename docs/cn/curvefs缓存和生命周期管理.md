@@ -11,7 +11,7 @@
 - S3Adaptor负责s3相关的数据面操作，包括读，写，truncate，flush。
 - VolumeAdaptor负责volume相关的数据面操作，包括读，写，truncate，flush。
 - FsCacheManager负责数据cache缓存，并管理一个后台flush线程进行数据下刷到S3或者Volume。
-- S3Storage负责对接s3，并更新inode中s3相关的元数据s3ChunkInfo。
+- S3Storage负责对接s3，并更新inode中s3相关的元数据ChunkInfo。
 - VolumeStorage负责对接volume，并更新inode中volume相关的元数据volemeExtent。
 - diskcache负责本地缓存。
 ## 4 整体思路
@@ -37,7 +37,7 @@
 要实现文件curve盘数据向s3转换，则需要这2种元数据在inode种共存。同时要确保VolumeExtent上的数据是最新的，read流程先查找VolumeExtent，如果没有再查找S3info。
 #### 4.3.2 curve盘上数据转s3场景:
 - curve盘上数据已无剩余空间分配，数据直接透写到s3。
-- 文件分配的某个VolumeExtentList大于15个（默认值，可配置），文件逻辑数据连续。如何定义文件逻辑数据连续？当前一个VolumeExtent默认大小1G，而S3ChunkInfoList的默认大小是64M，也就是说一个VolumeExtent对应的若干个S3ChunkInfoList的数据范围内，如果转换为s3info不超过
+- 文件分配的某个VolumeExtentList大于15个（默认值，可配置），文件逻辑数据连续。如何定义文件逻辑数据连续？当前一个VolumeExtent默认大小1G，而ChunkInfoList的默认大小是64M，也就是说一个VolumeExtent对应的若干个ChunkInfoList的数据范围内，如果转换为s3info不超过
 - 超过xx天没被访问的文件。这里需要在inode中额外加一个访问时间，最好不要复用atime，某些场景下，atime可能不设置。
 - 支持可扩展其他配置规则。
 - 当前被打开的文件不做数据转换（目前metaserver已支持），做到文件后台数据转换和用户文件访问互斥。

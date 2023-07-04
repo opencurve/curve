@@ -48,7 +48,7 @@ enum class OperatorType : uint32_t {
     CreatePartition = 11,
     DeletePartition = 12,
     PrepareRenameTx = 13,
-    GetOrModifyS3ChunkInfo = 14,
+    GetOrModifyChunkInfo = 14,
     GetVolumeExtent = 15,
     UpdateVolumeExtent = 16,
     CreateManageInode = 17,

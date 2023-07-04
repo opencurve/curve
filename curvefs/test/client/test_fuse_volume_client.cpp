@@ -1136,7 +1136,7 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameOverwrite) {
         .WillRepeatedly(Invoke(
             [&](uint32_t /*fsId*/, uint64_t /*inodeId*/,
                 const InodeAttr& /*attr*/,
-                S3ChunkInfoMap* s3ChunkInfoAdd,
+                ChunkInfoMap* ChunkInfoAdd,
                 bool internal) { return MetaStatusCode::OK; }));
 
     // step6: unlink old inode

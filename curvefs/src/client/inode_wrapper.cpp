@@ -44,19 +44,19 @@ using ::curvefs::metaserver::MetaStatusCode_Name;
 namespace curvefs {
 namespace client {
 
+using rpcclient::DataIndices;
 using rpcclient::MetaServerClient;
 using rpcclient::MetaServerClientImpl;
-using rpcclient::DataIndices;
 
 bvar::Adder<int64_t> g_alive_inode_count{"alive_inode_count"};
 
-#define REFRESH_NLINK                       \
-do {                                        \
-    CURVEFS_ERROR ret = RefreshNlink();     \
-    if (ret != CURVEFS_ERROR::OK) {         \
-        return ret;                         \
-    }                                       \
-} while (0)
+#define REFRESH_NLINK                                                          \
+    do {                                                                       \
+        CURVEFS_ERROR ret = RefreshNlink();                                    \
+        if (ret != CURVEFS_ERROR::OK) {                                        \
+            return ret;                                                        \
+        }                                                                      \
+    } while (0)
 
 std::ostream &operator<<(std::ostream &os, const struct stat &attr) {
     os << "{ st_ino = " << attr.st_ino << ", st_mode = " << attr.st_mode
@@ -67,34 +67,38 @@ std::ostream &operator<<(std::ostream &os, const struct stat &attr) {
        << ", st_mtim.tv_sec = " << attr.st_mtim.tv_sec
        << ", st_mtim.tv_nsec = " << attr.st_mtim.tv_nsec
        << ", st_ctim.tv_sec = " << attr.st_ctim.tv_sec
-       << ", st_ctim.tv_nsec = " << attr.st_ctim.tv_nsec
-       << "}" << std::endl;
+       << ", st_ctim.tv_nsec = " << attr.st_ctim.tv_nsec << "}" << std::endl;
     return os;
 }
 
-void AppendS3ChunkInfoToMap(uint64_t chunkIndex, const S3ChunkInfo &info,
-    google::protobuf::Map<uint64_t, S3ChunkInfoList> *s3ChunkInfoMap) {
-    VLOG(9) << "AppendS3ChunkInfoToMap chunkIndex: " << chunkIndex
-            << ", s3chunkInfo { chunkId: " << info.chunkid()
+void AppendChunkInfoToMap(
+    uint64_t chunkIndex, const ChunkInfo &info,
+    google::protobuf::Map<uint64_t, ChunkInfoList> &ChunkInfoMap) {}
+
+void AppendChunkInfoToMap(
+    uint64_t chunkIndex, const ChunkInfo &info,
+    google::protobuf::Map<uint64_t, ChunkInfoList> *ChunkInfoMap) {
+    VLOG(9) << "AppendChunkInfoToMap chunkIndex: " << chunkIndex
+            << ", ChunkInfo { chunkId: " << info.chunkid()
             << ", compaction: " << info.compaction()
             << ", offset: " << info.offset() << ", len: " << info.len()
             << ", zero: " << info.zero();
-    auto it = s3ChunkInfoMap->find(chunkIndex);
-    if (it == s3ChunkInfoMap->end()) {
-        S3ChunkInfoList s3ChunkInfoList;
-        S3ChunkInfo *tmp = s3ChunkInfoList.add_s3chunks();
+    auto it = ChunkInfoMap->find(chunkIndex);
+    if (it == ChunkInfoMap->end()) {
+        ChunkInfoList ChunkInfoList;
+        ChunkInfo *tmp = ChunkInfoList.add_s3chunks();
         tmp->CopyFrom(info);
-        s3ChunkInfoMap->insert({chunkIndex, s3ChunkInfoList});
+        ChunkInfoMap->insert({chunkIndex, ChunkInfoList});
     } else {
-        S3ChunkInfo *tmp = it->second.add_s3chunks();
+        ChunkInfo *tmp = it->second.add_s3chunks();
         tmp->CopyFrom(info);
     }
 }
 
 class UpdateInodeAsyncDone : public MetaServerClientDone {
  public:
-    UpdateInodeAsyncDone(const std::shared_ptr<InodeWrapper>& inodeWrapper,
-                         MetaServerClientDone* parent)
+    UpdateInodeAsyncDone(const std::shared_ptr<InodeWrapper> &inodeWrapper,
+                         MetaServerClientDone *parent)
         : inodeWrapper_(inodeWrapper), parent_(parent) {}
 
     void Run() override {
@@ -118,27 +122,27 @@ class UpdateInodeAsyncDone : public MetaServerClientDone {
 
  private:
     std::shared_ptr<InodeWrapper> inodeWrapper_;
-    MetaServerClientDone* parent_;
+    MetaServerClientDone *parent_;
 };
 
-class GetOrModifyS3ChunkInfoAsyncDone : public MetaServerClientDone {
+class GetOrModifyChunkInfoAsyncDone : public MetaServerClientDone {
  public:
-    explicit GetOrModifyS3ChunkInfoAsyncDone(
-        const std::shared_ptr<InodeWrapper> &inodeWrapper):
-        inodeWrapper_(inodeWrapper) {}
-    ~GetOrModifyS3ChunkInfoAsyncDone() {}
+    explicit GetOrModifyChunkInfoAsyncDone(
+        const std::shared_ptr<InodeWrapper> &inodeWrapper)
+        : inodeWrapper_(inodeWrapper) {}
+    ~GetOrModifyChunkInfoAsyncDone() {}
 
     void Run() override {
-        std::unique_ptr<GetOrModifyS3ChunkInfoAsyncDone> self_guard(this);
+        std::unique_ptr<GetOrModifyChunkInfoAsyncDone> self_guard(this);
         MetaStatusCode ret = GetStatusCode();
         if (ret != MetaStatusCode::OK && ret != MetaStatusCode::NOT_FOUND) {
-            LOG(ERROR) << "metaClient_ GetOrModifyS3ChunkInfo failed, "
-                << "MetaStatusCode: " << ret
-                << ", MetaStatusCode_Name: " << MetaStatusCode_Name(ret)
-                << ", inodeid: " << inodeWrapper_->GetInodeId();
+            LOG(ERROR) << "metaClient_ GetOrModifyChunkInfo failed, "
+                       << "MetaStatusCode: " << ret
+                       << ", MetaStatusCode_Name: " << MetaStatusCode_Name(ret)
+                       << ", inodeid: " << inodeWrapper_->GetInodeId();
             inodeWrapper_->MarkInodeError();
         }
-        inodeWrapper_->ReleaseSyncingS3ChunkInfo();
+        inodeWrapper_->ReleaseSyncingChunkInfo();
     };
 
  private:
@@ -185,8 +189,7 @@ CURVEFS_ERROR InodeWrapper::SyncAttr(bool internal) {
     curve::common::UniqueLock lock = GetSyncingInodeUniqueLock();
     if (dirty_) {
         MetaStatusCode ret = metaClient_->UpdateInodeAttrWithOutNlink(
-            inode_.fsid(), inode_.inodeid(), dirtyAttr_,
-            nullptr, internal);
+            inode_.fsid(), inode_.inodeid(), dirtyAttr_, nullptr, internal);
 
         if (ret != MetaStatusCode::OK) {
             LOG(ERROR) << "metaClient_ UpdateInodeAttrWithOutNlink failed, "
@@ -202,25 +205,25 @@ CURVEFS_ERROR InodeWrapper::SyncAttr(bool internal) {
     return CURVEFS_ERROR::OK;
 }
 
-CURVEFS_ERROR InodeWrapper::SyncS3ChunkInfo(bool internal) {
-    curve::common::UniqueLock lock = GetSyncingS3ChunkInfoUniqueLock();
-    if (!s3ChunkInfoAdd_.empty()) {
-        MetaStatusCode ret = metaClient_->GetOrModifyS3ChunkInfo(
-            inode_.fsid(), inode_.inodeid(), s3ChunkInfoAdd_, false, nullptr,
+CURVEFS_ERROR InodeWrapper::SyncChunkInfo(bool internal) {
+    curve::common::UniqueLock lock = GetSyncingChunkInfoUniqueLock();
+    if (!ChunkInfoAdd_.empty()) {
+        MetaStatusCode ret = metaClient_->GetOrModifyChunkInfo(
+            inode_.fsid(), inode_.inodeid(), ChunkInfoAdd_, false, nullptr,
             internal);
         if (ret != MetaStatusCode::OK) {
-            LOG(ERROR) << "metaClient_ GetOrModifyS3ChunkInfo failed, "
+            LOG(ERROR) << "metaClient_ GetOrModifyChunkInfo failed, "
                        << "MetaStatusCode: " << ret
                        << ", MetaStatusCode_Name: " << MetaStatusCode_Name(ret)
                        << ", inodeid: " << inode_.inodeid();
             return MetaStatusCodeToCurvefsErrCode(ret);
         }
-        ClearS3ChunkInfoAdd();
+        ClearChunkInfoAdd();
     }
     return CURVEFS_ERROR::OK;
 }
 
-void InodeWrapper::AsyncFlushAttr(MetaServerClientDone* done,
+void InodeWrapper::AsyncFlushAttr(MetaServerClientDone *done,
                                   bool /*internal*/) {
     if (dirty_) {
         LockSyncingInode();
@@ -237,14 +240,13 @@ void InodeWrapper::AsyncFlushAttr(MetaServerClientDone* done,
     }
 }
 
-void InodeWrapper::FlushS3ChunkInfoAsync() {
-    if (!s3ChunkInfoAdd_.empty()) {
-        LockSyncingS3ChunkInfo();
-         auto *done = new GetOrModifyS3ChunkInfoAsyncDone(shared_from_this());
-        metaClient_->GetOrModifyS3ChunkInfoAsync(
-            inode_.fsid(), inode_.inodeid(), s3ChunkInfoAdd_,
-            done);
-        ClearS3ChunkInfoAdd();
+void InodeWrapper::FlushChunkInfoAsync() {
+    if (!ChunkInfoAdd_.empty()) {
+        LockSyncingChunkInfo();
+        auto *done = new GetOrModifyChunkInfoAsyncDone(shared_from_this());
+        metaClient_->GetOrModifyChunkInfoAsync(
+            inode_.fsid(), inode_.inodeid(), ChunkInfoAdd_, done);
+        ClearChunkInfoAdd();
     }
 }
 
@@ -282,25 +284,24 @@ void InodeWrapper::FlushVolumeExtentAsync() {
                                          dirtyExtents, closure);
 }
 
-CURVEFS_ERROR InodeWrapper::RefreshS3ChunkInfo() {
-    curve::common::UniqueLock lock = GetSyncingS3ChunkInfoUniqueLock();
-    google::protobuf::Map<
-                uint64_t, S3ChunkInfoList> s3ChunkInfoMap;
-    MetaStatusCode ret = metaClient_->GetOrModifyS3ChunkInfo(
-        inode_.fsid(), inode_.inodeid(), s3ChunkInfoAdd_,
-        true, &s3ChunkInfoMap);
+CURVEFS_ERROR InodeWrapper::RefreshChunkInfo() {
+    curve::common::UniqueLock lock = GetSyncingChunkInfoUniqueLock();
+    google::protobuf::Map<uint64_t, ChunkInfoList> ChunkInfoMap;
+    MetaStatusCode ret = metaClient_->GetOrModifyChunkInfo(
+        inode_.fsid(), inode_.inodeid(), ChunkInfoAdd_, true,
+        &ChunkInfoMap);
     if (ret != MetaStatusCode::OK) {
-        LOG(ERROR) << "metaClient_ GetOrModifyS3ChunkInfo failed, "
+        LOG(ERROR) << "metaClient_ GetOrModifyChunkInfo failed, "
                    << "MetaStatusCode: " << ret
                    << ", MetaStatusCode_Name: " << MetaStatusCode_Name(ret)
                    << ", inodeid: " << inode_.inodeid();
         return MetaStatusCodeToCurvefsErrCode(ret);
     }
-    auto before = s3ChunkInfoSize_;
-    inode_.mutable_s3chunkinfomap()->swap(s3ChunkInfoMap);
-    UpdateS3ChunkInfoMetric(CalS3ChunkInfoSize() - before);
-    ClearS3ChunkInfoAdd();
-    UpdateMaxS3ChunkInfoSize();
+    auto before = ChunkInfoSize_;
+    inode_.mutable_ChunkInfomap()->swap(ChunkInfoMap);
+    UpdateChunkInfoMetric(CalChunkInfoSize() - before);
+    ClearChunkInfoAdd();
+    UpdateMaxChunkInfoSize();
     lastRefreshTime_ = TimeUtility::GetTimeofDaySec();
     return CURVEFS_ERROR::OK;
 }
@@ -325,7 +326,7 @@ CURVEFS_ERROR InodeWrapper::Link(uint64_t parent) {
     if (ret != MetaStatusCode::OK) {
         inode_.set_nlink(old);
         LOG(ERROR) << "metaClient_ UpdateInodeAttr failed"
-                   <<", MetaStatusCode = " << ret
+                   << ", MetaStatusCode = " << ret
                    << ", MetaStatusCode_Name = " << MetaStatusCode_Name(ret)
                    << ", inodeid = " << inode_.inodeid();
         return MetaStatusCodeToCurvefsErrCode(ret);
@@ -407,8 +408,8 @@ CURVEFS_ERROR InodeWrapper::UnLink(uint64_t parent) {
     return CURVEFS_ERROR::INTERNAL;
 }
 
-CURVEFS_ERROR InodeWrapper::UpdateParent(
-    uint64_t oldParent, uint64_t newParent) {
+CURVEFS_ERROR InodeWrapper::UpdateParent(uint64_t oldParent,
+                                         uint64_t newParent) {
     curve::common::UniqueLock lg(mtx_);
     auto parents = inode_.mutable_parent();
     for (auto iter = parents->begin(); iter != parents->end(); iter++) {
@@ -437,21 +438,21 @@ CURVEFS_ERROR InodeWrapper::UpdateParent(
 CURVEFS_ERROR InodeWrapper::Sync(bool internal) {
     CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
     switch (inode_.type()) {
-        case FsFileType::TYPE_S3:
-            ret = SyncS3(internal);
+    case FsFileType::TYPE_S3:
+        ret = SyncS3(internal);
+        break;
+    case FsFileType::TYPE_FILE:
+        ret = SyncAttr(internal);
+        if (ret != CURVEFS_ERROR::OK) {
             break;
-        case FsFileType::TYPE_FILE:
-            ret = SyncAttr(internal);
-            if (ret != CURVEFS_ERROR::OK) {
-                break;
-            }
-            ret = FlushVolumeExtent();
-            break;
-        case FsFileType::TYPE_DIRECTORY:
-            ret = SyncAttr(internal);
-            break;
-        default:
-            break;
+        }
+        ret = FlushVolumeExtent();
+        break;
+    case FsFileType::TYPE_DIRECTORY:
+        ret = SyncAttr(internal);
+        break;
+    default:
+        break;
     }
     return ret;
 }
@@ -460,14 +461,14 @@ void InodeWrapper::Async(MetaServerClientDone *done, bool internal) {
     VLOG(9) << "async inode: " << inode_.ShortDebugString();
 
     switch (inode_.type()) {
-        case FsFileType::TYPE_S3:
-            return AsyncS3(done, internal);
-        case FsFileType::TYPE_FILE:
-            return AsyncFlushAttrAndExtents(done, internal);
-        case FsFileType::TYPE_DIRECTORY:
-            FALLTHROUGH_INTENDED;
-        case FsFileType::TYPE_SYM_LINK:
-            return AsyncFlushAttr(done, internal);
+    case FsFileType::TYPE_S3:
+        return AsyncS3(done, internal);
+    case FsFileType::TYPE_FILE:
+        return AsyncFlushAttrAndExtents(done, internal);
+    case FsFileType::TYPE_DIRECTORY:
+        FALLTHROUGH_INTENDED;
+    case FsFileType::TYPE_SYM_LINK:
+        return AsyncFlushAttr(done, internal);
     }
 
     CHECK(false) << "Unexpected inode type: " << inode_.type() << ", "
@@ -502,12 +503,12 @@ void InodeWrapper::AsyncFlushAttrAndExtents(MetaServerClientDone *done,
 
 CURVEFS_ERROR InodeWrapper::SyncS3(bool internal) {
     curve::common::UniqueLock lock = GetSyncingInodeUniqueLock();
-    curve::common::UniqueLock lockS3chunkInfo =
-        GetSyncingS3ChunkInfoUniqueLock();
-    if (dirty_ || !s3ChunkInfoAdd_.empty()) {
+    curve::common::UniqueLock lockChunkInfo =
+        GetSyncingChunkInfoUniqueLock();
+    if (dirty_ || !ChunkInfoAdd_.empty()) {
         MetaStatusCode ret = metaClient_->UpdateInodeAttrWithOutNlink(
-            inode_.fsid(), inode_.inodeid(), dirtyAttr_,
-            &s3ChunkInfoAdd_, internal);
+            inode_.fsid(), inode_.inodeid(), dirtyAttr_, &ChunkInfoAdd_,
+            internal);
 
         if (ret != MetaStatusCode::OK) {
             LOG(ERROR) << "metaClient_ UpdateInodeAttrWithOutNlink failed, "
@@ -516,7 +517,7 @@ CURVEFS_ERROR InodeWrapper::SyncS3(bool internal) {
                        << ", inodeid: " << inode_.inodeid();
             return MetaStatusCodeToCurvefsErrCode(ret);
         }
-        ClearS3ChunkInfoAdd();
+        ClearChunkInfoAdd();
         dirty_ = false;
         dirtyAttr_.Clear();
     }
@@ -527,8 +528,8 @@ namespace {
 class UpdateInodeAsyncS3Done : public MetaServerClientDone {
  public:
     explicit UpdateInodeAsyncS3Done(
-        const std::shared_ptr<InodeWrapper>& inodeWrapper,
-        MetaServerClientDone* parent)
+        const std::shared_ptr<InodeWrapper> &inodeWrapper,
+        MetaServerClientDone *parent)
         : inodeWrapper_(inodeWrapper), parent_(parent) {}
 
     void Run() override {
@@ -544,7 +545,7 @@ class UpdateInodeAsyncS3Done : public MetaServerClientDone {
         VLOG(9) << "inode " << inodeWrapper_->GetInodeId() << " async success.";
         inodeWrapper_->ClearDirty();
         inodeWrapper_->ReleaseSyncingInode();
-        inodeWrapper_->ReleaseSyncingS3ChunkInfo();
+        inodeWrapper_->ReleaseSyncingChunkInfo();
 
         if (parent_ != nullptr) {
             parent_->SetMetaStatusCode(ret);
@@ -554,25 +555,25 @@ class UpdateInodeAsyncS3Done : public MetaServerClientDone {
 
  private:
     std::shared_ptr<InodeWrapper> inodeWrapper_;
-    MetaServerClientDone* parent_;
+    MetaServerClientDone *parent_;
 };
 }  // namespace
 
 void InodeWrapper::AsyncS3(MetaServerClientDone *done, bool internal) {
     (void)internal;
-    if (dirty_ || !s3ChunkInfoAdd_.empty()) {
+    if (dirty_ || !ChunkInfoAdd_.empty()) {
         LockSyncingInode();
-        LockSyncingS3ChunkInfo();
+        LockSyncingChunkInfo();
         DataIndices indices;
-        if (!s3ChunkInfoAdd_.empty()) {
-            indices.s3ChunkInfoMap = std::move(s3ChunkInfoAdd_);
+        if (!ChunkInfoAdd_.empty()) {
+            indices.ChunkInfoMap = std::move(ChunkInfoAdd_);
         }
         metaClient_->UpdateInodeWithOutNlinkAsync(
             inode_.fsid(), inode_.inodeid(), dirtyAttr_,
             new UpdateInodeAsyncS3Done{shared_from_this(), done},
             std::move(indices));
         dirtyAttr_.Clear();
-        ClearS3ChunkInfoAdd();
+        ClearChunkInfoAdd();
         return;
     }
 
@@ -602,8 +603,8 @@ CURVEFS_ERROR InodeWrapper::RefreshVolumeExtent() {
 
 CURVEFS_ERROR InodeWrapper::RefreshNlink() {
     InodeAttr attr;
-    auto ret = metaClient_->GetInodeAttr(
-        inode_.fsid(), inode_.inodeid(), &attr);
+    auto ret =
+        metaClient_->GetInodeAttr(inode_.fsid(), inode_.inodeid(), &attr);
     if (ret != MetaStatusCode::OK) {
         VLOG(3) << "RefreshNlink failed, fsId: " << inode_.fsid()
                 << ", inodeid: " << inode_.inodeid();
@@ -616,11 +617,11 @@ CURVEFS_ERROR InodeWrapper::RefreshNlink() {
 }
 
 void InodeWrapper::MergeXAttrLocked(
-    const google::protobuf::Map<std::string, std::string>& xattrs) {
+    const google::protobuf::Map<std::string, std::string> &xattrs) {
     auto helper =
-        [](const google::protobuf::Map<std::string, std::string>& incoming,
-           google::protobuf::Map<std::string, std::string>* xattrs) {
-            for (const auto& attr : incoming) {
+        [](const google::protobuf::Map<std::string, std::string> &incoming,
+           google::protobuf::Map<std::string, std::string> *xattrs) {
+            for (const auto &attr : incoming) {
                 (*xattrs)[attr.first] = attr.second;
             }
         };
@@ -636,7 +637,7 @@ void InodeWrapper::UpdateTimestampLocked(int flags) {
     return UpdateTimestampLocked(now, flags);
 }
 
-void InodeWrapper::UpdateTimestampLocked(const timespec& now, int flags) {
+void InodeWrapper::UpdateTimestampLocked(const timespec &now, int flags) {
     if (flags & kAccessTime) {
         inode_.set_atime(now.tv_sec);
         inode_.set_atime_ns(now.tv_nsec);

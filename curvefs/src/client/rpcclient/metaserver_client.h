@@ -49,24 +49,24 @@ using ::curvefs::metaserver::Inode;
 using ::curvefs::metaserver::InodeAttr;
 using ::curvefs::metaserver::XAttr;
 using ::curvefs::metaserver::MetaStatusCode;
-using ::curvefs::metaserver::S3ChunkInfoList;
+using ::curvefs::metaserver::ChunkInfoList;
 using ::curvefs::metaserver::DeallocatableBlockGroup;
 using ::curvefs::common::StreamStatus;
 using ::curvefs::common::StreamClient;
 using ::curvefs::metaserver::Time;
 
 using DeallocatableBlockGroupMap = std::map<uint64_t, DeallocatableBlockGroup>;
-using S3ChunkInfoMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
+using ChunkInfoMap = google::protobuf::Map<uint64_t, ChunkInfoList>;
 
 namespace curvefs {
 namespace client {
 namespace rpcclient {
 
-using S3ChunkInfoMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
+using ChunkInfoMap = google::protobuf::Map<uint64_t, ChunkInfoList>;
 using ::curvefs::metaserver::VolumeExtentSliceList;
 
 struct DataIndices {
-    absl::optional<S3ChunkInfoMap> s3ChunkInfoMap;
+    absl::optional<ChunkInfoMap> ChunkInfoMap;
     absl::optional<VolumeExtentSliceList> volumeExtents;
 };
 
@@ -127,7 +127,7 @@ class MetaServerClient {
         uint32_t fsId,
         uint64_t inodeId,
         const InodeAttr& attr,
-        S3ChunkInfoMap* s3ChunkInfoAdd = nullptr,
+        ChunkInfoMap* ChunkInfoAdd = nullptr,
         bool internal = false) = 0;
 
     virtual void UpdateInodeWithOutNlinkAsync(
@@ -137,19 +137,19 @@ class MetaServerClient {
         MetaServerClientDone* done,
         DataIndices&& indices = {}) = 0;
 
-    virtual MetaStatusCode GetOrModifyS3ChunkInfo(
+    virtual MetaStatusCode GetOrModifyChunkInfo(
         uint32_t fsId, uint64_t inodeId,
         const google::protobuf::Map<
-            uint64_t, S3ChunkInfoList> &s3ChunkInfos,
-        bool returnS3ChunkInfoMap = false,
+            uint64_t, ChunkInfoList> &ChunkInfos,
+        bool returnChunkInfoMap = false,
         google::protobuf::Map<
-            uint64_t, S3ChunkInfoList> *out = nullptr,
+            uint64_t, ChunkInfoList> *out = nullptr,
             bool internal = false) = 0;
 
-    virtual void GetOrModifyS3ChunkInfoAsync(
+    virtual void GetOrModifyChunkInfoAsync(
         uint32_t fsId, uint64_t inodeId,
         const google::protobuf::Map<
-            uint64_t, S3ChunkInfoList> &s3ChunkInfos,
+            uint64_t, ChunkInfoList> &ChunkInfos,
         MetaServerClientDone *done) = 0;
 
     virtual MetaStatusCode CreateInode(const InodeParam &param, Inode *out) = 0;
@@ -235,7 +235,7 @@ class MetaServerClientImpl : public MetaServerClient {
         uint32_t fsId,
         uint64_t inodeId,
         const InodeAttr& attr,
-        S3ChunkInfoMap* s3ChunkInfoAdd = nullptr,
+        ChunkInfoMap* ChunkInfoAdd = nullptr,
         bool internal = false) override;
 
     void UpdateInodeWithOutNlinkAsync(
@@ -245,19 +245,19 @@ class MetaServerClientImpl : public MetaServerClient {
         MetaServerClientDone* done,
         DataIndices&& indices = {}) override;
 
-    MetaStatusCode GetOrModifyS3ChunkInfo(
+    MetaStatusCode GetOrModifyChunkInfo(
         uint32_t fsId, uint64_t inodeId,
         const google::protobuf::Map<
-            uint64_t, S3ChunkInfoList> &s3ChunkInfos,
-        bool returnS3ChunkInfoMap = false,
+            uint64_t, ChunkInfoList> &ChunkInfos,
+        bool returnChunkInfoMap = false,
         google::protobuf::Map<
-            uint64_t, S3ChunkInfoList> *out = nullptr,
+            uint64_t, ChunkInfoList> *out = nullptr,
             bool internal = false) override;
 
-    void GetOrModifyS3ChunkInfoAsync(
+    void GetOrModifyChunkInfoAsync(
         uint32_t fsId, uint64_t inodeId,
         const google::protobuf::Map<
-            uint64_t, S3ChunkInfoList> &s3ChunkInfos,
+            uint64_t, ChunkInfoList> &ChunkInfos,
         MetaServerClientDone *done) override;
 
     MetaStatusCode CreateInode(const InodeParam &param, Inode *out) override;
@@ -294,9 +294,9 @@ class MetaServerClientImpl : public MetaServerClient {
 
     bool ParseS3MetaStreamBuffer(butil::IOBuf* buffer,
                                  uint64_t* chunkIndex,
-                                 S3ChunkInfoList* list);
+                                 ChunkInfoList* list);
 
-    bool HandleS3MetaStreamBuffer(butil::IOBuf* buffer, S3ChunkInfoMap* out);
+    bool HandleS3MetaStreamBuffer(butil::IOBuf* buffer, ChunkInfoMap* out);
 
  private:
     ExcutorOpt opt_;

@@ -375,15 +375,15 @@ class WarmupManagerS3Impl : public WarmupManager {
 
     void FetchDataEnqueue(fuse_ino_t key, fuse_ino_t ino);
 
-    using S3ChunkInfoMapType = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
+    using ChunkInfoMapType = google::protobuf::Map<uint64_t, ChunkInfoList>;
 
     // travel all chunks
     void TravelChunks(fuse_ino_t key, fuse_ino_t ino,
-                      const S3ChunkInfoMapType &s3ChunkInfoMap);
+                      const ChunkInfoMapType &ChunkInfoMap);
 
     using ObjectListType = std::list<std::pair<std::string, uint64_t>>;
     // travel and download all objs belong to the chunk
-    void TravelChunk(fuse_ino_t ino, const S3ChunkInfoList &chunkInfo,
+    void TravelChunk(fuse_ino_t ino, const ChunkInfoList &chunkInfo,
                      ObjectListType *prefetchObjs);
 
     // warmup all the prefetchObjs

@@ -98,7 +98,7 @@ class MockMetaServerClient : public MetaServerClient {
                  MetaStatusCode(uint32_t,
                                 uint64_t,
                                 const InodeAttr&,
-                                S3ChunkInfoMap* s3ChunkInfoAdd,
+                                ChunkInfoMap* ChunkInfoAdd,
                                 bool internal));
 
     // Workaround for rvalue parameters
@@ -122,19 +122,19 @@ class MockMetaServerClient : public MetaServerClient {
     MOCK_METHOD2(UpdateXattrAsync, void(const Inode &inode,
         MetaServerClientDone *done));
 
-    MOCK_METHOD6(GetOrModifyS3ChunkInfo, MetaStatusCode(
+    MOCK_METHOD6(GetOrModifyChunkInfo, MetaStatusCode(
         uint32_t fsId, uint64_t inodeId,
         const google::protobuf::Map<
-            uint64_t, S3ChunkInfoList> &s3ChunkInfos,
-        bool returnS3ChunkInfoMap,
+            uint64_t, ChunkInfoList> &ChunkInfos,
+        bool returnChunkInfoMap,
         google::protobuf::Map<
-            uint64_t, S3ChunkInfoList> *out,
+            uint64_t, ChunkInfoList> *out,
             bool internal));
 
-    MOCK_METHOD4(GetOrModifyS3ChunkInfoAsync, void(
+    MOCK_METHOD4(GetOrModifyChunkInfoAsync, void(
         uint32_t fsId, uint64_t inodeId,
         const google::protobuf::Map<
-            uint64_t, S3ChunkInfoList> &s3ChunkInfos,
+            uint64_t, ChunkInfoList> &ChunkInfos,
         MetaServerClientDone *done));
 
     MOCK_METHOD2(CreateInode, MetaStatusCode(

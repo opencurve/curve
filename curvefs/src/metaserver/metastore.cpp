@@ -57,7 +57,7 @@ using ::curve::common::ReadLockGuard;
 using ::curve::common::WriteLockGuard;
 using ::curvefs::metaserver::storage::DumpFileClosure;
 using KVStorage = ::curvefs::metaserver::storage::KVStorage;
-using Key4S3ChunkInfoList = ::curvefs::metaserver::storage::Key4S3ChunkInfoList;
+using Key4ChunkInfoList = ::curvefs::metaserver::storage::Key4ChunkInfoList;
 
 using ::curvefs::metaserver::storage::MemoryStorage;
 using ::curvefs::metaserver::storage::RocksDBStorage;
@@ -597,16 +597,16 @@ MetaStatusCode MetaStoreImpl::GetInode(const GetInodeRequest *request,
 
     Inode *inode = response->mutable_inode();
     MetaStatusCode rc = partition->GetInode(fsId, inodeId, inode);
-    // NOTE: the following two cases we should padding inode's s3chunkinfo:
+    // NOTE: the following two cases we should padding inode's ChunkInfo:
     // (1): for RPC requests which unsupport streaming
-    // (2): inode's s3chunkinfo is small enough
+    // (2): inode's ChunkInfo is small enough
     if (rc == MetaStatusCode::OK) {
         uint64_t limit = 0;
         if (request->supportstreaming()) {
             limit = kvStorage_->GetStorageOptions().s3MetaLimitSizeInsideInode;
         }
-        rc = partition->PaddingInodeS3ChunkInfo(
-            fsId, inodeId, inode->mutable_s3chunkinfomap(), limit);
+        rc = partition->PaddingInodeChunkInfo(
+            fsId, inodeId, inode->mutable_ChunkInfomap(), limit);
         if (rc == MetaStatusCode::INODE_S3_META_TOO_LARGE) {
             response->set_streaming(true);
             rc = MetaStatusCode::OK;
@@ -689,9 +689,9 @@ MetaStatusCode MetaStoreImpl::UpdateInode(const UpdateInodeRequest *request,
     return status;
 }
 
-MetaStatusCode MetaStoreImpl::GetOrModifyS3ChunkInfo(
-    const GetOrModifyS3ChunkInfoRequest *request,
-    GetOrModifyS3ChunkInfoResponse *response,
+MetaStatusCode MetaStoreImpl::GetOrModifyChunkInfo(
+    const GetOrModifyChunkInfoRequest *request,
+    GetOrModifyChunkInfoResponse *response,
     std::shared_ptr<Iterator> *iterator) {
     MetaStatusCode rc;
     ReadLockGuard readLockGuard(rwLock_);
@@ -700,13 +700,13 @@ MetaStatusCode MetaStoreImpl::GetOrModifyS3ChunkInfo(
 
     uint32_t fsId = request->fsid();
     uint64_t inodeId = request->inodeid();
-    rc = partition->GetOrModifyS3ChunkInfo(
-        fsId, inodeId, request->s3chunkinfoadd(), request->s3chunkinforemove(),
-        request->returns3chunkinfomap(), iterator);
+    rc = partition->GetOrModifyChunkInfo(
+        fsId, inodeId, request->ChunkInfoadd(), request->ChunkInforemove(),
+        request->returnChunkInfomap(), iterator);
     if (rc == MetaStatusCode::OK && !request->supportstreaming() &&
-        request->returns3chunkinfomap()) {
-        rc = partition->PaddingInodeS3ChunkInfo(
-            fsId, inodeId, response->mutable_s3chunkinfomap(), 0);
+        request->returnChunkInfomap()) {
+        rc = partition->PaddingInodeChunkInfo(
+            fsId, inodeId, response->mutable_ChunkInfomap(), 0);
     }
 
     response->set_statuscode(rc);
@@ -722,11 +722,11 @@ void MetaStoreImpl::PrepareStreamBuffer(butil::IOBuf *buffer,
     buffer->append(value);
 }
 
-MetaStatusCode MetaStoreImpl::SendS3ChunkInfoByStream(
+MetaStatusCode MetaStoreImpl::SendChunkInfoByStream(
     std::shared_ptr<StreamConnection> connection,
     std::shared_ptr<Iterator> iterator) {
     butil::IOBuf buffer;
-    Key4S3ChunkInfoList key;
+    Key4ChunkInfoList key;
     Converter conv;
     for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
         std::string skey = iterator->Key();
@@ -734,7 +734,7 @@ MetaStatusCode MetaStoreImpl::SendS3ChunkInfoByStream(
             return MetaStatusCode::PARSE_FROM_STRING_FAILED;
         }
 
-        VLOG(9) << "Key4S3ChunkInfoList=" << skey;
+        VLOG(9) << "Key4ChunkInfoList=" << skey;
 
         PrepareStreamBuffer(&buffer, key.chunkIndex, iterator->Value());
         if (!connection->Write(buffer)) {

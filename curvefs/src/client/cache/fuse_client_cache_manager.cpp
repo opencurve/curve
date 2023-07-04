@@ -1703,16 +1703,16 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool toS3) {
         return CURVEFS_ERROR::INTERNAL;
     }
 
-    S3ChunkInfo info;
-    PrepareS3ChunkInfo(chunkId, offset, writeOffset, &info);
-    inodeWrapper->AppendS3ChunkInfo(chunkIndex, info);
+    ChunkInfo info;
+    PrepareChunkInfo(chunkId, offset, writeOffset, &info);
+    inodeWrapper->AppendChunkInfo(chunkIndex, info);
     storageAdaptor_->GetInodeCacheManager()->ShipToFlush(inodeWrapper);
 
     return CURVEFS_ERROR::OK;
 }
 
-void DataCache::PrepareS3ChunkInfo(uint64_t chunkId, uint64_t offset,
-                                   uint64_t len, S3ChunkInfo *info) {
+void DataCache::PrepareChunkInfo(uint64_t chunkId, uint64_t offset,
+                                   uint64_t len, ChunkInfo *info) {
     info->set_chunkid(chunkId);
     info->set_compaction(0);
     info->set_offset(offset);

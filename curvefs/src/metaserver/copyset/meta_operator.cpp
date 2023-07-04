@@ -198,12 +198,12 @@ OPERATOR_ON_APPLY(UpdateDeallocatableBlockGroup);
 // NOTE: now we need struct `brpc::Controller` for sending data by stream,
 // so we redefine OnApply() and OnApplyFromLog() instead of using macro.
 // It may not be an elegant implementation, can you provide a better idea?
-void GetOrModifyS3ChunkInfoOperator::OnApply(int64_t index,
+void GetOrModifyChunkInfoOperator::OnApply(int64_t index,
                                              google::protobuf::Closure *done,
                                              uint64_t startTimeUs) {
     MetaStatusCode rc;
-    auto request = static_cast<const GetOrModifyS3ChunkInfoRequest *>(request_);
-    auto response = static_cast<GetOrModifyS3ChunkInfoResponse *>(response_);
+    auto request = static_cast<const GetOrModifyChunkInfoRequest *>(request_);
+    auto response = static_cast<GetOrModifyChunkInfoResponse *>(response_);
     auto metastore = node_->GetMetaStore();
     std::shared_ptr<StreamConnection> connection;
     std::shared_ptr<Iterator> iterator;
@@ -212,22 +212,22 @@ void GetOrModifyS3ChunkInfoOperator::OnApply(int64_t index,
     {
         brpc::ClosureGuard doneGuard(done);
 
-        rc = metastore->GetOrModifyS3ChunkInfo(request, response, &iterator);
+        rc = metastore->GetOrModifyChunkInfo(request, response, &iterator);
         if (rc == MetaStatusCode::OK) {
             node_->UpdateAppliedIndex(index);
             response->set_appliedindex(
                 std::max<uint64_t>(index, node_->GetAppliedIndex()));
             node_->GetMetric()->OnOperatorComplete(
-                OperatorType::GetOrModifyS3ChunkInfo,
+                OperatorType::GetOrModifyChunkInfo,
                 TimeUtility::GetTimeofDayUs() - startTimeUs, true);
         } else {
             node_->GetMetric()->OnOperatorComplete(
-                OperatorType::GetOrModifyS3ChunkInfo,
+                OperatorType::GetOrModifyChunkInfo,
                 TimeUtility::GetTimeofDayUs() - startTimeUs, false);
         }
 
         brpc::Controller *cntl = static_cast<brpc::Controller *>(cntl_);
-        if (rc != MetaStatusCode::OK || !request->returns3chunkinfomap() ||
+        if (rc != MetaStatusCode::OK || !request->returnChunkInfomap() ||
             !request->supportstreaming()) {
             return;
         }
@@ -241,9 +241,9 @@ void GetOrModifyS3ChunkInfoOperator::OnApply(int64_t index,
         }
     }
 
-    rc = metastore->SendS3ChunkInfoByStream(connection, iterator);
+    rc = metastore->SendChunkInfoByStream(connection, iterator);
     if (rc != MetaStatusCode::OK) {
-        LOG(ERROR) << "Sending s3chunkinfo by stream failed";
+        LOG(ERROR) << "Sending ChunkInfo by stream failed";
     }
 }
 
@@ -321,17 +321,17 @@ OPERATOR_ON_APPLY_FROM_LOG(UpdateDeallocatableBlockGroup);
 
 #undef OPERATOR_ON_APPLY_FROM_LOG
 
-void GetOrModifyS3ChunkInfoOperator::OnApplyFromLog(uint64_t startTimeUs) {
-    std::unique_ptr<GetOrModifyS3ChunkInfoOperator> selfGuard(this);
-    GetOrModifyS3ChunkInfoRequest request;
-    GetOrModifyS3ChunkInfoResponse response;
+void GetOrModifyChunkInfoOperator::OnApplyFromLog(uint64_t startTimeUs) {
+    std::unique_ptr<GetOrModifyChunkInfoOperator> selfGuard(this);
+    GetOrModifyChunkInfoRequest request;
+    GetOrModifyChunkInfoResponse response;
     std::shared_ptr<Iterator> iterator;
-    request = *static_cast<const GetOrModifyS3ChunkInfoRequest *>(request_);
-    request.set_returns3chunkinfomap(false);
-    auto status = node_->GetMetaStore()->GetOrModifyS3ChunkInfo(
+    request = *static_cast<const GetOrModifyChunkInfoRequest *>(request_);
+    request.set_returnChunkInfomap(false);
+    auto status = node_->GetMetaStore()->GetOrModifyChunkInfo(
         &request, &response, &iterator);
     node_->GetMetric()->OnOperatorCompleteFromLog(
-        OperatorType::GetOrModifyS3ChunkInfo,
+        OperatorType::GetOrModifyChunkInfo,
         TimeUtility::GetTimeofDayUs() - startTimeUs,
         status == MetaStatusCode::OK);
 }
@@ -367,7 +367,7 @@ OPERATOR_REDIRECT(BatchGetInodeAttr);
 OPERATOR_REDIRECT(BatchGetXAttr);
 OPERATOR_REDIRECT(CreateInode);
 OPERATOR_REDIRECT(UpdateInode);
-OPERATOR_REDIRECT(GetOrModifyS3ChunkInfo);
+OPERATOR_REDIRECT(GetOrModifyChunkInfo);
 OPERATOR_REDIRECT(DeleteInode);
 OPERATOR_REDIRECT(CreateRootInode);
 OPERATOR_REDIRECT(CreateManageInode);
@@ -394,7 +394,7 @@ OPERATOR_ON_FAILED(BatchGetInodeAttr);
 OPERATOR_ON_FAILED(BatchGetXAttr);
 OPERATOR_ON_FAILED(CreateInode);
 OPERATOR_ON_FAILED(UpdateInode);
-OPERATOR_ON_FAILED(GetOrModifyS3ChunkInfo);
+OPERATOR_ON_FAILED(GetOrModifyChunkInfo);
 OPERATOR_ON_FAILED(DeleteInode);
 OPERATOR_ON_FAILED(CreateRootInode);
 OPERATOR_ON_FAILED(CreateManageInode);
@@ -421,7 +421,7 @@ OPERATOR_HASH_CODE(BatchGetInodeAttr);
 OPERATOR_HASH_CODE(BatchGetXAttr);
 OPERATOR_HASH_CODE(CreateInode);
 OPERATOR_HASH_CODE(UpdateInode);
-OPERATOR_HASH_CODE(GetOrModifyS3ChunkInfo);
+OPERATOR_HASH_CODE(GetOrModifyChunkInfo);
 OPERATOR_HASH_CODE(DeleteInode);
 OPERATOR_HASH_CODE(CreateRootInode);
 OPERATOR_HASH_CODE(CreateManageInode);
@@ -459,7 +459,7 @@ OPERATOR_TYPE(BatchGetInodeAttr);
 OPERATOR_TYPE(BatchGetXAttr);
 OPERATOR_TYPE(CreateInode);
 OPERATOR_TYPE(UpdateInode);
-OPERATOR_TYPE(GetOrModifyS3ChunkInfo);
+OPERATOR_TYPE(GetOrModifyChunkInfo);
 OPERATOR_TYPE(DeleteInode);
 OPERATOR_TYPE(CreateRootInode);
 OPERATOR_TYPE(CreateManageInode);

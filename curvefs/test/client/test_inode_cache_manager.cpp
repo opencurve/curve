@@ -94,16 +94,16 @@ TEST_F(TestInodeCacheManager, GetInode) {
     inode.set_fsid(fsId_);
     inode.set_length(fileLength);
     inode.set_type(FsFileType::TYPE_S3);
-    auto s3ChunkInfoMap = inode.mutable_s3chunkinfomap();
-    S3ChunkInfoList *s3ChunkInfoList = new S3ChunkInfoList();
-    S3ChunkInfo *s3ChunkInfo = s3ChunkInfoList->add_s3chunks();
-    s3ChunkInfo->set_chunkid(1);
-    s3ChunkInfo->set_compaction(1);
-    s3ChunkInfo->set_offset(0);
-    s3ChunkInfo->set_len(1024);
-    s3ChunkInfo->set_size(65536);
-    s3ChunkInfo->set_zero(true);
-    s3ChunkInfoMap->insert({1, *s3ChunkInfoList});
+    auto ChunkInfoMap = inode.mutable_ChunkInfomap();
+    ChunkInfoList *ChunkInfoList = new ChunkInfoList();
+    ChunkInfo *ChunkInfo = ChunkInfoList->add_s3chunks();
+    ChunkInfo->set_chunkid(1);
+    ChunkInfo->set_compaction(1);
+    ChunkInfo->set_offset(0);
+    ChunkInfo->set_len(1024);
+    ChunkInfo->set_size(65536);
+    ChunkInfo->set_zero(true);
+    ChunkInfoMap->insert({1, *ChunkInfoList});
 
     // miss cache and get inode failed
     EXPECT_CALL(*metaClient_, GetInode(fsId_, inodeId, _, _))
@@ -127,14 +127,14 @@ TEST_F(TestInodeCacheManager, GetInode) {
         .WillOnce(DoAll(SetArgPointee<2>(inode2), SetArgPointee<3>(true),
                         Return(MetaStatusCode::OK)));
     EXPECT_CALL(*metaClient_,
-                GetOrModifyS3ChunkInfo(fsId_, inodeId2, _, true, _, _))
+                GetOrModifyChunkInfo(fsId_, inodeId2, _, true, _, _))
         .WillOnce(Return(MetaStatusCode::OK));
     ASSERT_EQ(CURVEFS_ERROR::OK,
               iCacheManager_->GetInode(inodeId2, inodeWrapper));
 
     // hit cache and need refresh s3info
     EXPECT_CALL(*metaClient_,
-        GetOrModifyS3ChunkInfo(fsId_, inodeId, _, true, _, _))
+        GetOrModifyChunkInfo(fsId_, inodeId, _, true, _, _))
         .WillOnce(Return(MetaStatusCode::OK));
     ret = iCacheManager_->GetInode(inodeId, inodeWrapper);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
@@ -158,7 +158,7 @@ TEST_F(TestInodeCacheManager, GetInode) {
         .WillOnce(DoAll(SetArgPointee<2>(inode2), SetArgPointee<3>(true),
                         Return(MetaStatusCode::OK)));
     EXPECT_CALL(*metaClient_,
-                GetOrModifyS3ChunkInfo(fsId_, inodeId2, _, true, _, _))
+                GetOrModifyChunkInfo(fsId_, inodeId2, _, true, _, _))
         .WillOnce(Return(MetaStatusCode::OK));
     ASSERT_EQ(CURVEFS_ERROR::OK,
               iCacheManager_->GetInode(inodeId2, inodeWrapper));
@@ -319,8 +319,8 @@ TEST_F(TestInodeCacheManager, ShipToFlushAndFlushAll) {
     std::shared_ptr<InodeWrapper> inodeWrapper =
         std::make_shared<InodeWrapper>(inode, metaClient_);
     inodeWrapper->MarkDirty();
-    S3ChunkInfo info;
-    inodeWrapper->AppendS3ChunkInfo(1, info);
+    ChunkInfo info;
+    inodeWrapper->AppendChunkInfo(1, info);
 
     iCacheManager_->ShipToFlush(inodeWrapper);
 
@@ -485,8 +485,8 @@ TEST_F(TestInodeCacheManager, TestFlushInodeBackground) {
         std::shared_ptr<InodeWrapper> inodeWrapper;
         iCacheManager_->CreateInode(param, inodeWrapper);
         inodeWrapper->MarkDirty();
-        S3ChunkInfo info;
-        inodeWrapper->AppendS3ChunkInfo(1, info);
+        ChunkInfo info;
+        inodeWrapper->AppendChunkInfo(1, info);
         iCacheManager_->ShipToFlush(inodeWrapper);
         inodeMap.emplace(inodeId + i, inodeWrapper);
     }
@@ -507,11 +507,11 @@ TEST_F(TestInodeCacheManager, TestFlushInodeBackground) {
                 th.detach();
             }));
 
-    EXPECT_CALL(*metaClient_, GetOrModifyS3ChunkInfoAsync(_, _, _, _))
+    EXPECT_CALL(*metaClient_, GetOrModifyChunkInfoAsync(_, _, _, _))
         .WillRepeatedly(
             Invoke([](uint32_t fsId, uint64_t inodeId,
-                      const google::protobuf::Map<uint64_t, S3ChunkInfoList>
-                          &s3ChunkInfos,
+                      const google::protobuf::Map<uint64_t, ChunkInfoList>
+                          &ChunkInfos,
                       MetaServerClientDone *done) {
                 done->SetMetaStatusCode(MetaStatusCode::OK);
                 done->Run();

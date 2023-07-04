@@ -88,10 +88,10 @@ class MetaServerServiceImpl : public MetaServerService {
                      const ::curvefs::metaserver::UpdateInodeRequest* request,
                      ::curvefs::metaserver::UpdateInodeResponse* response,
                      ::google::protobuf::Closure* done) override;
-    void GetOrModifyS3ChunkInfo(
+    void GetOrModifyChunkInfo(
         ::google::protobuf::RpcController* controller,
-        const ::curvefs::metaserver::GetOrModifyS3ChunkInfoRequest* request,
-        ::curvefs::metaserver::GetOrModifyS3ChunkInfoResponse* response,
+        const ::curvefs::metaserver::GetOrModifyChunkInfoRequest* request,
+        ::curvefs::metaserver::GetOrModifyChunkInfoResponse* response,
         ::google::protobuf::Closure* done) override;
     void DeleteInode(::google::protobuf::RpcController* controller,
                      const ::curvefs::metaserver::DeleteInodeRequest* request,

@@ -73,9 +73,9 @@ class TestInodeWrapper : public ::testing::Test {
     std::shared_ptr<MockMetaServerClient> metaClient_;
 };
 
-TEST(TestAppendS3ChunkInfoToMap, testAppendS3ChunkInfoToMap) {
-    google::protobuf::Map<uint64_t, S3ChunkInfoList> s3ChunkInfoMap;
-    S3ChunkInfo info1;
+TEST(TestAppendChunkInfoToMap, testAppendChunkInfoToMap) {
+    google::protobuf::Map<uint64_t, ChunkInfoList> ChunkInfoMap;
+    ChunkInfo info1;
     info1.set_chunkid(1);
     info1.set_compaction(2);
     info1.set_offset(0);
@@ -83,30 +83,30 @@ TEST(TestAppendS3ChunkInfoToMap, testAppendS3ChunkInfoToMap) {
     info1.set_size(65536);
     info1.set_zero(true);
     uint64_t chunkIndex1 = 1;
-    AppendS3ChunkInfoToMap(chunkIndex1, info1, &s3ChunkInfoMap);
-    ASSERT_EQ(1, s3ChunkInfoMap.size());
-    ASSERT_EQ(1, s3ChunkInfoMap[chunkIndex1].s3chunks_size());
+    AppendChunkInfoToMap(chunkIndex1, info1, &ChunkInfoMap);
+    ASSERT_EQ(1, ChunkInfoMap.size());
+    ASSERT_EQ(1, ChunkInfoMap[chunkIndex1].s3chunks_size());
     ASSERT_TRUE(MessageDifferencer::Equals(
-        info1, s3ChunkInfoMap[chunkIndex1].s3chunks(0)));
+        info1, ChunkInfoMap[chunkIndex1].s3chunks(0)));
 
     // add to same chunkIndex
-    S3ChunkInfo info2;
+    ChunkInfo info2;
     info2.set_chunkid(2);
     info2.set_compaction(3);
     info2.set_offset(1024);
     info2.set_len(1024);
     info2.set_size(65536);
     info2.set_zero(false);
-    AppendS3ChunkInfoToMap(chunkIndex1, info2, &s3ChunkInfoMap);
-    ASSERT_EQ(1, s3ChunkInfoMap.size());
-    ASSERT_EQ(2, s3ChunkInfoMap[chunkIndex1].s3chunks_size());
+    AppendChunkInfoToMap(chunkIndex1, info2, &ChunkInfoMap);
+    ASSERT_EQ(1, ChunkInfoMap.size());
+    ASSERT_EQ(2, ChunkInfoMap[chunkIndex1].s3chunks_size());
     ASSERT_TRUE(MessageDifferencer::Equals(
-        info1, s3ChunkInfoMap[chunkIndex1].s3chunks(0)));
+        info1, ChunkInfoMap[chunkIndex1].s3chunks(0)));
     ASSERT_TRUE(MessageDifferencer::Equals(
-        info2, s3ChunkInfoMap[chunkIndex1].s3chunks(1)));
+        info2, ChunkInfoMap[chunkIndex1].s3chunks(1)));
 
     // add to diff chunkIndex
-    S3ChunkInfo info3;
+    ChunkInfo info3;
     info3.set_chunkid(3);
     info3.set_compaction(4);
     info3.set_offset(2048);
@@ -114,17 +114,17 @@ TEST(TestAppendS3ChunkInfoToMap, testAppendS3ChunkInfoToMap) {
     info3.set_size(65536);
     info3.set_zero(false);
     uint64_t chunkIndex2 = 2;
-    AppendS3ChunkInfoToMap(chunkIndex2, info3, &s3ChunkInfoMap);
-    ASSERT_EQ(2, s3ChunkInfoMap.size());
-    ASSERT_EQ(2, s3ChunkInfoMap[chunkIndex1].s3chunks_size());
+    AppendChunkInfoToMap(chunkIndex2, info3, &ChunkInfoMap);
+    ASSERT_EQ(2, ChunkInfoMap.size());
+    ASSERT_EQ(2, ChunkInfoMap[chunkIndex1].s3chunks_size());
     ASSERT_TRUE(MessageDifferencer::Equals(
-        info1, s3ChunkInfoMap[chunkIndex1].s3chunks(0)));
+        info1, ChunkInfoMap[chunkIndex1].s3chunks(0)));
     ASSERT_TRUE(MessageDifferencer::Equals(
-        info2, s3ChunkInfoMap[chunkIndex1].s3chunks(1)));
+        info2, ChunkInfoMap[chunkIndex1].s3chunks(1)));
 
-    ASSERT_EQ(1, s3ChunkInfoMap[chunkIndex2].s3chunks_size());
+    ASSERT_EQ(1, ChunkInfoMap[chunkIndex2].s3chunks_size());
     ASSERT_TRUE(MessageDifferencer::Equals(
-        info3, s3ChunkInfoMap[chunkIndex2].s3chunks(0)));
+        info3, ChunkInfoMap[chunkIndex2].s3chunks(0)));
 }
 
 TEST_F(TestInodeWrapper, testSyncSuccess) {
@@ -132,7 +132,7 @@ TEST_F(TestInodeWrapper, testSyncSuccess) {
     inodeWrapper_->SetLength(1024);
     inodeWrapper_->SetType(FsFileType::TYPE_S3);
 
-    S3ChunkInfo info1;
+    ChunkInfo info1;
     info1.set_chunkid(1);
     info1.set_compaction(2);
     info1.set_offset(0);
@@ -140,7 +140,7 @@ TEST_F(TestInodeWrapper, testSyncSuccess) {
     info1.set_size(65536);
     info1.set_zero(true);
     uint64_t chunkIndex1 = 1;
-    inodeWrapper_->AppendS3ChunkInfo(chunkIndex1, info1);
+    inodeWrapper_->AppendChunkInfo(chunkIndex1, info1);
 
     EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _))
         .WillOnce(Return(MetaStatusCode::OK));
@@ -154,7 +154,7 @@ TEST_F(TestInodeWrapper, testSyncFailed) {
     inodeWrapper_->SetLength(1024);
     inodeWrapper_->SetType(FsFileType::TYPE_S3);
 
-    S3ChunkInfo info1;
+    ChunkInfo info1;
     info1.set_chunkid(1);
     info1.set_compaction(2);
     info1.set_offset(0);
@@ -162,7 +162,7 @@ TEST_F(TestInodeWrapper, testSyncFailed) {
     info1.set_size(65536);
     info1.set_zero(true);
     uint64_t chunkIndex1 = 1;
-    inodeWrapper_->AppendS3ChunkInfo(chunkIndex1, info1);
+    inodeWrapper_->AppendChunkInfo(chunkIndex1, info1);
 
     EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _))
         .WillOnce(Return(MetaStatusCode::NOT_FOUND));
@@ -221,16 +221,16 @@ TEST_F(TestInodeWrapper, TestRefreshNlink) {
 TEST_F(TestInodeWrapper, TestNeedRefreshData) {
     Inode inode;
     inode.set_inodeid(1);
-    auto s3ChunkInfoMap = inode.mutable_s3chunkinfomap();
-    S3ChunkInfoList *s3ChunkInfoList = new S3ChunkInfoList();
-    S3ChunkInfo *s3ChunkInfo = s3ChunkInfoList->add_s3chunks();
-    s3ChunkInfo->set_chunkid(1);
-    s3ChunkInfo->set_compaction(1);
-    s3ChunkInfo->set_offset(0);
-    s3ChunkInfo->set_len(1024);
-    s3ChunkInfo->set_size(65536);
-    s3ChunkInfo->set_zero(true);
-    s3ChunkInfoMap->insert({1, *s3ChunkInfoList});
+    auto ChunkInfoMap = inode.mutable_ChunkInfomap();
+    ChunkInfoList *ChunkInfoList = new ChunkInfoList();
+    ChunkInfo *ChunkInfo = ChunkInfoList->add_s3chunks();
+    ChunkInfo->set_chunkid(1);
+    ChunkInfo->set_compaction(1);
+    ChunkInfo->set_offset(0);
+    ChunkInfo->set_len(1024);
+    ChunkInfo->set_size(65536);
+    ChunkInfo->set_zero(true);
+    ChunkInfoMap->insert({1, *ChunkInfoList});
 
     auto inodeWrapper =  std::make_shared<InodeWrapper>(
         inode, metaClient_, nullptr, 1, 0);
@@ -320,7 +320,7 @@ TEST_F(TestInodeWrapper, TestUpdateInodeAttrIncrementally) {
     EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _))
         .WillOnce(Invoke([](uint32_t /*fsId*/, uint64_t /*inodeId*/,
                             const InodeAttr& attr,
-                            S3ChunkInfoMap* /*s3info*/, bool /*internal*/
+                            ChunkInfoMap* /*s3info*/, bool /*internal*/
                          ) {
             EXPECT_FALSE(attr.has_length());
             return MetaStatusCode::OK;

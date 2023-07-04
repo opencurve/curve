@@ -85,12 +85,12 @@ class MockMetaStore : public curvefs::metaserver::MetaStore {
 
     MOCK_METHOD0(GetStreamServer, std::shared_ptr<StreamServer>());
 
-    MOCK_METHOD3(GetOrModifyS3ChunkInfo, MetaStatusCode(
-        const GetOrModifyS3ChunkInfoRequest* request,
-        GetOrModifyS3ChunkInfoResponse* response,
+    MOCK_METHOD3(GetOrModifyChunkInfo, MetaStatusCode(
+        const GetOrModifyChunkInfoRequest* request,
+        GetOrModifyChunkInfoResponse* response,
         std::shared_ptr<Iterator>* iterator));
 
-    MOCK_METHOD2(SendS3ChunkInfoByStream, MetaStatusCode(
+    MOCK_METHOD2(SendChunkInfoByStream, MetaStatusCode(
         std::shared_ptr<StreamConnection> connection,
         std::shared_ptr<Iterator> iterator));
 

@@ -59,8 +59,8 @@ using DataCachePtr = std::shared_ptr<DataCache>;
 using WeakDataCachePtr = std::weak_ptr<DataCache>;
 using curve::common::TaskThreadPool;
 using curvefs::metaserver::Inode;
-using curvefs::metaserver::S3ChunkInfo;
-using curvefs::metaserver::S3ChunkInfoList;
+using curvefs::metaserver::ChunkInfo;
+using curvefs::metaserver::ChunkInfoList;
 
 enum CacheType { Write = 1, Read = 2 };
 
@@ -102,7 +102,8 @@ struct  UperReadRequest {
 };
 
 struct ObjectChunkInfo {
-    S3ChunkInfo s3ChunkInfo;
+    // ChunkInfo ChunkInfo;
+    ChunkInfo chunkInfo;
     uint64_t objectOffset;  // s3 object's begin in the block
 };
 
@@ -188,8 +189,8 @@ class DataCache : public std::enable_shared_from_this<DataCache> {
                                    uint64_t dataOffset, uint64_t len);
 
  private:
-    void PrepareS3ChunkInfo(uint64_t chunkId, uint64_t offset,
-        uint64_t len, S3ChunkInfo *info);
+    void PrepareChunkInfo(uint64_t chunkId, uint64_t offset,
+        uint64_t len, ChunkInfo *info);
     void CopyBufToDataCache(uint64_t dataCachePos, uint64_t len,
                              const char *data);
     void AddDataBefore(uint64_t len, const char *data);

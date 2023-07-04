@@ -84,7 +84,7 @@ struct MetaServerClientMetric {
     InterfaceMetric createInode;
     InterfaceMetric updateInode;
     InterfaceMetric deleteInode;
-    InterfaceMetric appendS3ChunkInfo;
+    InterfaceMetric appendChunkInfo;
 
     // tnx
     InterfaceMetric prepareRenameTx;
@@ -103,7 +103,7 @@ struct MetaServerClientMetric {
           createInode(prefix, "createInode"),
           updateInode(prefix, "updateInode"),
           deleteInode(prefix, "deleteInode"),
-          appendS3ChunkInfo(prefix, "appendS3ChunkInfo"),
+          appendChunkInfo(prefix, "appendChunkInfo"),
           prepareRenameTx(prefix, "prepareRenameTx"),
           updateVolumeExtent(prefix, "updateVolumeExtent"),
           getVolumeExtent(prefix, "getVolumeExtent"),
@@ -289,12 +289,12 @@ struct KVClientMetric {
         : kvClientGet(prefix, "get"), kvClientSet(prefix, "set") {}
 };
 
-struct S3ChunkInfoMetric {
+struct ChunkInfoMetric {
     static const std::string prefix;
 
-    bvar::Adder<int64_t> s3ChunkInfoSize;
+    bvar::Adder<int64_t> ChunkInfoSize;
 
-    S3ChunkInfoMetric() : s3ChunkInfoSize(prefix, "size") {}
+    ChunkInfoMetric() : ChunkInfoSize(prefix, "size") {}
 };
 
 struct WarmupManagerS3Metric {

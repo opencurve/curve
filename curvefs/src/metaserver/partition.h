@@ -43,7 +43,7 @@ using curvefs::common::PartitionInfo;
 using curvefs::common::PartitionStatus;
 using ::curvefs::metaserver::storage::KVStorage;
 using ::curvefs::metaserver::storage::Iterator;
-using S3ChunkInfoMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
+using ChunkInfoMap = google::protobuf::Map<uint64_t, ChunkInfoList>;
 
 // skip ROOTINODEID and RECYCLEINODEID
 constexpr uint64_t kMinPartitionStartId = ROOTINODEID + 2;
@@ -98,16 +98,16 @@ class Partition {
 
     MetaStatusCode UpdateInode(const UpdateInodeRequest& request);
 
-    MetaStatusCode GetOrModifyS3ChunkInfo(uint32_t fsId,
+    MetaStatusCode GetOrModifyChunkInfo(uint32_t fsId,
                                           uint64_t inodeId,
-                                          const S3ChunkInfoMap& map2add,
-                                          const S3ChunkInfoMap& map2del,
-                                          bool returnS3ChunkInfoMap,
+                                          const ChunkInfoMap& map2add,
+                                          const ChunkInfoMap& map2del,
+                                          bool returnChunkInfoMap,
                                           std::shared_ptr<Iterator>* iterator);
 
-    MetaStatusCode PaddingInodeS3ChunkInfo(int32_t fsId,
+    MetaStatusCode PaddingInodeChunkInfo(int32_t fsId,
                                            uint64_t inodeId,
-                                           S3ChunkInfoMap* m,
+                                           ChunkInfoMap* m,
                                            uint64_t limit = 0);
 
     MetaStatusCode UpdateVolumeExtent(uint32_t fsId,
@@ -189,7 +189,7 @@ class Partition {
 
     std::shared_ptr<Iterator> GetAllDentry();
 
-    std::shared_ptr<Iterator> GetAllS3ChunkInfoList();
+    std::shared_ptr<Iterator> GetAllChunkInfoList();
 
     std::shared_ptr<Iterator> GetAllVolumeExtentList();
 

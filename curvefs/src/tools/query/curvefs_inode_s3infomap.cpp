@@ -41,7 +41,7 @@ namespace tools {
 namespace query {
 
 InodeBase TraslateInodeBase(
-    const curvefs::metaserver::GetOrModifyS3ChunkInfoRequest& source) {
+    const curvefs::metaserver::GetOrModifyChunkInfoRequest& source) {
     InodeBase target;
     target.set_poolid(source.poolid());
     target.set_copysetid(source.copysetid());
@@ -102,20 +102,20 @@ int InodeS3InfoMapTool::Init() {
     }
 
     for (size_t i = 0; i < poolsId.size(); ++i) {
-        curvefs::metaserver::GetOrModifyS3ChunkInfoRequest request;
+        curvefs::metaserver::GetOrModifyChunkInfoRequest request;
         request.set_poolid(std:: stoul((poolsId[i])));
         request.set_copysetid(std:: stoul((copysetsId[i])));
         request.set_partitionid(std:: stoul((partitionId[i])));
         request.set_fsid(std:: stoul((fsId[i])));
         request.set_inodeid(std:: stoull((inodeId[i])));
-        request.set_returns3chunkinfomap(true);
+        request.set_returnChunkInfomap(true);
         SetStreamingRpc(true);
         request.set_supportstreaming(isStreaming_);
         AddRequest(request);
     }
 
     service_stub_func_ = std::bind(
-        &curvefs::metaserver::MetaServerService_Stub::GetOrModifyS3ChunkInfo,
+        &curvefs::metaserver::MetaServerService_Stub::GetOrModifyChunkInfo,
         service_stub_.get(), std::placeholders::_1, std::placeholders::_2,
         std::placeholders::_3, nullptr);
     SetReceiveCallback();
@@ -132,24 +132,24 @@ bool InodeS3InfoMapTool::AfterSendRequestToHost(const std::string& host) {
     } else {
         if (response_->statuscode() == metaserver::MetaStatusCode::OK) {
             if (!isStreaming_) {
-                if (response_->s3chunkinfomap_size() == 0) {
-                    UpdateInode2S3ChunkInfoList_(
+                if (response_->ChunkInfomap_size() == 0) {
+                    UpdateInode2ChunkInfoList_(
                         TraslateInodeBase(requestQueue_.front()),
-                        S3ChunkInfoList());
+                        ChunkInfoList());
                 }
-                for (auto const& list : response_->s3chunkinfomap()) {
-                    UpdateInode2S3ChunkInfoList_(
+                for (auto const& list : response_->ChunkInfomap()) {
+                    UpdateInode2ChunkInfoList_(
                         TraslateInodeBase(requestQueue_.front()), list.second);
                 }
             }
             if (show_) {
                 if (isStreaming_) {
-                    for (auto const& i : inode2S3ChunkInfoList_) {
+                    for (auto const& i : inode2ChunkInfoList_) {
                         std::cout << "fsId: " << i.first.fsid()
                                   << " inodeId: " << i.first.inodeid()
                                   << std::endl;
                         for (auto const& j : i.second.s3chunks()) {
-                            std::cout << "  s3ChunkInfo: " << j.DebugString()
+                            std::cout << "  ChunkInfo: " << j.DebugString()
                                       << std::endl;
                         }
                     }
@@ -187,7 +187,7 @@ void InodeS3InfoMapTool::SetReceiveCallback() {
     receiveCallback_ = [&](butil::IOBuf* buffer) -> bool {
         uint64_t chunkIndex;
         InodeBase inode = TraslateInodeBase(requestQueue_.front());
-        S3ChunkInfoList list;
+        ChunkInfoList list;
         butil::IOBuf out;
         std::string delim = ":";
         // parse s3 meta stream buffer
@@ -200,19 +200,19 @@ void InodeS3InfoMapTool::SetReceiveCallback() {
             return false;
         }
         if (!brpc::ParsePbFromIOBuf(&list, *buffer)) {
-            std::cerr << "invalid stream buffer: invalid s3chunkinfo list";
+            std::cerr << "invalid stream buffer: invalid ChunkInfo list";
             return false;
         }
 
          // handle  meta stream buffer
-        UpdateInode2S3ChunkInfoList_(inode, list);
+        UpdateInode2ChunkInfoList_(inode, list);
         return true;
     };
 }
 
-void InodeS3InfoMapTool::UpdateInode2S3ChunkInfoList_(const InodeBase& inode,
-                                            const S3ChunkInfoList& list) {
-    auto merge = [](const S3ChunkInfoList& source, S3ChunkInfoList* target) {
+void InodeS3InfoMapTool::UpdateInode2ChunkInfoList_(const InodeBase& inode,
+                                            const ChunkInfoList& list) {
+    auto merge = [](const ChunkInfoList& source, ChunkInfoList* target) {
         for (int i = 0; i < source.s3chunks_size(); i++) {
             auto* chunkinfo = target->add_s3chunks();
             *chunkinfo = source.s3chunks(i);
@@ -220,13 +220,13 @@ void InodeS3InfoMapTool::UpdateInode2S3ChunkInfoList_(const InodeBase& inode,
     };
 
     auto iter = std::find_if(
-        inode2S3ChunkInfoList_.begin(), inode2S3ChunkInfoList_.end(),
-        [inode](const std::pair<InodeBase, S3ChunkInfoList>& a) {
+        inode2ChunkInfoList_.begin(), inode2ChunkInfoList_.end(),
+        [inode](const std::pair<InodeBase, ChunkInfoList>& a) {
             return a.first.fsid() == inode.fsid() &&
                    a.first.inodeid() == inode.inodeid();
         });
-    if (iter == inode2S3ChunkInfoList_.end()) {
-        inode2S3ChunkInfoList_.insert({inode, list});
+    if (iter == inode2ChunkInfoList_.end()) {
+        inode2ChunkInfoList_.insert({inode, list});
     } else {
         merge(list, &iter->second);
     }

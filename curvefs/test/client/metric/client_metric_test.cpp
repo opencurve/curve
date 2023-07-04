@@ -34,7 +34,7 @@ using ::curvefs::client::metric::FSMetric;
 using ::curvefs::client::metric::IoMetric;
 using ::curvefs::client::metric::DiskCacheMetric;
 using ::curvefs::client::metric::KVClientMetric;
-using ::curvefs::client::metric::S3ChunkInfoMetric;
+using ::curvefs::client::metric::ChunkInfoMetric;
 using ::curvefs::client::metric::WarmupManagerS3Metric;
 
 
@@ -90,7 +90,7 @@ TEST_F(ClientMetricTest, test_prefix) {
 
     {
         const char* prefix = "inode_s3_chunk_info";
-        ASSERT_EQ(0, ::strcmp(S3ChunkInfoMetric::prefix.c_str(), prefix));
+        ASSERT_EQ(0, ::strcmp(ChunkInfoMetric::prefix.c_str(), prefix));
     }
 
     {

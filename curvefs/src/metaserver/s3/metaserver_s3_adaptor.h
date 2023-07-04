@@ -64,7 +64,7 @@ class S3ClientAdaptor {
      *  0   : delete sucess
      *  -1  : delete fail
      * @details
-     * Step.1 get indoe' s3chunkInfoList
+     * Step.1 get indoe' ChunkInfoList
      * Step.2 delete chunk from s3 client
      */
     virtual int Delete(const Inode& inode) = 0;
@@ -106,7 +106,7 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
      * @param inode
      * @return int
      * @details
-     * Step.1 get indoe' s3chunkInfoList
+     * Step.1 get indoe' ChunkInfoList
      * Step.2 delete chunk from s3 client
      */
     int Delete(const Inode& inode) override;
@@ -134,15 +134,15 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
 
     int DeleteInodeByDeleteBatchChunk(const Inode& inode);
 
-    int DeleteS3ChunkInfoList(uint32_t fsId, uint64_t inodeId,
-                              const S3ChunkInfoList& s3ChunkInfolist);
+    int DeleteChunkInfoList(uint32_t fsId, uint64_t inodeId,
+                              const ChunkInfoList& ChunkInfolist);
 
     void GenObjNameListForChunkInfoList(uint32_t fsId, uint64_t inodeId,
-                                        const S3ChunkInfoList& s3ChunkInfolist,
+                                        const ChunkInfoList& ChunkInfolist,
                                         std::list<std::string>* objList);
 
     void GenObjNameListForChunkInfo(uint32_t fsId, uint64_t inodeId,
-                                    const S3ChunkInfo& chunkInfo,
+                                    const ChunkInfo& chunkInfo,
                                     std::list<std::string>* objList);
 
     S3Client* client_;

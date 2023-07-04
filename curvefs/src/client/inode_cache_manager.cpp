@@ -123,7 +123,7 @@ InodeCacheManagerImpl::GetInode(uint64_t inodeId,
     bool streaming = false;
     GET_INODE_REMOTE(fsId_, inodeId, &inode, &streaming);
     out = std::make_shared<InodeWrapper>(
-        std::move(inode), metaClient_, s3ChunkInfoMetric_, option_.maxDataSize,
+        std::move(inode), metaClient_, ChunkInfoMetric_, option_.maxDataSize,
         option_.refreshDataIntervalSec);
 
     // refresh data
@@ -305,7 +305,7 @@ CURVEFS_ERROR InodeCacheManagerImpl::CreateInode(
     }
     uint64_t inodeid = inode.inodeid();
     out = std::make_shared<InodeWrapper>(std::move(inode), metaClient_,
-        s3ChunkInfoMetric_, option_.maxDataSize,
+        ChunkInfoMetric_, option_.maxDataSize,
         option_.refreshDataIntervalSec);
 
     std::shared_ptr<InodeWrapper> eliminatedOne;
@@ -334,7 +334,7 @@ CURVEFS_ERROR InodeCacheManagerImpl::CreateManageInode(
     }
     uint64_t inodeid = inode.inodeid();
     out = std::make_shared<InodeWrapper>(std::move(inode), metaClient_,
-        s3ChunkInfoMetric_, option_.maxDataSize,
+        ChunkInfoMetric_, option_.maxDataSize,
         option_.refreshDataIntervalSec);
 
     std::shared_ptr<InodeWrapper> eliminatedOne;
@@ -427,7 +427,7 @@ namespace {
 // otherwise, we assume the lock is already held.
 bool IsDirtyInode(InodeWrapper *ino, bool needLock) {
     auto check = [ino]() {
-        return ino->IsDirty() || !ino->S3ChunkInfoEmptyNolock() ||
+        return ino->IsDirty() || !ino->ChunkInfoEmptyNolock() ||
                ino->GetMutableExtentCacheLocked()->HasDirtyExtents();
     };
 
@@ -494,12 +494,12 @@ InodeCacheManagerImpl::RefreshData(std::shared_ptr<InodeWrapper> &inode,
     switch (type) {
     case FsFileType::TYPE_S3:
         if (streaming) {
-            // NOTE: if the s3chunkinfo inside inode is too large,
-            // we should invoke RefreshS3ChunkInfo() to receive s3chunkinfo
+            // NOTE: if the chunkinfo inside inode is too large,
+            // we should invoke RefreshChunkInfo() to receive chunkinfo
             // by streaming and padding its into inode.
-            rc = inode->RefreshS3ChunkInfo();
+            rc = inode->RefreshChunkInfo();
             LOG_IF(ERROR, rc != CURVEFS_ERROR::OK)
-                << "RefreshS3ChunkInfo() failed, retCode = " << rc;
+                << "RefreshChunkInfo() failed, retCode = " << rc;
         }
         break;
 

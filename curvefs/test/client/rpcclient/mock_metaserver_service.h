@@ -97,10 +97,10 @@ class MockMetaServerService : public curvefs::metaserver::MetaServerService {
                       ::curvefs::metaserver::DeleteInodeResponse *response,
                       ::google::protobuf::Closure *done));
 
-    MOCK_METHOD4(GetOrModifyS3ChunkInfo,
+    MOCK_METHOD4(GetOrModifyChunkInfo,
         void(::google::protobuf::RpcController *controller,
-            const ::curvefs::metaserver::GetOrModifyS3ChunkInfoRequest *request,
-             ::curvefs::metaserver::GetOrModifyS3ChunkInfoResponse *response,
+            const ::curvefs::metaserver::GetOrModifyChunkInfoRequest *request,
+             ::curvefs::metaserver::GetOrModifyChunkInfoResponse *response,
              ::google::protobuf::Closure *done));
 
     MOCK_METHOD4(

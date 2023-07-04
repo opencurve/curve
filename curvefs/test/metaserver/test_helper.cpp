@@ -44,7 +44,7 @@ UpdateInodeRequest MakeUpdateInodeRequestFromInode(const Inode &inode,
     request.set_gid(inode.gid());
     request.set_mode(inode.mode());
     // *(request.mutable_volumeextentmap()) = inode.volumeextentmap();
-    *(request.mutable_s3chunkinfomap()) = inode.s3chunkinfomap();
+    *(request.mutable_ChunkInfomap()) = inode.ChunkInfomap();
     *(request.mutable_xattr()) = inode.xattr();
     request.set_nlink(inode.nlink());
     return request;

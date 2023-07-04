@@ -56,7 +56,7 @@ using ::testing::StrEq;
 
 using ::curvefs::common::EmptyMsg;
 using ::curvefs::metaserver::storage::Key4DeallocatableBlockGroup;
-using ::curvefs::metaserver::storage::Key4S3ChunkInfoList;
+using ::curvefs::metaserver::storage::Key4ChunkInfoList;
 using ::curvefs::metaserver::storage::KVStorage;
 using ::curvefs::metaserver::storage::RandomStoragePath;
 using ::curvefs::metaserver::storage::RocksDBStorage;
@@ -127,11 +127,11 @@ class InodeStorageTest : public ::testing::Test {
         return inode;
     }
 
-    S3ChunkInfoList GenS3ChunkInfoList(uint64_t firstChunkId,
+    ChunkInfoList GenChunkInfoList(uint64_t firstChunkId,
                                        uint64_t lastChunkId) {
-        S3ChunkInfoList list;
+        ChunkInfoList list;
         for (uint64_t id = firstChunkId; id <= lastChunkId; id++) {
-            S3ChunkInfo *info = list.add_s3chunks();
+            ChunkInfo *info = list.add_s3chunks();
             info->set_chunkid(id);
             info->set_compaction(0);
             info->set_offset(0);
@@ -142,45 +142,45 @@ class InodeStorageTest : public ::testing::Test {
         return list;
     }
 
-    bool EqualS3ChunkInfo(const S3ChunkInfo &lhs, const S3ChunkInfo &rhs) {
+    bool EqualChunkInfo(const ChunkInfo &lhs, const ChunkInfo &rhs) {
         return lhs.chunkid() == rhs.chunkid() &&
                lhs.compaction() == rhs.compaction() &&
                lhs.offset() == rhs.offset() && lhs.len() == rhs.len() &&
                lhs.size() == rhs.size() && lhs.zero() == rhs.zero();
     }
 
-    bool EqualS3ChunkInfoList(const S3ChunkInfoList &lhs,
-                              const S3ChunkInfoList &rhs) {
+    bool EqualChunkInfoList(const ChunkInfoList &lhs,
+                              const ChunkInfoList &rhs) {
         size_t size = lhs.s3chunks_size();
         if (size != rhs.s3chunks_size()) {
             return false;
         }
 
         for (size_t i = 0; i < size; i++) {
-            if (!EqualS3ChunkInfo(lhs.s3chunks(i), rhs.s3chunks(i))) {
+            if (!EqualChunkInfo(lhs.s3chunks(i), rhs.s3chunks(i))) {
                 return false;
             }
         }
         return true;
     }
 
-    void CHECK_INODE_S3CHUNKINFOLIST(InodeStorage *storage, uint32_t fsId,
+    void CHECK_INODE_ChunkInfoLIST(InodeStorage *storage, uint32_t fsId,
                                      uint64_t inodeId,
                                      const std::vector<uint64_t> chunkIndexs,
-                                     const std::vector<S3ChunkInfoList> lists) {
+                                     const std::vector<ChunkInfoList> lists) {
         ASSERT_EQ(chunkIndexs.size(), lists.size());
-        auto iterator = storage->GetInodeS3ChunkInfoList(fsId, inodeId);
+        auto iterator = storage->GetInodeChunkInfoList(fsId, inodeId);
         ASSERT_EQ(iterator->Status(), 0);
 
         size_t size = 0;
-        Key4S3ChunkInfoList key;
-        S3ChunkInfoList list4get;
+        Key4ChunkInfoList key;
+        ChunkInfoList list4get;
         for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
             ASSERT_TRUE(conv_->ParseFromString(iterator->Key(), &key));
             LOG(INFO) << "key" << size << "=" << iterator->Key();
             ASSERT_TRUE(iterator->ParseFromValue(&list4get));
             ASSERT_EQ(key.chunkIndex, chunkIndexs[size]);
-            ASSERT_TRUE(EqualS3ChunkInfoList(list4get, lists[size]));
+            ASSERT_TRUE(EqualChunkInfoList(list4get, lists[size]));
             size++;
         }
         ASSERT_EQ(size, chunkIndexs.size());
@@ -334,20 +334,20 @@ TEST_F(InodeStorageTest, testGetXAttr) {
     ASSERT_EQ(xattr.xattrinfos().find(XATTRRFBYTES)->second, "1000");
 }
 
-TEST_F(InodeStorageTest, ModifyInodeS3ChunkInfoList) {
+TEST_F(InodeStorageTest, ModifyInodeChunkInfoList) {
     uint32_t fsId = 1;
     uint64_t inodeId = 1;
     InodeStorage storage(kvStorage_, nameGenerator_, 0);
 
-    // CASE 1: get empty s3chunkinfo
+    // CASE 1: get empty ChunkInfo
     {
         LOG(INFO) << "CASE 1: get empty s3chukninfo";
         Inode inode = GenInode(fsId, inodeId);
         ASSERT_EQ(storage.Insert(inode), MetaStatusCode::OK);
-        S3ChunkInfoList list2del;
+        ChunkInfoList list2del;
 
         size_t size = 0;
-        auto iterator = storage.GetInodeS3ChunkInfoList(fsId, inodeId);
+        auto iterator = storage.GetInodeChunkInfoList(fsId, inodeId);
         ASSERT_EQ(iterator->Status(), 0);
         for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
             size++;
@@ -355,115 +355,115 @@ TEST_F(InodeStorageTest, ModifyInodeS3ChunkInfoList) {
         ASSERT_EQ(size, 0);
     }
 
-    // CASE 2: append one s3chunkinfo
+    // CASE 2: append one ChunkInfo
     {
-        LOG(INFO) << "CASE 2: append one s3chunkinfo";
+        LOG(INFO) << "CASE 2: append one ChunkInfo";
         ASSERT_EQ(storage.Clear(), MetaStatusCode::OK);
         std::vector<uint64_t> chunkIndexs{1};
-        std::vector<S3ChunkInfoList> lists2add{GenS3ChunkInfoList(1, 1)};
+        std::vector<ChunkInfoList> lists2add{GenChunkInfoList(1, 1)};
 
         for (size_t i = 0; i < chunkIndexs.size(); i++) {
-            MetaStatusCode rc = storage.ModifyInodeS3ChunkInfoList(
+            MetaStatusCode rc = storage.ModifyInodeChunkInfoList(
                 fsId, inodeId, chunkIndexs[i], &lists2add[i], nullptr);
             ASSERT_EQ(rc, MetaStatusCode::OK);
         }
 
-        CHECK_INODE_S3CHUNKINFOLIST(&storage, fsId, inodeId, chunkIndexs,
+        CHECK_INODE_ChunkInfoLIST(&storage, fsId, inodeId, chunkIndexs,
                                     lists2add);
     }
 
-    // CASE 3: append multi s3chunkinfos
+    // CASE 3: append multi ChunkInfos
     {
-        LOG(INFO) << "CASE 3: append multi s3chunkinfos";
+        LOG(INFO) << "CASE 3: append multi ChunkInfos";
         ASSERT_EQ(storage.Clear(), MetaStatusCode::OK);
         std::vector<uint64_t> chunkIndexs{1, 2, 3};
-        std::vector<S3ChunkInfoList> lists2add{
-            GenS3ChunkInfoList(1, 1),
-            GenS3ChunkInfoList(2, 2),
-            GenS3ChunkInfoList(3, 3),
+        std::vector<ChunkInfoList> lists2add{
+            GenChunkInfoList(1, 1),
+            GenChunkInfoList(2, 2),
+            GenChunkInfoList(3, 3),
         };
 
         for (size_t i = 0; i < chunkIndexs.size(); i++) {
-            MetaStatusCode rc = storage.ModifyInodeS3ChunkInfoList(
+            MetaStatusCode rc = storage.ModifyInodeChunkInfoList(
                 fsId, inodeId, chunkIndexs[i], &lists2add[i], nullptr);
             ASSERT_EQ(rc, MetaStatusCode::OK);
         }
 
-        CHECK_INODE_S3CHUNKINFOLIST(&storage, fsId, inodeId, chunkIndexs,
+        CHECK_INODE_ChunkInfoLIST(&storage, fsId, inodeId, chunkIndexs,
                                     lists2add);
     }
 
-    // CASE 4: check order for s3chunkinfo's chunk index
+    // CASE 4: check order for ChunkInfo's chunk index
     {
-        LOG(INFO) << "CASE 4: check order for s3chunkinfo's chunk index";
+        LOG(INFO) << "CASE 4: check order for ChunkInfo's chunk index";
         ASSERT_EQ(storage.Clear(), MetaStatusCode::OK);
         std::vector<uint64_t> chunkIndexs{2, 1, 3};
-        std::vector<S3ChunkInfoList> lists2add{
-            GenS3ChunkInfoList(2, 2),
-            GenS3ChunkInfoList(1, 1),
-            GenS3ChunkInfoList(3, 3),
+        std::vector<ChunkInfoList> lists2add{
+            GenChunkInfoList(2, 2),
+            GenChunkInfoList(1, 1),
+            GenChunkInfoList(3, 3),
         };
 
         for (size_t i = 0; i < chunkIndexs.size(); i++) {
-            MetaStatusCode rc = storage.ModifyInodeS3ChunkInfoList(
+            MetaStatusCode rc = storage.ModifyInodeChunkInfoList(
                 fsId, inodeId, chunkIndexs[i], &lists2add[i], nullptr);
             ASSERT_EQ(rc, MetaStatusCode::OK);
         }
 
-        CHECK_INODE_S3CHUNKINFOLIST(&storage, fsId, inodeId,
+        CHECK_INODE_ChunkInfoLIST(&storage, fsId, inodeId,
                                     std::vector<uint64_t>{1, 2, 3},
-                                    std::vector<S3ChunkInfoList>{
-                                        GenS3ChunkInfoList(1, 1),
-                                        GenS3ChunkInfoList(2, 2),
-                                        GenS3ChunkInfoList(3, 3),
+                                    std::vector<ChunkInfoList>{
+                                        GenChunkInfoList(1, 1),
+                                        GenChunkInfoList(2, 2),
+                                        GenChunkInfoList(3, 3),
                                     });
     }
 
-    // CASE 5: check order for s3chunkinfo's chunk id
+    // CASE 5: check order for ChunkInfo's chunk id
     {
-        LOG(INFO) << "CASE 5: check order for s3chunkinfo's chunk id";
+        LOG(INFO) << "CASE 5: check order for ChunkInfo's chunk id";
         ASSERT_EQ(storage.Clear(), MetaStatusCode::OK);
         std::vector<uint64_t> chunkIndexs{2, 1, 3, 1, 2};
-        std::vector<S3ChunkInfoList> lists2add{
-            GenS3ChunkInfoList(200, 210), GenS3ChunkInfoList(120, 130),
-            GenS3ChunkInfoList(300, 310), GenS3ChunkInfoList(100, 110),
-            GenS3ChunkInfoList(220, 230),
+        std::vector<ChunkInfoList> lists2add{
+            GenChunkInfoList(200, 210), GenChunkInfoList(120, 130),
+            GenChunkInfoList(300, 310), GenChunkInfoList(100, 110),
+            GenChunkInfoList(220, 230),
         };
 
         for (size_t i = 0; i < chunkIndexs.size(); i++) {
-            MetaStatusCode rc = storage.ModifyInodeS3ChunkInfoList(
+            MetaStatusCode rc = storage.ModifyInodeChunkInfoList(
                 fsId, inodeId, chunkIndexs[i], &lists2add[i], nullptr);
             ASSERT_EQ(rc, MetaStatusCode::OK);
         }
 
-        CHECK_INODE_S3CHUNKINFOLIST(&storage, fsId, inodeId,
+        CHECK_INODE_ChunkInfoLIST(&storage, fsId, inodeId,
                                     std::vector<uint64_t>{1, 1, 2, 2, 3},
-                                    std::vector<S3ChunkInfoList>{
-                                        GenS3ChunkInfoList(100, 110),
-                                        GenS3ChunkInfoList(120, 130),
-                                        GenS3ChunkInfoList(200, 210),
-                                        GenS3ChunkInfoList(220, 230),
-                                        GenS3ChunkInfoList(300, 310),
+                                    std::vector<ChunkInfoList>{
+                                        GenChunkInfoList(100, 110),
+                                        GenChunkInfoList(120, 130),
+                                        GenChunkInfoList(200, 210),
+                                        GenChunkInfoList(220, 230),
+                                        GenChunkInfoList(300, 310),
                                     });
     }
 
 
-    // CASE 6: delete s3chunkinfo list with wrong range
+    // CASE 6: delete ChunkInfo list with wrong range
     {
         LOG(INFO) << "CASE 6: delete s3chukninfo list with wrong range";
         ASSERT_EQ(storage.Clear(), MetaStatusCode::OK);
 
-        // step1: add s3chunkinfo
+        // step1: add ChunkInfo
         {
             std::vector<uint64_t> chunkIndexs{1, 2, 3};
-            std::vector<S3ChunkInfoList> lists2add{
-                GenS3ChunkInfoList(100, 199),
-                GenS3ChunkInfoList(200, 299),
-                GenS3ChunkInfoList(300, 399),
+            std::vector<ChunkInfoList> lists2add{
+                GenChunkInfoList(100, 199),
+                GenChunkInfoList(200, 299),
+                GenChunkInfoList(300, 399),
             };
 
             for (size_t i = 0; i < chunkIndexs.size(); i++) {
-                MetaStatusCode rc = storage.ModifyInodeS3ChunkInfoList(
+                MetaStatusCode rc = storage.ModifyInodeChunkInfoList(
                     fsId, inodeId, chunkIndexs[i], &lists2add[i], nullptr);
                 ASSERT_EQ(rc, MetaStatusCode::OK);
             }
@@ -472,20 +472,20 @@ TEST_F(InodeStorageTest, ModifyInodeS3ChunkInfoList) {
         // step2: compaction
         {
             std::vector<uint64_t> chunkIndexs{1, 2, 3};
-            std::vector<S3ChunkInfoList> lists2add{
-                GenS3ChunkInfoList(199, 199),
-                GenS3ChunkInfoList(299, 299),
-                GenS3ChunkInfoList(399, 399),
+            std::vector<ChunkInfoList> lists2add{
+                GenChunkInfoList(199, 199),
+                GenChunkInfoList(299, 299),
+                GenChunkInfoList(399, 399),
             };
 
-            std::vector<S3ChunkInfoList> lists2del{
-                GenS3ChunkInfoList(200, 201),
-                GenS3ChunkInfoList(250, 299),
-                GenS3ChunkInfoList(250, 301),
+            std::vector<ChunkInfoList> lists2del{
+                GenChunkInfoList(200, 201),
+                GenChunkInfoList(250, 299),
+                GenChunkInfoList(250, 301),
             };
 
             for (size_t i = 0; i < chunkIndexs.size(); i++) {
-                MetaStatusCode rc = storage.ModifyInodeS3ChunkInfoList(
+                MetaStatusCode rc = storage.ModifyInodeChunkInfoList(
                     fsId, inodeId, chunkIndexs[i], &lists2add[i],
                     &lists2del[i]);
                 ASSERT_EQ(rc, MetaStatusCode::STORAGE_INTERNAL_ERROR);
@@ -493,22 +493,22 @@ TEST_F(InodeStorageTest, ModifyInodeS3ChunkInfoList) {
         }
     }
 
-    // CASE 7: delete all s3chunkinfo list
+    // CASE 7: delete all ChunkInfo list
     {
         LOG(INFO) << "CASE 7: delete all s3chukninfo list";
         ASSERT_EQ(storage.Clear(), MetaStatusCode::OK);
 
-        // step1: add s3chunkinfo
+        // step1: add ChunkInfo
         {
             std::vector<uint64_t> chunkIndexs{1, 2, 3};
-            std::vector<S3ChunkInfoList> lists2add{
-                GenS3ChunkInfoList(100, 199),
-                GenS3ChunkInfoList(200, 299),
-                GenS3ChunkInfoList(300, 399),
+            std::vector<ChunkInfoList> lists2add{
+                GenChunkInfoList(100, 199),
+                GenChunkInfoList(200, 299),
+                GenChunkInfoList(300, 399),
             };
 
             for (size_t i = 0; i < chunkIndexs.size(); i++) {
-                MetaStatusCode rc = storage.ModifyInodeS3ChunkInfoList(
+                MetaStatusCode rc = storage.ModifyInodeChunkInfoList(
                     fsId, inodeId, chunkIndexs[i], &lists2add[i], nullptr);
                 ASSERT_EQ(rc, MetaStatusCode::OK);
             }
@@ -517,20 +517,20 @@ TEST_F(InodeStorageTest, ModifyInodeS3ChunkInfoList) {
         // step2: compaction
         {
             std::vector<uint64_t> chunkIndexs{1, 2, 3};
-            std::vector<S3ChunkInfoList> lists2add{
-                GenS3ChunkInfoList(199, 199),
-                GenS3ChunkInfoList(299, 299),
-                GenS3ChunkInfoList(399, 399),
+            std::vector<ChunkInfoList> lists2add{
+                GenChunkInfoList(199, 199),
+                GenChunkInfoList(299, 299),
+                GenChunkInfoList(399, 399),
             };
 
-            std::vector<S3ChunkInfoList> lists2del{
-                GenS3ChunkInfoList(100, 199),
-                GenS3ChunkInfoList(200, 299),
-                GenS3ChunkInfoList(300, 399),
+            std::vector<ChunkInfoList> lists2del{
+                GenChunkInfoList(100, 199),
+                GenChunkInfoList(200, 299),
+                GenChunkInfoList(300, 399),
             };
 
             for (size_t i = 0; i < chunkIndexs.size(); i++) {
-                MetaStatusCode rc = storage.ModifyInodeS3ChunkInfoList(
+                MetaStatusCode rc = storage.ModifyInodeChunkInfoList(
                     fsId, inodeId, chunkIndexs[i], &lists2add[i],
                     &lists2del[i]);
                 ASSERT_EQ(rc, MetaStatusCode::OK);
@@ -538,48 +538,48 @@ TEST_F(InodeStorageTest, ModifyInodeS3ChunkInfoList) {
         }
 
         // step3: check result
-        CHECK_INODE_S3CHUNKINFOLIST(&storage, fsId, inodeId,
+        CHECK_INODE_ChunkInfoLIST(&storage, fsId, inodeId,
                                     std::vector<uint64_t>{1, 2, 3},
-                                    std::vector<S3ChunkInfoList>{
-                                        GenS3ChunkInfoList(199, 199),
-                                        GenS3ChunkInfoList(299, 299),
-                                        GenS3ChunkInfoList(399, 399),
+                                    std::vector<ChunkInfoList>{
+                                        GenChunkInfoList(199, 199),
+                                        GenChunkInfoList(299, 299),
+                                        GenChunkInfoList(399, 399),
                                     });
     }
 
 
-    // CASE 8: delete s3chunkinfo list with prefix range
+    // CASE 8: delete ChunkInfo list with prefix range
     {
-        LOG(INFO) << "CASE 2: delete s3chunkinfo list with prefix range";
+        LOG(INFO) << "CASE 2: delete ChunkInfo list with prefix range";
         ASSERT_EQ(storage.Clear(), MetaStatusCode::OK);
 
-        // step1: add s3chunkinfo
+        // step1: add ChunkInfo
         {
             std::vector<uint64_t> chunkIndexs{1, 2, 3};
-            std::vector<S3ChunkInfoList> lists2add{
-                GenS3ChunkInfoList(100, 199),
-                GenS3ChunkInfoList(1000, 1999),
-                GenS3ChunkInfoList(10000, 19999),
+            std::vector<ChunkInfoList> lists2add{
+                GenChunkInfoList(100, 199),
+                GenChunkInfoList(1000, 1999),
+                GenChunkInfoList(10000, 19999),
             };
 
             for (size_t i = 0; i < chunkIndexs.size(); i++) {
-                MetaStatusCode rc = storage.ModifyInodeS3ChunkInfoList(
+                MetaStatusCode rc = storage.ModifyInodeChunkInfoList(
                     fsId, inodeId, chunkIndexs[i], &lists2add[i], nullptr);
                 ASSERT_EQ(rc, MetaStatusCode::OK);
             }
         }
 
-        // step2: add s3chunkinfo again
+        // step2: add ChunkInfo again
         {
             std::vector<uint64_t> chunkIndexs{1, 2, 3};
-            std::vector<S3ChunkInfoList> lists2add{
-                GenS3ChunkInfoList(200, 299),
-                GenS3ChunkInfoList(2000, 2999),
-                GenS3ChunkInfoList(20000, 29999),
+            std::vector<ChunkInfoList> lists2add{
+                GenChunkInfoList(200, 299),
+                GenChunkInfoList(2000, 2999),
+                GenChunkInfoList(20000, 29999),
             };
 
             for (size_t i = 0; i < chunkIndexs.size(); i++) {
-                MetaStatusCode rc = storage.ModifyInodeS3ChunkInfoList(
+                MetaStatusCode rc = storage.ModifyInodeChunkInfoList(
                     fsId, inodeId, chunkIndexs[i], &lists2add[i], nullptr);
                 ASSERT_EQ(rc, MetaStatusCode::OK);
             }
@@ -588,20 +588,20 @@ TEST_F(InodeStorageTest, ModifyInodeS3ChunkInfoList) {
         // step2: compaction
         {
             std::vector<uint64_t> chunkIndexs{1, 2, 3};
-            std::vector<S3ChunkInfoList> lists2add{
-                GenS3ChunkInfoList(199, 199),
-                GenS3ChunkInfoList(2999, 2999),
-                GenS3ChunkInfoList(19999, 19999),
+            std::vector<ChunkInfoList> lists2add{
+                GenChunkInfoList(199, 199),
+                GenChunkInfoList(2999, 2999),
+                GenChunkInfoList(19999, 19999),
             };
 
-            std::vector<S3ChunkInfoList> lists2del{
-                GenS3ChunkInfoList(100, 199),
-                GenS3ChunkInfoList(1000, 2999),
-                GenS3ChunkInfoList(10000, 19999),
+            std::vector<ChunkInfoList> lists2del{
+                GenChunkInfoList(100, 199),
+                GenChunkInfoList(1000, 2999),
+                GenChunkInfoList(10000, 19999),
             };
 
             for (size_t i = 0; i < chunkIndexs.size(); i++) {
-                MetaStatusCode rc = storage.ModifyInodeS3ChunkInfoList(
+                MetaStatusCode rc = storage.ModifyInodeChunkInfoList(
                     fsId, inodeId, chunkIndexs[i], &lists2add[i],
                     &lists2del[i]);
                 ASSERT_EQ(rc, MetaStatusCode::OK);
@@ -609,97 +609,97 @@ TEST_F(InodeStorageTest, ModifyInodeS3ChunkInfoList) {
         }
 
         // step3: check result
-        CHECK_INODE_S3CHUNKINFOLIST(&storage, fsId, inodeId,
+        CHECK_INODE_ChunkInfoLIST(&storage, fsId, inodeId,
                                     std::vector<uint64_t>{1, 1, 2, 3, 3},
-                                    std::vector<S3ChunkInfoList>{
-                                        GenS3ChunkInfoList(199, 199),
-                                        GenS3ChunkInfoList(200, 299),
-                                        GenS3ChunkInfoList(2999, 2999),
-                                        GenS3ChunkInfoList(19999, 19999),
-                                        GenS3ChunkInfoList(20000, 29999),
+                                    std::vector<ChunkInfoList>{
+                                        GenChunkInfoList(199, 199),
+                                        GenChunkInfoList(200, 299),
+                                        GenChunkInfoList(2999, 2999),
+                                        GenChunkInfoList(19999, 19999),
+                                        GenChunkInfoList(20000, 29999),
                                     });
     }
 }
 
-TEST_F(InodeStorageTest, PaddingInodeS3ChunkInfo) {
+TEST_F(InodeStorageTest, PaddingInodeChunkInfo) {
     uint32_t fsId = 1;
     uint64_t inodeId = 1;
     InodeStorage storage(kvStorage_, nameGenerator_, 0);
-    S3ChunkInfoList list2del;
+    ChunkInfoList list2del;
 
     // step1: insert inode
     Inode inode = GenInode(fsId, inodeId);
     ASSERT_EQ(storage.Insert(inode), MetaStatusCode::OK);
 
-    // step2: append s3chunkinfo
+    // step2: append ChunkInfo
     std::vector<uint64_t> chunkIndexs{1, 3, 2, 1, 2};
-    std::vector<S3ChunkInfoList> lists2add{
-        GenS3ChunkInfoList(100, 109), GenS3ChunkInfoList(300, 310),
-        GenS3ChunkInfoList(200, 209), GenS3ChunkInfoList(110, 120),
-        GenS3ChunkInfoList(210, 220),
+    std::vector<ChunkInfoList> lists2add{
+        GenChunkInfoList(100, 109), GenChunkInfoList(300, 310),
+        GenChunkInfoList(200, 209), GenChunkInfoList(110, 120),
+        GenChunkInfoList(210, 220),
     };
 
     for (size_t i = 0; i < chunkIndexs.size(); i++) {
-        MetaStatusCode rc = storage.ModifyInodeS3ChunkInfoList(
+        MetaStatusCode rc = storage.ModifyInodeChunkInfoList(
             fsId, inodeId, chunkIndexs[i], &lists2add[i], nullptr);
         ASSERT_EQ(rc, MetaStatusCode::OK);
     }
-    ASSERT_EQ(inode.mutable_s3chunkinfomap()->size(), 0);
+    ASSERT_EQ(inode.mutable_ChunkInfomap()->size(), 0);
 
-    // CASE 1: padding inode s3chunkinfo success
+    // CASE 1: padding inode ChunkInfo success
     {
-        LOG(INFO) << "CASE 1: padding inode s3chunkinfo success";
+        LOG(INFO) << "CASE 1: padding inode ChunkInfo success";
         Inode out;
-        MetaStatusCode rc = storage.PaddingInodeS3ChunkInfo(
-            fsId, inodeId, out.mutable_s3chunkinfomap());
+        MetaStatusCode rc = storage.PaddingInodeChunkInfo(
+            fsId, inodeId, out.mutable_ChunkInfomap());
         ASSERT_EQ(rc, MetaStatusCode::OK);
 
-        auto m = out.s3chunkinfomap();
+        auto m = out.ChunkInfomap();
         ASSERT_EQ(m.size(), 3);
-        ASSERT_TRUE(EqualS3ChunkInfoList(m[1], GenS3ChunkInfoList(100, 120)));
-        ASSERT_TRUE(EqualS3ChunkInfoList(m[2], GenS3ChunkInfoList(200, 220)));
-        ASSERT_TRUE(EqualS3ChunkInfoList(m[3], GenS3ChunkInfoList(300, 310)));
+        ASSERT_TRUE(EqualChunkInfoList(m[1], GenChunkInfoList(100, 120)));
+        ASSERT_TRUE(EqualChunkInfoList(m[2], GenChunkInfoList(200, 220)));
+        ASSERT_TRUE(EqualChunkInfoList(m[3], GenChunkInfoList(300, 310)));
     }
 
-    // CASE 2: padding inode s3chunkinfo within limit
+    // CASE 2: padding inode ChunkInfo within limit
     {
-        LOG(INFO) << "CASE 2: padding inode s3chunkinfo within limit";
+        LOG(INFO) << "CASE 2: padding inode ChunkInfo within limit";
         Inode out;
-        MetaStatusCode rc = storage.PaddingInodeS3ChunkInfo(
-            fsId, inodeId, out.mutable_s3chunkinfomap(), 53);
+        MetaStatusCode rc = storage.PaddingInodeChunkInfo(
+            fsId, inodeId, out.mutable_ChunkInfomap(), 53);
         ASSERT_EQ(rc, MetaStatusCode::OK);
 
-        auto m = out.s3chunkinfomap();
+        auto m = out.ChunkInfomap();
         ASSERT_EQ(m.size(), 3);
-        ASSERT_TRUE(EqualS3ChunkInfoList(m[1], GenS3ChunkInfoList(100, 120)));
-        ASSERT_TRUE(EqualS3ChunkInfoList(m[2], GenS3ChunkInfoList(200, 220)));
-        ASSERT_TRUE(EqualS3ChunkInfoList(m[3], GenS3ChunkInfoList(300, 310)));
+        ASSERT_TRUE(EqualChunkInfoList(m[1], GenChunkInfoList(100, 120)));
+        ASSERT_TRUE(EqualChunkInfoList(m[2], GenChunkInfoList(200, 220)));
+        ASSERT_TRUE(EqualChunkInfoList(m[3], GenChunkInfoList(300, 310)));
     }
 
-    // CASE 3: padding inode s3chunkinfo exceed limit
+    // CASE 3: padding inode ChunkInfo exceed limit
     {
-        LOG(INFO) << "CASE 3: padding inode s3chunkinfo exceed limit";
+        LOG(INFO) << "CASE 3: padding inode ChunkInfo exceed limit";
         Inode out;
-        MetaStatusCode rc = storage.PaddingInodeS3ChunkInfo(
-            fsId, inodeId, out.mutable_s3chunkinfomap(), 52);
+        MetaStatusCode rc = storage.PaddingInodeChunkInfo(
+            fsId, inodeId, out.mutable_ChunkInfomap(), 52);
         ASSERT_EQ(rc, MetaStatusCode::INODE_S3_META_TOO_LARGE);
 
-        auto m = out.s3chunkinfomap();
+        auto m = out.ChunkInfomap();
         ASSERT_EQ(m.size(), 0);
     }
 }
 
-TEST_F(InodeStorageTest, GetAllS3ChunkInfoList) {
+TEST_F(InodeStorageTest, GetAllChunkInfoList) {
     InodeStorage storage(kvStorage_, nameGenerator_, 0);
     uint64_t chunkIndex = 1;
-    S3ChunkInfoList list2add = GenS3ChunkInfoList(1, 10);
+    ChunkInfoList list2add = GenChunkInfoList(1, 10);
 
-    // step1: prepare inode and its s3chunkinfo
+    // step1: prepare inode and its ChunkInfo
     auto prepareInode = [&](uint32_t fsId, uint64_t inodeId) {
         Inode inode = GenInode(fsId, inodeId);
         ASSERT_EQ(storage.Insert(inode), MetaStatusCode::OK);
 
-        MetaStatusCode rc = storage.ModifyInodeS3ChunkInfoList(
+        MetaStatusCode rc = storage.ModifyInodeChunkInfoList(
             fsId, inodeId, chunkIndex, &list2add, nullptr);
         ASSERT_EQ(rc, MetaStatusCode::OK);
     };
@@ -707,20 +707,20 @@ TEST_F(InodeStorageTest, GetAllS3ChunkInfoList) {
     prepareInode(1, 1);
     prepareInode(2, 2);
 
-    // step2: check all s3chunkinfo
+    // step2: check all ChunkInfo
     size_t size = 0;
-    Key4S3ChunkInfoList key;
-    S3ChunkInfoList list4get;
+    Key4ChunkInfoList key;
+    ChunkInfoList list4get;
     std::vector<uint32_t> fsIds{1, 2};
     std::vector<uint64_t> inodeIds{1, 2};
-    auto iterator = storage.GetAllS3ChunkInfoList();
+    auto iterator = storage.GetAllChunkInfoList();
     for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
         ASSERT_TRUE(conv_->ParseFromString(iterator->Key(), &key));
         ASSERT_TRUE(iterator->ParseFromValue(&list4get));
         ASSERT_EQ(key.chunkIndex, chunkIndex);
         ASSERT_EQ(key.fsId, fsIds[size]);
         ASSERT_EQ(key.inodeId, inodeIds[size]);
-        ASSERT_TRUE(EqualS3ChunkInfoList(list2add, list4get));
+        ASSERT_TRUE(EqualChunkInfoList(list2add, list4get));
         size++;
     }
     ASSERT_EQ(size, 2);

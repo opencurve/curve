@@ -331,15 +331,15 @@ void S3ClientAdaptorImpl::PrefetchForBlock(const S3ReadRequest &req,
 }
 
 void S3ClientAdaptorImpl::HandleReadRequest(
-    const ReadRequest &request, const S3ChunkInfo &s3ChunkInfo,
+    const ReadRequest &request, const ChunkInfo &ChunkInfo,
     std::vector<ReadRequest> *addReadRequests,
     std::vector<uint64_t> *deletingReq, std::vector<S3ReadRequest> *requests,
     char *dataBuf, uint64_t fsId, uint64_t inodeId) {
     uint64_t blockSize = GetBlockSize();
     uint64_t chunkSize = GetChunkSize();
     S3ReadRequest s3Request;
-    uint64_t s3ChunkInfoOffset = s3ChunkInfo.offset();
-    uint64_t s3ChunkInfoLen = s3ChunkInfo.len();
+    uint64_t ChunkInfoOffset = ChunkInfo.offset();
+    uint64_t ChunkInfoLen = ChunkInfo.len();
     uint64_t fileOffset = request.index * chunkSize + request.chunkPos;
     uint64_t length = request.len;
     uint64_t bufOffset = request.bufOffset;
@@ -348,148 +348,148 @@ void S3ClientAdaptorImpl::HandleReadRequest(
     VLOG(9) << "HandleReadRequest request index:" << request.index
             << ",chunkPos:" << request.chunkPos << ",len:" << request.len
             << ",bufOffset:" << request.bufOffset;
-    VLOG(9) << "HandleReadRequest s3info chunkid:" << s3ChunkInfo.chunkid()
-            << ",offset:" << s3ChunkInfoOffset << ",len:" << s3ChunkInfoLen
-            << ",compaction:" << s3ChunkInfo.compaction()
-            << ",zero:" << s3ChunkInfo.zero();
+    VLOG(9) << "HandleReadRequest s3info chunkid:" << ChunkInfo.chunkid()
+            << ",offset:" << ChunkInfoOffset << ",len:" << ChunkInfoLen
+            << ",compaction:" << ChunkInfo.compaction()
+            << ",zero:" << ChunkInfo.zero();
     /*
              -----             read block
-                    ------     S3ChunkInfo
+                    ------     ChunkInfo
     */
-    if (fileOffset + length <= s3ChunkInfoOffset) {
+    if (fileOffset + length <= ChunkInfoOffset) {
         return;
         /*
              -----              ------------   read block           -
-                ------             -----       S3ChunkInfo
+                ------             -----       ChunkInfo
         */
-    } else if ((s3ChunkInfoOffset > fileOffset) &&
-               (s3ChunkInfoOffset < fileOffset + length)) {
+    } else if ((ChunkInfoOffset > fileOffset) &&
+               (ChunkInfoOffset < fileOffset + length)) {
         ReadRequest splitRequest;
         splitRequest.index = request.index;
         splitRequest.chunkPos = request.chunkPos;
-        splitRequest.len = s3ChunkInfoOffset - fileOffset;
+        splitRequest.len = ChunkInfoOffset - fileOffset;
         splitRequest.bufOffset = bufOffset;
         addReadRequests->emplace_back(splitRequest);
         deletingReq->emplace_back(request.chunkPos);
         readOffset += splitRequest.len;
         /*
              -----                 read block           -
-                ------             S3ChunkInfo
+                ------             ChunkInfo
         */
-        if (fileOffset + length <= s3ChunkInfoOffset + s3ChunkInfoLen) {
-            if (s3ChunkInfo.zero()) {
+        if (fileOffset + length <= ChunkInfoOffset + ChunkInfoLen) {
+            if (ChunkInfo.zero()) {
                 memset(static_cast<char *>(dataBuf) + bufOffset + readOffset, 0,
-                       fileOffset + length - s3ChunkInfoOffset);
+                       fileOffset + length - ChunkInfoOffset);
             } else {
-                s3Request.chunkId = s3ChunkInfo.chunkid();
-                s3Request.offset = s3ChunkInfoOffset;
-                s3Request.len = fileOffset + length - s3ChunkInfoOffset;
+                s3Request.chunkId = ChunkInfo.chunkid();
+                s3Request.offset = ChunkInfoOffset;
+                s3Request.len = fileOffset + length - ChunkInfoOffset;
                 s3Request.objectOffset =
-                    s3ChunkInfoOffset % chunkSize % blockSize;
+                    ChunkInfoOffset % chunkSize % blockSize;
                 s3Request.readOffset = bufOffset + readOffset;
-                s3Request.compaction = s3ChunkInfo.compaction();
+                s3Request.compaction = ChunkInfo.compaction();
                 s3Request.fsId = fsId;
                 s3Request.inodeId = inodeId;
                 requests->push_back(s3Request);
             }
             /*
                                  ------------   read block           -
-                                    -----       S3ChunkInfo
+                                    -----       ChunkInfo
             */
         } else {
-            if (s3ChunkInfo.zero()) {
+            if (ChunkInfo.zero()) {
                 memset(static_cast<char *>(dataBuf) + bufOffset + readOffset, 0,
-                       s3ChunkInfoLen);
+                       ChunkInfoLen);
             } else {
-                s3Request.chunkId = s3ChunkInfo.chunkid();
-                s3Request.offset = s3ChunkInfoOffset;
-                s3Request.len = s3ChunkInfoLen;
+                s3Request.chunkId = ChunkInfo.chunkid();
+                s3Request.offset = ChunkInfoOffset;
+                s3Request.len = ChunkInfoLen;
                 s3Request.objectOffset =
-                    s3ChunkInfoOffset % chunkSize % blockSize;
+                    ChunkInfoOffset % chunkSize % blockSize;
                 s3Request.readOffset = bufOffset + readOffset;
-                s3Request.compaction = s3ChunkInfo.compaction();
+                s3Request.compaction = ChunkInfo.compaction();
                 s3Request.fsId = fsId;
                 s3Request.inodeId = inodeId;
                 requests->push_back(s3Request);
             }
             ReadRequest splitRequest;
 
-            readOffset += s3ChunkInfoLen;
+            readOffset += ChunkInfoLen;
             splitRequest.index = request.index;
             splitRequest.chunkPos = request.chunkPos + readOffset;
             splitRequest.len =
-                fileOffset + length - (s3ChunkInfoOffset + s3ChunkInfoLen);
+                fileOffset + length - (ChunkInfoOffset + ChunkInfoLen);
             splitRequest.bufOffset = bufOffset + readOffset;
             addReadRequests->emplace_back(splitRequest);
         }
         /*
               ----                      ---------   read block
-            ----------                --------      S3ChunkInfo
+            ----------                --------      ChunkInfo
         */
-    } else if ((s3ChunkInfoOffset <= fileOffset) &&
-               (s3ChunkInfoOffset + s3ChunkInfoLen > fileOffset)) {
+    } else if ((ChunkInfoOffset <= fileOffset) &&
+               (ChunkInfoOffset + ChunkInfoLen > fileOffset)) {
         deletingReq->emplace_back(request.chunkPos);
         /*
               ----                    read block
-            ----------                S3ChunkInfo
+            ----------                ChunkInfo
         */
-        if (fileOffset + length <= s3ChunkInfoOffset + s3ChunkInfoLen) {
-            if (s3ChunkInfo.zero()) {
+        if (fileOffset + length <= ChunkInfoOffset + ChunkInfoLen) {
+            if (ChunkInfo.zero()) {
                 memset(static_cast<char *>(dataBuf) + bufOffset + readOffset, 0,
                        length);
             } else {
-                s3Request.chunkId = s3ChunkInfo.chunkid();
+                s3Request.chunkId = ChunkInfo.chunkid();
                 s3Request.offset = fileOffset;
                 s3Request.len = length;
-                if (fileOffset / blockSize == s3ChunkInfoOffset / blockSize) {
+                if (fileOffset / blockSize == ChunkInfoOffset / blockSize) {
                     s3Request.objectOffset =
-                        s3ChunkInfoOffset % chunkSize % blockSize;
+                        ChunkInfoOffset % chunkSize % blockSize;
                 } else {
                     s3Request.objectOffset = 0;
                 }
                 s3Request.readOffset = bufOffset + readOffset;
-                s3Request.compaction = s3ChunkInfo.compaction();
+                s3Request.compaction = ChunkInfo.compaction();
                 s3Request.fsId = fsId;
                 s3Request.inodeId = inodeId;
                 requests->push_back(s3Request);
             }
             /*
                                       ---------   read block
-                                    --------      S3ChunkInfo
+                                    --------      ChunkInfo
             */
         } else {
-            if (s3ChunkInfo.zero()) {
+            if (ChunkInfo.zero()) {
                 memset(static_cast<char *>(dataBuf) + bufOffset + readOffset, 0,
-                       s3ChunkInfoOffset + s3ChunkInfoLen - fileOffset);
+                       ChunkInfoOffset + ChunkInfoLen - fileOffset);
             } else {
-                s3Request.chunkId = s3ChunkInfo.chunkid();
+                s3Request.chunkId = ChunkInfo.chunkid();
                 s3Request.offset = fileOffset;
-                s3Request.len = s3ChunkInfoOffset + s3ChunkInfoLen - fileOffset;
-                if (fileOffset / blockSize == s3ChunkInfoOffset / blockSize) {
+                s3Request.len = ChunkInfoOffset + ChunkInfoLen - fileOffset;
+                if (fileOffset / blockSize == ChunkInfoOffset / blockSize) {
                     s3Request.objectOffset =
-                        s3ChunkInfoOffset % chunkSize % blockSize;
+                        ChunkInfoOffset % chunkSize % blockSize;
                 } else {
                     s3Request.objectOffset = 0;
                 }
                 s3Request.readOffset = bufOffset + readOffset;
-                s3Request.compaction = s3ChunkInfo.compaction();
+                s3Request.compaction = ChunkInfo.compaction();
                 s3Request.fsId = fsId;
                 s3Request.inodeId = inodeId;
                 requests->push_back(s3Request);
             }
-            readOffset += s3ChunkInfoOffset + s3ChunkInfoLen - fileOffset;
+            readOffset += ChunkInfoOffset + ChunkInfoLen - fileOffset;
             ReadRequest splitRequest;
             splitRequest.index = request.index;
-            splitRequest.chunkPos = request.chunkPos + s3ChunkInfoOffset +
-                                    s3ChunkInfoLen - fileOffset;
+            splitRequest.chunkPos = request.chunkPos + ChunkInfoOffset +
+                                    ChunkInfoLen - fileOffset;
             splitRequest.len =
-                fileOffset + length - (s3ChunkInfoOffset + s3ChunkInfoLen);
+                fileOffset + length - (ChunkInfoOffset + ChunkInfoLen);
             splitRequest.bufOffset = bufOffset + readOffset;
             addReadRequests->emplace_back(splitRequest);
         }
         /*
                     -----  read block
-            ----           S3ChunkInfo
+            ----           ChunkInfo
         do nothing
         */
     } else {
@@ -497,7 +497,7 @@ void S3ClientAdaptorImpl::HandleReadRequest(
 }
 
 void S3ClientAdaptorImpl::GenerateS3Request(ReadRequest request,
-                                         const S3ChunkInfoList &s3ChunkInfoList,
+                                         const ChunkInfoList &ChunkInfoList,
                                          char *dataBuf,
                                          std::vector<S3ReadRequest> *requests,
                                          uint64_t fsId, uint64_t inodeId) {
@@ -509,9 +509,9 @@ void S3ClientAdaptorImpl::GenerateS3Request(ReadRequest request,
             << ",chunkPos:" << request.chunkPos << ",len:" << request.len
             << ",bufOffset:" << request.bufOffset;
     readRequests.emplace(request.chunkPos, request);
-    for (int i = s3ChunkInfoList.s3chunks_size() - 1; i >= 0; i--) {
-        const S3ChunkInfo &s3ChunkInfo = s3ChunkInfoList.s3chunks(i);
-        // readRequests is split by current s3ChunkInfo, emplace_back to the
+    for (int i = ChunkInfoList.s3chunks_size() - 1; i >= 0; i--) {
+        const ChunkInfo &ChunkInfo = ChunkInfoList.s3chunks(i);
+        // readRequests is split by current ChunkInfo, emplace_back to the
         // addReadRequests
         std::vector<ReadRequest> addReadRequests;
         // if readRequest is split to one or two, old readRequest should be
@@ -519,7 +519,7 @@ void S3ClientAdaptorImpl::GenerateS3Request(ReadRequest request,
         std::vector<uint64_t> deletingReq;
         for (auto readRequestIter = readRequests.begin();
              readRequestIter != readRequests.end(); readRequestIter++) {
-            HandleReadRequest(readRequestIter->second, s3ChunkInfo,
+            HandleReadRequest(readRequestIter->second, ChunkInfo,
                               &addReadRequests, &deletingReq, requests, dataBuf,
                               fsId, inodeId);
         }
@@ -541,7 +541,7 @@ void S3ClientAdaptorImpl::GenerateS3Request(ReadRequest request,
         }
 
         if (readRequests.empty()) {
-            VLOG(6) << "readRequests has hit s3ChunkInfos.";
+            VLOG(6) << "readRequests has hit ChunkInfos.";
             break;
         }
     }
@@ -577,15 +577,15 @@ int S3ClientAdaptorImpl::GenerateKVReuqest(
 
     ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
     const Inode *inode = inodeWrapper->GetInodeLocked();
-    const auto *s3chunkinfo = inodeWrapper->GetChunkInfoMap();
+    const auto *ChunkInfo = inodeWrapper->GetChunkInfoMap();
     VLOG(9) << "process inode: " << inode->DebugString();
     for_each(
         readRequest.begin(), readRequest.end(), [&](const ReadRequest &req) {
             VLOG(6) << req.DebugString();
-            auto infoIter = s3chunkinfo->find(req.index);
-            if (infoIter == s3chunkinfo->end()) {
+            auto infoIter = ChunkInfo->find(req.index);
+            if (infoIter == ChunkInfo->end()) {
                 VLOG(6) << "inode = " << inode->inodeid()
-                        << " s3chunkinfo do not find index = " << req.index;
+                        << " ChunkInfo do not find index = " << req.index;
                 memset(dataBuf + req.bufOffset, 0, req.len);
                 return;
             } else {
@@ -652,7 +652,7 @@ int S3ClientAdaptorImpl::HandleReadS3NotExist(uint32_t retry,
 
     if (retry == 1) {
         curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
-        if (CURVEFS_ERROR::OK != inodeWrapper->RefreshS3ChunkInfo()) {
+        if (CURVEFS_ERROR::OK != inodeWrapper->RefreshChunkInfo()) {
             LOG(ERROR) << "refresh inode: " << inodeWrapper->GetInodeId()
                        << " fail";
             return -1;
@@ -1004,21 +1004,21 @@ CURVEFS_ERROR S3ClientAdaptorImpl::Truncate(
                 n = len;
             }
             assert(chunkId <= (beginChunkId + chunkIdNum - 1));
-            S3ChunkInfo *tmp;
-            auto* s3ChunkInfoMap = inodeWrapper->GetChunkInfoMap();
-            auto s3chunkInfoListIter = s3ChunkInfoMap->find(index);
-            if (s3chunkInfoListIter == s3ChunkInfoMap->end()) {
-                S3ChunkInfoList s3chunkInfoList;
-                tmp = s3chunkInfoList.add_s3chunks();
+            ChunkInfo *tmp;
+            auto* ChunkInfoMap = inodeWrapper->GetChunkInfoMap();
+            auto ChunkInfoListIter = ChunkInfoMap->find(index);
+            if (ChunkInfoListIter == ChunkInfoMap->end()) {
+                ChunkInfoList ChunkInfoList;
+                tmp = ChunkInfoList.add_s3chunks();
                 tmp->set_chunkid(chunkId);
                 tmp->set_offset(offset);
                 tmp->set_len(n);
                 tmp->set_size(n);
                 tmp->set_zero(true);
-                s3ChunkInfoMap->insert({index, s3chunkInfoList});
+                ChunkInfoMap->insert({index, ChunkInfoList});
             } else {
-                S3ChunkInfoList &s3chunkInfoList = s3chunkInfoListIter->second;
-                tmp = s3chunkInfoList.add_s3chunks();
+                ChunkInfoList &ChunkInfoList = ChunkInfoListIter->second;
+                tmp = ChunkInfoList.add_s3chunks();
                 tmp->set_chunkid(chunkId);
                 tmp->set_offset(offset);
                 tmp->set_len(n);

@@ -45,11 +45,11 @@ using ::curve::common::StringStartWith;
 using ::curvefs::common::EmptyMsg;
 using ::curvefs::metaserver::storage::Status;
 using ::curvefs::metaserver::storage::KVStorage;
-using ::curvefs::metaserver::storage::Key4S3ChunkInfoList;
+using ::curvefs::metaserver::storage::Key4ChunkInfoList;
 using ::curvefs::metaserver::storage::Key4VolumeExtentSlice;
 using ::curvefs::metaserver::storage::Prefix4InodeVolumeExtent;
-using ::curvefs::metaserver::storage::Prefix4ChunkIndexS3ChunkInfoList;
-using ::curvefs::metaserver::storage::Prefix4InodeS3ChunkInfoList;
+using ::curvefs::metaserver::storage::Prefix4ChunkIndexChunkInfoList;
+using ::curvefs::metaserver::storage::Prefix4InodeChunkInfoList;
 using ::curvefs::metaserver::storage::Prefix4AllInode;
 using ::curvefs::metaserver::storage::Key4InodeAuxInfo;
 using ::curvefs::metaserver::storage::Key4DeallocatableBlockGroup;
@@ -60,7 +60,7 @@ InodeStorage::InodeStorage(std::shared_ptr<KVStorage> kvStorage,
                            uint64_t nInode)
     : kvStorage_(std::move(kvStorage)),
       table4Inode_(nameGenerator->GetInodeTableName()),
-      table4S3ChunkInfo_(nameGenerator->GetS3ChunkInfoTableName()),
+      table4ChunkInfo_(nameGenerator->GetChunkInfoTableName()),
       table4VolumeExtent_(nameGenerator->GetVolumeExtentTableName()),
       table4InodeAuxInfo_(nameGenerator->GetInodeAuxInfoTableName()),
       table4DeallocatableInode_(
@@ -287,9 +287,9 @@ MetaStatusCode InodeStorage::Clear() {
     }
     nInode_ = 0;
 
-    s = kvStorage_->SClear(table4S3ChunkInfo_);
+    s = kvStorage_->SClear(table4ChunkInfo_);
     if (!s.ok()) {
-        LOG(ERROR) << "InodeStorage clear inode s3chunkinfo table failed";
+        LOG(ERROR) << "InodeStorage clear inode ChunkInfo table failed";
         return MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
 
@@ -363,12 +363,12 @@ uint64_t InodeStorage::GetInodeS3MetaSize(uint32_t fsId, uint64_t inodeId) {
     return size;
 }
 
-MetaStatusCode InodeStorage::AddS3ChunkInfoList(
+MetaStatusCode InodeStorage::AddChunkInfoList(
     Transaction txn,
     uint32_t fsId,
     uint64_t inodeId,
     uint64_t chunkIndex,
-    const S3ChunkInfoList* list2add) {
+    const ChunkInfoList* list2add) {
     if (nullptr == list2add || list2add->s3chunks_size() == 0) {
         return MetaStatusCode::OK;
     }
@@ -377,25 +377,25 @@ MetaStatusCode InodeStorage::AddS3ChunkInfoList(
     uint64_t firstChunkId = list2add->s3chunks(0).chunkid();
     uint64_t lastChunkId = list2add->s3chunks(size - 1).chunkid();
 
-    Key4S3ChunkInfoList key(fsId, inodeId, chunkIndex,
+    Key4ChunkInfoList key(fsId, inodeId, chunkIndex,
                             firstChunkId, lastChunkId, size);
     std::string skey = conv_.SerializeToString(key);
     Status s;
     if (txn) {
-        s = txn->SSet(table4S3ChunkInfo_, skey, *list2add);
+        s = txn->SSet(table4ChunkInfo_, skey, *list2add);
     } else {
-        s = kvStorage_->SSet(table4S3ChunkInfo_, skey, *list2add);
+        s = kvStorage_->SSet(table4ChunkInfo_, skey, *list2add);
     }
     return s.ok() ? MetaStatusCode::OK :
                     MetaStatusCode::STORAGE_INTERNAL_ERROR;
 }
 
-MetaStatusCode InodeStorage::DelS3ChunkInfoList(
+MetaStatusCode InodeStorage::DelChunkInfoList(
     Transaction txn,
     uint32_t fsId,
     uint64_t inodeId,
     uint64_t chunkIndex,
-    const S3ChunkInfoList* list2del) {
+    const ChunkInfoList* list2del) {
     if (nullptr == list2del || list2del->s3chunks_size() == 0) {
         return MetaStatusCode::OK;
     }
@@ -405,15 +405,15 @@ MetaStatusCode InodeStorage::DelS3ChunkInfoList(
     uint64_t delLastChunkId = list2del->s3chunks(size - 1).chunkid();
 
     // prefix
-    Prefix4ChunkIndexS3ChunkInfoList prefix(fsId, inodeId, chunkIndex);
+    Prefix4ChunkIndexChunkInfoList prefix(fsId, inodeId, chunkIndex);
     std::string sprefix = conv_.SerializeToString(prefix);
-    auto iterator = txn->SSeek(table4S3ChunkInfo_, sprefix);
+    auto iterator = txn->SSeek(table4ChunkInfo_, sprefix);
     if (iterator->Status() != 0) {
         LOG(ERROR) << "Get iterator failed, prefix=" << sprefix;
         return MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
 
-    Key4S3ChunkInfoList key;
+    Key4ChunkInfoList key;
     std::vector<std::string> key2del;
     for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
         std::string skey = iterator->Key();
@@ -440,7 +440,7 @@ MetaStatusCode InodeStorage::DelS3ChunkInfoList(
     }
 
     for (const auto& skey : key2del) {
-        if (!txn->SDel(table4S3ChunkInfo_, skey).ok()) {
+        if (!txn->SDel(table4ChunkInfo_, skey).ok()) {
             LOG(ERROR) << "Delete key failed, skey=" << skey;
             return MetaStatusCode::STORAGE_INTERNAL_ERROR;
         }
@@ -448,12 +448,12 @@ MetaStatusCode InodeStorage::DelS3ChunkInfoList(
     return MetaStatusCode::OK;
 }
 
-MetaStatusCode InodeStorage::ModifyInodeS3ChunkInfoList(
+MetaStatusCode InodeStorage::ModifyInodeChunkInfoList(
     uint32_t fsId,
     uint64_t inodeId,
     uint64_t chunkIndex,
-    const S3ChunkInfoList* list2add,
-    const S3ChunkInfoList* list2del) {
+    const ChunkInfoList* list2add,
+    const ChunkInfoList* list2del) {
     WriteLockGuard lg(rwLock_);
     auto txn = kvStorage_->BeginTransaction();
     std::string step;
@@ -461,10 +461,10 @@ MetaStatusCode InodeStorage::ModifyInodeS3ChunkInfoList(
         return MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
 
-    auto rc = DelS3ChunkInfoList(txn, fsId, inodeId, chunkIndex, list2del);
+    auto rc = DelChunkInfoList(txn, fsId, inodeId, chunkIndex, list2del);
     step = "del s3 chunkinfo list ";
     if (rc == MetaStatusCode::OK) {
-        rc = AddS3ChunkInfoList(txn, fsId, inodeId, chunkIndex, list2add);
+        rc = AddChunkInfoList(txn, fsId, inodeId, chunkIndex, list2add);
         step = "add s3 chunkInfo list ";
     }
 
@@ -492,30 +492,30 @@ MetaStatusCode InodeStorage::ModifyInodeS3ChunkInfoList(
     return rc;
 }
 
-MetaStatusCode InodeStorage::PaddingInodeS3ChunkInfo(int32_t fsId,
+MetaStatusCode InodeStorage::PaddingInodeChunkInfo(int32_t fsId,
                                                      uint64_t inodeId,
-                                                     S3ChunkInfoMap* m,
+                                                     ChunkInfoMap* m,
                                                      uint64_t limit) {
     ReadLockGuard lg(rwLock_);
     if (limit != 0 && GetInodeS3MetaSize(fsId, inodeId) > limit) {
         return MetaStatusCode::INODE_S3_META_TOO_LARGE;
     }
 
-    auto iterator = GetInodeS3ChunkInfoList(fsId, inodeId);
+    auto iterator = GetInodeChunkInfoList(fsId, inodeId);
     if (iterator->Status() != 0) {
-        LOG(ERROR) << "Get inode s3chunkinfo failed";
+        LOG(ERROR) << "Get inode ChunkInfo failed";
         return MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
 
-    auto merge = [](const S3ChunkInfoList& from, S3ChunkInfoList* to) {
+    auto merge = [](const ChunkInfoList& from, ChunkInfoList* to) {
         for (int i = 0; i < from.s3chunks_size(); i++) {
             auto chunkinfo = to->add_s3chunks();
             chunkinfo->CopyFrom(from.s3chunks(i));
         }
     };
 
-    Key4S3ChunkInfoList key;
-    S3ChunkInfoList list;
+    Key4ChunkInfoList key;
+    ChunkInfoList list;
     for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
         std::string skey = iterator->Key();
         std::string svalue = iterator->Value();
@@ -537,17 +537,17 @@ MetaStatusCode InodeStorage::PaddingInodeS3ChunkInfo(int32_t fsId,
     return MetaStatusCode::OK;
 }
 
-std::shared_ptr<Iterator> InodeStorage::GetInodeS3ChunkInfoList(
+std::shared_ptr<Iterator> InodeStorage::GetInodeChunkInfoList(
     uint32_t fsId, uint64_t inodeId) {
     ReadLockGuard lg(rwLock_);
-    Prefix4InodeS3ChunkInfoList prefix(fsId, inodeId);
+    Prefix4InodeChunkInfoList prefix(fsId, inodeId);
     std::string sprefix = conv_.SerializeToString(prefix);
-    return kvStorage_->SSeek(table4S3ChunkInfo_, sprefix);
+    return kvStorage_->SSeek(table4ChunkInfo_, sprefix);
 }
 
-std::shared_ptr<Iterator> InodeStorage::GetAllS3ChunkInfoList() {
+std::shared_ptr<Iterator> InodeStorage::GetAllChunkInfoList() {
     ReadLockGuard lg(rwLock_);
-    return kvStorage_->SGetAll(table4S3ChunkInfo_);
+    return kvStorage_->SGetAll(table4ChunkInfo_);
 }
 
 std::shared_ptr<Iterator> InodeStorage::GetAllVolumeExtentList() {

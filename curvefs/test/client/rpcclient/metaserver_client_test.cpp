@@ -66,8 +66,8 @@ using ::curvefs::metaserver::UpdateDeallocatableBlockGroupResponse;
 using ::curvefs::common::StreamServer;
 using ::curvefs::common::StreamOptions;
 using ::curvefs::common::StreamConnection;
-using ::curvefs::metaserver::S3ChunkInfo;
-using S3ChunkInofMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
+using ::curvefs::metaserver::ChunkInfo;
+using S3ChunkInofMap = google::protobuf::Map<uint64_t, ChunkInfoList>;
 
 template <typename RpcRequestType, typename RpcResponseType,
           bool RpcFailed = false>
@@ -767,89 +767,89 @@ TEST_F(MetaServerClientImplTest, test_UpdateInodeAttr) {
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 }
 
-TEST_F(MetaServerClientImplTest, test_GetOrModifyS3ChunkInfo) {
+TEST_F(MetaServerClientImplTest, test_GetOrModifyChunkInfo) {
     uint32_t fsId = 1;
     uint64_t inodeId = 100;
     google::protobuf::Map<
-        uint64_t, S3ChunkInfoList> s3ChunkInfos;
-    bool returnS3ChunkInfoMap = false;
+        uint64_t, ChunkInfoList> ChunkInfos;
+    bool returnChunkInfoMap = false;
     google::protobuf::Map<
-        uint64_t, S3ChunkInfoList> out;
+        uint64_t, ChunkInfoList> out;
     uint64_t applyIndex = 10;
 
     // test1: success
-    curvefs::metaserver::GetOrModifyS3ChunkInfoResponse response;
+    curvefs::metaserver::GetOrModifyChunkInfoResponse response;
     response.set_statuscode(curvefs::metaserver::OK);
     response.set_appliedindex(applyIndex);
-    EXPECT_CALL(mockMetaServerService_, GetOrModifyS3ChunkInfo(_, _, _, _))
+    EXPECT_CALL(mockMetaServerService_, GetOrModifyChunkInfo(_, _, _, _))
         .WillOnce(DoAll(
             SetArgPointee<2>(response),
             Invoke(SetRpcService<
-                curvefs::metaserver::GetOrModifyS3ChunkInfoRequest,
-                curvefs::metaserver::GetOrModifyS3ChunkInfoResponse>)));
+                curvefs::metaserver::GetOrModifyChunkInfoRequest,
+                curvefs::metaserver::GetOrModifyChunkInfoResponse>)));
     EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
         .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
                               SetArgPointee<3>(applyIndex), Return(true)));
     EXPECT_CALL(*mockMetacache_.get(), UpdateApplyIndex(_, _));
 
-    MetaStatusCode status = metaserverCli_.GetOrModifyS3ChunkInfo(
-        fsId, inodeId, s3ChunkInfos, returnS3ChunkInfoMap, &out);
+    MetaStatusCode status = metaserverCli_.GetOrModifyChunkInfo(
+        fsId, inodeId, ChunkInfos, returnChunkInfoMap, &out);
 
     ASSERT_EQ(MetaStatusCode::OK, status);
 
     // test2: overload
     response.set_statuscode(curvefs::metaserver::OVERLOAD);
-    EXPECT_CALL(mockMetaServerService_, GetOrModifyS3ChunkInfo(_, _, _, _))
+    EXPECT_CALL(mockMetaServerService_, GetOrModifyChunkInfo(_, _, _, _))
         .WillRepeatedly(DoAll(
             SetArgPointee<2>(response),
             Invoke(SetRpcService<
-                curvefs::metaserver::GetOrModifyS3ChunkInfoRequest,
-                curvefs::metaserver::GetOrModifyS3ChunkInfoResponse>)));
-    status = metaserverCli_.GetOrModifyS3ChunkInfo(
-        fsId, inodeId, s3ChunkInfos, returnS3ChunkInfoMap, &out);
+                curvefs::metaserver::GetOrModifyChunkInfoRequest,
+                curvefs::metaserver::GetOrModifyChunkInfoResponse>)));
+    status = metaserverCli_.GetOrModifyChunkInfo(
+        fsId, inodeId, ChunkInfos, returnChunkInfoMap, &out);
     ASSERT_EQ(MetaStatusCode::OVERLOAD, status);
 
     // test3: has no applyIndex
     response.set_statuscode(curvefs::metaserver::OK);
     response.clear_appliedindex();
-    EXPECT_CALL(mockMetaServerService_, GetOrModifyS3ChunkInfo(_, _, _, _))
+    EXPECT_CALL(mockMetaServerService_, GetOrModifyChunkInfo(_, _, _, _))
         .WillRepeatedly(DoAll(
             SetArgPointee<2>(response),
             Invoke(SetRpcService<
-                curvefs::metaserver::GetOrModifyS3ChunkInfoRequest,
-                curvefs::metaserver::GetOrModifyS3ChunkInfoResponse>)));
-    status = metaserverCli_.GetOrModifyS3ChunkInfo(
-        fsId, inodeId, s3ChunkInfos, returnS3ChunkInfoMap, &out);
+                curvefs::metaserver::GetOrModifyChunkInfoRequest,
+                curvefs::metaserver::GetOrModifyChunkInfoResponse>)));
+    status = metaserverCli_.GetOrModifyChunkInfo(
+        fsId, inodeId, ChunkInfos, returnChunkInfoMap, &out);
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 
     // test4: get target always fail
     EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
         .WillRepeatedly(Return(false));
-    status = metaserverCli_.GetOrModifyS3ChunkInfo(
-        fsId, inodeId, s3ChunkInfos, returnS3ChunkInfoMap, &out);
+    status = metaserverCli_.GetOrModifyChunkInfo(
+        fsId, inodeId, ChunkInfos, returnChunkInfoMap, &out);
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 }
 
-TEST_F(MetaServerClientImplTest, GetOrModifyS3ChunkInfo_ReturnS3ChunkInfoMap) {
+TEST_F(MetaServerClientImplTest, GetOrModifyChunkInfo_ReturnChunkInfoMap) {
     uint32_t fsId = 1;
     uint64_t inodeId = 100;
     uint64_t applyIndex = 10;
     uint64_t chunkIndex = 100;
-    S3ChunkInfoList list;
+    ChunkInfoList list;
     S3ChunkInofMap out, map2add;
-    S3ChunkInfo s3ChunkInfo;
-    s3ChunkInfo.set_chunkid(1);
-    s3ChunkInfo.set_compaction(2);
-    s3ChunkInfo.set_offset(3);
-    s3ChunkInfo.set_len(4);
-    s3ChunkInfo.set_size(5);
-    s3ChunkInfo.set_zero(false);
+    ChunkInfo ChunkInfo;
+    ChunkInfo.set_chunkid(1);
+    ChunkInfo.set_compaction(2);
+    ChunkInfo.set_offset(3);
+    ChunkInfo.set_len(4);
+    ChunkInfo.set_size(5);
+    ChunkInfo.set_zero(false);
 
-    EXPECT_CALL(mockMetaServerService_, GetOrModifyS3ChunkInfo(_, _, _, _))
+    EXPECT_CALL(mockMetaServerService_, GetOrModifyChunkInfo(_, _, _, _))
         .WillOnce(Invoke([&](
             ::google::protobuf::RpcController *controller,
-            const ::curvefs::metaserver::GetOrModifyS3ChunkInfoRequest* request,
-            ::curvefs::metaserver::GetOrModifyS3ChunkInfoResponse* response,
+            const ::curvefs::metaserver::GetOrModifyChunkInfoRequest* request,
+            ::curvefs::metaserver::GetOrModifyChunkInfoResponse* response,
             ::google::protobuf::Closure* done) {
             std::shared_ptr<StreamConnection> connection;
             {
@@ -866,13 +866,13 @@ TEST_F(MetaServerClientImplTest, GetOrModifyS3ChunkInfo_ReturnS3ChunkInfoMap) {
                 response->set_statuscode(curvefs::metaserver::OK);
             }
 
-            // step1: sending s3chunkinfo list
+            // step1: sending ChunkInfo list
             butil::IOBuf buffer;
             std::string value;
             auto addedInfo = list.add_s3chunks();
-            addedInfo->CopyFrom(s3ChunkInfo);
+            addedInfo->CopyFrom(ChunkInfo);
             if (!list.SerializeToString(&value)) {
-                LOG(ERROR) << "Serialize s3chunkinfo list failed";
+                LOG(ERROR) << "Serialize ChunkInfo list failed";
                 return;
             }
             buffer.append(std::to_string(chunkIndex) + ":" + value);
@@ -893,7 +893,7 @@ TEST_F(MetaServerClientImplTest, GetOrModifyS3ChunkInfo_ReturnS3ChunkInfoMap) {
                               Return(true)));
     EXPECT_CALL(*mockMetacache_.get(), UpdateApplyIndex(_, _));
 
-    MetaStatusCode status = metaserverCli_.GetOrModifyS3ChunkInfo(
+    MetaStatusCode status = metaserverCli_.GetOrModifyChunkInfo(
         fsId, inodeId, map2add, true, &out);
     ASSERT_EQ(MetaStatusCode::OK, status);
     ASSERT_EQ(out.size(), 1);
@@ -902,12 +902,12 @@ TEST_F(MetaServerClientImplTest, GetOrModifyS3ChunkInfo_ReturnS3ChunkInfoMap) {
         ASSERT_EQ(pair.second.s3chunks_size(), 1);
 
         auto info = pair.second.s3chunks(0);
-        ASSERT_EQ(s3ChunkInfo.chunkid(), info.chunkid());
-        ASSERT_EQ(s3ChunkInfo.compaction(), info.compaction());
-        ASSERT_EQ(s3ChunkInfo.offset(), info.offset());
-        ASSERT_EQ(s3ChunkInfo.len(), info.len());
-        ASSERT_EQ(s3ChunkInfo.size(), info.size());
-        ASSERT_EQ(s3ChunkInfo.zero(), info.zero());
+        ASSERT_EQ(ChunkInfo.chunkid(), info.chunkid());
+        ASSERT_EQ(ChunkInfo.compaction(), info.compaction());
+        ASSERT_EQ(ChunkInfo.offset(), info.offset());
+        ASSERT_EQ(ChunkInfo.len(), info.len());
+        ASSERT_EQ(ChunkInfo.size(), info.size());
+        ASSERT_EQ(ChunkInfo.zero(), info.zero());
     }
 }
 

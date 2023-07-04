@@ -281,24 +281,24 @@ MetaStatusCode Partition::UpdateInode(const UpdateInodeRequest& request) {
     return inodeManager_->UpdateInode(request);
 }
 
-MetaStatusCode Partition::GetOrModifyS3ChunkInfo(
+MetaStatusCode Partition::GetOrModifyChunkInfo(
     uint32_t fsId,
     uint64_t inodeId,
-    const S3ChunkInfoMap& map2add,
-    const S3ChunkInfoMap& map2del,
-    bool returnS3ChunkInfoMap,
+    const ChunkInfoMap& map2add,
+    const ChunkInfoMap& map2del,
+    bool returnChunkInfoMap,
     std::shared_ptr<Iterator>* iterator) {
     PRECHECK(fsId, inodeId);
-    return inodeManager_->GetOrModifyS3ChunkInfo(
-        fsId, inodeId, map2add, map2del, returnS3ChunkInfoMap, iterator);
+    return inodeManager_->GetOrModifyChunkInfo(
+        fsId, inodeId, map2add, map2del, returnChunkInfoMap, iterator);
 }
 
-MetaStatusCode Partition::PaddingInodeS3ChunkInfo(int32_t fsId,
+MetaStatusCode Partition::PaddingInodeChunkInfo(int32_t fsId,
                                                   uint64_t inodeId,
-                                                  S3ChunkInfoMap* m,
+                                                  ChunkInfoMap* m,
                                                   uint64_t limit) {
     PRECHECK(fsId, inodeId);
-    return inodeManager_->PaddingInodeS3ChunkInfo(fsId, inodeId, m, limit);
+    return inodeManager_->PaddingInodeChunkInfo(fsId, inodeId, m, limit);
 }
 
 MetaStatusCode Partition::InsertInode(const Inode& inode) {
@@ -367,8 +367,8 @@ std::shared_ptr<Iterator> Partition::GetAllDentry() {
     return dentryStorage_->GetAll();
 }
 
-std::shared_ptr<Iterator> Partition::GetAllS3ChunkInfoList() {
-    return inodeStorage_->GetAllS3ChunkInfoList();
+std::shared_ptr<Iterator> Partition::GetAllChunkInfoList() {
+    return inodeStorage_->GetAllChunkInfoList();
 }
 
 std::shared_ptr<Iterator> Partition::GetAllVolumeExtentList() {

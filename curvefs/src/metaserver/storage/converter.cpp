@@ -58,7 +58,7 @@ NameGenerator::NameGenerator(uint32_t partitionId)
           Format(kTypeDeallocatableInode, partitionId)),
       tableName4DeallocatableBlockGroup_(
           Format(kTypeDeallocatableBlockGroup, partitionId)),
-      tableName4S3ChunkInfo_(Format(kTypeS3ChunkInfo, partitionId)),
+      tableName4ChunkInfo_(Format(kTypeChunkInfo, partitionId)),
       tableName4Dentry_(Format(kTypeDentry, partitionId)),
       tableName4VolumeExtent_(Format(kTypeVolumeExtent, partitionId)),
       tableName4InodeAuxInfo_(Format(kTypeInodeAuxInfo, partitionId)) {}
@@ -75,8 +75,8 @@ std::string NameGenerator::GetDeallocatableBlockGroupTableName() const {
     return tableName4DeallocatableBlockGroup_;
 }
 
-std::string NameGenerator::GetS3ChunkInfoTableName() const {
-    return tableName4S3ChunkInfo_;
+std::string NameGenerator::GetChunkInfoTableName() const {
+    return tableName4ChunkInfo_;
 }
 
 std::string NameGenerator::GetDentryTableName() const {
@@ -139,10 +139,10 @@ bool Prefix4AllInode::ParseFromString(const std::string& value) {
     return items.size() == 1 && CompareType(items[0], keyType_);
 }
 
-const size_t Key4S3ChunkInfoList::kMaxUint64Length_ =
+const size_t Key4ChunkInfoList::kMaxUint64Length_ =
     std::to_string(std::numeric_limits<uint64_t>::max()).size();
 
-Key4S3ChunkInfoList::Key4S3ChunkInfoList()
+Key4ChunkInfoList::Key4ChunkInfoList()
     : fsId(0),
       inodeId(0),
       chunkIndex(0),
@@ -150,7 +150,7 @@ Key4S3ChunkInfoList::Key4S3ChunkInfoList()
       lastChunkId(0),
       size(0) {}
 
-Key4S3ChunkInfoList::Key4S3ChunkInfoList(uint32_t fsId,
+Key4ChunkInfoList::Key4ChunkInfoList(uint32_t fsId,
                                          uint64_t inodeId,
                                          uint64_t chunkIndex,
                                          uint64_t firstChunkId,
@@ -163,13 +163,13 @@ Key4S3ChunkInfoList::Key4S3ChunkInfoList(uint32_t fsId,
       lastChunkId(lastChunkId),
       size(size) {}
 
-std::string Key4S3ChunkInfoList::SerializeToString() const {
+std::string Key4ChunkInfoList::SerializeToString() const {
     return absl::StrCat(keyType_, ":", fsId, ":", inodeId, ":",
         chunkIndex, ":", absl::StrFormat("%020" PRIu64"", firstChunkId), ":",
         absl::StrFormat("%020" PRIu64"", lastChunkId), ":", size);
 }
 
-bool Key4S3ChunkInfoList::ParseFromString(const std::string& value) {
+bool Key4ChunkInfoList::ParseFromString(const std::string& value) {
     std::vector<std::string> items;
     SplitString(value, ":", &items);
     return items.size() == 7 && CompareType(items[0], keyType_) &&
@@ -180,21 +180,21 @@ bool Key4S3ChunkInfoList::ParseFromString(const std::string& value) {
         StringToUll(items[6], &size);
 }
 
-Prefix4ChunkIndexS3ChunkInfoList::Prefix4ChunkIndexS3ChunkInfoList()
+Prefix4ChunkIndexChunkInfoList::Prefix4ChunkIndexChunkInfoList()
     : fsId(0), inodeId(0), chunkIndex(0) {}
 
-Prefix4ChunkIndexS3ChunkInfoList::Prefix4ChunkIndexS3ChunkInfoList(
+Prefix4ChunkIndexChunkInfoList::Prefix4ChunkIndexChunkInfoList(
     uint32_t fsId,
     uint64_t inodeId,
     uint64_t chunkIndex)
     : fsId(fsId), inodeId(inodeId), chunkIndex(chunkIndex) {}
 
-std::string Prefix4ChunkIndexS3ChunkInfoList::SerializeToString() const {
+std::string Prefix4ChunkIndexChunkInfoList::SerializeToString() const {
     return absl::StrCat(keyType_, ":", fsId, ":", inodeId, ":",
         chunkIndex, ":");
 }
 
-bool Prefix4ChunkIndexS3ChunkInfoList::ParseFromString(
+bool Prefix4ChunkIndexChunkInfoList::ParseFromString(
     const std::string& value) {
     std::vector<std::string> items;
     SplitString(value, ":", &items);
@@ -203,29 +203,29 @@ bool Prefix4ChunkIndexS3ChunkInfoList::ParseFromString(
         StringToUll(items[3], &chunkIndex);
 }
 
-Prefix4InodeS3ChunkInfoList::Prefix4InodeS3ChunkInfoList()
+Prefix4InodeChunkInfoList::Prefix4InodeChunkInfoList()
     : fsId(0), inodeId(0) {}
 
-Prefix4InodeS3ChunkInfoList::Prefix4InodeS3ChunkInfoList(uint32_t fsId,
+Prefix4InodeChunkInfoList::Prefix4InodeChunkInfoList(uint32_t fsId,
                                                          uint64_t inodeId)
     : fsId(fsId), inodeId(inodeId) {}
 
-std::string Prefix4InodeS3ChunkInfoList::SerializeToString() const {
+std::string Prefix4InodeChunkInfoList::SerializeToString() const {
     return absl::StrCat(keyType_, ":", fsId, ":", inodeId, ":");
 }
 
-bool Prefix4InodeS3ChunkInfoList::ParseFromString(const std::string& value) {
+bool Prefix4InodeChunkInfoList::ParseFromString(const std::string& value) {
     std::vector<std::string> items;
     SplitString(value, ":", &items);
     return items.size() == 3 && CompareType(items[0], keyType_) &&
         StringToUl(items[1], &fsId) && StringToUll(items[2], &inodeId);
 }
 
-std::string Prefix4AllS3ChunkInfoList::SerializeToString() const {
-    return absl::StrCat(kTypeS3ChunkInfo, ":");
+std::string Prefix4AllChunkInfoList::SerializeToString() const {
+    return absl::StrCat(kTypeChunkInfo, ":");
 }
 
-bool Prefix4AllS3ChunkInfoList::ParseFromString(const std::string& value) {
+bool Prefix4AllChunkInfoList::ParseFromString(const std::string& value) {
     std::vector<std::string> items;
     SplitString(value, ":", &items);
     return items.size() == 1 && CompareType(items[0], keyType_);

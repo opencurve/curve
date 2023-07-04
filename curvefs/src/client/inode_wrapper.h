@@ -42,8 +42,8 @@
 #include "src/common/timeutility.h"
 
 using ::curvefs::metaserver::Inode;
-using ::curvefs::metaserver::S3ChunkInfoList;
-using ::curvefs::metaserver::S3ChunkInfo;
+using ::curvefs::metaserver::ChunkInfoList;
+using ::curvefs::metaserver::ChunkInfo;
 
 namespace curvefs {
 namespace client {
@@ -65,13 +65,13 @@ const uint32_t kOptimalIOBlockSize = 0x10000u;
 using rpcclient::MetaServerClient;
 using rpcclient::MetaServerClientImpl;
 using rpcclient::MetaServerClientDone;
-using metric::S3ChunkInfoMetric;
+using metric::ChunkInfoMetric;
 using common::NlinkChange;
 using curve::common::TimeUtility;
 
 std::ostream &operator<<(std::ostream &os, const struct stat &attr);
-void AppendS3ChunkInfoToMap(uint64_t chunkIndex, const S3ChunkInfo &info,
-    google::protobuf::Map<uint64_t, S3ChunkInfoList> *s3ChunkInfoMap);
+void AppendChunkInfoToMap(uint64_t chunkIndex, const ChunkInfo &info,
+    google::protobuf::Map<uint64_t, ChunkInfoList> *ChunkInfoMap);
 
 extern bvar::Adder<int64_t> g_alive_inode_count;
 
@@ -79,7 +79,7 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
  public:
     InodeWrapper(Inode inode,
                  std::shared_ptr<MetaServerClient> metaClient,
-                 std::shared_ptr<S3ChunkInfoMetric> s3ChunkInfoMetric = nullptr,
+                 std::shared_ptr<ChunkInfoMetric> ChunkInfoMetric = nullptr,
                  int64_t maxDataSize = LONG_MAX,
                  uint32_t refreshDataInterval = UINT_MAX)
         : inode_(std::move(inode)),
@@ -88,17 +88,17 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
           maxDataSize_(maxDataSize),
           refreshDataInterval_(refreshDataInterval),
           lastRefreshTime_(TimeUtility::GetTimeofDaySec()),
-          s3ChunkInfoAddSize_(0),
+          ChunkInfoAddSize_(0),
           metaClient_(std::move(metaClient)),
-          s3ChunkInfoMetric_(std::move(s3ChunkInfoMetric)),
+          ChunkInfoMetric_(std::move(ChunkInfoMetric)),
           dirty_(false),
           time_(TimeUtility::GetTimeofDaySec()) {
-        UpdateS3ChunkInfoMetric(CalS3ChunkInfoSize());
+        UpdateChunkInfoMetric(CalChunkInfoSize());
         g_alive_inode_count << 1;
     }
 
     ~InodeWrapper() {
-        UpdateS3ChunkInfoMetric(-s3ChunkInfoSize_ - s3ChunkInfoAddSize_);
+        UpdateChunkInfoMetric(-ChunkInfoSize_ - ChunkInfoAddSize_);
         g_alive_inode_count << -1;
     }
 
@@ -236,9 +236,9 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
 
     void AsyncFlushAttr(MetaServerClientDone *done, bool internal);
 
-    void FlushS3ChunkInfoAsync();
+    void FlushChunkInfoAsync();
 
-    CURVEFS_ERROR RefreshS3ChunkInfo();
+    CURVEFS_ERROR RefreshChunkInfo();
 
     CURVEFS_ERROR Open();
 
@@ -258,13 +258,13 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         dirty_ = false;
     }
 
-    bool S3ChunkInfoEmpty() {
+    bool ChunkInfoEmpty() {
         curve::common::UniqueLock lg(mtx_);
-        return s3ChunkInfoAdd_.empty();
+        return ChunkInfoAdd_.empty();
     }
 
-    bool S3ChunkInfoEmptyNolock() {
-        return s3ChunkInfoAdd_.empty();
+    bool ChunkInfoEmptyNolock() {
+        return ChunkInfoAdd_.empty();
     }
 
     uint32_t GetNlinkLocked() {
@@ -275,18 +275,18 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         inode_.set_nlink(inode_.nlink() + static_cast<int32_t>(nlink));
     }
 
-    void AppendS3ChunkInfo(uint64_t chunkIndex, const S3ChunkInfo &info) {
+    void AppendChunkInfo(uint64_t chunkIndex, const ChunkInfo &info) {
         curve::common::UniqueLock lg(mtx_);
-        AppendS3ChunkInfoToMap(chunkIndex, info, &s3ChunkInfoAdd_);
-        AppendS3ChunkInfoToMap(chunkIndex, info,
-            inode_.mutable_s3chunkinfomap());
-        s3ChunkInfoAddSize_++;
-        s3ChunkInfoSize_++;
-        UpdateS3ChunkInfoMetric(2);
+        AppendChunkInfoToMap(chunkIndex, info, &ChunkInfoAdd_);
+        AppendChunkInfoToMap(chunkIndex, info,
+            inode_.mutable_ChunkInfomap());
+        ChunkInfoAddSize_++;
+        ChunkInfoSize_++;
+        UpdateChunkInfoMetric(2);
     }
 
-    google::protobuf::Map<uint64_t, S3ChunkInfoList>* GetChunkInfoMap() {
-        return inode_.mutable_s3chunkinfomap();
+    google::protobuf::Map<uint64_t, ChunkInfoList>* GetChunkInfoMap() {
+        return inode_.mutable_ChunkInfomap();
     }
 
     void MarkInodeError() {
@@ -306,16 +306,16 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         return curve::common::UniqueLock(syncingInodeMtx_);
     }
 
-    void LockSyncingS3ChunkInfo() const {
-        syncingS3ChunkInfoMtx_.lock();
+    void LockSyncingChunkInfo() const {
+        syncingChunkInfoMtx_.lock();
     }
 
-    void ReleaseSyncingS3ChunkInfo() const {
-        syncingS3ChunkInfoMtx_.unlock();
+    void ReleaseSyncingChunkInfo() const {
+        syncingChunkInfoMtx_.unlock();
     }
 
-    curve::common::UniqueLock GetSyncingS3ChunkInfoUniqueLock() {
-        return curve::common::UniqueLock(syncingS3ChunkInfoMtx_);
+    curve::common::UniqueLock GetSyncingChunkInfoUniqueLock() {
+        return curve::common::UniqueLock(syncingChunkInfoMtx_);
     }
 
     ExtentCache* GetMutableExtentCache() {
@@ -330,10 +330,10 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
     CURVEFS_ERROR RefreshVolumeExtent();
 
     bool NeedRefreshData() {
-        if (s3ChunkInfoSize_ >= maxDataSize_ &&
+        if (ChunkInfoSize_ >= maxDataSize_ &&
             ::curve::common::TimeUtility::GetTimeofDaySec()
             - lastRefreshTime_ >= refreshDataInterval_) {
-            VLOG(6) << "EliminateLargeS3ChunkInfo size = " << s3ChunkInfoSize_
+            VLOG(6) << "EliminateLargeChunkInfo size = " << ChunkInfoSize_
                     << ", max = " << maxDataSize_
                     << ", inodeId = " << inode_.inodeid();
             return true;
@@ -346,37 +346,37 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
     }
 
  private:
-    CURVEFS_ERROR SyncS3ChunkInfo(bool internal = false);
+    CURVEFS_ERROR SyncChunkInfo(bool internal = false);
 
-    int64_t CalS3ChunkInfoSize() {
+    int64_t CalChunkInfoSize() {
         int64_t size = 0;
-        for (const auto &it : inode_.s3chunkinfomap()) {
+        for (const auto &it : inode_.ChunkInfomap()) {
             size += it.second.s3chunks_size();
         }
-        s3ChunkInfoSize_ = size;
-        return s3ChunkInfoSize_;
+        ChunkInfoSize_ = size;
+        return ChunkInfoSize_;
     }
 
-    void UpdateS3ChunkInfoMetric(int64_t count) {
-        if (nullptr != s3ChunkInfoMetric_) {
-            s3ChunkInfoMetric_->s3ChunkInfoSize << count;
+    void UpdateChunkInfoMetric(int64_t count) {
+        if (nullptr != ChunkInfoMetric_) {
+            ChunkInfoMetric_->ChunkInfoSize << count;
         }
     }
 
-    void ClearS3ChunkInfoAdd() {
-        UpdateS3ChunkInfoMetric(-s3ChunkInfoAddSize_);
-        s3ChunkInfoAdd_.clear();
-        s3ChunkInfoAddSize_ = 0;
+    void ClearChunkInfoAdd() {
+        UpdateChunkInfoMetric(-ChunkInfoAddSize_);
+        ChunkInfoAdd_.clear();
+        ChunkInfoAddSize_ = 0;
     }
 
-    void UpdateMaxS3ChunkInfoSize() {
-        VLOG(6) << "UpdateMaxS3ChunkInfoSize size = " << s3ChunkInfoSize_
+    void UpdateMaxChunkInfoSize() {
+        VLOG(6) << "UpdateMaxChunkInfoSize size = " << ChunkInfoSize_
                 << ", max = " << maxDataSize_
                 << ", inodeId = " << inode_.inodeid();
-        if (s3ChunkInfoSize_ < baseMaxDataSize_) {
+        if (ChunkInfoSize_ < baseMaxDataSize_) {
             maxDataSize_ = baseMaxDataSize_;
         } else {
-            maxDataSize_ = s3ChunkInfoSize_;
+            maxDataSize_ = ChunkInfoSize_;
         }
     }
 
@@ -405,17 +405,17 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
     uint32_t refreshDataInterval_;
     uint64_t lastRefreshTime_;
 
-    google::protobuf::Map<uint64_t, S3ChunkInfoList> s3ChunkInfoAdd_;
-    int64_t s3ChunkInfoAddSize_;
-    int64_t s3ChunkInfoSize_;
+    google::protobuf::Map<uint64_t, ChunkInfoList> ChunkInfoAdd_;
+    int64_t ChunkInfoAddSize_;
+    int64_t ChunkInfoSize_;
 
     std::shared_ptr<MetaServerClient> metaClient_;
-    std::shared_ptr<S3ChunkInfoMetric> s3ChunkInfoMetric_;
+    std::shared_ptr<ChunkInfoMetric> ChunkInfoMetric_;
     bool dirty_;
     mutable ::curve::common::Mutex mtx_;
 
     mutable ::curve::common::Mutex syncingInodeMtx_;
-    mutable ::curve::common::Mutex syncingS3ChunkInfoMtx_;
+    mutable ::curve::common::Mutex syncingChunkInfoMtx_;
 
     mutable ::curve::common::Mutex syncingVolumeExtentsMtx_;
     ExtentCache extentCache_;

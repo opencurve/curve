@@ -139,7 +139,7 @@ TEST_F(MetaOperatorTest, OperatorTypeTest) {
     TEST_OPERATOR_TYPE(BatchGetXAttr);
     TEST_OPERATOR_TYPE(CreateInode);
     TEST_OPERATOR_TYPE(UpdateInode);
-    TEST_OPERATOR_TYPE(GetOrModifyS3ChunkInfo);
+    TEST_OPERATOR_TYPE(GetOrModifyChunkInfo);
     TEST_OPERATOR_TYPE(DeleteInode);
     TEST_OPERATOR_TYPE(CreateRootInode);
     TEST_OPERATOR_TYPE(CreateManageInode);
@@ -198,19 +198,19 @@ TEST_F(MetaOperatorTest, OnApplyErrorTest) {
 
 #undef OPERATOR_ON_APPLY_TEST
 
-    // it's only for GetOrModifyS3ChunkInfo()
+    // it's only for GetOrModifyChunkInfo()
     {
-        EXPECT_CALL(*mockMetaStore, GetOrModifyS3ChunkInfo(_, _, _))
-            .WillOnce(Invoke([&](const GetOrModifyS3ChunkInfoRequest* request,
-                                 GetOrModifyS3ChunkInfoResponse* response,
+        EXPECT_CALL(*mockMetaStore, GetOrModifyChunkInfo(_, _, _))
+            .WillOnce(Invoke([&](const GetOrModifyChunkInfoRequest* request,
+                                 GetOrModifyChunkInfoResponse* response,
                                  std::shared_ptr<Iterator>* iterator) {
             response->set_statuscode(MetaStatusCode::UNKNOWN_ERROR);
             return MetaStatusCode::UNKNOWN_ERROR;
         }));
-        GetOrModifyS3ChunkInfoRequest request;
-        GetOrModifyS3ChunkInfoResponse response;
+        GetOrModifyChunkInfoRequest request;
+        GetOrModifyChunkInfoResponse response;
         FakeClosure closure;
-        auto op = absl::make_unique<GetOrModifyS3ChunkInfoOperator>(
+        auto op = absl::make_unique<GetOrModifyChunkInfoOperator>(
             &node, &cntl, &request, &response, nullptr);
         op->OnApply(1, &closure, TimeUtility::GetTimeofDayUs());
         closure.WaitRunned();
@@ -316,12 +316,12 @@ TEST_F(MetaOperatorTest, OnApplyFromLogErrorTest) {
 
 #undef OPERATOR_ON_APPLY_FROM_LOG_TEST
 
-    // its only for GetOrModifyS3ChunkInfo()
+    // its only for GetOrModifyChunkInfo()
     {
-        EXPECT_CALL(*mockMetaStore, GetOrModifyS3ChunkInfo(_, _, _))
+        EXPECT_CALL(*mockMetaStore, GetOrModifyChunkInfo(_, _, _))
             .WillOnce(Return(MetaStatusCode::UNKNOWN_ERROR));
-        GetOrModifyS3ChunkInfoRequest request;
-        auto op = absl::make_unique<GetOrModifyS3ChunkInfoOperator>(
+        GetOrModifyChunkInfoRequest request;
+        auto op = absl::make_unique<GetOrModifyChunkInfoOperator>(
             &node, &request, false);
         op->OnApplyFromLog(TimeUtility::GetTimeofDayUs());
         op.release();

@@ -51,7 +51,7 @@ using ::curvefs::metaserver::storage::Key4Inode;
 using ::curvefs::metaserver::storage::Converter;
 using ::curvefs::metaserver::storage::NameGenerator;
 
-using S3ChunkInfoMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
+using ChunkInfoMap = google::protobuf::Map<uint64_t, ChunkInfoList>;
 using DeallocatableBlockGroupVec =
     google::protobuf::RepeatedPtrField<DeallocatableBlockGroup>;
 using Transaction = std::shared_ptr<StorageTransaction>;
@@ -121,22 +121,22 @@ class InodeStorage {
 
     MetaStatusCode Clear();
 
-    // s3chunkinfo
-    MetaStatusCode ModifyInodeS3ChunkInfoList(uint32_t fsId,
+    // ChunkInfo
+    MetaStatusCode ModifyInodeChunkInfoList(uint32_t fsId,
                                               uint64_t inodeId,
                                               uint64_t chunkIndex,
-                                              const S3ChunkInfoList* list2add,
-                                              const S3ChunkInfoList* list2del);
+                                              const ChunkInfoList* list2add,
+                                              const ChunkInfoList* list2del);
 
-    MetaStatusCode PaddingInodeS3ChunkInfo(int32_t fsId,
+    MetaStatusCode PaddingInodeChunkInfo(int32_t fsId,
                                            uint64_t inodeId,
-                                           S3ChunkInfoMap* m,
+                                           ChunkInfoMap* m,
                                            uint64_t limit = 0);
 
-    std::shared_ptr<Iterator> GetInodeS3ChunkInfoList(uint32_t fsId,
+    std::shared_ptr<Iterator> GetInodeChunkInfoList(uint32_t fsId,
                                                       uint64_t inodeId);
 
-    std::shared_ptr<Iterator> GetAllS3ChunkInfoList();
+    std::shared_ptr<Iterator> GetAllChunkInfoList();
 
     // volume extent
     std::shared_ptr<Iterator> GetAllVolumeExtentList();
@@ -173,15 +173,15 @@ class InodeStorage {
 
     uint64_t GetInodeS3MetaSize(uint32_t fsId, uint64_t inodeId);
 
-    MetaStatusCode DelS3ChunkInfoList(Transaction txn,
+    MetaStatusCode DelChunkInfoList(Transaction txn,
                                       uint32_t fsId, uint64_t inodeId,
                                       uint64_t chunkIndex,
-                                      const S3ChunkInfoList *list2del);
+                                      const ChunkInfoList *list2del);
 
-    MetaStatusCode AddS3ChunkInfoList(Transaction txn,
+    MetaStatusCode AddChunkInfoList(Transaction txn,
                                       uint32_t fsId, uint64_t inodeId,
                                       uint64_t chunkIndex,
-                                      const S3ChunkInfoList *list2add);
+                                      const ChunkInfoList *list2add);
 
     MetaStatusCode Increase(Transaction txn, uint32_t fsId,
                             const IncreaseDeallocatableBlockGroup &increase,
@@ -200,7 +200,7 @@ class InodeStorage {
     RWLock rwLock_;
     std::shared_ptr<KVStorage> kvStorage_;
     std::string table4Inode_;
-    std::string table4S3ChunkInfo_;
+    std::string table4ChunkInfo_;
     std::string table4VolumeExtent_;
     std::string table4InodeAuxInfo_;
     std::string table4DeallocatableBlockGroup_;

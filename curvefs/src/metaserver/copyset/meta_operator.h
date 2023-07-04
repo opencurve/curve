@@ -343,7 +343,7 @@ class UpdateInodeOperator : public MetaOperator {
     void OnFailed(MetaStatusCode code) override;
 };
 
-class GetOrModifyS3ChunkInfoOperator : public MetaOperator {
+class GetOrModifyChunkInfoOperator : public MetaOperator {
  public:
      using MetaOperator::MetaOperator;
 

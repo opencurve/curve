@@ -252,14 +252,14 @@ TEST_F(ClientS3AdaptorTest, truncate_big_more_chunkId_success) {
         .WillOnce(DoAll(SetArgPointee<2>(chunkId), Return(FSStatusCode::OK)));
     ASSERT_EQ(CURVEFS_ERROR::OK,
               s3ClientAdaptor_->Truncate(inode.get(), 8 * 1024 * 1024));
-    auto s3ChunkInfoMap = inode->GetChunkInfoMap();
-    auto s3chunkInfoListIter = s3ChunkInfoMap->find(0);
-    auto s3ChunkInfo = s3chunkInfoListIter->second.s3chunks(0);
-    ASSERT_EQ(999, s3ChunkInfo.chunkid());
+    auto ChunkInfoMap = inode->GetChunkInfoMap();
+    auto ChunkInfoListIter = ChunkInfoMap->find(0);
+    auto ChunkInfo = ChunkInfoListIter->second.s3chunks(0);
+    ASSERT_EQ(999, ChunkInfo.chunkid());
 
-    auto s3chunkInfoListIter1 = s3ChunkInfoMap->find(1);
-    auto s3ChunkInfo1 = s3chunkInfoListIter1->second.s3chunks(0);
-    ASSERT_EQ(1000, s3ChunkInfo1.chunkid());
+    auto ChunkInfoListIter1 = ChunkInfoMap->find(1);
+    auto ChunkInfo1 = ChunkInfoListIter1->second.s3chunks(0);
+    ASSERT_EQ(1000, ChunkInfo1.chunkid());
 }
 
 TEST_F(ClientS3AdaptorTest, flush_no_file_cache) {

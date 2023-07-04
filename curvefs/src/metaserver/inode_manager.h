@@ -37,7 +37,7 @@
 
 
 using ::curve::common::NameLock;
-using ::curvefs::metaserver::S3ChunkInfoList;
+using ::curvefs::metaserver::ChunkInfoList;
 
 namespace curvefs {
 namespace metaserver {
@@ -79,7 +79,7 @@ class InodeManager {
     MetaStatusCode GetInode(uint32_t fsId,
                             uint64_t inodeId,
                             Inode *inode,
-                            bool paddingS3ChunkInfo = false);
+                            bool paddingChunkInfo = false);
 
     MetaStatusCode GetInodeAttr(uint32_t fsId, uint64_t inodeId,
                                 InodeAttr *attr);
@@ -90,17 +90,17 @@ class InodeManager {
 
     MetaStatusCode UpdateInode(const UpdateInodeRequest& request);
 
-    MetaStatusCode GetOrModifyS3ChunkInfo(
+    MetaStatusCode GetOrModifyChunkInfo(
         uint32_t fsId,
         uint64_t inodeId,
-        const S3ChunkInfoMap& map2add,
-        const S3ChunkInfoMap& map2del,
-        bool returnS3ChunkInfoMap,
+        const ChunkInfoMap& map2add,
+        const ChunkInfoMap& map2del,
+        bool returnChunkInfoMap,
         std::shared_ptr<Iterator>* iterator4InodeS3Meta);
 
-    MetaStatusCode PaddingInodeS3ChunkInfo(int32_t fsId,
+    MetaStatusCode PaddingInodeChunkInfo(int32_t fsId,
                                            uint64_t inodeId,
-                                           S3ChunkInfoMap* m,
+                                           ChunkInfoMap* m,
                                            uint64_t limit = 0);
 
     MetaStatusCode UpdateInodeWhenCreateOrRemoveSubNode(uint32_t fsId,
@@ -129,9 +129,9 @@ class InodeManager {
     void GenerateInodeInternal(uint64_t inodeId, const InodeParam &param,
                                Inode *inode);
 
-    bool AppendS3ChunkInfo(uint32_t fsId,
+    bool AppendChunkInfo(uint32_t fsId,
                            uint64_t inodeId,
-                           S3ChunkInfoMap added);
+                           ChunkInfoMap added);
 
     static std::string GetInodeLockName(uint32_t fsId, uint64_t inodeId) {
         return std::to_string(fsId) + "_" + std::to_string(inodeId);

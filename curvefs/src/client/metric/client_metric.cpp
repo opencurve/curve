@@ -34,7 +34,7 @@ const std::string FSMetric::prefix = "curvefs_client";  // NOLINT
 const std::string IoMetric::prefix = "curvefs_s3";  // NOLINT
 const std::string DiskCacheMetric::prefix = "curvefs_disk_cache";  // NOLINT
 const std::string KVClientMetric::prefix = "curvefs_kvclient";  // NOLINT
-const std::string S3ChunkInfoMetric::prefix = "inode_s3_chunk_info";  // NOLINT
+const std::string ChunkInfoMetric::prefix = "inode_s3_chunk_info";  // NOLINT
 const std::string WarmupManagerS3Metric::prefix = "curvefs_warmup";  // NOLINT
 
 }  // namespace metric

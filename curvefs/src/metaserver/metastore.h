@@ -82,7 +82,7 @@ using ::curvefs::metaserver::copyset::OnSnapshotSaveDoneClosure;
 using ::curvefs::metaserver::storage::Iterator;
 using ::curvefs::common::StreamServer;
 using ::curvefs::common::StreamConnection;
-using S3ChunkInfoMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
+using ChunkInfoMap = google::protobuf::Map<uint64_t, ChunkInfoList>;
 
 using ::curvefs::metaserver::storage::StorageOptions;
 
@@ -100,7 +100,7 @@ using ::curvefs::metaserver::storage::StorageOptions;
 //                     |
 //       (table1     table2         table3)
 //           |          |              |
-//         dentry  s3chunkinfo    volumnextent
+//         dentry  ChunkInfo    volumnextent
 
 class MetaStore {
  public:
@@ -173,12 +173,12 @@ class MetaStore {
     virtual MetaStatusCode UpdateInode(const UpdateInodeRequest* request,
                                        UpdateInodeResponse* response) = 0;
 
-    virtual MetaStatusCode GetOrModifyS3ChunkInfo(
-        const GetOrModifyS3ChunkInfoRequest* request,
-        GetOrModifyS3ChunkInfoResponse* response,
+    virtual MetaStatusCode GetOrModifyChunkInfo(
+        const GetOrModifyChunkInfoRequest* request,
+        GetOrModifyChunkInfoResponse* response,
         std::shared_ptr<Iterator>* iterator) = 0;
 
-    virtual MetaStatusCode SendS3ChunkInfoByStream(
+    virtual MetaStatusCode SendChunkInfoByStream(
         std::shared_ptr<StreamConnection> connection,
         std::shared_ptr<Iterator> iterator) = 0;
 
@@ -265,12 +265,12 @@ class MetaStoreImpl : public MetaStore {
 
     std::shared_ptr<Partition> GetPartition(uint32_t partitionId);
 
-    MetaStatusCode GetOrModifyS3ChunkInfo(
-        const GetOrModifyS3ChunkInfoRequest* request,
-        GetOrModifyS3ChunkInfoResponse* response,
+    MetaStatusCode GetOrModifyChunkInfo(
+        const GetOrModifyChunkInfoRequest* request,
+        GetOrModifyChunkInfoResponse* response,
         std::shared_ptr<Iterator>* iterator) override;
 
-    MetaStatusCode SendS3ChunkInfoByStream(
+    MetaStatusCode SendChunkInfoByStream(
         std::shared_ptr<StreamConnection> connection,
         std::shared_ptr<Iterator> iterator) override;
 
@@ -296,7 +296,7 @@ class MetaStoreImpl : public MetaStore {
     FRIEND_TEST(MetastoreTest, persist_dentry_fail);
     FRIEND_TEST(MetastoreTest, testBatchGetInodeAttr);
     FRIEND_TEST(MetastoreTest, testBatchGetXAttr);
-    FRIEND_TEST(MetastoreTest, GetOrModifyS3ChunkInfo);
+    FRIEND_TEST(MetastoreTest, GetOrModifyChunkInfo);
     FRIEND_TEST(MetastoreTest, GetInodeWithPaddingS3Meta);
     FRIEND_TEST(MetastoreTest, TestUpdateVolumeExtent_PartitionNotFound);
     FRIEND_TEST(MetastoreTest, persist_deleting_partition_success);

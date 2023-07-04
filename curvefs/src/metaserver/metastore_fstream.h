@@ -74,7 +74,7 @@ class MetaStoreFStream {
                        const std::string& key,
                        const std::string& value);
 
-    bool LoadInodeS3ChunkInfoList(uint32_t partitionId,
+    bool LoadInodeChunkInfoList(uint32_t partitionId,
                                   const std::string& key,
                                   const std::string& value);
 
@@ -93,7 +93,7 @@ class MetaStoreFStream {
     std::shared_ptr<Iterator> NewPendingTxIterator(
         std::shared_ptr<Partition> partition);
 
-    std::shared_ptr<Iterator> NewInodeS3ChunkInfoListIterator(
+    std::shared_ptr<Iterator> NewInodeChunkInfoListIterator(
         std::shared_ptr<Partition> partition);
 
     std::shared_ptr<Iterator> NewVolumeExtentListIterator(Partition* partition);

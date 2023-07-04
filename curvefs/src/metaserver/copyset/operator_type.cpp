@@ -60,8 +60,8 @@ const char* OperatorTypeName(OperatorType type) {
             return "DeletePartition";
         case OperatorType::PrepareRenameTx:
             return "PrepareRenameTx";
-        case OperatorType::GetOrModifyS3ChunkInfo:
-            return "GetOrModifyS3ChunkInfo";
+        case OperatorType::GetOrModifyChunkInfo:
+            return "GetOrModifyChunkInfo";
         case OperatorType::GetVolumeExtent:
             return "GetVolumeExtent";
         case OperatorType::UpdateVolumeExtent:

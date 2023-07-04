@@ -46,8 +46,8 @@ using curvefs::metaserver::BatchGetInodeAttrRequest;
 using curvefs::metaserver::BatchGetInodeAttrResponse;
 using curvefs::metaserver::BatchGetXAttrRequest;
 using curvefs::metaserver::BatchGetXAttrResponse;
-using curvefs::metaserver::GetOrModifyS3ChunkInfoRequest;
-using curvefs::metaserver::GetOrModifyS3ChunkInfoResponse;
+using curvefs::metaserver::GetOrModifyChunkInfoRequest;
+using curvefs::metaserver::GetOrModifyChunkInfoResponse;
 
 namespace curvefs {
 namespace client {
@@ -62,7 +62,7 @@ using UpdateInodeExcutor = TaskExecutor;
 using GetInodeExcutor = TaskExecutor;
 using BatchGetInodeAttrExcutor = TaskExecutor;
 using BatchGetXAttrExcutor = TaskExecutor;
-using GetOrModifyS3ChunkInfoExcutor = TaskExecutor;
+using GetOrModifyChunkInfoExcutor = TaskExecutor;
 using UpdateVolumeExtentExecutor = TaskExecutor;
 using GetVolumeExtentExecutor = TaskExecutor;
 using UpdateDeallocatableBlockGroupExcutor = TaskExecutor;
@@ -71,7 +71,7 @@ using ::curvefs::common::LatencyUpdater;
 using ::curvefs::common::StreamConnection;
 using ::curvefs::common::StreamOptions;
 using ::curvefs::metaserver::MetaServerService_Stub;
-using ::curvefs::metaserver::S3ChunkInfo;
+using ::curvefs::metaserver::ChunkInfo;
 
 MetaStatusCode MetaServerClientImpl::Init(
     const ExcutorOpt &excutorOpt, const ExcutorOpt &excutorInternalOpt,
@@ -484,10 +484,10 @@ MetaStatusCode MetaServerClientImpl::GetInode(uint32_t fsId, uint64_t inodeid,
         }
 
         *streaming = response.has_streaming() ? response.streaming() : false;
-        auto &s3chunkinfoMap = response.inode().s3chunkinfomap();
-        for (auto &item : s3chunkinfoMap) {
+        auto &ChunkInfoMap = response.inode().ChunkInfomap();
+        for (auto &item : ChunkInfoMap) {
             VLOG(9) << "inodeInfo, inodeId:" << inodeid
-                    << ",s3chunkinfo item key:" << item.first
+                    << ",ChunkInfo item key:" << item.first
                     << ", value:" << item.second.DebugString();
         }
         return ret;
@@ -882,9 +882,9 @@ void FillInodeAttr(uint32_t fsId, uint64_t inodeId, const InodeAttr &attr,
 #undef SET_REQUEST_FIELD_IF_HAS
 
 void FillDataIndices(DataIndices &&indices, UpdateInodeRequest *request) {
-    if (indices.s3ChunkInfoMap && !indices.s3ChunkInfoMap->empty()) {
-        *request->mutable_s3chunkinfoadd() =
-            std::move(indices.s3ChunkInfoMap.value());
+    if (indices.ChunkInfoMap && !indices.ChunkInfoMap->empty()) {
+        *request->mutable_ChunkInfoadd() =
+            std::move(indices.ChunkInfoMap.value());
     }
 
     if (indices.volumeExtents && indices.volumeExtents->slices_size() > 0) {
@@ -905,12 +905,12 @@ MetaStatusCode MetaServerClientImpl::UpdateInodeAttr(uint32_t fsId,
 
 MetaStatusCode MetaServerClientImpl::UpdateInodeAttrWithOutNlink(
     uint32_t fsId, uint64_t inodeId, const InodeAttr &attr,
-    S3ChunkInfoMap *s3ChunkInfoAdd, bool internal) {
+    ChunkInfoMap *ChunkInfoAdd, bool internal) {
     UpdateInodeRequest request;
     FillInodeAttr(fsId, inodeId, attr, /*nlink=*/false, &request);
-    if (s3ChunkInfoAdd != nullptr) {
+    if (ChunkInfoAdd != nullptr) {
         DataIndices indices;
-        indices.s3ChunkInfoMap = *s3ChunkInfoAdd;
+        indices.ChunkInfoMap = *ChunkInfoAdd;
         FillDataIndices(std::move(indices), &request);
     }
     return UpdateInode(request, internal);
@@ -997,7 +997,7 @@ void MetaServerClientImpl::UpdateInodeWithOutNlinkAsync(
 
 bool MetaServerClientImpl::ParseS3MetaStreamBuffer(butil::IOBuf *buffer,
                                                    uint64_t *chunkIndex,
-                                                   S3ChunkInfoList *list) {
+                                                   ChunkInfoList *list) {
     butil::IOBuf out;
     std::string delim = ":";
     if (buffer->cut_until(&out, delim) != 0) {
@@ -1007,7 +1007,7 @@ bool MetaServerClientImpl::ParseS3MetaStreamBuffer(butil::IOBuf *buffer,
         LOG(ERROR) << "invalid stream buffer: invalid chunkIndex";
         return false;
     } else if (!brpc::ParsePbFromIOBuf(list, *buffer)) {
-        LOG(ERROR) << "invalid stream buffer: invalid s3chunkinfo list";
+        LOG(ERROR) << "invalid stream buffer: invalid ChunkInfo list";
         return false;
     }
 
@@ -1015,14 +1015,14 @@ bool MetaServerClientImpl::ParseS3MetaStreamBuffer(butil::IOBuf *buffer,
 }
 
 bool MetaServerClientImpl::HandleS3MetaStreamBuffer(butil::IOBuf *buffer,
-                                                    S3ChunkInfoMap *out) {
+                                                    ChunkInfoMap *out) {
     uint64_t chunkIndex;
-    S3ChunkInfoList list;
+    ChunkInfoList list;
     if (!ParseS3MetaStreamBuffer(buffer, &chunkIndex, &list)) {
         return false;
     }
 
-    auto merge = [](S3ChunkInfoList *from, S3ChunkInfoList *to) {
+    auto merge = [](ChunkInfoList *from, ChunkInfoList *to) {
         for (int i = 0; i < from->s3chunks_size(); i++) {
             auto chunkinfo = to->add_s3chunks();
             *chunkinfo = std::move(*from->mutable_s3chunks(i));
@@ -1038,31 +1038,31 @@ bool MetaServerClientImpl::HandleS3MetaStreamBuffer(butil::IOBuf *buffer,
     return true;
 }
 
-MetaStatusCode MetaServerClientImpl::GetOrModifyS3ChunkInfo(
+MetaStatusCode MetaServerClientImpl::GetOrModifyChunkInfo(
     uint32_t fsId, uint64_t inodeId,
-    const google::protobuf::Map<uint64_t, S3ChunkInfoList> &s3ChunkInfos,
-    bool returnS3ChunkInfoMap,
-    google::protobuf::Map<uint64_t, S3ChunkInfoList> *out, bool internal) {
+    const google::protobuf::Map<uint64_t, ChunkInfoList> &ChunkInfos,
+    bool returnChunkInfoMap,
+    google::protobuf::Map<uint64_t, ChunkInfoList> *out, bool internal) {
     auto task = RPCTask {
         (void)txId;
         (void)applyIndex;
         (void)taskExecutorDone;
-        metric_.appendS3ChunkInfo.qps.count << 1;
-        LatencyUpdater updater(&metric_.appendS3ChunkInfo.latency);
-        GetOrModifyS3ChunkInfoRequest request;
-        GetOrModifyS3ChunkInfoResponse response;
+        metric_.appendChunkInfo.qps.count << 1;
+        LatencyUpdater updater(&metric_.appendChunkInfo.latency);
+        GetOrModifyChunkInfoRequest request;
+        GetOrModifyChunkInfoResponse response;
         request.set_poolid(poolID);
         request.set_copysetid(copysetID);
         request.set_partitionid(partitionID);
         request.set_fsid(fsId);
         request.set_inodeid(inodeId);
-        request.set_returns3chunkinfomap(returnS3ChunkInfoMap);
-        *(request.mutable_s3chunkinfoadd()) = s3ChunkInfos;
+        request.set_returnChunkInfomap(returnChunkInfoMap);
+        *(request.mutable_ChunkInfoadd()) = ChunkInfos;
         request.set_supportstreaming(true);
 
         curvefs::metaserver::MetaServerService_Stub stub(channel);
 
-        // stream connection for s3chunkinfo list
+        // stream connection for ChunkInfo list
         std::shared_ptr<StreamConnection> connection;
         auto defer = absl::MakeCleanup([&]() {
             if (connection != nullptr) {
@@ -1072,7 +1072,7 @@ MetaStatusCode MetaServerClientImpl::GetOrModifyS3ChunkInfo(
         auto receiveCallback = [&](butil::IOBuf *buffer) {
             return HandleS3MetaStreamBuffer(buffer, out);
         };
-        if (returnS3ChunkInfoMap) {
+        if (returnChunkInfoMap) {
             StreamOptions options(opt_.rpcStreamIdleTimeoutMS);
             connection = streamClient_.Connect(cntl, receiveCallback, options);
             if (nullptr == connection) {
@@ -1081,11 +1081,11 @@ MetaStatusCode MetaServerClientImpl::GetOrModifyS3ChunkInfo(
             }
         }
 
-        stub.GetOrModifyS3ChunkInfo(cntl, &request, &response, nullptr);
+        stub.GetOrModifyChunkInfo(cntl, &request, &response, nullptr);
 
         if (cntl->Failed()) {
-            metric_.appendS3ChunkInfo.eps.count << 1;
-            LOG(WARNING) << "GetOrModifyS3ChunkInfo Failed, errorcode: "
+            metric_.appendChunkInfo.eps.count << 1;
+            LOG(WARNING) << "GetOrModifyChunkInfo Failed, errorcode: "
                          << cntl->ErrorCode()
                          << ", error content: " << cntl->ErrorText()
                          << ", log id: " << cntl->log_id();
@@ -1094,14 +1094,14 @@ MetaStatusCode MetaServerClientImpl::GetOrModifyS3ChunkInfo(
 
         MetaStatusCode ret = response.statuscode();
         if (ret != MetaStatusCode::OK) {
-            LOG(WARNING) << "GetOrModifyS3ChunkInfo, inodeId: " << inodeId
+            LOG(WARNING) << "GetOrModifyChunkInfo, inodeId: " << inodeId
                          << ", fsId: " << fsId << ", errorcode: " << ret
                          << ", errmsg: " << MetaStatusCode_Name(ret);
             return ret;
         } else if (response.has_appliedindex()) {
             metaCache_->UpdateApplyIndex(CopysetGroupID(poolID, copysetID),
                                          response.appliedindex());
-            if (returnS3ChunkInfoMap) {
+            if (returnChunkInfoMap) {
                 CHECK(out != nullptr) << "out ptr should be set.";
                 auto status = connection->WaitAllDataReceived();
                 if (status != StreamStatus::STREAM_OK) {
@@ -1111,21 +1111,21 @@ MetaStatusCode MetaServerClientImpl::GetOrModifyS3ChunkInfo(
                 }
             }
         } else {
-            LOG(WARNING) << "GetOrModifyS3ChunkInfo,  inodeId: " << inodeId
+            LOG(WARNING) << "GetOrModifyChunkInfo,  inodeId: " << inodeId
                          << ", fsId: " << fsId
                          << " ok, but applyIndex or inode not set in response: "
                          << response.DebugString();
             return -1;
         }
-        VLOG(6) << "GetOrModifyS3ChunkInfo done, request: "
+        VLOG(6) << "GetOrModifyChunkInfo done, request: "
                 << request.DebugString()
                 << "response: " << response.DebugString();
         return ret;
     };
 
-    bool streaming = returnS3ChunkInfoMap;
+    bool streaming = returnChunkInfoMap;
     auto taskCtx =
-        std::make_shared<TaskContext>(MetaServerOpType::GetOrModifyS3ChunkInfo,
+        std::make_shared<TaskContext>(MetaServerOpType::GetOrModifyChunkInfo,
                                       task, fsId, inodeId, streaming);
     ExcutorOpt opt;
     if (internal) {
@@ -1133,28 +1133,28 @@ MetaStatusCode MetaServerClientImpl::GetOrModifyS3ChunkInfo(
     } else {
         opt = opt_;
     }
-    GetOrModifyS3ChunkInfoExcutor excutor(opt, metaCache_, channelManager_,
+    GetOrModifyChunkInfoExcutor excutor(opt, metaCache_, channelManager_,
                                           std::move(taskCtx));
     return ConvertToMetaStatusCode(excutor.DoRPCTask());
 }
 
-class GetOrModifyS3ChunkInfoRpcDone : public MetaServerClientRpcDoneBase {
+class GetOrModifyChunkInfoRpcDone : public MetaServerClientRpcDoneBase {
  public:
     using MetaServerClientRpcDoneBase::MetaServerClientRpcDoneBase;
 
     void Run() override;
-    GetOrModifyS3ChunkInfoResponse response;
+    GetOrModifyChunkInfoResponse response;
 };
 
-void GetOrModifyS3ChunkInfoRpcDone::Run() {
-    std::unique_ptr<GetOrModifyS3ChunkInfoRpcDone> self_guard(this);
+void GetOrModifyChunkInfoRpcDone::Run() {
+    std::unique_ptr<GetOrModifyChunkInfoRpcDone> self_guard(this);
     brpc::ClosureGuard done_guard(done_);
     auto taskCtx = done_->GetTaskExcutor()->GetTaskCxt();
     auto &cntl = taskCtx->cntl_;
     auto metaCache = done_->GetTaskExcutor()->GetMetaCache();
     if (cntl.Failed()) {
-        metric_->appendS3ChunkInfo.eps.count << 1;
-        LOG(WARNING) << "GetOrModifyS3ChunkInfo Failed, errorcode: "
+        metric_->appendChunkInfo.eps.count << 1;
+        LOG(WARNING) << "GetOrModifyChunkInfo Failed, errorcode: "
                      << cntl.ErrorCode()
                      << ", error content: " << cntl.ErrorText()
                      << ", log id: " << cntl.log_id();
@@ -1164,7 +1164,7 @@ void GetOrModifyS3ChunkInfoRpcDone::Run() {
 
     MetaStatusCode ret = response.statuscode();
     if (ret != MetaStatusCode::OK) {
-        LOG(WARNING) << "GetOrModifyS3ChunkInfo, inodeId: " << taskCtx->inodeID
+        LOG(WARNING) << "GetOrModifyChunkInfo, inodeId: " << taskCtx->inodeID
                      << ", fsId: " << taskCtx->fsID << ", errorcode: " << ret
                      << ", errmsg: " << MetaStatusCode_Name(ret);
         done_->SetRetCode(ret);
@@ -1173,49 +1173,49 @@ void GetOrModifyS3ChunkInfoRpcDone::Run() {
         metaCache->UpdateApplyIndex(taskCtx->target.groupID,
                                     response.appliedindex());
     } else {
-        LOG(WARNING) << "GetOrModifyS3ChunkInfo,  inodeId: " << taskCtx->inodeID
+        LOG(WARNING) << "GetOrModifyChunkInfo,  inodeId: " << taskCtx->inodeID
                      << ", fsId: " << taskCtx->fsID
                      << "ok, but applyIndex or inode not set in response: "
                      << response.DebugString();
         done_->SetRetCode(-1);
         return;
     }
-    VLOG(6) << "GetOrModifyS3ChunkInfo done, response: "
+    VLOG(6) << "GetOrModifyChunkInfo done, response: "
             << response.DebugString();
     done_->SetRetCode(ret);
     return;
 }
 
-void MetaServerClientImpl::GetOrModifyS3ChunkInfoAsync(
+void MetaServerClientImpl::GetOrModifyChunkInfoAsync(
     uint32_t fsId, uint64_t inodeId,
-    const google::protobuf::Map<uint64_t, S3ChunkInfoList> &s3ChunkInfos,
+    const google::protobuf::Map<uint64_t, ChunkInfoList> &ChunkInfos,
     MetaServerClientDone *done) {
     auto task = AsyncRPCTask {
         (void)txId;
         (void)applyIndex;
-        metric_.appendS3ChunkInfo.qps.count << 1;
+        metric_.appendChunkInfo.qps.count << 1;
 
-        GetOrModifyS3ChunkInfoRequest request;
+        GetOrModifyChunkInfoRequest request;
         request.set_poolid(poolID);
         request.set_copysetid(copysetID);
         request.set_partitionid(partitionID);
         request.set_fsid(fsId);
         request.set_inodeid(inodeId);
-        request.set_returns3chunkinfomap(false);
-        *(request.mutable_s3chunkinfoadd()) = s3ChunkInfos;
+        request.set_returnChunkInfomap(false);
+        *(request.mutable_ChunkInfoadd()) = ChunkInfos;
 
         auto *rpcDone =
-            new GetOrModifyS3ChunkInfoRpcDone(taskExecutorDone, &metric_);
+            new GetOrModifyChunkInfoRpcDone(taskExecutorDone, &metric_);
 
         curvefs::metaserver::MetaServerService_Stub stub(channel);
-        stub.GetOrModifyS3ChunkInfo(cntl, &request, &rpcDone->response,
+        stub.GetOrModifyChunkInfo(cntl, &request, &rpcDone->response,
                                     rpcDone);
         return MetaStatusCode::OK;
     };
 
     auto taskCtx = std::make_shared<TaskContext>(
-        MetaServerOpType::GetOrModifyS3ChunkInfo, task, fsId, inodeId);
-    auto excutor = std::make_shared<GetOrModifyS3ChunkInfoExcutor>(
+        MetaServerOpType::GetOrModifyChunkInfo, task, fsId, inodeId);
+    auto excutor = std::make_shared<GetOrModifyChunkInfoExcutor>(
         opt_, metaCache_, channelManager_, std::move(taskCtx));
     TaskExecutorDone *taskDone = new TaskExecutorDone(excutor, done);
     excutor->DoAsyncRPCTask(taskDone);

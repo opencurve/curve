@@ -223,18 +223,31 @@ message VolumeExtentSliceList {
     repeated VolumeExtentSlice slices = 1;
 }
 
-message S3ChunkInfo {
+message ChunkInfo{
     required uint64 chunkId = 1;
     required uint64 compaction = 2;
     required uint64 offset = 3;  // file offset
     required uint64 len = 4;  // file logic length
     required uint64 size = 5; // file size in object storage
     required bool zero = 6; //
-};
+}
 
-message S3ChunkInfoList {
-    repeated S3ChunkInfo s3Chunks = 1;
-};
+message ChunkInfoList{
+    repeated ChunkInfo chunks = 1;
+}
+
+// message ChunkInfo {
+//     required uint64 chunkId = 1;
+//     required uint64 compaction = 2;
+//     required uint64 offset = 3;  // file offset
+//     required uint64 len = 4;  // file logic length
+//     required uint64 size = 5; // file size in object storage
+//     required bool zero = 6; //
+// };
+
+// message ChunkInfoList {
+//     repeated ChunkInfo s3Chunks = 1;
+// };
 
 // TODO(wanghai): improve inode message
 message Inode {
@@ -255,7 +268,7 @@ message Inode {
     optional string symlink = 15;   // TYPE_SYM_LINK only
     optional uint64 rdev = 16;
     // field 17 is left for compatibility
-    map<uint64, S3ChunkInfoList> s3ChunkInfoMap = 18; // TYPE_S3 only, first is chunk index
+    map<uint64, ChunkInfoList> chunkInfoMap = 18; // TYPE_S3 only, first is chunk index
     optional uint32 dtime = 19;
     optional uint32 openmpcount = 20; // openmpcount mount points had the file open
     map<string, bytes> xattr = 21;
@@ -351,12 +364,12 @@ message UpdateInodeRequest {
     optional uint32 gid = 14;
     optional uint32 mode = 15;
     // field 16 is left for compatibility
-    map<uint64, S3ChunkInfoList> s3ChunkInfoMap = 17;
+    map<uint64, ChunkInfoList> chunkInfoMap = 17;
     optional uint32 nlink = 18;
     // field 19 is left for compatibility
     map<string, bytes> xattr = 20;
     repeated uint64 parent = 21;
-    map<uint64, S3ChunkInfoList> s3ChunkInfoAdd = 22;
+    map<uint64, ChunkInfoList> chunkInfoAdd = 22;
     optional VolumeExtentSliceList volumeExtents = 23;
 }
 
@@ -408,24 +421,24 @@ message InodeAuxInfo {
     required uint64 s3MetaSize = 1;
 }
 
-message GetOrModifyS3ChunkInfoRequest {
+message GetOrModifyChunkInfoRequest {
     required uint32 poolId = 1;
     required uint32 copysetId = 2;
     required uint32 partitionId = 3;
     required uint32 fsId = 4;
     required uint64 inodeId = 5;
-    map<uint64, S3ChunkInfoList> s3ChunkInfoAdd = 6;
-    map<uint64, S3ChunkInfoList> s3ChunkInfoRemove = 7;
-    required bool returnS3ChunkInfoMap = 8;
-    optional bool fromS3Compaction = 9;
+    map<uint64, ChunkInfoList> chunkInfoAdd = 6;
+    map<uint64, ChunkInfoList> chunkInfoRemove = 7;
+    required bool returnChunkInfoMap = 8;
+    optional bool fromCompaction = 9;
     // todo: we only need a bit flag to indicate a lot of bool
     optional bool supportStreaming = 10;  // for backward compatibility
 }
 
-message GetOrModifyS3ChunkInfoResponse {
+message GetOrModifyChunkInfoResponse {
     required MetaStatusCode statusCode = 1;
     optional uint64 appliedIndex = 2;
-    map<uint64, S3ChunkInfoList> s3ChunkInfoMap = 3;
+    map<uint64, ChunkInfoList> chunkInfoMap = 3;
 }
 
 message InodeAttr {
@@ -537,7 +550,7 @@ service MetaServerService {
     rpc CreateRootInode(CreateRootInodeRequest) returns
                                             (CreateRootInodeResponse);
     rpc CreateManageInode(CreateManageInodeRequest) returns (CreateManageInodeResponse);
-    rpc GetOrModifyS3ChunkInfo(GetOrModifyS3ChunkInfoRequest) returns (GetOrModifyS3ChunkInfoResponse);
+    rpc GetOrModifyChunkInfo(GetOrModifyChunkInfoRequest) returns (GetOrModifyChunkInfoResponse);
     rpc BatchGetInodeAttr(BatchGetInodeAttrRequest) returns (BatchGetInodeAttrResponse);
     rpc BatchGetXAttr(BatchGetXAttrRequest) returns (BatchGetXAttrResponse);
 

@@ -46,7 +46,7 @@ using ::curve::common::RWLock;
 using ::curve::common::StringStartWith;
 using ::curvefs::metaserver::Inode;
 using ::curvefs::metaserver::Dentry;
-using ::curvefs::metaserver::S3ChunkInfoList;
+using ::curvefs::metaserver::ChunkInfoList;
 using ::curvefs::metaserver::VolumeExtentSlice;
 using STORAGE_TYPE = KVStorage::STORAGE_TYPE;
 

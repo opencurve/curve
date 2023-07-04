@@ -216,52 +216,52 @@ TEST_F(S3CompactTest, test_S3AdapterManager) {
 
 TEST_F(S3CompactTest, test_GetNeedCompact) {
     // no need compact
-    ::google::protobuf::Map<uint64_t, S3ChunkInfoList> s3chunkinfoMap;
-    S3ChunkInfoList l1;
+    ::google::protobuf::Map<uint64_t, ChunkInfoList> ChunkInfoMap;
+    ChunkInfoList l1;
     for (int i = 0; i < 10; i++) {
         auto ref = l1.add_s3chunks();
         ref->set_chunkid(i);
         ref->set_offset(i);
         ref->set_len(1);
     }
-    s3chunkinfoMap.insert({0, l1});
-    ASSERT_TRUE(impl_->GetNeedCompact(s3chunkinfoMap, 10, 64).empty());
+    ChunkInfoMap.insert({0, l1});
+    ASSERT_TRUE(impl_->GetNeedCompact(ChunkInfoMap, 10, 64).empty());
     // truncate smaller, part of chunk useless
-    ASSERT_EQ(impl_->GetNeedCompact(s3chunkinfoMap, 9, 64).size(), 1);
+    ASSERT_EQ(impl_->GetNeedCompact(ChunkInfoMap, 9, 64).size(), 1);
 
     // need compact
-    S3ChunkInfoList l2;
+    ChunkInfoList l2;
     for (int i = 0; i < 30; i++) {
         auto ref = l2.add_s3chunks();
         ref->set_chunkid(i);
         ref->set_offset(i + 64);
         ref->set_len(1);
     }
-    s3chunkinfoMap.insert({1, l2});
-    ASSERT_EQ(impl_->GetNeedCompact(s3chunkinfoMap, 64 + 30, 64).size(), 1);
+    ChunkInfoMap.insert({1, l2});
+    ASSERT_EQ(impl_->GetNeedCompact(ChunkInfoMap, 64 + 30, 64).size(), 1);
 
     // truncate smaller, full chunk useless
-    S3ChunkInfoList l3;
+    ChunkInfoList l3;
     auto ref = l2.add_s3chunks();
     ref->set_chunkid(0);
     ref->set_offset(64 * 2);
     ref->set_len(1);
-    s3chunkinfoMap.insert({2, l3});
-    ASSERT_EQ(impl_->GetNeedCompact(s3chunkinfoMap, 64 * 2 + 1, 64).size(), 1);
-    ASSERT_EQ(impl_->GetNeedCompact(s3chunkinfoMap, 64 * 2, 64).size(), 2);
+    ChunkInfoMap.insert({2, l3});
+    ASSERT_EQ(impl_->GetNeedCompact(ChunkInfoMap, 64 * 2 + 1, 64).size(), 1);
+    ASSERT_EQ(impl_->GetNeedCompact(ChunkInfoMap, 64 * 2, 64).size(), 2);
 
     // too much need compact, control size
     for (int j = 3; j < 20; j++) {
-        S3ChunkInfoList l;
+        ChunkInfoList l;
         for (int i = 0; i < 30; i++) {
             auto ref = l.add_s3chunks();
             ref->set_chunkid(i);
             ref->set_offset(i + 64 * j);
             ref->set_len(1);
         }
-        s3chunkinfoMap.insert({static_cast<uint64_t>(j), l});
+        ChunkInfoMap.insert({static_cast<uint64_t>(j), l});
     }
-    ASSERT_EQ(impl_->GetNeedCompact(s3chunkinfoMap, 64 * 19 + 30, 64).size(),
+    ASSERT_EQ(impl_->GetNeedCompact(ChunkInfoMap, 64 * 19 + 30, 64).size(),
               opts_.maxChunksPerCompact);
 }
 
@@ -277,11 +277,11 @@ TEST_F(S3CompactTest, test_BuildValidList) {
     std::list<struct CompactInodeJob::Node> validList;
     uint64_t inodeLen = 100;
     uint64_t chunkSize = 64 * 1024 * 1024;
-    S3ChunkInfo tmpl;
+    ChunkInfo tmpl;
     tmpl.set_compaction(0);
     tmpl.set_zero(false);
 
-    S3ChunkInfoList l;
+    ChunkInfoList l;
 
     // empty add one
     std::cerr << "empty add one" << std::endl;
@@ -555,10 +555,10 @@ TEST_F(S3CompactTest, test_CompactChunks) {
     auto mock_updateinode =
         [&](CopysetNode* copysetNode, const PartitionInfo& pinfo,
             uint64_t inode,
-            ::google::protobuf::Map<uint64_t, S3ChunkInfoList> s3ChunkInfoAdd,
-            ::google::protobuf::Map<uint64_t, S3ChunkInfoList>
-                s3ChunkInfoRemove) {
-            *tmp.mutable_s3chunkinfomap() = s3ChunkInfoAdd;
+            ::google::protobuf::Map<uint64_t, ChunkInfoList> ChunkInfoAdd,
+            ::google::protobuf::Map<uint64_t, ChunkInfoList>
+                ChunkInfoRemove) {
+            *tmp.mutable_ChunkInfomap() = ChunkInfoAdd;
             return MetaStatusCode::OK;
         };
     EXPECT_CALL(*mockImpl_, UpdateInode_rvr(_, _, _, _, _))
@@ -616,8 +616,8 @@ TEST_F(S3CompactTest, test_CompactChunks) {
     };
     // inode not exist
     mockImpl_->CompactChunks(t);
-    // s3chunkinfomap size 0
-    std::cerr << "s3chunkinfomap size 0" << std::endl;
+    // ChunkInfomap size 0
+    std::cerr << "ChunkInfomap size 0" << std::endl;
     Inode inode1;
     inode1.set_fsid(1);
     inode1.set_inodeid(1);
@@ -633,15 +633,15 @@ TEST_F(S3CompactTest, test_CompactChunks) {
     inode1.set_gid(0);
     inode1.set_mode(0);
     inode1.set_type(FsFileType::TYPE_FILE);
-    ::google::protobuf::Map<uint64_t, S3ChunkInfoList> s3chunkinfoMap;
-    *inode1.mutable_s3chunkinfomap() = s3chunkinfoMap;
+    ::google::protobuf::Map<uint64_t, ChunkInfoList> ChunkInfoMap;
+    *inode1.mutable_ChunkInfomap() = ChunkInfoMap;
     ASSERT_EQ(inodeStorage_->Insert(inode1), MetaStatusCode::OK);
     t.inodeKey = Key4Inode(1, 1);
     mockImpl_->CompactChunks(t);
     // normal
     std::cerr << "normal" << std::endl;
-    S3ChunkInfoList l0;
-    S3ChunkInfoList l1;
+    ChunkInfoList l0;
+    ChunkInfoList l1;
     for (int i = 0; i < 16; i++) {
         auto ref = l0.add_s3chunks();
         ref->set_chunkid(i);
@@ -660,21 +660,21 @@ TEST_F(S3CompactTest, test_CompactChunks) {
         ref->set_size(5);
         ref->set_zero(false);
     }
-    auto rc = inodeStorage_->ModifyInodeS3ChunkInfoList(
+    auto rc = inodeStorage_->ModifyInodeChunkInfoList(
         inode1.fsid(), inode1.inodeid(), 0, &l0, nullptr);
     ASSERT_EQ(rc, MetaStatusCode::OK);
     ASSERT_EQ(inodeStorage_->Update(inode1), MetaStatusCode::OK);
     mockImpl_->CompactChunks(t);
-    ASSERT_EQ(tmp.s3chunkinfomap().size(), 1);
-    const auto& l = tmp.s3chunkinfomap().at(0);
+    ASSERT_EQ(tmp.ChunkInfomap().size(), 1);
+    const auto& l = tmp.ChunkInfomap().at(0);
     ASSERT_EQ(l.s3chunks_size(), 1);
-    const auto& s3chunkinfo = l.s3chunks(0);
-    ASSERT_EQ(s3chunkinfo.chunkid(), 21);
-    ASSERT_EQ(s3chunkinfo.compaction(), 1);
-    ASSERT_EQ(s3chunkinfo.offset(), 0);
-    ASSERT_EQ(s3chunkinfo.len(), 60);
-    ASSERT_EQ(s3chunkinfo.size(), 60);
-    ASSERT_EQ(s3chunkinfo.zero(), false);
+    const auto& ChunkInfo = l.s3chunks(0);
+    ASSERT_EQ(ChunkInfo.chunkid(), 21);
+    ASSERT_EQ(ChunkInfo.compaction(), 1);
+    ASSERT_EQ(ChunkInfo.offset(), 0);
+    ASSERT_EQ(ChunkInfo.len(), 60);
+    ASSERT_EQ(ChunkInfo.size(), 60);
+    ASSERT_EQ(ChunkInfo.zero(), false);
     // inode nlink = 0, deleted
     inode1.set_nlink(0);
     ASSERT_EQ(inodeStorage_->Update(inode1), MetaStatusCode::OK);

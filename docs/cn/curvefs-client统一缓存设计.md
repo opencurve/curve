@@ -10,7 +10,7 @@
 - VolumeAdaptor负责volume相关的数据面操作，包括读，写，truncate，flush。
 - HybridAdaptor负责volume和s3混合场景相关数据面操作，包括读，写，truncate，flush。
 - FsCacheManager负责数据cache缓存，并管理一个后台flush线程异步进行数据下刷到S3或者Volume。
-- S3Storage负责对接s3，并更新inode中s3相关的元数据s3ChunkInfo。
+- S3Storage负责对接s3，并更新inode中s3相关的元数据ChunkInfo。
 - VolumeStorage负责对接volume，并更新inode中volume相关的元数据volemeExtent。
 - diskcache负责本地缓存。
 

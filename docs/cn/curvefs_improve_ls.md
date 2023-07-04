@@ -77,7 +77,7 @@ FuseOpGetXattr*2            -> file // security.selinux;system.posix_acl_access
 
 分析得知耗时主要消耗在 **FuseOpLookup*subFileNum** 和 **FuseOpGetXattr*subFileNum** 上，耗时会随着文件数量的增加呈线性增加，特别是对于 CurvrFS 这样的分布式文件系统来说，网络消耗占到了绝大部分。为了优化其性能主要从以下几个方面出发：
 
-- 目前 CurveFS 的 Inode 中保存了除属性信息外还有数据相关的 S3ChunkInfo ，目前的代码实现中在一些只需要 Inode 属性的请求（例如：lookup）中也同样获取了整个 Inode 返回给 client。
+- 目前 CurveFS 的 Inode 中保存了除属性信息外还有数据相关的 ChunkInfo ，目前的代码实现中在一些只需要 Inode 属性的请求（例如：lookup）中也同样获取了整个 Inode 返回给 client。
 - 减少 FuseOpLookup 请求的次数，如果每个子文件都发送一次 RPC 获取属性信息，当文件数量较大时耗时将不可接受。
 - 对应 FuseOpGetXattr 的请求，目前 CurveFS 只有一类 summary xattr，可考虑屏蔽不必要的 FuseOpGetXattr 请求。
 

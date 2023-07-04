@@ -50,7 +50,7 @@ using STORAGE_TYPE = ::curvefs::metaserver::storage::KVStorage::STORAGE_TYPE;
 using ChildrenType =
     ::curvefs::metaserver::storage::MergeIterator::ChildrenType;  // NOLINT
 using DumpFileClosure = ::curvefs::metaserver::storage::DumpFileClosure;
-using Key4S3ChunkInfoList = ::curvefs::metaserver::storage::Key4S3ChunkInfoList;
+using Key4ChunkInfoList = ::curvefs::metaserver::storage::Key4ChunkInfoList;
 
 using ::curvefs::metaserver::storage::Key4VolumeExtentSlice;
 
@@ -175,7 +175,7 @@ bool MetaStoreFStream::LoadPendingTx(uint32_t partitionId,
     return succ;
 }
 
-bool MetaStoreFStream::LoadInodeS3ChunkInfoList(uint32_t partitionId,
+bool MetaStoreFStream::LoadInodeChunkInfoList(uint32_t partitionId,
                                                 const std::string &key,
                                                 const std::string &value) {
     auto partition = GetPartition(partitionId);
@@ -184,24 +184,24 @@ bool MetaStoreFStream::LoadInodeS3ChunkInfoList(uint32_t partitionId,
         return false;
     }
 
-    S3ChunkInfoList list;
-    Key4S3ChunkInfoList key4list;
+    ChunkInfoList list;
+    Key4ChunkInfoList key4list;
     if (!conv_->ParseFromString(key, &key4list)) {
-        LOG(ERROR) << "Decode Key4S3ChunkInfoList failed";
+        LOG(ERROR) << "Decode Key4ChunkInfoList failed";
         return false;
     } else if (!conv_->ParseFromString(value, &list)) {
-        LOG(ERROR) << "Decode S3ChunkInfoList failed";
+        LOG(ERROR) << "Decode ChunkInfoList failed";
         return false;
     }
 
-    S3ChunkInfoMap map2add;
-    S3ChunkInfoMap map2del;
+    ChunkInfoMap map2add;
+    ChunkInfoMap map2del;
     std::shared_ptr<Iterator> iterator;
     map2add.insert({key4list.chunkIndex, list});
-    MetaStatusCode rc = partition->GetOrModifyS3ChunkInfo(
+    MetaStatusCode rc = partition->GetOrModifyChunkInfo(
         key4list.fsId, key4list.inodeId, map2add, map2del, false, &iterator);
     if (rc != MetaStatusCode::OK) {
-        LOG(ERROR) << "GetOrModifyS3ChunkInfo failed, retCode = "
+        LOG(ERROR) << "GetOrModifyChunkInfo failed, retCode = "
                    << MetaStatusCode_Name(rc);
         return false;
     }
@@ -303,10 +303,10 @@ MetaStoreFStream::NewPendingTxIterator(std::shared_ptr<Partition> partition) {
                                              partitionId, iterator);
 }
 
-std::shared_ptr<Iterator> MetaStoreFStream::NewInodeS3ChunkInfoListIterator(
+std::shared_ptr<Iterator> MetaStoreFStream::NewInodeChunkInfoListIterator(
     std::shared_ptr<Partition> partition) {
     auto partitionId = partition->GetPartitionId();
-    auto iterator = partition->GetAllS3ChunkInfoList();
+    auto iterator = partition->GetAllChunkInfoList();
     if (iterator->Status() != 0) {
         return nullptr;
     }
@@ -330,7 +330,7 @@ bool MetaStoreFStream::Load(const std::string &pathname, uint8_t *version) {
     uint64_t totalPartition = 0;
     uint64_t totalInode = 0;
     uint64_t totalDentry = 0;
-    uint64_t totalS3ChunkInfoList = 0;
+    uint64_t totalChunkInfoList = 0;
     uint64_t totalVolumeExtent = 0;
     uint64_t totalPendingTx = 0;
 
@@ -351,8 +351,8 @@ bool MetaStoreFStream::Load(const std::string &pathname, uint8_t *version) {
             ++totalPendingTx;
             return LoadPendingTx(partitionId, key, value);
         case ENTRY_TYPE::S3_CHUNK_INFO_LIST:
-            ++totalS3ChunkInfoList;
-            return LoadInodeS3ChunkInfoList(partitionId, key, value);
+            ++totalChunkInfoList;
+            return LoadInodeChunkInfoList(partitionId, key, value);
         case ENTRY_TYPE::VOLUME_EXTENT:
             ++totalVolumeExtent;
             return LoadVolumeExtentList(partitionId, key, value);
@@ -369,7 +369,7 @@ bool MetaStoreFStream::Load(const std::string &pathname, uint8_t *version) {
     std::ostringstream oss;
     oss << "total partition: " << totalPartition
         << ", total inode: " << totalInode << ", total dentry: " << totalDentry
-        << ", total s3chunkinfolist: " << totalS3ChunkInfoList
+        << ", total ChunkInfolist: " << totalChunkInfoList
         << ", total volumeextent: " << totalVolumeExtent
         << ", total pendingtx: " << totalPendingTx;
 

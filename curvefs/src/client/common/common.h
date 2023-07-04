@@ -56,7 +56,7 @@ enum class MetaServerOpType {
     UpdateInode,
     CreateInode,
     DeleteInode,
-    GetOrModifyS3ChunkInfo,
+    GetOrModifyChunkInfo,
     GetVolumeExtent,
     UpdateVolumeExtent,
     CreateManageInode,

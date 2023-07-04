@@ -43,17 +43,17 @@ class MockCompactInodeJob : public CompactInodeJob {
 
     MetaStatusCode UpdateInode(
         CopysetNode* copysetNode, const PartitionInfo& pinfo, uint64_t inodeId,
-        ::google::protobuf::Map<uint64_t, S3ChunkInfoList>&& s3ChunkInfoAdd,
-        ::google::protobuf::Map<uint64_t, S3ChunkInfoList>&&
-            s3ChunkInfoRemove) {
-        return UpdateInode_rvr(copysetNode, pinfo, inodeId, s3ChunkInfoAdd,
-                               s3ChunkInfoRemove);
+        ::google::protobuf::Map<uint64_t, ChunkInfoList>&& ChunkInfoAdd,
+        ::google::protobuf::Map<uint64_t, ChunkInfoList>&&
+            ChunkInfoRemove) {
+        return UpdateInode_rvr(copysetNode, pinfo, inodeId, ChunkInfoAdd,
+                               ChunkInfoRemove);
     }
     MOCK_METHOD5(
         UpdateInode_rvr,
         MetaStatusCode(CopysetNode*, const PartitionInfo&, uint64_t,
-                       ::google::protobuf::Map<uint64_t, S3ChunkInfoList>,
-                       ::google::protobuf::Map<uint64_t, S3ChunkInfoList>));
+                       ::google::protobuf::Map<uint64_t, ChunkInfoList>,
+                       ::google::protobuf::Map<uint64_t, ChunkInfoList>));
 };
 
 class MockCopysetNodeWrapper : public CopysetNodeWrapper {

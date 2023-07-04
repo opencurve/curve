@@ -393,16 +393,16 @@ TEST_F(ClientS3IntegrationTest, test_read_one_chunk) {
 
     inode->SetLength(readFileLen);
 
-    auto s3ChunkInfoMap = inode->GetChunkInfoMap();
-    S3ChunkInfoList *s3ChunkInfoList = new S3ChunkInfoList();
-    S3ChunkInfo *s3ChunkInfo = s3ChunkInfoList->add_s3chunks();
-    s3ChunkInfo->set_chunkid(25);
-    s3ChunkInfo->set_compaction(0);
-    s3ChunkInfo->set_offset(0);
-    s3ChunkInfo->set_len(readFileLen);
-    s3ChunkInfo->set_size(readFileLen);
-    s3ChunkInfo->set_zero(false);
-    s3ChunkInfoMap->insert({chunkIndex, *s3ChunkInfoList});
+    auto ChunkInfoMap = inode->GetChunkInfoMap();
+    ChunkInfoList *ChunkInfoList = new ChunkInfoList();
+    ChunkInfo *ChunkInfo = ChunkInfoList->add_s3chunks();
+    ChunkInfo->set_chunkid(25);
+    ChunkInfo->set_compaction(0);
+    ChunkInfo->set_offset(0);
+    ChunkInfo->set_len(readFileLen);
+    ChunkInfo->set_size(readFileLen);
+    ChunkInfo->set_zero(false);
+    ChunkInfoMap->insert({chunkIndex, *ChunkInfoList});
 
     char *buf = new char[len];
     char *tmpbuf = new char[len];
@@ -1177,7 +1177,7 @@ TEST_F(ClientS3IntegrationTest, test_truncate_big1) {
     inode->SetLength(len);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     auto s3InfoListIter = inode->GetChunkInfoMap()->find(chunkIndex);
-    S3ChunkInfo tmp;
+    ChunkInfo tmp;
     ASSERT_NE(s3InfoListIter, inode->GetChunkInfoMap()->end());
     ASSERT_EQ(1, s3InfoListIter->second.s3chunks_size());
     tmp = s3InfoListIter->second.s3chunks(0);
@@ -1224,8 +1224,8 @@ TEST_F(ClientS3IntegrationTest, test_truncate_big2) {
     s3ClientAdaptor_->Truncate(inode.get(), len);
     inode->SetLength(len);
     auto ino = inode->GetInode();
-    auto s3InfoListIter = ino.s3chunkinfomap().find(chunkIndex);
-    ASSERT_NE(s3InfoListIter, ino.s3chunkinfomap().end());
+    auto s3InfoListIter = ino.ChunkInfomap().find(chunkIndex);
+    ASSERT_NE(s3InfoListIter, ino.ChunkInfomap().end());
     ASSERT_EQ(1, s3InfoListIter->second.s3chunks_size());
 
     char *readBuf = new char[len + 1];
@@ -1271,7 +1271,7 @@ TEST_F(ClientS3IntegrationTest, test_truncate_big3) {
     inode->SetLength(len);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     auto s3InfoListIter = inode->GetChunkInfoMap()->find(chunkIndex);
-    S3ChunkInfo tmp;
+    ChunkInfo tmp;
     ASSERT_NE(s3InfoListIter, inode->GetChunkInfoMap()->end());
     ASSERT_EQ(1, s3InfoListIter->second.s3chunks_size());
     tmp = s3InfoListIter->second.s3chunks(0);
@@ -1401,9 +1401,9 @@ TEST_F(ClientS3IntegrationTest, test_flush_first_write) {
     auto ino = inode->GetInode();
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
-    auto s3InfoListIter = ino.s3chunkinfomap().find(chunkIndex);
-    S3ChunkInfo tmp;
-    ASSERT_NE(s3InfoListIter, ino.s3chunkinfomap().end());
+    auto s3InfoListIter = ino.ChunkInfomap().find(chunkIndex);
+    ChunkInfo tmp;
+    ASSERT_NE(s3InfoListIter, ino.ChunkInfomap().end());
     ASSERT_EQ(1, s3InfoListIter->second.s3chunks_size());
     tmp = s3InfoListIter->second.s3chunks(0);
     ASSERT_EQ(len, tmp.len());
@@ -1461,9 +1461,9 @@ TEST_F(ClientS3IntegrationTest, test_flush_overlap_write) {
     auto ino = inode->GetInode();
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
-    auto s3InfoListIter = ino.s3chunkinfomap().find(chunkIndex);
-    S3ChunkInfo tmp;
-    ASSERT_NE(s3InfoListIter, ino.s3chunkinfomap().end());
+    auto s3InfoListIter = ino.ChunkInfomap().find(chunkIndex);
+    ChunkInfo tmp;
+    ASSERT_NE(s3InfoListIter, ino.ChunkInfomap().end());
     ASSERT_EQ(1, s3InfoListIter->second.s3chunks_size());
     tmp = s3InfoListIter->second.s3chunks(0);
     ASSERT_EQ(3 * 1024 * 1024, tmp.len());
@@ -1519,9 +1519,9 @@ TEST_F(ClientS3IntegrationTest, test_flush_overlap_write2) {
     auto ino = inode->GetInode();
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
-    auto s3InfoListIter = ino.s3chunkinfomap().find(chunkIndex);
-    S3ChunkInfo tmp;
-    ASSERT_NE(s3InfoListIter, ino.s3chunkinfomap().end());
+    auto s3InfoListIter = ino.ChunkInfomap().find(chunkIndex);
+    ChunkInfo tmp;
+    ASSERT_NE(s3InfoListIter, ino.ChunkInfomap().end());
     ASSERT_EQ(1, s3InfoListIter->second.s3chunks_size());
     tmp = s3InfoListIter->second.s3chunks(0);
     ASSERT_EQ(1536, tmp.len());
@@ -1574,10 +1574,10 @@ TEST_F(ClientS3IntegrationTest, test_flush_hole_write) {
     auto ino = inode->GetInode();
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
-    auto s3InfoListIter = ino.s3chunkinfomap().find(chunkIndex);
-    S3ChunkInfo tmp;
-    S3ChunkInfoList tmpList;
-    ASSERT_NE(s3InfoListIter, ino.s3chunkinfomap().end());
+    auto s3InfoListIter = ino.ChunkInfomap().find(chunkIndex);
+    ChunkInfo tmp;
+    ChunkInfoList tmpList;
+    ASSERT_NE(s3InfoListIter, ino.ChunkInfomap().end());
     tmpList = s3InfoListIter->second;
     ASSERT_EQ(2, tmpList.s3chunks_size());
     tmp = tmpList.s3chunks(0);
@@ -1630,18 +1630,18 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_more_chunk) {
     auto ino = inode->GetInode();
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
-    ASSERT_EQ(2, ino.s3chunkinfomap_size());
-    auto s3InfoListIter = ino.s3chunkinfomap().find(0);
-    S3ChunkInfo tmp;
-    S3ChunkInfoList tmpList;
-    ASSERT_NE(s3InfoListIter, ino.s3chunkinfomap().end());
+    ASSERT_EQ(2, ino.ChunkInfomap_size());
+    auto s3InfoListIter = ino.ChunkInfomap().find(0);
+    ChunkInfo tmp;
+    ChunkInfoList tmpList;
+    ASSERT_NE(s3InfoListIter, ino.ChunkInfomap().end());
     VLOG(9) << "index: " << s3InfoListIter->first;
     tmpList = s3InfoListIter->second;
     ASSERT_EQ(1, tmpList.s3chunks_size());
     tmp = tmpList.s3chunks(0);
     ASSERT_EQ(4 * 1024 * 1024, tmp.len());
     ASSERT_EQ(0, tmp.offset());
-    s3InfoListIter = ino.s3chunkinfomap().find(1);
+    s3InfoListIter = ino.ChunkInfomap().find(1);
     tmpList = s3InfoListIter->second;
     tmp = tmpList.s3chunks(0);
     ASSERT_EQ(1 * 1024 * 1024, tmp.len());
@@ -1707,11 +1707,11 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read1) {
     inode->SetLength(len1);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
-    ASSERT_EQ(1, ino.s3chunkinfomap_size());
-    auto s3InfoListIter = ino.s3chunkinfomap().begin();
-    S3ChunkInfo tmp;
-    S3ChunkInfoList tmpList;
-    ASSERT_NE(s3InfoListIter, ino.s3chunkinfomap().end());
+    ASSERT_EQ(1, ino.ChunkInfomap_size());
+    auto s3InfoListIter = ino.ChunkInfomap().begin();
+    ChunkInfo tmp;
+    ChunkInfoList tmpList;
+    ASSERT_NE(s3InfoListIter, ino.ChunkInfomap().end());
     tmpList = s3InfoListIter->second;
     ASSERT_EQ(1, tmpList.s3chunks_size());
     tmp = tmpList.s3chunks(0);
@@ -1784,11 +1784,11 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read2) {
     inode->SetLength(len1);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
-    ASSERT_EQ(1, ino.s3chunkinfomap_size());
-    auto s3InfoListIter = ino.s3chunkinfomap().begin();
-    S3ChunkInfo tmp;
-    S3ChunkInfoList tmpList;
-    ASSERT_NE(s3InfoListIter, ino.s3chunkinfomap().end());
+    ASSERT_EQ(1, ino.ChunkInfomap_size());
+    auto s3InfoListIter = ino.ChunkInfomap().begin();
+    ChunkInfo tmp;
+    ChunkInfoList tmpList;
+    ASSERT_NE(s3InfoListIter, ino.ChunkInfomap().end());
     tmpList = s3InfoListIter->second;
     ASSERT_EQ(1, tmpList.s3chunks_size());
     tmp = tmpList.s3chunks(0);
@@ -1866,7 +1866,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read3) {
     inode->SetLength(len1);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
-    ASSERT_EQ(1, ino.s3chunkinfomap_size());
+    ASSERT_EQ(1, ino.ChunkInfomap_size());
 
     offset = 0;
     len = 1 * 1024 * 1024;
@@ -1970,7 +1970,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read4) {
     inode->SetLength(len1);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
-    ASSERT_EQ(1, ino.s3chunkinfomap_size());
+    ASSERT_EQ(1, ino.ChunkInfomap_size());
 
     offset = 1 * 1024 * 1024;
     memset(buf, 'b', len);
@@ -1982,7 +1982,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read4) {
     ret = s3ClientAdaptor_->Flush(inode->GetInodeId());
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
-    ASSERT_EQ(1, ino.s3chunkinfomap_size());
+    ASSERT_EQ(1, ino.ChunkInfomap_size());
 
     s3ClientAdaptor_->ReleaseCache(inode->GetInodeId());
     len = 1 * 1024 * 1024;
@@ -2049,7 +2049,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read5) {
     inode->SetLength(len1);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
-    ASSERT_EQ(1, ino.s3chunkinfomap_size());
+    ASSERT_EQ(1, ino.ChunkInfomap_size());
 
     offset = 0;
     len = 512 * 1024;
@@ -2062,14 +2062,14 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read5) {
     ret = s3ClientAdaptor_->Flush(inode->GetInodeId());
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
-    ASSERT_EQ(1, ino.s3chunkinfomap_size());
+    ASSERT_EQ(1, ino.ChunkInfomap_size());
 
     s3ClientAdaptor_->ReleaseCache(inode->GetInodeId());
     ino = inode->GetInode();
     inode->SetLength(1024 * 1024);
-    auto s3ChunkInfoMap = ino.mutable_s3chunkinfomap();
-    auto s3chunkInfoListIter = s3ChunkInfoMap->find(0);
-    ASSERT_EQ(2, s3chunkInfoListIter->second.s3chunks_size());
+    auto ChunkInfoMap = ino.mutable_ChunkInfomap();
+    auto ChunkInfoListIter = ChunkInfoMap->find(0);
+    ASSERT_EQ(2, ChunkInfoListIter->second.s3chunks_size());
 
     offset = 512 * 1024;
     len = 1;
@@ -2140,7 +2140,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read6) {
     inode->SetLength(offset + len);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
-    ASSERT_EQ(1, ino.s3chunkinfomap_size());
+    ASSERT_EQ(1, ino.ChunkInfomap_size());
 
     offset = 2048;
     len = 512 * 1024;
@@ -2152,14 +2152,14 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read6) {
     ret = s3ClientAdaptor_->Flush(inode->GetInodeId());
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
-    ASSERT_EQ(1, ino.s3chunkinfomap_size());
+    ASSERT_EQ(1, ino.ChunkInfomap_size());
 
     s3ClientAdaptor_->ReleaseCache(inode->GetInodeId());
     ino = inode->GetInode();
     inode->SetLength(1024 * 1024);
-    auto s3ChunkInfoMap = ino.mutable_s3chunkinfomap();
-    auto s3chunkInfoListIter = s3ChunkInfoMap->find(0);
-    ASSERT_EQ(2, s3chunkInfoListIter->second.s3chunks_size());
+    auto ChunkInfoMap = ino.mutable_ChunkInfomap();
+    auto ChunkInfoListIter = ChunkInfoMap->find(0);
+    ASSERT_EQ(2, ChunkInfoListIter->second.s3chunks_size());
 
     offset = 1024;
     len = 1024 * 1024 - 2048;
@@ -2232,7 +2232,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read7) {
     inode->SetLength(offset + len);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
-    ASSERT_EQ(1, ino.s3chunkinfomap_size());
+    ASSERT_EQ(1, ino.ChunkInfomap_size());
 
     offset = 1024;
     len = 512;
@@ -2244,7 +2244,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read7) {
     ret = s3ClientAdaptor_->Flush(inode->GetInodeId());
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
-    ASSERT_EQ(1, ino.s3chunkinfomap_size());
+    ASSERT_EQ(1, ino.ChunkInfomap_size());
 
     offset = 2048;
     len = 512;
@@ -2255,9 +2255,9 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read7) {
     s3ClientAdaptor_->ReleaseCache(inode->GetInodeId());
     ino = inode->GetInode();
     inode->SetLength(1024 * 1024);
-    auto s3ChunkInfoMap = ino.mutable_s3chunkinfomap();
-    auto s3chunkInfoListIter = s3ChunkInfoMap->find(0);
-    ASSERT_EQ(3, s3chunkInfoListIter->second.s3chunks_size());
+    auto ChunkInfoMap = ino.mutable_ChunkInfomap();
+    auto ChunkInfoListIter = ChunkInfoMap->find(0);
+    ASSERT_EQ(3, ChunkInfoListIter->second.s3chunks_size());
 
     offset = 0;
     len = 1024 * 1024;
@@ -2327,7 +2327,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read8) {
 
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
-    ASSERT_EQ(1, ino.s3chunkinfomap_size());
+    ASSERT_EQ(1, ino.ChunkInfomap_size());
 
     len = 524288;
     memset(buf, 'b', len);
@@ -2338,7 +2338,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read8) {
     ret = s3ClientAdaptor_->Flush(inode->GetInodeId());
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
-    ASSERT_EQ(1, ino.s3chunkinfomap_size());
+    ASSERT_EQ(1, ino.ChunkInfomap_size());
 
     len = 1048576;
     memset(buf, 'c', len);
@@ -2348,9 +2348,9 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read8) {
     s3ClientAdaptor_->ReleaseCache(inode->GetInodeId());
     ino = inode->GetInode();
 
-    auto s3ChunkInfoMap = ino.mutable_s3chunkinfomap();
-    auto s3chunkInfoListIter = s3ChunkInfoMap->find(5);
-    ASSERT_EQ(3, s3chunkInfoListIter->second.s3chunks_size());
+    auto ChunkInfoMap = ino.mutable_ChunkInfomap();
+    auto ChunkInfoListIter = ChunkInfoMap->find(5);
+    ASSERT_EQ(3, ChunkInfoListIter->second.s3chunks_size());
 
     offset = 20971520;
     len = 4194304;
@@ -2421,7 +2421,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read9) {
 
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
-    ASSERT_EQ(1, ino.s3chunkinfomap_size());
+    ASSERT_EQ(1, ino.ChunkInfomap_size());
 
     offset = 92405760;
     len = 1024;
@@ -2433,7 +2433,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read9) {
     ret = s3ClientAdaptor_->Flush(inode->GetInodeId());
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
-    ASSERT_EQ(1, ino.s3chunkinfomap_size());
+    ASSERT_EQ(1, ino.ChunkInfomap_size());
 
     offset = 93547520;
     len = 1024;
@@ -2444,9 +2444,9 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read9) {
     s3ClientAdaptor_->ReleaseCache(inode->GetInodeId());
     ino = inode->GetInode();
 
-    auto s3ChunkInfoMap = ino.mutable_s3chunkinfomap();
-    auto s3chunkInfoListIter = s3ChunkInfoMap->find(22);
-    ASSERT_EQ(3, s3chunkInfoListIter->second.s3chunks_size());
+    auto ChunkInfoMap = ino.mutable_ChunkInfomap();
+    auto ChunkInfoListIter = ChunkInfoMap->find(22);
+    ASSERT_EQ(3, ChunkInfoListIter->second.s3chunks_size());
 
     offset = 93210624;
     len = 1024;
@@ -2523,7 +2523,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read10) {
 
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
-    ASSERT_EQ(1, ino.s3chunkinfomap_size());
+    ASSERT_EQ(1, ino.ChunkInfomap_size());
 
     offset = 8818688;
     len = 4096;
@@ -2535,7 +2535,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read10) {
     ret = s3ClientAdaptor_->Flush(inode->GetInodeId());
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
-    ASSERT_EQ(1, ino.s3chunkinfomap_size());
+    ASSERT_EQ(1, ino.ChunkInfomap_size());
 
     offset = 9961472;
     len = 1048576;
@@ -2637,7 +2637,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read11) {
 
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
-    ASSERT_EQ(1, ino.s3chunkinfomap_size());
+    ASSERT_EQ(1, ino.ChunkInfomap_size());
 
     offset = 323584;
     len = 4096;
@@ -2649,7 +2649,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read11) {
     ret = s3ClientAdaptor_->Flush(inode->GetInodeId());
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
-    ASSERT_EQ(1, ino.s3chunkinfomap_size());
+    ASSERT_EQ(1, ino.ChunkInfomap_size());
 
     s3ClientAdaptor_->ReleaseCache(inode->GetInodeId());
     ino = inode->GetInode();
@@ -2721,7 +2721,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read12) {
 
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
-    ASSERT_EQ(1, ino.s3chunkinfomap_size());
+    ASSERT_EQ(1, ino.ChunkInfomap_size());
 
     offset = 323584;
     len = 4096;
@@ -2733,7 +2733,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read12) {
     ret = s3ClientAdaptor_->Flush(inode->GetInodeId());
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
-    ASSERT_EQ(1, ino.s3chunkinfomap_size());
+    ASSERT_EQ(1, ino.ChunkInfomap_size());
 
     s3ClientAdaptor_->ReleaseCache(inode->GetInodeId());
     ino = inode->GetInode();

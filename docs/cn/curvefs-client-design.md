@@ -86,10 +86,10 @@ CurveFS 的元数据IO流，以MkNod为例，包含如下过程：
 - CurveFS client 的write接口会先将数据写入Data Cache中；
 - 当DataCache数据满或者周期性的刷新时候到了的时候，CurveFS client将开始数据的Sync过程；
 - CurveFS client首先会将数据写入S3，（如果有disk cache，会先将数据写入disk cache，稍后再异步将数据写入S3）;
-- 数据写入S3之后，CurveFS client会记录写入S3的数据的元信息，组织成S3ChunkInfo；
+- 数据写入S3之后，CurveFS client会记录写入S3的数据的元信息，组织成ChunkInfo；
 - 如果此时CurveFS client 没有缓存Inode信息，那么将会走前一节流程中的元数据流从metaserver获取Inode；
-- 得到Inode后，CurveFS client会将S3ChunkInfo信息添加到Inode中；
-- 完成本地Inode更新之后，CurveFS client 将会调用AppendS3ChunkInfo RPC接口增量更新metaserver端的Inode信息；
+- 得到Inode后，CurveFS client会将ChunkInfo信息添加到Inode中；
+- 完成本地Inode更新之后，CurveFS client 将会调用AppendChunkInfo RPC接口增量更新metaserver端的Inode信息；
 
 ## 5 异常处理
 CurveFS client 的异常处理，主要指的是对元数据集群的各种异常，进行幂等的请求返回。主要涉及到对元数据集群mds和metaserver的rpc请求的重试，涉及包括如下功能：

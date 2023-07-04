@@ -57,17 +57,17 @@ int S3ClientAdaptorImpl::Delete(const Inode &inode) {
 }
 
 int S3ClientAdaptorImpl::DeleteInodeByDeleteSingleChunk(const Inode &inode) {
-    // const S3ChunkInfoList& s3ChunkInfolist = inode.s3chunkinfolist();
-    auto s3ChunkInfoMap = inode.s3chunkinfomap();
+    // const ChunkInfoList& ChunkInfolist = inode.ChunkInfolist();
+    auto ChunkInfoMap = inode.ChunkInfomap();
     LOG(INFO) << "delete data, inode id: " << inode.inodeid()
               << ", len:" << inode.length();
     int ret = 0;
-    auto iter = s3ChunkInfoMap.begin();
-    for (; iter != s3ChunkInfoMap.end(); iter++) {
-        S3ChunkInfoList &s3ChunkInfolist = iter->second;
-        for (int i = 0; i < s3ChunkInfolist.s3chunks_size(); ++i) {
+    auto iter = ChunkInfoMap.begin();
+    for (; iter != ChunkInfoMap.end(); iter++) {
+        ChunkInfoList &ChunkInfolist = iter->second;
+        for (int i = 0; i < ChunkInfolist.s3chunks_size(); ++i) {
             // traverse chunks to delete blocks
-            S3ChunkInfo chunkInfo = s3ChunkInfolist.s3chunks(i);
+            ChunkInfo chunkInfo = ChunkInfolist.s3chunks(i);
             // delete chunkInfo from client
             uint64_t fsId = inode.fsid();
             uint64_t inodeId = inode.inodeid();
@@ -122,21 +122,21 @@ int S3ClientAdaptorImpl::DeleteChunk(uint64_t fsId, uint64_t inodeId,
 }
 
 int S3ClientAdaptorImpl::DeleteInodeByDeleteBatchChunk(const Inode &inode) {
-    auto s3ChunkInfoMap = inode.s3chunkinfomap();
+    auto ChunkInfoMap = inode.ChunkInfomap();
     LOG(INFO) << "delete data, inode id: " << inode.inodeid()
               << ", len:" << inode.length();
     int returnCode = 0;
-    auto iter = s3ChunkInfoMap.begin();
-    while (iter != s3ChunkInfoMap.end()) {
+    auto iter = ChunkInfoMap.begin();
+    while (iter != ChunkInfoMap.end()) {
         int ret =
-            DeleteS3ChunkInfoList(inode.fsid(), inode.inodeid(), iter->second);
+            DeleteChunkInfoList(inode.fsid(), inode.inodeid(), iter->second);
         if (ret != 0) {
             LOG(ERROR) << "delete chunk failed, ret = " << ret
                        << " , chunk index is " << iter->first;
             returnCode = -1;
             iter++;
         } else {
-            iter = s3ChunkInfoMap.erase(iter);
+            iter = ChunkInfoMap.erase(iter);
         }
     }
     LOG(INFO) << "delete data, inode id: " << inode.inodeid()
@@ -145,11 +145,11 @@ int S3ClientAdaptorImpl::DeleteInodeByDeleteBatchChunk(const Inode &inode) {
     return returnCode;
 }
 
-int S3ClientAdaptorImpl::DeleteS3ChunkInfoList(
-    uint32_t fsId, uint64_t inodeId, const S3ChunkInfoList &s3ChunkInfolist) {
+int S3ClientAdaptorImpl::DeleteChunkInfoList(
+    uint32_t fsId, uint64_t inodeId, const ChunkInfoList &ChunkInfolist) {
     std::list<std::string> objList;
 
-    GenObjNameListForChunkInfoList(fsId, inodeId, s3ChunkInfolist, &objList);
+    GenObjNameListForChunkInfoList(fsId, inodeId, ChunkInfolist, &objList);
 
     while (objList.size() != 0) {
         std::list<std::string> tempObjList;
@@ -159,7 +159,7 @@ int S3ClientAdaptorImpl::DeleteS3ChunkInfoList(
         tempObjList.splice(tempObjList.begin(), objList, begin, end);
         int ret = client_->DeleteBatch(tempObjList);
         if (ret != 0) {
-            LOG(ERROR) << "DeleteS3ChunkInfoList failed, fsId = " << fsId
+            LOG(ERROR) << "DeleteChunkInfoList failed, fsId = " << fsId
                        << ", inodeId =  " << inodeId
                        << ", status code = " << ret;
             return -1;
@@ -170,10 +170,10 @@ int S3ClientAdaptorImpl::DeleteS3ChunkInfoList(
 }
 
 void S3ClientAdaptorImpl::GenObjNameListForChunkInfoList(
-    uint32_t fsId, uint64_t inodeId, const S3ChunkInfoList &s3ChunkInfolist,
+    uint32_t fsId, uint64_t inodeId, const ChunkInfoList &ChunkInfolist,
     std::list<std::string> *objList) {
-    for (int i = 0; i < s3ChunkInfolist.s3chunks_size(); ++i) {
-        S3ChunkInfo chunkInfo = s3ChunkInfolist.s3chunks(i);
+    for (int i = 0; i < ChunkInfolist.s3chunks_size(); ++i) {
+        ChunkInfo chunkInfo = ChunkInfolist.s3chunks(i);
         std::list<std::string> tempObjList;
         GenObjNameListForChunkInfo(fsId, inodeId, chunkInfo, &tempObjList);
 
@@ -183,7 +183,7 @@ void S3ClientAdaptorImpl::GenObjNameListForChunkInfoList(
 }
 
 void S3ClientAdaptorImpl::GenObjNameListForChunkInfo(
-    uint32_t fsId, uint64_t inodeId, const S3ChunkInfo &chunkInfo,
+    uint32_t fsId, uint64_t inodeId, const ChunkInfo &chunkInfo,
     std::list<std::string> *objList) {
     uint64_t chunkId = chunkInfo.chunkid();
     uint64_t compaction = chunkInfo.compaction();

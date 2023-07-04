@@ -78,9 +78,9 @@ class InodeQueryTool : public CurvefsTool {
     InodeS3InfoMapTool inodeS3InfoMapTool_;
     InodeTool inodeTool_;
     std::unordered_map<uint32_t, PartitionInfoList> fsId2PartitionList_;
-    std::unordered_map<InodeBase, S3ChunkInfoList, HashInodeBase,
+    std::unordered_map<InodeBase, ChunkInfoList, HashInodeBase,
                        KeyEuqalInodeBase>
-        inode2S3ChunkInfoList_;
+        inode2ChunkInfoList_;
     std::unordered_map<InodeBase, std::vector<InodeBaseInfo>, HashInodeBase,
                        KeyEuqalInodeBase>
         inode2InodeBaseInfoList_;

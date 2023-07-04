@@ -250,16 +250,16 @@ TEST_F(FileCacheManagerTest, test_read_s3) {
     fileCacheManager_->SetChunkCacheManagerForTest(0, mockChunkCacheManager_);
     Inode inode;
     inode.set_length(len);
-    auto *s3ChunkInfoMap = inode.mutable_s3chunkinfomap();
-    auto *s3ChunkInfoList = new S3ChunkInfoList();
-    auto *s3ChunkInfo = s3ChunkInfoList->add_s3chunks();
-    s3ChunkInfo->set_chunkid(25);
-    s3ChunkInfo->set_compaction(0);
-    s3ChunkInfo->set_offset(offset);
-    s3ChunkInfo->set_len(len);
-    s3ChunkInfo->set_size(len);
-    s3ChunkInfo->set_zero(false);
-    s3ChunkInfoMap->insert({0, *s3ChunkInfoList});
+    auto *ChunkInfoMap = inode.mutable_ChunkInfomap();
+    auto *ChunkInfoList = new ChunkInfoList();
+    auto *ChunkInfo = ChunkInfoList->add_s3chunks();
+    ChunkInfo->set_chunkid(25);
+    ChunkInfo->set_compaction(0);
+    ChunkInfo->set_offset(offset);
+    ChunkInfo->set_len(len);
+    ChunkInfo->set_size(len);
+    ChunkInfo->set_zero(false);
+    ChunkInfoMap->insert({0, *ChunkInfoList});
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, nullptr);
 
     std::vector<ReadRequest> tmpMissRequests;

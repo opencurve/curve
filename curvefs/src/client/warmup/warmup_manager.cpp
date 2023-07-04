@@ -320,25 +320,25 @@ void WarmupManagerS3Impl::FetchDataEnqueue(fuse_ino_t key, fuse_ino_t ino) {
                        << ", inodeid = " << ino;
             return;
         }
-        S3ChunkInfoMapType s3ChunkInfoMap;
+        ChunkInfoMapType ChunkInfoMap;
         {
             ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
-            s3ChunkInfoMap = *inodeWrapper->GetChunkInfoMap();
+            ChunkInfoMap = *inodeWrapper->GetChunkInfoMap();
         }
-        if (s3ChunkInfoMap.empty()) {
+        if (ChunkInfoMap.empty()) {
             return;
         }
-        TravelChunks(key, ino, s3ChunkInfoMap);
+        TravelChunks(key, ino, ChunkInfoMap);
     };
     AddFetchS3objectsTask(key, task);
     VLOG(9) << "FetchDataEnqueue end: key:" << key << " inode: " << ino;
 }
 
 void WarmupManagerS3Impl::TravelChunks(
-    fuse_ino_t key, fuse_ino_t ino, const S3ChunkInfoMapType &s3ChunkInfoMap) {
+    fuse_ino_t key, fuse_ino_t ino, const ChunkInfoMapType &ChunkInfoMap) {
     VLOG(9) << "travel chunk start: " << ino
-            << ", size: " << s3ChunkInfoMap.size();
-    for (auto const &infoIter : s3ChunkInfoMap) {
+            << ", size: " << ChunkInfoMap.size();
+    for (auto const &infoIter : ChunkInfoMap) {
         VLOG(9) << "travel chunk: " << infoIter.first;
         std::list<std::pair<std::string, uint64_t>> prefetchObjs;
         TravelChunk(ino, infoIter.second, &prefetchObjs);
@@ -360,7 +360,7 @@ void WarmupManagerS3Impl::TravelChunks(
 }
 
 void WarmupManagerS3Impl::TravelChunk(fuse_ino_t ino,
-                                      const S3ChunkInfoList &chunkInfo,
+                                      const ChunkInfoList &chunkInfo,
                                       ObjectListType *prefetchObjs) {
     uint64_t blockSize = s3Adaptor_->GetBlockSize();
     uint64_t chunkSize = s3Adaptor_->GetChunkSize();

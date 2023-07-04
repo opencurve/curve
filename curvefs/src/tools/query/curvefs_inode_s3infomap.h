@@ -41,11 +41,11 @@ namespace curvefs {
 namespace tools {
 namespace query {
 
-using curvefs::metaserver::S3ChunkInfoList;
+using curvefs::metaserver::ChunkInfoList;
 
 using HostAndResponseType =
     std::vector<std::pair<std::string,
-                          curvefs::metaserver::GetOrModifyS3ChunkInfoResponse>>;
+                          curvefs::metaserver::GetOrModifyChunkInfoResponse>>;
 
 using InodeBase = curvefs::metaserver::GetInodeRequest;
 
@@ -64,8 +64,8 @@ struct KeyEuqalInodeBase {
 };
 
 class InodeS3InfoMapTool
-    : public CurvefsToolRpc<curvefs::metaserver::GetOrModifyS3ChunkInfoRequest,
-                            curvefs::metaserver::GetOrModifyS3ChunkInfoResponse,
+    : public CurvefsToolRpc<curvefs::metaserver::GetOrModifyChunkInfoRequest,
+                            curvefs::metaserver::GetOrModifyChunkInfoResponse,
                             curvefs::metaserver::MetaServerService_Stub> {
  public:
     explicit InodeS3InfoMapTool(const std::string& cmd = kNoInvokeCmd,
@@ -75,10 +75,10 @@ class InodeS3InfoMapTool
     }
     void PrintHelp() override;
     int Init() override;
-    std::unordered_map<InodeBase, S3ChunkInfoList, HashInodeBase,
+    std::unordered_map<InodeBase, ChunkInfoList, HashInodeBase,
                        KeyEuqalInodeBase>
-    GetInode2S3ChunkInfoList() {
-        return inode2S3ChunkInfoList_;
+    GetInode2ChunkInfoList() {
+        return inode2ChunkInfoList_;
     }
 
  protected:
@@ -86,13 +86,13 @@ class InodeS3InfoMapTool
     bool AfterSendRequestToHost(const std::string& host) override;
     bool CheckRequiredFlagDefault() override;
     void SetReceiveCallback();
-    void UpdateInode2S3ChunkInfoList_(const InodeBase& inode,
-                                      const S3ChunkInfoList&list);
+    void UpdateInode2ChunkInfoList_(const InodeBase& inode,
+                                      const ChunkInfoList&list);
 
  protected:
-    std::unordered_map<InodeBase, S3ChunkInfoList, HashInodeBase,
+    std::unordered_map<InodeBase, ChunkInfoList, HashInodeBase,
                        KeyEuqalInodeBase>
-        inode2S3ChunkInfoList_;
+        inode2ChunkInfoList_;
 };
 
 }  // namespace query

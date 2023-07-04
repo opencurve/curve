@@ -82,37 +82,37 @@ void InitInode(Inode* inode) {
     */
     const uint64_t FileLen = 5 * 1024 * 1024 + 4;
     inode->set_length(FileLen);
-    S3ChunkInfoList* s3ChunkInfoList = new S3ChunkInfoList();
+    ChunkInfoList* ChunkInfoList = new ChunkInfoList();
     // 1. 1_0_0 1_1_0 1_2_0 1_3_0
-    S3ChunkInfo* s3ChunkInfo1 = s3ChunkInfoList->add_s3chunks();
-    s3ChunkInfo1->set_chunkid(1);
-    s3ChunkInfo1->set_compaction(0);
-    s3ChunkInfo1->set_offset(0);
+    ChunkInfo* ChunkInfo1 = ChunkInfoList->add_s3chunks();
+    ChunkInfo1->set_chunkid(1);
+    ChunkInfo1->set_compaction(0);
+    ChunkInfo1->set_offset(0);
     const uint64_t first_len = 3 * 1024 * 1024 + 1;
-    s3ChunkInfo1->set_len(first_len);
-    s3ChunkInfo1->set_size(first_len);
+    ChunkInfo1->set_len(first_len);
+    ChunkInfo1->set_size(first_len);
     // 2. 1_2_1 1_3_1  2_0_1
-    S3ChunkInfo* s3ChunkInfo2 = s3ChunkInfoList->add_s3chunks();
-    s3ChunkInfo2->set_chunkid(1);
-    s3ChunkInfo2->set_compaction(1);
-    s3ChunkInfo2->set_offset(2 * 1024 * 1024 + 2);
-    s3ChunkInfo2->set_len(4 * 1024 * 1024 - 2 * 1024 * 1024 - 2);
-    s3ChunkInfo2->set_size(4 * 1024 * 1024 - 2 * 1024 * 1024 - 2);
-    S3ChunkInfo* s3ChunkInfo3 = s3ChunkInfoList->add_s3chunks();
-    s3ChunkInfo3->set_chunkid(2);
-    s3ChunkInfo3->set_compaction(1);
-    s3ChunkInfo3->set_offset(4 * 1024 * 1024);
-    s3ChunkInfo3->set_len(3);
-    s3ChunkInfo3->set_size(3);
+    ChunkInfo* ChunkInfo2 = ChunkInfoList->add_s3chunks();
+    ChunkInfo2->set_chunkid(1);
+    ChunkInfo2->set_compaction(1);
+    ChunkInfo2->set_offset(2 * 1024 * 1024 + 2);
+    ChunkInfo2->set_len(4 * 1024 * 1024 - 2 * 1024 * 1024 - 2);
+    ChunkInfo2->set_size(4 * 1024 * 1024 - 2 * 1024 * 1024 - 2);
+    ChunkInfo* ChunkInfo3 = ChunkInfoList->add_s3chunks();
+    ChunkInfo3->set_chunkid(2);
+    ChunkInfo3->set_compaction(1);
+    ChunkInfo3->set_offset(4 * 1024 * 1024);
+    ChunkInfo3->set_len(3);
+    ChunkInfo3->set_size(3);
     // 3. 2_0_1 2_1_1
-    S3ChunkInfo* s3ChunkInfo4 = s3ChunkInfoList->add_s3chunks();
-    s3ChunkInfo4->set_chunkid(2);
-    s3ChunkInfo4->set_compaction(1);
-    s3ChunkInfo4->set_offset(4 * 1024 * 1024 + 3);
-    s3ChunkInfo4->set_len(1 * 1024 * 1024 + 1);
-    s3ChunkInfo4->set_size(1 * 1024 * 1024 + 1);
+    ChunkInfo* ChunkInfo4 = ChunkInfoList->add_s3chunks();
+    ChunkInfo4->set_chunkid(2);
+    ChunkInfo4->set_compaction(1);
+    ChunkInfo4->set_offset(4 * 1024 * 1024 + 3);
+    ChunkInfo4->set_len(1 * 1024 * 1024 + 1);
+    ChunkInfo4->set_size(1 * 1024 * 1024 + 1);
 
-    inode->mutable_s3chunkinfomap()->insert({0, *s3ChunkInfoList});
+    inode->mutable_ChunkInfomap()->insert({0, *ChunkInfoList});
 }
 
 // delete chunks
