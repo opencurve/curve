@@ -43,8 +43,6 @@ using curve::fs::FileSystemType;
 const char kRaftVoteTestLogDir[] = "./runlog/RaftVote";
 const char* kFakeMdsAddr = "127.0.0.1:9089";
 
-const uint32_t kOpRequestAlignSize = 4096;
-
 static char* raftVoteParam[3][16] = {
     {
         "chunkserver",

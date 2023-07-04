@@ -138,9 +138,7 @@ class RequestScheduler : public Uncopyable {
      */
     void Process();
 
-    void ProcessAligned(RequestContext* ctx);
-
-    void ProcessUnaligned(RequestContext* ctx);
+    void ProcessOne(RequestContext* ctx);
 
     void WaitValidSession() {
         // lease续约失败的时候需要阻塞IO直到续约成功

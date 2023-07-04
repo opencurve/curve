@@ -43,8 +43,6 @@
 #include "src/chunkserver/datastore/define.h"
 #include "src/chunkserver/datastore/file_pool.h"
 
-#include "src/common/fast_align.h"
-
 namespace curve {
 namespace chunkserver {
 
@@ -361,14 +359,23 @@ class CSChunkFile {
         return lfs_->Sync(fd_);
     }
 
-    inline bool CheckOffsetAndLength(off_t offset, size_t len, size_t align) {
+    inline bool CheckOffsetAndLength(off_t offset, size_t len) {
         // Check if offset+len is out of bounds
         if (offset + len > size_) {
             return false;
         }
 
-        return common::is_aligned(offset, align) &&
-               common::is_aligned(len, align);
+        // Check if the offset is aligned
+        if (offset % pageSize_ != 0) {
+            return false;
+        }
+
+        // Check if len is aligned
+        if (len % pageSize_ != 0) {
+            return false;
+        }
+
+        return true;
     }
 
     uint64_t MayUpdateWriteLimits(uint64_t write_len) {
