@@ -6,11 +6,35 @@ on:
 
 jobs:
     auto-assign:
-        runs-on: ubuntu-latest
+        runs-on: ubuntu-22.04
         steps:
-            - name: 'Auto-assign issue'
+            - name: "Auto-assign issue"
               uses: pozil/auto-assign-issue@v1.10.1
               with:
                   assignees: cw123,ilixiaocui,wuhongsong,Cyber-SiKu,jolly-sy
                   numOfAssignee: 1
                   allowSelfAssign: true
+
+    format_lint:
+        runs-on: ubuntu-22.04
+        steps:
+            - uses: actions/checkout@v3
+            - name: install precedence
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y clang-format-14 clang-tidy-14
+            - name: check-format
+              run: |
+                  git ls-files | grep -E  '\.(cpp|h)$' | xargs clang-format-11 -i
+                  if git diff --quiet; then
+                    echo "Formatting OK!"
+                  else
+                    echo "Formatting not OK!"
+                    echo "------------------"
+                    git --no-pager diff --color
+                    exit 1
+                  fi
+                # refer to https://github.com/facebookresearch/faiss/blob/1c1d5c808f63fb0a93a4ccfa2d9431c2eac8b7bb/.circleci/config.yml
+            # - name: check-tidy
+            #   run: |
+
