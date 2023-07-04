@@ -293,6 +293,20 @@ void InitKVClientManagerOpt(Configuration *conf,
                               &config->getThreadPooln);
 }
 
+void InitVFSOption(Configuration* c, VFSOption* option) {
+    {  // vfs cache option
+        auto o = &option->vfsCacheOption;
+        c->GetValueFatalIfFail("vfs.entryCache.lruSize", &o->entryCacheLruSize);
+        c->GetValueFatalIfFail("vfs.attrCache.lruSize", &o->attrCacheLruSize);
+    }
+    {  // permission option
+        auto o = &option->permissionOption;
+        c->GetValueFatalIfFail("vfs.permission.users", &o->users);
+        c->GetValueFatalIfFail("vfs.permission.groups", &o->groups);
+        c->GetValueFatalIfFail("vfs.permission.umask", &o->umask);  // FIXME: x
+    }
+}
+
 void InitFileSystemOption(Configuration* c, FileSystemOption* option) {
     c->GetValueFatalIfFail("fs.cto", &option->cto);
     c->GetValueFatalIfFail("fs.cto", &FLAGS_enableCto);
@@ -362,6 +376,7 @@ void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption) {
     InitLeaseOpt(conf, &clientOption->leaseOpt);
     InitRefreshDataOpt(conf, &clientOption->refreshDataOption);
     InitKVClientManagerOpt(conf, &clientOption->kvClientManagerOpt);
+    InitVFSOption(conf, &clientOption->vfsOption);
     InitFileSystemOption(conf, &clientOption->fileSystemOption);
 
     conf->GetValueFatalIfFail("fuseClient.listDentryLimit",

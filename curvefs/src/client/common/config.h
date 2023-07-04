@@ -175,6 +175,26 @@ struct RefreshDataOption {
     uint32_t refreshDataIntervalSec = 30;
 };
 
+// { vfs option
+
+struct PermissionOption {
+    std::string users;
+    std::string groups;
+    uint32_t umask;
+    // XXX
+};
+
+struct VFSCacheOption {
+    uint32_t entryCacheLruSize;
+    uint32_t attrCacheLruSize;
+};
+
+struct VFSOption {
+    VFSCacheOption vfsCacheOption;
+    PermissionOption permissionOption;
+};
+// }
+
 // { filesystem option
 struct KernelCacheOption {
     uint32_t entryTimeoutSec;
@@ -240,6 +260,7 @@ struct FuseClientOption {
     LeaseOpt leaseOpt;
     RefreshDataOption refreshDataOption;
     KVClientManagerOpt kvClientManagerOpt;
+    VFSOption vfsOption;
     FileSystemOption fileSystemOption;
 
     uint32_t listDentryLimit;

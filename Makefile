@@ -79,3 +79,6 @@ check:
 
 test:
 	@bash util/test.sh $(stor) $(only)
+
+sdk:
+	@bash util/sdk.sh

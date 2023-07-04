@@ -2,7 +2,7 @@
 .PHONY: download build clean
 
 build: clean download
-	@cd libmemcached-1.1.2 && mkdir build-libmemcached && cd build-libmemcached && cmake .. && make libmemcached -j$$(nproc)
+	@cd libmemcached-1.1.2 && mkdir build-libmemcached && cd build-libmemcached && cmake .. -DBUILD_SHARED_LIBS=OFF && make libmemcached -j$$(nproc)
 	@cp libmemcached-1.1.2/build-libmemcached/include/libmemcached-1.0/configure.h libmemcached-1.1.2/include/libmemcached-1.0
 
 download: clean

@@ -242,6 +242,7 @@ void TaskExecutor::OnSuccess() {}
 void TaskExecutor::OnCopysetNotExist() { RefreshLeader(); }
 
 bool TaskExecutor::OnPartitionNotExist() {
+    LOG(ERROR) << "<<< fsid = " << task_->fsID;
     return metaCache_->ListPartitions(task_->fsID);
 }
 

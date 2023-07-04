@@ -208,7 +208,7 @@ void WarmupManagerS3Impl::LookPath(fuse_ino_t key, std::string file) {
             CURVEFS_ERROR ret =
                 dentryManager_->GetDentry(ino, pathName, &dentry);
             if (ret != CURVEFS_ERROR::OK) {
-                if (ret != CURVEFS_ERROR::NOTEXIST) {
+                if (ret != CURVEFS_ERROR::NOT_EXIST) {
                     LOG(WARNING)
                         << "dentryManager_ get dentry fail, ret = " << ret
                         << ", parent inodeid = " << ino << ", name = " << file;
@@ -237,7 +237,7 @@ void WarmupManagerS3Impl::FetchDentry(fuse_ino_t key, fuse_ino_t ino,
     Dentry dentry;
     CURVEFS_ERROR ret = dentryManager_->GetDentry(ino, file, &dentry);
     if (ret != CURVEFS_ERROR::OK) {
-        if (ret != CURVEFS_ERROR::NOTEXIST) {
+        if (ret != CURVEFS_ERROR::NOT_EXIST) {
             LOG(WARNING) << "dentryManager_ get dentry fail, ret = " << ret
                          << ", parent inodeid = " << ino << ", name = " << file;
         } else {

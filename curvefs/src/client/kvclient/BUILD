@@ -36,4 +36,5 @@ cc_library(
         "//src/common:curve_s3_adapter",
         "@libmemcached",
     ],
+    #linkstatic = True,
 )
