@@ -32,8 +32,8 @@
 #include "absl/strings/str_format.h"
 #include "curvefs/src/client/common/config.h"
 
-#ifndef CURVEFS_SRC_CLIENT_FILESYSTEM_ACCESS_LOG_H_
-#define CURVEFS_SRC_CLIENT_FILESYSTEM_ACCESS_LOG_H_
+#ifndef CURVEFS_SRC_CLIENT_LOGGER_ACCESS_LOG_H_
+#define CURVEFS_SRC_CLIENT_LOGGER_ACCESS_LOG_H_
 
 namespace curvefs {
 namespace client {
@@ -42,7 +42,7 @@ namespace common {
 DECLARE_bool(access_logging);
 
 }
-namespace filesystem {
+namespace logger {
 
 using ::absl::StrFormat;
 using ::curvefs::client::common::FLAGS_access_logging;
@@ -82,8 +82,8 @@ struct AccessLogGuard {
     butil::Timer timer;
 };
 
-}  // namespace filesystem
+}  // namespace logger
 }  // namespace client
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_CLIENT_FILESYSTEM_ACCESS_LOG_H_
+#endif  // CURVEFS_SRC_CLIENT_LOGGER_ACCESS_LOG_H_

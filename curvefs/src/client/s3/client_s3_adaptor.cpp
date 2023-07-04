@@ -49,7 +49,7 @@ S3ClientAdaptorImpl::Init(
         LOG(ERROR) << "chunkSize:" << chunkSize_
                    << " is not integral multiple for the blockSize:"
                    << blockSize_;
-        return CURVEFS_ERROR::INVALIDPARAM;
+        return CURVEFS_ERROR::INVALID_PARAM;
     }
     prefetchBlocks_ = option.prefetchBlocks;
     prefetchExecQueueNum_ = option.prefetchExecQueueNum;

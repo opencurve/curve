@@ -14,14 +14,14 @@
  *  limitations under the License.
  */
 
-
 /*
  * Project: curve
  * Created Date: Thur May 27 2021
  * Author: xuchaojie
  */
-#ifndef CURVEFS_SRC_CLIENT_CURVE_FUSE_OP_H_
-#define CURVEFS_SRC_CLIENT_CURVE_FUSE_OP_H_
+
+#ifndef CURVEFS_SRC_CLIENT_FUSE_FUSE_H_
+#define CURVEFS_SRC_CLIENT_FUSE_FUSE_H_
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,18 +30,14 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <assert.h>
+#include <stddef.h>
+#include <fuse3/fuse_lowlevel.h>
 
-#include "curvefs/src/client/fuse_common.h"
+#define FUSE_USE_VERSION 34
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-int InitLog(const char *confPath, const char *argv0);
-
-int InitFuseClient(const struct MountOption *mountOption);
-
-void UnInitFuseClient();
 
 /**
  * Initialize filesystem
@@ -144,8 +140,9 @@ void FuseOpForget(fuse_req_t req, fuse_ino_t ino, uint64_t nlookup);
  * @param ino the inode number
  * @param fi for future use, currently always NULL
  */
-void FuseOpGetAttr(fuse_req_t req, fuse_ino_t ino,
-         struct fuse_file_info *fi);
+void FuseOpGetAttr(fuse_req_t req,
+                   fuse_ino_t ino,
+                   struct fuse_file_info *fi);
 
 /**
  * Set file attributes
@@ -596,8 +593,11 @@ void FuseOpOpenDir(fuse_req_t req, fuse_ino_t ino,
  * @param off offset to continue reading the directory stream
  * @param fi file information
  */
-void FuseOpReadDir(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
-         struct fuse_file_info *fi);
+void FuseOpReadDir(fuse_req_t req,
+                   fuse_ino_t ino,
+                   size_t size,
+                   off_t off,
+                   struct fuse_file_info *fi);
 
 /**
  * Release an open directory
@@ -615,8 +615,9 @@ void FuseOpReadDir(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
  * @param ino the inode number
  * @param fi file information
  */
-void FuseOpReleaseDir(fuse_req_t req, fuse_ino_t ino,
-            struct fuse_file_info *fi);
+void FuseOpReleaseDir(fuse_req_t req,
+                      fuse_ino_t ino,
+                      struct fuse_file_info *fi);
 
 /**
  * Synchronize directory contents
@@ -1124,4 +1125,4 @@ void FuseOpLseek(fuse_req_t req, fuse_ino_t ino, off_t off, int whence,
 }  // extern "C"
 #endif
 
-#endif  // CURVEFS_SRC_CLIENT_CURVE_FUSE_OP_H_
+#endif  // CURVEFS_SRC_CLIENT_FUSE_FUSE_H_

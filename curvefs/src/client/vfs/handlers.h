@@ -16,44 +16,49 @@
 
 /*
  * Project: Curve
- * Created Date: 2023-03-06
+ * Created Date: 2023-07-04
  * Author: Jingli Chen (Wine93)
  */
 
-#ifndef CURVEFS_SRC_CLIENT_FILESYSTEM_UTILS_H_
-#define CURVEFS_SRC_CLIENT_FILESYSTEM_UTILS_H_
+#ifndef CURVEFS_SRC_CLIENT_VFS_HANDLERS_H_
+#define CURVEFS_SRC_CLIENT_VFS_HANDLERS_H_
 
+#include <cstdint>
+#include <map>
 #include <memory>
 
-#include "curvefs/src/client/filesystem/meta.h"
-#include "curvefs/src/client/filesystem/package.h"
+#include "src/common/concurrent/concurrent.h"
 
 namespace curvefs {
 namespace client {
-namespace filesystem {
+namespace vfs {
 
-// directory
-bool IsDir(const InodeAttr& attr);
+using ::curve::common::Mutex;
+using ::curve::common::LockGuard;
 
-// file which data is stored in s3
-bool IsS3File(const InodeAttr& attr);
+struct FileHandler {
+    Ino ino;
+    size_t offset;
+};
 
-// file which data is stored in volume
-bool IsVolmeFile(const InodeAttr& attr);
+class FileHandlers {
+ public:
+    FileHandlers();
 
-// symbol link
-bool IsSymlink(const InodeAttr& attr);
+    int64_t NextHandler();
 
-struct TimeSpec AttrMtime(const InodeAttr& attr);
+    bool GetHandler(int fd, std::shared_ptr<FileHandler>* handler);
 
-struct TimeSpec AttrCtime(const InodeAttr& attr);
+    void FreeHandler(int fd);
 
-struct TimeSpec InodeMtime(const std::shared_ptr<InodeWrapper> inode);
+ private:
+    Mutex mutex_;
+    uint64_t nextHandler_;
+    std::map<int64_t, Handler> Handlers_;
+};
 
-struct TimeSpec Now();
-
-}  // namespace filesystem
+}  // namespace vfs
 }  // namespace client
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_CLIENT_FILESYSTEM_UTILS_H_
+#endif  // CURVEFS_SRC_CLIENT_VFS_HANDLERS_H_

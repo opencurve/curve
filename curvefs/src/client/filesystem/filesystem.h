@@ -67,25 +67,33 @@ class FileSystem {
     void Destory();
 
     // fuse request
-    CURVEFS_ERROR Lookup(Request req,
-                         Ino parent,
+    CURVEFS_ERROR Lookup(Ino parent,
                          const std::string& name,
                          EntryOut* entryOut);
 
-    CURVEFS_ERROR GetAttr(Request req, Ino ino, AttrOut* attrOut);
+    CURVEFS_ERROR GetAttr(Ino ino, AttrOut* attrOut);
 
-    CURVEFS_ERROR OpenDir(Request req, Ino ino, FileInfo* fi);
+    CURVEFS_ERROR OpenDir(Ino ino, FileInfo* fi);
 
-    CURVEFS_ERROR ReadDir(Request req,
-                          Ino ino,
+    CURVEFS_ERROR ReadDir(Ino ino,
                           FileInfo* fi,
                           std::shared_ptr<DirEntryList>* entries);
 
-    CURVEFS_ERROR ReleaseDir(Request req, Ino ino, FileInfo* fi);
+    CURVEFS_ERROR ReleaseDir(Ino ino, FileInfo* fi);
 
-    CURVEFS_ERROR Open(Request req, Ino ino, FileInfo* fi);
+    CURVEFS_ERROR Open(Ino ino, FileInfo* fi);
 
-    CURVEFS_ERROR Release(Request req, Ino ino);
+    CURVEFS_ERROR Release(Ino ino);
+
+    CURVEFS_ERROR GetXAttr(Ino ino,
+                           const std::string& key,
+                           size_t size,
+                           std::string* value);
+
+    CURVEFS_ERROR SetXAttr(Ino ino,
+                           const std::string& key,
+                           const std::string& value,
+                           int flags);
 
     // fuse reply: we control all replies to vfs layer in same entrance.
     void ReplyError(Request req, CURVEFS_ERROR code);

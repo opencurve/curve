@@ -122,6 +122,26 @@ static void on_throttle_timer(void *arg) {
     fuseClient->InitQosParam();
 }
 
+void EnableSplice(struct fuse_conn_info* conn) {
+    if (!g_fuseClientOption->enableFuseSplice) {
+        LOG(INFO) << "Fuse splice is disabled";
+        return;
+    }
+
+    if (conn->capable & FUSE_CAP_SPLICE_MOVE) {
+        conn->want |= FUSE_CAP_SPLICE_MOVE;
+        LOG(INFO) << "FUSE_CAP_SPLICE_MOVE enabled";
+    }
+    if (conn->capable & FUSE_CAP_SPLICE_READ) {
+        conn->want |= FUSE_CAP_SPLICE_READ;
+        LOG(INFO) << "FUSE_CAP_SPLICE_READ enabled";
+    }
+    if (conn->capable & FUSE_CAP_SPLICE_WRITE) {
+        conn->want |= FUSE_CAP_SPLICE_WRITE;
+        LOG(INFO) << "FUSE_CAP_SPLICE_WRITE enabled";
+    }
+}
+
 CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
     option_ = option;
 
@@ -189,6 +209,7 @@ CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
     return CURVEFS_ERROR::OK;
 }
 
+
 void FuseClient::UnInit() {
     if (warmupManager_ != nullptr) {
         warmupManager_->UnInit();
@@ -217,9 +238,11 @@ void FuseClient::Fini() {
 
 CURVEFS_ERROR FuseClient::FuseOpInit(void *userdata,
                                      struct fuse_conn_info *conn) {
-    (void)userdata;
-    (void)conn;
+    (void) userdata;
+    (void) conn;
     fs_->Run();
+    EnableSplice(conn);
+    LOG(INFO) << "FuseOpInit() success, retCode = " << rc;
     return CURVEFS_ERROR::OK;
 }
 
@@ -266,7 +289,7 @@ CURVEFS_ERROR FuseClient::FuseOpLookup(fuse_req_t req,
                                        const char* name,
                                        EntryOut* entryOut) {
     CURVEFS_ERROR rc = fs_->Lookup(req, parent, name, entryOut);
-    if (rc != CURVEFS_ERROR::OK && rc != CURVEFS_ERROR::NOTEXIST) {
+    if (rc != CURVEFS_ERROR::OK && rc != CURVEFS_ERROR::NOT_EXIST) {
         LOG(ERROR) << "Lookup() failed, retCode = " << rc
                    << ", parent = " << parent << ", name = " << name;
     }
@@ -329,7 +352,7 @@ CURVEFS_ERROR FuseClient::HandleOpenFlags(fuse_req_t req,
             }
             inodeWrapper->GetInodeAttrLocked(&fileOut->attr);
         } else {
-            return CURVEFS_ERROR::NOPERMISSION;
+            return CURVEFS_ERROR::NO_PERMISSION;
         }
     }
     return CURVEFS_ERROR::OK;
@@ -386,19 +409,19 @@ CURVEFS_ERROR FuseClient::MakeNode(
     bool internal,
     std::shared_ptr<InodeWrapper>& inodeWrapper) {
     if (strlen(name) > option_.fileSystemOption.maxNameLength) {
-        return CURVEFS_ERROR::NAMETOOLONG;
+        return CURVEFS_ERROR::NAME_TOO_LONG;
     }
 
     // check if node is recycle or under recycle
     if (!internal && strcmp(name, RECYCLENAME) == 0 && parent == ROOTINODEID) {
         LOG(WARNING) << "Can not make node " << RECYCLENAME
                      << " under root dir.";
-        return CURVEFS_ERROR::NOPERMISSION;
+        return CURVEFS_ERROR::NO_PERMISSION;
     }
 
     if (!internal && parent == RECYCLEINODEID) {
         LOG(WARNING) << "Can not make node under recycle.";
-        return CURVEFS_ERROR::NOPERMISSION;
+        return CURVEFS_ERROR::NO_PERMISSION;
     }
 
     const struct fuse_ctx *ctx = fuse_req_ctx(req);
@@ -583,7 +606,7 @@ CURVEFS_ERROR FuseClient::CreateManageNode(fuse_req_t req,
                                            ManageInodeType manageType,
                                            EntryOut* entryOut) {
     if (strlen(name) > option_.fileSystemOption.maxNameLength) {
-        return CURVEFS_ERROR::NAMETOOLONG;
+        return CURVEFS_ERROR::NAME_TOO_LONG;
     }
 
     InodeParam param;
@@ -672,12 +695,12 @@ CURVEFS_ERROR FuseClient::CreateManageNode(fuse_req_t req,
 
 CURVEFS_ERROR FuseClient::GetOrCreateRecycleDir(fuse_req_t req, Dentry *out) {
     auto ret = dentryManager_->GetDentry(ROOTINODEID, RECYCLENAME, out);
-    if (ret != CURVEFS_ERROR::OK && ret != CURVEFS_ERROR::NOTEXIST) {
+    if (ret != CURVEFS_ERROR::OK && ret != CURVEFS_ERROR::NOT_EXIST) {
         LOG(ERROR) << "dentryManager_ GetDentry fail, ret = " << ret
                    << ", inode = " << ROOTINODEID
                    << ", name = " << RECYCLENAME;
         return ret;
-    } else if (ret == CURVEFS_ERROR::NOTEXIST) {
+    } else if (ret == CURVEFS_ERROR::NOT_EXIST) {
         LOG(INFO) << "recycle dir is not exist, create " << RECYCLENAME
                   << ", parentid = " << ROOTINODEID;
         EntryOut entryOut;
@@ -714,12 +737,12 @@ CURVEFS_ERROR FuseClient::MoveToRecycle(fuse_req_t req, fuse_ino_t ino,
     uint64_t recycleTimeDirIno;
     ret = dentryManager_->GetDentry(RECYCLEINODEID,
                                         recycleTimeDirName.c_str(), &dentry);
-    if (ret != CURVEFS_ERROR::OK && ret != CURVEFS_ERROR::NOTEXIST) {
+    if (ret != CURVEFS_ERROR::OK && ret != CURVEFS_ERROR::NOT_EXIST) {
         LOG(ERROR) << "dentryManager_ GetDentry fail, ret = " << ret
                    << ", inode = " << RECYCLEINODEID
                    << ", name = " << recycleTimeDirName;
         return ret;
-    } else if (ret == CURVEFS_ERROR::NOTEXIST) {
+    } else if (ret == CURVEFS_ERROR::NOT_EXIST) {
         std::shared_ptr<InodeWrapper> inode;
         bool internal = true;
         ret = MakeNode(req, RECYCLEINODEID, recycleTimeDirName.c_str(),
@@ -778,13 +801,13 @@ bool FuseClient::ShouldMoveToRecycle(fuse_ino_t parent) {
 CURVEFS_ERROR FuseClient::RemoveNode(fuse_req_t req, fuse_ino_t parent,
                                      const char *name, FsFileType type) {
     if (strlen(name) > option_.fileSystemOption.maxNameLength) {
-        return CURVEFS_ERROR::NAMETOOLONG;
+        return CURVEFS_ERROR::NAME_TOO_LONG;
     }
 
     // check if node is recycle or recycle time dir
     if ((strcmp(name, RECYCLENAME) == 0 && parent == ROOTINODEID) ||
          parent == RECYCLEINODEID) {
-        return CURVEFS_ERROR::NOPERMISSION;
+        return CURVEFS_ERROR::NO_PERMISSION;
     }
 
     Dentry dentry;
@@ -809,7 +832,7 @@ CURVEFS_ERROR FuseClient::RemoveNode(fuse_req_t req, fuse_ino_t parent,
         }
         if (!dentryList.empty()) {
             LOG(ERROR) << "rmdir not empty";
-            return CURVEFS_ERROR::NOTEMPTY;
+            return CURVEFS_ERROR::NOT_EMPTY;
         }
     }
 
@@ -905,7 +928,7 @@ CURVEFS_ERROR FuseClient::FuseOpRename(fuse_req_t req, fuse_ino_t parent,
     // is only used in linux interface renameat(), not required by posix,
     // we can ignore it now
     if (flags != 0) {
-        return CURVEFS_ERROR::INVALIDPARAM;
+        return CURVEFS_ERROR::INVALID_PARAM;
     }
 
     uint64_t maxNameLength = option_.fileSystemOption.maxNameLength;
@@ -914,7 +937,7 @@ CURVEFS_ERROR FuseClient::FuseOpRename(fuse_req_t req, fuse_ino_t parent,
                      << ", name len = " << strlen(name) << ", new name = "
                      << newname << ", new name len = " << strlen(newname)
                      << ", maxNameLength = " << maxNameLength;
-        return CURVEFS_ERROR::NAMETOOLONG;
+        return CURVEFS_ERROR::NAME_TOO_LONG;
     }
 
     auto renameOp =
@@ -1080,7 +1103,7 @@ CURVEFS_ERROR FuseClient::FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino,
         return ret;
     }
 
-    ret = CURVEFS_ERROR::NODATA;
+    ret = CURVEFS_ERROR::NO_DATA;
     if (value->length() > 0) {
         if ((size == 0 && value->length() <= MAX_XATTR_VALUE_LENGTH) ||
             (size >= value->length() &&
@@ -1187,7 +1210,7 @@ CURVEFS_ERROR FuseClient::FuseOpSymlink(fuse_req_t req,
                                         const char* name,
                                         EntryOut* entryOut) {
     if (strlen(name) > option_.fileSystemOption.maxNameLength) {
-        return CURVEFS_ERROR::NAMETOOLONG;
+        return CURVEFS_ERROR::NAME_TOO_LONG;
     }
     const struct fuse_ctx *ctx = fuse_req_ctx(req);
     InodeParam param;
@@ -1266,7 +1289,7 @@ CURVEFS_ERROR FuseClient::FuseOpLink(fuse_req_t req,
                                      FsFileType type,
                                      EntryOut* entryOut) {
     if (strlen(newname) > option_.fileSystemOption.maxNameLength) {
-        return CURVEFS_ERROR::NAMETOOLONG;
+        return CURVEFS_ERROR::NAME_TOO_LONG;
     }
     std::shared_ptr<InodeWrapper> inodeWrapper;
     CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWrapper);

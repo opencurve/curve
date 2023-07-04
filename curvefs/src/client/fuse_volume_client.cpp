@@ -142,7 +142,7 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpWrite(fuse_req_t req,
         if (!(is_aligned(off, DirectIOAlignment) &&
               is_aligned(size, DirectIOAlignment))) {
             fsMetric_->userWrite.eps.count << 1;
-            return CURVEFS_ERROR::INVALIDPARAM;
+            return CURVEFS_ERROR::INVALID_PARAM;
         }
     }
 
@@ -200,7 +200,7 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpRead(fuse_req_t req,
               is_aligned(size, DirectIOAlignment))) {
             fsMetric_->userRead.eps.count << 1;
 
-            return CURVEFS_ERROR::INVALIDPARAM;
+            return CURVEFS_ERROR::INVALID_PARAM;
         }
     }
 

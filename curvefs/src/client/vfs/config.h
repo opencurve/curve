@@ -16,44 +16,48 @@
 
 /*
  * Project: Curve
- * Created Date: 2023-03-06
+ * Created Date: 2023-07-11
  * Author: Jingli Chen (Wine93)
  */
 
-#ifndef CURVEFS_SRC_CLIENT_FILESYSTEM_UTILS_H_
-#define CURVEFS_SRC_CLIENT_FILESYSTEM_UTILS_H_
+#ifndef CURVEFS_SRC_CLIENT_VFS_CONFIG_H_
+#define CURVEFS_SRC_CLIENT_VFS_CONFIG_H_
 
+#include <map>
+#include <regex>
+#include <string>
 #include <memory>
-
-#include "curvefs/src/client/filesystem/meta.h"
-#include "curvefs/src/client/filesystem/package.h"
 
 namespace curvefs {
 namespace client {
-namespace filesystem {
+namespace vfs {
 
-// directory
-bool IsDir(const InodeAttr& attr);
+constexpr REG_KEY_VALUE = "^";
 
-// file which data is stored in s3
-bool IsS3File(const InodeAttr& attr);
+class Reader {
+ public:
+    virtual bool Read(std::string* bytes) = 0;
+}
 
-// file which data is stored in volume
-bool IsVolmeFile(const InodeAttr& attr);
+class Configure {
+ public:
+    using IterateHandler = std::function<void(const std::string& key,
+                                              const std::string& value)>;
+ public:
+    Configure() = default;
 
-// symbol link
-bool IsSymlink(const InodeAttr& attr);
+    bool ReadConfig(std::shared_ptr<Reader> in);
 
-struct TimeSpec AttrMtime(const InodeAttr& attr);
+    bool Get(const std::string& key, std::string* value);
 
-struct TimeSpec AttrCtime(const InodeAttr& attr);
+    void Iterate(IterateHandler handler);
 
-struct TimeSpec InodeMtime(const std::shared_ptr<InodeWrapper> inode);
+ private:
+    std::map<std::string, std::string> config_;
+};
 
-struct TimeSpec Now();
-
-}  // namespace filesystem
+}  // namespace vfs
 }  // namespace client
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_CLIENT_FILESYSTEM_UTILS_H_
+#endif  // CURVEFS_SRC_CLIENT_VFS_CONFIG_H_
