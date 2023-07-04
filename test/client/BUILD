@@ -79,7 +79,6 @@ cc_test(
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
         "//test/integration/cluster_common:integration_cluster_common",
-        "//test/client/mock:curve_client_mock",
     ],
 )
 
@@ -344,21 +343,6 @@ cc_test(
         "@com_google_googletest//:gtest_main",
         "//test/client/mock:curve_client_mock"
     ],
-)
-
-cc_test(
-    name = "client_splitor_test",
-    srcs = [
-        "splitor_test.cpp"
-    ],
-    copts = COPTS,
-    defines = ["UNIT_TEST", "FIU_ENABLE"],
-    linkopts = ["-lfiu"],
-    deps = [
-        "//include/client:include_client",
-        "//src/client:curve_client",
-        "@com_google_googletest//:gtest",
-    ]
 )
 
 cc_test(

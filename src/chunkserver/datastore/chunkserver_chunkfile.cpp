@@ -30,19 +30,6 @@
 namespace curve {
 namespace chunkserver {
 
-namespace {
-
-bool ValidMinIoAlignment(const char* flagname, uint32_t value) {
-    return common::is_aligned(value, 512);
-}
-
-}  // namespace
-
-DEFINE_uint32(minIoAlignment, 512,
-              "minimum alignment for io request, must align to 512");
-
-DEFINE_validator(minIoAlignment, ValidMinIoAlignment);
-
 ChunkFileMetaPage::ChunkFileMetaPage(const ChunkFileMetaPage& metaPage) {
     version = metaPage.version;
     sn = metaPage.sn;
@@ -299,16 +286,13 @@ CSErrorCode CSChunkFile::Write(SequenceNum sn,
                                size_t length,
                                uint32_t* cost) {
     WriteLockGuard writeGuard(rwLock_);
-    if (!CheckOffsetAndLength(
-            offset, length, isCloneChunk_ ? pageSize_ : FLAGS_minIoAlignment)) {
+    if (!CheckOffsetAndLength(offset, length)) {
         LOG(ERROR) << "Write chunk failed, invalid offset or length."
                    << "ChunkID: " << chunkId_
                    << ", offset: " << offset
                    << ", length: " << length
                    << ", page size: " << pageSize_
-                   << ", chunk size: " << size_
-                   << ", align: "
-                   << (isCloneChunk_ ? pageSize_ : FLAGS_minIoAlignment);
+                   << ", chunk size: " << size_;
         return CSErrorCode::InvalidArgError;
     }
     // Curve will ensure that all previous requests arrive or time out
@@ -439,19 +423,18 @@ CSErrorCode CSChunkFile::Sync() {
 
 CSErrorCode CSChunkFile::Paste(const char * buf, off_t offset, size_t length) {
     WriteLockGuard writeGuard(rwLock_);
-    // If it is not a clone chunk, return success directly
-    if (!isCloneChunk_) {
-        return CSErrorCode::Success;
-    }
-    if (!CheckOffsetAndLength(offset, length, pageSize_)) {
+    if (!CheckOffsetAndLength(offset, length)) {
         LOG(ERROR) << "Paste chunk failed, invalid offset or length."
                    << "ChunkID: " << chunkId_
                    << ", offset: " << offset
                    << ", length: " << length
                    << ", page size: " << pageSize_
-                   << ", chunk size: " << size_
-                   << ", align: " << pageSize_;
+                   << ", chunk size: " << size_;
         return CSErrorCode::InvalidArgError;
+    }
+    // If it is not a clone chunk, return success directly
+    if (!isCloneChunk_) {
+        return CSErrorCode::Success;
     }
 
     // The request above must be pagesize aligned
@@ -496,16 +479,13 @@ CSErrorCode CSChunkFile::Paste(const char * buf, off_t offset, size_t length) {
 
 CSErrorCode CSChunkFile::Read(char * buf, off_t offset, size_t length) {
     ReadLockGuard readGuard(rwLock_);
-    if (!CheckOffsetAndLength(
-            offset, length, isCloneChunk_ ? pageSize_ : FLAGS_minIoAlignment)) {
+    if (!CheckOffsetAndLength(offset, length)) {
         LOG(ERROR) << "Read chunk failed, invalid offset or length."
                    << "ChunkID: " << chunkId_
                    << ", offset: " << offset
                    << ", length: " << length
                    << ", page size: " << pageSize_
-                   << ", chunk size: " << size_
-                   << ", align: "
-                   << (isCloneChunk_ ? pageSize_ : FLAGS_minIoAlignment);
+                   << ", chunk size: " << size_;
         return CSErrorCode::InvalidArgError;
     }
 
@@ -542,14 +522,13 @@ CSErrorCode CSChunkFile::ReadSpecifiedChunk(SequenceNum sn,
                                             off_t offset,
                                             size_t length)  {
     ReadLockGuard readGuard(rwLock_);
-    if (!CheckOffsetAndLength(offset, length, pageSize_)) {
+    if (!CheckOffsetAndLength(offset, length)) {
         LOG(ERROR) << "Read specified chunk failed, invalid offset or length."
                    << "ChunkID: " << chunkId_
                    << ", offset: " << offset
                    << ", length: " << length
                    << ", page size: " << pageSize_
-                   << ", chunk size: " << size_
-                   << ", align: " << pageSize_;
+                   << ", chunk size: " << size_;
         return CSErrorCode::InvalidArgError;
     }
     // If the sequence equals the sequence of the current chunk,

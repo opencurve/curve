@@ -87,7 +87,6 @@ static void Usage() {
         << "  --max_part <limit>      Override for module param max_part\n"
         << "  --timeout <seconds>     Set nbd request timeout\n"
         << "  --try-netlink           Use the nbd netlink interface\n"
-        << "  --block-size            NBD Devices's block size, default is 4096, support 512 and 4096\n"  // NOLINT
         << "  --nebd-conf             LibNebd config file\n"
         << "  --no-exclusive          Map image non exclusive\n"
         << "\n"

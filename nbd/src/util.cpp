@@ -179,17 +179,6 @@ int parse_args(std::vector<const char*>& args, std::ostream *err_msg,   // NOLIN
                 *err_msg << "curve-nbd: Invalid argument for sleep_ms!";
                 return -EINVAL;
             }
-        } else if (argparse_witharg(args, i, &cfg->block_size, err, "--block_size", (char*)(NULL))) {  // NOLINT
-            if (!err.str().empty()) {
-                *err_msg << "curve-nbd: " << err.str();
-                return -EINVAL;
-            }
-
-            if (cfg->block_size != 512 && cfg->block_size != 4096) {
-                *err_msg << "curve-nbd: Invalid block size, only support 512 "
-                            "or 4096";
-                return -EINVAL;
-            }
         } else if (argparse_witharg(args, i, &cfg->nebd_conf, err, "--nebd-conf", (char*)(NULL))) {  // NOLINT
             if (!err.str().empty()) {
                 *err_msg << "curve-nbd: " << err.str();
@@ -345,6 +334,7 @@ int check_size_from_file(const std::string &path, uint64_t expected_size,
 
     uint64_t size = 0;
     ifs >> size;
+    size *= CURVE_NBD_BLKSIZE;
 
     if (size == 0) {
         // Newer kernel versions will report real size only after nbd

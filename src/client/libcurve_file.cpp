@@ -44,8 +44,6 @@
 #include "src/common/curve_version.h"
 #include "src/common/net_common.h"
 #include "src/common/uuid.h"
-#include "src/common/string_util.h"
-#include "src/common/fast_align.h"
 
 #define PORT_LIMIT  65535
 
@@ -63,8 +61,6 @@ namespace client {
 
 using curve::common::ReadLockGuard;
 using curve::common::WriteLockGuard;
-
-uint32_t kMinIOAlignment = 512;
 
 static const int PROCESS_NAME_MAX = 32;
 static char g_processname[PROCESS_NAME_MAX];
@@ -112,11 +108,6 @@ FileClient::FileClient()
       csBroadCaster_(std::make_shared<ChunkServerBroadCaster>(csClient_)),
       inited_(false),
       openedFileNum_("open_file_num_" + common::ToHexString(this)) {}
-
-bool FileClient::CheckAligned(off_t offset, size_t length) const {
-    return common::is_aligned(offset, kMinIOAlignment) &&
-           common::is_aligned(length, kMinIOAlignment);
-}
 
 int FileClient::Init(const std::string& configpath) {
     if (inited_) {
