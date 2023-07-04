@@ -88,5 +88,12 @@ test:
 
 docker:
 	@bash util/docker.sh --os=$(os) --ci=$(ci)
+
 format:
 	@bash util/format.sh $(commit_id)
+
+sdk:
+	@bash util/sdk.sh
+
+init:
+	@bash util/init.sh

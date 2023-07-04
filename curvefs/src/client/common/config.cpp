@@ -299,6 +299,35 @@ void InitKVClientManagerOpt(Configuration *conf,
                               &config->getThreadPooln);
 }
 
+void GetGids(Configuration* c,
+             const std::string& key,
+             std::vector<uint32_t>* gids) {
+    std::string str;
+    std::vector<std::string> ss;
+    c->GetValueFatalIfFail("vfs.userPermission.gids", &str);
+    curve::common::SplitString(str, ",", &ss);
+    uint32_t gid;
+    for (const auto& s : ss) {
+        LOG_IF(FATAL, !curve::common::StringToUl(s, &gid))
+            << "Invalid `" << key << "`: <" << s << ">";
+        gids->push_back(static_cast<uint32_t>(gid));
+    }
+}
+
+void InitVFSOption(Configuration* c, VFSOption* option) {
+    {  // vfs cache option
+        auto o = &option->vfsCacheOption;
+        c->GetValueFatalIfFail("vfs.entryCache.lruSize", &o->entryCacheLruSize);
+        c->GetValueFatalIfFail("vfs.attrCache.lruSize", &o->attrCacheLruSize);
+    }
+    {  // user permission option
+        auto o = &option->userPermissionOption;
+        c->GetValueFatalIfFail("vfs.userPermission.uid", &o->uid);
+        c->GetValueFatalIfFail("vfs.userPermission.umask", &o->umask);
+        GetGids(c, "vfs.userPermission.gids", &o->gids);
+    }
+}
+
 void InitFileSystemOption(Configuration* c, FileSystemOption* option) {
     c->GetValueFatalIfFail("fs.cto", &option->cto);
     c->GetValueFatalIfFail("fs.cto", &FLAGS_enableCto);
@@ -368,6 +397,7 @@ void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption) {
     InitLeaseOpt(conf, &clientOption->leaseOpt);
     InitRefreshDataOpt(conf, &clientOption->refreshDataOption);
     InitKVClientManagerOpt(conf, &clientOption->kvClientManagerOpt);
+    InitVFSOption(conf, &clientOption->vfsOption);
     InitFileSystemOption(conf, &clientOption->fileSystemOption);
 
     conf->GetValueFatalIfFail("fuseClient.listDentryLimit",

@@ -153,7 +153,7 @@ CURVEFS_ERROR RenameOperator::CheckOverwrite() {
     if (rc == CURVEFS_ERROR::OK && !dentrys.empty()) {
         LOG(ERROR) << "The directory is not empty"
                    << ", dentry = (" << dstDentry_.ShortDebugString() << ")";
-        rc = CURVEFS_ERROR::NOTEMPTY;
+        rc = CURVEFS_ERROR::NOT_EMPTY;
     }
 
     return rc;
@@ -170,7 +170,7 @@ CURVEFS_ERROR RenameOperator::Precheck() {
     }
 
     rc = dentryManager_->GetDentry(newParentId_, newname_, &dstDentry_);
-    if (rc == CURVEFS_ERROR::NOTEXIST) {
+    if (rc == CURVEFS_ERROR::NOT_EXIST) {
         return CURVEFS_ERROR::OK;
     } else if (rc == CURVEFS_ERROR::OK) {
         oldInodeId_ = dstDentry_.inodeid();
@@ -191,7 +191,7 @@ CURVEFS_ERROR RenameOperator::RecordOldInodeInfo() {
             oldInodeType_ = attr.type();
         } else {
             LOG_ERROR("GetInode", rc);
-            return CURVEFS_ERROR::NOTEXIST;
+            return CURVEFS_ERROR::NOT_EXIST;
         }
     }
 

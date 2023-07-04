@@ -200,6 +200,42 @@ void WarmupManagerS3Impl::LookPath(fuse_ino_t key, std::string file) {
         };
         AddFetchDentryTask(key, task);
         return;
+    } else if (splitPath.size() == 1) {
+        VLOG(9) << "parent is root: " << fsInfo_->rootinodeid()
+                << ", path is: " << splitPath[0];
+        auto task = [this, key, splitPath]() {
+            FetchDentry(key, fsInfo_->rootinodeid(), splitPath[0]);
+        };
+        AddFetchDentryTask(key, task);
+        return;
+    } else if (splitPath.size() > 1) {  // travel path
+        VLOG(9) << "traverse path start: " << splitPath.size();
+        std::string lastName = splitPath.back();
+        splitPath.pop_back();
+        fuse_ino_t ino = fsInfo_->rootinodeid();
+        for (auto iter : splitPath) {
+            VLOG(9) << "traverse path: " << iter << "ino is: " << ino;
+            Dentry dentry;
+            std::string pathName = iter;
+            CURVEFS_ERROR ret =
+                dentryManager_->GetDentry(ino, pathName, &dentry);
+            if (ret != CURVEFS_ERROR::OK) {
+                if (ret != CURVEFS_ERROR::NOT_EXIST) {
+                    LOG(WARNING)
+                        << "dentryManager_ get dentry fail, ret = " << ret
+                        << ", parent inodeid = " << ino << ", name = " << file;
+                }
+                VLOG(9) << "FetchDentry error: " << ret;
+                return;
+            }
+            ino = dentry.inodeid();
+        }
+        auto task = [this, key, ino, lastName]() {
+            FetchDentry(key, ino, lastName);
+        };
+        AddFetchDentryTask(key, task);
+        VLOG(9) << "ino is: " << ino << " lastname is: " << lastName;
+        return;
     } else {
         fuse_ino_t parent;
         std::string lastName;
@@ -232,7 +268,7 @@ void WarmupManagerS3Impl::FetchDentry(fuse_ino_t key, fuse_ino_t ino,
     Dentry dentry;
     CURVEFS_ERROR ret = dentryManager_->GetDentry(ino, file, &dentry);
     if (ret != CURVEFS_ERROR::OK) {
-        if (ret != CURVEFS_ERROR::NOTEXIST) {
+        if (ret != CURVEFS_ERROR::NOT_EXIST) {
             LOG(WARNING) << "dentryManager_ get dentry fail, ret = " << ret
                          << ", parent inodeid = " << ino << ", name = " << file;
         } else {

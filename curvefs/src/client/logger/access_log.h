@@ -32,8 +32,8 @@
 #include "absl/strings/str_format.h"
 #include "curvefs/src/client/common/config.h"
 
-#ifndef CURVEFS_SRC_CLIENT_FILESYSTEM_ACCESS_LOG_H_
-#define CURVEFS_SRC_CLIENT_FILESYSTEM_ACCESS_LOG_H_
+#ifndef CURVEFS_SRC_CLIENT_LOGGER_ACCESS_LOG_H_
+#define CURVEFS_SRC_CLIENT_LOGGER_ACCESS_LOG_H_
 
 namespace curvefs {
 namespace client {
@@ -42,20 +42,15 @@ namespace common {
 DECLARE_bool(access_logging);
 
 }
-namespace filesystem {
+namespace logger {
 
 using ::absl::StrFormat;
 using ::curvefs::client::common::FLAGS_access_logging;
 using MessageHandler = std::function<std::string()>;
 
-static std::shared_ptr<spdlog::logger> Logger;
+extern std::shared_ptr<spdlog::logger> Logger;
 
-bool InitAccessLog(const std::string& prefix) {
-    std::string filename = StrFormat("%s/access.%d.log", prefix, getpid());
-    Logger = spdlog::daily_logger_mt("fuse_access", filename, 0, 0);
-    spdlog::flush_every(std::chrono::seconds(1));
-    return true;
-}
+bool InitAccessLog(const std::string& prefix);
 
 struct AccessLogGuard {
     explicit AccessLogGuard(MessageHandler handler)
@@ -82,8 +77,8 @@ struct AccessLogGuard {
     butil::Timer timer;
 };
 
-}  // namespace filesystem
+}  // namespace logger
 }  // namespace client
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_CLIENT_FILESYSTEM_ACCESS_LOG_H_
+#endif  // CURVEFS_SRC_CLIENT_LOGGER_ACCESS_LOG_H_

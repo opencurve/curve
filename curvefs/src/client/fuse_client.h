@@ -35,6 +35,7 @@
 #include <vector>
 #include <atomic>
 
+#include "src/common/configuration.h"
 #include "curvefs/proto/common.pb.h"
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/src/client/common/config.h"
@@ -83,6 +84,7 @@ using rpcclient::MdsClient;
 using rpcclient::MdsClientImpl;
 using rpcclient::MetaServerClient;
 using rpcclient::MetaServerClientImpl;
+using ::curve::common::Configuration;
 using ::curvefs::client::filesystem::FileSystem;
 using ::curvefs::client::filesystem::EntryOut;
 using ::curvefs::client::filesystem::AttrOut;
@@ -285,9 +287,9 @@ class FuseClient {
     }
 
     void SetMounted(bool mounted) {
-        if (warmupManager_ != nullptr) {
-            warmupManager_->SetMounted(mounted);
-        }
+        //if (warmupManager_ != nullptr) {
+        //    warmupManager_->SetMounted(mounted);
+        //}
     }
 
     std::shared_ptr<FsInfo> GetFsInfo() {
@@ -326,6 +328,8 @@ class FuseClient {
         }
         return false;
     }
+
+    CURVEFS_ERROR GetMountOption(struct MountOption* mountOption);
 
     CURVEFS_ERROR SetMountStatus(const struct MountOption *mountOption);
 
@@ -447,6 +451,8 @@ class FuseClient {
     std::shared_ptr<FileSystem> fs_;
 
  private:
+    struct MountOption mountOption_;
+
     MDSBaseClient* mdsBase_;
 
     Atomic<bool> isStop_;

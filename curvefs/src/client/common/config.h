@@ -25,6 +25,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include "curvefs/src/client/common/common.h"
 #include "curvefs/proto/common.pb.h"
@@ -175,6 +176,25 @@ struct RefreshDataOption {
     uint32_t refreshDataIntervalSec = 30;
 };
 
+// { vfs option
+
+struct UserPermissionOption {
+    uint32_t uid;
+    std::vector<uint32_t> gids;
+    uint32_t umask;
+};
+
+struct VFSCacheOption {
+    uint32_t entryCacheLruSize;
+    uint32_t attrCacheLruSize;
+};
+
+struct VFSOption {
+    VFSCacheOption vfsCacheOption;
+    UserPermissionOption userPermissionOption;
+};
+// }
+
 // { filesystem option
 struct KernelCacheOption {
     uint32_t entryTimeoutSec;
@@ -239,6 +259,7 @@ struct FuseClientOption {
     LeaseOpt leaseOpt;
     RefreshDataOption refreshDataOption;
     KVClientManagerOpt kvClientManagerOpt;
+    VFSOption vfsOption;
     FileSystemOption fileSystemOption;
 
     uint32_t listDentryLimit;

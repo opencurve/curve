@@ -74,7 +74,7 @@ CURVEFS_ERROR FuseS3Client::Init(const FuseClientOption &option) {
         LOG(ERROR) << "writeCacheMaxByte is too small"
                    << ", at least " << MIN_WRITE_CACHE_SIZE << " (8MB)"
                       ", writeCacheMaxByte = " << writeCacheMaxByte;
-        return CURVEFS_ERROR::CACHETOOSMALL;
+        return CURVEFS_ERROR::CACHE_TOO_SMALL;
     }
 
     auto fsCacheManager = std::make_shared<FsCacheManager>(
@@ -161,7 +161,7 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
     if (fi->flags & O_DIRECT) {
         if (!(is_aligned(off, DirectIOAlignment) &&
               is_aligned(size, DirectIOAlignment)))
-            return CURVEFS_ERROR::INVALIDPARAM;
+            return CURVEFS_ERROR::INVALID_PARAM;
     }
     uint64_t start = butil::cpuwide_time_us();
     int wRet = s3Adaptor_->Write(ino, off, size, buf);
@@ -232,7 +232,7 @@ CURVEFS_ERROR FuseS3Client::FuseOpRead(fuse_req_t req, fuse_ino_t ino,
     if (fi->flags & O_DIRECT) {
         if (!(is_aligned(off, DirectIOAlignment) &&
               is_aligned(size, DirectIOAlignment)))
-            return CURVEFS_ERROR::INVALIDPARAM;
+            return CURVEFS_ERROR::INVALID_PARAM;
     }
 
     uint64_t start = butil::cpuwide_time_us();

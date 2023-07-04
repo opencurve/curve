@@ -166,3 +166,11 @@ test/integration/snapshotcloneserver/config/*.conf
 
 *.deb
 *.whl
+
+curvefs/sdk/java/target/
+/curve/curvefs/sdk/libcurvefs/examples/bin
+*.class
+curvefs/sdk/output/
+hadoop-test/
+nnbench-test/
+curvefs/sdk/java/native/build

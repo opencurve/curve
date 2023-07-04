@@ -113,7 +113,9 @@ bool MetaCache::GetTarget(uint32_t fsID, uint64_t inodeID,
     return GetTargetLeader(target, refresh);
 }
 
-bool MetaCache::SelectTarget(uint32_t fsID, CopysetTarget *target) {
+bool MetaCache::SelectTarget(uint32_t fsID, CopysetTarget *target,
+                             uint64_t *applyIndex) {
+    //fsID_ = fsID;
     // select a partition
     if (!SelectPartition(target)) {
         // list from mds

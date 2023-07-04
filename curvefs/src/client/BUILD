@@ -33,6 +33,19 @@ cc_binary(
 )
 
 cc_library(
+    name = "filesystem",
+    srcs = glob([
+        "filesystem/*.cpp",
+        "filesystem/*.h",
+    ]),
+    copts = CURVE_DEFAULT_COPTS,
+    visibility = ["//visibility:public"],
+    deps = [
+        ":fuse_client_lib",
+    ],
+)
+
+cc_library(
     name = "fuse_client_lib",
     srcs = glob(
         [
@@ -64,6 +77,7 @@ cc_library(
         "//curvefs/src/common:curvefs_common",
         "//curvefs/src/client/lease:curvefs_lease",
         "//curvefs/src/client/kvclient:memcached_client_lib",
+        "//curvefs/src/client/logger:logger",
         "//external:brpc",
         "//external:gflags",
         "//external:glog",
@@ -81,6 +95,7 @@ cc_library(
         "@com_google_absl//absl/meta:type_traits",
         "@com_google_absl//absl/types:optional",
         "@com_google_googletest//:gtest_prod",
+        "@com_google_absl//absl/container:btree",
         "@spdlog//:spdlog",
     ],
 )
