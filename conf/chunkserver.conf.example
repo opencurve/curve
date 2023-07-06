@@ -100,7 +100,7 @@ copyset.finishload_margin=2000
 # 循环判定copyset是否加载完成的内部睡眠时间
 copyset.check_loadmargin_interval_ms=1000
 # enable O_DSYNC when open chunkfile
-copyset.enable_odsync_when_open_chunkfile=false
+copyset.enable_odsync_when_open_chunkfile=true
 # sync trigger seconds
 copyset.sync_trigger_seconds=25
 # sync chunk limit default = 2MB
