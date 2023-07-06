@@ -26,6 +26,7 @@
 #include <stdint.h>
 #include <string>
 #include <vector>
+#include "src/common/authenticator.h"
 
 namespace curve {
 namespace client {
@@ -317,6 +318,7 @@ struct FileServiceOption {
     MetaServerOption metaServerOpt;
     ChunkServerClientRetryOptions csClientOpt;
     ChunkServerBroadCasterOption csBroadCasterOpt;
+    curve::common::AuthClientOption authClientOption;
 };
 
 }  // namespace client

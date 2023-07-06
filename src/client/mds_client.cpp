@@ -27,6 +27,7 @@
 #include <utility>
 #include <algorithm>
 
+#include "include/client/libcurve_define.h"
 #include "src/client/lease_executor.h"
 #include "src/common/net_common.h"
 #include "src/common/string_util.h"
@@ -44,173 +45,6 @@ using curve::mds::ProtoSession;
 using curve::mds::StatusCode;
 using curve::common::ChunkServerLocation;
 using curve::mds::topology::CopySetServerInfo;
-
-// rpc发送和mds地址切换状态机
-int RPCExcutorRetryPolicy::DoRPCTask(RPCFunc rpctask, uint64_t maxRetryTimeMS) {
-    // 记录上一次正在服务的mds index
-    int lastWorkingMDSIndex = currentWorkingMDSAddrIndex_;
-
-    // 记录当前正在使用的mds index
-    int curRetryMDSIndex = currentWorkingMDSAddrIndex_;
-
-    // 记录当前mds重试的次数
-    uint64_t currentMDSRetryCount = 0;
-
-    // 执行起始时间点
-    uint64_t startTime = TimeUtility::GetTimeofDayMs();
-
-    // rpc超时时间
-    uint64_t rpcTimeOutMS = retryOpt_.rpcTimeoutMs;
-
-    // The count of normal retry
-    uint64_t normalRetryCount = 0;
-
-    int retcode = -1;
-    bool retryUnlimit = (maxRetryTimeMS == 0);
-    while (GoOnRetry(startTime, maxRetryTimeMS)) {
-        // 1. 创建当前rpc需要使用的channel和controller，执行rpc任务
-        retcode = ExcuteTask(curRetryMDSIndex, rpcTimeOutMS, rpctask);
-
-        // 2. 根据rpc返回值进行预处理
-        if (retcode < 0) {
-            curRetryMDSIndex = PreProcessBeforeRetry(
-                retcode, retryUnlimit, &normalRetryCount, &currentMDSRetryCount,
-                curRetryMDSIndex, &lastWorkingMDSIndex, &rpcTimeOutMS);
-            continue;
-            // 3. 此时rpc是正常返回的，更新当前正在服务的mds地址index
-        } else {
-            currentWorkingMDSAddrIndex_.store(curRetryMDSIndex);
-            break;
-        }
-    }
-
-    return retcode;
-}
-
-bool RPCExcutorRetryPolicy::GoOnRetry(uint64_t startTimeMS,
-                                      uint64_t maxRetryTimeMS) {
-    if (maxRetryTimeMS == 0) {
-        return true;
-    }
-
-    uint64_t currentTime = TimeUtility::GetTimeofDayMs();
-    return currentTime - startTimeMS < maxRetryTimeMS;
-}
-
-int RPCExcutorRetryPolicy::PreProcessBeforeRetry(int status, bool retryUnlimit,
-                                                 uint64_t *normalRetryCount,
-                                                 uint64_t *curMDSRetryCount,
-                                                 int curRetryMDSIndex,
-                                                 int *lastWorkingMDSIndex,
-                                                 uint64_t *timeOutMS) {
-    int nextMDSIndex = 0;
-    bool rpcTimeout = false;
-    bool needChangeMDS = false;
-
-    // If retryUnlimit is set, sleep a long time to retry no matter what the
-    // error it is.
-    if (retryUnlimit) {
-        if (++(*normalRetryCount) >
-            retryOpt_.normalRetryTimesBeforeTriggerWait) {
-            bthread_usleep(retryOpt_.waitSleepMs * 1000);
-        }
-
-        // 1. 访问存在的IP地址，但无人监听：ECONNREFUSED
-        // 2. 正常发送RPC情况下，对端进程挂掉了：EHOSTDOWN
-        // 3. 对端server调用了Stop：ELOGOFF
-        // 4. 对端链接已关闭：ECONNRESET
-        // 5. 在一个mds节点上rpc失败超过限定次数
-        // 在这几种场景下，主动切换mds。
-    } else if (status == -EHOSTDOWN || status == -ECONNRESET ||
-               status == -ECONNREFUSED || status == -brpc::ELOGOFF ||
-               *curMDSRetryCount >= retryOpt_.maxFailedTimesBeforeChangeAddr) {
-        needChangeMDS = true;
-
-        // 在开启健康检查的情况下，在底层tcp连接失败时
-        // rpc请求会本地直接返回 EHOSTDOWN
-        // 这种情况下，增加一些睡眠时间，避免大量的重试请求占满bthread
-        // TODO(wuhanqing): 关闭健康检查
-        if (status == -EHOSTDOWN) {
-            bthread_usleep(retryOpt_.rpcRetryIntervalUS);
-        }
-    } else if (status == -brpc::ERPCTIMEDOUT || status == -ETIMEDOUT) {
-        rpcTimeout = true;
-        needChangeMDS = false;
-        // 触发超时指数退避
-        *timeOutMS *= 2;
-        *timeOutMS = std::min(*timeOutMS, retryOpt_.maxRPCTimeoutMS);
-        *timeOutMS = std::max(*timeOutMS, retryOpt_.rpcTimeoutMs);
-    }
-
-    // 获取下一次需要重试的mds索引
-    nextMDSIndex = GetNextMDSIndex(needChangeMDS, curRetryMDSIndex,
-                                   lastWorkingMDSIndex);  // NOLINT
-
-    // 更新curMDSRetryCount和rpctimeout
-    if (nextMDSIndex != curRetryMDSIndex) {
-        *curMDSRetryCount = 0;
-        *timeOutMS = retryOpt_.rpcTimeoutMs;
-    } else {
-        ++(*curMDSRetryCount);
-        // 还是在当前mds上重试，且rpc不是超时错误，就进行睡眠，然后再重试
-        if (!rpcTimeout) {
-            bthread_usleep(retryOpt_.rpcRetryIntervalUS);
-        }
-    }
-
-    return nextMDSIndex;
-}
-/**
- * 根据输入状态获取下一次需要重试的mds索引，mds切换逻辑：
- * 记录三个状态：curRetryMDSIndex、lastWorkingMDSIndex、
- *             currentWorkingMDSIndex
- * 1. 开始的时候curRetryMDSIndex = currentWorkingMDSIndex
- *            lastWorkingMDSIndex = currentWorkingMDSIndex
- * 2. 如果rpc失败，会触发切换curRetryMDSIndex，如果这时候lastWorkingMDSIndex
- *    与currentWorkingMDSIndex相等，这时候会顺序切换到下一个mds索引，
- *    如果lastWorkingMDSIndex与currentWorkingMDSIndex不相等，那么
- *    说明有其他接口更新了currentWorkingMDSAddrIndex_，那么本次切换
- *    直接切换到currentWorkingMDSAddrIndex_
- */
-int RPCExcutorRetryPolicy::GetNextMDSIndex(bool needChangeMDS,
-                                           int currentRetryIndex,
-                                           int *lastWorkingindex) {
-    int nextMDSIndex = 0;
-    if (std::atomic_compare_exchange_strong(
-            &currentWorkingMDSAddrIndex_, lastWorkingindex,
-            currentWorkingMDSAddrIndex_.load())) {
-        int size = retryOpt_.addrs.size();
-        nextMDSIndex =
-            needChangeMDS ? (currentRetryIndex + 1) % size : currentRetryIndex;
-    } else {
-        nextMDSIndex = *lastWorkingindex;
-    }
-
-    return nextMDSIndex;
-}
-
-int RPCExcutorRetryPolicy::ExcuteTask(int mdsindex, uint64_t rpcTimeOutMS,
-                                      RPCFunc task) {
-    assert(mdsindex >= 0 &&
-           mdsindex < static_cast<int>(retryOpt_.addrs.size()));
-
-    const std::string &mdsaddr = retryOpt_.addrs[mdsindex];
-
-    brpc::Channel channel;
-    int ret = channel.Init(mdsaddr.c_str(), nullptr);
-    if (ret != 0) {
-        LOG(WARNING) << "Init channel failed! addr = " << mdsaddr;
-        // 返回EHOSTDOWN给上层调用者，促使其切换mds
-        return -EHOSTDOWN;
-    }
-
-    brpc::Controller cntl;
-    cntl.set_log_id(GetLogId());
-    cntl.set_timeout_ms(rpcTimeOutMS);
-
-    return task(mdsindex, rpcTimeOutMS, &channel, &cntl);
-}
-
 
 MDSClient::MDSClient(const std::string &metricPrefix)
     : inited_(false), metaServerOpt_(), mdsClientMetric_(metricPrefix),
@@ -261,10 +95,13 @@ LIBCURVE_ERROR MDSClient::OpenFile(const std::string &filename,
 
         if (cntl->Failed()) {
             mdsClientMetric_.openFile.eps.count << 1;
-            LOG(WARNING) << "open file failed, errcorde = " << cntl->ErrorCode()
-                         << ", error content:" << cntl->ErrorText()
-                         << ", log id = " << cntl->log_id();
-            return -cntl->ErrorCode();
+            auto ecode = cntl->ErrorCode();
+            LOG_IF(WARNING, ecode != LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL)
+                << "open file failed, errcorde = " << ecode
+                << ", error content:" << cntl->ErrorText()
+                << ", log id = " << cntl->log_id();
+            return ecode == LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL ? ecode
+                                                                : -ecode;
         }
 
         LIBCURVE_ERROR retcode = LIBCURVE_ERROR::FAILED;
@@ -326,11 +163,13 @@ LIBCURVE_ERROR MDSClient::CreateFile(const CreateFileContext& context) {
 
         if (cntl->Failed()) {
             mdsClientMetric_.createFile.eps.count << 1;
-            LOG(WARNING) << "Create file or directory failed, errcorde = "
-                         << cntl->ErrorCode()
-                         << ", error content:" << cntl->ErrorText()
-                         << ", log id = " << cntl->log_id();
-            return -cntl->ErrorCode();
+            auto ecode = cntl->ErrorCode();
+            LOG_IF(WARNING, ecode != LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL)
+                << "Create file or directory failed, errcorde = " << ecode
+                << ", error content:" << cntl->ErrorText()
+                << ", log id = " << cntl->log_id();
+            return ecode == LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL ? ecode
+                                                                : -ecode;
         }
 
         LIBCURVE_ERROR retcode;
@@ -363,11 +202,13 @@ LIBCURVE_ERROR MDSClient::CloseFile(const std::string &filename,
 
         if (cntl->Failed()) {
             mdsClientMetric_.closeFile.eps.count << 1;
-            LOG(WARNING) << "close file failed, errcorde = "
-                         << cntl->ErrorCode()
-                         << ", error content:" << cntl->ErrorText()
-                         << ", log id = " << cntl->log_id();
-            return -cntl->ErrorCode();
+            auto ecode = cntl->ErrorCode();
+            LOG_IF(WARNING, ecode != LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL)
+                << "close file failed, errcorde = " << ecode
+                << ", error content:" << cntl->ErrorText()
+                << ", log id = " << cntl->log_id();
+            return ecode == LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL ? ecode
+                                                                : -ecode;
         }
 
         LIBCURVE_ERROR retcode;
@@ -397,10 +238,13 @@ LIBCURVE_ERROR MDSClient::GetFileInfo(const std::string &filename,
         MDSClientBase::GetFileInfo(filename, uinfo, &response, cntl, channel);
 
         if (cntl->Failed()) {
-            LOG(WARNING) << "Fail to GetFileInfo, filename: " << filename
-                         << ", error: " << cntl->ErrorText();
             mdsClientMetric_.getFile.eps.count << 1;
-            return -cntl->ErrorCode();
+            auto ecode = cntl->ErrorCode();
+            LOG_IF(WARNING, ecode != LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL)
+                << "Fail to GetFileInfo, filename: " << filename
+                << ", error: " << cntl->ErrorText();
+            return ecode == LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL ? ecode
+                                                                : -ecode;
         }
 
         if (response.has_fileinfo()) {
@@ -437,7 +281,9 @@ LIBCURVE_ERROR MDSClient::IncreaseEpoch(const std::string& filename,
 
         if (cntl->Failed()) {
             mdsClientMetric_.increaseEpoch.eps.count << 1;
-            return -cntl->ErrorCode();
+            auto ecode = cntl->ErrorCode();
+            return ecode == LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL ? ecode
+                                                                : -ecode;
         }
 
         StatusCode stcode = response.statuscode();
@@ -495,11 +341,13 @@ LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string& filename,
                                       channel);
 
         if (cntl->Failed()) {
-            LOG(WARNING) << "create snap file failed, errcorde = "
-                         << cntl->ErrorCode()
-                         << ", error content:" << cntl->ErrorText()
-                         << ", log id = " << cntl->log_id();
-            return -cntl->ErrorCode();
+            auto ecode = cntl->ErrorCode();
+            LOG_IF(WARNING, ecode != LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL)
+                << "create snap file failed, errcorde = " << ecode
+                << ", error content:" << cntl->ErrorText()
+                << ", log id = " << cntl->log_id();
+            return ecode == LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL ? ecode
+                                                                : -ecode;
         }
 
         bool hasinfo = response.has_snapshotfileinfo();
@@ -556,11 +404,13 @@ LIBCURVE_ERROR MDSClient::DeleteSnapShot(const std::string &filename,
                                       channel);
 
         if (cntl->Failed()) {
-            LOG(WARNING) << "delete snap file failed, errcorde = "
-                         << cntl->ErrorCode()
-                         << ", error content:" << cntl->ErrorText()
-                         << ", log id = " << cntl->log_id();
-            return -cntl->ErrorCode();
+            auto ecode = cntl->ErrorCode();
+            LOG_IF(WARNING, ecode != LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL)
+                << "delete snap file failed, errcorde = " << ecode
+                << ", error content:" << cntl->ErrorText()
+                << ", log id = " << cntl->log_id();
+            return ecode == LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL ? ecode
+                                                                : -ecode;
         }
 
         LIBCURVE_ERROR retcode;
@@ -590,11 +440,13 @@ LIBCURVE_ERROR MDSClient::ListSnapShot(const std::string &filename,
                                     channel);
 
         if (cntl->Failed()) {
-            LOG(WARNING) << "list snap file failed, errcorde = "
-                         << cntl->ErrorCode()
-                         << ", error content:" << cntl->ErrorText()
-                         << ", log id = " << cntl->log_id();
-            return -cntl->ErrorCode();
+            auto ecode = cntl->ErrorCode();
+            LOG_IF(WARNING, ecode != LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL)
+                << "list snap file failed, errcorde = " << ecode
+                << ", error content:" << cntl->ErrorText()
+                << ", log id = " << cntl->log_id();
+            return ecode == LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL ? ecode
+                                                                : -ecode;
         }
 
         LIBCURVE_ERROR retcode;
@@ -639,10 +491,12 @@ LIBCURVE_ERROR MDSClient::GetSnapshotSegmentInfo(const std::string &filename,
         MDSClientBase::GetSnapshotSegmentInfo(filename, userinfo, seq, offset,
                                               &response, cntl, channel);
         if (cntl->Failed()) {
-            LOG(WARNING) << "get snap file segment info failed, errcorde = "
-                         << cntl->ErrorCode()
-                         << ", error content:" << cntl->ErrorText();
-            return -cntl->ErrorCode();
+            auto ecode = cntl->ErrorCode();
+            LOG_IF(WARNING, ecode != LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL)
+                << "get snap file segment info failed, errcorde = " << ecode
+                << ", error content:" << cntl->ErrorText();
+            return ecode == LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL ? ecode
+                                                                : -ecode;
         }
 
         LIBCURVE_ERROR retcode;
@@ -707,10 +561,13 @@ LIBCURVE_ERROR MDSClient::RefreshSession(const std::string &filename,
                                       cntl, channel);
         if (cntl->Failed()) {
             mdsClientMetric_.refreshSession.eps.count << 1;
-            LOG(WARNING) << "Fail to send ReFreshSessionRequest, "
-                         << cntl->ErrorText() << ", filename = " << filename
-                         << ", sessionid = " << sessionid;
-            return -cntl->ErrorCode();
+            auto ecode = cntl->ErrorCode();
+            LOG_IF(WARNING, ecode != LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL)
+                << "Fail to send ReFreshSessionRequest, errorContent = "
+                << cntl->ErrorText() << ", filename = " << filename
+                << ", sessionid = " << sessionid;
+            return ecode == LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL ? ecode
+                                                                : -ecode;
         }
 
         StatusCode stcode = response.statuscode();
@@ -781,10 +638,12 @@ LIBCURVE_ERROR MDSClient::CheckSnapShotStatus(const std::string &filename,
                                            cntl, channel);
 
         if (cntl->Failed()) {
-            LOG(WARNING) << "check snap file failed, errcorde = "
-                         << cntl->ErrorCode()
-                         << ", error content:" << cntl->ErrorText();
-            return -cntl->ErrorCode();
+            auto ecode = cntl->ErrorCode();
+            LOG_IF(WARNING, ecode != LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL)
+                << "check snap file failed, errcorde = " << ecode
+                << ", error content:" << cntl->ErrorText();
+            return ecode == LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL ? ecode
+                                                                : -ecode;
         }
 
         bool good = response.has_filestatus() && filestatus != nullptr;
@@ -820,10 +679,13 @@ MDSClient::GetServerList(const LogicPoolID &logicalpooid,
                                      cntl, channel);
         if (cntl->Failed()) {
             mdsClientMetric_.getServerList.eps.count << 1;
-            LOG(WARNING) << "get server list from mds failed, error is "
-                         << cntl->ErrorText()
-                         << ", log id = " << cntl->log_id();
-            return -cntl->ErrorCode();
+            auto ecode = cntl->ErrorCode();
+            LOG_IF(WARNING, ecode != LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL)
+                << "get server list from mds failed, error is "
+                << cntl->ErrorText()
+                << ", log id = " << cntl->log_id();
+            return ecode == LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL ? ecode
+                                                                : -ecode;
         }
 
         int csinfonum = response.csinfo_size();
@@ -882,10 +744,12 @@ LIBCURVE_ERROR MDSClient::GetClusterInfo(ClusterContext *clsctx) {
         MDSClientBase::GetClusterInfo(&response, cntl, channel);
 
         if (cntl->Failed()) {
-            LOG(WARNING) << "get cluster info from mds failed, status code = "
-                         << cntl->ErrorCode()
-                         << ", error content: " << cntl->ErrorText();
-            return -cntl->ErrorCode();
+            auto ecode = cntl->ErrorCode();
+            LOG_IF(WARNING, ecode != LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL)
+                << "get cluster info from mds failed, status code = " << ecode
+                << ", error content: " << cntl->ErrorText();
+            return ecode == LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL ? ecode
+                                                                : -ecode;
         }
 
         if (response.statuscode() == 0) {
@@ -906,9 +770,12 @@ LIBCURVE_ERROR MDSClient::ListPoolset(std::vector<std::string>* out) {
         MDSClientBase::ListPoolset(&response, cntl, channel);
 
         if (cntl->Failed()) {
-            LOG(WARNING) << "Failed to list poolset, error: "
-                         << cntl->ErrorText();
-            return -cntl->ErrorCode();
+            auto ecode = cntl->ErrorCode();
+            LOG_IF(WARNING, ecode != LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL)
+                << "Failed to list poolset, error: "
+                << cntl->ErrorText();
+            return ecode == LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL ? ecode
+                                                                : -ecode;
         }
 
         const bool succ = (response.statuscode() == 0);
@@ -947,12 +814,14 @@ LIBCURVE_ERROR MDSClient::CreateCloneFile(const std::string& source,
                                        chunksize, stripeUnit, stripeCount,
                                        poolset, &response, cntl, channel);
         if (cntl->Failed()) {
-            LOG(WARNING) << "Create clone file failed, errcorde = "
-                         << cntl->ErrorCode()
-                         << ", error content:" << cntl->ErrorText()
-                         << ", source = " << source
-                         << ", destination = " << destination;
-            return -cntl->ErrorCode();
+            auto ecode = cntl->ErrorCode();
+            LOG_IF(WARNING, ecode != LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL)
+                << "Create clone file failed, errcorde = " << ecode
+                << ", error content:" << cntl->ErrorText()
+                << ", source = " << source
+                << ", destination = " << destination;
+            return ecode == LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL ? ecode
+                                                                : -ecode;
         }
 
         LIBCURVE_ERROR retcode;
@@ -1003,11 +872,13 @@ LIBCURVE_ERROR MDSClient::SetCloneFileStatus(const std::string &filename,
         MDSClientBase::SetCloneFileStatus(filename, filestatus, userinfo,
                                           fileID, &response, cntl, channel);
         if (cntl->Failed()) {
-            LOG(WARNING) << "SetCloneFileStatus invoke failed, errcorde = "
-                         << cntl->ErrorCode()
-                         << ", error content:" << cntl->ErrorText()
-                         << ", log id = " << cntl->log_id();
-            return -cntl->ErrorCode();
+            auto ecode = cntl->ErrorCode();
+            LOG_IF(WARNING, ecode != LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL)
+                << "SetCloneFileStatus invoke failed, errcorde = " << ecode
+                << ", error content:" << cntl->ErrorText()
+                << ", log id = " << cntl->log_id();
+            return ecode == LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL ? ecode
+                                                                : -ecode;
         }
 
         LIBCURVE_ERROR retcode;
@@ -1040,11 +911,13 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate, uint64_t offset,
                                             &response, cntl, channel);
         if (cntl->Failed()) {
             mdsClientMetric_.getOrAllocateSegment.eps.count << 1;
-            LOG(WARNING) << "allocate segment failed, error code = "
-                         << cntl->ErrorCode()
-                         << ", error content:" << cntl->ErrorText()
-                         << ", offset:" << offset;
-            return -cntl->ErrorCode();
+            auto ecode = cntl->ErrorCode();
+            LOG_IF(WARNING, ecode != LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL)
+                << "allocate segment failed, error code = " << ecode
+                << ", error content:" << cntl->ErrorText()
+                << ", offset:" << offset;
+            return ecode == LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL ? ecode
+                                                                : -ecode;
         }
 
         auto statuscode = response.statuscode();
@@ -1106,11 +979,13 @@ LIBCURVE_ERROR MDSClient::DeAllocateSegment(const FInfo *fileInfo,
 
         if (cntl->Failed()) {
             mdsClientMetric_.deAllocateSegment.eps.count << 1;
-            LOG(WARNING) << "DeAllocateSegment failed, error = "
-                         << cntl->ErrorText()
-                         << ", filename = " << fileInfo->fullPathName
-                         << ", offset = " << offset;
-            return -cntl->ErrorCode();
+            auto ecode = cntl->ErrorCode();
+            LOG_IF(WARNING, ecode != LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL)
+                << "DeAllocateSegment failed, error = " << cntl->ErrorText()
+                << ", filename = " << fileInfo->fullPathName
+                << ", offset = " << offset;
+            return ecode == LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL ? ecode
+                                                                : -ecode;
         }
 
         auto statusCode = response.statuscode();
@@ -1147,11 +1022,13 @@ LIBCURVE_ERROR MDSClient::RenameFile(const UserInfo_t &userinfo,
                                   destinationId, &response, cntl, channel);
         if (cntl->Failed()) {
             mdsClientMetric_.renameFile.eps.count << 1;
-            LOG(WARNING) << "RenameFile invoke failed, errcorde = "
-                         << cntl->ErrorCode()
-                         << ", error content:" << cntl->ErrorText()
-                         << ", log id = " << cntl->log_id();
-            return -cntl->ErrorCode();
+            auto ecode = cntl->ErrorCode();
+            LOG_IF(WARNING, ecode != LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL)
+                << "RenameFile invoke failed, errcorde = " << ecode
+                << ", error content:" << cntl->ErrorText()
+                << ", log id = " << cntl->log_id();
+            return ecode == LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL ? ecode
+                                                                : -ecode;
         }
 
         LIBCURVE_ERROR retcode;
@@ -1188,11 +1065,13 @@ LIBCURVE_ERROR MDSClient::Extend(const std::string &filename,
                               channel);
         if (cntl->Failed()) {
             mdsClientMetric_.extendFile.eps.count << 1;
-            LOG(WARNING) << "ExtendFile invoke failed, errcorde = "
-                         << cntl->ErrorCode()
-                         << ", error content:" << cntl->ErrorText()
-                         << ", log id = " << cntl->log_id();
-            return -cntl->ErrorCode();
+            auto ecode = cntl->ErrorCode();
+            LOG_IF(WARNING, ecode != LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL)
+                << "ExtendFile invoke failed, errcorde = " << ecode
+                << ", error content:" << cntl->ErrorText()
+                << ", log id = " << cntl->log_id();
+            return ecode == LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL ? ecode
+                                                                : -ecode;
         }
 
         LIBCURVE_ERROR retcode;
@@ -1223,11 +1102,13 @@ LIBCURVE_ERROR MDSClient::DeleteFile(const std::string &filename,
                                   &response, cntl, channel);
         if (cntl->Failed()) {
             mdsClientMetric_.deleteFile.eps.count << 1;
-            LOG(WARNING) << "DeleteFile invoke failed, errcorde = "
-                         << cntl->ErrorCode()
-                         << ", error content:" << cntl->ErrorText()
-                         << ", log id = " << cntl->log_id();
-            return -cntl->ErrorCode();
+            auto ecode = cntl->ErrorCode();
+            LOG_IF(WARNING, ecode != LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL)
+                << "DeleteFile invoke failed, errcorde = " << ecode
+                << ", error content:" << cntl->ErrorText()
+                << ", log id = " << cntl->log_id();
+            return ecode == LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL ? ecode
+                                                                : -ecode;
         }
 
         LIBCURVE_ERROR retcode;
@@ -1263,11 +1144,13 @@ LIBCURVE_ERROR MDSClient::RecoverFile(const std::string &filename,
                                    channel);
         if (cntl->Failed()) {
             mdsClientMetric_.recoverFile.eps.count << 1;
-            LOG(WARNING) << "RecoverFile invoke failed, errcorde = "
-                         << cntl->ErrorCode()
-                         << ", error content:" << cntl->ErrorText()
-                         << ", log id = " << cntl->log_id();
-            return -cntl->ErrorCode();
+            auto ecode = cntl->ErrorCode();
+            LOG_IF(WARNING, ecode != LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL)
+                << "RecoverFile invoke failed, errcorde = " << ecode
+                << ", error content:" << cntl->ErrorText()
+                << ", log id = " << cntl->log_id();
+            return ecode == LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL ? ecode
+                                                                : -ecode;
         }
 
         LIBCURVE_ERROR retcode;
@@ -1297,11 +1180,13 @@ LIBCURVE_ERROR MDSClient::ChangeOwner(const std::string &filename,
                                    cntl, channel);
         if (cntl->Failed()) {
             mdsClientMetric_.changeOwner.eps.count << 1;
-            LOG(WARNING) << "ChangeOwner invoke failed, errcorde = "
-                         << cntl->ErrorCode()
-                         << ", error content:" << cntl->ErrorText()
-                         << ", log id = " << cntl->log_id();
-            return -cntl->ErrorCode();
+            auto ecode = cntl->ErrorCode();
+            LOG_IF(WARNING, ecode != LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL)
+                << "ChangeOwner invoke failed, errcorde = " << ecode
+                << ", error content:" << cntl->ErrorText()
+                << ", log id = " << cntl->log_id();
+            return ecode == LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL ? ecode
+                                                                : -ecode;
         }
 
         LIBCURVE_ERROR retcode;
@@ -1338,11 +1223,13 @@ LIBCURVE_ERROR MDSClient::Listdir(const std::string &dirpath,
 
         if (cntl->Failed()) {
             mdsClientMetric_.listDir.eps.count << 1;
-            LOG(WARNING) << "Listdir invoke failed, errcorde = "
-                         << cntl->ErrorCode()
-                         << ", error content:" << cntl->ErrorText()
-                         << ", log id = " << cntl->log_id();
-            return -cntl->ErrorCode();
+            auto ecode = cntl->ErrorCode();
+            LOG_IF(WARNING, ecode != LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL)
+                << "Listdir invoke failed, errcorde = " << ecode
+                << ", error content:" << cntl->ErrorText()
+                << ", log id = " << cntl->log_id();
+            return ecode == LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL ? ecode
+                                                                : -ecode;
         }
 
         LIBCURVE_ERROR retcode;
@@ -1414,11 +1301,13 @@ LIBCURVE_ERROR MDSClient::GetChunkServerInfo(const PeerAddr &csAddr,
         MDSClientBase::GetChunkServerInfo(ip, port, &response, cntl, channel);
 
         if (cntl->Failed()) {
-            LOG(WARNING) << "GetChunkServerInfo invoke failed, errcorde = "
-                         << cntl->ErrorCode()
-                         << ", error content:" << cntl->ErrorText()
-                         << ", log id = " << cntl->log_id();
-            return -cntl->ErrorCode();
+            auto ecode = cntl->ErrorCode();
+            LOG_IF(WARNING, ecode != LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL)
+                << "GetChunkServerInfo invoke failed, errcorde = " << ecode
+                << ", error content:" << cntl->ErrorText()
+                << ", log id = " << cntl->log_id();
+            return ecode == LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL ? ecode
+                                                                : -ecode;
         }
 
         int statusCode = response.statuscode();
@@ -1466,10 +1355,13 @@ MDSClient::ListChunkServerInServer(const std::string &serverIp,
                                                channel);
 
         if (cntl->Failed()) {
-            LOG(WARNING) << "ListChunkServerInServer failed, "
-                         << cntl->ErrorText()
-                         << ", log id = " << cntl->log_id();
-            return -cntl->ErrorCode();
+            auto ecode = cntl->ErrorCode();
+            LOG_IF(WARNING, ecode != LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL)
+                << "ListChunkServerInServer failed, "
+                << cntl->ErrorText()
+                << ", log id = " << cntl->log_id();
+            return ecode == LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL ? ecode
+                                                                : -ecode;
         }
 
         int statusCode = response.statuscode();
@@ -1564,6 +1456,9 @@ void MDSClient::MDSStatusCode2LibcurveError(const StatusCode &status,
         break;
     case ::curve::mds::StatusCode::kSnapshotFrozen:
         *errcode = LIBCURVE_ERROR::SNAPSTHO_FROZEN;
+        break;
+    case ::curve::mds::StatusCode::kAuthFailed:
+        *errcode = LIBCURVE_ERROR::AUTH_FAILED;
         break;
     default:
         *errcode = LIBCURVE_ERROR::UNKNOWN;

@@ -21,15 +21,12 @@
  */
 
 #include <memory>
+#include "src/common/authenticator.h"
 #include "src/mds/heartbeat/heartbeat_service.h"
 
 namespace curve {
 namespace mds {
 namespace heartbeat {
-HeartbeatServiceImpl::HeartbeatServiceImpl(
-    std::shared_ptr<HeartbeatManager> heartbeatManager) {
-    this->heartbeatManager_ = heartbeatManager;
-}
 
 void HeartbeatServiceImpl::ChunkServerHeartbeat(
     ::google::protobuf::RpcController *controller,
@@ -38,8 +35,17 @@ void HeartbeatServiceImpl::ChunkServerHeartbeat(
     ::google::protobuf::Closure *done) {
     (void)controller;
     brpc::ClosureGuard doneGuard(done);
+    auto ret = curve::common::Authenticator::GetInstance().VerifyCredential(
+        request->authtoken());
+    if (!ret) {
+        LOG(ERROR) << "ChunkServerHeartbeat auth failed, request = "
+                   << request->ShortDebugString();
+        response->set_statuscode(HeartbeatStatusCode::hbAuthFailed);
+        return;
+    }
     heartbeatManager_->ChunkServerHeartbeat(*request, response);
 }
+
 }  // namespace heartbeat
 }  // namespace mds
 }  // namespace curve

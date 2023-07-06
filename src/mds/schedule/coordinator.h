@@ -36,7 +36,7 @@
 #include "src/mds/schedule/topoAdapter.h"
 #include "src/mds/schedule/scheduleMetrics.h"
 #include "src/common/interruptible_sleeper.h"
-
+#include "proto/schedule.pb.h"
 
 namespace curve {
 namespace mds {

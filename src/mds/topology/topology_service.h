@@ -30,6 +30,7 @@
 
 #include "proto/topology.pb.h"
 #include "src/mds/topology/topology_service_manager.h"
+#include "src/common/authenticator.h"
 
 namespace curve {
 namespace mds {
@@ -39,8 +40,7 @@ class TopologyServiceImpl : public TopologyService {
  public:
     explicit TopologyServiceImpl(
         std::shared_ptr<TopologyServiceManager> topology)
-        : topology_(topology) {
-    }
+        : topology_(topology) {}
 
     virtual ~TopologyServiceImpl() {}
 

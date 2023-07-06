@@ -20,7 +20,9 @@
  * Author: charisu
  */
 
+#include <memory>
 #include "src/tools/curve_tool_factory.h"
+#include "src/tools/auth_tool.h"
 
 namespace curve {
 namespace tool {
@@ -41,9 +43,16 @@ std::shared_ptr<CurveTool> CurveToolFactory::GenerateCurveTool(
         return GenerateScheduleTool();
     } else if (CopysetTool::SupportCommand(command)) {
         return GenerateCopysetTool();
+    } else if (AuthTool::SupportCommand(command)) {
+        return GenerateAuthTool();
     } else {
         return nullptr;
     }
+}
+
+std::shared_ptr<AuthTool> CurveToolFactory::GenerateAuthTool() {
+    auto mdsClient = std::make_shared<MDSClient>();
+    return std::make_shared<AuthTool>(mdsClient);
 }
 
 std::shared_ptr<StatusTool> CurveToolFactory::GenerateStatusTool() {

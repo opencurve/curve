@@ -32,16 +32,21 @@
 #include <thread>  //NOLINT
 
 #include "include/client/libcurve.h"
+#include "src/client/auth_client.h"
 #include "src/client/chunk_closure.h"
 #include "src/client/client_common.h"
+#include "src/client/config_info.h"
 #include "src/client/file_instance.h"
 #include "src/client/libcurve_file.h"
+#include "src/common/authenticator.h"
 #include "test/client/fake/fakeMDS.h"
 #include "test/client/fake/mock_schedule.h"
 
+extern std::string mdsMetaServerAddr;
 extern std::string configpath;
 extern uint32_t chunk_size;
 extern uint32_t segment_size;
+extern std::string authClientKey;
 
 DECLARE_string(chunkserver_list);
 DECLARE_uint32(logic_pool_id);
@@ -53,10 +58,10 @@ namespace client {
 
 bool writeflag = false;
 bool readflag = false;
-std::mutex writeinterfacemtx;
 std::condition_variable writeinterfacecv;
-std::mutex interfacemtx;
 std::condition_variable interfacecv;
+std::mutex writeinterfacemtx;
+std::mutex interfacemtx;
 
 void writecallbacktest(CurveAioContext *context) {
     std::lock_guard<std::mutex> lk(writeinterfacemtx);
@@ -72,7 +77,41 @@ void readcallbacktest(CurveAioContext *context) {
     LOG(INFO) << "aio call back here, errorcode = " << context->ret;
 }
 
-TEST(TestLibcurveInterface, InterfaceTest) {
+class TestLibcurveInterface : public ::testing::Test {
+ protected:
+    void SetUp() override {
+        // prepare auth response
+        ticketresp.set_status(curve::mds::auth::AuthStatusCode::AUTH_OK);
+        ticketresp.set_encticket("123456");
+        curve::mds::auth::TicketAttach attach;
+        attach.set_expiration(curve::common::TimeUtility::GetTimeofDaySec()
+            + 1000);
+        attach.set_sessionkey("1122334455667788");
+        std::string attachStr;
+        ASSERT_TRUE(attach.SerializeToString(&attachStr));
+        std::string encAttchStr;
+        ASSERT_EQ(0, curve::common::Encryptor::AESEncrypt(
+            authClientKey, curve::common::ZEROIV, attachStr, &encAttchStr));
+        ticketresp.set_encticketattach(encAttchStr);
+        authfakeret = new FakeReturn(nullptr, static_cast<void*>(&ticketresp));
+
+        MetaServerOption metaopt;
+        metaopt.rpcRetryOpt.addrs = {mdsMetaServerAddr, mdsMetaServerAddr};
+        curve::common::AuthClientOption authOption;
+        authOption.enable = true;
+        authOption.key = authClientKey;
+        AuthClient::GetInstance().Init(metaopt, authOption);
+    }
+
+    void TearDown() override {
+        AuthClient::GetInstance().Uninit();
+    }
+
+    ::curve::mds::auth::GetTicketResponse ticketresp;
+    FakeReturn* authfakeret;
+};
+
+TEST_F(TestLibcurveInterface, InterfaceTest) {
     FLAGS_chunkserver_list =
         "127.0.0.1:9115:0,127.0.0.1:9116:0,127.0.0.1:9117:0";
 
@@ -92,6 +131,8 @@ TEST(TestLibcurveInterface, InterfaceTest) {
     mds.StartCliService(pd);
     mds.StartService();
     mds.CreateCopysetNode(true);
+
+    mds.GetAuthService()->SetFakeReturn(authfakeret);
 
     // test get cluster id
     const int CLUSTERIDMAX = 256;
@@ -140,13 +181,13 @@ TEST(TestLibcurveInterface, InterfaceTest) {
     AioWrite(fd, &writeaioctx);
     {
         std::unique_lock<std::mutex> lk(writeinterfacemtx);
-        writeinterfacecv.wait(lk, []() -> bool { return writeflag; });
+        writeinterfacecv.wait(lk, [=]() -> bool { return writeflag; });
     }
     writeflag = false;
     AioWrite(fd, &writeaioctx);
     {
         std::unique_lock<std::mutex> lk(writeinterfacemtx);
-        writeinterfacecv.wait(lk, []() -> bool { return writeflag; });
+        writeinterfacecv.wait(lk, [=]() -> bool { return writeflag; });
     }
     char *readbuffer = new char[8 * 1024];
     CurveAioContext readaioctx;
@@ -157,7 +198,7 @@ TEST(TestLibcurveInterface, InterfaceTest) {
     AioRead(fd, &readaioctx);
     {
         std::unique_lock<std::mutex> lk(interfacemtx);
-        interfacecv.wait(lk, []() -> bool { return readflag; });
+        interfacecv.wait(lk, [=]() -> bool { return readflag; });
     }
 
     for (int i = 0; i < 1024; i++) {
@@ -216,7 +257,7 @@ TEST(TestLibcurveInterface, InterfaceTest) {
     off_t off1 = 1 * 1024 * 1024 * 1024ul - 8 * 1024;
     uint64_t len1 = 8 * 1024;
 
-    LOG(ERROR) << "normal read write！";
+    LOG(ERROR) << "normal read write!";
     ASSERT_EQ(len, Write(fd, buffer, off1, len1));
     ASSERT_EQ(len, Read(fd, readbuffer, off1, len1));
     Close(fd);
@@ -226,7 +267,7 @@ TEST(TestLibcurveInterface, InterfaceTest) {
     UnInit();
 }
 
-TEST(TestLibcurveInterface, FileClientTest) {
+TEST_F(TestLibcurveInterface, FileClientTest) {
     fiu_init(0);
     FLAGS_chunkserver_list =
         "127.0.0.1:9115:0,127.0.0.1:9116:0,127.0.0.1:9117:0";
@@ -248,6 +289,8 @@ TEST(TestLibcurveInterface, FileClientTest) {
     mds.StartCliService(pd);
     mds.StartService();
     mds.CreateCopysetNode(true);
+
+    mds.GetAuthService()->SetFakeReturn(authfakeret);
 
     ASSERT_EQ(0, fc.Init(configpath));
 
@@ -294,7 +337,7 @@ TEST(TestLibcurveInterface, FileClientTest) {
     ASSERT_EQ(0, fc.AioWrite(fd2, &writeaioctx));
     {
         std::unique_lock<std::mutex> lk(writeinterfacemtx);
-        writeinterfacecv.wait(lk, []() -> bool { return writeflag; });
+        writeinterfacecv.wait(lk, [=]() -> bool { return writeflag; });
     }
     char *readbuffer = new char[8 * 1024];
     memset(readbuffer, 0xFF, 8 * 1024);
@@ -308,7 +351,7 @@ TEST(TestLibcurveInterface, FileClientTest) {
     fc.AioRead(fd, &readaioctx);
     {
         std::unique_lock<std::mutex> lk(interfacemtx);
-        interfacecv.wait(lk, []() -> bool { return readflag; });
+        interfacecv.wait(lk, [=]() -> bool { return readflag; });
     }
 
     ASSERT_EQ(readaioctx.ret, readaioctx.length);
@@ -579,7 +622,7 @@ TEST(TestLibcurveInterface, ChunkserverUnstableTest) {
     delete[] buffer;
 }
 */
-TEST(TestLibcurveInterface, InterfaceExceptionTest) {
+TEST_F(TestLibcurveInterface, InterfaceExceptionTest) {
     std::string filename = "/1_userinfo_";
 
     C_UserInfo_t userinfo;
@@ -600,6 +643,8 @@ TEST(TestLibcurveInterface, InterfaceExceptionTest) {
     mds.StartCliService(pd);
     mds.StartService();
     mds.CreateCopysetNode(true);
+
+    mds.GetAuthService()->SetFakeReturn(authfakeret);
 
     ASSERT_EQ(0, Init(configpath.c_str()));
 
@@ -639,7 +684,7 @@ TEST(TestLibcurveInterface, InterfaceExceptionTest) {
     mds.UnInitialize();
 }
 
-TEST(TestLibcurveInterface, UnstableChunkserverTest) {
+TEST_F(TestLibcurveInterface, UnstableChunkserverTest) {
     std::string filename = "/1_userinfo_";
 
     UserInfo_t userinfo;
@@ -652,7 +697,7 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
 
     userinfo.owner = "userinfo";
     userinfo.password = "UnstableChunkserverTest";
-    fopt.metaServerOpt.rpcRetryOpt.addrs.push_back("127.0.0.1:9104");
+    fopt.metaServerOpt.rpcRetryOpt.addrs.push_back(mdsMetaServerAddr);
     fopt.metaServerOpt.rpcRetryOpt.rpcTimeoutMs = 500;
     fopt.loginfo.logLevel = 0;
     fopt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = 64;
@@ -688,6 +733,8 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
     mds.StartCliService(pd);
     mds.StartService();
     mds.CreateCopysetNode(true);
+
+    mds.GetAuthService()->SetFakeReturn(authfakeret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     int fd = fileinstance_.Open();
@@ -831,7 +878,7 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
     delete[] buffer;
 }
 
-TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
+TEST_F(TestLibcurveInterface, ResumeTimeoutBackoff) {
     std::string filename = "/1_userinfo_";
 
     UserInfo_t userinfo;
@@ -844,7 +891,7 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
 
     userinfo.owner = "userinfo";
     userinfo.password = "ResumeTimeoutBackoff";
-    fopt.metaServerOpt.rpcRetryOpt.addrs.push_back("127.0.0.1:9104");
+    fopt.metaServerOpt.rpcRetryOpt.addrs.push_back(mdsMetaServerAddr);
     fopt.metaServerOpt.rpcRetryOpt.rpcTimeoutMs = 500;
     fopt.loginfo.logLevel = 0;
     fopt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = 64;
@@ -876,6 +923,8 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
     mds.StartCliService(pd);
     mds.StartService();
     mds.CreateCopysetNode(true);
+
+    mds.GetAuthService()->SetFakeReturn(authfakeret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     int fd = fileinstance_.Open();
@@ -943,7 +992,7 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
     delete[] buffer;
 }
 
-TEST(TestLibcurveInterface, InterfaceStripeTest) {
+TEST_F(TestLibcurveInterface, InterfaceStripeTest) {
     FLAGS_chunkserver_list =
         "127.0.0.1:9115:0,127.0.0.1:9116:0,127.0.0.1:9117:0";
 
@@ -965,6 +1014,8 @@ TEST(TestLibcurveInterface, InterfaceStripeTest) {
     mds.StartCliService(pd);
     mds.StartService();
     mds.CreateCopysetNode(true);
+
+    mds.GetAuthService()->SetFakeReturn(authfakeret);
 
     ASSERT_EQ(0, fc.Init(configpath));
 

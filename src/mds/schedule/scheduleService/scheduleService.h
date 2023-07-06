@@ -28,6 +28,7 @@
 #include <memory>
 #include "proto/schedule.pb.h"
 #include "src/mds/schedule/coordinator.h"
+#include "src/common/authenticator.h"
 
 namespace curve {
 namespace mds {

@@ -25,6 +25,7 @@ cc_library(
     deps = [
         "//external:brpc",
         "//src/common:curve_common",
+        "//src/common:curve_auth",
         "//src/leader_election",
         "//src/mds/heartbeat",
         "//src/mds/nameserver2",
@@ -33,6 +34,8 @@ cc_library(
         "//src/mds/schedule",
         "//src/mds/schedule/scheduleService:scheduleservice",
         "//src/mds/topology",
+        "//src/mds/auth",
+        "//src/client:curve_client",
     ],
 )
 
@@ -53,5 +56,6 @@ cc_library(
         "//src/mds/schedule",
         "//src/mds/schedule/scheduleService:scheduleservice",
         "//src/mds/topology",
+        "//src/mds/auth",
     ],
 )

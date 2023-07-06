@@ -88,6 +88,29 @@ class TestLibcbdLibcurve : public ::testing::Test {
             return;
         }
 
+        // prepare auth response
+        curve::client::ClientConfig cc;
+        cc.Init(configpath.c_str());
+
+        if (cc.GetFileServiceOption().authClientOption.enable) {
+            ticketresp.set_status(curve::mds::auth::AuthStatusCode::AUTH_OK);
+            ticketresp.set_encticket("123456");
+            curve::mds::auth::TicketAttach attach;
+            attach.set_expiration(curve::common::TimeUtility::GetTimeofDaySec()
+                + 1000);
+            attach.set_sessionkey("1122334455667788");
+            std::string attachStr;
+            ASSERT_TRUE(attach.SerializeToString(&attachStr));
+            std::string encAttchStr;
+            ASSERT_EQ(0, curve::common::Encryptor::AESEncrypt(
+                cc.GetFileServiceOption().authClientOption.key,
+                curve::common::ZEROIV, attachStr, &encAttchStr));
+            ticketresp.set_encticketattach(encAttchStr);
+            FakeReturn* authfakeret
+                = new FakeReturn(nullptr, static_cast<void*>(&ticketresp));
+            mds_->GetAuthService()->SetFakeReturn(authfakeret);
+        }
+
         int64_t t0 = butil::monotonic_time_ms();
         int ret = -1;
         for (;;) {
@@ -120,6 +143,7 @@ class TestLibcbdLibcurve : public ::testing::Test {
 
  protected:
     FakeMDS* mds_;
+    GetTicketResponse ticketresp;
 };
 
 extern bool globalclientinited_;

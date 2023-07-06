@@ -38,6 +38,7 @@ cc_library(
         "//src/mds/common:mds_common",
         "//src/mds/nameserver2/allocstatistic:alloc_statistic",
         "//src/mds/nameserver2/helper",
+        "//src/mds/nameserver2/filelock",
         "//src/mds/nameserver2/idgenerator:nameserver_idgenerator",
         "//src/mds/snapshotcloneclient",
         "//src/mds/topology",

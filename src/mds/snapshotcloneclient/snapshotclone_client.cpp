@@ -20,11 +20,14 @@
  * Author: hzchenwei7
  */
 
-#include "src/mds/snapshotcloneclient/snapshotclone_client.h"
 #include <brpc/channel.h>
 #include <json/json.h>
-
 #include <memory>
+#include "src/mds/snapshotcloneclient/snapshotclone_client.h"
+#include "proto/auth.pb.h"
+#include "src/client/auth_client.h"
+#include "src/common/authenticator.h"
+#include "src/common/snapshotclone/snapshotclone_define.h"
 
 using curve::snapshotcloneserver::kActionStr;
 using curve::snapshotcloneserver::kCloneFileInfoStr;
@@ -69,6 +72,19 @@ StatusCode SnapshotCloneClient::GetCloneRefStatus(
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
+    // add auth token
+    Token token;
+    auto isGet = curve::client::AuthClient::GetInstance().GetToken(
+        curve::common::SNAPSHOTCLONE_ROLE, &token);
+    if (!isGet) {
+        LOG(ERROR) << "GetCloneRefStatus failed when get auth token,"
+                   << " filename = " << filename << ", user = " << user;
+        return StatusCode::kAuthFailed;
+    }
+    cntl.http_request().SetHeader(
+        curve::snapshotcloneserver::kAuthTicketStr, token.encticket());
+    cntl.http_request().SetHeader(
+        curve::snapshotcloneserver::kAuthCIdStr, token.encclientidentity());
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
     if (cntl.Failed()) {

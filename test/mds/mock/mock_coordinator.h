@@ -26,6 +26,7 @@
 #include <gmock/gmock.h>
 #include <vector>
 #include <map>
+#include "proto/schedule.pb.h"
 #include "src/mds/schedule/coordinator.h"
 
 namespace curve {

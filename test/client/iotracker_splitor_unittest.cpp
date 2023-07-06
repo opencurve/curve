@@ -33,6 +33,7 @@
 #include <string>
 #include <thread>              //NOLINT
 
+#include "proto/topology.pb.h"
 #include "src/client/client_common.h"
 #include "src/client/client_config.h"
 #include "src/client/config_info.h"
@@ -83,7 +84,7 @@ class IOTrackerSplitorTest : public ::testing::Test {
  public:
     void SetUp() {
         fiu_init(0);
-        fopt.metaServerOpt.rpcRetryOpt.addrs.push_back("127.0.0.1:9104");
+        fopt.metaServerOpt.rpcRetryOpt.addrs.push_back(mdsMetaServerAddr);
         fopt.metaServerOpt.rpcRetryOpt.rpcTimeoutMs = 500;
         fopt.metaServerOpt.rpcRetryOpt.rpcRetryIntervalUS = 50000;
         fopt.loginfo.logLevel = 0;

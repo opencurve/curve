@@ -37,6 +37,7 @@
 #include <vector>
 #include <set>
 
+#include "src/common/authenticator.h"
 #include "src/common/configuration.h"
 #include "src/mds/topology/topology_config.h"
 #include "src/mds/common/mds_define.h"

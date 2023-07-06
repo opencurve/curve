@@ -29,7 +29,10 @@
 #include <thread>   //NOLINT
 #include <chrono>   // NOLINT
 
+#include "src/client/auth_client.h"
+#include "src/client/config_info.h"
 #include "src/client/copyset_client.h"
+#include "src/common/authenticator.h"
 #include "test/client/mock/mock_meta_cache.h"
 #include "src/common/concurrent/count_down_event.h"
 #include "test/client/mock/mock_chunkservice.h"
@@ -65,9 +68,14 @@ class CopysetClientTest : public testing::Test {
     virtual void SetUp() {
         listenAddr_ = "127.0.0.1:9109";
         server_ = new brpc::Server();
+
+        curve::common::AuthClientOption authOption;
+        authOption.enable = false;
+        AuthClient::GetInstance().Init(MetaServerOption{}, authOption);
     }
 
     virtual void TearDown() {
+        AuthClient::GetInstance().Uninit();
         server_->Stop(0);
         server_->Join();
         delete server_;

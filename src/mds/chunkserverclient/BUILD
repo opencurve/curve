@@ -29,6 +29,7 @@ cc_library(
         "//external:glog",
         "//proto:chunkserver-cc-protos",
         "//src/mds/common:mds_common",
-        "//src/mds/topology:topology"
+        "//src/mds/topology:topology",
+        "//src/client:curve_client",
     ],
 )

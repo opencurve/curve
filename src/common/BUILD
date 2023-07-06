@@ -70,6 +70,8 @@ cc_library(
     deps = [
         "//external:butil",
         "//external:glog",
+        "//proto:auth_cc_proto",
+        "//src/common:curve_common",
         "//src/common/concurrent:curve_concurrent",
     ],
 )

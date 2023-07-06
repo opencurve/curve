@@ -47,8 +47,8 @@ using ::testing::DoAll;
 using ::testing::SetArgPointee;
 using ::testing::SaveArg;
 using ::testing::Invoke;
-using curve::common::Authenticator;
 
+using curve::common::Encryptor;
 using curve::common::TimeUtility;
 using curve::mds::topology::MockTopology;
 using curve::mds::snapshotcloneclient::MockSnapshotCloneClient;
@@ -3924,9 +3924,9 @@ TEST_F(CurveFSTest, testCheckRenameNewfilePathOwner) {
     // root用户，签名匹配，date超时
     {
         std::string filename = "/file1";
-        std::string str2sig = Authenticator::GetString2Signature(date,
+        std::string str2sig = Encryptor::GetString2Signature(date,
                                                 authOptions_.rootOwner);
-        std::string sig = Authenticator::CalcString2Signature(str2sig,
+        std::string sig = Encryptor::CalcString2Signature(str2sig,
                                                 authOptions_.rootPassword);
         ASSERT_EQ(curvefs_->CheckDestinationOwner(filename,
                     authOptions_.rootOwner, sig, date),
@@ -3964,9 +3964,9 @@ TEST_F(CurveFSTest, testCheckPathOwner) {
     // root用户，签名匹配, 并检测date过期
     {
         std::string filename = "/file1";
-        std::string str2sig = Authenticator::GetString2Signature(date,
+        std::string str2sig = Encryptor::GetString2Signature(date,
                                                 authOptions_.rootOwner);
-        std::string sig = Authenticator::CalcString2Signature(str2sig,
+        std::string sig = Encryptor::CalcString2Signature(str2sig,
                                                 authOptions_.rootPassword);
 
         ASSERT_EQ(curvefs_->CheckPathOwner(filename,
@@ -4002,9 +4002,9 @@ TEST_F(CurveFSTest, testCheckFileOwner) {
     // root用户，签名匹配
     {
         std::string filename = "/file1";
-        std::string str2sig = Authenticator::GetString2Signature(date,
+        std::string str2sig = Encryptor::GetString2Signature(date,
                                                 authOptions_.rootOwner);
-        std::string sig = Authenticator::CalcString2Signature(str2sig,
+        std::string sig = Encryptor::CalcString2Signature(str2sig,
                                                 authOptions_.rootPassword);
 
         ASSERT_EQ(curvefs_->CheckFileOwner(filename,

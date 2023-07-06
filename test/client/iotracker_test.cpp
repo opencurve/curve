@@ -47,7 +47,6 @@ class IOTrackerTest : public ::testing::Test {
 
         metric.reset(new DiscardMetric("IOTrackerTest"));
         discardTaskManager_.reset(new DiscardTaskManager(metric.get()));
-
         mockMDSClient_.reset(new MockMDSClient());
         mockMetaCache_.reset(new MockMetaCache());
 

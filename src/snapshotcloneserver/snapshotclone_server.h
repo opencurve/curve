@@ -26,6 +26,7 @@
 #include <string>
 #include <memory>
 
+#include "src/common/authenticator.h"
 #include "src/common/configuration.h"
 #include "src/leader_election/leader_election.h"
 

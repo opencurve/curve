@@ -20,12 +20,13 @@
  * Author: xuchaojie
  */
 
-#include "src/mds/chunkserverclient/chunkserver_client.h"
-
 #include <string>
 #include <chrono>  //NOLINT
 #include <thread>  //NOLINT
 #include <utility>
+#include "src/mds/chunkserverclient/chunkserver_client.h"
+#include "src/client/auth_client.h"
+#include "src/common/authenticator.h"
 
 using ::curve::mds::topology::ChunkServer;
 using ::curve::mds::topology::SplitPeerId;
@@ -42,6 +43,8 @@ using ::curve::chunkserver::CliService2_Stub;
 using ::curve::chunkserver::GetLeaderRequest2;
 using ::curve::chunkserver::GetLeaderResponse2;
 
+using ::curve::client::AuthClient;
+using ::curve::common::CHUNKSERVER_ROLE;
 
 
 namespace curve {
@@ -70,6 +73,14 @@ int ChunkServerClient::DeleteChunkSnapshotOrCorrectSn(
     request.set_copysetid(copysetId);
     request.set_chunkid(chunkId);
     request.set_correctedsn(correctedSn);
+    // add auth token
+    auto isGet = AuthClient::GetInstance().GetToken(CHUNKSERVER_ROLE,
+        request.mutable_authtoken());
+    if (!isGet) {
+        LOG(ERROR) << "DeleteChunkSnapshotOrCorrectSn failed"
+                    << " when get auth token";
+        return kMdsGetAuthTokenFail;
+    }
 
     ChunkResponse response;
     uint32_t retry = 0;
@@ -161,6 +172,13 @@ int ChunkServerClient::DeleteChunk(ChunkServerIdType leaderId,
     request.set_copysetid(copysetId);
     request.set_chunkid(chunkId);
     request.set_sn(sn);
+    // add auth token
+    auto isGet = AuthClient::GetInstance().GetToken(CHUNKSERVER_ROLE,
+        request.mutable_authtoken());
+    if (!isGet) {
+        LOG(ERROR) << "DeleteChunk failed when get auth token";
+        return kMdsGetAuthTokenFail;
+    }
 
     ChunkResponse response;
     uint32_t retry = 0;

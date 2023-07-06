@@ -36,6 +36,7 @@
 #include "include/client/libcurve.h"
 #include "include/client/libcurve_define.h"
 #include "include/curve_compiler_specific.h"
+#include "src/client/auth_client.h"
 #include "src/client/client_common.h"
 #include "src/client/client_config.h"
 #include "src/client/file_instance.h"
@@ -153,8 +154,12 @@ int FileClient::Init(const std::string& configpath) {
         return -LIBCURVE_ERROR::FAILED;
     }
 
-    auto tmpMdsClient = std::make_shared<MDSClient>();
+    // init auth client
+    AuthClient::GetInstance().Init(
+        clientconfig_.GetFileServiceOption().metaServerOpt,
+        clientconfig_.GetFileServiceOption().authClientOption);
 
+    auto tmpMdsClient = std::make_shared<MDSClient>();
     auto ret = tmpMdsClient->Initialize(
         clientconfig_.GetFileServiceOption().metaServerOpt);
     if (LIBCURVE_ERROR::OK != ret) {
@@ -181,6 +186,7 @@ int FileClient::Init(const std::string& configpath) {
         LOG(ERROR) << "Init ChunkServer Client failed!";
         return -LIBCURVE_ERROR::FAILED;
     }
+
     rc2 = csBroadCaster_->Init(
         clientconfig_.GetFileServiceOption().csBroadCasterOpt);
     if (rc2 != 0) {
@@ -1215,6 +1221,10 @@ const char *LibCurveErrorName(LIBCURVE_ERROR err) {
         return "RETRY_UNTIL_SUCCESS";
     case LIBCURVE_ERROR::EPOCH_TOO_OLD:
         return "EPOCH_TOO_OLD";
+    case LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL:
+        return "GET_AUTH_TOKEN_FAIL";
+    case LIBCURVE_ERROR::AUTH_FAILED:
+        return "AUTH_FAILED";
     case LIBCURVE_ERROR::UNKNOWN:
         break;
     }

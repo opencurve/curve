@@ -22,7 +22,11 @@
 
 #include <gtest/gtest.h>
 #include <gflags/gflags.h>
+#include <memory>
+#include "src/client/auth_client.h"
+#include "src/client/config_info.h"
 #include "src/client/file_instance.h"
+#include "src/common/authenticator.h"
 
 namespace curve {
 namespace client {

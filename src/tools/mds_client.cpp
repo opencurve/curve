@@ -19,7 +19,13 @@
  * Created Date: 2019-11-25
  * Author: charisu
  */
+
+#include <iostream>
+#include <type_traits>
 #include "src/tools/mds_client.h"
+#include "proto/auth.pb.h"
+#include "src/client/auth_client.h"
+#include "src/common/authenticator.h"
 
 DECLARE_uint64(rpcTimeout);
 DECLARE_uint64(rpcRetryTimes);
@@ -55,17 +61,6 @@ int MDSClient::Init(const std::string& mdsAddr,
     for (uint64_t i = 0; i < mdsAddrVec_.size(); ++i) {
         if (channel_.Init(mdsAddrVec_[i].c_str(), nullptr) != 0) {
             std::cout << "Init channel to " << mdsAddr << "fail!" << std::endl;
-            continue;
-        }
-        // 寻找哪个mds存活
-        curve::mds::topology::ListPhysicalPoolRequest request;
-        curve::mds::topology::ListPhysicalPoolResponse response;
-        curve::mds::topology::TopologyService_Stub stub(&channel_);
-        brpc::Controller cntl;
-        cntl.set_timeout_ms(FLAGS_rpcTimeout);
-        stub.ListPhysicalPool(&cntl, &request, &response, nullptr);
-
-        if (cntl.Failed()) {
             continue;
         }
         currentMdsIndex_ = i;
@@ -109,6 +104,12 @@ int MDSClient::InitDummyServerMap(const std::string& dummyPort) {
     return 0;
 }
 
+template <typename T>
+bool FillAuthInfo(T* request) {
+    return curve::client::AuthClient::GetInstance().GetToken(
+        curve::common::MDS_ROLE, request->mutable_authtoken());
+}
+
 int MDSClient::GetFileInfo(const std::string &fileName,
                            FileInfo* fileInfo) {
     assert(fileInfo != nullptr);
@@ -116,6 +117,10 @@ int MDSClient::GetFileInfo(const std::string &fileName,
     curve::mds::GetFileInfoResponse response;
     request.set_filename(fileName);
     FillUserInfo(&request);
+    if (!FillAuthInfo(&request)) {
+        std::cout << "GetFileInfo fill auth info fail!" << std::endl;
+        return -1;
+    }
     curve::mds::CurveFSService_Stub stub(&channel_);
 
     auto fp = &curve::mds::CurveFSService_Stub::GetFileInfo;
@@ -139,6 +144,10 @@ int MDSClient::GetAllocatedSize(const std::string& fileName,
     curve::mds::GetAllocatedSizeRequest request;
     curve::mds::GetAllocatedSizeResponse response;
     request.set_filename(fileName);
+    if (!FillAuthInfo(&request)) {
+        std::cout << "GetAllocatedSize fill auth info fail!" << std::endl;
+        return -1;
+    }
     curve::mds::CurveFSService_Stub stub(&channel_);
 
     auto fp = &curve::mds::CurveFSService_Stub::GetAllocatedSize;
@@ -167,6 +176,10 @@ int MDSClient::GetFileSize(const std::string& fileName,
     curve::mds::GetFileSizeRequest request;
     curve::mds::GetFileSizeResponse response;
     request.set_filename(fileName);
+    if (!FillAuthInfo(&request)) {
+        std::cout << "GetFileSize fill auth info fail!" << std::endl;
+        return -1;
+    }
     curve::mds::CurveFSService_Stub stub(&channel_);
 
     auto fp = &curve::mds::CurveFSService_Stub::GetFileSize;
@@ -193,6 +206,10 @@ int MDSClient::ListDir(const std::string& dirName,
     curve::mds::ListDirResponse response;
     request.set_filename(dirName);
     FillUserInfo(&request);
+    if (!FillAuthInfo(&request)) {
+        std::cout << "ListDir fill auth info fail!" << std::endl;
+        return -1;
+    }
     curve::mds::CurveFSService_Stub stub(&channel_);
 
     auto fp = &curve::mds::CurveFSService_Stub::ListDir;
@@ -226,6 +243,10 @@ GetSegmentRes MDSClient::GetSegmentInfo(const std::string& fileName,
     request.set_offset(offset);
     request.set_allocateifnotexist(false);
     FillUserInfo(&request);
+    if (!FillAuthInfo(&request)) {
+        std::cout << "GetSegmentInfo fill auth info fail!" << std::endl;
+        return GetSegmentRes::kOtherError;
+    }
     curve::mds::CurveFSService_Stub stub(&channel_);
 
     auto fp = &curve::mds::CurveFSService_Stub::GetOrAllocateSegment;
@@ -252,6 +273,10 @@ int MDSClient::DeleteFile(const std::string& fileName, bool forcedelete) {
     request.set_filename(fileName);
     request.set_forcedelete(forcedelete);
     FillUserInfo(&request);
+    if (!FillAuthInfo(&request)) {
+        std::cout << "DeleteFile fill auth info fail!" << std::endl;
+        return -1;
+    }
     curve::mds::CurveFSService_Stub stub(&channel_);
 
     auto fp = &curve::mds::CurveFSService_Stub::DeleteFile;
@@ -287,6 +312,10 @@ int MDSClient::CreateFile(const CreateFileContext& context) {
     }
 
     FillUserInfo(&request);
+    if (!FillAuthInfo(&request)) {
+        std::cout << "CreateFile fill auth info fail!" << std::endl;
+        return -1;
+    }
     curve::mds::CurveFSService_Stub stub(&channel_);
 
     auto fp = &curve::mds::CurveFSService_Stub::CreateFile;
@@ -310,6 +339,10 @@ int MDSClient::ExtendVolume(const std::string& fileName, uint64_t newSize) {
     request.set_filename(fileName);
     request.set_newsize(newSize);
     FillUserInfo(&request);
+    if (!FillAuthInfo(&request)) {
+        std::cout << "ExtendVolume fill auth info fail!" << std::endl;
+        return -1;
+    }
     curve::mds::CurveFSService_Stub stub(&channel_);
     auto fp = &curve::mds::CurveFSService_Stub::ExtendFile;
     if (SendRpcToMds(&request, &response, &stub, fp) != 0) {
@@ -335,6 +368,10 @@ int MDSClient::ListVolumesOnCopyset(
     for (const auto& copyset : copysets) {
         auto copysetPtr = request.add_copysets();
         *copysetPtr = copyset;
+    }
+    if (!FillAuthInfo(&request)) {
+        std::cout << "ListVolumesOnCopyset fill auth info fail!" << std::endl;
+        return -1;
     }
     curve::mds::CurveFSService_Stub stub(&channel_);
 
@@ -367,6 +404,10 @@ int MDSClient::ListClient(std::vector<std::string>* clientAddrs,
     curve::mds::CurveFSService_Stub stub(&channel_);
     if (listClientsInRepo) {
         request.set_listallclient(true);
+    }
+    if (!FillAuthInfo(&request)) {
+        std::cout << "ListClient fill auth info fail!" << std::endl;
+        return -1;
     }
     auto fp = &curve::mds::CurveFSService_Stub::ListClient;
     if (SendRpcToMds(&request, &response, &stub, fp) != 0) {
@@ -423,6 +464,11 @@ int MDSClient::GetChunkServerListInCopySets(const PoolIdType& logicalPoolId,
     for (const auto& copysetId : copysetIds) {
         request.add_copysetid(copysetId);
     }
+    if (!FillAuthInfo(&request)) {
+        std::cout << "GetChunkServerListInCopySets fill auth info fail!"
+                  << std::endl;
+        return -1;
+    }
     curve::mds::topology::TopologyService_Stub stub(&channel_);
 
     auto fp = &curve::mds::topology::TopologyService_Stub::GetChunkServerListInCopySets;  // NOLINT
@@ -452,6 +498,11 @@ int MDSClient::ListPhysicalPoolsInCluster(
     }
     curve::mds::topology::ListPhysicalPoolRequest request;
     curve::mds::topology::ListPhysicalPoolResponse response;
+    if (!FillAuthInfo(&request)) {
+        std::cout << "ListPhysicalPoolsInCluster fill auth info fail!"
+                  << std::endl;
+        return -1;
+    }
     curve::mds::topology::TopologyService_Stub stub(&channel_);
 
     auto fp = &curve::mds::topology::TopologyService_Stub::ListPhysicalPool;
@@ -500,6 +551,11 @@ int MDSClient::ListLogicalPoolsInPhysicalPool(const PoolIdType& id,
     curve::mds::topology::ListLogicalPoolRequest request;
     curve::mds::topology::ListLogicalPoolResponse response;
     request.set_physicalpoolid(id);
+    if (!FillAuthInfo(&request)) {
+        std::cout << "ListLogicalPoolsInPhysicalPool fill auth info fail!"
+                  << std::endl;
+        return -1;
+    }
     curve::mds::topology::TopologyService_Stub stub(&channel_);
 
     auto fp = &curve::mds::topology::TopologyService_Stub::ListLogicalPool;
@@ -527,6 +583,11 @@ int MDSClient::ListZoneInPhysicalPool(const PoolIdType& id,
     curve::mds::topology::ListPoolZoneRequest request;
     curve::mds::topology::ListPoolZoneResponse response;
     request.set_physicalpoolid(id);
+    if (!FillAuthInfo(&request)) {
+        std::cout << "ListZoneInPhysicalPool fill auth info fail!"
+                  << std::endl;
+        return -1;
+    }
     curve::mds::topology::TopologyService_Stub stub(&channel_);
 
     auto fp = &curve::mds::topology::TopologyService_Stub::ListPoolZone;
@@ -554,6 +615,11 @@ int MDSClient::ListServersInZone(const ZoneIdType& id,
     curve::mds::topology::ListZoneServerRequest request;
     curve::mds::topology::ListZoneServerResponse response;
     request.set_zoneid(id);
+    if (!FillAuthInfo(&request)) {
+        std::cout << "ListServersInZone fill auth info fail!"
+                  << std::endl;
+        return -1;
+    }
     curve::mds::topology::TopologyService_Stub stub(&channel_);
 
     auto fp = &curve::mds::topology::TopologyService_Stub::ListZoneServer;
@@ -580,6 +646,11 @@ int MDSClient::ListChunkServersOnServer(const ServerIdType& id,
     assert(chunkservers != nullptr);
     curve::mds::topology::ListChunkServerRequest request;
     request.set_serverid(id);
+    if (!FillAuthInfo(&request)) {
+        std::cout << "ListChunkServersOnServer fill auth info fail!"
+                  << std::endl;
+        return -1;
+    }
     return ListChunkServersOnServer(&request, chunkservers);
 }
 int MDSClient::ListChunkServersOnServer(const std::string& ip,
@@ -587,6 +658,11 @@ int MDSClient::ListChunkServersOnServer(const std::string& ip,
     assert(chunkservers != nullptr);
     curve::mds::topology::ListChunkServerRequest request;
     request.set_ip(ip);
+    if (!FillAuthInfo(&request)) {
+        std::cout << "ListChunkServersOnServer fill auth info fail!"
+                  << std::endl;
+        return -1;
+    }
     return ListChunkServersOnServer(&request, chunkservers);
 }
 
@@ -623,8 +699,12 @@ int MDSClient::GetChunkServerInfo(const ChunkServerIdType& id,
                                   ChunkServerInfo* chunkserver) {
     assert(chunkserver != nullptr);
     curve::mds::topology::GetChunkServerInfoRequest request;
-    curve::mds::topology::GetChunkServerInfoResponse response;
     request.set_chunkserverid(id);
+    if (!FillAuthInfo(&request)) {
+        std::cout << "GetChunkServerInfo fill auth info fail!"
+                  << std::endl;
+        return -1;
+    }
     return GetChunkServerInfo(&request, chunkserver);
 }
 
@@ -632,7 +712,6 @@ int MDSClient::GetChunkServerInfo(const std::string& csAddr,
                                   ChunkServerInfo* chunkserver) {
     assert(chunkserver != nullptr);
     curve::mds::topology::GetChunkServerInfoRequest request;
-    curve::mds::topology::GetChunkServerInfoResponse response;
     if (!curve::common::NetCommon::CheckAddressValid(csAddr)) {
         std::cout << "chunkserver address invalid!" << std::endl;
         return -1;
@@ -644,6 +723,11 @@ int MDSClient::GetChunkServerInfo(const std::string& csAddr,
     curve::common::StringToUll(strs[1], &port);
     request.set_hostip(ip);
     request.set_port(port);
+    if (!FillAuthInfo(&request)) {
+        std::cout << "GetChunkServerInfo fill auth info fail!"
+                  << std::endl;
+        return -1;
+    }
     return GetChunkServerInfo(&request, chunkserver);
 }
 
@@ -673,8 +757,12 @@ int MDSClient::GetCopySetsInChunkServer(const ChunkServerIdType& id,
                                  std::vector<CopysetInfo>* copysets) {
     assert(copysets != nullptr);
     curve::mds::topology::GetCopySetsInChunkServerRequest request;
-    curve::mds::topology::GetCopySetsInChunkServerResponse response;
     request.set_chunkserverid(id);
+    if (!FillAuthInfo(&request)) {
+        std::cout << "GetCopySetsInChunkServer fill auth info fail!"
+                  << std::endl;
+        return -1;
+    }
     return GetCopySetsInChunkServer(&request, copysets);
 }
 
@@ -682,7 +770,6 @@ int MDSClient::GetCopySetsInChunkServer(const std::string& csAddr,
                                  std::vector<CopysetInfo>* copysets) {
     assert(copysets != nullptr);
     curve::mds::topology::GetCopySetsInChunkServerRequest request;
-    curve::mds::topology::GetCopySetsInChunkServerResponse response;
     if (!curve::common::NetCommon::CheckAddressValid(csAddr)) {
         std::cout << "chunkserver address invalid!" << std::endl;
         return -1;
@@ -694,6 +781,11 @@ int MDSClient::GetCopySetsInChunkServer(const std::string& csAddr,
     curve::common::StringToUll(strs[1], &port);
     request.set_hostip(ip);
     request.set_port(port);
+    if (!FillAuthInfo(&request)) {
+        std::cout << "GetCopySetsInChunkServer fill auth info fail!"
+                  << std::endl;
+        return -1;
+    }
     return GetCopySetsInChunkServer(&request, copysets);
 }
 
@@ -707,6 +799,11 @@ int MDSClient::SetCopysetsAvailFlag(const std::vector<CopysetInfo> copysets,
         *copysetPtr = copyset;
     }
     request.set_availflag(availFlag);
+    if (!FillAuthInfo(&request)) {
+        std::cout << "SetCopysetsAvailFlag fill auth info fail!"
+                  << std::endl;
+        return -1;
+    }
     auto fp = &curve::mds::topology::TopologyService_Stub::SetCopysetsAvailFlag;
     if (SendRpcToMds(&request, &response, &stub, fp) != 0) {
         std::cout << "SetCopysetsAvailFlag from all mds fail!"
@@ -727,6 +824,11 @@ int MDSClient::ListUnAvailCopySets(std::vector<CopysetInfo>* copysets) {
     curve::mds::topology::ListUnAvailCopySetsRequest request;
     curve::mds::topology::ListUnAvailCopySetsResponse response;
     curve::mds::topology::TopologyService_Stub stub(&channel_);
+    if (!FillAuthInfo(&request)) {
+        std::cout << "ListUnAvailCopySets fill auth info fail!"
+                  << std::endl;
+        return -1;
+    }
     auto fp = &curve::mds::topology::TopologyService_Stub::ListUnAvailCopySets;
     if (SendRpcToMds(&request, &response, &stub, fp) != 0) {
         std::cout << "ListUnAvailCopySets from all mds fail!"
@@ -781,7 +883,11 @@ int MDSClient::GetCopySetsInCluster(std::vector<CopysetInfo>* copysets,
     if (filterScaning) {
         request.set_filterscaning(true);
     }
-
+    if (!FillAuthInfo(&request)) {
+        std::cout << "GetCopySetsInCluster fill auth info fail!"
+                  << std::endl;
+        return -1;
+    }
     auto fp = &curve::mds::topology::TopologyService_Stub::GetCopySetsInCluster;
     if (SendRpcToMds(&request, &response, &stub, fp) != 0) {
         std::cout << "GetCopySetsInCluster from all mds fail!"
@@ -811,6 +917,10 @@ int MDSClient::GetCopyset(PoolIdType lpid,
 
     request.set_logicalpoolid(lpid);
     request.set_copysetid(copysetId);
+    if (!FillAuthInfo(&request)) {
+        std::cout << "GetCopyset fill auth info fail!" << std::endl;
+        return -1;
+    }
     auto fn = &curve::mds::topology::TopologyService_Stub::GetCopyset;
     if (SendRpcToMds(&request, &response, &stub, fn) != 0) {
         std::cout << "GetCopyset from all mds fail!" << std::endl;
@@ -995,6 +1105,10 @@ int MDSClient::RapidLeaderSchedule(PoolIdType lpoolId) {
     ::curve::mds::schedule::ScheduleService_Stub stub(&channel_);
 
     request.set_logicalpoolid(lpoolId);
+    if (!FillAuthInfo(&request)) {
+        std::cout << "RapidLeaderSchedule fill auth info fail!" << std::endl;
+        return -1;
+    }
 
     auto fp = &::curve::mds::schedule::ScheduleService_Stub::RapidLeaderSchedule; // NOLINT
     if (0 != SendRpcToMds(&request, &response, &stub, fp)) {
@@ -1018,6 +1132,11 @@ int MDSClient::SetLogicalPoolScanState(PoolIdType lpid, bool scanEnable) {
 
     request.set_logicalpoolid(lpid);
     request.set_scanenable(scanEnable);
+    if (!FillAuthInfo(&request)) {
+        std::cout << "SetLogicalPoolScanState fill auth info fail!"
+                  << std::endl;
+        return -1;
+    }
 
     auto fn =
         &::curve::mds::topology::TopologyService_Stub::SetLogicalPoolScanState;
@@ -1047,6 +1166,11 @@ int MDSClient::QueryChunkServerRecoverStatus(
     for (auto id : cs) {
         request.add_chunkserverid(id);
     }
+    if (!FillAuthInfo(&request)) {
+        std::cout << "QueryChunkServerRecoverStatus fill auth info fail!"
+                  << std::endl;
+        return -1;
+    }
 
     auto fp = &::curve::mds::schedule::ScheduleService_Stub::QueryChunkServerRecoverStatus; // NOLINT
     if (0 != SendRpcToMds(&request, &response, &stub, fp)) {
@@ -1075,6 +1199,11 @@ int MDSClient::UpdateFileThrottleParams(
     request.set_filename(fileName);
     request.set_allocated_throttleparams(new mds::ThrottleParams(params));
     FillUserInfo(&request);
+    if (!FillAuthInfo(&request)) {
+        std::cout << "UpdateFileThrottleParams fill auth info fail!"
+                  << std::endl;
+        return -1;
+    }
 
     curve::mds::CurveFSService_Stub stub(&channel_);
 
@@ -1090,6 +1219,120 @@ int MDSClient::UpdateFileThrottleParams(
 
     std::cout << "UpdateFileThrottleParams fail with errCode: "
               << curve::mds::StatusCode_Name(response.statuscode())
+              << std::endl;
+    return -1;
+}
+
+int MDSClient::ListPoolset(std::vector<PoolsetInfo>* poolsets) {
+    assert(poolsets != nullptr);
+    curve::mds::topology::ListPoolsetRequest request;
+    curve::mds::topology::ListPoolsetResponse response;
+    curve::mds::topology::TopologyService_Stub stub(&channel_);
+    if (!FillAuthInfo(&request)) {
+        std::cout << "ListPoolset fill auth info fail!"
+                  << std::endl;
+        return -1;
+    }
+
+    auto fp = &curve::mds::topology::TopologyService_Stub::ListPoolset;
+    if (0 != SendRpcToMds(&request, &response, &stub, fp)) {
+        std::cout << "ListPoolset fail" << std::endl;
+        return -1;
+    }
+
+    if (response.statuscode() == curve::mds::topology::kTopoErrCodeSuccess) {
+        auto* mut = response.mutable_poolsetinfos();
+        poolsets->insert(poolsets->end(), std::make_move_iterator(mut->begin()),
+                         std::make_move_iterator(mut->end()));
+        return 0;
+    }
+
+    std::cout << "ListPoolset fail with errCode: " << response.statuscode()
+              << std::endl;
+    return -1;
+}
+
+int MDSClient::AddKey(const std::string &key) {
+    curve::mds::auth::AddKeyRequest request;
+    curve::mds::auth::AddKeyResponse response;
+    request.add_enckey(key);
+    curve::mds::auth::AuthService_Stub stub(&channel_);
+    auto fn = &curve::mds::auth::AuthService_Stub::AddKey;
+    if (SendRpcToMds(&request, &response, &stub, fn) != 0) {
+        std::cout << "AddKey from all mds fail!" << std::endl;
+        return -1;
+    }
+
+    if (response.status() == curve::mds::auth::AuthStatusCode::AUTH_OK) {
+        return 0;
+    }
+
+    std::cout << "AddKey fail with errCode: "
+              << curve::mds::auth::AuthStatusCode_Name(response.status())
+              << std::endl;
+    return -1;
+}
+
+int MDSClient::DelKey(const std::string &user) {
+    curve::mds::auth::DeleteKeyRequest request;
+    curve::mds::auth::DeleteKeyResponse response;
+    request.set_enckeyid(user);
+    curve::mds::auth::AuthService_Stub stub(&channel_);
+    auto fn = &curve::mds::auth::AuthService_Stub::DeleteKey;
+    if (SendRpcToMds(&request, &response, &stub, fn) != 0) {
+        std::cout << "DelKey from all mds fail!" << std::endl;
+        return -1;
+    }
+
+    if (response.status() == curve::mds::auth::AuthStatusCode::AUTH_OK) {
+        return 0;
+    }
+
+    std::cout << "DelKey fail with errCode: "
+              << curve::mds::auth::AuthStatusCode_Name(response.status())
+              << std::endl;
+    return -1;
+}
+
+int MDSClient::GetKey(const std::string &user, std::string *key) {
+    curve::mds::auth::GetKeyRequest request;
+    curve::mds::auth::GetKeyResponse response;
+    request.set_enckeyid(user);
+    curve::mds::auth::AuthService_Stub stub(&channel_);
+    auto fn = &curve::mds::auth::AuthService_Stub::GetKey;
+    if (SendRpcToMds(&request, &response, &stub, fn) != 0) {
+        std::cout << "GetKey from all mds fail!" << std::endl;
+        return -1;
+    }
+
+    if (response.status() == curve::mds::auth::AuthStatusCode::AUTH_OK) {
+        *key = response.enckey();
+        return 0;
+    }
+
+    std::cout << "GetKey fail with errCode: "
+              << curve::mds::auth::AuthStatusCode_Name(response.status())
+              << std::endl;
+    return -1;
+}
+
+int MDSClient::UpdateKey(const std::string &key) {
+    curve::mds::auth::UpdateKeyRequest request;
+    curve::mds::auth::UpdateKeyResponse response;
+    request.set_enckey(key);
+    curve::mds::auth::AuthService_Stub stub(&channel_);
+    auto fn = &curve::mds::auth::AuthService_Stub::UpdateKey;
+    if (SendRpcToMds(&request, &response, &stub, fn) != 0) {
+        std::cout << "UpdateKey from all mds fail!" << std::endl;
+        return -1;
+    }
+
+    if (response.status() == curve::mds::auth::AuthStatusCode::AUTH_OK) {
+        return 0;
+    }
+
+    std::cout << "UpdateKey fail with errCode: "
+              << curve::mds::auth::AuthStatusCode_Name(response.status())
               << std::endl;
     return -1;
 }
@@ -1146,35 +1389,11 @@ void MDSClient::FillUserInfo(T* request) {
 
     if (userName_ == rootUserName && !password_.empty()) {
         std::string str2sig =
-            Authenticator::GetString2Signature(date, userName_);
+            Encryptor::GetString2Signature(date, userName_);
         std::string sig =
-            Authenticator::CalcString2Signature(str2sig, password_);
+            Encryptor::CalcString2Signature(str2sig, password_);
         request->set_signature(sig);
     }
-}
-
-int MDSClient::ListPoolset(std::vector<PoolsetInfo>* poolsets) {
-    assert(poolsets != nullptr);
-    curve::mds::topology::ListPoolsetRequest request;
-    curve::mds::topology::ListPoolsetResponse response;
-    curve::mds::topology::TopologyService_Stub stub(&channel_);
-
-    auto fp = &curve::mds::topology::TopologyService_Stub::ListPoolset;
-    if (0 != SendRpcToMds(&request, &response, &stub, fp)) {
-        std::cout << "ListPoolset fail" << std::endl;
-        return -1;
-    }
-
-    if (response.statuscode() == curve::mds::topology::kTopoErrCodeSuccess) {
-        auto* mut = response.mutable_poolsetinfos();
-        poolsets->insert(poolsets->end(), std::make_move_iterator(mut->begin()),
-                         std::make_move_iterator(mut->end()));
-        return 0;
-    }
-
-    std::cout << "ListPoolset fail with errCode: " << response.statuscode()
-              << std::endl;
-    return -1;
 }
 
 }  // namespace tool

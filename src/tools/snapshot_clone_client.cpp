@@ -21,6 +21,7 @@
  */
 
 #include "src/tools/snapshot_clone_client.h"
+#include <iostream>
 
 namespace curve {
 namespace tool {
@@ -109,6 +110,8 @@ void SnapshotCloneClient::GetOnlineStatus(
         int res = GetListenAddrFromDummyPort(item.second, &listenAddr);
         // 如果获取到的监听地址与记录的mds地址不一致，也认为不在线
         if (res != 0 || listenAddr != item.first) {
+            std::cout << "res = " << res << ", listenAddr = " << listenAddr
+                      << ", item.first = " << item.first << std::endl;
             onlineStatus->emplace(item.first, false);
             continue;
         }

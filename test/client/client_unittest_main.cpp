@@ -36,7 +36,7 @@ uint32_t chunk_size = 4 * 1024 * 1024;   // NOLINT
 std::string configpath = "./test/client/configs/client.conf";   // NOLINT
 
 const std::vector<std::string> clientConf {
-    std::string("mds.listen.addr=127.0.0.1:9104,127.0.0.1:9104"),
+    std::string("mds.listen.addr=127.0.0.1:9104"),
     std::string("global.logPath=./runlog/"),
     std::string("chunkserver.rpcTimeoutMS=1000"),
     std::string("chunkserver.opMaxRetry=3"),

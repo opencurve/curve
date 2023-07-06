@@ -231,7 +231,6 @@ int Coordinator::QueryChunkServerRecoverStatus(
             (*statusMap)[info.info.id] = false;
         }
     }
-
     return kScheduleErrCodeSuccess;
 }
 

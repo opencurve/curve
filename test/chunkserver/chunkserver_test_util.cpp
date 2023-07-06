@@ -35,9 +35,6 @@
 #include <string>
 #include <utility>
 
-#include "src/common/concurrent/task_thread_pool.h"
-#include "src/common/crc32.h"
-#include "src/chunkserver/copyset_node.h"
 #include "src/chunkserver/copyset_node_manager.h"
 #include "src/chunkserver/cli.h"
 #include "test/chunkserver/fake_datastore.h"
@@ -108,11 +105,11 @@ std::shared_ptr<FilePool> InitFilePool(std::shared_ptr<LocalFileSystem> fsptr,  
 }
 
 int StartChunkserver(const char *ip,
-                     int port,
-                     const char *copysetdir,
-                     const char *confs,
-                     const int snapshotInterval,
-                     const int electionTimeoutMs) {
+    int port,
+    const char *copysetdir,
+    const char *confs,
+    const int snapshotInterval,
+    const int electionTimeoutMs) {
     LOG(INFO) << "Going to start chunk server";
 
     /* Generally you only need one Server. */

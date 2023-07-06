@@ -26,11 +26,15 @@
 #include <vector>
 #include <string>
 
+#include "proto/copyset.pb.h"
 #include "src/chunkserver/copyset_service.h"
 #include "src/chunkserver/copyset_node_manager.h"
+#include "src/common/authenticator.h"
 
 namespace curve {
 namespace chunkserver {
+
+using curve::common::Authenticator;
 
 void CopysetServiceImpl::CreateCopysetNode(RpcController *controller,
                                            const CopysetRequest *request,
@@ -86,15 +90,12 @@ void CopysetServiceImpl::CreateCopysetNode2(RpcController *controller,
                                             Closure *done) {
     (void)controller;
     brpc::ClosureGuard doneGuard(done);
+    LOG(INFO) << "Received create copysets request";
 
     Copyset copyset;
     std::vector<Peer> peers;
-
-    LOG(INFO) << "Received create copysets request";
-
     for (int i = 0; i < request->copysets_size(); ++i) {
         copyset = request->copysets(i);
-
         peers.clear();
         for (int j = 0; j < copyset.peers_size(); ++j) {
             peers.push_back(copyset.peers(j));
@@ -126,11 +127,9 @@ void CopysetServiceImpl::CreateCopysetNode2(RpcController *controller,
         }
 
         LOG(INFO) << "Create copyset "
-                  << ToGroupIdString(copyset.logicpoolid(),
-                                     copyset.copysetid())
+                  << ToGroupIdString(copyset.logicpoolid(), copyset.copysetid())
                   << " success.";
     }
-
     response->set_status(COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
     LOG(INFO) << "Create " << request->copysets().size() << " copysets success";
 }
@@ -140,9 +139,8 @@ void CopysetServiceImpl::DeleteBrokenCopyset(RpcController* controller,
                                              CopysetResponse* response,
                                              Closure* done) {
     (void)controller;
-    LOG(INFO) << "Receive delete broken copyset request";
-
     brpc::ClosureGuard doneGuard(done);
+    LOG(INFO) << "Receive delete broken copyset request";
 
     auto poolId = request->logicpoolid();
     auto copysetId = request->copysetid();
@@ -167,7 +165,6 @@ void CopysetServiceImpl::GetCopysetStatus(RpcController *controller,
                                         Closure *done) {
     (void)controller;
     brpc::ClosureGuard doneGuard(done);
-
     LOG(INFO) << "Received GetCopysetStatus request: "
               << ToGroupIdString(request->logicpoolid(), request->copysetid());
 

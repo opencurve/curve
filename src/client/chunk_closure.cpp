@@ -26,6 +26,7 @@
 #include <memory>
 #include <algorithm>
 
+#include "include/client/libcurve_define.h"
 #include "src/client/client_common.h"
 #include "src/client/copyset_client.h"
 #include "src/client/metacache.h"
@@ -173,8 +174,13 @@ void ClientClosure::Run() {
     bool needRetry = false;
 
     if (cntl_->Failed()) {
-        needRetry = true;
-        OnRpcFailed();
+        if (cntlstatus_ == CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL) {
+            status_ = CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL;
+            OnGetAuthTokenFail();
+        } else {
+            needRetry = true;
+            OnRpcFailed();
+        }
     } else {
         // 只要rpc正常返回，就清空超时计数器
         metaCache_->GetUnstableHelper().ClearTimeout(
@@ -236,6 +242,10 @@ void ClientClosure::Run() {
 
         case CHUNK_OP_STATUS::CHUNK_OP_STATUS_EPOCH_TOO_OLD:
             OnEpochTooOld();
+            break;
+
+        case CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL:
+            OnAuthFail();
             break;
 
         default:
@@ -359,6 +369,28 @@ void ClientClosure::OnEpochTooOld() {
     LOG(WARNING) << OpTypeToString(reqCtx_->optype_)
         << " epoch too old, reqCtx: " << *reqCtx_
         << ", status: " << status_
+        << ", retried times: " << reqDone_->GetRetriedTimes()
+        << ", IO id: " << reqDone_->GetIOTracker()->GetID()
+        << ", request id: " << reqCtx_->id_
+        << ", remote side: "
+        << butil::endpoint2str(cntl_->remote_side()).c_str();
+}
+
+void ClientClosure::OnGetAuthTokenFail() {
+    reqDone_->SetFailed(status_);
+    LOG(ERROR) << OpTypeToString(reqCtx_->optype_)
+        << " get auth token failed, reqCtx: " << *reqCtx_
+        << ", retried times: " << reqDone_->GetRetriedTimes()
+        << ", IO id: " << reqDone_->GetIOTracker()->GetID()
+        << ", request id: " << reqCtx_->id_
+        << ", remote side: "
+        << butil::endpoint2str(cntl_->remote_side()).c_str();
+}
+
+void ClientClosure::OnAuthFail() {
+    reqDone_->SetFailed(status_);
+    LOG(ERROR) << OpTypeToString(reqCtx_->optype_)
+        << " request auth failed, reqCtx: " << *reqCtx_
         << ", retried times: " << reqDone_->GetRetriedTimes()
         << ", IO id: " << reqDone_->GetIOTracker()->GetID()
         << ", request id: " << reqCtx_->id_

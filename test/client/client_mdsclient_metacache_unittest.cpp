@@ -29,14 +29,18 @@
 #include <brpc/channel.h>
 #include <brpc/errno.pb.h>
 
+#include <memory>
 #include <string>
 #include <thread>  //NOLINT
 #include <chrono>  //NOLINT
 #include <vector>
 #include <algorithm>
 
+#include "proto/topology.pb.h"
+#include "src/client/auth_client.h"
 #include "src/client/client_common.h"
 #include "src/client/file_instance.h"
+#include "src/common/authenticator.h"
 #include "test/client/fake/mockMDS.h"
 #include "src/client/metacache.h"
 #include "test/client/fake/mock_schedule.h"
@@ -72,12 +76,14 @@ using curve::mds::topology::DiskState;
 using curve::mds::topology::GetChunkServerListInCopySetsResponse;
 using curve::mds::topology::OnlineState;
 using curve::mds::topology::TopologyService;
+using curve::mds::auth::GetTicketResponse;
 
 class MDSClientTest : public ::testing::Test {
  public:
+    MDSClientTest() : mdsclient_() {}
     void SetUp() {
-        metaopt.rpcRetryOpt.addrs.push_back("127.0.0.1:29104");
-        metaopt.rpcRetryOpt.addrs.push_back("127.0.0.1:29104");
+        metaopt.rpcRetryOpt.addrs.push_back(mdsMetaServerAddr);
+        metaopt.rpcRetryOpt.addrs.push_back(mdsMetaServerAddr);
 
         metaopt.mdsMaxRetryMS = 1000;
         metaopt.rpcRetryOpt.rpcTimeoutMs = 500;
@@ -92,6 +98,11 @@ class MDSClientTest : public ::testing::Test {
         }
 
         if (server.AddService(&curvefsservice,
+                              brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
+            ASSERT_TRUE(false) << "Fail to add service";
+        }
+
+        if (server.AddService(&authservice,
                               brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
             ASSERT_TRUE(false) << "Fail to add service";
         }
@@ -124,6 +135,28 @@ class MDSClientTest : public ::testing::Test {
 
         ASSERT_EQ(0, Init(configpath.c_str()))
             << "Fail to init config, path = " << configpath;
+
+        // prepare auth response
+        ClientConfig cc;
+        cc.Init(configpath.c_str());
+        if (cc.GetFileServiceOption().authClientOption.enable) {
+            ticketresp.set_status(curve::mds::auth::AuthStatusCode::AUTH_OK);
+            ticketresp.set_encticket("123456");
+            curve::mds::auth::TicketAttach attach;
+            attach.set_expiration(curve::common::TimeUtility::GetTimeofDaySec()
+                + 1000);
+            attach.set_sessionkey("1122334455667788");
+            std::string attachStr;
+            ASSERT_TRUE(attach.SerializeToString(&attachStr));
+            std::string encAttchStr;
+            ASSERT_EQ(0, curve::common::Encryptor::AESEncrypt(
+                cc.GetFileServiceOption().authClientOption.key,
+                curve::common::ZEROIV, attachStr, &encAttchStr));
+            ticketresp.set_encticketattach(encAttchStr);
+            FakeReturn* authfakeret
+                = new FakeReturn(nullptr, static_cast<void*>(&ticketresp));
+            authservice.SetFakeReturn(authfakeret);
+        }
     }
 
     void TearDown() {
@@ -139,6 +172,8 @@ class MDSClientTest : public ::testing::Test {
     MetaServerOption metaopt;
     FakeTopologyService topologyservice;
     FakeMDSCurveFSService curvefsservice;
+    FakeAuthService authservice;
+    GetTicketResponse ticketresp;
     static int i;
 };
 
@@ -149,10 +184,8 @@ TEST_F(MDSClientTest, Createfile) {
     // set response file exist
     ::curve::mds::CreateFileResponse response;
     response.set_statuscode(::curve::mds::StatusCode::kFileExists);
-
     FakeReturn *fakeret =
         new FakeReturn(nullptr, static_cast<void *>(&response));
-
     curvefsservice.SetCreateFileFakeReturn(fakeret);
 
     LOG(INFO) << "now create file!";

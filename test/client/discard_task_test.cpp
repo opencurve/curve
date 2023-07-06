@@ -19,6 +19,7 @@
  * Date: Sat Dec 19 22:49:56 CST 2020
  */
 
+
 #include "src/client/discard_task.h"
 
 #include <gflags/gflags.h>
@@ -26,6 +27,9 @@
 
 #include <memory>
 
+#include "src/client/auth_client.h"
+#include "src/client/config_info.h"
+#include "src/common/authenticator.h"
 #include "test/client/mock/mock_mdsclient.h"
 #include "test/client/mock/mock_meta_cache.h"
 

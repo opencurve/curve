@@ -39,6 +39,8 @@
 #include "brpc/server.h"
 #include "proto/copyset.pb.h"
 
+#include "src/client/auth_client.h"
+#include "src/common/authenticator.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/concurrent/name_lock.h"
 #include "src/mds/common/mds_define.h"
@@ -246,7 +248,7 @@ void TopologyServiceManager::RegistChunkServer(
         ONLINE,
         externalIp);
 
-    int errcode = topology_->AddChunkServer(chunkserver);
+    auto errcode = topology_->AddChunkServer(chunkserver);
     if (errcode == kTopoErrCodeSuccess) {
         response->set_statuscode(kTopoErrCodeSuccess);
         response->set_chunkserverid(chunkserver.GetId());
@@ -370,7 +372,7 @@ void TopologyServiceManager::GetChunkServerInCluster(
 void TopologyServiceManager::DeleteChunkServer(
     const DeleteChunkServerRequest *request,
     DeleteChunkServerResponse *response) {
-    int errcode = topology_->RemoveChunkServer(request->chunkserverid());
+    auto errcode = topology_->RemoveChunkServer(request->chunkserverid());
     response->set_statuscode(errcode);
 }
 
@@ -385,7 +387,7 @@ void TopologyServiceManager::SetChunkServer(
         response->set_statuscode(kTopoErrCodeChunkServerNotFound);
         return;
     } else {
-        int errcode = topology_->UpdateChunkServerRwState(
+        auto errcode = topology_->UpdateChunkServerRwState(
             request->chunkserverstatus(), request->chunkserverid());
         response->set_statuscode(errcode);
     }
@@ -471,7 +473,7 @@ void TopologyServiceManager::RegistServer(const ServerRegistRequest *request,
                   pPool.GetId(),
                   request->desc());
 
-    int errcode = topology_->AddServer(server);
+    auto errcode = topology_->AddServer(server);
     if (kTopoErrCodeSuccess == errcode) {
         response->set_statuscode(kTopoErrCodeSuccess);
         response->set_serverid(serverId);
@@ -540,7 +542,7 @@ void TopologyServiceManager::GetServer(const GetServerRequest *request,
 
 void TopologyServiceManager::DeleteServer(const DeleteServerRequest *request,
                                           DeleteServerResponse *response) {
-    int errcode = kTopoErrCodeSuccess;
+    auto errcode = kTopoErrCodeSuccess;
     Server server;
     if (!topology_->GetServer(request->serverid(), &server)) {
         response->set_statuscode(kTopoErrCodeServerNotFound);
@@ -663,7 +665,7 @@ void TopologyServiceManager::CreateZone(const ZoneRequest *request,
             request->zonename(),
             pPool.GetId(),
             request->desc());
-        int errcode = topology_->AddZone(zone);
+        auto errcode = topology_->AddZone(zone);
         if (kTopoErrCodeSuccess == errcode) {
             response->set_statuscode(errcode);
             ZoneInfo *info = new ZoneInfo();
@@ -699,7 +701,7 @@ void TopologyServiceManager::DeleteZone(const ZoneRequest *request,
         response->set_statuscode(kTopoErrCodeInvalidParam);
         return;
     }
-    int errcode = topology_->RemoveZone(zone.GetId());
+    auto errcode = topology_->RemoveZone(zone.GetId());
     response->set_statuscode(errcode);
 }
 
@@ -853,7 +855,7 @@ void TopologyServiceManager::CreatePhysicalPool(
                           poolset.GetId(),
                           request->desc());
 
-        int errcode = topology_->AddPhysicalPool(pool);
+        auto errcode = topology_->AddPhysicalPool(pool);
         if (kTopoErrCodeSuccess == errcode) {
             response->set_statuscode(errcode);
             PhysicalPoolInfo *info = new PhysicalPoolInfo();
@@ -891,7 +893,7 @@ void TopologyServiceManager::DeletePhysicalPool(
         return;
     }
 
-    int errcode = topology_->RemovePhysicalPool(pool.GetId());
+    auto errcode = topology_->RemovePhysicalPool(pool.GetId());
     response->set_statuscode(errcode);
 }
 
@@ -1059,7 +1061,7 @@ int TopologyServiceManager::CreateCopysetForLogicalPool(
     std::vector<CopySetInfo> *copysetInfos) {
     switch (lPool.GetLogicalPoolType()) {
         case LogicalPoolType::PAGEFILE: {
-            int errcode = GenCopysetForPageFilePool(lPool,
+            auto errcode = GenCopysetForPageFilePool(lPool,
                 scatterWidth,
                 copysetInfos);
             if (kTopoErrCodeSuccess != errcode) {
@@ -1173,7 +1175,7 @@ int TopologyServiceManager::GenCopysetForPageFilePool(
         }
         CopySetInfo copysetInfo(logicalPoolId, copysetId);
         copysetInfo.SetCopySetMembers(cs.replicas);
-        int errcode = topology_->AddCopySet(copysetInfo);
+        auto errcode = topology_->AddCopySet(copysetInfo);
         if (kTopoErrCodeSuccess != errcode) {
             return errcode;
         }
@@ -1236,18 +1238,18 @@ bool TopologyServiceManager::CreateCopysetNodeOnChunkServer(
         copyset->set_copysetid(cs.GetId());
 
         for (ChunkServerIdType id : cs.GetCopySetMembers()) {
-                ChunkServer chunkserverInfo;
-                if (true != topology_->GetChunkServer(id, &chunkserverInfo)) {
-                    return false;
-                }
+            ChunkServer chunkserverInfo;
+            if (true != topology_->GetChunkServer(id, &chunkserverInfo)) {
+                return false;
+            }
 
-                std::string address =
-                    BuildPeerId(chunkserverInfo.GetHostIp(),
-                    chunkserverInfo.GetPort());
+            std::string address =
+                BuildPeerId(chunkserverInfo.GetHostIp(),
+                chunkserverInfo.GetPort());
 
-                ::curve::common::Peer *peer = copyset->add_peers();
-                peer->set_id(id);
-                peer->set_address(address);
+            ::curve::common::Peer *peer = copyset->add_peers();
+            peer->set_id(id);
+            peer->set_address(address);
         }
     }
 
@@ -1415,7 +1417,7 @@ void TopologyServiceManager::CreateLogicalPool(
     true);
     lPool.SetStatus(status);
 
-    int errcode = topology_->AddLogicalPool(lPool);
+    auto errcode = topology_->AddLogicalPool(lPool);
     if (kTopoErrCodeSuccess == errcode) {
         std::vector<CopySetInfo> copysetInfos;
         errcode =
@@ -1515,7 +1517,7 @@ void TopologyServiceManager::DeleteLogicalPool(
         return;
     }
 
-    int errcode = topology_->RemoveLogicalPool(pid);
+    auto errcode = topology_->RemoveLogicalPool(pid);
     if (kTopoErrCodeSuccess == errcode) {
         response->set_statuscode(errcode);
     } else {
@@ -1614,7 +1616,7 @@ void TopologyServiceManager::ListLogicalPool(
 void TopologyServiceManager::SetLogicalPool(
     const SetLogicalPoolRequest *request,
     SetLogicalPoolResponse *response) {
-    int errcode = topology_->UpdateLogicalPoolAllocateStatus(
+    auto errcode = topology_->UpdateLogicalPoolAllocateStatus(
         request->status(), request->logicalpoolid());
     response->set_statuscode(errcode);
 }
@@ -1757,7 +1759,7 @@ void TopologyServiceManager::SetCopysetsAvailFlag(
     for (int i = 0; i < request->copysets_size(); ++i) {
         auto& copyset = request->copysets(i);
         CopySetKey key(copyset.logicalpoolid(), copyset.copysetid());
-        int res = topology_->SetCopySetAvalFlag(key, request->availflag());
+        auto res = topology_->SetCopySetAvalFlag(key, request->availflag());
         if (res != kTopoErrCodeSuccess) {
             LOG(ERROR) << "Topology set copyset aval flag fail";
             response->set_statuscode(res);

@@ -23,7 +23,9 @@
 #define TEST_CLIENT_MOCK_MOCK_MDSCLIENT_H_
 
 #include <gmock/gmock.h>
+#include <memory>
 
+#include "src/client/auth_client.h"
 #include "src/client/mds_client.h"
 
 namespace curve {
@@ -31,6 +33,7 @@ namespace client {
 
 class MockMDSClient : public MDSClient {
  public:
+    MockMDSClient() {}
     MOCK_METHOD2(DeAllocateSegment, LIBCURVE_ERROR(const FInfo*, uint64_t));
 };
 

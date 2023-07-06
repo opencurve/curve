@@ -390,7 +390,7 @@ bool CurveCluster::WaitForEtcdClusterAvalible(int waitSec) {
         }
     }
 
-    int res;
+    int res = 0;
     std::string cmd = std::string("etcdctl --endpoints=") + endpoint +
                       std::string(" --command-timeout=1s put test test");
     LOG(INFO) << "exec command: " << cmd;

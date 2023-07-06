@@ -25,8 +25,8 @@
 // found in the LICENSE file.
 //
 
-#ifndef SRC_MDS_NAMESERVER2_FILE_LOCK_H_
-#define SRC_MDS_NAMESERVER2_FILE_LOCK_H_
+#ifndef SRC_MDS_NAMESERVER2_FILELOCK_FILE_LOCK_H_
+#define SRC_MDS_NAMESERVER2_FILELOCK_FILE_LOCK_H_
 
 #include <bthread/bthread.h>
 
@@ -175,4 +175,4 @@ class FileWriteLockGuard {
 }  // namespace mds
 }  // namespace curve
 
-#endif  // SRC_MDS_NAMESERVER2_FILE_LOCK_H_
+#endif  // SRC_MDS_NAMESERVER2_FILELOCK_FILE_LOCK_H_

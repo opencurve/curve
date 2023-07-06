@@ -45,6 +45,8 @@ extern const char* kGetFileSnapshotListAction;
 extern const char* kGetCloneTaskListAction;
 extern const char* kGetCloneRefStatusAction;
 // param
+extern const char* kAuthTicketStr;
+extern const char* kAuthCIdStr;
 extern const char* kActionStr;
 extern const char* kVersionStr;
 extern const char* kUserStr;

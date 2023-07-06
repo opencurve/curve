@@ -28,6 +28,7 @@
 #include <string>
 
 #include "proto/snapshotcloneserver.pb.h"
+#include "src/common/authenticator.h"
 #include "src/snapshotcloneserver/snapshot/snapshot_service_manager.h"
 #include "src/snapshotcloneserver/clone/clone_service_manager.h"
 

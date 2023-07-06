@@ -22,6 +22,7 @@
 
 syntax="proto2";
 import "proto/common.proto";
+import "proto/auth.proto";
 package curve.mds.topology;
 // HTTP web can use https://github.com/dcodeIO/protobuf.js to use proto buffer
 
@@ -169,6 +170,7 @@ message ChunkServerRegistRequest {
     optional uint32 useChunkFilePoolAsWalPoolReserve = 10;
     optional uint32 blockSize = 11;
     optional uint32 chunkSize = 12;
+    optional auth.Token authToken = 13;
 };
 
 message ChunkServerRegistResponse {
@@ -184,6 +186,7 @@ message ListChunkServerRequest {
     optional string ip = 1;
     optional uint32 port = 2;
     optional uint32 serverID = 3;
+    optional auth.Token authToken = 4;
 }
 
 message ListChunkServerResponse {
@@ -196,6 +199,7 @@ message GetChunkServerInfoRequest {
     optional uint32 chunkServerID = 1;
     optional string hostIp = 2;
     optional uint32 port = 3;
+    optional auth.Token authToken = 4;
 }
 
 message GetChunkServerInfoResponse {
@@ -204,6 +208,7 @@ message GetChunkServerInfoResponse {
 }
 
 message GetChunkServerInClusterRequest {
+    optional auth.Token authToken = 1;
 }
 
 message GetChunkServerInClusterResponse {
@@ -213,6 +218,7 @@ message GetChunkServerInClusterResponse {
 
 message DeleteChunkServerRequest {
     required uint32 chunkServerID = 1;
+    optional auth.Token authToken = 2;
 }
 
 message DeleteChunkServerResponse {
@@ -222,6 +228,7 @@ message DeleteChunkServerResponse {
 message SetChunkServerStatusRequest {
     required uint32 chunkServerID = 1;
     required ChunkServerStatus chunkServerStatus = 2;
+    optional auth.Token authToken = 3;
 }
 
 message SetChunkServerStatusResponse {
@@ -257,6 +264,7 @@ message ServerRegistRequest {
     optional string physicalPoolName = 9; //physicalPoolName is unique
     required string desc = 10;
     required string poolsetName = 11;
+    optional auth.Token authToken = 12;
 }
 
 message ServerRegistResponse {
@@ -270,6 +278,7 @@ message GetServerRequest {
     optional string hostName = 2;
     optional string hostIp = 3;
     optional uint32 port = 4;
+    optional auth.Token authToken = 5;
 }
 
 message GetServerResponse {
@@ -280,6 +289,7 @@ message GetServerResponse {
 message DeleteServerRequest {
     //must use the serverID to delete the server
     required uint32 serverID = 1;
+    optional auth.Token authToken = 2;
 }
 
 message DeleteServerResponse {
@@ -293,6 +303,7 @@ message ListZoneServerRequest {
     optional uint32 zoneID = 1;
     optional string zoneName = 2;
     optional string physicalPoolName = 3;
+    optional auth.Token authToken = 4;
 }
 
 message ListZoneServerResponse {
@@ -314,6 +325,7 @@ message ZoneRequest {
     optional string zoneName  = 2;
     optional string physicalPoolName = 3;
     optional string desc = 4;
+    optional auth.Token authToken = 5;
 }
 
 message ZoneResponse {
@@ -327,6 +339,7 @@ message ListPoolZoneRequest {
     //use either  physicalPoolID or physicalPoolName
     optional uint32 physicalPoolID = 1;
     optional string physicalPoolName = 2;
+    optional auth.Token authToken = 3;
 }
 
 message ListPoolZoneResponse {
@@ -348,6 +361,7 @@ message PhysicalPoolRequest {
     optional string physicalPoolName = 2;
     optional string desc = 3;
     optional string poolsetName = 4;
+    optional auth.Token authToken = 5;
 }
 
 message PhysicalPoolResponse {
@@ -356,10 +370,12 @@ message PhysicalPoolResponse {
 }
 
 message ListPhysicalPoolRequest {
+    optional auth.Token authToken = 1;
 }
 
 message ListPhysicalPoolsInPoolsetRequest {
     repeated uint32 poolsetId = 1;
+    optional auth.Token authToken = 2;
 }
 
 message ListPhysicalPoolResponse {
@@ -374,6 +390,7 @@ message PoolsetRequest {
     optional string poolsetName = 2;
     optional string type = 3;
     optional string desc = 4;
+    optional auth.Token authToken = 5;
 }
 
 message PoolsetInfo {
@@ -388,7 +405,9 @@ message PoolsetResponse {
     optional PoolsetInfo poolsetInfo = 2;
 }
 
-message ListPoolsetRequest {}
+message ListPoolsetRequest {
+    optional auth.Token authToken = 1;
+}
 
 message ListPoolsetResponse {
     required sint32 statusCode = 1;
@@ -417,6 +436,7 @@ message CreateLogicalPoolRequest {
     required bytes userPolicy = 6;                    //json body
     optional uint32 scatterWidth = 7;      //生成copyset依据的scatterWidth平均值
     optional AllocateStatus status = 8;
+    optional auth.Token authToken = 9;
 }
 
 message CreateLogicalPoolResponse {
@@ -429,6 +449,7 @@ message  DeleteLogicalPoolRequest {
     optional uint32 logicalPoolID = 1;
     optional string logicalPoolName = 2;
     optional string physicalPoolName = 3;
+    optional auth.Token authToken = 4;
 }
 
 message DeleteLogicalPoolResponse {
@@ -440,6 +461,7 @@ message GetLogicalPoolRequest {
     optional uint32 logicalPoolID = 1;
     optional string logicalPoolName = 2;
     optional string physicalPoolName = 3;
+    optional auth.Token authToken = 4;
 }
 
 message GetLogicalPoolResponse {
@@ -452,6 +474,7 @@ message ListLogicalPoolRequest {
     //use either physicalPoolID or  physicalPoolName
     optional uint32 physicalPoolID = 1;
     optional string physicalPoolName = 2;
+    optional auth.Token authToken = 3;
 }
 
 message ListLogicalPoolResponse {
@@ -462,6 +485,7 @@ message ListLogicalPoolResponse {
 message SetLogicalPoolRequest {
     required uint32 logicalPoolID = 1;
     required AllocateStatus status = 2;
+    optional auth.Token authToken = 3;
 }
 
 message SetLogicalPoolResponse {
@@ -471,6 +495,7 @@ message SetLogicalPoolResponse {
 message SetLogicalPoolScanStateRequest {
     required uint32 logicalPoolID = 1;
     required bool scanEnable = 2;
+    optional auth.Token authToken = 3;
 }
 
 message SetLogicalPoolScanStateResponse {
@@ -482,6 +507,7 @@ message SetLogicalPoolScanStateResponse {
 message GetChunkServerListInCopySetsRequest {
     required uint32 logicalPoolId = 1;
     repeated uint32 copysetId = 2;
+    optional auth.Token authToken = 3;
 }
 
 message CopySetServerInfo {
@@ -499,6 +525,7 @@ message GetCopySetsInChunkServerRequest {
     optional uint32 chunkServerID = 1;
     optional string hostIp = 2;
     optional uint32 port = 3;
+    optional auth.Token authToken = 4;
 }
 
 message GetCopySetsInChunkServerResponse {
@@ -507,6 +534,7 @@ message GetCopySetsInChunkServerResponse {
 }
 
 message GetClusterInfoRequest {
+    optional auth.Token authToken = 1;
 }
 
 message GetClusterInfoResponse {
@@ -517,6 +545,7 @@ message GetClusterInfoResponse {
 message GetCopySetsInClusterRequest {
     // Filter copysets which in scaning
     optional bool filterScaning = 1;
+    optional auth.Token authToken = 2;
 }
 
 message GetCopySetsInClusterResponse {
@@ -527,6 +556,7 @@ message GetCopySetsInClusterResponse {
 message GetCopysetRequest {
     required uint32 logicalPoolId = 1;
     required uint32 copysetId = 2;
+    optional auth.Token authToken = 3;
 }
 
 message GetCopysetResponse {
@@ -537,6 +567,7 @@ message GetCopysetResponse {
 message SetCopysetsAvailFlagRequest {
     required bool availFlag = 1;
     repeated common.CopysetInfo copysets = 2;
+    optional auth.Token authToken = 3;
 }
 
 message SetCopysetsAvailFlagResponse {
@@ -544,6 +575,7 @@ message SetCopysetsAvailFlagResponse {
 }
 
 message ListUnAvailCopySetsRequest {
+    optional auth.Token authToken = 1;
 }
 
 message ListUnAvailCopySetsResponse {

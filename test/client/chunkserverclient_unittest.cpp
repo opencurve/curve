@@ -20,12 +20,17 @@
  * Author: xuchaojie
  */
 
+#include <gmock/gmock-actions.h>
+#include <gmock/gmock-spec-builders.h>
 #include <gtest/gtest.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gmock/gmock.h>
+#include <memory>
 
+#include "include/client/libcurve_define.h"
 #include "src/client/chunkserver_client.h"
+#include "test/client/mock/mock_auth_client.h"
 #include "test/client/mock/mock_chunkservice.h"
 #include "src/common/task_tracker.h"
 
@@ -45,6 +50,7 @@ class ChunkServerClientTest : public testing::Test {
     virtual void SetUp() {
         listenAddr_ = "chunkserverclienttest_cs_listenAddr";
         server_ = new brpc::Server();
+        csClient_ = std::make_shared<ChunkServerClient>();
     }
 
     virtual void TearDown() {
@@ -57,6 +63,7 @@ class ChunkServerClientTest : public testing::Test {
  public:
     std::string listenAddr_;
     brpc::Server *server_;
+    std::shared_ptr<ChunkServerClient> csClient_;
 };
 
 struct FakeUpdateFileEpochClosure : public ChunkServerClientClosure {
@@ -82,6 +89,7 @@ struct FakeUpdateFileEpochClosure : public ChunkServerClientClosure {
     std::shared_ptr<TaskTracker> tracker_;
 };
 
+
 TEST_F(ChunkServerClientTest, UpdateFileEpochSuccess) {
     MockChunkServiceImpl mockChunkService;
     ASSERT_EQ(server_->AddService(&mockChunkService,
@@ -105,12 +113,11 @@ TEST_F(ChunkServerClientTest, UpdateFileEpochSuccess) {
     uint64_t epoch = 1;
     auto tracker = std::make_shared<TaskTracker>();
     FakeUpdateFileEpochClosure *closure = new FakeUpdateFileEpochClosure();
+    closure->AddToBeTraced(tracker);
 
-    ChunkServerClient csClient;
-    int ret = csClient.UpdateFileEpoch(cs, fileId, epoch, closure);
+    int ret = csClient_->UpdateFileEpoch(cs, fileId, epoch, closure);
     ASSERT_EQ(0, ret);
 
-    closure->AddToBeTraced(tracker);
     tracker->Wait();
     ret = tracker->GetResult();
     ASSERT_EQ(0, ret);
@@ -144,8 +151,7 @@ TEST_F(ChunkServerClientTest, UpdateFileEpochSuccessUsingExternalIp) {
     auto tracker = std::make_shared<TaskTracker>();
     FakeUpdateFileEpochClosure *closure = new FakeUpdateFileEpochClosure();
 
-    ChunkServerClient csClient;
-    int ret = csClient.UpdateFileEpoch(cs, fileId, epoch, closure);
+    int ret = csClient_->UpdateFileEpoch(cs, fileId, epoch, closure);
     ASSERT_EQ(0, ret);
 
     closure->AddToBeTraced(tracker);
@@ -166,8 +172,7 @@ TEST_F(ChunkServerClientTest, UpdateFileEpochSuccessForChunkServerOffline) {
     auto tracker = std::make_shared<TaskTracker>();
     FakeUpdateFileEpochClosure *closure = new FakeUpdateFileEpochClosure();
 
-    ChunkServerClient csClient;
-    int ret = csClient.UpdateFileEpoch(cs, fileId, epoch, closure);
+    int ret = csClient_->UpdateFileEpoch(cs, fileId, epoch, closure);
     ASSERT_EQ(0, ret);
 
     closure->AddToBeTraced(tracker);
@@ -203,8 +208,7 @@ TEST_F(ChunkServerClientTest, UpdateFileEpochFailedByEpochTooOld) {
     auto tracker = std::make_shared<TaskTracker>();
     FakeUpdateFileEpochClosure *closure = new FakeUpdateFileEpochClosure();
 
-    ChunkServerClient csClient;
-    int ret = csClient.UpdateFileEpoch(cs, fileId, epoch, closure);
+    int ret = csClient_->UpdateFileEpoch(cs, fileId, epoch, closure);
     ASSERT_EQ(0, ret);
 
     closure->AddToBeTraced(tracker);
@@ -240,8 +244,7 @@ TEST_F(ChunkServerClientTest, UpdateFileEpochFailedUnknown) {
     auto tracker = std::make_shared<TaskTracker>();
     FakeUpdateFileEpochClosure *closure = new FakeUpdateFileEpochClosure();
 
-    ChunkServerClient csClient;
-    int ret = csClient.UpdateFileEpoch(cs, fileId, epoch, closure);
+    int ret = csClient_->UpdateFileEpoch(cs, fileId, epoch, closure);
     ASSERT_EQ(0, ret);
 
     closure->AddToBeTraced(tracker);
@@ -280,12 +283,11 @@ TEST_F(ChunkServerClientTest, UpdateFileEpochFailedForRetryTimesExceed) {
     auto tracker = std::make_shared<TaskTracker>();
     FakeUpdateFileEpochClosure *closure = new FakeUpdateFileEpochClosure();
 
-    ChunkServerClient csClient;
     ChunkServerClientRetryOptions ops;
     ops.rpcMaxTry = 3;
     ops.rpcTimeoutMs = 1;
-    csClient.Init(ops);
-    int ret = csClient.UpdateFileEpoch(cs, fileId, epoch, closure);
+    csClient_->Init(ops);
+    int ret = csClient_->UpdateFileEpoch(cs, fileId, epoch, closure);
     ASSERT_EQ(0, ret);
 
     closure->AddToBeTraced(tracker);

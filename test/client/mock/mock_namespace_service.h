@@ -38,6 +38,26 @@ class MockNameService : public CurveFSService {
                                 OpenFileResponse* response,
                                 google::protobuf::Closure* done));
 
+     MOCK_METHOD4(CloseFile, void(google::protobuf::RpcController* cntl,
+                                    const CloseFileRequest* request,
+                                    CloseFileResponse* response,
+                                    google::protobuf::Closure* done));
+
+    MOCK_METHOD4(CreateFile, void(google::protobuf::RpcController* cntl,
+                                  const CreateFileRequest* request,
+                                  CreateFileResponse* response,
+                                  google::protobuf::Closure* done));
+
+    MOCK_METHOD4(GetFileInfo, void(google::protobuf::RpcController* cntl,
+                                   const GetFileInfoRequest* request,
+                                   GetFileInfoResponse* response,
+                                   google::protobuf::Closure* done));
+
+    MOCK_METHOD4(RecoverFile, void(google::protobuf::RpcController* cntl,
+                                   const RecoverFileRequest* request,
+                                   RecoverFileResponse* response,
+                                   google::protobuf::Closure* done));
+
     MOCK_METHOD4(DeleteFile, void(google::protobuf::RpcController* cntl,
                                   const DeleteFileRequest* request,
                                   DeleteFileResponse* response,
@@ -53,6 +73,33 @@ class MockNameService : public CurveFSService {
                                   ChangeOwnerResponse* response,
                                   google::protobuf::Closure* done));
 
+    MOCK_METHOD4(CreateSnapShot, void(google::protobuf::RpcController* cntl,
+                                       const CreateSnapShotRequest* request,
+                                       CreateSnapShotResponse* response,
+                                       google::protobuf::Closure* done));
+
+    MOCK_METHOD4(DeleteSnapShot, void(google::protobuf::RpcController* cntl,
+                                      const DeleteSnapShotRequest* request,
+                                      DeleteSnapShotResponse* response,
+                                      google::protobuf::Closure* done));
+
+    MOCK_METHOD4(ListSnapShot, void(google::protobuf::RpcController* cntl,
+                                    const ListSnapShotFileInfoRequest* request,
+                                    ListSnapShotFileInfoResponse* response,
+                                    google::protobuf::Closure* done));
+
+    MOCK_METHOD4(GetSnapShotFileSegment,
+                 void(google::protobuf::RpcController* cntl,
+                      const GetOrAllocateSegmentRequest* request,
+                      GetOrAllocateSegmentResponse* response,
+                      google::protobuf::Closure* done));
+
+    MOCK_METHOD4(CheckSnapShotStatus,
+                 void(google::protobuf::RpcController* cntl,
+                      const CheckSnapShotStatusRequest* request,
+                      CheckSnapShotStatusResponse* response,
+                      google::protobuf::Closure* done));
+
     MOCK_METHOD4(RefreshSession,
                  void(::google::protobuf::RpcController* controller,
                       const curve::mds::ReFreshSessionRequest* request,
@@ -63,6 +110,42 @@ class MockNameService : public CurveFSService {
                  void(::google::protobuf::RpcController* controller,
                       const curve::mds::IncreaseFileEpochRequest* request,
                       curve::mds::IncreaseFileEpochResponse* response,
+                      ::google::protobuf::Closure* done));
+
+    MOCK_METHOD4(CreateCloneFile,
+                 void(::google::protobuf::RpcController* controller,
+                      const curve::mds::CreateCloneFileRequest* request,
+                      curve::mds::CreateCloneFileResponse* response,
+                      ::google::protobuf::Closure* done));
+
+    MOCK_METHOD4(SetCloneFileStatus,
+                 void(::google::protobuf::RpcController* controller,
+                      const curve::mds::SetCloneFileStatusRequest* request,
+                      curve::mds::SetCloneFileStatusResponse* response,
+                      ::google::protobuf::Closure* done));
+
+    MOCK_METHOD4(GetOrAllocateSegment,
+                 void(::google::protobuf::RpcController* controller,
+                      const curve::mds::GetOrAllocateSegmentRequest* request,
+                      curve::mds::GetOrAllocateSegmentResponse* response,
+                      ::google::protobuf::Closure* done));
+
+    MOCK_METHOD4(DeAllocateSegment,
+                 void(::google::protobuf::RpcController* controller,
+                      const curve::mds::DeAllocateSegmentRequest* request,
+                      curve::mds::DeAllocateSegmentResponse* response,
+                      ::google::protobuf::Closure* done));
+
+    MOCK_METHOD4(ExtendFile,
+                 void(::google::protobuf::RpcController* controller,
+                      const curve::mds::ExtendFileRequest* request,
+                      curve::mds::ExtendFileResponse* response,
+                      ::google::protobuf::Closure* done));
+
+    MOCK_METHOD4(ListDir,
+                 void(::google::protobuf::RpcController* controller,
+                      const curve::mds::ListDirRequest* request,
+                      curve::mds::ListDirResponse* response,
                       ::google::protobuf::Closure* done));
 };
 

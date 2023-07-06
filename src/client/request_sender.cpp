@@ -25,7 +25,10 @@
 
 #include <algorithm>
 
+#include "include/client/libcurve_define.h"
 #include "proto/chunk.pb.h"
+#include "src/client/auth_client.h"
+#include "src/common/authenticator.h"
 #include "src/common/timeutility.h"
 #include "src/client/request_closure.h"
 #include "src/common/location_operator.h"
@@ -38,8 +41,10 @@ using curve::chunkserver::ChunkResponse;
 using curve::chunkserver::ChunkService_Stub;
 using curve::chunkserver::GetChunkInfoRequest;
 using curve::chunkserver::GetChunkInfoResponse;
+using curve::chunkserver::CHUNK_OP_STATUS;
 using curve::common::TimeUtility;
 using ::google::protobuf::Closure;
+using curve::common::CHUNKSERVER_ROLE;
 
 inline void RequestSender::UpdateRpcRPS(ClientClosure* done,
                                         OpType type) const {
@@ -88,6 +93,14 @@ int RequestSender::ReadChunk(const ChunkIDInfo& idinfo,
     SetRpcStuff(done, cntl, response);
 
     ChunkRequest request;
+    // add auth token
+    auto isGet = AuthClient::GetInstance().GetToken(CHUNKSERVER_ROLE,
+        request.mutable_authtoken());
+    if (!isGet) {
+        cntl->SetFailed(CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL,
+            "get token failed");
+        return 0;
+    }
     request.set_optype(curve::chunkserver::CHUNK_OP_TYPE::CHUNK_OP_READ);
     request.set_logicpoolid(idinfo.lpid_);
     request.set_copysetid(idinfo.cpid_);
@@ -126,6 +139,14 @@ int RequestSender::WriteChunk(const ChunkIDInfo& idinfo,
     SetRpcStuff(done, cntl, response);
 
     ChunkRequest request;
+    // add auth token
+    auto isGet = AuthClient::GetInstance().GetToken(CHUNKSERVER_ROLE,
+        request.mutable_authtoken());
+    if (!isGet) {
+        cntl->SetFailed(CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL,
+            "get token failed");
+        return 0;
+    }
     request.set_optype(curve::chunkserver::CHUNK_OP_TYPE::CHUNK_OP_WRITE);
     request.set_logicpoolid(idinfo.lpid_);
     request.set_copysetid(idinfo.cpid_);
@@ -163,6 +184,14 @@ int RequestSender::ReadChunkSnapshot(const ChunkIDInfo& idinfo,
     SetRpcStuff(done, cntl, response);
 
     ChunkRequest request;
+    // add auth token
+    auto isGet = AuthClient::GetInstance().GetToken(CHUNKSERVER_ROLE,
+        request.mutable_authtoken());
+    if (!isGet) {
+        cntl->SetFailed(CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL,
+            "get token failed");
+        return 0;
+    }
     request.set_optype(curve::chunkserver::CHUNK_OP_TYPE::CHUNK_OP_READ_SNAP);
     request.set_logicpoolid(idinfo.lpid_);
     request.set_copysetid(idinfo.cpid_);
@@ -187,6 +216,14 @@ int RequestSender::DeleteChunkSnapshotOrCorrectSn(const ChunkIDInfo& idinfo,
     SetRpcStuff(done, cntl, response);
 
     ChunkRequest request;
+    // add auth token
+    auto isGet = AuthClient::GetInstance().GetToken(CHUNKSERVER_ROLE,
+        request.mutable_authtoken());
+    if (!isGet) {
+        cntl->SetFailed(CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL,
+            "get token failed");
+        return 0;
+    }
     request.set_optype(curve::chunkserver::CHUNK_OP_TYPE::CHUNK_OP_DELETE_SNAP);
     request.set_logicpoolid(idinfo.lpid_);
     request.set_copysetid(idinfo.cpid_);
@@ -210,6 +247,14 @@ int RequestSender::GetChunkInfo(const ChunkIDInfo& idinfo,
     SetRpcStuff(done, cntl, response);
 
     GetChunkInfoRequest request;
+    // add auth token
+    auto isGet = AuthClient::GetInstance().GetToken(CHUNKSERVER_ROLE,
+        request.mutable_authtoken());
+    if (!isGet) {
+        cntl->SetFailed(CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL,
+            "get token failed");
+        return 0;
+    }
     request.set_logicpoolid(idinfo.lpid_);
     request.set_copysetid(idinfo.cpid_);
     request.set_chunkid(idinfo.cid_);
@@ -232,6 +277,14 @@ int RequestSender::CreateCloneChunk(const ChunkIDInfo& idinfo,
     SetRpcStuff(done, cntl, response);
 
     ChunkRequest request;
+    // add auth token
+    auto isGet = AuthClient::GetInstance().GetToken(CHUNKSERVER_ROLE,
+        request.mutable_authtoken());
+    if (!isGet) {
+        cntl->SetFailed(CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL,
+            "get token failed");
+        return 0;
+    }
     request.set_optype(
         curve::chunkserver::CHUNK_OP_TYPE::CHUNK_OP_CREATE_CLONE);
     request.set_logicpoolid(idinfo.lpid_);
@@ -260,6 +313,14 @@ int RequestSender::RecoverChunk(const ChunkIDInfo& idinfo,
     SetRpcStuff(done, cntl, response);
 
     ChunkRequest request;
+    // add auth token
+    auto isGet = AuthClient::GetInstance().GetToken(CHUNKSERVER_ROLE,
+        request.mutable_authtoken());
+    if (!isGet) {
+        cntl->SetFailed(CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL,
+            "get token failed");
+        return 0;
+    }
     request.set_optype(curve::chunkserver::CHUNK_OP_TYPE::CHUNK_OP_RECOVER);
     request.set_logicpoolid(idinfo.lpid_);
     request.set_copysetid(idinfo.cpid_);

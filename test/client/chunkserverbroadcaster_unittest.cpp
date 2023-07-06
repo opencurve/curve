@@ -24,8 +24,10 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gmock/gmock.h>
+#include <memory>
 
 #include "src/client/chunkserver_broadcaster.h"
+#include "test/client/mock/mock_auth_client.h"
 #include "test/client/mock/mock_chunkservice.h"
 
 using ::testing::_;
@@ -43,6 +45,8 @@ class ChunkServerBroadCasterTest : public testing::Test {
     virtual void SetUp() {
         listenAddr_ = "chunkserver_broadcastertest_cs_listenAddr";
         server_ = new brpc::Server();
+        broadCaster_ = std::make_shared<ChunkServerBroadCaster>(
+            std::make_shared<ChunkServerClient>());
     }
 
     virtual void TearDown() {
@@ -55,6 +59,7 @@ class ChunkServerBroadCasterTest : public testing::Test {
  public:
     std::string listenAddr_;
     brpc::Server *server_;
+    std::shared_ptr<ChunkServerBroadCaster> broadCaster_;
 };
 
 TEST_F(ChunkServerBroadCasterTest, BroadCastFileEpochSuccess) {
@@ -76,11 +81,9 @@ TEST_F(ChunkServerBroadCasterTest, BroadCastFileEpochSuccess) {
                 }));
 
 
-    auto  csClient = std::make_shared<ChunkServerClient>();
-    ChunkServerBroadCaster broadCaster(csClient);
     ChunkServerBroadCasterOption ops;
     ops.broadCastMaxNum = 10;
-    broadCaster.Init(ops);
+    broadCaster_->Init(ops);
 
     uint64_t fileId = 1;
     uint64_t epoch = 100;
@@ -92,7 +95,7 @@ TEST_F(ChunkServerBroadCasterTest, BroadCastFileEpochSuccess) {
         csinfo.internalAddr = PeerAddr(EndPoint(listenAddr_));
         csLocs.push_back(std::move(csinfo));
     }
-    int ret = broadCaster.BroadCastFileEpoch(fileId, epoch, csLocs);
+    int ret = broadCaster_->BroadCastFileEpoch(fileId, epoch, csLocs);
     ASSERT_EQ(0, ret);
 }
 
@@ -113,11 +116,9 @@ TEST_F(ChunkServerBroadCasterTest, BroadCastFileEpochFailedByEpochTooOld) {
                 response->set_status(csRet);
                 }));
 
-    auto  csClient = std::make_shared<ChunkServerClient>();
-    ChunkServerBroadCaster broadCaster(csClient);
     ChunkServerBroadCasterOption ops;
     ops.broadCastMaxNum = 10;
-    broadCaster.Init(ops);
+    broadCaster_->Init(ops);
 
     uint64_t fileId = 1;
     uint64_t epoch = 100;
@@ -129,7 +130,7 @@ TEST_F(ChunkServerBroadCasterTest, BroadCastFileEpochFailedByEpochTooOld) {
         csinfo.internalAddr = PeerAddr(EndPoint(listenAddr_));
         csLocs.push_back(std::move(csinfo));
     }
-    int ret = broadCaster.BroadCastFileEpoch(fileId, epoch, csLocs);
+    int ret = broadCaster_->BroadCastFileEpoch(fileId, epoch, csLocs);
     ASSERT_EQ(-LIBCURVE_ERROR::EPOCH_TOO_OLD, ret);
 }
 

@@ -20,6 +20,8 @@
  * Author: charisu
  */
 #include "src/tools/chunkserver_client.h"
+#include "src/client/auth_client.h"
+#include "src/common/authenticator.h"
 
 DECLARE_uint64(rpcTimeout);
 DECLARE_uint64(rpcRetryTimes);
@@ -78,6 +80,12 @@ int ChunkServerClient::GetRaftStatus(butil::IOBuf* iobuf) {
 bool ChunkServerClient::CheckChunkServerOnline() {
     curve::chunkserver::GetChunkInfoRequest request;
     curve::chunkserver::GetChunkInfoResponse response;
+    auto isGet = curve::client::AuthClient::GetInstance().GetToken(
+        curve::common::CHUNKSERVER_ROLE, request.mutable_authtoken());
+    if (!isGet) {
+        std::cout << "CheckChunkServerOnline get token failed!" << std::endl;
+        return false;
+    }
     request.set_logicpoolid(1);
     request.set_copysetid(1);
     request.set_chunkid(1);
@@ -137,6 +145,12 @@ int ChunkServerClient::GetChunkHash(const Chunk& chunk,
         cntl.Reset();
         cntl.set_timeout_ms(FLAGS_rpcTimeout);
         GetChunkHashRequest request;
+        auto isGet = curve::client::AuthClient::GetInstance().GetToken(
+            curve::common::CHUNKSERVER_ROLE, request.mutable_authtoken());
+        if (!isGet) {
+            std::cout << "GetChunkHash get token failed!" << std::endl;
+            return -1;
+        }
         request.set_logicpoolid(chunk.logicPoolId);
         request.set_copysetid(chunk.copysetId);
         request.set_chunkid(chunk.chunkId);

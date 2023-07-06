@@ -27,12 +27,16 @@
 #include <limits>
 
 #include "json/json.h"
+#include "proto/auth.pb.h"
+#include "src/common/authenticator.h"
 #include "src/common/snapshotclone/snapshotclone_define.h"
 #include "src/common/uuid.h"
 #include "src/common/string_util.h"
 #include "src/snapshotcloneserver/clone/clone_closure.h"
 
 using ::curve::common::UUIDGenerator;
+using ::curve::common::Authenticator;
+using ::curve::common::Encryptor;
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -44,11 +48,9 @@ void SnapshotCloneServiceImpl::default_method(RpcController* cntl,
     (void)req;
     (void)resp;
     brpc::ClosureGuard done_guard(done);
-    brpc::Controller* bcntl =
-        static_cast<brpc::Controller*>(cntl);
+    brpc::Controller* bcntl = static_cast<brpc::Controller*>(cntl);
     const std::string *action =
         bcntl->http_request().uri().GetQuery(kActionStr);
-
     std::string requestId = UUIDGenerator().GenerateUUID();
     if (action == nullptr) {
         HandleBadRequestError(bcntl, requestId);
@@ -58,6 +60,24 @@ void SnapshotCloneServiceImpl::default_method(RpcController* cntl,
                   << ", context = " << bcntl->response_attachment();
         return;
     }
+
+    // get auth token
+    auto ticketStrPtr = bcntl->http_request().GetHeader(kAuthTicketStr);
+    auto cIdStrPtr = bcntl->http_request().GetHeader(kAuthCIdStr);
+    std::string ticketStr = ticketStrPtr == nullptr ? "" :
+        Encryptor::Base64Decode(*ticketStrPtr);
+    std::string cIdStr = cIdStrPtr == nullptr ? "" :
+        Encryptor::Base64Decode(*cIdStrPtr);
+    curve::mds::auth::Token token;
+    token.set_encticket(ticketStr);
+    token.set_encclientidentity(cIdStr);
+    if (!Authenticator::GetInstance().VerifyCredential(token)) {
+        LOG(ERROR) << *action << " auth failed, token = "
+                   << token.ShortDebugString();
+        bcntl->http_response().set_status_code(brpc::HTTP_STATUS_UNAUTHORIZED);
+        return;
+    }
+
     if (*action == kCreateSnapshotAction) {
         HandleCreateSnapshotAction(bcntl, requestId);
     } else if (*action == kDeleteSnapshotAction) {

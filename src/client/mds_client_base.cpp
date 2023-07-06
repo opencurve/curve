@@ -22,6 +22,7 @@
 
 #include "src/client/mds_client_base.h"
 
+#include "src/client/auth_client.h"
 #include "src/common/authenticator.h"
 #include "src/common/curve_define.h"
 #include "src/common/curve_version.h"
@@ -29,8 +30,9 @@
 namespace curve {
 namespace client {
 
-using curve::common::Authenticator;
 using curve::mds::topology::TopologyService_Stub;
+using curve::common::Encryptor;
+using curve::common::MDS_ROLE;
 
 const char* kRootUserName = "root";
 
@@ -49,14 +51,22 @@ void MDSClientBase::OpenFile(const std::string& filename,
                              OpenFileResponse* response,
                              brpc::Controller* cntl,
                              brpc::Channel* channel) {
-    OpenFileRequest request;
-    request.set_filename(filename);
-    request.set_clientversion(curve::common::CurveVersion());
-    FillUserInfo(&request, userinfo);
-
     LOG(INFO) << "OpenFile: filename = " << filename
               << ", owner = " << userinfo.owner
               << ", log id = " << cntl->log_id();
+
+    OpenFileRequest request;
+    auto isGet = AuthClient::GetInstance().GetToken(MDS_ROLE,
+        request.mutable_authtoken());
+    if (!isGet) {
+        LOG(ERROR) << "OpenFile get token failed";
+        cntl->SetFailed(LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL,
+        "get token failed");
+        return;
+    }
+    request.set_filename(filename);
+    request.set_clientversion(curve::common::CurveVersion());
+    FillUserInfo(&request, userinfo);
 
     curve::mds::CurveFSService_Stub stub(channel);
     stub.OpenFile(cntl, &request, response, nullptr);
@@ -67,6 +77,15 @@ void MDSClientBase::CreateFile(const CreateFileContext& context,
                                brpc::Controller* cntl,
                                brpc::Channel* channel) {
     CreateFileRequest request;
+    auto isGet = AuthClient::GetInstance().GetToken(MDS_ROLE,
+        request.mutable_authtoken());
+    if (!isGet) {
+        LOG(ERROR) << "CreateFile get token failed, filename = "
+                   << context.name;
+        cntl->SetFailed(LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL,
+            "get token failed");
+        return;
+    }
     request.set_filename(context.name);
     if (context.pagefile) {
         request.set_filetype(curve::mds::FileType::INODE_PAGEFILE);
@@ -105,6 +124,15 @@ void MDSClientBase::CloseFile(const std::string& filename,
                               brpc::Controller* cntl,
                               brpc::Channel* channel) {
     CloseFileRequest request;
+    auto isGet = AuthClient::GetInstance().GetToken(MDS_ROLE,
+        request.mutable_authtoken());
+    if (!isGet) {
+        LOG(ERROR) << "CloseFile get token failed, filename = "
+                   << filename;
+        cntl->SetFailed(LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL,
+            "get token failed");
+        return;
+    }
     request.set_filename(filename);
     request.set_sessionid(sessionid);
     FillUserInfo(&request, userinfo);
@@ -125,6 +153,15 @@ void MDSClientBase::GetFileInfo(const std::string& filename,
                                 brpc::Controller* cntl,
                                 brpc::Channel* channel) {
     GetFileInfoRequest request;
+    auto isGet = AuthClient::GetInstance().GetToken(MDS_ROLE,
+        request.mutable_authtoken());
+    if (!isGet) {
+        LOG(ERROR) << "GetFileInfo get token failed, filename = "
+                   << filename;
+        cntl->SetFailed(LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL,
+            "get token failed");
+        return;
+    }
     request.set_filename(filename);
     FillUserInfo(&request, userinfo);
 
@@ -142,6 +179,15 @@ void MDSClientBase::IncreaseEpoch(const std::string& filename,
                                   brpc::Controller* cntl,
                                   brpc::Channel* channel) {
     IncreaseFileEpochRequest request;
+    auto isGet = AuthClient::GetInstance().GetToken(MDS_ROLE,
+        request.mutable_authtoken());
+    if (!isGet) {
+        LOG(ERROR) << "IncreaseEpoch get token failed, filename = "
+                   << filename;
+        cntl->SetFailed(LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL,
+            "get token failed");
+        return;
+    }
     request.set_filename(filename);
     FillUserInfo(&request, userinfo);
 
@@ -159,6 +205,15 @@ void MDSClientBase::CreateSnapShot(const std::string& filename,
                                    brpc::Controller* cntl,
                                    brpc::Channel* channel) {
     CreateSnapShotRequest request;
+    auto isGet = AuthClient::GetInstance().GetToken(MDS_ROLE,
+        request.mutable_authtoken());
+    if (!isGet) {
+        LOG(ERROR) << "CreateSnapShot get token failed, filename = "
+                   << filename;
+        cntl->SetFailed(LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL,
+            "get token failed");
+        return;
+    }
     request.set_filename(filename);
     FillUserInfo(&request, userinfo);
 
@@ -176,7 +231,16 @@ void MDSClientBase::DeleteSnapShot(const std::string& filename,
                                    DeleteSnapShotResponse* response,
                                    brpc::Controller* cntl,
                                    brpc::Channel* channel) {
-    DeleteSnapShotRequest request;;
+    DeleteSnapShotRequest request;
+    auto isGet = AuthClient::GetInstance().GetToken(MDS_ROLE,
+        request.mutable_authtoken());
+    if (!isGet) {
+        LOG(ERROR) << "DeleteSnapShot get token failed, filename = "
+                   << filename;
+        cntl->SetFailed(LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL,
+            "get token failed");
+        return;
+    }
     request.set_seq(seq);
     request.set_filename(filename);
     FillUserInfo(&request, userinfo);
@@ -197,6 +261,15 @@ void MDSClientBase::ListSnapShot(const std::string& filename,
                                  brpc::Controller* cntl,
                                  brpc::Channel* channel) {
     ListSnapShotFileInfoRequest request;
+    auto isGet = AuthClient::GetInstance().GetToken(MDS_ROLE,
+        request.mutable_authtoken());
+    if (!isGet) {
+        LOG(ERROR) << "ListSnapShot get token failed, filename = "
+                   << filename;
+        cntl->SetFailed(LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL,
+            "get token failed");
+        return;
+    }
     for (unsigned int i = 0; i < (*seq).size(); i++) {
         request.add_seq((*seq)[i]);
     }
@@ -229,6 +302,15 @@ void MDSClientBase::GetSnapshotSegmentInfo(
     brpc::Controller* cntl,
     brpc::Channel* channel) {
     GetOrAllocateSegmentRequest request;
+    auto isGet = AuthClient::GetInstance().GetToken(MDS_ROLE,
+        request.mutable_authtoken());
+    if (!isGet) {
+        LOG(ERROR) << "GetSnapshotSegmentInfo get token failed, filename = "
+                   << filename;
+        cntl->SetFailed(LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL,
+            "get token failed");
+        return;
+    }
     request.set_filename(filename);
     request.set_offset(offset);
     request.set_allocateifnotexist(false);
@@ -252,6 +334,15 @@ void MDSClientBase::RefreshSession(const std::string& filename,
                                    brpc::Controller* cntl,
                                    brpc::Channel* channel) {
     ReFreshSessionRequest request;
+    auto isGet = AuthClient::GetInstance().GetToken(MDS_ROLE,
+        request.mutable_authtoken());
+    if (!isGet) {
+        LOG(ERROR) << "RefreshSession get token failed, filename = "
+                   << filename;
+        cntl->SetFailed(LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL,
+            "get token failed");
+        return;
+    }
     request.set_filename(filename);
     request.set_sessionid(sessionid);
     request.set_clientversion(curve::common::CurveVersion());
@@ -274,6 +365,15 @@ void MDSClientBase::CheckSnapShotStatus(const std::string& filename,
                                         brpc::Controller* cntl,
                                         brpc::Channel* channel) {
     CheckSnapShotStatusRequest request;
+    auto isGet = AuthClient::GetInstance().GetToken(MDS_ROLE,
+        request.mutable_authtoken());
+    if (!isGet) {
+        LOG(ERROR) << "CheckSnapShotStatus get token failed, filename = "
+                   << filename;
+        cntl->SetFailed(LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL,
+            "get token failed");
+        return;
+    }
     request.set_seq(seq);
     request.set_filename(filename);
     FillUserInfo(&request, userinfo);
@@ -294,6 +394,14 @@ void MDSClientBase::GetServerList(
     brpc::Controller* cntl,
     brpc::Channel* channel) {
     GetChunkServerListInCopySetsRequest request;
+    auto isGet = AuthClient::GetInstance().GetToken(MDS_ROLE,
+        request.mutable_authtoken());
+    if (!isGet) {
+        LOG(ERROR) << "GetServerList get token failed";
+        cntl->SetFailed(LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL,
+            "get token failed");
+        return;
+    }
     request.set_logicalpoolid(logicalpooid);
     std::string requestCopysets;
     for (auto copysetid : copysetidvec) {
@@ -301,7 +409,7 @@ void MDSClientBase::GetServerList(
         requestCopysets.append(std::to_string(copysetid)).append(" ");
     }
 
-    curve::mds::topology::TopologyService_Stub stub(channel);
+    TopologyService_Stub stub(channel);
     stub.GetChunkServerListInCopySets(cntl, &request, response, nullptr);
 }
 
@@ -309,8 +417,16 @@ void MDSClientBase::GetClusterInfo(GetClusterInfoResponse* response,
                                    brpc::Controller* cntl,
                                    brpc::Channel* channel) {
     GetClusterInfoRequest request;
+    auto isGet = AuthClient::GetInstance().GetToken(MDS_ROLE,
+        request.mutable_authtoken());
+    if (!isGet) {
+        LOG(ERROR) << "GetClusterInfo get token failed";
+        cntl->SetFailed(LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL,
+            "get token failed");
+        return;
+    }
 
-    curve::mds::topology::TopologyService_Stub stub(channel);
+    TopologyService_Stub stub(channel);
     stub.GetClusterInfo(cntl, &request, response, nullptr);
 }
 
@@ -318,7 +434,14 @@ void MDSClientBase::ListPoolset(ListPoolsetResponse* response,
                                  brpc::Controller* cntl,
                                  brpc::Channel* channel) {
     ListPoolsetRequest request;
-
+    auto isGet = AuthClient::GetInstance().GetToken(MDS_ROLE,
+        request.mutable_authtoken());
+    if (!isGet) {
+        LOG(ERROR) << "ListPoolset get token failed";
+        cntl->SetFailed(LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL,
+            "get token failed");
+        return;
+    }
     TopologyService_Stub stub(channel);
     stub.ListPoolset(cntl, &request, response, nullptr);
 }
@@ -336,6 +459,15 @@ void MDSClientBase::CreateCloneFile(const std::string& source,
                                     brpc::Controller* cntl,
                                     brpc::Channel* channel) {
     CreateCloneFileRequest request;
+    auto isGet = AuthClient::GetInstance().GetToken(MDS_ROLE,
+        request.mutable_authtoken());
+    if (!isGet) {
+        LOG(ERROR) << "CreateCloneFile get token failed, source = "
+                   << source << ", destination = " << destination;
+        cntl->SetFailed(LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL,
+            "get token failed");
+        return;
+    }
     request.set_seq(sn);
     request.set_filelength(size);
     request.set_filename(destination);
@@ -362,6 +494,16 @@ void MDSClientBase::SetCloneFileStatus(const std::string& filename,
                                        brpc::Controller* cntl,
                                        brpc::Channel* channel) {
     SetCloneFileStatusRequest request;
+    auto isGet = AuthClient::GetInstance().GetToken(MDS_ROLE,
+        request.mutable_authtoken());
+    if (!isGet) {
+        LOG(ERROR) << "SetCloneFileStatus get token failed, filename = "
+                   << filename << ", filestatus = "
+                   << static_cast<int>(filestatus);
+        cntl->SetFailed(LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL,
+            "get token failed");
+        return;
+    }
     request.set_filename(filename);
     request.set_filestatus(static_cast<curve::mds::FileStatus>(filestatus));
     if (fileID > 0) {
@@ -387,7 +529,15 @@ void MDSClientBase::GetOrAllocateSegment(bool allocate,
                                          brpc::Controller* cntl,
                                          brpc::Channel* channel) {
     GetOrAllocateSegmentRequest request;
-
+    auto isGet = AuthClient::GetInstance().GetToken(MDS_ROLE,
+        request.mutable_authtoken());
+    if (!isGet) {
+        LOG(ERROR) << "GetOrAllocateSegment get token failed, allocate = "
+                   << allocate;
+        cntl->SetFailed(LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL,
+            "get token failed");
+        return;
+    }
     // convert the user offset to seg  offset
     uint64_t segmentsize = fi->segmentsize;
     uint64_t seg_offset = (offset / segmentsize) * segmentsize;
@@ -414,6 +564,14 @@ void MDSClientBase::DeAllocateSegment(const FInfo* fileInfo,
                                       brpc::Controller* cntl,
                                       brpc::Channel* channel) {
     DeAllocateSegmentRequest request;
+    auto isGet = AuthClient::GetInstance().GetToken(MDS_ROLE,
+        request.mutable_authtoken());
+    if (!isGet) {
+        LOG(ERROR) << "DeAllocateSegment get token failed";
+        cntl->SetFailed(LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL,
+            "get token failed");
+        return;
+    }
     request.set_filename(fileInfo->fullPathName);
     request.set_offset(segmentOffset);
 
@@ -436,6 +594,15 @@ void MDSClientBase::RenameFile(const UserInfo_t& userinfo,
                                brpc::Controller* cntl,
                                brpc::Channel* channel) {
     RenameFileRequest request;
+    auto isGet = AuthClient::GetInstance().GetToken(MDS_ROLE,
+        request.mutable_authtoken());
+    if (!isGet) {
+        LOG(ERROR) << "RenameFile get token failed, origin = "
+                   << origin << ", destination = " << destination;
+        cntl->SetFailed(LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL,
+            "get token failed");
+        return;
+    }
     request.set_oldfilename(origin);
     request.set_newfilename(destination);
     if (originId > 0 && destinationId > 0) {
@@ -462,6 +629,15 @@ void MDSClientBase::Extend(const std::string& filename,
                            brpc::Controller* cntl,
                            brpc::Channel* channel) {
     ExtendFileRequest request;
+    auto isGet = AuthClient::GetInstance().GetToken(MDS_ROLE,
+        request.mutable_authtoken());
+    if (!isGet) {
+        LOG(ERROR) << "Extend get token failed, filename = "
+                   << filename;
+        cntl->SetFailed(LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL,
+            "get token failed");
+        return;
+    }
     request.set_filename(filename);
     request.set_newsize(newsize);
     FillUserInfo(&request, userinfo);
@@ -483,6 +659,15 @@ void MDSClientBase::DeleteFile(const std::string& filename,
                                brpc::Controller* cntl,
                                brpc::Channel* channel) {
     DeleteFileRequest request;
+    auto isGet = AuthClient::GetInstance().GetToken(MDS_ROLE,
+        request.mutable_authtoken());
+    if (!isGet) {
+        LOG(ERROR) << "DeleteFile get token failed, filename = "
+                   << filename;
+        cntl->SetFailed(LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL,
+            "get token failed");
+        return;
+    }
     request.set_filename(filename);
     request.set_forcedelete(deleteforce);
     if (fileid > 0) {
@@ -505,6 +690,15 @@ void MDSClientBase::RecoverFile(const std::string& filename,
                                brpc::Controller* cntl,
                                brpc::Channel* channel) {
     RecoverFileRequest request;
+    auto isGet = AuthClient::GetInstance().GetToken(MDS_ROLE,
+        request.mutable_authtoken());
+    if (!isGet) {
+        LOG(ERROR) << "RecoverFile get token failed, filename = "
+                   << filename;
+        cntl->SetFailed(LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL,
+            "get token failed");
+        return;
+    }
     request.set_filename(filename);
     request.set_fileid(fileid);
     FillUserInfo(&request, userinfo);
@@ -524,6 +718,15 @@ void MDSClientBase::ChangeOwner(const std::string& filename,
                                 brpc::Controller* cntl,
                                 brpc::Channel* channel) {
     curve::mds::ChangeOwnerRequest request;
+    auto isGet = AuthClient::GetInstance().GetToken(MDS_ROLE,
+        request.mutable_authtoken());
+    if (!isGet) {
+        LOG(ERROR) << "ChangeOwner get token failed, filename = "
+                   << filename << ", new owner = " << newOwner;
+        cntl->SetFailed(LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL,
+            "get token failed");
+        return;
+    }
     uint64_t date = curve::common::TimeUtility::GetTimeofDayUs();
     request.set_date(date);
     request.set_filename(filename);
@@ -546,6 +749,14 @@ void MDSClientBase::Listdir(const std::string& dirpath,
                             brpc::Controller* cntl,
                             brpc::Channel* channel) {
     curve::mds::ListDirRequest request;
+    auto isGet = AuthClient::GetInstance().GetToken(MDS_ROLE,
+        request.mutable_authtoken());
+    if (!isGet) {
+        LOG(ERROR) << "Listdir get token failed, dirpath = " << dirpath;
+        cntl->SetFailed(LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL,
+            "get token failed");
+        return;
+    }
     request.set_filename(dirpath);
 
     FillUserInfo(&request, userinfo);
@@ -564,6 +775,14 @@ void MDSClientBase::GetChunkServerInfo(const std::string& ip,
                                        brpc::Controller* cntl,
                                        brpc::Channel* channel) {
     curve::mds::topology::GetChunkServerInfoRequest request;
+    auto isGet = AuthClient::GetInstance().GetToken(MDS_ROLE,
+        request.mutable_authtoken());
+    if (!isGet) {
+        LOG(ERROR) << "GetChunkServerInfo get token failed";
+        cntl->SetFailed(LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL,
+            "get token failed");
+        return;
+    }
     request.set_hostip(ip);
     request.set_port(port);
     LOG(INFO) << "GetChunkServerInfo from mds: "
@@ -571,7 +790,7 @@ void MDSClientBase::GetChunkServerInfo(const std::string& ip,
               << ", port = " << port
               << ", log id = " << cntl->log_id();
 
-    curve::mds::topology::TopologyService_Stub stub(channel);
+    TopologyService_Stub stub(channel);
     stub.GetChunkServer(cntl, &request, response, NULL);
 }
 
@@ -580,21 +799,29 @@ void MDSClientBase::ListChunkServerInServer(const std::string& ip,
                                             brpc::Controller* cntl,
                                             brpc::Channel* channel) {
     curve::mds::topology::ListChunkServerRequest request;
+    auto isGet = AuthClient::GetInstance().GetToken(MDS_ROLE,
+        request.mutable_authtoken());
+    if (!isGet) {
+        LOG(ERROR) << "ListChunkServerInServer get token failed, sip = " << ip;
+        cntl->SetFailed(LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL,
+            "get token failed");
+        return;
+    }
     request.set_ip(ip);
     LOG(INFO) << "ListChunkServerInServer from mds: "
         << "ip = " << ip
         << ", log id = " << cntl->log_id();
 
-    curve::mds::topology::TopologyService_Stub stub(channel);
+    TopologyService_Stub stub(channel);
     stub.ListChunkServer(cntl, &request, response, NULL);
 }
 
 std::string MDSClientBase::CalcSignature(const UserInfo& userinfo,
                                          uint64_t date) const {
     if (IsRootUserAndHasPassword(userinfo)) {
-        std::string str2sig = Authenticator::GetString2Signature(
+        std::string str2sig = Encryptor::GetString2Signature(
             date, userinfo.owner);
-        std::string sig = Authenticator::CalcString2Signature(
+        std::string sig = Encryptor::CalcString2Signature(
             str2sig, userinfo.password);
         return sig;
     }

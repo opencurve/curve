@@ -35,6 +35,7 @@
 #include "src/tools/copyset_check.h"
 #include "src/tools/schedule_tool.h"
 #include "src/tools/copyset_tool.h"
+#include "src/tools/auth_tool.h"
 
 namespace curve {
 namespace tool {
@@ -81,6 +82,8 @@ class CurveToolFactory {
     static std::shared_ptr<ScheduleTool> GenerateScheduleTool();
 
     static std::shared_ptr<CopysetTool> GenerateCopysetTool();
+
+    static std::shared_ptr<AuthTool> GenerateAuthTool();
 };
 }  // namespace tool
 }  // namespace curve

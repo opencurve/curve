@@ -23,28 +23,33 @@
 #include <sstream>
 #include <vector>
 #include <map>
+#include "src/common/authenticator.h"
 #include "src/mds/schedule/scheduleService/scheduleService.h"
 
 namespace curve {
 namespace mds {
 namespace schedule {
+
+using curve::common::Authenticator;
+
 void ScheduleServiceImpl::RapidLeaderSchedule(
     google::protobuf::RpcController* cntl_base,
     const RapidLeaderScheduleRequst* request,
     RapidLeaderScheduleResponse* response,
     google::protobuf::Closure* done) {
     brpc::ClosureGuard done_guard(done);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
+    // auth
+    auto ret = Authenticator::GetInstance().VerifyCredential(
+        request->authtoken());
+    if (!ret) {
+        LOG(ERROR) << "RapidLeaderSchedule auth failed, request = "
+                   << request->ShortDebugString();
+        response->set_statuscode(kScheduleErrAuthFail);
+        return;
+    }
 
-    brpc::Controller* cntl =
-        static_cast<brpc::Controller*>(cntl_base);
-
-    LOG(INFO) << "Received request[log_id=" << cntl->log_id()
-              << "] from " << cntl->remote_side()
-              << " to " << cntl->local_side()
-              << ". [RapidLeaderScheduleRequest] "
-              << request->DebugString();
-
-    int errCode = coordinator_->RapidLeaderSchedule(request->logicalpoolid());
+    auto errCode = coordinator_->RapidLeaderSchedule(request->logicalpoolid());
     response->set_statuscode(errCode);
     if (errCode == kScheduleErrCodeSuccess) {
         LOG(INFO) << "Send response[log_id=" << cntl->log_id()
@@ -67,15 +72,16 @@ void ScheduleServiceImpl::QueryChunkServerRecoverStatus(
     QueryChunkServerRecoverStatusResponse *response,
     google::protobuf::Closure* done) {
     brpc::ClosureGuard done_guard(done);
-
-    brpc::Controller* cntl =
-        static_cast<brpc::Controller*>(cntl_base);
-
-    LOG(INFO) << "Received request[log_id=" << cntl->log_id()
-              << "] from " << cntl->remote_side()
-              << " to " << cntl->local_side()
-              << ". [QueryChunkServerRecoverStatusRequest] "
-              << request->DebugString();
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
+    // auth
+    auto ret = Authenticator::GetInstance().VerifyCredential(
+        request->authtoken());
+    if (!ret) {
+        LOG(ERROR) << "QueryChunkServerRecoverStatus auth failed, request = "
+                   << request->ShortDebugString();
+        response->set_statuscode(kScheduleErrAuthFail);
+        return;
+    }
 
     std::vector<ChunkServerIdType> ids;
     for (int i = 0; i < request->chunkserverid_size(); i++) {
@@ -83,7 +89,7 @@ void ScheduleServiceImpl::QueryChunkServerRecoverStatus(
     }
 
     std::map<ChunkServerIdType, bool> statusMap;
-    int errCode = coordinator_->QueryChunkServerRecoverStatus(ids, &statusMap);
+    auto errCode = coordinator_->QueryChunkServerRecoverStatus(ids, &statusMap);
     response->set_statuscode(errCode);
     if (errCode == kScheduleErrCodeSuccess) {
         LOG(INFO) << "Send response[log_id=" << cntl->log_id()
