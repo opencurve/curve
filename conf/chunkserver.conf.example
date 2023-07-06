@@ -111,7 +111,7 @@ copyset.scan_rpc_retry_times=3
 # the follower send scanmap to leader rpc retry interval
 copyset.scan_rpc_retry_interval_us=100000
 # enable O_DSYNC when open chunkfile
-copyset.enable_odsync_when_open_chunkfile=false
+copyset.enable_odsync_when_open_chunkfile=true
 # sync trigger seconds
 copyset.sync_trigger_seconds=25
 # sync chunk limit default = 2MB
