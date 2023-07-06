@@ -46,11 +46,13 @@ DECLARE_bool(useFakeS3);
 namespace curvefs {
 namespace client {
 namespace common {
+static bool pass_bool(const char *, bool) { return true; }
 DEFINE_bool(enableCto, true, "acheieve cto consistency");
 DEFINE_bool(useFakeS3, false,
             "Use fake s3 to inject more metadata for testing metaserver");
 DEFINE_bool(supportKVcache, false, "use kvcache to speed up sharing");
 DEFINE_bool(access_logging, true, "enable access log");
+DEFINE_validator(access_logging, &pass_bool);
 
 /**
  * use curl -L fuseclient:port/flags/fuseClientAvgWriteBytes?setvalue=true
