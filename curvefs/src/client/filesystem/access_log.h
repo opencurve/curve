@@ -20,9 +20,14 @@
  * Author: Jingli Chen (Wine93)
  */
 
+#include <unistd.h>
 #include <butil/time.h>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
+#include <spdlog/sinks/daily_file_sink.h>
+
+#include <string>
+#include <memory>
 
 #include "absl/strings/str_format.h"
 #include "curvefs/src/client/common/config.h"
@@ -46,13 +51,14 @@ using MessageHandler = std::function<std::string()>;
 static std::shared_ptr<spdlog::logger> Logger;
 
 bool InitAccessLog(const std::string& prefix) {
-    Logger = spdlog::basic_logger_mt("fuse_access", prefix + "/access.log");
+    std::string filename = StrFormat("%s/access.%d.log", prefix, getpid());
+    Logger = spdlog::daily_logger_mt("fuse_access", filename, 0, 0);
     spdlog::flush_every(std::chrono::seconds(1));
     return true;
 }
 
 struct AccessLogGuard {
-    AccessLogGuard(MessageHandler handler)
+    explicit AccessLogGuard(MessageHandler handler)
         : enable(FLAGS_access_logging),
           handler(handler) {
         if (!enable) {
