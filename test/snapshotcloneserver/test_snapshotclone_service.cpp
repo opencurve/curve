@@ -21,6 +21,7 @@
  */
 
 
+#include <gmock/gmock-actions.h>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <json/json.h>
@@ -28,7 +29,12 @@
 #include <brpc/channel.h>
 #include <brpc/server.h>
 #include <memory>
+#include <string>
 
+#include "proto/auth.pb.h"
+#include "src/common/authenticator.h"
+#include "src/common/snapshotclone/snapshotclone_define.h"
+#include "src/common/timeutility.h"
 #include "src/snapshotcloneserver/snapshotclone_service.h"
 #include "test/snapshotcloneserver/mock_snapshot_server.h"
 
@@ -39,6 +45,7 @@ using ::testing::AllOf;
 using ::testing::SetArgPointee;
 using ::testing::Invoke;
 using ::testing::DoAll;
+using ::curve::common::Encryptor;
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -56,14 +63,51 @@ class TestSnapshotCloneServiceImpl : public ::testing::Test {
         snapshotManager_ = std::make_shared<MockSnapshotServiceManager>();
         cloneManager_ = std::make_shared<MockCloneServiceManager>();
 
-        SnapshotCloneServiceImpl *snapService =
-            new SnapshotCloneServiceImpl(snapshotManager_, cloneManager_);
+        SnapshotCloneServiceImpl *snapService = new SnapshotCloneServiceImpl(
+            snapshotManager_, cloneManager_);
 
         ASSERT_EQ(0, server_->AddService(snapService,
                 brpc::SERVER_OWNS_SERVICE));
 
         ASSERT_EQ(0, server_->Start("127.0.0.1", {8900, 8999}, nullptr));
         listenAddr_ = server_->listen_address();
+
+        // auth
+        curve::common::ServerAuthOption authOption;
+        authOption.enable = true;
+        authOption.key = "1122334455667788";
+        authOption.lastKey = "1122334455667788";
+        authOption.lastKeyTTL = 1800;
+        authOption.requestTTL = 15;
+        std::string cId = "client";
+        std::string sId = "snapshotclone";
+        std::string sk = "123456789abcdefg";
+        auto now = curve::common::TimeUtility::GetTimeofDaySec();
+        curve::common::Authenticator::GetInstance().Init(
+            curve::common::ZEROIV, authOption);
+        curve::mds::auth::Ticket ticket;
+        ticket.set_cid(cId);
+        ticket.set_sessionkey(sk);
+        ticket.set_expiration(now + 100);
+        ticket.set_caps("*");
+        ticket.set_sid(sId);
+        std::string ticketStr;
+        ASSERT_TRUE(ticket.SerializeToString(&ticketStr));
+        std::string encticket;
+        ASSERT_EQ(0, curve::common::Encryptor::AESEncrypt(
+            authOption.key, curve::common::ZEROIV, ticketStr, &encticket));
+        curve::mds::auth::ClientIdentity clientIdentity;
+        clientIdentity.set_cid(cId);
+        clientIdentity.set_timestamp(now);
+        std::string cIdStr;
+        ASSERT_TRUE(clientIdentity.SerializeToString(&cIdStr));
+        std::string encCId;
+        ASSERT_EQ(0, curve::common::Encryptor::AESEncrypt(
+            sk, curve::common::ZEROIV, cIdStr, &encCId));
+        token_.set_encticket(encticket);
+        token_.set_encclientidentity(encCId);
+        fakeToken_.set_encticket("fake");
+        fakeToken_.set_encclientidentity("fake");
     }
 
     virtual void TearDown() {
@@ -75,11 +119,28 @@ class TestSnapshotCloneServiceImpl : public ::testing::Test {
         server_ = nullptr;
     }
 
+    void FillTokenInfo(brpc::Controller *cntl) {
+        cntl->http_request().SetHeader(kAuthTicketStr,
+            Encryptor::Base64Encode(token_.encticket()));
+        cntl->http_request().SetHeader(kAuthCIdStr,
+            Encryptor::Base64Encode(token_.encclientidentity()));
+    }
+
+    void FillFakeTokenInfo(brpc::Controller *cntl) {
+        cntl->http_request().SetHeader(kAuthTicketStr,
+            Encryptor::Base64Encode(fakeToken_.encticket()));
+        cntl->http_request().SetHeader(kAuthCIdStr,
+            Encryptor::Base64Encode(fakeToken_.encclientidentity()));
+    }
+
  protected:
     std::shared_ptr<MockSnapshotServiceManager> snapshotManager_;
     std::shared_ptr<MockCloneServiceManager> cloneManager_;
+
     butil::EndPoint listenAddr_;
     brpc::Server *server_;
+    curve::mds::auth::Token token_;
+    curve::mds::auth::Token fakeToken_;
 };
 
 TEST_F(TestSnapshotCloneServiceImpl, TestCreateSnapShotSuccess) {
@@ -110,15 +171,20 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCreateSnapShotSuccess) {
         FAIL() << "Fail to init channel"
                << std::endl;
     }
-
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
-
+    FillTokenInfo(&cntl);
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
+        FAIL() << cntl.ErrorText();
     }
-    LOG(ERROR) << cntl.response_attachment();
+
+    // auth failed
+    cntl.Reset();
+    cntl.http_request().uri() = url.c_str();
+    FillFakeTokenInfo(&cntl);
+    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    EXPECT_TRUE(cntl.Failed());
 }
 
 TEST_F(TestSnapshotCloneServiceImpl, TestDeleteSnapShotSuccess) {
@@ -149,12 +215,18 @@ TEST_F(TestSnapshotCloneServiceImpl, TestDeleteSnapShotSuccess) {
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
-
+    FillTokenInfo(&cntl);
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
+        FAIL() << cntl.ErrorText();
     }
-    LOG(ERROR) << cntl.response_attachment();
+
+    // auth failed
+    cntl.Reset();
+    cntl.http_request().uri() = url.c_str();
+    FillFakeTokenInfo(&cntl);
+    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    EXPECT_TRUE(cntl.Failed());
 }
 
 TEST_F(TestSnapshotCloneServiceImpl, TestCancelSnapShotSuccess) {
@@ -185,12 +257,18 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCancelSnapShotSuccess) {
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
-
+    FillTokenInfo(&cntl);
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
+        FAIL() << cntl.ErrorText();
     }
-    LOG(ERROR) << cntl.response_attachment();
+
+    // auth failed
+    cntl.Reset();
+    cntl.http_request().uri() = url.c_str();
+    FillFakeTokenInfo(&cntl);
+    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    EXPECT_TRUE(cntl.Failed());
 }
 
 TEST_F(TestSnapshotCloneServiceImpl, TestGetFileSnapshotInfoSuccess) {
@@ -240,10 +318,10 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetFileSnapshotInfoSuccess) {
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
-
+    FillTokenInfo(&cntl);
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
+        FAIL() << cntl.ErrorText();
     }
 
     std::stringstream ss;
@@ -266,6 +344,13 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetFileSnapshotInfoSuccess) {
     ASSERT_EQ(2048, jsonObj["Snapshots"][0]["FileLength"].asInt());
     ASSERT_EQ(1, jsonObj["Snapshots"][0]["Status"].asInt());
     ASSERT_EQ(50, jsonObj["Snapshots"][0]["Progress"].asInt());
+
+    // auth failed
+    cntl.Reset();
+    cntl.http_request().uri() = url.c_str();
+    FillFakeTokenInfo(&cntl);
+    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    EXPECT_TRUE(cntl.Failed());
 }
 
 TEST_F(TestSnapshotCloneServiceImpl,
@@ -313,10 +398,10 @@ TEST_F(TestSnapshotCloneServiceImpl,
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
-
+    FillTokenInfo(&cntl);
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
+        FAIL() << cntl.ErrorText();
     }
     std::stringstream ss;
     ss << cntl.response_attachment();
@@ -331,6 +416,13 @@ TEST_F(TestSnapshotCloneServiceImpl,
     ASSERT_EQ(2, jsonObj["Snapshots"].size());
     ASSERT_STREQ("2", jsonObj["Snapshots"][0]["UUID"].asCString());
     ASSERT_STREQ("3", jsonObj["Snapshots"][1]["UUID"].asCString());
+
+    // auth failed
+    cntl.Reset();
+    cntl.http_request().uri() = url.c_str();
+    FillFakeTokenInfo(&cntl);
+    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    EXPECT_TRUE(cntl.Failed());
 }
 
 TEST_F(TestSnapshotCloneServiceImpl, TestGetFileSnapshotListSuccess) {
@@ -376,11 +468,12 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetFileSnapshotListSuccess) {
     }
 
     brpc::Controller cntl;
+    FillTokenInfo(&cntl);
     cntl.http_request().uri() = url.c_str();
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
+        FAIL() << cntl.ErrorText();
     }
 
     std::stringstream ss;
@@ -403,6 +496,13 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetFileSnapshotListSuccess) {
     ASSERT_EQ(2048, jsonObj["Snapshots"][0]["FileLength"].asInt());
     ASSERT_EQ(1, jsonObj["Snapshots"][0]["Status"].asInt());
     ASSERT_EQ(50, jsonObj["Snapshots"][0]["Progress"].asInt());
+
+    // auth failed
+    cntl.Reset();
+    cntl.http_request().uri() = url.c_str();
+    FillFakeTokenInfo(&cntl);
+    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    EXPECT_TRUE(cntl.Failed());
 }
 
 TEST_F(TestSnapshotCloneServiceImpl,
@@ -450,10 +550,11 @@ TEST_F(TestSnapshotCloneServiceImpl,
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
+    FillTokenInfo(&cntl);
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
+        FAIL() << cntl.ErrorText();
     }
     std::stringstream ss;
     ss << cntl.response_attachment();
@@ -468,6 +569,13 @@ TEST_F(TestSnapshotCloneServiceImpl,
     ASSERT_EQ(2, jsonObj["Snapshots"].size());
     ASSERT_STREQ("2", jsonObj["Snapshots"][0]["UUID"].asCString());
     ASSERT_STREQ("3", jsonObj["Snapshots"][1]["UUID"].asCString());
+
+    // auth failed
+    cntl.Reset();
+    cntl.http_request().uri() = url.c_str();
+    FillFakeTokenInfo(&cntl);
+    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    EXPECT_TRUE(cntl.Failed());
 }
 
 TEST_F(TestSnapshotCloneServiceImpl, TestActionIsNull) {
@@ -497,10 +605,7 @@ TEST_F(TestSnapshotCloneServiceImpl, TestActionIsNull) {
     cntl.http_request().uri() = url.c_str();
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
-    if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
-    }
-    LOG(ERROR) << cntl.response_attachment();
+    EXPECT_TRUE(cntl.Failed());
 }
 
 TEST_F(TestSnapshotCloneServiceImpl, TestCreateSnapShotMissingParam) {
@@ -527,12 +632,10 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCreateSnapShotMissingParam) {
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
+    FillTokenInfo(&cntl);
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
-    if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
-    }
-    LOG(ERROR) << cntl.response_attachment();
+    EXPECT_TRUE(cntl.Failed());
 }
 
 TEST_F(TestSnapshotCloneServiceImpl, TestDeleteSnapShotMissingParam) {
@@ -559,12 +662,10 @@ TEST_F(TestSnapshotCloneServiceImpl, TestDeleteSnapShotMissingParam) {
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
+    FillTokenInfo(&cntl);
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
-    if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
-    }
-    LOG(ERROR) << cntl.response_attachment();
+    EXPECT_TRUE(cntl.Failed());
 }
 
 TEST_F(TestSnapshotCloneServiceImpl, TestCancelSnapShotMissingParam) {
@@ -592,12 +693,10 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCancelSnapShotMissingParam) {
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
+    FillTokenInfo(&cntl);
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
-    if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
-    }
-    LOG(ERROR) << cntl.response_attachment();
+    EXPECT_TRUE(cntl.Failed());
 }
 
 TEST_F(TestSnapshotCloneServiceImpl, TestGetFileSnapshotInfoMissingParam) {
@@ -614,7 +713,6 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetFileSnapshotInfoMissingParam) {
                     + std::to_string(listenAddr_.port)
                     + "/" + kServiceName + "?"
                     + kActionStr + "=" +kGetFileSnapshotInfoAction + "&"
-                    + kVersionStr + "=1&"
                     + kUserStr + "=" + user + "&"
                     + kLimitStr + "=10";
 
@@ -625,12 +723,10 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetFileSnapshotInfoMissingParam) {
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
+    FillTokenInfo(&cntl);
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
-    if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
-    }
-    LOG(ERROR) << cntl.response_attachment();
+    EXPECT_TRUE(cntl.Failed());
 }
 
 TEST_F(TestSnapshotCloneServiceImpl, TestGetFileSnapshotListMissingParam) {
@@ -655,12 +751,10 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetFileSnapshotListMissingParam) {
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
+    FillTokenInfo(&cntl);
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
-    if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
-    }
-    LOG(ERROR) << cntl.response_attachment();
+    EXPECT_TRUE(cntl.Failed());
 }
 
 TEST_F(TestSnapshotCloneServiceImpl, TestCreateSnapShotFail) {
@@ -694,12 +788,10 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCreateSnapShotFail) {
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
+    FillTokenInfo(&cntl);
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
-    if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
-    }
-    LOG(ERROR) << cntl.response_attachment();
+    EXPECT_TRUE(cntl.Failed());
 }
 
 TEST_F(TestSnapshotCloneServiceImpl, TestDeleteSnapShotFail) {
@@ -730,12 +822,10 @@ TEST_F(TestSnapshotCloneServiceImpl, TestDeleteSnapShotFail) {
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
+    FillTokenInfo(&cntl);
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
-    if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
-    }
-    LOG(ERROR) << cntl.response_attachment();
+    EXPECT_TRUE(cntl.Failed());
 }
 
 TEST_F(TestSnapshotCloneServiceImpl, TestCancelSnapShotFail) {
@@ -766,12 +856,10 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCancelSnapShotFail) {
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
+    FillTokenInfo(&cntl);
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
-    if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
-    }
-    LOG(ERROR) << cntl.response_attachment();
+    EXPECT_TRUE(cntl.Failed());
 }
 
 TEST_F(TestSnapshotCloneServiceImpl, TestGetFileSnapshotInfoFail) {
@@ -804,12 +892,10 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetFileSnapshotInfoFail) {
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
+    FillTokenInfo(&cntl);
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
-    if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
-    }
-    LOG(ERROR) << cntl.response_attachment();
+    EXPECT_TRUE(cntl.Failed());
 }
 
 TEST_F(TestSnapshotCloneServiceImpl, TestGetFileSnapshotListFail) {
@@ -842,12 +928,10 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetFileSnapshotListFail) {
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
+    FillTokenInfo(&cntl);
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
-    if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
-    }
-    LOG(ERROR) << cntl.response_attachment();
+    EXPECT_TRUE(cntl.Failed());
 }
 
 TEST_F(TestSnapshotCloneServiceImpl, TestBadRequest) {
@@ -872,10 +956,7 @@ TEST_F(TestSnapshotCloneServiceImpl, TestBadRequest) {
     cntl.http_request().uri() = url.c_str();
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
-    if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
-    }
-    LOG(ERROR) << cntl.response_attachment();
+    EXPECT_TRUE(cntl.Failed());
 }
 
 TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileSuccess) {
@@ -894,9 +975,10 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileSuccess) {
         bool lazyFlag,
         std::shared_ptr<CloneClosure> closure,
         TaskIdType *taskId){
+            closure->SetErrCode(kErrCodeSuccess);
             brpc::ClosureGuard guard(closure.get());
             return kErrCodeSuccess;
-                    }));
+        }));
 
     brpc::Channel channel;
     brpc::ChannelOptions option;
@@ -919,12 +1001,12 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileSuccess) {
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
+    FillTokenInfo(&cntl);
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
+        FAIL() << cntl.ErrorText();
     }
-    LOG(ERROR) << cntl.response_attachment();
 }
 
 TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileMissingPoolset) {
@@ -980,9 +1062,10 @@ TEST_F(TestSnapshotCloneServiceImpl, TestRecoverFileSuccess) {
         bool lazyFlag,
         std::shared_ptr<CloneClosure> closure,
         TaskIdType *taskId){
+            closure->SetErrCode(kErrCodeSuccess);
             brpc::ClosureGuard guard(closure.get());
             return kErrCodeSuccess;
-                    }));
+        }));
 
     brpc::Channel channel;
     brpc::ChannelOptions option;
@@ -1005,12 +1088,12 @@ TEST_F(TestSnapshotCloneServiceImpl, TestRecoverFileSuccess) {
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
+    FillTokenInfo(&cntl);
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
+        FAIL() << cntl.ErrorText();
     }
-    LOG(ERROR) << cntl.response_attachment();
 }
 
 TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneTaskSuccess) {
@@ -1058,10 +1141,11 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneTaskSuccess) {
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
+    FillTokenInfo(&cntl);
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
+        FAIL() << cntl.ErrorText();
     }
     std::stringstream ss;
     ss << cntl.response_attachment();
@@ -1132,10 +1216,11 @@ TEST_F(TestSnapshotCloneServiceImpl,
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
+    FillTokenInfo(&cntl);
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
+        FAIL() << cntl.ErrorText();
     }
     std::stringstream ss;
     ss << cntl.response_attachment();
@@ -1194,10 +1279,11 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneTaskListSuccess) {
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
+    FillTokenInfo(&cntl);
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
+        FAIL() << cntl.ErrorText();
     }
     std::stringstream ss;
     ss << cntl.response_attachment();
@@ -1262,10 +1348,11 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneTaskListWithLimitSuccess) {
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
+    FillTokenInfo(&cntl);
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
+        FAIL() << cntl.ErrorText();
     }
     std::stringstream ss;
     ss << cntl.response_attachment();
@@ -1309,12 +1396,16 @@ TEST_F(TestSnapshotCloneServiceImpl, TestRecoverFileMissingParam) {
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
+    FillTokenInfo(&cntl);
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
-    if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
-    }
-    LOG(ERROR) << cntl.response_attachment();
+    EXPECT_TRUE(cntl.Failed());
+
+    // auth failed
+    cntl.Reset();
+    cntl.http_request().uri() = url.c_str();
+    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    EXPECT_TRUE(cntl.Failed());
 }
 
 TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneTaskMissingParam) {
@@ -1339,10 +1430,15 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneTaskMissingParam) {
     cntl.http_request().uri() = url.c_str();
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
-    if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
-    }
-    LOG(ERROR) << cntl.response_attachment();
+    FillTokenInfo(&cntl);
+    EXPECT_TRUE(cntl.Failed());
+
+    // auth failed
+    cntl.Reset();
+    cntl.http_request().uri() = url.c_str();
+    FillFakeTokenInfo(&cntl);
+    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    EXPECT_TRUE(cntl.Failed());
 }
 
 TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneTaskListMissingParam) {
@@ -1364,12 +1460,17 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneTaskListMissingParam) {
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
+    FillTokenInfo(&cntl);
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
-    if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
-    }
-    LOG(ERROR) << cntl.response_attachment();
+    EXPECT_TRUE(cntl.Failed());
+
+    // auth failed
+    cntl.Reset();
+    cntl.http_request().uri() = url.c_str();
+    FillFakeTokenInfo(&cntl);
+    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    EXPECT_TRUE(cntl.Failed());
 }
 
 TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileFail) {
@@ -1413,12 +1514,10 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileFail) {
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
+    FillTokenInfo(&cntl);
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
-    if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
-    }
-    LOG(ERROR) << cntl.response_attachment();
+    EXPECT_TRUE(cntl.Failed());
 }
 
 TEST_F(TestSnapshotCloneServiceImpl, TestRecoverFileFail) {
@@ -1461,12 +1560,10 @@ TEST_F(TestSnapshotCloneServiceImpl, TestRecoverFileFail) {
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
+    FillTokenInfo(&cntl);
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
-    if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
-    }
-    LOG(ERROR) << cntl.response_attachment();
+    EXPECT_TRUE(cntl.Failed());
 }
 
 TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneTaskFail) {
@@ -1494,12 +1591,10 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneTaskFail) {
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
+    FillTokenInfo(&cntl);
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
-    if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
-    }
-    LOG(ERROR) << cntl.response_attachment();
+    EXPECT_TRUE(cntl.Failed());
 }
 
 TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneListFail) {
@@ -1526,12 +1621,10 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneListFail) {
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
+    FillTokenInfo(&cntl);
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
-    if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
-    }
-    LOG(ERROR) << cntl.response_attachment();
+    EXPECT_TRUE(cntl.Failed());
 }
 
 TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileInvalidParam) {
@@ -1561,12 +1654,10 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileInvalidParam) {
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
+    FillTokenInfo(&cntl);
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
-    if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
-    }
-    LOG(ERROR) << cntl.response_attachment();
+    EXPECT_TRUE(cntl.Failed());
 }
 
 TEST_F(TestSnapshotCloneServiceImpl, TestRecoverFileInvalidParam) {
@@ -1596,12 +1687,10 @@ TEST_F(TestSnapshotCloneServiceImpl, TestRecoverFileInvalidParam) {
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
+    FillTokenInfo(&cntl);
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
-    if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
-    }
-    LOG(ERROR) << cntl.response_attachment();
+    EXPECT_TRUE(cntl.Failed());
 }
 
 TEST_F(TestSnapshotCloneServiceImpl, TestCleanCloneTasksSuccess) {
@@ -1630,12 +1719,12 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCleanCloneTasksSuccess) {
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
+    FillTokenInfo(&cntl);
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
+        FAIL() << cntl.ErrorText();
     }
-    LOG(ERROR) << cntl.response_attachment();
 }
 
 TEST_F(TestSnapshotCloneServiceImpl, TestCleanCloneTasksMissingParam) {
@@ -1659,12 +1748,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCleanCloneTasksMissingParam) {
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
-
+    FillTokenInfo(&cntl);
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
-    if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
-    }
-    LOG(ERROR) << cntl.response_attachment();
+    EXPECT_TRUE(cntl.Failed());
 }
 
 TEST_F(TestSnapshotCloneServiceImpl, TestCleanCloneTasksFail) {
@@ -1693,12 +1779,10 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCleanCloneTasksFail) {
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
+    FillTokenInfo(&cntl);
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
-    if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
-    }
-    LOG(ERROR) << cntl.response_attachment();
+    EXPECT_TRUE(cntl.Failed());
 }
 
 TEST_F(TestSnapshotCloneServiceImpl, TestFlattenSuccess) {
@@ -1726,12 +1810,12 @@ TEST_F(TestSnapshotCloneServiceImpl, TestFlattenSuccess) {
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
+    FillTokenInfo(&cntl);
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
+        FAIL() << cntl.ErrorText();
     }
-    LOG(ERROR) << cntl.response_attachment();
 }
 
 TEST_F(TestSnapshotCloneServiceImpl, TestFlattenMissingParam) {
@@ -1741,6 +1825,7 @@ TEST_F(TestSnapshotCloneServiceImpl, TestFlattenMissingParam) {
     brpc::Channel channel;
     brpc::ChannelOptions option;
     option.protocol = "http";
+
     std::string url = std::string("http://127.0.0.1:")
                     + std::to_string(listenAddr_.port)
                     + "/" + kServiceName + "?"
@@ -1755,12 +1840,16 @@ TEST_F(TestSnapshotCloneServiceImpl, TestFlattenMissingParam) {
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
+    FillTokenInfo(&cntl);
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
-    if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
-    }
-    LOG(ERROR) << cntl.response_attachment();
+    EXPECT_TRUE(cntl.Failed());
+    // auth failed
+    cntl.Reset();
+    cntl.http_request().uri() = url.c_str();
+    FillFakeTokenInfo(&cntl);
+    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    EXPECT_TRUE(cntl.Failed());
 }
 
 TEST_F(TestSnapshotCloneServiceImpl, TestFlattenFail) {
@@ -1788,12 +1877,10 @@ TEST_F(TestSnapshotCloneServiceImpl, TestFlattenFail) {
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
+    FillTokenInfo(&cntl);
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
-    if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
-    }
-    LOG(ERROR) << cntl.response_attachment();
+    EXPECT_TRUE(cntl.Failed());
 }
 
 TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneRefStatusNeedCheckRefSuccess) {
@@ -1852,12 +1939,12 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneRefStatusNeedCheckRefSuccess) {
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
+    FillTokenInfo(&cntl);
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
+        FAIL() << cntl.ErrorText();
     }
-    LOG(ERROR) << cntl.response_attachment();
 
     std::stringstream ss;
     ss << cntl.response_attachment();
@@ -1907,12 +1994,12 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneRefStatusNoRefSuccess) {
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
+    FillTokenInfo(&cntl);
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
+        FAIL() << cntl.ErrorText();
     }
-    LOG(ERROR) << cntl.response_attachment();
 
     std::stringstream ss;
     ss << cntl.response_attachment();
@@ -1966,12 +2053,12 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneRefStatusHasRefSuccess) {
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
+    FillTokenInfo(&cntl);
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
+        FAIL() << cntl.ErrorText();
     }
-    LOG(ERROR) << cntl.response_attachment();
 
     std::stringstream ss;
     ss << cntl.response_attachment();
@@ -2006,12 +2093,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneRefStatusMissingParam) {
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
+    FillTokenInfo(&cntl);
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
-    if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
-    }
-    LOG(ERROR) << cntl.response_attachment();
     ASSERT_EQ(brpc::HTTP_STATUS_BAD_REQUEST,
                     cntl.http_response().status_code());
 }
@@ -2041,13 +2125,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneRefStatusFail) {
 
     brpc::Controller cntl;
     cntl.http_request().uri() = url.c_str();
+    FillTokenInfo(&cntl);
 
     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
-    if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText();
-    }
-    LOG(ERROR) << cntl.response_attachment();
-
     ASSERT_EQ(brpc::HTTP_STATUS_INTERNAL_SERVER_ERROR,
                     cntl.http_response().status_code());
 }

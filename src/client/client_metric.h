@@ -195,6 +195,15 @@ struct MDSClientMetric {
     InterfaceMetric listChunkserverInServer;
     // IncreaseEpoch
     InterfaceMetric increaseEpoch;
+    InterfaceMetric createSnapShot;
+    InterfaceMetric deleteSnapShot;
+    InterfaceMetric listSnapShot;
+    InterfaceMetric getSnapshotSegmentInfo;
+    InterfaceMetric checkSnapShotStatus;
+    InterfaceMetric getClusterInfo;
+    InterfaceMetric listPoolset;
+    InterfaceMetric createCloneFile;
+    InterfaceMetric setCloneFileStatus;
 
     // 切换mds server总次数
     bvar::Adder<uint64_t> mdsServerChangeTimes;
@@ -223,6 +232,15 @@ struct MDSClientMetric {
           getChunkServerId(prefix, "GetChunkServerId"),
           listChunkserverInServer(prefix, "ListChunkServerInServer"),
           increaseEpoch(prefix, "IncreaseEpoch"),
+          createSnapShot(prefix, "CreateSnapShot"),
+          deleteSnapShot(prefix, "DeleteSnapShot"),
+          listSnapShot(prefix, "ListSnapShot"),
+          getSnapshotSegmentInfo(prefix, "GetSnapshotSegmentInfo"),
+          checkSnapShotStatus(prefix, "CheckSnapShotStatus"),
+          getClusterInfo(prefix, "GetClusterInfo"),
+          listPoolset(prefix, "ListPoolset"),
+          createCloneFile(prefix, "CreateCloneFile"),
+          setCloneFileStatus(prefix, "SetCloneFileStatus"),
           mdsServerChangeTimes(prefix, "mds_server_change_times") {}
 };
 

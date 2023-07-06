@@ -22,6 +22,7 @@
 
 #include <memory>
 
+#include "src/common/authenticator.h"
 #include "test/integration/snapshotcloneserver/snapshotcloneserver_module.h"
 
 

@@ -133,7 +133,7 @@ class CSModuleException : public ::testing::Test {
  public:
     void SetUp() {
         std::string confPath = "./test/integration/client/config/client.conf.1";
-        system("mkdir ./runlog/ChunkserverException");
+        system("mkdir -p ./runlog/ChunkserverException");
         system("rm -rf module_exception_test_chunkserver.etcd");
         system("rm -rf moduleException4 moduleException5 moduleException6");
 

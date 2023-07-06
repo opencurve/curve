@@ -26,6 +26,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include "src/client/auth_client.h"
 #include "src/fs/local_filesystem.h"
 #include "proto/chunkserver.pb.h"
 #include "src/chunkserver/epoch_map.h"
@@ -57,6 +58,10 @@ struct RegisterOptions {
     std::shared_ptr<FilePool> chunkFilepool;
 
     std::shared_ptr<LocalFileSystem> fs;
+    std::shared_ptr<curve::client::AuthClient> authClient;
+    RegisterOptions() {
+        authClient = std::make_shared<curve::client::AuthClient>();
+    }
 };
 
 class Register {

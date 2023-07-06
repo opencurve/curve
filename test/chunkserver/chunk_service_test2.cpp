@@ -21,6 +21,7 @@
  */
 
 
+#include <gmock/gmock-actions.h>
 #include <unistd.h>
 #include <gtest/gtest.h>
 #include <gflags/gflags.h>
@@ -29,20 +30,22 @@
 #include <brpc/channel.h>
 #include <brpc/controller.h>
 #include <brpc/server.h>
+#include <memory>
 
 #include "include/chunkserver/chunkserver_common.h"
 #include "src/chunkserver/copyset_node.h"
 #include "src/chunkserver/copyset_node_manager.h"
-#include "src/chunkserver/cli.h"
 #include "proto/copyset.pb.h"
 #include "test/chunkserver/chunkserver_test_util.h"
 #include "src/common/uuid.h"
 #include "src/chunkserver/chunk_service.h"
+#include "src/common/authenticator.h"
 
 namespace curve {
 namespace chunkserver {
 
 using curve::common::UUIDGenerator;
+using ::testing::Return;
 
 static constexpr uint32_t kOpRequestAlignSize = 4096;
 
@@ -56,6 +59,42 @@ class ChunkService2Test : public testing::Test {
         Exec(("mkdir " + dir1).c_str());
         Exec(("mkdir " + dir2).c_str());
         Exec(("mkdir " + dir3).c_str());
+        // auth
+        curve::common::ServerAuthOption authOption;
+        authOption.enable = true;
+        authOption.key = "1122334455667788";
+        authOption.lastKey = "1122334455667788";
+        authOption.lastKeyTTL = 1800;
+        authOption.requestTTL = 15;
+        std::string cId = "client";
+        std::string sId = "chunkserver";
+        std::string sk = "123456789abcdefg";
+        auto now = curve::common::TimeUtility::GetTimeofDaySec();
+        curve::common::Authenticator::GetInstance().Init(
+            curve::common::ZEROIV, authOption);
+        curve::mds::auth::Ticket ticket;
+        ticket.set_cid(cId);
+        ticket.set_sessionkey(sk);
+        ticket.set_expiration(now + 100);
+        ticket.set_caps("*");
+        ticket.set_sid(sId);
+        std::string ticketStr;
+        ASSERT_TRUE(ticket.SerializeToString(&ticketStr));
+        std::string encticket;
+        ASSERT_EQ(0, curve::common::Encryptor::AESEncrypt(
+            authOption.key, curve::common::ZEROIV, ticketStr, &encticket));
+        curve::mds::auth::ClientIdentity clientIdentity;
+        clientIdentity.set_cid(cId);
+        clientIdentity.set_timestamp(now);
+        std::string cIdStr;
+        ASSERT_TRUE(clientIdentity.SerializeToString(&cIdStr));
+        std::string encCId;
+        ASSERT_EQ(0, curve::common::Encryptor::AESEncrypt(
+            sk, curve::common::ZEROIV, cIdStr, &encCId));
+        token_.set_encticket(encticket);
+        token_.set_encclientidentity(encCId);
+        fakeToken_.set_encticket("fake");
+        fakeToken_.set_encclientidentity("fake");
     }
     virtual void TearDown() {
         Exec(("rm -fr " + dir1).c_str());
@@ -71,6 +110,9 @@ class ChunkService2Test : public testing::Test {
     std::string dir1;
     std::string dir2;
     std::string dir3;
+
+    curve::mds::auth::Token token_;
+    curve::mds::auth::Token fakeToken_;
 };
 
 butil::AtExitManager atExitManager;
@@ -89,6 +131,7 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
     /**
      * Start three chunk server by fork
      */
+
     pid1 = fork();
     if (0 > pid1) {
         std::cerr << "fork chunkserver 1 failed" << std::endl;
@@ -196,6 +239,9 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
         request.set_sn(sn);
         request.set_offset(kOpRequestAlignSize);
         request.set_size(kMaxChunkSize);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         stub.ReadChunk(&cntl, &request, &response, nullptr);
         ASSERT_FALSE(cntl.Failed());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
@@ -214,6 +260,9 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
         request.set_sn(sn);
         request.set_offset(kOpRequestAlignSize - 1);
         request.set_size(kOpRequestAlignSize);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         stub.ReadChunk(&cntl, &request, &response, nullptr);
         ASSERT_FALSE(cntl.Failed());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
@@ -232,6 +281,9 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
         request.set_sn(sn);
         request.set_offset(0);
         request.set_size(kOpRequestAlignSize - 1);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         stub.ReadChunk(&cntl, &request, &response, nullptr);
         ASSERT_FALSE(cntl.Failed());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
@@ -251,6 +303,9 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
         request.set_offset(0);
         request.set_size(kOpRequestAlignSize);
         request.set_sn(sn);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         stub.ReadChunk(&cntl, &request, &response, nullptr);
         ASSERT_FALSE(cntl.Failed());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
@@ -269,6 +324,9 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
         request.set_sn(sn);
         request.set_offset(kOpRequestAlignSize);
         request.set_size(kMaxChunkSize);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         stub.ReadChunkSnapshot(&cntl, &request, &response, nullptr);
         ASSERT_FALSE(cntl.Failed());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
@@ -288,6 +346,9 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
         request.set_sn(sn);
         request.set_offset(kOpRequestAlignSize - 1);
         request.set_size(kOpRequestAlignSize);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         stub.ReadChunkSnapshot(&cntl, &request, &response, nullptr);
         ASSERT_FALSE(cntl.Failed());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
@@ -307,6 +368,9 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
         request.set_sn(sn);
         request.set_offset(0);
         request.set_size(kOpRequestAlignSize - 1);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         stub.ReadChunkSnapshot(&cntl, &request, &response, nullptr);
         ASSERT_FALSE(cntl.Failed());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
@@ -326,6 +390,9 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
         request.set_sn(sn);
         request.set_offset(0);
         request.set_size(kOpRequestAlignSize);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         stub.ReadChunkSnapshot(&cntl, &request, &response, nullptr);
         ASSERT_FALSE(cntl.Failed());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
@@ -344,6 +411,9 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
         request.set_offset(kMaxChunkSize);
         request.set_size(kOpRequestAlignSize);
         request.set_sn(sn);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         cntl.request_attachment().resize(kOpRequestAlignSize, 'a');
         stub.WriteChunk(&cntl, &request, &response, nullptr);
         ASSERT_FALSE(cntl.Failed());
@@ -363,6 +433,9 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
         request.set_sn(sn);
         request.set_offset(kOpRequestAlignSize - 1);
         request.set_size(kOpRequestAlignSize);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         cntl.request_attachment().resize(kOpRequestAlignSize, 'a');
         stub.WriteChunk(&cntl, &request, &response, nullptr);
         ASSERT_FALSE(cntl.Failed());
@@ -382,6 +455,9 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
         request.set_sn(sn);
         request.set_offset(kOpRequestAlignSize);
         request.set_size(kOpRequestAlignSize - 1);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         cntl.request_attachment().resize(kOpRequestAlignSize - 1, 'a');
         stub.WriteChunk(&cntl, &request, &response, nullptr);
         ASSERT_FALSE(cntl.Failed());
@@ -401,6 +477,9 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
         request.set_sn(sn);
         request.set_offset(0);
         request.set_size(kOpRequestAlignSize);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         cntl.request_attachment().resize(kOpRequestAlignSize, 'a');
         stub.WriteChunk(&cntl, &request, &response, nullptr);
         ASSERT_FALSE(cntl.Failed());
@@ -418,6 +497,9 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
         request.set_copysetid(copysetId + 1);
         request.set_chunkid(chunkId);
         request.set_sn(sn);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         stub.DeleteChunk(&cntl, &request, &response, nullptr);
         ASSERT_FALSE(cntl.Failed());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
@@ -434,6 +516,9 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
         request.set_copysetid(copysetId + 1);
         request.set_chunkid(chunkId);
         request.set_correctedsn(sn);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         stub.DeleteChunkSnapshotOrCorrectSn(&cntl,
                                             &request,
                                             &response,
@@ -451,6 +536,9 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
         request.set_logicpoolid(logicPoolId + 1);
         request.set_copysetid(copysetId + 1);
         request.set_chunkid(chunkId);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         stub.GetChunkInfo(&cntl, &request, &response, nullptr);
         ASSERT_FALSE(cntl.Failed());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
@@ -494,6 +582,9 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
             request.set_sn(sn);
             request.set_offset(0);
             request.set_size(kOpRequestAlignSize);
+            request.mutable_authtoken()->set_encticket(token_.encticket());
+            request.mutable_authtoken()->set_encclientidentity(
+                token_.encclientidentity());
             cntl.request_attachment().resize(kOpRequestAlignSize, 'a');
             stub.WriteChunk(&cntl, &request, &response, nullptr);
             ASSERT_FALSE(cntl.Failed());
@@ -515,6 +606,9 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
             request.set_sn(sn);
             request.set_offset(0);
             request.set_size(kOpRequestAlignSize);
+            request.mutable_authtoken()->set_encticket(token_.encticket());
+            request.mutable_authtoken()->set_encclientidentity(
+                token_.encclientidentity());
             stub.ReadChunk(&cntl, &request, &response, nullptr);
             ASSERT_FALSE(cntl.Failed());
             ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
@@ -536,6 +630,9 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
             request.set_offset(0);
             request.set_size(kOpRequestAlignSize);
             request.set_appliedindex(1);
+            request.mutable_authtoken()->set_encticket(token_.encticket());
+            request.mutable_authtoken()->set_encclientidentity(
+                token_.encclientidentity());
             stub.ReadChunk(&cntl, &request, &response, nullptr);
             ASSERT_FALSE(cntl.Failed());
             ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
@@ -551,6 +648,9 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
             request.set_logicpoolid(logicPoolId);
             request.set_copysetid(copysetId);
             request.set_chunkid(chunkId);
+            request.mutable_authtoken()->set_encticket(token_.encticket());
+            request.mutable_authtoken()->set_encclientidentity(
+                token_.encclientidentity());
             stub.GetChunkInfo(&cntl, &request, &response, nullptr);
             ASSERT_FALSE(cntl.Failed());
             ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
@@ -628,6 +728,9 @@ TEST_F(ChunkService2Test, overload_test) {
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
         request.set_chunkid(chunkId);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         chunkService.WriteChunk(&cntl, &request, &response, &done);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD, response.status());
     }
@@ -642,6 +745,9 @@ TEST_F(ChunkService2Test, overload_test) {
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
         request.set_chunkid(chunkId);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         chunkService.ReadChunk(&cntl, &request, &response, &done);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD, response.status());
     }
@@ -658,6 +764,9 @@ TEST_F(ChunkService2Test, overload_test) {
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
         request.set_chunkid(chunkId);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         chunkService.DeleteChunk(&cntl, &request, &response, &done);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD, response.status());
     }
@@ -674,6 +783,9 @@ TEST_F(ChunkService2Test, overload_test) {
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
         request.set_chunkid(chunkId);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         chunkService.ReadChunkSnapshot(&cntl, &request, &response, &done);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD, response.status());
     }
@@ -690,6 +802,9 @@ TEST_F(ChunkService2Test, overload_test) {
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
         request.set_chunkid(chunkId);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         chunkService.DeleteChunkSnapshotOrCorrectSn(&cntl,
                                                     &request,
                                                     &response,
@@ -709,6 +824,23 @@ TEST_F(ChunkService2Test, overload_test) {
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
         request.set_chunkid(chunkId);
+        // auth fail, miss token
+        chunkService.CreateCloneChunk(&cntl, &request, &response, &done);
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL,
+            response.status());
+        // auth fail, fake token
+        cntl.Reset();
+        request.mutable_authtoken()->set_encticket(fakeToken_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            fakeToken_.encclientidentity());
+        chunkService.CreateCloneChunk(&cntl, &request, &response, &done);
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL,
+            response.status());
+        // success
+        cntl.Reset();
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         chunkService.CreateCloneChunk(&cntl, &request, &response, &done);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD, response.status());
     }
@@ -725,6 +857,23 @@ TEST_F(ChunkService2Test, overload_test) {
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
         request.set_chunkid(chunkId);
+        // auth fail, miss token
+        chunkService.RecoverChunk(&cntl, &request, &response, &done);
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL,
+            response.status());
+        // auth fail, fake token
+        cntl.Reset();
+        request.mutable_authtoken()->set_encticket(fakeToken_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            fakeToken_.encclientidentity());
+        chunkService.RecoverChunk(&cntl, &request, &response, &done);
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL,
+            response.status());
+        // success
+        cntl.Reset();
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         chunkService.RecoverChunk(&cntl, &request, &response, &done);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD, response.status());
     }
@@ -738,6 +887,9 @@ TEST_F(ChunkService2Test, overload_test) {
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
         request.set_chunkid(chunkId);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         chunkService.GetChunkInfo(&cntl, &request, &response, &done);
 
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD, response.status());
@@ -775,6 +927,9 @@ TEST_F(ChunkService2Test, overload_concurrency_test) {
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
         request.set_chunkid(chunkId);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         chunkService.WriteChunk(&cntl, &request, &response, &done);
         ASSERT_NE(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD, response.status());
     };
@@ -801,6 +956,9 @@ TEST_F(ChunkService2Test, overload_concurrency_test) {
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
         request.set_chunkid(chunkId);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         chunkService.WriteChunk(&cntl, &request, &response, &done);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD, response.status());
     }
@@ -815,6 +973,9 @@ TEST_F(ChunkService2Test, overload_concurrency_test) {
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
         request.set_chunkid(chunkId);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         chunkService.ReadChunk(&cntl, &request, &response, &done);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD, response.status());
     }
@@ -831,6 +992,9 @@ TEST_F(ChunkService2Test, overload_concurrency_test) {
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
         request.set_chunkid(chunkId);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         chunkService.DeleteChunk(&cntl, &request, &response, &done);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD, response.status());
     }
@@ -847,6 +1011,9 @@ TEST_F(ChunkService2Test, overload_concurrency_test) {
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
         request.set_chunkid(chunkId);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         chunkService.ReadChunkSnapshot(&cntl, &request, &response, &done);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD, response.status());
     }
@@ -863,6 +1030,9 @@ TEST_F(ChunkService2Test, overload_concurrency_test) {
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
         request.set_chunkid(chunkId);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         chunkService.DeleteChunkSnapshotOrCorrectSn(&cntl,
                                                     &request,
                                                     &response,
@@ -882,6 +1052,9 @@ TEST_F(ChunkService2Test, overload_concurrency_test) {
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
         request.set_chunkid(chunkId);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         chunkService.CreateCloneChunk(&cntl, &request, &response, &done);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD, response.status());
     }
@@ -898,6 +1071,9 @@ TEST_F(ChunkService2Test, overload_concurrency_test) {
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
         request.set_chunkid(chunkId);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         chunkService.RecoverChunk(&cntl, &request, &response, &done);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD, response.status());
     }
@@ -911,6 +1087,9 @@ TEST_F(ChunkService2Test, overload_concurrency_test) {
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
         request.set_chunkid(chunkId);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         chunkService.GetChunkInfo(&cntl, &request, &response, &done);
 
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD, response.status());
@@ -933,6 +1112,9 @@ TEST_F(ChunkService2Test, overload_concurrency_test) {
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
         request.set_chunkid(chunkId);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         chunkService.WriteChunk(&cntl, &request, &response, &done);
         ASSERT_NE(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD, response.status());
     }
@@ -947,6 +1129,9 @@ TEST_F(ChunkService2Test, overload_concurrency_test) {
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
         request.set_chunkid(chunkId);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         chunkService.ReadChunk(&cntl, &request, &response, &done);
         ASSERT_NE(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD, response.status());
     }
@@ -963,6 +1148,9 @@ TEST_F(ChunkService2Test, overload_concurrency_test) {
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
         request.set_chunkid(chunkId);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         chunkService.DeleteChunk(&cntl, &request, &response, &done);
         ASSERT_NE(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD, response.status());
     }
@@ -979,6 +1167,9 @@ TEST_F(ChunkService2Test, overload_concurrency_test) {
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
         request.set_chunkid(chunkId);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         chunkService.ReadChunkSnapshot(&cntl, &request, &response, &done);
         ASSERT_NE(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD, response.status());
     }
@@ -995,6 +1186,9 @@ TEST_F(ChunkService2Test, overload_concurrency_test) {
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
         request.set_chunkid(chunkId);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         chunkService.DeleteChunkSnapshotOrCorrectSn(&cntl,
                                                     &request,
                                                     &response,
@@ -1014,6 +1208,9 @@ TEST_F(ChunkService2Test, overload_concurrency_test) {
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
         request.set_chunkid(chunkId);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         chunkService.CreateCloneChunk(&cntl, &request, &response, &done);
         ASSERT_NE(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD, response.status());
     }
@@ -1030,6 +1227,9 @@ TEST_F(ChunkService2Test, overload_concurrency_test) {
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
         request.set_chunkid(chunkId);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         chunkService.RecoverChunk(&cntl, &request, &response, &done);
         ASSERT_NE(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD, response.status());
     }
@@ -1043,6 +1243,9 @@ TEST_F(ChunkService2Test, overload_concurrency_test) {
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
         request.set_chunkid(chunkId);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         chunkService.GetChunkInfo(&cntl, &request, &response, &done);
 
         ASSERT_NE(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD, response.status());
@@ -1081,6 +1284,9 @@ TEST_F(ChunkService2Test, CheckEpochTest) {
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
         request.set_chunkid(chunkId);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         chunkService.WriteChunk(&cntl, &request, &response, &done);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
             response.status());
@@ -1098,6 +1304,9 @@ TEST_F(ChunkService2Test, CheckEpochTest) {
         request.set_chunkid(chunkId);
         request.set_fileid(1);
         request.set_epoch(1);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         chunkService.WriteChunk(&cntl, &request, &response, &done);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
             response.status());
@@ -1111,7 +1320,28 @@ TEST_F(ChunkService2Test, CheckEpochTest) {
         request.set_fileid(1);
         request.set_epoch(1);
         chunkService.UpdateEpoch(&cntl, &request, &response, &done);
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL,
+            response.status());
+        // auth fail, fake token
+        cntl.Reset();
+        request.mutable_authtoken()->set_encticket(fakeToken_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            fakeToken_.encclientidentity());
+        chunkService.UpdateEpoch(&cntl, &request, &response, &done);
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL,
+            response.status());
+        // success
+        cntl.Reset();
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
+        chunkService.UpdateEpoch(&cntl, &request, &response, &done);
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
+            response.status());
 
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         request.set_fileid(2);
         request.set_epoch(2);
         chunkService.UpdateEpoch(&cntl, &request, &response, &done);
@@ -1128,6 +1358,9 @@ TEST_F(ChunkService2Test, CheckEpochTest) {
         request.set_chunkid(chunkId);
         request.set_fileid(1);
         request.set_epoch(1);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         chunkService.WriteChunk(&cntl, &request, &response, &done);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
             response.status());
@@ -1144,6 +1377,9 @@ TEST_F(ChunkService2Test, CheckEpochTest) {
         request.set_chunkid(chunkId);
         request.set_fileid(2);
         request.set_epoch(1);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         chunkService.WriteChunk(&cntl, &request, &response, &done);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_EPOCH_TOO_OLD,
             response.status());
@@ -1157,6 +1393,9 @@ TEST_F(ChunkService2Test, CheckEpochTest) {
         UpdateEpochTestClosure done;
         request.set_fileid(1);
         request.set_epoch(2);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         chunkService.UpdateEpoch(&cntl, &request, &response, &done);
     }
 
@@ -1172,6 +1411,9 @@ TEST_F(ChunkService2Test, CheckEpochTest) {
         request.set_chunkid(chunkId);
         request.set_fileid(1);
         request.set_epoch(1);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         chunkService.WriteChunk(&cntl, &request, &response, &done);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_EPOCH_TOO_OLD,
             response.status());

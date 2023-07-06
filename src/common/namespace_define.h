@@ -64,6 +64,10 @@ const char CLONEINFOKEYEND[] = "13";
 const char DISCARDSEGMENTKEYPREFIX[] = "13";
 const char DISCARDSEGMENTKEYEND[] = "14";
 
+// for auth
+const char AUTH_KEY_PREFIX[] = "14";
+const char AUTH_KEY_END[] = "15";
+
 const char BLOCKSIZEKEY[] = "15blocksize";
 const char CHUNKSIZEKEY[] = "15chunksize";
 

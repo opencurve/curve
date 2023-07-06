@@ -26,6 +26,7 @@
 #include <memory>
 
 #include "curvesnapshot_python/libcurveSnapshot.h"
+#include "src/client/auth_client.h"
 #include "src/client/libcurve_snapshot.h"
 #include "src/client/client_config.h"
 #include "include/client/libcurve.h"
@@ -40,6 +41,7 @@ using curve::client::FileServiceOption;
 using curve::client::ClientConfigOption;
 using curve::common::Mutex;
 using curve::common::ConditionVariable;
+using curve::client::AuthClient;
 
 class TaskTracker {
  public:
@@ -132,6 +134,13 @@ int Init(const char* path) {
         LOG(ERROR) << "config init failed!";
         return -LIBCURVE_ERROR::FAILED;
     }
+
+    // init auth client
+    auto authClient = std::make_shared<AuthClient>();
+    authClient->Init(
+        cc.GetFileServiceOption().metaServerOpt,
+        cc.GetFileServiceOption().authClientOption);
+    cc.SetAuthClient(authClient);
 
     FileServiceOption fileopt = cc.GetFileServiceOption();
     ClientConfigOption copt;

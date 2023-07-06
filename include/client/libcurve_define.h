@@ -92,6 +92,10 @@ enum LIBCURVE_ERROR {
     RETRY_UNTIL_SUCCESS = 30,
     // EPOCH_TOO_OLD
     EPOCH_TOO_OLD = 31,
+    // get auth token filed
+    GET_AUTH_TOKEN_FAIL = 32,
+    // auth failed
+    AUTH_FAILED = 33,
 
     // unknown error
     UNKNOWN                 = 100

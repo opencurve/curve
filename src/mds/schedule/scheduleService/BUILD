@@ -30,5 +30,6 @@ cc_library(
         "//proto:schedule_cc_proto",
         "//src/mds/common:mds_common",
         "//src/mds/schedule",
+        "//src/common:curve_auth",
     ],
 )

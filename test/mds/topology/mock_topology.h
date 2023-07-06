@@ -41,7 +41,6 @@
 #include "src/mds/topology/topology_id_generator.h"
 #include "src/mds/topology/topology_service.h"
 #include "src/mds/topology/topology_stat.h"
-#include "src/kvstorageclient/etcd_client.h"
 
 #include "proto/copyset.pb.h"
 
@@ -324,34 +323,6 @@ class MockTopologyServiceManager : public TopologyServiceManager {
                       ListUnAvailCopySetsResponse*));
 };
 
-class MockTopologyServiceImpl : public TopologyService {
- public:
-    MockTopologyServiceImpl() {}
-    MOCK_METHOD4(RegistServer,
-                 void(google::protobuf::RpcController* cntl_base,
-                      const ServerRegistRequest* request,
-                      ServerRegistResponse* response,
-                      google::protobuf::Closure* done));
-
-    MOCK_METHOD4(CreateZone,
-                 void(google::protobuf::RpcController* cntl_base,
-                      const ZoneRequest* request,
-                      ZoneResponse* response,
-                      google::protobuf::Closure* done));
-
-    MOCK_METHOD4(CreatePhysicalPool,
-                 void(google::protobuf::RpcController* cntl_base,
-                      const PhysicalPoolRequest* request,
-                      PhysicalPoolResponse* response,
-                      google::protobuf::Closure* done));
-
-    MOCK_METHOD4(CreatePoolset,
-                 void(google::protobuf::RpcController* cntl_base,
-                      const PoolsetRequest* request,
-                      PoolsetResponse* response,
-                      google::protobuf::Closure* done));
-};
-
 }  // namespace topology
 }  // namespace mds
 
@@ -367,42 +338,6 @@ class MockCopysetServiceImpl : public CopysetService {
 };
 
 }  // namespace chunkserver
-}  // namespace curve
-
-using ::curve::kvstorage::EtcdClientImp;
-using ::curve::kvstorage::KVStorageClient;
-
-namespace curve {
-namespace kvstorage {
-
-class MockKVStorageClient : public KVStorageClient {
- public:
-    virtual ~MockKVStorageClient() {}
-    MOCK_METHOD2(Put, int(const std::string&, const std::string&));
-    MOCK_METHOD2(Get, int(const std::string&, std::string*));
-    MOCK_METHOD3(List,
-        int(const std::string&, const std::string&, std::vector<std::string>*));
-    MOCK_METHOD3(List, int(const std::string&, const std::string&,
-                           std::vector<std::pair<std::string, std::string>>*));
-    MOCK_METHOD1(Delete, int(const std::string&));
-    MOCK_METHOD1(TxnN, int(const std::vector<Operation>&));
-    MOCK_METHOD3(CompareAndSwap, int(const std::string&, const std::string&,
-        const std::string&));
-    MOCK_METHOD5(CampaignLeader, int(const std::string&, const std::string&,
-        uint32_t, uint32_t, uint64_t*));
-    MOCK_METHOD2(LeaderObserve, int(uint64_t, const std::string&));
-    MOCK_METHOD2(LeaderKeyExist, bool(uint64_t, uint64_t));
-    MOCK_METHOD2(LeaderResign, int(uint64_t, uint64_t));
-    MOCK_METHOD1(GetCurrentRevision, int(int64_t *));
-    MOCK_METHOD6(ListWithLimitAndRevision,
-        int(const std::string&, const std::string&,
-        int64_t, int64_t, std::vector<std::string>*, std::string *));
-    MOCK_METHOD3(PutRewithRevision, int(const std::string &,
-        const std::string &, int64_t *));
-    MOCK_METHOD2(DeleteRewithRevision, int(const std::string &, int64_t *));
-};
-
-}  // namespace kvstorage
 }  // namespace curve
 
 #endif  // TEST_MDS_TOPOLOGY_MOCK_TOPOLOGY_H_

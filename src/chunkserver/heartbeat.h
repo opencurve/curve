@@ -36,6 +36,7 @@
 
 #include "include/chunkserver/chunkserver_common.h"
 #include "src/chunkserver/copyset_node_manager.h"
+#include "src/client/auth_client.h"
 #include "src/common/wait_interval.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/chunkserver/scan_manager.h"
@@ -72,6 +73,10 @@ struct HeartbeatOptions {
 
     std::shared_ptr<LocalFileSystem> fs;
     std::shared_ptr<FilePool> chunkFilePool;
+    std::shared_ptr<curve::client::AuthClient> authClient;
+    HeartbeatOptions() {
+        authClient = std::make_shared<curve::client::AuthClient>();
+    }
 };
 
 /**

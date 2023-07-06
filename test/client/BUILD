@@ -33,7 +33,6 @@ cc_test(
                 "libcurve_client_unittest.cpp",
                 "lease_executor_test.cpp",
                 "request_sender_test.cpp",
-                "mds_client_test.cpp",
                 "client_mdsclient_metacache_unittest.cpp"
                 ]
     ),
@@ -60,6 +59,7 @@ cc_test(
         "@com_google_googletest//:gtest_main",
         "//test/integration/cluster_common:integration_cluster_common",
         "//test/client/mock:client_mock_lib",
+        "//test/mds/auth:auth_test",
     ],
 )
 

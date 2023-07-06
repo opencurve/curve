@@ -1087,12 +1087,12 @@ void CopysetNode::SyncAllChunks() {
 }
 
 void SyncChunkThread::Init(CopysetNode* node) {
-    running_ = true;
     node_ = node;
     cond_ = std::make_shared<std::condition_variable>();
 }
 
 void SyncChunkThread::Run() {
+    running_ = true;
     syncThread_ = std::thread([this](){
         while (running_) {
             std::unique_lock<std::mutex> lock(mtx_);
@@ -1112,7 +1112,9 @@ void SyncChunkThread::Stop() {
 }
 
 SyncChunkThread::~SyncChunkThread() {
-    Stop();
+    if (running_) {
+        Stop();
+    }
 }
 
 }  // namespace chunkserver

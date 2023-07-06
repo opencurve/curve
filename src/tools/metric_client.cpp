@@ -99,6 +99,8 @@ MetricRet MetricClient::GetConfValueFromMetric(const std::string &addr,
     brpc::Controller cntl;
     MetricRet res = GetMetric(addr, metricName, &jsonString);
     if (res != MetricRet::kOK) {
+        std::cout << ", addr = " << addr
+                  << ", metricName = " << metricName << std::endl;
         return res;
     }
 

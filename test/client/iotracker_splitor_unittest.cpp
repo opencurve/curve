@@ -29,10 +29,13 @@
 
 #include <chrono>              //NOLINT
 #include <condition_variable>  //NOLINT
+#include <memory>
 #include <mutex>               // NOLINT
 #include <string>
 #include <thread>              //NOLINT
 
+#include "proto/topology.pb.h"
+#include "src/client/auth_client.h"
 #include "src/client/client_common.h"
 #include "src/client/client_config.h"
 #include "src/client/config_info.h"
@@ -83,7 +86,7 @@ class IOTrackerSplitorTest : public ::testing::Test {
  public:
     void SetUp() {
         fiu_init(0);
-        fopt.metaServerOpt.rpcRetryOpt.addrs.push_back("127.0.0.1:9104");
+        fopt.metaServerOpt.rpcRetryOpt.addrs.push_back(mdsMetaServerAddr);
         fopt.metaServerOpt.rpcRetryOpt.rpcTimeoutMs = 500;
         fopt.metaServerOpt.rpcRetryOpt.rpcRetryIntervalUS = 50000;
         fopt.loginfo.logLevel = 0;
@@ -351,7 +354,7 @@ class IOTrackerSplitorTest : public ::testing::Test {
     FakeReturn *notallocatefakeret;
     FakeReturn *getsegmentfakeretclone;
 
-    OpenFileResponse openResp_;
+    curve::mds::OpenFileResponse openResp_;
     std::unique_ptr<FakeReturn> fakeOpen_;
 };
 
@@ -1408,7 +1411,7 @@ TEST_F(IOTrackerSplitorTest, AsyncStartReadNotAllocateSegmentFromOrigin) {
     FileInstance* fileinstance2 = new FileInstance();
     userinfo.owner = "cloneuser-test2";
     userinfo.password = "12345";
-    mdsclient_->Initialize(fopt.metaServerOpt);
+    mdsclient_->Initialize(fopt.metaServerOpt, std::make_shared<AuthClient>());
     fileinstance2->Initialize("/clonesource", mdsclient_, userinfo, OpenFlags{},
                               fopt);
     ASSERT_EQ(LIBCURVE_ERROR::OK, fileinstance2->Open());

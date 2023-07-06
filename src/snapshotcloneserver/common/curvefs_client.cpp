@@ -35,7 +35,7 @@ int CurveFsClientImpl::Init(const CurveClientOptions &options) {
 
     if (snapClient_->Init(options.configPath) < 0) {
         return kErrCodeServerInitFail;
-    } else if (fileClient_->Init(options.configPath) < 0) {
+    } else if (fileClient_->Init(options.configPath) < 0) {  // auth client will inited in file client  // NOLINT
         snapClient_->UnInit();
         return kErrCodeServerInitFail;
     }

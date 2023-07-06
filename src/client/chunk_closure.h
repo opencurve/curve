@@ -113,6 +113,12 @@ class ClientClosure : public Closure {
     // handle epoch too old
     void OnEpochTooOld();
 
+    // handle get auth token fail
+    void OnGetAuthTokenFail();
+
+    // handle auth fail
+    void OnAuthFail();
+
     // 非法参数
     void OnInvalidRequest();
 

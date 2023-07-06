@@ -24,8 +24,10 @@
 #define SRC_CLIENT_CHUNKSERVER_CLIENT_H_
 
 #include <brpc/channel.h>
+#include <memory>
 
 #include "include/client/libcurve_define.h"
+#include "src/client/auth_client.h"
 #include "src/client/client_common.h"
 #include "src/client/metacache_struct.h"
 #include "proto/chunk.pb.h"
@@ -70,11 +72,13 @@ struct UpdateEpochContext {
 
 class ChunkServerClient {
  public:
-    ChunkServerClient() {}
-    ~ChunkServerClient() {}
+    ChunkServerClient() = default;
+    ~ChunkServerClient() = default;
 
-    int Init(const ChunkServerClientRetryOptions &retryOps) {
+    int Init(const ChunkServerClientRetryOptions &retryOps,
+        const std::shared_ptr<AuthClient> &authClient) {
         retryOps_ = retryOps;
+        authClient_ = authClient;
         return 0;
     }
 
@@ -87,6 +91,7 @@ class ChunkServerClient {
 
  private:
     ChunkServerClientRetryOptions retryOps_;
+    std::shared_ptr<AuthClient> authClient_;
 };
 
 }   // namespace client

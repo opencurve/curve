@@ -24,7 +24,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-#include "src/mds/nameserver2/file_lock.h"
+#include "src/mds/nameserver2/filelock/file_lock.h"
 #include <string.h>
 #include <glog/logging.h>
 #include <utility>

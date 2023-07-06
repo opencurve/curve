@@ -113,7 +113,11 @@ bool FakeMDS::StartService() {
     }
     if (server_->AddService(&fakeScheduleService_,
                 brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
-        LOG(FATAL) << "Fail to add heartbeat service";
+        LOG(FATAL) << "Fail to add schedule service";
+    }
+    if (server_->AddService(&fakeAuthService_,
+                brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
+        LOG(FATAL) << "Fail to add auth service";
     }
     brpc::ServerOptions options;
     options.idle_timeout_sec = -1;

@@ -19,11 +19,14 @@
  * Created Date: Wednesday September 26th 2018
  * Author: hzsunjianliang
  */
+#include <gmock/gmock-actions.h>
+#include <gmock/gmock-spec-builders.h>
 #include <unistd.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 #include <brpc/channel.h>
 #include <brpc/server.h>
+#include "proto/auth.pb.h"
 #include "src/mds/nameserver2/namespace_service.h"
 #include "src/mds/nameserver2/curvefs.h"
 #include "src/mds/nameserver2/chunk_allocator.h"
@@ -43,7 +46,7 @@
 #include "test/mds/mock/mock_alloc_statistic.h"
 
 using curve::common::TimeUtility;
-using curve::common::Authenticator;
+using curve::common::Encryptor;
 using curve::mds::topology::MockTopology;
 using ::curve::mds::chunkserverclient::ChunkServerClientOption;
 using ::testing::_;
@@ -140,6 +143,43 @@ class NameSpaceServiceTest : public ::testing::Test {
 
         std::this_thread::sleep_for(std::chrono::microseconds(
             11 * fileRecordOptions.fileRecordExpiredTimeUs));
+
+        // auth
+        curve::common::ServerAuthOption authOption;
+        authOption.enable = true;
+        authOption.key = "1122334455667788";
+        authOption.lastKey = "1122334455667788";
+        authOption.lastKeyTTL = 1800;
+        authOption.requestTTL = 15;
+        std::string cId = "client";
+        std::string sId = "snapshotclone";
+        std::string sk = "123456789abcdefg";
+        auto now = curve::common::TimeUtility::GetTimeofDaySec();
+        curve::common::Authenticator::GetInstance().Init(
+            curve::common::ZEROIV, authOption);
+        curve::mds::auth::Ticket ticket;
+        ticket.set_cid(cId);
+        ticket.set_sessionkey(sk);
+        ticket.set_expiration(now + 100);
+        ticket.set_caps("*");
+        ticket.set_sid(sId);
+        std::string ticketStr;
+        ASSERT_TRUE(ticket.SerializeToString(&ticketStr));
+        std::string encticket;
+        ASSERT_EQ(0, curve::common::Encryptor::AESEncrypt(
+            authOption.key, curve::common::ZEROIV, ticketStr, &encticket));
+        curve::mds::auth::ClientIdentity clientIdentity;
+        clientIdentity.set_cid(cId);
+        clientIdentity.set_timestamp(now);
+        std::string cIdStr;
+        ASSERT_TRUE(clientIdentity.SerializeToString(&cIdStr));
+        std::string encCId;
+        ASSERT_EQ(0, curve::common::Encryptor::AESEncrypt(
+            sk, curve::common::ZEROIV, cIdStr, &encCId));
+        token_.set_encticket(encticket);
+        token_.set_encclientidentity(encCId);
+        fakeToken_.set_encticket("fake");
+        fakeToken_.set_encclientidentity("fake");
     }
 
     void TearDown() override {
@@ -158,8 +198,8 @@ class NameSpaceServiceTest : public ::testing::Test {
         if (!option.isRootUser) {
             request->set_owner("owner");
         } else {
-            auto signature = Authenticator::CalcString2Signature(
-                Authenticator::GetString2Signature(date, authOptions.rootOwner),
+            auto signature = Encryptor::CalcString2Signature(
+                Encryptor::GetString2Signature(date, authOptions.rootOwner),
                 authOptions.rootPassword);
             request->set_owner(authOptions.rootOwner);
             request->set_signature(signature);
@@ -191,6 +231,9 @@ class NameSpaceServiceTest : public ::testing::Test {
 
         request.set_filename(filename);
         request.set_forcedelete(option.forceDelete);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         SetRequestAuth(&request, option);
         stub_->DeleteFile(&cntl, &request, response, NULL);
 
@@ -206,8 +249,10 @@ class NameSpaceServiceTest : public ::testing::Test {
                      GetFileInfoResponse* response) {
         brpc::Controller cntl;
         GetFileInfoRequest request;
-
         request.set_filename(filename);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         SetRequestAuth(&request, option);
         stub_->GetFileInfo(&cntl, &request, response, NULL);
 
@@ -223,8 +268,10 @@ class NameSpaceServiceTest : public ::testing::Test {
                  ListDirResponse* response) {
         brpc::Controller cntl;
         ListDirRequest request;
-
         request.set_filename(dirname);
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         SetRequestAuth(&request, option);
         stub_->ListDir(&cntl, &request, response, NULL);
 
@@ -253,6 +300,9 @@ class NameSpaceServiceTest : public ::testing::Test {
     uint64_t DefaultSegmentSize;
     uint64_t kMiniFileLength;
     uint64_t kMaxFileLength;
+
+    curve::mds::auth::Token token_;
+    curve::mds::auth::Token fakeToken_;
 };
 
 TEST_F(NameSpaceServiceTest, test1) {
@@ -273,7 +323,6 @@ TEST_F(NameSpaceServiceTest, test1) {
 
     CurveFSService_Stub stub(&channel);
 
-
     // test CreateFile
     // create /file1(owner1) , /file2(owner2), /dir/file3(owner3)
     std::vector<PoolIdType> logicalPools{1, 2, 3};
@@ -284,6 +333,29 @@ TEST_F(NameSpaceServiceTest, test1) {
     CreateFileResponse response;
     brpc::Controller cntl;
     uint64_t fileLength = kMiniFileLength;
+
+    // create auth failed, miss token
+    request.set_filename("/file");
+    request.set_owner("owner");
+    request.set_date(TimeUtility::GetTimeofDayUs());
+    request.set_filetype(INODE_PAGEFILE);
+    request.set_filelength(fileLength);
+    stub.CreateFile(&cntl, &request, &response, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(response.statuscode(), StatusCode::kAuthFailed);
+    // create auth failed, fake token
+    cntl.Reset();
+    request.mutable_authtoken()->set_encticket(fakeToken_.encticket());
+    request.mutable_authtoken()->set_encclientidentity(
+        fakeToken_.encclientidentity());
+    stub.CreateFile(&cntl, &request, &response, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(response.statuscode(), StatusCode::kAuthFailed);
+
+    request.mutable_authtoken()->set_encticket(token_.encticket());
+    request.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
+    cntl.Reset();
 
     // 创建file1,owner1
     request.set_filename("/file1");
@@ -481,6 +553,24 @@ TEST_F(NameSpaceServiceTest, test1) {
         listRequest.set_filename("/dir");
         listRequest.set_owner("owner3");
         listRequest.set_date(TimeUtility::GetTimeofDayUs());
+        // auth fail, miss token
+        stub.ListDir(&cntl, &listRequest, &listResponse, NULL);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(listResponse.statuscode(), StatusCode::kAuthFailed);
+        // auth fail, fake token
+        cntl.Reset();
+        listRequest.mutable_authtoken()->set_encticket(fakeToken_.encticket());
+        listRequest.mutable_authtoken()->set_encclientidentity(
+            fakeToken_.encclientidentity());
+        stub.ListDir(&cntl, &listRequest, &listResponse, NULL);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(listResponse.statuscode(), StatusCode::kAuthFailed);
+
+        cntl.Reset();
+        listRequest.mutable_authtoken()->set_encticket(token_.encticket());
+        listRequest.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
+
         stub.ListDir(&cntl, &listRequest, &listResponse, NULL);
         if (!cntl.Failed()) {
             ASSERT_EQ(listResponse.statuscode(), StatusCode::kOK);
@@ -515,9 +605,9 @@ TEST_F(NameSpaceServiceTest, test1) {
 
         cntl.Reset();
         uint64_t date = TimeUtility::GetTimeofDayUs();
-        std::string str2sig = Authenticator::GetString2Signature(date,
+        std::string str2sig = Encryptor::GetString2Signature(date,
                                                 authOptions.rootOwner);
-        std::string sig = Authenticator::CalcString2Signature(str2sig,
+        std::string sig = Encryptor::CalcString2Signature(str2sig,
                                                 authOptions.rootPassword);
         listRequest.set_signature(sig);
         listRequest.set_filename("/");
@@ -539,6 +629,23 @@ TEST_F(NameSpaceServiceTest, test1) {
     request1.set_filename("/file1/");
     request1.set_owner("owner1");
     request1.set_date(TimeUtility::GetTimeofDayUs());
+    // auth fail, miss token
+    stub.GetFileInfo(&cntl, &request1, &response1, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(response1.statuscode(), StatusCode::kAuthFailed);
+    // auth fail, fake token
+    cntl.Reset();
+    request1.mutable_authtoken()->set_encticket(fakeToken_.encticket());
+    request1.mutable_authtoken()->set_encclientidentity(
+        fakeToken_.encclientidentity());
+    stub.GetFileInfo(&cntl, &request1, &response1, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(response1.statuscode(), StatusCode::kAuthFailed);
+    // auth success
+    cntl.Reset();
+    request1.mutable_authtoken()->set_encticket(token_.encticket());
+    request1.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
     stub.GetFileInfo(&cntl, &request1, &response1, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(response1.statuscode(), StatusCode::kParaError);
@@ -576,6 +683,23 @@ TEST_F(NameSpaceServiceTest, test1) {
     request2.set_date(TimeUtility::GetTimeofDayUs());
     request2.set_offset(DefaultSegmentSize);
     request2.set_allocateifnotexist(false);
+    // auth fail, miss token
+    stub.GetOrAllocateSegment(&cntl, &request2, &response2, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(response2.statuscode(), StatusCode::kAuthFailed);
+    // auth fail, fake token
+    cntl.Reset();
+    request2.mutable_authtoken()->set_encticket(fakeToken_.encticket());
+    request2.mutable_authtoken()->set_encclientidentity(
+        fakeToken_.encclientidentity());
+    stub.GetOrAllocateSegment(&cntl, &request2, &response2, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(response2.statuscode(), StatusCode::kAuthFailed);
+    // auth success
+    cntl.Reset();
+    request2.mutable_authtoken()->set_encticket(token_.encticket());
+    request2.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
     stub.GetOrAllocateSegment(&cntl, &request2, &response2, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(response2.statuscode(), StatusCode::kSegmentNotAllocated);
@@ -627,6 +751,9 @@ TEST_F(NameSpaceServiceTest, test1) {
     request3.set_date(TimeUtility::GetTimeofDayUs());
     request3.set_offset(DefaultSegmentSize);
     request3.set_allocateifnotexist(false);
+    request3.mutable_authtoken()->set_encticket(token_.encticket());
+    request3.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
     stub.GetOrAllocateSegment(&cntl, &request3, &response3, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(response3.statuscode(), StatusCode::kOK);
@@ -643,6 +770,23 @@ TEST_F(NameSpaceServiceTest, test1) {
         GetAllocatedSizeRequest request;
         GetAllocatedSizeResponse response;
         request.set_filename("/file-not-exist");
+        // auth fail, miss token
+        stub.GetAllocatedSize(&cntl, &request, &response, NULL);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(StatusCode::kAuthFailed, response.statuscode());
+        // auth fail, fake token
+        cntl.Reset();
+        request.mutable_authtoken()->set_encticket(fakeToken_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            fakeToken_.encclientidentity());
+        stub.GetAllocatedSize(&cntl, &request, &response, NULL);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(StatusCode::kAuthFailed, response.statuscode());
+        // auth success
+        cntl.Reset();
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         stub.GetAllocatedSize(&cntl, &request, &response, NULL);
         ASSERT_FALSE(cntl.Failed());
         ASSERT_EQ(StatusCode::kFileNotExists, response.statuscode());
@@ -667,6 +811,23 @@ TEST_F(NameSpaceServiceTest, test1) {
         GetFileSizeRequest request;
         GetFileSizeResponse response;
         request.set_filename("/file-not-exist");
+        // auth fail, miss token
+        stub.GetFileSize(&cntl, &request, &response, NULL);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(StatusCode::kAuthFailed, response.statuscode());
+        // auth fail, fake token
+        cntl.Reset();
+        request.mutable_authtoken()->set_encticket(fakeToken_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            fakeToken_.encclientidentity());
+        stub.GetFileSize(&cntl, &request, &response, NULL);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(StatusCode::kAuthFailed, response.statuscode());
+        // auth success
+        cntl.Reset();
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         stub.GetFileSize(&cntl, &request, &response, NULL);
         ASSERT_FALSE(cntl.Failed());
         ASSERT_EQ(StatusCode::kFileNotExists, response.statuscode());
@@ -694,13 +855,30 @@ TEST_F(NameSpaceServiceTest, test1) {
         request.set_filename("/file1");
         request.set_newowner("newowner1");
         date = TimeUtility::GetTimeofDayUs();
-        str2sig = Authenticator::GetString2Signature(date,
+        str2sig = Encryptor::GetString2Signature(date,
                                                     authOptions.rootOwner);
-        sig = Authenticator::CalcString2Signature(str2sig,
+        sig = Encryptor::CalcString2Signature(str2sig,
                                                     authOptions.rootPassword);
         request.set_rootowner(authOptions.rootOwner);
         request.set_signature(sig);
         request.set_date(date);
+        // auth fail, miss token
+        stub.ChangeOwner(&cntl, &request, &response, NULL);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(StatusCode::kAuthFailed, response.statuscode());
+        // auth fail, fake token
+        cntl.Reset();
+        request.mutable_authtoken()->set_encticket(fakeToken_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            fakeToken_.encclientidentity());
+        stub.ChangeOwner(&cntl, &request, &response, NULL);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(StatusCode::kAuthFailed, response.statuscode());
+        // auth success
+        cntl.Reset();
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         stub.ChangeOwner(&cntl, &request, &response, NULL);
         if (!cntl.Failed()) {
             ASSERT_EQ(response.statuscode(), StatusCode::kOK);
@@ -713,9 +891,9 @@ TEST_F(NameSpaceServiceTest, test1) {
         request.set_filename("/file1");
         request.set_newowner("newowner1");
         date = TimeUtility::GetTimeofDayUs();
-        str2sig = Authenticator::GetString2Signature(date,
+        str2sig = Encryptor::GetString2Signature(date,
                                                     authOptions.rootOwner);
-        sig = Authenticator::CalcString2Signature(str2sig,
+        sig = Encryptor::CalcString2Signature(str2sig,
                                                     authOptions.rootPassword);
         request.set_rootowner(authOptions.rootOwner);
         request.set_signature(sig);
@@ -732,9 +910,9 @@ TEST_F(NameSpaceServiceTest, test1) {
         request.set_filename("/file1");
         request.set_newowner("owner1");
         date = TimeUtility::GetTimeofDayUs();
-        str2sig = Authenticator::GetString2Signature(date,
+        str2sig = Encryptor::GetString2Signature(date,
                                                     authOptions.rootOwner);
-        sig = Authenticator::CalcString2Signature(str2sig,
+        sig = Encryptor::CalcString2Signature(str2sig,
                                                     authOptions.rootPassword);
         request.set_rootowner("newowner1");
         request.set_signature(sig);
@@ -766,9 +944,9 @@ TEST_F(NameSpaceServiceTest, test1) {
         request.set_filename("/file1");
         request.set_newowner("owner1");
         date = TimeUtility::GetTimeofDayUs();
-        str2sig = Authenticator::GetString2Signature(date,
+        str2sig = Encryptor::GetString2Signature(date,
                                                     authOptions.rootOwner);
-        sig = Authenticator::CalcString2Signature(str2sig,
+        sig = Encryptor::CalcString2Signature(str2sig,
                                                     authOptions.rootPassword);
         request.set_rootowner(authOptions.rootOwner);
         request.set_signature(sig);
@@ -785,9 +963,9 @@ TEST_F(NameSpaceServiceTest, test1) {
         request.set_filename("/file1");
         request.set_newowner("owner1");
         date = TimeUtility::GetTimeofDayUs();
-        str2sig = Authenticator::GetString2Signature(date,
+        str2sig = Encryptor::GetString2Signature(date,
                                                     authOptions.rootOwner);
-        sig = Authenticator::CalcString2Signature(str2sig,
+        sig = Encryptor::CalcString2Signature(str2sig,
                                                     authOptions.rootPassword);
         request.set_rootowner(authOptions.rootOwner);
         request.set_signature(sig);
@@ -804,9 +982,9 @@ TEST_F(NameSpaceServiceTest, test1) {
         request.set_filename("/file1/");
         request.set_newowner("owner1");
         date = TimeUtility::GetTimeofDayUs();
-        str2sig = Authenticator::GetString2Signature(date,
+        str2sig = Encryptor::GetString2Signature(date,
                                                     authOptions.rootOwner);
-        sig = Authenticator::CalcString2Signature(str2sig,
+        sig = Encryptor::CalcString2Signature(str2sig,
                                                     authOptions.rootPassword);
         request.set_rootowner(authOptions.rootOwner);
         request.set_signature(sig);
@@ -835,6 +1013,23 @@ TEST_F(NameSpaceServiceTest, test1) {
     request4.set_newfilename("/dir/file4");
     request4.set_owner("owner3");
     request4.set_date(TimeUtility::GetTimeofDayUs());
+    // auth fail, miss token
+    stub.RenameFile(&cntl, &request4, &response4, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(response4.statuscode(), StatusCode::kAuthFailed);
+    // auth fail, fake token
+    cntl.Reset();
+    request4.mutable_authtoken()->set_encticket(fakeToken_.encticket());
+    request4.mutable_authtoken()->set_encclientidentity(
+        fakeToken_.encclientidentity());
+    stub.RenameFile(&cntl, &request4, &response4, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(response4.statuscode(), StatusCode::kAuthFailed);
+    // auth success
+    cntl.Reset();
+    request4.mutable_authtoken()->set_encticket(token_.encticket());
+    request4.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
     stub.RenameFile(&cntl, &request4, &response4, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(response4.statuscode(), StatusCode::kOK);
@@ -858,9 +1053,9 @@ TEST_F(NameSpaceServiceTest, test1) {
 
     std::string oldname = "/dir/file4";
     uint64_t date = TimeUtility::GetTimeofDayUs();
-    std::string str2sig = Authenticator::GetString2Signature(date,
+    std::string str2sig = Encryptor::GetString2Signature(date,
                                                 authOptions.rootOwner);
-    std::string sig = Authenticator::CalcString2Signature(str2sig,
+    std::string sig = Encryptor::CalcString2Signature(str2sig,
                                                 authOptions.rootPassword);
 
     request4.set_oldfilename(oldname);
@@ -961,6 +1156,23 @@ TEST_F(NameSpaceServiceTest, test1) {
     request5.set_owner("owner2");
     request5.set_date(TimeUtility::GetTimeofDayUs());
     request5.set_newsize(newsize);
+    // auth fail, miss token
+    stub.ExtendFile(&cntl, &request5, &response5, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(response5.statuscode(), StatusCode::kAuthFailed);
+    // auth fail, fake token
+    cntl.Reset();
+    request5.mutable_authtoken()->set_encticket(fakeToken_.encticket());
+    request5.mutable_authtoken()->set_encclientidentity(
+        fakeToken_.encclientidentity());
+    stub.ExtendFile(&cntl, &request5, &response5, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(response5.statuscode(), StatusCode::kAuthFailed);
+    // auth success
+    cntl.Reset();
+    request5.mutable_authtoken()->set_encticket(token_.encticket());
+    request5.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
     stub.ExtendFile(&cntl, &request5, &response5, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(response5.statuscode(), StatusCode::kOK);
@@ -1000,7 +1212,23 @@ TEST_F(NameSpaceServiceTest, test1) {
     request8.set_filename("/file3");
     request8.set_owner("owner3");
     request8.set_date(TimeUtility::GetTimeofDayUs());
-
+    // auth fail, miss token
+    stub.OpenFile(&cntl, &request8, &response8, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(response8.statuscode(), StatusCode::kAuthFailed);
+    // auth fail, fake token
+    cntl.Reset();
+    request8.mutable_authtoken()->set_encticket(fakeToken_.encticket());
+    request8.mutable_authtoken()->set_encclientidentity(
+        fakeToken_.encclientidentity());
+    stub.OpenFile(&cntl, &request8, &response8, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(response8.statuscode(), StatusCode::kAuthFailed);
+    // auth success
+    cntl.Reset();
+    request8.mutable_authtoken()->set_encticket(token_.encticket());
+    request8.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
     stub.OpenFile(&cntl, &request8, &response8, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(response8.statuscode(), StatusCode::kFileNotExists);
@@ -1015,6 +1243,9 @@ TEST_F(NameSpaceServiceTest, test1) {
     request9.set_filename("/file2");
     request9.set_owner("owner2");
     request9.set_date(TimeUtility::GetTimeofDayUs());
+    request9.mutable_authtoken()->set_encticket(token_.encticket());
+    request9.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
 
     stub.OpenFile(&cntl, &request9, &response9, NULL);
     if (!cntl.Failed()) {
@@ -1032,6 +1263,9 @@ TEST_F(NameSpaceServiceTest, test1) {
     request10.set_filename("/file1");
     request10.set_owner("owner1");
     request10.set_date(TimeUtility::GetTimeofDayUs());
+    request10.mutable_authtoken()->set_encticket(token_.encticket());
+    request10.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
 
     stub.OpenFile(&cntl, &request10, &response10, NULL);
     if (!cntl.Failed()) {
@@ -1050,6 +1284,9 @@ TEST_F(NameSpaceServiceTest, test1) {
     request11.set_filename("/file2/");
     request11.set_owner("owner2");
     request11.set_date(TimeUtility::GetTimeofDayUs());
+    request11.mutable_authtoken()->set_encticket(token_.encticket());
+    request11.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
 
     stub.OpenFile(&cntl, &request11, &response11, NULL);
     if (!cntl.Failed()) {
@@ -1066,7 +1303,23 @@ TEST_F(NameSpaceServiceTest, test1) {
     request12.set_owner("owner3");
     request12.set_date(TimeUtility::GetTimeofDayUs());
     request12.set_sessionid("test_session");
-
+    // auth fail, miss token
+    stub.CloseFile(&cntl, &request12, &response12, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(response12.statuscode(), StatusCode::kAuthFailed);
+    // auth fail, fake token
+    cntl.Reset();
+    request12.mutable_authtoken()->set_encticket(fakeToken_.encticket());
+    request12.mutable_authtoken()->set_encclientidentity(
+        fakeToken_.encclientidentity());
+    stub.CloseFile(&cntl, &request12, &response12, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(response12.statuscode(), StatusCode::kAuthFailed);
+    // auth success
+    cntl.Reset();
+    request12.mutable_authtoken()->set_encticket(token_.encticket());
+    request12.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
     stub.CloseFile(&cntl, &request12, &response12, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(response12.statuscode(), StatusCode::kFileNotExists);
@@ -1084,6 +1337,9 @@ TEST_F(NameSpaceServiceTest, test1) {
     request14.set_owner("owner2");
     request14.set_date(TimeUtility::GetTimeofDayUs());
     request14.set_sessionid(response9.protosession().sessionid());
+    request14.mutable_authtoken()->set_encticket(token_.encticket());
+    request14.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
 
     stub.CloseFile(&cntl, &request14, &response14, NULL);
     if (!cntl.Failed()) {
@@ -1098,6 +1354,9 @@ TEST_F(NameSpaceServiceTest, test1) {
     request14.set_owner("owner2");
     request14.set_date(TimeUtility::GetTimeofDayUs());
     request14.set_sessionid(response9.protosession().sessionid());
+    request14.mutable_authtoken()->set_encticket(token_.encticket());
+    request14.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
 
     stub.CloseFile(&cntl, &request14, &response14, NULL);
     if (!cntl.Failed()) {
@@ -1116,6 +1375,23 @@ TEST_F(NameSpaceServiceTest, test1) {
     request15.set_sessionid(response10.protosession().sessionid());
     request15.set_date(common::TimeUtility::GetTimeofDayUs());
 
+    // auth fail, miss token
+    stub.RefreshSession(&cntl, &request15, &response15, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(response15.statuscode(), StatusCode::kAuthFailed);
+    // auth fail, fake token
+    cntl.Reset();
+    request15.mutable_authtoken()->set_encticket(fakeToken_.encticket());
+    request15.mutable_authtoken()->set_encclientidentity(
+        fakeToken_.encclientidentity());
+    stub.RefreshSession(&cntl, &request15, &response15, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(response15.statuscode(), StatusCode::kAuthFailed);
+    // auth success
+    cntl.Reset();
+    request15.mutable_authtoken()->set_encticket(token_.encticket());
+    request15.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
     stub.RefreshSession(&cntl, &request15, &response15, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(response15.statuscode(), StatusCode::kFileNotExists);
@@ -1134,6 +1410,9 @@ TEST_F(NameSpaceServiceTest, test1) {
     request18.set_date(TimeUtility::GetTimeofDayUs());
     request18.set_sessionid(response10.protosession().sessionid());
     request18.set_date(common::TimeUtility::GetTimeofDayUs());
+    request18.mutable_authtoken()->set_encticket(token_.encticket());
+    request18.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
 
     stub.RefreshSession(&cntl, &request18, &response18, NULL);
     if (!cntl.Failed()) {
@@ -1148,7 +1427,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     server.Stop(10);
     server.Join();
     return;
-}
+}  // NOLINT
 
 TEST_F(NameSpaceServiceTest, snapshottests) {
     brpc::Server server;
@@ -1186,6 +1465,9 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     request.set_date(TimeUtility::GetTimeofDayUs());
     request.set_filetype(INODE_PAGEFILE);
     request.set_filelength(fileLength);
+    request.mutable_authtoken()->set_encticket(token_.encticket());
+    request.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
 
     cntl.set_log_id(2);
     stub.CreateFile(&cntl,  &request, &response,  NULL);
@@ -1202,6 +1484,9 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     request1.set_filename("/file1");
     request1.set_owner("owner1");
     request1.set_date(TimeUtility::GetTimeofDayUs());
+    request1.mutable_authtoken()->set_encticket(token_.encticket());
+    request1.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
     stub.GetFileInfo(&cntl, &request1, &response1, NULL);
     if (!cntl.Failed()) {
         FileInfo  file = response1.fileinfo();
@@ -1225,6 +1510,23 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     snapshotRequest.set_filename("/file1");
     snapshotRequest.set_owner("owner1");
     snapshotRequest.set_date(TimeUtility::GetTimeofDayUs());
+    // auth failed, miss authtoken
+    stub.CreateSnapShot(&cntl, &snapshotRequest, &snapshotResponses, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(snapshotResponses.statuscode(), StatusCode::kAuthFailed);
+    // auth failed, fake authtoken
+    cntl.Reset();
+    snapshotRequest.mutable_authtoken()->set_encticket(fakeToken_.encticket());
+    snapshotRequest.mutable_authtoken()->set_encclientidentity(
+        fakeToken_.encclientidentity());
+    stub.CreateSnapShot(&cntl, &snapshotRequest, &snapshotResponses, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(snapshotResponses.statuscode(), StatusCode::kAuthFailed);
+    // auth success
+    cntl.Reset();
+    snapshotRequest.mutable_authtoken()->set_encticket(token_.encticket());
+    snapshotRequest.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
     stub.CreateSnapShot(&cntl, &snapshotRequest, &snapshotResponses, NULL);
     if (!cntl.Failed()) {
         FileInfo snapshotFileInfo;
@@ -1244,6 +1546,9 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     snapshotRequest.set_filename("/file1/");
     snapshotRequest.set_owner("owner1");
     snapshotRequest.set_date(TimeUtility::GetTimeofDayUs());
+    snapshotRequest.mutable_authtoken()->set_encticket(token_.encticket());
+    snapshotRequest.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
     stub.CreateSnapShot(&cntl, &snapshotRequest, &snapshotResponses, NULL);
     if (!cntl.Failed()) {
          ASSERT_EQ(snapshotResponses.statuscode(), StatusCode::kParaError);
@@ -1256,6 +1561,9 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     request1.set_filename("/file1");
     request1.set_owner("owner1");
     request1.set_date(TimeUtility::GetTimeofDayUs());
+    request1.mutable_authtoken()->set_encticket(token_.encticket());
+    request1.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
     stub.GetFileInfo(&cntl, &request1, &response1, NULL);
     if (!cntl.Failed()) {
         FileInfo file = response1.fileinfo();
@@ -1279,6 +1587,23 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     checkRequest.set_owner("owner1");
     checkRequest.set_date(TimeUtility::GetTimeofDayUs());
     checkRequest.set_seq(1);
+    // auth failed, miss authtoken
+    stub.CheckSnapShotStatus(&cntl, &checkRequest, &checkResponse, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(checkResponse.statuscode(), StatusCode::kAuthFailed);
+    // auth failed, fake authtoken
+    cntl.Reset();
+    checkRequest.mutable_authtoken()->set_encticket(fakeToken_.encticket());
+    checkRequest.mutable_authtoken()->set_encclientidentity(
+        fakeToken_.encclientidentity());
+    stub.CheckSnapShotStatus(&cntl, &checkRequest, &checkResponse, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(checkResponse.statuscode(), StatusCode::kAuthFailed);
+    // auth success
+    cntl.Reset();
+    checkRequest.mutable_authtoken()->set_encticket(token_.encticket());
+    checkRequest.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
     stub.CheckSnapShotStatus(&cntl, &checkRequest, &checkResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(checkResponse.statuscode(), StatusCode::kOK);
@@ -1310,6 +1635,27 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     getSegmentRequest.set_offset(DefaultSegmentSize);
     getSegmentRequest.set_allocateifnotexist(false);
     getSegmentRequest.set_seqnum(1);
+    // auth failed, miss authtoken
+    stub.GetSnapShotFileSegment(&cntl, &getSegmentRequest,
+                            &getSegmentResponse, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(getSegmentResponse.statuscode(), StatusCode::kAuthFailed);
+    // auth failed, fake authtoken
+    cntl.Reset();
+    getSegmentRequest.mutable_authtoken()->set_encticket(
+        fakeToken_.encticket());
+    getSegmentRequest.mutable_authtoken()->set_encclientidentity(
+        fakeToken_.encclientidentity());
+    stub.GetSnapShotFileSegment(&cntl, &getSegmentRequest,
+                            &getSegmentResponse, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(getSegmentResponse.statuscode(), StatusCode::kAuthFailed);
+    // auth success
+    cntl.Reset();
+    getSegmentRequest.mutable_authtoken()->set_encticket(
+        token_.encticket());
+    getSegmentRequest.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
     stub.GetSnapShotFileSegment(&cntl, &getSegmentRequest,
                             &getSegmentResponse, NULL);
     if (!cntl.Failed()) {
@@ -1342,6 +1688,24 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     deleteRequest.set_owner("owner1");
     deleteRequest.set_date(TimeUtility::GetTimeofDayUs());
     deleteRequest.set_seq(1);
+    // auth failed, miss authtoken
+    stub.DeleteSnapShot(&cntl, &deleteRequest, &deleteResponse, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(deleteResponse.statuscode(), StatusCode::kAuthFailed);
+    // auth failed, fake authtoken
+    cntl.Reset();
+    deleteRequest.mutable_authtoken()->set_encticket(
+        fakeToken_.encticket());
+    deleteRequest.mutable_authtoken()->set_encclientidentity(
+        fakeToken_.encclientidentity());
+    stub.DeleteSnapShot(&cntl, &deleteRequest, &deleteResponse, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(deleteResponse.statuscode(), StatusCode::kAuthFailed);
+    // auth success
+    cntl.Reset();
+    deleteRequest.mutable_authtoken()->set_encticket(token_.encticket());
+    deleteRequest.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
     stub.DeleteSnapShot(&cntl, &deleteRequest, &deleteResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(deleteResponse.statuscode(), StatusCode::kOK);
@@ -1372,8 +1736,25 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     listRequest.set_owner("owner1");
     listRequest.set_date(TimeUtility::GetTimeofDayUs());
     listRequest.add_seq(2);
+    // auth failed, miss authtoken
     stub.ListSnapShot(&cntl, &listRequest, &listResponse, NULL);
-
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(listResponse.statuscode(), StatusCode::kAuthFailed);
+    // auth failed, fake authtoken
+    cntl.Reset();
+    listRequest.mutable_authtoken()->set_encticket(
+        fakeToken_.encticket());
+    listRequest.mutable_authtoken()->set_encclientidentity(
+        fakeToken_.encclientidentity());
+    stub.ListSnapShot(&cntl, &listRequest, &listResponse, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(listResponse.statuscode(), StatusCode::kAuthFailed);
+    // auth success
+    cntl.Reset();
+    listRequest.mutable_authtoken()->set_encticket(token_.encticket());
+    listRequest.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
+    stub.ListSnapShot(&cntl, &listRequest, &listResponse, NULL);
     if (!cntl.Failed()) {
         auto snapshotFileNum = listResponse.fileinfo_size();
         if (snapshotFileNum == 0) {
@@ -1413,7 +1794,7 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
     using ::curve::chunkserver::MockChunkService;
     MockChunkService *chunkService = new MockChunkService();
     ASSERT_EQ(server.AddService(chunkService,
-                                      brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+                                brpc::SERVER_DOESNT_OWN_SERVICE), 0);
 
     brpc::ServerOptions option;
     option.idle_timeout_sec = -1;
@@ -1442,6 +1823,9 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
     request.set_date(TimeUtility::GetTimeofDayUs());
     request.set_filetype(INODE_PAGEFILE);
     request.set_filelength(fileLength);
+    request.mutable_authtoken()->set_encticket(token_.encticket());
+    request.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
 
     cntl.set_log_id(2);
     stub.CreateFile(&cntl,  &request, &response,  NULL);
@@ -1487,6 +1871,9 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
     request1.set_filename("/file1");
     request1.set_owner("owner");
     request1.set_date(TimeUtility::GetTimeofDayUs());
+    request1.mutable_authtoken()->set_encticket(token_.encticket());
+    request1.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
     stub.GetFileInfo(&cntl, &request1, &response1, NULL);
     if (!cntl.Failed()) {
         FileInfo  file = response1.fileinfo();
@@ -1542,6 +1929,9 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
     // 文件/dir1/file2申请segment
     GetOrAllocateSegmentRequest allocRequest;
     GetOrAllocateSegmentResponse allocResponse;
+    allocRequest.mutable_authtoken()->set_encticket(token_.encticket());
+    allocRequest.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
     for (int i = 0; i < 10; i++) {
         cntl.Reset();
         allocRequest.set_filename("/dir1/file2");
@@ -1566,6 +1956,9 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
     snapshotRequest.set_filename("/file1");
     snapshotRequest.set_owner("owner");
     snapshotRequest.set_date(TimeUtility::GetTimeofDayUs());
+    snapshotRequest.mutable_authtoken()->set_encticket(token_.encticket());
+    snapshotRequest.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
     stub.CreateSnapShot(&cntl, &snapshotRequest, &snapshotResponses, NULL);
     if (!cntl.Failed()) {
         FileInfo snapshotFileInfo;
@@ -1588,6 +1981,23 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
     request3.set_owner("owner");
     request3.set_date(TimeUtility::GetTimeofDayUs());
 
+    // auth fail, miss token
+    stub.DeleteFile(&cntl, &request3, &response3, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(response3.statuscode(), StatusCode::kAuthFailed);
+    // auth fail, fake token
+    cntl.Reset();
+    request3.mutable_authtoken()->set_encticket(fakeToken_.encticket());
+    request3.mutable_authtoken()->set_encclientidentity(
+        fakeToken_.encclientidentity());
+    stub.DeleteFile(&cntl, &request3, &response3, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(response3.statuscode(), StatusCode::kAuthFailed);
+    // auth success
+    cntl.Reset();
+    request3.mutable_authtoken()->set_encticket(token_.encticket());
+    request3.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
     stub.DeleteFile(&cntl, &request3, &response3, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(response3.statuscode(), StatusCode::kFileUnderSnapShot);
@@ -1603,6 +2013,24 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
     deleteRequest.set_owner("owner");
     deleteRequest.set_date(TimeUtility::GetTimeofDayUs());
     deleteRequest.set_seq(1);
+    // auth fail, miss token
+    stub.DeleteSnapShot(&cntl, &deleteRequest, &deleteResponse, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(deleteResponse.statuscode(), StatusCode::kAuthFailed);
+    // auth fail, fake token
+    cntl.Reset();
+    deleteRequest.mutable_authtoken()->set_encticket(
+        fakeToken_.encticket());
+    deleteRequest.mutable_authtoken()->set_encclientidentity(
+        fakeToken_.encclientidentity());
+    stub.DeleteSnapShot(&cntl, &deleteRequest, &deleteResponse, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(deleteResponse.statuscode(), StatusCode::kAuthFailed);
+    // auth success
+    cntl.Reset();
+    deleteRequest.mutable_authtoken()->set_encticket(token_.encticket());
+    deleteRequest.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
     stub.DeleteSnapShot(&cntl, &deleteRequest, &deleteResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(deleteResponse.statuscode(), StatusCode::kOK);
@@ -1620,6 +2048,10 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
         checkRequest.set_owner("owner");
         checkRequest.set_date(TimeUtility::GetTimeofDayUs());
         checkRequest.set_seq(1);
+        checkRequest.mutable_authtoken()->set_encticket(
+            token_.encticket());
+        checkRequest.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         stub.CheckSnapShotStatus(&cntl, &checkRequest, &checkResponse, NULL);
         if (!cntl.Failed()) {
             if (checkResponse.statuscode() ==
@@ -1644,6 +2076,9 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
     request3.set_filename("/dir1");
     request3.set_owner("owner");
     request3.set_date(TimeUtility::GetTimeofDayUs());
+    request3.mutable_authtoken()->set_encticket(token_.encticket());
+    request3.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
 
     stub.DeleteFile(&cntl, &request3, &response3, NULL);
     if (!cntl.Failed()) {
@@ -1661,6 +2096,9 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
     request5.set_owner("owner");
     request5.set_date(TimeUtility::GetTimeofDayUs());
     request5.set_fileid(100000);
+    request5.mutable_authtoken()->set_encticket(token_.encticket());
+    request5.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
 
     stub.DeleteFile(&cntl, &request5, &response5, NULL);
     if (!cntl.Failed()) {
@@ -1675,6 +2113,9 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
     request3.set_filename("/file1");
     request3.set_owner("owner");
     request3.set_date(TimeUtility::GetTimeofDayUs());
+    request3.mutable_authtoken()->set_encticket(token_.encticket());
+    request3.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
 
     auto dtime = TimeUtility::GetTimeofDaySec();
     stub.DeleteFile(&cntl, &request3, &response3, NULL);
@@ -1689,6 +2130,9 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
     request1.set_filename("/file1");
     request1.set_owner("owner");
     request1.set_date(TimeUtility::GetTimeofDayUs());
+    request1.mutable_authtoken()->set_encticket(token_.encticket());
+    request1.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
     stub.GetFileInfo(&cntl, &request1, &response1, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(response1.statuscode(), StatusCode::kFileNotExists);
@@ -1701,14 +2145,17 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
     ListDirResponse listResponse;
     cntl.Reset();
     uint64_t date = TimeUtility::GetTimeofDayUs();
-    std::string str2sig = Authenticator::GetString2Signature(date,
+    std::string str2sig = Encryptor::GetString2Signature(date,
                                             authOptions.rootOwner);
-    std::string sig = Authenticator::CalcString2Signature(str2sig,
+    std::string sig = Encryptor::CalcString2Signature(str2sig,
                                             authOptions.rootPassword);
     listRequest.set_signature(sig);
     listRequest.set_filename(RECYCLEBINDIR);
     listRequest.set_owner(authOptions.rootOwner);
     listRequest.set_date(date);
+    listRequest.mutable_authtoken()->set_encticket(token_.encticket());
+    listRequest.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
     stub.ListDir(&cntl, &listRequest, &listResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(listResponse.statuscode(), StatusCode::kOK);
@@ -1887,6 +2334,23 @@ TEST_F(NameSpaceServiceTest, clonetest) {
     request.set_poolset(kDefaultPoolset);
     cntl.set_log_id(1);
 
+    // auth failed, miss token
+    stub.CreateCloneFile(&cntl, &request, &response, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(response.statuscode(), StatusCode::kAuthFailed);
+    // auth failed, fake token
+    cntl.Reset();
+    request.mutable_authtoken()->set_encticket(fakeToken_.encticket());
+    request.mutable_authtoken()->set_encclientidentity(
+        fakeToken_.encclientidentity());
+    stub.CreateCloneFile(&cntl, &request, &response, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(response.statuscode(), StatusCode::kAuthFailed);
+    // auth success
+    cntl.Reset();
+    request.mutable_authtoken()->set_encticket(token_.encticket());
+    request.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
     stub.CreateCloneFile(&cntl, &request, &response, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(response.statuscode(), StatusCode::kOK);
@@ -1902,6 +2366,9 @@ TEST_F(NameSpaceServiceTest, clonetest) {
     getRequest.set_filename("/clonefile1");
     getRequest.set_date(TimeUtility::GetTimeofDayUs());
     getRequest.set_owner("tom");
+    getRequest.mutable_authtoken()->set_encticket(token_.encticket());
+    getRequest.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
 
     stub.GetFileInfo(&cntl, &getRequest, &getResponse, NULL);
     if (!cntl.Failed()) {
@@ -1928,6 +2395,23 @@ TEST_F(NameSpaceServiceTest, clonetest) {
     setRequest.set_owner("tom");
     setRequest.set_filestatus(FileStatus::kFileCloneMetaInstalled);
 
+    // auth failed, miss token
+    stub.SetCloneFileStatus(&cntl, &setRequest, &setResponse, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(setResponse.statuscode(), StatusCode::kAuthFailed);
+    // auth failed, fake token
+    cntl.Reset();
+    setRequest.mutable_authtoken()->set_encticket(fakeToken_.encticket());
+    setRequest.mutable_authtoken()->set_encclientidentity(
+        fakeToken_.encclientidentity());
+    stub.SetCloneFileStatus(&cntl, &setRequest, &setResponse, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(setResponse.statuscode(), StatusCode::kAuthFailed);
+    // auth success
+    cntl.Reset();
+    setRequest.mutable_authtoken()->set_encticket(token_.encticket());
+    setRequest.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
     stub.SetCloneFileStatus(&cntl, &setRequest, &setResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(setResponse.statuscode(), StatusCode::kOK);
@@ -1963,6 +2447,23 @@ TEST_F(NameSpaceServiceTest, listClientTest) {
 
     cntl.set_log_id(1);
 
+    // auth failed, miss token
+    stub.ListClient(&cntl, &request, &response, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(response.statuscode(), StatusCode::kAuthFailed);
+    // auth failed, fake token
+    cntl.Reset();
+    request.mutable_authtoken()->set_encticket(fakeToken_.encticket());
+    request.mutable_authtoken()->set_encclientidentity(
+        fakeToken_.encclientidentity());
+    stub.ListClient(&cntl, &request, &response, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(response.statuscode(), StatusCode::kAuthFailed);
+    // auth success
+    cntl.Reset();
+    request.mutable_authtoken()->set_encticket(token_.encticket());
+    request.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
     stub.ListClient(&cntl, &request, &response, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(response.statuscode(), StatusCode::kOK);
@@ -1997,6 +2498,9 @@ TEST_F(NameSpaceServiceTest, listAllClientTest) {
     brpc::Controller cntl;
 
     request.set_listallclient(true);
+    request.mutable_authtoken()->set_encticket(token_.encticket());
+    request.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
     cntl.set_log_id(1);
 
     stub.ListClient(&cntl, &request, &response, NULL);
@@ -2044,9 +2548,25 @@ TEST_F(NameSpaceServiceTest, FindFileMountPointTest) {
     request.set_filename("/test_filename");
     FindFileMountPointResponse response;
     brpc::Controller cntl;
-
     cntl.set_log_id(1);
 
+    // auth failed, miss token
+    stub.FindFileMountPoint(&cntl, &request, &response, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(response.statuscode(), StatusCode::kAuthFailed);
+    // auth failed, fake token
+    cntl.Reset();
+    request.mutable_authtoken()->set_encticket(fakeToken_.encticket());
+    request.mutable_authtoken()->set_encclientidentity(
+        fakeToken_.encclientidentity());
+    stub.FindFileMountPoint(&cntl, &request, &response, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(response.statuscode(), StatusCode::kAuthFailed);
+    // auth success
+    cntl.Reset();
+    request.mutable_authtoken()->set_encticket(token_.encticket());
+    request.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
     stub.FindFileMountPoint(&cntl, &request, &response, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(response.statuscode(), StatusCode::kOK);
@@ -2066,6 +2586,9 @@ TEST_F(NameSpaceServiceTest, FindFileMountPointTest) {
     cntl.Reset();
 
     request.set_filename("/test_filename100");
+    request.mutable_authtoken()->set_encticket(token_.encticket());
+    request.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
     cntl.set_log_id(1);
 
     stub.FindFileMountPoint(&cntl, &request, &response, NULL);
@@ -2105,6 +2628,24 @@ TEST_F(NameSpaceServiceTest, ListVolumesOnCopysets) {
         copyset->set_copysetid(100 + i);
     }
     brpc::Controller cntl;
+
+    // auth failed, miss token
+    stub.ListVolumesOnCopysets(&cntl, &request, &response, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(StatusCode::kAuthFailed, response.statuscode());
+    // auth failed, fake token
+    cntl.Reset();
+    request.mutable_authtoken()->set_encticket(fakeToken_.encticket());
+    request.mutable_authtoken()->set_encclientidentity(
+        fakeToken_.encclientidentity());
+    stub.ListVolumesOnCopysets(&cntl, &request, &response, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(StatusCode::kAuthFailed, response.statuscode());
+    // auth success
+    cntl.Reset();
+    request.mutable_authtoken()->set_encticket(token_.encticket());
+    request.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
     stub.ListVolumesOnCopysets(&cntl, &request, &response, NULL);
     ASSERT_FALSE(cntl.Failed());
     ASSERT_EQ(StatusCode::kOK, response.statuscode());
@@ -2143,6 +2684,9 @@ TEST_F(NameSpaceServiceTest, testRecoverFile) {
     createRequest.set_date(TimeUtility::GetTimeofDayUs());
     createRequest.set_filetype(INODE_PAGEFILE);
     createRequest.set_filelength(fileLength);
+    createRequest.mutable_authtoken()->set_encticket(token_.encticket());
+    createRequest.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
     stub.CreateFile(&cntl,  &createRequest, &createResponse,  NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(createResponse.statuscode(), StatusCode::kOK);
@@ -2185,6 +2729,9 @@ TEST_F(NameSpaceServiceTest, testRecoverFile) {
     getRequest.set_filename("/file1");
     getRequest.set_owner("owner");
     getRequest.set_date(TimeUtility::GetTimeofDayUs());
+    getRequest.mutable_authtoken()->set_encticket(token_.encticket());
+    getRequest.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
     stub.GetFileInfo(&cntl, &getRequest, &getResponse, NULL);
     if (!cntl.Failed()) {
         FileInfo  file = getResponse.fileinfo();
@@ -2240,6 +2787,9 @@ TEST_F(NameSpaceServiceTest, testRecoverFile) {
     // /dir1/file2 apply segment
     GetOrAllocateSegmentRequest allocRequest;
     GetOrAllocateSegmentResponse allocResponse;
+    allocRequest.mutable_authtoken()->set_encticket(token_.encticket());
+    allocRequest.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
     for (int i = 0; i < 10; i++) {
         cntl.Reset();
         allocRequest.set_filename("/dir1/file2");
@@ -2265,6 +2815,9 @@ TEST_F(NameSpaceServiceTest, testRecoverFile) {
     deleteRequest.set_filename("/dir1/file2");
     deleteRequest.set_owner("owner");
     deleteRequest.set_date(TimeUtility::GetTimeofDayUs());
+    deleteRequest.mutable_authtoken()->set_encticket(token_.encticket());
+    deleteRequest.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
     stub.DeleteFile(&cntl, &deleteRequest, &deleteResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(deleteResponse.statuscode(), StatusCode::kOK);
@@ -2278,14 +2831,17 @@ TEST_F(NameSpaceServiceTest, testRecoverFile) {
     ListDirRequest listRequest;
     ListDirResponse listResponse;
     uint64_t date = TimeUtility::GetTimeofDayUs();
-    std::string str2sig = Authenticator::GetString2Signature(date,
+    std::string str2sig = Encryptor::GetString2Signature(date,
                                             authOptions.rootOwner);
-    std::string sig = Authenticator::CalcString2Signature(str2sig,
+    std::string sig = Encryptor::CalcString2Signature(str2sig,
                                             authOptions.rootPassword);
     listRequest.set_signature(sig);
     listRequest.set_filename(RECYCLEBINDIR);
     listRequest.set_owner(authOptions.rootOwner);
     listRequest.set_date(date);
+    listRequest.mutable_authtoken()->set_encticket(token_.encticket());
+    listRequest.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
     stub.ListDir(&cntl, &listRequest, &listResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(listResponse.statuscode(), StatusCode::kOK);
@@ -2306,6 +2862,23 @@ TEST_F(NameSpaceServiceTest, testRecoverFile) {
     recoverRequest.set_filename("/dir1/file2");
     recoverRequest.set_owner("owner");
     recoverRequest.set_date(TimeUtility::GetTimeofDayUs());
+    // auth fail, miss token
+    stub.RecoverFile(&cntl, &recoverRequest, &recoverRresponse, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(recoverRresponse.statuscode(), StatusCode::kAuthFailed);
+    // auth fail, fake token
+    cntl.Reset();
+    recoverRequest.mutable_authtoken()->set_encticket(fakeToken_.encticket());
+    recoverRequest.mutable_authtoken()->set_encclientidentity(
+        fakeToken_.encclientidentity());
+    stub.RecoverFile(&cntl, &recoverRequest, &recoverRresponse, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(recoverRresponse.statuscode(), StatusCode::kAuthFailed);
+    // auth success
+    cntl.Reset();
+    recoverRequest.mutable_authtoken()->set_encticket(token_.encticket());
+    recoverRequest.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
     stub.RecoverFile(&cntl, &recoverRequest, &recoverRresponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(recoverRresponse.statuscode(), StatusCode::kOK);
@@ -2320,6 +2893,9 @@ TEST_F(NameSpaceServiceTest, testRecoverFile) {
     listRequest.set_filename("/dir1");
     listRequest.set_owner("owner");
     listRequest.set_date(date);
+    listRequest.mutable_authtoken()->set_encticket(token_.encticket());
+    listRequest.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
     stub.ListDir(&cntl, &listRequest, &listResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(listResponse.statuscode(), StatusCode::kOK);
@@ -2404,9 +2980,9 @@ TEST_F(NameSpaceServiceTest, testRecoverFile) {
     FileInfo recycleFile;
     cntl.Reset();
     date = TimeUtility::GetTimeofDayUs();
-    str2sig = Authenticator::GetString2Signature(date,
+    str2sig = Encryptor::GetString2Signature(date,
                                             authOptions.rootOwner);
-    sig = Authenticator::CalcString2Signature(str2sig,
+    sig = Encryptor::CalcString2Signature(str2sig,
                                             authOptions.rootPassword);
     listRequest.set_signature(sig);
     listRequest.set_filename(RECYCLEBINDIR);
@@ -2471,9 +3047,9 @@ TEST_F(NameSpaceServiceTest, testRecoverFile) {
     // 3. check the fileId of recovered file 3 and not recovered is 4
     cntl.Reset();
     date = TimeUtility::GetTimeofDayUs();
-    str2sig = Authenticator::GetString2Signature(date,
+    str2sig = Encryptor::GetString2Signature(date,
                                             authOptions.rootOwner);
-    sig = Authenticator::CalcString2Signature(str2sig,
+    sig = Encryptor::CalcString2Signature(str2sig,
                                             authOptions.rootPassword);
     listRequest.set_signature(sig);
     listRequest.set_filename(RECYCLEBINDIR);
@@ -2587,6 +3163,9 @@ TEST_F(NameSpaceServiceTest, testRecoverFile) {
     createCloneRequest.set_owner("owner");
     createCloneRequest.set_poolset(kDefaultPoolset);
     createCloneRequest.set_clonesource("/sourcefile1");
+    createCloneRequest.mutable_authtoken()->set_encticket(token_.encticket());
+    createCloneRequest.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
     cntl.Reset();
     stub.CreateCloneFile(&cntl, &createCloneRequest,
                          &createCloneResponse, NULL);
@@ -2604,6 +3183,9 @@ TEST_F(NameSpaceServiceTest, testRecoverFile) {
     setRequest.set_owner("owner");
     setRequest.set_date(TimeUtility::GetTimeofDayUs());
     setRequest.set_filestatus(FileStatus::kFileCloneMetaInstalled);
+    setRequest.mutable_authtoken()->set_encticket(token_.encticket());
+    setRequest.mutable_authtoken()->set_encclientidentity(
+        token_.encclientidentity());
     stub.SetCloneFileStatus(&cntl, &setRequest, &setResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(setResponse.statuscode(), StatusCode::kOK);
@@ -2764,6 +3346,9 @@ TEST_F(NameSpaceServiceTest, TestDeAllocateSegment) {
         createRequest.set_date(TimeUtility::GetTimeofDayUs());
         createRequest.set_filetype(INODE_PAGEFILE);
         createRequest.set_filelength(fileLength);
+        createRequest.mutable_authtoken()->set_encticket(token_.encticket());
+        createRequest.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
 
         cntl.set_log_id(1);
         stub.CreateFile(&cntl, &createRequest, &createResponse, nullptr);
@@ -2780,6 +3365,10 @@ TEST_F(NameSpaceServiceTest, TestDeAllocateSegment) {
         allocateRequest.set_allocateifnotexist(true);
         allocateRequest.set_owner(owner);
         allocateRequest.set_date(TimeUtility::GetTimeofDayUs());
+        allocateRequest.mutable_authtoken()->set_encticket(
+            token_.encticket());
+        allocateRequest.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
 
         stub.GetOrAllocateSegment(&cntl, &allocateRequest, &allocateResponse,
                                   nullptr);
@@ -2798,6 +3387,23 @@ TEST_F(NameSpaceServiceTest, TestDeAllocateSegment) {
         request.set_owner("curve");
         request.set_date(TimeUtility::GetTimeofDayUs());
 
+        // auth fail, miss token
+        stub.DeAllocateSegment(&cntl, &request, &response, nullptr);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(StatusCode::kAuthFailed, response.statuscode());
+        // auth fail, fake token
+        cntl.Reset();
+        request.mutable_authtoken()->set_encticket(fakeToken_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            fakeToken_.encclientidentity());
+        stub.DeAllocateSegment(&cntl, &request, &response, nullptr);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(StatusCode::kAuthFailed, response.statuscode());
+        // auth success
+        cntl.Reset();
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
         stub.DeAllocateSegment(&cntl, &request, &response, nullptr);
         ASSERT_FALSE(cntl.Failed());
         ASSERT_EQ(StatusCode::kParaError, response.statuscode());
@@ -2813,6 +3419,9 @@ TEST_F(NameSpaceServiceTest, TestDeAllocateSegment) {
         request.set_offset(0);
         request.set_owner(owner);
         request.set_date(TimeUtility::GetTimeofDayUs());
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
 
         stub.DeAllocateSegment(&cntl, &request, &response, nullptr);
         ASSERT_FALSE(cntl.Failed());
@@ -2829,6 +3438,9 @@ TEST_F(NameSpaceServiceTest, TestDeAllocateSegment) {
         request.set_offset(50ull * kGB);
         request.set_owner(owner);
         request.set_date(TimeUtility::GetTimeofDayUs());
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
 
         stub.DeAllocateSegment(&cntl, &request, &response, nullptr);
         ASSERT_FALSE(cntl.Failed());
@@ -2845,6 +3457,9 @@ TEST_F(NameSpaceServiceTest, TestDeAllocateSegment) {
         request.set_offset(50ull * kGB);
         request.set_owner(owner);
         request.set_date(TimeUtility::GetTimeofDayUs());
+        request.mutable_authtoken()->set_encticket(token_.encticket());
+        request.mutable_authtoken()->set_encclientidentity(
+            token_.encclientidentity());
 
         stub.DeAllocateSegment(&cntl, &request, &response, nullptr);
         ASSERT_FALSE(cntl.Failed());

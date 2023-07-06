@@ -28,10 +28,36 @@ namespace client {
 class MockTopologyService : public mds::topology::TopologyService {
  public:
     MOCK_METHOD4(ListPoolset,
-                 void(::google::protobuf::RpcController* controller,
-                      const curve::mds::topology::ListPoolsetRequest* request,
-                      curve::mds::topology::ListPoolsetResponse* response,
-                      ::google::protobuf::Closure* done));
+        void(::google::protobuf::RpcController* controller,
+            const curve::mds::topology::ListPoolsetRequest* request,
+            curve::mds::topology::ListPoolsetResponse* response,
+            ::google::protobuf::Closure* done));
+
+    MOCK_METHOD4(GetChunkServerListInCopySets,
+        void(::google::protobuf::RpcController* controller,
+            const curve::mds::topology::GetChunkServerListInCopySetsRequest*
+                request,
+            curve::mds::topology::GetChunkServerListInCopySetsResponse*
+                response,
+            ::google::protobuf::Closure* done));
+
+    MOCK_METHOD4(GetClusterInfo,
+        void(::google::protobuf::RpcController* controller,
+            const curve::mds::topology::GetClusterInfoRequest* request,
+            curve::mds::topology::GetClusterInfoResponse* response,
+            ::google::protobuf::Closure* done));
+
+    MOCK_METHOD4(GetChunkServer,
+        void(::google::protobuf::RpcController* controller,
+            const curve::mds::topology::GetChunkServerInfoRequest* request,
+            curve::mds::topology::GetChunkServerInfoResponse* response,
+            ::google::protobuf::Closure* done));
+
+    MOCK_METHOD4(ListChunkServer,
+      void(::google::protobuf::RpcController* controller,
+          const curve::mds::topology::ListChunkServerRequest* request,
+          curve::mds::topology::ListChunkServerResponse* response,
+          ::google::protobuf::Closure* done));
 };
 
 }  // namespace client

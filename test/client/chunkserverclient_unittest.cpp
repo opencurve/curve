@@ -20,12 +20,17 @@
  * Author: xuchaojie
  */
 
+#include <gmock/gmock-actions.h>
+#include <gmock/gmock-spec-builders.h>
 #include <gtest/gtest.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gmock/gmock.h>
+#include <memory>
 
+#include "include/client/libcurve_define.h"
 #include "src/client/chunkserver_client.h"
+#include "test/client/mock/mock_auth_client.h"
 #include "test/client/mock/mock_chunkservice.h"
 #include "src/common/task_tracker.h"
 
@@ -45,6 +50,9 @@ class ChunkServerClientTest : public testing::Test {
     virtual void SetUp() {
         listenAddr_ = "chunkserverclienttest_cs_listenAddr";
         server_ = new brpc::Server();
+        mockAuthClient_ = std::make_shared<MockAuthClient>();
+        csClient_ = std::make_shared<ChunkServerClient>();
+        csClient_->Init(ChunkServerClientRetryOptions{}, mockAuthClient_);
     }
 
     virtual void TearDown() {
@@ -57,6 +65,8 @@ class ChunkServerClientTest : public testing::Test {
  public:
     std::string listenAddr_;
     brpc::Server *server_;
+    std::shared_ptr<ChunkServerClient> csClient_;
+    std::shared_ptr<MockAuthClient> mockAuthClient_;
 };
 
 struct FakeUpdateFileEpochClosure : public ChunkServerClientClosure {
@@ -82,11 +92,37 @@ struct FakeUpdateFileEpochClosure : public ChunkServerClientClosure {
     std::shared_ptr<TaskTracker> tracker_;
 };
 
+TEST_F(ChunkServerClientTest, UpdateFileEpochGetAuthTokenFailed) {
+    MockChunkServiceImpl mockChunkService;
+    ASSERT_EQ(server_->AddService(&mockChunkService,
+                                  brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+    ASSERT_EQ(server_->StartAtSockFile(listenAddr_.c_str(), nullptr), 0);
+
+    EXPECT_CALL(*mockAuthClient_, GetToken(_, _))
+        .WillOnce(Return(false));
+
+    CopysetPeerInfo<ChunkServerID> cs;
+    cs.peerID = 1;
+    cs.internalAddr = PeerAddr(EndPoint(listenAddr_));
+    uint64_t fileId = 1;
+    uint64_t epoch = 1;
+    auto tracker = std::make_shared<TaskTracker>();
+    FakeUpdateFileEpochClosure *closure = new FakeUpdateFileEpochClosure();
+    closure->AddToBeTraced(tracker);
+
+    int ret = csClient_->UpdateFileEpoch(cs, fileId, epoch, closure);
+    ASSERT_EQ(-LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL, ret);
+}
+
 TEST_F(ChunkServerClientTest, UpdateFileEpochSuccess) {
     MockChunkServiceImpl mockChunkService;
     ASSERT_EQ(server_->AddService(&mockChunkService,
                                   brpc::SERVER_DOESNT_OWN_SERVICE), 0);
     ASSERT_EQ(server_->StartAtSockFile(listenAddr_.c_str(), nullptr), 0);
+
+    Token token;
+    EXPECT_CALL(*mockAuthClient_, GetToken(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(token), Return(true)));
 
     CHUNK_OP_STATUS csRet = CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS;
     EXPECT_CALL(mockChunkService, UpdateEpoch(_, _, _, _))
@@ -105,12 +141,11 @@ TEST_F(ChunkServerClientTest, UpdateFileEpochSuccess) {
     uint64_t epoch = 1;
     auto tracker = std::make_shared<TaskTracker>();
     FakeUpdateFileEpochClosure *closure = new FakeUpdateFileEpochClosure();
+    closure->AddToBeTraced(tracker);
 
-    ChunkServerClient csClient;
-    int ret = csClient.UpdateFileEpoch(cs, fileId, epoch, closure);
+    int ret = csClient_->UpdateFileEpoch(cs, fileId, epoch, closure);
     ASSERT_EQ(0, ret);
 
-    closure->AddToBeTraced(tracker);
     tracker->Wait();
     ret = tracker->GetResult();
     ASSERT_EQ(0, ret);
@@ -124,6 +159,10 @@ TEST_F(ChunkServerClientTest, UpdateFileEpochSuccessUsingExternalIp) {
     ASSERT_EQ(server_->AddService(&mockChunkService,
                                   brpc::SERVER_DOESNT_OWN_SERVICE), 0);
     ASSERT_EQ(server_->StartAtSockFile(listenAddr_.c_str(), nullptr), 0);
+
+    Token token;
+    EXPECT_CALL(*mockAuthClient_, GetToken(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(token), Return(true)));
 
     CHUNK_OP_STATUS csRet = CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS;
     EXPECT_CALL(mockChunkService, UpdateEpoch(_, _, _, _))
@@ -144,8 +183,7 @@ TEST_F(ChunkServerClientTest, UpdateFileEpochSuccessUsingExternalIp) {
     auto tracker = std::make_shared<TaskTracker>();
     FakeUpdateFileEpochClosure *closure = new FakeUpdateFileEpochClosure();
 
-    ChunkServerClient csClient;
-    int ret = csClient.UpdateFileEpoch(cs, fileId, epoch, closure);
+    int ret = csClient_->UpdateFileEpoch(cs, fileId, epoch, closure);
     ASSERT_EQ(0, ret);
 
     closure->AddToBeTraced(tracker);
@@ -166,8 +204,11 @@ TEST_F(ChunkServerClientTest, UpdateFileEpochSuccessForChunkServerOffline) {
     auto tracker = std::make_shared<TaskTracker>();
     FakeUpdateFileEpochClosure *closure = new FakeUpdateFileEpochClosure();
 
-    ChunkServerClient csClient;
-    int ret = csClient.UpdateFileEpoch(cs, fileId, epoch, closure);
+    Token token;
+    EXPECT_CALL(*mockAuthClient_, GetToken(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(token), Return(true)));
+
+    int ret = csClient_->UpdateFileEpoch(cs, fileId, epoch, closure);
     ASSERT_EQ(0, ret);
 
     closure->AddToBeTraced(tracker);
@@ -184,6 +225,10 @@ TEST_F(ChunkServerClientTest, UpdateFileEpochFailedByEpochTooOld) {
     ASSERT_EQ(server_->AddService(&mockChunkService,
                                   brpc::SERVER_DOESNT_OWN_SERVICE), 0);
     ASSERT_EQ(server_->StartAtSockFile(listenAddr_.c_str(), nullptr), 0);
+
+    Token token;
+    EXPECT_CALL(*mockAuthClient_, GetToken(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(token), Return(true)));
 
     CHUNK_OP_STATUS csRet = CHUNK_OP_STATUS::CHUNK_OP_STATUS_EPOCH_TOO_OLD;
     EXPECT_CALL(mockChunkService, UpdateEpoch(_, _, _, _))
@@ -203,8 +248,7 @@ TEST_F(ChunkServerClientTest, UpdateFileEpochFailedByEpochTooOld) {
     auto tracker = std::make_shared<TaskTracker>();
     FakeUpdateFileEpochClosure *closure = new FakeUpdateFileEpochClosure();
 
-    ChunkServerClient csClient;
-    int ret = csClient.UpdateFileEpoch(cs, fileId, epoch, closure);
+    int ret = csClient_->UpdateFileEpoch(cs, fileId, epoch, closure);
     ASSERT_EQ(0, ret);
 
     closure->AddToBeTraced(tracker);
@@ -221,6 +265,10 @@ TEST_F(ChunkServerClientTest, UpdateFileEpochFailedUnknown) {
     ASSERT_EQ(server_->AddService(&mockChunkService,
                                   brpc::SERVER_DOESNT_OWN_SERVICE), 0);
     ASSERT_EQ(server_->StartAtSockFile(listenAddr_.c_str(), nullptr), 0);
+
+    Token token;
+    EXPECT_CALL(*mockAuthClient_, GetToken(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(token), Return(true)));
 
     CHUNK_OP_STATUS csRet = CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN;
     EXPECT_CALL(mockChunkService, UpdateEpoch(_, _, _, _))
@@ -240,8 +288,7 @@ TEST_F(ChunkServerClientTest, UpdateFileEpochFailedUnknown) {
     auto tracker = std::make_shared<TaskTracker>();
     FakeUpdateFileEpochClosure *closure = new FakeUpdateFileEpochClosure();
 
-    ChunkServerClient csClient;
-    int ret = csClient.UpdateFileEpoch(cs, fileId, epoch, closure);
+    int ret = csClient_->UpdateFileEpoch(cs, fileId, epoch, closure);
     ASSERT_EQ(0, ret);
 
     closure->AddToBeTraced(tracker);
@@ -258,6 +305,10 @@ TEST_F(ChunkServerClientTest, UpdateFileEpochFailedForRetryTimesExceed) {
     ASSERT_EQ(server_->AddService(&mockChunkService,
                                   brpc::SERVER_DOESNT_OWN_SERVICE), 0);
     ASSERT_EQ(server_->StartAtSockFile(listenAddr_.c_str(), nullptr), 0);
+
+    Token token;
+    EXPECT_CALL(*mockAuthClient_, GetToken(_, _))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(token), Return(true)));
 
     CHUNK_OP_STATUS csRet = CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS;
     EXPECT_CALL(mockChunkService, UpdateEpoch(_, _, _, _))
@@ -280,12 +331,11 @@ TEST_F(ChunkServerClientTest, UpdateFileEpochFailedForRetryTimesExceed) {
     auto tracker = std::make_shared<TaskTracker>();
     FakeUpdateFileEpochClosure *closure = new FakeUpdateFileEpochClosure();
 
-    ChunkServerClient csClient;
     ChunkServerClientRetryOptions ops;
     ops.rpcMaxTry = 3;
     ops.rpcTimeoutMs = 1;
-    csClient.Init(ops);
-    int ret = csClient.UpdateFileEpoch(cs, fileId, epoch, closure);
+    csClient_->Init(ops, mockAuthClient_);
+    int ret = csClient_->UpdateFileEpoch(cs, fileId, epoch, closure);
     ASSERT_EQ(0, ret);
 
     closure->AddToBeTraced(tracker);

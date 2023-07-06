@@ -31,6 +31,7 @@
 #include "src/mds/topology/topology_item.h"
 #include "src/mds/common/mds_define.h"
 #include "src/mds/topology/topology_stat.h"
+#include "proto/topology.pb.h"
 
 using ::curve::mds::topology::PoolIdType;
 using ::curve::mds::topology::ZoneIdType;
@@ -114,20 +115,20 @@ class MockTopology : public Topology {
     MOCK_METHOD1(UpdateZone, int(const Zone &data));
     MOCK_METHOD1(UpdateServer, int(const Server &data));
 
-    MOCK_METHOD1(UpdateChunkServerTopo, int(const ChunkServer &data));
+    MOCK_METHOD1(UpdateChunkServerTopo, int(
+        const ChunkServer &data));
 
-    MOCK_METHOD2(UpdateChunkServerRwState, int(const ChunkServerStatus &rwState,
-                                  ChunkServerIdType id));
+    MOCK_METHOD2(UpdateChunkServerRwState, int(
+        const ChunkServerStatus &rwState, ChunkServerIdType id));
 
     MOCK_METHOD2(UpdateChunkServerOnlineState, int(
-        const OnlineState &onlineState,
-        ChunkServerIdType id));
+        const OnlineState &onlineState, ChunkServerIdType id));
 
-    MOCK_METHOD2(UpdateChunkServerDiskStatus, int(const ChunkServerState &state,
-                                           ChunkServerIdType id));
+    MOCK_METHOD2(UpdateChunkServerDiskStatus, int(
+        const ChunkServerState &state, ChunkServerIdType id));
 
     MOCK_METHOD2(UpdateChunkServerStartUpTime, int(uint64_t time,
-                         ChunkServerIdType id));
+        ChunkServerIdType id));
 
     MOCK_METHOD1(UpdateCopySet,
         int(const ::curve::mds::topology::CopySetInfo &data));
@@ -137,8 +138,8 @@ class MockTopology : public Topology {
 
     MOCK_METHOD2(SetCopySetAvalFlag, int(const CopySetKey &, bool));
 
-    MOCK_METHOD3(UpdateCopySetAllocInfo,
-        int(CopySetKey key, uint32_t allocChunkNum, uint64_t allocSize));
+    MOCK_METHOD3(UpdateCopySetAllocInfo, int(
+        CopySetKey key, uint32_t allocChunkNum, uint64_t allocSize));
 
     // find
     MOCK_CONST_METHOD1(FindPoolset,

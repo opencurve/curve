@@ -23,7 +23,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <thread>  // NOLINT
-#include "src/mds/nameserver2/file_lock.h"
+#include "src/mds/nameserver2/filelock/file_lock.h"
 
 using ::testing::AtLeast;
 using ::testing::StrEq;
@@ -66,6 +66,9 @@ void Unlock(const std::string& filePath) {
 TEST_F(FileLockManagerTest, Basic) {
     std::string filePath1 = "/home/dir1/file1";
     std::string filePath2 = "/home/dir2/file2";
+
+    flm.WriteLock("");
+    flm.Unlock("/");
 
     flm.WriteLock(filePath1);
     flm.Unlock(filePath1);

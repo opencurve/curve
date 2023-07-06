@@ -71,7 +71,7 @@ using curve::mds::topology::GetChunkServerInfoRequest;
 using curve::mds::topology::GetCopySetsInChunkServerRequest;
 using curve::mds::schedule::RapidLeaderScheduleRequst;
 using curve::mds::schedule::RapidLeaderScheduleResponse;
-using curve::common::Authenticator;
+using curve::common::Encryptor;
 
 namespace curve {
 namespace tool {
@@ -479,6 +479,14 @@ class MDSClient {
         const std::string& fileName, const curve::mds::ThrottleParams& params);
 
     int ListPoolset(std::vector<PoolsetInfo>* poolsets);
+
+    virtual int AddKey(const std::string &key);
+
+    virtual int DelKey(const std::string &user);
+
+    virtual int GetKey(const std::string &user, std::string *key);
+
+    virtual int UpdateKey(const std::string &key);
 
  private:
     /**

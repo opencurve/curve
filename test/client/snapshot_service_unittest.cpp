@@ -32,6 +32,7 @@
 #include <thread>   // NOLINT
 #include <string>
 
+#include "proto/topology.pb.h"
 #include "src/client/client_config.h"
 #include "src/client/metacache.h"
 #include "test/client/fake/mock_schedule.h"

@@ -15,6 +15,7 @@
  */
 
 syntax = "proto2";
+import "proto/auth.proto";
 package curve.chunkserver;
 
 option cc_generic_services = true;
@@ -69,6 +70,7 @@ message ChunkRequest {
     optional bool readMetaPage = 17;                   // for scan chunk
     optional uint64 fileId = 18;  // for io fence
     optional uint64 epoch = 19;  // for io fence
+    optional mds.auth.Token authToken = 20;
 };
 
 enum CHUNK_OP_STATUS {
@@ -85,6 +87,8 @@ enum CHUNK_OP_STATUS {
     CHUNK_OP_STATUS_BACKWARD = 10;          // 请求的版本落后当前chunk的版本
     CHUNK_OP_STATUS_CHUNK_EXIST = 11;       // chunk已存在
     CHUNK_OP_STATUS_EPOCH_TOO_OLD = 12;     // request epoch too old
+    CHUNK_OP_STATUS_AUTH_FAIL = 13;
+    CHUNK_OP_STATUS_GET_AUTH_TOKEN_FAIL = 14;
 };
 
 message ChunkResponse {
@@ -100,6 +104,7 @@ message GetChunkInfoRequest {
     required uint32 logicPoolId = 1;
     required uint32 copysetId = 2;
     required uint64 chunkId = 3;
+    optional mds.auth.Token authToken = 4;
 };
 
 message GetChunkInfoResponse {
@@ -114,6 +119,7 @@ message GetChunkHashRequest {
     required uint64 chunkId     = 3;
     required uint32 offset      = 4;
     required uint32 length      = 5;
+    optional mds.auth.Token authToken = 6;
 };
 
 message GetChunkHashResponse {
@@ -127,6 +133,7 @@ message CreateS3CloneChunkRequest {
     required uint64 chunkId = 3;
     optional uint64 correctedSn = 4;
     optional string chunkLocationInfo = 5;
+    optional mds.auth.Token authToken = 6;
 };
 
 message CreateS3CloneChunkResponse {
@@ -137,6 +144,7 @@ message CreateS3CloneChunkResponse {
 message UpdateEpochRequest {
     required uint64 fileId = 1;
     required uint64 epoch = 2;
+    optional mds.auth.Token authToken = 3;
 };
 
 message UpdateEpochResponse {

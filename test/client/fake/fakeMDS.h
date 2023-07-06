@@ -32,6 +32,7 @@
 #include <functional>
 #include <utility>
 #include <map>
+#include "proto/auth.pb.h"
 #include "src/client/client_common.h"
 #include "test/client/fake/mockMDS.h"
 #include "test/client/fake/fakeChunkserver.h"
@@ -43,13 +44,13 @@
 #include "src/common/timeutility.h"
 #include "src/common/authenticator.h"
 #include "proto/heartbeat.pb.h"
-#include "src/client/mds_client_base.h"
 #include "src/common/uuid.h"
+#include "src/client/mds_client.h"
 
-using curve::common::Authenticator;
+using curve::common::Encryptor;
 
 using braft::PeerId;
-using curve::common::Authenticator;
+using curve::common::Encryptor;
 using curve::chunkserver::COPYSET_OP_STATUS;
 using ::curve::mds::topology::GetChunkServerListInCopySetsResponse;
 using ::curve::mds::topology::GetChunkServerListInCopySetsRequest;
@@ -77,6 +78,8 @@ using ::curve::mds::schedule::RapidLeaderScheduleRequst;
 using ::curve::mds::schedule::RapidLeaderScheduleResponse;
 using ::curve::mds::schedule::QueryChunkServerRecoverStatusRequest;
 using ::curve::mds::schedule::QueryChunkServerRecoverStatusResponse;
+using ::curve::mds::auth::GetTicketRequest;
+using ::curve::mds::auth::GetTicketResponse;
 
 using HeartbeatRequest  = curve::mds::heartbeat::ChunkServerHeartbeatRequest;
 using HeartbeatResponse = curve::mds::heartbeat::ChunkServerHeartbeatResponse;
@@ -188,10 +191,10 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
 
         if (!strcmp(request->owner().c_str(), "root")) {
             // 当user为root用户的时候需要检查其signature信息
-            std::string str2sig = Authenticator::GetString2Signature(
+            std::string str2sig = Encryptor::GetString2Signature(
                                                         request->date(),
                                                         request->owner());
-            std::string sig = Authenticator::CalcString2Signature(str2sig,
+            std::string sig = Encryptor::CalcString2Signature(str2sig,
                                                          "root_password");
             ASSERT_STREQ(request->signature().c_str(), sig.c_str());
             LOG(INFO) << "GetOrAllocateSegment with password!";
@@ -738,8 +741,8 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
                    const std::string& owner,
                    uint64_t date) {
         if (owner == curve::client::kRootUserName) {
-            std::string str2sig = Authenticator::GetString2Signature(date, owner);  // NOLINT
-            std::string sigtest = Authenticator::CalcString2Signature(str2sig, "123");  // NOLINT
+            std::string str2sig = Encryptor::GetString2Signature(date, owner);  // NOLINT
+            std::string sigtest = Encryptor::CalcString2Signature(str2sig, "123");  // NOLINT
             ASSERT_STREQ(sigtest.c_str(), signature.c_str());
         } else {
             ASSERT_STREQ("", signature.c_str());
@@ -927,7 +930,6 @@ class FakeMDSTopologyService : public curve::mds::topology::TopologyService {
                         GetClusterInfoResponse* response,
                         ::google::protobuf::Closure* done) {
         brpc::ClosureGuard done_guard(done);
-
         std::string uuid = curve::common::UUIDGenerator().GenerateUUID();
         response->set_statuscode(0);
         response->set_clusterid(uuid);
@@ -1093,6 +1095,31 @@ class FakeScheduleService : public ::curve::mds::schedule::ScheduleService {
     FakeReturn* fakeret_;
 };
 
+class FakeAuthService : public ::curve::mds::auth::AuthService {
+ public:
+    void GetTicket(
+        google::protobuf::RpcController* cntl_base,
+        const GetTicketRequest* request,
+        GetTicketResponse* response,
+        google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakeret_->controller_ != nullptr
+            && fakeret_->controller_->Failed()) {
+            cntl_base->SetFailed("failed");
+            return;
+        }
+        auto resp = static_cast<GetTicketResponse*>(
+            fakeret_->response_);
+        response->CopyFrom(*resp);
+    }
+
+    void SetFakeReturn(FakeReturn* fakeret) {
+        fakeret_ = fakeret;
+    }
+
+    FakeReturn* fakeret_;
+};
+
 class FakeMDS {
  public:
     explicit FakeMDS(std::string filename);
@@ -1150,6 +1177,10 @@ class FakeMDS {
         return &faketopologyservice_;
     }
 
+    FakeAuthService* GetAuthService() {
+        return &fakeAuthService_;
+    }
+
     void SetMetric(const std::string& metricName, bvar::Variable* var) {
         metrics_[metricName] = var;
     }
@@ -1174,6 +1205,7 @@ class FakeMDS {
     FakeMDSTopologyService faketopologyservice_;
     FakeMDSHeartbeatService fakeHeartbeatService_;
     FakeScheduleService fakeScheduleService_;
+    FakeAuthService fakeAuthService_;
 
     std::map<std::string, bvar::Variable*>  metrics_;
 };

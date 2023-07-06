@@ -20,6 +20,7 @@
  * Author: lixiaocui
  */
 
+#include <memory>
 #include "test/integration/heartbeat/common.h"
 #include "test/mds/mock/mock_alloc_statistic.h"
 

@@ -50,10 +50,8 @@ class ChunkServerClient {
         const ChunkServerClientOption &option,
         std::shared_ptr<ChannelPool> channelPool)
         : topology_(topology),
-          rpcTimeoutMs_(option.rpcTimeoutMs),
-          rpcRetryTimes_(option.rpcRetryTimes),
-          rpcRetryIntervalMs_(option.rpcRetryIntervalMs),
-          channelPool_(channelPool) {}
+        option_(option),
+        channelPool_(channelPool) {}
 
     virtual ~ChunkServerClient() {}
 
@@ -127,9 +125,7 @@ class ChunkServerClient {
                          ChannelPtr* channelPtr);
 
     std::shared_ptr<Topology> topology_;
-    uint32_t rpcTimeoutMs_;
-    uint32_t rpcRetryTimes_;
-    uint32_t rpcRetryIntervalMs_;
+    ChunkServerClientOption option_;
     std::shared_ptr<ChannelPool> channelPool_;
 };
 

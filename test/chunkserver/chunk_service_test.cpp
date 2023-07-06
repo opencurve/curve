@@ -21,29 +21,34 @@
  */
 
 
+#include <gmock/gmock-spec-builders.h>
 #include <unistd.h>
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <bthread/bthread.h>
 #include <brpc/channel.h>
 #include <brpc/controller.h>
 #include <brpc/server.h>
+#include <memory>
 
 #include "include/chunkserver/chunkserver_common.h"
+#include "proto/auth.pb.h"
 #include "src/chunkserver/copyset_node.h"
-#include "src/chunkserver/copyset_node_manager.h"
-#include "src/chunkserver/cli.h"
 #include "proto/copyset.pb.h"
+#include "src/common/authenticator.h"
 #include "test/chunkserver/chunkserver_test_util.h"
 #include "src/common/uuid.h"
-#include "src/chunkserver/chunk_service.h"
 
 namespace curve {
 namespace chunkserver {
 
 static constexpr uint32_t kOpRequestAlignSize = 4096;
 
+using curve::common::UUIDGenerator;
+using ::testing::_;
+using ::testing::Return;
 using curve::common::UUIDGenerator;
 
 class ChunkserverTest : public testing::Test {
@@ -56,6 +61,43 @@ class ChunkserverTest : public testing::Test {
         Exec(("mkdir " + dir1).c_str());
         Exec(("mkdir " + dir2).c_str());
         Exec(("mkdir " + dir3).c_str());
+
+        // auth
+        curve::common::ServerAuthOption authOption;
+        authOption.enable = true;
+        authOption.key = "1122334455667788";
+        authOption.lastKey = "1122334455667788";
+        authOption.lastKeyTTL = 1800;
+        authOption.requestTTL = 15;
+        std::string cId = "client";
+        std::string sId = "chunkserver";
+        std::string sk = "123456789abcdefg";
+        auto now = curve::common::TimeUtility::GetTimeofDaySec();
+        curve::common::Authenticator::GetInstance().Init(
+            curve::common::ZEROIV, authOption);
+        curve::mds::auth::Ticket ticket;
+        ticket.set_cid(cId);
+        ticket.set_sessionkey(sk);
+        ticket.set_expiration(now + 100);
+        ticket.set_caps("*");
+        ticket.set_sid(sId);
+        std::string ticketStr;
+        ASSERT_TRUE(ticket.SerializeToString(&ticketStr));
+        std::string encticket;
+        ASSERT_EQ(0, curve::common::Encryptor::AESEncrypt(
+            authOption.key, curve::common::ZEROIV, ticketStr, &encticket));
+        curve::mds::auth::ClientIdentity clientIdentity;
+        clientIdentity.set_cid(cId);
+        clientIdentity.set_timestamp(now);
+        std::string cIdStr;
+        ASSERT_TRUE(clientIdentity.SerializeToString(&cIdStr));
+        std::string encCId;
+        ASSERT_EQ(0, curve::common::Encryptor::AESEncrypt(
+            sk, curve::common::ZEROIV, cIdStr, &encCId));
+        token_.set_encticket(encticket);
+        token_.set_encclientidentity(encCId);
+        fakeToken_.set_encticket("fake");
+        fakeToken_.set_encclientidentity("fake");
     }
     virtual void TearDown() {
         Exec(("rm -fr " + dir1).c_str());
@@ -71,6 +113,9 @@ class ChunkserverTest : public testing::Test {
     std::string dir1;
     std::string dir2;
     std::string dir3;
+
+    curve::mds::auth::Token token_;
+    curve::mds::auth::Token fakeToken_;
 };
 
 butil::AtExitManager atExitManager;
@@ -90,6 +135,7 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
     /**
      * Start three chunk server by fork
      */
+
     pid1 = fork();
     if (0 > pid1) {
         std::cerr << "fork chunkserver 1 failed" << std::endl;
@@ -200,8 +246,31 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 request.set_offset(kOpRequestAlignSize * i);
                 request.set_size(kOpRequestAlignSize);
                 cntl.request_attachment().resize(kOpRequestAlignSize, ch);
+                // auth fail, miss token
                 stub.WriteChunk(&cntl, &request, &response, nullptr);
                 LOG_IF(INFO, cntl.Failed()) << cntl.ErrorText();
+                ASSERT_FALSE(cntl.Failed());
+                ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL,
+                          response.status());
+                // auth fail, fake token
+                cntl.Reset();
+                request.mutable_authtoken()->set_encticket(
+                    fakeToken_.encticket());
+                request.mutable_authtoken()->set_encclientidentity(
+                    fakeToken_.encclientidentity());
+                cntl.request_attachment().resize(kOpRequestAlignSize, ch);
+                stub.WriteChunk(&cntl, &request, &response, nullptr);
+                ASSERT_FALSE(cntl.Failed());
+                ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL,
+                          response.status());
+                // success
+                cntl.Reset();
+                request.mutable_authtoken()->set_encticket(
+                    token_.encticket());
+                request.mutable_authtoken()->set_encclientidentity(
+                    token_.encclientidentity());
+                cntl.request_attachment().resize(kOpRequestAlignSize, ch);
+                stub.WriteChunk(&cntl, &request, &response, nullptr);
                 ASSERT_FALSE(cntl.Failed());
                 ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                           response.status());
@@ -222,6 +291,27 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 request.set_offset(kOpRequestAlignSize * i);
                 request.set_size(kOpRequestAlignSize);
                 request.set_appliedindex(appliedIndex);
+                // auth fail, miss token
+                stub.ReadChunk(&cntl, &request, &response, nullptr);
+                ASSERT_FALSE(cntl.Failed());
+                ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL,
+                          response.status());
+                // auth fail, fake token
+                cntl.Reset();
+                request.mutable_authtoken()->set_encticket(
+                    fakeToken_.encticket());
+                request.mutable_authtoken()->set_encclientidentity(
+                    fakeToken_.encclientidentity());
+                stub.ReadChunk(&cntl, &request, &response, nullptr);
+                ASSERT_FALSE(cntl.Failed());
+                ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL,
+                          response.status());
+                // success
+                cntl.Reset();
+                request.mutable_authtoken()->set_encticket(
+                    token_.encticket());
+                request.mutable_authtoken()->set_encclientidentity(
+                    token_.encclientidentity());
                 stub.ReadChunk(&cntl, &request, &response, nullptr);
                 ASSERT_FALSE(cntl.Failed());
                 ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
@@ -247,6 +337,10 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 // lease read will not exec log read,
                 // so log index only plus 1 in one turn
                 request.set_appliedindex(appliedIndex + 1);
+                request.mutable_authtoken()->set_encticket(
+                    token_.encticket());
+                request.mutable_authtoken()->set_encclientidentity(
+                    token_.encclientidentity());
                 stub.ReadChunk(&cntl, &request, &response, nullptr);
                 ASSERT_FALSE(cntl.Failed());
                 ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
@@ -271,6 +365,10 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 request.set_sn(sn);
                 request.set_offset(kOpRequestAlignSize * i);
                 request.set_size(kOpRequestAlignSize);
+                request.mutable_authtoken()->set_encticket(
+                    token_.encticket());
+                request.mutable_authtoken()->set_encclientidentity(
+                    token_.encclientidentity());
                 cntl.request_attachment().resize(kOpRequestAlignSize, ch);
                 stub.WriteChunk(&cntl, &request, &response, nullptr);
                 ASSERT_FALSE(cntl.Failed());
@@ -290,6 +388,10 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 request.set_sn(sn);
                 request.set_offset(kOpRequestAlignSize * i);
                 request.set_size(kOpRequestAlignSize);
+                request.mutable_authtoken()->set_encticket(
+                    token_.encticket());
+                request.mutable_authtoken()->set_encclientidentity(
+                    token_.encclientidentity());
                 stub.ReadChunk(&cntl, &request, &response, nullptr);
                 ASSERT_FALSE(cntl.Failed());
                 ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
@@ -308,6 +410,27 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 request.set_copysetid(copysetId);
                 request.set_chunkid(chunkId);
                 request.set_sn(sn);
+                // auth fail, miss token
+                stub.DeleteChunk(&cntl, &request, &response, nullptr);
+                ASSERT_FALSE(cntl.Failed());
+                ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL,
+                          response.status());
+                // auth fail, fake token
+                cntl.Reset();
+                request.mutable_authtoken()->set_encticket(
+                    fakeToken_.encticket());
+                request.mutable_authtoken()->set_encclientidentity(
+                    fakeToken_.encclientidentity());
+                stub.DeleteChunk(&cntl, &request, &response, nullptr);
+                ASSERT_FALSE(cntl.Failed());
+                ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL,
+                          response.status());
+                // success
+                cntl.Reset();
+                request.mutable_authtoken()->set_encticket(
+                    token_.encticket());
+                request.mutable_authtoken()->set_encclientidentity(
+                    token_.encclientidentity());
                 stub.DeleteChunk(&cntl, &request, &response, nullptr);
                 ASSERT_FALSE(cntl.Failed());
                 ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
@@ -324,6 +447,10 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 request.set_copysetid(copysetId);
                 request.set_chunkid(chunkId);
                 request.set_sn(sn);
+                request.mutable_authtoken()->set_encticket(
+                    token_.encticket());
+                request.mutable_authtoken()->set_encclientidentity(
+                    token_.encclientidentity());
                 stub.DeleteChunk(&cntl, &request, &response, nullptr);
                 ASSERT_FALSE(cntl.Failed());
                 ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
@@ -342,6 +469,10 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 request.set_sn(sn);
                 request.set_offset(kOpRequestAlignSize * i);
                 request.set_size(kOpRequestAlignSize);
+                request.mutable_authtoken()->set_encticket(
+                    token_.encticket());
+                request.mutable_authtoken()->set_encclientidentity(
+                    token_.encclientidentity());
                 stub.ReadChunk(&cntl, &request, &response, nullptr);
                 ASSERT_FALSE(cntl.Failed());
                 ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST,
@@ -361,6 +492,10 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 request.set_offset(kOpRequestAlignSize * i);
                 request.set_size(kOpRequestAlignSize);
                 request.set_appliedindex(1);
+                request.mutable_authtoken()->set_encticket(
+                    token_.encticket());
+                request.mutable_authtoken()->set_encclientidentity(
+                    token_.encclientidentity());
                 stub.ReadChunk(&cntl, &request, &response, nullptr);
                 ASSERT_FALSE(cntl.Failed());
                 ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST,
@@ -379,6 +514,10 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 request.set_sn(sn);
                 request.set_offset(kOpRequestAlignSize * i);
                 request.set_size(kOpRequestAlignSize);
+                request.mutable_authtoken()->set_encticket(
+                    token_.encticket());
+                request.mutable_authtoken()->set_encclientidentity(
+                    token_.encclientidentity());
                 cntl.request_attachment().resize(kOpRequestAlignSize, ch);
                 stub.WriteChunk(&cntl, &request, &response, nullptr);
                 ASSERT_FALSE(cntl.Failed());
@@ -398,6 +537,27 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 request.set_sn(sn);
                 request.set_offset(kOpRequestAlignSize * i);
                 request.set_size(kOpRequestAlignSize);
+                // auth fail, miss token
+                stub.ReadChunkSnapshot(&cntl, &request, &response, nullptr);
+                ASSERT_FALSE(cntl.Failed());
+                ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL,
+                          response.status());
+                // auth fail, fake token
+                cntl.Reset();
+                request.mutable_authtoken()->set_encticket(
+                    fakeToken_.encticket());
+                request.mutable_authtoken()->set_encclientidentity(
+                    fakeToken_.encclientidentity());
+                stub.ReadChunkSnapshot(&cntl, &request, &response, nullptr);
+                ASSERT_FALSE(cntl.Failed());
+                ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL,
+                          response.status());
+                // success
+                cntl.Reset();
+                request.mutable_authtoken()->set_encticket(
+                    token_.encticket());
+                request.mutable_authtoken()->set_encclientidentity(
+                    token_.encclientidentity());
                 stub.ReadChunkSnapshot(&cntl, &request, &response, nullptr);
                 ASSERT_FALSE(cntl.Failed());
                 ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
@@ -416,6 +576,33 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 request.set_copysetid(copysetId);
                 request.set_chunkid(chunkId);
                 request.set_correctedsn(sn);
+                // auth fail, miss token
+                stub.DeleteChunkSnapshotOrCorrectSn(&cntl,
+                                                    &request,
+                                                    &response,
+                                                    nullptr);
+                ASSERT_FALSE(cntl.Failed());
+                ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL,
+                          response.status());
+                // auth fail, fake token
+                cntl.Reset();
+                request.mutable_authtoken()->set_encticket(
+                    fakeToken_.encticket());
+                request.mutable_authtoken()->set_encclientidentity(
+                    fakeToken_.encclientidentity());
+                stub.DeleteChunkSnapshotOrCorrectSn(&cntl,
+                                                    &request,
+                                                    &response,
+                                                    nullptr);
+                ASSERT_FALSE(cntl.Failed());
+                ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL,
+                          response.status());
+                // success
+                cntl.Reset();
+                request.mutable_authtoken()->set_encticket(
+                    token_.encticket());
+                request.mutable_authtoken()->set_encclientidentity(
+                    token_.encclientidentity());
                 stub.DeleteChunkSnapshotOrCorrectSn(&cntl,
                                                     &request,
                                                     &response,
@@ -435,6 +622,10 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 request.set_copysetid(copysetId);
                 request.set_chunkid(chunkId);
                 request.set_correctedsn(sn);
+                request.mutable_authtoken()->set_encticket(
+                    token_.encticket());
+                request.mutable_authtoken()->set_encclientidentity(
+                    token_.encclientidentity());
                 stub.DeleteChunkSnapshotOrCorrectSn(&cntl,
                                                     &request,
                                                     &response,
@@ -452,6 +643,27 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 request.set_logicpoolid(logicPoolId);
                 request.set_copysetid(copysetId);
                 request.set_chunkid(chunkId);
+                // auth fail, miss token
+                stub.GetChunkInfo(&cntl, &request, &response, nullptr);
+                ASSERT_FALSE(cntl.Failed());
+                ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL,
+                          response.status());
+                // auth fail, fake token
+                cntl.Reset();
+                request.mutable_authtoken()->set_encticket(
+                    fakeToken_.encticket());
+                request.mutable_authtoken()->set_encclientidentity(
+                    fakeToken_.encclientidentity());
+                stub.GetChunkInfo(&cntl, &request, &response, nullptr);
+                ASSERT_FALSE(cntl.Failed());
+                ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL,
+                          response.status());
+                // success
+                cntl.Reset();
+                request.mutable_authtoken()->set_encticket(
+                    token_.encticket());
+                request.mutable_authtoken()->set_encclientidentity(
+                    token_.encclientidentity());
                 stub.GetChunkInfo(&cntl, &request, &response, nullptr);
                 ASSERT_FALSE(cntl.Failed());
                 ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
@@ -478,6 +690,27 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
             request.set_chunkid(chunkId + 100);
             request.set_offset(0);
             request.set_length(kOpRequestAlignSize);
+            // auth fail, miss token
+            stub.GetChunkHash(&cntl, &request, &response, nullptr);
+            ASSERT_FALSE(cntl.Failed());
+            ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL,
+                      response.status());
+            // auth fail, fake token
+            cntl.Reset();
+            request.mutable_authtoken()->set_encticket(
+                fakeToken_.encticket());
+            request.mutable_authtoken()->set_encclientidentity(
+                fakeToken_.encclientidentity());
+            stub.GetChunkHash(&cntl, &request, &response, nullptr);
+            ASSERT_FALSE(cntl.Failed());
+            ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL,
+                      response.status());
+            // success
+            cntl.Reset();
+            request.mutable_authtoken()->set_encticket(
+                token_.encticket());
+            request.mutable_authtoken()->set_encclientidentity(
+                token_.encclientidentity());
             stub.GetChunkHash(&cntl, &request, &response, nullptr);
             ASSERT_FALSE(cntl.Failed());
             ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
@@ -496,6 +729,10 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
             request.set_chunkid(chunkId + 100);
             request.set_offset(3);
             request.set_length(kOpRequestAlignSize);
+            request.mutable_authtoken()->set_encticket(
+                token_.encticket());
+            request.mutable_authtoken()->set_encclientidentity(
+                token_.encclientidentity());
             stub.GetChunkHash(&cntl, &request, &response, nullptr);
             ASSERT_FALSE(cntl.Failed());
             ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
@@ -515,6 +752,10 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
             request.set_sn(sn);
             request.set_offset(0);
             request.set_size(kOpRequestAlignSize);
+            request.mutable_authtoken()->set_encticket(
+                token_.encticket());
+            request.mutable_authtoken()->set_encclientidentity(
+                token_.encclientidentity());
             cntl.request_attachment().resize(kOpRequestAlignSize, ch);
             stub.WriteChunk(&cntl, &request, &response, nullptr);
             LOG_IF(INFO, cntl.Failed()) << cntl.ErrorText();
@@ -536,6 +777,10 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
             request.set_sn(sn);
             request.set_offset(0);
             request.set_size(kOpRequestAlignSize);
+            request.mutable_authtoken()->set_encticket(
+                token_.encticket());
+            request.mutable_authtoken()->set_encclientidentity(
+                token_.encclientidentity());
             stub.ReadChunk(&cntl, &request, &response, nullptr);
             ASSERT_FALSE(cntl.Failed());
             ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
@@ -553,6 +798,10 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
             request.set_logicpoolid(logicPoolId);
             request.set_copysetid(copysetId);
             request.set_chunkid(chunkId);
+            request.mutable_authtoken()->set_encticket(
+                token_.encticket());
+            request.mutable_authtoken()->set_encclientidentity(
+                token_.encclientidentity());
             stub.GetChunkInfo(&cntl, &request, &response, nullptr);
             ASSERT_FALSE(cntl.Failed());
             ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
@@ -571,6 +820,10 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
             request.set_chunkid(chunkId);
             request.set_offset(0);
             request.set_length(kOpRequestAlignSize);
+            request.mutable_authtoken()->set_encticket(
+                token_.encticket());
+            request.mutable_authtoken()->set_encclientidentity(
+                token_.encclientidentity());
             stub.GetChunkHash(&cntl, &request, &response, nullptr);
             ASSERT_FALSE(cntl.Failed());
             ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
@@ -611,6 +864,10 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 request.set_sn(sn);
                 request.set_offset(offset);
                 request.set_size(requstSize);
+                request.mutable_authtoken()->set_encticket(
+                    token_.encticket());
+                request.mutable_authtoken()->set_encclientidentity(
+                    token_.encclientidentity());
                 cntl.request_attachment().append(writeBuffer);
                 stub.WriteChunk(&cntl, &request, &response, nullptr);
                 ASSERT_FALSE(cntl.Failed());
@@ -630,6 +887,10 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 request.set_sn(sn);
                 request.set_offset(offset);
                 request.set_size(requstSize);
+                request.mutable_authtoken()->set_encticket(
+                    token_.encticket());
+                request.mutable_authtoken()->set_encclientidentity(
+                    token_.encclientidentity());
                 stub.ReadChunk(&cntl, &request, &response, nullptr);
                 ASSERT_FALSE(cntl.Failed());
                 ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
@@ -646,6 +907,10 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 request.set_logicpoolid(logicPoolId);
                 request.set_copysetid(copysetId);
                 request.set_chunkid(i);
+                request.mutable_authtoken()->set_encticket(
+                    token_.encticket());
+                request.mutable_authtoken()->set_encclientidentity(
+                    token_.encclientidentity());
                 stub.GetChunkInfo(&cntl, &request, &response, nullptr);
                 ASSERT_FALSE(cntl.Failed());
                 ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
@@ -661,6 +926,10 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 request.set_logicpoolid(logicPoolId);
                 request.set_copysetid(copysetId);
                 request.set_chunkid(kMaxChunk + 1);
+                request.mutable_authtoken()->set_encticket(
+                    token_.encticket());
+                request.mutable_authtoken()->set_encclientidentity(
+                    token_.encclientidentity());
                 stub.GetChunkInfo(&cntl, &request, &response, nullptr);
                 ASSERT_FALSE(cntl.Failed());
                 ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
@@ -680,6 +949,10 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 request.set_copysetid(copysetId);
                 request.set_chunkid(i);
                 request.set_sn(sn);
+                request.mutable_authtoken()->set_encticket(
+                    token_.encticket());
+                request.mutable_authtoken()->set_encclientidentity(
+                    token_.encclientidentity());
                 stub.DeleteChunk(&cntl, &request, &response, nullptr);
                 ASSERT_FALSE(cntl.Failed());
                 ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
@@ -696,6 +969,10 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 request.set_copysetid(copysetId);
                 request.set_chunkid(i);
                 request.set_sn(sn);
+                request.mutable_authtoken()->set_encticket(
+                    token_.encticket());
+                request.mutable_authtoken()->set_encclientidentity(
+                    token_.encclientidentity());
                 stub.DeleteChunk(&cntl, &request, &response, nullptr);
                 ASSERT_FALSE(cntl.Failed());
                 ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
@@ -725,6 +1002,10 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
             request.set_sn(sn);
             request.set_offset(offset);
             request.set_size(requestSize);
+            request.mutable_authtoken()->set_encticket(
+                token_.encticket());
+            request.mutable_authtoken()->set_encclientidentity(
+                token_.encclientidentity());
             cntl.request_attachment().resize(requestSize, ch);
             stub.WriteChunk(&cntl, &request, &response, nullptr);
             ASSERT_FALSE(cntl.Failed());
@@ -744,6 +1025,10 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
             request.set_sn(sn);
             request.set_offset(offset);
             request.set_size(requestSize);
+            request.mutable_authtoken()->set_encticket(
+                token_.encticket());
+            request.mutable_authtoken()->set_encclientidentity(
+                token_.encclientidentity());
             stub.ReadChunk(&cntl, &request, &response, nullptr);
             ASSERT_FALSE(cntl.Failed());
             ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
@@ -765,6 +1050,10 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
             request.set_copysetid(copysetId);
             request.set_chunkid(chunkId);
             request.set_sn(sn);
+            request.mutable_authtoken()->set_encticket(
+                token_.encticket());
+            request.mutable_authtoken()->set_encclientidentity(
+                token_.encclientidentity());
             stub.DeleteChunk(&cntl, &request, &response, nullptr);
             ASSERT_FALSE(cntl.Failed());
             ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
@@ -784,13 +1073,17 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
             request.set_sn(sn);
             request.set_offset(offset);
             request.set_size(requestSize);
+            request.mutable_authtoken()->set_encticket(
+                token_.encticket());
+            request.mutable_authtoken()->set_encclientidentity(
+                token_.encclientidentity());
             stub.ReadChunk(&cntl, &request, &response, nullptr);
             ASSERT_FALSE(cntl.Failed());
             ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST,
                       response.status());
         }
     }
-}
+}  // NOLINT
 
 }  // namespace chunkserver
 }  // namespace curve

@@ -42,6 +42,8 @@ const char* kGetFileSnapshotListAction = "GetFileSnapshotList";
 const char* kGetCloneTaskListAction = "GetCloneTaskList";
 const char* kGetCloneRefStatusAction = "GetCloneRefStatus";
 
+const char* kAuthTicketStr = "Ticket";
+const char* kAuthCIdStr = "CId";
 const char* kActionStr = "Action";
 const char* kVersionStr = "Version";
 const char* kUserStr = "User";

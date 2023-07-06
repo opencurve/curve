@@ -35,11 +35,13 @@
 #include "src/chunkserver/chunkserver_metrics.h"
 #include "src/chunkserver/concurrent_apply/concurrent_apply.h"
 #include "src/chunkserver/scan_service.h"
+#include "src/client/auth_client.h"
 
 using ::curve::chunkserver::concurrent::ConcurrentApplyOption;
 
 namespace curve {
 namespace chunkserver {
+
 class ChunkServer {
  public:
     /**
@@ -119,6 +121,9 @@ class ChunkServer {
 
     // install snapshot流控
     scoped_refptr<SnapshotThrottle> snapshotThrottle_;
+
+    // auth client
+    std::shared_ptr<curve::client::AuthClient> authClient_;
 };
 
 }  // namespace chunkserver

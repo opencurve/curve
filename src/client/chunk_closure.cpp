@@ -26,6 +26,7 @@
 #include <memory>
 #include <algorithm>
 
+#include "include/client/libcurve_define.h"
 #include "src/client/client_common.h"
 #include "src/client/copyset_client.h"
 #include "src/client/metacache.h"
@@ -238,6 +239,14 @@ void ClientClosure::Run() {
             OnEpochTooOld();
             break;
 
+        case CHUNK_OP_STATUS::CHUNK_OP_STATUS_GET_AUTH_TOKEN_FAIL:
+            OnGetAuthTokenFail();
+            break;
+
+        case CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL:
+            OnAuthFail();
+            break;
+
         default:
             needRetry = true;
             LOG(WARNING) << OpTypeToString(reqCtx_->optype_)
@@ -359,6 +368,28 @@ void ClientClosure::OnEpochTooOld() {
     LOG(WARNING) << OpTypeToString(reqCtx_->optype_)
         << " epoch too old, reqCtx: " << *reqCtx_
         << ", status: " << status_
+        << ", retried times: " << reqDone_->GetRetriedTimes()
+        << ", IO id: " << reqDone_->GetIOTracker()->GetID()
+        << ", request id: " << reqCtx_->id_
+        << ", remote side: "
+        << butil::endpoint2str(cntl_->remote_side()).c_str();
+}
+
+void ClientClosure::OnGetAuthTokenFail() {
+    reqDone_->SetFailed(status_);
+    LOG(ERROR) << OpTypeToString(reqCtx_->optype_)
+        << " get auth token failed, reqCtx: " << *reqCtx_
+        << ", retried times: " << reqDone_->GetRetriedTimes()
+        << ", IO id: " << reqDone_->GetIOTracker()->GetID()
+        << ", request id: " << reqCtx_->id_
+        << ", remote side: "
+        << butil::endpoint2str(cntl_->remote_side()).c_str();
+}
+
+void ClientClosure::OnAuthFail() {
+    reqDone_->SetFailed(status_);
+    LOG(ERROR) << OpTypeToString(reqCtx_->optype_)
+        << " request auth failed, reqCtx: " << *reqCtx_
         << ", retried times: " << reqDone_->GetRetriedTimes()
         << ", IO id: " << reqDone_->GetIOTracker()->GetID()
         << ", request id: " << reqCtx_->id_

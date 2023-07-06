@@ -43,6 +43,7 @@ cc_library(
         "//proto:nameserver2_cc_proto",
         "//proto:topology_cc_proto",
         "//proto:chunkserver-cc-protos",
+        "//proto:auth_cc_proto",
     ],
 )
 

@@ -310,6 +310,8 @@ TEST_F(CopysetNodeTest, error_test) {
         defaultOptions_.syncChunkLimit = 2 * 1024 * 1024;
         defaultOptions_.syncThreshold = 65536;
         ASSERT_EQ(0, copysetNode.Init(defaultOptions_));
+        CopysetNode::copysetSyncPool_ =
+            std::make_shared<common::TaskThreadPool<>>();
 
         ChunkID id1 = 100;
         ChunkID id2 = 200;

@@ -21,6 +21,9 @@
  */
 
 #include <gflags/gflags.h>
+#include "src/client/auth_client.h"
+#include "src/client/config_info.h"
+#include "src/common/authenticator.h"
 #include "src/common/curve_version.h"
 #include "src/tools/curve_tool_factory.h"
 
@@ -63,7 +66,11 @@ static const char* kHelpStr = "Usage: curve_ops_tool [Command] [OPTIONS...]\n"
         "rapid-leader-schedule: rapid leader schedule in cluster in logicalpool\n"  //NOLINT
         "set-scan-state: set scan state for specify logical pool\n"
         "scan-status: show scan status\n"
-        "list-poolsets: list all poolsets in cluster\n\n"
+        "list-poolsets: list all poolsets in cluster\n"
+        "auth-key-add: add auth key\n"
+        "auth-key-delete: delete auth key\n"
+        "auth-key-get: get auth key\n"
+        "auth-key-update: update auth key\n\n"
         "You can specify the config path by -confPath to avoid typing too many options\n";  //NOLINT
 
 DEFINE_bool(example, false, "print the example of usage");
@@ -76,6 +83,7 @@ namespace curve {
 namespace tool {
 extern std::string rootUserName;
 extern std::string rootUserPassword;
+extern curve::client::AuthClient authClient;
 }  // namespace tool
 }  // namespace curve
 
@@ -167,6 +175,16 @@ int main(int argc, char** argv) {
     }
 
     UpdateFlagsFromConf(&conf);
+
+    // init auth client
+    curve::common::AuthClientOption authOption;
+    curve::client::MetaServerOption metaServerOption;
+    curve::common::SplitString(FLAGS_mdsAddr, ",",
+        &metaServerOption.rpcRetryOpt.addrs);
+    // InitAuthClientOption
+    authOption.Load(&conf);
+    curve::tool::authClient.Init(metaServerOption, authOption);
+
 
     // 关掉健康检查，否则Not Connect to的时候重试没有意义
     brpc::FLAGS_health_check_interval = -1;

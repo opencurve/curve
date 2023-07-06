@@ -24,7 +24,7 @@
 #define SRC_CLIENT_CLIENT_CONFIG_H_
 
 #include <string>
-
+#include <memory>
 #include "src/client/config_info.h"
 #include "src/common/configuration.h"
 
@@ -37,6 +37,12 @@ class ClientConfig {
 
     const FileServiceOption& GetFileServiceOption() const {
         return fileServiceOption_;
+    }
+
+    void SetAuthClient(const std::shared_ptr<AuthClient>& authClient) {
+        fileServiceOption_.ioOpt.ioSenderOpt.authClient = authClient;
+        fileServiceOption_.ioOpt.reqSchdulerOpt.ioSenderOpt.authClient =
+            authClient;
     }
 
     int GetDummyserverStartPort();

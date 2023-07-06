@@ -23,6 +23,7 @@ cc_test(
         "//external:gtest",
         "//src/mds/schedule/scheduleService:scheduleservice",
         "//test/mds/mock:common_mock",
+        "//test/common:common_mock",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main"
     ],

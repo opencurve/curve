@@ -74,6 +74,7 @@ class Topology {
     virtual std::string AllocateToken() = 0;
 
     virtual int AddPoolset(const Poolset &data) = 0;
+    virtual int RemovePoolset(PoolsetIdType id) = 0;
     virtual int AddLogicalPool(const LogicalPool &data) = 0;
     virtual int AddPhysicalPool(const PhysicalPool &data) = 0;
     virtual int AddZone(const Zone &data) = 0;
@@ -81,7 +82,6 @@ class Topology {
     virtual int AddChunkServer(const ChunkServer &data) = 0;
     virtual int AddCopySet(const CopySetInfo &data) = 0;
 
-    virtual int RemovePoolset(PoolsetIdType id) = 0;
     virtual int RemoveLogicalPool(PoolIdType id) = 0;
     virtual int RemovePhysicalPool(PoolIdType id) = 0;
     virtual int RemoveZone(ZoneIdType id) = 0;
@@ -99,11 +99,11 @@ class Topology {
      *
      * @return error code
      */
-    virtual int UpdateLogicalPoolAllocateStatus(const AllocateStatus &status,
-                                        PoolIdType id) = 0;
+    virtual int UpdateLogicalPoolAllocateStatus(
+        const AllocateStatus &status, PoolIdType id) = 0;
 
     virtual int UpdateLogicalPoolScanState(PoolIdType lpid,
-                                           bool scanEnable) = 0;
+                                                 bool scanEnable) = 0;
 
     virtual int UpdatePhysicalPool(const PhysicalPool &data) = 0;
     virtual int UpdateZone(const Zone &data) = 0;
@@ -130,8 +130,9 @@ class Topology {
      *
      * @return error code
      */
-    virtual int UpdateChunkServerRwState(const ChunkServerStatus &rwState,
-                                  ChunkServerIdType id) = 0;
+    virtual int UpdateChunkServerRwState(
+        const ChunkServerStatus &rwState,
+        ChunkServerIdType id) = 0;
     /**
      * @brief update chunkserver online status
      * - only online status will be updated
@@ -143,8 +144,9 @@ class Topology {
      *
      * @return error code
      */
-    virtual int UpdateChunkServerOnlineState(const OnlineState &onlineState,
-                                  ChunkServerIdType id) = 0;
+    virtual int UpdateChunkServerOnlineState(
+        const OnlineState &onlineState,
+        ChunkServerIdType id) = 0;
     /**
      * @brief update chunkserver disk status
      * - only disk state will be updated
@@ -156,8 +158,9 @@ class Topology {
      *
      * @return error code
      */
-    virtual int UpdateChunkServerDiskStatus(const ChunkServerState &state,
-                                       ChunkServerIdType id) = 0;
+    virtual int UpdateChunkServerDiskStatus(
+        const ChunkServerState &state,
+        ChunkServerIdType id) = 0;
 
     /**
      * @brief update chunkserver version
@@ -180,7 +183,7 @@ class Topology {
      * @return error code
      */
     virtual int UpdateChunkServerStartUpTime(uint64_t time,
-                         ChunkServerIdType id) = 0;
+        ChunkServerIdType id) = 0;
 
     /**
      * @brief update copyset info
@@ -196,7 +199,8 @@ class Topology {
      */
     virtual int UpdateCopySetTopo(const CopySetInfo &data) = 0;
 
-    virtual int SetCopySetAvalFlag(const CopySetKey &key, bool aval) = 0;
+    virtual int SetCopySetAvalFlag(const CopySetKey &key,
+        bool aval) = 0;
 
     virtual PoolsetIdType FindPoolset(const std::string &poolsetName) const = 0;
 
@@ -418,9 +422,9 @@ class TopologyImpl : public Topology {
     std::string AllocateToken() override;
 
     int AddPoolset(const Poolset &data) override;
+    int RemovePoolset(PoolsetIdType id) override;
     int AddLogicalPool(const LogicalPool &data) override;
     int AddPhysicalPool(const PhysicalPool &data) override;
-    // int AddPhysicalPoolJustForTest(const PhysicalPool &data) override;
     int AddZone(const Zone &data) override;
     int AddServer(const Server &data) override;
     int AddChunkServer(const ChunkServer &data) override;
@@ -428,7 +432,6 @@ class TopologyImpl : public Topology {
 
     int RemoveLogicalPool(PoolIdType id) override;
     int RemovePhysicalPool(PoolIdType id) override;
-    int RemovePoolset(PoolsetIdType id) override;
     int RemoveZone(ZoneIdType id) override;
     int RemoveServer(ServerIdType id) override;
     int RemoveChunkServer(ChunkServerIdType id) override;
@@ -459,7 +462,8 @@ class TopologyImpl : public Topology {
 
     int UpdateCopySetTopo(const CopySetInfo &data) override;
 
-    int SetCopySetAvalFlag(const CopySetKey &key, bool aval) override;
+    int SetCopySetAvalFlag(const CopySetKey &key, bool aval)
+        override;
 
     PoolsetIdType FindPoolset(const std::string &poolsetName) const override;
 
@@ -660,7 +664,7 @@ class TopologyImpl : public Topology {
      * @return error code
      */
     int GetBelongPhysicalPoolId(ChunkServerIdType csId,
-        PoolIdType *physicalPoolIdOut) override;
+        PoolIdType *physicalPoolIdOut);
 
     /**
      * @brief  get physicalPool Id that the server belongs to

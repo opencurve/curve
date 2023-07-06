@@ -36,8 +36,10 @@
 #include "src/common/uri_parser.h"
 #include "src/chunkserver/heartbeat_helper.h"
 #include "src/common/curve_version.h"
+#include "src/common/authenticator.h"
 
 using curve::fs::FileSystemInfo;
+using curve::client::AuthClient;
 
 namespace curve {
 namespace chunkserver {
@@ -306,6 +308,14 @@ int Heartbeat::BuildRequest(HeartbeatRequest* req) {
     }
     req->set_leadercount(leaders);
     req->set_version(curve::common::CurveVersion());
+
+    // add auth token
+    auto isGet = options_.authClient->GetToken(curve::common::MDS_ROLE,
+        req->mutable_authtoken());
+    if (!isGet) {
+        LOG(ERROR) << "BuildHeartbeat get auth token failed";
+        return -1;
+    }
 
     return 0;
 }

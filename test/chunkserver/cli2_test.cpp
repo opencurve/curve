@@ -28,6 +28,7 @@
 #include <brpc/channel.h>
 #include <brpc/controller.h>
 #include <brpc/server.h>
+#include <memory>
 
 #include <iostream>
 

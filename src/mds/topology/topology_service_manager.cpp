@@ -39,6 +39,8 @@
 #include "brpc/server.h"
 #include "proto/copyset.pb.h"
 
+#include "src/client/auth_client.h"
+#include "src/common/authenticator.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/concurrent/name_lock.h"
 #include "src/mds/common/mds_define.h"
@@ -1236,18 +1238,18 @@ bool TopologyServiceManager::CreateCopysetNodeOnChunkServer(
         copyset->set_copysetid(cs.GetId());
 
         for (ChunkServerIdType id : cs.GetCopySetMembers()) {
-                ChunkServer chunkserverInfo;
-                if (true != topology_->GetChunkServer(id, &chunkserverInfo)) {
-                    return false;
-                }
+            ChunkServer chunkserverInfo;
+            if (true != topology_->GetChunkServer(id, &chunkserverInfo)) {
+                return false;
+            }
 
-                std::string address =
-                    BuildPeerId(chunkserverInfo.GetHostIp(),
-                    chunkserverInfo.GetPort());
+            std::string address =
+                BuildPeerId(chunkserverInfo.GetHostIp(),
+                chunkserverInfo.GetPort());
 
-                ::curve::common::Peer *peer = copyset->add_peers();
-                peer->set_id(id);
-                peer->set_address(address);
+            ::curve::common::Peer *peer = copyset->add_peers();
+            peer->set_id(id);
+            peer->set_address(address);
         }
     }
 

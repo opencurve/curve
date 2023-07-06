@@ -26,6 +26,7 @@
 #include "src/mds/schedule/scheduler.h"
 #include "src/mds/schedule/operatorFactory.h"
 #include "src/mds/schedule/scheduler_helper.h"
+#include "proto/schedule.pb.h"
 
 namespace curve {
 namespace mds {

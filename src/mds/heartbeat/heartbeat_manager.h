@@ -107,8 +107,9 @@ class HeartbeatManager {
      * @param[in] request RPC heartbeat request
      * @param[out] response Response of heartbeat request
      */
-    void ChunkServerHeartbeat(const ChunkServerHeartbeatRequest &request,
-                                ChunkServerHeartbeatResponse *response);
+    virtual void ChunkServerHeartbeat(
+        const ChunkServerHeartbeatRequest &request,
+        ChunkServerHeartbeatResponse *response);
 
  private:
     /**

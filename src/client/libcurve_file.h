@@ -31,6 +31,7 @@
 #include <memory>
 
 #include "include/client/libcurve.h"
+#include "src/client/auth_client.h"
 #include "src/client/client_common.h"
 #include "src/client/file_instance.h"
 #include "src/common/concurrent/rw_lock.h"
@@ -334,6 +335,8 @@ class FileClient {
 
     // 挂载文件数量
     bvar::Adder<uint64_t> openedFileNum_;
+
+    std::shared_ptr<AuthClient> authClient_;
 };
 
 }  // namespace client
