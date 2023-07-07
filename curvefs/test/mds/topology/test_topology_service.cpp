@@ -129,6 +129,32 @@ TEST_F(TestTopologyService, test_RegistMetaServer_success) {
     ASSERT_EQ(TopoStatusCode::TOPO_OK, response.statuscode());
 }
 
+TEST_F(TestTopologyService, test_RegistMetaServer_withouthostname_success) {
+    TopologyService_Stub stub(&channel_);
+
+    brpc::Controller cntl;
+    MetaServerRegistRequest request;
+    request.set_internalip("127.0.0.1");
+    request.set_internalport(8888);
+    request.set_externalip("127.0.0.1");
+    request.set_externalport(9999);
+
+    MetaServerRegistResponse response;
+
+    MetaServerRegistResponse reps;
+    reps.set_statuscode(TopoStatusCode::TOPO_OK);
+    EXPECT_CALL(*manager_, RegistMetaServer(_, _))
+    .WillRepeatedly(SetArgPointee<1>(reps));
+
+    stub.RegistMetaServer(&cntl, &request, &response, nullptr);
+
+    if (cntl.Failed()) {
+        FAIL() << cntl.ErrorText() << std::endl;
+    }
+
+    ASSERT_EQ(TopoStatusCode::TOPO_OK, response.statuscode());
+}
+
 TEST_F(TestTopologyService, test_RegistMetaServer_fail) {
     TopologyService_Stub stub(&channel_);
 
@@ -300,6 +326,34 @@ TEST_F(TestTopologyService, test_RegistServer_success) {
     brpc::Controller cntl;
     ServerRegistRequest request;
     request.set_hostname("1");
+    request.set_internalip("2");
+    request.set_internalport(2);
+    request.set_externalip("3");
+    request.set_externalport(3);
+    request.set_zonename("zone");
+    request.set_poolname("pool");
+
+    ServerRegistResponse response;
+
+    ServerRegistResponse reps;
+    reps.set_statuscode(TopoStatusCode::TOPO_OK);
+    EXPECT_CALL(*manager_, RegistServer(_, _))
+    .WillRepeatedly(SetArgPointee<1>(reps));
+
+    stub.RegistServer(&cntl, &request, &response, nullptr);
+
+    if (cntl.Failed()) {
+        FAIL() << cntl.ErrorText() << std::endl;
+    }
+
+    ASSERT_EQ(TopoStatusCode::TOPO_OK, response.statuscode());
+}
+
+TEST_F(TestTopologyService, test_RegistServer_WithoutHostname_success) {
+    TopologyService_Stub stub(&channel_);
+
+    brpc::Controller cntl;
+    ServerRegistRequest request;
     request.set_internalip("2");
     request.set_internalport(2);
     request.set_externalip("3");

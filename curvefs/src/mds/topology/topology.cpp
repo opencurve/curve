@@ -1666,8 +1666,12 @@ std::string TopologyImpl::GetHostNameAndPortById(MetaServerIdType msId) {
         return "";
     }
 
-    // get hostName of the metaserver
-    return server.GetHostName() + ":" + std::to_string(ms.GetInternalPort());
+    // get hostname of the metaserver
+    std::string hostname = server.GetHostName();
+    if (hostname.empty()) {
+        hostname = server.GetInternalIp();
+    }
+    return hostname + ":" + std::to_string(ms.GetInternalPort());
 }
 
 bool TopologyImpl::IsCopysetCreating(const CopySetKey &key) const {

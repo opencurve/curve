@@ -62,11 +62,10 @@ int Register::RegisterToMDS(MetaServerMetadata *metadata) {
     char hostname[128];
     int ret = gethostname(hostname, sizeof(hostname));
     if (ret == -1) {
-        LOG(ERROR) << "get hostname failed!";
-        return -1;
+        LOG(INFO) << "get hostname failed!";
+    } else {
+        req.set_hostname(hostname);
     }
-
-    req.set_hostname(hostname);
     req.set_internalip(ops_.metaserverInternalIp);
     req.set_internalport(ops_.metaserverInternalPort);
     req.set_externalip(ops_.metaserverExternalIp);

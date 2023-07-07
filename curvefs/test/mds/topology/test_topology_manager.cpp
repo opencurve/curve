@@ -294,6 +294,40 @@ TEST_F(TestTopologyManager, test_RegistMetaServer_SuccessWithExIp) {
     ASSERT_EQ(TopoStatusCode::TOPO_METASERVER_EXIST, response.statuscode());
 }
 
+TEST_F(TestTopologyManager, test_RegistMetaServer_SuccesssWithoutHostname) {
+    MetaServerIdType msId = 0x41;
+    ServerIdType serverId = 0x31;
+    std::string token = "token";
+
+    PrepareAddPool();
+    PrepareAddZone();
+    PrepareAddServer(serverId, "", "testInternalIp", 0, "externalIp1",
+                     0);
+
+    MetaServerRegistRequest request;
+    request.set_internalip("testInternalIp");
+    request.set_internalport(0);
+    request.set_externalip("externalIp1");
+    request.set_externalport(0);
+
+    MetaServerRegistResponse response;
+
+    EXPECT_CALL(*tokenGenerator_, GenToken()).WillOnce(Return(token));
+    EXPECT_CALL(*idGenerator_, GenMetaServerId()).WillOnce(Return(msId));
+
+    EXPECT_CALL(*storage_, StorageMetaServer(_)).WillOnce(Return(true));
+    serviceManager_->RegistMetaServer(&request, &response);
+
+    ASSERT_EQ(TopoStatusCode::TOPO_OK, response.statuscode());
+    ASSERT_TRUE(response.has_metaserverid());
+    ASSERT_EQ(msId, response.metaserverid());
+    ASSERT_TRUE(response.has_token());
+    ASSERT_EQ(token, response.token());
+    MetaServer metaserver;
+    ASSERT_TRUE(topology_->GetMetaServer(msId, &metaserver));
+    ASSERT_EQ("externalIp1", metaserver.GetExternalIp());
+}
+
 TEST_F(TestTopologyManager, test_RegistMetaServer_SuccessWithOfflineMs) {
     MetaServerIdType msId = 0x41;
     MetaServerIdType msId2 = 0x42;
@@ -602,6 +636,31 @@ TEST_F(TestTopologyManager, test_DeleteMetaServer_MetaServerNotFound) {
     serviceManager_->DeleteMetaServer(&request, &response);
 
     ASSERT_EQ(TopoStatusCode::TOPO_METASERVER_NOT_FOUND, response.statuscode());
+}
+
+TEST_F(TestTopologyManager, test_RegistServer_WithoutHostnameSuccess) {
+    ServerIdType id = 0x31;
+    PoolIdType poolId = 0x11;
+    ZoneIdType zoneId = 0x21;
+    PrepareAddPool(poolId, "pool1");
+    PrepareAddZone(zoneId, "zone1", poolId);
+
+    ServerRegistRequest request;
+    request.set_internalip("ip1");
+    request.set_externalip("ip2");
+    request.set_zonename("zone1");
+    request.set_poolname("pool1");
+
+    ServerRegistResponse response;
+
+    EXPECT_CALL(*idGenerator_, GenServerId()).WillOnce(Return(id));
+    EXPECT_CALL(*storage_, StorageServer(_)).WillOnce(Return(true));
+
+    serviceManager_->RegistServer(&request, &response);
+
+    ASSERT_EQ(TopoStatusCode::TOPO_OK, response.statuscode());
+    ASSERT_TRUE(response.has_serverid());
+    ASSERT_EQ(id, response.serverid());
 }
 
 TEST_F(TestTopologyManager, test_RegistServer_ByZoneAndPoolNameSuccess) {
