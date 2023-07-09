@@ -26,6 +26,7 @@
 #include "src/leader_election/leader_election.h"
 #include "src/common/namespace_define.h"
 #include "test/mds/mock/mock_etcdclient.h"
+#include "test/mds/mock/mock_mysqlclient.h"
 #include "src/mds/nameserver2/helper/namespace_helper.h"
 
 using ::testing::_;
@@ -42,10 +43,10 @@ using ::curve::election::LeaderElection;
 using ::curve::election::LeaderElectionOptions;
 
 TEST(TestLeaderElection, test_leader_election) {
-    auto client = std::make_shared<MockEtcdClient>();
-    //TODO
+    //auto client = std::make_shared<MockEtcdClient>();
+    auto client = std::make_shared<MockMysqlClient>();
     LeaderElectionOptions opts;
-    opts.etcdCli = client;
+    opts.etcdCli = client;//
     opts.leaderUniqueName = "leader1";
     opts.sessionInterSec = 1;
     opts.electionTimeoutMs = 0;

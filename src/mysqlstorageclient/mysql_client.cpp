@@ -1,5 +1,7 @@
 #include <glog/logging.h>
 #include <cassert>
+#include <chrono>
+#include <thread>
 #include "src/common/string_util.h"
 #include "src/mysqlstorageclient/mysql_client.h"
 
@@ -12,6 +14,7 @@ int MysqlClientImp::Init(MysqlConf conf, int timeout, int retryTiems) {
     try {
         sql::Driver *driver = sql::mysql::get_driver_instance();
         conn_ = driver->connect(conf.host_, conf.user_, conf.passwd_);
+        is_connected_.store(true);
         conn_->setSchema(conf.db_);
         stmt_ = conn_->createStatement();
        
@@ -24,23 +27,23 @@ int MysqlClientImp::Init(MysqlConf conf, int timeout, int retryTiems) {
 
 int MysqlClientImp::CreateTable(const std::string &tableName) {
     try {
-        std::string sql = "CREATE TABLE IF NOT EXISTS " + tableName + "("
-               "storekey VARCHAR(255) NOT NULL,"
-               "storevalue LONGBLOB NOT NULL,"
-               "revision BIGINT NOT NULL"
-               ")";
+        std::string sql = "CREATE TABLE IF NOT EXISTS " + tableName +
+                          "("
+                          "storekey VARCHAR(255) NOT NULL,"
+                          "storevalue LONGBLOB NOT NULL,"
+                          "revision BIGINT NOT NULL"
+                          ")";
         stmt_->execute(sql);
         LOG(INFO) << "MysqlClientImp CreateTable success: " << tableName;
         sql = "CREATE TABLE IF NOT EXISTS leader_election ("
-	"elect_key varchar(255) NOT NULL ,"
-	"version bigint NOT NULL DEFAULT 0 ,"
-	"tick_time datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP ,"
-	"leader_id bigint NOT NULL DEFAULT 0 ,"
-	"create_time datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ,"
-	"update_time datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP ,"
-	"PRIMARY KEY (elect_key),"
-	"KEY idx_version (version)"
-")";
+              "elect_key varchar(255) NOT NULL ,"
+              "leader_name varchar(255) NOT NULL ,"
+              "create_time datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ,"
+              "update_time datetime NOT NULL DEFAULT CURRENT_TIMESTAMP , "
+              "leader_id bigint AUTO_INCREMENT,"
+              "PRIMARY KEY (leader_id),"
+              "UNIQUE KEY (elect_key)"
+              ")";
         stmt_->execute(sql);
     } catch (sql::SQLException &e) {
         LOG(ERROR) << "MysqlClientImp CreateTable failed, error: " << e.what();
@@ -50,29 +53,38 @@ int MysqlClientImp::CreateTable(const std::string &tableName) {
 }
 
 void MysqlClientImp::CloseClient() {
+    std::lock_guard<std::mutex> lock(conn_mutex_);
+    //删除leader信息
+    is_connected_.store(false);
+    //直接删除leaderOid
+    // try {
+    //     std::string sql = "DELETE FROM leader_election WHERE leader_id = " + std::to_string(leaderOid_) + ";";
+    //     stmt_->execute(sql);
+    // } catch (sql::SQLException &e) {
+    //     LOG(ERROR) << "MysqlClientImp CloseClient failed, error: " << e.what();
+    // }
     if (stmt_ != nullptr) {
         delete stmt_;
-        stmt_ = nullptr;
     }
     if (conn_ != nullptr) {
         delete conn_;
-        conn_ = nullptr;
     }
+    LOG(INFO) << "MysqlClientImp CloseClient success";
 }
 
 int MysqlClientImp::Put(const std::string &key, const std::string &value) {
     try {
         std::string sql = "insert into curvebs_kv(storekey, storevalue, revision) values(?,?,?);";
-        sql::PreparedStatement *pstmt = conn_->prepareStatement(sql);
-        pstmt->setString(1, key);
+        sql::PreparedStatement *prep_stmt_ = conn_->prepareStatement(sql);
+        prep_stmt_->setString(1, key);
         std::stringbuf buf(value, std::ios_base::in);
         std::istream stream(&buf);
-        pstmt->setBlob(2, &stream);
+        prep_stmt_->setBlob(2, &stream);
         int64_t *curRevision=new int64_t(0);
         GetCurrentRevision(curRevision);
-        pstmt->setInt64(3, *curRevision + 1);
-        pstmt->executeUpdate();
-        delete pstmt;
+        prep_stmt_->setInt64(3, *curRevision + 1);
+        prep_stmt_->executeUpdate();
+        delete prep_stmt_;
     } catch (sql::SQLException &e) {
         LOG(ERROR) << "MysqlClientImp Put failed, error: " << e.what();
         return -1;
@@ -84,17 +96,17 @@ int MysqlClientImp::PutRewithRevision(const std::string &key,
     const std::string &value, int64_t *revision) {
     try {
         std::string sql = "insert into curvebs_kv(storekey, storevalue, revision) values(?,?,?);";
-         sql::PreparedStatement *pstmt = conn_->prepareStatement(sql);
-        pstmt->setString(1, key);
+         sql::PreparedStatement *prep_stmt_ = conn_->prepareStatement(sql);
+        prep_stmt_->setString(1, key);
         std::stringbuf buf(value, std::ios_base::in);
         std::istream stream(&buf);
-        pstmt->setBlob(2, &stream);
+        prep_stmt_->setBlob(2, &stream);
         int64_t curRevision;
         GetCurrentRevision(&curRevision);
-        pstmt->setInt64(3, curRevision + 1);
-        pstmt->executeUpdate();
+        prep_stmt_->setInt64(3, curRevision + 1);
+        prep_stmt_->executeUpdate();
         *revision = curRevision + 1;
-        delete pstmt;
+        delete prep_stmt_;
     } catch (sql::SQLException &e) {
         LOG(ERROR) << "MysqlClientImp PutRewithRevision failed, error: " << e.what();
         return -1;
@@ -106,9 +118,9 @@ int MysqlClientImp::Get(const std::string &key, std::string *out) {
     MySQLError ret= MySQLError::MysqlOK;
     try {
         std::string sql = "select storevalue from curvebs_kv where storekey=? ORDER BY revision DESC LIMIT 1;";
-        sql::PreparedStatement *pstmt = conn_->prepareStatement(sql);
-        pstmt->setString(1, key);
-        std::unique_ptr<sql::ResultSet> res(pstmt->executeQuery());
+        sql::PreparedStatement *prep_stmt_ = conn_->prepareStatement(sql);
+        prep_stmt_->setString(1, key);
+        std::unique_ptr<sql::ResultSet> res(prep_stmt_->executeQuery());
         while(res->next())
         {
             std::unique_ptr<std::istream> is(res->getBlob("storevalue"));
@@ -258,55 +270,54 @@ int MysqlClientImp::CompareAndSwap(const std::string &key,
         std::string sql = "select storevalue from curvebs_kv where storekey='" + key + "' order by revision desc limit 1;";
         sql::ResultSet *res = stmt_->executeQuery(sql);
         if (res->next()) {
-            //存在，比较
+            // 存在，比较
             std::string storevalue;
             std::unique_ptr<std::istream> is(res->getBlob("storevalue"));
             is->seekg(0, is->end);
             int len = is->tellg();
             is->seekg(0, is->beg);
-            LOG(INFO)<<len;
-            if(len > 0)
-            {
+            LOG(INFO) << len;
+            if (len > 0) {
                 storevalue.resize(len);
-                is->read(&storevalue[0], len);  
-            }
-            else
-            {
+                is->read(&storevalue[0], len);
+            } else {
                 storevalue.clear();
             }
             if (storevalue != preV) {
-                //不满足条件，回滚
+                // 不满足条件，回滚
                 conn_->rollback();
                 delete res;
                 return -1;
-            }else{
-                //满足条件，更新
-                std::string sql2 = "update curvebs_kv set storevalue=? ,revision=? where storekey=?;";
-                sql::PreparedStatement *pstmt = conn_->prepareStatement(sql2);
-                pstmt->setString(3, key);
+            } else {
+                // 满足条件，更新
+                std::string sql2 = "update curvebs_kv set storevalue=? "
+                                   ",revision=? where storekey=?;";
+                sql::PreparedStatement *prep_stmt_ =
+                    conn_->prepareStatement(sql2);
+                prep_stmt_->setString(3, key);
                 std::stringbuf buf(target, std::ios_base::in);
                 std::istream stream(&buf);
-                pstmt->setBlob(1, &stream);
+                prep_stmt_->setBlob(1, &stream);
                 int64_t curRevision;
                 GetCurrentRevision(&curRevision);
-                LOG(INFO)<<"curRevision:"<<curRevision;
-                pstmt->setInt64(2, curRevision + 1);
-                pstmt->executeUpdate();
+                LOG(INFO) << "curRevision:" << curRevision;
+                prep_stmt_->setInt64(2, curRevision + 1);
+                prep_stmt_->executeUpdate();
 
                 conn_->commit();
                 delete res;
                 return 0;
             }
         } else {
-            LOG(INFO) << "MysqlClientImp CompareAndSwap failed, key: " << key << " not exist, insert it";
-            //不存在，插入
-            int errCode=Put(key, target);
-            LOG(INFO)<<"put ret:"<<errCode;
+            LOG(INFO) << "MysqlClientImp CompareAndSwap failed, key: " << key
+                      << " not exist, insert it";
+            // 不存在，插入
+            int errCode = Put(key, target);
+            LOG(INFO) << "put ret:" << errCode;
             conn_->commit();
             delete res;
             return errCode;
         }
-        delete res;
     }catch (sql::SQLException &e) {
         LOG(ERROR) << "MysqlClientImp CompareAndSwap failed, error: " << e.what();
         conn_->rollback();
@@ -411,27 +422,96 @@ int MysqlClientImp::TxnN(const std::vector<Operation> &ops) {
     return 0;
 }
 
-int MysqlClientImp::CampaignLeader( const std::string &pfx, const std::string &leaderName,
-    uint32_t sessionInterSec, uint32_t electionTimeoutMs,
-    uint64_t *leaderOid) {
+int MysqlClientImp::CampaignLeader(const std::string &pfx,
+                                   const std::string &leaderName,
+                                   uint32_t sessionInterSec,
+                                   uint32_t electionTimeoutMs,
+                                   uint64_t *leaderOid) {
     try {
-        std::string sql = "insert into leader_election(elect_key, leader_id, create_time, update_time) values(?,?,now(),now());";
-        sql::PreparedStatement *pstmt = conn_->prepareStatement(sql);
-        pstmt->setString(1, pfx);
-        pstmt->setString(2, leaderName);
-        pstmt->executeUpdate();
-        delete pstmt;
-        sql = "select last_insert_id() as leader_id;";
-        sql::ResultSet *res = stmt_->executeQuery(sql);
-        if (res->next()) {
-            *leaderOid = res->getInt64("leader_id");
+        LOG(INFO) << "MysqlClientImp CampaignLeader start";
+        // 设置session超时时间
+        std::string sql =
+            "SET SESSION wait_timeout = " + std::to_string(sessionInterSec);
+        sql::PreparedStatement *prep_stmt_ = conn_->prepareStatement(sql);
+        prep_stmt_->executeUpdate();
+        sessionInterSec_=sessionInterSec;
+        LOG(INFO) << "MysqlClientImp CampaignLeader set sessionInterSec success";
+
+        // 开始选举  只有一个key会插入成功
+        conn_->setAutoCommit(false);
+        try {
+            sql = "INSERT INTO leader_election (elect_key, leader_name, "
+                  "create_time, update_time) VALUES (?, ?, NOW(), NOW())";
+            prep_stmt_ = conn_->prepareStatement(sql);
+            prep_stmt_->setString(1, pfx);
+            prep_stmt_->setString(2, leaderName);
+            prep_stmt_->executeUpdate();
+
+            conn_->commit();
+            conn_->setAutoCommit(true);
+           // 插入成功
+        } catch (sql::SQLException &e) {
+            conn_->rollback();
+            conn_->setAutoCommit(true);
+
+            if (e.getErrorCode() == 1062) {
+                LOG(INFO) << "Duplicate entry for elect_key: " << pfx;
+                return -2;  // 主键冲突，插入失败
+            } else {
+                LOG(ERROR) << "Insert error: " << e.what();
+                return -1;  // 其他插入错误
+            }
+        }
+
+        sql = "SELECT leader_id FROM leader_election WHERE elect_key = ? AND "
+              "leader_name = ?";
+        prep_stmt_ = conn_->prepareStatement(sql);
+        prep_stmt_->setString(1, pfx);
+        prep_stmt_->setString(2, leaderName);
+        sql::ResultSet *result = prep_stmt_->executeQuery();
+        if (result->next()) {
+            *leaderOid = result->getUInt64("leader_id");
+            leaderOid_=*leaderOid;
         }else{
             LOG(ERROR)<<"no leader_id";
             *leaderOid = 0;
         }
-        delete res;
+        delete result;
+        LOG(INFO) << " get leader_id success :" << *leaderOid;
+
+        // leader，定时更新update_time
+        std::thread t([this, pfx, leaderName]() {
+            while (is_connected_.load()) {
+                try {
+                    // 使用互斥锁保护对 conn_ 的访问
+                    std::lock_guard<std::mutex> lock(conn_mutex_);
+                    // LOG(INFO)<<is_connected_.load();
+                    if (conn_==nullptr&&!is_connected_.load()) {
+                        LOG(INFO) << "CampaignLeader stop !";
+                        break;  // 已停止，退出子线程
+                    }
+                    std::string sql =
+                        "UPDATE leader_election SET update_time = "
+                        "NOW() WHERE elect_key = ? AND "
+                        "leader_name = ?";
+
+                    sql::PreparedStatement *prep_stmt_ =
+                        conn_->prepareStatement(sql);
+                    prep_stmt_->setString(1, pfx);
+                    prep_stmt_->setString(2, leaderName);
+                    prep_stmt_->executeUpdate();
+                    std::this_thread::sleep_for(
+                        std::chrono::seconds(sessionInterSec_ / 2));
+                } catch (sql::SQLException &e) {
+                    LOG(ERROR) << "Update error: " << e.what();
+                }
+            }
+        });
+        t.detach();
+
     } catch (sql::SQLException &e) {
-        LOG(ERROR) << "MysqlClientImp CampaignLeader failed, error: " << e.what();
+        LOG(ERROR) << "MysqlClientImp CampaignLeader failed, error: "
+                   << e.what();
         return -1;
     }
     return 0;
@@ -439,32 +519,78 @@ int MysqlClientImp::CampaignLeader( const std::string &pfx, const std::string &l
 
 int MysqlClientImp::LeaderObserve(uint64_t leaderOid, const std::string &leaderName){
     try {
-        std::string sql = "select leader_id from leader_election where leader_id=" + std::to_string(leaderOid) + " and leader_id=(select max(leader_id) from leader_election where elect_key='" + leaderName + "');";
-        sql::ResultSet *res = stmt_->executeQuery(sql);
-        if (res->next()) {
-            LOG(INFO)<<"leader_id:"<<res->getInt64("leader_id");
-        }else{
-            LOG(ERROR)<<"no leader_id";
-            return -1;
+        // 定时查询leader是否超时
+        while (is_connected_.load() && LeaderKeyExist(leaderOid, 0) == true) {
+            // 使用互斥锁保护对 conn_ 的访问
+            std::lock_guard<std::mutex> lock(conn_mutex_);
+            // LOG(INFO)<<is_connected_.load();
+            if (!is_connected_.load()) {
+                break;  // 已停止，退出子线程
+            }
+            LOG(INFO) << "leaderOid:  " << leaderOid << "  is being observed";
+            std::string sql =
+                "SELECT TIMESTAMPDIFF(MICROSECOND, update_time, now()) AS diff "
+                "FROM leader_election WHERE leader_id = " +
+                std::to_string(leaderOid) + ";";
+            sql::ResultSet *res = stmt_->executeQuery(sql);
+            if (res->next()) {
+                LOG(INFO) << "leader_id:" << leaderOid;
+                int64_t diff = res->getInt64("diff");
+                LOG(INFO) << "diff:" << diff;
+                if (diff > sessionInterSec_) {
+                    LOG(ERROR) << "Leader timeout";
+                    sql = "DELETE FROM leader_election WHERE leader_id = " +
+                          std::to_string(leaderOid) + ";";
+                    stmt_->execute(sql);
+                    delete res;
+                    return EtcdErrCode::EtcdObserverLeaderInternal;
+                }
+                std::this_thread::sleep_for(
+                    std::chrono::seconds(sessionInterSec_ / 2));
+            } else {
+                LOG(ERROR) << "no such leader_id";
+                delete res;
+                return EtcdErrCode::EtcdObserverLeaderInternal;
+            }
         }
-        delete res;
     } catch (sql::SQLException &e) {
-        LOG(ERROR) << "MysqlClientImp LeaderObserve failed, error: " << e.what();
-        return -1;
+        LOG(ERROR) << "MysqlClientImp LeaderObserve failed, error: "
+                   << e.what();
+        return EtcdErrCode::EtcdObserverLeaderInternal;
     }
-    return 0;
 }
 
 int MysqlClientImp::LeaderResign(uint64_t leaderOid, uint64_t timeoutMs){
+    //把leader_id对应的key删掉，让阻塞的client继续竞选
     try {
-        std::string sql = "update leader_election set leader_id=0, update_time=now() where leader_id=" + std::to_string(leaderOid) + ";";
+        std::string sql = "DELETE FROM leader_election WHERE leader_id = " + std::to_string(leaderOid) + ";";
         stmt_->execute(sql);
     } catch (sql::SQLException &e) {
         LOG(ERROR) << "MysqlClientImp LeaderResign failed, error: " << e.what();
         return -1;
     }
-    return 0;
+    
+    return EtcdErrCode::EtcdLeaderResiginSuccess;
 }
+
+bool  MysqlClientImp::LeaderKeyExist(uint64_t leaderOid, uint64_t timeoutMs){
+    try {
+        std::string sql = "select leader_id from leader_election where leader_id=" + std::to_string(leaderOid) + ";";
+        sql::ResultSet *res = stmt_->executeQuery(sql);
+        if (res->next()) {
+            LOG(INFO)<<"leader_id:"<<res->getInt64("leader_id");
+        }else{
+            LOG(ERROR)<<"no leader_id";
+            return false;
+        }
+        delete res;
+    } catch (sql::SQLException &e) {
+        LOG(ERROR) << "MysqlClientImp LeaderKeyExist failed, error: " << e.what();
+        return false;
+    }
+    return true;
+}
+
 
 }  // namespace mysqlstorage
 }  // namespace curve

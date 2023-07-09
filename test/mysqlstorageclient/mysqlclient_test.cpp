@@ -32,9 +32,12 @@ class TestMysqlClinetImp : public ::testing::Test {
 
         MysqlConf conf;
         client_ = std::make_shared<MysqlClientImp>();
+        //mysqlPid = ::fork();
+
         
         ASSERT_EQ(0, client_->Init(conf, 1000, 3));
         ASSERT_EQ(0, client_->DropTable("curvebs_kv"));
+        ASSERT_EQ(0, client_->DropTable("leader_election"));
         ASSERT_EQ(0, client_->CreateTable("curvebs_kv"));
 
         LOG(INFO) << "SetUp";   
@@ -48,6 +51,7 @@ class TestMysqlClinetImp : public ::testing::Test {
 
     protected:
         std::shared_ptr<MysqlClientImp> client_;
+        //pid_t mysqlPid;
 };
 
 TEST_F(TestMysqlClinetImp,test_MysqlClientInterface) {   
@@ -333,6 +337,105 @@ TEST_F(TestMysqlClinetImp, test_return_with_revision) {
     res = client_->DeleteRewithRevision("hello", &revision);
     ASSERT_EQ(0, res);
     ASSERT_EQ(startRevision + 2, revision);
+}
+
+TEST_F(TestMysqlClinetImp, test_CampaignLeader) {
+    std::string pfx("/leadere-election/");
+    int sessionnInterSec = 1;
+    int dialtTimeout = 10000;
+    int retryTimes = 3;
+    char endpoints[] = "47.93.172.73:3306";
+    MysqlConf conf = {endpoints};
+    std::string leaderName1("leader1");
+    std::string leaderName2("leader2");
+    uint64_t leaderOid;
+
+    {
+        // 1. leader1竞选成功，client退出后leader2竞选成功
+        LOG(INFO) << "test case1 start...";
+        // 启动一个线程竞选leader
+        int electionTimeoutMs = 0;
+        uint64_t targetOid;
+        common::Thread thread1(&MysqlClientImp::CampaignLeader, client_, pfx,
+                               leaderName1, sessionnInterSec, electionTimeoutMs,
+                               &targetOid);
+        // 等待线程1执行完成, 线程1执行完成就说明竞选成功，
+        // 否则electionTimeoutMs为0的情况下会一直hung在里面
+        thread1.join();
+        LOG(INFO) << "thread 1 exit.";
+        client_->CloseClient();
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+
+        // 启动第二个线程竞选leader
+        auto client2 = std::make_shared<MysqlClientImp>();
+        ASSERT_EQ(0, client2->Init(conf, dialtTimeout, retryTimes));
+        common::Thread thread2(&MysqlClientImp::CampaignLeader, client2, pfx,
+                               leaderName2, sessionnInterSec, electionTimeoutMs,
+                               &leaderOid);
+        // 线程1退出后，leader2会当选
+        thread2.join();
+        LOG(INFO) << "thread 2 exit.";
+        // leader2为leader的情况下此时观察leader1的key应该发现session过期
+        ASSERT_EQ(EtcdErrCode::EtcdObserverLeaderInternal,
+                  client2->LeaderObserve(targetOid, leaderName1));
+        client2->CloseClient();
+    }
+
+    {
+        // 2. leader1竞选成功后，不退出; leader2竞选超时
+        LOG(INFO) << "test case2 start...";
+        int electionTimeoutMs = 1000;
+        auto client1 = std::make_shared<MysqlClientImp>();
+        ASSERT_EQ(0, client1->Init(conf, dialtTimeout, retryTimes));
+        common::Thread thread1(&MysqlClientImp::CampaignLeader, client1, pfx,
+                               leaderName1, sessionnInterSec, electionTimeoutMs,
+                               &leaderOid);
+        thread1.join();
+        LOG(INFO) << "thread 1 exit.";
+
+        // leader2再次竞选
+        common::Thread thread2(&MysqlClientImp::CampaignLeader, client1, pfx,
+                               leaderName2, sessionnInterSec, electionTimeoutMs,
+                               &leaderOid);
+        thread2.join();
+        client1->CloseClient();
+        LOG(INFO) << "thread 2 exit.";
+    }
+
+    {
+        // 3. leader1竞选成功后，删除key; leader2竞选成功; observe leader1改变;
+        //  observer leader2的过程中etcd挂掉
+        LOG(INFO) << "test case3 start...";
+        uint64_t targetOid;
+        int electionTimeoutMs = 0;
+        auto client1 = std::make_shared<MysqlClientImp>();
+        ASSERT_EQ(0, client1->Init(conf, dialtTimeout, retryTimes));
+        common::Thread thread1(&MysqlClientImp::CampaignLeader, client1, pfx,
+                               leaderName1, sessionnInterSec, electionTimeoutMs,
+                               &targetOid);
+        thread1.join();
+        LOG(INFO) << "thread 1 exit.";
+        // leader1卸任leader
+        ASSERT_EQ(EtcdErrCode::EtcdLeaderResiginSuccess,
+                  client1->LeaderResign(targetOid, 1000));
+
+        // leader2当选
+        common::Thread thread2(&MysqlClientImp::CampaignLeader, client1, pfx,
+                               leaderName2, sessionnInterSec, electionTimeoutMs,
+                               &leaderOid);
+        thread2.join();
+
+        // leader2启动线程observe
+        common::Thread thread3(&MysqlClientImp::LeaderObserve, client1,
+                               targetOid, leaderName2);
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        thread3.join();
+        client1->CloseClient();
+        LOG(INFO) << "thread 2 exit.";
+
+        // 使得etcd完全停掉
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+    }
 }
 
 }  // namespace mysqlstorage

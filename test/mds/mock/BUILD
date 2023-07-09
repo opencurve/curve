@@ -24,6 +24,7 @@ cc_library(
     deps = [
         "//proto:chunkserver-cc-protos",
         "//proto:snapshotcloneserver_cc_proto",
-        "//src/mds/nameserver2"
+        "//src/mds/nameserver2",
+        "//include/etcdclient:etcd_client"
     ],
 )

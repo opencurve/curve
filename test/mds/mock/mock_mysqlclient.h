@@ -42,17 +42,17 @@ class MockMysqlClient : public MysqlClientImp {
     MOCK_METHOD2(DeleteRewithRevision, int(const std::string &, int64_t *));
 };
 
-class MockLRUCache : public Cache {
- public:
-    virtual ~MockLRUCache() {}
-    MOCK_METHOD2(Put, void(
-        const std::string&, const std::string&));
-    MOCK_METHOD3(Put, bool(
-        const std::string&, const std::string&, std::string*));
-    MOCK_METHOD2(Get, bool(const std::string&, std::string*));
-    MOCK_METHOD0(Size, uint64_t());
-    MOCK_METHOD1(Remove, void(const std::string&));
-};
+// class MockLRUCache : public Cache {
+//  public:
+//     virtual ~MockLRUCache() {}
+//     MOCK_METHOD2(Put, void(
+//         const std::string&, const std::string&));
+//     MOCK_METHOD3(Put, bool(
+//         const std::string&, const std::string&, std::string*));
+//     MOCK_METHOD2(Get, bool(const std::string&, std::string*));
+//     MOCK_METHOD0(Size, uint64_t());
+//     MOCK_METHOD1(Remove, void(const std::string&));
+// };
 }  // namespace mds
 }  // namespace curve
 

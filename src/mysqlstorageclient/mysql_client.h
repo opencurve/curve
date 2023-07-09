@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 #include <utility>
+#include <atomic>
+#include <mutex>
 #include <mysql_connection.h>
 #include <mysql_driver.h>
 #include "include/etcdclient/storageclient.h"
@@ -27,7 +29,7 @@ enum class MySQLError {
 
 class MysqlConf {
  public:
-    MysqlConf(std::string host = "tcp://60.205.6.120:3306",
+    MysqlConf(std::string host = "tcp://47.93.172.73:3306",
               std::string user = "curve", std::string passwd = "021013Jbk.",
               std::string db = "curve")
         : host_(host), user_(user), passwd_(passwd), db_(db) {}
@@ -83,17 +85,23 @@ public:
     
     int TxnN(const std::vector<Operation> &ops);
 
-    virtual int CampaignLeader( const std::string &pfx, const std::string &leaderName,
-        uint32_t sessionInterSec, uint32_t electionTimeoutMs,
-        uint64_t *leaderOid);
-    
+    virtual int CampaignLeader(const std::string &pfx,
+                               const std::string &leaderName,
+                               uint32_t sessionInterSec,
+                               uint32_t electionTimeoutMs, uint64_t *leaderOid);
+
     virtual int LeaderObserve(uint64_t leaderOid, const std::string &leaderName);
 
     virtual int LeaderResign(uint64_t leaderOid, uint64_t timeoutMs);
 
+    virtual bool LeaderKeyExist(uint64_t leaderOid, uint64_t timeoutMs);
+
     sql::Connection *conn_;
     sql::Statement *stmt_;
-    sql::PreparedStatement *prep_stmt_;
+    uint32_t sessionInterSec_;
+    std::atomic<bool> is_connected_;
+    uint64_t leaderOid_;
+    std::mutex conn_mutex_; 
 };
 
 
