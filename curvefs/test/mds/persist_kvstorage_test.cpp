@@ -170,6 +170,10 @@ TEST_F(PersistKVStorageTest, TestInit) {
 
         EXPECT_FALSE(storage.Exist(3));
         EXPECT_FALSE(storage.Exist("foo"));
+
+        FsInfoWrapper wrapper;
+        EXPECT_EQ(FSStatusCode::OK, storage.Get("world", &wrapper));
+        EXPECT_TRUE(wrapper.GetFsDetail().s3info().has_objectprefix());
     }
 }
 
@@ -531,6 +535,5 @@ TEST_F(PersistKVStorageTest, TestDelete) {
         EXPECT_TRUE(storage.Exist(2));
     }
 }
-
 }  // namespace mds
 }  // namespace curvefs
