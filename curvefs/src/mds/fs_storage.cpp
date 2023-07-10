@@ -359,6 +359,15 @@ bool PersisKVStorage::LoadAllFs() {
 
         idToName_.emplace(fsInfo.fsid(), fsInfo.fsname());
 
+        // For compatibility when upgrading, the new field 'optional
+        // objectPrefix` in message `S3Info` needs to be set to the default
+        // value
+        if (fsInfo.fstype() == FSType::TYPE_S3) {
+            if (!fsInfo.detail().s3info().has_objectprefix()) {
+                fsInfo.mutable_detail()->mutable_s3info()->set_objectprefix(0);
+            }
+        }
+
         fs_.emplace(fsInfo.fsname(), std::move(fsInfo));
     }
 
