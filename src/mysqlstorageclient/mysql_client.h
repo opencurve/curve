@@ -96,7 +96,7 @@ public:
 
     virtual bool LeaderKeyExist(uint64_t leaderOid, uint64_t timeoutMs);
 
-    sql::Connection *conn_;
+    std::shared_ptr<sql::Connection> conn_;
     sql::Statement *stmt_;
     uint32_t sessionInterSec_;
     std::atomic<bool> is_connected_;

@@ -364,7 +364,6 @@ TEST_F(TestMysqlClinetImp, test_CampaignLeader) {
         thread1.join();
         LOG(INFO) << "thread 1 exit.";
         client_->CloseClient();
-        std::this_thread::sleep_for(std::chrono::seconds(2));
 
         // 启动第二个线程竞选leader
         auto client2 = std::make_shared<MysqlClientImp>();
@@ -375,9 +374,10 @@ TEST_F(TestMysqlClinetImp, test_CampaignLeader) {
         // 线程1退出后，leader2会当选
         thread2.join();
         LOG(INFO) << "thread 2 exit.";
-        // leader2为leader的情况下此时观察leader1的key应该发现session过期
+        // leader2为leader的情况下此时观察leader1的key应该发现session过期 
         ASSERT_EQ(EtcdErrCode::EtcdObserverLeaderInternal,
                   client2->LeaderObserve(targetOid, leaderName1));
+        //这里return了
         client2->CloseClient();
     }
 

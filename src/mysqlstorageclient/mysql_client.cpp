@@ -13,7 +13,7 @@ using ::curve::mysqlstorage::MySQLError;
 int MysqlClientImp::Init(MysqlConf conf, int timeout, int retryTiems) {
     try {
         sql::Driver *driver = sql::mysql::get_driver_instance();
-        conn_ = driver->connect(conf.host_, conf.user_, conf.passwd_);
+        conn_ = std::shared_ptr<sql::Connection>(driver->connect(conf.host_, conf.user_, conf.passwd_));
         is_connected_.store(true);
         conn_->setSchema(conf.db_);
         stmt_ = conn_->createStatement();
@@ -53,22 +53,18 @@ int MysqlClientImp::CreateTable(const std::string &tableName) {
 }
 
 void MysqlClientImp::CloseClient() {
-    std::lock_guard<std::mutex> lock(conn_mutex_);
+   //std::lock_guard<std::mutex> lock(conn_mutex_);
     //删除leader信息
+    if(leaderOid_!=0)
+    {
+        std::string sql = "DELETE FROM leader_election WHERE leader_id = " + std::to_string(leaderOid_) + ";";
+        stmt_->execute(sql);
+    }
     is_connected_.store(false);
-    //直接删除leaderOid
-    // try {
-    //     std::string sql = "DELETE FROM leader_election WHERE leader_id = " + std::to_string(leaderOid_) + ";";
-    //     stmt_->execute(sql);
-    // } catch (sql::SQLException &e) {
-    //     LOG(ERROR) << "MysqlClientImp CloseClient failed, error: " << e.what();
-    // }
     if (stmt_ != nullptr) {
         delete stmt_;
     }
-    if (conn_ != nullptr) {
-        delete conn_;
-    }
+    
     LOG(INFO) << "MysqlClientImp CloseClient success";
 }
 
@@ -430,24 +426,28 @@ int MysqlClientImp::CampaignLeader(const std::string &pfx,
     try {
         LOG(INFO) << "MysqlClientImp CampaignLeader start";
         // 设置session超时时间
-        std::string sql =
-            "SET SESSION wait_timeout = " + std::to_string(sessionInterSec);
-        sql::PreparedStatement *prep_stmt_ = conn_->prepareStatement(sql);
-        prep_stmt_->executeUpdate();
+           
+        // std::string sql =
+        //     "SET SESSION wait_timeout = " + std::to_string(sessionInterSec);
+        // sql::PreparedStatement *prep_stmt_ = conn_->prepareStatement(sql);
+        // prep_stmt_->executeUpdate();
         sessionInterSec_=sessionInterSec;
         LOG(INFO) << "MysqlClientImp CampaignLeader set sessionInterSec success";
 
+
+        //这里会  double free or corruption (!prev) 有问题
         // 开始选举  只有一个key会插入成功
         conn_->setAutoCommit(false);
         try {
-            sql = "INSERT INTO leader_election (elect_key, leader_name, "
+            std::string sql = "INSERT INTO leader_election (elect_key, leader_name, "
                   "create_time, update_time) VALUES (?, ?, NOW(), NOW())";
-            prep_stmt_ = conn_->prepareStatement(sql);
+            sql::PreparedStatement * prep_stmt_ = conn_->prepareStatement(sql);
             prep_stmt_->setString(1, pfx);
             prep_stmt_->setString(2, leaderName);
             prep_stmt_->executeUpdate();
 
             conn_->commit();
+            LOG(INFO) << "CampaignLeader commit success";
             conn_->setAutoCommit(true);
            // 插入成功
         } catch (sql::SQLException &e) {
@@ -456,16 +456,16 @@ int MysqlClientImp::CampaignLeader(const std::string &pfx,
 
             if (e.getErrorCode() == 1062) {
                 LOG(INFO) << "Duplicate entry for elect_key: " << pfx;
-                return -2;  // 主键冲突，插入失败
+                return -2;  // 键冲突，插入失败
             } else {
                 LOG(ERROR) << "Insert error: " << e.what();
                 return -1;  // 其他插入错误
             }
         }
 
-        sql = "SELECT leader_id FROM leader_election WHERE elect_key = ? AND "
+        std::string sql = "SELECT leader_id FROM leader_election WHERE elect_key = ? AND "
               "leader_name = ?";
-        prep_stmt_ = conn_->prepareStatement(sql);
+        sql::PreparedStatement *prep_stmt_ = conn_->prepareStatement(sql);
         prep_stmt_->setString(1, pfx);
         prep_stmt_->setString(2, leaderName);
         sql::ResultSet *result = prep_stmt_->executeQuery();
@@ -479,35 +479,19 @@ int MysqlClientImp::CampaignLeader(const std::string &pfx,
         delete result;
         LOG(INFO) << " get leader_id success :" << *leaderOid;
 
-        // leader，定时更新update_time
-        std::thread t([this, pfx, leaderName]() {
-            while (is_connected_.load()) {
-                try {
-                    // 使用互斥锁保护对 conn_ 的访问
-                    std::lock_guard<std::mutex> lock(conn_mutex_);
-                    // LOG(INFO)<<is_connected_.load();
-                    if (conn_==nullptr&&!is_connected_.load()) {
-                        LOG(INFO) << "CampaignLeader stop !";
-                        break;  // 已停止，退出子线程
-                    }
-                    std::string sql =
-                        "UPDATE leader_election SET update_time = "
-                        "NOW() WHERE elect_key = ? AND "
-                        "leader_name = ?";
+        // leader，定时更新update_time mysql自己实现
+        //更新update_time   每隔一半sessionInterSec更新一次
+        sql = "CREATE EVENT IF NOT EXISTS update_leader_election "
+              "ON SCHEDULE EVERY " +
+              std::to_string(sessionInterSec) +
+              " SECOND "
+              "DO UPDATE leader_election SET update_time = NOW() "
+              "WHERE leader_id = " +
+              std::to_string(*leaderOid) + ";";
+        stmt_ = conn_->createStatement();
+        stmt_->executeUpdate(sql);
 
-                    sql::PreparedStatement *prep_stmt_ =
-                        conn_->prepareStatement(sql);
-                    prep_stmt_->setString(1, pfx);
-                    prep_stmt_->setString(2, leaderName);
-                    prep_stmt_->executeUpdate();
-                    std::this_thread::sleep_for(
-                        std::chrono::seconds(sessionInterSec_ / 2));
-                } catch (sql::SQLException &e) {
-                    LOG(ERROR) << "Update error: " << e.what();
-                }
-            }
-        });
-        t.detach();
+        LOG(INFO) << "MysqlClientImp CampaignLeader success";
 
     } catch (sql::SQLException &e) {
         LOG(ERROR) << "MysqlClientImp CampaignLeader failed, error: "
@@ -520,11 +504,12 @@ int MysqlClientImp::CampaignLeader(const std::string &pfx,
 int MysqlClientImp::LeaderObserve(uint64_t leaderOid, const std::string &leaderName){
     try {
         // 定时查询leader是否超时
-        while (is_connected_.load() && LeaderKeyExist(leaderOid, 0) == true) {
+        while (is_connected_.load() && LeaderKeyExist(leaderOid, 0)) {
             // 使用互斥锁保护对 conn_ 的访问
-            std::lock_guard<std::mutex> lock(conn_mutex_);
+            //std::lock_guard<std::mutex> lock(conn_mutex_);
             // LOG(INFO)<<is_connected_.load();
             if (!is_connected_.load()) {
+                LOG(INFO) << "LeaderObserve stop !";
                 break;  // 已停止，退出子线程
             }
             LOG(INFO) << "leaderOid:  " << leaderOid << "  is being observed";
