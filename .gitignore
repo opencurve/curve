@@ -105,6 +105,18 @@ curvefs/BUILD_MODE
 
 .BUILD_MODE
 
+# thirdparties
+thirdparties/rocksdb/lib/
+thirdparties/rocksdb/include/
+thirdparties/rocksdb/rocksdb/
+thirdparties/rocksdb/*log
+thirdparties/rocksdb/*.tar.gz
+thirdparties/aws/*.tar.gz
+thirdparties/etcdclient/tmp/
+thirdparties/etcdclient/*.h
+thirdparties/memcache/*.tar.gz
+thirdparties/memcache/libmemcached-*/
+
 /external
 /bazel-*
 /compile_commands.json
@@ -118,3 +130,10 @@ test/integration/snapshotcloneserver/config/*.conf
 
 *.deb
 *.whl
+
+tools-v2/sbin/*
+tools-v2/proto/proto/*
+tools-v2/proto/curvefs/*
+tools-v2/*/*.test
+tools-v2/__debug_bin
+tools-v2/vendor/

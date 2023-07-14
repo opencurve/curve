@@ -26,6 +26,7 @@ package curve.mds.topology;
 // HTTP web can use https://github.com/dcodeIO/protobuf.js to use proto buffer
 
 option cc_generic_services = true;
+option go_package = "proto/topology";
 
 enum LogicalPoolType {
     PAGEFILE = 0;

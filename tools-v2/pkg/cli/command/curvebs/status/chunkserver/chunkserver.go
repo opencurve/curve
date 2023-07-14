@@ -50,18 +50,18 @@ func (csCmd *ChunkServerCommand) Init(cmd *cobra.Command, args []string) error {
 	}
 	csCmd.RecoverStatusMap = recoverMap
 
-	csInfos, err := listchunkserver.GetChunkServerInCluster(csCmd.Cmd)
+	csInfos, err := listchunkserver.ListChunkServerInfos(csCmd.Cmd)
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		return err.ToError()
 	}
 	csCmd.ChunkServerInfos = csInfos
 	header := []string{
-		cobrautil.ROW_EXTERNAL_ADDR, cobrautil.ROW_INTERNAL_ADDR, cobrautil.ROW_VERSION, 
+		cobrautil.ROW_EXTERNAL_ADDR, cobrautil.ROW_INTERNAL_ADDR,
 		cobrautil.ROW_STATUS, cobrautil.ROW_RECOVERING,
 	}
 	csCmd.SetHeader(header)
 	csCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
-		csCmd.Header, []string{cobrautil.ROW_STATUS, cobrautil.ROW_RECOVERING, cobrautil.ROW_VERSION},
+		csCmd.Header, []string{cobrautil.ROW_STATUS, cobrautil.ROW_RECOVERING},
 	))
 	return nil
 }
@@ -72,18 +72,17 @@ func (csCmd *ChunkServerCommand) RunCommand(cmd *cobra.Command, args []string) e
 		row := make(map[string]string)
 		row[cobrautil.ROW_EXTERNAL_ADDR] = fmt.Sprintf("%s:%d", csInfo.GetExternalIp(), csInfo.GetPort())
 		row[cobrautil.ROW_INTERNAL_ADDR] = fmt.Sprintf("%s:%d", csInfo.GetHostIp(), csInfo.GetPort())
-		row[cobrautil.ROW_VERSION] = csInfo.GetVersion()
 		state := csInfo.GetOnlineState()
 		if state == topology.OnlineState_ONLINE {
 			row[cobrautil.ROW_STATUS] = cobrautil.ROW_VALUE_ONLINE
 		} else {
 			row[cobrautil.ROW_STATUS] = cobrautil.ROW_VALUE_OFFLINE
 		}
-		row[cobrautil.ROW_RECOVERING] = fmt.Sprintf("%v",csCmd.RecoverStatusMap[csInfo.GetChunkServerID()])
+		row[cobrautil.ROW_RECOVERING] = fmt.Sprintf("%v", csCmd.RecoverStatusMap[csInfo.GetChunkServerID()])
 		rows = append(rows, row)
 	}
 	list := cobrautil.ListMap2ListSortByKeys(rows, csCmd.Header, []string{
-		cobrautil.ROW_STATUS, cobrautil.ROW_RECOVERING, cobrautil.ROW_VERSION,
+		cobrautil.ROW_STATUS, cobrautil.ROW_RECOVERING,
 	})
 	csCmd.TableNew.AppendBulk(list)
 	csCmd.Result = rows
@@ -119,4 +118,20 @@ func NewStatusChunkServerCommand() *ChunkServerCommand {
 
 func NewChunkServerCommand() *cobra.Command {
 	return NewStatusChunkServerCommand().Cmd
+}
+
+func GetChunkserverStatus(caller *cobra.Command) (*interface{}, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS) {
+	csCmd := NewStatusChunkServerCommand()
+	csCmd.Cmd.SetArgs([]string{
+		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
+	})
+	config.AlignFlagsValue(caller, csCmd.Cmd, []string{config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEBS_MDSADDR})
+	csCmd.Cmd.SilenceErrors = true
+	err := csCmd.Cmd.Execute()
+	if err != nil {
+		retErr := cmderror.ErrBsGetChunkServerInCluster()
+		retErr.Format(err.Error())
+		return nil, retErr, cobrautil.HEALTH_ERROR
+	}
+	return &csCmd.Result, cmderror.Success(), cobrautil.HEALTH_OK
 }

@@ -118,7 +118,7 @@ func NewChunkServerRecoverStatusCommand() *cobra.Command {
 
 func GetQueryChunkServerRecoverStatus(caller *cobra.Command) (map[uint32]bool, *cmderror.CmdError) {
 	getCmd := NewQueryChunkServerRecoverStatusCommand()
-	config.AlignFlagsValue(caller, getCmd.Cmd, []string{config.CURVEBS_MDSADDR, config.CUERVEBS_CHUNKSERVER_ID})
+	config.AlignFlagsValue(caller, getCmd.Cmd, []string{config.CURVEBS_MDSADDR, config.CURVEBS_CHUNKSERVER_ID})
 	getCmd.Cmd.SilenceErrors = true
 	getCmd.Cmd.SilenceUsage = true
 	getCmd.Cmd.SetArgs([]string{"--format", config.FORMAT_NOOUT})
