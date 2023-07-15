@@ -36,7 +36,7 @@ var _ basecmd.MidCurveCmdFunc = (*SnapshotCommand)(nil) // check interface
 
 func (statusCmd *SnapshotCommand) AddSubCommands() {
 	statusCmd.Cmd.AddCommand(
-		copyset.NewSnapshotOneCommand(),
+		copyset.NewSnapshotCopysetCommand(),
 	)
 }
 
