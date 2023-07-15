@@ -1673,6 +1673,23 @@ Output:
 +-----------------------+---------+---------+
 ```
 
+```bash
+curve bs snapshot copyset --all
+```
+
+Output:
+```
++----------------+---------+
+|  CHUNKSERVER   | RESULT  |
++----------------+---------+
+| **.*.*.**:8200 | failed  |
++----------------+---------+
+| **.*.*.**:8201 | success |
++----------------+         +
+| **.*.*.**:8202 |         |
++----------------+---------+
+```
+
 ## Comparison of old and new commands
 
 ### curve fs
@@ -1874,10 +1891,10 @@ Output:
 | curve_ops_tool clean-recycle         | curve bs clean-recycle            |
 | curve_ops_tool copysets-status       | curve bs status copyset           |
 | curve_ops_tool list-may-broken-vol   | curve bs list may-broken-vol      |
-| curve_ops_tool rapid-leader-schedule | curve bs update leader-schedule   |                                  |
+| curve_ops_tool rapid-leader-schedule | curve bs update leader-schedule   |
+| curve_ops_tool do-snapshot-all       | curve bs snapshot --all           |
 | curve_ops_tool status                |                                   |
 | curve_ops_tool check-consistency     |                                   |
-| curve_ops_tool do-snapshot-all       |                                   |
 | curve_ops_tool check-chunkserver     |                                   |
 | curve_ops_tool check-server          |                                   |
 <<<<<<< HEAD

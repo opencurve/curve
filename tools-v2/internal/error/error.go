@@ -511,6 +511,12 @@ var (
 	ErrSnapShotAddrNotConfigured = func() *CmdError {
 		return NewInternalCmdError(70, "get snapshotAddr fail, err: %s")
 	}
+	ErrBsGetOneSnapshotResult = func() *CmdError {
+		return NewInternalCmdError(71, "get one snapshot result fail, err: %s")
+	}
+	ErrBsGetAllSnapshotResult = func() *CmdError {
+		return NewInternalCmdError(72, "get all snapshot results fail, err: %s")
+	}
 
 >>>>>>> 4762448b... [curve/toos-v2]: add bs scan-status
 	// http error
