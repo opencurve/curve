@@ -32,6 +32,7 @@ const (
 	ROW_CHILD_LIST           = "childList"
 	ROW_CHILD_TYPE           = "childType"
 	ROW_CHUNK                = "chunk"
+	ROW_CHUNKSERVER          = "chunkserver"
 	ROW_CHUNK_SIZE           = "chunkSize"
 	ROW_COPYSET              = "copyset"
 	ROW_COPYSET_ID           = "copysetId"
