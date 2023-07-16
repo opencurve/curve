@@ -144,6 +144,11 @@ const (
 	VIPER_CURVEBS_TASKID              = "curvebs.taskid"
 	CURVEBS_FAILED                    = "failed"
 	VIPER_CURVEBS_FAILED              = "curvebs.failed"
+	CURVEBS_CHUNK_SIZE				  = "chunksize"
+	VIPER_CURVEBS_CHUNK_SIZE		  = "curvebs.chunksize"
+	CURVEBS_CHECK_HASH				  = "checkhash"
+	VIPER_CURVEBS_CHECK_HASH		  = "curvebs.checkhash"
+	CURVEBS_DEFAULT_CHECK_HASH		  = false
 )
 
 var (
@@ -198,6 +203,8 @@ var (
 		CURVEBS_DEST:                VIPER_CURVEBS_DEST,
 		CURVEBS_TASKID:              VIPER_CURVEBS_TASKID,
 		CURVEBS_FAILED:              VIPER_CURVEBS_FAILED,
+		CURVEBS_CHUNK_SIZE:			 VIPER_CURVEBS_CHUNK_SIZE,
+		CURVEBS_CHECK_HASH:			 VIPER_CURVEBS_CHECK_HASH,
 	}
 
 	BSFLAG2DEFAULT = map[string]interface{}{
@@ -221,6 +228,7 @@ var (
 		CURVEBS_ALL:            CURVEBS_DEFAULT_ALL,
 		CURVEBS_LOGIC_POOL_ID:  CURVEBS_DEFAULT_LOGIC_POOL_ID,
 		CURVEBS_COPYSET_ID:     CURVEBS_DEFAULT_COPYSET_ID,
+		CURVEBS_CHECK_HASH:		CURVEBS_DEFAULT_CHECK_HASH,
 	}
 )
 
@@ -558,6 +566,10 @@ func AddBsPeersConfFlag(cmd *cobra.Command) {
 	AddBsStringSliceRequiredFlag(cmd, CURVEBS_PEERS_ADDRESS, "peers info.")
 }
 
+func AddBsPeersAddressFlag(cmd *cobra.Command) {
+	AddBsStringRequiredFlag(cmd, CURVEBS_PEERS_ADDRESS, "peers address.")
+}
+
 func AddBsForceDeleteOptionFlag(cmd *cobra.Command) {
 	AddBsBoolOptionFlag(cmd, CURVEBS_FORCE, "whether to force delete the file")
 }
@@ -612,6 +624,18 @@ func AddBsAvailFlagRequireFlag(cmd *cobra.Command) {
 
 func AddBsChunkIdSliceRequiredFlag(cmd *cobra.Command) {
 	AddBsStringSliceRequiredFlag(cmd, CURVEBS_CHUNK_ID, "chunk ids")
+}
+
+func AddBsChunkIdRequiredFlag(cmd *cobra.Command) {
+	AddBsUint64RequiredFlag(cmd, CURVEBS_CHUNK_ID, "chunk id")
+}
+
+func AddBsChunkSizeRequiredFlag(cmd *cobra.Command) {
+	AddBsUint32RequiredFlag(cmd, CURVEBS_CHUNK_SIZE, "chunk size")
+}
+
+func AddBsCheckHashOptionFlag(cmd *cobra.Command) {
+	AddBsBoolOptionFlag(cmd, CURVEBS_CHECK_HASH, "whether to check chunk hash(take longer time)")
 }
 
 func AddBsChunkServerAddressSliceRequiredFlag(cmd *cobra.Command) {

@@ -487,6 +487,12 @@ var (
 	ErrBsGetFormatStatus = func() *CmdError {
 		return NewInternalCmdError(75, "get format status fail, err: %s")
 	}
+	ErrBsGetSegmentInfo = func() *CmdError {
+		return NewInternalCmdError(76, "get segment info fail, err: %s")
+	}
+	ErrBsGetChunkHash = func() *CmdError {
+		return NewInternalCmdError(77, "get chunk hash fail, err: %s")
+	}
 
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {

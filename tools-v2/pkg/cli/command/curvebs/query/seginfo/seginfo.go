@@ -150,3 +150,24 @@ TaverSegment:
 func (sCmd *SeginfoCommand) ResultPlainOutput() error {
 	return output.FinalCmdOutputPlain(&sCmd.FinalCurveCmd)
 }
+
+
+//add for check file consistency (by victorseptember)
+func GetSegmentInfo(caller *cobra.Command) ([]*nameserver2.PageFileSegment, *cmderror.CmdError) {
+	getCmd := NewQuerySeginfoCommand()
+	config.AlignFlagsValue(caller, getCmd.Cmd, []string{
+		config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEBS_MDSADDR,
+		config.CURVEBS_PATH,
+	})
+	getCmd.Cmd.SilenceErrors = true
+	getCmd.Cmd.SilenceUsage = true
+	getCmd.Cmd.SetArgs([]string{"--format", config.FORMAT_NOOUT})
+	err := getCmd.Cmd.Execute()
+	if err != nil {
+		retErr := cmderror.ErrBsGetSegmentInfo()
+		retErr.Format(err.Error())
+		return nil, retErr
+	}
+	result := getCmd.Result.([]*nameserver2.PageFileSegment)
+	return result, cmderror.Success()
+}
