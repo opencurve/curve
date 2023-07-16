@@ -564,3 +564,90 @@ func MaxUint64(first, second uint64) uint64 {
 	}
 	return first
 }
+
+//check file consistency
+func CheckCopysetsInChunkServers(address []string, addr2Id map[string]uint32, cs *Copyset,
+		copysetKeysSet set.Set[uint64], cmd *cobra.Command) (string, string, error) {
+	healthyStatus := cobrautil.HEALTH_OK
+	explain := ""
+	status, err := GetCopysetRaftStatus(address, cmd)
+	if err != nil {
+		return "", explain, err
+	}
+	for k, v := range status {
+		cs.updateChunkServerCopysets(k, v)
+	}
+
+	for k, v := range status {
+		copysetsList := make([]map[string]string, 0)
+		for _, copysetStatusMap := range v {	
+			key, err2 := strconv.ParseUint(copysetStatusMap[RAFT_STATUS_KEY_GROUPID], 10, 64)
+			if err2 != nil {
+				return "", explain, fmt.Errorf(COPYSET_CHECK_PARSE_ERROR)
+			}
+			if copysetKeysSet.Contains(key) {
+				copysetsList = append(copysetsList, copysetStatusMap)
+			}
+		}
+		cs.checkCopysetsOnChunkServer(k, copysetsList, addr2Id, cmd) 
+	}
+	if _, ok := cs.copysetStat[int32(cobrautil.COPYSET_ERROR)]; ok &&
+			cs.copysetStat[int32(cobrautil.COPYSET_ERROR)].Cardinality() > 0 {
+		healthyStatus = cobrautil.HEALTH_ERROR
+		explain = getErrorCopysetsInfo(cs)
+	} else if _, ok := cs.copysetStat[int32(cobrautil.COPYSET_WARN)]; ok &&
+			cs.copysetStat[int32(cobrautil.COPYSET_WARN)].Cardinality() > 0 {
+		healthyStatus = cobrautil.HEALTH_WARN
+		explain = getWarnCopysetsInfo(cs)
+	} else {
+		healthyStatus = cobrautil.HEALTH_OK
+		explain = "-"
+	}
+
+	return cobrautil.CopysetHealthStatus_Str[int32(healthyStatus)], explain, nil
+}
+
+func getErrorCopysetsInfo(cs *Copyset) string {
+	message := ""
+	if _, ok := cs.copyset[COPYSET_CHECK_NO_LEADER]; ok {
+		for _, key := range(cs.copyset[COPYSET_CHECK_NO_LEADER].ToSlice()) {
+			message += fmt.Sprintf("copyset %s no leader peer.\n", key)
+		}
+	}
+	if _, ok := cs.copyset[COPYSET_CHECK_MAJORITY_PEER_OFFLINE]; ok {
+		for _, key := range(cs.copyset[COPYSET_CHECK_MAJORITY_PEER_OFFLINE].ToSlice()) {
+			message += fmt.Sprintf("copyset %s majority peer offline.\n", key)
+		}
+	}
+	if _, ok := cs.copyset[COPYSET_CHECK_INCONSISTENT]; ok {
+		for _, key := range(cs.copyset[COPYSET_CHECK_INCONSISTENT].ToSlice()) {
+			message += fmt.Sprintf("copyset %s check inconsistent.\n", key)
+		}
+	}
+	return message
+}
+
+func getWarnCopysetsInfo(cs *Copyset) string {
+	message := ""
+	if _, ok := cs.copyset[COPYSET_CHECK_PEERS_NO_SUFFICIENT]; ok {
+		for _, key := range(cs.copyset[COPYSET_CHECK_PEERS_NO_SUFFICIENT].ToSlice()) {
+			message += fmt.Sprintf("copyset %s peers no sufficient.\n", key)
+		}
+	}
+	if _, ok := cs.copyset[COPYSET_CHECK_LOG_INDEX_TOO_BIG]; ok {
+		for _, key := range(cs.copyset[COPYSET_CHECK_LOG_INDEX_TOO_BIG].ToSlice()) {
+			message += fmt.Sprintf("copyset %s log index gap too big.\n", key)
+		}
+	}
+	if _, ok := cs.copyset[COPYSET_CHECK_INSTALLING_SNAPSHOT]; ok {
+		for _, key := range(cs.copyset[COPYSET_CHECK_INSTALLING_SNAPSHOT].ToSlice()) {
+			message += fmt.Sprintf("copyset %s installing snapshot.\n", key)
+		}
+	}
+	if _, ok := cs.copyset[COPYSET_CHECK_MINORITY_PEER_OFFLINE]; ok {
+		for _, key := range(cs.copyset[COPYSET_CHECK_MINORITY_PEER_OFFLINE].ToSlice()) {
+			message += fmt.Sprintf("copyset %s minority peers offline.\n", key)
+		}
+	}
+	return message
+}

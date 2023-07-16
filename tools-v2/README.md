@@ -89,6 +89,7 @@ A tool for CurveFS & CurveBs.
         - [check copyset](#check-copyset-1)
         - [check chunkserver](#check-chunkserver)
         - [check server](#check-server)
+        - [check consistency](#check-consistency)
       - [snapshot](#snapshot)
         - [snapshot copyset](#snapshot-copyset)
   - [Comparison of old and new commands](#comparison-of-old-and-new-commands)
@@ -1871,6 +1872,26 @@ Output:
 +--------+-----------+-------+------------------+
 ```
 
+##### check consistency
+
+check the file consistency
+
+Usage:
+
+```shell
+curve bs check consistency --path /test
+```
+
+Output:
+
+```shell
++--------+--------+------------+
+|  NAME  | STATUS |   EXPLAIN  |
++--------+--------+------------+
+| /test  |  ok    |      -     |
++--------+--------+------------+
+```
+
 #### snapshot
 
 ##### snapshot copyset
@@ -1971,8 +1992,8 @@ Output:
 | curve_ops_tool list-may-broken-vol   | curve bs list may-broken-vol      |
 | curve_ops_tool rapid-leader-schedule | curve bs update leader-schedule   |
 | curve_ops_tool do-snapshot-all       | curve bs snapshot --all           |
-| curve_ops_tool check-chunkserver     | curbe bs check chunkserver        |
+| curve_ops_tool check-chunkserver     | curve bs check chunkserver        |
 | curve_ops_tool status                |                                   |
-| curve_ops_tool check-consistency     |                                   |
+| curve_ops_tool check-consistency     | curve bs check consistency        |
 | curve_ops_tool check-server          | curve bs check server             |
 
