@@ -484,6 +484,9 @@ var (
 	ErrListWarmup = func() *CmdError {
 		return NewInternalCmdError(74, "list warmup progress fail, err: %s")
 	}
+	ErrBsGetFormatStatus = func() *CmdError {
+		return NewInternalCmdError(75, "get format status fail, err: %s")
+	}
 
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {

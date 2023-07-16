@@ -1154,6 +1154,19 @@ void TopologyServiceImpl::ListUnAvailCopySets(
     }
 }
 
+void TopologyServiceImpl::ListChunkFormatStatus(
+    google::protobuf::RpcController* cntl_base,
+    const ListChunkFormatStatusRequest* request,
+    ListChunkFormatStatusResponse* response, google::protobuf::Closure* done) {
+    brpc::ClosureGuard done_guard(done);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
+
+    LOG(INFO) << "Received request[log_id=" << cntl->log_id() << "] from "
+              << cntl->remote_side() << " to " << cntl->local_side()
+              << ". [ListChunkFormatStatus] " << request->DebugString();
+    topology_->ListChunkFormatStatus(request, response);
+}
+
 }  // namespace topology
 }  // namespace mds
 }  // namespace curve

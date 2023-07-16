@@ -102,6 +102,7 @@ class CSChunkfilePoolMockTest : public testing::Test {
     }
 
     void FakeMetaFile() {
+        EXPECT_CALL(*lfs_, FileExists(poolMetaPath)).WillOnce(Return(true));
         EXPECT_CALL(*lfs_, Open(poolMetaPath, _))
             .WillOnce(Return(100));
         EXPECT_CALL(*lfs_, Read(100, NotNull(), 0, metaFileSize))
@@ -391,6 +392,7 @@ TEST_F(CSChunkfilePoolMockTest, InitializeTest) {
         char buf[metaFileSize] = {0};
         EXPECT_CALL(*lfs_, Open(poolMetaPath, _))
             .WillOnce(Return(1));
+        EXPECT_CALL(*lfs_, FileExists(poolMetaPath)).WillOnce(Return(true));
         EXPECT_CALL(*lfs_, Read(1, NotNull(), 0, metaFileSize))
             .WillOnce(DoAll(SetArrayArgument<1>(buf, buf + metaFileSize),
                             Return(metaFileSize)));
@@ -404,7 +406,8 @@ TEST_F(CSChunkfilePoolMockTest, InitializeTest) {
         FakeMetaFile();
         EXPECT_CALL(*lfs_, DirExists(_))
             .WillOnce(Return(false));
-        ASSERT_EQ(false, pool.Initialize(options));
+        ASSERT_EQ(true, pool.Initialize(options));
+        pool.WaitoFormatDoneForTesting();
     }
     // 当前目录存在，list目录失败
     {

@@ -27,6 +27,7 @@ import (
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/chunkserver"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/client"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/dir"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/formatstatus"
 	logicalpool "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/logicalPool"
 	may_broken_vol "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/may-broken-vol"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/scanstatus"
@@ -51,6 +52,7 @@ func (listCmd *ListCommand) AddSubCommands() {
 		chunkserver.NewChunkServerCommand(),
 		scanstatus.NewScanStatusCommand(),
 		may_broken_vol.NewMayBrokenVolCommand(),
+		formatstatus.NewFormatStatusCommand(),
 	)
 }
 

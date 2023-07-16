@@ -169,7 +169,7 @@ bool CheckFileOpenOrNot(const std::string& filename) {
     return out.find("No such file or directory") != out.npos;
 }
 
-TEST_P(CSFilePool_test, InitializeTest) {
+TEST_P(CSFilePool_test, InitializeNomalTest) {
     std::string filePool = "./cspooltest/filePool.meta";
     const std::string filePoolPath = FILEPOOL_DIR;
 
@@ -214,6 +214,64 @@ TEST_P(CSFilePool_test, InitializeTest) {
 
     fsptr->Delete(filePoolPath + "a");
     fsptr->Delete("./cspooltest/filePool.meta3");
+}
+
+TEST_P(CSFilePool_test, InitializeFormatTest) {
+    std::string filePool = "./cspooltest/filePool1.meta";
+    const std::string filePoolPath = POOL1_DIR;
+    std::string filePath = "./cspooltest/file";
+
+    FilePoolOptions cfop;
+    cfop.fileSize = 4096;
+    cfop.metaPageSize = 4096;
+    cfop.blockSize = 4096;
+
+    cfop.formatThreadNum = 2;
+    memcpy(cfop.metaPath, filePool.c_str(), filePool.size());
+    memcpy(cfop.filePoolDir, filePoolPath.c_str(), filePoolPath.size());
+
+    char metaPage[cfop.metaPageSize];  // NOLINT
+
+    {
+        // meta file not exit.
+        FilePool pool(fsptr);
+        cfop.filePoolSize = 8192 * 10;
+        ASSERT_TRUE(pool.Initialize(cfop));
+        ASSERT_EQ(0, pool.GetFile(filePath, (const char*)&metaPage));
+        ASSERT_EQ(0, pool.RecycleFile(filePath));
+        pool.WaitoFormatDoneForTesting();
+        ASSERT_EQ(pool.Size(), 10);
+    }
+
+    {
+        // filepool is not empty.
+        FilePool pool(fsptr);
+        cfop.filePoolSize = 8192 * 20;
+        ASSERT_TRUE(pool.Initialize(cfop));
+        pool.WaitoFormatDoneForTesting();
+        ASSERT_EQ(pool.Size(), 20);
+    }
+
+    {
+        // the chunk num of filepool is less than preAllcateNum.
+        FilePool pool(fsptr);
+        cfop.filePoolSize = 8192 * 10;
+        ASSERT_TRUE(pool.Initialize(cfop));
+        pool.WaitoFormatDoneForTesting();
+        ASSERT_EQ(20, pool.Size());
+    }
+
+    {
+        // get file while fil epool is formatting.
+        FilePool pool(fsptr);
+        std::string filePath = "./cspooltest/file";
+        cfop.filePoolSize = 8192 * 100;
+        ASSERT_TRUE(pool.Initialize(cfop));
+        ASSERT_EQ(0, pool.GetFile(filePath, (const char*)&metaPage));
+        ASSERT_EQ(0, pool.RecycleFile(filePath));
+        sleep(3);
+        ASSERT_GT(pool.Size(), 20);
+    }
 }
 
 TEST_P(CSFilePool_test, GetFileTest) {

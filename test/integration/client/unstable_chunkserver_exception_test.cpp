@@ -86,23 +86,23 @@ const std::vector<std::string> mdsConf{
 };
 
 const std::vector<std::string> chunkserverConfTemplate{
-    { "-raft_sync_segments=true" },
+    {"-raft_sync_segments=true"},
     std::string("-conf=") + kCSConfPath,
-    { "-chunkServerPort=%d" },
-    { "-chunkServerStoreUri=local://./ttt/%d/" },
-    { "-chunkServerMetaUri=local://./ttt/%d/chunkserver.dat" },
-    { "-copySetUri=local://./ttt/%d/copysets" },
-    { "-raftSnapshotUri=curve://./ttt/%d/copysets" },
-    { "-raftLogUri=curve://./ttt/%d/copysets" },
-    { "-recycleUri=local://./ttt/%d/recycler" },
-    { "-chunkFilePoolDir=./ttt/%d/chunkfilepool/" },
-    { "-chunkFilePoolMetaPath=./ttt/%d/chunkfilepool.meta" },
-    { "-walFilePoolDir=./ttt/%d/walfilepool/" },
-    { "-walFilePoolMetaPath=./ttt/%d/walfilepool.meta" },
-    { "-mdsListenAddr=127.0.0.1:30010,127.0.0.1:30011,127.0.0.1:30012" },
-    { "-log_dir=./runlog/cs_%d" },
-    { "--stderrthreshold=3" }
-};
+    {"-chunkServerPort=%d"},
+    {"-chunkServerStoreUri=local://./ttt/%d/"},
+    {"-chunkServerMetaUri=local://./ttt/%d/chunkserver.dat"},
+    {"-copySetUri=local://./ttt/%d/copysets"},
+    {"-raftSnapshotUri=curve://./ttt/%d/copysets"},
+    {"-raftLogUri=curve://./ttt/%d/copysets"},
+    {"-recycleUri=local://./ttt/%d/recycler"},
+    {"-chunkFilePoolDir=./ttt/%d/chunkfilepool/"},
+    {"-chunkFilePoolAllocatedPercent=0"},
+    {"-chunkFilePoolMetaPath=./ttt/%d/chunkfilepool.meta"},
+    {"-walFilePoolDir=./ttt/%d/walfilepool/"},
+    {"-walFilePoolMetaPath=./ttt/%d/walfilepool.meta"},
+    {"-mdsListenAddr=127.0.0.1:30010,127.0.0.1:30011,127.0.0.1:30012"},
+    {"-log_dir=./runlog/cs_%d"},
+    {"--stderrthreshold=3"}};
 
 const std::vector<int> chunkserverPorts{
     31000, 31001, 31010, 31011, 31020, 31021,

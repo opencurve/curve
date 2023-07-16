@@ -232,6 +232,11 @@ class TopologyServiceImpl : public TopologyService {
                       const ListUnAvailCopySetsRequest* request,
                       ListUnAvailCopySetsResponse* response,
                       google::protobuf::Closure* done);
+    virtual void ListChunkFormatStatus(
+        google::protobuf::RpcController* cntl_base,
+        const ListChunkFormatStatusRequest* request,
+        ListChunkFormatStatusResponse* response,
+        google::protobuf::Closure* done);
 
  private:
     std::shared_ptr<TopologyServiceManager> topology_;

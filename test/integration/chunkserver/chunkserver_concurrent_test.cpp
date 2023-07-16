@@ -187,6 +187,7 @@ class ChunkServerConcurrentFromFilePoolTest : public testing::Test {
         cg1.SetKV("copyset.election_timeout_ms", "3000");
         cg1.SetKV("copyset.snapshot_interval_s", "60");
         cg1.SetKV("chunkfilepool.enable_get_chunk_from_pool", "true");
+        cg1.SetKV("chunkfilepool.allocated_by_percent", "false");
         cg1.SetKV("mds.listen.addr", kFakeMdsAddr);
         ASSERT_TRUE(cg1.Generate());
 

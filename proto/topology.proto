@@ -501,6 +501,19 @@ message GetCopySetsInChunkServerRequest {
     optional uint32 port = 3;
 }
 
+message ChunkFormatStatus {
+    required string ip = 1;
+    required uint32 port = 2;
+    required uint32 chunkServerID = 3;
+    required uint32 formatPercent = 4;
+}
+
+message ListChunkFormatStatusRequest {}
+
+message ListChunkFormatStatusResponse {
+    repeated ChunkFormatStatus chunkFormatStatus = 1;
+}
+
 message GetCopySetsInChunkServerResponse {
     required sint32 statusCode = 1;
     repeated common.CopysetInfo copysetInfos = 2;
@@ -595,4 +608,5 @@ service TopologyService {
     rpc GetClusterInfo(GetClusterInfoRequest) returns (GetClusterInfoResponse);
     rpc SetCopysetsAvailFlag(SetCopysetsAvailFlagRequest) returns (SetCopysetsAvailFlagResponse);
     rpc ListUnAvailCopySets(ListUnAvailCopySetsRequest) returns (ListUnAvailCopySetsResponse);
+    rpc ListChunkFormatStatus(ListChunkFormatStatusRequest) returns (ListChunkFormatStatusResponse);
 }
