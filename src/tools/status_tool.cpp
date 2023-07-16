@@ -114,18 +114,14 @@ bool StatusTool::CommandNeedSnapshotClone(const std::string& command) {
 }
 
 bool StatusTool::SupportCommand(const std::string& command) {
-    return (command == kSpaceCmd || command == kStatusCmd
-                                 || command == kChunkserverListCmd
-                                 || command == kChunkserverStatusCmd
-                                 || command == kMdsStatusCmd
-                                 || command == kEtcdStatusCmd
-                                 || command == kClientStatusCmd
-                                 || command == kClientListCmd
-                                 || command == kSnapshotCloneStatusCmd
-                                 || command == kClusterStatusCmd
-                                 || command == kServerListCmd
-                                 || command == kLogicalPoolList
-                                 || command == kScanStatusCmd);
+    return (command == kSpaceCmd || command == kStatusCmd ||
+            command == kChunkserverListCmd ||
+            command == kChunkserverStatusCmd || command == kMdsStatusCmd ||
+            command == kEtcdStatusCmd || command == kClientStatusCmd ||
+            command == kClientListCmd || command == kSnapshotCloneStatusCmd ||
+            command == kClusterStatusCmd || command == kServerListCmd ||
+            command == kLogicalPoolList || command == kScanStatusCmd ||
+            command == kFormatStatusCmd);
 }
 
 void StatusTool::PrintHelp(const std::string& cmd) {
@@ -221,6 +217,21 @@ int StatusTool::SpaceCmd() {
               << ", left = " << (i.second.totalCapacity -
                                 i.second.allocatedSize) / mds::kGB
               << "GB"<< std::endl;
+    }
+    return 0;
+}
+
+int StatusTool::FormatStatusCmd() {
+    std::vector<curve::mds::topology::ChunkFormatStatus> formatStatus;
+    int res = mdsClient_->ListChunkFormatStatus(&formatStatus);
+    if (res != 0) {
+        std::cout << "ListChunkserversInCluster fail!" << std::endl;
+        return -1;
+    }
+    for (auto stat : formatStatus) {
+        std::cout << "ip:" << stat.ip() << " port:" << stat.port()
+                  << " id:" << stat.chunkserverid()
+                  << " format percent:" << stat.formatpercent() << std::endl;
     }
     return 0;
 }
@@ -1138,6 +1149,8 @@ int StatusTool::RunCommand(const std::string &cmd) {
         return ClientListCmd();
     } else if (cmd == kScanStatusCmd) {
         return ScanStatusCmd();
+    } else if (cmd == kFormatStatusCmd) {
+        return FormatStatusCmd();
     } else {
         std::cout << "Command not supported!" << std::endl;
         return -1;

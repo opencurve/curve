@@ -186,7 +186,7 @@ rconcurrentapply.queuedepth=1
 # 是否开启从chunkfilepool获取chunk，一般是true
 chunkfilepool.enable_get_chunk_from_pool=true
 # chunkfilepool目录
-chunkfilepool.chunk_file_pool_dir=./0/
+chunkfilepool.chunk_file_pool_dir=./0/chunks
 # chunkfilepool meta文件路径
 #chunkfilepool.meta_path=./chunkfilepool.meta
 # chunkfilepool meta文件大小
@@ -199,6 +199,14 @@ chunkfilepool.clean.enable=true
 chunkfilepool.clean.bytes_per_write=4096
 # The throttle iops for cleaning chunk (4KB/IO)
 chunkfilepool.clean.throttle_iops=500
+# Whether allocate filePool by percent of disk size.
+chunkfilepool.allocated_by_percent=true
+# Preallocate storage percent of total disk
+chunkfilepool.allocate_percent=80
+# Preallocate storage size of chunkfilepool (None/KB/MB/GB/TB)
+chunkfilepool.chunk_file_pool_size=1GB
+# The thread num for format chunks
+chunkfilepool.thread_num=1
 
 #
 # WAL file pool
@@ -221,6 +229,14 @@ walfilepool.metapage_size=4096
 walfilepool.meta_file_size=4096
 # WAL filepool get chunk最大重试次数
 walfilepool.retry_times=5
+# Whether allocate filePool by percent of disk size.
+walfilepool.allocated_by_percent=true
+# Preallocate storage percent of total disk
+walfilepool.allocate_percent=10
+# Preallocate storage size size of walfilepool (None/KB/MB/GB/TB)
+walfilepool.wal_file_pool_size=0
+# The thread num for format chunks
+walfilepool.thread_num=1
 
 #
 # trash settings

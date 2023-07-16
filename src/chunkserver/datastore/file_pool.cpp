@@ -22,8 +22,10 @@
 
 #include "src/chunkserver/datastore/file_pool.h"
 
+#include <brpc/reloadable_flags.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <json/json.h>
 #include <linux/fs.h>
@@ -33,18 +35,19 @@
 #include <climits>
 #include <cstring>
 #include <memory>
-#include <vector>
 #include <utility>
+#include <vector>
 
-#include "src/common/string_util.h"
-#include "src/common/throttle.h"
+#include "absl/utility/utility.h"
 #include "src/common/configuration.h"
 #include "src/common/crc32.h"
 #include "src/common/curve_define.h"
-
-#include "absl/utility/utility.h"
+#include "src/common/string_util.h"
+#include "src/common/throttle.h"
 
 using curve::common::kFilePoolMagic;
+DEFINE_int64(formatInterval, 100, "Sets a interval between formatting.");
+DEFINE_validator(formatInterval, brpc::PositiveInteger);
 
 namespace curve {
 namespace chunkserver {
@@ -68,7 +71,6 @@ std::ostream& operator<<(std::ostream& os, const FilePoolMeta& meta) {
        << ", hasblocksize: " << meta.hasBlockSize
        << ", blocksize: " << meta.blockSize
        << ", filepoolpath: " << meta.filePoolPath;
-
     return os;
 }
 
@@ -220,20 +222,31 @@ FilePool::FilePool(std::shared_ptr<LocalFileSystem> fsptr)
     memset(writeBuffer_.get(), 0, poolOpt_.bytesPerWrite);
 }
 
+FilePool::~FilePool() { UnInitialize(); }
+
 bool FilePool::Initialize(const FilePoolOptions &cfopt) {
     poolOpt_ = cfopt;
     if (poolOpt_.getFileFromPool) {
+        currentdir_ = poolOpt_.filePoolDir;
+        currentState_.chunkSize = poolOpt_.fileSize;
+        currentState_.metaPageSize = poolOpt_.metaPageSize;
         if (!CheckValid()) {
-            LOG(ERROR) << "check valid failed!";
+            LOG(ERROR) << "Check vaild failed!";
             return false;
         }
-        if (fsptr_->DirExists(currentdir_)) {
-            return ScanInternal();
-        } else {
-            LOG(ERROR) << "chunkfile pool not exists, inited failed!"
-                       << " chunkfile pool path = " << currentdir_.c_str();
+
+        if (!ScanInternal()) {
+            LOG(ERROR) << "Scan pool files failed!";
             return false;
         }
+
+        if (!PrepareFormat()) {
+            LOG(ERROR) << "Prepare format failed!";
+            return false;
+        }
+
+        formatAlived_.store(true);
+        formatThread_ = Thread(&FilePool::FormatWorker, this);
     } else {
         currentdir_ = poolOpt_.filePoolDir;
         if (!fsptr_->DirExists(currentdir_.c_str())) {
@@ -245,6 +258,15 @@ bool FilePool::Initialize(const FilePoolOptions &cfopt) {
 
 bool FilePool::CheckValid() {
     FilePoolMeta meta;
+    if (!fsptr_->FileExists(poolOpt_.metaPath)) {
+        LOG(INFO) << "Metafile in path '" << poolOpt_.metaPath
+                  << "'not found, it's the first initialized.";
+        currentState_.chunkSize = poolOpt_.fileSize;
+        currentState_.metaPageSize = poolOpt_.metaPageSize;
+        currentState_.blockSize = poolOpt_.blockSize;
+        currentdir_ = poolOpt_.filePoolDir;
+        return true;
+    }
     int ret = FilePoolHelper::DecodeMetaInfoFromMetaFile(
         fsptr_, poolOpt_.metaPath, poolOpt_.metaFileSize, &meta);
     if (ret == -1) {
@@ -375,6 +397,129 @@ void FilePool::CleanWorker() {
     }
 }
 
+bool FilePool::PrepareFormat() {
+    curve::fs::FileSystemInfo finfo;
+    int r = fsptr_->Statfs(currentdir_, &finfo);
+    if (r != 0) {
+        LOG(ERROR) << "get disk usage info failed!";
+        return false;
+    }
+
+    if (poolOpt_.allocatedByPercent) {
+        poolOpt_.filePoolSize = finfo.total * poolOpt_.allocatedPercent / 100;
+    }
+
+    uint64_t bytesPerPage = poolOpt_.fileSize + poolOpt_.metaFileSize;
+    uint64_t needSpace =
+        poolOpt_.filePoolSize - currentState_.chunkNum * bytesPerPage;
+    uint64_t vaildSpace = 0;
+
+    if (poolOpt_.filePoolSize / bytesPerPage < currentState_.chunkNum) {
+        LOG(INFO) << "It is no need to format chunks.";
+        formatStat_.preAllocateNum = 0;
+        formatStat_.allocateChunkNum = 0;
+        return true;
+    }
+
+    vaildSpace = finfo.available;
+    LOG(INFO) << "free space = " << finfo.available
+              << ", total space = " << finfo.total
+              << ", need space = " << needSpace;
+    if (vaildSpace < needSpace) {
+        LOG(ERROR) << "disk free space not enough.";
+        return false;
+    }
+
+    formatStat_.preAllocateNum = needSpace / bytesPerPage;
+    formatStat_.allocateChunkNum = 0;
+    LOG(INFO) << "preAllocateNum = " << formatStat_.preAllocateNum;
+    return true;
+}
+
+bool FilePool::WaitoFormatDoneForTesting() {
+    std::unique_lock<std::mutex> lk(mtx_);
+    if (formatStat_.allocateChunkNum.load() != formatStat_.preAllocateNum) {
+        cond_.wait(lk, [&]() {
+            return formatStat_.allocateChunkNum.load() ==
+                   formatStat_.preAllocateNum;
+        });
+    }
+    lk.unlock();
+    if (formatThread_.joinable()) {
+        formatThread_.join();
+    }
+    return true;
+}
+
+bool FilePool::StopFormatting() {
+    if (formatAlived_.exchange(false)) {
+        LOG(INFO) << "Stop formatting...";
+        if (formatThread_.joinable()) {
+            formatThread_.join();
+        }
+        LOG(INFO) << "Stop format thread ok.";
+    }
+    return true;
+}
+int FilePool::FormatTask(uint64_t indexOffset,
+                         std::atomic<uint32_t>* allocatIndex) {
+    LOG(INFO) << "format thread has been work!";
+    while (!this->formatStat_.isWrong.load() && this->formatAlived_.load()) {
+        uint32_t chunkIndex = 0;
+        if ((chunkIndex = allocatIndex->fetch_add(1)) >=
+            formatStat_.preAllocateNum) {
+            allocatIndex->fetch_sub(1);
+            break;
+        }
+        std::string chunkPath = this->currentdir_ + "/" +
+                                std::to_string(chunkIndex + indexOffset) +
+                                kCleanChunkSuffix_;
+        this->formatSleeper_.wait_for(
+            std::chrono::milliseconds{FLAGS_formatInterval});
+        int res = this->AllocateChunk(chunkPath);
+        if (res != 0) {
+            this->formatStat_.isWrong.store(true);
+            LOG(ERROR) << "Format ERROR!";
+            break;
+        }
+        this->mtx_.lock();
+        cleanChunks_.push_back(chunkIndex + indexOffset);
+        this->currentState_.cleanChunksLeft++;
+        this->currentState_.preallocatedChunksLeft++;
+        this->currentState_.chunkNum++;
+        this->formatStat_.allocateChunkNum++;
+        this->mtx_.unlock();
+        this->cond_.notify_all();
+    }
+    LOG(INFO) << "format thread has done!";
+    return 0;
+}
+
+int FilePool::FormatWorker() {
+    std::vector<Thread> threads;
+    uint64_t offset =
+        this->currentmaxfilenum_.fetch_add(formatStat_.preAllocateNum);
+    std::atomic<uint32_t> allocatIndex{0};
+
+    for (uint32_t i = 0; i < poolOpt_.formatThreadNum; i++) {
+        threads.emplace_back(
+            Thread(&FilePool::FormatTask, this, offset, &allocatIndex));
+    }
+
+    for (auto& thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+    LOG(INFO) << "format worker done";
+
+    if (formatStat_.isWrong.load()) {
+        LOG(ERROR) << "Chunk format failed!";
+        return -1;
+    }
+    return 0;
+}
+
 bool FilePool::StartCleaning() {
     if (poolOpt_.needClean && !cleanAlived_.exchange(true)) {
         ReadWriteThrottleParams params;
@@ -400,9 +545,8 @@ bool FilePool::StopCleaning() {
 }
 
 bool FilePool::GetChunk(bool needClean, uint64_t *chunkid, bool *isCleaned) {
-    auto pop = [&](std::vector<uint64_t> *chunks, uint64_t *chunksLeft,
+    auto pop = [&](std::vector<uint64_t>* chunks, uint64_t* chunksLeft,
                    bool isCleanChunks) -> bool {
-        std::unique_lock<std::mutex> lk(mtx_);
         if (chunks->empty()) {
             return false;
         }
@@ -415,16 +559,28 @@ bool FilePool::GetChunk(bool needClean, uint64_t *chunkid, bool *isCleaned) {
         return true;
     };
 
-    if (!needClean) {
-        return pop(&dirtyChunks_, &currentState_.dirtyChunksLeft, false) ||
-               pop(&cleanChunks_, &currentState_.cleanChunksLeft, true);
+    auto wake_up = [&]() {
+        return (formatStat_.allocateChunkNum.load() ==
+                formatStat_.preAllocateNum)  // NOLINT
+               || !(dirtyChunks_.empty() && cleanChunks_.empty());
+    };
+
+    bool ret = true;
+    {
+        std::unique_lock<std::mutex> lk(mtx_);
+        if (formatStat_.allocateChunkNum.load() != formatStat_.preAllocateNum) {
+            cond_.wait(lk, wake_up);
+        }
+        if (!needClean) {
+            return pop(&dirtyChunks_, &currentState_.dirtyChunksLeft, false) ||
+                   pop(&cleanChunks_, &currentState_.cleanChunksLeft, true);
+        }
+
+        // Need clean chunk
+        *isCleaned = false;
+        ret = pop(&cleanChunks_, &currentState_.cleanChunksLeft, true) ||
+              pop(&dirtyChunks_, &currentState_.dirtyChunksLeft, false);
     }
-
-    // Need clean chunk
-    *isCleaned = false;
-    bool ret = pop(&cleanChunks_, &currentState_.cleanChunksLeft, true) ||
-               pop(&dirtyChunks_, &currentState_.dirtyChunksLeft, false);
-
     if (true == ret && false == *isCleaned && CleanChunk(*chunkid, true)) {
         *isCleaned = true;
     }
@@ -638,7 +794,7 @@ int FilePool::RecycleFile(const std::string &chunkpath) {
 
 void FilePool::UnInitialize() {
     currentdir_ = "";
-
+    StopFormatting();
     std::unique_lock<std::mutex> lk(mtx_);
     dirtyChunks_.clear();
     cleanChunks_.clear();
@@ -647,8 +803,17 @@ void FilePool::UnInitialize() {
 bool FilePool::ScanInternal() {
     uint64_t maxnum = 0;
     std::vector<std::string> tmpvec;
+    int ret = 0;
     LOG(INFO) << "scan dir" << currentdir_;
-    int ret = fsptr_->List(currentdir_.c_str(), &tmpvec);
+    if (!fsptr_->DirExists(currentdir_.c_str())) {
+        ret = fsptr_->Mkdir(currentdir_.c_str());
+        if (ret != 0) {
+            LOG(ERROR) << "Mkdir [" << currentdir_ << "]"
+                       << " failed!";
+            return false;
+        }
+    }
+    ret = fsptr_->List(currentdir_.c_str(), &tmpvec);
     if (ret < 0) {
         LOG(ERROR) << "list file pool dir failed!";
         return false;
@@ -709,6 +874,10 @@ bool FilePool::ScanInternal() {
         }
     }
 
+    currentState_.chunkNum = tmpvec.size();
+    currentState_.chunkNum += CountAllocatedNum(poolOpt_.copysetDir);
+    currentState_.chunkNum += CountAllocatedNum(poolOpt_.recycleDir);
+
     std::unique_lock<std::mutex> lk(mtx_);
     currentmaxfilenum_.store(maxnum + 1);
     currentState_.dirtyChunksLeft = dirtyChunks_.size();
@@ -721,6 +890,30 @@ bool FilePool::ScanInternal() {
     return true;
 }
 
+uint64_t FilePool::CountAllocatedNum(const std::string& path) {
+    std::vector<std::string> files;
+    if ("" == path || 0 != fsptr_->List(path, &files)) {
+        LOG(ERROR) << "FilePool failed to list files in " << path;
+        return 0;
+    }
+
+    // Traverse subdirectories
+    uint32_t chunkNum = 0;
+    for (auto& file : files) {
+        std::string filePath = path + "/" + file;
+        bool isDir = fsptr_->DirExists(filePath);
+        if (!isDir) {
+            LOG(INFO) << "path = " << filePath;
+            if (poolOpt_.isAllocated(file)) {
+                ++chunkNum;
+            }
+        } else {
+            chunkNum += CountAllocatedNum(filePath);
+        }
+    }
+    return chunkNum;
+}
+
 size_t FilePool::Size() {
     std::unique_lock<std::mutex> lk(mtx_);
     return currentState_.preallocatedChunksLeft;
@@ -728,6 +921,10 @@ size_t FilePool::Size() {
 
 FilePoolState FilePool::GetState() const {
     return currentState_;
+}
+
+const ChunkFormatStat& FilePool::GetChunkFormatStat() const {
+    return formatStat_;
 }
 
 uint32_t FilePoolMeta::Crc32() const {

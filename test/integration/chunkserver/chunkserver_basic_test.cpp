@@ -95,6 +95,7 @@ class ChunkServerIoTest : public testing::Test {
         cg1_.SetKV("copyset.election_timeout_ms", "3000");
         cg1_.SetKV("copyset.snapshot_interval_s", "60");
         cg1_.SetKV("chunkfilepool.enable_get_chunk_from_pool", "true");
+        cg1_.SetKV("chunkfilepool.allocated_by_percent", "false");
         externalIp_ = butil::my_ip_cstr();
         cg1_.SetKV("global.external_ip", externalIp_);
         cg1_.SetKV("global.enable_external_server", "true");
