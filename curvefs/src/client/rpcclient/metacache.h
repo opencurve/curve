@@ -200,7 +200,6 @@ class MetaCache {
     RWLock rwlock4Partitions_;
     PartitionInfoList partitionInfos_;
     RWLock rwlock4copysetInfoMap_;
-    // TODO(Xinlong-Chen): delete appliedindex from CopysetInfo
     CopysetInfoMap copysetInfoMap_;
 
     Mutex createMutex_;
