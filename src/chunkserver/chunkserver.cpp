@@ -104,7 +104,6 @@ int ChunkServer::Run(int argc, char** argv) {
 
     // 打印参数
     conf.PrintConfig();
-    conf.ExposeMetric("chunkserver_config");
     curve::common::ExposeCurveVersion();
 
     // ============================初始化各模块==========================//
