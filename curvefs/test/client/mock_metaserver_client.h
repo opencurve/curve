@@ -68,6 +68,10 @@ class MockMetaServerClient : public MetaServerClient {
             uint32_t fsId, uint64_t inodeid, const std::string &name,
             FsFileType type));
 
+    MOCK_METHOD4(IsDirEmpty, MetaStatusCode(
+            uint32_t fsId, uint64_t inodeid, const std::string &name,
+            bool *empty));
+
     MOCK_METHOD1(PrepareRenameTx,
                  MetaStatusCode(const std::vector<Dentry>& dentrys));
 

@@ -65,6 +65,7 @@ using BatchGetXAttrExcutor = TaskExecutor;
 using GetOrModifyS3ChunkInfoExcutor = TaskExecutor;
 using UpdateVolumeExtentExecutor = TaskExecutor;
 using GetVolumeExtentExecutor = TaskExecutor;
+using IsDirEmptyExecutor = TaskExecutor;
 
 using ::curvefs::common::LatencyUpdater;
 using ::curvefs::common::StreamConnection;
@@ -345,6 +346,53 @@ MetaStatusCode MetaServerClientImpl::DeleteDentry(uint32_t fsId,
                                                  opt_.enableRenameParallel);
     DeleteDentryExcutor excutor(opt_, metaCache_, channelManager_,
                                 std::move(taskCtx));
+    return ConvertToMetaStatusCode(excutor.DoRPCTask());
+}
+
+MetaStatusCode MetaServerClientImpl::IsDirEmpty(uint32_t fsId,
+                                                uint64_t inodeid,
+                                                const std::string &name,
+                                                bool *empty) {
+    auto task = RPCTask {
+        (void)taskExecutorDone;
+        IsDirEmptyResponse response;
+        IsDirEmptyRequest request;
+        request.set_poolid(poolID);
+        request.set_copysetid(copysetID);
+        request.set_partitionid(partitionID);
+        request.set_fsid(fsId);
+        request.set_dirinodeid(inodeid);
+        request.set_name(name);
+        request.set_txid(txId);
+
+        curvefs::metaserver::MetaServerService_Stub stub(channel);
+        stub.IsDirEmpty(cntl, &request, &response, nullptr);
+
+        if (cntl->Failed()) {
+            LOG(WARNING) << "IsDirEmpty Failed, errorcode = "
+                         << cntl->ErrorCode()
+                         << ", error content:" << cntl->ErrorText()
+                         << ", log id = " << cntl->log_id();
+            return -cntl->ErrorCode();
+        }
+
+        MetaStatusCode ret = response.statuscode();
+        if (ret != MetaStatusCode::OK) {
+            LOG(WARNING) << "IsDirEmpty:  fsid = " << fsId
+                         << ", inodeid = " << inodeid << ", name = " << name
+                         << ", errcode = " << ret
+                         << ", errmsg = " << MetaStatusCode_Name(ret);
+        }
+        *empty = response.empty();
+        VLOG(6) << "IsDirEmpty done, request: " << request.DebugString()
+                << "response: " << response.DebugString();
+        return ret;
+    };
+    auto taskCtx = std::make_shared<TaskContext>(MetaServerOpType::IsDirEmpty,
+                                                 task, fsId, inodeid, false,
+                                                 opt_.enableRenameParallel);
+    IsDirEmptyExecutor excutor(opt_, metaCache_, channelManager_,
+                               std::move(taskCtx));
     return ConvertToMetaStatusCode(excutor.DoRPCTask());
 }
 

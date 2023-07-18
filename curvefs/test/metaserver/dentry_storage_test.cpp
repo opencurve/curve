@@ -470,6 +470,32 @@ TEST_F(DentryStorageTest, List) {
     ASSERT_EQ(dentrys.size(), 2);
 }
 
+TEST_F(DentryStorageTest, IsDirEmpty) {
+    DentryStorage storage(kvStorage_, nameGenerator_, 0);
+    std::vector<Dentry> dentrys;
+    Dentry dentry;
+    bool empty;
+
+    // CASE 1: basic check
+    InsertDentrys(&storage, std::vector<Dentry>{
+        // { fsId, parentId, name, txId, inodeId, deleteMarkFlag }
+        GenDentry(1, 0, "A1", 0, 1, false),
+        GenDentry(1, 0, "A2", 0, 2, false),
+        GenDentry(1, 0, "A3", 0, 3, false),
+        GenDentry(1, 0, "A4", 0, 4, false),
+        GenDentry(1, 0, "A5", 0, 5, false),
+    });
+
+    dentry = GenDentry(1, 0, "", 0, 0, false);
+
+    ASSERT_EQ(storage.IsDirEmpty(dentry, &empty), MetaStatusCode::OK);
+    ASSERT_EQ(empty, false);
+
+    dentry = GenDentry(1, 0, "A3", 0, 0, false);
+    ASSERT_EQ(storage.IsDirEmpty(dentry, &empty), MetaStatusCode::OK);
+    ASSERT_EQ(empty, true);
+}
+
 TEST_F(DentryStorageTest, HandleTx) {
     DentryStorage storage(kvStorage_, nameGenerator_, 0);
     std::vector<Dentry> dentrys;

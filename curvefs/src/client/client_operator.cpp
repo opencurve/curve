@@ -142,15 +142,15 @@ void RenameOperator::SetTxId(uint32_t partitionId, uint64_t txId) {
     metaClient_->SetTxId(partitionId, txId);
 }
 
-// TODO(Wine93): we should improve the check for whether a directory is empty
 CURVEFS_ERROR RenameOperator::CheckOverwrite() {
     if (dstDentry_.flag() & DentryFlag::TYPE_FILE_FLAG) {
         return CURVEFS_ERROR::OK;
     }
 
-    std::list<Dentry> dentrys;
-    auto rc = dentryManager_->ListDentry(dstDentry_.inodeid(), &dentrys, 1);
-    if (rc == CURVEFS_ERROR::OK && !dentrys.empty()) {
+    bool empty;
+    auto rc = dentryManager_->CheckDirEmpty(dstDentry_,
+                                            &empty);
+    if (rc == CURVEFS_ERROR::OK && !empty) {
         LOG(ERROR) << "The directory is not empty"
                    << ", dentry = (" << dstDentry_.ShortDebugString() << ")";
         rc = CURVEFS_ERROR::NOTEMPTY;

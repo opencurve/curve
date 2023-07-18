@@ -66,6 +66,8 @@ const char* OperatorTypeName(OperatorType type) {
             return "GetVolumeExtent";
         case OperatorType::UpdateVolumeExtent:
             return "UpdateVolumeExtent";
+        case OperatorType::IsDirEmpty:
+            return "IsDirEmpty";
         // Add new case before `OperatorType::OperatorTypeMax`
         case OperatorType::OperatorTypeMax:
             break;

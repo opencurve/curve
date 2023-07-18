@@ -169,6 +169,19 @@ MetaStatusCode Partition::ListDentry(const Dentry& dentry,
     return dentryManager_->ListDentry(dentry, dentrys, limit, onlyDir);
 }
 
+MetaStatusCode Partition::IsDirEmpty(const Dentry& dentry,
+                                     bool* empty) {
+    if (!IsInodeBelongs(dentry.fsid(), dentry.inodeid())) {
+        return MetaStatusCode::PARTITION_ID_MISSMATCH;
+    }
+
+    if (GetStatus() == PartitionStatus::DELETING) {
+        return MetaStatusCode::PARTITION_DELETING;
+    }
+
+    return dentryManager_->IsDirEmpty(dentry, empty);
+}
+
 void Partition::ClearDentry() {
     dentryManager_->ClearDentry();
 }

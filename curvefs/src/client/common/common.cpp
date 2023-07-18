@@ -72,6 +72,9 @@ std::ostream &operator<<(std::ostream &os, MetaServerOpType optype) {
     case MetaServerOpType::UpdateVolumeExtent:
         os << "UpdateVolumeExtent";
         break;
+    case MetaServerOpType::IsDirEmpty:
+        os << "IsDirEmpty";
+        break;
     default:
         os << "Unknow opType";
     }

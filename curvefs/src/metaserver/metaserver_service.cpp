@@ -26,6 +26,7 @@
 #include "curvefs/src/metaserver/metaserver_service.h"
 #include "curvefs/src/metaserver/copyset/meta_operator.h"
 #include "curvefs/src/metaserver/metaservice_closure.h"
+#include "curvefs/src/metaserver/metastore.h"
 
 static bvar::LatencyRecorder g_oprequest_in_service_before_propose_latency(
                                     "oprequest_in_service_before_propose");
@@ -37,6 +38,7 @@ using ::curvefs::metaserver::copyset::GetDentryOperator;
 using ::curvefs::metaserver::copyset::ListDentryOperator;
 using ::curvefs::metaserver::copyset::CreateDentryOperator;
 using ::curvefs::metaserver::copyset::DeleteDentryOperator;
+using ::curvefs::metaserver::copyset::IsDirEmptyOperator;
 using ::curvefs::metaserver::copyset::GetInodeOperator;
 using ::curvefs::metaserver::copyset::BatchGetInodeAttrOperator;
 using ::curvefs::metaserver::copyset::BatchGetXAttrOperator;
@@ -140,6 +142,17 @@ void MetaServerServiceImpl::DeleteDentry(
     ::google::protobuf::Closure* done) {
     OperatorHelper helper(copysetNodeManager_, inflightThrottle_);
     helper.operator()<DeleteDentryOperator>(controller, request, response, done,
+                                            request->poolid(),
+                                            request->copysetid());
+}
+
+void MetaServerServiceImpl::IsDirEmpty(
+    ::google::protobuf::RpcController *controller,
+    const ::curvefs::metaserver::IsDirEmptyRequest *request,
+    ::curvefs::metaserver::IsDirEmptyResponse *response,
+    ::google::protobuf::Closure *done) {
+    OperatorHelper helper(copysetNodeManager_, inflightThrottle_);
+    helper.operator()<IsDirEmptyOperator>(controller, request, response, done,
                                             request->poolid(),
                                             request->copysetid());
 }

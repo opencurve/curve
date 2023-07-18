@@ -96,6 +96,13 @@ MetaStatusCode DentryManager::ListDentry(const Dentry& dentry,
     return rc;
 }
 
+MetaStatusCode DentryManager::IsDirEmpty(const Dentry &dentry, bool *empty) {
+    Log4Dentry("IsDirEmpty", dentry);
+    MetaStatusCode rc = dentryStorage_->IsDirEmpty(dentry, empty);
+    Log4Code("IsDirEmpty", rc);
+    return rc;
+}
+
 void DentryManager::ClearDentry() {
     dentryStorage_->Clear();
     LOG(INFO) << "ClearDentry ok";

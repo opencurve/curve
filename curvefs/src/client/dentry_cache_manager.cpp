@@ -156,5 +156,23 @@ CURVEFS_ERROR DentryCacheManagerImpl::ListDentry(uint64_t parent,
     return CURVEFS_ERROR::OK;
 }
 
+CURVEFS_ERROR DentryCacheManagerImpl::CheckDirEmpty(const Dentry &dentry,
+                                                    bool *empty) {
+    MetaStatusCode ret = MetaStatusCode::OK;
+    auto inodeid = dentry.inodeid();
+    auto name = dentry.name();
+    ret = metaClient_->IsDirEmpty(fsId_, inodeid, name, empty);
+    VLOG(6) << "CheckDirEmpty fsid: " << fsId_ << " inode: " << inodeid
+            << " name: " << name << " empty: " << empty;
+    if (ret != MetaStatusCode::OK) {
+        LOG(ERROR) << "metaClient_ CheckDirEmpty failed"
+                    << ", MetaStatusCode_Name = " << MetaStatusCode_Name(ret)
+                    << ", inode = " << inodeid << ", name = " << name;
+        return ToFSError(ret);
+    }
+
+    return CURVEFS_ERROR::OK;
+}
+
 }  // namespace client
 }  // namespace curvefs

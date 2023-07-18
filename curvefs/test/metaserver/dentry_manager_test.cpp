@@ -172,6 +172,24 @@ TEST_F(DentryManagerTest, ListDentry) {
     ASSERT_EQ(dentrys[1].name(), "B");
 }
 
+TEST_F(DentryManagerTest, IsDirEmpty) {
+    auto dentry1 = GenDentry(1, 0, "A", 0, 1, false);
+    auto dentry2 = GenDentry(1, 0, "B", 0, 2, false);
+    ASSERT_EQ(dentryManager_->CreateDentry(dentry1), MetaStatusCode::OK);
+    ASSERT_EQ(dentryManager_->CreateDentry(dentry2), MetaStatusCode::OK);
+    ASSERT_EQ(dentryStorage_->Size(), 2);
+
+    bool empty;
+    auto dentry = GenDentry(1, 0, "", 0, 0, false);
+    auto rc = dentryManager_->IsDirEmpty(dentry, &empty);
+    ASSERT_EQ(rc, MetaStatusCode::OK);
+    ASSERT_EQ(empty, false);
+
+    rc = dentryManager_->IsDirEmpty(dentry1, &empty);
+    ASSERT_EQ(rc, MetaStatusCode::OK);
+    ASSERT_EQ(empty, true);
+}
+
 TEST_F(DentryManagerTest, HandleRenameTx) {
     // CASE 1: HandleRenameTx: param error
     auto dentrys = std::vector<Dentry>();

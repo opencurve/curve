@@ -320,6 +320,13 @@ TEST_F(PartitionTest, PARTITION_ID_MISSMATCH_ERROR) {
     ASSERT_EQ(partition1.ListDentry(dentry2, &dentrys, limit),
               MetaStatusCode::PARTITION_ID_MISSMATCH);
 
+    // test IsDirEmpty
+    bool empty;
+    ASSERT_EQ(partition1.IsDirEmpty(dentry1, &empty),
+              MetaStatusCode::PARTITION_ID_MISSMATCH);
+    ASSERT_EQ(partition1.IsDirEmpty(dentry2, &empty),
+              MetaStatusCode::PARTITION_ID_MISSMATCH);
+
     // test HandleRenameTx
     std::vector<Dentry> dentrys1 = {dentry1};
     std::vector<Dentry> dentrys2 = {dentry2};

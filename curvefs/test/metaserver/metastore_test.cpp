@@ -852,6 +852,26 @@ TEST_F(MetastoreTest, test_dentry) {
 
     ret = metastore.DeleteDentry(&deleteRequest, &deleteResponse);
     ASSERT_EQ(deleteResponse.statuscode(), MetaStatusCode::NOT_FOUND);
+
+    // test IsDirEmpty
+    IsDirEmptyRequest emptyRequest;
+    IsDirEmptyResponse emptyResponse;
+    emptyRequest.set_poolid(poolId);
+    emptyRequest.set_copysetid(copysetId);
+    emptyRequest.set_partitionid(666);
+    emptyRequest.set_fsid(fsId);
+    emptyRequest.set_dirinodeid(parentId);
+    emptyRequest.set_name("dentry1");
+
+    ret = metastore.IsDirEmpty(&emptyRequest, &emptyResponse);
+    ASSERT_EQ(emptyResponse.statuscode(), MetaStatusCode::PARTITION_NOT_FOUND);
+    ASSERT_EQ(emptyResponse.statuscode(), ret);
+
+    emptyRequest.set_partitionid(partitionId);
+    ret = metastore.IsDirEmpty(&emptyRequest, &emptyResponse);
+    ASSERT_EQ(emptyResponse.statuscode(), MetaStatusCode::OK);
+    ASSERT_EQ(emptyResponse.statuscode(), ret);
+    ASSERT_EQ(emptyResponse.empty(), true);
 }
 
 TEST_F(MetastoreTest, persist_success) {

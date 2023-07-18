@@ -799,15 +799,14 @@ CURVEFS_ERROR FuseClient::RemoveNode(fuse_req_t req, fuse_ino_t parent,
 
     // check dir empty
     if (FsFileType::TYPE_DIRECTORY == type) {
-        std::list<Dentry> dentryList;
-        auto limit = option_.listDentryLimit;
-        ret = dentryManager_->ListDentry(ino, &dentryList, limit);
+        bool empty;
+        ret = dentryManager_->CheckDirEmpty(dentry, &empty);
         if (ret != CURVEFS_ERROR::OK) {
-            LOG(ERROR) << "dentryManager_ ListDentry fail, ret = " << ret
+            LOG(ERROR) << "dentryManager_ CheckDirEmpty fail, ret = " << ret
                        << ", parent = " << ino;
             return ret;
         }
-        if (!dentryList.empty()) {
+        if (!empty) {
             LOG(ERROR) << "rmdir not empty";
             return CURVEFS_ERROR::NOTEMPTY;
         }

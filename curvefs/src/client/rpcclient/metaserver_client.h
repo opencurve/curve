@@ -94,6 +94,10 @@ class MetaServerClient {
                                         const std::string &name,
                                         FsFileType type) = 0;
 
+    virtual MetaStatusCode IsDirEmpty(uint32_t fsId, uint64_t inodeid,
+                                      const std::string &name,
+                                      bool *empty) = 0;
+
     virtual MetaStatusCode
     PrepareRenameTx(const std::vector<Dentry> &dentrys) = 0;
 
@@ -197,6 +201,9 @@ class MetaServerClientImpl : public MetaServerClient {
     MetaStatusCode DeleteDentry(uint32_t fsId, uint64_t inodeid,
                                 const std::string &name,
                                 FsFileType type) override;
+    MetaStatusCode IsDirEmpty(uint32_t fsId, uint64_t inodeid,
+                              const std::string &name,
+                              bool *empty) override;
 
     MetaStatusCode PrepareRenameTx(const std::vector<Dentry> &dentrys) override;
 

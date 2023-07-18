@@ -242,6 +242,27 @@ class DeleteDentryOperator : public MetaOperator {
     void OnFailed(MetaStatusCode code) override;
 };
 
+class IsDirEmptyOperator : public MetaOperator {
+ public:
+    using MetaOperator::MetaOperator;
+
+    void OnApply(int64_t index, google::protobuf::Closure* done,
+                 uint64_t startTimeUs) override;
+
+    void OnApplyFromLog(uint64_t startTimeUs) override;
+
+    uint64_t HashCode() const override;
+
+    OperatorType GetOperatorType() const override;
+
+ private:
+    void Redirect() override;
+
+    void OnFailed(MetaStatusCode code) override;
+
+    bool CanBypassPropose() const override;
+};
+
 class GetInodeOperator : public MetaOperator {
  public:
     using MetaOperator::MetaOperator;

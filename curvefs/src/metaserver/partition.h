@@ -68,6 +68,9 @@ class Partition {
                               uint32_t limit,
                               bool onlyDir = false);
 
+    MetaStatusCode IsDirEmpty(const Dentry& dentry,
+                              bool* empty);
+
     void ClearDentry();
 
     MetaStatusCode HandleRenameTx(const std::vector<Dentry>& dentrys);

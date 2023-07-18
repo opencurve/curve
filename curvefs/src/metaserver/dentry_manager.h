@@ -54,6 +54,9 @@ class DentryManager {
                               uint32_t limit,
                               bool onlyDir = false);
 
+    MetaStatusCode IsDirEmpty(const Dentry& denty,
+                              bool* empty);
+
     void ClearDentry();
 
     MetaStatusCode HandleRenameTx(const std::vector<Dentry>& dentrys);
