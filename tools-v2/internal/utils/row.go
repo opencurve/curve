@@ -118,6 +118,9 @@ const (
 	ROW_ZONE                 = "zone"
 	ROW_AVAILFLAG            = "availFlag"
 	ROW_DRYRUN               = "dryrun"
+	ROW_HEALTHY_COUNT        = "healthyCount"
+	ROW_UNHEALTHY_COUNT      = "unhealthyCount"
+	ROW_UNHEALTHY_RATIO      = "unhealthyRatio"
 
 	ROW_RW_STATUS               = "rwStatus"
 	ROW_DISK_STATE              = "diskState"
