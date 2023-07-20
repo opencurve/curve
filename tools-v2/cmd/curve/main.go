@@ -16,12 +16,16 @@
 
 /*
  * Project: CurveCli
- * Created Date: 2022-06-21
+ * Created Date: 2022-05-09
  * Author: chengyi (Cyber-SiKu)
  */
 
-package cobrautil
+package main
 
-func IsAligned(value uint64, alignment uint64) bool {
-	return value&(alignment-1) == 0
+import (
+	cli "github.com/opencurve/curve/tools-v2/pkg/cli"
+)
+
+func main() {
+	cli.Execute()
 }

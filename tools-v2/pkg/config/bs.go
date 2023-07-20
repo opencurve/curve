@@ -57,10 +57,8 @@ const (
 	CURVEBS_DEFAULT_FORCE             = false
 	CURVEBS_LOGIC_POOL_ID             = "logicalpoolid"
 	VIPER_CURVEBS_LOGIC_POOL_ID       = "curvebs.logicalpoolid"
-	CURVEBS_DEFAULT_LOGIC_POOL_ID     = uint32(0)
 	CURVEBS_COPYSET_ID                = "copysetid"
 	VIPER_CURVEBS_COPYSET_ID          = "curvebs.copysetid"
-	CURVEBS_DEFAULT_COPYSET_ID        = uint32(0)
 	CURVEBS_PEERS_ADDRESS             = "peers"
 	VIPER_CURVEBS_PEERS_ADDRESS       = "curvebs.peers"
 	CURVEBS_OFFSET                    = "offset"
@@ -198,8 +196,6 @@ var (
 		CURVEBS_DRYRUN:         CURVEBS_DEFAULT_DRYRUN,
 		CURVEBS_FIlTER:         CURVEBS_DEFAULT_FILTER,
 		CURVEBS_ALL:            CURVEBS_DEFAULT_ALL,
-		CURVEBS_LOGIC_POOL_ID:  CURVEBS_DEFAULT_LOGIC_POOL_ID,
-		CURVEBS_COPYSET_ID:     CURVEBS_DEFAULT_COPYSET_ID,
 	}
 )
 
@@ -492,10 +488,6 @@ func AddBsAllOptionFlag(cmd *cobra.Command) {
 	AddBsBoolOptionFlag(cmd, CURVEBS_ALL, "all")
 }
 
-func AddBsCopysetIdOptionFlag(cmd *cobra.Command) {
-	AddBsUint32OptionFlag(cmd, CURVEBS_COPYSET_ID, "copyset id")
-}
-
 // add flag required
 // add path[required]
 func AddBsPathRequiredFlag(cmd *cobra.Command) {
@@ -654,9 +646,8 @@ func GetBsAddrSlice(cmd *cobra.Command, addrType string) ([]string, *cmderror.Cm
 	} else {
 		addrsStr = viper.GetString(BSFLAG2VIPER[addrType])
 	}
+
 	addrslice := strings.Split(addrsStr, ",")
-<<<<<<< HEAD
-=======
 	for i, addr := range addrslice {
 		addrslice[i] = strings.TrimSpace(addr)
 	}
@@ -667,7 +658,6 @@ func GetBsAddrSlice(cmd *cobra.Command, addrType string) ([]string, *cmderror.Cm
 		return nil, err
 	}
 
->>>>>>> 746f2c17... add bs status cluster
 	for _, addr := range addrslice {
 		if !IsValidAddr(addr) {
 			err := cmderror.ErrGetAddr()

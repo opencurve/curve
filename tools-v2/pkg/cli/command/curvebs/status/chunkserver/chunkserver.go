@@ -50,18 +50,18 @@ func (csCmd *ChunkServerCommand) Init(cmd *cobra.Command, args []string) error {
 	}
 	csCmd.RecoverStatusMap = recoverMap
 
-	csInfos, err := listchunkserver.GetChunkServerInCluster(csCmd.Cmd)
+	csInfos, err := listchunkserver.ListChunkServerInfos(csCmd.Cmd)
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		return err.ToError()
 	}
 	csCmd.ChunkServerInfos = csInfos
 	header := []string{
-		cobrautil.ROW_EXTERNAL_ADDR, cobrautil.ROW_INTERNAL_ADDR, cobrautil.ROW_VERSION,
+		cobrautil.ROW_EXTERNAL_ADDR, cobrautil.ROW_INTERNAL_ADDR,
 		cobrautil.ROW_STATUS, cobrautil.ROW_RECOVERING,
 	}
 	csCmd.SetHeader(header)
 	csCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
-		csCmd.Header, []string{cobrautil.ROW_STATUS, cobrautil.ROW_RECOVERING, cobrautil.ROW_VERSION},
+		csCmd.Header, []string{cobrautil.ROW_STATUS, cobrautil.ROW_RECOVERING},
 	))
 	return nil
 }
@@ -72,7 +72,6 @@ func (csCmd *ChunkServerCommand) RunCommand(cmd *cobra.Command, args []string) e
 		row := make(map[string]string)
 		row[cobrautil.ROW_EXTERNAL_ADDR] = fmt.Sprintf("%s:%d", csInfo.GetExternalIp(), csInfo.GetPort())
 		row[cobrautil.ROW_INTERNAL_ADDR] = fmt.Sprintf("%s:%d", csInfo.GetHostIp(), csInfo.GetPort())
-		row[cobrautil.ROW_VERSION] = csInfo.GetVersion()
 		state := csInfo.GetOnlineState()
 		if state == topology.OnlineState_ONLINE {
 			row[cobrautil.ROW_STATUS] = cobrautil.ROW_VALUE_ONLINE
@@ -83,7 +82,7 @@ func (csCmd *ChunkServerCommand) RunCommand(cmd *cobra.Command, args []string) e
 		rows = append(rows, row)
 	}
 	list := cobrautil.ListMap2ListSortByKeys(rows, csCmd.Header, []string{
-		cobrautil.ROW_STATUS, cobrautil.ROW_RECOVERING, cobrautil.ROW_VERSION,
+		cobrautil.ROW_STATUS, cobrautil.ROW_RECOVERING,
 	})
 	csCmd.TableNew.AppendBulk(list)
 	csCmd.Result = rows

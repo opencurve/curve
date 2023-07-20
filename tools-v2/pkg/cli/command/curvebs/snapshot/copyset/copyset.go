@@ -23,120 +23,130 @@
 package copyset
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/delete/peer"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
+	"github.com/opencurve/curve/tools-v2/proto/proto/cli2"
 )
 
 const (
-	updateExample = `$ curve bs snapshot copyset 127.0.0.0:8200:0 --logicalpoolid=1 --copysetid=1
-$ curve bs snapshot copyset --all`
+	updateExample = `$ curve bs snapshot copyset 127.0.0.0:8200:0 --logicalpoolid=1 --copysetid=1`
 )
 
-type SnapshotCopysetCommand struct {
-	basecmd.FinalCurveCmd
-
-	needAll bool
+type SnapshotRpc struct {
+	Info    *basecmd.Rpc
+	Request *cli2.SnapshotRequest2
+	Client  cli2.CliService2Client
 }
 
-var _ basecmd.FinalCurveCmdFunc = (*SnapshotCopysetCommand)(nil) // check interface
+func (sRpc *SnapshotRpc) NewRpcClient(cc grpc.ClientConnInterface) {
+	sRpc.Client = cli2.NewCliService2Client(cc)
+}
+
+func (sRpc *SnapshotRpc) Stub_Func(ctx context.Context) (interface{}, error) {
+	return sRpc.Client.Snapshot(ctx, sRpc.Request)
+}
+
+type SnapshotOneCommand struct {
+	basecmd.FinalCurveCmd
+
+	Rpc      *SnapshotRpc
+	Response *cli2.SnapshotResponse2
+	row      map[string]string
+}
+
+var _ basecmd.FinalCurveCmdFunc = (*SnapshotOneCommand)(nil) // check interface
 
 // NewCommand ...
-func NewSnapshotCopysetCommand() *cobra.Command {
-	sCmd := &SnapshotCopysetCommand{
+func NewSnapshotOneCommand() *cobra.Command {
+	peerCmd := &SnapshotOneCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
 			Use:     "copyset",
 			Short:   "take snapshot for copyset",
 			Example: updateExample,
 		},
 	}
-	basecmd.NewFinalCurveCli(&sCmd.FinalCurveCmd, sCmd)
-	return sCmd.Cmd
+	basecmd.NewFinalCurveCli(&peerCmd.FinalCurveCmd, peerCmd)
+	return peerCmd.Cmd
 }
 
-func (sCmd *SnapshotCopysetCommand) AddFlags() {
+func (sCmd *SnapshotOneCommand) AddFlags() {
 	config.AddRpcRetryTimesFlag(sCmd.Cmd)
 	config.AddRpcTimeoutFlag(sCmd.Cmd)
 
-	config.AddBsLogicalPoolIdOptionFlag(sCmd.Cmd)
-	config.AddBsCopysetIdOptionFlag(sCmd.Cmd)
-	config.AddBsAllOptionFlag(sCmd.Cmd)
+	config.AddBsLogicalPoolIdRequiredFlag(sCmd.Cmd)
+	config.AddBsCopysetIdRequiredFlag(sCmd.Cmd)
 }
 
-func (sCmd *SnapshotCopysetCommand) Init(cmd *cobra.Command, args []string) error {
-	sCmd.needAll = config.GetBsFlagBool(sCmd.Cmd, config.CURVEBS_ALL)
+func (sCmd *SnapshotOneCommand) Init(cmd *cobra.Command, args []string) error {
+	sCmd.SetHeader([]string{cobrautil.ROW_PEER, cobrautil.ROW_COPYSET, cobrautil.ROW_RESULT})
+	sCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
+		sCmd.Header, []string{},
+	))
 
-	if !sCmd.needAll {
-		isLogicalPoolIDChanged := config.GetBsFlagChanged(sCmd.Cmd, config.CURVEBS_LOGIC_POOL_ID)
-		isCopysetIDChanged := config.GetBsFlagChanged(sCmd.Cmd, config.CURVEBS_COPYSET_ID)
-		if !isLogicalPoolIDChanged || !isCopysetIDChanged {
-			return fmt.Errorf("all or logicalpoolid and copysetid is required")
-		}
+	timeout := config.GetFlagDuration(sCmd.Cmd, config.RPCTIMEOUT)
+	retryTimes := config.GetFlagInt32(sCmd.Cmd, config.RPCRETRYTIMES)
 
-		sCmd.SetHeader([]string{cobrautil.ROW_PEER, cobrautil.ROW_COPYSET, cobrautil.ROW_RESULT})
-		sCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
-			sCmd.Header, []string{},
-		))
-	} else {
-		sCmd.SetHeader([]string{cobrautil.ROW_CHUNKSERVER, cobrautil.ROW_RESULT})
-		sCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
-			sCmd.Header, []string{cobrautil.ROW_RESULT},
-		))
+	copysetID := config.GetBsFlagUint32(sCmd.Cmd, config.CURVEBS_COPYSET_ID)
+
+	logicalPoolID := config.GetBsFlagUint32(sCmd.Cmd, config.CURVEBS_LOGIC_POOL_ID)
+
+	// parse peer conf
+	if len(args) < 1 {
+		pErr := cmderror.ErrGetPeer()
+		pErr.Format("should specified the peer address")
+		return pErr.ToError()
+	}
+	snapshotPeer, err := peer.ParsePeer(args[0])
+	if err != nil {
+		return err.ToError()
+	}
+
+	out := make(map[string]string)
+	out[cobrautil.ROW_PEER] = fmt.Sprintf("%s:%d", snapshotPeer.GetAddress(), snapshotPeer.GetId())
+	out[cobrautil.ROW_COPYSET] = fmt.Sprintf("(%d:%d)", logicalPoolID, copysetID)
+	sCmd.row = out
+
+	sCmd.Rpc = &SnapshotRpc{
+		Info: basecmd.NewRpc([]string{snapshotPeer.GetAddress()}, timeout, retryTimes, "Snapshot"),
+		Request: &cli2.SnapshotRequest2{
+			LogicPoolId: &logicalPoolID,
+			CopysetId:   &copysetID,
+			Peer:        snapshotPeer,
+		},
 	}
 
 	return nil
 }
 
-func (sCmd *SnapshotCopysetCommand) Print(cmd *cobra.Command, args []string) error {
+func (sCmd *SnapshotOneCommand) Print(cmd *cobra.Command, args []string) error {
 	return output.FinalCmdOutput(&sCmd.FinalCurveCmd, sCmd)
 }
 
-func (sCmd *SnapshotCopysetCommand) RunCommand(cmd *cobra.Command, args []string) error {
-	if sCmd.needAll {
-		csAddrs, res, err := GetAllSnapshotResult(sCmd.Cmd)
-		if err.TypeCode() != cmderror.CODE_SUCCESS {
-			return err.ToError()
-		}
-
-		rows := make([]map[string]string, len(csAddrs))
-		for i := 0; i < len(csAddrs); i++ {
-			rows[i] = make(map[string]string)
-			rows[i][cobrautil.ROW_CHUNKSERVER] = csAddrs[i]
-			if res[i] {
-				rows[i][cobrautil.ROW_RESULT] = cobrautil.ROW_VALUE_SUCCESS
-			} else {
-				rows[i][cobrautil.ROW_RESULT] = cobrautil.ROW_VALUE_FAILED
-			}
-		}
-
-		list := cobrautil.ListMap2ListSortByKeys(rows, sCmd.Header, []string{cobrautil.ROW_RESULT})
-		sCmd.TableNew.AppendBulk(list)
-		sCmd.Result = rows
-	} else {
-		peer, copyset, err := GetOneSnapshotResult(sCmd.Cmd, args)
-		if err.TypeCode() != cmderror.CODE_SUCCESS {
-			return err.ToError()
-		}
-
-		row := make(map[string]string)
-		row[cobrautil.ROW_PEER] = peer
-		row[cobrautil.ROW_COPYSET] = copyset
-		row[cobrautil.ROW_RESULT] = cobrautil.ROW_VALUE_SUCCESS
-
-		list := cobrautil.Map2List(row, sCmd.Header)
-		sCmd.TableNew.Append(list)
-		sCmd.Result = row
+func (sCmd *SnapshotOneCommand) RunCommand(cmd *cobra.Command, args []string) error {
+	response, err := basecmd.GetRpcResponse(sCmd.Rpc.Info, sCmd.Rpc)
+	sCmd.Error = err
+	if err.TypeCode() != cmderror.CODE_SUCCESS {
+		return err.ToError()
 	}
 
+	sCmd.row[cobrautil.ROW_RESULT] = "success"
+	sCmd.Response = response.(*cli2.SnapshotResponse2)
+
+	list := cobrautil.Map2List(sCmd.row, sCmd.Header)
+	sCmd.TableNew.Append(list)
 	return nil
 }
 
-func (sCmd *SnapshotCopysetCommand) ResultPlainOutput() error {
+func (sCmd *SnapshotOneCommand) ResultPlainOutput() error {
 	return output.FinalCmdOutputPlain(&sCmd.FinalCurveCmd)
 }

@@ -281,7 +281,7 @@ CURVEADM_VERSION=v0.1.12-dev bash -c "$(curl -fsSL https://curveadm.nos-eastchin
 3. 执行 playground 命令时得确保当前用户有 root 权限，或者给 docker 的 socket 加上任意用户读写权限，或者将用户加入 docker 用户组：
 
 ```shell
- curveadm playground run --kind curvebs --container_image harbor.cloud.netease.com/curve/curvebs:playground
+ curveadm playground run --kind curvebs --container_image opencurvedocker/curvebs:playground
 # ls -la /var/run/docker.sock
 srwxrwxrwx 1 root docker 0 Oct 26 17:57 /var/run/docker.sock
 

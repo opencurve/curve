@@ -22,40 +22,20 @@
 package copyset
 
 import (
-	"context"
 	"fmt"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/copyset"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
 	"github.com/opencurve/curve/tools-v2/proto/proto/common"
-	"github.com/opencurve/curve/tools-v2/proto/proto/topology"
-	"github.com/opencurve/curve/tools-v2/proto/proto/topology/statuscode"
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
 )
-
-type GetCopysetRpc struct {
-	Info      *basecmd.Rpc
-	Request   *topology.GetCopysetRequest
-	mdsClient topology.TopologyServiceClient
-}
-
-var _ basecmd.RpcFunc = (*GetCopysetRpc)(nil) // check interface
-
-func (gRpc *GetCopysetRpc) NewRpcClient(cc grpc.ClientConnInterface) {
-	gRpc.mdsClient = topology.NewTopologyServiceClient(cc)
-}
-
-func (gRpc *GetCopysetRpc) Stub_Func(ctx context.Context) (interface{}, error) {
-	return gRpc.mdsClient.GetCopyset(ctx, gRpc.Request)
-}
 
 type CopysetCommand struct {
 	CopysetInfoList []*common.CopysetInfo
-	Rpc             []*GetCopysetRpc
 	basecmd.FinalCurveCmd
 }
 
@@ -96,25 +76,35 @@ func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
 	if errParse != nil {
 		return fmt.Errorf("parse copysetid%v fail", copysetidList)
 	}
-	mdsAddrs, err := config.GetBsMdsAddrSlice(cCmd.Cmd)
+
+	copysetInfoList, err := copyset.GetCopySetsInCluster(cmd)
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		return err.ToError()
 	}
-	timeout := config.GetFlagDuration(cCmd.Cmd, config.RPCTIMEOUT)
-	retrytimes := config.GetFlagInt32(cCmd.Cmd, config.RPCRETRYTIMES)
+
+	copysetMap := make(map[string]*common.CopysetInfo)
+	for _, copysetInfo := range copysetInfoList {
+		copysetIdentity := formatCopysetId(*copysetInfo.LogicalPoolId, *copysetInfo.CopysetId)
+		copysetMap[copysetIdentity] = copysetInfo
+	}
+
 	for i, logicalPool := range logicalpoolIds {
 		lpId := uint32(logicalPool)
 		cpId := uint32(copysetIds[i])
-		cCmd.Rpc = append(cCmd.Rpc, &GetCopysetRpc{
-			Info: basecmd.NewRpc(mdsAddrs, timeout, retrytimes, "GetCopyset"),
-			Request: &topology.GetCopysetRequest{
-				LogicalPoolId: &lpId,
-				CopysetId:     &cpId,
-			},
-		})
+		copysetIdentity := formatCopysetId(lpId, cpId)
+		if _, ok := copysetMap[copysetIdentity]; !ok {
+			return fmt.Errorf("get copyset(id: %d,logicalPoolid: %d) info from cluster fail", cpId, lpId)
+		}
+		cCmd.CopysetInfoList = append(cCmd.CopysetInfoList, copysetMap[copysetIdentity])
 	}
+	cCmd.Result = cCmd.CopysetInfoList
+	cCmd.Error = cmderror.Success()
 
 	return nil
+}
+
+func formatCopysetId(logicalPoolId uint32, copysetId uint32) string {
+	return fmt.Sprintf("%d:%d", logicalPoolId, copysetId)
 }
 
 func (cCmd *CopysetCommand) Print(cmd *cobra.Command, args []string) error {
@@ -122,32 +112,6 @@ func (cCmd *CopysetCommand) Print(cmd *cobra.Command, args []string) error {
 }
 
 func (cCmd *CopysetCommand) RunCommand(cmd *cobra.Command, args []string) error {
-	var infos []*basecmd.Rpc
-	var funcs []basecmd.RpcFunc
-	for _, rpc := range cCmd.Rpc {
-		infos = append(infos, rpc.Info)
-		funcs = append(funcs, rpc)
-	}
-	results, errs := basecmd.GetRpcListResponse(infos, funcs)
-	if len(errs) == len(infos) {
-		mergeErr := cmderror.MergeCmdErrorExceptSuccess(errs)
-		return mergeErr.ToError()
-	}
-	for i, result := range results {
-		if result == nil {
-			continue
-		}
-		res := result.(*topology.GetCopysetResponse)
-		request := cCmd.Rpc[i].Request
-		err := cmderror.ErrBsGetCopyset(statuscode.TopoStatusCode(res.GetStatusCode()), request.GetLogicalPoolId(), request.GetCopysetId())
-		if err.TypeCode() != cmderror.CODE_SUCCESS {
-			errs = append(errs, err)
-		} else {
-			cCmd.CopysetInfoList = append(cCmd.CopysetInfoList, res.GetCopysetInfo())
-		}
-	}
-	cCmd.Result = cCmd.CopysetInfoList
-	cCmd.Error = cmderror.MergeCmdErrorExceptSuccess(errs)
 	return nil
 }
 

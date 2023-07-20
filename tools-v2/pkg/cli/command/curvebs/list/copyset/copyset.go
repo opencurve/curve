@@ -86,13 +86,10 @@ func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
 	}
 	timeout := config.GetFlagDuration(cCmd.Cmd, config.RPCTIMEOUT)
 	retrytimes := config.GetFlagInt32(cCmd.Cmd, config.RPCRETRYTIMES)
-	filterscanning := config.GetBsFlagBool(cCmd.Cmd, config.CURVEBS_FIlTER)
 
 	cCmd.Rpc = &GetCopySetsInClusterRpc{
-		Info: basecmd.NewRpc(mdsAddrs, timeout, retrytimes, "GetCopySetsInCluster"),
-		Request: &topology.GetCopySetsInClusterRequest{
-			FilterScaning: &filterscanning,
-		},
+		Info:    basecmd.NewRpc(mdsAddrs, timeout, retrytimes, "GetCopySetsInCluster"),
+		Request: &topology.GetCopySetsInClusterRequest{},
 	}
 	return nil
 }
@@ -121,7 +118,7 @@ func (cCmd *CopysetCommand) ResultPlainOutput() error {
 func GetCopySetsInCluster(caller *cobra.Command) ([]*common.CopysetInfo, *cmderror.CmdError) {
 	getCmd := NewListCopysetCommand()
 	config.AlignFlagsValue(caller, getCmd.Cmd, []string{
-		config.CURVEBS_MDSADDR, config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEBS_FIlTER,
+		config.CURVEBS_MDSADDR, config.RPCRETRYTIMES, config.RPCTIMEOUT,
 	})
 	getCmd.Cmd.SilenceErrors = true
 	getCmd.Cmd.SilenceUsage = true

@@ -16,12 +16,12 @@
 
 /*
  * Project: CurveCli
- * Created Date: 2022-06-21
+ * Created Date: 2022-05-09
  * Author: chengyi (Cyber-SiKu)
  */
 
-package cobrautil
+package version
 
-func IsAligned(value uint64, alignment uint64) bool {
-	return value&(alignment-1) == 0
-}
+var (
+	Version = ""
+)
