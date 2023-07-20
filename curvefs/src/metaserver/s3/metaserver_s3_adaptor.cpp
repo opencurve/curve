@@ -32,7 +32,7 @@ void S3ClientAdaptorImpl::Init(const S3ClientAdaptorOption &option,
     blockSize_ = option.blockSize;
     chunkSize_ = option.chunkSize;
     batchSize_ = option.batchSize;
-    enableDeleteObjects_ = option.enableDeleteObjects;
+    enableBatchDelete_ = option.enableBatchDelete;
     objectPrefix_ = option.objectPrefix;
     client_ = client;
 }
@@ -43,13 +43,13 @@ void S3ClientAdaptorImpl::Reinit(const S3ClientAdaptorOption& option,
     blockSize_ = option.blockSize;
     chunkSize_ = option.chunkSize;
     batchSize_ = option.batchSize;
-    enableDeleteObjects_ = option.enableDeleteObjects;
+    enableBatchDelete_ = option.enableBatchDelete;
     objectPrefix_ = option.objectPrefix;
     client_->Reinit(ak, sk, endpoint, bucketName);
 }
 
 int S3ClientAdaptorImpl::Delete(const Inode &inode) {
-    if (enableDeleteObjects_) {
+    if (enableBatchDelete_) {
         return DeleteInodeByDeleteBatchChunk(inode);
     } else {
         return DeleteInodeByDeleteSingleChunk(inode);
@@ -212,7 +212,7 @@ void S3ClientAdaptorImpl::GetS3ClientAdaptorOption(
     option->blockSize = blockSize_;
     option->chunkSize = chunkSize_;
     option->batchSize = batchSize_;
-    option->enableDeleteObjects = enableDeleteObjects_;
+    option->enableBatchDelete = enableBatchDelete_;
     option->objectPrefix = objectPrefix_;
 }
 
