@@ -136,8 +136,8 @@ void Metaserver::InitLocalFileSystem() {
 void InitS3Option(const std::shared_ptr<Configuration>& conf,
                   S3ClientAdaptorOption* s3Opt) {
     LOG_IF(FATAL, !conf->GetUInt64Value("s3.batchsize", &s3Opt->batchSize));
-    LOG_IF(FATAL, !conf->GetBoolValue("s3.enableDeleteObjects",
-                                      &s3Opt->enableDeleteObjects));
+    LOG_IF(FATAL, !conf->GetBoolValue("s3.enableBatchDelete",
+                                      &s3Opt->enableBatchDelete));
 }
 
 void Metaserver::InitPartitionOption(std::shared_ptr<S3ClientAdaptor> s3Adaptor,

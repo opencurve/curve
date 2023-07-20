@@ -36,7 +36,7 @@ struct S3ClientAdaptorOption {
     uint64_t chunkSize;
     uint64_t batchSize;
     uint32_t objectPrefix;
-    bool enableDeleteObjects;
+    bool enableBatchDelete;
 };
 
 class S3ClientAdaptor {
@@ -150,7 +150,7 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
     uint64_t chunkSize_;
     uint64_t batchSize_;
     uint32_t objectPrefix_;
-    bool enableDeleteObjects_;
+    bool enableBatchDelete_;
 };
 }  // namespace metaserver
 }  // namespace curvefs
