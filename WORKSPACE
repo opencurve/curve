@@ -41,7 +41,7 @@ git_repository(
     name = "fmt",
     branch = "master",
     remote = "https://github.com/fmtlib/fmt",
-    commit = "bce8d4ed087a0560492426f9f5be2713804daded"
+    commit = "bce8d4ed087a0560492426f9f5be2713804daded",
     patch_cmds = [
         "mv support/bazel/.bazelrc .bazelrc",
         "mv support/bazel/.bazelversion .bazelversion",
