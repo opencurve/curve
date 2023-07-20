@@ -106,8 +106,8 @@ func (lCmd *LeaderScheduleCommand) Init(cmd *cobra.Command, args []string) error
 
 	// if flag all not changed, it must be false
 	all := config.GetBsFlagBool(lCmd.Cmd, config.CURVEBS_ALL)
-	isLogicalPoolIDChanged := config.GetBsFlagChanged(lCmd.Cmd, config.CURVEBS_LOGIC_POOL_ID)
-	if !all && !isLogicalPoolIDChanged {
+	islogicalPoolIDChanged := config.GetBsFlagChanged(lCmd.Cmd, config.CURVEBS_LOGIC_POOL_ID)
+	if !all && !islogicalPoolIDChanged {
 		return fmt.Errorf("all or logicalpoolid is required")
 	}
 

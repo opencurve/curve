@@ -100,19 +100,25 @@ mv curve-latest /usr/bin/curve
 set configure file
 
 ```bash
-wget https://raw.githubusercontent.com/opencurve/curve/master/tools-v2/pkg/config/template.yaml
+wget https://raw.githubusercontent.com/opencurve/curve/master/tools-v2/pkg/config/curve.yaml
 ```
 
 or
 
 ```
-wget https://curve-tool.nos-eastchina1.126.net/config/template.yaml
+wget https://curve-tool.nos-eastchina1.126.net/config/curve.yaml
 ```
 
 Please modify the `mdsAddr, mdsDummyAddr, etcdAddr` under `curvefs/bs` in the template.yaml file as required
 
 ```bash
-mv template.yaml ~/.curve/curve.yaml
+mv curve.yaml ~/.curve/curve.yaml
+```
+
+or
+
+```bash
+mv curve.yaml /etc/curve/curve.yaml
 ```
 
 ### Introduction
@@ -1445,14 +1451,17 @@ Output:
 ### delete
 
 #### delete peer
+
 delete the peer from the copyset
 
 Usage:
+
 ```bash
 curve bs delete peer
 ```
 
 Output:
+
 ```bash
 +------------------+------------------+---------+---------+--------+
 |      LEADER      |       PEER       | COPYSET | RESULT  | REASON |
@@ -1461,8 +1470,6 @@ Output:
 +------------------+------------------+---------+---------+--------+
 ```
 
-<<<<<<< HEAD
-=======
 ### update
 
 #### update peer
@@ -1482,7 +1489,6 @@ Output:
 |   127.0.0.0:8200:0   | (1:1)   | success | null   |
 +----------------------+---------+---------+--------+
 ```
->>>>>>> 87664bd3... develop 'curve bs update reset' (for 'curve_ops_tool reset-peer')
 
 #### update leader
 
@@ -1673,23 +1679,6 @@ Output:
 +-----------------------+---------+---------+
 ```
 
-```bash
-curve bs snapshot copyset --all
-```
-
-Output:
-```
-+----------------+---------+
-|  CHUNKSERVER   | RESULT  |
-+----------------+---------+
-| **.*.*.**:8200 | failed  |
-+----------------+---------+
-| **.*.*.**:8201 | success |
-+----------------+         +
-| **.*.*.**:8202 |         |
-+----------------+---------+
-```
-
 ## Comparison of old and new commands
 
 ### curve fs
@@ -1720,146 +1709,6 @@ Output:
 
 ### curve bs
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-| old                              | new                        |
-| -------------------------------- | -------------------------- |
-| curve_ops_tool logical-pool-list | curve bs list logical-pool |
-<<<<<<< HEAD
-| curve_ops_tool get -fileName= | curve bs query file -path |
-| curve_ops_tool etcd-status | curve bs status etcd |
-| curve_ops_tool mds-status | curve bs status mds |
-| curve_ops_tool server-list | curve bs list server |
-| curve_ops_tool client-list | curve bs list client |
-| curve_ops_tool delete | curve bs delete file |
-| curve_ops_tool list | curve bs list dir |
-| create | curve bs create file/dir |
-| seginfo | curve bs query seginfo |
-| chunk-location | curve bs query chunk |
-| remove-peer | curve bs delete peer |
-| reset-peer | curve bs update peer |
-| space | |
-| status | |
-| chunkserver-status | |
-| client-status | |
-<<<<<<< HEAD
-| client-list | curve bs list client |
-=======
->>>>>>> efcbe1c7... [feta]tools-v2:create
-| snapshot-clone-status | |
-| copysets-status | |
-| chunkserver-list | |
-| cluster-status | |
-<<<<<<< HEAD
-<<<<<<< HEAD
-| list | |
-| seginfo | |
-| delete | |
-=======
-| curve_ops_tool list | curve bs list dir |
-| seginfo | curve bs query seginfo |
-| curve_ops_tool delete | curve bs delete file |
->>>>>>> 747436ee... [feat]tools-v2: bs query chunk
-=======
->>>>>>> efcbe1c7... [feta]tools-v2:create
-| clean-recycle | |
-| check-consistency | |
-| transfer-leader | |
-| do-snapshot | |
-| do-snapshot-all | |
-| check-chunkserver | |
-| check-copyset | |
-| check-server | |
-| check-operator | |
-| list-may-broken-vol | |
-| set-copyset-availflag | |
-| update-throttle | |
-| rapid-leader-schedule | |
-| set-scan-state | |
-| scan-status | |
-=======
-| curve_ops_tool get -fileName=    | curve bs query file -path  |
-| curve_ops_tool etcd-status       | curve bs status etcd       |
-| curve_ops_tool mds-status        | curve bs status mds        |
-| curve_ops_tool server-list       | curve bs list server       |
-| curve_ops_tool client-list       | curve bs list client       |
-| curve_ops_tool delete            | curve bs delete file       |
-| curve_ops_tool list              | curve bs list dir          |
-| create                           | curve bs create file/dir   |
-| seginfo                          | curve bs query seginfo     |
-| chunk-location                   | curve bs query chunk       |
-| remove-peer                      | curve bs delete peer       |
-| reset-peer                       | curve bs update peer       |
-| space                            | curve bs list space        |
-| update-throttle                  | curve bs update throttle   |
-| check-copyset                    | curve bs check copyset     |
-| client-status                    | curve bs status client     |
-| check-operator                   | curve bs check operator    |
-| status                           |                            |
-| chunkserver-status               |                            |
-| snapshot-clone-status            |                            |
-| client-status                    | curve bs status client     |
-| snapshot-clone-status            | curve bs status snapshotserver |
-| copysets-status                  |                            |
-| chunkserver-list                 |                            |
-| cluster-status                   |                            |
-| clean-recycle                    |                            |
-| check-consistency                |                            |
-| transfer-leader                  |                            |
-| do-snapshot                      |                            |
-| do-snapshot-all                  |                            |
-| check-chunkserver                |                            |
-| check-server                     |                            |
-| list-may-broken-vol              |                            |
-| set-copyset-availflag            |                            |
-| rapid-leader-schedule            |                            |
-| set-scan-state                   |                            |
-| scan-status                      |                            |
->>>>>>> 4e73df5e... [feat]tools-v2: add space
-=======
-<<<<<<< HEAD
-=======
->>>>>>> 3aa74350... [feat] tools-v2: add do-snapshot
-| old                                  | new                            |
-| ------------------------------------ | ------------------------------ |
-| curve_ops_tool logical-pool-list     | curve bs list logical-pool     |
-| curve_ops_tool get -fileName=        | curve bs query file -path      |
-| curve_ops_tool etcd-status           | curve bs status etcd           |
-| curve_ops_tool mds-status            | curve bs status mds            |
-| curve_ops_tool server-list           | curve bs list server           |
-| curve_ops_tool client-list           | curve bs list client           |
-| curve_ops_tool delete                | curve bs delete file           |
-| curve_ops_tool list                  | curve bs list dir              |
-| curve_ops_tool create                | curve bs create file/dir       |
-| curve_ops_tool seginfo               | curve bs query seginfo         |
-| curve_ops_tool chunk-location        | curve bs query chunk           |
-| curve_ops_tool remove-peer           | curve bs delete peer           |
-| curve_ops_tool reset-peer            | curve bs update peer           |
-| curve_ops_tool space                 | curve bs list space            |
-| curve_ops_tool update-throttle       | curve bs update throttle       |
-| curve_ops_tool check-copyset         | curve bs check copyset         |
-| curve_ops_tool client-status         | curve bs status client         |
-| curve_ops_tool check-operator        | curve bs check operator        |
-| curve_ops_tool snapshot-clone-status | curve bs status snapshotserver |
-| curve_ops_tool transfer-leader       | curve bs update leader         |
-| curve_ops_tool do-snapshot           | curve bs snapshot copyset      |
-| curve_ops_tool set-scan-state        | curve bs update scan-state     |
-| curve_ops_tool chunkserver-status    | curve bs status chunkserver    |
-| curve_ops_tool status                |                                |
-| curve_ops_tool copysets-status       |                                |
-| curve_ops_tool chunkserver-list      | curve bs list chunkserver      |
-| curve_ops_tool clean-recycle         |                                |
-| curve_ops_tool check-consistency     |                                |
-| curve_ops_tool do-snapshot-all       |                                |
-| curve_ops_tool check-chunkserver     |                                |
-| curve_ops_tool check-server          |                                |
-| curve_ops_tool list-may-broken-vol   |                                |
-| curve_ops_tool set-copyset-availflag |                                |
-| curve_ops_tool rapid-leader-schedule |                                |
-| curve_ops_tool scan-status           |                                |
->>>>>>> c581f66e... [feat] tools-v2: add transfer-leader
-=======
 | old                                  | new                               |
 | ------------------------------------ | --------------------------------- |
 | curve_ops_tool logical-pool-list     | curve bs list logical-pool        |
@@ -1891,19 +1740,10 @@ Output:
 | curve_ops_tool clean-recycle         | curve bs clean-recycle            |
 | curve_ops_tool copysets-status       | curve bs status copyset           |
 | curve_ops_tool list-may-broken-vol   | curve bs list may-broken-vol      |
-| curve_ops_tool rapid-leader-schedule | curve bs update leader-schedule   |
-| curve_ops_tool do-snapshot-all       | curve bs snapshot --all           |
+| curve_ops_tool rapid-leader-schedule | curve bs update leader-schedule   |                                  |
 | curve_ops_tool status                |                                   |
 | curve_ops_tool check-consistency     |                                   |
+| curve_ops_tool do-snapshot-all       |                                   |
 | curve_ops_tool check-chunkserver     |                                   |
 | curve_ops_tool check-server          |                                   |
-<<<<<<< HEAD
-| curve_ops_tool rapid-leader-schedule |                                   |
-<<<<<<< HEAD
-| curve_ops_tool scan-status           |                                   |
->>>>>>> 26a51f0d... [feat]tools-v2: add update copyset availflag
-=======
->>>>>>> 4762448b... [curve/toos-v2]: add bs scan-status
-=======
 
->>>>>>> cb8d72f6... [feat] tools-v2: add update leader-schedule

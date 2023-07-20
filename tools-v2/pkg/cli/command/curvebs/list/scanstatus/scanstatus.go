@@ -23,7 +23,6 @@ package scanstatus
 
 import (
 	"fmt"
-	"time"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
@@ -73,9 +72,6 @@ func (sCmd *ScanStatusCommand) Init(cmd *cobra.Command, args []string) error {
 	header := []string{
 		cobrautil.ROW_LOGICALPOOL,
 		cobrautil.ROW_COPYSET_ID,
-		cobrautil.ROW_SCAN,
-		cobrautil.ROW_LASTSCAN,
-		cobrautil.ROW_LAST_SCAN_CONSISTENT,
 	}
 	sCmd.SetHeader(header)
 	sCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
@@ -101,9 +97,6 @@ func (sCmd *ScanStatusCommand) RunCommand(cmd *cobra.Command, args []string) err
 		row := make(map[string]string)
 		row[cobrautil.ROW_LOGICALPOOL] = fmt.Sprintf("%d", info.GetLogicalPoolId())
 		row[cobrautil.ROW_COPYSET_ID] = fmt.Sprintf("%d", info.GetCopysetId())
-		row[cobrautil.ROW_SCAN] = fmt.Sprintf("%v", info.GetScaning())
-		row[cobrautil.ROW_LASTSCAN] = fmt.Sprintf("%v", time.Unix(int64(info.GetLastScanSec()), 0))
-		row[cobrautil.ROW_LAST_SCAN_CONSISTENT] = fmt.Sprintf("%v", info.GetLastScanConsistent())
 		rows = append(rows, row)
 	}
 	list := cobrautil.ListMap2ListSortByKeys(rows, sCmd.Header, []string{

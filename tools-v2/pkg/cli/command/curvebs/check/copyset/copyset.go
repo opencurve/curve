@@ -35,7 +35,6 @@ import (
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/query/chunkserver"
 	status "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/query/copyset"
-	fscopyset "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/check/copyset"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
 	"github.com/opencurve/curve/tools-v2/proto/proto/common"
@@ -50,7 +49,7 @@ const (
 type CopysetCommand struct {
 	basecmd.FinalCurveCmd
 	key2Copyset    map[uint64]*cobrautil.BsCopysetInfoStatus
-	Key2LeaderInfo map[uint64]*fscopyset.CopysetLeaderInfo
+	Key2LeaderInfo map[uint64]*CopysetLeaderInfo
 	Key2Health     map[uint64]cobrautil.ClUSTER_HEALTH_STATUS
 	leaderAddr     mapset.Set[string]
 }
@@ -178,7 +177,7 @@ func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	key2LeaderInfo := make(map[uint64]*fscopyset.CopysetLeaderInfo)
+	key2LeaderInfo := make(map[uint64]*CopysetLeaderInfo)
 	cCmd.Key2LeaderInfo = key2LeaderInfo
 	err = cCmd.UpdateCopysteGap(timeout)
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
@@ -286,7 +285,7 @@ func (cCmd *CopysetCommand) UpdateCopysetGap(timeout time.Duration) *cmderror.Cm
 	count := 0
 	for iter := range cCmd.leaderAddr.Iter() {
 		go func(addr string) {
-			err := fscopyset.GetLeaderCopysetGap(addr, &key2LeaderInfo, timeout)
+			err := GetLeaderCopysetGap(addr, &key2LeaderInfo, timeout)
 			errChan <- err
 		}(iter)
 		count++
@@ -299,7 +298,7 @@ func (cCmd *CopysetCommand) UpdateCopysetGap(timeout time.Duration) *cmderror.Cm
 		}
 	}
 	key2LeaderInfo.Range(func(key, value interface{}) bool {
-		cCmd.Key2LeaderInfo[key.(uint64)] = value.(*fscopyset.CopysetLeaderInfo)
+		cCmd.Key2LeaderInfo[key.(uint64)] = value.(*CopysetLeaderInfo)
 		return true
 	})
 	retErr := cmderror.MergeCmdErrorExceptSuccess(errs)
@@ -313,7 +312,7 @@ func (cCmd *CopysetCommand) UpdateCopysteGap(timeout time.Duration) *cmderror.Cm
 	count := 0
 	for iter := range cCmd.leaderAddr.Iter() {
 		go func(addr string) {
-			err := fscopyset.GetLeaderCopysetGap(addr, &key2LeaderInfo, timeout)
+			err := GetLeaderCopysetGap(addr, &key2LeaderInfo, timeout)
 			errChan <- err
 		}(iter)
 		count++
@@ -326,7 +325,7 @@ func (cCmd *CopysetCommand) UpdateCopysteGap(timeout time.Duration) *cmderror.Cm
 		}
 	}
 	key2LeaderInfo.Range(func(key, value interface{}) bool {
-		cCmd.Key2LeaderInfo[key.(uint64)] = value.(*fscopyset.CopysetLeaderInfo)
+		cCmd.Key2LeaderInfo[key.(uint64)] = value.(*CopysetLeaderInfo)
 		return true
 	})
 	retErr := cmderror.MergeCmdErrorExceptSuccess(errs)

@@ -119,7 +119,7 @@ func (lCmd *LogicalPoolCommand) Init(cmd *cobra.Command, args []string) error {
 	}
 	header := []string{cobrautil.ROW_ID, cobrautil.ROW_NAME,
 		cobrautil.ROW_PHYPOOL, cobrautil.ROW_TYPE, cobrautil.ROW_ALLOC,
-		cobrautil.ROW_SCAN, cobrautil.ROW_TOTAL, cobrautil.ROW_USED,
+		cobrautil.ROW_TOTAL, cobrautil.ROW_USED,
 		cobrautil.ROW_LEFT, cobrautil.ROW_RECYCLE,
 	}
 	lCmd.SetHeader(header)
@@ -169,7 +169,6 @@ func (lCmd *LogicalPoolCommand) RunCommand(cmd *cobra.Command, args []string) er
 			row[cobrautil.ROW_PHYPOOL] = fmt.Sprintf("%d", loPoolInfo.GetPhysicalPoolID())
 			row[cobrautil.ROW_TYPE] = loPoolInfo.GetType().String()
 			row[cobrautil.ROW_ALLOC] = loPoolInfo.GetAllocateStatus().String()
-			row[cobrautil.ROW_SCAN] = fmt.Sprintf("%t", loPoolInfo.GetScanEnable())
 
 			total := uint64(0)
 			// capacity

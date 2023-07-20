@@ -21,6 +21,7 @@ package curve.mds;
 option cc_generic_services = true;
 option go_package = "proto/nameserver2";
 
+
 // fileinfo
 enum FileType {
     INODE_DIRECTORY = 0;

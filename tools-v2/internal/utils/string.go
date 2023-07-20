@@ -155,8 +155,6 @@ func ToUnderscoredName(src string) string {
 	}
 	return ret
 }
-<<<<<<< HEAD
-=======
 
 func Addr2IpPort(addr string) (string, uint32, *cmderror.CmdError) {
 	ipPort := strings.Split(addr, ":")
@@ -185,9 +183,6 @@ func StringList2Uint64List(strList []string) ([]uint64, error) {
 	}
 	return retList, nil
 }
-<<<<<<< HEAD
->>>>>>> a7135515... [feat]tools-v2: add bs scan status
-=======
 
 func StringList2Uint32List(strList []string) ([]uint32, error) {
 	retList := make([]uint32, 0)
@@ -200,4 +195,3 @@ func StringList2Uint32List(strList []string) ([]uint32, error) {
 	}
 	return retList, nil
 }
->>>>>>> 202b2707... [feat]tools-v2: add check copyset

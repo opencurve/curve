@@ -149,19 +149,6 @@ func updateByFileInfo(data map[string]string, header *[]string, fileInfo *namese
 			fileInfo.GetStripeCount(), fileInfo.GetStripeUnit())
 		setHeaderData(cobrautil.ROW_STRIPE, message)
 	}
-	if fileInfo.ThrottleParams != nil {
-		message := ""
-		for _, param := range fileInfo.GetThrottleParams().GetThrottleParams() {
-			message += fmt.Sprintf("\ntype:%s\nlimit:%d",
-				nameserver2.ThrottleType_name[int32(param.GetType())], param.GetLimit())
-			if param.Burst != nil && param.BurstLength != nil {
-				message += fmt.Sprintf("\nburst:%d\nburstLength:%d",
-					param.GetBurst(), param.GetBurstLength())
-			}
-		}
-		message = message[1:]
-		setHeaderData(cobrautil.ROW_THROTTLE, message)
-	}
 }
 
 func updateByAllocSize(data map[string]string, header *[]string, allocSize *nameserver2.GetAllocatedSizeResponse) {

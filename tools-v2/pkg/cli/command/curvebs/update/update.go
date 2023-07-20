@@ -23,7 +23,6 @@
 package update
 
 import (
-	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/update/copyset"
 	"github.com/spf13/cobra"
 
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -31,8 +30,6 @@ import (
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/update/leader"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/update/leader_schedule"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/update/peer"
-	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/update/scan_state"
-	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/update/throttle"
 )
 
 type UpdateCommand struct {
@@ -45,10 +42,7 @@ func (updateCmd *UpdateCommand) AddSubCommands() {
 	updateCmd.Cmd.AddCommand(
 		peer.NewPeerCommand(),
 		file.NewFileCommand(),
-		throttle.NewThrottleCommand(),
 		leader.NewleaderCommand(),
-		scan_state.NewScanStateCommand(),
-		copyset.NewCopysetCommand(),
 		leader_schedule.NewLeaderScheduleCommand(),
 	)
 }

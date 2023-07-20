@@ -25,9 +25,6 @@ package cmderror
 import (
 	"fmt"
 
-	fscopyset "github.com/opencurve/curve/tools-v2/proto/curvefs/proto/copyset"
-	"github.com/opencurve/curve/tools-v2/proto/curvefs/proto/mds"
-	"github.com/opencurve/curve/tools-v2/proto/curvefs/proto/topology"
 	"github.com/opencurve/curve/tools-v2/proto/proto/copyset"
 	"github.com/opencurve/curve/tools-v2/proto/proto/nameserver2"
 	bs_schedule_statuscode "github.com/opencurve/curve/tools-v2/proto/proto/schedule/statuscode"
@@ -198,13 +195,15 @@ func MergeCmdErrorExceptSuccess(err []*CmdError) *CmdError {
 	ret.Message = ""
 	countSuccess := 0
 	for _, e := range err {
-		if e.Code == CODE_SUCCESS {
-			countSuccess++
-			continue
-		} else if e.Code < ret.Code {
-			ret.Code = e.Code
+		if e != nil {
+			if e.Code == CODE_SUCCESS {
+				countSuccess++
+				continue
+			} else if e.Code < ret.Code {
+				ret.Code = e.Code
+			}
+			ret.Message = e.Message + "\n" + ret.Message
 		}
-		ret.Message = e.Message + "\n" + ret.Message
 	}
 	if countSuccess == len(err) {
 		return NewSucessCmdError()
@@ -282,17 +281,16 @@ var (
 		return NewInternalCmdError(14, "invalid %s: %s")
 	}
 	ErrSplitPeer = func() *CmdError {
-<<<<<<< HEAD
-		return NewInternalCmdError(15, "split peer %s failed")
-=======
 		return NewInternalCmdError(15, "split peer[%s] failed, peer should be like: 127.0.0.1:8200:0")
->>>>>>> 87664bd3... develop 'curve bs update reset' (for 'curve_ops_tool reset-peer')
 	}
 	ErrMarshalJson = func() *CmdError {
 		return NewInternalCmdError(16, "marshal %s to json error, the error is: %s")
 	}
 	ErrCopysetKey = func() *CmdError {
 		return NewInternalCmdError(17, "copyset key [%d] not found in %s")
+	}
+	ErrCopysetInfo = func() *CmdError {
+		return NewInternalCmdError(17, "copyset[%d]: no leader peer!")
 	}
 	ErrQueryCopyset = func() *CmdError {
 		return NewInternalCmdError(18, "query copyset failed! the error is: %s")
@@ -373,7 +371,7 @@ var (
 		return NewInternalCmdError(38, "get file size fail, the error is: %s")
 	}
 	ErrBsListZone = func() *CmdError {
-		return NewInternalCmdError(39, "lsit zone fail. the error is %s")
+		return NewInternalCmdError(39, "list zone fail. the error is %s")
 	}
 
 	ErrBsDeleteFile = func() *CmdError {
@@ -387,72 +385,36 @@ var (
 	ErrGetPeer = func() *CmdError {
 		return NewInternalCmdError(42, "invalid peer args, err: %s")
 	}
-<<<<<<< HEAD
-=======
 	ErrQueryWarmup = func() *CmdError {
 		return NewInternalCmdError(43, "query warmup progress fail, err: %s")
 	}
 	ErrBsGetSegment = func() *CmdError {
 		return NewInternalCmdError(44, "get segments fail, err: %s")
 	}
-<<<<<<< HEAD
->>>>>>> a8c1dc47... [feat]tools-v2:curve query segment
-=======
 	ErrBsGetChunkCopyset = func() *CmdError {
 		return NewInternalCmdError(45, "get copyset of chunk fail, err: %s")
 	}
 	ErrBsChunkServerListInCopySets = func() *CmdError {
 		return NewInternalCmdError(46, "get chunkserver list in copysets fail, err: %s")
 	}
-<<<<<<< HEAD
->>>>>>> 747436ee... [feat]tools-v2: bs query chunk
-=======
 	ErrBsUnknownFileType = func() *CmdError {
 		return NewInternalCmdError(47, "unknown file type[%s], only support: dir, file")
 	}
 	ErrBsCreateFileOrDirectoryType = func() *CmdError {
 		return NewInternalCmdError(48, "create file or directory fail, err: %s")
 	}
-<<<<<<< HEAD
->>>>>>> efcbe1c7... [feta]tools-v2:create
-=======
 	ErrBsListLogicalPoolInfo = func() *CmdError {
 		return NewInternalCmdError(49, "list logical pool info fail, the error is: %s")
 	}
-<<<<<<< HEAD
->>>>>>> 4e73df5e... [feat]tools-v2: add space
-=======
 	ErrBsUnknownThrottleType = func() *CmdError {
 		return NewInternalCmdError(50, "unknown throttle type[%s], only support: iops_total|iops_read|iops_write|bps_total|bps_read|bps_write")
 	}
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
->>>>>>> b9b6bfdf... [feat] add bs update throttle
-=======
 	ErrBsListDir = func() *CmdError {
 		return NewInternalCmdError(51, "list directory fail, err: %s")
 	}
->>>>>>> 61c07b30... code for clean-recycle
-=======
-	ErrBsListDir = func() *CmdError {
-		return NewInternalCmdError(51, "list directory fail, err: %s")
-	}
-<<<<<<< HEAD
->>>>>>> 61c07b30... code for clean-recycle
-=======
-	ErrBsListDir = func() *CmdError {
-		return NewInternalCmdError(51, "list directory fail, err: %s")
-	}
->>>>>>> 61c07b30... code for clean-recycle
-
-=======
 	ErrBsGetCopysetStatus = func() *CmdError {
 		return NewInternalCmdError(52, "get copyset status fail, err: %s")
 	}
-<<<<<<< HEAD
->>>>>>> 202b2707... [feat]tools-v2: add check copyset
-=======
 	ErrBsOpNameNotSupport = func() *CmdError {
 		return NewInternalCmdError(53, "not support op[%s], only support: operator, change_peer, add_peer, remove_peer, transfer_leader")
 	}
@@ -486,13 +448,6 @@ var (
 	ErrBsGetUnavailCopysets = func() *CmdError {
 		return NewInternalCmdError(63, "get unavail copysets fail, err: %s")
 	}
-<<<<<<< HEAD
-<<<<<<< HEAD
-
->>>>>>> daf9bb4e... [feat] tools-v2: add bs check-operator
-=======
->>>>>>> 26a51f0d... [feat]tools-v2: add update copyset availflag
-=======
 	ErrBsGetScanStatus = func() *CmdError {
 		return NewInternalCmdError(64, "query scan-status fail, err: %s")
 	}
@@ -511,14 +466,7 @@ var (
 	ErrSnapShotAddrNotConfigured = func() *CmdError {
 		return NewInternalCmdError(70, "get snapshotAddr fail, err: %s")
 	}
-	ErrBsGetOneSnapshotResult = func() *CmdError {
-		return NewInternalCmdError(71, "get one snapshot result fail, err: %s")
-	}
-	ErrBsGetAllSnapshotResult = func() *CmdError {
-		return NewInternalCmdError(72, "get all snapshot results fail, err: %s")
-	}
 
->>>>>>> 4762448b... [curve/toos-v2]: add bs scan-status
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {
 		return NewHttpResultCmdError(1, "http response is unreadable, the uri is: %s, the error is: %s")
@@ -533,68 +481,11 @@ var (
 	ErrRpcCall = func() *CmdError {
 		return NewRpcReultCmdError(1, "rpc[%s] is fail, the error is: %s")
 	}
-	ErrUmountFs = func(statusCode int) *CmdError {
-		var message string
-		code := mds.FSStatusCode(statusCode)
-		switch code {
-		case mds.FSStatusCode_OK:
-			message = "success"
-		case mds.FSStatusCode_MOUNT_POINT_NOT_EXIST:
-			message = "mountpoint not exist"
-		case mds.FSStatusCode_NOT_FOUND:
-			message = "fs not found"
-		case mds.FSStatusCode_FS_BUSY:
-			message = "mountpoint is busy"
-		default:
-			message = fmt.Sprintf("umount from fs failed!, error is %s", code.String())
-		}
-		return NewRpcReultCmdError(statusCode, message)
-	}
 	ErrGetFsInfo = func(statusCode int) *CmdError {
 		return NewRpcReultCmdError(statusCode, "get fs info failed: status code is %s")
 	}
 	ErrGetMetaserverInfo = func(statusCode int) *CmdError {
 		return NewRpcReultCmdError(statusCode, "get metaserver info failed: status code is %s")
-	}
-	ErrGetCopysetOfPartition = func(statusCode int) *CmdError {
-		code := topology.TopoStatusCode(statusCode)
-		message := fmt.Sprintf("get copyset of partition failed: status code is %s", code.String())
-		return NewRpcReultCmdError(statusCode, message)
-	}
-	ErrDeleteFs = func(statusCode int) *CmdError {
-		var message string
-		code := mds.FSStatusCode(statusCode)
-		switch code {
-		case mds.FSStatusCode_OK:
-			message = "success"
-		case mds.FSStatusCode_NOT_FOUND:
-			message = "fs not found!"
-		default:
-			message = fmt.Sprintf("delete fs failed!, error is %s", code.String())
-		}
-		return NewRpcReultCmdError(statusCode, message)
-	}
-	ErrCreateFs = func(statusCode int) *CmdError {
-		var message string
-		code := mds.FSStatusCode(statusCode)
-		switch code {
-		case mds.FSStatusCode_OK:
-			message = "success"
-		case mds.FSStatusCode_FS_EXIST:
-			message = "fs exist, but s3 info is not inconsistent"
-		case mds.FSStatusCode_S3_INFO_ERROR:
-			message = "s3 info is not available"
-		case mds.FSStatusCode_FSNAME_INVALID:
-			message = "fsname should match regex: ^([a-z0-9]+\\-?)+$"
-		default:
-			message = fmt.Sprintf("delete fs failed!, error is %s", mds.FSStatusCode_name[int32(code)])
-		}
-		return NewRpcReultCmdError(statusCode, message)
-	}
-	ErrGetCopysetsInfo = func(statusCode int) *CmdError {
-		code := topology.TopoStatusCode(statusCode)
-		message := fmt.Sprintf("get copysets info failed: status code is %s", code.String())
-		return NewRpcReultCmdError(statusCode, message)
 	}
 	ErrBsCopysetOpStatus = func(statusCode copyset.COPYSET_OP_STATUS, addr string) *CmdError {
 		var message string
@@ -603,74 +494,6 @@ var (
 		case copyset.COPYSET_OP_STATUS_COPYSET_OP_STATUS_COPYSET_NOTEXIST:
 			message = fmt.Sprintf("not exist in %s", addr)
 		case copyset.COPYSET_OP_STATUS_COPYSET_OP_STATUS_SUCCESS:
-			message = "ok"
-		default:
-			message = fmt.Sprintf("op status: %s in %s", statusCode.String(), addr)
-		}
-		return NewRpcReultCmdError(code, message)
-	}
-	ErrListPool = func(statusCode topology.TopoStatusCode) *CmdError {
-		var message string
-		code := int(statusCode)
-		switch statusCode {
-		case topology.TopoStatusCode_TOPO_OK:
-			message = "ok"
-		default:
-			message = fmt.Sprintf("list topology err: %s", statusCode.String())
-		}
-		return NewRpcReultCmdError(code, message)
-	}
-	ErrListZone = func(statusCode topology.TopoStatusCode) *CmdError {
-		var message string
-		code := int(statusCode)
-		switch statusCode {
-		case topology.TopoStatusCode_TOPO_OK:
-			message = "ok"
-		default:
-			message = fmt.Sprintf("list Zone err: %s", statusCode.String())
-		}
-		return NewRpcReultCmdError(code, message)
-	}
-	ErrListServer = func(statusCode topology.TopoStatusCode) *CmdError {
-		var message string
-		code := int(statusCode)
-		switch statusCode {
-		case topology.TopoStatusCode_TOPO_OK:
-			message = "ok"
-		default:
-			message = fmt.Sprintf("list Server fail, err: %s", statusCode.String())
-		}
-		return NewRpcReultCmdError(code, message)
-	}
-	ErrDeleteTopology = func(statusCode topology.TopoStatusCode, topoType string, name string) *CmdError {
-		var message string
-		code := int(statusCode)
-		switch statusCode {
-		case topology.TopoStatusCode_TOPO_OK:
-			message = "ok"
-		default:
-			message = fmt.Sprintf("delete %s[%s], err: %s", topoType, name, statusCode.String())
-		}
-		return NewRpcReultCmdError(code, message)
-	}
-	ErrCreateTopology = func(statusCode topology.TopoStatusCode, topoType string, name string) *CmdError {
-		var message string
-		code := int(statusCode)
-		switch statusCode {
-		case topology.TopoStatusCode_TOPO_OK:
-			message = "ok"
-		default:
-			message = fmt.Sprintf("create %s[%s], err: %s", topoType, name, statusCode.String())
-		}
-		return NewRpcReultCmdError(code, message)
-	}
-	ErrCopysetOpStatus = func(statusCode fscopyset.COPYSET_OP_STATUS, addr string) *CmdError {
-		var message string
-		code := int(statusCode)
-		switch statusCode {
-		case fscopyset.COPYSET_OP_STATUS_COPYSET_OP_STATUS_COPYSET_NOTEXIST:
-			message = fmt.Sprintf("not exist in %s", addr)
-		case fscopyset.COPYSET_OP_STATUS_COPYSET_OP_STATUS_SUCCESS:
 			message = "ok"
 		default:
 			message = fmt.Sprintf("op status: %s in %s", statusCode.String(), addr)
