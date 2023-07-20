@@ -25,6 +25,7 @@ import (
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/delete/volume/clone"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/delete/volume/recover"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/delete/volume/snapshot"
 	"github.com/spf13/cobra"
 )
 
@@ -38,6 +39,7 @@ func (dCmd *RecoverCommand) AddSubCommands() {
 	dCmd.Cmd.AddCommand(
 		recover.NewRecoverCommand(),
 		clone.NewCloneCommand(),
+		snapshot.NewSnapShotCommand(),
 	)
 }
 

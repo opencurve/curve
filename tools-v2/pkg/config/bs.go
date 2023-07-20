@@ -144,6 +144,9 @@ const (
 	VIPER_CURVEBS_TASKID              = "curvebs.taskid"
 	CURVEBS_FAILED                    = "failed"
 	VIPER_CURVEBS_FAILED              = "curvebs.failed"
+	CURVEBS_SNAPSHOT_SEQ              = "snapshotSeq"
+	VIPER_CURVEBS_SNAPSHOT_SEQ        = "curvebs.snapshotSeq"
+	CURVEBS_SNAPSHOT_SEQ_DEFAULT      = uint64(0)
 )
 
 var (
@@ -198,6 +201,7 @@ var (
 		CURVEBS_DEST:                VIPER_CURVEBS_DEST,
 		CURVEBS_TASKID:              VIPER_CURVEBS_TASKID,
 		CURVEBS_FAILED:              VIPER_CURVEBS_FAILED,
+		CURVEBS_SNAPSHOT_SEQ:        VIPER_CURVEBS_SNAPSHOT_SEQ,
 	}
 
 	BSFLAG2DEFAULT = map[string]interface{}{
@@ -221,6 +225,7 @@ var (
 		CURVEBS_ALL:            CURVEBS_DEFAULT_ALL,
 		CURVEBS_LOGIC_POOL_ID:  CURVEBS_DEFAULT_LOGIC_POOL_ID,
 		CURVEBS_COPYSET_ID:     CURVEBS_DEFAULT_COPYSET_ID,
+		CURVEBS_SNAPSHOT_SEQ:   CURVEBS_SNAPSHOT_SEQ_DEFAULT,
 	}
 )
 
@@ -634,6 +639,10 @@ func AddBsFailedOptionFlag(cmd *cobra.Command) {
 	AddBsBoolOptionFlag(cmd, CURVEBS_FAILED, "failed")
 }
 
+func AddBsSnapshotSeqRequiredFlag(cmd *cobra.Command) {
+	AddBsUint64RequiredFlag(cmd, CURVEBS_SNAPSHOT_SEQ, "snapshot sequence num")
+}
+
 // get stingslice flag
 func GetBsFlagStringSlice(cmd *cobra.Command, flagName string) []string {
 	var value []string
@@ -816,4 +825,8 @@ func GetBsChunkServerId(cmd *cobra.Command) []uint32 {
 		chunkserveridSlice = append(chunkserveridSlice, uint32(idUint))
 	}
 	return chunkserveridSlice
+}
+
+func GetBsSnapshotSeq(cmd *cobra.Command) uint64 {
+	return GetBsFlagUint64(cmd, CURVEBS_SNAPSHOT_SEQ)
 }
