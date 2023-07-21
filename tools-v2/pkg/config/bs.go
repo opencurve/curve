@@ -144,6 +144,8 @@ const (
 	VIPER_CURVEBS_TASKID              = "curvebs.taskid"
 	CURVEBS_FAILED                    = "failed"
 	VIPER_CURVEBS_FAILED              = "curvebs.failed"
+	CURVEBS_LAZY                      = "lazy"
+	VIPER_CURVEBS_LAZY                = "curvebs.lazy"
 )
 
 var (
@@ -198,6 +200,7 @@ var (
 		CURVEBS_DEST:                VIPER_CURVEBS_DEST,
 		CURVEBS_TASKID:              VIPER_CURVEBS_TASKID,
 		CURVEBS_FAILED:              VIPER_CURVEBS_FAILED,
+		CURVEBS_LAZY:                VIPER_CURVEBS_LAZY,
 	}
 
 	BSFLAG2DEFAULT = map[string]interface{}{
@@ -618,14 +621,6 @@ func AddBsChunkServerAddressSliceRequiredFlag(cmd *cobra.Command) {
 	AddBsStringSliceRequiredFlag(cmd, CURVEBS_CHUNKSERVER_ADDRESS, "chunk server address")
 }
 
-func AddBsSrcOptionFlag(cmd *cobra.Command) {
-	AddBsStringOptionFlag(cmd, CURVEBS_SRC, "source")
-}
-
-func AddBsDestOptionFlag(cmd *cobra.Command) {
-	AddBsStringOptionFlag(cmd, CURVEBS_DEST, "destination")
-}
-
 func AddBsTaskIDOptionFlag(cmd *cobra.Command) {
 	AddBsStringOptionFlag(cmd, CURVEBS_TASKID, "task id")
 }
@@ -816,4 +811,16 @@ func GetBsChunkServerId(cmd *cobra.Command) []uint32 {
 		chunkserveridSlice = append(chunkserveridSlice, uint32(idUint))
 	}
 	return chunkserveridSlice
+}
+
+func AddBsSrcOptionFlag(cmd *cobra.Command) {
+	AddBsStringOptionFlag(cmd, CURVEBS_SRC, "source")
+}
+
+func AddBsDestOptionFlag(cmd *cobra.Command) {
+	AddBsStringOptionFlag(cmd, CURVEBS_DEST, "destination")
+}
+
+func AddBsLazyOptionFlag(cmd *cobra.Command) {
+	AddBsBoolOptionFlag(cmd, CURVEBS_LAZY, "lazy")
 }

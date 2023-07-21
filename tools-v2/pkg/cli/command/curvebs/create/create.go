@@ -27,6 +27,7 @@ import (
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/create/cluster"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/create/dir"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/create/file"
+	clone "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/create/volume"
 	"github.com/spf13/cobra"
 )
 
@@ -41,6 +42,7 @@ func (createCmd *CreateCmd) AddSubCommands() {
 		cluster.NewClusterTopoCmd(),
 		dir.NewDirectoryCommand(),
 		file.NewFileCommand(),
+		clone.NewCloneCommand(),
 	)
 }
 

@@ -880,4 +880,15 @@ var (
 		}
 		return NewRpcReultCmdError(code, message)
 	}
+	ErrCreateCloneFile = func(statusCode nameserver2.StatusCode, path string) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case nameserver2.StatusCode_kOK:
+			message = "Created successfully"
+		default:
+			message = fmt.Sprintf("failed to create clone file[%s], err: %s", path, statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
 )
