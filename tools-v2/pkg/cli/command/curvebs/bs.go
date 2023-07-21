@@ -32,6 +32,7 @@ import (
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/delete"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/query"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/recover"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/snapshot"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/status"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/update"
@@ -54,6 +55,7 @@ func (bsCmd *CurveBsCommand) AddSubCommands() {
 		clean_recycle.NewCleanRecycleCommand(),
 		check.NewCheckCommand(),
 		snapshot.NewSnapshotCommand(),
+		recover.NewRecoverCommand(),
 	)
 }
 
