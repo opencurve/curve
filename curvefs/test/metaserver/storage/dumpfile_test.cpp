@@ -27,6 +27,7 @@
 #include <memory>
 #include <thread>
 #include <unordered_map>
+#include <array>
 
 #include "curvefs/src/common/process.h"
 #include "curvefs/src/metaserver/storage/iterator.h"
