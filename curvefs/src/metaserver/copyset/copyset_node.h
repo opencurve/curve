@@ -301,7 +301,7 @@ inline std::string CopysetNode::GetCopysetDataDir() const {
 }
 
 inline uint64_t CopysetNode::GetAppliedIndex() const {
-    return appliedIndex_.load(std::memory_order_acq_rel);
+    return appliedIndex_.load(std::memory_order::memory_order_acquire);
 }
 
 inline void CopysetNode::GetStatus(braft::NodeStatus* status) {
