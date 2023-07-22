@@ -31,7 +31,7 @@
 
 using curve::chunkserver::concurrent::ConcurrentApplyModule;
 using curve::chunkserver::concurrent::ConcurrentApplyOption;
-using curve::chunkserver::CHUNK_OP_TYPE;
+using curve::chunkserver::concurrent::ApplyTaskType;
 
 TEST(ConcurrentApplyModule, InitTest) {
     ConcurrentApplyModule concurrentapply;
@@ -89,8 +89,8 @@ TEST(ConcurrentApplyModule, RunTest) {
     ConcurrentApplyOption opt{1, 1, 1, 1};
     ASSERT_TRUE(concurrentapply.Init(opt));
 
-    ASSERT_TRUE(concurrentapply.Push(1, CHUNK_OP_TYPE::CHUNK_OP_READ, rtask));
-    ASSERT_TRUE(concurrentapply.Push(1, CHUNK_OP_TYPE::CHUNK_OP_WRITE, wtask));
+    ASSERT_TRUE(concurrentapply.Push(1, ApplyTaskType::READ , rtask));
+    ASSERT_TRUE(concurrentapply.Push(1, ApplyTaskType::WRITE, wtask));
 
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
     ASSERT_EQ(1, testr);
@@ -112,7 +112,7 @@ TEST(ConcurrentApplyModule, FlushTest) {
     };
 
     for (int i = 0; i < 5000; i++) {
-        concurrentapply.Push(i, CHUNK_OP_TYPE::CHUNK_OP_WRITE, task);
+        concurrentapply.Push(i, ApplyTaskType::WRITE, task);
     }
 
     ASSERT_LT(testnum, 5000);
@@ -136,8 +136,8 @@ TEST(ConcurrentApplyModule, ConcurrentTest) {
         };
         while (!stop.load()) {
             for (int i = 0; i < 10; i++) {
-                concurrentapply.Push(i, CHUNK_OP_TYPE::CHUNK_OP_RECOVER, task);
-                concurrentapply.Push(i, CHUNK_OP_TYPE::CHUNK_OP_WRITE, task);
+                concurrentapply.Push(i, ApplyTaskType::READ, task);
+                concurrentapply.Push(i, ApplyTaskType::WRITE, task);
             }
         }
     };

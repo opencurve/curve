@@ -55,7 +55,7 @@ struct ConcurrentApplyOption {
     int rqueuedepth;
 };
 
-enum class ThreadPoolType {READ, WRITE};
+enum class ApplyTaskType {READ, WRITE};
 
 class CURVE_CACHELINE_ALIGNMENT ConcurrentApplyModule {
  public:
@@ -78,18 +78,18 @@ class CURVE_CACHELINE_ALIGNMENT ConcurrentApplyModule {
     /**
      * Push: apply task will be push to ConcurrentApplyModule
      * @param[in] key: used to hash task to specified queue
-     * @param[in] optype: operation type defined in proto
+     * @param[in] optype: read or write request type
      * @param[in] f: task
      * @param[in] args: param to excute task
      */
     template <class F, class... Args>
-    bool Push(uint64_t key, CHUNK_OP_TYPE optype, F&& f, Args&&... args) {
-        switch (Schedule(optype)) {
-            case ThreadPoolType::READ:
+    bool Push(uint64_t key, ApplyTaskType optype, F&& f, Args&&... args) {
+        switch (optype) {
+            case ApplyTaskType::READ:
                 rapplyMap_[Hash(key, rconcurrentsize_)]->tq.Push(
                         std::forward<F>(f), std::forward<Args>(args)...);
                 break;
-            case ThreadPoolType::WRITE:
+            case ApplyTaskType::WRITE:
                 wapplyMap_[Hash(key, wconcurrentsize_)]->tq.Push(
                         std::forward<F>(f), std::forward<Args>(args)...);
                 break;
@@ -108,11 +108,9 @@ class CURVE_CACHELINE_ALIGNMENT ConcurrentApplyModule {
  private:
     bool checkOptAndInit(const ConcurrentApplyOption &option);
 
-    void Run(ThreadPoolType type, int index);
+    void Run(ApplyTaskType type, int index);
 
-    static ThreadPoolType Schedule(CHUNK_OP_TYPE optype);
-
-    void InitThreadPool(ThreadPoolType type, int concorrent, int depth);
+    void InitThreadPool(ApplyTaskType type, int concorrent, int depth);
 
     static int Hash(uint64_t key, int concurrent) {
         return key % concurrent;
