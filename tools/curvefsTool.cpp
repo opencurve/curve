@@ -364,7 +364,7 @@ int CurvefsTools::InitServerData() {
         LOG(ERROR) << "No servers in cluster map";
         return -1;
     }
-    for (const auto server : clusterMap_[kServers]) {
+    for (const auto &server : clusterMap_[kServers]) {
         CurveServerData serverData;
         if (!server[kName].isString()) {
             LOG(ERROR) << "server name must be string";
@@ -423,7 +423,7 @@ int CurvefsTools::InitLogicalPoolData() {
         LOG(ERROR) << "No servers in cluster map";
         return -1;
     }
-    for (const auto lgPool : clusterMap_[kLogicalPools]) {
+    for (const auto &lgPool : clusterMap_[kLogicalPools]) {
         CurveLogicalPoolData lgPoolData;
         if (!lgPool[kName].isString()) {
             LOG(ERROR) << "logicalpool name must be string";

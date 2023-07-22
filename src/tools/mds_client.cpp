@@ -912,7 +912,7 @@ int MDSClient::GetListenAddrFromDummyPort(const std::string& dummyAddr,
 void MDSClient::GetMdsOnlineStatus(std::map<std::string, bool>* onlineStatus) {
     assert(onlineStatus != nullptr);
     onlineStatus->clear();
-    for (const auto item : dummyServerMap_) {
+    for (const auto &item : dummyServerMap_) {
         std::string listenAddr;
         int res = GetListenAddrFromDummyPort(item.second, &listenAddr);
         // 如果获取到的监听地址与记录的mds地址不一致，也认为不在线
@@ -972,7 +972,7 @@ bool MDSClient::ChangeMDServer() {
 
 std::vector<std::string> MDSClient::GetCurrentMds() {
     std::vector<std::string> leaderAddrs;
-    for (const auto item : dummyServerMap_) {
+    for (const auto &item : dummyServerMap_) {
         // 获取status来判断正在服务的地址
         std::string status;
         MetricRet ret = metricClient_.GetMetric(item.second,

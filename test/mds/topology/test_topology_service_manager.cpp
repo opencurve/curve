@@ -3573,7 +3573,7 @@ TEST_F(TestTopologyServiceManager, test_SetCopysetsAvailFlag) {
     }
     std::vector<CopySetInfo> copysets =
                 topology_->GetCopySetInfosInLogicalPool(logicalPoolId1);
-    for (const auto copyset : copysets) {
+    for (const auto &copyset : copysets) {
         ASSERT_TRUE(copyset.IsAvailable());
     }
     // success
@@ -3592,7 +3592,7 @@ TEST_F(TestTopologyServiceManager, test_SetCopysetsAvailFlag) {
         serviceManager_->SetCopysetsAvailFlag(&request, &response);
         ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
         copysets = topology_->GetCopySetInfosInLogicalPool(logicalPoolId1);
-        for (const auto copyset : copysets) {
+        for (const auto &copyset : copysets) {
             if (copyset.GetId() <= 10) {
                 ASSERT_FALSE(copyset.IsAvailable());
             } else {
@@ -3606,7 +3606,7 @@ TEST_F(TestTopologyServiceManager, test_SetCopysetsAvailFlag) {
         serviceManager_->SetCopysetsAvailFlag(&request, &response);
         ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
         copysets = topology_->GetCopySetInfosInLogicalPool(logicalPoolId1);
-        for (const auto copyset : copysets) {
+        for (const auto &copyset : copysets) {
             ASSERT_TRUE(copyset.IsAvailable());
         }
     }
