@@ -176,6 +176,16 @@ std::shared_ptr<ChunkOpRequest> ChunkOpRequest::Decode(butil::IOBuf log,
     }
 }
 
+ApplyTaskType ChunkOpRequest::Schedule(CHUNK_OP_TYPE opType) {
+    switch (opType) {
+    case CHUNK_OP_READ:
+    case CHUNK_OP_RECOVER:
+        return ApplyTaskType::READ;
+    default:
+        return ApplyTaskType::WRITE;
+    }
+}
+
 namespace {
 uint64_t MaxAppliedIndex(
         const std::shared_ptr<curve::chunkserver::CopysetNode>& node,
@@ -269,8 +279,9 @@ void ReadChunkRequest::Process() {
                               thisPtr,
                               node_->GetAppliedIndex(),
                               doneGuard.release());
-        concurrentApplyModule_->Push(
-            request_->chunkid(), request_->optype(), task);
+        concurrentApplyModule_->Push(request_->chunkid(),
+                                     ChunkOpRequest::Schedule(request_->optype()),  // NOLINT
+                                     task);
         return;
     }
 

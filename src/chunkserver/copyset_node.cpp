@@ -303,7 +303,7 @@ void CopysetNode::on_apply(::braft::Iterator &iter) {
             CHECK(nullptr != chunkClosure)
                 << "ChunkClosure dynamic cast failed";
             std::shared_ptr<ChunkOpRequest>& opRequest = chunkClosure->request_;
-            concurrentapply_->Push(opRequest->ChunkId(), opRequest->OpType(),
+            concurrentapply_->Push(opRequest->ChunkId(), ChunkOpRequest::Schedule(opRequest->OpType()),  // NOLINT
                                    &ChunkOpRequest::OnApply, opRequest,
                                    iter.index(), doneGuard.release());
         } else {
@@ -320,7 +320,7 @@ void CopysetNode::on_apply(::braft::Iterator &iter) {
             auto opReq = ChunkOpRequest::Decode(log, &request, &data,
                                                 iter.index(), GetLeaderId());
             auto chunkId = request.chunkid();
-            concurrentapply_->Push(chunkId, request.optype(),
+            concurrentapply_->Push(chunkId, ChunkOpRequest::Schedule(request.optype()),  // NOLINT
                                    &ChunkOpRequest::OnApplyFromLog, opReq,
                                    dataStore_, std::move(request), data);
         }

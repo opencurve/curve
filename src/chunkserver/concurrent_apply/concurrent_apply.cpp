@@ -43,8 +43,8 @@ bool ConcurrentApplyModule::Init(const ConcurrentApplyOption &opt) {
 
     start_ = true;
     cond_.Reset(opt.rconcurrentsize + opt.wconcurrentsize);
-    InitThreadPool(ThreadPoolType::READ, rconcurrentsize_, rqueuedepth_);
-    InitThreadPool(ThreadPoolType::WRITE, wconcurrentsize_, wqueuedepth_);
+    InitThreadPool(ApplyTaskType::READ, rconcurrentsize_, rqueuedepth_);
+    InitThreadPool(ApplyTaskType::WRITE, wconcurrentsize_, wqueuedepth_);
 
     if (!cond_.WaitFor(5000)) {
         LOG(ERROR) << "init concurrent module's threads fail";
@@ -77,17 +77,17 @@ bool ConcurrentApplyModule::checkOptAndInit(
 
 
 void ConcurrentApplyModule::InitThreadPool(
-    ThreadPoolType type, int concurrent, int depth) {
+    ApplyTaskType type, int concurrent, int depth) {
     for (int i = 0; i < concurrent; i++) {
         auto asyncth = new (std::nothrow) TaskThread(depth);
         CHECK(asyncth != nullptr) << "allocate failed!";
 
         switch (type) {
-        case ThreadPoolType::READ:
+        case ApplyTaskType::READ:
             rapplyMap_.insert(std::make_pair(i, asyncth));
             break;
 
-        case ThreadPoolType::WRITE:
+        case ApplyTaskType::WRITE:
             wapplyMap_.insert(std::make_pair(i, asyncth));
             break;
         }
@@ -95,12 +95,12 @@ void ConcurrentApplyModule::InitThreadPool(
 
     for (int i = 0; i < concurrent; i++) {
         switch (type) {
-        case ThreadPoolType::READ:
+        case ApplyTaskType::READ:
             rapplyMap_[i]->th =
                     std::thread(&ConcurrentApplyModule::Run, this, type, i);
             break;
 
-        case ThreadPoolType::WRITE:
+        case ApplyTaskType::WRITE:
             wapplyMap_[i]->th =
                     std::thread(&ConcurrentApplyModule::Run, this, type, i);
             break;
@@ -108,15 +108,15 @@ void ConcurrentApplyModule::InitThreadPool(
     }
 }
 
-void ConcurrentApplyModule::Run(ThreadPoolType type, int index) {
+void ConcurrentApplyModule::Run(ApplyTaskType type, int index) {
     cond_.Signal();
     while (start_) {
         switch (type) {
-        case ThreadPoolType::READ:
+        case ApplyTaskType::READ:
             rapplyMap_[index]->tq.Pop()();
             break;
 
-        case ThreadPoolType::WRITE:
+        case ApplyTaskType::WRITE:
             wapplyMap_[index]->tq.Pop()();
             break;
         }
@@ -157,15 +157,6 @@ void ConcurrentApplyModule::Flush() {
     event.Wait();
 }
 
-ThreadPoolType ConcurrentApplyModule::Schedule(CHUNK_OP_TYPE optype) {
-    switch (optype) {
-    case CHUNK_OP_READ:
-    case CHUNK_OP_RECOVER:
-        return ThreadPoolType::READ;
-    default:
-        return ThreadPoolType::WRITE;
-    }
-}
 }   // namespace concurrent
 }   // namespace chunkserver
 }   // namespace curve
