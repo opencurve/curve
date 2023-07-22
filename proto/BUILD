@@ -34,7 +34,8 @@ cc_proto_library(
 proto_library(
     name = "nameserver2_proto",
     srcs = ["nameserver2.proto"],
-    deps = [":common_proto"],
+    deps = [":common_proto",
+            ":auth_proto"],
 )
 
 cc_proto_library(
@@ -46,7 +47,8 @@ cc_proto_library(
 proto_library(
     name = "topology_proto",
     srcs = ["topology.proto"],
-    deps = [":common_proto"],
+    deps = [":common_proto",
+            ":auth_proto"],
 )
 
 cc_proto_library(
@@ -59,7 +61,9 @@ proto_library(
     name = "heartbeat_proto",
     visibility = ["//visibility:public"],
     srcs = ["heartbeat.proto"],
-    deps = [":common_proto", ":scan_proto"],
+    deps = [":common_proto",
+            ":scan_proto",
+            ":auth_proto"],
 )
 
 cc_proto_library(
@@ -80,7 +84,7 @@ proto_library(
         "chunkserver.proto",
         "curve_storage.proto",
     ]),
-    deps = [":common_proto", ":scan_proto", ":heartbeat_proto"],
+    deps = [":common_proto", ":scan_proto", ":heartbeat_proto", ":auth_proto"],
     visibility = ["//visibility:public"],
 )
 
@@ -104,6 +108,7 @@ cc_proto_library(
 proto_library(
     name = "schedule_proto",
     srcs = ["schedule.proto"],
+    deps = [":auth_proto"],
 )
 
 cc_proto_library(
@@ -115,4 +120,15 @@ cc_proto_library(
 proto_library(
     name = "scan_proto",
     srcs = ["scan.proto"],
+)
+
+proto_library(
+    name = "auth_proto",
+    srcs = ["auth.proto"],
+)
+
+cc_proto_library(
+    name = "auth_cc_proto",
+    visibility = ["//visibility:public"],
+    deps = [":auth_proto"],
 )

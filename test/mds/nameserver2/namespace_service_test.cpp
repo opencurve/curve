@@ -43,7 +43,7 @@
 #include "test/mds/mock/mock_alloc_statistic.h"
 
 using curve::common::TimeUtility;
-using curve::common::Authenticator;
+using curve::common::Encryptor;
 using curve::mds::topology::MockTopology;
 using ::curve::mds::chunkserverclient::ChunkServerClientOption;
 using ::testing::_;
@@ -158,8 +158,8 @@ class NameSpaceServiceTest : public ::testing::Test {
         if (!option.isRootUser) {
             request->set_owner("owner");
         } else {
-            auto signature = Authenticator::CalcString2Signature(
-                Authenticator::GetString2Signature(date, authOptions.rootOwner),
+            auto signature = Encryptor::CalcString2Signature(
+                Encryptor::GetString2Signature(date, authOptions.rootOwner),
                 authOptions.rootPassword);
             request->set_owner(authOptions.rootOwner);
             request->set_signature(signature);
@@ -515,9 +515,9 @@ TEST_F(NameSpaceServiceTest, test1) {
 
         cntl.Reset();
         uint64_t date = TimeUtility::GetTimeofDayUs();
-        std::string str2sig = Authenticator::GetString2Signature(date,
+        std::string str2sig = Encryptor::GetString2Signature(date,
                                                 authOptions.rootOwner);
-        std::string sig = Authenticator::CalcString2Signature(str2sig,
+        std::string sig = Encryptor::CalcString2Signature(str2sig,
                                                 authOptions.rootPassword);
         listRequest.set_signature(sig);
         listRequest.set_filename("/");
@@ -694,9 +694,9 @@ TEST_F(NameSpaceServiceTest, test1) {
         request.set_filename("/file1");
         request.set_newowner("newowner1");
         date = TimeUtility::GetTimeofDayUs();
-        str2sig = Authenticator::GetString2Signature(date,
+        str2sig = Encryptor::GetString2Signature(date,
                                                     authOptions.rootOwner);
-        sig = Authenticator::CalcString2Signature(str2sig,
+        sig = Encryptor::CalcString2Signature(str2sig,
                                                     authOptions.rootPassword);
         request.set_rootowner(authOptions.rootOwner);
         request.set_signature(sig);
@@ -713,9 +713,9 @@ TEST_F(NameSpaceServiceTest, test1) {
         request.set_filename("/file1");
         request.set_newowner("newowner1");
         date = TimeUtility::GetTimeofDayUs();
-        str2sig = Authenticator::GetString2Signature(date,
+        str2sig = Encryptor::GetString2Signature(date,
                                                     authOptions.rootOwner);
-        sig = Authenticator::CalcString2Signature(str2sig,
+        sig = Encryptor::CalcString2Signature(str2sig,
                                                     authOptions.rootPassword);
         request.set_rootowner(authOptions.rootOwner);
         request.set_signature(sig);
@@ -732,9 +732,9 @@ TEST_F(NameSpaceServiceTest, test1) {
         request.set_filename("/file1");
         request.set_newowner("owner1");
         date = TimeUtility::GetTimeofDayUs();
-        str2sig = Authenticator::GetString2Signature(date,
+        str2sig = Encryptor::GetString2Signature(date,
                                                     authOptions.rootOwner);
-        sig = Authenticator::CalcString2Signature(str2sig,
+        sig = Encryptor::CalcString2Signature(str2sig,
                                                     authOptions.rootPassword);
         request.set_rootowner("newowner1");
         request.set_signature(sig);
@@ -766,9 +766,9 @@ TEST_F(NameSpaceServiceTest, test1) {
         request.set_filename("/file1");
         request.set_newowner("owner1");
         date = TimeUtility::GetTimeofDayUs();
-        str2sig = Authenticator::GetString2Signature(date,
+        str2sig = Encryptor::GetString2Signature(date,
                                                     authOptions.rootOwner);
-        sig = Authenticator::CalcString2Signature(str2sig,
+        sig = Encryptor::CalcString2Signature(str2sig,
                                                     authOptions.rootPassword);
         request.set_rootowner(authOptions.rootOwner);
         request.set_signature(sig);
@@ -785,9 +785,9 @@ TEST_F(NameSpaceServiceTest, test1) {
         request.set_filename("/file1");
         request.set_newowner("owner1");
         date = TimeUtility::GetTimeofDayUs();
-        str2sig = Authenticator::GetString2Signature(date,
+        str2sig = Encryptor::GetString2Signature(date,
                                                     authOptions.rootOwner);
-        sig = Authenticator::CalcString2Signature(str2sig,
+        sig = Encryptor::CalcString2Signature(str2sig,
                                                     authOptions.rootPassword);
         request.set_rootowner(authOptions.rootOwner);
         request.set_signature(sig);
@@ -804,9 +804,9 @@ TEST_F(NameSpaceServiceTest, test1) {
         request.set_filename("/file1/");
         request.set_newowner("owner1");
         date = TimeUtility::GetTimeofDayUs();
-        str2sig = Authenticator::GetString2Signature(date,
+        str2sig = Encryptor::GetString2Signature(date,
                                                     authOptions.rootOwner);
-        sig = Authenticator::CalcString2Signature(str2sig,
+        sig = Encryptor::CalcString2Signature(str2sig,
                                                     authOptions.rootPassword);
         request.set_rootowner(authOptions.rootOwner);
         request.set_signature(sig);
@@ -858,9 +858,9 @@ TEST_F(NameSpaceServiceTest, test1) {
 
     std::string oldname = "/dir/file4";
     uint64_t date = TimeUtility::GetTimeofDayUs();
-    std::string str2sig = Authenticator::GetString2Signature(date,
+    std::string str2sig = Encryptor::GetString2Signature(date,
                                                 authOptions.rootOwner);
-    std::string sig = Authenticator::CalcString2Signature(str2sig,
+    std::string sig = Encryptor::CalcString2Signature(str2sig,
                                                 authOptions.rootPassword);
 
     request4.set_oldfilename(oldname);
@@ -1701,9 +1701,9 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
     ListDirResponse listResponse;
     cntl.Reset();
     uint64_t date = TimeUtility::GetTimeofDayUs();
-    std::string str2sig = Authenticator::GetString2Signature(date,
+    std::string str2sig = Encryptor::GetString2Signature(date,
                                             authOptions.rootOwner);
-    std::string sig = Authenticator::CalcString2Signature(str2sig,
+    std::string sig = Encryptor::CalcString2Signature(str2sig,
                                             authOptions.rootPassword);
     listRequest.set_signature(sig);
     listRequest.set_filename(RECYCLEBINDIR);
@@ -2278,9 +2278,9 @@ TEST_F(NameSpaceServiceTest, testRecoverFile) {
     ListDirRequest listRequest;
     ListDirResponse listResponse;
     uint64_t date = TimeUtility::GetTimeofDayUs();
-    std::string str2sig = Authenticator::GetString2Signature(date,
+    std::string str2sig = Encryptor::GetString2Signature(date,
                                             authOptions.rootOwner);
-    std::string sig = Authenticator::CalcString2Signature(str2sig,
+    std::string sig = Encryptor::CalcString2Signature(str2sig,
                                             authOptions.rootPassword);
     listRequest.set_signature(sig);
     listRequest.set_filename(RECYCLEBINDIR);
@@ -2404,9 +2404,9 @@ TEST_F(NameSpaceServiceTest, testRecoverFile) {
     FileInfo recycleFile;
     cntl.Reset();
     date = TimeUtility::GetTimeofDayUs();
-    str2sig = Authenticator::GetString2Signature(date,
+    str2sig = Encryptor::GetString2Signature(date,
                                             authOptions.rootOwner);
-    sig = Authenticator::CalcString2Signature(str2sig,
+    sig = Encryptor::CalcString2Signature(str2sig,
                                             authOptions.rootPassword);
     listRequest.set_signature(sig);
     listRequest.set_filename(RECYCLEBINDIR);
@@ -2471,9 +2471,9 @@ TEST_F(NameSpaceServiceTest, testRecoverFile) {
     // 3. check the fileId of recovered file 3 and not recovered is 4
     cntl.Reset();
     date = TimeUtility::GetTimeofDayUs();
-    str2sig = Authenticator::GetString2Signature(date,
+    str2sig = Encryptor::GetString2Signature(date,
                                             authOptions.rootOwner);
-    sig = Authenticator::CalcString2Signature(str2sig,
+    sig = Encryptor::CalcString2Signature(str2sig,
                                             authOptions.rootPassword);
     listRequest.set_signature(sig);
     listRequest.set_filename(RECYCLEBINDIR);

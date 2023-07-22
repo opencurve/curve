@@ -2292,8 +2292,8 @@ bool CurveFS::CheckDate(uint64_t date) {
 bool CurveFS::CheckSignature(const std::string& owner,
                              const std::string& signature,
                              uint64_t date) {
-    std::string str2sig = Authenticator::GetString2Signature(date, owner);
-    std::string sig = Authenticator::CalcString2Signature(str2sig,
+    std::string str2sig = Encryptor::GetString2Signature(date, owner);
+    std::string sig = Encryptor::CalcString2Signature(str2sig,
                                                 rootAuthOptions_.rootPassword);
     return signature == sig;
 }

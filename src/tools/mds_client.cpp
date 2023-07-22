@@ -1146,9 +1146,9 @@ void MDSClient::FillUserInfo(T* request) {
 
     if (userName_ == rootUserName && !password_.empty()) {
         std::string str2sig =
-            Authenticator::GetString2Signature(date, userName_);
+            Encryptor::GetString2Signature(date, userName_);
         std::string sig =
-            Authenticator::CalcString2Signature(str2sig, password_);
+            Encryptor::CalcString2Signature(str2sig, password_);
         request->set_signature(sig);
     }
 }

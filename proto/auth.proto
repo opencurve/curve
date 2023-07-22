@@ -1,0 +1,127 @@
+/*
+ *  Copyright (c) 2023 NetEase Inc.
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+/*
+ * Project: curve
+ * Created Date: 2023-05-23
+ * Author: wanghai (SeanHai)
+ */
+
+syntax="proto2";
+package curve.mds.auth;
+option cc_generic_services = true;
+option go_package = "proto/auth";
+
+enum AuthStatusCode {
+	AUTH_OK = 0;
+	AUTH_LOAD_KEY_FAILED = 1;
+	AUTH_STORE_KEY_FAILED = 2;
+	AUTH_DELETE_KEY_FAILED = 3;
+	AUTH_KEY_NOT_EXIST = 4;
+	AUTH_ENCODE_FAILED = 5;
+	AUTH_ENCRYPT_FAILED = 6;
+	AUTH_DECRYPT_FAILED = 7;
+	AUTH_TIMEOUT = 8;
+	AUTH_FAIL = 9;
+}
+
+enum RoleType {
+	ROLE_CLIENT  = 1;
+	ROLE_SERVICE = 2;
+}
+
+message Key {
+	required string id = 1;      // user id
+	required RoleType role = 2;  // user type
+	required string key = 3;     // base64 encode key string
+	required string caps = 4;    // reserved, default *
+}
+
+message Ticket {
+	required string sessionKey = 1;  // sessionKey between client and server
+	required string cId = 2;         // client Id
+	required string sId = 3;         // server Id will visit
+	required uint64 expiration = 4;  // ticket expiration
+	required string caps = 5;        // reserved, default *
+}
+
+message AddKeyRequest {
+	repeated bytes encKey = 1;  // user key encrypted by auth key
+}
+
+message AddKeyResponse {
+	required AuthStatusCode status = 1;
+}
+
+message DeleteKeyRequest {
+	required bytes encKeyId = 1;  // key id encrypted by auth key
+}
+
+message DeleteKeyResponse {
+	required AuthStatusCode status = 1;
+}
+
+message GetKeyRequest {
+	required bytes encKeyId = 1;  // key id encrypted by auth key
+}
+
+message GetKeyResponse {
+	required AuthStatusCode status = 1;
+	optional bytes encKey = 2;  // user key encrypted by auth key
+}
+
+message UpdateKeyRequest {
+	required bytes encKey = 1;  // user key encrypted by auth key
+}
+
+message UpdateKeyResponse {
+	required AuthStatusCode status = 1;
+}
+
+message GetTicketRequest {
+	required string cId = 1;  // client id
+	required string sId = 2;  // server Id will visit
+}
+
+message TicketAttach {
+	required bytes sessionKey = 1;
+	required uint64 expiration = 2; 
+}
+
+message GetTicketResponse {
+	required AuthStatusCode status = 1;
+	optional bytes encTicket = 2;      // ticket encrypted by server key
+	optional bytes encTicketAttach = 3;  // info encrypted by client key
+}
+
+message ClientIdentity {
+	required string cId = 1;
+	required uint64 timestamp = 2;
+}
+
+// need add to request when turn on verification
+message Token {
+	required bytes encTicket = 1;
+	required bytes encClientIdentity = 2; // encrypted by sessionKey
+}
+
+service AuthService {
+	rpc AddKey (AddKeyRequest) returns (AddKeyResponse);
+	rpc DeleteKey (DeleteKeyRequest) returns (DeleteKeyResponse);
+	rpc GetKey (GetKeyRequest) returns (GetKeyResponse);
+	rpc UpdateKey (UpdateKeyRequest) returns (UpdateKeyResponse);
+	rpc GetTicket (GetTicketRequest) returns (GetTicketResponse);
+}

@@ -31,6 +31,7 @@ namespace client {
 
 using curve::common::Authenticator;
 using curve::mds::topology::TopologyService_Stub;
+using curve::common::Encryptor;
 
 const char* kRootUserName = "root";
 
@@ -592,9 +593,9 @@ void MDSClientBase::ListChunkServerInServer(const std::string& ip,
 std::string MDSClientBase::CalcSignature(const UserInfo& userinfo,
                                          uint64_t date) const {
     if (IsRootUserAndHasPassword(userinfo)) {
-        std::string str2sig = Authenticator::GetString2Signature(
+        std::string str2sig = Encryptor::GetString2Signature(
             date, userinfo.owner);
-        std::string sig = Authenticator::CalcString2Signature(
+        std::string sig = Encryptor::CalcString2Signature(
             str2sig, userinfo.password);
         return sig;
     }

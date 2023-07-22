@@ -67,11 +67,16 @@ const char DISCARDSEGMENTKEYEND[] = "14";
 const char BLOCKSIZEKEY[] = "15blocksize";
 const char CHUNKSIZEKEY[] = "15chunksize";
 
+// for auth
+const char AUTH_KEY_PREFIX[] = "auth_01";
+const char AUTH_KEY_END[] = "auth_02";
+
 // TODO(hzsunjianliang): if use single prefix for snapshot file?
 const int COMMON_PREFIX_LENGTH = 2;
 const int LEADER_PREFIX_LENGTH = 8;
 const int SEGMENTKEYLEN = 18;
 const int DISCARDSEGMENTKEYLEN = 26;
+const int AUTH_PTRFIX_LENGTH = 7;
 
 constexpr int kDefaultPoolsetId = 1;
 constexpr char kDefaultPoolsetName[] = "default";

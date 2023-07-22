@@ -1215,6 +1215,10 @@ const char *LibCurveErrorName(LIBCURVE_ERROR err) {
         return "RETRY_UNTIL_SUCCESS";
     case LIBCURVE_ERROR::EPOCH_TOO_OLD:
         return "EPOCH_TOO_OLD";
+    case LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL:
+        return "GET_AUTH_TOKEN_FAIL";
+    case LIBCURVE_ERROR::AUTH_FAILED:
+        return "AUTH_FAILED";
     case LIBCURVE_ERROR::UNKNOWN:
         break;
     }

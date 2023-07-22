@@ -71,7 +71,7 @@ using curve::mds::topology::GetChunkServerInfoRequest;
 using curve::mds::topology::GetCopySetsInChunkServerRequest;
 using curve::mds::schedule::RapidLeaderScheduleRequst;
 using curve::mds::schedule::RapidLeaderScheduleResponse;
-using curve::common::Authenticator;
+using curve::common::Encryptor;
 
 namespace curve {
 namespace tool {
