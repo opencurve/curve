@@ -76,7 +76,7 @@ int SnapshotCloneClient::InitDummyServerMap(const std::string& dummyPort) {
 
 std::vector<std::string> SnapshotCloneClient::GetActiveAddrs() {
     std::vector<std::string> activeAddrs;
-    for (const auto item : dummyServerMap_) {
+    for (const auto &item : dummyServerMap_) {
         // 获取status来判断正在服务的地址
         std::string status;
         MetricRet ret = metricClient_->GetMetric(item.second,

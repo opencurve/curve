@@ -199,7 +199,7 @@ TEST_F(ClientS3IntegrationTest, test_first_write) {
     ASSERT_EQ(1, fsCacheManager->GetDataCacheNum());
     ASSERT_EQ(len, ret);
 
-    delete buf;
+    delete[] buf;
     buf = NULL;
 }
 
@@ -225,7 +225,7 @@ TEST_F(ClientS3IntegrationTest, test_overlap_write) {
     s3ClientAdaptor_->Write(inode->GetInodeId(), offset, len, buf);
     ASSERT_EQ(1, fsCacheManager->GetDataCacheNum());
 
-    delete buf;
+    delete[] buf;
     buf = NULL;
 }
 
@@ -244,7 +244,7 @@ TEST_F(ClientS3IntegrationTest, test_hole_write) {
         s3ClientAdaptor_->GetFsCacheManager();
     ASSERT_EQ(2, fsCacheManager->GetDataCacheNum());
 
-    delete buf;
+    delete[] buf;
     buf = NULL;
 }
 
@@ -263,7 +263,7 @@ TEST_F(ClientS3IntegrationTest, test_append_write) {
         s3ClientAdaptor_->GetFsCacheManager();
     ASSERT_EQ(1, fsCacheManager->GetDataCacheNum());
 
-    delete buf;
+    delete[] buf;
     buf = NULL;
 }
 
@@ -280,7 +280,7 @@ TEST_F(ClientS3IntegrationTest, test_write_more_chunk) {
         s3ClientAdaptor_->GetFsCacheManager();
     ASSERT_EQ(2, fsCacheManager->GetDataCacheNum());
 
-    delete buf;
+    delete[] buf;
     buf = NULL;
 }
 
@@ -314,8 +314,8 @@ TEST_F(ClientS3IntegrationTest, test_write_merge_data1) {
     s3ClientAdaptor_->Write(inode->GetInodeId(), offset, len, buf1);
     ASSERT_EQ(1, fsCacheManager->GetDataCacheNum());
 
-    delete buf;
-    delete buf1;
+    delete[] buf;
+    delete[] buf1;
 }
 
 /*
@@ -348,8 +348,8 @@ TEST_F(ClientS3IntegrationTest, test_write_merge_data2) {
     s3ClientAdaptor_->Write(inode->GetInodeId(), offset, len, buf1);
     ASSERT_EQ(1, fsCacheManager->GetDataCacheNum());
 
-    delete buf;
-    delete buf1;
+    delete[] buf;
+    delete[] buf1;
 }
 
 TEST_F(ClientS3IntegrationTest, test_read_one_chunk) {
@@ -392,7 +392,7 @@ TEST_F(ClientS3IntegrationTest, test_read_one_chunk) {
     ret = s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, buf);
     ASSERT_EQ(-1, ret);
 
-    delete buf;
+    delete[] buf;
     buf = NULL;
 }
 
@@ -431,9 +431,9 @@ TEST_F(ClientS3IntegrationTest, test_read_overlap_block1) {
     s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
     EXPECT_STREQ(expectBuf, readBuf);
 
-    delete readBuf;
-    delete buf;
-    delete expectBuf;
+    delete[] readBuf;
+    delete[] buf;
+    delete[] expectBuf;
     std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
     for (; iter != gObjectDataMaps.end(); iter++) {
         delete iter->second.buf;
@@ -477,9 +477,9 @@ TEST_F(ClientS3IntegrationTest, test_read_overlap_block2) {
     s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
     EXPECT_STREQ(expectBuf, readBuf);
 
-    delete readBuf;
-    delete buf;
-    delete expectBuf;
+    delete[] readBuf;
+    delete[] buf;
+    delete[] expectBuf;
     std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
     for (; iter != gObjectDataMaps.end(); iter++) {
         delete iter->second.buf;
@@ -532,9 +532,9 @@ TEST_F(ClientS3IntegrationTest, test_read_overlap_block3) {
     s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
     EXPECT_STREQ(expectBuf, readBuf);
 
-    delete readBuf;
-    delete buf;
-    delete expectBuf;
+    delete[] readBuf;
+    delete[] buf;
+    delete[] expectBuf;
     std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
     for (; iter != gObjectDataMaps.end(); iter++) {
         delete iter->second.buf;
@@ -590,9 +590,9 @@ TEST_F(ClientS3IntegrationTest, test_read_overlap_block4) {
     s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
     EXPECT_STREQ(expectBuf, readBuf);
 
-    delete readBuf;
-    delete buf;
-    delete expectBuf;
+    delete[] readBuf;
+    delete[] buf;
+    delete[] expectBuf;
     std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
     for (; iter != gObjectDataMaps.end(); iter++) {
         delete iter->second.buf;
@@ -648,9 +648,9 @@ TEST_F(ClientS3IntegrationTest, test_read_overlap_block5) {
     s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
     EXPECT_STREQ(expectBuf, readBuf);
 
-    // delete readBuf;
-    delete buf;
-    delete expectBuf;
+    // delete[] readBuf;
+    delete[] buf;
+    delete[] expectBuf;
     std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
     for (; iter != gObjectDataMaps.end(); iter++) {
         delete iter->second.buf;
@@ -697,9 +697,9 @@ TEST_F(ClientS3IntegrationTest, test_read_hole1) {
     EXPECT_STREQ(expectBuf, readBuf);
 
     // cleanup
-    delete buf;
-    delete readBuf;
-    delete expectBuf;
+    delete[] buf;
+    delete[] readBuf;
+    delete[] expectBuf;
     std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
     for (; iter != gObjectDataMaps.end(); iter++) {
         delete iter->second.buf;
@@ -739,9 +739,9 @@ TEST_F(ClientS3IntegrationTest, test_read_hole2) {
     EXPECT_STREQ(expectBuf, readBuf);
 
     // cleanup
-    delete buf;
-    delete readBuf;
-    delete expectBuf;
+    delete[] buf;
+    delete[] readBuf;
+    delete[] expectBuf;
     std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
     for (; iter != gObjectDataMaps.end(); iter++) {
         delete iter->second.buf;
@@ -780,9 +780,9 @@ TEST_F(ClientS3IntegrationTest, test_read_hole3) {
     EXPECT_STREQ(expectBuf, readBuf);
 
     // cleanup
-    delete buf;
-    delete readBuf;
-    delete expectBuf;
+    delete[] buf;
+    delete[] readBuf;
+    delete[] expectBuf;
     std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
     for (; iter != gObjectDataMaps.end(); iter++) {
         delete iter->second.buf;
@@ -829,9 +829,9 @@ TEST_F(ClientS3IntegrationTest, test_read_hole4) {
     EXPECT_STREQ(expectBuf, readBuf);
 
     // cleanup
-    delete buf;
-    delete readBuf;
-    delete expectBuf;
+    delete[] buf;
+    delete[] readBuf;
+    delete[] expectBuf;
     std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
     for (; iter != gObjectDataMaps.end(); iter++) {
         delete iter->second.buf;
@@ -880,9 +880,9 @@ TEST_F(ClientS3IntegrationTest, test_read_more_write) {
     EXPECT_STREQ(expectBuf, readBuf);
 
     // cleanup
-    delete buf;
-    delete readBuf;
-    delete expectBuf;
+    delete[] buf;
+    delete[] readBuf;
+    delete[] expectBuf;
     std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
     for (; iter != gObjectDataMaps.end(); iter++) {
         delete iter->second.buf;
@@ -930,9 +930,9 @@ TEST_F(ClientS3IntegrationTest, test_read_more_write2) {
     EXPECT_STREQ(expectBuf, readBuf);
 
     // cleanup
-    delete buf;
-    delete readBuf;
-    delete expectBuf;
+    delete[] buf;
+    delete[] readBuf;
+    delete[] expectBuf;
     std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
     for (; iter != gObjectDataMaps.end(); iter++) {
         delete iter->second.buf;
@@ -973,9 +973,9 @@ TEST_F(ClientS3IntegrationTest, test_read_more_chunks) {
     EXPECT_STREQ(expectBuf, readBuf);
 
     // cleanup
-    delete buf;
-    delete readBuf;
-    delete expectBuf;
+    delete[] buf;
+    delete[] readBuf;
+    delete[] expectBuf;
     std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
     for (; iter != gObjectDataMaps.end(); iter++) {
         delete iter->second.buf;
@@ -1004,7 +1004,7 @@ TEST_F(ClientS3IntegrationTest, test_truncate_small1) {
     ASSERT_EQ(len, s3ClientAdaptor_->GetFsCacheManager()->GetDataCacheSize());
 
     // cleanup
-    delete buf;
+    delete[] buf;
     std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
     for (; iter != gObjectDataMaps.end(); iter++) {
         delete iter->second.buf;
@@ -1046,7 +1046,7 @@ TEST_F(ClientS3IntegrationTest, test_truncate_small2) {
               s3ClientAdaptor_->GetFsCacheManager()->GetDataCacheSize());
 
     // cleanup
-    delete buf;
+    delete[] buf;
     std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
     for (; iter != gObjectDataMaps.end(); iter++) {
         delete iter->second.buf;
@@ -1118,7 +1118,7 @@ TEST_F(ClientS3IntegrationTest, test_truncate_small3) {
     ASSERT_EQ(len, s3ClientAdaptor_->GetFsCacheManager()->GetLruByte());
 
     // cleanup
-    delete buf;
+    delete[] buf;
     std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
     for (; iter != gObjectDataMaps.end(); iter++) {
         delete iter->second.buf;
@@ -1160,8 +1160,8 @@ TEST_F(ClientS3IntegrationTest, test_truncate_big1) {
     EXPECT_STREQ(expectBuf, readBuf);
 
     // cleanup
-    delete readBuf;
-    delete expectBuf;
+    delete[] readBuf;
+    delete[] expectBuf;
     std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
     for (; iter != gObjectDataMaps.end(); iter++) {
         delete iter->second.buf;
@@ -1205,9 +1205,9 @@ TEST_F(ClientS3IntegrationTest, test_truncate_big2) {
     EXPECT_STREQ(expectBuf, readBuf);
 
     // cleanup
-    delete buf;
-    delete readBuf;
-    delete expectBuf;
+    delete[] buf;
+    delete[] readBuf;
+    delete[] expectBuf;
     std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
     for (; iter != gObjectDataMaps.end(); iter++) {
         delete iter->second.buf;
@@ -1286,12 +1286,12 @@ TEST_F(ClientS3IntegrationTest, test_truncate_big3) {
     EXPECT_STREQ(expectBuf2, readBuf2);
 
     // cleanup
-    delete readBuf;
-    delete expectBuf;
-    delete readBuf1;
-    delete expectBuf1;
-    delete readBuf2;
-    delete expectBuf2;
+    delete[] readBuf;
+    delete[] expectBuf;
+    delete[] readBuf1;
+    delete[] expectBuf1;
+     delete[] readBuf2;
+    delete[] expectBuf2;
 
     std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
     for (; iter != gObjectDataMaps.end(); iter++) {
@@ -1323,7 +1323,7 @@ TEST_F(ClientS3IntegrationTest, test_releaseCache) {
     ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
 
     //  cleanup
-    delete buf;
+    delete[] buf;
     std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
     for (; iter != gObjectDataMaps.end(); iter++) {
         delete iter->second.buf;
@@ -1377,7 +1377,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_first_write) {
     ASSERT_EQ(offset, tmp.offset());
 
     //  cleanup
-    delete buf;
+    delete[] buf;
     std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
     for (; iter != gObjectDataMaps.end(); iter++) {
         delete iter->second.buf;
@@ -1437,7 +1437,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_overlap_write) {
     ASSERT_EQ(0, tmp.offset());
 
     //  cleanup
-    delete buf;
+    delete[] buf;
     std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
     for (; iter != gObjectDataMaps.end(); iter++) {
         delete iter->second.buf;
@@ -1495,7 +1495,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_overlap_write2) {
     ASSERT_EQ(16748032, tmp.offset());
 
     //  cleanup
-    delete buf;
+    delete[] buf;
     std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
     for (; iter != gObjectDataMaps.end(); iter++) {
         delete iter->second.buf;
@@ -1555,7 +1555,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_hole_write) {
     ASSERT_EQ(2 * 1024 * 1024, tmp.offset());
 
     //  cleanup
-    delete buf;
+    delete[] buf;
     std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
     for (; iter != gObjectDataMaps.end(); iter++) {
         delete iter->second.buf;
@@ -1615,7 +1615,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_more_chunk) {
     ASSERT_EQ(4 * 1024 * 1024, tmp.offset());
 
     //  cleanup
-    delete buf;
+    delete[] buf;
     std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
     for (; iter != gObjectDataMaps.end(); iter++) {
         delete iter->second.buf;
@@ -1695,7 +1695,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read1) {
     EXPECT_STREQ(expectBuf, readBuf);
 
     //  cleanup
-    delete buf;
+    delete[] buf;
     std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
     for (; iter != gObjectDataMaps.end(); iter++) {
         delete iter->second.buf;
@@ -1777,7 +1777,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read2) {
     s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
     EXPECT_STREQ(expectBuf, readBuf);
     //  cleanup
-    delete buf;
+    delete[] buf;
     std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
     for (; iter != gObjectDataMaps.end(); iter++) {
         delete iter->second.buf;
@@ -1876,11 +1876,11 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read3) {
     EXPECT_STREQ(expectBuf2, readBuf2);
 
     // cleanup
-    delete buf;
-    delete readBuf;
-    delete expectBuf;
-    delete readBuf1;
-    delete expectBuf1;
+    delete[] buf;
+    delete[] readBuf;
+    delete[] expectBuf;
+    delete[] readBuf1;
+    delete[] expectBuf1;
     std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
     for (; iter != gObjectDataMaps.end(); iter++) {
         delete iter->second.buf;
@@ -1963,9 +1963,9 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read4) {
     EXPECT_STREQ(expectBuf, readBuf);
 
     // cleanup
-    delete buf;
-    delete readBuf;
-    delete expectBuf;
+    delete[] buf;
+    delete[] readBuf;
+    delete[] expectBuf;
     std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
     for (; iter != gObjectDataMaps.end(); iter++) {
         delete iter->second.buf;
@@ -2051,9 +2051,9 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read5) {
     EXPECT_STREQ(expectBuf, readBuf);
 
     // cleanup
-    delete buf;
-    delete readBuf;
-    delete expectBuf;
+    delete[] buf;
+    delete[] readBuf;
+    delete[] expectBuf;
     std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
     for (; iter != gObjectDataMaps.end(); iter++) {
         delete iter->second.buf;
@@ -2142,9 +2142,9 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read6) {
     EXPECT_STREQ(expectBuf, readBuf);
 
     // cleanup
-    delete buf;
-    delete readBuf;
-    delete expectBuf;
+    delete[] buf;
+    delete[] readBuf;
+    delete[] expectBuf;
     std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
     for (; iter != gObjectDataMaps.end(); iter++) {
         delete iter->second.buf;
@@ -2241,9 +2241,9 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read7) {
     EXPECT_STREQ(expectBuf, readBuf);
 
     // cleanup
-    delete buf;
-    delete readBuf;
-    delete expectBuf;
+    delete[] buf;
+    delete[] readBuf;
+    delete[] expectBuf;
     std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
     for (; iter != gObjectDataMaps.end(); iter++) {
         delete iter->second.buf;
@@ -2333,9 +2333,9 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read8) {
     EXPECT_STREQ(expectBuf, readBuf);
 
     // cleanup
-    delete buf;
-    delete readBuf;
-    delete expectBuf;
+    delete[] buf;
+    delete[] readBuf;
+    delete[] expectBuf;
     std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
     for (; iter != gObjectDataMaps.end(); iter++) {
         delete iter->second.buf;
@@ -2428,9 +2428,9 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read9) {
     EXPECT_STREQ(expectBuf, readBuf);
 
     // cleanup
-    delete buf;
-    delete readBuf;
-    delete expectBuf;
+    delete[] buf;
+    delete[] readBuf;
+    delete[] expectBuf;
     std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
     for (; iter != gObjectDataMaps.end(); iter++) {
         delete iter->second.buf;
@@ -2551,9 +2551,9 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read10) {
     EXPECT_STREQ(expectBuf, readBuf);
 
     // cleanup
-    delete buf;
-    delete readBuf;
-    delete expectBuf;
+    delete[] buf;
+    delete[] readBuf;
+    delete[] expectBuf;
     std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
     for (; iter != gObjectDataMaps.end(); iter++) {
         delete iter->second.buf;
@@ -2635,9 +2635,9 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read11) {
     EXPECT_STREQ(expectBuf, readBuf);
 
     // cleanup
-    delete buf;
-    delete readBuf;
-    delete expectBuf;
+    delete[] buf;
+    delete[] readBuf;
+    delete[] expectBuf;
     std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
     for (; iter != gObjectDataMaps.end(); iter++) {
         delete iter->second.buf;
@@ -2719,9 +2719,9 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read12) {
     EXPECT_STREQ(expectBuf, readBuf);
 
     // cleanup
-    delete buf;
-    delete readBuf;
-    delete expectBuf;
+    delete[] buf;
+    delete[] readBuf;
+    delete[] expectBuf;
     std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
     for (; iter != gObjectDataMaps.end(); iter++) {
         delete iter->second.buf;
@@ -2783,7 +2783,7 @@ TEST_F(ClientS3IntegrationTest, test_fssync_success_and_fail) {
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 
     //  cleanup
-    delete buf;
+    delete[] buf;
     std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
     for (; iter != gObjectDataMaps.end(); iter++) {
         delete iter->second.buf;
@@ -2832,7 +2832,7 @@ TEST_F(ClientS3IntegrationTest, test_fssync_overlap_write) {
     ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
 
     //  cleanup
-    delete buf;
+    delete[] buf;
     std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
     for (; iter != gObjectDataMaps.end(); iter++) {
         delete iter->second.buf;
