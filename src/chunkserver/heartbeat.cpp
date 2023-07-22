@@ -30,6 +30,8 @@
 #include <vector>
 #include <memory>
 
+#include "src/client/auth_client.h"
+#include "src/common/authenticator.h"
 #include "src/fs/fs_common.h"
 #include "src/common/timeutility.h"
 #include "src/chunkserver/heartbeat.h"
@@ -38,6 +40,7 @@
 #include "src/common/curve_version.h"
 
 using curve::fs::FileSystemInfo;
+using curve::client::AuthClient;
 
 namespace curve {
 namespace chunkserver {
@@ -306,6 +309,15 @@ int Heartbeat::BuildRequest(HeartbeatRequest* req) {
     }
     req->set_leadercount(leaders);
     req->set_version(curve::common::CurveVersion());
+
+    // add auth token
+    if (AuthClient::GetInstance().Enable()) {
+        if (!AuthClient::GetInstance().GetToken(curve::common::MDS_ROLE,
+            req->mutable_authtoken())) {
+            LOG(ERROR) << "BuildHeartbeat get auth token failed";
+            return -1;
+        }
+    }
 
     return 0;
 }

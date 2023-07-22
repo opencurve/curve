@@ -30,19 +30,20 @@
 #include <cerrno>
 #include <vector>
 
+#include "proto/chunk.pb.h"
 #include "src/chunkserver/copyset_node.h"
 #include "src/chunkserver/copyset_node_manager.h"
-#include "src/chunkserver/chunkserver_metrics.h"
 #include "src/chunkserver/op_request.h"
 #include "src/chunkserver/chunk_service_closure.h"
 #include "src/common/fast_align.h"
-
 #include "include/curve_compiler_specific.h"
+#include "src/common/authenticator.h"
 
 namespace curve {
 namespace chunkserver {
 
 using ::curve::common::is_aligned;
+using ::curve::common::Authenticator;
 
 ChunkServiceImpl::ChunkServiceImpl(
         const ChunkServiceOptions& chunkServiceOptions,
@@ -65,8 +66,15 @@ void ChunkServiceImpl::DeleteChunk(RpcController *controller,
                                                response,
                                                done);
     CHECK(nullptr != closure) << "new chunk service closure failed";
-
     brpc::ClosureGuard doneGuard(closure);
+    // auth
+    if (!Authenticator::GetInstance().VerifyCredential(
+        request->authtoken())) {
+        LOG(ERROR) << "DeleteChunk auth failed, request = "
+                   << request->ShortDebugString();
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL);
+        return;
+    }
 
     if (inflightThrottle_->IsOverLoad()) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD);
@@ -105,8 +113,15 @@ void ChunkServiceImpl::WriteChunk(RpcController *controller,
                                                response,
                                                done);
     CHECK(nullptr != closure) << "new chunk service closure failed";
-
     brpc::ClosureGuard doneGuard(closure);
+    // auth
+    if (!Authenticator::GetInstance().VerifyCredential(
+        request->authtoken())) {
+        LOG(ERROR) << "WriteChunk auth failed, request = "
+                   << request->ShortDebugString();
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL);
+        return;
+    }
 
     if (inflightThrottle_->IsOverLoad()) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD);
@@ -173,8 +188,15 @@ void ChunkServiceImpl::CreateCloneChunk(RpcController *controller,
                                                response,
                                                done);
     CHECK(nullptr != closure) << "new chunk service closure failed";
-
     brpc::ClosureGuard doneGuard(closure);
+    // auth
+    if (!Authenticator::GetInstance().VerifyCredential(
+        request->authtoken())) {
+        LOG(ERROR) << "CreateCloneChunk auth failed, request = "
+                   << request->ShortDebugString();
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL);
+        return;
+    }
 
     if (inflightThrottle_->IsOverLoad()) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD);
@@ -233,8 +255,15 @@ void ChunkServiceImpl::ReadChunk(RpcController *controller,
                                                response,
                                                done);
     CHECK(nullptr != closure) << "new chunk service closure failed";
-
     brpc::ClosureGuard doneGuard(closure);
+    // auth
+    if (!Authenticator::GetInstance().VerifyCredential(
+        request->authtoken())) {
+        LOG(ERROR) << "ReadChunk auth failed, request = "
+                   << request->ShortDebugString();
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL);
+        return;
+    }
 
     if (inflightThrottle_->IsOverLoad()) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD);
@@ -284,8 +313,15 @@ void ChunkServiceImpl::RecoverChunk(RpcController *controller,
                                                response,
                                                done);
     CHECK(nullptr != closure) << "new chunk service closure failed";
-
     brpc::ClosureGuard doneGuard(closure);
+    // auth
+    if (!Authenticator::GetInstance().VerifyCredential(
+        request->authtoken())) {
+        LOG(ERROR) << "RecoverChunk auth failed, request = "
+                   << request->ShortDebugString();
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL);
+        return;
+    }
 
     if (inflightThrottle_->IsOverLoad()) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD);
@@ -336,8 +372,15 @@ void ChunkServiceImpl::ReadChunkSnapshot(RpcController *controller,
                                                response,
                                                done);
     CHECK(nullptr != closure) << "new chunk service closure failed";
-
     brpc::ClosureGuard doneGuard(closure);
+    // auth
+    if (!Authenticator::GetInstance().VerifyCredential(
+        request->authtoken())) {
+        LOG(ERROR) << "ReadChunkSnapshot auth failed, request = "
+                   << request->ShortDebugString();
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL);
+        return;
+    }
 
     if (inflightThrottle_->IsOverLoad()) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD);
@@ -383,8 +426,15 @@ void ChunkServiceImpl::DeleteChunkSnapshotOrCorrectSn(
                                                response,
                                                done);
     CHECK(nullptr != closure) << "new chunk service closure failed";
-
     brpc::ClosureGuard doneGuard(closure);
+    // auth
+    if (!Authenticator::GetInstance().VerifyCredential(
+        request->authtoken())) {
+        LOG(ERROR) << "DeleteChunkSnapshotOrCorrectSn auth failed, request = "
+                   << request->ShortDebugString();
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL);
+        return;
+    }
 
     if (inflightThrottle_->IsOverLoad()) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD);
@@ -438,8 +488,15 @@ void ChunkServiceImpl::GetChunkInfo(RpcController *controller,
                                                nullptr,
                                                done);
     CHECK(nullptr != closure) << "new chunk service closure failed";
-
     brpc::ClosureGuard doneGuard(closure);
+    // auth
+    if (!Authenticator::GetInstance().VerifyCredential(
+        request->authtoken())) {
+        LOG(ERROR) << "GetChunkInfo auth failed, request = "
+                   << request->ShortDebugString();
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL);
+        return;
+    }
 
     if (inflightThrottle_->IsOverLoad()) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD);
@@ -503,6 +560,14 @@ void ChunkServiceImpl::GetChunkHash(RpcController *controller,
                                     Closure *done) {
     (void)controller;
     brpc::ClosureGuard doneGuard(done);
+    // auth
+    if (!Authenticator::GetInstance().VerifyCredential(
+        request->authtoken())) {
+        LOG(ERROR) << "GetChunkHash auth failed, request = "
+                   << request->ShortDebugString();
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL);
+        return;
+    }
 
     // 判断request参数是否合法
     if (!CheckRequestOffsetAndLength(request->offset(), request->length())) {
@@ -563,6 +628,15 @@ void ChunkServiceImpl::UpdateEpoch(RpcController *controller,
                 Closure *done) {
     (void)controller;
     brpc::ClosureGuard doneGuard(done);
+    // auth
+    if (!Authenticator::GetInstance().VerifyCredential(
+        request->authtoken())) {
+        LOG(ERROR) << "UpdateEpoch auth failed, request = "
+                   << request->ShortDebugString();
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL);
+        return;
+    }
+
     bool success = epochMap_->UpdateEpoch(request->fileid(), request->epoch());
     if (success) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);

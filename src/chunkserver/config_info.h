@@ -31,6 +31,7 @@
 #include "src/chunkserver/inflight_throttle.h"
 #include "src/chunkserver/concurrent_apply/concurrent_apply.h"
 #include "include/chunkserver/chunkserver_common.h"
+#include "src/common/authenticator.h"
 
 namespace curve {
 namespace chunkserver {
