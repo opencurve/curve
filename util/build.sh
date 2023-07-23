@@ -5,6 +5,7 @@ set -x
 
 ############################  GLOBAL VARIABLES
 g_os="debian11"
+source "$(dirname "${BASH_SOURCE}")/docker_opts.sh"
 
 ############################  BASIC FUNCTIONS
 msg() {
@@ -83,7 +84,13 @@ get_options() {
 main() {
     get_options "$@"
 
-    sudo docker run --rm -w /curve --user $(id -u ${USER}):$(id -g ${USER}) -v $(pwd):/curve -v ${HOME}:${HOME} -v /etc/passwd:/etc/passwd:ro -v /etc/group:/etc/group:ro -v /etc/shadow:/etc/shadow:ro --privileged opencurvedocker/curve-base:build-$g_os bash util/build_in_image.sh "$@"
+    sudo docker run \
+        --rm \
+        -w /curve \
+        -v $(pwd):/curve \
+        ${g_docker_opts[@]} \
+        opencurvedocker/curve-base:build-$g_os \
+        bash util/build_in_image.sh "$@"
 }
 
 ############################  MAIN()

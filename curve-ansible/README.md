@@ -30,8 +30,8 @@ chunkserver_num=13
 ### 3、包管理
 curve-ansible同时提供了debian包和tar包的方式安装curve软件包。默认使用tar包方式安装，如果想用debian包的方式，需要在inventory或者命令行中指定install_with_deb=true。（debian的方式目前不支持格式化指定盘，只支持格式化全部ATA盘）
 
-- debian包的方式下，需要使用mk-deb.sh打debian包，并将debian包上传到debian源中，使其能够用apt-get命令安装。
-- tar包的方式下，tar包可以是来自curve github release，也可以是自己执行mk-tar.sh脚本获取到的。
+- debian包的方式下，需要使用 make deb 打debian包，并将debian包上传到debian源中，使其能够用apt-get命令安装。
+- tar包的方式下，tar包可以是来自curve github release，也可以是自己执行 make tar 获取到的。
 
 ## 三、使用命令
 ### 1、集群部署
