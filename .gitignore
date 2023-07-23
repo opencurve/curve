@@ -82,6 +82,9 @@ runlog/
 !curve-snapshotcloneserver-nginx/app/lib
 !nebd/nebd-package/usr/bin
 
+# build output
+build
+
 # mac
 .DS_Store
 

@@ -43,8 +43,8 @@ docker run --rm -v $(pwd):/curve -w /curve -v ${HOME}/.cache:${HOME}/.cache -v $
 # （中国大陆可选）将外部依赖替换为国内下载点或镜像仓库，可以加快编译速度： bash replace-curve-repo.sh
 
 # curve v2.0 之前
-bash mk-tar.sh （编译 curvebs 并打tar包）
-bash mk-deb.sh （编译 curvebs 并打debian包）
+make tar dep=1 （编译 curvebs 并打tar包）
+make deb dep=1 （编译 curvebs 并打debian包）
 
 # （当前）curve v2.0 及之后
 # 编译 curvebs:
@@ -57,7 +57,7 @@ make build stor=fs dep=1
 make dep stor=fs && make build stor=fs
 ```
 
-**注意：** `mk-tar.sh` 和 `mk-deb.sh` 用于 curve v2.0 之前版本的编译打包，v2.0 版本之后不再维护。
+**注意：** `make tar` 和 `make deb` 用于 curve v2.0 之前版本的编译打包，v2.0 版本之后不再维护。
 
 ## 在物理机上编译
 
@@ -83,8 +83,8 @@ Curve的其他依赖项，均由bazel去管理，不可单独安装。
 git clone https://github.com/opencurve/curve.git 或者 git clone https://gitee.com/mirrors/curve.git
 # （中国大陆可选）将外部依赖替换为国内下载点或镜像仓库，可以加快下载速度： bash replace-curve-repo.sh
 # curve v2.0 之前
-bash mk-tar.sh （编译 curvebs 并打tar包）
-bash mk-deb.sh （编译 curvebs 并打debian包）
+make tar dep=1 （编译 curvebs 并打tar包）
+make deb dep=1 （编译 curvebs 并打debian包）
 
 # （当前）curve v2.0 及之后
 # 编译 curvebs:

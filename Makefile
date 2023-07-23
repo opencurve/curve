@@ -21,13 +21,14 @@ Examples:
 
 ## build
 Usage:
-    make build stor=bs/fs only=TARGET dep=0/1 release=0/1 os=OS
+    make build stor=bs/fs only=TARGET1,...,TARGETx dep=0/1 release=0/1 os=OS
 Examples:
     make build stor=bs only=//src/chunkserver:chunkserver
-    make build stor=bs only=src/* dep=0
+    make build stor=bs only=src/*,test/* dep=0
     make build stor=fs only=test/* os=debian9
     make build stor=fs release=1
-
+Note:
+    Extra build options can be specified using BUILD_OPTS environment variable, which will be passed to bazel build command.
 
 ## dep
 Usage:
@@ -50,6 +51,14 @@ Usage:
     make image stor=bs/fs tag=TAG os=OS
 Examples:
     make image stor=bs tag=opencurvedocker/curvebs:v1.2 os=debian9
+
+
+## package
+Usage:
+    make <tar|deb> release=0/1 dep=0/1 os=OS
+Examples:
+    make deb
+    make tar release=1 dep=1 os=debian11
 endef
 export help_msg
 
@@ -76,6 +85,9 @@ install:
 
 image:
 	@bash util/image.sh $(stor) $(tag) $(os)
+
+tar deb:
+	@RELEASE=$(release) DEP=$(dep) OS=$(os) bash util/package.sh $@
 
 playground:
 	@bash util/playground.sh

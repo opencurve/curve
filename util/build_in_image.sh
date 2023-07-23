@@ -19,6 +19,13 @@ g_build_opts=(
     "--copt -DGFLAGS_NS=google"
     "--copt -DUSE_BTHREAD_MUTEX"
 )
+# allow user to specify extra build options 
+# using environment variable BUILD_OPTS , if any.
+# custom build options will be appended to g_build_opts
+if [ -n "$BUILD_OPTS" ]; then
+    echo "Custom build options: $BUILD_OPTS"
+    g_build_opts+=("$BUILD_OPTS")
+fi
 
 g_os="debian9"
 
@@ -184,17 +191,22 @@ build_target() {
     fi
 
     local target_array
+
+    # Allows specifying multiple targets in `g_target`, like "src/*,tools/*"
+    IFS=',' read -ra target_splitted <<<"$g_target"
+    target_splitted=("${target_splitted[@]/#/-e}")
+
     if [ "$g_stor" == "bs" ]; then
         if [[ "$g_target" = "*" ]]; then
             target_array=("-- //... -//curvefs/...")
         else
-            target_array=($(bazel query 'kind("cc_(test|binary)", //... -//curvefs/...)' | grep -E "$g_target"))
+            target_array=($(bazel query 'kind("cc_(test|binary)", //... -//curvefs/...)' | grep -E ${target_splitted[@]}))
         fi
     elif [ "$g_stor" == "fs" ]; then
         if [[ "$g_target" = "*" ]]; then
             target_array=("-- //curvefs/...")
         else
-            target_array=($(bazel query 'kind("cc_(test|binary)", //curvefs/...)' | grep -E "$g_target"))
+            target_array=($(bazel query 'kind("cc_(test|binary)", //curvefs/...)' | grep -E ${target_splitted[@]}))
         fi
     fi
 
@@ -254,7 +266,7 @@ build_requirements() {
         (cd ${g_memcache_root} && make build)
     fi
     g_etcdclient_root="thirdparties/etcdclient"
-    (cd ${g_etcdclient_root} && make clean && make all)
+    (cd ${g_etcdclient_root} && make) # Use cache when necessary. No need to do full-rebuild every time.
 }
 
 main() {
