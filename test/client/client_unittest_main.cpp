@@ -54,9 +54,9 @@ int main(int argc, char** argv) {
     ::testing::InitGoogleMock(&argc, argv);
     google::ParseCommandLineFlags(&argc, &argv, false);
 
-    curve::CurveCluster* cluster = new curve::CurveCluster();
+    curve::CurveCluster cluster;
 
-    cluster->PrepareConfig<curve::ClientConfigGenerator>(
+    cluster.PrepareConfig<curve::ClientConfigGenerator>(
         configpath, clientConf);
 
     int ret = RUN_ALL_TESTS();

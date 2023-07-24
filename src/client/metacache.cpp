@@ -273,6 +273,20 @@ void MetaCache::UpdateCopysetInfo(LogicPoolID logicPoolid, CopysetID copysetid,
     lpcsid2CopsetInfoMap_[key] = csinfo;
 }
 
+void MetaCache::AddCopysetsInfo(
+        LogicPoolID poolId,
+        std::vector<CopysetInfo<ChunkServerID>>&& copysetsInfo) {
+    WriteLockGuard guard(rwlock4CopysetInfo_);
+
+    for (auto& copyset : copysetsInfo) {
+        const auto key = CalcLogicPoolCopysetID(poolId, copyset.cpid_);
+        auto it = lpcsid2CopsetInfoMap_.find(key);
+        if (it == lpcsid2CopsetInfoMap_.end()) {
+            lpcsid2CopsetInfoMap_.emplace(key, std::move(copyset));
+        }
+    }
+}
+
 void MetaCache::UpdateChunkInfoByID(ChunkID cid, const ChunkIDInfo& cidinfo) {
     WriteLockGuard wrlk(rwlock4chunkInfoMap_);
     chunkid2chunkInfoMap_[cid] = cidinfo;

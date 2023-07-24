@@ -54,7 +54,7 @@ class MetaCacheTest : public ::testing::Test {
         }
     }
 
-    uint64_t CountAvaiableChunks(uint64_t fileLength, uint64_t segmentSize,
+    uint64_t CountAvailableChunks(uint64_t fileLength, uint64_t segmentSize,
                                  uint64_t chunksize) {
         uint64_t count = 0;
         uint64_t chunks = fileLength / chunksize;
@@ -94,7 +94,7 @@ TEST_F(MetaCacheTest, TestCleanChunksInSegment) {
         uint64_t chunksInSegment = segmentSize / chunkSize;
 
         ASSERT_EQ(totalChunks,
-                  CountAvaiableChunks(fileLength, segmentSize, chunkSize));
+                  CountAvailableChunks(fileLength, segmentSize, chunkSize));
 
         SegmentIndex segmentIndex = 0;
         uint64_t count = 0;
@@ -102,10 +102,62 @@ TEST_F(MetaCacheTest, TestCleanChunksInSegment) {
             metaCache_.CleanChunksInSegment(segmentIndex++);
             ++count;
             ASSERT_EQ(totalChunks - count * chunksInSegment,
-                      CountAvaiableChunks(fileLength, segmentSize, chunkSize));
+                      CountAvailableChunks(fileLength, segmentSize, chunkSize));
         }
 
-        ASSERT_EQ(0, CountAvaiableChunks(fileLength, segmentIndex, chunkSize));
+        ASSERT_EQ(0, CountAvailableChunks(fileLength, segmentIndex, chunkSize));
+    }
+}
+
+TEST(MetaCacheCommonTest, TestAddCopysetsInfo) {
+    MetaCache metaCache;
+
+    std::vector<CopysetPeerInfo<ChunkServerID>> peers;
+    PeerAddr addr;
+    ASSERT_EQ(0, addr.Parse("127.0.0.1:8200:0"));
+    peers.emplace_back(1, addr, addr);
+    ASSERT_EQ(0, addr.Parse("127.0.0.1:8201:0"));
+    peers.emplace_back(2, addr, addr);
+    ASSERT_EQ(0, addr.Parse("127.0.0.1:8202:0"));
+    peers.emplace_back(3, addr, addr);
+
+    std::vector<CopysetInfo<ChunkServerID>> copysets;
+    for (int i = 1; i <= 5; ++i) {
+        CopysetInfo<ChunkServerID> info;
+        info.lpid_ = 0;
+        info.cpid_ = i;
+        info.leaderindex_ = 0;
+        info.csinfos_ = peers;
+        copysets.emplace_back(info);
+    }
+
+    metaCache.AddCopysetsInfo(0, std::move(copysets));
+
+    for (int i = 1; i <= 5; ++i) {
+        auto copyset = metaCache.GetCopysetinfo(0, i);
+        ASSERT_EQ(0, copyset.leaderindex_);
+    }
+
+    copysets.clear();
+    for (int i = 1; i <= 10; ++i) {
+        CopysetInfo<ChunkServerID> info;
+        info.lpid_ = 0;
+        info.cpid_ = i;
+        info.leaderindex_ = -1;  // unknown leader
+        info.csinfos_ = peers;
+        copysets.emplace_back(info);
+    }
+
+    metaCache.AddCopysetsInfo(0, std::move(copysets));
+
+    // will not overwrite exist copyset info, so leaderindex is still 0
+    for (int i = 1; i <= 5; ++i) {
+        auto copyset = metaCache.GetCopysetinfo(0, i);
+        ASSERT_EQ(0, copyset.leaderindex_);
+    }
+    for (int i = 6; i <= 10; ++i) {
+        auto copyset = metaCache.GetCopysetinfo(0, i);
+        ASSERT_EQ(-1, copyset.leaderindex_);
     }
 }
 
