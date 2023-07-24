@@ -827,6 +827,7 @@ MDSClient::GetServerList(const LogicPoolID &logicalpooid,
         }
 
         int csinfonum = response.csinfo_size();
+        cpinfoVec->reserve(csinfonum);
         for (int i = 0; i < csinfonum; i++) {
             std::string copyset_peer;
             CopysetInfo<ChunkServerID> copysetseverl;
