@@ -109,5 +109,12 @@ done
 
 cp conf/client.conf $prefix/conf/curvebs-client.conf
 
-docker pull opencurvedocker/curve-base:$3
-docker build -t "$2" "$docker_prefix"
+if [[ $(uname -i) == 'aarch64' || $(uname -m) == 'aarch64' ]]; then
+  # docker build has bug on arm64: https://github.com/moby/buildkit/issues/1271
+  export DOCKER_BUILDKIT=0
+  docker build -t "$2" "$docker_prefix"
+else
+  docker pull opencurvedocker/curve-base:$3
+  docker build -t "$2" "$docker_prefix"
+fi
+

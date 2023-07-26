@@ -39,6 +39,14 @@ BASE_FLAGS = [
     "-pthread",
 ]
 
+BASE_FLAGS_ARM64 = [
+    "-DOS_LINUX",
+    "-DSNAPPY",
+    "-fno-omit-frame-pointer",
+    "-momit-leaf-frame-pointer",
+    "-pthread",
+]
+
 CXX_FLAGS = [
     "-std=c++11",
 ]
@@ -155,6 +163,7 @@ CURVE_LLVM_DISABLED_FLGAS = [
 
 CURVE_DEFAULT_COPTS = select({
     "//:clang_compiler": CURVE_LLVM_FLAGS + CXX_FLAGS + BASE_FLAGS + CURVE_LLVM_DISABLED_FLGAS,
+    "//:gcc_compiler_arm64": CURVE_GCC_FLAGS + CXX_FLAGS + BASE_FLAGS_ARM64 + CURVE_GCC_DISABLED_FLGAS,
     "//conditions:default": CURVE_GCC_FLAGS + CXX_FLAGS + BASE_FLAGS + CURVE_GCC_DISABLED_FLGAS,
 })
 

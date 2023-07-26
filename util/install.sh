@@ -250,8 +250,12 @@ install_playground() {
 download_etcd() {
     local now=`date +"%s%6N"`
     local nos_url="https://curve-build.nos-eastchina1.126.net"
-    local src="${nos_url}/etcd-${g_etcd_version}-linux-amd64.tar.gz"
-    local tmpfile="/tmp/$now-etcd-${g_etcd_version}-linux-amd64.tar.gz"
+    etch_package_arch="amd64"
+    if [[ $(uname -i) == 'aarch64' || $(uname -m) == 'aarch64' ]]; then
+      etch_package_arch="arm64"
+    fi
+    local src="${nos_url}/etcd-${g_etcd_version}-linux-${etch_package_arch}.tar.gz"
+    local tmpfile="/tmp/$now-etcd-${g_etcd_version}-linux-${etch_package_arch}.tar.gz"
     local dst="$1"
 
     msg "download etcd: $src to $dst\n"
