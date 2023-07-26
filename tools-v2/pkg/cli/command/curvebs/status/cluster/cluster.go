@@ -205,7 +205,11 @@ func (cCmd *ClusterCommand) buildTableRole(results []map[string]string, role str
 				onlineSlice = append(onlineSlice, row[cobrautil.ROW_ADDR])
 			}
 		default:
-			offlineSlice = append(offlineSlice, row[cobrautil.ROW_ADDR])
+			if role == TYPE_CHUNKSERVER {
+				offlineSlice = append(offlineSlice, row[cobrautil.ROW_EXTERNAL_ADDR])
+			} else {
+				offlineSlice = append(offlineSlice, row[cobrautil.ROW_ADDR])
+			}
 		}
 	}
 
