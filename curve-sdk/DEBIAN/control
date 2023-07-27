@@ -3,7 +3,7 @@ Section:
 Priority: optional
 Depends: libunwind8
 Suggests:
-Architecture:amd64
+Architecture: amd64
 Installed-Size:
 Maintainer: curve-dev
 Provides:
