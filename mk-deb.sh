@@ -173,9 +173,9 @@ cd ${dir}
 cp ${dir}/thirdparties/etcdclient/libetcdclient.h ${dir}/include/etcdclient/etcdclient.h
 if [ `gcc -dumpversion | awk -F'.' '{print $1}'` -le 6 ]
 then
-    bazelflags=''
+    bazelflags='--copt -w'
 else
-    bazelflags='--copt -faligned-new'
+    bazelflags='--copt -w --cxxopt -faligned-new'
 fi
 
 if [ "$1" = "debug" ]
@@ -544,7 +544,21 @@ mkdir -p build/k8s-nbd-package/usr/bin
 cp bazel-bin/nbd/src/curve-nbd build/k8s-nbd-package/usr/bin
 
 #step5 记录到debian包的配置文件，打包debian包
-version="Version: ${curve_version}"
+debian_version=$(lsb_release -cs)
+case $debian_version in
+    "bullseye")
+        suffix="+deb11"
+        ;;
+    "buster")
+        suffix="+deb10"
+        ;;
+    *)
+        suffix=""
+        ;;
+esac
+
+version="Version: ${curve_version}${suffix}"
+
 echo ${version} >> build/curve-mds/DEBIAN/control
 echo ${version} >> build/curve-sdk/DEBIAN/control
 echo ${version} >> build/curve-chunkserver/DEBIAN/control
