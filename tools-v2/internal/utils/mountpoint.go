@@ -23,6 +23,7 @@
 package cobrautil
 
 import (
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -58,4 +59,14 @@ func Path2CurvefsPath(path string, mountpoint *mountinfo.MountInfo) string {
 	root := mountpoint.Root
 	curvefsPath, _ := filepath.Abs(strings.Replace(path, mountPoint, root, 1))
 	return curvefsPath
+}
+
+func CurvefsPath2ClientPath(curvefsPath string, mountpointInfo *mountinfo.MountInfo) string {
+	curvefsPath, _ = filepath.Abs(curvefsPath)
+	mountPoint := mountpointInfo.MountPoint
+	rootInCurvefs := mountpointInfo.Root
+	filename := strings.Replace(curvefsPath, rootInCurvefs, "", 1)
+
+	clientPath := path.Join(mountPoint, filename)
+	return clientPath
 }

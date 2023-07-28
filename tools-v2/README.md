@@ -42,7 +42,10 @@ A tool for CurveFS & CurveBs.
         - [usage inode](#usage-inode)
         - [usage metadata](#usage-metadata)
       - [warmup](#warmup)
-      - [warmup add](#warmup-add)
+        - [warmup add](#warmup-add)
+        - [warmup cancel](#warmup-cancel)
+        - [warmup list](#warmup-list)
+        - [warmup query](#warmup-query)
     - [bs](#bs)
       - [list](#list-1)
           - [list logical-pool](#list-logical-pool)
@@ -875,19 +878,70 @@ Output:
 
 #### warmup
 
+When using object storage with CurveFS, our data is stored remotely on platforms like MinIO or AWS S3.
+Each time we access a file within the CurveFS mount, we have to fetch the content from the remote platform.
+This process involves overhead like network connections, file writing, and memory access.
+
+To alleviate the wait when users require a file, the warmup tool allows users to pre-fetch files of interest in advance.
+This way, the needed files are readily available when users need them.
+
 #### warmup add
 
-warmup a file(directory), or given a list file contains a list of files(directories) that you want to warmup.
+Initiate warming up for either a file or directory, or provide a single file (file list) containing a list of files and directories you want to warm up.
 
 Usage:
 
 ```shell
+curve fs warmup add [--filelist] <target>
 curve fs warmup add /mnt/curvefs/warmup
 curve fs warmup add --filelist /mnt/curvefs/warmup.list
 ```
 
 > `curve fs warmup add /mnt/curvefs/warmup` will warmup a file(directory).
-> /mnt/curvefs/warmup.list
+
+> `curve fs warmup add --filelist /mnt/curvefs/warmup.list` will warmup a filelist.
+
+#### warmup cancel
+
+Cancel a warmup job that's currently in progress for either a single file or directory, or for a list of files and directories contained within a file list.
+
+Usage:
+
+```shell
+curve fs warmup cancel [--filelist] <target>
+curve fs warmup cancel /mnt/curvefs/warmup
+curve fs warmup cancel --filelist /mnt/curvefs/warmup.list
+```
+
+> `curve fs warmup cancel /mnt/curvefs/warmup` will cancel a warmup job running on the speicfied file(directory).
+
+> `curve fs warmup cancel --filelist /mnt/curvefs/warmup.list` will cancel a warmup job running on the speicfied filelist.
+
+#### warmup list
+
+Display a list of all currently active warmup jobs initiated within the specified CurveFS filesystem.
+
+Usage:
+
+```shell
+curve fs warmup list <curvefs mount path>
+curve fs warmup list /mnt/curvefs
+```
+
+> `curve fs warmup list /mnt/curvefs` will list out all the running warmup jobs within the specified CurveFS filesystem mount path.
+
+#### warmup query
+
+Check the status of a warmup job for either a single file or directory, or for a list of files and directories contained within a file list.
+
+Usage:
+
+```shell
+curve fs warmup query <target>
+curve fs warmup query /mnt/curvefs/warmup
+```
+
+> `curve fs warmup query /mnt/curvefs/warmup` will display the warmup job progress running on the specified target.
 
 ### bs
 

@@ -48,8 +48,8 @@ $ curve fs warmup add /mnt/warmup # warmup all files in /mnt/warmup`
 
 const (
 	CURVEFS_WARMUP_OP_XATTR      = "curvefs.warmup.op"
-	CURVEFS_WARMUP_OP_ADD_SINGLE = "add\nsingle\n%s\n%s"
-	CURVEFS_WARMUP_OP_ADD_LIST   = "add\nlist\n%s\n%s"
+	CURVEFS_WARMUP_OP_ADD_SINGLE = "add\nsingle\n%s\n%s\n%s\n%s"
+	CURVEFS_WARMUP_OP_ADD_LIST   = "add\nlist\n%s\n%s\n%s\n%s"
 )
 
 var STORAGE_TYPE = map[string]string{
@@ -59,12 +59,11 @@ var STORAGE_TYPE = map[string]string{
 
 type AddCommand struct {
 	basecmd.FinalCurveCmd
-	Mountpoint   *mountinfo.MountInfo
-	Path         string // path in user system
-	CurvefsPath  string // path in curvefs
-	Single       bool   // warmup a single file or directory
-	StorageType  string // warmup storage type
-	ConvertFails []string
+	Mountpoint  *mountinfo.MountInfo
+	Path        string // path in user system
+	CurvefsPath string // path in curvefs
+	Single      bool   // warmup a single file or directory
+	StorageType string // warmup storage type
 }
 
 var _ basecmd.FinalCurveCmdFunc = (*AddCommand)(nil) // check interface
@@ -161,7 +160,7 @@ func (aCmd *AddCommand) Print(cmd *cobra.Command, args []string) error {
 	return output.FinalCmdOutput(&aCmd.FinalCurveCmd, aCmd)
 }
 
-func (aCmd *AddCommand) convertFilelist() *cmderror.CmdError {
+func (aCmd *AddCommand) verifyFilelist() *cmderror.CmdError {
 	data, err := ioutil.ReadFile(aCmd.Path)
 	if err != nil {
 		readErr := cmderror.ErrReadFile()
@@ -170,36 +169,40 @@ func (aCmd *AddCommand) convertFilelist() *cmderror.CmdError {
 	}
 
 	lines := strings.Split(string(data), "\n")
-	validPath := ""
-	for _, line := range lines {
+
+	verifyFailMsg := ""
+	var verifyReplaceErr error
+	for i, line := range lines {
+		if line == "" {
+			continue
+		}
 		rel, err := filepath.Rel(aCmd.Mountpoint.MountPoint, line)
-		if err == nil && !strings.HasPrefix(rel, "..") {
-			// convert to curvefs path
-			curvefsAbspath := cobrautil.Path2CurvefsPath(line, aCmd.Mountpoint)
-			validPath += (curvefsAbspath + "\n")
-		} else {
-			convertFail := fmt.Sprintf("[%s] is not saved in curvefs", line)
-			aCmd.ConvertFails = append(aCmd.ConvertFails, convertFail)
+		if err != nil || strings.HasPrefix(rel, "..") {
+			verifyReplaceErr = err
+			verifyFailMsg += fmt.Sprintf("line %d: [%s:%s] is not saved in curvefs\n", i + 1, aCmd.Path, line)
 		}
 	}
-	if err = ioutil.WriteFile(aCmd.Path, []byte(validPath), 0644); err != nil {
-		writeErr := cmderror.ErrWriteFile()
-		writeErr.Format(aCmd.Path, err.Error())
+	
+	if verifyReplaceErr != nil {
+		verifyErr := cmderror.ErrVerifyError()
+		verifyErr.Format(verifyFailMsg, verifyReplaceErr.Error())
+		return verifyErr
 	}
+
 	return cmderror.ErrSuccess()
 }
 
 func (aCmd *AddCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	xattr := CURVEFS_WARMUP_OP_ADD_SINGLE
 	if !aCmd.Single {
-		convertErr := aCmd.convertFilelist()
-		if convertErr.TypeCode() != cmderror.CODE_SUCCESS {
-			return convertErr.ToError()
+		verifyErr := aCmd.verifyFilelist()
+		if verifyErr.TypeCode() != cmderror.CODE_SUCCESS {
+			return verifyErr.ToError()
 		}
 		xattr = CURVEFS_WARMUP_OP_ADD_LIST
 	}
-	value := fmt.Sprintf(xattr, aCmd.CurvefsPath, aCmd.StorageType)
-	err := unix.Setxattr(aCmd.Path, CURVEFS_WARMUP_OP_XATTR, []byte(value), 0)
+	values := fmt.Sprintf(xattr, aCmd.CurvefsPath, aCmd.StorageType, aCmd.Mountpoint.MountPoint, aCmd.Mountpoint.Root)
+	err := unix.Setxattr(aCmd.Path, CURVEFS_WARMUP_OP_XATTR, []byte(values), 0)
 	if err == unix.ENOTSUP || err == unix.EOPNOTSUPP {
 		return fmt.Errorf("filesystem does not support extended attributes")
 	} else if err != nil {

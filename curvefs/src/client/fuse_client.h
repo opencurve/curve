@@ -23,41 +23,42 @@
 #ifndef CURVEFS_SRC_CLIENT_FUSE_CLIENT_H_
 #define CURVEFS_SRC_CLIENT_FUSE_CLIENT_H_
 
-#include <unistd.h>
-#include <sys/stat.h>
 #include <bthread/unstable.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
+#include <atomic>
+#include <list>
 #include <map>
 #include <memory>
 #include <string>
-#include <list>
+#include <unordered_map>
 #include <utility>
 #include <vector>
-#include <atomic>
 
 #include "curvefs/proto/common.pb.h"
 #include "curvefs/proto/mds.pb.h"
+#include "curvefs/src/client/client_operator.h"
+#include "curvefs/src/client/common/common.h"
 #include "curvefs/src/client/common/config.h"
 #include "curvefs/src/client/dentry_cache_manager.h"
 #include "curvefs/src/client/dir_buffer.h"
+#include "curvefs/src/client/filesystem/filesystem.h"
+#include "curvefs/src/client/filesystem/meta.h"
 #include "curvefs/src/client/fuse_common.h"
 #include "curvefs/src/client/inode_cache_manager.h"
+#include "curvefs/src/client/lease/lease_excutor.h"
+#include "curvefs/src/client/metric/client_metric.h"
 #include "curvefs/src/client/rpcclient/mds_client.h"
 #include "curvefs/src/client/rpcclient/metaserver_client.h"
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
-#include "curvefs/src/common/fast_align.h"
-#include "curvefs/src/client/metric/client_metric.h"
-#include "src/common/concurrent/concurrent.h"
-#include "curvefs/src/common/define.h"
-#include "curvefs/src/common/s3util.h"
-#include "curvefs/src/client/common/common.h"
-#include "curvefs/src/client/client_operator.h"
-#include "curvefs/src/client/lease/lease_excutor.h"
-#include "curvefs/src/client/xattr_manager.h"
 #include "curvefs/src/client/warmup/warmup_manager.h"
+#include "curvefs/src/client/xattr_manager.h"
+#include "curvefs/src/common/define.h"
+#include "curvefs/src/common/fast_align.h"
+#include "curvefs/src/common/s3util.h"
+#include "src/common/concurrent/concurrent.h"
 #include "src/common/throttle.h"
-#include "curvefs/src/client/filesystem/meta.h"
-#include "curvefs/src/client/filesystem/filesystem.h"
 
 #define DirectIOAlignment 512
 
@@ -89,6 +90,9 @@ using ::curvefs::client::filesystem::AttrOut;
 using ::curvefs::client::filesystem::FileOut;
 
 using curvefs::common::is_aligned;
+
+using Filepath2WarmupProgressMap =
+    std::unordered_map<std::string, warmup::WarmupProgress>;
 
 const uint32_t kMaxHostNameLength = 255u;
 
@@ -305,9 +309,13 @@ class FuseClient {
         enableSumInDir_ = enable;
     }
 
-    bool PutWarmFilelistTask(fuse_ino_t key, common::WarmupStorageType type) {
+    bool PutWarmFilelistTask(fuse_ino_t key, common::WarmupStorageType type,
+                             const std::string& path,
+                             const std::string& mount_point,
+                             const std::string& root) {
         if (fsInfo_->fstype() == FSType::TYPE_S3) {
-            return warmupManager_->AddWarmupFilelist(key, type);
+            return warmupManager_->AddWarmupFilelist(key, type, path,
+                                                     mount_point, root);
         }  // only support s3
         return true;
     }
@@ -320,9 +328,23 @@ class FuseClient {
         return true;
     }
 
+    bool RemoveWarmFileOrFilelistTask(fuse_ino_t key) {
+        if (fsInfo_->fstype() == FSType::TYPE_S3) {
+            return warmupManager_->CancelWarmupFileOrFilelist(key);
+        }  // only support s3
+        return true;
+    }
+
     bool GetWarmupProgress(fuse_ino_t key, warmup::WarmupProgress *progress) {
         if (fsInfo_->fstype() == FSType::TYPE_S3) {
             return warmupManager_->QueryWarmupProgress(key, progress);
+        }
+        return false;
+    }
+
+    bool GetAllWarmupProgress(Filepath2WarmupProgressMap* filepath2progress) {
+        if (fsInfo_->fstype() == FSType::TYPE_S3) {
+            return warmupManager_->ListWarmupProgress(filepath2progress);
         }
         return false;
     }
