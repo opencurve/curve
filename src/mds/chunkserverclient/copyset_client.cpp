@@ -226,11 +226,177 @@ int CopysetClient::UpdateLeader(CopySetInfo *copyset) {
         }
     }
     if (success) {
-        copyset->SetLeader(leader);
-        ret = kMdsSuccess;
+        // 判断leader是否在copyset中，否则需要更新copyset
+        if (copyset->HasMember(leader)) {
+            copyset->SetLeader(leader);
+            ret = kMdsSuccess;
+        } else {
+            ret = kLeaderNotInCopyset;
+        }
     }
     return ret;
 }
+
+
+struct ChunkServerFlattenChunkClosure : public ChunkServerClientClosure {
+ public:
+    explicit ChunkServerFlattenChunkClosure(
+            CopysetClient *client,
+            CopysetClientClosure* done)
+        : client_(client), done_(done) {}
+    virtual ~ChunkServerFlattenChunkClosure() {}
+
+    void Run() override {
+        std::unique_ptr<ChunkServerFlattenChunkClosure> selfGuard(this);
+        brpc::ClosureGuard doneGuard(done_);
+        int ret = GetErrCode();
+        done_->SetErrCode(ret);
+        if (ret == kMdsSuccess) {
+            return;
+        }
+
+        while ((curTry < updateLeaderRetryTimes) &&
+               ((UNINTIALIZE_ID == leaderId) ||
+                (kCsClientCSOffline == ret) ||
+                (kRpcFail == ret) ||
+                (kCsClientNotLeader == ret))) {
+            std::this_thread::sleep_for(
+                    std::chrono::milliseconds(updateLeaderRetryIntervalMs));
+            curTry++;
+            ret = client_->UpdateLeader(&copyset);
+            if (ret < 0) {
+                if (kLeaderNotInCopyset == ret) {
+                    // refresh copyset
+                    if (true != client_->topo_->GetCopySet(
+                        CopySetKey(ctx->logicalPoolId, ctx->copysetId),
+                        &copyset)) {
+                        LOG(ERROR) << "GetCopySet fail.";
+                        ret = kMdsFail; break;
+                    }
+                } else {
+                    LOG(WARNING) << "UpdateLeader fail, ret = " << ret
+                               << ", logicalPoolId = " << ctx->logicalPoolId
+                               << ", copysetId = " << ctx->copysetId
+                               << ", curTry = " << curTry;
+                    continue;
+                }
+            }
+
+            leaderId = copyset.GetLeader();
+            LOG(INFO) << "UpdateLeader success, new leaderId = " << leaderId;
+
+            if (leaderId != UNINTIALIZE_ID) {
+                ret = client_->chunkserverClient_->FlattenChunk(
+                    leaderId, ctx, selfGuard.get());
+                if (kMdsSuccess == ret) {
+                    selfGuard.release();
+                    doneGuard.release();
+                    return;
+                }
+            } else {
+                continue;
+            }
+        }
+        done_->SetErrCode(ret);
+    }
+
+ public:
+    uint32_t curTry;
+    uint32_t updateLeaderRetryTimes;
+    uint32_t updateLeaderRetryIntervalMs;
+    std::shared_ptr<FlattenChunkContext> ctx;
+
+    ChunkServerIdType leaderId;
+    CopySetInfo copyset;
+
+ private:
+    CopysetClient *client_;
+    CopysetClientClosure* done_;
+};
+
+int CopysetClient::FlattenChunk(
+    const std::shared_ptr<FlattenChunkContext> &ctx, 
+    CopysetClientClosure* done) {
+    LogicalPoolID logicalPoolId = ctx->logicalPoolId;
+    CopysetID copysetId = ctx->copysetId;
+
+    int ret = kMdsFail;
+    CopySetInfo copyset;
+    if (true != topo_->GetCopySet(
+        CopySetKey(logicalPoolId, copysetId),
+        &copyset)) {
+        LOG(ERROR) << "GetCopySet fail.";
+        return kMdsFail;
+    }
+
+    ChunkServerIdType leaderId =
+        copyset.GetLeader();
+
+    std::unique_ptr<ChunkServerFlattenChunkClosure> csvClosure(
+        new ChunkServerFlattenChunkClosure(this, done));
+    csvClosure->curTry = 0;
+    csvClosure->updateLeaderRetryTimes = updateLeaderRetryTimes_;
+    csvClosure->updateLeaderRetryIntervalMs = updateLeaderRetryIntervalMs_;
+    csvClosure->leaderId = leaderId;
+    csvClosure->copyset = copyset;
+    csvClosure->ctx = ctx;
+
+    if (leaderId != UNINTIALIZE_ID) {
+        csvClosure->curTry++;
+        ret = chunkserverClient_->FlattenChunk(
+            leaderId, ctx, csvClosure.get());
+        if (kMdsSuccess == ret) {
+            csvClosure.release();
+            return ret;
+        }
+    }
+
+    while ((csvClosure->curTry < csvClosure->updateLeaderRetryTimes) &&
+           ((UNINTIALIZE_ID == leaderId) ||
+            (kCsClientCSOffline == ret) ||
+            (kRpcFail == ret) ||
+            (kCsClientNotLeader == ret))) {
+        std::this_thread::sleep_for(
+                std::chrono::milliseconds(
+                    csvClosure->updateLeaderRetryIntervalMs));
+        csvClosure->curTry++;
+        ret = UpdateLeader(&copyset);
+        if (ret < 0) {
+            if (kLeaderNotInCopyset == ret) {
+                // refresh copyset
+                if (true != topo_->GetCopySet(
+                    CopySetKey(logicalPoolId, copysetId),
+                    &copyset)) {
+                    LOG(ERROR) << "GetCopySet fail.";
+                    return kMdsFail;
+                }
+            } else {
+                LOG(WARNING) << "UpdateLeader fail, ret = " << ret
+                           << ", logicalPoolId = " << logicalPoolId
+                           << ", copysetId = " << copysetId
+                           << ", curTry = " << csvClosure->curTry;
+                continue;
+            }
+        }
+
+        leaderId = copyset.GetLeader();
+        LOG(INFO) << "UpdateLeader success, new leaderId = " << leaderId;
+
+        if (leaderId != UNINTIALIZE_ID) {
+            ret = chunkserverClient_->FlattenChunk(
+                leaderId, ctx, 
+                csvClosure.get());
+            if (kMdsSuccess == ret) {
+                csvClosure.release();
+                break;
+            }
+        } else {
+            continue;
+        }
+    }
+    return ret;
+}
+
 
 }  // namespace chunkserverclient
 }  // namespace mds

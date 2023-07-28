@@ -44,7 +44,8 @@ enum CHUNK_OP_TYPE {
     CHUNK_OP_CREATE_CLONE = 5;      // 创建clone chunk
     CHUNK_OP_RECOVER = 6;           // 恢复clone chunk
     CHUNK_OP_PASTE = 7;             // paste chunk 内部请求
-    CHUNK_OP_UNKNOWN = 8;           // 未知 Op
+    CHUNK_OP_FLATTEN = 8;           // flatten chunk请求
+    CHUNK_OP_UNKNOWN = 9;           // 未知 Op
 };
 
 // read/write 的实际数据在 rpc 的 attachment 中
@@ -154,6 +155,7 @@ service ChunkService {
     rpc DeleteChunk (ChunkRequest) returns (ChunkResponse);
     rpc ReadChunk (ChunkRequest) returns (ChunkResponse);
     rpc WriteChunk (ChunkRequest) returns (ChunkResponse);
+    rpc FlattenChunk(ChunkRequest) returns (ChunkResponse);
 
     rpc ReadChunkSnapshot (ChunkRequest) returns (ChunkResponse);
     rpc DeleteChunkSnapshotOrCorrectSn (ChunkRequest) returns (ChunkResponse);

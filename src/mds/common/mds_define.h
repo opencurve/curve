@@ -46,6 +46,8 @@ const int kRpcFail = -5;
 const int kCsClientReturnFail = -5;
 // error code: chunkserver offline
 const int kCsClientCSOffline = -6;
+// error code: leader not in copyset
+const int kLeaderNotInCopyset = -7;
 
 // kStaledRequestTimeIntervalUs indicates the expiration time of the request
 // to prevent the request from being intercepted and played back

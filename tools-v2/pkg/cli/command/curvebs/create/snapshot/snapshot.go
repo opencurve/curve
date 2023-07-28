@@ -73,11 +73,11 @@ func (fCmd *snapshotCommand) Init(cmd *cobra.Command, args []string) error {
 	if errDat.TypeCode() != cmderror.CODE_SUCCESS {
 		return errDat.ToError()
 	}
-  request := &nameserver2.CreateSnapShotRequest {
-      FileName: &fileName,
+    request := &nameserver2.CreateSnapShotRequest {
+          FileName: &fileName,
 		  Date:     &date,
 		  Owner:    &owner,
-  }
+    }
 	password := config.GetBsFlagString(fCmd.Cmd, config.CURVEBS_PASSWORD)
 	if owner == viper.GetString(config.VIPER_CURVEBS_USER) && len(password) != 0 {
 		strSig := cobrautil.GetString2Signature(date, owner)
@@ -90,10 +90,10 @@ func (fCmd *snapshotCommand) Init(cmd *cobra.Command, args []string) error {
 	}
 	timeout := config.GetFlagDuration(fCmd.Cmd, config.RPCTIMEOUT)
 	retrytimes := config.GetFlagInt32(fCmd.Cmd, config.RPCRETRYTIMES)
-  fCmd.Rpc = &CreateSnapShotRpc{
-    Info: basecmd.NewRpc(mdsAddrs, timeout, retrytimes, "CreateSnapshot"),
-		Request: request,
-  }
+    fCmd.Rpc = &CreateSnapShotRpc{
+        Info: basecmd.NewRpc(mdsAddrs, timeout, retrytimes, "CreateSnapshot"),
+            Request: request,
+    }
 	header := []string{
 		cobrautil.ROW_ID,
 		cobrautil.ROW_FILE_NAME,

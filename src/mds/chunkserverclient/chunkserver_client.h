@@ -35,14 +35,73 @@
 #include "proto/chunk.pb.h"
 #include "src/mds/chunkserverclient/chunkserverclient_config.h"
 #include "src/common/channel_pool.h"
+#include "src/mds/common/mds_define.h"
 
 using ::curve::mds::topology::Topology;
 using ::curve::mds::topology::ChunkServerIdType;
 using ::curve::common::ChannelPool;
+using ::google::protobuf::Closure;
+using ::google::protobuf::Message;
+using ::curve::chunkserver::ChunkRequest;
+using ::curve::chunkserver::ChunkResponse;
+using ::curve::mds::LogicalPoolID;
+using ::curve::mds::CopysetID;
+using ::curve::mds::ChunkID;
 
 namespace curve {
 namespace mds {
 namespace chunkserverclient {
+
+struct CloneInfos {
+    uint64_t cloneNo;
+    uint64_t cloneSn;
+    CloneInfos()
+      : cloneNo(0), cloneSn(0) {}
+};
+
+struct FlattenChunkContext {
+    LogicalPoolID logicalPoolId;
+    CopysetID copysetId;
+    ChunkID chunkId;
+    uint64_t seqNum;
+    ChunkID originChunkId;
+    ChunkID virtualChunkId;
+    uint64_t cloneNo;
+    std::vector<CloneInfos> clones;
+
+    uint64_t chunkSize;
+    uint64_t partIndex;
+    uint64_t partSize;
+
+    int retCode;
+};
+
+class ChunkServerClientClosure : public Closure {
+ public:
+    ChunkServerClientClosure() : err_(kMdsFail) {}
+    virtual ~ChunkServerClientClosure() {}
+
+    void SetErrCode(int ret) {
+        err_ = ret;
+    }
+
+    int GetErrCode() {
+        return err_;
+    }
+
+ private:
+    int err_;
+};
+
+struct FlattenChunkRpcContext {
+    ChannelPtr channelPtr;
+    brpc::Controller cntl;
+    ChunkRequest request;
+    ChunkResponse response;
+    ChunkServerClientClosure *done;
+    uint32_t curTry;
+    ChunkServerClientOption retryOps_;
+};
 
 class ChunkServerClient {
  public:
@@ -50,9 +109,7 @@ class ChunkServerClient {
         const ChunkServerClientOption &option,
         std::shared_ptr<ChannelPool> channelPool)
         : topology_(topology),
-          rpcTimeoutMs_(option.rpcTimeoutMs),
-          rpcRetryTimes_(option.rpcRetryTimes),
-          rpcRetryIntervalMs_(option.rpcRetryIntervalMs),
+          retryOps_(option),
           channelPool_(channelPool) {}
 
     virtual ~ChunkServerClient() {}
@@ -128,6 +185,12 @@ class ChunkServerClient {
         CopysetID copysetId,
         ChunkServerIdType * leader);
 
+    virtual int FlattenChunk(ChunkServerIdType leaderId,
+        const std::shared_ptr<FlattenChunkContext> &ctx, 
+        ChunkServerClientClosure *done);
+
+    static void OnFlattenChunkReturned(FlattenChunkRpcContext *ctx);
+
  private:
     /**
      * @brief get the address of the chunkserver from the topology
@@ -144,9 +207,7 @@ class ChunkServerClient {
                          ChannelPtr* channelPtr);
 
     std::shared_ptr<Topology> topology_;
-    uint32_t rpcTimeoutMs_;
-    uint32_t rpcRetryTimes_;
-    uint32_t rpcRetryIntervalMs_;
+    ChunkServerClientOption retryOps_;
     std::shared_ptr<ChannelPool> channelPool_;
 };
 

@@ -246,6 +246,8 @@ class NameServerStorage {
      */
     virtual StoreStatus LoadSnapShotFile(
                                     std::vector<FileInfo> *snapShotFiles) = 0;
+
+    virtual StoreStatus LoadFileInfos(std::vector<FileInfo> *fileInfos) = 0;
 };
 
 class NameServerStorageImp : public NameServerStorage {
@@ -308,6 +310,8 @@ class NameServerStorageImp : public NameServerStorage {
                             const FileInfo * snapshotFileInfo) override;
 
     StoreStatus LoadSnapShotFile(std::vector<FileInfo> *snapShotFiles) override;
+
+    StoreStatus LoadFileInfos(std::vector<FileInfo> *fileInfos) override;
 
  private:
 

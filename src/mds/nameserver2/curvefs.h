@@ -45,6 +45,7 @@
 #include "src/mds/snapshotcloneclient/snapshotclone_client.h"
 #include "src/mds/topology/topology_service_manager.h"
 #include "src/common/namespace_define.h"
+#include "src/mds/nameserver2/flatten_manager.h"
 
 using curve::common::Authenticator;
 using curve::mds::snapshotcloneclient::SnapshotCloneClient;
@@ -112,7 +113,8 @@ class CurveFS {
               std::shared_ptr<AllocStatistic> allocStatistic,
               const struct CurveFSOption &curveFSOptions,
               std::shared_ptr<Topology> topology,
-              std::shared_ptr<SnapshotCloneClient> snapshotCloneClient);
+              std::shared_ptr<SnapshotCloneClient> snapshotCloneClient,
+              const std::shared_ptr<FlattenManager> &flattenManager);
 
     /**
      *  @brief Run session manager
@@ -257,8 +259,7 @@ class CurveFS {
      *  @brief rename file
      *  @param oldFileName
      *  @param newFileName
-     *  @param oldFileId: there will be inodeID verification, except when
-     *                    kUnitializedFileID is passed.
+     *  @param oldFileId: there will be inodeID verification, except when *                    kUnitializedFileID is passed.
      *  @param newFileId: there will be inodeID verification, except when
      *                    kUnitializedFileID is passed.
      *  @return StatusCode::kOK if succeeded
@@ -419,6 +420,17 @@ class CurveFS {
             const std::string &srcFileName,
             FileSeqType seq,
             FileInfo *fileInfo);
+
+
+    // flatten
+    StatusCode Flatten(const std::string &fileName,
+            const std::string& owner);
+
+    // QueryFlattenStatus
+    StatusCode QueryFlattenStatus(const std::string &fileName,
+            const std::string& owner,
+            FileStatus* status,
+            uint32_t* progress);
 
     // session ops
     /**
@@ -667,6 +679,8 @@ class CurveFS {
      */
     uint32_t GetBlockSize() const;
 
+    bool ResumeFlattenJob();
+
  private:
     CurveFS() = default;
 
@@ -856,6 +870,7 @@ class CurveFS {
     std::shared_ptr<AllocStatistic> allocStatistic_;
     std::shared_ptr<Topology> topology_;
     std::shared_ptr<SnapshotCloneClient> snapshotCloneClient_;
+    std::shared_ptr<FlattenManager> flattenManager_;
     struct RootAuthOption       rootAuthOptions_;
 
     uint64_t defaultChunkSize_;

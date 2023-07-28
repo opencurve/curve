@@ -38,7 +38,26 @@ namespace curve {
 namespace mds {
 namespace chunkserverclient {
 
+class CopysetClientClosure : public Closure {
+ public:
+    CopysetClientClosure() : err_(kMdsFail) {}
+    virtual ~CopysetClientClosure() {}
+
+    void SetErrCode(int ret) {
+        err_ = ret;
+    }
+
+    int GetErrCode() {
+        return err_;
+    }
+
+ private:
+    int err_;
+};
+
 class CopysetClient {
+ public:
+    friend class ChunkServerFlattenChunkClosure;
  public:
      /**
       * @brief constructor
@@ -116,6 +135,11 @@ class CopysetClient {
      * @return error code
      */
     int UpdateLeader(CopySetInfo *copyset);
+
+
+    int FlattenChunk(
+        const std::shared_ptr<FlattenChunkContext> &ctx, 
+        CopysetClientClosure* done);
 
  private:
     std::shared_ptr<Topology> topo_;
