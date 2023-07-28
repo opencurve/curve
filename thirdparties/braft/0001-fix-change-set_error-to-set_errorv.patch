@@ -1,0 +1,25 @@
+From 5a6d0378fb7c913f5410ec105e5c6db5259d32fe Mon Sep 17 00:00:00 2001
+From: Hanqing Wu <wuhanqing@corp.netease.com>
+Date: Wed, 26 Jul 2023 17:41:22 +0800
+Subject: [PATCH] fix: change set_error to set_errorv
+
+---
+ src/braft/log_manager.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/braft/log_manager.cpp b/src/braft/log_manager.cpp
+index cf07775..75e2597 100644
+--- a/src/braft/log_manager.cpp
++++ b/src/braft/log_manager.cpp
+@@ -939,7 +939,7 @@ void LogManager::report_error(int error_code, const char* fmt, ...) {
+     va_start(ap, fmt);
+     Error e;
+     e.set_type(ERROR_TYPE_LOG);
+-    e.status().set_error(error_code, fmt, ap);
++    e.status().set_errorv(error_code, fmt, ap);
+     va_end(ap);
+     _fsm_caller->on_error(e);
+ }
+-- 
+2.37.2
+
