@@ -61,13 +61,16 @@ DEFINE_uint32(warmupMaxSymLink, 1 << 2,
 DEFINE_validator(warmupMaxSymLink, &pass_uint32);
 
 bool WarmupManagerS3Impl::AddWarmupFilelist(fuse_ino_t key,
-                                            WarmupStorageType type) {
+                                            WarmupStorageType type,
+                                            const std::string& path,
+                                            const std::string& mount_point,
+                                            const std::string& root) {
     if (!mounted_.load(std::memory_order_acquire)) {
         LOG(ERROR) << "not mounted";
         return false;
     }
     // add warmup Progress
-    if (AddWarmupProcess(key, type)) {
+    if (AddWarmupProcess(key, path, type)) {
         LOG(INFO) << "add warmup list task:" << key;
         WriteLockGuard lock(warmupFilelistDequeMutex_);
         auto iter = FindWarmupFilelistByKeyLocked(key);
@@ -80,7 +83,7 @@ bool WarmupManagerS3Impl::AddWarmupFilelist(fuse_ino_t key,
                 return false;
             }
             uint64_t len = inodeWrapper->GetLength();
-            warmupFilelistDeque_.emplace_back(key, len);
+            warmupFilelistDeque_.emplace_back(key, len, mount_point, root);
         }
     }  // Skip already added
     return true;
@@ -93,10 +96,71 @@ bool WarmupManagerS3Impl::AddWarmupFile(fuse_ino_t key, const std::string& path,
         return false;
     }
     // add warmup Progress
-    if (AddWarmupProcess(key, type)) {
+    if (AddWarmupProcess(key, path, type)) {
         LOG(INFO) << "add warmup single task:" << key;
         FetchDentryEnqueue(key, path);
     }
+    return true;
+}
+
+bool WarmupManagerS3Impl::CancelWarmupFileOrFilelist(fuse_ino_t key) {
+    if (!mounted_.load(std::memory_order_acquire)) {
+        LOG(ERROR) << "not mounted";
+        return false;
+    }
+
+    VLOG(9) << "cancel warmup file or filelist task: " << key;
+
+    return CancelWarmupDependentQueue(key) && CancelWarmupProcess(key);
+}
+
+bool WarmupManagerS3Impl::CancelWarmupDependentQueue(fuse_ino_t key) {
+    WriteLockGuard lock(warmupFilelistDequeMutex_);
+    auto filelistIt = FindWarmupFilelistByKeyLocked(key);
+    if (filelistIt != warmupFilelistDeque_.end()) {
+        std::shared_ptr<InodeWrapper> inodeWrapper;
+        CURVEFS_ERROR ret = inodeManager_->GetInode(key, inodeWrapper);
+        if (ret != CURVEFS_ERROR::OK) {
+            LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
+                       << ", inodeid = " << key;
+            return false;
+        }
+        uint64_t len = inodeWrapper->GetLength();
+
+        for (auto it = warmupFilelistDeque_.begin();
+             it != warmupFilelistDeque_.end();) {
+            if (it->GetKey() == key) {
+                it = warmupFilelistDeque_.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+
+    auto fetchDentryIt = inode2FetchDentryPool_.find(key);
+    if (fetchDentryIt != inode2FetchDentryPool_.end()) {
+        inode2FetchDentryPool_[key]->Stop();
+        WriteLockGuard lockDentry(inode2FetchDentryPoolMutex_);
+        inode2FetchDentryPool_.erase(key);
+    }
+
+    WriteLockGuard lockInodes(warmupInodesDequeMutex_);
+    for (auto it = warmupInodesDeque_.begin();
+         it != warmupInodesDeque_.end();) {
+        if (it->GetKey() == key) {
+            it = warmupInodesDeque_.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
+    auto fetchS3ObjIt = inode2FetchS3ObjectsPool_.find(key);
+    if (fetchS3ObjIt != inode2FetchS3ObjectsPool_.end()) {
+        inode2FetchS3ObjectsPool_[key]->Stop();
+        WriteLockGuard lockDentry(inode2FetchS3ObjectsPoolMutex_);
+        inode2FetchS3ObjectsPool_.erase(key);
+    }
+
     return true;
 }
 
@@ -509,7 +573,8 @@ void WarmupManagerS3Impl::WarmUpAllObjs(
             {
                 ReadLockGuard lock(inode2ProgressMutex_);
                 auto iterProgress = FindWarmupProgressByKeyLocked(key);
-                if (iterProgress->second.GetStorageType() ==
+                if (iterProgress != inode2Progress_.end() &&
+                    iterProgress->second.GetStorageType() ==
                         curvefs::client::common::WarmupStorageType::
                             kWarmupStorageTypeDisk &&
                     s3Adaptor_->GetDiskCacheManager()->IsCached(name)) {
@@ -615,19 +680,42 @@ void WarmupManagerS3Impl::ScanWarmupInodes() {
     }
 }
 
+void WarmupManagerS3Impl::AlignFilelistPathsToCurveFs(
+    const WarmupFilelist& filelist, std::vector<std::string>* list) {
+    for (auto filePathIt = list->begin(); filePathIt != list->end();) {
+        size_t found = filePathIt->find(filelist.GetMountPoint());
+
+        if (found != std::string::npos) {
+            filePathIt->replace(found, filelist.GetMountPoint().length(),
+                                filelist.GetRoot());
+            ++filePathIt;
+        } else {
+            filePathIt = list->erase(filePathIt);
+        }
+    }
+}
+
 void WarmupManagerS3Impl::ScanWarmupFilelist() {
     // Use a write lock to ensure that all parsing tasks are added.
     WriteLockGuard lock(warmupFilelistDequeMutex_);
     if (!warmupFilelistDeque_.empty()) {
         WarmupFilelist warmupFilelist = warmupFilelistDeque_.front();
         VLOG(9) << "warmup ino: " << warmupFilelist.GetKey()
-                << " len is: " << warmupFilelist.GetFileLen();
+                << " len is: " << warmupFilelist.GetFileLen()
+                << " mount point is: " << warmupFilelist.GetMountPoint()
+                << " fs root is: " << warmupFilelist.GetRoot();
 
         std::vector<std::string> warmuplist;
         GetWarmupList(warmupFilelist, &warmuplist);
         VLOG(9) << "warmup ino: " << warmupFilelist.GetKey()
                 << " warmup list is: "
                 << fmt::format("{}", fmt::join(warmuplist, ","));
+
+        AlignFilelistPathsToCurveFs(warmupFilelist, &warmuplist);
+        VLOG(9) << "warmup ino: " << warmupFilelist.GetKey()
+                << " aligned warmup list is: "
+                << fmt::format("{}", fmt::join(warmuplist, ","));
+
         for (auto filePath : warmuplist) {
             FetchDentryEnqueue(warmupFilelist.GetKey(), filePath);
         }

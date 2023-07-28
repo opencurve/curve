@@ -80,7 +80,20 @@ class WarmupFile {
     uint64_t fileLen_;
 };
 
-using WarmupFilelist = WarmupFile;
+class WarmupFilelist : public WarmupFile {
+ public:
+    explicit WarmupFilelist(fuse_ino_t key = 0, uint64_t fileLen = 0,
+                            const std::string& mountPoint = "",
+                            const std::string& root = "")
+        : WarmupFile(key, fileLen), mountPoint_(mountPoint), root_(root) {}
+
+    std::string GetMountPoint() const { return mountPoint_; }
+    std::string GetRoot() const { return root_; }
+
+ private:
+    std::string mountPoint_;
+    std::string root_;
+};
 
 class WarmupInodes {
  public:
@@ -103,13 +116,18 @@ class WarmupInodes {
 class WarmupProgress {
  public:
     explicit WarmupProgress(WarmupStorageType type = curvefs::client::common::
-                                WarmupStorageType::kWarmupStorageTypeUnknown)
-        : total_(0), finished_(0), storageType_(type) {}
+                                WarmupStorageType::kWarmupStorageTypeUnknown,
+                            std::string filePath = "")
+        : total_(0),
+          finished_(0),
+          storageType_(type),
+          filePathInClient_(filePath) {}
 
     WarmupProgress(const WarmupProgress& wp)
         : total_(wp.total_),
           finished_(wp.finished_),
-          storageType_(wp.storageType_) {}
+          storageType_(wp.storageType_),
+          filePathInClient_(wp.filePathInClient_) {}
 
     void AddTotal(uint64_t add) {
         std::lock_guard<std::mutex> lock(totalMutex_);
@@ -144,6 +162,8 @@ class WarmupProgress {
                ",finished:" + std::to_string(finished_);
     }
 
+    std::string GetFilePathInClient() { return filePathInClient_; }
+
     WarmupStorageType GetStorageType() { return storageType_; }
 
  private:
@@ -152,6 +172,7 @@ class WarmupProgress {
     uint64_t finished_;
     std::mutex finishedMutex_;
     WarmupStorageType storageType_;
+    std::string filePathInClient_;
 };
 
 using FuseOpReadFunctionType =
@@ -191,9 +212,15 @@ class WarmupManager {
     virtual void Init(const FuseClientOption& option) { option_ = option; }
     virtual void UnInit() { ClearWarmupProcess(); }
 
-    virtual bool AddWarmupFilelist(fuse_ino_t key, WarmupStorageType type) = 0;
+    virtual bool AddWarmupFilelist(fuse_ino_t key, WarmupStorageType type,
+                                   const std::string& path,
+                                   const std::string& mount_point,
+                                   const std::string& root) = 0;
     virtual bool AddWarmupFile(fuse_ino_t key, const std::string& path,
                                WarmupStorageType type) = 0;
+
+    virtual bool CancelWarmupFileOrFilelist(fuse_ino_t key) = 0;
+    virtual bool CancelWarmupDependentQueue(fuse_ino_t key) = 0;
 
     void SetMounted(bool mounted) {
         mounted_.store(mounted, std::memory_order_release);
@@ -213,6 +240,8 @@ class WarmupManager {
         kvClientManager_ = std::move(kvClientManager);
     }
 
+    using Filepath2WarmupProgressMap =
+        std::unordered_map<std::string, WarmupProgress>;
     /**
      * @brief
      *
@@ -233,6 +262,22 @@ class WarmupManager {
         return ret;
     }
 
+    bool ListWarmupProgress(Filepath2WarmupProgressMap* filepath2progress) {
+        ReadLockGuard lock(inode2ProgressMutex_);
+
+        for (auto fileProgressInfoIt = inode2Progress_.begin();
+             fileProgressInfoIt != inode2Progress_.end();
+             ++fileProgressInfoIt) {
+            filepath2progress->emplace(
+                fileProgressInfoIt->second.GetFilePathInClient(),
+                WarmupProgress(fileProgressInfoIt->second));
+        }
+
+        return !inode2Progress_.empty();
+    }
+
+    void CollectMetrics(InterfaceMetric* interface, int count, uint64_t start);
+
  protected:
     /**
      * @brief Add warmupProcess
@@ -240,10 +285,23 @@ class WarmupManager {
      * @return true
      * @return false warmupProcess has been added
      */
-    virtual bool AddWarmupProcess(fuse_ino_t key, WarmupStorageType type) {
+    virtual bool AddWarmupProcess(fuse_ino_t key, const std::string& path,
+                                  WarmupStorageType type) {
         WriteLockGuard lock(inode2ProgressMutex_);
-        auto ret = inode2Progress_.emplace(key, WarmupProgress(type));
-        return ret.second;
+        auto retPg = inode2Progress_.emplace(key, WarmupProgress(type, path));
+        return retPg.second;
+    }
+
+    virtual bool CancelWarmupProcess(fuse_ino_t key) {
+        WriteLockGuard lock(inode2ProgressMutex_);
+
+        bool keyExists = inode2Progress_.find(key) != inode2Progress_.end();
+
+        if (keyExists) {
+            inode2Progress_.erase(key);
+        }
+
+        return keyExists;
     }
 
     /**
@@ -285,6 +343,7 @@ class WarmupManager {
 
     // warmup progress
     std::unordered_map<fuse_ino_t, WarmupProgress> inode2Progress_;
+
     BthreadRWLock inode2ProgressMutex_;
 
     std::shared_ptr<KVClientManager> kvClientManager_ = nullptr;
@@ -308,9 +367,15 @@ class WarmupManagerS3Impl : public WarmupManager {
                         std::move(kvClientManager)),
           s3Adaptor_(std::move(s3Adaptor)) {}
 
-    bool AddWarmupFilelist(fuse_ino_t key, WarmupStorageType type) override;
+    bool AddWarmupFilelist(fuse_ino_t key, WarmupStorageType type,
+                           const std::string& path,
+                           const std::string& mount_point,
+                           const std::string& root) override;
     bool AddWarmupFile(fuse_ino_t key, const std::string& path,
                        WarmupStorageType type) override;
+
+    bool CancelWarmupFileOrFilelist(fuse_ino_t key) override;
+    bool CancelWarmupDependentQueue(fuse_ino_t key) override;
 
     void Init(const FuseClientOption& option) override;
     void UnInit() override;
@@ -320,6 +385,9 @@ class WarmupManagerS3Impl : public WarmupManager {
 
     void GetWarmupList(const WarmupFilelist& filelist,
                        std::vector<std::string>* list);
+
+    void AlignFilelistPathsToCurveFs(const WarmupFilelist& filelist,
+                                     std::vector<std::string>* list);
 
     void FetchDentryEnqueue(fuse_ino_t key, const std::string& file);
 

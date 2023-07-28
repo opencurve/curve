@@ -475,6 +475,12 @@ var (
 	ErrBsGetAllSnapshotResult = func() *CmdError {
 		return NewInternalCmdError(72, "get all snapshot results fail, err: %s")
 	}
+	ErrVerifyError = func() *CmdError {
+		return NewInternalCmdError(73, "verify fail, err: %s")
+	}
+	ErrListWarmup = func() *CmdError {
+		return NewInternalCmdError(74, "list warmup progress fail, err: %s")
+	}
 
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {
