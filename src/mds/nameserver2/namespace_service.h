@@ -147,6 +147,18 @@ class NameSpaceService: public CurveFSService {
         ::curve::mds::CloneResponse* response,
         ::google::protobuf::Closure* done) override;
 
+    // flatten
+    void Flatten(::google::protobuf::RpcController* controller,
+        const ::curve::mds::FlattenRequest* request,
+        ::curve::mds::FlattenResponse* response,
+        ::google::protobuf::Closure* done) override;
+
+    // query flatten status
+    void QueryFlattenStatus(::google::protobuf::RpcController* controller,
+        const ::curve::mds::QueryFlattenStatusRequest* request,
+        ::curve::mds::QueryFlattenStatusResponse* response,
+        ::google::protobuf::Closure* done) override;
+
     void OpenFile(::google::protobuf::RpcController* controller,
                        const ::curve::mds::OpenFileRequest* request,
                        ::curve::mds::OpenFileResponse* response,

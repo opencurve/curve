@@ -1399,6 +1399,8 @@ void NameSpaceService::Clone(::google::protobuf::RpcController* controller,
         signature = request->signature();
     }
 
+    FileWriteLockGuard virtualVolGuard(fileLockManager_, 
+        curve::common::kVirtualCloneVol);
     FileWriteLockGuard guard(fileLockManager_, request->filename());
 
     // check authority
@@ -1463,6 +1465,153 @@ void NameSpaceService::Clone(::google::protobuf::RpcController* controller,
                   << ", Clone ok, filename = " << request->filename()
                   << ", cost " << expiredTime.ExpiredMs() << " ms";
     }
+    return;
+}
+
+// flatten
+void NameSpaceService::Flatten(::google::protobuf::RpcController* controller,
+    const ::curve::mds::FlattenRequest* request,
+    ::curve::mds::FlattenResponse* response,
+    ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard doneGuard(done); 
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
+    ExpiredTime expiredTime;
+
+    LOG(INFO) << "logid = " << cntl->log_id()
+        << ", Flatten request " << request->ShortDebugString();
+
+    std::string signature = "";
+    if (request->has_signature()) {
+        signature = request->signature();
+    }
+
+    FileWriteLockGuard guard(fileLockManager_, request->filename());
+
+    // check authority
+    StatusCode ret = kCurveFS.CheckPathOwner(request->filename(),
+                                             request->owner(),
+                                             signature, request->date());
+
+    if (ret != StatusCode::kOK) {
+        response->set_statuscode(ret);
+        if (google::ERROR != GetMdsLogLevel(ret)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", Flatten CheckPathOwner fail, filename = "
+                <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << ret;
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", Flatten CheckPathOwner fail, filename = "
+                <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << ret;
+        }
+        return;
+    }
+
+    ret = kCurveFS.Flatten(request->filename(),
+                           request->owner());
+    response->set_statuscode(ret);
+    if (ret != StatusCode::kOK) {
+        if (google::ERROR != GetMdsLogLevel(ret)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", Flatten fail, filename = " <<  request->filename()
+                << ", statusCode = " << ret
+                << ", StatusCode_Name = " << StatusCode_Name(ret)
+                << ", cost " << expiredTime.ExpiredMs() << " ms";
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", Flatten fail, filename = " <<  request->filename()
+                << ", statusCode = " << ret
+                << ", StatusCode_Name = " << StatusCode_Name(ret)
+                << ", cost " << expiredTime.ExpiredMs() << " ms";
+        }
+    } else {
+        LOG(INFO) << "logid = " << cntl->log_id()
+                  << ", Flatten ok, filename = " << request->filename()
+                  << ", cost " << expiredTime.ExpiredMs() << " ms";
+    }
+    return;
+}
+
+// QueryFlattenStatus
+void NameSpaceService::QueryFlattenStatus(
+    ::google::protobuf::RpcController* controller,
+    const ::curve::mds::QueryFlattenStatusRequest* request,
+    ::curve::mds::QueryFlattenStatusResponse* response,
+    ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard doneGuard(done); 
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
+    ExpiredTime expiredTime;
+
+    LOG(INFO) << "logid = " << cntl->log_id()
+        << ", QueryFlattenStatus request " << request->ShortDebugString();
+
+    std::string signature = "";
+    if (request->has_signature()) {
+        signature = request->signature();
+    }
+
+    FileReadLockGuard guard(fileLockManager_, request->filename());
+
+    // check authority
+    StatusCode ret = kCurveFS.CheckPathOwner(request->filename(),
+                                             request->owner(),
+                                             signature, request->date());
+
+    if (ret != StatusCode::kOK) {
+        response->set_statuscode(ret);
+        if (google::ERROR != GetMdsLogLevel(ret)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", QueryFlattenStatus CheckPathOwner fail, filename = "
+                <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << ret;
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", QueryFlattenStatus CheckPathOwner fail, filename = "
+                <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << ret;
+        }
+        return;
+    }
+
+    FileStatus fileStatus;
+    uint32_t progress;
+    ret = kCurveFS.QueryFlattenStatus(request->filename(),
+                                      request->owner(),
+                                      &fileStatus,
+                                      &progress);
+
+    response->set_statuscode(ret);
+    if (ret != StatusCode::kOK) {
+        if (google::ERROR != GetMdsLogLevel(ret)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", QueryFlattenStatus fail, filename = "
+                <<  request->filename()
+                << ", statusCode = " << ret
+                << ", StatusCode_Name = " << StatusCode_Name(ret)
+                << ", cost " << expiredTime.ExpiredMs() << " ms";
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", QueryFlattenStatus fail, filename = "
+                <<  request->filename()
+                << ", statusCode = " << ret
+                << ", StatusCode_Name = " << StatusCode_Name(ret)
+                << ", cost " << expiredTime.ExpiredMs() << " ms";
+        }
+    } else {
+        response->set_filestatus(fileStatus);
+        response->set_progress(progress);
+        LOG(INFO) << "logid = " << cntl->log_id()
+                  << ", QueryFlattenStatus ok, filename = "
+                  << request->filename()
+                  << ", response: " << response->ShortDebugString()
+                  << ", cost " << expiredTime.ExpiredMs() << " ms";
+    }
+
     return;
 }
 

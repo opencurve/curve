@@ -96,9 +96,9 @@ struct MDSOptions {
     // cache size of namestorage
     int mdsCacheCount;
     int mdsFilelockBucketNum;
-    // session timeout 
-    // sleep for double session timeout to let all clients refresh snap context 
-    // when deleting a curvefs snapshot(for local multi-level snapshot) 
+    // session timeout
+    // sleep for double session timeout to let all clients refresh snap context
+    // when deleting a curvefs snapshot(for local multi-level snapshot)
     uint32_t mdsSessionTimeUs;
 
     FileRecordOptions fileRecordOptions;
@@ -173,6 +173,8 @@ class MDS {
 
     void InitSnapshotCloneClientOption(SnapshotCloneClientOption *option);
 
+    void InitFlattenOption(FlattenOption *option);
+
     void InitEtcdClient(const EtcdConf& etcdConf,
                         int etcdTimeout,
                         int retryTimes);
@@ -208,6 +210,8 @@ class MDS {
 
     void InitSnapshotCloneClient();
 
+    void InitFlattenManager();
+
  private:
     // mds configuration items
     std::shared_ptr<Configuration> conf_;
@@ -233,6 +237,9 @@ class MDS {
     std::shared_ptr<HeartbeatManager> heartbeatManager_;
     FileLockManager* fileLockManager_;
     std::shared_ptr<SnapshotCloneClient> snapshotCloneClient_;
+    std::shared_ptr<CopysetClient> copysetClient_;
+    std::shared_ptr<FlattenManagerImpl> flattenManager_;
+
     std::string etcdEndpoints_;
     std::string etcdUsername_;
     std::string etcdPassword_;

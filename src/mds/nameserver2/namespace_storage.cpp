@@ -27,6 +27,8 @@
 
 using ::curve::common::SNAPSHOTFILEINFOKEYPREFIX;
 using ::curve::common::SNAPSHOTFILEINFOKEYEND;
+using ::curve::common::FILEINFOKEYPREFIX;
+using ::curve::common::FILEINFOKEYEND;
 
 namespace curve {
 namespace mds {
@@ -608,6 +610,12 @@ StoreStatus NameServerStorageImp::LoadSnapShotFile(
     std::vector<FileInfo> *snapshotFiles) {
     return ListFileInternal(SNAPSHOTFILEINFOKEYPREFIX,
                             SNAPSHOTFILEINFOKEYEND, snapshotFiles);
+}
+
+StoreStatus NameServerStorageImp::LoadFileInfos(
+    std::vector<FileInfo> *fileInfos) {
+    return ListFileInternal(FILEINFOKEYPREFIX,
+                            FILEINFOKEYEND, fileInfos);
 }
 
 StoreStatus NameServerStorageImp::getErrorCode(int errCode) {

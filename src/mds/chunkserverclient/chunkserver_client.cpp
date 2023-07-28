@@ -62,7 +62,7 @@ int ChunkServerClient::DeleteChunkSnapshotOrCorrectSn(
     ChunkService_Stub stub(channelPtr.get());
 
     brpc::Controller cntl;
-    cntl.set_timeout_ms(rpcTimeoutMs_);
+    cntl.set_timeout_ms(retryOps_.rpcTimeoutMs);
 
     ChunkRequest request;
     request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_DELETE_SNAP);
@@ -75,7 +75,7 @@ int ChunkServerClient::DeleteChunkSnapshotOrCorrectSn(
     uint32_t retry = 0;
     do {
         cntl.Reset();
-        cntl.set_timeout_ms(rpcTimeoutMs_);
+        cntl.set_timeout_ms(retryOps_.rpcTimeoutMs);
         stub.DeleteChunkSnapshotOrCorrectSn(&cntl,
             &request,
             &response,
@@ -93,10 +93,10 @@ int ChunkServerClient::DeleteChunkSnapshotOrCorrectSn(
                        << ", retry, time = "
                        << retry;
             std::this_thread::sleep_for(
-                std::chrono::milliseconds(rpcRetryIntervalMs_));
+                std::chrono::milliseconds(retryOps_.rpcRetryIntervalMs));
         }
         retry++;
-    } while (cntl.Failed() && retry < rpcRetryTimes_);
+    } while (cntl.Failed() && retry < retryOps_.rpcRetryTimes);
 
     if (cntl.Failed()) {
         LOG(ERROR) << "Send DeleteChunkSnapshotOrCorrectSn error, retry fail,"
@@ -155,7 +155,7 @@ int ChunkServerClient::DeleteChunkSnapshot(
     ChunkService_Stub stub(channelPtr.get());
 
     brpc::Controller cntl;
-    cntl.set_timeout_ms(rpcTimeoutMs_);
+    cntl.set_timeout_ms(retryOps_.rpcTimeoutMs);
 
     ChunkRequest request;
     request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_DELETE_SNAP);
@@ -171,7 +171,7 @@ int ChunkServerClient::DeleteChunkSnapshot(
     uint32_t retry = 0;
     do {
         cntl.Reset();
-        cntl.set_timeout_ms(rpcTimeoutMs_);
+        cntl.set_timeout_ms(retryOps_.rpcTimeoutMs);
         //stub.DeleteChunkSnapshot(&cntl,
         // 这里目前还是维持的旧的删除RPC接口，后面根据新旧快照兼容方案来修改
         stub.DeleteChunkSnapshotOrCorrectSn(&cntl,
@@ -191,10 +191,10 @@ int ChunkServerClient::DeleteChunkSnapshot(
                        << ", retry, time = "
                        << retry;
             std::this_thread::sleep_for(
-                std::chrono::milliseconds(rpcRetryIntervalMs_));
+                std::chrono::milliseconds(retryOps_.rpcRetryIntervalMs));
         }
         retry++;
-    } while (cntl.Failed() && retry < rpcRetryTimes_);
+    } while (cntl.Failed() && retry < retryOps_.rpcRetryTimes);
 
     if (cntl.Failed()) {
         LOG(ERROR) << "Send DeleteChunkSnapshot error, retry fail,"
@@ -251,7 +251,7 @@ int ChunkServerClient::DeleteChunk(ChunkServerIdType leaderId,
     ChunkService_Stub stub(channelPtr.get());
 
     brpc::Controller cntl;
-    cntl.set_timeout_ms(rpcTimeoutMs_);
+    cntl.set_timeout_ms(retryOps_.rpcTimeoutMs);
 
     ChunkRequest request;
     request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_DELETE);
@@ -264,7 +264,7 @@ int ChunkServerClient::DeleteChunk(ChunkServerIdType leaderId,
     uint32_t retry = 0;
     do {
         cntl.Reset();
-        cntl.set_timeout_ms(rpcTimeoutMs_);
+        cntl.set_timeout_ms(retryOps_.rpcTimeoutMs);
         stub.DeleteChunk(&cntl,
             &request,
             &response,
@@ -281,10 +281,10 @@ int ChunkServerClient::DeleteChunk(ChunkServerIdType leaderId,
                        << ", retry, time = "
                        << retry;
             std::this_thread::sleep_for(
-                std::chrono::milliseconds(rpcRetryIntervalMs_));
+                std::chrono::milliseconds(retryOps_.rpcRetryIntervalMs));
         }
         retry++;
-    } while (cntl.Failed() && retry < rpcRetryTimes_);
+    } while (cntl.Failed() && retry < retryOps_.rpcRetryTimes);
 
     if (cntl.Failed()) {
         LOG(ERROR) << "Send DeleteChunk error, retry fail,"
@@ -338,7 +338,7 @@ int ChunkServerClient::GetLeader(ChunkServerIdType csId,
     CliService2_Stub stub(channelPtr.get());
 
     brpc::Controller cntl;
-    cntl.set_timeout_ms(rpcTimeoutMs_);
+    cntl.set_timeout_ms(retryOps_.rpcTimeoutMs);
 
     GetLeaderRequest2 request;
     request.set_logicpoolid(logicalPoolId);
@@ -348,7 +348,7 @@ int ChunkServerClient::GetLeader(ChunkServerIdType csId,
     uint32_t retry = 0;
     do {
         cntl.Reset();
-        cntl.set_timeout_ms(rpcTimeoutMs_);
+        cntl.set_timeout_ms(retryOps_.rpcTimeoutMs);
         stub.GetLeader(&cntl,
             &request,
             &response,
@@ -365,10 +365,10 @@ int ChunkServerClient::GetLeader(ChunkServerIdType csId,
                        << ", retry, time = "
                        << retry;
             std::this_thread::sleep_for(
-                std::chrono::milliseconds(rpcRetryIntervalMs_));
+                std::chrono::milliseconds(retryOps_.rpcRetryIntervalMs));
         }
         retry++;
-    } while (cntl.Failed() && retry < rpcRetryTimes_);
+    } while (cntl.Failed() && retry < retryOps_.rpcRetryTimes);
 
     if (cntl.Failed()) {
         LOG(ERROR) << "Send GetLeader error, retry fail,"
@@ -435,6 +435,139 @@ int ChunkServerClient::GetOrInitChannel(ChunkServerIdType csId,
         return kRpcChannelInitFail;
     }
     return kMdsSuccess;
+}
+
+int ChunkServerClient::FlattenChunk(
+    ChunkServerIdType leaderId,
+    const std::shared_ptr<FlattenChunkContext> &ctx, 
+    ChunkServerClientClosure* done) {
+    std::unique_ptr<FlattenChunkRpcContext> rpcCtx(new FlattenChunkRpcContext);
+
+    int res = GetOrInitChannel(leaderId, &rpcCtx->channelPtr);
+    if (res != kMdsSuccess) {
+        done->SetErrCode(kRpcChannelInitFail);
+        return res;
+    }
+
+    rpcCtx->cntl.set_timeout_ms(retryOps_.rpcTimeoutMs);
+
+    rpcCtx->request.set_optype(curve::chunkserver::CHUNK_OP_FLATTEN);
+    rpcCtx->request.set_logicpoolid(ctx->logicalPoolId);
+    rpcCtx->request.set_copysetid(ctx->copysetId);
+    rpcCtx->request.set_chunkid(ctx->chunkId);
+    rpcCtx->request.set_sn(ctx->seqNum);
+    rpcCtx->request.set_offset(ctx->partIndex * ctx->partSize);
+    rpcCtx->request.set_size(ctx->partSize);
+
+    rpcCtx->request.set_originchunkid(ctx->originChunkId);
+    rpcCtx->request.set_virtualchunkid(ctx->virtualChunkId);
+    rpcCtx->request.set_cloneno(ctx->cloneNo);
+    for (auto &clone : ctx->clones) {
+        auto cinfo = rpcCtx->request.add_clones();
+        cinfo->set_cloneno(clone.cloneNo);
+        cinfo->set_clonesn(clone.cloneSn);
+    }
+
+    rpcCtx->done = done;
+    rpcCtx->curTry = 1;
+    rpcCtx->retryOps_ = retryOps_;
+
+    google::protobuf::Closure* rpcDone = brpc::NewCallback(
+        OnFlattenChunkReturned, rpcCtx.get());
+
+    ChunkService_Stub stub(rpcCtx->channelPtr.get());
+    stub.FlattenChunk(&rpcCtx->cntl,
+                      &rpcCtx->request,
+                      &rpcCtx->response,
+                      rpcDone);
+    rpcCtx.release();
+    return kMdsSuccess;
+}
+
+void ChunkServerClient::OnFlattenChunkReturned(FlattenChunkRpcContext *ctx) {
+    std::unique_ptr<FlattenChunkRpcContext> ctxGuard(ctx);
+    brpc::ClosureGuard doneGuard(ctx->done);
+    if (ctx->cntl.Failed()) {
+        LOG(WARNING) << "Send FlattenChunk failed"
+                     << ", request = " << ctx->request.ShortDebugString()
+                     << ", error = " << ctx->cntl.ErrorCode()
+                     << ", errorText = " << ctx->cntl.ErrorText()
+                     << ", retry, time = " << ctx->curTry;
+        if (ctx->cntl.ErrorCode() == brpc::ELOGOFF ||
+            ctx->cntl.ErrorCode() == EHOSTDOWN ||
+            ctx->cntl.ErrorCode() == ECONNRESET ||
+            ctx->cntl.ErrorCode() == ECONNREFUSED) {
+            ctx->done->SetErrCode(kCsClientCSOffline);
+            return; 
+        }
+
+        if (ctx->curTry < ctx->retryOps_.rpcRetryTimes) {
+            bthread_usleep(ctx->retryOps_.rpcRetryIntervalMs);
+            ctx->cntl.Reset();
+            uint32_t nextTimeOutMs =
+                std::min(ctx->retryOps_.rpcTimeoutMs << ctx->curTry,
+                         ctx->retryOps_.rpcMaxTimeoutMs);
+            ctx->cntl.set_timeout_ms(nextTimeOutMs);
+            ctx->response.Clear();
+            ctx->curTry++;
+            google::protobuf::Closure* rpcDone = brpc::NewCallback(
+                        OnFlattenChunkReturned, ctx);
+
+            ChunkService_Stub stub(ctx->channelPtr.get());
+            stub.FlattenChunk(&ctx->cntl,
+                              &ctx->request,
+                              &ctx->response,
+                              rpcDone);
+            doneGuard.release();
+            ctxGuard.release();
+            return;
+        } else {
+            LOG(WARNING) << "Send FlattenChunk failed"
+                         << ", request = " << ctx->request.ShortDebugString()
+                         << ", error = " << ctx->cntl.ErrorCode()
+                         << ", errorText = " << ctx->cntl.ErrorText()
+                         << ", retry fail";
+            ctx->done->SetErrCode(kRpcFail);
+            return;
+        }
+    } else {
+        switch (ctx->response.status()) {
+            case CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS:
+            case CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST: {
+                ctx->done->SetErrCode(kMdsSuccess);
+                LOG(INFO) << "Received FlattenChunk "
+                          << "success, [log_id="
+                          << ctx->cntl.log_id()
+                          << "] from " << ctx->cntl.remote_side()
+                          << " to " << ctx->cntl.local_side()
+                          << ". [ChunkResponse] "
+                          << ctx->response.ShortDebugString();
+                return;
+            }
+            case CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED: {
+                LOG(WARNING) << "Received FlattenChunk "
+                           << "error, [log_id="
+                           << ctx->cntl.log_id()
+                           << "] from " << ctx->cntl.remote_side()
+                           << " to " << ctx->cntl.local_side()
+                           << ". [ChunkResponse] "
+                           << ctx->response.ShortDebugString();
+                ctx->done->SetErrCode(kCsClientNotLeader);
+                return;
+            }
+            default: {
+                LOG(ERROR) << "Received FlattenChunk "
+                           << "error, [log_id="
+                           << ctx->cntl.log_id()
+                           << "] from " << ctx->cntl.remote_side()
+                           << " to " << ctx->cntl.local_side()
+                           << ". [ChunkResponse] "
+                           << ctx->response.ShortDebugString();
+                ctx->done->SetErrCode(kCsClientReturnFail);
+                return;
+            }
+        }
+    }
 }
 
 }  // namespace chunkserverclient

@@ -739,4 +739,15 @@ var (
 		}
 		return NewRpcReultCmdError(code, message)
 	}
+	ErrBsFlatten = func(statusCode nameserver2.StatusCode, path string) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case nameserver2.StatusCode_kOK:
+			message = "flatten begin ... "
+		default:
+			message = fmt.Sprintf("failed to flatten [%s], err: %s", path, statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
 )
