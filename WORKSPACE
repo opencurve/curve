@@ -22,6 +22,12 @@ git_repository(
     name = "com_github_baidu_braft",
     remote = "https://github.com/baidu/braft",
     commit = "e255c0e4b18d1a8a5d484d4b647f41ff1385ef1e",
+    patches = [
+        "//:thirdparties/braft/0001-fix-change-set_error-to-set_errorv.patch",
+    ],
+    patch_args = [
+        "-p1"
+    ],
 )
 
 bind(
