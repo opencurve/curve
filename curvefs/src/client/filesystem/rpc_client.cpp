@@ -80,6 +80,10 @@ CURVEFS_ERROR RPCClient::ReadDir(Ino ino,
         LOG(ERROR) << "rpc(readdir::ListDentry) failed, retCode = " << rc
                    << ", ino = " << ino;
         return rc;
+    } else if (dentries.size() == 0) {
+        VLOG(3) << "rpc(readdir::ListDentry) success and directory is empty"
+                << ", ino = " << ino;
+        return rc;
     }
 
     std::set<uint64_t> inos;
