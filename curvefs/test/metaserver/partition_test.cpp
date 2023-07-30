@@ -430,10 +430,10 @@ TEST_F(PartitionTest, testGetXAttr) {
     ASSERT_EQ(partition1.GetXAttr(1, 100, &xattr), MetaStatusCode::OK);
     ASSERT_EQ(xattr.inodeid(), 100);
     ASSERT_EQ(xattr.fsid(), 1);
-    ASSERT_EQ(xattr.xattrinfos().find(XATTRFILES)->second, "0");
-    ASSERT_EQ(xattr.xattrinfos().find(XATTRSUBDIRS)->second, "0");
-    ASSERT_EQ(xattr.xattrinfos().find(XATTRENTRIES)->second, "0");
-    ASSERT_EQ(xattr.xattrinfos().find(XATTRFBYTES)->second, "0");
+    ASSERT_EQ(xattr.xattrinfos().find(XATTR_DIR_FILES)->second, "0");
+    ASSERT_EQ(xattr.xattrinfos().find(XATTR_DIR_SUBDIRS)->second, "0");
+    ASSERT_EQ(xattr.xattrinfos().find(XATTR_DIR_ENTRIES)->second, "0");
+    ASSERT_EQ(xattr.xattrinfos().find(XATTR_DIR_FBYTES)->second, "0");
 }
 
 }  // namespace metaserver

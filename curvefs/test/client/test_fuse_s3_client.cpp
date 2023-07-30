@@ -1185,7 +1185,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir) {
     attr.set_length(100);
     attr.set_type(FsFileType::TYPE_DIRECTORY);
     attrs.emplace_back(attr);
-    attr.set_inodeid(inodeId2);
+attr.set_inodeid(inodeId2);
     attr.set_length(200);
     attr.set_type(FsFileType::TYPE_FILE);
     attrs.emplace_back(attr);
@@ -1201,10 +1201,10 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir) {
     inode.set_inodeid(ino);
     inode.set_length(4096);
     inode.set_type(FsFileType::TYPE_DIRECTORY);
-    inode.mutable_xattr()->insert({XATTRFILES, "0"});
-    inode.mutable_xattr()->insert({XATTRSUBDIRS, "0"});
-    inode.mutable_xattr()->insert({XATTRENTRIES, "0"});
-    inode.mutable_xattr()->insert({XATTRFBYTES, "0"});
+    inode.mutable_xattr()->insert({XATTR_DIR_FILES, "0"});
+    inode.mutable_xattr()->insert({XATTR_DIR_SUBDIRS, "0"});
+    inode.mutable_xattr()->insert({XATTR_DIR_ENTRIES, "0"});
+    inode.mutable_xattr()->insert({XATTR_DIR_FBYTES, "0"});
 
     EXPECT_CALL(*inodeManager_, GetInodeAttr(ino, _))
         .WillOnce(
@@ -1274,10 +1274,10 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir_Failed) {
 
     InodeAttr inode;
     inode.set_inodeid(ino);
-    inode.mutable_xattr()->insert({XATTRFILES, "aaa"});
-    inode.mutable_xattr()->insert({XATTRSUBDIRS, "1"});
-    inode.mutable_xattr()->insert({XATTRENTRIES, "2"});
-    inode.mutable_xattr()->insert({XATTRFBYTES, "100"});
+    inode.mutable_xattr()->insert({XATTR_DIR_FILES, "aaa"});
+    inode.mutable_xattr()->insert({XATTR_DIR_SUBDIRS, "1"});
+    inode.mutable_xattr()->insert({XATTR_DIR_ENTRIES, "2"});
+    inode.mutable_xattr()->insert({XATTR_DIR_FBYTES, "100"});
 
     // get inode failed
     EXPECT_CALL(*inodeManager_, GetInodeAttr(ino, _))
@@ -1337,19 +1337,19 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir) {
     XAttr xattr;
     xattr.set_fsid(fsId);
     xattr.set_inodeid(ino);
-    xattr.mutable_xattrinfos()->insert({XATTRFILES, "2"});
-    xattr.mutable_xattrinfos()->insert({XATTRSUBDIRS, "2"});
-    xattr.mutable_xattrinfos()->insert({XATTRENTRIES, "4"});
-    xattr.mutable_xattrinfos()->insert({XATTRFBYTES, "200"});
+    xattr.mutable_xattrinfos()->insert({XATTR_DIR_FILES, "2"});
+    xattr.mutable_xattrinfos()->insert({XATTR_DIR_SUBDIRS, "2"});
+    xattr.mutable_xattrinfos()->insert({XATTR_DIR_ENTRIES, "4"});
+    xattr.mutable_xattrinfos()->insert({XATTR_DIR_FBYTES, "200"});
     xattrs.emplace_back(xattr);
 
     InodeAttr inode;
     inode.set_inodeid(ino);
     inode.set_nlink(3);
-    inode.mutable_xattr()->insert({XATTRFILES, "1"});
-    inode.mutable_xattr()->insert({XATTRSUBDIRS, "1"});
-    inode.mutable_xattr()->insert({XATTRENTRIES, "2"});
-    inode.mutable_xattr()->insert({XATTRFBYTES, "100"});
+    inode.mutable_xattr()->insert({XATTR_DIR_FILES, "1"});
+    inode.mutable_xattr()->insert({XATTR_DIR_SUBDIRS, "1"});
+    inode.mutable_xattr()->insert({XATTR_DIR_ENTRIES, "2"});
+    inode.mutable_xattr()->insert({XATTR_DIR_FBYTES, "100"});
 
     InodeAttr attr = inode;
     attr.set_nlink(2);
@@ -1407,10 +1407,10 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir_Failed) {
     XAttr xattr;
     xattr.set_fsid(fsId);
     xattr.set_inodeid(inodeId);
-    xattr.mutable_xattrinfos()->insert({XATTRFILES, "2"});
-    xattr.mutable_xattrinfos()->insert({XATTRSUBDIRS, "2"});
-    xattr.mutable_xattrinfos()->insert({XATTRENTRIES, "4"});
-    xattr.mutable_xattrinfos()->insert({XATTRFBYTES, "200"});
+    xattr.mutable_xattrinfos()->insert({XATTR_DIR_FILES, "2"});
+    xattr.mutable_xattrinfos()->insert({XATTR_DIR_SUBDIRS, "2"});
+    xattr.mutable_xattrinfos()->insert({XATTR_DIR_ENTRIES, "4"});
+    xattr.mutable_xattrinfos()->insert({XATTR_DIR_FBYTES, "200"});
     xattrs.emplace_back(xattr);
 
     InodeAttr inode;
@@ -1418,10 +1418,10 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir_Failed) {
     inode.set_nlink(3);
     inode.set_length(4096);
     inode.set_type(FsFileType::TYPE_DIRECTORY);
-    inode.mutable_xattr()->insert({XATTRFILES, "1"});
-    inode.mutable_xattr()->insert({XATTRSUBDIRS, "1"});
-    inode.mutable_xattr()->insert({XATTRENTRIES, "2"});
-    inode.mutable_xattr()->insert({XATTRFBYTES, "aaa"});
+    inode.mutable_xattr()->insert({XATTR_DIR_FILES, "1"});
+    inode.mutable_xattr()->insert({XATTR_DIR_SUBDIRS, "1"});
+    inode.mutable_xattr()->insert({XATTR_DIR_ENTRIES, "2"});
+    inode.mutable_xattr()->insert({XATTR_DIR_FBYTES, "aaa"});
 
     // get inode failed
     EXPECT_CALL(*inodeManager_, GetInodeAttr(ino, _))
@@ -1435,7 +1435,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir_Failed) {
                         Return(CURVEFS_ERROR::OK)));
     ret = client_->FuseOpGetXattr(req, ino, name, &value, size);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
-    inode.mutable_xattr()->find(XATTRFBYTES)->second = "100";
+    inode.mutable_xattr()->find(XATTR_DIR_FBYTES)->second = "100";
 
     // list dentry failed
     EXPECT_CALL(*inodeManager_, GetInodeAttr(ino, _))
@@ -1462,8 +1462,8 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir_Failed) {
     ret = client_->FuseOpGetXattr(req, ino, rname, &value, size);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 
-    // AddUllStringToFirst  XATTRFILES failed
-    inode.mutable_xattr()->find(XATTRFILES)->second = "aaa";
+    // AddUllStringToFirst  XATTR_DIR_FILES failed
+    inode.mutable_xattr()->find(XATTR_DIR_FILES)->second = "aaa";
     EXPECT_CALL(*inodeManager_, GetInodeAttr(_, _))
         .Times(AtLeast(2))
         .WillRepeatedly(
@@ -1479,9 +1479,9 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir_Failed) {
     ret = client_->FuseOpGetXattr(req, ino, rname, &value, size);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 
-    // AddUllStringToFirst  XATTRSUBDIRS failed
-    inode.mutable_xattr()->find(XATTRFILES)->second = "0";
-    inode.mutable_xattr()->find(XATTRSUBDIRS)->second = "aaa";
+    // AddUllStringToFirst  XATTR_DIR_SUBDIRS failed
+    inode.mutable_xattr()->find(XATTR_DIR_FILES)->second = "0";
+    inode.mutable_xattr()->find(XATTR_DIR_SUBDIRS)->second = "aaa";
     EXPECT_CALL(*inodeManager_, GetInodeAttr(_, _))
         .Times(AtLeast(2))
         .WillRepeatedly(
@@ -1497,9 +1497,9 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir_Failed) {
     ret = client_->FuseOpGetXattr(req, ino, rname, &value, size);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 
-    // AddUllStringToFirst  XATTRENTRIES failed
-    inode.mutable_xattr()->find(XATTRSUBDIRS)->second = "0";
-    inode.mutable_xattr()->find(XATTRENTRIES)->second = "aaa";
+    // AddUllStringToFirst  XATTR_DIR_ENTRIES failed
+    inode.mutable_xattr()->find(XATTR_DIR_SUBDIRS)->second = "0";
+    inode.mutable_xattr()->find(XATTR_DIR_ENTRIES)->second = "aaa";
     EXPECT_CALL(*inodeManager_, GetInodeAttr(_, _))
         .Times(AtLeast(2))
         .WillRepeatedly(
@@ -1550,10 +1550,10 @@ TEST_F(TestFuseS3Client, FuseOpCreate_EnableSummary) {
     parentInode.set_inodeid(parent);
     parentInode.set_type(FsFileType::TYPE_DIRECTORY);
     parentInode.set_nlink(2);
-    parentInode.mutable_xattr()->insert({XATTRFILES, "1"});
-    parentInode.mutable_xattr()->insert({XATTRSUBDIRS, "1"});
-    parentInode.mutable_xattr()->insert({XATTRENTRIES, "2"});
-    parentInode.mutable_xattr()->insert({XATTRFBYTES, "100"});
+    parentInode.mutable_xattr()->insert({XATTR_DIR_FILES, "1"});
+    parentInode.mutable_xattr()->insert({XATTR_DIR_SUBDIRS, "1"});
+    parentInode.mutable_xattr()->insert({XATTR_DIR_ENTRIES, "2"});
+    parentInode.mutable_xattr()->insert({XATTR_DIR_FBYTES, "100"});
 
     auto parentInodeWrapper = std::make_shared<InodeWrapper>(
         parentInode, metaClient_);
@@ -1577,10 +1577,10 @@ TEST_F(TestFuseS3Client, FuseOpCreate_EnableSummary) {
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 
     auto p = parentInodeWrapper->GetInodeLocked();
-    ASSERT_EQ(p->xattr().find(XATTRFILES)->second, "2");
-    ASSERT_EQ(p->xattr().find(XATTRSUBDIRS)->second, "1");
-    ASSERT_EQ(p->xattr().find(XATTRENTRIES)->second, "3");
-    ASSERT_EQ(p->xattr().find(XATTRFBYTES)->second, "4196");
+    ASSERT_EQ(p->xattr().find(XATTR_DIR_FILES)->second, "2");
+    ASSERT_EQ(p->xattr().find(XATTR_DIR_SUBDIRS)->second, "1");
+    ASSERT_EQ(p->xattr().find(XATTR_DIR_ENTRIES)->second, "3");
+    ASSERT_EQ(p->xattr().find(XATTR_DIR_FBYTES)->second, "4196");
 }
 
 TEST_F(TestFuseS3Client, FuseOpWrite_EnableSummary) {
@@ -1606,10 +1606,10 @@ TEST_F(TestFuseS3Client, FuseOpWrite_EnableSummary) {
     parentInode.set_inodeid(0);
     parentInode.set_type(FsFileType::TYPE_DIRECTORY);
     parentInode.set_nlink(2);
-    parentInode.mutable_xattr()->insert({XATTRFILES, "1"});
-    parentInode.mutable_xattr()->insert({XATTRSUBDIRS, "0"});
-    parentInode.mutable_xattr()->insert({XATTRENTRIES, "1"});
-    parentInode.mutable_xattr()->insert({XATTRFBYTES, "0"});
+    parentInode.mutable_xattr()->insert({XATTR_DIR_FILES, "1"});
+    parentInode.mutable_xattr()->insert({XATTR_DIR_SUBDIRS, "0"});
+    parentInode.mutable_xattr()->insert({XATTR_DIR_ENTRIES, "1"});
+    parentInode.mutable_xattr()->insert({XATTR_DIR_FBYTES, "0"});
 
     auto parentInodeWrapper = std::make_shared<InodeWrapper>(
         parentInode, metaClient_);
@@ -1632,10 +1632,10 @@ TEST_F(TestFuseS3Client, FuseOpWrite_EnableSummary) {
     ASSERT_EQ(size, fileOut.nwritten);
 
     auto p = parentInodeWrapper->GetInodeLocked();
-    ASSERT_EQ(p->xattr().find(XATTRFILES)->second, "1");
-    ASSERT_EQ(p->xattr().find(XATTRSUBDIRS)->second, "0");
-    ASSERT_EQ(p->xattr().find(XATTRENTRIES)->second, "1");
-    ASSERT_EQ(p->xattr().find(XATTRFBYTES)->second, std::to_string(size));
+    ASSERT_EQ(p->xattr().find(XATTR_DIR_FILES)->second, "1");
+    ASSERT_EQ(p->xattr().find(XATTR_DIR_SUBDIRS)->second, "0");
+    ASSERT_EQ(p->xattr().find(XATTR_DIR_ENTRIES)->second, "1");
+    ASSERT_EQ(p->xattr().find(XATTR_DIR_FBYTES)->second, std::to_string(size));
 }
 
 TEST_F(TestFuseS3Client, FuseOpLink_EnableSummary) {
@@ -1656,10 +1656,10 @@ TEST_F(TestFuseS3Client, FuseOpLink_EnableSummary) {
     Inode pinode;
     pinode.set_inodeid(0);
     pinode.set_length(0);
-    pinode.mutable_xattr()->insert({XATTRFILES, "0"});
-    pinode.mutable_xattr()->insert({XATTRSUBDIRS, "0"});
-    pinode.mutable_xattr()->insert({XATTRENTRIES, "0"});
-    pinode.mutable_xattr()->insert({XATTRFBYTES, "0"});
+    pinode.mutable_xattr()->insert({XATTR_DIR_FILES, "0"});
+    pinode.mutable_xattr()->insert({XATTR_DIR_SUBDIRS, "0"});
+    pinode.mutable_xattr()->insert({XATTR_DIR_ENTRIES, "0"});
+    pinode.mutable_xattr()->insert({XATTR_DIR_FBYTES, "0"});
     auto pinodeWrapper = std::make_shared<InodeWrapper>(pinode, metaClient_);
 
     EXPECT_CALL(*inodeManager_, GetInode(_, _))
@@ -1678,10 +1678,10 @@ TEST_F(TestFuseS3Client, FuseOpLink_EnableSummary) {
                                             &entryOut);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     auto p = pinodeWrapper->GetInode();
-    ASSERT_EQ(p.xattr().find(XATTRFILES)->second, "1");
-    ASSERT_EQ(p.xattr().find(XATTRSUBDIRS)->second, "0");
-    ASSERT_EQ(p.xattr().find(XATTRENTRIES)->second, "1");
-    ASSERT_EQ(p.xattr().find(XATTRFBYTES)->second, "100");
+    ASSERT_EQ(p.xattr().find(XATTR_DIR_FILES)->second, "1");
+    ASSERT_EQ(p.xattr().find(XATTR_DIR_SUBDIRS)->second, "0");
+    ASSERT_EQ(p.xattr().find(XATTR_DIR_ENTRIES)->second, "1");
+    ASSERT_EQ(p.xattr().find(XATTR_DIR_FBYTES)->second, "100");
 }
 
 TEST_F(TestFuseS3Client, FuseOpUnlink_EnableSummary) {
@@ -1721,10 +1721,10 @@ TEST_F(TestFuseS3Client, FuseOpUnlink_EnableSummary) {
     parentInode.set_inodeid(parent);
     parentInode.set_type(FsFileType::TYPE_DIRECTORY);
     parentInode.set_nlink(3);
-    parentInode.mutable_xattr()->insert({XATTRFILES, "1"});
-    parentInode.mutable_xattr()->insert({XATTRSUBDIRS, "1"});
-    parentInode.mutable_xattr()->insert({XATTRENTRIES, "2"});
-    parentInode.mutable_xattr()->insert({XATTRFBYTES, "4196"});
+    parentInode.mutable_xattr()->insert({XATTR_DIR_FILES, "1"});
+    parentInode.mutable_xattr()->insert({XATTR_DIR_SUBDIRS, "1"});
+    parentInode.mutable_xattr()->insert({XATTR_DIR_ENTRIES, "2"});
+    parentInode.mutable_xattr()->insert({XATTR_DIR_FBYTES, "4196"});
 
     InodeAttr attr;
     attr.set_fsid(fsId);
@@ -1758,10 +1758,10 @@ TEST_F(TestFuseS3Client, FuseOpUnlink_EnableSummary) {
 
     auto p = parentInodeWrapper->GetInode();
     ASSERT_EQ(3, p.nlink());
-    ASSERT_EQ(p.xattr().find(XATTRFILES)->second, "0");
-    ASSERT_EQ(p.xattr().find(XATTRSUBDIRS)->second, "1");
-    ASSERT_EQ(p.xattr().find(XATTRENTRIES)->second, "1");
-    ASSERT_EQ(p.xattr().find(XATTRFBYTES)->second, "100");
+    ASSERT_EQ(p.xattr().find(XATTR_DIR_FILES)->second, "0");
+    ASSERT_EQ(p.xattr().find(XATTR_DIR_SUBDIRS)->second, "1");
+    ASSERT_EQ(p.xattr().find(XATTR_DIR_ENTRIES)->second, "1");
+    ASSERT_EQ(p.xattr().find(XATTR_DIR_FBYTES)->second, "100");
 }
 
 TEST_F(TestFuseS3Client, FuseOpOpen_Trunc_EnableSummary) {
@@ -1789,10 +1789,10 @@ TEST_F(TestFuseS3Client, FuseOpOpen_Trunc_EnableSummary) {
     parentInode.set_inodeid(0);
     parentInode.set_type(FsFileType::TYPE_DIRECTORY);
     parentInode.set_nlink(3);
-    parentInode.mutable_xattr()->insert({XATTRFILES, "1"});
-    parentInode.mutable_xattr()->insert({XATTRSUBDIRS, "1"});
-    parentInode.mutable_xattr()->insert({XATTRENTRIES, "2"});
-    parentInode.mutable_xattr()->insert({XATTRFBYTES, "4196"});
+    parentInode.mutable_xattr()->insert({XATTR_DIR_FILES, "1"});
+    parentInode.mutable_xattr()->insert({XATTR_DIR_SUBDIRS, "1"});
+    parentInode.mutable_xattr()->insert({XATTR_DIR_ENTRIES, "2"});
+    parentInode.mutable_xattr()->insert({XATTR_DIR_FBYTES, "4196"});
 
     auto parentInodeWrapper = std::make_shared<InodeWrapper>(
         parentInode, metaClient_);
@@ -1827,11 +1827,11 @@ TEST_F(TestFuseS3Client, FuseOpOpen_Trunc_EnableSummary) {
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 
     auto p = parentInodeWrapper->GetInode();
-    ASSERT_EQ(p.xattr().find(XATTRFILES)->second, "1");
-    ASSERT_EQ(p.xattr().find(XATTRSUBDIRS)->second, "1");
-    ASSERT_EQ(p.xattr().find(XATTRENTRIES)->second, "2");
+    ASSERT_EQ(p.xattr().find(XATTR_DIR_FILES)->second, "1");
+    ASSERT_EQ(p.xattr().find(XATTR_DIR_SUBDIRS)->second, "1");
+    ASSERT_EQ(p.xattr().find(XATTR_DIR_ENTRIES)->second, "2");
     // FIXME: (Wine93)
-    // ASSERT_EQ(p.xattr().find(XATTRFBYTES)->second, "100");
+    // ASSERT_EQ(p.xattr().find(XATTR_DIR_FBYTES)->second, "100");
 }
 
 TEST_F(TestFuseS3Client, FuseOpListXattr) {
@@ -1875,9 +1875,11 @@ TEST_F(TestFuseS3Client, FuseOpListXattr) {
     ret = client_->FuseOpListXattr(
         req, ino, buf, size, &realSize);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
-    auto expected = key.length() + 1 + strlen(XATTRRFILES) + 1 +
-                    strlen(XATTRRSUBDIRS) + 1 + strlen(XATTRRENTRIES) + 1 +
-                    strlen(XATTRRFBYTES) + 1;
+    auto expected = key.length() + 1
+        + strlen(XATTR_DIR_RFILES) + 1
+        + strlen(XATTR_DIR_RSUBDIRS) + 1
+        + strlen(XATTR_DIR_RENTRIES) + 1
+        + strlen(XATTR_DIR_RFBYTES) + 1;
     ASSERT_EQ(realSize, expected);
 
     realSize = 0;

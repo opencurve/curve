@@ -197,7 +197,7 @@ class FileSystemBuilder {
         };
 
         option.cto = true;
-        option.disableXattr = true;
+        option.disableXAttr = true;
         option.maxNameLength = 255;
         option.blockSize = 0x10000u;
         option.kernelCacheOption = kernelCacheOption;
