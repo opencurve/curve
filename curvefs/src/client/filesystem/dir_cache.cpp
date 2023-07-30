@@ -33,7 +33,7 @@ DirEntryList::DirEntryList()
     : rwlock_(),
       mtime_(),
       entries_(),
-      attrs_() {}
+      index_() {}
 
 size_t DirEntryList::Size() {
     ReadLockGuard lk(rwlock_);
@@ -43,39 +43,41 @@ size_t DirEntryList::Size() {
 void DirEntryList::Add(const DirEntry& dirEntry) {
     WriteLockGuard lk(rwlock_);
     entries_.push_back(std::move(dirEntry));
-    attrs_[dirEntry.ino] = &entries_.back();
+    index_[dirEntry.ino] = entries_.size() - 1;
 }
 
 bool DirEntryList::Get(Ino ino, DirEntry* dirEntry) {
     ReadLockGuard lk(rwlock_);
-    auto iter = attrs_.find(ino);
-    if (iter == attrs_.end()) {
+    auto iter = index_.find(ino);
+    if (iter == index_.end()) {
         return false;
     }
-    *dirEntry = *iter->second;
+
+    *dirEntry = entries_[iter->second];
     return true;
 }
 
 bool DirEntryList::UpdateAttr(Ino ino, const InodeAttr& attr) {
     WriteLockGuard lk(rwlock_);
-    auto iter = attrs_.find(ino);
-    if (iter == attrs_.end()) {
+    auto iter = index_.find(ino);
+    if (iter == index_.end()) {
         return false;
     }
 
-    DirEntry* dirEntry = iter->second;
+    DirEntry* dirEntry = &entries_[iter->second];
     dirEntry->attr = std::move(attr);
     return true;
 }
 
 bool DirEntryList::UpdateLength(Ino ino, const InodeAttr& open) {
     WriteLockGuard lk(rwlock_);
-    auto iter = attrs_.find(ino);
-    if (iter == attrs_.end()) {
+    auto iter = index_.find(ino);
+    if (iter == index_.end()) {
         return false;
     }
 
-    InodeAttr* attr = &iter->second->attr;
+    DirEntry* dirEntry = &entries_[iter->second];
+    InodeAttr* attr = &(dirEntry->attr);
     attr->set_length(open.length());
     attr->set_mtime(open.mtime());
     attr->set_mtime_ns(open.mtime_ns());
@@ -96,7 +98,7 @@ void DirEntryList::Iterate(IterateHandler handler) {
 void DirEntryList::Clear() {
     WriteLockGuard lk(rwlock_);
     entries_.clear();
-    attrs_.clear();
+    index_.clear();
 }
 
 void DirEntryList::SetMtime(TimeSpec mtime) {
@@ -118,6 +120,7 @@ DirCache::DirCache(DirCacheOption option)
     mq_->Subscribe([&](const std::shared_ptr<DirEntryList>& entries){
         entries->Clear();
     });
+    metric_ = std::make_shared<DirCacheMetric>();
 
     LOG(INFO) << "Using directory lru cache, capacity = " << option_.lruSize;
 }
@@ -135,14 +138,16 @@ void DirCache::Stop() {
 void DirCache::Delete(Ino parent,
                       std::shared_ptr<DirEntryList> entries,
                       bool evit) {
-    nentries_ -= entries->Size();
+    size_t ndelete = entries->Size();
+    nentries_ -=  ndelete;
+    metric_->AddEntries(-static_cast<int64_t>(ndelete));
     mq_->Publish(entries);  // clear entries in background
     lru_->Remove(parent);
 
     VLOG(1) << "Delete directory cache (evit=" << evit << "): "
             << "parent = " << parent
             << ", mtime = " << entries->GetMtime()
-            << ", size = " << entries->Size()
+            << ", delete size = " << ndelete
             << ", nentries = " << nentries_;
 }
 
@@ -160,13 +165,19 @@ void DirCache::Evit(size_t size) {
 
 void DirCache::Put(Ino parent, std::shared_ptr<DirEntryList> entries) {
     WriteLockGuard lk(rwlock_);
+    if (entries->Size() == 0) {  // TODO(Wine93): cache it!
+        return;
+    }
+
     Evit(entries->Size());  // it guarantee put entries success
     lru_->Put(parent, entries);
-    nentries_ += entries->Size();
+    int64_t ninsert = entries->Size();
+    nentries_ += ninsert;
+    metric_->AddEntries(static_cast<int64_t>(ninsert));
 
     VLOG(1) << "Insert directory cache: parent = " << parent
             << ", mtime = " << entries->GetMtime()
-            << ", size = " << entries->Size()
+            << ", insert size = " << ninsert
             << ", nentries = " << nentries_;
 }
 
