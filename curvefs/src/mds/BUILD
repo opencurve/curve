@@ -68,6 +68,7 @@ cc_library(
         "//curvefs/src/mds/schedule/scheduleService:curvefs_schedule_service",
         "//curvefs/src/mds/space:curvefs_mds_space",
         "//curvefs/src/mds/topology:curvefs_topology",
+        "//curvefs/src/client:filesystem_xattr",
         "//external:brpc",
         "//external:gflags",
         "//external:glog",

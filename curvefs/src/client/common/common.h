@@ -64,12 +64,6 @@ enum class MetaServerOpType {
 
 std::ostream &operator<<(std::ostream &os, MetaServerOpType optype);
 
-const uint32_t MAX_XATTR_NAME_LENGTH = 255;
-const uint32_t MAX_XATTR_VALUE_LENGTH = 64 * 1024;
-
-const char kCurveFsWarmupXAttr[] = "curvefs.warmup.op";
-
-
 constexpr int kWarmupOpNum = 4;
 
 enum class WarmupOpType {
