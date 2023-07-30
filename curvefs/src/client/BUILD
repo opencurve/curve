@@ -33,6 +33,16 @@ cc_binary(
 )
 
 cc_library(
+    name = "filesystem_xattr",
+    hdrs = ["filesystem/xattr.h"],
+    copts = CURVE_DEFAULT_COPTS,
+    visibility = ["//visibility:public"],
+    deps = [
+        "//external:bvar",
+    ],
+)
+
+cc_library(
     name = "fuse_client_lib",
     srcs = glob(
         [
@@ -64,6 +74,7 @@ cc_library(
         "//curvefs/src/common:curvefs_common",
         "//curvefs/src/client/lease:curvefs_lease",
         "//curvefs/src/client/kvclient:memcached_client_lib",
+        ":filesystem_xattr",
         "//external:brpc",
         "//external:gflags",
         "//external:glog",
@@ -80,6 +91,7 @@ cc_library(
         "@com_google_absl//absl/strings:str_format",
         "@com_google_absl//absl/meta:type_traits",
         "@com_google_absl//absl/types:optional",
+        "@com_google_absl//absl/container:btree",
         "@com_google_googletest//:gtest_prod",
         "@spdlog//:spdlog",
     ],

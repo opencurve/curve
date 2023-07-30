@@ -28,6 +28,7 @@
 
 #include <stddef.h>
 #include <fuse3/fuse_lowlevel.h>
+#include <fuse3/fuse.h>
 
 #ifdef __cplusplus
 extern "C" {

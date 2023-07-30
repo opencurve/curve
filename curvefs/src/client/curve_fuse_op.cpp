@@ -45,6 +45,8 @@
 #include "curvefs/src/client/warmup/warmup_manager.h"
 #include "curvefs/src/client/filesystem/meta.h"
 #include "curvefs/src/client/filesystem/access_log.h"
+#include "curvefs/src/client/filesystem/metric.h"
+#include "curvefs/src/client/filesystem/xattr.h"
 
 using ::curve::common::Configuration;
 using ::curvefs::client::CURVEFS_ERROR;
@@ -67,6 +69,7 @@ using ::curvefs::client::filesystem::Logger;
 using ::curvefs::client::filesystem::StrEntry;
 using ::curvefs::client::filesystem::StrAttr;
 using ::curvefs::client::filesystem::StrMode;
+using ::curvefs::client::filesystem::IsWarmupXAttr;
 
 using ::curvefs::common::FLAGS_vlog_level;
 
@@ -310,12 +313,6 @@ struct CodeGuard {
 
 FuseClient* Client() {
     return g_ClientInstance;
-}
-
-const char* warmupXAttr = ::curvefs::client::common::kCurveFsWarmupXAttr;
-
-bool IsWamupReq(const char* name) {
-    return strcmp(name, warmupXAttr) == 0;
 }
 
 void TriggerWarmup(fuse_req_t req,
@@ -803,7 +800,8 @@ void FuseOpSetXattr(fuse_req_t req,
                          ino, name, size, flags, StrErr(rc));
     });
 
-    if (IsWamupReq(name)) {
+    // FIXME(Wine93): please handle it in FuseClient.
+    if (IsWarmupXAttr(name)) {
         return TriggerWarmup(req, ino, name, value, size);
     }
     rc = client->FuseOpSetXattr(req, ino, name, value, size, flags);
@@ -824,7 +822,8 @@ void FuseOpGetXattr(fuse_req_t req,
                          ino, name, size, StrErr(rc), value.size());
     });
 
-    if (IsWamupReq(name)) {
+    // FIXME(Wine93): please handle it in FuseClient.
+    if (IsWarmupXAttr(name)) {
         return QueryWarmup(req, ino, size);
     }
 

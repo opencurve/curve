@@ -51,6 +51,7 @@ cc_library(
         "//curvefs/proto:mds_cc_proto",
         "//curvefs/src/common:curvefs_common",
         "//curvefs/src/metaserver/common:fs_metaserver_common",
+        "//curvefs/src/client:filesystem_xattr",
         "//external:braft",
         "//src/common:curve_common",
         "//src/fs:lfs",

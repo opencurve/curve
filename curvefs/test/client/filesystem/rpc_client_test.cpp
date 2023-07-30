@@ -106,14 +106,34 @@ TEST_F(RPCClientTest, ReadDir_Basic) {
 
     // CASE 1: ok
     {
-        EXPECT_CALL_RETURN_ListDentry(*builder.GetDentryManager(),
-                                      CURVEFS_ERROR::OK);
-        EXPECT_CALL_RETURN_BatchGetInodeAttrAsync(*builder.GetInodeManager(),
-                                                  CURVEFS_ERROR::OK);
+        EXPECT_CALL_INVOKE_ListDentry(*builder.GetDentryManager(),
+            [&](uint64_t parent,
+                std::list<Dentry>* dentries,
+                uint32_t limit,
+                bool only,
+                uint32_t nlink) -> CURVEFS_ERROR {
+                dentries->push_back(MkDentry(1, "test"));
+                return CURVEFS_ERROR::OK;
+            });
+        EXPECT_CALL_INVOKE_BatchGetInodeAttrAsync(*builder.GetInodeManager(),
+            [&](uint64_t parentId,
+                std::set<uint64_t>* inos,
+                std::map<uint64_t, InodeAttr>* attrs) -> CURVEFS_ERROR {
+                for (const auto& ino : *inos) {
+                    auto attr = MkAttr(ino, AttrOption().mtime(123, ino));
+                    attrs->emplace(ino, attr);
+                }
+                return CURVEFS_ERROR::OK;
+            });
 
+        DirEntry dirEntry;
         auto entries = std::make_shared<DirEntryList>();
         auto rc = rpc->ReadDir(100, &entries);
         ASSERT_EQ(rc, CURVEFS_ERROR::OK);
+        ASSERT_EQ(entries->Size(), 1);
+        ASSERT_TRUE(entries->Get(1, &dirEntry));
+        ASSERT_EQ(dirEntry.ino, 1);
+        ASSERT_EQ(dirEntry.name, "test");
     }
 
     // CASE 2: inode not exist

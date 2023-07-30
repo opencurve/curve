@@ -1204,10 +1204,10 @@ TEST_F(MetaServerClientImplTest, test_BatchGetXAttr) {
     curvefs::metaserver::XAttr out;
     out.set_fsid(fsid);
     out.set_inodeid(inodeId1);
-    out.mutable_xattrinfos()->insert({XATTRFILES, "1"});
-    out.mutable_xattrinfos()->insert({XATTRSUBDIRS, "1"});
-    out.mutable_xattrinfos()->insert({XATTRENTRIES, "2"});
-    out.mutable_xattrinfos()->insert({XATTRFBYTES, "100"});
+    out.mutable_xattrinfos()->insert({XATTR_DIR_FILES, "1"});
+    out.mutable_xattrinfos()->insert({XATTR_DIR_SUBDIRS, "1"});
+    out.mutable_xattrinfos()->insert({XATTR_DIR_ENTRIES, "2"});
+    out.mutable_xattrinfos()->insert({XATTR_DIR_FBYTES, "100"});
     curvefs::metaserver::XAttr out1 = out;
     out1.set_inodeid(inodeId2);
     xattr.emplace_back(out);
