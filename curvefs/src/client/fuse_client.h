@@ -34,6 +34,7 @@
 #include <utility>
 #include <vector>
 #include <atomic>
+#include <regex>
 
 #include "curvefs/proto/common.pb.h"
 #include "curvefs/proto/mds.pb.h"
@@ -60,6 +61,7 @@
 #include "curvefs/src/client/filesystem/filesystem.h"
 
 #define DirectIOAlignment 512
+#define FILE_NAME_PREFIX_REG "/"
 
 using ::curve::common::Atomic;
 using ::curve::common::InterruptibleSleeper;
@@ -300,6 +302,20 @@ class FuseClient {
 
     virtual void FlushAll();
 
+    void LoadFilterPrefix(std::string filterListString) {
+        if (filterListString.empty()) {
+            return;
+        }
+        std::regex fileNamePrefixReg(FILE_NAME_PREFIX_REG);
+        std::vector<std::string> tempList(
+            std::sregex_token_iterator(filterListString.begin(),
+                                       filterListString.end(),
+                                       fileNamePrefixReg,
+                                       -1),
+            std::sregex_token_iterator());
+        filterList_.swap(tempList);
+    }
+
     // for unit test
     void SetEnableSumInDir(bool enable) {
         enableSumInDir_ = enable;
@@ -456,6 +472,12 @@ class FuseClient {
     Throttle throttle_;
 
     bthread_timer_t throttleTimer_;
+
+    // type: none(0), whitelist(>0), blacklist(<0)
+    int32_t filterType_;
+
+    // filter prefix
+    std::vector<std::string> filterList_;
 };
 
 }  // namespace client

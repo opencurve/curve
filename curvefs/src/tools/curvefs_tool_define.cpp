@@ -82,6 +82,9 @@ DEFINE_string(user, "anonymous", "user of request");
 DEFINE_string(inodeId, "1,2,3", "inodes id");
 
 DEFINE_uint32(recycleTimeHour, 1, "recycle time hour");
+DEFINE_uint32(filterType, 0, "filter type");
+DEFINE_string(filterList, "", "filter list");
+
 
 // list-topology
 DEFINE_string(jsonPath, "/tmp/topology.json", "output json path");
@@ -275,6 +278,19 @@ std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
     SetRecycleTimeHour = std::bind(
         &SetFlagInfo<uint32_t>, std::placeholders::_1, std::placeholders::_2,
         "recycleTimeHour", &FLAGS_recycleTimeHour);
+
+std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
+    SetFilterType = std::bind(
+        &SetFlagInfo<uint32_t>, std::placeholders::_1, std::placeholders::_2,
+        "filterType", &FLAGS_filterType);
+
+std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
+    SetFilterList = std::bind(&SetDiffFlagInfo<fLS::clstring>,
+                             std::placeholders::_1,
+                             std::placeholders::_2,
+                             "filterList",
+                             "filterList",
+                             &FLAGS_filterList);
 
 /* check flag */
 std::function<bool(google::CommandLineFlagInfo*)> CheckMetaserverIdDefault =

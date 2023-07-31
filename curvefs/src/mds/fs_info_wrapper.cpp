@@ -57,7 +57,16 @@ FsInfoWrapper::FsInfoWrapper(const ::curvefs::mds::CreateFsRequest* request,
     } else {
         fsInfo.set_recycletimehour(1);
     }
-
+    // add whitelist or blacklist into recycle bin
+    if (request->has_filtertype()) {
+        fsInfo.set_filtertype(request->filtertype());
+        fsInfo.set_filterlist("");
+        if (request->has_filterlist() && !request->filterlist().empty()) {
+            fsInfo.set_filterlist(request->filterlist());
+        }
+    } else {
+        fsInfo.set_filtertype(0);
+    }
     const auto& detail = request->fsdetail();
     fsInfo.set_allocated_detail(new FsDetail(detail));
 

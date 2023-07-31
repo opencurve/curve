@@ -815,8 +815,26 @@ CURVEFS_ERROR FuseClient::RemoveNode(fuse_req_t req, fuse_ino_t parent,
         }
     }
 
+    // whether turn on the recycle bin
+    bool shouldMoveToRecycle = ShouldMoveToRecycle(parent);
+
+    // when filter type not equals 0
+    // judge whether to use whitelist or blacklist
+    if (shouldMoveToRecycle && filterType_ != 0) {
+        shouldMoveToRecycle = (filterType_ < 0);
+        // if opened filter list and filter list is empty
+        // all whitelist file shouldn't move to recycle bin
+        // all blacklist file should move to recycle bin
+        for (auto filterPrefix : filterList_) {
+            if (std::string(name).find(filterPrefix) == 0) {
+                shouldMoveToRecycle = (filterType_ > 0);
+                break;
+            }
+        }
+    }
+
     // check if inode should move to recycle
-    if (ShouldMoveToRecycle(parent)) {
+    if (shouldMoveToRecycle) {
         ret = MoveToRecycle(req, ino, parent, name, type);
         if (ret != CURVEFS_ERROR::OK) {
             LOG(ERROR) << "MoveToRecycle failed, ret = " << ret
@@ -1391,6 +1409,14 @@ FuseClient::SetMountStatus(const struct MountOption *mountOption) {
     if (fsInfo_->has_recycletimehour()) {
         enableSumInDir_.store(enableSumInDir_.load() &&
         (fsInfo_->recycletimehour() == 0));
+    }
+    if (fsInfo_->has_recycletimehour() && fsInfo_->has_filtertype()) {
+        filterType_ = fsInfo_->filtertype();
+        std::vector <std::string>().swap(filterList_);
+        if (filterType_ != 0 && fsInfo_->has_filterlist()) {
+            // load filter list prefix
+            LoadFilterPrefix(fsInfo_->filterlist());
+        }
     }
 
     LOG(INFO) << "Mount " << fsName << " on " << mountpoint_.ShortDebugString()
