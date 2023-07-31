@@ -146,7 +146,8 @@ int ChunkOpRequest::Encode(const ChunkRequest *request,
 
 std::shared_ptr<ChunkOpRequest> ChunkOpRequest::Decode(butil::IOBuf log,
                                                        ChunkRequest *request,
-                                                       butil::IOBuf *data) {
+                                                       butil::IOBuf *data,
+                                                       std::shared_ptr<CopysetNode> nodePtr) {
     uint32_t metaSize = 0;
     log.cutn(&metaSize, sizeof(uint32_t));
     metaSize = butil::NetToHost32(metaSize);
@@ -177,6 +178,8 @@ std::shared_ptr<ChunkOpRequest> ChunkOpRequest::Decode(butil::IOBuf log,
             return std::make_shared<PasteChunkInternalRequest>();
         case CHUNK_OP_TYPE::CHUNK_OP_CREATE_CLONE:
             return std::make_shared<CreateCloneChunkRequest>();
+        case CHUNK_OP_TYPE::CHUNK_OP_FLATTEN:
+            return std::make_shared<FlattenChunkRequest>(nodePtr);
         default:LOG(ERROR) << "Unknown chunk op";
             return nullptr;
     }
@@ -319,9 +322,9 @@ void ReadChunkRequest::OnApply(uint64_t index,
     if ((false == request_->has_cloneno()) || (request_->cloneno() == 0)) {
         errorCode = datastore_->GetChunkInfo(request_->chunkid(),
                                                         &chunkInfo);
-    } else {
-        chunkInfo.isClone = false; //need to set NeedClone() to false, use new protocol
     }
+    
+    chunkInfo.isClone = false; //need to set NeedClone() to false, use new protocol
 
     do {
         bool needLazyClone = false;
@@ -366,6 +369,9 @@ void ReadChunkRequest::OnApply(uint64_t index,
         }
         // 如果是ReadChunk请求还需要从本地读取数据
         if (request_->optype() == CHUNK_OP_TYPE::CHUNK_OP_READ) {
+            if ((false == request_->has_cloneno()) || (request_->cloneno() == 0)) {
+                assert(chunkInfo.bitmap == nullptr); //not clone chunk, the bitmap is to be nullptr
+            }
             ReadChunk();
         }
         // 如果是recover请求，说明请求区域已经被写过了，可以直接返回成功
@@ -1063,6 +1069,186 @@ void PasteChunkInternalRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> data
                    << " chunkid: " << request.chunkid()
                    << " offset: " << request.offset()
                    << " length: " << request.size();
+    }
+}
+
+FlattenChunkRequest::FlattenChunkRequest(std::shared_ptr<CopysetNode> nodePtr,
+                                        RpcController *cntl,
+                                        const ChunkRequest *request,
+                                        ChunkResponse *response,
+                                        ::google::protobuf::Closure *done) :
+    ChunkOpRequest(nodePtr, cntl, request, response, done), 
+    concurrentApplyModule_(nodePtr->GetConcurrentApplyModule()) {
+
+}
+FlattenChunkRequest::FlattenChunkRequest(std::shared_ptr<CopysetNode> nodePtr): 
+    ChunkOpRequest(nodePtr, nullptr, nullptr, nullptr, nullptr), 
+    concurrentApplyModule_(nodePtr->GetConcurrentApplyModule()) {
+
+}
+
+void FlattenChunkRequest::OnApply(uint64_t index,
+                                ::google::protobuf::Closure *done) {
+    CSErrorCode ret = CSErrorCode::Success;
+    brpc::ClosureGuard doneGuard(done);
+    uint32_t cost;
+
+    std::unique_ptr<struct CloneContext> ctx(new CloneContext());
+
+    ctx->cloneNo = request_->cloneno();
+    assert(ctx->cloneNo > 0);
+    ctx->rootId = request_->originchunkid();
+    ctx->virtualId = request_->virtualchunkid();
+    ctx->clones.reserve(CLONEINFOS_VECTOR_SIZE);
+    for (int i = 0; i < request_->clones_size(); i++) {
+        uint64_t tno = request_->clones(i).cloneno();
+        uint64_t tsn = request_->clones(i).clonesn();
+        struct CloneInfos cfo(tno, tsn);
+        ctx->clones.push_back(cfo);
+    }
+
+    string clonesinfo = "";
+    for (int i = 0; i < ctx->clones.size(); i++) {
+        clonesinfo += " clone no: " + std::to_string(ctx->clones[i].cloneNo)
+                    + " clone sn: " + std::to_string(ctx->clones[i].cloneNo);
+    }
+    LOG(INFO) << "flatten chunk with clone info: "
+                << " logic pool id: " << request_->logicpoolid()
+                << " copyset id: " << request_->copysetid()
+                << " chunkid: " << request_->chunkid()
+                << " sn: " << request_->sn()
+                << " offset: " << request_->offset()
+                << " data size: " << request_->size()
+                << " clone no: " << request_->cloneno()
+                << " root id: " << request_->originchunkid()
+                << " virtual id: " << request_->virtualchunkid()
+                << " clones info: " << clonesinfo;
+
+    ret = datastore_->FlattenChunk(request_->chunkid(), 
+                                request_->sn(), 
+                                request_->offset(), 
+                                request_->size(), 
+                                ctx);
+
+    if (CSErrorCode::Success == ret) {
+        response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
+        node_->UpdateAppliedIndex(index);
+
+        LOG(INFO) << "flatten success: "
+                  << " chunkid = " << request_->chunkid();
+#if 0
+    } else if (CSErrorCode::FlattenAgain == ret) { //not finish flatten yet just push the request into the concurrent apply module and do again
+        auto thisPtr = std::dynamic_pointer_cast<FlattenChunkRequest>(shared_from_this());
+        auto task = std::bind(&FlattenChunkRequest::OnApply, thisPtr, node_->GetAppliedIndex(), doneGuard.release());
+        concurrentApplyModule_->Push(request_->chunkid(), request_->optype(), task);
+
+        LOG(INFO) << "flatten again: "
+                  << " chunkid = " << request_->chunkid();
+
+        return;
+#endif
+    } else if (CSErrorCode::BackwardRequestError == ret) {
+        // 打快照那一刻是有可能出现旧版本的请求
+        // 返回错误给客户端，让客户端带新版本来重试
+        LOG(WARNING) << "flatten failed: "
+                     << " data store return: " << ret
+                     << ", request: " << request_->ShortDebugString();
+        response_->set_status(
+            CHUNK_OP_STATUS::CHUNK_OP_STATUS_BACKWARD);
+    } else if (CSErrorCode::InternalError == ret ||
+               CSErrorCode::CrcCheckError == ret ||
+               CSErrorCode::FileFormatError == ret) {
+        /**
+         * internalerror一般是磁盘错误,为了防止副本不一致,让进程退出
+         * TODO(yyk): 当前遇到write错误直接fatal退出整个
+         * ChunkServer后期考虑仅仅标坏这个copyset，保证较好的可用性
+        */
+        LOG(FATAL) << "flatten failed: "
+                   << " data store return: " << ret
+                   << ", request: " << request_->ShortDebugString();
+    } else {
+        LOG(ERROR) << "flatten failed: "
+                   << " data store return: " << ret
+                   << ", request: " << request_->ShortDebugString();
+        response_->set_status(
+            CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
+    }
+
+    auto maxIndex = (index > node_->GetAppliedIndex()
+                    ? index
+                    : node_->GetAppliedIndex());
+
+    response_->set_appliedindex(maxIndex);
+    node_->ShipToSync(request_->chunkid());
+}
+
+void FlattenChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
+                                       const ChunkRequest &request,
+                                       const butil::IOBuf &data) {
+    // NOTE: 处理过程中优先使用参数传入的datastore/request
+    uint32_t cost;
+    CSErrorCode ret = CSErrorCode::Success;
+    std::unique_ptr<struct CloneContext> ctx(new CloneContext());
+
+    ctx->cloneNo = request.cloneno();
+    assert(ctx->cloneNo > 0);
+    ctx->rootId = request.originchunkid();
+    ctx->virtualId = request.virtualchunkid();
+    ctx->clones.reserve(CLONEINFOS_VECTOR_SIZE);
+    for (int i = 0; i < request.clones_size(); i++) {
+        uint64_t tno = request.clones(i).cloneno();
+        uint64_t tsn = request.clones(i).clonesn();
+        struct CloneInfos cfo(tno, tsn);
+        ctx->clones.push_back(cfo);
+    }
+
+    string clonesinfo = "";
+    for (int i = 0; i < ctx->clones.size(); i++) {
+        clonesinfo += " clone no: " + std::to_string(ctx->clones[i].cloneNo)
+                    + " clone sn: " + std::to_string(ctx->clones[i].cloneSn);
+    }
+    LOG(INFO) << "flatten chunk with clone info: "
+                << " logic pool id: " << request.logicpoolid()
+                << " copyset id: " << request.copysetid()
+                << " chunkid: " << request.chunkid()
+                << " sn: " << request.sn()
+                << " offset: " << request.offset()
+                << " data size: " << request.size()
+                << " clone no: " << request.cloneno()
+                << " root id: " << request.originchunkid()
+                << " virtual id: " << request.virtualchunkid()
+                << " clones info: " << clonesinfo;
+    
+    ret = datastore->FlattenChunk(request.chunkid(), 
+                                request.sn(), 
+                                request.offset(), 
+                                request.size(), 
+                                ctx);
+
+    if (CSErrorCode::Success == ret) {
+         return;
+#if 0
+    } else if (CSErrorCode::FlattenAgain == ret) { //not finish flatten yet just push the request into the concurrent apply module and do again
+        auto thisPtr = std::dynamic_pointer_cast<FlattenChunkRequest>(shared_from_this());
+        auto task = std::bind(&FlattenChunkRequest::OnApplyFromLog, thisPtr, datastore, request, data);
+        concurrentApplyModule_->Push(request.chunkid(), request.optype(), task);
+
+        return;
+#endif
+    } else if (CSErrorCode::BackwardRequestError == ret) {
+        LOG(WARNING) << "flatten failed: "
+                     << " data store return: " << ret
+                     << ", request: " << request.ShortDebugString();
+    } else if (CSErrorCode::InternalError == ret ||
+               CSErrorCode::CrcCheckError == ret ||
+               CSErrorCode::FileFormatError == ret) {
+        LOG(FATAL) << "flatten failed: "
+                   << " data store return: " << ret
+                   << ", request: " << request.ShortDebugString();
+    } else {
+        LOG(ERROR) << "flatten failed: "
+                   << " data store return: " << ret
+                   << ", request: " << request.ShortDebugString();
     }
 }
 

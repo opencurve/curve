@@ -97,6 +97,11 @@ class ChunkServiceImpl : public ChunkService {
                     const UpdateEpochRequest *request,
                     UpdateEpochResponse *response,
                     Closure *done);
+    
+    void FlattenChunk(RpcController *controller,
+                      const ChunkRequest *request,
+                      ChunkResponse *response,
+                      Closure *done);
 
  private:
     /**

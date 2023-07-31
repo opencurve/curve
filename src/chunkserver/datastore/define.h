@@ -130,6 +130,8 @@ enum CSErrorCode {
     PageNerverWrittenError = 13,
     // Thrown when given snapshot is not found for a chunk.
     SnapshotNotExistError = 14,
+    //Flatten Again Flag
+    FlattenAgain = 15,
 };
 
 // Chunk details
