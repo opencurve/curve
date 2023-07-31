@@ -22,7 +22,9 @@
 package cobratemplate
 
 import (
+	"bytes"
 	"fmt"
+	"text/template"
 
 	"github.com/docker/cli/cli"
 	"github.com/docker/cli/cli/command"
@@ -91,6 +93,38 @@ Examples:
 Run '{{.CommandPath}} COMMAND --help' for more information on a command.
 {{- end}}
 `
+
+	completionTemplate = `To load completions:
+
+Bash:
+
+$ source <(curve completion bash)
+
+# To load completions for each session, execute once:
+Linux:
+  $ {{RootCommand .}} completion bash > /etc/bash_completion.d/{{RootCommand .}}
+MacOS:
+  $ {{RootCommand .}} completion bash > /usr/local/etc/bash_completion.d/{{RootCommand .}}
+
+Zsh:
+
+# If shell completion is not already enabled in your environment you will need
+# to enable it.  You can execute the following once:
+
+$ echo "autoload -U compinit; compinit" >> ~/.zshrc
+
+# To load completions for each session, execute once:
+$ {{RootCommand .}} completion zsh > "${fpath[1]}/_{{RootCommand .}}"
+
+# You will need to start a new shell for this setup to take effect.
+
+Fish:
+
+$ {{RootCommand .}} completion fish | source
+
+# To load completions for each session, execute once:
+$ {{RootCommand .}} completion fish > ~/.config/fish/completions/{{RootCommand .}}.fish
+`
 )
 
 func subCommands(cmd *cobra.Command) []*cobra.Command {
@@ -148,8 +182,8 @@ func SetHelpTemplate(cmd *cobra.Command) {
 type cmdType int
 
 const (
-	BSNAME = "bs"
-	FSNAME = "fs"
+	BSNAME          = "bs"
+	FSNAME          = "fs"
 	Unknown cmdType = iota
 	RootCmd
 	BsCmd
@@ -203,4 +237,26 @@ func AvailableValueStr(flag *pflag.Flag, cmdtype cmdType) string {
 		return config.BsAvailableValueStr(flag.Name)
 	}
 	return ""
+}
+
+func RootCommand(cmd *cobra.Command) string {
+	root := cmd.Root()
+	return root.Name()
+}
+
+func SetupCompletionCommand(completionCmd *cobra.Command) {
+	buffer := bytes.NewBufferString("")
+	funcMap := template.FuncMap{
+		"RootCommand": RootCommand,
+	}
+	tmpl, err := template.New("completion").Funcs(funcMap).Parse(completionTemplate)
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+	err = tmpl.Execute(buffer, completionCmd)
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+	completionCmd.Long = buffer.String()
+
 }
