@@ -197,12 +197,14 @@ void CSDataStore::searchChunkForObj (SequenceNum sn,
                                     std::vector<File_ObjectInfoPtr>& file_objs, 
                                     uint32_t beginIndex, uint32_t endIndex, 
                                     std::unique_ptr<CloneContext>& ctx,
-                                    CSDataStore& datastore) {
+                                    CSDataStore& datastore,
+                                    bool isWrite) {
 
     std::vector<BitRange> bitRanges;
     std::vector<BitRange> notInMapBitRanges;
 
     CSChunkFilePtr cloneFile = nullptr;
+    CSChunkFilePtr selfPtr = nullptr;
     CSChunkFilePtr rootChunkFile = nullptr;
 
     bool isFinish = false;
@@ -224,6 +226,7 @@ void CSDataStore::searchChunkForObj (SequenceNum sn,
             rootChunkFile = nullptr;
         }
         cloneFile = datastore.GetCloneCache(ctx->virtualId, ctx->cloneNo);
+        selfPtr = cloneFile;
         while (nullptr == cloneFile) {
             tmpclone = getParentClone (ctx->clones, cloneNo);
             cloneParentNo = tmpclone.cloneNo;
@@ -271,7 +274,12 @@ void CSDataStore::searchChunkForObj (SequenceNum sn,
         while (true != isFinish) {
             std::unique_ptr<File_ObjectInfo> fobs(new File_ObjectInfo());
             fobs->obj_infos.reserve(OBJECTINFO_SIZE);
-            isFinish = cloneFile->DivideObjInfoByIndex (cloneSn, bitRanges, notInMapBitRanges, fobs->obj_infos);
+            if ((true == isWrite) && (selfPtr.get() == cloneFile.get())) { // if it is write, and the clone chunk is the self chunk, use the lockless func
+                isFinish = cloneFile->DivideObjInfoByIndexLockless (cloneSn, bitRanges, notInMapBitRanges, fobs->obj_infos);
+            } else {
+                isFinish = cloneFile->DivideObjInfoByIndex (cloneSn, bitRanges, notInMapBitRanges, fobs->obj_infos);
+            }
+
             if (true != fobs->obj_infos.empty()) {
                 fobs->fileptr = cloneFile;
                 file_objs.push_back (std::move(fobs));
@@ -340,13 +348,13 @@ CSErrorCode CSDataStore::ReadByObjInfo (CSChunkFilePtr fileptr, char* buf, Objec
     CSErrorCode errorCode;
 
     if (nullptr == fileptr) {
-        DLOG(INFO)  << "ReadByObjInfo read file = null , snapptr = " << static_cast<const void *> (objInfo.snapptr)
+        LOG(INFO)  << "ReadByObjInfo read file = null , snapptr = " << static_cast<const void *> (objInfo.snapptr)
                     << "ReadByObjInfo read sn = " << objInfo.sn
                     << ", offset = " << objInfo.offset
                     << ", length = " << objInfo.length
                     << ", buf: " << static_cast<const void *> (buf);
     } else {
-        DLOG(INFO)  << "ReadByObjInfo read file = " << fileptr->getChunkId()
+        LOG(INFO)  << "ReadByObjInfo read file = " << fileptr->getChunkId()
                     << ", virtualid = " << fileptr->getVirtualId()
                     << ", cloneno = " << fileptr->getCloneNumber()
                     << ",  snapptr = " << static_cast<const void *> (objInfo.snapptr)
@@ -396,7 +404,8 @@ void CSDataStore::SplitDataIntoObjs (SequenceNum sn,
                                     std::vector<File_ObjectInfoPtr>& objInfos, 
                                     off_t offset, size_t length,
                                     std::unique_ptr<CloneContext>& ctx,
-                                    CSDataStore& datastore) {
+                                    CSDataStore& datastore,
+                                    bool isWrite) {
     //if the offset is align with OBJ_SIZE then the objNum is length / OBJ_SIZE
     //else the objNum is length / OBJ_SIZE + 1
 
@@ -407,7 +416,7 @@ void CSDataStore::SplitDataIntoObjs (SequenceNum sn,
     uint32_t beginIndex = offset >> PAGE_SIZE_SHIFT;    
     uint32_t endIndex = (offset + length - 1) >> PAGE_SIZE_SHIFT;
     
-    searchChunkForObj (sn, objInfos, beginIndex, endIndex, ctx, datastore);
+    searchChunkForObj (sn, objInfos, beginIndex, endIndex, ctx, datastore, isWrite);
 
     string outputinfo = "";
     for (auto& objInfo : objInfos) {
@@ -576,6 +585,44 @@ CSErrorCode CSDataStore::CreateChunkFile(const ChunkOptions & options,
         }
 
         return CSErrorCode::Success;
+}
+
+//FlattenChunk interface for the clone chunk
+CSErrorCode CSDataStore::FlattenChunk (ChunkID id, SequenceNum sn,
+                                       off_t offset, size_t length,
+                                       std::unique_ptr<CloneContext>& cloneCtx) {
+    CSErrorCode errorCode = CSErrorCode::Success;
+
+    auto chunkFile = metaCache_.Get(id);
+    // If the chunk file does not exist, create the chunk file first
+    if (chunkFile == nullptr) {
+        ChunkOptions options;
+        options.id = id;
+        options.sn = sn;
+        options.baseDir = baseDir_;
+        options.chunkSize = chunkSize_;
+        options.blockSize = blockSize_;
+        options.metaPageSize = metaPageSize_;
+        options.metric = metric_;
+        options.cloneNo = cloneCtx->cloneNo;
+        options.virtualId = cloneCtx->virtualId;
+        options.enableOdsyncWhenOpenChunkFile = enableOdsyncWhenOpenChunkFile_;
+        errorCode = CreateChunkFile(options, &chunkFile);
+        if (errorCode != CSErrorCode::Success) {
+            return errorCode;
+        }
+    }
+
+    assert (nullptr != chunkFile); //for clone file the orgin clone must be exists
+    assert (chunkFile->getCloneNumber() > 0);
+    errorCode = chunkFile->flattenWrite(sn, offset, length, cloneCtx, *this);
+    if (errorCode != CSErrorCode::Success) {
+        LOG(WARNING) << "Flatten chunk file failed."
+                    << "ChunkID = " << id;
+        return errorCode;
+    }
+
+    return errorCode;
 }
 
 //WriteChunk interface for the clone chunk

@@ -585,5 +585,65 @@ bool ChunkServiceImpl::CheckRequestOffsetAndLength(uint32_t offset,
     return is_aligned(offset, blockSize_) && is_aligned(len, blockSize_);
 }
 
+void ChunkServiceImpl::FlattenChunk(RpcController *controller,
+                      const ChunkRequest *request,
+                      ChunkResponse *response,
+                      Closure *done) {
+    ChunkServiceClosure* closure =
+        new (std::nothrow) ChunkServiceClosure(inflightThrottle_,
+                                               request,
+                                               response,
+                                               done);
+
+    CHECK(nullptr != closure) << "new chunk service closure failed";
+
+    brpc::ClosureGuard doneGuard(closure);
+
+    if (inflightThrottle_->IsOverLoad()) {
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD);
+        LOG_EVERY_N(WARNING, 100)
+            << "WriteChunk: "
+            << "too many inflight requests to process in chunkserver";
+        return;
+    }
+
+    LOG(INFO) << "Get FlattenChunk I/O request, op: " << request->optype()
+             << " chunkId: " << request->chunkid()
+             << " copysetId: " << request->copysetid() 
+             << " virtualChunkId: " << request->virtualchunkid()
+             << " originChunkId: " << request->originchunkid()
+             << " cloneNo: " << request->cloneno();
+
+    if (request->has_epoch()) {
+        if (!epochMap_->CheckEpoch(request->fileid(), request->epoch())) {
+            LOG(WARNING) << "I/O request, op: " << request->optype()
+                         << ", CheckEpoch failed, ChunkRequest: "
+                         << request->ShortDebugString();
+            response->set_status(
+                CHUNK_OP_STATUS::CHUNK_OP_STATUS_EPOCH_TOO_OLD);
+            return;
+        }
+    }
+
+    // 判断copyset是否存在
+    auto nodePtr = copysetNodeManager_->GetCopysetNode(request->logicpoolid(),
+                                                       request->copysetid());
+    if (nullptr == nodePtr) {
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
+        LOG(WARNING) << "Flatten Chunk failed, copyset node is not found:"
+                     << request->logicpoolid() << "," << request->copysetid();
+        return;
+    }
+
+    std::shared_ptr<FlattenChunkRequest>
+        req = std::make_shared<FlattenChunkRequest>(nodePtr,
+                                                  controller,
+                                                  request,
+                                                  response,
+                                                  doneGuard.release());
+    req->Process();
+
+}
+
 }  // namespace chunkserver
 }  // namespace curve
