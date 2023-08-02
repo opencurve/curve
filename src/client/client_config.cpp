@@ -233,6 +233,13 @@ int ClientConfig::Init(const std::string& configpath) {
         << "config no global.turnOffHealthCheck info, using default value "
         << fileServiceOption_.commonOpt.turnOffHealthCheck;
 
+    constexpr const char* kMinOpenFileLimit = "global.minOpenFileLimit";
+    ret = conf_.GetUInt32Value(kMinOpenFileLimit,
+                               &fileServiceOption_.commonOpt.minimalOpenFiles);
+    LOG_IF(WARNING, !ret) << "config no `" << kMinOpenFileLimit
+                          << "` info, using default value "
+                          << fileServiceOption_.commonOpt.minimalOpenFiles;
+
     ret = conf_.GetUInt32Value(
         "closefd.timeout",
         &fileServiceOption_.ioOpt.closeFdThreadOption.fdTimeout);

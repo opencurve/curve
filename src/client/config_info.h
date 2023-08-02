@@ -274,6 +274,7 @@ struct IOOption {
 struct CommonConfigOpt {
     bool mdsRegisterToMDS = false;
     bool turnOffHealthCheck = false;
+    uint32_t minimalOpenFiles = 65536;
 };
 
 /**
