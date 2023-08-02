@@ -262,7 +262,8 @@ class FSManagerTest : public ::testing::Test {
             .WillOnce(DoAll(
                 SetArgPointee<2>(response),
                 Invoke(RpcService<false>{})));
-        EXPECT_CALL(*s3Adapter_, BucketExist()).WillOnce(Return(true));
+        EXPECT_CALL(*s3Adapter_, PutObject(_, _)).WillOnce(Return(0));
+        EXPECT_CALL(*s3Adapter_, DeleteObject(_)).WillOnce(Return(0));
 
         return fsManager_->CreateFs(&s3Req, &s3FsInfo);
     }
@@ -538,7 +539,8 @@ TEST_F(FSManagerTest, test_fail_create_s3_fs_on_failed_root_node_creation) {
         .WillOnce(DoAll(
             SetArgPointee<2>(response),
             Invoke(RpcService<false>{})));
-    EXPECT_CALL(*s3Adapter_, BucketExist()).WillOnce(Return(true));
+    EXPECT_CALL(*s3Adapter_, PutObject(_, _)).WillOnce(Return(0));
+    EXPECT_CALL(*s3Adapter_, DeleteObject(_)).WillOnce(Return(0));
     EXPECT_CALL(*topoManager_, DeletePartition(_))
         .WillOnce(Return(TopoStatusCode::TOPO_OK));
     ret = fsManager_->CreateFs(&s3Req, &s3FsInfo);
@@ -548,11 +550,10 @@ TEST_F(FSManagerTest, test_fail_create_s3_fs_on_failed_root_node_creation) {
 
 TEST_F(FSManagerTest, test_fail_create_duplicate_s3_fs_with_different_fsname) {
     CreateS3Fs();
-
     FSStatusCode ret;
     // create s3 fs fail
     std::string fsName3 = "fs3";
-    EXPECT_CALL(*s3Adapter_, BucketExist()).WillOnce(Return(false));
+    EXPECT_CALL(*s3Adapter_, PutObject(_, _)).WillOnce(Return(-1));
 
     s3Req.set_fsname(fsName3);
     ret = fsManager_->CreateFs(&s3Req, &s3FsInfo);

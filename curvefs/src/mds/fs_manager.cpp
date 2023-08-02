@@ -257,6 +257,19 @@ bool FsManager::CheckFsName(const std::string& fsName) {
     return true;
 }
 
+bool FsManager::TestS3(const std::string& fsName) {
+    const Aws::String aws_key(fsName.c_str(), fsName.size());
+    std::string value(1024, 'a');
+    if (0 != s3Adapter_->PutObject(aws_key, value)) {
+        return false;
+    } else {
+        if (0 != s3Adapter_->DeleteObject(aws_key)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 FSStatusCode FsManager::CreateFs(const ::curvefs::mds::CreateFsRequest* request,
                                  FsInfo* fsInfo) {
     const auto& fsName = request->fsname();
@@ -308,7 +321,7 @@ FSStatusCode FsManager::CreateFs(const ::curvefs::mds::CreateFsRequest* request,
         option_.s3AdapterOption.s3Address = s3Info.endpoint();
         option_.s3AdapterOption.bucketName = s3Info.bucketname();
         s3Adapter_->Reinit(option_.s3AdapterOption);
-        if (!s3Adapter_->BucketExist()) {
+        if (!TestS3(fsName)) {
             LOG(ERROR) << "CreateFs " << fsName
                        << " error, s3info is not available!";
             return FSStatusCode::S3_INFO_ERROR;
