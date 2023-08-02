@@ -53,6 +53,11 @@ struct ConcurrentApplyOption {
     int wqueuedepth;
     int rconcurrentsize;
     int rqueuedepth;
+
+    ConcurrentApplyOption(int wconcurrentsize = 0, int wqueuedepth = 0,
+                          int rconcurrentsize = 0, int rqueuedepth = 0)
+        : wconcurrentsize(wconcurrentsize), wqueuedepth(wqueuedepth),
+          rconcurrentsize(rconcurrentsize), rqueuedepth(rqueuedepth) {}
 };
 
 enum class ApplyTaskType {READ, WRITE};
