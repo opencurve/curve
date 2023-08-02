@@ -248,6 +248,8 @@ class FsManager {
 
     bool FillVolumeInfo(common::Volume* volume);
 
+    bool TestS3(const std::string& fsName);
+
  private:
     std::shared_ptr<FsStorage> fsStorage_;
     std::shared_ptr<SpaceManager> spaceManager_;

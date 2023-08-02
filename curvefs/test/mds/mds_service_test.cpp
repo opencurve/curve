@@ -225,7 +225,8 @@ class MdsServiceTest : public ::testing::Test {
             .WillOnce(DoAll(
             SetArgPointee<2>(getLeaderResponse),
             Invoke(RpcService<false>{})));
-        EXPECT_CALL(*s3Adapter_, BucketExist()).WillOnce(Return(true));
+        EXPECT_CALL(*s3Adapter_, PutObject(_, _)).WillOnce(Return(0));
+        EXPECT_CALL(*s3Adapter_, DeleteObject(_)).WillOnce(Return(0));
 
         cntl.set_timeout_ms(5000);
         stub_->CreateFs(&cntl, &createRequest, &createResponse, nullptr);
