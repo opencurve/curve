@@ -255,6 +255,14 @@ struct IOOption {
 struct CommonConfigOpt {
     bool mdsRegisterToMDS = false;
     bool turnOffHealthCheck = false;
+
+    // Minimal open file limit
+    // open file limit will affect how may sockets we can create,
+    // the number of sockets is related to the number of chunkserver and mds in
+    // the cluster and during some exception handling processes, client will
+    // create additional sockets the SAFE value is 2 * (#chunkserver + #mds)
+    // Default: 65535
+    uint32_t minimalOpenFiles = 65536;
 };
 
 /**
