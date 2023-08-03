@@ -58,7 +58,9 @@ MDS::MDS()
       etcdClient_(),
       leaderElection_(),
       status_(),
-      etcdEndpoint_() {}
+      etcdEndpoint_(),
+      etcdUsername_(),
+      etcdPassword_() {}
 
 MDS::~MDS() {}
 
@@ -355,7 +357,8 @@ void MDS::InitEtcdClient() {
         << ", etcd address: " << std::string(etcdConf.Endpoints, etcdConf.len)
         << ", etcdtimeout: " << etcdConf.DialTimeout
         << ", operation timeout: " << etcdTimeout
-        << ", etcd retrytimes: " << etcdRetryTimes;
+        << ", etcd retrytimes: " << etcdRetryTimes
+        << ", etcd auth enable: " << etcdConf.authEnable;
 
     LOG_IF(FATAL, !CheckEtcd()) << "Check etcd failed";
 
@@ -363,20 +366,32 @@ void MDS::InitEtcdClient() {
               << std::string(etcdConf.Endpoints, etcdConf.len)
               << ", etcdtimeout: " << etcdConf.DialTimeout
               << ", operation timeout: " << etcdTimeout
-              << ", etcd retrytimes: " << etcdRetryTimes;
+              << ", etcd retrytimes: " << etcdRetryTimes
+              << ", etcd auth enable: " << etcdConf.authEnable;
 
     etcdClientInited_ = true;
 }
 
 void MDS::InitEtcdConf(EtcdConf* etcdConf) {
     conf_->GetValueFatalIfFail("etcd.endpoint", &etcdEndpoint_);
+    etcdConf->len = etcdEndpoint_.size();
+    etcdConf->Endpoints = &etcdEndpoint_[0];
     conf_->GetValueFatalIfFail("etcd.dailtimeoutMs", &etcdConf->DialTimeout);
+    // etcd auth config
+    bool authEnable = false;
+    conf_->GetBoolValue("etcd.auth.enable", &authEnable);
+    etcdConf->authEnable = authEnable ? 1 : 0;
+    if (authEnable) {
+        conf_->GetValueFatalIfFail("etcd.auth.username", &etcdUsername_);
+        etcdConf->username = &etcdUsername_[0];
+        etcdConf->usernameLen = etcdUsername_.size();
+        conf_->GetValueFatalIfFail("etcd.auth.password", &etcdPassword_);
+        etcdConf->password = &etcdPassword_[0];
+        etcdConf->passwordLen = etcdPassword_.size();
+    }
 
     LOG(INFO) << "etcd.endpoint: " << etcdEndpoint_;
     LOG(INFO) << "etcd.dailtimeoutMs: " << etcdConf->DialTimeout;
-
-    etcdConf->len = etcdEndpoint_.size();
-    etcdConf->Endpoints = &etcdEndpoint_[0];
 }
 
 bool MDS::CheckEtcd() {

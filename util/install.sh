@@ -338,10 +338,11 @@ main() {
     elif [ "$g_stor" == "bs" ]; then
         install_curvebs
         install_playground
+        install_tools-v2
     else
         install_curvefs
+        install_tools-v2
     fi
-    install_tools-v2
 }
 
 ############################  MAIN()

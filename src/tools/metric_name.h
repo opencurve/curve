@@ -37,7 +37,7 @@ const char kCurveVersionMetricName[] = "curve_version";
 
 // snapshot clone server metric name
 const char kSnapshotCloneConfMetricName[] =
-                                "snapshotcloneserver_config_server_address";
+    "snapshot_clone_server_config_server_address";
 const char kSnapshotCloneStatusMetricName[] = "snapshotcloneserver_status";
 const char kSnapshotCloneStatusActive[] = "active";
 

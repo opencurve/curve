@@ -181,6 +181,8 @@ class MDS {
     bvar::Status<std::string> status_;
 
     std::string etcdEndpoint_;
+    std::string etcdUsername_;
+    std::string etcdPassword_;
 };
 
 }  // namespace mds

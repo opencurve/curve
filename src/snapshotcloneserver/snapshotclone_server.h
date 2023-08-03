@@ -122,6 +122,7 @@ class SnapShotCloneServer {
     void RunUntilQuit(void);
 
  private:
+    void InitEtcdConf(EtcdConf* etcdConf);
     bool InitEtcdClient(void);
 
  private:
@@ -153,7 +154,12 @@ class SnapShotCloneServer {
     std::shared_ptr<CloneServiceManager>  cloneServiceManager_;
     std::shared_ptr<SnapshotCloneServiceImpl> service_;
     std::shared_ptr<brpc::Server>          server_;
+
+    std::string etcdEndpoints_;
+    std::string etcdUsername_;
+    std::string etcdPassword_;
 };
+
 }  // namespace snapshotcloneserver
 }  // namespace curve
 
