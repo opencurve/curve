@@ -29,6 +29,7 @@ namespace client {
 namespace common {
 
 std::ostream &operator<<(std::ostream &os, MetaServerOpType optype) {
+    
     switch (optype) {
     case MetaServerOpType::GetDentry:
         os << "GetDentry";
