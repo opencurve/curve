@@ -508,7 +508,7 @@ class CopysetNode : public braft::StateMachine,
     // The log storage for braft
     CurveSegmentLogStorage* logStorage_;
     // 并发模块
-    ConcurrentApplyModule *concurrentapply_ = nullptr;
+    ConcurrentApplyModule *concurrentapply_;
     // 配置版本持久化工具接口
     std::unique_ptr<ConfEpochFile> epochFile_;
     // 复制组的apply index

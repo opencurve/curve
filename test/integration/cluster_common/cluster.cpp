@@ -196,7 +196,7 @@ int CurveCluster::StopAllMDS() {
          it = mdsPidMap_.erase(it)) {
         LOG(INFO) << "begin to stop mds " << it->first << " " << it->second
                   << ", port: " << mdsIpPort_[it->first];
-        if (kill(it->second, SIGKILL) < 0) {
+        if (kill(it->second, SIGTERM) < 0) {
             LOG(ERROR) << "kill mds: " << strerror(errno);
             ret = -1;
             continue;
@@ -268,7 +268,7 @@ int CurveCluster::StopSnapshotCloneServer(int id, bool force) {
         if (force) {
             res = kill(snapPidMap_[id], SIGKILL);
         } else {
-            res = kill(snapPidMap_[id], SIGKILL);
+            res = kill(snapPidMap_[id], SIGTERM);
         }
         if (res < 0)
             LOG(ERROR) << "failed to kill snapshotcloneserver: "
@@ -292,7 +292,7 @@ int CurveCluster::RestartSnapshotCloneServer(int id, bool force) {
         if (force) {
             res = kill(snapPidMap_[id], SIGKILL);
         } else {
-            res = kill(snapPidMap_[id], SIGKILL);
+            res = kill(snapPidMap_[id], SIGTERM);
         }
         if (res < 0)
             LOG(ERROR) << "failed to kill snapshotcloneserver: "
@@ -413,7 +413,7 @@ int CurveCluster::StopEtcd(int id) {
     LOG(INFO) << "stop etcd " << etcdClientIpPort_[id] << " begin...";
 
     if (etcdPidMap_.find(id) != etcdPidMap_.end()) {
-        if (kill(etcdPidMap_[id], SIGKILL) < 0) {
+        if (kill(etcdPidMap_[id], SIGTERM) < 0) {
             LOG(ERROR) << "kill etcd: " << strerror(errno);
             RETURN_IF_NOT_ZERO(-1);
         }
@@ -441,7 +441,7 @@ int CurveCluster::StopAllEtcd() {
          it = etcdPidMap_.erase(it)) {
         LOG(INFO) << "begin to stop etcd" << it->first << " " << it->second
                   << ", " << etcdClientIpPort_[it->first];
-        if (kill(it->second, SIGKILL) < 0) {
+        if (kill(it->second, SIGTERM) < 0) {
             LOG(ERROR) << "kill etcd: " << strerror(errno);
             ret = -1;
             continue;
@@ -611,7 +611,7 @@ int CurveCluster::StopAllChunkServer() {
          it = chunkserverPidMap_.erase(it)) {
         LOG(INFO) << "begin to stop chunkserver" << it->first << " "
                   << it->second << ", " << chunkserverIpPort_[it->first];
-        if (kill(it->second, SIGKILL) < 0) {
+        if (kill(it->second, SIGTERM) < 0) {
             LOG(ERROR) << "kill chunkserver: " << strerror(errno);
             ret = -1;
             continue;

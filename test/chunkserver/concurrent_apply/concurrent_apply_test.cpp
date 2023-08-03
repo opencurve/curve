@@ -127,7 +127,7 @@ TEST(ConcurrentApplyModule, ConcurrentTest) {
     std::atomic<bool> stop(false);
     std::atomic<uint32_t> testnum(0);
     ConcurrentApplyModule concurrentapply;
-    ConcurrentApplyOption opt(10, 1, 5, 2);
+    ConcurrentApplyOption opt{10, 1, 5, 2};
     ASSERT_TRUE(concurrentapply.Init(opt));
 
     auto push = [&concurrentapply, &stop, &testnum]() {
