@@ -42,9 +42,6 @@ using ::curve::common::BLOCKSIZEKEY;
 using ::curve::common::CHUNKSIZEKEY;
 
 MDS::~MDS() {
-    if (etcdEndpoints_) {
-        delete etcdEndpoints_;
-    }
     if (fileLockManager_) {
         delete fileLockManager_;
     }
@@ -194,14 +191,23 @@ void MDS::Stop() {
 }
 
 void MDS::InitEtcdConf(EtcdConf* etcdConf) {
-    std::string endpoint;
-    conf_->GetValueFatalIfFail("mds.etcd.endpoint", &endpoint);
-    etcdEndpoints_ = new char[endpoint.size()];
-    etcdConf->Endpoints = etcdEndpoints_;
-    std::memcpy(etcdConf->Endpoints, endpoint.c_str(), endpoint.size());
-    etcdConf->len = endpoint.size();
+    conf_->GetValueFatalIfFail("mds.etcd.endpoint", &etcdEndpoints_);
+    etcdConf->len = etcdEndpoints_.size();
+    etcdConf->Endpoints = &etcdEndpoints_[0];
     conf_->GetValueFatalIfFail(
         "mds.etcd.dailtimeoutMs", &etcdConf->DialTimeout);
+    // etcd auth config
+    bool authEnable = false;
+    conf_->GetBoolValue("etcd.auth.enable", &authEnable);
+    etcdConf->authEnable = authEnable ? 1 : 0;
+    if (authEnable) {
+        conf_->GetValueFatalIfFail("etcd.auth.username", &etcdUsername_);
+        etcdConf->username = &etcdUsername_[0];
+        etcdConf->usernameLen = etcdUsername_.size();
+        conf_->GetValueFatalIfFail("etcd.auth.password", &etcdPassword_);
+        etcdConf->password = &etcdPassword_[0];
+        etcdConf->passwordLen = etcdPassword_.size();
+    }
 }
 
 void MDS::StartServer() {
@@ -253,7 +259,8 @@ void MDS::InitEtcdClient(const EtcdConf& etcdConf,
         << ", etcdaddr len: " << etcdConf.len
         << ", etcdtimeout: " << etcdConf.DialTimeout
         << ", operation timeout: " << etcdTimeout
-        << ", etcd retrytimes: " << retryTimes;
+        << ", etcd retrytimes: " << retryTimes
+        << ", auth enable = " << etcdConf.authEnable;
 
 
     std::string out;
@@ -267,7 +274,8 @@ void MDS::InitEtcdClient(const EtcdConf& etcdConf,
             << ", etcdaddr len: " << etcdConf.len
             << ", etcdtimeout: " << etcdConf.DialTimeout
             << ", operation timeout: " << etcdTimeout
-            << ", etcd retrytimes: " << retryTimes;
+            << ", etcd retrytimes: " << retryTimes
+            << ", auth enable = " << etcdConf.authEnable;
 }
 
 void MDS::InitLeaderElection(const LeaderElectionOptions& leaderElectionOp) {

@@ -108,21 +108,31 @@ void InitSnapshotCloneServerOptions(std::shared_ptr<Configuration> conf,
                         &serverOption->backEndReferenceFuncScanIntervalMs);
 }
 
-void InitEtcdConf(std::shared_ptr<Configuration> conf, EtcdConf* etcdConf) {
-    std::string endpoint;
-    conf->GetValueFatalIfFail("etcd.endpoint", &endpoint);
-    char* etcdEndpoints_ = new char[endpoint.size()];
-    etcdConf->Endpoints = etcdEndpoints_;
-    std::memcpy(etcdConf->Endpoints, endpoint.c_str(), endpoint.size());
-    etcdConf->len = endpoint.size();
-    conf->GetValueFatalIfFail("etcd.dailtimeoutMs", &etcdConf->DialTimeout);
+void SnapShotCloneServer::InitEtcdConf(EtcdConf* etcdConf) {
+    conf_->GetValueFatalIfFail("etcd.endpoint", &etcdEndpoints_);
+    etcdConf->len = etcdEndpoints_.size();
+    etcdConf->Endpoints = &etcdEndpoints_[0];
+    conf_->GetValueFatalIfFail(
+        "etcd.dailtimeoutMs", &etcdConf->DialTimeout);
+    // etcd auth config
+    bool authEnable = false;
+    conf_->GetBoolValue("etcd.auth.enable", &authEnable);
+    etcdConf->authEnable = authEnable ? 1 : 0;
+    if (authEnable) {
+        conf_->GetValueFatalIfFail("etcd.auth.username", &etcdUsername_);
+        etcdConf->username = &etcdUsername_[0];
+        etcdConf->usernameLen = etcdUsername_.size();
+        conf_->GetValueFatalIfFail("etcd.auth.password", &etcdPassword_);
+        etcdConf->password = &etcdPassword_[0];
+        etcdConf->passwordLen = etcdPassword_.size();
+    }
 }
 
 void SnapShotCloneServer::InitAllSnapshotCloneOptions(void) {
     InitClientOption(conf_, &(snapshotCloneServerOptions_.clientOptions));
     InitSnapshotCloneServerOptions(conf_,
         &(snapshotCloneServerOptions_.serverOption));
-    InitEtcdConf(conf_, &(snapshotCloneServerOptions_.etcdConf));
+    InitEtcdConf(&(snapshotCloneServerOptions_.etcdConf));
 
     conf_->GetValueFatalIfFail("etcd.operation.timeoutMs",
         &(snapshotCloneServerOptions_.etcdClientTimeout));
