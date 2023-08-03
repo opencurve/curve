@@ -235,9 +235,11 @@ class MDS {
     std::shared_ptr<CleanDiscardSegmentTask> cleanDiscardSegmentTask_;
     std::shared_ptr<Coordinator> coordinator_;
     std::shared_ptr<HeartbeatManager> heartbeatManager_;
-    char* etcdEndpoints_;
     FileLockManager* fileLockManager_;
     std::shared_ptr<SnapshotCloneClient> snapshotCloneClient_;
+    std::string etcdEndpoints_;
+    std::string etcdUsername_;
+    std::string etcdPassword_;
 };
 
 bool ParsePoolsetRules(const std::string& str,
