@@ -68,6 +68,11 @@ struct EtcdConf {
     char *Endpoints;
     int len;
     int DialTimeout;
+    int authEnable;
+    char *username;
+    int usernameLen;
+    char *password;
+    int passwordLen;
 };
 
 struct Operation {
@@ -193,16 +198,22 @@ func GetErrCode(op string, err error) C.enum_EtcdErrCode {
 }
 
 // TODO(lixiaocui): 日志打印看是否需要glog
+//
 //export NewEtcdClientV3
 func NewEtcdClientV3(conf C.struct_EtcdConf) C.enum_EtcdErrCode {
 	var err error
-	globalClient, err = clientv3.New(clientv3.Config{
+	cfg := clientv3.Config{
 		Endpoints:            GetEndpoint(C.GoStringN(conf.Endpoints, conf.len)),
 		DialTimeout:          time.Duration(int(conf.DialTimeout)) * time.Millisecond,
 		DialOptions:          []grpc.DialOption{grpc.WithBlock()},
 		DialKeepAliveTime:    time.Second,
 		DialKeepAliveTimeout: time.Second,
-	})
+	}
+	if conf.authEnable == 1 {
+		cfg.Username = C.GoStringN(conf.username, conf.usernameLen)
+		cfg.Password = C.GoStringN(conf.password, conf.passwordLen)
+	}
+	globalClient, err = clientv3.New(cfg)
 	return GetErrCode(EtcdNewClient, err)
 }
 
@@ -266,6 +277,7 @@ func EtcdClientGet(timeout C.int, key *C.char,
 }
 
 // TODO(lixiaocui): list可能需要有长度限制
+//
 //export EtcdClientList
 func EtcdClientList(timeout C.int, startKey, endKey *C.char,
 	startLen, endLen C.int) (C.enum_EtcdErrCode, uint64, int64) {
