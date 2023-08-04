@@ -1,6 +1,27 @@
 [English version](../en/build_and_run_en.md)
 
-# 编译环境搭建
+- [编译](#编译)
+  - [使用Docker进行编译（推荐方式）](#使用docker进行编译推荐方式)
+    - [获取或者构建docker镜像](#获取或者构建docker镜像)
+    - [在docker镜像中编译](#在docker镜像中编译)
+  - [在物理机上编译（不推荐）](#在物理机上编译不推荐)
+    - [安装依赖](#安装依赖)
+    - [一键编译](#一键编译)
+  - [制作镜像](#制作镜像)
+  - [上传镜像](#上传镜像)
+- [测试](#测试)
+  - [docker 容器中测试](#docker-容器中测试)
+  - [在物理机上测试](#在物理机上测试)
+  - [测试用例编译及执行](#测试用例编译及执行)
+    - [编译全部模块](#编译全部模块)
+    - [列出所有测试模块](#列出所有测试模块)
+    - [编译对应模块的代码](#编译对应模块的代码)
+    - [执行测试](#执行测试)
+      - [执行单个测试模块](#执行单个测试模块)
+      - [运行单元/集成测试](#运行单元集成测试)
+
+
+# 编译
 
 **请注意：**
 
@@ -18,28 +39,26 @@
 方法一：从docker hub镜像库中拉取docker镜像（推荐方式）
 
 ```bash
-docker pull opencurvedocker/curve-base:build-debian9
+docker pull opencurvedocker/curve-base:build-debian11
 ```
 
 方法二：手动构建docker镜像
 
-使用工程目录下的 docker/debian9/compile/Dockerfile 进行构建，命令如下：
+使用工程目录下的 docker/debian11/compile/Dockerfile 进行构建，命令如下：
 
 ```bash
-docker build -t opencurvedocker/curve-base:build-debian9
+docker build -t opencurvedocker/curve-base:build-debian11
 ```
 
 **注意：** 上述操作不建议在Curve工程目录执行，否则构建镜像时会把当前目录的文件都复制到docker镜像中，建议把Dockerfile拷贝到新建的干净目录下进行docker镜像的构建。
 
 ### 在docker镜像中编译
 
+**注意:** 以下命令中的 `make docker` 和 `make build` 会拉起一个临时的容器，该容器会在退出后自动删除(`--rm`)。命令会映射一些目录到容器中，如果你对此有疑虑或需要一些个性化的设置，可以阅读并自行修改 `util/docker.sh`。
+
 ```bash
 git clone https://github.com/opencurve/curve.git 或者 git clone https://gitee.com/mirrors/curve.git
 cd curve
-# 如果你想在容器内完成编译+制作+上传镜像的操作，可以添加以下参数
-# -v /var/run/docker.sock:/var/run/docker.sock -v /root/.docker:/root/.docker
-# --rm 会在容器退出后自动删除容器,如果你想保留容器，可以去掉该参数
-docker run --rm -v $(pwd):/curve -w /curve -v ${HOME}/.cache:${HOME}/.cache -v ${HOME}/go:${HOME}/go --user $(id -u ${USER}):$(id -g ${USER}) -v /etc/passwd:/etc/passwd:ro -v /etc/group:/etc/group:ro --privileged -it opencurvedocker/curve-base:build-debian9 bash
 # （中国大陆可选）将外部依赖替换为国内下载点或镜像仓库，可以加快编译速度： bash replace-curve-repo.sh
 
 # curve v2.0 之前
@@ -57,9 +76,25 @@ make build stor=fs dep=1
 make dep stor=fs && make build stor=fs
 ```
 
+也可以通过命令 `make docker` 进入到容器中, 然后在容器中执行编译相关的命令，执行手动编译。
+命令 `make ci-build` 是直接进行编译，不进入容器。
+
+```bash
+make docker
+
+# bs
+make ci-build stor=bs dep=1
+# or
+make ci-dep stor=bs && make ci-build stor=bs
+# fs
+make ci-build stor=fs dep=1
+# or
+make ci-dep stor=fs && make ci-build stor=fs
+```
+
 **注意：** `mk-tar.sh` 和 `mk-deb.sh` 用于 curve v2.0 之前版本的编译打包，v2.0 版本之后不再维护。
 
-## 在物理机上编译
+## 在物理机上编译（不推荐）
 
 Curve编译依赖的包括：
 
@@ -75,7 +110,7 @@ Curve的其他依赖项，均由bazel去管理，不可单独安装。
 
 ### 安装依赖
 
-编译相关的软件依赖可以参考 [dockerfile](../../docker/debian9/compile/Dockerfile) 中的安装步骤。
+编译相关的软件依赖可以参考 [dockerfile](../../docker/debian11/compile/Dockerfile) 中的安装步骤。
 
 ### 一键编译
 
@@ -88,15 +123,15 @@ bash mk-deb.sh （编译 curvebs 并打debian包）
 
 # （当前）curve v2.0 及之后
 # 编译 curvebs:
-make build stor=bs dep=1
+make ci-build stor=bs dep=1
 # or
-make dep stor=bs && make build stor=bs
+make ci-dep stor=bs && make ci-build stor=bs
 # 编译 curvefs: 
-make build stor=fs dep=1
+make ci-build stor=fs dep=1
 # or
-make dep stor=fs && make build stor=fs
+make ci-dep stor=fs && make ci-build stor=fs
 ```
-### 制作镜像
+## 制作镜像
 
 该步骤可以在容器内执行也可以在物理机上执行。
 注意若是在容器内执行，需要在执行 `docker run` 命令时添加 `-v /var/run/docker.sock:/var/run/docker.sock -v /root/.docker:/root/.docker` 参数。
@@ -109,11 +144,43 @@ make image stor=bs tag=test
 make image stor=fs tag=test
 ```
 
-### 上传镜像
+## 上传镜像
 
 ```bash
 # test 为上一步中的tag参数
 docker push test
+```
+
+# 测试
+
+## docker 容器中测试
+
+docker 镜像 `opencurvedocker/curve-base:build-debian11` 中已经安装了测试中所有的依赖，可以直接在容器中进行测试。
+
+运行以下命令会拉起一个容器并在容器中执行全部 curvebs 相关的 ci 测试：
+```bash
+bash ut.sh curvebs
+```
+
+同样的，你也可以使用命令 `make docker` 进入到容器中，然后在容器中执行测试相关的命令（比如你对某些测试用例单独进行测试时）。
+
+
+与编译一样你也可以使用 `make docker` 命令进入到容器中，然后在容器中执行测试命令：
+
+```bash
+make docker
+bash util/ut_in_image.sh curvebs
+```
+
+**注意** 脚本 util/ut_in_image.sh 会运行 minio，如果中途失败，下次运行时需要手动终止 minio 的运行。
+
+## 在物理机上测试
+
+相关的软件可以参考 [dockerfile](../../docker/debian11/compile/Dockerfile) 来安装依赖。
+使用以下命令在物理机上运行全部 curvebs 相关的 ci 测试：
+
+```bash
+bash util/ut_in_image.sh curvebs
 ```
 
 ## 测试用例编译及执行
@@ -184,36 +251,6 @@ bazel build test/common:common-test --copt -DHAVE_ZLIB=1 --define=with_glog=true
   ```
 - 更多文档, 详见 [bazel docs](https://bazel.build/docs).
 
-#### 动态库
-
-```bash
-export LD_LIBRARY_PATH=<CURVE-WORKSPACE>/thirdparties/etcdclient:<CURVE-WORKSPACE>/thirdparties/aws-sdk/usr/lib:/usr/local/lib:${LD_LIBRARY_PATH}
-```
-
-#### fake-s3
-
-快照克隆集成测试中，使用了开源的[fake-s3](https://github.com/jubos/fake-s3)模拟真实的s3服务。
-
-```bash
-$ apt install ruby -y OR yum install ruby -y
-$ gem install fakes3
-$ fakes3 -r /S3_DATA_DIR -p 9999 --license YOUR_LICENSE_KEY
-```
-
-备注：
-
-- `-r S3_DATA_DIR`：存放数据的目录
-- `--license YOUR_LICENSE_KEY`：fakes3需要key才能运行，申请地址见[fake-s3](https://github.com/jubos/fake-s3)
-- `-p 9999`：fake-s3服务启动的端口，**不用更改**
-
-#### etcd
-
-```bash
-wget -ct0 https://github.com/etcd-io/etcd/releases/download/v3.4.10/etcd-v3.4.10-linux-amd64.tar.gz
-tar zxvf etcd-v3.4.10-linux-amd64.tar.gz
-cd etcd-v3.4.10-linux-amd64 && cp etcd etcdctl /usr/bin
-```
-
 #### 执行单个测试模块
 
 ```bash
@@ -229,8 +266,6 @@ bazel 编译后的可执行程序都在 `./bazel-bin` 目录下，例如 test/co
 - NEBD相关单元测试程序在 ./bazel-bin/nebd/test 目录下
 - NBD相关单元测试程序在 ./bazel-bin/nbd/test 目录下
 
-如果想运行所有的单元测试和集成测试，可以执行工程目录下的ut.sh脚本：
+如果想运行所有的单元测试和集成测试，可以参考 [docker 容器中测试](#docker-容器中测试) 和 [在物理机上测试](#在物理机上测试)。
 
-```bash
-bash ut.sh
-```
+

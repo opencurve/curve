@@ -1,5 +1,25 @@
 [中文版](../cn/build_and_run.md)
 
+- [Build compilation environment](#build-compilation-environment)
+  - [Compile with docker (recommended)](#compile-with-docker-recommended)
+    - [Get or build docker image](#get-or-build-docker-image)
+    - [Compile in docker image](#compile-in-docker-image)
+  - [Compile on a physical machine(not recommended)](#compile-on-a-physical-machinenot-recommended)
+    - [Installation dependency](#installation-dependency)
+    - [One-click compilation](#one-click-compilation)
+  - [Make a mirror image](#make-a-mirror-image)
+  - [Upload image](#upload-image)
+  - [Test](#test)
+    - [Test in docker container](#test-in-docker-container)
+  - [Test on physical machine](#test-on-physical-machine)
+  - [Test case compilation and execution](#test-case-compilation-and-execution)
+    - [Compile all modules](#compile-all-modules)
+    - [List all test modules](#list-all-test-modules)
+    - [Compile the corresponding module code](#compile-the-corresponding-module-code)
+    - [Perform the test](#perform-the-test)
+      - [Execute a single test module](#execute-a-single-test-module)
+      - [Run unit/integration tests](#run-unitintegration-tests)
+
 # Build compilation environment
 
 **Note:**
@@ -17,7 +37,7 @@
 Method 1: Pull the docker image from the docker hub image library (recommended)
 
 ```bash
-docker pull opencurvedocker/curve-base:build-debian9
+docker pull opencurvedocker/curve-base:build-debian11
 ```
 
 Method 2: Build docker image manually
@@ -25,20 +45,18 @@ Method 2: Build docker image manually
 Use the Dockerfile in the project directory to build. The command is as follows:
 
 ```bash
-docker build -t opencurvedocker/curve-base:build-debian9
+docker build -t opencurvedocker/curve-base:build-debian11
 ```
 
 **Note:** The above operations are not recommended to be performed in the Curve project directory, otherwise the files in the current directory will be copied to the docker image when building the image. It is recommended to copy the Dockerfile to the newly created clean directory to build the docker image.
 
 ### Compile in docker image
 
+**Note:** The `make docker` and `make build` commands below will start a temporary container that will be automatically deleted after exiting (`--rm`). The command will map some directories to the container. If you have concerns or need some custom settings, you can read and modify `util/docker.sh` by yourself
+
 ```bash
 git clone https://github.com/opencurve/curve.git 或者 git clone https://gitee.com/mirrors/curve.git
 cd curve
-# If you want to complete the operation of compiling + making + uploading the image in the container, you can add the following parameters
-# -v /var/run/docker.sock:/var/run/docker.sock -v /root/.docker:/root/.docker
-#--rm will automatically delete the container after the container exits, if you want to keep the container, you can remove this parameter
-docker run --rm -v $(pwd):/curve -w /curve -v ${HOME}:${HOME} --user $(id -u ${USER}):$(id -g ${USER}) -v /etc/passwd:/etc/passwd:ro -v /etc/group:/etc/group:ro --privileged -it opencurvedocker/curve-base:build-debian9 bash
 # (Optional for Chinese mainland) Replace external dependencies with domestic download points or mirror warehouses, which can speed up compilation： bash replace-curve-repo.sh
 
 # before curve v2.0
@@ -56,9 +74,25 @@ make build stor=fs dep=1
 make dep stor=fs && make build stor=fs
 ```
 
+You can also use the `make docker` command to enter the container, and then execute the compilation commands in the container for manual compilation.
+The `make ci-build` command compiles directly without entering the container.
+
+```bash
+make docker
+
+# bs
+make ci-build stor=bs dep=1
+# or 
+make ci-dep stor=bs && make ci-build stor=bs
+# fs
+make ci-build stor=fs dep=1
+# or
+make ci-dep stor=fs && make ci-build stor=fs
+```
+
 **Note:** `mk-tar.sh` and `mk-deb.sh` are used for compiling and packaging curve v2.0. They are no longer maintained after v2.0.
 
-## Compile on a physical machine
+## Compile on a physical machine(not recommended)
 
 Curve compilation depends on:
 
@@ -74,7 +108,7 @@ Other dependencies of Curve are managed by bazel and do not need to be installed
 
 ### Installation dependency
 
-For dependencies, you can refer to the installation steps in [dockerfile](../../docker/debian9/compile/Dockerfile).
+For dependencies, you can refer to the installation steps in [dockerfile](../../docker/debian11/compile/Dockerfile).
 
 ### One-click compilation
 
@@ -87,16 +121,16 @@ bash mk-deb.sh （compile curvebs and make debian package）
 
 # (current) after curve v2.0
 # compile curvebs:
-make build stor=bs dep=1
+make ci-build stor=bs dep=1
 # or 
-make dep stor=bs && make build stor=bs
+make ci-dep stor=bs && make ci-build stor=bs
 # compile curvefs:
-make build stor=fs dep=1
+make ci-build stor=fs dep=1
 # or
-make dep stor=fs && make build stor=fs
+make ci-dep stor=fs && make ci-build stor=fs
 ```
 
-### Make a mirror image
+## Make a mirror image
 
 This step can be performed in a container or on a physical machine.
 Note that if it is executed in a container, you need to add `-v /var/run/docker.sock:/var/run/docker.sock -v /root/.docker:/root/.docker when executing the `docker run` command ` parameter.
@@ -109,12 +143,40 @@ make image stor=bs tag=test
 make image stor=fs tag=test
 ```
 
-### Upload image
+## Upload image
 
 ```bash
 # test is the tag parameter in the previous step
 docker push test
 ```
+
+## Test
+
+### Test in docker container
+
+The docker image opencurvedocker/curve-base:build-debian11 has installed all the dependencies required for testing, so testing can be performed directly in the container.
+
+Run the following command to start a container and execute all curvebs related ci tests in the container:
+  
+```bash
+bash ut.sh curvebs
+```
+
+Similarly, you can also use the `make docker` command to enter the container, and then execute test commands in the container (for example, when you want to test specific test cases separately).
+
+Like compiling, you can also use the `make docker` command to enter the container, and then execute the test command in the container:
+
+```bash
+make docker
+bash util/ut_in_image.sh curvebs
+```
+
+**Note** The script `util/ut_in_image.sh` will run minio. If it fails midway, minio needs to be terminated manually before the next run.
+
+## Test on physical machine
+
+Refer to [dockerfile](../../docker/debian11/compile/Dockerfile) to install dependencies.
+Use the following command to run all curvebs related ci tests on the physical machine:
 
 ## Test case compilation and execution
 
@@ -191,36 +253,6 @@ execute unit tests:
 
 - more about bazel docs, please go [bazel docs](https://bazel.build/docs).
 
-#### Dynamic library
-
-```bash
-$ export LD_LIBRARY_PATH=<CURVE-WORKSPACE>/thirdparties/etcdclient:<CURVE-WORKSPACE>/thirdparties/aws-sdk/usr/lib:/usr/local/lib:${LD_LIBRARY_PATH}
-```
-
-#### fake-s3
-
-In the snapshot clone integration test, the open source [fake-s3](https://github.com/jubos/fake-s3) was used to simulate the real s3 service.
-
-```bash
-$ apt install ruby ​​-y OR yum install ruby ​​-y
-$ gem install fakes3
-$ fakes3 -r /S3_DATA_DIR -p 9999 --license YOUR_LICENSE_KEY
-```
-
-Remarks:
-
-- `-r S3_DATA_DIR`: The directory where data is stored
-- `--license YOUR_LICENSE_KEY`: fakes3 needs a key to run, please refer to [fake-s3](https://github.com/jubos/fake-s3)
-- `-p 9999`: The port where the fake-s3 service starts, **no need to change**
-
-#### etcd
-
-```bash
-$ wget -ct0 https://github.com/etcd-io/etcd/releases/download/v3.4.10/$ etcd-v3.4.10-linux-amd64.tar.gz
-$ tar zxvf etcd-v3.4.10-linux-amd64. tar.gz
-$ cd etcd-v3.4.10-linux-amd64 && cp etcd etcdctl /usr/bin
-```
-
 #### Execute a single test module
 
 ```bash
@@ -236,8 +268,4 @@ The executable programs compiled by bazel are all in the `./bazel-bin` directory
 - NEBD-related unit test programs are in the `./bazel-bin/nebd/test` directory
 - NBD-related unit test programs are in the `./bazel-bin/nbd/test` directory
 
-If you want to run all unit tests and integration tests, you can execute the ut.sh script in the project directory:
-
-```bash
-$ bash ut.sh
-```
+To run all unit tests and integration tests, please refer to [Test in docker container](#test-in-docker-container) and [Test on physical machine](#test-on-physical-machine).
