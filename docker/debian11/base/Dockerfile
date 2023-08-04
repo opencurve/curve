@@ -1,5 +1,7 @@
 FROM debian:11
-ENV TZ=Asia/Shanghai
+ENV TZ=Asia/Shanghai \
+    LANG=C.UTF-8     \
+    LC_ALL=C.UTF-8
 RUN sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list && \
     sed -i 's|security.debian.org/debian-security|mirrors.ustc.edu.cn/debian-security|g' /etc/apt/sources.list && \
     apt-get clean && \
@@ -24,6 +26,7 @@ RUN sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list && \
         libnl-3-200 \
         libnl-genl-3-200 \
         libjemalloc2 \
+        libjemalloc-dev \
         libsnappy1v5 \
         liblz4-1 \
         zlib1g \

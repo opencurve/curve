@@ -87,4 +87,4 @@ test:
 	@bash util/test.sh $(stor) $(only)
 
 docker:
-	@bash util/docker.sh $(os)
+	@bash util/docker.sh --os=$(os) --ci=$(ci)

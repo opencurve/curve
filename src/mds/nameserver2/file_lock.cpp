@@ -120,7 +120,7 @@ void FileLockManager::LockInternal(const std::string& path,
         bthread_rwlock_rdlock(&entry->rwLock_);
     } else {
         // get write lock
-        bthread_rwlock_unlock(&entry->rwLock_);
+        bthread_rwlock_wrlock(&entry->rwLock_);
     }
 }
 

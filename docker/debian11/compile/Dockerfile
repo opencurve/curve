@@ -1,13 +1,16 @@
 FROM debian:11
-ENV TZ=Asia/Shanghai
-ENV GITHUB_PROXY=https://ghproxy.com/
-ENV VERSION_ETCD=v3.4.0 \
+ENV TZ=Asia/Shanghai \
+    LANG=C.UTF-8     \
+    LC_ALL=C.UTF-8 \
+    GITHUB_PROXY=https://ghproxy.com/ \
+    VERSION_ETCD=v3.4.0 \
     DOWNLOAD_ETCD_URL=${GITHUB_PROXY}https://github.com/etcd-io/etcd/releases/download \
     GOPROXY=https://goproxy.io,direct \
     PROTOC_VERSION=21.8 \
     GO_INSTALL_VERSION=1.19.6 \
     PROTOC_GEN_GO_VERSION=v1.28 \
-    PROTOC_GEN_GO_GRPC_VERSION=v1.2
+    PROTOC_GEN_GO_GRPC_VERSION=v1.2 \
+    BAZELISK_BASE_URL=https://repo.huaweicloud.com/bazel
 RUN sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list && \
     sed -i 's|security.debian.org/debian-security|mirrors.ustc.edu.cn/debian-security|g' /etc/apt/sources.list && \
     apt clean && \
