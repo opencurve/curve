@@ -91,7 +91,7 @@ func (deleteCommand *DeleteCommand) RunCommand(cmd *cobra.Command, args []string
 	}
 	deleteCommand.Response = result.(*nameserver2.DeleteFileResponse)
 	if deleteCommand.Response.GetStatusCode() != nameserver2.StatusCode_kOK {
-		deleteCommand.Error = cmderror.ErrBsDeleteFile()
+		deleteCommand.Error = cmderror.ErrBsDeleteFile(deleteCommand.Response.GetStatusCode())
 		deleteCommand.Result = result
 		return deleteCommand.Error.ToError()
 	}
@@ -153,7 +153,7 @@ func DeleteFile(caller *cobra.Command) (*nameserver2.DeleteFileResponse, *cmderr
 	delCmd.Cmd.SetArgs([]string{"--format", config.FORMAT_NOOUT})
 	err := delCmd.Cmd.Execute()
 	if err != nil {
-		retErr := cmderror.ErrBsDeleteFile()
+		retErr := cmderror.ErrBsDeleteFile(*delCmd.Response.StatusCode)
 		retErr.Format(err.Error())
 		return delCmd.Response, retErr
 	}

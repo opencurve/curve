@@ -374,10 +374,6 @@ var (
 		return NewInternalCmdError(39, "list zone fail. the error is %s")
 	}
 
-	ErrBsDeleteFile = func() *CmdError {
-		return NewInternalCmdError(40, "delete file fail. the error is %s")
-	}
-
 	ErrRespTypeNoExpected = func() *CmdError {
 		return NewInternalCmdError(41, "the response type is not as expected, should be: %s")
 	}
@@ -486,6 +482,10 @@ var (
 	}
 	ErrGetMetaserverInfo = func(statusCode int) *CmdError {
 		return NewRpcReultCmdError(statusCode, "get metaserver info failed: status code is %s")
+	}
+	ErrBsDeleteFile = func(statusCode nameserver2.StatusCode) *CmdError {
+		message := fmt.Sprintf("Rpc[DeleteFile]delete file fail. the status code is %s", statusCode.String())
+		return NewInternalCmdError(int(statusCode), message)
 	}
 	ErrBsCopysetOpStatus = func(statusCode copyset.COPYSET_OP_STATUS, addr string) *CmdError {
 		var message string
