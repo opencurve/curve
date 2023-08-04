@@ -13,6 +13,7 @@ ulimit -c unlimited
 ulimit -a
 
 # start minio
+sudo pkill minio || true
 sudo MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=password MINIO_BROWSER=off minio server /data/minio --address ":9999" &
 
 ps -ef | grep chunkserver | grep -v grep | grep -v gcc | awk '{print $2}' | sudo xargs kill -9 || true

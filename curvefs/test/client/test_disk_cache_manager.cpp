@@ -22,6 +22,7 @@
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <sys/stat.h>
 #include "curvefs/test/client/mock_client_s3.h"
 
 #include "curvefs/test/client/mock_disk_cache_write.h"
@@ -467,10 +468,12 @@ TEST_F(TestDiskCacheManager, TrimCache_exceed) {
     diskCacheManager_->AddCache("test02");
     diskCacheManager_->AddCache("test03");
     diskCacheManager_->AddCache("test04");
-    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull()))
+    struct stat rf;
+    rf.st_size = 0;
+    EXPECT_CALL(*wrapper, stat(NotNull(), _))
         .Times(2)
         .WillOnce(Return(-1))
-        .WillOnce(Return(0));
+        .WillOnce(DoAll(SetArgPointee<1>(rf), Return(0)));
     diskCacheManager_->TrimRun();
     diskCacheManager_->InitMetrics("test");
     sleep(6);

@@ -44,6 +44,8 @@ TEST(TestInitVolumeOption, Common) {
     conf.SetUInt64Value("volume.bitmapAllocator.sizePerBit",
                         4ULL * 1024 * 1024);
     conf.SetDoubleValue("volume.bitmapAllocator.smallAllocProportion", 0.0);
+    conf.SetDoubleValue("volume.space.useThreshold", 0.95);
+    conf.SetDoubleValue("volume.space.releaseInterSec", 300);
 
     ASSERT_NO_FATAL_FAILURE({ InitVolumeOption(&conf, &volopt); });
 }

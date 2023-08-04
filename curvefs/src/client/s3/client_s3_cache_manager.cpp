@@ -1595,13 +1595,14 @@ void ChunkCacheManager::ReleaseCache() {
         s3ClientAdaptor_->GetFsCacheManager()->FlushSignal();
     }
     WriteLockGuard writeLockGuard(rwLockRead_);
-    auto iter = dataRCacheMap_.begin();
-    for (; iter != dataRCacheMap_.end(); iter++) {
+    for (auto iter = dataRCacheMap_.begin(); iter != dataRCacheMap_.end();) {
         if (s3ClientAdaptor_->GetFsCacheManager()->Delete(iter->second)) {
             g_s3MultiManagerMetric->readDataCacheNum << -1;
             g_s3MultiManagerMetric->readDataCacheByte
                 << -1 * (*(iter->second))->GetActualLen();
-            dataRCacheMap_.erase(iter);
+            iter = dataRCacheMap_.erase(iter);
+        } else {
+            ++iter;
         }
     }
 }
