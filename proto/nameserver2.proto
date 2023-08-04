@@ -363,8 +363,9 @@ message ListSnapShotFileInfoResponse {
 
 // delete snapshot
 message DeleteSnapShotRequest {
-    required string     fileName = 1;
-    required uint64     seq = 3;
+    optional string     fileName = 1;
+    optional uint64     seq = 3;
+    optional string     snapFileName = 6;
 
     required string     owner = 2;
     optional string     signature = 4;

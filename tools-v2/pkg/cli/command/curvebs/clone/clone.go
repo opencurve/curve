@@ -38,7 +38,8 @@ import (
 )
 
 const (
-	dirExample = `$ curve bs clone --snappath /test1/test1-1 --dstpath /test2 --user curve`
+	dirExample = `$ curve bs clone --snappath /test1/test1-1 --dstpath /test2 --user curve
+$ curve bs clone --srcpath /test1 --seq 1 --dstpath /test2 --user curve`
 )
 
 type CloneRpc struct {
@@ -168,7 +169,7 @@ func (fCmd *cloneCommand) AddFlags() {
 	config.AddRpcRetryTimesFlag(fCmd.Cmd)
 	config.AddBsSrcPathOptionFlag(fCmd.Cmd)
 	config.AddBsSeqOptionFlag(fCmd.Cmd)
-  config.AddBsSrcSnapshotPathOptionFlag(fCmd.Cmd)
+    config.AddBsSrcSnapshotPathOptionFlag(fCmd.Cmd)
 	config.AddBsDstPathRequiredFlag(fCmd.Cmd)
 	config.AddBsUserRequiredFlag(fCmd.Cmd)
 	config.AddBsPasswordOptionFlag(fCmd.Cmd)

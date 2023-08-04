@@ -725,6 +725,17 @@ var (
 		}
 		return NewRpcReultCmdError(code, message)
 	}
+	ErrBsDeleteSnapShot = func(statusCode nameserver2.StatusCode, path string) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case nameserver2.StatusCode_kOK:
+			message = "Delete snapshot successfully"
+		default:
+			message = fmt.Sprintf("failed to delete snapshot from [%s], err: %s", path, statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
 	ErrBsListSnapShot = func() *CmdError {
 		return NewInternalCmdError(666, "list snapshot fail, err: %s")
 	}
