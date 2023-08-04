@@ -28,6 +28,8 @@
 #ifndef SRC_MDS_NAMESERVER2_FILE_LOCK_H_
 #define SRC_MDS_NAMESERVER2_FILE_LOCK_H_
 
+#include <bthread/bthread.h>
+
 #include <string>
 #include <vector>
 #include <memory>
@@ -92,7 +94,15 @@ class FileLockManager {
     };
     struct LockEntry {
         common::Atomic<uint32_t> ref_;
-        common::RWLock rwLock_;
+        bthread_rwlock_t rwLock_;
+
+        LockEntry() {
+            bthread_rwlock_init(&rwLock_, NULL);
+        }
+
+        ~LockEntry() {
+            bthread_rwlock_destroy(&rwLock_);
+        }
     };
     struct LockBucket {
         common::Mutex mu;

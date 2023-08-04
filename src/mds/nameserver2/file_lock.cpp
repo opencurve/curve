@@ -117,10 +117,10 @@ void FileLockManager::LockInternal(const std::string& path,
 
     if (lockType == kRead) {
         // get read lock
-        entry->rwLock_.RDLock();
+        bthread_rwlock_rdlock(&entry->rwLock_);
     } else {
         // get write lock
-        entry->rwLock_.WRLock();
+        bthread_rwlock_wrlock(&entry->rwLock_);
     }
 }
 
@@ -133,7 +133,7 @@ void FileLockManager::UnlockInternal(const std::string& path) {
     assert(it != lockBucket->lockMap.end());
     LockEntry* entry = it->second;
     // release lock
-    entry->rwLock_.Unlock();
+    bthread_rwlock_unlock(&entry->rwLock_);
     if (entry->ref_.fetch_sub(1) == 1) {
         // we are the last holder
         /// TODO maybe don't need to deconstruct immediately

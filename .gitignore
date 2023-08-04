@@ -87,6 +87,7 @@ docker/curvebs
 docker/base/*
 !docker/base/Dockerfile
 !docker/base/Makefile
+docker/*/curvebs
 
 # curvefs
 curvefs/devops/projects/

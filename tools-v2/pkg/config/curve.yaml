@@ -20,7 +20,7 @@ curvebs:
   mdsAddr: 127.0.0.1:6700,127.0.0.1:6701,127.0.0.1:6702   # __CURVEADM_TEMPLATE__ ${cluster_mds_addr} __CURVEADM_TEMPLATE__
   mdsDummyAddr: 127.0.0.1:7700,127.0.0.1:7701,127.0.0.1:7702  # __CURVEADM_TEMPLATE__ ${cluster_mds_dummy_addr} __CURVEADM_TEMPLATE__
   etcdAddr: 127.0.0.1:23790,127.0.0.1:23791,127.0.0.1:23792  # __CURVEADM_TEMPLATE__ ${cluster_etcd_addr} __CURVEADM_TEMPLATE__
-  snapshotAddr: 127.0.0.1:5550,127.0.0.1:5551,127.0.0.1:5552  # __CURVEADM_TEMPLATE__ ${cluster_snapshot_addr} __CURVEADM_TEMPLATE__
+  snapshotAddr: 127.0.0.1:5550,127.0.0.1:5551,127.0.0.1:5552  # __CURVEADM_TEMPLATE__ ${cluster_snapshotclone_addr} __CURVEADM_TEMPLATE__
   snapshotDummyAddr: 127.0.0.1:8100,127.0.0.1:8101,127.0.0.1:8102  # __CURVEADM_TEMPLATE__ ${cluster_snapshot_dummy_addr} __CURVEADM_TEMPLATE__
   root:
     user: root
