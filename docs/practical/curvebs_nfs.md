@@ -166,7 +166,7 @@ curveadm status
 #进入服务容器
 curveadm enter <Id>
 #检查健康情况
-curve_ops_tool status
+curve bs status cluster
 ```
 
 
@@ -247,7 +247,7 @@ map nbd设备的时候，下划线会用来作为卷和用户的分隔符的
 
 ### client 查看集群空间情况
 ```shell
-curve_ops_tool space
+curve bs list space
 ```
 
 ### curveadm 查看client挂载的设备情况
@@ -346,12 +346,12 @@ tailf logs
 ```shell
 docker exec  curvebs-volume-0673e7a472e0dfa4121595b0b457b8f7 /bin/bash /curvebs/nebd/sbin/create.sh curvebsuser1 /vde 10
 ```
-5. 注意，也可以手动使用curve_ops_tool 工具检查, 其中curve,curve_ops_tool,curve-nbd，curve_snaptool几个工具，ops 三个工具有重叠，目前基本上找不到curve工具，可以用curve_ops_tool代替
+5. 注意，也可以手动使用 curve 工具检查。
 ```shell
-curve_ops_tool list --fileName=/
+curve bs list dir --path=/
 ```
 6. lsblk可以看到nbd设备,或者fdisk 可以检查挂载的磁盘
-7. 检查空间情况 curve_ops_tool space
+7. 检查空间情况 curve bs list space
 8. 手动挡的可以参考自动挂载命令，或者重新挂载命令：
 ```code 
 https://github.com/opencurve/curve/blob/master/k8s/nbd/nbd-package/usr/bin/mount_curve_clouddisk.sh

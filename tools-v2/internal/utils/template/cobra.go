@@ -80,14 +80,10 @@ Global Flags:
 
 Examples:
 {{ .Example }}
-
 {{ else if not .HasSubCommands}}
-
 Examples:
 {{ genExample .}}
-
 {{- end}}
-
 {{- if .HasSubCommands }}
 
 Run '{{.CommandPath}} COMMAND --help' for more information on a command.
@@ -98,13 +94,10 @@ Run '{{.CommandPath}} COMMAND --help' for more information on a command.
 
 Bash:
 
-$ source <(curve completion bash)
+$ source <({{RootCommand .}} completion bash)
 
 # To load completions for each session, execute once:
-Linux:
-  $ {{RootCommand .}} completion bash > /etc/bash_completion.d/{{RootCommand .}}
-MacOS:
-  $ {{RootCommand .}} completion bash > /usr/local/etc/bash_completion.d/{{RootCommand .}}
+$ {{RootCommand .}} completion bash > /etc/bash_completion.d/{{RootCommand .}}
 
 Zsh:
 

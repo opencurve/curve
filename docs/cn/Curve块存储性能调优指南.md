@@ -137,7 +137,7 @@ filename=/data/chunkserver1/data
 
     ![leadermetric](../images/0102-leadermetric.jpg)
 
-- leader不均衡时可以通过命令触发快速均衡：```curve_ops_tool rapid-leader-schedule```。这个命令创建的配置变更任务是随着心跳上报的，所以均衡效果在几个心跳周期之后可以看到（默认心跳周期是10s）。
+- leader不均衡时可以通过命令触发快速均衡：```curve bs update leader-schedule```。这个命令创建的配置变更任务是随着心跳上报的，所以均衡效果在几个心跳周期之后可以看到（默认心跳周期是10s）。
 
 **2. 复制组之间的心跳周期**
 
@@ -182,7 +182,7 @@ Curve块存储性能测试时，理想的状态是可以把磁盘跑满。如果
 
 条带化卷的原理可以参考：[条带化设计](https://github.com/opencurve/curve/blob/master/docs/cn/curve-stripe.pdf)。概括来说，条带化是将大IO按照指定的配置，分发到多个复制组上，从而提高性能。
 
-条带化卷的创建：```curve_ops_tool create -fileName=/test -userName=test -password=123 -fileLength=20 -stripeUnit=32768 -stripeCount=32```
+条带化卷的创建：```curve create file --path=/test --user=test --password=123 --size=20 --stripeunit=32KiB --stripecount=32```
 
 **2. 直接使用 ```curve fio```测试**
 
