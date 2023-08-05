@@ -69,6 +69,8 @@ const char *kSnapshotCloneServerIpPort = "127.0.0.1:10027";
 const char *kSnapshotCloneServerDummyServerPort = "12002";
 const char *kLeaderCampaginPrefix = "snapshotcloneserverleaderlock1";
 
+static const char *kDefaultPoolset = "default";
+
 const int kMdsDummyPort = 10028;
 
 const std::string kLogPath = "./runlog/" + kTestPrefix + "Log";  // NOLINT
@@ -132,7 +134,9 @@ const std::vector<std::string> chunkserverConfigOptions{
     std::string("curve.root_username") + mdsRootUser_,
     std::string("curve.root_password") + mdsRootPassword_,
     "walfilepool.use_chunk_file_pool=false",
-    "walfilepool.enable_get_segment_from_pool=false"
+    "walfilepool.enable_get_segment_from_pool=false",
+    "global.block_size=4096",
+    "global.meta_page_size=4096",
 };
 
 const std::vector<std::string> csClientConfigOptions{
@@ -512,9 +516,10 @@ class SnapshotCloneServerTest : public ::testing::Test {
         } else {
             seqNum = 1;  // 克隆新文件使用初始版本号1
         }
-        int ret = snapClient_->CreateCloneFile(testFile1_,
-            fileName, UserInfo_t(mdsRootUser_, mdsRootPassword_),
-            testFile1Length, seqNum, chunkSize, 0, 0, fInfoOut);
+        int ret = snapClient_->CreateCloneFile(
+                testFile1_, fileName,
+                UserInfo_t(mdsRootUser_, mdsRootPassword_), testFile1Length,
+                seqNum, chunkSize, 0, 0, kDefaultPoolset, fInfoOut);
         return ret;
     }
 
@@ -716,7 +721,7 @@ TEST_F(SnapshotCloneServerTest, TestRecoverSnapshotWhenNotCreateSnapOnCurvefs) {
     SnapshotInfo snapInfo(uuid1, testUser1_, testFile1_,
                         "snapxxx", 0, chunkSize,
                         segmentSize, testFile1Length,
-                        0, 0, 0,
+                        0, 0, kDefaultPoolset, 0,
                         Status::pending);
     cluster_->metaStore_->AddSnapshot(snapInfo);
 
@@ -745,7 +750,7 @@ TEST_F(SnapshotCloneServerTest,
     SnapshotInfo snapInfo(uuid1, testUser1_, testFile1_,
                         "snapxxx", 0, chunkSize,
                         segmentSize, testFile1Length,
-                        0, 0, 0,
+                        0, 0, kDefaultPoolset, 0,
                         Status::pending);
     cluster_->metaStore_->AddSnapshot(snapInfo);
 
@@ -773,7 +778,7 @@ TEST_F(SnapshotCloneServerTest,
     std::string uuid1 = UUIDGenerator().GenerateUUID();
     SnapshotInfo snapInfo(uuid1, testUser1_, testFile1_, "snapxxx", seq,
                         chunkSize, segmentSize, testFile1Length,
-                        0, 0, 0,
+                        0, 0, kDefaultPoolset, 0,
                         Status::pending);
     cluster_->metaStore_->AddSnapshot(snapInfo);
 
@@ -836,7 +841,7 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotCreateCloneFile) {
     std::string dstFile = "/RcvItUser1/TestRecoverCloneHasNotCreateCloneFile";
     CloneInfo cloneInfo(uuid1, testUser1_,
                      CloneTaskType::kClone, testFile1_,
-                     dstFile, 0, 0, 0,
+                     dstFile, kDefaultPoolset, 0, 0, 0,
                      CloneFileType::kFile, false,
                      CloneStep::kCreateCloneFile,
                      CloneStatus::cloning);
@@ -866,7 +871,7 @@ TEST_F(SnapshotCloneServerTest,
         "/RcvItUser1/TestRecoverCloneHasCreateCloneFileSuccessNotReturn";
     CloneInfo cloneInfo(uuid1, testUser1_,
                      CloneTaskType::kClone, testFile1_,
-                     dstFile, 0, 0, 0,
+                     dstFile, kDefaultPoolset, 0, 0, 0,
                      CloneFileType::kFile, false,
                      CloneStep::kCreateCloneFile,
                      CloneStatus::cloning);
@@ -894,7 +899,7 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotCreateCloneMeta) {
     std::string dstFile = "/RcvItUser1/TestRecoverCloneHasNotCreateCloneMeta";
     CloneInfo cloneInfo(uuid1, testUser1_,
                      CloneTaskType::kClone, testFile1_,
-                     dstFile, fInfoOut.id, fInfoOut.id, 0,
+                     dstFile, kDefaultPoolset, fInfoOut.id, fInfoOut.id, 0,
                      CloneFileType::kFile, false,
                      CloneStep::kCreateCloneMeta,
                      CloneStatus::cloning);
@@ -928,7 +933,7 @@ TEST_F(SnapshotCloneServerTest,
         "/RcvItUser1/TestRecoverCloneCreateCloneMetaSuccessNotReturn";
     CloneInfo cloneInfo(uuid1, testUser1_,
                      CloneTaskType::kClone, testFile1_,
-                     dstFile, fInfoOut.id, fInfoOut.id, 0,
+                     dstFile, kDefaultPoolset, fInfoOut.id, fInfoOut.id, 0,
                      CloneFileType::kFile, false,
                      CloneStep::kCreateCloneMeta,
                      CloneStatus::cloning);
@@ -960,7 +965,7 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotCreateCloneChunk) {
     std::string dstFile = "/RcvItUser1/TestRecoverCloneHasNotCreateCloneChunk";
     CloneInfo cloneInfo(uuid1, testUser1_,
                      CloneTaskType::kClone, testFile1_,
-                     dstFile, fInfoOut.id, fInfoOut.id, 0,
+                     dstFile, kDefaultPoolset, fInfoOut.id, fInfoOut.id, 0,
                      CloneFileType::kFile, false,
                      CloneStep::kCreateCloneChunk,
                      CloneStatus::cloning);
@@ -996,7 +1001,7 @@ TEST_F(SnapshotCloneServerTest,
         "/RcvItUser1/TestRecoverCloneCreateCloneChunkSuccessNotReturn";
     CloneInfo cloneInfo(uuid1, testUser1_,
                      CloneTaskType::kClone, testFile1_,
-                     dstFile, fInfoOut.id, fInfoOut.id, 0,
+                     dstFile, kDefaultPoolset, fInfoOut.id, fInfoOut.id, 0,
                      CloneFileType::kFile, false,
                      CloneStep::kCreateCloneChunk,
                      CloneStatus::cloning);
@@ -1030,7 +1035,7 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotCompleteCloneMeta) {
     std::string dstFile = "/RcvItUser1/TestRecoverCloneHasNotCompleteCloneMeta";
     CloneInfo cloneInfo(uuid1, testUser1_,
                      CloneTaskType::kClone, testFile1_,
-                     dstFile, fInfoOut.id, fInfoOut.id, 0,
+                     dstFile, kDefaultPoolset, fInfoOut.id, fInfoOut.id, 0,
                      CloneFileType::kFile, false,
                      CloneStep::kCompleteCloneMeta,
                      CloneStatus::cloning);
@@ -1068,7 +1073,7 @@ TEST_F(SnapshotCloneServerTest,
         "/RcvItUser1/TestRecoverCloneCompleteCloneMetaSuccessNotReturn";
     CloneInfo cloneInfo(uuid1, testUser1_,
                      CloneTaskType::kClone, testFile1_,
-                     dstFile, fInfoOut.id, fInfoOut.id, 0,
+                     dstFile, kDefaultPoolset, fInfoOut.id, fInfoOut.id, 0,
                      CloneFileType::kFile, false,
                      CloneStep::kCompleteCloneMeta,
                      CloneStatus::cloning);
@@ -1104,7 +1109,7 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotRecoverChunk) {
     std::string dstFile = "/RcvItUser1/TestRecoverCloneHasNotRecoverChunk";
     CloneInfo cloneInfo(uuid1, testUser1_,
                      CloneTaskType::kClone, testFile1_,
-                     dstFile, fInfoOut.id, fInfoOut.id, 0,
+                     dstFile, kDefaultPoolset, fInfoOut.id, fInfoOut.id, 0,
                      CloneFileType::kFile, false,
                      CloneStep::kRecoverChunk,
                      CloneStatus::cloning);
@@ -1143,7 +1148,7 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneRecoverChunkSuccssNotReturn) {
         "/RcvItUser1/TestRecoverCloneRecoverChunkSuccssNotReturn";
     CloneInfo cloneInfo(uuid1, testUser1_,
                      CloneTaskType::kClone, testFile1_,
-                     dstFile, fInfoOut.id, fInfoOut.id, 0,
+                     dstFile, kDefaultPoolset, fInfoOut.id, fInfoOut.id, 0,
                      CloneFileType::kFile, false,
                      CloneStep::kRecoverChunk,
                      CloneStatus::cloning);
@@ -1181,7 +1186,7 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotCompleteCloneFile) {
     std::string dstFile = "/RcvItUser1/TestRecoverCloneHasNotCompleteCloneFile";
     CloneInfo cloneInfo(uuid1, testUser1_,
                      CloneTaskType::kClone, testFile1_,
-                     dstFile, fInfoOut.id, fInfoOut.id, 0,
+                     dstFile, kDefaultPoolset, fInfoOut.id, fInfoOut.id, 0,
                      CloneFileType::kFile, false,
                      CloneStep::kCompleteCloneFile,
                      CloneStatus::cloning);
@@ -1223,7 +1228,7 @@ TEST_F(SnapshotCloneServerTest,
         "/RcvItUser1/TestRecoverCloneCompleteCloneFileSuccessNotReturn";
     CloneInfo cloneInfo(uuid1, testUser1_,
                      CloneTaskType::kClone, testFile1_,
-                     dstFile, fInfoOut.id, fInfoOut.id, 0,
+                     dstFile, kDefaultPoolset, fInfoOut.id, fInfoOut.id, 0,
                      CloneFileType::kFile, false,
                      CloneStep::kCompleteCloneFile,
                      CloneStatus::cloning);
@@ -1263,7 +1268,7 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotChangeOwner) {
     std::string dstFile = "/RcvItUser1/TestRecoverCloneHasNotChangeOwner";
     CloneInfo cloneInfo(uuid1, testUser1_,
                      CloneTaskType::kClone, testFile1_,
-                     dstFile, fInfoOut.id, fInfoOut.id, 0,
+                     dstFile, kDefaultPoolset, fInfoOut.id, fInfoOut.id, 0,
                      CloneFileType::kFile, false,
                      CloneStep::kChangeOwner,
                      CloneStatus::cloning);
@@ -1306,7 +1311,7 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneChangeOwnerSuccessNotReturn) {
         "/RcvItUser1/TestRecoverCloneChangeOwnerSuccessNotReturn";
     CloneInfo cloneInfo(uuid1, testUser1_,
                      CloneTaskType::kClone, testFile1_,
-                     dstFile, fInfoOut.id, fInfoOut.id, 0,
+                     dstFile, kDefaultPoolset, fInfoOut.id, fInfoOut.id, 0,
                      CloneFileType::kFile, false,
                      CloneStep::kChangeOwner,
                      CloneStatus::cloning);
@@ -1348,7 +1353,7 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotRenameCloneFile) {
     std::string dstFile = "/RcvItUser1/TestRecoverCloneHasNotRenameCloneFile";
     CloneInfo cloneInfo(uuid1, testUser1_,
                      CloneTaskType::kClone, testFile1_,
-                     dstFile, fInfoOut.id, fInfoOut.id, 0,
+                     dstFile, kDefaultPoolset, fInfoOut.id, fInfoOut.id, 0,
                      CloneFileType::kFile, false,
                      CloneStep::kRenameCloneFile,
                      CloneStatus::cloning);
@@ -1396,7 +1401,7 @@ TEST_F(SnapshotCloneServerTest,
 
     CloneInfo cloneInfo(uuid1, testUser1_,
                      CloneTaskType::kClone, testFile1_,
-                     dstFile, fInfoOut.id, fInfoOut.id, 0,
+                     dstFile, kDefaultPoolset, fInfoOut.id, fInfoOut.id, 0,
                      CloneFileType::kFile, false,
                      CloneStep::kRenameCloneFile,
                      CloneStatus::cloning);
@@ -1422,7 +1427,7 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotCreateCloneFile) {
     std::string uuid1 = UUIDGenerator().GenerateUUID();
     CloneInfo cloneInfo(uuid1, testUser1_,
                      CloneTaskType::kRecover, snapId,
-                     testFile1_, 0, 0, 0,
+                     testFile1_, kDefaultPoolset, 0, 0, 0,
                      CloneFileType::kSnapshot, true,
                      CloneStep::kCreateCloneFile,
                      CloneStatus::recovering);
@@ -1458,7 +1463,7 @@ TEST_F(SnapshotCloneServerTest,
 
     CloneInfo cloneInfo(uuid1, testUser1_,
                      CloneTaskType::kRecover, snapId,
-                     testFile1_, 0, 0, 0,
+                     testFile1_, kDefaultPoolset, 0, 0, 0,
                      CloneFileType::kSnapshot, true,
                      CloneStep::kCreateCloneFile,
                      CloneStatus::recovering);
@@ -1493,7 +1498,7 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotCreateCloneMeta) {
 
     CloneInfo cloneInfo(uuid1, testUser1_,
                      CloneTaskType::kRecover, snapId,
-                     testFile1_, fInfoOut.id, testFd1_, 0,
+                     testFile1_, kDefaultPoolset, fInfoOut.id, testFd1_, 0,
                      CloneFileType::kSnapshot, true,
                      CloneStep::kCreateCloneMeta,
                      CloneStatus::recovering);
@@ -1533,7 +1538,7 @@ TEST_F(SnapshotCloneServerTest,
 
     CloneInfo cloneInfo(uuid1, testUser1_,
                      CloneTaskType::kRecover, snapId,
-                     testFile1_, fInfoOut.id, testFd1_, 0,
+                     testFile1_, kDefaultPoolset, fInfoOut.id, testFd1_, 0,
                      CloneFileType::kSnapshot, true,
                      CloneStep::kCreateCloneMeta,
                      CloneStatus::recovering);
@@ -1572,7 +1577,7 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotCreateCloneChunk) {
 
     CloneInfo cloneInfo(uuid1, testUser1_,
                      CloneTaskType::kRecover, snapId,
-                     testFile1_, fInfoOut.id, testFd1_, 0,
+                     testFile1_, kDefaultPoolset, fInfoOut.id, testFd1_, 0,
                      CloneFileType::kSnapshot, true,
                      CloneStep::kCreateCloneChunk,
                      CloneStatus::recovering);
@@ -1614,7 +1619,7 @@ TEST_F(SnapshotCloneServerTest,
 
     CloneInfo cloneInfo(uuid1, testUser1_,
                      CloneTaskType::kRecover, snapId,
-                     testFile1_, fInfoOut.id, testFd1_, 0,
+                     testFile1_, kDefaultPoolset, fInfoOut.id, testFd1_, 0,
                      CloneFileType::kSnapshot, true,
                      CloneStep::kCreateCloneChunk,
                      CloneStatus::recovering);
@@ -1655,7 +1660,7 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotCompleteCloneMeta) {
 
     CloneInfo cloneInfo(uuid1, testUser1_,
                      CloneTaskType::kRecover, snapId,
-                     testFile1_, fInfoOut.id, testFd1_, 0,
+                     testFile1_, kDefaultPoolset, fInfoOut.id, testFd1_, 0,
                      CloneFileType::kSnapshot, true,
                      CloneStep::kCompleteCloneMeta,
                      CloneStatus::recovering);
@@ -1699,7 +1704,7 @@ TEST_F(SnapshotCloneServerTest,
 
     CloneInfo cloneInfo(uuid1, testUser1_,
                      CloneTaskType::kRecover, snapId,
-                     testFile1_, fInfoOut.id, testFd1_, 0,
+                     testFile1_, kDefaultPoolset, fInfoOut.id, testFd1_, 0,
                      CloneFileType::kSnapshot, true,
                      CloneStep::kCompleteCloneMeta,
                      CloneStatus::recovering);
@@ -1742,7 +1747,7 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotChangeOwner) {
 
     CloneInfo cloneInfo(uuid1, testUser1_,
                      CloneTaskType::kRecover, snapId,
-                     testFile1_, fInfoOut.id, testFd1_, 0,
+                     testFile1_, kDefaultPoolset, fInfoOut.id, testFd1_, 0,
                      CloneFileType::kSnapshot, true,
                      CloneStep::kChangeOwner,
                      CloneStatus::recovering);
@@ -1788,7 +1793,7 @@ TEST_F(SnapshotCloneServerTest,
 
     CloneInfo cloneInfo(uuid1, testUser1_,
                      CloneTaskType::kRecover, snapId,
-                     testFile1_, fInfoOut.id, testFd1_, 0,
+                     testFile1_, kDefaultPoolset, fInfoOut.id, testFd1_, 0,
                      CloneFileType::kSnapshot, true,
                      CloneStep::kChangeOwner,
                      CloneStatus::recovering);
@@ -1833,7 +1838,7 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotRenameCloneFile) {
 
     CloneInfo cloneInfo(uuid1, testUser1_,
                      CloneTaskType::kRecover, snapId,
-                     testFile1_, fInfoOut.id, testFd1_, 0,
+                     testFile1_, kDefaultPoolset, fInfoOut.id, testFd1_, 0,
                      CloneFileType::kSnapshot, true,
                      CloneStep::kRenameCloneFile,
                      CloneStatus::recovering);
@@ -1882,7 +1887,7 @@ TEST_F(SnapshotCloneServerTest,
 
     CloneInfo cloneInfo(uuid1, testUser1_,
                      CloneTaskType::kRecover, snapId,
-                     testFile1_, fInfoOut.id, testFd1_, 0,
+                     testFile1_, kDefaultPoolset, fInfoOut.id, testFd1_, 0,
                      CloneFileType::kSnapshot, true,
                      CloneStep::kRenameCloneFile,
                      CloneStatus::recovering);
@@ -1930,7 +1935,7 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotRecoverChunk) {
 
     CloneInfo cloneInfo(uuid1, testUser1_,
                      CloneTaskType::kRecover, snapId,
-                     testFile1_, fInfoOut.id, testFd1_, 0,
+                     testFile1_, kDefaultPoolset, fInfoOut.id, testFd1_, 0,
                      CloneFileType::kSnapshot, true,
                      CloneStep::kRecoverChunk,
                      CloneStatus::recovering);
@@ -1976,7 +1981,7 @@ TEST_F(SnapshotCloneServerTest,
 
     CloneInfo cloneInfo(uuid1, testUser1_,
                      CloneTaskType::kRecover, snapId,
-                     testFile1_, fInfoOut.id, testFd1_, 0,
+                     testFile1_, kDefaultPoolset, fInfoOut.id, testFd1_, 0,
                      CloneFileType::kSnapshot, true,
                      CloneStep::kRecoverChunk,
                      CloneStatus::recovering);
@@ -2021,7 +2026,7 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotCompleteCloneFile) {
 
     CloneInfo cloneInfo(uuid1, testUser1_,
                      CloneTaskType::kRecover, snapId,
-                     testFile1_, fInfoOut.id, testFd1_, 0,
+                     testFile1_, kDefaultPoolset, fInfoOut.id, testFd1_, 0,
                      CloneFileType::kSnapshot, true,
                      CloneStep::kCompleteCloneFile,
                      CloneStatus::recovering);
@@ -2069,7 +2074,7 @@ TEST_F(SnapshotCloneServerTest,
 
     CloneInfo cloneInfo(uuid1, testUser1_,
                      CloneTaskType::kRecover, snapId,
-                     testFile1_, fInfoOut.id, testFd1_, 0,
+                     testFile1_, kDefaultPoolset, fInfoOut.id, testFd1_, 0,
                      CloneFileType::kSnapshot, true,
                      CloneStep::kCompleteCloneFile,
                      CloneStatus::recovering);

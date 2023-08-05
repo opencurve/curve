@@ -27,6 +27,7 @@
 #include <sys/types.h>
 #include <string>
 #include <vector>
+#include <ctime>
 
 namespace curve {
 namespace common {

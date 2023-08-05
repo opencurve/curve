@@ -38,6 +38,7 @@ using ::testing::_;
 using ::testing::AnyOf;
 using ::testing::SetArgPointee;
 using ::testing::Invoke;
+using ::testing::DoAll;
 
 class TestTopologyMetric : public ::testing::Test {
  public:
@@ -70,6 +71,18 @@ class TestTopologyMetric : public ::testing::Test {
         testObj_ = nullptr;
     }
 
+    void PrepareAddPoolset(PoolsetIdType pid = 0x61,
+                           const std::string& name = "ssdPoolset1",
+                           const std::string& type = "SSD",
+                           const std::string& desc = "descPoolset") {
+        Poolset poolset(pid, name, type, desc);
+        EXPECT_CALL(*storage_, StoragePoolset(_))
+            .WillOnce(Return(true));
+
+        int ret = topology_->AddPoolset(poolset);
+        ASSERT_EQ(kTopoErrCodeSuccess, ret);
+    }
+
     void PrepareAddLogicalPool(PoolIdType id = 0x01,
             const std::string &name = "testLogicalPool",
             PoolIdType phyPoolId = 0x11,
@@ -100,9 +113,11 @@ class TestTopologyMetric : public ::testing::Test {
 
     void PrepareAddPhysicalPool(PoolIdType id = 0x11,
                  const std::string &name = "testPhysicalPool",
+                 PoolsetIdType pid = 0x61,
                  const std::string &desc = "descPhysicalPool") {
         PhysicalPool pool(id,
                 name,
+                pid,
                 desc);
         EXPECT_CALL(*storage_, StoragePhysicalPool(_))
             .WillOnce(Return(true));
@@ -193,10 +208,12 @@ class TestTopologyMetric : public ::testing::Test {
 };
 
 TEST_F(TestTopologyMetric,  TestUpdateTopologyMetricsOneLogicalPool) {
+    PoolsetIdType poolsetId = 0x61;
     PoolIdType logicalPoolId = 0x01;
     PoolIdType physicalPoolId = 0x11;
     CopySetIdType copysetId = 0x51;
 
+    PrepareAddPoolset(poolsetId);
     PrepareAddPhysicalPool(physicalPoolId);
     PrepareAddZone(0x21, "zone1", physicalPoolId);
     PrepareAddZone(0x22, "zone2", physicalPoolId);
@@ -356,6 +373,7 @@ TEST_F(TestTopologyMetric,  TestUpdateTopologyMetricsOneLogicalPool) {
 }
 
 TEST_F(TestTopologyMetric,  TestUpdateTopologyMetricsCleanRetired) {
+    PrepareAddPoolset();
     PoolIdType logicalPoolId = 0x01;
     PoolIdType physicalPoolId = 0x11;
     CopySetIdType copysetId = 0x51;

@@ -84,9 +84,9 @@ func (mCmd *MdsCommand) Init(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(addrErr.Message)
 	}
 
+	timeout := viper.GetDuration(config.VIPER_GLOBALE_HTTPTIMEOUT)
 	for _, addr := range dummyAddrs {
 		// Use the dummy port to access the metric service
-		timeout := viper.GetDuration(config.VIPER_GLOBALE_HTTPTIMEOUT)
 
 		addrs := []string{addr}
 		statusMetric := basecmd.NewMetric(addrs, STATUS_SUBURI, timeout)

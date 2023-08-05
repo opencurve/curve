@@ -87,6 +87,8 @@ using curve::mds::topology::GetChunkServerInfoResponse;
 using curve::mds::topology::ListChunkServerResponse;
 using curve::mds::IncreaseFileEpochRequest;
 using curve::mds::IncreaseFileEpochResponse;
+using curve::mds::topology::ListPoolsetRequest;
+using curve::mds::topology::ListPoolsetResponse;
 
 extern const char* kRootUserName;
 
@@ -119,12 +121,7 @@ class MDSClientBase {
      * @param[in|out]: cntl既是入参，也是出参，返回RPC状态
      * @param[in]:channel是当前与mds建立的通道
      */
-    void CreateFile(const std::string& filename,
-                    const UserInfo_t& userinfo,
-                    size_t size,
-                    bool normalFile,
-                    const uint64_t stripeUnit,
-                    const uint64_t stripeCount,
+    void CreateFile(const CreateFileContext& context,
                     CreateFileResponse* response,
                     brpc::Controller* cntl,
                     brpc::Channel* channel);
@@ -288,6 +285,10 @@ class MDSClientBase {
                         brpc::Controller* cntl,
                         brpc::Channel* channel);
 
+    void ListPoolset(ListPoolsetResponse* response,
+                     brpc::Controller* cntl,
+                     brpc::Channel* channel);
+
     /**
      * 创建clone文件
      * @param source 克隆源文件名
@@ -310,6 +311,7 @@ class MDSClientBase {
                          uint32_t chunksize,
                          uint64_t stripeUnit,
                          uint64_t stripeCount,
+                         const std::string& poolset,
                          CreateCloneFileResponse* response,
                          brpc::Controller* cntl,
                          brpc::Channel* channel);

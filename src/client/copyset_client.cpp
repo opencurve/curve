@@ -88,7 +88,7 @@ bool CopysetClient::FetchLeader(LogicPoolID lpid, CopysetID cpid,
 // 这两种状况都会调用该接口，因为对于重试的RPC有可能需要重新push到队列中
 // 非重试的RPC如果重新push到队列中会导致死锁。
 int CopysetClient::ReadChunk(const ChunkIDInfo& idinfo, uint64_t sn,
-                             off_t offset, size_t length, uint64_t appliedindex,
+                             off_t offset, size_t length,
                              const RequestSourceInfo& sourceInfo,
                              google::protobuf::Closure* done) {
     RequestClosure* reqclosure = static_cast<RequestClosure*>(done);
@@ -124,8 +124,8 @@ int CopysetClient::ReadChunk(const ChunkIDInfo& idinfo, uint64_t sn,
 
     auto task = [&](Closure* done, std::shared_ptr<RequestSender> senderPtr) {
         ReadChunkClosure *readDone = new ReadChunkClosure(this, done);
-        senderPtr->ReadChunk(idinfo, sn, offset, length,
-                             appliedindex, sourceInfo, readDone);
+        senderPtr->ReadChunk(idinfo, sn, offset,
+                             length, sourceInfo, readDone);
     };
 
     return DoRPCTask(idinfo, task, doneGuard.release());

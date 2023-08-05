@@ -36,7 +36,7 @@
 
 #include "curvefs/src/common/define.h"
 #include "curvefs/proto/metaserver.pb.h"
-#include "curvefs/src/client/error_code.h"
+#include "curvefs/src/client/filesystem/error.h"
 #include "curvefs/src/client/client_operator.h"
 #include "src/common/interruptible_sleeper.h"
 

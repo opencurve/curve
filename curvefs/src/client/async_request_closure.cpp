@@ -28,7 +28,7 @@
 #include <mutex>
 
 #include "curvefs/proto/metaserver.pb.h"
-#include "curvefs/src/client/error_code.h"
+#include "curvefs/src/client/filesystem/error.h"
 #include "curvefs/src/client/inode_wrapper.h"
 
 namespace curvefs {
@@ -63,19 +63,26 @@ CURVEFS_ERROR UpdateVolumeExtentClosure::Wait() {
         cond_.wait(lk);
     }
 
-    return MetaStatusCodeToCurvefsErrCode(GetStatusCode());
+    return ToFSError(GetStatusCode());
 }
 
 void UpdateVolumeExtentClosure::Run() {
     auto st = GetStatusCode();
     if (!IsOK(st)) {
-        LOG(ERROR) << "UpdateVolumeExtent failed, error: "
-                   << MetaStatusCode_Name(st)
-                   << ", inodeid: " << inode_->GetInodeId();
-        inode_->MarkInodeError();
+        if (inode_ != nullptr) {
+            inode_->MarkInodeError();
+            LOG(ERROR) << "UpdateVolumeExtent failed, error: "
+                       << MetaStatusCode_Name(st)
+                       << ", inodeid: " << inode_->GetInodeId();
+        } else {
+            LOG(ERROR) << "UpdateVolumeExtent failed, error: "
+                       << MetaStatusCode_Name(st);
+        }
     }
 
-    inode_->syncingVolumeExtentsMtx_.unlock();
+    if (inode_ != nullptr) {
+        inode_->syncingVolumeExtentsMtx_.unlock();
+    }
 
     if (sync_) {
         std::lock_guard<bthread::Mutex> lk(mtx_);

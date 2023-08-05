@@ -271,18 +271,18 @@ int MDSClient::DeleteFile(const std::string& fileName, bool forcedelete) {
     return -1;
 }
 
-int MDSClient::CreateFile(const std::string& fileName, uint64_t length,
-                          bool normalFile, uint64_t stripeUnit,
-                          uint64_t stripeCount) {
+int MDSClient::CreateFile(const CreateFileContext& context) {
     curve::mds::CreateFileRequest request;
     curve::mds::CreateFileResponse response;
-    request.set_filename(fileName);
-    if (normalFile) {
+    request.set_filename(context.name);
+    if (context.type == curve::mds::FileType::INODE_PAGEFILE) {
         request.set_filetype(curve::mds::FileType::INODE_PAGEFILE);
-        request.set_filelength(length);
-        request.set_stripeunit(stripeUnit);
-        request.set_stripecount(stripeCount);
+        request.set_filelength(context.length);
+        request.set_poolset(context.poolset);
+        request.set_stripeunit(context.stripeUnit);
+        request.set_stripecount(context.stripeCount);
     } else {
+        assert(context.type == curve::mds::FileType::INODE_DIRECTORY);
         request.set_filetype(curve::mds::FileType::INODE_DIRECTORY);
     }
 
@@ -300,7 +300,7 @@ int MDSClient::CreateFile(const std::string& fileName, uint64_t length,
         return 0;
     }
     std::cout << "CreateFile fail with errCode: "
-              << response.statuscode() << std::endl;
+              << StatusCode_Name(response.statuscode()) << std::endl;
     return -1;
 }
 
@@ -912,7 +912,7 @@ int MDSClient::GetListenAddrFromDummyPort(const std::string& dummyAddr,
 void MDSClient::GetMdsOnlineStatus(std::map<std::string, bool>* onlineStatus) {
     assert(onlineStatus != nullptr);
     onlineStatus->clear();
-    for (const auto item : dummyServerMap_) {
+    for (const auto &item : dummyServerMap_) {
         std::string listenAddr;
         int res = GetListenAddrFromDummyPort(item.second, &listenAddr);
         // 如果获取到的监听地址与记录的mds地址不一致，也认为不在线
@@ -972,7 +972,7 @@ bool MDSClient::ChangeMDServer() {
 
 std::vector<std::string> MDSClient::GetCurrentMds() {
     std::vector<std::string> leaderAddrs;
-    for (const auto item : dummyServerMap_) {
+    for (const auto &item : dummyServerMap_) {
         // 获取status来判断正在服务的地址
         std::string status;
         MetricRet ret = metricClient_.GetMetric(item.second,
@@ -1152,5 +1152,30 @@ void MDSClient::FillUserInfo(T* request) {
         request->set_signature(sig);
     }
 }
+
+int MDSClient::ListPoolset(std::vector<PoolsetInfo>* poolsets) {
+    assert(poolsets != nullptr);
+    curve::mds::topology::ListPoolsetRequest request;
+    curve::mds::topology::ListPoolsetResponse response;
+    curve::mds::topology::TopologyService_Stub stub(&channel_);
+
+    auto fp = &curve::mds::topology::TopologyService_Stub::ListPoolset;
+    if (0 != SendRpcToMds(&request, &response, &stub, fp)) {
+        std::cout << "ListPoolset fail" << std::endl;
+        return -1;
+    }
+
+    if (response.statuscode() == curve::mds::topology::kTopoErrCodeSuccess) {
+        auto* mut = response.mutable_poolsetinfos();
+        poolsets->insert(poolsets->end(), std::make_move_iterator(mut->begin()),
+                         std::make_move_iterator(mut->end()));
+        return 0;
+    }
+
+    std::cout << "ListPoolset fail with errCode: " << response.statuscode()
+              << std::endl;
+    return -1;
+}
+
 }  // namespace tool
 }  // namespace curve

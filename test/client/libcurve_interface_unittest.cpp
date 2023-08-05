@@ -59,12 +59,14 @@ std::mutex interfacemtx;
 std::condition_variable interfacecv;
 
 void writecallbacktest(CurveAioContext *context) {
+    std::lock_guard<std::mutex> lk(writeinterfacemtx);
     writeflag = true;
     writeinterfacecv.notify_one();
     LOG(INFO) << "aio call back here, errorcode = " << context->ret;
 }
 
 void readcallbacktest(CurveAioContext *context) {
+    std::lock_guard<std::mutex> lk(writeinterfacemtx);
     readflag = true;
     interfacecv.notify_one();
     LOG(INFO) << "aio call back here, errorcode = " << context->ret;
@@ -295,6 +297,7 @@ TEST(TestLibcurveInterface, FileClientTest) {
         writeinterfacecv.wait(lk, []() -> bool { return writeflag; });
     }
     char *readbuffer = new char[8 * 1024];
+    memset(readbuffer, 0xFF, 8 * 1024);
     CurveAioContext readaioctx;
     readaioctx.buf = readbuffer;
     readaioctx.offset = 0;
@@ -308,6 +311,7 @@ TEST(TestLibcurveInterface, FileClientTest) {
         interfacecv.wait(lk, []() -> bool { return readflag; });
     }
 
+    ASSERT_EQ(readaioctx.ret, readaioctx.length);
     for (int i = 0; i < 1024; i++) {
         ASSERT_EQ(readbuffer[i], 'a');
         ASSERT_EQ(readbuffer[i + 1024], 'b');
@@ -351,7 +355,6 @@ TEST(TestLibcurveInterface, ChunkserverUnstableTest) {
     fopt.metaServerOpt.chunkserverRPCTimeoutMS = 500;
     fopt.loginfo.logLevel = 0;
     fopt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = 64;
-    fopt.ioOpt.ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
     fopt.ioOpt.ioSenderOpt.chunkserverRPCTimeoutMS = 1000;
     fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
     fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
@@ -600,20 +603,8 @@ TEST(TestLibcurveInterface, InterfaceExceptionTest) {
 
     ASSERT_EQ(0, Init(configpath.c_str()));
 
-
     char *buffer = new char[8 * 1024];
     memset(buffer, 'a', 8 * 1024);
-
-    // not aligned test
-    CurveAioContext ctx;
-    ctx.buf = buffer;
-    ctx.offset = 1;
-    ctx.length = 7 * 1024;
-    ctx.cb = writecallbacktest;
-    ASSERT_EQ(-LIBCURVE_ERROR::NOT_ALIGNED, AioWrite(1234, &ctx));
-    ASSERT_EQ(-LIBCURVE_ERROR::NOT_ALIGNED, AioRead(1234, &ctx));
-    ASSERT_EQ(-LIBCURVE_ERROR::NOT_ALIGNED, Write(1234, buffer, 1, 4096));
-    ASSERT_EQ(-LIBCURVE_ERROR::NOT_ALIGNED, Read(1234, buffer, 4096, 123));
 
     CurveAioContext writeaioctx;
     writeaioctx.buf = buffer;
@@ -665,7 +656,6 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
     fopt.metaServerOpt.rpcRetryOpt.rpcTimeoutMs = 500;
     fopt.loginfo.logLevel = 0;
     fopt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = 64;
-    fopt.ioOpt.ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
     fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 1000;
     fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
     fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
@@ -700,7 +690,7 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
     mds.CreateCopysetNode(true);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-    int fd = fileinstance_.Open(filename.c_str(), userinfo);
+    int fd = fileinstance_.Open();
 
     MetaCache *mc = fileinstance_.GetIOManager4File()->GetMetaCache();
 
@@ -858,7 +848,6 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
     fopt.metaServerOpt.rpcRetryOpt.rpcTimeoutMs = 500;
     fopt.loginfo.logLevel = 0;
     fopt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = 64;
-    fopt.ioOpt.ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
     fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 1000;
     fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverMaxRPCTimeoutMS = 8000;
     fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 11;
@@ -889,7 +878,7 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
     mds.CreateCopysetNode(true);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-    int fd = fileinstance_.Open(filename.c_str(), userinfo);
+    int fd = fileinstance_.Open();
 
     MetaCache *mc = fileinstance_.GetIOManager4File()->GetMetaCache();
 
@@ -986,13 +975,24 @@ TEST(TestLibcurveInterface, InterfaceStripeTest) {
     FakeReturn *fakeret =
         new FakeReturn(nullptr, static_cast<void *>(&response));
     service->SetCreateFileFakeReturn(fakeret);
-    int ret = fc.Create2(filename, userinfo, size, 0, 0);
+    CreateFileContext context;
+    context.pagefile = true;
+    context.name = filename;
+    context.user = userinfo;
+    context.length = size;
+    int ret = fc.Create2(context);
     ASSERT_EQ(LIBCURVE_ERROR::OK, ret);
 
     response.set_statuscode(::curve::mds::StatusCode::kFileExists);
     fakeret = new FakeReturn(nullptr, static_cast<void *>(&response));
     service->SetCreateFileFakeReturn(fakeret);
-    ret = fc.Create2(filename2, userinfo, size, 1024 * 1024, 4);
+    context.pagefile = true;
+    context.name = filename2;
+    context.user = userinfo;
+    context.length = size;
+    context.stripeUnit = 1024 * 1024;
+    context.stripeCount = 4;
+    ret = fc.Create2(context);
     ASSERT_EQ(LIBCURVE_ERROR::EXISTS, -ret);
 
     FileStatInfo_t fsinfo;

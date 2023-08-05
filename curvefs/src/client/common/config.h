@@ -73,11 +73,6 @@ struct LeaseOpt {
     uint32_t leaseTimeUs = 20000000;
 };
 
-struct SpaceAllocServerOption {
-    std::string spaceaddr;
-    uint64_t rpcTimeoutMs;
-};
-
 struct KVClientManagerOpt {
     int setThreadPooln = 4;
     int getThreadPooln = 4;
@@ -122,7 +117,6 @@ struct DiskCacheOption {
 struct S3ClientAdaptorOption {
     uint64_t blockSize;
     uint64_t chunkSize;
-    uint32_t fuseMaxSize;
     uint64_t pageSize;
     uint32_t prefetchBlocks;
     uint32_t prefetchExecQueueNum;
@@ -165,6 +159,9 @@ struct VolumeOption {
     uint64_t volBlockSize;
     uint64_t fsBlockSize;
     VolumeAllocatorOption allocatorOption;
+
+    double threshold{1.0};
+    uint64_t releaseInterSec{300};
 };
 
 struct ExtentManagerOption {
@@ -175,12 +172,64 @@ struct RefreshDataOption {
     uint64_t maxDataSize = 1024;
     uint32_t refreshDataIntervalSec = 30;
 };
+
+// { filesystem option
+struct KernelCacheOption {
+    uint32_t entryTimeoutSec;
+    uint32_t dirEntryTimeoutSec;
+    uint32_t attrTimeoutSec;
+    uint32_t dirAttrTimeoutSec;
+};
+
+struct LookupCacheOption {
+    uint64_t lruSize;
+    uint32_t negativeTimeoutSec;
+    uint32_t minUses;
+};
+
+struct DirCacheOption {
+    uint64_t lruSize;
+    uint32_t timeoutSec;
+};
+
+struct AttrWatcherOption {
+    uint64_t lruSize;
+};
+
+struct OpenFilesOption {
+    uint64_t lruSize;
+    uint32_t deferSyncSecond;
+};
+
+struct RPCOption {
+    uint32_t listDentryLimit;
+};
+
+struct DeferSyncOption {
+    uint32_t delay;
+    bool deferDirMtime;
+};
+
+struct FileSystemOption {
+    bool cto;
+    bool disableXattr;
+    uint32_t maxNameLength;
+    uint32_t blockSize = 0x10000u;
+    KernelCacheOption kernelCacheOption;
+    LookupCacheOption lookupCacheOption;
+    DirCacheOption dirCacheOption;
+    OpenFilesOption openFilesOption;
+    AttrWatcherOption attrWatcherOption;
+    RPCOption rpcOption;
+    DeferSyncOption deferSyncOption;
+};
+// }
+
 struct FuseClientOption {
     MdsOption mdsOpt;
     MetaCacheOpt metaCacheOpt;
     ExcutorOpt excutorOpt;
     ExcutorOpt excutorInternalOpt;
-    SpaceAllocServerOption spaceOpt;
     BlockDeviceClientOptions bdevOpt;
     S3Option s3Opt;
     ExtentManagerOption extentManagerOpt;
@@ -188,22 +237,13 @@ struct FuseClientOption {
     LeaseOpt leaseOpt;
     RefreshDataOption refreshDataOption;
     KVClientManagerOpt kvClientManagerOpt;
+    FileSystemOption fileSystemOption;
 
-    double attrTimeOut;
-    double entryTimeOut;
     uint32_t listDentryLimit;
     uint32_t listDentryThreads;
-    uint32_t flushPeriodSec;
-    uint32_t maxNameLength;
-    uint64_t iCacheLruSize;
-    uint64_t dCacheLruSize;
-    bool enableICacheMetrics;
-    bool enableDCacheMetrics;
-    uint32_t lruTimeOutSec;
     uint32_t dummyServerStartPort;
     bool enableMultiMountPointRename = false;
     bool enableFuseSplice = false;
-    bool disableXattr = false;
     uint32_t downloadMaxRetryTimes;
     uint32_t warmupThreadsNum = 10;
 };

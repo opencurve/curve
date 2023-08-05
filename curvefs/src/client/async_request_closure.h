@@ -28,11 +28,14 @@
 
 #include <memory>
 
-#include "curvefs/src/client/error_code.h"
 #include "curvefs/src/client/rpcclient/task_excutor.h"
+#include "curvefs/src/client/filesystem/error.h"
 
 namespace curvefs {
 namespace client {
+
+using ::curvefs::client::filesystem::CURVEFS_ERROR;
+using ::curvefs::client::filesystem::ToFSError;
 
 class InodeWrapper;
 
@@ -60,7 +63,7 @@ class AsyncRequestClosureBase : public rpcclient::MetaServerClientDone {
 //     // xxx
 //     auto statusCode = closure.Wait();
 //
-// for synchronous update
+// for asynchronous update
 //
 //     auto* closure = new UpdateVolumeExtentClosure(
 //          shared_ptr of a inode wrapper, /* sync */ false);

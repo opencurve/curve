@@ -31,6 +31,7 @@ using ::testing::DoAll;
 using ::testing::SetArgPointee;
 using ::testing::SaveArg;
 using curve::tool::GetSegmentRes;
+using curve::tool::CreateFileContext;
 
 DECLARE_bool(isTest);
 DECLARE_string(fileName);
@@ -141,20 +142,28 @@ TEST_F(NameSpaceToolCoreTest, CreateFile) {
     uint64_t length = 5 * segmentSize;
     uint64_t stripeUnit = 32 * 1024 *1024;
     uint64_t stripeCount = 32;
+    std::string pstName = "";
 
     // 1、正常情况
-    EXPECT_CALL(*client_, CreateFile(_, _, _, _, _))
+    EXPECT_CALL(*client_, CreateFile(_))
         .Times(1)
         .WillOnce(Return(0));
-    ASSERT_EQ(0, namespaceTool.CreateFile(fileName, length,
-                               true, stripeUnit, stripeCount));
+
+    CreateFileContext context;
+    context.type = curve::mds::FileType::INODE_PAGEFILE;
+    context.name = fileName;
+    context.length = length;
+    context.stripeUnit = stripeUnit;
+    context.stripeCount = stripeCount;
+    context.poolset = pstName;
+
+    ASSERT_EQ(0, namespaceTool.CreateFile(context));
 
     // 2、创建失败
-    EXPECT_CALL(*client_, CreateFile(_, _, _, _, _))
+    EXPECT_CALL(*client_, CreateFile(_))
         .Times(1)
         .WillOnce(Return(-1));
-    ASSERT_EQ(-1, namespaceTool.CreateFile(fileName, length,
-                               true, stripeUnit, stripeCount));
+    ASSERT_EQ(-1, namespaceTool.CreateFile(context));
 }
 
 TEST_F(NameSpaceToolCoreTest, ExtendVolume) {

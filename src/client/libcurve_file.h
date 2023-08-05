@@ -99,19 +99,10 @@ class FileClient {
                        size_t size);
 
     /**
-     * create file with stripe
-     * @param: filename file name
-     * @param: userinfo user info
-     * @param: size file size
-     * @param: stripeUnit block in stripe size
-     * @param  stripeCount stripe count in one stripe
+     * Create file with parameters
      * @return: success return 0,  fail return less than 0
-     *
      */
-    virtual int Create2(const std::string& filename,
-                        const UserInfo_t& userinfo,
-                        size_t size, uint64_t stripeUnit,
-                        uint64_t stripeCount);
+    virtual int Create2(const CreateFileContext& context);
 
     /**
      * 同步模式读
@@ -246,6 +237,15 @@ class FileClient {
                          const UserInfo_t& userinfo,
                          FileStatInfo* finfo);
 
+     /**
+      * stat file
+      * @param: fd is file descriptor.
+      * @param: finfo is an output para, carry the base info of current file.
+      * @return: returns int::ok if success, 
+      *          otherwise returns an error code less than 0
+      */
+    virtual int StatFile(int fd, FileStatInfo* finfo);
+
     /**
      * 变更owner
      * @param: filename待变更的文件名
@@ -291,6 +291,9 @@ class FileClient {
      */
     int GetFileInfo(int fd, FInfo* finfo);
 
+    // List all poolsets' name in cluster
+    std::vector<std::string> ListPoolset();
+
     /**
      * 测试使用，获取当前挂载文件数量
      * @return 返回当前挂载文件数量
@@ -300,9 +303,9 @@ class FileClient {
     }
 
  private:
-    bool StartDummyServer();
+    static void BuildFileStatInfo(const FInfo_t &fi, FileStatInfo *finfo);
 
-    bool CheckAligned(off_t offset, size_t length) const;
+    bool StartDummyServer();
 
  private:
     BthreadRWLock rwlock_;

@@ -26,6 +26,7 @@
 #include <gmock/gmock.h>
 #include <vector>
 #include <map>
+#include <string>
 #include "src/mds/nameserver2/chunk_allocator.h"
 
 namespace curve {
@@ -36,11 +37,18 @@ class MockChunkAllocator: public ChunkSegmentAllocator {
     MOCK_METHOD4(AllocateChunkSegment, bool(SegmentSizeType,
       ChunkSizeType, offset_t, PageFileSegment*));
 
-    MOCK_METHOD5(AllocateChunkSegment, bool(FileType, SegmentSizeType,
-      ChunkSizeType, offset_t, PageFileSegment*));
-    MOCK_METHOD2(GetRemainingSpaceInLogicalPool,
-    void(const std::vector <PoolIdType>&,
-    std::map<PoolIdType, double>*));
+    MOCK_METHOD3(GetRemainingSpaceInLogicalPool,
+                 void(const std::vector<PoolIdType>&,
+                      std::map<PoolIdType, double>*,
+                      const std::string& pstName));
+
+    MOCK_METHOD6(AllocateChunkSegment,
+                 bool(FileType,
+                      SegmentSizeType,
+                      ChunkSizeType,
+                      const std::string&,
+                      offset_t,
+                      PageFileSegment*));
 };
 }  // namespace mds
 }  // namespace curve

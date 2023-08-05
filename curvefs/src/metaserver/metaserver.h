@@ -28,7 +28,6 @@
 #include <memory>
 #include <string>
 
-#include "curvefs/src/metaserver/copyset/apply_queue.h"
 #include "curvefs/src/metaserver/copyset/config.h"
 #include "curvefs/src/metaserver/copyset/copyset_node_manager.h"
 #include "curvefs/src/metaserver/copyset/raft_cli_service2.h"
@@ -46,13 +45,15 @@
 #include "src/fs/local_filesystem.h"
 #include "curvefs/src/metaserver/resource_statistic.h"
 #include "curvefs/src/metaserver/recycle_manager.h"
+#include "curvefs/src/metaserver/space/volume_deallocate_manager.h"
+#include "curvefs/src/metaserver/space/inode_volume_space_deallocate.h"
+#include "curvefs/src/metaserver/space/volume_space_manager.h"
 
 namespace curvefs {
 namespace metaserver {
 
 using ::curve::common::Configuration;
 using ::curvefs::metaserver::storage::StorageOptions;
-using ::curvefs::metaserver::copyset::ApplyQueue;
 using ::curvefs::metaserver::copyset::CopysetNodeManager;
 using ::curvefs::metaserver::copyset::CopysetNodeOptions;
 using ::curvefs::metaserver::copyset::CopysetServiceImpl;
@@ -70,6 +71,7 @@ struct MetaserverOptions {
     std::string externalIp;
     int externalPort;
     int bthreadWorkerCount = -1;
+    int idleTimeoutSec = -1;
     bool enableExternalServer;
 };
 
@@ -97,6 +99,9 @@ class Metaserver {
                              PartitionCleanOption* partitionCleanOption);
     void InitRecycleManagerOption(
                 RecycleManagerOption* recycleManagerOption);
+
+    void InitVolumeDeallocateOption(VolumeDeallocateWorkerQueueOption *queueOpt,
+                                    VolumeDeallocateExecuteOption *execOpt);
     void GetMetaserverDataByLoadOrRegister();
     int PersistMetaserverMeta(std::string path, MetaServerMetadata* metadata);
     int LoadMetaserverMeta(const std::string& metaFilePath,

@@ -30,6 +30,7 @@
 #include <thread>  //NOLINT
 #include <chrono>  //NOLINT
 #include <unordered_map>
+#include <map>
 #include "proto/nameserver2.pb.h"
 #include "src/mds/nameserver2/namespace_storage.h"
 #include "src/mds/common/mds_define.h"
@@ -73,6 +74,7 @@ struct CurveFSOption {
     RootAuthOption authOptions;
     FileRecordOptions fileRecordOptions;
     ThrottleOption throttleOption;
+    std::map<std::string, std::string> poolsetRules;
 };
 
 struct AllocatedSize {
@@ -141,6 +143,7 @@ class CurveFS {
      *  @return return StatusCode::kOK if succeeded
      */
     StatusCode CreateFile(const std::string & fileName,
+                          std::string poolset,
                           const std::string& owner,
                           FileType filetype,
                           uint64_t length,
@@ -213,6 +216,14 @@ class CurveFS {
     StatusCode RecoverFile(const std::string & originFileName,
                            const std::string & recycleFileName,
                            uint64_t fileId);
+
+    /**
+     *  @brief check or assign poolset name
+     *  @param[in|out] poolset: poolset name
+     *  @return StatusCode::kOK if success
+     */
+    StatusCode CheckOrAssignPoolset(const std::string& filename,
+                                    std::string* poolset) const;
 
     /**
      * @brief increase file epoch
@@ -441,6 +452,7 @@ class CurveFS {
                             ChunkSizeType chunksize,
                             uint64_t stripeUnit,
                             uint64_t stripeCount,
+                            std::string poolset,
                             FileInfo *fileInfo,
                             const std::string & cloneSource = "",
                             uint64_t cloneLength = 0);
@@ -620,6 +632,12 @@ class CurveFS {
      */
     StatusCode BuildEpochMap(::google::protobuf::Map<
         ::google::protobuf::uint64, ::google::protobuf::uint64> *epochMap);
+
+    /**
+     * @brief get the block size of curve volume
+     * @return block size
+     */
+    uint32_t GetBlockSize() const;
 
  private:
     CurveFS() = default;
@@ -818,6 +836,8 @@ class CurveFS {
     uint64_t minFileLength_;
     uint64_t maxFileLength_;
     std::chrono::steady_clock::time_point startTime_;
+
+    std::map<std::string, std::string> poolsetRules_;
 };
 extern CurveFS &kCurveFS;
 
@@ -839,6 +859,10 @@ StatusCode CheckStripeParam(uint64_t segmentSize,
                             uint64_t chunkSize,
                             uint64_t stripeUnit,
                             uint64_t stripeCount);
+
+std::string SelectPoolsetByRules(
+        const std::string& filename,
+        const std::map<std::string, std::string>& rules);
 
 }   // namespace mds
 }   // namespace curve

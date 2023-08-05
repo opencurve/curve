@@ -80,8 +80,7 @@ bool MetaStoreFStream::LoadPartition(uint32_t partitionId,
         return false;
     }
 
-    LOG(INFO) << "Load partition, partition id: " << partitionId
-              << ", partition info: " << partitionInfo.ShortDebugString();
+    LOG(INFO) << "Load partition info: " << partitionInfo.ShortDebugString();
 
     // FIXME: partitionId is always 0 in some unittest,
     //        maybe this problem also exist in production code

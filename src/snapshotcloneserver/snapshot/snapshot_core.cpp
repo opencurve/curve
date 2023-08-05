@@ -112,6 +112,7 @@ int SnapshotCoreImpl::CreateSnapshotPre(const std::string &file,
 
     UUID uuid = UUIDGenerator().GenerateUUID();
     SnapshotInfo info(uuid, user, file, snapshotName);
+    info.SetPoolset(fInfo.poolset);
     info.SetStatus(Status::pending);
     ret = metaStore_->AddSnapshot(info);
     if (ret < 0) {
@@ -555,6 +556,7 @@ int SnapshotCoreImpl::CreateSnapshotOnCurvefs(
     info->SetFileLength(snapInfo.length);
     info->SetStripeUnit(snapInfo.stripeUnit);
     info->SetStripeCount(snapInfo.stripeCount);
+    info->SetPoolset(snapInfo.poolset);
     info->SetCreateTime(snapInfo.ctime);
 
     auto compareAndSet = [&](SnapshotInfo* snapinfo) {
@@ -1187,4 +1189,3 @@ int SnapshotCoreImpl::HandleCancelScheduledSnapshotTask(
 
 }  // namespace snapshotcloneserver
 }  // namespace curve
-

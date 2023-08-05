@@ -62,7 +62,7 @@ class TaskContext {
  public:
     using RpcFunc = std::function<int(
         LogicPoolID poolID, CopysetID copysetID, PartitionID partitionID,
-        uint64_t txId, uint64_t applyIndex, brpc::Channel *channel,
+        uint64_t txId, brpc::Channel *channel,
         brpc::Controller *cntl, TaskExecutorDone *done)>;
 
     TaskContext() = default;
@@ -97,7 +97,6 @@ class TaskContext {
     uint64_t inodeID = 0;
 
     CopysetTarget target;
-    uint64_t applyIndex = 0;
 
     uint64_t retryTimes = 0;
     bool suspend = false;
@@ -147,8 +146,6 @@ class TaskExecutor {
     bool NeedRetry();
     int ExcuteTask(brpc::Channel* channel, TaskExecutorDone *done);
     virtual bool GetTarget();
-    void UpdateApplyIndex(const LogicPoolID &poolID, const CopysetID &copysetId,
-                          uint64_t applyIndex);
 
     // handle a returned rpc
     void OnSuccess();
@@ -267,6 +264,18 @@ class CreateInodeExcutor : public TaskExecutor {
     explicit CreateInodeExcutor(
         const ExcutorOpt &opt,
         const std::shared_ptr<MetaCache> &metaCache,
+        const std::shared_ptr<ChannelManager<MetaserverID>> &channelManager,
+        const std::shared_ptr<TaskContext> &task)
+        : TaskExecutor(opt, metaCache, channelManager, task) {}
+
+ protected:
+    bool GetTarget() override;
+};
+
+class CreateManagerInodeExcutor : public TaskExecutor {
+ public:
+    explicit CreateManagerInodeExcutor(
+        const ExcutorOpt &opt, const std::shared_ptr<MetaCache> &metaCache,
         const std::shared_ptr<ChannelManager<MetaserverID>> &channelManager,
         const std::shared_ptr<TaskContext> &task)
         : TaskExecutor(opt, metaCache, channelManager, task) {}

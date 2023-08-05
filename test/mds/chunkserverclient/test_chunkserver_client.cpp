@@ -69,6 +69,8 @@ namespace curve {
 namespace mds {
 namespace chunkserverclient {
 
+using ::testing::DoAll;
+
 class TestChunkServerClient : public ::testing::Test {
  protected:
     TestChunkServerClient() {}
@@ -796,4 +798,3 @@ TEST_F(TestChunkServerClient, TestDeleteChunkReturnNotLeader) {
 }  // namespace chunkserverclient
 }  // namespace mds
 }  // namespace curve
-

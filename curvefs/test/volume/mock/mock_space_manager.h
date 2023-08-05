@@ -35,9 +35,11 @@ namespace volume {
 class MockSpaceManager : public SpaceManager {
  public:
     MOCK_METHOD3(Alloc,
-                 bool(uint32_t, const AllocateHint&, std::vector<Extent>*));
-    MOCK_METHOD1(DeAlloc, bool(const std::vector<Extent>&));
+                 bool(uint32_t, const AllocateHint &, std::vector<Extent> *));
+    MOCK_METHOD2(DeAlloc, bool(uint64_t, const std::vector<Extent> &));
     MOCK_METHOD0(Shutdown, bool());
+    MOCK_METHOD0(Run, void());
+    MOCK_METHOD0(GetBlockGroupSize, uint64_t());
 };
 
 }  // namespace volume

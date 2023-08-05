@@ -26,6 +26,7 @@
 
 #include "curvefs/src/metaserver/storage/rocksdb_storage.h"
 #include "curvefs/src/metaserver/storage/storage.h"
+#include "curvefs/src/metaserver/mds/fsinfo_manager.h"
 #include "curvefs/test/client/mock_metaserver_client.h"
 #include "curvefs/test/client/rpcclient/mock_mds_client.h"
 #include "curvefs/test/metaserver/copyset/mock/mock_copyset_node.h"
@@ -62,6 +63,9 @@ class RecycleManangeTest : public testing::Test {
         options.localFileSystem = localfs.get();
         kvStorage_ = std::make_shared<RocksDBStorage>(options);
         ASSERT_TRUE(kvStorage_->Open());
+
+        mdsclient_ = std::make_shared<MockMdsClient>();
+        FsInfoManager::GetInstance().SetMdsClient(mdsclient_);
     }
 
     void TearDown() override {
@@ -97,14 +101,13 @@ class RecycleManangeTest : public testing::Test {
  protected:
     std::string dataDir_;
     std::shared_ptr<KVStorage> kvStorage_;
+    std::shared_ptr<MockMdsClient> mdsclient_;
 };
 
 TEST_F(RecycleManangeTest, test_empty_recycle) {
     RecycleManager* manager = &RecycleManager::GetInstance();
     RecycleManagerOption opt;
-    std::shared_ptr<MockMdsClient> mdsclient =
-        std::make_shared<MockMdsClient>();
-    opt.mdsClient = mdsclient;
+    opt.mdsClient = mdsclient_;
     opt.metaClient = std::make_shared<MockMetaServerClient>();
     opt.scanPeriodSec = 1;
     opt.scanLimit = 2;
@@ -142,7 +145,7 @@ TEST_F(RecycleManangeTest, test_empty_recycle) {
 
     FsInfo fsInfo;
     fsInfo.set_recycletimehour(10);
-    EXPECT_CALL(*mdsclient, GetFsInfo(fsId, _))
+    EXPECT_CALL(*mdsclient_, GetFsInfo(fsId, _))
         .WillRepeatedly(
             DoAll(SetArgPointee<1>(fsInfo), Return(FSStatusCode::OK)));
 

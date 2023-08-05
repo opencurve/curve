@@ -69,6 +69,7 @@ using ::testing::_;
 using ::testing::Invoke;
 using ::testing::Matcher;
 using ::testing::Return;
+using ::testing::DoAll;
 using ::testing::SaveArg;
 using ::testing::SetArgPointee;
 using ::curvefs::common::S3Info;

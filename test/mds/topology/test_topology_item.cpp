@@ -112,6 +112,49 @@ TEST_F(TestTopologyItem, Test_SetCopySetMembersByJson_Fail) {
     ASSERT_EQ(false, cInfo.SetCopySetMembersByJson(jsonStr));
 }
 
+TEST(TestPhysicalPool, SerializeAndDeserializeTest) {
+    {
+        PhysicalPoolData data;
+        data.set_physicalpoolid(1);
+        data.set_physicalpoolname("pool1");
+        data.set_desc("");
+
+        std::string value;
+        ASSERT_TRUE(data.SerializeToString(&value));
+
+        PhysicalPool pool;
+        ASSERT_TRUE(pool.ParseFromString(value));
+
+        ASSERT_EQ(1, pool.GetId());
+        ASSERT_EQ(UNINTIALIZE_ID, pool.GetPoolsetId());
+
+        ASSERT_TRUE(pool.SerializeToString(&value));
+        ASSERT_TRUE(data.ParseFromString(value));
+        ASSERT_FALSE(data.has_poolsetid());
+    }
+
+    {
+        PhysicalPoolData data;
+        data.set_physicalpoolid(1);
+        data.set_physicalpoolname("pool1");
+        data.set_desc("");
+        data.set_poolsetid(1);
+
+        std::string value;
+        ASSERT_TRUE(data.SerializeToString(&value));
+
+        PhysicalPool pool;
+        ASSERT_TRUE(pool.ParseFromString(value));
+
+        ASSERT_EQ(1, pool.GetId());
+        ASSERT_EQ(1, pool.GetPoolsetId());
+
+        ASSERT_TRUE(pool.SerializeToString(&value));
+        ASSERT_TRUE(data.ParseFromString(value));
+        ASSERT_TRUE(data.has_poolsetid());
+    }
+}
+
 }  // namespace topology
 }  // namespace mds
 }  // namespace curve

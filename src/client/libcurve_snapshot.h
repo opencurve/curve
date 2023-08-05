@@ -44,7 +44,7 @@ class SnapshotClient {
    * @param: opt为外围配置选项
    * @return：0为成功，-1为失败
    */
-  int Init(ClientConfigOption opt);
+  int Init(const ClientConfigOption& opt);
 
   /**
    * file对象初始化函数
@@ -161,14 +161,20 @@ class SnapshotClient {
    * @param: chunksize是要创建文件的chunk大小
    * @param stripeUnit stripe size
    * @param stripeCount stripe count
+   * @param poolset poolset of destination file
    * @param[out] fileinfo 创建的目标文件的文件信息
    *
    * @return 错误码
    */
-  int CreateCloneFile(const std::string& source, const std::string& destination,
-                      const UserInfo_t& userinfo, uint64_t size, uint64_t sn,
+  int CreateCloneFile(const std::string& source,
+                      const std::string& destination,
+                      const UserInfo_t& userinfo,
+                      uint64_t size,
+                      uint64_t sn,
                       uint32_t chunksize,
-                      uint64_t stripeUnit, uint64_t stripeCount,
+                      uint64_t stripeUnit,
+                      uint64_t stripeCount,
+                      const std::string& poolset,
                       FInfo* fileinfo);
 
   /**

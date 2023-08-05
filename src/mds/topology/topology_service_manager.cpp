@@ -32,6 +32,7 @@
 #include <chrono>  //NOLINT
 #include <thread>  //NOLINT
 #include <algorithm>
+#include <utility>
 
 #include "brpc/channel.h"
 #include "brpc/controller.h"
@@ -60,6 +61,25 @@ using ::curve::common::ChunkServerLocation;
 void TopologyServiceManager::RegistChunkServer(
     const ChunkServerRegistRequest *request,
     ChunkServerRegistResponse *response) {
+    if (request->has_blocksize() && request->has_chunksize()) {
+        if (request->blocksize() != mds::g_block_size ||
+            request->chunksize() != mds::g_chunk_size) {
+            response->set_statuscode(kTopoErrCodeConflictBlockSizeAndChunkSize);
+            LOG(WARNING) << "chunk's block size or chunk size is not identical "
+                            "with MDS, block size: "
+                         << mds::g_block_size
+                         << ", request block size: " << request->blocksize()
+                         << ", chunk size: " << mds::g_chunk_size
+                         << ", request chunk size: " << request->chunksize();
+            return;
+        }
+    } else if (request->has_blocksize() || request->has_chunksize()) {
+        LOG(WARNING) << "block size and chunk size must be present or absent "
+                        "at the same time";
+        response->set_statuscode(kTopoErrCodeInvalidParam);
+        return;
+    }
+
     std::string hostIp = request->hostip();
     uint32_t port = request->port();
     ChunkServerStat stat;
@@ -280,20 +300,7 @@ void TopologyServiceManager::ListChunkServer(
     for (ChunkServerIdType id : chunkserverList) {
         ChunkServer cs;
         if (topology_->GetChunkServer(id, &cs)) {
-            ChunkServerInfo *csInfo = response->add_chunkserverinfos();
-            csInfo->set_chunkserverid(cs.GetId());
-            csInfo->set_disktype(cs.GetDiskType());
-            csInfo->set_hostip(cs.GetHostIp());
-            csInfo->set_externalip(cs.GetExternalHostIp());
-            csInfo->set_port(cs.GetPort());
-            csInfo->set_status(cs.GetStatus());
-            csInfo->set_onlinestate(cs.GetOnlineState());
-
-            ChunkServerState st = cs.GetChunkServerState();
-            csInfo->set_diskstatus(st.GetDiskState());
-            csInfo->set_mountpoint(cs.GetMountPoint());
-            csInfo->set_diskcapacity(st.GetDiskCapacity());
-            csInfo->set_diskused(st.GetDiskUsed());
+            cs.ToChunkServerInfo(response->add_chunkserverinfos());
         } else {
             LOG(ERROR) << "Topology has counter an internal error: "
                        << "[func:] ListChunkServer, "
@@ -356,20 +363,7 @@ void TopologyServiceManager::GetChunkServerInCluster(
             response->set_statuscode(kTopoErrCodeChunkServerNotFound);
             return;
         }
-        auto *csInfo = response->add_chunkserverinfos();
-        csInfo->set_chunkserverid(cs.GetId());
-        csInfo->set_disktype(cs.GetDiskType());
-        csInfo->set_hostip(cs.GetHostIp());
-        csInfo->set_externalip(cs.GetExternalHostIp());
-        csInfo->set_port(cs.GetPort());
-        csInfo->set_status(cs.GetStatus());
-        csInfo->set_onlinestate(cs.GetOnlineState());
-
-        ChunkServerState st = cs.GetChunkServerState();
-        csInfo->set_diskstatus(st.GetDiskState());
-        csInfo->set_mountpoint(cs.GetMountPoint());
-        csInfo->set_diskcapacity(st.GetDiskCapacity());
-        csInfo->set_diskused(st.GetDiskUsed());
+        cs.ToChunkServerInfo(response->add_chunkserverinfos());
     }
 }
 
@@ -781,11 +775,73 @@ void TopologyServiceManager::ListPoolZone(const ListPoolZoneRequest* request,
     }
 }
 
+void TopologyServiceManager::CreatePoolset(const PoolsetRequest* request,
+                                           PoolsetResponse* response) {
+    if ((request->has_poolsetname()) && (request->has_type())) {
+        PoolsetIdType pid = topology_->FindPoolset(request->poolsetname());
+        if (pid != static_cast<PoolsetIdType>(UNINTIALIZE_ID)) {
+            LOG(WARNING) << "Poolset name conflict with existing poolset, id: "
+                         << pid;
+            response->set_statuscode(kTopoErrCodeNameDuplicated);
+            return;
+        }
+
+        pid = topology_->AllocatePoolsetId();
+        if (pid == static_cast<PoolsetIdType>(UNINTIALIZE_ID)) {
+            response->set_statuscode(kTopoErrCodeAllocateIdFail);
+            return;
+        }
+
+        Poolset poolset(pid, request->poolsetname(), request->type(),
+                        request->desc());
+        int errcode = topology_->AddPoolset(poolset);
+        if (kTopoErrCodeSuccess == errcode) {
+            response->set_statuscode(kTopoErrCodeSuccess);
+            PoolsetInfo *info = response->mutable_poolsetinfo();
+            info->set_poolsetid(pid);
+            info->set_poolsetname(request->poolsetname());
+            info->set_type(request->type());
+            info->set_desc(request->desc());
+        } else {
+            response->set_statuscode(errcode);
+        }
+    } else {
+        response->set_statuscode(kTopoErrCodeInvalidParam);
+    }
+}
+
+void TopologyServiceManager::DeletePoolset(const PoolsetRequest* request,
+                                           PoolsetResponse* response) {
+    Poolset poolset;
+    if (request->has_poolsetid()) {
+        if (!topology_->GetPoolset(request->poolsetid(), &poolset)) {
+            response->set_statuscode(kTopoErrCodePoolsetNotFound);
+            return;
+        }
+    } else if (request->has_poolsetname()) {
+        if (!topology_->GetPoolset(request->poolsetname(), &poolset)) {
+            response->set_statuscode(kTopoErrCodePoolsetNotFound);
+            return;
+        }
+    } else {
+        response->set_statuscode(kTopoErrCodeInvalidParam);
+        return;
+    }
+
+    int errcode = topology_->RemovePoolset(poolset.GetId());
+    response->set_statuscode(errcode);
+}
+
 void TopologyServiceManager::CreatePhysicalPool(
     const PhysicalPoolRequest *request,
     PhysicalPoolResponse *response) {
-    if ((request->has_physicalpoolname()) &&
-        (request->has_desc())) {
+    if ((request->has_physicalpoolname()) && (request->has_desc()) &&
+        (request->has_poolsetname())) {
+        Poolset poolset;
+        if (!topology_->GetPoolset(request->poolsetname(), &poolset)) {
+            response->set_statuscode(kTopoErrCodePoolsetNotFound);
+            return;
+        }
         PoolIdType pid = topology_->AllocatePhysicalPoolId();
         if (pid ==
             static_cast<PoolIdType>(UNINTIALIZE_ID)) {
@@ -794,6 +850,7 @@ void TopologyServiceManager::CreatePhysicalPool(
         }
         PhysicalPool pool(pid,
                           request->physicalpoolname(),
+                          poolset.GetId(),
                           request->desc());
 
         int errcode = topology_->AddPhysicalPool(pool);
@@ -803,6 +860,8 @@ void TopologyServiceManager::CreatePhysicalPool(
             info->set_physicalpoolid(pid);
             info->set_physicalpoolname(request->physicalpoolname());
             info->set_desc(request->desc());
+            info->set_poolsetid(pool.GetPoolsetId());
+            info->set_poolsetname(poolset.GetName());
             response->set_allocated_physicalpoolinfo(info);
         } else {
             response->set_statuscode(errcode);
@@ -821,8 +880,9 @@ void TopologyServiceManager::DeletePhysicalPool(
             response->set_statuscode(kTopoErrCodePhysicalPoolNotFound);
             return;
         }
-    } else if (request->has_physicalpoolname()) {
-        if (!topology_->GetPhysicalPool(request->physicalpoolname(), &pool)) {
+    } else if (request->has_physicalpoolname() && request->has_poolsetname()) {
+        if (!topology_->GetPhysicalPool(request->physicalpoolname(),
+             request->poolsetname(), &pool)) {
             response->set_statuscode(kTopoErrCodePhysicalPoolNotFound);
             return;
         }
@@ -857,8 +917,65 @@ void TopologyServiceManager::GetPhysicalPool(const PhysicalPoolRequest *request,
     PhysicalPoolInfo *info = new PhysicalPoolInfo();
     info->set_physicalpoolid(pool.GetId());
     info->set_physicalpoolname(pool.GetName());
+
+    assert(pool.GetPoolsetId() != UNINTIALIZE_ID);
+    Poolset poolset;
+    if (!topology_->GetPoolset(pool.GetPoolsetId(), &poolset)) {
+        response->set_statuscode(kTopoErrCodeInternalError);
+        return;
+    }
+    info->set_poolsetid(pool.GetPoolsetId());
+    info->set_poolsetname(poolset.GetName());
     info->set_desc(pool.GetDesc());
     response->set_allocated_physicalpoolinfo(info);
+}
+
+void TopologyServiceManager::GetPoolset(const PoolsetRequest *request,
+                                        PoolsetResponse *response) {
+    Poolset poolset;
+    if (request->has_poolsetid()) {
+        if (!topology_->GetPoolset(request->poolsetid(), &poolset)) {
+            response->set_statuscode(kTopoErrCodePoolsetNotFound);
+            return;
+        }
+    } else if (request->has_poolsetname()) {
+        if (!topology_->GetPoolset(request->poolsetname(), &poolset)) {
+            response->set_statuscode(kTopoErrCodePoolsetNotFound);
+            return;
+        }
+    } else {
+        response->set_statuscode(kTopoErrCodeInvalidParam);
+        return;
+    }
+
+    response->set_statuscode(kTopoErrCodeSuccess);
+    PoolsetInfo *info = response->mutable_poolsetinfo();
+    info->set_poolsetid(poolset.GetId());
+    info->set_poolsetname(poolset.GetName());
+    info->set_type(poolset.GetType());
+    info->set_desc(poolset.GetDesc());
+}
+
+void TopologyServiceManager::ListPoolset(const ListPoolsetRequest* /*request*/,
+                                         ListPoolsetResponse* response) {
+    response->set_statuscode(kTopoErrCodeSuccess);
+    auto poolsetList = topology_->GetPoolsetInCluster();
+    for (PoolsetIdType id : poolsetList) {
+        Poolset poolset;
+        if (topology_->GetPoolset(id, &poolset)) {
+            PoolsetInfo* info = response->add_poolsetinfos();
+            info->set_poolsetid(poolset.GetId());
+            info->set_poolsetname(poolset.GetName());
+            info->set_type(poolset.GetType());
+            info->set_desc(poolset.GetDesc());
+        } else {
+            LOG(ERROR) << "Topology has counter an internal error: "
+                       << "[func:] ListPoolset, "
+                       << "[msg:] Poolset not found, id = " << id;
+            response->set_statuscode(kTopoErrCodeInternalError);
+            return;
+        }
+    }
 }
 
 void TopologyServiceManager::ListPhysicalPool(
@@ -873,6 +990,19 @@ void TopologyServiceManager::ListPhysicalPool(
             PhysicalPoolInfo *info = response->add_physicalpoolinfos();
             info->set_physicalpoolid(pool.GetId());
             info->set_physicalpoolname(pool.GetName());
+            assert(pool.GetPoolsetId() != UNINTIALIZE_ID);
+            Poolset poolset;
+            if (!topology_->GetPoolset(pool.GetPoolsetId(), &poolset)) {
+                LOG(WARNING)
+                        << "Failed to get poolset, id: " << pool.GetPoolsetId();
+                response->clear_physicalpoolinfos();
+                response->set_statuscode(kTopoErrCodeInternalError);
+                return;
+            }
+            info->set_poolsetid(pool.GetPoolsetId());
+            info->set_poolsetname(poolset.GetName());
+
+            info->set_poolsetid(pool.GetPoolsetId());
             info->set_desc(pool.GetDesc());
         } else {
             LOG(ERROR) << "Topology has counter an internal error: "
@@ -881,6 +1011,44 @@ void TopologyServiceManager::ListPhysicalPool(
                        << id;
             response->set_statuscode(kTopoErrCodeInternalError);
             return;
+        }
+    }
+}
+
+void TopologyServiceManager::ListPhysicalPoolsInPoolset(
+        const ListPhysicalPoolsInPoolsetRequest* request,
+        ListPhysicalPoolResponse* response) {
+    response->set_statuscode(kTopoErrCodeSuccess);
+    int sz = request->poolsetid_size();
+    if (sz <= 0) {
+        response->set_statuscode(kTopoErrCodeInvalidParam);
+        return;
+    }
+    for (int i = 0; i < sz; ++i) {
+        Poolset poolset;
+        PoolsetIdType psId = request->poolsetid(i);
+        if (!topology_->GetPoolset(psId, &poolset)) {
+            response->set_statuscode(kTopoErrCodePoolsetNotFound);
+            return;
+        }
+
+        const auto& pidList = poolset.GetPhysicalPoolList();
+        for (PhysicalPoolIdType id : pidList) {
+            PhysicalPool pool;
+            if (topology_->GetPhysicalPool(id, &pool)) {
+                PhysicalPoolInfo* info = response->add_physicalpoolinfos();
+                info->set_physicalpoolid(pool.GetId());
+                info->set_physicalpoolname(pool.GetName());
+                info->set_desc(pool.GetDesc());
+                info->set_poolsetid(pool.GetPoolsetId());
+                info->set_poolsetname(poolset.GetName());
+            } else {
+                LOG(ERROR) << "Topology has counter an internal error: "
+                           << "[func:] ListPhysicalPoolsInPoolset, "
+                           << "[msg:] physicalpool not found, id = " << id;
+                response->set_statuscode(kTopoErrCodeInternalError);
+                return;
+            }
         }
     }
 }
@@ -1531,7 +1699,7 @@ void TopologyServiceManager::GetCopySetsInCluster(
     const GetCopySetsInClusterRequest* request,
     GetCopySetsInClusterResponse* response) {
     auto filter = [&](const CopySetInfo& copysetInfo) {
-        if (request->has_filterscaning() && !copysetInfo.GetScaning()) {
+        if (request->filterscaning() && !copysetInfo.GetScaning()) {
             return false;
         }
 

@@ -21,10 +21,16 @@
  */
 
 #include <glog/logging.h>
+#include <map>
 #include "src/mds/server/mds.h"
 #include "src/mds/nameserver2/helper/namespace_helper.h"
 #include "src/mds/topology/topology_storge_etcd.h"
 #include "src/common/lru_cache.h"
+#include "src/common/namespace_define.h"
+#include "src/common/string_util.h"
+#include "src/common/fast_align.h"
+
+#include "absl/strings/str_split.h"
 
 using ::curve::mds::topology::TopologyStorageEtcd;
 using ::curve::mds::topology::TopologyStorageCodec;
@@ -35,6 +41,8 @@ namespace mds {
 
 using LRUCache = ::curve::common::LRUCache<std::string, std::string>;
 using CacheMetrics = ::curve::common::CacheMetrics;
+using ::curve::common::BLOCKSIZEKEY;
+using ::curve::common::CHUNKSIZEKEY;
 
 MDS::~MDS() {
     if (etcdEndpoints_) {
@@ -119,6 +127,11 @@ void MDS::StartCompaginLeader() {
 }
 
 void MDS::Init() {
+    LOG_IF(FATAL, !CheckOrInsertBlockSize(etcdClient_.get()))
+        << "Check or insert block size failed";
+    LOG_IF(FATAL, !CheckOrInsertChunkSize(etcdClient_.get()))
+        << "Check or insert chunk size failed";
+
     InitSegmentAllocStatistic(options_.retryInterTimes,
                               options_.periodicPersistInterMs);
     InitNameServerStorage(options_.mdsCacheCount);
@@ -504,18 +517,29 @@ void MDS::InitThrottleOption(ThrottleOption* option) {
 void MDS::InitCurveFSOptions(CurveFSOption *curveFSOptions) {
     conf_->GetValueFatalIfFail(
         "mds.curvefs.defaultChunkSize", &curveFSOptions->defaultChunkSize);
+    g_chunk_size = curveFSOptions->defaultChunkSize;
+
     conf_->GetValueFatalIfFail(
         "mds.curvefs.defaultSegmentSize", &curveFSOptions->defaultSegmentSize);
     conf_->GetValueFatalIfFail(
         "mds.curvefs.minFileLength", &curveFSOptions->minFileLength);
     conf_->GetValueFatalIfFail(
         "mds.curvefs.maxFileLength", &curveFSOptions->maxFileLength);
+    conf_->GetValueFatalIfFail("mds.curvefs.blockSize", &g_block_size);
+
+    if (g_block_size != 4096 && g_block_size != 512) {
+        LOG(FATAL) << "mds.curvefs.blockSize only supports 512 and 4096";
+    }
+
     InitFileRecordOptions(&curveFSOptions->fileRecordOptions);
 
-    RootAuthOption authOptions;
     InitAuthOptions(&curveFSOptions->authOptions);
 
     InitThrottleOption(&curveFSOptions->throttleOption);
+
+    LOG_IF(FATAL, !ParsePoolsetRules(conf_->GetStringValue("mds.poolset.rules"),
+                                     &curveFSOptions->poolsetRules))
+            << "Fail to parse poolset rules";
 }
 
 void MDS::InitDLockOption(std::shared_ptr<DLockOpts> dlockOpts) {
@@ -656,5 +680,85 @@ void MDS::InitHeartbeatOption(HeartbeatOption* heartbeatOption) {
     conf_->GetValueFatalIfFail("mds.heartbeat.clean_follower_afterMs",
                         &heartbeatOption->cleanFollowerAfterMs);
 }
+
+bool ParsePoolsetRules(const std::string& str,
+                       std::map<std::string, std::string>* rules) {
+    rules->clear();
+
+    if (str.empty()) {
+        return true;
+    }
+
+    for (absl::string_view sp : absl::StrSplit(str, ';')) {
+        rules->insert(absl::StrSplit(sp, ':'));
+    }
+
+    for (const auto& rule : *rules) {
+        const auto& key = rule.first;
+
+        if (key.empty() || key.front() != '/' || key.back() != '/') {
+            LOG(ERROR) << "Invalid poolset rules, key must starts and ends "
+                          "with `/`, rules: `"
+                       << str << "`";
+            return false;
+        }
+    }
+
+    return true;
+}
+
+namespace {
+bool CheckOrInsertValue(EtcdClientImp* etcdclient,
+                        const std::string& key,
+                        uint32_t expected) {
+    std::string value;
+    auto err = etcdclient->Get(key, &value);
+
+    switch (err) {
+        case EtcdErrCode::EtcdOK: {
+            uint32_t val = 0;
+            if (!curve::common::StringToUl(value, &val)) {
+                LOG(WARNING) << "Convert failed, raw value "
+                                "from etcd is: "
+                             << value;
+                return false;
+            }
+
+            if (val != expected) {
+                LOG(WARNING) << "Key " << key << "`" << val
+                             << "` in etcd  is not identical with "
+                                "expected `"
+                             << expected << "`";
+                return false;
+            }
+
+            return true;
+        }
+        case EtcdErrCode::EtcdKeyNotExist: {
+            std::string value = std::to_string(expected);
+            err = etcdclient->Put(key, value);
+            if (err != EtcdErrCode::EtcdOK) {
+                LOG(WARNING) << "Put " << key << " `" << expected
+                             << "` to etcd failed, error: " << err;
+                return false;
+            }
+
+            return true;
+        }
+        default:
+            LOG(WARNING) << "Get " << key << " from etcd failed";
+            return false;
+    }
+}
+}  // namespace
+
+bool CheckOrInsertBlockSize(EtcdClientImp* etcdclient) {
+    return CheckOrInsertValue(etcdclient, BLOCKSIZEKEY, g_block_size);
+}
+
+bool CheckOrInsertChunkSize(EtcdClientImp* etcdclient) {
+    return CheckOrInsertValue(etcdclient, CHUNKSIZEKEY, g_chunk_size);
+}
+
 }  // namespace mds
 }  // namespace curve

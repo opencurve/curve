@@ -26,9 +26,8 @@ global.external_ip=127.0.0.1
 global.external_subnet=127.0.0.0/24
 global.chunk_size=16777216
 global.meta_page_size=4096
+global.block_size=4096
 global.location_limit=3000
-
-global.min_io_alignment=512
 
 #
 # MDS settings
@@ -82,7 +81,7 @@ copyset.scan_rpc_timeout_ms=1000
 copyset.scan_rpc_retry_times=3
 copyset.scan_rpc_retry_interval_us=100000
 # enable O_DSYNC when open chunkfile
-copyset.enable_odsync_when_open_chunkfile=false
+copyset.enable_odsync_when_open_chunkfile=true
 # sync timer timeout interval
 copyset.synctimer_interval_ms=30000
 # check syncing interval

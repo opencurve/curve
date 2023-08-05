@@ -67,9 +67,6 @@ class MockMetaCache : public MetaCache {
     MOCK_METHOD3(UpdateLeader, int(LogicPoolID, CopysetID,
                                    const butil::EndPoint &));
 
-    MOCK_METHOD2(GetChunkInfoByIndex,
-                 MetaCacheErrorType(ChunkIndex, ChunkIDInfo *));
-
     void DelegateToFake() {
         ON_CALL(*this, GetLeader(_, _, _, _, _, _))
             .WillByDefault(Invoke(&fakeMetaCache_, &FakeMetaCache::GetLeader));

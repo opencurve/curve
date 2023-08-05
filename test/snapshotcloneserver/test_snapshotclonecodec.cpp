@@ -39,9 +39,11 @@ using ::testing::DoAll;
 namespace curve {
 namespace snapshotcloneserver {
 
+static const char* kDefaultPoolset = "poolset";
+
 TEST(TestSnapshotCloneServerCodec, TestSnapInfoEncodeDecodeEqual) {
     SnapshotInfo snapInfo("snapuuid", "snapuser", "file1", "snapxxx", 100,
-                        1024, 2048, 4096, 4096, 8, 0,
+                        1024, 2048, 4096, 4096, 8, kDefaultPoolset, 0,
                         Status::pending);
     SnapshotCloneCodec testObj;
     std::string value;
@@ -60,6 +62,7 @@ TEST(TestSnapshotCloneServerCodec, TestSnapInfoEncodeDecodeEqual) {
     ASSERT_EQ(snapInfo.GetFileLength(), decodedSnapInfo.GetFileLength());
     ASSERT_EQ(snapInfo.GetStripeUnit(), decodedSnapInfo.GetStripeUnit());
     ASSERT_EQ(snapInfo.GetStripeCount(), decodedSnapInfo.GetStripeCount());
+    ASSERT_EQ(snapInfo.GetPoolset(), decodedSnapInfo.GetPoolset());
     ASSERT_EQ(snapInfo.GetCreateTime(), decodedSnapInfo.GetCreateTime());
     ASSERT_EQ(snapInfo.GetStatus(), decodedSnapInfo.GetStatus());
 }
@@ -67,7 +70,7 @@ TEST(TestSnapshotCloneServerCodec, TestSnapInfoEncodeDecodeEqual) {
 TEST(TestSnapshotCloneServerCodec, TestCloneInfoEncodeDecodeEqual) {
     CloneInfo cloneInfo("cloneuuid", "cloneuser",
                      CloneTaskType::kRecover, "srcfile",
-                     "dstfile", 1, 2, 3,
+                     "dstfile", kDefaultPoolset, 1, 2, 3,
                      CloneFileType::kSnapshot, false,
                      CloneStep::kCompleteCloneFile,
                      CloneStatus::recovering);

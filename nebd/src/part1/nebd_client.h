@@ -100,6 +100,8 @@ class NebdClient {
      */
     int64_t GetFileSize(int fd);
 
+    int64_t GetBlockSize(int fd);
+
     /**
      *  @brief discard文件，异步函数
      *  @param fd：文件的fd

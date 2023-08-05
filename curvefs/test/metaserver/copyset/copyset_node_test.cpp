@@ -111,8 +111,10 @@ TEST_F(CopysetNodeTest, TestInit) {
     // apply queue init failed
     {
         CopysetNodeOptions options = options_;
-        options.applyQueueOption.queueDepth = 0;
-        options.applyQueueOption.workerCount = 0;
+        options.applyQueueOption.wconcurrentsize = 0;
+        options.applyQueueOption.wqueuedepth = 0;
+        options.applyQueueOption.rconcurrentsize = 0;
+        options.applyQueueOption.rqueuedepth = 0;
         options.dataUri = "local:///mnt/data";
         options.localFileSystem = &mockfs_;
 
@@ -569,6 +571,52 @@ TEST_F(CopysetNodeTest, ProposeAfterStopWontFatal) {
     task.done = &fakeDone;
 
     ASSERT_NO_FATAL_FAILURE({ node.Propose(task); });
+}
+
+TEST_F(CopysetNodeTest, IsLeaseLeader) {
+    CopysetNode node(poolId_, copysetId_, conf_, &mockNodeManager_);
+
+    EXPECT_TRUE(node.Init(options_));
+
+    auto* mockRaftNode = new MockRaftNode();
+    node.SetRaftNode(mockRaftNode);
+
+    EXPECT_FALSE(node.IsLeaderTerm());
+    EXPECT_EQ(-1, node.LeaderTerm());
+
+    // not leader now
+    {
+        std::vector<braft::LeaseState> states = {
+            braft::LEASE_DISABLED,
+            braft::LEASE_VALID,
+            braft::LEASE_NOT_READY,
+            braft::LEASE_EXPIRED
+        };
+        braft::LeaderLeaseStatus status;
+        for (auto &state : states) {
+            status.state = state;
+            ASSERT_FALSE(node.IsLeaseLeader(status));
+        }
+    }
+
+    // ABA problem, current node is term 8(on leader start),
+    // but leader lease term is 10
+    {
+        node.on_leader_start(8);
+        braft::LeaderLeaseStatus status;
+        status.term = 10;
+        status.state = braft::LEASE_NOT_READY;
+        ASSERT_FALSE(node.IsLeaseLeader(status));
+    }
+
+    // normal condition
+    {
+        node.on_leader_start(10);
+        braft::LeaderLeaseStatus status;
+        status.term = 10;
+        status.state = braft::LEASE_VALID;
+        ASSERT_TRUE(node.IsLeaseLeader(status));
+    }
 }
 
 }  // namespace copyset

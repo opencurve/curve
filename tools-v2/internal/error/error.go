@@ -30,6 +30,7 @@ import (
 	"github.com/opencurve/curve/tools-v2/proto/curvefs/proto/topology"
 	"github.com/opencurve/curve/tools-v2/proto/proto/copyset"
 	"github.com/opencurve/curve/tools-v2/proto/proto/nameserver2"
+	bs_schedule_statuscode "github.com/opencurve/curve/tools-v2/proto/proto/schedule/statuscode"
 	"github.com/opencurve/curve/tools-v2/proto/proto/topology/statuscode"
 	bs_topo_statuscode "github.com/opencurve/curve/tools-v2/proto/proto/topology/statuscode"
 )
@@ -435,6 +436,45 @@ var (
 	ErrBsGetSnapshotServerStatus = func() *CmdError {
 		return NewInternalCmdError(58, "get snapshotserver status fail, err: %s")
 	}
+	ErrBsGetChunkServerInCluster = func() *CmdError {
+		return NewInternalCmdError(59, "get chunkserver in cluster fail, err: %s")
+	}
+	ErrBsQueryChunkServerRecoverStatus = func() *CmdError {
+		return NewInternalCmdError(60, "query chunkserver recover status fail, err: %s")
+	}
+	ErrBsListChunkServer = func() *CmdError {
+		return NewInternalCmdError(61, "list chunkserver fail, err: %s")
+	}
+	ErrBsGetChunkInfo = func() *CmdError {
+		return NewInternalCmdError(62, "get chunk info fail, err: %s")
+	}
+	ErrBsGetUnavailCopysets = func() *CmdError {
+		return NewInternalCmdError(63, "get unavail copysets fail, err: %s")
+	}
+	ErrBsGetScanStatus = func() *CmdError {
+		return NewInternalCmdError(64, "query scan-status fail, err: %s")
+	}
+	ErrBsListScanStatus = func() *CmdError {
+		return NewInternalCmdError(65, "list scan-status fail, err: %s")
+	}
+	ErrBsListOfflineChunkServer = func() *CmdError {
+		return NewInternalCmdError(66, "list offline chunkserver fail, err: %s")
+	}
+	ErrBsListSpaceStatus = func() *CmdError {
+		return NewInternalCmdError(68, "list space status fail, err: %s")
+	}
+	ErrConverResult = func() *CmdError {
+		return NewInternalCmdError(69, "conver results fail, err: %s")
+	}
+	ErrSnapShotAddrNotConfigured = func() *CmdError {
+		return NewInternalCmdError(70, "get snapshotAddr fail, err: %s")
+	}
+	ErrBsGetOneSnapshotResult = func() *CmdError {
+		return NewInternalCmdError(71, "get one snapshot result fail, err: %s")
+	}
+	ErrBsGetAllSnapshotResult = func() *CmdError {
+		return NewInternalCmdError(72, "get all snapshot results fail, err: %s")
+	}
 
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {
@@ -446,7 +486,6 @@ var (
 	ErrHttpStatus = func(statusCode int) *CmdError {
 		return NewHttpError(statusCode, "the url is: %s, http status code is: %d")
 	}
-
 	// rpc error
 	ErrRpcCall = func() *CmdError {
 		return NewRpcReultCmdError(1, "rpc[%s] is fail, the error is: %s")
@@ -648,6 +687,10 @@ var (
 		message := fmt.Sprintf("Rpc[ListPoolZone] faild status code: %s", statuscode.String())
 		return NewInternalCmdError(int(statuscode), message)
 	}
+	ErrBsSetCopysetAvailFlagRpc = func(statuscode bs_topo_statuscode.TopoStatusCode) *CmdError {
+		message := fmt.Sprintf("Rpc[SetCopysetAvailFlag] faild status code: %s", statuscode.String())
+		return NewInternalCmdError(int(statuscode), message)
+	}
 
 	// bs
 	ErrCreateBsTopology = func(statusCode bs_topo_statuscode.TopoStatusCode, topoType string, name string) *CmdError {
@@ -713,7 +756,7 @@ var (
 		code := int(statusCode)
 		switch statusCode {
 		case bs_topo_statuscode.TopoStatusCode_Success:
-			message = "list zones successfully"
+			message = "delete zones successfully"
 		default:
 			message = fmt.Sprintf("delete %s[%s], err: %s", topoType, name, statusCode.String())
 		}
@@ -725,7 +768,7 @@ var (
 		code := int(statusCode)
 		switch statusCode {
 		case bs_topo_statuscode.TopoStatusCode_Success:
-			message = "list physicalpools successfully"
+			message = "delete physicalpools successfully"
 		default:
 			message = fmt.Sprintf("delete %s[%s], err: %s", topoType, name, statusCode.String())
 		}
@@ -796,7 +839,44 @@ var (
 		case statuscode.TopoStatusCode_Success:
 			message = "success"
 		default:
-			message = fmt.Sprintf("get copyset(id: %d,logicalPoolid: %d) info fail, err: %s", copysetid, logicalpoolid, statusCode.String())
+			message = fmt.Sprintf("rpc get copyset(id: %d,logicalPoolid: %d) info fail, err: %s", copysetid, logicalpoolid, statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
+	ErrBsGetChunkServerInClusterRpc = func(statusCode statuscode.TopoStatusCode) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case statuscode.TopoStatusCode_Success:
+			message = "success"
+		default:
+			message = fmt.Sprintf("Rpc[GetChunkServerInCluster] fail, err: %s", statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
+	ErrBsQueryChunkserverRecoverStatus = func(statusCode statuscode.TopoStatusCode) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case statuscode.TopoStatusCode_Success:
+			message = "success"
+		default:
+			message = fmt.Sprintf("Rpc[QueryChunkserverRecoverStatus] fail, err: %s", statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
+	ErrBsRapidLeaderSchedule = func(statusCode bs_schedule_statuscode.ScheduleStatusCode) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case bs_schedule_statuscode.ScheduleStatusCode_ScheduleSuccess:
+			message = "null"
+		case bs_schedule_statuscode.ScheduleStatusCode_InvalidLogicalPool:
+			message = "invalid logical pool id"
+		case bs_schedule_statuscode.ScheduleStatusCode_InvalidQueryChunkserverID:
+			message = "invalid query chunkserver id"
+		default:
+			message = "unknown error"
 		}
 		return NewRpcReultCmdError(code, message)
 	}

@@ -27,8 +27,10 @@
 
 #include "curvefs/src/client/rpcclient/task_excutor.h"
 #include "curvefs/proto/metaserver.pb.h"
+#include "curvefs/src/common/define.h"
 
 using ::curvefs::metaserver::MetaStatusCode;
+using ::curvefs::RECYCLEINODEID;
 
 namespace curvefs {
 namespace client {
@@ -219,8 +221,7 @@ void TaskExecutor::PreProcessBeforeRetry(int retCode) {
 }
 
 bool TaskExecutor::GetTarget() {
-    if (!metaCache_->GetTarget(task_->fsID, task_->inodeID, &task_->target,
-                               &task_->applyIndex)) {
+    if (!metaCache_->GetTarget(task_->fsID, task_->inodeID, &task_->target)) {
         LOG(ERROR) << "fetch target for task fail, " << task_->TaskContextStr();
         return false;
     }
@@ -234,7 +235,7 @@ int TaskExecutor::ExcuteTask(brpc::Channel *channel,
     return task_->rpctask(task_->target.groupID.poolID,
                           task_->target.groupID.copysetID,
                           task_->target.partitionID, task_->target.txId,
-                          task_->applyIndex, channel, &task_->cntl_, done);
+                          channel, &task_->cntl_, done);
 }
 
 void TaskExecutor::OnSuccess() {}
@@ -252,7 +253,7 @@ void TaskExecutor::RefreshLeader() {
     MetaserverID oldTarget = task_->target.metaServerID;
 
     bool ok =
-        metaCache_->GetTargetLeader(&task_->target, &task_->applyIndex, true);
+        metaCache_->GetTargetLeader(&task_->target, true);
 
     VLOG(3) << "refresh leader for {inodeid:" << task_->inodeID
             << ", pool:" << task_->target.groupID.poolID
@@ -330,10 +331,19 @@ void TaskExecutorDone::Run() {
 }
 
 bool CreateInodeExcutor::GetTarget() {
-    if (!metaCache_->SelectTarget(task_->fsID, &task_->target,
-                                  &task_->applyIndex)) {
+    if (!metaCache_->SelectTarget(task_->fsID, &task_->target)) {
         LOG(ERROR) << "select target for task fail, "
                    << task_->TaskContextStr();
+        return false;
+    }
+    return true;
+}
+
+bool CreateManagerInodeExcutor::GetTarget() {
+    if (!metaCache_->GetTarget(task_->fsID, RECYCLEINODEID, &task_->target)) {
+        LOG(ERROR) << "CreateManagerInodeExcutor select target for task fail, "
+                   << task_->TaskContextStr()
+                   << ", recycleInodeId = " << RECYCLEINODEID;
         return false;
     }
     return true;

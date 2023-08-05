@@ -230,18 +230,76 @@ class LogicalPool {
     bool scanEnable_;
 };
 
+class Poolset {
+ public:
+    Poolset() : id_(UNINTIALIZE_ID) {}
+
+    Poolset(PoolsetIdType id,
+            const std::string& name,
+            const std::string& type,
+            const std::string& desc)
+        : id_(id), name_(name), type_(type), desc_(desc) {}
+
+    PoolsetIdType GetId() const {
+        return id_;
+    }
+
+    std::string GetName() const {
+        return name_;
+    }
+
+    std::string GetType() const {
+        return type_;
+    }
+
+    void SetDesc(const std::string &desc) {
+        desc_ = desc;
+    }
+
+    std::string GetDesc() const {
+        return desc_;
+    }
+
+    void AddPhysicalPool(PhysicalPoolIdType id) {
+        physicalPoolList_.push_back(id);
+    }
+
+    void RemovePhysicalPool(PhysicalPoolIdType id) {
+        physicalPoolList_.remove(id);
+    }
+
+    const std::list<PhysicalPoolIdType>& GetPhysicalPoolList() const {
+        return physicalPoolList_;
+    }
+
+    bool SerializeToString(std::string *value) const;
+
+    bool ParseFromString(const std::string &value);
+
+ private:
+    PoolsetIdType id_;
+    std::string name_;
+    std::string type_;
+    std::string desc_;
+
+    std::list<PhysicalPoolIdType> physicalPoolList_;
+};
+
 class PhysicalPool {
  public:
     PhysicalPool()
         : id_(UNINTIALIZE_ID),
           name_(""),
+          poolsetId_(UNINTIALIZE_ID),
           desc_(""),
           diskCapacity_(0) {}
     PhysicalPool(PoolIdType id,
                  const std::string &name,
+                 const PoolsetIdType poolsetId,
                  const std::string &desc)
         : id_(id),
           name_(name),
+          poolsetId_(poolsetId),
           desc_(desc),
           diskCapacity_(0) {}
 
@@ -252,9 +310,18 @@ class PhysicalPool {
         return name_;
     }
 
+    PoolsetIdType GetPoolsetId() const {
+        return poolsetId_;
+    }
+
+    void SetPoolsetId(PoolsetIdType id) {
+        poolsetId_ = id;
+    }
+
     void SetDesc(const std::string &desc) {
         desc_ = desc;
     }
+
     std::string GetDesc() const {
         return desc_;
     }
@@ -283,6 +350,7 @@ class PhysicalPool {
  private:
     PoolIdType id_;
     std::string name_;
+    PoolsetIdType poolsetId_;
     std::string desc_;
 
     // logical total capacity
@@ -498,7 +566,8 @@ class ChunkServer {
                 const std::string &diskPath,
                 ChunkServerStatus status = READWRITE,
                 OnlineState onlineState = OnlineState::OFFLINE,
-                const std::string &externalHostIp = "")
+                const std::string &externalHostIp = "",
+                std::string version = "")
         : id_(id),
           token_(token),
           diskType_(diskType),
@@ -510,6 +579,7 @@ class ChunkServer {
           startUpTime_(0),
           status_(status),
           onlineState_(onlineState),
+          version_(std::move(version)),
           dirty_(false) {}
 
     ChunkServer(const ChunkServer& v) :
@@ -524,6 +594,7 @@ class ChunkServer {
         status_(v.status_),
         onlineState_(v.onlineState_),
         state_(v.state_),
+        version_(v.version_),
         dirty_(v.dirty_) {}
 
     ChunkServer& operator= (const ChunkServer& v) {
@@ -543,6 +614,7 @@ class ChunkServer {
         onlineState_ = v.onlineState_;
         state_ = v.state_;
         dirty_ = v.dirty_;
+        version_ = v.version_;
         return *this;
     }
 
@@ -628,6 +700,8 @@ class ChunkServer {
         dirty_ = dirty;
     }
 
+    void SetVersion(const std::string &version) { version_ = version; }
+
     ::curve::common::RWLock& GetRWLockRef() const {
         return mutex_;
     }
@@ -635,6 +709,8 @@ class ChunkServer {
     bool SerializeToString(std::string *value) const;
 
     bool ParseFromString(const std::string &value);
+
+    void ToChunkServerInfo(ChunkServerInfo *csinfo) const;
 
  private:
     ChunkServerIdType id_;
@@ -655,6 +731,8 @@ class ChunkServer {
     OnlineState onlineState_;  // 0:online、1: offline
 
     ChunkServerState state_;
+
+    std::string version_;  // chunk server version
 
     /**
      * @brief to mark whether data is dirty, for writing to storage regularly

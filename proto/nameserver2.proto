@@ -93,6 +93,8 @@ message FileInfo {
 
     optional    FileThrottleParams throttleParams = 17;
     optional    uint64      epoch = 18;
+    optional    string      poolset = 19;
+    optional    uint32      blocksize = 20;
 }
 
 // status code
@@ -166,7 +168,8 @@ enum  StatusCode {
     kRecoverFileError = 139;
     // epoch too old
     kEpochTooOld = 140;
-
+    // poolset doesn't exist
+    kPoolsetNotExist = 141;
     // 元数据存储错误
     kStorageError = 501;
     // 内部错误
@@ -202,6 +205,7 @@ message CreateFileRequest {
     required uint64     date = 6;
     optional uint64     stripeUnit = 7;
     optional uint64     stripeCount = 8;
+    optional string     poolset = 9;
 };
 
 message CreateFileResponse {
@@ -499,6 +503,7 @@ message  CreateCloneFileRequest {
     required string     cloneSource = 9;
     optional uint64     stripeUnit = 10;
     optional uint64     stripeCount = 11;
+    optional string     poolset = 12;
 }
 
 message CreateCloneFileResponse {

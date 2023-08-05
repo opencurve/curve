@@ -20,10 +20,12 @@ cc_test(
     name = "clone_test",
     srcs = glob([
         "*.cpp",
+    ]) + [
         "clone_test_util.h",
-    ]),
+    ],
     deps = [
         "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
         "//external:gflags",
         "//external:glog",
         "//external:braft",

@@ -29,6 +29,7 @@
 #include <brpc/server.h>
 #include <string>
 #include <memory>
+#include <map>
 
 #include "src/mds/nameserver2/namespace_storage.h"
 #include "src/mds/nameserver2/namespace_service.h"
@@ -238,6 +239,12 @@ class MDS {
     FileLockManager* fileLockManager_;
     std::shared_ptr<SnapshotCloneClient> snapshotCloneClient_;
 };
+
+bool ParsePoolsetRules(const std::string& str,
+                       std::map<std::string, std::string>* rules);
+
+bool CheckOrInsertBlockSize(EtcdClientImp* etcdclient);
+bool CheckOrInsertChunkSize(EtcdClientImp* etcdclient);
 
 }  // namespace mds
 }  // namespace curve

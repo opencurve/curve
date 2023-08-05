@@ -39,6 +39,7 @@ using ::testing::_;
 using ::testing::AnyOf;
 using ::testing::SetArgPointee;
 using ::testing::Invoke;
+using ::testing::DoAll;
 
 class TestTopologyStat : public ::testing::Test {
  public:

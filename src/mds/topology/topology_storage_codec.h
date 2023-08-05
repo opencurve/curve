@@ -41,6 +41,8 @@ using ::curve::common::CHUNKSERVERKEYEND;
 using ::curve::common::CLUSTERINFOKEY;
 using ::curve::common::COPYSETKEYPREFIX;
 using ::curve::common::COPYSETKEYEND;
+using ::curve::common::POOLSETKEYPREFIX;
+using ::curve::common::POOLSETKEYEND;
 
 namespace curve {
 namespace mds {
@@ -52,6 +54,11 @@ class TopologyStorageCodec {
     // Encode__Key: attach item id to item prefix
     // Encode__Data: convert data structure to a string
     // Decode__Data: convert a string to data structure
+
+    std::string EncodePoolsetKey(PoolsetIdType id);
+    bool EncodePoolsetData(const Poolset &data, std::string *value);
+    bool DecodePoolsetData(const std::string &value, Poolset *data);
+
     std::string EncodeLogicalPoolKey(
         LogicalPoolIdType id);
     bool EncodeLogicalPoolData(

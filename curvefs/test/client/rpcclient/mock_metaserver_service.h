@@ -40,16 +40,19 @@ class MockMetaServerService : public curvefs::metaserver::MetaServerService {
                       const ::curvefs::metaserver::GetDentryRequest *request,
                       ::curvefs::metaserver::GetDentryResponse *response,
                       ::google::protobuf::Closure *done));
+
     MOCK_METHOD4(ListDentry,
                  void(::google::protobuf::RpcController *controller,
                       const ::curvefs::metaserver::ListDentryRequest *request,
                       ::curvefs::metaserver::ListDentryResponse *response,
                       ::google::protobuf::Closure *done));
+
     MOCK_METHOD4(CreateDentry,
                  void(::google::protobuf::RpcController *controller,
                       const ::curvefs::metaserver::CreateDentryRequest *request,
                       ::curvefs::metaserver::CreateDentryResponse *response,
                       ::google::protobuf::Closure *done));
+
     MOCK_METHOD4(DeleteDentry,
                  void(::google::protobuf::RpcController *controller,
                       const ::curvefs::metaserver::DeleteDentryRequest *request,
@@ -115,6 +118,15 @@ class MockMetaServerService : public curvefs::metaserver::MetaServerService {
         void(::google::protobuf::RpcController *controller,
              const ::curvefs::metaserver::UpdateVolumeExtentRequest *request,
              ::curvefs::metaserver::UpdateVolumeExtentResponse *response,
+             ::google::protobuf::Closure *done));
+
+    MOCK_METHOD4(
+        UpdateDeallocatableBlockGroup,
+        void(::google::protobuf::RpcController *controller,
+             const ::curvefs::metaserver::UpdateDeallocatableBlockGroupRequest
+                 *request,
+             ::curvefs::metaserver::UpdateDeallocatableBlockGroupResponse
+                 *response,
              ::google::protobuf::Closure *done));
 };
 }  // namespace rpcclient

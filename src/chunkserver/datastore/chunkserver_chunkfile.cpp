@@ -31,19 +31,6 @@
 namespace curve {
 namespace chunkserver {
 
-namespace {
-
-bool ValidMinIoAlignment(const char* /*flagname*/, uint32_t value) {
-    return common::is_aligned(value, 512);
-}
-
-}  // namespace
-
-DEFINE_uint32(minIoAlignment, 512,
-              "minimum alignment for io request, must align to 512");
-
-DEFINE_validator(minIoAlignment, ValidMinIoAlignment);
-
 ChunkFileMetaPage::ChunkFileMetaPage(const ChunkFileMetaPage& metaPage) {
     version = metaPage.version;
     sn = metaPage.sn;
@@ -152,7 +139,8 @@ CSChunkFile::CSChunkFile(std::shared_ptr<LocalFileSystem> lfs,
       chunkrate_(nullptr),
       fd_(-1),
       size_(options.chunkSize),
-      pageSize_(options.pageSize),
+      blockSize_(options.blockSize),
+      metaPageSize_(options.metaPageSize),
       chunkId_(options.id),
       baseDir_(options.baseDir),
       isCloneChunk_(false),
@@ -169,7 +157,7 @@ CSChunkFile::CSChunkFile(std::shared_ptr<LocalFileSystem> lfs,
     // If location is not empty, it is CloneChunk,
     //     and Bitmap needs to be initialized
     if (!metaPage_.location.empty()) {
-        uint32_t bits = size_ / pageSize_;
+        uint32_t bits = size_ / blockSize_;
         metaPage_.bitmap = std::make_shared<Bitmap>(bits);
     }
     if (metric_ != nullptr) {
@@ -205,8 +193,8 @@ CSErrorCode CSChunkFile::Open(bool createFile) {
     if (createFile
         && !lfs_->FileExists(chunkFilePath)
         && metaPage_.sn > 0) {
-        std::unique_ptr<char[]> buf(new char[pageSize_]);
-        memset(buf.get(), 0, pageSize_);
+        std::unique_ptr<char[]> buf(new char[metaPageSize_]);
+        memset(buf.get(), 0, metaPageSize_);
         metaPage_.version = FORMAT_VERSION_V2;
         metaPage_.encode(buf.get());
 
@@ -276,7 +264,8 @@ CSErrorCode CSChunkFile::LoadSnapshot(SequenceNum sn) {
     options.sn = sn;
     options.baseDir = baseDir_;
     options.chunkSize = size_;
-    options.pageSize = pageSize_;
+    options.blockSize = blockSize_;
+    options.metaPageSize = metaPageSize_;
     options.metric = metric_;
     snapshot_ = new(std::nothrow) CSSnapshot(lfs_,
                                             chunkFilePool_,
@@ -302,16 +291,14 @@ CSErrorCode CSChunkFile::Write(SequenceNum sn,
                                uint32_t* cost) {
     (void)cost;
     WriteLockGuard writeGuard(rwLock_);
-    if (!CheckOffsetAndLength(
-            offset, length, isCloneChunk_ ? pageSize_ : FLAGS_minIoAlignment)) {
+    if (!CheckOffsetAndLength(offset, length)) {
         LOG(ERROR) << "Write chunk failed, invalid offset or length."
                    << "ChunkID: " << chunkId_
                    << ", offset: " << offset
                    << ", length: " << length
-                   << ", page size: " << pageSize_
+                   << ", page size: " << metaPageSize_
                    << ", chunk size: " << size_
-                   << ", align: "
-                   << (isCloneChunk_ ? pageSize_ : FLAGS_minIoAlignment);
+                   << ", block size: " << blockSize_;
         return CSErrorCode::InvalidArgError;
     }
     // Curve will ensure that all previous requests arrive or time out
@@ -354,7 +341,8 @@ CSErrorCode CSChunkFile::Write(SequenceNum sn,
         options.sn = metaPage_.sn;
         options.baseDir = baseDir_;
         options.chunkSize = size_;
-        options.pageSize = pageSize_;
+        options.blockSize = blockSize_;
+        options.metaPageSize = metaPageSize_;
         options.metric = metric_;
         snapshot_ = new(std::nothrow) CSSnapshot(lfs_,
                                                  chunkFilePool_,
@@ -451,26 +439,26 @@ CSErrorCode CSChunkFile::Sync() {
 
 CSErrorCode CSChunkFile::Paste(const char * buf, off_t offset, size_t length) {
     WriteLockGuard writeGuard(rwLock_);
-    // If it is not a clone chunk, return success directly
-    if (!isCloneChunk_) {
-        return CSErrorCode::Success;
-    }
-    if (!CheckOffsetAndLength(offset, length, pageSize_)) {
+    if (!CheckOffsetAndLength(offset, length)) {
         LOG(ERROR) << "Paste chunk failed, invalid offset or length."
                    << "ChunkID: " << chunkId_
                    << ", offset: " << offset
                    << ", length: " << length
-                   << ", page size: " << pageSize_
+                   << ", page size: " << metaPageSize_
                    << ", chunk size: " << size_
-                   << ", align: " << pageSize_;
+                   << ", block size: " << blockSize_;
         return CSErrorCode::InvalidArgError;
     }
+    // If it is not a clone chunk, return success directly
+    if (!isCloneChunk_) {
+        return CSErrorCode::Success;
+    }
 
-    // The request above must be pagesize aligned
-    // the starting page index number of the paste area
-    uint32_t beginIndex = offset / pageSize_;
-    // the last page index number of the paste area
-    uint32_t endIndex = (offset + length - 1) / pageSize_;
+    // The request above must be blocksize aligned
+    // the starting block index number of the paste area
+    uint32_t beginIndex = offset / blockSize_;
+    // the last block index number of the paste area
+    uint32_t endIndex = (offset + length - 1) / blockSize_;
     // Get the unwritten range of the current file
     std::vector<BitRange> uncopiedRange;
     metaPage_.bitmap->Divide(beginIndex,
@@ -482,8 +470,8 @@ CSErrorCode CSChunkFile::Paste(const char * buf, off_t offset, size_t length) {
     off_t pasteOff;
     size_t pasteSize;
     for (auto& range : uncopiedRange) {
-        pasteOff = range.beginIndex * pageSize_;
-        pasteSize = (range.endIndex - range.beginIndex + 1) * pageSize_;
+        pasteOff = range.beginIndex * blockSize_;
+        pasteSize = (range.endIndex - range.beginIndex + 1) * blockSize_;
         int rc = writeData(buf + (pasteOff - offset), pasteOff, pasteSize);
         if (rc < 0) {
             LOG(ERROR) << "Paste data to chunk failed."
@@ -508,27 +496,25 @@ CSErrorCode CSChunkFile::Paste(const char * buf, off_t offset, size_t length) {
 
 CSErrorCode CSChunkFile::Read(char * buf, off_t offset, size_t length) {
     ReadLockGuard readGuard(rwLock_);
-    if (!CheckOffsetAndLength(
-            offset, length, isCloneChunk_ ? pageSize_ : FLAGS_minIoAlignment)) {
+    if (!CheckOffsetAndLength(offset, length)) {
         LOG(ERROR) << "Read chunk failed, invalid offset or length."
                    << "ChunkID: " << chunkId_
                    << ", offset: " << offset
                    << ", length: " << length
-                   << ", page size: " << pageSize_
+                   << ", page size: " << metaPageSize_
                    << ", chunk size: " << size_
-                   << ", align: "
-                   << (isCloneChunk_ ? pageSize_ : FLAGS_minIoAlignment);
+                   << ", block size: " << blockSize_;
         return CSErrorCode::InvalidArgError;
     }
 
     // If it is clonechunk, ensure that the read area has been written,
     // otherwise an error is returned
     if (isCloneChunk_) {
-        // The request above must be pagesize aligned
-        // the starting page index number of the paste area
-        uint32_t beginIndex = offset / pageSize_;
-        // the last page index number of the paste area
-        uint32_t endIndex = (offset + length - 1) / pageSize_;
+        // The request above must be blocksize aligned
+        // the starting block index number of the paste area
+        uint32_t beginIndex = offset / blockSize_;
+        // the last block index number of the paste area
+        uint32_t endIndex = (offset + length - 1) / blockSize_;
         if (metaPage_.bitmap->NextClearBit(beginIndex, endIndex)
             != Bitmap::NO_POS) {
             LOG(ERROR) << "Read chunk file failed, has page never written."
@@ -566,14 +552,14 @@ CSErrorCode CSChunkFile::ReadSpecifiedChunk(SequenceNum sn,
                                             off_t offset,
                                             size_t length)  {
     ReadLockGuard readGuard(rwLock_);
-    if (!CheckOffsetAndLength(offset, length, pageSize_)) {
+    if (!CheckOffsetAndLength(offset, length)) {
         LOG(ERROR) << "Read specified chunk failed, invalid offset or length."
                    << "ChunkID: " << chunkId_
                    << ", offset: " << offset
                    << ", length: " << length
-                   << ", page size: " << pageSize_
+                   << ", page size: " << metaPageSize_
                    << ", chunk size: " << size_
-                   << ", align: " << pageSize_;
+                   << ", block size: " << blockSize_;
         return CSErrorCode::InvalidArgError;
     }
     // If the sequence equals the sequence of the current chunk,
@@ -595,13 +581,13 @@ CSErrorCode CSChunkFile::ReadSpecifiedChunk(SequenceNum sn,
     }
 
     // Get the copied areas and uncopied areas in the snapshot file
-    uint32_t pageBeginIndex = offset / pageSize_;
-    uint32_t pageEndIndex = (offset + length - 1) / pageSize_;
+    uint32_t blockBeginIndex = offset / blockSize_;
+    uint32_t blockEndIndex = (offset + length - 1) / blockSize_;
     std::vector<BitRange> copiedRange;
     std::vector<BitRange> uncopiedRange;
     std::shared_ptr<const Bitmap> snapBitmap = snapshot_->GetPageStatus();
-    snapBitmap->Divide(pageBeginIndex,
-                       pageEndIndex,
+    snapBitmap->Divide(blockBeginIndex,
+                       blockEndIndex,
                        &uncopiedRange,
                        &copiedRange);
 
@@ -620,8 +606,8 @@ CSErrorCode CSChunkFile::ReadSpecifiedChunk(SequenceNum sn,
     size_t readSize;
     // For uncopied extents, read chunk data
     for (auto& range : uncopiedRange) {
-        readOff = range.beginIndex * pageSize_;
-        readSize = (range.endIndex - range.beginIndex + 1) * pageSize_;
+        readOff = range.beginIndex * blockSize_;
+        readSize = (range.endIndex - range.beginIndex + 1) * blockSize_;
         int rc = readData(buf + (readOff - offset),
                           readOff,
                           readSize);
@@ -634,8 +620,8 @@ CSErrorCode CSChunkFile::ReadSpecifiedChunk(SequenceNum sn,
     }
     // For the copied range, read the snapshot data
     for (auto& range : copiedRange) {
-        readOff = range.beginIndex * pageSize_;
-        readSize = (range.endIndex - range.beginIndex + 1) * pageSize_;
+        readOff = range.beginIndex * blockSize_;
+        readSize = (range.endIndex - range.beginIndex + 1) * blockSize_;
         errorCode = snapshot_->Read(buf + (readOff - offset),
                                     readOff,
                                     readSize);
@@ -775,8 +761,9 @@ CSErrorCode CSChunkFile::DeleteSnapshotOrCorrectSn(SequenceNum correctedSn)  {
 void CSChunkFile::GetInfo(CSChunkInfo* info)  {
     ReadLockGuard readGuard(rwLock_);
     info->chunkId = chunkId_;
-    info->pageSize = pageSize_;
+    info->metaPageSize = metaPageSize_;
     info->chunkSize = size_;
+    info->blockSize = blockSize_;
     info->curSn = metaPage_.sn;
     info->correctedSn = metaPage_.correctedSn;
     info->snapSn = (snapshot_ == nullptr
@@ -897,8 +884,8 @@ bool CSChunkFile::needCow(SequenceNum sn) {
 }
 
 CSErrorCode CSChunkFile::updateMetaPage(ChunkFileMetaPage* metaPage) {
-    std::unique_ptr<char[]> buf(new char[pageSize_]);
-    memset(buf.get(), 0, pageSize_);
+    std::unique_ptr<char[]> buf(new char[metaPageSize_]);
+    memset(buf.get(), 0, metaPageSize_);
     metaPage->encode(buf.get());
     int rc = writeMetaPage(buf.get());
     if (rc < 0) {
@@ -911,8 +898,8 @@ CSErrorCode CSChunkFile::updateMetaPage(ChunkFileMetaPage* metaPage) {
 }
 
 CSErrorCode CSChunkFile::loadMetaPage() {
-    std::unique_ptr<char[]> buf(new char[pageSize_]);
-    memset(buf.get(), 0, pageSize_);
+    std::unique_ptr<char[]> buf(new char[metaPageSize_]);
+    memset(buf.get(), 0, metaPageSize_);
     int rc = readMetaPage(buf.get());
     if (rc < 0) {
         LOG(ERROR) << "Error occured when reading metaPage_."
@@ -924,8 +911,8 @@ CSErrorCode CSChunkFile::loadMetaPage() {
 
 CSErrorCode CSChunkFile::copy2Snapshot(off_t offset, size_t length) {
     // Get the uncopied area in the snapshot file
-    uint32_t pageBeginIndex = offset / pageSize_;
-    uint32_t pageEndIndex = (offset + length - 1) / pageSize_;
+    uint32_t pageBeginIndex = offset / blockSize_;
+    uint32_t pageEndIndex = (offset + length - 1) / blockSize_;
     std::vector<BitRange> uncopiedRange;
     std::shared_ptr<const Bitmap> snapBitmap = snapshot_->GetPageStatus();
     snapBitmap->Divide(pageBeginIndex,
@@ -939,10 +926,9 @@ CSErrorCode CSChunkFile::copy2Snapshot(off_t offset, size_t length) {
     // Read the uncopied area from the chunk file
     // and write it to the snapshot file
     for (auto& range : uncopiedRange) {
-        copyOff = range.beginIndex * pageSize_;
-        copySize = (range.endIndex - range.beginIndex + 1) * pageSize_;
-        std::shared_ptr<char> buf(new char[copySize],
-                                  std::default_delete<char[]>());
+        copyOff = range.beginIndex * blockSize_;
+        copySize = (range.endIndex - range.beginIndex + 1) * blockSize_;
+        std::unique_ptr<char[]> buf(new char[copySize]);
         int rc = readData(buf.get(),
                           copyOff,
                           copySize);

@@ -42,7 +42,6 @@ S3ClientAdaptorImpl::Init(
     std::shared_ptr<DiskCacheManagerImpl> diskCacheManagerImpl,
     std::shared_ptr<KVClientManager> kvClientManager,
     bool startBackGround) {
-    pendingReq_ = 0;
     blockSize_ = option.blockSize;
     chunkSize_ = option.chunkSize;
     pageSize_ = option.pageSize;
@@ -52,7 +51,6 @@ S3ClientAdaptorImpl::Init(
                    << blockSize_;
         return CURVEFS_ERROR::INVALIDPARAM;
     }
-    fuseMaxSize_ = option.fuseMaxSize;
     prefetchBlocks_ = option.prefetchBlocks;
     prefetchExecQueueNum_ = option.prefetchExecQueueNum;
     diskCacheType_ = option.diskCacheOpt.diskCacheType;
@@ -113,30 +111,25 @@ int S3ClientAdaptorImpl::Write(uint64_t inodeId, uint64_t offset,
     VLOG(6) << "write start offset:" << offset << ", len:" << length
             << ", fsId:" << fsId_ << ", inodeId:" << inodeId;
     uint64_t start = butil::cpuwide_time_us();
-    FileCacheManagerPtr fileCacheManager =
-        fsCacheManager_->FindOrCreateFileCacheManager(fsId_, inodeId);
     {
-        std::lock_guard<std::mutex> lockguard(ioMtx_);
-        pendingReq_.fetch_add(1, std::memory_order_seq_cst);
-        VLOG(6) << "pendingReq_ is: " << pendingReq_;
-        uint64_t pendingReq = pendingReq_.load(std::memory_order_seq_cst);
+        std::lock_guard<std::mutex> lockGuard(ioMtx_);
         fsCacheManager_->DataCacheByteInc(length);
         uint64_t size = fsCacheManager_->GetDataCacheSize();
-        uint64_t maxSize = fsCacheManager_->GetDataCacheMaxSize();
-        if ((size + pendingReq * fuseMaxSize_) >= maxSize) {
+        const uint64_t maxSize = fsCacheManager_->GetDataCacheMaxSize();
+        if (size >= maxSize) {
             VLOG(6) << "write cache is full, wait flush. size: " << size
-                    << ", maxSize:" << maxSize;
+                    << ", maxSize: " << maxSize;
             // offer to do flush
             waitInterval_.StopWait();
             fsCacheManager_->WaitFlush();
         }
     }
-    uint64_t memCacheRatio = fsCacheManager_->MemCacheRatio();
+    const uint64_t memCacheRatio = fsCacheManager_->MemCacheRatio();
     int64_t exceedRatio = memCacheRatio - memCacheNearfullRatio_;
     if (exceedRatio > 0) {
         // offer to do flush
         waitInterval_.StopWait();
-        // upload to s3 derectly or cache disk full
+        // upload to s3 directly or cache disk full
         bool needSleep =
             (DisableDiskCache() || IsReadCache()) ||
             (IsReadWriteCache() && diskCacheManagerImpl_->IsDiskCacheFull());
@@ -147,15 +140,15 @@ int S3ClientAdaptorImpl::Write(uint64_t inodeId, uint64_t offset,
                     << memCacheRatio << ", exponent is: " << exponent;
         }
     }
+    FileCacheManagerPtr fileCacheManager =
+        fsCacheManager_->FindOrCreateFileCacheManager(fsId_, inodeId);
     int ret = fileCacheManager->Write(offset, length, buf);
-    pendingReq_.fetch_sub(1, std::memory_order_seq_cst);
     fsCacheManager_->DataCacheByteDec(length);
-    if (s3Metric_.get() != nullptr) {
+    if (s3Metric_ != nullptr) {
         CollectMetrics(&s3Metric_->adaptorWrite, ret, start);
         s3Metric_->writeSize.set_value(length);
     }
-    VLOG(6) << "write end inodeId:" << inodeId << ",ret:" << ret
-            << ", pendingReq_ is: " << pendingReq_;
+    VLOG(6) << "write end inodeId: " << inodeId << ", ret: " << ret;
     return ret;
 }
 

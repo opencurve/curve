@@ -32,7 +32,7 @@ namespace metaserver {
 using ::curvefs::common::StreamConnection;
 
 MetaStatusCode StreamingSendVolumeExtent(StreamConnection* connection,
-                                         const VolumeExtentList& extents);
+                                         const VolumeExtentSliceList& extents);
 
 }  // namespace metaserver
 }  // namespace curvefs

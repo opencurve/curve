@@ -124,6 +124,8 @@ const std::vector<string> csCommonConf{
     string("mds.listen.addr=" + ALLMDS_IP_PORT),
     string("curve.config_path=" + clientConfPath),
     string("s3.config_path=" + kS3ConfigPath),
+    string("global.block_size=4096"),
+    string("global.meta_page_size=4096"),
 };
 
 const std::vector<string> chunkserverConf1{
@@ -256,6 +258,7 @@ class CSCloneRecoverTest : public ::testing::Test {
             server["name"] = std::string("server") + std::to_string(i);
             server["physicalpool"] = PHYSICAL_POOL_NAME;
             server["zone"] = std::string("zone") + std::to_string(i);
+            server["poolset"] = std::string("default");
             servers.append(server);
         }
         topo["servers"] = servers;
@@ -270,6 +273,7 @@ class CSCloneRecoverTest : public ::testing::Test {
         logicalPool["zonenum"] = 3;
         logicalPools.append(logicalPool);
         topo["logicalpools"] = logicalPools;
+
         std::ofstream topoConf(CSCLONE_BASE_DIR + "/topo.json");
         topoConf << topo.toStyledString();
         topoConf.close();

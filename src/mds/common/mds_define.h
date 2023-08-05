@@ -51,6 +51,12 @@ const int kCsClientCSOffline = -6;
 // to prevent the request from being intercepted and played back
 const uint64_t kStaledRequestTimeIntervalUs = 15 * 1000 * 1000u;
 
+// io block size
+extern uint32_t g_block_size;
+
+// chunk size
+extern uint32_t g_chunk_size;
+
 }  // namespace mds
 }  // namespace curve
 
@@ -61,6 +67,7 @@ namespace topology {
 typedef uint16_t LogicalPoolIdType;
 typedef uint16_t PhysicalPoolIdType;
 typedef uint16_t PoolIdType;
+typedef uint16_t PoolsetIdType;
 typedef uint32_t ZoneIdType;
 typedef uint32_t ServerIdType;
 typedef uint32_t ChunkServerIdType;
@@ -93,6 +100,9 @@ const int kTopoErrCodeNameDuplicated = -16;
 const int kTopoErrCodeCreateCopysetNodeOnChunkServerFail = -17;
 const int kTopoErrCodeCannotRemoveNotRetired = -18;
 const int kTopoErrCodeLogicalPoolExist = -19;
+const int kTopoErrCodePoolsetNotFound = -20;
+const int kTopoErrCodeCannotDeleteDefaultPoolset = -21;
+const int kTopoErrCodeConflictBlockSizeAndChunkSize = -22;
 
 }  // namespace topology
 }  // namespace mds

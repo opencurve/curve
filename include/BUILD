@@ -18,7 +18,7 @@ load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
 
 cc_library(
     name = "include-common",
-    srcs = ["curve_compiler_specific.h"],
+    hdrs = ["curve_compiler_specific.h"],
     copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
 )

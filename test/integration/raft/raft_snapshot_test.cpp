@@ -42,8 +42,7 @@ using curve::fs::FileSystemType;
 
 const char kRaftSnapshotTestLogDir[] = "./runlog/RaftSnapshot";
 const char* kFakeMdsAddr = "127.0.0.1:9320";
-
-const uint32_t kOpRequestAlignSize = 4096;
+static constexpr uint32_t kOpRequestAlignSize = 4096;
 
 static const char *raftVoteParam[4][16] = {
     {

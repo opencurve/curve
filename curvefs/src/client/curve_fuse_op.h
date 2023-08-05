@@ -37,7 +37,7 @@
 extern "C" {
 #endif
 
-int InitGlog(const char *confPath, const char *argv0);
+int InitLog(const char *confPath, const char *argv0);
 
 int InitFuseClient(const struct MountOption *mountOption);
 

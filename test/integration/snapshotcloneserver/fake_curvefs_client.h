@@ -94,6 +94,7 @@ class FakeCurveFsClient : public CurveFsClient {
         uint32_t chunkSize,
         uint64_t stripeUnit,
         uint64_t stripeCount,
+        const std::string& poolset,
         FInfo* fileInfo) override;
 
     int CreateCloneChunk(

@@ -1,0 +1,463 @@
+diff --git a/BUILD b/BUILD
+index 185f44fe..6b895d6e 100644
+--- a/BUILD
++++ b/BUILD
+@@ -35,7 +35,7 @@ config_setting(
+ 
+ COPTS = [
+     "-DBTHREAD_USE_FAST_PTHREAD_MUTEX",
+-    "-D__const__=",
++    "-D__const__=__unused__",
+     "-D_GNU_SOURCE",
+     "-DUSE_SYMBOLIZE",
+     "-DNO_TCMALLOC",
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index fa2e935c..720c79c3 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -86,7 +86,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+ endif()
+ 
+ set(CMAKE_CPP_FLAGS "${DEFINE_CLOCK_GETTIME} -DBRPC_WITH_GLOG=${WITH_GLOG_VAL} -DGFLAGS_NS=${GFLAGS_NS}")
+-set(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS} -DBTHREAD_USE_FAST_PTHREAD_MUTEX -D__const__= -D_GNU_SOURCE -DUSE_SYMBOLIZE -DNO_TCMALLOC -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -DBRPC_REVISION=\\\"${BRPC_REVISION}\\\" -D__STRICT_ANSI__")
++set(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS} -DBTHREAD_USE_FAST_PTHREAD_MUTEX -D__const__=__unused__ -D_GNU_SOURCE -DUSE_SYMBOLIZE -DNO_TCMALLOC -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -DBRPC_REVISION=\\\"${BRPC_REVISION}\\\" -D__STRICT_ANSI__")
+ set(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS} ${DEBUG_SYMBOL} ${THRIFT_CPP_FLAG}")
+ set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -O2 -pipe -Wall -W -fPIC -fstrict-aliasing -Wno-invalid-offsetof -Wno-unused-parameter -fno-omit-frame-pointer")
+ set(CMAKE_C_FLAGS "${CMAKE_CPP_FLAGS} -O2 -pipe -Wall -W -fPIC -fstrict-aliasing -Wno-unused-parameter -fno-omit-frame-pointer")
+diff --git a/config_brpc.sh b/config_brpc.sh
+index a1934d79..f56c6894 100755
+--- a/config_brpc.sh
++++ b/config_brpc.sh
+@@ -290,7 +290,7 @@ append_to_output "GCC_VERSION=$GCC_VERSION"
+ append_to_output "STATIC_LINKINGS=$STATIC_LINKINGS"
+ append_to_output "DYNAMIC_LINKINGS=$DYNAMIC_LINKINGS"
+ CPPFLAGS="-DBRPC_WITH_GLOG=$WITH_GLOG -DGFLAGS_NS=$GFLAGS_NS"
+-
++CPPFLAGS="${CPPFLAGS} -D__const__=__unused__"
+ if [ ! -z "$DEBUGSYMBOLS" ]; then
+     CPPFLAGS="${CPPFLAGS} $DEBUGSYMBOLS"
+ fi
+diff --git a/docs/cn/getting_started.md b/docs/cn/getting_started.md
+index 8b1bca07..95c2b680 100644
+--- a/docs/cn/getting_started.md
++++ b/docs/cn/getting_started.md
+@@ -346,7 +346,7 @@ The over-aligned issues in GCC7 is suppressed temporarily now.
+ 
+ Using other versions of gcc may generate warnings, contact us to fix.
+ 
+-Adding `-D__const__=` to cxxflags in your makefiles is a must to avoid [errno issue in gcc4+](thread_local.md).
++Adding `-D__const__=__unused__` to cxxflags in your makefiles is a must to avoid [errno issue in gcc4+](thread_local.md).
+ 
+ ## Clang: 3.5-4.0
+ 
+diff --git a/docs/cn/thread_local.md b/docs/cn/thread_local.md
+index f8e1a491..b16d9487 100644
+--- a/docs/cn/thread_local.md
++++ b/docs/cn/thread_local.md
+@@ -57,9 +57,9 @@ Use *p ...                   -  still the errno of original pthread, undefined b
+ 
+ 严格地说这个问题不是gcc4导致的，而是glibc给__errno_location的签名不够准确，一个返回thread-local指针的函数依赖于段寄存器（TLS的一般实现方式），这怎么能算const呢？由于我们还未找到覆盖__errno_location的方法，所以这个问题目前实际的解决方法是：
+ 
+-**务必在直接或间接使用bthread的项目的gcc编译选项中添加`-D__const__=`，即把`__const__`定义为空，避免gcc4做相关优化。**
++**务必在直接或间接使用bthread的项目的gcc编译选项中添加`-D__const__=__unused__`，即把`__const__`定义为空，避免gcc4做相关优化。**
+ 
+ 把`__const__`定义为空对程序其他部分的影响几乎为0。另外如果你没有**直接**使用errno（即你的项目中没有出现errno），或使用的是gcc
+-3.4，即使没有定义`-D__const__=`，程序的正确性也不会受影响，但为了防止未来可能的问题，我们强烈建议加上。
++3.4，即使没有定义`-D__const__=__unused__`，程序的正确性也不会受影响，但为了防止未来可能的问题，我们强烈建议加上。
+ 
+-需要说明的是，和errno类似，pthread_self也有类似的问题，不过一般pthread_self除了打日志没有其他用途，影响面较小，在`-D__const__=`后pthread_self也会正常。
++需要说明的是，和errno类似，pthread_self也有类似的问题，不过一般pthread_self除了打日志没有其他用途，影响面较小，在`-D__const__=__unused__`后pthread_self也会正常。
+diff --git a/example/asynchronous_echo_c++/CMakeLists.txt b/example/asynchronous_echo_c++/CMakeLists.txt
+index 91c3953f..74414e2a 100644
+--- a/example/asynchronous_echo_c++/CMakeLists.txt
++++ b/example/asynchronous_echo_c++/CMakeLists.txt
+@@ -64,7 +64,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+ endif()
+ 
+ set(CMAKE_CPP_FLAGS "${DEFINE_CLOCK_GETTIME} -DGFLAGS_NS=${GFLAGS_NS}")
+-set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__= -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
++set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__=__unused__ -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
+ 
+ if(CMAKE_VERSION VERSION_LESS "3.1.3")
+     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+diff --git a/example/auto_concurrency_limiter/CMakeLists.txt b/example/auto_concurrency_limiter/CMakeLists.txt
+index 218f059f..56a1a03e 100644
+--- a/example/auto_concurrency_limiter/CMakeLists.txt
++++ b/example/auto_concurrency_limiter/CMakeLists.txt
+@@ -53,7 +53,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+ endif()
+ 
+ set(CMAKE_CPP_FLAGS "${DEFINE_CLOCK_GETTIME} -DGFLAGS_NS=${GFLAGS_NS}")
+-set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__= -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
++set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__=__unused__ -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
+ 
+ if(CMAKE_VERSION VERSION_LESS "3.1.3")
+     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+diff --git a/example/backup_request_c++/CMakeLists.txt b/example/backup_request_c++/CMakeLists.txt
+index 32750645..04110ad2 100644
+--- a/example/backup_request_c++/CMakeLists.txt
++++ b/example/backup_request_c++/CMakeLists.txt
+@@ -64,7 +64,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+ endif()
+ 
+ set(CMAKE_CPP_FLAGS "${DEFINE_CLOCK_GETTIME} -DGFLAGS_NS=${GFLAGS_NS}")
+-set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__= -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
++set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__=__unused__ -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
+ 
+ if(CMAKE_VERSION VERSION_LESS "3.1.3")
+     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+diff --git a/example/cancel_c++/CMakeLists.txt b/example/cancel_c++/CMakeLists.txt
+index 998e03e0..359306f9 100644
+--- a/example/cancel_c++/CMakeLists.txt
++++ b/example/cancel_c++/CMakeLists.txt
+@@ -64,7 +64,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+ endif()
+ 
+ set(CMAKE_CPP_FLAGS "${DEFINE_CLOCK_GETTIME} -DGFLAGS_NS=${GFLAGS_NS}")
+-set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__= -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
++set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__=__unused__ -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
+ 
+ if(CMAKE_VERSION VERSION_LESS "3.1.3")
+     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+diff --git a/example/cascade_echo_c++/CMakeLists.txt b/example/cascade_echo_c++/CMakeLists.txt
+index bc530e02..0cbc806b 100644
+--- a/example/cascade_echo_c++/CMakeLists.txt
++++ b/example/cascade_echo_c++/CMakeLists.txt
+@@ -63,7 +63,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+ endif()
+ 
+ set(CMAKE_CPP_FLAGS "${DEFINE_CLOCK_GETTIME} -DGFLAGS_NS=${GFLAGS_NS}")
+-set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__= -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
++set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__=__unused__ -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
+ 
+ if(CMAKE_VERSION VERSION_LESS "3.1.3")
+     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+diff --git a/example/dynamic_partition_echo_c++/CMakeLists.txt b/example/dynamic_partition_echo_c++/CMakeLists.txt
+index a89d3ede..5cd99284 100644
+--- a/example/dynamic_partition_echo_c++/CMakeLists.txt
++++ b/example/dynamic_partition_echo_c++/CMakeLists.txt
+@@ -68,7 +68,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+ endif()
+ 
+ set(CMAKE_CPP_FLAGS "${DEFINE_CLOCK_GETTIME} -DGFLAGS_NS=${GFLAGS_NS}")
+-set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__= -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
++set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__=__unused__ -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
+ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DBRPC_ENABLE_CPU_PROFILER")
+ 
+ if(CMAKE_VERSION VERSION_LESS "3.1.3")
+diff --git a/example/echo_c++/CMakeLists.txt b/example/echo_c++/CMakeLists.txt
+index 325918d8..c05e4a6d 100644
+--- a/example/echo_c++/CMakeLists.txt
++++ b/example/echo_c++/CMakeLists.txt
+@@ -64,7 +64,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+ endif()
+ 
+ set(CMAKE_CPP_FLAGS "${DEFINE_CLOCK_GETTIME} -DGFLAGS_NS=${GFLAGS_NS}")
+-set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__= -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
++set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__=__unused__ -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
+ 
+ if(CMAKE_VERSION VERSION_LESS "3.1.3")
+     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+diff --git a/example/echo_c++_hulu_pbrpc/CMakeLists.txt b/example/echo_c++_hulu_pbrpc/CMakeLists.txt
+index ced2f81c..a1592de7 100644
+--- a/example/echo_c++_hulu_pbrpc/CMakeLists.txt
++++ b/example/echo_c++_hulu_pbrpc/CMakeLists.txt
+@@ -64,7 +64,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+ endif()
+ 
+ set(CMAKE_CPP_FLAGS "${DEFINE_CLOCK_GETTIME} -DGFLAGS_NS=${GFLAGS_NS}")
+-set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__= -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
++set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__=__unused__ -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
+ 
+ if(CMAKE_VERSION VERSION_LESS "3.1.3")
+     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+diff --git a/example/echo_c++_sofa_pbrpc/CMakeLists.txt b/example/echo_c++_sofa_pbrpc/CMakeLists.txt
+index 5cdf1e38..0849e55f 100644
+--- a/example/echo_c++_sofa_pbrpc/CMakeLists.txt
++++ b/example/echo_c++_sofa_pbrpc/CMakeLists.txt
+@@ -64,7 +64,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+ endif()
+ 
+ set(CMAKE_CPP_FLAGS "${DEFINE_CLOCK_GETTIME} -DGFLAGS_NS=${GFLAGS_NS}")
+-set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__= -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
++set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__=__unused__ -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
+ 
+ if(CMAKE_VERSION VERSION_LESS "3.1.3")
+     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+diff --git a/example/echo_c++_ubrpc_compack/CMakeLists.txt b/example/echo_c++_ubrpc_compack/CMakeLists.txt
+index ff126582..05b6019f 100644
+--- a/example/echo_c++_ubrpc_compack/CMakeLists.txt
++++ b/example/echo_c++_ubrpc_compack/CMakeLists.txt
+@@ -64,7 +64,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+ endif()
+ 
+ set(CMAKE_CPP_FLAGS "${DEFINE_CLOCK_GETTIME} -DGFLAGS_NS=${GFLAGS_NS}")
+-set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__= -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
++set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__=__unused__ -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
+ 
+ if(CMAKE_VERSION VERSION_LESS "3.1.3")
+     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+diff --git a/example/echo_c++_unix_socket/CMakeLists.txt b/example/echo_c++_unix_socket/CMakeLists.txt
+index 325918d8..c05e4a6d 100644
+--- a/example/echo_c++_unix_socket/CMakeLists.txt
++++ b/example/echo_c++_unix_socket/CMakeLists.txt
+@@ -64,7 +64,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+ endif()
+ 
+ set(CMAKE_CPP_FLAGS "${DEFINE_CLOCK_GETTIME} -DGFLAGS_NS=${GFLAGS_NS}")
+-set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__= -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
++set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__=__unused__ -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
+ 
+ if(CMAKE_VERSION VERSION_LESS "3.1.3")
+     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+diff --git a/example/grpc_c++/CMakeLists.txt b/example/grpc_c++/CMakeLists.txt
+index c7b0aba0..5c700010 100644
+--- a/example/grpc_c++/CMakeLists.txt
++++ b/example/grpc_c++/CMakeLists.txt
+@@ -58,7 +58,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+ endif()
+ 
+ set(CMAKE_CPP_FLAGS "${DEFINE_CLOCK_GETTIME} -DGFLAGS_NS=${GFLAGS_NS}")
+-set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__= -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
++set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__=__unused__ -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
+ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DBRPC_ENABLE_CPU_PROFILER")
+ 
+ if(CMAKE_VERSION VERSION_LESS "3.1.3")
+diff --git a/example/http_c++/CMakeLists.txt b/example/http_c++/CMakeLists.txt
+index 0f34c851..bd909e55 100644
+--- a/example/http_c++/CMakeLists.txt
++++ b/example/http_c++/CMakeLists.txt
+@@ -69,7 +69,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+ endif()
+ 
+ set(CMAKE_CPP_FLAGS "${DEFINE_CLOCK_GETTIME} -DGFLAGS_NS=${GFLAGS_NS}")
+-set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__= -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
++set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__=__unused__ -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
+ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DBRPC_ENABLE_CPU_PROFILER")
+ 
+ if(CMAKE_VERSION VERSION_LESS "3.1.3")
+diff --git a/example/memcache_c++/CMakeLists.txt b/example/memcache_c++/CMakeLists.txt
+index 0fbaaa45..865a8e45 100644
+--- a/example/memcache_c++/CMakeLists.txt
++++ b/example/memcache_c++/CMakeLists.txt
+@@ -64,7 +64,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+ endif()
+ 
+ set(CMAKE_CPP_FLAGS "${DEFINE_CLOCK_GETTIME} -DGFLAGS_NS=${GFLAGS_NS}")
+-set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__= -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
++set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__=__unused__ -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
+ 
+ if(CMAKE_VERSION VERSION_LESS "3.1.3")
+     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+diff --git a/example/multi_threaded_echo_c++/CMakeLists.txt b/example/multi_threaded_echo_c++/CMakeLists.txt
+index d0633351..e0860bd7 100644
+--- a/example/multi_threaded_echo_c++/CMakeLists.txt
++++ b/example/multi_threaded_echo_c++/CMakeLists.txt
+@@ -68,7 +68,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+ endif()
+ 
+ set(CMAKE_CPP_FLAGS "${DEFINE_CLOCK_GETTIME} -DGFLAGS_NS=${GFLAGS_NS}")
+-set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__= -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
++set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__=__unused__ -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
+ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DBRPC_ENABLE_CPU_PROFILER")
+ 
+ if(CMAKE_VERSION VERSION_LESS "3.1.3")
+diff --git a/example/multi_threaded_echo_fns_c++/CMakeLists.txt b/example/multi_threaded_echo_fns_c++/CMakeLists.txt
+index 2840263e..fd70b23a 100644
+--- a/example/multi_threaded_echo_fns_c++/CMakeLists.txt
++++ b/example/multi_threaded_echo_fns_c++/CMakeLists.txt
+@@ -68,7 +68,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+ endif()
+ 
+ set(CMAKE_CPP_FLAGS "${DEFINE_CLOCK_GETTIME} -DGFLAGS_NS=${GFLAGS_NS}")
+-set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__= -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
++set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__=__unused__ -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
+ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DBRPC_ENABLE_CPU_PROFILER")
+ 
+ if(CMAKE_VERSION VERSION_LESS "3.1.3")
+diff --git a/example/multi_threaded_mcpack_c++/CMakeLists.txt b/example/multi_threaded_mcpack_c++/CMakeLists.txt
+index 9dcbe12f..c51978a4 100644
+--- a/example/multi_threaded_mcpack_c++/CMakeLists.txt
++++ b/example/multi_threaded_mcpack_c++/CMakeLists.txt
+@@ -68,7 +68,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+ endif()
+ 
+ set(CMAKE_CPP_FLAGS "${DEFINE_CLOCK_GETTIME} -DGFLAGS_NS=${GFLAGS_NS}")
+-set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__= -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
++set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__=__unused__ -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
+ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DBRPC_ENABLE_CPU_PROFILER")
+ 
+ if(CMAKE_VERSION VERSION_LESS "3.1.3")
+diff --git a/example/nshead_extension_c++/CMakeLists.txt b/example/nshead_extension_c++/CMakeLists.txt
+index a5ef77f7..ac5bc4cb 100644
+--- a/example/nshead_extension_c++/CMakeLists.txt
++++ b/example/nshead_extension_c++/CMakeLists.txt
+@@ -64,7 +64,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+ endif()
+ 
+ set(CMAKE_CPP_FLAGS "${DEFINE_CLOCK_GETTIME} -DGFLAGS_NS=${GFLAGS_NS}")
+-set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__= -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
++set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__=__unused__ -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
+ 
+ if(CMAKE_VERSION VERSION_LESS "3.1.3")
+     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+diff --git a/example/nshead_pb_extension_c++/CMakeLists.txt b/example/nshead_pb_extension_c++/CMakeLists.txt
+index 0042a828..1362ea3e 100644
+--- a/example/nshead_pb_extension_c++/CMakeLists.txt
++++ b/example/nshead_pb_extension_c++/CMakeLists.txt
+@@ -64,7 +64,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+ endif()
+ 
+ set(CMAKE_CPP_FLAGS "${DEFINE_CLOCK_GETTIME} -DGFLAGS_NS=${GFLAGS_NS}")
+-set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__= -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
++set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__=__unused__ -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
+ 
+ if(CMAKE_VERSION VERSION_LESS "3.1.3")
+     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+diff --git a/example/parallel_echo_c++/CMakeLists.txt b/example/parallel_echo_c++/CMakeLists.txt
+index fbe56ced..d05a818e 100644
+--- a/example/parallel_echo_c++/CMakeLists.txt
++++ b/example/parallel_echo_c++/CMakeLists.txt
+@@ -68,7 +68,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+ endif()
+ 
+ set(CMAKE_CPP_FLAGS "${DEFINE_CLOCK_GETTIME} -DGFLAGS_NS=${GFLAGS_NS}")
+-set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__= -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
++set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__=__unused__ -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
+ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DBRPC_ENABLE_CPU_PROFILER")
+ 
+ if(CMAKE_VERSION VERSION_LESS "3.1.3")
+diff --git a/example/partition_echo_c++/CMakeLists.txt b/example/partition_echo_c++/CMakeLists.txt
+index ffab137d..ebb65245 100644
+--- a/example/partition_echo_c++/CMakeLists.txt
++++ b/example/partition_echo_c++/CMakeLists.txt
+@@ -68,7 +68,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+ endif()
+ 
+ set(CMAKE_CPP_FLAGS "${DEFINE_CLOCK_GETTIME} -DGFLAGS_NS=${GFLAGS_NS}")
+-set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__= -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
++set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__=__unused__ -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
+ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DBRPC_ENABLE_CPU_PROFILER")
+ 
+ if(CMAKE_VERSION VERSION_LESS "3.1.3")
+diff --git a/example/redis_c++/CMakeLists.txt b/example/redis_c++/CMakeLists.txt
+index 82096c7d..f7c0f1dd 100644
+--- a/example/redis_c++/CMakeLists.txt
++++ b/example/redis_c++/CMakeLists.txt
+@@ -69,7 +69,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+ endif()
+ 
+ set(CMAKE_CPP_FLAGS "${DEFINE_CLOCK_GETTIME} -DGFLAGS_NS=${GFLAGS_NS}")
+-set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__= -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
++set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__=__unused__ -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
+ 
+ if(CMAKE_VERSION VERSION_LESS "3.1.3")
+     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+diff --git a/example/selective_echo_c++/CMakeLists.txt b/example/selective_echo_c++/CMakeLists.txt
+index 517464d7..0737abc2 100644
+--- a/example/selective_echo_c++/CMakeLists.txt
++++ b/example/selective_echo_c++/CMakeLists.txt
+@@ -68,7 +68,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+ endif()
+ 
+ set(CMAKE_CPP_FLAGS "${DEFINE_CLOCK_GETTIME} -DGFLAGS_NS=${GFLAGS_NS}")
+-set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__= -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
++set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__=__unused__ -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
+ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DBRPC_ENABLE_CPU_PROFILER")
+ 
+ if(CMAKE_VERSION VERSION_LESS "3.1.3")
+diff --git a/example/session_data_and_thread_local/CMakeLists.txt b/example/session_data_and_thread_local/CMakeLists.txt
+index 02ccd18f..b0793c04 100644
+--- a/example/session_data_and_thread_local/CMakeLists.txt
++++ b/example/session_data_and_thread_local/CMakeLists.txt
+@@ -68,7 +68,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+ endif()
+ 
+ set(CMAKE_CPP_FLAGS "${DEFINE_CLOCK_GETTIME} -DGFLAGS_NS=${GFLAGS_NS}")
+-set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__= -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
++set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__=__unused__ -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
+ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DBRPC_ENABLE_CPU_PROFILER")
+ 
+ if(CMAKE_VERSION VERSION_LESS "3.1.3")
+diff --git a/example/streaming_echo_c++/CMakeLists.txt b/example/streaming_echo_c++/CMakeLists.txt
+index d4436fb1..c96270b6 100644
+--- a/example/streaming_echo_c++/CMakeLists.txt
++++ b/example/streaming_echo_c++/CMakeLists.txt
+@@ -64,7 +64,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+ endif()
+ 
+ set(CMAKE_CPP_FLAGS "${DEFINE_CLOCK_GETTIME} -DGFLAGS_NS=${GFLAGS_NS}")
+-set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__= -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
++set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__=__unused__ -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
+ 
+ if(CMAKE_VERSION VERSION_LESS "3.1.3")
+     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+diff --git a/src/bthread/mutex.cpp b/src/bthread/mutex.cpp
+index 0de00b27..f55e874c 100644
+--- a/src/bthread/mutex.cpp
++++ b/src/bthread/mutex.cpp
+@@ -41,7 +41,7 @@
+ #include "bthread/log.h"
+ 
+ extern "C" {
+-extern void* _dl_sym(void* handle, const char* symbol, void* caller);
++extern void* __attribute__((weak)) _dl_sym(void* handle, const char* symbol, void* caller);
+ }
+ 
+ namespace bthread {
+@@ -403,10 +403,14 @@ static pthread_once_t init_sys_mutex_lock_once = PTHREAD_ONCE_INIT;
+ // causing deadlock temporarily. This fix is hardly portable.
+ static void init_sys_mutex_lock() {
+ #if defined(OS_LINUX)
+-    // TODO: may need dlvsym when GLIBC has multiple versions of a same symbol.
+-    // http://blog.fesnel.com/blog/2009/08/25/preloading-with-multiple-symbol-versions
+-    sys_pthread_mutex_lock = (MutexOp)_dl_sym(RTLD_NEXT, "pthread_mutex_lock", (void*)init_sys_mutex_lock);
+-    sys_pthread_mutex_unlock = (MutexOp)_dl_sym(RTLD_NEXT, "pthread_mutex_unlock", (void*)init_sys_mutex_lock);
++    if (_dl_sym) {
++        sys_pthread_mutex_lock = (MutexOp)_dl_sym(RTLD_NEXT, "pthread_mutex_lock", (void*)init_sys_mutex_lock);
++        sys_pthread_mutex_unlock = (MutexOp)_dl_sym(RTLD_NEXT, "pthread_mutex_unlock", (void*)init_sys_mutex_lock);
++    } else {
++        // _dl_sym may be undefined reference in some system, fallback to dlsym
++        sys_pthread_mutex_lock = (MutexOp)dlsym(RTLD_NEXT, "pthread_mutex_lock");
++        sys_pthread_mutex_unlock = (MutexOp)dlsym(RTLD_NEXT, "pthread_mutex_unlock");
++    }
+ #elif defined(OS_MACOSX)
+     // TODO: look workaround for dlsym on mac
+     sys_pthread_mutex_lock = (MutexOp)dlsym(RTLD_NEXT, "pthread_mutex_lock");
+diff --git a/src/butil/errno.h b/src/butil/errno.h
+index e1157e3d..86a76213 100644
+--- a/src/butil/errno.h
++++ b/src/butil/errno.h
+@@ -20,7 +20,7 @@
+ #ifndef BUTIL_BAIDU_ERRNO_H
+ #define BUTIL_BAIDU_ERRNO_H
+ 
+-#define __const__
++#define __const__ __unused__
+ #include <errno.h>                           // errno
+ #include "butil/macros.h"                     // BAIDU_CONCAT
+ 
+diff --git a/test/CMakeLists.txt b/test/CMakeLists.txt
+index 1c678081..ee52b649 100644
+--- a/test/CMakeLists.txt
++++ b/test/CMakeLists.txt
+@@ -35,7 +35,7 @@ else()
+ endif()
+ 
+ set(CMAKE_CPP_FLAGS "${DEFINE_CLOCK_GETTIME} -DBRPC_WITH_GLOG=${WITH_GLOG_VAL} -DGFLAGS_NS=${GFLAGS_NS}")
+-set(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS} -DBTHREAD_USE_FAST_PTHREAD_MUTEX -D__const__= -D_GNU_SOURCE -DUSE_SYMBOLIZE -DNO_TCMALLOC -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -DUNIT_TEST -Dprivate=public -Dprotected=public -DBVAR_NOT_LINK_DEFAULT_VARIABLES -D__STRICT_ANSI__ -include ${PROJECT_SOURCE_DIR}/test/sstream_workaround.h")
++set(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS} -DBTHREAD_USE_FAST_PTHREAD_MUTEX -D__const__=__unused__ -D_GNU_SOURCE -DUSE_SYMBOLIZE -DNO_TCMALLOC -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -DUNIT_TEST -Dprivate=public -Dprotected=public -DBVAR_NOT_LINK_DEFAULT_VARIABLES -D__STRICT_ANSI__ -include ${PROJECT_SOURCE_DIR}/test/sstream_workaround.h")
+ set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -O2 -pipe -Wall -W -fPIC -fstrict-aliasing -Wno-invalid-offsetof -Wno-unused-parameter -fno-omit-frame-pointer")
+ use_cxx11()
+ 
+diff --git a/tools/CMakeLists.txt b/tools/CMakeLists.txt
+index e3367b0f..b43916b7 100644
+--- a/tools/CMakeLists.txt
++++ b/tools/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ set(CMAKE_CPP_FLAGS "${DEFINE_CLOCK_GETTIME} -DBRPC_WITH_GLOG=${WITH_GLOG_VAL} -DGFLAGS_NS=${GFLAGS_NS}")
+-set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__= -D__STRICT_ANSI__ -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
++set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__=__unused__ -D__STRICT_ANSI__ -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
+ use_cxx11()
+ set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/output/bin)
+ 

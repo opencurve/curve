@@ -111,14 +111,15 @@ CSSnapshot::CSSnapshot(std::shared_ptr<LocalFileSystem> lfs,
     : fd_(-1),
       chunkId_(options.id),
       size_(options.chunkSize),
-      pageSize_(options.pageSize),
+      blockSize_(options.blockSize),
+      metaPageSize_(options.metaPageSize),
       baseDir_(options.baseDir),
       lfs_(lfs),
       chunkFilePool_(chunkFilePool),
       metric_(options.metric) {
     CHECK(!baseDir_.empty()) << "Create snapshot failed";
     CHECK(lfs_ != nullptr) << "Create snapshot failed";
-    uint32_t bits = size_ / pageSize_;
+    uint32_t bits = size_ / blockSize_;
     metaPage_.bitmap = std::make_shared<Bitmap>(bits);
     metaPage_.sn = options.sn;
     if (metric_ != nullptr) {
@@ -146,8 +147,8 @@ CSErrorCode CSSnapshot::Open(bool createFile) {
     if (createFile
         && !lfs_->FileExists(snapshotPath)
         && metaPage_.sn > 0) {
-        std::unique_ptr<char[]> buf(new char[pageSize_]);
-        memset(buf.get(), 0, pageSize_);
+        std::unique_ptr<char[]> buf(new char[metaPageSize_]);
+        memset(buf.get(), 0, metaPageSize_);
         metaPage_.encode(buf.get());
         int ret = chunkFilePool_->GetFile(snapshotPath, buf.get());
         if (ret != 0) {
@@ -217,8 +218,8 @@ CSErrorCode CSSnapshot::Write(const char * buf, off_t offset, size_t length) {
                    << ",snapshot sn: " << metaPage_.sn;
         return CSErrorCode::InternalError;
     }
-    uint32_t pageBeginIndex = offset / pageSize_;
-    uint32_t pageEndIndex = (offset + length - 1) / pageSize_;
+    uint32_t pageBeginIndex = offset / blockSize_;
+    uint32_t pageEndIndex = (offset + length - 1) / blockSize_;
     for (uint32_t i = pageBeginIndex; i <= pageEndIndex; ++i) {
         dirtyPages_.insert(i);
     }
@@ -238,8 +239,8 @@ CSErrorCode CSSnapshot::Flush() {
 }
 
 CSErrorCode CSSnapshot::updateMetaPage(SnapshotMetaPage* metaPage) {
-    std::unique_ptr<char[]> buf(new char[pageSize_]);
-    memset(buf.get(), 0, pageSize_);
+    std::unique_ptr<char[]> buf(new char[metaPageSize_]);
+    memset(buf.get(), 0, metaPageSize_);
     metaPage->encode(buf.get());
     int rc = writeMetaPage(buf.get());
     if (rc < 0) {
@@ -252,8 +253,8 @@ CSErrorCode CSSnapshot::updateMetaPage(SnapshotMetaPage* metaPage) {
 }
 
 CSErrorCode CSSnapshot::loadMetaPage() {
-    std::unique_ptr<char[]> buf(new char[pageSize_]);
-    memset(buf.get(), 0, pageSize_);
+    std::unique_ptr<char[]> buf(new char[metaPageSize_]);
+    memset(buf.get(), 0, metaPageSize_);
     int rc = readMetaPage(buf.get());
     if (rc < 0) {
         LOG(ERROR) << "Error occured when reading metaPage_."

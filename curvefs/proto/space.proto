@@ -34,6 +34,7 @@ enum SpaceErrCode {
     SpaceErrParam = 10;
     SpaceErrNotSupport = 11;
     SpaceErrExtendVolumeError = 12;
+    SpaceErrRelease = 13;
 }
 
 message BlockGroup {
@@ -48,6 +49,10 @@ message BlockGroup {
     required common.BitmapLocation bitmaplocation = 4;
     // owner, who owns this block group
     optional string owner = 5;
+    // deallocating, metaserver who is deallocate this block group
+    repeated uint32 deallocating = 6;
+    // deallocated, metaserver who finish deallocate this block group
+    repeated uint32 deallocated = 7;
 }
 
 message AllocateBlockGroupRequest {

@@ -29,7 +29,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	cobraUtil "github.com/opencurve/curve/tools-v2/internal/utils"
+	cobratemplate "github.com/opencurve/curve/tools-v2/internal/utils/template"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/completion"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/version"
@@ -37,14 +38,22 @@ import (
 )
 
 func addSubCommands(cmd *cobra.Command) {
-	cmd.AddCommand(curvefs.NewCurveFsCommand(), curvebs.NewCurveBsCommand())
+	completionCmd := completion.NewCompletionCommand()
+	cmd.AddCommand(
+		curvefs.NewCurveFsCommand(),
+		curvebs.NewCurveBsCommand(),
+		completionCmd,
+	)
+	
+	// build completion
+	cobratemplate.SetupCompletionCommand(completionCmd)
 }
 
 func setupRootCommand(cmd *cobra.Command) {
 	cmd.SetVersionTemplate("curve {{.Version}}\n")
-	cobraUtil.SetFlagErrorFunc(cmd)
-	cobraUtil.SetHelpTemplate(cmd)
-	cobraUtil.SetUsageTemplate(cmd)
+	cobratemplate.SetFlagErrorFunc(cmd)
+	cobratemplate.SetHelpTemplate(cmd)
+	cobratemplate.SetUsageTemplate(cmd)
 }
 
 func newCurveCommand() *cobra.Command {
@@ -54,7 +63,7 @@ func newCurveCommand() *cobra.Command {
 		Version: version.Version,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
-				return cobraUtil.ShowHelp(os.Stderr)(cmd, args)
+				return cobratemplate.ShowHelp(os.Stderr)(cmd, args)
 			}
 			return fmt.Errorf("curve: '%s' is not a curve command.\n"+
 				"See 'curve --help'", args[0])

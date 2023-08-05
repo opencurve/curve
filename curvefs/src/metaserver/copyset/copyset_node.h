@@ -24,20 +24,23 @@
 #define CURVEFS_SRC_METASERVER_COPYSET_COPYSET_NODE_H_
 
 #include <braft/raft.h>
+#include <gtest/gtest_prod.h>
 
 #include <list>
 #include <memory>
 #include <string>
 #include <vector>
+#include <map>
 
 #include "curvefs/src/metaserver/common/types.h"
-#include "curvefs/src/metaserver/copyset/apply_queue.h"
+#include "curvefs/src/metaserver/copyset/concurrent_apply_queue.h"
 #include "curvefs/src/metaserver/copyset/conf_epoch_file.h"
 #include "curvefs/src/metaserver/copyset/config.h"
 #include "curvefs/src/metaserver/copyset/copyset_conf_change.h"
 #include "curvefs/src/metaserver/copyset/metric.h"
 #include "curvefs/src/metaserver/copyset/raft_node.h"
 #include "curvefs/src/metaserver/metastore.h"
+#include "curvefs/proto/heartbeat.pb.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -47,6 +50,7 @@ using ::braft::PeerId;
 using ::curvefs::common::Peer;
 using ::curvefs::metaserver::MetaStore;
 using ::curve::mds::heartbeat::ConfigChangeType;
+using ::curvefs::mds::heartbeat::BlockGroupStatInfo;
 
 class CopysetNodeManager;
 
@@ -77,13 +81,25 @@ class CopysetNode : public braft::StateMachine {
 
     virtual bool IsLeaderTerm() const;
 
-    PoolId GetPoolId() const;
+    /**
+     * check if current node is in lease leader
+     * @return
+     */
+    virtual bool IsLeaseLeader(const braft::LeaderLeaseStatus &lease_status) const;  // NOLINT
 
-    const braft::PeerId& GetPeerId() const;
+    /**
+     * check if current node is expired
+     * @return
+     */
+    virtual bool IsLeaseExpired(const braft::LeaderLeaseStatus &lease_status) const;  // NOLINT
 
-    CopysetId GetCopysetId() const;
+    virtual PoolId GetPoolId() const;
 
-    PeerId GetLeaderId() const;
+    virtual const braft::PeerId& GetPeerId() const;
+
+    virtual CopysetId GetCopysetId() const;
+
+    virtual PeerId GetLeaderId() const;
 
     MetaStore* GetMetaStore() const;
 
@@ -106,6 +122,12 @@ class CopysetNode : public braft::StateMachine {
      */
     void GetStatus(braft::NodeStatus* status);
 
+    /**
+     * @brief: get raft node leader lease status
+     * @param status[out]: raft node leader lease status
+     */
+    virtual void GetLeaderLeaseStatus(braft::LeaderLeaseStatus *status);
+
     virtual void ListPeers(std::vector<Peer>* peers) const;
 
     ApplyQueue* GetApplyQueue() const;
@@ -123,7 +145,7 @@ class CopysetNode : public braft::StateMachine {
 #ifdef UNIT_TEST
     void SetMetaStore(MetaStore* metastore) { metaStore_.reset(metastore); }
 
-    void FlushApplyQueue() { applyQueue_->Flush(); }
+    void FlushApplyQueue() { applyQueue_->FlushAll(); }
 
     void SetRaftNode(RaftNode* raftNode) { raftNode_.reset(raftNode); }
 #endif  // UNIT_TEST
@@ -136,7 +158,7 @@ class CopysetNode : public braft::StateMachine {
     virtual void RemovePeer(const Peer& peer, braft::Closure* done = nullptr);
     virtual void ChangePeers(const std::vector<Peer>& newPeers,
                              braft::Closure* done = nullptr);
-    void GetConfChange(ConfigChangeType* type, Peer* alterPeer);
+    virtual void GetConfChange(ConfigChangeType* type, Peer* alterPeer);
     void OnConfChangeComplete();
 
  private:
@@ -175,15 +197,28 @@ class CopysetNode : public braft::StateMachine {
 
  public:
     // for heartbeat
-    bool GetPartitionInfoList(std::list<PartitionInfo> *partitionInfoList);
+    virtual bool
+    GetPartitionInfoList(std::list<PartitionInfo> *partitionInfoList);
 
-    bool IsLoading() const;
+    virtual bool IsLoading() const;
+
+    virtual bool
+    GetBlockStatInfo(std::map<uint32_t, BlockGroupStatInfo> *blockStatInfoMap);
+
+    virtual void Deallocate(uint64_t fsId, uint64_t blockGroupOffset);
 
  private:
     void InitRaftNodeOptions();
 
     bool FetchLeaderStatus(const braft::PeerId& peerId,
                            braft::NodeStatus* leaderStatus);
+
+    bool AggregateBlockStatInfo(
+        const std::shared_ptr<Partition> &partition,
+        std::map<uint32_t, BlockGroupStatInfo> *blockStatInfoMap,
+        uint32_t *blockGroupNum);
+
+    FRIEND_TEST(CopysetNodeBlockGroupTest, Test_AggregateBlockStatInfo);
 
  private:
     const PoolId poolId_;
@@ -266,11 +301,15 @@ inline std::string CopysetNode::GetCopysetDataDir() const {
 }
 
 inline uint64_t CopysetNode::GetAppliedIndex() const {
-    return appliedIndex_.load(std::memory_order_acq_rel);
+    return appliedIndex_.load(std::memory_order::memory_order_acquire);
 }
 
 inline void CopysetNode::GetStatus(braft::NodeStatus* status) {
     raftNode_->get_status(status);
+}
+
+inline void CopysetNode::GetLeaderLeaseStatus(braft::LeaderLeaseStatus *status) {  // NOLINT
+    raftNode_->get_leader_lease_status(status);
 }
 
 inline ApplyQueue* CopysetNode::GetApplyQueue() const {

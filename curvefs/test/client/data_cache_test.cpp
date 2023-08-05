@@ -45,6 +45,7 @@ class DataCacheTest : public testing::Test {
         S3ClientAdaptorOption option;
         option.blockSize = 1 * 1024 * 1024;
         option.chunkSize = 4 * 1024 * 1024;
+        option.baseSleepUs = 500;
         option.objectPrefix = 0;
         option.pageSize = 64 * 1024;
         option.intervalSec = 5000;
@@ -66,7 +67,7 @@ class DataCacheTest : public testing::Test {
         dataCache_ = std::make_shared<DataCache>(s3ClientAdaptor_,
                                                  mockChunkCacheManager_, offset,
                                                  len, buf, nullptr);
-        delete buf;
+        delete[] buf;
     }
     void TearDown() override {}
 
@@ -84,7 +85,7 @@ TEST_F(DataCacheTest, test_write1) {
     dataCache_->Write(offset, len, buf, mergeDataCacheVer);
     ASSERT_EQ(0, dataCache_->GetChunkPos());
     ASSERT_EQ(1536 * 1024, dataCache_->GetLen());
-    delete buf;
+    delete[] buf;
 }
 
 TEST_F(DataCacheTest, test_write2) {
@@ -95,7 +96,7 @@ TEST_F(DataCacheTest, test_write2) {
     dataCache_->Write(offset, len, buf, mergeDataCacheVer);
     ASSERT_EQ(0, dataCache_->GetChunkPos());
     ASSERT_EQ(2048 * 1024, dataCache_->GetLen());
-    delete buf;
+    delete[] buf;
 }
 
 TEST_F(DataCacheTest, test_write3) {
@@ -110,7 +111,7 @@ TEST_F(DataCacheTest, test_write3) {
     dataCache_->Write(offset, len, buf, mergeDataCacheVer);
     ASSERT_EQ(0, dataCache_->GetChunkPos());
     ASSERT_EQ(4096 * 1024, dataCache_->GetLen());
-    delete buf;
+    delete[] buf;
 }
 
 TEST_F(DataCacheTest, test_write4) {
@@ -121,7 +122,7 @@ TEST_F(DataCacheTest, test_write4) {
     dataCache_->Write(offset, len, buf, mergeDataCacheVer);
     ASSERT_EQ(512 * 1024, dataCache_->GetChunkPos());
     ASSERT_EQ(1024 * 1024, dataCache_->GetLen());
-    delete buf;
+    delete[] buf;
 }
 
 TEST_F(DataCacheTest, test_write5) {
@@ -132,7 +133,7 @@ TEST_F(DataCacheTest, test_write5) {
     dataCache_->Write(offset, len, buf, mergeDataCacheVer);
     ASSERT_EQ(512 * 1024, dataCache_->GetChunkPos());
     ASSERT_EQ(1536 * 1024, dataCache_->GetLen());
-    delete buf;
+    delete[] buf;
 }
 
 TEST_F(DataCacheTest, test_write6) {
@@ -147,7 +148,7 @@ TEST_F(DataCacheTest, test_write6) {
     dataCache_->Write(offset, len, buf, mergeDataCacheVer);
     ASSERT_EQ(512 * 1024, dataCache_->GetChunkPos());
     ASSERT_EQ(2560 * 1024, dataCache_->GetLen());
-    delete buf;
+    delete[] buf;
 }
 
 TEST_F(DataCacheTest, test_truncate1) {

@@ -161,6 +161,7 @@ func (lCmd *LogicalPoolCommand) RunCommand(cmd *cobra.Command, args []string) er
 			continue
 		}
 		infos := res.(*topology.ListLogicalPoolResponse)
+		lCmd.logicalPoolInfo = append(lCmd.logicalPoolInfo, infos)
 		for _, loPoolInfo := range infos.GetLogicalPoolInfos() {
 			row := make(map[string]string)
 			row[cobrautil.ROW_ID] = fmt.Sprintf("%d", loPoolInfo.GetLogicalPoolID())
@@ -238,7 +239,7 @@ func ListLogicalPoolInfoAndAllocSize(caller *cobra.Command) ([]*topology.ListLog
 	})
 	listCmd.Cmd.SilenceErrors = true
 	listCmd.Cmd.SilenceUsage = true
-	listCmd.Cmd.SetArgs([]string{"--format", config.FORMAT_NOOUT})
+	listCmd.Cmd.SetArgs([]string{fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT})
 	err := listCmd.Cmd.Execute()
 	if err != nil {
 		retErr := cmderror.ErrBsListLogicalPoolInfo()

@@ -30,6 +30,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <atomic>
 
 #include "curvefs/src/client/rpcclient/mds_client.h"
 
@@ -105,11 +106,12 @@ class MockMdsClient : public MdsClient {
                  bool(uint32_t fsID,
                       std::vector<PartitionInfo>* partitionInfos));
 
-    MOCK_METHOD4(RefreshSession,
+    MOCK_METHOD5(RefreshSession,
                  FSStatusCode(const std::vector<PartitionTxId> &txIds,
                               std::vector<PartitionTxId> *latestTxIdList,
                               const std::string& fsName,
-                              const Mountpoint& mountpoint));
+                              const Mountpoint& mountpoint,
+                              std::atomic<bool>* enableSumInDir));
 
     MOCK_METHOD4(AllocateVolumeBlockGroup,
                  SpaceErrCode(uint32_t,

@@ -33,7 +33,7 @@
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/client/common/common.h"
 #include "curvefs/src/client/common/config.h"
-#include "curvefs/src/client/error_code.h"
+#include "curvefs/src/client/filesystem/error.h"
 #include "curvefs/src/client/inode_cache_manager.h"
 #include "curvefs/src/client/rpcclient/mds_client.h"
 #include "curvefs/src/client/s3/client_s3.h"
@@ -249,7 +249,6 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
     std::shared_ptr<S3Client> client_;
     uint64_t blockSize_;
     uint64_t chunkSize_;
-    uint32_t fuseMaxSize_;
     uint32_t prefetchBlocks_;
     uint32_t prefetchExecQueueNum_;
     std::string allocateServerEps_;
@@ -270,7 +269,6 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
     std::shared_ptr<InodeCacheManager> inodeManager_;
     std::shared_ptr<DiskCacheManagerImpl> diskCacheManagerImpl_;
     DiskCacheType diskCacheType_;
-    std::atomic<uint64_t> pendingReq_;
     std::shared_ptr<MdsClient> mdsClient_;
     uint32_t fsId_;
     std::string fsName_;

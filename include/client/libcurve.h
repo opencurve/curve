@@ -54,6 +54,7 @@ typedef struct FileStatInfo {
     int             fileStatus;
     uint64_t        stripeUnit;
     uint64_t        stripeCount;
+    uint32_t        blocksize;
 } FileStatInfo_t;
 
 // 存储用户信息
@@ -125,20 +126,6 @@ int Open(const char* filename, const C_UserInfo_t* userinfo);
 int Create(const char* filename,
            const C_UserInfo_t* userinfo,
            size_t size);
-
-/**
- * create file with stripe
- * @param: filename  file name
- * @param: userinfo  user info
- * @param: size      file size
- * @param: stripeUnit block in stripe size
- * @param: stripeCount stripe count in one stripe
- *
- * @return: success return 0, fail return less than 0
- */
-int Create2(const char* filename,
-           const C_UserInfo_t* userinfo,
-           size_t size, uint64_t stripeUnit, uint64_t stripeCount);
 
 /**
  * 同步模式读
@@ -382,6 +369,7 @@ inline bool operator==(const UserInfo& lhs, const UserInfo& rhs) {
 
 struct OpenFlags {
     bool exclusive;
+    std::string confPath;
 
     OpenFlags() : exclusive(true) {}
 };
@@ -448,10 +436,10 @@ class CurveClient {
 
     /**
      * 获取文件大小
-     * @param filename 文件名，格式为：文件名_用户名_
+     * @param fd 文件fd
      * @return 返回错误码
      */
-    virtual int64_t StatFile(const std::string& filename);
+    virtual int64_t StatFile(int fd, FileStatInfo* fileStat);
 
     /**
      * 异步读

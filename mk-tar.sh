@@ -16,8 +16,6 @@
 #  limitations under the License.
 #
 
-set -o errexit
-
 dir=$(pwd)
 
 # step1 清除生成的目录和文件

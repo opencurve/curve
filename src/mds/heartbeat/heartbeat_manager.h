@@ -123,10 +123,16 @@ class HeartbeatManager {
      * @brief Update statistical data of chunkserver
      *
      * @param request Heartbeat request
-     * @param response response of heartbeat request
      */
     void UpdateChunkServerStatistics(
         const ChunkServerHeartbeatRequest &request);
+
+    /**
+     * @brief Update version of chunkserver
+     *
+     * @param request Heartbeat request
+     */
+    void UpdateChunkServerVersion(const ChunkServerHeartbeatRequest &request);
 
     /**
      * @brief Background thread for heartbeat timeout inspection

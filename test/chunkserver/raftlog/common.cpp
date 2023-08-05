@@ -42,7 +42,7 @@ int prepare_segment(const std::string& path) {
         LOG(ERROR) << "write failed";
         return -1;
     }
-    delete data;
+    delete[] data;
     close(fd);
     return 0;
 }

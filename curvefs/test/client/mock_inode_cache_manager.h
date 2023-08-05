@@ -40,15 +40,9 @@ class MockInodeCacheManager : public InodeCacheManager {
     MockInodeCacheManager() {}
     ~MockInodeCacheManager() {}
 
-    MOCK_METHOD5(Init, CURVEFS_ERROR(uint64_t cacheSize,
-                                     bool enableCacheMetrics,
-                                     uint32_t flushPeriodSec,
-                                     RefreshDataOption option,
-                                     uint32_t cacheTimeOutSec));
-
-    MOCK_METHOD0(Run, void());
-
-    MOCK_METHOD0(Stop, void());
+    MOCK_METHOD3(Init, CURVEFS_ERROR(RefreshDataOption option,
+                                     std::shared_ptr<OpenFiles> openFiles,
+                                     std::shared_ptr<DeferSync> deferSync));
 
     MOCK_METHOD2(GetInode,
                  CURVEFS_ERROR(uint64_t inodeId,
@@ -75,25 +69,8 @@ class MockInodeCacheManager : public InodeCacheManager {
 
     MOCK_METHOD1(DeleteInode, CURVEFS_ERROR(uint64_t inodeid));
 
-    MOCK_METHOD1(InvalidateNlinkCache, void(uint64_t inodeid));
-
-    MOCK_METHOD2(AddInodeAttrs, void(uint64_t parentId,
-        const RepeatedPtrField<InodeAttr>& inodeAttrs));
-
-    MOCK_METHOD1(ClearInodeCache, void(uint64_t inodeid));
-
     MOCK_METHOD1(ShipToFlush, void(
         const std::shared_ptr<InodeWrapper> &inodeWrapper));
-
-    MOCK_METHOD0(FlushAll, void());
-
-    MOCK_METHOD0(FlushInodeOnce, void());
-
-    MOCK_METHOD1(ReleaseCache, void(uint64_t parentId));
-
-    MOCK_METHOD1(AddOpenedInode, void(uint64_t inodeId));
-
-    MOCK_METHOD1(RemoveOpenedInode, void(uint64_t inodeId));
 };
 
 }  // namespace client

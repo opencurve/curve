@@ -28,7 +28,7 @@
 namespace curve {
 namespace chunkserver {
 
-const uint32_t kOpRequestAlignSize = 4096;
+static constexpr uint32_t kOpRequestAlignSize = 4096;
 const PageSizeType kPageSize = kOpRequestAlignSize;
 
 int ChunkServiceOp::WriteChunk(struct ChunkServiceOpConf *opConf,

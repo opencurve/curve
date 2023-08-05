@@ -61,6 +61,13 @@ message ClusterInfoData {
     required string clusterId = 1;
 }
 
+message PoolsetData {
+    required uint32 poolsetId = 1;
+    required string poolsetName = 2;
+    required string type = 3;
+    required string desc = 4;
+}
+
 message LogicalPoolData {
     required uint32 logicalPoolId = 1;
     required string logicalPoolName = 2;
@@ -79,6 +86,7 @@ message PhysicalPoolData {
     required uint32 physicalPoolId = 1;
     required string physicalPoolName = 2;
     required string desc = 3;
+    optional uint32 poolsetId = 4;
 }
 
 message ZoneData {
@@ -113,6 +121,7 @@ message ChunkServerData {
     required string mountPoint = 10;
     required int64 diskCapacity = 11;
     required int64 diskUsed = 12;
+    optional string version = 13;
 }
 
 message CopysetData {
@@ -141,6 +150,7 @@ message ChunkServerInfo {
     required uint64 diskCapacity = 9;
     required uint64 diskUsed = 10;
     optional string externalIp = 11;
+    optional string version = 12;
 }
 
 //chunkserver message
@@ -157,6 +167,8 @@ message ChunkServerRegistRequest {
     optional uint64 chunkFilepoolSize = 8;
     optional bool   useChunkFilePoolAsWalPool = 9;
     optional uint32 useChunkFilePoolAsWalPoolReserve = 10;
+    optional uint32 blockSize = 11;
+    optional uint32 chunkSize = 12;
 };
 
 message ChunkServerRegistResponse {
@@ -244,6 +256,7 @@ message ServerRegistRequest {
     optional uint32 physicalPoolID = 8;
     optional string physicalPoolName = 9; //physicalPoolName is unique
     required string desc = 10;
+    required string poolsetName = 11;
 }
 
 message ServerRegistResponse {
@@ -325,6 +338,8 @@ message PhysicalPoolInfo {
     required uint32 physicalPoolID = 1;
     required string physicalPoolName = 2;
     optional string desc = 3;
+    required uint32 poolsetId = 4;
+    required string poolsetName = 5;
 }
 
 message PhysicalPoolRequest {
@@ -332,6 +347,7 @@ message PhysicalPoolRequest {
     optional uint32 physicalPoolID = 1;
     optional string physicalPoolName = 2;
     optional string desc = 3;
+    optional string poolsetName = 4;
 }
 
 message PhysicalPoolResponse {
@@ -342,9 +358,41 @@ message PhysicalPoolResponse {
 message ListPhysicalPoolRequest {
 }
 
+message ListPhysicalPoolsInPoolsetRequest {
+    repeated uint32 poolsetId = 1;
+}
+
 message ListPhysicalPoolResponse {
     required sint32 statusCode = 1;
     repeated PhysicalPoolInfo physicalPoolInfos = 2;
+}
+
+//poolset message
+message PoolsetRequest {
+    //use either  poolsetID or poolsetName
+    optional uint32 poolsetID = 1;
+    optional string poolsetName = 2;
+    optional string type = 3;
+    optional string desc = 4;
+}
+
+message PoolsetInfo {
+    required uint32 poolsetID = 1;
+    required string poolsetName = 2;
+    required string type = 3;
+    optional string desc = 4;
+}
+
+message PoolsetResponse {
+    required sint32 statusCode = 1;
+    optional PoolsetInfo poolsetInfo = 2;
+}
+
+message ListPoolsetRequest {}
+
+message ListPoolsetResponse {
+    required sint32 statusCode = 1;
+    repeated PoolsetInfo poolsetInfos = 2;
 }
 
 //logicalpool message
@@ -512,7 +560,7 @@ service TopologyService {
     rpc DeleteChunkServer(DeleteChunkServerRequest) returns (DeleteChunkServerResponse);
     rpc SetChunkServer(SetChunkServerStatusRequest) returns (SetChunkServerStatusResponse);
 
-    rpc RegistServer(ServerRegistRequest)            returns (ServerRegistResponse);
+    rpc RegistServer(ServerRegistRequest)     returns (ServerRegistResponse);
     rpc GetServer(GetServerRequest)           returns (GetServerResponse);
     rpc DeleteServer(DeleteServerRequest)     returns (DeleteServerResponse);
     rpc ListZoneServer(ListZoneServerRequest) returns (ListZoneServerResponse);
@@ -522,11 +570,16 @@ service TopologyService {
     rpc GetZone(ZoneRequest)                  returns (ZoneResponse);
     rpc ListPoolZone(ListPoolZoneRequest)     returns (ListPoolZoneResponse);
 
+    rpc CreatePhysicalPool(PhysicalPoolRequest)              returns (PhysicalPoolResponse);
+    rpc DeletePhysicalPool(PhysicalPoolRequest)              returns (PhysicalPoolResponse);
+    rpc GetPhysicalPool(PhysicalPoolRequest)                 returns (PhysicalPoolResponse);
+    rpc ListPhysicalPool(ListPhysicalPoolRequest)            returns (ListPhysicalPoolResponse);
+    rpc ListPhysicalPoolsInPoolset(ListPhysicalPoolsInPoolsetRequest)  returns (ListPhysicalPoolResponse);
 
-    rpc CreatePhysicalPool(PhysicalPoolRequest)     returns (PhysicalPoolResponse);
-    rpc DeletePhysicalPool(PhysicalPoolRequest)     returns (PhysicalPoolResponse);
-    rpc GetPhysicalPool(PhysicalPoolRequest)        returns (PhysicalPoolResponse);
-    rpc ListPhysicalPool(ListPhysicalPoolRequest)   returns (ListPhysicalPoolResponse);
+    rpc CreatePoolset(PoolsetRequest)          returns (PoolsetResponse);
+    rpc DeletePoolset(PoolsetRequest)          returns (PoolsetResponse);
+    rpc GetPoolset(PoolsetRequest)             returns (PoolsetResponse);
+    rpc ListPoolset(ListPoolsetRequest)        returns (ListPoolsetResponse);
 
     rpc CreateLogicalPool(CreateLogicalPoolRequest)       returns (CreateLogicalPoolResponse);
     rpc DeleteLogicalPool(DeleteLogicalPoolRequest)    returns (DeleteLogicalPoolResponse);
@@ -543,4 +596,3 @@ service TopologyService {
     rpc SetCopysetsAvailFlag(SetCopysetsAvailFlagRequest) returns (SetCopysetsAvailFlagResponse);
     rpc ListUnAvailCopySets(ListUnAvailCopySetsRequest) returns (ListUnAvailCopySetsResponse);
 }
-

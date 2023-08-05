@@ -64,13 +64,13 @@ class ClientS3AdaptorTest : public testing::Test {
         S3ClientAdaptorOption option;
         option.blockSize = 1 * 1024 * 1024;
         option.chunkSize = 4 * 1024 * 1024;
+        option.baseSleepUs = 500;
         option.pageSize = 64 * 1024;
         option.intervalSec = 5000;
         option.flushIntervalSec = 5000;
         option.readCacheMaxByte = 104857600;
         option.writeCacheMaxByte = 10485760000;
         option.readCacheThreads = 5;
-        option.fuseMaxSize = 131072;
         option.chunkFlushThreads = 5;
         option.objectPrefix = 0;
         option.diskCacheOpt.diskCacheType = (DiskCacheType)0;

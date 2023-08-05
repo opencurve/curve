@@ -29,7 +29,7 @@
 
 #include "curvefs/src/client/curve_fuse_op.h"
 #include "curvefs/src/client/fuse_client.h"
-#include "curvefs/src/client/error_code.h"
+#include "curvefs/src/client/filesystem/error.h"
 #include "curvefs/src/client/common/config.h"
 #include "curvefs/src/client/common/common.h"
 #include "src/common/configuration.h"
@@ -43,6 +43,8 @@
 #include "curvefs/src/common/metric_utils.h"
 #include "curvefs/src/common/dynamic_vlog.h"
 #include "curvefs/src/client/warmup/warmup_manager.h"
+#include "curvefs/src/client/filesystem/meta.h"
+#include "curvefs/src/client/filesystem/access_log.h"
 
 using ::curve::common::Configuration;
 using ::curvefs::client::CURVEFS_ERROR;
@@ -55,7 +57,16 @@ using ::curvefs::client::rpcclient::MDSBaseClient;
 using ::curvefs::client::metric::ClientOpMetric;
 using ::curvefs::common::LatencyUpdater;
 using ::curvefs::client::metric::InflightGuard;
-using ::curvefs::client::common::FileHandle;
+using ::curvefs::client::filesystem::EntryOut;
+using ::curvefs::client::filesystem::AttrOut;
+using ::curvefs::client::filesystem::FileOut;
+using ::curvefs::client::filesystem::AccessLogGuard;
+using ::curvefs::client::filesystem::StrFormat;
+using ::curvefs::client::filesystem::InitAccessLog;
+using ::curvefs::client::filesystem::Logger;
+using ::curvefs::client::filesystem::StrEntry;
+using ::curvefs::client::filesystem::StrAttr;
+using ::curvefs::client::filesystem::StrMode;
 
 using ::curvefs::common::FLAGS_vlog_level;
 
@@ -108,7 +119,7 @@ int GetFsInfo(const char* fsName, FsInfo* fsInfo) {
 
 }  // namespace
 
-int InitGlog(const char *confPath, const char *argv0) {
+int InitLog(const char *confPath, const char *argv0) {
     Configuration conf;
     conf.SetConfigPath(confPath);
     if (!conf.LoadConfig()) {
@@ -131,6 +142,10 @@ int InitGlog(const char *confPath, const char *argv0) {
     // initialize logging module
     google::InitGoogleLogging(argv0);
 
+    bool succ = InitAccessLog(FLAGS_log_dir);
+    if (!succ) {
+        return -1;
+    }
     return 0;
 }
 
@@ -205,86 +220,6 @@ void UnInitFuseClient() {
     delete g_clientOpMetric;
 }
 
-void FuseOpInit(void *userdata, struct fuse_conn_info *conn) {
-    CURVEFS_ERROR ret = g_ClientInstance->FuseOpInit(userdata, conn);
-    if (ret != CURVEFS_ERROR::OK) {
-        LOG(FATAL) << "FuseOpInit failed, ret = " << ret;
-    }
-    EnableSplice(conn);
-    LOG(INFO) << "Fuse op init success!";
-}
-
-void FuseOpDestroy(void *userdata) {
-    g_ClientInstance->FuseOpDestroy(userdata);
-}
-
-void FuseReplyErrByErrCode(fuse_req_t req, CURVEFS_ERROR errcode) {
-    switch (errcode) {
-    case CURVEFS_ERROR::OK:
-        fuse_reply_err(req, 0);
-        break;
-    case CURVEFS_ERROR::NO_SPACE:
-        fuse_reply_err(req, ENOSPC);
-        break;
-    case CURVEFS_ERROR::NOTEXIST:
-        fuse_reply_err(req, ENOENT);
-        break;
-    case CURVEFS_ERROR::NOPERMISSION:
-        fuse_reply_err(req, EACCES);
-        break;
-    case CURVEFS_ERROR::INVALIDPARAM:
-        fuse_reply_err(req, EINVAL);
-        break;
-    case CURVEFS_ERROR::NOTEMPTY:
-        fuse_reply_err(req, ENOTEMPTY);
-        break;
-    case CURVEFS_ERROR::NOTSUPPORT:
-        fuse_reply_err(req, EOPNOTSUPP);
-        break;
-    case CURVEFS_ERROR::NAMETOOLONG:
-        fuse_reply_err(req, ENAMETOOLONG);
-        break;
-    case CURVEFS_ERROR::OUT_OF_RANGE:
-        fuse_reply_err(req, ERANGE);
-        break;
-    case CURVEFS_ERROR::NODATA:
-        fuse_reply_err(req, ENODATA);
-        break;
-    case CURVEFS_ERROR::EXISTS:
-        fuse_reply_err(req, EEXIST);
-        break;
-    default:
-        fuse_reply_err(req, EIO);
-        break;
-    }
-}
-
-void FuseOpLookup(fuse_req_t req, fuse_ino_t parent, const char *name) {
-    InflightGuard guard(&g_clientOpMetric->opLookup.inflightOpNum);
-    LatencyUpdater updater(&g_clientOpMetric->opLookup.latency);
-    fuse_entry_param e;
-    CURVEFS_ERROR ret = g_ClientInstance->FuseOpLookup(req, parent, name, &e);
-    if (ret != CURVEFS_ERROR::OK) {
-        g_clientOpMetric->opLookup.ecount << 1;
-        FuseReplyErrByErrCode(req, ret);
-        return;
-    }
-    fuse_reply_entry(req, &e);
-}
-
-void FuseOpGetAttr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi) {
-    InflightGuard guard(&g_clientOpMetric->opGetAttr.inflightOpNum);
-    LatencyUpdater updater(&g_clientOpMetric->opGetAttr.latency);
-    struct stat attr;
-    CURVEFS_ERROR ret = g_ClientInstance->FuseOpGetAttr(req, ino, fi, &attr);
-    if (ret != CURVEFS_ERROR::OK) {
-        g_clientOpMetric->opGetAttr.ecount << 1;
-        FuseReplyErrByErrCode(req, ret);
-        return;
-    }
-    fuse_reply_attr(req, &attr, g_fuseClientOption->attrTimeOut);
-}
-
 int AddWarmupTask(curvefs::client::common::WarmupType type, fuse_ino_t key,
                   const std::string &path,
                   curvefs::client::common::WarmupStorageType storageType) {
@@ -357,355 +292,593 @@ int Warmup(fuse_ino_t key, const std::string& name, const std::string& value) {
     return ret;
 }
 
-void FuseOpSetXattr(fuse_req_t req, fuse_ino_t ino, const char* name,
-                    const char* value, size_t size, int flags) {
-    std::string xattrValue(value, size);
-    VLOG(9) << "FuseOpSetXattr"
-            << " ino " << ino << " name " << name << " value " << xattrValue
-            << " flags " << flags;
-    if (strcmp(name, curvefs::client::common::kCurveFsWarmupXAttr) == 0) {
-        // warmup
-        int code = Warmup(ino, name, xattrValue);
-        fuse_reply_err(req, code);
-    } else {
-        // set xattr
-        CURVEFS_ERROR ret = g_ClientInstance->FuseOpSetXattr(req, ino, name,
-            value, size, flags);
-        FuseReplyErrByErrCode(req, ret);
-    }
+namespace {
 
-    VLOG(9) << "FuseOpSetXattr done";
-}
+struct CodeGuard {
+    explicit CodeGuard(CURVEFS_ERROR* rc, bvar::Adder<uint64_t>* ecount)
+    : rc_(rc), ecount_(ecount) {}
 
-void FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino, const char *name,
-                    size_t size) {
-    if (strcmp(name, curvefs::client::common::kCurveFsWarmupXAttr) == 0) {
-        // warmup
-        std::string data;
-        QueryWarmupTask(ino, &data);
-        if (size == 0) {
-            fuse_reply_xattr(req, data.length());
-        } else {
-            fuse_reply_buf(req, data.data(), data.length());
+    ~CodeGuard() {
+        if (*rc_ != CURVEFS_ERROR::OK) {
+            (*ecount_) << 1;
         }
-        return;
-    }
-    InflightGuard guard(&g_clientOpMetric->opGetXattr.inflightOpNum);
-    LatencyUpdater updater(&g_clientOpMetric->opGetXattr.latency);
-    std::string buf;
-    CURVEFS_ERROR ret = g_ClientInstance->FuseOpGetXattr(req, ino, name,
-                                                         &buf, size);
-    if (ret != CURVEFS_ERROR::OK) {
-        g_clientOpMetric->opGetXattr.ecount << 1;
-        FuseReplyErrByErrCode(req, ret);
-        return;
     }
 
+    CURVEFS_ERROR* rc_;
+    bvar::Adder<uint64_t>* ecount_;
+};
+
+FuseClient* Client() {
+    return g_ClientInstance;
+}
+
+const char* warmupXAttr = ::curvefs::client::common::kCurveFsWarmupXAttr;
+
+bool IsWamupReq(const char* name) {
+    return strcmp(name, warmupXAttr) == 0;
+}
+
+void TriggerWarmup(fuse_req_t req,
+                   fuse_ino_t ino,
+                   const char* name,
+                   const char* value,
+                   size_t size) {
+    auto fs = Client()->GetFileSystem();
+
+    std::string xattr(value, size);
+    int code = Warmup(ino, name, xattr);
+    fuse_reply_err(req, code);
+}
+
+void QueryWarmup(fuse_req_t req, fuse_ino_t ino, size_t size) {
+    auto fs = Client()->GetFileSystem();
+
+    std::string data;
+    QueryWarmupTask(ino, &data);
     if (size == 0) {
-        fuse_reply_xattr(req, buf.length());
+        return fs->ReplyXattr(req, data.length());
+    }
+    return fs->ReplyBuffer(req, data.data(), data.length());
+}
+
+void ReadThrottleAdd(size_t size) { Client()->Add(true, size); }
+void WriteThrottleAdd(size_t size) { Client()->Add(false, size); }
+
+#define MetricGuard(REQUEST) \
+    InflightGuard iGuard(&g_clientOpMetric->op##REQUEST.inflightOpNum); \
+    CodeGuard cGuard(&rc, &g_clientOpMetric->op##REQUEST.ecount); \
+    LatencyUpdater updater(&g_clientOpMetric->op##REQUEST.latency)
+
+}  // namespace
+
+void FuseOpInit(void *userdata, struct fuse_conn_info *conn) {
+    CURVEFS_ERROR rc;
+    auto client = Client();
+    AccessLogGuard log([&](){
+        return StrFormat("init : %s", StrErr(rc));
+    });
+
+    rc = client->FuseOpInit(userdata, conn);
+    if (rc != CURVEFS_ERROR::OK) {
+        LOG(FATAL) << "FuseOpInit() failed, retCode = " << rc;
     } else {
-        fuse_reply_buf(req, buf.data(), buf.length());
+        EnableSplice(conn);
+        LOG(INFO) << "FuseOpInit() success, retCode = " << rc;
     }
 }
 
-void FuseOpListXattr(fuse_req_t req, fuse_ino_t ino, size_t size) {
-    InflightGuard guard(&g_clientOpMetric->opListXattr.inflightOpNum);
-    LatencyUpdater updater(&g_clientOpMetric->opListXattr.latency);
-    std::unique_ptr<char[]> buf(new char[size]);
-    std::memset(buf.get(), 0, size);
-    size_t xattrSize = 0;
-    CURVEFS_ERROR ret = g_ClientInstance->FuseOpListXattr(req, ino, buf.get(),
-                                                          size, &xattrSize);
-    if (ret != CURVEFS_ERROR::OK) {
-        g_clientOpMetric->opListXattr.ecount << 1;
-        FuseReplyErrByErrCode(req, ret);
-        return;
-    }
-
-    if (size == 0) {
-        fuse_reply_xattr(req, xattrSize);
-    } else {
-        fuse_reply_buf(req, buf.get(), xattrSize);
-    }
+void FuseOpDestroy(void *userdata) {
+    auto client = Client();
+    AccessLogGuard log([&](){
+        return StrFormat("destory : OK");
+    });
+    client->FuseOpDestroy(userdata);
 }
 
-void FuseOpReadDir(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
-                       struct fuse_file_info *fi) {
-    InflightGuard guard(&g_clientOpMetric->opReadDir.inflightOpNum);
-    LatencyUpdater updater(&g_clientOpMetric->opReadDir.latency);
-    char *buffer = nullptr;
-    size_t rSize = 0;
-    CURVEFS_ERROR ret = g_ClientInstance->FuseOpReadDirPlus(req, ino,
-        size, off, fi, &buffer, &rSize, false);
-    if (ret != CURVEFS_ERROR::OK) {
-        g_clientOpMetric->opReadDir.ecount << 1;
-        FuseReplyErrByErrCode(req, ret);
-        return;
+void FuseOpLookup(fuse_req_t req, fuse_ino_t parent, const char* name) {
+    CURVEFS_ERROR rc;
+    EntryOut entryOut;
+    auto client = Client();
+    auto fs = client->GetFileSystem();
+    MetricGuard(Lookup);
+    AccessLogGuard log([&](){
+        return StrFormat("lookup (%d,%s): %s%s",
+                         parent, name, StrErr(rc), StrEntry(entryOut));
+    });
+
+    rc = client->FuseOpLookup(req, parent, name, &entryOut);
+    if (rc != CURVEFS_ERROR::OK) {
+        return fs->ReplyError(req, rc);
     }
-    fuse_reply_buf(req, buffer, rSize);
+    return fs->ReplyEntry(req, &entryOut);
 }
 
-void FuseOpReadDirPlus(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
-                       struct fuse_file_info *fi) {
-    InflightGuard guard(&g_clientOpMetric->opReadDir.inflightOpNum);
-    LatencyUpdater updater(&g_clientOpMetric->opReadDir.latency);
-    char *buffer = nullptr;
-    size_t rSize = 0;
-    CURVEFS_ERROR ret = g_ClientInstance->FuseOpReadDirPlus(req, ino,
-        size, off, fi, &buffer, &rSize, true);
-    if (ret != CURVEFS_ERROR::OK) {
-        g_clientOpMetric->opReadDir.ecount << 1;
-        FuseReplyErrByErrCode(req, ret);
-        return;
+void FuseOpGetAttr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi) {
+    CURVEFS_ERROR rc;
+    AttrOut attrOut;
+    auto client = Client();
+    auto fs = client->GetFileSystem();
+    MetricGuard(GetAttr);
+    AccessLogGuard log([&](){
+        return StrFormat("getattr (%d): %s%s",
+                         ino, StrErr(rc), StrAttr(attrOut));
+    });
+
+    rc = client->FuseOpGetAttr(req, ino, fi, &attrOut);
+    if (rc != CURVEFS_ERROR::OK) {
+        return fs->ReplyError(req, rc);
     }
-    fuse_reply_buf(req, buffer, rSize);
+    return fs->ReplyAttr(req, &attrOut);
 }
 
-void FuseOpOpen(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi) {
-    InflightGuard guard(&g_clientOpMetric->opOpen.inflightOpNum);
-    LatencyUpdater updater(&g_clientOpMetric->opOpen.latency);
-    CURVEFS_ERROR ret = g_ClientInstance->FuseOpOpen(req, ino, fi);
-    if (ret != CURVEFS_ERROR::OK) {
-        g_clientOpMetric->opOpen.ecount << 1;
-        FuseReplyErrByErrCode(req, ret);
-        return;
+void FuseOpSetAttr(fuse_req_t req,
+                   fuse_ino_t ino,
+                   struct stat* attr,
+                   int to_set,
+                   struct fuse_file_info* fi) {
+    CURVEFS_ERROR rc;
+    AttrOut attrOut;
+    auto client = Client();
+    auto fs = client->GetFileSystem();
+    MetricGuard(SetAttr);
+    AccessLogGuard log([&](){
+        return StrFormat("setattr (%d,0x%X): %s%s",
+                         ino, to_set, StrErr(rc), StrAttr(attrOut));
+    });
+
+    rc = client->FuseOpSetAttr(req, ino, attr, to_set, fi, &attrOut);
+    if (rc != CURVEFS_ERROR::OK) {
+        return fs->ReplyError(req, rc);
     }
-    fuse_reply_open(req, fi);
-}
-
-void FuseOpRead(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
-                struct fuse_file_info *fi) {
-    InflightGuard guard(&g_clientOpMetric->opRead.inflightOpNum);
-    LatencyUpdater updater(&g_clientOpMetric->opRead.latency);
-    std::unique_ptr<char[]> buffer(new char[size]);
-    size_t rSize = 0;
-    CURVEFS_ERROR ret = g_ClientInstance->FuseOpRead(req, ino, size, off, fi,
-                                                     buffer.get(), &rSize);
-    if (ret != CURVEFS_ERROR::OK) {
-        g_clientOpMetric->opRead.ecount << 1;
-        FuseReplyErrByErrCode(req, ret);
-        return;
-    }
-
-    struct fuse_bufvec bufvec = FUSE_BUFVEC_INIT(rSize);
-    bufvec.buf[0].mem = buffer.get();
-
-    fuse_reply_data(req, &bufvec, FUSE_BUF_SPLICE_MOVE);
-}
-
-void FuseOpWrite(fuse_req_t req, fuse_ino_t ino, const char *buf, size_t size,
-                 off_t off, struct fuse_file_info *fi) {
-    InflightGuard guard(&g_clientOpMetric->opWrite.inflightOpNum);
-    LatencyUpdater updater(&g_clientOpMetric->opWrite.latency);
-    size_t wSize = 0;
-    CURVEFS_ERROR ret =
-        g_ClientInstance->FuseOpWrite(req, ino, buf, size, off, fi, &wSize);
-    if (ret != CURVEFS_ERROR::OK) {
-        g_clientOpMetric->opWrite.ecount << 1;
-        FuseReplyErrByErrCode(req, ret);
-        return;
-    }
-    fuse_reply_write(req, wSize);
-}
-
-void FuseOpCreate(fuse_req_t req, fuse_ino_t parent, const char *name,
-                  mode_t mode, struct fuse_file_info *fi) {
-    InflightGuard guard(&g_clientOpMetric->opCreate.inflightOpNum);
-    LatencyUpdater updater(&g_clientOpMetric->opCreate.latency);
-    fuse_entry_param e;
-    CURVEFS_ERROR ret =
-        g_ClientInstance->FuseOpCreate(req, parent, name, mode, fi, &e);
-    if (ret != CURVEFS_ERROR::OK) {
-        g_clientOpMetric->opCreate.ecount << 1;
-        FuseReplyErrByErrCode(req, ret);
-        return;
-    }
-    fuse_reply_create(req, &e, fi);
-}
-
-void FuseOpMkNod(fuse_req_t req, fuse_ino_t parent, const char *name,
-                 mode_t mode, dev_t rdev) {
-    InflightGuard guard(&g_clientOpMetric->opMkNod.inflightOpNum);
-    LatencyUpdater updater(&g_clientOpMetric->opMkNod.latency);
-    fuse_entry_param e;
-    CURVEFS_ERROR ret =
-        g_ClientInstance->FuseOpMkNod(req, parent, name, mode, rdev, &e);
-    if (ret != CURVEFS_ERROR::OK) {
-        g_clientOpMetric->opMkNod.ecount << 1;
-        FuseReplyErrByErrCode(req, ret);
-        return;
-    }
-    fuse_reply_entry(req, &e);
-}
-
-void FuseOpMkDir(fuse_req_t req, fuse_ino_t parent, const char *name,
-                 mode_t mode) {
-    InflightGuard guard(&g_clientOpMetric->opMkDir.inflightOpNum);
-    LatencyUpdater updater(&g_clientOpMetric->opMkDir.latency);
-    fuse_entry_param e;
-    CURVEFS_ERROR ret =
-        g_ClientInstance->FuseOpMkDir(req, parent, name, mode, &e);
-    if (ret != CURVEFS_ERROR::OK) {
-        g_clientOpMetric->opMkDir.ecount << 1;
-        FuseReplyErrByErrCode(req, ret);
-        return;
-    }
-    fuse_reply_entry(req, &e);
-}
-
-void FuseOpUnlink(fuse_req_t req, fuse_ino_t parent, const char *name) {
-    InflightGuard guard(&g_clientOpMetric->opUnlink.inflightOpNum);
-    LatencyUpdater updater(&g_clientOpMetric->opUnlink.latency);
-    CURVEFS_ERROR ret = g_ClientInstance->FuseOpUnlink(req, parent, name);
-    if (ret != CURVEFS_ERROR::OK) {
-        g_clientOpMetric->opUnlink.ecount << 1;
-    }
-    FuseReplyErrByErrCode(req, ret);
-}
-
-void FuseOpRmDir(fuse_req_t req, fuse_ino_t parent, const char *name) {
-    InflightGuard guard(&g_clientOpMetric->opRmDir.inflightOpNum);
-    LatencyUpdater updater(&g_clientOpMetric->opRmDir.latency);
-    CURVEFS_ERROR ret = g_ClientInstance->FuseOpRmDir(req, parent, name);
-    if (ret != CURVEFS_ERROR::OK) {
-        g_clientOpMetric->opRmDir.ecount << 1;
-    }
-    FuseReplyErrByErrCode(req, ret);
-}
-
-void FuseOpOpenDir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi) {
-    InflightGuard guard(&g_clientOpMetric->opOpenDir.inflightOpNum);
-    LatencyUpdater updater(&g_clientOpMetric->opOpenDir.latency);
-    CURVEFS_ERROR ret = g_ClientInstance->FuseOpOpenDir(req, ino, fi);
-    if (ret != CURVEFS_ERROR::OK) {
-        g_clientOpMetric->opOpenDir.ecount << 1;
-        FuseReplyErrByErrCode(req, ret);
-        return;
-    }
-    fuse_reply_open(req, fi);
-}
-
-void FuseOpReleaseDir(fuse_req_t req, fuse_ino_t ino,
-                      struct fuse_file_info *fi) {
-    InflightGuard guard(&g_clientOpMetric->opReleaseDir.inflightOpNum);
-    LatencyUpdater updater(&g_clientOpMetric->opReleaseDir.latency);
-    CURVEFS_ERROR ret = g_ClientInstance->FuseOpReleaseDir(req, ino, fi);
-    if (ret != CURVEFS_ERROR::OK) {
-        g_clientOpMetric->opReleaseDir.ecount << 1;
-    }
-    FuseReplyErrByErrCode(req, ret);
-}
-
-void FuseOpRename(fuse_req_t req, fuse_ino_t parent, const char *name,
-                  fuse_ino_t newparent, const char *newname,
-                  unsigned int flags) {
-    // TODO(Wine93): the flag RENAME_EXCHANGE and RENAME_NOREPLACE
-    // is only used in linux interface renameat(), not required by posix,
-    // we can ignore it now
-    InflightGuard guard(&g_clientOpMetric->opRename.inflightOpNum);
-    LatencyUpdater updater(&g_clientOpMetric->opRename.latency);
-    CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
-    if (flags != 0) {
-        ret = CURVEFS_ERROR::INVALIDPARAM;
-    } else {
-        ret = g_ClientInstance->FuseOpRename(req, parent, name, newparent,
-                                            newname);
-    }
-
-    if (ret != CURVEFS_ERROR::OK) {
-        g_clientOpMetric->opRename.ecount << 1;
-    }
-    FuseReplyErrByErrCode(req, ret);
-}
-
-void FuseOpSetAttr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
-                   int to_set, struct fuse_file_info *fi) {
-    InflightGuard guard(&g_clientOpMetric->opSetAttr.inflightOpNum);
-    LatencyUpdater updater(&g_clientOpMetric->opSetAttr.latency);
-    struct stat attrOut;
-    CURVEFS_ERROR ret =
-        g_ClientInstance->FuseOpSetAttr(req, ino, attr, to_set, fi, &attrOut);
-    if (ret != CURVEFS_ERROR::OK) {
-        g_clientOpMetric->opSetAttr.ecount << 1;
-        FuseReplyErrByErrCode(req, ret);
-        return;
-    }
-    fuse_reply_attr(req, &attrOut, g_fuseClientOption->attrTimeOut);
-}
-
-void FuseOpSymlink(fuse_req_t req, const char *link, fuse_ino_t parent,
-                   const char *name) {
-    InflightGuard guard(&g_clientOpMetric->opSymlink.inflightOpNum);
-    LatencyUpdater updater(&g_clientOpMetric->opSymlink.latency);
-    fuse_entry_param e;
-    CURVEFS_ERROR ret =
-        g_ClientInstance->FuseOpSymlink(req, link, parent, name, &e);
-    if (ret != CURVEFS_ERROR::OK) {
-        g_clientOpMetric->opSymlink.ecount << 1;
-        FuseReplyErrByErrCode(req, ret);
-        return;
-    }
-    fuse_reply_entry(req, &e);
-}
-
-void FuseOpLink(fuse_req_t req, fuse_ino_t ino, fuse_ino_t newparent,
-                const char *newname) {
-    InflightGuard guard(&g_clientOpMetric->opLink.inflightOpNum);
-    LatencyUpdater updater(&g_clientOpMetric->opLink.latency);
-    fuse_entry_param e;
-    CURVEFS_ERROR ret =
-        g_ClientInstance->FuseOpLink(req, ino, newparent, newname, &e);
-    if (ret != CURVEFS_ERROR::OK) {
-        g_clientOpMetric->opLink.ecount << 1;
-        FuseReplyErrByErrCode(req, ret);
-        return;
-    }
-    fuse_reply_entry(req, &e);
+    return fs->ReplyAttr(req, &attrOut);
 }
 
 void FuseOpReadLink(fuse_req_t req, fuse_ino_t ino) {
-    InflightGuard guard(&g_clientOpMetric->opReadLink.inflightOpNum);
-    LatencyUpdater updater(&g_clientOpMetric->opReadLink.latency);
-    std::string linkStr;
-    CURVEFS_ERROR ret = g_ClientInstance->FuseOpReadLink(req, ino, &linkStr);
-    if (ret != CURVEFS_ERROR::OK) {
-        g_clientOpMetric->opReadLink.ecount << 1;
-        FuseReplyErrByErrCode(req, ret);
+    CURVEFS_ERROR rc;
+    std::string link;
+    auto client = Client();
+    auto fs = client->GetFileSystem();
+    MetricGuard(ReadLink);
+    AccessLogGuard log([&](){
+        return StrFormat("readlink (%d): %s %s", ino, StrErr(rc), link.c_str());
+    });
+
+    rc = client->FuseOpReadLink(req, ino, &link);
+    if (rc != CURVEFS_ERROR::OK) {
+        return fs->ReplyError(req, rc);
+    }
+    return fs->ReplyReadlink(req, link);
+}
+
+void FuseOpMkNod(fuse_req_t req,
+                 fuse_ino_t parent,
+                 const char* name,
+                 mode_t mode,
+                 dev_t rdev) {
+    CURVEFS_ERROR rc;
+    EntryOut entryOut;
+    auto client = Client();
+    auto fs = client->GetFileSystem();
+    MetricGuard(MkNod);
+    AccessLogGuard log([&](){
+        return StrFormat("mknod (%d,%s,%s:0%04o): %s%s",
+                         parent, name, StrMode(mode), mode,
+                         StrErr(rc), StrEntry(entryOut));
+    });
+
+    rc = client->FuseOpMkNod(req, parent, name, mode, rdev, &entryOut);
+    if (rc != CURVEFS_ERROR::OK) {
+        return fs->ReplyError(req, rc);
+    }
+    return fs->ReplyEntry(req, &entryOut);
+}
+
+void FuseOpMkDir(fuse_req_t req,
+                 fuse_ino_t parent,
+                 const char* name,
+                 mode_t mode) {
+    CURVEFS_ERROR rc;
+    EntryOut entryOut;
+    auto client = Client();
+    auto fs = client->GetFileSystem();
+    MetricGuard(MkDir);
+    AccessLogGuard log([&](){
+        return StrFormat("mkdir (%d,%s,%s:0%04o): %s%s",
+                         parent, name, StrMode(mode), mode,
+                         StrErr(rc), StrEntry(entryOut));
+    });
+
+    rc = client->FuseOpMkDir(req, parent, name, mode, &entryOut);
+    if (rc != CURVEFS_ERROR::OK) {
+        return fs->ReplyError(req, rc);
+    }
+    return fs->ReplyEntry(req, &entryOut);
+}
+
+void FuseOpUnlink(fuse_req_t req, fuse_ino_t parent, const char *name) {
+    CURVEFS_ERROR rc;
+    auto client = Client();
+    auto fs = client->GetFileSystem();
+    MetricGuard(Unlink);
+    AccessLogGuard log([&](){
+        return StrFormat("unlink (%d,%s): %s", parent, name, StrErr(rc));
+    });
+
+    rc = client->FuseOpUnlink(req, parent, name);
+    return fs->ReplyError(req, rc);
+}
+
+void FuseOpRmDir(fuse_req_t req, fuse_ino_t parent, const char *name) {
+    CURVEFS_ERROR rc;
+    auto client = Client();
+    auto fs = client->GetFileSystem();
+    MetricGuard(RmDir);
+    AccessLogGuard log([&](){
+        return StrFormat("rmdir (%d,%s): %s", parent, name, StrErr(rc));
+    });
+
+    rc = client->FuseOpRmDir(req, parent, name);
+    return fs->ReplyError(req, rc);
+}
+
+void FuseOpSymlink(fuse_req_t req,
+                   const char *link,
+                   fuse_ino_t parent,
+                   const char* name) {
+    CURVEFS_ERROR rc;
+    EntryOut entryOut;
+    auto client = Client();
+    auto fs = client->GetFileSystem();
+    MetricGuard(Symlink);
+    AccessLogGuard log([&](){
+        return StrFormat("symlink (%d,%s,%s): %s%s",
+                         parent, name, link, StrErr(rc), StrEntry(entryOut));
+    });
+
+    rc = client->FuseOpSymlink(req, link, parent, name, &entryOut);
+    if (rc != CURVEFS_ERROR::OK) {
+        return fs->ReplyError(req, rc);
+    }
+    return fs->ReplyEntry(req, &entryOut);
+}
+
+void FuseOpRename(fuse_req_t req,
+                  fuse_ino_t parent,
+                  const char *name,
+                  fuse_ino_t newparent,
+                  const char *newname,
+                  unsigned int flags) {
+    CURVEFS_ERROR rc;
+    auto client = Client();
+    auto fs = client->GetFileSystem();
+    MetricGuard(Rename);
+    AccessLogGuard log([&](){
+        return StrFormat("rename (%d,%s,%d,%s,%d): %s",
+                         parent, name, newparent, newname, flags, StrErr(rc));
+    });
+
+    rc = client->FuseOpRename(req, parent, name, newparent, newname, flags);
+    return fs->ReplyError(req, rc);
+}
+
+void FuseOpLink(fuse_req_t req,
+                fuse_ino_t ino,
+                fuse_ino_t newparent,
+                const char *newname) {
+    CURVEFS_ERROR rc;
+    EntryOut entryOut;
+    auto client = Client();
+    auto fs = client->GetFileSystem();
+    MetricGuard(Link);
+    AccessLogGuard log([&](){
+        return StrFormat(
+            "link (%d,%d,%s): %s%s",
+            ino, newparent, newname, StrErr(rc), StrEntry(entryOut));
+    });
+
+    rc = client->FuseOpLink(req, ino, newparent, newname, &entryOut);
+    if (rc != CURVEFS_ERROR::OK) {
+        return fs->ReplyError(req, rc);
+    }
+    return fs->ReplyEntry(req, &entryOut);
+}
+
+void FuseOpOpen(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi) {
+    CURVEFS_ERROR rc;
+    FileOut fileOut;
+    auto client = Client();
+    auto fs = client->GetFileSystem();
+    MetricGuard(Open);
+    AccessLogGuard log([&](){
+        return StrFormat("open (%d): %s [fh:%d]", ino, StrErr(rc), fi->fh);
+    });
+
+    rc = client->FuseOpOpen(req, ino, fi, &fileOut);
+    if (rc != CURVEFS_ERROR::OK) {
+        fs->ReplyError(req, rc);
         return;
     }
-    fuse_reply_readlink(req, linkStr.c_str());
+    return fs->ReplyOpen(req, &fileOut);
+}
+
+void FuseOpRead(fuse_req_t req,
+                fuse_ino_t ino,
+                size_t size,
+                off_t off,
+                struct fuse_file_info* fi) {
+    CURVEFS_ERROR rc;
+    size_t rSize = 0;
+    std::unique_ptr<char[]> buffer(new char[size]);
+    auto client = Client();
+    auto fs = client->GetFileSystem();
+    MetricGuard(Read);
+    AccessLogGuard log([&](){
+        return StrFormat("read (%d,%d,%d,%d): %s (%d)",
+                         ino, size, off, fi->fh, StrErr(rc), rSize);
+    });
+
+    ReadThrottleAdd(size);
+    rc = client->FuseOpRead(req, ino, size, off, fi, buffer.get(), &rSize);
+    if (rc != CURVEFS_ERROR::OK) {
+        return fs->ReplyError(req, rc);
+    }
+    struct fuse_bufvec bufvec = FUSE_BUFVEC_INIT(rSize);
+    bufvec.buf[0].mem = buffer.get();
+    return fs->ReplyData(req, &bufvec, FUSE_BUF_SPLICE_MOVE);
+}
+
+void FuseOpWrite(fuse_req_t req,
+                 fuse_ino_t ino,
+                 const char* buf,
+                 size_t size,
+                 off_t off,
+                 struct fuse_file_info *fi) {
+    CURVEFS_ERROR rc;
+    FileOut fileOut;
+    auto client = Client();
+    auto fs = client->GetFileSystem();
+    MetricGuard(Read);
+    AccessLogGuard log([&](){
+        return StrFormat("write (%d,%d,%d,%d): %s (%d)",
+                         ino, size, off, fi->fh, StrErr(rc), fileOut.nwritten);
+    });
+
+    WriteThrottleAdd(size);
+    rc = client->FuseOpWrite(req, ino, buf, size, off, fi, &fileOut);
+    if (rc != CURVEFS_ERROR::OK) {
+        return fs->ReplyError(req, rc);
+    }
+    return fs->ReplyWrite(req, &fileOut);
+}
+
+void FuseOpFlush(fuse_req_t req,
+                 fuse_ino_t ino,
+                 struct fuse_file_info *fi) {
+    CURVEFS_ERROR rc;
+    auto client = Client();
+    auto fs = client->GetFileSystem();
+    MetricGuard(Flush);
+    AccessLogGuard log([&](){
+        return StrFormat("flush (%d,%d): %s", ino, fi->fh, StrErr(rc));
+    });
+
+    rc = client->FuseOpFlush(req, ino, fi);
+    return fs->ReplyError(req, rc);
 }
 
 void FuseOpRelease(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi) {
-    InflightGuard guard(&g_clientOpMetric->opRelease.inflightOpNum);
-    LatencyUpdater updater(&g_clientOpMetric->opRelease.latency);
-    CURVEFS_ERROR ret = g_ClientInstance->FuseOpRelease(req, ino, fi);
-    if (ret != CURVEFS_ERROR::OK) {
-        g_clientOpMetric->opRelease.ecount << 1;
-    }
-    FuseReplyErrByErrCode(req, ret);
+    CURVEFS_ERROR rc;
+    auto client = Client();
+    auto fs = client->GetFileSystem();
+    MetricGuard(Release);
+    AccessLogGuard log([&](){
+        return StrFormat("release (%d,%d): %s", ino, fi->fh, StrErr(rc));
+    });
+
+    rc = client->FuseOpRelease(req, ino, fi);
+    return fs->ReplyError(req, rc);
 }
 
-void FuseOpFsync(fuse_req_t req, fuse_ino_t ino, int datasync,
-                 struct fuse_file_info *fi) {
-    InflightGuard guard(&g_clientOpMetric->opFsync.inflightOpNum);
-    LatencyUpdater updater(&g_clientOpMetric->opFsync.latency);
-    CURVEFS_ERROR ret = g_ClientInstance->FuseOpFsync(req, ino, datasync, fi);
-    if (ret != CURVEFS_ERROR::OK) {
-        g_clientOpMetric->opFsync.ecount << 1;
-    }
-    FuseReplyErrByErrCode(req, ret);
+void FuseOpFsync(fuse_req_t req,
+                 fuse_ino_t ino,
+                 int datasync,
+                 struct fuse_file_info* fi) {
+    CURVEFS_ERROR rc;
+    auto client = Client();
+    auto fs = client->GetFileSystem();
+    MetricGuard(Fsync);
+    AccessLogGuard log([&](){
+        return StrFormat("fsync (%d,%d): %s", ino, datasync, StrErr(rc));
+    });
+
+    rc = client->FuseOpFsync(req, ino, datasync, fi);
+    return fs->ReplyError(req, rc);
 }
 
-void FuseOpFlush(fuse_req_t req, fuse_ino_t ino,
-           struct fuse_file_info *fi) {
-    InflightGuard guard(&g_clientOpMetric->opFlush.inflightOpNum);
-    LatencyUpdater updater(&g_clientOpMetric->opFlush.latency);
-    CURVEFS_ERROR ret = g_ClientInstance->FuseOpFlush(req, ino, fi);
-    if (ret != CURVEFS_ERROR::OK) {
-        g_clientOpMetric->opFlush.ecount << 1;
+void FuseOpOpenDir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi) {
+    CURVEFS_ERROR rc;
+    auto client = Client();
+    auto fs = client->GetFileSystem();
+    MetricGuard(OpenDir);
+    AccessLogGuard log([&](){
+        return StrFormat("opendir (%d): %s [fh:%d]", ino, StrErr(rc), fi->fh);
+    });
+
+    rc = client->FuseOpOpenDir(req, ino, fi);
+    if (rc != CURVEFS_ERROR::OK) {
+        return fs->ReplyError(req, rc);
     }
-    FuseReplyErrByErrCode(req, ret);
+    return fs->ReplyOpen(req, fi);
+}
+
+void FuseOpReadDir(fuse_req_t req,
+                   fuse_ino_t ino,
+                   size_t size,
+                   off_t off,
+                   struct fuse_file_info* fi) {
+    CURVEFS_ERROR rc;
+    char *buffer;
+    size_t rSize;
+    auto client = Client();
+    auto fs = client->GetFileSystem();
+    MetricGuard(ReadDir);
+    AccessLogGuard log([&](){
+        return StrFormat("readdir (%d,%d,%d): %s (%d)",
+                         ino, size, off, StrErr(rc), rSize);
+    });
+
+    rc = client->FuseOpReadDir(req, ino, size, off, fi, &buffer, &rSize, false);
+    if (rc != CURVEFS_ERROR::OK) {
+        return fs->ReplyError(req, rc);
+    }
+    return fs->ReplyBuffer(req, buffer, rSize);
+}
+
+void FuseOpReadDirPlus(fuse_req_t req,
+                       fuse_ino_t ino,
+                       size_t size,
+                       off_t off,
+                       struct fuse_file_info* fi) {
+    CURVEFS_ERROR rc;
+    char *buffer;
+    size_t rSize;
+    auto client = Client();
+    auto fs = client->GetFileSystem();
+    MetricGuard(ReadDir);
+    AccessLogGuard log([&](){
+        return StrFormat("readdirplus (%d,%d,%d): %s (%d)",
+                         ino, size, off, StrErr(rc), rSize);
+    });
+
+    rc = client->FuseOpReadDir(req, ino, size, off, fi, &buffer, &rSize, true);
+    if (rc != CURVEFS_ERROR::OK) {
+        return fs->ReplyError(req, rc);
+    }
+
+    return fs->ReplyBuffer(req, buffer, rSize);
+}
+
+void FuseOpReleaseDir(fuse_req_t req,
+                      fuse_ino_t ino,
+                      struct fuse_file_info *fi) {
+    CURVEFS_ERROR rc;
+    auto client = Client();
+    auto fs = client->GetFileSystem();
+    MetricGuard(ReleaseDir);
+    AccessLogGuard log([&](){
+        return StrFormat("releasedir (%d,%d): %s", ino, fi->fh, StrErr(rc));
+    });
+
+    rc = client->FuseOpReleaseDir(req, ino, fi);
+    return fs->ReplyError(req, rc);
+}
+
+void FuseOpStatFs(fuse_req_t req, fuse_ino_t ino) {
+    CURVEFS_ERROR rc;
+    struct statvfs stbuf;
+    auto client = Client();
+    auto fs = client->GetFileSystem();
+    AccessLogGuard log([&](){
+        return StrFormat("statfs (%d): %s", ino, StrErr(rc));
+    });
+
+    rc = client->FuseOpStatFs(req, ino, &stbuf);
+    if (rc != CURVEFS_ERROR::OK) {
+        return fs->ReplyError(req, rc);
+    }
+    return fs->ReplyStatfs(req, &stbuf);
+}
+
+void FuseOpSetXattr(fuse_req_t req,
+                    fuse_ino_t ino,
+                    const char* name,
+                    const char* value,
+                    size_t size,
+                    int flags) {
+    CURVEFS_ERROR rc;
+    auto client = Client();
+    auto fs = client->GetFileSystem();
+    AccessLogGuard log([&](){
+        return StrFormat("setxattr (%d,%s,%d,%d): %s",
+                         ino, name, size, flags, StrErr(rc));
+    });
+
+    if (IsWamupReq(name)) {
+        return TriggerWarmup(req, ino, name, value, size);
+    }
+    rc = client->FuseOpSetXattr(req, ino, name, value, size, flags);
+    return fs->ReplyError(req, rc);
+}
+
+void FuseOpGetXattr(fuse_req_t req,
+                    fuse_ino_t ino,
+                    const char *name,
+                    size_t size) {
+    CURVEFS_ERROR rc;
+    std::string value;
+    auto client = Client();
+    auto fs = client->GetFileSystem();
+    MetricGuard(GetXattr);
+    AccessLogGuard log([&](){
+        return StrFormat("getxattr (%d,%s,%d): %s (%d)",
+                         ino, name, size, StrErr(rc), value.size());
+    });
+
+    if (IsWamupReq(name)) {
+        return QueryWarmup(req, ino, size);
+    }
+
+    rc = Client()->FuseOpGetXattr(req, ino, name, &value, size);
+    if (rc != CURVEFS_ERROR::OK) {
+        return fs->ReplyError(req, rc);
+    } else if (size == 0) {
+        return fs->ReplyXattr(req, value.length());
+    }
+    return fs->ReplyBuffer(req, value.data(), value.length());
+}
+
+void FuseOpListXattr(fuse_req_t req, fuse_ino_t ino, size_t size) {
+    CURVEFS_ERROR rc;
+    size_t xattrSize = 0;
+    std::unique_ptr<char[]> buf(new char[size]);
+    std::memset(buf.get(), 0, size);
+    auto client = Client();
+    auto fs = client->GetFileSystem();
+    MetricGuard(ListXattr);
+    AccessLogGuard log([&](){
+        return StrFormat("listxattr (%d,%s): %s (%d)",
+                         ino, size, StrErr(rc), xattrSize);
+    });
+
+    rc = Client()->FuseOpListXattr(req, ino, buf.get(), size, &xattrSize);
+    if (rc != CURVEFS_ERROR::OK) {
+        return fs->ReplyError(req, rc);
+    } else if (size == 0) {
+        return fs->ReplyXattr(req, xattrSize);
+    }
+    return fs->ReplyBuffer(req, buf.get(), xattrSize);
+}
+
+void FuseOpCreate(fuse_req_t req,
+                  fuse_ino_t parent,
+                  const char* name,
+                  mode_t mode,
+                  struct fuse_file_info* fi) {
+    CURVEFS_ERROR rc;
+    EntryOut entryOut;
+    auto client = Client();
+    auto fs = client->GetFileSystem();
+    MetricGuard(Create);
+    AccessLogGuard log([&](){
+        return StrFormat("create (%d,%s): %s%s [fh:%d]",
+                         parent, name, StrErr(rc), StrEntry(entryOut), fi->fh);
+    });
+
+    rc = client->FuseOpCreate(req, parent, name, mode, fi, &entryOut);
+    if (rc != CURVEFS_ERROR::OK) {
+        return fs->ReplyError(req, rc);
+    }
+    return fs->ReplyCreate(req, &entryOut, fi);
 }
 
 void FuseOpBmap(fuse_req_t req,
@@ -713,15 +886,8 @@ void FuseOpBmap(fuse_req_t req,
                 size_t /*blocksize*/,
                 uint64_t /*idx*/) {
     // TODO(wuhanqing): implement for volume storage
-    FuseReplyErrByErrCode(req, CURVEFS_ERROR::NOTSUPPORT);
-}
+    auto client = Client();
+    auto fs = client->GetFileSystem();
 
-void FuseOpStatFs(fuse_req_t req, fuse_ino_t ino) {
-    struct statvfs stbuf;
-    CURVEFS_ERROR ret = g_ClientInstance->FuseOpStatFs(req, ino, &stbuf);
-    if (ret != CURVEFS_ERROR::OK) {
-        FuseReplyErrByErrCode(req, ret);
-        return;
-    }
-    fuse_reply_statfs(req, &stbuf);
+    return fs->ReplyError(req, CURVEFS_ERROR::NOTSUPPORT);
 }

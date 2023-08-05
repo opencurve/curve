@@ -24,6 +24,7 @@ package config
 import (
 	"os"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -165,6 +166,34 @@ func AlignFlagsValue(caller *cobra.Command, callee *cobra.Command, flagNames []s
 			}
 		}
 	}
+}
+
+type stringSlice struct {
+	value  []string
+	change bool
+}
+
+func (s *stringSlice) String() string {
+	return strings.Join(s.value, ",")
+}
+
+func (s *stringSlice) Set(value string) error {
+	s.value = strings.Split(value, ",")
+	s.change = true
+	return nil
+}
+
+func (s *stringSlice) Type() string {
+	return "stringSlice"
+}
+
+func ResetStringSliceFlag(flag *pflag.Flag, value string) {
+	flag.Changed = false
+	flag.Value = &stringSlice{
+		value:  strings.Split(value, ","),
+		change: true,
+	}
+	flag.Changed = true
 }
 
 func GetFlagChanged(cmd *cobra.Command, flagName string) bool {

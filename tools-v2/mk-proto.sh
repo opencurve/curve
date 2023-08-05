@@ -3,6 +3,8 @@ mkdir -p proto
 # proto
 protoc --go_out=proto --proto_path=internal/proto \
     internal/proto/curvebs/topology/statuscode.proto
+protoc --go_out=proto --proto_path=internal/proto \
+    internal/proto/curvebs/schedule/statuscode.proto
 ## curvebs
 ### proto/chunk.proto
 protoc --go_out=proto --proto_path=.. \
@@ -75,6 +77,7 @@ protoc --go_out=proto --proto_path=.. \
 protoc --go_out=proto --proto_path=.. \
     --go_opt=Mcurvefs/proto/common.proto=github.com/opencurve/curve/tools-v2/proto/curvefs/proto/common \
     --go_opt=Mproto/heartbeat.proto=github.com/opencurve/curve/tools-v2/proto/proto/heartbeat \
+    --go_opt=Mcurvefs/proto/metaserver.proto=github.com/opencurve/curve/tools-v2/proto/curvefs/proto/metaserver \
     ../curvefs/proto/heartbeat.proto
 
 ### curvefs/proto/mds.proto

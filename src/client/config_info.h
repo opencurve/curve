@@ -156,12 +156,10 @@ struct FailureRequestOption {
 
 /**
  * 发送rpc给chunkserver的配置
- * @chunkserverEnableAppliedIndexRead: 是否开启使用appliedindex read
  * @inflightOpt: 一个文件向chunkserver发送请求时的inflight 请求控制配置
  * @failRequestOpt: rpc发送失败之后，需要进行rpc重试的相关配置
  */
 struct IOSenderOption {
-    bool chunkserverEnableAppliedIndexRead;
     InFlightIOCntlInfo inflightOpt;
     FailureRequestOption failRequestOpt;
 };
@@ -210,11 +208,6 @@ struct MetaCacheOption {
     ChunkServerUnstableOption chunkserverUnstableOption;
 };
 
-struct AlignmentOption {
-    uint32_t commonVolume = 512;
-    uint32_t cloneVolume = 4096;
-};
-
 /**
  * IO 拆分模块配置信息
  * @fileIOSplitMaxSizeKB:
@@ -223,7 +216,6 @@ struct AlignmentOption {
  */
 struct IOSplitOption {
     uint64_t fileIOSplitMaxSizeKB = 64;
-    AlignmentOption alignment;
 };
 
 /**

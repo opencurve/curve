@@ -93,6 +93,7 @@ using ::testing::DoAll;
 using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::AtLeast;
+using ::testing::SetArgPointee;
 
 class MetaOperatorTest : public testing::Test {
  protected:
@@ -146,6 +147,8 @@ TEST_F(MetaOperatorTest, OperatorTypeTest) {
     TEST_OPERATOR_TYPE(CreatePartition);
     TEST_OPERATOR_TYPE(DeletePartition);
     TEST_OPERATOR_TYPE(PrepareRenameTx);
+    TEST_OPERATOR_TYPE(UpdateDeallocatableBlockGroup);
+
 
 #undef TEST_OPERATOR_TYPE
 }
@@ -442,6 +445,12 @@ TEST_F(MetaOperatorTest, PropostTest_RequestCanBypassProcess) {
     EXPECT_CALL(*mockMetaStore, GetDentry(_, _))
         .WillOnce(Return(MetaStatusCode::OK));
 
+    braft::LeaderLeaseStatus status;
+    status.state = braft::LEASE_VALID;
+    status.term = 1;
+    EXPECT_CALL(*mockRaftNode, get_leader_lease_status(_))
+        .WillOnce(SetArgPointee<0>(status));
+
     node.on_leader_start(1);
     node.UpdateAppliedIndex(101);
 
@@ -461,6 +470,42 @@ TEST_F(MetaOperatorTest, PropostTest_RequestCanBypassProcess) {
     node.Stop();
 }
 
+TEST_F(MetaOperatorTest, PropostTest_IsNotLeaseLeader) {
+    PoolId poolId = 100;
+    CopysetId copysetId = 100;
+    braft::Configuration conf;
+
+    CopysetNode node(poolId, copysetId, conf, &mockNodeManager_);
+
+    curve::fs::MockLocalFileSystem localFs;
+    CopysetNodeOptions options;
+    options.dataUri = "local:///mnt/data";
+    options.localFileSystem = &localFs;
+    options.storageOptions.type = "memory";
+
+    EXPECT_CALL(localFs, Mkdir(_))
+        .WillOnce(Return(0));
+
+    EXPECT_TRUE(node.Init(options));
+    auto* mockRaftNode = new MockRaftNode();
+    node.SetRaftNode(mockRaftNode);
+
+    node.on_leader_start(1);
+
+    braft::LeaderLeaseStatus status;
+    status.state = braft::LEASE_EXPIRED;
+    EXPECT_CALL(*mockRaftNode, get_leader_lease_status(_))
+        .WillOnce(SetArgPointee<0>(status));
+
+    GetDentryRequest request;
+    GetDentryResponse response;
+    auto op = absl::make_unique<GetDentryOperator>(&node, nullptr, &request,
+                                                   &response, nullptr);
+    op->Propose();
+    EXPECT_EQ(MetaStatusCode::REDIRECTED, response.statuscode());
+    EXPECT_FALSE(response.has_appliedindex());
+}
+
 TEST_F(MetaOperatorTest, PropostTest_PropostTaskFailed) {
     PoolId poolId = 100;
     CopysetId copysetId = 100;
@@ -468,8 +513,27 @@ TEST_F(MetaOperatorTest, PropostTest_PropostTaskFailed) {
 
     CopysetNode node(poolId, copysetId, conf, &mockNodeManager_);
 
+    curve::fs::MockLocalFileSystem localFs;
+    CopysetNodeOptions options;
+    options.dataUri = "local:///mnt/data";
+    options.localFileSystem = &localFs;
+    options.storageOptions.type = "memory";
+
+    EXPECT_CALL(localFs, Mkdir(_))
+        .WillOnce(Return(0));
+
+    EXPECT_TRUE(node.Init(options));
+    auto* mockRaftNode = new MockRaftNode();
+    node.SetRaftNode(mockRaftNode);
+
     node.on_leader_start(1);
     node.UpdateAppliedIndex(101);
+
+    braft::LeaderLeaseStatus status;
+    status.state = braft::LEASE_NOT_READY;
+    // status.term = 1;
+    EXPECT_CALL(*mockRaftNode, get_leader_lease_status(_))
+        .WillOnce(SetArgPointee<0>(status));
 
     GetDentryRequest request;
     request.set_poolid(1);

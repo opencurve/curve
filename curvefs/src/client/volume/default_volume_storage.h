@@ -31,12 +31,16 @@
 #include "curvefs/src/client/volume/volume_storage.h"
 #include "curvefs/src/volume/block_device_client.h"
 #include "curvefs/src/volume/space_manager.h"
+#include "curvefs/src/client/filesystem/error.h"
+#include "curvefs/src/client/filesystem/meta.h"
 
 namespace curvefs {
 namespace client {
 
 using ::curvefs::volume::BlockDeviceClient;
 using ::curvefs::volume::SpaceManager;
+using ::curvefs::client::filesystem::CURVEFS_ERROR;
+using ::curvefs::client::filesystem::FileOut;
 
 class InodeCacheManager;
 
@@ -66,7 +70,8 @@ class DefaultVolumeStorage final : public VolumeStorage {
     CURVEFS_ERROR Write(uint64_t ino,
                         off_t offset,
                         size_t len,
-                        const char* data) override;
+                        const char* data,
+                        FileOut* fileOut) override;
 
     CURVEFS_ERROR Flush(uint64_t ino) override;
 

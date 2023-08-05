@@ -33,6 +33,7 @@
 #include "curvefs/src/client/fuse_client.h"
 #include "curvefs/src/client/s3/client_s3_cache_manager.h"
 #include "curvefs/src/client/warmup/warmup_manager.h"
+#include "curvefs/src/volume/common.h"
 #include "src/common/s3_adapter.h"
 
 namespace curvefs {
@@ -40,6 +41,7 @@ namespace client {
 
 using curve::common::GetObjectAsyncContext;
 using curve::common::GetObjectAsyncCallBack;
+using curvefs::volume::kMiB;
 namespace warmup {
 class WarmupManager;
 class WarmupManagerS3Impl;
@@ -79,7 +81,7 @@ class FuseS3Client : public FuseClient {
 
     CURVEFS_ERROR FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
         const char *buf, size_t size, off_t off,
-        struct fuse_file_info *fi, size_t *wSize) override;
+        struct fuse_file_info *fi, FileOut* fileOut) override;
 
     CURVEFS_ERROR FuseOpRead(fuse_req_t req,
         fuse_ino_t ino, size_t size, off_t off,
@@ -87,17 +89,25 @@ class FuseS3Client : public FuseClient {
         char *buffer,
         size_t *rSize) override;
 
-    CURVEFS_ERROR FuseOpCreate(fuse_req_t req, fuse_ino_t parent,
-        const char *name, mode_t mode, struct fuse_file_info *fi,
-        fuse_entry_param *e) override;
+    CURVEFS_ERROR FuseOpCreate(fuse_req_t req,
+                               fuse_ino_t parent,
+                               const char* name,
+                               mode_t mode,
+                               struct fuse_file_info *fi,
+                               EntryOut* entryOut) override;
 
-    CURVEFS_ERROR FuseOpMkNod(fuse_req_t req, fuse_ino_t parent,
-        const char *name, mode_t mode, dev_t rdev,
-        fuse_entry_param *e) override;
+    CURVEFS_ERROR FuseOpMkNod(fuse_req_t req,
+                              fuse_ino_t parent,
+                              const char* name,
+                              mode_t mode,
+                              dev_t rdev,
+                              EntryOut* entryOut) override;
 
-    CURVEFS_ERROR FuseOpLink(fuse_req_t req, fuse_ino_t ino,
-        fuse_ino_t newparent, const char *newname,
-        fuse_entry_param *e) override;
+    CURVEFS_ERROR FuseOpLink(fuse_req_t req,
+                             fuse_ino_t ino,
+                             fuse_ino_t newparent,
+                             const char *newname,
+                             EntryOut* entryOut) override;
 
     CURVEFS_ERROR FuseOpUnlink(fuse_req_t req, fuse_ino_t parent,
         const char *name) override;
@@ -108,10 +118,10 @@ class FuseS3Client : public FuseClient {
     CURVEFS_ERROR FuseOpFlush(fuse_req_t req, fuse_ino_t ino,
         struct fuse_file_info *fi) override;
 
+    CURVEFS_ERROR Truncate(InodeWrapper *inode, uint64_t length) override;
+
  private:
     bool InitKVCache(const KVClientManagerOpt &opt);
-
-    CURVEFS_ERROR Truncate(InodeWrapper *inode, uint64_t length) override;
 
     void FlushData() override;
 
@@ -119,6 +129,8 @@ class FuseS3Client : public FuseClient {
     // s3 adaptor
     std::shared_ptr<S3ClientAdaptor> s3Adaptor_;
     std::shared_ptr<KVClientManager> kvClientManager_;
+
+    static constexpr auto MIN_WRITE_CACHE_SIZE = 8 * kMiB;
 };
 
 

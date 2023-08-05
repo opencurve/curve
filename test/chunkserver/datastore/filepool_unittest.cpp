@@ -52,8 +52,9 @@ using ::testing::StrEq;
 using curve::chunkserver::FilePool;
 using curve::chunkserver::FilePoolHelper;
 using curve::chunkserver::FilePoolOptions;
-using curve::chunkserver::FilePoolState_t;
-using curve::common::kFilePoolMaigic;
+using curve::chunkserver::FilePoolState;
+using curve::chunkserver::FilePoolMeta;
+using curve::common::kFilePoolMagic;
 using curve::fs::FileSystemType;
 using curve::fs::LocalFileSystem;
 using curve::fs::LocalFsFactory;
@@ -66,7 +67,7 @@ const char POOL1_DIR[] = "./cspooltest/pool1/";
 const char POOL2_DIR[] = "./cspooltest/pool2/";
 const char FILEPOOL_DIR[] = "./cspooltest/filePool/";
 
-class CSFilePool_test : public testing::Test {
+class CSFilePool_test : public testing::TestWithParam<bool> {
  public:
     void SetUp() {
         fsptr = LocalFsFactory::CreateFs(FileSystemType::EXT4, "");
@@ -110,10 +111,18 @@ class CSFilePool_test : public testing::Test {
 
         uint32_t chunksize = 4096;
         uint32_t metapagesize = 4096;
+        uint32_t blockSize = 4096;
+
+        FilePoolMeta meta;
+        if (GetParam()) {
+            meta =
+                FilePoolMeta{chunksize, metapagesize, blockSize, FILEPOOL_DIR};
+        } else {
+            meta = FilePoolMeta{chunksize, metapagesize, FILEPOOL_DIR};
+        }
 
         int ret = FilePoolHelper::PersistEnCodeMetaInfo(
-            fsptr, chunksize, metapagesize, FILEPOOL_DIR,
-            "./cspooltest/filePool.meta");
+            fsptr, meta, "./cspooltest/filePool.meta");
 
         if (ret == -1) {
             LOG(ERROR) << "persist chunkfile pool meta info failed!";
@@ -160,14 +169,16 @@ bool CheckFileOpenOrNot(const std::string& filename) {
     return out.find("No such file or directory") != out.npos;
 }
 
-TEST_F(CSFilePool_test, InitializeTest) {
+TEST_P(CSFilePool_test, InitializeTest) {
     std::string filePool = "./cspooltest/filePool.meta";
     const std::string filePoolPath = FILEPOOL_DIR;
 
     FilePoolOptions cfop;
     cfop.fileSize = 4096;
     cfop.metaPageSize = 4096;
+    cfop.blockSize = 4096;
     memcpy(cfop.metaPath, filePool.c_str(), filePool.size());
+    memcpy(cfop.filePoolDir, filePoolPath.c_str(), filePoolPath.size());
 
     // initialize
     ASSERT_TRUE(chunkFilePoolPtr_->Initialize(cfop));
@@ -178,15 +189,7 @@ TEST_F(CSFilePool_test, InitializeTest) {
     ASSERT_FALSE(CheckFileOpenOrNot(filePoolPath + "2"));
     ASSERT_FALSE(CheckFileOpenOrNot(filePoolPath + "50.clean"));
     ASSERT_FALSE(CheckFileOpenOrNot(filePoolPath + "100.clean"));
-    cfop.fileSize = 8192;
-    cfop.metaPageSize = 4096;
 
-    // test meta content wrong
-    ASSERT_FALSE(chunkFilePoolPtr_->Initialize(cfop));
-    cfop.fileSize = 8192;
-    cfop.metaPageSize = 4096;
-    ASSERT_FALSE(chunkFilePoolPtr_->Initialize(cfop));
-    // invalid file name
     std::string filename = filePoolPath + "a";
     cfop.fileSize = 4096;
     cfop.metaPageSize = 4096;
@@ -213,12 +216,14 @@ TEST_F(CSFilePool_test, InitializeTest) {
     fsptr->Delete("./cspooltest/filePool.meta3");
 }
 
-TEST_F(CSFilePool_test, GetFileTest) {
+TEST_P(CSFilePool_test, GetFileTest) {
     std::string filePool = "./cspooltest/filePool.meta";
     FilePoolOptions cfop;
     cfop.fileSize = 4096;
     cfop.metaPageSize = 4096;
+    cfop.blockSize = 4096;
     memcpy(cfop.metaPath, filePool.c_str(), filePool.size());
+    strncpy(cfop.filePoolDir, FILEPOOL_DIR, strlen(FILEPOOL_DIR) + 1);
 
     char metapage[4096];
     memset(metapage, '1', 4096);
@@ -253,7 +258,7 @@ TEST_F(CSFilePool_test, GetFileTest) {
         ASSERT_EQ(0, fsptr->Delete(filename));
     };
 
-    chunkFilePoolPtr_->Initialize(cfop);
+    ASSERT_TRUE(chunkFilePoolPtr_->Initialize(cfop));
     auto currentStat = chunkFilePoolPtr_->GetState();
     ASSERT_EQ(50, currentStat.dirtyChunksLeft);
     ASSERT_EQ(50, currentStat.cleanChunksLeft);
@@ -277,16 +282,18 @@ TEST_F(CSFilePool_test, GetFileTest) {
     checkBytes("test2", '2');
 }
 
-TEST_F(CSFilePool_test, RecycleFileTest) {
+TEST_P(CSFilePool_test, RecycleFileTest) {
     std::string filePool = "./cspooltest/filePool.meta";
     const std::string filePoolPath = FILEPOOL_DIR;
     FilePoolOptions cfop;
     cfop.fileSize = 4096;
     cfop.metaPageSize = 4096;
+    cfop.blockSize = 4096;
     memcpy(cfop.metaPath, filePool.c_str(), filePool.size());
+    strncpy(cfop.filePoolDir, FILEPOOL_DIR, strlen(FILEPOOL_DIR) + 1);
 
-    chunkFilePoolPtr_->Initialize(cfop);
-    FilePoolState_t currentStat = chunkFilePoolPtr_->GetState();
+    ASSERT_TRUE(chunkFilePoolPtr_->Initialize(cfop));
+    FilePoolState currentStat = chunkFilePoolPtr_->GetState();
     ASSERT_EQ(50, currentStat.dirtyChunksLeft);
     ASSERT_EQ(50, currentStat.cleanChunksLeft);
     ASSERT_EQ(100, chunkFilePoolPtr_->Size());
@@ -311,17 +318,18 @@ TEST_F(CSFilePool_test, RecycleFileTest) {
     ASSERT_EQ(0, fsptr->Delete(filePoolPath + "4"));
 }
 
-TEST_F(CSFilePool_test, UsePoolConcurrentGetAndRecycle) {
+TEST_P(CSFilePool_test, UsePoolConcurrentGetAndRecycle) {
     std::string filePool = "./cspooltest/filePool.meta";
     const std::string filePoolPath = FILEPOOL_DIR;
     FilePoolOptions cfop;
     memcpy(cfop.filePoolDir, filePoolPath.c_str(), filePoolPath.size());
     cfop.fileSize = 4096;
     cfop.metaPageSize = 4096;
+    cfop.blockSize = 4096;
     cfop.getFileFromPool = true;
     cfop.retryTimes = 1;
     memcpy(cfop.metaPath, filePool.c_str(), filePool.size());
-
+    strncpy(cfop.filePoolDir, FILEPOOL_DIR, strlen(FILEPOOL_DIR) + 1);
     /* step 1. prepare file for filePool and pool2 */
     int count = 1;
 
@@ -350,7 +358,7 @@ TEST_F(CSFilePool_test, UsePoolConcurrentGetAndRecycle) {
     }
 
     /* step 2. init filepool */
-    chunkFilePoolPtr_->Initialize(cfop);
+    ASSERT_TRUE(chunkFilePoolPtr_->Initialize(cfop));
 
     /* step 3. start multiple threads, get files from filePool to pool1  */
     std::vector<std::thread> threads;
@@ -411,7 +419,7 @@ TEST_F(CSFilePool_test, UsePoolConcurrentGetAndRecycle) {
     }
 }
 
-TEST_F(CSFilePool_test, WithoutPoolConcurrentGetAndRecycle) {
+TEST_P(CSFilePool_test, WithoutPoolConcurrentGetAndRecycle) {
     std::string filePool = "./cspooltest/filePool.meta";
     const std::string filePoolPath = FILEPOOL_DIR;
     FilePoolOptions cfop;
@@ -500,14 +508,16 @@ TEST_F(CSFilePool_test, WithoutPoolConcurrentGetAndRecycle) {
     }
 }
 
-TEST_F(CSFilePool_test, CleanChunkTest) {
+TEST_P(CSFilePool_test, CleanChunkTest) {
     std::string filePool = "./cspooltest/filePool.meta";
     const std::string filePoolPath = FILEPOOL_DIR;
 
     FilePoolOptions cfop;
     cfop.fileSize = 4096;
     cfop.metaPageSize = 4096;
+    cfop.blockSize = 4096;
     memcpy(cfop.metaPath, filePool.c_str(), filePool.size());
+    strncpy(cfop.filePoolDir, FILEPOOL_DIR, strlen(FILEPOOL_DIR) + 1);
 
     // CASE 1: initialize
     ASSERT_TRUE(chunkFilePoolPtr_->Initialize(cfop));
@@ -563,6 +573,10 @@ TEST_F(CSFilePool_test, CleanChunkTest) {
     }
 }
 
+INSTANTIATE_TEST_CASE_P(CSFilePoolTest,
+                        CSFilePool_test,
+                        ::testing::Values(false, true));
+
 TEST(CSFilePool, GetFileDirectlyTest) {
     std::shared_ptr<FilePool> chunkFilePoolPtr_;
     std::shared_ptr<LocalFileSystem> fsptr;
@@ -590,9 +604,7 @@ TEST(CSFilePool, GetFileDirectlyTest) {
     strcpy(cspopt.filePoolDir, filePoolPath.c_str());  // NOLINT
 
     chunkFilePoolPtr_ = std::make_shared<FilePool>(fsptr);
-    if (chunkFilePoolPtr_ == nullptr) {
-        LOG(FATAL) << "allocate chunkfile pool failed!";
-    }
+    ASSERT_TRUE(chunkFilePoolPtr_);
     ASSERT_TRUE(chunkFilePoolPtr_->Initialize(cspopt));
     ASSERT_EQ(0, chunkFilePoolPtr_->Size());
 

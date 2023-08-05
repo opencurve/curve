@@ -109,7 +109,7 @@ func (iCmd *InodeCommand) Prepare() error {
 	if errGet.TypeCode() != cmderror.CODE_SUCCESS {
 		return errGet.ToError()
 	}
-	partitionInfoList := (*fsId2PartitionList)[fsId]
+	partitionInfoList := fsId2PartitionList[fsId]
 	if partitionInfoList == nil {
 		return fmt.Errorf("inode[%d] is not found in fs[%d]", inodeId, fsId)
 	}
@@ -147,11 +147,11 @@ func (iCmd *InodeCommand) Prepare() error {
 	if errQuery.TypeCode() != cmderror.CODE_SUCCESS {
 		return fmt.Errorf("query copyset info failed: %s", errQuery.Message)
 	}
-	if len(*key2Copyset) == 0 {
+	if len(key2Copyset) == 0 {
 		return fmt.Errorf("no copysetinfo found")
 	}
 	key := cobrautil.GetCopysetKey(uint64(poolId), uint64(copyetId))
-	leader := (*key2Copyset)[key].Info.GetLeaderPeer()
+	leader := key2Copyset[key].Info.GetLeaderPeer()
 	addr, peerErr := cobrautil.PeertoAddr(leader)
 	if peerErr.TypeCode() != cmderror.CODE_SUCCESS {
 		return fmt.Errorf("pares leader peer[%s] failed: %s", leader, peerErr.Message)

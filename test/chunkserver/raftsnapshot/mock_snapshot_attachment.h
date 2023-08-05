@@ -24,8 +24,6 @@
 #define TEST_CHUNKSERVER_RAFTSNAPSHOT_MOCK_SNAPSHOT_ATTACHMENT_H_
 
 #include <gmock/gmock.h>
-#include <gmock/gmock-generated-function-mockers.h>
-#include <gmock/internal/gmock-generated-internal-utils.h>
 #include <string>
 #include <vector>
 #include "src/chunkserver/raftsnapshot/curve_snapshot_attachment.h"

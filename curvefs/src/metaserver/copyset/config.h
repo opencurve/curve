@@ -31,7 +31,7 @@
 #include <memory>
 #include <string>
 
-#include "curvefs/src/metaserver/copyset/apply_queue.h"
+#include "curvefs/src/metaserver/copyset/concurrent_apply_queue.h"
 #include "curvefs/src/metaserver/copyset/trash.h"
 #include "curvefs/src/metaserver/storage/config.h"
 #include "src/fs/local_filesystem.h"
@@ -48,6 +48,12 @@ struct CopysetNodeOptions {
     // ip and port of this copyset node
     std::string ip;
     uint32_t port;
+
+    // enable lease read
+    // If true, read requests will be invoked in current lease leader node.
+    // If false, all requests will propose to raft (log read).
+    // Default: true
+    bool enbaleLeaseRead;
 
     // the number of concurrent recovery loads of copyset
     // Default: 1
@@ -74,7 +80,7 @@ struct CopysetNodeOptions {
     uint32_t checkLoadMarginIntervalMs;
 
     // apply queue options
-    ApplyQueueOption applyQueueOption;
+    ApplyOption applyQueueOption;
 
     // filesystem adaptor
     curve::fs::LocalFileSystem* localFileSystem;
@@ -92,6 +98,7 @@ inline CopysetNodeOptions::CopysetNodeOptions()
     : dataUri(),
       ip(),
       port(-1),
+      enbaleLeaseRead(true),
       loadConcurrency(1),
       checkRetryTimes(3),
       finishLoadMargin(2000),

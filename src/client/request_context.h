@@ -59,20 +59,6 @@ inline std::ostream& operator<<(std::ostream& os,
 }
 
 struct CURVE_CACHELINE_ALIGNMENT RequestContext {
-    struct Padding {
-        enum PaddingType {
-            None,
-            Left,
-            Right,
-            ALL
-        };
-
-        bool aligned = true;
-        PaddingType type = None;
-        off_t offset = 0;
-        size_t length = 0;
-    };
-
     RequestContext() : id_(GetNextRequestContextId()) {}
 
     ~RequestContext() = default;
@@ -115,8 +101,6 @@ struct CURVE_CACHELINE_ALIGNMENT RequestContext {
     uint64_t epoch_;
     // request的版本信息
     uint64_t            seq_ = 0;
-    // appliedindex_表示当前IO是否走chunkserver端的raft协议，为0的时候走raft
-    uint64_t            appliedindex_ = 0;
 
     // 这个对应的GetChunkInfo的出参
     ChunkInfoDetail*    chunkinfodetail_ = nullptr;
@@ -131,8 +115,6 @@ struct CURVE_CACHELINE_ALIGNMENT RequestContext {
     // 当前request context id
     uint64_t            id_ = 0;
 
-    Padding padding;
-
     static RequestContext* NewInitedRequestContext() {
         RequestContext* ctx = new (std::nothrow) RequestContext();
         if (ctx && ctx->Init()) {
@@ -144,12 +126,12 @@ struct CURVE_CACHELINE_ALIGNMENT RequestContext {
         }
     }
 
+ private:
+    static std::atomic<uint64_t> requestId;
+
     static uint64_t GetNextRequestContextId() {
         return requestId.fetch_add(1, std::memory_order_relaxed);
     }
-
- private:
-    static std::atomic<uint64_t> requestId;
 };
 
 inline std::ostream& operator<<(std::ostream& os,

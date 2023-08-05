@@ -50,9 +50,15 @@ class FakeConcurrentApplyModule : public ConcurrentApplyModule {
     }
 };
 
-class OpRequestTest : public testing::Test {
+class OpRequestTest
+    : public testing::TestWithParam<
+          std::tuple<ChunkSizeType, ChunkSizeType, PageSizeType>> {
  public:
     void SetUp() {
+        chunksize_ = std::get<0>(GetParam());
+        blocksize_ = std::get<1>(GetParam());
+        metapagesize_ = std::get<2>(GetParam());
+
         node_ = std::make_shared<MockCopysetNode>();
         datastore_ = std::make_shared<MockDataStore>();
         cloneMgr_ = std::make_shared<MockCloneManager>();
@@ -86,18 +92,22 @@ class OpRequestTest : public testing::Test {
     }
 
  protected:
+    ChunkSizeType chunksize_;
+    ChunkSizeType blocksize_;
+    PageSizeType metapagesize_;
+
     std::shared_ptr<MockCopysetNode> node_;
     std::shared_ptr<MockDataStore> datastore_;
     std::shared_ptr<MockCloneManager> cloneMgr_;
     std::shared_ptr<FakeConcurrentApplyModule>  concurrentApplyModule_;
 };
 
-TEST_F(OpRequestTest, CreateCloneTest) {
+TEST_P(OpRequestTest, CreateCloneTest) {
     // 创建CreateCloneChunkRequest
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 10001;
     uint64_t chunkId = 12345;
-    uint32_t size = CHUNK_SIZE;
+    uint32_t size = chunksize_;
     uint64_t sn = 1;
     string location("test@cs");
     ChunkRequest* request = new ChunkRequest();
@@ -193,23 +203,21 @@ TEST_F(OpRequestTest, CreateCloneTest) {
         ASSERT_TRUE(closure->isDone_);
     }
     /**
-     * 测试OnApply
-     * 用例：CreateCloneChunk成功
-     * 预期：返回 CHUNK_OP_STATUS_SUCCESS ，并更新apply index
+     * test OnApply
+     * case：CreateCloneChunk success
+     * expect：return CHUNK_OP_STATUS_SUCCESS
      */
     {
-        // 重置closure
+        // reset closure
         closure->Reset();
 
-        // 设置预期
+        // set expection
         EXPECT_CALL(*datastore_, CreateCloneChunk(_, _, _, _, _))
             .WillOnce(Return(CSErrorCode::Success));
-        EXPECT_CALL(*node_, UpdateAppliedIndex(_))
-            .Times(1);
 
         opReq->OnApply(3, closure);
 
-        // 验证结果
+        // check result
         ASSERT_TRUE(closure->isDone_);
         ASSERT_EQ(LAST_INDEX, response->appliedindex());
         ASSERT_TRUE(response->has_status());
@@ -217,32 +225,30 @@ TEST_F(OpRequestTest, CreateCloneTest) {
                   closure->response_->status());
     }
     /**
-     * 测试OnApply
-     * 用例：CreateCloneChunk失败
-     * 预期：进程退出
+     * test OnApply
+     * case：CreateCloneChunk failed
+     * expect：process exit
      */
     {
-        // 重置closure
+        // reset closure
         closure->Reset();
 
-        // 设置预期
+        // check result
         EXPECT_CALL(*datastore_, CreateCloneChunk(_, _, _, _, _))
             .WillRepeatedly(Return(CSErrorCode::InternalError));
-        EXPECT_CALL(*node_, UpdateAppliedIndex(_))
-            .Times(0);
 
         ASSERT_DEATH(opReq->OnApply(3, closure), "");
     }
     /**
-     * 测试OnApply
-     * 用例：CreateCloneChunk失败,返回其他错误
-     * 预期：进程退出
+     * test OnApply
+     * case：CreateCloneChunk failed, return other problems
+     * expect：process exit
      */
     {
-        // 重置closure
+        // reset closure
         closure->Reset();
 
-        // 设置预期
+        // set expection
         EXPECT_CALL(*datastore_, CreateCloneChunk(_, _, _, _, _))
             .WillRepeatedly(Return(CSErrorCode::InvalidArgError));
         EXPECT_CALL(*node_, UpdateAppliedIndex(_))
@@ -250,7 +256,7 @@ TEST_F(OpRequestTest, CreateCloneTest) {
 
         opReq->OnApply(3, closure);
 
-        // 验证结果
+        // check result
         ASSERT_TRUE(closure->isDone_);
         ASSERT_EQ(LAST_INDEX, response->appliedindex());
         ASSERT_TRUE(response->has_status());
@@ -309,7 +315,7 @@ TEST_F(OpRequestTest, CreateCloneTest) {
     closure->Release();
 }
 
-TEST_F(OpRequestTest, PasteChunkTest) {
+TEST_P(OpRequestTest, PasteChunkTest) {
     // 生成临时的readrequest
     ChunkResponse *response = new ChunkResponse();
     std::shared_ptr<ReadChunkRequest> readChunkRequest =
@@ -432,8 +438,6 @@ TEST_F(OpRequestTest, PasteChunkTest) {
         // 设置预期
         EXPECT_CALL(*datastore_, PasteChunk(_, _, _, _))
             .WillOnce(Return(CSErrorCode::Success));
-        EXPECT_CALL(*node_, UpdateAppliedIndex(_))
-            .Times(1);
 
         opReq->OnApply(3, closure);
 
@@ -456,8 +460,6 @@ TEST_F(OpRequestTest, PasteChunkTest) {
         // 设置预期
         EXPECT_CALL(*datastore_, PasteChunk(_, _, _, _))
             .WillRepeatedly(Return(CSErrorCode::InternalError));
-        EXPECT_CALL(*node_, UpdateAppliedIndex(_))
-            .Times(0);
 
         ASSERT_DEATH(opReq->OnApply(3, closure), "");
     }
@@ -473,8 +475,6 @@ TEST_F(OpRequestTest, PasteChunkTest) {
         // 设置预期
         EXPECT_CALL(*datastore_, PasteChunk(_, _, _, _))
             .WillRepeatedly(Return(CSErrorCode::InvalidArgError));
-        EXPECT_CALL(*node_, UpdateAppliedIndex(_))
-            .Times(0);
 
         opReq->OnApply(3, closure);
 
@@ -537,13 +537,13 @@ TEST_F(OpRequestTest, PasteChunkTest) {
     closure->Release();
 }
 
-TEST_F(OpRequestTest, ReadChunkTest) {
+TEST_P(OpRequestTest, ReadChunkTest) {
     // 创建CreateCloneChunkRequest
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 10001;
     uint64_t chunkId = 12345;
     uint32_t offset = 0;
-    uint32_t length = 5 * PAGE_SIZE;
+    uint32_t length = 5 * blocksize_;
     ChunkRequest* request = new ChunkRequest();
     request->set_logicpoolid(logicPoolId);
     request->set_copysetid(copysetId);
@@ -590,50 +590,127 @@ TEST_F(OpRequestTest, ReadChunkTest) {
      * 预期： 会要求转发请求，返回CHUNK_OP_STATUS_REDIRECTED
      */
     {
-        // 设置预期
+        // set expection
         EXPECT_CALL(*node_, IsLeaderTerm())
             .WillRepeatedly(Return(false));
-        // PeerId leaderId(PEER_STRING);
-        // EXPECT_CALL(*node_, GetLeaderId())
-        //     .WillOnce(Return(leaderId));
+
         EXPECT_CALL(*node_, Propose(_))
             .Times(0);
 
         opReq->Process();
 
-        // 验证结果
+        // check result
         ASSERT_TRUE(closure->isDone_);
         ASSERT_FALSE(response->has_appliedindex());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
                   closure->response_->status());
-        // ASSERT_STREQ(closure->response_->redirect().c_str(), PEER_STRING);
     }
     /**
-     * 测试Process
-     * 用例： node_->IsLeaderTerm() == true,
-     *       请求的 apply index 大于 node的 apply index
-     * 预期： 会调用Propose，且不会调用closure
+     * test Process
+     * case： ABA Problem, node_->IsLeaderTerm() == true
+     *        lease state == LEASE_EXPIRED
+     * except： redirect request, return CHUNK_OP_STATUS_REDIRECTED
      */
     {
-        // 重置closure
+        // reset closure
         closure->Reset();
 
-        request->set_appliedindex(LAST_INDEX + 1);
-
-        // 设置预期
+        // set expection
         EXPECT_CALL(*node_, IsLeaderTerm())
             .WillRepeatedly(Return(true));
+
+        braft::LeaderLeaseStatus status;
+        status.state = braft::LEASE_EXPIRED;
+        EXPECT_CALL(*node_, GetLeaderLeaseStatus(_))
+            .WillOnce(SetArgPointee<0>(status));
+
+        EXPECT_CALL(*node_, IsLeaseLeader(_))
+            .WillOnce(Return(false));
+
+        EXPECT_CALL(*node_, Propose(_))
+            .Times(0);
+
+        opReq->Process();
+
+        // check result
+        ASSERT_TRUE(closure->isDone_);
+        ASSERT_FALSE(response->has_appliedindex());
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
+                  closure->response_->status());
+    }
+    /**
+     * test Process
+     * case： node_->IsLeaderTerm() == true,
+     *        lease state == NOT_READY => log read
+     * expect： invoke Propose()，and don't invoke closure()
+     */
+    {
+        // reset closure
+        closure->Reset();
+
+        // set expection
+        EXPECT_CALL(*node_, IsLeaderTerm())
+            .WillRepeatedly(Return(true));
+
+        braft::LeaderLeaseStatus status;
+        status.state = braft::LEASE_NOT_READY;
+        EXPECT_CALL(*node_, GetLeaderLeaseStatus(_))
+            .WillOnce(SetArgPointee<0>(status));
+
+        EXPECT_CALL(*node_, IsLeaseLeader(_))
+            .WillOnce(Return(false));
+
         braft::Task task;
         EXPECT_CALL(*node_, Propose(_))
             .WillOnce(SaveArg<0>(&task));
 
         opReq->Process();
 
-        // 验证结果
+        // check result
         ASSERT_FALSE(closure->isDone_);
         ASSERT_FALSE(response->has_appliedindex());
         ASSERT_FALSE(closure->response_->has_status());
-        // 由于这里node是mock的，因此需要主动来执行task.done.Run来释放资源
+        // because node is mock,
+        // so need proactive invoke task.done.Run() to release resource
+        ASSERT_NE(nullptr, task.done);
+        task.done->Run();
+        ASSERT_TRUE(closure->isDone_);
+    }
+
+    /**
+     * test Process(user disable lease read, all requests propose to raft)
+     * case： node_->IsLeaderTerm() == true,
+     *        lease state == DISABLED => log read
+     * expect： invoke Propose()，and don't invoke closure()
+     */
+    {
+        // reset closure
+        closure->Reset();
+
+        // set expection
+        EXPECT_CALL(*node_, IsLeaderTerm())
+            .WillRepeatedly(Return(true));
+
+        braft::LeaderLeaseStatus status;
+        status.state = braft::LEASE_DISABLED;
+        EXPECT_CALL(*node_, GetLeaderLeaseStatus(_))
+            .WillOnce(SetArgPointee<0>(status));
+
+        EXPECT_CALL(*node_, IsLeaseLeader(_))
+            .WillOnce(Return(false));
+
+        braft::Task task;
+        EXPECT_CALL(*node_, Propose(_))
+            .WillOnce(SaveArg<0>(&task));
+
+        opReq->Process();
+
+        // check result
+        ASSERT_FALSE(closure->isDone_);
+        ASSERT_FALSE(response->has_appliedindex());
+        ASSERT_FALSE(closure->response_->has_status());
+        // because node is mock,
+        // so need proactive invoke task.done.Run() to release resource
         ASSERT_NE(nullptr, task.done);
         task.done->Run();
         ASSERT_TRUE(closure->isDone_);
@@ -641,9 +718,10 @@ TEST_F(OpRequestTest, ReadChunkTest) {
 
     CSChunkInfo info;
     info.isClone = true;
-    info.pageSize = PAGE_SIZE;
-    info.chunkSize = CHUNK_SIZE;
-    info.bitmap = std::make_shared<Bitmap>(CHUNK_SIZE / PAGE_SIZE);
+    info.metaPageSize = metapagesize_;
+    info.chunkSize = chunksize_;
+    info.blockSize = blocksize_;
+    info.bitmap = std::make_shared<Bitmap>(chunksize_ / blocksize_);
 
     /**
      * 测试Process
@@ -655,11 +733,18 @@ TEST_F(OpRequestTest, ReadChunkTest) {
         // 重置closure
         closure->Reset();
 
-        request->set_appliedindex(3);
-
         // 设置预期
         EXPECT_CALL(*node_, IsLeaderTerm())
             .WillRepeatedly(Return(true));
+
+        braft::LeaderLeaseStatus status;
+        status.state = braft::LEASE_VALID;
+        EXPECT_CALL(*node_, GetLeaderLeaseStatus(_))
+            .WillOnce(SetArgPointee<0>(status));
+
+        EXPECT_CALL(*node_, IsLeaseLeader(_))
+            .WillOnce(Return(true));
+
         EXPECT_CALL(*node_, Propose(_))
             .Times(0);
 
@@ -673,7 +758,6 @@ TEST_F(OpRequestTest, ReadChunkTest) {
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
             .WillOnce(DoAll(SetArrayArgument<2>(chunkData, chunkData + length),
                             Return(CSErrorCode::Success)));
-        EXPECT_CALL(*node_, UpdateAppliedIndex(_)).Times(1);
 
         opReq->Process();
 
@@ -710,7 +794,6 @@ TEST_F(OpRequestTest, ReadChunkTest) {
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
             .WillOnce(DoAll(SetArrayArgument<2>(chunkData, chunkData + length),
                             Return(CSErrorCode::Success)));
-        EXPECT_CALL(*node_, UpdateAppliedIndex(_)).Times(1);
 
         opReq->OnApply(3, closure);
 
@@ -748,7 +831,6 @@ TEST_F(OpRequestTest, ReadChunkTest) {
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
             .WillOnce(DoAll(SetArrayArgument<2>(chunkData, chunkData + length),
                             Return(CSErrorCode::Success)));
-        EXPECT_CALL(*node_, UpdateAppliedIndex(_)).Times(1);
 
         opReq->OnApply(3, closure);
 
@@ -785,8 +867,6 @@ TEST_F(OpRequestTest, ReadChunkTest) {
         // 读chunk文件
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, _, _))
             .Times(0);
-        EXPECT_CALL(*node_, UpdateAppliedIndex(_))
-            .Times(0);
         EXPECT_CALL(*cloneMgr_, GenerateCloneTask(_, _))
             .Times(1);
         EXPECT_CALL(*cloneMgr_, IssueCloneTask(_))
@@ -817,9 +897,6 @@ TEST_F(OpRequestTest, ReadChunkTest) {
         // 不会读chunk文件
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
             .Times(0);
-        EXPECT_CALL(*node_, UpdateAppliedIndex(_))
-            .Times(0);
-
         opReq->OnApply(3, closure);
 
         // 验证结果
@@ -845,8 +922,6 @@ TEST_F(OpRequestTest, ReadChunkTest) {
             .WillOnce(Return(CSErrorCode::ChunkNotExistError));
         // 读chunk文件
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, _, _))
-            .Times(0);
-        EXPECT_CALL(*node_, UpdateAppliedIndex(_))
             .Times(0);
         EXPECT_CALL(*cloneMgr_, GenerateCloneTask(_, _))
             .Times(1);
@@ -888,8 +963,6 @@ TEST_F(OpRequestTest, ReadChunkTest) {
             .WillOnce(DoAll(SetArrayArgument<2>(chunkData,
                                                 chunkData + length),
                             Return(CSErrorCode::Success)));
-        EXPECT_CALL(*node_, UpdateAppliedIndex(_))
-            .Times(1);
 
         opReq->OnApply(3, closure);
 
@@ -919,8 +992,6 @@ TEST_F(OpRequestTest, ReadChunkTest) {
         // 不会读chunk文件
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
             .Times(0);
-        EXPECT_CALL(*node_, UpdateAppliedIndex(_))
-            .Times(0);
 
         opReq->OnApply(3, closure);
 
@@ -947,8 +1018,6 @@ TEST_F(OpRequestTest, ReadChunkTest) {
         // 读chunk文件失败
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
             .WillRepeatedly(Return(CSErrorCode::InternalError));
-        EXPECT_CALL(*node_, UpdateAppliedIndex(_))
-            .Times(0);
 
         ASSERT_DEATH(opReq->OnApply(3, closure), "");
     }
@@ -970,8 +1039,6 @@ TEST_F(OpRequestTest, ReadChunkTest) {
                             Return(CSErrorCode::Success)));
         // 读chunk文件
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, _, _))
-            .Times(0);
-        EXPECT_CALL(*node_, UpdateAppliedIndex(_))
             .Times(0);
         EXPECT_CALL(*cloneMgr_, GenerateCloneTask(_, _))
             .Times(1);
@@ -1001,13 +1068,13 @@ TEST_F(OpRequestTest, ReadChunkTest) {
     closure->Release();
 }
 
-TEST_F(OpRequestTest, RecoverChunkTest) {
+TEST_P(OpRequestTest, RecoverChunkTest) {
     // 创建CreateCloneChunkRequest
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 10001;
     uint64_t chunkId = 12345;
     uint32_t offset = 0;
-    uint32_t length = 5 * PAGE_SIZE;
+    uint32_t length = 5 * blocksize_;
     ChunkRequest* request = new ChunkRequest();
     request->set_logicpoolid(logicPoolId);
     request->set_copysetid(copysetId);
@@ -1075,21 +1142,20 @@ TEST_F(OpRequestTest, RecoverChunkTest) {
 
     CSChunkInfo info;
     info.isClone = true;
-    info.pageSize = PAGE_SIZE;
-    info.chunkSize = CHUNK_SIZE;
-    info.bitmap = std::make_shared<Bitmap>(CHUNK_SIZE / PAGE_SIZE);
+    info.metaPageSize = metapagesize_;
+    info.chunkSize = chunksize_;
+    info.blockSize = blocksize_;
+    info.bitmap = std::make_shared<Bitmap>(chunksize_ / blocksize_);
 
     /**
-     * 测试Process
-     * 用例： node_->IsLeaderTerm() == true,
-     *       请求的 apply index 大于 node的 apply index
-     * 预期： 不会走一致性协议，请求提交给concurrentApplyModule_处理
+     * test Process
+     * case： node_->IsLeaderTerm() == true,
+     *        LeaseStatus == LEASE_VALID
+     * expect： don't propose to raft，request commit to concurrentApplyModule_
      */
     {
         // 重置closure
         closure->Reset();
-
-        request->set_appliedindex(LAST_INDEX + 1);
 
         info.isClone = false;
         EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
@@ -1098,8 +1164,6 @@ TEST_F(OpRequestTest, RecoverChunkTest) {
         // 不读chunk文件
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
             .Times(0);
-        EXPECT_CALL(*node_, UpdateAppliedIndex(_))
-            .Times(1);
 
         // 设置预期
         EXPECT_CALL(*node_, IsLeaderTerm())
@@ -1107,47 +1171,12 @@ TEST_F(OpRequestTest, RecoverChunkTest) {
         EXPECT_CALL(*node_, Propose(_))
             .Times(0);
 
-        opReq->Process();
-
-        int retry = 10;
-        while (retry-- > 0) {
-            if (closure->isDone_) {
-                break;
-            }
-
-            ::sleep(1);
-        }
-
-        ASSERT_TRUE(closure->isDone_);
-    }
-
-    /**
-     * 测试Process
-     * 用例： node_->IsLeaderTerm() == true,
-     *       请求的 apply index 小于等于 node的 apply index
-     * 预期： 不会走一致性协议，请求提交给concurrentApplyModule_处理
-     */
-    {
-        // 重置closure
-        closure->Reset();
-
-        request->set_appliedindex(3);
-
-        info.isClone = false;
-        EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
-            .WillOnce(DoAll(SetArgPointee<1>(info),
-                            Return(CSErrorCode::Success)));
-        // 不读chunk文件
-        EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
-            .Times(0);
-        EXPECT_CALL(*node_, UpdateAppliedIndex(_))
-            .Times(1);
-
-        // 设置预期
-        EXPECT_CALL(*node_, IsLeaderTerm())
-            .WillRepeatedly(Return(true));
-        EXPECT_CALL(*node_, Propose(_))
-            .Times(0);
+        braft::LeaderLeaseStatus status;
+        status.state = braft::LEASE_VALID;
+        EXPECT_CALL(*node_, GetLeaderLeaseStatus(_))
+            .WillOnce(SetArgPointee<0>(status));
+        EXPECT_CALL(*node_, IsLeaseLeader(_))
+            .WillOnce(Return(true));
 
         opReq->Process();
 
@@ -1180,8 +1209,6 @@ TEST_F(OpRequestTest, RecoverChunkTest) {
         // 不读chunk文件
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
             .Times(0);
-        EXPECT_CALL(*node_, UpdateAppliedIndex(_))
-            .Times(1);
 
         opReq->OnApply(3, closure);
 
@@ -1210,8 +1237,6 @@ TEST_F(OpRequestTest, RecoverChunkTest) {
         // 不读chunk文件
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
             .Times(0);
-        EXPECT_CALL(*node_, UpdateAppliedIndex(_))
-            .Times(1);
 
         opReq->OnApply(3, closure);
 
@@ -1239,8 +1264,6 @@ TEST_F(OpRequestTest, RecoverChunkTest) {
                             Return(CSErrorCode::Success)));
         // 读chunk文件
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, _, _))
-            .Times(0);
-        EXPECT_CALL(*node_, UpdateAppliedIndex(_))
             .Times(0);
         EXPECT_CALL(*cloneMgr_, GenerateCloneTask(_, _))
             .Times(1);
@@ -1272,8 +1295,6 @@ TEST_F(OpRequestTest, RecoverChunkTest) {
         // 不会读chunk文件
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
             .Times(0);
-        EXPECT_CALL(*node_, UpdateAppliedIndex(_))
-            .Times(0);
 
         opReq->OnApply(3, closure);
 
@@ -1297,8 +1318,6 @@ TEST_F(OpRequestTest, RecoverChunkTest) {
             .WillOnce(Return(CSErrorCode::InternalError));
         // 不会读chunk文件
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
-            .Times(0);
-        EXPECT_CALL(*node_, UpdateAppliedIndex(_))
             .Times(0);
 
         opReq->OnApply(3, closure);
@@ -1328,8 +1347,6 @@ TEST_F(OpRequestTest, RecoverChunkTest) {
         // 读chunk文件
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, _, _))
             .Times(0);
-        EXPECT_CALL(*node_, UpdateAppliedIndex(_))
-            .Times(0);
         EXPECT_CALL(*cloneMgr_, GenerateCloneTask(_, _))
             .Times(1);
         EXPECT_CALL(*cloneMgr_, IssueCloneTask(_))
@@ -1357,6 +1374,16 @@ TEST_F(OpRequestTest, RecoverChunkTest) {
     // 释放资源
     closure->Release();
 }
+
+INSTANTIATE_TEST_CASE_P(
+    OpRequestTest,
+    OpRequestTest,
+    ::testing::Values(
+        //                chunk size        block size,     metapagesize
+        std::make_tuple(16U * 1024 * 1024, 4096U, 4096U),
+        std::make_tuple(16U * 1024 * 1024, 4096U, 8192U),
+        std::make_tuple(16U * 1024 * 1024, 512U, 8192U),
+        std::make_tuple(16U * 1024 * 1024, 512U, 4096U * 4)));
 
 }  // namespace chunkserver
 }  // namespace curve

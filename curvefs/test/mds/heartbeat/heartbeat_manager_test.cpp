@@ -29,14 +29,19 @@
 #include "curvefs/src/mds/heartbeat/metaserver_healthy_checker.h"
 #include "curvefs/test/mds/mock/mock_topology.h"
 #include "curvefs/test/mds/mock/mock_coordinator.h"
+#include "curvefs/test/mds/mock/mock_space_manager.h"
+#include "curvefs/test/mds/mock/mock_volume_space.h"
 #include "src/common/timeutility.h"
 
 using ::curvefs::mds::topology::MockIdGenerator;
 using ::curvefs::mds::topology::MockStorage;
 using ::curvefs::mds::topology::MockTokenGenerator;
 using ::curvefs::mds::topology::MockTopology;
+using ::curvefs::mds::space::MockSpaceManager;
+using ::curvefs::mds::space::MockVolumeSpace;
 using ::curvefs::mds::topology::TopoStatusCode;
 using ::curve::mds::heartbeat::ConfigChangeType;
+
 using ::testing::_;
 using ::testing::DoAll;
 using ::testing::Return;
@@ -58,8 +63,9 @@ class TestHeartbeatManager : public ::testing::Test {
         topology_ = std::make_shared<MockTopology>(idGenerator_,
                                                    tokenGenerator_, storage_);
         coordinator_ = std::make_shared<MockCoordinator>();
-        heartbeatManager_ =
-            std::make_shared<HeartbeatManager>(option, topology_, coordinator_);
+        spaceManager_ = std::make_shared<MockSpaceManager>();
+        heartbeatManager_ = std::make_shared<HeartbeatManager>(
+            option, topology_, coordinator_, spaceManager_);
     }
 
     void TearDown() override {}
@@ -69,6 +75,7 @@ class TestHeartbeatManager : public ::testing::Test {
     std::shared_ptr<MockTokenGenerator> tokenGenerator_;
     std::shared_ptr<MockStorage> storage_;
     std::shared_ptr<MockTopology> topology_;
+    std::shared_ptr<MockSpaceManager> spaceManager_;
     std::shared_ptr<HeartbeatManager> heartbeatManager_;
     std::shared_ptr<Coordinator> coordinator_;
 };
@@ -218,7 +225,6 @@ TEST_F(TestHeartbeatManager, test_updatespace_get_metaserver_fail2) {
     heartbeatManager_->MetaServerHeartbeat(request, &response);
     ASSERT_EQ(HeartbeatStatusCode::hbOK, response.statuscode());
 }
-
 
 TEST_F(TestHeartbeatManager, test_updatespace_get_server_fail) {
     ::curvefs::mds::topology::MetaServer metaServer(
@@ -918,6 +924,58 @@ TEST_F(TestHeartbeatManager, test_update_partition) {
     heartbeatManager_->MetaServerHeartbeat(request, &response);
     ASSERT_EQ(HeartbeatStatusCode::hbOK, response.statuscode());
 }
+
+TEST_F(TestHeartbeatManager, TEST_UpdateDeallocatableBlockGroup) {
+    auto request = GetMetaServerHeartbeatRequestForTest();
+    MetaServerHeartbeatResponse response;
+
+    // prepare request
+    {
+        auto blockGroupStatInfo = request.add_blockgroupstatinfos();
+        blockGroupStatInfo->set_fsid(1);
+        auto deallocatbleBlockGroup =
+            blockGroupStatInfo->add_deallocatableblockgroups();
+        deallocatbleBlockGroup->set_blockgroupoffset(0);
+        deallocatbleBlockGroup->set_deallocatablesize(128 * 1024);
+    }
+
+    // 1. get volumespace fail
+    {
+        EXPECT_CALL(*spaceManager_, GetVolumeSpace(1))
+            .WillOnce(Return(nullptr));
+
+        heartbeatManager_->UpdateDeallocatableBlockGroup(request, &response);
+        ASSERT_EQ(HeartbeatStatusCode::hbMetaServerFSUnkown,
+                  response.statuscode());
+    }
+
+    // 2. no issued block group
+    {
+        MockVolumeSpace volumeSpace;
+        EXPECT_CALL(*spaceManager_, GetVolumeSpace(1))
+            .WillOnce(Return(&volumeSpace));
+        EXPECT_CALL(volumeSpace, UpdateDeallocatableBlockGroup(_, _, _, _))
+            .WillOnce(Return(false));
+
+        heartbeatManager_->UpdateDeallocatableBlockGroup(request, &response);
+        ASSERT_EQ(response.issuedblockgroups_size(), 0);
+    }
+
+    // 3. has issued block group
+    {
+        MockVolumeSpace volumeSpace;
+        EXPECT_CALL(*spaceManager_, GetVolumeSpace(1))
+            .WillOnce(Return(&volumeSpace));
+        EXPECT_CALL(volumeSpace, UpdateDeallocatableBlockGroup(_, _, _, _))
+            .WillOnce(DoAll(SetArgPointee<3>(1024 * 1024), Return(true)));
+
+        heartbeatManager_->UpdateDeallocatableBlockGroup(request, &response);
+        ASSERT_EQ(response.issuedblockgroups_size(), 1);
+        ASSERT_EQ(response.issuedblockgroups().at(1), 1024 * 1024);
+    }
+}
+
 }  // namespace heartbeat
 }  // namespace mds
 }  // namespace curvefs
+

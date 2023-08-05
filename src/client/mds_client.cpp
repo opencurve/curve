@@ -191,6 +191,9 @@ int RPCExcutorRetryPolicy::GetNextMDSIndex(bool needChangeMDS,
 
 int RPCExcutorRetryPolicy::ExcuteTask(int mdsindex, uint64_t rpcTimeOutMS,
                                       RPCFunc task) {
+    assert(mdsindex >= 0 &&
+           mdsindex < static_cast<int>(retryOpt_.addrs.size()));
+
     const std::string &mdsaddr = retryOpt_.addrs[mdsindex];
 
     brpc::Channel channel;
@@ -240,9 +243,9 @@ void MDSClient::UnInitialize() {
     inited_ = false;
 }
 
-#define RPCTaskDefine                                                          \
-    [&](int addrindex, uint64_t rpctimeoutMS, brpc::Channel *channel,          \
-        brpc::Controller *cntl) -> int
+#define RPCTaskDefine                                                   \
+    [&](CURVE_UNUSED int addrindex, CURVE_UNUSED uint64_t rpctimeoutMS, \
+        brpc::Channel* channel, brpc::Controller* cntl) -> int
 
 LIBCURVE_ERROR MDSClient::OpenFile(const std::string &filename,
                                    const UserInfo_t &userinfo, FInfo_t *fi,
@@ -275,17 +278,21 @@ LIBCURVE_ERROR MDSClient::OpenFile(const std::string &filename,
 
         bool flag = response.has_protosession() && response.has_fileinfo();
         if (flag) {
-            ProtoSession leasesession = response.protosession();
+            const ProtoSession &leasesession = response.protosession();
             lease->sessionID = leasesession.sessionid();
             lease->leaseTime = leasesession.leasetime();
             lease->createTime = leasesession.createtime();
 
             const curve::mds::FileInfo &protoFileInfo = response.fileinfo();
+            LOG(INFO) << "OpenFile succeeded, filename: " << filename
+                      << ", file info " << protoFileInfo.DebugString();
             ServiceHelper::ProtoFileInfo2Local(protoFileInfo, fi, fEpoch);
 
-            if (protoFileInfo.has_clonesource() &&
-                protoFileInfo.filestatus() ==
-                    curve::mds::FileStatus::kFileCloneMetaInstalled) {
+            const bool isLazyCloneFile =
+                protoFileInfo.has_clonesource() &&
+                (protoFileInfo.filestatus() ==
+                 curve::mds::FileStatus::kFileCloneMetaInstalled);
+            if (isLazyCloneFile) {
                 if (!response.has_clonesourcesegment()) {
                     LOG(WARNING) << filename
                                  << " has clone source and status is "
@@ -308,19 +315,14 @@ LIBCURVE_ERROR MDSClient::OpenFile(const std::string &filename,
         rpcExcutor_.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS));
 }
 
-LIBCURVE_ERROR MDSClient::CreateFile(const std::string &filename,
-                                     const UserInfo_t &userinfo, size_t size,
-                                     bool normalFile, uint64_t stripeUnit,
-                                     uint64_t stripeCount) {
+LIBCURVE_ERROR MDSClient::CreateFile(const CreateFileContext& context) {
     auto task = RPCTaskDefine {
         (void)addrindex;
         (void)rpctimeoutMS;
         CreateFileResponse response;
         mdsClientMetric_.createFile.qps.count << 1;
         LatencyGuard lg(&mdsClientMetric_.createFile.latency);
-        MDSClientBase::CreateFile(filename, userinfo, size, normalFile,
-                                  stripeUnit, stripeCount, &response, cntl,
-                                  channel);
+        MDSClientBase::CreateFile(context, &response, cntl, channel);
 
         if (cntl->Failed()) {
             mdsClientMetric_.createFile.eps.count << 1;
@@ -335,9 +337,10 @@ LIBCURVE_ERROR MDSClient::CreateFile(const std::string &filename,
         StatusCode stcode = response.statuscode();
         MDSStatusCode2LibcurveError(stcode, &retcode);
         LOG_IF(WARNING, retcode != LIBCURVE_ERROR::OK)
-            << "CreateFile: filename = " << filename
-            << ", owner = " << userinfo.owner
-            << ", is nomalfile: " << normalFile << ", errocde = " << retcode
+            << "CreateFile: filename = " << context.name
+            << ", owner = " << context.user.owner
+            << ", is pagefile: " << context.pagefile
+            << ", errcode = " << retcode
             << ", error msg = " << StatusCode_Name(stcode)
             << ", log id = " << cntl->log_id();
         return retcode;
@@ -465,7 +468,8 @@ LIBCURVE_ERROR MDSClient::IncreaseEpoch(const std::string& filename,
             butil::str2endpoint(response.cslocs(i).hostip().c_str(),
                     response.cslocs(i).port(), &internal);
             EndPoint external;
-            if (response.cslocs(i).has_externalip()) {
+            const bool hasExternalIp = response.cslocs(i).has_externalip();
+            if (hasExternalIp) {
                 butil::str2endpoint(response.cslocs(i).externalip().c_str(),
                     response.cslocs(i).port(), &external);
             }
@@ -894,17 +898,54 @@ LIBCURVE_ERROR MDSClient::GetClusterInfo(ClusterContext *clsctx) {
         rpcExcutor_.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS));
 }
 
-LIBCURVE_ERROR MDSClient::CreateCloneFile(
-    const std::string &source, const std::string &destination,
-    const UserInfo_t &userinfo, uint64_t size, uint64_t sn, uint32_t chunksize,
-    uint64_t stripeUnit, uint64_t stripeCount, FInfo *fileinfo) {
+LIBCURVE_ERROR MDSClient::ListPoolset(std::vector<std::string>* out) {
+    assert(out != nullptr);
+
+    auto task = RPCTaskDefine {
+        ListPoolsetResponse response;
+        MDSClientBase::ListPoolset(&response, cntl, channel);
+
+        if (cntl->Failed()) {
+            LOG(WARNING) << "Failed to list poolset, error: "
+                         << cntl->ErrorText();
+            return -cntl->ErrorCode();
+        }
+
+        const bool succ = (response.statuscode() == 0);
+        if (!succ) {
+            LOG(WARNING) << "Failed to list poolset, response error: "
+                         << response.statuscode();
+            return LIBCURVE_ERROR::FAILED;
+        }
+
+        for (const auto& p : response.poolsetinfos()) {
+            out->emplace_back(p.poolsetname());
+        }
+
+        return LIBCURVE_ERROR::OK;
+    };
+
+    return ReturnError(
+            rpcExcutor_.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS));
+}
+
+LIBCURVE_ERROR MDSClient::CreateCloneFile(const std::string& source,
+                                          const std::string& destination,
+                                          const UserInfo_t& userinfo,
+                                          uint64_t size,
+                                          uint64_t sn,
+                                          uint32_t chunksize,
+                                          uint64_t stripeUnit,
+                                          uint64_t stripeCount,
+                                          const std::string& poolset,
+                                          FInfo* fileinfo) {
     auto task = RPCTaskDefine {
         (void)addrindex;
         (void)rpctimeoutMS;
         CreateCloneFileResponse response;
         MDSClientBase::CreateCloneFile(source, destination, userinfo, size, sn,
                                        chunksize, stripeUnit, stripeCount,
-                                       &response, cntl, channel);
+                                       poolset, &response, cntl, channel);
         if (cntl->Failed()) {
             LOG(WARNING) << "Create clone file failed, errcorde = "
                          << cntl->ErrorCode()
@@ -1467,6 +1508,7 @@ void MDSClient::MDSStatusCode2LibcurveError(const StatusCode &status,
     case StatusCode::kSnapshotFileNotExists:
     case StatusCode::kFileNotExists:
     case StatusCode::kDirNotExist:
+    case StatusCode::kPoolsetNotExist:
         *errcode = LIBCURVE_ERROR::NOTEXIST;
         break;
     case StatusCode::kSegmentNotAllocated:

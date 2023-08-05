@@ -56,7 +56,6 @@ var _ basecmd.FinalCurveCmdFunc = (*CreateCommand)(nil)
 
 func (gRpc *CreateFileRpc) NewRpcClient(cc grpc.ClientConnInterface) {
 	gRpc.mdsClient = nameserver2.NewCurveFSServiceClient(cc)
-
 }
 
 func (gRpc *CreateFileRpc) Stub_Func(ctx context.Context) (interface{}, error) {
@@ -96,14 +95,19 @@ func (cCmd *CreateCommand) Init(cmd *cobra.Command, args []string) error {
 		size = size * humanize.GiByte
 		createRequest.FileLength = &size
 
-		stripeCount := config.GetBsFlagUint64(cCmd.Cmd, config.CURVEBS_STRIPE_COUNT)
-		createRequest.StripeCount = &stripeCount
-		stripeUnitStr := config.GetBsFlagString(cCmd.Cmd, config.CURVEBS_STRIPE_UNIT)
-		stripeUnit, errUnit := humanize.ParseBytes(stripeUnitStr)
-		if errUnit != nil {
-			return fmt.Errorf("parse stripe unit[%s] failed, err: %v", stripeUnitStr, errUnit)
+		if config.GetFlagChanged(cCmd.Cmd, config.CURVEBS_STRIPE_COUNT) {
+			stripeCount := config.GetBsFlagUint64(cCmd.Cmd, config.CURVEBS_STRIPE_COUNT)
+			createRequest.StripeCount = &stripeCount
 		}
-		createRequest.StripeUnit = &stripeUnit
+
+		if config.GetFlagChanged(cCmd.Cmd, config.CURVEBS_STRIPE_UNIT) {
+			stripeUnitStr := config.GetBsFlagString(cCmd.Cmd, config.CURVEBS_STRIPE_UNIT)
+			stripeUnit, errUnit := humanize.ParseBytes(stripeUnitStr)
+			if errUnit != nil {
+				return fmt.Errorf("parse stripe unit[%s] failed, err: %v", stripeUnitStr, errUnit)
+			}
+			createRequest.StripeUnit = &stripeUnit
+		}
 	}
 	if username == viper.GetString(config.VIPER_CURVEBS_USER) && len(password) != 0 {
 		strSig := cobrautil.GetString2Signature(date, username)

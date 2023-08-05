@@ -60,6 +60,7 @@ enum FSStatusCode {
     INSERT_MANAGE_INODE_FAIL = 35;
     DELETE_DENTRY_FAIL = 36;
     UPDATE_FS_FAIL = 37;
+    SPACE_RELEASE_FAIL = 38;
 }
 
 // fs interface
@@ -191,6 +192,7 @@ message RefreshSessionRequest {
 message RefreshSessionResponse {
     required FSStatusCode statusCode = 1;
     repeated topology.PartitionTxId latestTxIdList = 2;
+    optional bool enableSumInDir = 3;
 }
 
 message DLockValue {

@@ -24,7 +24,10 @@ package status
 
 import (
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/status/chunkserver"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/status/client"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/status/cluster"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/status/copyset"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/status/etcd"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/status/mds"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/status/snapshot"
@@ -43,6 +46,9 @@ func (statusCmd *StatusCommand) AddSubCommands() {
 		mds.NewMdsCommand(),
 		client.NewClientCommand(),
 		snapshot.NewSnapshotCommand(),
+		chunkserver.NewChunkServerCommand(),
+		copyset.NewCopysetCommand(),
+		cluster.NewClusterCommand(),
 	)
 }
 

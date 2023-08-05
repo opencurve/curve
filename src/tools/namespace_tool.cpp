@@ -22,6 +22,10 @@
  */
 #include "src/tools/namespace_tool.h"
 
+#include <algorithm>
+
+#include "absl/strings/str_format.h"
+
 DEFINE_string(fileName, "", "file name");
 DEFINE_string(dirName, "", "directory name");
 DEFINE_string(expireTime, "7d", "Time for file in recyclebin exceed expire time "  // NOLINT
@@ -29,6 +33,7 @@ DEFINE_string(expireTime, "7d", "Time for file in recyclebin exceed expire time 
 DEFINE_bool(forcedelete, false, "force delete file or not");
 DEFINE_uint64(fileLength, 20, "file length (GB)");
 DEFINE_uint64(newSize, 30, "the new size of expanded volume(GB)");
+DEFINE_string(poolset, "", "specify the poolset name");
 DEFINE_bool(isTest, false, "is unit test or not");
 DEFINE_uint64(offset, 0, "offset to query chunk location");
 DEFINE_uint64(rpc_timeout, 3000, "millisecond for rpc timeout");
@@ -68,7 +73,8 @@ bool NameSpaceTool::SupportCommand(const std::string& command) {
                                || command == kExtendCmd
                                || command == kCleanRecycleCmd
                                || command == kChunkLocatitonCmd
-                               || command == kUpdateThrottle);
+                               || command == kUpdateThrottle
+                               || command == kListPoolsets);
 }
 
 // 根据命令行参数选择对应的操作
@@ -129,10 +135,18 @@ int NameSpaceTool::RunCommand(const std::string &cmd) {
             return -1;
         }
         bool normalFile = FLAGS_dirName.empty();
-        std::string name = normalFile ? FLAGS_fileName : FLAGS_dirName;
-        return core_->CreateFile(name, FLAGS_fileLength * mds::kGB,
-                                 normalFile, FLAGS_stripeUnit,
-                                 FLAGS_stripeCount);
+        CreateFileContext context;
+        context.type = normalFile ? curve::mds::FileType::INODE_PAGEFILE
+                                  : curve::mds::FileType::INODE_DIRECTORY;
+        context.name = normalFile ? FLAGS_fileName : FLAGS_dirName;
+        if (normalFile) {
+            context.length = FLAGS_fileLength * mds::kGB;
+            context.stripeUnit = FLAGS_stripeUnit;
+            context.stripeCount = FLAGS_stripeCount;
+            context.poolset = FLAGS_poolset;
+        }
+
+        return core_->CreateFile(context);
     } else if (cmd == kExtendCmd) {
         return core_->ExtendVolume(fileName, FLAGS_newSize * mds::kGB);
     } else if (cmd == kChunkLocatitonCmd) {
@@ -141,6 +155,8 @@ int NameSpaceTool::RunCommand(const std::string &cmd) {
         return core_->UpdateFileThrottle(fileName, FLAGS_throttleType,
                                          FLAGS_limit, FLAGS_burst,
                                          FLAGS_burstLength);
+    } else if (cmd == kListPoolsets) {
+        return PrintPoolsets();
     } else {
         std::cout << "Command not support!" << std::endl;
         return -1;
@@ -159,7 +175,7 @@ void NameSpaceTool::PrintHelp(const std::string &cmd) {
         std::cout << "If -fileName is specified, delete the files in recyclebin that the original directory is fileName" << std::endl;  // NOLINT
         std::cout << "expireTime: s=second, m=minute, h=hour, d=day, M=month, y=year" << std::endl;  // NOLINT
     } else if (cmd == kCreateCmd) {
-        std::cout << "curve_ops_tool " << cmd << " -fileName=/test -userName=test -password=123 -fileLength=20 [-stripeUnit=32768] [-stripeCount=32]  [-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
+        std::cout << "curve_ops_tool " << cmd << " -fileName=/test -userName=test -password=123 -fileLength=20 [--poolset=default] [-stripeUnit=32768] [-stripeCount=32]  [-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
         std::cout << "curve_ops_tool " << cmd << " -dirName=/dir -userName=test -password=123 [-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
         std::cout << "The first example can create a volume and the second create a directory." << std::endl;  // NOLINT
     } else if (cmd == kExtendCmd) {
@@ -283,6 +299,28 @@ int NameSpaceTool::PrintListDir(const std::string& dirName) {
     }
     std::cout << "Total file number: " << files.size() << std::endl;
     return ret;
+}
+
+int NameSpaceTool::PrintPoolsets() {
+    std::vector<PoolsetInfo> poolsets;
+    if (core_->ListPoolset(&poolsets) != 0) {
+        std::cout << "List poolset fail!" << std::endl;
+        return -1;
+    }
+
+    std::sort(poolsets.begin(), poolsets.end(),
+              [](const PoolsetInfo& a, const PoolsetInfo& b) {
+                  return a.poolsetid() < b.poolsetid();
+              });
+
+    for (const auto& poolset : poolsets) {
+        const std::string str = absl::StrFormat(
+                "id: %3d, name: %s, type: %s, desc: `%s`", poolset.poolsetid(),
+                poolset.poolsetname(), poolset.type(), poolset.desc());
+        std::cout << str << std::endl;
+    }
+
+    return 0;
 }
 
 int NameSpaceTool::PrintSegmentInfo(const std::string &fileName) {

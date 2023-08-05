@@ -52,6 +52,8 @@ using ::testing::Matcher;
 namespace curve {
 namespace snapshotcloneserver {
 
+static const char* kDefaultPoolset = "poolset";
+
 class TestSnapshotCloneMetaStoreEtcd : public ::testing::Test {
  public:
     TestSnapshotCloneMetaStoreEtcd() {}
@@ -104,6 +106,7 @@ bool JudgeSnapshotInfoEqual(const SnapshotInfo &left,
         left.GetFileLength() == right.GetFileLength() &&
         left.GetStripeUnit() == right.GetStripeUnit() &&
         left.GetStripeCount() == right.GetStripeCount() &&
+        left.GetPoolset() == right.GetPoolset() &&
         left.GetCreateTime() == right.GetCreateTime() &&
         left.GetStatus() == right.GetStatus()) {
         return true;
@@ -116,7 +119,7 @@ bool JudgeSnapshotInfoEqual(const SnapshotInfo &left,
 TEST_F(TestSnapshotCloneMetaStoreEtcd,
     TestAddSnapInfoAndGetSuccess) {
     SnapshotInfo snapInfo("snapuuid", "snapuser", "file1", "snapxxx", 100,
-                        1024, 2048, 4096, 0, 0, 0,
+                        1024, 2048, 4096, 0, 0, kDefaultPoolset, 0,
                         Status::pending);
 
     EXPECT_CALL(*kvStorageClient_, Put(_, _))
@@ -135,7 +138,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
 TEST_F(TestSnapshotCloneMetaStoreEtcd,
     TestAddSnapshotInfoPutInfoEtcdFail) {
     SnapshotInfo snapInfo("snapuuid", "snapuser", "file1", "snapxxx", 100,
-                        1024, 2048, 4096, 0, 0, 0,
+                        1024, 2048, 4096, 0, 0, kDefaultPoolset, 0,
                         Status::pending);
 
     EXPECT_CALL(*kvStorageClient_, Put(_, _))
@@ -148,7 +151,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
 TEST_F(TestSnapshotCloneMetaStoreEtcd,
     TestDeleteSnapshotSuccess) {
     SnapshotInfo snapInfo("snapuuid", "snapuser", "file1", "snapxxx", 100,
-                        1024, 2048, 4096, 0, 0, 0,
+                        1024, 2048, 4096, 0, 0, kDefaultPoolset, 0,
                         Status::pending);
 
     EXPECT_CALL(*kvStorageClient_, Put(_, _))
@@ -168,7 +171,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
 TEST_F(TestSnapshotCloneMetaStoreEtcd,
     TestDeleteSnapshotDeleteFromEtcdFail) {
     SnapshotInfo snapInfo("snapuuid", "snapuser", "file1", "snapxxx", 100,
-                        1024, 2048, 4096, 0, 0, 0,
+                        1024, 2048, 4096, 0, 0, kDefaultPoolset, 0,
                         Status::pending);
 
     EXPECT_CALL(*kvStorageClient_, Put(_, _))
@@ -188,7 +191,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
 TEST_F(TestSnapshotCloneMetaStoreEtcd,
     TestUpdateSnapshotAndGetSuccess) {
     SnapshotInfo snapInfo("snapuuid", "snapuser", "file1", "snapxxx", 100,
-                        1024, 2048, 4096, 0, 0, 0,
+                        1024, 2048, 4096, 0, 0, kDefaultPoolset, 0,
                         Status::pending);
 
     EXPECT_CALL(*kvStorageClient_, Put(_, _))
@@ -198,7 +201,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
     ASSERT_EQ(0, ret);
 
     SnapshotInfo snapInfo2("snapuuid", "snapuser2", "file2", "snapxxx2", 101,
-                        1025, 2049, 4097, 1, 0, 0,
+                        1025, 2049, 4097, 1, 0, kDefaultPoolset, 0,
                         Status::done);
 
     EXPECT_CALL(*kvStorageClient_, Put(_, _))
@@ -217,7 +220,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
 TEST_F(TestSnapshotCloneMetaStoreEtcd,
     TestUpdateSnapshotPutInfoEtcdFail) {
     SnapshotInfo snapInfo("snapuuid", "snapuser", "file1", "snapxxx", 100,
-                        1024, 2048, 4096, 0, 0, 0,
+                        1024, 2048, 4096, 0, 0, kDefaultPoolset, 0,
                         Status::pending);
 
     EXPECT_CALL(*kvStorageClient_, Put(_, _))
@@ -227,7 +230,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
     ASSERT_EQ(0, ret);
 
     SnapshotInfo snapInfo2("snapuuid", "snapuser2", "file2", "snapxxx2", 101,
-                        1025, 2049, 4097, 0, 0, 1,
+                        1025, 2049, 4097, 0, 0, kDefaultPoolset, 1,
                         Status::done);
 
     EXPECT_CALL(*kvStorageClient_, Put(_, _))
@@ -240,7 +243,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
 TEST_F(TestSnapshotCloneMetaStoreEtcd,
     TestUpdateSnapshotNotExistAndGetSuccess) {
     SnapshotInfo snapInfo("snapuuid", "snapuser", "file1", "snapxxx", 100,
-                        1024, 2048, 4096, 0, 0, 0,
+                        1024, 2048, 4096, 0, 0, kDefaultPoolset, 0,
                         Status::pending);
 
     EXPECT_CALL(*kvStorageClient_, Put(_, _))
@@ -258,7 +261,8 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
 
 TEST_F(TestSnapshotCloneMetaStoreEtcd, TestCASSnapshot) {
     SnapshotInfo snapInfo(
-        "uuid", "user", "", "", 0, 0, 0, 0, 0, 0, 0, Status::pending);
+        "uuid", "user", "", "", 0, 0, 0, 0, 0, 0, kDefaultPoolset,
+        0, Status::pending);
 
     auto setUp = [&]() {
         EXPECT_CALL(*kvStorageClient_, Put(_, _))
@@ -290,7 +294,8 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd, TestCASSnapshot) {
         setUp();
 
         SnapshotInfo setInfo(
-            "uuid", "user1", "", "", 1, 1, 1, 1, 1, 1, 1, Status::done);
+            "uuid", "user1", "", "", 1, 1, 1, 1, 1, 1, kDefaultPoolset,
+            1, Status::done);
         auto cas = [&setInfo](SnapshotInfo* snapinfo) -> SnapshotInfo* {
             return &setInfo;
         };
@@ -347,7 +352,8 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd, TestCASSnapshot) {
         setUp();
 
         SnapshotInfo setInfo(
-            "uuid", "user1", "", "", 1, 1, 1, 1, 1, 1, 1, Status::done);
+            "uuid", "user1", "", "", 1, 1, 1, 1, 1, 1, kDefaultPoolset,
+            1, Status::done);
         auto cas = [&setInfo](SnapshotInfo* snapInfo) -> SnapshotInfo* {
             setInfo.SetStatus(snapInfo->GetStatus());
             return &setInfo;
@@ -376,7 +382,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
 TEST_F(TestSnapshotCloneMetaStoreEtcd,
     TestGetSnapshotList1Success) {
     SnapshotInfo snapInfo("snapuuid", "snapuser", "file1", "snapxxx", 100,
-                        1024, 2048, 4096, 0, 0, 0,
+                        1024, 2048, 4096, 0, 0, kDefaultPoolset, 0,
                         Status::pending);
 
     EXPECT_CALL(*kvStorageClient_, Put(_, _))
@@ -403,7 +409,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
 TEST_F(TestSnapshotCloneMetaStoreEtcd,
     TestGetSnapshotList2Success) {
     SnapshotInfo snapInfo("snapuuid", "snapuser", "file1", "snapxxx", 100,
-                        1024, 2048, 4096, 0, 0, 0,
+                        1024, 2048, 4096, 0, 0, kDefaultPoolset, 0,
                         Status::pending);
 
     EXPECT_CALL(*kvStorageClient_, Put(_, _))
@@ -433,7 +439,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
     TestAddCloneInfoAndGetSuccess) {
     CloneInfo cloneInfo("uuid1", "user1",
                      CloneTaskType::kClone, "src1",
-                     "dst1", 1, 2, 3,
+                     "dst1", kDefaultPoolset, 1, 2, 3,
                      CloneFileType::kFile, false,
                      CloneStep::kCompleteCloneFile,
                      CloneStatus::cloning);
@@ -455,7 +461,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
     TestAddCloneInfoPutInfoEtcdFail) {
     CloneInfo cloneInfo("uuid1", "user1",
                      CloneTaskType::kClone, "src1",
-                     "dst1", 1, 2, 3,
+                     "dst1", kDefaultPoolset, 1, 2, 3,
                      CloneFileType::kFile, false,
                      CloneStep::kCompleteCloneFile,
                      CloneStatus::cloning);
@@ -471,7 +477,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
     TestDeleteCloneInfoSuccess) {
     CloneInfo cloneInfo("uuid1", "user1",
                      CloneTaskType::kClone, "src1",
-                     "dst1", 1, 2, 3,
+                     "dst1", kDefaultPoolset, 1, 2, 3,
                      CloneFileType::kFile, false,
                      CloneStep::kCompleteCloneFile,
                      CloneStatus::cloning);
@@ -493,7 +499,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
     TestDeleteCloneInfoDeleteFromEtcdFail) {
     CloneInfo cloneInfo("uuid1", "user1",
                      CloneTaskType::kClone, "src1",
-                     "dst1", 1, 2, 3,
+                     "dst1", kDefaultPoolset, 1, 2, 3,
                      CloneFileType::kFile, false,
                      CloneStep::kCompleteCloneFile,
                      CloneStatus::cloning);
@@ -515,7 +521,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
     TestUpdateCloneInfoAndGetSuccess) {
     CloneInfo cloneInfo("uuid1", "user1",
                      CloneTaskType::kClone, "src1",
-                     "dst1", 1, 2, 3,
+                     "dst1", kDefaultPoolset,  1, 2, 3,
                      CloneFileType::kFile, false,
                      CloneStep::kCompleteCloneFile,
                      CloneStatus::cloning);
@@ -534,7 +540,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
 
     CloneInfo cloneInfo2("uuid1", "user2",
                      CloneTaskType::kClone, "src2",
-                     "dst2", 2, 3, 4,
+                     "dst2", kDefaultPoolset, 2, 3, 4,
                      CloneFileType::kFile, false,
                      CloneStep::kEnd,
                      CloneStatus::done);
@@ -553,7 +559,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
     TestUpdateCloneInfoPutInfoEtcdFail) {
     CloneInfo cloneInfo("uuid1", "user1",
                      CloneTaskType::kClone, "src1",
-                     "dst1", 1, 2, 3,
+                     "dst1", kDefaultPoolset,  1, 2, 3,
                      CloneFileType::kFile, false,
                      CloneStep::kCompleteCloneFile,
                      CloneStatus::cloning);
@@ -578,7 +584,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
     TestUpdateCloneInfoNotExist) {
     CloneInfo cloneInfo("uuid1", "user1",
                      CloneTaskType::kClone, "src1",
-                     "dst1", 1, 2, 3,
+                     "dst1", kDefaultPoolset,  1, 2, 3,
                      CloneFileType::kFile, false,
                      CloneStep::kCompleteCloneFile,
                      CloneStatus::cloning);
@@ -601,7 +607,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
     TestGetCloneInfoByFileNameSuccess) {
     CloneInfo cloneInfo("uuid1", "user1",
                      CloneTaskType::kClone, "src1",
-                     "dst1", 1, 2, 3,
+                     "dst1", kDefaultPoolset,  1, 2, 3,
                      CloneFileType::kFile, false,
                      CloneStep::kCompleteCloneFile,
                      CloneStatus::cloning);
@@ -631,7 +637,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
     TestGetCloneInfoListSuccess) {
     CloneInfo cloneInfo("uuid1", "user1",
                      CloneTaskType::kClone, "src1",
-                     "dst1", 1, 2, 3,
+                     "dst1", kDefaultPoolset,  1, 2, 3,
                      CloneFileType::kFile, false,
                      CloneStep::kCompleteCloneFile,
                      CloneStatus::cloning);
@@ -660,7 +666,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
 TEST_F(TestSnapshotCloneMetaStoreEtcd,
     TestInitSuccess) {
     SnapshotInfo snapInfo("snapuuid", "snapuser", "file1", "snapxxx", 100,
-                        1024, 2048, 4096, 0, 0, 0,
+                        1024, 2048, 4096, 0, 0, kDefaultPoolset, 0,
                         Status::pending);
     SnapshotCloneCodec codec;
     std::string value;
@@ -670,7 +676,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
 
     CloneInfo cloneInfo("uuid1", "user1",
                      CloneTaskType::kClone, "src1",
-                     "dst1", 1, 2, 3,
+                     "dst1", kDefaultPoolset, 1, 2, 3,
                      CloneFileType::kFile, false,
                      CloneStep::kCompleteCloneFile,
                      CloneStatus::cloning);
@@ -702,7 +708,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
 TEST_F(TestSnapshotCloneMetaStoreEtcd,
     TestInitListCloneInfoFail) {
     SnapshotInfo snapInfo("snapuuid", "snapuser", "file1", "snapxxx", 100,
-                        1024, 2048, 4096, 0, 0, 0,
+                        1024, 2048, 4096, 0, 0, "default", 0,
                         Status::pending);
     SnapshotCloneCodec codec;
     std::string value;
@@ -735,7 +741,7 @@ TEST_F(TestSnapshotCloneMetaStoreEtcd,
 TEST_F(TestSnapshotCloneMetaStoreEtcd,
     TestInitDecodeCloneInfoFail) {
     SnapshotInfo snapInfo("snapuuid", "snapuser", "file1", "snapxxx", 100,
-                        1024, 2048, 4096, 0, 0, 0,
+                        1024, 2048, 4096, 0, 0, "default", 0,
                         Status::pending);
     SnapshotCloneCodec codec;
     std::string value;

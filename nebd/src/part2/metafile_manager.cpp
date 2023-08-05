@@ -245,7 +245,7 @@ Json::Value NebdMetaFileParser::ConvertFileMetasToJson(
         Json::Value volume;
         volume[kFileName] = meta.second.fileName;
         volume[kFd] = meta.second.fd;
-        for (const auto item : meta.second.xattr) {
+        for (const auto &item : meta.second.xattr) {
             volume[item.first] = item.second;
         }
         volumes.append(volume);

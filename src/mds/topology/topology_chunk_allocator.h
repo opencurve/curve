@@ -26,6 +26,7 @@
 #include <vector>
 #include <memory>
 #include <functional>
+#include <string>
 #include <map>
 
 #include "src/mds/topology/topology.h"
@@ -88,14 +89,22 @@ class TopologyChunkAllocator {
     TopologyChunkAllocator() {}
     virtual ~TopologyChunkAllocator() {}
     virtual bool AllocateChunkRandomInSingleLogicalPool(
-        ::curve::mds::FileType fileType, uint32_t chunkNumer,
-        ChunkSizeType chunkSize, std::vector<CopysetIdInfo> *infos) = 0;
+        ::curve::mds::FileType fileType,
+        const std::string& pstName,
+        uint32_t chunkNumer,
+        ChunkSizeType chunkSize,
+        std::vector<CopysetIdInfo> *infos) = 0;
     virtual bool AllocateChunkRoundRobinInSingleLogicalPool(
-        ::curve::mds::FileType fileType, uint32_t chunkNumer,
-        ChunkSizeType chunkSize, std::vector<CopysetIdInfo> *infos) = 0;
+        ::curve::mds::FileType fileType,
+        const std::string &pstName,
+        uint32_t chunkNumer,
+        ChunkSizeType chunkSize,
+        std::vector<CopysetIdInfo> *infos) = 0;
     virtual void GetRemainingSpaceInLogicalPool(
-        const std::vector<PoolIdType> &logicalPools,
-        std::map<PoolIdType, double> *remianingSpace) = 0;
+        const std::vector<PoolIdType>& logicalPools,
+        std::map<PoolIdType, double>* remianingSpace,
+        const std::string& pstName) = 0;
+
     virtual void UpdateChunkFilePoolAllocConfig(
         bool useChunkFilepool_, bool useChunkFilePoolAsWalPool_,
         uint32_t useChunkFilePoolAsWalPoolReserve_) = 0;
@@ -132,8 +141,11 @@ class TopologyChunkAllocatorImpl : public TopologyChunkAllocator {
      * @retval false if failed
      */
     bool AllocateChunkRandomInSingleLogicalPool(
-        curve::mds::FileType fileType, uint32_t chunkNumber,
-        ChunkSizeType chunkSize, std::vector<CopysetIdInfo> *infos) override;
+        curve::mds::FileType fileType,
+        const std::string& pstName,
+        uint32_t chunkNumber,
+        ChunkSizeType chunkSize,
+        std::vector<CopysetIdInfo> *infos) override;
 
     /**
      * @brief allocate chunks by round robin in a single logical pool
@@ -147,18 +159,23 @@ class TopologyChunkAllocatorImpl : public TopologyChunkAllocator {
      * @retval false if failed
      */
     bool AllocateChunkRoundRobinInSingleLogicalPool(
-        curve::mds::FileType fileType, uint32_t chunkNumber,
-        ChunkSizeType chunkSize, std::vector<CopysetIdInfo> *infos) override;
+        curve::mds::FileType fileType,
+        const std::string &pstName,
+        uint32_t chunkNumber,
+        ChunkSizeType chunkSize,
+        std::vector<CopysetIdInfo> *infos) override;
     void GetRemainingSpaceInLogicalPool(
-        const std::vector<PoolIdType> &logicalPools,
-        std::map<PoolIdType, double> *remianingSpace) override;
-    void UpdateChunkFilePoolAllocConfig(
-        bool useChunkFilepool_, bool useChunkFilePoolAsWalPool_,
-        uint32_t useChunkFilePoolAsWalPoolReserve_) override {
-        chunkFilePoolAllocHelp_->UpdateChunkFilePoolAllocConfig(
-            useChunkFilepool_, useChunkFilePoolAsWalPool_,
-            useChunkFilePoolAsWalPoolReserve_);
-    }
+        const std::vector<PoolIdType>& logicalPools,
+        std::map<PoolIdType, double>* remianingSpace,
+        const std::string& pstName) override;
+
+    void UpdateChunkFilePoolAllocConfig(bool useChunkFilepool_,
+            bool useChunkFilePoolAsWalPool_,
+            uint32_t useChunkFilePoolAsWalPoolReserve_) override {
+              chunkFilePoolAllocHelp_->UpdateChunkFilePoolAllocConfig(
+                useChunkFilepool_, useChunkFilePoolAsWalPool_,
+                useChunkFilePoolAsWalPoolReserve_);
+        }
 
  private:
     /**
@@ -171,7 +188,8 @@ class TopologyChunkAllocatorImpl : public TopologyChunkAllocator {
      * @retval false if failed
      */
     bool ChooseSingleLogicalPool(curve::mds::FileType fileType,
-                                 PoolIdType *poolOut);
+        const std::string& pstName,
+        PoolIdType *poolOut);
 
  private:
     std::shared_ptr<Topology> topology_;

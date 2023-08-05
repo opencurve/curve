@@ -51,7 +51,8 @@ var _ basecmd.RpcFunc = (*ListServerRpc)(nil) // check interface
 
 type ServerCommand struct {
 	basecmd.FinalCurveCmd
-	Rpc []*ListServerRpc
+	Rpc     []*ListServerRpc
+	Servers []*topology.ServerInfo
 }
 
 var _ basecmd.FinalCurveCmdFunc = (*ServerCommand)(nil) // check interface
@@ -108,7 +109,7 @@ func (pCmd *ServerCommand) Init(cmd *cobra.Command, args []string) error {
 		}
 		pCmd.Rpc = append(pCmd.Rpc, rpc)
 	}
-	header := []string{cobrautil.ROW_ID, cobrautil.ROW_HOSTNAME, 
+	header := []string{cobrautil.ROW_ID, cobrautil.ROW_HOSTNAME,
 		cobrautil.ROW_ZONE, cobrautil.ROW_PHYPOOL, cobrautil.ROW_INTERNAL_ADDR,
 		cobrautil.ROW_EXTERNAL_ADDR,
 	}
@@ -124,14 +125,14 @@ func (pCmd *ServerCommand) Print(cmd *cobra.Command, args []string) error {
 }
 
 func (pCmd *ServerCommand) RunCommand(cmd *cobra.Command, args []string) error {
-	var infos []*basecmd.Rpc
+	var rpcs []*basecmd.Rpc
 	var funcs []basecmd.RpcFunc
 	for _, rpc := range pCmd.Rpc {
-		infos = append(infos, rpc.Info)
+		rpcs = append(rpcs, rpc.Info)
 		funcs = append(funcs, rpc)
 	}
-	results, errs := basecmd.GetRpcListResponse(infos, funcs)
-	if len(errs) == len(infos) {
+	results, errs := basecmd.GetRpcListResponse(rpcs, funcs)
+	if len(errs) == len(rpcs) {
 		mergeErr := cmderror.MergeCmdErrorExceptSuccess(errs)
 		return mergeErr.ToError()
 	}
@@ -148,14 +149,15 @@ func (pCmd *ServerCommand) RunCommand(cmd *cobra.Command, args []string) error {
 			row[cobrautil.ROW_HOSTNAME] = info.GetHostName()
 			row[cobrautil.ROW_ZONE] = fmt.Sprintf("%d", info.GetZoneID())
 			row[cobrautil.ROW_PHYPOOL] = fmt.Sprintf("%d", info.GetPhysicalPoolID())
-			row[cobrautil.ROW_INTERNAL_ADDR] = fmt.Sprintf("%s:%d", 
+			row[cobrautil.ROW_INTERNAL_ADDR] = fmt.Sprintf("%s:%d",
 				info.GetInternalIp(), info.GetInternalPort())
 			row[cobrautil.ROW_EXTERNAL_ADDR] = fmt.Sprintf("%s:%d",
 				info.GetExternalIp(), info.GetExternalPort())
 			rows = append(rows, row)
 		}
+		pCmd.Servers = append(pCmd.Servers, infos...)
 	}
-	list := cobrautil.ListMap2ListSortByKeys(rows, pCmd.Header, []string {
+	list := cobrautil.ListMap2ListSortByKeys(rows, pCmd.Header, []string{
 		cobrautil.ROW_PHYPOOL, cobrautil.ROW_ZONE,
 	})
 	pCmd.TableNew.AppendBulk(list)
@@ -167,4 +169,20 @@ func (pCmd *ServerCommand) RunCommand(cmd *cobra.Command, args []string) error {
 
 func (pCmd *ServerCommand) ResultPlainOutput() error {
 	return output.FinalCmdOutputPlain(&pCmd.FinalCurveCmd)
+}
+
+func ListServer(caller *cobra.Command) ([]*topology.ServerInfo, *cmderror.CmdError) {
+	listServer := NewListServerCommand()
+	listServer.Cmd.SetArgs([]string{"--format", config.FORMAT_NOOUT})
+	listServer.Cmd.SilenceErrors = true
+	config.AlignFlagsValue(caller, listServer.Cmd, []string{
+		config.CURVEBS_MDSADDR,
+	})
+	err := listServer.Cmd.Execute()
+	if err != nil {
+		retErr := cmderror.ErrBsListZone()
+		retErr.Format(err.Error())
+		return listServer.Servers, retErr
+	}
+	return listServer.Servers, cmderror.ErrSuccess()
 }

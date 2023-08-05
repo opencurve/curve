@@ -53,6 +53,8 @@
 #include "test/util/config_generator.h"
 #include "test/client/mock/mock_namespace_service.h"
 
+#include "absl/memory/memory.h"
+
 uint32_t chunk_size = 4 * 1024 * 1024;
 uint32_t segment_size = 1 * 1024 * 1024 * 1024;
 std::string mdsMetaServerAddr = "127.0.0.1:29104";              // NOLINT
@@ -848,56 +850,60 @@ TEST_F(MDSClientTest, StatFile) {
 }
 
 TEST_F(MDSClientTest, GetFileInfo) {
-    std::string filename = "/1_userinfo_";
-    curve::mds::FileInfo *info = new curve::mds::FileInfo;
-    ::curve::mds::GetFileInfoResponse response;
-    info->set_filename("_filename_");
-    info->set_id(1);
-    info->set_parentid(0);
-    info->set_filetype(curve::mds::FileType::INODE_PAGEFILE);
-    info->set_chunksize(4 * 1024 * 1024);
-    info->set_length(4 * 1024 * 1024 * 1024ul);
-    info->set_ctime(12345678);
-    info->set_segmentsize(1 * 1024 * 1024 * 1024ul);
+    uint32_t blocksize = 512;
+    for (auto hasBlockSize : {true, false}) {
+        std::string filename = "/1_userinfo_";
+        auto info = absl::make_unique<curve::mds::FileInfo>();
+        ::curve::mds::GetFileInfoResponse response;
+        info->set_filename("_filename_");
+        info->set_id(1);
+        info->set_parentid(0);
+        info->set_filetype(curve::mds::FileType::INODE_PAGEFILE);
+        info->set_chunksize(4 * 1024 * 1024);
+        info->set_length(4 * 1024 * 1024 * 1024ul);
+        info->set_ctime(12345678);
+        info->set_segmentsize(1 * 1024 * 1024 * 1024ul);
 
-    response.set_allocated_fileinfo(info);
-    response.set_statuscode(::curve::mds::StatusCode::kOK);
+        if (hasBlockSize) {
+            info->set_blocksize(blocksize);
+        }
 
-    FakeReturn *fakeret =
-        new FakeReturn(nullptr, static_cast<void *>(&response));
-    curvefsservice.SetGetFileInfoFakeReturn(fakeret);
+        response.set_allocated_fileinfo(info.release());
+        response.set_statuscode(::curve::mds::StatusCode::kOK);
 
-    curve::client::FInfo_t *finfo = new curve::client::FInfo_t;
-    curve::client::FileEpoch_t fEpoch;
-    mdsclient_.GetFileInfo(filename, userinfo, finfo, &fEpoch);
+        auto fakeret = absl::make_unique<FakeReturn>(
+            nullptr, static_cast<void *>(&response));
+        curvefsservice.SetGetFileInfoFakeReturn(fakeret.get());
 
-    ASSERT_EQ(finfo->filename, "_filename_");
-    ASSERT_EQ(finfo->id, 1);
-    ASSERT_EQ(finfo->parentid, 0);
-    ASSERT_EQ(static_cast<curve::mds::FileType>(finfo->filetype),
-              curve::mds::FileType::INODE_PAGEFILE);
-    ASSERT_EQ(finfo->chunksize, 4 * 1024 * 1024);
-    ASSERT_EQ(finfo->length, 4 * 1024 * 1024 * 1024ul);
-    ASSERT_EQ(finfo->ctime, 12345678);
-    ASSERT_EQ(finfo->segmentsize, 1 * 1024 * 1024 * 1024ul);
+        curve::client::FileEpoch_t fEpoch;
+        auto finfo = absl::make_unique<curve::client::FInfo_t>();
+        mdsclient_.GetFileInfo(filename, userinfo, finfo.get(), &fEpoch);
 
-    // 设置rpc失败，触发重试
-    brpc::Controller cntl;
-    cntl.SetFailed(-1, "failed");
+        ASSERT_EQ(finfo->filename, "_filename_");
+        ASSERT_EQ(finfo->id, 1);
+        ASSERT_EQ(finfo->parentid, 0);
+        ASSERT_EQ(static_cast<curve::mds::FileType>(finfo->filetype),
+                  curve::mds::FileType::INODE_PAGEFILE);
+        ASSERT_EQ(finfo->chunksize, 4 * 1024 * 1024);
+        ASSERT_EQ(finfo->length, 4 * 1024 * 1024 * 1024ul);
+        ASSERT_EQ(finfo->ctime, 12345678);
+        ASSERT_EQ(finfo->segmentsize, 1 * 1024 * 1024 * 1024ul);
+        ASSERT_EQ(finfo->blocksize, hasBlockSize ? blocksize : 4096);
 
-    FakeReturn *fakeret2 =
-        new FakeReturn(&cntl, static_cast<void *>(&response));
+        // 设置rpc失败，触发重试
+        brpc::Controller cntl;
+        cntl.SetFailed(-1, "failed");
 
-    curvefsservice.SetGetFileInfoFakeReturn(fakeret2);
-    curvefsservice.CleanRetryTimes();
+        auto fakeret2 = absl::make_unique<FakeReturn>(
+            &cntl, static_cast<void *>(&response));
 
-    ASSERT_EQ(
-        LIBCURVE_ERROR::FAILED,
-        mdsclient_.GetFileInfo(filename.c_str(), userinfo, finfo, &fEpoch));
+        curvefsservice.SetGetFileInfoFakeReturn(fakeret2.get());
+        curvefsservice.CleanRetryTimes();
 
-    delete fakeret;
-    delete fakeret2;
-    delete finfo;
+        ASSERT_EQ(LIBCURVE_ERROR::FAILED,
+                  mdsclient_.GetFileInfo(filename, userinfo, finfo.get(),
+                                         &fEpoch));
+    }
 }
 
 TEST_F(MDSClientTest, GetOrAllocateSegment) {
@@ -1048,16 +1054,8 @@ TEST_F(MDSClientTest, GetOrAllocateSegment) {
     ASSERT_EQ(ep1, toep);
     ASSERT_EQ(0, mc.UpdateLeader(1234, 0, ep1));
 
-    ASSERT_EQ(0, mc.GetAppliedIndex(1111, 0));
-
-    // test applied index update
     curve::client::CopysetInfo<ChunkServerID> csinfo;
     mc.UpdateCopysetInfo(111, 123, csinfo);
-    ASSERT_EQ(0, mc.GetAppliedIndex(111, 123));
-    mc.UpdateAppliedIndex(111, 123, 4);
-    ASSERT_EQ(4, mc.GetAppliedIndex(111, 123));
-    mc.UpdateAppliedIndex(111, 123, 100000);
-    ASSERT_EQ(100000, mc.GetAppliedIndex(111, 123));
 
     // Boundary test metacache.
     // we fake the disk size = 1G.
@@ -1425,7 +1423,7 @@ TEST_F(MDSClientTest, CreateCloneFile) {
     ASSERT_EQ(LIBCURVE_ERROR::FAILED,
               mdsclient_.CreateCloneFile("source", "destination", userinfo,
                                          10 * 1024 * 1024, 0, 4 * 1024 * 1024,
-                                         0, 0, &finfo));
+                                         0, 0, "default", &finfo));
     // 认证失败
     curve::mds::CreateCloneFileResponse response1;
     response1.set_statuscode(::curve::mds::StatusCode::kOwnerAuthFail);
@@ -1438,7 +1436,7 @@ TEST_F(MDSClientTest, CreateCloneFile) {
     ASSERT_EQ(LIBCURVE_ERROR::AUTHFAIL,
               mdsclient_.CreateCloneFile("source", "destination", userinfo,
                                          10 * 1024 * 1024, 0, 4 * 1024 * 1024,
-                                         0, 0, &finfo));
+                                         0, 0, "default", &finfo));
     // 请求成功
     info->set_id(5);
     curve::mds::CreateCloneFileResponse response2;
@@ -1457,7 +1455,7 @@ TEST_F(MDSClientTest, CreateCloneFile) {
     ASSERT_EQ(LIBCURVE_ERROR::OK,
               mdsclient_.CreateCloneFile("source", "destination", userinfo,
                                          10 * 1024 * 1024, 0, 4 * 1024 * 1024,
-                                         0, 0, &finfo));
+                                         0, 0, "default", &finfo));
     ASSERT_EQ(5, finfo.id);
     ASSERT_EQ(cloneSource, finfo.sourceInfo.name);
     ASSERT_EQ(cloneLength, finfo.sourceInfo.length);
@@ -2289,7 +2287,8 @@ class MDSClientRefreshSessionTest : public ::testing::Test {
     void SetUp() override {
         ASSERT_EQ(0, server_.AddService(&curveFsService_,
                                         brpc::SERVER_DOESNT_OWN_SERVICE));
-        ASSERT_EQ(0, server_.Start(kServerAddress, nullptr));
+        ASSERT_EQ(0, server_.Start(0, nullptr));
+        serverAddress_ = butil::endpoint2str(server_.listen_address()).c_str();
     }
 
     void TearDown() override {
@@ -2298,7 +2297,8 @@ class MDSClientRefreshSessionTest : public ::testing::Test {
     }
 
  protected:
-    const char *kServerAddress = "127.0.0.1:21000";
+    std::string serverAddress_;
+    const std::string kLocalIp = "127.0.0.1";
     const uint32_t kTestPort = 1234;
 
     brpc::Server server_;
@@ -2308,11 +2308,11 @@ class MDSClientRefreshSessionTest : public ::testing::Test {
 TEST_F(MDSClientRefreshSessionTest, StartDummyServerTest) {
     curve::client::ClientDummyServerInfo::GetInstance().SetRegister(true);
     curve::client::ClientDummyServerInfo::GetInstance().SetPort(kTestPort);
-    curve::client::ClientDummyServerInfo::GetInstance().SetIP(kServerAddress);
+    curve::client::ClientDummyServerInfo::GetInstance().SetIP(kLocalIp);
 
     MDSClient mdsClient;
     MetaServerOption opt;
-    opt.rpcRetryOpt.addrs.push_back(kServerAddress);
+    opt.rpcRetryOpt.addrs.push_back(serverAddress_);
     ASSERT_EQ(0, mdsClient.Initialize(opt));
 
     curve::mds::ReFreshSessionRequest request;
@@ -2331,7 +2331,7 @@ TEST_F(MDSClientRefreshSessionTest, StartDummyServerTest) {
     ASSERT_TRUE(request.has_clientport());
     ASSERT_TRUE(request.has_clientip());
     ASSERT_EQ(request.clientport(), kTestPort);
-    ASSERT_EQ(request.clientip(), kServerAddress);
+    ASSERT_EQ(request.clientip(), kLocalIp);
 }
 
 TEST_F(MDSClientRefreshSessionTest, NoStartDummyServerTest) {
@@ -2339,7 +2339,7 @@ TEST_F(MDSClientRefreshSessionTest, NoStartDummyServerTest) {
 
     MDSClient mdsClient;
     MetaServerOption opt;
-    opt.rpcRetryOpt.addrs.push_back(kServerAddress);
+    opt.rpcRetryOpt.addrs.push_back(serverAddress_);
     ASSERT_EQ(0, mdsClient.Initialize(opt));
 
     curve::mds::ReFreshSessionRequest request;

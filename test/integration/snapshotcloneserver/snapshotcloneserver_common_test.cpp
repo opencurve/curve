@@ -57,6 +57,8 @@ const int kMdsDummyPort = 10008;
 const char* kSnapshotCloneServerDummyServerPort = "12000";
 const char* kLeaderCampaginPrefix = "snapshotcloneserverleaderlock3";
 
+static const char* kDefaultPoolset = "default";
+
 const std::string kLogPath = "./runlog/" + kTestPrefix + "Log";  // NOLINT
 const std::string kMdsDbName = kTestPrefix + "DB";               // NOLINT
 const std::string kMdsConfigPath =                               // NOLINT
@@ -109,7 +111,9 @@ const std::vector<std::string> chunkserverConfigOptions{
     std::string("curve.config_path=") + kCsClientConfigPath,
     std::string("s3.config_path=") + kS3ConfigPath,
     "walfilepool.use_chunk_file_pool=false",
-    "walfilepool.enable_get_segment_from_pool=false"
+    "walfilepool.enable_get_segment_from_pool=false",
+    "global.block_size=4096",
+    "global.meta_page_size=4096",
 };
 
 const std::vector<std::string> csClientConfigOptions{
@@ -914,7 +918,7 @@ TEST_F(SnapshotCloneServerTest, TestImageNotLazyClone) {
 TEST_F(SnapshotCloneServerTest, TestSnapAndCloneWhenSnapHasError) {
     std::string snapId = "errorSnapUuid";
     SnapshotInfo snapInfo(snapId, testUser1_, testFile4_, "snapxxx", 0, 0, 0, 0,
-                        0, 0, 0, Status::error);
+                        0, 0, kDefaultPoolset, 0, Status::error);
 
     cluster_->metaStore_->AddSnapshot(snapInfo);
 

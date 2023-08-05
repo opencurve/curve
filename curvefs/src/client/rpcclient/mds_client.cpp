@@ -501,7 +501,8 @@ FSStatusCode
 MdsClientImpl::RefreshSession(const std::vector<PartitionTxId> &txIds,
                               std::vector<PartitionTxId> *latestTxIdList,
                               const std::string& fsName,
-                              const Mountpoint& mountpoint) {
+                              const Mountpoint& mountpoint,
+                              std::atomic<bool>* enableSumInDir) {
     auto task = RPCTask {
         (void)addrindex;
         (void)rpctimeoutMS;
@@ -531,6 +532,11 @@ MdsClientImpl::RefreshSession(const std::vector<PartitionTxId> &txIds,
                                response.latesttxidlist().end()};
             LOG(INFO) << "RefreshSession need update partition txid list: "
                       << response.DebugString();
+        }
+        if (enableSumInDir->load() && !response.enablesumindir()) {
+            enableSumInDir->store(response.enablesumindir());
+            LOG(INFO) << "update enableSumInDir to "
+                      << response.enablesumindir();
         }
 
         return ret;
@@ -708,10 +714,11 @@ SpaceErrCode MdsClientImpl::AllocateVolumeBlockGroup(
         CHECK_RPC_AND_RETRY_IF_ERROR("AllocateVolumeBlockGroup");
 
         auto status = response.status();
-        if (status != SpaceErrCode::SpaceOk) {
-            LOG(WARNING) << "Allocate volume block group failed, err: "
-                         << SpaceErrCode_Name(status);
-        } else if (response.blockgroups_size() == 0) {
+        LOG_IF(WARNING, status != SpaceErrCode::SpaceOk)
+            << "Allocate volume block group failed, err: "
+            << SpaceErrCode_Name(status);
+
+        if (response.blockgroups_size() == 0) {
             LOG(WARNING) << "Allocate volume block group failed, no block "
                             "group allcoated";
             return SpaceErrCode::SpaceErrNoSpace;
