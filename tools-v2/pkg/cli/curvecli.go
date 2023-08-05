@@ -32,6 +32,7 @@ import (
 	cobratemplate "github.com/opencurve/curve/tools-v2/internal/utils/template"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/completion"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/upgrade"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/version"
 	config "github.com/opencurve/curve/tools-v2/pkg/config"
 )
@@ -41,6 +42,7 @@ func addSubCommands(cmd *cobra.Command) {
 	cmd.AddCommand(
 		curvebs.NewCurveBsCommand(),
 		completionCmd,
+		upgrade.NewUpgradeCurveCommand(),
 	)
 	
 	// build completion
