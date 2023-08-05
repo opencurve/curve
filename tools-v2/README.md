@@ -8,6 +8,8 @@ A tool for CurveFS & CurveBs.
     - [Introduction](#introduction)
   - [Command](#command)
     - [version](#version)
+    - [completion](#completion)
+    - [upgrade](#upgrade)
     - [fs](#fs)
       - [check](#check)
         - [check copyset](#check-copyset)
@@ -41,48 +43,48 @@ A tool for CurveFS & CurveBs.
         - [usage metadata](#usage-metadata)
       - [warmup](#warmup)
       - [warmup add](#warmup-add)
-  - [bs](#bs)
-    - [list](#list-1)
-        - [list logical-pool](#list-logical-pool)
-        - [list server](#list-server)
-        - [list client](#list-client)
-        - [list dir](#list-dir)
-        - [list space](#list-space)
-        - [list chunkserver](#list-chunkserver)
-        - [list scan-status](#list-scan-status)
-        - [list may-broken-vol](#list-may-broken-vol)
-    - [clean-recycle](#clean-recycle)
-    - [query](#query-1)
-        - [query file](#query-file)
-        - [query chunk](#query-chunk)
-        - [query segment](#query-segment)
+    - [bs](#bs)
+      - [list](#list-1)
+          - [list logical-pool](#list-logical-pool)
+          - [list server](#list-server)
+          - [list client](#list-client)
+          - [list dir](#list-dir)
+          - [list space](#list-space)
+          - [list chunkserver](#list-chunkserver)
+          - [list scan-status](#list-scan-status)
+          - [list may-broken-vol](#list-may-broken-vol)
+      - [clean-recycle](#clean-recycle)
+      - [query](#query-1)
+          - [query file](#query-file)
+          - [query chunk](#query-chunk)
+          - [query segment](#query-segment)
         - [query scan-status](#query-scan-status)
-    - [status](#status-1)
-      - [status etcd](#status-etcd-1)
-      - [status mds](#status-mds-1)
-      - [status client](#status-client)
-      - [status snapshotserver](#status-snapshotserver)
-      - [status chunkserver](#status-chunkserver)
-      - [status copyset](#status-copyset-1)
-    - [delete](#delete-1)
-      - [delete peer](#delete-peer)
-    - [update](#update)
-      - [update peer](#update-peer)
-      - [update leader](#update-leader)
-      - [update file](#update-file)
-      - [update throttle](#update-throttle)
-      - [update scan-state](#update-scan-state)
-      - [update copyset availflag](#update-copyset-availflag)
-      - [update leader-schedule](#update-leader-schedule)
-    - [create](#create-1)
-      - [create file](#create-file)
-      - [create dir](#create-dir)
-    - [check](#check-1)
-      - [check copyset](#check-copyset-1)
-      - [check chunkserver](#check-chunkserver)
-      - [check server](#check-server)
-    - [snapshot](#snapshot)
-      - [snapshot copyset](#snapshot-copyset)
+      - [status](#status-1)
+        - [status etcd](#status-etcd-1)
+        - [status mds](#status-mds-1)
+        - [status client](#status-client)
+        - [status snapshotserver](#status-snapshotserver)
+        - [status chunkserver](#status-chunkserver)
+        - [status copyset](#status-copyset-1)
+      - [delete](#delete-1)
+        - [delete peer](#delete-peer)
+      - [update](#update)
+        - [update peer](#update-peer)
+        - [update leader](#update-leader)
+        - [update file](#update-file)
+        - [update throttle](#update-throttle)
+        - [update scan-state](#update-scan-state)
+        - [update copyset availflag](#update-copyset-availflag)
+        - [update leader-schedule](#update-leader-schedule)
+      - [create](#create-1)
+        - [create file](#create-file)
+        - [create dir](#create-dir)
+      - [check](#check-1)
+        - [check copyset](#check-copyset-1)
+        - [check chunkserver](#check-chunkserver)
+        - [check server](#check-server)
+      - [snapshot](#snapshot)
+        - [snapshot copyset](#snapshot-copyset)
   - [Comparison of old and new commands](#comparison-of-old-and-new-commands)
     - [curve fs](#curve-fs)
     - [curve bs](#curve-bs)
@@ -177,6 +179,57 @@ Output:
 
 ```shell
 curve v1.2
+```
+
+### completion
+
+generate curve bash/zsh/fish completion script
+
+Take bash as an example:
+```bash
+curve completion bash > /etc/bash_completion.d/curve
+```
+
+If you perform completion you get the following error:
+```bash
+curve [tab]bash: _get_comp_words_by_ref: command not found
+```
+
+You need to install bash-completion:
+```bash
+sudo apt install bash-completion
+source /usr/share/bash-completion/bash_completion
+```
+
+### upgrade
+
+Upgrade curve to latest version
+
+Usage:
+
+```shell
+curve upgrade
+```
+
+If you want to upgrade to the specified version(ee500438):
+
+```bash
+CURVE_VERSION=ee500438 curve upgrade
+```
+
+If you are in an offline environment, you can also set up a temporary http server to provide upgrade services for other machines:
+
+```bash
+# 192.168.1.1
+echo "123456" > __version
+cp curve curve-123456
+python3 -m http.server 1234
+```
+
+In this way, it can be upgraded on other machines
+
+```bash
+CURVE_BASE_URL=http://192.168.1.1:1234/ curve upgrade
 ```
 
 ### fs
@@ -833,11 +886,11 @@ curve fs warmup add --filelist /mnt/curvefs/warmup.list
 > `curve fs warmup add /mnt/curvefs/warmup` will warmup a file(directory).
 > /mnt/curvefs/warmup.list
 
-## bs
+### bs
 
-### list
+#### list
 
-##### list logical-pool
+###### list logical-pool
 
 list all logical pool information
 
@@ -857,7 +910,7 @@ Output:
 +----+-------+-----------+----------+-------+------+--------+------+--------+---------+
 ```
 
-##### list server
+###### list server
 
 list all server information in curvebs
 
@@ -881,7 +934,7 @@ Output:
 +----+---------------------+------+---------+-------------------+-------------------+
 ```
 
-##### list client
+###### list client
 
 list all client information in curvebs
 
@@ -899,7 +952,7 @@ Output:
 +------------+------+
 ```
 
-##### list dir
+###### list dir
 
 list dir information in curvebs
 
@@ -917,7 +970,7 @@ Output:
 +------+-------------+----------+-----------------+------------+---------------------+---------------+-------------+
 ```
 
-##### list space
+###### list space
 
 show curvebs all disk type space, include total space and used space
 
@@ -937,7 +990,7 @@ Output:
 +----------+---------+---------+---------+------------+---------+
 ```
 
-##### list chunkserver
+###### list chunkserver
 
 list chunkserver information in curvebs
 
@@ -959,7 +1012,7 @@ Output:
 +----+------+-----------+------+-----------+------------+------------+-----------------------------------------------+--------------+-------------+------------------+-----------+
 ```
 
-##### list scan-status
+###### list scan-status
 
 list curvebs all copyset that scanning is false
 
@@ -1175,7 +1228,7 @@ Output:
 +-------------+-----------+
 ```
 
-##### list may-broken-vol
+###### list may-broken-vol
 
 list may broken volumes
 
@@ -1195,7 +1248,7 @@ Output:
 +----------+
 ```
 
-### clean-recycle
+#### clean-recycle
 
 clean the recycle bin 
 
@@ -1215,9 +1268,9 @@ Output:
 +---------+
 ```
 
-### query
+#### query
 
-##### query file
+###### query file
 
 query the file info and actual space
 
@@ -1240,7 +1293,7 @@ Output:
 +------+------+----------------+-------+--------+---------+--------+-----+---------------------+--------------+---------+-----------------+----------+
 ```
 
-##### query chunk
+###### query chunk
 
 query the location of the chunk corresponding to the offset
 
@@ -1262,7 +1315,7 @@ Output:
 +-------+-------------+---------+------------+----------------------+
 ```
 
-##### query segment
+###### query segment
 
 query the segments info of the file
 
@@ -1307,9 +1360,9 @@ Output:
 +-------------+-----------+-------+-------------+--------------------+
 ```
 
-### status
+#### status
 
-#### status etcd
+##### status etcd
 get the etcd status of curvebs
 
 Usage:
@@ -1332,7 +1385,7 @@ Output:
 +---------------------+---------+----------+
 ```
 
-#### status mds
+##### status mds
 
 get the mds status of curvebs
 
@@ -1356,7 +1409,7 @@ Output:
 +-------------------+-------------------+-------------------+----------+
 ```
 
-#### status client
+##### status client
 
 get the client status of curvebs
 
@@ -1378,7 +1431,7 @@ Output:
 +-------------+----------------+---------------------+-----+
 ```
 
-#### status snapshotserver
+##### status snapshotserver
 
 get the mds status of curvebs
 
@@ -1402,7 +1455,7 @@ Output:
 +---------------------+---------------------+-------------------+----------+
 ```
 
-#### status chunkserver
+##### status chunkserver
 
 get the chunkserver status of curvebs
 
@@ -1426,7 +1479,7 @@ Output:
 +------------------+------------------+----------------+--------+------------+
 ```
 
-#### status copyset
+##### status copyset
 
 get the copyset status of curvebs
 
@@ -1450,9 +1503,9 @@ Output:
 +------------+-----------+--------+--------+--------+---------+
 ```
 
-### delete
+#### delete
 
-#### delete peer
+##### delete peer
 
 delete the peer from the copyset
 
@@ -1472,9 +1525,9 @@ Output:
 +------------------+------------------+---------+---------+--------+
 ```
 
-### update
+#### update
 
-#### update peer
+##### update peer
 
 reset peer
 
@@ -1492,7 +1545,7 @@ Output:
 +----------------------+---------+---------+--------+
 ```
 
-#### update leader
+##### update leader
 
 transfer leader
 
@@ -1510,7 +1563,7 @@ Output:
 +-----------------------+-----------------------+---------+---------+
 ```
 
-#### update file
+##### update file
 
 expand pagefile
 
@@ -1528,7 +1581,7 @@ Output:
 +---------+
 ```
 
-#### update throttle
+##### update throttle
 
 update file throttle params
 
@@ -1546,7 +1599,7 @@ Output:
 +---------+
 ```
 
-#### update scan-state
+##### update scan-state
 
 enable/disable scan for logical pool
 
@@ -1564,7 +1617,7 @@ Output:
 +----+------+---------+--------+
 ```
 
-#### update copyset availflag
+##### update copyset availflag
 
 update copyset availflag
 
@@ -1582,7 +1635,7 @@ Output:
 +--------+-----------+---------------+--------+
 ```
 
-#### update leader-schedule
+##### update leader-schedule
 
 "rapidly transfer leader
 
@@ -1601,9 +1654,9 @@ Output:
 +---------+--------+
 ```
 
-### create
+#### create
 
-#### create file
+##### create file
 
 create pagefile
 
@@ -1621,7 +1674,7 @@ Output:
 +---------+
 ```
 
-#### create dir
+##### create dir
 
 create directory
 
@@ -1639,9 +1692,9 @@ Output:
 +---------+
 ```
 
-### check
+#### check
 
-#### check copyset
+##### check copyset
 
 check copysets health in curvebs
 
@@ -1660,7 +1713,7 @@ Output:
 | 4294967297 | 1         | 1      | ok     | 0      |         |
 +------------+-----------+--------+--------+--------+---------+
 ```
-#### check chunkserver
+##### check chunkserver
 
 check chunkserver health in curvebs
 
@@ -1680,7 +1733,7 @@ Output:
 +------------+-----------+--------+--------+--------+---------+
 ```
 
-####  check server
+##### check server
 
 check copysets health in server
 
@@ -1701,9 +1754,9 @@ Output:
 +--------+-----------+-------+------------------+
 ```
 
-### snapshot
+#### snapshot
 
-#### snapshot copyset
+##### snapshot copyset
 
 take snapshot for copyset
 
