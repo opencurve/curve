@@ -904,7 +904,7 @@ Output:
 list dir information in curvebs
 
 ```bash
-curve bs list dir --dir /
+curve bs list dir --path /
 ```
 
 Output:
@@ -1609,7 +1609,7 @@ create pagefile
 
 Usage:
 ```bash
-curve bs create file --path /test2/test4  --size 10GiB
+curve bs create file --path /test2/test4  --size 10
 ```
 
 Output:
