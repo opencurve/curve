@@ -72,7 +72,7 @@ func NewCheckServerCommand() *ServerCommand {
 	ckCmd := &ServerCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
 			Use:     "server",
-			Short:   "check all copysets infomation on server",
+			Short:   "check all copysets information on server",
 			Example: serverExample,
 		},
 	}
