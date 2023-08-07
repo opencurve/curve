@@ -22,6 +22,7 @@
 
 #include "curvefs/src/metaserver/dentry_storage.h"
 #include "curvefs/src/metaserver/transaction.h"
+#include "src/common/concurrent/name_lock.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -112,12 +113,16 @@ MetaStatusCode TxManager::HandleRenameTx(const std::vector<Dentry>& dentrys) {
         return rc;
     }
 
+    // deal with retry request with same tx sequence
+    curve::common::NameLockGuard lg(seqNameLock_,
+        std::to_string(dentrys[0].txsequence()));
+
     // Handle pending TX
     RenameTx pendingTx;
     if (FindPendingTx(&pendingTx)) {
         auto txId = dentrys[0].txid();
         auto txSequence = dentrys[0].txsequence();
-        if (txSequence != 0 && txSequence <= pendingTx.GetTxSequence()) {
+        if (txSequence != 0 && txSequence < pendingTx.GetTxSequence()) {
             LOG(ERROR) << "HandlePendingTx failed, current transaction is stale"
                        << ", we will discard it. current tx sequence = "
                        << txSequence << ", pending tx sequence = "

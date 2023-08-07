@@ -27,6 +27,7 @@
 #include <memory>
 #include <unordered_map>
 
+#include "src/common/concurrent/name_lock.h"
 #include "src/common/concurrent/rw_lock.h"
 #include "curvefs/src/metaserver/dentry_storage.h"
 
@@ -89,6 +90,8 @@ class TxManager {
     std::shared_ptr<DentryStorage> storage_;
 
     RenameTx EMPTY_TX, pendingTx_;
+
+    curve::common::NameLock seqNameLock_;
 };
 
 }  // namespace metaserver

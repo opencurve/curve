@@ -24,6 +24,7 @@
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <thread>
 
 #include "curvefs/src/metaserver/dentry_manager.h"
 #include "curvefs/src/metaserver/storage/storage.h"
@@ -89,7 +90,8 @@ class TransactionTest : public ::testing::Test {
                      const std::string& name,
                      uint64_t txId,
                      uint64_t inodeId,
-                     uint32_t flag) {
+                     uint32_t flag,
+                     uint64_t txSequence = 0) {
         Dentry dentry;
         dentry.set_fsid(fsId);
         dentry.set_parentinodeid(parentId);
@@ -97,6 +99,7 @@ class TransactionTest : public ::testing::Test {
         dentry.set_txid(txId);
         dentry.set_inodeid(inodeId);
         dentry.set_flag(flag);
+        dentry.set_txsequence(txSequence);
         return dentry;
     }
 
@@ -345,6 +348,28 @@ TEST_F(TransactionTest, HandleTxWithTargetExist) {
     });
 
     ASSERT_EQ(dentryStorage_->Size(), 3);  // /B /B/A /C(pending)
+}
+
+TEST_F(TransactionTest, HandleTxWithSameSequence) {
+    InsertDentrys(dentryStorage_, std::vector<Dentry>{
+        // { fsId, parentId, name, txId, inodeId, flag }
+        GenDentry(1, 0, "A", 0, 1, 0),
+    });
+
+    // step-1: prepare tx success (rename A B)
+    auto dentrys = std::vector<Dentry> {
+        // { fsId, parentId, name, txId, inodeId, flag }
+        GenDentry(1, 0, "A", 1, 1, DELETE_FLAG, 1),
+        GenDentry(1, 0, "B", 1, 1, 0, 1),
+    };
+    MetaStatusCode rc1, rc2;
+    std::thread t1([&]() {rc1 = txManager_->HandleRenameTx(dentrys);});
+    std::thread t2([&]() {rc2 = txManager_->HandleRenameTx(dentrys);});
+
+    t1.join();
+    t2.join();
+    ASSERT_EQ(rc1, MetaStatusCode::OK);
+    ASSERT_EQ(rc2, MetaStatusCode::OK);
 }
 
 }  // namespace metaserver
