@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -x
 
 # Copyright (C) 2021 Jingli Chen (Wine93), NetEase Inc.
 
@@ -154,14 +155,6 @@ list_target() {
     fi
 }
 
-get_target() {
-    if [ "$g_stor" == "bs" ]; then
-        bazel query 'kind("cc_(test|binary)", //...)' | grep -E "$g_target" | grep -v "^\/\/curvefs"
-    elif [ "$g_stor" == "fs" ]; then
-        bazel query 'kind("cc_(test|binary)", //curvefs/...)' | grep -E "$g_target"
-    fi
-}
-
 build_target() {
     if [ "$g_stor" == "bs" ]; then
         git submodule update --init -- nbd
@@ -186,13 +179,27 @@ build_target() {
         g_build_opts+=("--config=gcc7-later")
     fi
 
-    alltarget=`get_target`
-    if [ $g_ci -eq 1 ]; then
-        g_build_opts+=("--collect_code_coverage")
-        alltarget=...
+    local target_array
+    if [ "$g_stor" == "bs" ]; then
+        if [[ "$g_target" = "*" ]]; then
+            target_array=("-- //... -//curvefs/...")
+        else
+            target_array=($(bazel query 'kind("cc_(test|binary)", //... -//curvefs/...)' | grep -E "$g_target"))
+        fi
+    elif [ "$g_stor" == "fs" ]; then
+        if [[ "$g_target" = "*" ]]; then
+            target_array=("-- //curvefs/...")
+        else
+            target_array=($(bazel query 'kind("cc_(test|binary)", //curvefs/...)' | grep -E "$g_target"))
+        fi
     fi
 
-    for target in $alltarget
+    if [ $g_ci -eq 1 ]; then
+        g_build_opts+=("--collect_code_coverage")
+        target_array=("...")
+    fi
+
+    for target in "${target_array[@]}"
     do
         bazel build ${g_build_opts[@]} $target
         local ret="$?"
