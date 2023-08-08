@@ -1086,6 +1086,12 @@ CURVEFS_ERROR FuseClient::FuseOpSetXattr(fuse_req_t req, fuse_ino_t ino,
     VLOG(1) << "FuseOpSetXattr ino: " << ino << ", name: " << name
             << ", size = " << size
             << ", strvalue: " << strvalue;
+
+    if (strname == curvefs::XATTR_FS_BYTES) {
+        LOG(INFO) << "set curve.fs.bytes by client is not allowed";
+        return CURVEFS_ERROR::NOPERMISSION;
+    }
+
     if (strname.length() > MAX_XATTR_NAME_LENGTH  ||
         size > MAX_XATTR_VALUE_LENGTH) {
         LOG(ERROR) << "xattr length is too long, name = " << name

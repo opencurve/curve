@@ -107,6 +107,8 @@ MetaStatusCode InodeManager::CreateRootInode(const InodeParam& param,
     // 1. generate root inode
     Inode inode;
     GenerateInodeInternal(ROOTINODEID, param, &inode);
+    // set fs used bytes to 0 when creation
+    (*inode.mutable_xattr())[curvefs::XATTR_FS_BYTES] = "0";
 
     // 2. insert root inode
     MetaStatusCode ret = inodeStorage_->Insert(inode, logIndex);

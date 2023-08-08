@@ -38,5 +38,9 @@ const char XATTRRSUBDIRS[] = "curve.dir.rsubdirs";
 const char XATTRRENTRIES[] = "curve.dir.rentries";
 const char XATTRRFBYTES[] = "curve.dir.rfbytes";
 const char SUMMARYPREFIX[] = "curve.dir";
+
+// fs used bytes, only xattr of root inode is valid
+const char XATTR_FS_BYTES[] = "curve.fs.bytes";
+
 }  // namespace curvefs
 #endif  // CURVEFS_SRC_COMMON_DEFINE_H_
