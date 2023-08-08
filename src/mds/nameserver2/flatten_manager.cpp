@@ -31,7 +31,7 @@ void FlattenTask::Run() {
     // do flatten
     flattenCore_->DoFlatten(
         fileName_, fileInfo_, 
-        originFileInfo_, virtualFileInfo_,
+        virtualFileInfo_,
         GetMutableTaskProgress());
     return;
 }
@@ -47,12 +47,10 @@ bool FlattenManagerImpl::Stop(void) {
 bool FlattenManagerImpl::SubmitFlattenJob(uint64_t uniqueId,
                       const std::string &fileName,
                       const FileInfo &fileInfo, 
-                      const FileInfo &originFileInfo,
                       const FileInfo &virtualFileInfo) {
     // submit task
     std::shared_ptr<FlattenTask> task = std::make_shared<FlattenTask>(
-        uniqueId, fileName, fileInfo, 
-        originFileInfo, virtualFileInfo, flattenCore_);
+        uniqueId, fileName, fileInfo, virtualFileInfo, flattenCore_);
 
     return taskManager_->SubmitTask(task);
 }

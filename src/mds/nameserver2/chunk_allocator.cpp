@@ -90,9 +90,18 @@ bool ChunkSegmentAllocatorImpl::AllocateChunkSegment(FileType type,
         return true;
 }
 
-bool ChunkSegmentAllocatorImpl::CloneChunkSegment(const PageFileSegment &srcSegment,
+bool ChunkSegmentAllocatorImpl::CloneChunkSegment(
+    const std::string &srcFileName,
+    uint64_t srcFileId,
+    const PageFileSegment &srcSegment,
     PageFileSegment *segment) {
-    segment->set_iscloned(true);
+    if (srcSegment.has_cloneorigin()) {
+        segment->set_cloneorigin(srcSegment.cloneorigin());
+        segment->set_originfileid(srcSegment.originfileid());
+    } else {
+        segment->set_cloneorigin(srcFileName);
+        segment->set_originfileid(srcFileId);
+    }
     segment->set_logicalpoolid(srcSegment.logicalpoolid());
     segment->set_segmentsize(srcSegment.segmentsize());
     segment->set_chunksize(srcSegment.chunksize());

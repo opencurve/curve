@@ -459,7 +459,9 @@ int ChunkServerClient::FlattenChunk(
     rpcCtx->request.set_offset(ctx->partIndex * ctx->partSize);
     rpcCtx->request.set_size(ctx->partSize);
 
-    rpcCtx->request.set_originchunkid(ctx->originChunkId);
+    if (ctx->originSegmentExist) {
+        rpcCtx->request.set_originchunkid(ctx->originChunkId);
+    }
     rpcCtx->request.set_virtualchunkid(ctx->virtualChunkId);
     rpcCtx->request.set_cloneno(ctx->cloneNo);
     for (auto &clone : ctx->clones) {

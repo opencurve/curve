@@ -109,9 +109,6 @@ void ServiceHelper::ProtoFileInfo2Local(const curve::mds::FileInfo& finfo,
         if (finfo.has_clonesn()) {
             fi->cfinfo.cloneSn = finfo.clonesn();
         }
-        if (finfo.has_cloneorigin()) {
-            fi->cfinfo.cloneOrigin = finfo.cloneorigin();
-        }
         for (int i = 0; i < finfo.clones_size(); i++) {
             CloneInfos cinfo;
             cinfo.cloneNo = finfo.clones(i).cloneno();

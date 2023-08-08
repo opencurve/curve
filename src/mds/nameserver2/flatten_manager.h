@@ -38,12 +38,10 @@ class FlattenTask : public CancelableTask {
     FlattenTask(uint64_t taskId,
                 const std::string &fileName,
                 const FileInfo &fileInfo,
-                const FileInfo &originFileInfo,
                 const FileInfo &virtualFileInfo,
                 const std::shared_ptr<FlattenCore> &flattenCore)
         : fileName_(fileName),
           fileInfo_(fileInfo),
-          originFileInfo_(originFileInfo),
           virtualFileInfo_(virtualFileInfo),
           flattenCore_(flattenCore) {
             SetTaskID(taskId);
@@ -57,7 +55,6 @@ class FlattenTask : public CancelableTask {
  private:
     std::string fileName_;
     FileInfo fileInfo_;
-    FileInfo originFileInfo_;
     FileInfo virtualFileInfo_;
     std::shared_ptr<FlattenCore> flattenCore_;
 };
@@ -70,7 +67,6 @@ class FlattenManager {
     virtual bool SubmitFlattenJob(uint64_t uniqueId,
                                   const std::string &fileName,
                                   const FileInfo &fileInfo,
-                                  const FileInfo &originFileInfo,
                                   const FileInfo &virtualFileInfo) = 0;
 
     virtual std::shared_ptr<FlattenTask> GetFlattenTask(uint64_t uniqueId) = 0;
@@ -92,7 +88,6 @@ class FlattenManagerImpl : public FlattenManager {
     bool SubmitFlattenJob(uint64_t uniqueId,
                           const std::string &fileName,
                           const FileInfo &fileInfo,
-                          const FileInfo &originFileInfo,
                           const FileInfo &virtualFileInfo) override;
 
     std::shared_ptr<FlattenTask> GetFlattenTask(uint64_t uniqueId) override;

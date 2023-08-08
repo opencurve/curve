@@ -88,7 +88,6 @@ message FileInfo {
 
     optional    uint64      cloneNo = 23;  // 如果该卷是克隆卷，保存当前cloneNo
     optional    uint64      cloneSn = 24;  // 如果该卷是克隆卷，保存源快照sn
-    optional    string      cloneOrigin = 25;  // 克隆源, 用于访问克隆源的segment
 
     //clone tree
     message CloneInfos {
@@ -195,7 +194,8 @@ message PageFileSegment {
     required uint32 chunkSize = 4;
     required uint64 startOffset = 2;
     repeated PageFileChunkInfo chunks = 5;
-    optional bool isCloned = 6;
+    optional string cloneOrigin = 6;  // 克隆源, 用于访问克隆源的segment
+    optional uint64 originFileId = 7; // 克隆源文件id
 }
 
 message CreateFileRequest {

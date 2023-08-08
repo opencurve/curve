@@ -199,9 +199,11 @@ bool Splitor::AssignInternal(IOTracker* iotracker, MetaCache* metaCache,
             ctx->sourceInfo_ =
                 CalcRequestSourceInfo(iotracker, metaCache, chunkidx);
         }
-        if (fileInfo->filetype == FileType::INODE_CLONE_PAGEFILE) {
+        if (fileInfo->filetype == FileType::INODE_CLONE_PAGEFILE &&
+            !chunkIdInfo.cloneOrigin_.empty()) {
             ret = AssignCloneFileInfo(
-                iotracker, &templist, mdsclient, fileInfo, chunkidx);
+                iotracker, &templist, mdsclient, 
+                fileInfo, chunkidx, chunkIdInfo);
         }
 
         targetlist->insert(targetlist->end(), templist.begin(),
@@ -443,7 +445,8 @@ int Splitor::AssignCloneFileInfo(IOTracker* iotracker,
     std::vector<RequestContext*>* targetlist,
     MDSClient* mdsclient,
     const FInfo_t* fileInfo,
-    ChunkIndex chunkidx) {
+    ChunkIndex chunkidx,
+    const ChunkIDInfo &chunkIdInfo) {
     MetaCache* virtualVolCache = GlobalMetaCache::GetInstance().
         GetOrNewMetaCacheInstance(curve::common::kVirtualCloneVol,
             fileInfo->userinfo,
@@ -456,7 +459,7 @@ int Splitor::AssignCloneFileInfo(IOTracker* iotracker,
     auto errCode =
         virtualVolCache->GetChunkInfoByIndex(chunkidx, &virtualChunkIdInfo);
 
-    if (NeedGetOrAllocateSegment(errCode, iotracker->Optype(), 
+    if (NeedGetOrAllocateSegment(errCode, OpType::WRITE, 
                                  virtualChunkIdInfo,
                                  virtualVolCache)) {
         if (false == GetOrAllocateSegment(
@@ -481,18 +484,23 @@ int Splitor::AssignCloneFileInfo(IOTracker* iotracker,
 
 
     MetaCache* cloneOriginCache = GlobalMetaCache::GetInstance().
-        GetOrNewMetaCacheInstance(fileInfo->cfinfo.cloneOrigin,
+        GetOrNewMetaCacheInstance(chunkIdInfo.cloneOrigin_,
             fileInfo->userinfo,
             mdsclient);
     if (cloneOriginCache == nullptr) {
-        LOG(ERROR) << "GetOrNewMetaCacheInstance failed";
-        return -1;
+        // clone origin may be deleted
+        ChunkIDInfo tmp(0, 0, 0);
+        tmp.chunkExist = false;
+        for (auto& ctx : *targetlist) {
+            ctx->originChunkIdInfo_ = tmp;
+        }
+        return 0;
     }
-    ChunkIDInfo chunkIdInfo;
+    ChunkIDInfo originChunkIdInfo;
     errCode =
-        cloneOriginCache->GetChunkInfoByIndex(chunkidx, &chunkIdInfo);
+        cloneOriginCache->GetChunkInfoByIndex(chunkidx, &originChunkIdInfo);
 
-    if (NeedGetOrAllocateSegment(errCode, iotracker->Optype(), chunkIdInfo,
+    if (NeedGetOrAllocateSegment(errCode, OpType::READ, originChunkIdInfo,
                                  cloneOriginCache)) {
         if (false == GetOrAllocateSegment(
                          false,
@@ -502,12 +510,12 @@ int Splitor::AssignCloneFileInfo(IOTracker* iotracker,
                          cloneOriginCache->GetFileEpoch(), chunkidx)) {
             return -1;
         }
-        errCode = cloneOriginCache->GetChunkInfoByIndex(chunkidx, &chunkIdInfo);
+        errCode = cloneOriginCache->GetChunkInfoByIndex(chunkidx, &originChunkIdInfo);
     }
 
     if (errCode == MetaCacheErrorType::OK) {
         for (auto& ctx : *targetlist) {
-            ctx->originChunkIdInfo_ = chunkIdInfo;
+            ctx->originChunkIdInfo_ = originChunkIdInfo;
         }
     } else {
         return -1;
