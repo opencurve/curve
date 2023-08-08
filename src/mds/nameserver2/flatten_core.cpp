@@ -50,7 +50,6 @@ struct FlattenChunkClosure : public CopysetClientClosure {
 void FlattenCore::DoFlatten(
     const std::string &fileName,
     const FileInfo &fileInfo,
-    const FileInfo &originFileInfo,
     const FileInfo &virtualFileInfo,
     TaskProgress *progress) {
     // 1. 计算克隆的segment数量
@@ -78,22 +77,28 @@ void FlattenCore::DoFlatten(
             break;
         }
 
-        if (!segment.iscloned()) {
+        if (!segment.has_originfileid()) {
             // not clone segment
             continue;
         }
 
         // 3. 加载origin segment
         PageFileSegment originSegment;
-        storeRet = storage_->GetSegment(originFileInfo.id(),
+        bool originSegmentExist = true;
+        storeRet = storage_->GetSegment(segment.originfileid(),
             i * segmentSize, &originSegment);
         if (storeRet != StoreStatus::OK) {
-            LOG(ERROR) << "load origin segment fail, file: " << fileName
-                       << ", id: " << fileInfo.id()
-                       << ", originFileId: " << originFileInfo.id()
-                       << ", offset: " << i * segmentSize;
-            ret = kMdsFail;
-            break;
+            // may be origin segment not exist
+            if (storeRet == StoreStatus::KeyNotExist) {
+                originSegmentExist = false;
+            } else {
+                LOG(ERROR) << "load origin segment fail, file: " << fileName
+                           << ", id: " << fileInfo.id()
+                           << ", originFileId: " << segment.originfileid()
+                           << ", offset: " << i * segmentSize;
+                ret = kMdsFail;
+                break;
+            }
         }
 
         // 4. 加载virtual segment
@@ -134,7 +139,12 @@ void FlattenCore::DoFlatten(
             context->chunkSize = fileInfo.chunksize();
             context->partIndex = 0;
             context->partSize = option_.flattenChunkPartSize;
-            context->originChunkId = originSegment.chunks(j).chunkid();
+            context->originSegmentExist = originSegmentExist;
+            if (originSegmentExist) {
+                context->originChunkId = originSegment.chunks(j).chunkid();
+            } else {
+                context->originChunkId = 0;
+            }
             context->virtualChunkId = virtualSegment.chunks(j).chunkid();
             context->cloneNo = fileInfo.cloneno();
             for (int i = 0; i < fileInfo.clones_size(); i++) {

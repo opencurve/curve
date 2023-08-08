@@ -64,6 +64,7 @@ struct FlattenChunkContext {
     CopysetID copysetId;
     ChunkID chunkId;
     uint64_t seqNum;
+    bool originSegmentExist;
     ChunkID originChunkId;
     ChunkID virtualChunkId;
     uint64_t cloneNo;

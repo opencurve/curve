@@ -78,13 +78,13 @@ typedef struct ChunkIDInfo {
     LogicPoolID     lpid_ = 0;
 
     bool chunkExist = true;
-    bool isCloned_ = false;
+    std::string cloneOrigin_;
 
     ChunkIDInfo() = default;
 
     ChunkIDInfo(ChunkID cid, LogicPoolID lpid, CopysetID cpid,
-        bool isCloned = false)
-          : cid_(cid), cpid_(cpid), lpid_(lpid), isCloned_(isCloned) {}
+        const std::string &cloneOrigin = "")
+          : cid_(cid), cpid_(cpid), lpid_(lpid), cloneOrigin_(cloneOrigin) {}
 
     bool Valid() const {
         return lpid_ > 0 && cpid_ > 0;
@@ -143,7 +143,6 @@ struct CloneInfos {
 struct CloneFileInfo {
     uint64_t cloneNo;
     uint64_t cloneSn;
-    std::string cloneOrigin;
     std::vector<CloneInfos> clones;
     CloneFileInfo()
       : cloneNo(0), cloneSn(0) {}

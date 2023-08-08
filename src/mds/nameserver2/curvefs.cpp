@@ -2002,7 +2002,7 @@ StatusCode CurveFS::Clone(const std::string &fileName,
             srcFileInfo.id(), offset, &srcSegment);
         if (storeRet == StoreStatus::OK) {
             auto ifok = chunkSegAllocator_->CloneChunkSegment(
-                    srcSegment, &segment);
+                    srcFileName, srcFileInfo.id(), srcSegment, &segment);
             if (ifok == false) {
                 LOG(ERROR) << "CloneChunkSegment error";
                 return StatusCode::kSegmentAllocateError;
@@ -2087,7 +2087,6 @@ StatusCode CurveFS::Clone(const std::string &fileName,
         cinfo->set_cloneno(srcFileInfo.cloneno());
     } else {
         cinfo->set_cloneno(0);
-        fileInfo->set_cloneorigin(srcFileName);
     }
     cinfo->set_clonesn(seq);
     ret = LookUpCloneChain(srcFileInfo, fileInfo);
@@ -2128,7 +2127,6 @@ StatusCode CurveFS::LookUpCloneChain(
             cinfo->set_cloneno(cloneSourceFileInfo.cloneno());
         } else {
             cinfo->set_cloneno(0);
-            fileInfo->set_cloneorigin(tmpInfo.clonesource());
         }
         if (!tmpInfo.has_clonesn()) {
             LOG(ERROR) << "LookUpCloneChain found tmpInfo is a clone file "
@@ -2229,16 +2227,6 @@ StatusCode CurveFS::Flatten(const std::string &fileName,
         }
     }
 
-    // get origin fileInfo
-    FileInfo originFileInfo;
-    ret = GetFileInfo(fileInfo.cloneorigin(), &originFileInfo);
-    if (ret != StatusCode::kOK) {
-        LOG(ERROR) << "Flatten get origin file info error, fileName = "
-                   << fileName
-                   << ", errCode = " << ret
-                   << ", errName = " << StatusCode_Name(ret);
-        return ret;
-    }
     // get virtual fileInfo
     FileInfo virtualFileInfo;
     ret = GetVirtualCloneVolFileInfo(
@@ -2265,7 +2253,7 @@ StatusCode CurveFS::Flatten(const std::string &fileName,
 
     // submit to FlattenManager
     bool success =  flattenManager_->SubmitFlattenJob(
-        fileInfo.id(), fileName, fileInfo, originFileInfo, virtualFileInfo);
+        fileInfo.id(), fileName, fileInfo, virtualFileInfo);
     if (!success) {
         LOG(ERROR) << "Flatten submit flatten job failed, fileName = "
                    << fileName
@@ -3293,19 +3281,9 @@ bool CurveFS::ResumeFlattenJob() {
                 success = false;
                 continue;
             }
-            FileInfo originFileInfo;
-            ret = GetFileInfo(fileInfo.cloneorigin(), &originFileInfo);
-            if (ret != StatusCode::kOK) {
-                LOG(ERROR) << "Flatten get origin file info error, fileName = "
-                           << fileName
-                           << ", errCode = " << ret
-                           << ", errName = " << StatusCode_Name(ret);
-                success = false;
-                continue;
-            }
             bool success =  flattenManager_->SubmitFlattenJob(
                 fileInfo.id(), fileName, 
-                fileInfoNew, originFileInfo, virtualFileInfo);
+                fileInfoNew, virtualFileInfo);
             if (!success) {
                 LOG(ERROR) << "Flatten submit flatten job failed, fileName = "
                            << fileName

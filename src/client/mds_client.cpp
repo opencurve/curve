@@ -1098,6 +1098,11 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate, uint64_t offset,
         LogicPoolID logicpoolid = pfs.logicalpoolid();
         segInfo->lpcpIDInfo.lpid = pfs.logicalpoolid();
 
+        std::string cloneOrigin;
+        if (pfs.has_cloneorigin()) {
+            cloneOrigin = pfs.cloneorigin();
+        }
+
         int chunksNum = pfs.chunks_size();
         if (allocate && chunksNum <= 0) {
             LOG(WARNING) << "MDS allocate segment, but no chunkinfo!";
@@ -1110,7 +1115,7 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate, uint64_t offset,
             CopysetID copysetid = pfs.chunks(i).copysetid();
             segInfo->lpcpIDInfo.cpidVec.push_back(copysetid);
             segInfo->chunkvec.emplace_back(chunkid, logicpoolid, copysetid, 
-                pfs.iscloned());
+                pfs.cloneorigin());
         }
         return LIBCURVE_ERROR::OK;
     };

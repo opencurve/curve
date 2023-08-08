@@ -129,7 +129,8 @@ class Splitor {
                                    std::vector<RequestContext*>* targetlist,
                                    MDSClient* mdsclient,
                                    const FInfo_t* fi,
-                                   ChunkIndex chunkidx);
+                                   ChunkIndex chunkidx,
+                                   const ChunkIDInfo &chunkIdInfo);
 
     static bool GetOrAllocateSegment(bool allocateIfNotExist,
                                      uint64_t offset,
