@@ -11,7 +11,7 @@ on:
 
 jobs:
   format:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
         with:
@@ -21,7 +21,7 @@ jobs:
           # that's what will get formatted (i.e. the most recent commit)
           fetch-depth: 2
       # format the latest commit
-      - uses: purduesigbots/clang-format-action@1
+      - uses: purduesigbots/clang-format-action@1.0.2
         # use one of clang-format's supported styles or leave this out to use the style in your .clang-format file
         with:
           style: .clang-format
