@@ -439,7 +439,7 @@ void ReadChunkRequest::ReadChunk() {
 
         ctx->cloneNo = request_->cloneno();
         ctx->rootId = request_->originchunkid();
-        ctx->virtualId = request_->virtualchunkid();
+        ctx->virtualId = request_->chunkindex();
         ctx->clones.reserve(CLONEINFOS_VECTOR_SIZE);
         for (int i = 0; i < request_->clones_size(); i++) {
             uint64_t tno = request_->clones(i).cloneno();
@@ -462,7 +462,7 @@ void ReadChunkRequest::ReadChunk() {
                   << " data size: " << request_->size()
                   << " clone no: " << request_->cloneno()
                   << " root id: " << request_->originchunkid()
-                  << " virtual id: " << request_->virtualchunkid()
+                  << " virtual id: " << request_->chunkindex()
                   << " clones info: " << clonesinfo
                   << " readbuffer: " << static_cast<const void*>(readBuffer);
 
@@ -531,7 +531,7 @@ void WriteChunkRequest::OnApply(uint64_t index,
 
         ctx->cloneNo = request_->cloneno();
         ctx->rootId = request_->originchunkid();
-        ctx->virtualId = request_->virtualchunkid();
+        ctx->virtualId = request_->chunkindex();
         ctx->clones.reserve(CLONEINFOS_VECTOR_SIZE);
         for (int i = 0; i < request_->clones_size(); i++) {
             uint64_t tno = request_->clones(i).cloneno();
@@ -554,7 +554,7 @@ void WriteChunkRequest::OnApply(uint64_t index,
                   << " data size: " << request_->size()
                   << " clone no: " << request_->cloneno()
                   << " root id: " << request_->originchunkid()
-                  << " virtual id: " << request_->virtualchunkid()
+                  << " virtual id: " << request_->chunkindex()
                   << " clones info: " << clonesinfo;
 
         ret = datastore_->WriteChunk(request_->chunkid(),
@@ -639,7 +639,7 @@ void WriteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
 
         ctx->cloneNo = request.cloneno();
         ctx->rootId = request.originchunkid();
-        ctx->virtualId = request.virtualchunkid();
+        ctx->virtualId = request.chunkindex();
         ctx->clones.reserve(CLONEINFOS_VECTOR_SIZE);
         for (int i = 0; i < request.clones_size(); i++) {
             uint64_t tno = request.clones(i).cloneno();
@@ -662,7 +662,7 @@ void WriteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                   << " data size: " << request.size()
                   << " clone no: " << request.cloneno()
                   << " root id: " << request.originchunkid()
-                  << " virtual id: " << request.virtualchunkid()
+                  << " virtual id: " << request.chunkindex()
                   << " clones info: " << clonesinfo;
         
 
@@ -727,7 +727,7 @@ void ReadSnapshotRequest::OnApply(uint64_t index,
         
         ctx->cloneNo = request_->cloneno();
         ctx->rootId = request_->originchunkid();
-        ctx->virtualId = request_->virtualchunkid();
+        ctx->virtualId = request_->chunkindex();
         ctx->clones.reserve(CLONEINFOS_VECTOR_SIZE);
         for (int i = 0; i < request_->clones_size(); i++) {
             uint64_t tno = request_->clones(i).cloneno();
@@ -751,7 +751,7 @@ void ReadSnapshotRequest::OnApply(uint64_t index,
                   << " data size: " << request_->size()
                   << " clone no: " << request_->cloneno()
                   << " root id: " << request_->originchunkid()
-                  << " virtual id: " << request_->virtualchunkid()
+                  << " virtual id: " << request_->chunkindex()
                   << " clones info: " << clonesinfo;
 
         ret = datastore_->ReadSnapshotChunk(request_->chunkid(),
@@ -1098,7 +1098,7 @@ void FlattenChunkRequest::OnApply(uint64_t index,
     ctx->cloneNo = request_->cloneno();
     assert(ctx->cloneNo > 0);
     ctx->rootId = request_->originchunkid();
-    ctx->virtualId = request_->virtualchunkid();
+    ctx->virtualId = request_->chunkindex();
     ctx->clones.reserve(CLONEINFOS_VECTOR_SIZE);
     for (int i = 0; i < request_->clones_size(); i++) {
         uint64_t tno = request_->clones(i).cloneno();
@@ -1121,7 +1121,7 @@ void FlattenChunkRequest::OnApply(uint64_t index,
                 << " data size: " << request_->size()
                 << " clone no: " << request_->cloneno()
                 << " root id: " << request_->originchunkid()
-                << " virtual id: " << request_->virtualchunkid()
+                << " virtual id: " << request_->chunkindex()
                 << " clones info: " << clonesinfo;
 
     ret = datastore_->FlattenChunk(request_->chunkid(), 
@@ -1193,7 +1193,7 @@ void FlattenChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
     ctx->cloneNo = request.cloneno();
     assert(ctx->cloneNo > 0);
     ctx->rootId = request.originchunkid();
-    ctx->virtualId = request.virtualchunkid();
+    ctx->virtualId = request.chunkindex();
     ctx->clones.reserve(CLONEINFOS_VECTOR_SIZE);
     for (int i = 0; i < request.clones_size(); i++) {
         uint64_t tno = request.clones(i).cloneno();
@@ -1216,7 +1216,7 @@ void FlattenChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                 << " data size: " << request.size()
                 << " clone no: " << request.cloneno()
                 << " root id: " << request.originchunkid()
-                << " virtual id: " << request.virtualchunkid()
+                << " virtual id: " << request.chunkindex()
                 << " clones info: " << clonesinfo;
     
     ret = datastore->FlattenChunk(request.chunkid(), 
