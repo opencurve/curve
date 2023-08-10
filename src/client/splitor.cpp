@@ -447,42 +447,6 @@ int Splitor::AssignCloneFileInfo(IOTracker* iotracker,
     const FInfo_t* fileInfo,
     ChunkIndex chunkidx,
     const ChunkIDInfo &chunkIdInfo) {
-    MetaCache* virtualVolCache = GlobalMetaCache::GetInstance().
-        GetOrNewMetaCacheInstance(curve::common::kVirtualCloneVol,
-            fileInfo->userinfo,
-            mdsclient);
-    if (virtualVolCache == nullptr) {
-        LOG(ERROR) << "GetOrNewMetaCacheInstance failed";
-        return -1;
-    }
-    ChunkIDInfo virtualChunkIdInfo;
-    auto errCode =
-        virtualVolCache->GetChunkInfoByIndex(chunkidx, &virtualChunkIdInfo);
-
-    if (NeedGetOrAllocateSegment(errCode, OpType::WRITE, 
-                                 virtualChunkIdInfo,
-                                 virtualVolCache)) {
-        if (false == GetOrAllocateSegment(
-                         true,
-                         static_cast<uint64_t>(chunkidx) * fileInfo->chunksize,
-                         mdsclient, virtualVolCache, 
-                         virtualVolCache->GetFileInfo(), 
-                         virtualVolCache->GetFileEpoch(), chunkidx)) {
-            return -1;
-        }
-        errCode = virtualVolCache->GetChunkInfoByIndex(chunkidx, &virtualChunkIdInfo);
-    }
-
-    if (errCode == MetaCacheErrorType::OK) {
-        for (auto& ctx : *targetlist) {
-            ctx->cfinfo_ = fileInfo->cfinfo;
-            ctx->virtualChunkIdInfo_ = virtualChunkIdInfo;
-        }
-    } else {
-        return -1;
-    }
-
-
     MetaCache* cloneOriginCache = GlobalMetaCache::GetInstance().
         GetOrNewMetaCacheInstance(chunkIdInfo.cloneOrigin_,
             fileInfo->userinfo,
@@ -492,12 +456,14 @@ int Splitor::AssignCloneFileInfo(IOTracker* iotracker,
         ChunkIDInfo tmp(0, 0, 0);
         tmp.chunkExist = false;
         for (auto& ctx : *targetlist) {
+            ctx->cfinfo_ = fileInfo->cfinfo;
+            ctx->chunkIndex_ = chunkidx;
             ctx->originChunkIdInfo_ = tmp;
         }
         return 0;
     }
     ChunkIDInfo originChunkIdInfo;
-    errCode =
+    MetaCacheErrorType errCode =
         cloneOriginCache->GetChunkInfoByIndex(chunkidx, &originChunkIdInfo);
 
     if (NeedGetOrAllocateSegment(errCode, OpType::READ, originChunkIdInfo,
@@ -515,6 +481,8 @@ int Splitor::AssignCloneFileInfo(IOTracker* iotracker,
 
     if (errCode == MetaCacheErrorType::OK) {
         for (auto& ctx : *targetlist) {
+            ctx->cfinfo_ = fileInfo->cfinfo;
+            ctx->chunkIndex_ = chunkidx;
             ctx->originChunkIdInfo_ = originChunkIdInfo;
         }
     } else {

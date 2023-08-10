@@ -76,8 +76,6 @@ const int SEGMENTKEYLEN = 18;
 constexpr int kDefaultPoolsetId = 1;
 constexpr char kDefaultPoolsetName[] = "default";
 
-const char kVirtualCloneVol[] = "/virutalCloneVol";
-
 }  // namespace common
 }  // namespace curve
 

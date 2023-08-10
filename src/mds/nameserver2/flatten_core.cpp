@@ -50,11 +50,11 @@ struct FlattenChunkClosure : public CopysetClientClosure {
 void FlattenCore::DoFlatten(
     const std::string &fileName,
     const FileInfo &fileInfo,
-    const FileInfo &virtualFileInfo,
     TaskProgress *progress) {
     // 1. 计算克隆的segment数量
     uint64_t segmentSize = fileInfo.segmentsize();
     uint64_t cloneSegmentNum = fileInfo.clonelength() / segmentSize;
+    uint64_t chunkNumPerSegment = segmentSize / fileInfo.chunksize();
 
     int ret = kMdsSuccess;
     uint32_t workingChunkNum = 0;
@@ -101,20 +101,7 @@ void FlattenCore::DoFlatten(
             }
         }
 
-        // 4. 加载virtual segment
-        PageFileSegment virtualSegment;
-        storeRet = storage_->GetSegment(virtualFileInfo.id(),
-            i * segmentSize, &virtualSegment);
-        if (storeRet != StoreStatus::OK) {
-            LOG(ERROR) << "load virtual segment fail, file: " << fileName
-                       << ", id: " << fileInfo.id()
-                       << ", virtualFileId: " << virtualFileInfo.id()
-                       << ", offset: " << i * segmentSize;
-            ret = kMdsFail;
-            break;
-        }
-
-        // 5. flatten chunk
+        // 4. flatten chunk
         LogicalPoolID logicalPoolId = segment.logicalpoolid();
         uint32_t chunkNum = segment.chunks_size();
         for (uint32_t j = 0; j != chunkNum; j++) {
@@ -145,7 +132,7 @@ void FlattenCore::DoFlatten(
             } else {
                 context->originChunkId = 0;
             }
-            context->virtualChunkId = virtualSegment.chunks(j).chunkid();
+            context->chunkIndex = chunkNumPerSegment * i + j;
             context->cloneNo = fileInfo.cloneno();
             for (int i = 0; i < fileInfo.clones_size(); i++) {
                 CloneInfos cloneInfo;
