@@ -66,7 +66,7 @@ struct FlattenChunkContext {
     uint64_t seqNum;
     bool originSegmentExist;
     ChunkID originChunkId;
-    ChunkID virtualChunkId;
+    ChunkID chunkIndex;
     uint64_t cloneNo;
     std::vector<CloneInfos> clones;
 

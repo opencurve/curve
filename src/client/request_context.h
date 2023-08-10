@@ -122,7 +122,7 @@ struct CURVE_CACHELINE_ALIGNMENT RequestContext {
     FileType            filetype_;
     CloneFileInfo       cfinfo_;
     ChunkIDInfo         originChunkIdInfo_;
-    ChunkIDInfo         virtualChunkIdInfo_;
+    uint64_t            chunkIndex_;
 
     static RequestContext* NewInitedRequestContext() {
         RequestContext* ctx = new (std::nothrow) RequestContext();

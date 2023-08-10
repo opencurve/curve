@@ -348,38 +348,32 @@ void NameSpaceService::GetFileInfo(
     FileReadLockGuard guard(fileLockManager_, request->filename());
 
     StatusCode retCode;
-    if (kCurveFS.isVirtualCloneVol(request->filename()) == true) {
-        retCode = kCurveFS.GetVirtualCloneVolFileInfo(
-             request->filename(),
-             response->mutable_fileinfo());
-    } else {
-        std::string signature;
-        if (request->has_signature()) {
-            signature = request->signature();
-        }
-        retCode = kCurveFS.CheckFileOwner(request->filename(), request->owner(),
-                                          signature, request->date());
-        if (retCode != StatusCode::kOK) {
-            response->set_statuscode(retCode);
-            if (google::ERROR != GetMdsLogLevel(retCode)) {
-                LOG(WARNING) << "logid = " << cntl->log_id()
-                    << ", CheckFileOwner fail, filename = " 
-                    <<  request->filename()
-                    << ", owner = " << request->owner()
-                    << ", statusCode = " << retCode;
-            } else {
-                LOG(ERROR) << "logid = " << cntl->log_id()
-                    << ", CheckFileOwner fail, filename = " 
-                    <<  request->filename()
-                    << ", owner = " << request->owner()
-                    << ", statusCode = " << retCode;
-            }
-            return;
-        }
-
-        retCode = kCurveFS.GetFileInfoWithCloneChain(request->filename(),
-            response->mutable_fileinfo());
+    std::string signature;
+    if (request->has_signature()) {
+        signature = request->signature();
     }
+    retCode = kCurveFS.CheckFileOwner(request->filename(), request->owner(),
+                                      signature, request->date());
+    if (retCode != StatusCode::kOK) {
+        response->set_statuscode(retCode);
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = " 
+                <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = " 
+                <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        }
+        return;
+    }
+
+    retCode = kCurveFS.GetFileInfoWithCloneChain(request->filename(),
+        response->mutable_fileinfo());
 
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
@@ -432,48 +426,46 @@ void NameSpaceService::GetOrAllocateSegment(
 
     FileWriteLockGuard guard(fileLockManager_, request->filename());
 
-    StatusCode retCode;
-    if (kCurveFS.isVirtualCloneVol(request->filename()) != true) {
-        std::string signature;
-        if (request->has_signature()) {
-            signature = request->signature();
-        }
+    std::string signature;
+    if (request->has_signature()) {
+        signature = request->signature();
+    }
 
-        retCode = kCurveFS.CheckFileOwner(request->filename(), request->owner(),
-                                          signature, request->date());
+    StatusCode retCode = kCurveFS.CheckFileOwner(
+        request->filename(), request->owner(),
+        signature, request->date());
+    if (retCode != StatusCode::kOK) {
+        response->set_statuscode(retCode);
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = " <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = " <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        }
+        return;
+    }
+
+    if (request->allocateifnotexist() && request->has_epoch()) {
+        retCode = kCurveFS.CheckEpoch(request->filename(), request->epoch());
         if (retCode != StatusCode::kOK) {
             response->set_statuscode(retCode);
             if (google::ERROR != GetMdsLogLevel(retCode)) {
                 LOG(WARNING) << "logid = " << cntl->log_id()
-                    << ", CheckFileOwner fail, filename = " <<  request->filename()
-                    << ", owner = " << request->owner()
+                    << ", CheckEpoch fail, filename = " <<  request->filename()
+                    << ", epoch = " << request->epoch()
                     << ", statusCode = " << retCode;
             } else {
                 LOG(ERROR) << "logid = " << cntl->log_id()
-                    << ", CheckFileOwner fail, filename = " <<  request->filename()
-                    << ", owner = " << request->owner()
+                    << ", CheckEpoch fail, filename = " <<  request->filename()
+                    << ", epoch = " << request->epoch()
                     << ", statusCode = " << retCode;
             }
             return;
-        }
-
-        if (request->allocateifnotexist() && request->has_epoch()) {
-            retCode = kCurveFS.CheckEpoch(request->filename(), request->epoch());
-            if (retCode != StatusCode::kOK) {
-                response->set_statuscode(retCode);
-                if (google::ERROR != GetMdsLogLevel(retCode)) {
-                    LOG(WARNING) << "logid = " << cntl->log_id()
-                        << ", CheckEpoch fail, filename = " <<  request->filename()
-                        << ", epoch = " << request->epoch()
-                        << ", statusCode = " << retCode;
-                } else {
-                    LOG(ERROR) << "logid = " << cntl->log_id()
-                        << ", CheckEpoch fail, filename = " <<  request->filename()
-                        << ", epoch = " << request->epoch()
-                        << ", statusCode = " << retCode;
-                }
-                return;
-            }
         }
     }
 
@@ -1436,8 +1428,6 @@ void NameSpaceService::Clone(::google::protobuf::RpcController* controller,
         signature = request->signature();
     }
 
-    FileWriteLockGuard virtualVolGuard(fileLockManager_, 
-        curve::common::kVirtualCloneVol);
     FileWriteLockGuard guard(fileLockManager_, request->filename(),
                                                srcFileName);
 

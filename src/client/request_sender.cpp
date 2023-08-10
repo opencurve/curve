@@ -115,7 +115,7 @@ int RequestSender::WriteChunk(RequestContext *ctx,
         if (ctx->originChunkIdInfo_.chunkExist) {
             request.set_originchunkid(ctx->originChunkIdInfo_.cid_);
         }
-        request.set_virtualchunkid(ctx->virtualChunkIdInfo_.cid_);
+        request.set_chunkindex(ctx->chunkIndex_);
         request.set_cloneno(ctx->cfinfo_.cloneNo);
         for(int i = 0; i < ctx->cfinfo_.clones.size(); i++) {
             auto cinfo = request.add_clones();
@@ -164,7 +164,7 @@ int RequestSender::ReadChunk(RequestContext *ctx,
 
     if (ctx->filetype_ == FileType::INODE_CLONE_PAGEFILE) {
         request.set_originchunkid(ctx->originChunkIdInfo_.cid_);
-        request.set_virtualchunkid(ctx->virtualChunkIdInfo_.cid_);
+        request.set_chunkindex(ctx->chunkIndex_);
         request.set_cloneno(ctx->cfinfo_.cloneNo);
         for(int i = 0; i < ctx->cfinfo_.clones.size(); i++) {
             auto cinfo = request.add_clones();

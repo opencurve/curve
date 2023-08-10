@@ -471,24 +471,6 @@ StatusCode CurveFS::GetFileInfoWithCloneChain(const std::string & filename,
     }
 }
 
-StatusCode CurveFS::GetVirtualCloneVolFileInfo(const std::string & filename,
-                       FileInfo *fileInfo) const {
-    fileInfo->set_id(VIRTUALCLONEVOLINODEID);
-    fileInfo->set_filename(filename);
-    fileInfo->set_poolset(kDefaultPoolsetName);
-    fileInfo->set_parentid(rootFileInfo_.id());
-    fileInfo->set_filetype(FileType::INODE_PAGEFILE);
-    fileInfo->set_owner(GetRootOwner());
-    fileInfo->set_chunksize(defaultChunkSize_);
-    fileInfo->set_segmentsize(defaultSegmentSize_);
-    fileInfo->set_length(maxFileLength_);
-    fileInfo->set_ctime(0);
-    fileInfo->set_seqnum(kStartSeqNum);
-    fileInfo->set_filestatus(FileStatus::kFileCreated);
-    fileInfo->set_blocksize(g_block_size);
-    return StatusCode::kOK;
-}
-
 AllocatedSize& AllocatedSize::operator+=(const AllocatedSize& rhs) {
     total += rhs.total;
     for (const auto& item : rhs.allocSizeMap) {
@@ -1312,13 +1294,8 @@ StatusCode CurveFS::GetOrAllocateSegment(const std::string & filename,
         offset_t offset, bool allocateIfNoExist,
         PageFileSegment *segment) {
     assert(segment != nullptr);
-    StatusCode ret;
     FileInfo  fileInfo;
-    if (isVirtualCloneVol(filename)) {
-        ret = GetVirtualCloneVolFileInfo(filename, &fileInfo);
-    } else {
-        ret = GetFileInfo(filename, &fileInfo);
-    }
+    StatusCode ret = GetFileInfo(filename, &fileInfo);
     if (ret != StatusCode::kOK) {
         LOG(INFO) << "get source file error, errCode = " << ret;
         return  ret;
@@ -1369,12 +1346,9 @@ StatusCode CurveFS::GetOrAllocateSegment(const std::string & filename,
                            << offset;
                 return StatusCode::kStorageError;
             }
-            // virtual volume does not take up storage space
-            if (!isVirtualCloneVol(filename)) {
-                allocStatistic_->AllocSpace(segment->logicalpoolid(),
-                        segment->segmentsize(),
-                        revision);
-            }
+            allocStatistic_->AllocSpace(segment->logicalpoolid(),
+                    segment->segmentsize(),
+                    revision);
             LOG(INFO) << "alloc segment success, fileInfo.id() = "
                       << fileInfo.id()
                       << ", offset = " << offset;
@@ -1989,10 +1963,6 @@ StatusCode CurveFS::Clone(const std::string &fileName,
         return ret;
     }
 
-    FileInfo virtualFileInfo;
-    GetVirtualCloneVolFileInfo(curve::common::kVirtualCloneVol, 
-            &virtualFileInfo);
-
     // clone segment
     LOG(INFO) << "Clone Segment length: " << cloneLength;
     for (uint64_t offset = 0; offset < cloneLength; offset += segmentSize) {
@@ -2019,37 +1989,6 @@ StatusCode CurveFS::Clone(const std::string &fileName,
             allocStatistic_->AllocSpace(segment.logicalpoolid(),
                     segment.segmentsize(),
                     revision);
-
-            // alloc virtual segment
-            PageFileSegment virtualSegment;
-            storeRet = storage_->GetSegment(
-                virtualFileInfo.id(), offset, &virtualSegment);
-            if (storeRet == StoreStatus::OK) {
-                // exist, do nothing
-            } else if (storeRet == StoreStatus::KeyNotExist) {
-                auto ifok = chunkSegAllocator_->AllocateChunkSegment(
-                    virtualFileInfo.filetype(), virtualFileInfo.segmentsize(),
-                    virtualFileInfo.chunksize(),
-                    virtualFileInfo.has_poolset() ? virtualFileInfo.poolset()
-                                           : kDefaultPoolsetName,
-                    offset, &virtualSegment);
-                if (ifok == false) {
-                    LOG(ERROR) << "Allocate virutal Segment error";
-                    return StatusCode::kSegmentAllocateError;
-                }
-                int64_t revision;
-                if (storage_->PutSegment(virtualFileInfo.id(), offset, 
-                    &virtualSegment, &revision)
-                    != StoreStatus::OK) {
-                    LOG(ERROR) << "PutSegment fail, virtualFileInfo.id() = "
-                               << virtualFileInfo.id()
-                               << ", offset = "
-                               << offset;
-                    return StatusCode::kStorageError;
-                }
-            } else {
-                return StatusCode::KInternalError;
-            }
             LOG(INFO) << "clone segment success, fileInfo.id() = "
                       << fileInfo->id()
                       << ", offset = " << offset;
@@ -2227,18 +2166,6 @@ StatusCode CurveFS::Flatten(const std::string &fileName,
         }
     }
 
-    // get virtual fileInfo
-    FileInfo virtualFileInfo;
-    ret = GetVirtualCloneVolFileInfo(
-            curve::common::kVirtualCloneVol, &virtualFileInfo);
-    if (ret != StatusCode::kOK) {
-        LOG(ERROR) << "Flatten get virtual clone vol file info error, "
-                   << "fileName = " << fileName
-                   << ", errCode = " << ret
-                   << ", errName = " << StatusCode_Name(ret);
-        return ret;
-    }
-
     // set file status to flattening
     fileInfo.set_filestatus(FileStatus::kFileFlattening);
     // set filename for resume flatten job
@@ -2253,7 +2180,7 @@ StatusCode CurveFS::Flatten(const std::string &fileName,
 
     // submit to FlattenManager
     bool success =  flattenManager_->SubmitFlattenJob(
-        fileInfo.id(), fileName, fileInfo, virtualFileInfo);
+        fileInfo.id(), fileName, fileInfo);
     if (!success) {
         LOG(ERROR) << "Flatten submit flatten job failed, fileName = "
                    << fileName
@@ -3246,25 +3173,14 @@ StatusCode CheckStripeParam(uint64_t segmentSize,
 }
 
 bool CurveFS::ResumeFlattenJob() {
-    // get virtual fileInfo
-    FileInfo virtualFileInfo;
-    StatusCode ret = GetVirtualCloneVolFileInfo(
-            curve::common::kVirtualCloneVol, &virtualFileInfo);
-    if (ret != StatusCode::kOK) {
-        LOG(ERROR) << "Flatten get virtual clone vol file info error, "
-                   << ", errCode = " << ret
-                   << ", errName = " << StatusCode_Name(ret);
-        return false;
-    }
-
     // load task from storage
     std::vector<FileInfo> fileInfos;
     StoreStatus storageRet = storage_->LoadFileInfos(&fileInfos);
     if (storageRet != StoreStatus::OK) {
-        LOG(ERROR) << "load fileInfos from storage failed, ret = " << ret;
+        LOG(ERROR) << "load fileInfos from storage failed, ret = " 
+                   << storageRet;
         return false;
     }
-    
     bool success = true;
     // submit task
     for (auto fileInfo : fileInfos) {
@@ -3272,7 +3188,7 @@ bool CurveFS::ResumeFlattenJob() {
             (fileInfo.filestatus() == FileStatus::kFileFlattening)) {
             std::string fileName = fileInfo.originalfullpathname();
             FileInfo fileInfoNew = fileInfo;
-             ret = LookUpCloneChain(fileInfo, &fileInfoNew);
+            StatusCode ret = LookUpCloneChain(fileInfo, &fileInfoNew);
             if (ret != StatusCode::kOK) {
                 LOG(ERROR) << "Flatten look up clone chain error, "
                            << "fileName = " << fileName
@@ -3283,7 +3199,7 @@ bool CurveFS::ResumeFlattenJob() {
             }
             bool success =  flattenManager_->SubmitFlattenJob(
                 fileInfo.id(), fileName, 
-                fileInfoNew, virtualFileInfo);
+                fileInfoNew);
             if (!success) {
                 LOG(ERROR) << "Flatten submit flatten job failed, fileName = "
                            << fileName

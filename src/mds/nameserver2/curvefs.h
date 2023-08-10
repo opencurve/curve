@@ -176,13 +176,6 @@ class CurveFS {
     StatusCode GetFileInfoWithCloneChain(const std::string & filename,
                            FileInfo * inode) const;
 
-    bool isVirtualCloneVol(const std::string & filename) {
-        return filename == curve::common::kVirtualCloneVol;
-    }
-
-    StatusCode GetVirtualCloneVolFileInfo(const std::string & filename,
-                           FileInfo * inode) const;
-
      /**
      *  @brief get the allocated file size
      *  @param: fileName
