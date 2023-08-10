@@ -610,7 +610,7 @@ void ChunkServiceImpl::FlattenChunk(RpcController *controller,
     LOG(INFO) << "Get FlattenChunk I/O request, op: " << request->optype()
              << " chunkId: " << request->chunkid()
              << " copysetId: " << request->copysetid() 
-             << " virtualChunkId: " << request->virtualchunkid()
+             << " chunkIndex: " << request->chunkindex()
              << " originChunkId: " << request->originchunkid()
              << " cloneNo: " << request->cloneno();
 
