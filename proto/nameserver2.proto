@@ -95,6 +95,9 @@ message FileInfo {
         required uint64 cloneSn = 2;
     }
     repeated    CloneInfos  clones = 26;  // 向client端返回的克隆链，不持久化
+
+    optional bool isProtected = 27;  // for snapshot
+    repeated string children = 28;
 }
 
 // status code
@@ -175,6 +178,12 @@ enum  StatusCode {
     kFileStatusInvalid = 142;
     // flatten file type invalid
     kFileTypeInvalid = 143;
+    // snapshot not protected
+    kSnapshotFileNotProtected = 144;
+    // snapshot protected
+    kSnapshotFileProtected=145;
+    // file is flattening
+    kFileIsFlattening = 146;
 
     // 元数据存储错误
     kStorageError = 501;
@@ -395,6 +404,35 @@ message CheckSnapShotStatusResponse {
     optional uint32 progress  = 3;
 }
 
+// protect & unprotect
+message ProtectSnapShotRequest {
+    optional string     snapFileName = 1;
+    optional string     fileName = 2;
+    optional uint64     seq = 3;
+
+    required string     owner = 4;
+    optional string     signature = 5;
+    required uint64     date = 6;
+}
+
+message ProtectSnapShotResponse {
+    required StatusCode statusCode = 1;
+}
+
+message UnprotectSnapShotRequest {
+    optional string     snapFileName = 1;
+    optional string     fileName = 2;
+    optional uint64     seq = 3;
+
+    required string     owner = 4;
+    optional string     signature = 5;
+    required uint64     date = 6;
+}
+
+message UnprotectSnapShotResponse {
+    required StatusCode statusCode = 1;
+}
+
 // clone rpcs
 message CloneRequest {
     required string     fileName = 1;
@@ -437,6 +475,21 @@ message QueryFlattenStatusResponse {
     required StatusCode statusCode = 1;
     optional FileStatus fileStatus = 2;
     optional uint32 progress = 3;
+}
+
+// children message
+message ChildrenRequest {
+    optional string     fileName = 1;
+    optional uint64     seq = 2;
+    optional string     snapFileName = 3;
+    required string     owner = 4;
+    optional string     signature = 5;
+    required uint64     date = 6;
+}
+
+message ChildrenResponse {
+    required StatusCode statusCode = 1;
+    repeated string fileNames = 2;
 }
 
 // session rpcs
@@ -655,6 +708,11 @@ service CurveFSService {
     rpc     GetSnapShotFileSegment(GetOrAllocateSegmentRequest)
                 returns (GetOrAllocateSegmentResponse);
 
+    rpc    ProtectSnapShot(ProtectSnapShotRequest)
+            returns (ProtectSnapShotResponse);
+    rpc    UnprotectSnapShot(UnprotectSnapShotRequest)
+            returns (UnprotectSnapShotResponse);
+
     // local clone rpcs
     rpc     Clone(CloneRequest)
                 returns(CloneResponse);
@@ -663,6 +721,8 @@ service CurveFSService {
     // query flatten status
     rpc    QueryFlattenStatus(QueryFlattenStatusRequest)
                 returns (QueryFlattenStatusResponse);
+    // children rpcs
+    rpc    Children(ChildrenRequest) returns (ChildrenResponse);
 
     // session rpcs
     rpc     OpenFile(OpenFileRequest) returns (OpenFileResponse);

@@ -66,6 +66,9 @@ class NameServerStorage {
      */
     virtual StoreStatus PutFile(const FileInfo & fileInfo) = 0;
 
+    virtual StoreStatus Put2File(const FileInfo &fileInfo1,
+        const FileInfo &fileInfo2) = 0;
+
     /**
      * @brief GetFile Get metadata of the specified file
      *
@@ -147,6 +150,11 @@ class NameServerStorage {
      */
     virtual StoreStatus MoveFileToRecycle(
         const FileInfo &originFileInfo, const FileInfo &recycleFileInfo) = 0;
+
+    virtual StoreStatus MoveCloneFileToRecycle(
+        const FileInfo &originFileInfo, 
+        const FileInfo &snapshotFileInfo,
+        const FileInfo &recycleFileInfo) = 0;
 
     /**
      * @brief ListFile: Get all files between [startid, endid)
@@ -258,6 +266,9 @@ class NameServerStorageImp : public NameServerStorage {
 
     StoreStatus PutFile(const FileInfo & fileInfo) override;
 
+    StoreStatus Put2File(const FileInfo &fileInfo1,
+        const FileInfo &fileInfo2) override;
+
     StoreStatus GetFile(InodeID id,
                         const std::string &filename,
                         FileInfo * fileInfo) override;
@@ -282,6 +293,10 @@ class NameServerStorageImp : public NameServerStorage {
 
     StoreStatus MoveFileToRecycle(const FileInfo &originFileInfo,
                                 const FileInfo &recycleFileInfo) override;
+
+    StoreStatus MoveCloneFileToRecycle(const FileInfo &originFileInfo,
+        const FileInfo &snapshotFileInfo,
+        const FileInfo &recycleFileInfo) override;
 
     StoreStatus ListFile(InodeID startid,
                         InodeID endid,

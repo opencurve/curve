@@ -38,7 +38,6 @@
 
 using curve::common::TimeUtility;
 using curve::common::kDefaultPoolsetName;
-using curve::common::StringToUll;
 using curve::mds::topology::LogicalPool;
 using curve::mds::topology::LogicalPoolIdType;
 using curve::mds::topology::PhysicalPool;
@@ -58,29 +57,6 @@ ClientInfo EndPointToClientInfo(const butil::EndPoint& ep) {
     info.set_port(ep.port);
 
     return info;
-}
-
-const std::string kSnapshotPathSeprator = "/";
-const std::string kSnapshotSeqSeprator = "-";
-
-std::string MakeSnapshotName(const std::string &fileName, FileSeqType seq) {
-    return fileName + kSnapshotSeqSeprator + std::to_string(seq);
-}
-
-bool SplitSnapshotPath(const std::string &snapFilePath,
-    std::string *filePath, FileSeqType *seq) {
-    auto pos = snapFilePath.find_last_of(kSnapshotPathSeprator);
-    if (snapFilePath.npos == pos) {
-        return false;
-    }
-    *filePath = snapFilePath.substr(0, pos);
-    std::string snapFileName = snapFilePath.substr(pos + 1);
-    pos = snapFileName.find_last_of(kSnapshotSeqSeprator);
-    if (snapFileName.npos == pos) {
-        return false;
-    }
-    std::string seqStr = snapFileName.substr(pos + 1);
-    return StringToUll(seqStr, seq);
 }
 
 bool CurveFS::InitRecycleBinDir() {
@@ -266,7 +242,7 @@ StatusCode CurveFS::PutFile(const FileInfo & fileInfo) {
 }
 
 StatusCode CurveFS::SnapShotFile(const FileInfo * origFileInfo,
-                                const FileInfo * snapshotFile) const {
+                                 const FileInfo * snapshotFile) const {
     if (storage_->SnapShotFile(origFileInfo, snapshotFile) != StoreStatus::OK) {
         return StatusCode::kStorageError;
     } else {
@@ -580,7 +556,7 @@ StatusCode CurveFS::GetFileSize(const std::string& fileName,
                                 uint64_t* fileSize) {
     // return file length if it is a file
     switch (fileInfo.filetype()) {
-        case FileType::INODE_PAGEFILE: 
+        case FileType::INODE_PAGEFILE:
         case FileType::INODE_CLONE_PAGEFILE: {
             *fileSize = fileInfo.length();
             return StatusCode::kOK;
@@ -733,7 +709,8 @@ StatusCode CurveFS::DeleteFile(const std::string & filename, uint64_t fileId,
         LOG(INFO) << "delete file success, file is directory"
                   << ", filename = " << filename;
         return StatusCode::kOK;
-    } else if (fileInfo.filetype() == FileType::INODE_PAGEFILE) {
+    } else if ((fileInfo.filetype() == FileType::INODE_PAGEFILE) ||
+               (fileInfo.filetype() == FileType::INODE_CLONE_PAGEFILE)) {
         StatusCode ret = CheckFileCanChange(filename, fileInfo);
         if (ret == StatusCode::kDeleteFileBeingCloned) {
             bool isHasCloneRely;
@@ -767,13 +744,57 @@ StatusCode CurveFS::DeleteFile(const std::string & filename, uint64_t fileId,
                 std::to_string(recycleFileInfo.id()));
             recycleFileInfo.set_originalfullpathname(filename);
 
-            StoreStatus ret1 =
-                storage_->MoveFileToRecycle(fileInfo, recycleFileInfo);
-            if (ret1 != StoreStatus::OK) {
-                LOG(ERROR) << "delete file, move file to recycle fail"
-                        << ", filename = " << filename
-                        << ", ret = " << ret1;
-                return StatusCode::kStorageError;
+            // check if clone file
+            if (fileInfo.filetype() == FileType::INODE_CLONE_PAGEFILE) {
+                std::string srcFileName = fileInfo.clonesource();
+                FileSeqType seq = fileInfo.clonesn();
+                FileInfo srcFileInfo;
+                FileInfo snapFileInfo;
+                StatusCode ret = GetSnapShotFileInfo(
+                    srcFileName, seq, &snapFileInfo, &srcFileInfo);
+                if (ret != StatusCode::kOK) {
+                    LOG(ERROR) << "delete file LookUp SnapFile srcfile: "
+                               << MakeSnapshotName(srcFileInfo.filename(), seq)
+                               << ", failed, ret: " << ret;
+                    // not return error, to compatibility
+                    // with error scenarios
+                    StoreStatus ret1 =
+                        storage_->MoveFileToRecycle(fileInfo, recycleFileInfo);
+                    if (ret1 != StoreStatus::OK) {
+                        LOG(ERROR) << "delete file, move file to recycle fail"
+                                << ", filename = " << filename
+                                << ", ret = " << ret1;
+                        return StatusCode::kStorageError;
+                    }
+                } else {
+                    for (auto it = snapFileInfo.mutable_children()->begin();
+                        it != snapFileInfo.mutable_children()->end();
+                        ++it) {
+                        if (*it == filename) {
+                            snapFileInfo.mutable_children()->erase(it);
+                            break;
+                        }
+                    }
+                    StoreStatus ret1 =
+                        storage_->MoveCloneFileToRecycle(fileInfo,
+                            snapFileInfo,
+                            recycleFileInfo);
+                    if (ret1 != StoreStatus::OK) {
+                        LOG(ERROR) << "delete file, move file to recycle fail"
+                                << ", filename = " << filename
+                                << ", ret = " << ret1;
+                        return StatusCode::kStorageError;
+                    }
+                }
+            } else {
+                StoreStatus ret1 =
+                    storage_->MoveFileToRecycle(fileInfo, recycleFileInfo);
+                if (ret1 != StoreStatus::OK) {
+                    LOG(ERROR) << "delete file, move file to recycle fail"
+                            << ", filename = " << filename
+                            << ", ret = " << ret1;
+                    return StatusCode::kStorageError;
+                }
             }
             LOG(INFO) << "file delete to recyclebin, fileName = " << filename
                       << ", recycle filename = " << recycleFileInfo.filename();
@@ -1032,6 +1053,13 @@ StatusCode CurveFS::CheckFileCanChange(const std::string &fileName,
         LOG(WARNING) << "CheckFileCanChange, file is being Cloned, "
                    << "need check first, fileName = " << fileName;
         return StatusCode::kDeleteFileBeingCloned;
+    }
+
+    // check if file is flattening
+    if (fileInfo.filestatus() == FileStatus::kFileFlattening) {
+        LOG(WARNING) << "CheckFileCanChange, file is being Flattening, "
+                   << "need check first, fileName = " << fileName;
+        return StatusCode::kFileIsFlattening;
     }
 
     // since the file record is not persistent, after mds switching the leader,
@@ -1525,7 +1553,7 @@ StatusCode CurveFS::ListSnapShotFile(const std::string & fileName,
 
     FileInfo tmpfileInfo;
     FileInfo* fileInfo = srcfileInfo != nullptr ? srcfileInfo : &tmpfileInfo;
-    
+
     ret = LookUpFile(parentFileInfo, lastEntry, fileInfo);
     if (ret != StatusCode::kOK) {
         LOG(ERROR) << fileName << ", LookUpFile error";
@@ -1553,31 +1581,24 @@ StatusCode CurveFS::ListSnapShotFile(const std::string & fileName,
 }
 
 StatusCode CurveFS::GetSnapShotFileInfo(const std::string &fileName,
-                        FileSeqType seq, FileInfo *snapshotFileInfo, FileInfo *fileInfo) const {
-    std::vector<FileInfo> snapShotFileInfos;
-    StatusCode ret =  ListSnapShotFile(fileName, &snapShotFileInfos, fileInfo);
+    FileSeqType seq, FileInfo *snapshotFileInfo, FileInfo *srcfileInfo) const {
+    FileInfo tmpfileInfo;
+    FileInfo* fileInfo = srcfileInfo != nullptr ? srcfileInfo : &tmpfileInfo;
+
+    StatusCode ret = GetFileInfo(fileName, fileInfo);
     if (ret != StatusCode::kOK) {
-        LOG(INFO) << "ListSnapShotFile error";
+        LOG(ERROR) << "GetFileInfo failed, ret: " << ret;
         return ret;
     }
 
-    if (snapShotFileInfos.size() == 0) {
-        LOG(INFO) << "file not under snapshot";
-        return StatusCode::kSnapshotFileNotExists;
+    ret = LookUpSnapFile(*fileInfo,
+        MakeSnapshotName(fileInfo->filename(), seq), snapshotFileInfo);
+    if (ret != StatusCode::kOK) {
+        LOG(ERROR) << "LookUpSnapFile srcfile: "
+                   << MakeSnapshotName(fileInfo->filename(), seq)
+                   << ", failed, ret: " << ret;
+        return ret;
     }
-
-    unsigned int index;
-    for ( index = 0; index != snapShotFileInfos.size(); index++ ) {
-        if (snapShotFileInfos[index].seqnum() == static_cast<uint64_t>(seq)) {
-          break;
-        }
-    }
-    if (index == snapShotFileInfos.size()) {
-        LOG(INFO) << fileName << " snapshotFile seq = " << seq << " not find";
-        return StatusCode::kSnapshotFileNotExists;
-    }
-
-    *snapshotFileInfo = snapShotFileInfos[index];
     return StatusCode::kOK;
 }
 
@@ -1654,6 +1675,13 @@ StatusCode CurveFS::DeleteFileSnapShotFile2(const std::string &fileName,
         << ", status error, status = " << snapShotFileInfo.filestatus();
         return StatusCode::KInternalError;
     }
+    // check if snapshot is protected
+    if (snapShotFileInfo.isprotected()) {
+        LOG(ERROR) << "fileName = " << fileName
+        << ", seq = " << seq
+        << ", snapshot is protected";
+        return StatusCode::kSnapshotFileProtected;
+    }
 
     snapShotFileInfo.set_filestatus(FileStatus::kFileDeleting);
     // remove snapshot seq number from fileInfo,
@@ -1662,12 +1690,12 @@ StatusCode CurveFS::DeleteFileSnapShotFile2(const std::string &fileName,
     auto findSnap = std::find(snaps->begin(), snaps->end(), seq);
     if (findSnap == snaps->end()) {
         LOG(WARNING) << "fileName = " << fileName
-                     << ", seq = " << seq 
+                     << ", seq = " << seq
                      << ", not found in fileInfo!";
     } else {
         snaps->erase(findSnap);
     }
-    // // set current existed snapshot seqs to the snapshot fileinfo, 
+    // // set current existed snapshot seqs to the snapshot fileinfo,
     // // thus no need to get these snaps info from original fileinfo
     // for (auto i = 0; i < fileInfo.snaps_size(); i++) {
     //     snapShotFileInfo.add_snaps(fileInfo.snaps(i));
@@ -1868,6 +1896,88 @@ StatusCode CurveFS::GetSnapShotFileSegment(
     }
 }
 
+StatusCode CurveFS::ProtectSnapShot(const std::string &fileName,
+                                    FileSeqType seq,
+                                    const std::string &owner) {
+    // check the existence of snap file
+    FileInfo srcFileInfo;
+    FileInfo snapFileInfo;
+    auto ret = GetSnapShotFileInfo(fileName, seq, &snapFileInfo, &srcFileInfo);
+    if (ret != StatusCode::kOK) {
+        LOG(ERROR) << "GetSnapShotFileInfo failed, ret: " << ret;
+        return ret;
+    }
+
+    // check the owner of the file
+    if (snapFileInfo.owner() != owner) {
+        LOG(ERROR) << "ProtectSnapShot failed, owner not match, "
+                   << "snapFileInfo.owner(): " << snapFileInfo.owner()
+                   << ", owner: " << owner;
+        return StatusCode::kOwnerAuthFail;
+    }
+
+    // chunk if alread protected
+    if (snapFileInfo.has_isprotected() && snapFileInfo.isprotected()) {
+        LOG(INFO) << "ProtectSnapShot already proteced"
+                  << ", fileName: " << fileName
+                  << ", seq: " << seq;
+        return StatusCode::kOK;
+    }
+
+    snapFileInfo.set_isprotected(true);
+    ret = PutFile(snapFileInfo);
+    if (ret != StatusCode::kOK) {
+        LOG(ERROR) << "ProtectSnapShot failed, PutFile failed, "
+                   << "fileName: " << fileName
+                   << ", seq: " << seq
+                   << ", ret: " << ret;
+        return ret;
+    }
+    return StatusCode::kOK;
+}
+
+StatusCode CurveFS::UnprotectSnapShot(const std::string &fileName,
+                                      FileSeqType seq,
+                                      const std::string &owner) {
+    // check the existence of snap file
+    FileInfo srcFileInfo;
+    FileInfo snapFileInfo;
+    auto ret = GetSnapShotFileInfo(fileName, seq, &snapFileInfo, &srcFileInfo);
+    if (ret != StatusCode::kOK) {
+        LOG(ERROR) << "GetSnapShotFileInfo failed, ret: " << ret;
+        return ret;
+    }
+
+    // check the owner of the file
+    if (snapFileInfo.owner() != owner) {
+        LOG(ERROR) << "ProtectSnapShot failed, owner not match, "
+                   << "snapFileInfo.owner(): " << snapFileInfo.owner()
+                   << ", owner: " << owner;
+        return StatusCode::kOwnerAuthFail;
+    }
+
+    if (!snapFileInfo.has_isprotected() || !snapFileInfo.isprotected()) {
+        return StatusCode::kOK;
+    }
+
+    // check if children exist
+    if (snapFileInfo.children_size() != 0) {
+        return StatusCode::kFileOccupied;
+    }
+
+    // do unprotect
+    snapFileInfo.set_isprotected(false);
+    ret = PutFile(snapFileInfo);
+    if (ret != StatusCode::kOK) {
+        LOG(ERROR) << "UnprotectSnapShot failed, PutFile failed, "
+                   << "fileName: " << fileName
+                   << ", seq: " << seq
+                   << ", ret: " << ret;
+        return ret;
+    }
+    return StatusCode::kOK;
+}
+
 StatusCode CurveFS::Clone(const std::string &fileName,
         const std::string& owner,
         const std::string &srcFileName,
@@ -1894,36 +2004,21 @@ StatusCode CurveFS::Clone(const std::string &fileName,
     if (ret != StatusCode::kFileNotExists) {
         LOG(ERROR) << "LookUpFile failed, ret: " << ret;
         return ret;
-    } 
+    }
 
     // check the existence of the snap file
-    FileInfo srcParentFileInfo;
-    std::string srcLastEntry;
-    ret = WalkPath(srcFileName, &srcParentFileInfo, &srcLastEntry);
-    if (ret != StatusCode::kOK ) {
-        LOG(ERROR) << "WalkPath failed, ret: " << ret
-                   << ", path: " << srcFileName;
-        return ret;
-    }
-    if (srcLastEntry.empty()) {
-        LOG(ERROR) << "Clone failed, srcfile not exist.";
-        return StatusCode::kSnapshotFileNotExists;
-    }
     FileInfo srcFileInfo;
-    ret = LookUpFile(srcParentFileInfo, srcLastEntry, &srcFileInfo);
+    FileInfo snapFileInfo;
+    ret = GetSnapShotFileInfo(srcFileName, seq, &snapFileInfo, &srcFileInfo);
     if (ret != StatusCode::kOK) {
-        LOG(ERROR) << "LookUpFile srcfile: " << srcLastEntry
-                   << ", failed, ret: " << ret;
+        LOG(ERROR) << "GetSnapShotFileInfo failed, ret: " << ret;
         return ret;
     }
-    FileInfo snapFileInfo;
-    ret = LookUpSnapFile(srcFileInfo, 
-        MakeSnapshotName(srcLastEntry, seq), &snapFileInfo);
-    if (ret != StatusCode::kOK) {
-        LOG(ERROR) << "LookUpSnapFile srcfile: " 
-                   << MakeSnapshotName(srcLastEntry, seq)
-                   << ", failed, ret: " << ret;
-        return ret;
+
+    // Check if the snapshot is protected
+    if (!snapFileInfo.has_isprotected() || !snapFileInfo.isprotected()) {
+        LOG(ERROR) << "Clone failed, snapfile not protected.";
+        return StatusCode::kSnapshotFileNotProtected;
     }
 
     // start clone
@@ -2013,15 +2108,23 @@ StatusCode CurveFS::Clone(const std::string &fileName,
     fileInfo->set_clonesn(seq);
     fileInfo->set_initclonesegment(true);
 
-    ret = PutFile(*fileInfo);
-    if (ret != StatusCode::kOK) {
-        return ret;
+    // add child to snapshot
+    snapFileInfo.add_children(fileName);
+
+    if (storage_->Put2File(*fileInfo, snapFileInfo) != StoreStatus::OK) {
+        LOG(ERROR) << "Clone Put2File fail, fileName = "
+                   << fileName
+                   << ", fileInfo.id() = "
+                   << fileInfo->id()
+                   << ", snapshotFile.id() = "
+                   << snapFileInfo.id();
+        return StatusCode::kStorageError;
     }
 
     // lookup clone chain
     FileInfo_CloneInfos *cinfo = fileInfo->add_clones();
     // is clone file & not flattend
-    if ((FileType::INODE_CLONE_PAGEFILE == srcFileInfo.filetype()) && 
+    if ((FileType::INODE_CLONE_PAGEFILE == srcFileInfo.filetype()) &&
            (srcFileInfo.has_clonesource())) {
         cinfo->set_cloneno(srcFileInfo.cloneno());
     } else {
@@ -2036,7 +2139,7 @@ StatusCode CurveFS::LookUpCloneChain(
     const FileInfo &srcFileInfo, FileInfo *fileInfo) const {
     // is clone file & not flattend
     FileInfo tmpInfo = srcFileInfo;
-    while ((FileType::INODE_CLONE_PAGEFILE == tmpInfo.filetype()) && 
+    while ((FileType::INODE_CLONE_PAGEFILE == tmpInfo.filetype()) &&
            (tmpInfo.has_clonesource())) {
         // lookup parent
         FileInfo parentFileInfo;
@@ -2059,9 +2162,9 @@ StatusCode CurveFS::LookUpCloneChain(
             LOG(ERROR) << "LookUpCloneChain lookup clonesource error: " << ret;
             return ret;
         }
-        
+
         FileInfo_CloneInfos *cinfo = fileInfo->add_clones();
-        if ((FileType::INODE_CLONE_PAGEFILE == cloneSourceFileInfo.filetype()) && 
+        if ((FileType::INODE_CLONE_PAGEFILE == cloneSourceFileInfo.filetype()) &&
                (cloneSourceFileInfo.has_clonesource())) {
             cinfo->set_cloneno(cloneSourceFileInfo.cloneno());
         } else {
@@ -2100,7 +2203,7 @@ StatusCode CurveFS::Flatten(const std::string &fileName,
                    << ", errName = " << StatusCode_Name(ret);
         return ret;
     }
-    
+
     // check the owner of the file
     if (fileInfo.owner() != owner) {
         LOG(ERROR) << "Flatten owner not match, fileName = " << fileName
@@ -2125,7 +2228,7 @@ StatusCode CurveFS::Flatten(const std::string &fileName,
     // check file status
     if (fileInfo.filestatus() != FileStatus::kFileCreated) {
         if (fileInfo.filestatus() == FileStatus::kFileFlattening) {
-            auto task = flattenManager_->GetFlattenTask(fileInfo.id()); 
+            auto task = flattenManager_->GetFlattenTask(fileInfo.id());
             // not exist, means the task has been finished or resume failed
             if (task == nullptr) {
                 // get file info again
@@ -2178,9 +2281,20 @@ StatusCode CurveFS::Flatten(const std::string &fileName,
         return ret;
     }
 
+    // check the existence of the snap file
+    std::string srcFileName = fileInfo.clonesource();
+    FileSeqType seq = fileInfo.clonesn();
+    FileInfo srcFileInfo;
+    FileInfo snapFileInfo;
+    ret = GetSnapShotFileInfo(srcFileName, seq, &snapFileInfo, &srcFileInfo);
+    if (ret != StatusCode::kOK) {
+        LOG(ERROR) << "GetSnapShotFileInfo failed, ret: " << ret;
+        return ret;
+    }
+
     // submit to FlattenManager
     bool success =  flattenManager_->SubmitFlattenJob(
-        fileInfo.id(), fileName, fileInfo);
+        fileInfo.id(), fileName, fileInfo, snapFileInfo);
     if (!success) {
         LOG(ERROR) << "Flatten submit flatten job failed, fileName = "
                    << fileName
@@ -2259,7 +2373,7 @@ StatusCode CurveFS::QueryFlattenStatus(const std::string &fileName,
     }
 
     // get flatten progress
-    auto task = flattenManager_->GetFlattenTask(fileInfo.id()); 
+    auto task = flattenManager_->GetFlattenTask(fileInfo.id());
     // not exist, means the task has been finished
     if (task == nullptr) {
         // get file info again
@@ -2285,6 +2399,40 @@ StatusCode CurveFS::QueryFlattenStatus(const std::string &fileName,
     }
 
     *progress = task->GetProgress();
+    return StatusCode::kOK;
+}
+
+StatusCode CurveFS::Children(const std::string &fileName,
+            FileSeqType seq,
+            ::google::protobuf::RepeatedPtrField<std::string> *children) {
+    StatusCode ret;
+    std::vector<FileInfo> snapshotFileInfos;
+    if (seq != 0) {
+        FileInfo snapshotFileInfo;
+        ret = GetSnapShotFileInfo(fileName, seq, &snapshotFileInfo);
+        if (ret != StatusCode::kOK) {
+            LOG(ERROR) << "Children get snapshot file info failed, fileName = "
+                       << fileName
+                       << ", seq = " << seq
+                       << ", errCode = " << ret
+                       << ", errName = " << StatusCode_Name(ret);
+            return ret;
+        }
+        snapshotFileInfos.push_back(snapshotFileInfo);
+    } else {
+        ret = ListSnapShotFile(fileName, &snapshotFileInfos);
+        if (ret != StatusCode::kOK) {
+            LOG(ERROR) << "Children list snapshot file failed, fileName = "
+                       << fileName
+                       << ", errCode = " << ret
+                       << ", errName = " << StatusCode_Name(ret);
+            return ret;
+        }
+    }
+
+    for (auto& fileInfo : snapshotFileInfos) {
+        children->MergeFrom(fileInfo.children());
+    }
     return StatusCode::kOK;
 }
 
@@ -3177,7 +3325,7 @@ bool CurveFS::ResumeFlattenJob() {
     std::vector<FileInfo> fileInfos;
     StoreStatus storageRet = storage_->LoadFileInfos(&fileInfos);
     if (storageRet != StoreStatus::OK) {
-        LOG(ERROR) << "load fileInfos from storage failed, ret = " 
+        LOG(ERROR) << "load fileInfos from storage failed, ret = "
                    << storageRet;
         return false;
     }
@@ -3197,9 +3345,21 @@ bool CurveFS::ResumeFlattenJob() {
                 success = false;
                 continue;
             }
+
+            std::string srcFileName = fileInfo.clonesource();
+            FileSeqType seq = fileInfo.clonesn();
+            FileInfo srcFileInfo;
+            FileInfo snapFileInfo;
+            ret = GetSnapShotFileInfo(srcFileName, seq, &snapFileInfo, &srcFileInfo);
+            if (ret != StatusCode::kOK) {
+                LOG(ERROR) << "GetSnapShotFileInfo failed, ret: " << ret;
+                success = false;
+                continue;
+            }
+
             bool success =  flattenManager_->SubmitFlattenJob(
-                fileInfo.id(), fileName, 
-                fileInfoNew);
+                fileInfo.id(), fileName,
+                fileInfoNew, snapFileInfo);
             if (!success) {
                 LOG(ERROR) << "Flatten submit flatten job failed, fileName = "
                            << fileName

@@ -176,6 +176,19 @@ FileWriteLockGuard::FileWriteLockGuard(FileLockManager *fileLockManager,
                                        const std::string &path1,
                                        const std::string &path2) {
     fileLockManager_ = fileLockManager;
+    if (path1.empty())  {
+        if (path2.empty()) {
+            return;
+        }
+        path_.push_back(path2);
+        fileLockManager_->WriteLock(path2);
+    } else {
+        if (path2.empty()) {
+            path_.push_back(path1);
+            fileLockManager_->WriteLock(path1);
+            return;
+        }
+    }
     int r = strcmp(path1.c_str(), path2.c_str());
     if (r == 0) {
         path_.push_back(path1);
@@ -193,7 +206,9 @@ FileWriteLockGuard::FileWriteLockGuard(FileLockManager *fileLockManager,
     }
 }
 FileWriteLockGuard::~FileWriteLockGuard() {
-    if (path_.size() == 1) {
+    if (path_.empty()) {
+        return;
+    } else if (path_.size() == 1) {
         fileLockManager_->Unlock(path_[0]);
     } else {
         fileLockManager_->Unlock(path_[1]);

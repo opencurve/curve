@@ -37,6 +37,9 @@ import (
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/update"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/clone"
     "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/flatten"
+    "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/protect"
+    "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/unprotect"
+    "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/children"
 )
 
 type CurveBsCommand struct {
@@ -58,6 +61,9 @@ func (bsCmd *CurveBsCommand) AddSubCommands() {
 		snapshot.NewSnapshotCommand(),
         clone.NewCloneCommand(),
         flatten.NewFlattenCommand(),
+        protect.NewProtectCommand(),
+        unprotect.NewUnprotectCommand(),
+        children.NewChildrenCommand(),
 	)
 }
 

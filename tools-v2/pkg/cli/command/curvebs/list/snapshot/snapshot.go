@@ -134,7 +134,9 @@ func (pCmd *SnapShotCommand) Init(cmd *cobra.Command, args []string) error {
 		cobrautil.ROW_OWNER,
 		cobrautil.ROW_CTIME,
 		cobrautil.ROW_FILE_SIZE,
-    cobrautil.ROW_SEQ,
+        cobrautil.ROW_SEQ,
+        cobrautil.ROW_ISPROTECT,
+        cobrautil.ROW_CHILDREN_COUNT,
 	}
 	pCmd.SetHeader(header)
 	pCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
@@ -175,8 +177,10 @@ func (pCmd *SnapShotCommand) RunCommand(cmd *cobra.Command, args []string) error
 		row[cobrautil.ROW_FILE_TYPE] = fmt.Sprintf("%v", info.GetFileType())
 		row[cobrautil.ROW_OWNER] = info.GetOwner()
 		row[cobrautil.ROW_CTIME] = time.Unix(int64(info.GetCtime()/1000000), 0).Format("2006-01-02 15:04:05")
-    row[cobrautil.ROW_FILE_SIZE] = fmt.Sprintf("%s", humanize.IBytes(info.GetLength()))
-    row[cobrautil.ROW_SEQ] = fmt.Sprintf("%d", info.GetSeqNum())
+        row[cobrautil.ROW_FILE_SIZE] = fmt.Sprintf("%s", humanize.IBytes(info.GetLength()))
+        row[cobrautil.ROW_SEQ] = fmt.Sprintf("%d", info.GetSeqNum())
+        row[cobrautil.ROW_ISPROTECT] = fmt.Sprintf("%t", info.GetIsProtected())
+        row[cobrautil.ROW_CHILDREN_COUNT] = fmt.Sprintf("%d", len(info.GetChildren()))
 		rows = append(rows, row)
 	}
 	list := cobrautil.ListMap2ListSortByKeys(rows, pCmd.Header, []string{cobrautil.ROW_OWNER, cobrautil.ROW_FILE_TYPE, cobrautil.ROW_PARENT_ID})
