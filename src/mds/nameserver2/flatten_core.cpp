@@ -21,6 +21,7 @@
  */
 
 #include "src/mds/nameserver2/flatten_core.h"
+#include "src/mds/nameserver2/helper/namespace_helper.h"
 
 using curve::mds::chunkserverclient::CopysetClientClosure;
 using curve::mds::chunkserverclient::CloneInfos;
@@ -50,6 +51,7 @@ struct FlattenChunkClosure : public CopysetClientClosure {
 void FlattenCore::DoFlatten(
     const std::string &fileName,
     const FileInfo &fileInfo,
+    const FileInfo &snapFileInfo,
     TaskProgress *progress) {
     // 1. 计算克隆的segment数量
     uint64_t segmentSize = fileInfo.segmentsize();
@@ -171,8 +173,10 @@ void FlattenCore::DoFlatten(
     } else {
         CHECK(ret >= 0 && workingChunkNum == 0);
 
-        FileReadLockGuard guard(fileLockManager_, fileName);
-        // 重新获取 FileInfo 
+        std::string srcFileName = fileInfo.clonesource();
+        FileSeqType seq = fileInfo.clonesn();
+        FileWriteLockGuard guard(fileLockManager_, fileName, srcFileName);
+        // reget FileInfo 
         FileInfo fileInfoNew;
         StoreStatus st = storage_->GetFile(
             fileInfo.parentid(), fileInfo.filename(), 
@@ -188,16 +192,48 @@ void FlattenCore::DoFlatten(
         fileInfoNew.set_filestatus(FileStatus::kFileCreated);
         fileInfoNew.set_filetype(FileType::INODE_PAGEFILE);
 
-        st = storage_->PutFile(fileInfoNew);
+        // reget snapFileInfo
+        FileInfo snapFileInfoNew;
+        st = storage_->GetSnapFile(
+            snapFileInfo.parentid(), snapFileInfo.filename(),
+            &snapFileInfoNew);
         if (st != StoreStatus::OK) {
-            LOG(ERROR) << "update file info fail, file: " << fileName
-                       << ", id: " << fileInfo.id();
-            progress->SetStatus(TaskStatus::FAILED);
+            LOG(ERROR) << "flatten LookUp SnapFile srcfile: " 
+                       << snapFileInfo.filename()
+                       << ", failed, ret: " << st;
+            // not return error, to compatibility 
+            // with error scenarios
+            st = storage_->PutFile(fileInfoNew);
+            if (st != StoreStatus::OK) {
+                LOG(ERROR) << "update file info fail, file: " << fileName
+                           << ", id: " << fileInfo.id();
+                progress->SetStatus(TaskStatus::FAILED);
+            } else {
+                LOG(INFO) << "flatten file success, file: "  << fileName
+                          << ", id: "<< fileInfo.id();
+                progress->SetStatus(TaskStatus::SUCCESS);
+                progress->SetProgress(100);
+            }
         } else {
-            LOG(INFO) << "flatten file success, file: "  << fileName
-                      << ", id: "<< fileInfo.id();
-            progress->SetStatus(TaskStatus::SUCCESS);
-            progress->SetProgress(100);
+            for (auto it = snapFileInfoNew.mutable_children()->begin(); 
+                it != snapFileInfoNew.mutable_children()->end(); 
+                ++it) {
+                if (*it == fileName) {
+                    snapFileInfoNew.mutable_children()->erase(it);
+                    break;
+                }
+            }
+            if (storage_->Put2File(fileInfoNew, snapFileInfoNew) 
+                != StoreStatus::OK) {
+                LOG(ERROR) << "update file info fail, file: " << fileName
+                           << ", id: " << fileInfo.id();
+                progress->SetStatus(TaskStatus::FAILED);
+            } else {
+                LOG(INFO) << "flatten file success, file: "  << fileName
+                          << ", id: "<< fileInfo.id();
+                progress->SetStatus(TaskStatus::SUCCESS);
+                progress->SetProgress(100);
+            }
         }
     }
     return;

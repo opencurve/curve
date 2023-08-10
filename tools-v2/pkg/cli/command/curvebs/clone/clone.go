@@ -70,7 +70,6 @@ var _ basecmd.FinalCurveCmdFunc = (*cloneCommand)(nil)
 func (fCmd *cloneCommand) Init(cmd *cobra.Command, args []string) error {
 	fileName := config.GetBsFlagString(fCmd.Cmd, config.CURVEBS_DSTPATH)
 
-
 	date, errDat := cobrautil.GetTimeofDayUs()
 	owner := config.GetBsFlagString(fCmd.Cmd, config.CURVEBS_USER)
 	if errDat.TypeCode() != cmderror.CODE_SUCCESS {
@@ -141,15 +140,15 @@ func (fCmd *cloneCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	}
 
 	info := fCmd.Response.GetFileInfo()
-  row := make(map[string]string)
+    row := make(map[string]string)
 	row[cobrautil.ROW_ID] = fmt.Sprintf("%d", info.GetId())
 	row[cobrautil.ROW_FILE_NAME] = info.GetFileName()
 	row[cobrautil.ROW_PARENT_ID] = fmt.Sprintf("%d", info.GetParentId())
 	row[cobrautil.ROW_FILE_TYPE] = fmt.Sprintf("%v", info.GetFileType())
 	row[cobrautil.ROW_OWNER] = info.GetOwner()
 	row[cobrautil.ROW_CTIME] = time.Unix(int64(info.GetCtime()/1000000), 0).Format("2006-01-02 15:04:05")
-  row[cobrautil.ROW_FILE_SIZE] = fmt.Sprintf("%s", humanize.IBytes(info.GetLength()))
-  row[cobrautil.ROW_RESULT] = cmderror.Success().Message
+    row[cobrautil.ROW_FILE_SIZE] = fmt.Sprintf("%s", humanize.IBytes(info.GetLength()))
+    row[cobrautil.ROW_RESULT] = cmderror.Success().Message
 
 	fCmd.TableNew.Append(cobrautil.Map2List(row, fCmd.Header))
 	return nil

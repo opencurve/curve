@@ -376,6 +376,86 @@ StoreStatus NameServerStorageImp::MoveFileToRecycle(
     return getErrorCode(errCode);
 }
 
+StoreStatus NameServerStorageImp::MoveCloneFileToRecycle(const FileInfo &originFileInfo,
+    const FileInfo &snapshotFileInfo,
+    const FileInfo &recycleFileInfo) {
+    std::string originFileInfoKey;
+    auto res = GetStoreKey(originFileInfo.filetype(), originFileInfo.parentid(),
+        originFileInfo.filename(), &originFileInfoKey);
+    if (res != StoreStatus::OK) {
+        LOG(ERROR) << "get store key failed, filename = "
+                   << originFileInfo.filename();
+        return StoreStatus::InternalError;
+    }
+
+    std::string snapshotFileInfoKey;
+    res = GetStoreKey(snapshotFileInfo.filetype(), snapshotFileInfo.parentid(),
+        snapshotFileInfo.filename(), &snapshotFileInfoKey);
+    if (res != StoreStatus::OK) {
+        LOG(ERROR) << "get store key failed, filename = "
+                   << snapshotFileInfo.filename();
+        return StoreStatus::InternalError;
+    }
+
+    std::string encodeSnapshotFInfo;
+    if (!NameSpaceStorageCodec::EncodeFileInfo(
+        snapshotFileInfo, &encodeSnapshotFInfo)) {
+        LOG(ERROR) << "encode snapshot file: " << snapshotFileInfo.filename()
+                  << " err";
+        return StoreStatus::InternalError;
+    }
+
+    std::string recycleFileInfoKey;
+    res = GetStoreKey(recycleFileInfo.filetype(), recycleFileInfo.parentid(),
+        recycleFileInfo.filename(), &recycleFileInfoKey);
+    if (res != StoreStatus::OK) {
+        LOG(ERROR) << "get store key failed, filename = "
+                   << recycleFileInfo.filename();
+        return StoreStatus::InternalError;
+    }
+
+    std::string encodeRecycleFInfo;
+    if (!NameSpaceStorageCodec::EncodeFileInfo(
+        recycleFileInfo, &encodeRecycleFInfo)) {
+        LOG(ERROR) << "encode recycle file: " << recycleFileInfo.filename()
+                  << " err";
+        return StoreStatus::InternalError;
+    }
+
+    // delete data in cache
+    cache_->Remove(originFileInfoKey);
+    cache_->Remove(snapshotFileInfoKey);
+
+    // remove originFileInfo from Etcd, and put recycleFileInfo
+    Operation op1{
+        OpType::OpDelete,
+        const_cast<char*>(originFileInfoKey.c_str()), "",
+        originFileInfoKey.size(), 0};
+    Operation op2{
+        OpType::OpPut,
+        const_cast<char*>(recycleFileInfoKey.c_str()),
+        const_cast<char*>(encodeRecycleFInfo.c_str()),
+        recycleFileInfoKey.size(), encodeRecycleFInfo.size()};
+    Operation op3{
+        OpType::OpPut,
+        const_cast<char*>(snapshotFileInfoKey.c_str()),
+        const_cast<char*>(encodeSnapshotFInfo.c_str()),
+        snapshotFileInfoKey.size(), encodeSnapshotFInfo.size()};
+
+    std::vector<Operation> ops{op1, op2, op3};
+    int errCode = client_->TxnN(ops);
+    if (errCode != EtcdErrCode::EtcdOK) {
+        LOG(ERROR) << "move file [" << originFileInfo.filename()
+                   << "] to recycle file ["
+                   << recycleFileInfo.filename() << "] err: "
+                   << errCode;
+    } else {
+        // update to cache
+        cache_->Put(recycleFileInfoKey, encodeRecycleFInfo);
+    }
+    return getErrorCode(errCode);
+}
+
 StoreStatus NameServerStorageImp::ListFile(InodeID startid,
                                            InodeID endid,
                                            std::vector<FileInfo> *files) {
@@ -541,69 +621,75 @@ StoreStatus NameServerStorageImp::DeleteSegment(
     return getErrorCode(errCode);
 }
 
-StoreStatus NameServerStorageImp::SnapShotFile(const FileInfo *originFInfo,
-                                            const FileInfo *snapshotFInfo) {
-    std::string originFileKey;
-    auto res = GetStoreKey(originFInfo->filetype(),
-                    originFInfo->parentid(),
-                    originFInfo->filename(),
-                    &originFileKey);
+StoreStatus NameServerStorageImp::Put2File(const FileInfo &fileInfo1,
+    const FileInfo &fileInfo2) {
+    std::string key1;
+    auto res = GetStoreKey(fileInfo1.filetype(),
+                    fileInfo1.parentid(),
+                    fileInfo1.filename(),
+                    &key1);
     if (res != StoreStatus::OK) {
         LOG(ERROR) << "get store key failed, filename = "
-                   << originFInfo->filename();
+                   << fileInfo1.filename();
         return StoreStatus::InternalError;
     }
 
-    std::string snapshotFileKey;
-    res = GetStoreKey(snapshotFInfo->filetype(),
-                    snapshotFInfo->parentid(),
-                    snapshotFInfo->filename(),
-                    &snapshotFileKey);
+    std::string key2;
+    res = GetStoreKey(fileInfo2.filetype(),
+                    fileInfo2.parentid(),
+                    fileInfo2.filename(),
+                    &key2);
     if (res != StoreStatus::OK) {
         LOG(ERROR) << "get store key failed, filename = "
-                   << snapshotFInfo->filename();
+                   << fileInfo2.filename();
         return StoreStatus::InternalError;
     }
 
-    std::string encodeFileInfo;
-    std::string encodeSnapshot;
-    if (!NameSpaceStorageCodec::EncodeFileInfo(*originFInfo, &encodeFileInfo) ||
-    !NameSpaceStorageCodec::EncodeFileInfo(*snapshotFInfo, &encodeSnapshot)) {
-        LOG(ERROR) << "encode originfile inodeid: " << originFInfo->id()
-                   << ", originfile: " << originFInfo->filename()
-                   << " or snapshotfile inodeid: " << snapshotFInfo->id()
-                   << ", snapshotfile: " << snapshotFInfo->filename() << "err";
+    std::string encodeFileInfo1;
+    std::string encodeFileInfo2;
+    if (!NameSpaceStorageCodec::EncodeFileInfo(fileInfo1, &encodeFileInfo1) ||
+    !NameSpaceStorageCodec::EncodeFileInfo(fileInfo2, &encodeFileInfo2)) {
+        LOG(ERROR) << "encode fileInfo1 inodeid: " << fileInfo1.id()
+                   << ", fileInfo1 filename: " << fileInfo1.filename()
+                   << " or fileInfo2 inodeid: " << fileInfo2.id()
+                   << ", fileInfo2 filename: " << fileInfo2.filename() << "err";
         return StoreStatus::InternalError;
     }
 
     // delete the information in cache first
-    cache_->Remove(originFileKey);
+    cache_->Remove(key1);
+    cache_->Remove(key2);
 
     // then update Etcd
     Operation op1{
         OpType::OpPut,
-        const_cast<char*>(originFileKey.c_str()),
-        const_cast<char*>(encodeFileInfo.c_str()),
-        originFileKey.size(), encodeFileInfo.size()};
+        const_cast<char*>(key1.c_str()),
+        const_cast<char*>(encodeFileInfo1.c_str()),
+        key1.size(), encodeFileInfo1.size()};
     Operation op2{
         OpType::OpPut,
-        const_cast<char*>(snapshotFileKey.c_str()),
-        const_cast<char*>(encodeSnapshot.c_str()),
-        snapshotFileKey.size(), encodeSnapshot.size()};
+        const_cast<char*>(key2.c_str()),
+        const_cast<char*>(encodeFileInfo2.c_str()),
+        key2.size(), encodeFileInfo2.size()};
 
     std::vector<Operation> ops{op1, op2};
     int errCode = client_->TxnN(ops);
     if (errCode != EtcdErrCode::EtcdOK) {
-        LOG(ERROR) << "store snapshot inodeid: " << snapshotFInfo->id()
-                   << ", snapshot: " << snapshotFInfo->filename()
-                   << ", fileinfo inodeid: " << originFInfo->id()
-                   << ", fileinfo: " << originFInfo->filename() << "err";
+        LOG(ERROR) << "store fileinfo1 inodeid: " << fileInfo1.id()
+                   << ", fileinfo1: " << fileInfo1.filename()
+                   << ", fileinfo2 inodeid: " << fileInfo2.id()
+                   << ", fileinfo2: " << fileInfo2.filename() << "err";
     } else {
         // update cache at last
-        cache_->Put(originFileKey, encodeFileInfo);
-        cache_->Put(snapshotFileKey, encodeSnapshot);
+        cache_->Put(key1, encodeFileInfo1);
+        cache_->Put(key2, encodeFileInfo2);
     }
     return getErrorCode(errCode);
+}
+
+StoreStatus NameServerStorageImp::SnapShotFile(const FileInfo *originFInfo,
+                                            const FileInfo *snapshotFInfo) {
+    return Put2File(*originFInfo, *snapshotFInfo);
 }
 
 StoreStatus NameServerStorageImp::LoadSnapShotFile(

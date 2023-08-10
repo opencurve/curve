@@ -65,6 +65,7 @@ class FlattenCore {
     void DoFlatten(
         const std::string &fileName,
         const FileInfo &fileInfo,
+        const FileInfo &snapFileInfo,
         TaskProgress *progress);
 
  private:

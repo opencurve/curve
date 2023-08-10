@@ -132,5 +132,22 @@ bool NameSpaceStorageCodec::DecodeSegmentAllocValue(
 
     return true;
 }
+
+bool SplitSnapshotPath(const std::string &snapFilePath,
+    std::string *filePath, FileSeqType *seq) {
+    auto pos = snapFilePath.find_last_of(kSnapshotPathSeprator);
+    if (snapFilePath.npos == pos) {
+        return false;
+    }
+    *filePath = snapFilePath.substr(0, pos);
+    std::string snapFileName = snapFilePath.substr(pos + 1);
+    pos = snapFileName.find_last_of(kSnapshotSeqSeprator);
+    if (snapFileName.npos == pos) {
+        return false;
+    }
+    std::string seqStr = snapFileName.substr(pos + 1);
+    return ::curve::common::StringToUll(seqStr, seq);
+}
+
 }   // namespace mds
 }   // namespace curve

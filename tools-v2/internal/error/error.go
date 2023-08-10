@@ -739,6 +739,28 @@ var (
 	ErrBsListSnapShot = func() *CmdError {
 		return NewInternalCmdError(666, "list snapshot fail, err: %s")
 	}
+	ErrBsProtectSnapShot = func(statusCode nameserver2.StatusCode, path string) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case nameserver2.StatusCode_kOK:
+			message = "protect snapshot successfully"
+		default:
+			message = fmt.Sprintf("failed to protect snapshot , err: %s", statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
+	ErrBsUnprotectSnapShot = func(statusCode nameserver2.StatusCode, path string) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case nameserver2.StatusCode_kOK:
+			message = "unprotect snapshot successfully"
+		default:
+			message = fmt.Sprintf("failed to unprotect snapshot , err: %s", statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
 	ErrBsClone = func(statusCode nameserver2.StatusCode, path string) *CmdError {
 		var message string
 		code := int(statusCode)

@@ -133,7 +133,33 @@ void NameSpaceService::DeleteFile(::google::protobuf::RpcController* controller,
         << ", DeleteFile request, filename = " << request->filename()
         << " forDeleteFlag = " << request->forcedelete();
 
-    FileWriteLockGuard guard(fileLockManager_, request->filename());
+    std::string cloneSrcFileName = "";
+    {
+        FileReadLockGuard guard(fileLockManager_, request->filename());
+        FileInfo fileInfo;
+        StatusCode retCode = kCurveFS.GetFileInfo(request->filename(),
+                                                  &fileInfo);
+        if (retCode != StatusCode::kOK) {
+            response->set_statuscode(retCode);
+            if (google::ERROR != GetMdsLogLevel(retCode)) {
+                LOG(WARNING) << "logid = " << cntl->log_id()
+                    << ", GetFileInfo fail, filename = " <<  request->filename()
+                    << ", statusCode = " << retCode;
+            } else {
+                LOG(ERROR) << "logid = " << cntl->log_id()
+                    << ", GetFileInfo fail, filename = " <<  request->filename()
+                    << ", statusCode = " << retCode;
+            }
+            return;
+        }
+        // check is clone file or not
+        if (fileInfo.filetype() == FileType::INODE_CLONE_PAGEFILE) {
+            cloneSrcFileName = fileInfo.clonesource();
+        }
+    }
+
+    FileWriteLockGuard guard(fileLockManager_, request->filename(),
+                                               cloneSrcFileName);
 
     std::string signature;
     if (request->has_signature()) {
@@ -1387,6 +1413,194 @@ void NameSpaceService::GetSnapShotFileSegment(
     return;
 }
 
+void NameSpaceService::ProtectSnapShot(::google::protobuf::RpcController* controller,
+                   const ::curve::mds::ProtectSnapShotRequest* request,
+                   ::curve::mds::ProtectSnapShotResponse* response,
+                   ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard doneGuard(done);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
+    ExpiredTime expiredTime;
+
+    LOG(INFO) << "logid = " << cntl->log_id()
+              << ", ProtectSnapShot request: " << request->ShortDebugString();
+
+    if (((!request->has_filename()) || 
+         (!request->has_seq())) &&
+        (!request->has_snapfilename())) {
+        LOG(WARNING) << "logid = " << cntl->log_id()
+                     << ", snapFileName or srcFileName + seq must be set"
+                     << ", filename = " << request->filename();
+
+        response->set_statuscode(StatusCode::kParaError);
+        return;
+    }
+
+    std::string srcFileName = request->filename();
+    uint64_t seq = request->seq();
+
+    if (request->has_snapfilename()) {
+        bool rb = SplitSnapshotPath(request->snapfilename(),
+            &srcFileName, &seq);
+        if (!rb) {
+            LOG(WARNING) << "SplitSnapshotPath failed"
+                         << ", snapFileName: " << request->snapfilename();
+            response->set_statuscode(StatusCode::kParaError);
+            return;
+        }
+    }
+
+    std::string signature = "";
+    if (request->has_signature()) {
+        signature = request->signature();
+    }
+
+    FileWriteLockGuard guard(fileLockManager_, srcFileName);
+
+    // check authority
+    StatusCode ret = kCurveFS.CheckFileOwner(srcFileName,
+                                             request->owner(),
+                                             signature, request->date());
+
+    if (ret != StatusCode::kOK) {
+        response->set_statuscode(ret);
+        if (google::ERROR != GetMdsLogLevel(ret)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", ProtectSnapShot CheckFileOwner fail, filename = "
+                << srcFileName
+                << ", seq = " << seq
+                << ", owner = " << request->owner()
+                << ", statusCode = " << ret;
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", ProtectSnapShot CheckFileOwner fail, filename = " 
+                << srcFileName
+                << ", seq = " << seq
+                << ", owner = " << request->owner()
+                << ", statusCode = " << ret;
+        }
+        return;
+    }
+
+    ret = kCurveFS.ProtectSnapShot(srcFileName, seq, request->owner());
+    if (ret != StatusCode::kOK) {
+        response->set_statuscode(ret);
+        if (google::ERROR != GetMdsLogLevel(ret)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", ProtectSnapShot fail, filename = " << srcFileName
+                << ", seq = " << seq
+                << ", owner = " << request->owner()
+                << ", statusCode = " << ret;
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", ProtectSnapShot fail, filename = " <<  srcFileName
+                << ", seq = " << seq
+                << ", owner = " << request->owner()
+                << ", statusCode = " << ret;
+        }
+    } else {
+        response->set_statuscode(StatusCode::kOK);
+        LOG(INFO) << "logid = " << cntl->log_id()
+                  << ", ProtectSnapShot ok, filename = " << srcFileName 
+                  << ", seq = " << seq
+                  << ", owner = " << request->owner()
+                  << ", statusCode = " << ret;
+    }
+}
+
+void NameSpaceService::UnprotectSnapShot(::google::protobuf::RpcController* controller,
+                   const ::curve::mds::UnprotectSnapShotRequest* request,
+                   ::curve::mds::UnprotectSnapShotResponse* response,
+                   ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard doneGuard(done);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
+    ExpiredTime expiredTime;
+
+    LOG(INFO) << "logid = " << cntl->log_id()
+              << ", UnprotectSnapShot request: " << request->ShortDebugString();
+
+    if (((!request->has_filename()) || 
+         (!request->has_seq())) &&
+        (!request->has_snapfilename())) {
+        LOG(WARNING) << "logid = " << cntl->log_id()
+                     << ", snapFileName or srcFileName + seq must be set"
+                     << ", filename = " << request->filename();
+
+        response->set_statuscode(StatusCode::kParaError);
+        return;
+    }
+
+    std::string srcFileName = request->filename();
+    uint64_t seq = request->seq();
+
+    if (request->has_snapfilename()) {
+        bool rb = SplitSnapshotPath(request->snapfilename(),
+            &srcFileName, &seq);
+        if (!rb) {
+            LOG(WARNING) << "SplitSnapshotPath failed"
+                         << ", snapFileName: " << request->snapfilename();
+            response->set_statuscode(StatusCode::kParaError);
+            return;
+        }
+    }
+
+    std::string signature = "";
+    if (request->has_signature()) {
+        signature = request->signature();
+    }
+
+    FileWriteLockGuard guard(fileLockManager_, srcFileName);
+
+    // check authority
+    StatusCode ret = kCurveFS.CheckFileOwner(srcFileName,
+                                             request->owner(),
+                                             signature, request->date());
+
+    if (ret != StatusCode::kOK) {
+        response->set_statuscode(ret);
+        if (google::ERROR != GetMdsLogLevel(ret)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", UnprotectSnapShot CheckFileOwner fail, filename = "
+                << srcFileName
+                << ", seq = " << seq
+                << ", owner = " << request->owner()
+                << ", statusCode = " << ret;
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", UnprotectSnapShot CheckFileOwner fail, filename = " 
+                << srcFileName
+                << ", seq = " << seq
+                << ", owner = " << request->owner()
+                << ", statusCode = " << ret;
+        }
+        return;
+    }
+
+    ret = kCurveFS.UnprotectSnapShot(srcFileName, seq, request->owner());
+    if (ret != StatusCode::kOK) {
+        response->set_statuscode(ret);
+        if (google::ERROR != GetMdsLogLevel(ret)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", UnprotectSnapShot fail, filename = " << srcFileName
+                << ", seq = " << seq
+                << ", owner = " << request->owner()
+                << ", statusCode = " << ret;
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", UnprotectSnapShot fail, filename = " <<  srcFileName
+                << ", seq = " << seq
+                << ", owner = " << request->owner()
+                << ", statusCode = " << ret;
+        }
+    } else {
+        response->set_statuscode(StatusCode::kOK);
+        LOG(INFO) << "logid = " << cntl->log_id()
+                  << ", UnprotectSnapShot ok, filename = " << srcFileName 
+                  << ", seq = " << seq
+                  << ", owner = " << request->owner()
+                  << ", statusCode = " << ret;
+    }
+}
+
 void NameSpaceService::Clone(::google::protobuf::RpcController* controller,
                             const ::curve::mds::CloneRequest* request,
                             ::curve::mds::CloneResponse* response,
@@ -1499,10 +1713,36 @@ void NameSpaceService::Flatten(::google::protobuf::RpcController* controller,
         signature = request->signature();
     }
 
-    FileWriteLockGuard guard(fileLockManager_, request->filename());
+    std::string cloneSrcFileName = "";
+    {
+        FileReadLockGuard guard(fileLockManager_, request->filename());
+        FileInfo fileInfo;
+        StatusCode retCode = kCurveFS.GetFileInfo(request->filename(),
+                                                  &fileInfo);
+        if (retCode != StatusCode::kOK) {
+            response->set_statuscode(retCode);
+            if (google::ERROR != GetMdsLogLevel(retCode)) {
+                LOG(WARNING) << "logid = " << cntl->log_id()
+                    << ", GetFileInfo fail, filename = " <<  request->filename()
+                    << ", statusCode = " << retCode;
+            } else {
+                LOG(ERROR) << "logid = " << cntl->log_id()
+                    << ", GetFileInfo fail, filename = " <<  request->filename()
+                    << ", statusCode = " << retCode;
+            }
+            return;
+        }
+        // check is clone file or not
+        if (fileInfo.filetype() == FileType::INODE_CLONE_PAGEFILE) {
+            cloneSrcFileName = fileInfo.clonesource();
+        }
+    }
+
+    FileWriteLockGuard guard(fileLockManager_, request->filename(),
+                                               cloneSrcFileName);
 
     // check authority
-    StatusCode ret = kCurveFS.CheckPathOwner(request->filename(),
+    StatusCode ret = kCurveFS.CheckFileOwner(request->filename(),
                                              request->owner(),
                                              signature, request->date());
 
@@ -1510,13 +1750,13 @@ void NameSpaceService::Flatten(::google::protobuf::RpcController* controller,
         response->set_statuscode(ret);
         if (google::ERROR != GetMdsLogLevel(ret)) {
             LOG(WARNING) << "logid = " << cntl->log_id()
-                << ", Flatten CheckPathOwner fail, filename = "
+                << ", Flatten CheckFileOwner fail, filename = "
                 <<  request->filename()
                 << ", owner = " << request->owner()
                 << ", statusCode = " << ret;
         } else {
             LOG(ERROR) << "logid = " << cntl->log_id()
-                << ", Flatten CheckPathOwner fail, filename = "
+                << ", Flatten CheckFileOwner fail, filename = "
                 <<  request->filename()
                 << ", owner = " << request->owner()
                 << ", statusCode = " << ret;
@@ -1570,7 +1810,7 @@ void NameSpaceService::QueryFlattenStatus(
     FileReadLockGuard guard(fileLockManager_, request->filename());
 
     // check authority
-    StatusCode ret = kCurveFS.CheckPathOwner(request->filename(),
+    StatusCode ret = kCurveFS.CheckFileOwner(request->filename(),
                                              request->owner(),
                                              signature, request->date());
 
@@ -1578,13 +1818,13 @@ void NameSpaceService::QueryFlattenStatus(
         response->set_statuscode(ret);
         if (google::ERROR != GetMdsLogLevel(ret)) {
             LOG(WARNING) << "logid = " << cntl->log_id()
-                << ", QueryFlattenStatus CheckPathOwner fail, filename = "
+                << ", QueryFlattenStatus CheckFileOwner fail, filename = "
                 <<  request->filename()
                 << ", owner = " << request->owner()
                 << ", statusCode = " << ret;
         } else {
             LOG(ERROR) << "logid = " << cntl->log_id()
-                << ", QueryFlattenStatus CheckPathOwner fail, filename = "
+                << ", QueryFlattenStatus CheckFileOwner fail, filename = "
                 <<  request->filename()
                 << ", owner = " << request->owner()
                 << ", statusCode = " << ret;
@@ -1627,6 +1867,91 @@ void NameSpaceService::QueryFlattenStatus(
     }
 
     return;
+}
+
+void NameSpaceService::Children(::google::protobuf::RpcController* controller,
+    const ::curve::mds::ChildrenRequest* request,
+    ::curve::mds::ChildrenResponse* response,
+    ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard doneGuard(done);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
+    ExpiredTime expiredTime;
+
+    LOG(INFO) << "logid = " << cntl->log_id()
+        << ", Children request " << request->ShortDebugString();
+
+    if ((!request->has_filename()) &&
+        (!request->has_snapfilename())) {
+        LOG(WARNING) << "logid = " << cntl->log_id()
+                     << ", snapFileName or fileName must be set"
+                     << ", filename = " << request->filename();
+
+        response->set_statuscode(StatusCode::kParaError);
+        return;
+    }
+
+    std::string srcFileName = request->filename();
+    uint64_t seq = request->seq();
+
+    if (request->has_snapfilename()) {
+        bool rb = SplitSnapshotPath(request->snapfilename(),
+            &srcFileName, &seq);
+        if (!rb) {
+            LOG(WARNING) << "SplitSnapshotPath failed"
+                         << ", snapFileName: " << request->snapfilename();
+            response->set_statuscode(StatusCode::kParaError);
+            return;
+        }
+    }
+
+    std::string signature = "";
+    if (request->has_signature()) {
+        signature = request->signature();
+    }
+
+    FileReadLockGuard guard(fileLockManager_, srcFileName);
+
+    StatusCode retCode;
+    retCode = kCurveFS.CheckFileOwner(srcFileName, request->owner(),
+                                      signature, request->date());
+    if (retCode != StatusCode::kOK) {
+        response->set_statuscode(retCode);
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = " <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = " <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        }
+
+        return;
+    }
+
+    retCode = kCurveFS.Children(srcFileName, seq, 
+        response->mutable_filenames());
+    response->set_statuscode(retCode);
+    if (retCode != StatusCode::kOK) {
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", Children fail, filename = " <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", Children fail, filename = " <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        }
+    } else {
+        LOG(INFO) << "logid = " << cntl->log_id()
+                  << ", Children ok, filename = " << request->filename()
+                  << ", response: " << response->ShortDebugString()
+                  << ", cost " << expiredTime.ExpiredMs() << " ms";
+    }
 }
 
 void NameSpaceService::OpenFile(::google::protobuf::RpcController* controller,

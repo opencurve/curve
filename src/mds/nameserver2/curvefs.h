@@ -80,11 +80,6 @@ struct AllocatedSize {
 
 using ::curve::mds::DeleteSnapShotResponse;
 
-
-std::string MakeSnapshotName(const std::string &fileName, FileSeqType seq);
-bool SplitSnapshotPath(const std::string &snapFilePath,
-    std::string *filePath, FileSeqType *seq);
-
 class CurveFS {
  public:
     // singleton, supported in c++11
@@ -407,6 +402,13 @@ class CurveFS {
             offset_t offset,
             PageFileSegment *segment);
 
+    StatusCode ProtectSnapShot(const std::string &fileName,
+                               FileSeqType seq, 
+                               const std::string &owner);
+
+    StatusCode UnprotectSnapShot(const std::string &fileName,
+                                 FileSeqType seq, 
+                                 const std::string &owner);
 
     StatusCode Clone(const std::string &fileName,
             const std::string& owner,
@@ -424,6 +426,11 @@ class CurveFS {
             const std::string& owner,
             FileStatus* status,
             uint32_t* progress);
+
+    // Children
+    StatusCode Children(const std::string &fileName,
+            FileSeqType seq,
+            ::google::protobuf::RepeatedPtrField<std::string> *children);
 
     // session ops
     /**
