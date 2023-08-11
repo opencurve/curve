@@ -1,33 +1,43 @@
-name: "format code"
+name: "Check Clang Format"
 
-# run on pull requests to develop
-on:
-  pull_request:
-    branches:
-      - master
-  push:
-    branches:
-      - master
+on: [push, pull_request]
+
+
 
 jobs:
-  format:
+  clang-format:
+    name: "Clang Formatter"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v3
         with:
-          # check out HEAD on the branch
-          ref: ${{ github.head_ref }}
-          # make sure the parent commit is grabbed as well, because
-          # that's what will get formatted (i.e. the most recent commit)
-          fetch-depth: 2
-      # format the latest commit
-      - uses: purduesigbots/clang-format-action@1.0.2
-        # use one of clang-format's supported styles or leave this out to use the style in your .clang-format file
+          persist-credentials: false
+          submodules: recursive
+
+      - name: Paths filter
+        uses: dorny/paths-filter@master
+        id: filter
         with:
-          style: .clang-format
-      # commit the changes (if there are any)
-      - name: Commit changes
-        uses: stefanzweifel/git-auto-commit-action@v4.1.2
+          filters: |
+            be_changes:
+              - "**/*.cpp"
+              - "**/*.c"
+              - "**/*.h"
+              - "**/*.hpp"
+              - "**/*.cxx"
+
+
+      - name: "Format it!"
+        if: ${{ steps.filter.outputs.be_changes == 'true' }}
+        uses: DoozyX/clang-format-lint-action@master
+        id: be_clang_format
         with:
-          commit_message: apply clang-format changes
-          branch: ${{ github.head_ref }}
+          source: "./"
+          clangFormatVersion: 13
+          inplace: False
+          style: "file"
+
+      - name: Ignore it!
+        if: ${{ steps.filter.outputs.be_changes == 'false' }}
+        run: echo 'No need to check.'
