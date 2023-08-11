@@ -31,14 +31,14 @@
 #include "curvefs/test/client/rpcclient/mock_mds_client.h"
 #include "curvefs/test/metaserver/mock_metaserver_s3_adaptor.h"
 
-using ::testing::AtLeast;
-using ::testing::StrEq;
 using ::testing::_;
+using ::testing::AtLeast;
+using ::testing::DoAll;
 using ::testing::Return;
 using ::testing::ReturnArg;
-using ::testing::DoAll;
-using ::testing::SetArgPointee;
 using ::testing::SaveArg;
+using ::testing::SetArgPointee;
+using ::testing::StrEq;
 
 namespace curvefs {
 namespace metaserver {
@@ -47,11 +47,11 @@ namespace {
 auto localfs = curve::fs::Ext4FileSystemImpl::getInstance();
 }
 
-using ::curvefs::metaserver::storage::KVStorage;
-using ::curvefs::metaserver::storage::StorageOptions;
-using ::curvefs::metaserver::storage::RocksDBStorage;
-using ::curvefs::metaserver::storage::RandomStoragePath;
 using ::curvefs::client::rpcclient::MockMdsClient;
+using ::curvefs::metaserver::storage::KVStorage;
+using ::curvefs::metaserver::storage::RandomStoragePath;
+using ::curvefs::metaserver::storage::RocksDBStorage;
+using ::curvefs::metaserver::storage::StorageOptions;
 
 class TestTrash : public ::testing::Test {
  protected:
@@ -64,9 +64,10 @@ class TestTrash : public ::testing::Test {
         ASSERT_TRUE(kvStorage_->Open());
 
         auto nameGenerator = std::make_shared<NameGenerator>(1);
-        inodeStorage_ = std::make_shared<InodeStorage>(
-            kvStorage_, nameGenerator, 0);
+        inodeStorage_ =
+            std::make_shared<InodeStorage>(kvStorage_, nameGenerator, 0);
         trashManager_ = std::make_shared<TrashManager>();
+        logIndex_ = 0;
     }
 
     void TearDown() override {
@@ -137,6 +138,7 @@ class TestTrash : public ::testing::Test {
     std::shared_ptr<KVStorage> kvStorage_;
     std::shared_ptr<InodeStorage> inodeStorage_;
     std::shared_ptr<TrashManager> trashManager_;
+    int64_t logIndex_;
 };
 
 TEST_F(TestTrash, testAdd3ItemAndDelete) {
@@ -152,9 +154,9 @@ TEST_F(TestTrash, testAdd3ItemAndDelete) {
     trashManager_->Add(1, trash1);
     trashManager_->Add(2, trash2);
 
-    inodeStorage_->Insert(GenInodeHasChunks(1, 1));
-    inodeStorage_->Insert(GenInodeHasChunks(1, 2));
-    inodeStorage_->Insert(GenInodeHasChunks(2, 1));
+    inodeStorage_->Insert(GenInodeHasChunks(1, 1), logIndex_++);
+    inodeStorage_->Insert(GenInodeHasChunks(1, 2), logIndex_++);
+    inodeStorage_->Insert(GenInodeHasChunks(2, 1), logIndex_++);
 
     ASSERT_EQ(inodeStorage_->Size(), 3);
 
@@ -185,9 +187,9 @@ TEST_F(TestTrash, testAdd3ItemAndNoDelete) {
     auto trash1 = std::make_shared<TrashImpl>(inodeStorage_);
     trashManager_->Add(1, trash1);
 
-    inodeStorage_->Insert(GenInode(1, 1));
-    inodeStorage_->Insert(GenInode(1, 2));
-    inodeStorage_->Insert(GenInode(2, 1));
+    inodeStorage_->Insert(GenInode(1, 1), logIndex_++);
+    inodeStorage_->Insert(GenInode(1, 2), logIndex_++);
+    inodeStorage_->Insert(GenInode(2, 1), logIndex_++);
     ASSERT_EQ(inodeStorage_->Size(), 3);
     trash1->Add(1, 1, 0);
     trash1->Add(1, 2, 0);

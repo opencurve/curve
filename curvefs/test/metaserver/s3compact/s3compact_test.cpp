@@ -48,10 +48,10 @@ using ::testing::SetArgPointee;
 using ::testing::StrEq;
 
 using ::curvefs::metaserver::storage::KVStorage;
+using ::curvefs::metaserver::storage::NameGenerator;
 using ::curvefs::metaserver::storage::RandomStoragePath;
 using ::curvefs::metaserver::storage::RocksDBStorage;
 using ::curvefs::metaserver::storage::StorageOptions;
-using ::curvefs::metaserver::storage::NameGenerator;
 
 namespace curvefs {
 namespace metaserver {
@@ -105,6 +105,7 @@ class S3CompactTest : public ::testing::Test {
         impl_ = std::make_shared<CompactInodeJob>(&workerOptions_);
         mockImpl_ = std::make_shared<MockCompactInodeJob>(&workerOptions_);
         mockCopysetNodeWrapper_ = absl::make_unique<MockCopysetNodeWrapper>();
+        logIndex_ = 0;
     }
 
     void TearDown() override {
@@ -129,6 +130,7 @@ class S3CompactTest : public ::testing::Test {
     std::string dataDir_;
     std::shared_ptr<KVStorage> kvStorage_;
     std::shared_ptr<FileType2InodeNumMap> filetype2InodeNum_;
+    int64_t logIndex_;
 };
 
 TEST_F(S3CompactTest, test_CopysetNodeWrapper) {
@@ -636,7 +638,7 @@ TEST_F(S3CompactTest, test_CompactChunks) {
     inode1.set_type(FsFileType::TYPE_FILE);
     ::google::protobuf::Map<uint64_t, S3ChunkInfoList> s3chunkinfoMap;
     *inode1.mutable_s3chunkinfomap() = s3chunkinfoMap;
-    ASSERT_EQ(inodeStorage_->Insert(inode1), MetaStatusCode::OK);
+    ASSERT_EQ(inodeStorage_->Insert(inode1, logIndex_++), MetaStatusCode::OK);
     t.inodeKey = Key4Inode(1, 1);
     mockImpl_->CompactChunks(t);
     // normal
@@ -662,9 +664,9 @@ TEST_F(S3CompactTest, test_CompactChunks) {
         ref->set_zero(false);
     }
     auto rc = inodeStorage_->ModifyInodeS3ChunkInfoList(
-        inode1.fsid(), inode1.inodeid(), 0, &l0, nullptr);
+        inode1.fsid(), inode1.inodeid(), 0, &l0, nullptr, logIndex_++);
     ASSERT_EQ(rc, MetaStatusCode::OK);
-    ASSERT_EQ(inodeStorage_->Update(inode1), MetaStatusCode::OK);
+    ASSERT_EQ(inodeStorage_->Update(inode1, logIndex_++), MetaStatusCode::OK);
     mockImpl_->CompactChunks(t);
     ASSERT_EQ(tmp.s3chunkinfomap().size(), 1);
     const auto& l = tmp.s3chunkinfomap().at(0);
@@ -678,7 +680,7 @@ TEST_F(S3CompactTest, test_CompactChunks) {
     ASSERT_EQ(s3chunkinfo.zero(), false);
     // inode nlink = 0, deleted
     inode1.set_nlink(0);
-    ASSERT_EQ(inodeStorage_->Update(inode1), MetaStatusCode::OK);
+    ASSERT_EQ(inodeStorage_->Update(inode1, logIndex_++), MetaStatusCode::OK);
     mockImpl_->CompactChunks(t);
     EXPECT_CALL(*mockImpl_, UpdateInode_rvr(_, _, _, _, _))
         .WillRepeatedly(Return(MetaStatusCode::UNKNOWN_ERROR));

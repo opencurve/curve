@@ -71,16 +71,14 @@ class MetaOperator {
     /**
      * @brief Return internal closure
      */
-    google::protobuf::Closure* Closure() const {
-        return done_;
-    }
+    google::protobuf::Closure* Closure() const { return done_; }
 
     void RedirectRequest();
 
     virtual void OnApply(int64_t index, google::protobuf::Closure* done,
                          uint64_t startTimeUs) = 0;
 
-    virtual void OnApplyFromLog(uint64_t startTimeUs) = 0;
+    virtual void OnApplyFromLog(int64_t index, uint64_t startTimeUs) = 0;
 
     // Get hash code of current operator which is used to push current operator
     // task to apply queue, and apply queue will guarantee that operators with
@@ -109,9 +107,7 @@ class MetaOperator {
     /**
      * @brief Check whether current copyset node is leader
      */
-    bool IsLeaderTerm() const {
-        return node_->IsLeaderTerm();
-    }
+    bool IsLeaderTerm() const { return node_->IsLeaderTerm(); }
 
     /**
      * @brief Propose current operator to braft::Task
@@ -136,9 +132,7 @@ class MetaOperator {
      *        return true if operator is readonly and request carry with
      *        an valid appliedindex
      */
-    virtual bool CanBypassPropose() const {
-        return false;
-    }
+    virtual bool CanBypassPropose() const { return false; }
 
  protected:
     CopysetNode* node_;
@@ -169,7 +163,7 @@ class GetDentryOperator : public MetaOperator {
     void OnApply(int64_t index, google::protobuf::Closure* done,
                  uint64_t startTimeUs) override;
 
-    void OnApplyFromLog(uint64_t startTimeUs) override;
+    void OnApplyFromLog(int64_t index, uint64_t startTimeUs) override;
 
     uint64_t HashCode() const override;
 
@@ -190,7 +184,7 @@ class ListDentryOperator : public MetaOperator {
     void OnApply(int64_t index, google::protobuf::Closure* done,
                  uint64_t startTimeUs) override;
 
-    void OnApplyFromLog(uint64_t startTimeUs) override;
+    void OnApplyFromLog(int64_t index, uint64_t startTimeUs) override;
 
     uint64_t HashCode() const override;
 
@@ -211,7 +205,7 @@ class CreateDentryOperator : public MetaOperator {
     void OnApply(int64_t index, google::protobuf::Closure* done,
                  uint64_t startTimeUs) override;
 
-    void OnApplyFromLog(uint64_t startTimeUs) override;
+    void OnApplyFromLog(int64_t index, uint64_t startTimeUs) override;
 
     uint64_t HashCode() const override;
 
@@ -230,7 +224,7 @@ class DeleteDentryOperator : public MetaOperator {
     void OnApply(int64_t index, google::protobuf::Closure* done,
                  uint64_t startTimeUs) override;
 
-    void OnApplyFromLog(uint64_t startTimeUs) override;
+    void OnApplyFromLog(int64_t index, uint64_t startTimeUs) override;
 
     uint64_t HashCode() const override;
 
@@ -249,7 +243,7 @@ class GetInodeOperator : public MetaOperator {
     void OnApply(int64_t index, google::protobuf::Closure* done,
                  uint64_t startTimeUs) override;
 
-    void OnApplyFromLog(uint64_t startTimeUs) override;
+    void OnApplyFromLog(int64_t index, uint64_t startTimeUs) override;
 
     uint64_t HashCode() const override;
 
@@ -270,7 +264,7 @@ class BatchGetInodeAttrOperator : public MetaOperator {
     void OnApply(int64_t index, google::protobuf::Closure* done,
                  uint64_t startTimeUs) override;
 
-    void OnApplyFromLog(uint64_t startTimeUs) override;
+    void OnApplyFromLog(int64_t index, uint64_t startTimeUs) override;
 
     uint64_t HashCode() const override;
 
@@ -291,7 +285,7 @@ class BatchGetXAttrOperator : public MetaOperator {
     void OnApply(int64_t index, google::protobuf::Closure* done,
                  uint64_t startTimeUs) override;
 
-    void OnApplyFromLog(uint64_t startTimeUs) override;
+    void OnApplyFromLog(int64_t index, uint64_t startTimeUs) override;
 
     uint64_t HashCode() const override;
 
@@ -312,7 +306,7 @@ class CreateInodeOperator : public MetaOperator {
     void OnApply(int64_t index, google::protobuf::Closure* done,
                  uint64_t startTimeUs) override;
 
-    void OnApplyFromLog(uint64_t startTimeUs) override;
+    void OnApplyFromLog(int64_t index, uint64_t startTimeUs) override;
 
     uint64_t HashCode() const override;
 
@@ -331,7 +325,7 @@ class UpdateInodeOperator : public MetaOperator {
     void OnApply(int64_t index, google::protobuf::Closure* done,
                  uint64_t startTimeUs) override;
 
-    void OnApplyFromLog(uint64_t startTimeUs) override;
+    void OnApplyFromLog(int64_t index, uint64_t startTimeUs) override;
 
     uint64_t HashCode() const override;
 
@@ -345,12 +339,12 @@ class UpdateInodeOperator : public MetaOperator {
 
 class GetOrModifyS3ChunkInfoOperator : public MetaOperator {
  public:
-     using MetaOperator::MetaOperator;
+    using MetaOperator::MetaOperator;
 
     void OnApply(int64_t index, google::protobuf::Closure* done,
                  uint64_t startTimeUs) override;
 
-    void OnApplyFromLog(uint64_t startTimeUs) override;
+    void OnApplyFromLog(int64_t index, uint64_t startTimeUs) override;
 
     uint64_t HashCode() const override;
 
@@ -369,7 +363,7 @@ class DeleteInodeOperator : public MetaOperator {
     void OnApply(int64_t index, google::protobuf::Closure* done,
                  uint64_t startTimeUs) override;
 
-    void OnApplyFromLog(uint64_t startTimeUs) override;
+    void OnApplyFromLog(int64_t index, uint64_t startTimeUs) override;
 
     uint64_t HashCode() const override;
 
@@ -388,7 +382,7 @@ class CreateRootInodeOperator : public MetaOperator {
     void OnApply(int64_t index, google::protobuf::Closure* done,
                  uint64_t startTimeUs) override;
 
-    void OnApplyFromLog(uint64_t startTimeUs) override;
+    void OnApplyFromLog(int64_t index, uint64_t startTimeUs) override;
 
     uint64_t HashCode() const override;
 
@@ -407,7 +401,7 @@ class CreateManageInodeOperator : public MetaOperator {
     void OnApply(int64_t index, google::protobuf::Closure* done,
                  uint64_t startTimeUs) override;
 
-    void OnApplyFromLog(uint64_t startTimeUs) override;
+    void OnApplyFromLog(int64_t index, uint64_t startTimeUs) override;
 
     uint64_t HashCode() const override;
 
@@ -426,7 +420,7 @@ class UpdateInodeS3VersionOperator : public MetaOperator {
     void OnApply(int64_t index, google::protobuf::Closure* done,
                  uint64_t startTimeUs) override;
 
-    void OnApplyFromLog(uint64_t startTimeUs) override;
+    void OnApplyFromLog(int64_t index, uint64_t startTimeUs) override;
 
     uint64_t HashCode() const override;
 
@@ -445,7 +439,7 @@ class CreatePartitionOperator : public MetaOperator {
     void OnApply(int64_t index, google::protobuf::Closure* done,
                  uint64_t startTimeUs) override;
 
-    void OnApplyFromLog(uint64_t startTimeUs) override;
+    void OnApplyFromLog(int64_t index, uint64_t startTimeUs) override;
 
     uint64_t HashCode() const override;
 
@@ -464,7 +458,7 @@ class DeletePartitionOperator : public MetaOperator {
     void OnApply(int64_t index, google::protobuf::Closure* done,
                  uint64_t startTimeUs) override;
 
-    void OnApplyFromLog(uint64_t startTimeUs) override;
+    void OnApplyFromLog(int64_t index, uint64_t startTimeUs) override;
 
     uint64_t HashCode() const override;
 
@@ -483,7 +477,7 @@ class PrepareRenameTxOperator : public MetaOperator {
     void OnApply(int64_t index, google::protobuf::Closure* done,
                  uint64_t startTimeUs) override;
 
-    void OnApplyFromLog(uint64_t startTimeUs) override;
+    void OnApplyFromLog(int64_t index, uint64_t startTimeUs) override;
 
     uint64_t HashCode() const override;
 
@@ -499,11 +493,10 @@ class GetVolumeExtentOperator : public MetaOperator {
  public:
     using MetaOperator::MetaOperator;
 
-    void OnApply(int64_t index,
-                 google::protobuf::Closure* done,
+    void OnApply(int64_t index, google::protobuf::Closure* done,
                  uint64_t startTimeUs) override;
 
-    void OnApplyFromLog(uint64_t startTimeUs) override;
+    void OnApplyFromLog(int64_t index, uint64_t startTimeUs) override;
 
     uint64_t HashCode() const override;
 
@@ -521,11 +514,10 @@ class UpdateVolumeExtentOperator : public MetaOperator {
  public:
     using MetaOperator::MetaOperator;
 
-    void OnApply(int64_t index,
-                 google::protobuf::Closure* done,
+    void OnApply(int64_t index, google::protobuf::Closure* done,
                  uint64_t startTimeUs) override;
 
-    void OnApplyFromLog(uint64_t startTimeUs) override;
+    void OnApplyFromLog(int64_t index, uint64_t startTimeUs) override;
 
     uint64_t HashCode() const override;
 
@@ -541,10 +533,10 @@ class UpdateDeallocatableBlockGroupOperator : public MetaOperator {
  public:
     using MetaOperator::MetaOperator;
 
-    void OnApply(int64_t index, google::protobuf::Closure *done,
+    void OnApply(int64_t index, google::protobuf::Closure* done,
                  uint64_t startTimeUs) override;
 
-    void OnApplyFromLog(uint64_t startTimeUs) override;
+    void OnApplyFromLog(int64_t index, uint64_t startTimeUs) override;
 
     uint64_t HashCode() const override;
 

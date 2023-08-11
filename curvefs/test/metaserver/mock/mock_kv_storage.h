@@ -36,15 +36,13 @@ namespace curvefs {
 namespace metaserver {
 namespace storage {
 
-class MockKVStorage : public KVStorage {
+class MockKVStorage : public KVStorage, public StorageTransaction {
  public:
     MOCK_METHOD3(HGet,
                  Status(const std::string&, const std::string&, ValueType*));
 
-    MOCK_METHOD3(HSet,
-                 Status(const std::string&,
-                        const std::string&,
-                        const ValueType&));
+    MOCK_METHOD3(HSet, Status(const std::string&, const std::string&,
+                              const ValueType&));
 
     MOCK_METHOD2(HDel, Status(const std::string&, const std::string&));
 
@@ -57,16 +55,13 @@ class MockKVStorage : public KVStorage {
     MOCK_METHOD3(SGet,
                  Status(const std::string&, const std::string&, ValueType*));
 
-    MOCK_METHOD3(SSet,
-                 Status(const std::string&,
-                        const std::string&,
-                        const ValueType&));
+    MOCK_METHOD3(SSet, Status(const std::string&, const std::string&,
+                              const ValueType&));
 
     MOCK_METHOD2(SDel, Status(const std::string&, const std::string&));
 
-    MOCK_METHOD2(SSeek,
-                 std::shared_ptr<Iterator>(const std::string&,
-                                           const std::string&));
+    MOCK_METHOD2(SSeek, std::shared_ptr<Iterator>(const std::string&,
+                                                  const std::string&));
 
     MOCK_METHOD1(SGetAll, std::shared_ptr<Iterator>(const std::string&));
 
@@ -88,6 +83,10 @@ class MockKVStorage : public KVStorage {
                  bool(const std::string&, std::vector<std::string>*));
 
     MOCK_METHOD1(Recover, bool(const std::string&));
+
+    MOCK_METHOD0(Commit, Status());
+
+    MOCK_METHOD0(Rollback, Status());
 };
 
 }  // namespace storage

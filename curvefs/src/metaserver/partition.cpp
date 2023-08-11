@@ -25,18 +25,20 @@
 #include <assert.h>
 
 #include <algorithm>
+#include <cstdint>
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "curvefs/proto/metaserver.pb.h"
-#include "curvefs/src/metaserver/s3compact_manager.h"
-#include "curvefs/src/metaserver/trash_manager.h"
-#include "curvefs/src/metaserver/storage/converter.h"
-#include "curvefs/src/metaserver/s3compact.h"
-#include "curvefs/src/metaserver/space/inode_volume_space_deallocate.h"
-#include "curvefs/src/metaserver/space/volume_deallocate_manager.h"
 #include "curvefs/src/metaserver/copyset/copyset_node_manager.h"
 #include "curvefs/src/metaserver/mds/fsinfo_manager.h"
+#include "curvefs/src/metaserver/s3compact.h"
+#include "curvefs/src/metaserver/s3compact_manager.h"
+#include "curvefs/src/metaserver/space/inode_volume_space_deallocate.h"
+#include "curvefs/src/metaserver/space/volume_deallocate_manager.h"
+#include "curvefs/src/metaserver/storage/converter.h"
+#include "curvefs/src/metaserver/trash_manager.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -44,8 +46,8 @@ namespace metaserver {
 using ::curvefs::metaserver::storage::NameGenerator;
 
 Partition::Partition(PartitionInfo partition,
-                     std::shared_ptr<KVStorage> kvStorage,
-                     bool startCompact, bool startVolumeDeallocate) {
+                     std::shared_ptr<KVStorage> kvStorage, bool startCompact,
+                     bool startVolumeDeallocate) {
     assert(partition.start() <= partition.end());
     partitionInfo_ = std::move(partition);
     uint32_t partitionId = partitionInfo_.partitionid();
@@ -69,7 +71,7 @@ Partition::Partition(PartitionInfo partition,
     auto trash = std::make_shared<TrashImpl>(inodeStorage_);
     inodeManager_ = std::make_shared<InodeManager>(
         inodeStorage_, trash, partitionInfo_.mutable_filetype2inodenum());
-    txManager_ = std::make_shared<TxManager>(dentryStorage_);
+    txManager_ = std::make_shared<TxManager>(dentryStorage_, partitionInfo_);
     dentryManager_ =
         std::make_shared<DentryManager>(dentryStorage_, txManager_);
     if (!partitionInfo_.has_nextid()) {
@@ -88,73 +90,95 @@ Partition::Partition(PartitionInfo partition,
     }
 }
 
-#define PRECHECK(fsId, inodeId)                                                \
-    do {                                                                       \
-        if (!IsInodeBelongs((fsId), (inodeId))) {                              \
-            return MetaStatusCode::PARTITION_ID_MISSMATCH;                     \
-        }                                                                      \
-        if (GetStatus() == PartitionStatus::DELETING) {                        \
-            return MetaStatusCode::PARTITION_DELETING;                         \
-        }                                                                      \
+#define PRECHECK(fsId, inodeId)                            \
+    do {                                                   \
+        if (!IsInodeBelongs((fsId), (inodeId))) {          \
+            return MetaStatusCode::PARTITION_ID_MISSMATCH; \
+        }                                                  \
+        if (GetStatus() == PartitionStatus::DELETING) {    \
+            return MetaStatusCode::PARTITION_DELETING;     \
+        }                                                  \
     } while (0)
 
-#define PRECHECK_FSID(fsId)                                                    \
-    do {                                                                       \
-        if (!IsInodeBelongs((fsId))) {                                         \
-            return MetaStatusCode::PARTITION_ID_MISSMATCH;                     \
-        }                                                                      \
-        if (GetStatus() == PartitionStatus::DELETING) {                        \
-            return MetaStatusCode::PARTITION_DELETING;                         \
-        }                                                                      \
+#define PRECHECK_FSID(fsId)                                \
+    do {                                                   \
+        if (!IsInodeBelongs((fsId))) {                     \
+            return MetaStatusCode::PARTITION_ID_MISSMATCH; \
+        }                                                  \
+        if (GetStatus() == PartitionStatus::DELETING) {    \
+            return MetaStatusCode::PARTITION_DELETING;     \
+        }                                                  \
     } while (0)
 
-MetaStatusCode Partition::CreateDentry(const Dentry& dentry,
-                                       const Time& tm) {
+MetaStatusCode Partition::CreateDentry(const Dentry& dentry, const Time& tm,
+                                       int64_t logIndex) {
     PRECHECK(dentry.fsid(), dentry.parentinodeid());
-
-    MetaStatusCode ret = dentryManager_->CreateDentry(dentry);
+    MetaStatusCode ret = dentryManager_->CreateDentry(dentry, logIndex);
     if (MetaStatusCode::OK == ret) {
         if (dentry.has_type()) {
             return inodeManager_->UpdateInodeWhenCreateOrRemoveSubNode(
-                dentry, tm.sec(), tm.nsec(), true);
+                dentry, tm.sec(), tm.nsec(), true, logIndex);
         } else {
             LOG(ERROR) << "CreateDentry does not have type, "
                        << dentry.ShortDebugString();
             return MetaStatusCode::PARAM_ERROR;
         }
     } else if (MetaStatusCode::IDEMPOTENCE_OK == ret) {
+        if (dentry.has_type()) {
+            // NOTE: we enter here means that
+            // this log maybe is "half apply"
+            ret = inodeManager_->UpdateInodeWhenCreateOrRemoveSubNode(
+                dentry, tm.sec(), tm.nsec(), true, logIndex);
+            if (ret == MetaStatusCode::IDEMPOTENCE_OK) {
+                ret = MetaStatusCode::OK;
+            }
+            if (ret != MetaStatusCode::OK) {
+                return ret;
+            }
+        }
         return MetaStatusCode::OK;
     } else {
         return ret;
     }
 }
 
-MetaStatusCode Partition::LoadDentry(const DentryVec& vec, bool merge) {
+MetaStatusCode Partition::LoadDentry(const DentryVec& vec, bool merge,
+                                     int64_t logIndex) {
     auto dentry = vec.dentrys(0);
 
     PRECHECK(dentry.fsid(), dentry.parentinodeid());
 
-    MetaStatusCode rc = dentryManager_->CreateDentry(vec, merge);
-    if (rc == MetaStatusCode::OK ||
-        rc == MetaStatusCode::IDEMPOTENCE_OK) {
+    MetaStatusCode rc = dentryManager_->CreateDentry(vec, merge, logIndex);
+    if (rc == MetaStatusCode::OK || rc == MetaStatusCode::IDEMPOTENCE_OK) {
         return MetaStatusCode::OK;
     }
     return rc;
 }
 
-MetaStatusCode Partition::DeleteDentry(const Dentry& dentry) {
+MetaStatusCode Partition::DeleteDentry(const Dentry& dentry, int64_t logIndex) {
     PRECHECK(dentry.fsid(), dentry.parentinodeid());
 
-    MetaStatusCode ret = dentryManager_->DeleteDentry(dentry);
+    MetaStatusCode ret = dentryManager_->DeleteDentry(dentry, logIndex);
     if (MetaStatusCode::OK == ret) {
         if (dentry.has_type()) {
             return inodeManager_->UpdateInodeWhenCreateOrRemoveSubNode(
-                dentry, 0, 0, false);
+                dentry, 0, 0, false, logIndex);
         } else {
             LOG(ERROR) << "DeleteDentry does not have type, "
                        << dentry.ShortDebugString();
             return MetaStatusCode::PARAM_ERROR;
         }
+    } else if (MetaStatusCode::IDEMPOTENCE_OK == ret) {
+        if (dentry.has_type()) {
+            // NOTE: we enter here means that
+            // this log maybe is "half apply"
+            ret = inodeManager_->UpdateInodeWhenCreateOrRemoveSubNode(
+                dentry, 0, 0, false, logIndex);
+        }
+        if (ret == MetaStatusCode::IDEMPOTENCE_OK) {
+            ret = MetaStatusCode::OK;
+        }
+        return ret;
     } else {
         return ret;
     }
@@ -167,22 +191,20 @@ MetaStatusCode Partition::GetDentry(Dentry* dentry) {
 
 MetaStatusCode Partition::ListDentry(const Dentry& dentry,
                                      std::vector<Dentry>* dentrys,
-                                     uint32_t limit,
-                                     bool onlyDir) {
+                                     uint32_t limit, bool onlyDir) {
     PRECHECK(dentry.fsid(), dentry.parentinodeid());
     return dentryManager_->ListDentry(dentry, dentrys, limit, onlyDir);
 }
 
-void Partition::ClearDentry() {
-    dentryManager_->ClearDentry();
-}
+void Partition::ClearDentry() { dentryManager_->ClearDentry(); }
 
-MetaStatusCode Partition::HandleRenameTx(const std::vector<Dentry>& dentrys) {
-    for (const auto &it : dentrys) {
+MetaStatusCode Partition::HandleRenameTx(const std::vector<Dentry>& dentrys,
+                                         int64_t logIndex) {
+    for (const auto& it : dentrys) {
         PRECHECK(it.fsid(), it.parentinodeid());
     }
 
-    return dentryManager_->HandleRenameTx(dentrys);
+    return dentryManager_->HandleRenameTx(dentrys, logIndex);
 }
 
 bool Partition::InsertPendingTx(const PrepareRenameTxRequest& pendingTx) {
@@ -198,6 +220,19 @@ bool Partition::InsertPendingTx(const PrepareRenameTxRequest& pendingTx) {
     return txManager_->InsertPendingTx(renameTx);
 }
 
+bool Partition::Init() {
+    // NOTE: invoke `dentryStorage::Init()`
+    // and `inodeStorage::Init()` is unnecessary
+    // they will be invoked by `manager`
+    return dentryManager_->Init() && inodeManager_->Init() &&
+           txManager_->Init();
+}
+
+void Partition::SerializeRenameTx(const RenameTx& in,
+                                  PrepareRenameTxRequest* out) {
+    txManager_->SerializeRenameTx(in, out);
+}
+
 bool Partition::FindPendingTx(PrepareRenameTxRequest* pendingTx) {
     if (GetStatus() == PartitionStatus::DELETING) {
         return false;
@@ -209,17 +244,13 @@ bool Partition::FindPendingTx(PrepareRenameTxRequest* pendingTx) {
         return false;
     }
 
-    auto dentrys = renameTx.GetDentrys();
-    pendingTx->set_poolid(partitionInfo_.poolid());
-    pendingTx->set_copysetid(partitionInfo_.copysetid());
-    pendingTx->set_partitionid(partitionInfo_.partitionid());
-    *pendingTx->mutable_dentrys() = {dentrys->begin(), dentrys->end()};
+    SerializeRenameTx(renameTx, pendingTx);
     return true;
 }
 
 // inode
-MetaStatusCode Partition::CreateInode(const InodeParam &param,
-                                      Inode* inode) {
+MetaStatusCode Partition::CreateInode(const InodeParam& param, Inode* inode,
+                                      int64_t logIndex) {
     if (GetStatus() == PartitionStatus::READONLY) {
         return MetaStatusCode::PARTITION_ALLOC_ID_FAIL;
     }
@@ -237,19 +268,33 @@ MetaStatusCode Partition::CreateInode(const InodeParam &param,
         return MetaStatusCode::PARTITION_ID_MISSMATCH;
     }
 
-    return inodeManager_->CreateInode(inodeId, param, inode);
+    auto ret = inodeManager_->CreateInode(inodeId, param, inode, logIndex);
+    if (ret == MetaStatusCode::IDEMPOTENCE_OK) {
+        ret = MetaStatusCode::OK;
+    }
+    return ret;
 }
 
-MetaStatusCode Partition::CreateRootInode(const InodeParam &param) {
+MetaStatusCode Partition::CreateRootInode(const InodeParam& param,
+                                          int64_t logIndex) {
     PRECHECK_FSID(param.fsId);
-    return inodeManager_->CreateRootInode(param);
+    auto ret = inodeManager_->CreateRootInode(param, logIndex);
+    if (ret == MetaStatusCode::IDEMPOTENCE_OK) {
+        ret = MetaStatusCode::OK;
+    }
+    return ret;
 }
 
-MetaStatusCode Partition::CreateManageInode(const InodeParam &param,
+MetaStatusCode Partition::CreateManageInode(const InodeParam& param,
                                             ManageInodeType manageType,
-                                            Inode* inode) {
+                                            Inode* inode, int64_t logIndex) {
     PRECHECK_FSID(param.fsId);
-    return inodeManager_->CreateManageInode(param, manageType, inode);
+    auto ret =
+        inodeManager_->CreateManageInode(param, manageType, inode, logIndex);
+    if (ret == MetaStatusCode::IDEMPOTENCE_OK) {
+        ret = MetaStatusCode::OK;
+    }
+    return ret;
 }
 
 MetaStatusCode Partition::GetInode(uint32_t fsId, uint64_t inodeId,
@@ -270,26 +315,38 @@ MetaStatusCode Partition::GetXAttr(uint32_t fsId, uint64_t inodeId,
     return inodeManager_->GetXAttr(fsId, inodeId, xattr);
 }
 
-MetaStatusCode Partition::DeleteInode(uint32_t fsId, uint64_t inodeId) {
+MetaStatusCode Partition::DeleteInode(uint32_t fsId, uint64_t inodeId,
+                                      int64_t logIndex) {
     PRECHECK(fsId, inodeId);
-    return inodeManager_->DeleteInode(fsId, inodeId);
+    auto ret = inodeManager_->DeleteInode(fsId, inodeId, logIndex);
+    if (ret == MetaStatusCode::IDEMPOTENCE_OK) {
+        ret = MetaStatusCode::OK;
+    }
+    return ret;
 }
 
-MetaStatusCode Partition::UpdateInode(const UpdateInodeRequest& request) {
+MetaStatusCode Partition::UpdateInode(const UpdateInodeRequest& request,
+                                      int64_t logIndex) {
     PRECHECK(request.fsid(), request.inodeid());
-    return inodeManager_->UpdateInode(request);
+    auto ret = inodeManager_->UpdateInode(request, logIndex);
+    if (ret == MetaStatusCode::IDEMPOTENCE_OK) {
+        ret = MetaStatusCode::OK;
+    }
+    return ret;
 }
 
 MetaStatusCode Partition::GetOrModifyS3ChunkInfo(
-    uint32_t fsId,
-    uint64_t inodeId,
-    const S3ChunkInfoMap& map2add,
-    const S3ChunkInfoMap& map2del,
-    bool returnS3ChunkInfoMap,
-    std::shared_ptr<Iterator>* iterator) {
+    uint32_t fsId, uint64_t inodeId, const S3ChunkInfoMap& map2add,
+    const S3ChunkInfoMap& map2del, bool returnS3ChunkInfoMap,
+    std::shared_ptr<Iterator>* iterator, int64_t logIndex) {
     PRECHECK(fsId, inodeId);
-    return inodeManager_->GetOrModifyS3ChunkInfo(
-        fsId, inodeId, map2add, map2del, returnS3ChunkInfoMap, iterator);
+    auto ret = inodeManager_->GetOrModifyS3ChunkInfo(
+        fsId, inodeId, map2add, map2del, returnS3ChunkInfoMap, iterator,
+        logIndex);
+    if (ret == MetaStatusCode::IDEMPOTENCE_OK) {
+        ret = MetaStatusCode::OK;
+    }
+    return ret;
 }
 
 MetaStatusCode Partition::PaddingInodeS3ChunkInfo(int32_t fsId,
@@ -300,9 +357,13 @@ MetaStatusCode Partition::PaddingInodeS3ChunkInfo(int32_t fsId,
     return inodeManager_->PaddingInodeS3ChunkInfo(fsId, inodeId, m, limit);
 }
 
-MetaStatusCode Partition::InsertInode(const Inode& inode) {
+MetaStatusCode Partition::InsertInode(const Inode& inode, int64_t logIndex) {
     PRECHECK(inode.fsid(), inode.inodeid());
-    return inodeManager_->InsertInode(inode);
+    auto ret = inodeManager_->InsertInode(inode, logIndex);
+    if (ret == MetaStatusCode::IDEMPOTENCE_OK) {
+        ret = MetaStatusCode::OK;
+    }
+    return ret;
 }
 
 bool Partition::GetInodeIdList(std::list<uint64_t>* InodeIdList) {
@@ -393,6 +454,10 @@ bool Partition::Clear() {
     return true;
 }
 
+// NOTE: store nextid to kvstroage is unnecessary
+// we will replay the logs filter the log entries that
+// already applied, but keep nextid changes in memory
+// so it will grow to corrected value after replay
 uint64_t Partition::GetNewInodeId() {
     if (partitionInfo_.nextid() > partitionInfo_.end()) {
         partitionInfo_.set_status(PartitionStatus::READONLY);
@@ -411,9 +476,7 @@ uint32_t Partition::GetDentryNum() {
     return static_cast<uint32_t>(dentryStorage_->Size());
 }
 
-bool Partition::EmptyInodeStorage() {
-    return inodeStorage_->Empty();
-}
+bool Partition::EmptyInodeStorage() { return inodeStorage_->Empty(); }
 
 std::string Partition::GetInodeTablename() {
     std::ostringstream oss;
@@ -427,23 +490,31 @@ std::string Partition::GetDentryTablename() {
     return oss.str();
 }
 
-MetaStatusCode
-Partition::UpdateVolumeExtent(uint32_t fsId, uint64_t inodeId,
-                              const VolumeExtentSliceList &extents) {
+MetaStatusCode Partition::UpdateVolumeExtent(
+    uint32_t fsId, uint64_t inodeId, const VolumeExtentSliceList& extents,
+    int64_t logIndex) {
     PRECHECK(fsId, inodeId);
-    return inodeManager_->UpdateVolumeExtent(fsId, inodeId, extents);
+    auto ret =
+        inodeManager_->UpdateVolumeExtent(fsId, inodeId, extents, logIndex);
+    if (ret == MetaStatusCode::IDEMPOTENCE_OK) {
+        ret = MetaStatusCode::OK;
+    }
+    return ret;
 }
 
 MetaStatusCode Partition::UpdateVolumeExtentSlice(
-    uint32_t fsId,
-    uint64_t inodeId,
-    const VolumeExtentSlice& slice) {
+    uint32_t fsId, uint64_t inodeId, const VolumeExtentSlice& slice,
+    int64_t logIndex) {
     PRECHECK(fsId, inodeId);
-    return inodeManager_->UpdateVolumeExtentSlice(fsId, inodeId, slice);
+    auto ret =
+        inodeManager_->UpdateVolumeExtentSlice(fsId, inodeId, slice, logIndex);
+    if (ret == MetaStatusCode::IDEMPOTENCE_OK) {
+        ret = MetaStatusCode::OK;
+    }
+    return ret;
 }
 
-MetaStatusCode Partition::GetVolumeExtent(uint32_t fsId,
-                                          uint64_t inodeId,
+MetaStatusCode Partition::GetVolumeExtent(uint32_t fsId, uint64_t inodeId,
                                           const std::vector<uint64_t>& slices,
                                           VolumeExtentSliceList* extents) {
     PRECHECK(fsId, inodeId);
@@ -451,14 +522,17 @@ MetaStatusCode Partition::GetVolumeExtent(uint32_t fsId,
 }
 
 MetaStatusCode Partition::UpdateDeallocatableBlockGroup(
-    const UpdateDeallocatableBlockGroupRequest &request) {
+    const UpdateDeallocatableBlockGroupRequest& request, int64_t logIndex) {
     PRECHECK_FSID(request.fsid());
-    return inodeStorage_->UpdateDeallocatableBlockGroup(request.fsid(),
-                                                        request.update());
+    auto ret = inodeManager_->UpdateDeallocatableBlockGroup(request, logIndex);
+    if (ret == MetaStatusCode::IDEMPOTENCE_OK) {
+        ret = MetaStatusCode::OK;
+    }
+    return ret;
 }
 
 MetaStatusCode Partition::GetAllBlockGroup(
-    std::vector<DeallocatableBlockGroup> *deallocatableBlockGroupVec) {
+    std::vector<DeallocatableBlockGroup>* deallocatableBlockGroupVec) {
     return inodeStorage_->GetAllBlockGroup(deallocatableBlockGroupVec);
 }
 

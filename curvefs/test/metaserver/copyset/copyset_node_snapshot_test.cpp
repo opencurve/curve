@@ -108,7 +108,7 @@ class CopysetNodeRaftSnapshotTest : public testing::Test {
         options_.port = kTestPort;
 
         options_.dataUri = "local://" + dataPath_;
-        options_.raftNodeOptions.log_uri  = "local://" + dataPath_;
+        options_.raftNodeOptions.log_uri = "local://" + dataPath_;
         options_.raftNodeOptions.raft_meta_uri = "local://" + dataPath_;
         options_.raftNodeOptions.snapshot_uri = "local://" + dataPath_;
 
@@ -185,14 +185,14 @@ TEST_F(CopysetNodeRaftSnapshotTest, SnapshotSaveTest_SaveConfEpochFailed) {
     MockSnapshotWriter writer;
     FakeSnapshotSaveClosure done;
 
-    EXPECT_CALL(writer, get_path())
-        .WillRepeatedly(Return(dataPath_));
+    EXPECT_CALL(writer, get_path()).WillRepeatedly(Return(dataPath_));
     EXPECT_CALL(*mockfs_, Open(_, _))
         .WillOnce(Invoke([](const std::string&, int) {
             errno = EINVAL;
             return -1;
         }));
-    EXPECT_CALL(*mockMetaStore_, Save(_, _)).Times(0);
+    EXPECT_CALL(*mockMetaStore_, SaveMeta(_, _)).Times(0);
+    EXPECT_CALL(*mockMetaStore_, SaveData(_, _)).Times(0);
 
     node->on_snapshot_save(&writer, &done);
 
@@ -202,7 +202,7 @@ TEST_F(CopysetNodeRaftSnapshotTest, SnapshotSaveTest_SaveConfEpochFailed) {
     EXPECT_EQ(EINVAL, done.status().error_code());
 }
 
-TEST_F(CopysetNodeRaftSnapshotTest, SnapshotSaveTest_MetaStoreSaveFailed) {
+TEST_F(CopysetNodeRaftSnapshotTest, SnapshotSaveTest_MetaStoreSaveFailed_Meta) {
     ASSERT_TRUE(CreateOneCopyset());
 
     auto* node = nodeManager_->GetCopysetNode(poolId_, copysetId_);
@@ -214,31 +214,69 @@ TEST_F(CopysetNodeRaftSnapshotTest, SnapshotSaveTest_MetaStoreSaveFailed) {
     MockSnapshotWriter writer;
     FakeSnapshotSaveClosure done;
 
-    EXPECT_CALL(writer, get_path())
-        .WillRepeatedly(Return(dataPath_));
-    EXPECT_CALL(writer, add_file(_))
-        .Times(1);
-    EXPECT_CALL(*mockfs_, Open(_, _))
-        .WillOnce(Return(0));
+    EXPECT_CALL(writer, get_path()).WillRepeatedly(Return(dataPath_));
+    EXPECT_CALL(writer, add_file(_)).Times(1);
+    EXPECT_CALL(*mockfs_, Open(_, _)).WillOnce(Return(0));
     EXPECT_CALL(*mockfs_, Write(_, Matcher<const char*>(_), _, _))
         .WillOnce(Invoke(
             [](int fd, const char*, uint64_t, int length) { return length; }));
-    EXPECT_CALL(*mockfs_, Fsync(_))
-        .WillOnce(Return(0));
-    EXPECT_CALL(*mockfs_, Close(_))
-        .Times(1);
-    EXPECT_CALL(*mockMetaStore, Save(_, _))
-        .WillOnce(Invoke([](std::string path, OnSnapshotSaveDoneClosure* done) {
-            done->SetError(MetaStatusCode::UNKNOWN_ERROR);
-            done->Run();
-            return false;
-        }));
+    EXPECT_CALL(*mockfs_, Fsync(_)).WillOnce(Return(0));
+    EXPECT_CALL(*mockfs_, Close(_)).Times(1);
+    EXPECT_CALL(*mockMetaStore, SaveMeta(_, _))
+        .WillOnce(
+            Invoke([](const std::string& dir, std::vector<std::string>* files) {
+                (void)dir;
+                (void)files;
+                return false;
+            }));
 
     node->on_snapshot_save(&writer, &done);
     done.WaitRunned();
 
     EXPECT_FALSE(done.status().ok());
-    EXPECT_EQ(MetaStatusCode::UNKNOWN_ERROR, done.status().error_code());
+    EXPECT_EQ(MetaStatusCode::SAVE_META_FAIL, done.status().error_code());
+}
+
+TEST_F(CopysetNodeRaftSnapshotTest, SnapshotSaveTest_MetaStoreSaveFailed_Data) {
+    ASSERT_TRUE(CreateOneCopyset());
+
+    auto* node = nodeManager_->GetCopysetNode(poolId_, copysetId_);
+    ASSERT_NE(nullptr, node);
+
+    auto mockMetaStore = mockMetaStore_.get();
+    node->SetMetaStore(mockMetaStore_.release());
+
+    MockSnapshotWriter writer;
+    FakeSnapshotSaveClosure done;
+
+    EXPECT_CALL(writer, get_path()).WillRepeatedly(Return(dataPath_));
+    EXPECT_CALL(writer, add_file(_)).Times(1);
+    EXPECT_CALL(*mockfs_, Open(_, _)).WillOnce(Return(0));
+    EXPECT_CALL(*mockfs_, Write(_, Matcher<const char*>(_), _, _))
+        .WillOnce(Invoke(
+            [](int fd, const char*, uint64_t, int length) { return length; }));
+    EXPECT_CALL(*mockfs_, Fsync(_)).WillOnce(Return(0));
+    EXPECT_CALL(*mockfs_, Close(_)).Times(1);
+    EXPECT_CALL(*mockMetaStore, SaveMeta(_, _))
+        .WillOnce(
+            Invoke([](const std::string& dir, std::vector<std::string>* files) {
+                (void)dir;
+                (void)files;
+                return true;
+            }));
+    EXPECT_CALL(*mockMetaStore, SaveData(_, _))
+        .WillOnce(
+            Invoke([](const std::string& dir, std::vector<std::string>* files) {
+                (void)dir;
+                (void)files;
+                return false;
+            }));
+
+    node->on_snapshot_save(&writer, &done);
+    done.WaitRunned();
+
+    EXPECT_FALSE(done.status().ok());
+    EXPECT_EQ(MetaStatusCode::SAVE_META_FAIL, done.status().error_code());
 
     // TODO(wuhanqing): check metric
 }
@@ -255,25 +293,28 @@ TEST_F(CopysetNodeRaftSnapshotTest, SnapshotSaveTest_Success) {
     MockSnapshotWriter writer;
     FakeSnapshotSaveClosure done;
 
-    EXPECT_CALL(writer, get_path())
-        .WillRepeatedly(Return(dataPath_));
-    EXPECT_CALL(writer, add_file(_))
-        .Times(1);
-    EXPECT_CALL(*mockfs_, Open(_, _))
-        .WillOnce(Return(0));
+    EXPECT_CALL(writer, get_path()).WillRepeatedly(Return(dataPath_));
+    EXPECT_CALL(writer, add_file(_)).Times(1);
+    EXPECT_CALL(*mockfs_, Open(_, _)).WillOnce(Return(0));
     EXPECT_CALL(*mockfs_, Write(_, Matcher<const char*>(_), _, _))
         .WillOnce(Invoke(
             [](int fd, const char*, uint64_t, int length) { return length; }));
-    EXPECT_CALL(*mockfs_, Fsync(_))
-        .WillOnce(Return(0));
-    EXPECT_CALL(*mockfs_, Close(_))
-        .Times(1);
-    EXPECT_CALL(*mockMetaStore, Save(_, _))
-        .WillOnce(Invoke([](std::string path, OnSnapshotSaveDoneClosure* done) {
-            done->SetSuccess();
-            done->Run();
-            return true;
-        }));
+    EXPECT_CALL(*mockfs_, Fsync(_)).WillOnce(Return(0));
+    EXPECT_CALL(*mockfs_, Close(_)).Times(1);
+    EXPECT_CALL(*mockMetaStore, SaveMeta(_, _))
+        .WillOnce(
+            Invoke([](const std::string& dir, std::vector<std::string>* files) {
+                (void)dir;
+                (void)files;
+                return true;
+            }));
+    EXPECT_CALL(*mockMetaStore, SaveData(_, _))
+        .WillOnce(
+            Invoke([](const std::string& dir, std::vector<std::string>* files) {
+                (void)dir;
+                (void)files;
+                return true;
+            }));
 
     node->on_snapshot_save(&writer, &done);
     done.WaitRunned();
@@ -291,12 +332,9 @@ TEST_F(CopysetNodeRaftSnapshotTest, SnapshotLoadTest_LoadConfFileFailed) {
     ASSERT_NE(nullptr, node);
 
     MockSnapshotReader reader;
-    EXPECT_CALL(reader, get_path())
-        .WillRepeatedly(Return(dataPath_));
-    EXPECT_CALL(*mockfs_, FileExists(_))
-        .WillOnce(Return(true));
-    EXPECT_CALL(*mockfs_, Open(_, _))
-        .WillOnce(Return(-1));
+    EXPECT_CALL(reader, get_path()).WillRepeatedly(Return(dataPath_));
+    EXPECT_CALL(*mockfs_, FileExists(_)).WillOnce(Return(true));
+    EXPECT_CALL(*mockfs_, Open(_, _)).WillOnce(Return(-1));
 
     ASSERT_FALSE(node->IsLoading());
     EXPECT_NE(0, node->on_snapshot_load(&reader));
@@ -314,16 +352,11 @@ TEST_F(CopysetNodeRaftSnapshotTest,
     node->SetMetaStore(mockMetaStore_.release());
 
     MockSnapshotReader reader;
-    EXPECT_CALL(reader, get_path())
-        .WillRepeatedly(Return(dataPath_));
-    EXPECT_CALL(*mockfs_, FileExists(_))
-        .WillOnce(Return(false));
-    EXPECT_CALL(*mockfs_, Open(_, _))
-        .Times(0);
-    EXPECT_CALL(*mockMetaStore, Clear())
-        .Times(1);
-    EXPECT_CALL(*mockMetaStore, Load(_))
-        .WillOnce(Return(true));
+    EXPECT_CALL(reader, get_path()).WillRepeatedly(Return(dataPath_));
+    EXPECT_CALL(*mockfs_, FileExists(_)).WillOnce(Return(false));
+    EXPECT_CALL(*mockfs_, Open(_, _)).Times(0);
+    EXPECT_CALL(*mockMetaStore, Clear()).Times(1);
+    EXPECT_CALL(*mockMetaStore, Load(_)).WillOnce(Return(true));
 
     braft::SnapshotMeta meta;
     meta.set_last_included_index(100);
@@ -367,18 +400,12 @@ TEST_F(CopysetNodeRaftSnapshotTest, SnapshotLoadTest_MetaStoreLoadFailed) {
     node->SetMetaStore(mockMetaStore_.release());
 
     MockSnapshotReader reader;
-    EXPECT_CALL(reader, get_path())
-        .WillRepeatedly(Return(dataPath_));
-    EXPECT_CALL(*mockfs_, FileExists(_))
-        .WillOnce(Return(false));
-    EXPECT_CALL(*mockfs_, Open(_, _))
-        .Times(0);
-    EXPECT_CALL(*mockMetaStore, Clear())
-        .Times(1);
-    EXPECT_CALL(*mockMetaStore, Load(_))
-        .WillOnce(Return(false));
-    EXPECT_CALL(reader, load_meta(_))
-        .Times(0);
+    EXPECT_CALL(reader, get_path()).WillRepeatedly(Return(dataPath_));
+    EXPECT_CALL(*mockfs_, FileExists(_)).WillOnce(Return(false));
+    EXPECT_CALL(*mockfs_, Open(_, _)).Times(0);
+    EXPECT_CALL(*mockMetaStore, Clear()).Times(1);
+    EXPECT_CALL(*mockMetaStore, Load(_)).WillOnce(Return(false));
+    EXPECT_CALL(reader, load_meta(_)).Times(0);
 
     ASSERT_FALSE(node->IsLoading());
     EXPECT_NE(0, node->on_snapshot_load(&reader));
@@ -387,7 +414,7 @@ TEST_F(CopysetNodeRaftSnapshotTest, SnapshotLoadTest_MetaStoreLoadFailed) {
     node->SetMetaStore(nullptr);
 }
 
-void RunOnSnapshotLoad(CopysetNode* node, MockSnapshotReader *reader,
+void RunOnSnapshotLoad(CopysetNode* node, MockSnapshotReader* reader,
                        uint32_t sleepSec) {
     sleep(sleepSec);
     ASSERT_FALSE(node->IsLoading());
@@ -402,7 +429,7 @@ void RunGetPartitionInfoList(CopysetNode* node, uint32_t sleepSec,
     ASSERT_EQ(node->GetPartitionInfoList(&partitionInfoList), expectedValue);
 }
 
-void RunGetBlockStatInfo(CopysetNode *node, uint32_t sleepSec,
+void RunGetBlockStatInfo(CopysetNode* node, uint32_t sleepSec,
                          bool expectedValue) {
     sleep(sleepSec);
     std::map<uint32_t, BlockGroupStatInfo> blockStatInfoMap;
@@ -421,21 +448,16 @@ TEST_F(CopysetNodeRaftSnapshotTest, SnapshotLoadTest_MetaStoreLoadSuccess1) {
     node->SetMetaStore(mockMetaStore_.release());
 
     MockSnapshotReader reader;
-    EXPECT_CALL(reader, get_path())
-        .WillRepeatedly(Return(dataPath_));
-    EXPECT_CALL(*mockfs_, FileExists(_))
-        .WillOnce(Return(false));
-    EXPECT_CALL(*mockfs_, Open(_, _))
-        .Times(0);
-    EXPECT_CALL(*mockMetaStore, Clear())
-        .Times(1);
+    EXPECT_CALL(reader, get_path()).WillRepeatedly(Return(dataPath_));
+    EXPECT_CALL(*mockfs_, FileExists(_)).WillOnce(Return(false));
+    EXPECT_CALL(*mockfs_, Open(_, _)).Times(0);
+    EXPECT_CALL(*mockMetaStore, Clear()).Times(1);
     EXPECT_CALL(*mockMetaStore, Load(_))
-        .WillOnce(Invoke([](const std::string& pathname){
+        .WillOnce(Invoke([](const std::string& pathname) {
             sleep(3);
             return true;
         }));
-    EXPECT_CALL(reader, load_meta(_))
-        .Times(1);
+    EXPECT_CALL(reader, load_meta(_)).Times(1);
 
     std::thread thread1(RunOnSnapshotLoad, node, &reader, 0);
     std::thread thread2(RunGetPartitionInfoList, node, 3, false);
@@ -458,23 +480,17 @@ TEST_F(CopysetNodeRaftSnapshotTest, SnapshotLoadTest_MetaStoreLoadSuccess2) {
     node->SetMetaStore(mockMetaStore_.release());
 
     MockSnapshotReader reader;
-    EXPECT_CALL(reader, get_path())
-        .WillRepeatedly(Return(dataPath_));
-    EXPECT_CALL(*mockfs_, FileExists(_))
-        .WillOnce(Return(false));
-    EXPECT_CALL(*mockfs_, Open(_, _))
-        .Times(0);
-    EXPECT_CALL(*mockMetaStore, Clear())
-        .Times(1);
+    EXPECT_CALL(reader, get_path()).WillRepeatedly(Return(dataPath_));
+    EXPECT_CALL(*mockfs_, FileExists(_)).WillOnce(Return(false));
+    EXPECT_CALL(*mockfs_, Open(_, _)).Times(0);
+    EXPECT_CALL(*mockMetaStore, Clear()).Times(1);
     EXPECT_CALL(*mockMetaStore, Load(_))
-        .WillOnce(Invoke([](const std::string& pathname){
+        .WillOnce(Invoke([](const std::string& pathname) {
             sleep(1);
             return true;
         }));
-    EXPECT_CALL(reader, load_meta(_))
-        .Times(1);
-    EXPECT_CALL(*mockMetaStore, GetPartitionInfoList(_))
-        .WillOnce(Return(true));
+    EXPECT_CALL(reader, load_meta(_)).Times(1);
+    EXPECT_CALL(*mockMetaStore, GetPartitionInfoList(_)).WillOnce(Return(true));
     EXPECT_CALL(*mockMetaStore, GetPartitionSnap(_))
         .Times(2)
         .WillOnce(Return(false))
@@ -502,23 +518,17 @@ TEST_F(CopysetNodeRaftSnapshotTest, SnapshotLoadTest_MetaStoreLoadSuccess3) {
     node->SetMetaStore(mockMetaStore_.release());
 
     MockSnapshotReader reader;
-    EXPECT_CALL(reader, get_path())
-        .WillRepeatedly(Return(dataPath_));
-    EXPECT_CALL(*mockfs_, FileExists(_))
-        .WillOnce(Return(false));
-    EXPECT_CALL(*mockfs_, Open(_, _))
-        .Times(0);
-    EXPECT_CALL(*mockMetaStore, Clear())
-        .Times(1);
+    EXPECT_CALL(reader, get_path()).WillRepeatedly(Return(dataPath_));
+    EXPECT_CALL(*mockfs_, FileExists(_)).WillOnce(Return(false));
+    EXPECT_CALL(*mockfs_, Open(_, _)).Times(0);
+    EXPECT_CALL(*mockMetaStore, Clear()).Times(1);
     EXPECT_CALL(*mockMetaStore, Load(_))
-        .WillOnce(Invoke([](const std::string& pathname){
+        .WillOnce(Invoke([](const std::string& pathname) {
             sleep(1);
             return true;
         }));
-    EXPECT_CALL(reader, load_meta(_))
-        .Times(1);
-    EXPECT_CALL(*mockMetaStore, GetPartitionInfoList(_))
-        .WillOnce(Return(true));
+    EXPECT_CALL(reader, load_meta(_)).Times(1);
+    EXPECT_CALL(*mockMetaStore, GetPartitionInfoList(_)).WillOnce(Return(true));
 
     std::thread thread1(RunOnSnapshotLoad, node, &reader, 2);
     std::thread thread2(RunGetPartitionInfoList, node, 1, true);

@@ -197,6 +197,7 @@ TEST(ApplyQueue, ConcurrentTest) {
     };
 
     auto flush = [&concurrentapply, &stop, &testnum]() {
+        (void)testnum;
         while (!stop.load()) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             concurrentapply.Flush();

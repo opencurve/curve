@@ -45,7 +45,9 @@ const int kDummyServerPort = 32000;
 
 template <typename RequestT, typename ResponseT,
           MetaStatusCode code = MetaStatusCode::UNKNOWN_ERROR>
-MetaStatusCode FakeOnApplyFunc(const RequestT* request, ResponseT* response) {
+MetaStatusCode FakeOnApplyFunc(const RequestT* request, ResponseT* response,
+                               int64_t logIndex) {
+    (void)logIndex;
     response->set_statuscode(code);
     return code;
 }
@@ -63,9 +65,7 @@ class FakeClosure : public google::protobuf::Closure {
         cond_.wait(lk, [this]() { return runned_; });
     }
 
-    bool Runned() const {
-        return runned_;
-    }
+    bool Runned() const { return runned_; }
 
  private:
     std::mutex mtx_;
@@ -89,14 +89,16 @@ std::string Exec(const std::string& cmd) {
 
 using ::curve::common::TimeUtility;
 using ::testing::_;
+using ::testing::AtLeast;
 using ::testing::DoAll;
 using ::testing::Invoke;
 using ::testing::Return;
-using ::testing::AtLeast;
 using ::testing::SetArgPointee;
 
 class MetaOperatorTest : public testing::Test {
  protected:
+    void SetUp() override { logIndex_ = 0; }
+
     static void SetUpTestCase() {
         ASSERT_EQ(0, brpc::StartDummyServerAt(kDummyServerPort));
     }
@@ -120,6 +122,7 @@ class MetaOperatorTest : public testing::Test {
 
  protected:
     MockCopysetNodeManager mockNodeManager_;
+    int64_t logIndex_;
 };
 
 TEST_F(MetaOperatorTest, OperatorTypeTest) {
@@ -162,21 +165,20 @@ TEST_F(MetaOperatorTest, OnApplyErrorTest) {
     mock::MockMetaStore* mockMetaStore = new mock::MockMetaStore();
     node.SetMetaStore(mockMetaStore);
 
-    ON_CALL(*mockMetaStore, Clear())
-        .WillByDefault(Return(true));
+    ON_CALL(*mockMetaStore, Clear()).WillByDefault(Return(true));
 
     brpc::Controller cntl;
 
 #define OPERATOR_ON_APPLY_TEST(TYPE)                                           \
     {                                                                          \
-        EXPECT_CALL(*mockMetaStore, TYPE(_, _))                                \
+        EXPECT_CALL(*mockMetaStore, TYPE(_, _, _))                             \
             .WillOnce(Invoke(FakeOnApplyFunc<TYPE##Request, TYPE##Response>)); \
         TYPE##Request request;                                                 \
         TYPE##Response response;                                               \
         FakeClosure closure;                                                   \
         auto op = absl::make_unique<TYPE##Operator>(&node, &cntl, &request,    \
                                                     &response, nullptr);       \
-        op->OnApply(1, &closure, TimeUtility::GetTimeofDayUs());               \
+        op->OnApply(logIndex_++, &closure, TimeUtility::GetTimeofDayUs());     \
         closure.WaitRunned();                                                  \
         EXPECT_EQ(MetaStatusCode::UNKNOWN_ERROR, response.statuscode());       \
     }
@@ -201,19 +203,21 @@ TEST_F(MetaOperatorTest, OnApplyErrorTest) {
 
     // it's only for GetOrModifyS3ChunkInfo()
     {
-        EXPECT_CALL(*mockMetaStore, GetOrModifyS3ChunkInfo(_, _, _))
+        EXPECT_CALL(*mockMetaStore, GetOrModifyS3ChunkInfo(_, _, _, _))
             .WillOnce(Invoke([&](const GetOrModifyS3ChunkInfoRequest* request,
                                  GetOrModifyS3ChunkInfoResponse* response,
-                                 std::shared_ptr<Iterator>* iterator) {
-            response->set_statuscode(MetaStatusCode::UNKNOWN_ERROR);
-            return MetaStatusCode::UNKNOWN_ERROR;
-        }));
+                                 std::shared_ptr<Iterator>* iterator,
+                                 int64_t logIndex) {
+                (void)logIndex;
+                response->set_statuscode(MetaStatusCode::UNKNOWN_ERROR);
+                return MetaStatusCode::UNKNOWN_ERROR;
+            }));
         GetOrModifyS3ChunkInfoRequest request;
         GetOrModifyS3ChunkInfoResponse response;
         FakeClosure closure;
         auto op = absl::make_unique<GetOrModifyS3ChunkInfoOperator>(
             &node, &cntl, &request, &response, nullptr);
-        op->OnApply(1, &closure, TimeUtility::GetTimeofDayUs());
+        op->OnApply(logIndex_++, &closure, TimeUtility::GetTimeofDayUs());
         closure.WaitRunned();
         EXPECT_EQ(MetaStatusCode::UNKNOWN_ERROR, response.statuscode());
     }
@@ -289,18 +293,17 @@ TEST_F(MetaOperatorTest, OnApplyFromLogErrorTest) {
     mock::MockMetaStore* mockMetaStore = new mock::MockMetaStore();
     node.SetMetaStore(mockMetaStore);
 
-    ON_CALL(*mockMetaStore, Clear())
-        .WillByDefault(Return(true));
+    ON_CALL(*mockMetaStore, Clear()).WillByDefault(Return(true));
 
     brpc::Controller cntl;
 
 #define OPERATOR_ON_APPLY_FROM_LOG_TEST(TYPE)                                \
     {                                                                        \
-        EXPECT_CALL(*mockMetaStore, TYPE(_, _))                              \
+        EXPECT_CALL(*mockMetaStore, TYPE(_, _, _))                           \
             .WillOnce(Return(MetaStatusCode::UNKNOWN_ERROR));                \
         TYPE##Request request;                                               \
         auto op = absl::make_unique<TYPE##Operator>(&node, &request, false); \
-        op->OnApplyFromLog(TimeUtility::GetTimeofDayUs());                   \
+        op->OnApplyFromLog(logIndex_++, TimeUtility::GetTimeofDayUs());      \
         op.release();                                                        \
     }
 
@@ -319,21 +322,21 @@ TEST_F(MetaOperatorTest, OnApplyFromLogErrorTest) {
 
     // its only for GetOrModifyS3ChunkInfo()
     {
-        EXPECT_CALL(*mockMetaStore, GetOrModifyS3ChunkInfo(_, _, _))
+        EXPECT_CALL(*mockMetaStore, GetOrModifyS3ChunkInfo(_, _, _, _))
             .WillOnce(Return(MetaStatusCode::UNKNOWN_ERROR));
         GetOrModifyS3ChunkInfoRequest request;
         auto op = absl::make_unique<GetOrModifyS3ChunkInfoOperator>(
             &node, &request, false);
-        op->OnApplyFromLog(TimeUtility::GetTimeofDayUs());
+        op->OnApplyFromLog(logIndex_++, TimeUtility::GetTimeofDayUs());
         op.release();
     }
 
 #define OPERATOR_ON_APPLY_FROM_LOG_DO_NOTHING_TEST(TYPE)                     \
     {                                                                        \
-        EXPECT_CALL(*mockMetaStore, TYPE(_, _)).Times(0);                    \
+        EXPECT_CALL(*mockMetaStore, TYPE(_, _, _)).Times(0);                 \
         TYPE##Request request;                                               \
         auto op = absl::make_unique<TYPE##Operator>(&node, &request, false); \
-        op->OnApplyFromLog(TimeUtility::GetTimeofDayUs());                   \
+        op->OnApplyFromLog(logIndex_++, TimeUtility::GetTimeofDayUs());      \
         op.release();                                                        \
     }
 
@@ -371,26 +374,30 @@ TEST_F(MetaOperatorTest, OnApplyFromLogErrorTest) {
             "/vars | grep "
             "op_apply_from_log_pool_100_copyset_100_delete_inode_total_error",
         1));
-    EXPECT_TRUE(CheckMetric(
-        "curl -s 0.0.0.0:" + std::to_string(kDummyServerPort) +
-        "/vars | grep "
-        "op_apply_from_log_pool_100_copyset_100_create_root_inode_total_error",
-        1));
-    EXPECT_TRUE(CheckMetric(
-        "curl -s 0.0.0.0:" + std::to_string(kDummyServerPort) +
-        "/vars | grep "
-        "op_apply_from_log_pool_100_copyset_100_create_partition_total_error",
-        1));
-    EXPECT_TRUE(CheckMetric(
-        "curl -s 0.0.0.0:" + std::to_string(kDummyServerPort) +
-        "/vars | grep "
-        "op_apply_from_log_pool_100_copyset_100_delete_partition_total_error",
-        1));
-    EXPECT_TRUE(CheckMetric(
-        "curl -s 0.0.0.0:" + std::to_string(kDummyServerPort) +
-        "/vars | grep "
-        "op_apply_from_log_pool_100_copyset_100_prepare_rename_tx_total_error",
-        1));
+    EXPECT_TRUE(
+        CheckMetric("curl -s 0.0.0.0:" + std::to_string(kDummyServerPort) +
+                        "/vars | grep "
+                        "op_apply_from_log_pool_100_copyset_100_create_root_"
+                        "inode_total_error",
+                    1));
+    EXPECT_TRUE(
+        CheckMetric("curl -s 0.0.0.0:" + std::to_string(kDummyServerPort) +
+                        "/vars | grep "
+                        "op_apply_from_log_pool_100_copyset_100_create_"
+                        "partition_total_error",
+                    1));
+    EXPECT_TRUE(
+        CheckMetric("curl -s 0.0.0.0:" + std::to_string(kDummyServerPort) +
+                        "/vars | grep "
+                        "op_apply_from_log_pool_100_copyset_100_delete_"
+                        "partition_total_error",
+                    1));
+    EXPECT_TRUE(
+        CheckMetric("curl -s 0.0.0.0:" + std::to_string(kDummyServerPort) +
+                        "/vars | grep "
+                        "op_apply_from_log_pool_100_copyset_100_prepare_rename_"
+                        "tx_total_error",
+                    1));
 }
 
 TEST_F(MetaOperatorTest, PropostTest_IsNotLeader) {
@@ -425,8 +432,7 @@ TEST_F(MetaOperatorTest, PropostTest_RequestCanBypassProcess) {
     options.localFileSystem = &localFs;
     options.storageOptions.type = "memory";
 
-    EXPECT_CALL(localFs, Mkdir(_))
-        .WillOnce(Return(0));
+    EXPECT_CALL(localFs, Mkdir(_)).WillOnce(Return(0));
 
     EXPECT_TRUE(node.Init(options));
     auto* mockMetaStore = new mock::MockMetaStore();
@@ -434,15 +440,11 @@ TEST_F(MetaOperatorTest, PropostTest_RequestCanBypassProcess) {
     auto* mockRaftNode = new MockRaftNode();
     node.SetRaftNode(mockRaftNode);
 
-    ON_CALL(*mockMetaStore, Clear())
-        .WillByDefault(Return(true));
-    EXPECT_CALL(*mockRaftNode, apply(_))
-        .Times(0);
-    EXPECT_CALL(*mockRaftNode, shutdown(_))
-        .Times(AtLeast(1));
-    EXPECT_CALL(*mockRaftNode, join())
-        .Times(AtLeast(1));
-    EXPECT_CALL(*mockMetaStore, GetDentry(_, _))
+    ON_CALL(*mockMetaStore, Clear()).WillByDefault(Return(true));
+    EXPECT_CALL(*mockRaftNode, apply(_)).Times(0);
+    EXPECT_CALL(*mockRaftNode, shutdown(_)).Times(AtLeast(1));
+    EXPECT_CALL(*mockRaftNode, join()).Times(AtLeast(1));
+    EXPECT_CALL(*mockMetaStore, GetDentry(_, _, _))
         .WillOnce(Return(MetaStatusCode::OK));
 
     braft::LeaderLeaseStatus status;
@@ -483,8 +485,7 @@ TEST_F(MetaOperatorTest, PropostTest_IsNotLeaseLeader) {
     options.localFileSystem = &localFs;
     options.storageOptions.type = "memory";
 
-    EXPECT_CALL(localFs, Mkdir(_))
-        .WillOnce(Return(0));
+    EXPECT_CALL(localFs, Mkdir(_)).WillOnce(Return(0));
 
     EXPECT_TRUE(node.Init(options));
     auto* mockRaftNode = new MockRaftNode();
@@ -519,8 +520,7 @@ TEST_F(MetaOperatorTest, PropostTest_PropostTaskFailed) {
     options.localFileSystem = &localFs;
     options.storageOptions.type = "memory";
 
-    EXPECT_CALL(localFs, Mkdir(_))
-        .WillOnce(Return(0));
+    EXPECT_CALL(localFs, Mkdir(_)).WillOnce(Return(0));
 
     EXPECT_TRUE(node.Init(options));
     auto* mockRaftNode = new MockRaftNode();

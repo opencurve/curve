@@ -40,11 +40,11 @@ using ::testing::Invoke;
 using ::testing::Matcher;
 using ::testing::Return;
 
+using ::curvefs::metaserver::copyset::MockCopysetNode;
 using ::curvefs::metaserver::storage::KVStorage;
 using ::curvefs::metaserver::storage::RandomStoragePath;
 using ::curvefs::metaserver::storage::RocksDBStorage;
 using ::curvefs::metaserver::storage::StorageOptions;
-using ::curvefs::metaserver::copyset::MockCopysetNode;
 
 namespace curvefs {
 namespace metaserver {
@@ -67,6 +67,7 @@ class PartitionCleanManagerTest : public testing::Test {
         s3Adaptor_ = std::make_shared<MockS3ClientAdaptor>();
         copyset_ = new MockCopysetNode();
         FsInfoManager::GetInstance().SetMdsClient(mdsCli_);
+        logIndex_ = 0;
     }
 
     void TearDown() override {
@@ -97,6 +98,7 @@ class PartitionCleanManagerTest : public testing::Test {
     std::shared_ptr<MockMdsClient> mdsCli_;
     std::shared_ptr<MockS3ClientAdaptor> s3Adaptor_;
     MockCopysetNode *copyset_;
+    int64_t logIndex_;
 };
 
 TEST_F(PartitionCleanManagerTest, test1) {
@@ -140,16 +142,18 @@ TEST_F(PartitionCleanManagerTest, test1) {
     Time tm;
     tm.set_sec(0);
     tm.set_nsec(0);
-    ASSERT_EQ(partition->CreateRootInode(param), MetaStatusCode::OK);
-    ASSERT_EQ(partition->CreateDentry(dentry, tm),
+    ASSERT_EQ(partition->CreateRootInode(param, logIndex_++),
               MetaStatusCode::OK);
-    ASSERT_EQ(partition->CreateDentry(dentry, tm),
+    ASSERT_EQ(partition->CreateDentry(dentry, tm, logIndex_++),
+              MetaStatusCode::OK);
+    ASSERT_EQ(partition->CreateDentry(dentry, tm, logIndex_++),
               MetaStatusCode::OK);
 
     Inode inode1;
     param.type = FsFileType::TYPE_S3;
     param.symlink = "";
-    ASSERT_EQ(partition->CreateInode(param, &inode1), MetaStatusCode::OK);
+    ASSERT_EQ(partition->CreateInode(param, &inode1, logIndex_++),
+              MetaStatusCode::OK);
     ASSERT_EQ(partition->GetInodeNum(), 2);
     ASSERT_EQ(partition->GetDentryNum(), 1);
     Inode inode2;
@@ -164,21 +168,23 @@ TEST_F(PartitionCleanManagerTest, test1) {
         .WillRepeatedly(Return(true));
 
     EXPECT_CALL(*copyset_, Propose(_))
-        .WillOnce(Invoke([partition, fsId](const braft::Task &task) {
-            ASSERT_EQ(partition->DeleteInode(fsId, ROOTINODEID),
+        .WillOnce(Invoke([partition, fsId, this](const braft::Task& task) {
+            ASSERT_EQ(partition->DeleteInode(fsId, ROOTINODEID, logIndex_++),
                       MetaStatusCode::OK);
             LOG(INFO) << "Partition DeleteInode, fsId = " << fsId
                       << ", inodeId = " << ROOTINODEID;
             task.done->Run();
         }))
-        .WillOnce(Invoke([partition, fsId, inode1](const braft::Task &task) {
-            ASSERT_EQ(partition->DeleteInode(fsId, inode1.inodeid()),
-                      MetaStatusCode::OK);
-            LOG(INFO) << "Partition DeleteInode, fsId = " << fsId
-                      << ", inodeId = " << inode1.inodeid();
-            task.done->Run();
-        }))
-        .WillOnce(Invoke([partition](const braft::Task &task) {
+        .WillOnce(
+            Invoke([partition, fsId, inode1, this](const braft::Task& task) {
+                ASSERT_EQ(
+                    partition->DeleteInode(fsId, inode1.inodeid(), logIndex_++),
+                    MetaStatusCode::OK);
+                LOG(INFO) << "Partition DeleteInode, fsId = " << fsId
+                          << ", inodeId = " << inode1.inodeid();
+                task.done->Run();
+            }))
+        .WillOnce(Invoke([partition](const braft::Task& task) {
             LOG(INFO) << "Partition deletePartition";
             task.done->Run();
         }));

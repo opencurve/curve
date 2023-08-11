@@ -290,6 +290,8 @@ Status RocksDBStorage::Clear(const std::string& name, bool ordered) {
     if (!inited_) {
         return Status::DBClosed();
     } else if (InTransaction_) {
+        // NOTE: rocksdb transaction has no `DeleteRange` function
+        // maybe we can implement `Clear` by "iterate and delete"
         return Status::NotSupported();
     }
 
@@ -436,7 +438,11 @@ bool RocksDBStorage::Checkpoint(const std::string& dir,
                                 std::vector<std::string>* files) {
     rocksdb::FlushOptions options;
     options.wait = true;
-    options.allow_write_stall = true;
+    // NOTE: for asynchronous snapshot
+    // we cannot allow write stall
+    // rocksdb will wait until flush
+    // can be performed without causing write stall
+    options.allow_write_stall = false;
     auto status = db_->Flush(options, handles_);
     if (!status.ok()) {
         LOG(ERROR) << "Failed to flush DB, " << status.ToString();

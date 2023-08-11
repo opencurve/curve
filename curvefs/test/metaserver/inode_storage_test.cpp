@@ -78,6 +78,7 @@ class InodeStorageTest : public ::testing::Test {
         kvStorage_ = std::make_shared<RocksDBStorage>(options);
         ASSERT_TRUE(kvStorage_->Open());
         conv_ = std::make_shared<Converter>();
+        logIndex_ = 0;
     }
 
     void TearDown() override {
@@ -86,7 +87,7 @@ class InodeStorageTest : public ::testing::Test {
         ASSERT_EQ(output.size(), 0);
     }
 
-    std::string execShell(const std::string &cmd) {
+    std::string execShell(const std::string& cmd) {
         std::array<char, 128> buffer;
         std::string result;
         std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"),
@@ -100,7 +101,7 @@ class InodeStorageTest : public ::testing::Test {
         return result;
     }
 
-    bool CompareInode(const Inode &first, const Inode &second) {
+    bool CompareInode(const Inode& first, const Inode& second) {
         return first.fsid() == second.fsid() &&
                first.atime() == second.atime() &&
                first.inodeid() == second.inodeid();
@@ -129,7 +130,7 @@ class InodeStorageTest : public ::testing::Test {
                                        uint64_t lastChunkId) {
         S3ChunkInfoList list;
         for (uint64_t id = firstChunkId; id <= lastChunkId; id++) {
-            S3ChunkInfo *info = list.add_s3chunks();
+            S3ChunkInfo* info = list.add_s3chunks();
             info->set_chunkid(id);
             info->set_compaction(0);
             info->set_offset(0);
@@ -140,15 +141,15 @@ class InodeStorageTest : public ::testing::Test {
         return list;
     }
 
-    bool EqualS3ChunkInfo(const S3ChunkInfo &lhs, const S3ChunkInfo &rhs) {
+    bool EqualS3ChunkInfo(const S3ChunkInfo& lhs, const S3ChunkInfo& rhs) {
         return lhs.chunkid() == rhs.chunkid() &&
                lhs.compaction() == rhs.compaction() &&
                lhs.offset() == rhs.offset() && lhs.len() == rhs.len() &&
                lhs.size() == rhs.size() && lhs.zero() == rhs.zero();
     }
 
-    bool EqualS3ChunkInfoList(const S3ChunkInfoList &lhs,
-                              const S3ChunkInfoList &rhs) {
+    bool EqualS3ChunkInfoList(const S3ChunkInfoList& lhs,
+                              const S3ChunkInfoList& rhs) {
         size_t size = lhs.s3chunks_size();
         if (size != rhs.s3chunks_size()) {
             return false;
@@ -162,7 +163,7 @@ class InodeStorageTest : public ::testing::Test {
         return true;
     }
 
-    void CHECK_INODE_S3CHUNKINFOLIST(InodeStorage *storage, uint32_t fsId,
+    void CHECK_INODE_S3CHUNKINFOLIST(InodeStorage* storage, uint32_t fsId,
                                      uint64_t inodeId,
                                      const std::vector<uint64_t> chunkIndexs,
                                      const std::vector<S3ChunkInfoList> lists) {
@@ -189,21 +190,23 @@ class InodeStorageTest : public ::testing::Test {
     std::shared_ptr<NameGenerator> nameGenerator_;
     std::shared_ptr<KVStorage> kvStorage_;
     std::shared_ptr<Converter> conv_;
+    int64_t logIndex_;
 };
 
 TEST_F(InodeStorageTest, test1) {
     InodeStorage storage(kvStorage_, nameGenerator_, 0);
+    ASSERT_TRUE(storage.Init());
     Inode inode1 = GenInode(1, 1);
     Inode inode2 = GenInode(2, 2);
     Inode inode3 = GenInode(3, 3);
 
     // insert
-    ASSERT_EQ(storage.Insert(inode1), MetaStatusCode::OK);
-    ASSERT_EQ(storage.Insert(inode2), MetaStatusCode::OK);
-    ASSERT_EQ(storage.Insert(inode3), MetaStatusCode::OK);
-    ASSERT_EQ(storage.Insert(inode1), MetaStatusCode::INODE_EXIST);
-    ASSERT_EQ(storage.Insert(inode2), MetaStatusCode::INODE_EXIST);
-    ASSERT_EQ(storage.Insert(inode3), MetaStatusCode::INODE_EXIST);
+    ASSERT_EQ(storage.Insert(inode1, logIndex_++), MetaStatusCode::OK);
+    ASSERT_EQ(storage.Insert(inode2, logIndex_++), MetaStatusCode::OK);
+    ASSERT_EQ(storage.Insert(inode3, logIndex_++), MetaStatusCode::OK);
+    ASSERT_EQ(storage.Insert(inode1, logIndex_++), MetaStatusCode::INODE_EXIST);
+    ASSERT_EQ(storage.Insert(inode2, logIndex_++), MetaStatusCode::INODE_EXIST);
+    ASSERT_EQ(storage.Insert(inode3, logIndex_++), MetaStatusCode::INODE_EXIST);
     ASSERT_EQ(storage.Size(), 3);
 
     // get
@@ -216,16 +219,18 @@ TEST_F(InodeStorageTest, test1) {
     ASSERT_TRUE(CompareInode(inode3, temp));
 
     // delete
-    ASSERT_EQ(storage.Delete(Key4Inode(inode1)), MetaStatusCode::OK);
+    ASSERT_EQ(storage.Delete(Key4Inode(inode1), logIndex_++),
+              MetaStatusCode::OK);
     ASSERT_EQ(storage.Size(), 2);
     ASSERT_EQ(storage.Get(Key4Inode(inode1), &temp), MetaStatusCode::NOT_FOUND);
-    ASSERT_EQ(storage.Delete(Key4Inode(inode1)), MetaStatusCode::OK);
+    ASSERT_EQ(storage.Delete(Key4Inode(inode1), logIndex_++),
+              MetaStatusCode::OK);
 
     // update
     Inode oldInode;
     ASSERT_EQ(storage.Get(Key4Inode(inode2), &oldInode), MetaStatusCode::OK);
     inode2.set_atime(400);
-    ASSERT_EQ(storage.Update(inode2), MetaStatusCode::OK);
+    ASSERT_EQ(storage.Update(inode2, logIndex_++), MetaStatusCode::OK);
     Inode newInode;
     ASSERT_EQ(storage.Get(Key4Inode(inode2), &newInode), MetaStatusCode::OK);
     ASSERT_FALSE(CompareInode(oldInode, newInode));
@@ -240,6 +245,7 @@ TEST_F(InodeStorageTest, test1) {
 
 TEST_F(InodeStorageTest, testGetAttrNotFound) {
     InodeStorage storage(kvStorage_, nameGenerator_, 0);
+    ASSERT_TRUE(storage.Init());
     Inode inode;
     inode.set_fsid(1);
     inode.set_inodeid(1);
@@ -256,7 +262,7 @@ TEST_F(InodeStorageTest, testGetAttrNotFound) {
     inode.set_nlink(2);
     inode.set_type(FsFileType::TYPE_DIRECTORY);
 
-    ASSERT_EQ(storage.Insert(inode), MetaStatusCode::OK);
+    ASSERT_EQ(storage.Insert(inode, logIndex_++), MetaStatusCode::OK);
     InodeAttr attr;
     ASSERT_EQ(storage.GetAttr(Key4Inode(1, 2), &attr),
               MetaStatusCode::NOT_FOUND);
@@ -264,6 +270,7 @@ TEST_F(InodeStorageTest, testGetAttrNotFound) {
 
 TEST_F(InodeStorageTest, testGetAttr) {
     InodeStorage storage(kvStorage_, nameGenerator_, 0);
+    ASSERT_TRUE(storage.Init());
     Inode inode;
     inode.set_fsid(1);
     inode.set_inodeid(1);
@@ -280,7 +287,7 @@ TEST_F(InodeStorageTest, testGetAttr) {
     inode.set_nlink(2);
     inode.set_type(FsFileType::TYPE_DIRECTORY);
 
-    ASSERT_EQ(storage.Insert(inode), MetaStatusCode::OK);
+    ASSERT_EQ(storage.Insert(inode, logIndex_++), MetaStatusCode::OK);
     InodeAttr attr;
     ASSERT_EQ(storage.GetAttr(Key4Inode(1, 1), &attr), MetaStatusCode::OK);
     ASSERT_EQ(attr.inodeid(), 1);
@@ -291,6 +298,7 @@ TEST_F(InodeStorageTest, testGetAttr) {
 
 TEST_F(InodeStorageTest, testGetXAttr) {
     InodeStorage storage(kvStorage_, nameGenerator_, 0);
+    ASSERT_TRUE(storage.Init());
     Inode inode;
     inode.set_fsid(1);
     inode.set_inodeid(1);
@@ -316,7 +324,7 @@ TEST_F(InodeStorageTest, testGetXAttr) {
     inode.mutable_xattr()->insert({XATTRRENTRIES, "200"});
     inode.mutable_xattr()->insert({XATTRRFBYTES, "1000"});
 
-    ASSERT_EQ(storage.Insert(inode), MetaStatusCode::OK);
+    ASSERT_EQ(storage.Insert(inode, logIndex_++), MetaStatusCode::OK);
     XAttr xattr;
     ASSERT_EQ(storage.GetXAttr(Key4Inode(1, 1), &xattr), MetaStatusCode::OK);
     ASSERT_FALSE(xattr.xattrinfos().empty());
@@ -336,12 +344,13 @@ TEST_F(InodeStorageTest, ModifyInodeS3ChunkInfoList) {
     uint32_t fsId = 1;
     uint64_t inodeId = 1;
     InodeStorage storage(kvStorage_, nameGenerator_, 0);
+    ASSERT_TRUE(storage.Init());
 
     // CASE 1: get empty s3chunkinfo
     {
         LOG(INFO) << "CASE 1: get empty s3chukninfo";
         Inode inode = GenInode(fsId, inodeId);
-        ASSERT_EQ(storage.Insert(inode), MetaStatusCode::OK);
+        ASSERT_EQ(storage.Insert(inode, logIndex_++), MetaStatusCode::OK);
         S3ChunkInfoList list2del;
 
         size_t size = 0;
@@ -362,7 +371,8 @@ TEST_F(InodeStorageTest, ModifyInodeS3ChunkInfoList) {
 
         for (size_t i = 0; i < chunkIndexs.size(); i++) {
             MetaStatusCode rc = storage.ModifyInodeS3ChunkInfoList(
-                fsId, inodeId, chunkIndexs[i], &lists2add[i], nullptr);
+                fsId, inodeId, chunkIndexs[i], &lists2add[i], nullptr,
+                logIndex_++);
             ASSERT_EQ(rc, MetaStatusCode::OK);
         }
 
@@ -383,7 +393,8 @@ TEST_F(InodeStorageTest, ModifyInodeS3ChunkInfoList) {
 
         for (size_t i = 0; i < chunkIndexs.size(); i++) {
             MetaStatusCode rc = storage.ModifyInodeS3ChunkInfoList(
-                fsId, inodeId, chunkIndexs[i], &lists2add[i], nullptr);
+                fsId, inodeId, chunkIndexs[i], &lists2add[i], nullptr,
+                logIndex_++);
             ASSERT_EQ(rc, MetaStatusCode::OK);
         }
 
@@ -404,7 +415,8 @@ TEST_F(InodeStorageTest, ModifyInodeS3ChunkInfoList) {
 
         for (size_t i = 0; i < chunkIndexs.size(); i++) {
             MetaStatusCode rc = storage.ModifyInodeS3ChunkInfoList(
-                fsId, inodeId, chunkIndexs[i], &lists2add[i], nullptr);
+                fsId, inodeId, chunkIndexs[i], &lists2add[i], nullptr,
+                logIndex_++);
             ASSERT_EQ(rc, MetaStatusCode::OK);
         }
 
@@ -430,7 +442,8 @@ TEST_F(InodeStorageTest, ModifyInodeS3ChunkInfoList) {
 
         for (size_t i = 0; i < chunkIndexs.size(); i++) {
             MetaStatusCode rc = storage.ModifyInodeS3ChunkInfoList(
-                fsId, inodeId, chunkIndexs[i], &lists2add[i], nullptr);
+                fsId, inodeId, chunkIndexs[i], &lists2add[i], nullptr,
+                logIndex_++);
             ASSERT_EQ(rc, MetaStatusCode::OK);
         }
 
@@ -462,7 +475,8 @@ TEST_F(InodeStorageTest, ModifyInodeS3ChunkInfoList) {
 
             for (size_t i = 0; i < chunkIndexs.size(); i++) {
                 MetaStatusCode rc = storage.ModifyInodeS3ChunkInfoList(
-                    fsId, inodeId, chunkIndexs[i], &lists2add[i], nullptr);
+                    fsId, inodeId, chunkIndexs[i], &lists2add[i], nullptr,
+                    logIndex_++);
                 ASSERT_EQ(rc, MetaStatusCode::OK);
             }
         }
@@ -484,8 +498,8 @@ TEST_F(InodeStorageTest, ModifyInodeS3ChunkInfoList) {
 
             for (size_t i = 0; i < chunkIndexs.size(); i++) {
                 MetaStatusCode rc = storage.ModifyInodeS3ChunkInfoList(
-                    fsId, inodeId, chunkIndexs[i], &lists2add[i],
-                    &lists2del[i]);
+                    fsId, inodeId, chunkIndexs[i], &lists2add[i], &lists2del[i],
+                    logIndex_++);
                 ASSERT_EQ(rc, MetaStatusCode::STORAGE_INTERNAL_ERROR);
             }
         }
@@ -507,7 +521,8 @@ TEST_F(InodeStorageTest, ModifyInodeS3ChunkInfoList) {
 
             for (size_t i = 0; i < chunkIndexs.size(); i++) {
                 MetaStatusCode rc = storage.ModifyInodeS3ChunkInfoList(
-                    fsId, inodeId, chunkIndexs[i], &lists2add[i], nullptr);
+                    fsId, inodeId, chunkIndexs[i], &lists2add[i], nullptr,
+                    logIndex_++);
                 ASSERT_EQ(rc, MetaStatusCode::OK);
             }
         }
@@ -529,8 +544,8 @@ TEST_F(InodeStorageTest, ModifyInodeS3ChunkInfoList) {
 
             for (size_t i = 0; i < chunkIndexs.size(); i++) {
                 MetaStatusCode rc = storage.ModifyInodeS3ChunkInfoList(
-                    fsId, inodeId, chunkIndexs[i], &lists2add[i],
-                    &lists2del[i]);
+                    fsId, inodeId, chunkIndexs[i], &lists2add[i], &lists2del[i],
+                    logIndex_++);
                 ASSERT_EQ(rc, MetaStatusCode::OK);
             }
         }
@@ -562,7 +577,8 @@ TEST_F(InodeStorageTest, ModifyInodeS3ChunkInfoList) {
 
             for (size_t i = 0; i < chunkIndexs.size(); i++) {
                 MetaStatusCode rc = storage.ModifyInodeS3ChunkInfoList(
-                    fsId, inodeId, chunkIndexs[i], &lists2add[i], nullptr);
+                    fsId, inodeId, chunkIndexs[i], &lists2add[i], nullptr,
+                    logIndex_++);
                 ASSERT_EQ(rc, MetaStatusCode::OK);
             }
         }
@@ -578,7 +594,8 @@ TEST_F(InodeStorageTest, ModifyInodeS3ChunkInfoList) {
 
             for (size_t i = 0; i < chunkIndexs.size(); i++) {
                 MetaStatusCode rc = storage.ModifyInodeS3ChunkInfoList(
-                    fsId, inodeId, chunkIndexs[i], &lists2add[i], nullptr);
+                    fsId, inodeId, chunkIndexs[i], &lists2add[i], nullptr,
+                    logIndex_++);
                 ASSERT_EQ(rc, MetaStatusCode::OK);
             }
         }
@@ -600,8 +617,8 @@ TEST_F(InodeStorageTest, ModifyInodeS3ChunkInfoList) {
 
             for (size_t i = 0; i < chunkIndexs.size(); i++) {
                 MetaStatusCode rc = storage.ModifyInodeS3ChunkInfoList(
-                    fsId, inodeId, chunkIndexs[i], &lists2add[i],
-                    &lists2del[i]);
+                    fsId, inodeId, chunkIndexs[i], &lists2add[i], &lists2del[i],
+                    logIndex_++);
                 ASSERT_EQ(rc, MetaStatusCode::OK);
             }
         }
@@ -623,11 +640,12 @@ TEST_F(InodeStorageTest, PaddingInodeS3ChunkInfo) {
     uint32_t fsId = 1;
     uint64_t inodeId = 1;
     InodeStorage storage(kvStorage_, nameGenerator_, 0);
+    ASSERT_TRUE(storage.Init());
     S3ChunkInfoList list2del;
 
     // step1: insert inode
     Inode inode = GenInode(fsId, inodeId);
-    ASSERT_EQ(storage.Insert(inode), MetaStatusCode::OK);
+    ASSERT_EQ(storage.Insert(inode, logIndex_++), MetaStatusCode::OK);
 
     // step2: append s3chunkinfo
     std::vector<uint64_t> chunkIndexs{1, 3, 2, 1, 2};
@@ -639,7 +657,7 @@ TEST_F(InodeStorageTest, PaddingInodeS3ChunkInfo) {
 
     for (size_t i = 0; i < chunkIndexs.size(); i++) {
         MetaStatusCode rc = storage.ModifyInodeS3ChunkInfoList(
-            fsId, inodeId, chunkIndexs[i], &lists2add[i], nullptr);
+            fsId, inodeId, chunkIndexs[i], &lists2add[i], nullptr, logIndex_++);
         ASSERT_EQ(rc, MetaStatusCode::OK);
     }
     ASSERT_EQ(inode.mutable_s3chunkinfomap()->size(), 0);
@@ -689,16 +707,17 @@ TEST_F(InodeStorageTest, PaddingInodeS3ChunkInfo) {
 
 TEST_F(InodeStorageTest, GetAllS3ChunkInfoList) {
     InodeStorage storage(kvStorage_, nameGenerator_, 0);
+    ASSERT_TRUE(storage.Init());
     uint64_t chunkIndex = 1;
     S3ChunkInfoList list2add = GenS3ChunkInfoList(1, 10);
 
     // step1: prepare inode and its s3chunkinfo
     auto prepareInode = [&](uint32_t fsId, uint64_t inodeId) {
         Inode inode = GenInode(fsId, inodeId);
-        ASSERT_EQ(storage.Insert(inode), MetaStatusCode::OK);
+        ASSERT_EQ(storage.Insert(inode, logIndex_++), MetaStatusCode::OK);
 
         MetaStatusCode rc = storage.ModifyInodeS3ChunkInfoList(
-            fsId, inodeId, chunkIndex, &list2add, nullptr);
+            fsId, inodeId, chunkIndex, &list2add, nullptr, logIndex_++);
         ASSERT_EQ(rc, MetaStatusCode::OK);
     };
 
@@ -731,7 +750,7 @@ TEST_F(InodeStorageTest, TestUpdateVolumeExtentSlice) {
         {MetaStatusCode::OK, Status::OK()},
         {MetaStatusCode::STORAGE_INTERNAL_ERROR, Status::InternalError()}};
 
-    for (const auto &test : cases) {
+    for (const auto& test : cases) {
         auto kvStorage = std::make_shared<storage::MockKVStorage>();
         InodeStorage storage(kvStorage, nameGenerator_, 0);
 
@@ -743,15 +762,31 @@ TEST_F(InodeStorageTest, TestUpdateVolumeExtentSlice) {
         const std::string expectTableName =
             nameGenerator_->GetVolumeExtentTableName();
         const std::string expectKey = "4:1:1:" + std::to_string(slice.offset());
+        const std::string appliedTableName =
+            nameGenerator_->GetAppliedIndexTableName();
+        const std::string appliedKey = "inode";
+
+        if (test.second.ok()) {
+            EXPECT_CALL(*kvStorage, SSet(appliedTableName, appliedKey, _))
+                .Times(1)
+                .WillOnce(Return(Status::OK()));
+        }
         EXPECT_CALL(*kvStorage, SSet(expectTableName, expectKey, _))
+            .Times(1)
             .WillOnce(Return(test.second));
 
-        ASSERT_EQ(test.first,
-                  storage.UpdateVolumeExtentSlice(fsId, inodeId, slice));
+        EXPECT_CALL(*kvStorage, BeginTransaction()).WillOnce(Return(kvStorage));
+        if (test.second.ok()) {
+            EXPECT_CALL(*kvStorage, Commit).WillOnce(Return(Status::OK()));
+        } else {
+            EXPECT_CALL(*kvStorage, Rollback).WillOnce(Return(Status::OK()));
+        }
+        ASSERT_EQ(test.first, storage.UpdateVolumeExtentSlice(
+                                  fsId, inodeId, slice, logIndex_++));
     }
 }
 
-static void RandomSetExtent(VolumeExtent *ext) {
+static void RandomSetExtent(VolumeExtent* ext) {
     std::random_device rd;
 
     ext->set_fsoffset(rd());
@@ -760,16 +795,17 @@ static void RandomSetExtent(VolumeExtent *ext) {
     ext->set_isused(rd() & 1);
 }
 
-static bool PrepareGetAllVolumeExtentTest(InodeStorage *storage, uint32_t fsId,
+static bool PrepareGetAllVolumeExtentTest(InodeStorage* storage, uint32_t fsId,
                                           uint64_t inodeId,
-                                          std::vector<VolumeExtentSlice> *out) {
+                                          std::vector<VolumeExtentSlice>* out,
+                                          int64_t logIndex) {
     VolumeExtentSlice slice1;
     slice1.set_offset(0);
 
     RandomSetExtent(slice1.add_extents());
     RandomSetExtent(slice1.add_extents());
 
-    auto st = storage->UpdateVolumeExtentSlice(fsId, inodeId, slice1);
+    auto st = storage->UpdateVolumeExtentSlice(fsId, inodeId, slice1, logIndex);
     if (st != MetaStatusCode::OK) {
         return false;
     }
@@ -780,7 +816,7 @@ static bool PrepareGetAllVolumeExtentTest(InodeStorage *storage, uint32_t fsId,
     RandomSetExtent(slice2.add_extents());
     RandomSetExtent(slice2.add_extents());
 
-    st = storage->UpdateVolumeExtentSlice(fsId, inodeId, slice2);
+    st = storage->UpdateVolumeExtentSlice(fsId, inodeId, slice2, logIndex);
     if (st != MetaStatusCode::OK) {
         return false;
     }
@@ -791,29 +827,29 @@ static bool PrepareGetAllVolumeExtentTest(InodeStorage *storage, uint32_t fsId,
     RandomSetExtent(slice3.add_extents());
     RandomSetExtent(slice3.add_extents());
 
-    st = storage->UpdateVolumeExtentSlice(fsId, inodeId * 10, slice3);
+    st = storage->UpdateVolumeExtentSlice(fsId, inodeId * 10, slice3, logIndex);
 
     out->push_back(slice1);
     out->push_back(slice2);
     return true;
 }
 
-static bool operator==(const VolumeExtentSliceList &list,
-                       const std::vector<VolumeExtentSlice> &slices) {
+static bool operator==(const VolumeExtentSliceList& list,
+                       const std::vector<VolumeExtentSlice>& slices) {
     std::vector<VolumeExtentSlice> clist(list.slices().begin(),
                                          list.slices().end());
 
     auto copy = slices;
     std::sort(copy.begin(), copy.end(),
-              [](const VolumeExtentSlice &s1, const VolumeExtentSlice &s2) {
+              [](const VolumeExtentSlice& s1, const VolumeExtentSlice& s2) {
                   return s1.offset() < s2.offset();
               });
 
     return true;
 }
 
-static bool operator==(const VolumeExtentSlice &s1,
-                       const VolumeExtentSlice &s2) {
+static bool operator==(const VolumeExtentSlice& s1,
+                       const VolumeExtentSlice& s2) {
     return google::protobuf::util::MessageDifferencer::Equals(s1, s2);
 }
 
@@ -825,14 +861,14 @@ TEST_F(InodeStorageTest, TestGetAllVolumeExtent) {
         std::make_shared<storage::MemoryStorage>(opts);
     std::shared_ptr<KVStorage> kvStore = kvStorage_;
 
-    for (auto &store : {memStore, kvStore}) {
+    for (auto& store : {memStore, kvStore}) {
         InodeStorage storage(store, nameGenerator_, 0);
         const uint32_t fsId = 1;
         const uint64_t inodeId = 2;
 
         std::vector<VolumeExtentSlice> slices;
-        ASSERT_TRUE(
-            PrepareGetAllVolumeExtentTest(&storage, fsId, inodeId, &slices));
+        ASSERT_TRUE(PrepareGetAllVolumeExtentTest(&storage, fsId, inodeId,
+                                                  &slices, logIndex_++));
 
         VolumeExtentSliceList list;
         ASSERT_EQ(MetaStatusCode::OK,
@@ -869,14 +905,15 @@ TEST_F(InodeStorageTest, TestGetVolumeExtentByOffset) {
         std::make_shared<storage::MemoryStorage>(opts);
     std::shared_ptr<KVStorage> kvStore = kvStorage_;
 
-    for (auto &store : {kvStorage_, memStore}) {
+    for (auto& store : {kvStorage_, memStore}) {
         InodeStorage storage(store, nameGenerator_, 0);
+        ASSERT_TRUE(storage.Init());
         const uint32_t fsId = 1;
         const uint64_t inodeId = 2;
 
         std::vector<VolumeExtentSlice> slices;
-        ASSERT_TRUE(
-            PrepareGetAllVolumeExtentTest(&storage, fsId, inodeId, &slices))
+        ASSERT_TRUE(PrepareGetAllVolumeExtentTest(&storage, fsId, inodeId,
+                                                  &slices, logIndex_++))
             << ToString(store->Type());
 
         VolumeExtentSlice slice;
@@ -899,9 +936,9 @@ TEST_F(InodeStorageTest, TestGetVolumeExtentByOffset) {
 TEST_F(InodeStorageTest, Test_UpdateInodeWithDeallocate) {
     auto inode = GenInode(1, 1);
     InodeStorage storage(kvStorage_, nameGenerator_, 0);
-    ASSERT_EQ(storage.Insert(inode), MetaStatusCode::OK);
+    ASSERT_EQ(storage.Insert(inode, logIndex_++), MetaStatusCode::OK);
 
-    ASSERT_EQ(MetaStatusCode::OK, storage.Update(inode, true));
+    ASSERT_EQ(MetaStatusCode::OK, storage.Update(inode, logIndex_++, true));
 
     auto tableName = nameGenerator_->GetDeallocatableInodeTableName();
     Key4Inode key(1, 1);
@@ -916,6 +953,7 @@ TEST_F(InodeStorageTest, Test_UpdateDeallocatableBlockGroup) {
     uint32_t fsId = 1;
     auto tableName = nameGenerator_->GetDeallocatableBlockGroupTableName();
     InodeStorage storage(kvStorage_, nameGenerator_, 0);
+    ASSERT_TRUE(storage.Init());
     uint64_t increaseSize = 100 * 1024;
     uint64_t decreaseSize = 4 * 1024;
     Key4DeallocatableBlockGroup key(fsId, blockGroupOffset);
@@ -934,8 +972,8 @@ TEST_F(InodeStorageTest, Test_UpdateDeallocatableBlockGroup) {
         inputVec.Add()->CopyFrom(blockGroup);
 
         // increase first time
-        ASSERT_EQ(MetaStatusCode::OK,
-                  storage.UpdateDeallocatableBlockGroup(fsId, inputVec));
+        ASSERT_EQ(MetaStatusCode::OK, storage.UpdateDeallocatableBlockGroup(
+                                          fsId, inputVec, logIndex_++));
         DeallocatableBlockGroup out;
         auto st = kvStorage_->HGet(tableName, key.SerializeToString(), &out);
         ASSERT_TRUE(st.ok());
@@ -945,8 +983,8 @@ TEST_F(InodeStorageTest, Test_UpdateDeallocatableBlockGroup) {
         ASSERT_EQ(0, out.inodeidunderdeallocate_size());
 
         // increase second time
-        ASSERT_EQ(MetaStatusCode::OK,
-                  storage.UpdateDeallocatableBlockGroup(fsId, inputVec));
+        ASSERT_EQ(MetaStatusCode::OK, storage.UpdateDeallocatableBlockGroup(
+                                          fsId, inputVec, logIndex_++));
         st = kvStorage_->HGet(tableName, key.SerializeToString(), &out);
         ASSERT_TRUE(st.ok());
         ASSERT_EQ(increaseSize * 2, out.deallocatablesize());
@@ -964,8 +1002,8 @@ TEST_F(InodeStorageTest, Test_UpdateDeallocatableBlockGroup) {
         mark->add_inodeidunderdeallocate(1);
         inputVec.Add()->CopyFrom(blockGroup);
 
-        ASSERT_EQ(MetaStatusCode::OK,
-                  storage.UpdateDeallocatableBlockGroup(fsId, inputVec));
+        ASSERT_EQ(MetaStatusCode::OK, storage.UpdateDeallocatableBlockGroup(
+                                          fsId, inputVec, logIndex_++));
         DeallocatableBlockGroup out;
         auto st = kvStorage_->HGet(tableName, key.SerializeToString(), &out);
         ASSERT_TRUE(st.ok());
@@ -982,8 +1020,8 @@ TEST_F(InodeStorageTest, Test_UpdateDeallocatableBlockGroup) {
         auto decrease = blockGroup.mutable_decrease();
         decrease->set_decreasedeallocatablesize(decreaseSize);
         inputVec.Add()->CopyFrom(blockGroup);
-        ASSERT_EQ(MetaStatusCode::OK,
-                  storage.UpdateDeallocatableBlockGroup(fsId, inputVec));
+        ASSERT_EQ(MetaStatusCode::OK, storage.UpdateDeallocatableBlockGroup(
+                                          fsId, inputVec, logIndex_++));
         DeallocatableBlockGroup out;
         auto st = kvStorage_->HGet(tableName, key.SerializeToString(), &out);
         ASSERT_TRUE(st.ok());

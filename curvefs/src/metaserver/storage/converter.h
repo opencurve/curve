@@ -46,6 +46,10 @@ enum KEY_TYPE : unsigned char {
     kTypeBlockGroup = 6,
     kTypeDeallocatableBlockGroup = 7,
     kTypeDeallocatableInode = 8,
+    kTypeAppliedIndex = 9,
+    kTypeTransaction = 10,
+    kTypeInodeCount = 11,
+    kTypeDentryCount = 12
 };
 
 // NOTE: you must generate all table name by NameGenerator class for
@@ -71,6 +75,14 @@ class NameGenerator {
 
     std::string GetDeallocatableBlockGroupTableName() const;
 
+    std::string GetAppliedIndexTableName() const;
+
+    std::string GetTransactionTableName() const;
+
+    std::string GetInodeCountTableName() const;
+
+    std::string GetDentryCountTableName() const;
+
     static size_t GetFixedLength();
 
  private:
@@ -84,6 +96,10 @@ class NameGenerator {
     std::string tableName4Dentry_;
     std::string tableName4VolumeExtent_;
     std::string tableName4InodeAuxInfo_;
+    std::string tableName4AppliedIndex_;
+    std::string tableName4Transaction_;
+    std::string tableName4InodeCount_;
+    std::string tableName4DentryCount_;
 };
 
 class StorageKey {

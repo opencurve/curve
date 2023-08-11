@@ -34,7 +34,7 @@ class MockPartition : public curvefs::metaserver::Partition {
  public:
     MockPartition() : Partition() {}
     MOCK_METHOD1(GetAllBlockGroup,
-                 MetaStatusCode(std::vector<DeallocatableBlockGroup> *));
+                 MetaStatusCode(std::vector<DeallocatableBlockGroup>*));
     MOCK_CONST_METHOD0(GetPartitionId, uint32_t());
     MOCK_CONST_METHOD0(GetFsId, uint32_t());
 };

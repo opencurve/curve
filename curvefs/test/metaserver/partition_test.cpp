@@ -32,19 +32,19 @@
 #include "curvefs/test/metaserver/storage/utils.h"
 #include "src/fs/ext4_filesystem_impl.h"
 
-using ::testing::AtLeast;
-using ::testing::StrEq;
 using ::testing::_;
+using ::testing::AtLeast;
+using ::testing::DoAll;
 using ::testing::Return;
 using ::testing::ReturnArg;
-using ::testing::DoAll;
-using ::testing::SetArgPointee;
 using ::testing::SaveArg;
+using ::testing::SetArgPointee;
+using ::testing::StrEq;
 
 using ::curvefs::metaserver::storage::KVStorage;
-using ::curvefs::metaserver::storage::StorageOptions;
-using ::curvefs::metaserver::storage::RocksDBStorage;
 using ::curvefs::metaserver::storage::RandomStoragePath;
+using ::curvefs::metaserver::storage::RocksDBStorage;
+using ::curvefs::metaserver::storage::StorageOptions;
 
 namespace curvefs {
 namespace metaserver {
@@ -65,12 +65,14 @@ class PartitionTest : public ::testing::Test {
         param_.symlink = "";
         param_.rdev = 0;
 
-        dataDir_ = RandomStoragePath();;
+        dataDir_ = RandomStoragePath();
+
         StorageOptions options;
         options.dataDir = dataDir_;
         options.localFileSystem = localfs.get();
         kvStorage_ = std::make_shared<RocksDBStorage>(options);
         ASSERT_TRUE(kvStorage_->Open());
+        logIndex_ = 0;
     }
 
     void TearDown() override {
@@ -99,6 +101,7 @@ class PartitionTest : public ::testing::Test {
     std::string dataDir_;
     StorageOptions options_;
     std::shared_ptr<KVStorage> kvStorage_;
+    int64_t logIndex_;
 };
 
 TEST_F(PartitionTest, testInodeIdGen1) {
@@ -111,6 +114,8 @@ TEST_F(PartitionTest, testInodeIdGen1) {
     partitionInfo1.set_end(199);
 
     Partition partition1(partitionInfo1, kvStorage_);
+
+    ASSERT_TRUE(partition1.Init());
 
     ASSERT_TRUE(partition1.IsDeletable());
     for (int i = 0; i < 100; i++) {
@@ -132,6 +137,8 @@ TEST_F(PartitionTest, testInodeIdGen2) {
 
     Partition partition1(partitionInfo1, kvStorage_);
 
+    ASSERT_TRUE(partition1.Init());
+
     ASSERT_TRUE(partition1.IsDeletable());
     for (int i = 0; i < 50; i++) {
         ASSERT_EQ(partition1.GetNewInodeId(), partitionInfo1.nextid() + i);
@@ -152,6 +159,8 @@ TEST_F(PartitionTest, testInodeIdGen3) {
 
     Partition partition1(partitionInfo1, kvStorage_);
 
+    ASSERT_TRUE(partition1.Init());
+
     ASSERT_EQ(partition1.GetNewInodeId(), UINT64_MAX);
     ASSERT_EQ(partition1.GetNewInodeId(), UINT64_MAX);
 }
@@ -170,6 +179,9 @@ TEST_F(PartitionTest, testInodeIdGen4_NextId) {
         partitionInfo1.set_end(199);
 
         Partition p(partitionInfo1, kvStorage_);
+
+        ASSERT_TRUE(p.Init());
+
         EXPECT_EQ(t.second, p.GetNewInodeId());
     }
 }
@@ -186,6 +198,8 @@ TEST_F(PartitionTest, testInodeIdGen5_paritionstatus) {
     partitionInfo1.set_status(PartitionStatus::READWRITE);
 
     Partition partition1(partitionInfo1, kvStorage_);
+
+    ASSERT_TRUE(partition1.Init());
 
     ASSERT_EQ(partition1.GetNewInodeId(), 198);
     ASSERT_EQ(partition1.GetPartitionInfo().status(),
@@ -209,6 +223,8 @@ TEST_F(PartitionTest, test1) {
 
     Partition partition1(partitionInfo1, kvStorage_);
 
+    ASSERT_TRUE(partition1.Init());
+
     ASSERT_TRUE(partition1.IsDeletable());
     ASSERT_TRUE(partition1.IsInodeBelongs(1, 100));
     ASSERT_TRUE(partition1.IsInodeBelongs(1, 199));
@@ -231,14 +247,16 @@ TEST_F(PartitionTest, inodenum) {
 
     Partition partition1(partitionInfo1, kvStorage_);
 
+    ASSERT_TRUE(partition1.Init());
+
     ASSERT_EQ(partition1.GetInodeNum(), 0);
     Inode inode;
 
-    ASSERT_EQ(partition1.CreateInode(param_, &inode),
+    ASSERT_EQ(partition1.CreateInode(param_, &inode, logIndex_++),
               MetaStatusCode::OK);
     ASSERT_EQ(partition1.GetInodeNum(), 1);
 
-    ASSERT_EQ(partition1.DeleteInode(1, 100), MetaStatusCode::OK);
+    ASSERT_EQ(partition1.DeleteInode(1, 100, logIndex_++), MetaStatusCode::OK);
     ASSERT_EQ(partition1.GetInodeNum(), 0);
 }
 
@@ -252,14 +270,17 @@ TEST_F(PartitionTest, dentrynum) {
     partitionInfo1.set_end(199);
 
     Partition partition1(partitionInfo1, kvStorage_);
+
+    ASSERT_TRUE(partition1.Init());
+
     ASSERT_EQ(partition1.GetDentryNum(), 0);
 
 
     // create parent inode
     Inode inode;
     inode.set_inodeid(100);
-    ASSERT_EQ(partition1.CreateInode(param_, &inode),
-        MetaStatusCode::OK);
+    ASSERT_EQ(partition1.CreateInode(param_, &inode, logIndex_++),
+              MetaStatusCode::OK);
 
     Dentry dentry;
     dentry.set_fsid(1);
@@ -271,11 +292,11 @@ TEST_F(PartitionTest, dentrynum) {
     Time tm;
     tm.set_sec(0);
     tm.set_nsec(0);
-    ASSERT_EQ(partition1.CreateDentry(dentry, tm),
+    ASSERT_EQ(partition1.CreateDentry(dentry, tm, logIndex_++),
               MetaStatusCode::OK);
     ASSERT_EQ(partition1.GetDentryNum(), 1);
 
-    ASSERT_EQ(partition1.DeleteDentry(dentry), MetaStatusCode::OK);
+    ASSERT_EQ(partition1.DeleteDentry(dentry, logIndex_++), MetaStatusCode::OK);
     ASSERT_EQ(partition1.GetDentryNum(), 0);
 }
 
@@ -290,6 +311,8 @@ TEST_F(PartitionTest, PARTITION_ID_MISSMATCH_ERROR) {
 
     Partition partition1(partitionInfo1, kvStorage_);
 
+    ASSERT_TRUE(partition1.Init());
+
     Dentry dentry1;
     dentry1.set_fsid(2);
     dentry1.set_parentinodeid(100);
@@ -302,15 +325,15 @@ TEST_F(PartitionTest, PARTITION_ID_MISSMATCH_ERROR) {
     tm.set_sec(0);
     tm.set_nsec(0);
     // test CreateDentry
-    ASSERT_EQ(partition1.CreateDentry(dentry1, tm),
+    ASSERT_EQ(partition1.CreateDentry(dentry1, tm, logIndex_++),
               MetaStatusCode::PARTITION_ID_MISSMATCH);
-    ASSERT_EQ(partition1.CreateDentry(dentry2, tm),
+    ASSERT_EQ(partition1.CreateDentry(dentry2, tm, logIndex_++),
               MetaStatusCode::PARTITION_ID_MISSMATCH);
 
     // test DeleteDentry
-    ASSERT_EQ(partition1.DeleteDentry(dentry1),
+    ASSERT_EQ(partition1.DeleteDentry(dentry1, logIndex_++),
               MetaStatusCode::PARTITION_ID_MISSMATCH);
-    ASSERT_EQ(partition1.DeleteDentry(dentry2),
+    ASSERT_EQ(partition1.DeleteDentry(dentry2, logIndex_++),
               MetaStatusCode::PARTITION_ID_MISSMATCH);
 
     // test GetDentry
@@ -330,9 +353,9 @@ TEST_F(PartitionTest, PARTITION_ID_MISSMATCH_ERROR) {
     // test HandleRenameTx
     std::vector<Dentry> dentrys1 = {dentry1};
     std::vector<Dentry> dentrys2 = {dentry2};
-    ASSERT_EQ(partition1.HandleRenameTx(dentrys1),
+    ASSERT_EQ(partition1.HandleRenameTx(dentrys1, logIndex_++),
               MetaStatusCode::PARTITION_ID_MISSMATCH);
-    ASSERT_EQ(partition1.HandleRenameTx(dentrys2),
+    ASSERT_EQ(partition1.HandleRenameTx(dentrys2, logIndex_++),
               MetaStatusCode::PARTITION_ID_MISSMATCH);
 
     // test InsertPendingTx
@@ -345,11 +368,11 @@ TEST_F(PartitionTest, PARTITION_ID_MISSMATCH_ERROR) {
     param_.type = FsFileType::TYPE_DIRECTORY;
     param_.fsId = fsId + 1;
     Inode inode1;
-    ASSERT_EQ(partition1.CreateInode(param_, &inode1),
+    ASSERT_EQ(partition1.CreateInode(param_, &inode1, logIndex_++),
               MetaStatusCode::PARTITION_ID_MISSMATCH);
 
     // test CreateRootInode
-    ASSERT_EQ(partition1.CreateRootInode(param_),
+    ASSERT_EQ(partition1.CreateRootInode(param_, logIndex_++),
               MetaStatusCode::PARTITION_ID_MISSMATCH);
 
     // test GetInode
@@ -361,9 +384,9 @@ TEST_F(PartitionTest, PARTITION_ID_MISSMATCH_ERROR) {
               MetaStatusCode::PARTITION_ID_MISSMATCH);
 
     // test DeleteInode
-    ASSERT_EQ(partition1.DeleteInode(fsId + 1, rightInodeId),
+    ASSERT_EQ(partition1.DeleteInode(fsId + 1, rightInodeId, logIndex_++),
               MetaStatusCode::PARTITION_ID_MISSMATCH);
-    ASSERT_EQ(partition1.DeleteInode(fsId, wrongInodeId),
+    ASSERT_EQ(partition1.DeleteInode(fsId, wrongInodeId, logIndex_++),
               MetaStatusCode::PARTITION_ID_MISSMATCH);
 
     Inode inode2;
@@ -376,16 +399,16 @@ TEST_F(PartitionTest, PARTITION_ID_MISSMATCH_ERROR) {
 
     // test UpdateInode
     UpdateInodeRequest inode2Request = MakeUpdateInodeRequestFromInode(inode2);
-    ASSERT_EQ(partition1.UpdateInode(inode2Request),
+    ASSERT_EQ(partition1.UpdateInode(inode2Request, logIndex_++),
               MetaStatusCode::PARTITION_ID_MISSMATCH);
     UpdateInodeRequest inode3Request = MakeUpdateInodeRequestFromInode(inode3);
-    ASSERT_EQ(partition1.UpdateInode(inode3Request),
+    ASSERT_EQ(partition1.UpdateInode(inode3Request, logIndex_++),
               MetaStatusCode::PARTITION_ID_MISSMATCH);
 
     // test InsertInode
-    ASSERT_EQ(partition1.InsertInode(inode2),
+    ASSERT_EQ(partition1.InsertInode(inode2, logIndex_++),
               MetaStatusCode::PARTITION_ID_MISSMATCH);
-    ASSERT_EQ(partition1.InsertInode(inode3),
+    ASSERT_EQ(partition1.InsertInode(inode3, logIndex_++),
               MetaStatusCode::PARTITION_ID_MISSMATCH);
 }
 
@@ -400,12 +423,15 @@ TEST_F(PartitionTest, testGetInodeAttr) {
 
     Partition partition1(partitionInfo1, kvStorage_);
 
+    ASSERT_TRUE(partition1.Init());
+
     // create parent inode
     Inode inode;
     inode.set_inodeid(100);
     param_.type = FsFileType::TYPE_FILE;
     param_.fsId = 1;
-    ASSERT_EQ(partition1.CreateInode(param_, &inode), MetaStatusCode::OK);
+    ASSERT_EQ(partition1.CreateInode(param_, &inode, logIndex_++),
+              MetaStatusCode::OK);
     InodeAttr attr;
     ASSERT_EQ(partition1.GetInodeAttr(1, 100, &attr), MetaStatusCode::OK);
     ASSERT_EQ(attr.inodeid(), 100);
@@ -428,11 +454,14 @@ TEST_F(PartitionTest, testGetXAttr) {
 
     Partition partition1(partitionInfo1, kvStorage_);
 
+    ASSERT_TRUE(partition1.Init());
+
     // create parent inode
     Inode inode;
     inode.set_inodeid(100);
     param_.type = FsFileType::TYPE_DIRECTORY;
-    ASSERT_EQ(partition1.CreateInode(param_, &inode), MetaStatusCode::OK);
+    ASSERT_EQ(partition1.CreateInode(param_, &inode, logIndex_++),
+              MetaStatusCode::OK);
     XAttr xattr;
     ASSERT_EQ(partition1.GetXAttr(1, 100, &xattr), MetaStatusCode::OK);
     ASSERT_EQ(xattr.inodeid(), 100);

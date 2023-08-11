@@ -87,6 +87,10 @@ enum DumpFileVersion : uint8_t {
     // kDumpFileV2 (because they're not inserted into rocksdb), other metadata
     // is saved by rocksdb
     kDumpFileV3 = 3,
+    // Version 4 only dumps partitions into file based on
+    // kDumpFileV3 (because they're not inserted into rocksdb), other metadata
+    // is saved by rocksdb
+    kDumpFileV4 = 4,
 };
 
 std::ostream& operator<<(std::ostream& os, DUMPFILE_ERROR code);

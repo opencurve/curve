@@ -46,12 +46,12 @@ using ::testing::SaveArg;
 using ::testing::SetArgPointee;
 using ::testing::StrEq;
 
-using ::curvefs::metaserver::storage::KVStorage;
-using ::curvefs::metaserver::storage::StorageOptions;
-using ::curvefs::metaserver::storage::RocksDBStorage;
-using ::curvefs::metaserver::storage::NameGenerator;
 using ::curvefs::metaserver::storage::Key4S3ChunkInfoList;
+using ::curvefs::metaserver::storage::KVStorage;
+using ::curvefs::metaserver::storage::NameGenerator;
 using ::curvefs::metaserver::storage::RandomStoragePath;
+using ::curvefs::metaserver::storage::RocksDBStorage;
+using ::curvefs::metaserver::storage::StorageOptions;
 
 namespace curvefs {
 namespace metaserver {
@@ -71,12 +71,13 @@ class InodeManagerTest : public ::testing::Test {
         ASSERT_TRUE(kvStorage_->Open());
 
         auto nameGenerator = std::make_shared<NameGenerator>(1);
-        auto inodeStorage = std::make_shared<InodeStorage>(
-            kvStorage_, nameGenerator, 0);
+        auto inodeStorage =
+            std::make_shared<InodeStorage>(kvStorage_, nameGenerator, 0);
         auto trash = std::make_shared<TrashImpl>(inodeStorage);
         filetype2InodeNum_ = std::make_shared<FileType2InodeNumMap>();
         manager = std::make_shared<InodeManager>(inodeStorage, trash,
                                                  filetype2InodeNum_.get());
+        ASSERT_TRUE(manager->Init());
 
         param_.fsId = 1;
         param_.length = 100;
@@ -88,6 +89,7 @@ class InodeManagerTest : public ::testing::Test {
         param_.rdev = 0;
 
         conv_ = std::make_shared<Converter>();
+        logIndex_ = 0;
     }
 
     void TearDown() override {
@@ -110,7 +112,7 @@ class InodeManagerTest : public ::testing::Test {
         return result;
     }
 
-    bool CompareInode(const Inode &first, const Inode &second) {
+    bool CompareInode(const Inode& first, const Inode& second) {
         return first.fsid() == second.fsid() &&
                first.atime() == second.atime() &&
                first.inodeid() == second.inodeid() &&
@@ -125,11 +127,9 @@ class InodeManagerTest : public ::testing::Test {
 
     bool EqualS3ChunkInfo(const S3ChunkInfo& lhs, const S3ChunkInfo& rhs) {
         return lhs.chunkid() == rhs.chunkid() &&
-            lhs.compaction() == rhs.compaction() &&
-            lhs.offset() == rhs.offset() &&
-            lhs.len() == rhs.len() &&
-            lhs.size() == rhs.size() &&
-            lhs.zero() == rhs.zero();
+               lhs.compaction() == rhs.compaction() &&
+               lhs.offset() == rhs.offset() && lhs.len() == rhs.len() &&
+               lhs.size() == rhs.size() && lhs.zero() == rhs.zero();
     }
 
     bool EqualS3ChunkInfoList(const S3ChunkInfoList& lhs,
@@ -187,6 +187,7 @@ class InodeManagerTest : public ::testing::Test {
     std::string dataDir_;
     std::shared_ptr<KVStorage> kvStorage_;
     std::shared_ptr<FileType2InodeNumMap> filetype2InodeNum_;
+    int64_t logIndex_;
 };
 
 TEST_F(InodeManagerTest, test1) {
@@ -194,28 +195,28 @@ TEST_F(InodeManagerTest, test1) {
     uint32_t fsId = 1;
 
     Inode inode1;
-    ASSERT_EQ(manager->CreateInode(2, param_, &inode1),
+    ASSERT_EQ(manager->CreateInode(2, param_, &inode1, logIndex_++),
               MetaStatusCode::OK);
     ASSERT_EQ(inode1.inodeid(), 2);
 
     Inode inode2;
-    ASSERT_EQ(manager->CreateInode(3, param_, &inode2),
+    ASSERT_EQ(manager->CreateInode(3, param_, &inode2, logIndex_++),
               MetaStatusCode::OK);
     ASSERT_EQ(inode2.inodeid(), 3);
 
     Inode inode3;
     param_.type = FsFileType::TYPE_SYM_LINK;
-    ASSERT_EQ(manager->CreateInode(4, param_, &inode3),
+    ASSERT_EQ(manager->CreateInode(4, param_, &inode3, logIndex_++),
               MetaStatusCode::SYM_LINK_EMPTY);
 
     param_.symlink = "SYMLINK";
-    ASSERT_EQ(manager->CreateInode(4, param_, &inode3),
+    ASSERT_EQ(manager->CreateInode(4, param_, &inode3, logIndex_++),
               MetaStatusCode::OK);
     ASSERT_EQ(inode3.inodeid(), 4);
 
     Inode inode4;
     param_.type = FsFileType::TYPE_S3;
-    ASSERT_EQ(manager->CreateInode(5, param_, &inode4),
+    ASSERT_EQ(manager->CreateInode(5, param_, &inode4, logIndex_++),
               MetaStatusCode::OK);
     ASSERT_EQ(inode4.inodeid(), 5);
     ASSERT_EQ(inode4.type(), FsFileType::TYPE_S3);
@@ -225,7 +226,7 @@ TEST_F(InodeManagerTest, test1) {
     struct timespec now;
     clock_gettime(CLOCK_REALTIME, &now);
     param_.timestamp = absl::make_optional<struct timespec>(now);
-    ASSERT_EQ(manager->CreateInode(6, param_, &inode5),
+    ASSERT_EQ(manager->CreateInode(6, param_, &inode5, logIndex_++),
               MetaStatusCode::OK);
 
     // GET
@@ -250,18 +251,20 @@ TEST_F(InodeManagerTest, test1) {
     ASSERT_TRUE(CompareInode(inode4, temp4));
 
     // DELETE
-    ASSERT_EQ(manager->DeleteInode(fsId, inode1.inodeid()), MetaStatusCode::OK);
-    ASSERT_EQ(manager->DeleteInode(fsId, inode1.inodeid()),
+    ASSERT_EQ(manager->DeleteInode(fsId, inode1.inodeid(), logIndex_++),
+              MetaStatusCode::OK);
+    ASSERT_EQ(manager->DeleteInode(fsId, inode1.inodeid(), logIndex_++),
               MetaStatusCode::OK);
     ASSERT_EQ(manager->GetInode(fsId, inode1.inodeid(), &temp1),
               MetaStatusCode::NOT_FOUND);
 
     // UPDATE
     UpdateInodeRequest request = MakeUpdateInodeRequestFromInode(inode1);
-    ASSERT_EQ(manager->UpdateInode(request), MetaStatusCode::NOT_FOUND);
+    ASSERT_EQ(manager->UpdateInode(request, logIndex_++),
+              MetaStatusCode::NOT_FOUND);
     temp2.set_atime(100);
     UpdateInodeRequest request2 = MakeUpdateInodeRequestFromInode(temp2);
-    ASSERT_EQ(manager->UpdateInode(request2), MetaStatusCode::OK);
+    ASSERT_EQ(manager->UpdateInode(request2, logIndex_++), MetaStatusCode::OK);
     Inode temp5;
     ASSERT_EQ(manager->GetInode(fsId, inode2.inodeid(), &temp5),
               MetaStatusCode::OK);
@@ -290,29 +293,27 @@ TEST_F(InodeManagerTest, GetOrModifyS3ChunkInfo) {
 
         std::shared_ptr<Iterator> iterator;
         MetaStatusCode rc = manager->GetOrModifyS3ChunkInfo(
-            fsId, inodeId, map2add, map2del, true, &iterator);
+            fsId, inodeId, map2add, map2del, true, &iterator, logIndex_++);
         ASSERT_EQ(rc, MetaStatusCode::OK);
 
-        CHECK_ITERATOR_S3CHUNKINFOLIST(iterator,
-            std::vector<uint64_t>{ 1, 2, 3 },
-            std::vector<S3ChunkInfoList>{
-                GenS3ChunkInfoList(1, 1),
-                GenS3ChunkInfoList(2, 2),
-                GenS3ChunkInfoList(3, 3),
-            });
+        CHECK_ITERATOR_S3CHUNKINFOLIST(iterator, std::vector<uint64_t>{1, 2, 3},
+                                       std::vector<S3ChunkInfoList>{
+                                           GenS3ChunkInfoList(1, 1),
+                                           GenS3ChunkInfoList(2, 2),
+                                           GenS3ChunkInfoList(3, 3),
+                                       });
 
         LOG(INFO) << "CASE 1.1: check idempotent for GetOrModifyS3ChunkInfo()";
-        rc = manager->GetOrModifyS3ChunkInfo(
-            fsId, inodeId, map2add, map2del, true, &iterator);
+        rc = manager->GetOrModifyS3ChunkInfo(fsId, inodeId, map2add, map2del,
+                                             true, &iterator, logIndex_++);
         ASSERT_EQ(rc, MetaStatusCode::OK);
 
-        CHECK_ITERATOR_S3CHUNKINFOLIST(iterator,
-            std::vector<uint64_t>{ 1, 2, 3 },
-            std::vector<S3ChunkInfoList>{
-                GenS3ChunkInfoList(1, 1),
-                GenS3ChunkInfoList(2, 2),
-                GenS3ChunkInfoList(3, 3),
-            });
+        CHECK_ITERATOR_S3CHUNKINFOLIST(iterator, std::vector<uint64_t>{1, 2, 3},
+                                       std::vector<S3ChunkInfoList>{
+                                           GenS3ChunkInfoList(1, 1),
+                                           GenS3ChunkInfoList(2, 2),
+                                           GenS3ChunkInfoList(3, 3),
+                                       });
     }
 
     // CASE 2: GetOrModifyS3ChunkInfo() with delete
@@ -327,12 +328,11 @@ TEST_F(InodeManagerTest, GetOrModifyS3ChunkInfo) {
 
         std::shared_ptr<Iterator> iterator;
         MetaStatusCode rc = manager->GetOrModifyS3ChunkInfo(
-            fsId, inodeId, map2add, map2del, true, &iterator);
+            fsId, inodeId, map2add, map2del, true, &iterator, logIndex_++);
         ASSERT_EQ(rc, MetaStatusCode::OK);
 
-        CHECK_ITERATOR_S3CHUNKINFOLIST(iterator,
-            std::vector<uint64_t>{},
-            std::vector<S3ChunkInfoList>{});
+        CHECK_ITERATOR_S3CHUNKINFOLIST(iterator, std::vector<uint64_t>{},
+                                       std::vector<S3ChunkInfoList>{});
     }
 
     // CASE 3: GetOrModifyS3ChunkInfo() with add and delete
@@ -351,7 +351,7 @@ TEST_F(InodeManagerTest, GetOrModifyS3ChunkInfo) {
 
         std::shared_ptr<Iterator> iterator;
         MetaStatusCode rc = manager->GetOrModifyS3ChunkInfo(
-            fsId, inodeId, map2add, map2del, true, &iterator);
+            fsId, inodeId, map2add, map2del, true, &iterator, logIndex_++);
         ASSERT_EQ(rc, MetaStatusCode::OK);
         ASSERT_EQ(iterator->Status(), 0);
 
@@ -369,21 +369,21 @@ TEST_F(InodeManagerTest, GetOrModifyS3ChunkInfo) {
         map2del[8] = GenS3ChunkInfoList(1, 100);
         map2del[9] = GenS3ChunkInfoList(1, 100);
 
-        rc = manager->GetOrModifyS3ChunkInfo(
-            fsId, inodeId, map2add, map2del, true, &iterator);
+        rc = manager->GetOrModifyS3ChunkInfo(fsId, inodeId, map2add, map2del,
+                                             true, &iterator, logIndex_++);
         ASSERT_EQ(rc, MetaStatusCode::OK);
         ASSERT_EQ(iterator->Status(), 0);
 
         CHECK_ITERATOR_S3CHUNKINFOLIST(iterator,
-            std::vector<uint64_t>{ 0, 1, 2, 7, 8, 9 },
-            std::vector<S3ChunkInfoList>{
-                GenS3ChunkInfoList(100, 100),
-                GenS3ChunkInfoList(1, 100),
-                GenS3ChunkInfoList(1, 100),
-                GenS3ChunkInfoList(100, 100),
-                GenS3ChunkInfoList(100, 100),
-                GenS3ChunkInfoList(100, 100),
-            });
+                                       std::vector<uint64_t>{0, 1, 2, 7, 8, 9},
+                                       std::vector<S3ChunkInfoList>{
+                                           GenS3ChunkInfoList(100, 100),
+                                           GenS3ChunkInfoList(1, 100),
+                                           GenS3ChunkInfoList(1, 100),
+                                           GenS3ChunkInfoList(100, 100),
+                                           GenS3ChunkInfoList(100, 100),
+                                           GenS3ChunkInfoList(100, 100),
+                                       });
 
         // step3: delete all s3chunkinfo
         map2add.clear();
@@ -394,21 +394,21 @@ TEST_F(InodeManagerTest, GetOrModifyS3ChunkInfo) {
         map2del[1] = GenS3ChunkInfoList(1, 100);
         map2del[2] = GenS3ChunkInfoList(1, 100);
 
-        rc = manager->GetOrModifyS3ChunkInfo(
-            fsId, inodeId, map2add, map2del, true, &iterator);
+        rc = manager->GetOrModifyS3ChunkInfo(fsId, inodeId, map2add, map2del,
+                                             true, &iterator, logIndex_++);
         ASSERT_EQ(rc, MetaStatusCode::OK);
         ASSERT_EQ(iterator->Status(), 0);
 
         CHECK_ITERATOR_S3CHUNKINFOLIST(iterator,
-            std::vector<uint64_t>{ 0, 1, 2, 7, 8, 9 },
-            std::vector<S3ChunkInfoList>{
-                GenS3ChunkInfoList(100, 100),
-                GenS3ChunkInfoList(100, 100),
-                GenS3ChunkInfoList(100, 100),
-                GenS3ChunkInfoList(100, 100),
-                GenS3ChunkInfoList(100, 100),
-                GenS3ChunkInfoList(100, 100),
-            });
+                                       std::vector<uint64_t>{0, 1, 2, 7, 8, 9},
+                                       std::vector<S3ChunkInfoList>{
+                                           GenS3ChunkInfoList(100, 100),
+                                           GenS3ChunkInfoList(100, 100),
+                                           GenS3ChunkInfoList(100, 100),
+                                           GenS3ChunkInfoList(100, 100),
+                                           GenS3ChunkInfoList(100, 100),
+                                           GenS3ChunkInfoList(100, 100),
+                                       });
     }
 }
 
@@ -417,16 +417,15 @@ TEST_F(InodeManagerTest, UpdateInode) {
     uint64_t ino = 2;
 
     Inode inode;
-    ASSERT_EQ(MetaStatusCode::OK, manager->CreateInode(ino, param_, &inode));
+    ASSERT_EQ(MetaStatusCode::OK,
+              manager->CreateInode(ino, param_, &inode, logIndex_++));
 
     // test update ok
     UpdateInodeRequest request = MakeUpdateInodeRequestFromInode(inode);
-    ASSERT_EQ(MetaStatusCode::OK,
-              manager->UpdateInode(request));
+    ASSERT_EQ(MetaStatusCode::OK, manager->UpdateInode(request, logIndex_++));
 
     // test update fail
-    ASSERT_EQ(MetaStatusCode::OK,
-              manager->UpdateInode(request));
+    ASSERT_EQ(MetaStatusCode::OK, manager->UpdateInode(request, logIndex_++));
 }
 
 
@@ -434,8 +433,8 @@ TEST_F(InodeManagerTest, testGetAttr) {
     // CREATE
     uint32_t fsId = 1;
     Inode inode1;
-    ASSERT_EQ(manager->CreateInode(2, param_, &inode1),
-        MetaStatusCode::OK);
+    ASSERT_EQ(manager->CreateInode(2, param_, &inode1, logIndex_++),
+              MetaStatusCode::OK);
     ASSERT_EQ(inode1.inodeid(), 2);
 
     InodeAttr attr;
@@ -456,14 +455,14 @@ TEST_F(InodeManagerTest, testGetXAttr) {
     // CREATE
     uint32_t fsId = 1;
     Inode inode1;
-    ASSERT_EQ(manager->CreateInode(2, param_, &inode1),
-        MetaStatusCode::OK);
+    ASSERT_EQ(manager->CreateInode(2, param_, &inode1, logIndex_++),
+              MetaStatusCode::OK);
     ASSERT_EQ(inode1.inodeid(), 2);
     ASSERT_TRUE(inode1.xattr().empty());
 
     Inode inode2;
     param_.type = FsFileType::TYPE_DIRECTORY;
-    ASSERT_EQ(manager->CreateInode(3, param_, &inode2),
+    ASSERT_EQ(manager->CreateInode(3, param_, &inode2, logIndex_++),
               MetaStatusCode::OK);
     ASSERT_FALSE(inode2.xattr().empty());
     ASSERT_EQ(inode2.xattr().find(XATTRFILES)->second, "0");
@@ -489,7 +488,7 @@ TEST_F(InodeManagerTest, testGetXAttr) {
     inode2.mutable_xattr()->find(XATTRENTRIES)->second = "2";
     inode2.mutable_xattr()->find(XATTRFBYTES)->second = "100";
     UpdateInodeRequest request = MakeUpdateInodeRequestFromInode(inode2);
-    ASSERT_EQ(manager->UpdateInode(request), MetaStatusCode::OK);
+    ASSERT_EQ(manager->UpdateInode(request, logIndex_++), MetaStatusCode::OK);
 
     // GET
     XAttr xattr1;
@@ -508,7 +507,7 @@ TEST_F(InodeManagerTest, testCreateManageInode) {
     ManageInodeType type = ManageInodeType::TYPE_RECYCLE;
     Inode inode;
     ASSERT_EQ(MetaStatusCode::OK,
-        manager->CreateManageInode(param_, type, &inode));
+              manager->CreateManageInode(param_, type, &inode, logIndex_++));
     ASSERT_EQ(inode.inodeid(), RECYCLEINODEID);
     ASSERT_EQ(inode.parent()[0], ROOTINODEID);
 

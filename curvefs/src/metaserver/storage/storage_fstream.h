@@ -183,6 +183,11 @@ inline bool LoadFromFile(const std::string &pathname, uint8_t *version,
         std::string key = ukey.second;
         std::string value = iter->Value();
         uint8_t version = dumpfile.GetVersion();
+        if (version < static_cast<uint8_t>(DumpFileVersion::kDumpFileV3)) {
+            LOG(ERROR) << "The dumpfile is too old, "
+                       << "the version of dumpfile should be V3 at least";
+            return false;
+        }
         switch (entryType) {
             CASE_TYPE_CALLBACK(INODE);
             CASE_TYPE_CALLBACK(DENTRY);

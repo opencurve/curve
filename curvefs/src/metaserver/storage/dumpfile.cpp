@@ -67,7 +67,7 @@ using ::curve::common::CRC32;
 
 const std::string DumpFile::kCurvefs_ = "CURVEFS";  // NOLINT
 const uint32_t DumpFile::kEOF_ = 0;
-const uint8_t DumpFile::kVersion_ = kDumpFileV3;
+const uint8_t DumpFile::kVersion_ = kDumpFileV4;
 
 const uint32_t DumpFile::kMaxStringLength_ = 1024 * 1024 * 1024;  // 1GB
 

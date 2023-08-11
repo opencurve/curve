@@ -231,7 +231,7 @@ MetaStatusCode TrashImpl::DeleteInodeAndData(const TrashItem &item) {
             return MetaStatusCode::S3_DELETE_ERR;
         }
     }
-    ret = inodeStorage_->Delete(Key4Inode(item.fsId, item.inodeId));
+    ret = inodeStorage_->ForceDelete(Key4Inode(item.fsId, item.inodeId));
     if (ret != MetaStatusCode::OK && ret != MetaStatusCode::NOT_FOUND) {
         LOG(ERROR) << "Delete Inode fail, fsId = " << item.fsId
                    << ", inodeId = " << item.inodeId

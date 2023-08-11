@@ -20,41 +20,47 @@
  * Author: chenwei
  */
 
+#include "curvefs/src/metaserver/inode_storage.h"
+
 #include <google/protobuf/empty.pb.h>
 
-#include <limits>
-#include <string>
-#include <memory>
-#include <vector>
 #include <algorithm>
+#include <limits>
+#include <memory>
 #include <set>
+#include <string>
+#include <vector>
 
+#include "curvefs/proto/common.pb.h"
+#include "curvefs/proto/metaserver.pb.h"
+#include "curvefs/src/metaserver/common/types.h"
+#include "curvefs/src/metaserver/storage/converter.h"
+#include "curvefs/src/metaserver/storage/status.h"
+#include "curvefs/src/metaserver/storage/storage.h"
 #include "src/common/concurrent/rw_lock.h"
 #include "src/common/string_util.h"
-#include "curvefs/proto/metaserver.pb.h"
-#include "curvefs/proto/common.pb.h"
-#include "curvefs/src/metaserver/storage/status.h"
-#include "curvefs/src/metaserver/inode_storage.h"
-#include "curvefs/src/metaserver/storage/converter.h"
-#include "curvefs/src/metaserver/common/types.h"
 
 namespace curvefs {
 namespace metaserver {
 
 using ::curve::common::ReadLockGuard;
-using ::curve::common::WriteLockGuard;
 using ::curve::common::StringStartWith;
-using ::curvefs::metaserver::storage::Status;
-using ::curvefs::metaserver::storage::KVStorage;
+using ::curve::common::WriteLockGuard;
+using ::curvefs::metaserver::storage::Key4DeallocatableBlockGroup;
+using ::curvefs::metaserver::storage::Key4InodeAuxInfo;
 using ::curvefs::metaserver::storage::Key4S3ChunkInfoList;
 using ::curvefs::metaserver::storage::Key4VolumeExtentSlice;
-using ::curvefs::metaserver::storage::Prefix4InodeVolumeExtent;
+using ::curvefs::metaserver::storage::KVStorage;
+using ::curvefs::metaserver::storage::Prefix4AllDeallocatableBlockGroup;
+using ::curvefs::metaserver::storage::Prefix4AllInode;
 using ::curvefs::metaserver::storage::Prefix4ChunkIndexS3ChunkInfoList;
 using ::curvefs::metaserver::storage::Prefix4InodeS3ChunkInfoList;
-using ::curvefs::metaserver::storage::Prefix4AllInode;
-using ::curvefs::metaserver::storage::Key4InodeAuxInfo;
-using ::curvefs::metaserver::storage::Key4DeallocatableBlockGroup;
-using ::curvefs::metaserver::storage::Prefix4AllDeallocatableBlockGroup;
+using ::curvefs::metaserver::storage::Prefix4InodeVolumeExtent;
+using ::curvefs::metaserver::storage::Status;
+
+const char* InodeStorage::kInodeCountKey("count");
+
+const char* InodeStorage::kInodeAppliedKey("inode");
 
 InodeStorage::InodeStorage(std::shared_ptr<KVStorage> kvStorage,
                            std::shared_ptr<NameGenerator> nameGenerator,
@@ -68,13 +74,70 @@ InodeStorage::InodeStorage(std::shared_ptr<KVStorage> kvStorage,
           nameGenerator->GetDeallocatableInodeTableName()),
       table4DeallocatableBlockGroup_(
           nameGenerator->GetDeallocatableBlockGroupTableName()),
-      nInode_(nInode), conv_() {}
+      table4AppliedIndex_(nameGenerator->GetAppliedIndexTableName()),
+      table4InodeCount_(nameGenerator->GetInodeCountTableName()),
+      nInode_(nInode),
+      conv_() {
+    // NOTE: for compatibility with older versions
+    // we cannot ignore `nInode` argument
+}
 
-MetaStatusCode InodeStorage::Insert(const Inode& inode) {
+bool InodeStorage::Init() {
+    // try get inode count for rocksdb
+    // if we got it, replace old value
+    auto s = GetInodeCount(&nInode_);
+    return s.ok() || s.IsNotFound();
+}
+
+storage::Status InodeStorage::GetInodeCount(std::size_t* count) {
+    common::ItemCount val;
+    auto s = kvStorage_->SGet(table4InodeCount_, kInodeCountKey, &val);
+    if (s.ok()) {
+        *count = static_cast<std::size_t>(val.count());
+    }
+    return s;
+}
+
+storage::Status InodeStorage::SetInodeCount(storage::StorageTransaction* txn,
+                                            std::size_t count) {
+    common::ItemCount val;
+    val.set_count(count);
+    return txn->SSet(table4InodeCount_, kInodeCountKey, val);
+}
+
+storage::Status InodeStorage::DelInodeCount(storage::StorageTransaction* txn) {
+    return txn->SDel(table4InodeCount_, kInodeCountKey);
+}
+
+storage::Status InodeStorage::SetAppliedIndex(
+    storage::StorageTransaction* transaction, int64_t index) {
+    common::AppliedIndex val;
+    val.set_index(index);
+    return transaction->SSet(table4AppliedIndex_, kInodeAppliedKey, val);
+}
+
+storage::Status InodeStorage::DelAppliedIndex(
+    storage::StorageTransaction* transaction) {
+    return transaction->SDel(table4AppliedIndex_, kInodeAppliedKey);
+}
+
+MetaStatusCode InodeStorage::GetAppliedIndex(int64_t* index) {
+    common::AppliedIndex val;
+    auto s = kvStorage_->SGet(table4AppliedIndex_, kInodeAppliedKey, &val);
+    if (s.ok()) {
+        *index = val.index();
+        return MetaStatusCode::OK;
+    }
+    if (s.IsNotFound()) {
+        return MetaStatusCode::NOT_FOUND;
+    }
+    return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+}
+
+MetaStatusCode InodeStorage::Insert(const Inode& inode, int64_t logIndex) {
     WriteLockGuard lg(rwLock_);
     Key4Inode key(inode.fsid(), inode.inodeid());
     std::string skey = conv_.SerializeToString(key);
-
     // NOTE: HGet() is cheap, because the key not found in most cases,
     // so the rocksdb storage only should check bloom filter.
     Inode out;
@@ -84,14 +147,41 @@ MetaStatusCode InodeStorage::Insert(const Inode& inode) {
     } else if (!s.IsNotFound()) {
         return MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
-
     // key not found
-    s = kvStorage_->HSet(table4Inode_, skey, inode);
-    if (s.ok()) {
+    const char* step = "Begin transaction";
+    std::shared_ptr<storage::StorageTransaction> txn;
+    do {
+        txn = kvStorage_->BeginTransaction();
+        if (txn == nullptr) {
+            break;
+        }
+        s = txn->HSet(table4Inode_, skey, inode);
+        if (!s.ok()) {
+            step = "Insert inode to transaction";
+            break;
+        }
+        s = SetAppliedIndex(txn.get(), logIndex);
+        if (!s.ok()) {
+            step = "Insert applied index to transaction";
+            break;
+        }
+        s = SetInodeCount(txn.get(), nInode_ + 1);
+        if (!s.ok()) {
+            step = "Insert inode count to transaction";
+            break;
+        }
+        s = txn->Commit();
+        if (!s.ok()) {
+            step = "Insert inode failed";
+            break;
+        }
         nInode_++;
         return MetaStatusCode::OK;
+    } while (false);
+    LOG(ERROR) << step << " failed, status = " << s.ToString();
+    if (txn != nullptr && !txn->Rollback().ok()) {
+        LOG(ERROR) << "Rollback transaction failed";
     }
-    LOG(ERROR) << "Insert inode failed, status = " << s.ToString();
     return MetaStatusCode::STORAGE_INTERNAL_ERROR;
 }
 
@@ -111,8 +201,7 @@ MetaStatusCode InodeStorage::Get(const Key4Inode& key, Inode* inode) {
     return MetaStatusCode::STORAGE_INTERNAL_ERROR;
 }
 
-MetaStatusCode InodeStorage::GetAttr(const Key4Inode& key,
-                                     InodeAttr *attr) {
+MetaStatusCode InodeStorage::GetAttr(const Key4Inode& key, InodeAttr* attr) {
     ReadLockGuard lg(rwLock_);
     Inode inode;
     std::string skey = conv_.SerializeToString(key);
@@ -154,7 +243,7 @@ MetaStatusCode InodeStorage::GetAttr(const Key4Inode& key,
     return MetaStatusCode::OK;
 }
 
-MetaStatusCode InodeStorage::GetXAttr(const Key4Inode& key, XAttr *xattr) {
+MetaStatusCode InodeStorage::GetXAttr(const Key4Inode& key, XAttr* xattr) {
     ReadLockGuard lg(rwLock_);
     Inode inode;
     std::string skey = conv_.SerializeToString(key);
@@ -171,70 +260,163 @@ MetaStatusCode InodeStorage::GetXAttr(const Key4Inode& key, XAttr *xattr) {
     return MetaStatusCode::OK;
 }
 
-MetaStatusCode InodeStorage::Delete(const Key4Inode& key) {
-    WriteLockGuard lg(rwLock_);
+// NOTE: if transaction success
+// we will commit transaction
+// it should be the last step of your operations
+storage::Status InodeStorage::DeleteInternal(
+    storage::StorageTransaction* transaction, const Key4Inode& key) {
     std::string skey = conv_.SerializeToString(key);
-    Status s = kvStorage_->HDel(table4Inode_, skey);
-    if (s.ok()) {
+    Status s;
+    const char* step = "Delete inode from transaction";
+    do {
+        s = transaction->HDel(table4Inode_, skey);
+        if (!s.ok()) {
+            break;
+        }
         // NOTE: for rocksdb storage, it will never check whether
         // the key exist in delete(), so if the client delete the
-        // unexist inode in some anbormal cases, it will cause the
+        // non-exist inode in some abnormal cases, it will cause the
+        // nInode less then the real value.
+        if (nInode_ > 0) {
+            s = SetInodeCount(transaction, nInode_ - 1);
+            if (!s.ok()) {
+                step = "Insert inode count to transaction";
+                break;
+            }
+        }
+        s = transaction->Commit();
+        if (!s.ok()) {
+            step = "Delete inode";
+            break;
+        }
+        // NOTE: for rocksdb storage, it will never check whether
+        // the key exist in delete(), so if the client delete the
+        // non-exist inode in some abnormal cases, it will cause the
         // nInode less then the real value.
         if (nInode_ > 0) {
             nInode_--;
         }
-        return MetaStatusCode::OK;
-    }
+        return s;
+    } while (false);
+    LOG(ERROR) << step << " failed, status = " << s.ToString();
+    return s;
+}
 
+MetaStatusCode InodeStorage::Delete(const Key4Inode& key, int64_t logIndex) {
+    WriteLockGuard lg(rwLock_);
+    std::shared_ptr<storage::StorageTransaction> txn;
+    Status s;
+    const char* step = "Begin transaction";
+    do {
+        txn = kvStorage_->BeginTransaction();
+        if (txn == nullptr) {
+            break;
+        }
+        s = SetAppliedIndex(txn.get(), logIndex);
+        if (!s.ok()) {
+            step = "Insert applied index to transaction";
+            break;
+        }
+        s = DeleteInternal(txn.get(), key);
+        if (!s.ok()) {
+            step = "Delete inode from transaction";
+            break;
+        }
+        return MetaStatusCode::OK;
+    } while (false);
+    LOG(ERROR) << step << " failed, status = " << s.ToString();
+    if (txn != nullptr && !txn->Rollback().ok()) {
+        LOG(ERROR) << "Rollback delete inode transaction failed, status = "
+                   << s.ToString();
+    }
     return MetaStatusCode::STORAGE_INTERNAL_ERROR;
 }
 
-MetaStatusCode InodeStorage::Update(const Inode &inode, bool inodeDeallocate) {
+MetaStatusCode InodeStorage::ForceDelete(const Key4Inode& key) {
+    WriteLockGuard lg(rwLock_);
+    std::shared_ptr<storage::StorageTransaction> txn = nullptr;
+    Status s;
+    const char* step = "Begin transaction";
+    do {
+        txn = kvStorage_->BeginTransaction();
+        if (txn == nullptr) {
+            break;
+        }
+        s = DeleteInternal(txn.get(), key);
+        if (!s.ok()) {
+            step = "Delete inode from transaction";
+            break;
+        }
+        return MetaStatusCode::OK;
+    } while (false);
+    LOG(ERROR) << step << " failed, status = " << s.ToString();
+    if (txn != nullptr && !txn->Rollback().ok()) {
+        LOG(ERROR) << "Rollback delete inode transaction failed, status = "
+                   << s.ToString();
+    }
+    return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+}
+
+MetaStatusCode InodeStorage::Update(
+    std::shared_ptr<storage::StorageTransaction>* txn, const Inode& inode,
+    int64_t logIndex, bool inodeDeallocate) {
+    if (*txn == nullptr) {
+        *txn = kvStorage_->BeginTransaction();
+        if (*txn == nullptr) {
+            LOG(ERROR) << "Begin transaction failed";
+            return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+        }
+    }
     WriteLockGuard lg(rwLock_);
     Key4Inode key(inode.fsid(), inode.inodeid());
     std::string skey = conv_.SerializeToString(key);
-
-    // only update inodes
+    storage::Status s;
+    s = SetAppliedIndex(txn->get(), logIndex);
+    if (!s.ok()) {
+        LOG(ERROR) << "Insert applied index to transaction failed, status = "
+                   << s.ToString();
+        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    }
     if (!inodeDeallocate) {
-        Status s = kvStorage_->HSet(table4Inode_, skey, inode);
+        s = (*txn)->HSet(table4Inode_, skey, inode);
         if (s.ok()) {
             return MetaStatusCode::OK;
         }
         return MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
-
-    // update inode and update deallocatable inode list
     google::protobuf::Empty value;
-    auto txn = kvStorage_->BeginTransaction();
-    if (nullptr == txn) {
-        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
-    }
-
     std::string step = "update inode " + key.SerializeToString();
-
-    Status s = txn->HSet(table4Inode_, skey, inode);
+    s = (*txn)->HSet(table4Inode_, skey, inode);
     if (s.ok()) {
-        s = txn->HSet(table4DeallocatableInode_, skey, value);
+        s = (*txn)->HSet(table4DeallocatableInode_, skey, value);
         step = "add inode " + key.SerializeToString() +
                " to inode deallocatable list";
     }
-
     if (!s.ok()) {
         LOG(ERROR) << "txn is failed in " << step;
-        if (!txn->Rollback().ok()) {
-            LOG(ERROR) << "rollback transaction failed, inode="
-                       << key.SerializeToString();
-            return  MetaStatusCode::STORAGE_INTERNAL_ERROR;
-        }
-    } else if (!txn->Commit().ok()) {
-        LOG(ERROR) << "commit transaction failed, inode="
-                   << key.SerializeToString();
         return MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
-
     return MetaStatusCode::OK;
 }
 
+MetaStatusCode InodeStorage::Update(const Inode& inode, int64_t logIndex,
+                                    bool inodeDeallocate) {
+    std::shared_ptr<storage::StorageTransaction> txn;
+    if (Update(&txn, inode, logIndex, inodeDeallocate) == MetaStatusCode::OK) {
+        storage::Status s = txn->Commit();
+        if (!s.ok()) {
+            LOG(ERROR) << "Commit update inode transaction failed, status = "
+                       << s.ToString();
+        } else {
+            return MetaStatusCode::OK;
+        }
+    }
+    if (txn != nullptr && !txn->Rollback().ok()) {
+        LOG(ERROR) << "Rollback transaction failed";
+    }
+    LOG(ERROR) << "Update inode failed";
+    return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+}
 
 std::shared_ptr<Iterator> InodeStorage::GetAllInode() {
     ReadLockGuard lg(rwLock_);
@@ -279,34 +461,75 @@ bool InodeStorage::Empty() {
     return true;
 }
 
+// NOTE: we will clear all apply metadata in `Clear()`
+// when follower replay logs on this snapshot, it may cause
+// repeat apply log entries, and raise some errors
+// but we know this partition will be clear at the end of logs
 MetaStatusCode InodeStorage::Clear() {
+    // FIXME: non-atomic clear operations
+    // NOTE: clear operations non-atomic is acceptable
+    // because if we fail stop, we will replay
+    // raft logs and clear it again
     WriteLockGuard lg(rwLock_);
+
     Status s = kvStorage_->HClear(table4Inode_);
     if (!s.ok()) {
-        LOG(ERROR) << "InodeStorage clear inode table failed";
+        LOG(ERROR) << "InodeStorage clear inode table failed, status = "
+                   << s.ToString();
         return MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
-    nInode_ = 0;
-
     s = kvStorage_->SClear(table4S3ChunkInfo_);
     if (!s.ok()) {
-        LOG(ERROR) << "InodeStorage clear inode s3chunkinfo table failed";
+        LOG(ERROR)
+            << "InodeStorage clear inode s3chunkinfo table failed, status = "
+            << s.ToString();
         return MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
-
     s = kvStorage_->SClear(table4VolumeExtent_);
     if (!s.ok()) {
-        LOG(ERROR) << "InodeStorage clear inode volume extent table failed";
+        LOG(ERROR)
+            << "InodeStorage clear inode volume extent table failed, status = "
+            << s.ToString();
         return MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
 
     s = kvStorage_->HClear(table4InodeAuxInfo_);
     if (!s.ok()) {
-        LOG(ERROR) << "InodeStorage clear inode aux info table failed";
+        LOG(ERROR)
+            << "InodeStorage clear inode aux info table failed, status = "
+            << s.ToString();
         return MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
-
-    return MetaStatusCode::OK;
+    std::shared_ptr<storage::StorageTransaction> txn;
+    const char* step = "Begin transaction";
+    do {
+        txn = kvStorage_->BeginTransaction();
+        if (txn == nullptr) {
+            break;
+        }
+        s = DelInodeCount(txn.get());
+        if (!s.ok()) {
+            step = "Delete inode count";
+            break;
+        }
+        s = DelAppliedIndex(txn.get());
+        if (!s.ok()) {
+            step = "Delete applied index";
+            break;
+        }
+        s = txn->Commit();
+        if (!s.ok()) {
+            step = "Commit clear InodeStorage transaction";
+            break;
+        }
+        nInode_ = 0;
+        return MetaStatusCode::OK;
+    } while (false);
+    LOG(ERROR) << step << " failed, status = " << s.ToString();
+    if (txn != nullptr && !txn->Rollback().ok()) {
+        LOG(ERROR) << "Rollback transaction failed";
+    }
+    return MetaStatusCode::STORAGE_INTERNAL_ERROR;
 }
 
 MetaStatusCode InodeStorage::UpdateInodeS3MetaSize(Transaction txn,
@@ -365,10 +588,7 @@ uint64_t InodeStorage::GetInodeS3MetaSize(uint32_t fsId, uint64_t inodeId) {
 }
 
 MetaStatusCode InodeStorage::AddS3ChunkInfoList(
-    Transaction txn,
-    uint32_t fsId,
-    uint64_t inodeId,
-    uint64_t chunkIndex,
+    Transaction txn, uint32_t fsId, uint64_t inodeId, uint64_t chunkIndex,
     const S3ChunkInfoList* list2add) {
     if (nullptr == list2add || list2add->s3chunks_size() == 0) {
         return MetaStatusCode::OK;
@@ -378,8 +598,8 @@ MetaStatusCode InodeStorage::AddS3ChunkInfoList(
     uint64_t firstChunkId = list2add->s3chunks(0).chunkid();
     uint64_t lastChunkId = list2add->s3chunks(size - 1).chunkid();
 
-    Key4S3ChunkInfoList key(fsId, inodeId, chunkIndex,
-                            firstChunkId, lastChunkId, size);
+    Key4S3ChunkInfoList key(fsId, inodeId, chunkIndex, firstChunkId,
+                            lastChunkId, size);
     std::string skey = conv_.SerializeToString(key);
     Status s;
     if (txn) {
@@ -387,15 +607,11 @@ MetaStatusCode InodeStorage::AddS3ChunkInfoList(
     } else {
         s = kvStorage_->SSet(table4S3ChunkInfo_, skey, *list2add);
     }
-    return s.ok() ? MetaStatusCode::OK :
-                    MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    return s.ok() ? MetaStatusCode::OK : MetaStatusCode::STORAGE_INTERNAL_ERROR;
 }
 
 MetaStatusCode InodeStorage::DelS3ChunkInfoList(
-    Transaction txn,
-    uint32_t fsId,
-    uint64_t inodeId,
-    uint64_t chunkIndex,
+    Transaction txn, uint32_t fsId, uint64_t inodeId, uint64_t chunkIndex,
     const S3ChunkInfoList* list2del) {
     if (nullptr == list2del || list2del->s3chunks_size() == 0) {
         return MetaStatusCode::OK;
@@ -429,13 +645,13 @@ MetaStatusCode InodeStorage::DelS3ChunkInfoList(
         if (delFirstChunkId <= key.firstChunkId &&
             delLastChunkId >= key.lastChunkId) {
             key2del.push_back(skey);
-        // current list range:       [  ]
-        // delete list range :  [  ]
+            // current list range:       [  ]
+            // delete list range :  [  ]
         } else if (delLastChunkId < key.firstChunkId) {
             continue;
         } else {
-            LOG(ERROR) << "wrong delete list range (" << delFirstChunkId
-                       << "," << delLastChunkId << "), skey=" << skey;
+            LOG(ERROR) << "wrong delete list range (" << delFirstChunkId << ","
+                       << delLastChunkId << "), skey=" << skey;
             return MetaStatusCode::STORAGE_INTERNAL_ERROR;
         }
     }
@@ -450,22 +666,22 @@ MetaStatusCode InodeStorage::DelS3ChunkInfoList(
 }
 
 MetaStatusCode InodeStorage::ModifyInodeS3ChunkInfoList(
-    uint32_t fsId,
-    uint64_t inodeId,
-    uint64_t chunkIndex,
-    const S3ChunkInfoList* list2add,
-    const S3ChunkInfoList* list2del) {
-    WriteLockGuard lg(rwLock_);
-    auto txn = kvStorage_->BeginTransaction();
-    std::string step;
-    if (nullptr == txn) {
-        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    std::shared_ptr<StorageTransaction>* txn, uint32_t fsId, uint64_t inodeId,
+    uint64_t chunkIndex, const S3ChunkInfoList* list2add,
+    const S3ChunkInfoList* list2del, int64_t logIndex) {
+    if (*txn == nullptr) {
+        *txn = kvStorage_->BeginTransaction();
+        if (*txn == nullptr) {
+            LOG(ERROR) << "Begin transaction failed";
+            return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+        }
     }
-
-    auto rc = DelS3ChunkInfoList(txn, fsId, inodeId, chunkIndex, list2del);
+    WriteLockGuard lg(rwLock_);
+    std::string step;
+    auto rc = DelS3ChunkInfoList(*txn, fsId, inodeId, chunkIndex, list2del);
     step = "del s3 chunkinfo list ";
     if (rc == MetaStatusCode::OK) {
-        rc = AddS3ChunkInfoList(txn, fsId, inodeId, chunkIndex, list2add);
+        rc = AddS3ChunkInfoList(*txn, fsId, inodeId, chunkIndex, list2add);
         step = "add s3 chunkInfo list ";
     }
 
@@ -476,16 +692,34 @@ MetaStatusCode InodeStorage::ModifyInodeS3ChunkInfoList(
             (nullptr == list2del) ? 0 : list2del->s3chunks_size();
         // TODO(huyao): I don't think this place is idempotent. If the timeout
         // is retried, the size will increase.
-        rc = UpdateInodeS3MetaSize(txn, fsId, inodeId, size4add, size4del);
+        rc = UpdateInodeS3MetaSize(*txn, fsId, inodeId, size4add, size4del);
         step = "update inode s3 meta size ";
     }
-
+    if (rc == MetaStatusCode::OK) {
+        if (!SetAppliedIndex(txn->get(), logIndex).ok()) {
+            step = "Insert applied index";
+            rc = MetaStatusCode::STORAGE_INTERNAL_ERROR;
+        }
+    }
     if (rc != MetaStatusCode::OK) {
-        LOG(ERROR) << "txn is failed in " << step << ".";
-        if (!txn->Rollback().ok()) {
+        LOG(ERROR) << "Modify inode transaction failed, step = " << step;
+    }
+    return rc;
+}
+
+MetaStatusCode InodeStorage::ModifyInodeS3ChunkInfoList(
+    uint32_t fsId, uint64_t inodeId, uint64_t chunkIndex,
+    const S3ChunkInfoList* list2add, const S3ChunkInfoList* list2del,
+    int64_t logIndex) {
+    std::shared_ptr<storage::StorageTransaction> txn;
+    MetaStatusCode rc = ModifyInodeS3ChunkInfoList(
+        &txn, fsId, inodeId, chunkIndex, list2add, list2del, logIndex);
+    if (rc != MetaStatusCode::OK) {
+        if (txn != nullptr && !txn->Rollback().ok()) {
             LOG(ERROR) << "Rollback transaction failed";
             rc = MetaStatusCode::STORAGE_INTERNAL_ERROR;
         }
+        LOG(ERROR) << "Modify inode failed";
     } else if (!txn->Commit().ok()) {
         LOG(ERROR) << "Commit transaction failed";
         rc = MetaStatusCode::STORAGE_INTERNAL_ERROR;
@@ -557,22 +791,58 @@ std::shared_ptr<Iterator> InodeStorage::GetAllVolumeExtentList() {
 }
 
 MetaStatusCode InodeStorage::UpdateVolumeExtentSlice(
-    uint32_t fsId,
-    uint64_t inodeId,
-    const VolumeExtentSlice& slice) {
+    std::shared_ptr<storage::StorageTransaction>* txn, uint32_t fsId,
+    uint64_t inodeId, const VolumeExtentSlice& slice, int64_t logIndex) {
     WriteLockGuard guard(rwLock_);
+    if (*txn == nullptr) {
+        *txn = kvStorage_->BeginTransaction();
+        if (*txn == nullptr) {
+            LOG(ERROR) << "Begin transaction failed";
+            return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+        }
+    }
     auto key = conv_.SerializeToString(
         Key4VolumeExtentSlice{fsId, inodeId, slice.offset()});
-
-    auto st = kvStorage_->SSet(table4VolumeExtent_, key, slice);
-
-    return st.ok() ? MetaStatusCode::OK
-                   : MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    auto st = (*txn)->SSet(table4VolumeExtent_, key, slice);
+    if (!st.ok()) {
+        LOG(ERROR)
+            << "Update volume extent slice to transaction failed, status = "
+            << st.ToString();
+        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    }
+    st = SetAppliedIndex(txn->get(), logIndex);
+    if (!st.ok()) {
+        LOG(ERROR) << "Insert applied index to transaction failed, status = "
+                   << st.ToString();
+        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    }
+    return MetaStatusCode::OK;
 }
 
-MetaStatusCode
-InodeStorage::GetAllVolumeExtent(uint32_t fsId, uint64_t inodeId,
-                                 VolumeExtentSliceList *extents) {
+MetaStatusCode InodeStorage::UpdateVolumeExtentSlice(
+    uint32_t fsId, uint64_t inodeId, const VolumeExtentSlice& slice,
+    int64_t logIndex) {
+    std::shared_ptr<storage::StorageTransaction> txn;
+    auto rc = UpdateVolumeExtentSlice(&txn, fsId, inodeId, slice, logIndex);
+    if (rc != MetaStatusCode::OK) {
+        if (txn != nullptr && !txn->Rollback().ok()) {
+            LOG(ERROR) << "Rollback transaction failed";
+        }
+        return rc;
+    }
+    auto s = txn->Commit();
+    if (!s.ok()) {
+        LOG(ERROR) << "Commit transaction failed, status = " << s.ToString();
+        if (!txn->Rollback().ok()) {
+            LOG(ERROR) << "Rollback transaction failed";
+        }
+        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    }
+    return MetaStatusCode::OK;
+}
+
+MetaStatusCode InodeStorage::GetAllVolumeExtent(
+    uint32_t fsId, uint64_t inodeId, VolumeExtentSliceList* extents) {
     ReadLockGuard guard(rwLock_);
     auto key = conv_.SerializeToString(Prefix4InodeVolumeExtent{fsId, inodeId});
     auto iter = kvStorage_->SSeek(table4VolumeExtent_, key);
@@ -622,7 +892,7 @@ MetaStatusCode InodeStorage::GetVolumeExtentByOffset(uint32_t fsId,
 }
 
 MetaStatusCode InodeStorage::GetAllBlockGroup(
-    std::vector<DeallocatableBlockGroup> *deallocatableBlockGroupVec) {
+    std::vector<DeallocatableBlockGroup>* deallocatableBlockGroupVec) {
     auto iter = kvStorage_->HGetAll(table4DeallocatableBlockGroup_);
     if (iter->Status() != 0) {
         LOG(ERROR) << "InodeStorage failed to get iterator for all "
@@ -648,13 +918,13 @@ MetaStatusCode InodeStorage::GetAllBlockGroup(
 }
 
 MetaStatusCode InodeStorage::UpdateDeallocatableBlockGroup(
-    uint32_t fsId, const DeallocatableBlockGroupVec &update) {
+    uint32_t fsId, const DeallocatableBlockGroupVec& update, int64_t logIndex) {
     auto txn = kvStorage_->BeginTransaction();
 
     MetaStatusCode st = MetaStatusCode::OK;
     std::string step;
 
-    for (auto &item : update) {
+    for (auto& item : update) {
         Key4DeallocatableBlockGroup key(fsId, item.blockgroupoffset());
         std::string skey(key.SerializeToString());
 
@@ -686,6 +956,15 @@ MetaStatusCode InodeStorage::UpdateDeallocatableBlockGroup(
             break;
         }
     }
+    if (st == MetaStatusCode::OK) {
+        auto s = SetAppliedIndex(txn.get(), logIndex);
+        if (!s.ok()) {
+            st = MetaStatusCode::STORAGE_INTERNAL_ERROR;
+            LOG(ERROR)
+                << "Insert applied index to transaction failed, status = "
+                << s.ToString();
+        }
+    }
 
     if (st != MetaStatusCode::OK) {
         LOG(ERROR) << "UpdateDeallocatableBlockGroup txn is failed at " << step;
@@ -705,10 +984,10 @@ MetaStatusCode InodeStorage::UpdateDeallocatableBlockGroup(
     return st;
 }
 
-MetaStatusCode
-InodeStorage::Increase(Transaction txn, uint32_t fsId,
-                       const IncreaseDeallocatableBlockGroup &increase,
-                       DeallocatableBlockGroup *out) {
+MetaStatusCode InodeStorage::Increase(
+    Transaction txn, uint32_t fsId,
+    const IncreaseDeallocatableBlockGroup& increase,
+    DeallocatableBlockGroup* out) {
     MetaStatusCode st = MetaStatusCode::OK;
 
     // update DeallocatableBlockGroup
@@ -721,18 +1000,16 @@ InodeStorage::Increase(Transaction txn, uint32_t fsId,
     std::set<uint64_t> unique_elements(out->inodeidlist().begin(),
                                        out->inodeidlist().end());
     out->mutable_inodeidlist()->Clear();
-    for (auto &elem : unique_elements) {
+    for (auto& elem : unique_elements) {
         out->mutable_inodeidlist()->Add(elem);
     }
 
-    VLOG(6) << "InodeStorage handle increase set out="
-            << out->DebugString();
+    VLOG(6) << "InodeStorage handle increase set out=" << out->DebugString();
 
     // remove related inode in table4DeallocatableInode_
-    for (auto &inodeid : increase.inodeidlistadd()) {
-        auto s = txn->HDel(
-            table4DeallocatableInode_,
-            conv_.SerializeToString(Key4Inode{fsId, inodeid}));
+    for (auto& inodeid : increase.inodeidlistadd()) {
+        auto s = txn->HDel(table4DeallocatableInode_,
+                           conv_.SerializeToString(Key4Inode{fsId, inodeid}));
         if (!s.ok()) {
             st = MetaStatusCode::STORAGE_INTERNAL_ERROR;
             VLOG(6) << "InodeStorage delete inodeid=" << inodeid << " from "
@@ -747,9 +1024,9 @@ InodeStorage::Increase(Transaction txn, uint32_t fsId,
     return st;
 }
 
-MetaStatusCode
-InodeStorage::Decrease(const DecreaseDeallocatableBlockGroup &decrease,
-                       DeallocatableBlockGroup *out) {
+MetaStatusCode InodeStorage::Decrease(
+    const DecreaseDeallocatableBlockGroup& decrease,
+    DeallocatableBlockGroup* out) {
     VLOG(6) << "InodeStorage handle increase=" << decrease.DebugString();
     if (!out->IsInitialized() || !out->has_deallocatablesize()) {
         LOG(ERROR)
@@ -786,8 +1063,8 @@ InodeStorage::Decrease(const DecreaseDeallocatableBlockGroup &decrease,
     return MetaStatusCode::OK;
 }
 
-MetaStatusCode InodeStorage::Mark(const MarkDeallocatableBlockGroup &mark,
-                                  DeallocatableBlockGroup *out) {
+MetaStatusCode InodeStorage::Mark(const MarkDeallocatableBlockGroup& mark,
+                                  DeallocatableBlockGroup* out) {
     MetaStatusCode st = MetaStatusCode::OK;
 
     VLOG(6) << "InodeStorage handle mark=" << mark.DebugString();

@@ -95,62 +95,6 @@ bool MetaStoreFStream::LoadPartition(uint32_t partitionId,
     return true;
 }
 
-bool MetaStoreFStream::LoadInode(uint32_t partitionId, const std::string &key,
-                                 const std::string &value) {
-    (void)key;
-    auto partition = GetPartition(partitionId);
-    if (nullptr == partition) {
-        LOG(ERROR) << "Partition not found, partitionId = " << partitionId;
-        return false;
-    }
-
-    Inode inode;
-    if (!conv_->ParseFromString(value, &inode)) {
-        LOG(ERROR) << "Decode inode failed";
-        return false;
-    }
-
-    MetaStatusCode rc = partition->InsertInode(inode);
-    if (rc != MetaStatusCode::OK) {
-        LOG(ERROR) << "InsertInode failed, retCode = "
-                   << MetaStatusCode_Name(rc);
-        return false;
-    }
-    return true;
-}
-
-bool MetaStoreFStream::LoadDentry(uint8_t version, uint32_t partitionId,
-                                  const std::string &key,
-                                  const std::string &value) {
-    (void)key;
-    auto partition = GetPartition(partitionId);
-    if (nullptr == partition) {
-        LOG(ERROR) << "Partition not found, partitionId = " << partitionId;
-        return false;
-    }
-
-    DentryVec vec;
-    if (version == 1) {
-        Dentry dentry;
-        if (!conv_->ParseFromString(value, &dentry)) {
-            LOG(ERROR) << "Decode dentry failed";
-            return false;
-        }
-        *vec.add_dentrys() = dentry;
-    } else if (!conv_->ParseFromString(value, &vec)) {
-        LOG(ERROR) << "Decode dentry vector failed";
-        return false;
-    }
-
-    MetaStatusCode rc = partition->LoadDentry(vec, version == 1);
-    if (rc != MetaStatusCode::OK) {
-        LOG(ERROR) << "LoadDentry failed, retCode = "
-                   << MetaStatusCode_Name(rc);
-        return false;
-    }
-    return true;
-}
-
 bool MetaStoreFStream::LoadPendingTx(uint32_t partitionId,
                                      const std::string &key,
                                      const std::string &value) {
@@ -172,72 +116,6 @@ bool MetaStoreFStream::LoadPendingTx(uint32_t partitionId,
         LOG(ERROR) << "InsertPendingTx failed";
     }
     return succ;
-}
-
-bool MetaStoreFStream::LoadInodeS3ChunkInfoList(uint32_t partitionId,
-                                                const std::string &key,
-                                                const std::string &value) {
-    auto partition = GetPartition(partitionId);
-    if (nullptr == partition) {
-        LOG(ERROR) << "Partition not found, partitionId = " << partitionId;
-        return false;
-    }
-
-    S3ChunkInfoList list;
-    Key4S3ChunkInfoList key4list;
-    if (!conv_->ParseFromString(key, &key4list)) {
-        LOG(ERROR) << "Decode Key4S3ChunkInfoList failed";
-        return false;
-    } else if (!conv_->ParseFromString(value, &list)) {
-        LOG(ERROR) << "Decode S3ChunkInfoList failed";
-        return false;
-    }
-
-    S3ChunkInfoMap map2add;
-    S3ChunkInfoMap map2del;
-    std::shared_ptr<Iterator> iterator;
-    map2add.insert({key4list.chunkIndex, list});
-    MetaStatusCode rc = partition->GetOrModifyS3ChunkInfo(
-        key4list.fsId, key4list.inodeId, map2add, map2del, false, &iterator);
-    if (rc != MetaStatusCode::OK) {
-        LOG(ERROR) << "GetOrModifyS3ChunkInfo failed, retCode = "
-                   << MetaStatusCode_Name(rc);
-        return false;
-    }
-    return true;
-}
-
-bool MetaStoreFStream::LoadVolumeExtentList(uint32_t partitionId,
-                                            const std::string &key,
-                                            const std::string &value) {
-    auto partition = GetPartition(partitionId);
-    if (!partition) {
-        LOG(ERROR) << "Partition not found, partitionId: " << partitionId;
-        return false;
-    }
-
-    Key4VolumeExtentSlice sliceKey;
-    VolumeExtentSlice slice;
-
-    if (!sliceKey.ParseFromString(key)) {
-        LOG(ERROR) << "Fail to decode Key4VolumeExtentSlice, key: `" << key
-                   << "`";
-        return false;
-    }
-
-    if (!conv_->ParseFromString(value, &slice)) {
-        LOG(ERROR) << "Decode VolumeExtentSlice failed";
-        return false;
-    }
-
-    auto st = partition->UpdateVolumeExtentSlice(sliceKey.fsId_,
-                                                 sliceKey.inodeId_, slice);
-
-    LOG_IF(ERROR, st != MetaStatusCode::OK)
-        << "LoadVolumeExtentList update extent failed, error: "
-        << MetaStatusCode_Name(st);
-
-    return st == MetaStatusCode::OK;
 }
 
 std::shared_ptr<Iterator> MetaStoreFStream::NewPartitionIterator() {
@@ -327,36 +205,36 @@ MetaStoreFStream::NewVolumeExtentListIterator(Partition *partition) {
 
 bool MetaStoreFStream::Load(const std::string &pathname, uint8_t *version) {
     uint64_t totalPartition = 0;
-    uint64_t totalInode = 0;
-    uint64_t totalDentry = 0;
-    uint64_t totalS3ChunkInfoList = 0;
-    uint64_t totalVolumeExtent = 0;
     uint64_t totalPendingTx = 0;
-
     auto callback = [&](uint8_t version, ENTRY_TYPE entryType,
-                        uint32_t partitionId, const std::string &key,
-                        const std::string &value) -> bool {
+                        uint32_t partitionId, const std::string& key,
+                        const std::string& value) -> bool {
+        (void)version;
         switch (entryType) {
-        case ENTRY_TYPE::PARTITION:
-            ++totalPartition;
-            return LoadPartition(partitionId, key, value);
-        case ENTRY_TYPE::INODE:
-            ++totalInode;
-            return LoadInode(partitionId, key, value);
-        case ENTRY_TYPE::DENTRY:
-            ++totalDentry;
-            return LoadDentry(version, partitionId, key, value);
-        case ENTRY_TYPE::PENDING_TX:
-            ++totalPendingTx;
-            return LoadPendingTx(partitionId, key, value);
-        case ENTRY_TYPE::S3_CHUNK_INFO_LIST:
-            ++totalS3ChunkInfoList;
-            return LoadInodeS3ChunkInfoList(partitionId, key, value);
-        case ENTRY_TYPE::VOLUME_EXTENT:
-            ++totalVolumeExtent;
-            return LoadVolumeExtentList(partitionId, key, value);
-        case ENTRY_TYPE::UNKNOWN:
-            break;
+            case ENTRY_TYPE::PARTITION:
+                ++totalPartition;
+                return LoadPartition(partitionId, key, value);
+            case ENTRY_TYPE::INODE:
+                LOG(ERROR)
+                    << "Snapshot is too old, incompatible with current version";
+                break;
+            case ENTRY_TYPE::DENTRY:
+                LOG(ERROR)
+                    << "Snapshot is too old, incompatible with current version";
+                break;
+            case ENTRY_TYPE::PENDING_TX:
+                ++totalPendingTx;
+                return LoadPendingTx(partitionId, key, value);
+            case ENTRY_TYPE::S3_CHUNK_INFO_LIST:
+                LOG(ERROR)
+                    << "Snapshot is too old, incompatible with current version";
+                break;
+            case ENTRY_TYPE::VOLUME_EXTENT:
+                LOG(ERROR)
+                    << "Snapshot is too old, incompatible with current version";
+                break;
+            case ENTRY_TYPE::UNKNOWN:
+                break;
         }
 
         LOG(ERROR) << "Load failed, unknown entry type";
@@ -367,9 +245,6 @@ bool MetaStoreFStream::Load(const std::string &pathname, uint8_t *version) {
 
     std::ostringstream oss;
     oss << "total partition: " << totalPartition
-        << ", total inode: " << totalInode << ", total dentry: " << totalDentry
-        << ", total s3chunkinfolist: " << totalS3ChunkInfoList
-        << ", total volumeextent: " << totalVolumeExtent
         << ", total pendingtx: " << totalPendingTx;
 
     if (ret) {
@@ -389,9 +264,6 @@ bool MetaStoreFStream::Save(const std::string &path, DumpFileClosure *done) {
     ChildrenType children;
 
     children.push_back(NewPartitionIterator());
-    for (const auto &item : *partitionMap_) {
-        children.push_back(NewPendingTxIterator(item.second));
-    }
 
     for (const auto &child : children) {
         if (nullptr == child) {

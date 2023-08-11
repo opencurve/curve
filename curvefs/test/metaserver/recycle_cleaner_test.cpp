@@ -63,6 +63,7 @@ class RecycleCleanerTest : public testing::Test {
         options.localFileSystem = localfs.get();
         kvStorage_ = std::make_shared<RocksDBStorage>(options);
         ASSERT_TRUE(kvStorage_->Open());
+        logIndex_ = 0;
 
         uint32_t partitionId1 = 1;
         uint32_t fsId = 2;
@@ -88,15 +89,17 @@ class RecycleCleanerTest : public testing::Test {
         rootPram.fsId = fsId;
         rootPram.parent = 0;
         rootPram.type = FsFileType::TYPE_DIRECTORY;
-        ASSERT_EQ(partition_->CreateRootInode(rootPram), MetaStatusCode::OK);
+        ASSERT_EQ(partition_->CreateRootInode(rootPram, logIndex_++),
+                  MetaStatusCode::OK);
         InodeParam managePram;
         managePram.fsId = fsId;
         managePram.parent = ROOTINODEID;
         managePram.type = FsFileType::TYPE_DIRECTORY;
         Inode inode;
-        ASSERT_EQ(partition_->CreateManageInode(
-                      managePram, ManageInodeType::TYPE_RECYCLE, &inode),
-                  MetaStatusCode::OK);
+        ASSERT_EQ(
+            partition_->CreateManageInode(
+                managePram, ManageInodeType::TYPE_RECYCLE, &inode, logIndex_++),
+            MetaStatusCode::OK);
         Dentry dentry;
         dentry.set_fsid(fsId);
         dentry.set_inodeid(RECYCLEINODEID);
@@ -107,7 +110,7 @@ class RecycleCleanerTest : public testing::Test {
         Time tm;
         tm.set_sec(0);
         tm.set_nsec(0);
-        ASSERT_EQ(partition_->CreateDentry(dentry, tm),
+        ASSERT_EQ(partition_->CreateDentry(dentry, tm, logIndex_++),
                   MetaStatusCode::OK);
     }
 
@@ -149,6 +152,7 @@ class RecycleCleanerTest : public testing::Test {
     std::shared_ptr<MockMetaServerClient> metaClient_;
     std::shared_ptr<Partition> partition_;
     copyset::MockCopysetNode copysetNode_;
+    int64_t logIndex_;
 };
 
 TEST_F(RecycleCleanerTest, time_func_test) {
@@ -259,7 +263,7 @@ TEST_F(RecycleCleanerTest, delete_node_test) {
         EXPECT_CALL(*metaClient_, GetInode(_, _, _, _))
             .WillOnce(Return(MetaStatusCode::OK))
             .WillOnce(
-                 DoAll(SetArgPointee<2>(inode), Return(MetaStatusCode::OK)));
+                DoAll(SetArgPointee<2>(inode), Return(MetaStatusCode::OK)));
         EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _))
             .WillOnce(Return(MetaStatusCode::OK));
 
@@ -362,8 +366,8 @@ TEST_F(RecycleCleanerTest, scan_recycle_test5) {
     Time tm;
     tm.set_sec(0);
     tm.set_nsec(0);
-    partition_->CreateDentry(dentry1, tm);
-    partition_->CreateDentry(dentry2, tm);
+    partition_->CreateDentry(dentry1, tm, logIndex_++);
+    partition_->CreateDentry(dentry2, tm, logIndex_++);
     LOG(INFO) << "create dentry1 " << dentry1.ShortDebugString();
     LOG(INFO) << "create dentry2 " << dentry2.ShortDebugString();
 
@@ -395,9 +399,9 @@ TEST_F(RecycleCleanerTest, scan_recycle_test6) {
     Time tm;
     tm.set_sec(0);
     tm.set_nsec(0);
-    ASSERT_EQ(partition_->CreateDentry(dentry1, tm),
+    ASSERT_EQ(partition_->CreateDentry(dentry1, tm, logIndex_++),
               MetaStatusCode::OK);
-    ASSERT_EQ(partition_->CreateDentry(dentry2, tm),
+    ASSERT_EQ(partition_->CreateDentry(dentry2, tm, logIndex_++),
               MetaStatusCode::OK);
     LOG(INFO) << "create dentry1 " << dentry1.ShortDebugString();
     LOG(INFO) << "create dentry2 " << dentry2.ShortDebugString();
