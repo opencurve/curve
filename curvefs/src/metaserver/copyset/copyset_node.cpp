@@ -92,7 +92,9 @@ CopysetNode::CopysetNode(PoolId poolId, CopysetId copysetId,
       confChangeMtx_(),
       ongoingConfChange_(),
       metric_(absl::make_unique<OperatorMetric>(poolId_, copysetId_)),
-      isLoading_(false) {}
+      isLoading_(false),
+      snapshotLock_(),
+      snapshotTask_() {}
 
 CopysetNode::~CopysetNode() {
     Stop();
@@ -188,6 +190,8 @@ void CopysetNode::Stop() {
         LOG_IF(ERROR, metaStore_->Destroy() != true)
             << "Failed to clear metastore, copyset: " << name_;
     }
+    // wait for snapshot
+    WaitSnapshotDone();
 }
 
 int CopysetNode::LoadConfEpoch(const std::string& file) {
@@ -305,7 +309,7 @@ void CopysetNode::on_apply(braft::Iterator& iter) {
             auto type = metaOperator->GetOperatorType();
             auto task =
                 std::bind(&MetaOperator::OnApplyFromLog, metaOperator.release(),
-                          TimeUtility::GetTimeofDayUs());
+                          iter.index(), TimeUtility::GetTimeofDayUs());
             applyQueue_->Push(hashcode, type, std::move(task));
             timer.stop();
             g_concurrent_apply_from_log_wait_latency << timer.u_elapsed();
@@ -361,6 +365,42 @@ class OnSnapshotSaveDoneClosureImpl : public OnSnapshotSaveDoneClosure {
 
 }  // namespace
 
+void CopysetNode::DoSnapshot(OnSnapshotSaveDoneClosure* done) {
+    // NOTE: save metadata cannot be asynchronous
+    // we need maintain the consistency with
+    // raft snapshot metadata
+    std::vector<std::string> files;
+    brpc::ClosureGuard doneGuard(done);
+    auto* writer = done->GetSnapshotWriter();
+    if (!metaStore_->SaveMeta(writer->get_path(), &files)) {
+        done->SetError(MetaStatusCode::SAVE_META_FAIL);
+        LOG(ERROR) << "Save meta store metadata failed";
+        return;
+    }
+    // asynchronous save data
+    {
+        std::lock_guard<std::mutex> lock(snapshotLock_);
+        snapshotTask_ =
+            std::async(std::launch::async, [files, done, this]() mutable {
+                brpc::ClosureGuard doneGuard(done);
+                auto* writer = done->GetSnapshotWriter();
+                // save data files
+                if (!metaStore_->SaveData(writer->get_path(), &files)) {
+                    done->SetError(MetaStatusCode::SAVE_META_FAIL);
+                    LOG(ERROR) << "Save meta store data failed";
+                    return;
+                }
+                // add files to snapshot writer
+                // file is a relative path under the given directory
+                for (const auto& f : files) {
+                    writer->add_file(f);
+                }
+                done->SetSuccess();
+            });
+    }
+    doneGuard.release();
+}
+
 void CopysetNode::on_snapshot_save(braft::SnapshotWriter* writer,
                                    braft::Closure* done) {
     LOG(INFO) << "Copyset " << name_ << " saving snapshot to '"
@@ -389,17 +429,19 @@ void CopysetNode::on_snapshot_save(braft::SnapshotWriter* writer,
 
     writer->add_file(kConfEpochFilename);
 
-    // TODO(wuhanqing): MetaStore::Save will start a thread and do task
-    // asynchronously, after task completed it will call
-    // OnSnapshotSaveDoneImpl::Run
-    // BUT, this manner is not so clear, maybe it better to make thing
-    // asynchronous directly in here
-    metaStore_->Save(writer->get_path(), new OnSnapshotSaveDoneClosureImpl(
-                                             this, writer, done, metricCtx));
+    DoSnapshot(
+        new OnSnapshotSaveDoneClosureImpl(this, writer, done, metricCtx));
     doneGuard.release();
 
     // `Cancel` only available for rvalue
     std::move(cleanMetricIfFailed).Cancel();
+}
+
+void CopysetNode::WaitSnapshotDone() {
+    std::lock_guard<std::mutex> lock(snapshotLock_);
+    if (snapshotTask_.valid()) {
+        snapshotTask_.wait();
+    }
 }
 
 namespace {
@@ -462,7 +504,7 @@ int CopysetNode::on_snapshot_load(braft::SnapshotReader* reader) {
 
 void CopysetNode::on_leader_start(int64_t term) {
     /*
-     * Invoke order in on_leader_start: 
+     * Invoke order in on_leader_start:
      *   1. flush concurrent apply queue.
      *   2. set term in states machine.
      *

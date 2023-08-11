@@ -145,6 +145,15 @@ message PrepareRenameTxRequest {
     repeated Dentry dentrys = 4;
 }
 
+message TransactionRequest {
+    enum TransactionType {
+        None = 0;
+        Rename = 1;
+    }
+    required TransactionType type = 1;
+    required string rawPayload = 2;
+}
+
 message PrepareRenameTxResponse {
     required MetaStatusCode statusCode = 1;
     optional uint64 appliedIndex = 2;

@@ -25,10 +25,11 @@
 
 #include <gmock/gmock.h>
 
-#include <string>
 #include <list>
-#include <memory>
 #include <map>
+#include <memory>
+#include <string>
+#include <vector>
 
 #include "curvefs/src/metaserver/metastore.h"
 
@@ -39,72 +40,88 @@ namespace mock {
 class MockMetaStore : public curvefs::metaserver::MetaStore {
  public:
     MOCK_METHOD1(Load, bool(const std::string&));
-    MOCK_METHOD2(Save, bool(const std::string&, OnSnapshotSaveDoneClosure*));
+    MOCK_METHOD2(SaveMeta,
+                 bool(const std::string&, std::vector<std::string>* files));
+    MOCK_METHOD2(SaveData,
+                 bool(const std::string&, std::vector<std::string>* files));
     MOCK_METHOD0(Clear, bool());
     MOCK_METHOD0(Destroy, bool());
 
-    MOCK_METHOD2(CreatePartition, MetaStatusCode(const CreatePartitionRequest*,
-                                                 CreatePartitionResponse*));
-    MOCK_METHOD2(DeletePartition, MetaStatusCode(const DeletePartitionRequest*,
-                                                 DeletePartitionResponse*));
-    MOCK_METHOD1(GetPartitionInfoList, bool(std::list<PartitionInfo> *));
+    MOCK_METHOD3(CreatePartition,
+                 MetaStatusCode(const CreatePartitionRequest*,
+                                CreatePartitionResponse*, int64_t logIndex));
+    MOCK_METHOD3(DeletePartition,
+                 MetaStatusCode(const DeletePartitionRequest*,
+                                DeletePartitionResponse*, int64_t logIndex));
+    MOCK_METHOD1(GetPartitionInfoList, bool(std::list<PartitionInfo>*));
     MOCK_METHOD1(GetPartitionSnap,
-                 bool(std::map<uint32_t, std::shared_ptr<Partition>> *));
+                 bool(std::map<uint32_t, std::shared_ptr<Partition>>*));
 
-    MOCK_METHOD2(CreateDentry, MetaStatusCode(const CreateDentryRequest*,
-                                              CreateDentryResponse*));
-    MOCK_METHOD2(DeleteDentry, MetaStatusCode(const DeleteDentryRequest*,
-                                              DeleteDentryResponse*));
-    MOCK_METHOD2(GetDentry,
-                 MetaStatusCode(const GetDentryRequest*, GetDentryResponse*));
-    MOCK_METHOD2(ListDentry,
-                 MetaStatusCode(const ListDentryRequest*, ListDentryResponse*));
+    MOCK_METHOD3(CreateDentry,
+                 MetaStatusCode(const CreateDentryRequest*,
+                                CreateDentryResponse*, int64_t logIndex));
+    MOCK_METHOD3(DeleteDentry,
+                 MetaStatusCode(const DeleteDentryRequest*,
+                                DeleteDentryResponse*, int64_t logIndex));
+    MOCK_METHOD3(GetDentry,
+                 MetaStatusCode(const GetDentryRequest*, GetDentryResponse*,
+                                int64_t logIndex));
+    MOCK_METHOD3(ListDentry,
+                 MetaStatusCode(const ListDentryRequest*, ListDentryResponse*,
+                                int64_t logIndex));
 
-    MOCK_METHOD2(CreateInode, MetaStatusCode(const CreateInodeRequest*,
-                                             CreateInodeResponse*));
-    MOCK_METHOD2(CreateRootInode, MetaStatusCode(const CreateRootInodeRequest*,
-                                                 CreateRootInodeResponse*));
-    MOCK_METHOD2(CreateManageInode,
-                MetaStatusCode(const CreateManageInodeRequest*,
-                                                 CreateManageInodeResponse*));
-    MOCK_METHOD2(GetInode,
-                 MetaStatusCode(const GetInodeRequest*, GetInodeResponse*));
-    MOCK_METHOD2(BatchGetInodeAttr,
+    MOCK_METHOD3(CreateInode,
+                 MetaStatusCode(const CreateInodeRequest*, CreateInodeResponse*,
+                                int64_t logIndex));
+    MOCK_METHOD3(CreateRootInode,
+                 MetaStatusCode(const CreateRootInodeRequest*,
+                                CreateRootInodeResponse*, int64_t logIndex));
+    MOCK_METHOD3(CreateManageInode,
+                 MetaStatusCode(const CreateManageInodeRequest*,
+                                CreateManageInodeResponse*, int64_t logIndex));
+    MOCK_METHOD3(GetInode, MetaStatusCode(const GetInodeRequest*,
+                                          GetInodeResponse*, int64_t logIndex));
+    MOCK_METHOD3(BatchGetInodeAttr,
                  MetaStatusCode(const BatchGetInodeAttrRequest*,
-                 BatchGetInodeAttrResponse*));
-    MOCK_METHOD2(BatchGetXAttr,
+                                BatchGetInodeAttrResponse*, int64_t logIndex));
+    MOCK_METHOD3(BatchGetXAttr,
                  MetaStatusCode(const BatchGetXAttrRequest*,
-                 BatchGetXAttrResponse*));
-    MOCK_METHOD2(DeleteInode, MetaStatusCode(const DeleteInodeRequest*,
-                                             DeleteInodeResponse*));
-    MOCK_METHOD2(UpdateInode, MetaStatusCode(const UpdateInodeRequest*,
-                                             UpdateInodeResponse*));
+                                BatchGetXAttrResponse*, int64_t logIndex));
+    MOCK_METHOD3(DeleteInode,
+                 MetaStatusCode(const DeleteInodeRequest*, DeleteInodeResponse*,
+                                int64_t logIndex));
+    MOCK_METHOD3(UpdateInode,
+                 MetaStatusCode(const UpdateInodeRequest*, UpdateInodeResponse*,
+                                int64_t logIndex));
 
-    MOCK_METHOD2(PrepareRenameTx, MetaStatusCode(const PrepareRenameTxRequest*,
-                                                 PrepareRenameTxResponse*));
+    MOCK_METHOD3(PrepareRenameTx,
+                 MetaStatusCode(const PrepareRenameTxRequest*,
+                                PrepareRenameTxResponse*, int64_t logIndex));
 
     MOCK_METHOD0(GetStreamServer, std::shared_ptr<StreamServer>());
 
-    MOCK_METHOD3(GetOrModifyS3ChunkInfo, MetaStatusCode(
-        const GetOrModifyS3ChunkInfoRequest* request,
-        GetOrModifyS3ChunkInfoResponse* response,
-        std::shared_ptr<Iterator>* iterator));
+    MOCK_METHOD4(GetOrModifyS3ChunkInfo,
+                 MetaStatusCode(const GetOrModifyS3ChunkInfoRequest* request,
+                                GetOrModifyS3ChunkInfoResponse* response,
+                                std::shared_ptr<Iterator>* iterator,
+                                int64_t logIndex));
 
-    MOCK_METHOD2(SendS3ChunkInfoByStream, MetaStatusCode(
-        std::shared_ptr<StreamConnection> connection,
-        std::shared_ptr<Iterator> iterator));
+    MOCK_METHOD2(SendS3ChunkInfoByStream,
+                 MetaStatusCode(std::shared_ptr<StreamConnection> connection,
+                                std::shared_ptr<Iterator> iterator));
 
-    MOCK_METHOD2(GetVolumeExtent,
+    MOCK_METHOD3(GetVolumeExtent,
                  MetaStatusCode(const GetVolumeExtentRequest*,
-                                GetVolumeExtentResponse*));
+                                GetVolumeExtentResponse*, int64_t logIndex));
 
-    MOCK_METHOD2(UpdateVolumeExtent,
+    MOCK_METHOD3(UpdateVolumeExtent,
                  MetaStatusCode(const UpdateVolumeExtentRequest*,
-                                UpdateVolumeExtentResponse*));
+                                UpdateVolumeExtentResponse*, int64_t logIndex));
 
-    MOCK_METHOD2(UpdateDeallocatableBlockGroup,
-                 MetaStatusCode(const UpdateDeallocatableBlockGroupRequest *,
-                                UpdateDeallocatableBlockGroupResponse *));
+    MOCK_METHOD3(UpdateDeallocatableBlockGroup,
+                 MetaStatusCode(const UpdateDeallocatableBlockGroupRequest*,
+                                UpdateDeallocatableBlockGroupResponse*,
+                                int64_t logIndex));
 };
 
 }  // namespace mock

@@ -92,6 +92,14 @@ message PartitionInfo {
     optional bool manageFlag = 13; // if a partition has recyclebin inode, set this flag true
 }
 
+message AppliedIndex {
+    required int64 index = 1;
+}
+
+message ItemCount {
+    required uint64 count = 1;
+}
+
 message Peer {
     optional uint64 id          = 1;
     optional string address     = 2;

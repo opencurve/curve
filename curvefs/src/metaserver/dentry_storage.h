@@ -23,25 +23,26 @@
 #ifndef CURVEFS_SRC_METASERVER_DENTRY_STORAGE_H_
 #define CURVEFS_SRC_METASERVER_DENTRY_STORAGE_H_
 
+#include <functional>
 #include <list>
+#include <memory>
 #include <string>
 #include <vector>
-#include <memory>
-#include <functional>
 
 #include "absl/container/btree_set.h"
-#include "src/common/concurrent/rw_lock.h"
 #include "curvefs/proto/metaserver.pb.h"
-#include "curvefs/src/metaserver/storage/storage.h"
 #include "curvefs/src/metaserver/storage/converter.h"
+#include "curvefs/src/metaserver/storage/status.h"
+#include "curvefs/src/metaserver/storage/storage.h"
+#include "src/common/concurrent/rw_lock.h"
 
 namespace curvefs {
 namespace metaserver {
 
 using ::curve::common::RWLock;
+using ::curvefs::metaserver::storage::Converter;
 using ::curvefs::metaserver::storage::Iterator;
 using ::curvefs::metaserver::storage::NameGenerator;
-using ::curvefs::metaserver::storage::Converter;
 using KVStorage = ::curvefs::metaserver::storage::KVStorage;
 using BTree = absl::btree_set<Dentry>;
 
@@ -77,11 +78,8 @@ class DentryVector {
 
 class DentryList {
  public:
-    DentryList(std::vector<Dentry>* list,
-               uint32_t limit,
-               const std::string& exclude,
-               uint64_t maxTxId,
-               bool onlyDir);
+    DentryList(std::vector<Dentry>* list, uint32_t limit,
+               const std::string& exclude, uint64_t maxTxId, bool onlyDir);
 
     void PushBack(DentryVec* vec);
 
@@ -100,32 +98,33 @@ class DentryList {
 
 class DentryStorage {
  public:
-    enum class TX_OP_TYPE {
-        PREPARE,
-        COMMIT,
-        ROLLBACK,
-    };
-
- public:
     DentryStorage(std::shared_ptr<KVStorage> kvStorage,
                   std::shared_ptr<NameGenerator> nameGenerator,
                   uint64_t nDentry);
 
-    MetaStatusCode Insert(const Dentry& dentry);
+    bool Init();
+
+    MetaStatusCode Insert(const Dentry& dentry, int64_t logIndex);
 
     // only for loadding from snapshot
-    MetaStatusCode Insert(const DentryVec& vec, bool merge);
+    MetaStatusCode Insert(const DentryVec& vec, bool merge, int64_t logIndex);
 
-    MetaStatusCode Delete(const Dentry& dentry);
+    MetaStatusCode Delete(const Dentry& dentry, int64_t logIndex);
 
     MetaStatusCode Get(Dentry* dentry);
 
-    MetaStatusCode List(const Dentry& dentry,
-                        std::vector<Dentry>* dentrys,
-                        uint32_t limit,
-                        bool onlyDir = false);
+    MetaStatusCode List(const Dentry& dentry, std::vector<Dentry>* dentrys,
+                        uint32_t limit, bool onlyDir = false);
 
-    MetaStatusCode HandleTx(TX_OP_TYPE type, const Dentry& dentry);
+    MetaStatusCode PrepareTx(const std::vector<Dentry>& dentrys,
+                             const metaserver::TransactionRequest& txRequest,
+                             int64_t logIndex);
+
+    MetaStatusCode CommitTx(const std::vector<Dentry>& dentrys,
+                            int64_t logIndex);
+
+    MetaStatusCode RollbackTx(const std::vector<Dentry>& dentrys,
+                              int64_t logIndex);
 
     std::shared_ptr<Iterator> GetAll();
 
@@ -135,22 +134,63 @@ class DentryStorage {
 
     MetaStatusCode Clear();
 
+    MetaStatusCode GetPendingTx(metaserver::TransactionRequest* request);
+
+    MetaStatusCode GetAppliedIndex(int64_t* index);
+
  private:
     std::string DentryKey(const Dentry& entry);
 
-    bool CompressDentry(DentryVec* vec, BTree* dentrys);
+    bool CompressDentry(storage::StorageTransaction* txn, DentryVec* vec,
+                        BTree* dentrys, uint64_t* outCount);
 
-    MetaStatusCode Find(const Dentry& in,
-                        Dentry* out,
-                        DentryVec* vec,
-                        bool compress);
+    MetaStatusCode Find(const Dentry& in, Dentry* out, DentryVec* vec);
+
+    MetaStatusCode Find(storage::StorageTransaction* txn, const Dentry& in,
+                        Dentry* out, DentryVec* vec,
+                        uint64_t* compressOutCount);
+
+    storage::Status SetAppliedIndex(storage::StorageTransaction* transaction,
+                                    int64_t index);
+
+    storage::Status DelAppliedIndex(storage::StorageTransaction* transaction);
+
+    storage::Status SetHandleTxIndex(storage::StorageTransaction* transaction,
+                                     int64_t index);
+
+    storage::Status DelHandleTxIndex(storage::StorageTransaction* transaction);
+
+    storage::Status SetPendingTx(storage::StorageTransaction* transaction,
+                                 const metaserver::TransactionRequest& request);
+
+    storage::Status DelPendingTx(storage::StorageTransaction* transaction);
+
+    storage::Status ClearPendingTx(storage::StorageTransaction* transaction);
+
+    storage::Status SetDentryCount(storage::StorageTransaction* transaction,
+                                   uint64_t count);
+
+    storage::Status DelDentryCount(storage::StorageTransaction* transaction);
+
+    storage::Status GetDentryCount(uint64_t* count);
+
+    storage::Status GetHandleTxIndex(int64_t* count);
 
  private:
     RWLock rwLock_;
     std::shared_ptr<KVStorage> kvStorage_;
     std::string table4Dentry_;
+    std::string table4AppliedIndex_;
+    std::string table4Transaction_;
+    std::string table4DentryCount_;
+    int64_t handleTxIndex_;
     uint64_t nDentry_;
     Converter conv_;
+
+    static const char* kDentryCountKey;
+    static const char* kDentryAppliedKey;
+    static const char* kHandleTxKey;
+    static const char* kPendingTxKey;
 };
 
 }  // namespace metaserver

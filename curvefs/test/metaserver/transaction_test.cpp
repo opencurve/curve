@@ -35,11 +35,10 @@ namespace curvefs {
 namespace metaserver {
 
 using ::curvefs::metaserver::storage::KVStorage;
-using ::curvefs::metaserver::storage::StorageOptions;
-using ::curvefs::metaserver::storage::RocksDBStorage;
 using ::curvefs::metaserver::storage::NameGenerator;
 using ::curvefs::metaserver::storage::RandomStoragePath;
-using TX_OP_TYPE = DentryStorage::TX_OP_TYPE;
+using ::curvefs::metaserver::storage::RocksDBStorage;
+using ::curvefs::metaserver::storage::StorageOptions;
 
 namespace {
 auto localfs = curve::fs::Ext4FileSystemImpl::getInstance();
@@ -48,7 +47,7 @@ auto localfs = curve::fs::Ext4FileSystemImpl::getInstance();
 class TransactionTest : public ::testing::Test {
  protected:
     void SetUp() override {
-        dataDir_ = RandomStoragePath();;
+        dataDir_ = RandomStoragePath();
 
         StorageOptions options;
         options.dataDir = dataDir_;
@@ -57,11 +56,16 @@ class TransactionTest : public ::testing::Test {
         ASSERT_TRUE(kvStorage_->Open());
 
         nameGenerator_ = std::make_shared<NameGenerator>(1);
-        dentryStorage_ = std::make_shared<DentryStorage>(
-            kvStorage_, nameGenerator_, 0);
-        txManager_ = std::make_shared<TxManager>(dentryStorage_);
-        dentryManager_ = std::make_shared<DentryManager>(
-            dentryStorage_, txManager_);
+        dentryStorage_ =
+            std::make_shared<DentryStorage>(kvStorage_, nameGenerator_, 0);
+        common::PartitionInfo partitionInfo;
+        partitionInfo.set_partitionid(1);
+        txManager_ = std::make_shared<TxManager>(dentryStorage_, partitionInfo);
+        dentryManager_ =
+            std::make_shared<DentryManager>(dentryStorage_, txManager_);
+        ASSERT_TRUE(dentryManager_->Init());
+        ASSERT_TRUE(txManager_->Init());
+        logIndex_ = 0;
     }
 
     void TearDown() override {
@@ -84,12 +88,8 @@ class TransactionTest : public ::testing::Test {
         return result;
     }
 
-    Dentry GenDentry(uint32_t fsId,
-                     uint64_t parentId,
-                     const std::string& name,
-                     uint64_t txId,
-                     uint64_t inodeId,
-                     uint32_t flag) {
+    Dentry GenDentry(uint32_t fsId, uint64_t parentId, const std::string& name,
+                     uint64_t txId, uint64_t inodeId, uint32_t flag) {
         Dentry dentry;
         dentry.set_fsid(fsId);
         dentry.set_parentinodeid(parentId);
@@ -102,10 +102,12 @@ class TransactionTest : public ::testing::Test {
 
     void InsertDentrys(std::shared_ptr<DentryStorage> storage,
                        const std::vector<Dentry>&& dentrys) {
-        for (const auto& dentry : dentrys) {
-            auto rc = storage->HandleTx(TX_OP_TYPE::PREPARE, dentry);
-            ASSERT_EQ(rc, MetaStatusCode::OK);
-        }
+        // NOTE: store real transaction is unnecessary
+        metaserver::TransactionRequest request;
+        request.set_type(metaserver::TransactionRequest::None);
+        request.set_rawpayload("");
+        auto rc = storage->PrepareTx(dentrys, request, logIndex_++);
+        ASSERT_EQ(rc, MetaStatusCode::OK);
         ASSERT_EQ(storage->Size(), dentrys.size());
     }
 
@@ -124,12 +126,13 @@ class TransactionTest : public ::testing::Test {
     std::shared_ptr<DentryStorage> dentryStorage_;
     std::shared_ptr<DentryManager> dentryManager_;
     std::shared_ptr<TxManager> txManager_;
+    int64_t logIndex_;
 };
 
 TEST_F(TransactionTest, PreCheck) {
     // CASE 1: empty dentrys
     auto dentrys = std::vector<Dentry>();
-    auto rc = txManager_->HandleRenameTx(dentrys);
+    auto rc = txManager_->HandleRenameTx(dentrys, logIndex_++);
     ASSERT_EQ(rc, MetaStatusCode::PARAM_ERROR);
 
     // CASE 2: sizeof(dentrys) > 2
@@ -139,7 +142,7 @@ TEST_F(TransactionTest, PreCheck) {
         GenDentry(1, 0, "B", 0, 2, 0),
         GenDentry(1, 0, "C", 0, 3, 0),
     };
-    rc = txManager_->HandleRenameTx(dentrys);
+    rc = txManager_->HandleRenameTx(dentrys, logIndex_++);
     ASSERT_EQ(rc, MetaStatusCode::PARAM_ERROR);
 
     // CASE 3: dentrys fsids are different
@@ -148,7 +151,7 @@ TEST_F(TransactionTest, PreCheck) {
         GenDentry(1, 0, "A", 0, 1, 0),
         GenDentry(2, 0, "B", 0, 2, 0),
     };
-    rc = txManager_->HandleRenameTx(dentrys);
+    rc = txManager_->HandleRenameTx(dentrys, logIndex_++);
     ASSERT_EQ(rc, MetaStatusCode::PARAM_ERROR);
 
     // CASE 4: dentrys txids are different
@@ -157,23 +160,24 @@ TEST_F(TransactionTest, PreCheck) {
         GenDentry(1, 0, "A", 0, 1, 0),
         GenDentry(1, 0, "B", 1, 2, 0),
     };
-    rc = txManager_->HandleRenameTx(dentrys);
+    rc = txManager_->HandleRenameTx(dentrys, logIndex_++);
     ASSERT_EQ(rc, MetaStatusCode::PARAM_ERROR);
 }
 
 TEST_F(TransactionTest, HandleTxWithCommit) {
-    InsertDentrys(dentryStorage_, std::vector<Dentry>{
-        // { fsId, parentId, name, txId, inodeId, flag }
-        GenDentry(1, 0, "A", 0, 1, 0),
-    });
+    InsertDentrys(dentryStorage_,
+                  std::vector<Dentry>{
+                      // { fsId, parentId, name, txId, inodeId, flag }
+                      GenDentry(1, 0, "A", 0, 1, 0),
+                  });
 
     // step-1: prepare tx success (rename A B)
-    auto dentrys = std::vector<Dentry> {
+    auto dentrys = std::vector<Dentry>{
         // { fsId, parentId, name, txId, inodeId, flag }
         GenDentry(1, 0, "A", 1, 1, DELETE_FLAG),
         GenDentry(1, 0, "B", 1, 1, 0),
     };
-    auto rc = txManager_->HandleRenameTx(dentrys);
+    auto rc = txManager_->HandleRenameTx(dentrys, logIndex_++);
     ASSERT_EQ(rc, MetaStatusCode::OK);
     ASSERT_EQ(dentryStorage_->Size(), 3);
 
@@ -196,11 +200,11 @@ TEST_F(TransactionTest, HandleTxWithCommit) {
     ASSERT_EQ(dentryStorage_->Size(), 3);
 
     // step-4: prepare a new tx success with commit
-    dentrys = std::vector<Dentry> {
+    dentrys = std::vector<Dentry>{
         // { fsId, parentId, name, txId, inodeId, flag }
         GenDentry(1, 0, "C", 2, 2, 0),
     };
-    rc = txManager_->HandleRenameTx(dentrys);
+    rc = txManager_->HandleRenameTx(dentrys, logIndex_++);
     ASSERT_EQ(rc, MetaStatusCode::OK);
 
     // step-5: check dentrys
@@ -210,25 +214,26 @@ TEST_F(TransactionTest, HandleTxWithCommit) {
     ASSERT_EQ(rc, MetaStatusCode::OK);
     ASSERT_EQ(dentrys.size(), 2);
     ASSERT_DENTRYS_EQ(dentrys, std::vector<Dentry>{
-        GenDentry(1, 0, "B", 1, 1, 0),
-        GenDentry(1, 0, "C", 2, 2, 0),
-    });
+                                   GenDentry(1, 0, "B", 1, 1, 0),
+                                   GenDentry(1, 0, "C", 2, 2, 0),
+                               });
     ASSERT_EQ(dentryStorage_->Size(), 2);
 }
 
 TEST_F(TransactionTest, HandleTxWithRollback) {
-    InsertDentrys(dentryStorage_, std::vector<Dentry>{
-        // { fsId, parentId, name, txId, inodeId, flag }
-        GenDentry(1, 0, "A", 0, 1, 0),
-    });
+    InsertDentrys(dentryStorage_,
+                  std::vector<Dentry>{
+                      // { fsId, parentId, name, txId, inodeId, flag }
+                      GenDentry(1, 0, "A", 0, 1, 0),
+                  });
 
     // step-1: prepare tx success (rename A B)
-    auto dentrys = std::vector<Dentry> {
+    auto dentrys = std::vector<Dentry>{
         // { fsId, parentId, name, txId, inodeId, flag }
         GenDentry(1, 0, "A", 1, 1, DELETE_FLAG),
         GenDentry(1, 0, "B", 1, 1, 0),
     };
-    auto rc = txManager_->HandleRenameTx(dentrys);
+    auto rc = txManager_->HandleRenameTx(dentrys, logIndex_++);
     ASSERT_EQ(rc, MetaStatusCode::OK);
     ASSERT_EQ(dentryStorage_->Size(), 3);
 
@@ -251,11 +256,11 @@ TEST_F(TransactionTest, HandleTxWithRollback) {
     ASSERT_EQ(dentryStorage_->Size(), 3);
 
     // step-4: prepare a new tx success with rollback
-    dentrys = std::vector<Dentry> {
+    dentrys = std::vector<Dentry>{
         // { fsId, parentId, name, txId, inodeId, flag }
         GenDentry(1, 0, "C", 1, 2, 0),
     };
-    rc = txManager_->HandleRenameTx(dentrys);
+    rc = txManager_->HandleRenameTx(dentrys, logIndex_++);
     ASSERT_EQ(rc, MetaStatusCode::OK);
 
     // step-5: check dentrys
@@ -265,9 +270,9 @@ TEST_F(TransactionTest, HandleTxWithRollback) {
     ASSERT_EQ(rc, MetaStatusCode::OK);
     ASSERT_EQ(dentrys.size(), 2);
     ASSERT_DENTRYS_EQ(dentrys, std::vector<Dentry>{
-        GenDentry(1, 0, "A", 0, 1, 0),
-        GenDentry(1, 0, "C", 1, 2, 0),
-    });
+                                   GenDentry(1, 0, "A", 0, 1, 0),
+                                   GenDentry(1, 0, "C", 1, 2, 0),
+                               });
     ASSERT_EQ(dentryStorage_->Size(), 2);
 }
 
@@ -281,20 +286,21 @@ TEST_F(TransactionTest, HandleTxWithTargetExist) {
      *
      * rename /A /B/A
      */
-    InsertDentrys(dentryStorage_, std::vector<Dentry>{
-        // { fsId, parentId, name, txId, inodeId, flag }
-        GenDentry(1, 0, "A", 0, 1, 0),
-        GenDentry(1, 0, "B", 0, 2, 0),
-        GenDentry(1, 2, "A", 0, 3, 0),
-    });
+    InsertDentrys(dentryStorage_,
+                  std::vector<Dentry>{
+                      // { fsId, parentId, name, txId, inodeId, flag }
+                      GenDentry(1, 0, "A", 0, 1, 0),
+                      GenDentry(1, 0, "B", 0, 2, 0),
+                      GenDentry(1, 2, "A", 0, 3, 0),
+                  });
 
     // step-1: prepare tx success (rename A B)
-    auto dentrys = std::vector<Dentry> {
+    auto dentrys = std::vector<Dentry>{
         // { fsId, parentId, name, txId, inodeId, flag }
         GenDentry(1, 0, "A", 1, 1, FILE_FLAG | DELETE_FLAG),
         GenDentry(1, 2, "A", 1, 1, FILE_FLAG),
     };
-    auto rc = txManager_->HandleRenameTx(dentrys);
+    auto rc = txManager_->HandleRenameTx(dentrys, logIndex_++);
     ASSERT_EQ(rc, MetaStatusCode::OK);
     ASSERT_EQ(dentryStorage_->Size(), 5);
 
@@ -318,11 +324,11 @@ TEST_F(TransactionTest, HandleTxWithTargetExist) {
     ASSERT_EQ(dentryStorage_->Size(), 5);
 
     // step-4: prepare a new tx success with commit
-    dentrys = std::vector<Dentry> {
+    dentrys = std::vector<Dentry>{
         // { fsId, parentId, name, txId, inodeId, deleteMarkFlag }
         GenDentry(1, 0, "C", 2, 4, 0),
     };
-    rc = txManager_->HandleRenameTx(dentrys);
+    rc = txManager_->HandleRenameTx(dentrys, logIndex_++);
     ASSERT_EQ(rc, MetaStatusCode::OK);
 
     // step-5: check dentrys
@@ -332,8 +338,8 @@ TEST_F(TransactionTest, HandleTxWithTargetExist) {
     ASSERT_EQ(rc, MetaStatusCode::OK);
     ASSERT_EQ(dentrys.size(), 1);
     ASSERT_DENTRYS_EQ(dentrys, std::vector<Dentry>{
-        GenDentry(1, 0, "B", 0, 2, 0),
-    });
+                                   GenDentry(1, 0, "B", 0, 2, 0),
+                               });
 
     dentrys.clear();
     dentry = GenDentry(1, 2, "", 1, 0, 0);
@@ -341,8 +347,8 @@ TEST_F(TransactionTest, HandleTxWithTargetExist) {
     ASSERT_EQ(rc, MetaStatusCode::OK);
     ASSERT_EQ(dentrys.size(), 1);
     ASSERT_DENTRYS_EQ(dentrys, std::vector<Dentry>{
-        GenDentry(1, 2, "A", 1, 1, FILE_FLAG),
-    });
+                                   GenDentry(1, 2, "A", 1, 1, FILE_FLAG),
+                               });
 
     ASSERT_EQ(dentryStorage_->Size(), 3);  // /B /B/A /C(pending)
 }

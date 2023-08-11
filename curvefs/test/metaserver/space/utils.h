@@ -23,7 +23,11 @@
 #ifndef CURVEFS_TEST_METASERVER_SPACE_UTILS_H_
 #define CURVEFS_TEST_METASERVER_SPACE_UTILS_H_
 
+#include <array>
+#include <memory>
+#include <stdexcept>
 #include <string>
+#include <utility>
 
 namespace curvefs {
 namespace metaserver {

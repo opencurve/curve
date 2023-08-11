@@ -66,6 +66,7 @@ class RecycleManangeTest : public testing::Test {
 
         mdsclient_ = std::make_shared<MockMdsClient>();
         FsInfoManager::GetInstance().SetMdsClient(mdsclient_);
+        logIndex_ = 0;
     }
 
     void TearDown() override {
@@ -102,6 +103,7 @@ class RecycleManangeTest : public testing::Test {
     std::string dataDir_;
     std::shared_ptr<KVStorage> kvStorage_;
     std::shared_ptr<MockMdsClient> mdsclient_;
+    int64_t logIndex_;
 };
 
 TEST_F(RecycleManangeTest, test_empty_recycle) {
@@ -156,15 +158,17 @@ TEST_F(RecycleManangeTest, test_empty_recycle) {
     rootPram.fsId = fsId;
     rootPram.parent = 0;
     rootPram.type = FsFileType::TYPE_DIRECTORY;
-    ASSERT_EQ(partition->CreateRootInode(rootPram), MetaStatusCode::OK);
+    ASSERT_EQ(partition->CreateRootInode(rootPram, logIndex_++),
+              MetaStatusCode::OK);
     InodeParam managePram;
     managePram.fsId = fsId;
     managePram.parent = ROOTINODEID;
     managePram.type = FsFileType::TYPE_DIRECTORY;
     Inode manageInode;
-    ASSERT_EQ(partition->CreateManageInode(
-                  managePram, ManageInodeType::TYPE_RECYCLE, &manageInode),
-              MetaStatusCode::OK);
+    ASSERT_EQ(
+        partition->CreateManageInode(managePram, ManageInodeType::TYPE_RECYCLE,
+                                     &manageInode, logIndex_++),
+        MetaStatusCode::OK);
     Dentry dentry;
     dentry.set_fsid(fsId);
     dentry.set_inodeid(RECYCLEINODEID);
@@ -175,7 +179,7 @@ TEST_F(RecycleManangeTest, test_empty_recycle) {
     Time tm;
     tm.set_sec(0);
     tm.set_nsec(0);
-    ASSERT_EQ(partition->CreateDentry(dentry, tm),
+    ASSERT_EQ(partition->CreateDentry(dentry, tm, logIndex_++),
               MetaStatusCode::OK);
 
     // create recycle time dir
@@ -184,7 +188,8 @@ TEST_F(RecycleManangeTest, test_empty_recycle) {
     param.fsId = fsId;
     param.parent = RECYCLEINODEID;
     param.type = FsFileType::TYPE_DIRECTORY;
-    ASSERT_EQ(partition->CreateInode(param, &inode), MetaStatusCode::OK);
+    ASSERT_EQ(partition->CreateInode(param, &inode, logIndex_++),
+              MetaStatusCode::OK);
 
     Dentry dentry1;
     dentry1.set_name(GetRecycleTimeDirName());
@@ -193,7 +198,7 @@ TEST_F(RecycleManangeTest, test_empty_recycle) {
     dentry1.set_inodeid(2001);
     dentry1.set_txid(0);
     dentry1.set_type(FsFileType::TYPE_DIRECTORY);
-    ASSERT_EQ(partition->CreateDentry(dentry1, tm),
+    ASSERT_EQ(partition->CreateDentry(dentry1, tm, logIndex_++),
               MetaStatusCode::OK);
 
     // wait clean recycle

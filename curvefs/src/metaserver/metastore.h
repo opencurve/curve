@@ -29,6 +29,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/common/rpc_stream.h"
@@ -101,24 +102,29 @@ using ::curvefs::metaserver::storage::StorageOptions;
 //       (table1     table2         table3)
 //           |          |              |
 //         dentry  s3chunkinfo    volumnextent
-
+//
+// NOTE: we need to add a `logIndex` argument to
+// each function, than we can filter the log entry
+// already applied during `on_snapshot_save`
 class MetaStore {
  public:
     MetaStore() = default;
     virtual ~MetaStore() = default;
 
     virtual bool Load(const std::string& pathname) = 0;
-    virtual bool Save(const std::string& dir,
-                      OnSnapshotSaveDoneClosure* done) = 0;
+    virtual bool SaveMeta(const std::string& dir,
+                          std::vector<std::string>* files) = 0;
+    virtual bool SaveData(const std::string& dir,
+                          std::vector<std::string>* files) = 0;
     virtual bool Clear() = 0;
     virtual bool Destroy() = 0;
     virtual MetaStatusCode CreatePartition(
         const CreatePartitionRequest* request,
-        CreatePartitionResponse* response) = 0;
+        CreatePartitionResponse* response, int64_t logIndex) = 0;
 
     virtual MetaStatusCode DeletePartition(
         const DeletePartitionRequest* request,
-        DeletePartitionResponse* response) = 0;
+        DeletePartitionResponse* response, int64_t logIndex) = 0;
 
     virtual bool GetPartitionInfoList(
                             std::list<PartitionInfo> *partitionInfoList) = 0;
@@ -130,53 +136,62 @@ class MetaStore {
 
     // dentry
     virtual MetaStatusCode CreateDentry(const CreateDentryRequest* request,
-                                        CreateDentryResponse* response) = 0;
+                                        CreateDentryResponse* response,
+                                        int64_t logIndex) = 0;
 
     virtual MetaStatusCode GetDentry(const GetDentryRequest* request,
-                                     GetDentryResponse* response) = 0;
+                                     GetDentryResponse* response,
+                                     int64_t logIndex) = 0;
 
     virtual MetaStatusCode DeleteDentry(const DeleteDentryRequest* request,
-                                        DeleteDentryResponse* response) = 0;
+                                        DeleteDentryResponse* response,
+                                        int64_t logIndex) = 0;
 
     virtual MetaStatusCode ListDentry(const ListDentryRequest* request,
-                                      ListDentryResponse* response) = 0;
+                                      ListDentryResponse* response,
+                                      int64_t logIndex) = 0;
 
     virtual MetaStatusCode PrepareRenameTx(
         const PrepareRenameTxRequest* request,
-        PrepareRenameTxResponse* response) = 0;
+        PrepareRenameTxResponse* response, int64_t logIndex) = 0;
 
     // inode
     virtual MetaStatusCode CreateInode(const CreateInodeRequest* request,
-                                       CreateInodeResponse* response) = 0;
+                                       CreateInodeResponse* response,
+                                       int64_t logIndex) = 0;
 
     virtual MetaStatusCode CreateRootInode(
         const CreateRootInodeRequest* request,
-        CreateRootInodeResponse* response) = 0;
+        CreateRootInodeResponse* response, int64_t logIndex) = 0;
 
     virtual MetaStatusCode CreateManageInode(
-                                const CreateManageInodeRequest* request,
-                                CreateManageInodeResponse* response) = 0;
+        const CreateManageInodeRequest* request,
+        CreateManageInodeResponse* response, int64_t logIndex) = 0;
 
     virtual MetaStatusCode GetInode(const GetInodeRequest* request,
-                                    GetInodeResponse* response) = 0;
+                                    GetInodeResponse* response,
+                                    int64_t logIndex) = 0;
 
     virtual MetaStatusCode BatchGetInodeAttr(
-                                    const BatchGetInodeAttrRequest* request,
-                                    BatchGetInodeAttrResponse* response) = 0;
+        const BatchGetInodeAttrRequest* request,
+        BatchGetInodeAttrResponse* response, int64_t logIndex) = 0;
 
     virtual MetaStatusCode BatchGetXAttr(const BatchGetXAttrRequest* request,
-                                    BatchGetXAttrResponse* response) = 0;
+                                         BatchGetXAttrResponse* response,
+                                         int64_t logIndex) = 0;
 
     virtual MetaStatusCode DeleteInode(const DeleteInodeRequest* request,
-                                       DeleteInodeResponse* response) = 0;
+                                       DeleteInodeResponse* response,
+                                       int64_t logIndex) = 0;
 
     virtual MetaStatusCode UpdateInode(const UpdateInodeRequest* request,
-                                       UpdateInodeResponse* response) = 0;
+                                       UpdateInodeResponse* response,
+                                       int64_t logIndex) = 0;
 
     virtual MetaStatusCode GetOrModifyS3ChunkInfo(
         const GetOrModifyS3ChunkInfoRequest* request,
         GetOrModifyS3ChunkInfoResponse* response,
-        std::shared_ptr<Iterator>* iterator) = 0;
+        std::shared_ptr<Iterator>* iterator, int64_t logIndex) = 0;
 
     virtual MetaStatusCode SendS3ChunkInfoByStream(
         std::shared_ptr<StreamConnection> connection,
@@ -184,15 +199,15 @@ class MetaStore {
 
     virtual MetaStatusCode GetVolumeExtent(
         const GetVolumeExtentRequest* request,
-        GetVolumeExtentResponse* response) = 0;
+        GetVolumeExtentResponse* response, int64_t logIndex) = 0;
 
     virtual MetaStatusCode UpdateVolumeExtent(
         const UpdateVolumeExtentRequest* request,
-        UpdateVolumeExtentResponse* response) = 0;
+        UpdateVolumeExtentResponse* response, int64_t logIndex) = 0;
 
     virtual MetaStatusCode UpdateDeallocatableBlockGroup(
-        const UpdateDeallocatableBlockGroupRequest *request,
-        UpdateDeallocatableBlockGroupResponse *response) = 0;
+        const UpdateDeallocatableBlockGroupRequest* request,
+        UpdateDeallocatableBlockGroupResponse* response, int64_t logIndex) = 0;
 };
 
 class MetaStoreImpl : public MetaStore {
@@ -202,16 +217,20 @@ class MetaStoreImpl : public MetaStore {
         const storage::StorageOptions& storageOptions);
 
     bool Load(const std::string& checkpoint) override;
-    bool Save(const std::string& dir,
-              OnSnapshotSaveDoneClosure* done) override;
+    bool SaveMeta(const std::string& dir,
+                  std::vector<std::string>* files) override;
+    bool SaveData(const std::string& dir,
+                  std::vector<std::string>* files) override;
     bool Clear() override;
     bool Destroy() override;
 
     MetaStatusCode CreatePartition(const CreatePartitionRequest* request,
-                                   CreatePartitionResponse* response) override;
+                                   CreatePartitionResponse* response,
+                                   int64_t logIndex) override;
 
     MetaStatusCode DeletePartition(const DeletePartitionRequest* request,
-                                   DeletePartitionResponse* response) override;
+                                   DeletePartitionResponse* response,
+                                   int64_t logIndex) override;
 
     bool GetPartitionInfoList(
                         std::list<PartitionInfo> *partitionInfoList) override;
@@ -223,68 +242,82 @@ class MetaStoreImpl : public MetaStore {
 
     // dentry
     MetaStatusCode CreateDentry(const CreateDentryRequest* request,
-                                CreateDentryResponse* response) override;
+                                CreateDentryResponse* response,
+                                int64_t logIndex) override;
 
     MetaStatusCode GetDentry(const GetDentryRequest* request,
-                             GetDentryResponse* response) override;
+                             GetDentryResponse* response,
+                             int64_t logIndex) override;
 
     MetaStatusCode DeleteDentry(const DeleteDentryRequest* request,
-                                DeleteDentryResponse* response) override;
+                                DeleteDentryResponse* response,
+                                int64_t logIndex) override;
 
     MetaStatusCode ListDentry(const ListDentryRequest* request,
-                              ListDentryResponse* response) override;
+                              ListDentryResponse* response,
+                              int64_t logIndex) override;
 
     MetaStatusCode PrepareRenameTx(const PrepareRenameTxRequest* request,
-                                   PrepareRenameTxResponse* response) override;
+                                   PrepareRenameTxResponse* response,
+                                   int64_t logIndex) override;
 
     // inode
     MetaStatusCode CreateInode(const CreateInodeRequest* request,
-                               CreateInodeResponse* response) override;
+                               CreateInodeResponse* response,
+                               int64_t logIndex) override;
 
     MetaStatusCode CreateRootInode(const CreateRootInodeRequest* request,
-                                   CreateRootInodeResponse* response) override;
+                                   CreateRootInodeResponse* response,
+                                   int64_t logIndex) override;
 
-    MetaStatusCode CreateManageInode(
-                                const CreateManageInodeRequest* request,
-                                CreateManageInodeResponse* response) override;
+    MetaStatusCode CreateManageInode(const CreateManageInodeRequest* request,
+                                     CreateManageInodeResponse* response,
+                                     int64_t logIndex) override;
 
     MetaStatusCode GetInode(const GetInodeRequest* request,
-                            GetInodeResponse* response) override;
+                            GetInodeResponse* response,
+                            int64_t logIndex) override;
 
     MetaStatusCode BatchGetInodeAttr(const BatchGetInodeAttrRequest* request,
-                                BatchGetInodeAttrResponse* response) override;
+                                     BatchGetInodeAttrResponse* response,
+                                     int64_t logIndex) override;
 
     MetaStatusCode BatchGetXAttr(const BatchGetXAttrRequest* request,
-                                 BatchGetXAttrResponse* response) override;
+                                 BatchGetXAttrResponse* response,
+                                 int64_t logIndex) override;
 
     MetaStatusCode DeleteInode(const DeleteInodeRequest* request,
-                               DeleteInodeResponse* response) override;
+                               DeleteInodeResponse* response,
+                               int64_t logIndex) override;
 
     MetaStatusCode UpdateInode(const UpdateInodeRequest* request,
-                               UpdateInodeResponse* response) override;
+                               UpdateInodeResponse* response,
+                               int64_t logIndex) override;
 
     std::shared_ptr<Partition> GetPartition(uint32_t partitionId);
 
     MetaStatusCode GetOrModifyS3ChunkInfo(
         const GetOrModifyS3ChunkInfoRequest* request,
         GetOrModifyS3ChunkInfoResponse* response,
-        std::shared_ptr<Iterator>* iterator) override;
+        std::shared_ptr<Iterator>* iterator, int64_t logIndex) override;
 
     MetaStatusCode SendS3ChunkInfoByStream(
         std::shared_ptr<StreamConnection> connection,
         std::shared_ptr<Iterator> iterator) override;
 
     MetaStatusCode GetVolumeExtent(const GetVolumeExtentRequest* request,
-                                   GetVolumeExtentResponse* response) override;
+                                   GetVolumeExtentResponse* response,
+                                   int64_t logIndex) override;
 
-    MetaStatusCode UpdateVolumeExtent(
-        const UpdateVolumeExtentRequest* request,
-        UpdateVolumeExtentResponse* response) override;
+    MetaStatusCode UpdateVolumeExtent(const UpdateVolumeExtentRequest* request,
+                                      UpdateVolumeExtentResponse* response,
+                                      int64_t logIndex) override;
 
     // block group
     MetaStatusCode UpdateDeallocatableBlockGroup(
-        const UpdateDeallocatableBlockGroupRequest *request,
-        UpdateDeallocatableBlockGroupResponse *response) override;
+        const UpdateDeallocatableBlockGroupRequest* request,
+        UpdateDeallocatableBlockGroupResponse* response,
+        int64_t logIndex) override;
 
  private:
     FRIEND_TEST(MetastoreTest, partition);

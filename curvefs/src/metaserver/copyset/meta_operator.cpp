@@ -123,16 +123,14 @@ void MetaOperator::FastApplyTask() {
     auto task =
         std::bind(&MetaOperator::OnApply, this, node_->GetAppliedIndex(),
                   new MetaOperatorClosure(this), TimeUtility::GetTimeofDayUs());
-    node_->GetApplyQueue()->Push(HashCode(),
-                                 GetOperatorType(), std::move(task));
+    node_->GetApplyQueue()->Push(HashCode(), GetOperatorType(),
+                                 std::move(task));
     timer.stop();
     g_concurrent_fast_apply_wait_latency << timer.u_elapsed();
 }
 
-#define OPERATOR_CAN_BY_PASS_PROPOSE(TYPE)                                     \
-    bool TYPE##Operator::CanBypassPropose() const {                            \
-        return true;                                                           \
-    }                                                                          \
+#define OPERATOR_CAN_BY_PASS_PROPOSE(TYPE) \
+    bool TYPE##Operator::CanBypassPropose() const { return true; }
 
 // below operator are readonly, so can enable lease read
 OPERATOR_CAN_BY_PASS_PROPOSE(GetDentry);
@@ -144,31 +142,31 @@ OPERATOR_CAN_BY_PASS_PROPOSE(GetVolumeExtent);
 
 #undef OPERATOR_CAN_BY_PASS_PROPOSE
 
-#define OPERATOR_ON_APPLY(TYPE)                                                \
-    void TYPE##Operator::OnApply(int64_t index,                                \
-                                 google::protobuf::Closure *done,              \
-                                 uint64_t startTimeUs) {                       \
-        brpc::ClosureGuard doneGuard(done);                                    \
-        uint64_t timeUs = TimeUtility::GetTimeofDayUs();                       \
-        node_->GetMetric()->WaitInQueueLatency(OperatorType::TYPE,             \
-                                               timeUs - startTimeUs);          \
-        auto status = node_->GetMetaStore()->TYPE(                             \
-            static_cast<const TYPE##Request *>(request_),                      \
-            static_cast<TYPE##Response *>(response_));                         \
-        uint64_t executeTime = TimeUtility::GetTimeofDayUs() - timeUs;         \
-        node_->GetMetric()->ExecuteLatency(OperatorType::TYPE, executeTime);   \
-        if (status == MetaStatusCode::OK) {                                    \
-            node_->UpdateAppliedIndex(index);                                  \
-            static_cast<TYPE##Response *>(response_)->set_appliedindex(        \
-                std::max<uint64_t>(index, node_->GetAppliedIndex()));          \
-            node_->GetMetric()->OnOperatorComplete(                            \
-                OperatorType::TYPE,                                            \
-                TimeUtility::GetTimeofDayUs() - startTimeUs, true);            \
-        } else {                                                               \
-            node_->GetMetric()->OnOperatorComplete(                            \
-                OperatorType::TYPE,                                            \
-                TimeUtility::GetTimeofDayUs() - startTimeUs, false);           \
-        }                                                                      \
+#define OPERATOR_ON_APPLY(TYPE)                                              \
+    void TYPE##Operator::OnApply(int64_t index,                              \
+                                 google::protobuf::Closure* done,            \
+                                 uint64_t startTimeUs) {                     \
+        brpc::ClosureGuard doneGuard(done);                                  \
+        uint64_t timeUs = TimeUtility::GetTimeofDayUs();                     \
+        node_->GetMetric()->WaitInQueueLatency(OperatorType::TYPE,           \
+                                               timeUs - startTimeUs);        \
+        auto status = node_->GetMetaStore()->TYPE(                           \
+            static_cast<const TYPE##Request*>(request_),                     \
+            static_cast<TYPE##Response*>(response_), index);                 \
+        uint64_t executeTime = TimeUtility::GetTimeofDayUs() - timeUs;       \
+        node_->GetMetric()->ExecuteLatency(OperatorType::TYPE, executeTime); \
+        if (status == MetaStatusCode::OK) {                                  \
+            node_->UpdateAppliedIndex(index);                                \
+            static_cast<TYPE##Response*>(response_)->set_appliedindex(       \
+                std::max<uint64_t>(index, node_->GetAppliedIndex()));        \
+            node_->GetMetric()->OnOperatorComplete(                          \
+                OperatorType::TYPE,                                          \
+                TimeUtility::GetTimeofDayUs() - startTimeUs, true);          \
+        } else {                                                             \
+            node_->GetMetric()->OnOperatorComplete(                          \
+                OperatorType::TYPE,                                          \
+                TimeUtility::GetTimeofDayUs() - startTimeUs, false);         \
+        }                                                                    \
     }
 
 OPERATOR_ON_APPLY(GetDentry);
@@ -208,7 +206,8 @@ void GetOrModifyS3ChunkInfoOperator::OnApply(int64_t index,
     {
         brpc::ClosureGuard doneGuard(done);
 
-        rc = metastore->GetOrModifyS3ChunkInfo(request, response, &iterator);
+        rc = metastore->GetOrModifyS3ChunkInfo(request, response, &iterator,
+                                               index);
         if (rc == MetaStatusCode::OK) {
             node_->UpdateAppliedIndex(index);
             response->set_appliedindex(
@@ -251,7 +250,7 @@ void GetVolumeExtentOperator::OnApply(int64_t index,
     auto *response = static_cast<GetVolumeExtentResponse *>(response_);
     auto *metaStore = node_->GetMetaStore();
 
-    auto st = metaStore->GetVolumeExtent(request, response);
+    auto st = metaStore->GetVolumeExtent(request, response, index);
     node_->GetMetric()->OnOperatorComplete(
         OperatorType::GetVolumeExtent,
         TimeUtility::GetTimeofDayUs() - startTimeUs, st == MetaStatusCode::OK);
@@ -292,11 +291,11 @@ void GetVolumeExtentOperator::OnApply(int64_t index,
 }
 
 #define OPERATOR_ON_APPLY_FROM_LOG(TYPE)                                       \
-    void TYPE##Operator::OnApplyFromLog(uint64_t startTimeUs) {                \
+    void TYPE##Operator::OnApplyFromLog(int64_t index, uint64_t startTimeUs) { \
         std::unique_ptr<TYPE##Operator> selfGuard(this);                       \
         TYPE##Response response;                                               \
         auto status = node_->GetMetaStore()->TYPE(                             \
-            static_cast<const TYPE##Request *>(request_), &response);          \
+            static_cast<const TYPE##Request*>(request_), &response, index);    \
         node_->GetMetric()->OnOperatorCompleteFromLog(                         \
             OperatorType::TYPE, TimeUtility::GetTimeofDayUs() - startTimeUs,   \
             status == MetaStatusCode::OK);                                     \
@@ -317,7 +316,8 @@ OPERATOR_ON_APPLY_FROM_LOG(UpdateDeallocatableBlockGroup);
 
 #undef OPERATOR_ON_APPLY_FROM_LOG
 
-void GetOrModifyS3ChunkInfoOperator::OnApplyFromLog(uint64_t startTimeUs) {
+void GetOrModifyS3ChunkInfoOperator::OnApplyFromLog(int64_t index,
+                                                    uint64_t startTimeUs) {
     std::unique_ptr<GetOrModifyS3ChunkInfoOperator> selfGuard(this);
     GetOrModifyS3ChunkInfoRequest request;
     GetOrModifyS3ChunkInfoResponse response;
@@ -325,7 +325,7 @@ void GetOrModifyS3ChunkInfoOperator::OnApplyFromLog(uint64_t startTimeUs) {
     request = *static_cast<const GetOrModifyS3ChunkInfoRequest *>(request_);
     request.set_returns3chunkinfomap(false);
     auto status = node_->GetMetaStore()->GetOrModifyS3ChunkInfo(
-        &request, &response, &iterator);
+        &request, &response, &iterator, index);
     node_->GetMetric()->OnOperatorCompleteFromLog(
         OperatorType::GetOrModifyS3ChunkInfo,
         TimeUtility::GetTimeofDayUs() - startTimeUs,
@@ -333,8 +333,9 @@ void GetOrModifyS3ChunkInfoOperator::OnApplyFromLog(uint64_t startTimeUs) {
 }
 
 #define READONLY_OPERATOR_ON_APPLY_FROM_LOG(TYPE)                              \
-    void TYPE##Operator::OnApplyFromLog(uint64_t startTimeUs) {                \
+    void TYPE##Operator::OnApplyFromLog(int64_t index, uint64_t startTimeUs) { \
         (void)startTimeUs;                                                     \
+        (void)index;                                                           \
         std::unique_ptr<TYPE##Operator> selfGuard(this);                       \
     }
 

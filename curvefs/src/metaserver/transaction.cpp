@@ -29,50 +29,36 @@ namespace metaserver {
 using curve::common::ReadLockGuard;
 using curve::common::WriteLockGuard;
 
-#define FOR_EACH_DENTRY(action) \
-do { \
-    for (const auto& dentry : dentrys_) { \
-        auto rc = storage_->HandleTx( \
-            DentryStorage::TX_OP_TYPE::action, dentry); \
-        if (rc != MetaStatusCode::OK) { \
-            return false; \
-        } \
-    } \
-} while (0)
-
 RenameTx::RenameTx(const std::vector<Dentry>& dentrys,
                    std::shared_ptr<DentryStorage> storage)
-    : txId_(dentrys[0].txid()) ,
+    : txId_(dentrys[0].txid()),
       txSequence_(dentrys[0].txsequence()),
       dentrys_(dentrys),
       storage_(storage) {}
 
-bool RenameTx::Prepare() {
-    FOR_EACH_DENTRY(PREPARE);
-    return true;
+bool RenameTx::Prepare(const std::string& txPayload, int64_t logIndex) {
+    metaserver::TransactionRequest request;
+    request.set_type(metaserver::TransactionRequest::Rename);
+    request.set_rawpayload(txPayload);
+    return storage_->PrepareTx(dentrys_, request, logIndex) ==
+           MetaStatusCode::OK;
 }
 
-bool RenameTx::Commit() {
-    FOR_EACH_DENTRY(COMMIT);
-    return true;
+bool RenameTx::Commit(int64_t logIndex) {
+    return storage_->CommitTx(dentrys_, logIndex) == MetaStatusCode::OK;
 }
 
-bool RenameTx::Rollback() {
-    FOR_EACH_DENTRY(ROLLBACK);
-    return true;
+bool RenameTx::Rollback(int64_t logIndex) {
+    return storage_->RollbackTx(dentrys_, logIndex) == MetaStatusCode::OK;
 }
 
-uint64_t RenameTx::GetTxId() {
-    return txId_;
-}
+uint64_t RenameTx::GetTxId() { return txId_; }
 
-uint64_t RenameTx::GetTxSequence() {
-    return txSequence_;
-}
+uint64_t RenameTx::GetTxSequence() { return txSequence_; }
 
-std::vector<Dentry>* RenameTx::GetDentrys() {
-    return &dentrys_;
-}
+std::vector<Dentry>* RenameTx::GetDentrys() { return &dentrys_; }
+
+const std::vector<Dentry>* RenameTx::GetDentrys() const { return &dentrys_; }
 
 inline bool RenameTx::operator==(const RenameTx& rhs) {
     return dentrys_ == rhs.dentrys_;
@@ -82,23 +68,26 @@ std::ostream& operator<<(std::ostream& os, const RenameTx& renameTx) {
     auto dentrys = renameTx.dentrys_;
     os << "txId = " << renameTx.txId_;
     for (size_t i = 0; i < dentrys.size(); i++) {
-        os << ", dentry[" << i << "] = ("
-           << dentrys[i].ShortDebugString() << ")";
+        os << ", dentry[" << i << "] = (" << dentrys[i].ShortDebugString()
+           << ")";
     }
     return os;
 }
 
-TxManager::TxManager(std::shared_ptr<DentryStorage> storage)
-    : storage_(storage) {}
+TxManager::TxManager(std::shared_ptr<DentryStorage> storage,
+                     common::PartitionInfo partitionInfo)
+    : storage_(std::move(storage)),
+      conv_(),
+      partitionInfo_(std::move(partitionInfo)) {}
 
 MetaStatusCode TxManager::PreCheck(const std::vector<Dentry>& dentrys) {
     auto size = dentrys.size();
     if (size != 1 && size != 2) {
         return MetaStatusCode::PARAM_ERROR;
     } else if (size == 2) {
-         if (dentrys[0].fsid() != dentrys[1].fsid() ||
-             dentrys[0].txid() != dentrys[1].txid() ||
-             dentrys[0].txsequence() != dentrys[1].txsequence()) {
+        if (dentrys[0].fsid() != dentrys[1].fsid() ||
+            dentrys[0].txid() != dentrys[1].txid() ||
+            dentrys[0].txsequence() != dentrys[1].txsequence()) {
             return MetaStatusCode::PARAM_ERROR;
         }
     }
@@ -106,7 +95,39 @@ MetaStatusCode TxManager::PreCheck(const std::vector<Dentry>& dentrys) {
     return MetaStatusCode::OK;
 }
 
-MetaStatusCode TxManager::HandleRenameTx(const std::vector<Dentry>& dentrys) {
+void TxManager::SerializeRenameTx(const RenameTx& in,
+                                  PrepareRenameTxRequest* out) {
+    const auto* dentrys = in.GetDentrys();
+    out->set_poolid(partitionInfo_.poolid());
+    out->set_copysetid(partitionInfo_.copysetid());
+    out->set_partitionid(partitionInfo_.partitionid());
+    *out->mutable_dentrys() = {dentrys->begin(), dentrys->end()};
+}
+
+bool TxManager::Init() {
+    metaserver::TransactionRequest request;
+    auto s = storage_->GetPendingTx(&request);
+    if (s == MetaStatusCode::OK) {
+        auto txType = request.type();
+        if (txType == metaserver::TransactionRequest::None) {
+            // NOTE: if tx type is none
+            // means that pending tx is empty
+            pendingTx_ = EMPTY_TX;
+        } else if (txType == metaserver::TransactionRequest::Rename) {
+            std::string txPayload = request.rawpayload();
+            PrepareRenameTxRequest request;
+            conv_.ParseFromString(txPayload, &request);
+            RenameTx tx({request.dentrys().begin(), request.dentrys().end()},
+                        storage_);
+            pendingTx_ = tx;
+        }
+        return true;
+    }
+    return s == MetaStatusCode::NOT_FOUND;
+}
+
+MetaStatusCode TxManager::HandleRenameTx(const std::vector<Dentry>& dentrys,
+                                         int64_t logIndex) {
     auto rc = PreCheck(dentrys);
     if (rc != MetaStatusCode::OK) {
         return rc;
@@ -123,7 +144,7 @@ MetaStatusCode TxManager::HandleRenameTx(const std::vector<Dentry>& dentrys) {
                        << txSequence << ", pending tx sequence = "
                        << pendingTx.GetTxSequence();
             return MetaStatusCode::HANDLE_PENDING_TX_FAILED;
-        } else if (!HandlePendingTx(txId, &pendingTx)) {
+        } else if (!HandlePendingTx(txId, &pendingTx, logIndex)) {
             LOG(ERROR) << "HandlePendingTx failed, pendingTx: " << pendingTx;
             return MetaStatusCode::HANDLE_PENDING_TX_FAILED;
         }
@@ -135,11 +156,16 @@ MetaStatusCode TxManager::HandleRenameTx(const std::vector<Dentry>& dentrys) {
     if (!InsertPendingTx(renameTx)) {
         LOG(ERROR) << "InsertPendingTx failed, renameTx: " << renameTx;
         return MetaStatusCode::HANDLE_TX_FAILED;
-    } else if (!renameTx.Prepare()) {
-        LOG(ERROR) << "Prepare for RenameTx failed, renameTx: " << renameTx;
-        return MetaStatusCode::HANDLE_TX_FAILED;
+    } else {
+        PrepareRenameTxRequest request;
+        SerializeRenameTx(renameTx, &request);
+        std::string txPayload;
+        conv_.SerializeToString(request, &txPayload);
+        if (!renameTx.Prepare(txPayload, logIndex)) {
+            LOG(ERROR) << "Prepare for RenameTx failed, renameTx: " << renameTx;
+            return MetaStatusCode::HANDLE_TX_FAILED;
+        }
     }
-
     return MetaStatusCode::OK;
 }
 
@@ -166,11 +192,12 @@ bool TxManager::FindPendingTx(RenameTx* pendingTx) {
     return true;
 }
 
-bool TxManager::HandlePendingTx(uint64_t txId, RenameTx* pendingTx) {
+bool TxManager::HandlePendingTx(uint64_t txId, RenameTx* pendingTx,
+                                int64_t logIndex) {
     if (txId > pendingTx->GetTxId()) {
-        return pendingTx->Commit();
+        return pendingTx->Commit(logIndex);
     }
-    return pendingTx->Rollback();
+    return pendingTx->Rollback(logIndex);
 }
 
 };  // namespace metaserver

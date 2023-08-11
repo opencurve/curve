@@ -51,7 +51,7 @@ class HashIterator : public Iterator {
     void Next() override { iter_++; }
     std::string Key() override { return iter_->first; }
     std::string Value() override { return iter_->second; }
-    bool ParseFromValue(ValueType* value) { return true; }
+    bool ParseFromValue(ValueType* value) override { return true; }
     int Status() override { return 0; }
 
  private:

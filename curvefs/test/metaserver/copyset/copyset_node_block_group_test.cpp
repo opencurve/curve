@@ -76,7 +76,7 @@ class CopysetNodeBlockGroupTest : public testing::Test {
         ASSERT_TRUE(nodeManager_->Init(options_));
     }
 
-    void TearDown() {
+    void TearDown() override {
         system(std::string("rm -rf " + dataPath_).c_str());
     }
 

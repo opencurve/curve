@@ -26,12 +26,14 @@
 #include <braft/raft.h>
 #include <gtest/gtest_prod.h>
 
+#include <condition_variable>
 #include <list>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
-#include <map>
 
+#include "curvefs/proto/heartbeat.pb.h"
 #include "curvefs/src/metaserver/common/types.h"
 #include "curvefs/src/metaserver/copyset/concurrent_apply_queue.h"
 #include "curvefs/src/metaserver/copyset/conf_epoch_file.h"
@@ -40,7 +42,6 @@
 #include "curvefs/src/metaserver/copyset/metric.h"
 #include "curvefs/src/metaserver/copyset/raft_node.h"
 #include "curvefs/src/metaserver/metastore.h"
-#include "curvefs/proto/heartbeat.pb.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -221,6 +222,13 @@ class CopysetNode : public braft::StateMachine {
     FRIEND_TEST(CopysetNodeBlockGroupTest, Test_AggregateBlockStatInfo);
 
  private:
+    // for snapshot
+
+    void WaitSnapshotDone();
+
+    void DoSnapshot(OnSnapshotSaveDoneClosure* done);
+
+ private:
     const PoolId poolId_;
     const CopysetId copysetId_;
     const GroupId groupId_;
@@ -267,6 +275,10 @@ class CopysetNode : public braft::StateMachine {
     std::unique_ptr<OperatorMetric> metric_;
 
     std::atomic<bool> isLoading_;
+
+    mutable std::mutex snapshotLock_;
+
+    std::future<void> snapshotTask_;
 };
 
 inline void CopysetNode::Propose(const braft::Task& task) {

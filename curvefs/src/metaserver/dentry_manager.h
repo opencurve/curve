@@ -40,23 +40,26 @@ class DentryManager {
     DentryManager(std::shared_ptr<DentryStorage> dentryStorage,
                   std::shared_ptr<TxManager> txManger);
 
-    MetaStatusCode CreateDentry(const Dentry& dentry);
+    bool Init();
+
+    MetaStatusCode CreateDentry(const Dentry& dentry, int64_t logIndex);
 
     // only invoked from snapshot loadding
-    MetaStatusCode CreateDentry(const DentryVec& vec, bool merge);
+    MetaStatusCode CreateDentry(const DentryVec& vec, bool merge,
+                                int64_t logIndex);
 
-    MetaStatusCode DeleteDentry(const Dentry& dentry);
+    MetaStatusCode DeleteDentry(const Dentry& dentry, int64_t logIndex);
 
     MetaStatusCode GetDentry(Dentry* dentry);
 
     MetaStatusCode ListDentry(const Dentry& dentry,
-                              std::vector<Dentry>* dentrys,
-                              uint32_t limit,
+                              std::vector<Dentry>* dentrys, uint32_t limit,
                               bool onlyDir = false);
 
     void ClearDentry();
 
-    MetaStatusCode HandleRenameTx(const std::vector<Dentry>& dentrys);
+    MetaStatusCode HandleRenameTx(const std::vector<Dentry>& dentrys,
+                                  int64_t logIndex);
 
  private:
     void Log4Dentry(const std::string& request, const Dentry& dentry);
@@ -65,6 +68,7 @@ class DentryManager {
  private:
     std::shared_ptr<DentryStorage> dentryStorage_;
     std::shared_ptr<TxManager> txManager_;
+    int64_t appliedIndex_;
 };
 
 }  // namespace metaserver
