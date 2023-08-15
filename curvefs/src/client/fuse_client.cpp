@@ -1064,7 +1064,7 @@ CURVEFS_ERROR FuseClient::FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino,
     VLOG(9) << "FuseOpGetXattr, ino: " << ino
             << ", name: " << name << ", size = " << size;
     if (option_.fileSystemOption.disableXattr) {
-        return CURVEFS_ERROR::NOSYS;
+        return CURVEFS_ERROR::NOTSUPPORT;
     }
 
     InodeAttr inodeAttr;
@@ -1106,6 +1106,10 @@ CURVEFS_ERROR FuseClient::FuseOpSetXattr(fuse_req_t req, fuse_ino_t ino,
     VLOG(1) << "FuseOpSetXattr ino: " << ino << ", name: " << name
             << ", size = " << size
             << ", strvalue: " << strvalue;
+    if (option_.fileSystemOption.disableXattr) {
+        return CURVEFS_ERROR::NOTSUPPORT;
+    }
+
     if (strname.length() > MAX_XATTR_NAME_LENGTH  ||
         size > MAX_XATTR_VALUE_LENGTH) {
         LOG(ERROR) << "xattr length is too long, name = " << name
