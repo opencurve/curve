@@ -142,6 +142,9 @@ int ChunkServerClient::DeleteChunkSnapshotOrCorrectSn(
 
 int ChunkServerClient::DeleteChunkSnapshot(
     ChunkServerIdType leaderId,
+    uint64_t fileId,
+    uint64_t originFileId,
+    uint64_t chunkIndex,
     LogicalPoolID logicalPoolId,
     CopysetID copysetId,
     ChunkID chunkId,
@@ -159,6 +162,11 @@ int ChunkServerClient::DeleteChunkSnapshot(
 
     ChunkRequest request;
     request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_DELETE_SNAP);
+    request.set_fileid(fileId);
+    if (originFileId != 0) {
+        request.set_originfileid(originFileId);
+    }
+    request.set_chunkindex(chunkIndex);
     request.set_logicpoolid(logicalPoolId);
     request.set_copysetid(copysetId);
     request.set_chunkid(chunkId);
@@ -239,6 +247,9 @@ int ChunkServerClient::DeleteChunkSnapshot(
 }
 
 int ChunkServerClient::DeleteChunk(ChunkServerIdType leaderId,
+    uint64_t fileId,
+    uint64_t originFileId,
+    uint64_t chunkIndex,
     LogicalPoolID logicalPoolId,
     CopysetID copysetId,
     ChunkID chunkId,
@@ -255,6 +266,11 @@ int ChunkServerClient::DeleteChunk(ChunkServerIdType leaderId,
 
     ChunkRequest request;
     request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_DELETE);
+    request.set_fileid(fileId);
+    if (originFileId != 0) {
+        request.set_originfileid(originFileId);
+    }
+    request.set_chunkindex(chunkIndex);
     request.set_logicpoolid(logicalPoolId);
     request.set_copysetid(copysetId);
     request.set_chunkid(chunkId);
@@ -452,6 +468,7 @@ int ChunkServerClient::FlattenChunk(
     rpcCtx->cntl.set_timeout_ms(retryOps_.rpcTimeoutMs);
 
     rpcCtx->request.set_optype(curve::chunkserver::CHUNK_OP_FLATTEN);
+    rpcCtx->request.set_fileid(ctx->fileId);
     rpcCtx->request.set_logicpoolid(ctx->logicalPoolId);
     rpcCtx->request.set_copysetid(ctx->copysetId);
     rpcCtx->request.set_chunkid(ctx->chunkId);
@@ -462,6 +479,7 @@ int ChunkServerClient::FlattenChunk(
     if (ctx->originSegmentExist) {
         rpcCtx->request.set_originchunkid(ctx->originChunkId);
     }
+    rpcCtx->request.set_originfileid(ctx->originFileId);
     rpcCtx->request.set_chunkindex(ctx->chunkIndex);
     rpcCtx->request.set_cloneno(ctx->cloneNo);
     for (auto &clone : ctx->clones) {

@@ -137,6 +137,9 @@ StatusCode CleanCore::CleanSnapShotFile2(const FileInfo & fileInfo,
                 snaps.push_back(fileInfo.snaps(i));
             }
             int ret = copysetClient_->DeleteChunkSnapshot(
+                fileInfo.parentid(),
+                segment.originfileid(),
+                i * chunkNum + j,
                 logicalPoolID,
                 segment.chunks()[j].copysetid(),
                 segment.chunks()[j].chunkid(),
@@ -208,7 +211,11 @@ StatusCode CleanCore::CleanFile(const FileInfo & commonFile,
         uint32_t chunkNum = segment.chunks_size();
         for (uint32_t j = 0; j != chunkNum; j++) {
             SeqNum seq = commonFile.seqnum();
-            int ret = copysetClient_->DeleteChunk(logicalPoolID,
+            int ret = copysetClient_->DeleteChunk(
+                commonFile.id(),
+                segment.originfileid(),
+                i * chunkNum + j,
+                logicalPoolID,
                 segment.chunks()[j].copysetid(),
                 segment.chunks()[j].chunkid(),
                 seq);

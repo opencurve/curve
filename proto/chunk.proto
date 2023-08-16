@@ -73,10 +73,11 @@ message ChunkRequest {
         required uint64 cloneNo = 1;//the org chunk, the root chunk is 0
         required uint64 cloneSn = 2;//the snapshot used to create the next clone;
     }
-    optional uint64 chunkIndex = 21; // use chunkIndex + cloneNo to addressing node in clone chain
-    optional uint64 originChunkId = 22; // if origin is not a clone file, use this field to addressing, and cloneno is 0
-    optional uint64 cloneNo = 23; //for look for the clone number
-    repeated CloneInfos clones = 24;
+    optional uint64 originfileId = 21; // for clone request hash in concurrent apply modules
+    optional uint64 chunkIndex = 22; // use chunkIndex + cloneNo to addressing node in clone chain
+    optional uint64 originChunkId = 23; // if origin is not a clone file, use this field to addressing, and cloneno is 0
+    optional uint64 cloneNo = 24; //for look for the clone number
+    repeated CloneInfos clones = 25;
 };
 
 enum CHUNK_OP_STATUS {

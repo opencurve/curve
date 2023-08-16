@@ -76,7 +76,8 @@ func (sCmd *SeginfoCommand) Init(cmd *cobra.Command, args []string) error {
 		return err.ToError()
 	}
 	sCmd.FileInfo = fileInfoResponse.GetFileInfo()
-	if sCmd.FileInfo.GetFileType() != nameserver2.FileType_INODE_PAGEFILE {
+	if (sCmd.FileInfo.GetFileType() != nameserver2.FileType_INODE_PAGEFILE &&
+        sCmd.FileInfo.GetFileType() != nameserver2.FileType_INODE_CLONE_PAGEFILE) {
 		filepath := config.GetBsFlagString(sCmd.Cmd, config.CURVEBS_PATH)
 		return fmt.Errorf("file %s is not a pagefile", filepath)
 	}

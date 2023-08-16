@@ -251,6 +251,9 @@ TEST_F(TestCopysetClient, TestDeleteChunkSnapshotOrCorrectSnRedirectFail) {
 }
 
 TEST_F(TestCopysetClient, TestDeleteChunkSuccess) {
+    uint64_t fileId = 1;
+    uint64_t originFileId = 0;
+    uint64_t chunkIndex = 1;
     ChunkServerIdType leader = 0x01;
     LogicalPoolID logicalPoolId = 0x11;
     CopysetID copysetId = 0x21;
@@ -266,15 +269,20 @@ TEST_F(TestCopysetClient, TestDeleteChunkSuccess) {
 
 
     EXPECT_CALL(*mockCsClient_, DeleteChunk(
-            leader, logicalPoolId, copysetId, chunkId, sn))
+            leader, fileId, originFileId, chunkIndex,
+            logicalPoolId, copysetId, chunkId, sn))
         .WillOnce(Return(kMdsSuccess));
 
     int ret = client_->DeleteChunk(
+        fileId, originFileId, chunkIndex,
         logicalPoolId, copysetId, chunkId, sn);
     ASSERT_EQ(kMdsSuccess, ret);
 }
 
 TEST_F(TestCopysetClient, TestDeleteChunkRedirectSuccess) {
+    uint64_t fileId = 1;
+    uint64_t originFileId = 0;
+    uint64_t chunkIndex = 1;
     ChunkServerIdType leader = 0x01;
     LogicalPoolID logicalPoolId = 0x11;
     CopysetID copysetId = 0x21;
@@ -289,7 +297,8 @@ TEST_F(TestCopysetClient, TestDeleteChunkRedirectSuccess) {
             Return(true)));
 
     EXPECT_CALL(*mockCsClient_, DeleteChunk(
-            _, logicalPoolId, copysetId, chunkId, sn))
+            _, fileId, originFileId, chunkIndex,
+            logicalPoolId, copysetId, chunkId, sn))
         .WillOnce(Return(kCsClientNotLeader))
         .WillOnce(Return(kMdsSuccess));
 
@@ -300,11 +309,15 @@ TEST_F(TestCopysetClient, TestDeleteChunkRedirectSuccess) {
                 Return(kMdsSuccess)));
 
     int ret = client_->DeleteChunk(
+        fileId, originFileId, chunkIndex,
         logicalPoolId, copysetId, chunkId, sn);
     ASSERT_EQ(kMdsSuccess, ret);
 }
 
 TEST_F(TestCopysetClient, TestDeleteChunkRetryTimeOut) {
+    uint64_t fileId = 1;
+    uint64_t originFileId = 0;
+    uint64_t chunkIndex = 1;
     ChunkServerIdType leader = 0x01;
     LogicalPoolID logicalPoolId = 0x11;
     CopysetID copysetId = 0x21;
@@ -319,7 +332,8 @@ TEST_F(TestCopysetClient, TestDeleteChunkRetryTimeOut) {
             Return(true)));
 
     EXPECT_CALL(*mockCsClient_, DeleteChunk(
-            _, logicalPoolId, copysetId, chunkId, sn))
+            _, fileId, originFileId, chunkIndex,
+            logicalPoolId, copysetId, chunkId, sn))
         .WillRepeatedly(Return(kCsClientNotLeader));
 
     EXPECT_CALL(*mockCsClient_, GetLeader(
@@ -327,11 +341,15 @@ TEST_F(TestCopysetClient, TestDeleteChunkRetryTimeOut) {
         .WillRepeatedly(DoAll(SetArgPointee<3>(0x02), Return(kMdsSuccess)));
 
     int ret = client_->DeleteChunk(
+        fileId, originFileId, chunkIndex,
         logicalPoolId, copysetId, chunkId, sn);
     ASSERT_EQ(kCsClientNotLeader, ret);
 }
 
 TEST_F(TestCopysetClient, TestDeleteChunkFail) {
+    uint64_t fileId = 1;
+    uint64_t originFileId = 0;
+    uint64_t chunkIndex = 1;
     ChunkServerIdType leader = 0x01;
     LogicalPoolID logicalPoolId = 0x11;
     CopysetID copysetId = 0x21;
@@ -346,15 +364,20 @@ TEST_F(TestCopysetClient, TestDeleteChunkFail) {
             Return(true)));
 
     EXPECT_CALL(*mockCsClient_, DeleteChunk(
-            _, logicalPoolId, copysetId, chunkId, sn))
+            _, fileId, originFileId, chunkIndex, 
+            logicalPoolId, copysetId, chunkId, sn))
         .WillRepeatedly(Return(kMdsFail));
 
     int ret = client_->DeleteChunk(
+        fileId, originFileId, chunkIndex,
         logicalPoolId, copysetId, chunkId, sn);
     ASSERT_EQ(kMdsFail, ret);
 }
 
 TEST_F(TestCopysetClient, TestDeleteChunkGetCopysetFail) {
+    uint64_t fileId = 1;
+    uint64_t originFileId = 0;
+    uint64_t chunkIndex = 1;
     ChunkServerIdType leader = 0x01;
     LogicalPoolID logicalPoolId = 0x11;
     CopysetID copysetId = 0x21;
@@ -369,11 +392,15 @@ TEST_F(TestCopysetClient, TestDeleteChunkGetCopysetFail) {
             Return(false)));
 
     int ret = client_->DeleteChunk(
+        fileId, originFileId, chunkIndex,
         logicalPoolId, copysetId, chunkId, sn);
     ASSERT_EQ(kMdsFail, ret);
 }
 
 TEST_F(TestCopysetClient, TestDeleteChunkRedirectFail) {
+    uint64_t fileId = 1;
+    uint64_t originFileId = 0;
+    uint64_t chunkIndex = 1;
     ChunkServerIdType leader = 0x01;
     LogicalPoolID logicalPoolId = 0x11;
     CopysetID copysetId = 0x21;
@@ -388,7 +415,8 @@ TEST_F(TestCopysetClient, TestDeleteChunkRedirectFail) {
             Return(true)));
 
     EXPECT_CALL(*mockCsClient_, DeleteChunk(
-            _, logicalPoolId, copysetId, chunkId, sn))
+            _, fileId, originFileId, chunkIndex,
+            logicalPoolId, copysetId, chunkId, sn))
         .WillOnce(Return(kCsClientNotLeader));
 
     ChunkServerIdType newLeader = 0x02;
@@ -398,6 +426,7 @@ TEST_F(TestCopysetClient, TestDeleteChunkRedirectFail) {
                 Return(kMdsFail)));
 
     int ret = client_->DeleteChunk(
+        fileId, originFileId, chunkIndex,
         logicalPoolId, copysetId, chunkId, sn);
     ASSERT_EQ(kMdsFail, ret);
 }

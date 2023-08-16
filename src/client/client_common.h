@@ -79,12 +79,15 @@ typedef struct ChunkIDInfo {
 
     bool chunkExist = true;
     std::string cloneOrigin_;
+    uint64_t originFileId_;
 
     ChunkIDInfo() = default;
 
     ChunkIDInfo(ChunkID cid, LogicPoolID lpid, CopysetID cpid,
-        const std::string &cloneOrigin = "")
-          : cid_(cid), cpid_(cpid), lpid_(lpid), cloneOrigin_(cloneOrigin) {}
+        const std::string &cloneOrigin = "", uint64_t originFileId = 0)
+          : cid_(cid), cpid_(cpid), lpid_(lpid), 
+            cloneOrigin_(cloneOrigin),
+            originFileId_(originFileId) {}
 
     bool Valid() const {
         return lpid_ > 0 && cpid_ > 0;

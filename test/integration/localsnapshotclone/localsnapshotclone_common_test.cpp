@@ -421,6 +421,7 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotOnceAndClone) {
     std::string fakeData2(4096, 'y');
     ASSERT_TRUE(WriteFile(testFile1_, testUser1_, fakeData2));
 
+    ASSERT_EQ(0, snapClient_->ProtectSnapShot(testFile1_, userinfo1, seq));
     // 从testFile1_的快照克隆出testFile1Clone1, 并断言数据为x
     FInfo finfo;
     ASSERT_EQ(0, snapClient_->Clone(testFile1_, testFile1Clone1, userinfo1, seq,
@@ -495,6 +496,7 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshot3TimesAndClone) {
     std::string fakeData4(4096, 'a');
     ASSERT_TRUE(WriteFile(testFile2_, testUser1_, fakeData4));
 
+    ASSERT_EQ(0, snapClient_->ProtectSnapShot(testFile2_, userinfo1, seq));
     // 从testFile2_的快照1克隆出testFile2Clone1, 并断言数据为x
     FInfo finfo;
     ASSERT_EQ(0, snapClient_->Clone(testFile2_, testFile2Clone1, userinfo1, seq,
@@ -502,6 +504,7 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshot3TimesAndClone) {
 
     ASSERT_TRUE(CheckFileData(testFile2Clone1, testUser1_, fakeData));
 
+    ASSERT_EQ(0, snapClient_->ProtectSnapShot(testFile2_, userinfo1, seq2));
     // 从testFile2_的快照2克隆出testFile2Clone2, 并断言数据为y
     FInfo finfo2;
     ASSERT_EQ(0, snapClient_->Clone(testFile2_, testFile2Clone2, userinfo1, seq2,
@@ -509,6 +512,7 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshot3TimesAndClone) {
 
     ASSERT_TRUE(CheckFileData(testFile2Clone2, testUser1_, fakeData2));
 
+    ASSERT_EQ(0, snapClient_->ProtectSnapShot(testFile2_, userinfo1, seq3));
     // 从testFile2_的快照3克隆出testFile2Clone3, 并断言数据为z
     FInfo finfo3;
     ASSERT_EQ(0, snapClient_->Clone(testFile2_, testFile2Clone3, userinfo1, seq3,
@@ -566,31 +570,32 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotAndClone3Times) {
     userinfo1.owner = testUser1_;
     ASSERT_EQ(0, snapClient_->CreateSnapShot(testFile3_, userinfo1, &seq));
 
-    // 对testFile3 写y
-    std::string fakeData2(4096, 'y');
-    ASSERT_TRUE(WriteFile(testFile3_, testUser1_, fakeData2));
+//    // 对testFile3 写y
+//    std::string fakeData2(4096, 'y');
+//    ASSERT_TRUE(WriteFile(testFile3_, testUser1_, fakeData2));
 
+    ASSERT_EQ(0, snapClient_->ProtectSnapShot(testFile3_, userinfo1, seq));
     // 从testFile3 快照克隆出testFile3Clone1, 并断言数据为x
     FInfo finfo;
     ASSERT_EQ(0, snapClient_->Clone(testFile3_, testFile3Clone1, userinfo1, seq,
             &finfo));
     ASSERT_TRUE(CheckFileData(testFile3Clone1, testUser1_, fakeData));
 
-    // 对testFile3Clone1 打快照
-    uint64_t seq2 = 0;
-    ASSERT_EQ(0, snapClient_->CreateSnapShot(testFile3Clone1, userinfo1, &seq2));
-
     // 对testFile3Clone1 写z
     std::string fakeData3(4096, 'z');
     ASSERT_TRUE(WriteFile(testFile3Clone1, testUser1_, fakeData3));
     ASSERT_TRUE(CheckFileData(testFile3Clone1, testUser1_, fakeData3));
 
-    // 从testFile3Clone1的快照克隆出testFile3Clone11, 并断言数据为x
+    // 对testFile3Clone1 打快照
+    uint64_t seq2 = 0;
+    ASSERT_EQ(0, snapClient_->CreateSnapShot(testFile3Clone1, userinfo1, &seq2));
+
+    ASSERT_EQ(0, snapClient_->ProtectSnapShot(testFile3Clone1, userinfo1, seq2));
+    // 从testFile3Clone1的快照克隆出testFile3Clone11, 并断言数据为z
     FInfo finfo2;
     ASSERT_EQ(0, snapClient_->Clone(
         testFile3Clone1, testFile3Clone11, userinfo1, seq2, &finfo2));
-
-    ASSERT_TRUE(CheckFileData(testFile3Clone11, testUser1_, fakeData));
+    ASSERT_TRUE(CheckFileData(testFile3Clone11, testUser1_, fakeData3));
 
     // 对testFile3Clone11 打快照
     uint64_t seq3 = 0;
@@ -601,11 +606,13 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotAndClone3Times) {
     ASSERT_TRUE(WriteFile(testFile3Clone11, testUser1_, fakeData4));
     ASSERT_TRUE(CheckFileData(testFile3Clone11, testUser1_, fakeData4));
 
-    // 从testFile3Clone11的快照克隆出testFile3Clone111, 并断言数据为x
+
+    ASSERT_EQ(0, snapClient_->ProtectSnapShot(testFile3Clone11, userinfo1, seq3));
+    // 从testFile3Clone11的快照克隆出testFile3Clone111, 并断言数据为z
     FInfo finfo3;
     ASSERT_EQ(0, snapClient_->Clone(
         testFile3Clone11, testFile3Clone111, userinfo1, seq3, &finfo3));
-    ASSERT_TRUE(CheckFileData(testFile3Clone111, testUser1_, fakeData));
+    ASSERT_TRUE(CheckFileData(testFile3Clone111, testUser1_, fakeData3));
 
     // 写testFile3, 不影响另外3个卷
     std::string fakeData5(4096, 'b');
@@ -613,7 +620,7 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotAndClone3Times) {
     ASSERT_TRUE(CheckFileData(testFile3_, testUser1_, fakeData5));
     ASSERT_TRUE(CheckFileData(testFile3Clone1, testUser1_, fakeData3));
     ASSERT_TRUE(CheckFileData(testFile3Clone11, testUser1_, fakeData4));
-    ASSERT_TRUE(CheckFileData(testFile3Clone111, testUser1_, fakeData));
+    ASSERT_TRUE(CheckFileData(testFile3Clone111, testUser1_, fakeData3));
 
     // 写testFile3Clone1, 不影响另外3个卷
     std::string fakeData6(4096, 'c');
@@ -621,7 +628,7 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotAndClone3Times) {
     ASSERT_TRUE(CheckFileData(testFile3Clone1, testUser1_, fakeData6));
     ASSERT_TRUE(CheckFileData(testFile3_, testUser1_, fakeData5));
     ASSERT_TRUE(CheckFileData(testFile3Clone11, testUser1_, fakeData4));
-    ASSERT_TRUE(CheckFileData(testFile3Clone111, testUser1_, fakeData));
+    ASSERT_TRUE(CheckFileData(testFile3Clone111, testUser1_, fakeData3));
 
     // 写testFile3Clone11, 不影响另外3个卷
     std::string fakeData7(4096, 'd');
@@ -629,7 +636,7 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotAndClone3Times) {
     ASSERT_TRUE(CheckFileData(testFile3Clone11, testUser1_, fakeData7));
     ASSERT_TRUE(CheckFileData(testFile3Clone1, testUser1_, fakeData6));
     ASSERT_TRUE(CheckFileData(testFile3_, testUser1_, fakeData5));
-    ASSERT_TRUE(CheckFileData(testFile3Clone111, testUser1_, fakeData));
+    ASSERT_TRUE(CheckFileData(testFile3Clone111, testUser1_, fakeData3));
 
     // 写testFileClone111, 不影响另外3个卷
     std::string fakeData8(4096, 'e');
@@ -661,6 +668,7 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotAndCloneEmpty) {
     std::string fakeData2(4096, 'y');
     ASSERT_TRUE(WriteFile(testFile4_, testUser1_, fakeData2));
 
+    ASSERT_EQ(0, snapClient_->ProtectSnapShot(testFile4_, userinfo1, seq));
     // 从testFile4 快照克隆出testFile4Clone1, 并断言数据为x
     FInfo finfo;
     ASSERT_EQ(0, snapClient_->Clone(testFile4_, testFile4Clone1, userinfo1, seq,
@@ -671,6 +679,7 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotAndCloneEmpty) {
     uint64_t seq2 = 0;
     ASSERT_EQ(0, snapClient_->CreateSnapShot(testFile4Clone1, userinfo1, &seq2));
 
+    ASSERT_EQ(0, snapClient_->ProtectSnapShot(testFile4Clone1, userinfo1, seq2));
     // 从testFile4Clone1的快照克隆出testFile4Clone11, 并断言数据为x
     FInfo finfo2;
     ASSERT_EQ(0, snapClient_->Clone(

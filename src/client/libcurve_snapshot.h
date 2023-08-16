@@ -151,6 +151,14 @@ class SnapshotClient {
                                 FileStatus* filestatus,
                                 uint32_t* progress = nullptr);
 
+  int ProtectSnapShot(const std::string &filename,
+                      const UserInfo_t &userinfo,
+                      uint64_t seq);
+
+  int UnprotectSnapShot(const std::string &filename,
+                        const UserInfo_t &userinfo,
+                        uint64_t seq);
+
   int Clone(const std::string& source,
             const std::string& destination,
             const UserInfo_t& userinfo,

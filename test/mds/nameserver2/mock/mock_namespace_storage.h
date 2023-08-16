@@ -38,6 +38,9 @@ class MockNameServerStorage : public NameServerStorage {
 
     MOCK_METHOD1(PutFile, StoreStatus(const FileInfo &));
 
+    MOCK_METHOD2(Put2File, StoreStatus(const FileInfo &fileInfo1,
+        const FileInfo &fileInfo2));
+
     MOCK_METHOD3(GetFile, StoreStatus(InodeID,
                                       const std::string &,
                                       FileInfo *));
@@ -63,6 +66,11 @@ class MockNameServerStorage : public NameServerStorage {
     MOCK_METHOD2(MoveFileToRecycle, StoreStatus(const FileInfo &,
                                             const FileInfo &));
 
+    MOCK_METHOD3(MoveCloneFileToRecycle, StoreStatus(
+        const FileInfo &originFileInfo, 
+        const FileInfo &snapshotFileInfo,
+        const FileInfo &recycleFileInfo));
+
     MOCK_METHOD3(ListFile, StoreStatus(InodeID,
                                        InodeID,
                                        std::vector<FileInfo> * files));
@@ -86,6 +94,9 @@ class MockNameServerStorage : public NameServerStorage {
                                     const FileInfo *));
     MOCK_METHOD1(LoadSnapShotFile,
         StoreStatus(std::vector<FileInfo> *snapShotFiles));
+
+    MOCK_METHOD1(LoadFileInfos, StoreStatus(std::vector<FileInfo> *fileInfos));
+
     MOCK_METHOD2(ListSegment,
         StoreStatus(InodeID, std::vector<PageFileSegment>*));
 };

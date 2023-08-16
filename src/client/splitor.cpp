@@ -233,7 +233,7 @@ bool Splitor::GetOrAllocateSegment(bool allocateIfNotExist,
         if (errCode == LIBCURVE_ERROR::NOT_ALLOCATE) {
             // this chunkIdInfo(0, 0, 0) identify
             // the unallocated chunk when read
-            ChunkIDInfo chunkIdInfo(0, 0, 0);
+            ChunkIDInfo chunkIdInfo(0, 0, 0, "", 0);
             chunkIdInfo.chunkExist = false;
             metaCache->UpdateChunkInfoByIndex(chunkidx, chunkIdInfo);
             return true;
@@ -453,10 +453,11 @@ int Splitor::AssignCloneFileInfo(IOTracker* iotracker,
             mdsclient);
     if (cloneOriginCache == nullptr) {
         // clone origin may be deleted
-        ChunkIDInfo tmp(0, 0, 0);
+        ChunkIDInfo tmp(0, 0, 0, "", 0);
         tmp.chunkExist = false;
         for (auto& ctx : *targetlist) {
             ctx->cfinfo_ = fileInfo->cfinfo;
+            ctx->originFileId_ = chunkIdInfo.originFileId_;
             ctx->chunkIndex_ = chunkidx;
             ctx->originChunkIdInfo_ = tmp;
         }
@@ -482,6 +483,7 @@ int Splitor::AssignCloneFileInfo(IOTracker* iotracker,
     if (errCode == MetaCacheErrorType::OK) {
         for (auto& ctx : *targetlist) {
             ctx->cfinfo_ = fileInfo->cfinfo;
+            ctx->originFileId_ = chunkIdInfo.originFileId_;
             ctx->chunkIndex_ = chunkidx;
             ctx->originChunkIdInfo_ = originChunkIdInfo;
         }

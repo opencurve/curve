@@ -60,12 +60,14 @@ struct CloneInfos {
 };
 
 struct FlattenChunkContext {
+    uint64_t fileId;
     LogicalPoolID logicalPoolId;
     CopysetID copysetId;
     ChunkID chunkId;
     uint64_t seqNum;
     bool originSegmentExist;
     ChunkID originChunkId;
+    uint64_t originFileId;
     ChunkID chunkIndex;
     uint64_t cloneNo;
     std::vector<CloneInfos> clones;
@@ -146,6 +148,9 @@ class ChunkServerClient {
      * @return error code
      */
     virtual int DeleteChunkSnapshot(ChunkServerIdType leaderId,
+        uint64_t fileId,
+        uint64_t originFileId,
+        uint64_t chunkIndex,
         LogicalPoolID logicalPoolId,
         CopysetID copysetId,
         ChunkID chunkId,
@@ -164,6 +169,9 @@ class ChunkServerClient {
      * @return error code
      */
     virtual int DeleteChunk(ChunkServerIdType leaderId,
+        uint64_t fileId,
+        uint64_t originFileId,
+        uint64_t chunkIndex,
         LogicalPoolID logicalPoolId,
         CopysetID copysetId,
         ChunkID chunkId,
