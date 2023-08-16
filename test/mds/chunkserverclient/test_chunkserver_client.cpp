@@ -576,6 +576,9 @@ TEST_F(TestChunkServerClient, TestGetLeaderRpcReturnLeaderPeerNotExist) {
 }
 
 TEST_F(TestChunkServerClient, TestDeleteChunkSuccess) {
+    uint64_t fileId = 1;
+    uint64_t originFileId = 0;
+    uint64_t chunkIndex = 1;
     uint32_t port = listenAddr_.port;
 
     ChunkServerIdType csId = 0x01;
@@ -606,13 +609,17 @@ TEST_F(TestChunkServerClient, TestDeleteChunkSuccess) {
                     })));
 
     int ret = client_->DeleteChunk(
-        csId, logicalPoolId, copysetId, chunkId, sn);
+        csId, fileId, originFileId, chunkIndex,
+        logicalPoolId, copysetId, chunkId, sn);
     ASSERT_EQ(kMdsSuccess, ret);
 }
 
 TEST_F(TestChunkServerClient, TestDeleteChunkGetChunkServerFail) {
     uint32_t port = listenAddr_.port;
 
+    uint64_t fileId = 1;
+    uint64_t originFileId = 0;
+    uint64_t chunkIndex = 1;
     ChunkServerIdType csId = 0x01;
     LogicalPoolID logicalPoolId = 0x11;
     CopysetID copysetId = 0x21;
@@ -632,13 +639,17 @@ TEST_F(TestChunkServerClient, TestDeleteChunkGetChunkServerFail) {
 
 
     int ret = client_->DeleteChunk(
-        csId, logicalPoolId, copysetId, chunkId, sn);
+        csId, fileId, originFileId, chunkIndex,
+        logicalPoolId, copysetId, chunkId, sn);
     ASSERT_EQ(kMdsFail, ret);
 }
 
 TEST_F(TestChunkServerClient, TestDeleteChunkChunkServerOFFLINE) {
     uint32_t port = listenAddr_.port;
 
+    uint64_t fileId = 1;
+    uint64_t originFileId = 0;
+    uint64_t chunkIndex = 1;
     ChunkServerIdType csId = 0x01;
     LogicalPoolID logicalPoolId = 0x11;
     CopysetID copysetId = 0x21;
@@ -657,12 +668,17 @@ TEST_F(TestChunkServerClient, TestDeleteChunkChunkServerOFFLINE) {
             Return(true)));
 
     int ret = client_->DeleteChunk(
-        csId, logicalPoolId, copysetId, chunkId, sn);
+        csId, fileId, originFileId, chunkIndex,
+        logicalPoolId, copysetId, chunkId, sn);
     ASSERT_EQ(kCsClientCSOffline, ret);
 }
 
 TEST_F(TestChunkServerClient, TestDeleteChunkRpcChannelInitFail) {
     uint32_t port = listenAddr_.port;
+
+    uint64_t fileId = 1;
+    uint64_t originFileId = 0;
+    uint64_t chunkIndex = 1;
     ChunkServerIdType csId = 0x01;
     LogicalPoolID logicalPoolId = 0x11;
     CopysetID copysetId = 0x21;
@@ -681,13 +697,17 @@ TEST_F(TestChunkServerClient, TestDeleteChunkRpcChannelInitFail) {
             Return(true)));
 
     int ret = client_->DeleteChunk(
-        csId, logicalPoolId, copysetId, chunkId, sn);
+        csId, fileId, originFileId, chunkIndex,
+        logicalPoolId, copysetId, chunkId, sn);
     ASSERT_EQ(kRpcChannelInitFail, ret);
 }
 
 TEST_F(TestChunkServerClient, TestDeleteChunkRpcCntlFail) {
     uint32_t port = listenAddr_.port;
 
+    uint64_t fileId = 1;
+    uint64_t originFileId = 0;
+    uint64_t chunkIndex = 1;
     ChunkServerIdType csId = 0x01;
     LogicalPoolID logicalPoolId = 0x11;
     CopysetID copysetId = 0x21;
@@ -720,13 +740,17 @@ TEST_F(TestChunkServerClient, TestDeleteChunkRpcCntlFail) {
                     })));
 
     int ret = client_->DeleteChunk(
-        csId, logicalPoolId, copysetId, chunkId, sn);
+        csId, fileId, originFileId, chunkIndex,
+        logicalPoolId, copysetId, chunkId, sn);
     ASSERT_EQ(kRpcFail, ret);
 }
 
 TEST_F(TestChunkServerClient, TestDeleteChunkRpcReturnFail) {
     uint32_t port = listenAddr_.port;
 
+    uint64_t fileId = 1;
+    uint64_t originFileId = 0;
+    uint64_t chunkIndex = 1;
     ChunkServerIdType csId = 0x01;
     LogicalPoolID logicalPoolId = 0x11;
     CopysetID copysetId = 0x21;
@@ -755,12 +779,17 @@ TEST_F(TestChunkServerClient, TestDeleteChunkRpcReturnFail) {
                     })));
 
     int ret = client_->DeleteChunk(
-        csId, logicalPoolId, copysetId, chunkId, sn);
+        csId, fileId, originFileId, chunkIndex,
+        logicalPoolId, copysetId, chunkId, sn);
     ASSERT_EQ(kCsClientReturnFail, ret);
 }
 
 TEST_F(TestChunkServerClient, TestDeleteChunkReturnNotLeader) {
     uint32_t port = listenAddr_.port;
+
+    uint64_t fileId = 1;
+    uint64_t originFileId = 0;
+    uint64_t chunkIndex = 1;
     ChunkServerIdType csId = 0x01;
     LogicalPoolID logicalPoolId = 0x11;
     CopysetID copysetId = 0x21;
@@ -789,7 +818,8 @@ TEST_F(TestChunkServerClient, TestDeleteChunkReturnNotLeader) {
                     })));
 
     int ret = client_->DeleteChunk(
-        csId, logicalPoolId, copysetId, chunkId, sn);
+        csId, fileId, originFileId, chunkIndex,
+        logicalPoolId, copysetId, chunkId, sn);
     ASSERT_EQ(kCsClientNotLeader, ret);
 }
 

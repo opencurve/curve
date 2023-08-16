@@ -121,6 +121,7 @@ void FlattenCore::DoFlatten(
 
             workingChunkNum++;
             auto context = std::make_shared<FlattenChunkContext>();
+            context->fileId = fileInfo.id();
             context->logicalPoolId = logicalPoolId;
             context->copysetId = segment.chunks(j).copysetid();
             context->chunkId = segment.chunks(j).chunkid();
@@ -134,6 +135,7 @@ void FlattenCore::DoFlatten(
             } else {
                 context->originChunkId = 0;
             }
+            context->originFileId = segment.originfileid();
             context->chunkIndex = chunkNumPerSegment * i + j;
             context->cloneNo = fileInfo.cloneno();
             for (int i = 0; i < fileInfo.clones_size(); i++) {

@@ -106,7 +106,11 @@ class CopysetClient {
      * @param snaps the existing snapshot sequence nums
      * @return error code
      */
-    int DeleteChunkSnapshot(LogicalPoolID logicalPoolId,
+    int DeleteChunkSnapshot(
+        uint64_t fileId,
+        uint64_t originFileId,
+        uint64_t chunkIndex,
+        LogicalPoolID logicalPoolId,
         CopysetID copysetId,
         ChunkID chunkId,
         uint64_t snapSn,
@@ -122,7 +126,11 @@ class CopysetClient {
      *
      * @return error code
      */
-    int DeleteChunk(LogicalPoolID logicalPoolId,
+    int DeleteChunk(
+        uint64_t fileId,
+        uint64_t originFileId,
+        uint64_t chunkIndex,
+        LogicalPoolID logicalPoolId,
         CopysetID copysetId,
         ChunkID chunkId,
         uint64_t sn);

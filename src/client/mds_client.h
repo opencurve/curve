@@ -281,6 +281,14 @@ class MDSClient : public MDSClientBase,
                              const std::string& sessionid);
 
 
+    LIBCURVE_ERROR ProtectSnapShot(const std::string& filename,
+                                   const UserInfo_t& userinfo,
+                                   uint64_t seq);
+
+    LIBCURVE_ERROR UnprotectSnapShot(const std::string& filename,
+                                     const UserInfo_t& userinfo,
+                                     uint64_t seq);
+
     LIBCURVE_ERROR Clone(const std::string& source,
             const std::string& destination,
             const UserInfo_t& userinfo,

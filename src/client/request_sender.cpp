@@ -115,6 +115,7 @@ int RequestSender::WriteChunk(RequestContext *ctx,
         if (ctx->originChunkIdInfo_.chunkExist) {
             request.set_originchunkid(ctx->originChunkIdInfo_.cid_);
         }
+        request.set_originfileid(ctx->originFileId_);
         request.set_chunkindex(ctx->chunkIndex_);
         request.set_cloneno(ctx->cfinfo_.cloneNo);
         for(int i = 0; i < ctx->cfinfo_.clones.size(); i++) {

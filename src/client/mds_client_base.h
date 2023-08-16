@@ -87,6 +87,10 @@ using curve::mds::topology::ListPoolsetRequest;
 using curve::mds::topology::ListPoolsetResponse;
 using curve::mds::CloneRequest;
 using curve::mds::CloneResponse;
+using curve::mds::ProtectSnapShotRequest;
+using curve::mds::ProtectSnapShotResponse;
+using curve::mds::UnprotectSnapShotRequest;
+using curve::mds::UnprotectSnapShotResponse;
 
 extern const char* kRootUserName;
 
@@ -286,6 +290,20 @@ class MDSClientBase {
     void ListPoolset(ListPoolsetResponse* response,
                      brpc::Controller* cntl,
                      brpc::Channel* channel);
+
+    void ProtectSnapShot(const std::string& filename,
+                         const UserInfo_t& userinfo,
+                         uint64_t seq,
+                         ProtectSnapShotResponse* response,
+                         brpc::Controller* cntl,
+                         brpc::Channel* channel);
+
+    void UnprotectSnapShot(const std::string& filename,
+                           const UserInfo_t& userinfo,
+                           uint64_t seq,
+                           UnprotectSnapShotResponse* response,
+                           brpc::Controller* cntl,
+                           brpc::Channel* channel);
 
     void Clone(const std::string& source,
          const std::string& destination,

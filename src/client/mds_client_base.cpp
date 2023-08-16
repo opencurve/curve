@@ -323,6 +323,46 @@ void MDSClientBase::ListPoolset(ListPoolsetResponse* response,
     stub.ListPoolset(cntl, &request, response, nullptr);
 }
 
+void MDSClientBase::ProtectSnapShot(const std::string& filename,
+                     const UserInfo_t& userinfo,
+                     uint64_t seq,
+                     ProtectSnapShotResponse* response,
+                     brpc::Controller* cntl,
+                     brpc::Channel* channel) {
+    ProtectSnapShotRequest request;
+    request.set_filename(filename);
+    request.set_seq(seq);
+    FillUserInfo(&request, userinfo);
+
+    LOG(INFO) << "ProtectSnapShot: filename = " << filename
+                << ", owner = " << userinfo.owner
+                << ", seqnum = " << seq
+                << ", log id = " << cntl->log_id();
+
+    curve::mds::CurveFSService_Stub stub(channel);
+    stub.ProtectSnapShot(cntl, &request, response, nullptr);
+}
+
+void MDSClientBase::UnprotectSnapShot(const std::string& filename,
+                       const UserInfo_t& userinfo,
+                       uint64_t seq,
+                       UnprotectSnapShotResponse* response,
+                       brpc::Controller* cntl,
+                       brpc::Channel* channel) {
+    UnprotectSnapShotRequest request;
+    request.set_filename(filename);
+    request.set_seq(seq);
+    FillUserInfo(&request, userinfo);
+
+    LOG(INFO) << "UnprotectSnapShot: filename = " << filename
+                << ", owner = " << userinfo.owner
+                << ", seqnum = " << seq
+                << ", log id = " << cntl->log_id();
+
+    curve::mds::CurveFSService_Stub stub(channel);
+    stub.UnprotectSnapShot(cntl, &request, response, nullptr);
+}
+
 void MDSClientBase::Clone(const std::string& source,
     const std::string& destination,
     const UserInfo_t& userinfo,

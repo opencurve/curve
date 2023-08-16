@@ -680,7 +680,8 @@ LIBCURVE_ERROR MDSClient::GetSnapshotSegmentInfo(const std::string& filename,
             ChunkID chunkid = pfs.chunks(i).chunkid();
             CopysetID copysetid = pfs.chunks(i).copysetid();
             segInfo->lpcpIDInfo.cpidVec.push_back(copysetid);
-            segInfo->chunkvec.emplace_back(chunkid, logicpoolid, copysetid);
+            segInfo->chunkvec.emplace_back(chunkid, logicpoolid, copysetid,
+                pfs.cloneorigin(), pfs.originfileid());
             DVLOG(9) << "chunk id: " << chunkid << " pool id: " << logicpoolid
                     << " copyset id: " << copysetid << " chunk id: " << chunkid;
         }
@@ -920,6 +921,69 @@ LIBCURVE_ERROR MDSClient::ListPoolset(std::vector<std::string>* out) {
     return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS);
 }
 
+LIBCURVE_ERROR MDSClient::ProtectSnapShot(const std::string& filename,
+                               const UserInfo_t& userinfo,
+                               uint64_t seq) {
+    auto task = RPCTaskDefine {
+        ProtectSnapShotResponse response;
+        MDSClientBase::ProtectSnapShot(filename, userinfo, seq,
+                                       &response, cntl, channel);
+        if (cntl->Failed()) {
+            LOG(WARNING) << "ProtectSnapShot failed, errcorde = "
+                         << cntl->ErrorCode()
+                         << ", error content:" << cntl->ErrorText()
+                         << ", filename = " << filename
+                         << ", seq = " << seq;
+            return -cntl->ErrorCode();
+        }
+
+        LIBCURVE_ERROR retcode;
+        StatusCode stcode = response.statuscode();
+        MDSStatusCode2LibcurveError(stcode, &retcode);
+        LOG_IF(WARNING, retcode != LIBCURVE_ERROR::OK)
+                << "ProtectSnapShot: filename = " << filename
+                << ", owner = " << userinfo.owner
+                << ", seq = " << seq
+                << ", errocde = " << retcode
+                << ", error msg = " << StatusCode_Name(stcode)
+                << ", log id = " << cntl->log_id();
+
+        return retcode;
+    };
+    return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS);
+}
+
+LIBCURVE_ERROR MDSClient::UnprotectSnapShot(const std::string& filename,
+                                 const UserInfo_t& userinfo,
+                                 uint64_t seq) {
+    auto task = RPCTaskDefine {
+        UnprotectSnapShotResponse response;
+        MDSClientBase::UnprotectSnapShot(filename, userinfo, seq,
+                                         &response, cntl, channel);
+        if (cntl->Failed()) {
+            LOG(WARNING) << "UnprotectSnapShot failed, errcorde = "
+                         << cntl->ErrorCode()
+                         << ", error content:" << cntl->ErrorText()
+                         << ", filename = " << filename
+                         << ", seq = " << seq;
+            return -cntl->ErrorCode();
+        }
+
+        LIBCURVE_ERROR retcode;
+        StatusCode stcode = response.statuscode();
+        MDSStatusCode2LibcurveError(stcode, &retcode);
+        LOG_IF(WARNING, retcode != LIBCURVE_ERROR::OK)
+                << "UnprotectSnapShot: filename = " << filename
+                << ", owner = " << userinfo.owner
+                << ", seq = " << seq
+                << ", errocde = " << retcode
+                << ", error msg = " << StatusCode_Name(stcode)
+                << ", log id = " << cntl->log_id();
+        return retcode;
+    };
+    return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS);
+}
+
 LIBCURVE_ERROR MDSClient::Clone(const std::string& source,
         const std::string& destination,
         const UserInfo_t& userinfo,
@@ -1115,7 +1179,7 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate, uint64_t offset,
             CopysetID copysetid = pfs.chunks(i).copysetid();
             segInfo->lpcpIDInfo.cpidVec.push_back(copysetid);
             segInfo->chunkvec.emplace_back(chunkid, logicpoolid, copysetid, 
-                pfs.cloneorigin());
+                pfs.cloneorigin(), pfs.originfileid());
         }
         return LIBCURVE_ERROR::OK;
     };

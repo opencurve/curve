@@ -39,6 +39,7 @@
 
 using ::curve::mds::topology::TopologyChunkAllocator;
 using ::curve::common::SNAPSHOTFILEINFOKEYPREFIX;
+using ::curve::common::FILEINFOKEYPREFIX;
 
 const uint64_t FACK_INODE_INITIALIZE = 0;
 const uint64_t FACK_CHUNKID_INITIALIZE = 0;
@@ -130,6 +131,28 @@ class FackTopologyChunkAllocator: public TopologyChunkAllocator {
 
 class FakeNameServerStorage : public NameServerStorage {
  public:
+    StoreStatus GetStoreKey(FileType filetype,
+        InodeID id,
+        const std::string& filename,
+        std::string* storeKey) {
+        switch (filetype) {
+            case FileType::INODE_PAGEFILE:
+            case FileType::INODE_DIRECTORY:
+            case FileType::INODE_CLONE_PAGEFILE:
+                *storeKey = NameSpaceStorageCodec::EncodeFileStoreKey(id, filename);
+                break;
+            case FileType::INODE_SNAPSHOT_PAGEFILE:
+                *storeKey =
+                    NameSpaceStorageCodec::EncodeSnapShotFileStoreKey(id, filename);
+                break;
+            default:
+                LOG(ERROR) << "filetype: "
+                           << filetype << " of " << filename << " not exist";
+                return StoreStatus::InternalError;
+        }
+        return StoreStatus::OK;
+    }
+
     StoreStatus PutFile(const FileInfo & fileInfo) override {
         std::lock_guard<std::mutex> guard(lock_);
         std::string storeKey = NameSpaceStorageCodec::EncodeFileStoreKey(
@@ -144,6 +167,50 @@ class FakeNameServerStorage : public NameServerStorage {
         memKvMap_.insert(
             std::move(std::pair<std::string, std::string>
             (storeKey, std::move(value))));
+        return StoreStatus::OK;
+    }
+
+    StoreStatus Put2File(const FileInfo &fileInfo1,
+        const FileInfo &fileInfo2) override {
+        std::lock_guard<std::mutex> guard(lock_);
+        std::string key1;
+        auto res = GetStoreKey(fileInfo1.filetype(),
+                        fileInfo1.parentid(),
+                        fileInfo1.filename(),
+                        &key1);
+        if (res != StoreStatus::OK) {
+            LOG(ERROR) << "get store key failed, filename = "
+                       << fileInfo1.filename();
+            return StoreStatus::InternalError;
+        }
+
+        std::string key2;
+        res = GetStoreKey(fileInfo2.filetype(),
+                        fileInfo2.parentid(),
+                        fileInfo2.filename(),
+                        &key2);
+        if (res != StoreStatus::OK) {
+            LOG(ERROR) << "get store key failed, filename = "
+                       << fileInfo2.filename();
+            return StoreStatus::InternalError;
+        }
+        auto iter = memKvMap_.find(key1);
+        if (iter != memKvMap_.end()) {
+            memKvMap_.erase(iter);
+        }
+        std::string value1 = fileInfo1.SerializeAsString();
+        memKvMap_.insert(
+            std::move(std::pair<std::string, std::string>
+            (key1, std::move(value1))));
+
+        iter = memKvMap_.find(key2);
+        if (iter != memKvMap_.end()) {
+            memKvMap_.erase(iter);
+        }
+        std::string value2 = fileInfo2.SerializeAsString();
+        memKvMap_.insert(
+            std::move(std::pair<std::string, std::string>
+            (key2, std::move(value2))));
         return StoreStatus::OK;
     }
 
@@ -308,6 +375,79 @@ class FakeNameServerStorage : public NameServerStorage {
         return StoreStatus::OK;
     }
 
+    StoreStatus MoveCloneFileToRecycle(const FileInfo &originFileInfo,
+        const FileInfo &snapshotFileInfo,
+        const FileInfo &recycleFileInfo) {
+        std::string originFileInfoKey;
+        auto res = GetStoreKey(originFileInfo.filetype(), originFileInfo.parentid(),
+            originFileInfo.filename(), &originFileInfoKey);
+        if (res != StoreStatus::OK) {
+            LOG(ERROR) << "get store key failed, filename = "
+                       << originFileInfo.filename();
+            return StoreStatus::InternalError;
+        }
+
+        std::string snapshotFileInfoKey;
+        res = GetStoreKey(snapshotFileInfo.filetype(), snapshotFileInfo.parentid(),
+            snapshotFileInfo.filename(), &snapshotFileInfoKey);
+        if (res != StoreStatus::OK) {
+            LOG(ERROR) << "get store key failed, filename = "
+                       << snapshotFileInfo.filename();
+            return StoreStatus::InternalError;
+        }
+
+        std::string encodeSnapshotFInfo;
+        if (!NameSpaceStorageCodec::EncodeFileInfo(
+            snapshotFileInfo, &encodeSnapshotFInfo)) {
+            LOG(ERROR) << "encode snapshot file: " << snapshotFileInfo.filename()
+                      << " err";
+            return StoreStatus::InternalError;
+        }
+
+        std::string recycleFileInfoKey;
+        res = GetStoreKey(recycleFileInfo.filetype(), recycleFileInfo.parentid(),
+            recycleFileInfo.filename(), &recycleFileInfoKey);
+        if (res != StoreStatus::OK) {
+            LOG(ERROR) << "get store key failed, filename = "
+                       << recycleFileInfo.filename();
+            return StoreStatus::InternalError;
+        }
+
+        std::string encodeRecycleFInfo;
+        if (!NameSpaceStorageCodec::EncodeFileInfo(
+            recycleFileInfo, &encodeRecycleFInfo)) {
+            LOG(ERROR) << "encode recycle file: " << recycleFileInfo.filename()
+                      << " err";
+            return StoreStatus::InternalError;
+        }
+
+        auto iter = memKvMap_.find(originFileInfoKey);
+        if (iter != memKvMap_.end()) {
+            memKvMap_.erase(iter);
+        }
+
+        auto iter1 = memKvMap_.find(recycleFileInfoKey);
+        if (iter1 != memKvMap_.end()) {
+            memKvMap_.erase(iter1);
+        }
+
+        auto iter2 = memKvMap_.find(snapshotFileInfoKey);
+        if (iter2 != memKvMap_.end()) {
+            memKvMap_.erase(iter2);
+        }
+
+        memKvMap_.insert(
+                std::move(std::pair<std::string, std::string>
+                (recycleFileInfoKey, std::move(encodeRecycleFInfo))));
+        memKvMap_.insert(
+                std::move(std::pair<std::string, std::string>
+                (snapshotFileInfoKey, std::move(encodeSnapshotFInfo))));
+
+        FileInfo  validFile;
+        validFile.ParseFromString(memKvMap_.find(recycleFileInfoKey)->second);
+        return StoreStatus::OK;
+    }
+
     StoreStatus ListFile(InodeID startid,
                          InodeID endid,
                          std::vector<FileInfo> * files) override {
@@ -448,6 +588,23 @@ class FakeNameServerStorage : public NameServerStorage {
                     FileInfo  validFile;
                     validFile.ParseFromString(iter->second);
                     snapShotFiles->push_back(validFile);
+                }
+            }
+        }
+        return StoreStatus::OK;
+    }
+
+    StoreStatus LoadFileInfos(std::vector<FileInfo> *fileInfos) override {
+        std::lock_guard<std::mutex> guard(lock_);
+        std::string startKey = FILEINFOKEYPREFIX;
+
+        for (auto iter = memKvMap_.begin(); iter != memKvMap_.end(); iter++) {
+            if ( iter->first.length() > startKey.length() ) {
+                if (iter->first.substr(0, startKey.length()).
+                    compare(startKey) == 0) {
+                    FileInfo  validFile;
+                    validFile.ParseFromString(iter->second);
+                    fileInfos->push_back(validFile);
                 }
             }
         }

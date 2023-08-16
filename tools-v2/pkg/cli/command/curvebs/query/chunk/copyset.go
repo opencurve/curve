@@ -73,7 +73,8 @@ func (cCmd *ChunkCopysetCommand) Init(cmd *cobra.Command, args []string) error {
 		return err.ToError()
 	}
 	cCmd.FileInfo = fileInfoResponse.GetFileInfo()
-	if cCmd.FileInfo.GetFileType() != nameserver2.FileType_INODE_PAGEFILE {
+	if (cCmd.FileInfo.GetFileType() != nameserver2.FileType_INODE_PAGEFILE &&
+        cCmd.FileInfo.GetFileType() != nameserver2.FileType_INODE_CLONE_PAGEFILE) {
 		filepath := config.GetBsFlagString(cCmd.Cmd, config.CURVEBS_PATH)
 		return fmt.Errorf("file %s is not a pagefile", filepath)
 	}

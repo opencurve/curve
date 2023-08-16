@@ -107,6 +107,14 @@ class NameSpaceServiceTest : public ::testing::Test {
         curveFSOptions.fileRecordOptions = fileRecordOptions;
         curveFSOptions.authOptions = authOptions;
 
+        FlattenOption flattenOption;
+        flattenCore_ = std::make_shared<FlattenCore>(
+            flattenOption, storage_,
+            client, fileLockManager_.get());
+        flattenTaskManager_ = std::make_shared<TaskManager>();
+        flattenManager_ = std::make_shared<FlattenManagerImpl>(
+            flattenCore_, flattenTaskManager_);
+
         kCurveFS.Init(storage_, inodeGenerator_,
                         cloneIdGenerator_,
                         chunkSegmentAllocate_,
@@ -114,7 +122,8 @@ class NameSpaceServiceTest : public ::testing::Test {
                         fileRecordManager_,
                         allocStatistic_,
                         curveFSOptions, topology_,
-                        nullptr);
+                        nullptr, 
+                        flattenManager_);
 
         ASSERT_EQ(curveFSOptions.defaultChunkSize,
                        kCurveFS.GetDefaultChunkSize());
@@ -154,6 +163,13 @@ class NameSpaceServiceTest : public ::testing::Test {
     std::shared_ptr<MockTopology> topology_;
     std::shared_ptr<MockAllocStatistic> allocStatistic_;
     std::shared_ptr<FileRecordManager> fileRecordManager_;
+
+    std::shared_ptr<FileLockManager> fileLockManager_ =
+        std::make_shared<FileLockManager>(8);
+    std::shared_ptr<FlattenCore> flattenCore_;
+    std::shared_ptr<TaskManager> flattenTaskManager_;
+    std::shared_ptr<FlattenManagerImpl> flattenManager_;
+
     struct FileRecordOptions fileRecordOptions;
     struct RootAuthOption authOptions;
     struct CurveFSOption curveFSOptions;

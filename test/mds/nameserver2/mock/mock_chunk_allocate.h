@@ -43,6 +43,12 @@ class MockChunkAllocator: public ChunkSegmentAllocator {
                       offset_t,
                       PageFileSegment*));
 
+    MOCK_METHOD4(CloneChunkSegment,
+        bool(const std::string &srcFileName,
+        uint64_t srcFileId,
+        const PageFileSegment &srcSegment,
+        PageFileSegment *segment));
+
     MOCK_METHOD3(GetRemainingSpaceInLogicalPool,
                  void(const std::vector<PoolIdType>&,
                       std::map<PoolIdType, double>*,

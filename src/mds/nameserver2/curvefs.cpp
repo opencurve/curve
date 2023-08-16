@@ -225,7 +225,7 @@ StatusCode CurveFS::LookUpSnapFile(const FileInfo & parentFileInfo,
     if (ret == StoreStatus::OK) {
         return StatusCode::kOK;
     } else if  (ret == StoreStatus::KeyNotExist) {
-        return StatusCode::kFileNotExists;
+        return StatusCode::kSnapshotFileNotExists;
     } else {
         return StatusCode::kStorageError;
     }
@@ -1589,6 +1589,12 @@ StatusCode CurveFS::GetSnapShotFileInfo(const std::string &fileName,
     if (ret != StatusCode::kOK) {
         LOG(ERROR) << "GetFileInfo failed, ret: " << ret;
         return ret;
+    }
+    // check file type
+    if ((fileInfo->filetype() != FileType::INODE_PAGEFILE) &&
+        (fileInfo->filetype() != FileType::INODE_CLONE_PAGEFILE)) {
+        LOG(INFO) << fileName << ", filetype not support SnapShot";
+        return StatusCode::kNotSupported;
     }
 
     ret = LookUpSnapFile(*fileInfo,
