@@ -20,7 +20,7 @@ jobs:
         id: filter
         with:
           filters: |
-            be_changes:
+            file_changed:
               - "**/*.cpp"
               - "**/*.c"
               - "**/*.h"
@@ -29,12 +29,12 @@ jobs:
 
 
       - name: "Format it!"
-        if: ${{ steps.filter.outputs.be_changes == 'true' }}
+        if: ${{ steps.filter.outputs.file_changed == 'true' }}
         uses: DoozyX/clang-format-lint-action@master
-        id: be_clang_format
+        id: check_format
         with:
           source: "./"
-          clangFormatVersion: 13
+          clangFormatVersion: 14
           inplace: False
           style: "file"
 
