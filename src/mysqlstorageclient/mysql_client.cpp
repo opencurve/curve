@@ -3,7 +3,10 @@
 #include <chrono>
 #include <thread>
 #include "src/common/string_util.h"
+#include "src/common/concurrent/concurrent.h"
 #include "src/mysqlstorageclient/mysql_client.h"
+
+using ::curve::common::Thread;
 
 namespace curve {
 namespace mysqlstorage {
@@ -17,6 +20,8 @@ int MysqlClientImp::Init(MysqlConf conf, int timeout, int retryTiems) {
         is_connected_.store(true);
         conn_->setSchema(conf.db_);
         stmt_ = conn_->createStatement();
+        conf_ = conf;//deep copy
+        driver_ = driver;
        
     } catch (sql::SQLException &e) {
         LOG(ERROR) << "MysqlClientImp Init failed, error: " << e.what();
@@ -53,7 +58,7 @@ int MysqlClientImp::CreateTable(const std::string &tableName) {
 }
 
 void MysqlClientImp::CloseClient() {
-   //std::lock_guard<std::mutex> lock(conn_mutex_);
+   std::lock_guard<std::mutex> lock(conn_mutex_);
     //删除leader信息
     if(leaderOid_!=0)
     {
@@ -63,7 +68,10 @@ void MysqlClientImp::CloseClient() {
     is_connected_.store(false);
     if (stmt_ != nullptr) {
         delete stmt_;
+        stmt_=nullptr;
     }
+    conn_->close();
+    conn_=nullptr;
     
     LOG(INFO) << "MysqlClientImp CloseClient success";
 }
@@ -479,17 +487,45 @@ int MysqlClientImp::CampaignLeader(const std::string &pfx,
         delete result;
         LOG(INFO) << " get leader_id success :" << *leaderOid;
 
-        // leader，定时更新update_time mysql自己实现
-        //更新update_time   每隔一半sessionInterSec更新一次
-        sql = "CREATE EVENT IF NOT EXISTS update_leader_election "
-              "ON SCHEDULE EVERY " +
-              std::to_string(sessionInterSec) +
-              " SECOND "
-              "DO UPDATE leader_election SET update_time = NOW() "
-              "WHERE leader_id = " +
-              std::to_string(*leaderOid) + ";";
-        stmt_ = conn_->createStatement();
-        stmt_->executeUpdate(sql);
+        // leader，定时更新update_time 
+        //后台定时任务
+        Thread t([this](){
+            std::shared_ptr<sql::Connection> conn3_;
+            // sql::Driver *driver = sql::mysql::get_driver_instance();
+            conn3_ = std::shared_ptr<sql::Connection>(
+                this->driver_->connect(this->conf_.host_, this->conf_.user_, this->conf_.passwd_));
+            conn3_->setSchema(this->conf_.db_);
+            while(1){
+            this->conn_mutex_.lock();
+            if(this->conn_==nullptr)
+            {
+                LOG(ERROR) << "conn_ is nullptr";
+                conn3_->close();
+                conn3_=nullptr;
+            }
+            this->conn_mutex_.unlock();
+            if (conn3_ == nullptr) {
+                    LOG(ERROR) << "conn3_ is nullptr";
+                    return;
+            }
+            try {
+                std::string sql =
+                    "UPDATE leader_election SET update_time = NOW() "
+                    "WHERE leader_id = " +
+                    std::to_string(leaderOid_) + ";";
+                
+                sql::Statement * stmt_ = conn3_->createStatement();
+                stmt_->executeUpdate(sql);
+                LOG(INFO) << "update leader_election success";
+            } catch (sql::SQLException &e) {
+                LOG(ERROR) << "update leader_election failed, error: "
+                           << e.what();
+                return;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(300));
+            }
+        });
+        t.detach();
 
         LOG(INFO) << "MysqlClientImp CampaignLeader success";
 
@@ -501,6 +537,8 @@ int MysqlClientImp::CampaignLeader(const std::string &pfx,
     return 0;
 }
 
+
+
 int MysqlClientImp::LeaderObserve(uint64_t leaderOid, const std::string &leaderName){
     try {
         // 定时查询leader是否超时
@@ -508,10 +546,6 @@ int MysqlClientImp::LeaderObserve(uint64_t leaderOid, const std::string &leaderN
             // 使用互斥锁保护对 conn_ 的访问
             //std::lock_guard<std::mutex> lock(conn_mutex_);
             // LOG(INFO)<<is_connected_.load();
-            if (!is_connected_.load()) {
-                LOG(INFO) << "LeaderObserve stop !";
-                break;  // 已停止，退出子线程
-            }
             LOG(INFO) << "leaderOid:  " << leaderOid << "  is being observed";
             std::string sql =
                 "SELECT TIMESTAMPDIFF(MICROSECOND, update_time, now()) AS diff "
@@ -537,6 +571,10 @@ int MysqlClientImp::LeaderObserve(uint64_t leaderOid, const std::string &leaderN
                 delete res;
                 return EtcdErrCode::EtcdObserverLeaderInternal;
             }
+        }
+        if(!LeaderKeyExist(leaderOid, 0)) {
+            LOG(ERROR) << "LeaderKeyExist failed";
+            return EtcdErrCode::EtcdObserverLeaderInternal;
         }
     } catch (sql::SQLException &e) {
         LOG(ERROR) << "MysqlClientImp LeaderObserve failed, error: "

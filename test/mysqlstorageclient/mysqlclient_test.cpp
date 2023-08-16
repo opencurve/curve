@@ -28,7 +28,7 @@ class TestMysqlClinetImp : public ::testing::Test {
     TestMysqlClinetImp() {}
     ~TestMysqlClinetImp() {}
     void SetUp() {
-        system("rm -fr testMysqlClinetImp.etcd");
+        // system("rm -fr testMysqlClinetImp.etcd");
 
         MysqlConf conf;
         client_ = std::make_shared<MysqlClientImp>();
@@ -46,7 +46,7 @@ class TestMysqlClinetImp : public ::testing::Test {
     void TearDown() override {
         client_ = nullptr;
 
-        system("rm -fr testMysqlClinetImp.etcd");
+        // system("rm -fr testMysqlClinetImp.etcd");
     }
 
     protected:
@@ -434,7 +434,7 @@ TEST_F(TestMysqlClinetImp, test_CampaignLeader) {
         LOG(INFO) << "thread 2 exit.";
 
         // 使得etcd完全停掉
-        std::this_thread::sleep_for(std::chrono::seconds(2));
+        std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 }
 

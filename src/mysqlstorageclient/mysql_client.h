@@ -96,12 +96,17 @@ public:
 
     virtual bool LeaderKeyExist(uint64_t leaderOid, uint64_t timeoutMs);
 
+
+
     std::shared_ptr<sql::Connection> conn_;
+    sql::Driver *driver_;
     sql::Statement *stmt_;
     uint32_t sessionInterSec_;
-    std::atomic<bool> is_connected_;
+    MysqlConf conf_;
+    
     uint64_t leaderOid_;
     std::mutex conn_mutex_; 
+    std::atomic<bool> is_connected_;
 };
 
 

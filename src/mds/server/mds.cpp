@@ -65,6 +65,8 @@ void MDS::InitMdsOptions(std::shared_ptr<Configuration> conf) {
     conf_->GetValueFatalIfFail(
         "mds.segment.alloc.periodic.persistInterMs",
         &options_.periodicPersistInterMs);
+    //use MySQL or not
+    conf_->GetValueFatalIfFail("mds.mysql.use", &useMySQL_);
 
     // cache size of namestorage
     conf_->GetValueFatalIfFail("mds.cache.count", &options_.mdsCacheCount);
@@ -102,14 +104,24 @@ void MDS::StartCompaginLeader() {
         "mds.etcd.operation.timeoutMs", &etcdTimeout);
     int etcdRetryTimes;
     conf_->GetValueFatalIfFail("mds.etcd.retry.times", &etcdRetryTimes);
+
     EtcdConf etcdConf;
     InitEtcdConf(&etcdConf);
     InitEtcdClient(etcdConf, etcdTimeout, etcdRetryTimes);
 
+    MysqlConf mysqlConf;
+    InitMysqlConf(&mysqlConf);
+    InitMysqlClient(mysqlConf, etcdTimeout, etcdRetryTimes);
+
     // leader election
     LeaderElectionOptions leaderElectionOp;
     InitMdsLeaderElectionOption(&leaderElectionOp);
-    leaderElectionOp.etcdCli = etcdClient_;
+    if (useMySQL_) {
+        leaderElectionOp.etcdCli = mysqlClient_;
+    } else {
+        leaderElectionOp.etcdCli = etcdClient_;
+    }
+    
     leaderElectionOp.campaginPrefix = "";
     InitLeaderElection(leaderElectionOp);
     while (0 != leaderElection_->CampaignLeader()) {
@@ -189,6 +201,8 @@ void MDS::Stop() {
     segmentAllocStatistic_->Stop();
 
     etcdClient_->CloseClient();
+
+    mysqlClient_->CloseClient();
 }
 
 void MDS::InitEtcdConf(EtcdConf* etcdConf) {
@@ -200,6 +214,21 @@ void MDS::InitEtcdConf(EtcdConf* etcdConf) {
     etcdConf->len = endpoint.size();
     conf_->GetValueFatalIfFail(
         "mds.etcd.dailtimeoutMs", &etcdConf->DialTimeout);
+}
+
+void MDS::InitMysqlConf(MysqlConf* mysqlConf) {
+    std::string host;
+    conf_->GetValueFatalIfFail("mds.mysql.host", &host);
+    mysqlConf->host_ = host;
+    std::string user;
+    conf_->GetValueFatalIfFail("mds.mysql.user", &user);
+    mysqlConf->user_ = user;
+    std::string passwd;
+    conf_->GetValueFatalIfFail("mds.mysql.passwd", &passwd);
+    mysqlConf->passwd_ = passwd;
+    std::string dbname;
+    conf_->GetValueFatalIfFail("mds.mysql.dbname", &dbname);
+    mysqlConf->db_ = dbname;
 }
 
 void MDS::StartServer() {
@@ -267,6 +296,24 @@ void MDS::InitEtcdClient(const EtcdConf& etcdConf,
             << ", etcdtimeout: " << etcdConf.DialTimeout
             << ", operation timeout: " << etcdTimeout
             << ", etcd retrytimes: " << retryTimes;
+}
+
+void MDS::InitMysqlClient(const MysqlConf& MysqlConf,
+                          int mysqlTimeout,
+                          int retryTimes) {
+    mysqlClient_ = std::make_shared<MysqlClientImp>();
+    int res = mysqlClient_->Init(MysqlConf, mysqlTimeout, retryTimes);
+    LOG_IF(FATAL, res != 0)
+        << "init mysql client err! "
+        << "mysqlhost: " << MysqlConf.host_
+        << ", mysqluser: " << MysqlConf.user_
+        << ", mysqlpasswd: " << MysqlConf.passwd_
+        << ", mysqldbname: " << MysqlConf.db_;
+    LOG(INFO) << "init mysql client ok! "
+        << "mysqlhost: " << MysqlConf.host_
+        << ", mysqluser: " << MysqlConf.user_
+        << ", mysqlpasswd: " << MysqlConf.passwd_
+        << ", mysqldbname: " << MysqlConf.db_;
 }
 
 void MDS::InitLeaderElection(const LeaderElectionOptions& leaderElectionOp) {
@@ -413,8 +460,14 @@ void MDS::InitNameServerStorage(int mdsCacheCount) {
     LOG(INFO) << "init LRUCache success.";
 
     // init NameServerStorage
-    nameServerStorage_ = std::make_shared<NameServerStorageImp>(etcdClient_,
+    if(useMySQL_){
+        nameServerStorage_ = std::make_shared<NameServerStorageImp>(mysqlClient_,
                                                                 cache);
+    }else{
+        nameServerStorage_ = std::make_shared<NameServerStorageImp>(etcdClient_,
+                                                                cache);
+    }
+    
     LOG(INFO) << "init NameServerStorage success.";
 }
 

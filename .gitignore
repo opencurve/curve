@@ -166,7 +166,7 @@ test/integration/snapshotcloneserver/config/*.conf
 
 *.deb
 *.whl
-etcd*
+etcd-v*
 core
 .bazelrc
 .gitignore

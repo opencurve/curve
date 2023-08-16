@@ -85,6 +85,7 @@ using ::curve::election::LeaderElection;
 using ::curve::common::Configuration;
 using ::curve::common::DLockOpts;
 using ::curve::mysqlstorage::MysqlClientImp;
+using ::curve::mysqlstorage::MysqlConf;
 
 namespace curve {
 namespace mds {
@@ -163,6 +164,8 @@ class MDS {
 
     void InitEtcdConf(EtcdConf* etcdConf);
 
+    void InitMysqlConf(MysqlConf* mysqlConf);
+
     //TODO
 
     void InitMdsLeaderElectionOption(LeaderElectionOptions* electionOp);
@@ -178,6 +181,10 @@ class MDS {
     void InitEtcdClient(const EtcdConf& etcdConf,
                         int etcdTimeout,
                         int retryTimes);
+   
+    void InitMysqlClient(const MysqlConf& mysqlConf,
+                         int mysqlTimeout,
+                         int retryTimes);
 
     void InitLeaderElection(const LeaderElectionOptions& leaderElectionOp);
 
@@ -221,6 +228,8 @@ class MDS {
     bool inited_;
     // running as the main MDS or not
     bool running_;
+    //use MySQL or not
+    bool useMySQL_;
     // mds status, leader or follower
     bvar::Status<std::string> status_;
     MDSOptions options_;
