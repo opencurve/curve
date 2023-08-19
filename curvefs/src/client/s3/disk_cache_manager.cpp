@@ -38,6 +38,7 @@ namespace client {
  * use curl -L mdsIp:port/flags/avgFlushBytes?setvalue=true
  * for dynamic parameter configuration
  */
+static bool pass_uint32(const char *, uint32_t) { return true; }
 static bool pass_uint64(const char *, uint64_t) { return true; }
 DEFINE_uint64(avgFlushBytes, 83886080, "the write throttle bps of disk cache");
 DEFINE_validator(avgFlushBytes, &pass_uint64);
@@ -52,6 +53,17 @@ DEFINE_uint64(avgReadFileBytes, 83886080,
 DEFINE_validator(avgReadFileBytes, &pass_uint64);
 DEFINE_uint64(avgReadFileIops, 0, "the read throttle iops of disk cache");
 DEFINE_validator(avgReadFileIops, &pass_uint64);
+
+DEFINE_uint32(nearfullRatio, 70, "the nearfull ratio of disk cache");
+DEFINE_validator(nearfullRatio, &pass_uint32);
+DEFINE_uint32(fullRatio, 90, "the nearfull ratio of disk cache");
+DEFINE_validator(fullRatio, &pass_uint32);
+DEFINE_uint32(trimCheckIntervalSec, 5, "trim check interval seconds");
+DEFINE_validator(trimCheckIntervalSec, &pass_uint32);
+DEFINE_uint64(maxUsableSpaceBytes, 107374182400, "max space bytes can use");
+DEFINE_validator(maxUsableSpaceBytes, &pass_uint64);
+DEFINE_uint64(maxFileNums, 1000000, "max file nums can owner");
+DEFINE_validator(maxFileNums, &pass_uint64);
 
 DiskCacheManager::DiskCacheManager(std::shared_ptr<PosixWrapper> posixWrapper,
                                    std::shared_ptr<DiskCacheWrite> cacheWrite,
@@ -145,6 +157,14 @@ void DiskCacheManager::InitQosParam() {
     params.bpsRead = ThrottleParams(FLAGS_avgReadFileBytes, 0, 0);
 
     diskCacheThrottle_.UpdateThrottleParams(params);
+}
+
+void DiskCacheManager::InitTrimParam() {
+    trimCheckIntervalSec_ = FLAGS_trimCheckIntervalSec;
+    fullRatio_ = FLAGS_fullRatio;
+    safeRatio_ = FLAGS_nearfullRatio;
+    maxUsableSpaceBytes_ = FLAGS_maxUsableSpaceBytes;
+    maxFileNums_ = FLAGS_maxFileNums;
 }
 
 int DiskCacheManager::UploadAllCacheWriteFile() {
@@ -383,6 +403,7 @@ void DiskCacheManager::TrimCache() {
         }
         VLOG(9) << "trim thread wake up.";
         InitQosParam();
+        InitTrimParam();
         while (!IsDiskCacheSafe()) {
             SetDiskFsUsedRatio();
             if (!cachedObjName_->GetBack(&cacheKey)) {
