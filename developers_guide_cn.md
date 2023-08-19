@@ -70,7 +70,12 @@ Curve CI 使用```cpplint```检查更改的代码,
   ```bash
   $ cpplint --filter=-build/c++11 --quiet --recursive your_path
   ```
-
+- 本地执行clang-format-diff对提交部分代码进行检查:
+  ```
+  $ make format
+  # or
+  $ make format commit_id=$(commit_id) # commit_id为某一个提交的sha，默认commit_id为HEAD^
+  ```
 对于 PR 我们有如下要求：
 
 - Curve编码规范严格按照[Google C++开源项目编码指南](https://zh-google-styleguide.readthedocs.io/en/latest/google-cpp-styleguide/contents/)来进行代码编写，但使用 4 空格进行缩进, 可使用 clang-format 进行格式化, CI 会检查相关更改代码是否符合规则.
