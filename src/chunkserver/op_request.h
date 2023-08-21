@@ -120,6 +120,11 @@ class ChunkOpRequest : public std::enable_shared_from_this<ChunkOpRequest> {
      */
     virtual void RedirectChunkRequest();
 
+/**
+     * 返回request
+     */
+    const ChunkRequest *GetChunkRequest() { return request_; }
+
  public:
     /**
      * Op序列化工具函数

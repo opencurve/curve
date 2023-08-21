@@ -268,6 +268,48 @@ void CopysetNode::Fini() {
     }
 }
 
+//compute hashcode by fileid and chunkindex of request
+uint64_t CopysetNode::GetHashCode(const ChunkRequest* request) {
+    uint64_t hashcode = 0;
+    uint64_t filedid = 0;
+    uint64_t chunkindex = 0;
+    
+    //judge if has originfileId
+    if (request->has_originfileid()) {//for clone file, it has originfileId, all file with same originfileid need to serialize
+        switch (request->optype()) {
+        case CHUNK_OP_DELETE:
+        case CHUNK_OP_WRITE:
+        case CHUNK_OP_DELETE_SNAP:
+        case CHUNK_OP_FLATTEN:
+            filedid = request->originfileid();
+            chunkindex = request->chunkindex();
+            hashcode = filedid ^ (chunkindex << 1);
+            break;
+        
+        default:
+            hashcode = std::hash<uint64_t>{} (request->fileid());
+            break;
+        }
+    } else { //has no originfileId it is the origin file just use the fileid
+        switch (request->optype()) {
+        case CHUNK_OP_DELETE:
+        case CHUNK_OP_WRITE:
+        case CHUNK_OP_DELETE_SNAP:
+        case CHUNK_OP_FLATTEN:
+            filedid = request->fileid();
+            chunkindex = request->chunkindex();
+            hashcode = filedid ^ (chunkindex << 1);
+            break;
+
+        default:
+            hashcode = std::hash<uint64_t>{} (request->fileid());
+            break;
+        }
+    }
+
+    return hashcode;
+}
+
 void CopysetNode::on_apply(::braft::Iterator &iter) {
     for (; iter.valid(); iter.next()) {
         // 放在bthread中异步执行，避免阻塞当前状态机的执行
@@ -289,12 +331,14 @@ void CopysetNode::on_apply(::braft::Iterator &iter) {
             CHECK(nullptr != chunkClosure)
                 << "ChunkClosure dynamic cast failed";
             std::shared_ptr<ChunkOpRequest> opRequest = chunkClosure->request_;
+
+            uint64_t hashcode = GetHashCode(opRequest->GetChunkRequest());
             auto task = std::bind(&ChunkOpRequest::OnApply,
                                   opRequest,
                                   iter.index(),
                                   doneGuard.release());
             concurrentapply_->Push(
-                opRequest->ChunkId(), opRequest->OpType(), task);
+                hashcode, opRequest->OpType(), task);
         } else {
             // 获取log entry
             butil::IOBuf log = iter.data();
@@ -308,12 +352,13 @@ void CopysetNode::on_apply(::braft::Iterator &iter) {
             butil::IOBuf data;
             auto opReq = ChunkOpRequest::Decode(log, &request, &data, shared_from_this());
             auto chunkId = request.chunkid();
+            uint64_t hashcode = GetHashCode(&request);
             auto task = std::bind(&ChunkOpRequest::OnApplyFromLog,
                                   opReq,
                                   dataStore_,
                                   std::move(request),
                                   data);
-            concurrentapply_->Push(chunkId, request.optype(), task);
+            concurrentapply_->Push(hashcode, request.optype(), task);
         }
     }
 }
@@ -375,14 +420,34 @@ void CopysetNode::save_snapshot_background(::braft::SnapshotWriter *writer,
             if (isSnapshot) {
                 continue;
             }
+
             std::string chunkApath;
             // 通过绝对路径，算出相对于快照目录的路径
             chunkApath.append(chunkDataApath_);
             chunkApath.append("/").append(fileName);
             std::string filePath = curve::common::CalcRelativePath(
                                     writer->get_path(), chunkApath);
+            
             writer->add_file(filePath);
         }
+
+        //add the chunkid --> cloneno map into the filepath
+        //using the ._ as the prefix
+
+        std::vector<CloneListInfo> cloneList;
+        dataStore_->GetCloneInfoList(cloneList);
+
+        for (auto& cloneInfo : cloneList) {
+            std::string chunkApath;
+            chunkApath.append(chunkDataApath_);
+            std::string fileName = "._" + std::to_string(cloneInfo.chunkid) + "_" + std::to_string(cloneInfo.cloneNo);
+            chunkApath.append("/").append(fileName);
+            std::string filePath = curve::common::CalcRelativePath(
+                                    writer->get_path(), chunkApath);
+
+            writer->add_file(filePath);
+        }
+
     } else {
         done->status().set_error(errno, "invalid: %s", strerror(errno));
         LOG(ERROR) << "dir reader failed, maybe no exist or permission. "

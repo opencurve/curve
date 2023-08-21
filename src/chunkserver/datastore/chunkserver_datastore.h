@@ -251,6 +251,53 @@ private:
 
 };
 
+struct CloneListInfo {
+    ChunkID chunkid;
+    uint64_t cloneNo;
+};
+
+//used to speed the on_snapshot_save process
+//just record the cloneno and the chunkid list
+class CSCloneFileMap {
+public:
+    CSCloneFileMap() {}
+    virtual ~CSCloneFileMap() {}
+
+    void Insert(ChunkID chunkid, uint64_t cloneNo) {
+        WriteLockGuard writeGuard(rwLock_);
+        cloneFileMap_[chunkid] = cloneNo;
+    }
+
+    void Remove(ChunkID chunkid) {
+        WriteLockGuard writeGuard(rwLock_);
+        if (cloneFileMap_.find(chunkid) != cloneFileMap_.end()) {
+            cloneFileMap_.erase(chunkid);
+        }
+    }
+
+    void Clear() {
+        WriteLockGuard writeGuard(rwLock_);
+        cloneFileMap_.clear();
+    }
+
+    //get std::vector<CloneListInfo> from cloneFileMap_
+    void GetCloneListInfo(std::vector<CloneListInfo>& chunklist) {
+        ReadLockGuard readGuard(rwLock_);
+        chunklist.reserve(cloneFileMap_.size());
+        for (auto it = cloneFileMap_.begin(); it != cloneFileMap_.end(); it++) {
+            CloneListInfo info;
+            info.chunkid = it->first;
+            info.cloneNo = it->second;
+            chunklist.push_back(info);
+        }
+        return;
+    }
+
+private:
+    RWLock rwLock_;
+    std::map<uint64_t, uint64_t> cloneFileMap_; //chunkid --> cloneno
+};
+
 class CSDataStore {
  public:
     // for ut mock
@@ -437,6 +484,12 @@ class CSDataStore {
     virtual CSErrorCode GetChunkInfo(ChunkID id,
                                      CSChunkInfo* chunkInfo);
 
+    CSErrorCode GetCloneInfo(ChunkID id, uint64_t& virtualId, uint64_t& cloneNo);
+
+    void GetCloneInfoList(std::vector<CloneListInfo>& cloneInfoList) {
+        cloneFileMap_.GetCloneListInfo(cloneInfoList);
+    }
+
     /**
      * Get the hash value of Chunk
      * @param id[in]: chunk id
@@ -464,7 +517,7 @@ class CSDataStore {
     virtual ChunkMap GetChunkMap();
 
     static struct CloneInfos getParentClone (std::vector<struct CloneInfos>& clones, uint64_t cloneNo);
-
+    static struct CloneInfos getParentClone (std::vector<struct CloneInfos>& clones, std::vector<struct CloneInfos>::iterator& ptr);
 
     static void searchChunkForObj (SequenceNum sn, 
                             std::vector<File_ObjectInfoPtr>& objInfos, 
@@ -508,6 +561,8 @@ class CSDataStore {
     CSMetaCache metaCache_;
     // the mapping of chunkid, clondNo -->chunkfile
     CSMetaCloneCache cloneCache_;
+    // the mapping of chunkid --> cloneno
+    CSCloneFileMap cloneFileMap_;
     // chunkfile pool, rely on this pool to create and recycle chunk files
     // or snapshot files
     std::shared_ptr<FilePool> chunkFilePool_;
