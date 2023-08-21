@@ -9,3 +9,6 @@
 拆解开来就是两件事:
 - 需要在分配copySet时考虑容量不足节点涉及的CopySet不再分配。
 - 设定什么情况下，节点容量算不足，并收集容量不足的节点信息，配置项命名为 `mds.topology.cs.DiskUsagePercentLimit`。
+
+设计方案如下图:
+![设计思路图](../images/curvebs-capacity-allocate-optimize.png)
