@@ -429,6 +429,8 @@ class CopysetNode : public braft::StateMachine,
 
     void WaitSnapshotDone();
 
+    uint64_t GetHashCode(const ChunkRequest* request);
+
  private:
     inline std::string GroupId() {
         return ToGroupId(logicPoolId_, copysetId_);

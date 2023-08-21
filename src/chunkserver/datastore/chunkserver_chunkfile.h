@@ -310,6 +310,8 @@ class CSChunkFile {
      * @param[out]: the chunk info getted
      */
     void GetInfo(CSChunkInfo* info);
+
+    void GetCloneInfo(uint64_t& virtualId, uint64_t& cloneNo);
     /**
      * Get the hash value of the chunk, this interface is used for test
      * @param[out]: chunk hash value

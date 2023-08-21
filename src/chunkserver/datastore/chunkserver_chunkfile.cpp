@@ -1410,6 +1410,14 @@ void CSChunkFile::GetInfo(CSChunkInfo* info)  {
         info->bitmap = nullptr;
 }
 
+void CSChunkFile::GetCloneInfo(uint64_t& virtualId, uint64_t& cloneNo) {
+    ReadLockGuard readGuard(rwLock_);
+    virtualId = metaPage_.virtualId;
+    cloneNo = metaPage_.cloneNo;
+
+    return;
+}
+
 CSErrorCode CSChunkFile::GetHash(off_t offset,
                                  size_t length,
                                  std::string* hash)  {

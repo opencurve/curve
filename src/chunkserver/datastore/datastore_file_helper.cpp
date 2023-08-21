@@ -68,5 +68,11 @@ bool DatastoreFileHelper::IsChunkFile(const string& fileName) {
     return info.type == FileNameOperator::FileType::CHUNK;
 }
 
+ChunkID DatastoreFileHelper::GetChunkFileID(const string& fileName) {
+    FileNameOperator::FileInfo info =
+        FileNameOperator::ParseFileName(fileName);
+    return info.id;
+}
+
 }  // namespace chunkserver
 }  // namespace curve
