@@ -1,20 +1,15 @@
 package io.opencurve.curve.fs;
 
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.RandomAccessFile;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class CurveMount {
     // init
     private native long nativeCurveFSCreate();
-    private static native int nativeCurveFSMount(long cInstancePtr);
+    private native long nativeCurveFSRelease();
+    private static native void nativeCurveFSConfSet(long cInstancePtr, String key, String value);
+    private static native int nativeCurveFSMount(long cInstancePtr, String fsname);
     private static native int nativeCurveFSUmount(long cInstancePtr);
     // dir*
     private static native int nativeCurveFSMkDirs(long cInstancePtr, String path, int mode);
@@ -65,15 +60,44 @@ public class CurveMount {
     public static final int SETATTR_MTIME = 8;
     public static final int SETATTR_ATIME = 16;
 
-    private long instance_ptr;
+    private long instance_ptr = 0;
+
+    private boolean initialized = false;
 
     static {
+        loadLibrary();
+    }
+
+    static synchronized void loadLibrary() {
         CurveFSNativeLoader.getInstance().loadLibrary();
     }
 
-    public void mount(String fsname, String fstype, Object option) {
+    protected void finalize() throws Throwable {
+        System.out.println("CurveMount.finalize()");
+        /*
+        */
+        if (initialized) {
+            try {
+            //unmount();
+            } catch (Exception e) {}
+            try {
+            //native_ceph_release(instance_ptr);
+            } catch (Exception e) {}
+        }
+        super.finalize();
+    }
+
+    public CurveMount() {
+        System.out.println("CurveMount()");
+
         instance_ptr = nativeCurveFSCreate();
-        nativeCurveFSMount(instance_ptr);
+        initialized = true;
+    }
+
+    public void mount(String fsname, String fstype, Object option) {
+        System.out.println("CurveMount.mount()");
+
+        nativeCurveFSMount(instance_ptr, fsname);
     }
 
     public void unmount() {
@@ -81,6 +105,10 @@ public class CurveMount {
     }
 
     public void shutdown() throws IOException {
+    }
+
+    public void conf_set(String key, String value) {
+        nativeCurveFSConfSet(instance_ptr, key, value);
     }
 
     // directory*
@@ -105,13 +133,14 @@ public class CurveMount {
         return nativeCurveFSLSeek(instance_ptr, fd, offset, whence);
     }
 
-    // FIXME: int -> long
     public int read(int fd, byte[] buf, long size, long offset) throws IOException {
-        return (int) nativieCurveFSRead(instance_ptr, fd, buf, size, offset);
+        long rc = nativieCurveFSRead(instance_ptr, fd, buf, size, offset);
+        return (int) rc; // FIXME: int -> long
     }
 
     public int write(int fd, byte[] buf, long size, long offset) throws IOException {
-        return (int) nativieCurveFSWrite(instance_ptr, fd, buf, size, offset);
+        long rc = nativieCurveFSWrite(instance_ptr, fd, buf, size, offset);
+        return (int) rc; // FIXME: int -> long
     }
 
     public void fsync(int fd) throws IOException {

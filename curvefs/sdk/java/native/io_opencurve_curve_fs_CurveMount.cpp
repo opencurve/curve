@@ -217,55 +217,47 @@ static void handle_error(JNIEnv* env, int rc) {
 JNIEXPORT jlong
 JNICALL Java_io_opencurve_curve_fs_CurveMount_nativeCurveFSCreate
     (JNIEnv* env, jobject) {
+    std::cout << "JNI: curvefs_create" << std::endl;
     setup_field_ids(env);
     uintptr_t instance = curvefs_create();
     return reinterpret_cast<uint64_t>(instance);
 }
 
-// TODO: ------------------- delete it
-static char *rand_string(char *str, size_t size)
-{
-    srand(time(NULL));
-    const char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJK...";
-    if (size) {
-        --size;
-        for (size_t n = 0; n < size; n++) {
-            int key = rand() % (int) (sizeof charset - 1);
-            str[n] = charset[key];
-        }
-        str[size] = '\0';
-    }
-    return str;
-}
+// nativeCurveFSConfSet: curvefs_conf_set
+JNIEXPORT void
+JNICALL Java_io_opencurve_curve_fs_CurveMount_nativeCurveFSConfSet
+    (JNIEnv* env, jclass, jlong j_instance, jstring j_key, jstring j_value) {
+    uintptr_t instance = static_cast<uintptr_t>(j_instance);
+    const char* key = env->GetStringUTFChars(j_key, NULL);
+    const char* value = env->GetStringUTFChars(j_value, NULL);
+    auto defer = absl::MakeCleanup([&]() {
+        env->ReleaseStringUTFChars(j_key, key);
+        env->ReleaseStringUTFChars(j_value, value);
+    });
 
-char* rand_string_alloc(size_t size)
-{
-     char *s = static_cast<char*>(malloc(size + 1));
-     if (s) {
-         rand_string(s, size);
-     }
-     return s;
+    return curvefs_conf_set(instance, key, value);
 }
-
-// TODO: ------------------- delete it
 
 // FIXME:
 // nativeCurveFSMount: curvefs_mount
 JNIEXPORT jint
 JNICALL Java_io_opencurve_curve_fs_CurveMount_nativeCurveFSMount
-    (JNIEnv* env, jclass clz, jlong j_instance) {
-    auto instance = j_instance;
-    curvefs_conf_set(instance, "s3.ak", "xxxx");
-    curvefs_conf_set(instance, "s3.sk", "xxxx");
-    curvefs_conf_set(instance, "s3.endpoint", "10.246.159.29:9000");
-    curvefs_conf_set(instance, "s3.bucket_name", "hadoop-fs");
-    curvefs_conf_set(instance, "mdsOpt.rpcRetryOpt.addrs", "10.246.159.29:6700,10.246.159.31:6700,10.246.159.75:6700");
-    curvefs_conf_set(instance, "fs.accessLogging", "true");
-    curvefs_conf_set(instance, "vfs.entryCache.lruSize", "0");
-    curvefs_conf_set(instance, "vfs.attrCache.lruSize", "0");
-    curvefs_conf_set(instance, "client.loglevel", "6");
-    int rc = curvefs_mount(instance, "test-001", rand_string_alloc(20));
-    return rc;
+    (JNIEnv* env, jclass, jlong j_instance, jstring j_fsname) {
+    uintptr_t instance = static_cast<uintptr_t>(j_instance);
+    const char* fsname = env->GetStringUTFChars(j_fsname, NULL);
+    auto defer = absl::MakeCleanup([&]() {
+        env->ReleaseStringUTFChars(j_fsname, fsname);
+    });
+
+    return curvefs_mount(instance, fsname, "/");
+}
+
+// nativeCurveFSUmount: curvefs_umount
+JNIEXPORT jint
+JNICALL Java_io_opencurve_curve_fs_CurveMount_nativeCurveFSUmount
+  (JNIEnv* env, jclass, jlong j_instance) {
+    uintptr_t instance = static_cast<uintptr_t>(j_instance);
+    return curvefs_umonut(instance);
 }
 
 // nativeCurveFSMkDirs: curvefs_mkdir
@@ -339,14 +331,13 @@ JNICALL Java_io_opencurve_curve_fs_CurveMount_nativieCurveFSRead
     char* buffer = reinterpret_cast<char*>(c_buffer);
     size_t count = static_cast<size_t>(j_size);
     auto defer = absl::MakeCleanup([&]() {
-        env->ReleaseByteArrayElements(j_buffer, c_buffer, JNI_ABORT);
+        env->ReleaseByteArrayElements(j_buffer, c_buffer, 0);
     });
 
     ssize_t n = curvefs_read(instance, fd, buffer, count);
     if (n < 0) {
         handle_error(env, n);
     }
-
     return static_cast<jlong>(n);
 }
 
@@ -357,11 +348,11 @@ JNICALL Java_io_opencurve_curve_fs_CurveMount_nativieCurveFSWrite
      jbyteArray j_buffer, jlong j_size, jlong j_offset) {
     uintptr_t instance = static_cast<uintptr_t>(j_instance);
     int fd = static_cast<int>(j_fd);
-    size_t count = static_cast<size_t>(j_size);
     jbyte* c_buffer = env->GetByteArrayElements(j_buffer, NULL);
     char* buffer = reinterpret_cast<char*>(c_buffer);
+    size_t count = static_cast<size_t>(j_size);
     auto defer = absl::MakeCleanup([&]() {
-        env->ReleaseByteArrayElements(j_buffer, c_buffer, JNI_ABORT);
+        env->ReleaseByteArrayElements(j_buffer, c_buffer, 0);
     });
 
     ssize_t n = curvefs_write(instance, fd, buffer, count);

@@ -49,11 +49,27 @@ JNIEXPORT jlong JNICALL Java_io_opencurve_curve_fs_CurveMount_nativeCurveFSCreat
 
 /*
  * Class:     io_opencurve_curve_fs_CurveMount
+ * Method:    nativeCurveFSRelease
+ * Signature: ()J
+ */
+JNIEXPORT jlong JNICALL Java_io_opencurve_curve_fs_CurveMount_nativeCurveFSRelease
+  (JNIEnv *, jobject);
+
+/*
+ * Class:     io_opencurve_curve_fs_CurveMount
+ * Method:    nativeCurveFSConfSet
+ * Signature: (JLjava/lang/String;Ljava/lang/String;)V
+ */
+JNIEXPORT void JNICALL Java_io_opencurve_curve_fs_CurveMount_nativeCurveFSConfSet
+  (JNIEnv *, jclass, jlong, jstring, jstring);
+
+/*
+ * Class:     io_opencurve_curve_fs_CurveMount
  * Method:    nativeCurveFSMount
- * Signature: (J)I
+ * Signature: (JLjava/lang/String;)I
  */
 JNIEXPORT jint JNICALL Java_io_opencurve_curve_fs_CurveMount_nativeCurveFSMount
-  (JNIEnv *, jclass, jlong);
+  (JNIEnv *, jclass, jlong, jstring);
 
 /*
  * Class:     io_opencurve_curve_fs_CurveMount

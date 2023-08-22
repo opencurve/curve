@@ -126,7 +126,8 @@ bool Helper::InitLog(Configuration* cfg) {
     // FIXME(Wine93): name
     bool yes = InitErrorLog(prefix, "", loglevel);
     if (yes) {
-        yes = InitAccessLog(prefix);
+        // FIXME: let it works
+        //yes = InitAccessLog(prefix);
     }
 
     return yes;

@@ -31,6 +31,7 @@
 #include <iostream>
 #include <unistd.h>
 
+#include "src/common/uuid.h"
 #include "curvefs/src/client/helper.h"
 #include "curvefs/src/client/logger/access_log.h"
 #include "curvefs/src/client/filesystem/utils.h"
@@ -44,6 +45,7 @@ namespace curvefs {
 namespace client {
 namespace vfs {
 
+using ::curve::common::UUIDGenerator;
 using ::curvefs::client::Helper;
 using ::curvefs::client::logger::AccessLogGuard;
 using ::curvefs::client::logger::StrFormat;
@@ -80,9 +82,11 @@ CURVEFS_ERROR VFS::Mount(const std::string& fsname,
         return rc;
     }
 
+    // FIXME: mountpoint
     std::shared_ptr<FuseClient> client;
     auto helper = Helper();
-    auto yes = helper.NewClientForSDK(fsname, mountpoint, &config, &client);
+    auto uuid = UUIDGenerator().GenerateUUID();
+    auto yes = helper.NewClientForSDK(fsname, uuid, &config, &client);
     if (!yes) {
         rc = CURVEFS_ERROR::INTERNAL;
         return rc;
@@ -99,8 +103,10 @@ CURVEFS_ERROR VFS::Umount() {
         return StrFormat("umount: %s", StrErr(rc));
     });
 
-    rc = op_->Umount();
-    return rc;
+    // FIXME: let it works
+    //rc = op_->Umount();
+    //return rc;
+    return CURVEFS_ERROR::OK;
 }
 
 CURVEFS_ERROR VFS::MkDir(const std::string& path, uint16_t mode) {
@@ -108,8 +114,6 @@ CURVEFS_ERROR VFS::MkDir(const std::string& path, uint16_t mode) {
     AccessLogGuard log([&]() {
         return StrFormat("mkdir (%s): %s", path, StrErr(rc));
     });
-
-    LOG(ERROR) << "<<<< path = " << path << ", mode = " << mode;
 
     if (path == "/") {
         rc = CURVEFS_ERROR::EXISTS;
