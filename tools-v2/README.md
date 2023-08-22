@@ -77,6 +77,7 @@ A tool for CurveFS & CurveBs.
     - [create](#create-1)
       - [create file](#create-file)
       - [create dir](#create-dir)
+      - [create volume snapshot](#create-volume-snapshot)
     - [check](#check-1)
       - [check copyset](#check-copyset-1)
     - [snapshot](#snapshot)
@@ -1635,6 +1636,33 @@ Output:
 +---------+
 | success |
 +---------+
+```
+#### create volume snapshot
+
+create volume snapshot
+
+Usage:
+```bash
+curve bs create volume snapshot --path=/test/t
+```
+
+Output:
+```
++---------+
+| RESULT  |
++---------+
+| success |
++---------+
+```
+
+Usage:
+```bash
+curve bs create volume snapshot --path=/test/tt 
+```
+
+Output:
+```
+Error: failed to create snapshot file[/test/tt], err: kFileNotExists
 ```
 
 ### check
