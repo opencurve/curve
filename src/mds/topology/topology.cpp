@@ -1335,9 +1335,9 @@ std::vector<CopySetIdType> TopologyImpl::GetCopySetsInLogicalPool(
     return ret;
 }
 
-void TopologyImpl::FilterCopySetsPeersWithInsufficientCapacityNodes(
+std::vector<CopySetIdType> TopologyImpl::FilterCopySetsPeersWithInsufficientCapacityNodes(
     PoolIdType logicalPoolId,
-    std::vector<CopySetIdType> copySetIds, double csAvailable) const {
+    std::vector<CopySetIdType> copySetIds, double csAvailable) const{
     ReadLockGuard rLockChunkServer(chunkServerMutex_);
     //calculate insufficient nodes
     std::set<ChunkServerIdType> insufficientNodes;
@@ -1349,20 +1349,22 @@ void TopologyImpl::FilterCopySetsPeersWithInsufficientCapacityNodes(
         }
     }
     ReadLockGuard rLockCopySet(copySetMutex_);
+    std::vector<CopySetIdType> availableCopySets;
     for(auto it : copySetIds){
         CopySetKey key(logicalPoolId, it);
         auto targetCopySet=copySetMap_.find(key);
-         if (targetCopySet != copySetMap_.end()) {
+        if (targetCopySet != copySetMap_.end()) {
             std::set<ChunkServerIdType> intersection;
             // calculate peers and insufficientNodes intersection
             std::set<ChunkServerIdType> copySetPeers= targetCopySet.second.GetPeers();
             std::set_intersection(copySetPeers.begin(), copySetPeers.end(), insufficientNodes.begin(), insufficientNodes.end(), std::inserter(intersection, intersection.begin()));
-             if (intersection.size() > 0) {
-                // remove insufficient copySet
-                copySetIds.erase(it);
+             if (intersection.size() == 0) {
+                // add sufficient copySet
+                availableCopySets.insert(it);
              }
          }
     }
+    return availableCopySets;
 }
 
 std::vector<CopySetInfo> TopologyImpl::GetCopySetInfosInLogicalPool(
