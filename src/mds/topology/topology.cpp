@@ -1335,7 +1335,7 @@ std::vector<CopySetIdType> TopologyImpl::GetCopySetsInLogicalPool(
     return ret;
 }
 
-void TopologyImpl::FilterCopySetsPeersInsufficientCapacityNodes(
+void TopologyImpl::FilterCopySetsPeersWithInsufficientCapacityNodes(
     PoolIdType logicalPoolId,
     std::vector<CopySetIdType> copySetIds, double csAvailable) const {
     ReadLockGuard rLockChunkServer(chunkServerMutex_);

@@ -93,7 +93,7 @@ bool TopologyChunkAllocatorImpl::AllocateChunkRoundRobinInSingleLogicalPool(
         topology_->GetCopySetsInLogicalPool(logicalPoolChosenId, filter);
     // exclude copySets with insufficient capacity node.
     double csAvailable=csAvailable_;
-    topology_->FilterCopySetsPeersInsufficientCapacityNodes(logicalPoolChosenId,copySetIds,csAvailable);
+    topology_->FilterCopySetsPeersWithInsufficientCapacityNodes(logicalPoolChosenId,copySetIds,csAvailable);
     if (0 == copySetIds.size()) {
         LOG(ERROR) << "[AllocateChunkRoundRobinInSingleLogicalPool]:"
                    << " Does not have any available copySets,"
