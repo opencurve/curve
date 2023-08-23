@@ -1341,16 +1341,16 @@ std::vector<CopySetIdType> TopologyImpl::FilterCopySetsPeersWithInsufficientCapa
     ReadLockGuard rLockChunkServer(chunkServerMutex_);
     //calculate insufficient nodes
     std::set<ChunkServerIdType> insufficientNodes;
-    for(auto it : chunkServerMap_){
+    for (auto it : chunkServerMap_){
         ChunkServerState st = it.second.GetChunkServerState();
         uint64_t diskCapacity =  csAvailable * st.GetDiskCapacity() / 100;
-        if(diskCapacity <= st.GetDiskUsed){
-           insufficientNodes.insert(it.second.GetId());
+        if (diskCapacity <= st.GetDiskUsed){
+            insufficientNodes.insert(it.second.GetId());
         }
     }
     ReadLockGuard rLockCopySet(copySetMutex_);
     std::vector<CopySetIdType> availableCopySets;
-    for(auto it : copySetIds){
+    for (auto it : copySetIds){
         CopySetKey key(logicalPoolId, it);
         auto targetCopySet=copySetMap_.find(key);
         if (targetCopySet != copySetMap_.end()) {
