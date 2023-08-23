@@ -70,7 +70,7 @@ OperationsImpl::OperationsImpl(std::shared_ptr<FuseClient> client)
 
 // init
 CURVEFS_ERROR OperationsImpl::Umount() {
-    // client_->FuseOpDestroy(nullptr);  // FIXME(Wine93)
+    client_->FuseOpDestroy(nullptr);
     client_->Fini();
     client_->UnInit();
     return CURVEFS_ERROR::OK;

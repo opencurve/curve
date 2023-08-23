@@ -43,7 +43,9 @@ inline bool InitErrorLog(const std::string& prefix,
     FLAGS_log_dir = prefix;  // glog built-in flag
     FLAGS_v = loglevel;  // glog built-in flag
     FLAGS_vlog_level = 6;  // glog built-int flag
-    google::InitGoogleLogging("client");
+    FLAGS_logtostderr = 0;
+    FLAGS_minloglevel = 3;
+    //google::InitGoogleLogging("client");
     return true;
 }
 

@@ -76,7 +76,7 @@ class Helper {
 
     bool InitLog(Configuration* cfg);
 
-    bool NewClient(const MountOption* mount,
+    bool NewClient(const MountOption mount,
                    Configuration* cfg,
                    std::shared_ptr<FuseClient>* client);
 

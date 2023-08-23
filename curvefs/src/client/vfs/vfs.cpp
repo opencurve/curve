@@ -82,10 +82,9 @@ CURVEFS_ERROR VFS::Mount(const std::string& fsname,
         return rc;
     }
 
-    // FIXME: mountpoint
     std::shared_ptr<FuseClient> client;
     auto helper = Helper();
-    auto uuid = UUIDGenerator().GenerateUUID();
+    auto uuid = UUIDGenerator().GenerateUUID();  // FIXME: mountpoint
     auto yes = helper.NewClientForSDK(fsname, uuid, &config, &client);
     if (!yes) {
         rc = CURVEFS_ERROR::INTERNAL;
@@ -103,10 +102,9 @@ CURVEFS_ERROR VFS::Umount() {
         return StrFormat("umount: %s", StrErr(rc));
     });
 
-    // FIXME: let it works
-    //rc = op_->Umount();
-    //return rc;
-    return CURVEFS_ERROR::OK;
+    rc = op_->Umount();
+    google::ShutdownGoogleLogging();
+    return rc;
 }
 
 CURVEFS_ERROR VFS::MkDir(const std::string& path, uint16_t mode) {

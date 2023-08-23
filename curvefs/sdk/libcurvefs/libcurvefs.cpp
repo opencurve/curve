@@ -39,6 +39,12 @@ uintptr_t curvefs_create() {
     return reinterpret_cast<uintptr_t>(mount);
 }
 
+void curvefs_release(uintptr_t instance_ptr) {
+    auto mount = get_instance(instance_ptr);
+    delete mount;
+    mount = nullptr;
+}
+
 void curvefs_conf_set(uintptr_t instance_ptr,
                       const char* key,
                       const char* value) {

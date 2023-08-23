@@ -50,10 +50,10 @@ JNIEXPORT jlong JNICALL Java_io_opencurve_curve_fs_CurveMount_nativeCurveFSCreat
 /*
  * Class:     io_opencurve_curve_fs_CurveMount
  * Method:    nativeCurveFSRelease
- * Signature: ()J
+ * Signature: (J)V
  */
-JNIEXPORT jlong JNICALL Java_io_opencurve_curve_fs_CurveMount_nativeCurveFSRelease
-  (JNIEnv *, jobject);
+JNIEXPORT void JNICALL Java_io_opencurve_curve_fs_CurveMount_nativeCurveFSRelease
+  (JNIEnv *, jobject, jlong);
 
 /*
  * Class:     io_opencurve_curve_fs_CurveMount

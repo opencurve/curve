@@ -329,6 +329,8 @@ class FuseClient {
         return false;
     }
 
+    CURVEFS_ERROR GetMountOption(struct MountOption* mountOption);
+
     CURVEFS_ERROR SetMountStatus(const struct MountOption *mountOption);
 
     void Add(bool isRead, size_t size) { throttle_.Add(isRead, size); }
@@ -449,6 +451,8 @@ class FuseClient {
     std::shared_ptr<FileSystem> fs_;
 
  private:
+    struct MountOption mountOption_;
+
     MDSBaseClient* mdsBase_;
 
     Atomic<bool> isStop_;

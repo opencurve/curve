@@ -151,7 +151,7 @@ std::string Helper::Type2Str(FSType t) {
     return "unknown";
 }
 
-bool Helper::NewClient(const MountOption* mount,
+bool Helper::NewClient(const MountOption mount,
                        Configuration* cfg,
                        std::shared_ptr<FuseClient>* client) {
     // 1) init log
@@ -164,13 +164,13 @@ bool Helper::NewClient(const MountOption* mount,
     FuseClientOption option;
     InitOption(cfg, &option);
     FsInfo info;
-    yes = GetFSInfoFromMDS(option.mdsOpt, mount->fsName, &info);
+    yes = GetFSInfoFromMDS(option.mdsOpt, mount.fsName, &info);
     if (!yes) {
         return false;
     }
 
     // 3) check fstype
-    yes = CheckFSType(info.fstype(), Str2Type(mount->fsType));
+    yes = CheckFSType(info.fstype(), Str2Type(mount.fsType));
     if (!yes) {
         return false;
     }
@@ -187,7 +187,7 @@ bool Helper::NewClient(const MountOption* mount,
     }
 
     // 5) mount to mds
-    yes = Mount(*client, mount);
+    yes = Mount(*client, &mount);
     if (!yes) {
         return false;
     }
@@ -208,7 +208,7 @@ bool Helper::NewClientForFuse(const MountOption* mount,
         return false;
     }
     RewriteMDSAddr(&cfg, mount->mdsAddr);
-    return NewClient(mount, &cfg, client);
+    return NewClient(*mount, &cfg, client);
 }
 
 bool Helper::NewClientForSDK(const std::string& fsname,
@@ -216,10 +216,14 @@ bool Helper::NewClientForSDK(const std::string& fsname,
                              Configuration* cfg,
                              std::shared_ptr<FuseClient>* client) {
     struct MountOption mount;
-    mount.mountPoint = mountpoint.c_str();
-    mount.fsName = fsname.c_str();
-    mount.fsType = Type2Str(FSType::TYPE_S3).c_str();
-    bool yes = NewClient(&mount, cfg, client);
+    mount.mountPoint = new char[500];
+    mount.fsName = new char[100];
+    mount.fsType = new char[100];
+
+    strcpy(mount.mountPoint, mountpoint.c_str());
+    strcpy(mount.fsName, fsname.c_str());
+    strcpy(mount.fsType, Type2Str(FSType::TYPE_S3).c_str());
+    bool yes = NewClient(mount, cfg, client);
     return yes;
 }
 

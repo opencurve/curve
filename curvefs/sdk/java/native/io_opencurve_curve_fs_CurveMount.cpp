@@ -217,10 +217,17 @@ static void handle_error(JNIEnv* env, int rc) {
 JNIEXPORT jlong
 JNICALL Java_io_opencurve_curve_fs_CurveMount_nativeCurveFSCreate
     (JNIEnv* env, jobject) {
-    std::cout << "JNI: curvefs_create" << std::endl;
     setup_field_ids(env);
     uintptr_t instance = curvefs_create();
     return reinterpret_cast<uint64_t>(instance);
+}
+
+// nativeCurveFSRelease: curvefs_release
+JNIEXPORT void
+JNICALL Java_io_opencurve_curve_fs_CurveMount_nativeCurveFSRelease
+    (JNIEnv* env, jobject, jlong j_instance) {
+    uintptr_t instance = static_cast<uintptr_t>(j_instance);
+    return curvefs_release(instance);
 }
 
 // nativeCurveFSConfSet: curvefs_conf_set
@@ -255,7 +262,7 @@ JNICALL Java_io_opencurve_curve_fs_CurveMount_nativeCurveFSMount
 // nativeCurveFSUmount: curvefs_umount
 JNIEXPORT jint
 JNICALL Java_io_opencurve_curve_fs_CurveMount_nativeCurveFSUmount
-  (JNIEnv* env, jclass, jlong j_instance) {
+    (JNIEnv* env, jclass, jlong j_instance) {
     uintptr_t instance = static_cast<uintptr_t>(j_instance);
     return curvefs_umonut(instance);
 }

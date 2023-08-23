@@ -63,6 +63,8 @@ extern "C" {
 
 uintptr_t curvefs_create();
 
+void curvefs_release(uintptr_t instance_ptr);
+
 // NOTE: instance_ptr is the pointer of curvefs_mount_t instance.
 void curvefs_conf_set(uintptr_t instance_ptr,
                       const char* key,

@@ -260,9 +260,10 @@ void FuseClient::FuseOpDestroy(void *userdata) {
 
     // stop lease before umount fs, otherwise, lease request after umount fs
     // will add a mountpoint entry.
-    leaseExecutor_.reset();
+    //leaseExecutor_.reset();
 
-    struct MountOption *mOpts = (struct MountOption *)userdata;
+    //struct MountOption *mOpts = (struct MountOption *)userdata;
+    struct MountOption *mOpts = &mountOption_;
     std::string fsName = (mOpts->fsName == nullptr) ? "" : mOpts->fsName;
 
     Mountpoint mountPoint;
@@ -1385,6 +1386,11 @@ void FuseClient::FlushAll() {
     FlushData();
 }
 
+CURVEFS_ERROR FuseClient::GetMountOption(struct MountOption* mountOption) {
+    *mountOption = mountOption_;
+    return CURVEFS_ERROR::OK;
+}
+
 CURVEFS_ERROR
 FuseClient::SetMountStatus(const struct MountOption *mountOption) {
     mountpoint_.set_path(
@@ -1434,6 +1440,7 @@ FuseClient::SetMountStatus(const struct MountOption *mountOption) {
     //if (warmupManager_ != nullptr) {
     //    warmupManager_->SetMounted(true);
     //}
+    mountOption_ = *mountOption;
     return CURVEFS_ERROR::OK;
 }
 
