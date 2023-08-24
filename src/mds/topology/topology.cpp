@@ -24,7 +24,7 @@
 #include <glog/logging.h>
 
 #include <utility>
-
+#include <set>
 #include "src/common/namespace_define.h"
 #include "src/common/timeutility.h"
 #include "src/common/uuid.h"
@@ -1335,29 +1335,33 @@ std::vector<CopySetIdType> TopologyImpl::GetCopySetsInLogicalPool(
     return ret;
 }
 
-std::vector<CopySetIdType> TopologyImpl::FilterCopySetsPeersWithInsufficientCapacityNodes(
+std::vector<CopySetIdType> TopologyImpl::FilterCopySets(
     PoolIdType logicalPoolId,
-    std::vector<CopySetIdType> copySetIds, double csAvailable) const{
+    std::vector<CopySetIdType> copySetIds, double csAvailable) const {
     ReadLockGuard rLockChunkServer(chunkServerMutex_);
-    //calculate insufficient nodes
+    // calculate insufficient nodes
     std::set<ChunkServerIdType> insufficientNodes;
-    for (auto it : chunkServerMap_){
+    for (auto it : chunkServerMap_) {
         ChunkServerState st = it.second.GetChunkServerState();
         uint64_t diskCapacity =  csAvailable * st.GetDiskCapacity() / 100;
-        if (diskCapacity <= st.GetDiskUsed){
+        if (diskCapacity <= st.GetDiskUsed) {
             insufficientNodes.insert(it.second.GetId());
         }
     }
     ReadLockGuard rLockCopySet(copySetMutex_);
     std::vector<CopySetIdType> availableCopySets;
-    for (auto it : copySetIds){
+    for (auto it : copySetIds) {
         CopySetKey key(logicalPoolId, it);
-        auto targetCopySet=copySetMap_.find(key);
+        auto copyset = copySetMap_.find(key);
         if (targetCopySet != copySetMap_.end()) {
             std::set<ChunkServerIdType> intersection;
             // calculate peers and insufficientNodes intersection
-            std::set<ChunkServerIdType> copySetPeers= targetCopySet.second.GetPeers();
-            std::set_intersection(copySetPeers.begin(), copySetPeers.end(), insufficientNodes.begin(), insufficientNodes.end(), std::inserter(intersection, intersection.begin()));
+            std::set<ChunkServerIdType> peers;
+            peers = copyset.second.GetCopySetMembers();
+            std::set_intersection(peers.begin(), peers.end(),
+             insufficientNodes.begin(),
+             insufficientNodes.end(),
+             std::inserter(intersection, intersection.begin()));
              if (intersection.size() == 0) {
                 // add sufficient copySet
                 availableCopySets.insert(it);

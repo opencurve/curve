@@ -325,6 +325,9 @@ void MDS::InitTopologyOption(TopologyOption *topologyOption) {
     conf_->GetValueFatalIfFail(
         "mds.topology.enableLogicalPoolStatus",
         &topologyOption->enableLogicalPoolStatus);
+    conf_->GetValueFatalIfFail(
+        "mds.topology.cs.DiskUsagePercentLimit",
+        &topologyOption->ChunkServerUsagePercentLimit);        
 }
 
 void MDS::InitTopology(const TopologyOption& option) {
