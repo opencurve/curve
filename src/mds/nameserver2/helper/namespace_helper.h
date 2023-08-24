@@ -77,15 +77,16 @@ inline bool isPathValid(const std::string path) {
     return true;
 }
 
-const std::string kSnapshotPathSeprator = "/";
-const std::string kSnapshotSeqSeprator = "-";
+const std::string kfilePathSeprator = "/";
+const std::string kSnapPathSeprator = "@";
 
-inline std::string MakeSnapshotName(const std::string &fileName, FileSeqType seq) {
-    return fileName + kSnapshotSeqSeprator + std::to_string(seq);
+inline std::string MakeSnapshotPath(const std::string &filePath, 
+    const std::string &snapName) {
+    return filePath + kSnapPathSeprator + snapName;
 }
 
 bool SplitSnapshotPath(const std::string &snapFilePath,
-    std::string *filePath, FileSeqType *seq);
+    std::string *filePath, std::string *snapName);
 
 }   // namespace mds
 }   // namespace curve

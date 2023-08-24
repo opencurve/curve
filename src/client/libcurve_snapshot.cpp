@@ -160,27 +160,24 @@ int SnapshotClient::CheckSnapShotStatus(const std::string& filename,
     return -ret;
 }
 
-int SnapshotClient::ProtectSnapShot(const std::string &filename,
-                  const UserInfo_t &userinfo,
-                  uint64_t seq) {
-    LIBCURVE_ERROR ret = mdsclient_.ProtectSnapShot(filename, userinfo, seq);
+int SnapshotClient::ProtectSnapShot(const std::string &snapFileName,
+                  const UserInfo_t &userinfo) {
+    LIBCURVE_ERROR ret = mdsclient_.ProtectSnapShot(snapFileName, userinfo);
     return -ret;
 }
 
-int SnapshotClient::UnprotectSnapShot(const std::string &filename,
-                    const UserInfo_t &userinfo,
-                    uint64_t seq) {
-    LIBCURVE_ERROR ret = mdsclient_.UnprotectSnapShot(filename, userinfo, seq);
+int SnapshotClient::UnprotectSnapShot(const std::string &snapFileName,
+                    const UserInfo_t &userinfo) {
+    LIBCURVE_ERROR ret = mdsclient_.UnprotectSnapShot(snapFileName, userinfo);
     return -ret;
 }
 
 int SnapshotClient::Clone(const std::string& source,
         const std::string& destination,
         const UserInfo_t& userinfo,
-        uint64_t seq,
         FInfo* finfo) {
     LIBCURVE_ERROR ret = mdsclient_.Clone(
-        source, destination, userinfo, seq, finfo);
+        source, destination, userinfo, finfo);
     return -ret;
 }
 

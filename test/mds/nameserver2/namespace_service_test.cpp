@@ -1145,7 +1145,7 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     cntl.Reset();
     CreateSnapShotRequest snapshotRequest;
     CreateSnapShotResponse snapshotResponses;
-    snapshotRequest.set_filename("/file1");
+    snapshotRequest.set_snapfilename("/file1@snap1");
     snapshotRequest.set_owner("owner1");
     snapshotRequest.set_date(TimeUtility::GetTimeofDayUs());
     stub.CreateSnapShot(&cntl, &snapshotRequest, &snapshotResponses, NULL);
@@ -1155,7 +1155,7 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
         ASSERT_EQ(snapshotResponses.statuscode(), StatusCode::kOK);
         ASSERT_EQ(snapshotFileInfo.id(), 2);
         ASSERT_EQ(snapshotFileInfo.parentid(), 1);
-        ASSERT_EQ(snapshotFileInfo.filename(), "file1-1");
+        ASSERT_EQ(snapshotFileInfo.filename(), "snap1");
         ASSERT_EQ(snapshotFileInfo.filetype(), INODE_SNAPSHOT_PAGEFILE);
         ASSERT_EQ(snapshotFileInfo.filestatus(), FileStatus::kFileCreated);
         ASSERT_EQ(snapshotFileInfo.seqnum(), 1);
@@ -1164,7 +1164,7 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     }
 
     cntl.Reset();
-    snapshotRequest.set_filename("/file1/");
+    snapshotRequest.set_snapfilename("/file1/@snap1");
     snapshotRequest.set_owner("owner1");
     snapshotRequest.set_date(TimeUtility::GetTimeofDayUs());
     stub.CreateSnapShot(&cntl, &snapshotRequest, &snapshotResponses, NULL);
@@ -1261,10 +1261,9 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     cntl.Reset();
     DeleteSnapShotRequest deleteRequest;
     DeleteSnapShotResponse deleteResponse;
-    deleteRequest.set_filename("/file1");
+    deleteRequest.set_snapfilename("/file1@snap1");
     deleteRequest.set_owner("owner1");
     deleteRequest.set_date(TimeUtility::GetTimeofDayUs());
-    deleteRequest.set_seq(1);
     stub.DeleteSnapShot(&cntl, &deleteRequest, &deleteResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(deleteResponse.statuscode(), StatusCode::kOK);
@@ -1274,10 +1273,9 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     }
 
     cntl.Reset();
-    deleteRequest.set_filename("/file1/");
+    deleteRequest.set_snapfilename("/file1/@snap1");
     deleteRequest.set_owner("owner1");
     deleteRequest.set_date(TimeUtility::GetTimeofDayUs());
-    deleteRequest.set_seq(1);
     stub.DeleteSnapShot(&cntl, &deleteRequest, &deleteResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(deleteResponse.statuscode(), StatusCode::kParaError);
@@ -1486,7 +1484,7 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
     cntl.Reset();
     CreateSnapShotRequest snapshotRequest;
     CreateSnapShotResponse snapshotResponses;
-    snapshotRequest.set_filename("/file1");
+    snapshotRequest.set_snapfilename("/file1@snap1");
     snapshotRequest.set_owner("owner");
     snapshotRequest.set_date(TimeUtility::GetTimeofDayUs());
     stub.CreateSnapShot(&cntl, &snapshotRequest, &snapshotResponses, NULL);
@@ -1496,7 +1494,7 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
         ASSERT_EQ(snapshotResponses.statuscode(), StatusCode::kOK);
         ASSERT_EQ(snapshotFileInfo.id(), 4);
         ASSERT_EQ(snapshotFileInfo.parentid(), 1);
-        ASSERT_EQ(snapshotFileInfo.filename(), "file1-1");
+        ASSERT_EQ(snapshotFileInfo.filename(), "snap1");
         ASSERT_EQ(snapshotFileInfo.filetype(), INODE_SNAPSHOT_PAGEFILE);
         ASSERT_EQ(snapshotFileInfo.filestatus(), FileStatus::kFileCreated);
         ASSERT_EQ(snapshotFileInfo.seqnum(), 1);
@@ -1522,10 +1520,9 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
     cntl.Reset();
     DeleteSnapShotRequest deleteRequest;
     DeleteSnapShotResponse deleteResponse;
-    deleteRequest.set_filename("/file1");
+    deleteRequest.set_snapfilename("/file1@snap1");
     deleteRequest.set_owner("owner");
     deleteRequest.set_date(TimeUtility::GetTimeofDayUs());
-    deleteRequest.set_seq(1);
     stub.DeleteSnapShot(&cntl, &deleteRequest, &deleteResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(deleteResponse.statuscode(), StatusCode::kOK);

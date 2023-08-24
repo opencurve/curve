@@ -298,7 +298,7 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
 
         if (request->has_signature()) {
             CheckAuth(request->signature(),
-                      request->filename(),
+                      request->snapfilename(),
                       request->owner(),
                       request->date());
         }
@@ -346,7 +346,7 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
 
         if (request->has_signature()) {
             CheckAuth(request->signature(),
-                      request->filename(),
+                      request->snapfilename(),
                       request->owner(),
                       request->date());
         }

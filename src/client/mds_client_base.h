@@ -293,14 +293,12 @@ class MDSClientBase {
 
     void ProtectSnapShot(const std::string& filename,
                          const UserInfo_t& userinfo,
-                         uint64_t seq,
                          ProtectSnapShotResponse* response,
                          brpc::Controller* cntl,
                          brpc::Channel* channel);
 
     void UnprotectSnapShot(const std::string& filename,
                            const UserInfo_t& userinfo,
-                           uint64_t seq,
                            UnprotectSnapShotResponse* response,
                            brpc::Controller* cntl,
                            brpc::Channel* channel);
@@ -308,7 +306,6 @@ class MDSClientBase {
     void Clone(const std::string& source,
          const std::string& destination,
          const UserInfo_t& userinfo,
-         uint64_t seq,
          CloneResponse* response,
          brpc::Controller* cntl,
          brpc::Channel* channel);

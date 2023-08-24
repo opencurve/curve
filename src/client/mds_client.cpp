@@ -921,19 +921,17 @@ LIBCURVE_ERROR MDSClient::ListPoolset(std::vector<std::string>* out) {
     return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS);
 }
 
-LIBCURVE_ERROR MDSClient::ProtectSnapShot(const std::string& filename,
-                               const UserInfo_t& userinfo,
-                               uint64_t seq) {
+LIBCURVE_ERROR MDSClient::ProtectSnapShot(const std::string& snapFileName,
+                               const UserInfo_t& userinfo) {
     auto task = RPCTaskDefine {
         ProtectSnapShotResponse response;
-        MDSClientBase::ProtectSnapShot(filename, userinfo, seq,
+        MDSClientBase::ProtectSnapShot(snapFileName, userinfo,
                                        &response, cntl, channel);
         if (cntl->Failed()) {
             LOG(WARNING) << "ProtectSnapShot failed, errcorde = "
                          << cntl->ErrorCode()
                          << ", error content:" << cntl->ErrorText()
-                         << ", filename = " << filename
-                         << ", seq = " << seq;
+                         << ", snapFileName = " << snapFileName;
             return -cntl->ErrorCode();
         }
 
@@ -941,9 +939,8 @@ LIBCURVE_ERROR MDSClient::ProtectSnapShot(const std::string& filename,
         StatusCode stcode = response.statuscode();
         MDSStatusCode2LibcurveError(stcode, &retcode);
         LOG_IF(WARNING, retcode != LIBCURVE_ERROR::OK)
-                << "ProtectSnapShot: filename = " << filename
+                << "ProtectSnapShot: snapFileName = " << snapFileName
                 << ", owner = " << userinfo.owner
-                << ", seq = " << seq
                 << ", errocde = " << retcode
                 << ", error msg = " << StatusCode_Name(stcode)
                 << ", log id = " << cntl->log_id();
@@ -953,19 +950,17 @@ LIBCURVE_ERROR MDSClient::ProtectSnapShot(const std::string& filename,
     return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS);
 }
 
-LIBCURVE_ERROR MDSClient::UnprotectSnapShot(const std::string& filename,
-                                 const UserInfo_t& userinfo,
-                                 uint64_t seq) {
+LIBCURVE_ERROR MDSClient::UnprotectSnapShot(const std::string& snapFileName,
+                                 const UserInfo_t& userinfo) {
     auto task = RPCTaskDefine {
         UnprotectSnapShotResponse response;
-        MDSClientBase::UnprotectSnapShot(filename, userinfo, seq,
+        MDSClientBase::UnprotectSnapShot(snapFileName, userinfo,
                                          &response, cntl, channel);
         if (cntl->Failed()) {
             LOG(WARNING) << "UnprotectSnapShot failed, errcorde = "
                          << cntl->ErrorCode()
                          << ", error content:" << cntl->ErrorText()
-                         << ", filename = " << filename
-                         << ", seq = " << seq;
+                         << ", snapFileName = " << snapFileName;
             return -cntl->ErrorCode();
         }
 
@@ -973,9 +968,8 @@ LIBCURVE_ERROR MDSClient::UnprotectSnapShot(const std::string& filename,
         StatusCode stcode = response.statuscode();
         MDSStatusCode2LibcurveError(stcode, &retcode);
         LOG_IF(WARNING, retcode != LIBCURVE_ERROR::OK)
-                << "UnprotectSnapShot: filename = " << filename
+                << "UnprotectSnapShot: snapFileName = " << snapFileName
                 << ", owner = " << userinfo.owner
-                << ", seq = " << seq
                 << ", errocde = " << retcode
                 << ", error msg = " << StatusCode_Name(stcode)
                 << ", log id = " << cntl->log_id();
@@ -987,11 +981,10 @@ LIBCURVE_ERROR MDSClient::UnprotectSnapShot(const std::string& filename,
 LIBCURVE_ERROR MDSClient::Clone(const std::string& source,
         const std::string& destination,
         const UserInfo_t& userinfo,
-        uint64_t seq,
         FInfo* fileinfo) {
     auto task = RPCTaskDefine {
         CloneResponse response;
-        MDSClientBase::Clone(source, destination, userinfo, seq,
+        MDSClientBase::Clone(source, destination, userinfo,
                              &response, cntl, channel);
         if (cntl->Failed()) {
             LOG(WARNING) << "Clone failed, errcorde = "
@@ -1008,7 +1001,7 @@ LIBCURVE_ERROR MDSClient::Clone(const std::string& source,
         LOG_IF(WARNING, retcode != LIBCURVE_ERROR::OK)
             << "Clone failed: source = " << source
             << ", destination = " << destination
-            << ", owner = " << userinfo.owner << ", seqnum = " << seq
+            << ", owner = " << userinfo.owner
             << ", errocde = " << retcode
             << ", error msg = " << StatusCode_Name(stcode)
             << ", log id = " << cntl->log_id();

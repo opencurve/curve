@@ -315,6 +315,7 @@ class CurveFS {
 
     // The version for creating local multi-level snapshot
     StatusCode CreateSnapShotFile2(const std::string &fileName,
+                            const std::string &snapName,
                             FileInfo *snapshotFileInfo);
 
     /**
@@ -340,7 +341,7 @@ class CurveFS {
 
     // async interface
     /**
-     *  @brief Delete the snapshot file of the file specified by seq. 
+     *  @brief Delete the snapshot file of the file specified by seq.
      *         This is the version for the deletion of local multi-level snapshot(not S3)
      *  @param filename
      *  @param seq: Seq of snapshot
@@ -348,7 +349,7 @@ class CurveFS {
      *  @return StatusCode::kOK if succeeded
      */
     StatusCode DeleteFileSnapShotFile2(const std::string &fileName,
-                            FileSeqType seq,
+                            const std::string &snapName,
                             std::shared_ptr<AsyncDeleteSnapShotEntity> entity);
 
     /**
@@ -386,7 +387,14 @@ class CurveFS {
      *  @return StatusCode::kOK if succeeded
      */
     StatusCode GetSnapShotFileInfo(const std::string &fileName,
-                            FileSeqType seq, FileInfo *snapshotFileInfo, FileInfo *fileInfo = nullptr) const;
+                        FileSeqType seq,
+                        FileInfo *snapshotFileInfo,
+                        FileInfo *fileInfo = nullptr) const;
+
+    StatusCode GetSnapShotFileInfo(const std::string &fileName,
+                            const std::string &snapName,
+                            FileInfo *snapshotFileInfo,
+                            FileInfo *fileInfo = nullptr) const;
 
     /**
      *  @brief get the segments info of the snapshot
@@ -403,19 +411,18 @@ class CurveFS {
             PageFileSegment *segment);
 
     StatusCode ProtectSnapShot(const std::string &fileName,
-                               FileSeqType seq, 
+                               const std::string &snapName,
                                const std::string &owner);
 
     StatusCode UnprotectSnapShot(const std::string &fileName,
-                                 FileSeqType seq, 
+                                 const std::string &snapName,
                                  const std::string &owner);
 
     StatusCode Clone(const std::string &fileName,
             const std::string& owner,
             const std::string &srcFileName,
-            FileSeqType seq,
+            const std::string &snapName,
             FileInfo *fileInfo);
-
 
     // flatten
     StatusCode Flatten(const std::string &fileName,
@@ -429,7 +436,7 @@ class CurveFS {
 
     // Children
     StatusCode Children(const std::string &fileName,
-            FileSeqType seq,
+            const std::string &snapName,
             ::google::protobuf::RepeatedPtrField<std::string> *children);
 
     // session ops

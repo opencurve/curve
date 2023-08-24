@@ -184,6 +184,8 @@ enum  StatusCode {
     kSnapshotFileProtected=145;
     // file is flattening
     kFileIsFlattening = 146;
+    // snapshot exist
+    kSnapshotExist = 147;
 
     // 元数据存储错误
     kStorageError = 501;
@@ -343,7 +345,7 @@ message ListDirResponse {
 
 // create snapshot
 message CreateSnapShotRequest {
-    required string     fileName = 1;
+    required string     snapFileName = 1;
 
     required string     owner = 2;
     optional string     signature = 3;
@@ -372,9 +374,7 @@ message ListSnapShotFileInfoResponse {
 
 // delete snapshot
 message DeleteSnapShotRequest {
-    optional string     fileName = 1;
-    optional uint64     seq = 3;
-    optional string     snapFileName = 6;
+    required string     snapFileName = 1;
 
     required string     owner = 2;
     optional string     signature = 4;
@@ -407,12 +407,10 @@ message CheckSnapShotStatusResponse {
 // protect & unprotect
 message ProtectSnapShotRequest {
     optional string     snapFileName = 1;
-    optional string     fileName = 2;
-    optional uint64     seq = 3;
 
-    required string     owner = 4;
-    optional string     signature = 5;
-    required uint64     date = 6;
+    required string     owner = 2;
+    optional string     signature = 3;
+    required uint64     date = 4;
 }
 
 message ProtectSnapShotResponse {
@@ -421,12 +419,10 @@ message ProtectSnapShotResponse {
 
 message UnprotectSnapShotRequest {
     optional string     snapFileName = 1;
-    optional string     fileName = 2;
-    optional uint64     seq = 3;
 
-    required string     owner = 4;
-    optional string     signature = 5;
-    required uint64     date = 6;
+    required string     owner = 2;
+    optional string     signature = 3;
+    required uint64     date = 4;
 }
 
 message UnprotectSnapShotResponse {
@@ -436,14 +432,11 @@ message UnprotectSnapShotResponse {
 // clone rpcs
 message CloneRequest {
     required string     fileName = 1;
-    required string     owner = 2;
-    optional string     signature = 5;
-    required uint64     date = 6;
+    required string     snapFileName = 2;
 
-    // use snapFileName or srcFileName + seq
-    optional string    snapFileName = 7;
-    optional string    srcFileName = 8;
-    optional uint64    seq = 9;
+    required string     owner = 3;
+    optional string     signature = 4;
+    required uint64     date = 5;
 }
 
 message CloneResponse {
@@ -480,11 +473,10 @@ message QueryFlattenStatusResponse {
 // children message
 message ChildrenRequest {
     optional string     fileName = 1;
-    optional uint64     seq = 2;
-    optional string     snapFileName = 3;
-    required string     owner = 4;
-    optional string     signature = 5;
-    required uint64     date = 6;
+    optional string     snapFileName = 2;
+    required string     owner = 3;
+    optional string     signature = 4;
+    required uint64     date = 5;
 }
 
 message ChildrenResponse {
