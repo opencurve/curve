@@ -142,6 +142,7 @@ int DiskCacheBase::LoadAllCacheFile(std::set<std::string> *cachedObj) {
                     continue;
                 } else if (ent->d_type == 8) {
                     fileName = std::string(ent->d_name);
+
                     VLOG(9) << "LoadAllCacheFile obj, name = " << fileName;
                     cacheObj->emplace(fileName);
                 } else {
