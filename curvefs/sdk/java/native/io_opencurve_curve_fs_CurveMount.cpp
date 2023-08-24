@@ -267,7 +267,7 @@ JNICALL Java_io_opencurve_curve_fs_CurveMount_nativeCurveFSUmount
     return curvefs_umonut(instance);
 }
 
-// nativeCurveFSMkDirs: curvefs_mkdir
+// nativeCurveFSMkDirs: curvefs_mkdirs
 JNIEXPORT jint
 JNICALL Java_io_opencurve_curve_fs_CurveMount_nativeCurveFSMkDirs
   (JNIEnv* env, jclass, jlong j_instance, jstring j_path, jint j_mode) {
