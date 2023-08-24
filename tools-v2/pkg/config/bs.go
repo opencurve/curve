@@ -43,7 +43,7 @@ const (
 	VIPER_CURVEBS_ETCDADDR            = "curvebs.etcdAddr"
 	CURVEBS_PATH                      = "path"
 	CURVEBS_SRCPATH                   = "srcpath"
-  CURVEBS_SNAPPATH                  = "snappath"
+    CURVEBS_SNAPPATH                  = "snappath"
 	CURVEBS_DSTPATH                   = "dstpath"
 	VIPER_CURVEBS_PATH                = "curvebs.path"
 	VIPER_CURVEBS_SRCPATH             = "curvebs.srcpath"
@@ -516,7 +516,11 @@ func AddBsSrcPathOptionFlag(cmd *cobra.Command) {
 	AddBsStringOptionFlag(cmd, CURVEBS_SRCPATH, "source file path")
 }
 
-func AddBsSrcSnapshotPathOptionFlag(cmd *cobra.Command) {
+func AddBsSnapshotPathRequiredFlag(cmd *cobra.Command) {
+    AddBsStringRequiredFlag(cmd, CURVEBS_SNAPPATH, "snap file path, like: {file-path}@{snap-name}")
+}
+
+func AddBsSnapshotPathOptionFlag(cmd *cobra.Command) {
 	AddBsStringOptionFlag(cmd, CURVEBS_SNAPPATH, "snapshot file path")
 }
 

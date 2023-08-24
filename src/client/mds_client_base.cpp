@@ -159,7 +159,7 @@ void MDSClientBase::CreateSnapShot(const std::string& filename,
                                    brpc::Controller* cntl,
                                    brpc::Channel* channel) {
     CreateSnapShotRequest request;
-    request.set_filename(filename);
+    request.set_snapfilename(filename);
     FillUserInfo(&request, userinfo);
 
     LOG(INFO) << "CreateSnapShot: filename = " << filename
@@ -177,8 +177,7 @@ void MDSClientBase::DeleteSnapShot(const std::string& filename,
                                    brpc::Controller* cntl,
                                    brpc::Channel* channel) {
     DeleteSnapShotRequest request;;
-    request.set_seq(seq);
-    request.set_filename(filename);
+    request.set_snapfilename(filename);
     FillUserInfo(&request, userinfo);
 
     LOG(INFO) << "DeleteSnapShot: filename = " << filename
@@ -323,40 +322,34 @@ void MDSClientBase::ListPoolset(ListPoolsetResponse* response,
     stub.ListPoolset(cntl, &request, response, nullptr);
 }
 
-void MDSClientBase::ProtectSnapShot(const std::string& filename,
+void MDSClientBase::ProtectSnapShot(const std::string& snapFileName,
                      const UserInfo_t& userinfo,
-                     uint64_t seq,
                      ProtectSnapShotResponse* response,
                      brpc::Controller* cntl,
                      brpc::Channel* channel) {
     ProtectSnapShotRequest request;
-    request.set_filename(filename);
-    request.set_seq(seq);
+    request.set_snapfilename(snapFileName);
     FillUserInfo(&request, userinfo);
 
-    LOG(INFO) << "ProtectSnapShot: filename = " << filename
+    LOG(INFO) << "ProtectSnapShot: snapFileName = " << snapFileName
                 << ", owner = " << userinfo.owner
-                << ", seqnum = " << seq
                 << ", log id = " << cntl->log_id();
 
     curve::mds::CurveFSService_Stub stub(channel);
     stub.ProtectSnapShot(cntl, &request, response, nullptr);
 }
 
-void MDSClientBase::UnprotectSnapShot(const std::string& filename,
+void MDSClientBase::UnprotectSnapShot(const std::string& snapFileName,
                        const UserInfo_t& userinfo,
-                       uint64_t seq,
                        UnprotectSnapShotResponse* response,
                        brpc::Controller* cntl,
                        brpc::Channel* channel) {
     UnprotectSnapShotRequest request;
-    request.set_filename(filename);
-    request.set_seq(seq);
+    request.set_snapfilename(snapFileName);
     FillUserInfo(&request, userinfo);
 
-    LOG(INFO) << "UnprotectSnapShot: filename = " << filename
+    LOG(INFO) << "UnprotectSnapShot: snapFileName = " << snapFileName
                 << ", owner = " << userinfo.owner
-                << ", seqnum = " << seq
                 << ", log id = " << cntl->log_id();
 
     curve::mds::CurveFSService_Stub stub(channel);
@@ -366,7 +359,6 @@ void MDSClientBase::UnprotectSnapShot(const std::string& filename,
 void MDSClientBase::Clone(const std::string& source,
     const std::string& destination,
     const UserInfo_t& userinfo,
-    uint64_t seq,
     CloneResponse* response,
     brpc::Controller* cntl,
     brpc::Channel* channel) {
@@ -374,12 +366,11 @@ void MDSClientBase::Clone(const std::string& source,
     request.set_filename(destination);
     FillUserInfo(&request, userinfo);
 
-    request.set_srcfilename(source);
-    request.set_seq(seq);
+    request.set_snapfilename(source);
 
     LOG(INFO) << "Clone: source = " << source
               << ", destination = " << destination
-              << ", owner = " << userinfo.owner << ", seqnum = " << seq
+              << ", owner = " << userinfo.owner
               << ", log id = " << cntl->log_id();
 
     curve::mds::CurveFSService_Stub stub(channel);

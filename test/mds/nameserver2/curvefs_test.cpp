@@ -2687,8 +2687,96 @@ TEST_F(CurveFSTest, testListSnapShotFile) {
 
 TEST_F(CurveFSTest, testGetSnapShotFileInfo) {
     {
+        // ListSnapShotFile error
         FileInfo snapshotFileInfo;
         ASSERT_EQ(curvefs_->GetSnapShotFileInfo("/", 1, &snapshotFileInfo),
+        StatusCode::kNotSupported);
+    }
+    {
+        // snapfile not exist(not under snapshot)
+        FileInfo originalFile;
+        originalFile.set_id(1);
+        originalFile.set_seqnum(1);
+        originalFile.set_filename("originalFile");
+        originalFile.set_filetype(FileType::INODE_PAGEFILE);
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
+            Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> snapShotFiles;
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                Return(StoreStatus::OK)));
+
+        FileInfo snapshotFileInfo;
+        ASSERT_EQ(curvefs_->GetSnapShotFileInfo("/originalFile",
+            1, &snapshotFileInfo), StatusCode::kSnapshotFileNotExists);
+    }
+    {
+        // under snapshot, butsnapfile not exist
+        FileInfo originalFile;
+        originalFile.set_id(1);
+        originalFile.set_seqnum(1);
+        originalFile.set_filename("originalFile");
+        originalFile.set_filetype(FileType::INODE_PAGEFILE);
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
+            Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> snapShotFiles;
+        FileInfo snapInfo;
+        snapInfo.set_seqnum(2);
+        snapShotFiles.push_back(snapInfo);
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                Return(StoreStatus::OK)));
+
+        FileInfo snapshotFileInfo;
+        ASSERT_EQ(curvefs_->GetSnapShotFileInfo("/originalFile",
+            1, &snapshotFileInfo), StatusCode::kSnapshotFileNotExists);
+    }
+    {
+        // test ok
+        FileInfo originalFile;
+        originalFile.set_id(1);
+        originalFile.set_seqnum(1);
+        originalFile.set_filename("originalFile");
+        originalFile.set_filetype(FileType::INODE_PAGEFILE);
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
+            Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> snapShotFiles;
+        FileInfo snapInfo;
+        snapInfo.set_seqnum(1);
+        snapShotFiles.push_back(snapInfo);
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                Return(StoreStatus::OK)));
+
+        FileInfo snapshotFileInfo;
+        ASSERT_EQ(curvefs_->GetSnapShotFileInfo("/originalFile",
+            1, &snapshotFileInfo), StatusCode::kOK);
+        ASSERT_EQ(snapshotFileInfo.SerializeAsString(),
+        snapInfo.SerializeAsString());
+    }
+}
+
+TEST_F(CurveFSTest, testGetSnapShotFileInfo2) {
+    {
+        FileInfo snapshotFileInfo;
+        std::string snapName = "snap0";
+        ASSERT_EQ(curvefs_->GetSnapShotFileInfo(
+            "/", snapName, &snapshotFileInfo),
         StatusCode::kNotSupported);
     }
     {
@@ -2709,8 +2797,9 @@ TEST_F(CurveFSTest, testGetSnapShotFileInfo) {
         .WillOnce(Return(StoreStatus::KeyNotExist));
 
         FileInfo snapshotFileInfo;
+        std::string snapName = "snap0";
         ASSERT_EQ(curvefs_->GetSnapShotFileInfo("/originalFile",
-            1, &snapshotFileInfo), StatusCode::kSnapshotFileNotExists);
+            snapName, &snapshotFileInfo), StatusCode::kSnapshotFileNotExists);
     }
     {
         // test ok
@@ -2733,8 +2822,9 @@ TEST_F(CurveFSTest, testGetSnapShotFileInfo) {
                 Return(StoreStatus::OK)));
 
         FileInfo snapshotFileInfo;
+        std::string snapName = "snap0";
         ASSERT_EQ(curvefs_->GetSnapShotFileInfo("/originalFile",
-            1, &snapshotFileInfo), StatusCode::kOK);
+            snapName, &snapshotFileInfo), StatusCode::kOK);
         ASSERT_EQ(snapshotFileInfo.SerializeAsString(),
         snapInfo.SerializeAsString());
     }
@@ -2760,12 +2850,14 @@ TEST_F(CurveFSTest, GetSnapShotFileSegment) {
         .WillOnce(DoAll(SetArgPointee<2>(originalFile),
             Return(StoreStatus::OK)));
 
+        std::vector<FileInfo> snapShotFiles;
         FileInfo snapInfo;
         snapInfo.set_seqnum(1);
         snapInfo.set_segmentsize(DefaultSegmentSize);
-        EXPECT_CALL(*storage_, GetSnapFile(_, _, _))
+        snapShotFiles.push_back(snapInfo);
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(snapInfo),
+        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
                 Return(StoreStatus::OK)));
 
         PageFileSegment segment;
@@ -2789,13 +2881,15 @@ TEST_F(CurveFSTest, GetSnapShotFileSegment) {
         .WillOnce(DoAll(SetArgPointee<2>(originalFile),
             Return(StoreStatus::OK)));
 
+        std::vector<FileInfo> snapShotFiles;
         FileInfo snapInfo;
         snapInfo.set_seqnum(1);
         snapInfo.set_segmentsize(DefaultSegmentSize);
         snapInfo.set_length(DefaultSegmentSize);
-        EXPECT_CALL(*storage_, GetSnapFile(_, _, _))
+        snapShotFiles.push_back(snapInfo);
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(snapInfo),
+        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
                 Return(StoreStatus::OK)));
 
         EXPECT_CALL(*storage_, GetSegment(_, _, _))
@@ -2824,13 +2918,15 @@ TEST_F(CurveFSTest, GetSnapShotFileSegment) {
             Return(StoreStatus::OK)));
 
 
+        std::vector<FileInfo> snapShotFiles;
         FileInfo snapInfo;
         snapInfo.set_seqnum(1);
         snapInfo.set_segmentsize(DefaultSegmentSize);
         snapInfo.set_length(DefaultSegmentSize);
-        EXPECT_CALL(*storage_, GetSnapFile(_, _, _))
+        snapShotFiles.push_back(snapInfo);
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(snapInfo),
+        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
                 Return(StoreStatus::OK)));
 
         PageFileSegment expectSegment;
@@ -2876,13 +2972,15 @@ TEST_F(CurveFSTest, DeleteFileSnapShotFile) {
         .WillOnce(DoAll(SetArgPointee<2>(originalFile),
             Return(StoreStatus::OK)));
 
+        std::vector<FileInfo> snapShotFiles;
         FileInfo snapInfo;
         snapInfo.set_seqnum(1);
         snapInfo.set_filestatus(FileStatus::kFileDeleting);
+        snapShotFiles.push_back(snapInfo);
 
-        EXPECT_CALL(*storage_, GetSnapFile(_, _, _))
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(snapInfo),
+        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
                 Return(StoreStatus::OK)));
 
         EXPECT_EQ(curvefs_->DeleteFileSnapShotFile("/originalFile", 1, nullptr),
@@ -2901,14 +2999,16 @@ TEST_F(CurveFSTest, DeleteFileSnapShotFile) {
         .WillOnce(DoAll(SetArgPointee<2>(originalFile),
             Return(StoreStatus::OK)));
 
+        std::vector<FileInfo> snapShotFiles;
         FileInfo snapInfo;
         snapInfo.set_filename("originalFile-seq1");
         snapInfo.set_seqnum(1);
         snapInfo.set_filetype(FileType::INODE_APPENDFILE);
+        snapShotFiles.push_back(snapInfo);
 
-        EXPECT_CALL(*storage_, GetSnapFile(_, _, _))
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(snapInfo),
+        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
                 Return(StoreStatus::OK)));
 
         EXPECT_EQ(curvefs_->DeleteFileSnapShotFile("/originalFile", 1, nullptr),
@@ -2927,15 +3027,17 @@ TEST_F(CurveFSTest, DeleteFileSnapShotFile) {
         .WillOnce(DoAll(SetArgPointee<2>(originalFile),
             Return(StoreStatus::OK)));
 
+        std::vector<FileInfo> snapShotFiles;
         FileInfo snapInfo;
         snapInfo.set_filename("originalFile-seq1");
         snapInfo.set_seqnum(1);
         snapInfo.set_filetype(FileType::INODE_SNAPSHOT_PAGEFILE);
         snapInfo.set_filestatus(FileStatus::kFileCreated);
+        snapShotFiles.push_back(snapInfo);
 
-        EXPECT_CALL(*storage_, GetSnapFile(_, _, _))
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(snapInfo),
+        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
                 Return(StoreStatus::OK)));
 
         EXPECT_CALL(*storage_, PutFile(_))
@@ -2958,15 +3060,17 @@ TEST_F(CurveFSTest, DeleteFileSnapShotFile) {
         .WillOnce(DoAll(SetArgPointee<2>(originalFile),
             Return(StoreStatus::OK)));
 
+        std::vector<FileInfo> snapShotFiles;
         FileInfo snapInfo;
         snapInfo.set_filename("originalFile-seq1");
         snapInfo.set_seqnum(1);
         snapInfo.set_filetype(FileType::INODE_SNAPSHOT_PAGEFILE);
         snapInfo.set_filestatus(FileStatus::kFileCreated);
+        snapShotFiles.push_back(snapInfo);
 
-        EXPECT_CALL(*storage_, GetSnapFile(_, _, _))
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(snapInfo),
+        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
                 Return(StoreStatus::OK)));
 
         EXPECT_CALL(*storage_, PutFile(_))
@@ -2994,15 +3098,17 @@ TEST_F(CurveFSTest, DeleteFileSnapShotFile) {
         .WillOnce(DoAll(SetArgPointee<2>(originalFile),
             Return(StoreStatus::OK)));
 
+        std::vector<FileInfo> snapShotFiles;
         FileInfo snapInfo;
         snapInfo.set_filename("originalFile-seq1");
         snapInfo.set_seqnum(1);
         snapInfo.set_filetype(FileType::INODE_SNAPSHOT_PAGEFILE);
         snapInfo.set_filestatus(FileStatus::kFileCreated);
+        snapShotFiles.push_back(snapInfo);
 
-        EXPECT_CALL(*storage_, GetSnapFile(_, _, _))
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(snapInfo),
+        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
                 Return(StoreStatus::OK)));
 
         EXPECT_CALL(*storage_, PutFile(_))
@@ -3040,12 +3146,14 @@ TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
         .WillOnce(DoAll(SetArgPointee<2>(originalFile),
             Return(StoreStatus::OK)));
 
+        std::vector<FileInfo> snapShotFiles;
         FileInfo snapInfo;
         snapInfo.set_seqnum(1);
         snapInfo.set_filestatus(FileStatus::kFileCreated);
-        EXPECT_CALL(*storage_, GetSnapFile(_, _, _))
+        snapShotFiles.push_back(snapInfo);
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(snapInfo),
+        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
                 Return(StoreStatus::OK)));
 
         FileStatus fileStatus;
@@ -3069,15 +3177,19 @@ TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
         .WillRepeatedly(DoAll(SetArgPointee<2>(originalFile),
             Return(StoreStatus::OK)));
 
+        std::vector<FileInfo> snapShotFiles;
         FileInfo snapInfo;
         snapInfo.set_seqnum(1);
         snapInfo.set_filestatus(FileStatus::kFileDeleting);
+        snapShotFiles.push_back(snapInfo);
 
-        EXPECT_CALL(*storage_, GetSnapFile(_, _, _))
+        std::vector<FileInfo> snapShotFiles2;
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
         .Times(2)
-        .WillOnce(DoAll(SetArgPointee<2>(snapInfo),
+        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
                 Return(StoreStatus::OK)))
-        .WillOnce(Return(StoreStatus::KeyNotExist));
+        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles2),
+                Return(StoreStatus::OK)));
 
         EXPECT_CALL(*mockcleanManager_,
             GetTask(_))
@@ -3104,12 +3216,14 @@ TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
         .WillRepeatedly(DoAll(SetArgPointee<2>(originalFile),
             Return(StoreStatus::OK)));
 
+        std::vector<FileInfo> snapShotFiles;
         FileInfo snapInfo;
         snapInfo.set_seqnum(1);
         snapInfo.set_filestatus(FileStatus::kFileDeleting);
-        EXPECT_CALL(*storage_, GetSnapFile(_, _, _))
+        snapShotFiles.push_back(snapInfo);
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
         .Times(2)
-        .WillRepeatedly(DoAll(SetArgPointee<2>(snapInfo),
+        .WillRepeatedly(DoAll(SetArgPointee<2>(snapShotFiles),
                 Return(StoreStatus::OK)));
 
         EXPECT_CALL(*mockcleanManager_,
@@ -3138,12 +3252,14 @@ TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
         .WillOnce(DoAll(SetArgPointee<2>(originalFile),
             Return(StoreStatus::OK)));
 
+        std::vector<FileInfo> snapShotFiles;
         FileInfo snapInfo;
         snapInfo.set_seqnum(1);
         snapInfo.set_filestatus(FileStatus::kFileDeleting);
-        EXPECT_CALL(*storage_, GetSnapFile(_, _, _))
+        snapShotFiles.push_back(snapInfo);
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(snapInfo),
+        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
                 Return(StoreStatus::OK)));
 
         auto task =
@@ -3177,12 +3293,14 @@ TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
         .WillOnce(DoAll(SetArgPointee<2>(originalFile),
             Return(StoreStatus::OK)));
 
+        std::vector<FileInfo> snapShotFiles;
         FileInfo snapInfo;
         snapInfo.set_seqnum(1);
         snapInfo.set_filestatus(FileStatus::kFileDeleting);
-        EXPECT_CALL(*storage_, GetSnapFile(_, _, _))
+        snapShotFiles.push_back(snapInfo);
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(snapInfo),
+        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
                 Return(StoreStatus::OK)));
 
         auto task =
@@ -3216,12 +3334,14 @@ TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
         .WillOnce(DoAll(SetArgPointee<2>(originalFile),
             Return(StoreStatus::OK)));
 
+        std::vector<FileInfo> snapShotFiles;
         FileInfo snapInfo;
         snapInfo.set_seqnum(1);
         snapInfo.set_filestatus(FileStatus::kFileDeleting);
-        EXPECT_CALL(*storage_, GetSnapFile(_, _, _))
+        snapShotFiles.push_back(snapInfo);
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(snapInfo),
+        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
                 Return(StoreStatus::OK)));
 
         auto task =

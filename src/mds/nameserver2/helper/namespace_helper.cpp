@@ -134,19 +134,14 @@ bool NameSpaceStorageCodec::DecodeSegmentAllocValue(
 }
 
 bool SplitSnapshotPath(const std::string &snapFilePath,
-    std::string *filePath, FileSeqType *seq) {
-    auto pos = snapFilePath.find_last_of(kSnapshotPathSeprator);
+    std::string *filePath, std::string *snapName) {
+    auto pos = snapFilePath.find_last_of(kSnapPathSeprator);
     if (snapFilePath.npos == pos) {
         return false;
     }
     *filePath = snapFilePath.substr(0, pos);
-    std::string snapFileName = snapFilePath.substr(pos + 1);
-    pos = snapFileName.find_last_of(kSnapshotSeqSeprator);
-    if (snapFileName.npos == pos) {
-        return false;
-    }
-    std::string seqStr = snapFileName.substr(pos + 1);
-    return ::curve::common::StringToUll(seqStr, seq);
+    *snapName = snapFilePath.substr(pos + 1);
+    return true;
 }
 
 }   // namespace mds

@@ -384,13 +384,13 @@ void NameSpaceService::GetFileInfo(
         response->set_statuscode(retCode);
         if (google::ERROR != GetMdsLogLevel(retCode)) {
             LOG(WARNING) << "logid = " << cntl->log_id()
-                << ", CheckFileOwner fail, filename = " 
+                << ", CheckFileOwner fail, filename = "
                 <<  request->filename()
                 << ", owner = " << request->owner()
                 << ", statusCode = " << retCode;
         } else {
             LOG(ERROR) << "logid = " << cntl->log_id()
-                << ", CheckFileOwner fail, filename = " 
+                << ", CheckFileOwner fail, filename = "
                 <<  request->filename()
                 << ", owner = " << request->owner()
                 << ", statusCode = " << retCode;
@@ -966,58 +966,71 @@ void NameSpaceService::CreateSnapShot(
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
     ExpiredTime expiredTime;
 
-    if (!isPathValid(request->filename())) {
+    LOG(INFO) << "logid = " << cntl->log_id()
+              << ", CreateSnapShot request: " << request->ShortDebugString();
+
+    std::string srcFileName;
+    std::string snapName;
+    if (!SplitSnapshotPath(request->snapfilename(), &srcFileName, &snapName)) {
+        // for compatibility, if snapfilename is not a snapshot path,
+        // not return kParaError
+        LOG(WARNING) << "logid = " << cntl->log_id()
+                     << ", CreateSnapShot request path is invalid, snapfilename = "
+                     << request->snapfilename();
+        srcFileName = request->snapfilename();
+    }
+    if (!isPathValid(srcFileName)) {
         response->set_statuscode(StatusCode::kParaError);
         LOG(ERROR) << "logid = " << cntl->log_id()
-                  << ", CreateSnapShot request path is invalid, filename = "
-                  << request->filename();
+                  << ", CreateSnapShot request path is invalid, "
+                  << "snapfilename = "
+                  << request->snapfilename();
         return;
     }
-
-    LOG(INFO) << "logid = " << cntl->log_id()
-              << ", CreateSnapShot request, filename = "
-              << request->filename();
-
-    FileWriteLockGuard guard(fileLockManager_, request->filename());
 
     std::string signature;
     if (request->has_signature()) {
         signature = request->signature();
     }
 
+    FileWriteLockGuard guard(fileLockManager_, srcFileName);
+
     StatusCode retCode;
-    retCode = kCurveFS.CheckFileOwner(request->filename(), request->owner(),
+    retCode = kCurveFS.CheckFileOwner(srcFileName, request->owner(),
                                       signature, request->date());
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
         if (google::ERROR != GetMdsLogLevel(retCode)) {
             LOG(WARNING) << "logid = " << cntl->log_id()
-                << ", CheckFileOwner fail, filename = " <<  request->filename()
+                << ", CheckFileOwner fail, filename = " <<  srcFileName
                 << ", owner = " << request->owner()
                 << ", statusCode = " << retCode;
         } else {
             LOG(ERROR) << "logid = " << cntl->log_id()
-                << ", CheckFileOwner fail, filename = " <<  request->filename()
+                << ", CheckFileOwner fail, filename = " <<  srcFileName
                 << ", owner = " << request->owner()
                 << ", statusCode = " << retCode;
         }
         return;
     }
 
-    retCode = kCurveFS.CreateSnapShotFile2(request->filename(),
+    retCode = kCurveFS.CreateSnapShotFile2(srcFileName,
+                                    snapName,
                                     response->mutable_snapshotfileinfo());
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
         if (google::ERROR != GetMdsLogLevel(retCode)) {
             LOG(WARNING) << "logid = " << cntl->log_id()
-                         << ", CreateSnapShot fail, filename = "
-                         << request->filename() << ", statusCode = " << retCode
+                         << ", CreateSnapShot fail, snapfilename = "
+                         << request->snapfilename()
+                         << ", statusCode = " << retCode
                          << ", StatusCode_Name = " << StatusCode_Name(retCode)
                          << ", cost " << expiredTime.ExpiredMs() << " ms";
         } else {
             LOG(ERROR) << "logid = " << cntl->log_id()
-                       << ", CreateSnapShot fail, filename = "
-                       << request->filename() << ", statusCode = " << retCode
+                       << ", CreateSnapShot fail, snapfilename = "
+                       << request->snapfilename()
+                       << ", statusCode = " << retCode
                        << ", StatusCode_Name = " << StatusCode_Name(retCode)
                        << ", cost " << expiredTime.ExpiredMs() << " ms";
         }
@@ -1025,7 +1038,8 @@ void NameSpaceService::CreateSnapShot(
     } else {
         response->set_statuscode(StatusCode::kOK);
         LOG(INFO) << "logid = " << cntl->log_id()
-                  << ", CreateSnapShot ok, filename = " << request->filename()
+                  << ", CreateSnapShot ok, snapfilename = "
+                  << request->snapfilename()
                   << ", seq = " << response->snapshotfileinfo().seqnum()
                   << ", cost " << expiredTime.ExpiredMs() << " ms";
     }
@@ -1146,46 +1160,30 @@ void NameSpaceService::DeleteSnapShot(
     LOG(INFO) << "logid = " << cntl->log_id()
               << ", DeleteSnapShot request: " << request->ShortDebugString();
 
-    if (((!request->has_filename()) || 
-         (!request->has_seq())) &&
-        (!request->has_snapfilename())) {
-        LOG(WARNING) << "logid = " << cntl->log_id()
-                     << ", snapFileName or fileName + seq must be set"
-                     << ", filename = " << request->filename();
-
+    std::string srcFileName;
+    std::string snapName;
+    if (!SplitSnapshotPath(request->snapfilename(), &srcFileName, &snapName)) {
         response->set_statuscode(StatusCode::kParaError);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+                  << ", DeleteSnapShot request path is invalid, snapfilename = "
+                  << request->snapfilename();
         return;
     }
-
-    std::string srcFileName = request->filename();
-    uint64_t seq = request->seq();
-
-    if (request->has_snapfilename()) {
-        bool rb = SplitSnapshotPath(request->snapfilename(),
-            &srcFileName, &seq);
-        if (!rb) {
-            LOG(WARNING) << "SplitSnapshotPath failed"
-                         << ", snapFileName: " << request->snapfilename();
-            response->set_statuscode(StatusCode::kParaError);
-            return;
-        }
-    }
-
     if (!isPathValid(srcFileName)) {
         response->set_statuscode(StatusCode::kParaError);
         LOG(ERROR) << "logid = " << cntl->log_id()
-                << ", DeleteSnapShot request path is invalid, filename = "
-                << srcFileName
-                << ", seq = " << seq;
+                  << ", DeleteSnapShot request path is invalid, "
+                  << "snapfilename = "
+                  << request->snapfilename();
         return;
     }
-
-    FileWriteLockGuard guard(fileLockManager_, srcFileName);
 
     std::string signature;
     if (request->has_signature()) {
         signature = request->signature();
     }
+
+    FileWriteLockGuard guard(fileLockManager_, srcFileName);
 
     StatusCode retCode;
     retCode = kCurveFS.CheckFileOwner(srcFileName, request->owner(),
@@ -1207,21 +1205,21 @@ void NameSpaceService::DeleteSnapShot(
     }
 
     retCode =  kCurveFS.DeleteFileSnapShotFile2(srcFileName,
-                                    seq, nullptr);
+                                    snapName, nullptr);
 
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
         if (google::ERROR != GetMdsLogLevel(retCode)) {
             LOG(WARNING) << "logid = " << cntl->log_id()
                          << ", DeleteSnapShot fail, filename = "
-                         << srcFileName << ", seq = " << seq
+                         << srcFileName << ", snapName = " << snapName
                          << ", statusCode = " << retCode
                          << ", StatusCode_Name = " << StatusCode_Name(retCode)
                          << ", cost " << expiredTime.ExpiredMs() << " ms";
         } else {
             LOG(ERROR) << "logid = " << cntl->log_id()
                        << ", DeleteSnapShot fail, filename = "
-                       << srcFileName << ", seq = " << seq
+                       << srcFileName << ", snapName = " << snapName
                        << ", statusCode = " << retCode
                        << ", StatusCode_Name = " << StatusCode_Name(retCode)
                        << ", cost " << expiredTime.ExpiredMs() << " ms";
@@ -1424,29 +1422,22 @@ void NameSpaceService::ProtectSnapShot(::google::protobuf::RpcController* contro
     LOG(INFO) << "logid = " << cntl->log_id()
               << ", ProtectSnapShot request: " << request->ShortDebugString();
 
-    if (((!request->has_filename()) || 
-         (!request->has_seq())) &&
-        (!request->has_snapfilename())) {
-        LOG(WARNING) << "logid = " << cntl->log_id()
-                     << ", snapFileName or srcFileName + seq must be set"
-                     << ", filename = " << request->filename();
-
+    std::string srcFileName;
+    std::string snapName;
+    if (!SplitSnapshotPath(request->snapfilename(), &srcFileName, &snapName)) {
         response->set_statuscode(StatusCode::kParaError);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+                  << ", ProtectSnapShot request path is invalid, snapfilename = "
+                  << request->snapfilename();
         return;
     }
-
-    std::string srcFileName = request->filename();
-    uint64_t seq = request->seq();
-
-    if (request->has_snapfilename()) {
-        bool rb = SplitSnapshotPath(request->snapfilename(),
-            &srcFileName, &seq);
-        if (!rb) {
-            LOG(WARNING) << "SplitSnapshotPath failed"
-                         << ", snapFileName: " << request->snapfilename();
-            response->set_statuscode(StatusCode::kParaError);
-            return;
-        }
+    if (!isPathValid(srcFileName)) {
+        response->set_statuscode(StatusCode::kParaError);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+                  << ", ProtectSnapShot request path is invalid, "
+                  << "snapfilename = "
+                  << request->snapfilename();
+        return;
     }
 
     std::string signature = "";
@@ -1467,41 +1458,41 @@ void NameSpaceService::ProtectSnapShot(::google::protobuf::RpcController* contro
             LOG(WARNING) << "logid = " << cntl->log_id()
                 << ", ProtectSnapShot CheckFileOwner fail, filename = "
                 << srcFileName
-                << ", seq = " << seq
+                << ", snapName = " << snapName
                 << ", owner = " << request->owner()
                 << ", statusCode = " << ret;
         } else {
             LOG(ERROR) << "logid = " << cntl->log_id()
-                << ", ProtectSnapShot CheckFileOwner fail, filename = " 
+                << ", ProtectSnapShot CheckFileOwner fail, filename = "
                 << srcFileName
-                << ", seq = " << seq
+                << ", snapName = " << snapName
                 << ", owner = " << request->owner()
                 << ", statusCode = " << ret;
         }
         return;
     }
 
-    ret = kCurveFS.ProtectSnapShot(srcFileName, seq, request->owner());
+    ret = kCurveFS.ProtectSnapShot(srcFileName, snapName, request->owner());
     if (ret != StatusCode::kOK) {
         response->set_statuscode(ret);
         if (google::ERROR != GetMdsLogLevel(ret)) {
             LOG(WARNING) << "logid = " << cntl->log_id()
                 << ", ProtectSnapShot fail, filename = " << srcFileName
-                << ", seq = " << seq
+                << ", snapName = " << snapName
                 << ", owner = " << request->owner()
                 << ", statusCode = " << ret;
         } else {
             LOG(ERROR) << "logid = " << cntl->log_id()
                 << ", ProtectSnapShot fail, filename = " <<  srcFileName
-                << ", seq = " << seq
+                << ", snapName = " << snapName
                 << ", owner = " << request->owner()
                 << ", statusCode = " << ret;
         }
     } else {
         response->set_statuscode(StatusCode::kOK);
         LOG(INFO) << "logid = " << cntl->log_id()
-                  << ", ProtectSnapShot ok, filename = " << srcFileName 
-                  << ", seq = " << seq
+                  << ", ProtectSnapShot ok, filename = " << srcFileName
+                  << ", snapName = " << snapName
                   << ", owner = " << request->owner()
                   << ", statusCode = " << ret;
     }
@@ -1518,29 +1509,22 @@ void NameSpaceService::UnprotectSnapShot(::google::protobuf::RpcController* cont
     LOG(INFO) << "logid = " << cntl->log_id()
               << ", UnprotectSnapShot request: " << request->ShortDebugString();
 
-    if (((!request->has_filename()) || 
-         (!request->has_seq())) &&
-        (!request->has_snapfilename())) {
-        LOG(WARNING) << "logid = " << cntl->log_id()
-                     << ", snapFileName or srcFileName + seq must be set"
-                     << ", filename = " << request->filename();
-
+    std::string srcFileName;
+    std::string snapName;
+    if (!SplitSnapshotPath(request->snapfilename(), &srcFileName, &snapName)) {
         response->set_statuscode(StatusCode::kParaError);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+                  << ", UnprotectSnapShot request path is invalid, snapfilename = "
+                  << request->snapfilename();
         return;
     }
-
-    std::string srcFileName = request->filename();
-    uint64_t seq = request->seq();
-
-    if (request->has_snapfilename()) {
-        bool rb = SplitSnapshotPath(request->snapfilename(),
-            &srcFileName, &seq);
-        if (!rb) {
-            LOG(WARNING) << "SplitSnapshotPath failed"
-                         << ", snapFileName: " << request->snapfilename();
-            response->set_statuscode(StatusCode::kParaError);
-            return;
-        }
+    if (!isPathValid(srcFileName)) {
+        response->set_statuscode(StatusCode::kParaError);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+                  << ", UnprotectSnapShot request path is invalid, "
+                  << "snapfilename = "
+                  << request->snapfilename();
+        return;
     }
 
     std::string signature = "";
@@ -1561,41 +1545,41 @@ void NameSpaceService::UnprotectSnapShot(::google::protobuf::RpcController* cont
             LOG(WARNING) << "logid = " << cntl->log_id()
                 << ", UnprotectSnapShot CheckFileOwner fail, filename = "
                 << srcFileName
-                << ", seq = " << seq
+                << ", snapName = " << snapName
                 << ", owner = " << request->owner()
                 << ", statusCode = " << ret;
         } else {
             LOG(ERROR) << "logid = " << cntl->log_id()
-                << ", UnprotectSnapShot CheckFileOwner fail, filename = " 
+                << ", UnprotectSnapShot CheckFileOwner fail, filename = "
                 << srcFileName
-                << ", seq = " << seq
+                << ", snapName = " << snapName
                 << ", owner = " << request->owner()
                 << ", statusCode = " << ret;
         }
         return;
     }
 
-    ret = kCurveFS.UnprotectSnapShot(srcFileName, seq, request->owner());
+    ret = kCurveFS.UnprotectSnapShot(srcFileName, snapName, request->owner());
     if (ret != StatusCode::kOK) {
         response->set_statuscode(ret);
         if (google::ERROR != GetMdsLogLevel(ret)) {
             LOG(WARNING) << "logid = " << cntl->log_id()
                 << ", UnprotectSnapShot fail, filename = " << srcFileName
-                << ", seq = " << seq
+                << ", snapName = " << snapName
                 << ", owner = " << request->owner()
                 << ", statusCode = " << ret;
         } else {
             LOG(ERROR) << "logid = " << cntl->log_id()
                 << ", UnprotectSnapShot fail, filename = " <<  srcFileName
-                << ", seq = " << seq
+                << ", snapName = " << snapName
                 << ", owner = " << request->owner()
                 << ", statusCode = " << ret;
         }
     } else {
         response->set_statuscode(StatusCode::kOK);
         LOG(INFO) << "logid = " << cntl->log_id()
-                  << ", UnprotectSnapShot ok, filename = " << srcFileName 
-                  << ", seq = " << seq
+                  << ", UnprotectSnapShot ok, filename = " << srcFileName
+                  << ", snapName = " << snapName
                   << ", owner = " << request->owner()
                   << ", statusCode = " << ret;
     }
@@ -1608,33 +1592,26 @@ void NameSpaceService::Clone(::google::protobuf::RpcController* controller,
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
     ExpiredTime expiredTime;
-    
+
     LOG(INFO) << "logid = " << cntl->log_id()
         << ", Clone request " << request->ShortDebugString();
 
-    if (((!request->has_srcfilename()) || 
-         (!request->has_seq())) &&
-        (!request->has_snapfilename())) {
-        LOG(WARNING) << "logid = " << cntl->log_id()
-                     << ", snapFileName or srcFileName + seq must be set"
-                     << ", filename = " << request->filename();
-
+    std::string srcFileName;
+    std::string snapName;
+    if (!SplitSnapshotPath(request->snapfilename(), &srcFileName, &snapName)) {
         response->set_statuscode(StatusCode::kParaError);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+                  << ", Clone request path is invalid, snapfilename = "
+                  << request->snapfilename();
         return;
     }
-
-    std::string srcFileName = request->srcfilename();
-    uint64_t seq = request->seq();
-
-    if (request->has_snapfilename()) {
-        bool rb = SplitSnapshotPath(request->snapfilename(),
-            &srcFileName, &seq);
-        if (!rb) {
-            LOG(WARNING) << "SplitSnapshotPath failed"
-                         << ", snapFileName: " << request->snapfilename();
-            response->set_statuscode(StatusCode::kParaError);
-            return;
-        }
+    if (!isPathValid(srcFileName)) {
+        response->set_statuscode(StatusCode::kParaError);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+                  << ", Clone request path is invalid, "
+                  << "snapfilename = "
+                  << request->snapfilename();
+        return;
     }
 
     std::string signature = "";
@@ -1671,7 +1648,7 @@ void NameSpaceService::Clone(::google::protobuf::RpcController* controller,
     ret = kCurveFS.Clone(request->filename(),
                                     request->owner(),
                                     srcFileName,
-                                    seq,
+                                    snapName,
                                     response->mutable_fileinfo());
     response->set_statuscode(ret);
     if (ret != StatusCode::kOK) {
@@ -1701,7 +1678,7 @@ void NameSpaceService::Flatten(::google::protobuf::RpcController* controller,
     const ::curve::mds::FlattenRequest* request,
     ::curve::mds::FlattenResponse* response,
     ::google::protobuf::Closure* done) {
-    brpc::ClosureGuard doneGuard(done); 
+    brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
     ExpiredTime expiredTime;
 
@@ -1795,7 +1772,7 @@ void NameSpaceService::QueryFlattenStatus(
     const ::curve::mds::QueryFlattenStatusRequest* request,
     ::curve::mds::QueryFlattenStatusResponse* response,
     ::google::protobuf::Closure* done) {
-    brpc::ClosureGuard doneGuard(done); 
+    brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
     ExpiredTime expiredTime;
 
@@ -1889,19 +1866,27 @@ void NameSpaceService::Children(::google::protobuf::RpcController* controller,
         response->set_statuscode(StatusCode::kParaError);
         return;
     }
-
-    std::string srcFileName = request->filename();
-    uint64_t seq = request->seq();
-
+    std::string srcFileName;
+    std::string snapName;
     if (request->has_snapfilename()) {
-        bool rb = SplitSnapshotPath(request->snapfilename(),
-            &srcFileName, &seq);
-        if (!rb) {
-            LOG(WARNING) << "SplitSnapshotPath failed"
-                         << ", snapFileName: " << request->snapfilename();
+        if (!SplitSnapshotPath(
+            request->snapfilename(), &srcFileName, &snapName)) {
             response->set_statuscode(StatusCode::kParaError);
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                      << ", Children request path is invalid, snapfilename = "
+                      << request->snapfilename();
             return;
         }
+        if (!isPathValid(srcFileName)) {
+            response->set_statuscode(StatusCode::kParaError);
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                      << ", Children request path is invalid, "
+                      << "snapfilename = "
+                      << request->snapfilename();
+            return;
+        }
+    } else {
+        srcFileName = request->filename();
     }
 
     std::string signature = "";
@@ -1931,7 +1916,7 @@ void NameSpaceService::Children(::google::protobuf::RpcController* controller,
         return;
     }
 
-    retCode = kCurveFS.Children(srcFileName, seq, 
+    retCode = kCurveFS.Children(srcFileName, snapName,
         response->mutable_filenames());
     response->set_statuscode(retCode);
     if (retCode != StatusCode::kOK) {
