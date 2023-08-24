@@ -28,6 +28,7 @@
 #include <google/protobuf/util/message_differencer.h>
 #include <gtest/gtest.h>
 #include <functional>
+#include <memory>
 #include <string>
 
 #include "curvefs/test/mds/fake_metaserver.h"
@@ -35,6 +36,7 @@
 #include "curvefs/test/mds/mock/mock_topology.h"
 #include "curvefs/test/mds/mock/mock_cli2.h"
 #include "test/common/mock_s3_adapter.h"
+#include "curvefs/test/mds/mock/mock_fs_stroage.h"
 #include "curvefs/test/mds/mock/mock_space_manager.h"
 #include "curvefs/test/mds/mock/mock_volume_space.h"
 #include "proto/nameserver2.pb.h"
@@ -74,7 +76,6 @@ using ::curvefs::metaserver::FakeMetaserverImpl;
 using ::curvefs::metaserver::copyset::GetLeaderResponse2;
 using ::curvefs::metaserver::copyset::MockCliService2;
 
-
 using ::testing::_;
 using ::testing::AtLeast;
 using ::testing::DoAll;
@@ -88,19 +89,37 @@ using ::testing::SetArgPointee;
 using ::testing::StrEq;
 
 using ::curve::common::MockS3Adapter;
+using ::curvefs::mds::MockMemoryFsStorage;
 using ::curvefs::mds::space::MockSpaceManager;
 using ::curvefs::mds::space::MockVolumeSpace;
 using ::google::protobuf::util::MessageDifferencer;
 
 namespace curvefs {
 namespace mds {
+
+template <bool FAIL>
+struct RpcService {
+    template <typename Request, typename Response>
+    void operator()(google::protobuf::RpcController* cntl_base,
+                    const Request* /*request*/,
+                    Response* /*response*/,
+                    google::protobuf::Closure* done) const {
+        if (FAIL) {
+            brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
+            cntl->SetFailed(112, "Not connected to");
+        }
+
+        done->Run();
+    }
+};
+
 class MdsServiceTest : public ::testing::Test {
  protected:
     void SetUp() override {
         kvstorage_ = std::make_shared<MockKVStorageClient>();
 
         MetaserverOptions metaserverOptions;
-        metaserverOptions.metaserverAddr = "127.0.0.1:6703";
+        metaserverOptions.metaserverAddr = kMetaServerAddr;
         metaserverOptions.rpcTimeoutMs = 5000;
         fsStorage_ = std::make_shared<MemoryFsStorage>();
         metaserverClient_ =
@@ -128,6 +147,152 @@ class MdsServiceTest : public ::testing::Test {
             fsStorage_, spaceManager_, metaserverClient_, topoManager_,
             s3Adapter_, nullptr, fsManagerOption);
         ASSERT_TRUE(fsManager_->Init());
+
+        mdsService_ = std::make_shared<MdsServiceImpl>(fsManager_, nullptr);
+        // add metaserver service
+        ASSERT_EQ(server.AddService(mdsService_.get(),
+                  brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+
+        ASSERT_EQ(server.AddService(&metaserverService,
+                                    brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+
+        ASSERT_EQ(
+            server.AddService(&mockCliService2,
+                              brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+
+        ASSERT_EQ(0, server.AddService(&fakeCurveFSService,
+                                    brpc::SERVER_DOESNT_OWN_SERVICE));
+
+        // start rpc server
+        ASSERT_EQ(server.Start(kRpcServerAddr.c_str(), &option), 0);
+
+        // init client
+        ASSERT_EQ(channel.Init(server.listen_address(), nullptr), 0);
+        stub_ = std::unique_ptr<MdsService_Stub>(new MdsService_Stub(&channel));
+
+        volume.set_blocksize(4096);
+        volume.set_volumename("volume1");
+        volume.set_user("user1");
+        volume.set_blockgroupsize(128ull * 1024 * 1024);
+        volume.set_bitmaplocation(common::BitmapLocation::AtStart);
+        volume.set_slicesize(1ULL * 1024 * 1024 * 1024);
+        volume.set_autoextend(false);
+        volume.add_cluster(kClusterAddr);
+
+        EXPECT_CALL(*spaceManager_, GetVolumeSpace(_))
+            .WillRepeatedly(Return(&volumeSpace));
+        EXPECT_CALL(volumeSpace,
+                    ReleaseBlockGroups(Matcher<const std::string &>(_)))
+            .WillRepeatedly(Return(space::SpaceOk));
+
+        getLeaderResponse.mutable_leader()->set_address(kRpcServerLeaderAddr);
+
+        kCopysetAddrs.emplace(kRpcServerAddr);
+
+        CreateVolumeFs();
+        CreateS3F3();
+
+        cntl.Reset();
+    }
+
+    void CreateS3F3() {
+        CreateFsRequest createRequest;
+        CreateFsResponse createResponse;
+
+        cntl.Reset();
+        createRequest.set_fsname(kS3FsName);
+        createRequest.set_blocksize(4096);
+        createRequest.set_fstype(FSType::TYPE_S3);
+        createRequest.mutable_fsdetail();
+        createRequest.set_enablesumindir(false);
+        createRequest.set_capacity(FS_CAPACITY);
+        createRequest.set_owner(kFsOwner);
+        s3info.set_ak("ak");
+        s3info.set_sk("sk");
+        s3info.set_endpoint("endpoint");
+        s3info.set_bucketname("bucketname");
+        s3info.set_blocksize(4096);
+        s3info.set_chunksize(4096);
+        createRequest.mutable_fsdetail()->mutable_s3info()->CopyFrom(s3info);
+
+        EXPECT_CALL(*topoManager_, CreatePartitionsAndGetMinPartition(_, _))
+            .WillOnce(Return(TopoStatusCode::TOPO_OK));
+        EXPECT_CALL(*topoManager_, GetCopysetMembers(_, _, _))
+            .WillOnce(DoAll(
+                SetArgPointee<2>(kCopysetAddrs),
+                Return(TopoStatusCode::TOPO_OK)));
+        EXPECT_CALL(mockCliService2, GetLeader(_, _, _, _))
+            .WillOnce(DoAll(
+            SetArgPointee<2>(getLeaderResponse),
+            Invoke(RpcService<false>{})));
+        EXPECT_CALL(*s3Adapter_, BucketExist()).WillOnce(Return(true));
+
+        cntl.set_timeout_ms(5000);
+        stub_->CreateFs(&cntl, &createRequest, &createResponse, nullptr);
+        if (!cntl.Failed()) {
+            ASSERT_EQ(createResponse.statuscode(), FSStatusCode::OK);
+            ASSERT_TRUE(createResponse.has_fsinfo());
+            fsinfo2 = createResponse.fsinfo();
+        } else {
+            LOG(ERROR) << "error = " << cntl.ErrorText();
+            ASSERT_TRUE(false);
+        }
+    }
+
+    void CreateVolumeFs() {
+        CreateFsRequest createRequest;
+        CreateFsResponse createResponse;
+        createRequest.set_fsname(kVolumeFsName);
+        createRequest.set_blocksize(4096);
+        createRequest.set_fstype(::curvefs::common::FSType::TYPE_VOLUME);
+        createRequest.mutable_fsdetail()->mutable_volume()->CopyFrom(volume);
+        createRequest.set_enablesumindir(false);
+        createRequest.set_capacity(FS_CAPACITY);
+        createRequest.set_owner(kFsOwner);
+
+        // force allocate detail
+        auto* detail = createRequest.mutable_fsdetail();
+        (void)detail;
+
+        EXPECT_CALL(*topoManager_,
+                    CreatePartitionsAndGetMinPartition(_, _))
+            .WillOnce(Return(TopoStatusCode::TOPO_OK));
+
+        EXPECT_CALL(*topoManager_, GetCopysetMembers(_, _, _))
+                    .WillOnce(DoAll(
+                        SetArgPointee<2>(kCopysetAddrs),
+                        Return(TopoStatusCode::TOPO_OK)));
+
+        EXPECT_CALL(mockCliService2, GetLeader(_, _, _, _))
+            .WillOnce(DoAll(
+            SetArgPointee<2>(getLeaderResponse),
+            Invoke(RpcService<false>{})));
+
+        cntl.Reset();
+        stub_->CreateFs(&cntl, &createRequest, &createResponse, nullptr);
+        if (!cntl.Failed()) {
+            ASSERT_EQ(createResponse.statuscode(), FSStatusCode::OK);
+            ASSERT_TRUE(createResponse.has_fsinfo());
+            fsinfo1 = createResponse.fsinfo();
+            ASSERT_EQ(fsinfo1.fsid(), 0);
+            ASSERT_EQ(fsinfo1.fsname(), fsinfo1.fsname());
+            ASSERT_EQ(fsinfo1.rootinodeid(), 1);
+            ASSERT_EQ(fsinfo1.capacity(), FS_CAPACITY);
+            ASSERT_EQ(fsinfo1.blocksize(), 4096);
+            ASSERT_EQ(fsinfo1.mountnum(), 0);
+            ASSERT_EQ(fsinfo1.mountpoints_size(), 0);
+            ASSERT_TRUE(CompareVolume(volume, fsinfo1.detail().volume()))
+                << "Request:\n" << volume.DebugString()
+                << ", response:\n" << fsinfo1.detail().volume().DebugString();
+        } else {
+            LOG(ERROR) << "error = " << cntl.ErrorText();
+            ASSERT_TRUE(false);
+        }
+    }
+
+    void TearDown() override {
+        server.Stop(10);
+        server.Join();
     }
 
     static bool CompareVolume(const Volume& first, const Volume& second) {
@@ -157,215 +322,403 @@ class MdsServiceTest : public ::testing::Test {
     std::shared_ptr<MockKVStorageClient> kvstorage_;
     std::shared_ptr<MockTopologyManager> topoManager_;
     std::shared_ptr<MockS3Adapter> s3Adapter_;
+    std::shared_ptr<MdsServiceImpl> mdsService_;
+
+    std::unique_ptr<MdsService_Stub> stub_;
+
+    MockMemoryFsStorage mockFsStorage_;
+    MockVolumeSpace volumeSpace;
+    FakeCurveFSService fakeCurveFSService;
+    FakeMetaserverImpl metaserverService;
+    MockCliService2 mockCliService2;
+    brpc::Channel channel;
+    brpc::ServerOptions option;
+    brpc::Server server;
+    brpc::Controller cntl;
+    GetLeaderResponse2 getLeaderResponse;
+    FsInfo fsinfo1;
+    Volume volume;
+    FsInfo fsinfo2;
+    S3Info s3info;
+
+    uint64_t FS_CAPACITY = 100ULL << 30;
+    const std::string kS3FsName = "fs2";
+    const std::string kHost1 = "host1";
+    const std::string kHost2 = "host2";
+    const std::string kPathRootABC = "/a/b/c";
+    const std::string kPathRootABD = "/a/b/d";
+    const std::string kFsOwner = "test";
+    const std::string kVolumeFsName = "fs1";
+    const std::string kClusterAddr = "127.0.0.1:6703";
+    const std::string kRpcServerAddr = "127.0.0.1:6703";
+    const std::string kMetaServerAddr = "127.0.0.1:6703";
+    const std::string kRpcServerLeaderAddr = "127.0.0.1:6703:0";
+    std::set<std::string> kCopysetAddrs;
 };
 
-template <typename RpcRequestType, typename RpcResponseType,
-          bool RpcFailed = false>
-void RpcService(google::protobuf::RpcController* cntl_base,
-                const RpcRequestType* request, RpcResponseType* response,
-                google::protobuf::Closure* done) {
-    if (RpcFailed) {
-        brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
-        cntl->SetFailed(112, "Not connected to");
-    }
-    done->Run();
-}
-
-TEST_F(MdsServiceTest, test1) {
-    brpc::Server server;
-    // add metaserver service
-    MdsServiceImpl mdsService(fsManager_, nullptr);
-    ASSERT_EQ(server.AddService(&mdsService, brpc::SERVER_DOESNT_OWN_SERVICE),
-              0);
-
-    FakeMetaserverImpl metaserverService;
-    ASSERT_EQ(
-        server.AddService(&metaserverService, brpc::SERVER_DOESNT_OWN_SERVICE),
-        0);
-
-    MockCliService2 mockCliService2;
-    ASSERT_EQ(
-        server.AddService(&mockCliService2, brpc::SERVER_DOESNT_OWN_SERVICE),
-        0);
-
-    FakeCurveFSService fakeCurveFSService;
-    ASSERT_EQ(0, server.AddService(&fakeCurveFSService,
-                                   brpc::SERVER_DOESNT_OWN_SERVICE));
-
-    // start rpc server
-    brpc::ServerOptions option;
-    std::string addr = "127.0.0.1:6703";
-    std::string leader = "127.0.0.1:6703:0";
-    ASSERT_EQ(server.Start(addr.c_str(), &option), 0);
-
-    // init client
-    brpc::Channel channel;
-    ASSERT_EQ(channel.Init(server.listen_address(), nullptr), 0);
-
-    MdsService_Stub stub(&channel);
-    brpc::Controller cntl;
-
-    // test CreateFS
-    CreateFsRequest createRequest;
-    CreateFsResponse createResponse;
-
+TEST_F(MdsServiceTest, test_fail_create_fs_missing_volume_for_volume_fstype) {
     // type if volume, but volume not set
-    createRequest.set_fsname("fs1");
+    CreateFsRequest createRequest;
+    createRequest.set_fsname(fsinfo1.fsname());
     createRequest.set_blocksize(4096);
     createRequest.set_fstype(::curvefs::common::FSType::TYPE_VOLUME);
     createRequest.set_enablesumindir(false);
+    createRequest.set_capacity(FS_CAPACITY);
+    createRequest.set_owner(kFsOwner);
     auto* detail = createRequest.mutable_fsdetail();  // force allocate detail
     (void)detail;
 
-    const auto capacity = 100ULL << 30;
-    createRequest.set_capacity(capacity);
-    createRequest.set_owner("test");
-
-    FsInfo fsinfo1;
-    stub.CreateFs(&cntl, &createRequest, &createResponse, NULL);
+    CreateFsResponse createResponse;
+    stub_->CreateFs(&cntl, &createRequest, &createResponse, nullptr);
     if (!cntl.Failed()) {
         ASSERT_EQ(createResponse.statuscode(), FSStatusCode::PARAM_ERROR);
     } else {
         LOG(ERROR) << "error = " << cntl.ErrorText();
         ASSERT_TRUE(false);
     }
+}
 
-    // type if volume, create ok
-    Volume volume;
-    volume.set_blocksize(4096);
-    volume.set_volumename("volume1");
-    volume.set_user("user1");
-    volume.set_blockgroupsize(128ull * 1024 * 1024);
-    volume.set_bitmaplocation(common::BitmapLocation::AtStart);
-    volume.set_slicesize(1ULL * 1024 * 1024 * 1024);
-    volume.set_autoextend(false);
-    volume.add_cluster("127.0.0.1:6703");
-
-    createRequest.set_fsname("fs1");
-    createRequest.set_blocksize(4096);
-    createRequest.set_fstype(::curvefs::common::FSType::TYPE_VOLUME);
-    createRequest.mutable_fsdetail()->mutable_volume()->CopyFrom(volume);
-
-    EXPECT_CALL(*topoManager_, CreatePartitionsAndGetMinPartition(_, _))
-        .WillOnce(Return(TopoStatusCode::TOPO_OK));
-    std::set<std::string> addrs;
-    addrs.emplace(addr);
-    EXPECT_CALL(*topoManager_, GetCopysetMembers(_, _, _))
-        .WillOnce(DoAll(
-            SetArgPointee<2>(addrs),
-            Return(TopoStatusCode::TOPO_OK)));
-    GetLeaderResponse2 getLeaderResponse;
-    getLeaderResponse.mutable_leader()->set_address(leader);
-    EXPECT_CALL(mockCliService2, GetLeader(_, _, _, _))
-        .WillOnce(DoAll(
-        SetArgPointee<2>(getLeaderResponse),
-        Invoke(RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
-
-    cntl.Reset();
-    stub.CreateFs(&cntl, &createRequest, &createResponse, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(createResponse.statuscode(), FSStatusCode::OK);
-        ASSERT_TRUE(createResponse.has_fsinfo());
-        fsinfo1 = createResponse.fsinfo();
-        ASSERT_EQ(fsinfo1.fsid(), 0);
-        ASSERT_EQ(fsinfo1.fsname(), "fs1");
-        ASSERT_EQ(fsinfo1.rootinodeid(), 1);
-        ASSERT_EQ(fsinfo1.capacity(), capacity);
-        ASSERT_EQ(fsinfo1.blocksize(), 4096);
-        ASSERT_EQ(fsinfo1.mountnum(), 0);
-        ASSERT_EQ(fsinfo1.mountpoints_size(), 0);
-        ASSERT_TRUE(CompareVolume(volume, fsinfo1.detail().volume()))
-            << "Request:\n" << volume.DebugString()
-            << ", response:\n" << fsinfo1.detail().volume().DebugString();
-    } else {
-        LOG(ERROR) << "error = " << cntl.ErrorText();
-        ASSERT_TRUE(false);
-    }
-
-    // volume exist, create fail
-    cntl.Reset();
-    stub.CreateFs(&cntl, &createRequest, &createResponse, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(createResponse.statuscode(), FSStatusCode::OK);
-    } else {
-        LOG(ERROR) << "error = " << cntl.ErrorText();
-        ASSERT_TRUE(false);
-    }
-
+TEST_F(MdsServiceTest, test_fail_create_fs_missing_s3_info_for_s3_fstype) {
     // create s3 fs, s3info not set
-    cntl.Reset();
-    FsInfo fsinfo2;
-    createRequest.set_fsname("fs2");
+    CreateFsRequest createRequest;
+    createRequest.set_fsname("abc");
+    createRequest.set_blocksize(4096);
     createRequest.set_fstype(FSType::TYPE_S3);
     createRequest.mutable_fsdetail();
-    stub.CreateFs(&cntl, &createRequest, &createResponse, NULL);
+    createRequest.set_enablesumindir(false);
+    createRequest.set_capacity(FS_CAPACITY);
+    createRequest.set_owner(kFsOwner);
+    auto* detail = createRequest.mutable_fsdetail();  // force allocate detail
+    (void)detail;
+    CreateFsResponse createResponse;
+    stub_->CreateFs(&cntl, &createRequest, &createResponse, nullptr);
     if (!cntl.Failed()) {
         ASSERT_EQ(createResponse.statuscode(), FSStatusCode::PARAM_ERROR);
     } else {
         LOG(ERROR) << "error = " << cntl.ErrorText();
         ASSERT_TRUE(false);
     }
+}
 
-    // create s3 fs, OK
-    cntl.Reset();
-    createRequest.set_fsname("fs2");
-    createRequest.set_fstype(FSType::TYPE_S3);
-    S3Info s3info;
+TEST_F(MdsServiceTest, test_fail_retrieve_fsinfo_non_existent_fsid) {
+    GetFsInfoRequest getRequest;
+    GetFsInfoResponse getResponse;
+    // non-existent fsid
+    getRequest.set_fsid(fsinfo2.fsid() + 1);
+    stub_->GetFsInfo(&cntl, &getRequest, &getResponse, nullptr);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(getResponse.statuscode(), FSStatusCode::NOT_FOUND);
+    } else {
+        LOG(ERROR) << "error = " << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+}
+
+TEST_F(MdsServiceTest, test_fail_create_fs_existing_volume_for_volume_fstype) {
+    CreateFsRequest createRequest;
+    createRequest.set_fsname(fsinfo1.fsname());
+    createRequest.set_blocksize(4096);
+    createRequest.set_fstype(::curvefs::common::FSType::TYPE_VOLUME);
+    createRequest.set_enablesumindir(false);
+    createRequest.set_capacity(FS_CAPACITY);
+    createRequest.set_owner(kFsOwner);
+    auto* detail = createRequest.mutable_fsdetail();  // force allocate detail
+    (void)detail;
+
+    CreateFsResponse createResponse;
+    stub_->CreateFs(&cntl, &createRequest, &createResponse, nullptr);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(createResponse.statuscode(), FSStatusCode::PARAM_ERROR);
+    } else {
+        LOG(ERROR) << "error = " << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+}
+
+TEST_F(MdsServiceTest, test_fail_create_fs_hybrid_fstype) {
+    // TODO(huyao): create hybrid fs
+    CreateFsRequest createRequest;
+    createRequest.set_fsname("hybrid");
+    createRequest.set_blocksize(4096);
+    createRequest.set_fstype(FSType::TYPE_HYBRID);
+    createRequest.set_enablesumindir(false);
+    createRequest.set_capacity(FS_CAPACITY);
+    createRequest.set_owner(kFsOwner);
     s3info.set_ak("ak");
     s3info.set_sk("sk");
     s3info.set_endpoint("endpoint");
     s3info.set_bucketname("bucketname");
     s3info.set_blocksize(4096);
     s3info.set_chunksize(4096);
+    createRequest.mutable_fsdetail()->mutable_volume()->CopyFrom(volume);
     createRequest.mutable_fsdetail()->mutable_s3info()->CopyFrom(s3info);
-
-    EXPECT_CALL(*topoManager_, CreatePartitionsAndGetMinPartition(_, _))
-        .WillOnce(Return(TopoStatusCode::TOPO_OK));
-    EXPECT_CALL(*topoManager_, GetCopysetMembers(_, _, _))
-        .WillOnce(DoAll(
-            SetArgPointee<2>(addrs),
-            Return(TopoStatusCode::TOPO_OK)));
-    EXPECT_CALL(mockCliService2, GetLeader(_, _, _, _))
-        .WillOnce(DoAll(
-        SetArgPointee<2>(getLeaderResponse),
-        Invoke(RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
-    EXPECT_CALL(*s3Adapter_, BucketExist()).WillOnce(Return(true));
-
-    cntl.set_timeout_ms(5000);
-    stub.CreateFs(&cntl, &createRequest, &createResponse, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(createResponse.statuscode(), FSStatusCode::OK);
-        ASSERT_TRUE(createResponse.has_fsinfo());
-        fsinfo2 = createResponse.fsinfo();
-    } else {
-        LOG(ERROR) << "error = " << cntl.ErrorText();
-        ASSERT_TRUE(false);
-    }
-
-    // TODO(huyao): create hybrid fs
-    cntl.Reset();
-    createRequest.set_fsname("hybrid");
-    createRequest.set_fstype(FSType::TYPE_HYBRID);
-    stub.CreateFs(&cntl, &createRequest, &createResponse, NULL);
+    CreateFsResponse createResponse;
+    stub_->CreateFs(&cntl, &createRequest, &createResponse, nullptr);
     if (!cntl.Failed()) {
         ASSERT_EQ(createResponse.statuscode(), FSStatusCode::UNKNOWN_ERROR);
     } else {
         LOG(ERROR) << "error = " << cntl.ErrorText();
         ASSERT_TRUE(false);
     }
+}
 
-    // test MountFs
+TEST_F(MdsServiceTest, test_fail_get_fsinfo_missing_fsid_and_fsname) {
+    GetFsInfoRequest getRequest;
+    GetFsInfoResponse getResponse;
+    // no fsid and no fsname
+    stub_->GetFsInfo(&cntl, &getRequest, &getResponse, nullptr);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(getResponse.statuscode(), FSStatusCode::PARAM_ERROR);
+    } else {
+        LOG(ERROR) << "error = " << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+}
+
+TEST_F(MdsServiceTest, test_success_get_fsinfo_fsid_with_volume_fstype) {
+    FsInfoWrapper fsInfoWrapper(fsinfo1);
+    EXPECT_CALL(mockFsStorage_, Get(_, _))
+        .WillRepeatedly(DoAll(
+            SetArgPointee<1>(fsInfoWrapper),
+            Return(FSStatusCode::OK)));
+
+    GetFsInfoRequest getRequest;
+    GetFsInfoResponse getResponse;
+    getRequest.set_fsid(fsinfo1.fsid());
+    stub_->GetFsInfo(&cntl, &getRequest, &getResponse, nullptr);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(getResponse.statuscode(), FSStatusCode::OK);
+        ASSERT_TRUE(getResponse.has_fsinfo());
+        ASSERT_TRUE(CompareFs(getResponse.fsinfo(), fsinfo1));
+        ASSERT_EQ(getResponse.fsinfo().mountnum(), 0);
+        ASSERT_EQ(getResponse.fsinfo().mountpoints_size(), 0);
+    } else {
+        LOG(ERROR) << "error = " << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+}
+
+TEST_F(MdsServiceTest, test_success_get_fsinfo_fsid_with_s3_fstype) {
+    GetFsInfoRequest getRequest;
+    GetFsInfoResponse getResponse;
+    getRequest.set_fsid(fsinfo2.fsid());
+    stub_->GetFsInfo(&cntl, &getRequest, &getResponse, nullptr);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(getResponse.statuscode(), FSStatusCode::OK);
+        ASSERT_TRUE(getResponse.has_fsinfo());
+        ASSERT_TRUE(CompareFs(getResponse.fsinfo(), fsinfo2));
+        ASSERT_EQ(getResponse.fsinfo().mountnum(), 0);
+        ASSERT_EQ(getResponse.fsinfo().mountpoints_size(), 0);
+    } else {
+        LOG(ERROR) << "error = " << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+}
+
+TEST_F(MdsServiceTest, test_success_get_fsinfo_fsname_with_volume_fstype) {
+    FsInfoWrapper fsInfoWrapper(fsinfo1);
+    EXPECT_CALL(mockFsStorage_, Get(_, _))
+        .WillRepeatedly(DoAll(
+            SetArgPointee<1>(fsInfoWrapper),
+            Return(FSStatusCode::OK)));
+
+    GetFsInfoRequest getRequest;
+    GetFsInfoResponse getResponse;
+    getRequest.clear_fsid();
+    getRequest.set_fsname(fsinfo1.fsname());
+    stub_->GetFsInfo(&cntl, &getRequest, &getResponse, nullptr);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(getResponse.statuscode(), FSStatusCode::OK);
+        ASSERT_TRUE(getResponse.has_fsinfo());
+        ASSERT_TRUE(CompareFs(getResponse.fsinfo(), fsinfo1));
+        ASSERT_EQ(getResponse.fsinfo().mountnum(), 0);
+        ASSERT_EQ(getResponse.fsinfo().mountpoints_size(), 0);
+    } else {
+        LOG(ERROR) << "error = " << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+}
+
+TEST_F(MdsServiceTest, test_success_get_fsinfo_fsname_with_s3_fstype) {
+    GetFsInfoRequest getRequest;
+    GetFsInfoResponse getResponse;
+    getRequest.clear_fsid();
+    getRequest.set_fsname(fsinfo2.fsname());
+    stub_->GetFsInfo(&cntl, &getRequest, &getResponse, nullptr);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(getResponse.statuscode(), FSStatusCode::OK);
+        ASSERT_TRUE(getResponse.has_fsinfo());
+        ASSERT_TRUE(CompareFs(getResponse.fsinfo(), fsinfo2));
+        ASSERT_EQ(getResponse.fsinfo().mountnum(), 0);
+        ASSERT_EQ(getResponse.fsinfo().mountpoints_size(), 0);
+    } else {
+        LOG(ERROR) << "error = " << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+}
+
+TEST_F(MdsServiceTest, test_fail_get_fsinfo_non_existent_fsname) {
+    GetFsInfoRequest getRequest;
+    GetFsInfoResponse getResponse;
+    getRequest.clear_fsid();
+    getRequest.set_fsname("wrongName");
+    stub_->GetFsInfo(&cntl, &getRequest, &getResponse, nullptr);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(getResponse.statuscode(), FSStatusCode::NOT_FOUND);
+    } else {
+        LOG(ERROR) << "error = " << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+}
+
+TEST_F(MdsServiceTest, test_success_get_fsinfo_consistent_fsname_and_fsid) {
+    GetFsInfoRequest getRequest;
+    GetFsInfoResponse getResponse;
+    getRequest.set_fsid(fsinfo2.fsid());
+    getRequest.set_fsname(fsinfo2.fsname());
+    stub_->GetFsInfo(&cntl, &getRequest, &getResponse, nullptr);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(getResponse.statuscode(), FSStatusCode::OK);
+        ASSERT_TRUE(getResponse.has_fsinfo());
+        ASSERT_TRUE(CompareFs(getResponse.fsinfo(), fsinfo2));
+        ASSERT_EQ(getResponse.fsinfo().mountnum(), 0);
+        ASSERT_EQ(getResponse.fsinfo().mountpoints_size(), 0);
+    } else {
+        LOG(ERROR) << "error = " << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+}
+
+TEST_F(MdsServiceTest, test_fail_get_fsinfo_inconsistent_fsname_and_fsid) {
+    GetFsInfoRequest getRequest;
+    GetFsInfoResponse getResponse;
+    getRequest.set_fsid(fsinfo2.fsid());
+    getRequest.set_fsname(fsinfo1.fsname());
+    stub_->GetFsInfo(&cntl, &getRequest, &getResponse, nullptr);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(getResponse.statuscode(), FSStatusCode::PARAM_ERROR);
+    } else {
+        LOG(ERROR) << "error = " << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
     cntl.Reset();
+    getRequest.set_fsid(fsinfo1.fsid());
+    getRequest.set_fsname(fsinfo2.fsname());
+    stub_->GetFsInfo(&cntl, &getRequest, &getResponse, nullptr);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(getResponse.statuscode(), FSStatusCode::PARAM_ERROR);
+    } else {
+        LOG(ERROR) << "error = " << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+}
+
+TEST_F(MdsServiceTest, test_success_mount_then_umount_on_single_path) {
     Mountpoint mountPoint;
-    mountPoint.set_hostname("host1");
+    mountPoint.set_hostname(kHost2);
     mountPoint.set_port(9000);
-    mountPoint.set_path("/a/b/c");
+    mountPoint.set_path(kPathRootABC);
     mountPoint.set_cto(false);
     MountFsRequest mountRequest;
     MountFsResponse mountResponse;
-    mountRequest.set_fsname("fs1");
+    mountRequest.set_fsname(fsinfo1.fsname());
     mountRequest.set_allocated_mountpoint(new Mountpoint(mountPoint));
-    stub.MountFs(&cntl, &mountRequest, &mountResponse, NULL);
+    stub_->MountFs(&cntl, &mountRequest, &mountResponse, nullptr);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(mountResponse.statuscode(), FSStatusCode::OK);
+        ASSERT_TRUE(mountResponse.has_fsinfo());
+        ASSERT_TRUE(CompareFs(mountResponse.fsinfo(), fsinfo1));
+        ASSERT_EQ(mountResponse.fsinfo().mountnum(), 1);
+        ASSERT_EQ(mountResponse.fsinfo().mountpoints_size(), 1);
+    } else {
+        LOG(ERROR) << "error = " << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
+    cntl.Reset();
+    UmountFsRequest umountRequest;
+    UmountFsResponse umountResponse;
+    umountRequest.set_fsname(fsinfo1.fsname());
+    mountPoint.set_hostname(kHost2);
+    mountPoint.set_port(9000);
+    mountPoint.set_path(kPathRootABC);
+    umountRequest.set_allocated_mountpoint(new Mountpoint(mountPoint));
+    stub_->UmountFs(&cntl, &umountRequest, &umountResponse, nullptr);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(umountResponse.statuscode(), FSStatusCode::OK);
+    } else {
+        LOG(ERROR) << "error = " << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+}
+
+TEST_F(MdsServiceTest, test_success_delete_fs_no_mount_paths) {
+    // test delete fs
+    DeleteFsRequest deleteRequest;
+    DeleteFsResponse deleteResponse;
+    deleteRequest.set_fsname(fsinfo2.fsname());
+    stub_->DeleteFs(&cntl, &deleteRequest, &deleteResponse, nullptr);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(deleteResponse.statuscode(), FSStatusCode::OK);
+    } else {
+        LOG(ERROR) << "error = " << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+}
+
+TEST_F(MdsServiceTest, test_fail_delete_fs_mount_paths_still_exist) {
+    Mountpoint mountPoint3;
+    mountPoint3.set_hostname(kHost2);
+    mountPoint3.set_port(9000);
+    mountPoint3.set_path(kPathRootABD);
+    mountPoint3.set_cto(false);
+    MountFsRequest mountRequest;
+    MountFsResponse mountResponse;
+    mountRequest.set_fsname(fsinfo1.fsname());
+    mountRequest.set_allocated_mountpoint(new Mountpoint(mountPoint3));
+    stub_->MountFs(&cntl, &mountRequest, &mountResponse, nullptr);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(mountResponse.statuscode(), FSStatusCode::OK);
+        ASSERT_TRUE(mountResponse.has_fsinfo());
+        ASSERT_TRUE(CompareFs(mountResponse.fsinfo(), fsinfo1));
+        ASSERT_EQ(mountResponse.fsinfo().mountnum(), 1);
+        ASSERT_EQ(mountResponse.fsinfo().mountpoints_size(), 1);
+    } else {
+        LOG(ERROR) << "error = " << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
+    FsInfoWrapper fsInfoWrapper(fsinfo1);
+    EXPECT_CALL(mockFsStorage_, Get(_, _))
+        .WillRepeatedly(DoAll(
+            SetArgPointee<1>(fsInfoWrapper),
+            Return(FSStatusCode::OK)));
+
+    cntl.Reset();
+    DeleteFsRequest deleteRequest;
+    DeleteFsResponse deleteResponse;
+    deleteRequest.set_fsname(fsinfo1.fsname());
+    stub_->DeleteFs(&cntl, &deleteRequest, &deleteResponse, nullptr);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(deleteResponse.statuscode(), FSStatusCode::FS_BUSY);
+    } else {
+        LOG(ERROR) << "error = " << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+}
+
+TEST_F(MdsServiceTest, test_fail_repeatedly_mount_fs_on_same_path) {
+    Mountpoint mountPoint;
+    mountPoint.set_hostname(kHost1);
+    mountPoint.set_port(9000);
+    mountPoint.set_path(kPathRootABC);
+    mountPoint.set_cto(false);
+    MountFsRequest mountRequest;
+    MountFsResponse mountResponse;
+    mountRequest.set_fsname(fsinfo1.fsname());
+    mountRequest.set_allocated_mountpoint(new Mountpoint(mountPoint));
+    stub_->MountFs(&cntl, &mountRequest, &mountResponse, nullptr);
     if (!cntl.Failed()) {
         ASSERT_EQ(mountResponse.statuscode(), FSStatusCode::OK);
         ASSERT_TRUE(mountResponse.has_fsinfo());
@@ -373,232 +726,56 @@ TEST_F(MdsServiceTest, test1) {
         ASSERT_EQ(mountResponse.fsinfo().mountnum(), 1);
         ASSERT_EQ(mountResponse.fsinfo().mountpoints_size(), 1);
         ASSERT_EQ(MessageDifferencer::Equals(
-                      mountResponse.fsinfo().mountpoints(0), mountPoint), true);
+                    mountResponse.fsinfo().mountpoints(0), mountPoint), true);
     } else {
         LOG(ERROR) << "error = " << cntl.ErrorText();
         ASSERT_TRUE(false);
     }
 
     cntl.Reset();
-    stub.MountFs(&cntl, &mountRequest, &mountResponse, NULL);
+    stub_->MountFs(&cntl, &mountRequest, &mountResponse, nullptr);
     if (!cntl.Failed()) {
         ASSERT_EQ(mountResponse.statuscode(),
-                  FSStatusCode::MOUNT_POINT_CONFLICT);
+                FSStatusCode::MOUNT_POINT_CONFLICT);
     } else {
         LOG(ERROR) << "error = " << cntl.ErrorText();
         ASSERT_TRUE(false);
     }
+}
 
-    cntl.Reset();
-    Mountpoint mountPoint2;
-    mountPoint2.set_hostname("host1");
-    mountPoint2.set_port(9000);
-    mountPoint2.set_path("/a/b/d");
-    mountPoint2.set_cto(false);
-    mountRequest.set_allocated_mountpoint(new Mountpoint(mountPoint2));
-    stub.MountFs(&cntl, &mountRequest, &mountResponse, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(mountResponse.statuscode(), FSStatusCode::OK);
-        ASSERT_TRUE(mountResponse.has_fsinfo());
-        ASSERT_TRUE(CompareFs(mountResponse.fsinfo(), fsinfo1));
-        ASSERT_EQ(mountResponse.fsinfo().mountnum(), 2);
-        ASSERT_EQ(mountResponse.fsinfo().mountpoints_size(), 2);
-    } else {
-        LOG(ERROR) << "error = " << cntl.ErrorText();
-        ASSERT_TRUE(false);
-    }
-
-    cntl.Reset();
-    Mountpoint mountPoint3;
-    mountPoint3.set_hostname("host2");
-    mountPoint3.set_port(9000);
-    mountPoint3.set_path("/a/b/d");
-    mountPoint3.set_cto(false);
-    mountRequest.set_allocated_mountpoint(new Mountpoint(mountPoint3));
-    stub.MountFs(&cntl, &mountRequest, &mountResponse, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(mountResponse.statuscode(), FSStatusCode::OK);
-        ASSERT_TRUE(mountResponse.has_fsinfo());
-        ASSERT_TRUE(CompareFs(mountResponse.fsinfo(), fsinfo1));
-        ASSERT_EQ(mountResponse.fsinfo().mountnum(), 3);
-        ASSERT_EQ(mountResponse.fsinfo().mountpoints_size(), 3);
-    } else {
-        LOG(ERROR) << "error = " << cntl.ErrorText();
-        ASSERT_TRUE(false);
-    }
-
-    cntl.Reset();
-    mountPoint.set_hostname("host2");
+TEST_F(MdsServiceTest, test_fail_repeatedly_umount_fs_on_same_path) {
+    Mountpoint mountPoint;
+    mountPoint.set_hostname(kHost1);
     mountPoint.set_port(9000);
-    mountPoint.set_path("/a/b/c");
+    mountPoint.set_path(kPathRootABC);
     mountPoint.set_cto(false);
+    MountFsRequest mountRequest;
+    MountFsResponse mountResponse;
+    mountRequest.set_fsname(fsinfo1.fsname());
     mountRequest.set_allocated_mountpoint(new Mountpoint(mountPoint));
-    stub.MountFs(&cntl, &mountRequest, &mountResponse, NULL);
+    stub_->MountFs(&cntl, &mountRequest, &mountResponse, nullptr);
     if (!cntl.Failed()) {
         ASSERT_EQ(mountResponse.statuscode(), FSStatusCode::OK);
         ASSERT_TRUE(mountResponse.has_fsinfo());
         ASSERT_TRUE(CompareFs(mountResponse.fsinfo(), fsinfo1));
-        ASSERT_EQ(mountResponse.fsinfo().mountnum(), 4);
-        ASSERT_EQ(mountResponse.fsinfo().mountpoints_size(), 4);
+        ASSERT_EQ(mountResponse.fsinfo().mountnum(), 1);
+        ASSERT_EQ(mountResponse.fsinfo().mountpoints_size(), 1);
+        ASSERT_EQ(MessageDifferencer::Equals(
+                    mountResponse.fsinfo().mountpoints(0), mountPoint), true);
     } else {
         LOG(ERROR) << "error = " << cntl.ErrorText();
         ASSERT_TRUE(false);
     }
 
-    // TEST GetFsInfo
-    // no fsid and no fsname
-    cntl.Reset();
-    GetFsInfoRequest getRequest;
-    GetFsInfoResponse getResponse;
-    stub.GetFsInfo(&cntl, &getRequest, &getResponse, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(getResponse.statuscode(), FSStatusCode::PARAM_ERROR);
-    } else {
-        LOG(ERROR) << "error = " << cntl.ErrorText();
-        ASSERT_TRUE(false);
-    }
-
-    // fsid1
-    cntl.Reset();
-    getRequest.set_fsid(fsinfo1.fsid());
-    stub.GetFsInfo(&cntl, &getRequest, &getResponse, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(getResponse.statuscode(), FSStatusCode::OK);
-        ASSERT_TRUE(getResponse.has_fsinfo());
-        ASSERT_TRUE(CompareFs(getResponse.fsinfo(), fsinfo1));
-        ASSERT_EQ(getResponse.fsinfo().mountnum(), 4);
-        ASSERT_EQ(getResponse.fsinfo().mountpoints_size(), 4);
-    } else {
-        LOG(ERROR) << "error = " << cntl.ErrorText();
-        ASSERT_TRUE(false);
-    }
-
-    // fsid2
-    cntl.Reset();
-    getRequest.set_fsid(fsinfo2.fsid());
-    stub.GetFsInfo(&cntl, &getRequest, &getResponse, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(getResponse.statuscode(), FSStatusCode::OK);
-        ASSERT_TRUE(getResponse.has_fsinfo());
-        ASSERT_TRUE(CompareFs(getResponse.fsinfo(), fsinfo2));
-        ASSERT_EQ(getResponse.fsinfo().mountnum(), 0);
-        ASSERT_EQ(getResponse.fsinfo().mountpoints_size(), 0);
-    } else {
-        LOG(ERROR) << "error = " << cntl.ErrorText();
-        ASSERT_TRUE(false);
-    }
-
-    // wrong fsid
-    cntl.Reset();
-    getRequest.set_fsid(fsinfo2.fsid() + 1);
-    stub.GetFsInfo(&cntl, &getRequest, &getResponse, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(getResponse.statuscode(), FSStatusCode::NOT_FOUND);
-    } else {
-        LOG(ERROR) << "error = " << cntl.ErrorText();
-        ASSERT_TRUE(false);
-    }
-
-    // fsname1
-    cntl.Reset();
-    getRequest.clear_fsid();
-    getRequest.set_fsname(fsinfo1.fsname());
-    stub.GetFsInfo(&cntl, &getRequest, &getResponse, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(getResponse.statuscode(), FSStatusCode::OK);
-        ASSERT_TRUE(getResponse.has_fsinfo());
-        ASSERT_TRUE(CompareFs(getResponse.fsinfo(), fsinfo1));
-        ASSERT_EQ(getResponse.fsinfo().mountnum(), 4);
-        ASSERT_EQ(getResponse.fsinfo().mountpoints_size(), 4);
-    } else {
-        LOG(ERROR) << "error = " << cntl.ErrorText();
-        ASSERT_TRUE(false);
-    }
-
-    // fsname2
-    cntl.Reset();
-    getRequest.clear_fsid();
-    getRequest.set_fsname(fsinfo2.fsname());
-    stub.GetFsInfo(&cntl, &getRequest, &getResponse, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(getResponse.statuscode(), FSStatusCode::OK);
-        ASSERT_TRUE(getResponse.has_fsinfo());
-        ASSERT_TRUE(CompareFs(getResponse.fsinfo(), fsinfo2));
-        ASSERT_EQ(getResponse.fsinfo().mountnum(), 0);
-        ASSERT_EQ(getResponse.fsinfo().mountpoints_size(), 0);
-    } else {
-        LOG(ERROR) << "error = " << cntl.ErrorText();
-        ASSERT_TRUE(false);
-    }
-
-    // wrong fsname conflict
-    cntl.Reset();
-    getRequest.clear_fsid();
-    getRequest.set_fsname("wrongName");
-    stub.GetFsInfo(&cntl, &getRequest, &getResponse, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(getResponse.statuscode(), FSStatusCode::NOT_FOUND);
-    } else {
-        LOG(ERROR) << "error = " << cntl.ErrorText();
-        ASSERT_TRUE(false);
-    }
-
-    // both fsid and fsname
-    cntl.Reset();
-    getRequest.set_fsid(fsinfo2.fsid());
-    getRequest.set_fsname(fsinfo2.fsname());
-    stub.GetFsInfo(&cntl, &getRequest, &getResponse, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(getResponse.statuscode(), FSStatusCode::OK);
-        ASSERT_TRUE(getResponse.has_fsinfo());
-        ASSERT_TRUE(CompareFs(getResponse.fsinfo(), fsinfo2));
-        ASSERT_EQ(getResponse.fsinfo().mountnum(), 0);
-        ASSERT_EQ(getResponse.fsinfo().mountpoints_size(), 0);
-    } else {
-        LOG(ERROR) << "error = " << cntl.ErrorText();
-        ASSERT_TRUE(false);
-    }
-
-    // fsid and fsname conflict
-    cntl.Reset();
-    getRequest.set_fsid(fsinfo2.fsid());
-    getRequest.set_fsname(fsinfo1.fsname());
-    stub.GetFsInfo(&cntl, &getRequest, &getResponse, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(getResponse.statuscode(), FSStatusCode::PARAM_ERROR);
-    } else {
-        LOG(ERROR) << "error = " << cntl.ErrorText();
-        ASSERT_TRUE(false);
-    }
-
-    // fsid and fsname conflict
-    cntl.Reset();
-    getRequest.set_fsid(fsinfo1.fsid());
-    getRequest.set_fsname(fsinfo2.fsname());
-    stub.GetFsInfo(&cntl, &getRequest, &getResponse, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(getResponse.statuscode(), FSStatusCode::PARAM_ERROR);
-    } else {
-        LOG(ERROR) << "error = " << cntl.ErrorText();
-        ASSERT_TRUE(false);
-    }
-
-    // TEST unmount
-    auto volumeSpace = new MockVolumeSpace();
-    EXPECT_CALL(*spaceManager_, GetVolumeSpace(_))
-        .WillRepeatedly(Return(volumeSpace));
-    EXPECT_CALL(*volumeSpace,
-                ReleaseBlockGroups(Matcher<const std::string &>(_)))
-        .WillRepeatedly(Return(space::SpaceOk));
     cntl.Reset();
     UmountFsRequest umountRequest;
     UmountFsResponse umountResponse;
     umountRequest.set_fsname(fsinfo1.fsname());
-    mountPoint.set_hostname("host1");
+    mountPoint.set_hostname(kHost1);
     mountPoint.set_port(9000);
-    mountPoint.set_path("/a/b/c");
+    mountPoint.set_path(kPathRootABC);
     umountRequest.set_allocated_mountpoint(new Mountpoint(mountPoint));
-    stub.UmountFs(&cntl, &umountRequest, &umountResponse, NULL);
+    stub_->UmountFs(&cntl, &umountRequest, &umountResponse, nullptr);
     if (!cntl.Failed()) {
         ASSERT_EQ(umountResponse.statuscode(), FSStatusCode::OK);
     } else {
@@ -607,7 +784,12 @@ TEST_F(MdsServiceTest, test1) {
     }
 
     cntl.Reset();
-    stub.UmountFs(&cntl, &umountRequest, &umountResponse, NULL);
+    umountRequest.set_fsname(fsinfo1.fsname());
+    umountRequest.set_fsname(fsinfo1.fsname());
+    mountPoint.set_hostname(kHost1);
+    mountPoint.set_port(9000);
+    mountPoint.set_path(kPathRootABC);
+    stub_->UmountFs(&cntl, &umountRequest, &umountResponse, nullptr);
     if (!cntl.Failed()) {
         ASSERT_EQ(umountResponse.statuscode(),
                   FSStatusCode::MOUNT_POINT_NOT_EXIST);
@@ -615,56 +797,30 @@ TEST_F(MdsServiceTest, test1) {
         LOG(ERROR) << "error = " << cntl.ErrorText();
         ASSERT_TRUE(false);
     }
+}
 
-    cntl.Reset();
-    mountPoint.set_hostname("host2");
-    mountPoint.set_port(9000);
-    mountPoint.set_path("/a/b/c");
-    umountRequest.set_allocated_mountpoint(new Mountpoint(mountPoint));
-    stub.UmountFs(&cntl, &umountRequest, &umountResponse, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(umountResponse.statuscode(), FSStatusCode::OK);
-    } else {
-        LOG(ERROR) << "error = " << cntl.ErrorText();
-        ASSERT_TRUE(false);
-    }
-
-    cntl.Reset();
-    getRequest.clear_fsid();
-    getRequest.set_fsname(fsinfo1.fsname());
-    stub.GetFsInfo(&cntl, &getRequest, &getResponse, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(getResponse.statuscode(), FSStatusCode::OK);
-        ASSERT_TRUE(getResponse.has_fsinfo());
-        ASSERT_TRUE(CompareFs(getResponse.fsinfo(), fsinfo1));
-        ASSERT_EQ(getResponse.fsinfo().mountnum(), 2);
-        ASSERT_EQ(getResponse.fsinfo().mountpoints_size(), 2);
-    } else {
-        LOG(ERROR) << "error = " << cntl.ErrorText();
-        ASSERT_TRUE(false);
-    }
-
-    // test refresh session
-    cntl.Reset();
-    RefreshSessionRequest refreshSessionRequest;
-    RefreshSessionResponse refreshSessionResponse;
+TEST_F(MdsServiceTest, test_success_refresh_sessions) {
     PartitionTxId tmp;
     tmp.set_partitionid(1);
     tmp.set_txid(1);
     std::vector<PartitionTxId> partitionList({std::move(tmp)});
-    std::string fsName = "fs1";
+    std::string fsName = fsinfo1.fsname();
     Mountpoint mountpoint;
+    Mountpoint mountPoint;
     mountpoint.set_hostname("127.0.0.1");
     mountpoint.set_port(9000);
     mountpoint.set_path("/mnt");
+    RefreshSessionRequest refreshSessionRequest;
+    RefreshSessionResponse refreshSessionResponse;
     *refreshSessionRequest.mutable_txids() = {partitionList.begin(),
                                               partitionList.end()};
     refreshSessionRequest.set_fsname(fsName);
     *refreshSessionRequest.mutable_mountpoint() = mountpoint;
     EXPECT_CALL(*topoManager_, GetLatestPartitionsTxId(_, _))
         .WillOnce(SetArgPointee<1>(partitionList));
-    stub.RefreshSession(&cntl, &refreshSessionRequest, &refreshSessionResponse,
-                        NULL);
+
+    stub_->RefreshSession(&cntl, &refreshSessionRequest,
+                          &refreshSessionResponse, nullptr);
     if (!cntl.Failed()) {
         ASSERT_EQ(refreshSessionResponse.statuscode(), FSStatusCode::OK);
         ASSERT_EQ(1, refreshSessionResponse.latesttxidlist_size());
@@ -676,80 +832,70 @@ TEST_F(MdsServiceTest, test1) {
         cntl.Reset();
         UmountFsRequest umountRequest;
         UmountFsResponse umountResponse;
-        umountRequest.set_fsname("fs1");
+        umountRequest.set_fsname(fsName);
         mountPoint.set_hostname("127.0.0.1");
         mountPoint.set_port(9000);
         mountPoint.set_path("/mnt");
         umountRequest.set_allocated_mountpoint(new Mountpoint(mountPoint));
-        stub.UmountFs(&cntl, &umountRequest, &umountResponse, NULL);
+        stub_->UmountFs(&cntl, &umountRequest, &umountResponse, nullptr);
+    } else {
+        LOG(ERROR) << "error = " << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+}
+
+TEST_F(MdsServiceTest, test_success_delete_fs_after_umounting_all_paths) {
+    Mountpoint mountPoint2;
+    mountPoint2.set_hostname(kHost1);
+    mountPoint2.set_port(9000);
+    mountPoint2.set_path(kPathRootABD);
+    mountPoint2.set_cto(false);
+    MountFsRequest mountRequest;
+    MountFsResponse mountResponse;
+    mountRequest.set_fsname(fsinfo1.fsname());
+    mountRequest.set_allocated_mountpoint(new Mountpoint(mountPoint2));
+    stub_->MountFs(&cntl, &mountRequest, &mountResponse, nullptr);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(mountResponse.statuscode(), FSStatusCode::OK);
+        ASSERT_TRUE(mountResponse.has_fsinfo());
+        ASSERT_TRUE(CompareFs(mountResponse.fsinfo(), fsinfo1));
+        ASSERT_EQ(mountResponse.fsinfo().mountnum(), 1);
+        ASSERT_EQ(mountResponse.fsinfo().mountpoints_size(), 1);
     } else {
         LOG(ERROR) << "error = " << cntl.ErrorText();
         ASSERT_TRUE(false);
     }
 
-    // test delete fs
+    cntl.Reset();
+    Mountpoint mountPoint;
+    mountPoint.set_hostname(kHost1);
+    mountPoint.set_port(9000);
+    mountPoint.set_path(kPathRootABD);
+    mountPoint.set_cto(false);
+    UmountFsRequest umountRequest;
+    UmountFsResponse umountResponse;
+    umountRequest.set_fsname(fsinfo1.fsname());
+    umountRequest.set_allocated_mountpoint(new Mountpoint(mountPoint));
+    stub_->UmountFs(&cntl, &umountRequest, &umountResponse, nullptr);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(umountResponse.statuscode(), FSStatusCode::OK);
+    } else {
+        LOG(ERROR) << "error = " << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
     cntl.Reset();
     DeleteFsRequest deleteRequest;
     DeleteFsResponse deleteResponse;
-    deleteRequest.set_fsname(fsinfo2.fsname());
-    stub.DeleteFs(&cntl, &deleteRequest, &deleteResponse, NULL);
+    deleteRequest.set_fsname(fsinfo1.fsname());
+    stub_->DeleteFs(&cntl, &deleteRequest, &deleteResponse, nullptr);
     if (!cntl.Failed()) {
         ASSERT_EQ(deleteResponse.statuscode(), FSStatusCode::OK);
     } else {
         LOG(ERROR) << "error = " << cntl.ErrorText();
         ASSERT_TRUE(false);
     }
-
-    cntl.Reset();
-    deleteRequest.set_fsname(fsinfo1.fsname());
-    stub.DeleteFs(&cntl, &deleteRequest, &deleteResponse, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(deleteResponse.statuscode(), FSStatusCode::FS_BUSY);
-    } else {
-        LOG(ERROR) << "error = " << cntl.ErrorText();
-        ASSERT_TRUE(false);
-    }
-
-    cntl.Reset();
-    mountPoint.set_hostname("host1");
-    mountPoint.set_port(9000);
-    mountPoint.set_path("/a/b/d");
-    umountRequest.set_allocated_mountpoint(new Mountpoint(mountPoint));
-    stub.UmountFs(&cntl, &umountRequest, &umountResponse, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(umountResponse.statuscode(), FSStatusCode::OK);
-    } else {
-        LOG(ERROR) << "error = " << cntl.ErrorText();
-        ASSERT_TRUE(false);
-    }
-
-    cntl.Reset();
-    mountPoint.set_hostname("host2");
-    mountPoint.set_port(9000);
-    mountPoint.set_path("/a/b/d");
-    umountRequest.set_allocated_mountpoint(new Mountpoint(mountPoint));
-    stub.UmountFs(&cntl, &umountRequest, &umountResponse, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(umountResponse.statuscode(), FSStatusCode::OK);
-    } else {
-        LOG(ERROR) << "error = " << cntl.ErrorText();
-        ASSERT_TRUE(false);
-    }
-
-    cntl.Reset();
-    deleteRequest.set_fsname(fsinfo1.fsname());
-    stub.DeleteFs(&cntl, &deleteRequest, &deleteResponse, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(deleteResponse.statuscode(), FSStatusCode::OK);
-    } else {
-        LOG(ERROR) << "error = " << cntl.ErrorText();
-        ASSERT_TRUE(false);
-    }
-
-    // stop rpc server
-    server.Stop(10);
-    server.Join();
-    delete volumeSpace;
 }
+
 }  // namespace mds
 }  // namespace curvefs
