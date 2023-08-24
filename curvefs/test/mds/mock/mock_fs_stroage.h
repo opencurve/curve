@@ -34,6 +34,11 @@
 namespace curvefs {
 namespace mds {
 
+class MockMemoryFsStorage : public MemoryFsStorage {
+ public:
+    MOCK_METHOD2(Get, FSStatusCode(const std::string&, FsInfoWrapper*));
+};
+
 class MockFsStorage : public FsStorage {
  public:
     MockFsStorage() = default;
