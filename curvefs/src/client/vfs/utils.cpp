@@ -24,6 +24,7 @@
 
 #include "absl/strings/string_view.h"
 #include "absl/strings/str_split.h"
+#include "absl/strings/str_join.h"
 #include "curvefs/src/client/vfs/utils.h"
 #include "curvefs/src/client/logger/error_log.h"
 
@@ -54,6 +55,10 @@ bool HasPrefix(const std::string& str, const std::string& prefix) {
 std::vector<std::string> Split(const std::string& str,
                                const std::string& sep) {
     return absl::StrSplit(str, sep);
+}
+
+std::string Join(std::vector<std::string> range, std::string delim) {
+    return absl::StrJoin(range, delim);
 }
 
 }  // namespace strings

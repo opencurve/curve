@@ -69,7 +69,7 @@ struct AccessLogGuard {
         }
 
         timer.stop();
-        //Logger->info("{0} <{1:.6f}>", handler(), timer.u_elapsed() / 1e6);
+        Logger->info("{0} <{1:.6f}>", handler(), timer.u_elapsed() / 1e6);
     }
 
     bool enable;

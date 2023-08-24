@@ -24,11 +24,11 @@ extern "C" {
 #undef io_opencurve_curve_fs_CurveMount_O_DIRECTORY
 #define io_opencurve_curve_fs_CurveMount_O_DIRECTORY 128L
 #undef io_opencurve_curve_fs_CurveMount_SEEK_SET
-#define io_opencurve_curve_fs_CurveMount_SEEK_SET 1L
+#define io_opencurve_curve_fs_CurveMount_SEEK_SET 0L
 #undef io_opencurve_curve_fs_CurveMount_SEEK_CUR
-#define io_opencurve_curve_fs_CurveMount_SEEK_CUR 2L
+#define io_opencurve_curve_fs_CurveMount_SEEK_CUR 1L
 #undef io_opencurve_curve_fs_CurveMount_SEEK_END
-#define io_opencurve_curve_fs_CurveMount_SEEK_END 3L
+#define io_opencurve_curve_fs_CurveMount_SEEK_END 2L
 #undef io_opencurve_curve_fs_CurveMount_SETATTR_MODE
 #define io_opencurve_curve_fs_CurveMount_SETATTR_MODE 1L
 #undef io_opencurve_curve_fs_CurveMount_SETATTR_UID

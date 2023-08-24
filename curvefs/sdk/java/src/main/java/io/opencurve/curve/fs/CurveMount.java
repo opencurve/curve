@@ -45,9 +45,9 @@ public class CurveMount {
      *
      * Must be synchronized with JNI if changed.
      */
-    public static final int SEEK_SET = 1;
-    public static final int SEEK_CUR = 2;
-    public static final int SEEK_END = 3;
+    public static final int SEEK_SET = 0;
+    public static final int SEEK_CUR = 1;
+    public static final int SEEK_END = 2;
 
     /*
      * Attribute flags for setattr().
@@ -64,9 +64,15 @@ public class CurveMount {
 
     private boolean initialized = false;
 
+    private static boolean debug = false;
+
     private static void info(String name, String... args) {
-        //System.out.println("io.opencurve.curve.fs.hadoop.CurveMount."
-        //    + name + "(" + String.join(",", args) + ")");
+        if (!debug) {
+            return;
+        }
+
+        System.out.println("io.opencurve.curve.fs.hadoop.CurveMount."
+            + name + "(" + String.join(",", args) + ")");
 
     }
 
@@ -114,18 +120,18 @@ public class CurveMount {
     }
 
     public void conf_set(String key, String value) {
-        info("conf_set");
+        info("conf_set", key, value);
         nativeCurveFSConfSet(instance_ptr, key, value);
     }
 
     // directory*
     public void mkdirs(String path, int mode) throws IOException {
-        info("mkdirs");
+        info("mkdirs", path.toString());
         nativeCurveFSMkDirs(instance_ptr, path, mode);
     }
 
     public void rmdir(String path) throws IOException {
-        info("mkdirs");
+        info("rmdir", path.toString());
         nativeCurveFSRmDir(instance_ptr, path);
     }
 
@@ -141,40 +147,40 @@ public class CurveMount {
     }
 
     public long lseek(int fd, long offset, int whence) throws IOException {
-        info("lseek");
+        info("lseek", String.valueOf(fd), String.valueOf(offset), String.valueOf(whence));
         return nativeCurveFSLSeek(instance_ptr, fd, offset, whence);
     }
 
     public int read(int fd, byte[] buf, long size, long offset) throws IOException {
-        info("read");
+        info("read", String.valueOf(fd), String.valueOf(size), String.valueOf(size));
         long rc = nativieCurveFSRead(instance_ptr, fd, buf, size, offset);
         return (int) rc; // FIXME: int -> long
     }
 
     public int write(int fd, byte[] buf, long size, long offset) throws IOException {
-        info("write");
+        info("write", String.valueOf(fd), String.valueOf(size), String.valueOf(size));
         long rc = nativieCurveFSWrite(instance_ptr, fd, buf, size, offset);
         return (int) rc; // FIXME: int -> long
     }
 
     public void fsync(int fd) throws IOException {
-        info("fsync");
+        info("fsync", String.valueOf(fd));
         nativeCurveFSFSync(instance_ptr, fd);
     }
 
     public void close(int fd) throws IOException {
-        info("close", Integer.toString(fd));
+        info("close", String.valueOf(fd));
         nativeCurveFSClose(instance_ptr, fd);
     }
 
     public void unlink(String path) throws IOException {
-        info("unlink");
+        info("unlink", path.toString());
         nativeCurveFSUnlink(instance_ptr, path);
     }
 
     // others
     public void statfs(String path, CurveStatVFS statvfs) throws IOException {
-        info("statfs");
+        info("statfs", path.toString());
         nativeCurveFSStatFS(instance_ptr, path, statvfs);
     }
 
@@ -184,22 +190,22 @@ public class CurveMount {
     }
 
     public void fstat(int fd, CurveStat stat) throws IOException {
-        info("fstat");
+        info("fstat",  String.valueOf(fd));
         nativeCurveFSFStat(instance_ptr, fd, stat);
     }
 
     public void setattr(String path, CurveStat stat, int mask) throws IOException {
-        info("setattr");
+        info("setattr", path.toString());
         nativeCurveFSSetAttr(instance_ptr, path, stat, mask);
     }
 
     public void chmod(String path, int mode) throws IOException {
-        info("chmod");
+        info("chmod", path.toString());
         nativeCurveFSChmod(instance_ptr, path, mode);
     }
 
     public void rename(String src, String dst) throws IOException {
-        info("rename");
+        info("rename", src.toString(), dst.toString());
         nativeCurveFSRename(instance_ptr, src, dst);
     }
 

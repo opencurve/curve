@@ -38,6 +38,8 @@ bool HasPrefix(const std::string& str, const std::string& prefix);
 
 std::vector<std::string> Split(const std::string& str, const std::string& sep);
 
+std::string Join(std::vector<std::string> range, std::string delim);
+
 };  // namespace strings
 
 namespace filepath {

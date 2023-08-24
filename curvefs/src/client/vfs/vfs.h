@@ -59,6 +59,8 @@ class VFS {
     // directory*
     CURVEFS_ERROR MkDir(const std::string& path, uint16_t mode);
 
+    CURVEFS_ERROR MkDirs(const std::string& path, uint16_t mode);
+
     CURVEFS_ERROR OpenDir(const std::string& path, DirStream* stream);
 
     CURVEFS_ERROR ReadDir(DirStream* stream, DirEntry* dirEntry);

@@ -72,6 +72,12 @@ int curvefs_mkdir(uintptr_t instance_ptr, const char* path, uint16_t mode) {
     return SysErr(rc);
 }
 
+int curvefs_mkdirs(uintptr_t instance_ptr, const char* path, uint16_t mode) {
+    auto mount = get_instance(instance_ptr);
+    auto rc = mount->vfs->MkDirs(path, mode);
+    return SysErr(rc);
+}
+
 int curvefs_rmdir(uintptr_t instance_ptr, const char* path) {
     auto mount = get_instance(instance_ptr);
     auto rc = mount->vfs->RmDir(path);

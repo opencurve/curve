@@ -127,7 +127,7 @@ bool Helper::InitLog(Configuration* cfg) {
     bool yes = InitErrorLog(prefix, "", loglevel);
     if (yes) {
         // FIXME: let it works
-        //yes = InitAccessLog(prefix);
+        yes = InitAccessLog(prefix);
     }
 
     return yes;

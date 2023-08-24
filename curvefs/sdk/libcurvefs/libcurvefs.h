@@ -79,6 +79,8 @@ int curvefs_umonut(uintptr_t instance_ptr);
 // directory
 int curvefs_mkdir(uintptr_t instance_ptr, const char* path, uint16_t mode);
 
+int curvefs_mkdirs(uintptr_t instance_ptr, const char* path, uint16_t mode);
+
 int curvefs_rmdir(uintptr_t instance_ptr, const char* path);
 
 int curvefs_opendir(uintptr_t instance_ptr,

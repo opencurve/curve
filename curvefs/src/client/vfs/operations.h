@@ -65,7 +65,8 @@ class Operations {
     // file*
     virtual CURVEFS_ERROR Create(Ino parent,
                                  const std::string& name,
-                                 uint16_t mode) = 0;
+                                 uint16_t mode,
+                                 EntryOut* entryOut) = 0;
 
     virtual CURVEFS_ERROR Open(Ino ino, uint32_t flags) = 0;
 
@@ -139,7 +140,8 @@ class OperationsImpl : public Operations {
     // file*
     CURVEFS_ERROR Create(Ino parent,
                          const std::string& name,
-                         uint16_t mode) override;
+                         uint16_t mode,
+                         EntryOut* entryOut) override;
 
     CURVEFS_ERROR Open(Ino ino, uint32_t flags) override;
 

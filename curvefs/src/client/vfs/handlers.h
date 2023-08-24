@@ -40,7 +40,7 @@ using ::curve::common::LockGuard;
 
 struct FileHandler {
     FileHandler() : ino(0), offset(0) {}
-    FileHandler(Ino ino): ino(ino), offset(0) {}
+    FileHandler(Ino ino, uint64_t offset): ino(ino), offset(offset) {}
 
     Ino ino;
     uint64_t offset;
@@ -50,7 +50,7 @@ class FileHandlers {
  public:
     FileHandlers();
 
-    uint64_t NextHandler(Ino ino);
+    uint64_t NextHandler(Ino ino, uint64_t offset);
 
     bool GetHandler(uint64_t fd, std::shared_ptr<FileHandler>* handler);
 

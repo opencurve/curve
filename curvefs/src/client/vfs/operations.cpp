@@ -122,14 +122,13 @@ CURVEFS_ERROR OperationsImpl::RmDir(Ino parent, const std::string& name) {
 // file*
 CURVEFS_ERROR OperationsImpl::Create(Ino parent,
                                      const std::string& name,
-                                     uint16_t mode) {
+                                     uint16_t mode,
+                                     EntryOut* entryOut) {
     auto ctx = FuseContext();
     auto req = ctx.Request();
     auto fi = ctx.FileInfo();
-    EntryOut entryOut;
-    auto rc = client_->FuseOpCreate(req, parent, name.c_str(),
-                                    mode, fi, &entryOut);
-    return rc;
+    return client_->FuseOpCreate(req, parent, name.c_str(),
+                                 mode, fi, entryOut);
 }
 
 CURVEFS_ERROR OperationsImpl::Open(Ino ino, uint32_t flags) {

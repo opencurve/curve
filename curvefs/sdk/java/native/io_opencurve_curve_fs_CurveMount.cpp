@@ -279,7 +279,7 @@ JNICALL Java_io_opencurve_curve_fs_CurveMount_nativeCurveFSMkDirs
     });
 
     // curvefs_mkdir
-    int rc = curvefs_mkdir(instance, path, mode);
+    int rc = curvefs_mkdirs(instance, path, mode);
     if (rc == EEXIST) {
         rc = 0;
     } else if (rc != 0) {
