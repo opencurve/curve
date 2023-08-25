@@ -34,7 +34,6 @@
 #include "src/client/request_closure.h"
 #include "src/common/location_operator.h"
 #include "src/common/fast_align.h"
-#include "src/client/global_metacache.h"
 #include "src/common//namespace_define.h"
 
 namespace curve {
@@ -190,6 +189,7 @@ bool Splitor::AssignInternal(IOTracker* iotracker, MetaCache* metaCache,
         for (auto& ctx : templist) {
             ctx->filetype_ = fileInfo->filetype;
             ctx->fileId_ = fileInfo->id;
+            ctx->chunkIndex_ = chunkidx;
             if (fEpoch != nullptr) {
                 ctx->epoch_ = fEpoch->epoch;
             } else {
@@ -199,8 +199,7 @@ bool Splitor::AssignInternal(IOTracker* iotracker, MetaCache* metaCache,
             ctx->sourceInfo_ =
                 CalcRequestSourceInfo(iotracker, metaCache, chunkidx);
         }
-        if (fileInfo->filetype == FileType::INODE_CLONE_PAGEFILE &&
-            !chunkIdInfo.cloneOrigin_.empty()) {
+        if (fileInfo->filetype == FileType::INODE_CLONE_PAGEFILE) {
             ret = AssignCloneFileInfo(
                 iotracker, &templist, mdsclient, 
                 fileInfo, chunkidx, chunkIdInfo);
@@ -233,7 +232,7 @@ bool Splitor::GetOrAllocateSegment(bool allocateIfNotExist,
         if (errCode == LIBCURVE_ERROR::NOT_ALLOCATE) {
             // this chunkIdInfo(0, 0, 0) identify
             // the unallocated chunk when read
-            ChunkIDInfo chunkIdInfo(0, 0, 0, "", 0);
+            ChunkIDInfo chunkIdInfo(0, 0, 0, 0);
             chunkIdInfo.chunkExist = false;
             metaCache->UpdateChunkInfoByIndex(chunkidx, chunkIdInfo);
             return true;
@@ -447,50 +446,10 @@ int Splitor::AssignCloneFileInfo(IOTracker* iotracker,
     const FInfo_t* fileInfo,
     ChunkIndex chunkidx,
     const ChunkIDInfo &chunkIdInfo) {
-    MetaCache* cloneOriginCache = GlobalMetaCache::GetInstance().
-        GetOrNewMetaCacheInstance(chunkIdInfo.cloneOrigin_,
-            fileInfo->userinfo,
-            mdsclient);
-    if (cloneOriginCache == nullptr) {
-        // clone origin may be deleted
-        ChunkIDInfo tmp(0, 0, 0, "", 0);
-        tmp.chunkExist = false;
-        for (auto& ctx : *targetlist) {
-            ctx->cfinfo_ = fileInfo->cfinfo;
-            ctx->originFileId_ = chunkIdInfo.originFileId_;
-            ctx->chunkIndex_ = chunkidx;
-            ctx->originChunkIdInfo_ = tmp;
-        }
-        return 0;
+    for (auto& ctx : *targetlist) {
+        ctx->originFileId_ = chunkIdInfo.originFileId_;
+        ctx->cloneChain_ = fileInfo->cloneChain;
     }
-    ChunkIDInfo originChunkIdInfo;
-    MetaCacheErrorType errCode =
-        cloneOriginCache->GetChunkInfoByIndex(chunkidx, &originChunkIdInfo);
-
-    if (NeedGetOrAllocateSegment(errCode, OpType::READ, originChunkIdInfo,
-                                 cloneOriginCache)) {
-        if (false == GetOrAllocateSegment(
-                         false,
-                         static_cast<uint64_t>(chunkidx) * fileInfo->chunksize,
-                         mdsclient, cloneOriginCache, 
-                         cloneOriginCache->GetFileInfo(), 
-                         cloneOriginCache->GetFileEpoch(), chunkidx)) {
-            return -1;
-        }
-        errCode = cloneOriginCache->GetChunkInfoByIndex(chunkidx, &originChunkIdInfo);
-    }
-
-    if (errCode == MetaCacheErrorType::OK) {
-        for (auto& ctx : *targetlist) {
-            ctx->cfinfo_ = fileInfo->cfinfo;
-            ctx->originFileId_ = chunkIdInfo.originFileId_;
-            ctx->chunkIndex_ = chunkidx;
-            ctx->originChunkIdInfo_ = originChunkIdInfo;
-        }
-    } else {
-        return -1;
-    }
-
     return 0;
 }
 

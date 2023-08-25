@@ -24,7 +24,7 @@
 #include "src/mds/nameserver2/helper/namespace_helper.h"
 
 using curve::mds::chunkserverclient::CopysetClientClosure;
-using curve::mds::chunkserverclient::CloneInfos;
+using curve::mds::chunkserverclient::CloneInfo;
 
 namespace curve {
 namespace mds {
@@ -84,26 +84,7 @@ void FlattenCore::DoFlatten(
             continue;
         }
 
-        // 3. 加载origin segment
-        PageFileSegment originSegment;
-        bool originSegmentExist = true;
-        storeRet = storage_->GetSegment(segment.originfileid(),
-            i * segmentSize, &originSegment);
-        if (storeRet != StoreStatus::OK) {
-            // may be origin segment not exist
-            if (storeRet == StoreStatus::KeyNotExist) {
-                originSegmentExist = false;
-            } else {
-                LOG(ERROR) << "load origin segment fail, file: " << fileName
-                           << ", id: " << fileInfo.id()
-                           << ", originFileId: " << segment.originfileid()
-                           << ", offset: " << i * segmentSize;
-                ret = kMdsFail;
-                break;
-            }
-        }
-
-        // 4. flatten chunk
+        // 3. flatten chunk
         LogicalPoolID logicalPoolId = segment.logicalpoolid();
         uint32_t chunkNum = segment.chunks_size();
         for (uint32_t j = 0; j != chunkNum; j++) {
@@ -129,20 +110,13 @@ void FlattenCore::DoFlatten(
             context->chunkSize = fileInfo.chunksize();
             context->partIndex = 0;
             context->partSize = option_.flattenChunkPartSize;
-            context->originSegmentExist = originSegmentExist;
-            if (originSegmentExist) {
-                context->originChunkId = originSegment.chunks(j).chunkid();
-            } else {
-                context->originChunkId = 0;
-            }
             context->originFileId = segment.originfileid();
             context->chunkIndex = chunkNumPerSegment * i + j;
-            context->cloneNo = fileInfo.cloneno();
             for (int i = 0; i < fileInfo.clones_size(); i++) {
-                CloneInfos cloneInfo;
-                cloneInfo.cloneNo = fileInfo.clones(i).cloneno();
+                CloneInfo cloneInfo;
+                cloneInfo.fileId = fileInfo.clones(i).fileid();
                 cloneInfo.cloneSn = fileInfo.clones(i).clonesn();
-                context->clones.emplace_back(cloneInfo);
+                context->cloneChain.emplace_back(cloneInfo);
             }
             ret = StartAsyncFlattenChunkPart(tracker, context);
             if (ret < 0) {

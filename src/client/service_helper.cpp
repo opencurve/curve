@@ -103,17 +103,11 @@ void ServiceHelper::ProtoFileInfo2Local(const curve::mds::FileInfo& finfo,
 
     if ((finfo.has_filetype()) && 
         (finfo.filetype() == curve::mds::FileType::INODE_CLONE_PAGEFILE)) {
-        if (finfo.has_cloneno()) {
-            fi->cfinfo.cloneNo = finfo.cloneno();
-        }
-        if (finfo.has_clonesn()) {
-            fi->cfinfo.cloneSn = finfo.clonesn();
-        }
         for (int i = 0; i < finfo.clones_size(); i++) {
-            CloneInfos cinfo;
-            cinfo.cloneNo = finfo.clones(i).cloneno();
+            CloneInfo cinfo;
+            cinfo.fileId = finfo.clones(i).fileid();
             cinfo.cloneSn = finfo.clones(i).clonesn();
-            fi->cfinfo.clones.push_back(cinfo);
+            fi->cloneChain.push_back(cinfo);
         }
     }
 }

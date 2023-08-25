@@ -104,7 +104,6 @@ bool CurveFS::InitRecycleBinDir() {
 
 bool CurveFS::Init(std::shared_ptr<NameServerStorage> storage,
                 std::shared_ptr<InodeIDGenerator> InodeIDGenerator,
-                std::shared_ptr<CloneIDGenerator> cloneIdGenerator,
                 std::shared_ptr<ChunkSegmentAllocator> chunkSegAllocator,
                 std::shared_ptr<CleanManagerInterface> cleanManager,
                 std::shared_ptr<FileRecordManager> fileRecordManager,
@@ -116,7 +115,6 @@ bool CurveFS::Init(std::shared_ptr<NameServerStorage> storage,
     startTime_ = std::chrono::steady_clock::now();
     storage_ = storage;
     InodeIDGenerator_ = InodeIDGenerator;
-    cloneIdGenerator_ = cloneIdGenerator;
     chunkSegAllocator_ = chunkSegAllocator;
     cleanManager_ = cleanManager;
     allocStatistic_ = allocStatistic;
@@ -294,29 +292,29 @@ StatusCode CurveFS::CreateFile(const std::string& fileName,
                        << ", segment size = " << defaultSegmentSize_;
             return StatusCode::kFileLengthNotSupported;
         }
-    }
 
-    Poolset poolsetInfo;
-    if (!topology_->GetPoolset(poolset, &poolsetInfo)) {
-        LOG(ERROR) << "Get poolset fail, poolset = " << poolset;
-        return StatusCode::kPoolsetNotExist;
-    }
+        Poolset poolsetInfo;
+        if (!topology_->GetPoolset(poolset, &poolsetInfo)) {
+            LOG(ERROR) << "Get poolset fail, poolset = " << poolset;
+            return StatusCode::kPoolsetNotExist;
+        }
 
-    std::list<PoolIdType> logicalPools = topology_->GetLogicalPoolInPoolset(
-        poolsetInfo.GetId());
+        std::list<PoolIdType> logicalPools = topology_->GetLogicalPoolInPoolset(
+            poolsetInfo.GetId());
 
-    std::map<PoolIdType, double> remianingSpace;
-    uint64_t allRemianingSpace = 0;
-    chunkSegAllocator_->GetRemainingSpaceInLogicalPool(
-        logicalPools, &remianingSpace);
+        std::map<PoolIdType, double> remianingSpace;
+        uint64_t allRemianingSpace = 0;
+        chunkSegAllocator_->GetRemainingSpaceInLogicalPool(
+            logicalPools, &remianingSpace);
 
-    for (auto it = remianingSpace.begin(); it != remianingSpace.end(); it++) {
-        allRemianingSpace +=it->second;
-    }
-    if (allRemianingSpace < length) {
-        LOG(ERROR) << "CreateFile file length > LeftSize, fileName = "
-                    << fileName << ", length = " << length;
-        return StatusCode::kFileLengthNotSupported;
+        for (auto it = remianingSpace.begin(); it != remianingSpace.end(); it++) {
+            allRemianingSpace +=it->second;
+        }
+        if (allRemianingSpace < length) {
+            LOG(ERROR) << "CreateFile file length > LeftSize, fileName = "
+                        << fileName << ", length = " << length;
+            return StatusCode::kFileLengthNotSupported;
+        }
     }
 
     auto ret = CheckStripeParam(defaultSegmentSize_, defaultChunkSize_,
@@ -2164,13 +2162,6 @@ StatusCode CurveFS::Clone(const std::string &fileName,
     }
 
     // allocate cloneNo
-    uint64_t cloneNo;
-    if (cloneIdGenerator_->GenCloneID(&cloneNo) != true) {
-        LOG(ERROR) << "Clone fileName = " << fileName
-            << ", GenCloneNo error";
-        return StatusCode::kStorageError;
-    }
-    fileInfo->set_cloneno(cloneNo);
     fileInfo->set_clonesn(snapFileInfo.seqnum());
     fileInfo->set_initclonesegment(true);
 
@@ -2190,12 +2181,7 @@ StatusCode CurveFS::Clone(const std::string &fileName,
     // lookup clone chain
     FileInfo_CloneInfos *cinfo = fileInfo->add_clones();
     // is clone file & not flattend
-    if ((FileType::INODE_CLONE_PAGEFILE == srcFileInfo.filetype()) &&
-           (srcFileInfo.has_clonesource())) {
-        cinfo->set_cloneno(srcFileInfo.cloneno());
-    } else {
-        cinfo->set_cloneno(0);
-    }
+    cinfo->set_fileid(srcFileInfo.id());
     cinfo->set_clonesn(snapFileInfo.seqnum());
     ret = LookUpCloneChain(srcFileInfo, fileInfo);
     return ret;
@@ -2230,22 +2216,11 @@ StatusCode CurveFS::LookUpCloneChain(
         }
 
         FileInfo_CloneInfos *cinfo = fileInfo->add_clones();
-        if ((FileType::INODE_CLONE_PAGEFILE == cloneSourceFileInfo.filetype()) &&
-               (cloneSourceFileInfo.has_clonesource())) {
-            cinfo->set_cloneno(cloneSourceFileInfo.cloneno());
-        } else {
-            cinfo->set_cloneno(0);
-        }
-        if (!tmpInfo.has_clonesn()) {
-            LOG(ERROR) << "LookUpCloneChain found tmpInfo is a clone file "
-                       << "but do not have clonesn.";
-            return StatusCode::KInternalError;
-        }
+        cinfo->set_fileid(cloneSourceFileInfo.id());
         cinfo->set_clonesn(tmpInfo.clonesn());
-
         LOG(INFO) << "LookUpCloneChain one step success"
                   << ", clonesource: " << tmpInfo.clonesource()
-                  << ", cloneno: " << cinfo->cloneno()
+                  << ", fileId: " << cinfo->fileid()
                   << ", clonesn: " << cinfo->clonesn();
         tmpInfo = cloneSourceFileInfo;
     };
