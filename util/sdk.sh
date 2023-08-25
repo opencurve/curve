@@ -38,14 +38,14 @@ g_curvefs_hadoop_jar="/curve/curvefs-hadoop/target/curvefs-hadoop-1.0-SNAPSHOT.j
 
 # setup hadoop
 (
-    cd ${g_hadoop_lib} &&
+    cd "${g_hadoop_lib}" &&
     rm libcurvefs-mock-1.0-SNAPSHOT.jar &&
-    ln -s "${g_curvefs_hadoop_jar}" libcurvefs-mock-1.0-SNAPSHOT.jar
+    ln -s "${g_libcurvefs_jar }" libcurvefs-mock-1.0-SNAPSHOT.jar
 )
 (
-    cd ${g_hadoop_lib} &&
+    cd "${g_hadoop_lib}" &&
     rm curvefs-hadoop-1.0-SNAPSHOT.jar &&
-    ln -s "${}" curvefs-hadoop-1.0-SNAPSHOT.jar
+    ln -s "${g_curvefs_hadoop_jar}" curvefs-hadoop-1.0-SNAPSHOT.jar
 )
 
 # output

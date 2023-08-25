@@ -6,12 +6,12 @@ g_hadoop_etc="${g_hadoop_prefix}/etc/hadoop/core-site.xml"
 # hadoop
 mkdir -p "${g_hadoop_prefix}" "/data/logs/curvefs"
 wget https://curveadm.nos-eastchina1.126.net/T/hadoop-3.3.6.tar.gz -O /tmp/hadoop-3.3.6.tar.gz
-tar -zcvf /tmp/hadoop-3.3.6.tar.gz -C "${g_hadoop_prefix}"
+tar -zxvf /tmp/hadoop-3.3.6.tar.gz --strip-components=1 -C "${g_hadoop_prefix}"
 
 cat << EOF >> ~/.bashrc
 export JAVA_HOME="/usr/lib/jvm/java-11-openjdk-amd64"
-export PATH=~/.local/hadoop-3.3.6/bin:$PATH;
-export PATH=$JAVA_HOME/bin:$PATH;
+export PATH=~/.local/hadoop-3.3.6/bin:\$PATH
+export PATH=\$JAVA_HOME/bin:\$PATH
 EOF
 
 cat << EOF > "${g_hadoop_etc}"
@@ -54,7 +54,7 @@ cat << EOF > "${g_hadoop_etc}"
 
 <property>
 <name>curvefs.s3.bucket_name</name>
-<value>curvefs-hadoop001</value>
+<value>xxxx</value>
 </property>
 
 <property>
