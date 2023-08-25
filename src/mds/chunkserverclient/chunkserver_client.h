@@ -52,11 +52,11 @@ namespace curve {
 namespace mds {
 namespace chunkserverclient {
 
-struct CloneInfos {
-    uint64_t cloneNo;
+struct CloneInfo {
+    uint64_t fileId;
     uint64_t cloneSn;
-    CloneInfos()
-      : cloneNo(0), cloneSn(0) {}
+    CloneInfo()
+      : fileId(0), cloneSn(0) {}
 };
 
 struct FlattenChunkContext {
@@ -65,12 +65,9 @@ struct FlattenChunkContext {
     CopysetID copysetId;
     ChunkID chunkId;
     uint64_t seqNum;
-    bool originSegmentExist;
-    ChunkID originChunkId;
     uint64_t originFileId;
     ChunkID chunkIndex;
-    uint64_t cloneNo;
-    std::vector<CloneInfos> clones;
+    std::vector<CloneInfo> cloneChain;
 
     uint64_t chunkSize;
     uint64_t partIndex;

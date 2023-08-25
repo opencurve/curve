@@ -106,22 +106,19 @@ int RequestSender::WriteChunk(RequestContext *ctx,
     }
     request.set_offset(offset);
     request.set_size(length);
+
     request.set_fileid(fileId);
     if (epoch != 0) {
         request.set_epoch(epoch);
     }
+    request.set_chunkindex(ctx->chunkIndex_);
 
     if (ctx->filetype_ == FileType::INODE_CLONE_PAGEFILE) {
-        if (ctx->originChunkIdInfo_.chunkExist) {
-            request.set_originchunkid(ctx->originChunkIdInfo_.cid_);
-        }
         request.set_originfileid(ctx->originFileId_);
-        request.set_chunkindex(ctx->chunkIndex_);
-        request.set_cloneno(ctx->cfinfo_.cloneNo);
-        for(int i = 0; i < ctx->cfinfo_.clones.size(); i++) {
+        for(int i = 0; i < ctx->cloneChain_.size(); i++) {
             auto cinfo = request.add_clones();
-            cinfo->set_cloneno(ctx->cfinfo_.clones[i].cloneNo);
-            cinfo->set_clonesn(ctx->cfinfo_.clones[i].cloneSn);
+            cinfo->set_fileid(ctx->cloneChain_[i].fileId);
+            cinfo->set_clonesn(ctx->cloneChain_[i].cloneSn);
         }
     } else {
         if (sourceInfo.IsValid()) {
@@ -142,6 +139,7 @@ int RequestSender::WriteChunk(RequestContext *ctx,
 int RequestSender::ReadChunk(RequestContext *ctx,
                              ClientClosure *done) {
     const ChunkIDInfo& idinfo = ctx->idinfo_;
+    uint64_t fileId = ctx->fileId_;
     off_t offset = ctx->offset_;
     size_t length = ctx->rawlength_;
     uint64_t appliedindex = ctx->appliedindex_;
@@ -162,14 +160,15 @@ int RequestSender::ReadChunk(RequestContext *ctx,
     request.set_offset(offset);
     request.set_size(length);
 
+    request.set_fileid(fileId);
+    request.set_chunkindex(ctx->chunkIndex_);
+
     if (ctx->filetype_ == FileType::INODE_CLONE_PAGEFILE) {
-        request.set_originchunkid(ctx->originChunkIdInfo_.cid_);
-        request.set_chunkindex(ctx->chunkIndex_);
-        request.set_cloneno(ctx->cfinfo_.cloneNo);
-        for(int i = 0; i < ctx->cfinfo_.clones.size(); i++) {
+        request.set_originfileid(ctx->originFileId_);
+        for(int i = 0; i < ctx->cloneChain_.size(); i++) {
             auto cinfo = request.add_clones();
-            cinfo->set_cloneno(ctx->cfinfo_.clones[i].cloneNo);
-            cinfo->set_clonesn(ctx->cfinfo_.clones[i].cloneSn);
+            cinfo->set_fileid(ctx->cloneChain_[i].fileId);
+            cinfo->set_clonesn(ctx->cloneChain_[i].cloneSn);
         }
     } else {
         if (sourceInfo.IsValid()) {

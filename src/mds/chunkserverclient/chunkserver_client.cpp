@@ -475,16 +475,11 @@ int ChunkServerClient::FlattenChunk(
     rpcCtx->request.set_sn(ctx->seqNum);
     rpcCtx->request.set_offset(ctx->partIndex * ctx->partSize);
     rpcCtx->request.set_size(ctx->partSize);
-
-    if (ctx->originSegmentExist) {
-        rpcCtx->request.set_originchunkid(ctx->originChunkId);
-    }
     rpcCtx->request.set_originfileid(ctx->originFileId);
     rpcCtx->request.set_chunkindex(ctx->chunkIndex);
-    rpcCtx->request.set_cloneno(ctx->cloneNo);
-    for (auto &clone : ctx->clones) {
+    for (auto &clone : ctx->cloneChain) {
         auto cinfo = rpcCtx->request.add_clones();
-        cinfo->set_cloneno(clone.cloneNo);
+        cinfo->set_fileid(clone.fileId);
         cinfo->set_clonesn(clone.cloneSn);
     }
 

@@ -109,10 +109,8 @@ bool ChunkSegmentAllocatorImpl::CloneChunkSegment(
         return false;
     }
     if (srcSegment.has_originfileid()) {
-        segment->set_cloneorigin(srcSegment.cloneorigin());
         segment->set_originfileid(srcSegment.originfileid());
     } else {
-        segment->set_cloneorigin(srcFileName);
         segment->set_originfileid(srcFileId);
     }
     segment->set_logicalpoolid(srcSegment.logicalpoolid());
