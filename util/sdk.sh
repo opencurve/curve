@@ -39,12 +39,12 @@ g_curvefs_hadoop_jar="/curve/curvefs-hadoop/target/curvefs-hadoop-1.0-SNAPSHOT.j
 # setup hadoop
 (
     cd "${g_hadoop_lib}" &&
-    rm libcurvefs-mock-1.0-SNAPSHOT.jar &&
-    ln -s "${g_libcurvefs_jar }" libcurvefs-mock-1.0-SNAPSHOT.jar
+    rm -f libcurvefs-mock-1.0-SNAPSHOT.jar &&
+    ln -s "${g_libcurvefs_jar}" libcurvefs-mock-1.0-SNAPSHOT.jar
 )
 (
     cd "${g_hadoop_lib}" &&
-    rm curvefs-hadoop-1.0-SNAPSHOT.jar &&
+    rm -f curvefs-hadoop-1.0-SNAPSHOT.jar &&
     ln -s "${g_curvefs_hadoop_jar}" curvefs-hadoop-1.0-SNAPSHOT.jar
 )
 
@@ -54,10 +54,12 @@ rm -rf ${g_output}
 mkdir -p ${g_output}
 (
     cd "${g_output}" &&
-    cp "${g_hadoop_etc}" . &
-    cp "${g_libcurvefs_jar}" . &
-    cp "${g_curvefs_hadoop_jar}" .
+    cp "${g_hadoop_etc}" . &&
+    cp "${g_libcurvefs_jar}" . &&
+    cp "${g_curvefs_hadoop_jar}" . &&
     cp "$(realpath ${g_libcurvefs_jni})" .
 )
 
-ls ${g_output}
+echo -e "\nBuild SDK success :"
+echo "-------------------"
+ls -l ${g_output}/*
