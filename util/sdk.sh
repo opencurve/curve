@@ -2,18 +2,62 @@
 
 set -e
 
-(cd /curve/curvefs/sdk/java/src/main/java && javac -h /curve/curvefs/sdk/java/native/ io/opencurve/curve/fs/CurveMount.java)
-bazel build --compilation_mode=dbg --config=gcc7-later //curvefs/sdk/java/native:curvefs_jni
-(cd /curve/curvefs/sdk/java && mvn package)
-(cd /curve/curvefs-hadoop && mvn package)
+g_hadoop_prefix="/home/${USER}/.local/hadoop"
+g_hadoop_lib="${g_hadoop_prefix}/share/hadoop/common/lib"
+g_hadoop_etc="${g_hadoop_prefix}/etc/hadoop/core-site.xml"
+g_libcurvefs_jni="/curve/bazel-bin/curvefs/sdk/java/native/libcurvefs_jni.so"
+g_libcurvefs_jar="/curve/curvefs/sdk/java/target/libcurvefs-mock-1.0-SNAPSHOT.jar"
+g_curvefs_hadoop_jar="/curve/curvefs-hadoop/target/curvefs-hadoop-1.0-SNAPSHOT.jar"
 
-# cd /home/wine93/.local/hadoop-3.3.6/share/hadoop/common/lib
-# ln -s /curve/curvefs/sdk/java/target/libcurvefs-mock-1.0-SNAPSHOT.jar \
-#       libcurvefs-mock-1.0-SNAPSHOT.jar
+# build libcurvefs_jni.so
+(
+    cd /curve/curvefs/sdk/java/src/main/java &&
+    javac -h /curve/curvefs/sdk/java/native/ io/opencurve/curve/fs/CurveMount.java
+)
+(
+    cd /curve &&
+    bazel build --compilation_mode=dbg --config=gcc7-later //curvefs/sdk/java/native:curvefs_jni
+)
 
-# cd /home/wine93/.local/hadoop-3.3.6/share/hadoop/common/lib
-# ln -s /curve/curvefs-hadoop/target/curvefs-hadoop-1.0-SNAPSHOT.jar \
-#      curvefs-hadoop-1.0-SNAPSHOT.jar
+# libcurvefs
+(
+    cd /curve/curvefs/sdk/java &&
+    mvn package
+)
 
-# cd /usr/lib
-# ln -s /curve/bazel-bin/curvefs/sdk/java/native/libcurvefs_jni.so libcurvefs_jni.so
+# curvefs-hadoop
+(
+    cd /curve/submodule/curvefs-hadoop/src/main/resources &&
+    rm libcurvefs-mock-1.0-SNAPSHOT.jar &&
+    cp ${g_libcurvefs_jar} .
+)
+(
+    cd /curve/submodule/curvefs-hadoop &&
+    mvn package
+)
+
+# setup hadoop
+(
+    cd ${g_hadoop_lib} &&
+    rm libcurvefs-mock-1.0-SNAPSHOT.jar &&
+    ln -s "${g_curvefs_hadoop_jar}" libcurvefs-mock-1.0-SNAPSHOT.jar
+)
+(
+    cd ${g_hadoop_lib} &&
+    rm curvefs-hadoop-1.0-SNAPSHOT.jar &&
+    ln -s "${}" curvefs-hadoop-1.0-SNAPSHOT.jar
+)
+
+# output
+g_output=/curve/curvefs/sdk/output
+rm -rf ${g_output}
+mkdir -p ${g_output}
+(
+    cd "${g_output}" &&
+    cp "${g_hadoop_etc}" . &
+    cp "${g_libcurvefs_jar}" . &
+    cp "${g_curvefs_hadoop_jar}" .
+    cp "$(realpath ${g_libcurvefs_jni})" .
+)
+
+ls ${g_output}

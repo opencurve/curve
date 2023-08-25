@@ -1,3 +1,6 @@
 [submodule "nbd"]
 	path = nbd
 	url = https://github.com/opencurve/curve-nbd
+[submodule "submodule/curvefs-hadoop"]
+	path = submodule/curvefs-hadoop
+	url = https://github.com/Wine93/curvefs-hadoop.git

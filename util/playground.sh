@@ -18,7 +18,7 @@ echo 'alias ls="ls --color"' >> /home/${USER}/.bashrc
 EOF
 )
 g_install_script=$(cat << EOF
-apt-get -y install rsync golang jq vim python3-pip >/dev/null
+apt-get -y install rsync golang jq vim python3-pip maven >/dev/null
 curl -sSL https://bit.ly/install-xq | sudo bash >/dev/null 2>&1
 pip3 install cpplint >/dev/null 2>/dev/null
 EOF

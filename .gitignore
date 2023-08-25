@@ -170,4 +170,3 @@ test/integration/snapshotcloneserver/config/*.conf
 curvefs/sdk/java/target/
 /curve/curvefs/sdk/libcurvefs/examples/bin
 *.class
-curvefs-hadoop
