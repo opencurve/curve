@@ -19,8 +19,8 @@ g_curvefs_hadoop_jar="/curve/curvefs-hadoop/target/curvefs-hadoop-1.0-SNAPSHOT.j
     bazel build --compilation_mode=dbg --config=gcc7-later //curvefs/sdk/java/native:curvefs_jni
 )
 (
-    rm -rf /usr/lib/libcurvefs_jni.so &&
-    cp "$(realpath ${g_libcurvefs_jni})" /usr/lib/libcurvefs_jni.so
+    sudo rm -rf /usr/lib/libcurvefs_jni.so &&
+    sudo cp "$(realpath ${g_libcurvefs_jni})" /usr/lib/libcurvefs_jni.so
 )
 
 # libcurvefs
