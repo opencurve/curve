@@ -2169,7 +2169,7 @@ StatusCode CurveFS::CheckFileOwner(const std::string &filename,
                               const std::string &signature,
                               uint64_t date) {
     if (owner.empty()) {
-        LOG(ERROR) << "file owner is empty, filename = " << filename
+        LOG(WARNING) << "file owner is empty, filename = " << filename
                    << ", owner = " << owner;
         return StatusCode::kOwnerAuthFail;
     }
@@ -2177,7 +2177,9 @@ StatusCode CurveFS::CheckFileOwner(const std::string &filename,
     StatusCode ret = StatusCode::kOwnerAuthFail;
 
     if (!CheckDate(date)) {
-        LOG(ERROR) << "check date fail, request is staled.";
+        LOG(WARNING)
+            << "check date fail, request is staled, request timestamp: "
+            << date;
         return ret;
     }
 
@@ -2186,7 +2188,7 @@ StatusCode CurveFS::CheckFileOwner(const std::string &filename,
     if (owner == GetRootOwner()) {
         ret = CheckSignature(owner, signature, date)
               ? StatusCode::kOK : StatusCode::kOwnerAuthFail;
-        LOG_IF(ERROR, ret == StatusCode::kOwnerAuthFail)
+        LOG_IF(WARNING, ret == StatusCode::kOwnerAuthFail)
               << "check root owner fail, signature auth fail.";
         return ret;
     }
