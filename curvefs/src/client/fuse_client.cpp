@@ -1295,7 +1295,6 @@ CURVEFS_ERROR FuseClient::FuseOpLink(fuse_req_t req,
 CURVEFS_ERROR FuseClient::FuseOpReadLink(fuse_req_t req, fuse_ino_t ino,
                                          std::string *linkStr) {
     (void)req;
-    VLOG(1) << "FuseOpReadLink, ino: " << ino << ", linkStr: " << linkStr;
     InodeAttr attr;
     CURVEFS_ERROR ret = inodeManager_->GetInodeAttr(ino, &attr);
     if (ret != CURVEFS_ERROR::OK) {
@@ -1304,6 +1303,7 @@ CURVEFS_ERROR FuseClient::FuseOpReadLink(fuse_req_t req, fuse_ino_t ino,
         return ret;
     }
     *linkStr = attr.symlink();
+    VLOG(1) << "FuseOpReadLink, ino: " << ino << ", linkStr: " << *linkStr;
     return CURVEFS_ERROR::OK;
 }
 
