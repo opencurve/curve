@@ -22,14 +22,18 @@
 
 #include "curvefs/src/client/warmup/warmup_manager.h"
 
+#include <fmt/format.h>
 #include <glog/logging.h>
 #include <unistd.h>
 
 #include <algorithm>
 #include <atomic>
+#include <cstdint>
 #include <deque>
 #include <list>
 #include <memory>
+#include <string>
+#include <unordered_map>
 #include <utility>
 
 #include "curvefs/src/client/common/common.h"
@@ -37,9 +41,9 @@
 #include "curvefs/src/client/kvclient/kvclient_manager.h"
 #include "curvefs/src/client/s3/client_s3_cache_manager.h"
 #include "curvefs/src/common/s3util.h"
+#include "fuse3/fuse_lowlevel.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/string_util.h"
-
 
 namespace curvefs {
 namespace client {
@@ -49,6 +53,13 @@ using curve::common::WriteLockGuard;
 
 #define WARMUP_CHECKINTERVAL_US (1000 * 1000)
 
+#define ROOT_PATH_NAME "/"
+
+static bool pass_uint32(const char*, uint32_t) { return true; }
+DEFINE_uint32(warmupMaxSymLink, 1 << 2,
+              "The maximum number of times to parse sym link");
+DEFINE_validator(warmupMaxSymLink, &pass_uint32);
+
 bool WarmupManagerS3Impl::AddWarmupFilelist(fuse_ino_t key,
                                             WarmupStorageType type) {
     if (!mounted_.load(std::memory_order_acquire)) {
@@ -57,7 +68,7 @@ bool WarmupManagerS3Impl::AddWarmupFilelist(fuse_ino_t key,
     }
     // add warmup Progress
     if (AddWarmupProcess(key, type)) {
-        VLOG(9) << "add warmup list task:" << key;
+        LOG(INFO) << "add warmup list task:" << key;
         WriteLockGuard lock(warmupFilelistDequeMutex_);
         auto iter = FindWarmupFilelistByKeyLocked(key);
         if (iter == warmupFilelistDeque_.end()) {
@@ -75,7 +86,7 @@ bool WarmupManagerS3Impl::AddWarmupFilelist(fuse_ino_t key,
     return true;
 }
 
-bool WarmupManagerS3Impl::AddWarmupFile(fuse_ino_t key, const std::string &path,
+bool WarmupManagerS3Impl::AddWarmupFile(fuse_ino_t key, const std::string& path,
                                         WarmupStorageType type) {
     if (!mounted_.load(std::memory_order_acquire)) {
         LOG(ERROR) << "not mounted";
@@ -83,7 +94,7 @@ bool WarmupManagerS3Impl::AddWarmupFile(fuse_ino_t key, const std::string &path,
     }
     // add warmup Progress
     if (AddWarmupProcess(key, type)) {
-        VLOG(9) << "add warmup single task:" << key;
+        LOG(INFO) << "add warmup single task:" << key;
         FetchDentryEnqueue(key, path);
     }
     return true;
@@ -95,13 +106,13 @@ void WarmupManagerS3Impl::UnInit() {
         bgFetchThread_.join();
     }
 
-    for (auto &task : inode2FetchDentryPool_) {
+    for (auto& task : inode2FetchDentryPool_) {
         task.second->Stop();
     }
     WriteLockGuard lockDentry(inode2FetchDentryPoolMutex_);
     inode2FetchDentryPool_.clear();
 
-    for (auto &task : inode2FetchS3ObjectsPool_) {
+    for (auto& task : inode2FetchS3ObjectsPool_) {
         task.second->Stop();
     }
     WriteLockGuard lockS3Objects(inode2FetchS3ObjectsPoolMutex_);
@@ -116,7 +127,7 @@ void WarmupManagerS3Impl::UnInit() {
     WarmupManager::UnInit();
 }
 
-void WarmupManagerS3Impl::Init(const FuseClientOption &option) {
+void WarmupManagerS3Impl::Init(const FuseClientOption& option) {
     WarmupManager::Init(option);
     bgFetchStop_.store(false, std::memory_order_release);
     bgFetchThread_ = Thread(&WarmupManagerS3Impl::BackGroundFetch, this);
@@ -134,8 +145,8 @@ void WarmupManagerS3Impl::BackGroundFetch() {
     }
 }
 
-void WarmupManagerS3Impl::GetWarmupList(const WarmupFilelist &filelist,
-                                        std::vector<std::string> *list) {
+void WarmupManagerS3Impl::GetWarmupList(const WarmupFilelist& filelist,
+                                        std::vector<std::string>* list) {
     struct fuse_file_info fi {};
     fi.flags &= ~O_DIRECT;
     size_t rSize = 0;
@@ -155,7 +166,7 @@ void WarmupManagerS3Impl::GetWarmupList(const WarmupFilelist &filelist,
 }
 
 void WarmupManagerS3Impl::FetchDentryEnqueue(fuse_ino_t key,
-                                             const std::string &file) {
+                                             const std::string& file) {
     VLOG(9) << "FetchDentryEnqueue start: " << key << " file: " << file;
     auto task = [this, key, file]() { LookPath(key, file); };
     AddFetchDentryTask(key, task);
@@ -164,7 +175,6 @@ void WarmupManagerS3Impl::FetchDentryEnqueue(fuse_ino_t key,
 
 void WarmupManagerS3Impl::LookPath(fuse_ino_t key, std::string file) {
     VLOG(9) << "LookPath start key: " << key << " file: " << file;
-    std::vector<std::string> splitPath;
     // remove enter, newline, blank
     std::string blanks("\r\n ");
     file.erase(0, file.find_first_not_of(blanks));
@@ -173,65 +183,50 @@ void WarmupManagerS3Impl::LookPath(fuse_ino_t key, std::string file) {
         VLOG(9) << "empty path";
         return;
     }
-    bool isRoot = false;
-    if (file == "/") {
-        splitPath.push_back(file);
-        isRoot = true;
-    } else {
-        curve::common::AddSplitStringToResult(file, "/", &splitPath);
+
+    if (!curve::common::StringStartWith(file, "/")) {
+        LOG(ERROR) << fmt::format("{} isn't absolute path", file);
+        return;
     }
-    VLOG(6) << "splitPath size is: " << splitPath.size();
-    if (splitPath.size() == 1 && isRoot) {
+    std::vector<std::string> splitPath;
+    curve::common::AddSplitStringToResult(file, "/", &splitPath);
+
+    VLOG(6) << fmt::format("splitPath: {}", fmt::join(splitPath, ","));
+    uint32_t symlink_depth = 0;
+    if (splitPath.empty()) {
         VLOG(9) << "i am root";
-        auto task = [this, key]() {
-            FetchChildDentry(key, fsInfo_->rootinodeid());
+        auto task = [this, key, symlink_depth]() {
+            FetchChildDentry(key, fsInfo_->rootinodeid(), symlink_depth);
         };
         AddFetchDentryTask(key, task);
-        return;
-    } else if (splitPath.size() == 1) {
-        VLOG(9) << "parent is root: " << fsInfo_->rootinodeid()
-                << ", path is: " << splitPath[0];
-        auto task = [this, key, splitPath]() {
-            FetchDentry(key, fsInfo_->rootinodeid(), splitPath[0]);
-        };
-        AddFetchDentryTask(key, task);
-        return;
-    } else if (splitPath.size() > 1) {  // travel path
-        VLOG(9) << "traverse path start: " << splitPath.size();
-        std::string lastName = splitPath.back();
-        splitPath.pop_back();
-        fuse_ino_t ino = fsInfo_->rootinodeid();
-        for (auto iter : splitPath) {
-            VLOG(9) << "traverse path: " << iter << "ino is: " << ino;
-            Dentry dentry;
-            std::string pathName = iter;
-            CURVEFS_ERROR ret =
-                dentryManager_->GetDentry(ino, pathName, &dentry);
-            if (ret != CURVEFS_ERROR::OK) {
-                if (ret != CURVEFS_ERROR::NOTEXIST) {
-                    LOG(WARNING)
-                        << "dentryManager_ get dentry fail, ret = " << ret
-                        << ", parent inodeid = " << ino << ", name = " << file;
-                }
-                VLOG(9) << "FetchDentry error: " << ret;
-                return;
-            }
-            ino = dentry.inodeid();
-        }
-        auto task = [this, key, ino, lastName]() {
-            FetchDentry(key, ino, lastName);
-        };
-        AddFetchDentryTask(key, task);
-        VLOG(9) << "ino is: " << ino << " lastname is: " << lastName;
         return;
     } else {
-        VLOG(3) << "unknown path";
+        fuse_ino_t parent;
+        std::string lastName;
+        bool result = GetInodeSubPathParent(fsInfo_->rootinodeid(), splitPath,
+                                            &parent, &lastName, &symlink_depth);
+        if (!result) {
+            LOG(ERROR) << "GetInodeSubPathParent fail, path: " << file;
+            return;
+        }
+        if (lastName == ROOT_PATH_NAME) {
+            auto task = [this, key, symlink_depth]() {
+                FetchChildDentry(key, fsInfo_->rootinodeid(), symlink_depth);
+            };
+            AddFetchDentryTask(key, task);
+        } else {
+            auto task = [this, key, parent, lastName, symlink_depth]() {
+                FetchDentry(key, parent, lastName, symlink_depth);
+            };
+            AddFetchDentryTask(key, task);
+        }
     }
     VLOG(9) << "LookPath start end: " << key << " file: " << file;
 }
 
 void WarmupManagerS3Impl::FetchDentry(fuse_ino_t key, fuse_ino_t ino,
-                                      const std::string &file) {
+                                      const std::string& file,
+                                      uint32_t symlink_depth) {
     VLOG(9) << "FetchDentry start: " << file << ", ino: " << ino
             << " key: " << key;
     Dentry dentry;
@@ -257,15 +252,32 @@ void WarmupManagerS3Impl::FetchDentry(fuse_ino_t key, fuse_ino_t ino,
         }
         return;
     } else if (FsFileType::TYPE_DIRECTORY == dentry.type()) {
-        auto task = [this, key, dentry]() {
-            FetchChildDentry(key, dentry.inodeid());
+        auto task = [this, key, dentry, symlink_depth]() {
+            FetchChildDentry(key, dentry.inodeid(), symlink_depth);
         };
         AddFetchDentryTask(key, task);
         VLOG(9) << "FetchDentry: " << dentry.inodeid();
         return;
-
     } else if (FsFileType::TYPE_SYM_LINK == dentry.type()) {
-        // skip links
+        fuse_ino_t parent;
+        std::string lastName;
+        if (!GetInodeSubPathParent(ino, std::vector<std::string>{dentry.name()},
+                                   &parent, &lastName, &symlink_depth)) {
+            LOG_EVERY_N(ERROR, 10000)
+                << "GetInodeSubPathParent fail, file: " << file;
+            return;
+        }
+        if (lastName == ROOT_PATH_NAME) {
+            auto task = [this, key, symlink_depth]() {
+                FetchChildDentry(key, fsInfo_->rootinodeid(), symlink_depth);
+            };
+            AddFetchDentryTask(key, task);
+        } else {
+            auto task = [this, key, parent, lastName, symlink_depth]() {
+                FetchDentry(key, parent, lastName, symlink_depth);
+            };
+            AddFetchDentryTask(key, task);
+        }
     } else {
         VLOG(3) << "unkown, file: " << file << ", ino: " << ino;
         return;
@@ -273,39 +285,25 @@ void WarmupManagerS3Impl::FetchDentry(fuse_ino_t key, fuse_ino_t ino,
     VLOG(9) << "FetchDentry end: " << file << ", ino: " << ino;
 }
 
-void WarmupManagerS3Impl::FetchChildDentry(fuse_ino_t key, fuse_ino_t ino) {
+void WarmupManagerS3Impl::FetchChildDentry(fuse_ino_t key, fuse_ino_t ino,
+                                           uint32_t symlink_depth) {
     VLOG(9) << "FetchChildDentry start: key:" << key << " inode: " << ino;
     std::list<Dentry> dentryList;
     auto limit = option_.listDentryLimit;
     CURVEFS_ERROR ret = dentryManager_->ListDentry(ino, &dentryList, limit);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "dentryManager_ ListDentry fail, ret = " << ret
-                   << ", parent = " << ino;
+                   << ", key=" << key << ", parent=" << ino;
         return;
     }
-    for (const auto &dentry : dentryList) {
+    for (const auto& dentry : dentryList) {
         VLOG(9) << "FetchChildDentry: key:" << key
                 << " dentry: " << dentry.name();
-        if (FsFileType::TYPE_S3 == dentry.type()) {
-            WriteLockGuard lock(warmupInodesDequeMutex_);
-            auto iterDeque = FindWarmupInodesByKeyLocked(key);
-            if (iterDeque == warmupInodesDeque_.end()) {
-                warmupInodesDeque_.emplace_back(
-                    key, std::set<fuse_ino_t>{dentry.inodeid()});
-            } else {
-                iterDeque->AddFileInode(dentry.inodeid());
-            }
-            VLOG(9) << "FetchChildDentry: " << dentry.inodeid();
-        } else if (FsFileType::TYPE_DIRECTORY == dentry.type()) {
-            auto task = [this, key, dentry]() {
-                FetchChildDentry(key, dentry.inodeid());
-            };
-            AddFetchDentryTask(key, task);
-            VLOG(9) << "FetchChildDentry: " << dentry.inodeid();
-        } else if (FsFileType::TYPE_SYM_LINK == dentry.type()) {  // need todo
-        } else {
-            VLOG(9) << "unknown type";
-        }
+        std::string lastName = dentry.name();
+        auto task = [this, key, ino, lastName, symlink_depth]() {
+            FetchDentry(key, ino, lastName, symlink_depth);
+        };
+        AddFetchDentryTask(key, task);
     }
     VLOG(9) << "FetchChildDentry end: key:" << key << " inode: " << ino;
 }
@@ -335,10 +333,10 @@ void WarmupManagerS3Impl::FetchDataEnqueue(fuse_ino_t key, fuse_ino_t ino) {
 }
 
 void WarmupManagerS3Impl::TravelChunks(
-    fuse_ino_t key, fuse_ino_t ino, const S3ChunkInfoMapType &s3ChunkInfoMap) {
+    fuse_ino_t key, fuse_ino_t ino, const S3ChunkInfoMapType& s3ChunkInfoMap) {
     VLOG(9) << "travel chunk start: " << ino
             << ", size: " << s3ChunkInfoMap.size();
-    for (auto const &infoIter : s3ChunkInfoMap) {
+    for (auto const& infoIter : s3ChunkInfoMap) {
         VLOG(9) << "travel chunk: " << infoIter.first;
         std::list<std::pair<std::string, uint64_t>> prefetchObjs;
         TravelChunk(ino, infoIter.second, &prefetchObjs);
@@ -360,13 +358,13 @@ void WarmupManagerS3Impl::TravelChunks(
 }
 
 void WarmupManagerS3Impl::TravelChunk(fuse_ino_t ino,
-                                      const S3ChunkInfoList &chunkInfo,
-                                      ObjectListType *prefetchObjs) {
+                                      const S3ChunkInfoList& chunkInfo,
+                                      ObjectListType* prefetchObjs) {
     uint64_t blockSize = s3Adaptor_->GetBlockSize();
     uint64_t chunkSize = s3Adaptor_->GetChunkSize();
     uint32_t objectPrefix = s3Adaptor_->GetObjectPrefix();
     uint64_t offset, len, chunkid, compaction;
-    for (const auto &chunkinfo : chunkInfo.s3chunks()) {
+    for (const auto& chunkinfo : chunkInfo.s3chunks()) {
         auto fsId = fsInfo_->fsid();
         chunkid = chunkinfo.chunkid();
         compaction = chunkinfo.compaction();
@@ -411,8 +409,8 @@ void WarmupManagerS3Impl::TravelChunk(fuse_ino_t ino,
             if (!firstBlockFull) {
                 travelStartIndex = blockIndexBegin + 1;
                 auto objectName = curvefs::common::s3util::GenObjName(
-                    chunkid, blockIndexBegin, compaction,
-                    fsId, ino, objectPrefix);
+                    chunkid, blockIndexBegin, compaction, fsId, ino,
+                    objectPrefix);
                 prefetchObjs->push_back(
                     std::make_pair(objectName, firstBlockSize));
             } else {
@@ -424,8 +422,8 @@ void WarmupManagerS3Impl::TravelChunk(fuse_ino_t ino,
                                      ? blockIndexEnd
                                      : blockIndexEnd - 1;
                 auto objectName = curvefs::common::s3util::GenObjName(
-                    chunkid, blockIndexEnd, compaction,
-                    fsId, ino, objectPrefix);
+                    chunkid, blockIndexEnd, compaction, fsId, ino,
+                    objectPrefix);
                 // there is no need to care about the order
                 // in which objects are downloaded
                 prefetchObjs->push_back(
@@ -457,14 +455,14 @@ void WarmupManagerS3Impl::TravelChunk(fuse_ino_t ino,
 // try to merge it
 void WarmupManagerS3Impl::WarmUpAllObjs(
     fuse_ino_t key,
-    const std::list<std::pair<std::string, uint64_t>> &prefetchObjs) {
+    const std::list<std::pair<std::string, uint64_t>>& prefetchObjs) {
     std::atomic<uint64_t> pendingReq(0);
     curve::common::CountDownEvent cond(1);
     uint64_t start = butil::cpuwide_time_us();
     // callback function
     GetObjectAsyncCallBack cb =
-        [&](const S3Adapter *adapter,
-            const std::shared_ptr<GetObjectAsyncContext> &context) {
+        [&](const S3Adapter* adapter,
+            const std::shared_ptr<GetObjectAsyncContext>& context) {
             (void)adapter;
             if (bgFetchStop_.load(std::memory_order_acquire)) {
                 VLOG(9) << "need stop warmup";
@@ -514,12 +512,13 @@ void WarmupManagerS3Impl::WarmUpAllObjs(
                         curvefs::client::common::WarmupStorageType::
                             kWarmupStorageTypeDisk &&
                     s3Adaptor_->GetDiskCacheManager()->IsCached(name)) {
+                    iterProgress->second.FinishedPlusOne();
                     // storage in disk and has cached
                     pendingReq.fetch_sub(1);
                     continue;
                 }
             }
-            char *cacheS3 = new char[readLen];
+            char* cacheS3 = new char[readLen];
             memset(cacheS3, 0, readLen);
             auto context = std::make_shared<GetObjectAsyncContext>();
             context->key = name;
@@ -530,8 +529,7 @@ void WarmupManagerS3Impl::WarmUpAllObjs(
             context->retry = 0;
             s3Adaptor_->GetS3Client()->DownloadAsync(context);
         }
-        if (pendingReq.load())
-            cond.Wait();
+        if (pendingReq.load()) cond.Wait();
     }
 }
 
@@ -539,8 +537,7 @@ bool WarmupManagerS3Impl::ProgressDone(fuse_ino_t key) {
     bool ret;
     {
         ReadLockGuard lockList(warmupFilelistDequeMutex_);
-        ret =
-            FindWarmupFilelistByKeyLocked(key) == warmupFilelistDeque_.end();
+        ret = FindWarmupFilelistByKeyLocked(key) == warmupFilelistDeque_.end();
     }
 
     {
@@ -554,7 +551,6 @@ bool WarmupManagerS3Impl::ProgressDone(fuse_ino_t key) {
         ret = ret &&
               (FindWarmupInodesByKeyLocked(key) == warmupInodesDeque_.end());
     }
-
 
     {
         ReadLockGuard lockS3Objects(inode2FetchS3ObjectsPoolMutex_);
@@ -600,7 +596,7 @@ void WarmupManagerS3Impl::ScanCleanWarmupProgress() {
     ReadLockGuard lock(inode2ProgressMutex_);
     for (auto iter = inode2Progress_.begin(); iter != inode2Progress_.end();) {
         if (ProgressDone(iter->first)) {
-            VLOG(9) << "warmup key: " << iter->first << " done!";
+            LOG(INFO) << "warmup task: " << iter->first << " done!";
             iter = inode2Progress_.erase(iter);
         } else {
             ++iter;
@@ -613,7 +609,7 @@ void WarmupManagerS3Impl::ScanWarmupInodes() {
     WriteLockGuard lock(warmupInodesDequeMutex_);
     if (!warmupInodesDeque_.empty()) {
         WarmupInodes inodes = warmupInodesDeque_.front();
-        for (auto const &iter : inodes.GetReadAheadFiles()) {
+        for (auto const& iter : inodes.GetReadAheadFiles()) {
             VLOG(9) << "BackGroundFetch: key: " << inodes.GetKey()
                     << " inode:" << iter;
             FetchDataEnqueue(inodes.GetKey(), iter);
@@ -632,6 +628,9 @@ void WarmupManagerS3Impl::ScanWarmupFilelist() {
 
         std::vector<std::string> warmuplist;
         GetWarmupList(warmupFilelist, &warmuplist);
+        VLOG(9) << "warmup ino: " << warmupFilelist.GetKey()
+                << " warmup list is: "
+                << fmt::format("{}", fmt::join(warmuplist, ","));
         for (auto filePath : warmuplist) {
             FetchDentryEnqueue(warmupFilelist.GetKey(), filePath);
         }
@@ -678,7 +677,7 @@ void WarmupManagerS3Impl::AddFetchS3objectsTask(fuse_ino_t key,
 }
 
 void WarmupManagerS3Impl::PutObjectToCache(
-    fuse_ino_t key, const std::shared_ptr<GetObjectAsyncContext> &context) {
+    fuse_ino_t key, const std::shared_ptr<GetObjectAsyncContext>& context) {
     ReadLockGuard lock(inode2ProgressMutex_);
     auto iter = FindWarmupProgressByKeyLocked(key);
     if (iter == inode2Progress_.end()) {
@@ -689,34 +688,147 @@ void WarmupManagerS3Impl::PutObjectToCache(
     // update progress
     iter->second.FinishedPlusOne();
     switch (iter->second.GetStorageType()) {
-    case curvefs::client::common::WarmupStorageType::kWarmupStorageTypeDisk:
-        ret = s3Adaptor_->GetDiskCacheManager()->WriteReadDirect(
-            context->key, context->buf, context->len);
-        if (ret < 0) {
-            LOG_EVERY_SECOND(INFO)
-                << "write read directly failed, key: " << context->key;
-        }
-        delete[] context->buf;
-        break;
-    case curvefs::client::common::WarmupStorageType::kWarmupStorageTypeKvClient:
-        if (kvClientManager_ != nullptr) {
-            kvClientManager_->Set(std::make_shared<SetKVCacheTask>(
-                context->key, context->buf, context->len,
-                [context](const std::shared_ptr<SetKVCacheTask> &) {
-                    delete[] context->buf;
-                }));
-        }
-        break;
-    default:
-        LOG_EVERY_N(ERROR, 1000) << "unsupported warmup storage type";
+        case curvefs::client::common::WarmupStorageType::kWarmupStorageTypeDisk:
+            ret = s3Adaptor_->GetDiskCacheManager()->WriteReadDirect(
+                context->key, context->buf, context->len);
+            if (ret < 0) {
+                LOG_EVERY_SECOND(INFO)
+                    << "write read directly failed, key: " << context->key;
+            }
+            delete[] context->buf;
+            break;
+        case curvefs::client::common::WarmupStorageType::
+            kWarmupStorageTypeKvClient:
+            if (kvClientManager_ != nullptr) {
+                kvClientManager_->Set(std::make_shared<SetKVCacheTask>(
+                    context->key, context->buf, context->len,
+                    [context](const std::shared_ptr<SetKVCacheTask>&) {
+                        delete[] context->buf;
+                    }));
+            }
+            break;
+        default:
+            LOG_EVERY_N(ERROR, 1000) << "unsupported warmup storage type";
     }
 }
 
-void WarmupManager::CollectMetrics(InterfaceMetric *interface, int count,
+void WarmupManager::CollectMetrics(InterfaceMetric* interface, int count,
                                    uint64_t start) {
     interface->bps.count << count;
     interface->qps.count << 1;
     interface->latency << (butil::cpuwide_time_us() - start);
+}
+
+bool WarmupManagerS3Impl::GetInodeSubPathParent(
+    fuse_ino_t inode, const std::vector<std::string>& subPath, fuse_ino_t* ret,
+    std::string* lastPath, uint32_t* symlink_depth) {
+    if (subPath.empty()) {
+        return false;
+    }
+
+    auto getInodeParent = [this](fuse_ino_t ino, fuse_ino_t* parent) -> bool {
+        std::shared_ptr<InodeWrapper> inodeWrapper;
+        CURVEFS_ERROR statusCode = inodeManager_->GetInode(ino, inodeWrapper);
+        if (statusCode != CURVEFS_ERROR::OK) {
+            LOG(ERROR) << "get inode fail, inode=" << ino;
+            return false;
+        }
+        curve::common::UniqueLock lck = inodeWrapper->GetUniqueLock();
+        auto parents = inodeWrapper->GetParentLocked();
+        if (parents.empty()) {
+            // out of curvefs
+            // For example directory /A is symlinked to ../B
+            return false;
+        }
+        // only support one parent
+        // If the current inode is the root, parent is 0
+        *parent = parents[0];
+        return true;
+    };
+
+    fuse_ino_t parent = inode;
+    std::list<std::string> subPathList(subPath.begin(), subPath.end());
+    while (!subPathList.empty()) {
+        std::string currentPath = subPathList.front();
+        subPathList.pop_front();
+        if (currentPath == "..") {
+            if (!getInodeParent(parent, &parent)) {
+                LOG(ERROR) << fmt::format(
+                    "out of curvefs, inodeid = {}, subpath = {}", parent,
+                    fmt::join(subPath, "/"));
+                return false;
+            }
+        } else if (currentPath == ".") {
+            continue;
+        } else {
+            Dentry dentry;
+            CURVEFS_ERROR statusCode =
+                dentryManager_->GetDentry(parent, currentPath, &dentry);
+            if (statusCode != CURVEFS_ERROR::OK) {
+                LOG(ERROR) << "get dentry fail, inodeid = " << inode
+                           << ", path = " << currentPath;
+                return false;
+            }
+            if (dentry.type() == FsFileType::TYPE_SYM_LINK) {
+                // sym link
+                std::string symLink;
+                CURVEFS_ERROR statusCode =
+                    fuseOpReadLink_(nullptr, dentry.inodeid(), &symLink);
+                if (statusCode != CURVEFS_ERROR::OK) {
+                    LOG(ERROR) << "readlink fail, inodeid = " << inode
+                               << ", path = " << currentPath;
+                    return false;
+                }
+                std::vector<std::string> splitSymLink;
+                curve::common::AddSplitStringToResult(symLink, "/",
+                                                      &splitSymLink);
+                subPathList.insert(subPathList.begin(), splitSymLink.begin(),
+                                   splitSymLink.end());
+                if (symlink_depth != nullptr) {
+                    ++(*symlink_depth);
+                    // Exceeded symlink limit
+                    if (*symlink_depth > FLAGS_warmupMaxSymLink) {
+                        LOG_FIRST_N(ERROR, 10000)
+                            << fmt::format("symlink depth is too deep, path:{}",
+                                           fmt::join(subPath, "/"));
+                        return false;
+                    }
+                }
+            } else {
+                parent = dentry.inodeid();
+            }
+        }
+    }
+
+    auto getInodeName = [this](fuse_ino_t ino, fuse_ino_t parent,
+                               std::string* inodeName) -> bool {
+        if (ino == fsInfo_->rootinodeid()) {
+            // The current inode is the root directory (parent inodeid is 0)
+            *inodeName = ROOT_PATH_NAME;
+            return true;
+        }
+        std::list<Dentry> dentryList;
+        auto limit = option_.listDentryLimit;
+        CURVEFS_ERROR ret =
+            dentryManager_->ListDentry(parent, &dentryList, limit);
+        if (ret != CURVEFS_ERROR::OK) {
+            LOG(ERROR) << "dentryManager_ ListDentry fail, parent=" << parent;
+            return false;
+        }
+        for (const auto& dentry : dentryList) {
+            if (dentry.inodeid() == ino) {
+                *inodeName = dentry.name();
+                return true;
+            }
+        }
+        return false;
+    };
+
+    if (getInodeParent(parent, ret)) {
+        return getInodeName(parent, *ret, lastPath);
+    } else {
+        return false;
+    }
 }
 
 }  // namespace warmup
