@@ -126,6 +126,13 @@ class ChunkServerClient {
     int GetOrInitChannel(ChunkServerIdType csId,
                          ChannelPtr* channelPtr);
 
+    /**
+     *  @brief print the error code with meaningful name
+     *
+     * @param errorCode
+     */
+    void printErrorCode(int errorCode);
+
     std::shared_ptr<Topology> topology_;
     uint32_t rpcTimeoutMs_;
     uint32_t rpcRetryTimes_;

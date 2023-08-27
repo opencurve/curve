@@ -48,6 +48,32 @@ namespace curve {
 namespace mds {
 namespace chunkserverclient {
 
+void ChunkServerClient::printErrorCode(int errorCode){
+    switch (errorCode) {
+    case kMdsFail:
+        LOG(ERROR) << "MDS execution failed" << std::endl;
+        break;
+    case kCsClientInternalError:
+        LOG(ERROR) << "chunkserverclient internal error" << std::endl;
+        break;
+    case kCsClientNotLeader:
+        LOG(ERROR) << "chunkserverclient request is not from the leader" << std::endl;
+        break;
+    case kRpcChannelInitFail:
+        LOG(ERROR) << "brpc channel init fail" << std::endl;
+        break;
+    case kRpcFail:
+        LOG(ERROR) << "RPC fail" << std::endl;
+        break;
+    case kCsClientReturnFail:
+        LOG(ERROR) << "chunkserverclient request return fail" << std::endl;
+        break;
+    case kCsClientCSOffline:
+        LOG(ERROR) << "chunkserver offline" << std::endl;
+        break;
+    }
+}
+
 int ChunkServerClient::DeleteChunkSnapshotOrCorrectSn(
     ChunkServerIdType leaderId,
     LogicalPoolID logicalPoolId,
@@ -57,6 +83,7 @@ int ChunkServerClient::DeleteChunkSnapshotOrCorrectSn(
     ChannelPtr channelPtr;
     int res = GetOrInitChannel(leaderId, &channelPtr);
     if (res != kMdsSuccess) {
+        printErrorCode(res);
         return res;
     }
     ChunkService_Stub stub(channelPtr.get());
@@ -148,6 +175,7 @@ int ChunkServerClient::DeleteChunk(ChunkServerIdType leaderId,
     ChannelPtr channelPtr;
     int res = GetOrInitChannel(leaderId, &channelPtr);
     if (res != kMdsSuccess) {
+        printErrorCode(res);
         return res;
     }
     ChunkService_Stub stub(channelPtr.get());
@@ -235,6 +263,7 @@ int ChunkServerClient::GetLeader(ChunkServerIdType csId,
     ChannelPtr channelPtr;
     int res = GetOrInitChannel(csId, &channelPtr);
     if (res != kMdsSuccess) {
+        printErrorCode(res);
         return res;
     }
     CliService2_Stub stub(channelPtr.get());
@@ -329,6 +358,7 @@ int ChunkServerClient::GetOrInitChannel(ChunkServerIdType csId,
     std::string csAddr;
     int res = GetChunkServerAddress(csId, &csAddr);
     if (res != kMdsSuccess) {
+        printErrorCode(res);
         return res;
     }
     res = channelPool_->GetOrInitChannel(csAddr, channelPtr);
