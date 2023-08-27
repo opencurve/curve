@@ -7,7 +7,7 @@ g_hadoop_lib="${g_hadoop_prefix}/share/hadoop/common/lib"
 g_hadoop_etc="${g_hadoop_prefix}/etc/hadoop/core-site.xml"
 g_libcurvefs_jni="/curve/bazel-bin/curvefs/sdk/java/native/libcurvefs_jni.so"
 g_libcurvefs_jar="/curve/curvefs/sdk/java/target/libcurvefs-mock-1.0-SNAPSHOT.jar"
-g_curvefs_hadoop_jar="/curve/curvefs-hadoop/target/curvefs-hadoop-1.0-SNAPSHOT.jar"
+g_curvefs_hadoop_jar="/curve/submodule/curvefs-hadoop/target/curvefs-hadoop-1.0-SNAPSHOT.jar"
 
 # build libcurvefs_jni.so
 (
