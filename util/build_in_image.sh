@@ -78,11 +78,15 @@ _EOC_
 }
 
 get_options() {
-    local args=`getopt -o ldorh --long stor:,list,dep:,only:,os:,release:,ci:,build_rocksdb: -n "$0" -- "$@"`
+    local args=`getopt -o ldorhS --long sanitizer:,stor:,list,dep:,only:,os:,release:,ci:,build_rocksdb: -n "$0" -- "$@"`
     eval set -- "${args}"
     while true
     do
         case "$1" in
+            -S|--sanitizer)
+                g_san=$2
+                shift 2
+                ;;
             -s|--stor)
                 g_stor=$2
                 shift 2
@@ -197,6 +201,12 @@ build_target() {
     if [ $g_ci -eq 1 ]; then
         g_build_opts+=("--collect_code_coverage")
         target_array=("...")
+    fi
+
+    if [ $g_san == 1 ]; then
+        g_build_opts+=("--config=asan")
+    elif [ $g_san == 2 ]; then
+        g_build_opts+=("--config=msan")
     fi
 
     for target in "${target_array[@]}"

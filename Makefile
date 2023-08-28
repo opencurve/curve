@@ -66,7 +66,7 @@ dep:
 	@bash util/build.sh --stor=$(stor) --only="" --dep=1
 
 ci-build:
-	@bash util/build_in_image.sh --stor=$(stor) --only=$(only) --dep=$(dep) --release=$(release) --ci=$(ci) --os=$(os)
+	@bash util/build_in_image.sh --stor=$(stor) --only=$(only) --dep=$(dep) --release=$(release) --ci=$(ci) --os=$(os) --sanitizer=$(sanitizer)
 
 ci-dep:
 	@bash util/build_in_image.sh --stor=$(stor) --only="" --dep=1

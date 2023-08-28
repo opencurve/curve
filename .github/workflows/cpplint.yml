@@ -11,6 +11,7 @@ jobs:
       - run: cpplint --recursive . > cpplint_report.txt 2>&1
         continue-on-error: true
       - uses: actions/upload-artifact@v3
+        if: always()
         with:
           name: cpplint
           path: cpplint_report.txt
