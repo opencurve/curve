@@ -1,0 +1,19 @@
+name: cppcheck-action
+on: [push]
+
+jobs:
+  build:
+    name: cppcheck-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+          
+      - name: cppcheck
+        uses: deep5050/cppcheck-action@main
+          
+        
+      - name: publish report    
+        uses: actions/upload-artifact@v3
+        with:
+          name: cppcheck
+          path: cppcheck_report.txt
