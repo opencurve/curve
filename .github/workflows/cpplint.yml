@@ -1,0 +1,17 @@
+name: cpplint-action
+on: [push, pull_request]
+
+jobs:
+  cpplint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+      - run: pip install cpplint
+      - run: cpplint --recursive . > cpplint_report.txt 2>&1
+        continue-on-error: true
+      - uses: actions/upload-artifact@v3
+        with:
+          name: cpplint
+          path: cpplint_report.txt
+
