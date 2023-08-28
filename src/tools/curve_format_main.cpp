@@ -107,7 +107,7 @@ using curve::chunkserver::FilePoolMeta;
 
 class CompareInternal {
  public:
-    bool operator()(std::string s1, std::string s2) {
+    bool operator()(const std::string& s1, const std::string& s2) {
         auto index1 = std::atoi(s1.c_str());
         auto index2 = std::atoi(s2.c_str());
         return index1 < index2;
@@ -178,7 +178,7 @@ static int AllocateFiles(AllocateStruct* allocatestruct) {
             break;
         }
 
-        allocatestruct->fsptr->Close(fd);
+        ret = allocatestruct->fsptr->Close(fd);
         if (ret < 0) {
             *allocatestruct->checkwrong = true;
             LOG(ERROR) << "close failed, " << tmpchunkfilepath;

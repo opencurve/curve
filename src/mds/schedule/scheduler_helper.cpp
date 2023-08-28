@@ -133,7 +133,7 @@ bool SchedulerHelper::SatisfyZoneAndScatterWidthLimit(
         }
     }
 
-    if (zoneList.count(targetZone) <= 0) {
+    if (zoneList.count(targetZone) == 0) {
         zoneList[targetZone] = 1;
     } else {
         zoneList[targetZone] += 1;
@@ -246,7 +246,6 @@ void SchedulerHelper::CalculateAffectOfMigration(
     std::map<ChunkServerIdType, std::pair<int, int>> *scatterWidth) {
     // get scatter-width map and scatter-width of target
     std::map<ChunkServerIdType, int> targetMap;
-    std::pair<int, int> targetScatterWidth;
     if (target != UNINTIALIZE_ID) {
         topo->GetChunkServerScatterMap(target, &targetMap);
         (*scatterWidth)[target].first = targetMap.size();
@@ -254,7 +253,6 @@ void SchedulerHelper::CalculateAffectOfMigration(
 
     // get scatter-width map and scatter-width of the source
     std::map<ChunkServerIdType, int> sourceMap;
-    std::pair<int, int> sourceScatterWidth;
     if (source != UNINTIALIZE_ID) {
         topo->GetChunkServerScatterMap(source, &sourceMap);
         (*scatterWidth)[source].first = sourceMap.size();
@@ -272,14 +270,14 @@ void SchedulerHelper::CalculateAffectOfMigration(
         // if target was initialized
         if (target != UNINTIALIZE_ID) {
             // influence on target
-            if (targetMap.count(peer.id) <= 0) {
+            if (targetMap.count(peer.id) == 0) {
                 targetMap[peer.id] = 1;
             } else {
                 targetMap[peer.id]++;
             }
 
             // target's influence on other chunkservers
-            if (tmpMap.count(target) <= 0) {
+            if (tmpMap.count(target) == 0) {
                 tmpMap[target] = 1;
             } else {
                 tmpMap[target]++;

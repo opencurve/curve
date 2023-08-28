@@ -1039,7 +1039,8 @@ void FileCacheManager::ReleaseCache() {
     }
 
     chunkCacheMap_.clear();
-    g_s3MultiManagerMetric->chunkManagerNum << -1 * chunNum;
+    g_s3MultiManagerMetric->chunkManagerNum
+        << -1 * static_cast<int64_t>(chunNum);
     return;
 }
 
@@ -1509,7 +1510,7 @@ DataCachePtr ChunkCacheManager::FindWriteableDataCache(
             }
 
             std::vector<uint64_t>::iterator iterDel = waitDelVec.begin();
-            for (; iterDel != waitDelVec.end(); iterDel++) {
+            for (; iterDel != waitDelVec.end(); ++iterDel) {
                 auto iter = dataWCacheMap_.find(*iterDel);
                 VLOG(9) << "delete data cache chunkPos:"
                         << iter->second->GetChunkPos()
@@ -1576,7 +1577,8 @@ void ChunkCacheManager::AddReadDataCache(DataCachePtr dataCache) {
         uint64_t actualLen = (*dcpIter)->GetActualLen();
         if (s3ClientAdaptor_->GetFsCacheManager()->Delete(dcpIter)) {
             g_s3MultiManagerMetric->readDataCacheNum << -1;
-            g_s3MultiManagerMetric->readDataCacheByte << -1 * actualLen;
+            g_s3MultiManagerMetric->readDataCacheByte
+                << -1 * static_cast<int64_t>(actualLen);
             dataRCacheMap_.erase(iter);
         }
     }
@@ -1669,7 +1671,8 @@ void ChunkCacheManager::TruncateReadCache(uint64_t chunkPos) {
         if ((dcChunkPos + dcLen) > chunkPos) {
             if (s3ClientAdaptor_->GetFsCacheManager()->Delete(rIter->second)) {
                 g_s3MultiManagerMetric->readDataCacheNum << -1;
-                g_s3MultiManagerMetric->readDataCacheByte << -1 * dcActualLen;
+                g_s3MultiManagerMetric->readDataCacheByte
+                    << -1 * static_cast<int64_t>(dcActualLen);
                 dataRCacheMap_.erase(next(rIter).base());
             }
         } else {
@@ -1691,7 +1694,6 @@ void ChunkCacheManager::ReleaseWriteDataCache(const DataCachePtr &dataCache) {
 
 CURVEFS_ERROR ChunkCacheManager::Flush(uint64_t inodeId, bool force,
                                        bool toS3) {
-    std::map<uint64_t, DataCachePtr> tmp;
     curve::common::LockGuard lg(flushMtx_);
     CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
     // DataCachePtr dataCache;
@@ -2076,7 +2078,7 @@ void DataCache::Write(uint64_t chunkPos, uint64_t len, const char *data,
         } else {
             std::vector<DataCachePtr>::const_iterator iter =
                 mergeDataCacheVer.begin();
-            for (; iter != mergeDataCacheVer.end(); iter++) {
+            for (; iter != mergeDataCacheVer.end(); ++iter) {
                 /*
                      ------         ------    DataCache
                   ---------------------       WriteData
@@ -2126,7 +2128,7 @@ void DataCache::Write(uint64_t chunkPos, uint64_t len, const char *data,
         } else {
             std::vector<DataCachePtr>::const_iterator iter =
                 mergeDataCacheVer.begin();
-            for (; iter != mergeDataCacheVer.end(); iter++) {
+            for (; iter != mergeDataCacheVer.end(); ++iter) {
                 /*
                      ------         ------    DataCache
                         ----------------       WriteData

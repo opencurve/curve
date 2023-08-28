@@ -46,8 +46,7 @@ bool IsOneLayer(const char *name) {
     return false;
 }
 
-CURVEFS_ERROR XattrManager::CalOneLayerSumInfo(InodeAttr *attr) {
-    std::stack<uint64_t> iStack;
+CURVEFS_ERROR XattrManager::CalOneLayerSumInfo(InodeAttr* attr) {
     // use set can deal with hard link
     std::set<uint64_t> inodeIds;
     std::list<InodeAttr> attrs;

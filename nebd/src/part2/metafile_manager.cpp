@@ -205,7 +205,6 @@ int NebdMetaFileParser::Parse(Json::Value root,
     }
 
     for (const auto& volume : volumes) {
-        std::string fileName;
         NebdFileMeta meta;
 
         if (volume[kFileName].isNull()) {

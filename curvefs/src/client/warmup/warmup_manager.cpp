@@ -627,7 +627,6 @@ void WarmupManagerS3Impl::ScanCleanFetchDentryPool() {
     WriteLockGuard lock(inode2FetchDentryPoolMutex_);
     for (auto iter = inode2FetchDentryPool_.begin();
          iter != inode2FetchDentryPool_.end();) {
-        std::deque<WarmupInodes>::iterator iterInode;
         if (iter->second->QueueSize() == 0) {
             VLOG(9) << "remove FetchDentry task: " << iter->first;
             iter->second->Stop();

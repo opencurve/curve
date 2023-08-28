@@ -176,7 +176,7 @@ int DiskCacheWrite::UploadFile(const std::string &name,
 void DiskCacheWrite::UploadFile(const std::list<std::string> &toUpload,
                                 std::shared_ptr<SynchronizationTask> syncTask) {
     std::list<std::string>::const_iterator iter;
-    for (iter = toUpload.begin(); iter != toUpload.end(); iter++) {
+    for (iter = toUpload.begin(); iter != toUpload.end(); ++iter) {
         UploadFile(*iter, syncTask);
     }
 }

@@ -157,7 +157,7 @@ bool LeaderScheduler::transferLeaderOut(ChunkServerIdType source, int count,
         candidateInfos.emplace_back(cInfo);
     }
 
-    if (candidateInfos.size() <= 0) {
+    if (candidateInfos.size() == 0) {
         return false;
     }
 
@@ -241,7 +241,7 @@ bool LeaderScheduler::transferLeaderIn(ChunkServerIdType target, int count,
         }
     }
 
-    if (candidateInfos.size() <= 0) {
+    if (candidateInfos.size() == 0) {
         return false;
     }
 

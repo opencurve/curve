@@ -926,12 +926,12 @@ int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
     int ret = 0;
     if (res != 0) {
         std::cout << "GetAndCheckChunkserverVersion fail" << std::endl;
-        ret = -1;
+        return -1;
     } else {
         std::cout << "version: " << version << std::endl;
         if (!failedList.empty()) {
             versionTool_->PrintFailedList(failedList);
-            ret = -1;
+            return -1;
         }
     }
     // list chunkservers in cluster group by poolid
@@ -955,6 +955,9 @@ int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
     // check use walpool
     ret = CheckUseWalPool(poolChunkservers, &useWalPool,
                           &useChunkFilePoolAsWalPool, metricClient_);
+    if (0 != ret) {
+        return ret;
+    }
     // get chunkserver left size
     std::map<PoolIdType, std::vector<uint64_t>> poolChunkLeftSize;
     std::map<PoolIdType, std::vector<uint64_t>> poolWalSegmentLeftSize;

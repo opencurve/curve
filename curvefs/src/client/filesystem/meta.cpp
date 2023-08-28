@@ -106,7 +106,6 @@ std::string Attr2Str(const InodeAttr& attr) {
         return "";
     }
 
-    std::string smode;
     return absl::StrFormat(" (%d,[%s:0%06o,%d,%d,%d,%d,%d,%d,%d])",
         attr.inodeid(), StrMode(attr.mode()).c_str(), attr.mode(), attr.nlink(),
         attr.uid(), attr.gid(),

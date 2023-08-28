@@ -85,7 +85,7 @@ int DiskCacheRead::LinkWriteToRead(const std::string fileName,
                                    const std::string fullWriteDir,
                                    const std::string fullReadDir) {
     VLOG(6) << "LinkWriteToRead start. name = " << fileName;
-    std::string fullReadPath, fullWritePath, dirPath;
+    std::string fullReadPath, fullWritePath;
     fullWritePath = fullWriteDir + "/" + fileName;
     fullReadPath = fullReadDir + "/" + fileName;
     int ret;
