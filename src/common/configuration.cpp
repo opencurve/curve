@@ -41,8 +41,7 @@ bool Configuration::LoadConfig() {
             // FIXME: may not remove middle spaces
             line.erase(std::remove_if(line.begin(), line.end(), isspace),
                        line.end());
-            if (line[0] == '#' || line.empty())
-                continue;
+            if (line.empty() || line[0] == '#') continue;
 
             int delimiterPos = line.find("=");
             std::string key = line.substr(0, delimiterPos);

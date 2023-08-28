@@ -207,9 +207,8 @@ int MDSClient::ListDir(const std::string& dirName,
         }
         return 0;
     }
-    std::cout << "ListDir fail with errCode: "
-              << response.statuscode() << std::endl;
-        return -1;
+    std::cout << "ListDir fail with errCode: " << response.statuscode()
+              << std::endl;
     return -1;
 }
 

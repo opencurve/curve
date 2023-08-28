@@ -273,25 +273,25 @@ int ClientConfig::Init(const std::string& configpath) {
 
     // only client side need these follow 5 options
     ret = conf_.GetUInt32Value("csClientOpt.rpcTimeoutMs",
-        &fileServiceOption_.csClientOpt.rpcTimeoutMs);
-    LOG_IF(WARNING, ret = false) << "config no csClientOpt.rpcTimeoutMs info";
+                               &fileServiceOption_.csClientOpt.rpcTimeoutMs);
+    LOG_IF(WARNING, ret == false) << "config no csClientOpt.rpcTimeoutMs info";
 
     ret = conf_.GetUInt32Value("csClientOpt.rpcMaxTry",
-        &fileServiceOption_.csClientOpt.rpcMaxTry);
-    LOG_IF(WARNING, ret = false) << "config no csClientOpt.rpcMaxTry info";
+                               &fileServiceOption_.csClientOpt.rpcMaxTry);
+    LOG_IF(WARNING, ret == false) << "config no csClientOpt.rpcMaxTry info";
 
     ret = conf_.GetUInt32Value("csClientOpt.rpcIntervalUs",
         &fileServiceOption_.csClientOpt.rpcIntervalUs);
-    LOG_IF(WARNING, ret = false) << "config no csClientOpt.rpcIntervalUs info";
+    LOG_IF(WARNING, ret == false) << "config no csClientOpt.rpcIntervalUs info";
 
     ret = conf_.GetUInt32Value("csClientOpt.rpcMaxTimeoutMs",
         &fileServiceOption_.csClientOpt.rpcIntervalUs);
-    LOG_IF(WARNING, ret = false)
+    LOG_IF(WARNING, ret == false)
         << "config no csClientOpt.rpcMaxTimeoutMs info";
 
     ret = conf_.GetUInt32Value("csBroadCasterOpt.broadCastMaxNum",
         &fileServiceOption_.csBroadCasterOpt.broadCastMaxNum);
-    LOG_IF(WARNING, ret = false)
+    LOG_IF(WARNING, ret == false)
         << "config no csBroadCasterOpt.broadCastMaxNum info";
 
     return 0;

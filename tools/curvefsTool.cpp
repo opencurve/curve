@@ -222,11 +222,11 @@ int CurvefsTools::ScanLogicalPool() {
         }
         for (auto it = logicalPoolInfos.begin();
             it != logicalPoolInfos.end();) {
-            auto ix = std::find_if(lgPoolDatas.begin(),
-                lgPoolDatas.end(),
-                [it] (CurveLogicalPoolData& data) {
-                    return data.name == it->logicalpoolname();
-                });
+            auto ix =
+                std::find_if(lgPoolDatas.begin(), lgPoolDatas.end(),
+                             [it](const CurveLogicalPoolData& data) {
+                                 return data.name == it->logicalpoolname();
+                             });
             if (ix != lgPoolDatas.end()) {
                 lgPoolDatas.erase(ix);
                 it++;
@@ -796,9 +796,9 @@ int CurvefsTools::ScanCluster() {
 
     for (auto it = zoneInfos.begin();
             it != zoneInfos.end();) {
-        auto ix = std::find_if(zoneToAdd.begin(),
-            zoneToAdd.end(),
-            [it] (CurveZoneData &data) {
+        auto ix = std::find_if(
+            zoneToAdd.begin(), zoneToAdd.end(),
+            [it](const CurveZoneData& data) {
                 return (data.physicalPoolName ==
                     it->physicalpoolname()) &&
                        (data.zoneName ==
@@ -856,13 +856,14 @@ int CurvefsTools::ScanCluster() {
     for (auto it = serverInfos.begin();
             it != serverInfos.end();
             it++) {
-        auto ix = std::find_if(serverToAdd.begin(),
-            serverToAdd.end(),
-            [it] (CurveServerData &data) {
+        auto ix =
+            std::find_if(
+                serverToAdd.begin(), serverToAdd.end(),
+                [it](const CurveServerData& data) {
                     return (data.serverName == it->hostname()) &&
                     (data.zoneName == it->zonename()) &&
                     (data.physicalPoolName == it->physicalpoolname());
-            });
+                });
         if (ix != serverToAdd.end()) {
             serverToAdd.erase(ix);
         } else {
@@ -1295,7 +1296,7 @@ int CurvefsTools::ScanPoolset() {
     }
     for (auto it = poolsetInfos.begin(); it != poolsetInfos.end();) {
         auto ix = std::find_if(poolsetToAdd.begin(), poolsetToAdd.end(),
-                               [it](CurvePoolsetData& data) {
+                               [it](const CurvePoolsetData& data) {
                                    return data.name == it->poolsetname();
                                });
         if (ix != poolsetToAdd.end()) {

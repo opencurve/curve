@@ -481,12 +481,13 @@ bool CopysetNodeManager::PurgeCopysetNodeData(const LogicPoolID &logicPoolId,
                            << ToGroupIdString(logicPoolId, copysetId)
                            << " persistently.";
                 ret = false;
+            } else {
+                LOG(INFO) << "Move copyset"
+                          << ToGroupIdString(logicPoolId, copysetId)
+                          << "to trash success.";
+                copysetNodeMap_.erase(it);
+                ret = true;
             }
-            LOG(INFO) << "Move copyset"
-                      << ToGroupIdString(logicPoolId, copysetId)
-                      << "to trash success.";
-            copysetNodeMap_.erase(it);
-            ret = true;
         }
     }
 

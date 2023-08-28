@@ -100,7 +100,7 @@ int RecoverScheduler::Schedule() {
             }
         }
 
-        if (offlinelists.size() <= 0) {
+        if (offlinelists.size() == 0) {
             continue;
         }
 
@@ -206,7 +206,7 @@ void RecoverScheduler::CalculateExcludesChunkServer(
             continue;
         }
 
-        if (unhealthyStateCS.count(cs.info.serverId) <= 0) {
+        if (unhealthyStateCS.count(cs.info.serverId) == 0) {
             unhealthyStateCS[cs.info.serverId] =
                 std::vector<ChunkServerIdType>{cs.info.id};
         } else {

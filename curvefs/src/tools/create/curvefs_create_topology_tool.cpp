@@ -282,7 +282,7 @@ int CurvefsBuildTopologyTool::ScanCluster() {
     for (auto it = poolInfos.begin(); it != poolInfos.end(); it++) {
         auto ix = std::find_if(
             poolDatas.begin(), poolDatas.end(),
-            [it](Pool& data) { return data.name == it->poolname(); });
+            [it](const Pool& data) { return data.name == it->poolname(); });
         if (ix != poolDatas.end()) {
             poolDatas.erase(ix);
         } else {
@@ -301,8 +301,8 @@ int CurvefsBuildTopologyTool::ScanCluster() {
     }
 
     for (auto it = zoneInfos.begin(); it != zoneInfos.end(); it++) {
-        auto ix =
-            std::find_if(zoneDatas.begin(), zoneDatas.end(), [it](Zone& data) {
+        auto ix = std::find_if(
+            zoneDatas.begin(), zoneDatas.end(), [it](const Zone& data) {
                 return (data.poolName == it->poolname()) &&
                        (data.name == it->zonename());
             });
@@ -325,7 +325,7 @@ int CurvefsBuildTopologyTool::ScanCluster() {
 
     for (auto it = serverInfos.begin(); it != serverInfos.end(); it++) {
         auto ix = std::find_if(serverDatas.begin(), serverDatas.end(),
-                               [it](Server& data) {
+                               [it](const Server& data) {
                                    return (data.name == it->hostname()) &&
                                           (data.zoneName == it->zonename()) &&
                                           (data.poolName == it->poolname());

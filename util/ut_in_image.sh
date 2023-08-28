@@ -1,4 +1,27 @@
 #!/bin/bash
+get_options() {
+    local args=`getopt -o S --long sanitizer: -n "$0" -- "$@"`
+    eval set -- "${args}"
+    while true
+    do
+        case "$1" in
+            -S|--sanitizer)
+                g_san=$2
+                shift 2
+                ;;
+            --)
+                shift
+                break
+                ;;
+            *)
+                exit 1
+                ;;
+        esac
+    done
+}
+
+get_options "$@"
+
 WORKSPACE="/var/lib/jenkins/workspace/curve/curve_multijob/"
 sudo mkdir -p /var/lib/jenkins/log/curve_unittest/$BUILD_NUMBER
 git config --global --add safe.directory /var/lib/jenkins/workspace/curve/curve_multijob
@@ -68,10 +91,10 @@ set -e
 
 #test_bin_dirs="bazel-bin/test/ bazel-bin/nebd/test/ bazel-bin/curvefs/test/"
 if [ $1 == "curvebs" ];then
-make ci-build stor=bs ci=1 dep=1
+make ci-build stor=bs ci=1 dep=1 sanitizer=$g_san
 test_bin_dirs="bazel-bin/test/ bazel-bin/nebd/test/"
 elif [ $1 == "curvefs" ];then
-make ci-build stor=fs ci=1 dep=1 only=curvefs/test/*
+make ci-build stor=fs ci=1 dep=1 only=curvefs/test/* sanitizer=$g_san
 test_bin_dirs="bazel-bin/curvefs/test/"
 fi
 echo $test_bin_dirs

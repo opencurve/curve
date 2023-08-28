@@ -123,7 +123,7 @@ CompactInodeJob::BuildValidList(const S3ChunkInfoList& s3chunkinfolist,
             if (begin <= b) {
                 if (end < b) {
                     return;
-                } else if (end >= b && end < e) {
+                } else if (end < e) {
                     // free [it->begin, it->end] -> [end+1, it->end]
                     // used [it->begin, end]
                     *it = std::make_pair(end + 1, e);
@@ -134,7 +134,7 @@ CompactInodeJob::BuildValidList(const S3ChunkInfoList& s3chunkinfolist,
                     freeList.erase(it);
                     used[b] = std::make_pair(e, i);
                 }
-            } else if (begin > b && begin <= e) {
+            } else if (begin <= e) {
                 if (end < e) {
                     // free [it-begin, it->end]
                     // -> [it->begin, begin-1], [end+1, it->end]
@@ -579,7 +579,6 @@ void CompactInodeJob::CompactChunks(const S3CompactTask& task) {
     std::unordered_map<uint64_t, std::vector<std::string>> objsAddedMap;
     ::google::protobuf::Map<uint64_t, S3ChunkInfoList> s3ChunkInfoAdd;
     ::google::protobuf::Map<uint64_t, S3ChunkInfoList> s3ChunkInfoRemove;
-    std::vector<uint64_t> indexToDelete;
     VLOG(6) << "s3compact: begin to compact fsId:" << fsId
             << ", inodeId:" << inodeId;
     for (const auto& index : needCompact) {

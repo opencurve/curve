@@ -146,7 +146,6 @@ ChunkServerIdType Scheduler::SelectBestPlacementChunkServer(
         }
 
         // calculate the influence on scatter-width of other replicas
-        std::map<ChunkServerIdType, std::pair<int, int>> out;
         int source = UNINTIALIZE_ID;
         int target = cs.info.id;
         int affected = 0;

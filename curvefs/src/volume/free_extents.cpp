@@ -290,7 +290,7 @@ void FreeExtents::MarkUsedInternal(const uint64_t off, const uint64_t len) {
 
     auto iter = extents_.lower_bound(off);
     if (iter != extents_.end() && iter->first == off) {
-        if (iter->first == off && iter->second == len) {
+        if (iter->second == len) {
             extents_.erase(iter);
         } else {
             auto newOff = iter->first + len;

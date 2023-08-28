@@ -79,7 +79,7 @@ MetaServerIdType Scheduler::SelectBestPlacementMetaServer(
     }
 
     uint16_t standardZoneNum = topo_->GetStandardZoneNumInPool(poolId);
-    if (standardZoneNum <= 0) {
+    if (standardZoneNum == 0) {
         LOG(ERROR) << "topoAdapter find pool " << poolId
                    << " standard zone num: " << standardZoneNum << " invalid";
         return UNINITIALIZE_ID;
