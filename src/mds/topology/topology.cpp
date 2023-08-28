@@ -1478,7 +1478,11 @@ std::string TopologyImpl::GetHostNameAndPortById(ChunkServerIdType csId) {
     }
 
     // get hostName of the chunkserver
-    return server.GetHostName() + ":" + std::to_string(cs.GetPort());
+    std::string hostname = server.GetHostName();
+    if (hostname.empty()) {
+        hostname = server.GetInternalHostIp();
+    }
+    return hostname + ":" + std::to_string(cs.GetPort());
 }
 
 int TopologyImpl::UpdateChunkServerVersion(const std::string &version,
