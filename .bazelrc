@@ -7,4 +7,20 @@ build:gcc7-later --cxxopt -faligned-new
 build --incompatible_blacklisted_protos_requires_proto_info=false
 build --copt=-fdiagnostics-color=always
 
+build:sanitize-common --strip=never
+build:sanitize-common --copt -O1
+build:sanitize-common --copt -g
+build:sanitize-common --copt -fno-omit-frame-pointer
+
+build:asan --config=sanitize-common
+build:asan --copt -fsanitize=address
+build:asan --copt -DADDRESS_SANITIZER
+build:asan --linkopt -fsanitize=address
+
+build:asan --config=sanitize-common
+build:msan --copt -fsanitize=memory
+build:msan --copt -fsanitize=undefined
+build:msan --linkopt -fsanitize=address
+build:msan --linkopt -fsanitize=undefined
+
 run --copt=-fdiagnostics-color=always
