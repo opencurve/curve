@@ -109,6 +109,11 @@ int main(int argc, char **argv) {
     // initialize logging module
     google::InitGoogleLogging(argv[0]);
 
+    // reset SIGPIPE handler
+    // etcdclient register SIGPIPE handler in its initialization progress, which
+    // will cause mds exit due to write to a closed socket
+    signal(SIGPIPE, SIG_IGN);
+
     curve::mds::MDS mds;
 
     // initialize MDS options
