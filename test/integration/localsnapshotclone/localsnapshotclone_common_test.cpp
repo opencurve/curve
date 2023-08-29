@@ -578,9 +578,9 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotAndClone3Times) {
     userinfo1.owner = testUser1_;
     ASSERT_EQ(0, snapClient_->CreateSnapShot(testFile3Snap1, userinfo1, &seq));
 
-//    // 对testFile3 写y
-//    std::string fakeData2(4096, 'y');
-//    ASSERT_TRUE(WriteFile(testFile3_, testUser1_, fakeData2));
+    // 对testFile3 写y
+    std::string fakeDatay(4096, 'y');
+    ASSERT_TRUE(WriteFile(testFile3_, testUser1_, fakeDatay));
 
     ASSERT_EQ(0, snapClient_->ProtectSnapShot(testFile3Snap1, userinfo1));
     // 从testFile3 快照克隆出testFile3Clone1, 并断言数据为x
@@ -600,6 +600,11 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotAndClone3Times) {
     ASSERT_EQ(0, snapClient_->CreateSnapShot(
         testFile3Clone1Snap1, userinfo1, &seq2));
 
+    // 对testFile3Clone1 写1
+    std::string fakeData1(4096, '1');
+    ASSERT_TRUE(WriteFile(testFile3Clone1, testUser1_, fakeData1));
+    ASSERT_TRUE(CheckFileData(testFile3Clone1, testUser1_, fakeData1));
+
     ASSERT_EQ(0, snapClient_->ProtectSnapShot(
         testFile3Clone1Snap1, userinfo1));
     // 从testFile3Clone1的快照克隆出testFile3Clone11, 并断言数据为z
@@ -607,6 +612,11 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotAndClone3Times) {
     ASSERT_EQ(0, snapClient_->Clone(
         testFile3Clone1Snap1, testFile3Clone11, userinfo1, &finfo2));
     ASSERT_TRUE(CheckFileData(testFile3Clone11, testUser1_, fakeData3));
+
+    // 对testFile3Clone11 写2
+    std::string fakeData2(4096, '2');
+    ASSERT_TRUE(WriteFile(testFile3Clone11, testUser1_, fakeData2));
+    ASSERT_TRUE(CheckFileData(testFile3Clone11, testUser1_, fakeData2));
 
     // 对testFile3Clone11 打快照
     std::string testFile3Clone11Snap1 = testFile3Clone11 + "@snap1";
@@ -625,15 +635,15 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotAndClone3Times) {
     FInfo finfo3;
     ASSERT_EQ(0, snapClient_->Clone(
         testFile3Clone11Snap1, testFile3Clone111, userinfo1, &finfo3));
-    ASSERT_TRUE(CheckFileData(testFile3Clone111, testUser1_, fakeData3));
+    ASSERT_TRUE(CheckFileData(testFile3Clone111, testUser1_, fakeData2));
 
     // 写testFile3, 不影响另外3个卷
     std::string fakeData5(4096, 'b');
     ASSERT_TRUE(WriteFile(testFile3_, testUser1_, fakeData5));
     ASSERT_TRUE(CheckFileData(testFile3_, testUser1_, fakeData5));
-    ASSERT_TRUE(CheckFileData(testFile3Clone1, testUser1_, fakeData3));
+    ASSERT_TRUE(CheckFileData(testFile3Clone1, testUser1_, fakeData1));
     ASSERT_TRUE(CheckFileData(testFile3Clone11, testUser1_, fakeData4));
-    ASSERT_TRUE(CheckFileData(testFile3Clone111, testUser1_, fakeData3));
+    ASSERT_TRUE(CheckFileData(testFile3Clone111, testUser1_, fakeData2));
 
     // 写testFile3Clone1, 不影响另外3个卷
     std::string fakeData6(4096, 'c');
@@ -641,7 +651,7 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotAndClone3Times) {
     ASSERT_TRUE(CheckFileData(testFile3Clone1, testUser1_, fakeData6));
     ASSERT_TRUE(CheckFileData(testFile3_, testUser1_, fakeData5));
     ASSERT_TRUE(CheckFileData(testFile3Clone11, testUser1_, fakeData4));
-    ASSERT_TRUE(CheckFileData(testFile3Clone111, testUser1_, fakeData3));
+    ASSERT_TRUE(CheckFileData(testFile3Clone111, testUser1_, fakeData2));
 
     // 写testFile3Clone11, 不影响另外3个卷
     std::string fakeData7(4096, 'd');
@@ -649,7 +659,7 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotAndClone3Times) {
     ASSERT_TRUE(CheckFileData(testFile3Clone11, testUser1_, fakeData7));
     ASSERT_TRUE(CheckFileData(testFile3Clone1, testUser1_, fakeData6));
     ASSERT_TRUE(CheckFileData(testFile3_, testUser1_, fakeData5));
-    ASSERT_TRUE(CheckFileData(testFile3Clone111, testUser1_, fakeData3));
+    ASSERT_TRUE(CheckFileData(testFile3Clone111, testUser1_, fakeData2));
 
     // 写testFileClone111, 不影响另外3个卷
     std::string fakeData8(4096, 'e');
