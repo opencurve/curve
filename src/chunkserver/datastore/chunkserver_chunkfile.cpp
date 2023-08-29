@@ -732,7 +732,20 @@ CSErrorCode CSChunkFile::cloneWrite(SequenceNum sn,
 
     std::vector<File_ObjectInfoPtr> objIns;
 
-
+    if ((nullptr != ctx) && (sn > metaPage_.sn)) { //just modify the metapage_.sn = sn and updata metapage
+        ChunkFileMetaPage tempMeta = metaPage_;
+        tempMeta.sn = sn;
+        CSErrorCode errorCode = updateMetaPage(&tempMeta);
+        if (errorCode != CSErrorCode::Success) {
+            LOG(ERROR) << "Update metapage failed."
+                       << "ChunkID: " << chunkId_
+                       << ",request sn: " << sn
+                       << ",chunk sn: " << metaPage_.sn;
+            return errorCode;
+        }
+        metaPage_.sn = tempMeta.sn;
+    }
+    
     if ((nullptr == ctx) || (false == needCow(sn, ctx))) {//not write to the snapshot but the chunk its self    
         //no need to do read from other clone volume
         if (((endIndex - beginIndex + 1) << OBJ_SIZE_SHIFT) == length) {
