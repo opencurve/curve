@@ -1,0 +1,45 @@
+From 6fa53cba1d2fde726a57d67dc338585c00325b51 Mon Sep 17 00:00:00 2001
+From: Hanqing Wu <wuhanqing@corp.netease.com>
+Date: Tue, 29 Aug 2023 10:13:08 +0800
+Subject: [PATCH] bvar: warning on conflict bvar name
+
+---
+ src/bvar/variable.cpp | 15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/src/bvar/variable.cpp b/src/bvar/variable.cpp
+index cfb4c920..533b37f4 100644
+--- a/src/bvar/variable.cpp
++++ b/src/bvar/variable.cpp
+@@ -56,6 +56,8 @@ static bool validate_bvar_abort_on_same_name(const char*, bool v) {
+ const bool ALLOW_UNUSED dummy_bvar_abort_on_same_name = ::GFLAGS_NS::RegisterFlagValidator(
+     &FLAGS_bvar_abort_on_same_name, validate_bvar_abort_on_same_name);
+ 
++DEFINE_bool(bvar_log_error_on_same_name, false,
++            "Log error when names of bvar are same");
+ 
+ DEFINE_bool(bvar_log_dumpped,  false,
+             "[For debugging] print dumpped info"
+@@ -173,9 +175,16 @@ int Variable::expose_impl(const butil::StringPiece& prefix,
+         // abort the program if needed.
+         s_bvar_may_abort = true;
+     }
+-        
+-    LOG(ERROR) << "Already exposed `" << _name << "' whose value is `"
+-               << describe_exposed(_name) << '\'';
++
++    std::ostringstream oss;
++    oss << "Already exposed `" << _name << "' whose value is `"
++        << describe_exposed(_name) << '\'';
++    if (FLAGS_bvar_log_error_on_same_name) {
++        LOG(ERROR) << oss.str();
++    } else {
++        LOG(WARNING) << oss.str();
++    }
++
+     _name.clear();
+     return -1;
+ }
+-- 
+2.37.2
+

@@ -133,7 +133,11 @@ git_repository(
     name = "com_github_brpc_brpc",
     remote = "https://github.com/apache/incubator-brpc",
     commit = "1b9e00641cbec1c8803da6a1f7f555398c954cb0",
-    patches = ["//:thirdparties/brpc/brpc.patch","//:thirdparties/brpc/fix-gcc11.patch"],
+    patches = [
+        "//:thirdparties/brpc/brpc.patch",
+        "//:thirdparties/brpc/fix-gcc11.patch",
+        "//:thirdparties/brpc/0001-bvar-warning-on-conflict-bvar-name.patch", 
+    ],
     patch_args = ["-p1"],
 )
 
