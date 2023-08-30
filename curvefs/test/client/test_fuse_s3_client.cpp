@@ -1184,7 +1184,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir) {
     attr.set_length(100);
     attr.set_type(FsFileType::TYPE_DIRECTORY);
     attrs.emplace_back(attr);
-attr.set_inodeid(inodeId2);
+    attr.set_inodeid(inodeId2);
     attr.set_length(200);
     attr.set_type(FsFileType::TYPE_FILE);
     attrs.emplace_back(attr);
@@ -1948,6 +1948,55 @@ TEST_F(TestFuseS3Client, FuseOpSetXattr) {
     ret = client_->FuseOpSetXattr(
         req, ino, name, value, size, 0);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+}
+
+TEST_F(TestFuseS3Client, FuseOpRemoveXattr) {
+    // in
+    fuse_req_t req = nullptr;
+    fuse_ino_t ino = 1;
+    const char special_name[] = "curve.dir.rfiles";
+    const char name[] = "user.text.xattr";
+
+    // remove special xattr
+    CURVEFS_ERROR ret = client_->FuseOpRemoveXattr(
+        req, ino, special_name);
+    ASSERT_EQ(CURVEFS_ERROR::NOPERMISSION, ret);
+
+    // get inode failed
+    EXPECT_CALL(*inodeManager_, GetInode(ino, _))
+        .WillOnce(Return(CURVEFS_ERROR::INTERNAL));
+    ret = client_->FuseOpRemoveXattr(req, ino, name);
+    ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
+
+    // xattr not exist
+    auto inodeWrapper = std::make_shared<InodeWrapper>(Inode(), metaClient_);
+    EXPECT_CALL(*inodeManager_, GetInode(ino, _))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
+    ret = client_->FuseOpRemoveXattr(req, ino, name);
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+
+    // updateInode failed
+    auto inodeDemo = Inode();
+    inodeDemo.mutable_xattr()->insert({name, "0"});
+    inodeWrapper = std::make_shared<InodeWrapper>(inodeDemo, metaClient_);
+    EXPECT_CALL(*inodeManager_, GetInode(ino, _))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _))
+        .WillOnce(Return(MetaStatusCode::NOT_FOUND));
+    ret = client_->FuseOpRemoveXattr(req, ino, name);
+    ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret);
+
+    // success
+    EXPECT_CALL(*inodeManager_, GetInode(ino, _))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _))
+        .WillOnce(Return(MetaStatusCode::OK));
+    ret = client_->FuseOpRemoveXattr(req, ino, name);
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+    ASSERT_EQ(inodeWrapper->GetXattr().xattrinfos().size(), 0);
 }
 
 TEST_F(TestFuseS3Client, FuseOpWriteQosTest) {

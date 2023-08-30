@@ -34,6 +34,13 @@ namespace filesystem {
 const uint32_t MAX_XATTR_NAME_LENGTH = 255;
 const uint32_t MAX_XATTR_VALUE_LENGTH = 64 * 1024;
 
+const char XATTR_DIR_PREFIX[] = "curve.dir";
+
+const char XATTR_WARMUP_OP[] = "curvefs.warmup.op";
+
+const char XATTR_ACL_ACCESS[] = "system.posix_acl_access";
+const char XATTR_ACL_DEFAULT[] = "system.posix_acl_default";
+
 const char XATTR_DIR_FILES[] = "curve.dir.files";
 const char XATTR_DIR_SUBDIRS[] = "curve.dir.subdirs";
 const char XATTR_DIR_ENTRIES[] = "curve.dir.entries";
@@ -42,10 +49,20 @@ const char XATTR_DIR_RFILES[] = "curve.dir.rfiles";
 const char XATTR_DIR_RSUBDIRS[] = "curve.dir.rsubdirs";
 const char XATTR_DIR_RENTRIES[] = "curve.dir.rentries";
 const char XATTR_DIR_RFBYTES[] = "curve.dir.rfbytes";
-const char XATTR_DIR_PREFIX[] = "curve.dir";
-const char XATTR_WARMUP_OP[] = "curvefs.warmup.op";
 
-inline bool IsSpecialXAttr(const std::string& key) {
+inline bool IsWarmupXAttr(const std::string& key) {
+    return key == XATTR_WARMUP_OP;
+}
+
+inline bool IsACLXAttr(const std::string& key) {
+    static std::map<std::string, bool> xattrs {
+        { XATTR_ACL_ACCESS, true },
+        { XATTR_ACL_DEFAULT, true }
+    };
+    return xattrs.find(key) != xattrs.end();
+}
+
+inline bool IsDirXAttr(const std::string& key) {
     static std::map<std::string, bool> xattrs {
         { XATTR_DIR_FILES, true },
         { XATTR_DIR_SUBDIRS, true },
@@ -55,13 +72,12 @@ inline bool IsSpecialXAttr(const std::string& key) {
         { XATTR_DIR_RSUBDIRS, true },
         { XATTR_DIR_RENTRIES, true },
         { XATTR_DIR_RFBYTES, true },
-        { XATTR_DIR_PREFIX, true },
     };
     return xattrs.find(key) != xattrs.end();
 }
 
-inline bool IsWarmupXAttr(const std::string& key) {
-    return key == XATTR_WARMUP_OP;
+inline bool IsSpecialXAttr(const std::string& key) {
+    return IsDirXAttr(key) || IsWarmupXAttr(key) || IsACLXAttr(key);
 }
 
 }  // namespace filesystem

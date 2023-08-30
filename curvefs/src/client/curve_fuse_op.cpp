@@ -79,12 +79,19 @@ static ClientOpMetric* g_clientOpMetric = nullptr;
 
 namespace {
 
-void EnableSplice(struct fuse_conn_info* conn) {
+void EnableCaps(struct fuse_conn_info* conn) {
+    // enable acl
+    if (g_fuseClientOption->enableACL &&
+        conn->capable & FUSE_CAP_POSIX_ACL) {
+        conn->want |= FUSE_CAP_POSIX_ACL;
+        LOG(INFO) << "FUSE_CAP_POSIX_ACL enabled";
+    }
+
+    // enable splice
     if (!g_fuseClientOption->enableFuseSplice) {
         LOG(INFO) << "Fuse splice is disabled";
         return;
     }
-
     if (conn->capable & FUSE_CAP_SPLICE_MOVE) {
         conn->want |= FUSE_CAP_SPLICE_MOVE;
         LOG(INFO) << "FUSE_CAP_SPLICE_MOVE enabled";
@@ -359,7 +366,7 @@ void FuseOpInit(void *userdata, struct fuse_conn_info *conn) {
     if (rc != CURVEFS_ERROR::OK) {
         LOG(FATAL) << "FuseOpInit() failed, retCode = " << rc;
     } else {
-        EnableSplice(conn);
+        EnableCaps(conn);
         LOG(INFO) << "FuseOpInit() success, retCode = " << rc;
     }
 }
@@ -795,6 +802,7 @@ void FuseOpSetXattr(fuse_req_t req,
     CURVEFS_ERROR rc;
     auto client = Client();
     auto fs = client->GetFileSystem();
+    MetricGuard(SetXattr);
     AccessLogGuard log([&](){
         return StrFormat("setxattr (%d,%s,%d,%d): %s",
                          ino, name, size, flags, StrErr(rc));
@@ -856,6 +864,19 @@ void FuseOpListXattr(fuse_req_t req, fuse_ino_t ino, size_t size) {
         return fs->ReplyXattr(req, xattrSize);
     }
     return fs->ReplyBuffer(req, buf.get(), xattrSize);
+}
+
+void FuseOpRemoveXattr(fuse_req_t req, fuse_ino_t ino, const char *name) {
+    CURVEFS_ERROR rc;
+    auto client = Client();
+    auto fs = client->GetFileSystem();
+    MetricGuard(RemoveXattr);
+    AccessLogGuard log([&](){
+        return StrFormat("removexattr (%d,%s): %s", ino, name, StrErr(rc));
+    });
+
+    rc = client->FuseOpRemoveXattr(req, ino, name);
+    return fs->ReplyError(req, rc);
 }
 
 void FuseOpCreate(fuse_req_t req,
