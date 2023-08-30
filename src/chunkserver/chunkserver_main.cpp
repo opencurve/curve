@@ -26,7 +26,7 @@ int main(int argc, char* argv[]) {
     butil::AtExitManager atExitManager;
     ::curve::chunkserver::ChunkServer chunkserver;
     LOG(INFO) << "ChunkServer starting.";
-    // 这里不能用fork创建守护进程,bvar会存在一些问题
+    //You cannot use fork to create daemons here, as bvar may have some issues
     // https://github.com/apache/incubator-brpc/issues/697
     // https://github.com/apache/incubator-brpc/issues/208
     chunkserver.Run(argc, argv);

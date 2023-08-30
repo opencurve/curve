@@ -39,55 +39,55 @@ using CopysetNodePtr = std::shared_ptr<CopysetNode>;
 class HeartbeatHelper {
  public:
     /**
-     * 根据mds下发的conf构建出指定复制组的新配置，给ChangePeer使用
+     *Build a new configuration for the specified replication group based on the conf issued by mds, and use it for ChangePeer
      *
-     * @param[in] conf mds下发的变更命令needupdatecopyset[i]
-     * @param[out] newPeers 指定复制组的目标配置
+     * @param[in] conf mds issued the change command needupdatecopyset[i]
+     * @param[out] newPeers specifies the target configuration for the replication group
      *
-     * @return false-生成newpeers失败 true-生成newpeers成功
+     * @return false - Failed to generate newpeers, true - Successfully generated newpeers
      */
     static bool BuildNewPeers(
         const CopySetConf &conf, std::vector<Peer> *newPeers);
 
     /**
-     * 判断字符串peer(正确的形式为: ip:port:0)是否有效
+     *Determine whether the string peer (correct form: ip:port:0) is valid
      *
-     * @param[in] peer 指定字符串
+     * @param[in] peer specifies the string
      *
-     * @return false-无效 true-有效
+     * @return false - invalid, true - valid
      */
     static bool PeerVaild(const std::string &peer);
 
     /**
-     * 判断mds下发过来的copysetConf是否合法，以下两种情况不合法:
-     * 1. chunkserver中不存在该copyset
-     * 2. mds下发的copyset中记录的epoch小于chunkserver上copyset此时的epoch
+     *Determine whether the copysetConf sent by mds is legal, and the following two situations are illegal:
+     *1. The copyset does not exist in chunkserver
+     *2. The epoch recorded in the copyset issued by mds is smaller than the epoch recorded in the copyset on chunkserver at this time
      *
-     * @param[in] conf mds下发的变更命令needupdatecopyset[i]
-     * @param[in] copyset chunkserver上对应的copyset
+     * @param[in] conf mds issued the change command needupdatecopyset[i]
+     * @param[in] copyset The corresponding copyset on chunkserver
      *
-     * @return false-copysetConf不合法，true-copysetConf合法
+     * @return false-copysetConf is illegal, true-copysetConf is legal
      */
     static bool CopySetConfValid(
         const CopySetConf &conf, const CopysetNodePtr &copyset);
 
     /**
-     * 判断chunkserver(csEp)中指定copyset是否需要删除
+     *Determine whether the specified copyset in chunkserver (csEp) needs to be deleted
      *
-     * @param[in] csEp 该chunkserver的ip:port
-     * @param[in] conf mds下发的变更命令needupdatecopyset[i]
-     * @param[in] copyset chunkserver上对应的copyset
+     * @param[in] csEp The ip: port of this chunkserver
+     * @param[in] conf mds issued the change command needupdatecopyset [i]
+     * @param[in] copyset The corresponding copyset on chunkserver
      *
-     * @return false-该chunkserver上的copyset无需清理；
-     *         true-该chunkserver上的copyset需要清理
+     * @return false - The copyset on the chunkserver does not need to be cleaned;
+     *         True - The copyset on this chunkserver needs to be cleaned up
      */
     static bool NeedPurge(const butil::EndPoint &csEp, const CopySetConf &conf,
         const CopysetNodePtr &copyset);
 
     /**
-     * 判断指定chunkserver copyset是否已经加载完毕
+     *Determine whether the specified chunkserver copyset has been loaded completely
      *
-     * @return false-copyset加载完毕 true-copyset未加载完成
+     * @return false-copyset loading completed, true-copyset not loaded completed
      */
     static bool ChunkServerLoadCopySetFin(const std::string ipPort);
 };

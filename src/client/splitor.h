@@ -46,16 +46,16 @@ class Splitor {
     static void Init(const IOSplitOption& ioSplitOpt);
 
     /**
-     * 用户IO拆分成Chunk级别的IO
-     * @param: iotracker大IO上下文信息
-     * @param: metaCache是io拆分过程中需要使用的缓存信息
-     * @param: targetlist大IO被拆分之后的小IO存储列表
-     * @param: data 是待写的数据
-     * @param: offset用户下发IO的其实偏移
-     * @param: length数据长度
-     * @param: mdsclient在查找metacahe失败时，通过mdsclient查找信息
-     * @param: fi存储当前IO的一些基本信息，比如chunksize等
-     * @param: FileEpoch_t  file epoch info
+     *Split user IO into Chunk level IO
+     * @param: Iotracker Big IO Context Information
+     * @param: MetaCache is the cache information that needs to be used during the IO splitting process
+     * @param: targetlist The storage list of small IO after the large IO is split
+     * @param: Data is the data to be written
+     * @param: offset The actual offset of IO issued by the user
+     * @param: length Data length
+     * @param: mdsclient searches for information through mdsclient when searching for metaahe fails
+     * @param: fi stores some basic information about the current IO, such as chunksize, etc
+     * @param: FileEpoch_ T file epoch information
      */
     static int IO2ChunkRequests(IOTracker* iotracker,
                            MetaCache* metaCache,
@@ -68,15 +68,15 @@ class Splitor {
                            const FileEpoch_t* fEpoch);
 
     /**
-     * 对单ChunkIO进行细粒度拆分
-     * @param: iotracker大IO上下文信息
-     * @param: metaCache是io拆分过程中需要使用的缓存信息
-     * @param: targetlist大IO被拆分之后的小IO存储列表
-     * @param: cid是当前chunk的ID信息
-     * @param: data是待写的数据
-     * @param: offset是当前chunk内的偏移
-     * @param: length数据长度
-     * @param: seq是当前chunk的版本号
+     *Fine grained splitting of single ChunkIO
+     * @param: Iotracker Big IO Context Information
+     * @param: MetaCache is the cache information that needs to be used during the IO splitting process
+     * @param: targetlist The storage list of small IO after the large IO is split
+     * @param: cid is the ID information of the current chunk
+     * @param: Data is the data to be written
+     * @param: offset is the offset within the current chunk
+     * @param: length Data length
+     * @param: seq is the version number of the current chunk
      */
     static int SingleChunkIO2ChunkRequests(IOTracker* iotracker,
                            MetaCache* metaCache,
@@ -88,11 +88,11 @@ class Splitor {
                            uint64_t seq);
 
     /**
-     * @brief 计算请求的location信息
-     * @param ioTracker io上下文信息
-     * @param metaCache 文件缓存信息
-     * @param chunkIdx 当前chunk信息
-     * @return source信息
+     * @brief calculates the location information of the request
+     * @param ioTracker io Context Information
+     * @param MetaCache file cache information
+     * @param chunkIdx Current chunk information
+     * @return source information
      */
     static RequestSourceInfo CalcRequestSourceInfo(IOTracker* ioTracker,
                                                    MetaCache* metaCache,
@@ -105,16 +105,16 @@ class Splitor {
 
  private:
     /**
-     * IO2ChunkRequests内部会调用这个函数，进行真正的拆分操作
-     * @param: iotracker大IO上下文信息
-     * @param: mc是io拆分过程中需要使用的缓存信息
-     * @param: targetlist大IO被拆分之后的小IO存储列表
-     * @param: data 是待写的数据
-     * @param: offset用户下发IO的其实偏移
-     * @param: length数据长度
-     * @param: mdsclient在查找metacahe失败时，通过mdsclient查找信息
-     * @param: fi存储当前IO的一些基本信息，比如chunksize等
-     * @param: chunkidx是当前chunk在vdisk中的索引值
+     *IO2ChunkRequests will internally call this function for actual splitting operations
+     * @param: Iotracker Big IO Context Information
+     * @param: mc is the cache information that needs to be used during IO splitting process
+     * @param: targetlist The storage list of small IO after the large IO is split
+     * @param: Data is the data to be written
+     * @param: offset The actual offset of IO issued by the user
+     * @param: length Data length
+     * @param: mdsclient searches for information through mdsclient when searching for metaahe fails
+     * @param: fi stores some basic information about the current IO, such as chunksize, etc
+     * @param: chunkidx is the index value of the current chunk in the vdisk
      */
     static bool AssignInternal(IOTracker* iotracker,
                            MetaCache* metaCache,
@@ -154,7 +154,7 @@ class Splitor {
                                   uint64_t len);
 
  private:
-    // IO拆分模块所使用的配置信息
+    //Configuration information used for IO split modules
     static IOSplitOption iosplitopt_;
 };
 }   // namespace client

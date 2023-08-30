@@ -29,11 +29,11 @@ namespace curve {
 namespace tool {
 
 void TrimMetricString(std::string* str) {
-    // 去掉头部空格
+    //Remove header spaces
     str->erase(0, str->find_first_not_of(" "));
-    // 去掉尾部回车
+    //Remove the rear carriage return
     str->erase(str->find_last_not_of("\r\n") + 1);
-    // 去掉两边双引号
+    //Remove double quotes from both sides
     str->erase(0, str->find_first_not_of("\""));
     str->erase(str->find_last_not_of("\"") + 1);
 }

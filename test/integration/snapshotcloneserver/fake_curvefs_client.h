@@ -155,10 +155,10 @@ class FakeCurveFsClient : public CurveFsClient {
                     const std::string& newOwner) override;
 
     /**
-     * @brief 判断/clone目录下是否存在临时文件
+     * @brief to determine if there are temporary files in the/clone directory
      *
-     * @retval true 存在
-     * @retval false 不存在
+     * @retval true exists
+     * @retval false does not exist
      */
     bool JudgeCloneDirHasFile();
 
@@ -169,11 +169,11 @@ class FakeCurveFsClient : public CurveFsClient {
     // fileName -> snapshot fileInfo
     std::map<std::string, FInfo> fileSnapInfoMap_;
 
-    // inodeid 从101开始，100以内预留
-    // 快照所属文件Id一律为100, parentid = 99
-    // "/" 目录的Id为1
-    // "/clone" 目录的Id为2
-    // "/user1" 目录的Id为3
+    //Inodeid starts from 101 and is reserved within 100
+    //The file ID to which the snapshot belongs is always 100, with parentid=99
+    //The Id of the '/' directory is 1
+    //The Id of the '/clone' directory is 2
+    //The Id of the '/user1' directory is 3
     std::atomic<uint64_t> fileId_;
 };
 

@@ -43,17 +43,17 @@ namespace chunkserver {
 class ChunkServer {
  public:
     /**
-     * @brief 初始化Chunkserve各子模块
+     * @brief Initialize Chunkserve sub modules
      *
-     * @param[in] argc 命令行参数总数
-     * @param[in] argv 命令行参数列表
+     * @param[in] argc Total number of command line arguments
+     * @param[in] argv command line argument list
      *
-     * @return 0表示成功，非0失败
+     * @return 0 indicates success, non 0 indicates failure
      */
     int Run(int argc, char** argv);
 
     /**
-     * @brief 停止chunkserver，结束各子模块
+     * @brief: Stop chunkserver and end each sub module
      */
     void Stop();
 
@@ -102,22 +102,22 @@ class ChunkServer {
         const std::string &metaUri, ChunkServerMetadata *metadata);
 
  private:
-    // copysetNodeManager_ 管理chunkserver上所有copysetNode
+    //copysetNodeManager_ Manage all copysetNodes on the chunkserver
     CopysetNodeManager* copysetNodeManager_;
 
-    // cloneManager_ 管理克隆任务
+    //cloneManager_ Manage Clone Tasks
     CloneManager cloneManager_;
 
     // scan copyset manager
     ScanManager scanManager_;
 
-    // heartbeat_ 负责向mds定期发送心跳，并下发心跳中任务
+    //heartbeat_ Responsible for regularly sending heartbeat to MDS and issuing tasks in the heartbeat
     Heartbeat heartbeat_;
 
-    // trash_ 定期回收垃圾站中的物理空间
+    //trash_ Regularly recycle physical space in the garbage bin
     std::shared_ptr<Trash> trash_;
 
-    // install snapshot流控
+    //Install snapshot flow control
     scoped_refptr<SnapshotThrottle> snapshotThrottle_;
 };
 

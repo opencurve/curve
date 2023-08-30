@@ -40,9 +40,9 @@ namespace chunkserver {
 Register::Register(const RegisterOptions &ops) {
     this->ops_ = ops;
 
-    // 解析mds的多个地址
+    //Parsing multiple addresses of mds
     ::curve::common::SplitString(ops.mdsListenAddr, ",", &mdsEps_);
-    // 检验每个地址的合法性
+    //Verify the legality of each address
     for (auto addr : mdsEps_) {
         butil::EndPoint endpt;
         if (butil::str2endpoint(addr.c_str(), &endpt) < 0) {
@@ -105,7 +105,7 @@ int Register::RegisterToMDS(const ChunkServerMetadata *localMetadata,
         curve::mds::topology::TopologyService_Stub stub(&channel);
 
         stub.RegistChunkServer(&cntl, &req, &resp, nullptr);
-        // TODO(lixiaocui): 后续错误码和mds共享后改成枚举类型
+        //TODO(lixiaocui): Change to enumeration type after sharing error codes and mds in the future
         if (!cntl.Failed() && resp.statuscode() == 0) {
             break;
         } else {

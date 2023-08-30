@@ -32,29 +32,37 @@ namespace common {
 TEST(TestNameLock, TestNameLockBasic) {
     NameLock lock1, lock2, lock3;
 
-    // lock测试
+    //Lock test
+
     lock1.Lock("str1");
-    // 同锁不同str可lock不死锁
+    //Same lock but different strs can lock without deadlock
+
     lock1.Lock("str2");
-    // 不同锁同str可lock不死锁
+    //Different locks with the same str can lock without deadlock
+
     lock2.Lock("str1");
 
 
 
-    // 同锁同str TryLock失败
+    //Same lock with str TryLock failed
+
     ASSERT_FALSE(lock1.TryLock("str1"));
-    // 同锁不同str TryLock成功
+    //Same lock different str TryLock successful
+
     ASSERT_TRUE(lock1.TryLock("str3"));
-    // 不同锁同str TryLock成功
+    //Different locks with str TryLock succeeded
+
     ASSERT_TRUE(lock3.TryLock("str1"));
 
-    // unlock测试
+    //Unlock test
+
     lock1.Unlock("str1");
     lock1.Unlock("str2");
     lock1.Unlock("str3");
     lock2.Unlock("str1");
     lock3.Unlock("str1");
-    // 未锁unlock ok
+    //Unlock OK
+
     lock2.Unlock("str2");
 }
 
@@ -64,12 +72,14 @@ TEST(TestNameLock, TestNameLockGuardBasic) {
         NameLockGuard guard1(lock1, "str1");
         NameLockGuard guard2(lock1, "str2");
         NameLockGuard guard3(lock2, "str1");
-        // 作用域内加锁成功，不可再加锁
+        //Successfully locked within the scope, unable to lock again
+
         ASSERT_FALSE(lock1.TryLock("str1"));
         ASSERT_FALSE(lock1.TryLock("str2"));
         ASSERT_FALSE(lock2.TryLock("str1"));
     }
-    // 作用域外自动解锁，可再加锁
+    //Automatically unlocking outside the scope, with the option to add locks again
+
     ASSERT_TRUE(lock1.TryLock("str1"));
     ASSERT_TRUE(lock1.TryLock("str2"));
     ASSERT_TRUE(lock2.TryLock("str1"));

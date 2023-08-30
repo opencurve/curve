@@ -50,7 +50,7 @@
 namespace curve {
 namespace client {
 
-// 测试mds failover切换状态机
+//Testing mds failover switching state machine
 TEST(MDSChangeTest, MDSFailoverTest) {
     RPCExcutorRetryPolicy rpcexcutor;
 
@@ -70,10 +70,10 @@ TEST(MDSChangeTest, MDSFailoverTest) {
     int mds1RetryTimes = 0;
     int mds2RetryTimes = 0;
 
-    // 场景1： mds0、1、2, currentworkindex = 0, mds0, mds1, mds2都宕机，
-    //        发到其rpc都以EHOSTDOWN返回，导致上层client会一直切换mds重试
-    //        按照0-->1-->2持续进行
-    //        每次rpc返回-EHOSTDOWN，会直接触发RPC切换。最终currentworkindex没有切换
+    //Scenario 1: mds0, 1, 2, currentworkindex=0, mds0, mds1, and mds2 are all down,
+    //             All RPCs sent to them are returned as EHOSTDOWN, resulting in upper level clients constantly switching to mds and retrying
+    //             Continue according to 0->1->2
+    //              Every time rpc returns - HOSTDOWN, it will directly trigger RPC switching. The final currentworkindex did not switch
     auto task1 = [&](int mdsindex, uint64_t rpctimeoutMS,
                 brpc::Channel* channel, brpc::Controller* cntl)->int {
         if (mdsindex == 0) {
@@ -91,12 +91,12 @@ TEST(MDSChangeTest, MDSFailoverTest) {
     };
 
     uint64_t startMS = TimeUtility::GetTimeofDayMs();
-    // 控制面接口调用, 1000为本次rpc的重试总时间
+    //Control surface interface call, 1000 is the total retry time of this RPC
     rpcexcutor.DoRPCTask(task1, 1000);
     uint64_t endMS = TimeUtility::GetTimeofDayMs();
     ASSERT_GT(endMS - startMS, 1000 - 1);
 
-    // 本次重试为轮询重试，每个mds的重试次数应该接近，不超过总的mds数量
+    //This retry is a polling retry, and the number of retries per mds should be close to and not exceed the total number of mds
     ASSERT_LT(abs(mds0RetryTimes - mds1RetryTimes), 3);
     ASSERT_LT(abs(mds2RetryTimes - mds1RetryTimes), 3);
 
@@ -106,10 +106,10 @@ TEST(MDSChangeTest, MDSFailoverTest) {
     ASSERT_GT(endMS - startMS, 3000 - 1);
     ASSERT_EQ(0, rpcexcutor.GetCurrentWorkIndex());
 
-    // 场景2：mds0、1、2, currentworkindex = 0, mds0宕机，并且这时候将正在工作的
-    //       mds索引切换到index2，预期client在index=0重试之后会直接切换到index 2
-    //       mds2这这时候直接返回OK，rpc停止重试。
-    //       预期client总共发送两次rpc，一次发送到mds0，另一次发送到mds2，跳过中间的
+    //Scenario 2: mds0, 1, 2, currentworkindex=0, mds0 goes down, and it will be working at this time
+    //       Mds index switches to index2, and it is expected that the client will directly switch to index2 after retrying with index=0
+    //       At this point, mds2 directly returns OK and rpc stops trying again.
+    //       Expected client to send a total of two RPCs, one to mds0 and the other to mds2, skipping the middle
     //       mds1。
     mds0RetryTimes = 0;
     mds1RetryTimes = 0;
@@ -129,7 +129,7 @@ TEST(MDSChangeTest, MDSFailoverTest) {
 
         if (mdsindex == 2) {
             mds2RetryTimes++;
-            // 本次返回ok，那么RPC应该成功了，不会再重试
+            //If OK is returned this time, then RPC should have succeeded and will not try again
             return LIBCURVE_ERROR::OK;
         }
 
@@ -144,10 +144,10 @@ TEST(MDSChangeTest, MDSFailoverTest) {
     ASSERT_EQ(mds1RetryTimes, 0);
     ASSERT_EQ(mds2RetryTimes, 1);
 
-    // 场景3：mds0、1、2，currentworkindex = 1，且mds1宕机了，
-    //       这时候会切换到mds0和mds2
-    //       在切换到2之后，mds1又恢复了，这时候切换到mds1，然后rpc发送成功。
-    //       这时候的切换顺序为1->2->0, 1->2->0, 1。
+    //Scenario 3: mds0, 1, 2, currentworkindex=1, and mds1 is down,
+    //      At this point, it will switch to mds0 and mds2
+    //      After switching to 2, mds1 resumed, and then switched to mds1, and the rpc was successfully sent.
+    //      At this point, the switching order is 1->2->0, 1->2->0, 1.
     mds0RetryTimes = 0;
     mds1RetryTimes = 0;
     mds2RetryTimes = 0;
@@ -161,7 +161,7 @@ TEST(MDSChangeTest, MDSFailoverTest) {
 
         if (mdsindex == 1) {
             mds1RetryTimes++;
-            // 当在mds1上重试到第三次的时候向上返回成功，停止重试
+            //When retrying on mds1 for the third time, success is returned upwards and the retry is stopped
             if (mds1RetryTimes == 3) {
                 return LIBCURVE_ERROR::OK;
             }
@@ -186,11 +186,11 @@ TEST(MDSChangeTest, MDSFailoverTest) {
 
     ASSERT_EQ(1, rpcexcutor.GetCurrentWorkIndex());
 
-    // 场景4：mds0、1、2, currentWorkindex = 0, 但是发往mds1的rpc请求一直超时
-    //       最后rpc返回结果是超时.
-    //      对于超时的mds节点会连续重试mds.maxFailedTimesBeforeChangeMDS后切换
-    //      当前mds.maxFailedTimesBeforeChangeMDS=2。
-    //      所以重试逻辑应该是：0->0->1->2, 0->0->1->2, 0->0->1->2, ...
+    //Scenario 4: mds0, 1, 2, currentWorkindex=0, but the rpc request to mds1 consistently times out
+    //The final result returned by rpc is timeout
+    //For timeout mds nodes, they will continuously retry mds.maxFailedTimesBeforeChangeMDS and switch
+    //Current mds.maxFailedTimesBeforeChangeMDS=2.
+    //So the retry logic should be: 0->0->1->2, 0->0->1->2, 0->0->1->2
     LOG(INFO) << "case 4";
     mds0RetryTimes = 0;
     mds1RetryTimes = 0;
@@ -222,12 +222,12 @@ TEST(MDSChangeTest, MDSFailoverTest) {
     endMS = TimeUtility::GetTimeofDayMs();
     ASSERT_GT(endMS - startMS, 3000 - 1);
     ASSERT_EQ(0, rpcexcutor.GetCurrentWorkIndex());
-    // 本次重试为轮询重试，每个mds的重试次数应该接近，不超过总的mds数量
+    //This retry is a polling retry, and the number of retries per mds should be close to and not exceed the total number of mds
     ASSERT_GT(mds0RetryTimes, mds1RetryTimes + mds2RetryTimes);
 
-    // 场景5：mds0、1、2，currentWorkIndex = 0
-    //       但是rpc请求前10次全部返回EHOSTDOWN
-    //       mds重试睡眠10ms，所以总共耗时100ms时间
+    //Scenario 5: mds0, 1, 2, currentWorkIndex=0
+    //      But the first 10 requests from rpc all returned EHOSTDOWN
+    //      Mds retries sleep for 10ms, so it takes a total of 100ms
     rpcexcutor.SetCurrentWorkIndex(0);
     int hostDownTimes = 10;
     auto task5 = [&](int mdsindex, uint64_t rpctimeoutMs,
@@ -241,11 +241,11 @@ TEST(MDSChangeTest, MDSFailoverTest) {
         return 0;
     };
     startMS = TimeUtility::GetTimeofDayMs();
-    rpcexcutor.DoRPCTask(task5, 10000);  // 总重试时间10s
+    rpcexcutor.DoRPCTask(task5, 10000);  //Total retry time 10s
     endMS = TimeUtility::GetTimeofDayMs();
     ASSERT_GE(endMS - startMS, 100);
 
-    // 场景6： mds在重试过程中一直返回EHOSTDOWN，总共重试5s
+    //Scenario 6: mds keeps returning EHOSTDOWN during the retry process, with a total of 5 retries
     rpcexcutor.SetCurrentWorkIndex(0);
     int calledTimes = 0;
     auto task6 = [&](int mdsindex, uint64_t rpctimeoutMs,
@@ -256,12 +256,12 @@ TEST(MDSChangeTest, MDSFailoverTest) {
     };
 
     startMS = TimeUtility::GetTimeofDayMs();
-    rpcexcutor.DoRPCTask(task6, 5 * 1000);  // 总重试时间5s
+    rpcexcutor.DoRPCTask(task6, 5 * 1000);  //Total retry time 5s
     endMS = TimeUtility::GetTimeofDayMs();
     ASSERT_GE(endMS - startMS, 5 * 1000 - 1);
 
-    // 每次hostdown情况下，睡眠10ms，总重试时间5s，所以总共重试次数小于等于500次
-    // 为了尽量减少误判，所以加入10次冗余
+    //In each hostdown situation, sleep for 10ms and the total retry time is 5s, so the total number of retries is less than or equal to 500 times
+    //In order to minimize false positives, 10 redundant attempts were added
     LOG(INFO) << "called times " << calledTimes;
     ASSERT_LE(calledTimes, 510);
 }

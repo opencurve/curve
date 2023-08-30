@@ -64,13 +64,13 @@ int CopysetClient::Init(MetaCache *metaCache,
 }
 bool CopysetClient::FetchLeader(LogicPoolID lpid, CopysetID cpid,
     ChunkServerID* leaderid, butil::EndPoint* leaderaddr) {
-    // 1. 先去当前metacache中拉取leader信息
+    //1. First, pull the leader information from the current metacache
     if (0 == metaCache_->GetLeader(lpid, cpid, leaderid,
         leaderaddr, false, fileMetric_)) {
         return true;
     }
 
-    // 2. 如果metacache中leader信息拉取失败，就发送RPC请求获取新leader信息
+    //2. If the pull of leader information in the metacache fails, send an RPC request to obtain new leader information
     if (-1 == metaCache_->GetLeader(lpid, cpid, leaderid,
         leaderaddr, true, fileMetric_)) {
         LOG(WARNING) << "Get leader address form cache failed, but "
@@ -82,11 +82,11 @@ bool CopysetClient::FetchLeader(LogicPoolID lpid, CopysetID cpid,
     return true;
 }
 
-// 因为这里的CopysetClient::ReadChunk(会在两个逻辑里调用
-// 1. 从request scheduler下发的新的请求
-// 2. clientclosure再重试逻辑里调用copyset client重试
-// 这两种状况都会调用该接口，因为对于重试的RPC有可能需要重新push到队列中
-// 非重试的RPC如果重新push到队列中会导致死锁。
+//Because the CopysetClient::ReadChunk (will be called in two logics) here
+//1. New requests issued from the request scheduler
+//2. Calling copyset client to retry in the clientclosure retry logic
+//Both of these situations will call the interface, as retrying RPCs may require re pushing to the queue
+//If non retrying RPC is pushed back into the queue, it will cause a deadlock.
 int CopysetClient::ReadChunk(const ChunkIDInfo& idinfo, uint64_t sn,
                              off_t offset, size_t length,
                              const RequestSourceInfo& sourceInfo,
@@ -94,15 +94,15 @@ int CopysetClient::ReadChunk(const ChunkIDInfo& idinfo, uint64_t sn,
     RequestClosure* reqclosure = static_cast<RequestClosure*>(done);
     brpc::ClosureGuard doneGuard(done);
 
-    // session过期情况下重试有两种场景：
-    // 1. 正常重试过程，非文件关闭状态，这时候RPC直接重新push到scheduler队列头部
-    //     重试调用是在brpc的线程里，所以这里不会卡住重试的RPC，这样
-    //     不会阻塞brpc线程，因为brpc线程是所有文件公用的。避免影响其他文件
-    //     因为session续约失败可能只是网络问题，等待续约成功之后IO其实还可以
-    //     正常下发，所以不能直接向上返回失败，在底层hang住，等续约成功之后继续发送
-    // 2. 在关闭文件过程中exitFlag_=true，重试rpc会直接向上通过closure返回给用户
-    //     return调用之后doneguard会调用closure的run，会释放inflight rpc计数，
-    //     然后closure向上返回给用户。
+    //There are two scenarios for retrying when a session expires:
+    //1. During the normal retry process, if the file is not in a closed state, RPC will directly re push to the scheduler queue header
+    //The retry call is in the brpc thread, so there will be no blocking of the retry RPC here
+    //Will not block the brpc thread as it is common to all files. Avoid affecting other files
+    //Because the session renewal failure may only be a network issue, IO is actually still possible after the renewal is successful
+    //Normal distribution, so failure cannot be directly returned upwards. Hang on at the bottom and continue sending after the renewal is successful
+    //2. exitFlag_=true during file closing, retrying rpc will directly return to the user through closure
+    //After the return call, doneguard will call the run of the closure, releasing the inflight rpc count,
+    //Then the closure is returned to the user upwards.
     if (sessionNotValid_ == true) {
         if (exitFlag_) {
             LOG(WARNING) << " return directly for session not valid at exit!"
@@ -113,7 +113,7 @@ int CopysetClient::ReadChunk(const ChunkIDInfo& idinfo, uint64_t sn,
                         << ", len = " << length;
             return 0;
         } else {
-            // session过期之后需要重新push到队列
+            //After the session expires, it needs to be re pushed to the queue
             LOG(WARNING) << "session not valid, read rpc ReSchedule!";
             doneGuard.release();
             reqclosure->ReleaseInflightRPCToken();
@@ -146,15 +146,15 @@ int CopysetClient::WriteChunk(const ChunkIDInfo& idinfo,
 
     brpc::ClosureGuard doneGuard(done);
 
-    // session过期情况下重试有两种场景：
-    // 1. 正常重试过程，非文件关闭状态，这时候RPC直接重新push到scheduler队列头部
-    //     重试调用是在brpc的线程里，所以这里不会卡住重试的RPC，这样
-    //     不会阻塞brpc线程，因为brpc线程是所有文件公用的。避免影响其他文件
-    //     因为session续约失败可能只是网络问题，等待续约成功之后IO其实还可以
-    //     正常下发，所以不能直接向上返回失败，在底层hang住，等续约成功之后继续发送
-    // 2. 在关闭文件过程中exitFlag_=true，重试rpc会直接向上通过closure返回给用户
-    //     return调用之后doneguard会调用closure的run，会释放inflight rpc计数，
-    //     然后closure向上返回给用户。
+    //There are two scenarios for retrying when a session expires:
+    //1 During the normal retry process, if the file is not in a closed state, RPC will directly re push to the scheduler queue header
+    //The retry call is in the brpc thread, so there will be no blocking of the retry RPC here
+    //Will not block the brpc thread as it is common to all files. Avoid affecting other files
+    //Because the session renewal failure may only be a network issue, IO is actually still possible after the renewal is successful
+    //Normal distribution, so failure cannot be directly returned upwards. Hang on at the bottom and continue sending after the renewal is successful
+    //2 exitFlag_=true during file closing, retrying rpc will directly return to the user through closure
+    //After the return call, doneguard will call the run of the closure, releasing the inflight rpc count,
+    //Then the closure is returned to the user upwards.
     if (sessionNotValid_ == true) {
         if (exitFlag_) {
             LOG(WARNING) << " return directly for session not valid at exit!"

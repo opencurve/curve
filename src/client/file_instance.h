@@ -42,14 +42,14 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
     ~FileInstance() = default;
 
     /**
-     * 初始化
-     * @param: filename文件名用于初始化iomanager的metric信息
-     * @param: mdsclient为全局的mds client
-     * @param: userinfo为user信息
-     * @param: fileservicopt fileclient的配置选项
-     * @param: clientMetric为client端要统计的metric信息
-     * @param: readonly是否以只读方式打开
-     * @return: 成功返回true、否则返回false
+     *Initialize
+     * @param: filename The file name is used to initialize the metric information of the iomanager
+     * @param: mdsclient is a global mds client
+     * @param: userinfo is the user information
+     * @param: Configuration options for fileservicopt fileclient
+     * @param: clientMetric is the metric information to be counted on the client side
+     * @param: Is readonly opened as read-only
+     * @return: Success returns true, otherwise returns false
      */
     bool Initialize(const std::string& filename,
                     const std::shared_ptr<MDSClient>& mdsclient,
@@ -58,39 +58,39 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
                     const FileServiceOption& fileservicopt,
                     bool readonly = false);
     /**
-     * 打开文件
-     * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
+     *Open File
+     * @return: Successfully returned LIBCURVE_ERROR::OK, otherwise LIBCURVE_ERROR::FAILED
      */
     int Open(std::string* sessionId = nullptr);
 
     /**
-     * 同步模式读
-     * @param: buf为当前待读取的缓冲区
-     * @param：offset文件内的便宜
-     * @parma：length为待读取的长度
-     * @return： 成功返回读取真实长度，-1为失败
+     *Synchronous mode reading
+     * @param: buf is the current buffer to be read
+     * @param: Cheap in offset file
+     * @parma: length is the length to be read
+     * @return: Success returns reading the true length, -1 indicates failure
      */
     int Read(char* buf, off_t offset, size_t length);
     /**
-     * 同步模式写
-     * @param: buf为当前待写入的缓冲区
-     * @param：offset文件内的便宜
-     * @parma：length为待读取的长度
-     * @return： 成功返回写入真实长度，-1为失败
+     *Synchronous mode write
+     * @param: buf is the current buffer to be written
+     * @param: Cheap in offset file
+     * @parma: length is the length to be read
+     * @return: Success returns the true length of the write, -1 indicates failure
      */
     int Write(const char* buf, off_t offset, size_t length);
     /**
-     * 异步模式读
-     * @param: aioctx为异步读写的io上下文，保存基本的io信息
+     *Asynchronous mode read
+     * @param: aioctx is an asynchronous read/write IO context that stores basic IO information
      * @param: dataType type of user buffer
-     * @return: 0为成功，小于0为失败
+     * @return: 0 indicates success, less than 0 indicates failure
      */
     int AioRead(CurveAioContext* aioctx, UserDataType dataType);
     /**
-     * 异步模式写
-     * @param: aioctx为异步读写的io上下文，保存基本的io信息
+     *Asynchronous mode write
+     * @param: aioctx is an asynchronous read/write IO context that stores basic IO information
      * @param: dataType type of user buffer
-     * @return: 0为成功，小于0为失败
+     * @return: 0 indicates success, less than 0 indicates failure
      */
     int AioWrite(CurveAioContext* aioctx, UserDataType dataType);
 
@@ -118,7 +118,7 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
     }
 
     /**
-     * 获取lease, 测试代码使用
+     *Obtain a release to test code usage
      */
     LeaseExecutor* GetLeaseExecutor() const {
         return leaseExecutor_.get();
@@ -132,9 +132,9 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
     }
 
     /**
-     * @brief 获取当前instance对应的文件信息
+     * @brief Get the file information corresponding to the current instance
      *
-     * @return 当前instance对应文件的信息
+     * @return The information of the file corresponding to the current instance
      */
     FInfo GetCurrentFileInfo() const {
         return finfo_;
@@ -159,22 +159,22 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
     void StopLease();
 
  private:
-    // 保存当前file的文件信息
+    //Save file information for the current file
     FInfo finfo_;
 
-    // 当前FileInstance的初始化配置信息
+    //The initialization configuration information of the current FileInstance
     FileServiceOption       fileopt_;
 
-    // MDSClient是FileInstance与mds通信的唯一出口
+    //MDSClient is the only exit for FileInstance to communicate with mds
     std::shared_ptr<MDSClient> mdsclient_;
 
-    // 每个文件都持有与MDS通信的lease，LeaseExecutor是续约执行者
+    //Each file holds a lease for communication with MDS, and the LeaseExecutor is the renewal executor
     std::unique_ptr<LeaseExecutor> leaseExecutor_;
 
-    // IOManager4File用于管理所有向chunkserver端发送的IO
+    //IOManager4File is used to manage all IO sent to the chunkserver end
     IOManager4File          iomanager4file_;
 
-    // 是否为只读方式
+    //Is it read-only
     bool                   readonly_ = false;
 
     // offset and length must align with `blocksize_`

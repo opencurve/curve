@@ -42,7 +42,7 @@ class UriParser {
                 break;
             }
             protocol = uri.substr(0, pos);
-            *param = uri.substr(pos+3, uri.find_last_not_of(" "));
+            * @param = uri.substr(pos+3, uri.find_last_not_of(" "));
         } while (0);
         return protocol;
     }

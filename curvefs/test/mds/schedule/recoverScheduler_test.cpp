@@ -196,7 +196,7 @@ TEST_F(TestRecoverSheduler, test_all_metaServer_online_offline) {
     EXPECT_CALL(*topoAdapter_, GetAvgScatterWidthInPool(_))
         .WillRepeatedly(Return(90));
     {
-        // 1. 所有metaserveronline
+        //1. All metaserveronline
         EXPECT_CALL(*topoAdapter_, GetMetaServerInfo(id1, _))
             .WillOnce(DoAll(SetArgPointee<1>(csInfo1), Return(true)));
         EXPECT_CALL(*topoAdapter_, GetMetaServerInfo(id2, _))
@@ -208,7 +208,7 @@ TEST_F(TestRecoverSheduler, test_all_metaServer_online_offline) {
     }
 
     {
-        // 2. 副本数量大于标准，leader挂掉
+        //2. The number of copies exceeds the standard, and the leader is suspended
         csInfo1.state = OnlineState::OFFLINE;
         EXPECT_CALL(*topoAdapter_, GetMetaServerInfo(id1, _))
             .WillOnce(DoAll(SetArgPointee<1>(csInfo1), Return(true)));
@@ -222,7 +222,7 @@ TEST_F(TestRecoverSheduler, test_all_metaServer_online_offline) {
     }
 
     {
-        // 3. 副本数量大于标准，follower挂掉
+        //3. The number of copies exceeds the standard, the follower will be suspended
         opController_->RemoveOperator(op.copysetID);
         csInfo1.state = OnlineState::ONLINE;
         csInfo2.state = OnlineState::OFFLINE;
@@ -237,7 +237,7 @@ TEST_F(TestRecoverSheduler, test_all_metaServer_online_offline) {
     }
 
     {
-        // 4. 副本数目等于标准， follower挂掉
+        //4. The number of copies equals the standard, and the follower will be dropped
         opController_->RemoveOperator(op.copysetID);
         EXPECT_CALL(*topoAdapter_, GetStandardReplicaNumInPool(_))
             .WillRepeatedly(Return(3));
@@ -259,7 +259,7 @@ TEST_F(TestRecoverSheduler, test_all_metaServer_online_offline) {
     }
 
     {
-        // 5. 选不出替换metaserver
+        //5. Unable to select a replacement metaserver
         opController_->RemoveOperator(op.copysetID);
         EXPECT_CALL(*topoAdapter_, GetMetaServersInPool(_))
             .WillOnce(Return(std::vector<MetaServerInfo>{}));
@@ -268,7 +268,7 @@ TEST_F(TestRecoverSheduler, test_all_metaServer_online_offline) {
     }
 
     {
-        // 6. 在metaserver上创建copyset失败
+        //6. Failed to create copyset on metaserver
         EXPECT_CALL(*topoAdapter_, GetStandardReplicaNumInPool(_))
             .WillRepeatedly(Return(3));
         std::vector<MetaServerInfo> metaserverList(

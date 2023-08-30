@@ -34,7 +34,7 @@ message RapidLeaderScheduleResponse {
     required sint32 statusCode = 1;
 }
 
-// 如果chunkServerID为空，则返回所有chunkserver的恢复状态
+//If chunkServerID is empty, return the recovery status of all chunkservers
 message QueryChunkServerRecoverStatusRequest {
     repeated uint32 chunkServerID = 1;
 }

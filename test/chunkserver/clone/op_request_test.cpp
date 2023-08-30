@@ -103,7 +103,7 @@ class OpRequestTest
 };
 
 TEST_P(OpRequestTest, CreateCloneTest) {
-    // 创建CreateCloneChunkRequest
+    //Create CreateCloneChunkRequest
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 10001;
     uint64_t chunkId = 12345;
@@ -131,7 +131,7 @@ TEST_P(OpRequestTest, CreateCloneTest) {
                                                   response,
                                                   closure);
     /**
-     * 测试Encode/Decode
+     *Test Encode/Code
      */
     {
         butil::IOBuf log;
@@ -152,12 +152,12 @@ TEST_P(OpRequestTest, CreateCloneTest) {
         ASSERT_EQ(sn, request->sn());
     }
     /**
-     * 测试Process
-     * 用例： node_->IsLeaderTerm() == false
-     * 预期： 会要求转发请求，返回CHUNK_OP_STATUS_REDIRECTED
+     *Test Process
+     *Use case: node_ -> IsLeaderTerm()==false
+     *Expected: Request to forward request and return CHUNK_OP_STATUS_REDIRECTED
      */
     {
-        // 设置预期
+        //Set expectations
         EXPECT_CALL(*node_, IsLeaderTerm())
             .WillRepeatedly(Return(false));
         // PeerId leaderId(PEER_STRING);
@@ -168,7 +168,7 @@ TEST_P(OpRequestTest, CreateCloneTest) {
 
         opReq->Process();
 
-        // 验证结果
+        //Verification results
         ASSERT_TRUE(closure->isDone_);
         ASSERT_FALSE(response->has_appliedindex());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
@@ -176,15 +176,15 @@ TEST_P(OpRequestTest, CreateCloneTest) {
         // ASSERT_STREQ(closure->response_->redirect().c_str(), PEER_STRING);
     }
     /**
-     * 测试Process
-     * 用例： node_->IsLeaderTerm() == true
-     * 预期： 会调用Propose，且不会调用closure
+     *Test Process
+     *Use case: node_->IsLeaderTerm() == true
+     *Expected: Propose will be called and closure will not be called
      */
     {
-        // 重置closure
+        //Reset closure
         closure->Reset();
 
-        // 设置预期
+        //Set expectations
         EXPECT_CALL(*node_, IsLeaderTerm())
             .WillRepeatedly(Return(true));
         braft::Task task;
@@ -193,11 +193,11 @@ TEST_P(OpRequestTest, CreateCloneTest) {
 
         opReq->Process();
 
-        // 验证结果
+        //Verification results
         ASSERT_FALSE(closure->isDone_);
         ASSERT_FALSE(response->has_appliedindex());
         ASSERT_FALSE(closure->response_->has_status());
-        // 由于这里node是mock的，因此需要主动来执行task.done.Run来释放资源
+        //Since the node here is mock, it is necessary to proactively execute task.done.Run to release resources
         ASSERT_NE(nullptr, task.done);
         task.done->Run();
         ASSERT_TRUE(closure->isDone_);
@@ -264,15 +264,15 @@ TEST_P(OpRequestTest, CreateCloneTest) {
                   closure->response_->status());
     }
     /**
-     * 测试 OnApplyFromLog
-     * 用例：CreateCloneChunk成功
-     * 预期：无返回
+     *Testing OnApplyFromLog
+     *Use case: CreateCloneChunk successful
+     *Expected: No return
      */
     {
-        // 重置closure
+        //Reset closure
         closure->Reset();
 
-        // 设置预期
+        //Set expectations
         EXPECT_CALL(*datastore_, CreateCloneChunk(_, _, _, _, _))
             .WillOnce(Return(CSErrorCode::Success));
 
@@ -280,15 +280,15 @@ TEST_P(OpRequestTest, CreateCloneTest) {
         opReq->OnApplyFromLog(datastore_, *request, data);
     }
     /**
-     * 测试 OnApplyFromLog
-     * 用例：CreateCloneChunk失败，返回InternalError
-     * 预期：进程退出
+     *Testing OnApplyFromLog
+     *Use case: CreateCloneChunk failed, returning InternalError
+     *Expected: Process Exit
      */
     {
-        // 重置closure
+        //Reset closure
         closure->Reset();
 
-        // 设置预期
+        //Set expectations
         EXPECT_CALL(*datastore_, CreateCloneChunk(_, _, _, _, _))
             .WillRepeatedly(Return(CSErrorCode::InternalError));
 
@@ -296,27 +296,27 @@ TEST_P(OpRequestTest, CreateCloneTest) {
         ASSERT_DEATH(opReq->OnApplyFromLog(datastore_, *request, data), "");
     }
     /**
-     * 测试 OnApplyFromLog
-     * 用例：CreateCloneChunk失败，返回其他错误
-     * 预期：进程退出
+     *Testing OnApplyFromLog
+     *Use case: CreateCloneChunk failed with other errors returned
+     *Expected: Process Exit
      */
     {
-        // 重置closure
+        //Reset closure
         closure->Reset();
 
-        // 设置预期
+        //Set expectations
         EXPECT_CALL(*datastore_, CreateCloneChunk(_, _, _, _, _))
             .WillRepeatedly(Return(CSErrorCode::InvalidArgError));
 
         butil::IOBuf data;
         opReq->OnApplyFromLog(datastore_, *request, data);
     }
-    // 释放资源
+    //Release resources
     closure->Release();
 }
 
 TEST_P(OpRequestTest, PasteChunkTest) {
-    // 生成临时的readrequest
+    //Generate temporary readrequest
     ChunkResponse *response = new ChunkResponse();
     std::shared_ptr<ReadChunkRequest> readChunkRequest =
         std::make_shared<ReadChunkRequest>(node_,
@@ -326,7 +326,7 @@ TEST_P(OpRequestTest, PasteChunkTest) {
                                            response,
                                            nullptr);
 
-    // 创建PasteChunkRequest
+    //Create PasteChunkRequest
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 10001;
     uint64_t chunkId = 12345;
@@ -353,7 +353,7 @@ TEST_P(OpRequestTest, PasteChunkTest) {
                                                     &cloneData,
                                                     closure);
     /**
-     * 测试Encode/Decode
+     *Test Encode/Code
      */
     {
         butil::IOBuf log;
@@ -376,12 +376,12 @@ TEST_P(OpRequestTest, PasteChunkTest) {
         ASSERT_STREQ(str.c_str(), data.to_string().c_str());
     }
     /**
-     * 测试Process
-     * 用例： node_->IsLeaderTerm() == false
-     * 预期： 会要求转发请求，返回CHUNK_OP_STATUS_REDIRECTED
+     *Test Process
+     *Use case: node_ -> IsLeaderTerm()==false
+     *Expected: Request to forward request and return CHUNK_OP_STATUS_REDIRECTED
      */
     {
-        // 设置预期
+        //Set expectations
         EXPECT_CALL(*node_, IsLeaderTerm())
             .WillRepeatedly(Return(false));
         // PeerId leaderId(PEER_STRING);
@@ -392,7 +392,7 @@ TEST_P(OpRequestTest, PasteChunkTest) {
 
         opReq->Process();
 
-        // 验证结果
+        //Verification results
         ASSERT_TRUE(closure->isDone_);
         ASSERT_FALSE(response->has_appliedindex());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
@@ -400,15 +400,15 @@ TEST_P(OpRequestTest, PasteChunkTest) {
         // ASSERT_STREQ(closure->response_->redirect().c_str(), PEER_STRING);
     }
     /**
-     * 测试Process
-     * 用例： node_->IsLeaderTerm() == true
-     * 预期： 会调用Propose，且不会调用closure
+     *Test Process
+     *Use case: node_->IsLeaderTerm() == true
+     *Expected: Propose will be called and closure will not be called
      */
     {
-        // 重置closure
+        //Reset closure
         closure->Reset();
 
-        // 设置预期
+        //Set expectations
         EXPECT_CALL(*node_, IsLeaderTerm())
             .WillRepeatedly(Return(true));
         braft::Task task;
@@ -417,31 +417,31 @@ TEST_P(OpRequestTest, PasteChunkTest) {
 
         opReq->Process();
 
-        // 验证结果
+        //Verification results
         ASSERT_FALSE(closure->isDone_);
         ASSERT_FALSE(response->has_appliedindex());
         ASSERT_FALSE(response->has_status());
-        // 由于这里node是mock的，因此需要主动来执行task.done.Run来释放资源
+        //Since the node here is mock, it is necessary to proactively execute task.done.Run to release resources
         ASSERT_NE(nullptr, task.done);
         task.done->Run();
         ASSERT_TRUE(closure->isDone_);
     }
     /**
-     * 测试OnApply
-     * 用例：CreateCloneChunk成功
-     * 预期：返回 CHUNK_OP_STATUS_SUCCESS ，并更新apply index
+     *Test OnApply
+     *Use case: CreateCloneChunk successful
+     *Expected: return CHUNK_OP_STATUS_SUCCESS and update the apply index
      */
     {
-        // 重置closure
+        //Reset closure
         closure->Reset();
 
-        // 设置预期
+        //Set expectations
         EXPECT_CALL(*datastore_, PasteChunk(_, _, _, _))
             .WillOnce(Return(CSErrorCode::Success));
 
         opReq->OnApply(3, closure);
 
-        // 验证结果
+        //Verification results
         ASSERT_TRUE(closure->isDone_);
         ASSERT_EQ(LAST_INDEX, response->appliedindex());
         ASSERT_TRUE(response->has_status());
@@ -449,36 +449,36 @@ TEST_P(OpRequestTest, PasteChunkTest) {
                   response->status());
     }
     /**
-     * 测试OnApply
-     * 用例：CreateCloneChunk失败,返回InternalError
-     * 预期：进程退出
+     *Test OnApply
+     *Use case: CreateCloneChunk failed, returning InternalError
+     *Expected: Process Exit
      */
     {
-        // 重置closure
+        //Reset closure
         closure->Reset();
 
-        // 设置预期
+        //Set expectations
         EXPECT_CALL(*datastore_, PasteChunk(_, _, _, _))
             .WillRepeatedly(Return(CSErrorCode::InternalError));
 
         ASSERT_DEATH(opReq->OnApply(3, closure), "");
     }
     /**
-     * 测试OnApply
-     * 用例：CreateCloneChunk失败,返回其他错误
-     * 预期：进程退出
+     *Test OnApply
+     *Use case: CreateCloneChunk failed with other errors returned
+     *Expected: Process Exit
      */
     {
-        // 重置closure
+        //Reset closure
         closure->Reset();
 
-        // 设置预期
+        //Set expectations
         EXPECT_CALL(*datastore_, PasteChunk(_, _, _, _))
             .WillRepeatedly(Return(CSErrorCode::InvalidArgError));
 
         opReq->OnApply(3, closure);
 
-        // 验证结果
+        //Verification results
         ASSERT_TRUE(closure->isDone_);
         ASSERT_EQ(LAST_INDEX, response->appliedindex());
         ASSERT_TRUE(response->has_status());
@@ -486,15 +486,15 @@ TEST_P(OpRequestTest, PasteChunkTest) {
                   response->status());
     }
     /**
-     * 测试 OnApplyFromLog
-     * 用例：CreateCloneChunk成功
-     * 预期：无返回
+     *Testing OnApplyFromLog
+     *Use case: CreateCloneChunk successful
+     *Expected: No return
      */
     {
-        // 重置closure
+        //Reset closure
         closure->Reset();
 
-        // 设置预期
+        //Set expectations
         EXPECT_CALL(*datastore_, PasteChunk(_, _, _, _))
             .WillOnce(Return(CSErrorCode::Success));
 
@@ -502,15 +502,15 @@ TEST_P(OpRequestTest, PasteChunkTest) {
         opReq->OnApplyFromLog(datastore_, *request, data);
     }
     /**
-     * 测试 OnApplyFromLog
-     * 用例：CreateCloneChunk失败,返回InternalError
-     * 预期：进程退出
+     *Testing OnApplyFromLog
+     *Use case: CreateCloneChunk failed, returning InternalError
+     *Expected: Process Exit
      */
     {
-        // 重置closure
+        //Reset closure
         closure->Reset();
 
-        // 设置预期
+        //Set expectations
         EXPECT_CALL(*datastore_, PasteChunk(_, _, _, _))
             .WillRepeatedly(Return(CSErrorCode::InternalError));
 
@@ -518,27 +518,27 @@ TEST_P(OpRequestTest, PasteChunkTest) {
         ASSERT_DEATH(opReq->OnApplyFromLog(datastore_, *request, data), "");
     }
     /**
-     * 测试 OnApplyFromLog
-     * 用例：CreateCloneChunk失败，返回其他错误
-     * 预期：进程退出
+     *Testing OnApplyFromLog
+     *Use case: CreateCloneChunk failed with other errors returned
+     *Expected: Process Exit
      */
     {
-        // 重置closure
+        //Reset closure
         closure->Reset();
 
-        // 设置预期
+        //Set expectations
         EXPECT_CALL(*datastore_, PasteChunk(_, _, _, _))
             .WillRepeatedly(Return(CSErrorCode::InvalidArgError));
 
         butil::IOBuf data;
         opReq->OnApplyFromLog(datastore_, *request, data);
     }
-    // 释放资源
+    //Release resources
     closure->Release();
 }
 
 TEST_P(OpRequestTest, ReadChunkTest) {
-    // 创建CreateCloneChunkRequest
+    //Create CreateCloneChunkRequest
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 10001;
     uint64_t chunkId = 12345;
@@ -565,7 +565,7 @@ TEST_P(OpRequestTest, ReadChunkTest) {
                                            response,
                                            closure);
     /**
-     * 测试Encode/Decode
+     *Test Encode/Code
      */
     {
         butil::IOBuf log;
@@ -585,9 +585,9 @@ TEST_P(OpRequestTest, ReadChunkTest) {
         ASSERT_EQ(length, request->size());
     }
     /**
-     * 测试Process
-     * 用例： node_->IsLeaderTerm() == false
-     * 预期： 会要求转发请求，返回CHUNK_OP_STATUS_REDIRECTED
+     *Test Process
+     *Use case: node_ -> IsLeaderTerm()==false
+     *Expected: Request to forward request and return CHUNK_OP_STATUS_REDIRECTED
      */
     {
         // set expection
@@ -724,16 +724,16 @@ TEST_P(OpRequestTest, ReadChunkTest) {
     info.bitmap = std::make_shared<Bitmap>(chunksize_ / blocksize_);
 
     /**
-     * 测试Process
-     * 用例： node_->IsLeaderTerm() == true,
-     *       请求的 apply index 小于等于 node的 apply index
-     * 预期： 不会走一致性协议，请求提交给concurrentApplyModule_处理
+     *Test Process
+     *Use case: node_ -> IsLeaderTerm()==true,
+     *The requested application index is less than or equal to the node's application index
+     *Expected: Will not follow the consistency protocol, request submission to ConcurrentApplyModule_ handle
      */
     {
-        // 重置closure
+        //Reset closure
         closure->Reset();
 
-        // 设置预期
+        //Set expectations
         EXPECT_CALL(*node_, IsLeaderTerm())
             .WillRepeatedly(Return(true));
 
@@ -775,20 +775,20 @@ TEST_P(OpRequestTest, ReadChunkTest) {
     }
 
     /**
-     * 测试OnApply
-     * 用例：请求的 chunk 不是 clone chunk
-     * 预期：从本地读chunk,返回 CHUNK_OP_STATUS_SUCCESS
+     *Test OnApply
+     *Use case: The requested chunk is not a clone chunk
+     *Expected: Chunk read locally, returning CHUNK_OP_STATUS_SUCCESS
      */
     {
-        // 重置closure
+        //Reset closure
         closure->Reset();
 
-        // 设置预期
+        //Set expectations
         info.isClone = false;
         EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
             .WillOnce(
                 DoAll(SetArgPointee<1>(info), Return(CSErrorCode::Success)));
-        // 读chunk文件
+        //Reading Chunk Files
         char *chunkData = new char[length];
         memset(chunkData, 'a', length);
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
@@ -797,7 +797,7 @@ TEST_P(OpRequestTest, ReadChunkTest) {
 
         opReq->OnApply(3, closure);
 
-        // 验证结果
+        //Verification results
         ASSERT_TRUE(closure->isDone_);
         ASSERT_EQ(LAST_INDEX, response->appliedindex());
         ASSERT_TRUE(response->has_status());
@@ -811,21 +811,21 @@ TEST_P(OpRequestTest, ReadChunkTest) {
     }
 
     /**
-     * 测试OnApply
-     * 用例：请求的chunk是 clone chunk，请求区域的bitmap都为1
-     * 预期：从本地读chunk,返回 CHUNK_OP_STATUS_SUCCESS
+     *Test OnApply
+     *Use case: The requested chunk is a clone chunk, and the bitmaps in the request area are all 1
+     *Expected: Chunk read locally, returning CHUNK_OP_STATUS_SUCCESS
      */
     {
-        // 重置closure
+        //Reset closure
         closure->Reset();
 
-        // 设置预期
+        //Set expectations
         info.isClone = true;
         info.bitmap->Set();
         EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
             .WillOnce(
                 DoAll(SetArgPointee<1>(info), Return(CSErrorCode::Success)));
-        // 读chunk文件
+        //Reading Chunk Files
         char *chunkData = new char[length];
         memset(chunkData, 'a', length);
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
@@ -834,7 +834,7 @@ TEST_P(OpRequestTest, ReadChunkTest) {
 
         opReq->OnApply(3, closure);
 
-        // 验证结果
+        //Verification results
         ASSERT_TRUE(closure->isDone_);
         ASSERT_EQ(LAST_INDEX, closure->response_->appliedindex());
         ASSERT_TRUE(response->has_status());
@@ -850,21 +850,21 @@ TEST_P(OpRequestTest, ReadChunkTest) {
     }
 
     /**
-     * 测试OnApply
-     * 用例：请求的chunk是 clone chunk，请求区域的bitmap存在bit为0
-     * 预期：将请求转发给clone manager处理
+     *Test OnApply
+     *Use case: The requested chunk is a clone chunk, and the bitmap in the request area has a bit of 0
+     *Expected: Forward request to clone manager for processing
      */
     {
-        // 重置closure
+        //Reset closure
         closure->Reset();
 
-        // 设置预期
+        //Set expectations
         info.isClone = true;
         info.bitmap->Clear(1);
         EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
             .WillOnce(DoAll(SetArgPointee<1>(info),
                             Return(CSErrorCode::Success)));
-        // 读chunk文件
+        //Reading Chunk Files
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, _, _))
             .Times(0);
         EXPECT_CALL(*cloneMgr_, GenerateCloneTask(_, _))
@@ -874,7 +874,7 @@ TEST_P(OpRequestTest, ReadChunkTest) {
 
         opReq->OnApply(3, closure);
 
-        // 验证结果
+        //Verification results
         ASSERT_FALSE(closure->isDone_);
         ASSERT_FALSE(response->has_appliedindex());
         ASSERT_FALSE(closure->response_->has_status());
@@ -883,44 +883,44 @@ TEST_P(OpRequestTest, ReadChunkTest) {
         ASSERT_TRUE(closure->isDone_);
     }
     /**
-     * 测试OnApply
-     * 用例：GetChunkInfo 返回 ChunkNotExistError
-     * 预期：请求失败,返回 CHUNK_OP_STATUS_CHUNK_NOTEXIST
+     *Test OnApply
+     *Use case: GetChunkInfo returns ChunkNotExitError
+     *Expected: Request failed, returning CHUNK_ OP_ STATUS_ CHUNK_ NOTEXIST
      */
     {
-        // 重置closure
+        //Reset closure
         closure->Reset();
 
-        // 设置预期
+        //Set expectations
         EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
             .WillOnce(Return(CSErrorCode::ChunkNotExistError));
-        // 不会读chunk文件
+        //Unable to read chunk files
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
             .Times(0);
         opReq->OnApply(3, closure);
 
-        // 验证结果
+        //Verification results
         ASSERT_TRUE(closure->isDone_);
         ASSERT_EQ(LAST_INDEX, response->appliedindex());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST,
                   response->status());
     }
     /**
-     * 测试OnApply
-     * 用例：GetChunkInfo 返回 ChunkNotExistError
-     *      但是请求中包含源chunk的信息
-     * 预期：将请求转发给clone manager处理
+     *Test OnApply
+     *Use case: GetChunkInfo returns ChunkNotExitError
+     *But the request contains information about the source chunk
+     *Expected: Forward request to clone manager for processing
      */
     {
-        // 重置closure
+        //Reset closure
         closure->Reset();
         request->set_clonefilesource("/test");
         request->set_clonefileoffset(0);
 
-        // 设置预期
+        //Set expectations
         EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
             .WillOnce(Return(CSErrorCode::ChunkNotExistError));
-        // 读chunk文件
+        //Reading Chunk Files
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, _, _))
             .Times(0);
         EXPECT_CALL(*cloneMgr_, GenerateCloneTask(_, _))
@@ -930,7 +930,7 @@ TEST_P(OpRequestTest, ReadChunkTest) {
 
         opReq->OnApply(3, closure);
 
-        // 验证结果
+        //Verification results
         ASSERT_FALSE(closure->isDone_);
         ASSERT_FALSE(response->has_appliedindex());
         ASSERT_FALSE(closure->response_->has_status());
@@ -939,24 +939,24 @@ TEST_P(OpRequestTest, ReadChunkTest) {
         ASSERT_TRUE(closure->isDone_);
     }
     /**
-     * 测试OnApply
-     * 用例：请求的chunk是 clone chunk，请求区域的bitmap都为1
-     *      请求中包含源chunk的信息
-     * 预期：从本地读chunk,返回 CHUNK_OP_STATUS_SUCCESS
+     *Test OnApply
+     *Use case: The requested chunk is a clone chunk, and the bitmaps in the request area are all 1
+     *The request contains information about the source chunk
+     *Expected: Chunk read locally, returning CHUNK_OP_STATUS_SUCCESS
      */
     {
-        // 重置closure
+        //Reset closure
         closure->Reset();
         request->set_clonefilesource("/test");
         request->set_clonefileoffset(0);
 
-        // 设置预期
+        //Set expectations
         info.isClone = true;
         info.bitmap->Set();
         EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
             .WillOnce(DoAll(SetArgPointee<1>(info),
                             Return(CSErrorCode::Success)));
-        // 读chunk文件
+        //Reading Chunk Files
         char *chunkData = new char[length];
         memset(chunkData, 'a', length);
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
@@ -966,7 +966,7 @@ TEST_P(OpRequestTest, ReadChunkTest) {
 
         opReq->OnApply(3, closure);
 
-        // 验证结果
+        //Verification results
         ASSERT_TRUE(closure->isDone_);
         ASSERT_EQ(LAST_INDEX, closure->response_->appliedindex());
         ASSERT_TRUE(response->has_status());
@@ -978,66 +978,66 @@ TEST_P(OpRequestTest, ReadChunkTest) {
         delete[] chunkData;
     }
     /**
-     * 测试OnApply
-     * 用例：GetChunkInfo 返回 非ChunkNotExistError错误
-     * 预期：请求失败,返回 CHUNK_OP_STATUS_FAILURE_UNKNOWN
+     *Test OnApply
+     *Use case: GetChunkInfo returns a non ChunkNotExitError error
+     *Expected: Request failed, returning CHUNK_ OP_ STATUS_ FAILURE_ UNKNOWN
      */
     {
-        // 重置closure
+        //Reset closure
         closure->Reset();
 
-        // 设置预期
+        //Set expectations
         EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
             .WillOnce(Return(CSErrorCode::InternalError));
-        // 不会读chunk文件
+        //Unable to read chunk files
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
             .Times(0);
 
         opReq->OnApply(3, closure);
 
-        // 验证结果
+        //Verification results
         ASSERT_TRUE(closure->isDone_);
         ASSERT_EQ(LAST_INDEX, response->appliedindex());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
                   response->status());
     }
     /**
-     * 测试OnApply
-     * 用例：读本地chunk的时候返回错误
-     * 预期：请求失败,返回 CHUNK_OP_STATUS_FAILURE_UNKNOWN
+     *Test OnApply
+     *Use case: Error returned when reading local chunk
+     *Expected: Request failed, returning CHUNK_ OP_ STATUS_ FAILURE_ UNKNOWN
      */
     {
-        // 重置closure
+        //Reset closure
         closure->Reset();
 
-        // 设置预期
+        //Set expectations
         info.isClone = false;
         EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
             .WillRepeatedly(DoAll(SetArgPointee<1>(info),
                             Return(CSErrorCode::Success)));
-        // 读chunk文件失败
+        //Failed to read chunk file
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
             .WillRepeatedly(Return(CSErrorCode::InternalError));
 
         ASSERT_DEATH(opReq->OnApply(3, closure), "");
     }
     /**
-     * 测试OnApply
-     * 用例：请求的chunk是 clone chunk，请求区域的bitmap存在bit为0
-     *      转发请求给clone manager时出错
-     * 预期：请求失败,返回 CHUNK_OP_STATUS_FAILURE_UNKNOWN
+     *Test OnApply
+     *Use case: The requested chunk is a clone chunk, and the bitmap in the request area has a bit of 0
+     *Error forwarding request to clone manager
+     *Expected: Request failed, returning CHUNK_OP_STATUS_FAILURE_UNKNOWN
      */
     {
-        // 重置closure
+        //Reset closure
         closure->Reset();
 
-        // 设置预期
+        //Set expectations
         info.isClone = true;
         info.bitmap->Clear(1);
         EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
             .WillOnce(DoAll(SetArgPointee<1>(info),
                             Return(CSErrorCode::Success)));
-        // 读chunk文件
+        //Reading Chunk Files
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, _, _))
             .Times(0);
         EXPECT_CALL(*cloneMgr_, GenerateCloneTask(_, _))
@@ -1047,29 +1047,29 @@ TEST_P(OpRequestTest, ReadChunkTest) {
 
         opReq->OnApply(3, closure);
 
-        // 验证结果
+        //Verification results
         ASSERT_TRUE(closure->isDone_);
         ASSERT_EQ(LAST_INDEX, response->appliedindex());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
                   response->status());
     }
     /**
-     * 测试 OnApplyFromLog
-     * 预期：啥也没做
+     *Testing OnApplyFromLog
+     *Expected: Nothing done
      */
     {
-        // 重置closure
+        //Reset closure
         closure->Reset();
 
         butil::IOBuf data;
         opReq->OnApplyFromLog(datastore_, *request, data);
     }
-    // 释放资源
+    //Release resources
     closure->Release();
 }
 
 TEST_P(OpRequestTest, RecoverChunkTest) {
-    // 创建CreateCloneChunkRequest
+    //Create CreateCloneChunkRequest
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 10001;
     uint64_t chunkId = 12345;
@@ -1096,7 +1096,7 @@ TEST_P(OpRequestTest, RecoverChunkTest) {
                                            response,
                                            closure);
     /**
-     * 测试Encode/Decode
+     *Test Encode/Code
      */
     {
         butil::IOBuf log;
@@ -1116,12 +1116,12 @@ TEST_P(OpRequestTest, RecoverChunkTest) {
         ASSERT_EQ(length, request->size());
     }
     /**
-     * 测试Process
-     * 用例： node_->IsLeaderTerm() == false
-     * 预期： 会要求转发请求，返回CHUNK_OP_STATUS_REDIRECTED
+     *Test Process
+     *Use case: node_ -> IsLeaderTerm()==false
+     *Expected: Request to forward request and return CHUNK_OP_STATUS_REDIRECTED
      */
     {
-        // 设置预期
+        //Set expectations
         EXPECT_CALL(*node_, IsLeaderTerm())
             .WillRepeatedly(Return(false));
         // PeerId leaderId(PEER_STRING);
@@ -1132,7 +1132,7 @@ TEST_P(OpRequestTest, RecoverChunkTest) {
 
         opReq->Process();
 
-        // 验证结果
+        //Verification results
         ASSERT_TRUE(closure->isDone_);
         ASSERT_FALSE(response->has_appliedindex());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
@@ -1154,18 +1154,18 @@ TEST_P(OpRequestTest, RecoverChunkTest) {
      * expect： don't propose to raft，request commit to concurrentApplyModule_
      */
     {
-        // 重置closure
+        //Reset closure
         closure->Reset();
 
         info.isClone = false;
         EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
             .WillOnce(DoAll(SetArgPointee<1>(info),
                             Return(CSErrorCode::Success)));
-        // 不读chunk文件
+        //Do not read chunk files
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
             .Times(0);
 
-        // 设置预期
+        //Set expectations
         EXPECT_CALL(*node_, IsLeaderTerm())
             .WillRepeatedly(Return(true));
         EXPECT_CALL(*node_, Propose(_))
@@ -1193,26 +1193,26 @@ TEST_P(OpRequestTest, RecoverChunkTest) {
     }
 
     /**
-     * 测试OnApply
-     * 用例：请求的 chunk 不是 clone chunk
-     * 预期：直接返回 CHUNK_OP_STATUS_SUCCESS
+     *Test OnApply
+     *Use case: The requested chunk is not a clone chunk
+     *Expected: Directly return to CHUNK_OP_STATUS_SUCCESS
      */
     {
-        // 重置closure
+        //Reset closure
         closure->Reset();
 
-        // 设置预期
+        //Set expectations
         info.isClone = false;
         EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
             .WillOnce(DoAll(SetArgPointee<1>(info),
                             Return(CSErrorCode::Success)));
-        // 不读chunk文件
+        //Do not read chunk files
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
             .Times(0);
 
         opReq->OnApply(3, closure);
 
-        // 验证结果
+        //Verification results
         ASSERT_TRUE(closure->isDone_);
         ASSERT_EQ(LAST_INDEX, response->appliedindex());
         ASSERT_TRUE(response->has_status());
@@ -1220,27 +1220,27 @@ TEST_P(OpRequestTest, RecoverChunkTest) {
                   response->status());
     }
     /**
-     * 测试OnApply
-     * 用例：请求的chunk是 clone chunk，请求区域的bitmap都为1
-     * 预期：直接返回 CHUNK_OP_STATUS_SUCCESS
+     *Test OnApply
+     *Use case: The requested chunk is a clone chunk, and the bitmaps in the request area are all 1
+     *Expected: Directly return to CHUNK_OP_STATUS_SUCCESS
      */
     {
-        // 重置closure
+        //Reset closure
         closure->Reset();
 
-        // 设置预期
+        //Set expectations
         info.isClone = true;
         info.bitmap->Set();
         EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
             .WillOnce(DoAll(SetArgPointee<1>(info),
                             Return(CSErrorCode::Success)));
-        // 不读chunk文件
+        //Do not read chunk files
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
             .Times(0);
 
         opReq->OnApply(3, closure);
 
-        // 验证结果
+        //Verification results
         ASSERT_TRUE(closure->isDone_);
         ASSERT_EQ(LAST_INDEX, closure->response_->appliedindex());
         ASSERT_TRUE(response->has_status());
@@ -1248,21 +1248,21 @@ TEST_P(OpRequestTest, RecoverChunkTest) {
                   closure->response_->status());
     }
     /**
-     * 测试OnApply
-     * 用例：请求的chunk是 clone chunk，请求区域的bitmap存在bit为0
-     * 预期：将请求转发给clone manager处理
+     *Test OnApply
+     *Use case: The requested chunk is a clone chunk, and the bitmap in the request area has a bit of 0
+     *Expected: Forward request to clone manager for processing
      */
     {
-        // 重置closure
+        //Reset closure
         closure->Reset();
 
-        // 设置预期
+        //Set expectations
         info.isClone = true;
         info.bitmap->Clear(1);
         EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
             .WillOnce(DoAll(SetArgPointee<1>(info),
                             Return(CSErrorCode::Success)));
-        // 读chunk文件
+        //Reading Chunk Files
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, _, _))
             .Times(0);
         EXPECT_CALL(*cloneMgr_, GenerateCloneTask(_, _))
@@ -1272,7 +1272,7 @@ TEST_P(OpRequestTest, RecoverChunkTest) {
 
         opReq->OnApply(3, closure);
 
-        // 验证结果
+        //Verification results
         ASSERT_FALSE(closure->isDone_);
         ASSERT_FALSE(response->has_appliedindex());
         ASSERT_FALSE(closure->response_->has_status());
@@ -1281,70 +1281,70 @@ TEST_P(OpRequestTest, RecoverChunkTest) {
         ASSERT_TRUE(closure->isDone_);
     }
     /**
-     * 测试OnApply
-     * 用例：GetChunkInfo 返回 ChunkNotExistError
-     * 预期：请求失败,返回 CHUNK_OP_STATUS_CHUNK_NOTEXIST
+     *Test OnApply
+     *Use case: GetChunkInfo returns ChunkNotExitError
+     *Expected: Request failed, returning CHUNK_OP_STATUS_CHUNK_NOTEXIST
      */
     {
-        // 重置closure
+        //Reset closure
         closure->Reset();
 
-        // 设置预期
+        //Set expectations
         EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
             .WillOnce(Return(CSErrorCode::ChunkNotExistError));
-        // 不会读chunk文件
+        //Unable to read chunk files
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
             .Times(0);
 
         opReq->OnApply(3, closure);
 
-        // 验证结果
+        //Verification results
         ASSERT_TRUE(closure->isDone_);
         ASSERT_EQ(LAST_INDEX, response->appliedindex());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST,
                   response->status());
     }
     /**
-     * 测试OnApply
-     * 用例：GetChunkInfo 返回 非ChunkNotExistError错误
-     * 预期：请求失败,返回 CHUNK_OP_STATUS_FAILURE_UNKNOWN
+     *Test OnApply
+     *Use case: GetChunkInfo returns a non ChunkNotExitError error
+     *Expected: Request failed, returning CHUNK_OP_STATUS_FAILURE_UNKNOWN
      */
     {
-        // 重置closure
+        //Reset closure
         closure->Reset();
 
-        // 设置预期
+        //Set expectations
         EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
             .WillOnce(Return(CSErrorCode::InternalError));
-        // 不会读chunk文件
+        //Unable to read chunk files
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
             .Times(0);
 
         opReq->OnApply(3, closure);
 
-        // 验证结果
+        //Verification results
         ASSERT_TRUE(closure->isDone_);
         ASSERT_EQ(LAST_INDEX, response->appliedindex());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
                   response->status());
     }
     /**
-     * 测试OnApply
-     * 用例：请求的chunk是 clone chunk，请求区域的bitmap存在bit为0
-     *      转发请求给clone manager时出错
-     * 预期：请求失败,返回 CHUNK_OP_STATUS_FAILURE_UNKNOWN
+     *Test OnApply
+     *Use case: The requested chunk is a clone chunk, and the bitmap in the request area has a bit of 0
+     *Error forwarding request to clone manager
+     *Expected: Request failed, returning CHUNK_ OP_ STATUS_ FAILURE_ UNKNOWN
      */
     {
-        // 重置closure
+        //Reset closure
         closure->Reset();
 
-        // 设置预期
+        //Set expectations
         info.isClone = true;
         info.bitmap->Clear(1);
         EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
             .WillOnce(DoAll(SetArgPointee<1>(info),
                             Return(CSErrorCode::Success)));
-        // 读chunk文件
+        //Reading Chunk Files
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, _, _))
             .Times(0);
         EXPECT_CALL(*cloneMgr_, GenerateCloneTask(_, _))
@@ -1354,24 +1354,24 @@ TEST_P(OpRequestTest, RecoverChunkTest) {
 
         opReq->OnApply(3, closure);
 
-        // 验证结果
+        //Verification results
         ASSERT_TRUE(closure->isDone_);
         ASSERT_EQ(LAST_INDEX, response->appliedindex());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
                   response->status());
     }
     /**
-     * 测试 OnApplyFromLog
-     * 预期：啥也没做
+     *Testing OnApplyFromLog
+     *Expected: Nothing done
      */
     {
-        // 重置closure
+        //Reset closure
         closure->Reset();
 
         butil::IOBuf data;
         opReq->OnApplyFromLog(datastore_, *request, data);
     }
-    // 释放资源
+    //Release resources
     closure->Release();
 }
 

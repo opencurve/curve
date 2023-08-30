@@ -34,7 +34,7 @@
 #include "src/client/service_helper.h"
 #include "src/client/io_tracker.h"
 
-// TODO(tongguangxun) :优化重试逻辑，将重试逻辑与RPC返回逻辑拆开
+//TODO (tongguangxun): Optimize retry logic by separating the retry logic from the RPC return logic
 namespace curve {
 namespace client {
 
@@ -44,25 +44,25 @@ FailureRequestOption  ClientClosure::failReqOpt_;
 void ClientClosure::PreProcessBeforeRetry(int rpcstatus, int cntlstatus) {
     RequestClosure* reqDone = static_cast<RequestClosure*>(done_);
 
-    // 如果对应的cooysetId leader可能发生变更
-    // 那么设置这次重试请求超时时间为默认值
-    // 这是为了尽快重试这次请求
-    // 从copysetleader迁移到client GetLeader获取到新的leader会有1~2s的延迟
-    // 对于一个请求来说，GetLeader仍然可能返回旧的Leader
-    // rpc timeout时间可能会被设置成2s/4s，等到超时后再去获取leader信息
-    // 为了尽快在新的Leader上重试请求，将rpc timeout时间设置为默认值
+    //If the corresponding cooysetId leader may change
+    //So set the timeout time for this retry request to the default value
+    //This is to retry this request as soon as possible
+    //There will be a delay of 1-2 seconds when migrating from copysetleader to client GetLeader to obtain a new leader
+    //For a request, GetLeader may still return the old Leader
+    //The rpc timeout time may be set to 2s/4s, and the leader information will be obtained after the timeout
+    //To retry the request on the new Leader as soon as possible, set the rpc timeout time to the default value
     if (cntlstatus == brpc::ERPCTIMEDOUT || cntlstatus == ETIMEDOUT) {
         uint64_t nextTimeout = 0;
         uint64_t retriedTimes = reqDone->GetRetriedTimes();
         bool leaderMayChange = metaCache_->IsLeaderMayChange(
             chunkIdInfo_.lpid_, chunkIdInfo_.cpid_);
 
-        // 当某一个IO重试超过一定次数后，超时时间一定进行指数退避
-        // 当底层chunkserver压力大时，可能也会触发unstable
-        // 由于copyset leader may change，会导致请求超时时间设置为默认值
-        // 而chunkserver在这个时间内处理不了，导致IO hang
-        // 真正宕机的情况下，请求重试一定次数后会处理完成
-        // 如果一直重试，则不是宕机情况，这时候超时时间还是要进入指数退避逻辑
+        //When a certain IO retry exceeds a certain number of times, an exponential backoff must be performed during the timeout period
+        //When the underlying chunkserver is under high pressure, unstable may also be triggered
+        //Due to copyset leader may change, the request timeout time will be set to the default value
+        //And chunkserver cannot process it within this time, resulting in IO hang
+        //In the case of real downtime, the request will be processed after a certain number of retries
+        //If you keep trying again, it's not a downtime situation, and at this point, the timeout still needs to enter the exponential backoff logic
         if (retriedTimes < failReqOpt_.chunkserverMinRetryTimesForceTimeoutBackoff &&  // NOLINT
             leaderMayChange) {
             nextTimeout = failReqOpt_.chunkserverRPCTimeoutMS;
@@ -153,10 +153,10 @@ uint64_t ClientClosure::TimeoutBackOff(uint64_t currentRetryTimes) {
     return nextTimeout;
 }
 
-// 统一请求回调函数入口
-// 整体处理逻辑与之前相同
-// 针对不同的请求类型和返回状态码，进行相应的处理
-// 各子类需要实现SendRetryRequest，进行重试请求
+//Unified Request Callback Function Entry
+//The overall processing logic is the same as before
+//Perform corresponding processing for different request types and return status codes
+//Each subclass needs to implement SendRetryRequest for retry requests
 void ClientClosure::Run() {
     std::unique_ptr<ClientClosure> selfGuard(this);
     std::unique_ptr<brpc::Controller> cntlGuard(cntl_);
@@ -176,42 +176,42 @@ void ClientClosure::Run() {
         needRetry = true;
         OnRpcFailed();
     } else {
-        // 只要rpc正常返回，就清空超时计数器
+        //As long as RPC returns normally, clear the timeout counter
         metaCache_->GetUnstableHelper().ClearTimeout(
             chunkserverID_, chunkserverEndPoint_);
 
         status_ = GetResponseStatus();
 
         switch (status_) {
-        // 1. 请求成功
+        //1. Request successful
         case CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS:
             OnSuccess();
             break;
 
-        // 2.1 不是leader
+        //2.1 is not a leader
         case CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED:
             MetricHelper::IncremRedirectRPCCount(fileMetric_, reqCtx_->optype_);
             needRetry = true;
             OnRedirected();
             break;
 
-        // 2.2 Copyset不存在，大概率都是配置变更了
+        //2.2 Copyset does not exist, most likely due to configuration changes
         case CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST:
             needRetry = true;
             OnCopysetNotExist();
             break;
 
-        // 2.3 chunk not exist，直接返回，不用重试
+        //2.3 Chunk not exist, return directly without retry
         case CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST:
             OnChunkNotExist();
             break;
 
-        // 2.4 非法参数，直接返回，不用重试
+        //2.4 Illegal parameter, returned directly without retry
         case CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST:
             OnInvalidRequest();
             break;
 
-        // 2.5 返回backward
+        //2.5 Return to feedback
         case CHUNK_OP_STATUS::CHUNK_OP_STATUS_BACKWARD:
             if (reqCtx_->optype_ == OpType::WRITE) {
                 needRetry = true;
@@ -229,7 +229,7 @@ void ClientClosure::Run() {
             }
             break;
 
-        // 2.6 返回chunk exist，直接返回，不用重试
+        //2.6 Return Chunk Exist, directly return without retrying
         case CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_EXIST:
             OnChunkExist();
             break;
@@ -264,9 +264,9 @@ void ClientClosure::OnRpcFailed() {
 
     status_ = cntl_->ErrorCode();
 
-    // 如果连接失败，再等一定时间再重试
+    //If the connection fails, wait for a certain amount of time before trying again
     if (cntlstatus_ == brpc::ERPCTIMEDOUT) {
-        // 如果RPC超时, 对应的chunkserver超时请求次数+1
+        //If RPC times out, the corresponding number of chunkserver timeout requests+1
         metaCache_->GetUnstableHelper().IncreTimeout(chunkserverID_);
         MetricHelper::IncremTimeOutRPCCount(fileMetric_, reqCtx_->optype_);
     }
@@ -443,8 +443,8 @@ void ClientClosure::RefreshLeader() {
                      << ", IO id = " << reqDone_->GetIOTracker()->GetID()
                      << ", request id = " << reqCtx_->id_;
     } else {
-        // 如果refresh leader获取到了新的leader信息
-        // 则重试之前不进行睡眠
+        //If the refresh leader obtains new leader information
+        //Do not sleep before retrying
         retryDirectly_ = (leaderId != chunkserverID_);
     }
 }

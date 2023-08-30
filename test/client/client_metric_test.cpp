@@ -83,14 +83,14 @@ TEST(MetricTest, ChunkServer_MetricTest) {
     ClientConfig cc;
     ASSERT_EQ(0, cc.Init(configpath.c_str()));
 
-    // filename必须是全路径
+    //The filename must be a full path
     std::string filename = "/1_userinfo_";
 
     // init mds service
     FakeMDS mds(filename);
     mds.Initialize();
     mds.StartService();
-    // 设置leaderid
+    //Set leaderdid
     EndPoint ep;
     butil::str2endpoint("127.0.0.1", 9130, &ep);
     PeerId pd(ep);
@@ -147,13 +147,13 @@ TEST(MetricTest, ChunkServer_MetricTest) {
     ret = fi.Read(buffer, 0, 4096);
     ASSERT_EQ(4096, ret);
 
-    // 先睡眠，确保采样
+    //Sleep first to ensure sampling
     std::this_thread::sleep_for(std::chrono::seconds(2));
 
     ASSERT_GT(fm->writeRPC.latency.max_latency(), 0);
     ASSERT_GT(fm->readRPC.latency.max_latency(), 0);
 
-    // read write超时重试
+    //Read write timeout retry
     mds.EnableNetUnstable(8000);
     ret = fi.Write(buffer, 0, 4096);
     ASSERT_EQ(-2, ret);
@@ -166,7 +166,7 @@ TEST(MetricTest, ChunkServer_MetricTest) {
     ASSERT_EQ(-2, ret);
 
 
-    // 4次正确读写，4次超时读写,超时会引起重试，重试次数为3，数据量最大是8192
+    //4 correct reads and writes, 4 timeout reads and writes, timeout will cause retries, retry count is 3, and the maximum data volume is 8192
     ASSERT_EQ(fm->inflightRPCNum.get_value(), 0);
     ASSERT_EQ(fm->userRead.qps.count.get_value(), 2);
     ASSERT_EQ(fm->userWrite.qps.count.get_value(), 2);
@@ -214,14 +214,14 @@ TEST(MetricTest, SuspendRPC_MetricTest) {
 
     FLAGS_chunkserver_list = "127.0.0.1:9130:0,127.0.0.1:9131:0,127.0.0.1:9132:0";   // NOLINT
 
-    // filename必须是全路径
+    //The filename must be a full path
     std::string filename = "/1_userinfo_";
 
     // init mds service
     FakeMDS mds(filename);
     mds.Initialize();
     mds.StartService();
-    // 设置leaderid
+    //Set leaderdid
     EndPoint ep;
     butil::str2endpoint("127.0.0.1", 9130, &ep);
     PeerId pd(ep);
@@ -266,13 +266,13 @@ TEST(MetricTest, SuspendRPC_MetricTest) {
     ret = fi.Read(buffer, 0, 4096);
     ASSERT_EQ(4096, ret);
 
-    // 先睡眠，确保采样
+    //Sleep first to ensure sampling
     std::this_thread::sleep_for(std::chrono::seconds(2));
 
     ASSERT_GT(fm->writeRPC.latency.max_latency(), 0);
     ASSERT_GT(fm->readRPC.latency.max_latency(), 0);
 
-    // read write超时重试
+    //Read write timeout retry
     mds.EnableNetUnstable(100);
     ret = fi.Write(buffer, 0, 4096);
     ASSERT_EQ(-2, ret);

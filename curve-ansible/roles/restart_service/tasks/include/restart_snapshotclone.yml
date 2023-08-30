@@ -17,7 +17,7 @@
 
 - name: Determine need restart or not
   block:
-    # 获取snapshotclone的版本
+    #Obtain the version of snapshot clone
     - name: get snapshotclone version
       vars:
         metric_port: "{{ snapshot_dummy_port }}"

@@ -43,24 +43,28 @@ class SnapshotCloneMetaStore {
  public:
     SnapshotCloneMetaStore() {}
     virtual ~SnapshotCloneMetaStore() {}
-    // 添加一条快照信息记录
+    //Add a snapshot information record
+
     /**
-     * 添加一条快照记录到metastore中
-     * @param 快照信息结构体
-     * @return: 0 插入成功/ -1 插入失败
+     *Add a snapshot record to metastore
+     * @param snapshot information structure
+     * @return: 0 insertion successful/-1 insertion failed
      */
+
     virtual int AddSnapshot(const SnapshotInfo &snapinfo) = 0;
     /**
-     * 从metastore删除一条快照记录
-     * @param 快照任务的uuid，全局唯一
-     * @return 0 删除成功/ -1 删除失败
+     *Delete a snapshot record from metastore
+     *The uuid of the @ param snapshot task, globally unique
+     * @return 0 successfully deleted/-1 failed to delete
      */
+
     virtual int DeleteSnapshot(const UUID &uuid) = 0;
     /**
-     * 更新快照记录
-     * @param 快照信息结构体
-     * @return: 0 更新成功/ -1 更新失败
+     *Update snapshot records
+     * @param snapshot information structure
+     * @return: 0 successfully updated/-1 failed to update
      */
+
     virtual int UpdateSnapshot(const SnapshotInfo &snapinfo) = 0;
 
     /**
@@ -75,75 +79,85 @@ class SnapshotCloneMetaStore {
     virtual int CASSnapshot(const UUID& uuid, CASFunc cas) = 0;
 
     /**
-     * 获取指定快照的快照信息
-     * @param 快照的uuid
-     * @param 保存快照信息的指针
-     * @return 0 获取成功/ -1 获取失败
+     *Obtain snapshot information for the specified snapshot
+     *Uuid of @ param snapshot
+     * @param Pointer to save snapshot information
+     * @return 0 successfully obtained/-1 failed to obtain
      */
+
     virtual int GetSnapshotInfo(const UUID &uuid, SnapshotInfo *info) = 0;
     /**
-     * 获取指定文件的快照信息列表
-     * @param 文件名
-     * @param 保存快照信息的vector指针
-     * @return 0 获取成功/ -1 获取失败
+     *Obtain a list of snapshot information for the specified file
+     * @param file name
+     * @param Vector pointer to save snapshot information
+     * @return 0 successfully obtained/-1 failed to obtain
      */
+
     virtual int GetSnapshotList(const std::string &filename,
                                 std::vector<SnapshotInfo> *v) = 0;
     /**
-     * 获取全部的快照信息列表
-     * @param 保存快照信息的vector指针
-     * @return: 0 获取成功/ -1 获取失败
+     *Obtain a list of all snapshot information
+     * @param Vector pointer to save snapshot information
+     * @return: 0 successfully obtained/-1 failed to obtain
      */
+
     virtual int GetSnapshotList(std::vector<SnapshotInfo> *list) = 0;
 
     /**
-     * @brief 获取快照总数
+     * @brief Total number of snapshots taken
      *
-     * @return 快照总数
+     * @return Total number of snapshots
      */
+
     virtual uint32_t GetSnapshotCount() = 0;
 
     /**
-     * @brief 插入一条clone任务记录到metastore
-     * @param clone记录信息
-     * @return: 0 插入成功/ -1 插入失败
+     * @brief Insert a clone task record into metastore
+     * @param clone records information
+     * @return: 0 insertion successful/-1 insertion failed
      */
+
     virtual int AddCloneInfo(const CloneInfo &cloneInfo) = 0;
     /**
-     * @brief 从metastore删除一条clone任务记录
-     * @param clone任务的任务id
-     * @return: 0 删除成功/ -1 删除失败
+     * @brief Delete a clone task record from metastore
+     *Task ID of @ param clone task
+     * @return: 0 successfully deleted/-1 failed to delete
      */
+
     virtual int DeleteCloneInfo(const std::string &taskID) = 0;
     /**
-     * @brief 更新一条clone任务记录
-     * @param clone记录信息
-     * @return: 0 更新成功/ -1 更新失败
+     *Update a clone task record with  @brief
+     * @param clone records information
+     * @return: 0 successfully updated/-1 failed to update
      */
+
     virtual int UpdateCloneInfo(const CloneInfo &cloneInfo) = 0;
     /**
-     * @brief 获取指定task id的clone任务信息
-     * @param clone任务id
-     * @param[out] clone记录信息的指针
-     * @return: 0 获取成功/ -1 获取失败
+     * @brief Get clone task information for the specified task ID
+     * @param clone Task ID
+     *Pointer to @ param [out] clone record information
+     * @return: 0 successfully obtained/-1 failed to obtain
      */
+
     virtual int GetCloneInfo(const std::string &taskID, CloneInfo *info) = 0;
 
     /**
-     * @brief 获取指定文件的clone任务信息
+     * @brief Get clone task information for the specified file
      *
-     * @param fileName 文件名
-     * @param[out] clone记录信息的指针
-     * @return: 0 获取成功/ -1 获取失败
+     * @param fileName File name
+     *Pointer to @ param [out] clone record information
+     * @return: 0 successfully obtained/-1 failed to obtain
      */
+
     virtual int GetCloneInfoByFileName(
         const std::string &fileName, std::vector<CloneInfo> *list) = 0;
 
     /**
-     * @brief 获取所有clone任务的信息列表
-     * @param[out] 只想clone任务vector指针
-     * @return: 0 获取成功/ -1 获取失败
+     * @brief Get a list of information for all clone tasks
+     * @param[out] just wants to clone the task vector pointer
+     * @return: 0 successfully obtained/-1 failed to obtain
      */
+
     virtual int GetCloneInfoList(std::vector<CloneInfo> *list) = 0;
 };
 

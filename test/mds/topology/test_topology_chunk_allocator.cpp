@@ -573,7 +573,7 @@ TEST_F(TestTopologyChunkAllocator,
 }
 
 TEST(TestAllocateChunkPolicy, TestAllocateChunkRandomInSingleLogicalPoolPoc) {
-    // 2000个copyset分配100000次，每次分配64个chunk
+    //2000 copysets are allocated 100000 times, with 64 chunks allocated each time
     std::vector<CopySetIdType> copySetIds;
     std::map<CopySetIdType, int> copySetMap;
     for (int i = 0; i < 2000; i++) {
@@ -621,7 +621,7 @@ TEST(TestAllocateChunkPolicy, TestAllocateChunkRandomInSingleLogicalPoolPoc) {
 }
 
 TEST(TestAllocateChunkPolicy, TestAllocateChunkRandomInSingleLogicalPoolTps) {
-    // 2000个copyset分配100000次，每次分配64个chunk
+    //2000 copysets are allocated 100000 times, with 64 chunks allocated each time
     std::vector<CopySetIdType> copySetIds;
     for (int i = 0; i < 2000; i++) {
         copySetIds.push_back(i);
@@ -719,7 +719,7 @@ TEST(TestAllocateChunkPolicy,
     ASSERT_TRUE(poolMap[1] < poolMap[2]);
     ASSERT_TRUE(poolMap[2] < poolMap[3]);
     ASSERT_TRUE(poolMap[3] < poolMap[4]);
-    // 5个池大概分布因该是0, 10000，20000，30000，40000
+    //The approximate distribution of 5 pools should be 0, 10000200003000040000
     LOG(INFO) << "pool0 : " << poolMap[0] << std::endl
               << "pool1 : " << poolMap[1] << std::endl
               << "pool2 : " << poolMap[2] << std::endl
@@ -743,7 +743,7 @@ TEST(TestAllocateChunkPolicy,
         poolMap[pid] -= 1;
     }
 
-    // 测试是否能逐渐拉平pool之间差距
+    //Can the test gradually narrow the gap between pools
     LOG(INFO) << "pool0 : " << poolMap[0] << std::endl
               << "pool1 : " << poolMap[1] << std::endl
               << "pool2 : " << poolMap[2] << std::endl
@@ -751,7 +751,7 @@ TEST(TestAllocateChunkPolicy,
               << "pool4 : " << poolMap[4] << std::endl;
 }
 
-// 测试能否随机到每个pool
+//Can the test be randomly assigned to each pool
 TEST(TestAllocateChunkPolicy,
     TestChooseSingleLogicalPoolRandom) {
     std::vector<PoolIdType> pools = {1, 2, 3, 4, 5};

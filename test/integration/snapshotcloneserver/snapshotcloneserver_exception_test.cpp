@@ -104,7 +104,7 @@ class SnapshotCloneServerTest : public ::testing::Test {
         const std::string &file,
         const std::string &uuid,
         SnapshotInfo *snapInfo) {
-        // 验证任务失败
+        //Verification task failed
         FileSnapshotInfo info1;
         int ret = GetSnapshotInfo(
             user, file, uuid, &info1);
@@ -126,7 +126,7 @@ class SnapshotCloneServerTest : public ::testing::Test {
             return false;
         }
 
-        // 验证任务不存在
+        //Verification task does not exist
         SnapshotInfo sinfo;
         ret = server_->GetMetaStore()->GetSnapshotInfo(uuid, &sinfo);
         if (ret != -1) {
@@ -148,7 +148,7 @@ class SnapshotCloneServerTest : public ::testing::Test {
             return false;
         }
         int seqNum = snapInfo.GetSeqNum();
-        // 验证curve上无快照
+        //Verify that there are no snapshots on the curve
         FInfo fInfo;
         int ret = server_->GetCurveFsClient()->GetSnapshot(
             file, user, seqNum, &fInfo);
@@ -158,7 +158,7 @@ class SnapshotCloneServerTest : public ::testing::Test {
             return false;
         }
 
-        // 验证nos上无快照
+        //Verify that there are no snapshots on NOS
         ChunkIndexDataName indexData(file, seqNum);
         if (server_->GetDataStore()->ChunkIndexDataExist(indexData)) {
             LOG(INFO) << "AssertEnvClean Fail, snapshot exist on nos.";
@@ -170,7 +170,7 @@ class SnapshotCloneServerTest : public ::testing::Test {
     bool JudgeCloneTaskFailCleanEnvAndCheck(
         const std::string &user,
         const std::string &uuid) {
-        // 验证任务状态为error
+        //Verify that the task status is error
         TaskCloneInfo info1;
         int ret = GetCloneTaskInfo(
             user, uuid, &info1);
@@ -191,7 +191,7 @@ class SnapshotCloneServerTest : public ::testing::Test {
     bool JudgeCloneTaskNotExistCleanEnvAndCheck(
         const std::string &user,
         const std::string &uuid) {
-        // 验证任务不存在
+        //Verification task does not exist
         TaskCloneInfo info1;
         int ret = GetCloneTaskInfo(
             user, uuid, &info1);
@@ -201,7 +201,7 @@ class SnapshotCloneServerTest : public ::testing::Test {
             return false;
         }
 
-        // 验证curvefs上无临时文件
+        //Verify that there are no temporary files on curvefs
         if (server_->GetCurveFsClient()->JudgeCloneDirHasFile()) {
             LOG(INFO) << "AssertEnvClean fail"
                        << ", ret = " << ret;
@@ -222,7 +222,7 @@ class SnapshotCloneServerTest : public ::testing::Test {
 
         std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-        // 验证任务不存在
+        //Verification task does not exist
         TaskCloneInfo info;
         ret = GetCloneTaskInfo(user, uuid, &info);
         if (kErrCodeFileNotExist != ret) {
@@ -231,7 +231,7 @@ class SnapshotCloneServerTest : public ::testing::Test {
             return false;
         }
 
-        // 验证curvefs上无临时文件
+        //Verify that there are no temporary files on curvefs
         if (server_->GetCurveFsClient()->JudgeCloneDirHasFile()) {
             LOG(INFO) << "AssertEnvClean fail"
                        << ", ret = " << ret;
@@ -419,13 +419,13 @@ TEST_F(SnapshotCloneServerTest, TestCreateSnapshotFailOnAddSnapshot) {
     fiu_enable("test/integration/snapshotcloneserver/FakeSnapshotCloneMetaStore.AddSnapshot", // NOLINT
         1, NULL, 0);
 
-    // 验证任务失败
+    //Verification task failed
     int ret = MakeSnapshot(user, file , "snap8", &uuid);
     ASSERT_EQ(-1, ret);
 
     fiu_disable("test/integration/snapshotcloneserver/FakeSnapshotCloneMetaStore.AddSnapshot");  // NOLINT
 
-    // 验证任务不存在
+    //Verification task does not exist
     SnapshotInfo sinfo;
     ret = server_->GetMetaStore()->GetSnapshotInfo(uuid, &sinfo);
     ASSERT_EQ(-1, ret);
@@ -446,7 +446,7 @@ TEST_F(SnapshotCloneServerTest, TestCreateSnapshotFailOnUpdateSnapshot) {
 
     fiu_disable("test/integration/snapshotcloneserver/FakeSnapshotCloneMetaStore.UpdateSnapshot");  // NOLINT
 
-    // 验证任务失败
+    //Verification task failed
     FileSnapshotInfo info1;
     ret = GetSnapshotInfo(
         user, file, uuid, &info1);
@@ -506,13 +506,13 @@ TEST_F(SnapshotCloneServerTest, TestDeleteSnapshotFailOnGetChunkIndexData) {
     fiu_enable("test/integration/snapshotcloneserver/FakeSnapshotDataStore.GetChunkIndexData", // NOLINT
         1, NULL, 0);
 
-    // 验证删除失败
+    //Verification deletion failed
     int ret = DeleteAndCheckSnapshotSuccess(user, file, uuid);
     ASSERT_EQ(-1, ret);
 
     fiu_disable("test/integration/snapshotcloneserver/FakeSnapshotDataStore.GetChunkIndexData");  // NOLINT
 
-    // 验证任务失败
+    //Verification task failed
     SnapshotInfo sinfo;
     ret = server_->GetMetaStore()->GetSnapshotInfo(uuid, &sinfo);
     ASSERT_EQ(0, ret);
@@ -529,13 +529,13 @@ TEST_F(SnapshotCloneServerTest, TestDeleteSnapshotFailOnDeleteChunkData) {
     fiu_enable("test/integration/snapshotcloneserver/FakeSnapshotDataStore.DeleteChunkData", // NOLINT
         1, NULL, 0);
 
-    // 验证删除失败
+    //Verification deletion failed
     int ret = DeleteAndCheckSnapshotSuccess(user, file, uuid);
     ASSERT_EQ(-1, ret);
 
     fiu_disable("test/integration/snapshotcloneserver/FakeSnapshotDataStore.DeleteChunkData");  // NOLINT
 
-    // 验证任务失败
+    //Verification task failed
     SnapshotInfo sinfo;
     ret = server_->GetMetaStore()->GetSnapshotInfo(uuid, &sinfo);
     ASSERT_EQ(0, ret);
@@ -552,13 +552,13 @@ TEST_F(SnapshotCloneServerTest, TestDeleteSnapshotFailOnDeleteChunkIndexData) {
     fiu_enable("test/integration/snapshotcloneserver/FakeSnapshotDataStore.DeleteChunkIndexData", // NOLINT
         1, NULL, 0);
 
-    // 验证删除失败
+    //Verification deletion failed
     int ret = DeleteAndCheckSnapshotSuccess(user, file, uuid);
     ASSERT_EQ(-1, ret);
 
     fiu_disable("test/integration/snapshotcloneserver/FakeSnapshotDataStore.DeleteChunkIndexData");  // NOLINT
 
-    // 验证任务失败
+    //Verification task failed
     SnapshotInfo sinfo;
     ret = server_->GetMetaStore()->GetSnapshotInfo(uuid, &sinfo);
     ASSERT_EQ(0, ret);
@@ -575,13 +575,13 @@ TEST_F(SnapshotCloneServerTest, TestDeleteSnapshotFailOnDeleteSnapshot) {
     fiu_enable("test/integration/snapshotcloneserver/FakeSnapshotCloneMetaStore.DeleteSnapshot", // NOLINT
         1, NULL, 0);
 
-    // 验证删除失败
+    //Verification deletion failed
     int ret = DeleteAndCheckSnapshotSuccess(user, file, uuid);
     ASSERT_EQ(-1, ret);
 
     fiu_disable("test/integration/snapshotcloneserver/FakeSnapshotCloneMetaStore.DeleteSnapshot");  // NOLINT
 
-    // 验证任务失败
+    //Verification task failed
     SnapshotInfo sinfo;
     ret = server_->GetMetaStore()->GetSnapshotInfo(uuid, &sinfo);
     ASSERT_EQ(0, ret);
@@ -783,7 +783,7 @@ TEST_F(SnapshotCloneServerTest,
     ret = Flatten(testUser1, uuid1);
     ASSERT_EQ(0, ret);
 
-    // 克隆未完成前删除目标文件
+    //Delete target file before cloning is completed
     ASSERT_EQ(LIBCURVE_ERROR::OK,
         server_->GetCurveFsClient()->DeleteFile("/user1/clone1", "", 0));
 
@@ -1080,7 +1080,7 @@ TEST_F(SnapshotCloneServerTest,
     ret = Flatten(testUser1, uuid1);
     ASSERT_EQ(0, ret);
 
-    // 克隆未完成前删除目标文件
+    //Delete target file before cloning is completed
     ASSERT_EQ(LIBCURVE_ERROR::OK,
         server_->GetCurveFsClient()->DeleteFile("/user1/clone1", "", 0));
 
@@ -1490,7 +1490,7 @@ TEST_F(SnapshotCloneServerTest,
     ret = Flatten(testUser1, uuid1);
     ASSERT_EQ(0, ret);
 
-    // 恢复未完成前删除目标文件
+    //Delete target files before recovery is complete
     ASSERT_EQ(LIBCURVE_ERROR::OK,
         server_->GetCurveFsClient()->DeleteFile(testFile1, "", 0));
 

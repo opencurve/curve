@@ -96,7 +96,7 @@ class RequestSenderTest : public ::testing::Test {
 };
 
 TEST_F(RequestSenderTest, BasicTest) {
-    // 非法的 port
+    //Illegal port
     std::string leaderStr = "127.0.0.1:65539";
     butil::EndPoint leaderAddr;
     ChunkServerID leaderId = 1;

@@ -21,13 +21,13 @@ package curve.common;
 option cc_generic_services = true;
 option go_package = "proto/common";
 
-// 1. braft场景: id不使用，address为braft里面的PeerId，格式为{ip}:{port}:{index}
-// 2. curve-raft场景：id是peer id，address为{ip}:{port}
-// 当前chunkserver id就是peer id
+//1. braft scenario: ID not used, address is PeerId in BRAFT, format is {ip}:{port}:{index}
+//2. curve-raft scenario: id is peer id, address is {ip}:{port}
+//The current chunkserver ID is the peer ID
 message Peer {
-    optional uint64 id          = 1;    // peer id，全局唯一
-//  optional bool isLearner     = 2;    // 是否是learner (暂时不支持)
-    optional string address     = 3;    // peer的地址信息
+    optional uint64 id          = 1;    // Peer ID, globally unique
+//  optional bool isLearner     = 2;    // Is it a learner (currently not supported)
+    optional string address     = 3;    // Peer's address information
 }
 
 message CopysetInfo {

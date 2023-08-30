@@ -26,7 +26,7 @@ fileStatus = ["Created", "Deleting", "Cloning", "CloneMetaInstalled", "Cloned", 
 kGB = 1024 * 1024 * 1024
 kUnitializedFileID = 0
 
-# 参照curve/include/client/libcurve.h
+#Refer to curve/include/client/libcurve. h
 retCode = { 0 : "OK",
             1 : "EXISTS",
             2 : "FAILED",
@@ -65,17 +65,17 @@ def getRetCodeMsg(ret):
     return "Unknown Error Code"
 
 if __name__ == '__main__':
-    # 参数解析
+    #Parameter parsing
     args = parser.get_parser().parse_args()
 
-    # 初始化client
+    #Initialize client
     cbd = curvefs.CBDClient()
     ret = cbd.Init(args.confpath)
     if ret != 0:
         print "init fail"
         exit(1)
 
-    # 获取文件user信息
+    #Obtain file user information
     user = curvefs.UserInfo_t()
     user.owner = args.user
     if args.password:

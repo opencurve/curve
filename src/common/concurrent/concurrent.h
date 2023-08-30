@@ -38,7 +38,7 @@
 namespace curve {
 namespace common {
 
-// curve公共组件命名空间替换
+//Curve public component namespace replacement
 template<class T>
 using Atomic                = std::atomic<T>;
 using Mutex                 = std::mutex;
@@ -47,13 +47,13 @@ using LockGuard             = std::lock_guard<Mutex>;
 using UniqueLock            = std::unique_lock<Mutex>;
 using ConditionVariable     = std::condition_variable;
 
-// curve内部定义的锁组件
+//Lock components defined internally in curve
 using RWLock                = RWLock;
 using SpinLock              = SpinLock;
 using ReadLockGuard         = ReadLockGuard;
 using WriteLockGuard        = WriteLockGuard;
 
-// curve内部定义的线程组件
+//Thread components defined internally in curve
 using TaskQueue             = TaskQueue;
 using ThreadPool            = ThreadPool;
 

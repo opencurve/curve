@@ -46,11 +46,11 @@ using ::curve::common::align_up;
 using ::curve::common::is_aligned;
 
 /**
- * chunkfile pool预分配工具，提供两种分配方式
- * 1. 以磁盘空间百分比方式，指定需要分配的百分比
- * 2. 指定以chunk数量分配
- * 默认的分配方式是以磁盘空间百分比作为分配方式，可以通过-allocateByPercent=false/true
- * 调整分配方式。
+ *Chunkfile pool pre allocation tool, providing two allocation methods
+ *1. Specify the percentage to be allocated as a percentage of disk space
+ *2. Specify allocation by chunk quantity
+ *The default allocation method is based on the percentage of disk space, which can be achieved by -allocateByPercent=false/true
+ *Adjust the allocation method.
  */
 DEFINE_bool(allocateByPercent,
             true,
@@ -81,19 +81,19 @@ DEFINE_string(filePoolMetaPath,
               "./filePool.meta",
               "chunkfile pool meta info file path.");
 
-// preallocateNum仅在测试的时候使用，测试提前预分配固定数量的chunk
-// 当设置这个值的时候可以不用设置allocatepercent
+//PreallocateNum is only used during testing, and a fixed number of chunks are pre allocated in advance during testing
+//When setting this value, there is no need to set allocatepercent
 DEFINE_uint32(preAllocateNum,
               0,
               "preallocate chunk nums, this is JUST for curve test");
 
-// 在系统初始化的时候，管理员需要预先格式化磁盘，并进行预分配
-// 这时候只需要指定allocatepercent，allocatepercent是占整个盘的空间的百分比
+//During system initialization, the administrator needs to pre format the disk and pre allocate it
+//At this point, only allocate percentage needs to be specified, which is the percentage of the entire disk space occupied by allocate percentage
 DEFINE_uint32(allocatePercent,
               80,
               "preallocate storage percent of total disk");
 
-// 测试情况下置为false，加快测试速度
+//Set to false during testing to accelerate testing speed
 DEFINE_bool(needWriteZero,
         true,
         "not write zero for test.");
@@ -210,7 +210,7 @@ static bool CanBitmapFitInMetaPage() {
     return bitmapBytes <= kMaximumBitmapBytes;
 }
 
-// TODO(tongguangxun) :添加单元测试
+//TODO(tongguangxun): Adding unit tests
 int main(int argc, char** argv) {
     google::ParseCommandLineFlags(&argc, &argv, false);
     google::InitGoogleLogging(argv[0]);
@@ -316,7 +316,7 @@ int main(int argc, char** argv) {
         return -1;
     }
 
-    // 读取meta文件，检查是否写入正确
+    //Read the meta file and check if it is written correctly
     FilePoolMeta recordMeta;
     ret = curve::chunkserver::FilePoolHelper::DecodeMetaInfoFromMetaFile(
         fsptr, FLAGS_filePoolMetaPath, 4096, &recordMeta);

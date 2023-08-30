@@ -70,7 +70,7 @@ class BBQItem {
 };
 
 /**
- * 有 capacity 限制的阻塞队列，线程安全
+ *Blocking queues with capacity restrictions, thread safe
  */
 template<typename T>
 class BoundedBlockingDeque : public Uncopyable {

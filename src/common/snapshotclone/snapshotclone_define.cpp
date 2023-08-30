@@ -27,7 +27,7 @@
 namespace curve {
 namespace snapshotcloneserver {
 
-// 字符串常量定义
+//String constant definition
 const char* kServiceName = "SnapshotCloneService";
 const char* kCreateSnapshotAction = "CreateSnapshot";
 const char* kDeleteSnapshotAction = "DeleteSnapshot";

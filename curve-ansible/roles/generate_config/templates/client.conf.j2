@@ -1,8 +1,8 @@
 #
-################### mds一侧配置信息 ##################
+###################MDS side configuration information##################
 #
 
-# mds的地址信息，对于mds集群，地址以逗号隔开
+#Address information for mds, separated by commas for mds clusters
 {% set mds_address=[] -%}
 {% for host in groups.mds -%}
   {% set mds_ip = hostvars[host].ansible_ssh_host -%}
@@ -11,25 +11,25 @@
 {% endfor -%}
 mds.listen.addr={{ mds_address | join(',') }}
 
-# 初始化阶段向mds注册开关，默认为开
+#Register switch with mds during initialization phase, default to on
 mds.registerToMDS={{ client_register_to_mds }}
 
-# 与mds通信的rpc超时时间
+#RPC timeout for communication with mds
 mds.rpcTimeoutMS={{ client_mds_rpc_timeout_ms }}
 
-# 与mds通信rpc最大的超时时间, 指数退避的超时间不能超过这个值
+#The maximum timeout for rpc communication with mds, and the timeout for exponential backoff cannot exceed this value
 mds.maxRPCTimeoutMS={{ client_mds_max_rpc_timeout_ms }}
 
-# 与mds通信重试总时间
+#Total retry time for communication with mds
 mds.maxRetryMS={{ client_mds_max_retry_ms }}
 
-# 在当前mds上连续重试次数超过该限制就切换, 这个失败次数包含超时重试次数
+#Switch if the number of consecutive retries on the current mds exceeds this limit, which includes the number of timeout retries
 mds.maxFailedTimesBeforeChangeMDS={{ client_mds_max_failed_times_before_change_mds }}
 
-# 与MDS一侧保持一个lease时间内多少次续约
+#How many renewals are there within a lease period with MDS
 mds.refreshTimesPerLease={{ client_mds_refresh_times_per_lease }}
 
-# mds RPC接口每次重试之前需要先睡眠一段时间
+#The mds RPC interface requires a period of sleep before each retry
 mds.rpcRetryIntervalUS={{ client_mds_rpc_retry_interval_us }}
 
 # The normal retry times for trigger wait strategy
@@ -42,104 +42,104 @@ mds.maxRetryMsInIOPath={{ client_mds_max_retry_ms_in_io_path }}
 mds.waitSleepMs={{ client_mds_wait_sleep_ms }}
 
 #
-################# metacache配置信息 ################
+#################Metacache Configuration Information################
 #
 
-# 获取leader的rpc超时时间
+#Obtain the rpc timeout of the leader
 metacache.getLeaderTimeOutMS={{ client_metacache_get_leader_timeout_ms }}
 
-# 获取leader的重试次数
+#Retrieve the number of retries for the leader
 metacache.getLeaderRetry={{ client_metacache_get_leader_retry }}
 
-# 获取leader接口每次重试之前需要先睡眠一段时间
+#Obtaining the leader interface requires a period of sleep before each retry
 metacache.rpcRetryIntervalUS={{ client_metacache_rpc_retry_interval_us }}
 
 #
-############### 调度层的配置信息 #############
+###############Configuration information of the scheduling layer#############
 #
 
-# 调度层队列大小，每个文件对应一个队列
-# 调度队列的深度会影响client端整体吞吐，这个队列存放的是异步IO任务。。
+#Scheduling layer queue size, with one queue for each file
+#The depth of the scheduling queue can affect the overall throughput of the client, as it stores asynchronous IO tasks..
 schedule.queueCapacity={{ client_schedule_queue_capacity }}
 
-# 队列的执行线程数量
-# 执行线程所要做的事情就是将IO取出，然后发到网络就返回取下一个网络任务。一个任务从
-# 队列取出到发送完rpc请求大概在(20us-100us)，20us是正常情况下不需要获取leader的时候
-# 如果在发送的时候需要获取leader，时间会在100us左右，一个线程的吞吐在10w-50w
-# 性能已经满足需求
+#Number of execution threads in the queue
+#What the executing thread needs to do is to retrieve the IO, then send it to the network and return to retrieve the next network task. A task starts from
+#The RPC request is approximately (20us-100us) from the time the queue is retrieved to the time it is sent, and 20us is the normal time when it is not necessary to obtain a leader
+#If a leader needs to be obtained during sending, the time will be around 100us, and the throughput of one thread will be between 10w-50w
+#The performance has met the requirements
 schedule.threadpoolSize={{ client_schedule_threadpool_size }}
 
-# 为隔离qemu侧线程引入的任务队列，因为qemu一侧只有一个IO线程
-# 当qemu一侧调用aio接口的时候直接将调用push到任务队列就返回，
-# 这样libcurve不占用qemu的线程，不阻塞其异步调用
+#To isolate the task queue introduced by the QEMU side thread, as there is only one IO thread on the QEMU side
+#When the QEMU side calls the AIO interface, it directly pushes the call to the task queue and returns,
+#This way, libcurve does not occupy QEMU's threads and does not block its asynchronous calls
 isolation.taskQueueCapacity={{ client_isolation_task_queue_capacity }}
 
-# 隔离qemu线程的任务队列线程池大小, 默认值为1个线程
+#The size of the task queue thread pool for isolating QEMU threads, with a default value of 1 thread
 isolation.taskThreadPoolSize={{ client_isolation_task_thread_pool_size }}
 
 
 #
-################ 与chunkserver通信相关配置 #############
+################Configuration related to communication with chunkserver#############
 #
-# 读写接口失败的OP之间重试睡眠
+#Retrying sleep between OPs with failed read/write interfaces
 chunkserver.opRetryIntervalUS={{ client_chunkserver_op_retry_interval_us }}
 
-# 失败的OP重试次数
+#Number of failed OP retries
 chunkserver.opMaxRetry={{ client_chunkserver_op_max_retry }}
 
-# 与chunkserver通信的rpc超时时间
+#RPC timeout for communication with chunkserver
 chunkserver.rpcTimeoutMS={{ client_chunkserver_rpc_timeout_ms }}
 
-# 开启基于appliedindex的读，用于性能优化
+#Enable reading based on appliedindex for performance optimization
 chunkserver.enableAppliedIndexRead={{ client_chunkserver_enable_applied_index_read }}
 
-# 重试请求之间睡眠最长时间
-# 因为当网络拥塞的时候或者chunkserver出现过载的时候，需要增加睡眠时间
-# 这个时间最大为maxRetrySleepIntervalUs
+#Maximum sleep time between retry requests
+#Because when the network is congested or the chunkserver is overloaded, it is necessary to increase sleep time
+#The maximum time for this is maxRetrySleepIntervalUs
 chunkserver.maxRetrySleepIntervalUS={{ client_chunkserver_max_retry_sleep_interval_us }}
 
-# 重试请求的超时rpc时间最大值，超时时间会遵循指数退避策略
-# 因为当网络拥塞的时候出现超时，需要增加RPC超时时间
-# 这个时间最大为maxTimeoutMS
+#The maximum timeout rpc time for retry requests, which follows an exponential backoff strategy
+#Because timeout occurs when the network is congested, it is necessary to increase the RPC timeout time
+#The maximum time for this is maxTimeoutMS
 chunkserver.maxRPCTimeoutMS={{ client_chunkserver_max_rpc_timeout_ms }}
 
-# 同一个chunkserver连续超时上限次数
-# 如果超过这个值，就会进行健康检查，健康检查失败后，会标记为unstable
+#Maximum number of consecutive timeouts for the same chunkserver
+#If this value is exceeded, a health check will be conducted, and if the health check fails, it will be marked as unstable
 chunkserver.maxStableTimeoutTimes={{ client_chunkserver_max_stable_timeout_times }}
-# chunkserver上rpc连续超时后，健康检查请求的超时间
+#The timeout of health check requests after consecutive RPC timeouts on chunkserver
 chunkserver.checkHealthTimeoutMs={{ client_chunkserver_check_health_timeout_ms }}
-# 同一个server上unstable的chunkserver数量超过这个值之后
-# 所有的chunkserver都会标记为unstable
+#After the number of unstable chunkservers on the same server exceeds this value
+#All chunkservers will be marked as unstable
 chunkserver.serverStableThreshold={{ client_chunkserver_server_stable_threshold }}
 
-# 当底层chunkserver压力大时，可能也会触发unstable
-# 由于copyset leader may change，会导致请求超时时间设置为默认值，从而导致IO hang
-# 真正宕机的情况下，请求重试一定次数后会处理完成
-# 如果一直重试，则不是宕机情况，这时候超时时间还是要进入指数退避逻辑
-# 当一个请求重试次数超过这个值时，其超时时间一定进入指数退避
+#When the underlying chunkserver is under high pressure, unstable may also be triggered
+#Due to copyset leader may change, the request timeout time will be set to the default value, resulting in IO hang
+#In the case of real downtime, the request will be processed after a certain number of retries
+#If you keep trying again, it's not a downtime situation, and at this point, the timeout still needs to enter the exponential backoff logic
+#When the number of retries for a request exceeds this value, its timeout must enter exponential backoff
 chunkserver.minRetryTimesForceTimeoutBackoff={{ client_chunkserver_min_retry_times_force_timeout_backoff }}
 
-# 当一个rpc重试超过次数maxRetryTimesBeforeConsiderSuspend的时候
-# 记为悬挂IO，metric会报警
+#When an RPC retry exceeds maxRetryTimesBeforeConsiderSuspend
+#Record as suspended IO, metric will alarm
 chunkserver.maxRetryTimesBeforeConsiderSuspend={{ client_chunkserver_max_retry_times_before_consider_suspend }}
 
 #
-################# 文件级别配置项 #############
+#################File level configuration items#############
 #
-# libcurve底层rpc调度允许最大的未返回rpc数量，每个文件的inflight RPC独立
+#Libcurve allows for the maximum number of unreturned rpcs in the underlying rpc scheduling, with each file's inflight RPC being independent
 global.fileMaxInFlightRPCNum={{ client_file_max_inflight_rpc_num }}
 
-# 文件IO下发到底层chunkserver最大的分片KB
+#The maximum sharding KB for file IO distribution to the underlying chunkserver
 global.fileIOSplitMaxSizeKB={{ client_file_io_split_max_size_kb }}
 
 #
-################# log相关配置 ###############
+#################Log related configuration###############
 #
-# log等级 INFO=0/WARNING=1/ERROR=2/FATAL=3
+#Log level INFO=0/WARNING=1/ERROR=2/FATAL=3
 global.logLevel={{ client_log_level }}
-# 设置log的路径
+#Set the path of the log
 global.logPath={{ client_log_path }}
-# 单元测试情况下
+#In the case of unit testing
 # logpath=./runlog/
 
 #
@@ -151,15 +151,15 @@ closefd.timeout={{ client_closefd_timeout_sec }}
 closefd.timeInterval={{ client_closefd_time_interval_sec }}
 
 #
-############### metric 配置信息 #############
+###############Metric configuration information#############
 #
 global.metricDummyServerStartPort={{ client_metric_dummy_server_start_port }}
 
-# 是否关闭健康检查: true/关闭 false/不关闭
+#Whether to turn off health check: true/turn off false/do not turn off
 global.turnOffHealthCheck={{ client_turn_off_health_check }}
 
 #
-# session map文件，存储打开文件的filename到path的映射
+#Session map file, storing the mapping from filename to path of the opened file
 #
 global.sessionMapPath={{ client_session_map_path }}
 

@@ -158,11 +158,11 @@ class CSDataStore_test
         }
 
         /**
-         * 构造初始环境
-         * datastore存在两个chunk，分别为chunk1、chunk2
-         * chunk1 和 chunk2的sn都为2，correctSn为0
-         * chunk1存在快照文件，快照文件版本号为1
-         * chunk2不存在快照文件
+         *Construct initial environment
+         *There are two chunks in the datastore, chunk1 and chunk2
+         *The sn of chunk1 and chunk2 are both 2, and correctSn is 0
+         *Chunk1 has a snapshot file with version number 1
+         *Chunk2 does not have a snapshot file
          */
         void FakeEnv() {
             // fake DirExists
@@ -266,9 +266,9 @@ class CSDataStore_test
     PageSizeType metapagesize_;
 };
 /**
- * ConstructorTest
- * case:测试构造参数为空的情况
- * 预期结果:进程退出
+ *ConstructorTest
+ *Case: Test the case where the construction parameter is empty
+ *Expected result: Process exited
  */
 TEST_P(CSDataStore_test, ConstructorTest) {
     // null param test
@@ -293,9 +293,9 @@ TEST_P(CSDataStore_test, ConstructorTest) {
 }
 
 /**
- * InitializeTest
- * case:存在未知类型的文件
- * 预期结果:删除该文件，返回true
+ *InitializeTest
+ *Case: There is an unknown type of file
+ *Expected result: Delete the file and return true
  */
 TEST_P(CSDataStore_test, InitializeTest1) {
     // test unknown file
@@ -315,9 +315,9 @@ TEST_P(CSDataStore_test, InitializeTest1) {
 }
 
 /**
- * InitializeTest
- * case:存在快照文件，但是快照文件没有对应的chunk
- * 预期结果:删除快照文件，返回true
+ *InitializeTest
+ *Case: There is a snapshot file, but the snapshot file does not have a corresponding chunk
+ *Expected result: Delete the snapshot file and return true
  */
 TEST_P(CSDataStore_test, InitializeTest2) {
     // test snapshot without chunk
@@ -336,9 +336,9 @@ TEST_P(CSDataStore_test, InitializeTest2) {
 }
 
 /**
- * InitializeTest
- * case:存在chunk文件，chunk文件存在快照文件
- * 预期结果:正常加载文件，返回true
+ *InitializeTest
+ *Case: Chunk file exists, Chunk file has snapshot file
+ *Expected result: Loading the file normally, returning true
  */
 TEST_P(CSDataStore_test, InitializeTest3) {
     // test chunk with snapshot
@@ -353,10 +353,10 @@ TEST_P(CSDataStore_test, InitializeTest3) {
 }
 
 /**
- * InitializeTest
- * case:存在chunk文件，chunk文件存在snapshot文件，
- *      List的时候snapshot先于chunk文件被list
- * 预期结果:返回true
+ *InitializeTest
+ *Case: There is a chunk file, and there is a snapshot file in the chunk file,
+ *When listing, snapshots are listed before chunk files
+ *Expected result: Returns true
  */
 TEST_P(CSDataStore_test, InitializeTest4) {
     // test snapshot founded before chunk file ,
@@ -378,9 +378,9 @@ TEST_P(CSDataStore_test, InitializeTest4) {
 }
 
 /**
- * InitializeTest
- * case:存在chunk文件，chunk文件存在两个冲突的快照文件
- * 预期结果:返回false
+ *InitializeTest
+ *Case: There is a chunk file, and there are two conflicting snapshot files in the chunk file
+ *Expected result: returns false
  */
 TEST_P(CSDataStore_test, InitializeTest5) {
     // test snapshot conflict
@@ -401,9 +401,9 @@ TEST_P(CSDataStore_test, InitializeTest5) {
 }
 
 /**
- * InitializeErrorTest
- * case:data目录不存在，创建目录时失败
- * 预期结果:返回false
+ *InitializeErrorTest
+ *Case: The data directory does not exist, creating the directory failed
+ *Expected result: returns false
  */
 TEST_P(CSDataStore_test, InitializeErrorTest1) {
     // dir not exist and mkdir failed
@@ -420,9 +420,9 @@ TEST_P(CSDataStore_test, InitializeErrorTest1) {
 }
 
 /**
- * InitializeErrorTest
- * case:List目录时失败
- * 预期结果:返回false
+ *InitializeErrorTest
+ *Case: List directory failed
+ *Expected result: returns false
  */
 TEST_P(CSDataStore_test, InitializeErrorTest2) {
     // List dir failed
@@ -440,9 +440,9 @@ TEST_P(CSDataStore_test, InitializeErrorTest2) {
 }
 
 /**
- * InitializeErrorTest
- * case:open chunk文件的时候出错
- * 预期结果:返回false
+ *InitializeErrorTest
+ *Case: Error opening chunk file
+ *Expected result: returns false
  */
 TEST_P(CSDataStore_test, InitializeErrorTest3) {
     // test chunk open failed
@@ -536,9 +536,9 @@ TEST_P(CSDataStore_test, InitializeErrorTest3) {
 }
 
 /**
- * InitializeErrorTest
- * case:open 快照文件的时候出错
- * 预期结果:返回false
+ *InitializeErrorTest
+ *Case: Error opening snapshot file
+ *Expected result: returns false
  */
 TEST_P(CSDataStore_test, InitializeErrorTest4) {
     // test chunk open failed
@@ -548,7 +548,7 @@ TEST_P(CSDataStore_test, InitializeErrorTest4) {
         .WillOnce(Return(-UT_ERRNO));
     EXPECT_FALSE(dataStore->Initialize());
 
-    // 每次重新初始化都会释放原先的资源，重新加载
+    //Each reinitialization will release the original resources and reload them
     EXPECT_CALL(*lfs_, Close(1))
         .WillOnce(Return(0));
     // open success
@@ -562,7 +562,7 @@ TEST_P(CSDataStore_test, InitializeErrorTest4) {
         .WillOnce(Return(-UT_ERRNO));
     EXPECT_FALSE(dataStore->Initialize());
 
-    // 每次重新初始化都会释放原先的资源，重新加载
+    //Each reinitialization will release the original resources and reload them
     EXPECT_CALL(*lfs_, Close(1))
         .WillOnce(Return(0));
     // open success
@@ -579,7 +579,7 @@ TEST_P(CSDataStore_test, InitializeErrorTest4) {
                         Return(0)));
     EXPECT_FALSE(dataStore->Initialize());
 
-    // 每次重新初始化都会释放原先的资源，重新加载
+    //Each reinitialization will release the original resources and reload them
     EXPECT_CALL(*lfs_, Close(1))
         .WillOnce(Return(0));
     // open success
@@ -598,7 +598,7 @@ TEST_P(CSDataStore_test, InitializeErrorTest4) {
         .WillOnce(Return(-UT_ERRNO));
     EXPECT_FALSE(dataStore->Initialize());
 
-    // 每次重新初始化都会释放原先的资源，重新加载
+    //Each reinitialization will release the original resources and reload them
     EXPECT_CALL(*lfs_, Close(1))
         .WillOnce(Return(0));
     // open success
@@ -621,7 +621,7 @@ TEST_P(CSDataStore_test, InitializeErrorTest4) {
                                 Return(metapagesize_)));
     EXPECT_FALSE(dataStore->Initialize());
 
-    // 每次重新初始化都会释放原先的资源，重新加载
+    //Each reinitialization will release the original resources and reload them
     EXPECT_CALL(*lfs_, Close(1))
         .WillOnce(Return(0));
     // open success
@@ -650,11 +650,11 @@ TEST_P(CSDataStore_test, InitializeErrorTest4) {
 }
 
 /**
- * InitializeErrorTest
- * case:存在chunk文件，chunk文件存在snapshot文件，
- *      List的时候snapshot先于chunk文件被list
- *      open chunk文件的时候出错
- * 预期结果:返回false
+ *InitializeErrorTest
+ *Case: There is a chunk file, and there is a snapshot file in the chunk file,
+ *When listing, snapshots are listed before chunk files
+ *Error opening chunk file
+ *Expected result: returns false
  */
 TEST_P(CSDataStore_test, InitializeErrorTest5) {
     // test snapshot founded before chunk file ,
@@ -675,9 +675,9 @@ TEST_P(CSDataStore_test, InitializeErrorTest5) {
 }
 
 /**
- * Test
- * case:chunk 不存在
- * 预期结果:创建chunk文件,并成功写入数据
+ *Test
+ *Case: chunk does not exist
+ *Expected result: Create chunk file and successfully write data
  */
 TEST_P(CSDataStore_test, WriteChunkTest1) {
     // initialize
@@ -694,7 +694,7 @@ TEST_P(CSDataStore_test, WriteChunkTest1) {
     string chunk3Path = string(baseDir) + "/" +
                         FileNameOperator::GenerateChunkFileName(id);
 
-    // 如果sn为0，返回InvalidArgError
+    //If sn is 0, returns InvalidArgError
     EXPECT_EQ(CSErrorCode::InvalidArgError, dataStore->WriteChunk(id,
                                                                   0,
                                                                   buf,
@@ -756,9 +756,9 @@ TEST_P(CSDataStore_test, WriteChunkTest1) {
 }
 
 /**
- * WriteChunkTest
- * case:chunk存在,请求sn小于chunk的sn
- * 预期结果:拒绝写入，返回BackwardRequestError
+ *WriteChunkTest
+ *Case: Chunk exists, request sn smaller than Chunk's sn
+ *Expected result: Refused writing, returned BackwardRequestError
  */
 TEST_P(CSDataStore_test, WriteChunkTest2) {
     // initialize
@@ -813,9 +813,9 @@ TEST_P(CSDataStore_test, WriteChunkTest2) {
 }
 
 /**
- * WriteChunkTest
- * case:chunk存在,请求sn小于chunk的correctedSn
- * 预期结果:拒绝写入，返回BackwardRequestError
+ *WriteChunkTest
+ *Case: Chunk exists, request correctedSn with sn less than chunk
+ *Expected result: Refused writing, returned BackwardRequestError
  */
 TEST_P(CSDataStore_test, WriteChunkTest3) {
     // initialize
@@ -875,10 +875,10 @@ TEST_P(CSDataStore_test, WriteChunkTest3) {
 }
 
 /**
- * WriteChunkTest
- * case:chunk存在,请求sn等于chunk的sn且不小于correctSn
- *      chunk不存在快照
- * 预期结果:直接写数据到chunk文件
+ *WriteChunkTest
+ *Case: Chunk exists, request sn to be equal to the SN of the chunk and not less than correctSn
+ *Chunk does not have a snapshot
+ *Expected result: Directly write data to chunk file
  */
 TEST_P(CSDataStore_test, WriteChunkTest4) {
     // initialize
@@ -956,10 +956,10 @@ TEST_P(CSDataStore_test, WriteChunkTest4) {
 }
 
 /**
- * WriteChunkTest
- * case:chunk存在,请求sn大于chunk的sn,等于correctSn,
- *      chunk不存在快照
- * 预期结果:会更新metapage，然后写数据到chunk文件
+ *WriteChunkTest
+ *Case: Chunk exists, request sn is greater than the sn of the chunk, equal to correctSn,
+ *Chunk does not have a snapshot
+ *Expected result: Metapage will be updated and data will be written to the chunk file
  */
 TEST_P(CSDataStore_test, WriteChunkTest6) {
     // initialize
@@ -1010,11 +1010,11 @@ TEST_P(CSDataStore_test, WriteChunkTest6) {
 }
 
 /**
- * WriteChunkTest
- * case:chunk存在,请求sn大于chunk的sn以及correctSn,
- *      chunk不存在快照、
- * 预期结果:会创建快照文件，更新metapage，
- * 写数据时先cow到snapshot，再写chunk文件
+ *WriteChunkTest
+ *Case: Chunk exists, request sn greater than Chunk's sn and correctSn,
+ *Chunk does not have a snapshot
+ *Expected result: A snapshot file will be created, and the metapage will be updated,
+ *When writing data, first copy to snapshot, then write chunk file
  */
 TEST_P(CSDataStore_test, WriteChunkTest7) {
     // initialize
@@ -1077,7 +1077,7 @@ TEST_P(CSDataStore_test, WriteChunkTest7) {
     ASSERT_EQ(3, info.curSn);
     ASSERT_EQ(2, info.snapSn);
 
-    // 再次写同一个block的数据，不再进行cow，而是直接写入数据
+    //Write data for the same block again, no longer co w, but directly write the data
     EXPECT_CALL(*lfs_, Write(3, Matcher<butil::IOBuf>(_),
                              metapagesize_ + offset, length))
         .Times(1);
@@ -1089,7 +1089,7 @@ TEST_P(CSDataStore_test, WriteChunkTest7) {
                                     length,
                                     nullptr));
 
-    // sn - 1 < chunk.sn ， 返回 BackwardRequestError
+    //Sn -1<chunk. sn, returns BackwardRequestError
     EXPECT_EQ(CSErrorCode::BackwardRequestError,
               dataStore->WriteChunk(id,
                                     sn - 1,
@@ -1110,10 +1110,10 @@ TEST_P(CSDataStore_test, WriteChunkTest7) {
 }
 
 /**
- * WriteChunkTest
- * case:chunk存在,请求sn等于chunk的sn且不小于correctSn
- *      chunk存在快照
- * 预期结果:先cow到snapshot，再写chunk文件
+ *WriteChunkTest
+ *Case: Chunk exists, request sn to be equal to the SN of the chunk and not less than correctSn
+ *Chunk has a snapshot
+ *Expected result: First copy to snapshot, then write chunk file
  */
 TEST_P(CSDataStore_test, WriteChunkTest9) {
     // initialize
@@ -1164,10 +1164,10 @@ TEST_P(CSDataStore_test, WriteChunkTest9) {
 }
 
 /**
- * WriteChunkTest
- * case:chunk存在,请求sn大于chunk的sn，等于correctSn
- *      chunk存在快照
- * 预期结果:更新metapage，然后写chunk文件
+ *WriteChunkTest
+ *Case: Chunk exists, request sn is greater than the sn of the chunk, equal to correctSn
+ *Chunk has a snapshot
+ *Expected result: Update the metapage and write the chunk file
  */
 TEST_P(CSDataStore_test, WriteChunkTest10) {
     // initialize
@@ -1219,10 +1219,10 @@ TEST_P(CSDataStore_test, WriteChunkTest10) {
 }
 
 /**
- * WriteChunkTest
- * case:chunk存在,请求sn大于chunk的sn和correctSn
- *      chunk存在快照,snapsn<chunk.sn
- * 预期结果:存在历史快照未删除，写失败，返回SnapshotConflictError
+ *WriteChunkTest
+ *Case: Chunk exists, requesting sn and correctSn with sn greater than chunk
+ *Chunk has a snapshot, snapsn<chunk.sn
+ *Expected result: There are historical snapshots that have not been deleted, write failed, and a SnapshotConflictError is returned
  */
 TEST_P(CSDataStore_test, WriteChunkTest11) {
     // initialize
@@ -1267,16 +1267,16 @@ TEST_P(CSDataStore_test, WriteChunkTest11) {
 }
 
 /**
- * WriteChunkTest
- * 写clone chunk，模拟克隆
- * case1:clone chunk存在，写入区域之前未写过
- * 预期结果1:写入数据并更新bitmap
- * case2:clone chunk存在，写入区域之前已写过
- * 预期结果2:写入数据但不会更新bitmap
- * case3:chunk存在，且是clone chunk，部分区域已写过，部分未写过
- * 预期结果3:写入数据并更新bitmap
- * case4:遍写整个chunk
- * 预期结果4:写入数据，然后clone chunk会被转为普通chunk
+ *WriteChunkTest
+ *Write a clone chunk to simulate cloning
+ *Case1: Clone chunk exists and has not been written before writing to the region
+ *Expected result 1: Write data and update bitmap
+ *Case2: Clone chunk exists and has been written before writing to the region
+ *Expected result 2: Write data but not update bitmap
+ *Case3: Chunk exists and is a clone chunk. Some areas have been written, while others have not
+ *Expected result 3: Write data and update bitmap
+ *Case4: Overwrite the entire chunk
+ *Expected result 4: Write data, and then the clone chunk will be converted to a regular chunk
  */
 TEST_P(CSDataStore_test, WriteChunkTest13) {
     // initialize
@@ -1291,7 +1291,7 @@ TEST_P(CSDataStore_test, WriteChunkTest13) {
     char* buf = new char[length];  // NOLINT
     memset(buf, 0, length);
     CSChunkInfo info;
-    // 创建 clone chunk
+    //Create clone chunk
     {
         LOG(INFO) << "case 1";
         char chunk3MetaPage[metapagesize_];  // NOLINT(runtime/arrays)
@@ -1323,7 +1323,7 @@ TEST_P(CSDataStore_test, WriteChunkTest13) {
                                               location));
     }
 
-    // case1:chunk存在，且是clone chunk，写入区域之前未写过
+    //Case1: Chunk exists and is a clone chunk, which has not been written before writing to the region
     {
         LOG(INFO) << "case 2";
         id = 3;  // not exist
@@ -1344,7 +1344,7 @@ TEST_P(CSDataStore_test, WriteChunkTest13) {
                                         offset,
                                         length,
                                         nullptr));
-        // 检查paste后chunk的状态
+        //Check the status of chunk after paste
         ASSERT_EQ(CSErrorCode::Success, dataStore->GetChunkInfo(id, &info));
         ASSERT_EQ(true, info.isClone);
         ASSERT_EQ(1, info.bitmap->NextSetBit(0));
@@ -1352,7 +1352,7 @@ TEST_P(CSDataStore_test, WriteChunkTest13) {
         ASSERT_EQ(Bitmap::NO_POS, info.bitmap->NextSetBit(3));
     }
 
-    // case2:chunk存在，且是clone chunk，写入区域之前已写过
+    //Case2: Chunk exists and is a clone chunk, which has been written before writing to the region
     {
         LOG(INFO) << "case 3";
         id = 3;  // not exist
@@ -1372,7 +1372,7 @@ TEST_P(CSDataStore_test, WriteChunkTest13) {
                                         offset,
                                         length,
                                         nullptr));
-        // paste后，chunk的状态不变
+        //After paste, the state of the chunk remains unchanged
         ASSERT_EQ(CSErrorCode::Success, dataStore->GetChunkInfo(id, &info));
         ASSERT_EQ(true, info.isClone);
         ASSERT_EQ(1, info.bitmap->NextSetBit(0));
@@ -1380,7 +1380,7 @@ TEST_P(CSDataStore_test, WriteChunkTest13) {
         ASSERT_EQ(Bitmap::NO_POS, info.bitmap->NextSetBit(3));
     }
 
-    // case3:chunk存在，且是clone chunk，部分区域已写过，部分未写过
+    //Case3: Chunk exists and is a clone chunk. Some areas have been written, while others have not
     {
         LOG(INFO) << "case 4";
         id = 3;  // not exist
@@ -1389,8 +1389,8 @@ TEST_P(CSDataStore_test, WriteChunkTest13) {
 
         std::unique_ptr<char[]> buf(new char[length]);
 
-        // [2 * blocksize_, 4 * blocksize_)区域已写过
-        // [0, metapagesize_)为metapage
+        //The [2 * blocksize_, 4 * blocksize_) area has been written
+        //[0, metapagesize_) is the metapage
         EXPECT_CALL(*lfs_, Write(4, Matcher<butil::IOBuf>(_),
                                  offset + metapagesize_, length))
             .Times(1);
@@ -1405,7 +1405,8 @@ TEST_P(CSDataStore_test, WriteChunkTest13) {
                                         offset,
                                         length,
                                         nullptr));
-        // paste后，chunk的状态不变
+        //After paste, the state of the chunk remains unchanged
+
         ASSERT_EQ(CSErrorCode::Success, dataStore->GetChunkInfo(id, &info));
         ASSERT_EQ(true, info.isClone);
         ASSERT_EQ(0, info.bitmap->NextSetBit(0));
@@ -1413,7 +1414,7 @@ TEST_P(CSDataStore_test, WriteChunkTest13) {
         ASSERT_EQ(Bitmap::NO_POS, info.bitmap->NextSetBit(4));
     }
 
-    // case4:遍写整个chunk
+    //Case4: Overwrite the entire chun
     {
         LOG(INFO) << "case 5";
         id = 3;  // not exist
@@ -1422,8 +1423,9 @@ TEST_P(CSDataStore_test, WriteChunkTest13) {
 
         std::unique_ptr<char[]> buf(new char[length]);
 
-        // [blocksize_, 4 * blocksize_)区域已写过
-        // [0, metapagesize_)为metapage
+        //The [blocksize_, 4 * blocksize_) area has been written
+
+        //[0, metapagesize_) is the metapage
         EXPECT_CALL(*lfs_, Write(4, Matcher<butil::IOBuf>(_),
                                  offset + metapagesize_, length))
             .Times(1);
@@ -1438,7 +1440,7 @@ TEST_P(CSDataStore_test, WriteChunkTest13) {
                                         offset,
                                         length,
                                         nullptr));
-        // paste后，chunk的状态不变
+        //After paste, the state of the chunk remains unchanged
         ASSERT_EQ(CSErrorCode::Success, dataStore->GetChunkInfo(id, &info));
         ASSERT_EQ(false, info.isClone);
         ASSERT_EQ(nullptr, info.bitmap);
@@ -1456,16 +1458,16 @@ TEST_P(CSDataStore_test, WriteChunkTest13) {
 }
 
 /**
- * WriteChunkTest
- * 写clone chunk，模拟恢复
- * case1:clone chunk 存在，sn<chunk.sn||sn<chunk.correctedSn
- * 预期结果1:写入数据，然后clone chunk会被转为普通chunk
- * case2:clone chunk存在，sn>chunk.sn,sn==chunk.correctedsn
- * 预期结果2:写入数据并更新bitmap,更新chunk.sn为sn
- * case3:clone chunk存在，sn==chunk.sn,sn==chunk.correctedsn
- * 预期结果3:写入数据并更新bitmap
- * case4:clone chunk 存在，sn>chunk.sn, sn>chunk.correctedsn
- * 预期结果4:返回StatusConflictError
+ *WriteChunkTest
+ *Write clone chunk to simulate recovery
+ *Case1: Clone chunk exists, sn<chunk. sn || sn<chunk. correctedSn
+ *Expected result 1: Write data, and then the clone chunk will be converted to a regular chunk
+ *Case2: Clone chunk exists, sn>chunk. sn, sn==chunk. correctedsn
+ *Expected result 2: Write data and update bitmap, update chunk.sn to sn
+ *Case3: Clone chunk exists, sn==chunk. sn, sn==chunk. correctedsn
+ *Expected result 3: Write data and update bitmap
+ *Case4: Clone chunk exists, sn>chunk. sn, sn>chunk. correctedsn
+ *Expected result 4: Returning StatusConflictError
  */
 TEST_P(CSDataStore_test, WriteChunkTest14) {
     // initialize
@@ -1480,7 +1482,7 @@ TEST_P(CSDataStore_test, WriteChunkTest14) {
     char* buf = new char[length];  // NOLINT
     memset(buf, 0, length);
     CSChunkInfo info;
-    // 创建 clone chunk
+    //Create clone chunk
     {
         char chunk3MetaPage[metapagesize_];  // NOLINT(runtime/arrays)
         memset(chunk3MetaPage, 0, sizeof(chunk3MetaPage));
@@ -1518,7 +1520,7 @@ TEST_P(CSDataStore_test, WriteChunkTest14) {
         ASSERT_EQ(Bitmap::NO_POS, info.bitmap->NextSetBit(0));
     }
 
-    // case1:clone chunk存在
+    //Case1: Clone chunk exists
     {
         LOG(INFO) << "case 1";
         // sn == chunk.sn, sn < chunk.correctedSn
@@ -1543,7 +1545,7 @@ TEST_P(CSDataStore_test, WriteChunkTest14) {
                                         nullptr));
     }
 
-    // case2:chunk存在，且是clone chunk，
+    //Case2: Chunk exists and is a clone chunk,
     {
         LOG(INFO) << "case 2";
         id = 3;
@@ -1565,7 +1567,7 @@ TEST_P(CSDataStore_test, WriteChunkTest14) {
                                         offset,
                                         length,
                                         nullptr));
-        // 检查paste后chunk的状态
+        //Check the status of chunk after paste
         ASSERT_EQ(CSErrorCode::Success, dataStore->GetChunkInfo(id, &info));
         ASSERT_EQ(3, info.curSn);
         ASSERT_EQ(3, info.correctedSn);
@@ -1576,7 +1578,7 @@ TEST_P(CSDataStore_test, WriteChunkTest14) {
         ASSERT_EQ(Bitmap::NO_POS, info.bitmap->NextSetBit(3));
     }
 
-    // case3:chunk存在，且是clone chunk
+    //Case3: Chunk exists and is a clone chunk
     // sn > chunk.sn;sn == correctedsn
     {
         LOG(INFO) << "case 3";
@@ -1585,8 +1587,8 @@ TEST_P(CSDataStore_test, WriteChunkTest14) {
 
         std::unique_ptr<char[]> buf(new char[length]);
 
-        // [2 * blocksize_, 4 * blocksize_)区域已写过
-        // [0, blocksize_)为metapage
+        //The [2 * blocksize_, 4 * blocksize_) area has been written
+        //[0, blocksize_) is the metapage
         EXPECT_CALL(*lfs_, Write(4, Matcher<butil::IOBuf>(_),
                                  offset + metapagesize_, length))
             .Times(1);
@@ -1601,7 +1603,7 @@ TEST_P(CSDataStore_test, WriteChunkTest14) {
                                         offset,
                                         length,
                                         nullptr));
-        // paste后，chunk的状态不变
+        //After paste, the state of the chunk remains unchanged
         ASSERT_EQ(CSErrorCode::Success, dataStore->GetChunkInfo(id, &info));
         ASSERT_EQ(3, info.curSn);
         ASSERT_EQ(3, info.correctedSn);
@@ -1612,12 +1614,12 @@ TEST_P(CSDataStore_test, WriteChunkTest14) {
         ASSERT_EQ(Bitmap::NO_POS, info.bitmap->NextSetBit(4));
     }
 
-    // case3:chunk存在，且是clone chunk
+    //Case3: Chunk exists and is a clone chunk
     // sn > chunk.sn;sn > correctedsn
     {
         LOG(INFO) << "case 4";
         sn = 4;
-        // 不会写数据
+        //Unable to write data
         EXPECT_CALL(*lfs_, Write(4, Matcher<butil::IOBuf>(_), _, _))
             .Times(0);
 
@@ -1630,7 +1632,7 @@ TEST_P(CSDataStore_test, WriteChunkTest14) {
                                         offset,
                                         length,
                                         nullptr));
-        // chunk的状态不变
+        //The state of the chunk remains unchanged
         ASSERT_EQ(CSErrorCode::Success, dataStore->GetChunkInfo(id, &info));
         ASSERT_EQ(3, info.curSn);
         ASSERT_EQ(3, info.correctedSn);
@@ -1653,13 +1655,13 @@ TEST_P(CSDataStore_test, WriteChunkTest14) {
 }
 
 /**
- * WriteChunkTest
- * case:chunk存在,
+ *WriteChunkTest
+ *Case: Chunk exists,
  *      sn==chunk.sn
  *      sn>chunk.correctedSn
  *      chunk.sn<snap.sn
- *      chunk存在快照
- * 预期结果:先cow到snapshot，再写chunk文件
+ *      Chunk has a snapshot
+ *Expected result: First copy to snapshot, then write chunk file
  */
 TEST_P(CSDataStore_test, WriteChunkTest15) {
     // initialize
@@ -1713,13 +1715,13 @@ TEST_P(CSDataStore_test, WriteChunkTest15) {
 }
 
 /**
- * WriteChunkTest
- * case:chunk存在,
- *      sn>chunk.sn
- *      sn>chunk.correctedSn
- *      chunk.sn==snap.sn
- *      chunk存在快照
- * 预期结果:先cow到snapshot，再写chunk文件
+ *WriteChunkTest
+ *Case: Chunk exists,
+ *SN>chunk.sn
+ *Chun. correctedSn
+ *Chunk. sn==snap. sn
+ *Chunk has a snapshot
+ *Expected result: First copy to snapshot, then write chunk file
  */
 TEST_P(CSDataStore_test, WriteChunkTest16) {
     // initialize
@@ -1777,9 +1779,9 @@ TEST_P(CSDataStore_test, WriteChunkTest16) {
 }
 
 /**
- * WriteChunkTest 异常测试
- * case:创建快照文件时出错
- * 预期结果:写失败，不会改变当前chunk状态
+ *WriteChunkTest exception test
+ *Case: Error creating snapshot file
+ *Expected result: Write failed and will not change the current chunk state
  */
 TEST_P(CSDataStore_test, WriteChunkErrorTest1) {
     // initialize
@@ -1862,10 +1864,10 @@ TEST_P(CSDataStore_test, WriteChunkErrorTest1) {
 }
 
 /**
- * WriteChunkTest 异常测试
- * case:创建快照文件成功，更新metapage失败
- * 预期结果:写失败，产生快照文件，但是chunk版本号不会改变
- * 再次写入，不会生成新的快照文件
+ *WriteChunkTest exception test
+ *Case: Successfully created snapshot file, failed to update metadata
+ *Expected result: Write failed, resulting in a snapshot file, but the chunk version number will not change
+ *Write again without generating a new snapshot file
  */
 TEST_P(CSDataStore_test, WriteChunkErrorTest2) {
     // initialize
@@ -1926,10 +1928,10 @@ TEST_P(CSDataStore_test, WriteChunkErrorTest2) {
 }
 
 /**
- * WriteChunkTest 异常测试
- * case:创建快照文件成功，更新metapage成功，cow失败
- * 预期结果:写失败，产生快照文件，chunk版本号发生变更，
- * 快照的bitmap未发生变化，再次写入，仍会进行cow
+ *WriteChunkTest exception test
+ *Case: Successfully created snapshot file, updated metadata, and failed row
+ *Expected result: Write failed, snapshot file generated, chunk version number changed,
+ *The bitmap of the snapshot has not changed. If written again, it will still be cowed
  */
 TEST_P(CSDataStore_test, WriteChunkErrorTest3) {
     // initialize
@@ -2024,7 +2026,7 @@ TEST_P(CSDataStore_test, WriteChunkErrorTest3) {
     ASSERT_EQ(3, info.curSn);
     ASSERT_EQ(2, info.snapSn);
 
-    // 再次写入仍会cow
+    //Writing again will still slow down
     // will copy on write
     LOG(INFO) << "case 4";
     EXPECT_CALL(*lfs_, Read(3, NotNull(), metapagesize_ + offset, length))
@@ -2062,10 +2064,10 @@ TEST_P(CSDataStore_test, WriteChunkErrorTest3) {
 }
 
 /**
- * WriteChunkTest 异常测试
- * case:创建快照文件成功，更新metapage成功，cow成功，写数据失败
- * 预期结果:写失败，产生快照文件，chunk版本号发生变更，
- * 快照的bitmap发生变化，再次写入，直接写chunk文件
+ *WriteChunkTest exception test
+ *Case: Successfully created snapshot file, updated metapage, row, and write data failed
+ *Expected result: Write failed, snapshot file generated, chunk version number changed,
+ *The bitmap of the snapshot has changed, write it again and directly write to the chunk file
  */
 TEST_P(CSDataStore_test, WriteChunkErrorTest4) {
     // initialize
@@ -2122,7 +2124,7 @@ TEST_P(CSDataStore_test, WriteChunkErrorTest4) {
                                     offset,
                                     length,
                                     nullptr));
-    // 再次写入直接写chunk文件
+    //Write directly to the chunk file again
     // will write data
     EXPECT_CALL(*lfs_, Write(3, Matcher<butil::IOBuf>(_),
                              metapagesize_ + offset, length))
@@ -2146,9 +2148,9 @@ TEST_P(CSDataStore_test, WriteChunkErrorTest4) {
 }
 
 /**
- * WriteChunkTest
- * case:chunk 不存在
- * 预期结果:创建chunk文件的时候失败
+ *WriteChunkTest
+ *Case: chunk does not exist
+ *Expected result: Failed to create chunk file
  */
 TEST_P(CSDataStore_test, WriteChunkErrorTest5) {
     // initialize
@@ -2265,14 +2267,14 @@ TEST_P(CSDataStore_test, WriteChunkErrorTest5) {
 }
 
 /*
- * WriteChunkErrorTest
- * 所写chunk为clone chunk
- * case1:请求location过长，导致metapage size超出page size
- * 预期结果1:create clone chunk失败
- * case2:写数据时失败
- * 预期结果2:返回InternalError，chunk状态不变
- * case3:更新metapage时失败
- * 预期结果3:返回InternalError，chunk状态不变
+ *WriteChunkErrorTest
+ *The chunk written is a clone chunk
+ *Case1: The request location is too long, causing the metapage size to exceed the page size
+ *Expected result 1: Create clone chunk failed
+ *Case2: Failed to write data
+ *Expected result 2: InternalError returned, chunk status remains unchanged
+ *Case3: Failed to update metapage
+ *Expected result 3: InternalError returned, chunk status remains unchanged
  */
 TEST_P(CSDataStore_test, WriteChunkErrorTest6) {
     // initialize
@@ -2287,7 +2289,7 @@ TEST_P(CSDataStore_test, WriteChunkErrorTest6) {
     char buf[length];  // NOLINT
     memset(buf, 0, sizeof(buf));
     CSChunkInfo info;
-    // 创建 clone chunk
+    //Create clone chunk
     {
         string longLocation(kLocationLimit+1, 'a');
         EXPECT_EQ(CSErrorCode::InvalidArgError,
@@ -2297,7 +2299,7 @@ TEST_P(CSDataStore_test, WriteChunkErrorTest6) {
                                               chunksize_,
                                               longLocation));
     }
-    // 创建 clone chunk
+    //Create clone chunk
     {
         char chunk3MetaPage[metapagesize_];  // NOLINT(runtime/arrays)
         memset(chunk3MetaPage, 0, sizeof(chunk3MetaPage));
@@ -2327,7 +2329,7 @@ TEST_P(CSDataStore_test, WriteChunkErrorTest6) {
                                               chunksize_,
                                               location));
     }
-    // case1:写数据时失败
+    //Case1: Failed to write data
     {
         id = 3;  // not exist
         offset = blocksize_;
@@ -2346,12 +2348,12 @@ TEST_P(CSDataStore_test, WriteChunkErrorTest6) {
                                         offset,
                                         length,
                                         nullptr));
-        // 检查paste后chunk的状态
+        //Check the status of chunk after paste
         ASSERT_EQ(CSErrorCode::Success, dataStore->GetChunkInfo(id, &info));
         ASSERT_EQ(true, info.isClone);
         ASSERT_EQ(Bitmap::NO_POS, info.bitmap->NextSetBit(0));
     }
-    // case2:更新metapage时失败
+    //Case2: Failed to update metapage
     {
         id = 3;  // not exist
         offset = blocksize_;
@@ -2370,7 +2372,7 @@ TEST_P(CSDataStore_test, WriteChunkErrorTest6) {
                                         offset,
                                         length,
                                         nullptr));
-        // 检查paste后chunk的状态
+        //Check the status of chunk after paste
         ASSERT_EQ(CSErrorCode::Success, dataStore->GetChunkInfo(id, &info));
         ASSERT_EQ(true, info.isClone);
         ASSERT_EQ(Bitmap::NO_POS, info.bitmap->NextSetBit(0));
@@ -2387,9 +2389,9 @@ TEST_P(CSDataStore_test, WriteChunkErrorTest6) {
 }
 
 /**
- * ReadChunkTest
- * case:chunk不存在
- * 预期结果:返回ChunkNotExistError错误码
+ *ReadChunkTest
+ *Case: chunk does not exist
+ *Expected result: ChunkNotExistError error code returned
  */
 TEST_P(CSDataStore_test, ReadChunkTest1) {
     // initialize
@@ -2419,9 +2421,9 @@ TEST_P(CSDataStore_test, ReadChunkTest1) {
 }
 
 /**
- * ReadChunkTest
- * case:chunk存在，读取区域超过chunk大小或者offset和length未对齐
- * 预期结果:返回InvalidArgError错误码
+ *ReadChunkTest
+ *Case: Chunk exists, reading area exceeds chunk size or offset and length are not aligned
+ *Expected result: InvalidArgError error code returned
  */
 TEST_P(CSDataStore_test, ReadChunkTest2) {
     // initialize
@@ -2469,9 +2471,9 @@ TEST_P(CSDataStore_test, ReadChunkTest2) {
 }
 
 /**
- * ReadChunkTest
- * case:正常读取存在的chunk
- * 预期结果:读取成功
+ *ReadChunkTest
+ *Case: Normal reading of existing chunks
+ *Expected result: read successfully
  */
 TEST_P(CSDataStore_test, ReadChunkTest3) {
     // initialize
@@ -2504,14 +2506,14 @@ TEST_P(CSDataStore_test, ReadChunkTest3) {
 }
 
 /**
- * ReadChunkTest
- * 读取 clone chunk
- * case1:读取区域未被写过
- * 预期结果:返回PageNerverWrittenError
- * case2:读取区域部分被写过
- * 预期结果:返回PageNerverWrittenError
- * case3:读取区域已被写过
- * 预期结果:返回Success，数据成功写入
+ *ReadChunkTest
+ *Read clone chunk
+ *Case1: The read area has not been written
+ *Expected result: PageNeverWritenError returned
+ *Case2: The read area part has been written
+ *Expected result: PageNeverWritenError returned
+ *Case3: The read area has been written
+ *Expected result: Success returned, data successfully written
  */
 TEST_P(CSDataStore_test, ReadChunkTest4) {
     // initialize
@@ -2551,7 +2553,7 @@ TEST_P(CSDataStore_test, ReadChunkTest4) {
                                             chunksize_,
                                             location));
 
-    // case1: 读取未写过区域
+    //Case1: Read unwritten area
     off_t offset = 1 * blocksize_;
     size_t length = blocksize_;
     char buf[2 * length];  // NOLINT
@@ -2565,7 +2567,7 @@ TEST_P(CSDataStore_test, ReadChunkTest4) {
                                    offset,
                                    length));
 
-    // case2: 读取区域部分被写过
+    //Case2: The read area part has been written
     offset = 0;
     length = 2 * blocksize_;
     EXPECT_CALL(*lfs_, Read(_, _, _, _))
@@ -2577,7 +2579,7 @@ TEST_P(CSDataStore_test, ReadChunkTest4) {
                                    offset,
                                    length));
 
-    // case3: 读取区域已写过
+    //Case3: The read area has been written
     offset = 0;
     length = blocksize_;
     EXPECT_CALL(*lfs_, Read(4, NotNull(), offset + metapagesize_, length))
@@ -2600,9 +2602,9 @@ TEST_P(CSDataStore_test, ReadChunkTest4) {
 }
 
 /**
- * ReadChunkErrorTest
- * case:读chunk文件时出错
- * 预期结果:读取失败，返回InternalError
+ *ReadChunkErrorTest
+ *Case: Error reading chunk file
+ *Expected result: Read failed, returned InternalError
  */
 TEST_P(CSDataStore_test, ReadChunkErrorTest1) {
     // initialize
@@ -2635,9 +2637,9 @@ TEST_P(CSDataStore_test, ReadChunkErrorTest1) {
 }
 
 /**
- * ReadSnapshotChunkTest
- * case:chunk不存在
- * 预期结果:返回ChunkNotExistError错误码
+ *ReadSnapshotChunkTest
+ *Case: chunk does not exist
+ *Expected result: ChunkNotExistError error code returned
  */
 TEST_P(CSDataStore_test, ReadSnapshotChunkTest1) {
     // initialize
@@ -2668,9 +2670,9 @@ TEST_P(CSDataStore_test, ReadSnapshotChunkTest1) {
 }
 
 /**
- * ReadSnapshotChunkTest
- * case:chunk存在，请求版本号等于chunk版本号
- * 预期结果:读chunk的数据
+ *ReadSnapshotChunkTest
+ *Case: Chunk exists, request version number equal to Chunk version number
+ *Expected result: Read chunk data
  */
 TEST_P(CSDataStore_test, ReadSnapshotChunkTest2) {
     // initialize
@@ -2730,9 +2732,9 @@ TEST_P(CSDataStore_test, ReadSnapshotChunkTest2) {
 }
 
 /**
- * ReadSnapshotChunkTest
- * case:chunk存在，请求版本号等于snapshot版本号
- * 预期结果:读快照的数据
+ *ReadSnapshotChunkTest
+ *Case: Chunk exists, request version number equal to snapshot version number
+ *Expected result: Read data from snapshot
  */
 TEST_P(CSDataStore_test, ReadSnapshotChunkTest3) {
     // initialize
@@ -2809,9 +2811,9 @@ TEST_P(CSDataStore_test, ReadSnapshotChunkTest3) {
 }
 
 /**
- * ReadSnapshotChunkTest
- * case:chunk存在，但是请求的版本号不存在
- * 预期结果:返回ChunkNotExistError错误码
+ *ReadSnapshotChunkTest
+ *Case: Chunk exists, but the requested version number does not exist
+ *Expected result: ChunkNotExistError error code returned
  */
 TEST_P(CSDataStore_test, ReadSnapshotChunkTest4) {
     // initialize
@@ -2842,9 +2844,9 @@ TEST_P(CSDataStore_test, ReadSnapshotChunkTest4) {
 }
 
 /**
- * ReadSnapshotChunkErrorTest
- * case:读快照时失败
- * 预期结果:返回InternalError
+ *ReadSnapshotChunkErrorTest
+ *Case: Failed to read snapshot
+ *Expected result: InternalError returned
  */
 TEST_P(CSDataStore_test, ReadSnapshotChunkErrorTest1) {
     // initialize
@@ -2918,9 +2920,9 @@ TEST_P(CSDataStore_test, ReadSnapshotChunkErrorTest1) {
 }
 
 /**
- * ReadSnapshotChunkErrorTest
- * case:chunk存在，请求版本号等于chunk版本号,读数据时失败
- * 预期结果:返回InternalError
+ *ReadSnapshotChunkErrorTest
+ *Case: Chunk exists, request version number is equal to Chunk version number, failed while reading data
+ *Expected result: InternalError returned
  */
 TEST_P(CSDataStore_test, ReadSnapshotChunkErrorTest2) {
     // initialize
@@ -3009,9 +3011,9 @@ TEST_P(CSDataStore_test, ReadChunkMetaDataTest2) {
 
 
 /**
- * DeleteChunkTest
- * case:chunk不存在
- * 预期结果:返回成功
+ *DeleteChunkTest
+ *Case: chunk does not exist
+ *Expected result: returned successfully
  */
 TEST_P(CSDataStore_test, DeleteChunkTest1) {
     // initialize
@@ -3034,9 +3036,9 @@ TEST_P(CSDataStore_test, DeleteChunkTest1) {
 }
 
 /**
- * DeleteChunkTest
- * case:chunk存在快照文件
- * 预期结果:返回Success， chunk被删除，快照被删除
+ *DeleteChunkTest
+ *Case: Chunk has a snapshot file present
+ *Expected result: Success returned, chunk deleted, snapshot deleted
  */
 TEST_P(CSDataStore_test, DeleteChunkTest2) {
     // initialize
@@ -3063,8 +3065,8 @@ TEST_P(CSDataStore_test, DeleteChunkTest2) {
 }
 
 /**
- * case:chunk存在,快照文件不存在
- * 预期结果:返回成功
+ *Case: Chunk exists, snapshot file does not exist
+ *Expected result: returned successfully
  */
 TEST_P(CSDataStore_test, DeleteChunkTest3) {
     // initialize
@@ -3090,12 +3092,12 @@ TEST_P(CSDataStore_test, DeleteChunkTest3) {
 }
 
 /**
- * DeleteChunkTest
- * chunk存在,快照文件不存在
- * case1: sn<chunkinfo.sn
- * 预期结果1:返回BackwardRequestError
- * case2: sn>chunkinfo.sn
- * 预期结果2:返回成功
+ *DeleteChunkTest
+ *Chunk exists, snapshot file does not exist
+ *Case1: sn<chunkinfo.sn
+ *Expected result 1: BackwardRequestError returned
+ *Case2: sn>chunkinfo.sn
+ *Expected result 2: Success returned
  */
 TEST_P(CSDataStore_test, DeleteChunkTest4) {
     // initialize
@@ -3135,9 +3137,9 @@ TEST_P(CSDataStore_test, DeleteChunkTest4) {
 }
 
 /**
- * DeleteChunkErrorTest
- * case:chunk存在,快照文件不存在,recyclechunk时出错
- * 预期结果:返回成功
+ *DeleteChunkErrorTest
+ *Case: Chunk exists, snapshot file does not exist, error occurred during recyclechunk
+ *Expected result: returned successfully
  */
 TEST_P(CSDataStore_test, DeleteChunkErrorTest1) {
     // initialize
@@ -3162,9 +3164,9 @@ TEST_P(CSDataStore_test, DeleteChunkErrorTest1) {
 }
 
 /**
- * DeleteSnapshotChunkOrCorrectSnTest
- * case:chunk不存在
- * 预期结果:返回成功
+ *DeleteSnapshotChunkOrCorrectSnTest
+ *Case: chunk does not exist
+ *Expected result: returned successfully
  */
 TEST_P(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest1) {
     // initialize
@@ -3185,19 +3187,19 @@ TEST_P(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest1) {
         .Times(1);
 }
 
-// 对于DeleteSnapshotChunkOrCorrectSn来说，内部主要有两个操作
-// 一个是删除快照文件，一个是修改correctedSn
-// 当存在快照文件时，fileSn>=chunk的sn是判断是否要删除快照的唯一条件
-// 对于correctedSn来说，fileSn大于chunk的sn以及correctedSn是判断
-// 是否要修改correctedSn的唯一条件
+//For DeleteSnapshotChunkOrCorrectSn, there are two main internal operations
+//One is to delete the snapshot file, and the other is to modify correctedSn
+//When there is a snapshot file, the sn of fileSn>=chunk is the only condition to determine whether to delete the snapshot
+//For correctedSn, if fileSn is greater than chunk's sn and correctedSn is the judgment
+//Do you want to modify the unique condition for correctedSn
 
 /**
- * DeleteSnapshotChunkOrCorrectSnTest
- * case:chunk存在,snapshot存在
- *      fileSn >= chunk的sn
- *      fileSn == chunk的correctedSn
- *      chunk.sn>snap.sn
- * 预期结果:删除快照，不会修改correctedSn,返回成功
+ *DeleteSnapshotChunkOrCorrectSnTest
+ *Case: Chunk exists, snapshot exists
+ *      FileSn>=Chunk's sn
+ *      FileSn==correctedSn of chunk
+ *      Chunk. sn>snap. sn
+ *Expected result: Delete snapshot without modifying correctedSn, return success
  */
 TEST_P(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest2) {
     // initialize
@@ -3235,11 +3237,11 @@ TEST_P(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest2) {
 }
 
 /**
- * DeleteSnapshotChunkOrCorrectSnTest
- * case:chunk存在,snapshot存在
- *      fileSn < chunk的sn
- *      此时无论correctSn为何值都不会修改correctedSn
- * 预期结果:返回成功，不会删除快照,不会修改correctedSn
+ *DeleteSnapshotChunkOrCorrectSnTest
+ *Case: Chunk exists, snapshot exists
+ *      FileSn<chunk's sn
+ *      At this point, regardless of the value of correctSn, correctedSn will not be modified
+ *Expected result: Success returned, snapshot will not be deleted, correctedSn will not be modified
  */
 TEST_P(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest3) {
     // initialize
@@ -3267,8 +3269,8 @@ TEST_P(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest3) {
     EXPECT_EQ(CSErrorCode::BackwardRequestError,
               dataStore->DeleteSnapshotChunkOrCorrectSn(id, fileSn));
 
-    // 下则用例用于补充DeleteSnapshotChunkOrCorrectSnTest2用例中
-    // 当 fileSn == sn 时的边界情况
+    //The following use case is used to supplement the DeleteSnapshotChunkOrCorrectSnTest2 use case
+    //Boundary situation when fileSn==sn
     // fileSn == sn
     // fileSn > correctedSn
     fileSn = 3;
@@ -3292,10 +3294,10 @@ TEST_P(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest3) {
 }
 
 /**
- * DeleteSnapshotChunkOrCorrectSnTest
- * case:chunk存在,snapshot存在
- *      fileSn > chunk的sn以及correctedSn
- * 预期结果:删除快照，并修改correctedSn,返回成功
+ *DeleteSnapshotChunkOrCorrectSnTest
+ *Case: Chunk exists, snapshot exists
+ *      FileSn>Chunk's sn and correctedSn
+ *Expected result: Delete the snapshot and modify correctedSn, returning success
  */
 TEST_P(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest4) {
     // initialize
@@ -3326,10 +3328,10 @@ TEST_P(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest4) {
 }
 
 /**
- * DeleteSnapshotChunkOrCorrectSnTest
- * case:chunk存在,snapshot不存在
- *      fileSn <= chunk的sn或correctedSn
- * 预期结果:不会修改correctedSn,返回成功
+ *DeleteSnapshotChunkOrCorrectSnTest
+ *Case: Chunk exists, snapshot does not exist
+ *      FileSn<=SN or correctedSn of chunk
+ *Expected result: CorrectedSn will not be modified, returning success
  */
 TEST_P(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest5) {
     // initialize
@@ -3356,10 +3358,10 @@ TEST_P(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest5) {
 }
 
 /**
- * DeleteSnapshotChunkOrCorrectSnTest
- * case:chunk存在,snapshot不存在
- *      fileSn > chunk的sn及correctedSn
- * 预期结果:修改correctedSn,返回成功
+ *DeleteSnapshotChunkOrCorrectSnTest
+ *Case: Chunk exists, snapshot does not exist
+ *      FileSn>Chunk's sn and correctedSn
+ *Expected result: Modify correctedSn and return success
  */
 TEST_P(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest6) {
     // initialize
@@ -3386,9 +3388,9 @@ TEST_P(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest6) {
 }
 
 /**
- * DeleteSnapshotChunkOrCorrectSnTest
- * case:chunk存在,snapshot不存在，chunk为clone chunk
- * 预期结果:返回StatusConflictError
+ *DeleteSnapshotChunkOrCorrectSnTest
+ *Case: chunk exists, snapshot does not exist, chunk is clone chunk
+ *Expected result: Returning StatusConflictError
  */
 TEST_P(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest7) {
     // initialize
@@ -3427,7 +3429,7 @@ TEST_P(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest7) {
                                             chunksize_,
                                             location));
 
-    // 无论correctedSn为多少，都返回StatusConflictError
+    //Returns StatusConflictError regardless of the number of correctedSn
     EXPECT_EQ(CSErrorCode::StatusConflictError,
               dataStore->DeleteSnapshotChunkOrCorrectSn(id, 1));
     EXPECT_EQ(CSErrorCode::StatusConflictError,
@@ -3450,12 +3452,12 @@ TEST_P(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest7) {
 }
 
 /**
- * DeleteSnapshotChunkOrCorrectSnTest
- * case:chunk存在,snapshot存在
- *      fileSn > chunk的sn
- *      fileSn > chunk的correctedSn
+ *DeleteSnapshotChunkOrCorrectSnTest
+ *Case: Chunk exists, snapshot exists
+ *      fileSn > chunk's sn
+ *      fileSn > Chunk's correctedSn
  *      chunk.sn==snap.sn
- * 预期结果:删除快照，不会修改correctedSn,返回成功
+ *Expected result: Delete snapshot without modifying correctedSn, return success
  */
 TEST_P(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest8) {
     // initialize
@@ -3502,12 +3504,12 @@ TEST_P(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest8) {
 }
 
 /**
- * DeleteSnapshotChunkOrCorrectSnTest
- * case:chunk存在,snapshot存在
- *      fileSn == chunk的sn
- *      fileSn == chunk的correctedSn
+ *DeleteSnapshotChunkOrCorrectSnTest
+ *Case: Chunk exists, snapshot exists
+ *      fileSn == SN of chunk
+ *      fileSn == correctedSn of chunk
  *      chunk.sn<snap.sn
- * 预期结果:删除快照，不会修改correctedSn,返回成功
+ *Expected result: Delete snapshot without modifying correctedSn, return success
  */
 TEST_P(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest9) {
     // initialize
@@ -3554,9 +3556,9 @@ TEST_P(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest9) {
 }
 
 /**
- * DeleteSnapshotChunkOrCorrectSnErrorTest
- * case:修改correctedSn时失败
- * 预期结果:返回失败，correctedSn的值未改变
+ *DeleteSnapshotChunkOrCorrectSnErrorTest
+ *Case: Failed to modify correctedSn
+ *Expected result: Failed to return, the value of correctedSn has not changed
  */
 TEST_P(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnErrorTest1) {
     // initialize
@@ -3591,9 +3593,9 @@ TEST_P(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnErrorTest1) {
 }
 
 /**
- * DeleteSnapshotChunkOrCorrectSnErrorTest
- * case:回收snapshot的chunk的时候失败
- * 预期结果:返回失败
+ *DeleteSnapshotChunkOrCorrectSnErrorTest
+ *Case: Failed to recycle snapshot chunks
+ *Expected result: return failed
  */
 TEST_P(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnErrorTest2) {
     // initialize
@@ -3624,19 +3626,19 @@ TEST_P(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnErrorTest2) {
 }
 
 /**
- * CreateCloneChunkTest
- * case1:指定的chunk不存在，输入错误的参数
- * 预期结果1:返回InvalidArgError
- * case2:指定的chunk不存在，指定chunksize与配置一致
- * 预期结果2:创建成功
- * case3:指定的chunk存在，参数与原chunk一致
- * 预期结果3:返回成功
- * case4:指定的chunk存在，参数与原chunk不一致
- * 预期结果4:返回ChunkConflictError，不改变原chunk信息
- * case5:指定的chunk存在，指定chunksize与配置不一致
- * 预期结果5: 返回InvalidArgError，不改变原chunk信息
- * case6:指定的chunk存在，chunk不是clone chunk，参数与chunk信息一致
- * 预期结果:返回ChunkConflictError，不改变原chunk信息
+ *Create CloneChunkTest
+ *Case1: The specified chunk does not exist, incorrect parameter input
+ *Expected result 1: Invalid ArgError returned
+ *Case2: The specified chunk does not exist, the specified chunk size is consistent with the configuration
+ *Expected result 2: Creation successful
+ *Case3: The specified chunk exists, and the parameters are consistent with the original chunk
+ *Expected result 3: Success returned
+ *Case4: The specified chunk exists, and the parameters are inconsistent with the original chunk
+ *Expected result 4: ChunkConflictError returned without changing the original chunk information
+ *Case5: The specified chunk exists, but the specified chunk size is inconsistent with the configuration
+ *Expected result 5: InvalidArgError returned without changing the original chunk information
+ *Case6: The specified chunk exists, but the chunk is not a clone chunk. The parameters are consistent with the chunk information
+ *Expected result: ChunkConflictError returned without changing the original chunk information
  */
 TEST_P(CSDataStore_test, CreateCloneChunkTest) {
     // initialize
@@ -3652,7 +3654,7 @@ TEST_P(CSDataStore_test, CreateCloneChunkTest) {
     shared_ptr<Bitmap> bitmap = make_shared<Bitmap>(chunksize_ / blocksize_);
     FakeEncodeChunk(chunk3MetaPage, correctedSn, sn, bitmap, location);
 
-    // case1:输入错误的参数
+    //Case1: Input incorrect parameters
     {
         // size != chunksize
         EXPECT_EQ(CSErrorCode::InvalidArgError,
@@ -3679,7 +3681,7 @@ TEST_P(CSDataStore_test, CreateCloneChunkTest) {
                                               ""));
     }
 
-    // case2:指定的chunk不存在，指定chunksize与配置一致
+    //Case2: The specified chunk does not exist, the specified chunk size is consistent with the configuration
     {
         // create new chunk and open it
         string chunk3Path = string(baseDir) + "/" +
@@ -3703,7 +3705,7 @@ TEST_P(CSDataStore_test, CreateCloneChunkTest) {
                                               correctedSn,
                                               chunksize_,
                                               location));
-        // 检查生成的clone chunk信息
+        //Check the generated clone chunk information
         ASSERT_EQ(CSErrorCode::Success, dataStore->GetChunkInfo(id, &info));
         ASSERT_EQ(id, info.chunkId);
         ASSERT_EQ(sn, info.curSn);
@@ -3714,7 +3716,7 @@ TEST_P(CSDataStore_test, CreateCloneChunkTest) {
         ASSERT_EQ(Bitmap::NO_POS, info.bitmap->NextSetBit(0));
     }
 
-    // case3:指定的chunk存在，参数与原chunk一致
+    //Case3: The specified chunk exists, and the parameters are consistent with the original chunk
     {
         EXPECT_EQ(CSErrorCode::Success,
                   dataStore->CreateCloneChunk(id,
@@ -3722,7 +3724,7 @@ TEST_P(CSDataStore_test, CreateCloneChunkTest) {
                                               correctedSn,
                                               chunksize_,
                                               location));
-        // 检查生成的clone chunk信息
+        //Check the generated clone chunk information
         ASSERT_EQ(CSErrorCode::Success, dataStore->GetChunkInfo(id, &info));
         ASSERT_EQ(id, info.chunkId);
         ASSERT_EQ(sn, info.curSn);
@@ -3733,31 +3735,31 @@ TEST_P(CSDataStore_test, CreateCloneChunkTest) {
         ASSERT_EQ(Bitmap::NO_POS, info.bitmap->NextSetBit(0));
     }
 
-    // case4:指定的chunk存在，参数与原chunk不一致
-    // 返回ChunkConflictError，但是不会改变原chunk信息
+    //Case4: The specified chunk exists, and the parameters are inconsistent with the original chunk
+    //Returns ChunkConflictError, but does not change the original chunk information
     {
-        // 版本不一致
+        //Version inconsistency
         EXPECT_EQ(CSErrorCode::ChunkConflictError,
                   dataStore->CreateCloneChunk(id,
                                               sn + 1,
                                               correctedSn,
                                               chunksize_,
                                               location));
-        // correctedSn不一致
+        //Inconsistent correctedSn
         EXPECT_EQ(CSErrorCode::ChunkConflictError,
                   dataStore->CreateCloneChunk(id,
                                               sn,
                                               correctedSn + 1,
                                               chunksize_,
                                               location));
-        // location不一致
+        //Inconsistent location
         EXPECT_EQ(CSErrorCode::ChunkConflictError,
                   dataStore->CreateCloneChunk(id,
                                               sn,
                                               correctedSn,
                                               chunksize_,
                                               "temp"));
-        // 检查生成的clone chunk信息
+        //Check the generated clone chunk information
         ASSERT_EQ(CSErrorCode::Success, dataStore->GetChunkInfo(id, &info));
         ASSERT_EQ(id, info.chunkId);
         ASSERT_EQ(sn, info.curSn);
@@ -3768,8 +3770,8 @@ TEST_P(CSDataStore_test, CreateCloneChunkTest) {
         ASSERT_EQ(Bitmap::NO_POS, info.bitmap->NextSetBit(0));
     }
 
-    // case5:指定的chunk存在，指定chunksize与配置不一致
-    // 返回InvalidArgError，但是不会改变原chunk信息
+    //Case5: The specified chunk exists, but the specified chunk size is inconsistent with the configuration
+    //Returns InvalidArgError, but does not change the original chunk information
     {
         EXPECT_EQ(CSErrorCode::InvalidArgError,
                   dataStore->CreateCloneChunk(id,
@@ -3777,7 +3779,7 @@ TEST_P(CSDataStore_test, CreateCloneChunkTest) {
                                               correctedSn,
                                               chunksize_ + metapagesize_,
                                               location));
-        // 检查生成的clone chunk信息
+        //Check the generated clone chunk information
         ASSERT_EQ(CSErrorCode::Success, dataStore->GetChunkInfo(id, &info));
         ASSERT_EQ(id, info.chunkId);
         ASSERT_EQ(sn, info.curSn);
@@ -3788,9 +3790,9 @@ TEST_P(CSDataStore_test, CreateCloneChunkTest) {
         ASSERT_EQ(Bitmap::NO_POS, info.bitmap->NextSetBit(0));
     }
 
-    // case6:已存在chunk，chunk不是clone chunk
+    //Case6: Chunk already exists, chunk is not a clone chunk
     {
-        // location 为空
+        //Location is empty
         EXPECT_EQ(CSErrorCode::InvalidArgError,
                   dataStore->CreateCloneChunk(1,  // id
                                               2,  // sn
@@ -3798,7 +3800,7 @@ TEST_P(CSDataStore_test, CreateCloneChunkTest) {
                                               chunksize_,
                                               ""));
 
-        // location 不为空
+        //Location is not empty
         EXPECT_EQ(CSErrorCode::ChunkConflictError,
                   dataStore->CreateCloneChunk(1,  // id
                                               2,  // sn
@@ -3818,9 +3820,9 @@ TEST_P(CSDataStore_test, CreateCloneChunkTest) {
 }
 
 /**
- * CreateCloneChunkErrorTest
- * case:chunk不存在，调chunkFile->Open的时候失败
- * 预期结果:创建clone chunk失败
+ *Create CloneChunkErrorTest
+ *Case: Chunk does not exist, failed when calling chunkFile ->Open
+ *Expected result: Failed to create clone chunk
  */
 TEST_P(CSDataStore_test, CreateCloneChunkErrorTest) {
     // initialize
@@ -3845,7 +3847,7 @@ TEST_P(CSDataStore_test, CreateCloneChunkErrorTest) {
                                           correctedSn,
                                           chunksize_,
                                           location));
-    // 检查生成的clone chunk信息
+    //Check the generated clone chunk information
     ASSERT_EQ(CSErrorCode::ChunkNotExistError,
               dataStore->GetChunkInfo(id, &info));
 
@@ -3858,21 +3860,21 @@ TEST_P(CSDataStore_test, CreateCloneChunkErrorTest) {
 }
 
 /**
- * PasteChunkTedt
- * case1:chunk 不存在
- * 预期结果1:返回ChunkNotExistError
- * case2:chunk存在，请求偏移超过chunk文件大小或偏移长度未对齐
- * 预期结果2:返回InvalidArgError
- * case3:chunk存在，但不是clone chunk
- * 预期结果3:返回成功
- * case4:chunk存在，且是clone chunk，写入区域之前未写过
- * 预期结果4:写入数据并更新bitmap
- * case5:chunk存在，且是clone chunk，写入区域之前已写过
- * 预期结果5:无数据写入，且不会更新bitmap
- * case6:chunk存在，且是clone chunk，部分区域已写过，部分未写过
- * 预期结果6:只写入未写过数据，并更新bitmap
- * case7:遍写整个chunk
- * 预期结果7:数据写入未写过区域，然后clone chunk会被转为普通chunk
+ *PasteChunkTedt
+ *Case1: Chunk does not exist
+ *Expected result 1: ChunkNotExistError returned
+ *Case2: Chunk exists, requested offset exceeds chunk file size or offset length is not aligned
+ *Expected result 2: InvalidArgError returned
+ *Case3: Chunk exists, but not clone chunk
+ *Expected result 3: Success returned
+ *Case4: Chunk exists and is a clone chunk, which has not been written before writing to the region
+ *Expected result 4: Write data and update bitmap
+ *Case5: Chunk exists and is a clone chunk, which has been written before writing to the region
+ *Expected result 5: No data written and Bitmap will not be updated
+ *Case6: Chunk exists and is a clone chunk. Some areas have been written, while others have not
+ *Expected result 6: Only write unwritten data and update bitmap
+ *Case7: Overwrite the entire chunk
+ *Expected result 7: Data is written to an unwritten area, and then the clone chunk will be converted to a regular chunk
  */
 TEST_P(CSDataStore_test, PasteChunkTest1) {
     // initialize
@@ -3887,7 +3889,7 @@ TEST_P(CSDataStore_test, PasteChunkTest1) {
     char* buf = new char[length];
     memset(buf, 0, length);
     CSChunkInfo info;
-    // 创建 clone chunk
+    //Create clone chunk
     {
         char chunk3MetaPage[metapagesize_];  // NOLINT(runtime/arrays)
         memset(chunk3MetaPage, 0, sizeof(chunk3MetaPage));
@@ -3918,7 +3920,7 @@ TEST_P(CSDataStore_test, PasteChunkTest1) {
                                               location));
     }
 
-    // case1:chunk 不存在
+    //Case1: Chunk does not exist
     {
         id = 4;  // not exist
         ASSERT_EQ(CSErrorCode::ChunkNotExistError,
@@ -3928,7 +3930,7 @@ TEST_P(CSDataStore_test, PasteChunkTest1) {
                                         length));
     }
 
-    // case2:chunk存在，请求偏移超过chunk文件大小或偏移长度未对齐
+    //Case2: Chunk exists, requested offset exceeds chunk file size or offset length is not aligned
     {
         id = 3;  // not exist
         offset = chunksize_;
@@ -3953,12 +3955,12 @@ TEST_P(CSDataStore_test, PasteChunkTest1) {
                                         length));
     }
 
-    // case3:chunk存在，但不是clone chunk
+    //Case3: Chunk exists, but not clone chunk
     {
         EXPECT_CALL(*lfs_, Write(_, Matcher<const char*>(NotNull()), _, _))
             .Times(0);
 
-        // 快照不存在
+        //The snapshot does not exist
         id = 2;
         offset = 0;
         length = blocksize_;
@@ -3968,7 +3970,7 @@ TEST_P(CSDataStore_test, PasteChunkTest1) {
                                         offset,
                                         length));
 
-        // 快照存在
+        //Snapshot exists
         id = 1;
         offset = 0;
         ASSERT_EQ(CSErrorCode::Success,
@@ -3978,7 +3980,7 @@ TEST_P(CSDataStore_test, PasteChunkTest1) {
                                         length));
     }
 
-    // case4:chunk存在，且是clone chunk，写入区域之前未写过
+    //Case4: Chunk exists and is a clone chunk, which has not been written before writing to the region
     {
         id = 3;  // not exist
         offset = blocksize_;
@@ -3995,7 +3997,7 @@ TEST_P(CSDataStore_test, PasteChunkTest1) {
                                         buf,
                                         offset,
                                         length));
-        // 检查paste后chunk的状态
+        //Check the status of chunk after paste
         ASSERT_EQ(CSErrorCode::Success, dataStore->GetChunkInfo(id, &info));
         ASSERT_EQ(true, info.isClone);
         ASSERT_EQ(1, info.bitmap->NextSetBit(0));
@@ -4003,7 +4005,7 @@ TEST_P(CSDataStore_test, PasteChunkTest1) {
         ASSERT_EQ(Bitmap::NO_POS, info.bitmap->NextSetBit(3));
     }
 
-    // case5:chunk存在，且是clone chunk，写入区域之前已写过
+    //Case5: Chunk exists and is a clone chunk, which has been written before writing to the region
     {
         id = 3;  // not exist
         offset = blocksize_;
@@ -4019,19 +4021,19 @@ TEST_P(CSDataStore_test, PasteChunkTest1) {
                                         buf,
                                         offset,
                                         length));
-        // paste后，chunk的状态不变
+        //After paste, the state of the chunk remains unchanged
         ASSERT_EQ(CSErrorCode::Success, dataStore->GetChunkInfo(id, &info));
         ASSERT_EQ(true, info.isClone);
         ASSERT_EQ(1, info.bitmap->NextSetBit(0));
         ASSERT_EQ(3, info.bitmap->NextClearBit(1));
         ASSERT_EQ(Bitmap::NO_POS, info.bitmap->NextSetBit(3));
     }
-    // case6:chunk存在，且是clone chunk，部分区域已写过，部分未写过
+    //Case6: Chunk exists and is a clone chunk. Some areas have been written, while others have not
     {
         id = 3;  // not exist
         offset = 0;
         length = 4 * blocksize_;
-        // [2 * blocksize_, 4 * blocksize_)区域已写过，[0, blocksize_)为metapage
+        //[2 * blocksize_, 4 * blocksize_) area has been written, [0, blocksize_) is a metapage
         EXPECT_CALL(*lfs_, Write(4, Matcher<const char*>(NotNull()),
                                  metapagesize_, blocksize_))
             .Times(1);
@@ -4043,19 +4045,19 @@ TEST_P(CSDataStore_test, PasteChunkTest1) {
             .Times(1);
         ASSERT_EQ(CSErrorCode::Success,
                   dataStore->PasteChunk(id, buf, offset, length));
-        // paste后，chunk的状态不变
+        //After paste, the state of the chunk remains unchanged
         ASSERT_EQ(CSErrorCode::Success, dataStore->GetChunkInfo(id, &info));
         ASSERT_EQ(true, info.isClone);
         ASSERT_EQ(0, info.bitmap->NextSetBit(0));
         ASSERT_EQ(4, info.bitmap->NextClearBit(0));
         ASSERT_EQ(Bitmap::NO_POS, info.bitmap->NextSetBit(4));
     }
-    // case7:遍写整个chunk
+    //Case7: Overwrite the entire chunk
     {
         id = 3;  // not exist
         offset = 0;
         length = chunksize_;
-        // [blocksize_, 4 * blocksize_)区域已写过，[0, blocksize_)为metapage
+        //[blocksize_, 4 * blocksize_) area has been written, [0, blocksize_) is a metapage
         EXPECT_CALL(*lfs_, Write(4,
                                  Matcher<const char*>(NotNull()),
                                  metapagesize_ + 4 * blocksize_,
@@ -4069,7 +4071,7 @@ TEST_P(CSDataStore_test, PasteChunkTest1) {
                                         buf,
                                         offset,
                                         length));
-        // paste后，chunk的状态不变
+        //After paste, the state of the chunk remains unchanged
         ASSERT_EQ(CSErrorCode::Success, dataStore->GetChunkInfo(id, &info));
         ASSERT_EQ(false, info.isClone);
         ASSERT_EQ(nullptr, info.bitmap);
@@ -4087,11 +4089,11 @@ TEST_P(CSDataStore_test, PasteChunkTest1) {
 }
 
 /*
- * PasteChunkErrorTest
- * case1:写数据时失败
- * 预期结果1:返回InternalError，chunk状态不变
- * case2:更新metapage时失败
- * 预期结果2:返回InternalError，chunk状态不变
+ *PasteChunkErrorTest
+ *Case1: Failed to write data
+ *Expected result 1: InternalError returned, chunk status remains unchanged
+ *Case2: Failed to update metapage
+ *Expected result 2: InternalError returned, chunk status remains unchanged
  */
 TEST_P(CSDataStore_test, PasteChunkErrorTest1) {
     // initialize
@@ -4106,7 +4108,7 @@ TEST_P(CSDataStore_test, PasteChunkErrorTest1) {
     char* buf = new char[length];  // NOLINT
     memset(buf, 0, length);
     CSChunkInfo info;
-    // 创建 clone chunk
+    //Create clone chunk
     {
         char chunk3MetaPage[metapagesize_];  // NOLINT(runtime/arrays)
         memset(chunk3MetaPage, 0, sizeof(chunk3MetaPage));
@@ -4136,7 +4138,7 @@ TEST_P(CSDataStore_test, PasteChunkErrorTest1) {
                                               chunksize_,
                                               location));
     }
-    // case1:写数据时失败
+    //Case1: Failed to write data
     {
         id = 3;  // not exist
         offset = blocksize_;
@@ -4153,12 +4155,12 @@ TEST_P(CSDataStore_test, PasteChunkErrorTest1) {
                                         buf,
                                         offset,
                                         length));
-        // 检查paste后chunk的状态
+        //Check the status of chunk after paste
         ASSERT_EQ(CSErrorCode::Success, dataStore->GetChunkInfo(id, &info));
         ASSERT_EQ(true, info.isClone);
         ASSERT_EQ(Bitmap::NO_POS, info.bitmap->NextSetBit(0));
     }
-    // case2:更新metapage时失败
+    //Case2: Failed to update metapage
     {
         id = 3;  // not exist
         offset = blocksize_;
@@ -4175,7 +4177,7 @@ TEST_P(CSDataStore_test, PasteChunkErrorTest1) {
                                         buf,
                                         offset,
                                         length));
-        // 检查paste后chunk的状态
+        //Check the status of chunk after paste
         ASSERT_EQ(CSErrorCode::Success, dataStore->GetChunkInfo(id, &info));
         ASSERT_EQ(true, info.isClone);
         ASSERT_EQ(Bitmap::NO_POS, info.bitmap->NextSetBit(0));
@@ -4193,7 +4195,7 @@ TEST_P(CSDataStore_test, PasteChunkErrorTest1) {
 }
 
 /*
- * chunk不存在
+ *Chunk does not exist
  */
 TEST_P(CSDataStore_test, GetHashErrorTest1) {
     // initialize
@@ -4219,7 +4221,7 @@ TEST_P(CSDataStore_test, GetHashErrorTest1) {
 }
 
 /*
- * read报错
+ *Read error
  */
 TEST_P(CSDataStore_test, GetHashErrorTest2) {
     // initialize
@@ -4247,7 +4249,7 @@ TEST_P(CSDataStore_test, GetHashErrorTest2) {
 }
 
 /*
- * 获取datastore状态测试
+ *Obtain Datastore Status Test
  */
 TEST_P(CSDataStore_test, GetStatusTest) {
     // initialize

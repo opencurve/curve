@@ -60,14 +60,14 @@ class AllocStatisticTest : public ::testing::Test {
 
 TEST_F(AllocStatisticTest, test_Init) {
     {
-        // 1. 从etcd中获取当前revision失败
+        //1 Failed to obtain the current revision from ETCD
         LOG(INFO) << "test1......";
         EXPECT_CALL(*mockEtcdClient_, GetCurrentRevision(_)).
             WillOnce(Return(EtcdErrCode::EtcdCanceled));
         ASSERT_EQ(-1, allocStatistic_->Init());
     }
     {
-        // 2. 获取已经存在的logicalPool对应的alloc大小失败
+        //2 Failed to obtain the alloc size corresponding to the existing logicalPool
         LOG(INFO) << "test2......";
         EXPECT_CALL(*mockEtcdClient_, GetCurrentRevision(_)).
             WillOnce(Return(EtcdErrCode::EtcdOK));
@@ -80,7 +80,7 @@ TEST_F(AllocStatisticTest, test_Init) {
         ASSERT_FALSE(allocStatistic_->GetAllocByLogicalPool(1, &alloc));
     }
     {
-        // 3. init成功
+        //3 Init successful
         LOG(INFO) << "test3......";
         std::vector<std::string> values{
             NameSpaceStorageCodec::EncodeSegmentAllocValue(1, 1024)};
@@ -99,8 +99,8 @@ TEST_F(AllocStatisticTest, test_Init) {
 }
 
 TEST_F(AllocStatisticTest, test_PeriodicPersist_CalculateSegmentAlloc) {
-    // 初始化 allocStatistic
-    // 旧值: logicalPooId(1):1024
+    //Initialize allocStatistics
+    //Old value: logicalPooId (1): 1024
     std::vector<std::string> values{
             NameSpaceStorageCodec::EncodeSegmentAllocValue(1, 1024)};
     EXPECT_CALL(*mockEtcdClient_, GetCurrentRevision(_))
@@ -124,19 +124,19 @@ TEST_F(AllocStatisticTest, test_PeriodicPersist_CalculateSegmentAlloc) {
         values.emplace_back(encodeSegment);
     }
 
-    // 1. 在定期持久化线程和统计线程启动前，只能获取旧值
+    //1 Only old values can be obtained before regular persistent threads and statistical threads are started
     int64_t alloc;
     ASSERT_TRUE(allocStatistic_->GetAllocByLogicalPool(1, &alloc));
     ASSERT_EQ(1024, alloc);
     ASSERT_FALSE(allocStatistic_->GetAllocByLogicalPool(2, &alloc));
 
-    // 2. 更新segment的值
+    //2 Update the value of segment
     allocStatistic_->DeAllocSpace(1, 64, 1);
     allocStatistic_->AllocSpace(1, 32, 1);
     ASSERT_TRUE(allocStatistic_->GetAllocByLogicalPool(1, &alloc));
     ASSERT_EQ(1024 - 32, alloc);
 
-    // 设置mock的etcd中segment的值
+    //Set the value of segment in the ETCD of the mock
     // logicalPoolId(1):500 * (1<<30)
     // logicalPoolId(2):501 * (1<<30)
     segment.set_logicalpoolid(2);
@@ -167,7 +167,7 @@ TEST_F(AllocStatisticTest, test_PeriodicPersist_CalculateSegmentAlloc) {
         .WillOnce(Return(EtcdErrCode::EtcdCanceled))
         .WillOnce(DoAll(SetArgPointee<0>(2), Return(EtcdErrCode::EtcdOK)));
 
-    // 设置mock的Put结果
+    //Set the Put result of the mock
     EXPECT_CALL(*mockEtcdClient_, Put(
         NameSpaceStorageCodec::EncodeSegmentAllocKey(1),
         NameSpaceStorageCodec::EncodeSegmentAllocValue(
@@ -198,7 +198,7 @@ TEST_F(AllocStatisticTest, test_PeriodicPersist_CalculateSegmentAlloc) {
         NameSpaceStorageCodec::EncodeSegmentAllocValue(3, 1L << 30)))
         .WillOnce(Return(EtcdErrCode::EtcdOK));
 
-    // 2. 启动定期持久化线程和统计线程
+    //2 Start regular persistence and statistics threads
     for (int i = 1; i <= 2; i++) {
         allocStatistic_->AllocSpace(i, 1L << 30, i + 3);
     }
@@ -211,7 +211,7 @@ TEST_F(AllocStatisticTest, test_PeriodicPersist_CalculateSegmentAlloc) {
     ASSERT_EQ(502L *(1 << 30), alloc);
     std::this_thread::sleep_for(std::chrono::milliseconds(30));
 
-    // 再通过alloc进行更新
+    //Update through alloc again
     for (int i = 1; i <= 2; i++) {
         allocStatistic_->DeAllocSpace(i, 1L << 30, i + 4);
     }

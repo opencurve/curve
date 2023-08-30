@@ -54,89 +54,89 @@ class CopysetCheck : public CurveTool {
     ~CopysetCheck() = default;
 
     /**
-     *  @brief 根据flag检查复制组健康状态
-     *  复制组健康的标准，没有任何副本处于以下状态，下面的顺序按优先级排序，
-     *  即满足上面一条，就不会检查下面一条
-     *  1、leader为空（复制组的信息以leader处的为准，没有leader无法检查）
-     *  2、配置中的副本数量不足
-     *  3、有副本不在线
-     *  4、有副本在安装快照
-     *  5、副本间log index差距太大
-     *  6、对于集群来说，还要判断一下chunkserver上的copyset数量和leader数量是否均衡，
-     *     避免后续会有调度使得集群不稳定
-     *  @param command 要执行的命令，目前有check-copyset，check-chunkserver，
-     *                 check-server，check-cluster等
-     *  @return 成功返回0，失败返回-1
+     * @brief Check the health status of the replication group based on the flag
+     *   The standard for replication group health is that no replica is in the following state. The following order is sorted by priority,
+     *   If the above one is met, the following one will not be checked
+     *   1. The leader is empty (the information of the replication group is based on the leader, and cannot be checked without a leader)
+     *   2. Insufficient number of replicas in the configuration
+     *   3. Some replicas are not online
+     *   4. There is a replica in the installation snapshot
+     *   5. The log index difference between replicas is too large
+     *   6. For a cluster, it is also necessary to determine whether the number of copysets and the number of leaders on the chunkserver are balanced,
+     *        Avoid scheduling that may cause instability in the cluster in the future
+     * @param command The command to be executed by currently includes check copyset, check chunkserver,
+     *                  Check server, check cluster, etc
+     * @return returns 0 for success, -1 for failure
      */
     int RunCommand(const std::string& command) override;
 
     /**
-     *  @brief 打印帮助信息
-     *  @param command 要执行的命令，目前有check-copyset，check-chunkserver，
-     *                 check-server，check-cluster等
+     * @brief Print help information
+     * @param command The command to be executed by currently includes check copyset, check chunkserver,
+     *            Check server, check cluster, etc
      */
     void PrintHelp(const std::string& command) override;
 
     /**
-     *  @brief 返回是否支持该命令
-     *  @param command：执行的命令
-     *  @return true / false
+     * @brief returns whether the command is supported
+     * @param command: The command executed
+     * @return true/false
      */
     static bool SupportCommand(const std::string& command);
 
  private:
    /**
-     *  @brief 初始化
+     * @brief initialization
      */
     int Init();
 
     /**
-     *  @brief 检查单个copyset
-     *  @return 健康返回0，其他情况返回-1
+     * @brief Check a single copyset
+     * @return Health returns 0, otherwise returns -1
      */
     int CheckCopyset();
 
     /**
-     *  @brief 检查chunkserver上所有copyset
-     *  @return 健康返回0，其他情况返回-1
+     * @brief Check all copysets on chunkserver
+     * @return Health returns 0, otherwise returns -1
      */
     int CheckChunkServer();
 
     /**
-     *  @brief 检查server上所有copyset
-     *  @return 健康返回0，其他情况返回-1
+     * @brief Check all copysets on the server
+     * @return Health returns 0, otherwise returns -1
      */
     int CheckServer();
 
     /**
-     *  @brief 检查集群所有copyset
-     *  @return 健康返回0，其他情况返回-1
+     * @brief Check all copysets in the cluster
+     * @return Health returns 0, otherwise returns -1
      */
     int CheckCopysetsInCluster();
 
     /**
-     *  @brief 检查mds端的operator
-     *  @return 无operator返回0，其他情况返回-1
+     * @brief Check the operator on the mds side
+     * @return returns 0 without an operator, otherwise returns -1
      */
     int CheckOperator(const std::string& opName);
 
-    // 打印copyset检查的详细结果
+    //Print detailed results of copyset check
     void PrintDetail();
     void PrintCopySet(const std::set<std::string>& set);
 
-    // 打印检查的结果，一共多少copyset，有多少不健康
+    //Print the results of the inspection, how many copies are there in total, and how many are unhealthy
     void PrintStatistic();
 
-    // 打印有问题的chunkserver列表
+    //Print a list of problematic chunkservers
     void PrintExcepChunkservers();
 
-    // 打印大多数不在线的副本上面的卷
+    //Print the volume on most offline copies
     int PrintMayBrokenVolumes();
 
  private:
-    // 检查copyset的核心逻辑
+    //Check the core logic of copyset
     std::shared_ptr<CopysetCheckCore> core_;
-    // 是否初始化成功过
+    //Has initialization been successful
     bool inited_;
 };
 }  // namespace tool

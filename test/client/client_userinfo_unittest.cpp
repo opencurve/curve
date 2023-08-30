@@ -341,7 +341,7 @@ TEST_F(CurveClientUserAuthFail, CurveSnapClientUserAuthFailTest) {
     delete delfakeret;
 }
 
-// root user测试
+//Root user testing
 TEST_F(CurveClientUserAuthFail, CurveSnapClientRootUserAuthTest) {
     ClientConfigOption opt;
     opt.metaServerOpt.rpcRetryOpt.rpcTimeoutMs = 500;

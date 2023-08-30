@@ -156,7 +156,7 @@ TEST_F(StatusToolTest, InitFail) {
     StatusTool statusTool1(mdsClient_, etcdClient_,
                           copysetCheck_, versionTool_,
                           metricClient_, snapshotClient_);
-    // 1、status命令需要所有的init
+    //1. The status command requires all inits
     EXPECT_CALL(*mdsClient_, Init(_, _))
         .Times(3)
         .WillOnce(Return(-1))
@@ -177,7 +177,7 @@ TEST_F(StatusToolTest, InitFail) {
     ASSERT_EQ(-1, statusTool1.RunCommand("status"));
     ASSERT_EQ(-1, statusTool1.RunCommand("status"));
 
-    // 2、etcd-status命令只需要初始化etcdClinet
+    //2. The etcd-status command only needs to initialize etcdClinet
     StatusTool statusTool2(mdsClient_, etcdClient_,
                           copysetCheck_, versionTool_,
                           metricClient_, snapshotClient_);
@@ -186,7 +186,7 @@ TEST_F(StatusToolTest, InitFail) {
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, statusTool2.RunCommand("etcd-status"));
 
-    // 3、space和其他命令不需要初始化etcdClient
+    //3. Space and other commands do not require initialization of etcdClient
     StatusTool statusTool3(mdsClient_, etcdClient_,
                           copysetCheck_, versionTool_,
                           metricClient_, snapshotClient_);
@@ -200,7 +200,7 @@ TEST_F(StatusToolTest, InitFail) {
     ASSERT_EQ(-1, statusTool3.RunCommand("space"));
     ASSERT_EQ(-1, statusTool3.RunCommand("chunkserver-list"));
 
-    // 4、snapshot-clone-status只需要snapshot clone
+    //4. snapshot-clone-status only requires snapshot clone
     StatusTool statusTool4(mdsClient_, etcdClient_,
                           copysetCheck_, versionTool_,
                           metricClient_, snapshotClient_);
@@ -221,7 +221,7 @@ TEST_F(StatusToolTest, SpaceCmd) {
     std::vector<LogicalPoolInfo> lgPools;
     lgPools.emplace_back(lgPool);
 
-    // 设置Init的期望
+    //Set expectations for Init
     EXPECT_CALL(*mdsClient_, Init(_, _))
         .Times(1)
         .WillOnce(Return(0));
@@ -229,7 +229,7 @@ TEST_F(StatusToolTest, SpaceCmd) {
         .Times(1)
         .WillOnce(Return(0));
 
-    // 1、正常情况
+    //1. Normal situation
     EXPECT_CALL(*mdsClient_, ListLogicalPoolsInCluster(_))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<0>(lgPools),
@@ -255,13 +255,13 @@ TEST_F(StatusToolTest, SpaceCmd) {
     ASSERT_EQ(0, statusTool.RunCommand("space"));
     ASSERT_EQ(-1, statusTool.RunCommand("123"));
 
-    // 2、ListLogicalPoolsInPhysicalPool失败的情况
+    //2. The situation of ListLogicalPoolsInPhysicalPool failure
     EXPECT_CALL(*mdsClient_, ListLogicalPoolsInCluster(_))
         .Times(1)
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, statusTool.RunCommand("space"));
 
-    // 3、获取filesize失败
+    //3. Failed to obtain filesize
     EXPECT_CALL(*mdsClient_, ListLogicalPoolsInCluster(_))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<0>(lgPools),
@@ -271,7 +271,7 @@ TEST_F(StatusToolTest, SpaceCmd) {
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, statusTool.RunCommand("space"));
 
-    // 4、获取metric失败的情况
+    //4. Failure to obtain metric
     EXPECT_CALL(*mdsClient_, ListLogicalPoolsInCluster(_))
         .Times(2)
         .WillRepeatedly(DoAll(SetArgPointee<0>(lgPools),
@@ -288,7 +288,7 @@ TEST_F(StatusToolTest, SpaceCmd) {
     ASSERT_EQ(-1, statusTool.RunCommand("space"));
     ASSERT_EQ(-1, statusTool.RunCommand("space"));
 
-    // 5、获取RecyleBin大小失败的情况
+    //5. Failure in obtaining the size of RecycleBin
     EXPECT_CALL(*mdsClient_, ListLogicalPoolsInCluster(_))
         .Times(1)
         .WillRepeatedly(DoAll(SetArgPointee<0>(lgPools),
@@ -319,13 +319,13 @@ TEST_F(StatusToolTest, ChunkServerCmd) {
                           metricClient_, snapshotClient_);
     statusTool.PrintHelp("chunkserver-list");
     std::vector<ChunkServerInfo> chunkservers;
-    // 加入5个chunkserver，2个offline
+    //Add 5 chunkservers and 2 offline
     ChunkServerInfo csInfo;
     for (uint64_t i = 1; i <= 5; ++i) {
         GetCsInfoForTest(&csInfo, i, i <= 2);
         chunkservers.emplace_back(csInfo);
     }
-    // 设置Init的期望
+    //Set expectations for Init
     EXPECT_CALL(*mdsClient_, Init(_, _))
         .Times(1)
         .WillOnce(Return(0));
@@ -333,7 +333,7 @@ TEST_F(StatusToolTest, ChunkServerCmd) {
         .Times(1)
         .WillOnce(Return(0));
 
-    // 正常情况，有一个chunkserver的UnhealthyRatio大于0
+    //Under normal circumstances, there is a chunkserver with an UnhealthyRatio greater than 0
     EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(
         An<std::vector<ChunkServerInfo>*>()))
         .Times(1)
@@ -349,7 +349,7 @@ TEST_F(StatusToolTest, ChunkServerCmd) {
         .WillRepeatedly(Return(statistics1));
     ASSERT_EQ(0, statusTool.RunCommand("chunkserver-list"));
 
-    // 只显示offline的
+    //Only display offline
     FLAGS_offline = true;
     EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(
         An<std::vector<ChunkServerInfo>*>()))
@@ -358,7 +358,7 @@ TEST_F(StatusToolTest, ChunkServerCmd) {
                         Return(0)));
     ASSERT_EQ(0, statusTool.RunCommand("chunkserver-list"));
 
-    // 只显示unhealthy ratio大于0的
+    //Show only those with unhealthy ratio greater than 0
     EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(
         An<std::vector<ChunkServerInfo>*>()))
         .Times(1)
@@ -376,14 +376,14 @@ TEST_F(StatusToolTest, ChunkServerCmd) {
     FLAGS_unhealthy = true;
     ASSERT_EQ(0, statusTool.RunCommand("chunkserver-list"));
 
-    // list chunkserver失败
+    //List chunkserver failed
     EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(
         An<std::vector<ChunkServerInfo>*>()))
         .Times(1)
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, statusTool.RunCommand("chunkserver-list"));
 
-    // FLAGS_checkCSAlive为true的时候，会发送rpc检查chunkserver在线状态
+    //when FLAGS_checkCSAlive is true, an rpc will be sent to check the online status of the chunkserver
     FLAGS_checkHealth = false;
     FLAGS_checkCSAlive = true;
     EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(
@@ -440,7 +440,7 @@ TEST_F(StatusToolTest, StatusCmdCommon) {
     }
     chunkservers.emplace(1, chunkserverList);
 
-    // 设置Init的期望
+    //Set expectations for Init
     EXPECT_CALL(*mdsClient_, Init(_, _))
         .Times(1)
         .WillOnce(Return(0));
@@ -454,8 +454,8 @@ TEST_F(StatusToolTest, StatusCmdCommon) {
         .Times(1)
         .WillOnce(Return(0));
 
-    // 正常情况
-    // 1、设置cluster的输出
+    //Normal situation
+    //1. Set the output of the cluster
     EXPECT_CALL(*copysetCheck_, CheckCopysetsInCluster())
         .Times(1)
         .WillOnce(Return(0));
@@ -493,12 +493,12 @@ TEST_F(StatusToolTest, StatusCmdCommon) {
         .WillOnce(DoAll(SetArgPointee<1>(10 * DefaultSegmentSize),
                         Return(0)));
 
-    // 设置client status的输出
+    //Set the output of client status
     EXPECT_CALL(*versionTool_, GetClientVersion(_))
         .WillOnce(DoAll(SetArgPointee<0>(clientVersionMap),
                         Return(0)));
 
-    // 2、设置MDS status的输出
+    //2. Set the output of MDS status
     EXPECT_CALL(*mdsClient_, GetCurrentMds())
         .Times(2)
         .WillRepeatedly(Return(mdsAddr));
@@ -509,7 +509,7 @@ TEST_F(StatusToolTest, StatusCmdCommon) {
         .WillOnce(DoAll(SetArgPointee<0>("0.0.1"),
                         Return(0)));
 
-    // 3、设置etcd status的输出
+    //3. Set the output of etcd status
     EXPECT_CALL(*etcdClient_, GetAndCheckEtcdVersion(_, _))
         .Times(2)
         .WillRepeatedly(DoAll(SetArgPointee<0>("3.4.1"),
@@ -520,7 +520,7 @@ TEST_F(StatusToolTest, StatusCmdCommon) {
                         SetArgPointee<1>(onlineState),
                         Return(0)));
 
-    // 设置snapshot clone的输出
+    //Set the output of snapshot clone
     std::vector<std::string> activeAddr = {"127.0.0.1:5555"};
     EXPECT_CALL(*versionTool_, GetAndCheckSnapshotCloneVersion(_, _))
         .WillOnce(DoAll(SetArgPointee<0>("0.0.1"),
@@ -532,7 +532,7 @@ TEST_F(StatusToolTest, StatusCmdCommon) {
         .Times(2)
         .WillRepeatedly(SetArgPointee<0>(onlineState));
 
-    // 4、设置chunkserver status的输出
+    //4. Set the output of chunkserver status
     EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(
         An<std::map<PoolIdType, std::vector<ChunkServerInfo>>*>()))
         .Times(1)
@@ -550,7 +550,7 @@ TEST_F(StatusToolTest, StatusCmdCommon) {
         .WillRepeatedly(Return(true));
     ASSERT_EQ(0, statusTool.RunCommand("status"));
 
-    // 5、设置chunkserver status的输出
+    //5. Set the output of chunkserver status
     EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(
         An<std::map<PoolIdType, std::vector<ChunkServerInfo>>*>()))
         .Times(1)
@@ -564,7 +564,7 @@ TEST_F(StatusToolTest, StatusCmdCommon) {
         .WillRepeatedly(Return(true));
     ASSERT_EQ(0, statusTool.RunCommand("chunkserver-status"));
 
-    // 6、设置mds status的输出
+    //6. Set the output of mds statu
     EXPECT_CALL(*mdsClient_, GetCurrentMds())
         .Times(1)
         .WillOnce(Return(mdsAddr));
@@ -576,7 +576,7 @@ TEST_F(StatusToolTest, StatusCmdCommon) {
                   Return(0)));
     ASSERT_EQ(0, statusTool.RunCommand("mds-status"));
 
-    // 7、设置etcd status的输出
+    //7. Set the output of etcd status
     EXPECT_CALL(*etcdClient_, GetEtcdClusterStatus(_, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<0>(leaderAddr),
@@ -590,7 +590,7 @@ TEST_F(StatusToolTest, StatusCmdError) {
                           copysetCheck_, versionTool_,
                           metricClient_, snapshotClient_);
 
-    // 设置Init的期望
+    //Set expectations for Init
     EXPECT_CALL(*mdsClient_, Init(_, _))
         .Times(1)
         .WillOnce(Return(0));
@@ -611,20 +611,20 @@ TEST_F(StatusToolTest, StatusCmdError) {
     EXPECT_CALL(*copysetCheck_, GetCopysetStatistics())
         .Times(1)
         .WillOnce(Return(statistics2));
-    // 列出物理池失败
+    //Failed to list physical pools
     EXPECT_CALL(*mdsClient_, ListPhysicalPoolsInCluster(_))
         .Times(1)
         .WillRepeatedly(Return(-1));
-    // 列出逻辑池失败
+    //Failed to list logical pools
     EXPECT_CALL(*mdsClient_, ListLogicalPoolsInCluster(_))
         .Times(1)
         .WillRepeatedly(Return(-1));
 
-    // 获取client version失败
+    //Failed to obtain client version
     EXPECT_CALL(*versionTool_, GetClientVersion(_))
         .WillOnce(Return(-1));
 
-    // 2、当前无mds可用
+    //2. Currently, no mds are available
     std::vector<std::string> failedList = {"127.0.0.1:6666", "127.0.0.1:6667"};
     EXPECT_CALL(*versionTool_, GetAndCheckMdsVersion(_, _))
         .WillOnce(DoAll(SetArgPointee<1>(failedList),
@@ -638,7 +638,7 @@ TEST_F(StatusToolTest, StatusCmdError) {
         .Times(2)
         .WillRepeatedly(SetArgPointee<0>(mdsOnlineStatus));
 
-    // 3、GetEtcdClusterStatus失败
+    //3. GetEtcdClusterStatus failed
     EXPECT_CALL(*etcdClient_, GetAndCheckEtcdVersion(_, _))
         .Times(1)
         .WillOnce(Return(-1));
@@ -646,7 +646,7 @@ TEST_F(StatusToolTest, StatusCmdError) {
         .Times(2)
         .WillRepeatedly(Return(-1));
 
-    // 当前无snapshot clone server可用
+    //Currently, no snapshot clone server is available
     EXPECT_CALL(*versionTool_, GetAndCheckSnapshotCloneVersion(_, _))
         .WillOnce(DoAll(SetArgPointee<1>(failedList),
                   Return(0)));
@@ -659,7 +659,7 @@ TEST_F(StatusToolTest, StatusCmdError) {
         .Times(2)
         .WillRepeatedly(SetArgPointee<0>(onlineStatus));
 
-    // 4、获取chunkserver version失败并ListChunkServersInCluster失败
+    //4. Failed to obtain chunkserver version and ListChunkServersInCluster
     EXPECT_CALL(*versionTool_, GetAndCheckChunkServerVersion(_, _))
         .WillOnce(Return(-1));
     EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(
@@ -668,19 +668,19 @@ TEST_F(StatusToolTest, StatusCmdError) {
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, statusTool.RunCommand("status"));
 
-    // 获取mds在线状态失败
+    //Failed to obtain mds online status
     EXPECT_CALL(*mdsClient_, GetCurrentMds())
         .Times(1)
         .WillOnce(Return(std::vector<std::string>()));
     EXPECT_CALL(*mdsClient_, GetMdsOnlineStatus(_))
         .Times(1)
         .WillOnce(SetArgPointee<0>(mdsOnlineStatus));
-    // 获取mdsversion失败
+    //Failed to obtain mdsversion
     EXPECT_CALL(*versionTool_, GetAndCheckMdsVersion(_, _))
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, statusTool.RunCommand("mds-status"));
 
-    // 个别chunkserver获取version失败
+    //Individual chunkservers failed to obtain version
     EXPECT_CALL(*versionTool_, GetAndCheckChunkServerVersion(_, _))
         .WillOnce(DoAll(SetArgPointee<0>("0.0.1"),
                   SetArgPointee<1>(failedList),
@@ -702,55 +702,55 @@ TEST_F(StatusToolTest, IsClusterHeatlhy) {
     std::map<std::string, bool> onlineStatus2 = {{"127.0.0.1:8001", true},
                                                  {"127.0.0.1:8002", false},
                                                  {"127.0.0.1:8003", true}};
-    // 1、copysets不健康
+    //1. Copysets are unhealthy
     EXPECT_CALL(*copysetCheck_, CheckCopysetsInCluster())
         .Times(1)
         .WillOnce(Return(-1));
-    // 2、没有mds可用
+    //2. No mds available
     EXPECT_CALL(*mdsClient_, GetCurrentMds())
         .Times(1)
         .WillOnce(Return(std::vector<std::string>()));
-    // 3、有mds不在线
+    //3. There are MDSs that are not online
     EXPECT_CALL(*mdsClient_, GetMdsOnlineStatus(_))
         .Times(1)
         .WillOnce(SetArgPointee<0>(onlineStatus2));
-    // 4、获取etcd集群状态失败
+    //4. Failed to obtain the ETCD cluster status
     EXPECT_CALL(*etcdClient_, GetEtcdClusterStatus(_, _))
         .Times(1)
         .WillOnce(Return(-1));
-    // 5、没有snapshot-clone-server可用
+    //5. No snapshot-clone-server available
     EXPECT_CALL(*snapshotClient_, GetActiveAddrs())
         .Times(1)
         .WillOnce(Return(std::vector<std::string>()));
-    // 6、有snapshot-clone-server不在线
+    //6. There is snapshot-clone-server that is not online
     EXPECT_CALL(*snapshotClient_, GetOnlineStatus(_))
         .Times(1)
         .WillOnce(SetArgPointee<0>(onlineStatus2));
     ASSERT_FALSE(statusTool.IsClusterHeatlhy());
 
-    // 1、copyset健康
+    //1. Copyset Health
     EXPECT_CALL(*copysetCheck_, CheckCopysetsInCluster())
         .Times(1)
         .WillOnce(Return(0));
-    // 2、超过一个mds在服务
+    //2. More than one mds is in service
     EXPECT_CALL(*mdsClient_, GetCurrentMds())
         .Times(1)
         .WillOnce(Return(std::vector<std::string>(2)));
-    // 3、mds都在线
+    //3. MDS is all online
     EXPECT_CALL(*mdsClient_, GetMdsOnlineStatus(_))
         .Times(1)
         .WillOnce(SetArgPointee<0>(onlineStatus));
-    // 4、etcd没有leader且有etcd不在线
+    //4. ETCD does not have a leader and there are ETCDs that are not online
     EXPECT_CALL(*etcdClient_, GetEtcdClusterStatus(_, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<0>(std::vector<std::string>()),
                         SetArgPointee<1>(onlineStatus2),
                         Return(0)));
-    // 5、有多个snapshot-clone-server可用
+    //5. Multiple snapshot-clone-server are available
     EXPECT_CALL(*snapshotClient_, GetActiveAddrs())
         .Times(1)
         .WillOnce(Return(std::vector<std::string>(2)));
-    // 9、snapshot-clone-server都在线
+    //9. snapshot-clone-server is all online
     EXPECT_CALL(*snapshotClient_, GetOnlineStatus(_))
         .Times(1)
         .WillOnce(SetArgPointee<0>(onlineStatus));
@@ -772,13 +772,13 @@ TEST_F(StatusToolTest, ListClientCmd) {
     for (int i = 0; i < 10; ++i) {
         clientAddrs.emplace_back("127.0.0.1:900" + std::to_string(i));
     }
-    // 成功
+    //Success
     EXPECT_CALL(*mdsClient_, ListClient(_, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<0>(clientAddrs),
                         Return(0)));
     ASSERT_EQ(0, statusTool.RunCommand("client-list"));
-    // 失败
+    //Failed
     EXPECT_CALL(*mdsClient_, ListClient(_, _))
         .Times(1)
         .WillOnce(Return(-1));
@@ -802,13 +802,13 @@ TEST_F(StatusToolTest, ServerList) {
         GetServerInfoForTest(&server, i);
         servers.emplace_back(server);
     }
-    // 成功
+    //Success
     EXPECT_CALL(*mdsClient_, ListServersInCluster(_))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<0>(servers),
                         Return(0)));
     ASSERT_EQ(0, statusTool.RunCommand("server-list"));
-    // 失败
+    //Failed
     EXPECT_CALL(*mdsClient_, ListServersInCluster(_))
         .Times(1)
         .WillOnce(Return(-1));
@@ -832,7 +832,7 @@ TEST_F(StatusToolTest, LogicalPoolList) {
         GetLogicalPoolForTest(i, &lgPool);
         lgPools.emplace_back(lgPool);
     }
-    // 成功
+    //Success
     EXPECT_CALL(*mdsClient_, ListLogicalPoolsInCluster(_))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<0>(lgPools),
@@ -842,7 +842,7 @@ TEST_F(StatusToolTest, LogicalPoolList) {
         .WillOnce(DoAll(SetArgPointee<2>(allocMap),
                         Return(0)));
     ASSERT_EQ(0, statusTool.RunCommand("logical-pool-list"));
-    // 失败
+    //Failed
     EXPECT_CALL(*mdsClient_, ListLogicalPoolsInCluster(_))
         .Times(1)
         .WillOnce(Return(-1));

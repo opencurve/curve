@@ -553,7 +553,7 @@ int S3Adapter::DeleteObjects(const std::list<Aws::String>& keyList) {
     return 0;
 }
 /*
-    // object元数据单独更新还有问题，需要单独的s3接口来支持
+//There are still issues with updating the object metadata separately, and a separate s3 interface is needed to support it
 int S3Adapter::UpdateObjectMeta(const Aws::String &key,
                     const Aws::Map<Aws::String, Aws::String> &meta) {
     Aws::S3::Model::PutObjectRequest request;

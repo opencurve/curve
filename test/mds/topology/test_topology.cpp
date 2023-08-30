@@ -1668,11 +1668,11 @@ TEST_F(TestTopology, UpdateChunkServerDiskStatus_success) {
     ASSERT_TRUE(topology_->GetPhysicalPool(0x11, &pool));
     ASSERT_EQ(100, pool.GetDiskCapacity());
 
-    // 只刷一次
+    //Only brush once
     EXPECT_CALL(*storage_, UpdateChunkServer(_))
         .WillOnce(Return(true));
     topology_->Run();
-    // sleep 等待刷数据库
+    //Sleep waiting to flush the database
     sleep(5);
     topology_->Stop();
 }
@@ -1708,11 +1708,13 @@ TEST_F(TestTopology, UpdateChunkServerRwStateToStorage_success) {
     int ret = topology_->UpdateChunkServerRwState(rwState,  csId);
     ASSERT_EQ(kTopoErrCodeSuccess, ret);
 
-    // 只刷一次
+    //Only brush once
+
     EXPECT_CALL(*storage_, UpdateChunkServer(_))
         .WillOnce(Return(true));
     topology_->Run();
-    // sleep 等待刷数据库
+    //Sleep waiting to flush the database
+
     sleep(5);
     topology_->Stop();
 }
@@ -2716,11 +2718,11 @@ TEST_F(TestTopology, UpdateCopySetTopo_success) {
 
     ASSERT_EQ(kTopoErrCodeSuccess, ret);
 
-    // 只刷一次
+    //Only brush once
     EXPECT_CALL(*storage_, UpdateCopySet(_))
         .WillOnce(Return(true));
     topology_->Run();
-    // sleep 等待刷数据库
+    //Sleep waiting to flush the database
     sleep(5);
     topology_->Stop();
 }

@@ -80,7 +80,7 @@ TEST(ClientSession, LeaseTaskTest) {
     FakeMDS mds(filename);
     mds.Initialize();
     mds.StartService();
-    // 设置leaderid
+    //Set leaderid
     curve::client::EndPoint ep;
     butil::str2endpoint("127.0.0.1", 9176, &ep);
     PeerId pd(ep);

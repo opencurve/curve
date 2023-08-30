@@ -108,7 +108,7 @@ int CurveMetaTool::RunCommand(const std::string& cmd) {
 
 
 int CurveMetaTool::PrintChunkMeta(const std::string& chunkFileName) {
-    // 打开chunk文件
+    //Open chunk file
     int fd = localFS_->Open(chunkFileName.c_str(), O_RDONLY|O_NOATIME);
     if (fd < 0) {
         std::cout << "Fail to open " << chunkFileName << ", "
@@ -116,7 +116,7 @@ int CurveMetaTool::PrintChunkMeta(const std::string& chunkFileName) {
         return -1;
     }
 
-    // 读取chunk头部
+    //Read chunk header
     std::unique_ptr<char[]> buf(new char[FLAGS_pageSize]);
     memset(buf.get(), 0, FLAGS_pageSize);
     int rc = localFS_->Read(fd, buf.get(), 0, FLAGS_pageSize);
@@ -138,13 +138,13 @@ int CurveMetaTool::PrintChunkMeta(const std::string& chunkFileName) {
         return -1;
     }
 
-    // 打印metaPage
+    //Print MetaPage
     std::cout << metaPage;
     return 0;
 }
 
 int CurveMetaTool::PrintSnapshotMeta(const std::string& snapFileName) {
-    // 打开快照文件
+    //Open snapshot file
     int fd = localFS_->Open(snapFileName.c_str(), O_RDONLY|O_NOATIME);
     if (fd < 0) {
         std::cout << "Fail to open " << snapFileName << ", "
@@ -152,7 +152,7 @@ int CurveMetaTool::PrintSnapshotMeta(const std::string& snapFileName) {
         return -1;
     }
 
-    // 读取快照文件头部
+    //Read snapshot file header
     std::unique_ptr<char[]> buf(new char[FLAGS_pageSize]);
     memset(buf.get(), 0, FLAGS_pageSize);
     int rc = localFS_->Read(fd, buf.get(), 0, FLAGS_pageSize);
@@ -174,7 +174,7 @@ int CurveMetaTool::PrintSnapshotMeta(const std::string& snapFileName) {
         return -1;
     }
 
-    // 打印metaPage
+    //Print MetaPage
     std::cout << metaPage;
     return 0;
 }

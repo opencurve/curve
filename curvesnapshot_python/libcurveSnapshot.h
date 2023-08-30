@@ -73,21 +73,21 @@ typedef struct CChunkIDInfo {
     type_uInt32_t    lpid_;
 } CChunkIDInfo_t;
 
-// 保存每个chunk对应的版本信息
+//Save the version information corresponding to each chunk
 typedef struct CChunkInfoDetail {
     type_uInt64_t snSize;
     std::vector<int> chunkSn;
 } CChunkInfoDetail_t;
 
 
-// 保存logicalpool中segment对应的copysetid信息
+//Save the copysetid information corresponding to the segment in the logicalpool
 typedef struct CLogicalPoolCopysetIDInfo {
     type_uInt32_t lpid;
     type_uInt32_t cpidVecSize;
     std::vector<int> cpidVec;
 } LogicalPoolCopysetIDInfo_t;
 
-// 保存每个segment的基本信息
+//Save basic information for each segment
 typedef struct CSegmentInfo {
     type_uInt32_t segmentsize;
     type_uInt32_t chunksize;
@@ -113,43 +113,43 @@ typedef struct CFInfo {
 
 int Init(const char* path);
 /**
- * 创建快照
- * @param: userinfo是用户信息
- * @param: filename为要创建快照的文件名
- * @param: seq是出参，获取该文件的版本信息
- * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
+ *Create a snapshot
+ * @param: userinfo is the user information
+ * @param: filename is the file name to create the snapshot
+ * @param: seq is the output parameter to obtain the version information of the file
+ * @return: Successfully returned LIBCURVE_ERROR::OK, otherwise LIBCURVE_ERROR::FAILED
  */
 int CreateSnapShot(const char* filename,
                    const CUserInfo_t userinfo,
                    type_uInt64_t* seq);
 /**
- * 删除快照
- * @param: userinfo是用户信息
- * @param: filename为要删除的文件名
- * @param: seq该文件的版本信息
- * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
+ *Delete snapshot
+ * @param: userinfo is the user information
+ * @param: filename is the file name to be deleted
+ * @param: seq The version information of this file
+ * @return: Successfully returned LIBCURVE_ERROR::OK, otherwise LIBCURVE_ERROR::FAILED
  */
 int DeleteSnapShot(const char* filename,
                    const CUserInfo_t userinfo,
                    type_uInt64_t seq);
 /**
- * 获取快照对应的文件信息
- * @param: userinfo是用户信息
- * @param: filename为对应的文件名
- * @param: seq为该文件打快照时对应的版本信息
- * @param: snapinfo是出参，保存当前文件的基础信息
- * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
+ *Obtain file information corresponding to the snapshot
+ * @param: userinfo is the user information
+ * @param: filename is the corresponding file name
+ * @param: seq corresponds to the version information when taking a snapshot of the file
+ * @param: snapinfo is a parameter that saves the basic information of the current file
+ * @return: Successfully returned LIBCURVE_ERROR::OK, otherwise LIBCURVE_ERROR::FAILED
  */
 int GetSnapShot(const char* fname, const CUserInfo_t userinfo,
                 type_uInt64_t seq, CFInfo_t* snapinfo);
 /**
- * 获取快照数据segment信息
- * @param: userinfo是用户信息
- * @param: filenam文件名
- * @param: seq是文件版本号信息
- * @param: offset是文件的偏移
- * @param：segInfo是出参，保存当前文件的快照segment信息
- * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
+ *Obtain snapshot data segment information
+ * @param: userinfo is the user information
+ * @param: filenam file name
+ * @param: seq is the file version number information
+ * @param: offset is the offset of the file
+ * @param: segInfo is a parameter that saves the snapshot segment information of the current file
+ * @return: Successfully returned LIBCURVE_ERROR::OK, otherwise LIBCURVE_ERROR::FAILED
  */
 int GetSnapshotSegmentInfo(const char* filename,
                         const CUserInfo_t userinfo,
@@ -158,13 +158,13 @@ int GetSnapshotSegmentInfo(const char* filename,
                         CSegmentInfo *segInfo);
 
 /**
- * 读取seq版本号的快照数据
- * @param: cidinfo是当前chunk对应的id信息
- * @param: seq是快照版本号
- * @param: offset是快照内的offset
- * @param: len是要读取的长度
- * @param: buf是读取缓冲区
- * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
+ *Read snapshot data of seq version number
+ * @param: cininfo is the ID information corresponding to the current chunk
+ * @param: seq is the snapshot version number
+ * @param: offset is the offset within the snapshot
+ * @param: len is the length to be read
+ * @param: buf is a read buffer
+ * @return: Successfully returned LIBCURVE_ERROR::OK, otherwise LIBCURVE_ERROR::FAILED
  */
 int ReadChunkSnapshot(CChunkIDInfo cidinfo,
                         type_uInt64_t seq,
@@ -172,37 +172,37 @@ int ReadChunkSnapshot(CChunkIDInfo cidinfo,
                         type_uInt64_t len,
                         char *buf);
 /**
- * 删除此次转储时产生的或者历史遗留的快照
- * 如果转储过程中没有产生快照，则修改chunk的correctedSn
- * @param: cidinfo是当前chunk对应的id信息
- * @param: correctedSeq是chunk需要修正的版本
+ *Delete snapshots generated during this dump or left over from history
+ *If no snapshot is generated during the dump process, modify the correctedSn of the chunk
+ * @param: cininfo is the ID information corresponding to the current chunk
+ * @param: correctedSeq is the version of chunk that needs to be corrected
  */
 int DeleteChunkSnapshotOrCorrectSn(CChunkIDInfo cidinfo,
                                    type_uInt64_t correctedSeq);
 /**
- * 获取chunk的版本信息，chunkInfo是出参
- * @param: cidinfo是当前chunk对应的id信息
- * @param: chunkInfo是快照的详细信息
+ *Obtain the version information of the chunk, where chunkInfo is the output parameter
+ * @param: cininfo is the ID information corresponding to the current chunk
+ * @param: chunkInfo is the detailed information of the snapshot
  */
 int GetChunkInfo(CChunkIDInfo cidinfo, CChunkInfoDetail *chunkInfo);
 /**
- * 获取快照状态
- * @param: userinfo是用户信息
- * @param: filenam文件名
- * @param: seq是文件版本号信息
+ *Get snapshot status
+ * @param: userinfo is the user information
+ * @param: filenam file name
+ * @param: seq is the file version number information
  */
 int CheckSnapShotStatus(const char* filename,
                             const CUserInfo_t userinfo,
                             type_uInt64_t seq,
                             type_uInt32_t* filestatus);
 /**
- * 获取快照分配信息
- * @param: filename是当前文件名
- * @param: offset是当前的文件偏移
- * @param: segmentsize为segment大小
+ *Obtain snapshot allocation information
+ * @param: filename is the current file name
+ * @param: offset is the current file offset
+ * @param: segmentsize is the segment size
  * @param: chunksize
- * @param: userinfo是用户信息
- * @param[out]: segInfo是出参
+ * @param: userinfo is the user information
+ * @param[out]: segInfo is the output parameter
  */
 int GetOrAllocateSegmentInfo(const char* filename,
                             type_uInt64_t offset,
@@ -211,19 +211,19 @@ int GetOrAllocateSegmentInfo(const char* filename,
                             const CUserInfo_t userinfo,
                             CSegmentInfo *segInfo);
 /**
- * @brief lazy 创建clone chunk
+ * @brief lazy Create clone chunk
  * @detail
- *  - location的格式定义为 A@B的形式。
- *  - 如果源数据在s3上，则location格式为uri@s3，uri为实际chunk对象的地址；
- *  - 如果源数据在curvefs上，则location格式为/filename/chunkindex@cs
+ *The format definition of a location is A@B The form of.
+ *- If the source data is on s3, the location format is uri@s3, uri is the address of the actual chunk object;
+ *- If the source data is on curves, the location format is/filename/chunkindex@cs
  *
- * @param:location 数据源的url
- * @param:chunkidinfo 目标chunk
- * @param:sn chunk的序列号
- * @param:chunkSize chunk的大小
- * @param:correntSn CreateCloneChunk时候用于修改chunk的correctedSn
+ * @param: URL of the location data source
+ * @param: chunkidinfo target chunk
+ * @param: sn chunk's serial number
+ * @param: chunkSize Chunk size
+ * @param: correntSn used to modify the chunk when creating CloneChunk
  *
- * @return 错误码
+ * @return error code
  */
 int CreateCloneChunk(const char* location,
                             const CChunkIDInfo chunkidinfo,
@@ -232,20 +232,20 @@ int CreateCloneChunk(const char* location,
                             type_uInt64_t chunkSize);
 
 /**
- * @brief 实际恢复chunk数据
+ * @brief Actual recovery chunk data
  *
- * @param:chunkidinfo chunkidinfo
- * @param:offset 偏移
- * @param:len 长度
+ * @param: chunkidinfo chunkidinfo
+ * @param: offset offset
+ * @param: len length
  *
- * @return 错误码
+ * @return error code
  */
 int RecoverChunk(const CChunkIDInfo chunkidinfo,
                             type_uInt64_t offset,
                             type_uInt64_t len);
 
 /**
- * 析构，回收资源
+ *Deconstruct and recycle resources
  */
 void UnInit();
 

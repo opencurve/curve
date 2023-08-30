@@ -37,7 +37,7 @@ IOMetric::IOMetric()
 IOMetric::~IOMetric() {}
 
 int IOMetric::Init(const std::string &prefix) {
-    // 暴露所有的metric
+    //Expose all metrics
     if (reqNum_.expose_as(prefix, "request_num") != 0) {
         LOG(ERROR) << "expose request num failed.";
         return -1;
@@ -96,7 +96,8 @@ void IOMetric::OnResponse(size_t size, int64_t latUs, bool hasError) {
 
 
 int CSIOMetric::Init(const std::string &prefix) {
-    // 初始化io统计项metric
+    //Initialize IO statistics item metric
+
     std::string readPrefix = prefix + "_read";
     std::string writePrefix = prefix + "_write";
     std::string recoverPrefix = prefix + "_recover";
@@ -224,8 +225,10 @@ ChunkServerMetric::ChunkServerMetric()
 ChunkServerMetric *ChunkServerMetric::self_ = nullptr;
 
 ChunkServerMetric *ChunkServerMetric::GetInstance() {
-    // chunkserver metric 在chunkserver启动时初始化创建
-    // 因此创建的时候不会存在竞争，不需要锁保护
+    //Chunkserver metric initializes creation when chunkserver starts
+
+    //Therefore, there will be no competition during creation and lock protection is not required
+
     if (self_ == nullptr) {
         self_ = new ChunkServerMetric;
     }
@@ -245,14 +248,16 @@ int ChunkServerMetric::Init(const ChunkServerMetricOptions &option) {
         return 0;
     }
 
-    // 初始化io统计项metric
+    //Initialize IO statistics item metric
+
     int ret = ioMetrics_.Init(Prefix());
     if (ret < 0) {
         LOG(ERROR) << "Init chunkserver metric failed.";
         return -1;
     }
 
-    // 初始化资源统计
+    //Initialize resource statistics
+
     std::string leaderCountPrefix = Prefix() + "_leader_count";
     leaderCount_ = std::make_shared<bvar::Adder<uint32_t>>(leaderCountPrefix);
 
@@ -278,7 +283,8 @@ int ChunkServerMetric::Init(const ChunkServerMetricOptions &option) {
 }
 
 int ChunkServerMetric::Fini() {
-    // 释放资源，从而将暴露的metric从全局的map中移除
+    //Release resources to remove exposed metrics from the global map
+
     ioMetrics_.Fini();
     leaderCount_ = nullptr;
     chunkLeft_ = nullptr;
@@ -335,8 +341,10 @@ ChunkServerMetric::GetCopysetMetric(const LogicPoolID &logicPoolId,
 int ChunkServerMetric::RemoveCopysetMetric(const LogicPoolID &logicPoolId,
                                            const CopysetID &copysetId) {
     GroupId groupId = ToGroupId(logicPoolId, copysetId);
-    // 这里先保存copyset metric，等remove后再去释放
-    // 防止在读写锁里面去操作metric，导致死锁
+    //Save the copyset metric here first, and then release it after removing it
+
+    //Prevent operating metrics within read write locks, resulting in deadlocks
+
     auto metric = copysetMetricMap_.Get(groupId);
     copysetMetricMap_.Remove(groupId);
     return 0;

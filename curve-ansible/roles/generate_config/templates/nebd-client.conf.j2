@@ -1,28 +1,28 @@
 # part2 socket file address
 nebdserver.serverAddress={{ nebd_data_dir }}/nebd.sock
 
-# 文件锁路径
+#File lock path
 metacache.fileLockPath={{ nebd_data_dir }}/lock
 
-# 同步rpc的最大重试次数
+#Maximum number of retries for synchronous rpc
 request.syncRpcMaxRetryTimes={{ nebd_client_sync_rpc_retry_times }}
-# rpc请求的重试间隔
+#The retry interval for rpc requests
 request.rpcRetryIntervalUs={{ nebd_client_rpc_retry_inverval_us }}
-# rpc请求的最大重试间隔
+#Maximum retry interval for rpc requests
 request.rpcRetryMaxIntervalUs={{ nebd_client_rpc_retry_max_inverval_us }}
-# rpc hostdown情况下的重试时间
+#The retry time in the case of rpc hostdown
 request.rpcHostDownRetryIntervalUs={{ nebd_client_rpc_hostdown_retry_inverval_us }}
-# brpc的健康检查周期时间，单位s
+#The health check cycle time of brpc, in seconds
 request.rpcHealthCheckIntervalS={{ nebd_client_health_check_internal_s }}
-# brpc从rpc失败到进行健康检查的最大时间间隔，单位ms
+#The maximum time interval from rpc failure to health check in ms for brpc
 request.rpcMaxDelayHealthCheckIntervalMs={{ nebd_client_delay_health_check_internal_ms }}
-# rpc发送执行队列个数
+#Number of RPC send execution queues
 request.rpcSendExecQueueNum={{ nebd_client_rpc_send_exec_queue_num }}
 
-# heartbeat间隔
+#Heartbeat interval
 heartbeat.intervalS={{ nebd_client_heartbeat_inverval_s }}
-# heartbeat rpc超时时间
+#Heartbeat RPC timeout
 heartbeat.rpcTimeoutMs={{ nebd_client_heartbeat_rpc_timeout_ms }}
 
-# 日志路径
+#Log Path
 log.path={{ nebd_log_dir }}/client

@@ -20,7 +20,7 @@ package curve.chunkserver;
 option cc_generic_services = true;
 option go_package = "proto/chunk";
 
-// Qos 参数
+//Qos parameters
 message QosRequestParas {
     optional uint32 clientId = 1;
     optional int32 dmclockDelta = 2;
@@ -28,38 +28,38 @@ message QosRequestParas {
 }
 
 message QosResponseParas {
-    optional int32 phase = 1;   // 0: 代表 reservation 阶段; 1: 代表 priority 阶段
+    optional int32 phase = 1;   //0: represents the reservation stage; 1: Representing the priority stage
     optional int32 cost = 2;    //
 }
 
 // For chunk
 enum CHUNK_OP_TYPE {
-    CHUNK_OP_DELETE = 0;            // 删除 chunk
-    CHUNK_OP_READ = 1;              // 读 chunk
-    CHUNK_OP_WRITE = 2;             // 写 chunk
+    CHUNK_OP_DELETE = 0;            //Delete chunk
+    CHUNK_OP_READ = 1;              //Read chunk
+    CHUNK_OP_WRITE = 2;             //Write chunk
     CHUNK_OP_READ_SNAP = 3;         // read chunk snapshot
-    // TODO(wudemiao): 后期替换成CHUNK_OP_DELETE_SNAP_OR_CORRECT_SN，
-    // 保证和chunkserver的接口一致
+    //TODO (wudemiao): later replaced with CHUNK_OP_DELETE_SNAP_OR_CORRECT_SN,
+    //Ensure consistency with chunkserver interface
     CHUNK_OP_DELETE_SNAP = 4;       // delete chunk snapshot
-    CHUNK_OP_CREATE_CLONE = 5;      // 创建clone chunk
-    CHUNK_OP_RECOVER = 6;           // 恢复clone chunk
-    CHUNK_OP_PASTE = 7;             // paste chunk 内部请求
+    CHUNK_OP_CREATE_CLONE = 5;      //Create clone chunk
+    CHUNK_OP_RECOVER = 6;           //Restore clone chunk
+    CHUNK_OP_PASTE = 7;             //Paste chunk internal request
     CHUNK_OP_UNKNOWN = 8;           // unknown Op
     CHUNK_OP_SCAN = 9;              // scan oprequest
 };
 
-// read/write 的实际数据在 rpc 的 attachment 中
+//The actual data of read/write is in the attachment of rpc
 message ChunkRequest {
     required CHUNK_OP_TYPE opType = 1;  // for all
-    required uint32 logicPoolId = 2;    // for all  // logicPoolId 实际上 uint16，但是 proto 没有 uint16
+    required uint32 logicPoolId = 2;    //For all//logicPoolId is actually uint16, but proto does not have uint16
     required uint32 copysetId = 3;      // for all
     required uint64 chunkId = 4;        // for all
     optional uint64 appliedIndex = 5;   // for read
     optional uint32 offset = 6;         // for read/write
-    optional uint32 size = 7;           // for read/write/clone 读取数据大小/写入数据大小/创建快照请求中表示请求创建的chunk大小
+    optional uint32 size = 7;           //For read/write/clone Read data size/Write data size/Create snapshot request represents the chunk size of the request creation
     optional QosRequestParas deltaRho = 8; // for read/write
-    optional uint64 sn = 9;             // for write/read snapshot 写请求中表示文件当前版本号，读快照请求中表示请求的chunk的版本号
-    optional uint64 correctedSn = 10;   // for CreateCloneChunk/DeleteChunkSnapshotOrCorrectedSn 用于修改chunk的correctedSn
+    optional uint64 sn = 9;             //For write/read snapshot, in the write request, represents the current version number of the file, and in the read snapshot request, represents the version number of the requested chunk
+    optional uint64 correctedSn = 10;   //For CreateCloneChunk/DeleteChunkSnapshotOrCorrectedSn used to modify the correctedSn of a chunk
     optional string location = 11;      // for CreateCloneChunk
     optional string cloneFileSource = 12;   // for write/read
     optional uint64 cloneFileOffset = 13;   // for write/read
@@ -72,28 +72,28 @@ message ChunkRequest {
 };
 
 enum CHUNK_OP_STATUS {
-    CHUNK_OP_STATUS_SUCCESS = 0;            // 成功
-    CHUNK_OP_STATUS_REDIRECTED = 1;         // 不是 leader，重定向
-    CHUNK_OP_STATUS_DISK_FAIL = 2;          // 磁盘返回错误
-    CHUNK_OP_STATUS_CRC_FAIL = 3;           // CRC 校验失败
-    CHUNK_OP_STATUS_INVALID_REQUEST = 4;    // 请求参数不对
-    CHUNK_OP_STATUS_NOSPACE = 5;            // 空间不够
-    CHUNK_OP_STATUS_COPYSET_NOTEXIST = 6;   // copyset 不存在
-    CHUNK_OP_STATUS_CHUNK_NOTEXIST = 7;     // chunk或其快照文件不存在
-    CHUNK_OP_STATUS_FAILURE_UNKNOWN = 8;    // 其他错误
-    CHUNK_OP_STATUS_OVERLOAD = 9;           // 过载，表示服务端有过多请求未处理返回
-    CHUNK_OP_STATUS_BACKWARD = 10;          // 请求的版本落后当前chunk的版本
-    CHUNK_OP_STATUS_CHUNK_EXIST = 11;       // chunk已存在
+    CHUNK_OP_STATUS_SUCCESS = 0;            //Success
+    CHUNK_OP_STATUS_REDIRECTED = 1;         //Not a leader, redirect
+    CHUNK_OP_STATUS_DISK_FAIL = 2;          //Disk returned error
+    CHUNK_OP_STATUS_CRC_FAIL = 3;           //CRC verification failed
+    CHUNK_OP_STATUS_INVALID_REQUEST = 4;    //The request parameters are incorrect
+    CHUNK_OP_STATUS_NOSPACE = 5;            //Insufficient space
+    CHUNK_OP_STATUS_COPYSET_NOTEXIST = 6;   //Copyset does not exist
+    CHUNK_OP_STATUS_CHUNK_NOTEXIST = 7;     //Chunk or its snapshot file does not exist
+    CHUNK_OP_STATUS_FAILURE_UNKNOWN = 8;    //Other errors
+    CHUNK_OP_STATUS_OVERLOAD = 9;           //Overload indicates that the server has too many requests that have not been processed and returned
+    CHUNK_OP_STATUS_BACKWARD = 10;          //The requested version falls behind the current chunk version
+    CHUNK_OP_STATUS_CHUNK_EXIST = 11;       //Chunk already exists
     CHUNK_OP_STATUS_EPOCH_TOO_OLD = 12;     // request epoch too old
 };
 
 message ChunkResponse {
     required CHUNK_OP_STATUS status = 1;
-    optional string redirect = 2;       // 自己不是 leader，重定向给 leader
-    optional uint64 appliedIndex = 3;   // 返回当前最新的 committedIndex, 注意 read 和 write 都要返回
+    optional string redirect = 2;       //I am not the leader, redirect to the leader
+    optional uint64 appliedIndex = 3;   //Return the latest committedIndex, note that both read and write must be returned
     optional QosResponseParas phaseCost = 4; // for read/write
-    optional uint64 chunkSn = 5;        // for GetChunkInfo 表示chunk文件版本号，0表示不存在
-    optional uint64 snapSn = 6;         // for GetChunkInfo 表示chunk文件快照的版本号，0表示不存在
+    optional uint64 chunkSn = 5;        //For GetChunkInfo represents the version number of the chunk file, while 0 indicates that it does not exist
+    optional uint64 snapSn = 6;         //For GetChunkInfo represents the version number of the Chunk file snapshot, while 0 indicates that it does not exist
 };
 
 message GetChunkInfoRequest {
@@ -104,8 +104,8 @@ message GetChunkInfoRequest {
 
 message GetChunkInfoResponse {
     required CHUNK_OP_STATUS status = 1;
-    optional string redirect = 2;       // 自己不是 leader，重定向给 leader
-    repeated uint64 chunkSn = 3;        // chunk 版本号 和 snapshot 版本号
+    optional string redirect = 2;       //I am not the leader, redirect to the leader
+    repeated uint64 chunkSn = 3;        //Chunk version number and snapshot version number
 };
 
 message GetChunkHashRequest {
@@ -118,7 +118,7 @@ message GetChunkHashRequest {
 
 message GetChunkHashResponse {
     required CHUNK_OP_STATUS status = 1;
-    optional string hash = 2;   // 能标志chunk数据状态的hash值，一般是crc32c
+    optional string hash = 2;   //The hash value that can indicate the status of chunk data, usually crc32c
 };
 
 message CreateS3CloneChunkRequest {
@@ -131,7 +131,7 @@ message CreateS3CloneChunkRequest {
 
 message CreateS3CloneChunkResponse {
     required CHUNK_OP_STATUS status = 1;
-    optional string redirect = 2;       // 自己不是 leader，重定向给 leader
+    optional string redirect = 2;       //I am not the leader, redirect to the leader
 };
 
 message UpdateEpochRequest {

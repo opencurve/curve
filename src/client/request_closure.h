@@ -74,35 +74,35 @@ class CURVE_CACHELINE_ALIGNMENT RequestClosure
     }
 
     /**
-     * @brief 获取当前closure属于哪个request
+     * @brief to obtain which request the current closure belongs to
      */
     virtual RequestContext* GetReqCtx() {
         return reqCtx_;
     }
 
     /**
-     * @brief 获取当前request属于哪个iotracker
+     * @brief: Obtain which Iotracker the current request belongs to
      */
     virtual IOTracker* GetIOTracker() {
         return tracker_;
     }
 
     /**
-     * @brief 设置当前属于哪一个iotracker
+     * @brief Set which Iotracker currently belongs to
      */
     void SetIOTracker(IOTracker* ioTracker) {
         tracker_ = ioTracker;
     }
 
     /**
-     * @brief 设置所属的iomanager
+     * @brief Set the iomanager to which it belongs
      */
     void SetIOManager(IOManager* ioManager) {
         ioManager_ = ioManager;
     }
 
     /**
-     * @brief 设置当前closure重试次数
+     * @brief Set the current closure retry count
      */
     void IncremRetriedTimes() {
         retryTimes_++;
@@ -113,35 +113,35 @@ class CURVE_CACHELINE_ALIGNMENT RequestClosure
     }
 
     /**
-     * 设置metric
+     *Set metric
      */
     void SetFileMetric(FileMetric* fm) {
         metric_ = fm;
     }
 
     /**
-     * 获取metric指针
+     *Get metric pointer
      */
     FileMetric* GetMetric() const {
         return metric_;
     }
 
     /**
-     * 获取下一次rpc超时时间, rpc超时时间实现了指数退避的策略
+     *Obtain the next RPC timeout, which implements an exponential backoff strategy
      */
     uint64_t GetNextTimeoutMS() const {
         return nextTimeoutMS_;
     }
 
     /**
-     * 设置下次重试超时时间
+     *Set the next retry timeout time
      */
     void SetNextTimeOutMS(uint64_t timeout) {
         nextTimeoutMS_ = timeout;
     }
 
     /**
-     * 设置当前的IO为悬挂IO
+     *Set the current IO as suspended IO
      */
     void SetSuspendRPCFlag() {
         suspendRPC_ = true;
@@ -152,31 +152,31 @@ class CURVE_CACHELINE_ALIGNMENT RequestClosure
     }
 
  private:
-    // suspend io标志
+    //Suspend io logo
     bool suspendRPC_ = false;
 
     // whether own inflight count
     bool ownInflight_ = false;
 
-    // 当前request的错误码
+    //The error code of the current request
     int errcode_ = -1;
 
-    // 当前request的tracker信息
+    //Tracker information for the current request
     IOTracker* tracker_ = nullptr;
 
-    // closure的request信息
+    //Request information for closures
     RequestContext* reqCtx_ = nullptr;
 
-    // metric信息
+    //Metric Information
     FileMetric* metric_ = nullptr;
 
-    // 重试次数
+    //Number of retries
     uint64_t retryTimes_ = 0;
 
-    // 当前closure属于的iomanager
+    //The iomanager to which the current closure belongs
     IOManager* ioManager_ = nullptr;
 
-    // 下一次rpc超时时间
+    //Next RPC timeout
     uint64_t nextTimeoutMS_ = 0;
 };
 

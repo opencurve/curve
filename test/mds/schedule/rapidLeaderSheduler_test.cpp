@@ -77,7 +77,7 @@ class TestRapidLeaderSchedule : public ::testing::Test {
 
 TEST_F(TestRapidLeaderSchedule, test_logicalPool_not_exist) {
     std::shared_ptr<RapidLeaderScheduler> rapidLeaderScheduler;
-    // 1. mds没有任何logicalpool
+    //1 Mds does not have any logicalpool
     {
         rapidLeaderScheduler = std::make_shared<RapidLeaderScheduler>(
             opt_, topoAdapter_, opController_, 2);
@@ -93,7 +93,7 @@ TEST_F(TestRapidLeaderSchedule, test_logicalPool_not_exist) {
         ASSERT_EQ(kScheduleErrCodeSuccess, rapidLeaderScheduler->Schedule());
     }
 
-    // 2. mds逻辑池列表中没有指定logicalpool
+    //2 No logicalpool specified in the mds logical pool list
     {
         rapidLeaderScheduler = std::make_shared<RapidLeaderScheduler>(
             opt_, topoAdapter_, opController_, 2);
@@ -107,7 +107,7 @@ TEST_F(TestRapidLeaderSchedule, test_logicalPool_not_exist) {
 TEST_F(TestRapidLeaderSchedule, test_initResource_no_need_schedule) {
     std::shared_ptr<RapidLeaderScheduler> rapidLeaderScheduler;
     {
-        // 1. 指定logicalpool中没有chunkserver
+        //1 There is no chunkserver in the specified logicalpool
         EXPECT_CALL(*topoAdapter_, GetLogicalpools())
             .WillOnce(Return(std::vector<PoolIdType>{1}));
         EXPECT_CALL(*topoAdapter_, GetChunkServersInLogicalPool(1))
@@ -121,7 +121,7 @@ TEST_F(TestRapidLeaderSchedule, test_initResource_no_need_schedule) {
     }
 
     {
-        // 2. 指定logicalpool中没有copyset
+        //2 There is no copyset in the specified logicalpool
         EXPECT_CALL(*topoAdapter_, GetLogicalpools())
             .WillOnce(Return(std::vector<PoolIdType>{1}));
         EXPECT_CALL(*topoAdapter_, GetChunkServersInLogicalPool(1))
@@ -141,7 +141,7 @@ TEST_F(TestRapidLeaderSchedule, test_select_target_fail) {
         opt_, topoAdapter_, opController_, 1);
 
     {
-        // 1. copyset的副本数目为1, 不会产生迁移
+        //1 The number of copies for copyset is 1, and migration will not occur
         EXPECT_CALL(*topoAdapter_, GetLogicalpools())
             .WillOnce(Return(std::vector<PoolIdType>{1}));
         EXPECT_CALL(*topoAdapter_, GetChunkServersInLogicalPool(1))
@@ -158,7 +158,7 @@ TEST_F(TestRapidLeaderSchedule, test_select_target_fail) {
     }
 
     {
-        // 2. chunkserver上拥有的leader数目最多相差1, 不会产生迁移
+        //2 The maximum difference in the number of leaders owned on chunkserver is 1, and migration will not occur
         //      chunkserver-1        chunkserver-2        chunkserver-3
         //      copyset-1(leader)      copyset-1            copyset-1
         EXPECT_CALL(*topoAdapter_, GetLogicalpools())
@@ -175,7 +175,7 @@ TEST_F(TestRapidLeaderSchedule, test_select_target_fail) {
 }
 
 TEST_F(TestRapidLeaderSchedule, test_rapid_schedule_success) {
-    // 快速均衡成功
+    //Fast balancing successful
     //      chunkserver-1        chunkserver-2        chunkserver-3
     //      copyset-1(leader)      copyset-1            copyset-1
     //      copyset-2(leader)      copyset-2            copyset-2
@@ -217,7 +217,7 @@ TEST_F(TestRapidLeaderSchedule, test_rapid_schedule_success) {
 }
 
 TEST_F(TestRapidLeaderSchedule, test_rapid_schedule_pendding) {
-    // 快速均衡成功
+    //Fast balancing successful
     //      chunkserver-1        chunkserver-2        chunkserver-3
     //      copyset-1(leader)      copyset-1            copyset-1
     //      copyset-2(leader)      copyset-2            copyset-2

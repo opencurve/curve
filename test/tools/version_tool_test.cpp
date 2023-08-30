@@ -78,7 +78,7 @@ TEST_F(VersionToolTest, GetAndCheckMdsVersion) {
                                  {"127.0.0.1:6668", "127.0.0.1:6669"},
                                  {"127.0.0.1:6670", "127.0.0.1:6671"}};
 
-    // 1、正常情况
+    //1. Normal situation
     EXPECT_CALL(*mdsClient_, GetDummyServerMap())
         .Times(1)
         .WillOnce(ReturnRef(dummyServerMap));
@@ -92,7 +92,7 @@ TEST_F(VersionToolTest, GetAndCheckMdsVersion) {
     ASSERT_EQ("0.0.1", version);
     ASSERT_TRUE(failedList.empty());
 
-    // 2、获取部分mds curve_version失败
+    //2. Obtain partial mds curves_ Version failed
     EXPECT_CALL(*mdsClient_, GetDummyServerMap())
         .Times(1)
         .WillOnce(ReturnRef(dummyServerMap));
@@ -106,7 +106,7 @@ TEST_F(VersionToolTest, GetAndCheckMdsVersion) {
     std::vector<std::string> expectedList = {"127.0.0.1:6667"};
     ASSERT_EQ(expectedList, failedList);
 
-    // 3、dummyServerMap为空
+    //3.dummyServerMap is empty
     std::map<std::string, std::string> dummyServerMap2;
     EXPECT_CALL(*mdsClient_, GetDummyServerMap())
         .Times(1)
@@ -116,7 +116,7 @@ TEST_F(VersionToolTest, GetAndCheckMdsVersion) {
     ASSERT_EQ(-1, versionTool.GetAndCheckMdsVersion(&version, &failedList));
     ASSERT_TRUE(failedList.empty());
 
-    // 4、version不一致
+    //4. Version inconsistency
     EXPECT_CALL(*mdsClient_, GetDummyServerMap())
         .Times(1)
         .WillOnce(ReturnRef(dummyServerMap));
@@ -130,7 +130,7 @@ TEST_F(VersionToolTest, GetAndCheckMdsVersion) {
     ASSERT_EQ(-1, versionTool.GetAndCheckMdsVersion(&version, &failedList));
     ASSERT_TRUE(failedList.empty());
 
-    // 5、老版本mds
+    //5. Old version of mds
     EXPECT_CALL(*mdsClient_, GetDummyServerMap())
         .Times(1)
         .WillOnce(ReturnRef(dummyServerMap));
@@ -151,7 +151,7 @@ TEST_F(VersionToolTest, GetChunkServerVersion) {
         chunkservers.emplace_back(csInfo);
     }
 
-    // 1、正常情况
+    //1. Normal situation
     EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(
         An<std::vector<ChunkServerInfo>*>()))
         .Times(1)
@@ -168,7 +168,7 @@ TEST_F(VersionToolTest, GetChunkServerVersion) {
     ASSERT_EQ("0.0.1", version);
     ASSERT_TRUE(failedList.empty());
 
-    // 2、ListChunkServersInCluster失败
+    //2. ListChunkServersInCluster failed
     EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(
         An<std::vector<ChunkServerInfo>*>()))
         .Times(1)
@@ -176,7 +176,7 @@ TEST_F(VersionToolTest, GetChunkServerVersion) {
     ASSERT_EQ(-1, versionTool.GetAndCheckChunkServerVersion(&version,
                                                             &failedList));
 
-    // 3、获取metric失败
+    //3. Failed to obtain metric
     EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(
         An<std::vector<ChunkServerInfo>*>()))
         .Times(1)
@@ -192,7 +192,7 @@ TEST_F(VersionToolTest, GetChunkServerVersion) {
     std::vector<std::string> expectList = {"127.0.0.1:9191"};
     ASSERT_EQ(expectList, failedList);
 
-    // 4、chunkserverList为空
+    //4. ChunkserverList is empty
     EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(
         An<std::vector<ChunkServerInfo>*>()))
         .Times(1)
@@ -204,7 +204,7 @@ TEST_F(VersionToolTest, GetChunkServerVersion) {
                                                             &failedList));
     ASSERT_TRUE(failedList.empty());
 
-    // 5、version不一致
+    //5. Version inconsistency
     EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(
         An<std::vector<ChunkServerInfo>*>()))
         .Times(1)
@@ -221,7 +221,7 @@ TEST_F(VersionToolTest, GetChunkServerVersion) {
                                                             &failedList));
     ASSERT_TRUE(failedList.empty());
 
-    // 6、老版本
+    //6. Old version
     EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(
         An<std::vector<ChunkServerInfo>*>()))
         .Times(1)
@@ -242,7 +242,7 @@ TEST_F(VersionToolTest, GetClientVersion) {
                 {"127.0.0.1:8000", "127.0.0.1:8001", "127.0.0.1:8002",
                  "127.0.0.1:8003", "127.0.0.1:8004", "127.0.0.1:8005"};
 
-    // 1、正常情况
+    //1. Normal situation
     EXPECT_CALL(*mdsClient_, ListClient(_, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<0>(clientAddrs),
@@ -282,7 +282,7 @@ TEST_F(VersionToolTest, GetClientVersion) {
     ASSERT_EQ(0, versionTool.GetClientVersion(&clientVersionMap));
     ASSERT_EQ(expected, clientVersionMap);
 
-    // 2、ListClient失败
+    //2. ListClient failed
     EXPECT_CALL(*mdsClient_, ListClient(_, _))
         .Times(1)
         .WillOnce(Return(-1));
@@ -296,7 +296,7 @@ TEST_F(VersionToolTest, GetAndCheckSnapshotCloneVersion) {
                                  {"127.0.0.1:6668", "127.0.0.1:6669"},
                                  {"127.0.0.1:6670", "127.0.0.1:6671"}};
 
-    // 1、正常情况
+    //1. Normal situation
     EXPECT_CALL(*snapshotClient_, GetDummyServerMap())
         .Times(1)
         .WillOnce(ReturnRef(dummyServerMap));
@@ -311,7 +311,7 @@ TEST_F(VersionToolTest, GetAndCheckSnapshotCloneVersion) {
     ASSERT_EQ("0.0.1", version);
     ASSERT_TRUE(failedList.empty());
 
-    // 2、获取部分curve_version失败
+    //2. Obtain partial curves_ Version failed
     EXPECT_CALL(*snapshotClient_, GetDummyServerMap())
         .Times(1)
         .WillOnce(ReturnRef(dummyServerMap));
@@ -326,7 +326,7 @@ TEST_F(VersionToolTest, GetAndCheckSnapshotCloneVersion) {
     std::vector<std::string> expectedList = {"127.0.0.1:6667"};
     ASSERT_EQ(expectedList, failedList);
 
-    // 3、dummyServerMap为空
+    //3. DummyServerMap is empty
     std::map<std::string, std::string> dummyServerMap2;
     EXPECT_CALL(*snapshotClient_, GetDummyServerMap())
         .Times(1)
@@ -337,7 +337,7 @@ TEST_F(VersionToolTest, GetAndCheckSnapshotCloneVersion) {
                                                               &failedList));
     ASSERT_TRUE(failedList.empty());
 
-    // 4、version不一致
+    //4. Version inconsistency
     EXPECT_CALL(*snapshotClient_, GetDummyServerMap())
         .Times(1)
         .WillOnce(ReturnRef(dummyServerMap));
@@ -352,7 +352,7 @@ TEST_F(VersionToolTest, GetAndCheckSnapshotCloneVersion) {
                                                               &failedList));
     ASSERT_TRUE(failedList.empty());
 
-    // 5、老版本mds
+    //5. Old version of mds
     EXPECT_CALL(*snapshotClient_, GetDummyServerMap())
         .Times(1)
         .WillOnce(ReturnRef(dummyServerMap));

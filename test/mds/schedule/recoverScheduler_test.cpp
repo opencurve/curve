@@ -218,7 +218,7 @@ TEST_F(TestRecoverSheduler, test_all_chunkServer_online_offline) {
     EXPECT_CALL(*topoAdapter_, GetAvgScatterWidthInLogicalPool(_))
             .WillRepeatedly(Return(90));
     {
-        // 1. 所有chunkserveronline
+        //1 All chunkserveronline
         EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(id1, _))
             .WillOnce(DoAll(SetArgPointee<1>(csInfo1),
                             Return(true)));
@@ -233,7 +233,7 @@ TEST_F(TestRecoverSheduler, test_all_chunkServer_online_offline) {
     }
 
     {
-        // 2. 副本数量大于标准，leader挂掉
+        //2 The number of copies exceeds the standard, and the leader is suspended
         csInfo1.state = OnlineState::OFFLINE;
         EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(id1, _))
             .WillOnce(DoAll(SetArgPointee<1>(csInfo1),
@@ -248,7 +248,7 @@ TEST_F(TestRecoverSheduler, test_all_chunkServer_online_offline) {
     }
 
     {
-        // 3. 副本数量大于标准，follower挂掉
+        //3 The number of copies exceeds the standard, the follower will be suspended
         opController_->RemoveOperator(op.copysetID);
         csInfo1.state = OnlineState::ONLINE;
         csInfo2.state = OnlineState::OFFLINE;
@@ -265,7 +265,7 @@ TEST_F(TestRecoverSheduler, test_all_chunkServer_online_offline) {
     }
 
     {
-        // 4. 副本数目等于标准， follower挂掉
+        //4 The number of copies equals the standard, and the follower will be dropped
         opController_->RemoveOperator(op.copysetID);
         EXPECT_CALL(*topoAdapter_, GetStandardReplicaNumInLogicalPool(_))
             .WillRepeatedly(Return(3));
@@ -297,7 +297,7 @@ TEST_F(TestRecoverSheduler, test_all_chunkServer_online_offline) {
     }
 
     {
-        // 5. 选不出替换chunkserver
+        //5 Unable to select a replacement chunkserver
         opController_->RemoveOperator(op.copysetID);
         EXPECT_CALL(*topoAdapter_, GetChunkServersInLogicalPool(_))
             .WillOnce(Return(std::vector<ChunkServerInfo>{}));
@@ -306,7 +306,7 @@ TEST_F(TestRecoverSheduler, test_all_chunkServer_online_offline) {
     }
 
     {
-        // 6. 在chunkserver上创建copyset失败
+        //6 Failed to create copyset on chunkserver
         EXPECT_CALL(*topoAdapter_, GetStandardReplicaNumInLogicalPool(_))
             .WillRepeatedly(Return(3));
         std::vector<ChunkServerInfo> chunkserverList(

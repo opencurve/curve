@@ -147,7 +147,7 @@ TEST_F(CopysetCheckTest, CheckOneCopyset) {
             {"127.0.0.1:9091", "127.0.0.1:9092", "127.0.0.1:9093"};
     std::string copysetDetail = iobuf.to_string();
 
-    // Init失败的情况
+    //The situation of Init failure
     EXPECT_CALL(*core_, Init(_))
         .Times(1)
         .WillOnce(Return(-1));
@@ -156,16 +156,16 @@ TEST_F(CopysetCheckTest, CheckOneCopyset) {
     EXPECT_CALL(*core_, Init(_))
         .Times(1)
         .WillOnce(Return(0));
-    // 不支持的命令
+    //Unsupported command
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-nothings"));
     copysetCheck.PrintHelp("check-nothins");
-    // 没有指定逻辑池和copyset的话返回失败
+    //If no logical pool and copyset are specified, a failure is returne
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-copyset"));
     FLAGS_logicalPoolId = 1;
     FLAGS_copysetId = 100;
     copysetCheck.PrintHelp("check-copyset");
 
-    // 健康的情况
+    //Healthy situation
     EXPECT_CALL(*core_, CheckOneCopyset(_, _))
         .Times(1)
         .WillOnce(Return(CheckResult::kHealthy));
@@ -180,7 +180,7 @@ TEST_F(CopysetCheckTest, CheckOneCopyset) {
         .WillOnce(ReturnRef(emptySet));
     ASSERT_EQ(0, copysetCheck.RunCommand("check-copyset"));
 
-    // copyset不健康的情况
+    //The unhealthy situation of copyset
     EXPECT_CALL(*core_, CheckOneCopyset(_, _))
         .Times(1)
         .WillOnce(Return(CheckResult::kLogIndexGapTooBig));
@@ -202,12 +202,12 @@ TEST_F(CopysetCheckTest, testCheckChunkServer) {
     EXPECT_CALL(*core_, Init(_))
         .Times(1)
         .WillOnce(Return(0));
-    // 没有指定chunkserver的话报错
+    //Error reported if chunkserver is not specified
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-chunkserver"));
     copysetCheck.PrintHelp("check-chunkserver");
 
-    // 健康的情况
-    // 通过id查询
+    //Healthy situation
+    //Query by ID
     FLAGS_chunkserverId = 1;
     EXPECT_CALL(*core_, CheckCopysetsOnChunkServer(FLAGS_chunkserverId))
         .Times(1)
@@ -225,11 +225,11 @@ TEST_F(CopysetCheckTest, testCheckChunkServer) {
         .Times(1)
         .WillOnce(ReturnRef(emptySet));
     ASSERT_EQ(0, copysetCheck.RunCommand("check-chunkserver"));
-    // id和地址同时指定，报错
+    //Error reported when both ID and address are specified simultaneously
     FLAGS_chunkserverAddr = "127.0.0.1:8200";
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-chunkserver"));
     FLAGS_chunkserverId = 0;
-    // 通过地址查询
+    //Search through address
     EXPECT_CALL(*core_, CheckCopysetsOnChunkServer(FLAGS_chunkserverAddr))
         .Times(1)
         .WillOnce(Return(0));
@@ -247,7 +247,7 @@ TEST_F(CopysetCheckTest, testCheckChunkServer) {
         .WillOnce(ReturnRef(emptySet));
     ASSERT_EQ(0, copysetCheck.RunCommand("check-chunkserver"));
 
-    // 不健康的情况
+    //Unhealthy situation
     EXPECT_CALL(*core_, CheckCopysetsOnChunkServer(FLAGS_chunkserverAddr))
         .Times(1)
         .WillOnce(Return(-1));
@@ -275,12 +275,12 @@ TEST_F(CopysetCheckTest, testCheckServer) {
         .Times(1)
         .WillOnce(Return(0));
 
-    // 没有指定server的话报错
+    //If no server is specified, an error will be reported
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-server"));
     copysetCheck.PrintHelp("check-server");
 
-    // 健康的情况
-    // 通过id查询
+    //Healthy situation
+    //Query by ID
     FLAGS_serverId = 1;
     EXPECT_CALL(*core_, CheckCopysetsOnServer(FLAGS_serverId, _))
         .Times(1)
@@ -299,11 +299,11 @@ TEST_F(CopysetCheckTest, testCheckServer) {
         .Times(1)
         .WillOnce(ReturnRef(emptySet));
     ASSERT_EQ(0, copysetCheck.RunCommand("check-server"));
-    // id和ip同时指定，报错
+    //Error reported when both ID and IP are specified simultaneously
     FLAGS_serverIp = "127.0.0.1";
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-server"));
     FLAGS_serverId = 0;
-    // 通过ip查询
+    //Query through IP
     EXPECT_CALL(*core_, CheckCopysetsOnServer(FLAGS_serverIp, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<1>(chunkservers),
@@ -322,7 +322,7 @@ TEST_F(CopysetCheckTest, testCheckServer) {
         .WillOnce(ReturnRef(emptySet));
     ASSERT_EQ(0, copysetCheck.RunCommand("check-server"));
 
-    // 不健康的情况
+    //Unhealthy situation
     EXPECT_CALL(*core_, CheckCopysetsOnServer(FLAGS_serverIp, _))
         .Times(1)
         .WillOnce(Return(-1));
@@ -348,7 +348,7 @@ TEST_F(CopysetCheckTest, testCheckCluster) {
         .Times(1)
         .WillOnce(Return(0));
 
-    // 健康的情况
+    //Healthy situation
     EXPECT_CALL(*core_, CheckCopysetsInCluster())
         .Times(1)
         .WillOnce(Return(0));
@@ -366,7 +366,7 @@ TEST_F(CopysetCheckTest, testCheckCluster) {
         .WillOnce(ReturnRef(emptySet));
     ASSERT_EQ(0, copysetCheck.RunCommand(kCopysetsStatusCmd));
 
-    // 不健康的情况
+    //Unhealthy situation
     EXPECT_CALL(*core_, CheckCopysetsInCluster())
         .Times(1)
         .WillOnce(Return(-1));
@@ -392,10 +392,10 @@ TEST_F(CopysetCheckTest, testCheckOperator) {
         .Times(1)
         .WillOnce(Return(0));
 
-    // 1、不支持的operator
+    //1. Unsupported operator
     FLAGS_opName = "no_operator";
     ASSERT_EQ(-1, copysetCheck.RunCommand(kCheckOperatorCmd));
-    // 2、transfer leader的operator和total的
+    //2. The operator and total of the transfer leader
     EXPECT_CALL(*core_, CheckOperator(_, FLAGS_leaderOpInterval))
         .Times(2)
         .WillOnce(Return(0))
@@ -404,7 +404,7 @@ TEST_F(CopysetCheckTest, testCheckOperator) {
     ASSERT_EQ(0, copysetCheck.RunCommand(kCheckOperatorCmd));
     FLAGS_opName = kTotalOpName;
     ASSERT_EQ(-1, copysetCheck.RunCommand(kCheckOperatorCmd));
-    // 2、其他operator
+    //2. Other operators
     EXPECT_CALL(*core_, CheckOperator(_, FLAGS_opIntervalExceptLeader))
         .Times(3)
         .WillOnce(Return(10))

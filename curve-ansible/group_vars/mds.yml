@@ -15,7 +15,7 @@
 #  limitations under the License.
 #
 
-# 集群拓扑信息
+#Cluster topology information
 cluster_map:
   servers:
     - name: server1

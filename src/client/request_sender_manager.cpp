@@ -66,7 +66,8 @@ void RequestSenderManager::ResetSenderIfNotHealth(const ChunkServerID& csId) {
         return;
     }
 
-    // 检查是否健康
+    //Check for health
+
     if (iter->second->IsSocketHealth()) {
         return;
     }

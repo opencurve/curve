@@ -72,7 +72,7 @@ class TestLibcbdLibcurve : public ::testing::Test {
 
         mds_ = new FakeMDS(filename);
 
-        // 设置leaderid
+        //Set leaderdid
         EndPoint ep;
         butil::str2endpoint("127.0.0.1", 9110, &ep);
         braft::PeerId pd(ep);

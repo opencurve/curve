@@ -31,7 +31,7 @@
 namespace curve {
 namespace common {
 
-// 计算path2相对于path1的相对路径
+//Calculate the relative path of path2 relative to path1
 inline std::string CalcRelativePath(const std::string &path1,
                                     const std::string &path2) {
     if (path1.empty() || path2.empty()) {

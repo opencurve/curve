@@ -17,8 +17,8 @@
 #  limitations under the License.
 #
 
-# 检测磁盘上disk.meta中记录的uuid与当前磁盘的实际uuid是否相符合
-# 如果不符合, 更新为当前的uuid
+#Check if the uuid recorded in disk. meta on the disk matches the actual uuid of the current disk
+#If not, update to the current uuid
 
 import os
 import hashlib
@@ -26,12 +26,12 @@ import sys
 import subprocess
 
 def __get_umount_disk_list():
-    # 获取需要挂载的设备
+    #Obtain devices that need to be mounted
     cmd = "lsblk -O|grep ATA|awk '{print $1}'"
     out_msg = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
     devlist = out_msg.splitlines()
 
-    # 查看当前设备的挂载状况
+    #View the mounting status of the current device
     umount = []
     for dev in devlist:
         cmd = "lsblk|grep " + dev + "|awk '{print $7}'"
@@ -64,7 +64,7 @@ def __analyse_uuid(kv):
         return ""
     else:
         uuidmd5 = uuidmd5kv[1].replace("\n", "")
-        # 校验
+        #Verification
         if (hashlib.md5(uuid).hexdigest() != uuidmd5):
             print("uuid[%s] not match uuidmd5[%s]" % (uuid, uuidmd5))
             return ""
@@ -72,14 +72,14 @@ def __analyse_uuid(kv):
 
 def __get_recorduuid(disk):
     uuid = ""
-    # 将磁盘挂载到临时目录
+    #Mount the disk to a temporary directory
     cmd = "mkdir -p /data/tmp; mount " + disk + " /data/tmp"
     retCode = subprocess.call(cmd, shell=True)
     if retCode != 0:
         print("Get record uuid in %s fail." % disk)
         return False, uuid
 
-    # 挂载成功，获取记录的uuid
+    #Successfully mounted, obtaining the recorded uuid
     try:
         cmd = "cat /data/tmp/disk.meta"
         out_msg = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
@@ -94,7 +94,7 @@ def __get_recorduuid(disk):
     except subprocess.CalledProcessError as e:
         print("Get file disk.meta from %s fail, reason: %s." % (disk, e))
 
-    # 卸载磁盘
+    #Unmount Disk
     cmd = "umount " + disk + "; rm -fr /data/tmp"
     retCode = subprocess.call(cmd, shell=True)
     if retCode != 0:
@@ -117,16 +117,16 @@ def __cmp_recorduuid_with_actual(umountDisk):
     recordList = {}
     actualList = {}
     for disk in umountDisk:
-       # 获取当前disk上记录的uuid
+       #Obtain the uuid recorded on the current disk
        diskFullName = "/dev/" + disk
        opRes, recorduuid = __get_recorduuid(diskFullName)
        if opRes != True or len(recorduuid) == 0:
            return False, recordList, actualList
 
-       # 获取disk的实际uuid
+       #Obtain the actual uuid of the disk
        actualuuid = __get_actualuuid(disk).replace("\n", "")
 
-       # 比较记录的和实际的是否相同
+       #Compare whether the recorded and actual values are the same
        if actualuuid != recorduuid:
            recordList[disk] = recorduuid
            actualList[disk] = actualuuid
@@ -137,7 +137,7 @@ def __cmp_recorduuid_with_actual(umountDisk):
 
 def __mount_with_atual_uuid(diskPath, record, actual):
     print("%s uuid change from [%s] to [%s]." % (diskPath, record, actual))
-    # 从/etc/fstab中获取对应的挂载目录
+    #Obtain the corresponding mount directory from/etc/fstab
     mntdir = ""
     try:
         cmd = "grep " + record + " /etc/fstab | awk -F \" \" '{print $2}'"
@@ -146,7 +146,7 @@ def __mount_with_atual_uuid(diskPath, record, actual):
         print("Get mount dir for %s fail. error: %s." % (diskPath, e))
         return False
 
-    # 将actual挂载到相应的目录下
+    #Mount the actual to the corresponding directory
     cmd = "mount " + diskPath + " " + mntdir
     retCode = subprocess.call(cmd, shell=True)
     if retCode !=0:
@@ -155,7 +155,7 @@ def __mount_with_atual_uuid(diskPath, record, actual):
     print("mount %s to %s success." % (diskPath, mntdir))
 
     replaceCmd = "sed -i \"s/" + record + "/" + actual + "/g\""
-    # 将新的uuid写入到fstab
+    #Write the new uuid to fstab
     cmd = "cp /etc/fstab /etc/fstab.bak;" + replaceCmd + " /etc/fstab > /dev/null"
     retCode = subprocess.call(cmd, shell=True)
     if retCode !=0:
@@ -163,7 +163,7 @@ def __mount_with_atual_uuid(diskPath, record, actual):
         return False
     print("modify actual uuid to /etc/fstab for disk %s success." % diskPath)
 
-    # 将新的uuid写入到diskmeta
+    #Write the new uuid to diskmeta
     fileFullName = mntdir + "/disk.meta"
     filebakName = fileFullName + ".bak"
     cpcmd = "cp " + fileFullName + " " + filebakName
@@ -184,7 +184,7 @@ def __handle_inconsistent(umountDisk, record, actual):
         if disk not in record:
             print("record uuid and actual uuid of %s is same, please check other reason" % disk)
             continue
-        # 按照actual uuid做挂载
+        #Mount according to the actual uuid
         res = __mount_with_atual_uuid("/dev/" + disk, record[disk], actual[disk])
         if res:
             continue
@@ -193,18 +193,18 @@ def __handle_inconsistent(umountDisk, record, actual):
     return True
 
 if __name__ == "__main__":
-    # 查看未挂载成功的磁盘设备列表
+    #View the list of disk devices that were not successfully mounted
     umountDisk = __get_umount_disk_list()
     if len(umountDisk) == 0:
         print("All disk mount success.")
         exit(0)
 
-    # 查看是否之前已经挂载过
+    #Check if it has been previously mounted
     if __uninit():
         print("Please init env with chunkserver_ctl.sh first.")
         exit(0)
 
-    # 查看当前未挂载成功的磁盘设备记录的uuid和实际uuid
+    #View the uuid and actual uuid of disk devices that have not been successfully mounted currently
     cmpRes, record, actual = __cmp_recorduuid_with_actual(umountDisk)
     if cmpRes == False:
         print("Compare record uuid with actual uuid fail.")
@@ -213,7 +213,7 @@ if __name__ == "__main__":
         print("Record uuid with actual uuid all consistent.")
         exit(0)
 
-    # 将不一致的磁盘按照当前的uuid重新挂载
+    #Remount inconsistent disks according to the current uuid
     if __handle_inconsistent(umountDisk, record, actual):
         print("fix uuid-changed disk[%s] success." % umountDisk)
         exit(0)

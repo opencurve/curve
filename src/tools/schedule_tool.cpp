@@ -109,7 +109,7 @@ int ScheduleTool::DoRapidLeaderSchedule() {
 }
 
 int ScheduleTool::ScheduleOne(PoolIdType lpoolId) {
-    // 给mds发送rpc
+    //Send rpc to mds
     int res = mdsClient_->RapidLeaderSchedule(lpoolId);
     if (res != 0) {
         std::cout << "RapidLeaderSchedule pool " << lpoolId

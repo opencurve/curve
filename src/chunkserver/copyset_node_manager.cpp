@@ -71,7 +71,7 @@ int CopysetNodeManager::Run() {
     CopysetNode::copysetSyncPool_->Start(copysetNodeOptions_.syncConcurrency);
     assert(copysetNodeOptions_.syncConcurrency > 0);
     int ret = 0;
-    // 启动线程池
+    //Start Thread Pool
     if (copysetLoader_ != nullptr) {
         ret = copysetLoader_->Start(
             copysetNodeOptions_.loadConcurrency);
@@ -82,7 +82,7 @@ int CopysetNodeManager::Run() {
         }
     }
 
-    // 启动加载已有的copyset
+    //Start loading existing copyset
     ret = ReloadCopysets();
     if (ret == 0) {
         loadFinished_.exchange(true, std::memory_order_acq_rel);
@@ -156,13 +156,13 @@ int CopysetNodeManager::ReloadCopysets() {
         }
     }
 
-    // 如果加载成功，则等待所有copyset加载完成，关闭线程池
+    //If loading is successful, wait for all copysets to load and close the thread pool
     if (copysetLoader_ != nullptr) {
         while (copysetLoader_->QueueSize() != 0) {
             ::sleep(1);
         }
-        // queue size为0，但是线程池中的线程仍然可能还在执行
-        // stop内部会去join thread，以此保证所有任务执行完以后再退出
+        //The queue size is 0, but threads in the thread pool may still be executing
+        //Stop will join threads internally to ensure that all tasks are executed before exiting
         copysetLoader_->Stop();
         copysetLoader_ = nullptr;
     }
@@ -183,8 +183,8 @@ void CopysetNodeManager::LoadCopyset(const LogicPoolID &logicPoolId,
               << (needCheckLoadFinished ? "Yes." : "No.");
 
     uint64_t beginTime = TimeUtility::GetTimeofDayMs();
-    // chunkserver启动加载copyset阶段，会拒绝外部的创建copyset请求
-    // 因此不会有其他线程加载或者创建相同copyset，此时不需要加锁
+    //Chunkserver starts the loading copyset phase and will reject external requests to create copysets
+    //Therefore, no other threads will load or create the same copyset, and locking is not necessary at this time
     Configuration conf;
     std::shared_ptr<CopysetNode> copysetNode =
         CreateCopysetNodeUnlocked(logicPoolId, copysetId, conf);
@@ -224,9 +224,9 @@ bool CopysetNodeManager::CheckCopysetUntilLoadFinished(
         }
         NodeStatus leaderStaus;
         bool getSuccess = node->GetLeaderStatus(&leaderStaus);
-        // 获取leader状态失败一般是由于还没选出leader或者leader心跳还未发送到当前节点
-        // 正常通过几次重试可以获取到leader信息，如果重试多次都未获取到
-        // 则认为copyset当前可能无法选出leader，直接退出
+        //The failure to obtain the leader status is usually due to the fact that the leader has not been selected or the leader's heartbeat has not been sent to the current node
+        //Normally, the leader information can be obtained through several retries, but if it is not obtained after multiple retries
+        //It is believed that copyset may not be able to select a leader at present, so exit directly
         if (!getSuccess) {
             ++retryTimes;
             ::usleep(1000 * copysetNodeOptions_.electionTimeoutMs);
@@ -235,8 +235,8 @@ bool CopysetNodeManager::CheckCopysetUntilLoadFinished(
 
         NodeStatus status;
         node->GetStatus(&status);
-        // 当前副本的最后一个日志落后于leader上保存的第一个日志
-        // 这种情况下此副本会通过安装快照恢复，可以忽略避免阻塞检查线程
+        //The last log of the current copy falls behind the first log saved on the leader
+        //In this case, this copy will be restored by installing a snapshot, which can be ignored to avoid blocking the check thread
         bool mayInstallSnapshot = leaderStaus.first_index > status.last_index;
         if (mayInstallSnapshot) {
             LOG(WARNING) << "Copyset "
@@ -250,7 +250,7 @@ bool CopysetNodeManager::CheckCopysetUntilLoadFinished(
             return false;
         }
 
-        // 判断当前副本已经apply的日志是否接近已经committed的日志
+        //Determine whether the logs that have been applied to the current replica are close to the logs that have been committed
         int64_t margin = leaderStaus.committed_index
                        - status.known_applied_index;
         bool catchupLeader = margin
@@ -276,7 +276,7 @@ bool CopysetNodeManager::CheckCopysetUntilLoadFinished(
 
 std::shared_ptr<CopysetNode> CopysetNodeManager::GetCopysetNode(
     const LogicPoolID &logicPoolId, const CopysetID &copysetId) const {
-    /* 加读锁 */
+    /*Read lock*/
     ReadLockGuard readLockGuard(rwLock_);
     GroupId groupId = ToGroupId(logicPoolId, copysetId);
     auto it = copysetNodeMap_.find(groupId);
@@ -288,7 +288,7 @@ std::shared_ptr<CopysetNode> CopysetNodeManager::GetCopysetNode(
 
 void CopysetNodeManager::GetAllCopysetNodes(
     std::vector<CopysetNodePtr> *nodes) const {
-    /* 加读锁 */
+    /*Read lock*/
     ReadLockGuard readLockGuard(rwLock_);
     for (auto it = copysetNodeMap_.begin(); it != copysetNodeMap_.end(); ++it) {
         nodes->push_back(it->second);
@@ -299,16 +299,16 @@ bool CopysetNodeManager::CreateCopysetNode(const LogicPoolID &logicPoolId,
                                            const CopysetID &copysetId,
                                            const Configuration &conf) {
     GroupId groupId = ToGroupId(logicPoolId, copysetId);
-    // 如果本地copyset还未全部加载完成，不允许外部创建copyset
+    //If the local copyset has not been fully loaded yet, external copyset creation is not allowed
     if (!loadFinished_.load(std::memory_order_acquire)) {
         LOG(WARNING) << "Create copyset failed: load unfinished "
                      << ToGroupIdString(logicPoolId, copysetId);
         return false;
     }
-    // copysetnode析构的时候会去调shutdown，可能导致协程切出
-    // 所以创建copysetnode失败的时候，不能占着写锁，等写锁释放后再析构
+    //When copysetnode is deconstructed, shutdown may be called, which may lead to coprocessor disconnection
+    //So when creating a copysetnode fails, it cannot occupy the write lock, wait for the write lock to be released before destructing
     std::shared_ptr<CopysetNode> copysetNode = nullptr;
-    /* 加写锁 */
+    /*Write lock*/
     WriteLockGuard writeLockGuard(rwLock_);
     if (copysetNodeMap_.end() == copysetNodeMap_.find(groupId)) {
         copysetNode = std::make_shared<CopysetNode>(logicPoolId,
@@ -428,18 +428,18 @@ bool CopysetNodeManager::DeleteCopysetNode(const LogicPoolID &logicPoolId,
     GroupId groupId = ToGroupId(logicPoolId, copysetId);
 
     {
-        // 加读锁
+        //Read lock
         ReadLockGuard readLockGuard(rwLock_);
         auto it = copysetNodeMap_.find(groupId);
         if (copysetNodeMap_.end() != it) {
-            // TODO(yyk) 这部分可能存在死锁的风险，后续需要评估
+            // TODO(yyk)There may be a risk of deadlock, which needs to be evaluated in the future
             it->second->Fini();
             ret = true;
         }
     }
 
     {
-        // 加写锁
+        //Write lock
         WriteLockGuard writeLockGuard(rwLock_);
         auto it = copysetNodeMap_.find(groupId);
         if (copysetNodeMap_.end() != it) {
@@ -460,18 +460,18 @@ bool CopysetNodeManager::PurgeCopysetNodeData(const LogicPoolID &logicPoolId,
     GroupId groupId = ToGroupId(logicPoolId, copysetId);
 
     {
-        // 加读锁
+        //Read lock
         ReadLockGuard readLockGuard(rwLock_);
         auto it = copysetNodeMap_.find(groupId);
         if (copysetNodeMap_.end() != it) {
-            // TODO(yyk) 这部分可能存在死锁的风险，后续需要评估
+            // TODO(yyk)There may be a risk of deadlock, which needs to be evaluated in the future
             it->second->Fini();
             ret = true;
         }
     }
 
     {
-        // 加写锁
+        //Write lock
         WriteLockGuard writeLockGuard(rwLock_);
         auto it = copysetNodeMap_.find(groupId);
         if (copysetNodeMap_.end() != it) {
@@ -520,7 +520,7 @@ bool CopysetNodeManager::DeleteBrokenCopyset(const LogicPoolID& poolId,
 
 bool CopysetNodeManager::IsExist(const LogicPoolID &logicPoolId,
                                  const CopysetID &copysetId) {
-    /* 加读锁 */
+    /*Read lock*/
     ReadLockGuard readLockGuard(rwLock_);
     GroupId groupId = ToGroupId(logicPoolId, copysetId);
     return copysetNodeMap_.end() != copysetNodeMap_.find(groupId);
@@ -529,7 +529,7 @@ bool CopysetNodeManager::IsExist(const LogicPoolID &logicPoolId,
 bool CopysetNodeManager::InsertCopysetNodeIfNotExist(
     const LogicPoolID &logicPoolId, const CopysetID &copysetId,
     std::shared_ptr<CopysetNode> node) {
-    /* 加写锁 */
+    /*Write lock*/
     WriteLockGuard writeLockGuard(rwLock_);
     GroupId groupId = ToGroupId(logicPoolId, copysetId);
     auto it = copysetNodeMap_.find(groupId);

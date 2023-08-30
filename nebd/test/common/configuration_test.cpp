@@ -136,10 +136,12 @@ TEST_F(ConfigurationTest, ListConfig) {
     std::map<std::string, std::string> configs;
     configs = conf.ListConfig();
     ASSERT_NE(0, configs.size());
-    // 抽几个key来校验以下
+    //Draw a few keys to verify the following
+
     ASSERT_EQ(configs["test.int1"], "12345");
     ASSERT_EQ(configs["test.bool1"], "0");
-    // 如果key不存在，返回为空
+    //If the key does not exist, return empty
+
     ASSERT_EQ(configs["xxx"], "");
 }
 
@@ -148,18 +150,21 @@ TEST_F(ConfigurationTest, SaveConfig) {
     Configuration conf;
     conf.SetConfigPath(confFile_);
 
-    // 自定义配置项并保存
+    //Customize configuration items and save them
+
     conf.SetStringValue("test.str1", "new");
     ret = conf.SaveConfig();
     ASSERT_EQ(ret, true);
 
-    // 重新加载配置项
+    //Reload Configuration Items
+
     Configuration conf2;
     conf2.SetConfigPath(confFile_);
     ret = conf2.LoadConfig();
     ASSERT_EQ(ret, true);
 
-    // 可以读取自定义配置项，原有配置项被覆盖，读取不到
+    //Custom configuration items can be read, but the original configuration items are overwritten and cannot be read
+
     ASSERT_EQ(conf2.GetValue("test.str1"), "new");
     ASSERT_EQ(conf2.GetValue("test.int1"), "");
 }

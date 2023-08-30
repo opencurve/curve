@@ -33,13 +33,13 @@ message CopySetInfo {
     required uint32 copysetId = 2;
     // copyset replicas, IP:PORT:ID, e.g. 127.0.0.1:8200:0
     repeated common.Peer peers = 3;
-    // epoch, 用来标记配置变更，每变更一次，epoch会增加
+    //Epoch is used to mark configuration changes. Every time a change is made, epoch will increase
     required uint64 epoch = 4;
-    // 该复制组的leader
+    //The leader of this replication group
     required common.Peer leaderPeer = 5;
-    // 配置变更相关信息
+    //Configuration change related information
     optional ConfigChangeInfo configChangeInfo = 6;
-    // copyset的性能信息
+    //Performance information of copyset
     optional CopysetStatistics stats = 7;
     // whether the current copyset is on scaning
     optional bool scaning = 8;
@@ -51,11 +51,11 @@ message CopySetInfo {
 
 message ConfigChangeInfo {
     required common.Peer peer = 1;
-    // 配置变更的类型
+    //Types of configuration changes
     required ConfigChangeType type = 2;
-    // 配置变更是否成功
+    //Is the configuration change successful
     required bool finished = 3;
-    // 变更的error信息
+    //Changed error information
     optional CandidateError err = 4;
 };
 
@@ -81,13 +81,13 @@ message ChunkServerStatisticInfo {
     required uint32 writeRate = 2;
     required uint32 readIOPS = 3;
     required uint32 writeIOPS = 4;
-    // 已使用的chunk占用的磁盘空间
+    //Disk space occupied by used chunks
     required uint64 chunkSizeUsedBytes = 5;
-    // chunkfilepool中未使用的chunk占用的磁盘空间
+    //Disk space occupied by unused chunks in chunkfilepool
     required uint64 chunkSizeLeftBytes = 6;
-    // 回收站中chunk占用的磁盘空间
+    //Disk space occupied by chunks in the recycle bin
     required uint64 chunkSizeTrashedBytes = 7;
-    // chunkfilepool的大小
+    //The size of chunkfilepool
     optional uint64 chunkFilepoolSize = 8;
 };
 
@@ -100,27 +100,27 @@ message ChunkServerHeartbeatRequest {
     required DiskState diskState = 6;
     required uint64 diskCapacity = 7;
     required uint64 diskUsed = 8;
-    // 返回该chunk上所有copyset的信息
+    //Returns information about all copysets on this chunk
     repeated CopySetInfo copysetInfos = 9;
-    // 时间窗口内该chunkserver上leader的个数
+    //The number of leaders on this chunkserver within the time window
     required uint32 leaderCount = 10;
-    // 时间窗口内该chunkserver上copyset的个数
+    //The number of copysets on this chunkserver within the time window
     required uint32 copysetCount = 11;
-    // chunkServer相关的统计信息
+    //ChunkServer related statistical information
     optional ChunkServerStatisticInfo stats = 12;
     optional string version = 13;
 };
 
 enum ConfigChangeType {
-    // 配置变更命令： leader转换
+    //Configuration change command: leader conversion
     TRANSFER_LEADER = 1;
-    // 配置变更命令： 复制组增加一个成员
+    //Configuration change command: Add a member to the replication group
     ADD_PEER = 2;
-    // 配置变更命令： 复制组删除一个成员
+    //Configuration change command: Delete a member from a replication group
     REMOVE_PEER = 3;
-    // 配置变更命令： 没有配置变更
+    //Configuration change command: No configuration changes
     NONE = 4;
-    // 配置变更命令：change复制组一个成员
+    //Configuration change command: change a member of a replication group
     CHANGE_PEER = 5;
     // start scan on the peer
     START_SCAN_PEER = 6;
@@ -134,40 +134,40 @@ message CopySetConf {
     repeated common.Peer peers = 3;
     required uint64 epoch = 4;
     optional ConfigChangeType type = 5;
-    // configchangeItem 是目标节点
-    // 对于TRANSFER_LEADER: 表示目标节点; 对于ADD_PEER: 表示待加入节点
-    // 对于REMOVE_PEER: 表示待删除节点; 对于CHANGE_PEER: 表示待加入节点
+    //ConfigchangeItem is the target node
+    //For TRANSFER_ LEADER: represents the target node; For ADD_PEER: indicates the node to be added
+    //For MOVE_ PEER: represents the node to be deleted; For CHANGE_PEER: indicates the node to be added
     // SCAN_PEER: to scan the node
     optional common.Peer configchangeItem = 6;
-    // oldPeer, 这个只在ConfigChangeType=对于CHANGE_PEER的情况下会赋值，
-    // 表示待删除节点。
-    // chunkserver收到CHANGE_PEER，根据peers,configchangeItem,oldPeer拼出新的conf
+    //OldPeer, this only applies to ConfigChangeType=for In the case of CHANGE_PEER, a value will be assigned,
+    //Represents a node to be deleted.
+    //Chunkserver received CHANGE_PEER, according to peers, configchangeItem, oldPeer, spell out a new conf
     optional common.Peer oldPeer = 7;
 };
 
 enum HeartbeatStatusCode {
-    // 正常返回
+    //Normal return
     hbOK = 0;
-    // 必要的参数为初始化
+    //The necessary parameters are initialization
     hbParamUnInitialized = 1;
-    // chunkserver不在topology中
+    //Chunkserver is not in topology
     hbChunkserverUnknown = 2;
-    // chunkserver状态为retired
+    //Chunkserver status is retired
     hbChunkserverRetired = 3;
-    // chunkserver的ip和port与topology中的不匹配
+    //The IP and port of chunkserver do not match those in topology
     hbChunkserverIpPortNotMatch = 4;
-    // chunkserver的token不匹配
+    //Chunkserver token mismatch
     hbChunkserverTokenNotMatch = 5;
-    // 无copyset上报
+    //No copyset reported
     hbRequestNoCopyset = 6;
-    // copyset转换为topology格式失败
+    //Copyset conversion to topology format failed
     hbAnalyseCopysetError = 7;
 }
 
 message ChunkServerHeartbeatResponse {
-    // 返回需要进行变更的copyset的信息
+    //Returns information about the copyset that needs to be changed
     repeated CopySetConf needUpdateCopysets = 1;
-    // 错误码
+    //Error code
     optional HeartbeatStatusCode statusCode = 2;
 };
 

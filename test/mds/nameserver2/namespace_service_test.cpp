@@ -285,7 +285,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     brpc::Controller cntl;
     uint64_t fileLength = kMiniFileLength;
 
-    // 创建file1,owner1
+    //Create file1, owner1
     request.set_filename("/file1");
     request.set_owner("owner1");
     request.set_date(TimeUtility::GetTimeofDayUs());
@@ -347,7 +347,7 @@ TEST_F(NameSpaceServiceTest, test1) {
         FAIL();
     }
 
-    // 在一个不存在的目录下创建文件，会失败 kFileNotExists
+    //Creating a file in a non-existent directory will fail kFileNotExists
     cntl.Reset();
     request.set_filename("/dir4/file4");
     request.set_owner("owner4");
@@ -363,7 +363,7 @@ TEST_F(NameSpaceServiceTest, test1) {
         FAIL();
     }
 
-    // 在一个文件下创建文件，会失败 kNotDirectory
+    //Creating a file under one file will fail kNotDirectory
     cntl.Reset();
     request.set_filename("/file2/file4");
     request.set_owner("owner2");
@@ -379,7 +379,7 @@ TEST_F(NameSpaceServiceTest, test1) {
         FAIL();
     }
 
-    // 如果创建一个已经存在的文件，会创建失败kFileExists
+    //If you create an existing file, it will fail to create kFileExists
     cntl.Reset();
     request.set_filename("/file2");
     request.set_poolset("");
@@ -396,7 +396,7 @@ TEST_F(NameSpaceServiceTest, test1) {
         FAIL();
     }
 
-    // 如果创建一个已经存在的目录，会创建失败kFileExists
+    //If you create an existing directory, it will fail to create kFileExist
     cntl.Reset();
     request.set_filename("/dir");
     request.set_owner("owner3");
@@ -412,7 +412,7 @@ TEST_F(NameSpaceServiceTest, test1) {
         FAIL();
     }
 
-    // 创建其他类型文件，返回kNotSupported
+    //Create other types of files and return kNotSupported
     cntl.Reset();
     request.set_filename("/file4");
     request.set_owner("owner4");
@@ -457,7 +457,7 @@ TEST_F(NameSpaceServiceTest, test1) {
         FAIL();
     }
 
-    // 创建文件名不规范的文件会失败
+    //Creating files with non-standard file names will fail
     cntl.Reset();
     request.set_filename("/file4/");
     request.set_owner("owner4");
@@ -567,7 +567,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     }
 
     // test GetOrAllocateSegment
-    // 为file1分配空间
+    //Allocate space for file1
     cntl.Reset();
     GetOrAllocateSegmentRequest request2;
     GetOrAllocateSegmentResponse response2;
@@ -682,7 +682,7 @@ TEST_F(NameSpaceServiceTest, test1) {
 
     // test change owner
     {
-        // 当前有文件 /file1(owner1) , /file2(owner2), /dir/file3(owner3)
+        //There are currently /file1(owner1) , /file2(owner2), /dir/file3(owner3)
         // changeowner success
         cntl.Reset();
         ChangeOwnerRequest request;
@@ -799,7 +799,7 @@ TEST_F(NameSpaceServiceTest, test1) {
             ASSERT_TRUE(false);
         }
 
-        // changeowner 文件名不规范，失败
+        //Changeowner file name is not standardized, failed
         cntl.Reset();
         request.set_filename("/file1/");
         request.set_newowner("owner1");
@@ -820,12 +820,12 @@ TEST_F(NameSpaceServiceTest, test1) {
     }
 
     // test RenameFile
-    // 重命名到根目录下，非root owner，失败
-    // fileinfoid不匹配，失败
-    // 重命名成功 /dir/file3 -> /dir/file4
-    // 原文件不存在，重命名失败
-    // 重命名到根目录下，root owner，成功 /dir/file4 -> /file4
-    // 文件名不规范，失败
+    //Renaming to root directory, not root owner, failed
+    //Fileinfoid mismatch, failed
+    //Rename successful/dir/file3->/dir/file4
+    //The original file does not exist, renaming failed
+    //Rename to the root directory, root owner, successful/dir/file4->/file4
+    //File name not standardized, failed
     cntl.Reset();
     RenameFileRequest request4;
     RenameFileResponse response4;
@@ -951,8 +951,8 @@ TEST_F(NameSpaceServiceTest, test1) {
     }
 
     // test ExtendFile
-    // 扩容file2,第一次扩大，成功；第二次缩小，失败
-    // 扩容的文件名不符合规范，失败
+    //Expanding file2 for the first time, successful; Second reduction, failed
+    //The expanded file name does not meet the specifications and failed
     uint64_t newsize = kMiniFileLength * 2;
     cntl.Reset();
     ExtendFileRequest request5;
@@ -992,8 +992,8 @@ TEST_F(NameSpaceServiceTest, test1) {
         ASSERT_TRUE(false);
     }
 
-    // begin session test，开始测试时，有/file1,/file2和/file4
-    // OpenFile case1. 文件不存在，返回kFileNotExists
+    //At the beginning of the session test, there are/file1,/file2, and/file4
+    //OpenFile case1 File does not exist, returned kFileNotExists
     cntl.Reset();
     OpenFileRequest request8;
     OpenFileResponse response8;
@@ -1008,7 +1008,7 @@ TEST_F(NameSpaceServiceTest, test1) {
         ASSERT_TRUE(false);
     }
 
-    // OpenFile case2. 文件存在，没有open过，返回成功、session、fileInfo
+    //OpenFile case2 The file exists and has not been opened. Success, session, and fileInfo are returned
     cntl.Reset();
     OpenFileRequest request9;
     OpenFileResponse response9;
@@ -1043,7 +1043,7 @@ TEST_F(NameSpaceServiceTest, test1) {
         ASSERT_TRUE(false);
     }
 
-    // openFile case3, 文件名不符合规范
+    //OpenFile case3, file name does not meet specifications
     OpenFileRequest request11;
     OpenFileResponse response11;
     cntl.Reset();
@@ -1058,7 +1058,7 @@ TEST_F(NameSpaceServiceTest, test1) {
         ASSERT_TRUE(false);
     }
 
-    // CloseFile case1. 文件不存在，返回kFileNotExists
+    //CloseFile case1 File does not exist, returned kFileNotExists
     cntl.Reset();
     CloseFileRequest request12;
     CloseFileResponse response12;
@@ -1074,7 +1074,7 @@ TEST_F(NameSpaceServiceTest, test1) {
         ASSERT_TRUE(false);
     }
 
-    // CloseFile case2. 文件存在，session存在，返回成功
+    //CloseFile case2 File exists, session exists, success returne
     CloseFileRequest request13;
     CloseFileResponse response13;
     cntl.Reset();
@@ -1092,7 +1092,7 @@ TEST_F(NameSpaceServiceTest, test1) {
         ASSERT_TRUE(false);
     }
 
-    // CloseFile case3. 文件名不符合规范
+    //CloseFile case3 The file name does not meet the specification
     cntl.Reset();
     request14.set_filename("/file2/");
     request14.set_owner("owner2");
@@ -1106,7 +1106,7 @@ TEST_F(NameSpaceServiceTest, test1) {
         ASSERT_TRUE(false);
     }
 
-    // RefreshSession case1. 文件不存在，返回kFileNotExists
+    //RefreshSession case1 File does not exist, returned kFileNotExists
     cntl.Reset();
     ReFreshSessionRequest request15;
     ReFreshSessionResponse response15;
@@ -1124,7 +1124,7 @@ TEST_F(NameSpaceServiceTest, test1) {
         ASSERT_TRUE(false);
     }
 
-    // RefreshSession case2. 文件名不符合规范
+    //RefreshSession case2 The file name does not meet the specifications
     ReFreshSessionRequest request18;
     ReFreshSessionResponse response18;
     cntl.Reset();
@@ -1426,7 +1426,7 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
 
     CurveFSService_Stub stub(&channel);
 
-    // 先创建文件/file1，目录/dir1，文件/dir1/file2
+    //First create file/file1, directory/dir1, file/dir1/file2
     std::vector<PoolIdType> logicalPools{1, 2, 3};
     EXPECT_CALL(*topology_, GetLogicalPoolInCluster(_))
         .Times(AtLeast(1))
@@ -1480,7 +1480,7 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
         FAIL();
     }
 
-    // 查看文件/file1，目录/dir1，文件/dir1/file2的状态
+    //View the status of file/file1, directory/dir1, and file/dir1/file2
     cntl.Reset();
     GetFileInfoRequest request1;
     GetFileInfoResponse response1;
@@ -1539,7 +1539,7 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
         ASSERT_TRUE(false);
     }
 
-    // 文件/dir1/file2申请segment
+    //File/dir1/file2 application segment
     GetOrAllocateSegmentRequest allocRequest;
     GetOrAllocateSegmentResponse allocResponse;
     for (int i = 0; i < 10; i++) {
@@ -1558,8 +1558,8 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
         }
     }
 
-    // 开始测试删除文件逻辑
-    // 1 如果文件有快照，那么删除文件返回kFileUnderSnapShot
+    //Start testing delete file logic
+    //If the file has a snapshot, deleting the file returns kFileUnderSnapShot
     cntl.Reset();
     CreateSnapShotRequest snapshotRequest;
     CreateSnapShotResponse snapshotResponses;
@@ -1639,7 +1639,7 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
             << "max attempts for check snapshot status exhausted";
 
 
-    // 2 如果目录下有文件，那么删除目录返回kDirNotEmpty
+    //If there are files in the directory, deleting the directory returns kDirNotEmpt
     cntl.Reset();
     request3.set_filename("/dir1");
     request3.set_owner("owner");
@@ -1653,7 +1653,7 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
         ASSERT_TRUE(false);
     }
 
-    // 3 如果传入的fileid不匹配，删除文件失败
+    //If the passed in fileids do not match, deleting the file fails
     cntl.Reset();
     DeleteFileRequest request5;
     DeleteFileResponse response5;
@@ -1670,7 +1670,7 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
         ASSERT_TRUE(false);
     }
 
-    // 4 删除文件/file1成功，查询文件已经删除
+    //Successfully deleted file 4/file1, query file has been deleted
     cntl.Reset();
     request3.set_filename("/file1");
     request3.set_owner("owner");
@@ -1696,7 +1696,7 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
         ASSERT_TRUE(false);
     }
 
-    // 查询垃圾箱
+    //Query Trash Bin
     ListDirRequest listRequest;
     ListDirResponse listResponse;
     cntl.Reset();
@@ -1720,7 +1720,7 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
         ASSERT_TRUE(false);
     }
 
-    // 删除文件/dir1/file2成功，删除目录/dir1成功，查询目录和文件均已经删除
+    //Successfully deleted file/dir1/file2, deleted directory/dir1, queried directory and files have been deleted
     using ::curve::mds::topology::ChunkServerStatus;
     using ::curve::mds::topology::OnlineState;
     using ::curve::chunkserver::ChunkRequest;

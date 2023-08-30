@@ -21,7 +21,7 @@ package main
 
 enum EtcdErrCode
 {
-    // grpc errCode, 具体的含义见:
+    // grpc errCode, for specific meanings, refer to:
     // https://godoc.org/go.etcd.io/etcd/etcdserver/api/v3rpc/rpctypes#ErrGRPCNoSpace
     // https://godoc.org/google.golang.org/grpc/codes#Code
     EtcdOK = 0,
@@ -42,7 +42,7 @@ enum EtcdErrCode
     EtcdDataLoss = 15,
     EtcdUnauthenticated = 16,
 
-    // 自定义错误码
+    // Custom Error Codes
     EtcdTxnUnkownOp = 17,
     EtcdObjectNotExist = 18,
     EtcdErrObjectType = 19,
@@ -198,7 +198,7 @@ func GetErrCode(op string, err error) C.enum_EtcdErrCode {
 	return C.EtcdUnknown
 }
 
-// TODO(lixiaocui): 日志打印看是否需要glog
+//TODO (Lixiaocui): Log printing to see if glog is required
 //export NewEtcdClientV3
 func NewEtcdClientV3(conf C.struct_EtcdConf) C.enum_EtcdErrCode {
 	var err error
@@ -271,7 +271,7 @@ func EtcdClientGet(timeout C.int, key *C.char,
 		resp.Header.Revision
 }
 
-// TODO(lixiaocui): list可能需要有长度限制
+//TODO (xiaocui): List may require a length limit
 //export EtcdClientList
 func EtcdClientList(timeout C.int, startKey, endKey *C.char,
 	startLen, endLen C.int) (C.enum_EtcdErrCode, uint64, int64) {
@@ -425,7 +425,7 @@ func EtcdElectionCampaign(pfx *C.char, pfxLen C.int,
 	goPfx := C.GoStringN(pfx, pfxLen)
 	goLeaderName := C.GoStringN(leaderName, nameLen)
 
-	// 创建带ttl的session
+	//Create a session with ttl
 	var sessionOpts concurrency.SessionOption = concurrency.WithTTL(int(sessionInterSec))
 	session, err := concurrency.NewSession(globalClient, sessionOpts)
 	if err != nil {
@@ -433,7 +433,7 @@ func EtcdElectionCampaign(pfx *C.char, pfxLen C.int,
 		return C.EtcdCampaignInternalErr, 0
 	}
 
-	// 创建election和超时context
+	//Create an election and timeout context
 	var election *concurrency.Election = concurrency.NewElection(session, goPfx)
 	var ctx context.Context
 	var cancel context.CancelFunc
@@ -448,7 +448,7 @@ func EtcdElectionCampaign(pfx *C.char, pfxLen C.int,
 	wg.Add(2)
 	defer wg.Wait()
 
-	// 监测当前的leader
+	//Monitor the current leader
 	obCtx, obCancel := context.WithCancel(context.Background())
 	observer := election.Observe(obCtx)
 	defer obCancel()
@@ -472,7 +472,7 @@ func EtcdElectionCampaign(pfx *C.char, pfxLen C.int,
 		}
 	}()
 
-	// 监测自己key的存活状态
+	//Monitor the survival status of one's own key
 	exitSignal := make(chan struct{}, 1)
 	go func() {
 		defer wg.Done()
@@ -490,8 +490,8 @@ func EtcdElectionCampaign(pfx *C.char, pfxLen C.int,
 		}
 	}()
 
-	// 1. Campaign返回nil说明当前mds持有的key版本号最小
-	// 2. Campaign返回时不检测自己持有key的状态，所以返回nil后需要监测session.Done()
+	//1 Campaign returns nil indicating that the current MDS holds the smallest key version number
+	//2 When Campaign returns, it does not detect the status of the key it holds, so after returning nil, it is necessary to monitor session. Done()
 	if err := election.Campaign(ctx, goLeaderName); err == nil {
 		log.Printf("[%s/%x] campaign for leader success",
 			goLeaderName, session.Lease())

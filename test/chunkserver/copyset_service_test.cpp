@@ -128,7 +128,7 @@ TEST_F(CopysetServiceTest, basic) {
         LOG(FATAL) << "Fail to init channel to " << peerId.addr;
     }
 
-    /* 测试创建一个新的 copyset */
+    /*Test creating a new copyset*/
     CopysetService_Stub stub(&channel);
     {
         brpc::Controller cntl;
@@ -149,7 +149,7 @@ TEST_F(CopysetServiceTest, basic) {
                   COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
     }
 
-    /* 测试创建一个重复 copyset */
+    /*Test creating a duplicate copyset*/
     {
         brpc::Controller cntl;
         cntl.set_timeout_ms(3000);
@@ -169,7 +169,7 @@ TEST_F(CopysetServiceTest, basic) {
                   response.status());
     }
 
-    /* 非法参数测试 */
+    /*Illegal parameter testing*/
     {
         brpc::Controller cntl;
         cntl.set_timeout_ms(3000);
@@ -228,7 +228,7 @@ TEST_F(CopysetServiceTest, basic) {
 }
 
 TEST_F(CopysetServiceTest, basic2) {
-    /********************* 设置初始环境 ***********************/
+    /********************* Set Up Initial Environment ***********************/
     CopysetNodeManager *copysetNodeManager = &CopysetNodeManager::GetInstance();
     LogicPoolID logicPoolId = 2;
     CopysetID copysetId = 100003;
@@ -269,9 +269,10 @@ TEST_F(CopysetServiceTest, basic2) {
         LOG(FATAL) << "Fail to init channel to " << peerId.addr;
     }
 
-    /********************** 跑测试cases ************************/
+    /********************** Run Test Cases ************************/
 
-    /* 测试创建一个新的 copyset */
+    /*Test creating a new copyset*/
+
     CopysetService_Stub stub(&channel);
     {
         brpc::Controller cntl;
@@ -298,7 +299,7 @@ TEST_F(CopysetServiceTest, basic2) {
                   COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
     }
 
-    /* 测试创建一个重复 copyset */
+    /*Test creating a duplicate copyset*/
     {
         brpc::Controller cntl;
         cntl.set_timeout_ms(3000);
@@ -324,7 +325,7 @@ TEST_F(CopysetServiceTest, basic2) {
                   response.status());
     }
 
-    /* 创建多个copyset */
+    /*Create multiple copysets*/
     {
         brpc::Controller cntl;
         cntl.set_timeout_ms(3000);
@@ -332,7 +333,7 @@ TEST_F(CopysetServiceTest, basic2) {
         CopysetRequest2 request;
         CopysetResponse2 response;
 
-        // 准备第1个copyset
+        //Prepare the first copyset
         {
             Copyset *copyset;
             copyset = request.add_copysets();
@@ -346,7 +347,7 @@ TEST_F(CopysetServiceTest, basic2) {
             peer3->set_address("127.0.0.1:9042:0");
         }
 
-        // 准备第2个copyset
+        //Prepare the second copyset
         {
             Copyset *copyset;
             copyset = request.add_copysets();
@@ -370,7 +371,7 @@ TEST_F(CopysetServiceTest, basic2) {
 
     // get status
     {
-        // 创建一个copyset
+        //Create a copyset
         {
             brpc::Controller cntl;
             cntl.set_timeout_ms(3000);
@@ -392,11 +393,11 @@ TEST_F(CopysetServiceTest, basic2) {
                       COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
         }
 
-        // 睡眠等待leader产生
+        //Sleep waiting for leader generation
         ::usleep(2 * 1000 * 1000);
 
         {
-            // query hash为false
+            //Query hash is false
             std::string peerStr("127.0.0.1:9040:0");
             brpc::Controller cntl;
             cntl.set_timeout_ms(3000);
@@ -432,7 +433,7 @@ TEST_F(CopysetServiceTest, basic2) {
             ASSERT_FALSE(response.has_hash());
         }
         {
-            // query hash为true
+            //Query hash is true
             std::string peerStr("127.0.0.1:9040:0");
             brpc::Controller cntl;
             cntl.set_timeout_ms(3000);

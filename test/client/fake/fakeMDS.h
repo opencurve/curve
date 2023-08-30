@@ -187,7 +187,7 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
         }
 
         if (!strcmp(request->owner().c_str(), "root")) {
-            // 当user为root用户的时候需要检查其signature信息
+            //When the user is root, it is necessary to check their signature information
             std::string str2sig = Authenticator::GetString2Signature(
                                                         request->date(),
                                                         request->owner());
@@ -199,7 +199,7 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
 
         retrytimes_++;
 
-        // 检查请求内容是全路径
+        //Check that the request content is full path
         auto checkFullpath = [&]() {
             LOG(INFO) << "request filename = " << request->filename();
             ASSERT_EQ(request->filename()[0], '/');

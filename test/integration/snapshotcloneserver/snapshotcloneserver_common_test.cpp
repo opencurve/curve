@@ -240,13 +240,13 @@ class SnapshotCloneServerTest : public ::testing::Test {
         cluster_ = new CurveCluster();
         ASSERT_NE(nullptr, cluster_);
 
-        // 初始化db
+        //Initialize db
         system(std::string("rm -rf " + kTestPrefix + ".etcd").c_str());
         system(std::string("rm -rf " + kTestPrefix + "1").c_str());
         system(std::string("rm -rf " + kTestPrefix + "2").c_str());
         system(std::string("rm -rf " + kTestPrefix + "3").c_str());
 
-        // 启动etcd
+        //Start etcd
         pid_t pid = cluster_->StartSingleEtcd(
             1, kEtcdClientIpPort, kEtcdPeerIpPort,
             std::vector<std::string>{ "--name=" + kTestPrefix });
@@ -259,13 +259,13 @@ class SnapshotCloneServerTest : public ::testing::Test {
         cluster_->PrepareConfig<MDSConfigGenerator>(kMdsConfigPath,
                                                     mdsConfigOptions);
 
-        // 启动一个mds
+        //Start an mds
         pid = cluster_->StartSingleMDS(1, kMdsIpPort, kMdsDummyPort, mdsConf1,
                                        true);
         LOG(INFO) << "mds 1 started on " << kMdsIpPort << ", pid = " << pid;
         ASSERT_GT(pid, 0);
 
-        // 创建物理池
+        //Creating a physical pool
         ASSERT_EQ(0, cluster_->PreparePhysicalPool(
                          1,
                          "./test/integration/snapshotcloneserver/"
@@ -302,7 +302,7 @@ class SnapshotCloneServerTest : public ::testing::Test {
         cluster_->PrepareConfig<CSConfigGenerator>(kCSConfigPath,
                                                    chunkserverConfigOptions);
 
-        // 创建chunkserver
+        //Create chunkserver
         pid = cluster_->StartSingleChunkServer(1, kChunkServerIpPort1,
                                                chunkserverConf1);
         LOG(INFO) << "chunkserver 1 started on " << kChunkServerIpPort1
@@ -321,7 +321,7 @@ class SnapshotCloneServerTest : public ::testing::Test {
 
         std::this_thread::sleep_for(std::chrono::seconds(5));
 
-        // 创建逻辑池, 并睡眠一段时间让底层copyset先选主
+        //Create a logical pool and sleep for a period of time to let the underlying copyset select the primary first
         ASSERT_EQ(0, cluster_->PrepareLogicalPool(
                          1,
                          "./test/integration/snapshotcloneserver/config/"
@@ -395,7 +395,7 @@ class SnapshotCloneServerTest : public ::testing::Test {
             LOG(ERROR) << "Open fail, ret = " << testfd1_;
             return false;
         }
-        // 每个chunk写前面4k数据, 写两个segment
+        //Write the first 4k data and two segments for each chunk
         uint64_t totalChunk = 2ULL * segmentSize / chunkSize;
         for (uint64_t i = 0; i < totalChunk / chunkGap; i++) {
             ret =
@@ -495,23 +495,23 @@ class SnapshotCloneServerTest : public ::testing::Test {
 CurveCluster* SnapshotCloneServerTest::cluster_ = nullptr;
 FileClient* SnapshotCloneServerTest::fileClient_ = nullptr;
 
-// 常规测试用例
-// 场景一：快照增加删除查找
+//Regular test cases
+//Scenario 1: Adding, deleting, and searching snapshots
 TEST_F(SnapshotCloneServerTest, TestSnapshotAddDeleteGet) {
     std::string uuid1;
     int ret = 0;
-    // 操作1：用户testUser1_对不存在的文件打快照
-    // 预期1：返回文件不存在
+    //Action 1: User testUser1_ Take a snapshot of non-existent files
+    //Expected 1: Return file does not exist
     ret = MakeSnapshot(testUser1_, "/ItUser1/notExistFile", "snap1", &uuid1);
     ASSERT_EQ(kErrCodeFileNotExist, ret);
 
-    // 操作2：用户testUser2_对testFile1_打快照
-    // 预期2：返回用户认证失败
+    //Action 2: User testUser2_ For testFile1_ Take a snapshot
+    //Expected 2: Failed to return user authentication
     ret = MakeSnapshot(testUser2_, testFile1_, "snap1", &uuid1);
     ASSERT_EQ(kErrCodeInvalidUser, ret);
 
-    // 操作3：用户testUser1_对testFile1_打快照snap1。
-    // 预期3：打快照成功
+    //Action 3: User testUser1_ For testFile1_ Take a snapshot snap1.
+    //Expected 3: Successful snapshot taking
     ret = MakeSnapshot(testUser1_, testFile1_, "snap1", &uuid1);
     ASSERT_EQ(0, ret);
 
@@ -519,56 +519,56 @@ TEST_F(SnapshotCloneServerTest, TestSnapshotAddDeleteGet) {
     ASSERT_TRUE(WriteFile(testFile1_, testUser1_, fakeData));
     ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 
-    // 操作4: 获取快照信息，user=testUser1_，filename=testFile1_
-    // 预期4：返回快照snap1的信息
+    //Operation 4: Obtain snapshot information, user=testUser1, Filename=testFile1_
+    //Expected 4: Return information for snapshot snap1
     bool success1 = CheckSnapshotSuccess(testUser1_, testFile1_, uuid1);
     ASSERT_TRUE(success1);
 
-    // 操作5：获取快照信息，user=testUser2_，filename=testFile1_
-    // 预期5：返回用户认证失败
+    //Operation 5: Obtain snapshot information, user=testUser2, Filename=testFile1_
+    //Expected 5: User authentication failure returned
     FileSnapshotInfo info1;
     ret = GetSnapshotInfo(testUser2_, testFile1_, uuid1, &info1);
     ASSERT_EQ(kErrCodeInvalidUser, ret);
 
-    // 操作6：获取快照信息，user=testUser2_，filename=testFile2_
-    // 预期6：返回空
+    //Operation 6: Obtain snapshot information, user=testUser2, Filename=testFile2_
+    //Expected 6: Return null
     std::vector<FileSnapshotInfo> infoVec;
     ret = ListFileSnapshotInfo(testUser2_, testFile2_, 10, 0, &infoVec);
     ASSERT_EQ(0, ret);
     ASSERT_EQ(0, infoVec.size());
 
-    // 操作7：testUser2_删除快照snap1
-    // 预期7：返回用户认证失败
+    //Action 7: testUser2_ Delete snapshot snap1
+    //Expected 7: User authentication failure returned
     ret = DeleteSnapshot(testUser2_, testFile1_, uuid1);
     ASSERT_EQ(kErrCodeInvalidUser, ret);
 
-    // 操作8：testUser1_删除testFile2_的快照，ID为snap1
-    // 预期8：返回文件名不匹配
+    //Action 8: testUser1_ Delete testFile2_ Snapshot with ID snap1 for
+    //Expected 8: Return file name mismatch
     ret = DeleteSnapshot(testUser1_, testFile2_, uuid1);
     ASSERT_EQ(kErrCodeFileNameNotMatch, ret);
 
-    // 操作9：testUser1_删除快照snap1
-    // 预期9：返回删除成功
+    //Operation 9: testUser1_ Delete snapshot snap1
+    //Expected 9: Successful deletion returned
     ret = DeleteAndCheckSnapshotSuccess(testUser1_, testFile1_, uuid1);
     ASSERT_EQ(0, ret);
 
-    //  操作10：获取快照信息，user=testUser1_，filename=testFile1_
-    //  预期10：返回空
+    //Action 10: Obtain snapshot information, user=testUser1, Filename=testFile1_
+    //Expected 10: Return empty
     ret = ListFileSnapshotInfo(testUser1_, testFile1_, 10, 0, &infoVec);
     ASSERT_EQ(0, ret);
     ASSERT_EQ(0, infoVec.size());
 
-    // 操作11：testUser1_删除快照snap1（重复删除）
-    // 预期11：返回删除成功
+    //Operation 11: testUser1_ Delete snapshot snap1 (duplicate deletion)
+    //Expected 11: Successful deletion returned
     ret = DeleteAndCheckSnapshotSuccess(testUser1_, testFile1_, uuid1);
     ASSERT_EQ(0, ret);
 
-    // 复原testFile1_
+    //Restore testFile1_
     std::string fakeData2(4096, 'x');
     ASSERT_TRUE(WriteFile(testFile1_, testUser1_, fakeData2));
 }
 
-// 场景二：取消快照
+//Scenario 2: Cancel Snapshot
 TEST_F(SnapshotCloneServerTest, TestCancelSnapshot) {
     std::string uuid1;
     int ret = MakeSnapshot(testUser1_, testFile1_, "snapToCancle", &uuid1);
@@ -583,29 +583,29 @@ TEST_F(SnapshotCloneServerTest, TestCancelSnapshot) {
             if (info1.GetSnapshotInfo().GetStatus() == Status::pending ||
                 info1.GetSnapshotInfo().GetStatus() == Status::canceling) {
                 if (!isCancel) {
-                    // 操作1：用户testUser1_对testFile1_打快照snap1，
-                    //        在快照未完成前testUser2_取消testFile1_的快照snap1
-                    // 预期1：取消用户认证失败
+                    //Action 1: User testUser1_ For testFile1_ Take a snapshot snap1,
+                    //TestUser2 before the snapshot is completed_ Cancel testFile1_ Snap1 of snapshot
+                    //Expected 1: Failed to cancel user authentication
                     int retCode = CancelSnapshot(testUser2_, testFile1_, uuid1);
                     ASSERT_EQ(kErrCodeInvalidUser, retCode);
 
-                    // 操作2：用户testUser1_对testFile1_打快照snap1，
-                    //        在快照未完成前testUser1_取消testFile1_
-                    //        的不存在的快照
-                    // 预期2：返回kErrCodeCannotCancelFinished
+                    //Action 2: User testUser1_ For testFile1_ Take a snapshot snap1,
+                    //TestUser1 before the snapshot is completed_ Cancel testFile1_
+                    //A non-existent snapshot of
+                    //Expected 2: Return kErrCodeCannotCancelFinished
                     retCode =
                         CancelSnapshot(testUser1_, testFile1_, "notExistUUId");
                     ASSERT_EQ(kErrCodeCannotCancelFinished, retCode);
 
-                    // 操作3：用户testUser1_对testFile1_打快照snap1，
-                    //        在快照未完成前testUser1_取消testFile2_的快照snap1
-                    // 预期3:  返回文件名不匹配
+                    //Action 3: User testUser1_ For testFile1_ Take a snapshot snap1,
+                    //TestUser1 before the snapshot is completed_ Cancel testFile2_ Snap1 of snapshot
+                    //Expected 3: Return file name mismatch
                     retCode = CancelSnapshot(testUser1_, testFile2_, uuid1);
                     ASSERT_EQ(kErrCodeFileNameNotMatch, retCode);
 
-                    // 操作4：用户testUser1_对testFile1_打快照，
-                    //        在快照未完成前testUser1_取消快照snap1
-                    // 预期4：取消快照成功
+                    //Action 4: User testUser1_ For testFile1_ Take a snapshot,
+                    //TestUser1 before the snapshot is completed_ Cancel snapshot snap1
+                    //Expected 4: Successfully cancelled snapshot
                     retCode = CancelSnapshot(testUser1_, testFile1_, uuid1);
                     ASSERT_EQ(0, retCode);
                     isCancel = true;
@@ -620,47 +620,47 @@ TEST_F(SnapshotCloneServerTest, TestCancelSnapshot) {
                        << static_cast<int>(info1.GetSnapshotInfo().GetStatus());
             }
         } else if (retCode == -8) {
-            // 操作5：获取快照信息，user=testUser1_，filename=testFile1_
-            // 预期5：返回空
+            //Operation 5: Obtain snapshot information, user=testUser1, Filename=testFile1_
+            //Expected 5: Return empty
             success1 = true;
             break;
         }
     }
     ASSERT_TRUE(success1);
 
-    // 操作6:  在快照已完成后，testUser1_取消testFile1_的快照snap1
-    // 预期6： 返回待取消的快照不存在或已完成
+    //Operation 6: After the snapshot is completed, testUser1_ Cancel testFile1_ Snap1 of snapshot
+    //Expected 6: Returning a pending snapshot that does not exist or has been completed
     ret = CancelSnapshot(testUser1_, testFile1_, uuid1);
     ASSERT_EQ(kErrCodeCannotCancelFinished, ret);
 }
 
-// 场景三：lazy快照克隆场景
+//Scenario 3: Lazy snapshot clone scene
 TEST_F(SnapshotCloneServerTest, TestSnapLazyClone) {
     std::string snapId;
     PrepareSnapshotForTestFile1(&snapId);
 
-    // 操作1: testUser1_ clone不存在的快照，fileName=SnapLazyClone1
-    // 预期1：返回快照不存在
+    //Operation 1: testUser1_ A snapshot with a clone that does not exist, fileName=SnapLazyClone1
+    //Expected 1: Return snapshot does not exist
     std::string uuid1, uuid2, uuid3, uuid4, uuid5;
     int ret;
     ret = CloneOrRecover("Clone", testUser1_, "UnExistSnapId1",
                          "/ItUser1/SnapLazyClone1", true, &uuid1);
     ASSERT_EQ(kErrCodeFileNotExist, ret);
 
-    // 操作2：testUser2_ clone快照snap1，fileName=SnapLazyClone1
-    // 预期2:  返回用户认证失败
+    //Action 2: testUser2_ Clone snapshot snap1, fileName=SnapLazyClone1
+    //Expected 2: User authentication failure returned
     ret = CloneOrRecover("Clone", testUser2_, snapId, "/ItUser2/SnapLazyClone1",
                          true, &uuid2);
     ASSERT_EQ(kErrCodeInvalidUser, ret);
 
-    // 操作3：testUser1_ clone 快照snap1，fileName=SnapLazyClone1
-    // 预期3  返回克隆成功
+    //Operation 3: testUser1_ Clone snapshot snap1, fileName=SnapLazyClone1
+    //Expected 3 to return successful cloning
     std::string dstFile = "/ItUser1/SnapLazyClone1";
     ret = CloneOrRecover("Clone", testUser1_, snapId, dstFile, true, &uuid3);
     ASSERT_EQ(0, ret);
 
-    // 操作4： testUser1_ clone 块照snap1，fileName=SnapLazyClone1 （重复克隆）
-    // 预期4：返回克隆成功（幂等）
+    //Operation 4: testUser1_ Clone block photo snap1, fileName=SnapLazyClone1 (duplicate clone)
+    //Expected 4: Returns successful cloning (idempotent)
     ret = CloneOrRecover("Clone", testUser1_, snapId, "/ItUser1/SnapLazyClone1",
                          true, &uuid4);
     ASSERT_EQ(0, ret);
@@ -669,68 +669,68 @@ TEST_F(SnapshotCloneServerTest, TestSnapLazyClone) {
     ret = Flatten(testUser1_, uuid3);
     ASSERT_EQ(0, ret);
 
-    // 操作5： testUser1_ GetCloneTask
-    // 预期5：返回SnapLazyClone1的clone 任务
+    //Action 5: testUser1_ GetCloneTask
+    //Expected 5: Return clone task for SnapLazyClone1
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid3, true);
     ASSERT_TRUE(success1);
 
-    // 操作6： testUser2_ GetCloneTask
-    // 预期6： 返回空
+    //Operation 6: testUser2_ GetCloneTask
+    //Expected 6: Return null
     std::vector<TaskCloneInfo> infoVec;
     ret = ListCloneTaskInfo(testUser2_, 10, 0, &infoVec);
     ASSERT_EQ(0, ret);
     ASSERT_EQ(0, infoVec.size());
 
-    // 操作7： testUser2_ CleanCloneTask UUID为SnapLazyClone1的UUID
-    // 预期7：返回用户认证失败
+    //Action 7: testUser2_ CleanCloneTask UUID is the UUID of SnapLazyClone1
+    //Expected 7: User authentication failure returned
     ret = CleanCloneTask(testUser2_, uuid3);
     ASSERT_EQ(kErrCodeInvalidUser, ret);
 
-    // 操作8： testUser1_ CleanCloneTask UUID为SnapLazyClone1的UUID
-    // 预期8：返回执行成功
+    //Action 8: testUser1_ CleanCloneTask UUID is the UUID of SnapLazyClone1
+    //Expected 8: Return execution successful
     ret = CleanCloneTask(testUser1_, uuid3);
     ASSERT_EQ(0, ret);
 
-    // 等待清理完成
+    //Waiting for cleaning to complete
     std::this_thread::sleep_for(std::chrono::seconds(3));
 
-    // 操作9： testUser1_ CleanCloneTask UUID为SnapLazyClone1的UUID（重复执行）
-    // 预期9：返回执行成功
+    //Operation 9: testUser1_ CleanCloneTask UUID is the UUID of SnapLazyClone1 (repeated execution)
+    //Expected 9: Return execution successful
     ret = CleanCloneTask(testUser1_, uuid3);
     ASSERT_EQ(0, ret);
 
-    // 操作10：testUser1_ GetCloneTask
-    // 预期10：返回空
+    //Action 10: testUser1_ GetCloneTask
+    //Expected 10: Return empty
     TaskCloneInfo info;
     ret = GetCloneTaskInfo(testUser1_, uuid3, &info);
     ASSERT_EQ(kErrCodeFileNotExist, ret);
 
-    // 验证数据正确性
+    //Verify data correctness
     std::string fakeData(4096, 'x');
     ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
-// 场景四：非lazy快照克隆场景
+//Scenario 4: Non lazy snapshot clone scenario
 TEST_F(SnapshotCloneServerTest, TestSnapNotLazyClone) {
     std::string snapId;
     PrepareSnapshotForTestFile1(&snapId);
 
-    // 操作1: testUser1_ clone不存在的快照，fileName=SnapNotLazyClone1
-    // 预期1：返回快照不存在
+    //Operation 1: testUser1_ A snapshot with a clone that does not exist, fileName=SnapNotLazyClone1
+    //Expected 1: Return snapshot does not exist
     std::string uuid1;
     int ret;
     ret = CloneOrRecover("Clone", testUser1_, "UnExistSnapId2",
                          "/ItUser1/SnapNotLazyClone1", false, &uuid1);
     ASSERT_EQ(kErrCodeFileNotExist, ret);
 
-    // 操作2：testUser2_ clone快照snap1，fileName=SnapNotLazyClone1
-    // 预期2:  返回用户认证失败
+    //Action 2: testUser2_ Clone snapshot snap1, fileName=SnapNotLazyClone1
+    //Expected 2: User authentication failure returned
     ret = CloneOrRecover("Clone", testUser2_, snapId,
                          "/ItUser2/SnapNotLazyClone1", false, &uuid1);
     ASSERT_EQ(kErrCodeInvalidUser, ret);
 
-    // 操作3：testUser1_ clone 快照snap1，fileName=SnapNotLazyClone1
-    // 预期3  返回克隆成功
+    //Operation 3: testUser1_ Clone snapshot snap1, fileName=SnapNotLazyClone1
+    //Expected 3 to return successful cloning
     std::string dstFile = "/ItUser1/SnapNotLazyClone1";
     ret = CloneOrRecover("Clone", testUser1_, snapId, dstFile, false, &uuid1);
     ASSERT_EQ(0, ret);
@@ -738,39 +738,39 @@ TEST_F(SnapshotCloneServerTest, TestSnapNotLazyClone) {
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, true);
     ASSERT_TRUE(success1);
 
-    // 操作4： testUser1_ clone 块照snap1，
-    // fileName=SnapNotLazyClone1 （重复克隆）
-    // 预期4：返回克隆成功（幂等）
+    //Operation 4: testUser1_ Clone block photo snap1,
+    //FileName=SnapNotLazyClone1 (duplicate clone)
+    //Expected 4: Returns successful cloning (idempotent)
     ret = CloneOrRecover("Clone", testUser1_, snapId,
                          "/ItUser1/SnapNotLazyClone1", false, &uuid1);
     ASSERT_EQ(0, ret);
 
-    // 验证数据正确性
+    //Verify data correctness
     std::string fakeData(4096, 'x');
     ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
-// 场景五：lazy快照恢复场景
+//Scenario 5: Lazy snapshot recovery scenario
 TEST_F(SnapshotCloneServerTest, TestSnapLazyRecover) {
     std::string snapId;
     PrepareSnapshotForTestFile1(&snapId);
 
-    // 操作1: testUser1_ Recover不存在的快照，fileName=testFile1_
-    // 预期1：返回快照不存在
+    //Operation 1: testUser1_ Recover snapshot that does not exist, fileName=testFile1_
+    //Expected 1: Return snapshot does not exist
     std::string uuid1;
     int ret;
     ret = CloneOrRecover("Recover", testUser1_, "UnExistSnapId3", testFile1_,
                          true, &uuid1);
     ASSERT_EQ(kErrCodeFileNotExist, ret);
 
-    // 操作2：testUser2_ Recover快照snap1，fileName=testFile1_
-    // 预期2:  返回用户认证失败
+    //Action 2: testUser2_ Recover snapshot snap1, fileName=testFile1_
+    //Expected 2: User authentication failure returned
     ret =
         CloneOrRecover("Recover", testUser2_, snapId, testFile1_, true, &uuid1);
     ASSERT_EQ(kErrCodeInvalidUser, ret);
 
-    // 操作3：testUser1_ Recover快照snap1，fileName=testFile1_
-    // 预期3  返回恢复成功
+    //Operation 3: testUser1_ Recover snapshot snap1, fileName=testFile1_
+    //Expected 3 return recovery success
     ret =
         CloneOrRecover("Recover", testUser1_, snapId, testFile1_, true, &uuid1);
     ASSERT_EQ(0, ret);
@@ -782,38 +782,38 @@ TEST_F(SnapshotCloneServerTest, TestSnapLazyRecover) {
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, false);
     ASSERT_TRUE(success1);
 
-    // 验证数据正确性
+    //Verify data correctness
     std::string fakeData(4096, 'x');
     ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 
-    // 操作4：testUser1_ recover 快照snap1，目标文件为不存在的文件
-    // 预期4:  返回目标文件不存在
+    //Operation 4: testUser1_ Recover snapshot snap1, target file is a non-existent file
+    //Expected 4: Return target file does not exist
     ret = CloneOrRecover("Recover", testUser1_, snapId, "/ItUser1/notExistFile",
                          true, &uuid1);
     ASSERT_EQ(kErrCodeFileNotExist, ret);
 }
 
-// 场景六：非lazy快照恢复场景
+//Scenario 6: Non lazy snapshot recovery scenario
 TEST_F(SnapshotCloneServerTest, TestSnapNotLazyRecover) {
     std::string snapId;
     PrepareSnapshotForTestFile1(&snapId);
 
-    // 操作1: testUser1_ Recover不存在的快照，fileName=testFile1_
-    // 预期1：返回快照不存在
+    //Operation 1: testUser1_ Recover snapshot that does not exist, fileName=testFile1_
+    //Expected 1: Return snapshot does not exist
     std::string uuid1;
     int ret;
     ret = CloneOrRecover("Recover", testUser1_, "UnExistSnapId4", testFile1_,
                          false, &uuid1);
     ASSERT_EQ(kErrCodeFileNotExist, ret);
 
-    // 操作2：testUser2_ Recover快照snap1，fileName=testFile1_
-    // 预期2:  返回用户认证失败
+    //Action 2: testUser2_ Recover snapshot snap1, fileName=testFile1_
+    //Expected 2: User authentication failure returned
     ret = CloneOrRecover("Recover", testUser2_, snapId, testFile1_, false,
                          &uuid1);
     ASSERT_EQ(kErrCodeInvalidUser, ret);
 
-    // 操作3：testUser1_ Recover快照snap1，fileName=testFile1_
-    // 预期3  返回恢复成功
+    //Operation 3: testUser1_ Recover snapshot snap1, fileName=testFile1_
+    //Expected 3 return recovery success
     ret = CloneOrRecover("Recover", testUser1_, snapId, testFile1_, false,
                          &uuid1);
     ASSERT_EQ(0, ret);
@@ -821,43 +821,43 @@ TEST_F(SnapshotCloneServerTest, TestSnapNotLazyRecover) {
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, false);
     ASSERT_TRUE(success1);
 
-    // 验证数据正确性
+    //Verify data correctness
     std::string fakeData(4096, 'x');
     ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 
-    // 操作4：testUser1_ recover 快照snap1，目标文件为不存在的文件
-    // 预期4:  返回目标文件不存在
+    //Operation 4: testUser1_ Recover snapshot snap1, target file is a non-existent file
+    //Expected 4: Return target file does not exist
     ret = CloneOrRecover("Recover", testUser1_, snapId, "/ItUser1/notExistFile",
                          false, &uuid1);
     ASSERT_EQ(kErrCodeFileNotExist, ret);
 }
 
-// 场景七: lazy镜像克隆场景
+//Scenario 7: Lazy Mirror Clone Scene
 TEST_F(SnapshotCloneServerTest, TestImageLazyClone) {
-    // 操作1: testUser1_ clone不存在的镜像，fileName=ImageLazyClone1
-    // 预期1：返回文件不存在
+    //Operation 1: testUser1_ Clone does not exist in an image, fileName=ImageLazyClone1
+    //Expected 1: Return file does not exist
     std::string uuid1, uuid2, uuid3, uuid4;
     int ret;
     ret = CloneOrRecover("Clone", testUser1_, "/UnExistFile",
                          "/ItUser1/ImageLazyClone1", true, &uuid1);
     ASSERT_EQ(kErrCodeFileNotExist, ret);
 
-    // 操作2：testUser1_ clone 镜像testFile1_，fileName=ImageLazyClone1
-    // 预期2  返回克隆成功
+    //Action 2: testUser1_ Clone image testFile1, FileName=ImageLazyClone1
+    //Expected 2 to return successful cloning
     std::string dstFile = "/ItUser1/ImageLazyClone1";
     ret =
         CloneOrRecover("Clone", testUser1_, testFile1_, dstFile, true, &uuid2);
     ASSERT_EQ(0, ret);
 
-    // 操作3： testUser1_ clone 镜像testFile1_，
-    // fileName=ImageLazyClone1 （重复克隆）
-    // 预期3：返回克隆成功（幂等）
+    //Operation 3: testUser1_ Clone image testFile1,
+    //FileName=ImageLazyClone1 (duplicate clone)
+    //Expected 3: Returns successful cloning (idempotent)
     ret = CloneOrRecover("Clone", testUser1_, testFile1_,
                          "/ItUser1/ImageLazyClone1", true, &uuid3);
     ASSERT_EQ(0, ret);
 
-    // 操作4：对未完成lazy克隆的文件ImageLazyClone1打快照snap1
-    // 预期4：返回文件状态异常
+    //Action 4: Take a snapshot snap1 of the file ImageLazyClone1 that has not completed the lazy clone
+    //Expected 4: Abnormal file status returned
     ret = MakeSnapshot(testUser1_, testFile1_, "snap1", &uuid4);
     ASSERT_EQ(kErrCodeFileStatusInvalid, ret);
     FileSnapshotInfo info2;
@@ -866,7 +866,7 @@ TEST_F(SnapshotCloneServerTest, TestImageLazyClone) {
 
     ASSERT_TRUE(WaitMetaInstalledSuccess(testUser1_, uuid2, true));
 
-    // Flatten之前验证数据正确性
+    //Verify data correctness before Flatten
     std::string fakeData1(4096, 'x');
     ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData1));
 
@@ -877,23 +877,23 @@ TEST_F(SnapshotCloneServerTest, TestImageLazyClone) {
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid2, true);
     ASSERT_TRUE(success1);
 
-    // Flatten之后验证数据正确性
+    //Verify data correctness after Flatten
     std::string fakeData2(4096, 'x');
     ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData2));
 }
 
-// 场景八：非lazy镜像克隆场景
+//Scenario 8: Non Lazy Mirror Clone Scene
 TEST_F(SnapshotCloneServerTest, TestImageNotLazyClone) {
-    // 操作1: testUser1_ clone不存在的镜像，fileName=ImageNotLazyClone1
-    // 预期1：返回快照不存在
+    //Operation 1: testUser1_ Clone does not exist in an image, fileName=ImageNotLazyClone1
+    //Expected 1: Return snapshot does not exist
     std::string uuid1;
     int ret;
     ret = CloneOrRecover("Clone", testUser1_, "/UnExistFile",
                          "/ItUser1/ImageNotLazyClone1", false, &uuid1);
     ASSERT_EQ(kErrCodeFileNotExist, ret);
 
-    // 操作2：testUser1_ clone 镜像testFile1_，fileName=ImageNotLazyClone1
-    // 预期2  返回克隆成功
+    //Action 2: testUser1_ Clone image testFile1, FileName=ImageNotLazyClone1
+    //Expected 2 to return successful cloning
     std::string dstFile = "/ItUser1/ImageNotLazyClone1";
     ret =
         CloneOrRecover("Clone", testUser1_, testFile1_, dstFile, false, &uuid1);
@@ -902,19 +902,19 @@ TEST_F(SnapshotCloneServerTest, TestImageNotLazyClone) {
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, true);
     ASSERT_TRUE(success1);
 
-    // 操作3： testUser1_ clone 镜像testFile1_，
-    // fileName=ImageNotLazyClone1 （重复克隆）
-    // 预期3：返回克隆成功（幂等）
+    //Operation 3: testUser1_ Clone image testFile1,
+    //FileName=ImageNotLazyClone1 (duplicate clone)
+    //Expected 3: Returns successful cloning (idempotent)
     ret = CloneOrRecover("Clone", testUser1_, testFile1_,
                          "/ItUser1/ImageNotLazyClone1", false, &uuid1);
     ASSERT_EQ(0, ret);
 
-    // 验证数据正确性
+    //Verify data correctness
     std::string fakeData(4096, 'x');
     ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
-// 场景九：快照存在失败场景
+//Scenario 9: The snapshot has a failure scenario
 TEST_F(SnapshotCloneServerTest, TestSnapAndCloneWhenSnapHasError) {
     std::string snapId = "errorSnapUuid";
     SnapshotInfo snapInfo(snapId, testUser1_, testFile4_, "snapxxx", 0, 0, 0, 0,
@@ -927,114 +927,114 @@ TEST_F(SnapshotCloneServerTest, TestSnapAndCloneWhenSnapHasError) {
     ASSERT_GT(pid, 0);
     std::string uuid1, uuid2;
 
-    // 操作1:  lazy clone 快照snap1
-    // 预期1：返回快照存在异常
+    //Operation 1: lazy clone snapshot snap1
+    //Expected 1: Exception in returning snapshot
     int ret = CloneOrRecover("Clone", testUser1_, snapId,
                              "/ItUser2/SnapLazyClone1", true, &uuid2);
     ASSERT_EQ(kErrCodeInvalidSnapshot, ret);
 
-    // 操作2：非lazy clone 快照snap1
-    // 预期2：返回快照存在异常
+    //Action 2: Non lazy clone snapshot snap1
+    //Expected 2: Exception in returning snapshot
     ret = CloneOrRecover("Clone", testUser1_, snapId,
                          "/ItUser2/SnapNotLazyClone1", false, &uuid2);
     ASSERT_EQ(kErrCodeInvalidSnapshot, ret);
 
-    // 操作3：lazy 从 快照snap1 recover
-    // 预期3：返回快照存在异常
+    //Action 3: lazy snap1 recover from snapshot
+    //Expected 3: Exception in returning snapshot
     ret =
         CloneOrRecover("Recover", testUser1_, snapId, testFile4_, true, &uuid2);
     ASSERT_EQ(kErrCodeInvalidSnapshot, ret);
 
-    // 操作4：非lazy 从 快照snap1 recover
-    // 预期4：返回快照存在异常
+    //Operation 4: Snap1 recover from snapshot without lazy
+    //Expected 4: Exception in returning snapshot
     ret = CloneOrRecover("Recover", testUser1_, snapId, testFile4_, false,
                          &uuid2);
     ASSERT_EQ(kErrCodeInvalidSnapshot, ret);
 
-    // 操作5：用户testUser1_对testFile4_打快照snap1
-    // 预期5：清理失败快照，并打快照成功
+    //Action 5: User testUser1_ For testFile4_ Take a snapshot snap1
+    //Expectation 5: Clean failed snapshot and take snapshot successfully
     ret = MakeSnapshot(testUser1_, testFile4_, "snap1", &uuid1);
     ASSERT_EQ(0, ret);
 
-    // 校验快照成功
+    //Successfully verified snapshot
     bool success1 = CheckSnapshotSuccess(testUser1_, testFile4_, uuid1);
     ASSERT_TRUE(success1);
 
-    // 校验清理失败快照成功
+    //Verification cleaning failed, snapshot succeeded
     FileSnapshotInfo info1;
     int retCode = GetSnapshotInfo(testUser1_, testFile4_, snapId, &info1);
     ASSERT_EQ(kErrCodeFileNotExist, retCode);
 }
 
-// [线上问题修复]克隆失败，回滚删除克隆卷，再次创建同样的uuid的卷的场景
+//[Online issue repair] Clone failed, rollback delete clone volume, and create the same uuid volume again scenario
 TEST_F(SnapshotCloneServerTest, TestCloneHasSameDest) {
     std::string uuid1, uuid2, uuid3, uuid4, uuid5, uuid6, uuid7;
-    // 操作1：testUser1_ clone 镜像testFile1_，fileName=CloneHasSameDestUUID
-    // 预期1  返回克隆成功
+    //Action 1: testUser1_ Clone image testFile1, FileName=CloneHasSameDestUUID
+    //Expected 1 to return successful cloning
     std::string dstFile = "/ItUser1/CloneHasSameDest";
     int ret =
         CloneOrRecover("Clone", testUser1_, testFile1_, dstFile, true, &uuid1);
     ASSERT_EQ(0, ret);
 
-    // 删除克隆卷
+    //Delete Clone Volume
     UserInfo_t userinfo;
     userinfo.owner = testUser1_;
     int ret2 = fileClient_->Unlink(dstFile, userinfo, false);
     ASSERT_EQ(0, ret2);
 
 
-    // 操作2：testUser1_ 再次clone 镜像testFile1_，
+    //Action 2: testUser1_ Clone image testFile1_ again,
     // fileName=CloneHasSameDestUUID
-    // 预期2  返回克隆成功
+    //Expected 2 to return successful cloning
     ret =
         CloneOrRecover("Clone", testUser1_, testFile1_, dstFile, true, &uuid2);
     ASSERT_EQ(0, ret);
 
-    // 验证数据正确性
+    //Verify data correctness
     std::string fakeData(4096, 'x');
     ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 
-    // 操作3：testUser1_ clone 镜像testFile1_，fileName=CloneHasSameDest2
-    // 预期3  返回克隆成功
+    //Operation 3: testUser1_ Clone image testFile1, FileName=CloneHasSameDest2
+    //Expected 3 to return successful cloning
     dstFile = "/ItUser1/CloneHasSameDest2";
     ret =
         CloneOrRecover("Clone", testUser1_, testFile1_, dstFile, true, &uuid3);
     ASSERT_EQ(0, ret);
 
-    // 删除克隆卷
+    //Delete Clone Volume
     UserInfo_t userinfo2;
     userinfo2.owner = testUser1_;
     ret2 = fileClient_->Unlink(dstFile, userinfo2, false);
     ASSERT_EQ(0, ret2);
 
 
-    // 操作4：testUser1_ 再次clone 镜像testFile2_，
+    //Operation 4: testUser1_ Clone the image testFile2 again,
     // fileName=CloneHasSameDest2
-    // 预期4  返回克隆成功
+    //Expected 4 to return successful cloning
     ret =
         CloneOrRecover("Clone", testUser1_, testFile2_, dstFile, true, &uuid4);
     ASSERT_EQ(0, ret);
 
-    // 验证数据正确性
+    //Verify data correctness
     ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 
-    // 验证再次克隆lazyflag不同的情况
-    // 操作5：testUser1_ clone 镜像testFile1_，fileName=CloneHasSameDest3
-    // 预期5  返回克隆成功
+    //Verify different situations when cloning lazyflag again
+    //Action 5: testUser1_ Clone image testFile1, FileName=CloneHasSameDest3
+    //Expected 5 to return successful cloning
     dstFile = "/ItUser1/CloneHasSameDest3";
     ret =
         CloneOrRecover("Clone", testUser1_, testFile1_, dstFile, true, &uuid5);
     ASSERT_EQ(0, ret);
 
-    // 删除克隆卷
+    //Delete Clone Volume
     UserInfo_t userinfo3;
     userinfo2.owner = testUser1_;
     ret2 = fileClient_->Unlink(dstFile, userinfo2, false);
     ASSERT_EQ(0, ret2);
 
-    // 操作6：testUser1_ 再次非lazy clone 镜像testFile2_，
+    //Operation 6: testUser1_ Non lazy clone image testFile2 again,
     // fileName=CloneHasSameDest3
-    // 预期6  返回克隆成功
+    //Expected 6 to return successful cloning
     ret =
         CloneOrRecover("Clone", testUser1_, testFile2_, dstFile, false, &uuid6);
     ASSERT_EQ(0, ret);
@@ -1042,30 +1042,30 @@ TEST_F(SnapshotCloneServerTest, TestCloneHasSameDest) {
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid6, true);
     ASSERT_TRUE(success1);
 
-    // 验证数据正确性
+    //Verify data correctness
     ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 
-    // 删除克隆卷
+    //Delete Clone Volume
     UserInfo_t userinfo4;
     userinfo2.owner = testUser1_;
     ret2 = fileClient_->Unlink(dstFile, userinfo2, false);
     ASSERT_EQ(0, ret2);
 
-    // 操作7：testUser1_ 再次非lazy clone 镜像testFile2_，
+    //Action 7: testUser1_ Non lazy clone image testFile2 again,
     // fileName=CloneHasSameDest3
-    // 预期7  返回克隆成功
+    //Expected 7 to return successful cloning
     ret =
         CloneOrRecover("Clone", testUser1_, testFile2_, dstFile, true, &uuid7);
     ASSERT_EQ(0, ret);
 
-    // 验证数据正确性
+    //Verify data correctness
     ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
-// lazy克隆卷，删除克隆卷，再删除源卷，源卷需要可以删除
+//Lazy clone volume, delete clone volume, and then delete source volume. The source volume can be deleted if needed
 TEST_F(SnapshotCloneServerTest, TestDeleteLazyCloneDestThenDeleteSrc) {
-    // 操作1：testUser1_ clone 镜像testFile5_，lazy克隆两个卷dstFile1，dstFile2
-    // 预期1  返回克隆成功
+    //Action 1: testUser1_ Clone image testFile5_, Lazy clone two volumes dstFile1 and dstFile2
+    //Expected 1 to return successful cloning
     std::string uuid1;
     std::string uuid2;
     std::string dstFile1 = "/dest1";
@@ -1080,13 +1080,13 @@ TEST_F(SnapshotCloneServerTest, TestDeleteLazyCloneDestThenDeleteSrc) {
         CloneOrRecover("Clone", testUser1_, testFile5_, dstFile2, true, &uuid2);
     ASSERT_EQ(0, ret);
 
-    // 删除源卷，删除失败，卷被占用
+    //Delete source volume, deletion failed, volume occupied
 
     ret = fileClient_->Unlink(testFile5_, userinfo, false);
     ASSERT_EQ(-27, ret);
 
-    // 操作2：删除目的卷dstFile1成功，再次删除源卷
-    // 预期2 删除失败，卷被占用
+    //Operation 2: Successfully delete the destination volume dstFile1, delete the source volume again
+    //Expected 2 deletion failed, volume occupied
     ret = fileClient_->Unlink(dstFile1, userinfo, false);
     ASSERT_EQ(0, ret);
 
@@ -1094,15 +1094,15 @@ TEST_F(SnapshotCloneServerTest, TestDeleteLazyCloneDestThenDeleteSrc) {
     ASSERT_EQ(-27, ret);
 
 
-    // 操作3：删除目的卷dstFile2成功，再次删除源卷
-    // 预期3 删除成功
+    //Operation 3: Successfully delete the destination volume dstFile2, delete the source volume again
+    //Expected 3 deletion successful
     ret = fileClient_->Unlink(dstFile2, userinfo, false);
     ASSERT_EQ(0, ret);
 
     ret = fileClient_->Unlink(testFile5_, userinfo, false);
     ASSERT_EQ(0, ret);
 
-    // 操作4： 等待一段时间，看垃圾记录后台能否删除
+    //Action 4: Wait for a period of time to see if the garbage record can be deleted in the background
     bool noRecord = false;
     for (int i = 0; i < 100; i++) {
         TaskCloneInfo info;

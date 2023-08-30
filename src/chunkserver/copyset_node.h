@@ -100,9 +100,11 @@ class ConfigurationChangeDone : public braft::Closure {
     explicit ConfigurationChangeDone(
                 std::shared_ptr<ConfigurationChange> cfgChange)
                     : curCfgChange(cfgChange) {}
-    // copyset node中当前的配置变更信息
+    //Current configuration change information in the copyset node
+
     std::shared_ptr<ConfigurationChange> curCfgChange;
-    // 这次配置变更对应的配置变更信息
+    //The configuration change information corresponding to this configuration change
+
     ConfigurationChange expectedCfgChange;
 };
 
@@ -125,7 +127,7 @@ class SyncChunkThread : public curve::common::Uncopyable {
 };
 
 /**
- * 一个Copyset Node就是一个复制组的副本
+ *A Copyset Node is a replica of a replication group
  */
 class CopysetNode : public braft::StateMachine,
                     public std::enable_shared_from_this<CopysetNode> {
@@ -140,31 +142,31 @@ class CopysetNode : public braft::StateMachine,
     virtual ~CopysetNode();
 
     /**
-     * 初始化copyset node配置
+     *Initialize copyset node configuration
      * @param options
-     * @return 0，成功，-1失败
+     * @return 0, successful, -1 failed
      */
     virtual int Init(const CopysetNodeOptions &options);
 
     /**
-     * Raft Node init，使得Raft Node运行起来
+     *Raft Node init to make Raft Node run
      * @return
      */
     virtual int Run();
 
     /**
-     * 关闭copyset node
+     *Close copyset node
      */
     virtual void Fini();
 
     /**
-     * 返回复制组的逻辑池ID
+     *Returns the logical pool ID of the replication group
      * @return
      */
     LogicPoolID GetLogicPoolId() const;
 
     /**
-     * 返回复制组的复制组ID
+     *Returns the replication group ID of the replication group
      * @return
      */
     CopysetID GetCopysetId() const;
@@ -180,13 +182,13 @@ class CopysetNode : public braft::StateMachine,
     virtual std::vector<ScanMap>& GetFailedScanMap();
 
     /**
-     * 返回复制组数据目录
+     *Return to the replication group data directory
      * @return
      */
     std::string GetCopysetDir() const;
 
     /**
-     * 返回当前副本是否在leader任期
+     *Returns whether the current replica is in the leader's tenure
      * @return
      */
     virtual bool IsLeaderTerm() const;
@@ -204,83 +206,83 @@ class CopysetNode : public braft::StateMachine,
     virtual bool IsLeaseExpired(const braft::LeaderLeaseStatus &lease_status) const;  // NOLINT
 
     /**
-     * 返回当前的任期
-     * @return 当前的任期
+     *Return to current tenure
+     * @return Current tenure
      */
     virtual uint64_t LeaderTerm() const;
 
     /**
-     * 返回leader id
+     *Return leader id
      * @return
      */
     virtual PeerId GetLeaderId() const;
 
     /**
-     * @brief 切换复制组的Leader
-     * @param[in] peerId 目标Leader的成员ID
-     * @return 心跳任务的引用
+     * @brief Switch the leader of the replication group
+     * @param[in] peerId The member ID of the target leader
+     * @return  Reference to Heartbeat Task
      */
     butil::Status TransferLeader(const Peer& peer);
 
     /**
-     * @brief 复制组添加新成员
-     * @param[in] peerId 新成员的ID
-     * @return 心跳任务的引用
+     *Add new members to the  @brief replication group
+     * @param[in] peerId The ID of the new member
+     * @return  Reference to Heartbeat Task
      */
     butil::Status AddPeer(const Peer& peer);
 
     /**
-     * @brief 复制组删除成员
-     * @param[in] peerId 将要删除成员的ID
-     * @return 心跳任务的引用
+     * @brief Copy Group Delete Members
+     * @param[in] peerId The ID of the member to be deleted
+     * @return  Reference to Heartbeat Task
      */
     butil::Status RemovePeer(const Peer& peer);
 
     /**
-     * @brief 变更复制组成员
-     * @param[in] newPeers 新的复制组成员
-     * @return 心跳任务的引用
+     * @brief Change replication group members
+     * @param[in] newPeers New replication group member
+     * @return  Reference to Heartbeat Task
      */
     butil::Status ChangePeer(const std::vector<Peer>& newPeers);
 
     /**
-     * 返回copyset的配置版本
+     *Returns the configuration version of the copyset
      * @return
      */
     virtual uint64_t GetConfEpoch() const;
 
     /**
-     * 更新applied index，只有比它大的才更新
+     *Update the applied index, only those larger than it will be updated
      * @param index
      */
     virtual void UpdateAppliedIndex(uint64_t index);
 
     /**
-     * 返回当前最新的applied index
+     *Returns the current latest applied index
      * @return
      */
     virtual uint64_t GetAppliedIndex() const;
 
     /**
-     * @brief: 查询配置变更的状态
-     * @param type[out]: 配置变更类型
-     * @param oldConf[out]: 老的配置
-     * @param alterPeer[out]: 变更的peer
-     * @return 0查询成功，-1查询异常失败
+     * @brief: Query the status of configuration changes
+     * @param type[out]: Configuration change type
+     * @param oldConf[out]: Old configuration
+     * @param alterPeer[out]: Changed Peer
+     * @return 0 query successful, -1 query exception failed
      */
     virtual int GetConfChange(ConfigChangeType *type,
                               Configuration *oldConf,
                               Peer *alterPeer);
 
     /**
-     * @brief: 获取copyset node的状态值，用于比较多个副本的数据一致性
-     * @param hash[out]: copyset node状态值
-     * @return 0成功，-1失败
+     * @brief: Obtain the status value of the copyset node for comparing data consistency across multiple replicas
+     * @param hash[out]: copyset node status value
+     * @return 0 succeeded, -1 failed
      */
     virtual int GetHash(std::string *hash);
 
     /**
-     * @brief: 获取copyset node的status，实际调用的raft node的get_status接口
+     * @brief: Get the status of the copyset node and the get of the actually called raft node_ Status interface
      * @param status[out]: copyset node status
      */
     virtual void GetStatus(NodeStatus *status);
@@ -292,14 +294,14 @@ class CopysetNode : public braft::StateMachine,
     virtual void GetLeaderLeaseStatus(braft::LeaderLeaseStatus *status);
 
     /**
-     * 获取此copyset的leader上的status
+     *Obtain the status on the leader of this copyset
      * @param leaderStaus[out]: leader copyset node status
-     * @return 获取成功返回true，获取失败返回false
+     * @return returns true for successful acquisition, false for failed acquisition
      */
     virtual bool GetLeaderStatus(NodeStatus *leaderStaus);
 
     /**
-     * 返回data store指针
+     *Return data store pointer
      * @return
      */
     virtual std::shared_ptr<CSDataStore> GetDataStore() const;
@@ -311,19 +313,19 @@ class CopysetNode : public braft::StateMachine,
     virtual CurveSegmentLogStorage* GetLogStorage() const;
 
     /**
-     * 返回ConcurrentApplyModule
+     *Returning ConcurrentApplyModule
      */
     virtual ConcurrentApplyModule* GetConcurrentApplyModule() const;
 
     /**
-     * 向copyset node propose一个op request
+     *Propose an op request to the copyset node
      * @param task
      */
     virtual void Propose(const braft::Task &task);
 
     /**
-     * 获取复制组成员
-     * @param peers:返回的成员列表(输出参数)
+     *Get replication group members
+     * @param peers: List of returned members (output parameters)
      * @return
      */
     virtual void ListPeers(std::vector<Peer>* peers);
@@ -336,84 +338,84 @@ class CopysetNode : public braft::StateMachine,
     void InitRaftNodeOptions(const CopysetNodeOptions &options);
 
     /**
-     * 下面的接口都是继承StateMachine实现的接口
+     *The following interfaces are all interfaces that inherit the implementation of StateMachine
      */
  public:
     /**
-     * op log apply的时候回调函数
-     * @param iter:可以batch的访问已经commit的log entries
+     *Callback function when applying op log
+     * @param iter: Can batch access log entries that have already been committed
      */
     void on_apply(::braft::Iterator &iter) override;
 
     /**
-     * 复制关闭的时候调用此回调
+     *Call this callback when replication is closed
      */
     void on_shutdown() override;
 
     /**
-     * raft snapshot相关的接口,仅仅保存raft snapshot meta
-     * 和snapshot文件的list，这里并没有拷贝实际的数据，因为
-     * 在块存储场景所有操作是幂等，所以，并不真实的拷贝数据
+     *The interface related to raft snapshot only saves the raft snapshot meta
+     *And the list of snapshot files, the actual data is not copied here because
+     *In the block storage scenario, all operations are idempotent, so it is not true to copy data
      */
     void on_snapshot_save(::braft::SnapshotWriter *writer,
                           ::braft::Closure *done) override;
 
     /**
-     *  load日志有两种情况：
-     *  1. Follower节点Install snapshot追赶leader，这个时候
-     *  snapshot目录下面有chunk数据和snapshot数据
-     *  2. 节点重启，会执行snapshot load，然后回放日志，这个时
-     *  候snapshot目录下面没有数据，什么都不用做
-     *  TODO(wudemiao): install snapshot的时候会存在空间
-     *  double的可能性，考虑如下场景，follower落后，然后通过从
-     *  leader install snapshot恢复数据，其首先会从leader将
-     *  所有数据下载过来，然后在调用snapshot load加载快照，这个
-     *  期间空间占用了就double了；后期需要通过控制单盘参与install
-     *  snapshot的数量
+     *There are two situations with load logs:
+     *1 Follow node Install snapshot to catch up with the leader, at this time
+     *There are chunk data and snapshot data under the snapshot directory
+     *2 When the node restarts, it will execute a snapshot load and then replay the logs
+     *There is no data under the snapshot directory, so there is no need to do anything
+     *TODO (wudemiao): There will be space when installing snapshots
+     *Consider the possibility of a double, considering the following scenario where the follower falls behind, and then by starting from the
+     *The leader install snapshot restores data, which first retrieves the data from the leader
+     *Download all the data and then load the snapshot by calling snapshot load
+     *During this period, if the space is occupied, it becomes double; In the later stage, it is necessary to participate in the installation by controlling the single disk
+     *Number of snapshots
      */
     int on_snapshot_load(::braft::SnapshotReader *reader) override;
 
     /**
-     * new leader在apply noop之后会调用此接口，表示此 leader可
-     * 以提供read/write服务了。
-     * @param term:当前leader任期
+     *The new leader will call this interface after applying noop, indicating that this leader can
+     *To provide read/write services.
+     * @param term: Current leader term
      */
     void on_leader_start(int64_t term) override;
 
     /**
-     * leader step down的时候调用
-     * @param status:复制组的状态
+     *Called when the leader step is down
+     * @param status: The status of the replication group
      */
     void on_leader_stop(const butil::Status &status) override;
 
     /**
-     * 复制组发生错误的时候调用
-     * @param e:具体的 error
+     *Called when an error occurs in the replication group
+     * @param e: Specific error
      */
     void on_error(const ::braft::Error &e) override;
 
     /**
-     * 配置变更日志entry apply的时候会调用此函数，目前会利用此接口
-     * 更新配置epoch值
-     * @param conf:当前复制组最新的配置
+     *This function will be called when configuring the change log entry application, and currently this interface will be utilized
+     *Update configuration epoch value
+     * @param conf: The latest configuration of the current replication group
      * @param index log index
      */
     void on_configuration_committed(const Configuration& conf, int64_t index) override;   //NOLINT
 
     /**
-     * 当follower停止following主的时候调用
-     * @param ctx:可以获取stop following的原因
+     *Called when the follower stops following the main
+     * @param ctx: Can obtain the reason for stop following
      */
     void on_stop_following(const ::braft::LeaderChangeContext &ctx) override;
 
     /**
-     * Follower或者Candidate发现新的leader后调用
-     * @param ctx:leader变更上下，可以获取new leader和start following的原因
+     *Called after the Follower or Candidate finds a new leader
+     * @param ctx: Change the leader up and down to obtain the reasons for the new leader and start following
      */
     void on_start_following(const ::braft::LeaderChangeContext &ctx) override;
 
     /**
-     * 用于测试注入mock依赖
+     *Used for testing injection mock dependencies
      */
  public:
     void SetCSDateStore(std::shared_ptr<CSDataStore> datastore);
@@ -435,16 +437,16 @@ class CopysetNode : public braft::StateMachine,
     // shared to sync pool
     static std::shared_ptr<TaskThreadPool<>> copysetSyncPool_;
     /**
-     * 从文件中解析copyset配置版本信息
-     * @param filePath:文件路径
-     * @return 0: successs, -1 failed
+     *Parsing copyset configuration version information from a file
+     * @param filePath: File path
+     * @return 0: successes, -1 failed
      */
     int LoadConfEpoch(const std::string &filePath);
 
     /**
-     * 保存copyset配置版本信息到文件中
-     * @param filePath:文件路径
-     * @return 0 成功，-1 failed
+     *Save the copyset configuration version information to a file
+     * @param filePath: File path
+     * @return 0 succeeded, -1 failed
      */
     int SaveConfEpoch(const std::string &filePath);
 
@@ -479,49 +481,49 @@ class CopysetNode : public braft::StateMachine,
     }
 
  private:
-    // 逻辑池 id
+    //Logical Pool ID
     LogicPoolID logicPoolId_;
-    // 复制组 id
+    //Copy Group ID
     CopysetID copysetId_;
-    // 复制组的配置
+    //Configuration of replication groups
     Configuration       conf_;
-    // 复制组的配置操作锁
+    //Configuration operation lock for replication group
     mutable std::mutex  confLock_;
-    // 复制组的配置版本
+    //Copy the configuration version of the group
     std::atomic<uint64_t> epoch_;
-    // 复制组副本的peer id
+    //Peer ID of the replication group replica
     PeerId peerId_;
-    // braft Node的配置参数
+    //Configuration parameters for the braft Node
     NodeOptions nodeOptions_;
-    // CopysetNode对应的braft Node
+    //The braft Node corresponding to CopysetNode
     std::shared_ptr<RaftNode> raftNode_;
-    // chunk file的绝对目录
+    //Absolute directory for chunk files
     std::string chunkDataApath_;
-    // chunk file的相对目录
+    //Relative directory for chunk files
     std::string chunkDataRpath_;
-    // copyset绝对路径
+    //Copyset absolute path
     std::string copysetDirPath_;
-    // 文件系统适配器
+    //File system adapter
     std::shared_ptr<LocalFileSystem> fs_;
-    // Chunk持久化操作接口
+    //Chunk Persistence Operation Interface
     std::shared_ptr<CSDataStore> dataStore_;
     // The log storage for braft
     CurveSegmentLogStorage* logStorage_;
-    // 并发模块
+    //Concurrent module
     ConcurrentApplyModule *concurrentapply_ = nullptr;
-    // 配置版本持久化工具接口
+    //Configure version persistence tool interface
     std::unique_ptr<ConfEpochFile> epochFile_;
-    // 复制组的apply index
+    //Apply index of replication group
     std::atomic<uint64_t> appliedIndex_;
-    // 复制组当前任期，如果<=0表明不是leader
+    //Copy the current tenure of the group. If<=0, it indicates that it is not a leader
     std::atomic<int64_t> leaderTerm_;
-    // 复制组数据回收站目录
+    //Copy Group Data Recycle Bin Directory
     std::string recyclerUri_;
-    // 复制组的metric信息
+    //Copy the metric information of the group
     CopysetMetricPtr metric_;
-    // 正在进行中的配置变更
+    //Configuration changes in progress
     std::shared_ptr<ConfigurationChange> configChange_;
-    // transfer leader的目标，状态为TRANSFERRING时有效
+    //The target of the transfer leader is valid when the status is TRANSFERRING
     Peer transferee_;
     int64_t lastSnapshotIndex_;
     // scan status

@@ -48,7 +48,8 @@ int CloneTaskManager::Start() {
             return ret;
         }
         isStop_.store(false);
-        // isStop_标志先置，防止backEndThread先退出
+        //IsStop_ Flag set first to prevent backEndThread from exiting first
+
         backEndThread =
             std::thread(&CloneTaskManager::BackEndThreadFunc, this);
     }
@@ -111,9 +112,12 @@ int CloneTaskManager::PushTaskInternal(std::shared_ptr<CloneTaskBase> task,
     std::map<std::string, std::shared_ptr<CloneTaskBase> > *taskMap,
     Mutex *taskMapMutex,
     std::shared_ptr<ThreadPool> taskPool) {
-    // 同一个clone的Stage1的Task和Stage2的Task的任务ID是一样的，
-    // clean task的ID也是一样的,
-    // 触发一次扫描，将已完成的任务Flush出去
+    //The task IDs for Stage1 and Stage2 of the same clone are the same,
+
+    //The ID of the clean task is also the same,
+
+    //Trigger a scan to flush out completed tasks
+
     ScanStage2Tasks();
     ScanStage1Tasks();
     ScanCommonTasks();
@@ -177,13 +181,15 @@ void CloneTaskManager::ScanCommonTasks() {
     for (auto it = commonTaskMap_.begin();
             it != commonTaskMap_.end();) {
         auto taskInfo = it->second->GetTaskInfo();
-        // 处理已完成的任务
+        //Process completed tasks
+
         if (taskInfo->IsFinish()) {
             CloneTaskType taskType =
                 taskInfo->GetCloneInfo().GetTaskType();
             CloneStatus status =
                 taskInfo->GetCloneInfo().GetStatus();
-            // 移除任务并更新metric
+            //Remove task and update metric
+
             cloneMetric_->UpdateAfterTaskFinish(taskType, status);
             LOG(INFO) << "common task {"
                       << " TaskInfo : " << *taskInfo
@@ -203,7 +209,8 @@ void CloneTaskManager::ScanStage1Tasks() {
     for (auto it = stage1TaskMap_.begin();
             it != stage1TaskMap_.end();) {
         auto taskInfo = it->second->GetTaskInfo();
-        // 处理已完成的任务
+        //Process completed tasks
+
         if (taskInfo->IsFinish()) {
             CloneTaskType taskType =
                 taskInfo->GetCloneInfo().GetTaskType();
@@ -227,13 +234,15 @@ void CloneTaskManager::ScanStage2Tasks() {
     for (auto it = stage2TaskMap_.begin();
         it != stage2TaskMap_.end();) {
         auto taskInfo = it->second->GetTaskInfo();
-        // 处理完成的任务
+        //Process completed tasks
+
         if (taskInfo->IsFinish()) {
             CloneTaskType taskType =
                 taskInfo->GetCloneInfo().GetTaskType();
             CloneStatus status =
                 taskInfo->GetCloneInfo().GetStatus();
-            // retrying 状态的任务需要重试
+            //Tasks in the retrying state need to be retried
+
             if (CloneStatus::retrying == status) {
                 if (CloneTaskType::kClone == taskType) {
                     taskInfo->GetCloneInfo().
@@ -244,7 +253,8 @@ void CloneTaskManager::ScanStage2Tasks() {
                 }
                 taskInfo->Reset();
                 stage2Pool_->PushTask(it->second);
-            // 其他任务结束更新metric
+            //Update metric after completing other tasks
+
             } else {
                 cloneMetric_->UpdateAfterFlattenTaskFinish(status);
                 LOG(INFO) << "stage2 task {"

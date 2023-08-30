@@ -40,7 +40,7 @@ class TestCurveFsClientImpl : public ::testing::Test {
 
     static void SetUpTestCase() {
         ClientConfigGenerator gentor(kClientConfigPath);
-        // 把超时时间和重试次数改小，已使得测试尽快完成
+        //Reducing the timeout and retry times has enabled the testing to complete as soon as possible
         std::vector<std::string> options = {
             {"mds.listen.addr=127.0.0.1:8888",
              "mds.registerToMDS=false",
@@ -159,7 +159,7 @@ TEST_F(TestCurveFsClientImpl, TestClientInterfaceFail) {
     ret = client_->GetFileInfo("file1", clientOption_.mdsRootUser, &fInfo);
     ASSERT_LT(ret, 0);
 
-    //  client 对mds接口无限重试，这两个接口死循环，先注释掉
+    //The client retries the mds interface infinitely, and these two interfaces loop endlessly. Please comment them out first
     // ret = client_->GetOrAllocateSegmentInfo(
     //     true, 0, &fInfo, "user1", &segInfo);
     // ASSERT_LT(ret, 0);

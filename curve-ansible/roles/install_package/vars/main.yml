@@ -15,7 +15,7 @@
 #  limitations under the License.
 #
 
-# 包的名称
+#The name of the package
 package_name:
 package_version:
 lib_installed: false

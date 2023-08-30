@@ -31,40 +31,40 @@ namespace curve {
 namespace snapshotcloneserver {
 
 /**
- * @brief 快照线程池
+ * @brief snapshot thread pool
  */
 class ThreadPool {
  public:
      /**
-      * @brief 构造函数
+      * @brief constructor
       *
-      * @param threadNum 最大线程数
+      * @param threadNum maximum number of threads
       */
     explicit ThreadPool(int threadNum)
         : threadNum_(threadNum) {}
     /**
-     * @brief 启动线程池
+     * @brief Start Thread Pool
      */
     int Start();
 
     /**
-     * @brief 停止线程池
+     * @brief Stop thread pool
      */
     void Stop();
 
     /**
-     * @brief 添加快照任务
+     * @brief Add snapshot task
      *
-     * @param task 快照任务
+     * @param task snapshot task
      */
     void PushTask(std::shared_ptr<Task> task) {
         threadPool_.Enqueue(task->clousre());
     }
 
     /**
-     * @brief 添加快照任务
+     * @brief Add snapshot task
      *
-     * @param task 快照任务
+     * @param task snapshot task
      */
     void PushTask(Task* task) {
         threadPool_.Enqueue(task->clousre());
@@ -72,11 +72,11 @@ class ThreadPool {
 
  private:
     /**
-     * @brief 通用线程池
+     * @brief Universal Thread Pool
      */
     curve::common::TaskThreadPool<> threadPool_;
     /**
-     * @brief 线程数
+     * @brief Number of threads
      */
     int threadNum_;
 };

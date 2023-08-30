@@ -44,24 +44,24 @@ class Configuration {
 
     std::string GetStringValue(const std::string &key);
     /*
-    * @brief GetStringValue 获取指定配置项的值
+    * @brief GetStringValue Get the value of the specified configuration item
     *
-    * @param[in] key 配置项名称
-    * @param[out] out 获取的值
+    * @param[in] key configuration item name
+    * @param[out] out The value obtained
     *
-    * @return false-未获取到 true-获取成功
+    * @return false-did not obtain, true-obtained successfully
     */
     bool GetStringValue(const std::string &key, std::string *out);
     void SetStringValue(const std::string &key, const std::string &value);
 
     int GetIntValue(const std::string &key, uint64_t defaultvalue = 0);
     /*
-    * @brief GetIntValue/GetUInt32Value/GetUInt64Value 获取指定配置项的值 //NOLINT
+    * @brief GetIntValue/GetUInt32Value/GetUInt64Value Get the value of the specified configuration item//NOLINT
     *
-    * @param[in] key 配置项名称
-    * @param[out] out 获取的值
+    * @param[in] key configuration item name
+    * @param[out] outThe value obtained
     *
-    * @return false-未获取到 true-获取成功
+    * @return false-did not obtain, true-obtained successfully
     */
     bool GetIntValue(const std::string &key, int *out);
     bool GetUInt32Value(const std::string &key, uint32_t *out);
@@ -71,36 +71,36 @@ class Configuration {
 
     double GetDoubleValue(const std::string &key, double defaultvalue = 0.0);
     /*
-    * @brief GetDoubleValue 获取指定配置项的值
+    * @brief GetDoubleValue Get the value of the specified configuration item
     *
-    * @param[in] key 配置项名称
-    * @param[out] out 获取的值
+    * @param[in] key configuration item name
+    * @param[out] out The value obtained
     *
-    * @return false-未获取到 true-获取成功
+    * @return false-did not obtain, true-obtained successfully
     */
     bool GetDoubleValue(const std::string &key, double *out);
     void SetDoubleValue(const std::string &key, const double value);
 
     double GetFloatValue(const std::string &key, float defaultvalue = 0.0);
     /*
-    * @brief GetFloatValue 获取指定配置项的值
+    * @brief GetFloatValue Get the value of the specified configuration item
     *
-    * @param[in] key 配置项名称
-    * @param[out] out 获取的值
+    * @param[in] key configuration item name
+    * @param[out] out The value obtained
     *
-    * @return false-未获取到 true-获取成功
+    * @return false-did not obtain, true-obtained successfully
     */
     bool GetFloatValue(const std::string &key, float *out);
     void SetFloatValue(const std::string &key, const float value);
 
     bool GetBoolValue(const std::string &key, bool defaultvalue = false);
     /*
-    * @brief GetBoolValue 获取指定配置项的值
+    * @brief GetBoolValue Get the value of the specified configuration item
     *
-    * @param[in] key 配置项名称
-    * @param[out] out 获取的值
+    * @param[in] key configuration item name
+    * @param[out] out The value obtained
     *
-    * @return false-未获取到 true-获取成功
+    * @return false-did not obtain, true-obtained successfully
     */
     bool GetBoolValue(const std::string &key, bool *out);
     void SetBoolValue(const std::string &key, const bool value);

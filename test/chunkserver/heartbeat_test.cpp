@@ -63,7 +63,7 @@ class HeartbeatTest : public ::testing::Test {
 };
 
 TEST_F(HeartbeatTest, TransferLeader) {
-    // 创建copyset
+    //Create copyset
     std::vector<string> cslist{
         "127.0.0.1:8200", "127.0.0.1:8201", "127.0.0.1:8202"};
     std::string confStr = "127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0";
@@ -73,7 +73,7 @@ TEST_F(HeartbeatTest, TransferLeader) {
     hbtest_->CreateCopysetPeers(poolId, copysetId, cslist, confStr);
     hbtest_->WaitCopysetReady(poolId, copysetId, confStr);
 
-    // 构造req中期望的CopySetInfo，expectleader是dst1
+    //Construct the expected CopySetInfo for req, with the expected leader being dst1
     ::curve::mds::heartbeat::CopySetInfo expect;
     expect.set_logicalpoolid(poolId);
     expect.set_copysetid(copysetId);
@@ -86,7 +86,7 @@ TEST_F(HeartbeatTest, TransferLeader) {
     peer->set_address(dest1);
     expect.set_allocated_leaderpeer(peer);
 
-    // 构造resp中的CopySetConf, transfer到dst1
+    //Construct CopySetConf in resp, transfer to dst
     CopySetConf conf;
     conf.set_logicalpoolid(poolId);
     conf.set_copysetid(copysetId);
@@ -99,25 +99,25 @@ TEST_F(HeartbeatTest, TransferLeader) {
     conf.set_allocated_configchangeitem(peer);
     conf.set_type(curve::mds::heartbeat::TRANSFER_LEADER);
 
-    // 等待变更成功
+    //Waiting for successful change
     ASSERT_TRUE(hbtest_->WailForConfigChangeOk(conf, expect, 30 * 1000));
 
-    // 构造req中期望的CopySetInfo，expectleader是dst2
+    //Construct the expected CopySetInfo for req, with the expected leader being dst2
     peer = new ::curve::common::Peer();
     peer->set_address(dest2);
     expect.set_allocated_leaderpeer(peer);
 
-    // 构造resp中的CopySetConf, transfer到dst2
+    //Construct CopySetConf in resp, transfer to dst2
     peer = new ::curve::common::Peer();
     peer->set_address(dest2);
     conf.set_allocated_configchangeitem(peer);
 
-    // 等待变更成功
+    //Waiting for successful change
     ASSERT_TRUE(hbtest_->WailForConfigChangeOk(conf, expect, 30 * 1000));
 }
 
 TEST_F(HeartbeatTest, RemovePeer) {
-    // 创建copyset
+    //Create copyset
     std::vector<string> cslist{
         "127.0.0.1:8200", "127.0.0.1:8201", "127.0.0.1:8202"};
     std::string confStr = "127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0";
@@ -128,7 +128,7 @@ TEST_F(HeartbeatTest, RemovePeer) {
     hbtest_->WaitCopysetReady(poolId, copysetId, confStr);
     hbtest_->TransferLeaderSync(poolId, copysetId, confStr, leaderPeer);
 
-    // 构造req中期望的CopySetInfo
+    //Construct the CopySetInfo expected in req
     ::curve::mds::heartbeat::CopySetInfo expect;
     expect.set_logicalpoolid(poolId);
     expect.set_copysetid(copysetId);
@@ -138,7 +138,7 @@ TEST_F(HeartbeatTest, RemovePeer) {
     }
     expect.set_epoch(2);
 
-    // 构造resp中的CopySetConf
+    //Construct CopySetConf in resp
     CopySetConf conf;
     conf.set_logicalpoolid(poolId);
     conf.set_copysetid(copysetId);
@@ -151,53 +151,53 @@ TEST_F(HeartbeatTest, RemovePeer) {
     conf.set_allocated_configchangeitem(peer);
     conf.set_type(curve::mds::heartbeat::REMOVE_PEER);
 
-    // 等待变更成功
+    //Waiting for successful change
     ASSERT_TRUE(hbtest_->WailForConfigChangeOk(conf, expect, 30 * 1000));
 }
 
 TEST_F(HeartbeatTest, CleanPeer_after_Configchange) {
-    // 创建copyset
+    //Create copyset
     std::vector<string> cslist{"127.0.0.1:8200"};
     std::string confStr = "127.0.0.1:8200:0";
 
     hbtest_->CreateCopysetPeers(poolId, copysetId, cslist, confStr);
     hbtest_->WaitCopysetReady(poolId, copysetId, confStr);
 
-    // 构造req中期望的CopySetInfo
+    //Construct the CopySetInfo expected in req
     ::curve::mds::heartbeat::CopySetInfo expect;
 
-    // 构造resp中的CopySetConf
+    //Construct CopySetConf in resp
     CopySetConf conf;
     conf.set_logicalpoolid(poolId);
     conf.set_copysetid(copysetId);
 
-    // 等待变更成功
+    //Waiting for successful change
     ASSERT_TRUE(hbtest_->WailForConfigChangeOk(conf, expect, 30 * 1000));
 }
 
 TEST_F(HeartbeatTest, CleanPeer_not_exist_in_MDS) {
-    // 在chunkserver上创建一个copyset
+    //Create a copyset on chunkserver
     std::vector<string> cslist{"127.0.0.1:8202"};
     std::string confStr = "127.0.0.1:8202:0";
 
     hbtest_->CreateCopysetPeers(poolId, copysetId, cslist, confStr);
     hbtest_->WaitCopysetReady(poolId, copysetId, confStr);
 
-    // 构造req中期望的CopySetInfo
+    //Construct the CopySetInfo expected in req
     ::curve::mds::heartbeat::CopySetInfo expect;
 
-    // 构造resp中的CopySetConf
+    //Construct CopySetConf in resp
     CopySetConf conf;
     conf.set_logicalpoolid(poolId);
     conf.set_copysetid(copysetId);
     conf.set_epoch(0);
 
-    // 等待变更成功
+    //Waiting for successful change
     ASSERT_TRUE(hbtest_->WailForConfigChangeOk(conf, expect, 30 * 1000));
 }
 
 TEST_F(HeartbeatTest, AddPeer) {
-    // 创建copyset
+    //Create copyset
     std::vector<string> cslist{
         "127.0.0.1:8200", "127.0.0.1:8201", "127.0.0.1:8202"};
     std::string confStr = "127.0.0.1:8200:0,127.0.0.1:8201:0";
@@ -206,7 +206,7 @@ TEST_F(HeartbeatTest, AddPeer) {
     hbtest_->CreateCopysetPeers(poolId, copysetId, cslist, confStr);
     hbtest_->WaitCopysetReady(poolId, copysetId, confStr);
 
-    // 构造req中期望的CopySetInfo
+    //Construct the CopySetInfo expected in req
     ::curve::mds::heartbeat::CopySetInfo expect;
     expect.set_logicalpoolid(poolId);
     expect.set_copysetid(copysetId);
@@ -216,7 +216,7 @@ TEST_F(HeartbeatTest, AddPeer) {
     }
     expect.set_epoch(2);
 
-    // 构造resp中的CopySetConf
+    //Construct CopySetConf in resp
     CopySetConf conf;
     conf.set_logicalpoolid(poolId);
     conf.set_copysetid(copysetId);
@@ -229,12 +229,12 @@ TEST_F(HeartbeatTest, AddPeer) {
     conf.set_allocated_configchangeitem(peer);
     conf.set_type(curve::mds::heartbeat::ADD_PEER);
 
-    // 等待变更成功
+    //Waiting for successful change
     ASSERT_TRUE(hbtest_->WailForConfigChangeOk(conf, expect, 30 * 1000));
 }
 
 TEST_F(HeartbeatTest, ChangePeer) {
-    // 创建copyset
+    //Create copyset
     std::vector<string> cslist{
         "127.0.0.1:8200", "127.0.0.1:8201", "127.0.0.1:8202"};
     std::string oldConf = "127.0.0.1:8200:0,127.0.0.1:8202:0";
@@ -244,7 +244,7 @@ TEST_F(HeartbeatTest, ChangePeer) {
     hbtest_->CreateCopysetPeers(poolId, copysetId, cslist, oldConf);
     hbtest_->WaitCopysetReady(poolId, copysetId, oldConf);
 
-    // 构造req中期望的CopySetInfo
+    //Construct the CopySetInfo expected in req
     ::curve::mds::heartbeat::CopySetInfo expect;
     expect.set_logicalpoolid(poolId);
     expect.set_copysetid(copysetId);
@@ -254,7 +254,7 @@ TEST_F(HeartbeatTest, ChangePeer) {
     replica->set_address("127.0.0.1:8201:0");
     expect.set_epoch(2);
 
-    // 构造resp中的CopySetConf
+    //Construct CopySetConf in resp
     CopySetConf conf;
     conf.set_logicalpoolid(poolId);
     conf.set_copysetid(copysetId);
@@ -271,7 +271,7 @@ TEST_F(HeartbeatTest, ChangePeer) {
     conf.set_allocated_oldpeer(peer);
     conf.set_type(curve::mds::heartbeat::CHANGE_PEER);
 
-    // 等待变更成功
+    //Waiting for successful change
     ASSERT_TRUE(hbtest_->WailForConfigChangeOk(conf, expect, 30 * 1000));
 }
 

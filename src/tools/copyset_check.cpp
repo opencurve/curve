@@ -76,7 +76,7 @@ int CopysetCheck::RunCommand(const std::string& command) {
         return -1;
     }
     if (command == kCheckCopysetCmd) {
-        // 检查某个copyset的状态
+        //Check the status of a copyset
         if (FLAGS_logicalPoolId == 0 || FLAGS_copysetId == 0) {
             std::cout << "logicalPoolId AND copysetId should be specified!"
                       << std::endl;
@@ -84,7 +84,7 @@ int CopysetCheck::RunCommand(const std::string& command) {
         }
         return CheckCopyset();
     } else if (command == kCheckChunnkServerCmd) {
-        // 检查某个chunkserver上的所有copyset
+        //Check all copysets on a certain chunkserver
         CHECK_ONLY_ONE_SHOULD_BE_SPECIFIED(chunkserverAddr, chunkserverId);
         return CheckChunkServer();
     } else if (command == kCheckServerCmd) {
@@ -282,7 +282,7 @@ void CopysetCheck::PrintDetail() {
         PrintCopySet(item.second);
     }
     std::cout << std::endl;
-    // 打印有问题的chunkserver
+    //Printing problematic chunkservers
     PrintExcepChunkservers();
 }
 

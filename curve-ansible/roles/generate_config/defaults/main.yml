@@ -15,7 +15,7 @@
 #  limitations under the License.
 #
 
-# 通用配置
+#General configuration
 curve_root_username: root
 curve_root_password: root_password
 curve_file_timeout_s: 30
@@ -25,7 +25,7 @@ min_file_length: 10737418240
 max_file_length: 21990232555520
 file_expired_time_us: 5000000
 
-# mds配置默认值
+#Mds configuration default values
 mds_etcd_dailtimeout_ms: 5000
 mds_etcd_operation_timeout_ms: 5000
 mds_etcd_retry_times: 3
@@ -94,7 +94,7 @@ throttle_bps_min_in_MB: 120
 throttle_bps_max_in_MB: 260
 throttle_bps_per_GB_in_MB: 0.3
 
-# chunkserver配置默认值
+#Chunkserver Configuration Default Values
 chunkserver_enable_external_server: true
 chunkserver_meta_page_size: 4096
 chunkserver_location_limit: 3000
@@ -165,7 +165,7 @@ chunkserver_trash_expire_after_sec: 300
 chunkserver_trash_scan_period_sec: 120
 chunkserver_common_log_dir: ./runlog/
 
-# 快照克隆配置默认值
+#Default values for snapshot clone configuration
 snap_client_config_path: /etc/curve/snap_client.conf
 snap_client_method_retry_time_sec: 120
 snap_client_method_retry_interval_ms: 5000
@@ -201,7 +201,7 @@ snap_leader_session_inter_sec: 5
 snap_leader_election_timeout_ms: 0
 snap_nginx_addr: 127.0.0.1:5555
 
-# client配置默认值
+#Default values for client configuration
 client_register_to_mds: true
 client_mds_rpc_timeout_ms: 500
 client_mds_max_rpc_timeout_ms: 2000
@@ -244,7 +244,7 @@ client_discard_enable: true
 client_discard_granularity: 4096
 client_discard_task_delay_ms: 60000
 
-# nebd默认配置
+#Nebd default configuration
 client_config_path: /etc/curve/client.conf
 nebd_client_sync_rpc_retry_times: 50
 nebd_client_rpc_retry_inverval_us: 100000
@@ -259,7 +259,7 @@ nebd_server_heartbeat_timeout_s: 30
 nebd_server_heartbeat_check_interval_ms: 3000
 nebd_server_response_return_rpc_when_io_error: false
 
-# s3配置默认值
+#Default values for s3 configuration
 s3_http_scheme: 0
 s3_verify_ssl: false
 s3_user_agent_conf: S3 Browser
@@ -276,15 +276,15 @@ s3_throttle_bpsTotalLimit: 1280
 s3_throttle_bpsReadLimit: 1280
 s3_throttle_bpsWriteLimit: 1280
 
-# 运维工具默认值
+#Default values for operation and maintenance tools
 tool_rpc_timeout: 500
 tool_rpc_retry_times: 5
 tool_rpc_concurrent_num: 10
 
-# snapshotclone_nginx配置
+#snapshotclone_nginx configuration
 nginx_docker_internal_port: 80
 
-# etcd默认配置
+#ETCD default configuration
 etcd_snapshot_count: 10000
 etcd_heartbeat_interval: 100
 etcd_election_timeout: 1000

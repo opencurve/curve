@@ -32,8 +32,8 @@ namespace curve {
 namespace chunkserver {
 
     /**
-     * 获取datastore中chunk文件的数量
-     * @param arg: datastore的对象指针
+     *Obtain the number of chunk files in the datastore
+     * @param arg: Object pointer to datastore
      */
     uint32_t GetDatastoreChunkCountFunc(void* arg);
     /**
@@ -42,17 +42,17 @@ namespace chunkserver {
      */
     uint32_t GetLogStorageWalSegmentCountFunc(void* arg);
     /**
-     * 获取datastore中快照chunk的数量
-     * @param arg: datastore的对象指针
+     *Obtain the number of snapshot chunks in the datastore
+     * @param arg: Object pointer to datastore
      */
     uint32_t GetDatastoreSnapshotCountFunc(void* arg);
     /**
-     * 获取datastore中clone chunk的数量
-     * @param arg: datastore的对象指针
+     *Obtain the number of clone chunks in the datastore
+     * @param arg: Object pointer to datastore
      */
     uint32_t GetDatastoreCloneChunkCountFunc(void* arg);
     /**
-     * 获取chunkserver上chunk文件的数量
+     *Obtain the number of chunk files on the chunkserver
      * @param arg: nullptr
      */
     uint32_t GetTotalChunkCountFunc(void* arg);
@@ -63,28 +63,29 @@ namespace chunkserver {
     uint32_t GetTotalWalSegmentCountFunc(void* arg);
 
     /**
-     * 获取chunkserver上快照chunk的数量
+     *Obtain the number of snapshot chunks on the chunkserver
      * @param arg: nullptr
      */
     uint32_t GetTotalSnapshotCountFunc(void* arg);
     /**
-     * 获取chunkserver上clone chunk的数量
+     *Obtain the number of clone chunks on the chunkserver
      * @param arg: nullptr
      */
+
     uint32_t GetTotalCloneChunkCountFunc(void* arg);
     /**
-     * 获取chunkfilepool中剩余chunk的数量
-     * @param arg: chunkfilepool的对象指针
+     *Obtain the number of remaining chunks in the chunkfilepool
+     * @param arg: Object pointer to chunkfilepool
      */
     uint32_t GetChunkLeftFunc(void* arg);
     /**
-     * 获取walfilepool中剩余chunk的数量
-     * @param arg: walfilepool的对象指针
+     *Obtain the number of remaining chunks in the walfilepool
+     * @param arg: Object pointer to walfilepool
      */
     uint32_t GetWalSegmentLeftFunc(void* arg);
     /**
-     * 获取trash中chunk的数量
-     * @param arg: trash的对象指针
+     *Obtain the number of chunks in the trash
+     * @param arg: Object pointer to trash
      */
     uint32_t GetChunkTrashedFunc(void* arg);
 

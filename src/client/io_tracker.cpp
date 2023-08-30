@@ -533,13 +533,13 @@ void IOTracker::Done() {
 
     DestoryRequestList();
 
-    // scc_和aioctx都为空的时候肯定是个同步调用
+    //scc_ When both aioctx and aioctx are empty, it must be a synchronous call
     if (scc_ == nullptr && aioctx_ == nullptr) {
         iocv_.Complete(ToReturnCode());
         return;
     }
 
-    // 异步函数调用，在此处发起回调
+    //Asynchronous function call, where a callback is initiated
     if (aioctx_ != nullptr) {
         aioctx_->ret = ToReturnCode();
         aioctx_->cb(aioctx_);
@@ -548,7 +548,7 @@ void IOTracker::Done() {
         scc_->Run();
     }
 
-    // 回收当前io tracker
+    //Recycle the current io tracker
     iomanager_->HandleAsyncIOResponse(this);
 }
 
@@ -570,7 +570,8 @@ void IOTracker::ChunkServerErr2LibcurveErr(CHUNK_OP_STATUS errcode,
         case CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS:
             *errout = LIBCURVE_ERROR::OK;
             break;
-        // chunk或者copyset对于用户来说是透明的，所以直接返回错误
+        //Chunks or copysets are transparent to users, so they directly return errors
+
         case CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST:
         case CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST:
             *errout = LIBCURVE_ERROR::NOTEXIST;

@@ -71,26 +71,26 @@ class SetmentParserTest : public ::testing::Test {
 
 TEST_F(SetmentParserTest, Init) {
     SegmentParser parser(localFs_);
-    // 1、打开文件失败
+    //1. Failed to open file
     EXPECT_CALL(*localFs_, Open(_, _))
         .Times(3)
         .WillOnce(Return(-1))
         .WillRepeatedly(Return(1));
     ASSERT_EQ(-1, parser.Init(fileName));
 
-    // 2、获取文件大小失败
+    //2. Failed to obtain file size
     EXPECT_CALL(*localFs_, Fstat(_, _))
         .Times(1)
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, parser.Init(fileName));
 
-    // 3、成功
+    //3. Success
     EXPECT_CALL(*localFs_, Fstat(_, _))
         .Times(1)
         .WillOnce(Return(0));
     ASSERT_EQ(0, parser.Init(fileName));
 
-    // 4、反初始化
+    //4. De-initialization
     EXPECT_CALL(*localFs_, Close(_))
         .Times(1)
         .WillOnce(Return(0));
@@ -120,14 +120,14 @@ TEST_F(SetmentParserTest, GetNextEntryHeader) {
     header.data_checksum = 73235795;
     char header_buf[ENTRY_HEADER_SIZE] = {0};
 
-    // 读出来的数据大小不对
+    //The size of the data read out is incorrect
     EXPECT_CALL(*localFs_, Read(_, _, _, ENTRY_HEADER_SIZE))
         .Times(1)
         .WillOnce(Return(22));
     ASSERT_FALSE(parser.GetNextEntryHeader(&header2));
     ASSERT_FALSE(parser.SuccessfullyFinished());
 
-    // 校验失败
+    //Verification failed
     PackHeader(header, header_buf, true);
     EXPECT_CALL(*localFs_, Read(_, _, _, ENTRY_HEADER_SIZE))
         .Times(1)
@@ -137,7 +137,7 @@ TEST_F(SetmentParserTest, GetNextEntryHeader) {
     ASSERT_FALSE(parser.GetNextEntryHeader(&header2));
     ASSERT_FALSE(parser.SuccessfullyFinished());
 
-    // 正常情况
+    //Normal situation
     PackHeader(header, header_buf);
     EXPECT_CALL(*localFs_, Read(_, _, _, ENTRY_HEADER_SIZE))
         .Times(2)

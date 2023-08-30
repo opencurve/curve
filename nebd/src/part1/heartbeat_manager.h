@@ -36,8 +36,8 @@
 namespace nebd {
 namespace client {
 
-// Heartbeat 管理类
-// 定期向nebd-server发送已打开文件的心跳信息
+//Heartbeat Management Class
+//Regularly send heartbeat information of opened files to nebd-server
 class HeartbeatManager {
  public:
     explicit HeartbeatManager(std::shared_ptr<NebdClientMetaCache> metaCache);
@@ -47,30 +47,30 @@ class HeartbeatManager {
     }
 
     /**
-     * @brief: 启动心跳线程
+     * @brief: Start heartbeat thread
      */
     void Run();
 
     /**
-     * @brief: 停止心跳线程
+     * @brief: Stop heartbeat thread
      */
     void Stop();
 
     /**
-     * @brief 初始化
-     * @param heartbeatOption heartbeat 配置项
-     * @return 0 初始化成功 / -1 初始化失败
+     * @brief initialization
+     * @param heartbeatOption heartbeat configuration item
+     * @return 0 initialization successful/-1 initialization failed
      */
     int Init(const HeartbeatOption& option);
 
  private:
     /**
-     * @brief: 心跳线程执行函数，定期发送心跳消息
+     * @brief: Heartbeat thread execution function, sending heartbeat messages regularly
      */
     void HeartBetaThreadFunc();
 
     /**
-     * @brief: 向part2发送心跳消息，包括当前已打开的卷信息
+     * @brief: Send a heartbeat message to part2, including information about the currently opened volume
      */
     void SendHeartBeat();
 

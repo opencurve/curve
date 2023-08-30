@@ -77,18 +77,18 @@ class ChunkServerSnapshotTest : public testing::Test {
 };
 
 /**
- * TODO(wudemiao) 后期将发 I/O 和验证再抽象一下
+ *TODO (wudemiao) will further abstract I/O and verification in the later stage
  */
 
 /**
- * 正常 I/O 验证，先写进去，再读出来验证
- * @param leaderId      主的 id
- * @param logicPoolId   逻辑池 id
- * @param copysetId 复制组 id
- * @param chunkId   chunk id
- * @param length    每次 IO 的 length
- * @param fillCh    每次 IO 填充的字符
- * @param loop      重复发起 IO 的次数
+ *Normal I/O verification, write it in first, then read it out for verification
+ * @param leaderId Primary ID
+ * @param logicPoolId Logical Pool ID
+ * @param copysetId Copy Group ID
+ * @param chunkId chunk id
+ * @param length The length of each IO
+ * @param fillCh Characters filled in each IO
+ * @param loop The number of times repeatedly initiates IO
  */
 static void WriteThenReadVerify(PeerId leaderId,
                                 LogicPoolID logicPoolId,
@@ -152,14 +152,14 @@ static void WriteThenReadVerify(PeerId leaderId,
 }
 
 /**
- * 正常 I/O 验证，read 数据验证
- * @param leaderId      主的 id
- * @param logicPoolId   逻辑池 id
- * @param copysetId 复制组 id
- * @param chunkId   chunk id
- * @param length    每次 IO 的 length
- * @param fillCh    每次 IO 填充的字符
- * @param loop      重复发起 IO 的次数
+ *Normal I/O verification, read data verification
+ * @param leaderId Primary ID
+ * @param logicPoolId Logical Pool ID
+ * @param copysetId Copy Group ID
+ * @param chunkId chunk id
+ * @param length The length of each IO
+ * @param fillCh Characters filled in each IO
+ * @param loop The number of times repeatedly initiates IO
  */
 static void ReadVerify(PeerId leaderId,
                        LogicPoolID logicPoolId,
@@ -198,14 +198,14 @@ static void ReadVerify(PeerId leaderId,
 }
 
 /**
- * 异常 I/O 验证，验证集群是否处于不可用状态
- * @param leaderId      主的 id
- * @param logicPoolId   逻辑池 id
- * @param copysetId 复制组 id
- * @param chunkId   chunk id
- * @param length    每次 IO 的 length
- * @param fillCh    每次 IO 填充的字符
- * @param loop      重复发起 IO 的次数
+ *Abnormal I/O verification to verify if the cluster is in an unavailable state
+ * @param leaderId Primary ID
+ * @param logicPoolId Logical Pool ID
+ * @param copysetId Copy Group ID
+ * @param chunkId chunk id
+ * @param length The length of each IO
+ * @param fillCh Characters filled in each IO
+ * @param loop The number of times repeatedly initiates IO
  */
 static void ReadVerifyNotAvailable(PeerId leaderId,
                                    LogicPoolID logicPoolId,
@@ -242,11 +242,11 @@ static void ReadVerifyNotAvailable(PeerId leaderId,
 }
 
 /**
- * 验证copyset status是否符合预期
+ *Verify if the copyset status meets expectations
  * @param peerId: peer id
- * @param logicPoolID: 逻辑池id
- * @param copysetId: 复制组id
- * @param expectResp: 期待的copyset status
+ * @param logicPoolID: Logical Pool ID
+ * @param copysetId: Copy group ID
+ * @param expectResp: Expected copyset status
  */
 static void CopysetStatusVerify(PeerId peerId,
                                 LogicPoolID logicPoolID,
@@ -279,10 +279,10 @@ static void CopysetStatusVerify(PeerId peerId,
 }
 
 /**
- * 验证几个副本的copyset status是否一致
- * @param peerIds: 待验证的peers
- * @param logicPoolID: 逻辑池id
- * @param copysetId: 复制组id
+ *Verify if the copyset status of several replicas is consistent
+ * @param peerIds: Peers to be verified
+ * @param logicPoolID: Logical Pool ID
+ * @param copysetId: Copy group ID
  */
 static void CopysetStatusVerify(const std::vector<PeerId> &peerIds,
                                 LogicPoolID logicPoolID,
@@ -309,7 +309,7 @@ static void CopysetStatusVerify(const std::vector<PeerId> &peerIds,
         ASSERT_FALSE(cntl.Failed());
         LOG(INFO) << peerId.to_string() << "'s status is: \n"
                   << response.DebugString();
-        // 多个副本的state是不一样的，因为有leader，也有follower
+        //The states of multiple replicas are different because there are leaders and followers
         response.clear_state();
         response.clear_peer();
         response.clear_firstindex();
@@ -333,9 +333,9 @@ static void CopysetStatusVerify(const std::vector<PeerId> &peerIds,
 butil::AtExitManager atExitManager;
 
 /**
- * 验证1个节点的复制组是否能够正常提供服务
- * 1. 创建一个副本的复制组
- * 2. 等待 leader 产生，write 数据，然后 read 出来验证一遍
+ *Verify whether the replication group of one node can provide services normally
+ *1. Create a replication group for a replica
+ *2. Wait for the leader to generate, write the data, and then read it out for verification
  */
 TEST_F(ChunkServerSnapshotTest, OneNode) {
     LogicPoolID logicPoolId = 2;
@@ -364,7 +364,7 @@ TEST_F(ChunkServerSnapshotTest, OneNode) {
                         loop);
 
     CopysetStatusResponse expectResp;
-    // read、write、1次配置变更
+    //read, write, 1 configuration change
     int64_t commitedIndex = loop + 1;
     expectResp.set_status(COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
     expectResp.set_state(braft::STATE_LEADER);
@@ -390,12 +390,12 @@ TEST_F(ChunkServerSnapshotTest, OneNode) {
 }
 
 /**
- * 验证1个节点的关闭 leader 后重启是否能够正常服务
- * 1. 创建1个副本的复制组
- * 2. 等待 leader 产生，write 数据，然后 read 出来验证一遍
- * 3. shutdown leader，然后再拉起来
- * 4. 等待 leader 产生，然后 read 之前写入的数据验证一遍
- * 5. 再 write 数据，再 read 出来验证一遍
+ *Verify whether the shutdown of the leader and restart of one node can provide normal service
+ *1. Create a replication group for 1 replica
+ *2. Wait for the leader to generate, write the data, and then read it out for verification
+ *3. Shutdown leader, then pull it up again
+ *4. Wait for the leader to be generated, and then verify the data written before the read
+ *5. Write the data again and read it out for verification
  */
 TEST_F(ChunkServerSnapshotTest, OneNodeShutdown) {
     LogicPoolID logicPoolId = 2;
@@ -424,7 +424,7 @@ TEST_F(ChunkServerSnapshotTest, OneNodeShutdown) {
                         loop);
 
     ASSERT_EQ(0, cluster.ShutdownPeer(peer1));
-    // 测试发现集群不可用
+    //Testing found that the cluster is not available
     ReadVerifyNotAvailable(leaderId,
                            logicPoolId,
                            copysetId,
@@ -473,9 +473,9 @@ TEST_F(ChunkServerSnapshotTest, OneNodeShutdown) {
 }
 
 /**
- * 验证2个节点是否能够正常提供服务
- * 1. 创建2个副本的复制组
- * 2. 等待 leader 产生，write 数据，然后 read 出来验证一遍
+ *Verify whether two nodes can provide services normally
+ *1 Create a replication group of 2 replicas
+ *2 Wait for the leader to generate, write the data, and then read it out for verification
  */
 TEST_F(ChunkServerSnapshotTest, TwoNodes) {
     LogicPoolID logicPoolId = 2;
@@ -511,12 +511,12 @@ TEST_F(ChunkServerSnapshotTest, TwoNodes) {
 }
 
 /**
- * 验证2个节点的关闭非 leader 节点 后重启是否能够正常服务
- * 1. 创建2个副本的复制组
- * 2. 等待 leader 产生，write 数据，然后 read 出来验证一遍
- * 3. shutdown 非 leader，然后再拉起来
- * 4. 等待 leader 产生，然后 read 之前写入的数据验证一遍
- * 5. 再 write 数据，再 read 出来验证一遍
+ *Verify whether restarting two nodes after closing non leader nodes can provide normal service
+ *1. Create a replication group of 2 replicas
+ *2. Wait for the leader to generate, write the data, and then read it out for verification
+ *3. Shutdown is not a leader, then pull it up again
+ *4. Wait for the leader to be generated, and then verify the data written before the read
+ *5. Write the data again and read it out for verification
  */
 TEST_F(ChunkServerSnapshotTest, TwoNodesShutdownOnePeer) {
     LogicPoolID logicPoolId = 2;
@@ -539,7 +539,7 @@ TEST_F(ChunkServerSnapshotTest, TwoNodesShutdownOnePeer) {
     PeerId leaderId;
     ASSERT_EQ(0, cluster.WaitLeader(&leaderId));
 
-    // 发起 read/write
+    //Initiate read/write
     WriteThenReadVerify(leaderId,
                         logicPoolId,
                         copysetId,
@@ -548,7 +548,7 @@ TEST_F(ChunkServerSnapshotTest, TwoNodesShutdownOnePeer) {
                         ch,
                         loop);
 
-    // shutdown 某个非 leader 的 peer
+    //Shutdown a non leader peer
     PeerId shutdownPeerid;
     if (0 == ::strcmp(leaderId.to_string().c_str(),
                       peer1.to_string().c_str())) {
@@ -563,7 +563,7 @@ TEST_F(ChunkServerSnapshotTest, TwoNodesShutdownOnePeer) {
 
     ::usleep(2000 * electionTimeoutMs);
 
-    // 测试发现集群不可用
+    //Testing found that the cluster is not available
     ReadVerifyNotAvailable(leaderId,
                            logicPoolId,
                            copysetId,
@@ -575,9 +575,9 @@ TEST_F(ChunkServerSnapshotTest, TwoNodesShutdownOnePeer) {
     ASSERT_EQ(0, cluster.StartPeer(shutdownPeerid));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderId));
 
-    // 读出来验证一遍
+    //Read it out and verify it again
     ReadVerify(leaderId, logicPoolId, copysetId, chunkId, length, ch, loop);
-    // 再次发起 read/write
+    //Initiate read/write again
     WriteThenReadVerify(leaderId,
                         logicPoolId,
                         copysetId,
@@ -591,12 +591,12 @@ TEST_F(ChunkServerSnapshotTest, TwoNodesShutdownOnePeer) {
 }
 
 /**
- * 验证2个节点的关闭 leader 后重启是否能够正常服务
- * 1. 创建2个副本的复制组
- * 2. 等待 leader 产生，write 数据，然后 read 出来验证一遍
- * 3. shutdown leader，然后再拉起来
- * 4. 等待 leader 产生，然后 read 之前写入的数据验证一遍
- * 5. 再 write 数据，再 read 出来验证一遍
+ *Verify whether the shutdown of the leader and restart of two nodes can provide normal service
+ *1. Create a replication group of 2 replicas
+ *2. Wait for the leader to generate, write the data, and then read it out for verification
+ *3. Shutdown leader, then pull it up again
+ *4. Wait for the leader to be generated, and then verify the data written before the read
+ *5. Write the data again and read it out for verification
  */
 TEST_F(ChunkServerSnapshotTest, TwoNodesShutdownLeader) {
     LogicPoolID logicPoolId = 2;
@@ -619,7 +619,7 @@ TEST_F(ChunkServerSnapshotTest, TwoNodesShutdownLeader) {
     PeerId leaderId;
     ASSERT_EQ(0, cluster.WaitLeader(&leaderId));
 
-    // 发起 read/write
+    //Initiate read/write
     WriteThenReadVerify(leaderId,
                         logicPoolId,
                         copysetId,
@@ -630,7 +630,7 @@ TEST_F(ChunkServerSnapshotTest, TwoNodesShutdownLeader) {
 
     // shutdown leader
     ASSERT_EQ(0, cluster.ShutdownPeer(leaderId));
-    // 测试发现集群不可用
+    //Testing found that the cluster is not available
     ReadVerifyNotAvailable(leaderId,
                            logicPoolId,
                            copysetId,
@@ -642,9 +642,9 @@ TEST_F(ChunkServerSnapshotTest, TwoNodesShutdownLeader) {
     ASSERT_EQ(0, cluster.StartPeer(leaderId));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderId));
 
-    // 读出来验证一遍
+    //Read it out and verify it again
     ReadVerify(leaderId, logicPoolId, copysetId, chunkId, length, ch, loop);
-    // 再次发起 read/write
+    //Initiate read/write again
     WriteThenReadVerify(leaderId,
                         logicPoolId,
                         copysetId,
@@ -658,9 +658,9 @@ TEST_F(ChunkServerSnapshotTest, TwoNodesShutdownLeader) {
 }
 
 /**
- * 验证3个节点是否能够正常提供服务
- * 1. 创建3个副本的复制组
- * 2. 等待 leader 产生，write 数据，然后 read 出来验证一遍
+ *Verify whether the three nodes can provide services normally
+ *1. Create a replication group of 3 replicas
+ *2. Wait for the leader to generate, write the data, and then read it out for verification
  */
 TEST_F(ChunkServerSnapshotTest, ThreeNodes) {
     LogicPoolID logicPoolId = 2;
@@ -685,7 +685,7 @@ TEST_F(ChunkServerSnapshotTest, ThreeNodes) {
     PeerId leaderId;
     ASSERT_EQ(0, cluster.WaitLeader(&leaderId));
 
-    // 再次发起 read/write
+    //Initiate read/write again
     WriteThenReadVerify(leaderId,
                         logicPoolId,
                         copysetId,
@@ -699,12 +699,12 @@ TEST_F(ChunkServerSnapshotTest, ThreeNodes) {
 }
 
 /**
- * 验证3个节点的关闭非 leader 节点 后重启是否能够正常服务
- * 1. 创建3个副本的复制组
- * 2. 等待 leader 产生，write 数据，然后 read 出来验证一遍
- * 3. shutdown 非 leader，然后再拉起来
- * 4. 等待 leader 产生，然后 read 之前写入的数据验证一遍
- * 5. 再 write 数据，再 read 出来验证一遍
+ *Verify whether restarting after closing non leader nodes on three nodes can provide normal service
+ *1. Create a replication group of 3 replicas
+ *2. Wait for the leader to generate, write the data, and then read it out for verification
+ *3. Shutdown is not a leader, then pull it up again
+ *4. Wait for the leader to be generated, and then verify the data written before the read
+ *5. Write the data again and read it out for verification
  */
 TEST_F(ChunkServerSnapshotTest, ThreeNodesShutdownOnePeer) {
     LogicPoolID logicPoolId = 2;
@@ -729,7 +729,7 @@ TEST_F(ChunkServerSnapshotTest, ThreeNodesShutdownOnePeer) {
     PeerId leaderId;
     ASSERT_EQ(0, cluster.WaitLeader(&leaderId));
 
-    // 发起 read/write
+    //Initiate read/write
     WriteThenReadVerify(leaderId,
                         logicPoolId,
                         copysetId,
@@ -738,7 +738,7 @@ TEST_F(ChunkServerSnapshotTest, ThreeNodesShutdownOnePeer) {
                         ch,
                         loop);
 
-    // shutdown 某个非 leader 的 peer
+    //Shutdown a non leader peer
     PeerId shutdownPeerid;
     if (0 == ::strcmp(leaderId.to_string().c_str(),
                       peer1.to_string().c_str())) {
@@ -750,9 +750,9 @@ TEST_F(ChunkServerSnapshotTest, ThreeNodesShutdownOnePeer) {
     ASSERT_EQ(0, cluster.StartPeer(shutdownPeerid));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderId));
 
-    // 读出来验证一遍
+    //Read it out and verify it again
     ReadVerify(leaderId, logicPoolId, copysetId, chunkId, length, ch, loop);
-    // 再次发起 read/write
+    //Initiate read/write again
     WriteThenReadVerify(leaderId,
                         logicPoolId,
                         copysetId,
@@ -766,12 +766,12 @@ TEST_F(ChunkServerSnapshotTest, ThreeNodesShutdownOnePeer) {
 }
 
 /**
- * 验证3个节点的关闭 leader 节点 后重启是否能够正常服务
- * 1. 创建3个副本的复制组
- * 2. 等待 leader 产生，write 数据，然后 read 出来验证一遍
- * 3. shutdown leader，然后再拉起来
- * 4. 等待 leader 产生，然后 read 之前写入的数据验证一遍
- * 5. 再 write 数据，再 read 出来验证一遍
+ *Verify whether the shutdown of the leader node and restart of three nodes can provide normal service
+ *1. Create a replication group of 3 replicas
+ *2. Wait for the leader to generate, write the data, and then read it out for verification
+ *3. Shutdown leader, then pull it up again
+ *4. Wait for the leader to be generated, and then verify the data written before the read
+ *5. Write the data again and read it out for verification
  */
 TEST_F(ChunkServerSnapshotTest, ThreeNodesShutdownLeader) {
     LogicPoolID logicPoolId = 2;
@@ -796,7 +796,7 @@ TEST_F(ChunkServerSnapshotTest, ThreeNodesShutdownLeader) {
     PeerId leaderId;
     ASSERT_EQ(0, cluster.WaitLeader(&leaderId));
 
-    // 发起 read/write
+    //Initiate read/write
     WriteThenReadVerify(leaderId,
                         logicPoolId,
                         copysetId,
@@ -808,7 +808,7 @@ TEST_F(ChunkServerSnapshotTest, ThreeNodesShutdownLeader) {
 
     // shutdown leader
     ASSERT_EQ(0, cluster.ShutdownPeer(leaderId));
-    // 测试发现集群暂时不可用
+    //Testing found that the cluster is temporarily unavailable
     ReadVerifyNotAvailable(leaderId,
                            logicPoolId,
                            copysetId,
@@ -820,13 +820,13 @@ TEST_F(ChunkServerSnapshotTest, ThreeNodesShutdownLeader) {
     ASSERT_EQ(0, cluster.StartPeer(leaderId));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderId));
 
-    // 读出来验证一遍
+    //Read it out and verify it again
     ReadVerify(leaderId, logicPoolId, copysetId, chunkId, length, ch, loop);
 
 
-    // 读出来验证一遍
+    //Read it out and verify it again
     ReadVerify(leaderId, logicPoolId, copysetId, chunkId, length, ch, loop);
-    // 再次发起 read/write
+    //Initiate read/write again
     WriteThenReadVerify(leaderId,
                         logicPoolId,
                         copysetId,
@@ -840,18 +840,18 @@ TEST_F(ChunkServerSnapshotTest, ThreeNodesShutdownLeader) {
 }
 
 /**
- * 验证3个节点的关闭非 leader 节点，重启，控制让其从 install snapshot 恢复
- * 1. 创建3个副本的复制组
- * 2. 等待 leader 产生，write 数据，然后 read 出来验证一遍
- * 3. shutdown 非 leader
- * 4. 然后 sleep 超过一个 snapshot interval，write read 数据
- * 5. 然后再 sleep 超过一个 snapshot interval，write read 数据；4,5两步
- *    是为了保证打至少两次快照，这样，节点再重启的时候必须通过 install snapshot,
- *    因为 log 已经被删除了
- * 6. 等待 leader 产生，然后 read 之前写入的数据验证一遍
- * 7. transfer leader 到shut down 的peer 上
- * 8. 在 read 之前写入的数据验证
- * 9. 再 write 数据，再 read 出来验证一遍
+ *Verify the shutdown of non leader nodes on three nodes, restart, and control the recovery from install snapshot
+ *1. Create a replication group of 3 replicas
+ *2. Wait for the leader to generate, write the data, and then read it out for verification
+ *3. Shutdown non leader
+ *4. Then sleep exceeds one snapshot interval and write read data
+ *5. Then sleep for more than one snapshot interval and write read data; 4,5 two-step
+ *  It is to ensure that at least two snapshots are taken, so that when the node restarts again, it must pass the install snapshot,
+ *  Because the log has been deleted
+ *6. Wait for the leader to be generated, and then verify the data written before the read
+ *7. Transfer leader to shut down peer
+ *8. Verification of data written before read
+ *9. Write the data again and read it out for verification
  */
 TEST_F(ChunkServerSnapshotTest, ShutdownOnePeerRestartFromInstallSnapshot) {
     LogicPoolID logicPoolId = 2;
@@ -877,7 +877,7 @@ TEST_F(ChunkServerSnapshotTest, ShutdownOnePeerRestartFromInstallSnapshot) {
     PeerId leaderId;
     ASSERT_EQ(0, cluster.WaitLeader(&leaderId));
 
-    // 发起 read/write
+    //Initiate read/write
     WriteThenReadVerify(leaderId,
                         logicPoolId,
                         copysetId,
@@ -886,7 +886,7 @@ TEST_F(ChunkServerSnapshotTest, ShutdownOnePeerRestartFromInstallSnapshot) {
                         ch,
                         loop);
 
-    // shutdown 某个非 leader 的 peer
+    //Shutdown a non leader peer
     PeerId shutdownPeerid;
     if (0 == ::strcmp(leaderId.to_string().c_str(),
                       peer1.to_string().c_str())) {
@@ -900,9 +900,9 @@ TEST_F(ChunkServerSnapshotTest, ShutdownOnePeerRestartFromInstallSnapshot) {
                           leaderId.to_string().c_str()));
     ASSERT_EQ(0, cluster.ShutdownPeer(shutdownPeerid));
 
-    // wait snapshot, 保证能够触发安装快照
+    //Wait snapshot to ensure that the installation snapshot can be triggered
     ::sleep(1.5*snapshotTimeoutS);
-    // 再次发起 read/write
+    //Initiate read/write again
     WriteThenReadVerify(leaderId,
                         logicPoolId,
                         copysetId,
@@ -911,7 +911,7 @@ TEST_F(ChunkServerSnapshotTest, ShutdownOnePeerRestartFromInstallSnapshot) {
                         ch + 1,
                         loop);
     ::sleep(1.5*snapshotTimeoutS);
-    // 再次发起 read/write
+    //Initiate read/write again
     WriteThenReadVerify(leaderId,
                         logicPoolId,
                         copysetId,
@@ -920,13 +920,13 @@ TEST_F(ChunkServerSnapshotTest, ShutdownOnePeerRestartFromInstallSnapshot) {
                         ch + 2,
                         loop);
 
-    // restart, 需要从 install snapshot 恢复
+    //Restart, needs to be restored from install snapshot
     ASSERT_EQ(0, cluster.StartPeer(shutdownPeerid));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderId));
 
-    // 读出来验证一遍
+    //Read it out and verify it again
     ReadVerify(leaderId, logicPoolId, copysetId, chunkId, length, ch + 2, loop);
-    // 再次发起 read/write
+    //Initiate read/write again
     WriteThenReadVerify(leaderId,
                         logicPoolId,
                         copysetId,
@@ -961,9 +961,9 @@ TEST_F(ChunkServerSnapshotTest, ShutdownOnePeerRestartFromInstallSnapshot) {
     ASSERT_EQ(0, ::strcmp(leaderId.to_string().c_str(),
                           shutdownPeerid.to_string().c_str()));
 
-    // 读出来验证一遍
+    //Read it out and verify it again
     ReadVerify(leaderId, logicPoolId, copysetId, chunkId, length, ch + 3, loop);
-    // 再次发起 read/write
+    //Initiate read/write again
     WriteThenReadVerify(leaderId,
                         logicPoolId,
                         copysetId,
@@ -977,21 +977,21 @@ TEST_F(ChunkServerSnapshotTest, ShutdownOnePeerRestartFromInstallSnapshot) {
 }
 
 /**
- * 验证3个节点的关闭非 leader 节点，重启，控制让其从 install snapshot 恢复
- * 1. 创建3个副本的复制组
- * 2. 等待 leader 产生，write 数据，然后 read 出来验证一遍
- * 3. shutdown 非 leader
- * 4. read 之前 write 的数据验证一遍
- * 5. 再 write 数据，然后 read 出来验证一遍
- * 6. 然后 sleep 超过一个 snapshot interval，write read 数据
- * 7. 然后再 sleep 超过一个 snapshot interval，write read 数据；4,5两步
- *    是为了保证打至少两次快照，这样，节点再重启的时候必须通过 install snapshot,
- *    因为 log 已经被删除了
- * 9. 删除 shutdown peer 的数据目录，然后再拉起来
- * 10. 然后 read 之前写入的数据验证一遍
- * 11. transfer leader 到shut down 的 peer 上
- * 12. 在 read 之前写入的数据验证
- * 13. 再 write 数据，再 read 出来验证一遍
+ *Verify the shutdown of non leader nodes on three nodes, restart, and control the recovery from install snapshot
+ *1. Create a replication group of 3 replicas
+ *2. Wait for the leader to generate, write the data, and then read it out for verification
+ *3. Shutdown non leader
+ *4. Verify the data written before read
+ *5. Write the data again, and then read it out for verification
+ *6. Then sleep exceeds one snapshot interval and write read data
+ *7. Then sleep for more than one snapshot interval and write read data; 4,5 two-step
+ *    It is to ensure that at least two snapshots are taken, so that when the node restarts again, it must pass the install snapshot,
+ *    Because the log has been deleted
+ *9. Delete the data directory of the shutdown peer and then pull it up again
+ *10. Then verify the data written before read
+ *11. Transfer leader to shut down peer
+ *12. Verification of data written before read
+ *13. Write the data again and read it out for verification
  */
 TEST_F(ChunkServerSnapshotTest, ShutdownOnePeerAndRemoveData) {
     LogicPoolID logicPoolId = 2;
@@ -1017,7 +1017,7 @@ TEST_F(ChunkServerSnapshotTest, ShutdownOnePeerAndRemoveData) {
     PeerId leaderId;
     ASSERT_EQ(0, cluster.WaitLeader(&leaderId));
 
-    // 发起 read/write
+    //Initiate read/write
     WriteThenReadVerify(leaderId,
                         logicPoolId,
                         copysetId,
@@ -1026,7 +1026,7 @@ TEST_F(ChunkServerSnapshotTest, ShutdownOnePeerAndRemoveData) {
                         ch,
                         loop);
 
-    // shutdown 某个非 leader 的 peer
+    //Shutdown a non leader peer
     PeerId shutdownPeerid;
     if (0 == ::strcmp(leaderId.to_string().c_str(),
                       peer1.to_string().c_str())) {
@@ -1040,9 +1040,9 @@ TEST_F(ChunkServerSnapshotTest, ShutdownOnePeerAndRemoveData) {
                           leaderId.to_string().c_str()));
     ASSERT_EQ(0, cluster.ShutdownPeer(shutdownPeerid));
 
-    // 读出来验证一遍
+    //Read it out and verify it again
     ReadVerify(leaderId, logicPoolId, copysetId, chunkId, length, ch, loop);
-    // 再次发起 read/write
+    //Initiate read/write again
     WriteThenReadVerify(leaderId,
                         logicPoolId,
                         copysetId,
@@ -1051,9 +1051,9 @@ TEST_F(ChunkServerSnapshotTest, ShutdownOnePeerAndRemoveData) {
                         ch + 1,
                         loop);
 
-    // wait snapshot, 保证能够触发安装快照
+    //Wait snapshot to ensure that the installation snapshot can be triggered
     ::sleep(1.5*snapshotTimeoutS);
-    // 再次发起 read/write
+    //Initiate read/write again
     WriteThenReadVerify(leaderId,
                         logicPoolId,
                         copysetId,
@@ -1062,7 +1062,7 @@ TEST_F(ChunkServerSnapshotTest, ShutdownOnePeerAndRemoveData) {
                         ch + 2,
                         loop);
     ::sleep(1.5*snapshotTimeoutS);
-    // 再次发起 read/write
+    //Initiate read/write again
     WriteThenReadVerify(leaderId,
                         logicPoolId,
                         copysetId,
@@ -1071,7 +1071,7 @@ TEST_F(ChunkServerSnapshotTest, ShutdownOnePeerAndRemoveData) {
                         ch + 3,
                         loop);
 
-    // 删除此 peer 的数据，然后重启
+    //Delete the data for this peer and restart it
     ASSERT_EQ(0,
               ::system(TestCluster::RemoveCopysetDirCmd(shutdownPeerid)
                            .c_str()));   //NOLINT
@@ -1087,7 +1087,7 @@ TEST_F(ChunkServerSnapshotTest, ShutdownOnePeerAndRemoveData) {
     ASSERT_EQ(0, cluster.StartPeer(shutdownPeerid));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderId));
 
-    // 读出来验证一遍
+    //Read it out and verify it again
     ReadVerify(leaderId, logicPoolId, copysetId, chunkId, length, ch + 3, loop);
 
     // Wait shutdown peer recovery, and then transfer leader to it
@@ -1116,9 +1116,9 @@ TEST_F(ChunkServerSnapshotTest, ShutdownOnePeerAndRemoveData) {
     ASSERT_EQ(0, ::strcmp(leaderId.to_string().c_str(),
                           shutdownPeerid.to_string().c_str()));
 
-    // 读出来验证一遍
+    //Read it out and verify it again
     ReadVerify(leaderId, logicPoolId, copysetId, chunkId, length, ch + 3, loop);
-    // 再次发起 read/write
+    //Initiate read/write again
     WriteThenReadVerify(leaderId,
                         logicPoolId,
                         copysetId,
@@ -1132,22 +1132,22 @@ TEST_F(ChunkServerSnapshotTest, ShutdownOnePeerAndRemoveData) {
 }
 
 /**
- * 验证3个节点的关闭非 leader 节点，重启，控制让其从 install snapshot 恢复
- * 1. 创建3个副本的复制组
- * 2. 等待 leader 产生，write 数据，然后 read 出来验证一遍
- * 3. shutdown 非 leader
- * 4. read 之前 write 的数据验证一遍
- * 5. 再 write 数据，然后 read 出来验证一遍
- * 6. 然后 sleep 超过一个 snapshot interval，write read 数据
- * 7. 然后再 sleep 超过一个 snapshot interval，write read 数据；4,5两步
- *    是为了保证打至少两次快照，这样，节点再重启的时候必须通过 install snapshot,
- *    因为 log 已经被删除了
- * 9. 通过配置变更 add peer
- * 10. 然后 read 之前写入的数据验证一遍
- * 11. 在发起 write，再 read 读出来验证一遍
- * 12. transfer leader 到 add 的 peer 上
- * 13. 在 read 之前写入的数据验证
- * 14. 再 write 数据，再 read 出来验证一遍
+ *Verify the shutdown of non leader nodes on three nodes, restart, and control the recovery from install snapshot
+ *1. Create a replication group of 3 replicas
+ *2. Wait for the leader to generate, write the data, and then read it out for verification
+ *3. Shutdown non leader
+ *4. Verify the data written before read
+ *5. Write the data again, and then read it out for verification
+ *6. Then sleep exceeds one snapshot interval and write read data
+ *7. Then sleep for more than one snapshot interval and write read data; 4,5 two-step
+ *    It is to ensure that at least two snapshots are taken, so that when the node restarts again, it must pass the install snapshot,
+ *    Because the log has been deleted
+ *9. Add peer through configuration changes
+ *10. Then verify the data written before read
+ *11. Initiate write and read again to verify
+ *12. Transfer leader to add's peer
+ *13. Verification of data written before read
+ *14. Write the data again and read it out for verification
  */
 TEST_F(ChunkServerSnapshotTest, AddPeerAndRecoverFromInstallSnapshot) {
     LogicPoolID logicPoolId = 2;
@@ -1173,7 +1173,7 @@ TEST_F(ChunkServerSnapshotTest, AddPeerAndRecoverFromInstallSnapshot) {
     PeerId leaderId;
     ASSERT_EQ(0, cluster.WaitLeader(&leaderId));
 
-    // 发起 read/write，多个 chunk file
+    //Initiate read/write, multiple chunk files
     for (int i = 0; i < kMaxChunkId; ++i) {
         WriteThenReadVerify(leaderId,
                             logicPoolId,
@@ -1184,7 +1184,7 @@ TEST_F(ChunkServerSnapshotTest, AddPeerAndRecoverFromInstallSnapshot) {
                             loop);
     }
 
-    // shutdown 某个非 leader 的 peer
+    //Shutdown a non leader peer
     PeerId shutdownPeerid;
     if (0 == ::strcmp(leaderId.to_string().c_str(),
                       peer1.to_string().c_str())) {
@@ -1198,11 +1198,11 @@ TEST_F(ChunkServerSnapshotTest, AddPeerAndRecoverFromInstallSnapshot) {
                           leaderId.to_string().c_str()));
     ASSERT_EQ(0, cluster.ShutdownPeer(shutdownPeerid));
 
-    // 读出来验证一遍
+    //Read it out and verify it again
     for (int i = 0; i < kMaxChunkId; ++i) {
         ReadVerify(leaderId, logicPoolId, copysetId, i, length, ch, loop);
     }
-    // 再次发起 read/write
+    //Initiate read/write again
     for (int i = 0; i < kMaxChunkId; ++i) {
         WriteThenReadVerify(leaderId,
                             logicPoolId,
@@ -1213,9 +1213,9 @@ TEST_F(ChunkServerSnapshotTest, AddPeerAndRecoverFromInstallSnapshot) {
                             loop);
     }
 
-    // wait snapshot, 保证能够触发安装快照
+    //Wait snapshot to ensure that the installation snapshot can be triggered
     ::sleep(1.5*snapshotTimeoutS);
-    // 再次发起 read/write
+    //Initiate read/write again
     for (int i = 0; i < kMaxChunkId; ++i) {
         WriteThenReadVerify(leaderId,
                             logicPoolId,
@@ -1226,7 +1226,7 @@ TEST_F(ChunkServerSnapshotTest, AddPeerAndRecoverFromInstallSnapshot) {
                             loop);
     }
     ::sleep(1.5*snapshotTimeoutS);
-    // 再次发起 read/write
+    //Initiate read/write again
     for (int i = 0; i < kMaxChunkId; ++i) {
         WriteThenReadVerify(leaderId,
                             logicPoolId,
@@ -1237,7 +1237,7 @@ TEST_F(ChunkServerSnapshotTest, AddPeerAndRecoverFromInstallSnapshot) {
                             loop);
     }
 
-    // add 一个 peer
+    //Add a peer
     {
         ASSERT_EQ(0, cluster.StartPeer(peer4, true));
         ASSERT_EQ(0, cluster.WaitLeader(&leaderId));
@@ -1253,11 +1253,11 @@ TEST_F(ChunkServerSnapshotTest, AddPeerAndRecoverFromInstallSnapshot) {
         ASSERT_EQ(0, status.error_code());
     }
 
-    // 读出来验证一遍
+    //Read it out and verify it again
     for (int i = 0; i < kMaxChunkId; ++i) {
         ReadVerify(leaderId, logicPoolId, copysetId, i, length, ch + 3, loop);
     }
-    // 再次发起 read/write
+    //Initiate read/write again
     for (int i = 0; i < kMaxChunkId; ++i) {
         WriteThenReadVerify(leaderId,
                             logicPoolId,
@@ -1294,11 +1294,11 @@ TEST_F(ChunkServerSnapshotTest, AddPeerAndRecoverFromInstallSnapshot) {
     ASSERT_EQ(0, ::strcmp(leaderId.to_string().c_str(),
                           peer4.to_string().c_str()));
 
-    // 读出来验证一遍
+    //Read it out and verify it again
     for (int i = 0; i < kMaxChunkId; ++i) {
         ReadVerify(leaderId, logicPoolId, copysetId, i, length, ch + 4, loop);
     }
-    // 再次发起 read/write
+    //Initiate read/write again
     for (int i = 0; i < kMaxChunkId; ++i) {
         WriteThenReadVerify(leaderId,
                             logicPoolId,
@@ -1321,20 +1321,20 @@ TEST_F(ChunkServerSnapshotTest, AddPeerAndRecoverFromInstallSnapshot) {
 }
 
 /**
- *  * 验证3个节点的 remove 一个节点，然后再 add 回来，并控制让其从 install snapshot 恢复
- * 1. 创建3个副本的复制组
- * 2. 等待 leader 产生，write 数据，然后 read 出来验证一遍
- * 3. 通过配置变更 remove 一个 非 leader
- * 4. read 之前 write 的数据验证一遍
- * 5. 再 write 数据，然后 read 出来验证一遍
- * 6. 然后 sleep 超过一个 snapshot interval，write read 数据
- * 7. 然后再 sleep 超过一个 snapshot interval，write read 数据；4,5两步
- *    是为了保证打至少两次快照，这样，节点再重启的时候必须通过 install snapshot,
- *    因为 log 已经被删除了
- * 9. 通过配置变更再将之前 remove 的 peer add 回来
- * 10. transfer leader 到此 peer
- * 11. 在 read 之前写入的数据验证
- * 12. 再 write 数据，再 read 出来验证一遍
+ *Verify the removal of one node from three nodes, then add it back and control it to recover from the install snapshot
+ *1. Create a replication group of 3 replicas
+ *2. Wait for the leader to generate, write the data, and then read it out for verification
+ *3. Remove a non leader through configuration changes
+ *4. Verify the data written before read
+ *5. Write the data again, and then read it out for verification
+ *6. Then sleep exceeds one snapshot interval and write read data
+ *7. Then sleep for more than one snapshot interval and write read data; 4,5 two-step
+ *  It is to ensure that at least two snapshots are taken, so that when the node restarts again, it must pass the install snapshot,
+ *  Because the log has been deleted
+ *9 Add the previously removed peer back through configuration changes
+ *10. Transfer leader to this peer
+ *11. Verification of data written before read
+ *12. Write the data again and read it out for verification
  */
 TEST_F(ChunkServerSnapshotTest, RemovePeerAndRecoverFromInstallSnapshot) {
     LogicPoolID logicPoolId = 2;
@@ -1360,7 +1360,7 @@ TEST_F(ChunkServerSnapshotTest, RemovePeerAndRecoverFromInstallSnapshot) {
     PeerId leaderId;
     ASSERT_EQ(0, cluster.WaitLeader(&leaderId));
 
-    // 发起 read/write，多个 chunk file
+    //Initiate read/write, multiple chunk files
     for (int i = 0; i < kMaxChunkId; ++i) {
         WriteThenReadVerify(leaderId,
                             logicPoolId,
@@ -1371,7 +1371,7 @@ TEST_F(ChunkServerSnapshotTest, RemovePeerAndRecoverFromInstallSnapshot) {
                             loop);
     }
 
-    // shutdown 某个非 leader 的 peer
+    //Shutdown a non leader peer
     PeerId removePeerid;
     if (0 == ::strcmp(leaderId.to_string().c_str(),
                       peer1.to_string().c_str())) {
@@ -1383,7 +1383,7 @@ TEST_F(ChunkServerSnapshotTest, RemovePeerAndRecoverFromInstallSnapshot) {
     LOG(INFO) << "leader peer: " << leaderId.to_string();
     ASSERT_NE(0, ::strcmp(removePeerid.to_string().c_str(),
                           leaderId.to_string().c_str()));
-    // remove 一个 peer
+    //Remove a peer
     {
         Configuration conf = cluster.CopysetConf();
         braft::cli::CliOptions options;
@@ -1397,11 +1397,11 @@ TEST_F(ChunkServerSnapshotTest, RemovePeerAndRecoverFromInstallSnapshot) {
         ASSERT_EQ(0, status.error_code());
     }
 
-    // 读出来验证一遍
+    //Read it out and verify it again
     for (int i = 0; i < kMaxChunkId; ++i) {
         ReadVerify(leaderId, logicPoolId, copysetId, i, length, ch, loop);
     }
-    // 再次发起 read/write
+    //Initiate read/write again
     for (int i = 0; i < kMaxChunkId; ++i) {
         WriteThenReadVerify(leaderId,
                             logicPoolId,
@@ -1412,9 +1412,9 @@ TEST_F(ChunkServerSnapshotTest, RemovePeerAndRecoverFromInstallSnapshot) {
                             loop);
     }
 
-    // wait snapshot, 保证能够触发安装快照
+    //Wait snapshot to ensure that the installation snapshot can be triggered
     ::sleep(1.5*snapshotTimeoutS);
-    // 再次发起 read/write
+    //Initiate read/write again
     for (int i = 0; i < kMaxChunkId; ++i) {
         WriteThenReadVerify(leaderId,
                             logicPoolId,
@@ -1425,7 +1425,7 @@ TEST_F(ChunkServerSnapshotTest, RemovePeerAndRecoverFromInstallSnapshot) {
                             loop);
     }
     ::sleep(1.5*snapshotTimeoutS);
-    // 再次发起 read/write
+    //Initiate read/write again
     for (int i = 0; i < kMaxChunkId; ++i) {
         WriteThenReadVerify(leaderId,
                             logicPoolId,
@@ -1436,7 +1436,7 @@ TEST_F(ChunkServerSnapshotTest, RemovePeerAndRecoverFromInstallSnapshot) {
                             loop);
     }
 
-    // add 回来
+    //Add, come back
     {
         Configuration conf = cluster.CopysetConf();
         braft::cli::CliOptions options;
@@ -1476,11 +1476,11 @@ TEST_F(ChunkServerSnapshotTest, RemovePeerAndRecoverFromInstallSnapshot) {
     ASSERT_EQ(0, ::strcmp(leaderId.to_string().c_str(),
                           removePeerid.to_string().c_str()));
 
-    // 读出来验证一遍
+    //Read it out and verify it again
     for (int i = 0; i < kMaxChunkId; ++i) {
         ReadVerify(leaderId, logicPoolId, copysetId, i, length, ch + 3, loop);
     }
-    // 再次发起 read/write
+    //Initiate read/write again
     for (int i = 0; i < kMaxChunkId; ++i) {
         WriteThenReadVerify(leaderId,
                             logicPoolId,

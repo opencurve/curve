@@ -35,11 +35,11 @@ namespace curve {
 namespace tool {
 
 enum class MetricRet {
-    // 成功
+    //Success
     kOK = 0,
-    // metric未找到
+    //Metric not found
     kNotFound = -1,
-    // 其他错误
+    //Other errors
     kOtherErr  = -2,
 };
 
@@ -50,40 +50,40 @@ class MetricClient {
      virtual ~MetricClient() {}
 
 	/**
-     *  @brief 从指定地址获取metric
-     *  @param addr 要访问的地址
-     *  @param metricName 要获取的metric name
-     *  @param[out] value metric的值
-     *  @return 错误码
+     * @brief Get metric from specified address
+     * @param addr Address to access
+     * @param metricName The metric name to obtain
+     * @param[out] value The value of metric
+     * @return error code
      */
     virtual MetricRet GetMetric(const std::string& addr,
                                 const std::string& metricName,
                                 std::string* value);
 
      /**
-     *  @brief 从指定地址获取metric,并转换成uint
-     *  @param addr 要访问的地址
-     *  @param metricName 要获取的metric name
-     *  @param[out] value metric的值
-     *  @return 错误码
+     * @brief retrieves metric from the specified address and converts it to uint
+     * @param addr Address to access
+     * @param metricName The metric name to obtain
+     * @param[out] value The value of metric
+     * @return error code
      */
     virtual MetricRet GetMetricUint(const std::string& addr,
                                     const std::string& metricName,
                                     uint64_t* value);
 
     /**
-     *  @brief 从metric获取配置的值
-     *  @param addr 要访问的地址
-     *  @param metricName 要获取的metric name
-     *  @param[out] confValue metric中配置的值
-     *  @return 错误码
+     * @brief Get the configured value from metric
+     * @param addr Address to access
+     * @param metricName The metric name to obtain
+     * @param[out] confValue The value configured in metric
+     * @return error code
      */
     virtual MetricRet GetConfValueFromMetric(const std::string& addr,
                                              const std::string& metricName,
                                              std::string* confValue);
 
  private:
-    // 从response attachment解析出metric值
+    //Parse the metric value from the response attachment
     int GetValueFromAttachment(const std::string& attachment,
                                std::string* value);
 };

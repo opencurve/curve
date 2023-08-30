@@ -87,7 +87,7 @@ bool RaftLogTool::SupportCommand(const std::string& cmd) {
 }
 
 int RaftLogTool::PrintHeaders(const std::string& fileName) {
-    // 从文件名获取firstIndex
+    //Get firstIndex from file name
     int64_t firstIndex;
     int res = ParseFirstIndexFromFileName(fileName, &firstIndex);
     if (res != 0) {

@@ -179,7 +179,8 @@ TEST_F(NebdFileClientTest, AioRpcFailTest) {
         auto end = std::chrono::system_clock::now();
         auto elpased = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();  // NOLINT
 
-        // 重试睡眠时间: 100ms + 200ms + ... + 900ms = 4500ms
+        //Retrying sleep time: 100ms + 200ms + ... + 900ms = 4500ms
+
         ASSERT_TRUE(elpased >= 4000 && elpased <= 5000);
     }
 
@@ -264,7 +265,8 @@ TEST_F(NebdFileClientTest, NoNebdServerTest) {
         auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
             end - start).count();
 
-        // rpc failed的清空下，睡眠100ms后继续重试，共重试10次
+        //Clear RPC failed and continue to retry after sleeping for 100ms, a total of 10 retries
+
         ASSERT_TRUE(elapsed >= 900 && elapsed <= 1100);
     }
     ASSERT_EQ(-1, Extend4Nebd(1, kFileSize));
@@ -380,8 +382,8 @@ TEST_F(NebdFileClientTest, ReOpenTest) {
     int fd = Open4Nebd(kFileName, nullptr);
     ASSERT_GT(fd, 0);
 
-    // 文件已经被打开，并占用文件锁
-    // 再次打开时，获取文件锁失败，直接返回
+    //The file has been opened and is occupying the file lock
+    //When reopening, obtaining the file lock failed and returned directly
     ASSERT_EQ(-1, Open4Nebd(kFileName, nullptr));
 
     ASSERT_EQ(0, Close4Nebd(fd));

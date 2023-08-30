@@ -45,11 +45,11 @@ using nebd::common::WriteLockGuard;
 using nebd::common::ReadLockGuard;
 
 struct HeartbeatManagerOption {
-    // 文件心跳超时时间（单位：秒）
+    //File heartbeat timeout (in seconds)
     uint32_t heartbeatTimeoutS;
-    // 心跳超时检测线程的检测间隔（时长：毫秒）
+    //Heartbeat timeout detection thread detection interval (duration: milliseconds)
     uint32_t checkTimeoutIntervalMs;
-    // filemanager 对象指针
+    //Filemanager object pointer
     NebdFileManagerPtr fileManager;
 };
 
@@ -65,15 +65,15 @@ struct NebdClientInfo {
         version.Set(kVersion, version2);
         version.Update();
     }
-    // nebd client的进程号
+    //Process number of nebd client
     int pid;
-    // nebd version的metric
+    //The metric of nebd version
     nebd::common::StringStatus version;
-    // 上次心跳的时间戳
+    //Time stamp of last heartbeat
     uint64_t timeStamp;
 };
 
-// 负责文件心跳超时管理
+//Responsible for managing file heartbeat timeout
 class HeartbeatManager {
  public:
     explicit HeartbeatManager(HeartbeatManagerOption option)
@@ -85,14 +85,14 @@ class HeartbeatManager {
     }
     virtual ~HeartbeatManager() {}
 
-    // 启动心跳检测线程
+    //Start Heartbeat Detection Thread
     virtual int Run();
-    // 停止心跳检测线程
+    //Stop Heartbeat Detection Thread
     virtual int Fini();
-    // part2收到心跳后，会通过该接口更新心跳中包含的文件在内存中记录的时间戳
-    // 心跳检测线程会根据该时间戳判断是否需要关闭文件
+    //After receiving the heartbeat, part2 will update the timestamp of the files included in the heartbeat recorded in memory through this interface
+    //The heartbeat detection thread will determine whether the file needs to be closed based on this timestamp
     virtual bool UpdateFileTimestamp(int fd, uint64_t timestamp);
-    // part2收到心跳后，会通过该接口更新part1的时间戳
+    //After receiving the heartbeat, part2 will update the timestamp of part1 through this interface
     virtual void UpdateNebdClientInfo(int pid, const std::string& version,
                                       uint64_t timestamp);
     std::map<int, std::shared_ptr<NebdClientInfo>> GetNebdClients() {
@@ -101,31 +101,31 @@ class HeartbeatManager {
     }
 
  private:
-    // 心跳检测线程的函数执行体
+    //Function execution body of heartbeat detection thread
     void CheckTimeoutFunc();
-    // 判断文件是否需要close
+    //Determine if the file needs to be closed
     bool CheckNeedClosed(NebdFileEntityPtr entity);
-    // 从内存中删除已经超时的nebdClientInfo
+    //Delete nebdClientInfo that has timed out from memory
     void RemoveTimeoutNebdClient();
 
  private:
-    // 当前heartbeatmanager的运行状态，true表示正在运行，false标为未运行
+    //The current running status of heartbeat manager, where true indicates running and false indicates not running
     std::atomic<bool> isRunning_;
-    // 文件心跳超时时长
+    //File heartbeat timeout duration
     uint32_t heartbeatTimeoutS_;
-    // 心跳超时检测线程的检测时间间隔
+    //Heartbeat timeout detection thread detection time interval
     uint32_t checkTimeoutIntervalMs_;
-    // 心跳检测线程
+    //Heartbeat detection thread
     std::thread checkTimeoutThread_;
-    // 心跳检测线程的sleeper
+    //Sleeper for Heartbeat Detection Thread
     InterruptibleSleeper sleeper_;
-    // filemanager 对象指针
+    //Filemanager object pointer
     NebdFileManagerPtr fileManager_;
-    // nebd client的信息
+    //Information on nebd client
     std::map<int, std::shared_ptr<NebdClientInfo>> nebdClients_;
-    // nebdClient的计数器
+    //Counters for nebdClient
     bvar::Adder<uint64_t> nebdClientNum_;
-    // file map 读写保护锁
+    //File map read write protection lock
     RWLock rwLock_;
 };
 

@@ -2652,8 +2652,8 @@ FileThrottleParams CurveFS::GenerateDefaultThrottleParams(
     bpsTotal.set_type(ThrottleType::BPS_TOTAL);
     bpsTotal.set_limit(bpsLimit);
 
-    *params.add_throttleparams() = std::move(iopsTotal);
-    *params.add_throttleparams() = std::move(bpsTotal);
+    * @params.add_throttleparams() = std::move(iopsTotal);
+    * @params.add_throttleparams() = std::move(bpsTotal);
 
     return params;
 }

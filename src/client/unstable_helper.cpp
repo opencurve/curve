@@ -30,7 +30,7 @@ UnstableHelper::GetCurrentUnstableState(ChunkServerID csId,
     std::string ip = butil::ip2str(csEndPoint.ip).c_str();
 
     mtx_.lock();
-    // 如果当前ip已经超过阈值，则直接返回chunkserver unstable
+    //If the current IP has exceeded the threshold, it will directly return chunkserver unstable
     uint32_t unstabled = serverUnstabledChunkservers_[ip].size();
     if (unstabled >= option_.serverUnstableThreshold) {
         serverUnstabledChunkservers_[ip].emplace(csId);

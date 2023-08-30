@@ -25,49 +25,49 @@
 
 #include <string>
 
-// rpc request配置项
+//Rpc request configuration item
 struct RequestOption {
-    // 同步rpc的最大重试次数
+    //Maximum number of retries for synchronous rpc
     int64_t syncRpcMaxRetryTimes;
-    // rpc请求的重试间隔
+    //The retry interval for rpc requests
     int64_t rpcRetryIntervalUs;
-    // rpc请求的最大重试间隔
+    //Maximum retry interval for rpc requests
     int64_t rpcRetryMaxIntervalUs;
-    // rpc hostdown情况下的重试时间
+    //The retry time in the case of rpc hostdown
     int64_t rpcHostDownRetryIntervalUs;
-    // brpc的健康检查周期时间
+    //Health check cycle time for brpc
     int64_t rpcHealthCheckIntervalS;
-    // brpc从rpc失败到进行健康检查的最大时间间隔
+    //The maximum time interval between RPC failure and health check in BRPC
     int64_t rpcMaxDelayHealthCheckIntervalMs;
-    // rpc发送执行队列个数
+    //Number of RPC send execution queues
     uint32_t rpcSendExecQueueNum = 2;
 };
 
-// 日志配置项
+//Log Configuration Item
 struct LogOption {
-    // 日志存放目录
+    //Log storage directory
     std::string logPath;
 };
 
-// nebd client配置项
+//Nebd client configuration item
 struct NebdClientOption {
     // part2 socket file address
     std::string serverAddress;
-    // 文件锁路径
+    //File lock path
     std::string fileLockPath;
-    // rpc request配置项
+    //Rpc request configuration item
     RequestOption requestOption;
-    // 日志配置项
+    //Log Configuration Item
     LogOption logOption;
 };
 
-// heartbeat配置项
+//Heartbeat configuration item
 struct HeartbeatOption {
     // part2 socket file address
     std::string serverAddress;
-    // heartbeat间隔
+    //Heartbeat interval
     int64_t intervalS;
-    // heartbeat rpc超时时间
+    //Heartbeat RPC timeout
     int64_t rpcTimeoutMs;
 };
 

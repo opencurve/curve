@@ -213,7 +213,7 @@ class FakeCSDataStore : public CSDataStore {
         if (errorCode == CSErrorCode::Success) {
             return error_;
         } else {
-            // 注入错误自动恢复
+            //Automatic recovery of injection errors
             error_ = CSErrorCode::Success;
             return errorCode;
         }

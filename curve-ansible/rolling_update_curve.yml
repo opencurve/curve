@@ -83,7 +83,7 @@
     - { role: generate_config, template_name: topo.json, conf_path: "{{ topo_file_path }}",
             tags: ["generate_config", "generage_topo_json"] }
 
-# 获取leader节点和follower节点
+#Obtain the leader and follower nodes
 - name: set mds leader and follower list
   hosts: mds
   gather_facts: no
@@ -95,7 +95,7 @@
   roles:
     - { role: set_leader_and_follower_list, service_name: mds }
 
-# 按顺序先升级follower节点，再升级leader节点
+#Upgrade the follower node first in order, and then upgrade the leader node
 - name: update follower and leader server in sequence
   hosts: mds_servers_followers, mds_servers_leader
   any_errors_fatal: true
@@ -110,14 +110,14 @@
     - pause:
         prompt: "Confirm restart mds in {{ inventory_hostname }}. ENTER to continue or CTRL-C A to quit"
       when: need_confirm | bool
-  # 重启mds
+  #Restart mds
   roles:
     - { role: restart_service, service_name: mds, expected_curve_version: "{{ mds_package_version }}",
         command_need_sudo: "{{ mds_need_sudo | bool }}"}
 
 
 ############################## rolling update chunkserver ##############################
-# 1. 更新各节点上的配置
+#1 Update the configuration on each node
 - name: prepare chunkserver
   hosts: chunkservers
   any_errors_fatal: true
@@ -136,8 +136,8 @@
     - { role: generate_config, template_name: s3.conf, conf_path: "{{ chunkserver_s3_config_path }}",
                 tags: ["generate_config", "generage_cs_s3_conf"] }
 
-# 逐个重启chunkserver，每重启完一个需要等待copyset健康
-# 继续操作下一个的的时候还需要一个命令行交互确认
+#Restart the chunkservers one by one, and wait for the copyset to be healthy after each restart
+#When continuing with the next operation, a command line interaction confirmation is also required
 - name: restart chunkserver and wait healthy
   hosts: chunkservers
   any_errors_fatal: true
@@ -203,7 +203,7 @@
     - pause:
         prompt: "Confirm restart snapshotclone in {{ inventory_hostname }}. ENTER to continue or CTRL-C A to quit"
       when: need_confirm | bool
-  # 重启snapshot clone
+  #Restart snapshot clone
   roles:
     - { role: restart_service, service_name: snapshotclone, expected_curve_version: "{{ snapshot_package_version }}",
         command_need_sudo: "{{ snapshot_need_sudo | bool }}" }

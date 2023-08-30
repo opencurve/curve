@@ -72,7 +72,7 @@ TEST(InflightRPCTest, TestInflightRPC) {
     int maxInflightNum = 8;
 
     {
-        // 测试inflight数量
+        //Number of inflight tests
         InflightControl control;
         control.SetMaxInflightNum(maxInflightNum);
         ASSERT_EQ(0, control.GetCurrentInflightNum());
@@ -89,7 +89,7 @@ TEST(InflightRPCTest, TestInflightRPC) {
     }
 
     {
-        // 测试GetInflightTokan与ReleaseInflightToken的并发
+        //Testing the concurrency of GetInflightTokan and ReleaseInflightToken
         InflightControl control;
         control.SetMaxInflightNum(maxInflightNum);
 
@@ -123,7 +123,7 @@ TEST(InflightRPCTest, TestInflightRPC) {
     }
 
     {
-        // 测试WaitInflightAllComeBack
+        //Testing WaitInflightAllComeBack
         InflightControl control;
         control.SetMaxInflightNum(maxInflightNum);
         for (int i = 1; i <= maxInflightNum; ++i) {
@@ -148,13 +148,13 @@ TEST(InflightRPCTest, TestInflightRPC) {
 }
 
 TEST(InflightRPCTest, FileCloseTest) {
-    // 测试在文件关闭的时候，lese续约失败不会调用iomanager已析构的资源
-    // lease时长10s，在lease期间仅续约一次，一次失败就会调用iomanager
-    // block IO，这时候其实调用的是scheduler的LeaseTimeoutBlockIO
+    //Testing that if the lease renewal fails when the file is closed, it will not call the resources that have been destructed by the iomanager
+    //The lease duration is 10 seconds, and the contract is only renewed once during the lease period. If a failure occurs, the iomanager will be called
+    //Block IO, in this case, the scheduler's LeaseTimeoutBlockIO is actually called
     IOOption ioOption;
     ioOption.reqSchdulerOpt.ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS =
         10000;
-    // 设置inflight RPC最大数量为1
+    //Set the maximum number of inflight RPCs to 1
     ioOption.ioSenderOpt.inflightOpt.fileMaxInFlightRPCNum = 1;
 
     std::condition_variable cv;
@@ -200,7 +200,7 @@ TEST(InflightRPCTest, FileCloseTest) {
             LeaseExecutor lease(lopt, userinfo, nullptr, iomanager);
 
             for (int j = 0; j < 5; j++) {
-                // 测试iomanager退出之后，lease再去调用其scheduler资源不会crash
+                //After testing the iomanager exit, please call its scheduler resource again without crashing
                 lease.InvalidLease();
             }
 
@@ -214,11 +214,11 @@ TEST(InflightRPCTest, FileCloseTest) {
         }
     };
 
-    // 并发两个线程，一个线程启动iomanager初始化，然后反初始化
-    // 另一个线程启动lease续约，然后调用iomanager使其block IO
-    // 预期：并发两个线程，lease线程续约失败即使在iomanager线程
-    // 退出的同时去调用其block IO接口也不会出现并发竞争共享资源的
-    // 场景。
+    //Concurrent with two threads, one thread initiates Iomanager initialization and then de initializes
+    //Another thread starts lease renewal, and then calls iomanager to block IO
+    //Expected: Concurrent two threads, lease thread renewal failed even in the iomanager thread
+    //Calling its block IO interface while exiting will not result in concurrent competition for shared resources
+    //Scenarios.
     std::thread t1(f1);
     std::thread t2(f2);
 

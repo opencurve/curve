@@ -1,16 +1,16 @@
-# curve-client配置文件地址
+#Curve client configuration file address
 curveclient.confPath={{ client_config_path }}
 
-#brpc server监听端口
+#Brpc server listening port
 listen.address={{ nebd_data_dir }}/nebd.sock
 
-#元数据文件地址,包含文件名
+#Metadata file address, including file name
 meta.file.path={{ nebd_data_dir }}/nebdserver.meta
 
-#心跳超时时间
+#Heartbeat timeout
 heartbeat.timeout.sec={{ nebd_server_heartbeat_timeout_s }}
 
-#文件超时检测时间间隔
+#File timeout detection interval
 heartbeat.check.interval.ms={{ nebd_server_heartbeat_check_interval_ms }}
 
 # return rpc when io error

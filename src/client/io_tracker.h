@@ -49,9 +49,9 @@ class IOManager;
 class FileSegment;
 class DiscardTaskManager;
 
-// IOTracker用于跟踪一个用户IO，因为一个用户IO可能会跨chunkserver，
-// 因此在真正下发的时候会被拆分成多个小IO并发的向下发送，因此我们需要
-// 跟踪发送的request的执行情况。
+//IOTracker is used to track a user's IO, as a user's IO may cross chunkservers,
+//Therefore, when it is actually distributed, it will be split into multiple small IOs and sent down concurrently. Therefore, we need to
+//Track the execution status of the sent request.
 class CURVE_CACHELINE_ALIGNMENT IOTracker {
     friend class Splitor;
 
@@ -65,23 +65,23 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
     ~IOTracker() = default;
 
     /**
-     * @brief StartRead同步读
-     * @param buf 读缓冲区
-     * @param offset 读偏移
-     * @param length 读长度
-     * @param mdsclient 透传给splitor，与mds通信
-     * @param fileInfo 当前io对应文件的基本信息
+     * @brief StartRead Sync Read
+     * @param buf read buffer
+     * @param offset read offset
+     * @param length Read length
+     * @param mdsclient transparently transmits to the splitter for communication with mds
+     * @param fileInfo Basic information of the file corresponding to the current io
      */
     void StartRead(void* buf, off_t offset, size_t length, MDSClient* mdsclient,
                    const FInfo_t* fileInfo, Throttle* throttle = nullptr);
 
     /**
-     * @brief StartWrite同步写
-     * @param buf 写缓冲区
-     * @param offset 写偏移
-     * @param length 写长度
-     * @param mdsclient 透传给splitor，与mds通信
-     * @param fileInfo 当前io对应文件的基本信息
+     * @brief StartWrite Sync Write
+     * @param buf write buffer
+     * @param offset write offset
+     * @param length Write length
+     * @param mdsclient transparently transmits to the splitter for communication with mds
+     * @param fileInfo Basic information of the file corresponding to the current io
      */
     void StartWrite(const void* buf, off_t offset, size_t length,
                     MDSClient* mdsclient, const FInfo_t* fileInfo,
@@ -116,15 +116,15 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
                          DiscardTaskManager* taskManager);
 
     /**
-     * chunk相关接口是提供给snapshot使用的，上层的snapshot和file
-     * 接口是分开的，在IOTracker这里会将其统一，这样对下层来说不用
-     * 感知上层的接口类别。
-     * @param:chunkidinfo 目标chunk
-     * @param: seq是快照版本号
-     * @param: offset是快照内的offset
-     * @param: len是要读取的长度
-     * @param: buf是读取缓冲区
-     * @param: scc是异步回调
+     *Chunk related interfaces are provided for snapshot use, with upper level snapshots and files
+     *The interface is separate and will be unified in IOTracker, so it is not necessary for the lower level
+     *Perception of upper level interface categories.
+     * @param: chunkidinfo target chunk
+     * @param: seq is the snapshot version number
+     * @param: offset is the offset within the snapshot
+     * @param: len is the length to be read
+     * @param: buf is a read buffer
+     * @param: scc is an asynchronous callback
      */
     void ReadSnapChunk(const ChunkIDInfo &cinfo,
                      uint64_t seq,
@@ -133,29 +133,29 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
                      char *buf,
                      SnapCloneClosure* scc);
     /**
-     * 删除此次转储时产生的或者历史遗留的快照
-     * 如果转储过程中没有产生快照，则修改chunk的correctedSn
-     * @param:chunkidinfo 目标chunk
-     * @param: seq是需要修正的版本号
+     *Delete snapshots generated during this dump or left over from history
+     *If no snapshot is generated during the dump process, modify the correctedSn of the chunk
+     * @param: chunkidinfo target chunk
+     * @param: seq is the version number that needs to be corrected
      */
     void DeleteSnapChunkOrCorrectSn(const ChunkIDInfo &cinfo,
                      uint64_t correctedSeq);
     /**
-     * 获取chunk的版本信息，chunkInfo是出参
-     * @param:chunkidinfo 目标chunk
-     * @param: chunkInfo是快照的详细信息
+     *Obtain the version information of the chunk, where chunkInfo is the output parameter
+     * @param: chunkidinfo target chunk
+     * @param: chunkInfo is the detailed information of the snapshot
      */
     void GetChunkInfo(const ChunkIDInfo &cinfo,
                      ChunkInfoDetail *chunkInfo);
 
     /**
-     * @brief lazy 创建clone chunk
-     * @param:location 数据源的url
-     * @param:chunkidinfo 目标chunk
-     * @param:sn chunk的序列号
-     * @param:correntSn CreateCloneChunk时候用于修改chunk的correctedSn
-     * @param:chunkSize chunk的大小
-     * @param: scc是异步回调
+     * @brief lazy Create clone chunk
+     * @param: URL of the location data source
+     * @param: chunkidinfo target chunk
+     * @param: sn chunk's serial number
+     * @param: correntSn used to modify the chunk when creating CloneChunk
+     * @param: chunkSize Chunk size
+     * @param: scc is an asynchronous callback
      */
     void CreateCloneChunk(const std::string& location,
                           const ChunkIDInfo& chunkidinfo, uint64_t sn,
@@ -163,43 +163,43 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
                           SnapCloneClosure* scc);
 
     /**
-     * @brief 实际恢复chunk数据
-     * @param:chunkidinfo chunkidinfo
-     * @param:offset 偏移
-     * @param:len 长度
-     * @param:chunkSize chunk的大小
-     * @param: scc是异步回调
+     * @brief Actual recovery chunk data
+     * @param: chunkidinfo chunkidinfo
+     * @param: offset offset
+     * @param: len length
+     * @param: chunkSize Chunk size
+     * @param: scc is an asynchronous callback
      */
     void RecoverChunk(const ChunkIDInfo& chunkIdInfo, uint64_t offset,
                       uint64_t len, SnapCloneClosure* scc);
 
     /**
-     * Wait用于同步接口等待，因为用户下来的IO被client内部线程接管之后
-     * 调用就可以向上返回了，但是用户的同步IO语意是要等到结果返回才能向上
-     * 返回的，因此这里的Wait会让用户线程等待。
-     * @return: 返回读写信息，异步IO的时候返回0或-1.0代表成功，-1代表失败
-     *          同步IO返回length或-1，length代表真实读写长度，-1代表读写失败
+     *Wait is used to synchronize interface waiting, as the user's incoming IO is taken over by the client's internal thread
+     *The call can return upwards, but the user's synchronous IO meaning is to wait until the result is returned before proceeding upwards
+     *Returned, therefore the Wait here will cause the user thread to wait.
+     * @return: Returns read/write information. When performing asynchronous IO, returns 0 or -1.0 to indicate success, and -1 to indicate failure
+     *Synchronous IO returns length or -1, where length represents the true read/write length and -1 represents read/write failure
      */
     int Wait();
 
     /**
-     * 每个request都要有自己的OP类型，这里提供接口可以在io拆分的时候获取类型
+     *Each request must have its own OP type, and an interface is provided here to obtain the type during IO splitting
      */
     OpType Optype() {return type_;}
 
-    // 设置操作类型，测试使用
+    //Set operation type, test usage
     void SetOpType(OpType type) { type_ = type; }
 
     /**
-     * 因为client的IO都是异步发送的，且一个IO被拆分成多个Request，因此在异步
-     * IO返回后就应该告诉IOTracker当前request已经返回，这样tracker可以处理
-     * 返回的request。
-     * @param: 待处理的异步request
+     *Because the client's IO is sent asynchronously, and one IO is split into multiple requests, the asynchronous
+     *After IO returns, the IOTracker should be informed that the current request has been returned, so that the Tracker can handle it
+     *The returned request.
+     * @param: pending asynchronous request
      */
     void HandleResponse(RequestContext* reqctx);
 
     /**
-     * 获取当前tracker id信息
+     *Obtain the current tracker ID information
      */
     uint64_t GetID() const {
         return id_;
@@ -232,38 +232,38 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
     void ReleaseAllSegmentLocks();
 
     /**
-     * 当IO返回的时候调用done，由done负责向上返回
+     *When IO returns, call done, which is responsible for returning upwards
      */
     void Done();
 
     /**
-     * 在io拆分或者，io分发失败的时候需要调用，设置返回状态，并向上返回
+     *When IO splitting or IO distribution fails, it needs to be called, set the return status, and return upwards
      */
     void ReturnOnFail();
     /**
-     * 用户下来的大IO会被拆分成多个子IO，这里在返回之前将子IO资源回收
+     *The user's incoming large IO will be split into multiple sub IOs, and the sub IO resources will be reclaimed before returning here
      */
     void DestoryRequestList();
 
     /**
-     * 填充request context common字段
-     * @param: idinfo为chunk的id信息
-     * @param: req为待填充的request context
+     *Fill in the request context common field
+     * @param: IDInfo is the ID information of the chunk
+     * @param: req is the request context to be filled in
      */
     void FillCommonFields(ChunkIDInfo idinfo, RequestContext* req);
 
     /**
-     * chunkserver errcode转化为libcurve client的errode
-     * @param: errcode为chunkserver侧的errode
-     * @param[out]: errout为libcurve自己的errode
+     *Convert chunkserver errode to libcurve client errode
+     * @param: errcode is the error code on the chunkserver side
+     * @param[out]: errout is libcurve's own errode
      */
     void ChunkServerErr2LibcurveErr(curve::chunkserver::CHUNK_OP_STATUS errcode,
                                     LIBCURVE_ERROR* errout);
 
     /**
-     * 获取一个初始化后的RequestContext
-     * return: 如果分配失败或者初始化失败，返回nullptr
-     *         反之，返回一个指针
+     *Obtain an initialized RequestContext
+     *Return: If allocation or initialization fails, return nullptr
+     *          On the contrary, return a pointer
      */
     RequestContext* GetInitedRequestContext() const;
 
@@ -296,10 +296,10 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
     }
 
  private:
-    // io 类型
+    //IO type
     OpType  type_;
 
-    // 当前IO的数据内容，data是读写数据的buffer
+    //The current IO data content, where data is the buffer for reading and writing data
     off_t      offset_;
     uint64_t   length_;
 
@@ -315,48 +315,48 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
     // save read data
     std::vector<butil::IOBuf> readDatas_;
 
-    // 当用户下发的是同步IO的时候，其需要在上层进行等待，因为client的
-    // IO发送流程全部是异步的，因此这里需要用条件变量等待，待异步IO返回
-    // 之后才将这个等待的条件变量唤醒，然后向上返回。
+    //When a user sends synchronous IO, they need to wait in the upper layer because the client's
+    //The IO sending process is all asynchronous, so here we need to use a conditional variable to wait for asynchronous IO to return
+    //Afterwards, the waiting condition variable is awakened and then returned upwards.
     IOConditionVariable  iocv_;
 
-    // 异步IO的context，在异步IO返回时，通过调用aioctx
-    // 的异步回调进行返回。
+    //The context of asynchronous IO is called aioctx when asynchronous IO returns
+    //Asynchronous callback for return.
     CurveAioContext* aioctx_;
 
-    // 当前IO的errorcode
+    //The errorcode of the current IO
     LIBCURVE_ERROR errcode_;
 
-    // 当前IO被拆分成reqcount_个小IO
+    //The current IO is split into reqcount_ Small IO
     std::atomic<uint32_t> reqcount_;
 
-    // 大IO被拆分成多个request，这些request放在reqlist中国保存
+    //The large IO is split into multiple requests, which are stored in the reqlist in China
     std::vector<RequestContext*>   reqlist_;
 
     // store segment indices that can be discarded
     std::unordered_set<SegmentIndex> discardSegments_;
 
-    // metacache为当前fileinstance的元数据信息
+    //Metacache is the metadata information of the current fileinstance
     MetaCache* mc_;
 
-    // scheduler用来将用户线程与client自己的线程切分
-    // 大IO被切分之后，将切分的reqlist传给scheduler向下发送
+    //The scheduler is used to separate user threads from the client's own threads
+    //After the large IO is split, the split reqlist is passed to the scheduler and sent downwards
     RequestScheduler* scheduler_;
 
-    // 对于异步IO，Tracker需要向上层通知当前IO已经处理结束
-    // iomanager可以将该tracker释放
+    //For asynchronous IO, the Tracker needs to notify the upper level that the current IO processing has ended
+    //The iomanager can release the tracker
     IOManager* iomanager_;
 
-    // 发起时间
+    //Initiation time
     uint64_t opStartTimePoint_;
 
-    // client端的metric统计信息
+    //Metric statistics on the client side
     FileMetric* fileMetric_;
 
-    // 当前tracker的id
+    //The ID of the current tracker
     uint64_t id_;
 
-    // 快照克隆系统异步调用回调指针
+    //Asynchronous call callback pointer for snapshot cloning system
     SnapCloneClosure* scc_;
 
     bool disableStripe_;
@@ -365,7 +365,7 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
     // so store corresponding segment lock and release after operations finished
     std::vector<FileSegment*> segmentLocks_;
 
-    // id生成器
+    //ID generator
     static std::atomic<uint64_t> tracekerID_;
 
     static DiscardOption discardOption_;

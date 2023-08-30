@@ -61,8 +61,10 @@ bool Configuration::LoadConfig() {
 }
 
 bool Configuration::SaveConfig() {
-    // 当前先只保存配置，原文件的注释等内容先忽略
-    // TODO(yyk): 后续考虑改成原文件格式不变，只修改配置值
+    //Currently, only the configuration is saved, and the comments and other contents of the original file are ignored
+
+    //TODO (yyk): In the future, consider changing to the original file format without changing, only modifying the configuration values
+
     std::ofstream wStream(confFile_);
     if (wStream.is_open()) {
         for (auto& pair : config_) {
@@ -104,13 +106,15 @@ void Configuration::UpdateMetricIfExposed(const std::string &key,
     }
 
     auto it = configMetric_.find(key);
-    // 如果配置项不存在，则新建配置项
+    //If the configuration item does not exist, create a new configuration item
+
     if (it == configMetric_.end()) {
         ConfigItemPtr configItem = std::make_shared<StringStatus>();
         configItem->ExposeAs(exposeName_, key);
         configMetric_[key] = configItem;
     }
-    // 更新配置项
+    //Update Configuration Items
+
     configMetric_[key]->Set("conf_name", key);
     configMetric_[key]->Set("conf_value", value);
     configMetric_[key]->Update();

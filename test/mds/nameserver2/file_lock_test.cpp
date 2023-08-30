@@ -169,8 +169,8 @@ TEST_F(FileWriteLockGuardTest, LockUnlockTest) {
     ASSERT_EQ(flm.GetLockEntryNum(), 0);
 }
 
-// 以下这种情况，跑测试的时候会出现Segmentation fault，是锁的实现机制的问题
-// 要避免这样使用锁，已在代码里进行规避，以下注释的测试保留，提醒使用者注意
+//In the following situation, a Segmentation fault may occur during testing, which is a problem with the implementation mechanism of the lock
+//To avoid using locks in this way, it has been circumvented in the code. The following comments are reserved for testing and remind users to pay attention
 /*
 TEST_F(FileWriteLockGuardTest, LockUnlockTest1) {
     {

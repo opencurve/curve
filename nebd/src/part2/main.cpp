@@ -28,12 +28,12 @@
 DEFINE_string(confPath, "/etc/nebd/nebd-server.conf", "nebd server conf path");
 
 int main(int argc, char* argv[]) {
-    // 解析参数
+    //Parsing parameters
     google::ParseCommandLineFlags(&argc, &argv, false);
     google::InitGoogleLogging(argv[0]);
     std::string confPath = FLAGS_confPath.c_str();
 
-    // 启动nebd server
+    //Start nebd server
     auto server = std::make_shared<::nebd::server::NebdServer>();
     int initRes = server->Init(confPath);
     if (initRes < 0) {
@@ -42,7 +42,7 @@ int main(int argc, char* argv[]) {
     }
     server->RunUntilAskedToQuit();
 
-    // 停止nebd server
+    //Stop nebd server
     server->Fini();
 
     google::ShutdownGoogleLogging();

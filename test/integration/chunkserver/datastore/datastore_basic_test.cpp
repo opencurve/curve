@@ -36,8 +36,8 @@ class BasicTestSuit : public DatastoreIntegrationBase {
 };
 
 /**
- * 基本功能测试验证
- * 读、写、删、获取文件信息
+ *Basic functional testing verification
+ *Read, write, delete, and obtain file information
  */
 TEST_F(BasicTestSuit, BasicTest) {
     ChunkID id = 1;
@@ -49,25 +49,25 @@ TEST_F(BasicTestSuit, BasicTest) {
     CSErrorCode errorCode;
     CSChunkInfo info;
 
-    /******************场景一：新建的文件，Chunk文件不存在******************/
+    /******************Scene One: New file created, Chunk file does not exist.******************/
 
-    // 文件不存在
+    //File does not exist
     ASSERT_FALSE(lfs_->FileExists(chunkPath));
 
-    // 读chunk时返回ChunkNotExistError
+    //ChunkNotExistError returned when reading chunk
     char readbuf[3 * PAGE_SIZE];
     errorCode = dataStore_->ReadChunk(id, sn, readbuf, offset, length);
     ASSERT_EQ(errorCode, CSErrorCode::ChunkNotExistError);
 
-    // 无法获取到chunk的版本号
+    //Unable to obtain the version number of the chunk
     errorCode = dataStore_->GetChunkInfo(id, &info);
     ASSERT_EQ(errorCode, CSErrorCode::ChunkNotExistError);
 
-    // 删除chunk返回Success
+    //Delete chunk and return Success
     errorCode = dataStore_->DeleteChunk(id, sn);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
-    /******************场景二：通过WriteChunk产生chunk文件后操作**************/
+    /******************Scene Two: Operations after generating chunk files through WriteChunk.**************/
 
     char buf1_1_1[PAGE_SIZE];
     memset(buf1_1_1, 'a', length);
@@ -80,7 +80,7 @@ TEST_F(BasicTestSuit, BasicTest) {
                                         nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
-    // 可以获取到chunk的信息，且各项信息符合预期
+    //Chunk information can be obtained and all information meets expectations
     errorCode = dataStore_->GetChunkInfo(id, &info);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(1, info.curSn);
@@ -93,13 +93,13 @@ TEST_F(BasicTestSuit, BasicTest) {
     ASSERT_EQ(false, info.isClone);
     ASSERT_EQ(nullptr, info.bitmap);
 
-    // 读取写入的4KB验证一下,应当与写入数据相等
+    //Verify that the 4KB read and written should be equal to the data written
     memset(readbuf, 0, sizeof(readbuf));
     errorCode = dataStore_->ReadChunk(id, sn, readbuf, offset, length);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(0, memcmp(buf1_1_1, readbuf, length));
 
-    // 没被写过的区域也可以读，但是不保证读到的数据内容
+    //Areas that have not been written can also be read, but the data content read is not guaranteed
     memset(readbuf, 0, sizeof(readbuf));
     errorCode = dataStore_->ReadChunk(id,
                                       sn,
@@ -108,7 +108,7 @@ TEST_F(BasicTestSuit, BasicTest) {
                                       length);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
-    // chunk 存在时，覆盖写
+    //Overwrite when chunk exists
     char buf1_1_2[PAGE_SIZE];
     memset(buf1_1_2, 'b', length);
 
@@ -120,7 +120,7 @@ TEST_F(BasicTestSuit, BasicTest) {
                                        nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
-    // 没被写过的区域也可以读，但是不保证读到的数据内容
+    //Areas that have not been written can also be read, but the data content read is not guaranteed
     memset(readbuf, 0, sizeof(readbuf));
     errorCode = dataStore_->ReadChunk(id,
                                       sn,
@@ -130,7 +130,7 @@ TEST_F(BasicTestSuit, BasicTest) {
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(0, memcmp(buf1_1_2, readbuf, length));
 
-    // chunk 存在时，写入未写过区域
+    //When a chunk exists, write to an unwritten area
     char buf1_1_3[PAGE_SIZE];
     memset(buf1_1_3, 'c', length);
     offset = PAGE_SIZE;
@@ -144,7 +144,7 @@ TEST_F(BasicTestSuit, BasicTest) {
                                        nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
-    // 没被写过的区域也可以读，但是不保证读到的数据内容
+    //Areas that have not been written can also be read, but the data content read is not guaranteed
     memset(readbuf, 0, sizeof(readbuf));
     errorCode = dataStore_->ReadChunk(id,
                                       sn,
@@ -155,7 +155,7 @@ TEST_F(BasicTestSuit, BasicTest) {
     ASSERT_EQ(0, memcmp(buf1_1_2, readbuf, PAGE_SIZE));
     ASSERT_EQ(0, memcmp(buf1_1_3, readbuf + PAGE_SIZE, PAGE_SIZE));
 
-    // chunk 存在时，覆盖部分区域
+    //When a chunk exists, it covers some areas
     char buf1_1_4[2 * PAGE_SIZE];
     memset(buf1_1_4, 'd', length);
     offset = PAGE_SIZE;
@@ -172,7 +172,7 @@ TEST_F(BasicTestSuit, BasicTest) {
                                        nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
-    // 没被写过的区域也可以读，但是不保证读到的数据内容
+    //Areas that have not been written can also be read, but the data content read is not guaranteed
     memset(readbuf, 0, sizeof(readbuf));
     errorCode = dataStore_->ReadChunk(id,
                                       sn,
@@ -184,7 +184,7 @@ TEST_F(BasicTestSuit, BasicTest) {
     ASSERT_EQ(0, memcmp(buf1_1_4, readbuf + PAGE_SIZE, 2 * PAGE_SIZE));
 
 
-    /******************场景三：用户删除文件******************/
+    /******************Scene Three: User deletes file.******************/
 
     errorCode = dataStore_->DeleteChunk(id, sn);
     ASSERT_EQ(errorCode, CSErrorCode::Success);

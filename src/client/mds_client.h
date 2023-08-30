@@ -54,22 +54,22 @@ class RPCExcutorRetryPolicy {
     using RPCFunc = std::function<int(int addrindex, uint64_t rpctimeoutMS,
                                       brpc::Channel *, brpc::Controller *)>;
     /**
-     * 将client与mds的重试相关逻辑抽离
-     * @param: task为当前要进行的具体rpc任务
-     * @param: maxRetryTimeMS是当前执行最大的重试时间
-     * @return: 返回当前RPC的结果
+     *Detach the retry related logic between client and mds
+     * @param: task is the specific rpc task to be carried out currently
+     * @param: maxRetryTimeMS is the maximum retry time currently executed
+     * @return: Returns the result of the current RPC
      */
     int DoRPCTask(RPCFunc task, uint64_t maxRetryTimeMS);
 
     /**
-     * 测试使用: 设置当前正在服务的mdsindex
+     *Test usage: Set the currently serving mdsindex
      */
     void SetCurrentWorkIndex(int index) {
         currentWorkingMDSAddrIndex_.store(index);
     }
 
     /**
-     * 测试使用：获取当前正在服务的mdsindex
+     *Test usage: Obtain the currently serving mdsindex
      */
     int GetCurrentWorkIndex() const {
         return currentWorkingMDSAddrIndex_.load();
@@ -77,89 +77,91 @@ class RPCExcutorRetryPolicy {
 
  private:
     /**
-     * rpc失败需要重试，根据cntl返回的不同的状态，确定应该做什么样的预处理。
-     * 主要做了以下几件事：
-     * 1. 如果上一次的RPC是超时返回，那么执行rpc 超时指数退避逻辑
-     * 2. 如果上一次rpc返回not connect等返回值，会主动触发切换mds地址重试
-     * 3. 更新重试信息，比如在当前mds上连续重试的次数
-     * @param[in]: status为当前rpc的失败返回的状态
+     *RPC failed and needs to be retried. Based on the different states returned by CNTL, determine what kind of preprocessing should be done.
+     *I mainly did the following things:
+     *1 If the previous RPC was a timeout return, execute the rpc timeout index backoff logic
+     *2 If the previous RPC returned values such as' not connect ', it will actively trigger the switching of the mds address and retry
+     *3 Update retry information, such as the number of consecutive retries on the current mds
+     * @param[in]: status is the status returned by the current RPC failure
      * @param normalRetryCount The total count of normal retry
-     * @param[in][out]: curMDSRetryCount当前mds节点上的重试次数，如果切换mds
-     *             该值会被重置为1.
-     * @param[in]: curRetryMDSIndex代表当前正在重试的mds索引
-     * @param[out]: lastWorkingMDSIndex上一次正在提供服务的mds索引
-     * @param[out]: timeOutMS根据status对rpctimeout进行调整
+     * @param[in][out]: curMDSRetryCount The number of retries on the current mds node, if switching mds
+     *                  The value will be reset to 1
+     * @param[in]: curRetryMDSIndex represents the mds index currently being retried
+     * @param[out]: lastWorkingMDSIndex The mds index of the last service being provided
+     * @param[out]: timeOutMS adjusts rpctimeout based on status
      *
-     * @return: 返回下一次重试的mds索引
+     * @return: Returns the mds index for the next retry
      */
     int PreProcessBeforeRetry(int status, bool retryUnlimit,
                               uint64_t *normalRetryCount,
                               uint64_t *curMDSRetryCount, int curRetryMDSIndex,
                               int *lastWorkingMDSIndex, uint64_t *timeOutMS);
     /**
-     * 执行rpc发送任务
-     * @param[in]: mdsindex为mds对应的地址索引
-     * @param[in]: rpcTimeOutMS是rpc超时时间
-     * @param[in]: task为待执行的任务
-     * @return: channel获取成功则返回0，否则-1
+     *Execute rpc send task
+     * @param[in]: mdsindex is the address index corresponding to mds
+     * @param[in]: rpcTimeOutMS is the rpc timeout time
+     * @param[in]: task is the task to be executed
+     * @return: If the channel is successfully obtained, 0 will be returned. Otherwise, -1
      */
     int ExcuteTask(int mdsindex, uint64_t rpcTimeOutMS,
                    RPCExcutorRetryPolicy::RPCFunc task);
     /**
-     * 根据输入状态获取下一次需要重试的mds索引，mds切换逻辑：
-     * 记录三个状态：curRetryMDSIndex、lastWorkingMDSIndex、
-     *             currentWorkingMDSIndex
-     * 1. 开始的时候curRetryMDSIndex = currentWorkingMDSIndex
-     *            lastWorkingMDSIndex = currentWorkingMDSIndex
-     * 2.
-     * 如果rpc失败，会触发切换curRetryMDSIndex，如果这时候lastWorkingMDSIndex
-     *    与currentWorkingMDSIndex相等，这时候会顺序切换到下一个mds索引，
-     *    如果lastWorkingMDSIndex与currentWorkingMDSIndex不相等，那么
-     *    说明有其他接口更新了currentWorkingMDSAddrIndex_，那么本次切换
-     *    直接切换到currentWorkingMDSAddrIndex_
-     * @param[in]: needChangeMDS表示当前外围需不需要切换mds，这个值由
-     *              PreProcessBeforeRetry函数确定
-     * @param[in]: currentRetryIndex为当前正在重试的mds索引
+     *Retrieve the next mds index that needs to be retried based on the input status, and switch the mds logic:
+     *Record three states: curRetryMDSIndex, lastWorkingMDSIndex
+     *CurrentWorkingMDSIndex
+     *1. At the beginning, curRetryMDSIndex=currentWorkingMDSIndex
+     *                      lastWorkingMDSIndex=currentWorkingMDSIndex
+     *2.
+     *If rpc fails, it will trigger the switch curRetryMDSIndex. If the lastWorkingMDSIndex
+     *Equal to the currentWorkingMDSIndex, it will switch sequentially to the next mds index,
+     *If the lastWorkingMDSIndex and currentWorkingMDSIndex are not equal, then
+     *Indicates that other interfaces have updated currentWorkingMDSAddrIndex_, So this switch
+     *Switch directly to currentWorkingMDSAddrIndex_
+     * @param[in]: needChangeMDS indicates whether the current peripheral needs to switch to MDS. This value is determined by
+     *              PreProcessBeforeRetry function determination
+     * @param[in]: currentRetryIndex is the mds index currently being retried
      * @param[in][out]:
-     * lastWorkingindex为上一次正在服务的mds索引，正在重试的mds
-     *              与正在服务的mds索引可能是不同的mds。
-     * @return: 返回下一次要重试的mds索引
+     * lastWorkingindex is the index of the last mds being serviced and the mds being retried
+     *              The index may be different from the mds being serviced.
+     * @return: Returns the mds index for the next retry
      */
+
     int GetNextMDSIndex(bool needChangeMDS, int currentRetryIndex,
                         int *lastWorkingindex);
     /**
-     * 根据输入参数，决定是否继续重试，重试退出条件是重试时间超出最大允许时间
-     * IO路径上和非IO路径上的重试时间不一样，非IO路径的重试时间由配置文件的
-     * mdsMaxRetryMS参数指定，IO路径为无限循环重试。
+     *Based on the input parameters, decide whether to continue retry. The condition for retry exit is that the retry time exceeds the maximum allowed time
+     *The retry time on IO paths is different from that on non IO paths, and the retry time on non IO paths is determined by the configuration file
+     *The mdsMaxRetryMS parameter specifies that the IO path is an infinite loop retry.
      * @param[in]: startTimeMS
-     * @param[in]: maxRetryTimeMS为最大重试时间
-     * @return:需要继续重试返回true， 否则返回false
+     * @param[in]: maxRetryTimeMS is the maximum retry time
+     * @return: Need to continue retrying and return true, otherwise return false
      */
     bool GoOnRetry(uint64_t startTimeMS, uint64_t maxRetryTimeMS);
 
     /**
-     * 递增controller id并返回id
+     *Increment controller id and return id
      */
     uint64_t GetLogId() {
         return cntlID_.fetch_add(1, std::memory_order_relaxed);
     }
 
  private:
-    // 执行rpc时必要的配置信息
+    //Necessary configuration information for executing rpc
     MetaServerOption::RpcRetryOption retryOpt_;
 
-    // 记录上一次重试过的leader信息
+    //Record the leader information from the last retry
     std::atomic<int> currentWorkingMDSAddrIndex_;
 
-    // controller id，用于trace整个rpc IO链路
-    // 这里直接用uint64即可，在可预测的范围内，不会溢出
+    //Controller ID, used to trace the entire RPC IO link
+    //Simply use uint64 here, within a predictable range, without overflow
     std::atomic<uint64_t> cntlID_;
 };
 
 
 struct LeaseRefreshResult;
 
-// MDSClient是client与MDS通信的唯一窗口
+//MDSClient is the only window where the client communicates with MDS
+
 class MDSClient : public MDSClientBase,
                   public std::enable_shared_from_this<MDSClient> {
  public:
@@ -170,12 +172,12 @@ class MDSClient : public MDSClientBase,
     LIBCURVE_ERROR Initialize(const MetaServerOption &metaopt);
 
     /**
-     * 创建文件
-     * @param: context创建文件信息
-     * @return: 成功返回LIBCURVE_ERROR::OK
-     *          文件已存在返回LIBCURVE_ERROR::EXIST
-     *          否则返回LIBCURVE_ERROR::FAILED
-     *          如果认证失败返回LIBCURVE_ERROR::AUTHFAIL，
+     *Create File
+     * @param: context Create file information
+     * @return: Successfully returned LIBCURVE_ERROR::OK
+     *File already exists Return LIBCURVE_ERROR::EXIST
+     *Otherwise, return LIBCURVE_ERROR::FAILED
+     *If authentication fails, return LIBCURVE_ERROR::AUTHFAIL,
      */
     LIBCURVE_ERROR CreateFile(const CreateFileContext& context);
     /**
@@ -196,11 +198,11 @@ class MDSClient : public MDSClientBase,
                             LeaseSession *lease);
 
     /**
-     * 获取copysetid对应的serverlist信息并更新到metacache
-     * @param: logicPoolId逻辑池信息
-     * @param: csid为要获取的copyset列表
-     * @param: cpinfoVec保存获取到的server信息
-     * @return: 成功返回LIBCURVE_ERROR::OK,否则返回LIBCURVE_ERROR::FAILED
+     *Obtain the serverlist information corresponding to the copysetid and update it to the metacache
+     * @param: logicPoolId Logical Pool Information
+     * @param: csid is the list of copysets to obtain
+     * @param: cpinfoVec saves the obtained server information
+     * @return: Successfully returned LIBCURVE_ERROR::OK, otherwise will be returned LIBCURVE_ERROR::FAILED
      */
     LIBCURVE_ERROR
     GetServerList(const LogicPoolID &logicPoolId,
@@ -208,9 +210,9 @@ class MDSClient : public MDSClientBase,
                   std::vector<CopysetInfo<ChunkServerID>> *cpinfoVec);
 
     /**
-     * 获取当前mds所属的集群信息
-     * @param[out]: clsctx 为要获取的集群信息
-     * @return: 成功返回LIBCURVE_ERROR::OK,否则返回LIBCURVE_ERROR::FAILED
+     *Obtain the cluster information to which the current mds belongs
+     * @param[out]: clsctx is the cluster information to be obtained
+     * @return: Successfully returned LIBCURVE_ERROR::OK, otherwise will be returned LIBCURVE_ERROR::FAILED
      */
     LIBCURVE_ERROR GetClusterInfo(ClusterContext *clsctx);
 
@@ -276,19 +278,19 @@ class MDSClient : public MDSClientBase,
          std::list<CopysetPeerInfo<ChunkServerID>> *csLocs);
 
     /**
-     * 扩展文件
-     * @param: userinfo是用户信息
-     * @param: filename文件名
-     * @param: newsize新的size
+     *Extension file
+     * @param: userinfo is the user information
+     * @param: filename File name
+     * @param: newsize New size
      */
     LIBCURVE_ERROR Extend(const std::string &filename,
                           const UserInfo_t &userinfo, uint64_t newsize);
     /**
-     * 删除文件
-     * @param: userinfo是用户信息
-     * @param: filename待删除的文件名
-     * @param: deleteforce是否强制删除而不放入垃圾回收站
-     * @param: id为文件id，默认值为0，如果用户不指定该值，不会传id到mds
+     *Delete files
+     * @param: userinfo is the user information
+     * @param: filename The file name to be deleted
+     * @param: deleteforce  Does it force deletion without placing it in the garbage bin
+     * @param: id is the file id, with a default value of 0. If the user does not specify this value, the id will not be passed to mds
      */
     LIBCURVE_ERROR DeleteFile(const std::string &filename,
                               const UserInfo_t &userinfo,
@@ -304,78 +306,78 @@ class MDSClient : public MDSClientBase,
                                const UserInfo_t &userinfo, uint64_t fileId);
 
     /**
-     * 创建版本号为seq的快照
-     * @param: userinfo是用户信息
-     * @param: filename是要创建快照的文件名
-     * @param: seq是出参，返回创建快照时文件的版本信息
+     *Create a snapshot with version number seq
+     * @param: userinfo is the user information
+     * @param: filename is the file name to create the snapshot
+     * @param: seq is an output parameter that returns the version information of the file when creating the snapshot
      * @return:
-     * 成功返回LIBCURVE_ERROR::OK,如果认证失败返回LIBCURVE_ERROR::AUTHFAIL，
-     *          否则返回LIBCURVE_ERROR::FAILED
+     *Successfully returned LIBCURVE_ERROR::OK, if authentication fails, return LIBCURVE_ERROR::AUTHFAIL,
+     *Otherwise, return LIBCURVE_ERROR::FAILED
      */
     LIBCURVE_ERROR CreateSnapShot(const std::string &filename,
                                   const UserInfo_t &userinfo, uint64_t *seq);
     /**
-     * 删除版本号为seq的快照
-     * @param: userinfo是用户信息
-     * @param: filename是要快照的文件名
-     * @param: seq是创建快照时文件的版本信息
+     *Delete snapshot with version number seq
+     * @param: userinfo is the user information
+     * @param: filename is the file name to be snapshot
+     * @param: seq is the version information of the file when creating the snapshot
      * @return:
-     * 成功返回LIBCURVE_ERROR::OK,如果认证失败返回LIBCURVE_ERROR::AUTHFAIL，
-     *          否则返回LIBCURVE_ERROR::FAILED
+     *Successfully returned LIBCURVE_ERROR::OK, if authentication fails, return LIBCURVE_ERROR::AUTHFAIL,
+     *Otherwise, return LIBCURVE_ERROR::FAILED
      */
     LIBCURVE_ERROR DeleteSnapShot(const std::string &filename,
                                   const UserInfo_t &userinfo, uint64_t seq);
 
     /**
-     * 以列表的形式获取版本号为seq的snapshot文件信息，snapif是出参
-     * @param: filename是要快照的文件名
-     * @param: userinfo是用户信息
-     * @param: seq是创建快照时文件的版本信息
-     * @param: snapif是出参，保存文件的基本信息
+     *Obtain snapshot file information with version number seq in the form of a list, where snapif is the output parameter
+     * @param: filename is the file name to be snapshot
+     * @param: userinfo is the user information
+     * @param: seq is the version information of the file when creating the snapshot
+     * @param: snapif is a parameter that saves the basic information of the file
      * @return:
-     * 成功返回LIBCURVE_ERROR::OK,如果认证失败返回LIBCURVE_ERROR::AUTHFAIL，
-     *          否则返回LIBCURVE_ERROR::FAILED
+     *Successfully returned LIBCURVE_ERROR::OK, if authentication fails, return LIBCURVE_ERROR::AUTHFAIL,
+     *Otherwise, return LIBCURVE_ERROR::FAILED
      */
     LIBCURVE_ERROR ListSnapShot(const std::string &filename,
                                 const UserInfo_t &userinfo,
                                 const std::vector<uint64_t> *seq,
                                 std::map<uint64_t, FInfo> *snapif);
     /**
-     * 获取快照的chunk信息并更新到metacache，segInfo是出参
-     * @param: filename是要快照的文件名
-     * @param: userinfo是用户信息
-     * @param: seq是创建快照时文件的版本信息
-     * @param: offset是文件内的偏移
-     * @param: segInfo是出参，保存chunk信息
+     *Obtain the chunk information of the snapshot and update it to the metacache, where segInfo is the output parameter
+     * @param: filename is the file name to be snapshot
+     * @param: userinfo is the user information
+     * @param: seq is the version information of the file when creating the snapshot
+     * @param: offset is the offset within the file
+     * @param: segInfo is the output parameter, saving chunk information
      * @return:
-     * 成功返回LIBCURVE_ERROR::OK,如果认证失败返回LIBCURVE_ERROR::AUTHFAIL，
-     *          否则返回LIBCURVE_ERROR::FAILED
+     *Successfully returned LIBCURVE_ERROR::OK, if authentication fails, return LIBCURVE_ERROR::AUTHFAIL,
+     *Otherwise, return LIBCURVE_ERROR::FAILED
      */
     LIBCURVE_ERROR GetSnapshotSegmentInfo(const std::string &filename,
                                           const UserInfo_t &userinfo,
                                           uint64_t seq, uint64_t offset,
                                           SegmentInfo *segInfo);
     /**
-     * 获取快照状态
-     * @param: filenam文件名
-     * @param: userinfo是用户信息
-     * @param: seq是文件版本号信息
-     * @param[out]: filestatus为快照状态
+     *Get snapshot status
+     * @param: filenam file name
+     * @param: userinfo is the user information
+     * @param: seq is the file version number information
+     * @param[out]: filestatus is the snapshot status
      */
     LIBCURVE_ERROR CheckSnapShotStatus(const std::string &filename,
                                        const UserInfo_t &userinfo, uint64_t seq,
                                        FileStatus *filestatus);
 
     /**
-     * 文件接口在打开文件的时候需要与mds保持心跳，refresh用来续约
-     * 续约结果将会通过LeaseRefreshResult* resp返回给调用层
-     * @param: filename是要续约的文件名
-     * @param: sessionid是文件的session信息
-     * @param: resp是mds端传递过来的lease信息
-     * @param[out]: lease当前文件的session信息
+     *The file interface needs to maintain a heartbeat with MDS when opening files, and refresh is used to renew the contract
+     *The renewal result will be returned to the calling layer through LeaseRefreshResult * resp
+     * @param: filename is the file name to be renewed
+     * @param: sessionid is the session information of the file
+     * @param: resp is the release information passed from the mds end
+     * @param[out]: lease the session information of the current file
      * @return:
-     * 成功返回LIBCURVE_ERROR::OK,如果认证失败返回LIBCURVE_ERROR::AUTHFAIL，
-     *          否则返回LIBCURVE_ERROR::FAILED
+     *Successfully returned LIBCURVE_ERROR::OK, if authentication fails, return LIBCURVE_ERROR::AUTHFAIL,
+     *Otherwise, return LIBCURVE_ERROR::FAILED
      */
     LIBCURVE_ERROR RefreshSession(const std::string &filename,
                                   const UserInfo_t &userinfo,
@@ -383,34 +385,34 @@ class MDSClient : public MDSClientBase,
                                   LeaseRefreshResult *resp,
                                   LeaseSession *lease = nullptr);
     /**
-     * 关闭文件，需要携带sessionid，这样mds端会在数据库删除该session信息
-     * @param: filename是要续约的文件名
-     * @param: sessionid是文件的session信息
+     *To close the file, it is necessary to carry the session ID, so that the mds side will delete the session information in the database
+     * @param: filename is the file name to be renewed
+     * @param: sessionid is the session information of the file
      * @return:
-     * 成功返回LIBCURVE_ERROR::OK,如果认证失败返回LIBCURVE_ERROR::AUTHFAIL，
-     *          否则返回LIBCURVE_ERROR::FAILED
+     *Successfully returned LIBCURVE_ERROR::OK, if authentication fails, return LIBCURVE_ERROR::AUTHFAIL,
+     *Otherwise, return LIBCURVE_ERROR::FAILED
      */
     LIBCURVE_ERROR CloseFile(const std::string &filename,
                              const UserInfo_t &userinfo,
                              const std::string &sessionid);
 
     /**
-     * @brief 创建clone文件
+     * @brief Create clone file
      * @detail
-     *  - 若是clone，sn重置为初始值
-     *  - 若是recover，sn不变
+     *- If clone, reset sn to initial value
+     *- If recover, sn remains unchanged
      *
-     * @param source 克隆源文件名
-     * @param:destination clone目标文件名
-     * @param:userinfo 用户信息
-     * @param:size 文件大小
-     * @param:sn 版本号
-     * @param:chunksize是创建文件的chunk大小
+     * @param source Clone source file name
+     * @param: destination clone Destination file name
+     * @param: userinfo User Information
+     * @param: size File size
+     * @param: sn version number
+     * @param: chunksize is the chunk size of the created file
      * @param stripeUnit stripe size
      * @param stripeCount stripe count
-     * @param[out] destFileId 创建的目标文件的Id
+     * @param[out] destFileId The ID of the target file created
      *
-     * @return 错误码
+     * @return error code
      */
     LIBCURVE_ERROR CreateCloneFile(const std::string &source,
                                    const std::string &destination,
@@ -421,36 +423,36 @@ class MDSClient : public MDSClientBase,
                                    FInfo *fileinfo);
 
     /**
-     * @brief 通知mds完成Clone Meta
+     * @brief Notify mds to complete Clone Meta
      *
-     * @param:destination 目标文件
-     * @param:userinfo用户信息
+     * @param: destination target file
+     * @param: userinfo User Information
      *
-     * @return 错误码
+     * @return error code
      */
     LIBCURVE_ERROR CompleteCloneMeta(const std::string &destination,
                                      const UserInfo_t &userinfo);
 
     /**
-     * @brief 通知mds完成Clone Chunk
+     * @brief Notify mds to complete Clone Chunk
      *
-     * @param:destination 目标文件
-     * @param:userinfo用户信息
+     * @param: destination target file
+     * @param: userinfo User Information
      *
-     * @return 错误码
+     * @return error code
      */
     LIBCURVE_ERROR CompleteCloneFile(const std::string &destination,
                                      const UserInfo_t &userinfo);
 
     /**
-     * @brief 通知mds完成Clone Meta
+     * @brief Notify mds to complete Clone Meta
      *
-     * @param: filename 目标文件
-     * @param: filestatus为要设置的目标状态
-     * @param: userinfo用户信息
-     * @param: fileId为文件ID信息，非必填
+     * @param: filename Target file
+     * @param: filestatus is the target state to be set
+     * @param: userinfo User information
+     * @param: FileId is the file ID information, not required
      *
-     * @return 错误码
+     * @return error code
      */
     LIBCURVE_ERROR SetCloneFileStatus(const std::string &filename,
                                       const FileStatus &filestatus,
@@ -458,15 +460,15 @@ class MDSClient : public MDSClientBase,
                                       uint64_t fileID = 0);
 
     /**
-     * @brief 重名文件
+     * @brief duplicate file
      *
-     * @param:userinfo 用户信息
-     * @param:originId 被恢复的原始文件Id
-     * @param:destinationId 克隆出的目标文件Id
-     * @param:origin 被恢复的原始文件名
-     * @param:destination 克隆出的目标文件
+     * @param: userinfo User Information
+     * @param: originId The original file ID that was restored
+     * @param: destinationId The cloned target file ID
+     * @param: origin The original file name of the recovered file
+     * @param: destination The cloned target file
      *
-     * @return 错误码
+     * @return error code
      */
     LIBCURVE_ERROR RenameFile(const UserInfo_t &userinfo,
                               const std::string &origin,
@@ -475,64 +477,64 @@ class MDSClient : public MDSClientBase,
                               uint64_t destinationId = 0);
 
     /**
-     * 变更owner
-     * @param: filename待变更的文件名
-     * @param: newOwner新的owner信息
-     * @param: userinfo执行此操作的user信息，只有root用户才能执行变更
-     * @return: 成功返回0，
-     *          否则返回LIBCURVE_ERROR::FAILED,LIBCURVE_ERROR::AUTHFAILED等
+     *Change owner
+     * @param: filename The file name to be changed
+     * @param: newOwner New owner information
+     * @param: userinfo The user information for performing this operation, only the root user can perform changes
+     * @return: Successfully returned 0,
+     *Otherwise, return LIBCURVE_ERROR::FAILED, LIBCURVE_ERROR::AUTHFAILED, etc
      */
     LIBCURVE_ERROR ChangeOwner(const std::string &filename,
                                const std::string &newOwner,
                                const UserInfo_t &userinfo);
 
     /**
-     * 枚举目录内容
-     * @param: userinfo是用户信息
-     * @param: dirpath是目录路径
-     * @param[out]: filestatVec当前文件夹内的文件信息
+     *Enumerate directory contents
+     * @param: userinfo is the user information
+     * @param: dirpath is the directory path
+     * @param[out]: filestatVec File information in the current folder
      */
     LIBCURVE_ERROR Listdir(const std::string &dirpath,
                            const UserInfo_t &userinfo,
                            std::vector<FileStatInfo> *filestatVec);
 
     /**
-     * 向mds注册client metric监听的地址和端口
-     * @param: ip客户端ip
-     * @param: dummyServerPort为监听端口
-     * @return: 成功返回0，
-     *          否则返回LIBCURVE_ERROR::FAILED,LIBCURVE_ERROR::AUTHFAILED等
+     *Register the address and port for client metric listening with mds
+     * @param: IP client IP
+     * @param: dummyServerPort is the listening port
+     * @return: Successfully returned 0,
+     *Otherwise, return LIBCURVE_ERROR::FAILED, LIBCURVE_ERROR::AUTHFAILED, etc
      */
     LIBCURVE_ERROR Register(const std::string &ip, uint16_t port);
 
     /**
-     * 获取chunkserver信息
-     * @param[in] addr chunkserver地址信息
-     * @param[out] chunkserverInfo 待获取的信息
-     * @return：成功返回ok
+     *Obtain chunkserver information
+     * @param[in] addr chunkserver address information
+     * @param[out] chunkserverInfo Information to be obtained
+     * @return: Successfully returned OK
      */
     LIBCURVE_ERROR
     GetChunkServerInfo(const PeerAddr &addr,
                        CopysetPeerInfo<ChunkServerID> *chunkserverInfo);
 
     /**
-     * 获取server上所有chunkserver的id
-     * @param[in]: ip为server的ip地址
-     * @param[out]: csIds用于保存chunkserver的id
-     * @return: 成功返回LIBCURVE_ERROR::OK，失败返回LIBCURVE_ERROR::FAILED
+     *Obtain the IDs of all chunkservers on the server
+     * @param[in]: IP is the IP address of the server
+     * @param[out]: csIds is used to save the id of the chunkserver
+     * @return: Successfully returned LIBCURVE_ERROR::OK, failure returns LIBCURVE_ERROR::FAILED
      */
     LIBCURVE_ERROR ListChunkServerInServer(const std::string &ip,
                                            std::vector<ChunkServerID> *csIds);
 
     /**
-     * 析构，回收资源
+     *Deconstruct and recycle resources
      */
     void UnInitialize();
 
     /**
-     * 将mds侧错误码对应到libcurve错误码
-     * @param: statecode为mds一侧错误码
-     * @param[out]: 出参errcode为libcurve一侧的错误码
+     *Map the mds side error code to the libcurve error code
+     * @param: statecode is the error code on the mds side
+     * @param[out]: The error code of the output parameter is the error code on the side of libcurve
      */
     void MDSStatusCode2LibcurveError(const ::curve::mds::StatusCode &statcode,
                                      LIBCURVE_ERROR *errcode);
@@ -540,13 +542,13 @@ class MDSClient : public MDSClientBase,
     LIBCURVE_ERROR ReturnError(int retcode);
 
  private:
-    // 初始化标志，放置重复初始化
+    //Initialization flag, placing duplicate initialization
     bool inited_ = false;
 
-    // 当前模块的初始化option配置
+    //Initialization option configuration for the current module
     MetaServerOption metaServerOpt_;
 
-    // client与mds通信的metric统计
+    //Metric statistics of communication between client and mds
     MDSClientMetric mdsClientMetric_;
 
     RPCExcutorRetryPolicy rpcExcutor_;

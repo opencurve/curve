@@ -77,7 +77,7 @@ def add_config():
         ori_cmd = R"sed -i 's/mds.listen.addr=127.0.0.1:6666/mds.listen.addr=%s/g' client.conf"%(addrs)
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s client config fail"%host
-#将client.conf配置成py_client.conf(主机用)，方便client复现死锁问题
+#Configure clientconf to py_ Client. conf (for the host) to facilitate client replication of deadlock issues
         ori_cmd = "sudo mv client.conf /etc/curve/"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         ori_cmd = "sudo cp /etc/curve/client.conf /etc/curve/py_client.conf"
@@ -157,11 +157,11 @@ def add_config():
         ori_cmd = "sed -i \"s/client.config_path=\S*/client.config_path=\/etc\/curve\/snap_client.conf/\" snapshot_clone_server.conf"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s snapshot config fail"%host
-        #修改snapshot_clone_server.conf etcd配置
+        #Modify snapshot_ Clone_ Serverconf etcd configuration
         ori_cmd = "sed -i \"s/etcd.endpoint=\S*/etcd.endpoint=%s/g\" snapshot_clone_server.conf"%(etcd_addrs)
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s snapshot config fail"%host
-        #修改数据库配置项
+        #Modifying Database Configuration Items
         ori_cmd = R"sed -i 's/metastore.db_address=\S*/metastore.db_address=%s/g' snapshot_clone_server.conf"%(config.abnormal_db_host)
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s snapshot clone server config fail"%host

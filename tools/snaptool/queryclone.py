@@ -29,7 +29,7 @@ def query_clone_recover(args):
     if totalCount == 0:
         print "no record found"
         return
-    # 提高打印可读性
+    #Improving Print Readability
     for record in records:
         code = record['TaskStatus']
         record['TaskStatus'] = status[code]

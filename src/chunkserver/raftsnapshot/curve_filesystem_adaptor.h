@@ -33,14 +33,14 @@
 #include "src/chunkserver/raftsnapshot/curve_file_adaptor.h"
 
 /**
- * RaftSnapshotFilesystemAdaptor目的是为了接管braft
- * 内部snapshot创建chunk文件的逻辑，目前curve内部
- * 会从chunkfilepool中直接取出已经格式化好的chunk文件
- * 但是braft内部由于install snapshot也会创建chunk文件
- * 这个创建文件不感知chunkfilepool，因此我们希望install
- * snapshot也能从chunkfilepool中直接取出chunk文件，因此
- * 我们对install snapshot流程中的文件系统做了一层hook，在
- * 创建及删除文件操作上直接使用curve提供的文件系统接口即可。
+ *The purpose of the RaftSnapshotFilesystemAdaptor is to take over the braft
+ *The logic for creating chunk files through internal snapshots, currently within the curve
+ *Will directly retrieve the formatted chunk file from the chunkfilepool
+ *However, within braft, install snapshots will also create chunk files
+ *This creation file is not chunkfilepool aware, so we want to install it
+ *Snapshots can also directly retrieve chunk files from the chunkfilepool, so
+ *We have done a layer of hooks on the file system in the install snapshot process, and
+ *Simply use the file system interface provided by Curve to create and delete files.
  */
 
 using curve::fs::LocalFileSystem;
@@ -49,18 +49,18 @@ using curve::chunkserver::FilePool;
 namespace curve {
 namespace chunkserver {
 /**
- * CurveFilesystemAdaptor继承raft的PosixFileSystemAdaptor类，在raft
- * 内部其快照使用PosixFileSystemAdaptor类进行文件操作，因为我们只希望在其创建文件
- * 或者删除文件的时候使用chunkfilepool提供的getchunk和recyclechunk接口，所以这里
- * 我们只实现了open和delete_file两个接口。其他接口在调用的时候仍然使用原来raft的内部
- * 的接口。
+ *The CurveFilesystemAdaptor inherits the PosixFileSystemAdaptor class from the raft, where the
+ *Internally, its snapshot uses the PosixFileSystemAdaptor class for file operations, as we only want to create files on it
+ *Or when deleting files, use the getchunk and recyclechunk interfaces provided by chunkfilepool, so here
+ *We only implemented open and delete_file has two interfaces. Other interfaces still use the internal workings of the original raft when called
+ *Interface for.
  */
 class CurveFilesystemAdaptor : public braft::PosixFileSystemAdaptor {
  public:
     /**
-     * 构造函数
-     * @param: chunkfilepool用于获取和回收chunk文件
-     * @param: lfs用于进行一些文件操作，比如打开或者删除目录
+     *Constructor
+     * @param: chunkfilepool is used to retrieve and recycle chunk files
+     * @param: lfs is used for some file operations, such as opening or deleting directories
      */
     CurveFilesystemAdaptor(std::shared_ptr<FilePool> filePool,
                                   std::shared_ptr<LocalFileSystem> lfs);
@@ -68,14 +68,14 @@ class CurveFilesystemAdaptor : public braft::PosixFileSystemAdaptor {
     virtual ~CurveFilesystemAdaptor();
 
     /**
-     * 打开文件，在raft内部使用open来创建一个文件，并返回FileAdaptor结构
-     * @param: path是当前待打开的路径
-     * @param: oflag为打开文件参数
-     * @param: file_meta是当前文件的meta信息，这个参数内部未使用
-     * @param: e为打开文件是的错误码
-     * @return: FileAdaptor是raft内部封装fd的一个类，fd是open打开path的返回值
-     *          后续所有对于该文件的读写都是通过该FileAdaptor指针进行的，其内部封装了
-     *          读写操作，其内部定义如下。
+     *Open the file, use open inside the raft to create a file, and return the FileAdaptor structure
+     * @param: path is the current path to be opened
+     * @param: oflag is the parameter for opening a file
+     * @param: file_meta is the meta information of the current file, which is not used internally
+     * @param: e is the error code for opening the file
+     * @return: FileAdapter is a class that encapsulates fd internally in raft, where fd is the return value of opening a path
+     *All subsequent reads and writes to this file are done through the FileAdaptor pointer, which internally encapsulates the
+     *The internal definition of read and write operations is as follows.
      *          class PosixFileAdaptor : public FileAdaptor {
      *              friend class PosixFileSystemAdaptor;
      *           public:
@@ -98,57 +98,57 @@ class CurveFilesystemAdaptor : public braft::PosixFileSystemAdaptor {
                               const ::google::protobuf::Message* file_meta,
                               butil::File::Error* e);
     /**
-     * 删除path对应的文件或目录
-     * @param: path是待删除的文件路径
-     * @param: recursive是否递归删除
-     * @return: 成功返回true，否则返回false
+     *Delete the file or directory corresponding to the path
+     * @param: path is the file path to be deleted
+     * @param: Recursive whether to recursively delete
+     * @return: Successfully returns true, otherwise returns false
      */
     virtual bool delete_file(const std::string& path, bool recursive);
 
     /**
-     * rename到新路径
-     * 为什么要重载rename？
-     * 由于raft内部使用的是本地文件系统的rename，如果目标new path
-     * 已经存在文件，那么就会覆盖该文件。这样raft内部会创建temp_snapshot_meta
-     * 文件，这个是为了保证原子修改snapshot_meta文件而设置的，然后通过rename保证
-     * 修改snapshot_meta文件修改的原子性。如果这个temp_snapshot_meta是从chunkfilpool
-     * 取的，那么如果直接rename，这个temp_snapshot_meta文件所占用的chunk文件
-     * 就永远收不回来了，这种情况下会消耗大量的预分配chunk，所以这里重载rename，先
-     * 回收new path，然后再rename,
-     * @param: old_path旧文件路径
-     * @param: new_path新文件路径
+     *Rename to new path
+     *Why overload rename?
+     *Due to the fact that raft internally uses the rename of the local file system, if the target new path
+     *If a file already exists, it will be overwritten. This way, the raft will create temp_snapshot_meta
+     *File, this is to ensure atomic modification snapshots_ Set for meta files, and then ensure through rename
+     *Modify Atomicity of snapshot_meta file modification. If this temp_snapshot_meta is derived from chunkfilpool
+     *If you rename it directly, this temp_snapshot_meta files occupied by meta files
+     *You will never receive it back, in which case a large amount of pre allocated chunks will be consumed. Therefore, overloading rename here requires first
+     *Recycle the new path and then rename it,
+     * @param: old_path Old File Path
+     * @param: new_path New File Path
      */
     virtual bool rename(const std::string& old_path,
                        const std::string& new_path);
 
-    // 设置过滤哪些文件，这些文件不从chunkfilepool取
-    // 回收的时候也直接删除这些文件，不进入chunkfilepool
+    //Set which files to filter and do not retrieve them from chunkfilepool
+    //Delete these files directly during recycling without entering the chunkfilepool
     void SetFilterList(const std::vector<std::string>& filter);
 
  private:
    /**
-    * 递归回收目录内容
-    * @param: path为待回收的目录路径
-    * @return: 成功返回true，否则返回false
+    *Recursive recycling of directory content
+    * @param: path is the directory path to be recycled
+    * @return: Successfully returns true, otherwise returns false
     */
     bool RecycleDirRecursive(const std::string& path);
 
     /**
-     * 查看文件是否需要过滤
+     *Check if the file needs to be filtered
      */
     bool NeedFilter(const std::string& filename);
 
  private:
-    // 由于chunkfile pool获取新的chunk时需要传入metapage信息
-    // 这里创建一个临时的metapage，其内容无关紧要，因为快照会覆盖这部分内容
+    //Due to the need to pass in metapage information when obtaining new chunks in the chunkfile pool
+    //Create a temporary metapage here, whose content is irrelevant as the snapshot will overwrite this part of the content
     char*  tempMetaPageContent;
-    // 我们自己的文件系统，这里文件系统会做一些打开及删除目录操作
+    //Our own file system, where the file system performs some opening and deleting directory operations
     std::shared_ptr<LocalFileSystem> lfs_;
-    // 操作chunkfilepool的指针，这个FilePool_与copysetnode的
-    // chunkfilepool_应该是全局唯一的，保证操作chunkfilepool的原子性
+    //Pointer to operate chunkfilepool, this FilePool_ Related to copysetnode
+    //Chunkfilepool_ It should be globally unique, ensuring the atomicity of the chunkfilepool operation
     std::shared_ptr<FilePool> chunkFilePool_;
-    // 过滤名单，在当前vector中的文件名，都不从chunkfilepool中取文件
-    // 回收的时候也直接删除这些文件，不进入chunkfilepool
+    //Filter the list and do not retrieve file names from chunkfilepool in the current vector
+    //Delete these files directly during recycling without entering the chunkfilepool
     std::vector<std::string> filterList_;
 };
 }  // namespace chunkserver

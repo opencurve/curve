@@ -66,7 +66,7 @@ void CleanTaskManager::CheckCleanResult(void) {
                 }
                 ++iter;
             }
-            // clean task为空，清空channelPool
+            //Clean task is empty, clear channelPool
             if (cleanTasks_.empty() && notEmptyBefore) {
                 LOG(INFO) << "All tasks completed, clear channel pool";
                 channelPool_->Clear();

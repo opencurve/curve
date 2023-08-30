@@ -57,7 +57,7 @@ class TimeUtility {
         return localtime(&now)->tm_hour;
     }
 
-    // 时间戳转成标准时间输出在standard里面,时间戳单位为秒
+    //Convert the timestamp to standard time and output it in standard, with the timestamp unit in seconds
     static inline void TimeStampToStandard(time_t timeStamp,
                                            std::string* standard) {
         char now[64];
@@ -67,7 +67,7 @@ class TimeUtility {
         *standard = std::string(now);
     }
 
-    // 时间戳转成标准时间并返回,时间戳单位为秒
+    //The timestamp is converted to standard time and returned in seconds
     static inline std::string TimeStampToStandard(time_t timeStamp) {
         char now[64];
         struct tm p;

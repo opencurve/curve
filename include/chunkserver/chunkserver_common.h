@@ -61,9 +61,9 @@ using SnapshotThrottle = braft::SnapshotThrottle;
 using ThroughputSnapshotThrottle = braft::ThroughputSnapshotThrottle;
 
 
-// TODO(lixiaocui): 考虑一下后续的单元测试或者校验要怎么做
+//TODO(lixiaocui): Consider how to proceed with subsequent unit testing or validation
 /*
- * IO性能统计复合metric类型
+ *IO performance statistics composite metric type
  */
 struct IoPerfMetric {
     uint64_t    readCount;
@@ -77,7 +77,7 @@ struct IoPerfMetric {
 };
 
 /**
- *  将(LogicPoolID, CopysetID)二元组转换成数字格式的复制组ID,格式如下：
+ * Convert the (LogicPoolID, CopysetID) binary into a copy group ID in numerical format, as follows:
  *  |            group id           |
  *  |     32         |      32      |
  *  | logic pool id  |  copyset id  |
@@ -87,7 +87,7 @@ inline GroupNid ToGroupNid(const LogicPoolID &logicPoolId,
     return (static_cast<uint64_t>(logicPoolId) << 32) | copysetId;
 }
 /**
- *  将(LogicPoolID, CopysetID)二元组转换成字符串格式的复制组ID
+ *Convert the (LogicPoolID, CopysetID) binary to a copy group ID in string format
  */
 inline GroupId ToGroupId(const LogicPoolID &logicPoolId,
                          const CopysetID &copysetId) {
@@ -96,19 +96,19 @@ inline GroupId ToGroupId(const LogicPoolID &logicPoolId,
 #define ToBraftGroupId   ToGroupId
 
 /**
- *  从数字格式的复制组ID中解析LogicPoolID
+ *Parsing LogicPoolID from Copy Group ID in Numeric Format
  */
 inline LogicPoolID GetPoolID(const GroupNid &groupId) {
     return groupId >> 32;
 }
 /**
- *  从数字格式的复制组ID中解析CopysetID
+ *Parsing CopysetID from Copy Group ID in Numeric Format
  */
 inline CopysetID GetCopysetID(const GroupNid &groupId) {
     return groupId & (((uint64_t)1 << 32) - 1);
 }
 
-/* 格式输出 group id 的 字符串 (logicPoolId, copysetId) */
+/*Format output string for group ID (logicPoolId, copysetId)*/
 inline std::string ToGroupIdString(const LogicPoolID &logicPoolId,
                                    const CopysetID &copysetId) {
     std::string groupIdString;

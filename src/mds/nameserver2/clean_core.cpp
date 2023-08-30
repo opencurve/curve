@@ -54,9 +54,9 @@ StatusCode CleanCore::CleanSnapShotFile(const FileInfo & fileInfo,
         LogicalPoolID logicalPoolID = segment.logicalpoolid();
         uint32_t chunkNum = segment.chunks_size();
         for (uint32_t j = 0; j != chunkNum; j++) {
-            // 删除快照时如果chunk不存在快照，则需要修改chunk的correctedSn
-            // 防止删除快照后，后续的写触发chunk的快照
-            // correctSn为创建快照后文件的版本号，也就是快照版本号+1
+            //When deleting a snapshot, if the chunk does not have a snapshot, the correctedSn of the chunk needs to be modified
+            //Prevent subsequent writes from triggering Chunk snapshots after deleting snapshots
+            //CorrectSn is the version number of the file after creating the snapshot, which is the snapshot version number+1
             SeqNum correctSn = fileInfo.seqnum() + 1;
             int ret = copysetClient_->DeleteChunkSnapshotOrCorrectSn(
                 logicalPoolID,

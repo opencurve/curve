@@ -26,7 +26,7 @@
 extern "C" {
 bool g_inited = false;
 
-// Note: 配置文件路径是否有上层传下来比较合适，评估是否要修改
+//Note: It is more appropriate to pass down the configuration file path from the upper level, and evaluate whether it needs to be modified
 const char* confpath = "/etc/nebd/nebd-client.conf";
 int nebd_lib_init() {
     if (g_inited) {

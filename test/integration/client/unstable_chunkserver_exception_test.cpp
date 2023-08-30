@@ -165,7 +165,7 @@ struct ChunkserverParam {
 class UnstableCSModuleException : public ::testing::Test {
  protected:
     static void SetUpTestCase() {
-        // 清理文件夹
+        //Clean Up Folder
         system("rm -rf module_exception_curve_unstable_cs.etcd");
         system("rm -rf ttt");
         system("mkdir -p ttt");
@@ -175,7 +175,7 @@ class UnstableCSModuleException : public ::testing::Test {
         cluster.reset(new CurveCluster());
         ASSERT_NE(nullptr, cluster.get());
 
-        // 生成配置文件
+        //Generate Configuration File
         cluster->PrepareConfig<curve::MDSConfigGenerator>(kMdsConfPath,
                                                           mdsConfigOpts);
         cluster->PrepareConfig<curve::CSConfigGenerator>(kCSConfPath,
@@ -183,7 +183,7 @@ class UnstableCSModuleException : public ::testing::Test {
         cluster->PrepareConfig<curve::ClientConfigGenerator>(kClientConfPath,
                                                              clientConfigOpts);
 
-        // 1. 启动etcd
+        //1 Start etcd
         pid_t pid = cluster->StartSingleEtcd(
             1, kEtcdClientIpPort, kEtcdPeerIpPort,
             std::vector<std::string>{
@@ -192,13 +192,13 @@ class UnstableCSModuleException : public ::testing::Test {
                   << kEtcdPeerIpPort << ", pid = " << pid;
         ASSERT_GT(pid, 0);
 
-        // 2. 启动一个mds
+        //2 Start an mds
         pid = cluster->StartSingleMDS(1, kMdsIpPort, 30013, mdsConf, true);
         LOG(INFO) << "mds 1 started on " << kMdsIpPort << ", pid = " << pid;
         ASSERT_GT(pid, 0);
         std::this_thread::sleep_for(std::chrono::seconds(2));
 
-        // 3. 创建物理池
+        //3 Creating a physical pool
         ASSERT_EQ(
             0,
             cluster->PreparePhysicalPool(
@@ -206,27 +206,27 @@ class UnstableCSModuleException : public ::testing::Test {
                 "./test/integration/client/config/unstable/"
                 "topo_unstable.json"));
 
-        // 4. 创建chunkserver
+        //4 Create chunkserver
         StartAllChunkserver();
         std::this_thread::sleep_for(std::chrono::seconds(5));
 
-        // 5. 创建逻辑池，并睡眠一段时间让底层copyset先选主
+        //5 Create a logical pool and sleep for a period of time to let the underlying copyset select the primary first
         ASSERT_EQ(0, cluster->PrepareLogicalPool(
             1, "test/integration/client/config/unstable/topo_unstable.json"));
         std::this_thread::sleep_for(std::chrono::seconds(10));
 
-        // 6. 初始化client配置
+        //6 Initialize client configuration
         int ret = Init(kClientConfPath);
         ASSERT_EQ(ret, 0);
 
-        // 7. 先睡眠10s，让chunkserver选出leader
+        //7 Sleep for 10 seconds first and let chunkserver select the leader
         std::this_thread::sleep_for(std::chrono::seconds(10));
     }
 
     static void TearDownTestCase() {
         UnInit();
         ASSERT_EQ(0, cluster->StopCluster());
-        // 清理文件夹
+        //Clean Up Folder
         system("rm -rf module_exception_curve_unstable_cs.etcd");
         system("rm -rf module_exception_curve_unstable_cs");
         system("rm -rf ttt");
@@ -323,15 +323,15 @@ TEST_F(UnstableCSModuleException, TestCommonReadAndWrite) {
     ::Close(fd);
 }
 
-// 集群拓扑结构
-//     1个client
-//     1个etcd
-//     1个mds
-//     3个zone，每个里面2个chunkserver
+//Cluster topology
+//1 client
+//1 ETCD
+//1 mds
+//3 zones, each with 2 chunkservers inside
 TEST_F(UnstableCSModuleException, HangOneZone) {
     srand(time(nullptr));
 
-    // 开启多个线程写文件
+    //Enable multiple threads to write files
     LOG(INFO) << "starting write...";
     running = true;
     std::vector<std::thread> openAndWriteThreads;
@@ -341,7 +341,7 @@ TEST_F(UnstableCSModuleException, HangOneZone) {
             "/test" + std::to_string(i));
     }
 
-    // 正常写入60s, 并记录后30秒的iops
+    //Write normally for 60 seconds and record the IOPS for the next 30 seconds
     std::vector<uint64_t> beforeRecords;
     std::this_thread::sleep_for(std::chrono::seconds(30));
     for (int i = 1; i <= 30; ++i) {
@@ -353,18 +353,18 @@ TEST_F(UnstableCSModuleException, HangOneZone) {
         beforeRecords.size();
     LOG(INFO) << "iops before hang: " << beforeAvgIOps;
 
-    // hang一个zone的chunkserver
+    //Hang a chunkserver for a zone
     LOG(INFO) << "hang one zone";
     ASSERT_EQ(0, cluster->HangChunkServer(1));
     ASSERT_EQ(0, cluster->HangChunkServer(2));
 
     std::vector<uint64_t> afterRecords;
-    // 打印每一秒的iops情况
+    //Print IOPS per second
     for (int i = 1; i <= 10; ++i) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
         auto tmp = iops.value.get_value(1);
         LOG(INFO) << "after " << i << "s, iops: " << tmp;
-        // 记录后5s的iops值
+        //Record the iops value for 5 seconds after recording
         if (i >= 5) {
             afterRecords.push_back(tmp);
         }

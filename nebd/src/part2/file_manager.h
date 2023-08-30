@@ -54,119 +54,119 @@ class NebdFileManager {
     explicit NebdFileManager(MetaFileManagerPtr metaFileManager);
     virtual ~NebdFileManager();
     /**
-     * 停止FileManager并释放FileManager资源
-     * @return 成功返回0，失败返回-1
+     *Stop FileManager and release FileManager resources
+     * @return returns 0 for success, -1 for failure
      */
     virtual int Fini();
     /**
-     * 启动FileManager
-     * @return 成功返回0，失败返回-1
+     *Start FileManager
+     * @return returns 0 for success, -1 for failure
      */
     virtual int Run();
     /**
-     * 打开文件
-     * @param filename: 文件的filename
-     * @return 成功返回fd，失败返回-1
+     *Open File
+     * @param filename: The filename of the file
+     * @return successfully returns fd, failure returns -1
      */
     virtual int Open(const std::string& filename, const OpenFlags* flags);
     /**
-     * 关闭文件
-     * @param fd: 文件的fd
-     * @param removeRecord: 是否要移除文件记录，true表示移除，false表示不移除
-     * 如果是part1传过来的close请求，此参数为true
-     * 如果是heartbeat manager发起的close请求，此参数为false
-     * @return 成功返回0，失败返回-1
+     *Close File
+     * @param fd: fd of the file
+     * @param removeRecord: Do you want to remove the file record? True means remove, false means not remove
+     *If it is a close request passed from part1, this parameter is true
+     *If it is a close request initiated by the heartbeat manager, this parameter is false
+     * @return returns 0 for success, -1 for failure
      */
     virtual int Close(int fd, bool removeRecord);
     /**
-     * 给文件扩容
-     * @param fd: 文件的fd
-     * @param newsize: 新的文件大小
-     * @return 成功返回0，失败返回-1
+     *Expand file capacity
+     * @param fd: fd of the file
+     * @param newsize: New file size
+     * @return returns 0 for success, -1 for failure
      */
     virtual int Extend(int fd, int64_t newsize);
     /**
-     * 获取文件信息
-     * @param fd: 文件的fd
-     * @param fileInfo[out]: 文件信息
-     * @return 成功返回0，失败返回-1
+     *Obtain file information
+     * @param fd: fd of the file
+     * @param fileInfo[out]: File information
+     * @return returns 0 for success, -1 for failure
      */
     virtual int GetInfo(int fd, NebdFileInfo* fileInfo);
     /**
-     * 异步请求，回收指定区域空间
-     * @param fd: 文件的fd
-     * @param aioctx: 异步请求上下文
-     * @return 成功返回0，失败返回-1
+     *Asynchronous request to reclaim the specified area space
+     * @param fd: fd of the file
+     * @param aioctx: Asynchronous request context
+     * @return returns 0 for success, -1 for failure
      */
     virtual int Discard(int fd, NebdServerAioContext* aioctx);
     /**
-     * 异步请求，读取指定区域内容
-     * @param fd: 文件的fd
-     * @param aioctx: 异步请求上下文
-     * @return 成功返回0，失败返回-1
+     *Asynchronous request to read the content of the specified area
+     * @param fd: fd of the file
+     * @param aioctx: Asynchronous request context
+     * @return returns 0 for success, -1 for failure
      */
     virtual int AioRead(int fd, NebdServerAioContext* aioctx);
     /**
-     * 异步请求，写数据到指定区域
-     * @param fd: 文件的fd
-     * @param aioctx: 异步请求上下文
-     * @return 成功返回0，失败返回-1
+     *Asynchronous request, writing data to a specified area
+     * @param fd: fd of the file
+     * @param aioctx: Asynchronous request context
+     * @return returns 0 for success, -1 for failure
      */
     virtual int AioWrite(int fd, NebdServerAioContext* aioctx);
     /**
-     * 异步请求，flush文件缓存
-     * @param fd: 文件的fd
-     * @param aioctx: 异步请求上下文
-     * @return 成功返回0，失败返回-1
+     *Asynchronous requests, flush file caching
+     * @param fd: fd of the file
+     * @param aioctx: Asynchronous request context
+     * @return returns 0 for success, -1 for failure
      */
     virtual int Flush(int fd, NebdServerAioContext* aioctx);
     /**
-     * 使指定文件缓存失效
-     * @param fd: 文件的fd
-     * @return 成功返回0，失败返回-1
+     *Invalidate the specified file cache
+     * @param fd: fd of the file
+     * @return returns 0 for success, -1 for failure
      */
     virtual int InvalidCache(int fd);
 
-    // 根据fd从map中获取指定的entity
-    // 如果entity已存在，返回entity指针，否则返回nullptr
+    //Obtain the specified entity from the map based on fd
+    //If entity already exists, return entity pointer; otherwise, return nullptr
     virtual NebdFileEntityPtr GetFileEntity(int fd);
 
     virtual FileEntityMap GetFileEntityMap();
 
-    // 将所有文件状态输出到字符串
+    //Output all file states to a string
     std::string DumpAllFileStatus();
 
     // set public for test
-    // 启动时从metafile加载文件记录，并reopen文件
+    //Load file records from metafile at startup and reopen the file
     int Load();
 
  private:
-     // 分配新的可用的fd，fd不允许和已经存在的重复
-     // 成功返回的可用fd，失败返回-1
+     //Assign new available fds, fds are not allowed to duplicate existing ones
+     //Successfully returned available fd, failed returned -1
     int GenerateValidFd();
-    // 根据文件名获取file entity
-    // 如果entity存在，直接返回entity指针
-    // 如果entity不存在，则创建新的entity，并插入map，然后返回
+    //Obtain file entity based on file name
+    //If entity exists, directly return the entity pointer
+    //If the entity does not exist, create a new entity, insert a map, and then return
     NebdFileEntityPtr GetOrCreateFileEntity(const std::string& fileName);
-    // 根据fd和文件名生成file entity，
-    // 如果fd对于的entity已存在,直接返回entity指针
-    // 如果entity不存在，则生成新的entity，并插入map，然后返回
+    //Generate file entity based on fd and file name,
+    //If fd already exists for entity, directly return the entity pointer
+    //If the entity does not exist, generate a new entity, insert a map, and then return
     NebdFileEntityPtr GenerateFileEntity(int fd, const std::string& fileName);
-    // 删除指定fd对应的entity
+    //Delete the entity corresponding to the specified fd
     void RemoveEntity(int fd);
 
  private:
-    // 当前filemanager的运行状态，true表示正在运行，false标为未运行
+    //The current running status of the filemanager, where true indicates running and false indicates not running
     std::atomic<bool> isRunning_;
-    // 文件名锁，对同名文件加锁
+    //File name lock, lock files with the same name
     NameLock nameLock_;
-    // fd分配器
+    //Fd distributor
     FdAllocator fdAlloc_;
-    // nebd server 文件记录管理
+    //Nebd server file record management
     MetaFileManagerPtr metaFileManager_;
-    // file map 读写保护锁
+    //File map read write protection lock
     RWLock rwLock_;
-    // 文件fd和文件实体的映射
+    //Mapping of file fd and file entities
     FileEntityMap fileMap_;
 };
 using NebdFileManagerPtr = std::shared_ptr<NebdFileManager>;

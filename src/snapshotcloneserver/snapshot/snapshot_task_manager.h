@@ -47,12 +47,12 @@ namespace curve {
 namespace snapshotcloneserver {
 
 /**
- * @brief 快照任务管理器类
+ * @brief Snapshot Task Manager Class
  */
 class SnapshotTaskManager {
  public:
      /**
-      * @brief 默认构造函数
+      * @brief default constructor
       */
     SnapshotTaskManager(
         std::shared_ptr<SnapshotCore> core,
@@ -63,7 +63,7 @@ class SnapshotTaskManager {
           snapshotTaskManagerScanIntervalMs_(0) {}
 
     /**
-     * @brief 析构函数
+     * @brief destructor
      */
     ~SnapshotTaskManager() {
         Stop();
@@ -78,88 +78,88 @@ class SnapshotTaskManager {
     }
 
     /**
-     * @brief 启动
+     * @brief start
      *
-     * @return 错误码
+     * @return error code
      */
     int Start();
 
     /**
-     * @brief 停止服务
+     * @brief Stop service
      *
      */
     void Stop();
 
     /**
-     * @brief 添加任务
+     * @brief Add Task
      *
-     * @param task 快照任务
+     * @param task snapshot task
      *
-     * @return 错误码
+     * @return error code
      */
     int PushTask(std::shared_ptr<SnapshotTask> task);
 
     /**
-     * @brief 获取任务
+     * @brief Get Task
      *
-     * @param taskId 任务id
+     * @param taskId Task ID
      *
-     * @return 快照任务指针
+     * @return Snapshot Task Pointer
      */
     std::shared_ptr<SnapshotTask> GetTask(const TaskIdType &taskId) const;
 
     /**
-     * @brief 取消任务
+     * @brief Cancel Task
      *
-     * @param taskId 任务id
+     * @param taskId Task ID
      *
-     * @return 错误码
+     * @return error code
      */
     int CancelTask(const TaskIdType &taskId);
 
  private:
     /**
-     * @brief 后台线程执行函数
+     * @brief Background Thread Execution Function
      *
-     * 定期执行扫描等待队列函数与扫描工作队列函数。
+     *Regularly execute the scan wait queue function and scan work queue function.
      */
     void BackEndThreadFunc();
     /**
-     * @brief 扫描等待任务队列函数
+     * @brief Scan Waiting Task Queue Function
      *
-     * 扫描等待队列，判断工作队列中当前文件
-     * 是否有正在执行的快照，若没有则放入工作队列
+     *Scan the waiting queue to determine the current file in the work queue
+     *Are there any executing snapshots? If not, place them in the work queue
      *
      */
     void ScanWaitingTask();
     /**
-     * @brief 扫描工作队列函数
+     * @brief Scan Work Queue Function
      *
-     * 扫描工作队列，判断工作队列中当前
-     * 快照任务是否已完成，若完成则移出工作队列
+     *Scan the work queue to determine the current status in the work queue
+     *Has the snapshot task been completed? If so, move it out of the work queue
      *
      */
     void ScanWorkingTask();
 
  private:
-    // 后端线程
+    //Backend Thread
     std::thread backEndThread;
 
-    // id->快照任务表
+    //Id ->Snapshot Task Table
     std::map<TaskIdType, std::shared_ptr<SnapshotTask> > taskMap_;
     mutable RWLock taskMapLock_;
 
-    // 快照等待队列
+    //Snapshot waiting queue
     std::list<std::shared_ptr<SnapshotTask> > waitingTasks_;
     mutable Mutex waitingTasksLock_;
 
-    // 快照工作队列,实际是个map，其中key是文件名，以便于查询
+    //The snapshot work queue is actually a map, where key is the file name for easy query
     std::map<std::string, std::shared_ptr<SnapshotTask> > workingTasks_;
     mutable Mutex workingTasksLock_;
 
     std::shared_ptr<ThreadPool> threadpool_;
 
-    // 当前任务管理是否停止，用于支持start，stop功能
+    //Is the current task management stopped? Used to support start and stop functions
     std::atomic_bool isStop_;
 
     // snapshot core
@@ -168,7 +168,7 @@ class SnapshotTaskManager {
     // metric
     std::shared_ptr<SnapshotMetric> snapshotMetric_;
 
-    // 快照后台线程扫描等待队列和工作队列的扫描周期(单位：ms)
+    //Scanning cycle of snapshot background thread scanning waiting queue and work queue (unit: ms)
     int snapshotTaskManagerScanIntervalMs_;
 };
 

@@ -139,8 +139,8 @@ TEST_F(CleanCoreTest, testcleansnapshotfile) {
             StatusCode::kSnapshotFileDeleteError);
     }
     {
-        // 联调Bug修复：快照文件共享源文件的segment，所以在查询segment的时候需要使用
-        // ParentID 进行查找
+        //Joint debugging bug fix: The snapshot file shares a segment of the source file, so it needs to be used when querying segments
+        //ParentID for lookup
         uint32_t segmentNum = kMiniFileLength / DefaultSegmentSize;
         uint64_t expectParentID = 101;
         for (uint32_t i = 0; i < segmentNum; i++) {

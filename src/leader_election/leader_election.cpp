@@ -82,7 +82,8 @@ int LeaderElection::ObserveLeader() {
     // for test
     fiu_return_on("src/mds/leaderElection/observeLeader", -1);
 
-    // 退出当前进程
+    //Exit the current process
+
     LOG(INFO) << "mds is existing due to the error of leader observation";
     raise(SIGTERM);
 

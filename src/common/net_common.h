@@ -34,14 +34,14 @@ namespace curve {
 namespace common {
 class NetCommon {
  public:
-    // addr形式为"ip:port"
+    //The form of addr is "ip:port"
     static bool CheckAddressValid(const std::string& addr) {
         std::string ip;
         uint32_t port;
         return SplitAddrToIpPort(addr, &ip, &port);
     }
 
-    // addr形式为"ip:port"
+    //The form of addr is "ip:port"
     static bool SplitAddrToIpPort(const std::string& addr,
                                   std::string* ipstr,
                                   uint32_t* port) {

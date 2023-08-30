@@ -78,36 +78,39 @@ class CloneTaskManager {
     void Stop();
 
     /**
-     * @brief 往任务管理器中加入任务
+     * @brief Add a task to the task manager
      *
-     * 用于非Lazy克隆及其他删除克隆等管控面的请求
+     *Request for non Lazy clones and other deletion of control surfaces such as clones
      *
-     * @param task 任务
+     * @param task task
      *
-     * @return 错误码
+     * @return error code
      */
+
     int PushCommonTask(
         std::shared_ptr<CloneTaskBase> task);
 
     /**
-     * @brief 往任务管理器中加入LazyClone阶段一的的任务
+     *Add LazyClone Phase 1 tasks to the task manager at  @brief
      *
-     * @param task 任务
+     * @param task task
      *
-     * @return 错误码
+     * @return error code
      */
+
     int PushStage1Task(
         std::shared_ptr<CloneTaskBase> task);
 
     /**
-     * @brief 往任务管理器中加入LazyClone阶段二的的任务
+     * @brief: Add LazyClone Phase 2 tasks to the task manager
      *
-     *  目前只用于重启恢复时，将Lazy克隆恢复克隆数据阶段的任务加入任务管理器
+     *At present, it is only used for adding tasks from the Lazy clone recovery clone data stage to the task manager during restart recovery
      *
-     * @param task 任务
+     * @param task task
      *
-     * @return 错误码
+     * @return error code
      */
+
     int PushStage2Task(
         std::shared_ptr<CloneTaskBase> task);
 
@@ -120,15 +123,16 @@ class CloneTaskManager {
     void ScanStage2Tasks();
 
     /**
-     * @brief 往对应线程池和map中push任务
+     * @brief pushes tasks to the corresponding thread pool and map
      *
-     * @param task 任务
-     * @param taskMap 任务表
-     * @param taskMapMutex 任务表和线程池的锁
-     * @param taskPool 线程池
+     * @param task task
+     * @param taskMap task table
+     * @param taskMapMutex task table and thread pool locks
+     * @param taskPool Thread Pool
      *
-     * @return 错误码
+     * @return error code
      */
+
     int PushTaskInternal(
         std::shared_ptr<CloneTaskBase> task,
         std::map<std::string, std::shared_ptr<CloneTaskBase> > *taskMap,
@@ -136,35 +140,44 @@ class CloneTaskManager {
         std::shared_ptr<ThreadPool> taskPool);
 
  private:
-    // 后端线程
+    //Backend Thread
+
     std::thread backEndThread;
 
-    //  id->克隆任务表
+    //ID ->Clone Task Table
+
     std::map<TaskIdType, std::shared_ptr<CloneTaskBase> > cloneTaskMap_;
     mutable RWLock cloneTaskMapLock_;
 
-    // 存放stage1Pool_池的当前任务，key为destination
+    //Storing stage1Pool_ The current task of the pool, with key as destination
+
     std::map<std::string, std::shared_ptr<CloneTaskBase> > stage1TaskMap_;
     mutable Mutex stage1TasksLock_;
 
-    // 存放stage1Poo2_池的当前任务，key为destination
+    //Storage stage1Poo2_ The current task of the pool, with key as destination
+
     std::map<std::string, std::shared_ptr<CloneTaskBase> > stage2TaskMap_;
     mutable Mutex stage2TasksLock_;
 
-    // 存放commonPool_池的当前任务
+    //Store commonPool_ Current task of the pool
+
     std::map<std::string, std::shared_ptr<CloneTaskBase> > commonTaskMap_;
     mutable Mutex commonTasksLock_;
 
-    // 用于Lazy克隆元数据部分的线程池
+    //Thread pool for Lazy clone metadata section
+
     std::shared_ptr<ThreadPool> stage1Pool_;
 
-    // 用于Lazy克隆数据部分的线程池
+    //Thread pool for Lazy clone data section
+
     std::shared_ptr<ThreadPool> stage2Pool_;
 
-    // 用于非Lazy克隆和删除克隆等其他管控面的请求的线程池
+    //Thread pool for requests for non Lazy clones and deletion of clones and other control surfaces
+
     std::shared_ptr<ThreadPool> commonPool_;
 
-    // 当前任务管理是否停止，用于支持start，stop功能
+    //Is the current task management stopped? Used to support start and stop functions
+
     std::atomic_bool isStop_;
 
     // clone core
@@ -173,7 +186,8 @@ class CloneTaskManager {
     // metric
     std::shared_ptr<CloneMetric> cloneMetric_;
 
-    // CloneTaskManager 后台线程扫描间隔
+    //CloneTaskManager backend thread scan interval
+
     uint32_t cloneTaskManagerScanIntervalMs_;
 };
 

@@ -38,8 +38,8 @@ using curve::common::Uncopyable;
 
 class RequestSender;
 /**
- * 所有Chunk Server的request sender管理者，
- * 可以理解为Chunk Server的链接管理者
+ *Request sender managers for all Chunk Servers,
+ *It can be understood as the link manager of Chunk Server
  */
 class RequestSenderManager : public Uncopyable {
  public:
@@ -47,26 +47,26 @@ class RequestSenderManager : public Uncopyable {
     RequestSenderManager() : rwlock_(), senderPool_() {}
 
     /**
-     * 获取指定leader id的sender，如果没有则根据leader
-     * 地址，创建新的 sender并返回
-     * @param leaderId:leader的id
-     * @param leaderAddr:leader的地址
-     * @return nullptr:get或者create失败，否则成功
+     *Obtain the sender with the specified leader ID, if not, based on the leader
+     *Address, create a new sender and return
+     * @param leaderId: The ID of the leader
+     * @param leaderAddr: The address of the leader
+     * @return nullptr: Get or create failed, otherwise successful
      */
     SenderPtr GetOrCreateSender(const ChunkServerID& leaderId,
                                 const butil::EndPoint& leaderAddr,
                                 const IOSenderOption& senderopt);
 
     /**
-     * @brief 如果csId对应的RequestSender不健康，就进行重置
+     * @brief If the RequestSender corresponding to csId is not healthy, reset it
      * @param csId chunkserver id
      */
     void ResetSenderIfNotHealth(const ChunkServerID& csId);
 
  private:
-    // 读写锁，保护senderPool_
+    //Read write lock to protect senderPool_
     curve::common::BthreadRWLock rwlock_;
-    // 请求发送链接的map，以ChunkServer ID为key
+    //Request to send a map for the link, with ChunkServer ID as the key
     std::unordered_map<ChunkServerID, SenderPtr> senderPool_;
 };
 

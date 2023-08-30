@@ -37,19 +37,19 @@ using ::curve::kvstorage::EtcdClientImp;
 using ::curve::common::LEADERCAMPAIGNNPFX;
 
 struct LeaderElectionOptions {
-    // etcd客户端
+    //ETCD client
     std::shared_ptr<EtcdClientImp> etcdCli;
 
-    // 带ttl的session，ttl超时时间内
+    //Session with ttl, within ttl timeout
     uint32_t sessionInterSec;
 
-    // 竞选leader的超时时间
+    //Overtime for running for leader
     uint32_t electionTimeoutMs;
 
-    // leader名称，建议使用ip+port以示区分
+    //Leader name, it is recommended to use ip+port for differentiation
     std::string leaderUniqueName;
 
-    // 需要竞选的key
+    //Keys that need to be contested
     std::string campaginPrefix;
 };
 
@@ -61,24 +61,24 @@ class LeaderElection {
     }
 
     /**
-     * @brief CampaignLeader 竞选leader
+     * @brief CampaignLeader
      *
-     * @return 0表示竞选成功 -1表示竞选失败
+     * @return 0 indicates a successful election -1 indicates a failed election
      */
     int CampaignLeader();
 
     /**
-     * @brief StartObserverLeader 启动leader节点监测线程
+     * @brief StartObserverLeader starts the leader node monitoring thread
      */
     void StartObserverLeader();
 
     /**
-     * @brief LeaderResign leader主动卸任leader，卸任成功后其他节点可以竞选leader
+     * @brief LeaderResign Leader voluntarily resigns as the leader, and after successful resignation, other nodes can run for the leader
      */
     int LeaderResign();
 
     /**
-     * @brief 返回leader name
+     * @brief returns the leader name
      */
     const std::string& GetLeaderName() {
         return opt_.leaderUniqueName;
@@ -86,8 +86,8 @@ class LeaderElection {
 
  public:
     /**
-     * @brief ObserveLeader 监测在etcd中创建的leader节点，正常情况下一直block，
-     *        退出表示leader change或者从client端角度看etcd异常，进程退出
+     * @brief ObserveLeader monitors the leader nodes created in the ETCD, and normally blocks them continuously,
+     *          Exiting indicates a leader change or an ETCD exception from the client's perspective, and the process exits
      */
     int ObserveLeader();
 
@@ -95,10 +95,10 @@ class LeaderElection {
     // option
     LeaderElectionOptions opt_;
 
-    // realPrefix_ = leader竞选公共prefix + 自定义prefix
+    //RealPrefix_= Leader campaign public prefix + custom prefix
     std::string realPrefix_;
 
-    // 竞选leader之后记录在objectManager中的id号
+    //The ID number recorded in the objectManager after running for the leader
     uint64_t leaderOid_;
 };
 }  // namespace election

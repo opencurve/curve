@@ -1628,7 +1628,7 @@ test kill chunkserver one
     check loop read   ${new_fd}
     [Teardown]      file clean     ${new_fd}
 
-# create snapshot 相关用例
+#Create snapshot related use cases
 
 create snapshot with notexist file
     [Tags]    P0    base    first release   test-snapshot
@@ -1698,7 +1698,7 @@ create snapshot with nomal file and check first chunk snapshot
     [Teardown]      delete curve file for shanpshot
 
 
-# 创建文件->写文件->创建快照->修改文件->读快照验证（修改前数据）->删除重新快照->验证快照数据（修改后数据）
+#Create file ->Write file ->Create snapshot ->Modify file ->Read snapshot verification (data before modification) ->Delete re snapshot ->Verify snapshot data (data after modification)
 create snapshot and check chunk snapshot after cow
     [Tags]    P0    base    first release   test-snapshot
     ${rc}  create curve file for snapshot
@@ -1744,7 +1744,7 @@ create snapshot repeat
     should be equal  ${rs}  ${expect_rc}
     [Teardown]      delete curve file for shanpshot
 
-# getsnapshot info 用例
+#Getsnapshot info use case
 
 get empty file snapshot info
     [Tags]    P0    base    first release   test-snapshot
@@ -1871,7 +1871,7 @@ delete snapshoting curve file
     should be equal  ${rs}  ${expect_rc}
     [Teardown]      delete curve file for shanpshot
 
-# getsegmentinfo 相关用例
+#Use cases related to getsegmentinfo
 
 check snapshot segmentinfo after modify file
     [Tags]    P0    base    first release   test-snapshot
@@ -1981,7 +1981,7 @@ get empty file snapshot segmentinfo
     should be equal  ${rs}  ${expect_rc}
     [Teardown]      delete curve file for shanpshot
 
-# snapshot chunkinfo 用例验证
+#Snapshot chunkinfo use case validation
 
 check empty file snapshot chunkinfo after modify file
     [Tags]    P0    base    first release   test-snapshot
@@ -2038,10 +2038,10 @@ get snapshot chunkinfo with notexist chunidinfo
     write curve file for snapshot
     ${seq}  snapshot normal create
     ${seginfo}  get snapshot first segment info  ${seq}
-    # 修改chunkidinfo
+    #Modify chunkidinfo
     ${seginfo.chunkvec[0].cpid_.value}    evaluate  int(66)
     ${chunkinfo}    get chunk info with chunk id info  ${seginfo.chunkvec[0]}
-    #TODO: 此处需要判断错误，当前是死循环，不停轮询查询id信息
+    #TODO: An error needs to be determined here. Currently, it is a dead loop and constantly polls for ID information
     ${rs}   delete file snapshot    ${seq}
     sleep  2
     should be equal  ${rs}  ${expect_rc}
@@ -2063,7 +2063,7 @@ check snapshot chunkinfo after delete snapshot
     ${rs}   delete file snapshot    ${seq}
     sleep  2
     should be equal  ${rs}  ${expect_rc}
-    # 此处应该再重新获取下segmentinfo, chunkvec[0]应该不存在
+    #We should retrieve segmentinfo again here, chunkvec [0] should not exist
     ${chunkinfo}    get chunk info with chunk id info  ${seginfo.chunkvec[0]}
     should be equal  ${chunkinfo.snSize.value}  ${expect_size}
     should be equal  ${chunkinfo.chunkSn[0]}    ${expect_first_sn}
@@ -2071,7 +2071,7 @@ check snapshot chunkinfo after delete snapshot
     [Teardown]      delete curve file for shanpshot
 
 
-# read snapshot chunk 用例 CLDCFS-1249
+#Read snapshot chunk use case CLDCFS-1249
 
 read snapshot chunk with notexist idinfo
     [Tags]    P0    base    first release   no-need
@@ -2081,10 +2081,10 @@ read snapshot chunk with notexist idinfo
     write curve file for snapshot
     ${seq}  snapshot normal create
     ${seginfo}  get snapshot first segment info  ${seq}
-    # 修改chunkidinfo
+    #Modify chunkidinfo
     ${seginfo.chunkvec[0].cpid_.value}    evaluate  int(66)
     ${content}  read chunk snapshot  ${seginfo.chunkvec[0]}  ${seq}
-    # TODO:当前客户端死循环打印错误，此处校验结果应该返回错误
+    #TODO: The current client has a loop printing error, and the verification result should return an error here
     ${rs}   delete file snapshot    ${seq}
     sleep  2
     should be equal  ${rs}  ${expect_rc}
@@ -2101,7 +2101,7 @@ read snapshot chunk with error seq
     ${seginfo}  get snapshot first segment info  ${seq}
     ${seq.value}    evaluate  int(8)
     ${content}  read chunk snapshot  ${seginfo.chunkvec[0]}  ${seq}
-    # 此处校验结果应该返回错误
+    #The verification result should return an error here
     ${expect_rst}   evaluate  int(-6)
     should be equal  ${content}     ${expect_rst}
     ${seq.value}    evaluate  int(1)
@@ -2110,7 +2110,7 @@ read snapshot chunk with error seq
     should be equal  ${rs}  ${expect_rc}
     [Teardown]      delete curve file for shanpshot
 
-# 查询快照状态用例
+#Query snapshot status use case
 check empty file snapshot status
     [Tags]    P0    base    first release   test-snapshot
     ${rc}  create curve file for snapshot
@@ -2197,7 +2197,7 @@ check snapshot status use error seq
     [Teardown]      delete curve file for shanpshot
 
 
-# 删除快照相关用例
+#Delete snapshot related use cases
 repeat delete snapshot
     [Tags]    P0    base    first release   test-snapshot
     ${rc}  create curve file for snapshot
@@ -2230,7 +2230,7 @@ delete snapshot use error seq
     should be equal  ${rs}  ${expect_rc}
     [Teardown]      delete curve file for shanpshot
 
-# 删除chunk快照(当前无限重试，需要调用方设置重试次数)  CLDCFS-1254
+#Delete chunk snapshot (currently infinite retries, caller needs to set retry count) CLDCFS-1254
 delete chunk snapshot with snapshot seq
     [Tags]    P0    base    first release   no-need
     ${rc}  create curve file for snapshot
@@ -2243,7 +2243,7 @@ delete chunk snapshot with snapshot seq
     ${rc}   delete chunk snapshot with correct sn  ${seginfo.chunkvec[0]}  ${seq}
     should be equal  ${rc}  ${expect_rc}
     ${content}  read chunk snapshot  ${seginfo.chunkvec[0]}  ${seq}
-    # 此处判断返回结果是否为错误
+    #Determine whether the returned result is an error here
     ${rs}   delete file snapshot    ${seq}
     sleep  2
     should be equal  ${rs}  ${expect_rc}
@@ -2291,8 +2291,8 @@ repeat delete chunk snapshot
     [Teardown]      delete curve file for shanpshot
 
 
-# 创建clone&recover
-# 步骤：创建文件、写文件、创建快照记录seq，触发cow，获取快照信息（版本号），createclonechunk(指定s3上对象，correctedseq=快照seq),恢复快照，验证chunk数据是否为s3数据
+#Create clone&recover
+#Steps: Create a file, write a file, create a snapshot record seq, trigger Cow, obtain snapshot information (version number), create clonechunk (specify an object on s3, correctedseq=snapshot seq), restore the snapshot, verify if the chunk data is s3 data
 create clone and recover chunk
     [Tags]    P0    base    first release   test-snapshot
     ${rc}  create curve file for snapshot
@@ -2311,7 +2311,7 @@ create clone and recover chunk
     should be equal  ${rc}  ${expect_rc}
     ${rc}   recover chunk data  ${seginfo.chunkvec[0]}
     should be equal  ${rc}  ${expect_rc}
-    # check数据
+    #Check data
     ${content}  read chunk snapshot  ${seginfo.chunkvec[0]}  ${seq}
     ${expect_content}   evaluate  str("aaaaaaaa")*512
     should be equal  ${content}     ${expect_content}

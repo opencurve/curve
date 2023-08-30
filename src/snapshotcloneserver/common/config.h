@@ -41,9 +41,11 @@ struct CurveClientOptions {
     std::string mdsRootUser;
     // mds root password
     std::string mdsRootPassword;
-    // 调用client方法的重试总时间
+    //The total retry time for calling the client method
+
     uint64_t clientMethodRetryTimeSec;
-    // 调用client方法重试间隔时间
+    //Call client method retry interval
+
     uint64_t clientMethodRetryIntervalMs;
 };
 
@@ -51,48 +53,66 @@ struct CurveClientOptions {
 struct SnapshotCloneServerOptions {
     // snapshot&clone server address
     std::string  addr;
-    // 调用client异步方法重试总时间
+    //Total retry time for calling client asynchronous methods
+
     uint64_t clientAsyncMethodRetryTimeSec;
-    // 调用client异步方法重试时间间隔
+    //Call client asynchronous method retry interval
+
     uint64_t clientAsyncMethodRetryIntervalMs;
-    // 快照工作线程数
+    //Number of snapshot worker threads
+
     int snapshotPoolThreadNum;
-    // 快照后台线程扫描等待队列和工作队列的扫描周期(单位：ms)
+    //Scanning cycle of snapshot background thread scanning waiting queue and work queue (unit: ms)
+
     uint32_t snapshotTaskManagerScanIntervalMs;
-    // 转储chunk分片大小
+    //Dump chunk shard size
+
     uint64_t chunkSplitSize;
-    // CheckSnapShotStatus调用间隔
+    //CheckSnapShotStatus call interval
+
     uint32_t checkSnapshotStatusIntervalMs;
-    // 最大快照数
+    //Maximum Snapshots
+
     uint32_t maxSnapshotLimit;
     // snapshotcore threadpool threadNum
     uint32_t snapshotCoreThreadNum;
     // mdsSessionTimeUs
     uint32_t mdsSessionTimeUs;
-    // ReadChunkSnapshot同时进行的异步请求数量
+    //The number of asynchronous requests simultaneously processed by ReadChunkSnapshot
+
     uint32_t readChunkSnapshotConcurrency;
 
-    // 用于Lazy克隆元数据部分的线程池线程数
+    //Number of thread pool threads used for Lazy clone metadata section
+
     int stage1PoolThreadNum;
-    // 用于Lazy克隆数据部分的线程池线程数
+    //Number of thread pool threads used for Lazy clone data section
+
     int stage2PoolThreadNum;
-    // 用于非Lazy克隆和删除克隆等其他管控面的请求的线程池线程数
+    //Number of thread pool threads used for requests for non Lazy clones and deletion of clones and other control surfaces
+
     int commonPoolThreadNum;
-    // CloneTaskManager 后台线程扫描间隔
+    //CloneTaskManager backend thread scan interval
+
     uint32_t cloneTaskManagerScanIntervalMs;
-    // clone chunk分片大小
+    //Clone chunk shard size
+
     uint64_t cloneChunkSplitSize;
-    // 克隆临时目录
+    //Clone temporary directory
+
     std::string cloneTempDir;
     // mds root user
     std::string mdsRootUser;
-    // CreateCloneChunk同时进行的异步请求数量
+    //Number of asynchronous requests made simultaneously by CreateCloneChunk
+
     uint32_t createCloneChunkConcurrency;
-    // RecoverChunk同时进行的异步请求数量
+    //Number of asynchronous requests simultaneously made by RecoverChunk
+
     uint32_t recoverChunkConcurrency;
-    // 引用计数后台扫描每条记录间隔
+    //Reference Count Background Scan Each Record Interval
+
     uint32_t backEndReferenceRecordScanIntervalMs;
-    // 引用计数后台扫描每轮间隔
+    //Reference Count Background Scan Every Round Interval
+
     uint32_t backEndReferenceFuncScanIntervalMs;
     // dlock options
     DLockOpts dlockOpts;

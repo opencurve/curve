@@ -190,7 +190,7 @@ class RaftVoteTest : public testing::Test {
 
     std::map<int, int> paramsIndexs;
     std::vector<char **> params;
-    // 等待多个副本数据一致的时间
+    //Waiting for multiple replica data to be consistent
     int waitMultiReplicasBecomeConsistent;
 };
 
@@ -199,12 +199,12 @@ class RaftVoteTest : public testing::Test {
 butil::AtExitManager atExitManager;
 
 /**
- * 验证1个节点的复制组
- * 1. 创建1个成员的复制组，等待leader产生，write数据，然后read出来验证一遍
- * 2. 挂掉leader，验证可用性
- * 3. 拉起leader
- * 4. hang住leader
- * 5. 恢复leader
+ *Verify replication group for 1 node
+ *1 Create a replication group of 1 member, wait for the leader to generate, write the data, and then read it out for verification
+ *2 Hang up the leader and verify availability
+ *3 Pull up the leader
+ *4 Hang in the leader
+ *5 Restore leader
  */
 TEST_F(RaftVoteTest, OneNode) {
     LogicPoolID logicPoolId = 2;
@@ -214,7 +214,7 @@ TEST_F(RaftVoteTest, OneNode) {
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动一个成员的复制组
+    //1 Start a replication group for a member
     PeerId leaderId;
     Peer leaderPeer;
     std::vector<Peer> peers;
@@ -242,7 +242,7 @@ TEST_F(RaftVoteTest, OneNode) {
                         ch++,
                         loop);
 
-    // 2. 挂掉这个节点
+    //2 Hang up this node
     ASSERT_EQ(0, cluster.ShutdownPeer(peer1));
     ReadVerifyNotAvailable(leaderPeer,
                            logicPoolId,
@@ -252,12 +252,12 @@ TEST_F(RaftVoteTest, OneNode) {
                            ch - 1,
                            1);
 
-    // 3. 将节点拉起来
+    //3 Pull up the node
     ASSERT_EQ(0, cluster.StartPeer(peer1, PeerCluster::PeerToId(peer1)));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
     ASSERT_STREQ(peer1.address().c_str(), leaderId.to_string().c_str());
-    // read之前写入的数据验证
+    //Verification of data written before read
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,
@@ -274,7 +274,7 @@ TEST_F(RaftVoteTest, OneNode) {
                         ch++,
                         loop);
 
-    // 4. hang住此节点
+    //4 Hang on to this node
     ASSERT_EQ(0, cluster.HangPeer(peer1));
     ::usleep(200 * 1000);
     ReadVerifyNotAvailable(leaderPeer,
@@ -285,12 +285,12 @@ TEST_F(RaftVoteTest, OneNode) {
                            ch - 1,
                            1);
 
-    // 5. 恢复节点
+    //5 Restore nodes
     ASSERT_EQ(0, cluster.SignalPeer(peer1));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
     ASSERT_STREQ(peer1.address().c_str(), leaderId.to_string().c_str());
-    // read之前写入的数据验证
+    //Verification of data written before read
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,
@@ -309,10 +309,10 @@ TEST_F(RaftVoteTest, OneNode) {
 }
 
 /**
- * 验证2个节点的复制组，并挂掉leader
- * 1. 创建2个成员的复制组，等待leader产生，write数据，然后read出来验证一遍
- * 2. 挂掉leader
- * 3. 恢复leader
+ *Verify the replication groups of two nodes and hang the leader
+ *1 Create a replication group of 2 members, wait for the leader to generate, write the data, and then read it out for verification
+ *2 Hang up the leader
+ *3 Restore leader
  */
 TEST_F(RaftVoteTest, TwoNodeKillLeader) {
     LogicPoolID logicPoolId = 2;
@@ -322,7 +322,7 @@ TEST_F(RaftVoteTest, TwoNodeKillLeader) {
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动2个成员的复制组
+    //1 Start a replication group of 2 members
     PeerId leaderId;
     Peer leaderPeer;
     std::vector<Peer> peers;
@@ -351,7 +351,7 @@ TEST_F(RaftVoteTest, TwoNodeKillLeader) {
                         ch++,
                         loop);
 
-    // 2. 挂掉leader
+    //2 Hang up the leader
     ASSERT_EQ(0, cluster.ShutdownPeer(leaderPeer));
     ReadVerifyNotAvailable(leaderPeer,
                            logicPoolId,
@@ -361,12 +361,12 @@ TEST_F(RaftVoteTest, TwoNodeKillLeader) {
                            ch - 1,
                            1);
 
-    // 3. 拉起leader
+    //3 Pull up the leader
     ASSERT_EQ(0,
               cluster.StartPeer(leaderPeer, PeerCluster::PeerToId(leaderPeer)));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
-    // read之前写入的数据验证
+    //Verification of data written before read
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,
@@ -388,10 +388,10 @@ TEST_F(RaftVoteTest, TwoNodeKillLeader) {
 }
 
 /**
- * 验证2个节点的复制组，并挂掉follower
- * 1. 创建2个成员的复制组，等待leader产生，write数据，然后read出来验证一遍
- * 2. 挂掉follower
- * 3. 恢复follower
+ *Verify the replication groups of two nodes and hang the follower
+ *1 Create a replication group of 2 members, wait for the leader to generate, write the data, and then read it out for verification
+ *2 Hang up the follower
+ *3 Restore follower
  */
 TEST_F(RaftVoteTest, TwoNodeKillFollower) {
     LogicPoolID logicPoolId = 2;
@@ -401,7 +401,7 @@ TEST_F(RaftVoteTest, TwoNodeKillFollower) {
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动2个成员的复制组
+    //1 Start a replication group of 2 members
     LOG(INFO) << "init 2 members copyset";
     PeerId leaderId;
     Peer leaderPeer;
@@ -431,7 +431,7 @@ TEST_F(RaftVoteTest, TwoNodeKillFollower) {
                         ch++,
                         loop);
 
-    // 2. 挂掉follower
+    //2 Hang up the follower
     Peer followerPeer;
     if (leaderPeer.address() == peer1.address()) {
         followerPeer = peer2;
@@ -441,7 +441,7 @@ TEST_F(RaftVoteTest, TwoNodeKillFollower) {
     LOG(INFO) << "kill follower " << followerPeer.address();
     ASSERT_EQ(0, cluster.ShutdownPeer(followerPeer));
     LOG(INFO) << "fill ch: " << std::to_string(ch - 1);
-    // step down之前的request，最终会被提交
+    //The request before the step down will eventually be submitted
     WriteVerifyNotAvailable(leaderPeer,
                             logicPoolId,
                             copysetId,
@@ -449,7 +449,7 @@ TEST_F(RaftVoteTest, TwoNodeKillFollower) {
                             length,
                             ch,
                             1);
-    // 等待leader step down，之后，也不支持read了
+    //Wait for the leader step to down, and after that, read is no longer supported
     ::usleep(1000 * electionTimeoutMs * 2);
     ReadVerifyNotAvailable(leaderPeer,
                            logicPoolId,
@@ -459,14 +459,14 @@ TEST_F(RaftVoteTest, TwoNodeKillFollower) {
                            ch,
                            1);
 
-    // 3. 拉起follower
+    //3 Pull up the follower
     LOG(INFO) << "restart follower " << followerPeer.address();
     ASSERT_EQ(0,
               cluster.StartPeer(followerPeer,
                                 PeerCluster::PeerToId(followerPeer)));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
-    // read之前写入的数据验证，step down之前的write
+    //Verify the data written before read, and write before step down
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,
@@ -488,10 +488,10 @@ TEST_F(RaftVoteTest, TwoNodeKillFollower) {
 }
 
 /**
- * 验证2个节点的复制组，并hang leader
- * 1. 创建2个成员的复制组，等待leader产生，write数据，然后read出来验证一遍
- * 2. hang leader
- * 3. 恢复leader
+ *Verify the replication group of 2 nodes and hang the leader
+ *1 Create a replication group of 2 members, wait for the leader to generate, write the data, and then read it out for verification
+ *2 Hang leader
+ *3 Restore leader
  */
 TEST_F(RaftVoteTest, TwoNodeHangLeader) {
     LogicPoolID logicPoolId = 2;
@@ -501,7 +501,7 @@ TEST_F(RaftVoteTest, TwoNodeHangLeader) {
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动2个成员的复制组
+    //1 Start a replication group of 2 members
     PeerId leaderId;
     Peer leaderPeer;
     std::vector<Peer> peers;
@@ -541,12 +541,12 @@ TEST_F(RaftVoteTest, TwoNodeHangLeader) {
                            ch - 1,
                            1);
 
-    // 3. 恢复leader
+    //3 Restore leader
     LOG(INFO) << "recover leader peer: " << leaderPeer.address();
     ASSERT_EQ(0, cluster.SignalPeer(leaderPeer));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
-    // read之前写入的数据验证
+    //Verification of data written before read
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,
@@ -568,10 +568,10 @@ TEST_F(RaftVoteTest, TwoNodeHangLeader) {
 }
 
 /**
- * 验证2个节点的复制组，并发Hang一个follower
- * 1. 创建2个成员的复制组，等待leader产生，write数据，然后read出来验证一遍
- * 2. hang follower
- * 3. 恢复follower
+ *Verify the replication group of two nodes and concurrently hang a follower
+ *1 Create a replication group of 2 members, wait for the leader to generate, write the data, and then read it out for verification
+ *2 Hang follower
+ *3 Restore follower
  */
 TEST_F(RaftVoteTest, TwoNodeHangFollower) {
     LogicPoolID logicPoolId = 2;
@@ -581,7 +581,7 @@ TEST_F(RaftVoteTest, TwoNodeHangFollower) {
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动2个成员的复制组
+    //1 Start a replication group of 2 members
     LOG(INFO) << "init 2 members copyset";
     PeerId leaderId;
     Peer leaderPeer;
@@ -621,7 +621,7 @@ TEST_F(RaftVoteTest, TwoNodeHangFollower) {
     LOG(INFO) << "hang follower " << followerPeer.address();
     ASSERT_EQ(0, cluster.HangPeer(followerPeer));
     LOG(INFO) << "fill ch: " << std::to_string(ch - 1);
-    // step down之前的request，最终会被提交
+    //The request before the step down will eventually be submitted
     WriteVerifyNotAvailable(leaderPeer,
                             logicPoolId,
                             copysetId,
@@ -629,7 +629,7 @@ TEST_F(RaftVoteTest, TwoNodeHangFollower) {
                             length,
                             ch,
                             1);
-    // 等待leader step down之后，也不支持read了
+    //After waiting for the leader step to down, read is no longer supported
     ::usleep(1000 * electionTimeoutMs * 2);
     ReadVerifyNotAvailable(leaderPeer,
                            logicPoolId,
@@ -639,12 +639,12 @@ TEST_F(RaftVoteTest, TwoNodeHangFollower) {
                            ch,
                            1);
 
-    // 3. 恢复follower
+    //3 Restore follower
     LOG(INFO) << "recover follower " << followerPeer.address();
     ASSERT_EQ(0, cluster.SignalPeer(followerPeer));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
-    // read之前写入的数据验证，step down之前的write
+    //Verify the data written before read, and write before step down
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,
@@ -666,8 +666,8 @@ TEST_F(RaftVoteTest, TwoNodeHangFollower) {
 }
 
 /**
- * 验证3个节点是否能够正常提供服务
- * 1. 创建3个副本的复制组，等待leader产生，write数据，然后read出来验证一遍
+ *Verify whether the three nodes can provide services normally
+ *1 Create a replication group of three replicas, wait for the leader to generate, write the data, and then read it out for verification
  */
 TEST_F(RaftVoteTest, ThreeNodesNormal) {
     LogicPoolID logicPoolId = 2;
@@ -700,7 +700,7 @@ TEST_F(RaftVoteTest, ThreeNodesNormal) {
     PeerId leaderId;
     ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
 
-    // 再次发起 read/write
+    //Initiate read/write agai
     WriteThenReadVerify(leaderPeer,
                         logicPoolId,
                         copysetId,
@@ -714,10 +714,10 @@ TEST_F(RaftVoteTest, ThreeNodesNormal) {
 }
 
 /**
- * 验证3个节点的复制组，并挂掉leader
- * 1. 创建3个成员的复制组，等待leader产生，write数据，然后read出来验证一遍
- * 2. 挂掉leader
- * 3. 恢复leader
+ *Verify the replication groups of three nodes and hang the leader
+ *1 Create a replication group of 3 members, wait for the leader to generate, write the data, and then read it out for verification
+ *2 Hang up the leader
+ *3 Restore leader
  */
 TEST_F(RaftVoteTest, ThreeNodeKillLeader) {
     LogicPoolID logicPoolId = 2;
@@ -727,7 +727,7 @@ TEST_F(RaftVoteTest, ThreeNodeKillLeader) {
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动3个成员的复制组
+    //1 Start a replication group of 3 members
     PeerId leaderId;
     Peer leaderPeer;
     std::vector<Peer> peers;
@@ -758,7 +758,7 @@ TEST_F(RaftVoteTest, ThreeNodeKillLeader) {
                         ch++,
                         loop);
 
-    // 2. 挂掉leader
+    //2 Hang up the leader
     ASSERT_EQ(0, cluster.ShutdownPeer(leaderPeer));
     ReadVerifyNotAvailable(leaderPeer,
                            logicPoolId,
@@ -768,12 +768,12 @@ TEST_F(RaftVoteTest, ThreeNodeKillLeader) {
                            ch - 1,
                            1);
 
-    // 3. 拉起leader
+    //3 Pull up the leader
     ASSERT_EQ(0,
               cluster.StartPeer(leaderPeer, PeerCluster::PeerToId(leaderPeer)));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
-    // read之前写入的数据验证
+    //Verification of data written before read
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,
@@ -795,11 +795,11 @@ TEST_F(RaftVoteTest, ThreeNodeKillLeader) {
 }
 
 /**
- * 验证3个节点的复制组，并挂掉follower
- * 1. 创建3个成员的复制组，等待leader产生，write数据，然后read出来验证一遍
- * 2. 挂掉follower
- * 3. 恢复follower
- */
+ *Verify the replication groups of three nodes and hang the follower
+ *1 Create a replication group of 3 members, wait for the leader to generate, write the data, and then read it out for verification
+ *2 Hang up the follower
+ *3 Restore follower
+ *
 TEST_F(RaftVoteTest, ThreeNodeKillOneFollower) {
     LogicPoolID logicPoolId = 2;
     CopysetID copysetId = 100001;
@@ -808,7 +808,7 @@ TEST_F(RaftVoteTest, ThreeNodeKillOneFollower) {
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动3个成员的复制组
+    //1 Start a replication group of 3 members
     PeerId leaderId;
     Peer leaderPeer;
     std::vector<Peer> peers;
@@ -839,7 +839,7 @@ TEST_F(RaftVoteTest, ThreeNodeKillOneFollower) {
                         ch++,
                         loop);
 
-    // 2. 挂掉1个follower
+    //2 Hang up 1 follower
     std::vector<Peer> followerPeers;
     PeerCluster::GetFollwerPeers(peers, leaderPeer, &followerPeers);
     ASSERT_GE(followerPeers.size(), 1);
@@ -852,12 +852,12 @@ TEST_F(RaftVoteTest, ThreeNodeKillOneFollower) {
                         ch++,
                         loop);
 
-    // 3. 拉起follower
+    //3 Pull up the follower
     ASSERT_EQ(0,
               cluster.StartPeer(followerPeers[0],
                                 PeerCluster::PeerToId(followerPeers[0])));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
-    // read之前写入的数据验证
+    //Verification of data written before read
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,
@@ -879,9 +879,9 @@ TEST_F(RaftVoteTest, ThreeNodeKillOneFollower) {
 }
 
 /**
- * 验证3个节点的复制组，反复restart leader
- * 1. 创建3个成员的复制组，等待leader产生，write数据，然后read出来验证一遍
- * 2. 反复restart leader
+ *Verify the replication group of three nodes and repeatedly restart the leader
+ *1 Create a replication group of 3 members, wait for the leader to generate, write the data, and then read it out for verification
+ *2 Repeated restart leader
  */
 TEST_F(RaftVoteTest, ThreeNodeRestartLeader) {
     LogicPoolID logicPoolId = 2;
@@ -891,7 +891,7 @@ TEST_F(RaftVoteTest, ThreeNodeRestartLeader) {
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动3个成员的复制组
+    //1 Start a replication group of 3 members
     PeerId leaderId;
     Peer leaderPeer;
     std::vector<Peer> peers;
@@ -938,7 +938,7 @@ TEST_F(RaftVoteTest, ThreeNodeRestartLeader) {
 
         ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
         ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
-        // read之前写入的数据验证
+        //Verification of data written before read
         ReadVerify(leaderPeer,
                    logicPoolId,
                    copysetId,
@@ -961,9 +961,9 @@ TEST_F(RaftVoteTest, ThreeNodeRestartLeader) {
 }
 
 /**
- * 验证3个节点的复制组，反复重启一个follower
- * 1. 创建3个成员的复制组，等待leader产生，write数据，然后read出来验证一遍
- * 2. 反复重启follower
+ *Verify the replication groups of three nodes and restart a follower repeatedly
+ *1 Create a replication group of 3 members, wait for the leader to generate, write the data, and then read it out for verification
+ *2 Repeatedly restarting the follower
  */
 TEST_F(RaftVoteTest, ThreeNodeRestartFollower) {
     LogicPoolID logicPoolId = 2;
@@ -973,7 +973,7 @@ TEST_F(RaftVoteTest, ThreeNodeRestartFollower) {
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动3个成员的复制组
+    //1 Start a replication group of 3 members
     PeerId leaderId;
     Peer leaderPeer;
     std::vector<Peer> peers;
@@ -1004,7 +1004,7 @@ TEST_F(RaftVoteTest, ThreeNodeRestartFollower) {
                         ch++,
                         loop);
 
-    // 2. 反复 restart follower
+    //2 Repeatedly restart follower
     for (int i = 0; i < 5; ++i) {
         std::vector<Peer> followerPeers;
         PeerCluster::GetFollwerPeers(peers, leaderPeer, &followerPeers);
@@ -1028,11 +1028,11 @@ TEST_F(RaftVoteTest, ThreeNodeRestartFollower) {
 }
 
 /**
- * 验证3个节点的复制组，并挂掉leader和1个follower
- * 1. 创建3个成员的复制组，等待leader产生，write数据，然后read出来验证一遍
- * 2. 挂掉leader和1个follwoer
- * 3. 拉起leader
- * 4. 拉起follower
+ *Verify the replication groups of three nodes and hang the leader and one follower
+ *1 Create a replication group of 3 members, wait for the leader to generate, write the data, and then read it out for verification
+ *2 Hang up the leader and 1 follower
+ *3 Pull up the leader
+ *4 Pull up the follower
  */
 TEST_F(RaftVoteTest, ThreeNodeKillLeaderAndOneFollower) {
     LogicPoolID logicPoolId = 2;
@@ -1042,7 +1042,7 @@ TEST_F(RaftVoteTest, ThreeNodeKillLeaderAndOneFollower) {
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动3个成员的复制组
+    //1 Start a replication group of 3 members
     PeerId leaderId;
     Peer leaderPeer;
     std::vector<Peer> peers;
@@ -1073,7 +1073,7 @@ TEST_F(RaftVoteTest, ThreeNodeKillLeaderAndOneFollower) {
                         ch++,
                         loop);
 
-    // 2. 挂掉leader和Follower
+    //2 Hang up the leader and follower
     ASSERT_EQ(0, cluster.ShutdownPeer(leaderPeer));
     std::vector<Peer> followerPeers;
     PeerCluster::GetFollwerPeers(peers, leaderPeer, &followerPeers);
@@ -1087,12 +1087,12 @@ TEST_F(RaftVoteTest, ThreeNodeKillLeaderAndOneFollower) {
                            ch - 1,
                            1);
 
-    // 3. 拉起leader
+    //3 Pull up the leader
     ASSERT_EQ(0,
               cluster.StartPeer(leaderPeer, PeerCluster::PeerToId(leaderPeer)));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
-    // read之前写入的数据验证
+    //Verification of data written before read
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,
@@ -1109,7 +1109,7 @@ TEST_F(RaftVoteTest, ThreeNodeKillLeaderAndOneFollower) {
                         ch++,
                         loop);
 
-    // 4. 拉起follower
+    //4 Pull up the follower
     ASSERT_EQ(0, cluster.StartPeer(followerPeers[0],
                                    PeerCluster::PeerToId(followerPeers[0])));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
@@ -1126,11 +1126,11 @@ TEST_F(RaftVoteTest, ThreeNodeKillLeaderAndOneFollower) {
 }
 
 /**
- * 验证3个节点的复制组，并挂掉2个follower
- * 1. 创建3个成员的复制组，等待leader产生，write数据，然后read出来验证一遍
- * 2. 挂掉2个follower
- * 3. 拉起1个follower
- * 4. 拉起1个follower
+ *Verify the replication groups of three nodes and hang two followers
+ *1 Create a replication group of 3 members, wait for the leader to generate, write the data, and then read it out for verification
+ *2 Hang up 2 followers
+ *3 Pull up 1 follower
+ *4 Pull up 1 follower
  */
 TEST_F(RaftVoteTest, ThreeNodeKillTwoFollower) {
     LogicPoolID logicPoolId = 2;
@@ -1140,7 +1140,7 @@ TEST_F(RaftVoteTest, ThreeNodeKillTwoFollower) {
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动3个成员的复制组
+    //1 Start a replication group of 3 members
     PeerId leaderId;
     Peer leaderPeer;
     std::vector<Peer> peers;
@@ -1171,7 +1171,7 @@ TEST_F(RaftVoteTest, ThreeNodeKillTwoFollower) {
                         ch++,
                         loop);
 
-    // 2. 挂掉2个Follower
+    //2 Hang 2 Followers
     std::vector<Peer> followerPeers;
     PeerCluster::GetFollwerPeers(peers, leaderPeer, &followerPeers);
     ASSERT_GE(followerPeers.size(), 2);
@@ -1185,12 +1185,12 @@ TEST_F(RaftVoteTest, ThreeNodeKillTwoFollower) {
                             ch - 1,
                             1);
 
-    // 3. 拉起1个follower
+    //3 Pull up 1 follower
     ASSERT_EQ(0, cluster.StartPeer(followerPeers[0],
                                    PeerCluster::PeerToId(followerPeers[0])));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
-    // read之前写入的数据验证
+    //Verification of data written before read
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,
@@ -1207,7 +1207,7 @@ TEST_F(RaftVoteTest, ThreeNodeKillTwoFollower) {
                         ch++,
                         loop);
 
-    // 4. 拉起follower
+    //4 Pull up the follower
     ASSERT_EQ(0, cluster.StartPeer(followerPeers[1],
                                    PeerCluster::PeerToId(followerPeers[1])));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
@@ -1224,12 +1224,12 @@ TEST_F(RaftVoteTest, ThreeNodeKillTwoFollower) {
 }
 
 /**
- * 验证3个节点的复制组，并挂掉3个成员
- * 1. 创建3个成员的复制组，等待leader产生，write数据，然后read出来验证一遍
- * 2. 挂掉3个成员
- * 3. 拉起1个成员
- * 4. 拉起1个成员
- * 5. 拉起1个成员
+ *Verify the replication group of 3 nodes and suspend 3 members
+ *1 Create a replication group of 3 members, wait for the leader to generate, write the data, and then read it out for verification
+ *2 Hang 3 members
+ *3 Pull up 1 member
+ *4 Pull up 1 member
+ *5 Pull up 1 member
  */
 TEST_F(RaftVoteTest, ThreeNodeKillThreeMember) {
     LogicPoolID logicPoolId = 2;
@@ -1239,7 +1239,7 @@ TEST_F(RaftVoteTest, ThreeNodeKillThreeMember) {
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动3个成员的复制组
+    //1 Start a replication group of 3 members
     PeerId leaderId;
     Peer leaderPeer;
     std::vector<Peer> peers;
@@ -1270,7 +1270,7 @@ TEST_F(RaftVoteTest, ThreeNodeKillThreeMember) {
                         ch++,
                         loop);
 
-    // 2. 挂掉3个成员
+    //2 Hang 3 members
     std::vector<Peer> followerPeers;
     ASSERT_EQ(0, cluster.ShutdownPeer(peer1));
     ASSERT_EQ(0, cluster.ShutdownPeer(peer2));
@@ -1283,7 +1283,7 @@ TEST_F(RaftVoteTest, ThreeNodeKillThreeMember) {
                             ch - 1,
                             1);
 
-    // 3. 拉起1个成员
+    //3 Pull up 1 member
     ASSERT_EQ(0, cluster.StartPeer(peer1,
                                    PeerCluster::PeerToId(peer1)));
 
@@ -1297,7 +1297,7 @@ TEST_F(RaftVoteTest, ThreeNodeKillThreeMember) {
                            1);
 
 
-    // 4. 拉起1个成员
+    //4 Pull up 1 member
     ASSERT_EQ(0, cluster.StartPeer(peer2,
                                    PeerCluster::PeerToId(peer2)));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
@@ -1311,7 +1311,7 @@ TEST_F(RaftVoteTest, ThreeNodeKillThreeMember) {
                         ch++,
                         loop);
 
-    // 5. 再拉起1个成员
+    //5 Pull up one more member
     ASSERT_EQ(0, cluster.StartPeer(peer3,
                                    PeerCluster::PeerToId(peer3)));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
@@ -1332,10 +1332,10 @@ TEST_F(RaftVoteTest, ThreeNodeKillThreeMember) {
 
 
 /**
- * 验证3个节点的复制组，并hang leader
- * 1. 创建3个成员的复制组，等待leader产生，write数据，然后read出来验证一遍
- * 2. hang leader
- * 3. 恢复leader
+ *Verify the replication groups of three nodes and hang the leader
+ *1 Create a replication group of 3 members, wait for the leader to generate, write the data, and then read it out for verification
+ *2 Hang leader
+ *3 Restore leader
  */
 TEST_F(RaftVoteTest, ThreeNodeHangLeader) {
     LogicPoolID logicPoolId = 2;
@@ -1345,7 +1345,7 @@ TEST_F(RaftVoteTest, ThreeNodeHangLeader) {
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动3个成员的复制组
+    //1 Start a replication group of 3 members
     PeerId leaderId;
     Peer leaderPeer;
     std::vector<Peer> peers;
@@ -1387,7 +1387,7 @@ TEST_F(RaftVoteTest, ThreeNodeHangLeader) {
                            ch - 1,
                            1);
 
-    // 等待new leader产生
+    //Waiting for new leader generation
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
     WriteThenReadVerify(leaderPeer,
@@ -1398,9 +1398,9 @@ TEST_F(RaftVoteTest, ThreeNodeHangLeader) {
                         ch++,
                         loop);
 
-    // 3. 恢复 old leader
+    //3 Restore old leader
     ASSERT_EQ(0, cluster.SignalPeer(oldPeer));
-    // read之前写入的数据验证
+    //Verification of data written before read
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,
@@ -1423,10 +1423,10 @@ TEST_F(RaftVoteTest, ThreeNodeHangLeader) {
 
 
 /**
- * 验证3个节点的复制组，并hang1个follower
- * 1. 创建3个成员的复制组，等待leader产生，write数据，然后read出来验证一遍
- * 2. 挂掉follower
- * 3. 恢复follower
+ *Verify the replication groups of 3 nodes and hang 1 follower
+ *1 Create a replication group of 3 members, wait for the leader to generate, write the data, and then read it out for verification
+ *2 Hang up the follower
+ *3 Restore follower
  */
 TEST_F(RaftVoteTest, ThreeNodeHangOneFollower) {
     LogicPoolID logicPoolId = 2;
@@ -1436,7 +1436,7 @@ TEST_F(RaftVoteTest, ThreeNodeHangOneFollower) {
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动3个成员的复制组
+    //1 Start a replication group of 3 members
     PeerId leaderId;
     Peer leaderPeer;
     std::vector<Peer> peers;
@@ -1467,7 +1467,7 @@ TEST_F(RaftVoteTest, ThreeNodeHangOneFollower) {
                         ch++,
                         loop);
 
-    // 2. hang 1个follower
+    //2 Hang 1 follower
     std::vector<Peer> followerPeers;
     PeerCluster::GetFollwerPeers(peers, leaderPeer, &followerPeers);
     ASSERT_GE(followerPeers.size(), 1);
@@ -1480,9 +1480,9 @@ TEST_F(RaftVoteTest, ThreeNodeHangOneFollower) {
                         ch++,
                         loop);
 
-    // 3. 恢复follower
+    //3 Restore follower
     ASSERT_EQ(0, cluster.SignalPeer(followerPeers[0]));
-    // read之前写入的数据验证
+    //Verification of data written before read
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,
@@ -1504,11 +1504,11 @@ TEST_F(RaftVoteTest, ThreeNodeHangOneFollower) {
 }
 
 /**
- * 验证3个节点的复制组，并hang leader和1个follower
- * 1. 创建3个成员的复制组，等待leader产生，write数据，然后read出来验证一遍
- * 2. hang leader和1个follower
- * 3. 恢复old leader
- * 4. 恢复follower
+ *Verify the replication groups of three nodes and hang the leader and one follower
+ *1 Create a replication group of 3 members, wait for the leader to generate, write the data, and then read it out for verification
+ *2 Hang leader and 1 follower
+ *3 Restore old leader
+ *4 Restore follower
  */
 TEST_F(RaftVoteTest, ThreeNodeHangLeaderAndOneFollower) {
     LogicPoolID logicPoolId = 2;
@@ -1518,7 +1518,7 @@ TEST_F(RaftVoteTest, ThreeNodeHangLeaderAndOneFollower) {
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动3个成员的复制组
+    //1 Start a replication group of 3 members
     PeerId leaderId;
     Peer leaderPeer;
     std::vector<Peer> peers;
@@ -1563,11 +1563,11 @@ TEST_F(RaftVoteTest, ThreeNodeHangLeaderAndOneFollower) {
                            ch - 1,
                            1);
 
-    // 3. 恢复 old leader
+    //3 Restore old leader
     ASSERT_EQ(0, cluster.SignalPeer(leaderPeer));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
-    // read之前写入的数据验证
+    //Verification of data written before read
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,
@@ -1584,7 +1584,7 @@ TEST_F(RaftVoteTest, ThreeNodeHangLeaderAndOneFollower) {
                         ch++,
                         loop);
 
-    // 4. 恢复follower
+    //4 Restore follower
     ASSERT_EQ(0, cluster.SignalPeer(followerPeers[0]));
     ReadVerify(leaderPeer,
                logicPoolId,
@@ -1607,11 +1607,11 @@ TEST_F(RaftVoteTest, ThreeNodeHangLeaderAndOneFollower) {
 }
 
 /**
- * 验证3个节点的复制组，并hang 2个follower
- * 1. 创建3个成员的复制组，等待leader产生，write数据，然后read出来验证一遍
- * 2. hang两个follower
- * 3. 恢复old leader
- * 4. 恢复follower
+ *Verify the replication groups of 3 nodes and hang 2 followers
+ *1 Create a replication group of 3 members, wait for the leader to generate, write the data, and then read it out for verification
+ *2 Hang two followers
+ *3 Restore old leader
+ *4 Restore follower
  */
 TEST_F(RaftVoteTest, ThreeNodeHangTwoFollower) {
     LogicPoolID logicPoolId = 2;
@@ -1621,7 +1621,7 @@ TEST_F(RaftVoteTest, ThreeNodeHangTwoFollower) {
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动3个成员的复制组
+    //1 Start a replication group of 3 members
     PeerId leaderId;
     Peer leaderPeer;
     std::vector<Peer> peers;
@@ -1652,13 +1652,13 @@ TEST_F(RaftVoteTest, ThreeNodeHangTwoFollower) {
                         ch++,
                         loop);
 
-    // 2. hang 2个follower
+    //2 Hang 2 followers
     std::vector<Peer> followerPeers;
     PeerCluster::GetFollwerPeers(peers, leaderPeer, &followerPeers);
     ASSERT_GE(followerPeers.size(), 2);
     ASSERT_EQ(0, cluster.HangPeer(followerPeers[0]));
     ASSERT_EQ(0, cluster.HangPeer(followerPeers[1]));
-    // step down之前提交request会超时
+    //Submitting a request before the step down will timeout
     WriteVerifyNotAvailable(leaderPeer,
                             logicPoolId,
                             copysetId,
@@ -1667,7 +1667,7 @@ TEST_F(RaftVoteTest, ThreeNodeHangTwoFollower) {
                             ch ++,
                             1);
 
-    // 等待step down之后，读也不可提供服务
+    //After waiting for the step down, reading is not available for service
     ::usleep(1000 * electionTimeoutMs * 2);
     ReadVerifyNotAvailable(leaderPeer,
                            logicPoolId,
@@ -1677,7 +1677,7 @@ TEST_F(RaftVoteTest, ThreeNodeHangTwoFollower) {
                            ch - 1,
                            1);
 
-    // 3. 恢复1个follower
+    //3 Restore 1 follower
     ASSERT_EQ(0, cluster.SignalPeer(followerPeers[0]));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
@@ -1698,7 +1698,7 @@ TEST_F(RaftVoteTest, ThreeNodeHangTwoFollower) {
                         ch++,
                         loop);
 
-    // 4. 恢复1个follower
+    //4 Restore 1 follower
     ASSERT_EQ(0, cluster.SignalPeer(followerPeers[1]));
     ReadVerify(leaderPeer,
                logicPoolId,
@@ -1721,12 +1721,12 @@ TEST_F(RaftVoteTest, ThreeNodeHangTwoFollower) {
 }
 
 /**
- * 验证3个节点的复制组，并hang 3个成员
- * 1. 创建3个成员的复制组，等待leader产生，write数据，然后read出来验证一遍
- * 2. hang 3个成员
- * 3. 恢复1个成员
- * 4. 恢复1个成员
- * 5. 恢复1个成员
+ *Verify the replication group of 3 nodes and hang 3 members
+ *1 Create a replication group of 3 members, wait for the leader to generate, write the data, and then read it out for verification
+ *2 Hang 3 members
+ *3 Restore 1 member
+ *4 Restore 1 member
+ *5 Restore 1 member
  */
 TEST_F(RaftVoteTest, ThreeNodeHangThreeMember) {
     LogicPoolID logicPoolId = 2;
@@ -1736,7 +1736,7 @@ TEST_F(RaftVoteTest, ThreeNodeHangThreeMember) {
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动3个成员的复制组
+    //1 Start a replication group of 3 members
     PeerId leaderId;
     Peer leaderPeer;
     std::vector<Peer> peers;
@@ -1767,7 +1767,7 @@ TEST_F(RaftVoteTest, ThreeNodeHangThreeMember) {
                         ch++,
                         loop);
 
-    // 2. 挂掉3个成员
+    //2 Hang 3 members
     std::vector<Peer> followerPeers;
     ASSERT_EQ(0, cluster.HangPeer(peer1));
     ASSERT_EQ(0, cluster.HangPeer(peer2));
@@ -1787,7 +1787,7 @@ TEST_F(RaftVoteTest, ThreeNodeHangThreeMember) {
                            ch - 1,
                            1);
 
-    // 3. 恢复1个成员
+    //3 Restore 1 member
     ASSERT_EQ(0, cluster.SignalPeer(peer1));
     ::usleep(1000 * electionTimeoutMs * 2);
     ReadVerifyNotAvailable(leaderPeer,
@@ -1799,7 +1799,7 @@ TEST_F(RaftVoteTest, ThreeNodeHangThreeMember) {
                            1);
 
 
-    // 4. 恢复1个成员
+    //4 Restore 1 member
     ASSERT_EQ(0, cluster.SignalPeer(peer2));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
@@ -1820,7 +1820,7 @@ TEST_F(RaftVoteTest, ThreeNodeHangThreeMember) {
                         ch++,
                         loop);
 
-    // 5. 再恢复1个成员
+    //5 Restore 1 more member
     ASSERT_EQ(0, cluster.SignalPeer(peer3));
 
     WriteThenReadVerify(leaderPeer,

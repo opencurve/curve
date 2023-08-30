@@ -55,8 +55,8 @@ class MDSTest : public ::testing::Test {
             ASSERT_TRUE(false);
         } else if (0 == etcdPid) {
             /**
-             *  重要提示！！！！
-             *  fork后，子进程尽量不要用LOG()打印，可能死锁！！！
+             *Important reminder!!!!
+             *After forking, try not to use LOG() printing for child processes, as it may cause deadlock!!!
              */
             ASSERT_EQ(0, execlp("etcd", "etcd", "--listen-client-urls",
                                 "http://localhost:10032",
@@ -66,7 +66,7 @@ class MDSTest : public ::testing::Test {
                                 nullptr));
             exit(0);
         }
-        // 一定时间内尝试init直到etcd完全起来
+        //Try init for a certain period of time until etcd is fully recovered
         auto client = std::make_shared<EtcdClientImp>();
         EtcdConf conf = {kEtcdAddr, static_cast<int>(strlen(kEtcdAddr)), 1000};
         uint64_t now = ::curve::common::TimeUtility::GetTimeofDaySec();
@@ -102,7 +102,7 @@ class MDSTest : public ::testing::Test {
 };
 
 TEST_F(MDSTest, common) {
-    // 加载配置
+    //Load Configuration
     std::string confPath = "./conf/mds.conf";
     auto conf = std::make_shared<Configuration>();
     conf->SetConfigPath(confPath);
@@ -116,7 +116,7 @@ TEST_F(MDSTest, common) {
     mds.InitMdsOptions(conf);
     mds.StartDummy();
 
-    // 从dummy server获取version和mds监听端口
+    //Obtain version and mds listening ports from dummy server
     brpc::Channel httpChannel;
     brpc::Controller cntl;
     brpc::ChannelOptions options;
@@ -124,12 +124,12 @@ TEST_F(MDSTest, common) {
     std::string dummyAddr = "127.0.0.1:" + std::to_string(kDummyPort);
     ASSERT_EQ(0, httpChannel.Init(dummyAddr.c_str(), &options));
 
-    // 测试获取version
+    //Test to obtain versio
     cntl.http_request().uri() = dummyAddr + "/vars/curve_version";
     httpChannel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
     ASSERT_FALSE(cntl.Failed());
 
-    // 测试获取mds监听端口
+    //Testing to obtain the mds listening port
     cntl.Reset();
     cntl.http_request().uri() = dummyAddr + "/vars/mds_config_mds_listen_addr";
     httpChannel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
@@ -140,13 +140,13 @@ TEST_F(MDSTest, common) {
     auto pos = attachment.find(":");
     ASSERT_NE(std::string::npos, pos);
     std::string jsonString = attachment.substr(pos + 2);
-    // 去除两端引号
+    //Remove double quotes
     jsonString = jsonString.substr(1, jsonString.size() - 2);
     reader.parse(jsonString, value);
     std::string mdsAddr = value["conf_value"].asString();
     ASSERT_EQ(kMdsAddr, mdsAddr);
 
-    // 获取leader状态，此时mds_status应为follower
+    //Obtain the leader status, at which point mds_status should be follower
     cntl.Reset();
     cntl.http_request().uri() = dummyAddr + "/vars/mds_status";
     httpChannel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
@@ -156,7 +156,7 @@ TEST_F(MDSTest, common) {
 
     mds.StartCompaginLeader();
 
-    // 此时isLeader应为true
+    //At this point, isLeader should be true
     cntl.Reset();
     cntl.http_request().uri() = dummyAddr + "/vars/is_leader";
     ASSERT_FALSE(cntl.Failed());
@@ -164,7 +164,7 @@ TEST_F(MDSTest, common) {
               cntl.response_attachment().to_string().find("leader"));
 
     mds.Init();
-    // 启动mds
+    //Start mds
     Thread mdsThread(&MDS::Run, &mds);
     // sleep 5s
     sleep(5);
@@ -172,7 +172,7 @@ TEST_F(MDSTest, common) {
     // 1、init channel
     ASSERT_EQ(0, channel_.Init(kMdsAddr.c_str(), nullptr));
 
-    // 2、测试hearbeat接口
+    //2. Test the heartbeat interface
     cntl.Reset();
     heartbeat::ChunkServerHeartbeatRequest request1;
     heartbeat::ChunkServerHeartbeatResponse response1;
@@ -193,7 +193,7 @@ TEST_F(MDSTest, common) {
     stub1.ChunkServerHeartbeat(&cntl, &request1, &response1, nullptr);
     ASSERT_FALSE(cntl.Failed());
 
-    // 3、测试namespaceService接口
+    //3. Test the namespaceService interface
     cntl.Reset();
     GetFileInfoRequest request2;
     GetFileInfoResponse response2;
@@ -205,7 +205,7 @@ TEST_F(MDSTest, common) {
     stub2.GetFileInfo(&cntl, &request2, &response2, nullptr);
     ASSERT_FALSE(cntl.Failed());
 
-    // 4、测试topology接口
+    //4. Testing the topology interface
     cntl.Reset();
     topology::ListPhysicalPoolRequest request3;
     topology::ListPhysicalPoolResponse response3;
@@ -213,7 +213,7 @@ TEST_F(MDSTest, common) {
     stub3.ListPhysicalPool(&cntl, &request3, &response3, nullptr);
     ASSERT_FALSE(cntl.Failed());
 
-    // 5、停掉mds
+    //5. Stop the MDS
     uint64_t startTime = curve::common::TimeUtility::GetTimeofDayMs();
     mds.Stop();
     mdsThread.join();

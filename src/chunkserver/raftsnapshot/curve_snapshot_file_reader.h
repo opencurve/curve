@@ -55,9 +55,9 @@ namespace curve {
 namespace chunkserver {
 
 /**
- * snapshot attachment文件元数据表，同上面的
- * CurveSnapshotAttachMetaTable接口，主要提供attach文件元数据信息
- * 的查询、序列化和反序列等接口
+ *The metadata table of the snapshot attachment file is the same as the one above
+ *The CurveSnapshotAttachMetaTable interface mainly provides metadata information for attach files
+ *Query, serialization, and deserialization interfaces for
  */
 class CurveSnapshotAttachMetaTable {
  public:

@@ -29,7 +29,7 @@
 namespace curve {
 namespace snapshotcloneserver {
 
-// snapshotcloneservice字符串常量定义
+//Snapshotclone service string constant definition
 extern const char* kServiceName;
 // action
 extern const char* kCreateSnapshotAction;
@@ -76,54 +76,54 @@ enum class CloneTaskType {
     kRecover
 };
 
-// 未初始序列号
+//Uninitialized serial number
 const uint64_t kUnInitializeSeqNum = 0;
-// 初始序列号
+//Initial serial number
 const uint64_t kInitializeSeqNum = 1;
 
-// 错误码：执行成功
+//Error code: Execution successful
 const int kErrCodeSuccess = 0;
-// 错误码: 内部错误
+//Error code: Internal error
 const int kErrCodeInternalError = -1;
-// 错误码：服务器初始化失败
+//Error code: Server initialization failed
 const int kErrCodeServerInitFail = -2;
-// 错误码：服务器启动失败
+//Error code: Server startup failed
 const int kErrCodeServerStartFail = -3;
-// 错误码：服务已停止
+//Error code: Service stopped
 const int kErrCodeServiceIsStop = -4;
-// 错误码：非法请求
+//Error code: Illegal request
 const int kErrCodeInvalidRequest = -5;
-// 错误码：任务已存在
+//Error code: Task already exists
 const int kErrCodeTaskExist = -6;
-// 错误码：非法的用户
+//Error code: Illegal user
 const int kErrCodeInvalidUser = -7;
-// 错误码：文件不存在
+//Error code: File does not exist
 const int kErrCodeFileNotExist = -8;
-// 错误码：文件状态异常
+//Error code: File status abnormal
 const int kErrCodeFileStatusInvalid = -9;
-// 错误码：chunk大小未按chunk分片大小对齐
+//Error code: Chunk size not aligned with chunk partition size
 const int kErrCodeChunkSizeNotAligned = -10;
-// 错误码：文件名不匹配
+//Error code: File name mismatch
 const int kErrCodeFileNameNotMatch = -11;
-// 错误码： 不能删除未完成的快照
+//Error code: Unable to delete incomplete snapshot
 const int kErrCodeSnapshotCannotDeleteUnfinished = -12;
-// 错误码: 不能对存在异常快照的文件打快照，或不能对存在错误的目标文件克隆/恢复
+//Error code: Cannot take a snapshot of files with abnormal snapshots, or cannot clone/recover target files with errors
 const int kErrCodeSnapshotCannotCreateWhenError = -13;
-// 错误码：取消的快照已完成
+//Error code: Canceled snapshot completed
 const int kErrCodeCannotCancelFinished = -14;
-// 错误码：不能从未完成或存在错误的快照克隆
+//Error code: Cannot clone a snapshot that has never been completed or has errors
 const int kErrCodeInvalidSnapshot = -15;
-// 错误码：不能删除正在克隆的快照
+//Error code: Unable to delete snapshot being cloned
 const int kErrCodeSnapshotCannotDeleteCloning = -16;
-// 错误码：不能清理未完成的克隆
+//Error code: Unable to clean up incomplete clones
 const int kErrCodeCannotCleanCloneUnfinished = -17;
-// 错误码：快照到达上限
+//Error code: The snapshot has reached the upper limit
 const int kErrCodeSnapshotCountReachLimit = -18;
-// 错误码：文件已存在
+//Error code: File already exists
 const int kErrCodeFileExist = -19;
-// 错误码：克隆任务已满
+//Error code: Clone task is full
 const int kErrCodeTaskIsFull = -20;
-// 错误码：不支持
+//Error code: not supported
 const int kErrCodeNotSupport = -21;
 
 extern std::map<int, std::string> code2Msg;

@@ -56,9 +56,9 @@ class CleanManagerInterface {
         curve::common::CountDownEvent* counter) = 0;
 };
 /**
- * CleanManager 用于异步清理 删除快照对应的数据
- * 1. 接收在线的删除快照请求
- * 2. 线程池异步处理实际的chunk删除任务
+ * CleanManager is used for asynchronous cleaning and deleting data corresponding to snapshots.
+ * 1. Receives online requests for snapshot deletion.
+ * 2. Asynchronously processes the actual chunk deletion tasks in a thread pool.
  **/
 class CleanManager : public CleanManagerInterface {
  public:

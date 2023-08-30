@@ -53,7 +53,7 @@ class TimeUtility {
         return tm.tv_sec;
     }
 
-    // 时间戳转成标准时间输出在standard里面,时间戳单位为秒
+    //Convert the timestamp to standard time and output it in standard, with the timestamp unit in seconds
     static inline void TimeStampToStandard(time_t timeStamp,
                                            std::string* standard) {
         char now[64];

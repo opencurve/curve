@@ -50,7 +50,7 @@ const char kSechduleOpMetricpPrefix[] = "mds_scheduler_metric_";
 const char kMdsListenAddrMetricName[] = "mds_config_mds_listen_addr";
 const char kMdsStatusMetricName[] = "mds_status";
 const char kMdsStatusLeader[] = "leader";
-// operator名称
+//Operator Name
 const char kTotalOpName[] = "operator";
 const char kChangeOpName[] = "change_peer";
 const char kAddOpName[] = "add_peer";

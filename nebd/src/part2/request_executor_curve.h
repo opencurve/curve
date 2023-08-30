@@ -54,12 +54,12 @@ void CurveAioCallback(struct CurveAioContext* curveCtx);
 class FileNameParser {
  public:
     /**
-     * @brief 解析fileName
-     *  一般格式:
+     * @brief parsing fileName
+     * General format:
      *    qemu "cbd:pool1//cinder/volume-6f30d296-07f7-452e-a983-513191f8cd95_cinder_:/etc/curve/client.conf" //NOLINT
      *    nbd  "cbd:pool1//cinder/volume-6f30d296-07f7-452e-a983-513191f8cd95_cinder_"  // NOLINT
      * @param[in] fileName
-     * @return 解析结果
+     * @return Parsing Result
      *  qemu "/cinder/volume-6f30d296-07f7-452e-a983-513191f8cd95_cinder_", "/etc/curve/client.conf" //NOLINT
      *  nbd  "/cinder/volume-6f30d296-07f7-452e-a983-513191f8cd95_cinder_", "" //NOLINT
      */
@@ -90,38 +90,38 @@ class CurveRequestExecutor : public NebdRequestExecutor {
 
  private:
     /**
-     * @brief 构造函数
+     * @brief constructor
      */
     CurveRequestExecutor() {}
 
     /**
-     * @brief 从NebdFileInstance中解析出curve_client需要的fd
-     * @param[in] fd NebdFileInstance类型
-     * @return 返回curve_client中文件的fd, 如果小于0，表示解析结果错误
+     * @brief Parse curve from NebdFileInstance_ Fd required by client
+     * @param[in] fd NebdFileInstance type
+     * @return returns the curve_ If the fd of the file in the client is less than 0, it indicates that the parsing result is incorrect
      */
     int GetCurveFdFromNebdFileInstance(NebdFileInstance* fd);
 
     /**
-     * @brief 从NebdFileInstance中解析出curbe_client需要的filename
-     * @param[in] fd NebdFileInstance类型
-     * @return 返回curve_client中的filename, 如果为空，表示解析出错
+     * @brief Parsing curbe from NebdFileInstance_ The filename required by the client
+     * @param[in] fd NebdFileInstance type
+     * @return returns the curve_ The filename in the client, if empty, indicates an error in parsing
      */
     std::string GetFileNameFromNebdFileInstance(NebdFileInstance* fd);
 
     /**
-     * @brief 将NebdServerAioContext类型转换为CurveAioContext类型
-     * @param[in] nebdCtx NebdServerAioContext类型
-     * @param[out] curveCtx CurveAioContext类型
-     * @return -1转换失败，0转换成功
+     * @brief Convert NebdServerAioContext type to CurveAioContext type
+     * @param[in] nebdCtx NebdServerAioContext type
+     * @param[out] curveCtx CurveAioContext type
+     * @return -1 conversion failed, 0 conversion succeeded
      */
     int FromNebdCtxToCurveCtx(
         NebdServerAioContext *nebdCtx, CurveAioContext *curveCtx);
 
     /**
-     * @brief 将LIBAIO_OP类型转换为curve_client中LIBCURVE_OP类型
-     * @param[in] op LIBAIO_OP类型
-     * @param[out] out LIBCURVE_OP类型
-     * @return -1转换失败，0转换成功
+     * @brief will LIBAIO_ OP type conversion to curve_ LIBCURVE in client_ OP type
+     * @param[in] op LIBAIO_ OP type
+     * @param[out] out LIBCURVE_ OP type
+     * @return -1 conversion failed, 0 conversion succeeded
      */
      int FromNebdOpToCurveOp(LIBAIO_OP op, LIBCURVE_OP *out);
 

@@ -117,19 +117,19 @@ TEST(CoordinatorTest, test_AddPeer_CopySetHeartbeat) {
         Operator opRes;
         ASSERT_TRUE(coordinator->GetOpController()->GetOperatorById(
             info.id, &opRes));
-        // 第一次下发配置
+        //First configuration distribution
         ASSERT_EQ(4, coordinator->CopySetHeartbeat(
             testCopySetInfo, ConfigChangeInfo{}, &res));
         ASSERT_EQ("127.0.0.1:9000:0", res.configchangeitem().address());
         ASSERT_EQ(ConfigChangeType::ADD_PEER, res.type());
 
-        // 第二次获取chunkserver失败
+        //Failed to obtain chunkserver for the second time
         ASSERT_EQ(UNINTIALIZE_ID, coordinator->CopySetHeartbeat(
             testCopySetInfo, ConfigChangeInfo{}, &res));
     }
 
     {
-        // 3. 下发配置，但candidate是offline状态
+        //3 Distribute configuration, but candidate is in offline status
         EXPECT_CALL(*topoAdapter, CopySetFromTopoToSchedule(_, _))
             .Times(2)
             .WillRepeatedly(DoAll(SetArgPointee<1>(info), Return(true)));
@@ -146,7 +146,7 @@ TEST(CoordinatorTest, test_AddPeer_CopySetHeartbeat) {
             info.id, &opRes));
         csInfo.state = OnlineState::ONLINE;
 
-        // 获取不到chunkserver的信息
+        //Unable to obtain chunkserver information
         ASSERT_TRUE(coordinator->GetOpController()->AddOperator(testOperator));
         EXPECT_CALL(*topoAdapter, GetChunkServerInfo(_, _))
             .WillOnce(Return(false));
@@ -267,20 +267,20 @@ TEST(CoordinatorTest, test_ChangePeer_CopySetHeartbeat) {
         Operator opRes;
         ASSERT_TRUE(coordinator->GetOpController()->GetOperatorById(
             info.id, &opRes));
-        // 第一次下发配置
+        //First configuration distribution
         ASSERT_EQ(4, coordinator->CopySetHeartbeat(
             testCopySetInfo, ConfigChangeInfo{}, &res));
         ASSERT_EQ("127.0.0.1:9000:0", res.configchangeitem().address());
         ASSERT_EQ("127.0.0.1:9001:0", res.oldpeer().address());
         ASSERT_EQ(ConfigChangeType::CHANGE_PEER, res.type());
 
-        // 第二次获取chunkserver失败
+        //Failed to obtain chunkserver for the second time
         ASSERT_EQ(UNINTIALIZE_ID, coordinator->CopySetHeartbeat(
             testCopySetInfo, ConfigChangeInfo{}, &res));
     }
 
     {
-        // 3. 下发配置，但candidate是offline状态
+        //3 Distribute configuration, but candidate is in offline status
         EXPECT_CALL(*topoAdapter, CopySetFromTopoToSchedule(_, _))
             .Times(2)
             .WillRepeatedly(DoAll(SetArgPointee<1>(info), Return(true)));
@@ -297,7 +297,7 @@ TEST(CoordinatorTest, test_ChangePeer_CopySetHeartbeat) {
             info.id, &opRes));
         csInfo.state = OnlineState::ONLINE;
 
-        // 获取不到chunkserver的信息
+        //Unable to obtain chunkserver information
         ASSERT_TRUE(coordinator->GetOpController()->AddOperator(testOperator));
         EXPECT_CALL(*topoAdapter, GetChunkServerInfo(_, _))
             .WillOnce(Return(false));
@@ -363,12 +363,12 @@ TEST(CoordinatorTest, test_ChunkserverGoingToAdd) {
         scheduleOption, std::make_shared<ScheduleMetrics>(topo));
 
     {
-        // 1. copyset上没有要变更的operator
+        //1 There are no operators to change on the copyset
         ASSERT_FALSE(coordinator->ChunkserverGoingToAdd(1, CopySetKey{1, 1}));
     }
 
     {
-        // 2. copyset上有leader变更，并且目的leader为chunkserver-1
+        //2 There is a leader change on the copyset and the target leader is chunkserver-1
         Operator testOperator(1, CopySetKey{1, 1},
                           OperatorPriority::NormalPriority,
                           steady_clock::now(),
@@ -378,7 +378,7 @@ TEST(CoordinatorTest, test_ChunkserverGoingToAdd) {
     }
 
     {
-        // 3. copyset上有remove peer操作
+        //3 There is a remove peer operation on the copyset
         Operator testOperator(1, CopySetKey{1, 2},
                           OperatorPriority::NormalPriority,
                           steady_clock::now(),
@@ -388,7 +388,7 @@ TEST(CoordinatorTest, test_ChunkserverGoingToAdd) {
     }
 
     {
-        // 4. copyset上有add peer操作, target不是1
+        //4 There is an add peer operation on the copyset, but the target is not 1
         Operator testOperator(1, CopySetKey{1, 3},
                           OperatorPriority::NormalPriority,
                           steady_clock::now(),
@@ -398,7 +398,7 @@ TEST(CoordinatorTest, test_ChunkserverGoingToAdd) {
     }
 
     {
-        // 5. copyset上有add peer操作, target是1
+        //5 There is an add peer operation on the copyset, with a target of 1
         Operator testOperator(1, CopySetKey{1, 4},
                           OperatorPriority::NormalPriority,
                           steady_clock::now(),
@@ -408,7 +408,7 @@ TEST(CoordinatorTest, test_ChunkserverGoingToAdd) {
     }
 
     {
-        // 6. copyset上有change peer操作，target不是1
+        //6 There is a change peer operation on the copyset, but the target is not 1
         Operator testOperator(1, CopySetKey{1, 5},
                           OperatorPriority::NormalPriority,
                           steady_clock::now(),
@@ -418,7 +418,7 @@ TEST(CoordinatorTest, test_ChunkserverGoingToAdd) {
     }
 
     {
-        // 7. copyset上有change peer操作，target是1
+        //7 There is a change peer operation on the copyset, with a target of 1
         Operator testOperator(1, CopySetKey{1, 6},
                           OperatorPriority::NormalPriority,
                           steady_clock::now(),
@@ -484,23 +484,23 @@ TEST(CoordinatorTest, test_RapidLeaderSchedule) {
 
 TEST(CoordinatorTest, test_QueryChunkServerRecoverStatus) {
     /*
-    场景：
-    chunkserver1: offline 有恢复op
-    chunkserver2: offline 没有恢复op,没有candidate,有其他op
-    chunkserver3: offline 有candidate
-    chunkserver4: online
-    chunkserver4: online
+    Scenario:
+    Chunkserver1: Offline has recovery op
+    Chunkserver2: Offline has no recovery op, no candidate, and other ops
+    Chunkserver3: Offline has candidate
+    Chunkserver4: online
+    Chunkserver4: online
     */
     auto topo = std::make_shared<MockTopology>();
     auto metric = std::make_shared<ScheduleMetrics>(topo);
     auto topoAdapter = std::make_shared<MockTopoAdapter>();
     auto coordinator = std::make_shared<Coordinator>(topoAdapter);
 
-    // 获取option
+    //Get option
     ScheduleOption scheduleOption = GetScheduleOption();
     coordinator->InitScheduler(scheduleOption, metric);
 
-    // 构造chunkserver
+    //Construct chunkserver
     std::vector<ChunkServerInfo> chunkserverInfos;
     std::vector<PeerInfo> peerInfos;
     for (int i = 1; i <= 6; i++) {
@@ -519,7 +519,7 @@ TEST(CoordinatorTest, test_QueryChunkServerRecoverStatus) {
         peerInfos.emplace_back(peer);
     }
 
-    // 构造op
+    //Construct op
     Operator opForCopySet1(
         1, CopySetKey{1, 1},
         OperatorPriority::HighPriority,
@@ -534,7 +534,7 @@ TEST(CoordinatorTest, test_QueryChunkServerRecoverStatus) {
         std::make_shared<TransferLeader>(2, 4));
     ASSERT_TRUE(coordinator->GetOpController()->AddOperator(opForCopySet2));
 
-    // 构造copyset
+    //Construct a copyset
     std::vector<PeerInfo> peersFor2({peerInfos[1], peerInfos[3], peerInfos[4]});
     CopySetInfo copyset2(
         CopySetKey{1, 2}, 1, 4,
@@ -556,7 +556,7 @@ TEST(CoordinatorTest, test_QueryChunkServerRecoverStatus) {
         configChangeInfoForCS3,
         CopysetStatistics{});
 
-    // 1. 查询所有chunkserver
+    //1 Query all chunkservers
     {
         EXPECT_CALL(*topoAdapter, GetChunkServerInfos())
             .WillOnce(Return(chunkserverInfos));
@@ -578,7 +578,7 @@ TEST(CoordinatorTest, test_QueryChunkServerRecoverStatus) {
         ASSERT_FALSE(statusMap[6]);
     }
 
-    // 2. 查询指定chunkserver, 但chunkserver不存在
+    //2 Query for specified chunkserver, but chunkserver does not exist
     {
         EXPECT_CALL(*topoAdapter, GetChunkServerInfo(7, _))
             .WillOnce(Return(false));
@@ -589,7 +589,7 @@ TEST(CoordinatorTest, test_QueryChunkServerRecoverStatus) {
             std::vector<ChunkServerIdType>{7}, &statusMap));
     }
 
-    // 3. 查询指定chunkserver, 不在恢复中
+    //3 Query the specified chunkserver, not in recovery
     {
         EXPECT_CALL(*topoAdapter, GetChunkServerInfo(6, _))
             .WillOnce(DoAll(SetArgPointee<1>(chunkserverInfos[5]),

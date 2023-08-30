@@ -53,29 +53,29 @@ namespace chunkserver {
 using curve::common::Peer;
 
 /**
- * PeerNode 状态
- * 1. exit：未启动，或者被关闭
- * 2. running：正在运行
- * 3. stop：hang 住了
+ *PeerNode status
+ *1 Exit: Not started or closed
+ *2 Running: Running
+ *3 Stop: hang
  */
 enum class PeerNodeState {
-    EXIT = 0,       // 退出
-    RUNNING = 1,    // 正在运行
-    STOP = 2,       // hang住
+    EXIT = 0,       //Exit
+    RUNNING = 1,    //Running
+    STOP = 2,       //Hang Stay
 };
 
 /**
- * 一个 ChunkServer 进程，包含某个 Copyset 的某个副本
+ *A ChunkServer process that contains a copy of a Copyset
  */
 struct PeerNode {
     PeerNode() : pid(0), state(PeerNodeState::EXIT) {}
-    // Peer对应的进程id
+    //Process ID corresponding to Peer
     pid_t pid;
     // Peer
     Peer peer;
-    // copyset的集群配置
+    //Cluster configuration for copyset
     Configuration conf;
-    // PeerNode的状态
+    //Status of PeerNode
     PeerNodeState state;
 };
 
@@ -92,7 +92,7 @@ class FakeTopologyService : public TopologyService {
 };
 
 /**
- * 封装模拟cluster测试相关的接口
+ *Package simulation cluster testing related interfaces
  */
 class PeerCluster {
  public:
@@ -119,48 +119,48 @@ class PeerCluster {
     int StartFakeTopoloyService(const std::string &listenAddr);
 
     /**
-     * 启动一个 Peer
+     *Start a Peer
      * @param peer
-     * @param empty初始化配置是否为空
-     * @return 0，成功；-1，失败
+     * @param empty Is the initialization configuration empty
+     * @return 0, successful- 1. Failure
      */
     int StartPeer(const Peer &peer,
                   int id,
                   const bool empty = false);
     /**
-     * 关闭一个peer，使用SIGINT
+     *Close a peer and use SIGINT
      * @param peer
-     * @return 0 成功；-1 失败
+     * @return 0 succeeded- 1 failed
      */
     int ShutdownPeer(const Peer &peer);
 
 
     /**
-     * hang住一个peer，使用SIGSTOP
+     *Hang lives in a peer and uses SIGSTOP
      * @param peer
-     * @return 0成功；-1失败
+     * @return 0 succeeded- 1 failed
      */
     int HangPeer(const Peer &peer);
     /**
-    * 恢复hang住的peer，使用SIGCONT
+    *Restore the peer where Hang lives and use SIGCONT
     * @param peer
-    * @return 0：成功，-1 失败
+    * @return 0: Success, -1 failed
     */
     int SignalPeer(const Peer &peer);
     /**
-     * 反复重试直到等到新的leader产生
-     * @param leaderPeer出参，返回leader info
-     * @return 0，成功；-1 失败
+     *Try again and again until a new leader is generated
+     * @param leaderPeer generates parameters and returns leader information
+     * @return 0, successful- 1 failed
      */
     int WaitLeader(Peer *leaderPeer);
 
     /**
-     * confirm leader 
-     * @param: LogicPoolID logicalPool id
-     * @param: copysetId copyset id
+     *Confirm leader
+     * @param: LogicPoolID logicalPool ID
+     * @param: copysetId copyset ID
      * @param: leaderAddr leader address
-     * @param: leader leader info
-     * @return 0，成功；-1 失败
+     * @param: leader leader information
+     * @return 0, successful- 1 failed
      */
     int ConfirmLeader(const LogicPoolID &logicPoolId,
                         const CopysetID &copysetId,
@@ -169,13 +169,13 @@ class PeerCluster {
 
 
     /**
-     * Stop所有的peer
-     * @return 0，成功；-1 失败
+     *Stop all peers
+     * @return 0, successful- 1 failed
      */
     int StopAllPeers();
 
  public:
-    /* 返回集群当前的配置 */
+    /*Returns the current configuration of the cluster*/
     Configuration CopysetConf() const;
 
     LogicPoolID GetLogicPoolId() const {return logicPoolID_;}
@@ -184,7 +184,7 @@ class PeerCluster {
 
     void SetWorkingCopyset(CopysetID copysetID) {copysetID_ = copysetID;}
 
-    /* 修改 PeerNode 配置相关的接口，单位: s */
+    /*Modify the interface related to PeerNode configuration, unit: s*/
     int SetsnapshotIntervalS(int snapshotIntervalS);
     int SetElectionTimeoutMs(int electionTimeoutMs);
 
@@ -198,12 +198,12 @@ class PeerCluster {
 
  public:
     /**
-     * 返回执行peer的copyset路径with protocol, ex: local://./127.0.0.1:9101:0
+     *Returns the copyset path for executing peer with protocol, ex: local://./127.0.0.1:9101:0
      */
     static const std::string CopysetDirWithProtocol(const Peer &peer);
 
     /**
-     * 返回执行peer的copyset路径without protocol, ex: ./127.0.0.1:9101:0
+     *Returns the copyset path for executing peer without protocol, ex:/ 127.0.0.1:9101:0
      */
     static const std::string CopysetDirWithoutProtocol(const Peer &peer);
 
@@ -222,32 +222,32 @@ class PeerCluster {
                              const std::vector<Peer>& peers);
 
  private:
-    // 集群名字
+    //Cluster Name
     std::string             clusterName_;
-    // 集群的peer集合
+    //The peer set of the cluster
     std::vector<Peer>       peers_;
-    // peer集合的映射map
+    //Mapping Map of Peer Set
     std::unordered_map<std::string, std::unique_ptr<PeerNode>> peersMap_;
 
-    // 快照间隔
+    //Snapshot interval
     int                     snapshotIntervalS_;
-    // 选举超时时间
+    //Election timeout
     int                     electionTimeoutMs_;
-    // 集群成员配置
+    //Cluster member configuration
     Configuration           conf_;
 
-    // 逻辑池id
+    //Logical Pool ID
     LogicPoolID             logicPoolID_;
-    // 复制组id
+    //Copy Group ID
     CopysetID               copysetID_;
     // chunkserver id
     static ChunkServerID    chunkServerId_;
-    // 文件系统适配层
+    //File System Adaptation Layer
     static std::shared_ptr<LocalFileSystem> fs_;
 
-    // chunkserver启动传入参数的映射关系(chunkserver id: params_'s index)
+    //Chunkserver starts the mapping relationship of incoming parameters (chunkserver id: params_'s index)
     std::map<int, int> paramsIndexs_;
-    // chunkserver启动需要传递的参数列表
+    //List of parameters to be passed for chunkserver startup
     std::vector<char **> params_;
 
     // fake mds server
@@ -259,15 +259,15 @@ class PeerCluster {
 };
 
 /**
- * 正常 I/O 验证，先写进去，再读出来验证
- * @param leaderId      主的 id
- * @param logicPoolId   逻辑池 id
- * @param copysetId 复制组 id
- * @param chunkId   chunk id
- * @param length    每次 IO 的 length
- * @param fillCh    每次 IO 填充的字符
- * @param loop      重复发起 IO 的次数
- * @param sn        本次写入的版本号
+ *Normal I/O verification, write it in first, then read it out for verification
+ * @param leaderId Primary ID
+ * @param logicPoolId Logical Pool ID
+ * @param copysetId Copy Group ID
+ * @param chunkId chunk id
+ * @param length The length of each IO
+ * @param fillCh Characters filled in each IO
+ * @param loop The number of times repeatedly initiates IO
+ * @param sn The version number written this time
  */
 void WriteThenReadVerify(Peer leaderPeer,
                          LogicPoolID logicPoolId,
@@ -279,14 +279,14 @@ void WriteThenReadVerify(Peer leaderPeer,
                          uint64_t sn = 1);
 
 /**
- * 正常 I/O 验证，read 数据验证
- * @param leaderId      主的 id
- * @param logicPoolId   逻辑池 id
- * @param copysetId 复制组 id
- * @param chunkId   chunk id
- * @param length    每次 IO 的 length
- * @param fillCh    每次 IO 填充的字符
- * @param loop      重复发起 IO 的次数
+ *Normal I/O verification, read data verification
+ * @param leaderId Primary ID
+ * @param logicPoolId Logical Pool ID
+ * @param copysetId Copy Group ID
+ * @param chunkId chunk id
+ * @param length The length of each IO
+ * @param fillCh Characters filled in each IO
+ * @param loop The number of times repeatedly initiates IO
  */
 void ReadVerify(Peer leaderPeer,
                 LogicPoolID logicPoolId,
@@ -297,14 +297,14 @@ void ReadVerify(Peer leaderPeer,
                 int loop);
 
 /**
- * 读chunk的snapshot进行验证
- * @param leaderId      主的 id
- * @param logicPoolId   逻辑池 id
- * @param copysetId 复制组 id
- * @param chunkId   chunk id
- * @param length    每次 IO 的 length
- * @param fillCh    每次 IO 填充的字符
- * @param loop      重复发起 IO 的次数
+ *Verify by reading the snapshot of the chunk
+ * @param leaderId Primary ID
+ * @param logicPoolId Logical Pool ID
+ * @param copysetId Copy Group ID
+ * @param chunkId chunk id
+ * @param length The length of each IO
+ * @param fillCh Characters filled in each IO
+ * @param loop The number of times repeatedly initiates IO
  */
 void ReadSnapshotVerify(Peer leaderPeer,
                         LogicPoolID logicPoolId,
@@ -315,12 +315,12 @@ void ReadSnapshotVerify(Peer leaderPeer,
                         int loop);
 
 /**
- * 删除chunk的snapshot进行验证
- * @param leaderId      主的 id
- * @param logicPoolId   逻辑池 id
- * @param copysetId     复制组 id
- * @param chunkId       chunk id
- * @param csn           corrected sn
+ *Delete snapshot of chunk for verification
+ * @param leaderId Primary ID
+ * @param logicPoolId Logical Pool ID
+ * @param copysetId Copy Group ID
+ * @param chunkId chunk id
+ * @param csn corrected sn
  */
 void DeleteSnapshotVerify(Peer leaderPeer,
                           LogicPoolID logicPoolId,
@@ -329,14 +329,14 @@ void DeleteSnapshotVerify(Peer leaderPeer,
                           uint64_t csn);
 
 /**
- * 异常I/O验证，read数据不符合预期
- * @param leaderId      主的 id
- * @param logicPoolId   逻辑池 id
- * @param copysetId 复制组 id
- * @param chunkId   chunk id
- * @param length    每次 IO 的 length
- * @param fillCh    每次 IO 填充的字符
- * @param loop      重复发起 IO 的次数
+ *Abnormal I/O verification, read data does not meet expectations
+ * @param leaderId Primary ID
+ * @param logicPoolId Logical Pool ID
+ * @param copysetId Copy Group ID
+ * @param chunkId chunk id
+ * @param length The length of each IO
+ * @param fillCh Characters filled in each IO
+ * @param loop The number of times repeatedly initiates IO
  */
 void ReadNotVerify(Peer leaderPeer,
                    LogicPoolID logicPoolId,
@@ -347,14 +347,14 @@ void ReadNotVerify(Peer leaderPeer,
                    int loop);
 
 /**
- * 通过read验证可用性
- * @param leaderId      主的 id
- * @param logicPoolId   逻辑池 id
- * @param copysetId 复制组 id
- * @param chunkId   chunk id
- * @param length    每次 IO 的 length
- * @param fillCh    每次 IO 填充的字符
- * @param loop      重复发起 IO 的次数
+ *Verify availability through read
+ * @param leaderId Primary ID
+ * @param logicPoolId Logical Pool ID
+ * @param copysetId Copy Group ID
+ * @param chunkId chunk id
+ * @param length The length of each IO
+ * @param fillCh Characters filled in each IO
+ * @param loop The number of times repeatedly initiates IO
  */
 void ReadVerifyNotAvailable(Peer leaderPeer,
                             LogicPoolID logicPoolId,
@@ -365,14 +365,14 @@ void ReadVerifyNotAvailable(Peer leaderPeer,
                             int loop);
 
 /**
- * 通过write验证可用性
- * @param leaderId      主的 id
- * @param logicPoolId   逻辑池 id
- * @param copysetId 复制组 id
- * @param chunkId   chunk id
- * @param length    每次 IO 的 length
- * @param fillCh    每次 IO 填充的字符
- * @param loop      重复发起 IO 的次数
+ *Verify availability through write
+ * @param leaderId Primary ID
+ * @param logicPoolId Logical Pool ID
+ * @param copysetId Copy Group ID
+ * @param chunkId chunk id
+ * @param length The length of each IO
+ * @param fillCh Characters filled in each IO
+ * @param loop The number of times repeatedly initiates IO
  */
 void WriteVerifyNotAvailable(Peer leaderPeer,
                              LogicPoolID logicPoolId,
@@ -383,10 +383,10 @@ void WriteVerifyNotAvailable(Peer leaderPeer,
                              int loop);
 
 /**
- * 验证几个副本的copyset status是否一致
- * @param peerIds: 待验证的peers
- * @param logicPoolID: 逻辑池id
- * @param copysetId: 复制组id
+ *Verify if the copyset status of several replicas is consistent
+ * @param peerIds: Peers to be verified
+ * @param logicPoolID: Logical Pool ID
+ * @param copysetId: Copy group ID
  */
 void CopysetStatusVerify(const std::vector<Peer> &peers,
                          LogicPoolID logicPoolID,
@@ -394,10 +394,10 @@ void CopysetStatusVerify(const std::vector<Peer> &peers,
                          uint64_t expectEpoch = 0);
 
 /**
- * transfer leader，并且预期能够成功
- * @param cluster: 集群的指针
- * @param targetLeader: 期望tranfer的目标节点
- * @param opt: tranfer 请求使用的 clioption
+ *Transfer leader and expected to succeed
+ * @param cluster: Pointer to the cluster
+ * @param targetLeader: The target node for the expected transfer
+ * @param opt: The cliption used in the transfer request
  */
 void TransferLeaderAssertSuccess(PeerCluster *cluster,
                                  const Peer &targetLeader,

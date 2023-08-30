@@ -79,7 +79,7 @@ int main(int argc, char ** argv) {
         mds.Initialize();
         mds.StartService();
         if (FLAGS_create_copysets) {
-            // 设置leaderid
+            //Set leaderdid
             EndPoint ep;
             butil::str2endpoint("127.0.0.1", 8200, &ep);
             PeerId pd(ep);

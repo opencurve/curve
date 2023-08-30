@@ -70,13 +70,13 @@ class CloneTask : public Uncopyable
     }
 
  protected:
-    // 克隆核心逻辑
+    //Clone Core Logic
     std::shared_ptr<CloneCore> core_;
-    // 此次任务相关信息
+    //Information related to this task
     std::shared_ptr<ReadChunkRequest> readRequest_;
-    // 任务结束后要执行的Closure
+    //Closure to be executed after the task is completed
     ::google::protobuf::Closure* done_;
-    // 任务是否结束
+    //Is the task completed
     bool isComplete_;
 };
 

@@ -87,7 +87,7 @@ std::shared_ptr<FilePool> InitFilePool(std::shared_ptr<LocalFileSystem> fsptr,  
         delete[] data;
     }
     /**
-     * 持久化FilePool meta file
+     *Persisting FilePool meta file
      */
 
     FilePoolMeta meta;
@@ -225,7 +225,7 @@ butil::Status WaitLeader(const LogicPoolID &logicPoolId,
         status = GetLeader(logicPoolId, copysetId, conf, leaderId);
         if (status.ok()) {
             /**
-             * 等待 flush noop entry
+             *Waiting for flush noop entry
              */
             ::usleep(electionTimeoutMs * 1000);
             return status;
@@ -299,7 +299,7 @@ int TestCluster::StartPeer(const PeerId &peerId,
         LOG(ERROR) << "start peer fork failed";
         return -1;
     } else if (0 == pid) {
-        /* 在子进程起一个 ChunkServer */
+        /*Starting a ChunkServer in a child process*/
         StartPeerNode(peer->options, peer->conf,
                       getChunkFromPool, createChunkFilePool);
         exit(0);
@@ -384,7 +384,7 @@ int TestCluster::ContPeer(const PeerId &peerId) {
 int TestCluster::WaitLeader(PeerId *leaderId) {
     butil::Status status;
     /**
-     * 等待选举结束
+     *Waiting for the election to end
      */
     ::usleep(2 * electionTimeoutMs_ * 1000);
     const int kMaxLoop = (3 * electionTimeoutMs_) / 100;
@@ -393,8 +393,8 @@ int TestCluster::WaitLeader(PeerId *leaderId) {
         status = GetLeader(logicPoolID_, copysetID_, conf_, leaderId);
         if (status.ok()) {
             /**
-             * 由于选举之后还需要提交应用 noop entry 之后才能提供服务，
-             * 所以这里需要等待 noop apply，这里等太短，可能容易失败，后期改进
+             *Due to the need to submit the application noop entry after the election to provide services,
+             *So we need to wait for the noop application here. If the wait time is too short, it may be easy to fail, so we need to improve it later
              */
             usleep(electionTimeoutMs_ * 1000);
             LOG(INFO) << "Wait leader success, leader is: "
@@ -441,7 +441,7 @@ int TestCluster::StartPeerNode(CopysetNodeOptions options,
                                bool enableGetchunkFromPool,
                                bool createChunkFilePool) {
     /**
-     * 用于注释，说明 cmd format
+     *Used for annotation to explain the cmd format
      */
     std::string cmdFormat = R"(
         ./bazel-bin/test/chunkserver/server-test
@@ -466,7 +466,7 @@ int TestCluster::StartPeerNode(CopysetNodeOptions options,
         confStr += it->to_string();
         confStr += ",";
     }
-    // 去掉最后的逗号
+    //Remove the last comma
     confStr.pop_back();
 
     std::string cmd_dir("./bazel-bin/test/chunkserver/server-test");

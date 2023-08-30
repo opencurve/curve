@@ -165,11 +165,11 @@ int NebdFileEntity::Reopen(const ExtendAttribute& xattr) {
 int NebdFileEntity::Close(bool removeMeta) {
     CHECK(executor_ != nullptr) << "file entity is not inited. "
                                 << "filename: " << fileName_;
-    // 用于和其他用户请求互斥，避免文件被close后，请求发到后端导致返回失败
+    //Used to mutually exclusive requests from other users, to avoid sending requests to the backend that may result in a return failure after the file is closed
     WriteLockGuard writeLock(rwLock_);
-    // 这里的互斥锁是为了跟open请求互斥，以下情况可能导致close和open并发
-    // part2重启，导致文件被reopen，然后由于超时，文件准备被close
-    // 此时用户发送了挂载卷请求对文件进行open
+    //The mutex lock here is designed to be mutually exclusive with the open request, and the following situations may cause concurrency between close and open
+    //Part2 restarted, causing the file to be reopened, and then due to timeout, the file was prepared to be closed
+    //At this point, the user sent a mount volume request to open the file
     std::unique_lock<bthread::Mutex> lock(fileStatusMtx_);
     if (status_ == NebdFileStatus::OPENED) {
         int ret = executor_->Close(fileInstance_.get());
@@ -340,12 +340,12 @@ int NebdFileEntity::ProcessAsyncRequest(ProcessTask task,
         return -1;
     }
 
-    // 对于异步请求，将此closure传给aiocontext，从而在请求返回时释放读锁
+    //For asynchronous requests, pass this closure to aiocontext to release the read lock when the request returns
     done->SetClosure(aioctx->done);
     aioctx->done = doneGuard.release();
     int ret = task();
     if (ret < 0) {
-        // 如果请求失败,这里要主动释放锁,并将aiocontext还原回去
+        //If the request fails, the lock should be actively released here and the aiocontext should be restored back
         brpc::ClosureGuard doneGuard(done);
         aioctx->done = done->GetClosure();
         done->SetClosure(nullptr);
@@ -381,7 +381,7 @@ int NebdFileEntity::UpdateFileStatus(NebdFileInstancePtr fileInstance) {
 }
 
 bool NebdFileEntity::GuaranteeFileOpened() {
-    // 文件如果已经被用户close了，就不允许后面请求再自动打开进行操作了
+    //If the file has already been closed by the user, subsequent requests for automatic opening for operation are not allowed
     if (status_ == NebdFileStatus::DESTROYED) {
         LOG(ERROR) << "File has been destroyed. "
                    << "filename: " << fileName_

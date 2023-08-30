@@ -15,9 +15,9 @@
  */
 
 /*
- * Project: curve
- * File Created: 2019年11月20日
- * Author: wuhanqing
+ *Project: curve
+ *File Created: November 20, 2019
+ *Author: wuhanqing
  */
 
 #include <gflags/gflags.h>

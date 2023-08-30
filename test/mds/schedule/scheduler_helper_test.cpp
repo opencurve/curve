@@ -56,63 +56,63 @@ TEST_F(TestSchedulerHelper, test_SatisfyScatterWidth_target) {
     int maxScatterWidth = minScatterWidth * (1 + scatterWidthRangePerent);
     bool target = true;
     {
-        // 1. 变更之后未达到最小值，但使得scatter-width增大
+        //1 After the change, the minimum value was not reached, but it increased the scattter-width
         int oldValue = 10;
         int newValue = 13;
         ASSERT_TRUE(SchedulerHelper::SatisfyScatterWidth(target, oldValue,
             newValue, minScatterWidth, scatterWidthRangePerent));
     }
     {
-        // 2. 变更之后未达到最小值，scattter-width不变
+        //2 After the change, the minimum value is not reached, and the scattter-width remains unchanged
         int oldValue = 10;
         int newValue = 10;
         ASSERT_FALSE(SchedulerHelper::SatisfyScatterWidth(target, oldValue,
             newValue, minScatterWidth, scatterWidthRangePerent));
     }
     {
-        // 3. 变更之后未达到最小值，scatter-width减小
+        //3 After the change, the minimum value was not reached and the scattter-width decreased
         int oldValue = 10;
         int newValue = 8;
         ASSERT_FALSE(SchedulerHelper::SatisfyScatterWidth(target, oldValue,
             newValue, minScatterWidth, scatterWidthRangePerent));
     }
     {
-        // 4. 变更之后等于最小值
+        //4 Equal to minimum value after change
         int oldValue = minScatterWidth + 2;
         int newValue = minScatterWidth;
         ASSERT_TRUE(SchedulerHelper::SatisfyScatterWidth(target, oldValue,
             newValue, minScatterWidth, scatterWidthRangePerent));
     }
     {
-        // 5. 变更之后大于最小值，小于最大值
+        //5 After the change, it is greater than the minimum value and less than the maximum value
         int oldValue = minScatterWidth;
         int newValue = minScatterWidth + 2;
         ASSERT_TRUE(SchedulerHelper::SatisfyScatterWidth(target, oldValue,
             newValue, minScatterWidth, scatterWidthRangePerent));
     }
     {
-        // 6. 变更之后等于最大值
+        //6 Equal to maximum value after change
         int oldValue = maxScatterWidth - 2;
         int newValue = maxScatterWidth;
         ASSERT_TRUE(SchedulerHelper::SatisfyScatterWidth(target, oldValue,
             newValue, minScatterWidth, scatterWidthRangePerent));
     }
     {
-        // 7. 变更之后大于最大值，scatter-width增大
+        //7 After the change, it is greater than the maximum value and the scattter-width increases
         int oldValue = maxScatterWidth + 1;
         int newValue = maxScatterWidth + 2;
         ASSERT_FALSE(SchedulerHelper::SatisfyScatterWidth(target, oldValue,
             newValue, minScatterWidth, scatterWidthRangePerent));
     }
     {
-        // 8. 变更之后大于最大值，scatter-width不变
+        //8 After the change, it is greater than the maximum value, and the scattter-width remains unchanged
         int oldValue = maxScatterWidth + 2;
         int newValue = maxScatterWidth + 2;
         ASSERT_FALSE(SchedulerHelper::SatisfyScatterWidth(target, oldValue,
             newValue, minScatterWidth, scatterWidthRangePerent));
     }
     {
-        // 9. 变更之后大于最大值，scatter-width减小
+        //9 After the change is greater than the maximum value, the scattter-width decreases
         int oldValue = maxScatterWidth + 3;
         int newValue = maxScatterWidth + 2;
         ASSERT_TRUE(SchedulerHelper::SatisfyScatterWidth(target, oldValue,
@@ -126,63 +126,63 @@ TEST_F(TestSchedulerHelper, test_SatisfyScatterWidth_not_target) {
     int maxScatterWidth = minScatterWidth * (1 + scatterWidthRangePerent);
     bool target = false;
     {
-        // 1. 变更之后未达到最小值，但使得scatter-width增大
+        //1 After the change, the minimum value was not reached, but it increased the scattter-width
         int oldValue = 10;
         int newValue = 13;
         ASSERT_TRUE(SchedulerHelper::SatisfyScatterWidth(target, oldValue,
             newValue, minScatterWidth, scatterWidthRangePerent));
     }
     {
-        // 2. 变更之后未达到最小值，scattter-width不变
+        //2 After the change, the minimum value is not reached, and the scattter-width remains unchanged
         int oldValue = 10;
         int newValue = 10;
         ASSERT_TRUE(SchedulerHelper::SatisfyScatterWidth(target, oldValue,
             newValue, minScatterWidth, scatterWidthRangePerent));
     }
     {
-        // 3. 变更之后未达到最小值，scatter-width减小
+        //3 After the change, the minimum value was not reached and the scattter-width decreased
         int oldValue = 10;
         int newValue = 8;
         ASSERT_FALSE(SchedulerHelper::SatisfyScatterWidth(target, oldValue,
             newValue, minScatterWidth, scatterWidthRangePerent));
     }
     {
-        // 4. 变更之后等于最小值
+        //4 Equal to minimum value after change
         int oldValue = minScatterWidth + 2;
         int newValue = minScatterWidth;
         ASSERT_TRUE(SchedulerHelper::SatisfyScatterWidth(target, oldValue,
             newValue, minScatterWidth, scatterWidthRangePerent));
     }
     {
-        // 5. 变更之后大于最小值，小于最大值
+        //5 After the change, it is greater than the minimum value and less than the maximum value
         int oldValue = minScatterWidth;
         int newValue = minScatterWidth + 2;
         ASSERT_TRUE(SchedulerHelper::SatisfyScatterWidth(target, oldValue,
             newValue, minScatterWidth, scatterWidthRangePerent));
     }
     {
-        // 6. 变更之后等于最大值
+        //6 Equal to maximum value after change
         int oldValue = maxScatterWidth - 2;
         int newValue = maxScatterWidth;
         ASSERT_TRUE(SchedulerHelper::SatisfyScatterWidth(target, oldValue,
             newValue, minScatterWidth, scatterWidthRangePerent));
     }
     {
-        // 7. 变更之后大于最大值，scatter-width增大
+        //7 After the change, it is greater than the maximum value and the scattter-width increases
         int oldValue = maxScatterWidth + 1;
         int newValue = maxScatterWidth + 2;
         ASSERT_FALSE(SchedulerHelper::SatisfyScatterWidth(target, oldValue,
             newValue, minScatterWidth, scatterWidthRangePerent));
     }
     {
-        // 8. 变更之后大于最大值，scatter-width不变
+        //8 After the change, it is greater than the maximum value, and the scattter-width remains unchanged
         int oldValue = maxScatterWidth + 2;
         int newValue = maxScatterWidth + 2;
         ASSERT_TRUE(SchedulerHelper::SatisfyScatterWidth(target, oldValue,
             newValue, minScatterWidth, scatterWidthRangePerent));
     }
     {
-        // 9. 变更之后大于最大值，scatter-width减小
+        //9 After the change is greater than the maximum value, the scattter-width decreases
         int oldValue = maxScatterWidth + 3;
         int newValue = maxScatterWidth + 2;
         ASSERT_TRUE(SchedulerHelper::SatisfyScatterWidth(target, oldValue,
@@ -195,7 +195,7 @@ TEST_F(TestSchedulerHelper, test_SatisfyZoneAndScatterWidthLimit) {
     ChunkServerIdType source = 1;
     ChunkServerIdType target = 4;
     {
-        // 1. 获取target的信息失败
+        //1 Failed to obtain information for target
         EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(4, _))
             .WillOnce(Return(false));
         ASSERT_FALSE(SchedulerHelper::SatisfyZoneAndScatterWidthLimit(
@@ -206,7 +206,7 @@ TEST_F(TestSchedulerHelper, test_SatisfyZoneAndScatterWidthLimit) {
     ChunkServerInfo info4(peer4, OnlineState::ONLINE, DiskState::DISKERROR,
         ChunkServerStatus::READWRITE, 1, 1, 1, ChunkServerStatisticInfo{});
     {
-        // 2. 获取到的标准zoneNum = 0
+        //2 Obtained standard zoneNum=0
         EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(4, _))
             .WillOnce(DoAll(SetArgPointee<1>(info4), Return(true)));
         EXPECT_CALL(*topoAdapter_, GetStandardZoneNumInLogicalPool(1))
@@ -216,7 +216,7 @@ TEST_F(TestSchedulerHelper, test_SatisfyZoneAndScatterWidthLimit) {
     }
 
     {
-        // 3. 迁移之后不符合zone条件
+        //3 Does not meet zone conditions after migration
         EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(4, _))
             .WillOnce(DoAll(SetArgPointee<1>(info4), Return(true)));
         EXPECT_CALL(*topoAdapter_, GetStandardZoneNumInLogicalPool(1))
@@ -285,16 +285,16 @@ TEST_F(TestSchedulerHelper, test_CalculateAffectOfMigration) {
         .WillOnce(SetArgPointee<1>(replica3Map));
     SchedulerHelper::CalculateAffectOfMigration(
         copyset, source, target, topoAdapter_, &scatterWidth);
-    // 对于source, old=2, new=1
+    //For source, old=2, new=1
     ASSERT_EQ(2, scatterWidth[source].first);
     ASSERT_EQ(1, scatterWidth[source].second);
-    // 对于target, old=1, new=2
+    //For target, old=1, new=2
     ASSERT_EQ(1, scatterWidth[target].first);
     ASSERT_EQ(2, scatterWidth[target].second);
-    // 对于replica2, old=3, new=2
+    //For replica2, old=3, new=2
     ASSERT_EQ(3, scatterWidth[2].first);
     ASSERT_EQ(2, scatterWidth[2].second);
-    // 对于replica3, old=2, new=3
+    //For replica3, old=2, new=3
     ASSERT_EQ(2, scatterWidth[3].first);
     ASSERT_EQ(3, scatterWidth[3].second);
 }
@@ -327,16 +327,16 @@ TEST_F(TestSchedulerHelper, test_CalculateAffectOfMigration_no_source) {
     SchedulerHelper::CalculateAffectOfMigration(
         copyset, source, target, topoAdapter_, &scatterWidth);
 
-    // 对于target, old=1, new=3
+    //For target, old=1, new=3
     ASSERT_EQ(1, scatterWidth[target].first);
     ASSERT_EQ(3, scatterWidth[target].second);
-    // 对于replica1, old=2, new=3
+    //For replica1, old=2, new=3
     ASSERT_EQ(2, scatterWidth[1].first);
     ASSERT_EQ(3, scatterWidth[1].second);
-    // 对于replica2, old=3, new=3
+    //For replica2, old=3, new=3
     ASSERT_EQ(3, scatterWidth[2].first);
     ASSERT_EQ(3, scatterWidth[2].second);
-    // 对于replica3, old=2, new=3
+    //For replica3, old=2, new=3
     ASSERT_EQ(2, scatterWidth[3].first);
     ASSERT_EQ(3, scatterWidth[3].second);
 }
@@ -365,13 +365,13 @@ TEST_F(TestSchedulerHelper, test_CalculateAffectOfMigration_no_target) {
     SchedulerHelper::CalculateAffectOfMigration(
         copyset, source, target, topoAdapter_, &scatterWidth);
 
-    // 对于source, old=2, new=1
+    //For source, old=2, new=1
     ASSERT_EQ(2, scatterWidth[source].first);
     ASSERT_EQ(1, scatterWidth[source].second);
-    // 对于replica2, old=3, new=2
+    //For replica2, old=3, new=2
     ASSERT_EQ(3, scatterWidth[2].first);
     ASSERT_EQ(2, scatterWidth[2].second);
-    // 对于replica3, old=2, new=2
+    //For replica3, old=2, new=2
     ASSERT_EQ(2, scatterWidth[3].first);
     ASSERT_EQ(2, scatterWidth[3].second);
 }

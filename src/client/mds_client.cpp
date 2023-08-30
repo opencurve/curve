@@ -45,21 +45,21 @@ using curve::mds::StatusCode;
 using curve::common::ChunkServerLocation;
 using curve::mds::topology::CopySetServerInfo;
 
-// rpc发送和mds地址切换状态机
+//Rpc sending and mds address switching state machine
 int RPCExcutorRetryPolicy::DoRPCTask(RPCFunc rpctask, uint64_t maxRetryTimeMS) {
-    // 记录上一次正在服务的mds index
+    //Record the last serving mds index
     int lastWorkingMDSIndex = currentWorkingMDSAddrIndex_;
 
-    // 记录当前正在使用的mds index
+    //Record the currently used mds index
     int curRetryMDSIndex = currentWorkingMDSAddrIndex_;
 
-    // 记录当前mds重试的次数
+    //Record the number of current mds retries
     uint64_t currentMDSRetryCount = 0;
 
-    // 执行起始时间点
+    //Execution start time point
     uint64_t startTime = TimeUtility::GetTimeofDayMs();
 
-    // rpc超时时间
+    //RPC timeout
     uint64_t rpcTimeOutMS = retryOpt_.rpcTimeoutMs;
 
     // The count of normal retry
@@ -68,16 +68,16 @@ int RPCExcutorRetryPolicy::DoRPCTask(RPCFunc rpctask, uint64_t maxRetryTimeMS) {
     int retcode = -1;
     bool retryUnlimit = (maxRetryTimeMS == 0);
     while (GoOnRetry(startTime, maxRetryTimeMS)) {
-        // 1. 创建当前rpc需要使用的channel和controller，执行rpc任务
+        //1 Create the channels and controllers required for the current RPC and execute the RPC task
         retcode = ExcuteTask(curRetryMDSIndex, rpcTimeOutMS, rpctask);
 
-        // 2. 根据rpc返回值进行预处理
+        //2 Preprocessing based on rpc return value
         if (retcode < 0) {
             curRetryMDSIndex = PreProcessBeforeRetry(
                 retcode, retryUnlimit, &normalRetryCount, &currentMDSRetryCount,
                 curRetryMDSIndex, &lastWorkingMDSIndex, &rpcTimeOutMS);
             continue;
-            // 3. 此时rpc是正常返回的，更新当前正在服务的mds地址index
+            //3 At this point, rpc returns normally and updates the index of the currently serving mds address
         } else {
             currentWorkingMDSAddrIndex_.store(curRetryMDSIndex);
             break;
@@ -115,44 +115,58 @@ int RPCExcutorRetryPolicy::PreProcessBeforeRetry(int status, bool retryUnlimit,
             bthread_usleep(retryOpt_.waitSleepMs * 1000);
         }
 
-        // 1. 访问存在的IP地址，但无人监听：ECONNREFUSED
-        // 2. 正常发送RPC情况下，对端进程挂掉了：EHOSTDOWN
-        // 3. 对端server调用了Stop：ELOGOFF
-        // 4. 对端链接已关闭：ECONNRESET
-        // 5. 在一个mds节点上rpc失败超过限定次数
-        // 在这几种场景下，主动切换mds。
+        //1 Accessing an existing IP address, but no one is listening: ECONNREFUSED
+
+        //2 When sending RPC normally, the peer process crashes: EHOSTDOWN
+
+        //3 The opposite server called Stop: ELOGOFF
+
+        //4 Opposite link closed: ECONNRESET
+
+        //5 Rpc failure exceeds the limit number of times on an mds node
+
+        //In these scenarios, actively switch between mds.
+
     } else if (status == -EHOSTDOWN || status == -ECONNRESET ||
                status == -ECONNREFUSED || status == -brpc::ELOGOFF ||
                *curMDSRetryCount >= retryOpt_.maxFailedTimesBeforeChangeAddr) {
         needChangeMDS = true;
 
-        // 在开启健康检查的情况下，在底层tcp连接失败时
-        // rpc请求会本地直接返回 EHOSTDOWN
-        // 这种情况下，增加一些睡眠时间，避免大量的重试请求占满bthread
-        // TODO(wuhanqing): 关闭健康检查
+        //When the underlying TCP connection fails while enabling health checks
+
+        //The rpc request will directly return EHOSTDOWN locally
+
+        //In this case, increase some sleep time to avoid a large number of retry requests occupying the bthread
+
+        //TODO (wuhanqing): Turn off health checks
+
         if (status == -EHOSTDOWN) {
             bthread_usleep(retryOpt_.rpcRetryIntervalUS);
         }
     } else if (status == -brpc::ERPCTIMEDOUT || status == -ETIMEDOUT) {
         rpcTimeout = true;
         needChangeMDS = false;
-        // 触发超时指数退避
+        //Trigger timeout index backoff
+
         *timeOutMS *= 2;
         *timeOutMS = std::min(*timeOutMS, retryOpt_.maxRPCTimeoutMS);
         *timeOutMS = std::max(*timeOutMS, retryOpt_.rpcTimeoutMs);
     }
 
-    // 获取下一次需要重试的mds索引
+    //Obtain the mds index that needs to be retried next time
+
     nextMDSIndex = GetNextMDSIndex(needChangeMDS, curRetryMDSIndex,
                                    lastWorkingMDSIndex);  // NOLINT
 
-    // 更新curMDSRetryCount和rpctimeout
+    //Update curMDSRetryCount and rpctimeout
+
     if (nextMDSIndex != curRetryMDSIndex) {
         *curMDSRetryCount = 0;
         *timeOutMS = retryOpt_.rpcTimeoutMs;
     } else {
         ++(*curMDSRetryCount);
-        // 还是在当前mds上重试，且rpc不是超时错误，就进行睡眠，然后再重试
+        //Try again on the current mds, and if the rpc is not a timeout error, go to sleep and try again
+
         if (!rpcTimeout) {
             bthread_usleep(retryOpt_.rpcRetryIntervalUS);
         }
@@ -161,17 +175,18 @@ int RPCExcutorRetryPolicy::PreProcessBeforeRetry(int status, bool retryUnlimit,
     return nextMDSIndex;
 }
 /**
- * 根据输入状态获取下一次需要重试的mds索引，mds切换逻辑：
- * 记录三个状态：curRetryMDSIndex、lastWorkingMDSIndex、
- *             currentWorkingMDSIndex
- * 1. 开始的时候curRetryMDSIndex = currentWorkingMDSIndex
- *            lastWorkingMDSIndex = currentWorkingMDSIndex
- * 2. 如果rpc失败，会触发切换curRetryMDSIndex，如果这时候lastWorkingMDSIndex
- *    与currentWorkingMDSIndex相等，这时候会顺序切换到下一个mds索引，
- *    如果lastWorkingMDSIndex与currentWorkingMDSIndex不相等，那么
- *    说明有其他接口更新了currentWorkingMDSAddrIndex_，那么本次切换
- *    直接切换到currentWorkingMDSAddrIndex_
+ *Retrieve the next mds index that needs to be retried based on the input status, and switch the mds logic:
+ *Record three states: curRetryMDSIndex, lastWorkingMDSIndex
+ *CurrentWorkingMDSIndex
+ *1 At the beginning, curRetryMDSIndex=currentWorkingMDSIndex
+ *LastWorkingMDSIndex=currentWorkingMDSIndex
+ *2 If rpc fails, it will trigger the switch curRetryMDSIndex. If the lastWorkingMDSIndex
+ *Equal to the currentWorkingMDSIndex, it will switch sequentially to the next mds index,
+ *If the lastWorkingMDSIndex and currentWorkingMDSIndex are not equal, then
+ *Indicates that other interfaces have updated currentWorkingMDSAddrIndex_, So this switch
+ *Switch directly to currentWorkingMDSAddrIndex_
  */
+
 int RPCExcutorRetryPolicy::GetNextMDSIndex(bool needChangeMDS,
                                            int currentRetryIndex,
                                            int *lastWorkingindex) {
@@ -200,7 +215,8 @@ int RPCExcutorRetryPolicy::ExcuteTask(int mdsindex, uint64_t rpcTimeOutMS,
     int ret = channel.Init(mdsaddr.c_str(), nullptr);
     if (ret != 0) {
         LOG(WARNING) << "Init channel failed! addr = " << mdsaddr;
-        // 返回EHOSTDOWN给上层调用者，促使其切换mds
+        //Return EHOSTDOWN to the upper level caller, prompting them to switch mds
+
         return -EHOSTDOWN;
     }
 

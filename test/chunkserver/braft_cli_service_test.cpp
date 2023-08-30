@@ -127,7 +127,7 @@ TEST_F(BraftCliServiceTest, basic) {
         return;
     }
 
-    /* 保证进程一定会退出 */
+    /*Ensure that the process will definitely exit*/
     class WaitpidGuard {
      public:
         WaitpidGuard(pid_t pid1, pid_t pid2, pid_t pid3) {
@@ -166,7 +166,7 @@ TEST_F(BraftCliServiceTest, basic) {
     options.timeout_ms = 1500;
     options.max_retry = 3;
 
-    /* add peer - 非法 copyset */
+    /*Add peer - illegal copyset*/
     {
         PeerId leaderId = leader;
         brpc::Channel channel;
@@ -188,7 +188,7 @@ TEST_F(BraftCliServiceTest, basic) {
         ASSERT_TRUE(cntl.Failed());
         ASSERT_EQ(ENOENT, cntl.ErrorCode());
     }
-    /* add peer - 非法 peerid */
+    /*Add peer - illegal peer id*/
     {
         PeerId leaderId = leader;
         butil::Status st = GetLeader(logicPoolId, copysetId, conf, &leaderId);
@@ -210,7 +210,7 @@ TEST_F(BraftCliServiceTest, basic) {
         ASSERT_EQ(EINVAL, cntl.ErrorCode());
         LOG(INFO) << "add peer: " << cntl.ErrorText();
     }
-    /* add peer - 发送给不是leader的peer */
+    /*Add peer - sent to peers who are not leader*/
     {
         PeerId leaderId;
         LOG(INFO) << "true leader is: " << leader.to_string();
@@ -240,13 +240,13 @@ TEST_F(BraftCliServiceTest, basic) {
         ASSERT_TRUE(cntl.Failed());
         ASSERT_EQ(EPERM, cntl.ErrorCode());
     }
-    /* remove peer - 非法 copyset */
+    /*Remove peer - illegal copyset*/
     {
         PeerId leaderId = leader;
         brpc::Channel channel;
         ASSERT_EQ(0, channel.Init(leaderId.addr, NULL));
         RemovePeerRequest request;
-        /* 非法 copyset */
+        /*Illegal copyset*/
         request.set_logicpoolid(logicPoolId + 1);
         request.set_copysetid(copysetId);
         request.set_leader_id(leaderId.to_string());
@@ -261,7 +261,7 @@ TEST_F(BraftCliServiceTest, basic) {
         ASSERT_TRUE(cntl.Failed());
         ASSERT_EQ(ENOENT, cntl.ErrorCode());
     }
-    /* remove peer - 非法 peer id */
+    /*Remove peer - illegal peer id*/
     {
         PeerId leaderId = leader;
         brpc::Channel channel;
@@ -281,7 +281,7 @@ TEST_F(BraftCliServiceTest, basic) {
         ASSERT_TRUE(cntl.Failed());
         ASSERT_EQ(EINVAL, cntl.ErrorCode());
     }
-    /* remove peer - 发送给不是 leader 的 peer */
+    /*Remove peer - sent to peers who are not leaders*/
     {
         PeerId leaderId;
         LOG(INFO) << "true leader is: " << leader.to_string();
@@ -309,7 +309,7 @@ TEST_F(BraftCliServiceTest, basic) {
         ASSERT_TRUE(cntl.Failed());
         ASSERT_EQ(EPERM, cntl.ErrorCode());
     }
-    /* transfer leader - 非法 copyset */
+    /*Transfer leader - illegal copyset*/
     {
         PeerId leaderId = leader;
         brpc::Channel channel;
@@ -346,7 +346,7 @@ TEST_F(BraftCliServiceTest, basic) {
         stub.transfer_leader(&cntl, &request, &response, NULL);
         ASSERT_FALSE(cntl.Failed());
     }
-    /* transfer leader - 非法 peer */
+    /*Transfer leader - illegal peer*/
     {
         PeerId leaderId = leader;
         brpc::Channel channel;
@@ -365,7 +365,7 @@ TEST_F(BraftCliServiceTest, basic) {
         ASSERT_TRUE(cntl.Failed());
         ASSERT_EQ(EINVAL, cntl.ErrorCode());
     }
-    /* get leader - 非法 copyset */
+    /*Get leader - illegal copyset*/
     {
         PeerId leaderId = leaderId;
         brpc::Channel channel;

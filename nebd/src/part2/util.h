@@ -51,9 +51,11 @@ class FdAllocator {
     FdAllocator() : fd_(0) {}
     ~FdAllocator() {}
 
-    // fd的有效值范围为[1, INT_MAX]
+    //The valid range of values for fd is [1, INT_MAX]
+
     int GetNext();
-    // 初始化fd的值
+    //Initialize the value of fd
+
     void InitFd(int fd);
 
  private:

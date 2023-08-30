@@ -20,12 +20,12 @@ package curve.chunkserver;
 option cc_generic_services = true;
 option go_package = "proto/cli";
 
-// 这里都用 logicPoolId, copysetId,进入 rpc service 之后，会转换成 string
-// 类型的 groupId，在传给 raft
+//Here, both logicPoolId and copysetId are used. After entering the rpc service, they will be converted to a string
+//GroupId of type, passed to raft
 // |        groupId          |
 // | logicPoolId | copysetId |
 message AddPeerRequest {
-    required uint32 logicPoolId = 1;    // logicPoolId 实际上 uint16，但是 proto 没有 uint16
+    required uint32 logicPoolId = 1;    //LogicPoolId is actually uint16, but proto does not have uint16
     required uint32 copysetId = 2;
     required string leader_id = 3;
     required string peer_id = 4;

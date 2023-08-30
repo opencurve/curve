@@ -43,15 +43,15 @@ void CurveSnapshotAttachment::list_attach_files(
 
     std::vector<std::string> snapFiles;
     int rc = fileHelper_.ListFiles(dataDir, nullptr, &snapFiles);
-    // list出错一般认为就是磁盘出现问题了，这种情况直接让进程挂掉
-    // Attention: 这里还需要更仔细考虑
+    //An error in the list is generally believed to be due to a disk issue, which directly causes the process to crash
+    //Attention: More careful consideration is needed here
     CHECK(rc == 0) << "List dir failed.";
 
     files->clear();
-    // 文件路径格式与snapshot_meta中的格式要相同
+    //File path format and the format in snapshot_meta should be the same
     for (const auto& snapFile : snapFiles) {
         std::string snapApath;
-        // 添加绝对路径
+        //Add absolute path
         snapApath.append(dataDir);
         snapApath.append("/").append(snapFile);
         std::string filePath = curve::common::CalcRelativePath(

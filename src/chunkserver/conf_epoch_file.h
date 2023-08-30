@@ -38,8 +38,8 @@ using curve::fs::LocalFileSystem;
 using curve::fs::LocalFsFactory;
 
 /**
- * 配置版本序列化和反序列化的工具类
- * TODO(wudemiao): 后期替换采用json编码
+ *Tool classes for configuring version serialization and deserialization
+ *TODO(wudemiao): Post replacement using JSON encoding
  */
 class ConfEpochFile {
  public:
@@ -47,12 +47,12 @@ class ConfEpochFile {
         : fs_(fs) {}
 
     /**
-     * 加载快照文件中的配置版本
-     * @param path:文件路径
-     * @param logicPoolID:逻辑池id
-     * @param copysetID:复制组id
-     * @param epoch:配置版本，出参，返回读取的epoch值
-     * @return 0，成功； -1失败
+     *Load the configuration version in the snapshot file
+     * @param path: File path
+     * @param logicPoolID: Logical Pool ID
+     * @param copysetID: Copy group ID
+     * @param epoch: Configuration version, output parameters, return the read epoch value
+     * @return 0, successful- 1 failed
      */
     int Load(const std::string &path,
              LogicPoolID *logicPoolID,
@@ -60,17 +60,17 @@ class ConfEpochFile {
              uint64_t *epoch);
 
     /**
-     * 保存配置版本信息到快照文件中序列化的格式如下，处理head表示长度，使用二
-     * 进制，其它都是文本格式，便于必要的时候能够直接用查看，sync保证数据落盘
-     * |              head           |          配置版本信息                |
-     * | 8 bytes size_t   | uint32_t |              变 长文本              |
-     * |     length       |   crc32  | logic pool id | copyset id | epoch |
-     * 上面的持久化使用 ‘：’ 分隔
-     * @param path:文件路径
-     * @param logicPoolID:逻辑池id
-     * @param copysetID:复制组id
-     * @param epoch:配置版本
-     * @return 0成功； -1失败
+     *The format for serializing configuration version information into the snapshot file is as follows, with head representing length and using two
+     *Decimal, all other formats are text, making it easy to view directly when necessary. Sync ensures that data is stored on disk
+     *|             head            | Configuration version information|
+     *| 8 bytes size_t | uint32_t |        Variable length text       |
+     *|     length      |   crc32   | logic pool id | copyset id | epoch|
+     *The persistence above is separated by ':'
+     * @param path: File path
+     * @param logicPoolID: Logical Pool ID
+     * @param copysetID: Copy group ID
+     * @param epoch: Configuration version
+     * @return 0 succeeded- 1 failed
      */
     int Save(const std::string &path,
              const LogicPoolID logicPoolID,

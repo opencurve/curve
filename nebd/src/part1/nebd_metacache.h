@@ -51,7 +51,7 @@ struct NebdClientFileInfo {
 };
 
 /**
- * @brief: 保存当前已打开文件信息
+ * @brief: Save the information of the currently opened file
  */
 class NebdClientMetaCache {
  public:
@@ -59,33 +59,33 @@ class NebdClientMetaCache {
     ~NebdClientMetaCache() = default;
 
     /**
-     * @brief: 添加文件信息
-     * @param: fileInfo 文件信息
+     * @brief: Add file information
+     * @param: fileInfo file information
      */
     void AddFileInfo(const NebdClientFileInfo& fileInfo);
 
     /**
-     * @brief: 删除文件信息
-     * @param: fd 文件描述符
+     * @brief: Delete file information
+     * @param: fd file descriptor
      */
     void RemoveFileInfo(int fd);
 
     /**
-     * @brief: 获取对应fd的文件信息
-     * @param: fd 文件fd
+     * @brief: Obtain the file information of the corresponding fd
+     * @param: fd file fd
      * @param[out]: fileInfo
-     * @return: 0 成功 / -1 返回
+     * @return: 0 succeeded/-1 returned
      */
     int GetFileInfo(int fd, NebdClientFileInfo* fileInfo) const;
 
     /**
-     * @brief: 获取当前已打开文件信息
-     * @return: 当前已打开文件信息
+     * @brief: Get information about currently opened files
+     * @return: Currently opened file information
      */
     std::vector<NebdClientFileInfo> GetAllFileInfo() const;
 
  private:
-    // 当前已打开文件信息
+    //Currently opened file information
     std::unordered_map<int, NebdClientFileInfo> fileinfos_;
     mutable nebd::common::RWLock rwLock_;
 };

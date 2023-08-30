@@ -184,7 +184,7 @@ class IOTrackerSplitorTest : public ::testing::Test {
         curvefsservice.SetCloseFile(closefileret);
 
         /**
-         * 3. 设置GetOrAllocateSegmentresponse
+         *3 Set GetOrAllocateSegmentresponse
          */
         curve::mds::GetOrAllocateSegmentResponse* response =
             new curve::mds::GetOrAllocateSegmentResponse();
@@ -265,7 +265,7 @@ class IOTrackerSplitorTest : public ::testing::Test {
         curvefsservice.SetRefreshSession(refreshfakeret, nullptr);
 
         /**
-         * 5. 设置topology返回值
+         *5 Set topology return value
          */
         ::curve::mds::topology::GetChunkServerListInCopySetsResponse* response_1
         = new ::curve::mds::topology::GetChunkServerListInCopySetsResponse;
@@ -603,8 +603,8 @@ TEST_F(IOTrackerSplitorTest, ManagerAsyncStartWriteReadGetSegmentFail) {
     memset(data + 4 * 1024, 'b', chunk_size);
     memset(data + 4 * 1024 + chunk_size, 'c', 4 * 1024);
 
-    // 设置mds一侧get segment接口返回失败，底层task thread层会一直重试，
-    // 但是不会阻塞上层继续向下发送IO请求
+    // When the 'get segment' interface on the MDS (Metadata Server) side is reported as failed, the underlying task thread layer will keep retrying. 
+    // However, this will not block the upper layer from continuing to send IO requests downward.
     int reqcount = 32;
     auto threadFunc1 = [&]() {
         while (reqcount > 0) {
@@ -636,8 +636,8 @@ TEST_F(IOTrackerSplitorTest, ManagerAsyncStartWriteReadGetServerlistFail) {
     ioctxmana->SetRequestScheduler(mockschuler);
     ioctxmana->SetIOOpt(fopt.ioOpt);
 
-    // offset 10*1024*1024*1024ul 不在metacache里
-    // client回去mds拿segment和serverlist
+    // The offset 1010241024*1024ul is not in the metacache.
+    // The client will request the segment and server list from the MDS (Metadata Server).
     CurveAioContext* aioctx = new CurveAioContext;
     aioctx->offset = 10*1024*1024*1024ul;
     aioctx->length = chunk_size + 8 * 1024;
@@ -652,8 +652,8 @@ TEST_F(IOTrackerSplitorTest, ManagerAsyncStartWriteReadGetServerlistFail) {
     memset(data + 4 * 1024, 'b', chunk_size);
     memset(data + 4 * 1024 + chunk_size, 'c', 4 * 1024);
 
-    // 设置mds一侧get server list接口返回失败，底层task thread层会一直重试
-    // 但是不会阻塞，上层继续向下发送IO请求
+    // If the "get server list" interface on the MDS side is reported as a failure, the underlying task thread layer will keep retrying.
+    // However, this won't block the process, and the upper layer will continue sending IO requests downstream.
     int reqcount = 32;
     auto threadFunc1 = [&]() {
         while (reqcount > 0) {
@@ -969,7 +969,7 @@ TEST_F(IOTrackerSplitorTest, RequestSourceInfoTest) {
     cloneSourceInfo.length = 10ull * 1024 * 1024 * 1024;      // 10GB
     cloneSourceInfo.segmentSize = 1ull * 1024 * 1024 * 1024;  // 1GB
 
-    // 源卷只分配了第一个和最后一个segment
+    //The source volume has only allocated the first and last segments
     cloneSourceInfo.allocatedSegmentOffsets.insert(0);
     cloneSourceInfo.allocatedSegmentOffsets.insert(cloneSourceInfo.length -
                                                    cloneSourceInfo.segmentSize);
@@ -980,14 +980,14 @@ TEST_F(IOTrackerSplitorTest, RequestSourceInfoTest) {
     ChunkIndex chunkIdx = 0;
     RequestSourceInfo sourceInfo;
 
-    // 第一个chunk
+    //First chunk
     sourceInfo =
         Splitor::CalcRequestSourceInfo(&ioTracker, &metaCache, chunkIdx);
     ASSERT_TRUE(sourceInfo.IsValid());
     ASSERT_EQ(sourceInfo.cloneFileSource, fileInfo.sourceInfo.name);
     ASSERT_EQ(sourceInfo.cloneFileOffset, 0);
 
-    // 克隆卷最后一个chunk
+    //Clone the last chunk of the volume
     chunkIdx = fileInfo.sourceInfo.length / fileInfo.chunksize - 1;
     LOG(INFO) << "clone length = " << fileInfo.sourceInfo.length
               << ", chunk size = " << fileInfo.chunksize
@@ -1000,8 +1000,8 @@ TEST_F(IOTrackerSplitorTest, RequestSourceInfoTest) {
     ASSERT_EQ(sourceInfo.cloneFileSource, fileInfo.sourceInfo.name);
     ASSERT_EQ(sourceInfo.cloneFileOffset, 10720641024);
 
-    // 源卷未分配segment
-    // 读取每个segment的第一个chunk
+    //Source volume unassigned segment
+    //Read the first chunk of each segment
     for (int i = 1; i < 9; ++i) {
         ChunkIndex chunkIdx =
             i * cloneSourceInfo.segmentSize / fileInfo.chunksize;
@@ -1012,7 +1012,7 @@ TEST_F(IOTrackerSplitorTest, RequestSourceInfoTest) {
         ASSERT_EQ(sourceInfo.cloneFileOffset, 0);
     }
 
-    // 超过长度
+    //Exceeding length
     chunkIdx = fileInfo.sourceInfo.length / fileInfo.chunksize;
 
     sourceInfo =
@@ -1021,7 +1021,7 @@ TEST_F(IOTrackerSplitorTest, RequestSourceInfoTest) {
     ASSERT_TRUE(sourceInfo.cloneFileSource.empty());
     ASSERT_EQ(sourceInfo.cloneFileOffset, 0);
 
-    // 源卷长度为0
+    //Source volume length is 0
     chunkIdx = 0;
     fileInfo.sourceInfo.length = 0;
     metaCache.UpdateFileInfo(fileInfo);
@@ -1031,7 +1031,7 @@ TEST_F(IOTrackerSplitorTest, RequestSourceInfoTest) {
     ASSERT_TRUE(sourceInfo.cloneFileSource.empty());
     ASSERT_EQ(sourceInfo.cloneFileOffset, 0);
 
-    // 不是read/write请求
+    //Not a read/write request
     chunkIdx = 1;
     ioTracker.SetOpType(OpType::READ_SNAP);
     sourceInfo =
@@ -1045,7 +1045,7 @@ TEST_F(IOTrackerSplitorTest, RequestSourceInfoTest) {
 
     chunkIdx = 0;
 
-    // 不是克隆卷
+    //Not a clone volume
     sourceInfo =
         Splitor::CalcRequestSourceInfo(&ioTracker, &metaCache, chunkIdx);
     ASSERT_FALSE(sourceInfo.IsValid());

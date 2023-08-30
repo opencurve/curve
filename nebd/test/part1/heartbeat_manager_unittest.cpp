@@ -77,13 +77,15 @@ TEST_F(HeartbeatManagerTest, InvokeTimesTest) {
 
     manager->Run();
 
-    // metaCache中数据为空，不发送心跳消息
+    //The data in MetaCache is empty and no heartbeat message will be sent
+
     for (int i = 0; i < 10; ++i) {
         ASSERT_EQ(0, fakeHeartBeatService.GetInvokeTimes());
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 
-    // 添加数据
+    //Add data
+
     NebdClientFileInfo fileInfo(1, "/test1", FileLock("/test1.lock"));
     metaCache->AddFileInfo(fileInfo);
 
@@ -91,7 +93,8 @@ TEST_F(HeartbeatManagerTest, InvokeTimesTest) {
     int times = fakeHeartBeatService.GetInvokeTimes();
     ASSERT_TRUE(times >= 9 && times <= 11);
 
-    // 清空metaCache数据
+    //Clear MetaCache data
+
     metaCache->RemoveFileInfo(1);
     std::this_thread::sleep_for(std::chrono::seconds(2));
 
@@ -109,7 +112,8 @@ TEST_F(HeartbeatManagerTest, RequestValidTest) {
 
     std::vector<HeartbeatFileInfo> currentFileInfos;
 
-    // 添加一个文件
+    //Add a file
+
     NebdClientFileInfo fileInfo(1, "/test1", FileLock("/test1.lock"));
     metaCache->AddFileInfo(fileInfo);
     HeartbeatFileInfo info;
@@ -126,7 +130,8 @@ TEST_F(HeartbeatManagerTest, RequestValidTest) {
         ASSERT_EQ(currentFileInfos[i].name(), latestFileInfos[i].name());
     }
 
-    // 添加第二个文件
+    //Add second file
+
     fileInfo = NebdClientFileInfo(2, "/test2", FileLock("/test2.lock"));
     metaCache->AddFileInfo(fileInfo);
     info.set_fd(2);
@@ -147,7 +152,8 @@ TEST_F(HeartbeatManagerTest, RequestValidTest) {
         ASSERT_EQ(currentFileInfos[i].name(), latestFileInfos[i].name());
     }
 
-    // 删除第一个文件
+    //Delete the first file
+
     metaCache->RemoveFileInfo(1);
     currentFileInfos.erase(currentFileInfos.begin());
 

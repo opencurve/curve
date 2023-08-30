@@ -89,7 +89,7 @@ CopysetNode::CopysetNode(const LogicPoolID &logicPoolId,
 }
 
 CopysetNode::~CopysetNode() {
-    // 移除 copyset的metric
+    //Remove metric from copyset
     ChunkServerMetric::GetInstance()->RemoveCopysetMetric(logicPoolId_,
                                                           copysetId_);
     metric_ = nullptr;
@@ -108,7 +108,7 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
     std::string protocol = curve::common::UriParser::ParseUri(
         options.chunkDataUri, &copysetDirPath_);
     if (protocol.empty()) {
-        // TODO(wudemiao): 增加必要的错误码并返回
+        //TODO (wudemiao): Add necessary error codes and return
         LOG(ERROR) << "not support chunk data uri's protocol"
                    << " error chunkDataDir is: " << options.chunkDataUri
                    << ". Copyset: " << GroupIdString();
@@ -140,7 +140,7 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
                                                dsOptions);
     CHECK(nullptr != dataStore_);
     if (false == dataStore_->Initialize()) {
-        // TODO(wudemiao): 增加必要的错误码并返回
+        //TODO (wudemiao): Add necessary error codes and return
         LOG(ERROR) << "data store init failed. "
                    << "Copyset: " << GroupIdString();
         return -1;
@@ -166,13 +166,13 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
     // initialize raft node options corresponding to the copy set node
     InitRaftNodeOptions(options);
 
-    /* 初始化 peer id */
+    /*Initialize peer id*/
     butil::ip_t ip;
     butil::str2ip(options.ip.c_str(), &ip);
     butil::EndPoint addr(ip, options.port);
     /**
-     * idx默认是零，在chunkserver不允许一个进程有同一个copyset的多副本，
-     * 这一点注意和不让braft区别开来
+     *The default idx is zero, and chunkserver does not allow a process to have multiple copies of the same copyset,
+     *Pay attention to this point and not distinguish between braces
      */
     peerId_ = PeerId(addr, 0);
     raftNode_ = std::make_shared<RaftNode>(groupId, peerId_);
@@ -180,7 +180,7 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
 
 
     /*
-     * 初始化copyset性能metrics
+     *Initialize copyset performance metrics
      */
     int ret = ChunkServerMetric::GetInstance()->CreateCopysetMetric(
         logicPoolId_, copysetId_);
@@ -192,7 +192,7 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
     metric_ = ChunkServerMetric::GetInstance()->GetCopysetMetric(
         logicPoolId_, copysetId_);
     if (metric_ != nullptr) {
-        // TODO(yyk) 后续考虑添加datastore层面的io metric
+        //TODO (yyk) will consider adding io metrics at the datastore level in the future
         metric_->MonitorDataStore(dataStore_.get());
     }
 
@@ -213,7 +213,7 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
 }
 
 int CopysetNode::Run() {
-    // raft node的初始化实际上让起run起来
+    //The initialization of the raft node actually starts running
     if (0 != raftNode_->init(nodeOptions_)) {
         LOG(ERROR) << "Fail to init raft node. "
                    << "Copyset: " << GroupIdString();
@@ -237,14 +237,14 @@ void CopysetNode::Fini() {
     WaitSnapshotDone();
 
     if (nullptr != raftNode_) {
-        // 关闭所有关于此raft node的服务
+        //Close all services related to this raft node
         raftNode_->shutdown(nullptr);
-        // 等待所有的正在处理的task结束
+        //Waiting for all tasks being processed to end
         raftNode_->join();
     }
     if (nullptr != concurrentapply_) {
-        // 将未刷盘的数据落盘，如果不刷盘
-        // 迁移copyset时，copyset移除后再去执行WriteChunk操作可能出错
+        //Drop the data that has not been flushed onto the disk, if not flushed
+        //When migrating a copyset, removing the copyset before executing the WriteChunk operation may result in errors
         concurrentapply_->Flush();
     }
 }
@@ -284,19 +284,19 @@ void CopysetNode::InitRaftNodeOptions(const CopysetNodeOptions &options) {
 
 void CopysetNode::on_apply(::braft::Iterator &iter) {
     for (; iter.valid(); iter.next()) {
-        // 放在bthread中异步执行，避免阻塞当前状态机的执行
+        //Asynchronous execution in bthread to avoid blocking the execution of the current state machine
         braft::AsyncClosureGuard doneGuard(iter.done());
 
         /**
-         * 获取向braft提交任务时候传递的ChunkClosure，里面包含了
-         * Op的所有上下文 ChunkOpRequest
+         *Obtain the ChunkClosure passed when submitting tasks to Braft, which includes
+         *All Contextual ChunkOpRequest for Op
          */
         braft::Closure *closure = iter.done();
 
         if (nullptr != closure) {
             /**
-             * 1.closure不是null，那么说明当前节点正常，直接从内存中拿到Op
-             * context进行apply
+             *1. If the closure is not null, it indicates that the current node is normal and Op is directly obtained from memory
+             *Apply in context
              */
             ChunkClosure
                 *chunkClosure = dynamic_cast<ChunkClosure *>(iter.done());
@@ -307,13 +307,13 @@ void CopysetNode::on_apply(::braft::Iterator &iter) {
                                    &ChunkOpRequest::OnApply, opRequest,
                                    iter.index(), doneGuard.release());
         } else {
-            // 获取log entry
+            //Obtain log entry
             butil::IOBuf log = iter.data();
             /**
-             * 2.closure是null，有两种情况：
-             * 2.1. 节点重启，回放apply，这里会将Op log entry进行反序列化，
-             * 然后获取Op信息进行apply
-             * 2.2. follower apply
+             *2. If the closure is null, there are two situations:
+             *2.1 Restart the node and replay the application. Here, the Op log entry will be deserialized,
+             *Then obtain Op information for application
+             *2.2 Follow apply
              */
             ChunkRequest request;
             butil::IOBuf data;
@@ -350,7 +350,7 @@ void CopysetNode::save_snapshot_background(::braft::SnapshotWriter *writer,
     brpc::ClosureGuard doneGuard(done);
 
     /**
-     * 1.flush I/O to disk，确保数据都落盘
+     *1. Flush I/O to disk to ensure that all data is dropped
      */
     concurrentapply_->Flush();
 
@@ -359,7 +359,7 @@ void CopysetNode::save_snapshot_background(::braft::SnapshotWriter *writer,
     }
 
     /**
-     * 2.保存配置版本: conf.epoch，注意conf.epoch是存放在data目录下
+     *2. Save the configuration version: conf.epoch, please note that conf. epoch is stored in the data directory
      */
     std::string
         filePathTemp = writer->get_path() + "/" + kCurveConfEpochFilename;
@@ -373,19 +373,19 @@ void CopysetNode::save_snapshot_background(::braft::SnapshotWriter *writer,
     }
 
     /**
-     * 3.保存chunk文件名的列表到快照元数据文件中
+     *3. Save the list of chunk file names to the snapshot metadata file
      */
     std::vector<std::string> files;
     if (0 == fs_->List(chunkDataApath_, &files)) {
         for (const auto& fileName : files) {
-            // raft保存快照时，meta信息中不用保存快照文件列表
-            // raft下载快照的时候，在下载完chunk以后，会单独获取snapshot列表
+            //When saving a snapshot in the raft, there is no need to save the list of snapshot files in the meta information
+            //When raft downloads a snapshot, after downloading the chunk, a separate snapshot list will be obtained
             bool isSnapshot = DatastoreFileHelper::IsSnapshotFile(fileName);
             if (isSnapshot) {
                 continue;
             }
             std::string chunkApath;
-            // 通过绝对路径，算出相对于快照目录的路径
+            //Calculate the path relative to the snapshot directory through absolute path
             chunkApath.append(chunkDataApath_);
             chunkApath.append("/").append(fileName);
             std::string filePath = curve::common::CalcRelativePath(
@@ -401,16 +401,16 @@ void CopysetNode::save_snapshot_background(::braft::SnapshotWriter *writer,
     }
 
     /**
-     * 4. 保存conf.epoch文件到快照元数据文件中
+     *4 Save the conf.epoch file to the snapshot metadata file
      */
      writer->add_file(kCurveConfEpochFilename);
 }
 
 int CopysetNode::on_snapshot_load(::braft::SnapshotReader *reader) {
     /**
-     * 1. 加载快照数据
+     *1 Loading snapshot data
      */
-    // 打开的 snapshot path: /mnt/sda/1-10001/raft_snapshot/snapshot_0043
+    //Open snapshot path: /mnt/sda/1-10001/raft_snapshot/snapshot_0043
     std::string snapshotPath = reader->get_path();
 
     // /mnt/sda/1-10001/raft_snapshot/snapshot_0043/data
@@ -419,13 +419,13 @@ int CopysetNode::on_snapshot_load(::braft::SnapshotReader *reader) {
     snapshotChunkDataDir.append("/").append(chunkDataRpath_);
     LOG(INFO) << "load snapshot data path: " << snapshotChunkDataDir
               << ", Copyset: " << GroupIdString();
-    // 如果数据目录不存在，那么说明 load snapshot 数据部分就不需要处理
+    //If the data directory does not exist, then the load snapshot data section does not need to be processed
     if (fs_->DirExists(snapshotChunkDataDir)) {
-        // 加载快照数据前，要先清理copyset data目录下的文件
-        // 否则可能导致快照加载以后存在一些残留的数据
-        // 如果delete_file失败或者rename失败，当前node状态会置为ERROR
-        // 如果delete_file或者rename期间进程重启，copyset起来后会加载快照
-        // 由于rename可以保证原子性，所以起来加载快照后，data目录一定能还原
+        //Before loading snapshot data, clean the files in the copyset data directory first
+        //Otherwise, it may result in some residual data after the snapshot is loaded
+        //If delete_file or rename fails, the current node status will be set to ERROR
+        //If delete_file or during the rename the process restarts, and after copyset is set, the snapshot will be loaded
+        //Since rename ensures atomicity, after loading the snapshot, the data directory must be restored
         bool ret = nodeOptions_.snapshot_file_system_adaptor->get()->
                                 delete_file(chunkDataApath_, true);
         if (!ret) {
@@ -455,7 +455,7 @@ int CopysetNode::on_snapshot_load(::braft::SnapshotReader *reader) {
     }
 
     /**
-     * 2. 加载配置版本文件
+     *2 Load Configuration Version File
      */
     std::string filePath = reader->get_path() + "/" + kCurveConfEpochFilename;
     if (fs_->FileExists(filePath)) {
@@ -468,20 +468,20 @@ int CopysetNode::on_snapshot_load(::braft::SnapshotReader *reader) {
     }
 
     /**
-     * 3.重新init data store，场景举例：
+     *3. Re init the data store, scenario example:
      *
-     * (1) 例如一个add peer，之后立马read这个时候data store会返回chunk
-     * not exist，因为这个新增的peer在刚开始起来的时候，没有任何数据，这
-     * 个时候data store init了，那么新增的peer在leader恢复了数据之后，
-     * data store并不感知；
+     *(1) For example, if an add peer is immediately read, the data store will return chunk
+     *not existing, because the newly added peer did not have any data at the beginning
+     *At that time, the data store was init, and the new peer was restored by the leader,
+     *The data store is not aware;
      *
-     * (2) peer通过install snapshot恢复了所有的数据是通过rename操作的，
-     * 如果某个file之前被data store打开了，那么rename能成功，但是老的
-     * 文件只有等data store close老的文件才能删除，所以需要重新init data
-     * store，并且close的文件的fd，然后重新open新的文件，不然data store
-     * 会一直是操作的老的文件，而一旦data store close相应的fd一次之后，
-     * 后面的write的数据就会丢，除此之外，如果 datastore init没有重新open
-     * 文件，也将导致read不到恢复过来的数据，而是read到老的数据。
+     *(2) Peer restored all data through install snapshot through rename operation,
+     *If a file was previously opened by the data store, renaming can succeed, but the old one
+     *Files can only be deleted when the data store is closed, so it is necessary to init the data again
+     *Store and close the fd of the file, then reopen the new file, otherwise the data store
+     *It will always be an old file for operation, and once the data store closes the corresponding fd once,
+     *The data for the subsequent write will be lost, and in addition, if the datastore init is not reopened
+     *The file will also cause the read to not recover the recovered data, but instead read to the old data.
      */
     if (!dataStore_->Initialize()) {
         LOG(ERROR) << "data store init failed in on snapshot load. "
@@ -490,8 +490,8 @@ int CopysetNode::on_snapshot_load(::braft::SnapshotReader *reader) {
     }
 
     /**
-     * 4.如果snapshot中存 conf，那么加载初始化，保证不需要以来
-     * on_configuration_committed。需要注意的是这里会忽略joint stage的日志。
+     *4. If conf is stored in the snapshot, load initialization to ensure that there is no need for
+     * on_configuration_committed. It should be noted that the log of the joint stage will be ignored here.
      */
     braft::SnapshotMeta meta;
     reader->load_meta(&meta);
@@ -845,14 +845,14 @@ butil::Status CopysetNode::ChangePeer(const std::vector<Peer>& newPeers) {
 
 void CopysetNode::UpdateAppliedIndex(uint64_t index) {
     uint64_t curIndex = appliedIndex_.load(std::memory_order_acquire);
-    // 只更新比自己大的 index
+    //Only update indexes larger than oneself
     if (index > curIndex) {
         /**
-         * compare_exchange_strong解释：
-         * 首先比较curIndex是不是等于appliedIndex，如果是，那么说明没有人
-         * 修改appliedindex，那么用index去修改appliedIndex，更新成功，完成；
-         * 如果不等于，说明有人更新了appliedindex，那么通过curIndex返回当前
-         * 的appliedindex，并且返回false。整个过程都是原子的
+         *compare_exchange_strong Explanation:
+         *Firstly, compare whether curIndex is equal to appliedIndex. If so, then it means that no one has
+         *Modify the applied index, then use index to modify the applied index. The update is successful and complete;
+         *If it is not equal to, it indicates that someone has updated the applied index, and then the current value is returned through curIndex
+         *And returns false. The entire process is atomic
          */
         while (!appliedIndex_.compare_exchange_strong(curIndex,
                                                       index,
@@ -888,15 +888,15 @@ int CopysetNode::GetConfChange(ConfigChangeType *type,
                                Configuration *oldConf,
                                Peer *alterPeer) {
     /**
-     * 避免new leader当选leader之后，提交noop entry之前，epoch和
-     * 配置可能不一致的情况。考虑如下情形：
+     *To avoid new leaders being elected as leaders, and before submitting a noop entry, epoch and
+     *Possible inconsistent configurations. Consider the following situations:
      *
-     * 三个成员的复制组{ABC}，当前epoch=5，A是leader，收到配置配置+D，
-     * 假设B收到了{ABC+D}的配置变更日志，然后leader A挂了，B当选为了
-     * new leader，在B提交noop entry之前，B上查询到的epoch值最大可能为5，
-     * 而查询到的配置确实{ABCD}了，所以这里在new leader B在提交noop entry
-     * 之前，也就是实现隐公提交配置变更日志{ABC+D}之前，不允许向用户返回
-     * 配置和配置变更信息，避免epoch和配置信息不一致
+     *Three member replication group {ABC}, current epoch=5, A is the leader, received configuration configuration+D,
+     *Assuming B receives the configuration change log for {ABC+D}, and then leader A hangs, B is elected as
+     *New leader, before B submits the noop entry, the maximum possible epoch value queried on B is 5,
+     *And the configuration found is indeed {ABCD}, so here in the new leader B, we are submitting the noop entry
+     *Previously, before implementing the implicit submission of configuration change logs {ABC+D}, it was not allowed to return to users
+     *Configuration and configuration change information to avoid inconsistency between epoch and configuration information
      */
     if (leaderTerm_.load(std::memory_order_acquire) <= 0) {
         *type = ConfigChangeType::NONE;
@@ -934,7 +934,7 @@ int CopysetNode::GetHash(std::string *hash) {
         return -1;
     }
 
-    // 计算所有chunk文件crc需要保证计算的顺序是一样的
+    //Calculating all chunk files' crc requires ensuring that the order of calculations is the same
     std::sort(files.begin(), files.end());
 
     for (std::string file : files) {

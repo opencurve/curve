@@ -90,7 +90,7 @@ TEST_F(Cli2Test, basic) {
     int snapshotInterval = 600;
 
     /**
-     * 设置更大的默认选举超时时间，因为当前 ci 环境很容易出现超时
+     *Set a larger default election timeout because the current CI environment is prone to timeout
      */
     int electionTimeoutMs = 3000;
 
@@ -157,7 +157,7 @@ TEST_F(Cli2Test, basic) {
         return;
     }
 
-    /* 保证进程一定会退出 */
+    /*Ensure that the process will definitely exit*/
     class WaitpidGuard {
      public:
         WaitpidGuard(pid_t pid1, pid_t pid2, pid_t pid3, pid_t pid4) {
@@ -197,11 +197,11 @@ TEST_F(Cli2Test, basic) {
         WaitLeader(logicPoolId, copysetId, conf, &leader, electionTimeoutMs);
     ASSERT_TRUE(status.ok());
 
-    /* 等待 transfer leader 成功 */
+    /*Waiting for transfer leader to succeed*/
     int waitTransferLeader = 3000 * 1000;
     /**
-     * 配置变更因为设置一条 log entry 的完成复制，所以设置较长的 timeout
-     * 时间，以免在 ci 环境偶尔会出现超时出错
+     *The configuration change requires a longer timeout due to the completion of copying a log entry
+     *Time to avoid occasional timeout errors in the CI environment
      */
     braft::cli::CliOptions opt;
     opt.timeout_ms = 6000;
@@ -219,10 +219,10 @@ TEST_F(Cli2Test, basic) {
         LOG(INFO) << "remove peer: "
                   << st.error_code() << ", " << st.error_str();
         ASSERT_TRUE(st.ok());
-        /* 可能移除的是 leader，如果移除的是 leader，那么需要等到新的 leader 产生，
-         * 否则下面的 add peer 测试就会失败， wait 较长时间，是为了保证 remove
-         * leader 之后新 leader 选举成功，切 become leader 的 flush config
-         * 完成 */
+        /*It is possible to remove a leader. If a leader is being removed, it is necessary to wait until a new leader is generated,
+         *Otherwise, the add peer test below will fail and wait for a long time to ensure removal
+         *After the successful election of the new leader, switch to the flush configuration of the become leader
+         *Complete*/
         ::usleep(1.5 * 1000 * electionTimeoutMs);
         butil::Status status = WaitLeader(logicPoolId,
                                           copysetId,
@@ -246,7 +246,7 @@ TEST_F(Cli2Test, basic) {
                   << st.error_code() << ", " << st.error_str();
         ASSERT_TRUE(st.ok());
     }
-    /* 重复 add 同一个 peer */
+    /*Repeatedly add the same peer*/
     {
         Configuration conf;
         conf.parse_from("127.0.0.1:9033:0,127.0.0.1:9034:0");
@@ -281,13 +281,13 @@ TEST_F(Cli2Test, basic) {
             LOG(INFO) << "transfer leader: "
                       << st.error_code() << ", " << st.error_str();
             ASSERT_TRUE(st.ok());
-            /* transfer leader 只是讲 rpc 发送给leader，并不会等 leader transfer
-             * 成功才返回，所以这里需要等，除此之外，并不能立马去查 leader，因为
-             * leader transfer 之后，可能返回之前的 leader，除此之外 transfer
-             * leader 成功了之后，become leader 进行时，leader 已经可查，但是
-             * become leader 会执行 flush 当前 conf 来充当 noop，如果这个时候
-             * 立马进行下一个 transfer leader，会被组织，因为同时只能有一个配置
-             * 变更在进行 */
+            /*The transfer leader only sends rpc to the leader and does not wait for the leader to transfer
+             *We only return after success, so we need to wait here. In addition, we cannot immediately check the leader because
+             *After the leader transfer, the previous leader may be returned, except for the transfer
+             *After the leader is successful, when the benefit leader is in progress, the leader is already visible, but
+             *The benefit leader will execute flush current conf to act as the noop. If at this time
+             *Immediately proceed to the next transfer leader, which will be organized because there can only be one configuration at the same time
+             *Changes in progress*/
             ::usleep(waitTransferLeader);
             butil::Status status = WaitLeader(logicPoolId,
                                               copysetId,
@@ -340,7 +340,7 @@ TEST_F(Cli2Test, basic) {
             ASSERT_TRUE(status.ok());
             ASSERT_STREQ(peer3.address().c_str(), leader.to_string().c_str());
         }
-        /* transfer 给 leader 给 leader，仍然返回成功 */
+        /*Transfer to leader to leader, still returns success*/
         {
             LOG(INFO) << "start transfer leader";
             butil::Status st = curve::chunkserver::TransferLeader(logicPoolId,
@@ -378,7 +378,7 @@ TEST_F(Cli2Test, basic) {
     }
     /* reset peer */
     {
-        // 等待change peer完成，否则用例会失败
+        //Wait for the change peer to complete, otherwise the instance will fail
         sleep(3);
         Peer peer;
         peer.set_address("127.0.0.1:9033:0");
@@ -392,7 +392,7 @@ TEST_F(Cli2Test, basic) {
         ASSERT_TRUE(status.ok());
     }
 
-    /* 异常分支测试 */
+    /*Abnormal Branch Test*/
     /* get leader - conf empty */
     {
         Configuration conf;
@@ -401,7 +401,7 @@ TEST_F(Cli2Test, basic) {
         ASSERT_FALSE(status.ok());
         ASSERT_EQ(EINVAL, status.error_code());
     }
-    /* get leader - 非法的地址 */
+    /*Get leader - illegal address*/
     {
         Configuration conf;
         Peer leader;
@@ -410,11 +410,11 @@ TEST_F(Cli2Test, basic) {
         ASSERT_FALSE(status.ok());
         ASSERT_EQ(-1, status.error_code());
     }
-    /* add peer - 不存在的 peer */
+    /*Add peer - non-existent peer*/
     {
         Configuration conf;
         conf.parse_from("127.0.0.1:9033:0,127.0.0.1:9034:0,127.0.0.1:9035:2");
-        /* 添加一个根本不存在的节点 */
+        /*Add a non-existent node*/
         Peer peer;
         peer.set_address("127.0.0.1:9039:2");
         butil::Status status = curve::chunkserver::AddPeer(logicPoolId,
@@ -426,7 +426,7 @@ TEST_F(Cli2Test, basic) {
         LOG(INFO) << "add peer: " << status.error_code() << ", "
                   << status.error_str();
     }
-    /* transfer leader - 不存在的 peer */
+    /*Transfer leader - non-existent peer*/
     {
         Configuration conf;
         conf.parse_from("127.0.0.1:9033:0,127.0.0.1:9034:0,127.0.0.1:9035:2");
@@ -444,7 +444,7 @@ TEST_F(Cli2Test, basic) {
                       << status.error_str();
         }
     }
-    /* change peers - 不存在的 peer */
+    /*Change peers - non-existent peers*/
     {
         Configuration conf;
         conf.parse_from("127.0.0.1:9033:0,127.0.0.1:9034:0,127.0.0.1:9036:0");
@@ -459,7 +459,7 @@ TEST_F(Cli2Test, basic) {
         LOG(INFO) << "change peers: " << status.error_code() << ", "
                   << status.error_str();
     }
-    /* reset peer - newConf为空 */
+    /*Reset peer - newConf is empty*/
     {
         Configuration conf;
         Peer peer;
@@ -474,7 +474,7 @@ TEST_F(Cli2Test, basic) {
                   << status.error_str();
         ASSERT_EQ(EINVAL, status.error_code());
     }
-    /* reset peer peer地址非法  */
+    /*Illegal reset peer address*/
     {
         Peer peer;
         peer.set_address("127.0.0.1:65540:0");
@@ -487,7 +487,7 @@ TEST_F(Cli2Test, basic) {
                   << status.error_code() << ", " << status.error_str();
         ASSERT_EQ(-1, status.error_code());
     }
-    /* reset peer peer地址不存在  */
+    /*Reset peer address does not exist*/
     {
         Peer peer;
         peer.set_address("127.0.0.1:9040:0");
@@ -500,7 +500,7 @@ TEST_F(Cli2Test, basic) {
                   << status.error_code() << ", " << status.error_str();
         ASSERT_EQ(EHOSTDOWN, status.error_code());
     }
-    /* snapshot peer地址非法  */
+    /*Illegal snapshot peer address*/
     {
         Peer peer;
         peer.set_address("127.0.0.1:65540:0");
@@ -512,7 +512,7 @@ TEST_F(Cli2Test, basic) {
                   << status.error_code() << ", " << status.error_str();
         ASSERT_EQ(-1, status.error_code());
     }
-    /* snapshot peer地址不存在  */
+    /*The snapshot peer address does not exist*/
     {
         Peer peer;
         peer.set_address("127.0.0.1:9040:0");

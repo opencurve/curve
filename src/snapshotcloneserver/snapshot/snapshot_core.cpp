@@ -64,7 +64,7 @@ int SnapshotCoreImpl::CreateSnapshotPre(const std::string &file,
                           << ", user = " << user
                           << ", snapshotName = " << snapshotName
                           << ", Exist SnapInfo : " << snap;
-                // 视为同一个快照，返回任务已存在
+                //Treat as the same snapshot, return task already exists
                 *snapInfo = snap;
                 return kErrCodeTaskExist;
             }
@@ -136,39 +136,39 @@ constexpr uint32_t kProgressTransferSnapshotDataComplete = 99;
 constexpr uint32_t kProgressComplete = 100;
 
 /**
- * @brief 异步执行创建快照任务并更新任务进度
+ * @brief Asynchronous execution of snapshot creation task and update of task progress
  *
- * 快照进度规划如下:
+ *The snapshot schedule is planned as follows:
  *
  *  |CreateSnapshotOnCurvefs| BuildChunkIndexData | BuildSnapshotMap | TransferSnapshotData | UpdateSnapshot | //NOLINT
  *  | 5%                    | 6%                  | 10%              | 10%~99%              | 100%           | //NOLINT
  *
  *
- *  异步执行期间发生error与cancel情况说明：
- *  1. 发生error将导致整个异步任务直接中断，并且不做任何清理动作:
- *  发生error时，一般系统存在异常，清理动作很可能不能完成，
- *  因此，不进行任何清理，只置状态，待人工干预排除异常之后，
- *  使用DeleteSnapshot功能去手动删除error状态的快照。
- *  2. 发生cancel时则以创建功能相反的顺序依次进行清理动作，
- *  若清理过程发生error,则立即中断，之后同error过程。
+ *Explanation of errors and cancellations during asynchronous execution:
+ *1 The occurrence of an error will cause the entire asynchronous task to be directly interrupted without any cleaning action:
+ *When an error occurs, there is usually an abnormality in the system, and the cleaning action may not be completed,
+ *Therefore, no cleaning will be carried out, only the status will be set, and after manual intervention to eliminate anomalies,
+ *Use the DeleteSnapshot function to manually delete snapshots with error status.
+ *2 When a cancel occurs, the cleaning actions are carried out in reverse order of creating functions,
+ *If an error occurs during the cleaning process, it will be immediately interrupted, followed by the same error process.
  *
- * @param task 快照任务
+ * @param task snapshot task
  */
 void SnapshotCoreImpl::HandleCreateSnapshotTask(
     std::shared_ptr<SnapshotTaskInfo> task) {
     std::string fileName = task->GetFileName();
 
-    // 如果当前有失败的快照，需先清理失败的快照，否则快照会再次失败
+    //If there are currently failed snapshots, it is necessary to clean up the failed snapshots first, otherwise the snapshots will fail again
     int ret = ClearErrorSnapBeforeCreateSnapshot(task);
     if (ret < 0) {
         HandleCreateSnapshotError(task);
         return;
     }
 
-    // 为支持任务重启，这里有三种情况需要处理
-    // 1. 没打过快照, 没有seqNum且curve上没有快照
-    // 2. 打过快照, 有seqNum且curve上有快照
-    // 3. 打过快照并已经转储完删除快照, 有seqNum但curve上没有快照
+    //To support task restart, there are three situations that need to be addressed
+    //1 I haven't taken a snapshot, there's no seqNum, and there's no snapshot on the curve
+    //2 I have taken a snapshot, and there is seqNum and a snapshot on the curve
+    //3 I have taken a snapshot and have completed the dump to delete it. There is seqNum, but there is no snapshot on the curve
 
     SnapshotInfo *info = &(task->GetSnapshotInfo());
     UUID uuid = task->GetUuid();
@@ -347,9 +347,9 @@ int SnapshotCoreImpl::ClearErrorSnapBeforeCreateSnapshot(
                 std::make_shared<SnapshotTaskInfo>(snap, snapInfoMetric);
             taskInfo->GetSnapshotInfo().SetStatus(Status::errorDeleting);
             taskInfo->UpdateMetric();
-            // 处理删除快照
+            //Processing deletion of snapshots
             HandleDeleteSnapshotTask(taskInfo);
-            // 仍然失败，则本次快照失败
+            //If it still fails, the current snapshot fails
             if (taskInfo->GetSnapshotInfo().GetStatus() != Status::done) {
                 LOG(ERROR) << "Find error Snapshot and Delete Fail"
                            << ", error snapshot Id = " << snap.GetUuid()
@@ -579,7 +579,7 @@ int SnapshotCoreImpl::CreateSnapshotOnCurvefs(
         return ret;
     }
 
-    // 打完快照需等待2个session时间，以保证seq同步到所有client
+    //After taking a snapshot, you need to wait for 2 sessions to ensure that the seq is synchronized to all clients
     std::this_thread::sleep_for(
         std::chrono::microseconds(mdsSessionTimeUs_ * 2));
 
@@ -684,12 +684,12 @@ int SnapshotCoreImpl::BuildChunkIndexData(
                                << ", uuid = " << task->GetUuid();
                     return kErrCodeInternalError;
                 }
-                // 2个sn，小的是snap sn，大的是快照之后的写
-                // 1个sn，有两种情况：
-                //    小于等于seqNum时为snap sn, 且快照之后未写过;
-                //    大于时, 表示打快照时为空，是快照之后首次写的版本(seqNum+1)
-                // 没有sn，从未写过
-                // 大于2个sn，错误，报错
+                //2 Sns, the smaller one is the snap snap snap, and the larger one is the write after the snapshot
+                //1 SN, there are two situations:
+                //      When it is less than or equal to seqNum, it is a snap snap and has not been written since the snapshot;
+                //      When greater than, it indicates that it was blank when taking a snapshot, and is the version written for the first time after the snapshot (seqNum+1)
+                //No sn, never written before
+                //Greater than 2 sns, error, error reported
                 if (chunkInfo.chunkSn.size() == 2) {
                     uint64_t seq =
                         std::min(chunkInfo.chunkSn[0],
@@ -878,7 +878,7 @@ int SnapshotCoreImpl::TransferSnapshotData(
             return kErrCodeSuccess;
         }
     }
-    // 最后剩余数量不足的任务
+    //Tasks with insufficient remaining quantity in the end
     tracker->Wait();
     ret = tracker->GetResult();
     if (ret < 0) {
@@ -900,7 +900,7 @@ int SnapshotCoreImpl::DeleteSnapshotPre(
     NameLockGuard lockSnapGuard(snapshotRef_->GetSnapshotLock(), uuid);
     int ret = metaStore_->GetSnapshotInfo(uuid, snapInfo);
     if (ret < 0) {
-        // 快照不存在时直接返回删除成功，使接口幂等
+        //When the snapshot does not exist, it directly returns deletion success, making the interface idempotent
         return kErrCodeSuccess;
     }
     if (snapInfo->GetUser() != user) {
@@ -952,14 +952,14 @@ constexpr uint32_t kDelProgressDeleteChunkDataComplete = 80;
 constexpr uint32_t kDelProgressDeleteChunkIndexDataComplete = 90;
 
 /**
- * @brief 异步执行删除快照任务并更新任务进度
+ * @brief Asynchronous execution of delete snapshot task and update task progress
  *
- * 删除快照进度规划如下：
+ *Delete the snapshot schedule as follows:
  *
  * |BuildSnapshotMap|DeleteChunkData|DeleteChunkIndexData|DeleteSnapshot|
  * | 10%            | 10%~80%       | 90%                | 100%         |
  *
- * @param task 快照任务
+ * @param task snapshot task
  */
 void SnapshotCoreImpl::HandleDeleteSnapshotTask(
     std::shared_ptr<SnapshotTaskInfo> task) {
@@ -1129,8 +1129,8 @@ int SnapshotCoreImpl::BuildSnapshotMap(const std::string &fileName,
                            << " ret = " << ret
                            << ", fileName = " <<  snap.GetFileName()
                            << ", seqNum = " << snap.GetSeqNum();
-                // 此处不能返回错误，
-                // 否则一旦某个失败的快照没有indexdata，所有快照都无法删除
+                //An error cannot be returned here,
+                //Otherwise, once a failed snapshot does not have indexdata, all snapshots cannot be deleted
             } else {
                 fileSnapshotMap->maps.push_back(std::move(indexData));
             }

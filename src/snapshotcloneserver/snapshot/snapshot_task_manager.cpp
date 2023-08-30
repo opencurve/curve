@@ -39,7 +39,7 @@ int SnapshotTaskManager::Start() {
             return ret;
         }
         isStop_.store(false);
-        // isStop_标志先置，防止backEndThread先退出
+        //isStop_ Flag set first to prevent backEndThread from exiting first
         backEndThread =
             std::thread(&SnapshotTaskManager::BackEndThreadFunc, this);
     }
@@ -58,7 +58,7 @@ int SnapshotTaskManager::PushTask(std::shared_ptr<SnapshotTask> task) {
     if (isStop_.load()) {
         return kErrCodeServiceIsStop;
     }
-    // 移除实际已完成的task，防止uuid冲突
+    //Remove actual completed tasks to prevent uuid conflicts
     ScanWorkingTask();
 
     {
@@ -73,7 +73,7 @@ int SnapshotTaskManager::PushTask(std::shared_ptr<SnapshotTask> task) {
     }
     snapshotMetric_->snapshotWaiting << 1;
 
-    // 立即执行task
+    //Execute task immediately
     ScanWaitingTask();
     return kErrCodeSuccess;
 }
@@ -90,7 +90,7 @@ std::shared_ptr<SnapshotTask> SnapshotTaskManager::GetTask(
 
 int SnapshotTaskManager::CancelTask(const TaskIdType &taskId) {
     {
-        // 还在等待队列的Cancel直接移除
+        //Waiting for the Cancel of the queue to be directly removed
         WriteLockGuard taskMapWlock(taskMapLock_);
         LockGuard waitingTasksLock(waitingTasksLock_);
         for (auto it = waitingTasks_.begin();

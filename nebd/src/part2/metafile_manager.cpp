@@ -54,7 +54,7 @@ int NebdMetaFileManager::UpdateFileMeta(const std::string& fileName,
     WriteLockGuard writeLock(rwLock_);
     bool needUpdate = metaCache_.find(fileName) == metaCache_.end()
                       || fileMeta != metaCache_[fileName];
-    // 如果元数据信息没发生变更，则不需要写文件
+    //If the metadata information has not changed, there is no need to write a file
     if (!needUpdate) {
         return 0;
     }
@@ -105,15 +105,15 @@ int NebdMetaFileManager::UpdateMetaFile(const FileMetaMap& fileMetas) {
 }
 
 int NebdMetaFileManager::AtomicWriteFile(const Json::Value& root) {
-    // 写入tmp文件
+    //Write tmp file
     std::string tmpFilePath = metaFilePath_ + ".tmp";
     int fd = wrapper_->open(tmpFilePath.c_str(), O_CREAT|O_RDWR, 0644);
-    // open文件失败
+    //Open file failed
     if (fd <= 0) {
         LOG(ERROR) << "Open tmp file " << tmpFilePath << " fail";
         return -1;
     }
-    // 写入
+    //Write
     std::string jsonString = root.toStyledString();
     int writeSize = wrapper_->pwrite(fd, jsonString.c_str(),
                                      jsonString.size(), 0);
@@ -123,7 +123,7 @@ int NebdMetaFileManager::AtomicWriteFile(const Json::Value& root) {
         return -1;
     }
 
-    // 重命名
+    //Rename
     int res = wrapper_->rename(tmpFilePath.c_str(), metaFilePath_.c_str());
     if (res != 0) {
         LOG(ERROR) << "rename file " << tmpFilePath << " to "
@@ -138,7 +138,7 @@ int NebdMetaFileManager::LoadFileMeta() {
     FileMetaMap tempMetas;
     std::ifstream in(metaFilePath_, std::ios::binary);
     if (!in) {
-        // 这里不应该返回错误，第一次初始化的时候文件可能还未创建
+        //There should be no error returned here, the file may not have been created during the first initialization
         LOG(WARNING) << "File not exist: " << metaFilePath_;
         return 0;
     }
@@ -180,7 +180,7 @@ int NebdMetaFileParser::Parse(Json::Value root,
         return -1;
     }
     fileMetas->clear();
-    // 检验crc
+    //Check crc
     if (root[kCRC].isNull()) {
         LOG(ERROR) << "Parse json: " << root
                    << " fail, no crc";
@@ -197,7 +197,7 @@ int NebdMetaFileParser::Parse(Json::Value root,
         return -1;
     }
 
-    // 没有volume字段
+    //No volume field
     const auto& volumes = root[kVolumes];
     if (volumes.isNull()) {
         LOG(WARNING) << "No volumes in json: " << root;
@@ -224,7 +224,7 @@ int NebdMetaFileParser::Parse(Json::Value root,
             meta.fd = volume[kFd].asInt();
         }
 
-        // 除了filename和fd的部分统一放到xattr里面
+        //Except for the parts of filename and fd, they are uniformly placed in xattr
         Json::Value::Members mem = volume.getMemberNames();
         ExtendAttribute xattr;
         for (auto iter = mem.begin(); iter != mem.end(); iter++) {
@@ -253,7 +253,7 @@ Json::Value NebdMetaFileParser::ConvertFileMetasToJson(
     Json::Value root;
     root[kVolumes] = volumes;
 
-    // 计算crc
+    //Calculate crc
     std::string jsonString = root.toStyledString();
     uint32_t crc = nebd::common::CRC32(jsonString.c_str(), jsonString.size());
     root[kCRC] = crc;

@@ -145,9 +145,11 @@ struct SnapCloneCommonClosure : public SnapCloneClosure {
 };
 
 struct CreateCloneChunkContext {
-    // 数据源
+    //Data source
+
     std::string location;
-    // chunkid 信息
+    //Chunkid information
+
     ChunkIDInfo cidInfo;
     // seqNum
     uint64_t sn;
@@ -155,15 +157,19 @@ struct CreateCloneChunkContext {
     uint64_t csn;
     // chunk size
     uint64_t chunkSize;
-    // 返回值
+    //Return value
+
     int retCode;
     // taskid
     TaskIdType taskid;
-    // 异步请求开始时间
+    //Asynchronous request start time
+
     uint64_t startTime;
-    // 异步请求重试总时间
+    //Total retry time for asynchronous requests
+
     uint64_t clientAsyncMethodRetryTimeSec;
-    // chunk信息
+    //Chunk Information
+
     struct CloneChunkInfo *cloneChunkInfo;
 };
 
@@ -197,21 +203,28 @@ struct CreateCloneChunkClosure : public SnapCloneClosure {
 };
 
 struct RecoverChunkContext {
-    // chunkid 信息
+    //Chunkid information
+
     ChunkIDInfo cidInfo;
-    // chunk的分片index
+    //Chunk's sharding index
+
     uint64_t partIndex;
-    // 总的chunk分片数
+    //Total Chunk Fragments
+
     uint64_t totalPartNum;
-    // 分片大小
+    //Slice size
+
     uint64_t partSize;
-    // 返回值
+    //Return value
+
     int retCode;
     // taskid
     TaskIdType taskid;
-    // 异步请求开始时间
+    //Asynchronous request start time
+
     uint64_t startTime;
-    // 异步请求重试总时间
+    //Total retry time for asynchronous requests
+
     uint64_t clientAsyncMethodRetryTimeSec;
 };
 

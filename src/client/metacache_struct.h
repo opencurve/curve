@@ -43,14 +43,14 @@ using curve::common::ReadLockGuard;
 using curve::common::SpinLock;
 using curve::common::WriteLockGuard;
 
-// copyset内的chunkserver节点的基本信息
-// 包含当前chunkserver的id信息，以及chunkserver的地址信息
+//Basic information of chunkserver nodes in the copyset
+//Contains the ID information of the current chunkserver and the address information of the chunkserver
 template <typename T> struct CURVE_CACHELINE_ALIGNMENT CopysetPeerInfo {
-    // 当前chunkserver节点的ID
+    //The ID of the current chunkserver node
     T peerID = 0;
-    // 当前chunkserver节点的内部地址
+    //The internal address of the current chunkserver node
     PeerAddr internalAddr;
-    // 当前chunkserver节点的外部地址
+    //The external address of the current chunkserver node
     PeerAddr externalAddr;
 
     CopysetPeerInfo() = default;
@@ -85,16 +85,16 @@ inline std::ostream &operator<<(std::ostream &os, const CopysetPeerInfo<T> &c) {
 // copyset's informations inclucing peer and leader information
 
 template <typename T> struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
-    // leader存在变更可能标志位
+    //Possible flag bits for leader changes
     bool leaderMayChange_ = false;
-    // 当前copyset的节点信息
+    //Node information of the current copyset
     std::vector<CopysetPeerInfo<T>> csinfos_;
-    // leader在本copyset信息中的索引，用于后面避免重复尝试同一个leader
+    //The index of the leader in this copyset information is used to avoid repeated attempts at the same leader in the future
     int16_t leaderindex_ = -1;
-    // 当前copyset的id信息
+    //The ID information of the current copyset
     CopysetID cpid_ = 0;
     LogicPoolID lpid_ = 0;
-    // 用于保护对copyset信息的修改
+    //Used to protect modifications to copyset information
     SpinLock spinlock_;
 
     CopysetInfo() = default;
@@ -126,7 +126,7 @@ template <typename T> struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
     }
 
     /**
-     * 获取当前leader的索引
+     *Get the index of the current leader
      */
     int16_t GetCurrentLeaderIndex() const { return leaderindex_; }
 
@@ -144,8 +144,8 @@ template <typename T> struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
     }
 
     /**
-     * 更新leaderindex，如果leader不在当前配置组中，则返回-1
-     * @param: addr为新的leader的地址信息
+     *Update the leaderindex, if the leader is not in the current configuration group, return -1
+     * @param: addr is the address information of the new leader
      */
     int UpdateLeaderInfo(const PeerAddr &addr,
                          CopysetPeerInfo<T> csInfo = CopysetPeerInfo<T>()) {
@@ -163,7 +163,7 @@ template <typename T> struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
             tempindex++;
         }
 
-        // 新的addr不在当前copyset内，如果csInfo不为空，那么将其插入copyset
+        //The new addr is not within the current copyset. If csInfo is not empty, insert it into the copyset
         if (!exists && !csInfo.IsEmpty()) {
             csinfos_.push_back(csInfo);
         } else if (exists == false) {
@@ -183,7 +183,7 @@ template <typename T> struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
      * @param[out]: ep
      */
     int GetLeaderInfo(T *peerid, EndPoint *ep) {
-        // 第一次获取leader,如果当前leader信息没有确定，返回-1，由外部主动发起更新leader
+        //For the first time obtaining the leader, if the current leader information is not determined, return -1, and the external initiative will be initiated to update the leader
         if (leaderindex_ < 0 ||
             leaderindex_ >= static_cast<int>(csinfos_.size())) {
             LOG(INFO) << "GetLeaderInfo pool " << lpid_ << ", copyset " << cpid_
@@ -203,8 +203,8 @@ template <typename T> struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
     }
 
     /**
-     * 添加copyset的peerinfo
-     * @param: csinfo为待添加的peer信息
+     *Add peerinfo for copyset
+     * @param: csinfo is the peer information to be added
      */
     void AddCopysetPeerInfo(const CopysetPeerInfo<T> &csinfo) {
         spinlock_.Lock();
@@ -213,19 +213,19 @@ template <typename T> struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
     }
 
     /**
-     * 当前CopysetInfo是否合法
+     *Is the current CopysetInfo legal
      */
     bool IsValid() const { return !csinfos_.empty(); }
 
     /**
-     * 更新leaderindex
+     *Update leaderindex
      */
     void UpdateLeaderIndex(int index) { leaderindex_ = index; }
 
     /**
-     * 当前copyset是否存在对应的chunkserver address
-     * @param: addr需要检测的chunkserver
-     * @return: true存在；false不存在
+     *Does the current copyset have a corresponding chunkserver address
+     * @param: addr Chunkserver to be detected
+     * @return: true exists; False does not exist
      */
     bool HasPeerInCopyset(const PeerAddr &addr) const {
         for (const auto &peer : csinfos_) {

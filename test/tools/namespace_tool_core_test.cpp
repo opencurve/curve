@@ -144,7 +144,7 @@ TEST_F(NameSpaceToolCoreTest, CreateFile) {
     uint64_t stripeCount = 32;
     std::string pstName = "";
 
-    // 1、正常情况
+    //1. Normal situation
     EXPECT_CALL(*client_, CreateFile(_))
         .Times(1)
         .WillOnce(Return(0));
@@ -159,7 +159,7 @@ TEST_F(NameSpaceToolCoreTest, CreateFile) {
 
     ASSERT_EQ(0, namespaceTool.CreateFile(context));
 
-    // 2、创建失败
+    //2. Creation failed
     EXPECT_CALL(*client_, CreateFile(_))
         .Times(1)
         .WillOnce(Return(-1));
@@ -170,13 +170,13 @@ TEST_F(NameSpaceToolCoreTest, ExtendVolume) {
     curve::tool::NameSpaceToolCore namespaceTool(client_);
     std::string fileName = "/test";
     uint64_t length = 10 * segmentSize;
-    // 1、正常情况
+    //1. Normal situation
     EXPECT_CALL(*client_, ExtendVolume(_, _))
         .Times(1)
         .WillOnce(Return(0));
     ASSERT_EQ(0, namespaceTool.ExtendVolume(fileName, length));
 
-    // 2、创建失败
+    //2. Creation failed
     EXPECT_CALL(*client_, ExtendVolume(_, _))
         .Times(1)
         .WillOnce(Return(-1));
@@ -188,13 +188,13 @@ TEST_F(NameSpaceToolCoreTest, DeleteFile) {
     std::string fileName = "/test";
     bool forceDelete = false;
 
-    // 1、正常情况
+    //1. Normal situation
     EXPECT_CALL(*client_, DeleteFile(_, _))
         .Times(1)
         .WillOnce(Return(0));
     ASSERT_EQ(0, namespaceTool.DeleteFile(fileName, forceDelete));
 
-    // 2、创建失败
+    //2. Creation failed
     EXPECT_CALL(*client_, DeleteFile(_, _))
         .Times(1)
         .WillOnce(Return(-1));
@@ -213,7 +213,7 @@ TEST_F(NameSpaceToolCoreTest, GetChunkServerListInCopySet) {
         expected.emplace_back(csLoc);
     }
 
-    // 1、正常情况
+    //1. Normal situation
     EXPECT_CALL(*client_, GetChunkServerListInCopySet(_, _, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<2>(expected),
@@ -224,7 +224,7 @@ TEST_F(NameSpaceToolCoreTest, GetChunkServerListInCopySet) {
     for (uint64_t i = 0; i < expected.size(); ++i) {
         ASSERT_EQ(expected[i].DebugString(), csLocs[i].DebugString());
     }
-    // 2、失败
+    //2. Failure
     EXPECT_CALL(*client_, GetChunkServerListInCopySet(_, _, _))
         .Times(1)
         .WillOnce(Return(-1));
@@ -355,7 +355,7 @@ TEST_F(NameSpaceToolCoreTest, CleanRecycleBin) {
 
 TEST_F(NameSpaceToolCoreTest, GetAllocatedSize) {
     curve::tool::NameSpaceToolCore namespaceTool(client_);
-    // 1、正常情况
+    //1. Normal situation
     uint64_t allocSize;
     EXPECT_CALL(*client_, GetAllocatedSize(_, _, _))
         .Times(1)
@@ -374,7 +374,7 @@ TEST_F(NameSpaceToolCoreTest, QueryChunkCopyset) {
     uint64_t chunkId;
     std::pair<uint32_t, uint32_t> copyset;
 
-    // 正常情况
+    //Normal situation
     EXPECT_CALL(*client_, GetFileInfo(_, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<1>(fileInfo),
@@ -389,14 +389,14 @@ TEST_F(NameSpaceToolCoreTest, QueryChunkCopyset) {
     ASSERT_EQ(1, copyset.first);
     ASSERT_EQ(1001, copyset.second);
 
-    // GetFileInfo失败
+    //GetFileInfo failed
     EXPECT_CALL(*client_, GetFileInfo(_, _))
         .Times(1)
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, namespaceTool.QueryChunkCopyset(fileName, offset,
                                             &chunkId, &copyset));
 
-    // GetSegmentInfo失败
+    //GetSegmentInfo failed
     EXPECT_CALL(*client_, GetFileInfo(_, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<1>(fileInfo),
@@ -417,7 +417,7 @@ TEST_F(NameSpaceToolCoreTest, GetFileSegments) {
     PageFileSegment expected;
     GetSegmentForTest(&expected);
 
-    // 1、正常情况
+    //1. Normal situation
     EXPECT_CALL(*client_, GetFileInfo(_, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<1>(fileInfo),
@@ -433,13 +433,13 @@ TEST_F(NameSpaceToolCoreTest, GetFileSegments) {
         ASSERT_EQ(expected.DebugString(), segments[i].DebugString());
     }
 
-    // 2、GetFileInfo失败的情况
+    //2. The situation of GetFileInfo failure
     EXPECT_CALL(*client_, GetFileInfo(_, _))
         .Times(1)
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, namespaceTool.GetFileSegments(fileName, &segments));
 
-    // 3、获取segment失败
+    //3. Failed to obtain segment
     EXPECT_CALL(*client_, GetFileInfo(_, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<1>(fileInfo),
@@ -452,7 +452,7 @@ TEST_F(NameSpaceToolCoreTest, GetFileSegments) {
 
 TEST_F(NameSpaceToolCoreTest, GetFileSize) {
     curve::tool::NameSpaceToolCore namespaceTool(client_);
-    // 1、正常情况
+    //1. Normal situation
     uint64_t size;
     EXPECT_CALL(*client_, GetFileSize(_, _))
         .Times(1)

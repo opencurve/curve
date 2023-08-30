@@ -60,103 +60,103 @@ class NameSpaceToolCore {
     virtual ~NameSpaceToolCore() = default;
 
     /**
-     *  @brief 初始化mds client
-     *  @param mdsAddr mds的地址，支持多地址，用","分隔
-     *  @return 成功返回0，失败返回-1
+     * @brief Initialize mds client
+     * @param mdsAddr Address of mds, supporting multiple addresses separated by ','
+     * @return returns 0 for success, -1 for failure
      */
     virtual int Init(const std::string& mdsAddr);
 
     /**
-     *  @brief 获取文件fileInfo
-     *  @param fileName 文件名
-     *  @param[out] fileInfo 文件fileInfo，返回值为0时有效
-     *  @return 成功返回0，失败返回-1
+     * @brief Get file fileInfo
+     * @param fileName File name
+     * @param[out] fileInfo file fileInfo, valid when the return value is 0
+     * @return returns 0 for success, -1 for failure
      */
     virtual int GetFileInfo(const std::string& fileName, FileInfo* fileInfo);
 
     /**
-     *  @brief 将目录下所有的fileInfo列出来
-     *  @param dirName 目录名
-     *  @param[out] files 目录下的所有文件fileInfo，返回值为0时有效
-     *  @return 成功返回0，失败返回-1
+     * @brief List all fileInfo in the directory
+     * @param dirName directory name
+     * @param[out] files All fileInfo files in the directory are valid when the return value is 0
+     * @return returns 0 for success, -1 for failure
      */
     virtual int ListDir(const std::string& dirName,
                         std::vector<FileInfo>* files);
 
     /**
-     *  @brief 获取copyset中的chunkserver列表
-     *  @param logicalPoolId 逻辑池id
-     *  @param copysetId copyset id
-     *  @param[out] csLocs chunkserver位置的列表，返回值为0时有效
-     *  @return 成功返回0，失败返回-1
+     * @brief Get the list of chunkservers in the copyset
+     * @param logicalPoolId Logical Pool ID
+     * @param copysetId copyset ID
+     * @param[out] csLocs List of chunkserver locations, valid when the return value is 0
+     * @return returns 0 for success, -1 for failure
      */
     virtual int GetChunkServerListInCopySet(const PoolIdType& logicalPoolId,
                                      const CopySetIdType& copysetId,
                                      std::vector<ChunkServerLocation>* csLocs);
 
     /**
-     *  @brief 删除文件
-     *  @param fileName 文件名
-     *  @param forcedelete 是否强制删除
-     *  @return 成功返回0，失败返回-1
+     * @brief Delete file
+     * @param fileName File name
+     * @param forcedelete: Do you want to force deletion
+     * @return returns 0 for success, -1 for failure
      */
     virtual int DeleteFile(const std::string& fileName,
                            bool forcedelete = false);
 
     /**
-     *  @brief create pageFile or directory
-     *  @param fileName file name or dir name
-     *  @param length 文件长度
-     *  @param normalFile is file or dir
-     *  @param stripeUnit stripe unit size
-     *  @param stripeCount the amount of stripes
-     *  @return 成功返回0，失败返回-1
+     * @brief create pageFile or directory
+     * @param fileName file name or dir name
+     * @param length File length
+     * @param normalFile is file or dir
+     * @param stripeUnit stripe unit size
+     * @param stripeCount the amount of stripes
+     * @return returns 0 for success, -1 for failure
      */
     virtual int CreateFile(const CreateFileContext& ctx);
 
    /**
-     *  @brief 扩容卷
-     *  @param fileName 文件名
-     *  @param newSize 扩容后的文件长度
-     *  @return 成功返回0，失败返回-1
+     * @brief expansion volume
+     * @param fileName File name
+     * @param newSize The file length after expansion
+     * @return returns 0 for success, -1 for failure
      */
     virtual int ExtendVolume(const std::string& fileName, uint64_t newSize);
 
     /**
-     *  @brief 计算文件或目录实际分配的空间
-     *  @param fileName 文件名
-     *  @param[out] allocSize 文件或目录已分配大小，返回值为0是有效
-     *  @param[out] allocMap 在每个池子的分配量，返回值0时有效
-     *  @return 成功返回0，失败返回-1
+     * @brief Calculate the actual allocated space of a file or directory
+     * @param fileName File name
+     * @param[out] allocSize The file or directory has already been allocated a size, and a return value of 0 is valid
+     * @param[out] allocMap The allocation amount of each pool, valid when returning a value of 0
+     * @return returns 0 for success, -1 for failure
      */
     virtual int GetAllocatedSize(const std::string& fileName,
                                  uint64_t* allocSize,
                                  AllocMap* allocMap = nullptr);
 
     /**
-     *  @brief 返回文件或目录的中的文件的用户申请的大小
-     *  @param fileName 文件名
-     *  @param[out] fileSize 文件或目录中用户申请的大小，返回值为0是有效
-     *  @return 成功返回0，失败返回-1
+     * @brief Returns the user requested size of files in a file or directory
+     * @param fileName File name
+     * @param[out] fileSize The size requested by the user in the file or directory, with a return value of 0 being valid
+     * @return returns 0 for success, -1 for failure
      */
     virtual int GetFileSize(const std::string& fileName, uint64_t* fileSize);
 
     /**
-     *  @brief 获取文件的segment信息并输出到segments里面
-     *  @param fileName 文件名
-     *  @param[out] segments 文件segment的列表
-     *  @return 返回文件实际分配大小，失败则为-1
+     * @brief Get the segment information of the file and output it to segments
+     * @param fileName File name
+     * @param[out] segments List of segments in the file
+     * @return returns the actual allocated size of the file, if it fails, it will be -1
      */
     virtual int GetFileSegments(const std::string& fileName,
                        std::vector<PageFileSegment>* segments);
 
     /**
-     *  @brief 查询offset对应的chunk的id和所属的copyset
-     *  @param fileName 文件名
-     *  @param offset 文件中的偏移
-     *  @param[out] chunkId chunkId，返回值为0时有效
-     *  @param[out] copyset chunk对应的copyset，是logicalPoolId和copysetId的pair
-     *  @return 成功返回0，失败返回-1
+     * @brief: Query the ID of the chunk corresponding to the offset and the copyset it belongs to
+     * @param fileName File name
+     * @param offset Offset in file
+     * @param[out] chunkId chunkId, valid when the return value is 0
+     * @param[out] copyset The copyset corresponding to the chunk is the pair of logicalPoolId and copysetId
+     * @return returns 0 for success, -1 for failure
      */
     virtual int QueryChunkCopyset(const std::string& fileName, uint64_t offset,
                           uint64_t* chunkId,
@@ -182,17 +182,17 @@ class NameSpaceToolCore {
 
  private:
     /**
-     *  @brief 获取文件的segment信息并输出到segments里面
-     *  @param fileName 文件名
-     *  @param fileInfo 文件的fileInfo
-     *  @param[out] segments 文件segment的列表
-     *  @return 返回文件实际分配大小，失败则为-1
+     * @brief Get the segment information of the file and output it to segments
+     * @param fileName File name
+     * @param fileInfo The fileInfo of the file
+     * @param[out] segments List of segments in the file
+     * @return returns the actual allocated size of the file, if it fails, it will be -1
      */
     int GetFileSegments(const std::string& fileName,
                         const FileInfo& fileInfo,
                         std::vector<PageFileSegment>* segments);
 
-    // 向mds发送RPC的client
+    //Client sending RPC to mds
     std::shared_ptr<MDSClient> client_;
 };
 }  // namespace tool

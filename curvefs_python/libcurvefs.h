@@ -38,15 +38,15 @@ int Open4Qemu(const char* filename);
 int Open(const char* filename, UserInfo_t* info);
 int Create(const char* filename, UserInfo_t* info, size_t size);
 
-// 同步读写
+//Synchronous read and write
 int Read(int fd, char* buf, unsigned long offset, unsigned long length);   //NOLINT
 int Write(int fd, const char* buf, unsigned long offset, unsigned long length);  //NOLINT
 
-// 异步读写
+//Asynchronous read and write
 int AioRead(int fd, AioContext* aioctx);
 int AioWrite(int fd, AioContext* aioctx);
 
-// 获取文件的基本信息
+//Obtain basic information about the file
 int StatFile4Qemu(const char* filename, FileInfo_t* finfo);
 int StatFile(const char* filename, UserInfo_t* info, FileInfo_t* finfo);
 int ChangeOwner(const char* filename, const char* owner, UserInfo_t* info);

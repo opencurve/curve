@@ -37,7 +37,7 @@ namespace curve {
 namespace chunkserver {
 const uint32_t CURRENT_METADATA_VERSION = 0x01;
 
-// register配置选项
+//Register Configuration Options
 struct RegisterOptions {
     std::string mdsListenAddr;
     std::string chunkserverInternalIp;
@@ -76,7 +76,7 @@ class Register {
         const std::shared_ptr<EpochMap> &epochMap);
 
     /**
-     * @brief 持久化ChunkServer元数据
+     * @brief Persisting ChunkServer metadata
      *
      * @param[in] metadata
      */

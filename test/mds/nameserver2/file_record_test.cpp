@@ -37,15 +37,15 @@ TEST(FileRecordTest, timeout_test) {
     butil::EndPoint ep;
     butil::str2endpoint("127.0.0.1:1111", &ep);
 
-    // 设置有效时间为1ms
+    //Set the effective time to 1ms
     FileRecord record(1 * 1000, "0.0.6", ep);
 
-    // 判断超时
+    //Judgment timeout
     ASSERT_EQ(false, record.IsTimeout());
-    // 判断版本号
+    //Determine version number
     ASSERT_EQ("0.0.6", record.GetClientVersion());
 
-    // 睡眠一段时间判断超时是否生效
+    //Sleep for a period of time to determine if the timeout is effective
     std::this_thread::sleep_for(std::chrono::milliseconds(15));
     ASSERT_EQ(true, record.IsTimeout());
 
@@ -89,9 +89,9 @@ TEST(FileRecordManagerTest, normal_test) {
                                        kInvalidPort);
     fileRecordManager.UpdateFileRecord("file4", "0.0.6", "127.0.0.1", 1235);
 
-    // 总共记录了4个文件
-    // 其中一个port为Invalid
-    // 其中两个文件打开的client ip port相同
+    //A total of 4 files were recorded
+    //One of the ports is Invalid
+    //Two of the files have the same client IP port opened
     ASSERT_EQ(2, fileRecordManager.ListAllClient().size());
 
     // ClientIpPortType clientIpPort;
@@ -127,7 +127,7 @@ TEST(FileRecordManagerTest, open_file_num_test) {
 
     ASSERT_EQ(0, fileRecordManager.GetOpenFileNum());
 
-    // 插入两个记录
+    //Insert two records
     fileRecordManager.UpdateFileRecord("file1", "", "127.0.0.1", 0);
     fileRecordManager.UpdateFileRecord("file2", "", "127.0.0.1", 0);
 
@@ -138,18 +138,18 @@ TEST(FileRecordManagerTest, open_file_num_test) {
         }
     };
 
-    // 只对 file1 定期续约
+    //Regular renewal only for file1
     std::thread th(task, "file1");
 
-    // sleep 50ms后，file2 会超时
+    //After 50ms of sleep, file2 will timeout
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
     ASSERT_EQ(1, fileRecordManager.GetOpenFileNum());
 
-    // 停止 file1 的定期续约
+    //Stop regular renewal of file1
     running = false;
     th.join();
 
-    // sleep 50ms后，file1 也会超时
+    //After 50ms of sleep, file1 will also timeout
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
     ASSERT_EQ(0, fileRecordManager.GetOpenFileNum());
 

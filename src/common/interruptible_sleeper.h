@@ -29,18 +29,18 @@
 namespace curve {
 namespace common {
 /**
- * InterruptibleSleeper 实现可 interruptible 的 sleep 功能.
- * 正常情况下 wait_for 超时, 接收到退出信号之后, 程序会立即被唤醒,
- * 退出 while 循环, 并执行 cleanup 代码.
+ *InterruptibleSleeper implements the interruptible sleep function
+ *Under normal circumstances, wait_ For timeout, upon receiving the exit signal, the program will immediately be awakened,
+ *Exit the while loop and execute the cleanup code
  */
 class InterruptibleSleeper {
  public:
     /**
-     * @brief wait_for 等待指定时间，如果接受到退出信号立刻返回
+     * @brief wait_for Wait for the specified time, and immediately return if an exit signal is received
      *
-     * @param[in] time 指定wait时长
+     * @param[in] time specifies the wait duration
      *
-     * @return false-收到退出信号 true-超时后退出
+     * @return false - Received exit signal true - Exit after timeout
      */
     template<typename R, typename P>
     bool wait_for(std::chrono::duration<R, P> const& time) {
@@ -49,7 +49,7 @@ class InterruptibleSleeper {
     }
 
     /**
-     * @brief interrupt 给当前wait发送退出信号
+     * @brief interrupt sends an exit signal to the current wait
      */
     void interrupt() {
         UniqueLock lock(m);

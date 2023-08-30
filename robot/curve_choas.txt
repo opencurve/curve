@@ -37,7 +37,7 @@ test one volume perf
     stop rwio
     perf test
 
-#启动大压力情况下的混沌测试：分等级进行随机故障注入。每次注入完成后恢复集群所有业务，目前设置100次的全流程注入
+#Conduct chaos testing under high stress: Inject faults of various levels randomly. Restore all cluster operations after each injection. Currently set for 100 rounds of full injection
 
 inject cluster chaos test
     [Tags]   P2   chaos   longtime  
@@ -47,17 +47,17 @@ inject cluster chaos test
     ${num}   evaluate  int(10)
     init create curve vm    ${num}
     :FOR   ${i}   IN RANGE   10
-          log   "启动第"${i}"轮故障"
+          log   "Starting Round "${i}" of Fault Injection"
           ${choas1}   evaluate  random.choice($choas_level1)   random
-          log   "开始启动一级故障"
+          log   "Starting Level 1 Fault"
           do thrasher    ${choas1}
           sleep  30
           ${choas2}   evaluate  random.choice($choas_level2)   random
-          log   "开始启动二级故障"
+          log   "Starting Level 2 Fault"
           do thrasher    ${choas2}
           sleep  30
           ${choas3}   evaluate  random.choice($choas_level3)   random
-          log   "开始启动三级故障"
+          log   "Starting Level 3 Fault"
           do thrasher    ${choas3}
           sleep  30
           clean env

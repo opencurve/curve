@@ -217,13 +217,13 @@ int CurveCli::ResetPeer() {
     }
     curve::common::Peer requestPeer;
     requestPeer.set_address(requestPeerId.to_string());
-    // 目前reset peer只支持reset为1一个副本，不支持增加副本，
-    // 因为不能通过工具在chunkserver上创建copyset
+    //Currently, reset peer only supports resetting to 1 replica and does not support adding replicas,
+    //Because it is not possible to create a copyset on chunkserver through tools
     if (newConf.size() != 1) {
         std::cout << "New conf can only specify one peer!" << std::endl;
         return -1;
     }
-    // 新的配置必须包含发送RPC的peer
+    //The new configuration must include a peer that sends RPC
     if (*newConf.begin() != requestPeerId) {
         std::cout << "New conf must include the target peer!" << std::endl;
         return -1;

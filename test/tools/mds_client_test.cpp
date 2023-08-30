@@ -90,7 +90,7 @@ class ToolMDSClientTest : public ::testing::Test {
         ASSERT_EQ(0, server->Start("127.0.0.1:9192", nullptr));
         brpc::StartDummyServerAt(9193);
 
-        // 初始化mds client
+        //Initialize mds client
         curve::mds::topology::ListPhysicalPoolResponse response;
         response.set_statuscode(kTopoErrCodeSuccess);
         EXPECT_CALL(*topoService, ListPhysicalPool(_, _, _, _))
@@ -220,9 +220,9 @@ TEST(MDSClientInitTest, Init) {
     ASSERT_EQ(-1, mdsClient.Init(""));
     ASSERT_EQ(-1, mdsClient.Init("127.0.0.1"));
     ASSERT_EQ(-1, mdsClient.Init("127.0.0.1:65536"));
-    // dummy server非法
+    //Dummy server is illegal
     ASSERT_EQ(-1, mdsClient.Init(mdsAddr, ""));
-    // dummy server与mds不匹配
+    //Dummy server and mds do not match
     ASSERT_EQ(-1, mdsClient.Init(mdsAddr, "9091,9092,9093"));
 }
 
@@ -232,7 +232,7 @@ TEST_F(ToolMDSClientTest, GetFileInfo) {
     std::string filename = "/test";
     curve::mds::FileInfo outFileInfo;
 
-    // 发送RPC失败
+    //Sending RPC failed
     EXPECT_CALL(*nameService, GetFileInfo(_, _, _, _))
         .Times(6)
         .WillRepeatedly(Invoke([](RpcController *controller,
@@ -246,7 +246,7 @@ TEST_F(ToolMDSClientTest, GetFileInfo) {
         }));
     ASSERT_EQ(-1, mdsClient.GetFileInfo(filename, &outFileInfo));
 
-    // 返回码不为OK
+    //The return code is not O
     curve::mds::GetFileInfoResponse response;
     response.set_statuscode(curve::mds::StatusCode::kParaError);
     EXPECT_CALL(*nameService, GetFileInfo(_, _, _, _))
@@ -258,7 +258,7 @@ TEST_F(ToolMDSClientTest, GetFileInfo) {
                       Closure *done) { brpc::ClosureGuard doneGuard(done); })));
     ASSERT_EQ(-1, mdsClient.GetFileInfo(filename, &outFileInfo));
 
-    // 正常情况
+    //Normal situation
     curve::mds::FileInfo *info = new curve::mds::FileInfo;
     GetFileInfoForTest(1, info);
     response.set_allocated_fileinfo(info);
@@ -277,7 +277,7 @@ TEST_F(ToolMDSClientTest, GetFileInfo) {
 TEST_F(ToolMDSClientTest, GetAllocatedSize) {
     uint64_t allocSize;
     std::string filename = "/test";
-    // 发送RPC失败
+    //Sending RPC failed
     EXPECT_CALL(*nameService, GetAllocatedSize(_, _, _, _))
         .Times(6)
         .WillRepeatedly(Invoke(
@@ -291,7 +291,7 @@ TEST_F(ToolMDSClientTest, GetAllocatedSize) {
             }));
     ASSERT_EQ(-1, mdsClient.GetAllocatedSize(filename, &allocSize));
 
-    // 返回码不为OK
+    //The return code is not OK
     curve::mds::GetAllocatedSizeResponse response;
     response.set_statuscode(curve::mds::StatusCode::kParaError);
     EXPECT_CALL(*nameService, GetAllocatedSize(_, _, _, _))
@@ -303,7 +303,7 @@ TEST_F(ToolMDSClientTest, GetAllocatedSize) {
                       Closure *done) { brpc::ClosureGuard doneGuard(done); })));
     ASSERT_EQ(-1, mdsClient.GetAllocatedSize(filename, &allocSize));
 
-    // 正常情况
+    //Normal situation
     response.set_allocatedsize(DefaultSegmentSize * 3);
     for (int i = 1; i <= 3; ++i) {
         response.mutable_allocsizemap()->insert(
@@ -330,7 +330,7 @@ TEST_F(ToolMDSClientTest, ListDir) {
     std::string fileName = "/test";
     std::vector<FileInfo> fileInfoVec;
 
-    // 发送RPC失败
+    //Sending RPC failed
     EXPECT_CALL(*nameService, ListDir(_, _, _, _))
         .Times(6)
         .WillRepeatedly(
@@ -344,7 +344,7 @@ TEST_F(ToolMDSClientTest, ListDir) {
             }));
     ASSERT_EQ(-1, mdsClient.ListDir(fileName, &fileInfoVec));
 
-    // 返回码不为OK
+    //The return code is not OK
     curve::mds::ListDirResponse response;
     response.set_statuscode(curve::mds::StatusCode::kParaError);
     EXPECT_CALL(*nameService, ListDir(_, _, _, _))
@@ -355,7 +355,7 @@ TEST_F(ToolMDSClientTest, ListDir) {
                       curve::mds::ListDirResponse *response,
                       Closure *done) { brpc::ClosureGuard doneGuard(done); })));
     ASSERT_EQ(-1, mdsClient.ListDir(fileName, &fileInfoVec));
-    // 正常情况
+    //Normal situation
     response.set_statuscode(curve::mds::StatusCode::kOK);
     for (int i = 0; i < 5; i++) {
         auto fileInfo = response.add_fileinfo();
@@ -381,7 +381,7 @@ TEST_F(ToolMDSClientTest, GetSegmentInfo) {
     curve::mds::PageFileSegment outSegment;
     uint64_t offset = 0;
 
-    // 发送RPC失败
+    //Sending RPC failed
     EXPECT_CALL(*nameService, GetOrAllocateSegment(_, _, _, _))
         .Times(6)
         .WillRepeatedly(
@@ -397,7 +397,7 @@ TEST_F(ToolMDSClientTest, GetSegmentInfo) {
     ASSERT_EQ(GetSegmentRes::kOtherError,
               mdsClient.GetSegmentInfo(fileName, offset, &outSegment));
 
-    // segment不存在
+    //Segment does not exist
     curve::mds::GetOrAllocateSegmentResponse response;
     response.set_statuscode(curve::mds::StatusCode::kSegmentNotAllocated);
     EXPECT_CALL(*nameService, GetOrAllocateSegment(_, _, _, _))
@@ -409,7 +409,7 @@ TEST_F(ToolMDSClientTest, GetSegmentInfo) {
                       Closure *done) { brpc::ClosureGuard doneGuard(done); })));
     ASSERT_EQ(GetSegmentRes::kSegmentNotAllocated,
               mdsClient.GetSegmentInfo(fileName, offset, &outSegment));
-    // 文件不存在
+    //File does not exist
     response.set_statuscode(curve::mds::StatusCode::kFileNotExists);
     EXPECT_CALL(*nameService, GetOrAllocateSegment(_, _, _, _))
         .WillOnce(DoAll(
@@ -421,7 +421,7 @@ TEST_F(ToolMDSClientTest, GetSegmentInfo) {
     ASSERT_EQ(GetSegmentRes::kFileNotExists,
               mdsClient.GetSegmentInfo(fileName, offset, &outSegment));
 
-    // 其他错误
+    //Other errors
     response.set_statuscode(curve::mds::StatusCode::kParaError);
     EXPECT_CALL(*nameService, GetOrAllocateSegment(_, _, _, _))
         .WillOnce(DoAll(
@@ -433,7 +433,7 @@ TEST_F(ToolMDSClientTest, GetSegmentInfo) {
     ASSERT_EQ(GetSegmentRes::kOtherError,
               mdsClient.GetSegmentInfo(fileName, offset, &outSegment));
 
-    // 正常情况
+    //Normal situation
     PageFileSegment *segment = new PageFileSegment();
     GetSegmentForTest(segment);
     response.set_statuscode(curve::mds::StatusCode::kOK);
@@ -453,7 +453,7 @@ TEST_F(ToolMDSClientTest, GetSegmentInfo) {
 TEST_F(ToolMDSClientTest, DeleteFile) {
     std::string fileName = "/test";
 
-    // 发送RPC失败
+    //Sending RPC failed
     EXPECT_CALL(*nameService, DeleteFile(_, _, _, _))
         .Times(6)
         .WillRepeatedly(
@@ -467,7 +467,7 @@ TEST_F(ToolMDSClientTest, DeleteFile) {
             }));
     ASSERT_EQ(-1, mdsClient.DeleteFile(fileName));
 
-    // 返回码不为OK
+    //The return code is not OK
     curve::mds::DeleteFileResponse response;
     response.set_statuscode(curve::mds::StatusCode::kParaError);
     EXPECT_CALL(*nameService, DeleteFile(_, _, _, _))
@@ -479,7 +479,7 @@ TEST_F(ToolMDSClientTest, DeleteFile) {
                       Closure *done) { brpc::ClosureGuard doneGuard(done); })));
     ASSERT_EQ(-1, mdsClient.DeleteFile(fileName));
 
-    // 正常情况
+    //Normal situation
     response.set_statuscode(curve::mds::StatusCode::kOK);
     EXPECT_CALL(*nameService, DeleteFile(_, _, _, _))
         .WillOnce(DoAll(
@@ -505,7 +505,7 @@ TEST_F(ToolMDSClientTest, CreateFile) {
     context.stripeCount = stripeCount;
     context.poolset = "";
 
-    // 发送RPC失败
+    //Sending RPC failed
     EXPECT_CALL(*nameService, CreateFile(_, _, _, _))
         .Times(6)
         .WillRepeatedly(Invoke([](RpcController *controller,
@@ -519,7 +519,7 @@ TEST_F(ToolMDSClientTest, CreateFile) {
                     }));
     ASSERT_EQ(-1, mdsClient.CreateFile(context));
 
-    // 返回码不为OK
+    //The return code is not OK
     curve::mds::CreateFileResponse response;
     response.set_statuscode(curve::mds::StatusCode::kParaError);
     EXPECT_CALL(*nameService, CreateFile(_, _, _, _))
@@ -532,7 +532,7 @@ TEST_F(ToolMDSClientTest, CreateFile) {
                     })));
     ASSERT_EQ(-1, mdsClient.CreateFile(context));
 
-    // 正常情况
+    //Normal situation
     response.set_statuscode(curve::mds::StatusCode::kOK);
     EXPECT_CALL(*nameService, CreateFile(_, _, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(response),
@@ -564,7 +564,7 @@ TEST_F(ToolMDSClientTest, ExtendVolume_Fail) {
     std::string fileName = "/test";
     uint64_t length = 10 * DefaultSegmentSize;
 
-    // 发送RPC失败
+    //Sending RPC failed
     EXPECT_CALL(*nameService, ExtendFile(_, _, _, _))
         .Times(6)
         .WillRepeatedly(
@@ -580,7 +580,7 @@ TEST_F(ToolMDSClientTest, ExtendVolume_Fail) {
 
     return;
 
-    // 返回码不为OK
+    //The return code is not OK
     curve::mds::ExtendFileResponse response;
     response.set_statuscode(curve::mds::StatusCode::kParaError);
     EXPECT_CALL(*nameService, ExtendFile(_, _, _, _))
@@ -598,7 +598,7 @@ TEST_F(ToolMDSClientTest, GetChunkServerListInCopySets) {
     CopySetIdType copysetId = 100;
     std::vector<ChunkServerLocation> csLocs;
 
-    // 发送rpc失败
+    //Failed to send rpc
     EXPECT_CALL(*topoService, GetChunkServerListInCopySets(_, _, _, _))
         .Times(6)
         .WillRepeatedly(Invoke(
@@ -613,7 +613,7 @@ TEST_F(ToolMDSClientTest, GetChunkServerListInCopySets) {
     ASSERT_EQ(-1, mdsClient.GetChunkServerListInCopySet(logicalPoolId,
                                                         copysetId, &csLocs));
 
-    // 返回码不为OK
+    //The return code is not OK
     GetChunkServerListInCopySetsResponse response;
     response.set_statuscode(curve::mds::topology::kTopoErrCodeInitFail);
     EXPECT_CALL(*topoService, GetChunkServerListInCopySets(_, _, _, _))
@@ -626,7 +626,7 @@ TEST_F(ToolMDSClientTest, GetChunkServerListInCopySets) {
     ASSERT_EQ(-1, mdsClient.GetChunkServerListInCopySet(logicalPoolId,
                                                         copysetId, &csLocs));
 
-    // 正常情况
+    //Normal situation
     response.set_statuscode(kTopoErrCodeSuccess);
     CopySetServerInfo csInfo;
     GetCopysetInfoForTest(&csInfo, 3, copysetId);
@@ -646,7 +646,7 @@ TEST_F(ToolMDSClientTest, GetChunkServerListInCopySets) {
         ASSERT_EQ(csInfo.cslocs(i).DebugString(), csLocs[i].DebugString());
     }
 
-    // 测试获取多个copyset
+    //Test obtaining multiple copysets
     std::vector<CopySetServerInfo> expected;
     response.Clear();
     response.set_statuscode(kTopoErrCodeSuccess);
@@ -677,7 +677,7 @@ TEST_F(ToolMDSClientTest, GetChunkServerListInCopySets) {
 TEST_F(ToolMDSClientTest, ListPhysicalPoolsInCluster) {
     std::vector<PhysicalPoolInfo> pools;
 
-    // 发送rpc失败
+    //Failed to send rpc
     EXPECT_CALL(*topoService, ListPhysicalPool(_, _, _, _))
         .Times(6)
         .WillRepeatedly(
@@ -691,7 +691,7 @@ TEST_F(ToolMDSClientTest, ListPhysicalPoolsInCluster) {
             }));
     ASSERT_EQ(-1, mdsClient.ListPhysicalPoolsInCluster(&pools));
 
-    // 返回码不为OK
+    //The return code is not OK
     ListPhysicalPoolResponse response;
     response.set_statuscode(curve::mds::topology::kTopoErrCodeInitFail);
     EXPECT_CALL(*topoService, ListPhysicalPool(_, _, _, _))
@@ -704,7 +704,7 @@ TEST_F(ToolMDSClientTest, ListPhysicalPoolsInCluster) {
                   })));
     ASSERT_EQ(-1, mdsClient.ListPhysicalPoolsInCluster(&pools));
 
-    // 正常情况
+    //Normal situation
     response.set_statuscode(kTopoErrCodeSuccess);
     for (int i = 0; i < 3; i++) {
         auto poolInfo = response.add_physicalpoolinfos();
@@ -731,7 +731,7 @@ TEST_F(ToolMDSClientTest, ListLogicalPoolsInPhysicalPool) {
     PoolIdType poolId = 1;
     std::vector<LogicalPoolInfo> pools;
 
-    // 发送rpc失败
+    //Failed to send rpc
     EXPECT_CALL(*topoService, ListLogicalPool(_, _, _, _))
         .Times(6)
         .WillRepeatedly(Invoke(
@@ -744,7 +744,7 @@ TEST_F(ToolMDSClientTest, ListLogicalPoolsInPhysicalPool) {
             }));
     ASSERT_EQ(-1, mdsClient.ListLogicalPoolsInPhysicalPool(poolId, &pools));
 
-    // 返回码不为OK
+    //The return code is not OK
     ListLogicalPoolResponse response;
     response.set_statuscode(curve::mds::topology::kTopoErrCodeInitFail);
     EXPECT_CALL(*topoService, ListLogicalPool(_, _, _, _))
@@ -757,7 +757,7 @@ TEST_F(ToolMDSClientTest, ListLogicalPoolsInPhysicalPool) {
                   })));
     ASSERT_EQ(-1, mdsClient.ListLogicalPoolsInPhysicalPool(poolId, &pools));
 
-    // 正常情况
+    //Normal situation
     response.set_statuscode(kTopoErrCodeSuccess);
     for (int i = 0; i < 3; i++) {
         auto poolInfo = response.add_logicalpoolinfos();
@@ -783,7 +783,7 @@ TEST_F(ToolMDSClientTest, ListLogicalPoolsInPhysicalPool) {
 TEST_F(ToolMDSClientTest, ListZoneInPhysicalPool) {
     PoolIdType poolId = 1;
     std::vector<ZoneInfo> zones;
-    // 发送rpc失败
+    //Failed to send rpc
     EXPECT_CALL(*topoService, ListPoolZone(_, _, _, _))
         .Times(6)
         .WillRepeatedly(
@@ -798,7 +798,7 @@ TEST_F(ToolMDSClientTest, ListZoneInPhysicalPool) {
             }));
     ASSERT_EQ(-1, mdsClient.ListZoneInPhysicalPool(poolId, &zones));
 
-    // 返回码不为OK
+    //The return code is not OK
     curve::mds::topology::ListPoolZoneResponse response;
     response.set_statuscode(curve::mds::topology::kTopoErrCodeInitFail);
     EXPECT_CALL(*topoService, ListPoolZone(_, _, _, _))
@@ -809,7 +809,7 @@ TEST_F(ToolMDSClientTest, ListZoneInPhysicalPool) {
                       curve::mds::topology::ListPoolZoneResponse *response,
                       Closure *done) { brpc::ClosureGuard doneGuard(done); })));
     ASSERT_EQ(-1, mdsClient.ListZoneInPhysicalPool(poolId, &zones));
-    // 正常情况
+    //Normal situation
     response.set_statuscode(kTopoErrCodeSuccess);
     for (int i = 0; i < 3; i++) {
         auto zoneInfo = response.add_zones();
@@ -835,7 +835,7 @@ TEST_F(ToolMDSClientTest, ListServersInZone) {
     ZoneIdType zoneId;
     std::vector<ServerInfo> servers;
 
-    // 发送rpc失败
+    //Failed to send rpc
     EXPECT_CALL(*topoService, ListZoneServer(_, _, _, _))
         .Times(6)
         .WillRepeatedly(Invoke(
@@ -850,7 +850,7 @@ TEST_F(ToolMDSClientTest, ListServersInZone) {
             }));
     ASSERT_EQ(-1, mdsClient.ListServersInZone(zoneId, &servers));
 
-    // 返回码不为OK
+    //The return code is not OK
     curve::mds::topology::ListZoneServerResponse response;
     response.set_statuscode(curve::mds::topology::kTopoErrCodeInitFail);
     EXPECT_CALL(*topoService, ListZoneServer(_, _, _, _))
@@ -863,7 +863,7 @@ TEST_F(ToolMDSClientTest, ListServersInZone) {
                    Closure *done) { brpc::ClosureGuard doneGuard(done); })));
     ASSERT_EQ(-1, mdsClient.ListServersInZone(zoneId, &servers));
 
-    // 正常情况
+    //Normal situation
     response.set_statuscode(kTopoErrCodeSuccess);
     for (int i = 0; i < 3; i++) {
         auto serverInfo = response.add_serverinfo();
@@ -890,7 +890,7 @@ TEST_F(ToolMDSClientTest, ListChunkServersOnServer) {
     ServerIdType serverId = 1;
     std::vector<ChunkServerInfo> chunkservers;
 
-    // 发送rpc失败
+    //Failed to send rpc
     EXPECT_CALL(*topoService, ListChunkServer(_, _, _, _))
         .Times(6)
         .WillRepeatedly(Invoke(
@@ -905,7 +905,7 @@ TEST_F(ToolMDSClientTest, ListChunkServersOnServer) {
             }));
     ASSERT_EQ(-1, mdsClient.ListChunkServersOnServer(serverId, &chunkservers));
 
-    // 返回码不为OK
+    //The return code is not OK
     curve::mds::topology::ListChunkServerResponse response;
     response.set_statuscode(curve::mds::topology::kTopoErrCodeInitFail);
     EXPECT_CALL(*topoService, ListChunkServer(_, _, _, _))
@@ -918,7 +918,7 @@ TEST_F(ToolMDSClientTest, ListChunkServersOnServer) {
                    Closure *done) { brpc::ClosureGuard doneGuard(done); })));
     ASSERT_EQ(-1, mdsClient.ListChunkServersOnServer(serverId, &chunkservers));
 
-    // 正常情况,两个chunkserver正常，一个chunkserver retired
+    //Under normal circumstances, two chunkservers are normal and one chunkserver retired
     response.set_statuscode(kTopoErrCodeSuccess);
     for (int i = 0; i < 3; i++) {
         auto csInfo = response.add_chunkserverinfos();
@@ -946,7 +946,7 @@ TEST_F(ToolMDSClientTest, GetChunkServerInfo) {
     std::string csAddr = "127.0.0.1:8200";
     ChunkServerInfo chunkserver;
 
-    // 发送rpc失败
+    //Failed to send rpc
     EXPECT_CALL(*topoService, GetChunkServer(_, _, _, _))
         .Times(12)
         .WillRepeatedly(Invoke(
@@ -962,7 +962,7 @@ TEST_F(ToolMDSClientTest, GetChunkServerInfo) {
     ASSERT_EQ(-1, mdsClient.GetChunkServerInfo(csId, &chunkserver));
     ASSERT_EQ(-1, mdsClient.GetChunkServerInfo(csAddr, &chunkserver));
 
-    // 返回码不为OK
+    //The return code is not OK
     curve::mds::topology::GetChunkServerInfoResponse response;
     response.set_statuscode(curve::mds::topology::kTopoErrCodeInitFail);
     EXPECT_CALL(*topoService, GetChunkServer(_, _, _, _))
@@ -978,7 +978,7 @@ TEST_F(ToolMDSClientTest, GetChunkServerInfo) {
     ASSERT_EQ(-1, mdsClient.GetChunkServerInfo(csId, &chunkserver));
     ASSERT_EQ(-1, mdsClient.GetChunkServerInfo(csAddr, &chunkserver));
 
-    // 正常情况
+    //Normal situation
     response.set_statuscode(kTopoErrCodeSuccess);
     ChunkServerInfo *csInfo = new ChunkServerInfo();
     GetChunkServerInfoForTest(1, csInfo);
@@ -999,7 +999,7 @@ TEST_F(ToolMDSClientTest, GetChunkServerInfo) {
     GetChunkServerInfoForTest(1, &expected);
     ASSERT_EQ(expected.DebugString(), chunkserver.DebugString());
 
-    // chunkserver地址不合法的情况
+    //Illegal chunkserver address
     csAddr = "";
     ASSERT_EQ(-1, mdsClient.GetChunkServerInfo(csAddr, &chunkserver));
     csAddr = "127.0.0.1";
@@ -1013,7 +1013,7 @@ TEST_F(ToolMDSClientTest, GetCopySetsInChunkServer) {
     std::string csAddr = "127.0.0.1:8200";
     std::vector<CopysetInfo> copysets;
 
-    // 发送rpc失败
+    //Failed to send rpc
     EXPECT_CALL(*topoService, GetCopySetsInChunkServer(_, _, _, _))
         .Times(12)
         .WillRepeatedly(Invoke(
@@ -1028,7 +1028,7 @@ TEST_F(ToolMDSClientTest, GetCopySetsInChunkServer) {
     ASSERT_EQ(-1, mdsClient.GetCopySetsInChunkServer(csId, &copysets));
     ASSERT_EQ(-1, mdsClient.GetCopySetsInChunkServer(csAddr, &copysets));
 
-    // 返回码不为OK
+    //The return code is not OK
     GetCopySetsInChunkServerResponse response;
     response.set_statuscode(curve::mds::topology::kTopoErrCodeInitFail);
     EXPECT_CALL(*topoService, GetCopySetsInChunkServer(_, _, _, _))
@@ -1042,7 +1042,7 @@ TEST_F(ToolMDSClientTest, GetCopySetsInChunkServer) {
     ASSERT_EQ(-1, mdsClient.GetCopySetsInChunkServer(csId, &copysets));
     ASSERT_EQ(-1, mdsClient.GetCopySetsInChunkServer(csAddr, &copysets));
 
-    // 正常情况
+    //Normal situatio
     response.set_statuscode(kTopoErrCodeSuccess);
     for (int i = 0; i < 5; ++i) {
         auto copysetInfo = response.add_copysetinfos();
@@ -1066,7 +1066,7 @@ TEST_F(ToolMDSClientTest, GetCopySetsInChunkServer) {
         ASSERT_EQ(1, copysets[i].logicalpoolid());
         ASSERT_EQ(1000 + i, copysets[i].copysetid());
     }
-    // chunkserver地址不合法的情况
+    //Illegal chunkserver address
     csAddr = "";
     ASSERT_EQ(-1, mdsClient.GetCopySetsInChunkServer(csAddr, &copysets));
     csAddr = "127.0.0.1";
@@ -1078,7 +1078,7 @@ TEST_F(ToolMDSClientTest, GetCopySetsInChunkServer) {
 TEST_F(ToolMDSClientTest, GetCopySetsInCluster) {
     std::vector<CopysetInfo> copysets;
 
-    // 发送rpc失败
+    //Failed to send rpc
     EXPECT_CALL(*topoService, GetCopySetsInCluster(_, _, _, _))
         .Times(6)
         .WillRepeatedly(
@@ -1092,7 +1092,7 @@ TEST_F(ToolMDSClientTest, GetCopySetsInCluster) {
             }));
     ASSERT_EQ(-1, mdsClient.GetCopySetsInCluster(&copysets));
 
-    // 返回码不为OK
+    //The return code is not O
     GetCopySetsInClusterResponse response;
     response.set_statuscode(curve::mds::topology::kTopoErrCodeInitFail);
     EXPECT_CALL(*topoService, GetCopySetsInCluster(_, _, _, _))
@@ -1105,7 +1105,7 @@ TEST_F(ToolMDSClientTest, GetCopySetsInCluster) {
                       Closure *done) { brpc::ClosureGuard doneGuard(done); })));
     ASSERT_EQ(-1, mdsClient.GetCopySetsInCluster(&copysets));
 
-    // 正常情况
+    //Normal situation
     response.set_statuscode(kTopoErrCodeSuccess);
     for (int i = 0; i < 5; ++i) {
         auto copysetInfo = response.add_copysetinfos();
@@ -1184,7 +1184,7 @@ TEST_F(ToolMDSClientTest, GetCopyset) {
 }
 
 TEST_F(ToolMDSClientTest, RapidLeaderSchedule) {
-    // 发送rpc失败
+    //Failed to send rpc
     EXPECT_CALL(*scheduleService, RapidLeaderSchedule(_, _, _, _))
         .Times(6)
         .WillRepeatedly(
@@ -1198,7 +1198,7 @@ TEST_F(ToolMDSClientTest, RapidLeaderSchedule) {
             }));
     ASSERT_EQ(-1, mdsClient.RapidLeaderSchedule(1));
 
-    // 返回码不为OK
+    //The return code is not OK
     RapidLeaderScheduleResponse response;
     response.set_statuscode(
         curve::mds::schedule::kScheduleErrCodeInvalidLogicalPool);
@@ -1211,7 +1211,7 @@ TEST_F(ToolMDSClientTest, RapidLeaderSchedule) {
                       Closure *done) { brpc::ClosureGuard doneGuard(done); })));
     ASSERT_EQ(-1, mdsClient.RapidLeaderSchedule(1));
 
-    // 成功
+    //Success
     response.set_statuscode(curve::mds::schedule::kScheduleErrCodeSuccess);
     EXPECT_CALL(*scheduleService, RapidLeaderSchedule(_, _, _, _))
         .WillOnce(DoAll(
@@ -1267,7 +1267,7 @@ TEST_F(ToolMDSClientTest, SetLogicalPoolScanState) {
 
 TEST_F(ToolMDSClientTest, QueryChunkServerRecoverStatus) {
     std::map<ChunkServerIdType, bool> statusMap;
-    // 发送rpc失败
+    //Failed to send rpc
     EXPECT_CALL(*scheduleService, QueryChunkServerRecoverStatus(_, _, _, _))
         .Times(6)
         .WillRepeatedly(Invoke(
@@ -1281,7 +1281,7 @@ TEST_F(ToolMDSClientTest, QueryChunkServerRecoverStatus) {
             }));
     ASSERT_EQ(-1, mdsClient.QueryChunkServerRecoverStatus(
                       std::vector<ChunkServerIdType>{}, &statusMap));
-    // 1. QueryChunkServerRecoverStatus失败的情况
+    //1 QueryChunkServerRecoverStatus failed situation
     QueryChunkServerRecoverStatusResponse response;
     response.set_statuscode(
         curve::mds::schedule::kScheduleErrInvalidQueryChunkserverID);
@@ -1295,7 +1295,7 @@ TEST_F(ToolMDSClientTest, QueryChunkServerRecoverStatus) {
     ASSERT_EQ(-1, mdsClient.QueryChunkServerRecoverStatus(
                       std::vector<ChunkServerIdType>{}, &statusMap));
 
-    // 2. QueryChunkServerRecoverStatus成功的情况
+    //2 Success of QueryChunkServerRecoverStatus
     response.set_statuscode(curve::mds::schedule::kScheduleErrCodeSuccess);
     EXPECT_CALL(*scheduleService, QueryChunkServerRecoverStatus(_, _, _, _))
         .WillOnce(DoAll(
@@ -1329,12 +1329,12 @@ TEST_F(ToolMDSClientTest, GetMetric) {
 TEST_F(ToolMDSClientTest, GetCurrentMds) {
     bvar::Status<std::string> value;
     value.expose("mds_status");
-    // 有leader
+    //With a leader
     value.set_value("leader");
     std::vector<std::string> curMds = mdsClient.GetCurrentMds();
     ASSERT_EQ(1, curMds.size());
     ASSERT_EQ("127.0.0.1:9192", curMds[0]);
-    // 没有leader
+    //No leader
     value.set_value("follower");
     ASSERT_TRUE(mdsClient.GetCurrentMds().empty());
 }
@@ -1343,20 +1343,20 @@ TEST_F(ToolMDSClientTest, GetMdsOnlineStatus) {
     bvar::Status<std::string> value;
     value.expose("mds_config_mds_listen_addr");
     std::map<std::string, bool> onlineStatus;
-    // 9180在线，9999不在线
+    //9180 online, 9999 offline
     value.set_value("{\"conf_name\":\"mds.listen.addr\","
                     "\"conf_value\":\"127.0.0.1:9192\"}");
     mdsClient.GetMdsOnlineStatus(&onlineStatus);
     std::map<std::string, bool> expected = {{"127.0.0.1:9191", false},
                                             {"127.0.0.1:9192", true}};
     ASSERT_EQ(expected, onlineStatus);
-    // 9180的服务端口不一致
+    //The service ports of 9180 are inconsistent
     value.set_value("{\"conf_name\":\"mds.listen.addr\","
                     "\"conf_value\":\"127.0.0.1:9188\"}");
     mdsClient.GetMdsOnlineStatus(&onlineStatus);
     expected = {{"127.0.0.1:9191", false}, {"127.0.0.1:9192", false}};
     ASSERT_EQ(expected, onlineStatus);
-    // 非json格式
+    //Non JSON format
     value.set_value("127.0.0.1::9191");
     mdsClient.GetMdsOnlineStatus(&onlineStatus);
     expected = {{"127.0.0.1:9191", false}, {"127.0.0.1:9192", false}};
@@ -1366,7 +1366,7 @@ TEST_F(ToolMDSClientTest, GetMdsOnlineStatus) {
 TEST_F(ToolMDSClientTest, ListClient) {
     std::vector<std::string> clientAddrs;
 
-    // 发送rpc失败
+    //Failed to send rpc
     EXPECT_CALL(*nameService, ListClient(_, _, _, _))
         .Times(6)
         .WillRepeatedly(
@@ -1380,7 +1380,7 @@ TEST_F(ToolMDSClientTest, ListClient) {
             }));
     ASSERT_EQ(-1, mdsClient.ListClient(&clientAddrs));
 
-    // 返回码不为OK
+    //The return code is not OK
     curve::mds::ListClientResponse response;
     response.set_statuscode(curve::mds::StatusCode::kParaError);
     EXPECT_CALL(*nameService, ListClient(_, _, _, _))
@@ -1392,7 +1392,7 @@ TEST_F(ToolMDSClientTest, ListClient) {
                       Closure *done) { brpc::ClosureGuard doneGuard(done); })));
     ASSERT_EQ(-1, mdsClient.ListClient(&clientAddrs));
 
-    // 正常情况
+    //Normal situation
     response.set_statuscode(curve::mds::StatusCode::kOK);
     for (int i = 0; i < 5; i++) {
         auto clientInfo = response.add_clientinfos();

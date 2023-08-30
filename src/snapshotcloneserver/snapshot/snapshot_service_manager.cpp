@@ -50,7 +50,7 @@ int SnapshotServiceManager::CreateSnapshot(const std::string &file,
     int ret = core_->CreateSnapshotPre(file, user, snapshotName, &snapInfo);
     if (ret < 0) {
         if (kErrCodeTaskExist == ret) {
-            // 任务已存在的情况下返回成功，使接口幂等
+            //Returns success if the task already exists, making the interface idempotent
             *uuid = snapInfo.GetUuid();
             return kErrCodeSuccess;
         }
@@ -124,10 +124,10 @@ int SnapshotServiceManager::DeleteSnapshot(
     if (kErrCodeTaskExist == ret) {
         return kErrCodeSuccess;
     } else if (kErrCodeSnapshotCannotDeleteUnfinished == ret) {
-        // 转Cancel
+        //Transfer to Cancel
         ret = CancelSnapshot(uuid, user, file);
         if (kErrCodeCannotCancelFinished == ret) {
-            // 防止这一过程中又执行完了
+            //To prevent the execution from completing again during this process
             ret = core_->DeleteSnapshotPre(uuid, user, file, &snapInfo);
             if (ret < 0) {
                 LOG(ERROR) << "DeleteSnapshotPre fail"
@@ -228,7 +228,7 @@ int SnapshotServiceManager::GetFileSnapshotInfoInner(
                         info->emplace_back(snap,
                             task->GetTaskInfo()->GetProgress());
                     } else {
-                        // 刚刚完成
+                        //Just completed
                         SnapshotInfo newInfo;
                         ret = core_->GetSnapshotInfo(uuid, &newInfo);
                         if (ret < 0) {
@@ -248,7 +248,7 @@ int SnapshotServiceManager::GetFileSnapshotInfoInner(
                             }
                             default:
                                 LOG(ERROR) << "can not reach here!";
-                                // 当更新数据库失败时，有可能进入这里
+                                //When updating the database fails, it is possible to enter here
                                 return kErrCodeInternalError;
                         }
                     }
@@ -319,7 +319,7 @@ int SnapshotServiceManager::GetSnapshotListInner(
                         info->emplace_back(snap,
                             task->GetTaskInfo()->GetProgress());
                     } else {
-                        // 刚刚完成
+                        //Just completed
                         SnapshotInfo newInfo;
                         ret = core_->GetSnapshotInfo(uuid, &newInfo);
                         if (ret < 0) {
@@ -339,7 +339,7 @@ int SnapshotServiceManager::GetSnapshotListInner(
                             }
                             default:
                                 LOG(ERROR) << "can not reach here!";
-                                // 当更新数据库失败时，有可能进入这里
+                                //When updating the database fails, it is possible to enter here
                                 return kErrCodeInternalError;
                         }
                     }
@@ -398,7 +398,7 @@ int SnapshotServiceManager::RecoverSnapshotTask() {
                 }
                 break;
             }
-            // 重启恢复的canceling等价于errorDeleting
+            //Canceling restart recovery is equivalent to errorDeleting
             case Status::canceling :
             case Status::deleting :
             case Status::errorDeleting : {

@@ -989,7 +989,7 @@ TEST_F(TestSnapshotCoreImpl,
     std::vector<SnapshotInfo> snapInfos;
     SnapshotInfo info2(uuid2, user, fileName, desc2);
     info.SetSeqNum(seqNum);
-    info2.SetSeqNum(seqNum - 1);  // 上一个快照
+    info2.SetSeqNum(seqNum - 1);  //Previous snapshot
     info2.SetStatus(Status::done);
     snapInfos.push_back(info);
     snapInfos.push_back(info2);
@@ -2728,7 +2728,7 @@ TEST_F(TestSnapshotCoreImpl, TestHandleCreateSnapshotTaskCancelSuccess) {
         .Times(4)
         .WillRepeatedly(Return(kErrCodeSuccess));
 
-    // 此处捕获task，设置cancel
+    //Capture task here and set cancel
     EXPECT_CALL(*client_, DeleteSnapshot(fileName, user, seqNum))
         .Times(2)
         .WillOnce(Invoke([task](const std::string &filename,
@@ -2742,7 +2742,7 @@ TEST_F(TestSnapshotCoreImpl, TestHandleCreateSnapshotTaskCancelSuccess) {
     EXPECT_CALL(*client_, CheckSnapShotStatus(_, _, _, _))
         .WillRepeatedly(Return(-LIBCURVE_ERROR::NOTEXIST));
 
-    // 进入cancel
+    //Enter cancel
     EXPECT_CALL(*dataStore_, ChunkDataExist(_))
         .Times(4)
         .WillRepeatedly(Return(true));
@@ -2794,14 +2794,14 @@ TEST_F(TestSnapshotCoreImpl,
                     Return(LIBCURVE_ERROR::OK)));
 
 
-    // 此处捕获task，设置cancel
+    //Capture task here and set cancel
     EXPECT_CALL(*metaStore_, CASSnapshot(_, _))
         .WillOnce(Invoke([task](const UUID& uuid, CASFunc cas) {
             task->Cancel();
             return kErrCodeSuccess;
         }));
 
-    // 进入cancel
+    //Enter cancel
     EXPECT_CALL(*client_, DeleteSnapshot(fileName, user, seqNum))
         .WillOnce(Return(LIBCURVE_ERROR::OK));
 
@@ -2896,7 +2896,7 @@ TEST_F(TestSnapshotCoreImpl,
         .WillRepeatedly(DoAll(SetArgPointee<1>(chunkInfo),
                     Return(LIBCURVE_ERROR::OK)));
 
-    // 此处捕获task，设置cancel
+    //Capture task here and set cancel
     EXPECT_CALL(*dataStore_, PutChunkIndexData(_, _))
         .WillOnce(Invoke([task](const ChunkIndexDataName &name,
                               const ChunkIndexData &meta) {
@@ -2905,7 +2905,7 @@ TEST_F(TestSnapshotCoreImpl,
                     }));
 
 
-    // 进入cancel
+    //Enter cancel
     EXPECT_CALL(*client_, DeleteSnapshot(fileName, user, seqNum))
         .WillOnce(Return(LIBCURVE_ERROR::OK));
 
@@ -3060,7 +3060,7 @@ TEST_F(TestSnapshotCoreImpl,
         .Times(4)
         .WillRepeatedly(Return(kErrCodeSuccess));
 
-    // 此处捕获task，设置cancel
+    //Capture task here and set cancel
     EXPECT_CALL(*client_, DeleteSnapshot(fileName, user, seqNum))
         .WillOnce(Invoke([task](const std::string &filename,
             const std::string &user,
@@ -3072,7 +3072,7 @@ TEST_F(TestSnapshotCoreImpl,
     EXPECT_CALL(*client_, CheckSnapShotStatus(_, _, _, _))
         .WillRepeatedly(Return(-LIBCURVE_ERROR::NOTEXIST));
 
-    // 进入cancel
+    //Enter cancel
     EXPECT_CALL(*dataStore_, ChunkDataExist(_))
         .WillRepeatedly(Return(true));
 
@@ -3219,7 +3219,7 @@ TEST_F(TestSnapshotCoreImpl,
         .Times(4)
         .WillRepeatedly(Return(kErrCodeSuccess));
 
-    // 此处捕获task，设置cancel
+    //Capture task here and set cancel
     EXPECT_CALL(*client_, DeleteSnapshot(fileName, user, seqNum))
         .WillOnce(Invoke([task](const std::string &filename,
             const std::string &user,
@@ -3231,7 +3231,7 @@ TEST_F(TestSnapshotCoreImpl,
     EXPECT_CALL(*client_, CheckSnapShotStatus(_, _, _, _))
         .WillRepeatedly(Return(-LIBCURVE_ERROR::NOTEXIST));
 
-    // 进入cancel
+    //Enter cancel
     EXPECT_CALL(*dataStore_, ChunkDataExist(_))
         .Times(4)
         .WillRepeatedly(Return(true));
@@ -3383,7 +3383,7 @@ TEST_F(TestSnapshotCoreImpl,
         .Times(4)
         .WillRepeatedly(Return(kErrCodeSuccess));
 
-    // 此处捕获task，设置cancel
+    //Capture task here and set cancel
     EXPECT_CALL(*client_, DeleteSnapshot(fileName, user, seqNum))
         .Times(2)
         .WillOnce(Invoke([task](const std::string &filename,
@@ -3397,7 +3397,7 @@ TEST_F(TestSnapshotCoreImpl,
     EXPECT_CALL(*client_, CheckSnapShotStatus(_, _, _, _))
         .WillRepeatedly(Return(-LIBCURVE_ERROR::NOTEXIST));
 
-    // 进入cancel
+    //Enter cancel
     EXPECT_CALL(*dataStore_, ChunkDataExist(_))
         .Times(4)
         .WillRepeatedly(Return(true));

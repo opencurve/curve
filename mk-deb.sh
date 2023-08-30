@@ -20,7 +20,7 @@ set -o errexit
 
 dir=$(pwd)
 
-# step1 清除生成的目录和文件
+#Step 1 Clear generated directories and files
 bazel clean
 
 cleandir=(
@@ -38,15 +38,15 @@ rm -rf "${cleandir[@]}"
 
 git submodule update --init
 
-# step2 获取tag版本和git提交版本信息
-# 获取tag版本
+#Step 2 Obtaining Tag Version and Git Submission Version Information
+#Get Tag Version
 tag_version=$(git status | grep -Ew "HEAD detached at|On branch" | awk '{print $NF}' | awk -F"v" '{print $2}')
 if [ -z ${tag_version} ]; then
     echo "not found version info, set version to 9.9.9"
     tag_version=9.9.9
 fi
 
-# 获取git提交版本信息
+#Obtain git submission version information
 commit_id=$(git rev-parse --short HEAD)
 if [ "$1" = "debug" ]; then
     debug="+debug"
@@ -125,7 +125,7 @@ function build_curvefs_python() {
     done
 }
 
-# step3 执行编译
+#Step 3 Execute Compilation
 bazel_version=$(bazel version | grep "Build label" | awk '{print $3}')
 if [ -z ${bazel_version} ]; then
     echo "please install bazel 4.2.2 first"
@@ -220,7 +220,7 @@ else
 fi
 echo "end compile"
 
-#step4 创建临时目录，拷贝二进制、lib库和配置模板
+#Step 4 Create a temporary directory, copy binaries, lib libraries, and configuration templates
 mkdir build
 cp -r curve-mds build/
 cp -r curve-chunkserver build/
@@ -311,7 +311,7 @@ cp -r k8s/nbd/nbd-package build/k8s-nbd-package
 mkdir -p build/k8s-nbd-package/usr/bin
 cp bazel-bin/nbd/src/curve-nbd build/k8s-nbd-package/usr/bin
 
-# step5 记录到debian包的配置文件，打包debian包
+#Step 5 Record the configuration file of the Debian package and package the Debian package
 version="Version: ${curve_version}"
 echo ${version} >>build/curve-mds/DEBIAN/control
 echo ${version} >>build/curve-sdk/DEBIAN/control
@@ -337,10 +337,10 @@ dpkg-deb -b build/k8s-nebd-package .
 dpkg-deb -b build/nbd-package .
 dpkg-deb -b build/k8s-nbd-package .
 
-# step6 清理libetcdclient.so编译出现的临时文件
+#Step 6 Clean up temporary files that appear during libetcdclient.so compilation
 cd ${dir}/thirdparties/etcdclient
 make clean
 cd ${dir}
 
-# step7 打包python wheel
+#Step 7 Packaging Python Wheel
 build_curvefs_python $1

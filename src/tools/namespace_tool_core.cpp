@@ -98,13 +98,13 @@ int NameSpaceToolCore::GetFileSegments(const std::string& fileName,
 int NameSpaceToolCore::GetFileSegments(const std::string& fileName,
                                   const FileInfo& fileInfo,
                                   std::vector<PageFileSegment>* segments) {
-    // 只能获取page file的segment
+    //Only segments of page files can be obtained
     if (fileInfo.filetype() != curve::mds::FileType::INODE_PAGEFILE) {
         std::cout << "It is not a page file!" << std::endl;
         return -1;
     }
 
-    // 获取文件的segment数，并打印每个segment的详细信息
+    //Obtain the number of segments in the file and print detailed information for each segment
     uint64_t segmentNum = fileInfo.length() / fileInfo.segmentsize();
     uint64_t segmentSize = fileInfo.segmentsize();
     for (uint64_t i = 0; i < segmentNum; i++) {
@@ -117,7 +117,7 @@ int NameSpaceToolCore::GetFileSegments(const std::string& fileName,
         } else if (res == GetSegmentRes::kSegmentNotAllocated) {
             continue;
         } else if (res == GetSegmentRes::kFileNotExists) {
-            // 查询过程中文件被删掉了，清空segment并返回0
+            //During the query process, the file was deleted, the segment was cleared, and 0 was returned
             segments->clear();
             return 0;
         } else {
@@ -229,7 +229,7 @@ int NameSpaceToolCore::QueryChunkCopyset(const std::string& fileName,
         return -1;
     }
     uint64_t segmentSize = fileInfo.segmentsize();
-    // segment对齐的offset
+    //Segment aligned offset
     uint64_t segOffset = (offset / segmentSize) * segmentSize;
     PageFileSegment segment;
     GetSegmentRes segRes = client_->GetSegmentInfo(fileName,
@@ -243,7 +243,7 @@ int NameSpaceToolCore::QueryChunkCopyset(const std::string& fileName,
             return -1;
         }
     }
-    // 在segment里面的chunk的索引
+    //Index of chunk in segment
     if (segment.chunksize() == 0) {
         std::cout << "No chunks in segment!" << std::endl;
         return -1;

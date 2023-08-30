@@ -95,70 +95,76 @@ class CurveFsClient {
     virtual ~CurveFsClient() {}
 
     /**
-     * @brief client 初始化
+     * @brief client initialization
      *
-     * @return 错误码
+     * @return error code
      */
+
     virtual int Init(const CurveClientOptions &options) = 0;
 
     /**
-     * @brief client 资源回收
+     * @brief client resource recycling
      *
-     * @return 错误码
+     * @return error code
      */
+
     virtual int UnInit() = 0;
 
     /**
-     * @brief 创建快照
+     * @brief Create a snapshot
      *
-     * @param filename 文件名
-     * @param user  用户信息
-     * @param[out] seq 快照版本号
+     * @param filename File name
+     * @param user user information
+     * @param[out] seq snapshot version number
      *
-     * @return 错误码
+     * @return error code
      */
+
     virtual int CreateSnapshot(const std::string &filename,
         const std::string &user,
         uint64_t *seq) = 0;
 
     /**
-     * @brief 删除快照
+     * @brief Delete snapshot
      *
-     * @param filename 文件名
-     * @param user 用户信息
-     * @param seq 快照版本号
+     * @param filename File name
+     * @param user user information
+     * @param seq snapshot version number
      *
-     * @return 错误码
+     * @return error code
      */
+
     virtual int DeleteSnapshot(const std::string &filename,
         const std::string &user,
         uint64_t seq) = 0;
 
     /**
-     * @brief 获取快照文件信息
+     * @brief Get snapshot file information
      *
-     * @param filename 文件名
-     * @param user 用户名
-     * @param seq 快照版本号
-     * @param[out] snapInfo 快照文件信息
+     * @param filename File name
+     * @param user username
+     * @param seq snapshot version number
+     * @param[out] snapInfo snapshot file information
      *
-     * @return 错误码
+     * @return error code
      */
+
     virtual int GetSnapshot(const std::string &filename,
         const std::string &user,
         uint64_t seq, FInfo* snapInfo) = 0;
 
     /**
-     * @brief 查询快照文件segment信息
+     * @brief Query snapshot file segment information
      *
-     * @param filename 文件名
-     * @param user 用户信息
-     * @param seq 快照版本号
-     * @param offset 偏移值
-     * @param segInfo segment信息
+     * @param filename File name
+     * @param user user information
+     * @param seq snapshot version number
+     * @param offset offset value
+     * @param segInfo segment information
      *
-     * @return 错误码
+     * @return error code
      */
+
     virtual int GetSnapshotSegmentInfo(const std::string &filename,
         const std::string &user,
         uint64_t seq,
@@ -166,17 +172,18 @@ class CurveFsClient {
         SegmentInfo *segInfo) = 0;
 
     /**
-     * @brief 读取snapshot chunk的数据
+     * @brief Read snapshot chunk data
      *
-     * @param cidinfo chunk ID 信息
-     * @param seq 快照版本号
-     * @param offset 偏移值
-     * @param len 长度
-     * @param[out] buf buffer指针
-     * @param: scc是异步回调
+     * @param cinfo chunk ID information
+     * @param seq snapshot version number
+     * @param offset offset value
+     * @param len length
+     * @param[out] buffer buffer pointer
+     * @param: scc is an asynchronous callback
      *
-     * @return 错误码
+     * @return error code
      */
+
     virtual int ReadChunkSnapshot(ChunkIDInfo cidinfo,
                         uint64_t seq,
                         uint64_t offset,
@@ -185,46 +192,49 @@ class CurveFsClient {
                         SnapCloneClosure* scc) = 0;
 
     /**
-     * 获取快照状态
-     * @param: userinfo是用户信息
-     * @param: filenam文件名
-     * @param: seq是文件版本号信息
-     * @param: filestatus 快照文件状态
+     *Get snapshot status
+     * @param: userinfo is the user information
+     * @param: filenam file name
+     * @param: seq is the file version number information
+     * @param: filestatus Snapshot file status
      */
+
     virtual int CheckSnapShotStatus(std::string filename,
                                 std::string user,
                                 uint64_t seq,
                                 FileStatus* filestatus) = 0;
 
     /**
-     * @brief 获取chunk的版本号信息
+     * @brief to obtain the version number information of the chunk
      *
-     * @param cidinfo chunk ID 信息
-     * @param chunkInfo chunk详细信息
+     * @param cinfo chunk ID information
+     * @param chunkInfo chunk Details
      *
-     * @return 错误码
+     * @return error code
      */
+
     virtual int GetChunkInfo(const ChunkIDInfo &cidinfo,
         ChunkInfoDetail *chunkInfo) = 0;
 
     /**
-     * @brief 创建clone文件
-     * @detail
-     *  - 若是clone，sn重置为初始值
-     *  - 若是recover，sn不变
+     * @brief Create clone file
+     *@ detail
+     *- If clone, reset sn to initial value
+     *- If recover, sn remains unchanged
      *
-     * @param source clone源文件名
-     * @param filename clone目标文件名
-     * @param user 用户信息
-     * @param size 文件大小
-     * @param sn 版本号
-     * @param chunkSize chunk大小
+     * @param source clone Source file name
+     * @param filename clone Target filename
+     * @param user user information
+     * @param size File size
+     * @param sn version number
+     * @param chunkSize chunk size
      * @param stripeUnit stripe size
      * @param stripeCount stripe count
-     * @param[out] fileInfo 文件信息
+     * @param[out] fileInfo file information
      *
-     * @return 错误码
+     * @return error code
      */
+
     virtual int CreateCloneFile(
         const std::string &source,
         const std::string &filename,
@@ -238,21 +248,22 @@ class CurveFsClient {
         FInfo* fileInfo) = 0;
 
     /**
-     * @brief lazy 创建clone chunk
-     * @detail
-     *  - location的格式定义为 A@B的形式。
-     *  - 如果源数据在s3上，则location格式为uri@s3，uri为实际chunk对象的地址；
-     *  - 如果源数据在curvefs上，则location格式为/filename/chunkindex@cs
+     * @brief lazy Create clone chunk
+     *@ detail
+     *The format definition of a location is A@B The form of.
+     *- If the source data is on s3, the location format is uri@s3 Uri is the address of the actual chunk object;
+     *- If the source data is on curves, the location format is/filename/ chunkindex@cs
      *
-     * @param location 数据源的url
-     * @param chunkidinfo 目标chunk
-     * @param sn chunk的序列号
+     *URL of @ param location data source
+     * @param chunkidinfo Target chunk
+     *The serial number of @ param sn chunk
      * @param csn correct sn
-     * @param chunkSize chunk的大小
-     * @param: scc是异步回调
+     * @param chunkSize Chunk size
+     * @param: scc is an asynchronous callback
      *
-     * @return 错误码
+     * @return error code
      */
+
     virtual int CreateCloneChunk(
         const std::string &location,
         const ChunkIDInfo &chunkidinfo,
@@ -263,15 +274,16 @@ class CurveFsClient {
 
 
     /**
-     * @brief 实际恢复chunk数据
+     * @brief Actual recovery chunk data
      *
      * @param chunkidinfo chunkidinfo
-     * @param offset 偏移
-     * @param len 长度
-     * @param: scc是异步回调
+     * @param offset offset
+     * @param len length
+     * @param: scc is an asynchronous callback
      *
-     * @return 错误码
+     * @return error code
      */
+
     virtual int RecoverChunk(
         const ChunkIDInfo &chunkidinfo,
         uint64_t offset,
@@ -279,68 +291,73 @@ class CurveFsClient {
         SnapCloneClosure* scc) = 0;
 
     /**
-     * @brief 通知mds完成Clone Meta
+     * @brief Notify mds to complete Clone Meta
      *
-     * @param filename 目标文件名
-     * @param user 用户名
+     * @param filename Target file name
+     * @param user username
      *
-     * @return 错误码
+     * @return error code
      */
+
     virtual int CompleteCloneMeta(
         const std::string &filename,
         const std::string &user) = 0;
 
     /**
-     * @brief 通知mds完成Clone Chunk
+     * @brief Notify mds to complete Clone Chunk
      *
-     * @param filename 目标文件名
-     * @param user 用户名
+     * @param filename Target file name
+     * @param user username
      *
-     * @return 错误码
+     * @return error code
      */
+
     virtual int CompleteCloneFile(
         const std::string &filename,
         const std::string &user) = 0;
 
     /**
-     * @brief 设置clone文件状态
+     * @brief Set clone file status
      *
-     * @param filename 文件名
-     * @param filestatus 要设置的目标状态
-     * @param user 用户名
+     * @param filename File name
+     * @param filestatus The target state to be set
+     * @param user username
      *
-     * @return 错误码
+     * @return error code
      */
+
     virtual int SetCloneFileStatus(
         const std::string &filename,
         const FileStatus& filestatus,
         const std::string &user) = 0;
 
     /**
-     * @brief 获取文件信息
+     * @brief Get file information
      *
-     * @param filename 文件名
-     * @param user 用户名
-     * @param[out] fileInfo 文件信息
+     * @param filename File name
+     * @param user username
+     * @param[out] fileInfo file information
      *
-     * @return 错误码
+     * @return error code
      */
+
     virtual int GetFileInfo(
         const std::string &filename,
         const std::string &user,
         FInfo* fileInfo) = 0;
 
     /**
-     * @brief 查询或分配文件segment信息
+     * @brief Query or allocate file segment information
      *
-     * @param allocate 是否分配
-     * @param offset 偏移值
-     * @param fileInfo 文件信息
-     * @param user 用户名
-     * @param segInfo segment信息
+     * @param allocate whether to allocate
+     * @param offset offset value
+     * @param fileInfo file information
+     * @param user username
+     * @param segInfo segment information
      *
-     * @return 错误码
+     * @return error code
      */
+
     virtual int GetOrAllocateSegmentInfo(
         bool allocate,
         uint64_t offset,
@@ -349,16 +366,17 @@ class CurveFsClient {
         SegmentInfo *segInfo) = 0;
 
     /**
-     * @brief 为recover rename复制的文件
+     * @brief is the file copied for recover rename
      *
-     * @param user 用户信息
-     * @param originId 被恢复的原始文件Id
-     * @param destinationId 克隆出的目标文件Id
-     * @param origin 被恢复的原始文件名
-     * @param destination 克隆出的目标文件
+     * @param user user information
+     * @param originId The original file ID that was restored
+     * @param destinationId The cloned target file ID
+     * @param origin The original file name of the recovered file
+     *The target file cloned from @ param destination
      *
-     * @return 错误码
+     * @return error code
      */
+
     virtual int RenameCloneFile(
             const std::string &user,
             uint64_t originId,
@@ -368,38 +386,41 @@ class CurveFsClient {
 
 
     /**
-     * @brief 删除文件
+     * @brief Delete file
      *
-     * @param fileName 文件名
-     * @param user 用户名
-     * @param fileId 删除文件的inodeId
+     * @param fileName File name
+     * @param user username
+     * @param fileId Delete the inodeId of the file
      *
-     * @return 错误码
+     * @return error code
      */
+
     virtual int DeleteFile(
             const std::string &fileName,
             const std::string &user,
             uint64_t fileId) = 0;
 
     /**
-     * @brief 创建目录
+     * @brief Create directory
      *
-     * @param dirpath 目录名
-     * @param user 用户名
+     * @param dirpath directory name
+     * @param user username
      *
-     * @return 错误码
+     * @return error code
      */
+
     virtual int Mkdir(const std::string& dirpath,
         const std::string &user) = 0;
 
     /**
-     * @brief 变更文件的owner
+     * @brief Change the owner of the file
      *
-     * @param filename 文件名
-     * @param newOwner 新的owner
+     * @param filename File name
+     * @param newOwner New owner
      *
-     * @return 错误码
+     * @return error code
      */
+
     virtual int ChangeOwner(const std::string& filename,
         const std::string& newOwner) = 0;
 };
@@ -411,7 +432,8 @@ class CurveFsClientImpl : public CurveFsClient {
         snapClient_(snapClient), fileClient_(fileClient) {}
     virtual ~CurveFsClientImpl() {}
 
-    // 以下接口定义见CurveFsClient接口注释
+    //The following interface definitions can be found in the CurveFsClient interface annotations
+
     int Init(const CurveClientOptions &options) override;
 
     int UnInit() override;

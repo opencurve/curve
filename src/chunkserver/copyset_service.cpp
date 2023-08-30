@@ -42,7 +42,7 @@ void CopysetServiceImpl::CreateCopysetNode(RpcController *controller,
     LOG(INFO) << "Received create copyset request: "
               << ToGroupIdString(request->logicpoolid(), request->copysetid());
 
-    // 解析request中的peers
+    //Analyzing Peers in Request
     Configuration conf;
     for (int i = 0; i < request->peerid_size(); ++i) {
         PeerId peer;
@@ -171,7 +171,7 @@ void CopysetServiceImpl::GetCopysetStatus(RpcController *controller,
     LOG(INFO) << "Received GetCopysetStatus request: "
               << ToGroupIdString(request->logicpoolid(), request->copysetid());
 
-    // 判断copyset是否存在
+    //Determine if the copyset exists
     auto nodePtr = copysetNodeManager_->GetCopysetNode(request->logicpoolid(),
                                                        request->copysetid());
     if (nullptr == nodePtr) {
@@ -183,7 +183,7 @@ void CopysetServiceImpl::GetCopysetStatus(RpcController *controller,
         return;
     }
 
-    // 获取raft node status
+    //Obtain raft node status
     NodeStatus status;
     nodePtr->GetStatus(&status);
     response->set_state(status.state);
@@ -204,13 +204,13 @@ void CopysetServiceImpl::GetCopysetStatus(RpcController *controller,
     response->set_lastindex(status.last_index);
     response->set_diskindex(status.disk_index);
 
-    // 获取配置的版本
+    //Obtain the version of the configuration
     response->set_epoch(nodePtr->GetConfEpoch());
 
     /**
-     * 考虑到query hash需要读取copyset的所有chunk数据，然后计算hash值
-     * 是一个非常耗时的操作，所以在request会设置query hash字段，如果
-     * 为false，那么就不需要查询copyset的hash值
+     *Considering that query hash requires reading all chunk data from the copyset and then calculating the hash value
+     *It is a very time-consuming operation, so the query hash field will be set in the request. If
+     *If it is false, then there is no need to query the hash value of the copyset
      */
     if (request->queryhash()) {
         std::string hash;

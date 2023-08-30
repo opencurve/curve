@@ -79,8 +79,8 @@ bool Ext4FileSystemImpl::CheckKernelVersion() {
     LOG(INFO) << "System version: " << kernel_info.version;
     LOG(INFO) << "Machine: " << kernel_info.machine;
 
-    // 通过uname获取的版本字符串格式可能为a.b.c-xxx
-    // a为主版本号，b为此版本号，c为修正号
+    //The version string format obtained through uname may be a.b.c-xxx
+    //A is the main version number, b is the version number, and c is the revision number
     vector<string> elements;
     ::curve::common::SplitString(kernel_info.release, "-", &elements);
     if (elements.size() == 0) {
@@ -90,7 +90,7 @@ bool Ext4FileSystemImpl::CheckKernelVersion() {
 
     vector<string> numbers;
     ::curve::common::SplitString(elements[0], ".", &numbers);
-    // 有些系统可能版本格式前面部分是a.b.c.d，但是a.b.c是不变的
+    //Some systems may have a version format with the front part being a.b.c.d, but a.b.c remains unchanged
     if (numbers.size() < 3) {
         LOG(ERROR) << "parse kenel version failed.";
         return false;
@@ -103,7 +103,7 @@ bool Ext4FileSystemImpl::CheckKernelVersion() {
               << ", minor: " << minor
               << ", revision: " << revision;
 
-    // 内核版本必须大于3.15,用于支持renameat2
+    //The kernel version must be greater than 3.15 to support renameat2
     if (KERNEL_VERSION(major, minor, revision) < MIN_KERNEL_VERSION) {
         LOG(ERROR) << "Kernel older than 3.15 is not supported.";
         return false;
@@ -157,7 +157,7 @@ int Ext4FileSystemImpl::Close(int fd) {
 
 int Ext4FileSystemImpl::Delete(const string& path) {
     int rc = 0;
-    // 如果删除对象是目录的话，需要先删除目录下的子对象
+    //If the deleted object is a directory, you need to first delete the sub objects under the directory
     if (DirExists(path)) {
         vector<string> names;
         rc = List(path, &names);
@@ -167,7 +167,7 @@ int Ext4FileSystemImpl::Delete(const string& path) {
         }
         for (auto &name : names) {
             string subPath = path + "/" + name;
-            // 递归删除子对象
+            //Recursively delete sub objects
             rc = Delete(subPath);
             if (rc < 0) {
                 LOG(WARNING) << "Delete " << subPath << " failed.";
@@ -194,13 +194,13 @@ int Ext4FileSystemImpl::Mkdir(const string& dirName) {
 
     string path;
     for (size_t i = 0; i < names.size(); ++i) {
-        if (0 == i && dirName[0] != '/')  // 相对路径
+        if (0 == i && dirName[0] != '/')  //Relative path
             path = path + names[i];
         else
             path = path + "/" + names[i];
         if (DirExists(path))
             continue;
-        // 目录需要755权限，不然会出现“Permission denied”
+        //Directory requires 755 permissions, otherwise 'Permission denied' will appear
         if (posixWrapper_->mkdir(path.c_str(), 0755) < 0) {
             LOG(WARNING) << "mkdir " << path << " failed. "<< strerror(errno);
             return -errno;
@@ -260,7 +260,7 @@ int Ext4FileSystemImpl::List(const string& dirName,
             continue;
         names->push_back(dirIter->d_name);
     }
-    // 可能存在其他携程改变了errno，但是只能通过此方式判断readdir是否成功
+    //There may be other Ctrip changes to errno, but this is the only way to determine whether readdir is successful
     if (errno != 0) {
         LOG(WARNING) << "readdir failed: " << strerror(errno);
     }
@@ -280,7 +280,7 @@ int Ext4FileSystemImpl::Read(int fd,
                                        buf + relativeOffset,
                                        remainLength,
                                        offset);
-        // 如果offset大于文件长度，pread会返回0
+        //If the offset is greater than the file length, pread will return 0
         if (ret == 0) {
             LOG(WARNING) << "pread returns zero."
                          << "offset: " << offset

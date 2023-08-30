@@ -61,7 +61,8 @@ enum class CloneStep {
     kEnd
 };
 
-// 数据库中clone/recover任务信息
+//Clone/recover task information in the database
+
 class CloneInfo {
  public:
   CloneInfo()
@@ -231,37 +232,51 @@ class CloneInfo {
     bool ParseFromString(const std::string &value);
 
  private:
-    // 任务Id
+    //Task Id
+
     TaskIdType  taskId_;
-    // 用户
+    //Users
+
     std::string user_;
-    // 克隆或恢复
+    //Clone or Restore
+
     CloneTaskType type_;
-    // 源文件或快照uuid
+    //Source file or snapshot uuid
+
     std::string source_;
-    // 目标文件名
+    //Destination File Name
+
     std::string destination_;
-    // 目标文件所在的poolset
+    //The poolset where the target file is located
+
     std::string poolset_;
-    // 被恢复的原始文件id, 仅用于恢复
+    //The original file ID that has been restored, for recovery purposes only
+
     uint64_t originId_;
-    // 目标文件id
+    //Target file id
+
     uint64_t destinationId_;
-    // 创建时间
+    //Creation time
+
     uint64_t time_;
-    // 克隆/恢复的文件类型
+    //Clone/Restore File Types
+
     CloneFileType fileType_;
-    // 是否lazy
+    //Lazy or not
+
     bool isLazy_;
-    // 克隆进度, 下一个步骤
+    //Clone progress, next step
+
     CloneStep nextStep_;
-    // 处理的状态
+    //Processing status
+
     CloneStatus status_;
 };
 
 std::ostream& operator<<(std::ostream& os, const CloneInfo &cloneInfo);
 
-// 快照处理状态
+//Snapshot processing status
+
 enum class Status{
     done = 0,
     pending,
@@ -271,7 +286,8 @@ enum class Status{
     error
 };
 
-// 快照信息
+//Snapshot Information
+
 class SnapshotInfo {
  public:
     SnapshotInfo()
@@ -437,21 +453,29 @@ class SnapshotInfo {
     bool ParseFromString(const std::string &value);
 
  private:
-    // 快照uuid
+    //Snapshot uuid
+
     UUID uuid_;
-    // 租户信息
+    //Tenant Information
+
     std::string user_;
-    // 快照目标文件名
+    //Snapshot Destination File Name
+
     std::string fileName_;
-    // 快照名
+    //Snapshot Name
+
     std::string snapshotName_;
-    // 快照版本号
+    //Snapshot version number
+
     uint64_t seqNum_;
-    // 文件的chunk大小
+    //Chunk size of the file
+
     uint32_t chunkSize_;
-    // 文件的segment大小
+    //The segment size of the file
+
     uint64_t segmentSize_;
-    // 文件大小
+    //File size
+
     uint64_t fileLength_;
     // stripe size
     uint64_t stripeUnit_;
@@ -459,9 +483,11 @@ class SnapshotInfo {
     uint64_t stripeCount_;
     // poolset
     std::string poolset_;
-    // 快照创建时间
+    //Snapshot creation time
+
     uint64_t time_;
-    // 快照处理的状态
+    //Status of snapshot processing
+
     Status status_;
 };
 

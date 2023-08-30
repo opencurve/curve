@@ -70,7 +70,7 @@ MetricRet MetricClient::GetMetric(const std::string &addr,
         res = GetValueFromAttachment(attachment, value);
         return (res == 0) ? MetricRet::kOK : MetricRet::kOtherErr;
     }
-    // 这里不输出错误，因为对mds有切换的可能，把打印的处理交给外部
+    //There is no output error here, as there is a possibility of switching between mds, and the printing process is handed over to external parties
     bool notExist = cntl.ErrorCode() == brpc::EHTTP &&
                     cntl.http_response().status_code() == kHttpCodeNotFound;
     return notExist ? MetricRet::kNotFound : MetricRet::kOtherErr;

@@ -124,7 +124,7 @@ TEST_F(TestHeartbeatManager, test_checkReuqest_abnormal) {
     ASSERT_EQ(0, response.needupdatecopysets_size());
 
     // 7. startTime not initialized
-    // TODO(lixiaocui): 后续考虑心跳加上错误码
+    //TODO(lixiaocui): Consider adding an error code to the heartbeat in the future
     ::curve::mds::topology::ChunkServer normalCs(
         1, "hello", "", 1, "192.168.10.1", 9000, "");
     EXPECT_CALL(*topology_, GetChunkServer(_, _))

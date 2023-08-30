@@ -190,14 +190,14 @@ int FileInstance::AioDiscard(CurveAioContext *aioctx) {
     return -1;
 }
 
-// 两种场景会造成在Open的时候返回LIBCURVE_ERROR::FILE_OCCUPIED
-// 1. 强制重启qemu不会调用close逻辑，然后启动的时候原来的文件sessio还没过期.
-//    导致再次去发起open的时候，返回被占用，这种情况可以通过load sessionmap
-//    拿到已有的session，再去执行refresh。
-// 2. 由于网络原因，导致open rpc超时，然后再去重试的时候就会返回FILE_OCCUPIED
-//    这时候当前还没有成功打开，所以还没有存储该session信息，所以无法通过refresh
-//    再去打开，所以这时候需要获取mds一侧session lease时长，然后在client这一侧
-//    等待一段时间再去Open，如果依然失败，就向上层返回失败。
+//Two scenarios can cause LIBCURVE_ERROR::FILE_OCCUPIED to be returned during opening
+//1. Forcing a restart of QEMU will not call the close logic, and the original file session has not expired when starting
+//When initiating open again, the return is occupied, which can be done through the load sessionmap
+//Get the existing session and then perform a refresh.
+//2. Due to network reasons, the open rpc timed out and when trying again, it will return FILE_OCCUPIED
+//At this time, the session information has not been successfully opened yet, so it cannot be refreshed
+//Open it again, so at this point, you need to obtain the session lease duration on the mds side, and then on the client side
+//Wait for a period of time before going to Open, and if it still fails, return the failure to the upper level.
 int FileInstance::Open(std::string* sessionId) {
     LeaseSession_t  lease;
     int ret = LIBCURVE_ERROR::FAILED;

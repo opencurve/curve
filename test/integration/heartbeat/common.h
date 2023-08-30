@@ -227,140 +227,140 @@ class FakeTopologyStorage : public TopologyStorage {
 
 class HeartbeatIntegrationCommon {
  public:
-    /* HeartbeatIntegrationCommon 构造函数
+    /*HeartbeatIntegrationCommon constructor
      *
-     * @param[in] conf 配置信息
+     * @param[in] conf configuration information
      */
     explicit HeartbeatIntegrationCommon(const Configuration &conf) {
         conf_ = conf;
     }
 
-    /* PrepareAddPoolset 在集群中添加物理池集合
+    /*PrepareAddPoolset adds a physical pool collection to the cluster
      *
-     * @param[in] poolset 物理池集合（池组）
+     * @param[in] poolset Physical pool set (pool group)
      */
     void PrepareAddPoolset(const Poolset &poolset);
 
-    /* PrepareAddLogicalPool 在集群中添加逻辑池
+    /*PrepareAddLogicalPool Adding a Logical Pool to a Cluster
      *
-     * @param[in] lpool 逻辑池
+     * @param[in] lpool logical pool
      */
     void PrepareAddLogicalPool(const LogicalPool &lpool);
 
-    /* PrepareAddPhysicalPool 在集群中添加物理池
+    /*PrepareAddPhysicalPool Adding a Physical Pool to a Cluster
      *
-     * @param[in] ppool 物理池
+     * @param[in] ppool physical pool
      */
     void PrepareAddPhysicalPool(const PhysicalPool &ppool);
 
-    /* PrepareAddZone 在集群中添加zone
+    /*PrepareAddZone adds a zone to the cluster
      *
      * @param[in] zone
      */
     void PrepareAddZone(const Zone &zone);
 
-    /* PrepareAddServer 在集群中添加server
+    /*PrepareAddServer Adding a Server to a Cluster
      *
      * @param[in] server
      */
     void PrepareAddServer(const Server &server);
 
-    /* PrepareAddChunkServer 在集群中添加chunkserver节点
+    /*PrepareAddChunkServer adds chunkserver nodes to the cluster
      *
      * @param[in] chunkserver
      */
     void PrepareAddChunkServer(const ChunkServer &chunkserver);
 
-    /* PrepareAddCopySet 在集群中添加copyset
+    /*PrepareAddCopySet Adding a copyset to a cluster
      *
-     * @param[in] copysetId copyset id
-     * @param[in] logicalPoolId 逻辑池id
-     * @param[in] members copyset成员
+     * @param[in] copysetId copyset ID
+     * @param[in] logicalPoolId Logical Pool ID
+     * @param[in] members copyset members
      */
     void PrepareAddCopySet(CopySetIdType copysetId, PoolIdType logicalPoolId,
                            const std::set<ChunkServerIdType> &members);
 
-    /* UpdateCopysetTopo 更新topology中copyset的状态
+    /*UpdateCopysetTopo updates the status of copyset in topology
      *
-     * @param[in] copysetId copyset的id
-     * @param[in] logicalPoolId 逻辑池id
-     * @param[in] epoch copyset的epoch
-     * @param[in] leader copyset的leader
-     * @param[in] members copyset的成员
-     * @param[in] candidate copyset的candidate信息
+     * @param[in] copysetId The ID of the copyset
+     * @param[in] logicalPoolId Logical Pool ID
+     * @param[in] epoch epoch of copyset
+     * @param[in] leader copyset's leader
+     * @param[in] Members of members copyset
+     * @param[in] candidate copyset's candidate information
      */
     void UpdateCopysetTopo(CopySetIdType copysetId, PoolIdType logicalPoolId,
                            uint64_t epoch, ChunkServerIdType leader,
                            const std::set<ChunkServerIdType> &members,
                            ChunkServerIdType candidate = UNINTIALIZE_ID);
 
-    /* SendHeartbeat 发送心跳
+    /*SendHeartbeat sends a heartbeat
      *
      * @param[in] req
-     * @param[in] expectedFailed 为true表示希望发送成功，为false表示希望发送失败
+     * @param[in] expectedFailed is true to indicate that the transmission is expected to succeed, and false to indicate that the transmission is expected to fail
      * @param[out] response
      */
     void SendHeartbeat(const ChunkServerHeartbeatRequest &request,
                        bool expectFailed,
                        ChunkServerHeartbeatResponse *response);
 
-    /* BuildBasicChunkServerRequest 构建最基本的request
+    /*Build BasicChunkServerRequest to build the most basic request
      *
-     * @param[in] id chunkserver的id
-     * @param[out] req 构造好的指定id的request
+     * @param[in] id Chunkserver ID
+     * @param[out] req Constructed request with specified id
      */
     void BuildBasicChunkServerRequest(ChunkServerIdType id,
                                       ChunkServerHeartbeatRequest *req);
 
-    /* AddCopySetToRequest 向request中添加copyset
+    /*AddCopySetToRequest adds a copyset to the request
      *
      * @param[in] req
-     * @param[in] csInfo copyset信息
-     * @param[in] type copyset当前变更类型
+     * @param[in] csInfo copyset information
+     * @param[in] type copyset Current change type
      */
     void AddCopySetToRequest(ChunkServerHeartbeatRequest *req,
                              const CopySetInfo &csInfo,
                              ConfigChangeType type = ConfigChangeType::NONE);
 
-    /* AddOperatorToOpController 向调度模块添加op
+    /*AddOperatorToOpController adds op to the scheduling module
      *
      * @param[in] op
      */
     void AddOperatorToOpController(const Operator &op);
 
-    /* RemoveOperatorFromOpController 从调度模块移除指定copyset上的op
+    /*RemoveOperatorFromOpController removes the op on the specified copyset from the scheduling module
      *
-     * @param[in] id 需要移除op的copysetId
+     * @param[in] id needs to remove the copysetId of op
      */
     void RemoveOperatorFromOpController(const CopySetKey &id);
 
     /*
-     * PrepareBasicCluseter 在topology中构建最基本的拓扑结构
-     * 一个物理池，一个逻辑池，三个zone，每个zone一个chunkserver,
-     * 集群中有一个copyset
+     *PrepareBasicCluster builds the most basic topology structure in topology
+     *One physical pool, one logical pool, three zones, and one chunkserver for each zone,
+     *There is a copyset in the cluster
      */
     void PrepareBasicCluseter();
 
     /**
-     * InitHeartbeatOption 初始化heartbeatOption
+     *InitHeartbeatOption
      *
-     * @param[in] conf 配置模块
-     * @param[out] heartbeatOption 赋值完成的心跳option
+     * @param[in] conf configuration module
+     * @param[out] heartbeat option assignment completed heartbeat option
      */
     void InitHeartbeatOption(Configuration *conf,
                              HeartbeatOption *heartbeatOption);
 
     /**
-     * InitSchedulerOption 初始化scheduleOption
+     *InitSchedulerOption initializes scheduleOption
      *
-     * @param[in] conf 配置模块
-     * @param[out] heartbeatOption 赋值完成的调度option
+     * @param[in] conf configuration module
+     * @param[out] heartbeat  Scheduling option with completed assignment of option
      */
     void InitSchedulerOption(Configuration *conf,
                              ScheduleOption *scheduleOption);
 
     /**
-     * BuildBasicCluster 运行heartbeat/topology/scheduler模块
+     *BuildBasicCluster runs the heartbeat/topology/scheduler module
      */
     void BuildBasicCluster();
 

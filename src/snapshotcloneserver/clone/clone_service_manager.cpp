@@ -67,7 +67,7 @@ int CloneServiceManager::CloneFile(const UUID &source,
     bool lazyFlag,
     std::shared_ptr<CloneClosure> closure,
     TaskIdType *taskId) {
-    // 加锁防止并发
+    //Locking to prevent concurrency
     NameLockGuard lockDestFileGuard(*destFileLock_, destination);
     brpc::ClosureGuard guard(closure.get());
     closure->SetDestFileLock(destFileLock_);
@@ -79,7 +79,7 @@ int CloneServiceManager::CloneFile(const UUID &source,
         CloneTaskType::kClone, poolset, &cloneInfo);
     if (ret < 0) {
         if (kErrCodeTaskExist == ret) {
-            // 任务已存在的情况下返回成功，使接口幂等
+            //Returns success if the task already exists, making the interface idempotent
             *taskId = cloneInfo.GetTaskId();
             closure->SetTaskId(*taskId);
             closure->SetErrCode(kErrCodeSuccess);
@@ -112,7 +112,7 @@ int CloneServiceManager::RecoverFile(const UUID &source,
     bool lazyFlag,
     std::shared_ptr<CloneClosure> closure,
     TaskIdType *taskId) {
-    // 加锁防止并发
+    //Locking to prevent concurrency
     NameLockGuard lockDestFileGuard(*destFileLock_, destination);
     brpc::ClosureGuard guard(closure.get());
     closure->SetDestFileLock(destFileLock_);
@@ -124,7 +124,8 @@ int CloneServiceManager::RecoverFile(const UUID &source,
         CloneTaskType::kRecover, "", &cloneInfo);
     if (ret < 0) {
         if (kErrCodeTaskExist == ret) {
-            // 任务已存在的情况下返回成功，使接口幂等
+            //Returns success if the task already exists, making the interface idempotent
+
             *taskId = cloneInfo.GetTaskId();
             closure->SetTaskId(*taskId);
             closure->SetErrCode(kErrCodeSuccess);
@@ -546,7 +547,7 @@ int CloneServiceManager::GetFinishedCloneTask(
             LOG(ERROR) << "can not reach here!"
                        << " status = " << static_cast<int>(
                                newInfo.GetStatus());
-            // 当更新数据库失败时，有可能进入这里
+            //When updating the database fails, it is possible to enter here
             return kErrCodeInternalError;
     }
     return kErrCodeSuccess;
@@ -592,11 +593,11 @@ int CloneServiceManager::RecoverCloneTaskInternal(const CloneInfo &cloneInfo) {
             cloneInfo.GetTaskId(), taskInfo, cloneCore_);
     bool isLazy = cloneInfo.GetIsLazy();
     int ret = kErrCodeSuccess;
-    // Lazy 克隆/恢复
+    //Lazy Clone/Restore
     if (isLazy) {
         CloneStep step = cloneInfo.GetNextStep();
-        // 处理kRecoverChunk,kCompleteCloneFile,kEnd这三个阶段的Push到stage2Pool
-        // 如果克隆source类型是file，阶段为kCreateCloneChunk和kCreateCloneMeta也需要push到stage2Pool  // NOLINT
+        //Process the Push to stage2Pool for the three stages of kRecoverChunk, kCompleteCloneFile, and kEnd
+        //If the clone source type is file and the stages are kCreateCloneChunk and kCreateCloneMeta, they also need to be pushed to stage2Pool// NOLINT
         if (CloneStep::kRecoverChunk == step ||
             CloneStep::kCompleteCloneFile == step ||
             CloneStep::kEnd == step ||
@@ -610,9 +611,9 @@ int CloneServiceManager::RecoverCloneTaskInternal(const CloneInfo &cloneInfo) {
                            << ", ret = " << ret;
                 return ret;
             }
-        // 否则push到stage1Pool
+        //Otherwise, push to stage1Pool
         } else {
-            // stage1的task包含了异步的请求的返回，需要加锁
+            //The task of stage1 contains the return of asynchronous requests that require locking
             std::string destination = cloneInfo.GetDest();
             NameLockGuard lockDestFileGuard(*destFileLock_, destination);
             closure->SetDestFileLock(destFileLock_);
@@ -625,7 +626,7 @@ int CloneServiceManager::RecoverCloneTaskInternal(const CloneInfo &cloneInfo) {
                 return ret;
             }
         }
-    // 非Lazy 克隆/恢复push到commonPool
+    //Non Lazy clone/restore push to commonPool
     } else {
         ret = cloneTaskMgr_->PushCommonTask(task);
         if (ret < 0) {
@@ -663,7 +664,7 @@ int CloneServiceManager::RecoverCloneTask() {
     for (auto &cloneInfo : list) {
         switch (cloneInfo.GetStatus()) {
             case CloneStatus::retrying: {
-                // 重置重试任务的状态
+                //Reset the status of the retry task
                 if (cloneInfo.GetTaskType() == CloneTaskType::kClone) {
                     cloneInfo.SetStatus(CloneStatus::cloning);
                 } else {
@@ -673,7 +674,7 @@ int CloneServiceManager::RecoverCloneTask() {
             FALLTHROUGH_INTENDED;
             case CloneStatus::cloning:
             case CloneStatus::recovering: {
-                // 建立快照或镜像的引用关系
+                //Establishing a reference relationship for a snapshot or mirror
                 if (CloneFileType::kSnapshot == cloneInfo.GetFileType()) {
                     cloneCore_->GetSnapshotRef()->IncrementSnapshotRef(
                         cloneInfo.GetSrc());
@@ -696,7 +697,7 @@ int CloneServiceManager::RecoverCloneTask() {
                 break;
             }
             case CloneStatus::metaInstalled: {
-                // metaInstalled 状态下的克隆对文件仍然有依赖，需要建立引用关系
+                //Clones in MetaInstalled state still have dependencies on files and need to establish a reference relationship
                 if (CloneFileType::kSnapshot == cloneInfo.GetFileType()) {
                     cloneCore_->GetSnapshotRef()->IncrementSnapshotRef(
                         cloneInfo.GetSrc());
@@ -713,10 +714,10 @@ int CloneServiceManager::RecoverCloneTask() {
     return kErrCodeSuccess;
 }
 
-// 当clone处于matainstall状态，且克隆卷已经删除的情况下，原卷的引用计数没有减。
-// 这个后台线程处理函数周期性的检查这个场景，如果发现有clone处于metaintalled状态
-// 且克隆卷已经删除，就去删除这条无效的clone信息，并减去原卷的引用计数。
-// 如果原卷是镜像且引用计数减为0，还需要去mds把原卷的状态改为created。
+//When the clone is in a matainstall state and the clone volume has been deleted, the reference count of the original volume does not decrease.
+//This backend thread processing function periodically checks this scenario, and if any clones are found to be in the 'metaled' state
+//If the clone volume has been deleted, delete the invalid clone information and subtract the reference count of the original volume.
+//If the original volume is a mirror and the reference count is reduced to 0, it is necessary to go to MDS to change the status of the original volume to created.
 void CloneServiceManagerBackendImpl::Func() {
     LOG(INFO) << "CloneServiceManager BackEndReferenceScanFunc start";
     while (!isStop_.load()) {
@@ -730,28 +731,28 @@ void CloneServiceManagerBackendImpl::Func() {
         for (auto &it : cloneInfos) {
             if (it.GetStatus() == CloneStatus::metaInstalled
                     && it.GetIsLazy() == true) {
-                // 检查destination在不在
+                //Check if the destination is available
                 if (it.GetTaskType() == CloneTaskType::kClone) {
                     ret = cloneCore_->CheckFileExists(it.GetDest(),
                                         it.GetDestId());
                 } else {
-                    // rename时，inodeid恢复成
+                    //When renaming, the inodeid is restored to
                     ret = cloneCore_->CheckFileExists(it.GetDest(),
                                         it.GetOriginId());
                 }
 
                 if (ret == kErrCodeFileNotExist) {
-                    // 如果克隆卷是metaInstalled状态，且destination文件不存在，
-                    // 删除这条cloneInfo，并减引用计数
+                    //If the cloned volume is in a metaInstalled state and the destination file does not exist,
+                    //Delete this cloneInfo and subtract the reference count
                     TaskIdType taskId = it.GetTaskId();
                     CloneInfo cloneInfo;
                     ret = cloneCore_->GetCloneInfo(taskId, &cloneInfo);
                     if (ret != kErrCodeSuccess) {
-                        // cloneInfo已经不存在了
+                        //CloneInfo no longer exists
                         continue;
                     }
 
-                    // 再次检查cloneInfo是否是metaInstalled状态
+                    //Check again if cloneInfo is in the metaInstalled state
                     if (cloneInfo.GetStatus() != CloneStatus::metaInstalled) {
                         continue;
                     }
@@ -771,7 +772,7 @@ void CloneServiceManagerBackendImpl::Func() {
         LOG(INFO) << "backend scan list, size = " << cloneInfos.size()
                   << ", delete clone record count = " << deleteCount;
 
-        // 控制每轮扫描间隔
+        //Control the scanning interval of each round
         roundWaitInterval_.WaitForNextExcution();
     }
     LOG(INFO) << "CloneServiceManager BackEndReferenceScanFunc exit";

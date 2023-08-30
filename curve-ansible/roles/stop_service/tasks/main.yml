@@ -15,6 +15,6 @@
 #  limitations under the License.
 #
 
-# 启动对应的服务
+#Start the corresponding service
 - name: stop_service
   include_tasks: "include/stop_{{ service_name }}.yml"

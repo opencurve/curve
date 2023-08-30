@@ -45,7 +45,7 @@ class HeartbeatServiceTest : public ::testing::Test {
 };
 
 TEST_F(HeartbeatServiceTest, KeepAlive) {
-    // 启动server
+    //Start server
     brpc::Server server;
     NebdHeartbeatServiceImpl heartbeatService(heartbeatManager_);
     ASSERT_EQ(0, server.AddService(&heartbeatService,
@@ -68,7 +68,7 @@ TEST_F(HeartbeatServiceTest, KeepAlive) {
     nebd::client::NebdHeartbeatService_Stub stub(&channel);
     brpc::Controller cntl;
 
-    // 正常情况
+    //Normal situation
     EXPECT_CALL(*heartbeatManager_, UpdateFileTimestamp(_, _))
         .Times(3)
         .WillRepeatedly(Return(true));
@@ -76,7 +76,7 @@ TEST_F(HeartbeatServiceTest, KeepAlive) {
     ASSERT_FALSE(cntl.Failed());
     ASSERT_EQ(nebd::client::RetCode::kOK, response.retcode());
 
-    // 有文件更新时间戳失败
+    //Failed to update timestamp with file
     EXPECT_CALL(*heartbeatManager_, UpdateFileTimestamp(_, _))
         .Times(3)
         .WillOnce(Return(false))
@@ -86,7 +86,7 @@ TEST_F(HeartbeatServiceTest, KeepAlive) {
     ASSERT_FALSE(cntl.Failed());
     ASSERT_EQ(nebd::client::RetCode::kNoOK, response.retcode());
 
-    // 停止server
+    //Stop server
     server.Stop(0);
     server.Join();
 }

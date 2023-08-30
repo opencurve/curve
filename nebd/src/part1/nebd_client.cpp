@@ -36,13 +36,13 @@
 
 #define RETURN_IF_FALSE(val) if (val == false) { return -1; }
 
-// 修改brpc的health_check_interval参数，这个参数用来控制健康检查的周期
-// ## 健康检查
-// 连接断开的server会被暂时隔离而不会被负载均衡算法选中，brpc会定期连接被隔离的server，以检查他们是否恢复正常，间隔由参数-health_check_interval控制:   // NOLINT
+//Modify health_check_interval parameter is used to control the period of health checks
+//# # Health Check
+//The disconnected servers will be temporarily isolated and not selected by the load balancing algorithm. brpc will periodically connect to the isolated servers to check if they have returned to normal. The interval is determined by the parameter-health_check_interval://NOLINT
 // | Name                      | Value | Description                              | Defined At              |                                // NOLINT
 // | ------------------------- | ----- | ---------------------------------------- | ----------------------- |                                // NOLINT
 // | health_check_interval （R） | 3     | seconds between consecutive health-checkings | src/brpc/socket_map.cpp |                           // NOLINT
-// 一旦server被连接上，它会恢复为可用状态。如果在隔离过程中，server从命名服务中删除了，brpc也会停止连接尝试。                                         // NOLINT
+//Once the server is connected, it will return to an available state. If the server is removed from the naming service during the isolation process, brpc will also stop connection attempts// NOLINT
 namespace brpc {
     DECLARE_int32(health_check_interval);
     DECLARE_int32(circuit_breaker_max_isolation_duration_ms);
@@ -139,7 +139,7 @@ void NebdClient::Uninit() {
 }
 
 int NebdClient::Open(const char* filename, const NebdOpenFlags* flags) {
-    // 加文件锁
+    //Add file lock
     std::string fileLockName =
         option_.fileLockPath + "/" + ReplaceSlash(filename);
     FileLock fileLock(fileLockName);
