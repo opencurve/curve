@@ -382,6 +382,10 @@ void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption) {
                                        &clientOption->enableFuseSplice))
         << "Not found `fuseClient.enableSplice` in conf, use default value `"
         << std::boolalpha << clientOption->enableFuseSplice << '`';
+    LOG_IF(WARNING, conf->GetBoolValue("fuseClient.enableACL",
+                                       &clientOption->enableACL))
+        << "Not found `fuseClient.enableACL` in conf, use default value `"
+        << std::boolalpha << clientOption->enableACL << '`';
 
     conf->GetValueFatalIfFail("fuseClient.throttle.avgWriteBytes",
                               &FLAGS_fuseClientAvgWriteBytes);

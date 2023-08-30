@@ -44,6 +44,8 @@ const char XATTR_DIR_RENTRIES[] = "curve.dir.rentries";
 const char XATTR_DIR_RFBYTES[] = "curve.dir.rfbytes";
 const char XATTR_DIR_PREFIX[] = "curve.dir";
 const char XATTR_WARMUP_OP[] = "curvefs.warmup.op";
+const char XATTR_ACL_ACCESS[] = "system.posix_acl_access";
+const char XATTR_ACL_DEFAULT[] = "system.posix_acl_default";
 
 inline bool IsSpecialXAttr(const std::string& key) {
     static std::map<std::string, bool> xattrs {
@@ -56,6 +58,8 @@ inline bool IsSpecialXAttr(const std::string& key) {
         { XATTR_DIR_RENTRIES, true },
         { XATTR_DIR_RFBYTES, true },
         { XATTR_DIR_PREFIX, true },
+        { XATTR_ACL_ACCESS, true },
+        { XATTR_ACL_DEFAULT, true }
     };
     return xattrs.find(key) != xattrs.end();
 }

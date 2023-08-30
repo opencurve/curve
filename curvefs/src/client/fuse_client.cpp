@@ -1149,8 +1149,38 @@ CURVEFS_ERROR FuseClient::FuseOpSetXattr(fuse_req_t req, fuse_ino_t ino,
     return CURVEFS_ERROR::OK;
 }
 
+CURVEFS_ERROR FuseClient::FuseOpRemoveXattr(fuse_req_t req, fuse_ino_t ino,
+    const char *name) {
+    std::string strname(name);
+    VLOG(1) << "FuseOpRemoveXattr ino: " << ino << ", name: " << name;
+
+    if (option_.fileSystemOption.disableXAttr || IsSpecialXAttr(name)) {
+        return CURVEFS_ERROR::NODATA;
+    }
+
+    std::shared_ptr<InodeWrapper> inodeWrapper;
+    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWrapper);
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
+                   << ", inodeid = " << ino;
+        return ret;
+    }
+
+    ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
+    inodeWrapper->RemoveXattrLocked(strname);
+    ret = inodeWrapper->SyncAttr();
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "remove xattr fail, ret = " << ret
+                   << ", inodeid = " << ino
+                   << ", name = " << strname;
+        return ret;
+    }
+    VLOG(1) << "FuseOpRemoveXattr end";
+    return CURVEFS_ERROR::OK;
+}
+
 CURVEFS_ERROR FuseClient::FuseOpListXattr(fuse_req_t req, fuse_ino_t ino,
-                            char *value, size_t size, size_t *realSize) {
+    char *value, size_t size, size_t *realSize) {
     (void)req;
     VLOG(1) << "FuseOpListXattr, ino: " << ino << ", size = " << size;
     InodeAttr inodeAttr;

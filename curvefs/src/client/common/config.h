@@ -249,6 +249,7 @@ struct FuseClientOption {
     bool enableFuseSplice = false;
     uint32_t downloadMaxRetryTimes;
     uint32_t warmupThreadsNum = 10;
+    bool enableACL = true;
 };
 
 void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption);
