@@ -1560,9 +1560,6 @@ TEST_F(TestFuseS3Client, FuseOpCreate_EnableSummary) {
     EXPECT_CALL(*inodeManager_, GetInode(_, _))
         .WillOnce(
             DoAll(SetArgReferee<1>(parentInodeWrapper),
-                Return(CURVEFS_ERROR::OK)))
-        .WillOnce(
-            DoAll(SetArgReferee<1>(parentInodeWrapper),
                 Return(CURVEFS_ERROR::OK)));
 
     EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _))

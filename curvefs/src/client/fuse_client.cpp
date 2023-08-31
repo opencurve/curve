@@ -440,7 +440,6 @@ CURVEFS_ERROR FuseClient::MakeNode(
     if (type == FsFileType::TYPE_FILE || type == FsFileType::TYPE_S3) {
         dentry.set_flag(DentryFlag::TYPE_FILE_FLAG);
     }
-
     ret = dentryManager_->CreateDentry(dentry);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "dentryManager_ CreateDentry fail, ret = " << ret
@@ -453,15 +452,6 @@ CURVEFS_ERROR FuseClient::MakeNode(
             LOG(ERROR) << "Also delete inode failed, ret = " << ret2
                        << ", inodeid = " << inodeWrapper->GetInodeId();
         }
-        return ret;
-    }
-
-    ret = UpdateParentMCTimeAndNlink(parent, type, NlinkChange::kAddOne);
-    if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "UpdateParentMCTimeAndNlink failed"
-                   << ", parent: " << parent
-                   << ", name: " << name
-                   << ", type: " << type;
         return ret;
     }
 
@@ -620,7 +610,6 @@ CURVEFS_ERROR FuseClient::CreateManageNode(fuse_req_t req,
     if (type == FsFileType::TYPE_FILE || type == FsFileType::TYPE_S3) {
         dentry.set_flag(DentryFlag::TYPE_FILE_FLAG);
     }
-
     ret = dentryManager_->CreateDentry(dentry);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "dentryManager_ CreateDentry fail, ret = " << ret
@@ -633,15 +622,6 @@ CURVEFS_ERROR FuseClient::CreateManageNode(fuse_req_t req,
             LOG(ERROR) << "Also delete inode failed, ret = " << ret2
                        << ", inodeid = " << inodeWrapper->GetInodeId();
         }
-        return ret;
-    }
-
-    ret = UpdateParentMCTimeAndNlink(parent, type, NlinkChange::kAddOne);
-    if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "UpdateParentMCTimeAndNlink failed"
-                   << ", parent: " << parent
-                   << ", name: " << name
-                   << ", type: " << type;
         return ret;
     }
 
@@ -1231,17 +1211,6 @@ CURVEFS_ERROR FuseClient::FuseOpSymlink(fuse_req_t req,
         return ret;
     }
 
-    ret = UpdateParentMCTimeAndNlink(parent, FsFileType::TYPE_SYM_LINK,
-        NlinkChange::kAddOne);
-    if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "UpdateParentMCTimeAndNlink failed"
-                   << ", link:" << link
-                   << ", parent: " << parent
-                   << ", name: " << name
-                   << ", type: " << FsFileType::TYPE_SYM_LINK;
-        return ret;
-    }
-
     if (enableSumInDir_.load()) {
         // update parent summary info
         XAttr xattr;
@@ -1300,15 +1269,6 @@ CURVEFS_ERROR FuseClient::FuseOpLink(fuse_req_t req,
             LOG(ERROR) << "Also unlink inode failed, ret = " << ret2
                        << ", inodeid = " << inodeWrapper->GetInodeId();
         }
-        return ret;
-    }
-
-    ret = UpdateParentMCTimeAndNlink(newparent, type, NlinkChange::kAddOne);
-    if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "UpdateParentMCTimeAndNlink failed"
-                   << ", parent: " << newparent
-                   << ", name: " << newname
-                   << ", type: " << type;
         return ret;
     }
 
