@@ -55,9 +55,8 @@ class ChunkSegmentAllocator {
         PageFileSegment *segment) = 0;
 
     virtual void GetRemainingSpaceInLogicalPool(
-        const std::vector<PoolIdType>& logicalPools,
-        std::map<PoolIdType, double>* remianingSpace,
-        const std::string& pstName) = 0;
+        const std::list<PoolIdType>& logicalPools,
+        std::map<PoolIdType, double>* remianingSpace) = 0;
 };
 
 class ChunkSegmentAllocatorImpl: public ChunkSegmentAllocator {
@@ -77,11 +76,10 @@ class ChunkSegmentAllocatorImpl: public ChunkSegmentAllocator {
         PageFileSegment *segment) override;
 
     void GetRemainingSpaceInLogicalPool(
-        const std::vector<PoolIdType>& logicalPools,
-        std::map<PoolIdType, double>* remianingSpace,
-        const std::string& pstName) override {
+        const std::list<PoolIdType>& logicalPools,
+        std::map<PoolIdType, double>* remianingSpace) override {
             return topologyChunkAllocator_->GetRemainingSpaceInLogicalPool(
-                            logicalPools, remianingSpace, pstName);
+                            logicalPools, remianingSpace);
         }
 
     bool CloneChunkSegment(

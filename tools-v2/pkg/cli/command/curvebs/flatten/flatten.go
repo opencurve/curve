@@ -165,6 +165,7 @@ func (fCmd *flattenCommand) RunCommand(cmd *cobra.Command, args []string) error 
         time.Sleep(100 * time.Millisecond)
         // update Signature & date
 	    date, errDat := cobrautil.GetTimeofDayUs()
+        fCmd.queryFlattenStatusRpc.Request.Date = &date
         if errDat.TypeCode() != cmderror.CODE_SUCCESS {
             return errDat.ToError()
         }
@@ -174,7 +175,6 @@ func (fCmd *flattenCommand) RunCommand(cmd *cobra.Command, args []string) error 
             strSig := cobrautil.GetString2Signature(date, owner)
             sig := cobrautil.CalcString2Signature(strSig, password)
             fCmd.queryFlattenStatusRpc.Request.Signature = &sig
-            fCmd.queryFlattenStatusRpc.Request.Date = &date
         }
 
         result, err := basecmd.GetRpcResponse(fCmd.queryFlattenStatusRpc.Info, fCmd.queryFlattenStatusRpc)

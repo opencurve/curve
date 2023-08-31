@@ -465,7 +465,7 @@ void MDS::InitFlattenManager() {
     auto flattenCore = std::make_shared<FlattenCore>(
         flattenOption, nameServerStorage_,
         copysetClient_, fileLockManager_);
-    auto flattenTaskManager = std::make_shared<TaskManager>();
+    auto flattenTaskManager = std::make_shared<TaskManager>(channelPool_);
     flattenManager_ = std::make_shared<FlattenManagerImpl>(
         flattenCore, flattenTaskManager);
 }
@@ -553,14 +553,14 @@ void MDS::InitCurveFSOptions(CurveFSOption *curveFSOptions) {
 
 void MDS::InitCleanManager() {
     // TODO(hzsunjianliang): should add threadpoolsize & checktime from config
-    auto channelPool = std::make_shared<ChannelPool>();
-    auto taskManager = std::make_shared<CleanTaskManager>(channelPool);
+    channelPool_ = std::make_shared<ChannelPool>();
+    auto taskManager = std::make_shared<CleanTaskManager>(channelPool_);
     // init copysetClient
     ChunkServerClientOption chunkServerClientOption;
     InitChunkServerClientOption(&chunkServerClientOption);
     copysetClient_ =
         std::make_shared<CopysetClient>(topology_, chunkServerClientOption,
-                                                        channelPool);
+                                                        channelPool_);
 
     auto cleanCore = std::make_shared<CleanCore>(nameServerStorage_,
                                                  copysetClient_,

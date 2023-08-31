@@ -237,6 +237,7 @@ class MDS {
     std::shared_ptr<HeartbeatManager> heartbeatManager_;
     FileLockManager* fileLockManager_;
     std::shared_ptr<SnapshotCloneClient> snapshotCloneClient_;
+    std::shared_ptr<ChannelPool> channelPool_;
     std::shared_ptr<CopysetClient> copysetClient_;
     std::shared_ptr<FlattenManagerImpl> flattenManager_;
 

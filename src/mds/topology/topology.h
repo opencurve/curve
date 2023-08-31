@@ -345,6 +345,12 @@ class Topology {
             return true;
         }) const = 0;
 
+    virtual std::list<PoolIdType> GetLogicalPoolInPoolset(
+        PoolsetIdType id,
+        LogicalPoolFilter filter = [](const LogicalPool&) {
+            return true;
+        }) const = 0;
+
     // get zone list
     virtual std::list<ZoneIdType> GetZoneInPhysicalPool(
         PoolIdType id,
@@ -605,6 +611,22 @@ class TopologyImpl : public Topology {
             PhysicalPoolFilter filter = [](const PhysicalPool&) {
                 return true;
             }) const override;
+
+    std::list<PoolIdType> GetLogicalPoolInPoolset(
+        PoolsetIdType id,
+        LogicalPoolFilter filter = [](const LogicalPool&) {
+            return true;
+        }) const override {
+        std::list<PoolIdType> pPoolList
+            = GetPhysicalPoolInPoolset(id);
+        std::list<PoolIdType> lPoolList;
+        for (auto pPoolId : pPoolList) {
+            std::list<PoolIdType> tmpList
+                = GetLogicalPoolInPhysicalPool(pPoolId, filter);
+            lPoolList.splice(lPoolList.end(), tmpList);
+        }
+        return lPoolList;
+    }
 
     // get zone list
     std::list<ZoneIdType>

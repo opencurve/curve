@@ -24,6 +24,7 @@
 
 #include "src/mds/server/mds.h"
 #include "src/mds/common/mds_define.h"
+#include "src/common/dynamic_vlog.h"
 
 DEFINE_string(confPath, "conf/mds.conf", "mds confPath");
 DEFINE_string(mdsAddr, "127.0.0.1:6666", "mds listen addr");
@@ -36,6 +37,8 @@ DEFINE_uint32(dummyPort, 6667, "dummy server port");
 using ::curve::mds::kMB;
 using ::curve::mds::kGB;
 using ::curve::mds::kTB;
+
+using ::curve::common::FLAGS_vlog_level;
 
 DEFINE_uint64(chunkSize, 16 * kMB, "chunk size");
 DEFINE_uint64(segmentSize, 1 * kGB, "segment size");
@@ -108,6 +111,8 @@ int main(int argc, char **argv) {
 
     // initialize logging module
     google::InitGoogleLogging(argv[0]);
+
+    FLAGS_vlog_level = FLAGS_v;
 
     curve::mds::MDS mds;
 

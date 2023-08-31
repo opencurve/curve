@@ -296,12 +296,19 @@ StatusCode CurveFS::CreateFile(const std::string& fileName,
         }
     }
 
-    std::vector<PoolIdType> logicalPools =
-                topology_->GetLogicalPoolInCluster();
+    Poolset poolsetInfo;
+    if (!topology_->GetPoolset(poolset, &poolsetInfo)) {
+        LOG(ERROR) << "Get poolset fail, poolset = " << poolset;
+        return StatusCode::kPoolsetNotExist;
+    }
+
+    std::list<PoolIdType> logicalPools = topology_->GetLogicalPoolInPoolset(
+        poolsetInfo.GetId());
+
     std::map<PoolIdType, double> remianingSpace;
     uint64_t allRemianingSpace = 0;
     chunkSegAllocator_->GetRemainingSpaceInLogicalPool(
-        logicalPools, &remianingSpace, poolset);
+        logicalPools, &remianingSpace);
 
     for (auto it = remianingSpace.begin(); it != remianingSpace.end(); it++) {
         allRemianingSpace +=it->second;
@@ -2055,10 +2062,11 @@ StatusCode CurveFS::Clone(const std::string &fileName,
 
     ret = LookUpFile(parentFileInfo, lastEntry, fileInfo);
     if (ret == StatusCode::kOK) {
-        LOG(ERROR) << "Clone failed, dstfile exist.";
-        return StatusCode::kFileExists;
-    }
-    if (ret != StatusCode::kFileNotExists) {
+        if (fileInfo->initclonesegment()) {
+            LOG(ERROR) << "Clone failed, dstfile exist.";
+            return StatusCode::kFileExists;
+        }
+    } else if (ret != StatusCode::kFileNotExists) {
         LOG(ERROR) << "LookUpFile failed, ret: " << ret;
         return ret;
     }

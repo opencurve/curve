@@ -44,12 +44,15 @@
 #include "src/chunkserver/raftsnapshot/curve_snapshot_storage.h"
 #include "src/chunkserver/raftlog/curve_segment_log_storage.h"
 #include "src/common/curve_version.h"
+#include "src/common/dynamic_vlog.h"
 
 using ::curve::fs::LocalFileSystem;
 using ::curve::fs::LocalFileSystemOption;
 using ::curve::fs::LocalFsFactory;
 using ::curve::fs::FileSystemType;
 using ::curve::chunkserver::concurrent::ConcurrentApplyModule;
+
+using ::curve::common::FLAGS_vlog_level;
 
 DEFINE_string(conf, "ChunkServer.conf", "Path of configuration file");
 DEFINE_string(chunkServerIp, "127.0.0.1", "chunkserver ip");
@@ -99,6 +102,8 @@ int ChunkServer::Run(int argc, char** argv) {
 
     // 初始化日志模块
     google::InitGoogleLogging(argv[0]);
+
+    FLAGS_vlog_level = FLAGS_v;
 
     // 打印参数
     conf.PrintConfig();

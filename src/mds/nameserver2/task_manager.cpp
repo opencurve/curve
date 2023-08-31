@@ -77,8 +77,8 @@ bool TaskManager::SubmitTask(
         return false;
     }
 
+    channelPool_->AddUser();
     taskMap_.emplace(task->GetTaskID(), task);
-
     taskWorkers_->Enqueue(task->Closure());
 
     LOG(INFO) << "Submit Task OK, TaskID = " << task->GetTaskID();
@@ -103,6 +103,7 @@ void TaskManager::CheckResult(void) {
                 LOG(INFO) << "task success going to remove task, taskID = "
                     << iter->second->GetTaskID();
                 iter = taskMap_.erase(iter);
+                channelPool_->RemoveUser();
                 continue;
             } else if (taskProgress.GetStatus() == TaskStatus::FAILED) {
                 if (!iter->second->RetryTimesExceed()) {
@@ -119,6 +120,7 @@ void TaskManager::CheckResult(void) {
                                  << " taskID = "
                                  << iter->second->GetTaskID();
                     iter = taskMap_.erase(iter);
+                    channelPool_->RemoveUser();
                     continue;
                 }
             }

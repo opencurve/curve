@@ -500,6 +500,8 @@ int ChunkServerClient::FlattenChunk(
                       &rpcCtx->request,
                       &rpcCtx->response,
                       rpcDone);
+    VLOG(3) << "Send FlattenChunk to " << rpcCtx->cntl.remote_side()
+            << ", request = " << rpcCtx->request.ShortDebugString();
     rpcCtx.release();
     return kMdsSuccess;
 }

@@ -45,6 +45,7 @@ void CleanTaskManager::CheckCleanResult(void) {
                     LOG(INFO) << "going to remove task, taskID = "
                         << iter->second->GetTaskID();
                     iter = cleanTasks_.erase(iter);
+                    channelPool_->RemoveUser();
                     continue;
                 } else if (taskProgress.GetStatus() == TaskStatus::FAILED) {
                     iter->second->Retry();
@@ -61,16 +62,11 @@ void CleanTaskManager::CheckCleanResult(void) {
                                      << " taskID = "
                                      << iter->second->GetTaskID();
                         iter = cleanTasks_.erase(iter);
+                        channelPool_->RemoveUser();
                         continue;
                     }
                 }
                 ++iter;
-            }
-            // clean task为空，清空channelPool
-            common::LockGuard lckBatch(mutexBatch_);
-            if (cleanTasks_.empty() && cleanBatchSnapTasks_.empty() && notEmptyBefore) {
-                LOG(INFO) << "All tasks completed, clear channel pool";
-                channelPool_->Clear();
             }
         }
 
@@ -86,6 +82,7 @@ void CleanTaskManager::CheckCleanResult(void) {
                         LOG(INFO) << "going to remove cleanBatchSnapTask, taskID = "
                             << iter->second->GetTaskID();
                         iter = cleanBatchSnapTasks_.erase(iter);
+                        channelPool_->RemoveUser();
                         continue;
                     } else {
                         LOG(INFO) << "Found residual task in cleanBatchSnapTask before erase, run it again";
@@ -107,16 +104,11 @@ void CleanTaskManager::CheckCleanResult(void) {
                                      << " taskID = "
                                      << iter->second->GetTaskID();
                         iter = cleanBatchSnapTasks_.erase(iter);
+                        channelPool_->RemoveUser();
                         continue;
                     }
                 }
                 ++iter;
-            }
-            // 应该cleanTasks_和cleanBatchSnapTasks_都空才清空channelPool
-            common::LockGuard lck(mutex_);
-            if (cleanBatchSnapTasks_.empty() && cleanTasks_.empty() && notEmptyBefore) {
-                LOG(INFO) << "All tasks completed, clear channel pool";
-                channelPool_->Clear();
             }
         }
     }
@@ -172,8 +164,8 @@ bool CleanTaskManager::PushTask(std::shared_ptr<Task> task) {
         return false;
     }
 
+    channelPool_->AddUser();
     cleanWorkers_->Enqueue(task->Closure());
-
     cleanTasks_.insert(std::make_pair(task->GetTaskID(), task));
     LOG(INFO) << "Push Task OK, TaskID = " << task->GetTaskID();
     return true;
@@ -216,8 +208,9 @@ bool CleanTaskManager::PushTask(std::shared_ptr<SnapShotBatchCleanTask> task, co
                     << task->GetTaskID() << ", snapSn = " << snapfileInfo.seqnum();
         return false;        
     }
-    cleanWorkers_->Enqueue(task->Closure());
 
+    channelPool_->AddUser();
+    cleanWorkers_->Enqueue(task->Closure());
     cleanBatchSnapTasks_.insert(std::make_pair(task->GetTaskID(), task));
     LOG(INFO) << "Push new created SnapShotBatchCleanTask OK, TaskID = " 
               << task->GetTaskID() << ", snapSn = " << snapfileInfo.seqnum();

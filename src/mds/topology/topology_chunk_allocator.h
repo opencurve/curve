@@ -101,9 +101,8 @@ class TopologyChunkAllocator {
         ChunkSizeType chunkSize,
         std::vector<CopysetIdInfo> *infos) = 0;
     virtual void GetRemainingSpaceInLogicalPool(
-        const std::vector<PoolIdType>& logicalPools,
-        std::map<PoolIdType, double>* remianingSpace,
-        const std::string& pstName) = 0;
+        const std::list<PoolIdType>& logicalPools,
+        std::map<PoolIdType, double>* remianingSpace) = 0;
     virtual void UpdateChunkFilePoolAllocConfig(
         bool useChunkFilepool_, bool useChunkFilePoolAsWalPool_,
         uint32_t useChunkFilePoolAsWalPoolReserve_) = 0;
@@ -164,9 +163,8 @@ class TopologyChunkAllocatorImpl : public TopologyChunkAllocator {
         ChunkSizeType chunkSize,
         std::vector<CopysetIdInfo> *infos) override;
     void GetRemainingSpaceInLogicalPool(
-        const std::vector<PoolIdType>& logicalPools,
-        std::map<PoolIdType, double>* remianingSpace,
-        const std::string& pstName) override;
+        const std::list<PoolIdType>& logicalPools,
+        std::map<PoolIdType, double>* remianingSpace) override;
     void UpdateChunkFilePoolAllocConfig(bool useChunkFilepool_,
             bool useChunkFilePoolAsWalPool_,
             uint32_t useChunkFilePoolAsWalPoolReserve_) override {

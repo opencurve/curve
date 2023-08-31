@@ -110,7 +110,7 @@ class CleanTaskManager {
 
     Atomic<bool> stopFlag_;
     InterruptibleSleeper sleeper_;
-    // 连接池，和chunkserverClient共享，没有任务在执行时清空
+    // 连接池，和task_manager, chunkserverClient共享，没有任务在执行时清空
     std::shared_ptr<ChannelPool> channelPool_;
 
     // 针对同一文件的本地多层快照的清除任务放到一起串行执行，防止并发删除导致的快照数据破坏和快照遗留问题

@@ -99,7 +99,7 @@ void ChunkServiceImpl::WriteChunk(RpcController *controller,
                                   const ChunkRequest *request,
                                   ChunkResponse *response,
                                   Closure *done) {
-    DLOG(INFO) << "WriteChunk request: " << request->ShortDebugString();
+    VLOG(3) << "WriteChunk request: " << request->ShortDebugString();
 
     ChunkServiceClosure* closure =
         new (std::nothrow) ChunkServiceClosure(inflightThrottle_,
@@ -228,7 +228,7 @@ void ChunkServiceImpl::ReadChunk(RpcController *controller,
                                  const ChunkRequest *request,
                                  ChunkResponse *response,
                                  Closure *done) {
-    DLOG(INFO) << "ReadChunk request: " << request->ShortDebugString();
+    VLOG(3) << "ReadChunk request: " << request->ShortDebugString();
 
     ChunkServiceClosure* closure =
         new (std::nothrow) ChunkServiceClosure(inflightThrottle_,
@@ -593,6 +593,8 @@ void ChunkServiceImpl::FlattenChunk(RpcController *controller,
                       const ChunkRequest *request,
                       ChunkResponse *response,
                       Closure *done) {
+    VLOG(3) << "FlattenChunk request: " << request->ShortDebugString();
+
     ChunkServiceClosure* closure =
         new (std::nothrow) ChunkServiceClosure(inflightThrottle_,
                                                request,
