@@ -565,6 +565,8 @@ TopoStatusCode TopologyImpl::AddPartition(const Partition &data) {
 
                 // update fs partition number
                 clusterInfo_.AddPartitionIndexOfFs(data.GetFsId());
+                clusterInfo_.UpdateFsNextInodeId(data.GetFsId(),
+                                                 data.GetIdEnd());
                 if (!storage_->StorageClusterInfo(clusterInfo_)) {
                     LOG(ERROR) << "AddPartitionIndexOfFs failed, fsId = "
                                << data.GetFsId();
@@ -1043,6 +1045,12 @@ TopoStatusCode TopologyImpl::Init(const TopologyOption &option) {
         return TopoStatusCode::TOPO_STORGE_FAIL;
     }
     idGenerator_->initPartitionIdGenerator(maxPartitionId);
+
+    // update fs next inodeId
+    for (const auto& p : partitionMap_) {
+        clusterInfo_.UpdateFsNextInodeId(p.second.GetFsId(),
+                                         p.second.GetIdEnd());
+    }
 
     // MemcacheCluster
     MemcacheClusterIdType maxMemcacheClusterId;
@@ -1624,6 +1632,11 @@ TopologyImpl::GenCopysetAddrBatch(uint32_t needCreateNum,
 uint32_t TopologyImpl::GetPartitionIndexOfFS(FsIdType fsId) {
     ReadLockGuard rlock(clusterMutex_);
     return clusterInfo_.GetPartitionIndexOfFS(fsId);
+}
+
+uint64_t TopologyImpl::GetFsNextInodeId(FsIdType fsId) {
+    ReadLockGuard rlock(clusterMutex_);
+    return clusterInfo_.GetFsNextInodeId(fsId);
 }
 
 std::vector<CopySetInfo> TopologyImpl::ListCopysetInfo() const {

@@ -23,6 +23,7 @@
 #define CURVEFS_SRC_MDS_TOPOLOGY_TOPOLOGY_H_
 
 #include <algorithm>
+#include <cstdint>
 #include <list>
 #include <map>
 #include <memory>
@@ -280,6 +281,8 @@ class Topology {
 
     virtual uint32_t GetPartitionIndexOfFS(FsIdType fsId) = 0;
 
+    virtual uint64_t GetFsNextInodeId(FsIdType fsId) = 0;
+
     virtual std::vector<CopySetInfo> ListCopysetInfo() const = 0;
 
     virtual void GetMetaServersSpace(
@@ -525,7 +528,9 @@ class TopologyImpl : public Topology {
     TopoStatusCode GenCopysetAddrBatchForPool(PoolIdType poolId,
     uint16_t replicaNum, std::list<CopysetCreateInfo>* copysetList) override;
 
-    uint32_t GetPartitionIndexOfFS(FsIdType fsId);
+    uint32_t GetPartitionIndexOfFS(FsIdType fsId) override;
+
+    uint64_t GetFsNextInodeId(FsIdType fsId) override;
 
     TopoStatusCode GetPoolIdByMetaserverId(MetaServerIdType id,
                                            PoolIdType *poolIdOut);

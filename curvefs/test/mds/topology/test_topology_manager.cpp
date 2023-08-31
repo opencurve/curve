@@ -1632,6 +1632,105 @@ TEST_F(TestTopologyManager, test_CreatePartitionWithAvailableCopyset_Success) {
     ASSERT_EQ(1, info.GetPartitionNum());
 }
 
+TEST_F(TestTopologyManager, test_CreatePartitionAfterChangeInodeRange_Success) {
+    PoolIdType poolId = 0x11;
+    CopySetIdType copysetId = 0x51;
+    PartitionIdType partitionId = 0x61;
+    PartitionIdType partitionId1 = 0x62;
+    PartitionIdType partitionId2 = 0x63;
+
+    PrepareAddPool(poolId);
+    PrepareAddZone(0x21, "zone1", poolId);
+    PrepareAddZone(0x22, "zone2", poolId);
+    PrepareAddZone(0x23, "zone3", poolId);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21,
+                     0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22,
+                     0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23,
+                     0x11);
+    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1", 7777, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x42, "ms2", "token2", 0x32, "127.0.0.1", 7777, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1", 7777, "ip2",
+                         8888);
+
+    std::set<MetaServerIdType> replicas;
+    replicas.insert(0x41);
+    replicas.insert(0x42);
+    replicas.insert(0x43);
+    PrepareAddCopySet(copysetId, poolId, replicas);
+
+    EXPECT_CALL(*idGenerator_, GenPartitionId())
+        .WillOnce(Return(partitionId))
+        .WillOnce(Return(partitionId1))
+        .WillOnce(Return(partitionId2));
+
+    std::string leader = "127.0.0.1:7777";
+
+    EXPECT_CALL(*storage_, StoragePartition(_))
+        .Times(3)
+        .WillRepeatedly(Return(true));
+    EXPECT_CALL(*storage_, StorageClusterInfo(_))
+        .Times(3)
+        .WillRepeatedly(Return(true));
+
+    EXPECT_CALL(*mockMetaserverClient_, CreatePartition(_, _, _, _, _, _, _))
+        .Times(3)
+        .WillRepeatedly(Return(FSStatusCode::OK));
+
+    CreatePartitionRequest request;
+    CreatePartitionResponse response;
+    request.set_fsid(0x01);
+    request.set_count(1);
+    // first time partition inode size 100 [0-99]
+    TopologyOption topologyOption;
+    topologyOption.idNumberInPartition = 100;
+    serviceManager_->Init(topologyOption);
+    serviceManager_->CreatePartitions(&request, &response);
+    ASSERT_EQ(TopoStatusCode::TOPO_OK, response.statuscode());
+    ASSERT_EQ(1, response.partitioninfolist().size());
+
+    Partition partition;
+    ASSERT_TRUE(topology_->GetPartition(partitionId, &partition));
+    ASSERT_EQ(copysetId, partition.GetCopySetId());
+    ASSERT_EQ(0, partition.GetIdStart());
+    ASSERT_EQ(99, partition.GetIdEnd());
+
+    CopySetInfo info;
+    CopySetKey key(poolId, copysetId);
+    ASSERT_TRUE(topology_->GetCopySet(key, &info));
+    ASSERT_EQ(copysetId, info.GetId());
+    ASSERT_EQ(1, info.GetPartitionNum());
+
+    // second time partition inode size 80 [100-179]
+    topologyOption.idNumberInPartition = 80;
+    serviceManager_->Init(topologyOption);
+    response.clear_partitioninfolist();
+    serviceManager_->CreatePartitions(&request, &response);
+    ASSERT_EQ(TopoStatusCode::TOPO_OK, response.statuscode());
+    ASSERT_EQ(1, response.partitioninfolist().size());
+
+    ASSERT_TRUE(topology_->GetPartition(partitionId1, &partition));
+    ASSERT_EQ(copysetId, partition.GetCopySetId());
+    ASSERT_EQ(100, partition.GetIdStart());
+    ASSERT_EQ(179, partition.GetIdEnd());
+
+    // third time partition inode size 120 [180-299]
+    topologyOption.idNumberInPartition = 120;
+    serviceManager_->Init(topologyOption);
+    response.clear_partitioninfolist();
+    serviceManager_->CreatePartitions(&request, &response);
+    ASSERT_EQ(TopoStatusCode::TOPO_OK, response.statuscode());
+    ASSERT_EQ(1, response.partitioninfolist().size());
+
+    ASSERT_TRUE(topology_->GetPartition(partitionId2, &partition));
+    ASSERT_EQ(copysetId, partition.GetCopySetId());
+    ASSERT_EQ(180, partition.GetIdStart());
+    ASSERT_EQ(299, partition.GetIdEnd());
+}
+
 TEST_F(TestTopologyManager,
     test_CreatePartitionsAndGetMinPartition_Success) {
     PoolIdType poolId = 0x11;
