@@ -255,6 +255,12 @@ MetaStatusCode MetaServerClientImpl::CreateDentry(const Dentry &dentry) {
         d->set_txid(txId);
         d->set_type(dentry.type());
         request.set_allocated_dentry(d);
+        struct timespec now;
+        clock_gettime(CLOCK_REALTIME, &now);
+        Time *tm = new Time();
+        tm->set_sec(now.tv_sec);
+        tm->set_nsec(now.tv_nsec);
+        request.set_allocated_create(tm);
         curvefs::metaserver::MetaServerService_Stub stub(channel);
         stub.CreateDentry(cntl, &request, &response, nullptr);
 

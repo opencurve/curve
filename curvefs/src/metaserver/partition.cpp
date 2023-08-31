@@ -108,15 +108,15 @@ Partition::Partition(PartitionInfo partition,
         }                                                                      \
     } while (0)
 
-MetaStatusCode Partition::CreateDentry(const Dentry& dentry) {
+MetaStatusCode Partition::CreateDentry(const Dentry& dentry,
+                                       const Time& tm) {
     PRECHECK(dentry.fsid(), dentry.parentinodeid());
 
     MetaStatusCode ret = dentryManager_->CreateDentry(dentry);
     if (MetaStatusCode::OK == ret) {
         if (dentry.has_type()) {
             return inodeManager_->UpdateInodeWhenCreateOrRemoveSubNode(
-                dentry.fsid(), dentry.parentinodeid(),
-                dentry.type(), true);
+                dentry, tm.sec(), tm.nsec(), true);
         } else {
             LOG(ERROR) << "CreateDentry does not have type, "
                        << dentry.ShortDebugString();
@@ -149,8 +149,7 @@ MetaStatusCode Partition::DeleteDentry(const Dentry& dentry) {
     if (MetaStatusCode::OK == ret) {
         if (dentry.has_type()) {
             return inodeManager_->UpdateInodeWhenCreateOrRemoveSubNode(
-                dentry.fsid(), dentry.parentinodeid(),
-                dentry.type(), false);
+                dentry, 0, 0, false);
         } else {
             LOG(ERROR) << "DeleteDentry does not have type, "
                        << dentry.ShortDebugString();

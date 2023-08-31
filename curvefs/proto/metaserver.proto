@@ -114,6 +114,7 @@ message CreateDentryRequest {
     required uint32 copysetId = 2;
     required uint32 partitionId = 3;
     required Dentry dentry = 4;
+    optional Time create = 5;
 }
 
 message CreateDentryResponse {
