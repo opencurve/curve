@@ -183,6 +183,8 @@ void InitDiskCacheOption(Configuration *conf,
                               &diskCacheOption->fullRatio);
     conf->GetValueFatalIfFail("diskCache.safeRatio",
                               &diskCacheOption->safeRatio);
+    conf->GetValueFatalIfFail("diskCache.trimRatio",
+                              &diskCacheOption->trimRatio);
     conf->GetValueFatalIfFail("diskCache.maxUsableSpaceBytes",
                               &diskCacheOption->maxUsableSpaceBytes);
     conf->GetValueFatalIfFail("diskCache.maxFileNums",
