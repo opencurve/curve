@@ -268,7 +268,11 @@ TEST_F(PartitionTest, dentrynum) {
     dentry.set_name("name");
     dentry.set_txid(0);
     dentry.set_type(FsFileType::TYPE_DIRECTORY);
-    ASSERT_EQ(partition1.CreateDentry(dentry), MetaStatusCode::OK);
+    Time tm;
+    tm.set_sec(0);
+    tm.set_nsec(0);
+    ASSERT_EQ(partition1.CreateDentry(dentry, tm),
+              MetaStatusCode::OK);
     ASSERT_EQ(partition1.GetDentryNum(), 1);
 
     ASSERT_EQ(partition1.DeleteDentry(dentry), MetaStatusCode::OK);
@@ -294,10 +298,13 @@ TEST_F(PartitionTest, PARTITION_ID_MISSMATCH_ERROR) {
     dentry2.set_fsid(1);
     dentry2.set_parentinodeid(200);
 
+    Time tm;
+    tm.set_sec(0);
+    tm.set_nsec(0);
     // test CreateDentry
-    ASSERT_EQ(partition1.CreateDentry(dentry1),
+    ASSERT_EQ(partition1.CreateDentry(dentry1, tm),
               MetaStatusCode::PARTITION_ID_MISSMATCH);
-    ASSERT_EQ(partition1.CreateDentry(dentry2),
+    ASSERT_EQ(partition1.CreateDentry(dentry2, tm),
               MetaStatusCode::PARTITION_ID_MISSMATCH);
 
     // test DeleteDentry

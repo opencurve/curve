@@ -471,27 +471,34 @@ MetaStatusCode InodeManager::PaddingInodeS3ChunkInfo(int32_t fsId,
 }
 
 MetaStatusCode InodeManager::UpdateInodeWhenCreateOrRemoveSubNode(
-    uint32_t fsId, uint64_t inodeId, FsFileType type, bool isCreate) {
-    VLOG(6) << "UpdateInodeWhenCreateOrRemoveSubNode, fsId = " << fsId
-            << ", inodeId = " << inodeId
-            << ", isCreate = " << isCreate;
-    NameLockGuard lg(inodeLock_, GetInodeLockName(fsId, inodeId));
+    const Dentry &dentry,
+    uint64_t now,
+    uint32_t now_ns,
+    bool isCreate) {
+    uint64_t fsId = dentry.fsid();
+    uint64_t parentInodeId = dentry.parentinodeid();
+    FsFileType type = dentry.type();
+    MetaStatusCode ret = MetaStatusCode::OK;
 
-    Inode inode;
-    MetaStatusCode ret = inodeStorage_->Get(
-        Key4Inode(fsId, inodeId), &inode);
+    VLOG(6) << "UpdateInodeWhenCreateOrRemoveSubNode, fsId = " << fsId
+            << ", inodeId = " << parentInodeId
+            << ", isCreate = " << isCreate;
+    NameLockGuard lg(inodeLock_, GetInodeLockName(fsId, parentInodeId));
+    Inode parentInode;
+    ret = inodeStorage_->Get(
+        Key4Inode(fsId, parentInodeId), &parentInode);
     if (ret != MetaStatusCode::OK) {
-        LOG(ERROR) << "GetInode fail, " << inode.ShortDebugString()
+        LOG(ERROR) << "GetInode fail, " << parentInode.ShortDebugString()
                    << ", ret = " << MetaStatusCode_Name(ret);
         return ret;
     }
 
-    uint32_t oldNlink = inode.nlink();
+    uint32_t oldNlink = parentInode.nlink();
     if (oldNlink == 0) {
         LOG(ERROR)
             << "UpdateInodeWhenCreateOrRemoveSubNode already be deleted!"
             << " fsId: " << fsId
-            << ", inodeId: " << inodeId
+            << ", inodeId: " << parentInodeId
             << ", type: " << type
             << ", isCreate: " << isCreate;
         // already be deleted
@@ -500,21 +507,32 @@ MetaStatusCode InodeManager::UpdateInodeWhenCreateOrRemoveSubNode(
 
     if (FsFileType::TYPE_DIRECTORY == type) {
         if (isCreate) {
-            inode.set_nlink(++oldNlink);
+            parentInode.set_nlink(++oldNlink);
         } else {
-            inode.set_nlink(--oldNlink);
+            parentInode.set_nlink(--oldNlink);
         }
     }
 
-    ret = inodeStorage_->Update(inode);
+    // update mctime and changetime
+    if (now != 0) {
+        parentInode.set_mtime(now);
+        parentInode.set_ctime(now);
+    }
+
+    if (now_ns != 0) {
+        parentInode.set_mtime_ns(now_ns);
+        parentInode.set_ctime_ns(now_ns);
+    }
+
+    ret = inodeStorage_->Update(parentInode);
     if (ret != MetaStatusCode::OK) {
-        LOG(ERROR) << "UpdateInode fail, " << inode.ShortDebugString()
+        LOG(ERROR) << "UpdateInode fail, " << parentInode.ShortDebugString()
                    << ", ret = " << MetaStatusCode_Name(ret);
         return ret;
     }
 
     VLOG(9) << "UpdateInodeWhenCreateOrRemoveSubNode success, "
-            << inode.ShortDebugString();
+            << parentInode.ShortDebugString();
     return MetaStatusCode::OK;
 }
 
