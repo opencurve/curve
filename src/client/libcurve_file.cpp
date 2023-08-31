@@ -35,6 +35,7 @@
 #include "include/client/libcurve.h"
 #include "include/curve_compiler_specific.h"
 #include "proto/nameserver2.pb.h"
+#include "src/common/dynamic_vlog.h"
 #include "src/client/client_common.h"
 #include "src/client/client_config.h"
 #include "src/client/file_instance.h"
@@ -54,6 +55,7 @@ bool globalclientinited_ = false;
 curve::client::FileClient* globalclient = nullptr;
 
 using curve::client::UserInfo;
+using ::curve::common::FLAGS_vlog_level;
 
 namespace brpc {
 DECLARE_int32(health_check_interval);
@@ -95,6 +97,8 @@ void LoggerGuard::InitInternal(const std::string& confPath) {
     snprintf(g_processname, sizeof(g_processname),
             "%s", processName.c_str());
     google::InitGoogleLogging(g_processname);
+
+    FLAGS_vlog_level = FLAGS_v;
 }
 
 void InitLogging(const std::string& confPath) {

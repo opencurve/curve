@@ -59,8 +59,10 @@ class CancelableTask : public Task {
 
 class TaskManager {
  public:
-    TaskManager(int threadNum = 10, int checkPeriod = 10000)
-     : threadNum_(threadNum),
+    explicit TaskManager(const std::shared_ptr<ChannelPool> &channelPool,
+       int threadNum = 10, int checkPeriod = 10000)
+     : channelPool_(channelPool),
+       threadNum_(threadNum),
        checkPeriod_(checkPeriod),
        stopFlag_(true) {}
 
@@ -82,7 +84,10 @@ class TaskManager {
 
     bool SubmitTask(const std::shared_ptr<CancelableTask> &task);
 
-    bool CancelTask(uint64_t taskId);
+    bool CancelTask(uint64_t taskId) {
+        // TODO(xuchaojie); 任务取消
+        return false;
+    }
 
     std::shared_ptr<CancelableTask> GetTask(uint64_t taskId);
 
@@ -90,6 +95,9 @@ class TaskManager {
     void CheckResult(void);
 
  private:
+    // 连接池，和clean_task_manager, chunkserverclient共享，没有任务在执行时清空
+    std::shared_ptr<ChannelPool> channelPool_;
+
     int threadNum_;
     ::curve::common::TaskThreadPool<> *taskWorkers_;
     std::map<uint64_t, std::shared_ptr<CancelableTask>> taskMap_;

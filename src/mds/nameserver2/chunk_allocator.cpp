@@ -95,7 +95,20 @@ bool ChunkSegmentAllocatorImpl::CloneChunkSegment(
     uint64_t srcFileId,
     const PageFileSegment &srcSegment,
     PageFileSegment *segment) {
-    if (srcSegment.has_cloneorigin()) {
+    // check logical space enough
+    std::list<PoolIdType> logicalPools;
+    logicalPools.push_back(static_cast<PoolIdType>(srcSegment.logicalpoolid()));
+    std::map<PoolIdType, double> enoughSpacePools;
+    topologyChunkAllocator_->GetRemainingSpaceInLogicalPool(
+            logicalPools, &enoughSpacePools);
+    if ((enoughSpacePools.empty()) || 
+        (enoughSpacePools[srcSegment.logicalpoolid()] < 
+            srcSegment.segmentsize())) {
+        LOG(ERROR) << "logical id: " << srcSegment.logicalpoolid()
+                   << ", space not enough";
+        return false;
+    }
+    if (srcSegment.has_originfileid()) {
         segment->set_cloneorigin(srcSegment.cloneorigin());
         segment->set_originfileid(srcSegment.originfileid());
     } else {

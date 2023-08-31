@@ -28,6 +28,7 @@
 #include <string>
 #include <memory>
 #include <utility>
+#include <atomic>
 
 #include "src/common/concurrent/concurrent.h"
 
@@ -38,6 +39,11 @@ namespace common {
 
 class ChannelPool {
  public:
+    ChannelPool() :
+        userCount_(0) {}
+
+    ~ChannelPool() = default;
+
     /**
      * @brief 从channelMap获取或创建并Init到指定地址的channel
      *
@@ -49,6 +55,16 @@ class ChannelPool {
     int GetOrInitChannel(const std::string& addr,
                          ChannelPtr* channelPtr);
 
+    void AddUser() {
+        userCount_.fetch_add(1, std::memory_order_release);
+    }
+
+    void RemoveUser() {
+        if (1 == userCount_.fetch_sub(1, std::memory_order_acquire)) {
+            Clear();
+        }
+    }
+
     /**
      * @brief 清空map
      */
@@ -57,6 +73,7 @@ class ChannelPool {
  private:
     Mutex mutex_;
     std::unordered_map<std::string, ChannelPtr> channelMap_;
+    std::atomic<int> userCount_;
 };
 
 }  // namespace common

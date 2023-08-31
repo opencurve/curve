@@ -133,9 +133,8 @@ int RequestSender::WriteChunk(RequestContext *ctx,
     cntl->request_attachment().append(data);
     ChunkService_Stub stub(&channel_);
     stub.WriteChunk(cntl, &request, response, doneGuard.release());
-    DLOG(INFO) << "write chunk to " << cntl->remote_side()
-               << ", callid: " << cntl->call_id()
-               << ", request:" << request.ShortDebugString();
+    VLOG(3) << "write chunk to " << cntl->remote_side()
+            << ", request:" << request.ShortDebugString();
 
     return 0;
 }
@@ -185,9 +184,8 @@ int RequestSender::ReadChunk(RequestContext *ctx,
 
     ChunkService_Stub stub(&channel_);
     stub.ReadChunk(cntl, &request, response, doneGuard.release());
-    DLOG(INFO) << "read chunk to " << cntl->remote_side()
-               << ", callid: " << cntl->call_id()
-               << ", request:" << request.ShortDebugString();
+    VLOG(3) << "read chunk to " << cntl->remote_side()
+            << ", request:" << request.ShortDebugString();
 
     return 0;
 }
