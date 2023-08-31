@@ -649,9 +649,8 @@ TopoStatusCode TopologyManager::CreatePartitionOnCopyset(
     }
 
     // calculate inodeId start and end of partition
-    uint32_t index = topology_->GetPartitionIndexOfFS(fsId);
-    uint64_t idStart = index * option_.idNumberInPartition;
-    uint64_t idEnd = (index + 1) * option_.idNumberInPartition - 1;
+    uint64_t idStart = topology_->GetFsNextInodeId(fsId);
+    uint64_t idEnd = idStart + option_.idNumberInPartition - 1;
     PartitionIdType partitionId = topology_->AllocatePartitionId();
 
     if (partitionId == static_cast<ServerIdType>(UNINITIALIZE_ID)) {
