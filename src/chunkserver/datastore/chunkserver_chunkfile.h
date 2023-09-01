@@ -109,6 +109,7 @@ struct ChunkFileMetaPage {
                         , correctedSn(0)
                         , cloneNo(0)
                         , virtualId(0)
+                        , fileId(0)
                         , location("")
                         , bitmap(nullptr) {}
     ChunkFileMetaPage(const ChunkFileMetaPage& metaPage);
@@ -120,8 +121,11 @@ struct ChunkFileMetaPage {
     // if it is a clone chunk the cloneNo indicate the clone no in the root chunk
     // if it is not a clone chunk, then the cloneNo = 0
     // if it a clone chunk then the virtualId indicate that the chunkid of the root
-    uint64_t cloneNo;
-    ChunkID  virtualId;
+    uint64_t    cloneNo;
+    //chunk Index of the clone chunk or the original chunk
+    uint64_t    virtualId;
+    //the fileid of the chunk itself
+    uint64_t    fileId;
     //bool isclone;
     //just for clone chunk, the parent chunk's sn and the parent chunk's id
     //if the parentChunkId is -1 then that it is not a CloneChunk
@@ -156,7 +160,8 @@ struct ChunkOptions {
     std::shared_ptr<DataStoreMetric> metric;
 
     uint64_t        cloneNo;
-    ChunkID         virtualId;
+    uint64_t        virtualId;
+    uint64_t        fileID;
 
     ChunkOptions() : id(0)
                    , sn(0)
@@ -168,6 +173,7 @@ struct ChunkOptions {
                    , metaPageSize(0)
                    , cloneNo(0)
                    , virtualId (0)
+                   , fileID(0)
                    , metric(nullptr) {}
 };
 
@@ -348,6 +354,10 @@ class CSChunkFile {
 
     ChunkID getVirtualId() {
         return metaPage_.virtualId; 
+    }
+
+    uint64_t getFileID() {
+        return metaPage_.fileId;
     }
 
     CSErrorCode writeDataDirect(const butil::IOBuf& buf, off_t offset, size_t length); 
