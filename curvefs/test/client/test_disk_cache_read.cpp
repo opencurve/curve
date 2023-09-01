@@ -157,12 +157,14 @@ TEST_F(TestDiskCacheRead, LoadAllCacheFile) {
     strcpy(fake.d_name, "fake");  // NOLINT
 
     EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull())).WillOnce(Return(0));
-    EXPECT_CALL(*wrapper_, opendir(NotNull())).WillOnce(Return(dir));
+    EXPECT_CALL(*wrapper_, opendir(NotNull()))
+        .WillOnce(Return(dir));
     EXPECT_CALL(*wrapper_, readdir(NotNull()))
         .Times(2)
         .WillOnce(Return(&fake))
         .WillOnce(ReturnNull());
-    EXPECT_CALL(*wrapper_, closedir(NotNull())).WillOnce(Return(0));
+    EXPECT_CALL(*wrapper_, closedir(NotNull()))
+        .WillOnce(Return(0));
     ret = diskCacheRead_->LoadAllCacheReadFile(cachedObj);
     ASSERT_EQ(0, ret);
 }
