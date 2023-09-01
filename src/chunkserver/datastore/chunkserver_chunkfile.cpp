@@ -44,6 +44,7 @@ ChunkFileMetaPage::ChunkFileMetaPage(const ChunkFileMetaPage& metaPage) {
 
     cloneNo = metaPage.cloneNo;
     virtualId = metaPage.virtualId;
+    fileId = metaPage.fileId;
 }
 
 ChunkFileMetaPage& ChunkFileMetaPage::operator =(
@@ -63,6 +64,7 @@ ChunkFileMetaPage& ChunkFileMetaPage::operator =(
 
     cloneNo = metaPage.cloneNo;
     virtualId = metaPage.virtualId;
+    fileId = metaPage.fileId;
     return *this;
 }
 
@@ -78,6 +80,8 @@ void ChunkFileMetaPage::encode(char* buf) {
     len += sizeof(cloneNo);
     memcpy(buf + len, &virtualId, sizeof(virtualId));
     len += sizeof(virtualId);
+    memcpy(buf + len, &fileId, sizeof(fileId));
+    len += sizeof(fileId);
     size_t loc_size = location.size();
     memcpy(buf + len, &loc_size, sizeof(loc_size));
     len += sizeof(loc_size);
@@ -126,6 +130,8 @@ CSErrorCode ChunkFileMetaPage::decode(const char* buf) {
     len += sizeof(cloneNo);
     memcpy(&virtualId, buf + len, sizeof(virtualId));
     len += sizeof(virtualId);
+    memcpy(&fileId, buf + len, sizeof(fileId));
+    len += sizeof(fileId);
     size_t loc_size;
     memcpy(&loc_size, buf + len, sizeof(loc_size));
     len += sizeof(loc_size);
@@ -210,6 +216,7 @@ CSChunkFile::CSChunkFile(std::shared_ptr<LocalFileSystem> lfs,
     metaPage_.location = options.location;
     metaPage_.virtualId = options.virtualId;
     metaPage_.cloneNo = options.cloneNo;
+    metaPage_.fileId = options.fileID;
 
     // If location is not empty, it is CloneChunk,
     //     and Bitmap needs to be initialized

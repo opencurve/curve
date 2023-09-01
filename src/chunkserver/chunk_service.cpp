@@ -617,8 +617,8 @@ void ChunkServiceImpl::FlattenChunk(RpcController *controller,
              << " chunkId: " << request->chunkid()
              << " copysetId: " << request->copysetid() 
              << " chunkIndex: " << request->chunkindex()
-             << " originChunkId: " << request->originchunkid()
-             << " cloneNo: " << request->cloneno();
+             << " originChunkId: " << request->originfileid()
+             << " fileID: " << request->fileid();
 
     if (request->has_epoch()) {
         if (!epochMap_->CheckEpoch(request->fileid(), request->epoch())) {

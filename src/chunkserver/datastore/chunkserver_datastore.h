@@ -398,6 +398,8 @@ class CSDataStore {
                                 const butil::IOBuf& buf,
                                 off_t offset,
                                 size_t length,
+                                uint64_t chunkIndex,
+                                uint64_t fileID,
                                 uint32_t* cost,
                                 std::shared_ptr<SnapContext> ctx,
                                 const std::string & cloneSourceLocation = "");
@@ -408,6 +410,8 @@ class CSDataStore {
                                 const butil::IOBuf& buf, 
                                 off_t offset, 
                                 size_t length,
+                                uint64_t chunkIndex,
+                                uint64_t fileID,
                                 uint32_t* cost, 
                                 std::shared_ptr<SnapContext> ctx, 
                                 std::unique_ptr<CloneContext>& cloneCtx);
@@ -423,24 +427,24 @@ class CSDataStore {
     // Deprecated, only use for unit & integration test
     virtual CSErrorCode WriteChunk(
         ChunkID id, SequenceNum sn, const char *buf, off_t offset,
-        size_t length, uint32_t *cost,
+        size_t length, uint64_t chunkIndex, uint64_t fileID, uint32_t *cost,
         const std::string &cloneSourceLocation = "") {
         butil::IOBuf data;
         data.append_user_data(const_cast<char*>(buf), length, TrivialDeleter);
 
-        return WriteChunk(id, sn, data, offset, length, cost,
+        return WriteChunk(id, sn, data, offset, length, chunkIndex, fileID, cost,
                           SnapContext::build_empty(), cloneSourceLocation);
     }
 
     // Deprecated, only use for unit & integration test
     virtual CSErrorCode WriteChunk(
         ChunkID id, SequenceNum sn, const char *buf, off_t offset,
-        size_t length, uint32_t *cost,std::shared_ptr<SnapContext> ctx,
+        size_t length, uint64_t chunkIndex, uint64_t fileID, uint32_t *cost,std::shared_ptr<SnapContext> ctx,
         const std::string &cloneSourceLocation = "") {
         butil::IOBuf data;
         data.append_user_data(const_cast<char*>(buf), length, TrivialDeleter);
 
-        return WriteChunk(id, sn, data, offset, length, cost,
+        return WriteChunk(id, sn, data, offset, length, chunkIndex, fileID, cost,
                           ctx, cloneSourceLocation);
     }
 
