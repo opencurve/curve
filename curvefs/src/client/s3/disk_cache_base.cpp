@@ -20,15 +20,19 @@
  * Author: hzwuhongsong
  */
 
-#include <sys/stat.h>
-#include <unistd.h>
+#include "curvefs/src/client/s3/disk_cache_base.h"
+
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <fmt/format.h>
+#include <glog/logging.h>
+#include <sys/stat.h>
 #include <sys/types.h>
-#include <dirent.h>
-#include <functional>
+#include <unistd.h>
 
-#include "curvefs/src/client/s3/disk_cache_base.h"
+#include <functional>
+#include <string>
 
 namespace curvefs {
 
@@ -69,7 +73,7 @@ int DiskCacheBase::CreateIoDir(bool writreDir) {
     return 0;
 }
 
-bool DiskCacheBase::IsFileExist(const std::string file) {
+bool DiskCacheBase::IsFileExist(const std::string& file) {
     struct stat statFile;
     int ret;
     ret = posixWrapper_->stat(file.c_str(), &statFile);
@@ -86,7 +90,7 @@ std::string DiskCacheBase::GetCacheIoFullDir() {
     return fullPath;
 }
 
-int DiskCacheBase::CreateDir(const std::string dir) {
+int DiskCacheBase::CreateDir(const std::string& dir) {
     size_t p = dir.find_last_of('/');
     std::string dirPath = dir;
     if (p != -1ULL) {
@@ -133,33 +137,46 @@ int DiskCacheBase::LoadAllCacheFile(std::set<std::string> *cachedObj) {
                                std::set<std::string> *cacheObj) -> bool {
         DIR *dir;
         struct dirent *ent;
-        std::string fileName, nextdir;
-        if ((dir = posixWrapper_->opendir(path.c_str())) != NULL) {
-            while ((ent = posixWrapper_->readdir(dir)) != NULL) {
-                VLOG(9) << "LoadAllCacheFile obj, name = " << ent->d_name;
-                if (strncmp(ent->d_name, ".", 1) == 0 ||
-                        strncmp(ent->d_name, "..", 2) == 0) {
-                    continue;
-                } else if (ent->d_type == 8) {
+        dir = posixWrapper_->opendir(path.c_str());
+        if (dir == nullptr) {
+            LOG(ERROR) << "LoadAllCacheFile Opendir error, path =" << path;
+            return false;
+        }
+        while ((ent = posixWrapper_->readdir(dir)) != nullptr) {
+            VLOG(9) << "LoadAllCacheFile obj, name = " << ent->d_name;
+            if (strncmp(ent->d_name, ".", 1) == 0 ||
+                strncmp(ent->d_name, "..", 2) == 0) {
+                continue;
+            }
+            std::string fileName, nextdir;
+            switch (GetFileType(path + '/' + ent->d_name)) {
+                case FileType::kNotExist:
+                    // Generally, the path has been deleted or moved,
+                    // and it is temporarily considered to be a file.
+                    // In most cases it is from write to read
+                case FileType::kFile:
                     fileName = std::string(ent->d_name);
                     VLOG(9) << "LoadAllCacheFile obj, name = " << fileName;
                     cacheObj->emplace(fileName);
-                } else {
+                    break;
+                case FileType::kDir:
                     nextdir = std::string(ent->d_name);
                     nextdir = path + '/' + nextdir;
                     if (!listDir(nextdir, cacheObj)) {
                         return false;
                     }
-                }
+                    break;
+                case FileType::kOther:
+                case FileType::kError:
+                default:
+                    break;
             }
-            int ret = posixWrapper_->closedir(dir);
-            if (ret < 0) {
-                LOG(ERROR) << "close dir "  << dir << ", error = " << errno;
-            }
-            return ret >= 0;
         }
-        LOG(ERROR) << "LoadAllCacheFile Opendir error, path =" << path;
-        return false;
+        int ret = posixWrapper_->closedir(dir);
+        if (ret < 0) {
+            LOG(ERROR) << "close dir " << dir << ", error = " << errno;
+        }
+        return ret >= 0;
     };
     ret = listDir(cachePath, cachedObj);
     if (!ret) {
@@ -167,6 +184,27 @@ int DiskCacheBase::LoadAllCacheFile(std::set<std::string> *cachedObj) {
     }
     VLOG(3) << "LoadAllCacheReadFile end, dir: " << cachePath;
     return 0;
+}
+
+DiskCacheBase::FileType DiskCacheBase::GetFileType(const std::string& path) {
+    struct stat statbuf;
+    if (stat(path.c_str(), &statbuf) != 0) {
+        // stat path error or path not exist
+        // Maybe it was deleted
+        if (errno == ENOENT) {
+            return FileType::kNotExist;
+        }
+        LOG_EVERY_N(WARNING, 1000)
+            << "stat path error, path = " << path << ", errno = " << errno;
+        return FileType::kError;
+    }
+    if (S_ISREG(statbuf.st_mode)) {
+        return FileType::kFile;
+    }
+    if (S_ISDIR(statbuf.st_mode)) {
+        return FileType::kDir;
+    }
+    return FileType::kOther;
 }
 
 }  // namespace client
