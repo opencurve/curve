@@ -51,8 +51,28 @@ class DiskCacheBase {
      * @brief Create Read/Write Cache Dir.
     */
     virtual int CreateIoDir(bool writreDir);
-    virtual bool IsFileExist(const std::string file);
-    virtual int CreateDir(const std::string name);
+    virtual bool IsFileExist(const std::string& file);
+    virtual int CreateDir(const std::string& name);
+
+    enum FileType {
+        kError = -1,
+        kNotExist = 0,
+        kOther = 1,
+        kFile = 2,
+        kDir = 3,
+    };
+    /**
+     * @brief
+     *
+     * @param path
+     * @return FileType
+     * kError = -1,
+     * kNotExist = 0,
+     * kOther = 1,
+     * kFile = 2,
+     * kDir = 3,
+     */
+    virtual FileType GetFileType(const std::string& path);
     /**
      * @brief Get Read/Write Cache full Dir(include CacheDir_).
     */
