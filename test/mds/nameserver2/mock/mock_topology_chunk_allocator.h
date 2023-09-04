@@ -48,10 +48,9 @@ class  MockTopologyChunkAllocator: public TopologyChunkAllocator {
         bool(FileType, const std::string&, uint32_t,
             ChunkSizeType chunkSize, std::vector<CopysetIdInfo> *));
 
-    MOCK_METHOD3(GetRemainingSpaceInLogicalPool,
-                 void(const std::vector<PoolIdType>&,
-                      std::map<PoolIdType, double>*,
-                      const std::string&));
+    MOCK_METHOD2(GetRemainingSpaceInLogicalPool,
+                 void(const std::list<PoolIdType>&,
+                      std::map<PoolIdType, double>*));
     MOCK_METHOD3(UpdateChunkFilePoolAllocConfig, void(bool, bool, uint32_t));
 };
 

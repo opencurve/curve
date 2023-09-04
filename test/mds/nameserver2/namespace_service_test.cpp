@@ -5,7 +5,7 @@
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+*      http://www.apache.org/licenses/LICENSE-2.0
  *
  *  Unless required by applicable law or agreed to in writing, software
  *  distributed under the License is distributed on an "AS IS" BASIS,
@@ -64,8 +64,6 @@ class NameSpaceServiceTest : public ::testing::Test {
         // init the kcurvefs, use the fake element
         storage_ =  std::make_shared<FakeNameServerStorage>();
         inodeGenerator_ = std::make_shared<FakeInodeIDGenerator>(0);
-        cloneIdGenerator_ = 
-            std::make_shared<FakeCloneIDGenerator>();
 
         topology_ = std::make_shared<MockTopology>();
         ChunkServerClientOption option;
@@ -111,12 +109,11 @@ class NameSpaceServiceTest : public ::testing::Test {
         flattenCore_ = std::make_shared<FlattenCore>(
             flattenOption, storage_,
             client, fileLockManager_.get());
-        flattenTaskManager_ = std::make_shared<TaskManager>();
+        flattenTaskManager_ = std::make_shared<TaskManager>(channelPool);
         flattenManager_ = std::make_shared<FlattenManagerImpl>(
             flattenCore_, flattenTaskManager_);
 
         kCurveFS.Init(storage_, inodeGenerator_,
-                        cloneIdGenerator_,
                         chunkSegmentAllocate_,
                         cleanManager_,
                         fileRecordManager_,
@@ -154,7 +151,6 @@ class NameSpaceServiceTest : public ::testing::Test {
  public:
     std::shared_ptr<NameServerStorage> storage_;
     std::shared_ptr<InodeIDGenerator> inodeGenerator_;
-    std::shared_ptr<CloneIDGenerator> cloneIdGenerator_;
     std::shared_ptr<ChunkSegmentAllocator> chunkSegmentAllocate_;
 
     std::shared_ptr<CleanCore> cleanCore_;
@@ -196,11 +192,13 @@ TEST_F(NameSpaceServiceTest, test1) {
 
     CurveFSService_Stub stub(&channel);
 
+    EXPECT_CALL(*topology_, GetPoolset(Matcher<const std::string&>(_), _))
+        .WillRepeatedly(Return(true));
 
     // test CreateFile
     // create /file1(owner1) , /file2(owner2), /dir/file3(owner3)
-    std::vector<PoolIdType> logicalPools{1, 2, 3};
-    EXPECT_CALL(*topology_, GetLogicalPoolInCluster(_))
+    std::list<PoolIdType> logicalPools{1, 2, 3};
+    EXPECT_CALL(*topology_, GetLogicalPoolInPoolset(_, _))
         .Times(AtLeast(1))
         .WillRepeatedly(Return(logicalPools));
     CreateFileRequest request;
@@ -1091,10 +1089,12 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
 
     CurveFSService_Stub stub(&channel);
 
+    EXPECT_CALL(*topology_, GetPoolset(Matcher<const std::string&>(_), _))
+        .WillRepeatedly(Return(true));
 
     // test create file
-    std::vector<PoolIdType> logicalPools{1, 2, 3};
-    EXPECT_CALL(*topology_, GetLogicalPoolInCluster(_))
+    std::list<PoolIdType> logicalPools{1, 2, 3};
+    EXPECT_CALL(*topology_, GetLogicalPoolInPoolset(_, _))
         .Times(AtLeast(1))
         .WillRepeatedly(Return(logicalPools));
     CreateFileRequest request;
@@ -1347,9 +1347,12 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
 
     CurveFSService_Stub stub(&channel);
 
+    EXPECT_CALL(*topology_, GetPoolset(Matcher<const std::string&>(_), _))
+        .WillRepeatedly(Return(true));
+
     // 先创建文件/file1，目录/dir1，文件/dir1/file2
-    std::vector<PoolIdType> logicalPools{1, 2, 3};
-    EXPECT_CALL(*topology_, GetLogicalPoolInCluster(_))
+    std::list<PoolIdType> logicalPools{1, 2, 3};
+    EXPECT_CALL(*topology_, GetLogicalPoolInPoolset(_, _))
         .Times(AtLeast(1))
         .WillRepeatedly(Return(logicalPools));
     CreateFileRequest request;
@@ -2127,9 +2130,12 @@ TEST_F(NameSpaceServiceTest, testRecoverFile) {
 
     CurveFSService_Stub stub(&channel);
 
+    EXPECT_CALL(*topology_, GetPoolset(Matcher<const std::string&>(_), _))
+        .WillRepeatedly(Return(true));
+
     // create file /file1，dir /dir1 and file /dir1/file2
-    std::vector<PoolIdType> logicalPools{1, 2, 3};
-    EXPECT_CALL(*topology_, GetLogicalPoolInCluster(_))
+    std::list<PoolIdType> logicalPools{1, 2, 3};
+    EXPECT_CALL(*topology_, GetLogicalPoolInPoolset(_, _))
         .Times(AtLeast(1))
         .WillRepeatedly(Return(logicalPools));
     CreateFileRequest createRequest;

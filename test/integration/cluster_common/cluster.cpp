@@ -495,6 +495,16 @@ int CurveCluster::StartSingleChunkServer(
         return -1;
     }
 
+    std::string cmd_dir =
+        std::string("./bazel-bin/src/chunkserver/chunkserver ") +
+        std::string(" -chunkServerIp=") + split[0] +
+        std::string(" -chunkServerPort=") + split[1];
+    for (auto &item : chunkserverConf) {
+        cmd_dir += item;
+    }
+
+    LOG(INFO) << "start chunkserver " << id << " cmd: " << cmd_dir;
+
     pid_t pid = ::fork();
     if (0 > pid) {
         LOG(ERROR) << "start chunkserver " << id << " fork failed";

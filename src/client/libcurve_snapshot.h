@@ -162,6 +162,14 @@ class SnapshotClient {
             const UserInfo_t& userinfo,
             FInfo* finfo);
 
+  int Flatten(const std::string& filename,
+              const UserInfo_t& userinfo);
+
+  int QueryFlattenStatus(const std::string& filename,
+                         const UserInfo_t& userinfo,
+                         FileStatus* filestatus,
+                         uint32_t* progress);
+
   /**
    * @brief 创建clone文件
    * @detail

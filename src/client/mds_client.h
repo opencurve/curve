@@ -291,6 +291,16 @@ class MDSClient : public MDSClientBase,
             const UserInfo_t& userinfo,
             FInfo* finfo);
 
+    // flatten
+    LIBCURVE_ERROR Flatten(const std::string& filename,
+                           const UserInfo_t& userinfo);
+
+    // QueryFlattenStatus
+    LIBCURVE_ERROR QueryFlattenStatus(const std::string& filename,
+                                      const UserInfo_t& userinfo,
+                                      FileStatus* filestatus,
+                                      uint32_t* progress);
+
     /**
      * @brief 创建clone文件
      * @detail

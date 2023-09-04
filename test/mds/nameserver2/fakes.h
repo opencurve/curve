@@ -35,7 +35,6 @@
 #include "src/mds/nameserver2/namespace_storage.h"
 #include "src/mds/nameserver2/idgenerator/chunk_id_generator.h"
 #include "src/mds/topology/topology_chunk_allocator.h"
-#include "src/mds/nameserver2/idgenerator/clone_id_generator.h"
 
 using ::curve::mds::topology::TopologyChunkAllocator;
 using ::curve::common::SNAPSHOTFILEINFOKEYPREFIX;
@@ -73,19 +72,6 @@ class FackChunkIDGenerator: public ChunkIDGenerator {
     std::atomic<uint64_t> value_;
 };
 
-class FakeCloneIDGenerator: public CloneIDGenerator {
- public:
-    explicit FakeCloneIDGenerator(uint64_t val = CLONEIDINITIALIZE) {
-        value_ = val;
-    }
-    bool GenCloneID(uint64_t *id) override {
-        *id = ++value_;
-        return true;
-    }
- private:
-    std::atomic<uint64_t> value_;
-};
-
 class FackTopologyChunkAllocator: public TopologyChunkAllocator {
  public:
     using CopysetIdInfo = ::curve::mds::topology::CopysetIdInfo;
@@ -116,9 +102,8 @@ class FackTopologyChunkAllocator: public TopologyChunkAllocator {
         return true;
     }
     void GetRemainingSpaceInLogicalPool(
-        const std::vector<PoolIdType>& logicalPools,
-        std::map<PoolIdType, double>* enoughSpacePools,
-        const std::string& /*pstName*/) override {
+        const std::list<PoolIdType>& logicalPools,
+        std::map<PoolIdType, double>* enoughSpacePools) override {
         for (auto i = logicalPools.begin(); i != logicalPools.end(); i++) {
             enoughSpacePools->insert(
                 std::pair<PoolIdType, double>(*i, 10 * FACK_FILE_INTTIALIZE));

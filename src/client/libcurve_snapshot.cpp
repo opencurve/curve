@@ -181,6 +181,21 @@ int SnapshotClient::Clone(const std::string& source,
     return -ret;
 }
 
+int SnapshotClient::Flatten(const std::string& filename,
+          const UserInfo_t& userinfo) {
+    LIBCURVE_ERROR ret = mdsclient_.Flatten(filename, userinfo);
+    return -ret;
+}
+
+int SnapshotClient::QueryFlattenStatus(const std::string& filename,
+                     const UserInfo_t& userinfo,
+                     FileStatus* filestatus,
+                     uint32_t* progress) {
+    LIBCURVE_ERROR ret = mdsclient_.QueryFlattenStatus(filename, userinfo,
+                                                       filestatus, progress);
+    return -ret;
+}
+
 int SnapshotClient::CreateCloneFile(const std::string& source,
                                     const std::string& destination,
                                     const UserInfo_t& userinfo,

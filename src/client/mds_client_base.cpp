@@ -377,6 +377,42 @@ void MDSClientBase::Clone(const std::string& source,
     stub.Clone(cntl, &request, response, NULL);
 }
 
+// flatten
+void MDSClientBase::Flatten(const std::string& filename,
+             const UserInfo_t& userinfo,
+             FlattenResponse* response,
+             brpc::Controller* cntl,
+             brpc::Channel* channel) {
+    FlattenRequest request;
+    request.set_filename(filename);
+    FillUserInfo(&request, userinfo);
+
+    LOG(INFO) << "Flatten: filename = " << filename
+              << ", owner = " << userinfo.owner
+              << ", log id = " << cntl->log_id();
+
+    curve::mds::CurveFSService_Stub stub(channel);
+    stub.Flatten(cntl, &request, response, NULL);
+}
+
+// QueryFlattenStatus
+void MDSClientBase::QueryFlattenStatus(const std::string& filename,
+                        const UserInfo_t& userinfo,
+                        QueryFlattenStatusResponse* response,
+                        brpc::Controller* cntl,
+                        brpc::Channel* channel) {
+    QueryFlattenStatusRequest request;
+    request.set_filename(filename);
+    FillUserInfo(&request, userinfo);
+
+    LOG(INFO) << "QueryFlattenStatus: filename = " << filename
+              << ", owner = " << userinfo.owner
+              << ", log id = " << cntl->log_id();
+
+    curve::mds::CurveFSService_Stub stub(channel);
+    stub.QueryFlattenStatus(cntl, &request, response, NULL);
+}
+
 void MDSClientBase::CreateCloneFile(const std::string& source,
                                     const std::string& destination,
                                     const UserInfo_t& userinfo,
