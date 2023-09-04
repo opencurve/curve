@@ -364,10 +364,9 @@ TEST_F(TestTopologyChunkAllocator,
     PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
     std::map<PoolIdType, double> enoughsize;
-    std::vector<PoolIdType> pools ={0x01};
+    std::list<PoolIdType> pools ={0x01};
     for (int i = 0; i < 10; i++) {
-        testObj_->GetRemainingSpaceInLogicalPool(pools, &enoughsize,
-                                                 "testPoolset");
+        testObj_->GetRemainingSpaceInLogicalPool(pools, &enoughsize);
         ASSERT_EQ(enoughsize[logicalPoolId], 1109);
     }
 }

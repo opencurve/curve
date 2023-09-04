@@ -174,6 +174,8 @@ class MockTopology : public Topology {
         PoolsetIdType poolsetId, PhysicalPool *out));
     MOCK_CONST_METHOD2(GetPhysicalPoolInPoolset,
         std::list<PoolIdType>(PoolsetIdType id, PhysicalPoolFilter filter));
+    MOCK_CONST_METHOD2(GetLogicalPoolInPoolset,
+        std::list<PoolIdType>(PoolsetIdType id, LogicalPoolFilter filter));
 
     MOCK_CONST_METHOD2(GetZone, bool(ZoneIdType zoneId, Zone *out));
     MOCK_CONST_METHOD2(GetServer, bool(ServerIdType serverId, Server *out));

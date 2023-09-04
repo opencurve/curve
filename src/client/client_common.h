@@ -70,6 +70,7 @@ enum class FileStatus {
     CloneMetaInstalled,
     Cloned,
     BeingCloned,
+    Flattening,
 };
 
 typedef struct ChunkIDInfo {

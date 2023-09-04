@@ -91,6 +91,10 @@ using curve::mds::ProtectSnapShotRequest;
 using curve::mds::ProtectSnapShotResponse;
 using curve::mds::UnprotectSnapShotRequest;
 using curve::mds::UnprotectSnapShotResponse;
+using curve::mds::FlattenRequest;
+using curve::mds::FlattenResponse;
+using curve::mds::QueryFlattenStatusRequest;
+using curve::mds::QueryFlattenStatusResponse;
 
 extern const char* kRootUserName;
 
@@ -309,6 +313,20 @@ class MDSClientBase {
          CloneResponse* response,
          brpc::Controller* cntl,
          brpc::Channel* channel);
+
+    // flatten
+    void Flatten(const std::string& filename,
+                 const UserInfo_t& userinfo,
+                 FlattenResponse* response,
+                 brpc::Controller* cntl,
+                 brpc::Channel* channel);
+
+    // QueryFlattenStatus
+    void QueryFlattenStatus(const std::string& filename,
+                            const UserInfo_t& userinfo,
+                            QueryFlattenStatusResponse* response,
+                            brpc::Controller* cntl,
+                            brpc::Channel* channel);
 
     /**
      * 创建clone文件

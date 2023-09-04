@@ -115,6 +115,7 @@ const std::vector<std::string> chunkserverConf1{
     { " -walFilePoolDir=./" + kTestPrefix + "1/walfilepool/" },
     { " -walFilePoolMetaPath=./" + kTestPrefix +
         "1/walfilepool.meta" },
+    { " -v 9" }
 };
 
 const std::vector<std::string> chunkserverConf2{
@@ -136,6 +137,7 @@ const std::vector<std::string> chunkserverConf2{
     { " -walFilePoolDir=./" + kTestPrefix + "2/walfilepool/" },
     { " -walFilePoolMetaPath=./" + kTestPrefix +
         "2/walfilepool.meta" },
+    { " -v 9" }
 };
 
 const std::vector<std::string> chunkserverConf3{
@@ -157,6 +159,7 @@ const std::vector<std::string> chunkserverConf3{
     { " -walFilePoolDir=./" + kTestPrefix + "3/walfilepool/" },
     { " -walFilePoolMetaPath=./" + kTestPrefix +
         "3/walfilepool.meta" },
+    { " -v 9" }
 };
 
 const std::vector<std::string> clientConfigOptions{
@@ -369,7 +372,9 @@ class LocalSnapshotCloneTest: public ::testing::Test {
             }
             std::string data(buf, 4096);
             if (data != dataSample) {
-                LOG(ERROR) << "CheckFileData not Equal, data = [" << data
+                LOG(ERROR) << "CheckFileData not Equal, offset = " 
+                           << i * chunkSize * chunkGap
+                           << ", data = [" << data
                            << "] , expect data = [" << dataSample << "].";
                 return false;
             }
@@ -377,6 +382,30 @@ class LocalSnapshotCloneTest: public ::testing::Test {
         ret = fileClient_->Close(dstFd);
         if (ret < 0) {
             LOG(ERROR) << "Close fail, ret = " << ret;
+            return false;
+        }
+        return true;
+    }
+
+    static bool WaitFlattenSuccess(const std::string& fileName,
+                                   const UserInfo_t userinfo1) {
+        FileStatus fileStatus = FileStatus::Flattening;
+        uint32_t progress = 0;
+        for (int i = 0; i < 30; i++) {
+            if (0 != snapClient_->QueryFlattenStatus(fileName, userinfo1,
+                    &fileStatus, &progress)) {
+                LOG(ERROR) << "QueryFlattenStatus fail";
+                return false;
+            }
+            if (fileStatus != FileStatus::Flattening) {
+                break;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        }
+        if (FileStatus::Created != fileStatus || progress != 100) {
+            LOG(ERROR) << "WaitFlattenSuccess fail, fileStatus = " 
+                       << static_cast<int>(fileStatus)
+                       << ", progress = " << progress;
             return false;
         }
         return true;
@@ -589,6 +618,11 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotAndClone3Times) {
             &finfo));
     ASSERT_TRUE(CheckFileData(testFile3Clone1, testUser1_, fakeData));
 
+    // flatten testFile3Clone1
+    ASSERT_EQ(0, snapClient_->Flatten(testFile3Clone1, userinfo1));
+    ASSERT_TRUE(WaitFlattenSuccess(testFile3Clone1, userinfo1));
+    ASSERT_TRUE(CheckFileData(testFile3Clone1, testUser1_, fakeData));
+
     // 对testFile3Clone1 写z
     std::string fakeData3(4096, 'z');
     ASSERT_TRUE(WriteFile(testFile3Clone1, testUser1_, fakeData3));
@@ -613,6 +647,11 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotAndClone3Times) {
         testFile3Clone1Snap1, testFile3Clone11, userinfo1, &finfo2));
     ASSERT_TRUE(CheckFileData(testFile3Clone11, testUser1_, fakeData3));
 
+    // flatten testFile3Clone11
+    ASSERT_EQ(0, snapClient_->Flatten(testFile3Clone11, userinfo1));
+    ASSERT_TRUE(WaitFlattenSuccess(testFile3Clone11, userinfo1));
+    ASSERT_TRUE(CheckFileData(testFile3Clone11, testUser1_, fakeData3));
+
     // 对testFile3Clone11 写2
     std::string fakeData2(4096, '2');
     ASSERT_TRUE(WriteFile(testFile3Clone11, testUser1_, fakeData2));
@@ -635,6 +674,11 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotAndClone3Times) {
     FInfo finfo3;
     ASSERT_EQ(0, snapClient_->Clone(
         testFile3Clone11Snap1, testFile3Clone111, userinfo1, &finfo3));
+    ASSERT_TRUE(CheckFileData(testFile3Clone111, testUser1_, fakeData2));
+
+    // flatten testFile3Clone111
+    ASSERT_EQ(0, snapClient_->Flatten(testFile3Clone111, userinfo1));
+    ASSERT_TRUE(WaitFlattenSuccess(testFile3Clone111, userinfo1));
     ASSERT_TRUE(CheckFileData(testFile3Clone111, testUser1_, fakeData2));
 
     // 写testFile3, 不影响另外3个卷

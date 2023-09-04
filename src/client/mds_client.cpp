@@ -60,6 +60,10 @@ using curve::common::ChunkServerLocation;
 using curve::mds::topology::CopySetServerInfo;
 using curve::mds::CloneRequest;
 using curve::mds::CloneResponse;
+using curve::mds::FlattenRequest;
+using curve::mds::FlattenResponse;
+using curve::mds::QueryFlattenStatusRequest;
+using curve::mds::QueryFlattenStatusResponse;
 
 MDSClient::MDSClient(const std::string& metricPrefix)
     : inited_(false),
@@ -1012,6 +1016,71 @@ LIBCURVE_ERROR MDSClient::Clone(const std::string& source,
                                                fileinfo, &fEpoch);
         }
 
+        return retcode;
+    };
+    return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS);
+}
+
+LIBCURVE_ERROR MDSClient::Flatten(const std::string& filename,
+                                  const UserInfo_t& userinfo) {
+    auto task = RPCTaskDefine {
+        FlattenResponse response;
+        MDSClientBase::Flatten(filename, userinfo, &response, cntl, channel);
+        if (cntl->Failed()) {
+            LOG(WARNING) << "Flatten failed, errcorde = "
+                         << cntl->ErrorCode()
+                         << ", error content:" << cntl->ErrorText()
+                         << ", filename = " << filename;
+            return -cntl->ErrorCode();
+        }
+        LIBCURVE_ERROR retcode;
+        StatusCode stcode = response.statuscode();
+        MDSStatusCode2LibcurveError(stcode, &retcode);
+        LOG_IF(WARNING, retcode != LIBCURVE_ERROR::OK)
+            << "Flatten failed: filename = " << filename
+            << ", owner = " << userinfo.owner
+            << ", errocde = " << retcode
+            << ", error msg = " << StatusCode_Name(stcode)
+            << ", log id = " << cntl->log_id();
+        return retcode;
+    };
+    return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS);
+}
+
+LIBCURVE_ERROR MDSClient::QueryFlattenStatus(const std::string& filename,
+    const UserInfo_t& userinfo,
+    FileStatus* filestatus,
+    uint32_t* progress) {
+    auto task = RPCTaskDefine {
+        QueryFlattenStatusResponse response;
+        MDSClientBase::QueryFlattenStatus(filename, userinfo,
+                                          &response, cntl, channel);
+        if (cntl->Failed()) {
+            LOG(WARNING) << "QueryFlattenStatus failed, errcorde = "
+                         << cntl->ErrorCode()
+                         << ", error content:" << cntl->ErrorText()
+                         << ", filename = " << filename;
+            return -cntl->ErrorCode();
+        }
+        bool good = response.has_filestatus() && filestatus != nullptr;
+        if (good) {
+            *filestatus = static_cast<FileStatus>(response.filestatus());
+        }
+
+        good = response.has_progress() && progress != nullptr;
+        if (good) {
+            *progress = response.progress();
+        }
+
+        LIBCURVE_ERROR retcode;
+        StatusCode stcode = response.statuscode();
+        MDSStatusCode2LibcurveError(stcode, &retcode);
+        LOG_IF(WARNING, retcode != LIBCURVE_ERROR::OK)
+            << "QueryFlattenStatus failed: filename = " << filename
+            << ", owner = " << userinfo.owner
+            << ", errocde = " << retcode
+            << ", error msg = " << StatusCode_Name(stcode)
+            << ", log id = " << cntl->log_id();
         return retcode;
     };
     return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS);

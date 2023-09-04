@@ -31,7 +31,6 @@
 
 #include "test/mds/nameserver2/mock/mock_namespace_storage.h"
 #include "test/mds/nameserver2/mock/mock_inode_id_generator.h"
-#include "test/mds/nameserver2/mock/mock_clone_id_generator.h"
 #include "test/mds/nameserver2/mock/mock_chunk_allocate.h"
 #include "test/mds/nameserver2/mock/mock_clean_manager.h"
 #include "test/mds/nameserver2/mock/mock_snapshotclone_client.h"
@@ -49,6 +48,7 @@ using ::testing::DoAll;
 using ::testing::SetArgPointee;
 using ::testing::SaveArg;
 using ::testing::Invoke;
+using ::testing::Matcher;
 using curve::common::Authenticator;
 
 using curve::common::TimeUtility;
@@ -66,7 +66,6 @@ class CurveFSTest: public ::testing::Test {
         storage_ = std::make_shared<MockNameServerStorage>();
         inodeIdGenerator_ = std::make_shared<MockInodeIDGenerator>();
         mockChunkAllocator_ = std::make_shared<MockChunkAllocator>();
-        mockCloneIDGenerator_ = std::make_shared<MockCloneIDGenerator>();
 
         mockcleanManager_ = std::make_shared<MockCleanManager>();
         topology_ = std::make_shared<MockTopology>();
@@ -103,7 +102,6 @@ class CurveFSTest: public ::testing::Test {
 
         mockFlattenManager_ = std::make_shared<MockFlattenManager>();
         curvefs_->Init(storage_, inodeIdGenerator_, 
-                        mockCloneIDGenerator_,
                         mockChunkAllocator_,
                         mockcleanManager_,
                         fileRecordManager_,
@@ -130,7 +128,6 @@ class CurveFSTest: public ::testing::Test {
     std::shared_ptr<MockNameServerStorage> storage_;
     std::shared_ptr<MockInodeIDGenerator> inodeIdGenerator_;
     std::shared_ptr<MockChunkAllocator> mockChunkAllocator_;
-    std::shared_ptr<MockCloneIDGenerator> mockCloneIDGenerator_;
 
     std::shared_ptr<MockCleanManager> mockcleanManager_;
     std::shared_ptr<MockFileRecordManager> fileRecordManager_;
@@ -147,14 +144,18 @@ class CurveFSTest: public ::testing::Test {
 };
 
 TEST_F(CurveFSTest, testCreateFile1) {
+    EXPECT_CALL(*topology_, GetPoolset(Matcher<const std::string&>(_), _))
+        .WillRepeatedly(Return(true));
+
     // test parm error
     std::map<PoolIdType, double> spacePools;
     spacePools.insert(std::pair<PoolIdType, double>(1,
             kMaxFileLength - kMiniFileLength));
     EXPECT_CALL(*mockChunkAllocator_,
-        GetRemainingSpaceInLogicalPool(_, _, _))
+        GetRemainingSpaceInLogicalPool(_, _))
         .Times(AtLeast(1))
         .WillRepeatedly(DoAll(SetArgPointee<1>(spacePools), Return()));
+
     ASSERT_EQ(
         curvefs_->CreateFile("/file1", "", "owner1", FileType::INODE_PAGEFILE,
                              kMiniFileLength - 1, 0, 0),
@@ -256,13 +257,15 @@ TEST_F(CurveFSTest, testCreateFile1) {
 }
 
 TEST_F(CurveFSTest, testCreateStripeFile) {
+    EXPECT_CALL(*topology_, GetPoolset(Matcher<const std::string&>(_), _))
+        .WillRepeatedly(Return(true));
     {
         // test create ok
         std::map<PoolIdType, double> spacePools;
         spacePools.insert(std::pair<PoolIdType, double>(1, kMaxFileLength));
         spacePools.insert(std::pair<PoolIdType, double>(2, kMaxFileLength));
         EXPECT_CALL(*mockChunkAllocator_,
-            GetRemainingSpaceInLogicalPool(_, _, _))
+            GetRemainingSpaceInLogicalPool(_, _))
          .Times(AtLeast(1))
          .WillRepeatedly(DoAll(SetArgPointee<1>(spacePools), Return()));
         EXPECT_CALL(*storage_, GetFile(_, _, _))
@@ -308,12 +311,14 @@ TEST_F(CurveFSTest, testCreateStripeFile) {
 }
 
 TEST_F(CurveFSTest, testCreateFileWithPoolset) {
+    EXPECT_CALL(*topology_, GetPoolset(Matcher<const std::string&>(_), _))
+        .WillRepeatedly(Return(true));
     const std::map<PoolIdType, double> spacePools{
             {1, kMaxFileLength},
             {2, kMaxFileLength},
     };
 
-    EXPECT_CALL(*mockChunkAllocator_, GetRemainingSpaceInLogicalPool(_, _, _))
+    EXPECT_CALL(*mockChunkAllocator_, GetRemainingSpaceInLogicalPool(_, _))
         .Times(AtLeast(1))
         .WillRepeatedly(DoAll(SetArgPointee<1>(spacePools), Return()));
 
@@ -4092,7 +4097,6 @@ TEST_F(CurveFSTest, Init) {
 
             ASSERT_EQ(testCases[i].ret, kCurveFS.Init(storage_,
                                                       inodeIdGenerator_,
-                                                      mockCloneIDGenerator_,
                                                       mockChunkAllocator_,
                                                       mockcleanManager_,
                                                       fileRecordManager_,
@@ -4112,7 +4116,6 @@ TEST_F(CurveFSTest, Init) {
 
         ASSERT_EQ(false, kCurveFS.Init(storage_,
                                        inodeIdGenerator_,
-                                       mockCloneIDGenerator_,
                                        mockChunkAllocator_,
                                        mockcleanManager_,
                                        fileRecordManager_,
@@ -4136,7 +4139,6 @@ TEST_F(CurveFSTest, Init) {
 
         ASSERT_EQ(false, kCurveFS.Init(storage_,
                                        inodeIdGenerator_,
-                                       mockCloneIDGenerator_,
                                        mockChunkAllocator_,
                                        mockcleanManager_,
                                        fileRecordManager_,
@@ -4164,7 +4166,6 @@ TEST_F(CurveFSTest, Init) {
 
         ASSERT_EQ(true, kCurveFS.Init(storage_,
                                       inodeIdGenerator_,
-                                      mockCloneIDGenerator_,
                                       mockChunkAllocator_,
                                       mockcleanManager_,
                                       fileRecordManager_,
