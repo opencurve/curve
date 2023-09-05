@@ -124,7 +124,7 @@ class TopologyChunkAllocatorImpl : public TopologyChunkAllocator {
           chunkFilePoolAllocHelp_(ChunkFilePoolAllocHelp),
           policy_(static_cast<ChoosePoolPolicy>(option.choosePoolPolicy)),
           enableLogicalPoolStatus_(option.enableLogicalPoolStatus),
-          csAvailable_(option.ChunkServerUsagePercentLimit), {
+          csAvailable_(option.ChunkServerUsagePercentLimit) {
         std::srand(std::time(nullptr));
     }
     ~TopologyChunkAllocatorImpl() {}

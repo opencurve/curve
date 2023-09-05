@@ -365,13 +365,19 @@ class Topology {
         PoolIdType id,
         LogicalPoolFilter filter = [](const LogicalPool&) {
             return true;}) const = 0;
-
+    virtual bool GetZone(const std::string &zoneName,
+                         const std::string &physicalPoolName,
+                         Zone *out) const = 0;
     // get copyset list
     virtual std::vector<CopySetIdType> GetCopySetsInLogicalPool(
         PoolIdType logicalPoolId,
         CopySetFilter filter = [](const CopySetInfo&) {
             return true;}) const = 0;
 
+   virtual std::vector<CopySetIdType> TopologyImpl::FilterCopySets(
+        PoolIdType logicalPoolId,
+        std::vector<CopySetIdType> copySetIds, double csAvailable) const = 0;
+        
     virtual std::vector<CopySetInfo> GetCopySetInfosInLogicalPool(
         PoolIdType logicalPoolId,
         CopySetFilter filter = [](const CopySetInfo&) {
@@ -641,6 +647,10 @@ class TopologyImpl : public Topology {
         CopySetFilter filter = [](const CopySetInfo&) {
             return true;}) const override;
 
+    std::vector<CopySetIdType> TopologyImpl::FilterCopySets(
+        PoolIdType logicalPoolId,
+        std::vector<CopySetIdType> copySetIds, double csAvailable) const override;
+    
     std::vector<CopySetInfo> GetCopySetInfosInLogicalPool(
         PoolIdType logicalPoolId,
         CopySetFilter filter = [](const CopySetInfo&) {
