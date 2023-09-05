@@ -1344,7 +1344,7 @@ std::vector<CopySetIdType> TopologyImpl::FilterCopySets(
     for (auto it : chunkServerMap_) {
         ChunkServerState st = it.second.GetChunkServerState();
         uint64_t diskCapacity =  csAvailable * st.GetDiskCapacity() / 100;
-        if (diskCapacity <= st.GetDiskUsed) {
+        if (diskCapacity <= st.GetDiskUsed()) {
             insufficientNodes.insert(it.second.GetId());
         }
     }
@@ -1352,19 +1352,20 @@ std::vector<CopySetIdType> TopologyImpl::FilterCopySets(
     std::vector<CopySetIdType> availableCopySets;
     for (auto it : copySetIds) {
         CopySetKey key(logicalPoolId, it);
-        auto copyset = copySetMap_.find(key);
+        auto targetCopySet = copySetMap_.find(key);
         if (targetCopySet != copySetMap_.end()) {
             std::set<ChunkServerIdType> intersection;
             // calculate peers and insufficientNodes intersection
             std::set<ChunkServerIdType> peers;
-            peers = copyset.second.GetCopySetMembers();
+            peers = targetCopySet->second.GetCopySetMembers();
+            
             std::set_intersection(peers.begin(), peers.end(),
              insufficientNodes.begin(),
              insufficientNodes.end(),
              std::inserter(intersection, intersection.begin()));
-             if (intersection.size() == 0) {
+             if (intersection.empty()) {
                 // add sufficient copySet
-                availableCopySets.insert(it);
+                availableCopySets.push_back(it);
              }
          }
     }

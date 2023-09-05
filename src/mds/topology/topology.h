@@ -372,7 +372,7 @@ class Topology {
         CopySetFilter filter = [](const CopySetInfo&) {
             return true;}) const = 0;
 
-   virtual std::vector<CopySetIdType> TopologyImpl::FilterCopySets(
+   virtual std::vector<CopySetIdType> FilterCopySets(
         PoolIdType logicalPoolId,
         std::vector<CopySetIdType> copySetIds, double csAvailable) const = 0;
         
@@ -645,7 +645,7 @@ class TopologyImpl : public Topology {
         CopySetFilter filter = [](const CopySetInfo&) {
             return true;}) const override;
 
-    std::vector<CopySetIdType> TopologyImpl::FilterCopySets(
+    std::vector<CopySetIdType> FilterCopySets(
         PoolIdType logicalPoolId,
         std::vector<CopySetIdType> copySetIds, double csAvailable) const override;
     
