@@ -365,9 +365,7 @@ class Topology {
         PoolIdType id,
         LogicalPoolFilter filter = [](const LogicalPool&) {
             return true;}) const = 0;
-    virtual bool GetZone(const std::string &zoneName,
-                         const std::string &physicalPoolName,
-                         Zone *out) const = 0;
+
     // get copyset list
     virtual std::vector<CopySetIdType> GetCopySetsInLogicalPool(
         PoolIdType logicalPoolId,
