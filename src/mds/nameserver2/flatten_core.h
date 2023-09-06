@@ -32,7 +32,7 @@
 #include "src/common/task_tracker.h"
 
 using curve::mds::chunkserverclient::FlattenChunkContext;
-using ::curve::mds::chunkserverclient::CopysetClient;
+using ::curve::mds::chunkserverclient::CopysetClientInterface;
 using ::curve::common::TaskTracker;
 using ::curve::common::ContextTaskTracker;
 
@@ -55,7 +55,7 @@ class FlattenCore {
     explicit FlattenCore(
         const FlattenOption &option,
         const std::shared_ptr<NameServerStorage> &storage, 
-        const std::shared_ptr<CopysetClient> &copysetClient,
+        const std::shared_ptr<CopysetClientInterface> &copysetClient,
         FileLockManager *fileLockManager)
         : option_(option), 
           storage_(storage), 
@@ -81,7 +81,7 @@ class FlattenCore {
     FlattenOption option_;
 
     std::shared_ptr<NameServerStorage> storage_;
-    std::shared_ptr<CopysetClient> copysetClient_;
+    std::shared_ptr<CopysetClientInterface> copysetClient_;
     FileLockManager *fileLockManager_;
 };
 

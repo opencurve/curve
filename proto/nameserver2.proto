@@ -183,8 +183,10 @@ enum  StatusCode {
     kSnapshotFileProtected=145;
     // file is flattening
     kFileIsFlattening = 146;
+    // file not flattening
+    kFileNotFlattening = 147;
     // snapshot exist
-    kSnapshotExist = 147;
+    kSnapshotExist = 148;
 
     // 元数据存储错误
     kStorageError = 501;
