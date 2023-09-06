@@ -107,6 +107,8 @@ const (
 	ROW_START                = "start"
 	ROW_STATE                = "state"
 	ROW_STATUS               = "status"
+	ROW_HEALTHY              = "healthy"
+	ROW_UNHEALTHY            = "unhealthy"
 	ROW_STRIPE               = "stripe"
 	ROW_SUM_IN_DIR           = "sumInDir"
 	ROW_TERM                 = "term"
@@ -120,7 +122,8 @@ const (
 	ROW_DRYRUN               = "dryrun"
 	ROW_HEALTHY_COUNT        = "healthyCount"
 	ROW_UNHEALTHY_COUNT      = "unhealthyCount"
-	ROW_UNHEALTHY_RATIO      = "unhealthyRatio"
+	ROW_HEALTHY_RATIO        = "ratio"
+	ROW_UNHEALTHY_RATIO      = "unhealthy-Ratio"
 
 	ROW_RW_STATUS               = "rwStatus"
 	ROW_DISK_STATE              = "diskState"
