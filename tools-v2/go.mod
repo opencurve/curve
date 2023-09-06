@@ -9,6 +9,7 @@ require (
 	github.com/deckarep/golang-set/v2 v2.3.0
 	github.com/docker/cli v24.0.2+incompatible
 	github.com/dustin/go-humanize v1.0.1
+	github.com/go-resty/resty/v2 v2.7.0
 	github.com/gookit/color v1.5.3
 	github.com/moby/term v0.5.0
 	github.com/olekukonko/tablewriter v0.0.5
