@@ -25,7 +25,6 @@ package cluster
 import (
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/olekukonko/tablewriter"
@@ -91,7 +90,7 @@ func (cCmd *ClusterCommand) Init(cmd *cobra.Command, args []string) error {
 	cCmd.tableSpace = tablewriter.NewWriter(os.Stdout)
 
 	rolesHeader := []string{cobrautil.ROW_ROLE, cobrautil.ROW_LEADER, cobrautil.ROW_VALUE_ONLINE, cobrautil.ROW_VALUE_OFFLINE}
-	copysetHeader := []string{cobrautil.ROW_POOL_ID, cobrautil.ROW_TOTAL, cobrautil.COPYSET_OK_STR, cobrautil.COPYSET_WARN_STR, cobrautil.COPYSET_ERROR_STR}
+	copysetHeader := []string{cobrautil.ROW_TOTAL, cobrautil.ROW_HEALTHY, cobrautil.ROW_UNHEALTHY, cobrautil.ROW_UNHEALTHY_RATIO}
 	spaceHeader := []string{cobrautil.ROW_TYPE, cobrautil.ROW_USED, cobrautil.ROW_LEFT, cobrautil.ROW_RECYCLABLE, cobrautil.ROW_CREATED}
 	cCmd.tableRoles.SetHeader(rolesHeader)
 	cCmd.tableCopyset.SetHeader(copysetHeader)
@@ -239,48 +238,10 @@ func (cCmd *ClusterCommand) buildTableSpace(results []map[string]string) {
 }
 
 func (cCmd *ClusterCommand) buildTableCopyset(results []map[string]string) {
-	var total, copysetOK, copysetWarn, copysetError int
-	var PrevPoolID string
-	var allRows [][]string = [][]string{}
-	for _, row := range results {
-		if PrevPoolID != row[cobrautil.ROW_POOL_ID] {
-			if PrevPoolID != "" {
-				allRows = append(
-					allRows,
-					[]string{
-						PrevPoolID,
-						strconv.Itoa(total),
-						strconv.Itoa(copysetOK),
-						strconv.Itoa(copysetWarn),
-						strconv.Itoa(copysetError),
-					})
-			}
-			PrevPoolID = row[cobrautil.ROW_POOL_ID]
-			total, copysetOK, copysetWarn, copysetError = 0, 0, 0, 0
-		}
-
-		switch row[cobrautil.ROW_STATUS] {
-		case cobrautil.COPYSET_OK_STR:
-			copysetOK++
-		case cobrautil.COPYSET_WARN_STR:
-			copysetWarn++
-		case cobrautil.COPYSET_ERROR_STR:
-			copysetError++
-		}
-
-		total++
-	}
-
-	if PrevPoolID != "" {
-		allRows = append(
-			allRows,
-			[]string{
-				PrevPoolID,
-				strconv.Itoa(total),
-				strconv.Itoa(copysetOK),
-				strconv.Itoa(copysetWarn),
-				strconv.Itoa(copysetError),
-			})
-	}
-	cCmd.tableCopyset.AppendBulk(allRows)
+	row := []string{}
+	row = append(row, results[0][cobrautil.ROW_TOTAL])
+	row = append(row, results[0][cobrautil.ROW_HEALTHY])
+	row = append(row, results[0][cobrautil.ROW_UNHEALTHY])
+	row = append(row, results[0][cobrautil.ROW_UNHEALTHY_RATIO])
+	cCmd.tableCopyset.Append(row)
 }
