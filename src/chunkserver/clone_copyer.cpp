@@ -193,12 +193,8 @@ void OriginCopyer::DownloadFromS3(const string& objectName,
             }
         };
 
-    auto context = std::make_shared<GetObjectAsyncContext>();
-    context->key = objectName;
-    context->buf = buf;
-    context->offset = off;
-    context->len = size;
-    context->cb = cb;
+    auto context =
+        std::make_shared<GetObjectAsyncContext>(objectName, buf, off, size, cb);
 
     s3Client_->GetObjectAsync(context);
     doneGuard.release();
