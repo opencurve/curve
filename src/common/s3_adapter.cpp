@@ -369,6 +369,7 @@ void S3Adapter::PutObjectAsync(std::shared_ptr<PutObjectAsyncContext> context) {
                 << "resend: " << ctx->key;
 
             ctx->retCode = (response.IsSuccess() ? 0 : -1);
+            ctx->timer.stop();
             ctx->cb(ctx);
         };
 
