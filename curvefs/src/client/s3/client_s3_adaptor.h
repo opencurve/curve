@@ -91,9 +91,7 @@ class S3ClientAdaptor {
     virtual FSStatusCode AllocS3ChunkId(uint32_t fsId, uint32_t idNum,
                                         uint64_t *chunkId) = 0;
     virtual void SetFsId(uint32_t fsId) = 0;
-    virtual void InitMetrics(const std::string &fsName) = 0;
-    virtual void CollectMetrics(InterfaceMetric *interface, int count,
-                                uint64_t start) = 0;
+    virtual void InitMetrics(const std::string& fsName) = 0;
     virtual std::shared_ptr<DiskCacheManagerImpl> GetDiskCacheManager() = 0;
     virtual std::shared_ptr<S3Client> GetS3Client() = 0;
     virtual uint64_t GetBlockSize() = 0;
@@ -207,7 +205,7 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
         return pageSize_;
     }
     void InitMetrics(const std::string &fsName);
-    void CollectMetrics(InterfaceMetric *interface, int count, uint64_t start);
+
     void SetDiskCache(DiskCacheType type) {
        diskCacheType_ = type;
     }
