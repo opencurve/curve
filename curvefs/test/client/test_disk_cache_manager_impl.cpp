@@ -76,6 +76,8 @@ class TestDiskCacheManagerImpl : public ::testing::Test {
                                     1, cachedObjName);
         diskCacheManagerImpl_ =
             std::make_shared<DiskCacheManagerImpl>(diskCacheManager_, client_);
+        s3Metric_ = std::make_shared<S3Metric>();
+        diskCacheManagerImpl_->InitMetrics("test", s3Metric_);
     }
 
     virtual void TearDown() {
@@ -92,6 +94,7 @@ class TestDiskCacheManagerImpl : public ::testing::Test {
     std::shared_ptr<DiskCacheManagerImpl> diskCacheManagerImpl_;
     std::shared_ptr<MockPosixWrapper> wrapper_;
     std::shared_ptr<MockS3Client> client_;
+    std::shared_ptr<S3Metric> s3Metric_;
     Aws::SDKOptions awsOptions_;
 };
 
@@ -112,13 +115,9 @@ TEST_F(TestDiskCacheManagerImpl, WriteClosure) {
         [&](const std::shared_ptr<PutObjectAsyncContext> &context) {
     };
 
-    auto context = std::make_shared<PutObjectAsyncContext>();
-    context->key = "objectName";
     char data[5] = "gggg";
-    context->buffer = data + 0;
-    context->bufferSize = 2;
-    context->cb = cb;
-    context->startTime = butil::cpuwide_time_us();
+    auto context =
+        std::make_shared<PutObjectAsyncContext>("objectName", data, 2, cb);
 
     S3ClientAdaptorOption s3AdaptorOption;
     s3AdaptorOption.diskCacheOpt.threads = 5;
@@ -140,15 +139,10 @@ TEST_F(TestDiskCacheManagerImpl, WriteClosure) {
 
 TEST_F(TestDiskCacheManagerImpl, WriteReadClosure) {
     PutObjectAsyncCallBack cb =
-        [&](const std::shared_ptr<PutObjectAsyncContext> &context) {
-    };
-    auto context = std::make_shared<PutObjectAsyncContext>();
-    context->key = "objectName";
+        [&](const std::shared_ptr<PutObjectAsyncContext>& context) {};
     char data[5] = "gggg";
-    context->buffer = data + 0;
-    context->bufferSize = 2;
-    context->cb = cb;
-    context->startTime = butil::cpuwide_time_us();
+    auto context =
+        std::make_shared<PutObjectAsyncContext>("objectName", data, 2, cb);
 
     S3ClientAdaptorOption s3AdaptorOption;
     s3AdaptorOption.diskCacheOpt.threads = 5;
@@ -249,12 +243,10 @@ TEST_F(TestDiskCacheManagerImpl, IsCached) {
 
 TEST_F(TestDiskCacheManagerImpl, UmountDiskCache) {
     EXPECT_CALL(*diskCacheWrite_, IsCacheClean()).WillOnce(Return(true));
-    diskCacheManagerImpl_->InitMetrics("test");
     int ret = diskCacheManagerImpl_->UmountDiskCache();
     ASSERT_EQ(0, ret);
 
     EXPECT_CALL(*diskCacheWrite_, IsCacheClean()).WillOnce(Return(false));
-    diskCacheManagerImpl_->InitMetrics("test");
     ret = diskCacheManagerImpl_->UmountDiskCache();
     ASSERT_EQ(0, ret);
 }

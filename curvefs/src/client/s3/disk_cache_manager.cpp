@@ -195,9 +195,6 @@ bool DiskCacheManager::IsCacheClean() {
 
 int DiskCacheManager::UmountDiskCache() {
     LOG(INFO) << "umount disk cache.";
-    if (diskInitThread_.joinable()) {
-        diskInitThread_.join();
-    }
     TrimStop();
     cacheWrite_->AsyncUploadStop();
     LOG_IF(ERROR, !IsCacheClean()) << "umount disk cache error.";
@@ -492,6 +489,9 @@ int DiskCacheManager::TrimRun() {
 }
 
 int DiskCacheManager::TrimStop() {
+    if (diskInitThread_.joinable()) {
+        diskInitThread_.join();
+    }
     if (isRunning_.exchange(false)) {
         LOG(INFO) << "stop DiskCacheManager trim thread...";
         isRunning_ = false;
@@ -505,9 +505,10 @@ int DiskCacheManager::TrimStop() {
     return 0;
 }
 
-void DiskCacheManager::InitMetrics(const std::string &fsName) {
+void DiskCacheManager::InitMetrics(const std::string& fsName,
+                                   std::shared_ptr<S3Metric> s3Metric) {
     metric_ = std::make_shared<DiskCacheMetric>(fsName);
-    cacheWrite_->InitMetrics(metric_);
+    cacheWrite_->InitMetrics(metric_, s3Metric);
     cacheRead_->InitMetrics(metric_);
     // this function move to here from init，
     // Otherwise, you can't get the original metric.
@@ -515,6 +516,7 @@ void DiskCacheManager::InitMetrics(const std::string &fsName) {
     // so use a separate thread to do this.
     diskInitThread_ = curve::common::Thread(
       &DiskCacheManager::SetDiskInitUsedBytes, this);
+    s3Metric_ = s3Metric;
 }
 
 }  // namespace client
