@@ -55,7 +55,36 @@ class CopysetClientClosure : public Closure {
     int err_;
 };
 
-class CopysetClient {
+class CopysetClientInterface {
+ public:
+    virtual ~CopysetClientInterface() {}
+    virtual int DeleteChunkSnapshotOrCorrectSn(LogicalPoolID logicalPoolId,
+        CopysetID copysetId,
+        ChunkID chunkId,
+        uint64_t correctedSn) = 0;
+    virtual int DeleteChunkSnapshot(
+        uint64_t fileId,
+        uint64_t originFileId,
+        uint64_t chunkIndex,
+        LogicalPoolID logicalPoolId,
+        CopysetID copysetId,
+        ChunkID chunkId,
+        uint64_t snapSn,
+        const std::vector<uint64_t>& snaps) = 0;
+    virtual int DeleteChunk(
+        uint64_t fileId,
+        uint64_t originFileId,
+        uint64_t chunkIndex,
+        LogicalPoolID logicalPoolId,
+        CopysetID copysetId,
+        ChunkID chunkId,
+        uint64_t sn) = 0;
+    virtual int FlattenChunk(
+        const std::shared_ptr<FlattenChunkContext> &ctx, 
+        CopysetClientClosure* done) = 0;
+};
+
+class CopysetClient : public CopysetClientInterface {
  public:
     friend class ChunkServerFlattenChunkClosure;
  public:
@@ -94,7 +123,7 @@ class CopysetClient {
     int DeleteChunkSnapshotOrCorrectSn(LogicalPoolID logicalPoolId,
         CopysetID copysetId,
         ChunkID chunkId,
-        uint64_t correctedSn);
+        uint64_t correctedSn) override;
 
     /**
      * @brief delete a specific snapshot from local multi-level snapshots
@@ -114,7 +143,7 @@ class CopysetClient {
         CopysetID copysetId,
         ChunkID chunkId,
         uint64_t snapSn,
-        const std::vector<uint64_t>& snaps);
+        const std::vector<uint64_t>& snaps) override;
 
     /**
      * @brief delete chunk files that are not snapshot files
@@ -133,8 +162,14 @@ class CopysetClient {
         LogicalPoolID logicalPoolId,
         CopysetID copysetId,
         ChunkID chunkId,
-        uint64_t sn);
+        uint64_t sn) override;
 
+
+    int FlattenChunk(
+        const std::shared_ptr<FlattenChunkContext> &ctx, 
+        CopysetClientClosure* done) override;
+
+ private:
     /**
      * @brief update leader
      *
@@ -143,11 +178,6 @@ class CopysetClient {
      * @return error code
      */
     int UpdateLeader(CopySetInfo *copyset);
-
-
-    int FlattenChunk(
-        const std::shared_ptr<FlattenChunkContext> &ctx, 
-        CopysetClientClosure* done);
 
  private:
     std::shared_ptr<Topology> topo_;

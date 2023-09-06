@@ -371,12 +371,16 @@ class LocalSnapshotCloneTest: public ::testing::Test {
                 return false;
             }
             std::string data(buf, 4096);
-            if (data != dataSample) {
-                LOG(ERROR) << "CheckFileData not Equal, offset = " 
-                           << i * chunkSize * chunkGap
-                           << ", data = [" << data
-                           << "] , expect data = [" << dataSample << "].";
-                return false;
+            for (int i = 0; i < data.size(); i++) {
+                if (data[i] != dataSample[i]) {
+                    LOG(ERROR) << "CheckFileData not Equal, offset = " 
+                               << i * chunkSize * chunkGap
+                               << ", diff i = " << i
+                               << ", data = [" << data
+                               << "] , expect data = [" 
+                               << dataSample << "].";
+                    return false;
+                }
             }
         }
         ret = fileClient_->Close(dstFd);
@@ -735,6 +739,7 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotAndCloneEmpty) {
     // 对testFile4 写y
     std::string fakeData2(4096, 'y');
     ASSERT_TRUE(WriteFile(testFile4_, testUser1_, fakeData2));
+    ASSERT_TRUE(CheckFileData(testFile4_, testUser1_, fakeData2));
 
     ASSERT_EQ(0, snapClient_->ProtectSnapShot(testFile4Snap1, userinfo1));
     // 从testFile4 快照克隆出testFile4Clone1, 并断言数据为x
@@ -755,13 +760,62 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotAndCloneEmpty) {
     FInfo finfo2;
     ASSERT_EQ(0, snapClient_->Clone(
         testFile4Clone1Snap1, testFile4Clone11, userinfo1, &finfo2));
-
     ASSERT_TRUE(CheckFileData(testFile4Clone11, testUser1_, fakeData));
 
     // testFile4Clone11写a
     std::string fakeData4(4096, 'a');
     ASSERT_TRUE(WriteFile(testFile4Clone11, testUser1_, fakeData4));
     ASSERT_TRUE(CheckFileData(testFile4Clone11, testUser1_, fakeData4));
+}
+
+// 测试原始卷没写过的情况
+TEST_F(LocalSnapshotCloneTest, TestSnapshotEmptyAndClone) {
+    std::string testFile5_ = "/ItUser1/file5";
+    std::string testFile5Clone1 = "/ItUser1/file5clone1";
+    std::string testFile5Clone11 = "/ItUser1/file5clone11";
+
+    // 创建testFile5
+    std::string fakeDataNull(4096, '\0');
+    ASSERT_TRUE(CreateFile(testFile5_, testUser1_));
+
+    // 对testFile5 打快照
+    std::string testFile5Snap1 = testFile5_ + "@snap1";
+    uint64_t seq = 0;
+    UserInfo_t userinfo1;
+    userinfo1.owner = testUser1_;
+    ASSERT_EQ(0, snapClient_->CreateSnapShot(testFile5Snap1, userinfo1, &seq));
+
+    // 对testFile5 写x
+    std::string fakeDatax(4096, 'x');
+    ASSERT_TRUE(WriteFile(testFile5_, testUser1_, fakeDatax));
+    ASSERT_TRUE(CheckFileData(testFile5_, testUser1_, fakeDatax));
+
+    ASSERT_EQ(0, snapClient_->ProtectSnapShot(testFile5Snap1, userinfo1));
+    // 从testFile5 快照克隆出testFile5Clone1, 并断言数据为null
+    FInfo finfo;
+    ASSERT_EQ(0, snapClient_->Clone(testFile5Snap1, testFile5Clone1, userinfo1,
+            &finfo));
+    ASSERT_TRUE(CheckFileData(testFile5Clone1, testUser1_, fakeDataNull));
+
+    // 对testFile5Clone1 打快照
+    std::string testFile5Clone1Snap1 = testFile5Clone1 + "@snap1";
+    uint64_t seq2 = 0;
+    ASSERT_EQ(0, snapClient_->CreateSnapShot(
+        testFile5Clone1Snap1, userinfo1, &seq2));
+
+    ASSERT_EQ(0, snapClient_->ProtectSnapShot(
+        testFile5Clone1Snap1, userinfo1));
+
+    // 从testFile5Clone1的快照克隆出testFile5Clone11, 并断言数据为null
+    FInfo finfo2;
+    ASSERT_EQ(0, snapClient_->Clone(
+        testFile5Clone1Snap1, testFile5Clone11, userinfo1, &finfo2));
+    ASSERT_TRUE(CheckFileData(testFile5Clone11, testUser1_, fakeDataNull));
+
+    // testFile5Clone11写a
+    std::string fakeDataa(4096, 'a');
+    ASSERT_TRUE(WriteFile(testFile5Clone11, testUser1_, fakeDataa));
+    ASSERT_TRUE(CheckFileData(testFile5Clone11, testUser1_, fakeDataa));
 }
 
 

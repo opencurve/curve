@@ -176,6 +176,10 @@ StatusCode CurveFS::WalkPath(const std::string &fileName,
         return StatusCode::kOK;
     }
 
+    if ( paths.size() == 1 ) {
+        fileInfo->CopyFrom(rootFileInfo_);
+    }
+
     *lastEntry = paths.back();
     uint64_t parentID = rootFileInfo_.id();
 
@@ -1605,7 +1609,7 @@ StatusCode CurveFS::ListSnapShotFile(const std::string & fileName,
 StatusCode CurveFS::GetSnapShotFileInfo(const std::string &fileName,
                         FileSeqType seq, FileInfo *snapshotFileInfo, FileInfo *fileInfo) const {
     std::vector<FileInfo> snapShotFileInfos;
-    StatusCode ret =  ListSnapShotFile(fileName, &snapShotFileInfos, fileInfo);
+    StatusCode ret = ListSnapShotFile(fileName, &snapShotFileInfos, fileInfo);
     if (ret != StatusCode::kOK) {
         LOG(INFO) << "ListSnapShotFile error";
         return ret;
@@ -2018,7 +2022,7 @@ StatusCode CurveFS::UnprotectSnapShot(const std::string &fileName,
         return StatusCode::kOwnerAuthFail;
     }
 
-    if (!snapFileInfo.has_isprotected() || !snapFileInfo.isprotected()) {
+    if (snapFileInfo.has_isprotected() && !snapFileInfo.isprotected()) {
         return StatusCode::kOK;
     }
 
@@ -2054,12 +2058,13 @@ StatusCode CurveFS::Clone(const std::string &fileName,
                    << ", path: " << fileName;
         return ret;
     }
-    if (lastEntry.empty()) {
-        return StatusCode::kCloneFileNameIllegal;
-    }
 
     ret = LookUpFile(parentFileInfo, lastEntry, fileInfo);
     if (ret == StatusCode::kOK) {
+        if (fileInfo->filetype() != FileType::INODE_CLONE_PAGEFILE) {
+            LOG(ERROR) << "Clone failed, dstfile exist.";
+            return StatusCode::kFileExists;
+        }
         if (fileInfo->initclonesegment()) {
             LOG(ERROR) << "Clone failed, dstfile exist.";
             return StatusCode::kFileExists;
@@ -2098,15 +2103,15 @@ StatusCode CurveFS::Clone(const std::string &fileName,
     fileInfo->set_parentid(parentFileInfo.id());
     fileInfo->set_filetype(FileType::INODE_CLONE_PAGEFILE);
     fileInfo->set_owner(owner);
-    fileInfo->set_chunksize(srcFileInfo.chunksize());
-    uint64_t segmentSize = srcFileInfo.segmentsize();
-    fileInfo->set_segmentsize(srcFileInfo.segmentsize());
-    fileInfo->set_length(srcFileInfo.length());
+    fileInfo->set_chunksize(snapFileInfo.chunksize());
+    uint64_t segmentSize = snapFileInfo.segmentsize();
+    fileInfo->set_segmentsize(snapFileInfo.segmentsize());
+    fileInfo->set_length(snapFileInfo.length());
     fileInfo->set_ctime(::curve::common::TimeUtility::GetTimeofDayUs());
     fileInfo->set_seqnum(kStartSeqNum);
     fileInfo->set_filestatus(FileStatus::kFileCreated);
-    fileInfo->set_stripeunit(srcFileInfo.stripeunit());
-    fileInfo->set_stripecount(srcFileInfo.stripecount());
+    fileInfo->set_stripeunit(snapFileInfo.stripeunit());
+    fileInfo->set_stripecount(snapFileInfo.stripecount());
 
     fileInfo->set_clonesource(srcFileName);
     uint64_t cloneLength = snapFileInfo.length();
@@ -2119,6 +2124,12 @@ StatusCode CurveFS::Clone(const std::string &fileName,
     // TODO(xuchaojie): 克隆失败时需清理segment
     ret = PutFile(*fileInfo);
     if (ret != StatusCode::kOK) {
+        LOG(ERROR) << "Clone failed, PutFile failed, "
+                   << "fileName: " << fileName
+                   << ", owner: " << owner
+                   << ", srcFileName: " << srcFileName
+                   << ", snapName: " << snapName
+                   << ", ret: " << ret;
         return ret;
     }
 
@@ -2157,7 +2168,7 @@ StatusCode CurveFS::Clone(const std::string &fileName,
             // not exist, use normal allocate logical
         } else {
             LOG(ERROR) << "Clone Get srcSegment error";
-            return StatusCode::KInternalError;
+            return StatusCode::kStorageError;
         }
     }
 
@@ -2168,6 +2179,16 @@ StatusCode CurveFS::Clone(const std::string &fileName,
     // add child to snapshot
     snapFileInfo.add_children(fileName);
 
+    // first lookup clone chain to assume clone chain is ok, then put clone file
+    FileInfo_CloneInfos *cinfo = fileInfo->add_clones();
+    cinfo->set_fileid(srcFileInfo.id());
+    cinfo->set_clonesn(snapFileInfo.seqnum());
+    ret = LookUpCloneChain(srcFileInfo, fileInfo);
+    if (ret != StatusCode::kOK) {
+        LOG(ERROR) << "LookUpCloneChain failed, ret: " << ret;
+        return ret;
+    }
+
     if (storage_->Put2File(*fileInfo, snapFileInfo) != StoreStatus::OK) {
         LOG(ERROR) << "Clone Put2File fail, fileName = "
                    << fileName
@@ -2177,41 +2198,18 @@ StatusCode CurveFS::Clone(const std::string &fileName,
                    << snapFileInfo.id();
         return StatusCode::kStorageError;
     }
-
-    // lookup clone chain
-    FileInfo_CloneInfos *cinfo = fileInfo->add_clones();
-    // is clone file & not flattend
-    cinfo->set_fileid(srcFileInfo.id());
-    cinfo->set_clonesn(snapFileInfo.seqnum());
-    ret = LookUpCloneChain(srcFileInfo, fileInfo);
-    return ret;
+    return StatusCode::kOK;
 }
 
 StatusCode CurveFS::LookUpCloneChain(
     const FileInfo &srcFileInfo, FileInfo *fileInfo) const {
     // is clone file & not flattend
     FileInfo tmpInfo = srcFileInfo;
-    while ((FileType::INODE_CLONE_PAGEFILE == tmpInfo.filetype()) &&
-           (tmpInfo.has_clonesource())) {
-        // lookup parent
-        FileInfo parentFileInfo;
-        std::string lastEntry;
-        auto ret = WalkPath(
-            tmpInfo.clonesource(), &parentFileInfo, &lastEntry);
-        if ( ret != StatusCode::kOK ) {
-            LOG(ERROR) << "WalkPath failed, ret: " << ret
-                       << ", path: " << tmpInfo.clonesource();
-            return ret;
-        }
-        if (lastEntry.empty()) {
-            LOG(ERROR) << "LookUpCloneChain found CloneFileNameIllegal"
-                       << ", clonesource: " << tmpInfo.clonesource();
-            return StatusCode::kCloneFileNameIllegal;
-        }
+    while (FileType::INODE_CLONE_PAGEFILE == tmpInfo.filetype()) {
         FileInfo cloneSourceFileInfo;
-        ret = LookUpFile(parentFileInfo, lastEntry, &cloneSourceFileInfo);
+        auto ret = GetFileInfo(tmpInfo.clonesource(), &cloneSourceFileInfo);
         if (ret != StatusCode::kOK) {
-            LOG(ERROR) << "LookUpCloneChain lookup clonesource error: " << ret;
+            LOG(ERROR) << "LookUpCloneChain GetFileInfo failed, ret: " << ret;
             return ret;
         }
 
@@ -2255,12 +2253,6 @@ StatusCode CurveFS::Flatten(const std::string &fileName,
 
     // check file type
     if (fileInfo.filetype() != FileType::INODE_CLONE_PAGEFILE) {
-        if (fileInfo.filetype() == FileType::INODE_PAGEFILE) {
-            LOG(WARNING) << "Flatten file already flattened, "
-                << " fileName = " << fileName
-                << ", fileType = " << fileInfo.filetype();
-            return StatusCode::kOK;
-        }
         LOG(ERROR) << "Flatten file type not match, "
             << " fileName = " << fileName
             << ", fileType = " << fileInfo.filetype();
@@ -2286,7 +2278,7 @@ StatusCode CurveFS::Flatten(const std::string &fileName,
                     // contnue to resume flatten job
                 } else {
                     if (fileInfo.filetype() == FileType::INODE_PAGEFILE) {
-                        LOG(WARNING) << "Flatten file already flattened, "
+                        LOG(WARNING) << "Flatten file just flattened, "
                             << " fileName = " << fileName
                             << ", fileType = " << fileInfo.filetype();
                         return StatusCode::kOK;
@@ -2314,13 +2306,6 @@ StatusCode CurveFS::Flatten(const std::string &fileName,
     fileInfo.set_filestatus(FileStatus::kFileFlattening);
     // set filename for resume flatten job
     fileInfo.set_originalfullpathname(fileName);
-    ret = PutFile(fileInfo);
-    if (ret != StatusCode::kOK) {
-        LOG(ERROR) << "Flatten put file error, fileName = " << fileName
-                   << ", errCode = " << ret
-                   << ", errName = " << StatusCode_Name(ret);
-        return ret;
-    }
 
     // check the existence of the snap file
     std::string srcFileName = fileInfo.clonesource();
@@ -2341,6 +2326,14 @@ StatusCode CurveFS::Flatten(const std::string &fileName,
                    << fileName
                    << ", fileId = " << fileInfo.id();
         return StatusCode::KInternalError;
+    }
+
+    ret = PutFile(fileInfo);
+    if (ret != StatusCode::kOK) {
+        LOG(ERROR) << "Flatten put file error, fileName = " << fileName
+                   << ", errCode = " << ret
+                   << ", errName = " << StatusCode_Name(ret);
+        return ret;
     }
     return StatusCode::kOK;
 }
@@ -2431,7 +2424,13 @@ StatusCode CurveFS::QueryFlattenStatus(const std::string &fileName,
             *status = fileInfo.filestatus();
             *progress = 100;
             return StatusCode::kOK;
-        }  else {
+        } else if (fileInfo.filetype() == FileType::INODE_CLONE_PAGEFILE) {
+            LOG(ERROR) << "QueryFlattenStatus found flatten task not exist"
+                << ", maybe task finished error or resume task failed"
+                << ", fileName = " << fileName
+                << ", fileType = " << fileInfo.filetype();
+            return StatusCode::kFileNotFlattening;
+        } else {
             LOG(ERROR) << "QueryFlattenStatus file type not match"
                 << ", fileName = " << fileName
                 << ", fileType = " << fileInfo.filetype();
