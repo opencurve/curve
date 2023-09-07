@@ -23,6 +23,8 @@
 #ifndef CURVEFS_SRC_CLIENT_RPCCLIENT_METASERVER_CLIENT_H_
 #define CURVEFS_SRC_CLIENT_RPCCLIENT_METASERVER_CLIENT_H_
 
+#include <time.h>
+
 #include <list>
 #include <memory>
 #include <string>
@@ -69,6 +71,13 @@ struct DataIndices {
     absl::optional<S3ChunkInfoMap> s3ChunkInfoMap;
     absl::optional<VolumeExtentSliceList> volumeExtents;
 };
+
+inline void SetCreateTime(Time* tm) {
+    struct timespec now;
+    clock_gettime(CLOCK_REALTIME, &now);
+    tm->set_sec(now.tv_sec);
+    tm->set_nsec(now.tv_nsec);
+}
 
 class MetaServerClient {
  public:

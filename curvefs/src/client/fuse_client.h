@@ -415,9 +415,6 @@ class FuseClient {
  private:
     virtual void FlushData() = 0;
 
-    CURVEFS_ERROR UpdateParentMCTimeAndNlink(
-        fuse_ino_t parent, FsFileType type,  NlinkChange nlink);
-
     std::string GenerateNewRecycleName(fuse_ino_t ino,
             fuse_ino_t parent, const char* name) {
         std::string newName(name);

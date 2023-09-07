@@ -131,6 +131,7 @@ message DeleteDentryRequest {
     required uint64 parentInodeId = 6;
     required string name = 7;
     optional FsFileType type = 8;
+    optional Time create = 9;
 }
 
 message DeleteDentryResponse {
