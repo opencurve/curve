@@ -292,11 +292,12 @@ TEST_F(PartitionTest, dentrynum) {
     Time tm;
     tm.set_sec(0);
     tm.set_nsec(0);
-    ASSERT_EQ(partition1.CreateDentry(dentry, tm, logIndex_++),
-              MetaStatusCode::OK);
+    ASSERT_EQ(
+        partition1.CreateDentry(dentry, tm, logIndex_++), MetaStatusCode::OK);
     ASSERT_EQ(partition1.GetDentryNum(), 1);
 
-    ASSERT_EQ(partition1.DeleteDentry(dentry, logIndex_++), MetaStatusCode::OK);
+    ASSERT_EQ(
+        partition1.DeleteDentry(dentry, tm, logIndex_++), MetaStatusCode::OK);
     ASSERT_EQ(partition1.GetDentryNum(), 0);
 }
 
@@ -331,10 +332,10 @@ TEST_F(PartitionTest, PARTITION_ID_MISSMATCH_ERROR) {
               MetaStatusCode::PARTITION_ID_MISSMATCH);
 
     // test DeleteDentry
-    ASSERT_EQ(partition1.DeleteDentry(dentry1, logIndex_++),
-              MetaStatusCode::PARTITION_ID_MISSMATCH);
-    ASSERT_EQ(partition1.DeleteDentry(dentry2, logIndex_++),
-              MetaStatusCode::PARTITION_ID_MISSMATCH);
+    ASSERT_EQ(partition1.DeleteDentry(dentry1, tm, logIndex_++),
+        MetaStatusCode::PARTITION_ID_MISSMATCH);
+    ASSERT_EQ(partition1.DeleteDentry(dentry2, tm, logIndex_++),
+        MetaStatusCode::PARTITION_ID_MISSMATCH);
 
     // test GetDentry
     ASSERT_EQ(partition1.GetDentry(&dentry1),

@@ -117,7 +117,7 @@ MetaStatusCode Partition::CreateDentry(const Dentry& dentry, const Time& tm,
     if (MetaStatusCode::OK == ret) {
         if (dentry.has_type()) {
             return inodeManager_->UpdateInodeWhenCreateOrRemoveSubNode(
-                dentry, tm.sec(), tm.nsec(), true, logIndex);
+                dentry, tm, true, logIndex);
         } else {
             LOG(ERROR) << "CreateDentry does not have type, "
                        << dentry.ShortDebugString();
@@ -128,7 +128,7 @@ MetaStatusCode Partition::CreateDentry(const Dentry& dentry, const Time& tm,
             // NOTE: we enter here means that
             // this log maybe is "half apply"
             ret = inodeManager_->UpdateInodeWhenCreateOrRemoveSubNode(
-                dentry, tm.sec(), tm.nsec(), true, logIndex);
+                dentry, tm, true, logIndex);
             if (ret == MetaStatusCode::IDEMPOTENCE_OK) {
                 ret = MetaStatusCode::OK;
             }
@@ -155,14 +155,15 @@ MetaStatusCode Partition::LoadDentry(const DentryVec& vec, bool merge,
     return rc;
 }
 
-MetaStatusCode Partition::DeleteDentry(const Dentry& dentry, int64_t logIndex) {
+MetaStatusCode Partition::DeleteDentry(
+    const Dentry& dentry, const Time& tm, int64_t logIndex) {
     PRECHECK(dentry.fsid(), dentry.parentinodeid());
 
     MetaStatusCode ret = dentryManager_->DeleteDentry(dentry, logIndex);
     if (MetaStatusCode::OK == ret) {
         if (dentry.has_type()) {
             return inodeManager_->UpdateInodeWhenCreateOrRemoveSubNode(
-                dentry, 0, 0, false, logIndex);
+                dentry, tm, false, logIndex);
         } else {
             LOG(ERROR) << "DeleteDentry does not have type, "
                        << dentry.ShortDebugString();
@@ -173,7 +174,7 @@ MetaStatusCode Partition::DeleteDentry(const Dentry& dentry, int64_t logIndex) {
             // NOTE: we enter here means that
             // this log maybe is "half apply"
             ret = inodeManager_->UpdateInodeWhenCreateOrRemoveSubNode(
-                dentry, 0, 0, false, logIndex);
+                dentry, tm, false, logIndex);
         }
         if (ret == MetaStatusCode::IDEMPOTENCE_OK) {
             ret = MetaStatusCode::OK;

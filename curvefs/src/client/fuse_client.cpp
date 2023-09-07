@@ -368,35 +368,6 @@ CURVEFS_ERROR FuseClient::FuseOpOpen(fuse_req_t req,
     return HandleOpenFlags(req, ino, fi, fileOut);
 }
 
-CURVEFS_ERROR FuseClient::UpdateParentMCTimeAndNlink(
-    fuse_ino_t parent, FsFileType type, NlinkChange nlink) {
-
-    std::shared_ptr<InodeWrapper> parentInodeWrapper;
-    auto ret = inodeManager_->GetInode(parent, parentInodeWrapper);
-    if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
-                   << ", inodeid = " << parent;
-        return ret;
-    }
-
-    {
-        curve::common::UniqueLock lk = parentInodeWrapper->GetUniqueLock();
-        parentInodeWrapper->UpdateTimestampLocked(kModifyTime | kChangeTime);
-
-        if (FsFileType::TYPE_DIRECTORY == type) {
-            parentInodeWrapper->UpdateNlinkLocked(nlink);
-        }
-
-        if (option_.fileSystemOption.deferSyncOption.deferDirMtime) {
-            inodeManager_->ShipToFlush(parentInodeWrapper);
-        } else {
-            return parentInodeWrapper->SyncAttr();
-        }
-    }
-
-    return CURVEFS_ERROR::OK;
-}
-
 CURVEFS_ERROR FuseClient::MakeNode(
     fuse_req_t req,
     fuse_ino_t parent,
@@ -532,15 +503,6 @@ CURVEFS_ERROR FuseClient::DeleteNode(uint64_t ino, fuse_ino_t parent,
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "dentryManager_ DeleteDentry fail, ret = " << ret
                    << ", parent = " << parent << ", name = " << name;
-        return ret;
-    }
-
-    ret = UpdateParentMCTimeAndNlink(parent, type, NlinkChange::kSubOne);
-    if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "UpdateParentMCTimeAndNlink failed"
-                   << ", parent: " << parent
-                   << ", name: " << name
-                   << ", type: " << type;
         return ret;
     }
 
