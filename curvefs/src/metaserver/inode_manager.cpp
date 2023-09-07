@@ -541,10 +541,11 @@ MetaStatusCode InodeManager::PaddingInodeS3ChunkInfo(int32_t fsId,
 }
 
 MetaStatusCode InodeManager::UpdateInodeWhenCreateOrRemoveSubNode(
-    const Dentry& dentry, uint64_t now, uint32_t now_ns, bool isCreate,
-    int64_t logIndex) {
+    const Dentry& dentry, const Time& tm, bool isCreate, int64_t logIndex) {
     uint64_t fsId = dentry.fsid();
     uint64_t parentInodeId = dentry.parentinodeid();
+    uint64_t now = tm.sec();
+    uint32_t now_ns = tm.nsec();
     FsFileType type = dentry.type();
     MetaStatusCode ret = MetaStatusCode::OK;
 

@@ -24,7 +24,6 @@
 #include <brpc/closure_guard.h>
 #include <butil/iobuf.h>
 #include <glog/logging.h>
-#include <time.h>
 
 #include <cstddef>
 #include <memory>
@@ -255,12 +254,7 @@ MetaStatusCode MetaServerClientImpl::CreateDentry(const Dentry &dentry) {
         d->set_txid(txId);
         d->set_type(dentry.type());
         request.set_allocated_dentry(d);
-        struct timespec now;
-        clock_gettime(CLOCK_REALTIME, &now);
-        Time *tm = new Time();
-        tm->set_sec(now.tv_sec);
-        tm->set_nsec(now.tv_nsec);
-        request.set_allocated_create(tm);
+        SetCreateTime(request.mutable_create());
         curvefs::metaserver::MetaServerService_Stub stub(channel);
         stub.CreateDentry(cntl, &request, &response, nullptr);
 
@@ -321,7 +315,7 @@ MetaStatusCode MetaServerClientImpl::DeleteDentry(uint32_t fsId,
         request.set_name(name);
         request.set_txid(txId);
         request.set_type(type);
-
+        SetCreateTime(request.mutable_create());
         curvefs::metaserver::MetaServerService_Stub stub(channel);
         stub.DeleteDentry(cntl, &request, &response, nullptr);
 
@@ -1147,12 +1141,7 @@ MetaStatusCode MetaServerClientImpl::CreateInode(const InodeParam &param,
         request.set_rdev(param.rdev);
         request.set_symlink(param.symlink);
         request.set_parent(param.parent);
-        struct timespec now;
-        clock_gettime(CLOCK_REALTIME, &now);
-        Time *tm = new Time();
-        tm->set_sec(now.tv_sec);
-        tm->set_nsec(now.tv_nsec);
-        request.set_allocated_create(tm);
+        SetCreateTime(request.mutable_create());
         curvefs::metaserver::MetaServerService_Stub stub(channel);
         stub.CreateInode(cntl, &request, &response, nullptr);
 

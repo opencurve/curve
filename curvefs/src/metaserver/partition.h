@@ -58,13 +58,14 @@ class Partition {
     Partition() = default;
 
     // dentry
-    MetaStatusCode CreateDentry(const Dentry& dentry, const Time& tm,
-                                int64_t logIndex);
+    MetaStatusCode CreateDentry(
+        const Dentry& dentry, const Time& tm, int64_t logIndex);
 
-    MetaStatusCode LoadDentry(const DentryVec& vec, bool merge,
-                              int64_t logIndex);
+    MetaStatusCode LoadDentry(
+        const DentryVec& vec, bool merge, int64_t logIndex);
 
-    MetaStatusCode DeleteDentry(const Dentry& dentry, int64_t logIndex);
+    MetaStatusCode DeleteDentry(
+        const Dentry& dentry, const Time& tm, int64_t logIndex);
 
     MetaStatusCode GetDentry(Dentry* dentry);
 
