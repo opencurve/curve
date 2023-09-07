@@ -358,6 +358,15 @@ std::shared_ptr<StreamServer> MetaStoreImpl::GetStreamServer() {
         return status;                                                         \
     }
 
+#define GET_TIME_FROM_REQUEST(TIME)        \
+    uint64_t now = 0;                      \
+    uint32_t now_ns = 0;                   \
+    if (request->has_create()) {           \
+        now = request->create().sec();     \
+        now_ns = request->create().nsec(); \
+    }                                      \
+    TIME.set_sec(now);                     \
+    TIME.set_nsec(now_ns);
 
 // dentry
 MetaStatusCode MetaStoreImpl::CreateDentry(const CreateDentryRequest* request,
@@ -366,15 +375,8 @@ MetaStatusCode MetaStoreImpl::CreateDentry(const CreateDentryRequest* request,
     ReadLockGuard readLockGuard(rwLock_);
     std::shared_ptr<Partition> partition;
     GET_PARTITION_OR_RETURN(partition);
-    uint64_t now = 0;
-    uint32_t now_ns = 0;
-    if (request->has_create()) {
-        now = request->create().sec();
-        now_ns = request->create().nsec();
-    }
     Time tm;
-    tm.set_sec(now);
-    tm.set_nsec(now_ns);
+    GET_TIME_FROM_REQUEST(tm);
     MetaStatusCode status =
         partition->CreateDentry(request->dentry(), tm, logIndex);
     response->set_statuscode(status);
@@ -428,7 +430,9 @@ MetaStatusCode MetaStoreImpl::DeleteDentry(const DeleteDentryRequest* request,
     dentry.set_txid(txId);
     dentry.set_type(request->type());
 
-    auto rc = partition->DeleteDentry(dentry, logIndex);
+    Time tm;
+    GET_TIME_FROM_REQUEST(tm);
+    auto rc = partition->DeleteDentry(dentry, tm, logIndex);
     response->set_statuscode(rc);
     return rc;
 }

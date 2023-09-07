@@ -3941,8 +3941,6 @@ TEST_F(TestFuseS3Client, FuseOpUnlink_EnableSummary) {
     EXPECT_CALL(*inodeManager_, GetInode(_, _))
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
-        .WillOnce(DoAll(
-            SetArgReferee<1>(parentInodeWrapper), Return(CURVEFS_ERROR::OK)))
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
         .WillOnce(DoAll(
@@ -3952,12 +3950,8 @@ TEST_F(TestFuseS3Client, FuseOpUnlink_EnableSummary) {
     EXPECT_CALL(*metaClient_, UpdateInodeAttr(_, _, _))
         .WillRepeatedly(Return(MetaStatusCode::OK));
 
-    EXPECT_CALL(*inodeManager_, ShipToFlush(_)).Times(1);
-
     CURVEFS_ERROR ret = client_->FuseOpUnlink(req, parent, name.c_str());
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
-    Inode inode2 = inodeWrapper->GetInode();
-    ASSERT_EQ(nlink - 1, inode2.nlink());
 
     auto p = parentInodeWrapper->GetInode();
     ASSERT_EQ(3, p.nlink());
