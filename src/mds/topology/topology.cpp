@@ -1324,52 +1324,41 @@ bool TopologyImpl::GetCopySet(CopySetKey key, CopySetInfo *out) const {
 
 std::vector<CopySetIdType> TopologyImpl::GetCopySetsInLogicalPool(
     PoolIdType logicalPoolId,
-    CopySetFilter filter) const {
+    CopySetFilter filter, std::set<ChunkServerIdType> insufficientNodes) const {
     std::vector<CopySetIdType> ret;
     ReadLockGuard rlockCopySet(copySetMutex_);
     for (auto it : copySetMap_) {
         if (filter(it.second) && it.first.first == logicalPoolId) {
-            ret.push_back(it.first.second);
-        }
-    }
-    return ret;
-}
-
-std::vector<CopySetIdType> TopologyImpl::FilterCopySets(
-    PoolIdType logicalPoolId,
-    std::vector<CopySetIdType> copySetIds, double csAvailable) const {
-    ReadLockGuard rLockChunkServer(chunkServerMutex_);
-    // calculate insufficient nodes
-    std::set<ChunkServerIdType> insufficientNodes;
-    for (auto it : chunkServerMap_) {
-        ChunkServerState st = it.second.GetChunkServerState();
-        uint64_t diskCapacity =  csAvailable * st.GetDiskCapacity() / 100;
-        if (diskCapacity <= st.GetDiskUsed()) {
-            insufficientNodes.insert(it.second.GetId());
-        }
-    }
-    ReadLockGuard rLockCopySet(copySetMutex_);
-    std::vector<CopySetIdType> availableCopySets;
-    for (auto it : copySetIds) {
-        CopySetKey key(logicalPoolId, it);
-        auto targetCopySet = copySetMap_.find(key);
-        if (targetCopySet != copySetMap_.end()) {
-            std::set<ChunkServerIdType> intersection;
+              std::set<ChunkServerIdType> intersection;
             // calculate peers and insufficientNodes intersection
             std::set<ChunkServerIdType> peers;
             peers = targetCopySet->second.GetCopySetMembers();
-            
             std::set_intersection(peers.begin(), peers.end(),
              insufficientNodes.begin(),
              insufficientNodes.end(),
              std::inserter(intersection, intersection.begin()));
              if (intersection.empty()) {
                 // add sufficient copySet
-                availableCopySets.push_back(it);
+                ret.push_back(it.first.second);
              }
-         }
+        }
     }
-    return availableCopySets;
+    return ret;
+}
+
+std::set<ChunkServerIdType> TopologyImpl::CalucateUnAllocateNodes(
+    PoolIdType logicalPoolId, double csDiskAvailable) const {
+    ReadLockGuard rLockChunkServer(chunkServerMutex_);
+    // calculate insufficient nodes
+    std::set<ChunkServerIdType> insufficientNodes;
+    for (auto it : chunkServerMap_) {
+        ChunkServerState st = it.second.GetChunkServerState();
+        uint64_t diskCapacity =  csDiskAvailable * st.GetDiskCapacity() / 100;
+        if (diskCapacity <= st.GetDiskUsed()) {
+            insufficientNodes.insert(it.second.GetId());
+        }
+    }
+    return insufficientNodes;
 }
 
 std::vector<CopySetInfo> TopologyImpl::GetCopySetInfosInLogicalPool(

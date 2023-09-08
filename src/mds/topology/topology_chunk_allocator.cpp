@@ -28,6 +28,7 @@
 #include <ctime>
 #include <vector>
 #include <list>
+#include <set>
 #include <random>
 
 
@@ -85,15 +86,16 @@ bool TopologyChunkAllocatorImpl::AllocateChunkRoundRobinInSingleLogicalPool(
         LOG(ERROR) << "ChooseSingleLogicalPool fail, ret = false.";
         return false;
     }
-
+    // calculate unAllocate chunkServer list
+    double csDiskAvailable = csDiskAvailable_;
+    std::set<ChunkServerIdType> insufficientNodes = topology_->
+    CalucateUnAllocateNodes(logicalPoolChosenId, csDiskAvailable);
     CopySetFilter filter = [](const CopySetInfo &copyset) {
         return copyset.IsAvailable();
     };
     std::vector<CopySetIdType> copySetIds =
-        topology_->GetCopySetsInLogicalPool(logicalPoolChosenId, filter);
-    // exclude copySets with insufficient capacity node.
-    double csAvailable=csAvailable_;
-    copySetIds = topology_->FilterCopySets(logicalPoolChosenId,copySetIds,csAvailable);
+        topology_->GetCopySetsInLogicalPool(logicalPoolChosenId, filter,
+        insufficientNodes);
     if (0 == copySetIds.size()) {
         LOG(ERROR) << "[AllocateChunkRoundRobinInSingleLogicalPool]:"
                    << " Does not have any available copySets,"
