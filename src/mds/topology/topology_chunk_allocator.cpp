@@ -89,13 +89,13 @@ bool TopologyChunkAllocatorImpl::AllocateChunkRoundRobinInSingleLogicalPool(
     // calculate unAllocate chunkServer list
     double csDiskAvailable = csDiskAvailable_;
     std::set<ChunkServerIdType> insufficientNodes = topology_->
-    CalucateUnAllocateNodes(logicalPoolChosenId, csDiskAvailable);
+      CalucateUnAllocateNodes(logicalPoolChosenId, csDiskAvailable);
     CopySetFilter filter = [](const CopySetInfo &copyset) {
         return copyset.IsAvailable();
     };
     std::vector<CopySetIdType> copySetIds =
-        topology_->GetCopySetsInLogicalPool(logicalPoolChosenId, filter,
-        insufficientNodes);
+        topology_->GetCopySetsInLogicalPool(logicalPoolChosenId,
+        insufficientNodes, filter);
     if (0 == copySetIds.size()) {
         LOG(ERROR) << "[AllocateChunkRoundRobinInSingleLogicalPool]:"
                    << " Does not have any available copySets,"

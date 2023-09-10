@@ -25,6 +25,7 @@
 #include <unordered_map>
 #include <string>
 #include <list>
+#include <set>
 #include <memory>
 #include <vector>
 #include <map>
@@ -369,12 +370,9 @@ class Topology {
     // get copyset list
     virtual std::vector<CopySetIdType> GetCopySetsInLogicalPool(
         PoolIdType logicalPoolId,
+        std::set<ChunkServerIdType> insufficientNodes,
         CopySetFilter filter = [](const CopySetInfo&) {
             return true;}) const = 0;
-
-   virtual std::vector<CopySetIdType> FilterCopySets(
-        PoolIdType logicalPoolId,
-        std::vector<CopySetIdType> copySetIds, double csAvailable) const = 0;
         
     virtual std::vector<CopySetInfo> GetCopySetInfosInLogicalPool(
         PoolIdType logicalPoolId,

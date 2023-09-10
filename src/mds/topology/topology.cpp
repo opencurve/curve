@@ -1323,8 +1323,8 @@ bool TopologyImpl::GetCopySet(CopySetKey key, CopySetInfo *out) const {
 }
 
 std::vector<CopySetIdType> TopologyImpl::GetCopySetsInLogicalPool(
-    PoolIdType logicalPoolId,
-    CopySetFilter filter, std::set<ChunkServerIdType> insufficientNodes) const {
+    PoolIdType logicalPoolId, std::set<ChunkServerIdType> insufficientNodes,
+    CopySetFilter filter) const {
     std::vector<CopySetIdType> ret;
     ReadLockGuard rlockCopySet(copySetMutex_);
     for (auto it : copySetMap_) {
