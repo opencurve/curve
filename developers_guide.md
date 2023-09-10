@@ -121,6 +121,15 @@ Curve Ci use ```cpplint``` check what your changed.
   # Or
   $ make format commit_id=$(commit_id) # commit_id is a sha of a commit, default HEAD^
   ```
+  > Clang-format understands also special comments that switch formatting in a delimited range. The code between a comment `// clang-format off` or `/* clang-format off */` up to a comment `// clang-format on` or `/* clang-format on */` will not be formatted.
+  > ```cpp
+  > int formatted_code;
+  > // clang-format off
+  >    void unformatted_code      ;
+  > // clang-format on
+  > void formatted_code_again;
+  > ```
+
 For PR we have the following requirements:
 
 - The Curve coding standard strictly follows the [Google C++ Open Source Project Coding Guide](https://google.github.io/styleguide/cppguide.html), but we use 4 spaces to indent, Clang-format will more helpful for you. Of course, CI will check what your changed. 

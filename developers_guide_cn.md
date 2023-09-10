@@ -76,6 +76,15 @@ Curve CI 使用```cpplint```检查更改的代码,
   # or
   $ make format commit_id=$(commit_id) # commit_id为某一个提交的sha，默认commit_id为HEAD^
   ```
+  > 如果需要对部分代码禁用格式检查，可以在开始处添加 `// clang-format off` 或 `/* clang-format off */` 注释，结尾处添加 `// clang-format on` 或 `/* clang-format on */` 注释
+  > ```cpp
+  > int formatted_code;
+  > // clang-format off
+  >    void unformatted_code      ;
+  > // clang-format on
+  > void formatted_code_again;
+  > ```
+
 对于 PR 我们有如下要求：
 
 - Curve编码规范严格按照[Google C++开源项目编码指南](https://zh-google-styleguide.readthedocs.io/en/latest/google-cpp-styleguide/contents/)来进行代码编写，但使用 4 空格进行缩进, 可使用 clang-format 进行格式化, CI 会检查相关更改代码是否符合规则.
