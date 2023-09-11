@@ -11,7 +11,7 @@ tag?= "curvebs:unknown"
 case?= "*"
 os?= "openeuler"
 ci?=0
-
+commit_id="HEAD^"
 define help_msg
 ## list
 Usage:
@@ -88,3 +88,5 @@ test:
 
 docker:
 	@bash util/docker.sh --os=$(os) --ci=$(ci)
+format:
+	@bash util/format.sh $(commit_id)
