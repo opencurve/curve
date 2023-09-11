@@ -548,6 +548,9 @@ class CSDataStore {
     
     CSChunkFilePtr GetChunkFile(ChunkID id);
 
+    //shared among all chunkfiles in the datastore
+    uint32_t BLOCK_SIZE_SHIFT;
+
  private:
     CSErrorCode loadChunkFile(ChunkID id);
 

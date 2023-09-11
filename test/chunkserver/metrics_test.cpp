@@ -557,7 +557,7 @@ TEST_F(CSMetricTest, CountTest) {
     std::shared_ptr<SnapContext> ctx(new SnapContext({seq}));
     seq = 2;
     ASSERT_EQ(CSErrorCode::Success,
-              datastore->WriteChunk(id, seq, dataBuf, offset, length, 1, 1, nullptr, ctx));
+    datastore->WriteChunk(id, seq, dataBuf, offset, length, id, 1, nullptr, ctx));
     ASSERT_EQ(1, copysetMetric->GetChunkCount());
     ASSERT_EQ(1, copysetMetric->GetSnapshotCount());
     ASSERT_EQ(0, copysetMetric->GetCloneChunkCount());
