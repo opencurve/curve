@@ -146,8 +146,7 @@ int ChunkOpRequest::Encode(const ChunkRequest *request,
 
 std::shared_ptr<ChunkOpRequest> ChunkOpRequest::Decode(butil::IOBuf log,
                                                        ChunkRequest *request,
-                                                       butil::IOBuf *data,
-                                                       std::shared_ptr<CopysetNode> nodePtr) {
+                                                       butil::IOBuf *data) {
     uint32_t metaSize = 0;
     log.cutn(&metaSize, sizeof(uint32_t));
     metaSize = butil::NetToHost32(metaSize);
@@ -179,7 +178,7 @@ std::shared_ptr<ChunkOpRequest> ChunkOpRequest::Decode(butil::IOBuf log,
         case CHUNK_OP_TYPE::CHUNK_OP_CREATE_CLONE:
             return std::make_shared<CreateCloneChunkRequest>();
         case CHUNK_OP_TYPE::CHUNK_OP_FLATTEN:
-            return std::make_shared<FlattenChunkRequest>(nodePtr);
+            return std::make_shared<FlattenChunkRequest>();
         default:LOG(ERROR) << "Unknown chunk op";
             return nullptr;
     }
@@ -1085,13 +1084,7 @@ FlattenChunkRequest::FlattenChunkRequest(std::shared_ptr<CopysetNode> nodePtr,
                                         const ChunkRequest *request,
                                         ChunkResponse *response,
                                         ::google::protobuf::Closure *done) :
-    ChunkOpRequest(nodePtr, cntl, request, response, done), 
-    concurrentApplyModule_(nodePtr->GetConcurrentApplyModule()) {
-
-}
-FlattenChunkRequest::FlattenChunkRequest(std::shared_ptr<CopysetNode> nodePtr): 
-    ChunkOpRequest(nodePtr, nullptr, nullptr, nullptr, nullptr), 
-    concurrentApplyModule_(nodePtr->GetConcurrentApplyModule()) {
+    ChunkOpRequest(nodePtr, cntl, request, response, done) {
 
 }
 
@@ -1144,17 +1137,6 @@ void FlattenChunkRequest::OnApply(uint64_t index,
 
         DVLOG(9) << "flatten success: "
                   << " chunkid = " << request_->chunkid();
-#if 0
-    } else if (CSErrorCode::FlattenAgain == ret) { //not finish flatten yet just push the request into the concurrent apply module and do again
-        auto thisPtr = std::dynamic_pointer_cast<FlattenChunkRequest>(shared_from_this());
-        auto task = std::bind(&FlattenChunkRequest::OnApply, thisPtr, node_->GetAppliedIndex(), doneGuard.release());
-        concurrentApplyModule_->Push(request_->chunkid(), request_->optype(), task);
-
-        LOG(INFO) << "flatten again: "
-                  << " chunkid = " << request_->chunkid();
-
-        return;
-#endif
     } else if (CSErrorCode::BackwardRequestError == ret) {
         // 打快照那一刻是有可能出现旧版本的请求
         // 返回错误给客户端，让客户端带新版本来重试
@@ -1235,14 +1217,6 @@ void FlattenChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
 
     if (CSErrorCode::Success == ret) {
          return;
-#if 0
-    } else if (CSErrorCode::FlattenAgain == ret) { //not finish flatten yet just push the request into the concurrent apply module and do again
-        auto thisPtr = std::dynamic_pointer_cast<FlattenChunkRequest>(shared_from_this());
-        auto task = std::bind(&FlattenChunkRequest::OnApplyFromLog, thisPtr, datastore, request, data);
-        concurrentApplyModule_->Push(request.chunkid(), request.optype(), task);
-
-        return;
-#endif
     } else if (CSErrorCode::BackwardRequestError == ret) {
         LOG(WARNING) << "flatten failed: "
                      << " data store return: " << ret

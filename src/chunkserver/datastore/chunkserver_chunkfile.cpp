@@ -155,6 +155,7 @@ CSErrorCode ChunkFileMetaPage::decode(const char* buf) {
             len += sizeof(bits);
             if (nullptr != bitmap) {
                 int lcount = bitmap->initialize((char*) (buf+len));
+                assert(lcount == ((bits + 8 -1) >> 3)); //sanity check
                 len += lcount;
             }  else {
                 bitmap = std::make_shared<Bitmap>(bits, buf + len);
@@ -201,6 +202,7 @@ CSChunkFile::CSChunkFile(std::shared_ptr<LocalFileSystem> lfs,
       size_(options.chunkSize),
       blockSize_(options.blockSize),
       metaPageSize_(options.metaPageSize),
+      blockSize_shift_(options.blockSize_shift),
       chunkId_(options.id),
       baseDir_(options.baseDir),
       isCloneChunk_(false),
@@ -216,7 +218,14 @@ CSChunkFile::CSChunkFile(std::shared_ptr<LocalFileSystem> lfs,
     metaPage_.location = options.location;
     metaPage_.virtualId = options.virtualId;
     metaPage_.cloneNo = options.cloneNo;
-    metaPage_.fileId = options.fileID;
+    metaPage_.fileId = options.fileId;
+
+    //if blockSize_ = 0, use the default value 4096
+    if (0 == blockSize_) {
+        blockSize_ = 4096;
+        blockSize_shift_ = 12;
+        DVLOG(3) << "CSChunkFile() blockSize_ is 0, use the default value 4096";
+    }
 
     //if blockSize_ = 0, use the default value 4096
     if (0 == blockSize_) {
@@ -230,7 +239,12 @@ CSChunkFile::CSChunkFile(std::shared_ptr<LocalFileSystem> lfs,
         uint32_t bits = size_ / blockSize_;
         metaPage_.bitmap = std::make_shared<Bitmap>(bits);
         isCloneChunk_ = true;
+
+        if (metric_ != nullptr) {
+            metric_->cloneChunkCount << 1;
+        }
     }
+
     if (metric_ != nullptr) {
         metric_->chunkFileCount << 1;
     }
@@ -314,8 +328,13 @@ CSErrorCode CSChunkFile::Open(bool createFile) {
         isCloneChunk_ = true;
     }
 
-    if (nullptr == metaPage_.bitmap) {
-        isCloneChunk_ = false;
+    if (true == isCloneChunk_) {
+        if (nullptr == metaPage_.bitmap) {
+            if (metric_ != nullptr) {
+                metric_->cloneChunkCount << -1;
+            }
+            isCloneChunk_ = false;
+        }
     }
 
     return errCode;
@@ -740,8 +759,8 @@ CSErrorCode CSChunkFile::cloneWrite(SequenceNum sn,
 
     //if the offset is align with OBJ_SIZE then the objNum is length / OBJ_SIZE
     //else the objNum is length / OBJ_SIZE + 1
-    uint32_t beginIndex = offset >> OBJ_SIZE_SHIFT;
-    uint32_t endIndex = (offset + length - 1) >> OBJ_SIZE_SHIFT;
+    uint32_t beginIndex = offset >> blockSize_shift_;
+    uint32_t endIndex = (offset + length - 1) >> blockSize_shift_;
 
     std::vector<File_ObjectInfoPtr> objIns;
 
@@ -774,7 +793,7 @@ CSErrorCode CSChunkFile::cloneWrite(SequenceNum sn,
     
     if ((nullptr == ctx) || (false == needCow(sn, ctx))) {//not write to the snapshot but the chunk its self    
         //no need to do read from other clone volume
-        if (((endIndex - beginIndex + 1) << OBJ_SIZE_SHIFT) == length) {
+        if (((endIndex - beginIndex + 1) << blockSize_shift_) == length) {
             // write chunk file
 
             DVLOG(9) << "Write chunk file directly."
@@ -795,7 +814,7 @@ CSErrorCode CSChunkFile::cloneWrite(SequenceNum sn,
         //Judge that the clonefile has the data in <beginIndex, endIndex>
         //if exist just pass to the next step
         //if not read the uncover data and 1. write to the clone file  2. write to snapshot
-        CSDataStore::SplitDataIntoObjs (sn, objIns, (beginIndex << OBJ_SIZE_SHIFT), ((endIndex - beginIndex + 1) << OBJ_SIZE_SHIFT), cloneCtx, datastore, true);
+        CSDataStore::SplitDataIntoObjs (sn, objIns, (beginIndex << blockSize_shift_), ((endIndex - beginIndex + 1) << blockSize_shift_), cloneCtx, datastore, true);
 
         auto objit = objIns.begin();
         File_ObjectInfoPtr& fileobj = *objit;
@@ -838,21 +857,31 @@ CSErrorCode CSChunkFile::cloneWrite(SequenceNum sn,
         MergeObjectForRead(objmap, objIns, chunkFile);
 
         char* tmpbuf = nullptr;
-        tmpbuf = new char[(endIndex - beginIndex + 1) << OBJ_SIZE_SHIFT];
+        tmpbuf = new char[(endIndex - beginIndex + 1) << blockSize_shift_];
 
         for (auto iter = objmap.begin(); iter != objmap.end(); iter++) {
             for (auto& tmpj: iter->second->objs) {
                 if (tmpj.fileptr == chunkFile) {
 #ifdef MEMORY_SANITY_CHECK
                     //check if the memory is overflow
-                    assert((tmpj.obj.offset - iter->second->offset + tmpj.obj.length) <= length);
+                    CHECK((tmpj.obj.offset - iter->second->offset + tmpj.obj.length) <= length) 
+                            << "offset: " << offset << ", length: " << length
+                            << ", tmpj.obj.offset: " << tmpj.obj.offset << ", tmpj.obj.length: " << tmpj.obj.length
+                            << ", iter->second->offset: " << iter->second->offset;
 #endif
                     buf.copy_to(tmpbuf + (tmpj.obj.offset - iter->second->offset), tmpj.obj.length, 0);
                 } else {
 #ifdef MEMORY_SANITY_CHECK
                     //check if the memory is overflow
-                    assert((tmpj.obj.offset - iter->second->offset + tmpj.obj.length) <= length);
-                    assert((tmpj.obj.offset - iter->second->offset) >= 0);
+                    CHECK((tmpj.obj.offset - iter->second->offset + tmpj.obj.length) <= length)
+                            << "offset: " << offset << ", length: " << length
+                            << ", tmpj.obj.offset: " << tmpj.obj.offset << ", tmpj.obj.length: " << tmpj.obj.length
+                            << ", iter->second->offset: " << iter->second->offset;
+
+                    CHECK((tmpj.obj.offset - iter->second->offset) >= 0)
+                            << "offset: " << offset << ", length: " << length
+                            << ", tmpj.obj.offset: " << tmpj.obj.offset << ", tmpj.obj.length: " << tmpj.obj.length
+                            << ", iter->second->offset: " << iter->second->offset;
 #endif
                     errorCode = CSDataStore::ReadByObjInfo(tmpj.fileptr, tmpbuf + (tmpj.obj.offset - iter->second->offset), tmpj.obj);
                     if (errorCode != CSErrorCode::Success) {
@@ -868,7 +897,7 @@ CSErrorCode CSChunkFile::cloneWrite(SequenceNum sn,
                        << "  offset: " << iter->second->offset 
                        << ", length: " << iter->second->length
                        << ", tmpbuf: " << static_cast<const void*>(tmpbuf)
-                       << ", tmpbuf size " << (endIndex - beginIndex + 1) << OBJ_SIZE_SHIFT;
+                       << ", tmpbuf size " << (endIndex - beginIndex + 1) << blockSize_shift_;
             int rc = writeData(tmpbuf, iter->second->offset, iter->second->length);
             if (rc != iter->second->length) {
                 errorCode = CSErrorCode::InternalError;
@@ -889,7 +918,7 @@ CSErrorCode CSChunkFile::cloneWrite(SequenceNum sn,
         //Judge that the clonefile has the data in <beginIndex, endIndex>
         //if exist just pass to the next step
         //if not read the uncover data and 1. write to the clone file  2. write to snapshot
-        CSDataStore::SplitDataIntoObjs (sn, objIns, (beginIndex << OBJ_SIZE_SHIFT), ((endIndex - beginIndex + 1) << OBJ_SIZE_SHIFT), cloneCtx, datastore, true);
+        CSDataStore::SplitDataIntoObjs (sn, objIns, (beginIndex << blockSize_shift_), ((endIndex - beginIndex + 1) << blockSize_shift_), cloneCtx, datastore, true);
 
         auto objit = objIns.begin();
         File_ObjectInfoPtr& fileobj = *objit;
@@ -917,14 +946,21 @@ CSErrorCode CSChunkFile::cloneWrite(SequenceNum sn,
 
         MergeObjectForRead(objmap, objIns, chunkFile);
 
-        char* tmpbuf = new char[(endIndex - beginIndex + 1) << OBJ_SIZE_SHIFT];
+        char* tmpbuf = new char[(endIndex - beginIndex + 1) << blockSize_shift_];
 
         for (auto iter = objmap.begin(); iter != objmap.end(); iter++) {
             for (auto& tmpj: iter->second->objs) {
 #ifdef MEMORY_SANITY_CHECK
                 //check if the memory is overflow
-                assert((tmpj.obj.offset - iter->second->offset + tmpj.obj.length) <= length);
-                assert((tmpj.obj.offset - iter->second->offset) >= 0);
+                CHECK((tmpj.obj.offset - iter->second->offset + tmpj.obj.length) <= length)
+                        << "offset: " << offset << ", length: " << length
+                        << ", tmpj.obj.offset: " << tmpj.obj.offset << ", tmpj.obj.length: " << tmpj.obj.length
+                        << ", iter->second->offset: " << iter->second->offset;
+
+                CHECK((tmpj.obj.offset - iter->second->offset) >= 0)
+                        << "offset: " << offset << ", length: " << length
+                        << ", tmpj.obj.offset: " << tmpj.obj.offset << ", tmpj.obj.length: " << tmpj.obj.length
+                        << ", iter->second->offset: " << iter->second->offset;
 #endif
                 errorCode = CSDataStore::ReadByObjInfo(tmpj.fileptr, tmpbuf + (tmpj.obj.offset - iter->second->offset), tmpj.obj);
                 if (errorCode != CSErrorCode::Success) {
@@ -939,7 +975,7 @@ CSErrorCode CSChunkFile::cloneWrite(SequenceNum sn,
                       << "  offset: " << iter->second->offset 
                       << ", length: " << iter->second->length
                       << ", tmpbuf: " << static_cast<const void*>(tmpbuf)
-                      << ", tmpbuf size " << (endIndex - beginIndex + 1) << OBJ_SIZE_SHIFT;
+                      << ", tmpbuf size " << (endIndex - beginIndex + 1) << blockSize_shift_;
             int rc = writeData(tmpbuf, iter->second->offset, iter->second->length);
             if (rc != iter->second->length) {
                 errorCode = CSErrorCode::InternalError;
@@ -991,8 +1027,8 @@ CSErrorCode CSChunkFile::flattenWrite(SequenceNum sn,
     }
 
     uint32_t startIndex, endIndex;
-    startIndex = offset >> PAGE_SIZE_SHIFT;
-    endIndex = (offset + length - 1) >> PAGE_SIZE_SHIFT;
+    startIndex = offset >> blockSize_shift_;
+    endIndex = (offset + length - 1) >> blockSize_shift_;
 
     //test if the request is already flattened
     if (Bitmap::NO_POS == chunkFile->metaPage_.bitmap->NextClearBit(startIndex, endIndex)) {//chunk already full, no need to flatten
@@ -1034,8 +1070,15 @@ CSErrorCode CSChunkFile::flattenWrite(SequenceNum sn,
         for (auto& tmpj: iter->second->objs) {
 #ifdef MEMORY_SANITY_CHECK
             //check if the memory is overflow
-            assert((tmpj.obj.offset - iter->second->offset + tmpj.obj.length) <= length);
-            assert((tmpj.obj.offset - iter->second->offset) >= 0);
+            CHECK((tmpj.obj.offset - iter->second->offset + tmpj.obj.length) <= length)
+                    << "offset: " << offset << ", length: " << length
+                    << ", tmpj.obj.offset: " << tmpj.obj.offset << ", tmpj.obj.length: " << tmpj.obj.length
+                    << ", iter->second->offset: " << iter->second->offset;
+
+            CHECK((tmpj.obj.offset - iter->second->offset) >= 0)
+                    << "offset: " << offset << ", length: " << length
+                    << ", tmpj.obj.offset: " << tmpj.obj.offset << ", tmpj.obj.length: " << tmpj.obj.length
+                    << ", iter->second->offset: " << iter->second->offset;
 #endif
             errorCode = CSDataStore::ReadByObjInfo(tmpj.fileptr, tmpbuf + (tmpj.obj.offset - iter->second->offset), tmpj.obj);
             if (errorCode != CSErrorCode::Success) {
@@ -1210,8 +1253,8 @@ bool CSChunkFile::DivideObjInfoByIndexLockless (SequenceNum sn, std::vector<BitR
             ObjectInfo objInfo;
             objInfo.sn = sn;
             objInfo.snapptr = nullptr;
-            objInfo.offset = r.beginIndex << PAGE_SIZE_SHIFT;
-            objInfo.length = (r.endIndex - r.beginIndex + 1) << PAGE_SIZE_SHIFT;
+            objInfo.offset = r.beginIndex << blockSize_shift_;
+            objInfo.length = (r.endIndex - r.beginIndex + 1) << blockSize_shift_;
             objInfos.push_back(objInfo);
         }
 
@@ -1238,8 +1281,8 @@ bool CSChunkFile::DivideObjInfoByIndexLockless (SequenceNum sn, std::vector<BitR
             ObjectInfo objInfo;
             objInfo.sn = sn;
             objInfo.snapptr = nullptr;
-            objInfo.offset = tmpr.beginIndex << PAGE_SIZE_SHIFT;
-            objInfo.length = (tmpr.endIndex - tmpr.beginIndex + 1) << PAGE_SIZE_SHIFT;
+            objInfo.offset = tmpr.beginIndex << blockSize_shift_;
+            objInfo.length = (tmpr.endIndex - tmpr.beginIndex + 1) << blockSize_shift_;
             objInfos.push_back(objInfo);
         }
     }
@@ -1374,8 +1417,12 @@ CSErrorCode CSChunkFile::ReadSpecifiedChunk(SequenceNum sn,
                   << ", buf: " << static_cast<const void*>(buf + (readOff - offset)) ;
 #ifdef MEMORY_SANITY_CHECK
         //check if memory is overflow
-        assert((readOff - offset + readSize) <= length);
-        assert((readOff - offset) >= 0);
+        CHECK((readOff - offset + readSize) <= length)
+                << "offset: " << offset << ", length: " << length
+                << ", readOff: " << readOff << ", readSize: " << readSize;
+        CHECK((readOff - offset) >= 0)
+                << "offset: " << offset << ", length: " << length
+                << ", readOff: " << readOff << ", readSize: " << readSize;
 #endif
         int rc = readData(buf + (readOff - offset),
                           readOff,
@@ -1640,7 +1687,7 @@ CSErrorCode CSChunkFile::copy2Snapshot(off_t offset, size_t length) {
 CSErrorCode CSChunkFile::flush() {
     ChunkFileMetaPage tempMeta = metaPage_;
     bool needUpdateMeta = dirtyPages_.size() > 0;
-    bool clearClone = false;
+
     for (auto pageIndex : dirtyPages_) {
         tempMeta.bitmap->Set(pageIndex);
     }
@@ -1650,7 +1697,6 @@ CSErrorCode CSChunkFile::flush() {
             tempMeta.location = "";
             tempMeta.bitmap = nullptr;
             needUpdateMeta = true;
-            clearClone = true;
         }
     }
     if (needUpdateMeta) {
@@ -1661,15 +1707,20 @@ CSErrorCode CSChunkFile::flush() {
                         << ",chunk sn: " << metaPage_.sn;
             return errorCode;
         }
-        metaPage_.bitmap = tempMeta.bitmap;
+
         metaPage_.location = tempMeta.location;
-        dirtyPages_.clear();
-        if (clearClone) {
-            if (metric_ != nullptr) {
-                metric_->cloneChunkCount << -1;
+        metaPage_.bitmap = tempMeta.bitmap;
+
+        if (isCloneChunk_) {
+            if (metaPage_.bitmap == nullptr) {
+                if (metric_ != nullptr) {
+                    metric_->cloneChunkCount << -1;
+                }
+                isCloneChunk_ = false;
             }
-            isCloneChunk_ = false;
         }
+
+        dirtyPages_.clear();
     }
     return CSErrorCode::Success;
 }

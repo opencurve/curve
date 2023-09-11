@@ -214,8 +214,12 @@ CSErrorCode CSSnapshot::ReadRanges(char * buf, off_t offset, size_t length, std:
                   << ", chunkid " << chunkId_ << ", sn " << metaPage_.sn;
 #ifdef MEMORY_SANITY_CHECK
         // check if memory is out of range
-        assert((readOff - offset) + readSize <= length);
-        assert((readOff - offset) >= 0);
+        CHECK((readOff - offset) + readSize <= length)
+                << "ReadRanges: readOff " << readOff << ", readSize " << readSize
+                << ", offset " << offset << ",  length " << length;
+        CHECK((readOff - offset) >= 0)
+                << "ReadRanges: readOff " << readOff << ", readSize " << readSize
+                << ", offset " << offset << ",  length " << length;
 #endif
         int rc = readData(buf + (readOff - offset),
                           readOff,
@@ -550,8 +554,8 @@ bool CSSnapshots::DivideSnapshotObjInfoByIndex (SequenceNum sn, std::vector<BitR
                     ObjectInfo objInfo;
                     objInfo.sn = sn;
                     objInfo.snapptr = snapshot;
-                    objInfo.offset = tmpr.beginIndex << PAGE_SIZE_SHIFT;
-                    objInfo.length = (tmpr.endIndex - tmpr.beginIndex + 1) << PAGE_SIZE_SHIFT;
+                    objInfo.offset = tmpr.beginIndex << blockSize_shift_;
+                    objInfo.length = (tmpr.endIndex - tmpr.beginIndex + 1) << blockSize_shift_;
                     objInfos.push_back(objInfo);
                 }
             }

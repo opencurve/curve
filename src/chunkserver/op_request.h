@@ -155,8 +155,7 @@ class ChunkOpRequest : public std::enable_shared_from_this<ChunkOpRequest> {
      */
     static std::shared_ptr<ChunkOpRequest> Decode(butil::IOBuf log,
                                                   ChunkRequest *request,
-                                                  butil::IOBuf *data,
-                                                  std::shared_ptr<CopysetNode> nodePtr = nullptr);
+                                                  butil::IOBuf *data);
 
  protected:
     /**
@@ -373,18 +372,12 @@ class FlattenChunkRequest : public ChunkOpRequest {
                       const ChunkRequest *request,
                       ChunkResponse *response,
                       ::google::protobuf::Closure *done);
-    FlattenChunkRequest(std::shared_ptr<CopysetNode> nodePtr);
     virtual ~FlattenChunkRequest() = default;
 
     void OnApply(uint64_t index, ::google::protobuf::Closure *done);
     void OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                         const ChunkRequest &request,
                         const butil::IOBuf &data) override;
- private:
-
-    // 并发模块
-    ConcurrentApplyModule* concurrentApplyModule_;
-
 };
 
 }  // namespace chunkserver

@@ -161,7 +161,8 @@ struct ChunkOptions {
 
     uint64_t        cloneNo;
     uint64_t        virtualId;
-    uint64_t        fileID;
+    uint64_t        fileId;
+    uint32_t        blockSize_shift;
 
     ChunkOptions() : id(0)
                    , sn(0)
@@ -171,10 +172,11 @@ struct ChunkOptions {
                    , chunkSize(0)
                    , blockSize(0)
                    , metaPageSize(0)
+                   , metric(nullptr) 
                    , cloneNo(0)
                    , virtualId (0)
-                   , fileID(0)
-                   , metric(nullptr) {}
+                   , fileId(0)
+                   , blockSize_shift(0) {}
 };
 
 class CSChunkFile {
@@ -547,9 +549,10 @@ class CSChunkFile {
     // file descriptor of chunk file
     int fd_;
     // The logical size of the chunk, not including metapage
-    ChunkSizeType size_;
-    ChunkSizeType blockSize_;
-    PageSizeType metaPageSize_;
+    ChunkSizeType   size_;
+    ChunkSizeType   blockSize_;
+    PageSizeType    metaPageSize_;
+    uint32_t        blockSize_shift_;
     // chunk id
     ChunkID chunkId_;
     // The directory where the chunk is located

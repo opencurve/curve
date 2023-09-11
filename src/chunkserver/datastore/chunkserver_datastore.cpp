@@ -48,6 +48,20 @@ CSDataStore::CSDataStore(std::shared_ptr<LocalFileSystem> lfs,
     CHECK(!baseDir_.empty()) << "Create datastore failed";
     CHECK(lfs_ != nullptr) << "Create datastore failed";
     CHECK(chunkFilePool_ != nullptr) << "Create datastore failed";
+    //check if the chunkSize and blocksize exceed the limit of metaPageSize
+    //metaPageSize >= 512;
+    //((chunkSize / blocksize + 8 -1 ) >> 3) <= (metaPageSize - 128)
+    CHECK(metaPageSize_ >= 512) << "Create datastore failed" << ", metaPageSize = " << metaPageSize_;
+    CHECK(((chunkSize_ / blockSize_ + 8 - 1) >> 3) <= (metaPageSize_ - 128)) << "Create datastore failed"
+        << ", chunkSize = " << chunkSize_ << ", blockSize = " << blockSize_ << ", metaPageSize = " << metaPageSize_;
+    
+    //initialize the BLOCK_SIZE_SHIFT
+    uint32_t bit_width = 0;
+    uint32_t index = blockSize_;
+    while (index >>= 1) ++bit_width;
+    
+    BLOCK_SIZE_SHIFT = bit_width;
+
 }
 
 CSDataStore::~CSDataStore() {
@@ -235,161 +249,6 @@ struct CloneInfos CSDataStore::getParentClone (std::vector<struct CloneInfos>& c
     return parent_clone;
 }
 
-#if 0
-// searchChunkForObj is a func to search the obj to find the obj in < chunkfile, sn, snapshot>
-void CSDataStore::searchChunkForObj (SequenceNum sn, 
-                                    std::vector<File_ObjectInfoPtr>& file_objs, 
-                                    uint32_t beginIndex, uint32_t endIndex, 
-                                    std::unique_ptr<CloneContext>& ctx,
-                                    CSDataStore& datastore,
-                                    bool isWrite) {
-
-    std::vector<BitRange> bitRanges;
-    std::vector<BitRange> notInMapBitRanges;
-
-    CSChunkFilePtr cloneFile = nullptr;
-    CSChunkFilePtr selfPtr = nullptr;
-    CSChunkFilePtr rootChunkFile = nullptr;
-
-    bool isFinish = false;
-
-    BitRange objRange;
-    objRange.beginIndex = beginIndex;
-    objRange.endIndex = endIndex;
-    bitRanges.push_back(objRange);
-
-    SequenceNum cloneSn = sn;
-    uint64_t cloneParentNo = 0;
-    uint64_t cloneNo = ctx->cloneNo;
-    struct CloneInfos tmpclone;
-    std::vector<struct CloneInfos>::iterator it_index = ctx->clones.begin();
-
-    if (0 != ctx->cloneNo) {
-        if (0 != ctx->rootId) {
-            rootChunkFile = datastore.GetCloneCache(ctx->virtualId, ctx->rootId);
-        } else {
-            rootChunkFile = nullptr;
-        }
-        cloneFile = datastore.GetCloneCache(ctx->virtualId, ctx->cloneNo);
-        selfPtr = cloneFile;
-        while (nullptr == cloneFile) {
-            //tmpclone = getParentClone (ctx->clones, cloneNo);
-            tmpclone = getParentClone (ctx->clones, it_index);
-            cloneParentNo = tmpclone.cloneNo;
-            cloneSn = tmpclone.cloneSn;
-            cloneNo = cloneParentNo;
-            if (0 == cloneParentNo) {
-                break;
-            }
-            cloneFile = datastore.GetCloneCache(ctx->virtualId, cloneParentNo);
-        }
-    }
-
-    if (nullptr == cloneFile) { //must be zero, not any clone chunk left, just search the chunkfile
-        assert (0 == cloneParentNo);
-        if (nullptr != rootChunkFile) {
-            std::unique_ptr<File_ObjectInfo> fobs(new File_ObjectInfo());
-            fobs->obj_infos.reserve(OBJECTINFO_SIZE);
-            isFinish = rootChunkFile->DivideObjInfoByIndex (cloneSn, bitRanges, notInMapBitRanges, fobs->obj_infos);
-            if (true != fobs->obj_infos.empty()) {
-                fobs->fileptr = rootChunkFile;
-                file_objs.push_back (std::move(fobs));
-            }
-            assert (isFinish == true);
-
-            return;
-        } else { //not any clonefile and root file exists, just fill with zero
-            std::unique_ptr<File_ObjectInfo> fobs(new File_ObjectInfo());
-            fobs->fileptr = nullptr;
-            fobs->obj_infos.reserve(OBJECTINFO_SIZE);
-            for (auto& btmp : bitRanges) {
-                ObjectInfo tinfo;
-                tinfo.offset = btmp.beginIndex << PAGE_SIZE_SHIFT;
-                tinfo.length = (btmp.endIndex - btmp.beginIndex + 1) << PAGE_SIZE_SHIFT;
-                tinfo.sn = 0;
-                tinfo.snapptr = nullptr;
-                fobs->obj_infos.push_back(tinfo);
-            }
-
-            file_objs.push_back(std::move(fobs));
-
-            return;
-        }
-
-    } else {
-        while (true != isFinish) {
-            std::unique_ptr<File_ObjectInfo> fobs(new File_ObjectInfo());
-            fobs->obj_infos.reserve(OBJECTINFO_SIZE);
-            if ((true == isWrite) && (selfPtr.get() == cloneFile.get())) { // if it is write, and the clone chunk is the self chunk, use the lockless func
-                isFinish = cloneFile->DivideObjInfoByIndexLockless (cloneSn, bitRanges, notInMapBitRanges, fobs->obj_infos);
-            } else {
-                isFinish = cloneFile->DivideObjInfoByIndex (cloneSn, bitRanges, notInMapBitRanges, fobs->obj_infos);
-            }
-
-            if (true != fobs->obj_infos.empty()) {
-                fobs->fileptr = cloneFile;
-                file_objs.push_back (std::move(fobs));
-            }
-
-            if (true == isFinish) { //all the objInfos is in the map
-                return;
-            }
-
-            //initialize the bitranges and notInMapBitRanges
-            bitRanges = notInMapBitRanges;
-            notInMapBitRanges.clear();
-
-            cloneFile = nullptr;
-            struct CloneInfos tmpclone;
-            while (nullptr == cloneFile) {
-                //tmpclone = getParentClone (ctx->clones, cloneNo);
-                tmpclone = getParentClone(ctx->clones, it_index);
-                cloneParentNo = tmpclone.cloneNo;
-                cloneSn = tmpclone.cloneSn;
-                cloneNo = cloneParentNo;
-                if (0 == cloneParentNo) {
-                    break;
-                }
-                cloneFile = datastore.GetCloneCache(ctx->virtualId, cloneParentNo);
-            }
-
-            if (nullptr == cloneFile) { //must be zero, not any clone chunk left, just search the chunkfile
-                assert (0 == cloneParentNo);
-                if (rootChunkFile != nullptr) {
-                    std::unique_ptr<File_ObjectInfo> fobsi(new File_ObjectInfo());
-                    fobsi->obj_infos.reserve(OBJECTINFO_SIZE);
-                    isFinish = rootChunkFile->DivideObjInfoByIndex (cloneSn, bitRanges, notInMapBitRanges, fobsi->obj_infos);
-                    if (true != fobsi->obj_infos.empty()) {
-                        fobsi->fileptr = rootChunkFile;
-                        file_objs.push_back (std::move(fobsi));
-                    }
-                    assert (isFinish == true);
-
-                    return;
-                } else { //not any clonefile and root file exists, just fill with zero
-                    std::unique_ptr<File_ObjectInfo> fobsi(new File_ObjectInfo());
-                    fobsi->obj_infos.reserve(OBJECTINFO_SIZE);
-                    fobsi->fileptr = nullptr;
-                    for (auto& btmp : bitRanges) {
-                        ObjectInfo tinfo;
-                        tinfo.offset = btmp.beginIndex << PAGE_SIZE_SHIFT;
-                        tinfo.length = (btmp.endIndex - btmp.beginIndex + 1) << PAGE_SIZE_SHIFT;
-                        tinfo.sn = 0;
-                        tinfo.snapptr = nullptr;
-                        fobsi->obj_infos.push_back(tinfo);
-                    }
-
-                    file_objs.push_back(std::move(fobsi));
-
-                    return;
-                }
-            }
-        }
-    }
-
-    return;
-}
-#endif
 
 // searchChunkForObj is a func to search the obj to find the obj in < chunkfile, sn, snapshot>
 void CSDataStore::searchChunkForObj (SequenceNum sn, 
@@ -414,7 +273,6 @@ void CSDataStore::searchChunkForObj (SequenceNum sn,
     bitRanges.push_back(objRange);
 
     SequenceNum cloneSn = sn;
-    uint64_t cloneParentNo = 0;
     uint64_t cloneNo = ctx->cloneNo;
     struct CloneInfos tmpclone;
 
@@ -498,8 +356,8 @@ void CSDataStore::searchChunkForObj (SequenceNum sn,
         fobsi->fileptr = nullptr;
         for (auto& btmp : bitRanges) {
             ObjectInfo tinfo;
-            tinfo.offset = btmp.beginIndex << PAGE_SIZE_SHIFT;
-            tinfo.length = (btmp.endIndex - btmp.beginIndex + 1) << PAGE_SIZE_SHIFT;
+            tinfo.offset = btmp.beginIndex << datastore.BLOCK_SIZE_SHIFT;
+            tinfo.length = (btmp.endIndex - btmp.beginIndex + 1) << datastore.BLOCK_SIZE_SHIFT;
             tinfo.sn = 0;
             tinfo.snapptr = nullptr;
             fobsi->obj_infos.push_back(tinfo);
@@ -583,8 +441,8 @@ void CSDataStore::SplitDataIntoObjs (SequenceNum sn,
                << " sn = " << sn << ", virtualid = " << ctx->virtualId
                << ", cloneno = " << ctx->cloneNo;
 
-    uint32_t beginIndex = offset >> PAGE_SIZE_SHIFT;    
-    uint32_t endIndex = (offset + length - 1) >> PAGE_SIZE_SHIFT;
+    uint32_t beginIndex = offset >> datastore.BLOCK_SIZE_SHIFT;    
+    uint32_t endIndex = (offset + length - 1) >> datastore.BLOCK_SIZE_SHIFT;
     
     searchChunkForObj (sn, objInfos, beginIndex, endIndex, ctx, datastore, isWrite);
 
@@ -627,8 +485,12 @@ CSErrorCode CSDataStore::ReadChunk(ChunkID id,
             for (auto& objInfo: fileobj->obj_infos) {
 #ifdef MEMORY_SANITY_CHECK
                 //check if the memory is overflow
-                assert(((objInfo.offset - offset) >= 0));
-                assert(((objInfo.offset - offset) + objInfo.length) <= length);
+                CHECK(((objInfo.offset - offset) >= 0))
+                        << "offset = " << offset << ", length = " << length
+                        << ", objInfo.offset = " << objInfo.offset << ", objInfo.length = " << objInfo.length;
+                CHECK(((objInfo.offset - offset) + objInfo.length) <= length)
+                        << "offset = " << offset << ", length = " << length
+                        << ", objInfo.offset = " << objInfo.offset << ", objInfo.length = " << objInfo.length;
 #endif
                 errorCode = ReadByObjInfo (fileobj->fileptr, buf + (objInfo.offset - offset), objInfo);
                 if (errorCode != CSErrorCode::Success) {
@@ -688,8 +550,12 @@ CSErrorCode CSDataStore::ReadSnapshotChunk(ChunkID id,
             for (auto& objInfo: fileobj->obj_infos) {
 #ifdef MEMORY_SANITY_CHECK
                 //check if the memory is overflow
-                assert(((objInfo.offset - offset) >= 0));
-                assert(((objInfo.offset - offset) + objInfo.length) <= length);
+                CHECK(((objInfo.offset - offset) >= 0))
+                        << "offset = " << offset << ", length = " << length
+                        << ", objInfo.offset = " << objInfo.offset << ", objInfo.length = " << objInfo.length;
+                CHECK(((objInfo.offset - offset) + objInfo.length) <= length)
+                        << "offset = " << offset << ", length = " << length
+                        << ", objInfo.offset = " << objInfo.offset << ", objInfo.length = " << objInfo.length;
 #endif
                 errorCode = ReadByObjInfo (fileobj->fileptr, buf + (objInfo.offset - offset), objInfo);
                 if (errorCode != CSErrorCode::Success) {
@@ -754,14 +620,21 @@ CSErrorCode CSDataStore::CreateChunkFile(const ChunkOptions & options,
                          << ", ErrorCode = " << errorCode;
             return errorCode;
         }
+
         // If there are two operations concurrently to create a chunk file,
         // Then the chunkFile generated by one of the operations will be added
         // to metaCache first, the subsequent operation abandons the currently
         // generated chunkFile and uses the previously generated chunkFile
-        *chunkFile = metaCache_.Set(options.id, tempChunkFile);
+        auto tmp = metaCache_.Set(options.id, tempChunkFile);
+        if (tmp != tempChunkFile) {
+            LOG(WARNING) << "Chunk file already exists."
+                         << "ChunkID = " << options.id;
+            return CSErrorCode::ChunkConflictError;
+        }
 
+        *chunkFile = tempChunkFile;
         //insert the chunkfile into the cloneCache_
-        cloneCache_.Set(options.virtualId, options.fileID, tempChunkFile);
+        cloneCache_.Set(options.virtualId, options.fileId, tempChunkFile);
         if (options.cloneNo > 0) {
             cloneFileMap_.Insert(options.id, options.cloneNo);
         }
@@ -785,10 +658,13 @@ CSErrorCode CSDataStore::FlattenChunk (ChunkID id, SequenceNum sn,
         options.chunkSize = chunkSize_;
         options.blockSize = blockSize_;
         options.metaPageSize = metaPageSize_;
+        options.blockSize_shift = BLOCK_SIZE_SHIFT;
         options.metric = metric_;
         options.cloneNo = cloneCtx->cloneNo;
         options.virtualId = cloneCtx->virtualId;
-        options.fileID = cloneCtx->cloneNo; //the same with the cloneno
+        options.fileId = cloneCtx->cloneNo; //the same with the cloneno
+        //the location need to initialize to empty, because the clone chunk does not have the location
+        options.location = "";
         options.enableOdsyncWhenOpenChunkFile = enableOdsyncWhenOpenChunkFile_;
         errorCode = CreateChunkFile(options, &chunkFile);
         if (errorCode != CSErrorCode::Success) {
@@ -839,11 +715,14 @@ CSErrorCode CSDataStore::WriteChunk (ChunkID id, SequenceNum sn,
         options.chunkSize = chunkSize_;
         options.blockSize = blockSize_;
         options.metaPageSize = metaPageSize_;
+        options.blockSize_shift = BLOCK_SIZE_SHIFT;
         options.metric = metric_;
         options.cloneNo = cloneCtx->cloneNo;
         options.virtualId = cloneCtx->virtualId; //the same with the chunkIndex
-        options.fileID = fileID; //the same with the cloneNo
+        options.fileId = fileID; //the same with the cloneNo
         options.enableOdsyncWhenOpenChunkFile = enableOdsyncWhenOpenChunkFile_;
+        //the location need to initialize to empty, because the clone chunk does not have the location
+        options.location = "";
         errorCode = CreateChunkFile(options, &chunkFile);
         if (errorCode != CSErrorCode::Success) {
             return errorCode;
@@ -917,10 +796,11 @@ CSErrorCode CSDataStore::WriteChunk(ChunkID id,
         options.location = cloneSourceLocation;
         options.blockSize = blockSize_;
         options.metaPageSize = metaPageSize_;
+        options.blockSize_shift = BLOCK_SIZE_SHIFT;
         options.metric = metric_;
         options.enableOdsyncWhenOpenChunkFile = enableOdsyncWhenOpenChunkFile_;
         options.virtualId = chunkIndex;
-        options.fileID = fileID;
+        options.fileId = fileID;
         options.cloneNo = 0;
         CSErrorCode errorCode = CreateChunkFile(options, &chunkFile);
         if (errorCode != CSErrorCode::Success) {
@@ -986,6 +866,7 @@ CSErrorCode CSDataStore::CreateCloneChunk(ChunkID id,
         options.chunkSize = chunkSize_;
         options.blockSize = blockSize_;
         options.metaPageSize = metaPageSize_;
+        options.blockSize_shift = BLOCK_SIZE_SHIFT;
         options.metric = metric_;
         CSErrorCode errorCode = CreateChunkFile(options, &chunkFile);
         if (errorCode != CSErrorCode::Success) {
@@ -1092,7 +973,14 @@ CSErrorCode CSDataStore::loadChunkFile(ChunkID id) {
         options.chunkSize = chunkSize_;
         options.blockSize = blockSize_;
         options.metaPageSize = metaPageSize_;
+        options.blockSize_shift = BLOCK_SIZE_SHIFT;
         options.metric = metric_;
+
+        options.fileId = 0;
+        options.virtualId = 0;
+        options.cloneNo = 0;
+        options.location = "";
+        options.enableOdsyncWhenOpenChunkFile = enableOdsyncWhenOpenChunkFile_;
         CSChunkFilePtr chunkFilePtr =
             std::make_shared<CSChunkFile>(lfs_,
                                           chunkFilePool_,
@@ -1100,15 +988,24 @@ CSErrorCode CSDataStore::loadChunkFile(ChunkID id) {
         CSErrorCode errorCode = chunkFilePtr->Open(false);
         if (errorCode != CSErrorCode::Success)
             return errorCode;
-        metaCache_.Set(id, chunkFilePtr);
 
-        auto tmpptr = cloneCache_.Set(chunkFilePtr->getVirtualId(), chunkFilePtr->getFileID(), chunkFilePtr);
-        assert (tmpptr == chunkFilePtr);
+        // Insert the chunk file into metaCache
+        auto tmp = metaCache_.Set(id, chunkFilePtr);
+        //if tmp equal means that insert success
+        if (tmp == chunkFilePtr) {
+            auto tmpptr = cloneCache_.Set(chunkFilePtr->getVirtualId(), chunkFilePtr->getFileID(), chunkFilePtr);
+            assert (tmpptr == chunkFilePtr);
 
-        uint64_t cloneno = chunkFilePtr->getCloneNumber();
-        if (cloneno > 0) {
-            cloneFileMap_.Insert(id, cloneno);
+            uint64_t cloneno = chunkFilePtr->getCloneNumber();
+            if (cloneno > 0) {
+                cloneFileMap_.Insert(id, cloneno);
+            }
+        } else {//some have already insert the chunkfile into the metaCache
+            //loadChunkFile failed, need to return error
+            LOG(ERROR) << "loadChunkFile failed, ChunkID = " << id;
+            return CSErrorCode::InternalError;
         }
+        
     }
     return CSErrorCode::Success;
 }

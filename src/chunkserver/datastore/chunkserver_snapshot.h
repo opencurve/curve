@@ -211,7 +211,14 @@ class CSSnapshot {
 
 class CSSnapshots {
  public:
-    CSSnapshots(ChunkSizeType size): blockSize_(size) {}
+    CSSnapshots(ChunkSizeType size): blockSize_(size) {
+        uint32_t bit_wiz = 0;
+        uint32_t index = size;
+        while (index >>= 1) ++bit_wiz;
+
+        blockSize_shift_ = bit_wiz;
+    }
+    
     bool insert(CSSnapshot* s);
     CSSnapshot* pop(SequenceNum sn);
     bool contains(SequenceNum sn) const;
@@ -235,6 +242,7 @@ class CSSnapshots {
     // Snapshot file pointers, sorted by sequence number.
     std::vector<CSSnapshot*> snapshots_;
     const ChunkSizeType blockSize_;
+    uint32_t blockSize_shift_;
 };
 
 }  // namespace chunkserver
