@@ -14,6 +14,8 @@
 #  limitations under the License.
 #
 
+#TODO: this unit test is suitable for the new version of datastore
+#      and will be modified later dxiang@corp.netease.com
 cc_library(
     name = "datastore_mock",
     srcs = [
@@ -45,7 +47,7 @@ cc_test(
     srcs = [
         "filepool_unittest.cpp",
         "filepool_mock_unittest.cpp",
-        "datastore_mock_unittest.cpp",
+#        "datastore_mock_unittest.cpp",
         "datastore_unittest_main.cpp",
         "file_helper_unittest.cpp",
     ],

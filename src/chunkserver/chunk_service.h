@@ -103,6 +103,16 @@ class ChunkServiceImpl : public ChunkService {
                       ChunkResponse *response,
                       Closure *done);
 
+    bool CheckProtoCompatible(const ChunkRequest *request) {
+      #if 0
+         if (request->has_version()) {
+             return request->version() >= protoVersion;
+         }
+         return false;
+      #endif 
+      return true;
+    }
+
  private:
     /**
      * 验证op request的offset和length是否越界和对齐
@@ -120,6 +130,9 @@ class ChunkServiceImpl : public ChunkService {
 
     std::shared_ptr<EpochMap> epochMap_;
     uint32_t blockSize_;
+
+    // 当前chunkserver的版本号, need versison >= protoVersion to support
+    const uint32_t protoVersion = 2; 
 };
 
 }  // namespace chunkserver

@@ -146,6 +146,10 @@ CSErrorCode CSDataStore::DeleteChunk(ChunkID id, SequenceNum sn, std::shared_ptr
 
 CSErrorCode CSDataStore::DeleteSnapshotChunk(
     ChunkID id, SequenceNum snapSn, std::shared_ptr<SnapContext> ctx) {
+    
+    //for debug, just print the DeleteSnapshotChunk and its parameters
+    DVLOG(3) << "DeleteSnapshotChunk id = " << id << ", snapSn = " << snapSn;
+
     auto chunkFile = metaCache_.Get(id);
     if (chunkFile != nullptr) {
         CSErrorCode errorCode = chunkFile->DeleteSnapshot(snapSn, ctx);  // NOLINT
@@ -514,13 +518,13 @@ CSErrorCode CSDataStore::ReadByObjInfo (CSChunkFilePtr fileptr, char* buf, Objec
     CSErrorCode errorCode;
 
     if (nullptr == fileptr) {
-        LOG(INFO)  << "ReadByObjInfo read file = null , snapptr = " << static_cast<const void *> (objInfo.snapptr)
+        DVLOG(9)  << "ReadByObjInfo read file = null , snapptr = " << static_cast<const void *> (objInfo.snapptr)
                     << "ReadByObjInfo read sn = " << objInfo.sn
                     << ", offset = " << objInfo.offset
                     << ", length = " << objInfo.length
                     << ", buf: " << static_cast<const void *> (buf);
     } else {
-        LOG(INFO)  << "ReadByObjInfo read file = " << fileptr->getChunkId()
+        DVLOG(9)  << "ReadByObjInfo read file = " << fileptr->getChunkId()
                     << ", virtualid = " << fileptr->getVirtualId()
                     << ", cloneno = " << fileptr->getCloneNumber()
                     << ",  snapptr = " << static_cast<const void *> (objInfo.snapptr)
@@ -575,7 +579,7 @@ void CSDataStore::SplitDataIntoObjs (SequenceNum sn,
     //if the offset is align with OBJ_SIZE then the objNum is length / OBJ_SIZE
     //else the objNum is length / OBJ_SIZE + 1
 
-    DLOG(INFO) << "SplitDataIntoObjs input offset = " << offset << ", length = " << length
+    DVLOG(3) << "SplitDataIntoObjs input offset = " << offset << ", length = " << length
                << " sn = " << sn << ", virtualid = " << ctx->virtualId
                << ", cloneno = " << ctx->cloneNo;
 
@@ -595,7 +599,7 @@ void CSDataStore::SplitDataIntoObjs (SequenceNum sn,
             outputinfo += " sn = " + std::to_string(objinfo.sn) + ", offset = " + std::to_string(objinfo.offset) + ", length = " + std::to_string(objinfo.length) + "; ";
         }
 
-        DLOG(INFO) << "SplitDataIntoObjs obj " << outputinfo;
+        DVLOG(3) << "SplitDataIntoObjs obj " << outputinfo;
     }
 
 
@@ -621,6 +625,11 @@ CSErrorCode CSDataStore::ReadChunk(ChunkID id,
         CSErrorCode errorCode;
         for (auto& fileobj: objInfos) {
             for (auto& objInfo: fileobj->obj_infos) {
+#ifdef MEMORY_SANITY_CHECK
+                //check if the memory is overflow
+                assert(((objInfo.offset - offset) >= 0));
+                assert(((objInfo.offset - offset) + objInfo.length) <= length);
+#endif
                 errorCode = ReadByObjInfo (fileobj->fileptr, buf + (objInfo.offset - offset), objInfo);
                 if (errorCode != CSErrorCode::Success) {
                     LOG(WARNING) << "Read chunk file failed."
@@ -677,6 +686,11 @@ CSErrorCode CSDataStore::ReadSnapshotChunk(ChunkID id,
         CSErrorCode errorCode;
         for (auto& fileobj : objInfos) {
             for (auto& objInfo: fileobj->obj_infos) {
+#ifdef MEMORY_SANITY_CHECK
+                //check if the memory is overflow
+                assert(((objInfo.offset - offset) >= 0));
+                assert(((objInfo.offset - offset) + objInfo.length) <= length);
+#endif
                 errorCode = ReadByObjInfo (fileobj->fileptr, buf + (objInfo.offset - offset), objInfo);
                 if (errorCode != CSErrorCode::Success) {
                     LOG(WARNING) << "Read chunk file failed."
@@ -803,6 +817,10 @@ CSErrorCode CSDataStore::WriteChunk (ChunkID id, SequenceNum sn,
     
     CSErrorCode errorCode = CSErrorCode::Success;
 
+    //for debug, just print the writechunk and its parameters
+    DVLOG(3) << "WriteChunk id = " << id << ", sn = " << sn << ", offset = " << offset << ", length = " << length
+              << ", chunkIndex = " << chunkIndex << ", fileID = " << fileID << ", cloneNo = " << cloneCtx->cloneNo
+              << ", virtualId = " << cloneCtx->virtualId << ", rootId = " << cloneCtx->rootId;
     // The requested sequence number is not allowed to be 0, when snapsn=0,
     // it will be used as the basis for judging that the snapshot does not exist
     if (sn == kInvalidSeq) {
@@ -846,7 +864,15 @@ CSErrorCode CSDataStore::WriteChunk (ChunkID id, SequenceNum sn,
     } 
     
     assert (nullptr != chunkFile); //for clone file the orgin clone must be exists
-    assert (chunkFile->getCloneNumber() > 0);
+    //check the cloneNo and the metadata of the chunkfile
+    if (cloneCtx->cloneNo != chunkFile->getCloneNumber()) {
+        LOG(ERROR) << "WriteChunk id = " << id  
+                   << ", cloneNo = " << cloneCtx->cloneNo 
+                   << ", chunkFile cloneNo = " << chunkFile->getCloneNumber();
+        return CSErrorCode::InvalidArgError;
+    }
+
+    //assert (chunkFile->getCloneNumber() > 0);
     errorCode = chunkFile->cloneWrite(sn, buf, offset, length, cost, cloneCtx, *this, ctx);
         if (errorCode != CSErrorCode::Success) {
             LOG(WARNING) << "Write chunk file failed."
@@ -867,6 +893,12 @@ CSErrorCode CSDataStore::WriteChunk(ChunkID id,
                             uint32_t* cost,
                             std::shared_ptr<SnapContext> ctx,
                             const std::string & cloneSourceLocation)  {
+    
+    //for debug, just print the writechunk and its parameters
+    DVLOG(3) << "WriteChunk id = " << id << ", sn = " << sn << ", offset = " << offset << ", length = " << length
+              << ", chunkIndex = " << chunkIndex << ", fileID = " << fileID << ", cloneNo = " << 0
+              << ", virtualId = " << chunkIndex << ", cloneSourceLocation = " << cloneSourceLocation;
+
     // The requested sequence number is not allowed to be 0, when snapsn=0,
     // it will be used as the basis for judging that the snapshot does not exist
     if (sn == kInvalidSeq) {

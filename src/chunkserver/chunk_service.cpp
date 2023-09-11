@@ -111,6 +111,21 @@ void ChunkServiceImpl::WriteChunk(RpcController *controller,
 
     brpc::ClosureGuard doneGuard(closure);
 
+    //check if the proto compatiable
+    if (false == CheckProtoCompatible(request)) {
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_VERSION_OLD);
+        LOG(ERROR) << "WriteChunk illegal proto:"
+                   << " logic pool id: " << request->logicpoolid()
+                   << " copyset id: " << request->copysetid()
+                   << " chunk id: " << request->chunkid()
+                   << " offset: " << request->offset()
+                   << " size: " << request->size()
+                   << " max size: " << maxChunkSize_
+                   << " version: " << request->version()
+                   << " proto version: " << protoVersion;
+        return;
+    }
+
     if (inflightThrottle_->IsOverLoad()) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD);
         LOG_EVERY_N(WARNING, 100)
@@ -178,6 +193,20 @@ void ChunkServiceImpl::CreateCloneChunk(RpcController *controller,
     CHECK(nullptr != closure) << "new chunk service closure failed";
 
     brpc::ClosureGuard doneGuard(closure);
+
+    //check if the proto compatiable
+    if (false == CheckProtoCompatible(request)) {
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_VERSION_OLD);
+        LOG(ERROR) << "CreateCloneChunk illegal proto:"
+                   << " logic pool id: " << request->logicpoolid()
+                   << " copyset id: " << request->copysetid()
+                   << " chunk id: " << request->chunkid()
+                   << " offset: " << request->offset()
+                   << " size: " << request->size()
+                   << " max size: " << maxChunkSize_
+                   << " version: " << request->version()
+                   << " proto version: " << protoVersion;
+    }
 
     if (inflightThrottle_->IsOverLoad()) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD);
@@ -292,6 +321,20 @@ void ChunkServiceImpl::RecoverChunk(RpcController *controller,
 
     brpc::ClosureGuard doneGuard(closure);
 
+    //check if the proto compatiable
+    if (false == CheckProtoCompatible(request)) {
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_VERSION_OLD);
+        LOG(ERROR) << "RecoverChunk illegal proto:"
+                   << " logic pool id: " << request->logicpoolid()
+                   << " copyset id: " << request->copysetid()
+                   << " chunk id: " << request->chunkid()
+                   << " offset: " << request->offset()
+                   << " size: " << request->size()
+                   << " max size: " << maxChunkSize_
+                   << " version: " << request->version()
+                   << " proto version: " << protoVersion;
+    }
+
     if (inflightThrottle_->IsOverLoad()) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD);
         LOG_EVERY_N(WARNING, 100)
@@ -390,6 +433,20 @@ void ChunkServiceImpl::DeleteChunkSnapshotOrCorrectSn(
     CHECK(nullptr != closure) << "new chunk service closure failed";
 
     brpc::ClosureGuard doneGuard(closure);
+
+    //check if the proto compatiable
+    if (false == CheckProtoCompatible(request)) {
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_VERSION_OLD);
+        LOG(ERROR) << "DeleteChunkSnapshotOrCorrectSn illegal proto:"
+                   << " logic pool id: " << request->logicpoolid()
+                   << " copyset id: " << request->copysetid()
+                   << " chunk id: " << request->chunkid()
+                   << " offset: " << request->offset()
+                   << " size: " << request->size()
+                   << " max size: " << maxChunkSize_
+                   << " version: " << request->version()
+                   << " proto version: " << protoVersion;
+    }
 
     if (inflightThrottle_->IsOverLoad()) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD);
@@ -605,6 +662,20 @@ void ChunkServiceImpl::FlattenChunk(RpcController *controller,
 
     brpc::ClosureGuard doneGuard(closure);
 
+    //check if the proto compatiable
+    if (false == CheckProtoCompatible(request)) {
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_VERSION_OLD);
+        LOG(ERROR) << "FlattenChunk illegal proto:"
+                   << " logic pool id: " << request->logicpoolid()
+                   << " copyset id: " << request->copysetid()
+                   << " chunk id: " << request->chunkid()
+                   << " offset: " << request->offset()
+                   << " size: " << request->size()
+                   << " max size: " << maxChunkSize_
+                   << " version: " << request->version()
+                   << " proto version: " << protoVersion;
+    }
+
     if (inflightThrottle_->IsOverLoad()) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD);
         LOG_EVERY_N(WARNING, 100)
@@ -613,7 +684,7 @@ void ChunkServiceImpl::FlattenChunk(RpcController *controller,
         return;
     }
 
-    LOG(INFO) << "Get FlattenChunk I/O request, op: " << request->optype()
+    DVLOG(3) << "Get FlattenChunk I/O request, op: " << request->optype()
              << " chunkId: " << request->chunkid()
              << " copysetId: " << request->copysetid() 
              << " chunkIndex: " << request->chunkindex()

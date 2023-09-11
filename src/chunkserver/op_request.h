@@ -156,7 +156,7 @@ class ChunkOpRequest : public std::enable_shared_from_this<ChunkOpRequest> {
     static std::shared_ptr<ChunkOpRequest> Decode(butil::IOBuf log,
                                                   ChunkRequest *request,
                                                   butil::IOBuf *data,
-                                                  std::shared_ptr<CopysetNode> nodePtr);
+                                                  std::shared_ptr<CopysetNode> nodePtr = nullptr);
 
  protected:
     /**

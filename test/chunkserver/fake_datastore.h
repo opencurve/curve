@@ -134,6 +134,8 @@ class FakeCSDataStore : public CSDataStore {
                            const butil::IOBuf& buf,
                            off_t offset,
                            size_t length,
+                           uint64_t chunkIndex,
+                           uint64_t fileId,
                            uint32_t *cost,
                            std::shared_ptr<SnapContext> ctx,
                            const std::string & csl = "") override {

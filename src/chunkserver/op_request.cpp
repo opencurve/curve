@@ -453,7 +453,7 @@ void ReadChunkRequest::ReadChunk() {
             clonesinfo += " clone no: " + std::to_string(ctx->clones[i].cloneNo)
                         + " clone sn: " + std::to_string(ctx->clones[i].cloneSn);
         }
-        DLOG(INFO) << "ReadChunk chunk with clone info: "
+        DVLOG(3) << "ReadChunk chunk with clone info: "
                   << " logic pool id: " << request_->logicpoolid()
                   << " copyset id: " << request_->copysetid()
                   << " chunkid: " << request_->chunkid()
@@ -547,7 +547,7 @@ void WriteChunkRequest::OnApply(uint64_t index,
             clonesinfo += " clone no: " + std::to_string(ctx->clones[i].cloneNo)
                         + " clone sn: " + std::to_string(ctx->clones[i].cloneSn);
         }
-        DLOG(INFO) << "WriteChunkRequest::OnApply with clone info: "
+        DVLOG(3) << "WriteChunkRequest::OnApply with clone info: "
                   << " logic pool id: " << request_->logicpoolid()
                   << " copyset id: " << request_->copysetid()
                   << " chunkid: " << request_->chunkid()
@@ -659,7 +659,7 @@ void WriteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
             clonesinfo += " clone no: " + std::to_string(ctx->clones[i].cloneNo)
                         + " clone sn: " + std::to_string(ctx->clones[i].cloneSn);
         }
-        DLOG(INFO) << "WriteChunkRequest::OnApplyFromLog with clone info: "
+        DVLOG(3) << "WriteChunkRequest::OnApplyFromLog with clone info: "
                   << " logic pool id: " << request.logicpoolid()
                   << " copyset id: " << request.copysetid()
                   << " chunkid: " << request.chunkid()
@@ -750,7 +750,7 @@ void ReadSnapshotRequest::OnApply(uint64_t index,
             clonesinfo += " clone no: " + std::to_string(ctx->clones[i].cloneNo)
                         + " clone sn: " + std::to_string(ctx->clones[i].cloneSn);
         }
-        DLOG(INFO) << "ReadSnapshotRequest::OnApply info: "
+        DVLOG(3) << "ReadSnapshotRequest::OnApply info: "
                   << " logic pool id: " << request_->logicpoolid()
                   << " copyset id: " << request_->copysetid()
                   << " chunkid: " << request_->chunkid()
@@ -1120,7 +1120,7 @@ void FlattenChunkRequest::OnApply(uint64_t index,
         clonesinfo += " clone no: " + std::to_string(ctx->clones[i].cloneNo)
                     + " clone sn: " + std::to_string(ctx->clones[i].cloneSn);
     }
-    LOG(INFO) << "flatten chunk with clone info: "
+    DVLOG(3) << "flatten chunk with clone info: "
                 << " logic pool id: " << request_->logicpoolid()
                 << " copyset id: " << request_->copysetid()
                 << " chunkid: " << request_->chunkid()
@@ -1142,7 +1142,7 @@ void FlattenChunkRequest::OnApply(uint64_t index,
         response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
         node_->UpdateAppliedIndex(index);
 
-        LOG(INFO) << "flatten success: "
+        DVLOG(9) << "flatten success: "
                   << " chunkid = " << request_->chunkid();
 #if 0
     } else if (CSErrorCode::FlattenAgain == ret) { //not finish flatten yet just push the request into the concurrent apply module and do again
@@ -1215,7 +1215,7 @@ void FlattenChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
         clonesinfo += " clone no: " + std::to_string(ctx->clones[i].cloneNo)
                     + " clone sn: " + std::to_string(ctx->clones[i].cloneSn);
     }
-    LOG(INFO) << "flatten chunk with clone info: "
+    DVLOG(3) << "flatten chunk with clone info: "
                 << " logic pool id: " << request.logicpoolid()
                 << " copyset id: " << request.copysetid()
                 << " chunkid: " << request.chunkid()

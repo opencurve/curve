@@ -29,6 +29,9 @@
 #include "include/chunkserver/chunkserver_common.h"
 #include "src/common/bitmap.h"
 
+//switch on/off memory sanity check
+#define MEMORY_SANITY_CHECK
+
 namespace curve {
 namespace chunkserver {
 

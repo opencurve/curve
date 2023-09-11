@@ -58,7 +58,8 @@ TEST_F(StressTestSuit, StressTest) {
             ChunkID id = rand_r(&seed) % idRange + 1;
             uint64_t pageIndex = rand_r(&seed) % (CHUNK_SIZE / PAGE_SIZE);
             offset = pageIndex * PAGE_SIZE;
-            dataStore_->WriteChunk(id, sn, buf, offset, length, nullptr);
+            //use the same chunkIndex with the id and the fileID is 1, to test the normal write
+            dataStore_->WriteChunk(id, sn, buf, offset, length, id, 1, nullptr);
         }
     };
 
