@@ -76,6 +76,7 @@ message ChunkRequest {
     optional uint64 originfileId = 21; // for clone request hash in concurrent apply modules
     optional uint64 chunkIndex = 22; // use chunkIndex + cloneNo to addressing node in clone chain
     repeated CloneInfos clones = 23;
+    optional uint32 Version = 24; //Version is the Version of the proto, the clone/snapshot version is not compatiable with the old version
 };
 
 enum CHUNK_OP_STATUS {
@@ -92,6 +93,7 @@ enum CHUNK_OP_STATUS {
     CHUNK_OP_STATUS_BACKWARD = 10;          // 请求的版本落后当前chunk的版本
     CHUNK_OP_STATUS_CHUNK_EXIST = 11;       // chunk已存在
     CHUNK_OP_STATUS_EPOCH_TOO_OLD = 12;     // request epoch too old
+    CHUNK_OP_STATUS_VERSION_OLD = 13;   // request interface proto version low and need a compatiable one
 };
 
 message ChunkResponse {

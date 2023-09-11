@@ -107,11 +107,11 @@ struct ChunkFileMetaPage {
     ChunkFileMetaPage() : version(FORMAT_VERSION)
                         , sn(0)
                         , correctedSn(0)
+                        , location("")
+                        , bitmap(nullptr) 
                         , cloneNo(0)
                         , virtualId(0)
-                        , fileId(0)
-                        , location("")
-                        , bitmap(nullptr) {}
+                        , fileId(0) {}
     ChunkFileMetaPage(const ChunkFileMetaPage& metaPage);
     ChunkFileMetaPage& operator = (const ChunkFileMetaPage& metaPage);
 

@@ -122,6 +122,13 @@ CSSnapshot::CSSnapshot(std::shared_ptr<LocalFileSystem> lfs,
       cloneNo_ (options.cloneNo) {
     CHECK(!baseDir_.empty()) << "Create snapshot failed";
     CHECK(lfs_ != nullptr) << "Create snapshot failed";
+
+    //if the blockSize == 0, than use the default size 4096
+    if (0 == blockSize_) {
+        blockSize_ = 4096; //default block size is 4096
+        DVLOG(3) << "CSSnapshot() blockSize_ is 0, use default size 4096";
+    }
+
     uint32_t bits = size_ / blockSize_;
     metaPage_.bitmap = std::make_shared<Bitmap>(bits);
     metaPage_.sn = options.sn;
@@ -201,10 +208,15 @@ CSErrorCode CSSnapshot::ReadRanges(char * buf, off_t offset, size_t length, std:
     for (auto& range : ranges) {
         readOff = range.beginIndex * blockSize_;
         readSize = (range.endIndex - range.beginIndex + 1) * blockSize_;
-        DLOG(INFO) << "ReadRanges: readOff " << readOff << ", readSize " << readSize
+        DVLOG(9) << "ReadRanges: readOff " << readOff << ", readSize " << readSize
                   << ", offset " << offset << ",  length " << length
                   << ", range.beginIndex " << range.beginIndex << ", range.endIndex " << range.endIndex
                   << ", chunkid " << chunkId_ << ", sn " << metaPage_.sn;
+#ifdef MEMORY_SANITY_CHECK
+        // check if memory is out of range
+        assert((readOff - offset) + readSize <= length);
+        assert((readOff - offset) >= 0);
+#endif
         int rc = readData(buf + (readOff - offset),
                           readOff,
                           readSize);

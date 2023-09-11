@@ -218,6 +218,12 @@ CSChunkFile::CSChunkFile(std::shared_ptr<LocalFileSystem> lfs,
     metaPage_.cloneNo = options.cloneNo;
     metaPage_.fileId = options.fileID;
 
+    //if blockSize_ = 0, use the default value 4096
+    if (0 == blockSize_) {
+        blockSize_ = 4096;
+        DVLOG(3) << "CSChunkFile() blockSize_ is 0, use the default value 4096";
+    }
+
     // If location is not empty, it is CloneChunk,
     //     and Bitmap needs to be initialized
     if ((!metaPage_.location.empty()) || (0 != metaPage_.cloneNo)) {
@@ -487,7 +493,7 @@ CSErrorCode CSChunkFile::writeSnapData(SequenceNum sn,
         if (errorCode != CSErrorCode::Success) {
             return errorCode;
         }
-        DLOG(INFO) << "Create snapshotChunk success, "
+        DVLOG(3) << "Create snapshotChunk success, "
                    << "ChunkID: " << chunkId_
                    << ",request sn: " << sn
                    << ",chunk sn: " << metaPage_.sn;
@@ -739,6 +745,19 @@ CSErrorCode CSChunkFile::cloneWrite(SequenceNum sn,
 
     std::vector<File_ObjectInfoPtr> objIns;
 
+    // Curve will ensure that all previous requests arrive or time out
+    // before issuing new requests after user initiate a snapshot request.
+    // Therefore, this is only a log recovery request, and it must have been
+    // executed, and an error code can be returned here.
+    if (sn < metaPage_.sn || sn < metaPage_.correctedSn) {
+        LOG(WARNING) << "Backward write request."
+                     << "ChunkID: " << chunkId_
+                     << ",request sn: " << sn
+                     << ",chunk sn: " << metaPage_.sn
+                     << ",correctedSn: " << metaPage_.correctedSn;
+        return CSErrorCode::BackwardRequestError;
+    }
+
     if ((nullptr != ctx) && (sn > metaPage_.sn)) { //just modify the metapage_.sn = sn and updata metapage
         ChunkFileMetaPage tempMeta = metaPage_;
         tempMeta.sn = sn;
@@ -758,7 +777,7 @@ CSErrorCode CSChunkFile::cloneWrite(SequenceNum sn,
         if (((endIndex - beginIndex + 1) << OBJ_SIZE_SHIFT) == length) {
             // write chunk file
 
-            DLOG(INFO) << "Write chunk file directly."
+            DVLOG(9) << "Write chunk file directly."
                        << "ChunkID = " << this->chunkId_
                        << ", offset = " << offset
                        << ", length = " << length;
@@ -782,7 +801,7 @@ CSErrorCode CSChunkFile::cloneWrite(SequenceNum sn,
         File_ObjectInfoPtr& fileobj = *objit;
         if ((1 == objIns.size()) && (fileobj->fileptr.get() == this)) {//all map is in the chunk
             // write chunk file
-            DLOG(INFO) << "Write chunk file directly."
+            DVLOG(9) << "Write chunk file directly."
                        << "ChunkID = " << this->chunkId_
                        << ", offset = " << offset
                        << ", length = " << length;
@@ -824,8 +843,17 @@ CSErrorCode CSChunkFile::cloneWrite(SequenceNum sn,
         for (auto iter = objmap.begin(); iter != objmap.end(); iter++) {
             for (auto& tmpj: iter->second->objs) {
                 if (tmpj.fileptr == chunkFile) {
+#ifdef MEMORY_SANITY_CHECK
+                    //check if the memory is overflow
+                    assert((tmpj.obj.offset - iter->second->offset + tmpj.obj.length) <= length);
+#endif
                     buf.copy_to(tmpbuf + (tmpj.obj.offset - iter->second->offset), tmpj.obj.length, 0);
                 } else {
+#ifdef MEMORY_SANITY_CHECK
+                    //check if the memory is overflow
+                    assert((tmpj.obj.offset - iter->second->offset + tmpj.obj.length) <= length);
+                    assert((tmpj.obj.offset - iter->second->offset) >= 0);
+#endif
                     errorCode = CSDataStore::ReadByObjInfo(tmpj.fileptr, tmpbuf + (tmpj.obj.offset - iter->second->offset), tmpj.obj);
                     if (errorCode != CSErrorCode::Success) {
                         LOG(WARNING) << "Write chunk file failed."
@@ -836,7 +864,7 @@ CSErrorCode CSChunkFile::cloneWrite(SequenceNum sn,
                 }             
             }
 
-            DLOG(INFO) << "writeData chunkid = " << chunkId_ 
+            DVLOG(9) << "writeData chunkid = " << chunkId_ 
                        << "  offset: " << iter->second->offset 
                        << ", length: " << iter->second->length
                        << ", tmpbuf: " << static_cast<const void*>(tmpbuf)
@@ -867,7 +895,7 @@ CSErrorCode CSChunkFile::cloneWrite(SequenceNum sn,
         File_ObjectInfoPtr& fileobj = *objit;
         if ((1 == objIns.size()) && (fileobj->fileptr == chunkFile)) {//all map is in the chunk
             // write chunk file
-            DLOG(INFO) << "writeSnapData. "
+            DVLOG(9) << "writeSnapData. "
                        << ", sn = " << sn
                        << ", ChunkID = " << this->chunkId_
                        << ", offset = " << offset
@@ -893,6 +921,11 @@ CSErrorCode CSChunkFile::cloneWrite(SequenceNum sn,
 
         for (auto iter = objmap.begin(); iter != objmap.end(); iter++) {
             for (auto& tmpj: iter->second->objs) {
+#ifdef MEMORY_SANITY_CHECK
+                //check if the memory is overflow
+                assert((tmpj.obj.offset - iter->second->offset + tmpj.obj.length) <= length);
+                assert((tmpj.obj.offset - iter->second->offset) >= 0);
+#endif
                 errorCode = CSDataStore::ReadByObjInfo(tmpj.fileptr, tmpbuf + (tmpj.obj.offset - iter->second->offset), tmpj.obj);
                 if (errorCode != CSErrorCode::Success) {
                     LOG(WARNING) << "Write chunk file failed."
@@ -902,7 +935,7 @@ CSErrorCode CSChunkFile::cloneWrite(SequenceNum sn,
                 }                    
             }
 
-            DLOG(INFO) << "writeData chunkid = " << chunkId_ 
+            DVLOG(9) << "writeData chunkid = " << chunkId_ 
                       << "  offset: " << iter->second->offset 
                       << ", length: " << iter->second->length
                       << ", tmpbuf: " << static_cast<const void*>(tmpbuf)
@@ -920,7 +953,7 @@ CSErrorCode CSChunkFile::cloneWrite(SequenceNum sn,
         //now need to update the file metadata
         flush();
         
-        DLOG(INFO) << "writeSnapData. "
+        DVLOG(9) << "writeSnapData. "
                    << ", sn = " << sn
                    << ", ChunkID = " << this->chunkId_
                    << ", offset = " << offset
@@ -979,9 +1012,9 @@ CSErrorCode CSChunkFile::flattenWrite(SequenceNum sn,
     //print obs ins
     {
         for (auto& mm: objIns) {
-            std::cout << " the fileptr = " << mm->fileptr << std::endl;
+            DVLOG(9) << " the fileptr = " << mm->fileptr.get() << " the obj_infos size = " << mm->obj_infos.size();
             for (auto& tt: mm->obj_infos) {
-                std::cout << " the offset = " << tt.offset << " the length = " << tt.length << std::endl;
+                DVLOG(9) << " the offset = " << tt.offset << " the length = " << tt.length << " the sn = " << tt.sn;
             }
         }
     }
@@ -999,6 +1032,11 @@ CSErrorCode CSChunkFile::flattenWrite(SequenceNum sn,
 
     for (auto iter = objmap.begin(); iter != objmap.end(); iter++) {
         for (auto& tmpj: iter->second->objs) {
+#ifdef MEMORY_SANITY_CHECK
+            //check if the memory is overflow
+            assert((tmpj.obj.offset - iter->second->offset + tmpj.obj.length) <= length);
+            assert((tmpj.obj.offset - iter->second->offset) >= 0);
+#endif
             errorCode = CSDataStore::ReadByObjInfo(tmpj.fileptr, tmpbuf + (tmpj.obj.offset - iter->second->offset), tmpj.obj);
             if (errorCode != CSErrorCode::Success) {
                 LOG(WARNING) << "Flatten chunk file failed."
@@ -1008,7 +1046,7 @@ CSErrorCode CSChunkFile::flattenWrite(SequenceNum sn,
             }                    
         }
 
-        LOG(INFO) << "writeData chunkid = " << chunkId_ 
+        DVLOG(9) << "writeData chunkid = " << chunkId_ 
                     << "  offset: " << iter->second->offset 
                     << ", length: " << iter->second->length;
 
@@ -1330,10 +1368,15 @@ CSErrorCode CSChunkFile::ReadSpecifiedChunk(SequenceNum sn,
     for (auto& range : uncopiedRange) {
         readOff = range.beginIndex * blockSize_;
         readSize = (range.endIndex - range.beginIndex + 1) * blockSize_;
-        DLOG(INFO) << "Read real chunk file, offset: " << readOff
+        DVLOG(9) << "Read real chunk file, offset: " << readOff
                   << ", length: " << readSize
                   << ", chunkID: " << chunkId_
                   << ", buf: " << static_cast<const void*>(buf + (readOff - offset)) ;
+#ifdef MEMORY_SANITY_CHECK
+        //check if memory is overflow
+        assert((readOff - offset + readSize) <= length);
+        assert((readOff - offset) >= 0);
+#endif
         int rc = readData(buf + (readOff - offset),
                           readOff,
                           readSize);
@@ -1375,7 +1418,7 @@ CSErrorCode CSChunkFile::Delete(SequenceNum sn)  {
     if (ret < 0)
         return CSErrorCode::InternalError;
 
-    DLOG(INFO) << "Chunk deleted."
+    DVLOG(9) << "Chunk deleted."
               << "ChunkID: " << chunkId_
               << ", request sn: " << sn
               << ", chunk sn: " << metaPage_.sn;
