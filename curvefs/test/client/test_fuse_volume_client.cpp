@@ -438,17 +438,6 @@ TEST_F(TestFuseVolumeClient, FuseOpCreate) {
     EXPECT_CALL(*dentryManager_, CreateDentry(_))
         .WillOnce(Return(CURVEFS_ERROR::OK));
 
-    Inode parentInode;
-    parentInode.set_fsid(fsId);
-    parentInode.set_inodeid(parent);
-    parentInode.set_type(FsFileType::TYPE_DIRECTORY);
-    parentInode.set_nlink(2);
-    auto parentInodeWrapper =
-        std::make_shared<InodeWrapper>(parentInode, metaClient_);
-    EXPECT_CALL(*inodeManager_, GetInode(_, _))
-        .WillOnce(DoAll(SetArgReferee<1>(parentInodeWrapper),
-                        Return(CURVEFS_ERROR::OK)));
-
     EntryOut entryOut;
     CURVEFS_ERROR ret = client_->FuseOpCreate(req, parent, name, mode, &fi,
                                               &entryOut);
@@ -478,17 +467,6 @@ TEST_F(TestFuseVolumeClient, FuseOpMkDir) {
 
     EXPECT_CALL(*dentryManager_, CreateDentry(_))
         .WillOnce(Return(CURVEFS_ERROR::OK));
-
-    Inode parentInode;
-    parentInode.set_fsid(fsId);
-    parentInode.set_inodeid(parent);
-    parentInode.set_type(FsFileType::TYPE_DIRECTORY);
-    parentInode.set_nlink(2);
-    auto parentInodeWrapper =
-        std::make_shared<InodeWrapper>(parentInode, metaClient_);
-    EXPECT_CALL(*inodeManager_, GetInode(_, _))
-        .WillOnce(DoAll(SetArgReferee<1>(parentInodeWrapper),
-                        Return(CURVEFS_ERROR::OK)));
 
     EntryOut entryOut;
     CURVEFS_ERROR ret = client_->FuseOpMkDir(req, parent, name, mode,
@@ -1475,18 +1453,6 @@ TEST_F(TestFuseVolumeClient, FuseOpSymlink) {
     EXPECT_CALL(*dentryManager_, CreateDentry(_))
         .WillOnce(Return(CURVEFS_ERROR::OK));
 
-    Inode parentInode;
-    parentInode.set_fsid(fsId);
-    parentInode.set_inodeid(parent);
-    parentInode.set_type(FsFileType::TYPE_DIRECTORY);
-    parentInode.set_nlink(2);
-    auto parentInodeWrapper =
-        std::make_shared<InodeWrapper>(parentInode, metaClient_);
-
-    EXPECT_CALL(*inodeManager_, GetInode(parent, _))
-        .WillOnce(DoAll(SetArgReferee<1>(parentInodeWrapper),
-                        Return(CURVEFS_ERROR::OK)));
-
     EntryOut entryOut;
     CURVEFS_ERROR ret = client_->FuseOpSymlink(req, link, parent, name,
                                                &entryOut);
@@ -1588,9 +1554,7 @@ TEST_F(TestFuseVolumeClient, FuseOpLink) {
 
     EXPECT_CALL(*inodeManager_, GetInode(_, _))
         .WillOnce(
-            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
-        .WillOnce(DoAll(SetArgReferee<1>(parentInodeWrapper),
-                        Return(CURVEFS_ERROR::OK)));
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     EXPECT_CALL(*dentryManager_, CreateDentry(_))
         .WillOnce(Return(CURVEFS_ERROR::OK));
