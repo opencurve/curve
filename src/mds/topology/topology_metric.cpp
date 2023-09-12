@@ -216,8 +216,18 @@ void TopologyMetricService::UpdateTopologyMetrics() {
         it->second->chunkSizeTrashedBytes.set_value(totalChunkSizeTrashedBytes);
         it->second->chunkSizeTotalBytes.set_value(totalChunkSizeBytes);
         if (pool.GetReplicaNum() != 0) {
-            it->second->logicalCapacity.set_value(
-                totalChunkSizeBytes / pool.GetReplicaNum());
+            if (chunkFilePoolAllocHelp_->GetUseChunkFilepool()) {
+                uint64_t diskCapacity = 0;
+                topoStat_->GetChunkPoolSize(pool.GetPhysicalPoolId(),
+                            &diskCapacity);
+                diskCapacity = diskCapacity *
+                    chunkFilePoolAllocHelp_->GetAvailable() / 100;
+                it->second->logicalCapacity.set_value(
+                   diskCapacity  / pool.GetReplicaNum());
+            } else {
+                it->second->logicalCapacity.set_value(
+                    totalChunkSizeBytes / pool.GetReplicaNum());
+            }
         }
 
         uint64_t readRate = 0, writeRate = 0,
