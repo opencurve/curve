@@ -51,10 +51,13 @@ class TestTopologyMetric : public ::testing::Test {
                                                tokenGenerator_,
                                                storage_);
 
+
+        std::shared_ptr<ChunkFilePoolAllocHelp> chunkFilePoolAllocHelp =
+            std::make_shared<ChunkFilePoolAllocHelp>();
         topologyStat_ = std::make_shared<MockTopologyStat>();
         allocStatistic_ = std::make_shared<MockAllocStatistic>();
         testObj_ = std::make_shared<TopologyMetricService>(
-            topology_, topologyStat_, allocStatistic_);
+            topology_, topologyStat_, allocStatistic_, chunkFilePoolAllocHelp);
     }
 
     void TearDown() {
