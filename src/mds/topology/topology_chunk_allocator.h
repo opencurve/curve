@@ -114,12 +114,12 @@ class TopologyChunkAllocatorImpl : public TopologyChunkAllocator {
     TopologyChunkAllocatorImpl(std::shared_ptr<Topology> topology,
         std::shared_ptr<AllocStatistic> allocStatistic,
         std::shared_ptr<TopologyStat> topologyStat,
-        std::shared_ptr<ChunkFilePoolAllocHelp> ChunkFilePoolAllocHelp,
+        std::shared_ptr<ChunkFilePoolAllocHelp> chunkFilePoolAllocHelp,
         const TopologyOption &option)
         : topology_(topology),
         allocStatistic_(allocStatistic),
         topoStat_(topologyStat),
-        chunkFilePoolAllocHelp_(ChunkFilePoolAllocHelp),
+        chunkFilePoolAllocHelp_(chunkFilePoolAllocHelp),
         available_(option.PoolUsagePercentLimit),
         policy_(static_cast<ChoosePoolPolicy>(option.choosePoolPolicy)),
         enableLogicalPoolStatus_(option.enableLogicalPoolStatus) {

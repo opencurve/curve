@@ -34,6 +34,7 @@
 #include "src/mds/topology/topology_stat.h"
 #include "src/mds/nameserver2/allocstatistic/alloc_statistic.h"
 #include "src/common/interruptible_sleeper.h"
+#include "src/mds/topology/topology_chunk_allocator.h"
 
 using ::curve::common::InterruptibleSleeper;
 
@@ -389,11 +390,13 @@ class TopologyMetricService {
 
  public:
      TopologyMetricService(std::shared_ptr<Topology> topo,
-        std::shared_ptr<TopologyStat> topoStat,
-        std::shared_ptr<AllocStatistic> allocStatistic)
+        const std::shared_ptr<TopologyStat> &topoStat,
+        const std::shared_ptr<AllocStatistic> &allocStatistic,
+        const std::shared_ptr<ChunkFilePoolAllocHelp> &chunkFilePoolAllocHelp)
         : topo_(topo),
           topoStat_(topoStat),
           allocStatistic_(allocStatistic),
+          chunkFilePoolAllocHelp_(chunkFilePoolAllocHelp),
           isStop_(true) {}
     ~TopologyMetricService() {
         Stop();
@@ -446,6 +449,8 @@ class TopologyMetricService {
      * @brief allocation statistic module
      */
     std::shared_ptr<AllocStatistic> allocStatistic_;
+
+    std::shared_ptr<ChunkFilePoolAllocHelp> chunkFilePoolAllocHelp_;
     /**
      * @brief backend thread
      */
