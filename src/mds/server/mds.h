@@ -229,6 +229,7 @@ class MDS {
     std::shared_ptr<NameServerStorage> nameServerStorage_;
     std::shared_ptr<TopologyImpl> topology_;
     std::shared_ptr<TopologyStatImpl> topologyStat_;
+    std::shared_ptr<ChunkFilePoolAllocHelp> chunkFilePoolAllocHelp_;
     std::shared_ptr<TopologyChunkAllocator> topologyChunkAllocator_;
     std::shared_ptr<TopologyMetricService> topologyMetricService_;
     std::shared_ptr<TopologyServiceManager> topologyServiceManager_;

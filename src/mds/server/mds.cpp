@@ -371,7 +371,8 @@ void MDS::InitTopologyMetricService(const TopologyOption& option) {
     topologyMetricService_ =
         std::make_shared<TopologyMetricService>(topology_,
             topologyStat_,
-            segmentAllocStatistic_);
+            segmentAllocStatistic_,
+            chunkFilePoolAllocHelp_);
     LOG_IF(FATAL, topologyMetricService_->Init(option) < 0)
         << "init topologyMetricService fail.";
     LOG(INFO) << "init topologyMetricService success.";
@@ -416,7 +417,7 @@ void MDS::InitCopysetOption(CopysetOption *copysetOption) {
 
 
 void MDS::InitTopologyChunkAllocator(const TopologyOption& option) {
-    std::shared_ptr<ChunkFilePoolAllocHelp> chunkFilePoolAllocHelp_ =
+    chunkFilePoolAllocHelp_ =
           std::make_shared<ChunkFilePoolAllocHelp>();
     topologyChunkAllocator_ =
           std::make_shared<TopologyChunkAllocatorImpl>(topology_,
