@@ -532,15 +532,19 @@ bool TopologyImpl::GetMetaServer(MetaServerIdType metaserverId,
 bool TopologyImpl::GetMetaServer(const std::string &hostIp, uint32_t port,
                                  MetaServer *out) const {
     ReadLockGuard rlockMetaServerMap(metaServerMutex_);
+    bool find = false;
     for (auto it = metaServerMap_.begin(); it != metaServerMap_.end(); it++) {
         ReadLockGuard rlockMetaServer(it->second.GetRWLockRef());
         if (it->second.GetInternalIp() == hostIp &&
             it->second.GetInternalPort() == port) {
             *out = it->second;
-            return true;
+            find = true;
+            if (it->second.GetOnlineState() == OnlineState::ONLINE) {
+                return find;
+            }
         }
     }
-    return false;
+    return find;
 }
 
 TopoStatusCode TopologyImpl::AddPartition(const Partition &data) {
@@ -1628,6 +1632,7 @@ uint32_t TopologyImpl::GetPartitionIndexOfFS(FsIdType fsId) {
 
 std::vector<CopySetInfo> TopologyImpl::ListCopysetInfo() const {
     std::vector<CopySetInfo> ret;
+    ReadLockGuard rlockCopySet(copySetMutex_);
     for (auto const &i : copySetMap_) {
         ret.emplace_back(i.second);
     }
