@@ -152,10 +152,16 @@ SnapshotMetaPage::operator=(const SnapshotMetaPage &metaPage) {
 
 CSSnapshot::CSSnapshot(std::shared_ptr<LocalFileSystem> lfs,
                        std::shared_ptr<FilePool> chunkFilePool,
-                       const ChunkOptions &options)
-    : fd_(-1), chunkId_(options.id), size_(options.chunkSize),
-      pageSize_(options.pageSize), baseDir_(options.baseDir), lfs_(lfs),
-      chunkFilePool_(chunkFilePool), metric_(options.metric) {
+                       const ChunkOptions& options)
+    : fd_(-1),
+      chunkId_(options.id),
+      size_(options.chunkSize),
+      blockSize_(options.blockSize),
+      metaPageSize_(options.metaPageSize),
+      baseDir_(options.baseDir),
+      lfs_(lfs),
+      chunkFilePool_(chunkFilePool),
+      metric_(options.metric) {
     CHECK(!baseDir_.empty()) << "Create snapshot failed";
     CHECK(lfs_ != nullptr) << "Create snapshot failed";
     uint32_t bits = size_ / pageSize_;
@@ -183,9 +189,11 @@ CSErrorCode CSSnapshot::Open(bool createFile) {
     // The existence of snapshot files may be caused by the following conditions
     // getchunk succeeded, but failed later in stat or loadmetapage,
     // when the download is opened again;
-    if (createFile && !lfs_->FileExists(snapshotPath) && metaPage_.sn > 0) {
-        std::unique_ptr<char[]> buf(new char[pageSize_]);
-        memset(buf.get(), 0, pageSize_);
+     if (createFile
+        && !lfs_->FileExists(snapshotPath)
+        && metaPage_.sn > 0) {
+        std::unique_ptr<char[]> buf(new char[metaPageSize_]);
+        memset(buf.get(), 0, metaPageSize_);
         metaPage_.encode(buf.get());
         int ret = chunkFilePool_->GetFile(snapshotPath, buf.get());
         if (ret != 0) {
@@ -273,9 +281,9 @@ CSErrorCode CSSnapshot::Flush() {
     return errorCode;
 }
 
-CSErrorCode CSSnapshot::updateMetaPage(SnapshotMetaPage *metaPage) {
-    std::unique_ptr<char[]> buf(new char[pageSize_]);
-    memset(buf.get(), 0, pageSize_);
+CSErrorCode CSSnapshot::updateMetaPage(SnapshotMetaPage* metaPage) {
+    std::unique_ptr<char[]> buf(new char[metaPageSize_]);
+    memset(buf.get(), 0, metaPageSize_);
     metaPage->encode(buf.get());
     int rc = writeMetaPage(buf.get());
     if (rc < 0) {

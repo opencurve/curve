@@ -263,9 +263,9 @@ CSErrorCode CSChunkFile::Open(bool createFile) {
     if (createFile
         && !lfs_->FileExists(chunkFilePath)
         && metaPage_.sn > 0) {
-        std::unique_ptr<char[]> buf(new char[pageSize_]);
-        memset(buf.get(), 0, pageSize_);
-        metaPage_.version = FORMAT_VERSION_V3;
+        std::unique_ptr<char[]> buf(new char[metaPageSize_]);
+        memset(buf.get(), 0, metaPageSize_);
+        metaPage_.version = FORMAT_VERSION_V2;
         metaPage_.encode(buf.get());
 
         int rc = chunkFilePool_->GetFile(chunkFilePath, buf.get(), true);

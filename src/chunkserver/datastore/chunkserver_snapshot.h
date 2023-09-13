@@ -151,22 +151,24 @@ class CSSnapshot {
                FileNameOperator::GenerateSnapshotName(chunkId_, metaPage_.sn);
     }
 
-    inline uint32_t fileSize() { return pageSize_ + size_; }
-
-    inline int readMetaPage(char *buf) {
-        return lfs_->Read(fd_, buf, 0, pageSize_);
+    uint32_t fileSize() const {
+        return metaPageSize_ + size_;
     }
 
-    inline int writeMetaPage(const char *buf) {
-        return lfs_->Write(fd_, buf, 0, pageSize_);
+    inline int readMetaPage(char* buf) {
+        return lfs_->Read(fd_, buf, 0, metaPageSize_);
     }
 
-    inline int readData(char *buf, off_t offset, size_t length) {
-        return lfs_->Read(fd_, buf, offset + pageSize_, length);
+    inline int writeMetaPage(const char* buf) {
+        return lfs_->Write(fd_, buf, 0, metaPageSize_);
     }
 
-    inline int writeData(const char *buf, off_t offset, size_t length) {
-        return lfs_->Write(fd_, buf, offset + pageSize_, length);
+    inline int readData(char* buf, off_t offset, size_t length) {
+        return lfs_->Read(fd_, buf, offset + metaPageSize_, length);
+    }
+
+    inline int writeData(const char* buf, off_t offset, size_t length) {
+        return lfs_->Write(fd_, buf, offset + metaPageSize_, length);
     }
 
  private:
