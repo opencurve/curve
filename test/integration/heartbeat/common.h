@@ -78,6 +78,7 @@ using ::curve::mds::topology::ServerIdType;
 using ::curve::mds::topology::TopologyImpl;
 using ::curve::mds::topology::TopologyOption;
 using ::curve::mds::topology::TopologyServiceManager;
+using ::curve::mds::topology::ChunkFilePoolAllocHelp;
 using ::curve::mds::topology::TopologyStatImpl;
 using ::curve::mds::topology::UNINTIALIZE_ID;
 using ::curve::mds::topology::Zone;

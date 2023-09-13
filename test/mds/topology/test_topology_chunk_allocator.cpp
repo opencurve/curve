@@ -55,11 +55,11 @@ class TestTopologyChunkAllocator : public ::testing::Test {
         topology_ = std::make_shared<TopologyImpl>(idGenerator_,
                                                tokenGenerator_,
                                                storage_);
-        TopologyOption option;
-        topoStat_ = std::make_shared<TopologyStatImpl>(topology_);
         chunkFilePoolAllocHelp_ =
                 std::make_shared<ChunkFilePoolAllocHelp>();
         chunkFilePoolAllocHelp_->UpdateChunkFilePoolAllocConfig(true, true, 15);
+        topoStat_ = std::make_shared<TopologyStatImpl>(topology_, chunkFilePoolAllocHelp_);
+        TopologyOption option;
         option.PoolUsagePercentLimit = 85;
         option.enableLogicalPoolStatus = true;
         allocStatistic_ = std::make_shared<MockAllocStatistic>();
@@ -194,7 +194,8 @@ class TestTopologyChunkAllocator : public ::testing::Test {
                 .WillOnce(Return(true));
         int ret = topology_->AddChunkServer(cs);
         ChunkServerStat stat;
-        stat.chunkFilepoolSize = diskCapacity-diskUsed;
+        stat.chunkFilepoolSize = diskCapacity;
+        stat.chunkSizeUsedBytes = diskUsed;
         topoStat_->UpdateChunkServerStat(id, stat);
         ASSERT_EQ(kTopoErrCodeSuccess, ret) << "should have PrepareAddServer()";
     }
@@ -367,7 +368,7 @@ TEST_F(TestTopologyChunkAllocator,
     std::list<PoolIdType> pools ={0x01};
     for (int i = 0; i < 10; i++) {
         testObj_->GetRemainingSpaceInLogicalPool(pools, &enoughsize);
-        ASSERT_EQ(enoughsize[logicalPoolId], 1109);
+        ASSERT_EQ(enoughsize[logicalPoolId], 1075);
     }
 }
 

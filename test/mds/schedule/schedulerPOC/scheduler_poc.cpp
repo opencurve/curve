@@ -57,6 +57,7 @@ using ::curve::mds::topology::LogicalPoolType;
 
 using ::curve::mds::topology::ChunkServerStatus;
 using ::curve::mds::topology::OnlineState;
+using ::curve::mds::topology::PhysicalPoolStat;
 
 using ::curve::mds::topology::ChunkServerFilter;
 using ::curve::mds::topology::CopySetFilter;
@@ -352,8 +353,10 @@ class FakeTopologyStat : public TopologyStat {
         stat->leaderCount = leaderCount;
         return true;
     }
-    bool GetChunkPoolSize(PoolIdType pId,
-    uint64_t *chunkPoolSize) {
+
+    bool GetPhysicalPoolStat(PoolIdType pId, PhysicalPoolStat* stat) override {
+        stat->chunkFilePoolSize = std::numeric_limits<uint64_t>::max();
+        stat->chunkFilePoolUsed = 0;
         return true;
     }
 

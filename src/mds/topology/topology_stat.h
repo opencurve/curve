@@ -28,6 +28,7 @@
 #include <map>
 #include <string>
 #include <memory>
+#include <set>
 
 #include "src/mds/common/mds_define.h"
 #include "src/common/concurrent/rw_lock.h"
@@ -38,6 +39,43 @@
 namespace curve {
 namespace mds {
 namespace topology {
+
+class ChunkFilePoolAllocHelp {
+ public:
+    ChunkFilePoolAllocHelp()
+    : ChunkFilePoolPoolWalReserve(0),
+      useChunkFilepool(false),
+      useChunkFilePoolAsWalPool(false) {}
+    ~ChunkFilePoolAllocHelp() {}
+    void UpdateChunkFilePoolAllocConfig(bool useChunkFilepool_,
+        bool useChunkFilePoolAsWalPool_,
+        uint32_t useChunkFilePoolAsWalPoolReserve_)  {
+        useChunkFilepool.store(useChunkFilepool_, std::memory_order_release);
+        useChunkFilePoolAsWalPool.store(useChunkFilePoolAsWalPool_,
+            std::memory_order_release);
+        ChunkFilePoolPoolWalReserve.store(useChunkFilePoolAsWalPoolReserve_,
+            std::memory_order_release);
+    }
+    bool GetUseChunkFilepool() {
+        return useChunkFilepool.load(std::memory_order_acquire);
+    }
+    // After removing the reserved space, the remaining percentage
+    uint32_t GetAvailable() {
+        if (useChunkFilePoolAsWalPool.load(std::memory_order_acquire)) {
+            return 100 - ChunkFilePoolPoolWalReserve.load(
+                    std::memory_order_acquire);
+        } else {
+            return 100;
+        }
+    }
+
+ private:
+    // use chunkfile as allocation condition
+    std::atomic<bool> useChunkFilepool;
+    std::atomic<bool> useChunkFilePoolAsWalPool;
+    // Reserve extra space for walpool
+    std::atomic<uint32_t>  ChunkFilePoolPoolWalReserve;
+};
 
 struct CopysetStat {
     // logical pool id
@@ -98,6 +136,16 @@ struct ChunkServerStat {
         writeIOPS(0) {}
 };
 
+struct PhysicalPoolStat {
+    uint64_t chunkFilePoolSize;
+    uint64_t chunkFilePoolUsed;
+    std::set<ChunkServerIdType> almostFullCsList;
+
+    PhysicalPoolStat() :
+        chunkFilePoolSize(0),
+        chunkFilePoolUsed(0) {}
+};
+
 /**
  * @brief Topology statistic module for managing its stats
  */
@@ -131,13 +179,15 @@ class TopologyStat {
      * @param pId physicalId
      * @param chunkpoolsize the size of chunkpool
      */
-    virtual bool GetChunkPoolSize(PoolIdType pId, uint64_t* chunkPoolSize) = 0;
+    virtual bool GetPhysicalPoolStat(PoolIdType pId, PhysicalPoolStat* stat) = 0;
 };
 
 class TopologyStatImpl : public TopologyStat {
  public:
-    explicit TopologyStatImpl(std::shared_ptr<Topology> topo)
-        : topo_(topo) {}
+    explicit TopologyStatImpl(const std::shared_ptr<Topology> &topo,
+        const std::shared_ptr<ChunkFilePoolAllocHelp> &chunkFilePoolAllocHelp)
+        : topo_(topo),
+          chunkFilePoolAllocHelp_(chunkFilePoolAllocHelp) {}
 
     int Init();
 
@@ -145,8 +195,7 @@ class TopologyStatImpl : public TopologyStat {
         const ChunkServerStat &stat) override;
     bool GetChunkServerStat(ChunkServerIdType csId,
         ChunkServerStat *stat) override;
-    bool GetChunkPoolSize(PoolIdType pId,
-    uint64_t *chunkPoolSize) override;
+    bool GetPhysicalPoolStat(PoolIdType pId, PhysicalPoolStat* stat) override;
 
  private:
     /**
@@ -156,7 +205,8 @@ class TopologyStatImpl : public TopologyStat {
       /**
      * @brief Count the size of chunkFilePool
      */ 
-    std::map<PoolIdType, uint64_t> ChunkPoolSize_;
+    std::map<PoolIdType, PhysicalPoolStat> physicalPoolStats_;
+
     /**
      * @brief the lock for protecting concurrent visit of chunkServerStats_
      */
@@ -166,6 +216,8 @@ class TopologyStatImpl : public TopologyStat {
      * @brief topology module
      */
     std::shared_ptr<Topology> topo_;
+
+    std::shared_ptr<ChunkFilePoolAllocHelp> chunkFilePoolAllocHelp_;
 };
 
 }  // namespace topology

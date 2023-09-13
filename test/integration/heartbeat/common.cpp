@@ -311,9 +311,11 @@ void HeartbeatIntegrationCommon::BuildBasicCluster() {
         std::make_shared<TopologyImpl>(idGen, tokenGen, topologyStorage);
     ASSERT_EQ(kTopoErrCodeSuccess, topology_->Init(topologyOption));
 
+
+    auto chunkFilePoolAllocHelp = std::make_shared<ChunkFilePoolAllocHelp>();
     // init topology manager
     topologyStat_ =
-        std::make_shared<TopologyStatImpl>(topology_);
+        std::make_shared<TopologyStatImpl>(topology_, chunkFilePoolAllocHelp);
     topologyStat_->Init();
     auto copysetManager = std::make_shared<CopysetManager>(CopysetOption());
     auto allocStat = std::make_shared<MockAllocStatistic>();

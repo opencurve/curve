@@ -203,17 +203,20 @@ void TopologyChunkAllocatorImpl::GetRemainingSpaceInLogicalPool(
         }
 
         uint64_t diskCapacity = 0;
+        uint64_t logicalCapacity = 0;
         double available = available_;
+    
+        PhysicalPoolStat poolStat;
+        topoStat_->GetPhysicalPoolStat(lPool.GetPhysicalPoolId(), &poolStat);
         if (chunkFilePoolAllocHelp_->GetUseChunkFilepool()) {
-            topoStat_->GetChunkPoolSize(lPool.GetPhysicalPoolId(),
-                        &diskCapacity);
-            available = available *
+            diskCapacity = poolStat.chunkFilePoolSize * available / 100;
+            logicalCapacity = diskCapacity *
                 chunkFilePoolAllocHelp_->GetAvailable() / 100;
-            diskCapacity = diskCapacity * available / 100;
         } else {
             diskCapacity = pPool.GetDiskCapacity();
             // calculate actual capacity available
             diskCapacity = diskCapacity * available / 100;
+            logicalCapacity = diskCapacity;
         }
 
         // TODO(xuchaojie): if create more than one logical pools is supported,
@@ -225,16 +228,33 @@ void TopologyChunkAllocatorImpl::GetRemainingSpaceInLogicalPool(
         alloc *= lPool.GetReplicaNum();
 
         // calculate remaining capacity
-        uint64_t diskRemainning =
-            (diskCapacity > alloc) ? diskCapacity - alloc : 0;
+        uint64_t allocRemainning =
+            (logicalCapacity > alloc) ? logicalCapacity - alloc : 0;
+
+        // since snapshot do not alloc segment, so allocRemainning
+        // is not take the space of snapshot into consideration,
+        // use diskRemianning instead
+        uint64_t diskUsed = poolStat.chunkFilePoolUsed;
+
+        uint64_t diskRemianning =
+            (diskCapacity > diskUsed) ? diskCapacity - diskUsed : 0;
+
+        bool isSomeCSFull = !poolStat.almostFullCsList.empty();
 
         LOG(INFO) << "ChooseSingleLogicalPool find pool {"
                   << "diskCapacity:" << diskCapacity
+                  << ", diskUsed: " << diskUsed
+                  << ", diskRemianning:" << diskRemianning
+                  << ", logicalCapacity: "  << logicalCapacity
                   << ", diskAlloc:" << alloc
-                  << ", diskRemainning:" << diskRemainning
+                  << ", allocRemainning:" << allocRemainning
+                  << ", isSomeCSFull: " << isSomeCSFull
                   << "}";
-        if (diskRemainning > 0) {
-            (*enoughSpacePools)[pid] = diskRemainning;
+
+        if ((diskRemianning > 0) && 
+            (allocRemainning > 0) && 
+            !isSomeCSFull) {
+            (*enoughSpacePools)[pid] = diskRemianning;
         }
     }
 }
