@@ -46,7 +46,9 @@ class TestTopologyStat : public ::testing::Test {
 
      virtual void SetUp() {
          topology_ = std::make_shared<MockTopology>();
-         testObj_ = std::make_shared<TopologyStatImpl>(topology_);
+         chunkFilePoolAllocHelp_ = std::make_shared<ChunkFilePoolAllocHelp>();
+         testObj_ = std::make_shared<TopologyStatImpl>(
+            topology_, chunkFilePoolAllocHelp_);
      }
 
      virtual void TearDown() {
@@ -56,11 +58,12 @@ class TestTopologyStat : public ::testing::Test {
 
  protected:
     std::shared_ptr<MockTopology> topology_;
+    std::shared_ptr<ChunkFilePoolAllocHelp> chunkFilePoolAllocHelp_;
     std::shared_ptr<TopologyStatImpl> testObj_;
 };
 
 TEST_F(TestTopologyStat, TestUpdateAndGetChunkServerStat) {
-    ChunkServerStat stat1, stat2, stat3;
+    ChunkServerStat stat1, stat2, stat3, stat4;
     CopysetStat cstat1, cstat2, cstat3;
     stat1.leaderCount = 1;
     stat1.copysetCount = 1;
@@ -122,31 +125,34 @@ TEST_F(TestTopologyStat, TestUpdateAndGetChunkServerStat) {
     testObj_->UpdateChunkServerStat(1, stat2);
 
 
-    bool ret = testObj_->GetChunkServerStat(1, &stat3);
+    bool ret = testObj_->GetChunkServerStat(1, &stat4);
     ASSERT_TRUE(ret);
-    ASSERT_EQ(2, stat3.leaderCount);
-    ASSERT_EQ(2, stat3.copysetCount);
-    ASSERT_EQ(2, stat3.readRate);
-    ASSERT_EQ(2, stat3.writeRate);
-    ASSERT_EQ(2, stat3.readIOPS);
-    ASSERT_EQ(2, stat3.writeIOPS);
-    ASSERT_EQ(5, stat3.chunkFilepoolSize);
-    ASSERT_EQ(1, stat3.copysetStats.size());
-    ASSERT_EQ(2, stat3.copysetStats[0].logicalPoolId);
-    ASSERT_EQ(2, stat3.copysetStats[0].copysetId);
-    ASSERT_EQ(2, stat3.copysetStats[0].readRate);
-    ASSERT_EQ(2, stat3.copysetStats[0].writeRate);
-    ASSERT_EQ(2, stat3.copysetStats[0].readIOPS);
-    ASSERT_EQ(2, stat3.copysetStats[0].writeIOPS);
+    ASSERT_EQ(2, stat4.leaderCount);
+    ASSERT_EQ(2, stat4.copysetCount);
+    ASSERT_EQ(2, stat4.readRate);
+    ASSERT_EQ(2, stat4.writeRate);
+    ASSERT_EQ(2, stat4.readIOPS);
+    ASSERT_EQ(2, stat4.writeIOPS);
+    ASSERT_EQ(5, stat4.chunkFilepoolSize);
+    ASSERT_EQ(1, stat4.copysetStats.size());
+    ASSERT_EQ(2, stat4.copysetStats[0].logicalPoolId);
+    ASSERT_EQ(2, stat4.copysetStats[0].copysetId);
+    ASSERT_EQ(2, stat4.copysetStats[0].readRate);
+    ASSERT_EQ(2, stat4.copysetStats[0].writeRate);
+    ASSERT_EQ(2, stat4.copysetStats[0].readIOPS);
+    ASSERT_EQ(2, stat4.copysetStats[0].writeIOPS);
 
     testObj_->UpdateChunkServerStat(2, stat1);
     testObj_->UpdateChunkServerStat(3, stat3);
 
-    uint64_t size, chunkPoolSize;
-    ret = testObj_->GetChunkPoolSize(2, &size);
+    PhysicalPoolStat poolStat;
+    ret = testObj_->GetPhysicalPoolStat(2, &poolStat);
     ASSERT_EQ(ret, true);
-    ASSERT_EQ(12, size);
-    ASSERT_EQ(false, testObj_->GetChunkPoolSize(9, &chunkPoolSize));
+    ASSERT_EQ(15, poolStat.chunkFilePoolSize);
+    ASSERT_EQ(12, poolStat.chunkFilePoolUsed);
+    ASSERT_EQ(0, poolStat.almostFullCsList.size());
+
+    ASSERT_EQ(false, testObj_->GetPhysicalPoolStat(9, &poolStat));
 }
 
 

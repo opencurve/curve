@@ -65,10 +65,10 @@ class TestTopologyServiceManager : public ::testing::Test {
                                                storage_);
         regInfoBuilder_ = std::make_shared<MockChunkServerRegistInfoBuilder>();
         TopologyOption topologyOption;
-        topologystat_ = std::make_shared<TopologyStatImpl>(topology_);
         std::shared_ptr<ChunkFilePoolAllocHelp> chunkFilePoolAllocHelp_ =
                 std::make_shared<ChunkFilePoolAllocHelp>();
         chunkFilePoolAllocHelp_->UpdateChunkFilePoolAllocConfig(true, true, 15);
+        topologystat_ = std::make_shared<TopologyStatImpl>(topology_, chunkFilePoolAllocHelp_);
         topologyChunkAllocator_ = std::make_shared<TopologyChunkAllocatorImpl>(
             topology_, nullptr, topologystat_,
             chunkFilePoolAllocHelp_, topologyOption);

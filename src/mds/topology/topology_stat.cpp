@@ -48,14 +48,53 @@ void TopologyStatImpl::UpdateChunkServerStat(ChunkServerIdType csId,
                    << csId;
         return;
     }
+    uint32_t available = chunkFilePoolAllocHelp_->GetAvailable();
     auto it = chunkServerStats_.find(csId);
     if (it != chunkServerStats_.end()) {
         int64_t diff = stat.chunkFilepoolSize - it->second.chunkFilepoolSize;
-        ChunkPoolSize_[belongPhysicalPoolId] += diff;
+        physicalPoolStats_[belongPhysicalPoolId].chunkFilePoolSize += diff;
+        int64_t diffUsed = stat.chunkSizeUsedBytes -
+            it->second.chunkSizeUsedBytes;
+        physicalPoolStats_[belongPhysicalPoolId].chunkFilePoolUsed += diffUsed;
+
+        LOG(INFO) << "UpdateChunkServerStat, chunkserver stat update,"
+                  << " chunkserverId = "
+                  << csId
+                  << ", chunkFilePoolSize = "
+                  << stat.chunkFilepoolSize
+                  << ", chunkFilePoolUsed = "
+                  << stat.chunkSizeUsedBytes
+                  << ", diff = "
+                  << diff
+                  << ", diffUsed = "
+                  << diffUsed;
+
+        if (stat.chunkSizeUsedBytes >
+                (stat.chunkFilepoolSize * available / 100)) {
+            LOG(WARNING) << "UpdateChunkServerStat, chunkserver is almost full,"
+                         << " chunkserverId = "
+                         << csId;
+            physicalPoolStats_[belongPhysicalPoolId].almostFullCsList
+                .emplace(csId);
+        } else {
+            physicalPoolStats_[belongPhysicalPoolId].almostFullCsList
+                .erase(csId);
+        }
+
         it->second = stat;
     } else {
         chunkServerStats_.emplace(csId, stat);
-        ChunkPoolSize_[belongPhysicalPoolId] += stat.chunkFilepoolSize;
+        physicalPoolStats_[belongPhysicalPoolId].chunkFilePoolSize +=
+            stat.chunkFilepoolSize;
+        physicalPoolStats_[belongPhysicalPoolId].chunkFilePoolUsed +=
+            stat.chunkSizeUsedBytes;
+        LOG(INFO) << "UpdateChunkServerStat, chunkserver stat add,"
+                  << " chunkserverId = "
+                  << csId
+                  << ", chunkFilePoolSize = "
+                  << stat.chunkFilepoolSize
+                  << ", chunkFilePoolUsed = "
+                  << stat.chunkSizeUsedBytes;
     }
     return;
 }
@@ -71,15 +110,14 @@ bool TopologyStatImpl::GetChunkServerStat(ChunkServerIdType csId,
     return false;
 }
 
-bool TopologyStatImpl::GetChunkPoolSize(PoolIdType pId,
-    uint64_t *chunkPoolSize) {
+bool TopologyStatImpl::GetPhysicalPoolStat(PoolIdType pId,
+    PhysicalPoolStat* stat) {
     ReadLockGuard rLock(statsLock_);
-    auto it = ChunkPoolSize_.find(pId);
-    if (it != ChunkPoolSize_.end()) {
-        *chunkPoolSize = it->second;
+    auto it = physicalPoolStats_.find(pId);
+    if (it != physicalPoolStats_.end()) {
+        *stat = it->second;
         return true;
     }
-    chunkPoolSize = 0;
     return false;
 }
 

@@ -47,43 +47,6 @@ enum class ChoosePoolPolicy {
     kWeight,
 };
 
-class ChunkFilePoolAllocHelp {
- public:
-    ChunkFilePoolAllocHelp()
-    : ChunkFilePoolPoolWalReserve(0),
-      useChunkFilepool(false),
-      useChunkFilePoolAsWalPool(false) {}
-    ~ChunkFilePoolAllocHelp() {}
-    void UpdateChunkFilePoolAllocConfig(bool useChunkFilepool_,
-        bool useChunkFilePoolAsWalPool_,
-        uint32_t useChunkFilePoolAsWalPoolReserve_)  {
-        useChunkFilepool.store(useChunkFilepool_, std::memory_order_release);
-        useChunkFilePoolAsWalPool.store(useChunkFilePoolAsWalPool_,
-            std::memory_order_release);
-        ChunkFilePoolPoolWalReserve.store(useChunkFilePoolAsWalPoolReserve_,
-            std::memory_order_release);
-    }
-    bool GetUseChunkFilepool() {
-        return useChunkFilepool.load(std::memory_order_acquire);
-    }
-    // After removing the reserved space, the remaining percentage
-    uint32_t GetAvailable() {
-        if (useChunkFilePoolAsWalPool.load(std::memory_order_acquire)) {
-            return 100 - ChunkFilePoolPoolWalReserve.load(
-                    std::memory_order_acquire);
-        } else {
-            return 100;
-        }
-    }
-
- private:
-    // use chunkfile as allocation condition
-    std::atomic<bool> useChunkFilepool;
-    std::atomic<bool> useChunkFilePoolAsWalPool;
-    // Reserve extra space for walpool
-    std::atomic<uint32_t>  ChunkFilePoolPoolWalReserve;
-};
-
 class TopologyChunkAllocator {
  public:
     TopologyChunkAllocator() {}

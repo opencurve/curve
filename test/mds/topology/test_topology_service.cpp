@@ -74,9 +74,12 @@ class TestTopologyService : public ::testing::Test {
         auto topo_ = std::make_shared<TopologyImpl>(
                 idGenerator_, tokenGenerator_, storage_);
 
+        auto chunkFilePoolAllocHelp = 
+            std::make_shared<ChunkFilePoolAllocHelp>();
         CopysetOption copysetOption;
         manager_ = std::make_shared<MockTopologyServiceManager>(
-                topo_, std::make_shared<TopologyStatImpl>(topo_),
+                topo_, std::make_shared<TopologyStatImpl>(
+                    topo_, chunkFilePoolAllocHelp),
                 std::make_shared<CopysetManager>(copysetOption));
 
         TopologyServiceImpl *topoService = new TopologyServiceImpl(manager_);

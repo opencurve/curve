@@ -301,12 +301,9 @@ class MockTopologyStat : public TopologyStat {
     MOCK_METHOD2(GetChunkServerStat,
         bool(ChunkServerIdType csId,
         ChunkServerStat *stat));
-    MOCK_METHOD2(GetChunkPoolSize,
-        bool(PoolIdType pId,
-        uint64_t *chunkPoolSize));
-    MOCK_METHOD2(updateChunkFilepoolConfig,
-        void(bool useChunkFilepool_,
-        bool useChunkFilePoolAsWalPool_));
+
+    MOCK_METHOD2(GetPhysicalPoolStat, 
+        bool(PoolIdType pId, PhysicalPoolStat* stat));
 };
 
 }  // namespace topology
