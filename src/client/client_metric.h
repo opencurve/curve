@@ -41,13 +41,11 @@ inline void GetStringValue(std::ostream& os, void* arg) {
     os << *static_cast<std::string*>(arg);
 }
 
-// 悬挂IO统计，文件级别统计，方便定位
-struct IOSuspendMetric {
-    // 当前persecond计数总数
+struct SlowRequestMetric {
     bvar::Adder<uint64_t> count;
 
-    IOSuspendMetric(const std::string& prefix, const std::string& name)
-        : count(prefix, name + "_total_count") {}
+    SlowRequestMetric(const std::string& prefix, const std::string& name)
+        : count(prefix, name + "_total") {}
 };
 
 // 秒级信息统计
@@ -114,8 +112,8 @@ struct FileMetric {
     // get leader失败重试qps
     PerSecondMetric getLeaderRetryQPS;
 
-    // 当前文件上的悬挂IO数量
-    IOSuspendMetric suspendRPCMetric;
+    // Number of slow requests
+    SlowRequestMetric slowRequestMetric;
 
     explicit FileMetric(const std::string& name)
         : filename(name),
@@ -127,7 +125,7 @@ struct FileMetric {
           userRead(prefix, filename + "_read"),
           userWrite(prefix, filename + "_write"),
           getLeaderRetryQPS(prefix, filename + "_get_leader_retry_rpc"),
-          suspendRPCMetric(prefix, filename + "_suspend_io_num") {}
+          slowRequestMetric(prefix, filename + "_slow_request") {}
 };
 
 // 用于全局mds接口统计信息调用信息统计
@@ -452,17 +450,17 @@ class MetricHelper {
         }
     }
 
-    static void IncremIOSuspendNum(FileMetric* fm) {
+    static void IncremSlowRequestNum(FileMetric* fm) {
         if (fm != nullptr) {
-            fm->suspendRPCMetric.count << 1;
+            fm->slowRequestMetric.count << 1;
         }
     }
 
-    static void DecremIOSuspendNum(FileMetric* fm) {
+    static void DecremSlowRequestNum(FileMetric* fm) {
         if (fm != nullptr) {
-            fm->suspendRPCMetric.count.get_value() > 0
-                ? fm->suspendRPCMetric.count << -1
-                : fm->suspendRPCMetric.count << 0;
+            fm->slowRequestMetric.count.get_value() > 0
+                ? fm->slowRequestMetric.count << -1
+                : fm->slowRequestMetric.count << 0;
         }
     }
 };
