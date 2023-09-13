@@ -22,6 +22,7 @@
 
 #include "src/client/request_closure.h"
 
+#include "include/curve_compiler_specific.h"
 #include "src/client/io_tracker.h"
 #include "src/client/iomanager.h"
 #include "src/client/request_context.h"
@@ -31,8 +32,8 @@ namespace client {
 
 void RequestClosure::Run() {
     ReleaseInflightRPCToken();
-    if (suspendRPC_) {
-        MetricHelper::DecremIOSuspendNum(metric_);
+    if (CURVE_UNLIKELY(slowRequest_)) {
+        MetricHelper::DecremSlowRequestNum(metric_);
     }
     tracker_->HandleResponse(reqCtx_);
 }

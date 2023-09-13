@@ -414,15 +414,15 @@ void ClientClosure::OnRetry() {
         return;
     }
 
-    if (!reqDone_->IsSuspendRPC() && reqDone_->GetRetriedTimes() >=
-        failReqOpt_.chunkserverMaxRetryTimesBeforeConsiderSuspend) {
-        reqDone_->SetSuspendRPCFlag();
-        MetricHelper::IncremIOSuspendNum(fileMetric_);
-        LOG(ERROR) << "IO Retried "
-                    << failReqOpt_.chunkserverMaxRetryTimesBeforeConsiderSuspend
-                    << " times, set suspend flag! " << *reqCtx_
-                    << ", IO id = " << reqDone_->GetIOTracker()->GetID()
-                    << ", request id = " << reqCtx_->id_;
+    if (CURVE_UNLIKELY(!reqDone_->IsSlowRequest() &&
+                       (TimeUtility::GetTimeofDayMs() - reqDone_->CreatedMS() >
+                        failReqOpt_.chunkserverSlowRequestThresholdMS))) {
+        reqDone_->MarkAsSlowRequest();
+        MetricHelper::IncremSlowRequestNum(fileMetric_);
+        LOG(ERROR) << "Slow request, " << *reqCtx_
+                   << ", IO id = " << reqDone_->GetIOTracker()->GetID()
+                   << ", request id = " << reqCtx_->id_
+                   << ", request created at " << reqDone_->CreatedMS();
     }
 
     PreProcessBeforeRetry(status_, cntlstatus_);
