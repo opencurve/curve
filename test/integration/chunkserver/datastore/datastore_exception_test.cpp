@@ -36,9 +36,9 @@ class ExceptionTestSuit : public DatastoreIntegrationBase {
 };
 
 /**
- * 异常测试1
- * 用例：chunk的metapage数据损坏，然后启动DataStore
- * 预期：重启失败
+ * Exception test 1
+ * Scenario: Chunk's metapage data is corrupt, and then start DataStore
+ * Expected: Reboot failed
  */
 TEST_F(ExceptionTestSuit, ExceptionTest1) {
     SequenceNum fileSn = 1;
@@ -47,7 +47,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest1) {
     CSErrorCode errorCode;
     CSChunkInfo chunk1Info;
 
-    // 生成chunk1
+    // Generate chunk1
     char buf[PAGE_SIZE];
     memset(buf, '1', length);
     errorCode = dataStore_->WriteChunk(1,  // id
@@ -58,25 +58,25 @@ TEST_F(ExceptionTestSuit, ExceptionTest1) {
                                        nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
-    // 通过lfs修改chunk1的metapage
+    // Modifying the metapage of chunk1 through lfs
     std::string chunkPath = baseDir + "/" +
         FileNameOperator::GenerateChunkFileName(1);
     char metapage[PAGE_SIZE];
     int fd = lfs_->Open(chunkPath, O_RDWR|O_NOATIME|O_DSYNC);
     ASSERT_GT(fd, 0);
     lfs_->Read(fd, metapage, 0, PAGE_SIZE);
-    // 修改metapage
+    // Modify Metapage
     metapage[0]++;
     lfs_->Write(fd, metapage, 0, PAGE_SIZE);
     lfs_->Close(fd);
 
-    // 模拟重启
+    // Simulate restart
     DataStoreOptions options;
     options.baseDir = baseDir;
     options.chunkSize = CHUNK_SIZE;
     options.metaPageSize = PAGE_SIZE;
     options.blockSize = BLOCK_SIZE;
-    // 构造新的dataStore_，并重新初始化,重启失败
+    // Construct a new dataStore_, And reinitialize, restart failed
     dataStore_ = std::make_shared<CSDataStore>(lfs_,
                                                filePool_,
                                                options);
@@ -84,9 +84,9 @@ TEST_F(ExceptionTestSuit, ExceptionTest1) {
 }
 
 /**
- * 异常测试2
- * 用例：chunk的metapage数据损坏，然后更新了metapage，然后重启DataStore
- * 预期：重启datastore可以成功
+ * Exception Test 2
+ * Scenario: Chunk's metapage data is corrupt, then the metapage is updated, and then the DataStore is restarted
+ * Expected: Restarting the datastore can be successful
  */
 TEST_F(ExceptionTestSuit, ExceptionTest2) {
     SequenceNum fileSn = 1;
@@ -95,7 +95,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest2) {
     CSErrorCode errorCode;
     CSChunkInfo chunk1Info;
 
-    // 生成chunk1
+    // Generate chunk1
     char buf[PAGE_SIZE];
     memset(buf, '1', length);
     errorCode = dataStore_->WriteChunk(1,  // id
@@ -106,19 +106,19 @@ TEST_F(ExceptionTestSuit, ExceptionTest2) {
                                        nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
-    // 通过lfs修改chunk1的metapage
+    // Modifying the metapage of chunk1 through lfs
     std::string chunkPath = baseDir + "/" +
         FileNameOperator::GenerateChunkFileName(1);
     char metapage[PAGE_SIZE];
     int fd = lfs_->Open(chunkPath, O_RDWR|O_NOATIME|O_DSYNC);
     ASSERT_GT(fd, 0);
     lfs_->Read(fd, metapage, 0, PAGE_SIZE);
-    // 修改metapage
+    // Modify Metapage
     metapage[0]++;
     lfs_->Write(fd, metapage, 0, PAGE_SIZE);
     lfs_->Close(fd);
 
-    // 触发metapage更新
+    //Trigger metapage Update
     errorCode = dataStore_->WriteChunk(1,  // id
                                        ++fileSn,
                                        buf,
@@ -127,13 +127,13 @@ TEST_F(ExceptionTestSuit, ExceptionTest2) {
                                        nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
-    // 模拟重启
+    // Simulate restart
     DataStoreOptions options;
     options.baseDir = baseDir;
     options.chunkSize = CHUNK_SIZE;
     options.metaPageSize = PAGE_SIZE;
     options.blockSize = BLOCK_SIZE;
-    // 构造新的dataStore_，并重新初始化,重启失败
+    // Construct a new dataStore_, And reinitialize, restart failed
     dataStore_ = std::make_shared<CSDataStore>(lfs_,
                                                filePool_,
                                                options);
@@ -141,9 +141,9 @@ TEST_F(ExceptionTestSuit, ExceptionTest2) {
 }
 
 /**
- * 异常测试3
- * 用例：chunk快照的metapage数据损坏，然后重启DataStore
- * 预期：重启失败
+ * Exception Test 3
+ * Scenario: Chunk snapshot metadata data corruption, then restart DataStore
+ * Expected: Reboot failed
  */
 TEST_F(ExceptionTestSuit, ExceptionTest3) {
     SequenceNum fileSn = 1;
@@ -152,7 +152,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest3) {
     CSErrorCode errorCode;
     CSChunkInfo chunk1Info;
 
-    // 生成chunk1
+    // Generate chunk1
     char buf[PAGE_SIZE];
     memset(buf, '1', length);
     errorCode = dataStore_->WriteChunk(1,  // id
@@ -163,7 +163,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest3) {
                                        nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
-    // 生成快照文件
+    // Generate snapshot files
     errorCode = dataStore_->WriteChunk(1,  // id
                                        ++fileSn,
                                        buf,
@@ -172,25 +172,25 @@ TEST_F(ExceptionTestSuit, ExceptionTest3) {
                                        nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
-    // 通过lfs修改chunk1快照的metapage
+    // Modifying the metapage of chunk1 snapshot through lfs
     std::string snapPath = baseDir + "/" +
         FileNameOperator::GenerateSnapshotName(1, 1);
     char metapage[PAGE_SIZE];
     int fd = lfs_->Open(snapPath, O_RDWR|O_NOATIME|O_DSYNC);
     ASSERT_GT(fd, 0);
     lfs_->Read(fd, metapage, 0, PAGE_SIZE);
-    // 修改metapage
+    // Modify metapage
     metapage[0]++;
     lfs_->Write(fd, metapage, 0, PAGE_SIZE);
     lfs_->Close(fd);
 
-    // 模拟重启
+    // Simulate restart
     DataStoreOptions options;
     options.baseDir = baseDir;
     options.chunkSize = CHUNK_SIZE;
     options.metaPageSize = PAGE_SIZE;
     options.blockSize = BLOCK_SIZE;
-    // 构造新的dataStore_，并重新初始化,重启失败
+    // Construct a new dataStore_, And reinitialize, restart failed
     dataStore_ = std::make_shared<CSDataStore>(lfs_,
                                                filePool_,
                                                options);
@@ -198,9 +198,9 @@ TEST_F(ExceptionTestSuit, ExceptionTest3) {
 }
 
 /**
- * 异常测试4
- * 用例：chunk快照的metapage数据损坏，但是更新了metapage，然后重启DataStore
- * 预期：重启成功
+ * Exception Test 4
+ * Scenario: Chunk snapshot's metapage data is corrupt, but the metapage is updated, and then restart the DataStore
+ * Expected: Reboot successful
  */
 TEST_F(ExceptionTestSuit, ExceptionTest4) {
     SequenceNum fileSn = 1;
@@ -209,7 +209,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest4) {
     CSErrorCode errorCode;
     CSChunkInfo chunk1Info;
 
-    // 生成chunk1
+    // Generate chunk1
     char buf[PAGE_SIZE];
     memset(buf, '1', length);
     errorCode = dataStore_->WriteChunk(1,  // id
@@ -220,7 +220,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest4) {
                                        nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
-    // 生成快照文件
+    // Generate snapshot files
     errorCode = dataStore_->WriteChunk(1,  // id
                                        ++fileSn,
                                        buf,
@@ -229,7 +229,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest4) {
                                        nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
-    // 触发快照metapage更新
+    //Trigger snapshot metadata update
     errorCode = dataStore_->WriteChunk(1,  // id
                                        fileSn,
                                        buf,
@@ -238,25 +238,25 @@ TEST_F(ExceptionTestSuit, ExceptionTest4) {
                                        nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
-    // 通过lfs修改chunk1快照的metapage
+    // Modifying the metapage of chunk1 snapshot through lfs
     std::string snapPath = baseDir + "/" +
         FileNameOperator::GenerateSnapshotName(1, 1);
     char metapage[PAGE_SIZE];
     int fd = lfs_->Open(snapPath, O_RDWR|O_NOATIME|O_DSYNC);
     ASSERT_GT(fd, 0);
     lfs_->Read(fd, metapage, 0, PAGE_SIZE);
-    // 修改metapage
+    // Modify Metapage
     metapage[0]++;
     lfs_->Write(fd, metapage, 0, PAGE_SIZE);
     lfs_->Close(fd);
 
-    // 模拟重启
+    // Simulate restart
     DataStoreOptions options;
     options.baseDir = baseDir;
     options.chunkSize = CHUNK_SIZE;
     options.metaPageSize = PAGE_SIZE;
     options.blockSize = BLOCK_SIZE;
-    // 构造新的dataStore_，并重新初始化,重启失败
+    // Construct a new dataStore_, And reinitialize, restart failed
     dataStore_ = std::make_shared<CSDataStore>(lfs_,
                                                filePool_,
                                                options);
@@ -264,9 +264,9 @@ TEST_F(ExceptionTestSuit, ExceptionTest4) {
 }
 
 /**
- * 异常测试5
- * 用例：WriteChunk数据写到一半重启
- * 预期：重启成功，重新执行上一条操作成功
+ * Exception Test 5
+ * Scenario: WriteChunk data is written halfway and restarted
+ * Expected: Successful restart, successful re execution of the previous operation
  */
 TEST_F(ExceptionTestSuit, ExceptionTest5) {
     SequenceNum fileSn = 1;
@@ -275,7 +275,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest5) {
     CSErrorCode errorCode;
     CSChunkInfo chunk1Info;
 
-    // 生成chunk1
+    // Generate chunk1
     char buf1[PAGE_SIZE];
     memset(buf1, '1', length);
     errorCode = dataStore_->WriteChunk(1,  // id
@@ -286,33 +286,33 @@ TEST_F(ExceptionTestSuit, ExceptionTest5) {
                                        nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
-    // 构造要写入的数据和请求偏移
+    // Construct data to be written and request offset
     char buf2[2 * PAGE_SIZE];
     memset(buf2, '2', length);
     offset = 0;
     length = 2 * PAGE_SIZE;
-    // 通过lfs写一半数据到chunk文件
+    // Write half of the data to the chunk file through lfs
     std::string chunkPath = baseDir + "/" +
         FileNameOperator::GenerateChunkFileName(1);
     int fd = lfs_->Open(chunkPath, O_RDWR|O_NOATIME|O_DSYNC);
     ASSERT_GT(fd, 0);
-    // 写数据
+    // Write data
     lfs_->Write(fd, buf2, offset + PAGE_SIZE, PAGE_SIZE);
     lfs_->Close(fd);
 
-    // 模拟重启
+    // Simulate restart
     DataStoreOptions options;
     options.baseDir = baseDir;
     options.chunkSize = CHUNK_SIZE;
     options.metaPageSize = PAGE_SIZE;
     options.blockSize = BLOCK_SIZE;
-    // 构造新的dataStore_，并重新初始化,重启失败
+    // Construct a new dataStore_, And reinitialize, restart failed
     dataStore_ = std::make_shared<CSDataStore>(lfs_,
                                                filePool_,
                                                options);
     ASSERT_TRUE(dataStore_->Initialize());
 
-    // 模拟日志恢复
+    // Simulate log recovery
     errorCode = dataStore_->WriteChunk(1,  // id
                                        fileSn,
                                        buf2,
@@ -320,7 +320,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest5) {
                                        length,
                                        nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
-    // 读数据校验
+    // Read data verification
     char readbuf[2 * PAGE_SIZE];
     errorCode = dataStore_->ReadChunk(1,  // id
                                       fileSn,
@@ -332,9 +332,9 @@ TEST_F(ExceptionTestSuit, ExceptionTest5) {
 }
 
 /**
- * 异常测试6
- * 用例：WriteChunk更新metapage后重启，sn>chunk.sn,sn==chunk.correctedSn
- * 预期：重启成功，重新执行上一条操作成功
+ * Exception Test 6
+ * Scenario: WriteChunk updates the metapage and restarts, sn>chunk.sn,sn==chunk.correctedSn
+ * Expected: Successful restart, successful re execution of the previous operation
  */
 TEST_F(ExceptionTestSuit, ExceptionTest6) {
     SequenceNum fileSn = 1;
@@ -343,7 +343,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest6) {
     CSErrorCode errorCode;
     CSChunkInfo chunk1Info;
 
-    // 生成chunk1
+    // Generate chunk1
     char buf1[PAGE_SIZE];
     memset(buf1, '1', length);
     errorCode = dataStore_->WriteChunk(1,  // id
@@ -354,18 +354,18 @@ TEST_F(ExceptionTestSuit, ExceptionTest6) {
                                        nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
-    // 更新 correctedsn 为2
+    // Update correctedsn to 2
     errorCode = dataStore_->DeleteSnapshotChunkOrCorrectSn(1, 2);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
-    // 构造要写入的请求参数
+    // Construct request parameters to write
     char buf2[2 * PAGE_SIZE];
     memset(buf2, '2', length);
     offset = 0;
     length = 2 * PAGE_SIZE;
     fileSn = 2;  // sn > chunk.sn; sn == chunk.correctedSn
 
-    // 通过lfs修改chunk1的metapage
+    // Modifying the metapage of chunk1 through lfs
     std::string chunkPath = baseDir + "/" +
         FileNameOperator::GenerateChunkFileName(1);
     char metabuf[PAGE_SIZE];
@@ -373,30 +373,30 @@ TEST_F(ExceptionTestSuit, ExceptionTest6) {
     ASSERT_GT(fd, 0);
     lfs_->Read(fd, metabuf, 0, PAGE_SIZE);
 
-    // 模拟更新metapage成功
+    // Successfully simulated updating of metapage
     ChunkFileMetaPage metaPage;
     errorCode = metaPage.decode(metabuf);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(1, metaPage.sn);
     metaPage.sn = fileSn;
     metaPage.encode(metabuf);
-    // 更新metapage
+    // Update Metapage
     lfs_->Write(fd, metabuf, 0, PAGE_SIZE);
     lfs_->Close(fd);
 
-    // 模拟重启
+    // Simulate restart
     DataStoreOptions options;
     options.baseDir = baseDir;
     options.chunkSize = CHUNK_SIZE;
     options.metaPageSize = PAGE_SIZE;
     options.blockSize = BLOCK_SIZE;
-    // 构造新的dataStore_，并重新初始化,重启失败
+    // Construct a new dataStore_, And reinitialize, restart failed
     dataStore_ = std::make_shared<CSDataStore>(lfs_,
                                                filePool_,
                                                options);
     ASSERT_TRUE(dataStore_->Initialize());
 
-    // 模拟日志恢复
+    // Simulate log recovery
     errorCode = dataStore_->WriteChunk(1,  // id
                                        fileSn,
                                        buf2,
@@ -404,7 +404,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest6) {
                                        length,
                                        nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
-    // 读数据校验
+    // Read data verification
     char readbuf[2 * PAGE_SIZE];
     errorCode = dataStore_->ReadChunk(1,  // id
                                       fileSn,
@@ -416,11 +416,11 @@ TEST_F(ExceptionTestSuit, ExceptionTest6) {
 }
 
 /**
- * 异常测试7
- * 用例：WriteChunk产生快照后重启，恢复历史操作和当前操作
+ * Exception Test 7
+ * Scenario: WriteChunk generates a snapshot and restarts, restoring historical and current operations
  *      sn>chunk.sn, sn>chunk.correctedSn
- *      测chunk.sn>chunk.correctedSn
- * 预期：重启成功
+ *      Test chunk.sn>chunk.correctedSn
+ * Expected: Reboot successful
  */
 TEST_F(ExceptionTestSuit, ExceptionTest7) {
     SequenceNum fileSn = 1;
@@ -429,7 +429,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest7) {
     CSErrorCode errorCode;
     CSChunkInfo chunk1Info;
 
-    // 生成chunk1，模拟chunk.sn>chunk.correctedSn的情况
+    // Generate chunk1 and simulate the situation where chunk.sn>chunk.correctedSn
     char buf1[PAGE_SIZE];
     memset(buf1, '1', length);
     errorCode = dataStore_->WriteChunk(1,  // id
@@ -440,7 +440,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest7) {
                                        nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
-    // 模拟创建快照文件
+    // Simulate creating snapshot files
     ChunkOptions chunkOption;
     chunkOption.id = 1;
     chunkOption.sn = 1;
@@ -452,19 +452,19 @@ TEST_F(ExceptionTestSuit, ExceptionTest7) {
     errorCode = snapshot.Open(true);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
-    // 模拟重启
+    // Simulate restart
     DataStoreOptions options;
     options.baseDir = baseDir;
     options.chunkSize = CHUNK_SIZE;
     options.metaPageSize = PAGE_SIZE;
     options.blockSize = BLOCK_SIZE;
-    // 构造新的dataStore_，并重新初始化,重启失败
+    // Construct a new dataStore_, And reinitialize, restart failed
     dataStore_ = std::make_shared<CSDataStore>(lfs_,
                                                filePool_,
                                                options);
     ASSERT_TRUE(dataStore_->Initialize());
 
-    // 检查是否加载了快照信息
+    // Check if snapshot information is loaded
     CSChunkInfo info;
     errorCode = dataStore_->GetChunkInfo(1, &info);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
@@ -472,7 +472,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest7) {
     ASSERT_EQ(1, info.snapSn);
     ASSERT_EQ(0, info.correctedSn);
 
-    // 模拟日志恢复前一条操作
+    // Simulate the previous operation of log recovery
     errorCode = dataStore_->WriteChunk(1,  // id
                                        fileSn,
                                        buf1,
@@ -480,13 +480,13 @@ TEST_F(ExceptionTestSuit, ExceptionTest7) {
                                        length,
                                        nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
-    // 读快照文件来校验是否有cow
+    // Read the snapshot file to verify if there is a row
     char readbuf[2 * PAGE_SIZE];
     snapshot.Read(readbuf, offset, length);
-    // 预期未发生cow
+    // Expected no cows to occur
     ASSERT_NE(0, memcmp(buf1, readbuf, length));
 
-    // 模拟恢复最后一条操作
+    // Simulate recovery of the last operation
     fileSn++;
     char buf2[PAGE_SIZE];
     memset(buf2, '2', length);
@@ -497,13 +497,13 @@ TEST_F(ExceptionTestSuit, ExceptionTest7) {
                                        length,
                                        nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
-    // 检查是否更新了版本号
+    // Check if the version number has been updated
     errorCode = dataStore_->GetChunkInfo(1, &info);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(2, info.curSn);
     ASSERT_EQ(1, info.snapSn);
     ASSERT_EQ(0, info.correctedSn);
-    // chunk数据被覆盖
+    // chunk data is overwritten
     errorCode = dataStore_->ReadChunk(1,  // id
                                       fileSn,
                                       readbuf,
@@ -511,7 +511,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest7) {
                                       length);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(0, memcmp(buf2, readbuf, length));
-    // 原数据cow到快照
+    // Raw data cow to snapshot
     errorCode = dataStore_->ReadSnapshotChunk(1,  // id
                                               1,
                                               readbuf,
@@ -522,11 +522,11 @@ TEST_F(ExceptionTestSuit, ExceptionTest7) {
 }
 
 /**
- * 异常测试8
- * 用例：WriteChunk产生快照后重启，
+ * Exception Test8
+ * Scenario: WriteChunk generates a snapshot and restarts,
  *      sn>chunk.sn, sn>chunk.correctedSn
- *      测chunk.sn==chunk.correctedSn
- * 预期：重启成功
+ *      Test chunk.sn==chunk.correctedSn
+ * Expected: Reboot successful
  */
 TEST_F(ExceptionTestSuit, ExceptionTest8) {
     SequenceNum fileSn = 1;
@@ -535,7 +535,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest8) {
     CSErrorCode errorCode;
     CSChunkInfo chunk1Info;
 
-    // 生成chunk1,构造chunk.sn==chunk.correctedsn的场景
+    // Generate chunk1 and construct a scenario where chunk.sn==chunk.correctedsn
     char buf1[PAGE_SIZE];
     memset(buf1, '1', length);
     errorCode = dataStore_->WriteChunk(1,  // id
@@ -555,7 +555,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest8) {
                                        nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
-    // 模拟创建快照文件
+    // Simulate creating snapshot files
     ChunkOptions chunkOption;
     chunkOption.id = 1;
     chunkOption.sn = 2;
@@ -567,19 +567,19 @@ TEST_F(ExceptionTestSuit, ExceptionTest8) {
     errorCode = snapshot.Open(true);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
-    // 模拟重启
+    // Simulate restart
     DataStoreOptions options;
     options.baseDir = baseDir;
     options.chunkSize = CHUNK_SIZE;
     options.metaPageSize = PAGE_SIZE;
     options.blockSize = BLOCK_SIZE;
-    // 构造新的dataStore_，并重新初始化,重启失败
+    // Construct a new dataStore_, And reinitialize, restart failed
     dataStore_ = std::make_shared<CSDataStore>(lfs_,
                                                filePool_,
                                                options);
     ASSERT_TRUE(dataStore_->Initialize());
 
-    // 检查是否加载了快照信息
+    // Check if snapshot information is loaded
     CSChunkInfo info;
     errorCode = dataStore_->GetChunkInfo(1, &info);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
@@ -587,7 +587,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest8) {
     ASSERT_EQ(2, info.snapSn);
     ASSERT_EQ(2, info.correctedSn);
 
-    // 模拟日志恢复前一条操作
+    // Simulate the previous operation of log recovery
     errorCode = dataStore_->WriteChunk(1,  // id
                                        fileSn,
                                        buf1,
@@ -595,13 +595,13 @@ TEST_F(ExceptionTestSuit, ExceptionTest8) {
                                        length,
                                        nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
-    // 读快照文件来校验是否有cow
+    // Read the snapshot file to verify if there is a row
     char readbuf[2 * PAGE_SIZE];
     snapshot.Read(readbuf, offset, length);
-    // 预期未发生cow
+    // Expected no cows to occur
     ASSERT_NE(0, memcmp(buf1, readbuf, length));
 
-    // 模拟恢复最后一条操作
+    // Simulate recovery of the last operation
     fileSn++;
     char buf2[PAGE_SIZE];
     memset(buf2, '2', length);
@@ -612,13 +612,13 @@ TEST_F(ExceptionTestSuit, ExceptionTest8) {
                                        length,
                                        nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
-    // 检查是否更新了版本号
+    // Check if the version number has been updated
     errorCode = dataStore_->GetChunkInfo(1, &info);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(3, info.curSn);
     ASSERT_EQ(2, info.snapSn);
     ASSERT_EQ(2, info.correctedSn);
-    // chunk数据被覆盖
+    // chunk data is overwritten
     errorCode = dataStore_->ReadChunk(1,  // id
                                       fileSn,
                                       readbuf,
@@ -626,7 +626,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest8) {
                                       length);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(0, memcmp(buf2, readbuf, length));
-    // 原数据cow到快照
+    // Raw data cow to snapshot
     errorCode = dataStore_->ReadSnapshotChunk(1,  // id
                                               2,
                                               readbuf,
@@ -637,10 +637,10 @@ TEST_F(ExceptionTestSuit, ExceptionTest8) {
 }
 
 /**
- * 异常测试9
- * 用例：WriteChunk产生快照并更新metapage后重启，恢复历史操作和当前操作
+ * Exception Test 9
+ * Scenario: WriteChunk generates a snapshot and updates the metapage before restarting, restoring historical and current operations
  *      sn>chunk.sn, sn>chunk.correctedSn
- * 预期：重启成功
+ * Expected: Reboot successful
  */
 TEST_F(ExceptionTestSuit, ExceptionTest9) {
     SequenceNum fileSn = 1;
@@ -649,7 +649,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest9) {
     CSErrorCode errorCode;
     CSChunkInfo chunk1Info;
 
-    // 生成chunk1，模拟chunk.sn>chunk.correctedSn的情况
+    // Generate chunk1 and simulate the situation where chunk.sn>chunk.correctedSn
     char buf1[PAGE_SIZE];
     memset(buf1, '1', length);
     errorCode = dataStore_->WriteChunk(1,  // id
@@ -660,7 +660,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest9) {
                                        nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
-    // 模拟创建快照文件
+    // Simulate creating snapshot files
     ChunkOptions chunkOption;
     chunkOption.id = 1;
     chunkOption.sn = 1;
@@ -672,7 +672,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest9) {
     errorCode = snapshot.Open(true);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
-    // 通过lfs修改chunk1的metapage
+    // Modifying the metapage of chunk1 through lfs
     std::string chunkPath = baseDir + "/" +
         FileNameOperator::GenerateChunkFileName(1);
     char metabuf[PAGE_SIZE];
@@ -680,30 +680,30 @@ TEST_F(ExceptionTestSuit, ExceptionTest9) {
     ASSERT_GT(fd, 0);
     lfs_->Read(fd, metabuf, 0, PAGE_SIZE);
 
-    // 模拟更新metapage成功
+    // Successfully simulated updating of metapage
     ChunkFileMetaPage metaPage;
     errorCode = metaPage.decode(metabuf);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(1, metaPage.sn);
     metaPage.sn = 2;
     metaPage.encode(metabuf);
-    // 更新metapage
+    // Update Metapage
     lfs_->Write(fd, metabuf, 0, PAGE_SIZE);
     lfs_->Close(fd);
 
-    // 模拟重启
+    // Simulate restart
     DataStoreOptions options;
     options.baseDir = baseDir;
     options.chunkSize = CHUNK_SIZE;
     options.metaPageSize = PAGE_SIZE;
     options.blockSize = BLOCK_SIZE;
-    // 构造新的dataStore_，并重新初始化,重启失败
+    // Construct a new dataStore_, And reinitialize, restart failed
     dataStore_ = std::make_shared<CSDataStore>(lfs_,
                                                filePool_,
                                                options);
     ASSERT_TRUE(dataStore_->Initialize());
 
-    // 检查是否加载了快照信息
+    // Check if snapshot information is loaded
     CSChunkInfo info;
     errorCode = dataStore_->GetChunkInfo(1, &info);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
@@ -711,7 +711,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest9) {
     ASSERT_EQ(1, info.snapSn);
     ASSERT_EQ(0, info.correctedSn);
 
-    // 模拟日志恢复前一条操作
+    // Simulate the previous operation of log recovery
     errorCode = dataStore_->WriteChunk(1,  // id
                                        fileSn,
                                        buf1,
@@ -720,7 +720,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest9) {
                                        nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::BackwardRequestError);
 
-    // 模拟恢复最后一条操作
+    // Simulate recovery of the last operation
     fileSn++;
     char buf2[PAGE_SIZE];
     memset(buf2, '2', length);
@@ -731,13 +731,13 @@ TEST_F(ExceptionTestSuit, ExceptionTest9) {
                                        length,
                                        nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
-    // 检查是否更新了版本号
+    // Check if the version number has been updated
     errorCode = dataStore_->GetChunkInfo(1, &info);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(2, info.curSn);
     ASSERT_EQ(1, info.snapSn);
     ASSERT_EQ(0, info.correctedSn);
-    // chunk数据被覆盖
+    // chunk data is overwritten
     char readbuf[2 * PAGE_SIZE];
     errorCode = dataStore_->ReadChunk(1,  // id
                                       fileSn,
@@ -746,7 +746,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest9) {
                                       length);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(0, memcmp(buf2, readbuf, length));
-    // 原数据cow到快照
+    // Raw data cow to snapshot
     errorCode = dataStore_->ReadSnapshotChunk(1,  // id
                                               1,
                                               readbuf,
@@ -757,10 +757,10 @@ TEST_F(ExceptionTestSuit, ExceptionTest9) {
 }
 
 /**
- * 异常测试10
- * 用例：WriteChunk更新快照metapage前重启，恢复历史操作和当前操作
+ * Exception Test 10
+ * Scenario: WriteChunk restarts before updating the snapshot metapage to restore historical and current operations
  *      sn>chunk.sn, sn>chunk.correctedSn
- * 预期：重启成功
+ * Expected: Reboot successful
  */
 TEST_F(ExceptionTestSuit, ExceptionTest10) {
     SequenceNum fileSn = 1;
@@ -769,7 +769,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest10) {
     CSErrorCode errorCode;
     CSChunkInfo chunk1Info;
 
-    // 生成chunk1，模拟chunk.sn>chunk.correctedSn的情况
+    // Generate chunk1 and simulate the situation where chunk.sn>chunk.correctedSn
     char buf1[2 * PAGE_SIZE];
     memset(buf1, '1', length);
     errorCode = dataStore_->WriteChunk(1,  // id
@@ -780,7 +780,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest10) {
                                        nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
-    // 产生快照文件
+    // Generate snapshot file
     fileSn++;
     length = PAGE_SIZE;
     char buf2[2 * PAGE_SIZE];
@@ -794,17 +794,17 @@ TEST_F(ExceptionTestSuit, ExceptionTest10) {
                                        nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
-    // 模拟cow
+    // Simulate Cow
     std::string snapPath = baseDir + "/" +
         FileNameOperator::GenerateSnapshotName(1, 1);
     int fd = lfs_->Open(snapPath, O_RDWR|O_NOATIME|O_DSYNC);
     ASSERT_GT(fd, 0);
-    // 写数据
+    // Write data
     lfs_->Write(fd, buf1, 2 * PAGE_SIZE, PAGE_SIZE);
-    // 更新metapage
+    // Update Metapage
     char metabuf[PAGE_SIZE];
     lfs_->Read(fd, metabuf, 0, PAGE_SIZE);
-    // 修改metapage
+    // Modify Metapage
     SnapshotMetaPage metaPage;
     errorCode = metaPage.decode(metabuf);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
@@ -813,19 +813,19 @@ TEST_F(ExceptionTestSuit, ExceptionTest10) {
     lfs_->Write(fd, metabuf, 0, PAGE_SIZE);
     lfs_->Close(fd);
 
-    // 模拟重启
+    // Simulate restart
     DataStoreOptions options;
     options.baseDir = baseDir;
     options.chunkSize = CHUNK_SIZE;
     options.metaPageSize = PAGE_SIZE;
     options.blockSize = BLOCK_SIZE;
-    // 构造新的dataStore_，并重新初始化,重启失败
+    // Construct a new dataStore_, And reinitialize, restart failed
     dataStore_ = std::make_shared<CSDataStore>(lfs_,
                                                filePool_,
                                                options);
     ASSERT_TRUE(dataStore_->Initialize());
 
-    // 检查是否加载了快照信息
+    // Check if snapshot information is loaded
     CSChunkInfo info;
     errorCode = dataStore_->GetChunkInfo(1, &info);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
@@ -833,7 +833,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest10) {
     ASSERT_EQ(1, info.snapSn);
     ASSERT_EQ(0, info.correctedSn);
 
-    // 模拟日志恢复
+    // Simulate log recovery
     offset = 0;
     length = 2 * PAGE_SIZE;
     errorCode = dataStore_->WriteChunk(1,  // id
@@ -843,7 +843,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest10) {
                                        length,
                                        nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::BackwardRequestError);
-    // 模拟恢复下一个操作
+    // Simulate recovery of the next operation
     length = PAGE_SIZE;
     errorCode = dataStore_->WriteChunk(1,  // id
                                        2,  // sn
@@ -853,7 +853,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest10) {
                                        nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
-    // 模拟恢复最后一条操作
+    // Simulate recovery of the last operation
     offset = PAGE_SIZE;
     errorCode = dataStore_->WriteChunk(1,  // id
                                        2,  // sn
@@ -862,13 +862,13 @@ TEST_F(ExceptionTestSuit, ExceptionTest10) {
                                        length,
                                        nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
-    // 检查chunk 信息是否正确
+    // Check if the chunk information is correct
     errorCode = dataStore_->GetChunkInfo(1, &info);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(2, info.curSn);
     ASSERT_EQ(1, info.snapSn);
     ASSERT_EQ(0, info.correctedSn);
-    // chunk数据被覆盖
+    // chunk data is overwritten
     char readbuf[2 * PAGE_SIZE];
     offset = 0;
     length = 2 * PAGE_SIZE;
@@ -879,7 +879,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest10) {
                                       length);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(0, memcmp(buf2, readbuf, length));
-    // 原数据cow到快照
+    // Raw data cow to snapshot
     errorCode = dataStore_->ReadSnapshotChunk(1,  // id
                                               1,
                                               readbuf,
@@ -890,10 +890,10 @@ TEST_F(ExceptionTestSuit, ExceptionTest10) {
 }
 
 /**
- * 异常测试11
- * 用例：WriteChunk更新快照metapage后重启，恢复历史操作和当前操作
+ * Exception Test 11
+ * Scenario: WriteChunk updates snapshot metadata and restarts to restore historical and current operations
  *      sn>chunk.sn, sn>chunk.correctedSn
- * 预期：重启成功
+ * Expected: Reboot successful
  */
 TEST_F(ExceptionTestSuit, ExceptionTest11) {
     SequenceNum fileSn = 1;
@@ -902,7 +902,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest11) {
     CSErrorCode errorCode;
     CSChunkInfo chunk1Info;
 
-    // 生成chunk1，模拟chunk.sn>chunk.correctedSn的情况
+    // Generate chunk1 and simulate the situation where chunk.sn>chunk.correctedSn
     char buf1[2 * PAGE_SIZE];
     memset(buf1, '1', length);
     errorCode = dataStore_->WriteChunk(1,  // id
@@ -913,7 +913,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest11) {
                                        nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
-    // 产生快照文件
+    // Generate snapshot file
     fileSn++;
     length = PAGE_SIZE;
     char buf2[2 * PAGE_SIZE];
@@ -927,28 +927,28 @@ TEST_F(ExceptionTestSuit, ExceptionTest11) {
                                        nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
-    // 模拟cow
+    // Simulate Cow
     std::string snapPath = baseDir + "/" +
         FileNameOperator::GenerateSnapshotName(1, 1);
     int fd = lfs_->Open(snapPath, O_RDWR|O_NOATIME|O_DSYNC);
     ASSERT_GT(fd, 0);
-    // 写数据
+    // Write data
     lfs_->Write(fd, buf1, 2 * PAGE_SIZE, PAGE_SIZE);
     lfs_->Close(fd);
 
-    // 模拟重启
+    // Simulate restart
     DataStoreOptions options;
     options.baseDir = baseDir;
     options.chunkSize = CHUNK_SIZE;
     options.metaPageSize = PAGE_SIZE;
     options.blockSize = BLOCK_SIZE;
-    // 构造新的dataStore_，并重新初始化,重启失败
+    // Construct a new dataStore_, And reinitialize, restart failed
     dataStore_ = std::make_shared<CSDataStore>(lfs_,
                                                filePool_,
                                                options);
     ASSERT_TRUE(dataStore_->Initialize());
 
-    // 检查是否加载了快照信息
+    // Check if snapshot information is loaded
     CSChunkInfo info;
     errorCode = dataStore_->GetChunkInfo(1, &info);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
@@ -956,7 +956,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest11) {
     ASSERT_EQ(1, info.snapSn);
     ASSERT_EQ(0, info.correctedSn);
 
-    // 模拟日志恢复
+    // Simulate log recovery
     offset = 0;
     length = 2 * PAGE_SIZE;
     errorCode = dataStore_->WriteChunk(1,  // id
@@ -966,7 +966,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest11) {
                                        length,
                                        nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::BackwardRequestError);
-    // 模拟恢复下一个操作
+    // Simulate recovery of the next operation
     length = PAGE_SIZE;
     errorCode = dataStore_->WriteChunk(1,  // id
                                        2,  // sn
@@ -976,7 +976,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest11) {
                                        nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
-    // 模拟恢复最后一条操作
+    // Simulate recovery of the last operation
     offset = PAGE_SIZE;
     errorCode = dataStore_->WriteChunk(1,  // id
                                        2,  // sn
@@ -985,13 +985,13 @@ TEST_F(ExceptionTestSuit, ExceptionTest11) {
                                        length,
                                        nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
-    // 检查chunk 信息是否正确
+    // Check if the chunk information is correct
     errorCode = dataStore_->GetChunkInfo(1, &info);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(2, info.curSn);
     ASSERT_EQ(1, info.snapSn);
     ASSERT_EQ(0, info.correctedSn);
-    // chunk数据被覆盖
+    // chunk data is overwritten
     char readbuf[2 * PAGE_SIZE];
     offset = 0;
     length = 2 * PAGE_SIZE;
@@ -1002,7 +1002,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest11) {
                                       length);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(0, memcmp(buf2, readbuf, length));
-    // 原数据cow到快照
+    // Raw data cow to snapshot
     errorCode = dataStore_->ReadSnapshotChunk(1,  // id
                                               1,
                                               readbuf,
@@ -1013,9 +1013,9 @@ TEST_F(ExceptionTestSuit, ExceptionTest11) {
 }
 
 /**
- * 异常测试12
- * 用例：PasteChunk，数据写入一半时，还未更新metapage重启/崩溃
- * 预期：重启成功,paste成功
+ * Exception Test 12
+ * Scenario: PasteChunk, when data is written halfway and the metapage has not been updated, restart/crash
+ * Expected: Reboot successful, pass successful
  */
 TEST_F(ExceptionTestSuit, ExceptionTest12) {
     ChunkID id = 1;
@@ -1027,14 +1027,14 @@ TEST_F(ExceptionTestSuit, ExceptionTest12) {
     CSChunkInfo info;
     std::string location("test@s3");
 
-    // 创建克隆文件chunk1
+    // Create clone file chunk1
     errorCode = dataStore_->CreateCloneChunk(id,  // chunk id
                                              sn,
                                              correctedSn,  // corrected sn
                                              CHUNK_SIZE,
                                              location);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
-    // 检查chunk的各项信息，都符合预期
+    // Check all the information of the chunk and ensure it meets expectations
     errorCode = dataStore_->GetChunkInfo(id, &info);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(sn, info.curSn);
@@ -1048,33 +1048,33 @@ TEST_F(ExceptionTestSuit, ExceptionTest12) {
     ASSERT_NE(nullptr, info.bitmap);
     ASSERT_EQ(Bitmap::NO_POS, info.bitmap->NextSetBit(0));
 
-    // 构造要写入的数据和请求偏移
+    // Construct data to be written and request offset
     char buf1[PAGE_SIZE];
     memset(buf1, '1', length);
     offset = 0;
     length = PAGE_SIZE;
-    // 通过lfs写数据到chunk文件
+    // Write data to chunk file through lfs
     std::string chunkPath = baseDir + "/" +
         FileNameOperator::GenerateChunkFileName(1);
     int fd = lfs_->Open(chunkPath, O_RDWR|O_NOATIME|O_DSYNC);
     ASSERT_GT(fd, 0);
-    // 写数据
+    // Write data
     lfs_->Write(fd, buf1, offset + PAGE_SIZE, PAGE_SIZE);
     lfs_->Close(fd);
 
-    // 模拟重启
+    // Simulate restart
     DataStoreOptions options;
     options.baseDir = baseDir;
     options.chunkSize = CHUNK_SIZE;
     options.blockSize = BLOCK_SIZE;
     options.metaPageSize = PAGE_SIZE;
-    // 构造新的dataStore_，并重新初始化,重启失败
+    // Construct a new dataStore_, And reinitialize, restart failed
     dataStore_ = std::make_shared<CSDataStore>(lfs_,
                                                filePool_,
                                                options);
     ASSERT_TRUE(dataStore_->Initialize());
 
-    // 模拟日志恢复
+    // Simulate log recovery
     errorCode = dataStore_->CreateCloneChunk(id,  // chunk id
                                              sn,
                                              correctedSn,  // corrected sn
@@ -1087,13 +1087,13 @@ TEST_F(ExceptionTestSuit, ExceptionTest12) {
                                        offset,
                                        length);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
-    // 检查bitmap
+    // Check Bitmap
     errorCode = dataStore_->GetChunkInfo(id, &info);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(0, info.bitmap->NextSetBit(0));
     ASSERT_EQ(1, info.bitmap->NextClearBit(0));
 
-    // 读数据校验
+    // Read data verification
     char readbuf[2 * PAGE_SIZE];
     errorCode = dataStore_->ReadChunk(1,  // id
                                       sn,

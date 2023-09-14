@@ -56,55 +56,55 @@ using PassiveStatusPtr = std::shared_ptr<bvar::PassiveStatus<Tp>>;
 
 template <typename Tp> using AdderPtr = std::shared_ptr<bvar::Adder<Tp>>;
 
-// 使用LatencyRecorder的实现来统计读写请求的size情况
-// 可以统计分位值、最大值、中位数、平均值等情况
+// Using the implementation of LatencyRecorder to count the size of read and write requests
+// Statistics can be conducted on quantile values, maximum values, median values, mean values, and other factors
 using IOSizeRecorder = bvar::LatencyRecorder;
 
-// io 相关的统计项
+// IO related statistical items
 class IOMetric {
  public:
     IOMetric();
     virtual ~IOMetric();
     /**
-     * 初始化 io metric
-     * 主要用于曝光各metric指标
-     * @param prefix: 用于bvar曝光时使用的前缀
-     * @return 成功返回0，失败返回-1
+     * Initialize io metric
+     * Mainly used for exposing various metric indicators
+     * @param prefix: The prefix used for bvar exposure
+     * @return returns 0 for success, -1 for failure
      */
     int Init(const std::string &prefix);
     /**
-     * IO请求到来时统计requestNum
+     * Count requestNum when IO requests arrive
      */
     void OnRequest();
     /**
-     * IO 完成以后，记录该次IO的指标
-     * 错误的io不会计入iops和bps统计
-     * @param size: 此次io数据的大小
-     * @param latUS: 此次io的延时
-     * @param hasError: 此次io是否有错误产生
+     * After IO is completed, record the indicators for this IO
+     * Incorrect IO will not be included in iops and bps statistics
+     * @param size: The size of the IO data for this time
+     * @param latUS: The delay of this IO
+     * @param hasError: Did any errors occur during this IO
      */
     void OnResponse(size_t size, int64_t latUs, bool hasError);
 
  public:
-    // io请求的数量
+    // Number of IO requests
     bvar::Adder<uint64_t> reqNum_;
-    // 成功io的数量
+    // Number of successful IO
     bvar::Adder<uint64_t> ioNum_;
-    // 失败的io个数
+    // Number of failed IO
     bvar::Adder<uint64_t> errorNum_;
-    // 所有io的数据量
+    // The data volume of all IO
     bvar::Adder<uint64_t> ioBytes_;
-    // io的延时情况（分位值、最大值、中位数、平均值）
+    // Delay situation of IO (quantile, maximum, median, average)
     bvar::LatencyRecorder latencyRecorder_;
-    // io大小的情况（分位值、最大值、中位数、平均值）
+    // The size of IO (quantile, maximum, median, average)
     IOSizeRecorder sizeRecorder_;
-    // 最近1秒请求的IO数量
+    // Number of IO requests in the last 1 second
     bvar::PerSecond<bvar::Adder<uint64_t>> rps_;
-    // 最近1秒的iops
+    // iops in the last 1 second
     bvar::PerSecond<bvar::Adder<uint64_t>> iops_;
-    // 最近1秒的出错IO数量
+    // Number of IO errors in the last 1 second
     bvar::PerSecond<bvar::Adder<uint64_t>> eps_;
-    // 最近1秒的数据量
+    // Data volume in the last 1 second
     bvar::PerSecond<bvar::Adder<uint64_t>> bps_;
 };
 using IOMetricPtr = std::shared_ptr<IOMetric>;
@@ -126,49 +126,49 @@ class CSIOMetric {
     ~CSIOMetric() {}
 
     /**
-     * 执行请求前记录metric
-     * @param type: 请求对应的metric类型
+     * Record metric before executing the request
+     * @param type: The corresponding metric type of the request
      */
     void OnRequest(CSIOMetricType type);
 
     /**
-     * 执行请求后记录metric
-     * 错误的io不会计入iops和bps统计
-     * @param type: 请求对应的metric类型
-     * @param size: 此次io数据的大小
-     * @param latUS: 此次io的延时
-     * @param hasError: 此次io是否有错误产生
+     * Record metric after executing the request
+     * Incorrect IO will not be included in iops and bps statistics
+     * @param type: The corresponding metric type of the request
+     * @param size: The size of the IO data for this time
+     * @param latUS: The delay of this IO
+     * @param hasError: Did any errors occur during this IO
      */
     void OnResponse(CSIOMetricType type, size_t size, int64_t latUs,
                     bool hasError);
 
     /**
-     * 获取指定类型的IOMetric
-     * @param type: 请求对应的metric类型
-     * @return 返回指定类型对应的IOMetric指针，如果类型不存在则返回nullptr
+     * Obtain IOMetric of the specified type
+     * @param type: The corresponding metric type of the request
+     * @return returns the IOMetric pointer corresponding to the specified type, or nullptr if the type does not exist
      */
     IOMetricPtr GetIOMetric(CSIOMetricType type);
 
     /**
-     * 初始化各项op的metric统计项
-     * @return 成功返回0，失败返回-1
+     * Initialize metric statistics for each op
+     * @return returns 0 for success, -1 for failure
      */
     int Init(const std::string &prefix);
     /**
-     * 释放各项op的metric资源
+     * Release metric resources for various OPs
      */
     void Fini();
 
  protected:
-    // ReadChunk统计
+    // ReadChunk statistics
     IOMetricPtr readMetric_;
-    // WriteChunk统计
+    // WriteChunk statistics
     IOMetricPtr writeMetric_;
-    // RecoverChunk统计
+    // RecoverChunk statistics
     IOMetricPtr recoverMetric_;
-    // PasteChunk信息
+    // PasteChunk Information
     IOMetricPtr pasteMetric_;
-    // Download统计
+    // Download statistics
     IOMetricPtr downloadMetric_;
 };
 
@@ -182,16 +182,16 @@ class CSCopysetMetric {
     ~CSCopysetMetric() {}
 
     /**
-     * 初始化copyset级别的metric统计项
-     * @param logicPoolId: copyset所属逻辑池的id
-     * @param copysetId: copyset的id
-     * @return 成功返回0，失败返回-1
+     * Initialize metric statistics at the copyset level
+     * @param logicPoolId: The ID of the logical pool to which the copyset belongs
+     * @param copysetId: The ID of the copyset
+     * @return returns 0 for success, -1 for failure
      */
     int Init(const LogicPoolID &logicPoolId, const CopysetID &copysetId);
 
     /**
-     * 监控DataStore指标，主要包括chunk的数量、快照的数量等
-     * @param datastore: 该copyset下的datastore指针
+     * Monitor DataStore indicators, mainly including the number of chunks, number of snapshots, etc
+     * @param datastore: The datastore pointer under this copyset
      */
     void MonitorDataStore(CSDataStore *datastore);
 
@@ -202,18 +202,18 @@ class CSCopysetMetric {
     void MonitorCurveSegmentLogStorage(CurveSegmentLogStorage *logStorage);
 
     /**
-     * 执行请求前记录metric
-     * @param type: 请求对应的metric类型
+     * Record metric before executing the request
+     * @param type: The corresponding metric type of the request
      */
     void OnRequest(CSIOMetricType type) { ioMetrics_.OnRequest(type); }
 
     /**
-     * 执行请求后记录metric
-     * 错误的io不会计入iops和bps统计
-     * @param type: 请求对应的metric类型
-     * @param size: 此次io数据的大小
-     * @param latUS: 此次io的延时
-     * @param hasError: 此次io是否有错误产生
+     * Record metric after executing the request
+     * Incorrect IO will not be included in iops and bps statistics
+     * @param type: The corresponding metric type of the request
+     * @param size: The size of the IO data for this time
+     * @param latUS: The delay of this IO
+     * @param hasError: Did any errors occur during this IO
      */
     void OnResponse(CSIOMetricType type, size_t size, int64_t latUs,
                     bool hasError) {
@@ -221,9 +221,9 @@ class CSCopysetMetric {
     }
 
     /**
-     * 获取指定类型的IOMetric
-     * @param type: 请求对应的metric类型
-     * @return 返回指定类型对应的IOMetric指针，如果类型不存在则返回nullptr
+     * Obtain IOMetric of the specified type
+     * @param type: The corresponding metric type of the request
+     * @return returns the IOMetric pointer corresponding to the specified type, or nullptr if the type does not exist
      */
     IOMetricPtr GetIOMetric(CSIOMetricType type) {
         return ioMetrics_.GetIOMetric(type);
@@ -264,27 +264,27 @@ class CSCopysetMetric {
     }
 
  private:
-    // 逻辑池id
+    // Logical Pool ID
     LogicPoolID logicPoolId_;
     // copyset id
     CopysetID copysetId_;
-    // copyset上的 chunk 的数量
+    // Number of chunks on copyset
     PassiveStatusPtr<uint32_t> chunkCount_;
     // The total number of WAL segment in copyset
     PassiveStatusPtr<uint32_t> walSegmentCount_;
-    // copyset上的 快照文件 的数量
+    // Number of snapshot files on copyset
     PassiveStatusPtr<uint32_t> snapshotCount_;
-    // copyset上的 clone chunk 的数量
+    // The number of clone chunks on the copyset
     PassiveStatusPtr<uint32_t> cloneChunkCount_;
-    // copyset上的IO类型的metric统计
+    // Metric statistics of IO types on copyset
     CSIOMetric ioMetrics_;
 };
 
 struct ChunkServerMetricOptions {
     bool collectMetric;
-    // chunkserver的ip
+    // Chunkserver IP
     std::string ip;
-    // chunkserver的端口号
+    // The port number of chunkserver
     uint32_t port;
     ChunkServerMetricOptions()
         : collectMetric(false), ip("127.0.0.1"), port(8888) {}
@@ -344,119 +344,119 @@ class CopysetMetricMap {
     }
 
  private:
-    // 保护复制组metric map的读写锁
+    // Protect the read write lock of the replication group metric map
     RWLock rwLock_;
-    // 各复制组metric的映射表，用GroupId作为key
+    // Mapping table for each replication group metric, using GroupId as the key
     std::unordered_map<GroupId, CopysetMetricPtr> map_;
 };
 
 class ChunkServerMetric : public Uncopyable {
  public:
-    // 实现单例
+    // Implementation singleton
     static ChunkServerMetric *GetInstance();
 
     /**
-     * 初始化chunkserver统计项
-     * @pa)ram option: 初始化配置项
-     * @return 成功返回0，失败返回-1
+     * Initialize chunkserver statistics
+     * @param option: Initialize configuration item
+     * @return returns 0 for success, -1 for failure
      */
     int Init(const ChunkServerMetricOptions &option);
 
     /**
-     * 释放metric资源
-     * @return 成功返回0，失败返回-1
+     * Release metric resources
+     * @return returns 0 for success, -1 for failure
      */
     int Fini();
 
     /**
-     * 请求前记录metric
-     * @param logicPoolId: 此次io操作所在的逻辑池id
-     * @param copysetId: 此次io操作所在的copysetid
-     * @param type: 请求类型
+     * Record metric before request
+     * @param logicPoolId: The logical pool ID where this io operation is located
+     * @param copysetId: The copysetID where this io operation is located
+     * @param type: Request type
      */
     void OnRequest(const LogicPoolID &logicPoolId, const CopysetID &copysetId,
                    CSIOMetricType type);
 
     /**
-     * 请求结束时记录该次IO指标
-     * 错误的io不会计入iops和bps统计
-     * @param logicPoolId: 此次io操作所在的逻辑池id
-     * @param copysetId: 此次io操作所在的copysetid
-     * @param type: 请求类型
-     * @param size: 此次io数据的大小
-     * @param latUS: 此次io的延时
-     * @param hasError: 此次io是否有错误产生
+     * Record the IO metric at the end of the request
+     * Incorrect IO will not be included in iops and bps statistics
+     * @param logicPoolId: The logical pool ID where this io operation is located
+     * @param copysetId: The copysetID where this io operation is located
+     * @param type: Request type
+     * @param size: The size of the IO data for this time
+     * @param latUS: The delay of this IO
+     * @param hasError: Did any errors occur during this IO
      */
     void OnResponse(const LogicPoolID &logicPoolId, const CopysetID &copysetId,
                     CSIOMetricType type, size_t size, int64_t latUs,
                     bool hasError);
 
     /**
-     * 创建指定copyset的metric
-     * 如果collectMetric为false，返回0，但实际并不会创建
-     * @param logicPoolId: copyset所属逻辑池的id
-     * @param copysetId: copyset的id
-     * @return 成功返回0，失败返回-1，如果指定metric已存在返回失败
+     *Create a metric for the specified copyset
+     * If collectMetric is false, it returns 0, but it is not actually created
+     * @param logicPoolId: The ID of the logical pool to which the copyset belongs
+     * @param copysetId: The ID of the copyset
+     * @return returns 0 for success, -1 for failure, or failure if the specified metric already exists
      */
     int CreateCopysetMetric(const LogicPoolID &logicPoolId,
                             const CopysetID &copysetId);
 
     /**
-     * 获取指定copyset的metric
-     * @param logicPoolId: copyset所属逻辑池的id
-     * @param copysetId: copyset的id
-     * @return 成功返回指定的copyset metric，失败返回nullptr
+     * Obtain the metric of the specified copyset
+     * @param logicPoolId: The ID of the logical pool to which the copyset belongs
+     * @param copysetId: The ID of the copyset
+     * @return successfully returns the specified copyset metric, while failure returns nullptr
      */
     CopysetMetricPtr GetCopysetMetric(const LogicPoolID &logicPoolId,
                                       const CopysetID &copysetId);
 
     /**
-     * 删除指定copyset的metric
-     * @param logicPoolId: copyset所属逻辑池的id
-     * @param copysetId: copyset的id
-     * @return 成功返回0，失败返回-1
+     *Delete the metric for the specified copyset
+     * @param logicPoolId: The ID of the logical pool to which the copyset belongs
+     * @param copysetId: The ID of the copyset
+     * @return returns 0 for success, -1 for failure
      */
     int RemoveCopysetMetric(const LogicPoolID &logicPoolId,
                             const CopysetID &copysetId);
 
     /**
-     * 监视chunk分配池，主要监视池中chunk的数量
-     * @param chunkFilePool: chunkfilePool的对象指针
+     *Monitor the chunk allocation pool, mainly monitoring the number of chunks in the pool
+     * @param chunkFilePool: Object pointer to chunkfilePool
      */
     void MonitorChunkFilePool(FilePool *chunkFilePool);
 
     /**
-     * 监视wal segment分配池，主要监视池中segment的数量
-     * @param walFilePool: walfilePool的对象指针
+     *Monitor the allocation pool of wall segments, mainly monitoring the number of segments in the pool
+     * @param walFilePool: Object pointer to walfilePool
      */
     void MonitorWalFilePool(FilePool *walFilePool);
 
     /**
-     * 监视回收站
-     * @param trash: trash的对象指针
+     *Monitor Recycle Bin
+     * @param trash: Object pointer to trash
      */
     void MonitorTrash(Trash *trash);
 
     /**
-     * 增加 leader count 计数
+     * Increase the leader count count
      */
     void IncreaseLeaderCount();
 
     /**
-     * 减少 leader count 计数
+     * Reduce leader count count
      */
     void DecreaseLeaderCount();
 
     /**
-     * 更新配置项数据
-     * @param conf: 配置内容
+     *Update configuration item data
+     * @param conf: Configuration content
      */
     void ExposeConfigMetric(common::Configuration *conf);
 
     /**
-     * 获取指定类型的IOMetric
-     * @param type: 请求对应的metric类型
-     * @return 返回指定类型对应的IOMetric指针，如果类型不存在则返回nullptr
+     * Obtain IOMetric of the specified type
+     * @param type: The corresponding metric type of the request
+     * @return returns the IOMetric pointer corresponding to the specified type, or nullptr if the type does not exist
      */
     IOMetricPtr GetIOMetric(CSIOMetricType type) {
         return ioMetrics_.GetIOMetric(type);
@@ -522,31 +522,43 @@ class ChunkServerMetric : public Uncopyable {
     }
 
  private:
-    // 初始化标志
+    // Initialization flag
+
     bool hasInited_;
-    // 配置项
+    // Configuration Item
+
     ChunkServerMetricOptions option_;
-    // leader 的数量
+    // Number of leaders
+
     AdderPtr<uint32_t> leaderCount_;
-    // chunkfilepool  中剩余的 chunk 的数量
+    // The number of remaining chunks in the chunkfilepool
+
     PassiveStatusPtr<uint32_t> chunkLeft_;
-    // walfilepool  中剩余的 wal segment 的数量
+    // The number of remaining wal segments in the walfilepool
+
     PassiveStatusPtr<uint32_t> walSegmentLeft_;
-    // trash 中的 chunk 的数量
+    // Number of chunks in trash
+
     PassiveStatusPtr<uint32_t> chunkTrashed_;
-    // chunkserver上的 chunk 的数量
+    // Number of chunks on chunkserver
+
     PassiveStatusPtr<uint32_t> chunkCount_;
     // The total number of WAL segment in chunkserver
     PassiveStatusPtr<uint32_t> walSegmentCount_;
-    // chunkserver上的 快照文件 的数量
+    // Number of snapshot files on chunkserver
+
     PassiveStatusPtr<uint32_t> snapshotCount_;
-    // chunkserver上的 clone chunk 的数量
+    // Number of clone chunks on chunkserver
+
     PassiveStatusPtr<uint32_t> cloneChunkCount_;
-    // 各复制组metric的映射表，用GroupId作为key
+    // Mapping table for each replication group metric, using GroupId as the key
+
     CopysetMetricMap copysetMetricMap_;
-    // chunkserver上的IO类型的metric统计
+    // Metric statistics of IO types on chunkserver
+
     CSIOMetric ioMetrics_;
-    // 用于单例模式的自指指针
+    // Self pointing pointer for singleton mode
+
     static ChunkServerMetric *self_;
 };
 

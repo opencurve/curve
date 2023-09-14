@@ -316,7 +316,7 @@ bool HeartbeatTestCommon::WailForConfigChangeOk(
         GetHeartbeat(&cntl, &req, &resp, &done);
         brpc::ClosureGuard done_guard(done);
 
-        // 获取当前copyset的leader
+        // Get the leader of the current copyset
          std::string sender =
             req->ip() + ":" + std::to_string(req->port()) + ":0";
         if (1 == req->copysetinfos_size()) {
@@ -333,8 +333,8 @@ bool HeartbeatTestCommon::WailForConfigChangeOk(
             }
         }
 
-        // 如果当前req是leader发送的，判断req中的内容是否符合要求
-        // 如果符合要求，返回true; 如果不符合要求，设置resp中的内容
+        // If the current req is sent by the leader, determine whether the content in the req meets the requirements
+        // If it meets the requirements, return true; If it does not meet the requirements, set the content in resp
         if (leader == sender) {
             if (!leaderPeerSet) {
                 auto peer = new ::curve::common::Peer();
@@ -342,7 +342,7 @@ bool HeartbeatTestCommon::WailForConfigChangeOk(
                 expectedInfo.set_allocated_leaderpeer(peer);
             }
 
-            // 判断req是否符合要求, 符合要求返回true
+            // Determine whether the req meets the requirements, and return true if it meets the requirements
             if (req->copysetinfos_size() == 1) {
                 if (SameCopySetInfo(req->copysetinfos(0), expectedInfo)) {
                     return true;
@@ -357,7 +357,7 @@ bool HeartbeatTestCommon::WailForConfigChangeOk(
                 }
             }
 
-            // 不符合要求设置resp
+            // Not meeting the requirements to set resp
             if (req->copysetinfos_size() == 1) {
                 auto build = resp->add_needupdatecopysets();
                 if (!build->has_epoch()) {

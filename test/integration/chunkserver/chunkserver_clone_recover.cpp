@@ -217,11 +217,11 @@ class CSCloneRecoverTest : public ::testing::Test {
                                                           s3Conf);
         cluster_->PrepareConfig<curve::MDSConfigGenerator>(MDS0_CONF_PATH,
                                                            mdsFileConf0);
-        // 生成chunkserver配置文件
+        // Generate chunkserver configuration file
         cluster_->PrepareConfig<curve::CSConfigGenerator>(CHUNKSERVER_CONF_PATH,
                                                           csCommonConf);
 
-        // 1. 启动etcd
+        // 1. Start etcd
         LOG(INFO) << "begin to start etcd";
         pid_t pid = cluster_->StartSingleEtcd(
             1, ETCD_CLIENT_IP_PORT, ETCD_PEER_IP_PORT,
@@ -231,14 +231,14 @@ class CSCloneRecoverTest : public ::testing::Test {
         ASSERT_GT(pid, 0);
         ASSERT_TRUE(cluster_->WaitForEtcdClusterAvalible(5));
 
-        // 2. 先启动一个mds，让其成为leader，然后再启动另外两个mds节点
+        // 2. Start one mds first, make it a leader, and then start the other two mds nodes
         pid = cluster_->StartSingleMDS(0, MDS0_IP_PORT, MDS0_DUMMY_PORT,
                                             mdsConf0, true);
         LOG(INFO) << "mds 0 started on " + MDS0_IP_PORT + ", pid = " << pid;
         ASSERT_GT(pid, 0);
         std::this_thread::sleep_for(std::chrono::seconds(8));
 
-        // 生成topo.json
+        // Generate topo.json
         Json::Value topo;
         Json::Value servers;
         std::string chunkServerIpPort[] = {CHUNK_SERVER0_IP_PORT,
@@ -278,7 +278,7 @@ class CSCloneRecoverTest : public ::testing::Test {
         topoConf << topo.toStyledString();
         topoConf.close();
 
-        // 3. 创建物理池
+        // 3. Creating a physical pool
         string createPPCmd =
             string("./bazel-bin/tools/curvefsTool") +
             string(" -cluster_map=" + CSCLONE_BASE_DIR + "/topo.json") +
@@ -297,7 +297,7 @@ class CSCloneRecoverTest : public ::testing::Test {
         }
         ASSERT_EQ(ret, 0);
 
-        // 4. 创建chunkserver
+        // 4. Create chunkserve
         pid = cluster_->StartSingleChunkServer(1, CHUNK_SERVER0_IP_PORT,
                                                chunkserverConf1);
         LOG(INFO) << "chunkserver 1 started on " + CHUNK_SERVER0_IP_PORT +
@@ -319,7 +319,7 @@ class CSCloneRecoverTest : public ::testing::Test {
 
         std::this_thread::sleep_for(std::chrono::seconds(5));
 
-        // 5. 创建逻辑池, 并睡眠一段时间让底层copyset先选主
+        // 5. Create a logical pool and sleep for a period of time to let the underlying copyset select the primary first
         string createLPCmd =
             string("./bazel-bin/tools/curvefsTool") +
             string(" -cluster_map=" + CSCLONE_BASE_DIR + "/topo.json") +
@@ -338,7 +338,7 @@ class CSCloneRecoverTest : public ::testing::Test {
         ASSERT_EQ(ret, 0);
         std::this_thread::sleep_for(std::chrono::seconds(5));
 
-        // 获取chunkserver主节点
+        // Obtain the chunkserver master node
         logicPoolId_ = 1;
         copysetId_ = 1;
         ASSERT_EQ(0, chunkSeverGetLeader());
@@ -346,12 +346,12 @@ class CSCloneRecoverTest : public ::testing::Test {
                                             copysetId_, 5000 };
         opConf_ = conf0;
 
-        // 6. 初始化client配置
+        // 6. Initialize client configuration
         LOG(INFO) << "init globalclient";
         ret = Init(clientConfPath.c_str());
         ASSERT_EQ(ret, 0);
 
-        // 7. 先睡眠5s，让chunkserver选出leader
+        // 7. Sleep for 5 seconds first and let chunkserver select the leader
         std::this_thread::sleep_for(std::chrono::seconds(5));
 
         s3Adapter_.Init(kS3ConfigPath);
@@ -417,10 +417,10 @@ class CSCloneRecoverTest : public ::testing::Test {
             system(("mkdir " + CHUNKSERVER2_BASE_DIR + "/filepool").c_str()));
     }
 
-    /**下发一个写请求并等待完成
-     * @param:  offset是当前需要下发IO的偏移
-     * @param:  size是下发IO的大小
-     * @return: IO是否成功完成
+    /** Send a write request and wait for completion
+     * @param: offset is the offset that currently requires issuing IO
+     * @param: size is the size of the issued IO
+     * @return: Is IO successfully completed
      */
     bool HandleAioWriteRequest(uint64_t offset, uint64_t size,
                                const char* data) {
@@ -432,7 +432,7 @@ class CSCloneRecoverTest : public ::testing::Test {
             char* buffer = reinterpret_cast<char*>(context->buf);
             delete[] buffer;
             delete context;
-            // 无论IO是否成功，只要返回，就触发cond
+            // Regardless of whether IO is successful or not, as long as it returns, it triggers cond
             gCond.Signal();
         };
 
@@ -460,11 +460,11 @@ class CSCloneRecoverTest : public ::testing::Test {
         return true;
     }
 
-    /**下发一个读请求并等待完成
-     * @param:  offset是当前需要下发IO的偏移
-     * @param:  size是下发IO的大小
-     * @data:   读出的数据
-     * @return: IO是否成功完成
+    /** Send a read request and wait for completion
+     * @param: offset is the offset that currently requires issuing IO
+     * @param: size is the size of the issued IO
+     * @data: Read out data
+     * @return: Is IO successfully completed
      */
     bool HandleAioReadRequest(uint64_t offset, uint64_t size, char* data) {
         gCond.Reset(1);
@@ -473,7 +473,7 @@ class CSCloneRecoverTest : public ::testing::Test {
         auto readCallBack = [](CurveAioContext* context) {
             gIoRet = context->ret;
             delete context;
-            // 无论IO是否成功，只要返回，就触发cond
+            // Regardless of whether IO is successful or not, as long as it returns, it triggers cond
             gCond.Signal();
         };
 
@@ -547,7 +547,7 @@ class CSCloneRecoverTest : public ::testing::Test {
             return -1;
         }
 
-        // 先睡眠5s，让chunkserver选出leader
+        // Sleep for 5 seconds first and let chunkserver select the leader
         std::this_thread::sleep_for(std::chrono::seconds(5));
         status = curve::chunkserver::GetLeader(logicPoolId_, copysetId_, csConf,
                                                &leaderPeer_);
@@ -559,26 +559,26 @@ class CSCloneRecoverTest : public ::testing::Test {
     }
 
     void prepareSourceDataInCurve() {
-        // 创建一个curveFS文件
+        // Create a curveFS file
         LOG(INFO) << "create source curveFS file: " << CURVEFS_FILENAME;
         fd_ = curve::test::FileCommonOperation::Open(CURVEFS_FILENAME, "curve");
         ASSERT_NE(fd_, -1);
 
-        // 写数据到curveFS的第1个chunk
+        // Write data to the first chunk of curveFS
         LOG(INFO) << "Write first 16MB of source curveFS file";
         ASSERT_TRUE(HandleAioWriteRequest(0, kChunkSize, chunkData1_.c_str()));
 
-        // 读出数据进行验证
+        // Read data for verification
         std::unique_ptr<char[]> temp(new char[kChunkSize]);
         ASSERT_TRUE(HandleAioReadRequest(0, kChunkSize, temp.get()));
         ASSERT_EQ(0, strncmp(chunkData1_.c_str(), temp.get(), kChunkSize));
 
-        // 写数据到curveFS的第2个chunk
+        // Write data to the second chunk of curveFS
         LOG(INFO) << "Write second 16MB of source curveFS file";
         ASSERT_TRUE(
             HandleAioWriteRequest(kChunkSize, kChunkSize, chunkData2_.c_str()));
 
-        // 读出数据进行验证
+        // Read data for verification
         ASSERT_TRUE(HandleAioReadRequest(kChunkSize, kChunkSize, temp.get()));
         ASSERT_EQ(0, strncmp(chunkData2_.c_str(), temp.get(), kChunkSize));
 
@@ -613,14 +613,14 @@ class CSCloneRecoverTest : public ::testing::Test {
     bool s3ObjExisted_;
 };
 
-// 场景一：通过ReadChunk从curve恢复克隆文件
+// Scenario 1: Restore clone files from curve through ReadChunk
 TEST_F(CSCloneRecoverTest, CloneFromCurveByReadChunk) {
     LOG(INFO) << "current case: CloneFromCurveByReadChunk";
 
-    // 0. 在curve中写入源数据
+    // 0. Write source data in curve
     prepareSourceDataInCurve();
 
-    // 1. 创建克隆文件
+    // 1. Create Clone File
     ChunkServiceVerify verify(&opConf_);
     ChunkID cloneChunk1 = 331;
     ChunkID cloneChunk2 = 332;
@@ -633,7 +633,7 @@ TEST_F(CSCloneRecoverTest, CloneFromCurveByReadChunk) {
                                                kChunkSize));
     ASSERT_EQ(0,
               verify.VerifyGetChunkInfo(cloneChunk1, sn1, NULL_SN, string("")));
-    // 重复克隆
+    // Duplicate cloning
     ASSERT_EQ(0, verify.VerifyCreateCloneChunk(cloneChunk1, location, sn0, sn1,
                                                kChunkSize));
     ASSERT_EQ(0,
@@ -647,7 +647,7 @@ TEST_F(CSCloneRecoverTest, CloneFromCurveByReadChunk) {
     ASSERT_EQ(0,
               verify.VerifyGetChunkInfo(cloneChunk2, sn1, NULL_SN, string("")));
 
-    // 2. 通过readchunk恢复克隆文件
+    // 2. Restoring cloned files through readchunk
     std::shared_ptr<string> cloneData1(new string(chunkData1_));
     ASSERT_EQ(0, verify.VerifyReadChunk(cloneChunk1, sn1, 0, 8 * KB,
                                         cloneData1.get()));
@@ -667,7 +667,7 @@ TEST_F(CSCloneRecoverTest, CloneFromCurveByReadChunk) {
     ASSERT_EQ(0, verify.VerifyReadChunk(cloneChunk1, sn1, 0, 12 * KB,
                                         cloneData1.get()));
 
-    // 通过ReadChunk读遍clone chunk1的所有pages
+    // Read through all pages of clone chunk1 through ReadChunk
     for (int offset = 0; offset < kChunkSize; offset += kChunkServerMaxIoSize) {
         ASSERT_EQ(0, verify.VerifyReadChunk(cloneChunk1, sn1, offset,
                                             kChunkServerMaxIoSize,
@@ -675,9 +675,9 @@ TEST_F(CSCloneRecoverTest, CloneFromCurveByReadChunk) {
     }
 
     /**
-     * clone文件遍读后不会转换为普通chunk1文件
-     * 通过增大版本进行写入，
-     * 如果是clone chunk，写会失败; 如果是普通chunk，则会产生快照文件。
+     * Clone files will not be converted to regular chunk1 files after being read through
+     * Write by increasing the version,
+     * If it is a clone chunk, the write will fail; If it is a regular chunk, a snapshot file will be generated.
      */
     ASSERT_EQ(0,
               verify.VerifyGetChunkInfo(cloneChunk1, sn1, NULL_SN, string("")));
@@ -685,19 +685,19 @@ TEST_F(CSCloneRecoverTest, CloneFromCurveByReadChunk) {
               verify.VerifyWriteChunk(cloneChunk1, sn2, 0, 8 * KB, temp.c_str(),
                                       nullptr));
 
-    // 删除文件
+    // Delete files
     ASSERT_EQ(0, verify.VerifyDeleteChunk(cloneChunk1, sn1));
     ASSERT_EQ(0, verify.VerifyDeleteChunk(cloneChunk2, sn1));
 }
 
-// 场景二：通过RecoverChunk从curve恢复克隆文件
+// Scenario 2: Restore cloned files from curve through RecoverChunk
 TEST_F(CSCloneRecoverTest, CloneFromCurveByRecoverChunk) {
     LOG(INFO) << "current case: CloneFromCurveByRecoverChunk";
 
-    // 0. 在curve中写入源数据
+    // 0. Write source data in curve
     prepareSourceDataInCurve();
 
-    // 1. 创建克隆文件
+    // 1. Create Clone File
     ChunkServiceVerify verify(&opConf_);
     ChunkID cloneChunk1 = 333;
     ChunkID cloneChunk2 = 334;
@@ -710,7 +710,7 @@ TEST_F(CSCloneRecoverTest, CloneFromCurveByRecoverChunk) {
                                                kChunkSize));
     ASSERT_EQ(0,
               verify.VerifyGetChunkInfo(cloneChunk1, sn1, NULL_SN, string("")));
-    // 重复克隆
+    // Duplicate cloning
     ASSERT_EQ(0, verify.VerifyCreateCloneChunk(cloneChunk1, location, sn0, sn1,
                                                kChunkSize));
     ASSERT_EQ(0,
@@ -724,7 +724,7 @@ TEST_F(CSCloneRecoverTest, CloneFromCurveByRecoverChunk) {
     ASSERT_EQ(0,
               verify.VerifyGetChunkInfo(cloneChunk2, sn1, NULL_SN, string("")));
 
-    // 2. 通过RecoverChunk恢复克隆文件
+    // 2. Recovering cloned files through RecoverChunk
     std::shared_ptr<string> cloneData1(new string(chunkData1_));
     ASSERT_EQ(0, verify.VerifyRecoverChunk(cloneChunk1, 0, 8 * KB));
     ASSERT_EQ(0, verify.VerifyReadChunk(cloneChunk1, sn1, 0, 8 * KB,
@@ -750,16 +750,16 @@ TEST_F(CSCloneRecoverTest, CloneFromCurveByRecoverChunk) {
     ASSERT_EQ(0, verify.VerifyReadChunk(cloneChunk1, sn1, 0, 12 * KB,
                                         cloneData1.get()));
 
-    // 通过RecoverChunk恢复clone chunk1的所有pages
+    // Restore all pages of clone chunk1 through RecoverChunk
     for (int offset = 0; offset < kChunkSize; offset += kChunkServerMaxIoSize) {
         ASSERT_EQ(0, verify.VerifyRecoverChunk(cloneChunk1, offset,
                                                kChunkServerMaxIoSize));
     }
 
     /**
-     * 预期clone文件会转换为普通chunk1文件
-     * 通过增大版本进行写入，
-     * 如果是clone chunk，写会失败; 如果是普通chunk，则会产生快照文件，写成功。
+     * Expected clone file to be converted to regular chunk1 file
+     * Write by increasing the version,
+     * If it is a clone chunk, the write will fail; If it is a regular chunk, a snapshot file will be generated and successfully written.
      */
     ASSERT_EQ(0,
               verify.VerifyGetChunkInfo(cloneChunk1, sn1, NULL_SN, string("")));
@@ -767,19 +767,19 @@ TEST_F(CSCloneRecoverTest, CloneFromCurveByRecoverChunk) {
               verify.VerifyWriteChunk(cloneChunk1, sn2, 0, 8 * KB, temp.c_str(),
                                       nullptr));
 
-    // 删除文件
+    // Delete files
     ASSERT_EQ(0, verify.VerifyDeleteChunk(cloneChunk1, sn2));
     ASSERT_EQ(0, verify.VerifyDeleteChunk(cloneChunk2, sn1));
 }
 
-// 场景三：lazy allocate场景下读克隆文件
+// Scenario 3: Lazy allocate scenario: Reading clone files
 TEST_F(CSCloneRecoverTest, CloneFromCurveByReadChunkWhenLazyAlloc) {
     LOG(INFO) << "current case: CloneFromCurveByReadChunkWhenLazyAlloc";
 
-    // 0. 在curve中写入源数据
+    // 0. Write source data in curve
     prepareSourceDataInCurve();
 
-    // 1. chunk文件不存在
+    // 1. Chunk file does not exist
     ChunkServiceVerify verify(&opConf_);
     ChunkID cloneChunk1 = 331;
     SequenceNum sn1 = 1;
@@ -802,9 +802,9 @@ TEST_F(CSCloneRecoverTest, CloneFromCurveByReadChunkWhenLazyAlloc) {
               verify.VerifyWriteChunk(cloneChunk1, sn2, 0, 8 * KB, temp.c_str(),
                                       nullptr));
 
-    // 将leader切换到follower
+    // Switch leader to follower
     ASSERT_EQ(0, TransferLeaderToFollower());
-    // 2. 通过readchunk恢复克隆文件
+    // 2. Restoring cloned files through readchunk
     ASSERT_EQ(0, verify.VerifyReadChunk(cloneChunk1, sn1, 0, 12 * KB,
                                         cloneData1.get(), CURVEFS_FILENAME, 0));
 
@@ -817,7 +817,7 @@ TEST_F(CSCloneRecoverTest, CloneFromCurveByReadChunkWhenLazyAlloc) {
     ASSERT_EQ(0, verify.VerifyReadChunk(cloneChunk1, sn1, 0, 12 * KB,
                                         cloneData1.get(), CURVEFS_FILENAME, 0));
 
-    // 通过ReadChunk读遍clone chunk1的所有pages
+    // Read through all pages of clone chunk1 through ReadChunk
     string ioBuf(kChunkServerMaxIoSize, 'c');
     for (int offset = 0; offset < kChunkSize; offset += kChunkServerMaxIoSize) {
         ASSERT_EQ(0, verify.VerifyWriteChunk(
@@ -828,9 +828,9 @@ TEST_F(CSCloneRecoverTest, CloneFromCurveByReadChunkWhenLazyAlloc) {
                                         cloneData1.get(), CURVEFS_FILENAME, 0));
 
     /**
-     * clone文件遍写后会转换为普通chunk1文件
-     * 通过增大版本进行写入，
-     * 如果是clone chunk，写会失败; 如果是普通chunk，则会产生快照文件。
+     * The clone file will be converted to a regular chunk1 file after being overwritten
+     * Write by increasing the version,
+     * If it is a clone chunk, the write will fail; If it is a regular chunk, a snapshot file will be generated.
      */
     ASSERT_EQ(0,
               verify.VerifyGetChunkInfo(cloneChunk1, sn1, NULL_SN, string("")));
@@ -838,18 +838,18 @@ TEST_F(CSCloneRecoverTest, CloneFromCurveByReadChunkWhenLazyAlloc) {
               verify.VerifyWriteChunk(cloneChunk1, sn2, 0, 8 * KB, temp.c_str(),
                                       nullptr));
 
-    // 删除文件
+    // Delete files
     ASSERT_EQ(0, verify.VerifyDeleteChunk(cloneChunk1, sn2));
 }
 
-// 场景四：通过ReadChunk从S3恢复克隆文件
+// Scenario 4: Restore cloned files from S3 through ReadChunk
 TEST_F(CSCloneRecoverTest, CloneFromS3ByReadChunk) {
     LOG(INFO) << "current case: CloneFromS3ByReadChunk";
 
-    // 0. 在S3中写入源数据
+    // 0. Write source data in S3
     prepareSourceDataInS3();
 
-    // 1. 创建克隆文件
+    // 1. Create Clone File
     ChunkServiceVerify verify(&opConf_);
     ChunkID cloneChunk1 = 335;
     ChunkID cloneChunk2 = 336;
@@ -862,7 +862,7 @@ TEST_F(CSCloneRecoverTest, CloneFromS3ByReadChunk) {
                                                kChunkSize));
     ASSERT_EQ(0,
               verify.VerifyGetChunkInfo(cloneChunk1, sn1, NULL_SN, string("")));
-    // 重复克隆
+    // Duplicate cloning
     ASSERT_EQ(0, verify.VerifyCreateCloneChunk(cloneChunk1, location, sn0, sn1,
                                                kChunkSize));
     ASSERT_EQ(0,
@@ -875,7 +875,7 @@ TEST_F(CSCloneRecoverTest, CloneFromS3ByReadChunk) {
     ASSERT_EQ(0,
               verify.VerifyGetChunkInfo(cloneChunk2, sn1, NULL_SN, string("")));
 
-    // 2. 通过readchunk恢复克隆文件
+    // 2. Restoring cloned files through readchunk
     std::shared_ptr<string> cloneData1(new string(chunkData1_));
     ASSERT_EQ(0, verify.VerifyReadChunk(cloneChunk1, sn1, 0, 8 * KB,
                                         cloneData1.get()));
@@ -895,7 +895,7 @@ TEST_F(CSCloneRecoverTest, CloneFromS3ByReadChunk) {
     ASSERT_EQ(0, verify.VerifyReadChunk(cloneChunk1, sn1, 0, 12 * KB,
                                         cloneData1.get()));
 
-    // 通过ReadChunk读遍clone chunk1的所有pages
+    // Read through all pages of clone chunk1 through ReadChunk
     for (int offset = 0; offset < kChunkSize; offset += kChunkServerMaxIoSize) {
         ASSERT_EQ(0, verify.VerifyReadChunk(cloneChunk1, sn1, offset,
                                             kChunkServerMaxIoSize,
@@ -903,9 +903,9 @@ TEST_F(CSCloneRecoverTest, CloneFromS3ByReadChunk) {
     }
 
     /**
-     * 预期clone文件遍读后不会转换为普通chunk1文件
-     * 通过增大版本进行写入，
-     * 如果是clone chunk，写会失败; 如果是普通chunk，则会产生快照文件。
+     * It is expected that the clone file will not be converted to a regular chunk1 file after being read through
+     * Write by increasing the version,
+     * If it is a clone chunk, the write will fail; If it is a regular chunk, a snapshot file will be generated.
      */
     ASSERT_EQ(0,
               verify.VerifyGetChunkInfo(cloneChunk1, sn1, NULL_SN, string("")));
@@ -913,19 +913,19 @@ TEST_F(CSCloneRecoverTest, CloneFromS3ByReadChunk) {
               verify.VerifyWriteChunk(cloneChunk1, sn2, 0, 8 * KB, temp.c_str(),
                                       nullptr));
 
-    // 删除文件
+    // Delete files
     ASSERT_EQ(0, verify.VerifyDeleteChunk(cloneChunk1, sn1));
     ASSERT_EQ(0, verify.VerifyDeleteChunk(cloneChunk2, sn1));
 }
 
-// 场景五：通过RecoverChunk从S3恢复克隆文件
+// Scenario 5: Restore cloned files from S3 through RecoverChunk
 TEST_F(CSCloneRecoverTest, CloneFromS3ByRecoverChunk) {
     LOG(INFO) << "current case: CloneFromS3ByRecoverChunk";
 
-    // 0. 在S3中写入源数据
+    // 0. Write source data in S3
     prepareSourceDataInS3();
 
-    // 1. 创建克隆文件
+    // 1. Create Clone File
     ChunkServiceVerify verify(&opConf_);
     ChunkID cloneChunk1 = 337;
     ChunkID cloneChunk2 = 338;
@@ -938,7 +938,7 @@ TEST_F(CSCloneRecoverTest, CloneFromS3ByRecoverChunk) {
                                                kChunkSize));
     ASSERT_EQ(0,
               verify.VerifyGetChunkInfo(cloneChunk1, sn1, NULL_SN, string("")));
-    // 重复克隆
+    // Duplicate cloning
     ASSERT_EQ(0, verify.VerifyCreateCloneChunk(cloneChunk1, location, sn0, sn1,
                                                kChunkSize));
     ASSERT_EQ(0,
@@ -951,7 +951,7 @@ TEST_F(CSCloneRecoverTest, CloneFromS3ByRecoverChunk) {
     ASSERT_EQ(0,
               verify.VerifyGetChunkInfo(cloneChunk2, sn1, NULL_SN, string("")));
 
-    // 2. 通过RecoverChunk恢复克隆文件
+    // 2. Recovering cloned files through RecoverChunk
     std::shared_ptr<string> cloneData1(new string(chunkData1_));
     ASSERT_EQ(0, verify.VerifyRecoverChunk(cloneChunk1, 0, 8 * KB));
     ASSERT_EQ(0, verify.VerifyReadChunk(cloneChunk1, sn1, 0, 8 * KB,
@@ -977,16 +977,16 @@ TEST_F(CSCloneRecoverTest, CloneFromS3ByRecoverChunk) {
     ASSERT_EQ(0, verify.VerifyReadChunk(cloneChunk1, sn1, 0, 12 * KB,
                                         cloneData1.get()));
 
-    // 通过RecoverChunk恢复clone chunk1的所有pages
+    // Restore all pages of clone chunk1 through RecoverChunk
     for (int offset = 0; offset < kChunkSize; offset += kChunkServerMaxIoSize) {
         ASSERT_EQ(0, verify.VerifyRecoverChunk(cloneChunk1, offset,
                                                kChunkServerMaxIoSize));
     }
 
     /**
-     * 预期clone文件会转换为普通chunk1文件
-     * 通过增大版本进行写入，
-     * 如果是clone chunk，写会失败; 如果是普通chunk，则会产生快照文件。
+     * Expected clone file to be converted to regular chunk1 file
+     * Write by increasing the version,
+     * If it is a clone chunk, the write will fail; If it is a regular chunk, a snapshot file will be generated.
      */
     ASSERT_EQ(0,
               verify.VerifyGetChunkInfo(cloneChunk1, sn1, NULL_SN, string("")));
@@ -994,19 +994,19 @@ TEST_F(CSCloneRecoverTest, CloneFromS3ByRecoverChunk) {
               verify.VerifyWriteChunk(cloneChunk1, sn2, 0, 8 * KB, temp.c_str(),
                                       nullptr));
 
-    // 删除文件
+    // Delete files
     ASSERT_EQ(0, verify.VerifyDeleteChunk(cloneChunk1, sn2));
     ASSERT_EQ(0, verify.VerifyDeleteChunk(cloneChunk2, sn1));
 }
 
-// 场景六：通过ReadChunk从S3恢复
+// Scenario 6: Restore from S3 through ReadChunk
 TEST_F(CSCloneRecoverTest, RecoverFromS3ByReadChunk) {
     LOG(INFO) << "current case: RecoverFromS3ByReadChunk";
 
-    // 0. 构造数据上传到S3，模拟转储
+    // 0. Upload construction data to S3 and simulate dump
     prepareSourceDataInS3();
 
-    // 1. 创建克隆文件
+    // 1. Create Clone File
     ChunkServiceVerify verify(&opConf_);
     ChunkID cloneChunk1 = 339;
     SequenceNum sn2 = 2;
@@ -1018,13 +1018,13 @@ TEST_F(CSCloneRecoverTest, RecoverFromS3ByReadChunk) {
                                                kChunkSize));
     ASSERT_EQ(0,
               verify.VerifyGetChunkInfo(cloneChunk1, sn2, NULL_SN, string("")));
-    // 重复克隆
+    // Duplicate cloning
     ASSERT_EQ(0, verify.VerifyCreateCloneChunk(cloneChunk1, location, sn3, sn2,
                                                kChunkSize));
     ASSERT_EQ(0,
               verify.VerifyGetChunkInfo(cloneChunk1, sn2, NULL_SN, string("")));
 
-    // 2. 通过readchunk恢复克隆文件
+    // 2. Restoring cloned files through readchunk
     std::shared_ptr<string> cloneData1(new string(chunkData1_));
     ASSERT_EQ(0, verify.VerifyReadChunk(cloneChunk1, sn3, 0, 8 * KB,
                                         cloneData1.get()));
@@ -1044,7 +1044,7 @@ TEST_F(CSCloneRecoverTest, RecoverFromS3ByReadChunk) {
     ASSERT_EQ(0, verify.VerifyReadChunk(cloneChunk1, sn3, 0, 12 * KB,
                                         cloneData1.get()));
 
-    // 通过ReadChunk读遍clone chunk1的所有pages
+    // Read through all pages of clone chunk1 through ReadChunk
     for (int offset = 0; offset < kChunkSize; offset += kChunkServerMaxIoSize) {
         ASSERT_EQ(0, verify.VerifyReadChunk(cloneChunk1, sn3, offset,
                                             kChunkServerMaxIoSize,
@@ -1052,9 +1052,9 @@ TEST_F(CSCloneRecoverTest, RecoverFromS3ByReadChunk) {
     }
 
     /**
-     * 预期clone文件不会转换为普通chunk1文件
-     * 通过增大版本进行写入，
-     * 如果是clone chunk，写会失败; 如果是普通chunk，则会产生快照文件。
+     * Expected clone file not to be converted to regular chunk1 file
+     * Write by increasing the version,
+     * If it is a clone chunk, the write will fail; If it is a regular chunk, a snapshot file will be generated.
      */
     ASSERT_EQ(0,
               verify.VerifyGetChunkInfo(cloneChunk1, sn3, NULL_SN, string("")));
@@ -1062,18 +1062,18 @@ TEST_F(CSCloneRecoverTest, RecoverFromS3ByReadChunk) {
               verify.VerifyWriteChunk(cloneChunk1, sn4, 0, 8 * KB, temp.c_str(),
                                       nullptr));
 
-    // 删除文件
+    // Delete files
     ASSERT_EQ(0, verify.VerifyDeleteChunk(cloneChunk1, sn3));
 }
 
-// 场景七：通过RecoverChunk从S3恢复
+// Scenario 7: Recovering from S3 through RecoverChunk
 TEST_F(CSCloneRecoverTest, RecoverFromS3ByRecoverChunk) {
     LOG(INFO) << "current case: RecoverFromS3ByRecoverChunk";
 
-    // 0. 在S3中写入源数据
+    // 0. Write source data in S3
     prepareSourceDataInS3();
 
-    // 1. 创建克隆文件
+    // 1. Create Clone File
     ChunkServiceVerify verify(&opConf_);
     ChunkID cloneChunk1 = 341;
     SequenceNum sn2 = 2;
@@ -1085,13 +1085,13 @@ TEST_F(CSCloneRecoverTest, RecoverFromS3ByRecoverChunk) {
                                                kChunkSize));
     ASSERT_EQ(0,
               verify.VerifyGetChunkInfo(cloneChunk1, sn2, NULL_SN, string("")));
-    // 重复克隆
+    // Duplicate cloning
     ASSERT_EQ(0, verify.VerifyCreateCloneChunk(cloneChunk1, location, sn3, sn2,
                                                kChunkSize));
     ASSERT_EQ(0,
               verify.VerifyGetChunkInfo(cloneChunk1, sn2, NULL_SN, string("")));
 
-    // 2. 通过RecoverChunk恢复克隆文件
+    // 2. Recovering cloned files through RecoverChunk
     std::shared_ptr<string> cloneData1(new string(chunkData1_));
     ASSERT_EQ(0, verify.VerifyRecoverChunk(cloneChunk1, 0, 8 * KB));
     ASSERT_EQ(0, verify.VerifyReadChunk(cloneChunk1, sn3, 0, 8 * KB,
@@ -1117,16 +1117,16 @@ TEST_F(CSCloneRecoverTest, RecoverFromS3ByRecoverChunk) {
     ASSERT_EQ(0, verify.VerifyReadChunk(cloneChunk1, sn3, 0, 12 * KB,
                                         cloneData1.get()));
 
-    // 通过RecoverChunk恢复clone chunk1的所有pages
+    // Restore all pages of clone chunk1 through RecoverChunk
     for (int offset = 0; offset < kChunkSize; offset += kChunkServerMaxIoSize) {
         ASSERT_EQ(0, verify.VerifyRecoverChunk(cloneChunk1, offset,
                                                kChunkServerMaxIoSize));
     }
 
     /**
-     * 预期clone文件会转换为普通chunk1文件
-     * 通过增大版本进行写入，
-     * 如果是clone chunk，写会失败; 如果是普通chunk，则会产生快照文件。
+     * Expected clone file to be converted to regular chunk1 file
+     * Write by increasing the version,
+     * If it is a clone chunk, the write will fail; If it is a regular chunk, a snapshot file will be generated.
      */
     ASSERT_EQ(0,
               verify.VerifyGetChunkInfo(cloneChunk1, sn3, NULL_SN, string("")));
@@ -1134,7 +1134,7 @@ TEST_F(CSCloneRecoverTest, RecoverFromS3ByRecoverChunk) {
               verify.VerifyWriteChunk(cloneChunk1, sn4, 0, 8 * KB, temp.c_str(),
                                       nullptr));
 
-    // 删除文件
+    // Delete files
     ASSERT_EQ(0, verify.VerifyDeleteChunk(cloneChunk1, sn4));
 }
 

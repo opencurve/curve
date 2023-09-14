@@ -79,7 +79,7 @@ TEST_F(Ext4LocalFileSystemTest, InitTest) {
     option.enableRenameat2 = true;
     struct utsname kernel_info;
 
-    // 测试版本偏低的情况
+    // Testing with a lower version
     snprintf(kernel_info.release,
              sizeof(kernel_info.release),
              "%s",

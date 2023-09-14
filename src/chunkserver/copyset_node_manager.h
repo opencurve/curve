@@ -44,13 +44,13 @@ using curve::common::TaskThreadPool;
 class ChunkOpRequest;
 
 /**
- * Copyset Node的管理者
+ * Manager of Copyset Node
  */
 class CopysetNodeManager : public curve::common::Uncopyable {
  public:
     using CopysetNodePtr = std::shared_ptr<CopysetNode>;
 
-    // 单例，仅仅在 c++11或者更高版本下正确
+    // Single example, only correct in c++11 or higher versions
     static CopysetNodeManager &GetInstance() {
         static CopysetNodeManager instance;
         return instance;
@@ -61,46 +61,46 @@ class CopysetNodeManager : public curve::common::Uncopyable {
     int Fini();
 
     /**
-     * @brief 加载目录下的所有copyset
+     * @brief Load all copysets in the directory
      *
-     * @return 0表示加载成功，非0表示加载失败
+     * @return 0 indicates successful loading, non 0 indicates failed loading
      */
     int ReloadCopysets();
 
     /**
-     * 创建copyset node，两种情况需要创建copyset node
-     * TODO(wudemiao): 后期替换之后删除掉
-     *  1.集群初始化，创建copyset
-     *  2.恢复的时候add peer
+     * To create a copyset node, there are two situations where you need to create a copyset node
+     * TODO(wudemiao): Delete after later replacement
+     *  1. Cluster initialization, creating copyset
+     *  2. add peer during recovery
      */
     bool CreateCopysetNode(const LogicPoolID &logicPoolId,
                            const CopysetID &copysetId,
                            const Configuration &conf);
 
     /**
-     * 都是创建copyset，目前两个同时存在，后期仅仅保留一个
+     * Both are creating copysets, currently both exist simultaneously, and only one will be retained in the future
      */
     bool CreateCopysetNode(const LogicPoolID &logicPoolId,
                            const CopysetID &copysetId,
                            const std::vector<Peer> peers);
 
     /**
-     * 删除copyset node内存实例(停止copyset, 销毁copyset内存实例并从copyset
-     * manager的copyset表中清除copyset表项,并不影响盘上的copyset持久化数据)
-     * @param logicPoolId:逻辑池id
-     * @param copysetId:复制组id
-     * @return true 成功，false失败
+     * Delete the copyset node memory instance (stop copyset, destroy the copyset memory instance, and remove it from the copyset
+     * Clearing the copyset table entry in the manager's copyset table does not affect the persistence data of the copyset on the disk
+     * @param logicPoolId: Logical Pool ID
+     * @param copysetId: Copy group ID
+     * @return true succeeded, false failed
      */
     bool DeleteCopysetNode(const LogicPoolID &logicPoolId,
                            const CopysetID &copysetId);
 
     /**
-     * 彻底删除copyset node内存数据(停止copyset, 销毁copyset内存实例并从
-     * copyset manager的copyset表中清除copyset表项,并将copyset持久化数据从盘
-     * 上彻底删除)
-     * @param logicPoolId:逻辑池id
-     * @param copysetId:复制组id
-     * @return true 成功，false失败
+     * Completely delete the copyset node's memory data (stop copyset, destroy the copyset memory instance, and remove it from the
+     * Clear the copyset table entries in the copyset manager's copyset table and persist the copyset data from the disk
+     * Completely delete on)
+     * @param logicPoolId: Logical Pool ID
+     * @param copysetId: Copy group ID
+     * @return true succeeded, false failed
      */
     bool PurgeCopysetNodeData(const LogicPoolID &logicPoolId,
                               const CopysetID &copysetId);
@@ -115,34 +115,34 @@ class CopysetNodeManager : public curve::common::Uncopyable {
                              const CopysetID& copysetId);
 
     /**
-     * 判断指定的copyset是否存在
-     * @param logicPoolId:逻辑池子id
-     * @param copysetId:复制组id
-     * @return true存在，false不存在
+     * Determine whether the specified copyset exists
+     * @param logicPoolId: Logical Pool ID
+     * @param copysetId: Copy group ID
+     * @return true exists, false does not exist
      */
     bool IsExist(const LogicPoolID &logicPoolId, const CopysetID &copysetId);
 
     /**
-     * 获取指定的copyset
-     * @param logicPoolId:逻辑池子id
-     * @param copysetId:复制组id
-     * @return nullptr则为没查询到
+     * Get the specified copyset
+     * @param logicPoolId: Logical Pool ID
+     * @param copysetId: Copy group ID
+     * @return nullptr means that no query was found
      */
     virtual CopysetNodePtr GetCopysetNode(const LogicPoolID &logicPoolId,
                                           const CopysetID &copysetId) const;
 
     /**
-     * 查询所有的copysets
-     * @param nodes:出参，返回所有的copyset
+     * Query all copysets
+     * @param nodes: Issue parameters and return all copysets
      */
     void GetAllCopysetNodes(std::vector<CopysetNodePtr> *nodes) const;
 
     /**
-     * 添加RPC service
-     * TODO(wudemiao): 目前仅仅用于测试，后期完善了会删除掉
-     * @param server:rpc Server
-     * @param listenAddress:监听的地址
-     * @return 0成功，-1失败
+     * Add RPC service
+     * TODO(wudemiao): Currently only used for testing, and will be removed after later refinement
+     * @param server: rpc Server
+     * @param listenAddress: The address to listen to
+     * @return 0 succeeded, -1 failed
      */
     int AddService(brpc::Server *server,
                    const butil::EndPoint &listenAddress);
@@ -160,24 +160,24 @@ class CopysetNodeManager : public curve::common::Uncopyable {
     }
 
     /**
-     * 加载copyset，包括新建一个copyset或者重启一个copyset
-     * @param logicPoolId: 逻辑池id
+     * Load copyset, including creating a new copyset or restarting a copyset
+     * @param logicPoolId: Logical Pool ID
      * @param copysetId: copyset id
-     * @param needCheckLoadFinished: 是否需要判断copyset加载完成
+     * @param needCheckLoadFinished: Do you need to determine if the copyset loading is complete
      */
     void LoadCopyset(const LogicPoolID &logicPoolId,
                      const CopysetID &copysetId,
                      bool needCheckLoadFinished);
     /**
-     * 检测指定的copyset状态，直到copyset加载完成或出现异常
-     * @param node: 指定的copyset node
-     * @return true表示加载成功，false表示检测过程中出现异常
+     * Detect the specified copyset state until the copyset load is completed or an exception occurs
+     * @param node: The specified copyset node
+     * @return true indicates successful loading, while false indicates an exception occurred during the detection process
      */
     bool CheckCopysetUntilLoadFinished(std::shared_ptr<CopysetNode> node);
 
     /**
-     * 获取copysetNodeManager加载copyset的状态
-     * @return false-copyset未加载完成 true-copyset已加载完成
+     * Obtain the status of copysetNodeManager loading copyset
+     * @return false-copyset not loaded complete, true-copyset loaded complete
      */
     virtual bool LoadFinished();
 
@@ -189,23 +189,23 @@ class CopysetNodeManager : public curve::common::Uncopyable {
 
  private:
     /**
-     * 如果指定copyset不存在，则将copyset插入到map当中（线程安全）
-     * @param logicPoolId:逻辑池id
-     * @param copysetId:复制组id
-     * @param node:要插入的copysetnode
-     * @return copyset不存在，则插入到map并返回true；
-     *         copyset如果存在，则返回false
+     * If the specified copyset does not exist, insert the copyset into the map (thread safe)
+     * @param logicPoolId: Logical Pool ID
+     * @param copysetId: Copy group ID
+     * @param node: The copysetnode to be inserted
+     * @return If the copyset does not exist, insert it into the map and return true;
+     *         If copyset exists, return false
      */
     bool InsertCopysetNodeIfNotExist(const LogicPoolID &logicPoolId,
                                      const CopysetID &copysetId,
                                      std::shared_ptr<CopysetNode> node);
 
     /**
-     * 创建一个新的copyset或加载一个已存在的copyset（非线程安全）
-     * @param logicPoolId:逻辑池id
-     * @param copysetId:复制组id
-     * @param conf:此copyset的配置成员
-     * @return 创建或加载成功返回copysetnode，否则返回nullptr
+     * Create a new copyset or load an existing copyset (non thread safe)
+     * @param logicPoolId: Logical Pool ID
+     * @param copysetId: Copy group ID
+     * @param conf: The configuration members of this copyset
+     * @return Successfully created or loaded, returns copysetnode, otherwise returns nullptr
      */
     std::shared_ptr<CopysetNode> CreateCopysetNodeUnlocked(
         const LogicPoolID &logicPoolId,
@@ -215,17 +215,17 @@ class CopysetNodeManager : public curve::common::Uncopyable {
  private:
     using CopysetNodeMap = std::unordered_map<GroupId,
                                               std::shared_ptr<CopysetNode>>;
-    // 保护复制组 map的读写锁
+    // Protect the read write lock of the replication group map
     mutable BthreadRWLock rwLock_;
-    // 复制组map
+    // Copy Group Map
     CopysetNodeMap copysetNodeMap_;
-    // 复制组配置选项
+    // Copy Group Configuration Options
     CopysetNodeOptions copysetNodeOptions_;
-    // 控制copyset并发启动的数量
+    // Control the number of concurrent starts of copyset
     std::shared_ptr<TaskThreadPool<>> copysetLoader_;
-    // 表示copyset node manager当前是否正在运行
+    // Indicates whether the copyset node manager is currently running
     Atomic<bool> running_;
-    // 表示copyset node manager当前是否已经完成加载
+    // Indicates whether the copyset node manager has currently completed loading
     Atomic<bool> loadFinished_;
 };
 

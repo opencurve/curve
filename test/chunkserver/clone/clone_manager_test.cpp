@@ -58,32 +58,32 @@ TEST_F(CloneManagerTest, BasicTest) {
     CloneOptions options;
     options.checkPeriod = 100;
     CloneManager cloneMgr;
-    // 如果线程数设置为0,启动线程池失败
+    //If the number of threads is set to 0, starting the thread pool fails
     {
         options.threadNum = 0;
         ASSERT_EQ(cloneMgr.Init(options), 0);
         ASSERT_EQ(cloneMgr.Run(), -1);
     }
-    // 队列深度为0，启动线程池会失败
+    //Queue depth is 0, starting thread pool will fail
     {
         options.threadNum = 5;
         options.queueCapacity = 0;
         ASSERT_EQ(cloneMgr.Init(options), 0);
         ASSERT_EQ(cloneMgr.Run(), -1);
     }
-    // 线程数和队列深度都大于0，可以启动线程池
+    //If the number of threads and queue depth are both greater than 0, the thread pool can be started
     {
         options.threadNum = 5;
         options.queueCapacity = 100;
         ASSERT_EQ(cloneMgr.Init(options), 0);
         ASSERT_EQ(cloneMgr.Run(), 0);
-        // 线程池启动运行后，重复Run直接返回成功
+        //After the thread pool starts running, repeating the run directly returns success
         ASSERT_EQ(cloneMgr.Run(), 0);
     }
-    // 通过Fini暂停任务
+    //Pause tasks through Fini
     {
         ASSERT_EQ(cloneMgr.Fini(), 0);
-        // 重复Fini直接返回成功
+        //Repeated Fini directly returns success
         ASSERT_EQ(cloneMgr.Fini(), 0);
     }
 }
@@ -99,9 +99,9 @@ TEST_F(CloneManagerTest, TaskTest) {
 
     std::shared_ptr<ReadChunkRequest> req =
         std::make_shared<ReadChunkRequest>();
-    // 测试 GenerateCloneTask 和 IssueCloneTask
+    //Testing GenerateCloneTask and IssueCloneTask
     {
-        // options.core为nullptr，则产生的任务也是nullptr
+        //If options.core is nullptr, the resulting task is also nullptr
         std::shared_ptr<CloneTask> task =
             cloneMgr.GenerateCloneTask(req, nullptr);
         ASSERT_EQ(task, nullptr);
@@ -111,53 +111,53 @@ TEST_F(CloneManagerTest, TaskTest) {
         task = cloneMgr.GenerateCloneTask(req, nullptr);
         ASSERT_NE(task, nullptr);
 
-        // 自定义任务测试
+        //Custom task testing
         task = std::make_shared<UTCloneTask>();
         ASSERT_FALSE(task->IsComplete());
-        // 如果clone manager还未启动，则无法发布任务
+        //If the clone manager has not yet started, the task cannot be published
         ASSERT_FALSE(cloneMgr.IssueCloneTask(task));
 
-        // 启动以后就可以发布任务
+        //After startup, tasks can be published
         ASSERT_EQ(cloneMgr.Run(), 0);
         ASSERT_TRUE(cloneMgr.IssueCloneTask(task));
-        // 等待一点时间，任务执行完成，检查任务状态以及是否从队列中移除
+        //Wait for a moment, the task execution is completed, check the task status and whether it has been removed from the queue
         std::this_thread::sleep_for(
             std::chrono::milliseconds(200));
         ASSERT_TRUE(task->IsComplete());
 
-        // 无法发布空任务
+        //Unable to publish empty task
         ASSERT_FALSE(cloneMgr.IssueCloneTask(nullptr));
     }
-    // 测试自定义的测试任务
+    //Test custom test tasks
     {
-        // 初始化执行时间各不相同的任务
+        //Initialize tasks with varying execution times
         std::shared_ptr<UTCloneTask> task1 = std::make_shared<UTCloneTask>();
         std::shared_ptr<UTCloneTask> task2 = std::make_shared<UTCloneTask>();
         std::shared_ptr<UTCloneTask> task3 = std::make_shared<UTCloneTask>();
         task1->SetSleepTime(100);
         task2->SetSleepTime(300);
         task3->SetSleepTime(500);
-        // 同时发布所有任务
+        //Publish all tasks simultaneously
         ASSERT_TRUE(cloneMgr.IssueCloneTask(task1));
         ASSERT_TRUE(cloneMgr.IssueCloneTask(task2));
         ASSERT_TRUE(cloneMgr.IssueCloneTask(task3));
-        // 此时任务还在执行中，此时引用计数为2
+        //At this point, the task is still executing and the reference count is 2
         ASSERT_FALSE(task1->IsComplete());
         ASSERT_FALSE(task2->IsComplete());
         ASSERT_FALSE(task3->IsComplete());
-        // 等待220ms，task1执行成功，其他还没完成;220ms基本可以保证task1执行完
+        //Waiting for 220ms, task1 successfully executed, but other tasks have not been completed yet; 220ms basically guarantees the completion of task1 execution
         std::this_thread::sleep_for(
             std::chrono::milliseconds(220));
         ASSERT_TRUE(task1->IsComplete());
         ASSERT_FALSE(task2->IsComplete());
         ASSERT_FALSE(task3->IsComplete());
-        // 再等待200ms，task2执行成功，task3还在执行中
+        //Wait another 200ms, task2 successfully executed, and task3 is still executing
         std::this_thread::sleep_for(
             std::chrono::milliseconds(200));
         ASSERT_TRUE(task1->IsComplete());
         ASSERT_TRUE(task2->IsComplete());
         ASSERT_FALSE(task3->IsComplete());
-        // 再等待200ms，所有任务执行成功，任务全被移出队列
+        //Wait for another 200ms, all tasks are successfully executed, and all tasks are moved out of the queue
         std::this_thread::sleep_for(
             std::chrono::milliseconds(200));
         ASSERT_TRUE(task1->IsComplete());

@@ -31,9 +31,9 @@ namespace curve {
 namespace client {
 
 /**
- * log的基本配置信息
- * @logLevel: 是log打印等级
- * @logPath: log打印位置
+ * Basic configuration information of log
+ * @logLevel: It is the log printing level
+ * @logPath: Log printing location
  */
 struct LogInfo {
     int logLevel = 2;
@@ -41,8 +41,8 @@ struct LogInfo {
 };
 
 /**
- * in flight IO控制信息
- * @fileMaxInFlightRPCNum: 为一个文件中最大允许的inflight IO数量
+ * in flight IO control information
+ * @fileMaxInFlightRPCNum: is the maximum allowed number of inflight IOs in a file
  */
 struct InFlightIOCntlInfo {
     uint64_t fileMaxInFlightRPCNum = 2048;
@@ -78,27 +78,27 @@ struct MetaServerOption {
 };
 
 /**
- * 租约基本配置
- * @mdsRefreshTimesPerLease: 一个租约内续约次数，client与mds之间通过租约保持心跳
- *                           如果双方约定租约有效期为10s，那么client会在这10s内
- *                           发送mdsRefreshTimesPerLease次心跳，如果连续失败，
- *                           那么client认为当前mds存在异常，会阻塞后续的IO，直到
- *                           续约成功。
+ * Basic configuration of lease
+ * @mdsRefreshTimesPerLease: The number of renewals within a lease, and the heartbeat between client and mds is maintained through the lease
+ *                           If both parties agree that the lease term is 10 seconds, then the client will be within these 10 seconds
+ *                           send mdsRefreshTimesPerLease heartbeats, if consecutive failures occur,
+ *                           So the client believes that there is an abnormality in the current mds, which will block subsequent IO until
+ *                           successfully renewed the contract.
  */
 struct LeaseOption {
     uint32_t mdsRefreshTimesPerLease = 5;
 };
 
 /**
- * rpc超时，判断是否unstable的参数
+ * RPC timeout, parameter to determine if it is unstable
  * @maxStableChunkServerTimeoutTimes:
- *     一个chunkserver连续超时请求的阈值, 超过之后会检查健康状态，
- *     如果不健康，则标记为unstable
+ *     The threshold for a chunkserver to continuously timeout requests, after which the health status will be checked,
+ *     If not healthy, mark as unstable
  * @checkHealthTimeoutMS:
- *     检查chunkserver是否健康的http请求超时时间
+ *      Check if chunkserver is healthy HTTP request timeout
  * @serverUnstableThreashold:
- *     一个server上超过serverUnstableThreashold个chunkserver都标记为unstable，
- *     整个server上的所有chunkserver都标记为unstable
+ *      More than serverUnstableThreashold chunkservers on a server are marked as unstable,
+ *      All chunkservers on the entire server are marked as unstable
  */
 struct ChunkServerUnstableOption {
     uint32_t maxStableChunkServerTimeoutTimes = 64;
@@ -107,42 +107,42 @@ struct ChunkServerUnstableOption {
 };
 
 /**
- * 发送失败的chunk request处理
+ * Handling of failed chunk request:
  * @chunkserverOPMaxRetry:
- * 最大重试次数，一个RPC下发到底层chunkserver，最大允许的失败
- *                         次数，超限之后会向上返回用户。
+ * Maximum retry count allowed for an RPC sent to the underlying chunk server.
+ *                        If exceeded, it will be propagated to the user.
  * @chunkserverOPRetryIntervalUS:
- * 相隔多久再重试，一个rpc失败之后client会根据其返回
- *                          状态决定是否需要睡眠一段时间再重试，目前除了
- *                          TIMEOUT、REDIRECTED，这两种返回值，其他返回值都是需要
- *                          先睡眠一段时间再重试。
- * @chunkserverRPCTimeoutMS: 为每个rpc发送时，其rpc controller配置的超时时间
+ * Time interval between retries. After a failed RPC, the client will sleep for a period
+ *                        determined by the RPC response status before retrying. Currently,
+ *                        except for TIMEOUT and REDIRECTED, all other response values
+ *                        require sleeping for some time before retrying.
+ * @chunkserverRPCTimeoutMS: Timeout configured for each RPC sent when creating its RPC controller.
  * @chunkserverMaxRPCTimeoutMS:
- * 在底层chunkserver返回TIMEOUT时，说明当前请求在底层
- *                          无法及时得到处理，原因可能是底层的排队任务太多，这时候如果
- *                          以相同的rpc
- * 超时时间再去发送请求，很有可能最后还是超时，
- *                          所以为了避免底层处理请求时，rpc在client一侧已经超时的这种
- *                          状况，为rpc超时时间增加了指数退避逻辑，超时时间会逐渐增加，
- *                          最大不能超过该值。
+ * When the underlying chunkserver returns TIMEOUT, it means the current request cannot be
+ *                        processed promptly, possibly due to a large number of queued tasks. In such cases, sending requests 
+ *                          with the same RPC timeout again
+ * may still result in timeouts. 
+ *                        To avoid this, exponential backoff
+ *                        logic is applied to increase the timeout gradually, but it cannot
+ *                        exceed this maximum value.
  * @chunkserverMaxRetrySleepIntervalUS:
- * 在底层返回OVERLOAD时，表明当前chunkserver
- *                          压力过大，这时候睡眠时间会进行指数退避，睡眠时间会加长，这样
- *                          能够保证client的请求不会将底层chunkserver打满，但是睡眠时间
- *                          最长不能超过该值。
- * @chunkserverMaxStableTimeoutTimes: 一个chunkserver连续超时请求的阈值,
- * 超过之后 会标记为unstable。因为一个chunkserver所在的server如果宕机
- *                          那么发向该chunkserver的请求都会超时，如果同一个chunkserver
- *                          的rpc连续超时超过该阈值，那么client就认为这个chunkserver
- *                          所在的server可能宕机了，就将该server上的所有leader
- * copyset 标记为unstable，促使其下次发送rpc前，先去getleader。
+ * When the underlying chunk server returns OVERLOAD, indicating excessive pressure,
+ *                        the sleep interval is exponentially extended to ensure that client
+ *                        requests do not overwhelm the underlying chunk server. However,
+ *                        the maximum sleep time cannot exceed this value.
+ * @chunkserverMaxStableTimeoutTimes:
+ * Threshold for consecutive timeouts on an RPC from a chunk server. If exceeded, the chunk server is marked as unstable. This is because if a server
+ *                        where a chunk server resides crashes, requests sent to that chunk server will all time out. 
+ *                        If the same chunk server's RPCs consecutively timeout beyond this threshold, 
+ *                          the client assumes that the server where it resides may have crashed 
+ * and marks all leader copysets on that server as unstable,  prompting a leader retrieval before sending any RPCs.
  * @chunkserverMinRetryTimesForceTimeoutBackoff:
- * 当一个请求重试次数超过阈值时，还在重试 使其超时时间进行指数退避
+ * When a request exceeds the retry threshold, the timeout is exponentially increased, forcing a backoff.
  * @chunkserverMaxRetryTimesBeforeConsiderSuspend:
- * rpc重试超过这个次数后被认为是悬挂IO，
- *                          因为发往chunkserver底层的rpc重试次数非常大，如果一个rpc连续
- *                          失败超过该阈值的时候，可以认为当前IO处于悬挂状态，通过metric
- *                          向上报警。
+ * When the number of RPC retries exceeds this threshold, it is considered a suspended IO.
+ *                        Since RPC retries sent to the chunkserver can be very high, if an
+ *                        RPC fails consecutively beyond this threshold, it can be considered
+ *                        that the current IO is in a suspended state, and an alarm is raised through metrics reporting.
  */
 struct FailureRequestOption {
     uint32_t chunkserverOPMaxRetry = 3;
@@ -155,9 +155,9 @@ struct FailureRequestOption {
 };
 
 /**
- * 发送rpc给chunkserver的配置
- * @inflightOpt: 一个文件向chunkserver发送请求时的inflight 请求控制配置
- * @failRequestOpt: rpc发送失败之后，需要进行rpc重试的相关配置
+ * Configuration for sending rpc to chunkserver
+ * @inflightOpt: Configuration of inflight request control when a file sends a request to chunkserver
+ * @failRequestOpt: After rpc sending fails, relevant configuration for rpc retry needs to be carried out
  */
 struct IOSenderOption {
     InFlightIOCntlInfo inflightOpt;
@@ -165,10 +165,10 @@ struct IOSenderOption {
 };
 
 /**
- * scheduler模块基本配置信息，schedule模块是用于分发用户请求，每个文件有自己的schedule
- * 线程池，线程池中的线程各自配置一个队列
- * @scheduleQueueCapacity: schedule模块配置的队列深度
- * @scheduleThreadpoolSize: schedule模块线程池大小
+ Basic Configuration Information for the Scheduler Module
+ * The scheduler module is used for distributing user requests. Each file has its own scheduler thread pool, and each thread in the pool is configured with its own queue.
+ * @scheduleQueueCapacity: The queue depth configured by the schedule module
+ * @scheduleThreadpoolSize: schedule module thread pool size
  */
 struct RequestScheduleOption {
     uint32_t scheduleQueueCapacity = 1024;
@@ -177,26 +177,26 @@ struct RequestScheduleOption {
 };
 
 /**
- * metaccache模块配置信息
+ * MetaCache Module Configuration
  * @metacacheGetLeaderRetry:
- * 获取leader重试次数，一个rpc发送到chunkserver之前需要先
- *                           获取当前copyset的leader，如果metacache中没有这个信息，
- *                           就向copyset的peer发送getleader请求，如果getleader失败，
- *                           需要重试，最大重试次数为该值。
+ * Number of retries to get the leader. Before an RPC is sent to the chunkserver, it needs to first
+ *                            obtain the leader for the current copyset. If this information is not available in the metacache,
+ *                            a getleader request is sent to a copyset's peers. If getleader fails, it needs to be retried, with a maximum
+ *                            retry count defined by this value.
  * @metacacheRPCRetryIntervalUS:
- * 如上所述，如果getleader请求失败，会发起重试，但是并
- *                           不会立即进行重试，而是选择先睡眠一段时间在重试。该值代表
- *                            睡眠长度。
- * @metacacheGetLeaderRPCTimeOutMS: 发送getleader rpc请求的rpc
- * controller最大超时时间
+ * As mentioned above, if a getleader request fails, it will be retried, but not immediately. Instead,
+ *                            there will be a delay before the retry. 
+ *                            This value represents the length of that delay.
+ * @metacacheGetLeaderRPCTimeOutMS: The maximum timeout duration for the RPC 
+ * controller when sending a 'getleader' RPC request
  * @metacacheGetLeaderBackupRequestMS:
- * 因为一个copyset有三个或者更多的peer，getleader
- *                            会以backuprequest的方式向这些peer发送rpc，在brpc内部
- *                            会串行发送，如果第一个请求超过一定时间还没返回，就直接向
- *                            下一个peer发送请求，而不用等待上一次请求返回或超时，这个触发
- *                            backup request的时间就为该值。
- * @metacacheGetLeaderBackupRequestLbName: 为getleader backup rpc
- *                            选择底层服务节点的策略
+ * Since a copyset has three or more peers, getleader requests are 
+ *                            sent to these peers in a backuprequest manner.
+ *                            Internally, in brpc, these requests are sent serially. If the first request takes too long to return, the next
+ *                            request is sent to the next peer without waiting for the previous one to return or time out. The time at which
+ *                            backup requests are triggered is determined by this value.
+ * @metacacheGetLeaderBackupRequestLbName: Strategy for selecting the underlying service nodes 
+ *                            for getleader backup RPCs.
  */
 struct MetaCacheOption {
     uint32_t metacacheGetLeaderRetry = 3;
@@ -209,21 +209,21 @@ struct MetaCacheOption {
 };
 
 /**
- * IO 拆分模块配置信息
+ * IO Split Module Configuration
  * @fileIOSplitMaxSizeKB:
- * 用户下发IO大小client没有限制，但是client会将用户的IO进行拆分，
- *                        发向同一个chunkserver的请求锁携带的数据大小不能超过该值。
+ * The size of user-issued IOs is not restricted by the client. However, the client will split the user's IOs,
+ * and the data size carried by requests sent to the same chunkserver cannot exceed this value.
  */
 struct IOSplitOption {
     uint64_t fileIOSplitMaxSizeKB = 64;
 };
 
 /**
- * 线程隔离任务队列配置信息
- * 线程隔离主要是为了上层做异步接口调用时，直接将其调用任务推到线程池中而不是让其阻塞到放入
- * 分发队列线程池。
- * @isolationTaskQueueCapacity: 隔离线程池的队列深度
- * @isolationTaskThreadPoolSize: 隔离线程池容量
+ * Configuration information for thread-isolated task queues.
+ * Thread isolation is primarily used to push asynchronous interface calls
+ * directly into the thread pool instead of blocking them until they are placed in the dispatch queue thread pool.
+ * @isolationTaskQueueCapacity: The queue depth of the isolation thread pool.
+ * @isolationTaskThreadPoolSize: The capacity of the isolation thread pool.
  */
 struct TaskThreadOption {
     uint64_t isolationTaskQueueCapacity = 500000;
@@ -251,7 +251,7 @@ struct ThrottleOption {
 };
 
 /**
- * IOOption存储了当前io 操作所需要的所有配置信息
+ * IOOption stores all the configuration information required for the current IO operation
  */
 struct IOOption {
     IOSplitOption ioSplitOpt;
@@ -265,11 +265,11 @@ struct IOOption {
 };
 
 /**
- * client一侧常规的共同的配置信息
- * @mdsRegisterToMDS: 是否向mds注册client信息，因为client需要通过dummy
- * server导出 metric信息，为了配合普罗米修斯的自动服务发现机制，会将其监听的
- *                    ip和端口信息发送给mds。
- * @turnOffHealthCheck: 是否关闭健康检查
+ * Common client-side configuration options:
+ * @mdsRegisterToMDS: Whether to register client information with the MDS. Since the client
+ *                    needs to export metric information through a dummy server to support
+ *                    Prometheus's automatic service discovery mechanism, it sends its listening IP and port information to the MDS.
+ * @turnOffHealthCheck: Whether to disable health checks.
  */
 struct CommonConfigOpt {
     bool mdsRegisterToMDS = false;
@@ -277,7 +277,7 @@ struct CommonConfigOpt {
 };
 
 /**
- * ClientConfigOption是外围快照系统需要设置的配置信息
+ * ClientConfigOption is the configuration information that needs to be set for the peripheral snapshot system
  */
 struct ClientConfigOption {
     LogInfo loginfo;
@@ -307,7 +307,7 @@ struct ChunkServerClientRetryOptions {
 };
 
 /**
- * FileServiceOption是QEMU侧总体配置信息
+ * FileServiceOption is the overall configuration information on the QEMU side
  */
 struct FileServiceOption {
     LogInfo loginfo;

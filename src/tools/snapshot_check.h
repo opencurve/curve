@@ -50,35 +50,35 @@ class SnapshotCheck : public CurveTool {
 
 
     /**
-     *  @brief 打印用法
-     *  @param command：查询的命令
-     *  @return 无
+     * @brief printing usage
+     * @param command: Query command
+     * @return None
      */
     void PrintHelp(const std::string &command) override;
 
     /**
-     *  @brief 执行命令
-     *  @param command：执行的命令
-     *  @return 成功返回0，失败返回-1
+     * @brief Execute command
+     * @param command: The command executed
+     * @return returns 0 for success, -1 for failure
      */
     int RunCommand(const std::string &command) override;
 
     /**
-     *  @brief 返回是否支持该命令
-     *  @param command：执行的命令
-     *  @return true / false
+     * @brief returns whether the command is supported
+     * @param command: The command executed
+     * @return true/false
      */
     static bool SupportCommand(const std::string& command);
 
     /**
-     *  @brief 比较文件和快照的一致性
-     *  @return 成功返回0，失败返回-1
+     * @brief Compare file and snapshot consistency
+     * @return returns 0 for success, -1 for failure
      */
     int Check();
 
  private:
     /**
-     * 初始化
+     * Initialize
      */
     int Init();
 

@@ -40,8 +40,8 @@ class InflightControl {
     }
 
     /**
-     * @brief 调用该接口等待inflight全部回来，这段期间是hang的,
-     *        在close文件时调用
+     * @brief calls the interface to wait for all inflight returns, which is a period of hang,
+     *        Called when closing a file
      */
     void WaitInflightAllComeBack() {
         LOG(INFO) << "wait inflight to complete, count = " << curInflightIONum_;
@@ -53,7 +53,7 @@ class InflightControl {
     }
 
     /**
-     * @brief 调用该接口等待inflight回来，这段期间是hang的
+     * @brief calls the interface to wait for inflight to return, which is during the hang period
      */
     void WaitInflightComeBack() {
         if (curInflightIONum_.load(std::memory_order_acquire) >=
@@ -67,14 +67,14 @@ class InflightControl {
     }
 
     /**
-     * @brief 递增inflight num
+     * @brief increment inflight num
      */
     void IncremInflightNum() {
         curInflightIONum_.fetch_add(1, std::memory_order_release);
     }
 
     /**
-     * @brief 递减inflight num
+     * @brief decreasing inflight num
      */
     void DecremInflightNum() {
         std::lock_guard<Mutex> lk(inflightComeBackmtx_);
@@ -90,15 +90,15 @@ class InflightControl {
     }
 
     /**
-     * WaitInflightComeBack会检查当前未返回的io数量是否超过我们限制的最大未返回inflight数量
-     * 但是真正的inflight数量与上层并发调用的线程数有关。
-     * 假设我们设置的maxinflight=100，上层有三个线程在同时调用GetInflightToken，
-     * 如果这个时候inflight数量为99，那么并发状况下这3个线程在WaitInflightComeBack
-     * 都会通过然后向下并发执行IncremInflightNum，这个时候真正的inflight为102，
-     * 下一个下发的时候需要等到inflight数量小于100才能继续，也就是等至少3个IO回来才能继续
-     * 下发。这个误差是可以接受的，他与scheduler一侧并发度有关，误差有上限。
-     * 如果想要精确控制inflight数量，就需要在接口处加锁，让原本可以并发的逻辑变成了
-     * 串行，这样得不偿失。因此我们这里选择容忍一定误差范围。
+     * WaitInflightComeBack checks if the current number of pending IOs exceeds our maximum allowed inflight limit.
+     * However, the actual inflight count is influenced by concurrent calls from upper-layer threads.
+     * Suppose we set maxinflight to 100, and there are three upper-layer threads simultaneously calling GetInflightToken.
+     * If, at this moment, the inflight count is 99, then in a concurrent scenario, all three threads in WaitInflightComeBack
+     * will pass and proceed to concurrently execute IncremInflightNum. Consequently, the actual inflight count becomes 102.
+     * The next dispatch operation will need to wait until the inflight count is less than 100 to proceed, which means it
+     * needs at least 3 IOs to return before proceeding. This margin of error is acceptable and is related to the concurrency level on the scheduler side, with a defined upper limit.
+     * If precise control over the inflight count is required, it would necessitate adding locks at the interface level,
+     * converting originally concurrent logic into serial, which would not be a cost-effective solution. Therefore, we choose to tolerate a certain margin of error in this scenario.
      */
     void GetInflightToken() {
         WaitInflightComeBack();

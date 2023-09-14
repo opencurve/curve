@@ -459,7 +459,7 @@ index 4ff38c5..b36de87 100644
  
 +bool PrometheusMetricsDumper::DumpStatusJsonString(
 +    const std::string& name, const std::string& desc) {
-+    // 如果不是json格式，返回false, 是json格式则print
++    // If it is not in JSON format, return false; if it is in JSON format, print
 +    BUTIL_RAPIDJSON_NAMESPACE::Document d;
 +    if (desc.size() == 2) {
 +        return false;
@@ -472,7 +472,7 @@ index 4ff38c5..b36de87 100644
 +        std::string("# TYPE ") + name + std::string(" gauge\n") +
 +        name + std::string("{");
 +
-+    // 遍历json并打印
++    // Traverse JSON and print
 +    int count = 0;
 +    BUTIL_RAPIDJSON_NAMESPACE::Value::MemberIterator it = d.MemberBegin();
 +    while (it != d.MemberEnd()) {
@@ -2444,7 +2444,7 @@ index fe9055d..38dd7cb 100644
 +
 +    ASSERT_EQ("test4{name=\"haorooms\",address=\"word\"} 0\n", strformat);
 +
-+    // 运行结果
++    // run result
 +    // [==========] Running 1 test from 1 test case.
 +    // [----------] Global test environment set-up.
 +    // [----------] 1 test from PrometheusMetricsDumperTest

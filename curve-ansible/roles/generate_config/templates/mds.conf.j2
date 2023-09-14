@@ -1,5 +1,5 @@
 #
-# mds服务端口
+# Mds service port
 #
 
 mds.listen.addr={{ ansible_ssh_host }}:{{ mds_port }}
@@ -8,9 +8,9 @@ global.subnet={{ mds_subnet }}
 global.port={{ mds_port }}
 
 #
-# etcd相关配置
+# ETCD related configurations
 #
-# etcd地址
+# ETCD address
 {% set etcd_address=[] -%}
 {% for host in groups.etcd -%}
   {% set etcd_ip = hostvars[host].ansible_ssh_host -%}
@@ -19,11 +19,11 @@ global.port={{ mds_port }}
 {% endfor -%}
 
 mds.etcd.endpoint={{ etcd_address | join(',') }}
-# client建立连接的超时时间
+# The timeout period for establishing a connection with a client
 mds.etcd.dailtimeoutMs={{ mds_etcd_dailtimeout_ms }}
-# client进行put/get/txn等操作的超时时间
+# The timeout period for client to perform put/get/txn and other operations
 mds.etcd.operation.timeoutMs={{ mds_etcd_operation_timeout_ms }}
-# client操作失败可以重试的次数
+# The number of times a client operation failed and can be retried
 mds.etcd.retry.times={{ mds_etcd_retry_times }}
 # wait dlock timeout
 mds.etcd.dlock.timeoutMs={{ mds_etcd_dlock_timeout_ms }}
@@ -31,68 +31,68 @@ mds.etcd.dlock.timeoutMs={{ mds_etcd_dlock_timeout_ms }}
 mds.etcd.dlock.ttlSec={{ mds_etcd_dlock_ttl_sec }}
 
 #
-# segment分配量统计相关配置
+# Configuration related to segment allocation statistics
 #
-# 将内存中的数据持久化到etcd的间隔, 单位ms
+# The interval between persisting data in memory to ETCD, in milliseconds
 mds.segment.alloc.periodic.persistInterMs={{ mds_segment_alloc_periodic_persist_inter_ms }}
-# 出错情况下的重试间隔,单位ms
+# The retry interval in ms in case of an error
 mds.segment.alloc.retryInterMs={{ mds_segment_alloc_retry_inter_ms }}
 
 mds.segment.discard.scanIntevalMs={{ mds_segment_discard_scan_interval_ms }}
 
 
-# leader竞选时会创建session, 单位是秒(go端代码的接口这个值的单位就是s)
-# 该值和etcd集群election timeout相关.
-# etcd的server端限制了该值最小为1.5 * election timeout
-# 建议设置etcd集群election timeout为1s
+# During the leader election, a session is created in seconds (the unit of the value for the interface of the go code is s)
+# This value is related to the ETCD cluster selection timeout
+# The server side of ETCD limits this value to a minimum of 1.5 * election timeout
+# Suggest setting the ETCD cluster selection timeout to 1 second
 mds.leader.sessionInterSec={{ mds_leader_session_inter_sec }}
-# leader竞选的超时时间，如果为0竞选不成功会一直block, 如果大于0，在electionTimeoutMs时间
-# 内未当选leader会返回错误
+# The timeout period for the leader election. If it is 0 and the election is unsuccessful, it will continue to block. If it is greater than 0, it will be in the selectionTimeoutMs time
+# If a leader is not selected, an error will be returned
 mds.leader.electionTimeoutMs={{ mds_leader_election_timeout_ms }}
 
 #
-# scheduler相关配置
+# Schedule related configurations
 #
-# copysetScheduler开关
+# copysetScheduler switch
 mds.enable.copyset.scheduler={{ mds_enable_copyset_scheduler }}
-# leaderScheduler开关
+# leaderScheduler switch
 mds.enable.leader.scheduler={{ mds_enable_leader_scheduler }}
-# recoverScheduler开关
+# recoverScheduler switch
 mds.enable.recover.scheduler={{ mds_enable_recover_scheduler }}
-# replicaScheduler开关
+# replicaScheduler switch
 mds.enable.replica.scheduler={{ mds_enable_replica_scheduler }}
 # Scan scheduler switch
 mds.enable.scan.scheduler={{ mds_enable_scan_scheduler }}
-# copysetScheduler 轮次间隔，单位是s
+# copysetScheduler round interval, measured in seconds
 mds.copyset.scheduler.intervalSec={{ mds_copyset_scheduler_interval_sec }}
-# replicaScheduler 轮次间隔，单位是s
+# replicaScheduler round interval, measured in seconds
 mds.replica.scheduler.intervalSec={{ mds_replica_scheduler_interval_sec }}
-# leaderScheduler 轮次间隔，单位是s
+# leaderScheduler round interval, measured in seconds
 mds.leader.scheduler.intervalSec={{ mds_leader_scheduler_interval_sec }}
-# recoverScheduler 轮次间隔，单位是s
+# recoverScheduler round interval, measured in seconds
 mds.recover.scheduler.intervalSec={{ mds_recover_scheduler_interval_sec }}
 # Scan scheduler run interval (seconds)
 mds.scan.scheduler.intervalSec={{ mds_scan_scheduler_interval_sec }}
-# 每块磁盘上operator的并发度
+# The concurrency of operators on each disk
 mds.schduler.operator.concurrent={{ mds_schduler_operator_concurrent }}
-# leader变更超时时间, 超时后mds从内存移除该operator
+# The leader changes the timeout time, and after the timeout, the mds removes the operator from memory
 mds.schduler.transfer.limitSec={{ mds_schduler_transfer_limit_sec }}
-# 减一个副本超时时间, 超时后mds从内存移除该operator
+# Reduce the replica timeout by one, and after the timeout, the mds removes the operator from memory
 mds.scheduler.remove.limitSec={{ mds_scheduler_remove_limit_sec }}
-# 增加一个副本超时时间, 超时后mds从内存移除该operator
+# Add a replica timeout, after which the mds removes the operator from memory
 mds.scheduler.add.limitSec={{ mds_scheduler_add_limit_sec }}
-# change一个副本超时时间, 超时后mds从内存移除该operator
+# change a replica timeout, after which the mds removes the operator from memory
 mds.scheduler.change.limitSec={{ mds_scheduler_change_limit_sec }}
 # Scan operator timeout (seconds)
 mds.scheduler.scan.limitSec={{ mds_scheduler_scan_limit_sec }}
-# copyset数量极差不能超过均值的百分比
+# The range of copyset quantity cannot exceed the percentage of the mean
 mds.scheduler.copysetNumRangePercent={{ mds_scheduler_copyset_mum_range_percent }}
-# chunkserver上copyset的scatte-rwidth不能超过最小值的百分比
+# The scatter width of the copyset on chunkserver cannot exceed the percentage of the minimum value
 mds.schduler.scatterWidthRangePerent={{ mds_schduler_scatterwidth_range_percent }}
-# 一个server上超过一定数量的chunkserver offline, 不做恢复
+# There are more than a certain number of chunkservers offline on a server, and no recovery will be performed
 mds.chunkserver.failure.tolerance={{ mds_chunkserver_failure_tolerance }}
-# chunkserver启动coolingTimeSec_后才可以作为target leader, 单位是s
-# TODO(lixiaocui): 续得一定程度上与快照的时间间隔方面做到相关
+# chunkserver starts coolingTimeSec_ Only then can it be used as a target leader, with the unit of s
+# TODO(lixiaocui): Continuation is to some extent related to the time interval of the snapshot
 mds.scheduler.chunkserver.cooling.timeSec={{ mds_scheduler_chunkserver_cooling_time_sec }}
 # ScanScheduler: scan start hour in one day ([0-23])
 mds.scheduler.scan.startHour={{ mds_scheduler_scan_start_hour }}
@@ -106,129 +106,129 @@ mds.scheduler.scan.concurrent.per.pool={{ mds_scheduler_scan_concurrent_per_pool
 mds.scheduler.scan.concurrent.per.chunkserver={{ mds_scheduler_scan_concurrent_per_chunkserver }}
 
 #
-# 心跳相关配置,单位为ms
+# Heartbeat related configuration, in ms
 #
-# chunkserver和mds的心跳间隔
+# Heartbeat interval between chunkserver and mds
 mds.heartbeat.intervalMs={{ mds_heartbeat_interval_ms }}
-# chunkserver和mds间心跳miss的时间
+# The time of heartbeat miss between chunkserver and mds
 mds.heartbeat.misstimeoutMs={{ mds_heartbeat_misstimeout_ms }}
-# mds在心跳miss后offlinetimeout被标记为offline
+# Mds marked offlinetimeout as offline after heartbeat miss
 mds.heartbeat.offlinetimeoutMs={{ mds_heartbeat_offlinet_imeout_ms }}
-# mds启动后延迟一定时间开始指导chunkserver删除物理数据
-# 需要延迟删除的原因在代码中备注
+# After starting the mds, delay for a certain period of time to guide chunkserver in deleting physical data
+# The reason for delayed deletion is noted in the code
 mds.heartbeat.clean_follower_afterMs={{ mds_heartbeat_clean_follower_after_ms }}
 
 #
-# namespace cache相关
+#Namespace cache related
 #
-# namestorage的缓存大小，为0表示不缓存
-# 按照每个文件最小10GB的空间预算。算上超售（2倍)
-# 文件数量 = 5PB/10GB ～= 524288 个文件
-# sizeof(namespace对象) * 524288 ～= 89Byte *524288 ～= 44MB 空间
-# 16MB chunk大小， 1个segment 1GB
-# sizeof(segment 对象) * 2621440 ～=（32 + (1024/16)*12）* 2621440 ~= 1.95 GB
-# 数据量：3GB左右
-# 记录数量：524288+2621440 ～= 300w左右
+# The cache size of namestorage, where 0 indicates no caching
+# Based on a minimum space budget of 10GB per file. Including oversold (2x)
+# Number of files = 5PB/10GB ~= 524288 files
+# sizeof(namespace object) * 524288 ~= 89Byte * 524288 ~= 44MB space
+# 16MB chunk size, 1 segment 1GB
+# sizeof(segment object) * 2621440 ~= (32+(1024/16) * 12) * 2621440 ~= 1.95 GB
+# Data volume: about 3GB
+# Record quantity: 524288+2621440 ~= about 300w
 mds.cache.count={{ mds_cache_count }}
 
 #
 # mds file record settings
 #
-# mds file记录过期时间，单位us
+# Mds file records expiration time, in units of us
 mds.file.expiredTimeUs={{ file_expired_time_us }}
-# mds后台扫描线程扫描file记录间隔时间，单位us
+# MDS backend scanning thread scanning file record interval time, unit: us
 mds.file.scanIntevalTimeUs={{ mds_file_scan_inteval_time_us }}
 
 #
 # auth settings
 #
-# root用户密码
+# Root User Password
 mds.auth.rootUserName={{ curve_root_username }}
 mds.auth.rootPassword={{ curve_root_password }}
 
 #
 # file lock setting
 #
-# mds的文件锁桶大小
+# File lock bucket size for mds
 mds.filelock.bucketNum={{ mds_filelock_bucket_num }}
 
 #
 # topology config
 #
-# Toplogy 定期刷新入数据库的时间间隔
+# The time interval for Toplogy to periodically refresh into the database
 mds.topology.TopologyUpdateToRepoSec={{ mds_topology_topology_update_to_repo_sec }}
-# 请求chunkserver上创建全部copyset的超时时间
+# Request timeout for creating all copysets on chunkserver
 mds.topology.CreateCopysetRpcTimeoutMs={{ mds_topology_create_copyset_rpc_timeout_ms }}
-# 请求chunkserver上创建copyset重试次数
+# Request to create copyset on chunkserver retry count
 mds.topology.CreateCopysetRpcRetryTimes={{ mds_topology_create_copyset_rpc_retry_times }}
-# 请求chunkserver上创建copyset重试间隔
+# Request to create copyset on chunkserver retry interval
 mds.topology.CreateCopysetRpcRetrySleepTimeMs={{ mds_topology_create_copyset_rpc_retry_sleep_time_ms }}
-# Topology模块刷新metric时间间隔
+# Topology module refresh metric interval
 mds.topology.UpdateMetricIntervalSec={{ mds_topology_update_metric_interval_sec }}
-# 物理池使用百分比，即使用量超过这个值即不再往这个池分配
+# The percentage of physical pool usage, even if the usage exceeds this value, it will no longer be allocated to this pool
 mds.topology.PoolUsagePercentLimit={{ mds_topology_pool_usage_percent_limit }}
-# 多pool选pool策略 0:Random, 1:Weight
+# Multi pool selection pool strategy 0: Random, 1: Weight
 mds.topology.choosePoolPolicy={{ mds_topology_choose_pool_policy }}
 # enable LogicalPool ALLOW/DENY status
 mds.topology.enableLogicalPoolStatus={{ mds_topology_enable_logicalpool_status}}
 
 #
 # copyset config
-# 默认值，为0时不启用
+# Default value, not enabled when 0
 #
-# 生成copyset重试次数
+# Generate copyset retry count
 mds.copyset.copysetRetryTimes={{ mds_copyset_copyset_retry_times }}
-# 所有chunkserver的scatterWidth需满足的最大方差
+# The maximum variance that the scatterWidth of all chunkservers must meet
 mds.copyset.scatterWidthVariance={{ mds_copyset_scatterwidth_variance }}
-# 所有chunkserver的scatterWidth需满足的最大标准差
+# The maximum standard deviation that the scatterWidth of all chunkservers must meet
 mds.copyset.scatterWidthStandardDevation={{ mds_copyset_scatterwidth_standard_devation }}
-# 所有chunkserver的scatterWidth需满足的最大极差
+# The maximum range that the scatterWidth of all chunkservers needs to meet
 mds.copyset.scatterWidthRange={{ mds_copyset_scatterwidth_range }}
-# 所有chunkserver的scatterWidth偏离均值的百分比
-# scatterwidth偏移百分比设置过大，导致部分机器scatterwidth过小，影响机器恢复时间，恢复
-# 时间会导致集群的可靠性降低；其次，会导致部分机器scatterwith过大，某些chunkserver上的
-# copyset散落在各机器上，其他机器一旦写入，这些scatter-with较大的机器成为热点
-# scatterwidth偏移百分比设置过小，导致scatterwidth平均程度要求更大，copyset算法要求越高，
-# 导致算法可能算不出理想结果，建议设置值为20
+# The percentage of deviation from the mean scatterWidth of all chunk servers. Setting a too large percentage of scatterWidth deviation can result in some machines having
+# excessively small scatterWidth, affecting machine recovery times. Prolonged recovery times can reduce the cluster's reliability. Additionally, it can lead to some machines having
+# excessively large scatterWidth, causing certain chunk servers to scatter copysets across various machines. When other machines write data, these machines with larger scatterWidth
+# can become hotspots. Setting a too small percentage of scatterWidth deviation requires a greater average scatterWidth,
+# which demands higher copyset algorithm requirements. This can lead to the algorithm being unable
+# to produce ideal results. It is recommended to set the value to 20.
 mds.copyset.scatterWidthFloatingPercentage={{ mds_copyset_scatterwidth_floating_percentage }}
 
 #
 # curvefs config
 #
-# curvefs的默认chunk size大小，16MB = 16*1024*1024 = 16777216
+# The default chunk size for curvefs is 16MB = 16*1024*1024 = 16777216
 mds.curvefs.defaultChunkSize={{ chunk_size }}
-# curvefs的默认segment size大小，1GB = 1*1024*1024*1024 = 1073741824
+# The default segment size for curves is 1GB = 1*1024*1024*1024 = 1073741824
 mds.curvefs.defaultSegmentSize={{ segment_size }}
-# curvefs的默认最小文件大小，10GB = 10*1024*1024*1024 = 10737418240
+# The default minimum file size for curvefs is 10GB = 10*1024*1024*1024 = 10737418240
 mds.curvefs.minFileLength={{ min_file_length }}
-# curvefs的默认最大文件大小，20TB = 20*1024*1024*1024*1024 = 21990232555520
+# The default maximum file size for curvefs is 20TB = 20*1024*1024*1024*1024 = 21990232555520
 mds.curvefs.maxFileLength={{ max_file_length }}
 
 #
 # chunkseverclient config
 #
-#  rpc 超时时间
+# RPC timeout
 mds.chunkserverclient.rpcTimeoutMs={{ mds_chunkserverclient_rpc_timeout_ms }}
-#  rpc 重试次数
+# RPC retry count
 mds.chunkserverclient.rpcRetryTimes={{ mds_chunkserverclient_rpc_retry_times }}
-#  rpc 重试时间间隔
+# RPC retry interval
 mds.chunkserverclient.rpcRetryIntervalMs={{ mds_chunkserverclient_rpc_retry_interval_ms }}
-#  从copyset的每个chunkserver getleader的重试的最大轮次
+# The maximum number of retries from each chunkserver getleader in the copyset
 mds.chunkserverclient.updateLeaderRetryTimes={{ mds_chunkserverclient_update_leader_retry_times }}
-#  从copyset的每个chunkserver getleader的每一轮的间隔，需大于raft选主的时间
+# The interval between each round of each chunkserver getleader in the copyset must be greater than the time for selecting the master in the raft
 mds.chunkserverclient.updateLeaderRetryIntervalMs={{ mds_chunkserverclient_update_leader_retry_interval_ms }}
 
 # snapshotclone config
 #
-# snapshot clone server 地址
+# snapshot clone server address
 mds.snapshotcloneclient.addr={{ snapshot_nginx_vip }}:{{ nginx_docker_external_port }}
 
 #
 # common options
 #
-# 日志存放文件夹
+# Log storage folder
 mds.common.logDir={{ mds_common_log_dir }}
-# 单元测试情况下
+# In the case of unit testing
 # mds.common.logDir=./runlog/
 
 #

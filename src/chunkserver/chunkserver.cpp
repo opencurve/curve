@@ -87,44 +87,44 @@ int ChunkServer::Run(int argc, char** argv) {
 
     RegisterCurveSegmentLogStorageOrDie();
 
-    // ==========================加载配置项===============================//
+    // ==========================Load Configuration Items===============================//
     LOG(INFO) << "Loading Configuration.";
     common::Configuration conf;
     conf.SetConfigPath(FLAGS_conf.c_str());
 
-    // 在从配置文件获取
+    // Obtaining from the configuration file
     LOG_IF(FATAL, !conf.LoadConfig())
         << "load chunkserver configuration fail, conf path = "
         << conf.GetConfigPath();
-    // 命令行可以覆盖配置文件中的参数
+    // The command line can override parameters in the configuration file
     LoadConfigFromCmdline(&conf);
 
-    // 初始化日志模块
+    // Initialize Log Module
     google::InitGoogleLogging(argv[0]);
 
-    // 打印参数
+    // Print parameters
     conf.PrintConfig();
     conf.ExposeMetric("chunkserver_config");
     curve::common::ExposeCurveVersion();
 
-    // ============================初始化各模块==========================//
+    // ============================nitialize each module==========================//
     LOG(INFO) << "Initializing ChunkServer modules";
 
-    // 优先初始化 metric 收集模块
+    // Prioritize initializing the metric collection module
     ChunkServerMetricOptions metricOptions;
     InitMetricOptions(&conf, &metricOptions);
     ChunkServerMetric* metric = ChunkServerMetric::GetInstance();
     LOG_IF(FATAL, metric->Init(metricOptions) != 0)
         << "Failed to init chunkserver metric.";
 
-    // 初始化并发持久模块
+    // Initialize concurrent persistence module
     ConcurrentApplyModule concurrentapply;
     ConcurrentApplyOption concurrentApplyOptions;
     InitConcurrentApplyOptions(&conf, &concurrentApplyOptions);
     LOG_IF(FATAL, false == concurrentapply.Init(concurrentApplyOptions))
         << "Failed to initialize concurrentapply module!";
 
-    // 初始化本地文件系统
+    // Initialize local file system
     std::shared_ptr<LocalFileSystem> fs(
         LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));
     LocalFileSystemOption lfsOption;
@@ -133,7 +133,7 @@ int ChunkServer::Run(int argc, char** argv) {
     LOG_IF(FATAL, 0 != fs->Init(lfsOption))
         << "Failed to initialize local filesystem module!";
 
-    // 初始化chunk文件池
+    // Initialize chunk file pool
     FilePoolOptions chunkFilePoolOptions;
     InitChunkFilePoolOptions(&conf, &chunkFilePoolOptions);
     std::shared_ptr<FilePool> chunkfilePool =
@@ -170,14 +170,14 @@ int ChunkServer::Run(int argc, char** argv) {
         }
     }
 
-    // 远端拷贝管理模块选项
+    // Remote Copy Management Module Options
     CopyerOptions copyerOptions;
     InitCopyerOptions(&conf, &copyerOptions);
     auto copyer = std::make_shared<OriginCopyer>();
     LOG_IF(FATAL, copyer->Init(copyerOptions) != 0)
         << "Failed to initialize clone copyer.";
 
-    // 克隆管理模块初始化
+    // Clone Management Module Initialization
     CloneOptions cloneOptions;
     InitCloneOptions(&conf, &cloneOptions);
     uint32_t sliceSize;
@@ -189,7 +189,7 @@ int ChunkServer::Run(int argc, char** argv) {
     LOG_IF(FATAL, cloneManager_.Init(cloneOptions) != 0)
         << "Failed to initialize clone manager.";
 
-    // 初始化注册模块
+    // Initialize registration module
     RegisterOptions registerOptions;
     InitRegisterOptions(&conf, &registerOptions);
     registerOptions.useChunkFilePoolAsWalPoolReserve =
@@ -202,7 +202,7 @@ int ChunkServer::Run(int argc, char** argv) {
     Register registerMDS(registerOptions);
     ChunkServerMetadata metadata;
     ChunkServerMetadata localMetadata;
-    // 从本地获取meta
+    // Get Meta from Local
     std::string metaPath = UriParser::GetPathFromUri(
         registerOptions.chunkserverMetaUri);
 
@@ -217,7 +217,7 @@ int ChunkServer::Run(int argc, char** argv) {
             &localMetadata, &metadata, epochMap) != 0)
             << "Failed to register to MDS.";
     } else {
-        // 如果本地获取不到，向mds注册
+        // If it cannot be obtained locally, register with MDS
         LOG(INFO) << "meta file "
                   << metaPath << " do not exist, register to mds";
         LOG_IF(FATAL, registerMDS.RegisterToMDS(
@@ -225,7 +225,7 @@ int ChunkServer::Run(int argc, char** argv) {
             << "Failed to register to MDS.";
     }
 
-    // trash模块初始化
+    // Trash module initialization
     TrashOptions trashOptions;
     InitTrashOptions(&conf, &trashOptions);
     trashOptions.localFileSystem = fs;
@@ -235,7 +235,7 @@ int ChunkServer::Run(int argc, char** argv) {
     LOG_IF(FATAL, trash_->Init(trashOptions) != 0)
         << "Failed to init Trash";
 
-    // 初始化复制组管理模块
+    // Initialize replication group management module
     CopysetNodeOptions copysetNodeOptions;
     InitCopysetNodeOptions(&conf, &copysetNodeOptions);
     copysetNodeOptions.concurrentapply = &concurrentapply;
@@ -256,16 +256,16 @@ int ChunkServer::Run(int argc, char** argv) {
         }
     }
 
-    // install snapshot的带宽限制
+    // Bandwidth limitation of install snapshot
     int snapshotThroughputBytes;
     LOG_IF(FATAL,
            !conf.GetIntValue("chunkserver.snapshot_throttle_throughput_bytes",
                              &snapshotThroughputBytes));
     /**
-     * checkCycles是为了更精细的进行带宽控制，以snapshotThroughputBytes=100MB，
-     * checkCycles=10为例，它可以保证每1/10秒的带宽是10MB，且不累积，例如第1个
-     * 1/10秒的带宽是10MB，但是就过期了，在第2个1/10秒依然只能用10MB的带宽，而
-     * 不是20MB的带宽
+     * CheckCycles is used for finer bandwidth control, with snapshotThroughputBytes=100MB,
+     * Taking checkCycles=10 as an example, it can ensure a bandwidth of 10MB every 1/10 second without accumulation, such as the first one
+     * The bandwidth of 1/10 second is 10MB, but it expires. In the second 1/10 second, only 10MB of bandwidth can be used, and
+     * Not a bandwidth of 20MB
      */
     int checkCycles;
     LOG_IF(FATAL,
@@ -282,7 +282,7 @@ int ChunkServer::Run(int argc, char** argv) {
         return -1;
     }
     butil::EndPoint endPoint = butil::EndPoint(ip, copysetNodeOptions.port);
-    // 注册curve snapshot storage
+    // Register curve snapshot storage
     RegisterCurveSnapshotStorageOrDie();
     CurveSnapshotStorage::set_server_addr(endPoint);
     copysetNodeManager_ = &CopysetNodeManager::GetInstance();
@@ -296,7 +296,7 @@ int ChunkServer::Run(int argc, char** argv) {
     LOG_IF(FATAL, scanManager_.Init(scanOpts) != 0)
         << "Failed to init scan manager.";
 
-    // 心跳模块初始化
+    // Heartbeat module initialization
     HeartbeatOptions heartbeatOptions;
     InitHeartbeatOptions(&conf, &heartbeatOptions);
     heartbeatOptions.copysetNodeManager = copysetNodeManager_;
@@ -308,7 +308,7 @@ int ChunkServer::Run(int argc, char** argv) {
     LOG_IF(FATAL, heartbeat_.Init(heartbeatOptions) != 0)
         << "Failed to init Heartbeat manager.";
 
-    // 监控部分模块的metric指标
+    // Metric indicators for monitoring some modules
     metric->MonitorTrash(trash_.get());
     metric->MonitorChunkFilePool(chunkfilePool.get());
     if (raftLogProtocol == kProtocalCurve && !useChunkFilePoolAsWalPool) {
@@ -316,8 +316,8 @@ int ChunkServer::Run(int argc, char** argv) {
     }
     metric->ExposeConfigMetric(&conf);
 
-    // ========================添加rpc服务===============================//
-    // TODO(lixiaocui): rpc中各接口添加上延迟metric
+    // ========================Add RPC Service===============================//
+    // TODO(lixiaocui): Add delay metric to each interface in rpc
     brpc::Server server;
     brpc::Server externalServer;
     // We need call braft::add_service to add endPoint to braft::NodeManager
@@ -385,16 +385,16 @@ int ChunkServer::Run(int argc, char** argv) {
         brpc::SERVER_DOESNT_OWN_SERVICE);
     CHECK(0 == ret) << "Fail to add ScanCopysetService";
 
-    // 启动rpc service
+    // Start rpc service
     LOG(INFO) << "Internal server is going to serve on: "
               << copysetNodeOptions.ip << ":" << copysetNodeOptions.port;
     if (server.Start(endPoint, NULL) != 0) {
         LOG(ERROR) << "Fail to start Internal Server";
         return -1;
     }
-    /* 启动external server
-       external server用于向client和工具等外部提供服务
-       区别于mds和chunkserver之间的通信*/
+    /* Start external server
+        External server is used to provide services to external clients and tools
+        Different from communication between MDS and chunkserver*/
     if (registerOptions.enableExternalServer) {
         ret = externalServer.AddService(&copysetService,
                         brpc::SERVER_DOESNT_OWN_SERVICE);
@@ -421,11 +421,11 @@ int ChunkServer::Run(int argc, char** argv) {
         }
     }
 
-    // =======================启动各模块==================================//
+    // =======================Start each module==================================//
     LOG(INFO) << "ChunkServer starts.";
     /**
-     * 将模块启动放到rpc 服务启动后面，主要是为了解决内存增长的问题
-     * 控制并发恢复的copyset数量，copyset恢复需要依赖rpc服务先启动
+     * Placing module startup after RPC service startup is mainly to address memory growth issues
+     * Control the number of copysets for concurrent recovery. Copyset recovery requires the RPC service to be started first
      */
     LOG_IF(FATAL, trash_->Run() != 0)
         << "Failed to start trash.";
@@ -440,7 +440,7 @@ int ChunkServer::Run(int argc, char** argv) {
     LOG_IF(FATAL, !chunkfilePool->StartCleaning())
         << "Failed to start file pool clean worker.";
 
-    // =======================等待进程退出==================================//
+    // =======================Wait for the process to exit==================================//
     while (!brpc::IsAskedToQuit()) {
         bthread_usleep(1000000L);
     }
@@ -751,7 +751,7 @@ void ChunkServer::InitMetricOptions(
 }
 
 void ChunkServer::LoadConfigFromCmdline(common::Configuration *conf) {
-    // 如果命令行有设置, 命令行覆盖配置文件中的字段
+    // If there are settings on the command line, the command line overwrites the fields in the configuration file
     google::CommandLineFlagInfo info;
     if (GetCommandLineFlagInfo("chunkServerIp", &info) && !info.is_default) {
         conf->SetStringValue("global.ip", FLAGS_chunkServerIp);
@@ -864,7 +864,7 @@ void ChunkServer::LoadConfigFromCmdline(common::Configuration *conf) {
         conf->SetStringValue("mds.listen.addr", FLAGS_mdsListenAddr);
     }
 
-    // 设置日志存放文件夹
+    // Set log storage folder
     if (FLAGS_log_dir.empty()) {
         if (!conf->GetStringValue("chunkserver.common.logDir", &FLAGS_log_dir)) {  // NOLINT
             LOG(WARNING) << "no chunkserver.common.logDir in " << FLAGS_conf
@@ -901,16 +901,16 @@ int ChunkServer::GetChunkServerMetaFromLocal(
         LOG(ERROR) << "Datastore protocal " << proto << " is not supported yet";
         return -1;
     }
-    // 从配置文件中获取chunkserver元数据的文件路径
+    // Obtain the file path for chunkserver metadata from the configuration file
     proto = UriParser::GetProtocolFromUri(metaUri);
     if (proto != "local") {
         LOG(ERROR) << "Chunkserver meta protocal "
                    << proto << " is not supported yet";
         return -1;
     }
-    // 元数据文件已经存在
+    // The metadata file already exists
     if (fs->FileExists(UriParser::GetPathFromUri(metaUri).c_str())) {
-        // 获取文件内容
+        // Get File Content
         if (ReadChunkServerMeta(fs, metaUri, metadata) != 0) {
             LOG(ERROR) << "Fail to read persisted chunkserver meta data";
             return -1;

@@ -95,7 +95,7 @@ class ClusterBasicTest : public ::testing::Test {
  protected:
     void SetUp() {
         curveCluster_ = std::make_shared<CurveCluster>();
-        // TODO(lixiaocui): 需要用sudo去运行，后续打开
+        // TODO(lixiaocui): It needs to be run with sudo and opened later
         // curveCluster_->BuildNetWork();
     }
 
@@ -107,28 +107,28 @@ class ClusterBasicTest : public ::testing::Test {
     std::shared_ptr<CurveCluster> curveCluster_;
 };
 
-// TODO(lixiaocui): 需要sudo运行，ci变更后打开
+// TODO(lixiaocui): Requires sudo to run and open after ci changes
 TEST_F(ClusterBasicTest, DISABLED_test_start_stop_module1) {
-    // 起etcd
+    // Starting etcd
     pid_t pid = curveCluster_->StartSingleEtcd(
         1, "127.0.0.1:2221", "127.0.0.1:2222",
         std::vector<std::string>{ "--name=basic_test_start_stop_module1" });
     LOG(INFO) << "etcd 1 started on 127.0.0.1:2221:2222, pid = " << pid;
     ASSERT_GT(pid, 0);
 
-    // 起mds
+    // Starting mds
     pid = curveCluster_->StartSingleMDS(1, "192.168.200.1:3333", 3334, mdsConf,
                                         true);
     LOG(INFO) << "mds 1 started on 192.168.200.1:3333, pid = " << pid;
     ASSERT_GT(pid, 0);
 
-    // 创建物理池
+    // Creating a physical pool
     ASSERT_EQ(
         0,
         curveCluster_->PreparePhysicalPool(
             1, "./test/integration/cluster_common/cluster_common_topo_1.json"));
 
-    // 创建chunkserver
+    // Create chunkserver
     pid =
         curveCluster_->StartSingleChunkServerInBackground(1, chunkserverConf1);
     LOG(INFO) << "chunkserver 1 started in background, pid = " << pid;
@@ -142,17 +142,17 @@ TEST_F(ClusterBasicTest, DISABLED_test_start_stop_module1) {
     LOG(INFO) << "chunkserver 3 started in background, pid = " << pid;
     ASSERT_GT(pid, 0);
 
-    // 创建逻辑池和copyset
+    // Creating logical pools and copysets
     ASSERT_EQ(0, curveCluster_->PrepareLogicalPool(
         1, "./test/integration/cluster_common/cluster_common_topo_1.json"));
 
-    // 停掉chunkserver
+    // Stop chunkserver
     ASSERT_EQ(0, curveCluster_->StopChunkServer(1));
     ASSERT_EQ(0, curveCluster_->StopChunkServer(2));
     ASSERT_EQ(0, curveCluster_->StopChunkServer(3));
-    // 停掉mds
+    // Stop mds
     ASSERT_EQ(0, curveCluster_->StopMDS(1));
-    // 停掉etcd
+    // Stop etcd
     ASSERT_EQ(0, curveCluster_->StopEtcd(1));
 
     system("rm -r test_start_stop_module1.etcd");
@@ -165,7 +165,7 @@ TEST_F(ClusterBasicTest, test_start_stop_module2) {
     ASSERT_EQ(0, system("rm -fr basic*"));
     ASSERT_EQ(0, system((std::string("mkdir -p ") + commonDir).c_str()));
 
-    // 起etcd
+    // Starting etcd
     std::string etcdDir = commonDir + "/etcd.log";
     pid_t pid = curveCluster_->StartSingleEtcd(
         1, "127.0.0.1:2221", "127.0.0.1:2222",
@@ -174,7 +174,7 @@ TEST_F(ClusterBasicTest, test_start_stop_module2) {
     ASSERT_GT(pid, 0);
     ASSERT_TRUE(curveCluster_->WaitForEtcdClusterAvalible());
 
-    // 起mds
+    // Starting mds
     auto mdsConfbak = mdsConf;
     auto mdsDir = commonDir + "/mds";
     ASSERT_EQ(0, system((std::string("mkdir ") + mdsDir).c_str()));
@@ -184,19 +184,19 @@ TEST_F(ClusterBasicTest, test_start_stop_module2) {
                                         true);
     LOG(INFO) << "mds 1 started on 127.0.0.1:3333, pid = " << pid;
     ASSERT_GT(pid, 0);
-    // 初始化mdsclient
+    // Initialize mdsclient
     curve::client::MetaServerOption op;
     op.rpcRetryOpt.rpcTimeoutMs = 4000;
     op.rpcRetryOpt.addrs = std::vector<std::string>{ "127.0.0.1:3333" };
     ASSERT_EQ(0, curveCluster_->InitMdsClient(op));
 
-    // 创建物理池
+    // Creating a physical pool
     ASSERT_EQ(
         0,
         curveCluster_->PreparePhysicalPool(
             1, "./test/integration/cluster_common/cluster_common_topo_2.json"));
 
-    // 创建chunkserver
+    // Create chunkserver
     auto copy1 = chunkserverConf1;
     std::string chunkserver1Dir = commonDir + "/chunkserver1";
     ASSERT_EQ(0, system((std::string("mkdir ") + chunkserver1Dir).c_str()));
@@ -224,40 +224,40 @@ TEST_F(ClusterBasicTest, test_start_stop_module2) {
     LOG(INFO) << "chunkserver 3 started on 127.0.0.1:2004, pid = " << pid;
     ASSERT_GT(pid, 0);
 
-    // 创建逻辑池和copyset
+    // Creating logical pools and copysets
     ASSERT_EQ(0, curveCluster_->PrepareLogicalPool(
         1, "./test/integration/cluster_common/cluster_common_topo_2.json"));
 
-    // 创建文件
+    // Create File
     ASSERT_EQ(0, curveCluster_->CreateFile("test", "test", "/basic_test",
                                            10 * 1024 * 1024 * 1024UL,
                                            /*normalFile=*/true, "SSD_2"));
 
-    // 获取当前正在服务的mds
+    // Obtain the currently serving mds
     int curMds;
     ASSERT_TRUE(curveCluster_->CurrentServiceMDS(&curMds));
     ASSERT_EQ(1, curMds);
 
-    // hang mds进程
+    // hang mds process
     ASSERT_EQ(0, curveCluster_->HangMDS(1));
-    // 创建文件失败
+    // Failed to create file
     ASSERT_NE(0, curveCluster_->CreateFile("test1", "test1", "/basic_test1",
                                            10 * 1024 * 1024 * 1024UL,
                                            /*normalFile=*/true, "SSD_2"));
-    // 恢复mds进程
+    // Resume mds process
     ASSERT_EQ(0, curveCluster_->RecoverHangMDS(1));
-    // 创建文件成功
+    // Successfully created file
     ASSERT_EQ(0, curveCluster_->CreateFile("test2", "test2", "/basic_test2",
                                            10 * 1024 * 1024 * 1024UL,
                                            /*normalFile=*/true, "SSD_2"));
 
-    // 停掉chunkserver
+    // Stop chunkserver
     ASSERT_EQ(0, curveCluster_->StopChunkServer(1));
     ASSERT_EQ(0, curveCluster_->StopChunkServer(2));
     ASSERT_EQ(0, curveCluster_->StopChunkServer(3));
-    // 停掉mds
+    // Stop mds
     ASSERT_EQ(0, curveCluster_->StopMDS(1));
-    // 停掉etcd
+    // Stop etcd
     ASSERT_EQ(0, curveCluster_->StopEtcd(1));
 
     system((std::string("rm -fr ") + commonDir).c_str());
@@ -271,7 +271,7 @@ TEST_F(ClusterBasicTest, test_multi_mds_and_etcd) {
     ASSERT_EQ(0, system("rm -fr test_multi_etcd_node*.etcd"));
     ASSERT_EQ(0, system((std::string("mkdir ") + commonDir).c_str()));
 
-    // 起三个etcd
+    // Start three ETCDs
     std::string etcdDir = commonDir + "/etcd";
     ASSERT_EQ(0, system((std::string("mkdir ") + etcdDir).c_str()));
     std::vector<std::string> etcdCluster{
@@ -307,7 +307,7 @@ TEST_F(ClusterBasicTest, test_multi_mds_and_etcd) {
     ASSERT_GT(pid, 0);
     ASSERT_TRUE(curveCluster_->WaitForEtcdClusterAvalible());
 
-    // 起三mds
+    // Starting three mds
     std::string mds1Dir = commonDir + "/mds1";
     std::string mds2Dir = commonDir + "/mds2";
     std::string mds3Dir = commonDir + "/mds3";
@@ -340,16 +340,16 @@ TEST_F(ClusterBasicTest, test_multi_mds_and_etcd) {
     LOG(INFO) << "mds 3 started on 127.0.0.1:2312, pid = " << pid;
     ASSERT_GT(pid, 0);
 
-    // 获取当前正在服务的mds
+    // Obtain the currently serving mds
     int curMds;
     ASSERT_TRUE(curveCluster_->CurrentServiceMDS(&curMds));
     ASSERT_EQ(1, curMds);
 
-    // 停掉mds
+    // Stop mds
     ASSERT_EQ(0, curveCluster_->StopMDS(1));
     ASSERT_EQ(0, curveCluster_->StopMDS(2));
     ASSERT_EQ(0, curveCluster_->StopMDS(3));
-    // 停掉etcd
+    // Stop etcd
     ASSERT_EQ(0, curveCluster_->StopEtcd(1));
     ASSERT_EQ(0, curveCluster_->StopEtcd(2));
     ASSERT_EQ(0, curveCluster_->StopEtcd(3));

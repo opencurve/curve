@@ -53,9 +53,9 @@ class NebdFileInstance;
 class NebdRequestExecutor;
 using NebdFileInstancePtr = std::shared_ptr<NebdFileInstance>;
 
-// 处理用户请求时需要加读写锁，避免close时仍有用户IO未处理完成
-// 对于异步IO来说，只有返回时才能释放读锁，所以封装成Closure
-// 在发送异步请求前，将closure赋值给NebdServerAioContext
+// When processing user requests, it is necessary to add a read write lock to avoid user IO still not being processed when closing
+// For asynchronous IO, the read lock can only be released on return, so it is encapsulated as a Closure
+// Assign the closure value to NebdServerAioContext before sending an asynchronous request
 class NebdRequestReadLockClosure : public Closure {
  public:
     explicit NebdRequestReadLockClosure(BthreadRWLock& rwLock)  // NOLINT
@@ -96,70 +96,70 @@ class NebdFileEntity : public std::enable_shared_from_this<NebdFileEntity> {
     virtual ~NebdFileEntity();
 
     /**
-     * 初始化文件实体
-     * @param option: 初始化参数
-     * @return 成功返回0， 失败返回-1
+     * Initialize File Entity
+     * @param option: Initialize parameters
+     * @return returns 0 for success, -1 for failure
      */
     virtual int Init(const NebdFileEntityOption& option);
     /**
-     * 打开文件
-     * @return 成功返回fd，失败返回-1
+     * Open File
+     * @return successfully returns fd, failure returns -1
      */
     virtual int Open(const OpenFlags* openflags);
     /**
-     * 重新open文件，如果之前的后端存储的连接还存在则复用之前的连接
-     * 否则与后端存储建立新的连接
-     * @param xattr: 文件reopen需要的信息
-     * @return 成功返回fd，失败返回-1
+     * Reopen the file and reuse the previous backend storage connection if it still exists
+     * Otherwise, establish a new connection with the backend storage
+     * @param xattr: Information required for file reopening
+     * @return successfully returns fd, failure returns -1
      */
     virtual int Reopen(const ExtendAttribute& xattr);
     /**
-     * 关闭文件
-     * @param removeMeta: 是否要移除文件元数据记录，true表示移除，false表示不移除
-     * 如果是part1传过来的close请求，此参数为true
-     * 如果是heartbeat manager发起的close请求，此参数为false
-     * @return 成功返回0，失败返回-1
+     *Close File
+     * @param removeMeta: Do you want to remove the file metadata record? True means remove, false means not remove
+     * If it is a close request passed from part1, this parameter is true
+     * If it is a close request initiated by the heartbeat manager, this parameter is false
+     * @return returns 0 for success, -1 for failure
      */
     virtual int Close(bool removeMeta);
     /**
-     * 给文件扩容
-     * @param newsize: 新的文件大小
-     * @return 成功返回0，失败返回-1
+     * Expand file capacity
+     * @param newsize: New file size
+     * @return returns 0 for success, -1 for failure
      */
     virtual int Extend(int64_t newsize);
     /**
-     * 获取文件信息
-     * @param fileInfo[out]: 文件信息
-     * @return 成功返回0，失败返回-1
+     * Obtain file information
+     * @param fileInfo[out]: File information
+     * @return returns 0 for success, -1 for failure
      */
     virtual int GetInfo(NebdFileInfo* fileInfo);
     /**
-     * 异步请求，回收指定区域空间
-     * @param aioctx: 异步请求上下文
-     * @return 成功返回0，失败返回-1
+     * Asynchronous request to reclaim the specified area space
+     * @param aioctx: Asynchronous request context
+     * @return returns 0 for success, -1 for failure
      */
     virtual int Discard(NebdServerAioContext* aioctx);
     /**
-     * 异步请求，读取指定区域内容
-     * @param aioctx: 异步请求上下文
-     * @return 成功返回0，失败返回-1
+     * Asynchronous request to read the content of the specified area
+     * @param aioctx: Asynchronous request context
+     * @return returns 0 for success, -1 for failure
      */
     virtual int AioRead(NebdServerAioContext* aioctx);
     /**
-     * 异步请求，写数据到指定区域
-     * @param aioctx: 异步请求上下文
-     * @return 成功返回0，失败返回-1
+     * Asynchronous request, writing data to a specified area
+     * @param aioctx: Asynchronous request context
+     * @return returns 0 for success, -1 for failure
      */
     virtual int AioWrite(NebdServerAioContext* aioctx);
     /**
-     * 异步请求，flush文件缓存
-     * @param aioctx: 异步请求上下文
-     * @return 成功返回0，失败返回-1
+     * Asynchronous requests, flush file caching
+     * @param aioctx: Asynchronous request context
+     * @return returns 0 for success, -1 for failure
      */
     virtual int Flush(NebdServerAioContext* aioctx);
     /**
-     * 使指定文件缓存失效
-     * @return 成功返回0，失败返回-1
+     * Invalidate the specified file cache
+     * @return returns 0 for success, -1 for failure
      */
     virtual int InvalidCache();
 
@@ -185,45 +185,45 @@ class NebdFileEntity : public std::enable_shared_from_this<NebdFileEntity> {
 
  private:
     /**
-     * 更新文件状态，包括元信息文件和内存状态
-     * @param fileInstancea: open或reopen返回的文件上下文信息
-     * @return: 成功返回0，失败返回-1
+     * Update file status, including meta information files and memory status
+     * @param fileInstancea: The file context information returned by open or reopen
+     * @return: Success returns 0, failure returns -1
      */
     int UpdateFileStatus(NebdFileInstancePtr fileInstance);
     /**
-     * 请求统一处理函数
-     * @param task: 实际请求执行的函数体
-     * @return: 成功返回0，失败返回-1
+     * Request Unified Processing Function
+     * @param task: The actual request to execute the function body
+     * @return: Success returns 0, failure returns -1
      */
     using ProcessTask = std::function<int(void)>;
     int ProcessSyncRequest(ProcessTask task);
     int ProcessAsyncRequest(ProcessTask task, NebdServerAioContext* aioctx);
 
-    // 确保文件处于opened状态，如果不是则尝试进行open
-    // 无法open或者open失败，则返回false，
-    // 如果文件处于open状态，则返回true
+    // Ensure that the file is in an open state, and if not, attempt to open it
+    // Unable to open or failed to open, returns false,
+    // If the file is in the open state, return true
     bool GuaranteeFileOpened();
 
  private:
-    // 文件读写锁，处理请求前加读锁，close文件的时候加写锁
-    // 避免close时还有请求未处理完
+    // File read/write lock, apply read lock before processing requests, and apply write lock when closing files
+    // Avoiding pending requests during close
     BthreadRWLock rwLock_;
-    // 互斥锁，用于open、close之间的互斥
+    // Mutex lock, used for mutual exclusion between open and close
     bthread::Mutex fileStatusMtx_;
-    // nebd server为该文件分配的唯一标识符
+    // The unique identifier assigned by the nebd server to this file
     int fd_;
-    // 文件名称
+    // File Name
     std::string fileName_;
     std::unique_ptr<OpenFlags> openFlags_;
-    // 文件当前状态，opened表示文件已打开，closed表示文件已关闭
+    // The current state of the file, where 'opened' indicates that the file is open and 'closed' indicates that the file is closed
     std::atomic<NebdFileStatus> status_;
-    // 该文件上一次收到心跳时的时间戳
+    // The timestamp of the last time the file received a heartbeat
     std::atomic<uint64_t> timeStamp_;
-    // 文件在executor open时返回上下文信息，用于后续文件的请求处理
+    // When the file is opened by the executor, contextual information is returned for subsequent file request processing
     NebdFileInstancePtr fileInstance_;
-    // 文件对应的executor的指针
+    // Pointer to the executor corresponding to the file
     NebdRequestExecutor* executor_;
-    // 元数据持久化管理
+    // Metadata Persistence Management
     MetaFileManagerPtr metaFileManager_;
 };
 using NebdFileEntityPtr = std::shared_ptr<NebdFileEntity>;

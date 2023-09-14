@@ -58,29 +58,29 @@ class CurveCli : public CurveTool {
                                        mdsClient_(mdsClient) {}
 
     /**
-     *  @brief 初始化mds client
-     *  @return 成功返回0，失败返回-1
+     * @brief Initialize mds client
+     * @return returns 0 for success, -1 for failure
      */
     int Init();
 
     /**
-     *  @brief 打印help信息
-     *  @param 无
-     *  @return 无
+     * @brief Print help information
+     * @param None
+     * @return None
      */
     void PrintHelp(const std::string &cmd) override;
 
     /**
-     *  @brief 执行命令
-     *  @param cmd：执行的命令
-     *  @return 成功返回0，失败返回-1
+     * @brief Execute command
+     * @param cmd: Command executed
+     * @return returns 0 for success, -1 for failure
      */
     int RunCommand(const std::string &cmd) override;
 
     /**
-     *  @brief 返回是否支持该命令
-     *  @param command：执行的命令
-     *  @return true / false
+     * @brief returns whether the command is supported
+     * @param command: The command executed
+     * @return true/false
      */
     static bool SupportCommand(const std::string& command);
 
@@ -97,47 +97,47 @@ class CurveCli : public CurveTool {
                                       const CopysetID& copysetId);
 
     /**
-     *  @brief 删除peer
-     *  @param 无
-     *  @return 成功返回0，失败返回-1
+     * @brief delete peer
+     * @param None
+     * @return returns 0 for success, -1 for failure
      */
     int RemovePeer();
 
     /**
-     *  @brief 转移leader
-     *  @param 无
-     *  @return 成功返回0，失败返回-1
+     * @brief transfer leader
+     * @param None
+     * @return returns 0 for success, -1 for failure
      */
     int TransferLeader();
 
     /**
-     *  @brief 触发打快照
-     *  @param 无
-     *  @return 成功返回0，失败返回-1
+     * @brief trigger to take a snapshot
+     * @param None
+     * @return returns 0 for success, -1 for failure
      */
     int DoSnapshot();
 
     /**
-     *  @brief 触发打快照
-     *  @param lgPoolId 逻辑池id
-     *  @param copysetId 复制组id
-     *  @param peer 复制组成员
-     *  @return 成功返回0，失败返回-1
+     * @brief trigger to take a snapshot
+     * @param lgPoolId Logical Pool ID
+     * @param copysetId Copy Group ID
+     * @param peer replication group members
+     * @return returns 0 for success, -1 for failure
      */
     int DoSnapshot(uint32_t lgPoolId, uint32_t copysetId,
                    const curve::common::Peer& peer);
 
     /**
-     *  @brief 给集群中全部copyset node触发打快照
-     *  @param 无
-     *  @return 成功返回0，失败返回-1
+     * @brief Trigger a snapshot of all copyset nodes in the cluster
+     * @param None
+     * @return returns 0 for success, -1 for failure
      */
     int DoSnapshotAll();
 
     /**
-     *  @brief 重置配置组成员，目前只支持reset成一个成员
-     *  @param 无
-     *  @return 成功返回0，失败返回-1
+     * @brief Reset configuration group members, currently only supports resetting to one member
+     * @param None
+     * @return returns 0 for success, -1 for failure
      */
     int ResetPeer();
 

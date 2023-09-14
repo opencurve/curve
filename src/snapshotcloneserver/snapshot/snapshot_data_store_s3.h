@@ -55,7 +55,7 @@ class S3SnapshotDataStore : public SnapshotDataStore {
     //                ChunkData *data) override;
     int DeleteChunkData(const ChunkDataName &name) override;
     bool ChunkDataExist(const ChunkDataName &name) override;
-/*  nos暂时不支持，后续增加
+/*  NOS is currently not supported, but will be added in the future
     int SetSnapshotFlag(const ChunkIndexDataName &name, int flag) override;
     int GetSnapshotFlag(const ChunkIndexDataName &name) override;
 */

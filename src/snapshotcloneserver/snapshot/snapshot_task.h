@@ -38,14 +38,14 @@ namespace curve {
 namespace snapshotcloneserver {
 
 /**
- * @brief 快照任务信息
+ * @brief snapshot task information
  */
 class SnapshotTaskInfo : public TaskInfo {
  public:
      /**
-      * @brief 构造函数
+      * @brief constructor
       *
-      * @param snapInfo 快照信息
+      * @param snapInfo snapshot information
       */
     explicit SnapshotTaskInfo(const SnapshotInfo &snapInfo,
         std::shared_ptr<SnapshotInfoMetric> metric)
@@ -54,27 +54,27 @@ class SnapshotTaskInfo : public TaskInfo {
           metric_(metric) {}
 
     /**
-     * @brief 获取快照信息
+     * @brief Get snapshot information
      *
-     * @return 快照信息
+     * @return snapshot information
      */
     SnapshotInfo& GetSnapshotInfo() {
         return snapshotInfo_;
     }
 
     /**
-     * @brief 获取快照uuid
+     * @brief Get snapshot uuid
      *
-     * @return 快照uuid
+     * @return snapshot uuid
      */
     UUID GetUuid() const {
         return snapshotInfo_.GetUuid();
     }
 
     /**
-     * @brief 获取文件名
+     * @brief Get file name
      *
-     * @return 文件名
+     * @return file name
      */
     std::string GetFileName() const {
         return snapshotInfo_.GetFileName();
@@ -85,9 +85,9 @@ class SnapshotTaskInfo : public TaskInfo {
     }
 
  private:
-    // 快照信息
+    // Snapshot Information
     SnapshotInfo snapshotInfo_;
-    // metric 信息
+    // Metric Information
     std::shared_ptr<SnapshotInfoMetric> metric_;
 };
 
@@ -95,10 +95,10 @@ class SnapshotTaskInfo : public TaskInfo {
 class SnapshotTask : public Task {
  public:
     /**
-      * @brief 构造函数
+      * @brief constructor
       *
-      * @param taskId 快照任务id
-      * @param taskInfo 快照任务信息
+      * @param taskId Snapshot task ID
+      * @param taskInfo snapshot task information
       */
     SnapshotTask(const TaskIdType &taskId,
         std::shared_ptr<SnapshotTaskInfo> taskInfo,
@@ -108,32 +108,32 @@ class SnapshotTask : public Task {
           core_(core) {}
 
     /**
-     * @brief 获取快照任务信息对象指针
+     * @brief Get snapshot task information object pointer
      *
-     * @return 快照任务信息对象指针
+     * @return Snapshot task information object pointer
      */
     std::shared_ptr<SnapshotTaskInfo> GetTaskInfo() const {
         return taskInfo_;
     }
 
  protected:
-    // 快照任务信息
+    // Snapshot Task Information
     std::shared_ptr<SnapshotTaskInfo> taskInfo_;
-    // 快照核心逻辑对象
+    // Snapshot Core Logical Object
     std::shared_ptr<SnapshotCore> core_;
 };
 
 /**
- * @brief 创建快照任务
+ * @brief Create snapshot task
  */
 class SnapshotCreateTask : public SnapshotTask {
  public:
      /**
-      * @brief 构造函数
+      * @brief constructor
       *
-      * @param taskId 快照任务id
-      * @param taskInfo 快照任务信息
-      * @param core 快照核心逻辑对象
+      * @param taskId Snapshot task ID
+      * @param taskInfo snapshot task information
+      * @param core snapshot core logical object
       */
     SnapshotCreateTask(const TaskIdType &taskId,
         std::shared_ptr<SnapshotTaskInfo> taskInfo,
@@ -141,7 +141,7 @@ class SnapshotCreateTask : public SnapshotTask {
         : SnapshotTask(taskId, taskInfo, core) {}
 
     /**
-     * @brief 快照执行函数
+     * @brief snapshot execution function
      */
     void Run() override {
         core_->HandleCreateSnapshotTask(taskInfo_);
@@ -149,16 +149,16 @@ class SnapshotCreateTask : public SnapshotTask {
 };
 
 /**
- * @brief 删除快照任务
+ * @brief Delete snapshot task
  */
 class SnapshotDeleteTask : public SnapshotTask {
  public:
      /**
-      * @brief 构造函数
+      * @brief constructor
       *
-      * @param taskId 快照任务id
-      * @param taskInfo 快照任务信息
-      * @param core 快照核心逻辑对象
+      * @param taskId Snapshot task ID
+      * @param taskInfo snapshot task information
+      * @param core snapshot core logical object
       */
     SnapshotDeleteTask(const TaskIdType &taskId,
         std::shared_ptr<SnapshotTaskInfo> taskInfo,
@@ -166,7 +166,7 @@ class SnapshotDeleteTask : public SnapshotTask {
         : SnapshotTask(taskId, taskInfo, core) {}
 
     /**
-     * @brief 快照执行函数
+     * @brief snapshot execution function
      */
     void Run() override {
         core_->HandleDeleteSnapshotTask(taskInfo_);
@@ -174,21 +174,21 @@ class SnapshotDeleteTask : public SnapshotTask {
 };
 
 struct ReadChunkSnapshotContext {
-    // chunkid 信息
+    // Chunkid information
     ChunkIDInfo cidInfo;
     // seq
     uint64_t seqNum;
-    // 分片的索引
+    // Fragmented index
     uint64_t partIndex;
-    // 分片的buffer
+    // Sliced buffer
     std::unique_ptr<char[]> buf;
-    // 分片长度
+    // Slice length
     uint64_t len;
-    // 返回值
+    // Return value
     int retCode;
-    // 异步请求开始时间
+    // Asynchronous request start time
     uint64_t startTime;
-    // 异步请求重试总时间
+    // Total retry time for asynchronous requests
     uint64_t clientAsyncMethodRetryTimeSec;
 };
 
@@ -255,32 +255,32 @@ class TransferSnapshotDataChunkTask : public TrackerTask {
 
  private:
     /**
-     * @brief 转储快照单个chunk
+     * @brief Dump snapshot single chunk
      *
-     * @return 错误码
+     * @return error code
      */
     int TransferSnapshotDataChunk();
 
     /**
-     * @brief 开始异步ReadSnapshotChunk
+     * @brief Start asynchronous ReadSnapshotChunk
      *
-     * @param tracker 异步ReadSnapshotChunk追踪器
-     * @param context ReadSnapshotChunk上下文
+     * @param tracker asynchronous ReadSnapshotChunk tracker
+     * @param context ReadSnapshotChunk context
      *
-     * @return 错误码
+     * @return error code
      */
     int StartAsyncReadChunkSnapshot(
         std::shared_ptr<ReadChunkSnapshotTaskTracker> tracker,
         std::shared_ptr<ReadChunkSnapshotContext> context);
 
     /**
-     * @brief 处理ReadChunkSnapshot的结果并重试
+     * @brief Process the results of ReadChunkSnapshot and try again
      *
-     * @param tracker 异步ReadSnapshotChunk追踪器
-     * @param transferTask 转储任务
-     * @param results ReadChunkSnapshot结果列表
+     * @param tracker asynchronous ReadSnapshotChunk tracker
+     * @param transferTask Dump Task
+     * @param results ReadChunkSnapshot result list
      *
-     * @return 错误码
+     * @return error code
      */
     int HandleReadChunkSnapshotResultsAndRetry(
         std::shared_ptr<ReadChunkSnapshotTaskTracker> tracker,

@@ -86,38 +86,38 @@ class SnapShotCloneServer {
     explicit SnapShotCloneServer(std::shared_ptr<Configuration> config)
       :conf_(config) {}
    /**
-    * @brief 通过配置初始化snapshotcloneserver所需要的所有配置
+    * @brief: Initialize all configurations required for snapshotcloneserver through configuration
     */
     void InitAllSnapshotCloneOptions(void);
 
     /**
-     * @brief leader选举，未选中持续等待，选中情况下建立watch并返回
+     * @brief leader election, if not selected, continue to wait. If selected, establish a watch and return
      */
     void StartCompaginLeader(void);
 
     /**
-     * @brief 启动dummyPort 用于检查主备snapshotserver
-     *        存活和各种config metric 和版本信息
+     * @brief: Start dummyPort to check the active and standby snapshotserver
+     *        Survival and various configuration metrics and version information
      */
     void StartDummy(void);
 
     /**
-     * @brief 初始化clone与snapshot 各种核心结构
+     * @brief initializes various core structures of clone and snapshot
      */
     bool Init(void);
 
     /**
-     * @brief 启动各个组件的逻辑和线程池
+     * @brief: Start the logic and thread pool of each component
      */
     bool Start(void);
 
     /**
-     * @brief 停止所有服务
+     * @brief Stop all services
      */
     void Stop(void);
 
     /**
-     *  @brief 启动RPC服务直到外部kill
+     * @brief Start RPC service until external kill
      */
     void RunUntilQuit(void);
 
@@ -127,9 +127,9 @@ class SnapShotCloneServer {
  private:
     std::shared_ptr<Configuration> conf_;
     SnapShotCloneServerOptions snapshotCloneServerOptions_;
-    // 标记自己为active/standby
+    // Mark yourself as active/standby
     bvar::Status<std::string> status_;
-    // 与etcd交互的client
+    // Client interacting with ETCD
     std::shared_ptr<EtcdClientImp> etcdClient_;
     std::shared_ptr<LeaderElection> leaderElection_;
 

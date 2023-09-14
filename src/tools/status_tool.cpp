@@ -253,7 +253,7 @@ int StatusTool::ChunkServerListCmd() {
 
         double unhealthyRatio = 0.0;
         if (FLAGS_checkCSAlive) {
-            // 发RPC重置online状态
+            // Send RPC to reset online status
             std::string csAddr = chunkserver.hostip()
                         + ":" + std::to_string(chunkserver.port());
             bool isOnline = copysetCheckCore_->CheckChunkServerOnline(csAddr);
@@ -495,24 +495,24 @@ int StatusTool::PrintClusterStatus() {
 
 bool StatusTool::IsClusterHeatlhy() {
     bool ret = true;
-    // 1、检查copyset健康状态
+    // 1. Check the health status of copyset
     int res = copysetCheckCore_->CheckCopysetsInCluster();
     if (res != 0) {
         std::cout << "Copysets are not healthy!" << std::endl;
         ret = false;
     }
 
-    // 2、检查mds状态
+    // 2. Check the mds status
     if (!CheckServiceHealthy(ServiceName::kMds)) {
         ret = false;
     }
 
-    // 3、检查etcd在线状态
+    // 3. Check the online status of ETCD
     if (!CheckServiceHealthy(ServiceName::kEtcd)) {
         ret = false;
     }
 
-    // 4、检查snapshot clone server状态
+    // 4. Check the status of the snapshot clone server
     if (!noSnapshotServer_ &&
         !CheckServiceHealthy(ServiceName::kSnapshotCloneServer)) {
         ret = false;
@@ -1054,7 +1054,7 @@ int StatusTool::GetSpaceInfo(SpaceInfo* spaceInfo) {
         std::cout << "Get root directory file size from mds fail!" << std::endl;
         return -1;
     }
-    // 从metric获取space信息
+    // Obtain space information from metric
     for (const auto& lgPool : lgPools) {
         LogicalpoolSpaceInfo   lpinfo;
         std::string poolName = lgPool.logicalpoolname();
@@ -1096,7 +1096,7 @@ int StatusTool::GetSpaceInfo(SpaceInfo* spaceInfo) {
                 std::pair<uint32_t, LogicalpoolSpaceInfo>(
                     lgPool.logicalpoolid(), lpinfo));
     }
-    // 获取RecycleBin的分配大小
+    // Obtain the allocation size of RecycleBin
     res = mdsClient_->GetAllocatedSize(curve::mds::RECYCLEBINDIR,
                                        &spaceInfo->recycleAllocSize);
     if (res != 0) {

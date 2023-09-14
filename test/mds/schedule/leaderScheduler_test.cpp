@@ -439,7 +439,7 @@ TEST_F(TestLeaderSchedule, test_tranferLeaderout_pendding) {
 TEST_F(TestLeaderSchedule, test_transferLeaderIn_normal) {
     //              chunkserver1    chunkserver2    chunkserver3    chunkserver4
     // leaderCount        0              3                 2               1
-    // copyset            1              1                 1(有operator)
+    // copyset            1              1                 1(with operator)
     //                    2              2                 2
     //                                   3                 3               3
     PeerInfo peer1(1, 1, 1, "192.168.10.1", 9000);
@@ -521,7 +521,7 @@ TEST_F(TestLeaderSchedule, test_transferLeaderIn_normal) {
 TEST_F(TestLeaderSchedule, test_transferLeaderIn_pendding) {
     //              chunkserver1    chunkserver2    chunkserver3    chunkserver4
     // leaderCount        0              3                 2               1
-    // copyset            1              1                 1(有operator)
+    // copyset            1              1                 1(with operator)
     //                    2              2                 2
     //                                   3                 3               3
     PeerInfo peer1(1, 1, 1, "192.168.10.1", 9000);

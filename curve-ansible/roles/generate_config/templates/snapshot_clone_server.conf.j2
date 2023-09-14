@@ -1,18 +1,18 @@
 #
 # curvefs client options
 #
-# client配置文件位置
+# Client configuration file location
 client.config_path={{ snap_client_config_path }}
-# mds root 用户名
+# Mds root username
 mds.rootUser={{ curve_root_username }}
-# mds root 密码
+# Mds root password
 mds.rootPassword={{ curve_root_password }}
-# 调用client方法的重试总时间
+# The total retry time for calling the client method
 client.methodRetryTimeSec={{ snap_client_method_retry_time_sec }}
-# 调用client方法重试间隔时间
+# Call client method retry interval
 client.methodRetryIntervalMs={{ snap_client_method_retry_interval_ms }}
 
-# 日志文件位置
+# Log file location
 log.dir={{ snap_log_dir }}
 
 #
@@ -26,53 +26,53 @@ s3.config_path={{ snap_s3_config_path }}
 server.address={{ ansible_ssh_host }}:{{ snapshot_port }}
 server.subnet={{ snapshot_subnet }}
 server.port={{ snapshot_port }}
-# 调用client异步方法重试总时间
+# Total retry time for calling client asynchronous methods
 server.clientAsyncMethodRetryTimeSec={{ snap_client_async_method_retry_time_sec }}
-# 调用client异步方法重试时间间隔
+# Call client asynchronous method retry interval
 server.clientAsyncMethodRetryIntervalMs={{ snap_client_async_method_retry_interval_ms }}
-# 快照工作线程数
+# Number of snapshot worker threads
 server.snapshotPoolThreadNum={{ snap_snapshot_pool_thread_num }}
-# 快照后台线程扫描等待队列和工作队列的扫描周期(单位：ms)
+# Scanning cycle of snapshot background thread scanning waiting queue and work queue (unit: ms)
 server.snapshotTaskManagerScanIntervalMs={{ snap_snapshot_task_manager_scan_interval_ms }}
-# 转储chunk分片大小
+# Dump chunk shard size
 server.chunkSplitSize={{ snap_chunk_split_size }}
-# CheckSnapShotStatus调用间隔
+# CheckSnapShotStatus call interval
 server.checkSnapshotStatusIntervalMs={{ snap_check_snapshot_status_interval_ms }}
-# 最大快照数
+# Maximum Snapshots
 server.maxSnapshotLimit={{ snap_max_snapshot_limit }}
-# 同时执行转储的线程数
+# Number of threads simultaneously executing dump
 server.snapshotCoreThreadNum={{ snap_snapshot_core_thread_num }}
-# mds session 时间
+# Mds session time
 server.mdsSessionTimeUs={{ file_expired_time_us }}
-# 每个线程同时进行ReadChunkSnapshot和转储的快照分片数量
+# Number of snapshot shards per thread that simultaneously perform ReadChunkSnapshots and dumps
 server.readChunkSnapshotConcurrency={{ snap_read_chunk_snapshot_concurrency }}
 
 # for clone
-# 用于Lazy克隆元数据部分的线程池线程数
+# Number of thread pool threads used for Lazy clone metadata section
 server.stage1PoolThreadNum={{ snap_stage1_pool_thread_num }}
-# 用于Lazy克隆数据部分的线程池线程数
+# Number of thread pool threads used for Lazy clone data section
 server.stage2PoolThreadNum={{ snap_stage2_pool_thread_num }}
-# 用于非Lazy克隆和删除克隆等其他管控面的请求的线程池线程数
+# Number of thread pool threads used for requests for non Lazy clones and deletion of clones and other control surfaces
 server.commonPoolThreadNum={{ snap_common_pool_thread_num }}
-# CloneTaskManager 后台线程扫描间隔
+# CloneTaskManager backend thread scan interval
 server.cloneTaskManagerScanIntervalMs={{ snap_clone_task_manager_scan_interval_ms }}
-# clone chunk分片大小
+# Clone chunk shard size
 server.cloneChunkSplitSize={{ snap_clone_chunk_split_size }}
-# 克隆临时目录
+# Clone temporary directory
 server.cloneTempDir={{ snap_clone_temp_dir }}
-# CreateCloneChunk同时进行的异步请求数量
+# Number of asynchronous requests made simultaneously by CreateCloneChunk
 server.createCloneChunkConcurrency={{ snap_create_clone_chunk_concurrency }}
-# RecoverChunk同时进行的异步请求数量
+# Number of asynchronous requests simultaneously made by RecoverChunk
 server.recoverChunkConcurrency={{ snap_recover_chunk_concurrency }}
-# CloneServiceManager引用计数后台扫描每条记录间隔
+# CloneServiceManager reference counting background scan every record interval
 server.backEndReferenceRecordScanIntervalMs={{ snap_clone_backend_ref_record_scan_interval_ms }}
-# CloneServiceManager引用计数后台扫描每轮记录间隔
+# CloneServiceManager Reference Count Background Scan Every Record Interval
 server.backEndReferenceFuncScanIntervalMs={{ snap_clone_backend_ref_func_scan_interval_ms }}
 
 #
-# etcd相关配置
+# ETCD related configurations
 #
-# etcd地址
+# ETCD address
 {% set etcd_address=[] -%}
 {% for host in groups.etcd -%}
   {% set etcd_ip = hostvars[host].ansible_ssh_host -%}
@@ -81,11 +81,11 @@ server.backEndReferenceFuncScanIntervalMs={{ snap_clone_backend_ref_func_scan_in
 {% endfor -%}
 
 etcd.endpoint={{ etcd_address | join(',') }}
-# client建立连接的超时时间
+# The timeout period for establishing a connection with a client
 etcd.dailtimeoutMs={{ snap_etcd_dailtimeout_ms }}
-# client进行put/get/txn等操作的超时时间
+# The timeout period for client to perform put/get/txn and other operations
 etcd.operation.timeoutMs={{ snap_etcd_operation_timeout_ms }}
-# client操作失败可以重试的次数
+# The number of times a client operation failed and can be retried
 etcd.retry.times={{ snap_etcd_retry_times }}
 # wait dlock timeout
 etcd.dlock.timeoutMs={{ snap_etcd_dlock_timeout_ms }}
@@ -93,20 +93,20 @@ etcd.dlock.timeoutMs={{ snap_etcd_dlock_timeout_ms }}
 etcd.dlock.ttlSec={{ snap_etcd_dlock_ttl_sec }}
 
 #
-# leader选举相关参数
+# Leader election related parameters
 #
-# leader lock名称
+# Leader lock name
 leader.campagin.prefix={{ snap_leader_campagin_prefix }}
-# leader竞选时会创建session, 单位是秒(go端代码的接口这个值的单位就是s)
-# 该值和etcd集群election timeout相关.
-# etcd的server端限制了该值最小为1.5 * election timeout
-# 建议设置etcd集群election timeout为1s
+# During the leader election, a session is created in seconds (the unit of the value for the interface of the go code is s)
+# This value is related to the ETCD cluster selection timeout
+# The server side of ETCD limits this value to a minimum of 1.5 * election timeout
+# Suggest setting the ETCD cluster selection timeout to 1 second
 leader.session.intersec={{ snap_leader_session_inter_sec }}
-# leader竞选的超时时间，如果为0竞选不成功会一直block, 如果大于0，在electionTimeoutMs时间
-# 内未当选leader会返回错误
+# The timeout period for the leader election. If it is 0 and the election is unsuccessful, it will continue to block. If it is greater than 0, it will be in the selectionTimeoutMs time
+# If a leader is not selected, an error will be returned
 leader.election.timeoutms={{ snap_leader_election_timeout_ms }}
 
 #
-# dummyserver相关配置
+# Dummyserver related configurations
 #
 server.dummy.listen.port={{ snapshot_dummy_port }}

@@ -372,7 +372,7 @@ FSStatusCode MetaserverClient::DeleteInode(uint32_t fsId, uint64_t inodeId) {
     request.set_partitionid(0);
     request.set_fsid(fsId);
     request.set_inodeid(inodeId);
-    // TODO(@威姐): 适配新的proto
+    // TODO(@ Wei Jie): Adapt to the new proto
     request.set_copysetid(1);
     request.set_poolid(1);
     request.set_partitionid(1);

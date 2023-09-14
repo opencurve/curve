@@ -18,7 +18,7 @@
 
 dir=$(pwd)
 
-# step1 清除生成的目录和文件
+# Step1 Clear generated directories and files
 bazel clean
 
 cleandir=(
@@ -36,15 +36,15 @@ rm -rf "${cleandir[@]}"
 
 git submodule update --init
 
-# step2 获取tag版本和git提交版本信息
-# 获取tag版本
+# Step2 Obtaining Tag Version and Git Submission Version Information
+# Get Tag Version
 tag_version=$(git status | grep -Ew "HEAD detached at|On branch" | awk '{print $NF}' | awk -F"v" '{print $2}')
 if [ -z ${tag_version} ]; then
     echo "not found version info, set version to 9.9.9"
     tag_version=9.9.9
 fi
 
-# 获取git提交版本信息
+# Obtain git submission version information
 commit_id=$(git rev-parse --short HEAD)
 if [ "$1" = "debug" ]; then
     debug="+debug"
@@ -123,7 +123,7 @@ function build_curvefs_python() {
     done
 }
 
-# step3 执行编译
+# Step3 Execute Compilation
 bazel_version=$(bazel version | grep "Build label" | awk '{print $3}')
 if [ -z ${bazel_version} ]; then
     echo "please install bazel 4.2.2 first"
@@ -218,7 +218,7 @@ else
 fi
 echo "end compile"
 
-#step4 创建临时目录，拷贝二进制、lib库和配置模板
+# Step4 Create a temporary directory, copy binaries, lib libraries, and configuration templates
 echo "start copy"
 mkdir -p build/curve/
 # curve-mds
@@ -299,7 +299,7 @@ cp nbd/nbd-package/usr/bin/map_curve_disk.sh build/nbd-package/bin
 cp nbd/nbd-package/etc/curve/curvetab build/nbd-package/etc
 cp nbd/nbd-package/etc/systemd/system/map_curve_disk.service build/nbd-package/etc
 
-# step5 打包tar包
+# Step5 Packaging tar package
 echo "start make tarball"
 cd ${dir}/build
 curve_name="curve_${curve_version}.tar.gz"
@@ -320,14 +320,14 @@ tar zcf ${nbd_name} nbd-package
 cp ${nbd_name} $dir
 echo "end make tarball"
 
-# step6 清理libetcdclient.so编译出现的临时文件
+# Step6 Clean up temporary files that appear during libetcdclient.so compilation
 echo "start clean etcd"
 cd ${dir}/thirdparties/etcdclient
 make clean
 cd ${dir}
 echo "end clean etcd"
 
-# step7 打包python wheel
+# Step7 Packaging python wheel
 echo "start make python wheel"
 build_curvefs_python $1
 echo "end make python wheel"

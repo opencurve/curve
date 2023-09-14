@@ -42,41 +42,41 @@ namespace tool {
 class CurveToolFactory {
  public:
     /**
-     *  @brief 根据输入的command获取CurveTool对象
-     *  @param command 要执行的命令的名称
-     *  @return CurveTool实例
+     * @brief Retrieve the CurveTool object based on the input command
+     * @param command The name of the command to be executed
+     * @return CurveTool instance
      */
     static std::shared_ptr<CurveTool> GenerateCurveTool(
                                     const std::string& command);
 
  private:
     /**
-     *  @brief 获取StatusTool实例
+     * @brief Get StatusTool instance
      */
     static std::shared_ptr<StatusTool> GenerateStatusTool();
 
     /**
-     *  @brief 获取NameSpaceTool实例
+     * @brief Get NameSpaceTool instance
      */
     static std::shared_ptr<NameSpaceTool> GenerateNameSpaceTool();
 
     /**
-     *  @brief 获取ConsistencyCheck实例
+     * @brief Get ConsistencyCheck instance
      */
     static std::shared_ptr<ConsistencyCheck> GenerateConsistencyCheck();
 
     /**
-     *  @brief 获取CurveCli实例
+     * @brief Get CurveCli instance
      */
     static std::shared_ptr<CurveCli> GenerateCurveCli();
 
     /**
-     *  @brief 获取CopysetCheck实例
+     * @brief Get CopysetCheck instance
      */
     static std::shared_ptr<CopysetCheck> GenerateCopysetCheck();
 
     /**
-     *  @brief 获取ScheduleTool实例
+     * @brief to obtain a ScheduleTool instance
      */
     static std::shared_ptr<ScheduleTool> GenerateScheduleTool();
 

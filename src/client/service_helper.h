@@ -40,7 +40,7 @@
 namespace curve {
 namespace client {
 
-// GetLeader请求rpc参数信息
+// GetLeader request rpc parameter information
 struct GetLeaderRpcOption {
     uint32_t rpcTimeoutMs;
 
@@ -48,7 +48,7 @@ struct GetLeaderRpcOption {
         : rpcTimeoutMs(rpcTimeoutMs) {}
 };
 
-// GetLeader请求对应的copyset信息及rpc相关参数信息
+// The copyset information and rpc related parameter information corresponding to the GetLeader request
 struct GetLeaderInfo {
     LogicPoolID logicPoolId;
     CopysetID   copysetId;
@@ -70,7 +70,7 @@ struct GetLeaderInfo {
 
 class GetLeaderProxy;
 
-// GetLeader异步请求回调
+// GetLeader asynchronous request callback
 struct GetLeaderClosure : public google::protobuf::Closure {
     GetLeaderClosure(LogicPoolID logicPoolId, CopysetID copysetId,
                      std::shared_ptr<GetLeaderProxy> proxy)
@@ -86,7 +86,7 @@ struct GetLeaderClosure : public google::protobuf::Closure {
     curve::chunkserver::GetLeaderResponse2 response;
 };
 
-// ServiceHelper是client端RPC服务的一些工具
+// ServiceHelper is a tool for client-side RPC services
 class ServiceHelper {
  public:
     /**
@@ -103,38 +103,38 @@ class ServiceHelper {
         CloneSourceInfo* info);
 
     /**
-     * 从chunkserver端获取最新的leader信息
-     * @param[in]: getLeaderInfo为对应copyset的信息
-     * @param[out]: leaderAddr是出参，返回当前copyset的leader信息
-     * @param[out]: leaderId是出参，返回当前leader的id信息
-     * @param[in]: fileMetric是用于metric的记录
-     * @return: 成功返回0，否则返回-1
+     * Obtain the latest leader information from the chunkserver side
+     * @param[in]: getLeaderInfo is the information of the corresponding copyset
+     * @param[out]: leaderAddr is the output parameter that returns the leader information of the current copyset
+     * @param[out]: leaderId is the output parameter, returning the ID information of the current leader
+     * @param[in]: fileMetric is a record used for metric
+     * @return: Successfully returns 0, otherwise returns -1
      */
     static int GetLeader(const GetLeaderInfo& getLeaderInfo,
                          PeerAddr *leaderAddr,
                          ChunkServerID* leaderId = nullptr,
                          FileMetric* fileMetric = nullptr);
     /**
-     * 从文件名中获取user信息.
-     * 用户的user信息需要夹在文件名中，比如文件名为temp,用户名为user,
-     * 那么其完整的文件信息是:temp_user_。
-     * 如果文件名为: /temp_temp_,那么完整文件名为/temp_temp__user_。
-     * @param[in]: filename为用户传下来的文件名
-     * @param[out]:realfilename是真正文件名
-     * @param[out]: user信息,出参
-     * @return: 获取到user信息为true，否则false
+     * Obtain user information from the file name
+     * The user information needs to be included in the file name, such as the file name being temp and the username being user,
+     * So the complete file information is: temp_user_.
+     * If the file name is: /temp_temp_, So the complete file name is /temp_temp__user_.
+     * @param[in]: filename is the file name passed down by the user
+     * @param[out]: realfilename is the true file name
+     * @param[out]: user information, output parameters
+     * @return: Obtained user information as true, otherwise false
      */
     static bool GetUserInfoFromFilename(const std::string& fname,
                                         std::string* realfilename,
                                         std::string* user);
 
     /**
-     * @brief: 发送http请求，判断chunkserver是否健康
+     * @brief: Send an HTTP request to determine if the chunkserver is healthy
      *
-     * @param: endPoint chunkserver的ip:port
-     * @param: http请求的超时时间
+     * @param: endPoint chunkserver's ip:port
+     * @param: HTTP request timeout
      *
-     * @return: 0 表示健康，-1表示不健康
+     * @return: 0 indicates health, -1 indicates unhealthy
      */
     static int CheckChunkServerHealth(const butil::EndPoint& endPoint,
                                       int32_t requestTimeoutMs);

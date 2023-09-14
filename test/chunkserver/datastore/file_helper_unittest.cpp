@@ -64,11 +64,11 @@ TEST_F(FileHelper_MockTest, ListFilesTest) {
     vector<string> chunkFiles;
     vector<string> snapFiles;
 
-    // case1:List失败，返回-1
+    // Case1: List failed, returned -1
     EXPECT_CALL(*fs_, List(_, _))
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, fileHelper_->ListFiles(baseDir, &chunkFiles, &snapFiles));
-    // 如果返回ENOENT错误,直接返回成功
+    // If an ENOENT error is returned, success is returned directly
     EXPECT_CALL(*fs_, List(_, _))
         .WillOnce(Return(-ENOENT));
     ASSERT_EQ(0, fileHelper_->ListFiles(baseDir, &chunkFiles, &snapFiles));
@@ -77,7 +77,7 @@ TEST_F(FileHelper_MockTest, ListFilesTest) {
     string chunk1 = "chunk_1";
     string chunk2 = "chunk_2";
     string snap1 = "chunk_1_snap_1";
-    string other = "chunk_1_S";  // 非法文件名
+    string other = "chunk_1_S";  // Illegal file name
     files.emplace_back(chunk1);
     files.emplace_back(chunk2);
     files.emplace_back(snap1);
@@ -86,7 +86,7 @@ TEST_F(FileHelper_MockTest, ListFilesTest) {
         .WillRepeatedly(DoAll(SetArgPointee<1>(files),
                         Return(0)));
 
-    // case2:List成功，返回chunk文件和snapshot文件
+    // Case2: List successful, returning chunk file and snapshot file
     ASSERT_EQ(0, fileHelper_->ListFiles(baseDir, &chunkFiles, &snapFiles));
     ASSERT_EQ(2, chunkFiles.size());
     ASSERT_STREQ(chunk1.c_str(), chunkFiles[0].c_str());
@@ -94,7 +94,7 @@ TEST_F(FileHelper_MockTest, ListFilesTest) {
     ASSERT_EQ(1, snapFiles.size());
     ASSERT_STREQ(snap1.c_str(), snapFiles[0].c_str());
 
-    // case3:允许vector为空指针
+    // Case3: Allow vector to be a null pointer
     ASSERT_EQ(0, fileHelper_->ListFiles(baseDir, nullptr, nullptr));
 }
 

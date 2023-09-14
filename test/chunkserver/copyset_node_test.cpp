@@ -67,7 +67,7 @@ const int port = 9044;
 class FakeSnapshotReader : public braft::SnapshotReader {
  public:
     std::string get_path() {
-        /* 返回一个不存在的 path */
+        /*Returns a non-existent path*/
         return std::string("/1002093939/temp/238408034");
     }
     void list_files(std::vector<std::string> *files) {
@@ -84,7 +84,7 @@ class FakeSnapshotReader : public braft::SnapshotReader {
 class FakeSnapshotWriter : public braft::SnapshotWriter {
  public:
     std::string get_path() {
-        /* 返回一个不存在的 path */
+        /*Returns a non-existent path*/
         return std::string(".");
     }
     void list_files(std::vector<std::string> *files) {
@@ -545,7 +545,7 @@ TEST_F(CopysetNodeTest, error_test) {
         copysetNode.Fini();
         ::system(rmCmd.c_str());
     }
-    /* load: logic pool id 错误 */
+    /* Load: logic pool id error */
     {
         LogicPoolID logicPoolID = 123;
         CopysetID copysetID = 1345;
@@ -565,7 +565,7 @@ TEST_F(CopysetNodeTest, error_test) {
         copysetNode.Fini();
         ::system(rmCmd.c_str());
     }
-    /* load: copyset id 错误 */
+    /* Load: copyset id error */
     {
         LogicPoolID logicPoolID = 123;
         CopysetID copysetID = 1345;
@@ -607,7 +607,7 @@ TEST_F(CopysetNodeTest, get_conf_change) {
     conf1.add_peer(peer1);
     conf2.add_peer(peer1);
 
-    // 当前没有在做配置变更
+    // There are currently no configuration changes in progress
     {
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
         std::shared_ptr<MockNode> mockNode
@@ -628,7 +628,7 @@ TEST_F(CopysetNodeTest, get_conf_change) {
         EXPECT_EQ(0, copysetNode.GetConfChange(&type, &oldConf, &alterPeer));
         EXPECT_EQ(ConfigChangeType::NONE, type);
     }
-    // 当前正在Add Peer
+    // Currently adding Peer
     {
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
         std::shared_ptr<MockNode> mockNode
@@ -666,7 +666,7 @@ TEST_F(CopysetNodeTest, get_conf_change) {
         EXPECT_EQ(ConfigChangeType::ADD_PEER, type);
         EXPECT_EQ(addPeer.address(), alterPeer.address());
     }
-    // 当前正在Remove Peer
+    // Currently removing Peer
     {
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
         std::shared_ptr<MockNode> mockNode
@@ -704,7 +704,7 @@ TEST_F(CopysetNodeTest, get_conf_change) {
         EXPECT_EQ(ConfigChangeType::REMOVE_PEER, type);
         EXPECT_EQ(removePeer.address(), alterPeer.address());
     }
-    // 当前正在Transfer leader
+    // Currently transferring leader
     {
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
         std::shared_ptr<MockNode> mockNode
@@ -742,7 +742,7 @@ TEST_F(CopysetNodeTest, get_conf_change) {
         EXPECT_EQ(ConfigChangeType::TRANSFER_LEADER, type);
         EXPECT_EQ(transferee1.address(), alterPeer.address());
     }
-    // 当前正在Change Peer
+    // Currently changing Peer
     {
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
         std::shared_ptr<MockNode> mockNode
@@ -778,7 +778,7 @@ TEST_F(CopysetNodeTest, get_conf_change) {
         EXPECT_EQ(ConfigChangeType::CHANGE_PEER, type);
         EXPECT_EQ(addPeer1.address(), alterPeer.address());
     }
-    // leader term小于0
+    // leader term is less than 0
     {
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
         ASSERT_EQ(0, copysetNode.Init(defaultOptions_));
@@ -816,7 +816,7 @@ TEST_F(CopysetNodeTest, get_hash) {
 
         ASSERT_EQ(0, copysetNode.Init(defaultOptions_));
 
-        // 生成多个有数据的文件
+        // Generate multiple files with data
         ::system("echo \"abcddddddddd333\" >"
                  "copyset_node_test/8589934594/data/test-2.txt");
         ::system("echo \"mmmmmmmm\" >"
@@ -830,7 +830,7 @@ TEST_F(CopysetNodeTest, get_hash) {
         ::system("echo \"wwwww\" > "
                  "copyset_node_test/8589934594/data/test-1.txt");
 
-        // 获取hash
+        // Get hash
         ASSERT_EQ(0, copysetNode.GetHash(&hash));
         ASSERT_STREQ(hashValue.c_str(), hash.c_str());
         ::system("rm -fr copyset_node_test/8589934594");
@@ -838,12 +838,12 @@ TEST_F(CopysetNodeTest, get_hash) {
 
     {
         std::string hash;
-        // 使用不同的copyset id，让目录不一样
+        // Using different copyset IDs to make the directory different
         CopysetNode copysetNode(logicPoolID, copysetID + 1, conf);
 
         ASSERT_EQ(0, copysetNode.Init(defaultOptions_));
 
-        // 生成多个有数据的文件，并且交换生成文件的顺序
+        // Generate multiple files with data and exchange the order of generated files
         ::system("touch copyset_node_test/8589934595/data/test-1.txt");
         ::system("echo \"wwwww\" > "
                  "copyset_node_test/8589934595/data/test-1.txt");
@@ -857,7 +857,7 @@ TEST_F(CopysetNodeTest, get_hash) {
         ::system("echo \"abcddddddddd333\" > "
                  "copyset_node_test/8589934595/data/test-2.txt");
 
-        // 获取hash
+        // Get hash
         ASSERT_EQ(0, copysetNode.GetHash(&hash));
         ASSERT_STREQ(hashValue.c_str(), hash.c_str());
         ::system("rm -fr copyset_node_test/8589934595");
@@ -1008,7 +1008,7 @@ TEST_F(CopysetNodeTest, get_leader_status) {
     CopysetNode copysetNode(logicPoolID, copysetID, conf);
     copysetNode.SetCopysetNode(mockNode);
 
-    // 当前peer不是leader，且当前无leader
+    // The current peer is not a leader, and there is currently no leader
     {
         NodeStatus status;
         EXPECT_CALL(*mockNode, get_status(_))
@@ -1017,7 +1017,7 @@ TEST_F(CopysetNodeTest, get_leader_status) {
         ASSERT_FALSE(copysetNode.GetLeaderStatus(&leaderStatus));
     }
 
-    // 当前peer为leader
+    // The current peer is the leader
     {
         NodeStatus status;
         status.leader_id.parse("127.0.0.1:3200:0");
@@ -1031,9 +1031,9 @@ TEST_F(CopysetNodeTest, get_leader_status) {
                   leaderStatus.committed_index);
     }
 
-    // 存在leader，但不是当前peer
+    // There is a leader, but it is not the current peer
     {
-        // 模拟启动chunkserver
+        // Simulate starting chunkserver
         CopysetNodeManager* copysetNodeManager
             = &CopysetNodeManager::GetInstance();
         ASSERT_EQ(0, copysetNodeManager->Init(defaultOptions_));
@@ -1044,14 +1044,14 @@ TEST_F(CopysetNodeTest, get_leader_status) {
         if (server.Start(port, NULL) != 0) {
             LOG(FATAL) << "Fail to start Server";
         }
-        // 构造leader copyset
+        // Construct a leader copyset
         ASSERT_TRUE(copysetNodeManager->CreateCopysetNode(logicPoolID,
                                                           copysetID,
                                                           conf));
         auto leaderNode = copysetNodeManager->GetCopysetNode(logicPoolID,
                                                              copysetID);
         ASSERT_TRUE(nullptr != leaderNode);
-        // 设置预期值
+        // Set expected values
         std::shared_ptr<MockNode> mockLeader
             = std::make_shared<MockNode>(logicPoolID,
                                          copysetID);
@@ -1064,7 +1064,7 @@ TEST_F(CopysetNodeTest, get_leader_status) {
         EXPECT_CALL(*mockLeader, get_status(_))
         .WillRepeatedly(SetArgPointee<0>(mockLeaderStatus));
 
-        // 测试通过follower的node获取leader的committed index
+        // Test obtaining the committed index of the leader through the node of the follower
         NodeStatus followerStatus;
         followerStatus.leader_id = leader_peer;
         followerStatus.peer_id.parse("127.0.0.1:3201:0");

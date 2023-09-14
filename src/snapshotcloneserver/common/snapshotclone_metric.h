@@ -53,17 +53,17 @@ struct SnapshotMetric {
     const std::string SnapshotMetricPrefix =
         "snapshotcloneserver_snapshot_metric_";
 
-    // 正在进行的快照数量
+    // Number of snapshots in progress
     bvar::Adder<uint32_t> snapshotDoing;
-    // 正在等待的快照数量
+    // Number of waiting snapshots
     bvar::Adder<uint32_t> snapshotWaiting;
-    // 累计成功的快照数量
+    // Accumulated number of successful snapshots
     bvar::Adder<uint32_t> snapshotSucceed;
-    // 累计失败的快照数量
+    // Accumulated number of failed snapshots
     bvar::Adder<uint32_t> snapshotFailed;
 
     std::shared_ptr<SnapshotCloneMetaStore> metaStore_;
-    // 系统内快照总量
+    // Total number of snapshots within the system
     bvar::PassiveStatus<uint32_t> snapshotNum;
 
     explicit SnapshotMetric(std::shared_ptr<SnapshotCloneMetaStore> metaStore) :
@@ -92,25 +92,25 @@ struct CloneMetric {
     const std::string CloneMetricPrefix =
         "snapshotcloneserver_clone_metric_";
 
-    // 正在执行的克隆任务数量
+    // Number of cloning tasks being executed
     bvar::Adder<uint32_t> cloneDoing;
-    // 累计成功的克隆任务数量
+    // Accumulated number of successful cloning tasks
     bvar::Adder<uint32_t> cloneSucceed;
-    // 累计失败的克隆任务数量
+    // Accumulated number of failed clone tasks
     bvar::Adder<uint32_t> cloneFailed;
 
-    // 正在执行的恢复任务数量
+    // Number of recovery tasks being executed
     bvar::Adder<uint32_t> recoverDoing;
-    // 累计成功的恢复任务数量
+    // Accumulated number of successful recovery tasks
     bvar::Adder<uint32_t> recoverSucceed;
-    // 累计失败的恢复任务数量
+    // Accumulated number of failed recovery tasks
     bvar::Adder<uint32_t> recoverFailed;
 
-    // 正在执行的Flatten任务数量
+    // Number of Flatten tasks being executed
     bvar::Adder<uint32_t> flattenDoing;
-    // 累计成功的Flatten任务数量
+    // Accumulated number of successful Flatten tasks
     bvar::Adder<uint32_t> flattenSucceed;
-    // 累计失败的Flatten任务数量
+    // Accumulated number of failed Flatten tasks
     bvar::Adder<uint32_t> flattenFailed;
 
     CloneMetric() :

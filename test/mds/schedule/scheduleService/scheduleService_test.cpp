@@ -75,7 +75,7 @@ TEST_F(TestScheduleService, test_RapidLeaderSchedule) {
     request.set_logicalpoolid(1);
     RapidLeaderScheduleResponse response;
 
-    // 1. 快速leader均衡返回成功
+    // 1. Fast leader balance returned successfully
     {
         EXPECT_CALL(*coordinator_, RapidLeaderSchedule(1))
             .WillOnce(Return(kScheduleErrCodeSuccess));
@@ -85,7 +85,7 @@ TEST_F(TestScheduleService, test_RapidLeaderSchedule) {
         ASSERT_EQ(kScheduleErrCodeSuccess, response.statuscode());
     }
 
-    // 2. 传入的logicalpoolid不存在
+    // 2. The logicaltool passed in does not exist
     {
         EXPECT_CALL(*coordinator_, RapidLeaderSchedule(1))
             .WillOnce(Return(kScheduleErrCodeInvalidLogicalPool));
@@ -105,7 +105,7 @@ TEST_F(TestScheduleService, test_QueryChunkServerRecoverStatus) {
     request.add_chunkserverid(1);
     QueryChunkServerRecoverStatusResponse response;
 
-    // 1. 查询chunkserver恢复状态返回成功
+    // 1. Querying the recovery status of chunkserver returned success
     {
         std::map<ChunkServerIdType, bool> expectRes{{1, 1}};
         EXPECT_CALL(*coordinator_, QueryChunkServerRecoverStatus(
@@ -121,7 +121,7 @@ TEST_F(TestScheduleService, test_QueryChunkServerRecoverStatus) {
         ASSERT_TRUE(response.recoverstatusmap().begin()->second);
     }
 
-    // 2. 传入的chunkserverid不合法
+    // 2. The chunkserverid passed in is illegal
     {
         std::map<ChunkServerIdType, bool> expectRes{{1, 1}};
         EXPECT_CALL(*coordinator_, QueryChunkServerRecoverStatus(

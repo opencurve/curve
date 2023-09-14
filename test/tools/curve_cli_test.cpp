@@ -113,20 +113,20 @@ TEST_F(CurveCliTest, RemovePeer) {
     curveCli.PrintHelp("remove-peer");
     curveCli.PrintHelp("test");
     curveCli.RunCommand("test");
-    // peer为空
+    // peer is empty
     FLAGS_peer = "";
     ASSERT_EQ(-1, curveCli.RunCommand("remove-peer"));
-    // conf为空
+    // conf is empty
     FLAGS_peer = peer;
     FLAGS_conf = "";
     ASSERT_EQ(-1, curveCli.RunCommand("remove-peer"));
-    // 解析conf失败
+    // Failed to parse conf
     FLAGS_conf = "1234";
     ASSERT_EQ(-1, curveCli.RunCommand("remove-peer"));
-    // 解析peer失败
+    // Parsing peer failed
     FLAGS_conf = conf;
     FLAGS_peer = "1234";
-    // 执行变更成功
+    // Successfully executed changes
     FLAGS_peer = peer;
     curve::common::Peer* targetPeer = new curve::common::Peer;
     targetPeer->set_address(peer);
@@ -148,7 +148,7 @@ TEST_F(CurveCliTest, RemovePeer) {
                           brpc::ClosureGuard doneGuard(done);
                     }));
     ASSERT_EQ(0, curveCli.RunCommand("remove-peer"));
-    // 执行变更失败
+    // Failed to execute changes
     EXPECT_CALL(*mockCliService, GetLeader(_, _, _, _))
         .WillOnce(
                 Invoke([](RpcController *controller,
@@ -210,21 +210,21 @@ TEST_F(CurveCliTest, RemovePeer) {
 TEST_F(CurveCliTest, TransferLeader) {
     curve::tool::CurveCli curveCli(mdsClient_);
     curveCli.PrintHelp("transfer-leader");
-    // peer为空
+    // peer is empty
     FLAGS_peer = "";
     ASSERT_EQ(-1, curveCli.RunCommand("transfer-leader"));
-    // conf为空
+    // conf is empty
     FLAGS_peer = peer;
     FLAGS_conf = "";
     ASSERT_EQ(-1, curveCli.RunCommand("transfer-leader"));
-    // 解析conf失败
+    // Failed to parse conf
     FLAGS_conf = "1234";
     ASSERT_EQ(-1, curveCli.RunCommand("transfer-leader"));
-    // 解析peer失败
+    // Parsing peer failed
     FLAGS_conf = conf;
     FLAGS_peer = "1234";
     ASSERT_EQ(-1, curveCli.RunCommand("transfer-leader"));
-    // 执行变更成功
+    // Successfully executed changes
     FLAGS_peer = peer;
     curve::common::Peer* targetPeer = new curve::common::Peer;
     targetPeer->set_address(peer);
@@ -239,7 +239,7 @@ TEST_F(CurveCliTest, TransferLeader) {
                           brpc::ClosureGuard doneGuard(done);
                     })));
     ASSERT_EQ(0, curveCli.RunCommand("transfer-leader"));
-    // 执行变更失败
+    // Failed to execute changes
     EXPECT_CALL(*mockCliService, GetLeader(_, _, _, _))
         .WillOnce(
                 Invoke([](RpcController *controller,
@@ -257,28 +257,28 @@ TEST_F(CurveCliTest, TransferLeader) {
 TEST_F(CurveCliTest, ResetPeer) {
     curve::tool::CurveCli curveCli(mdsClient_);
     curveCli.PrintHelp("reset-peer");
-    // peer为空
+    // peer is empty
     FLAGS_peer = "";
     ASSERT_EQ(-1, curveCli.RunCommand("reset-peer"));
-    // newConf为空
+    // newConf is empty
     FLAGS_peer = peer;
     FLAGS_new_conf = "";
     ASSERT_EQ(-1, curveCli.RunCommand("reset-peer"));
-    // 解析newConf失败
+    // Failed to parse newConf
     FLAGS_new_conf = "1234";
     ASSERT_EQ(-1, curveCli.RunCommand("reset-peer"));
-    // 解析peer失败
+    // Parsing peer failed
     FLAGS_new_conf = conf;
     FLAGS_peer = "1234";
     ASSERT_EQ(-1, curveCli.RunCommand("reset-peer"));
-    // newConf有三个副本
+    // newConf has three copies
     FLAGS_peer = peer;
     FLAGS_new_conf = "127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0";
     ASSERT_EQ(-1, curveCli.RunCommand("reset-peer"));
-    // newConf不包含peer
+    // newConf does not contain peer
     FLAGS_new_conf = "127.0.0.1:8201:0";
     ASSERT_EQ(-1, curveCli.RunCommand("reset-peer"));
-    // 执行变更成功
+    // Successfully executed changes
     FLAGS_new_conf = conf;
     EXPECT_CALL(*mockCliService, ResetPeer(_, _, _, _))
         .WillOnce(Invoke([](RpcController *controller,
@@ -288,7 +288,7 @@ TEST_F(CurveCliTest, ResetPeer) {
                           brpc::ClosureGuard doneGuard(done);
                     }));
     ASSERT_EQ(0, curveCli.RunCommand("reset-peer"));
-    // 执行变更失败
+    // Failed to execute changes
      EXPECT_CALL(*mockCliService, ResetPeer(_, _, _, _))
         .WillOnce(Invoke([](RpcController *controller,
                           const ResetPeerRequest2 *request,
@@ -305,13 +305,13 @@ TEST_F(CurveCliTest, ResetPeer) {
 TEST_F(CurveCliTest, DoSnapshot) {
     curve::tool::CurveCli curveCli(mdsClient_);
     curveCli.PrintHelp("do-snapshot");
-    // peer为空
+    // peer is empty
     FLAGS_peer = "";
     ASSERT_EQ(-1, curveCli.RunCommand("do-snapshot"));
-    // 解析peer失败
+    // Parsing peer failed
     FLAGS_peer = "1234";
     ASSERT_EQ(-1, curveCli.RunCommand("do-snapshot"));
-    // 执行变更成功
+    // Successfully executed changes
     FLAGS_peer = peer;
     EXPECT_CALL(*mockCliService, Snapshot(_, _, _, _))
         .WillOnce(Invoke([](RpcController *controller,
@@ -321,7 +321,7 @@ TEST_F(CurveCliTest, DoSnapshot) {
                           brpc::ClosureGuard doneGuard(done);
                     }));
     ASSERT_EQ(0, curveCli.RunCommand("do-snapshot"));
-    // 执行变更失败
+    // Failed to execute changes
      EXPECT_CALL(*mockCliService, Snapshot(_, _, _, _))
         .WillOnce(Invoke([](RpcController *controller,
                           const SnapshotRequest2 *request,
@@ -338,7 +338,7 @@ TEST_F(CurveCliTest, DoSnapshot) {
 TEST_F(CurveCliTest, DoSnapshotAll) {
     curve::tool::CurveCli curveCli(mdsClient_);
     curveCli.PrintHelp("do-snapshot-all");
-    // 执行变更成功
+    // Successfully executed changes
     std::vector<ChunkServerInfo> chunkservers;
     ChunkServerInfo csInfo;
     csInfo.set_hostip("127.0.0.1");
@@ -361,7 +361,7 @@ TEST_F(CurveCliTest, DoSnapshotAll) {
                           brpc::ClosureGuard doneGuard(done);
                     }));
     ASSERT_EQ(0, curveCli.RunCommand("do-snapshot-all"));
-    // 执行变更失败
+    // Failed to execute changes
      EXPECT_CALL(*mockCliService, SnapshotAll(_, _, _, _))
         .Times(1)
         .WillOnce(Invoke([](RpcController *controller,

@@ -93,7 +93,7 @@ class Task {
  protected:
     TaskIDType taskID_;
     TaskProgress progress_;
-    // 任务最大重试次数
+    // Maximum number of task retries
     uint32_t retry_;
 };
 

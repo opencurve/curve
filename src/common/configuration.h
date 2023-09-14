@@ -45,9 +45,9 @@ class Configuration {
     void PrintConfig();
     std::map<std::string, std::string> ListConfig() const;
     /**
-     * 暴露config的metric供采集
-     * 如果metric已经暴露，则直接返回
-     * @param exposeName: 对外暴露的metric的名字
+     * Expose the metric of config for collection
+     * If the metric has already been exposed, return it directly
+     * @param exposeName: The name of the exposed metric
      */
     void ExposeMetric(const std::string& exposeName);
 
@@ -56,24 +56,24 @@ class Configuration {
 
     std::string GetStringValue(const std::string &key);
     /*
-    * @brief GetStringValue 获取指定配置项的值
+    * @brief GetStringValue Get the value of the specified configuration item
     *
-    * @param[in] key 配置项名称
-    * @param[out] out 获取的值
+    * @param[in] key configuration item name
+    * @param[out] out The value obtained
     *
-    * @return false-未获取到 true-获取成功
+    * @return false-did not obtain, true-obtained successfully
     */
     bool GetStringValue(const std::string &key, std::string *out);
     void SetStringValue(const std::string &key, const std::string &value);
 
     int GetIntValue(const std::string &key, uint64_t defaultvalue = 0);
     /*
-    * @brief GetIntValue/GetUInt32Value/GetUInt64Value 获取指定配置项的值 //NOLINT
+    * @brief GetIntValue/GetUInt32Value/GetUInt64Value Get the value of the specified configuration item//NOLINT
     *
-    * @param[in] key 配置项名称
-    * @param[out] out 获取的值
+    * @param[in] key  configuration item name
+    * @param[out] out The value obtained
     *
-    * @return false-未获取到 true-获取成功
+    * @return false-did not obtain, true-obtained successfully
     */
     bool GetIntValue(const std::string &key, int *out);
     bool GetUInt32Value(const std::string &key, uint32_t *out);
@@ -87,36 +87,36 @@ class Configuration {
 
     double GetDoubleValue(const std::string &key, double defaultvalue = 0.0);
     /*
-    * @brief GetDoubleValue 获取指定配置项的值
+    * @brief GetDoubleValue Get the value of the specified configuration item
     *
-    * @param[in] key 配置项名称
-    * @param[out] out 获取的值
+    * @param[in] key  configuration item name
+    * @param[out] out The value obtained
     *
-    * @return false-未获取到 true-获取成功
+    * @return false-did not obtain, true-obtained successfully
     */
     bool GetDoubleValue(const std::string &key, double *out);
     void SetDoubleValue(const std::string &key, const double value);
 
     double GetFloatValue(const std::string &key, float defaultvalue = 0.0);
     /*
-    * @brief GetFloatValue 获取指定配置项的值
+    * @brief GetFloatValue Get the value of the specified configuration item
     *
-    * @param[in] key 配置项名称
-    * @param[out] out 获取的值
+    * @param[in] key  configuration item name
+    * @param[out] out The value obtained
     *
-    * @return false-未获取到 true-获取成功
+    * @return false-did not obtain, true-obtained successfully
     */
     bool GetFloatValue(const std::string &key, float *out);
     void SetFloatValue(const std::string &key, const float value);
 
     bool GetBoolValue(const std::string &key, bool defaultvalue = false);
     /*
-    * @brief GetBoolValue 获取指定配置项的值
+    * @brief GetBoolValue Get the value of the specified configuration item
     *
-    * @param[in] key 配置项名称
-    * @param[out] out 获取的值
+    * @param[in] key  configuration item name
+    * @param[out] out The value obtained
     *
-    * @return false-未获取到 true-获取成功
+    * @return false-did not obtain, true-obtained successfully
     */
     bool GetBoolValue(const std::string &key, bool *out);
     void SetBoolValue(const std::string &key, const bool value);
@@ -126,12 +126,12 @@ class Configuration {
     void SetValue(const std::string &key, const std::string &value);
 
     /*
-    * @brief GetValueFatalIfFail 获取指定配置项的值,失败打FATAL日志
+    * @brief GetValueFatalIfFail to obtain the value of the specified configuration item, failed to log FATAL
     *
-    * @param[in] key 配置项名称
-    * @param[out] value 获取的值
+    * @param[in] key    configuration item name
+    * @param[out] value The value obtained
     *
-    * @return 无
+    * @return None
     */
     void GetValueFatalIfFail(const std::string& key, int* value);
     void GetValueFatalIfFail(const std::string& key, std::string* value);
@@ -171,8 +171,8 @@ class Configuration {
 
  private:
     /**
-     * 更新新的配置到metric
-     * @param 要更新的metric
+     *Update new configuration to metric
+     * @param The metric to update
      */
     void UpdateMetricIfExposed(const std::string &key,
                                const std::string &value);
@@ -180,9 +180,9 @@ class Configuration {
  private:
     std::string                         confFile_;
     std::map<std::string, std::string>  config_;
-    // metric对外暴露的名字
+    //Metric's exposed name
     std::string                         exposeName_;
-    // 每一个配置项使用单独的一个metric，用map管理
+    //Each configuration item uses a separate metric and is managed using a map
     ConfigMetricMap                     configMetric_;
 };
 

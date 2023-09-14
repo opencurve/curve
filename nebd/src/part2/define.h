@@ -42,7 +42,7 @@ using ::google::protobuf::RpcController;
 const char CURVE_PREFIX[] = "cbd";
 const char TEST_PREFIX[] = "test";
 
-// nebd异步请求的类型
+// Types of nebd asynchronous requests
 enum class LIBAIO_OP {
     LIBAIO_OP_READ,
     LIBAIO_OP_WRITE,
@@ -70,54 +70,54 @@ using RWLockPtr = std::shared_ptr<RWLock>;
 
 struct NebdServerAioContext;
 
-// nebd回调函数的类型
+// The type of nebd callback function
 typedef void (*NebdAioCallBack)(struct NebdServerAioContext* context);
 
-// nebd server端异步请求的上下文
-// 记录请求的类型、参数、返回信息、rpc信息
+// Context of Nebd server-side asynchronous requests
+// Record the type, parameters, return information, and rpc information of the request
 struct NebdServerAioContext {
-    // 请求的offset
+    // Requested offset
     off_t offset = 0;
-    // 请求的size
+    // Requested size
     size_t size = 0;
-    // 记录异步返回的返回值
+    // Record the return value returned asynchronously
     int ret = -1;
-    // 异步请求的类型，详见定义
+    // The type of asynchronous request, as defined in the definition
     LIBAIO_OP op = LIBAIO_OP::LIBAIO_OP_UNKNOWN;
-    // 异步请求结束时调用的回调函数
+    // Callback function called at the end of asynchronous request
     NebdAioCallBack cb;
-    // 请求的buf
+    // Buf requested
     void* buf = nullptr;
-    // rpc请求的相应内容
+    // The corresponding content of the rpc request
     Message* response = nullptr;
-    // rpc请求的回调函数
+    // Callback function for rpc requests
     Closure *done = nullptr;
-    // rpc请求的controller
+    // Controller for rpc requests
     RpcController* cntl = nullptr;
     // return rpc when io error
     bool returnRpcWhenIoError = false;
 };
 
 struct NebdFileInfo {
-    // 文件大小
+    // File size
     uint64_t size;
-    // object/chunk大小
+    // object/chunk size
     uint64_t obj_size;
-    // object数量
+    // Number of objects
     uint64_t num_objs;
     // block size
     uint32_t block_size;
 };
 
 using ExtendAttribute = std::map<std::string, std::string>;
-// nebd server 端文件持久化的元数据信息
+// Metadata information for file persistence on the Nebd server side
 struct NebdFileMeta {
     int fd;
     std::string fileName;
     ExtendAttribute xattr;
 };
 
-// part2配置项
+// part2 Configuration Item
 const char LISTENADDRESS[] = "listen.address";
 const char METAFILEPATH[] = "meta.file.path";
 const char HEARTBEATTIMEOUTSEC[] = "heartbeat.timeout.sec";

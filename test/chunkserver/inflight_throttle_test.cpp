@@ -31,7 +31,7 @@ namespace chunkserver {
 using curve::common::Thread;
 
 TEST(InflightThrottleTest, basic) {
-    // 基本测试
+    // Basic testing
     {
         uint64_t maxInflight = 1;
         InflightThrottle inflightThrottle(maxInflight);
@@ -45,7 +45,7 @@ TEST(InflightThrottleTest, basic) {
         ASSERT_FALSE(inflightThrottle.IsOverLoad());
     }
 
-    // 并发加
+    // Concurrent addition
     {
         uint64_t maxInflight = 10000;
         InflightThrottle inflightThrottle(maxInflight);
@@ -78,7 +78,7 @@ TEST(InflightThrottleTest, basic) {
         ASSERT_FALSE(inflightThrottle.IsOverLoad());
     }
 
-    // 并发减
+    // Concurrent reduction
     {
         uint64_t maxInflight = 16;
         InflightThrottle inflightThrottle(maxInflight);

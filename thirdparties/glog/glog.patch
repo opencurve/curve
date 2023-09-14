@@ -84,13 +84,13 @@ index 9968b96..3939a81 100644
  // Sets whether to avoid logging to the disk if the disk is full.
  DECLARE_bool(stop_logging_if_full_disk);
  
-+// 打开/关闭异步日志
++// Turn on/off asynchronous logging
 +DECLARE_bool(log_async);
 +
-+// buffer最大的字节数
++// The maximum number of bytes in the buffer
 +DECLARE_int32(log_async_buffer_size);
 +
-+// 是否写多个级别的文件
++// Do you want to write multiple levels of files
 +DECLARE_bool(multi_write);
 +
  #ifdef MUST_UNDEF_GFLAGS_DECLARE_MACROS
@@ -576,12 +576,12 @@ index 0c86cf6..7b20b1c 100644
 -    (this->*(data_->send_method_))();
 -    ++num_messages_[static_cast<int>(data_->severity_)];
 +    if (FLAGS_log_async) {
-+      // 此处关闭glog的全局锁
-+      // 日志在打入active buffer是加锁的
-+      // 后台线程在将日志写入文件时，也会获取日志文件对应的锁
-+      // 所以关闭全局锁对日志方面不会产生影响
-+      // 但是，如果在运行期间修改日志级别、重设文件保存路径等，会存在延迟的情况
-+      // 只要在初始化之后，不调用除打印日志接口之外的函数，不会出现线程安全问题
++      // Disabling the global lock for glog here.
++      // Logging is locked when writing to the active buffer.
++      // Background threads also acquire the lock corresponding to the log file when writing logs to the file. 
++      // So, disabling the global lock does not affect logging operations.
++      // However, there may be delays if log levels are modified or file save paths are reset during runtime.
++      // As long as functions other than log printing interfaces are not called after initialization, there should be no thread safety issues.
 +      // MutexLock l(log_mutex);
 +      (this->*(data_->send_method_))();
 +      ++num_messages_[static_cast<int>(data_->severity_)];
@@ -699,33 +699,33 @@ index 0c86cf6..7b20b1c 100644
 +static Mutex* g_cleaer_log_mutex = new Mutex();
 +
 +void EnableAsyncLogging() {
-+  // 默认开启INFO异步日志
++  // Enable INFO asynchronous logging by default
 +  std::vector<int> asyncLogLevels{google::INFO};
 +
-+  // 如果写多个日志文件，开启WARNING ERROR的异步日志
++  // If writing multiple log files, enable asynchronous logging of WARNING ERROR
 +  if (FLAGS_multi_write) {
 +    asyncLogLevels.emplace_back(google::WARNING);
 +    asyncLogLevels.emplace_back(google::ERROR);
 +  }
 +
-+  // 开启异步日志
++  // Enable asynchronous logging
 +  for (auto level : asyncLogLevels) {
-+    // 同步日志
++    // Synchronize logs
 +    SyncLoggerPtr sync_logger(new google::LogFileObject(level, NULL));
 +
-+    // 异步日志
++    // Asynchronous logging
 +    AsyncLoggerPtr logger(new google::AsyncLogger(
 +      sync_logger.release(), 1024u * 1024 * FLAGS_log_async_buffer_size_MB));
 +
 +    g_async_loggers.push_back(std::move(logger));
 +    g_async_loggers.back()->Start();
 +
-+    // 注册异步日志
++    // Register asynchronous logs
 +    google::base::SetLogger(level, g_async_loggers.back().get());
 +  }
 +}
 +
-+// stop所有的AscynLogger，stop会等待日志写入文件后返回
++// Stop all AscynLoggers and wait for the logs to be written to the file before returning
 +void FlushAllBuffersOnExit() {
 +  MutexLock l(g_cleaer_log_mutex);
 +  for (auto& logger : g_async_loggers) {
@@ -733,13 +733,13 @@ index 0c86cf6..7b20b1c 100644
 +  }
 +}
 +
-+// 捕捉信号后的回调函数
++// Callback function after signal capture
 +void FailureWriterWithFlush(const char* data, int size) {
 +  FlushAllBuffersOnExit();
 +  write(STDERR_FILENO, data, size);
 +}
 +
-+// LOG(FATAL)回调函数
++// LOG(FATAL) callback function
 +void FlushAndAbort() {
 +  FlushAllBuffersOnExit();
 +  abort();
@@ -753,16 +753,16 @@ index 0c86cf6..7b20b1c 100644
 +
    glog_internal_namespace_::InitGoogleLoggingUtilities(argv0);
 +
-+  // 捕捉信号
++  // Capture signal
 +  google::InstallFailureSignalHandler();
 +
-+  // 设置信号回调函数
++  // Set signal callback function
 +  google::InstallFailureWriter(FailureWriterWithFlush);
 +
-+  // 设置LOG(FATAL)回调
++  // Set LOG(FATAL) callback
 +  google::InstallFailureFunction(FlushAndAbort);
 +
-+  // 初始化日志保存目录
++  // Initialize Log Save Directory
 +  if (FLAGS_log_dir.empty()) {
 +    FLAGS_log_dir = "/tmp";
 +  }
@@ -902,12 +902,12 @@ index 0000000..65b1f4c
 +    Switch2Child(false);
 +    if (running_) {
 +        {
-+            // 获取锁，等待Write或Flush结束
-+            // 1. 避免写入过程中Stop
-+            // 2. 避免flush过程中Stop
++            // Obtain lock, wait for Write or Flush to end
++            // 1. Avoid Stop during write process
++            // 2. Avoid Stop during flush process
 +            std::lock_guard<std::mutex> lk(mutexs_[current_]);
 +
-+            // 设置为false
++            // Set to false
 +            running_ = false;
 +
 +            wakeFluchCVs_[current_].notify_one();
@@ -928,10 +928,10 @@ index 0000000..65b1f4c
 +            return;
 +        }
 +
-+        // 如果buffer满, 则会阻塞到这里
-+        // 等到后台线程换出buffer
++        // If the buffer is full, it will block here
++        // Wait until the backend thread switches out the buffer
 +        while (IsBufferFull(*activeBuffer_)) {
-+            // 记录前台线程被阻塞的次数，测试使用
++            // Record the number of times the foreground thread has been blocked, and test the use of
 +            ++appThreadsBlockedCount_;
 +            freeBufferCVs_[current_].wait(ulk);
 +        }
@@ -940,9 +940,9 @@ index 0000000..65b1f4c
 +        wakeFluchCVs_[current_].notify_one();
 +    }
 +
-+    // glog在打印FATAL日志时, 会依次FATAL->INFO写入多个日志文件，然后abort
-+    // 对INFO WARNING ERROR级别开启了异步功能
-+    // 所以要保证这条FATAL日志写入文件后，再abort
++    // When glog prints a FATAL log, it sequentially writes FATAL->INFO to multiple log files and then aborts.
++    // Asynchronous functionality is enabled for INFO, WARNING, and ERROR levels.
++    // Therefore, it is important to ensure that this FATAL log is written to the file before aborting.
 +    if (len > 0 && message[0] == 'F') {
 +        Flush();
 +    }
@@ -958,24 +958,24 @@ index 0000000..65b1f4c
 +            std::unique_lock<std::mutex> ulk(mutexs_[current_]);
 +
 +            // running_ == true
-+            //    如果activeBuffer为空, 则会等待一段时间，避免无效的swap
++            // If activeBuffer is empty, it will wait for a period of time to avoid invalid swaps
 +            // running_ == false
-+            //    AsyncLogger已经停止，但是aciveBuffer中仍然可能有未写入文件的日志
++            // AsyncLogger has stopped, but there may still be logs in the aciveBuffer that have not been written to files
 +            if (!activeBuffer_->NeedsWriteOrFlush() && running_) {
 +                wakeFluchCVs_[current_].wait_for(
 +                    ulk, std::chrono::seconds(FLAGS_logbufsecs));
 +            }
 +
-+            // 交换buffer
++            // Exchange buffer
 +            flushBuffer_.swap(activeBuffer_);
 +
-+            // flushBuffer满, 前台线程在阻塞过程中, 调用notify_all唤醒
++            // When the flushBuffer is full and the foreground thread is blocked, it is awakened by calling notify_all.
 +            if (IsBufferFull(*flushBuffer_)) {
 +                freeBufferCVs_[current_].notify_all();
 +            }
 +        }
 +
-+        // 逐条写入日志文件
++        // Write log files one by one
 +        for (const auto& msg : flushBuffer_->messages) {
 +            logger_->Write(false, msg.timestamp,
 +                           msg.message.data(),
@@ -999,7 +999,7 @@ index 0000000..65b1f4c
 +    std::unique_lock<std::mutex> ulk(mutexs_[current_]);
 +    uint64_t expectFlushCount = flushCount_ + 2;
 +
-+    // flush 两次, 确保两个buffer都进行了flush
++    // flush twice to ensure that both buffers have been flushed
 +    while (flushCount_ < expectFlushCount && running_) {
 +        activeBuffer_->flush = true;
 +        wakeFluchCVs_[current_].notify_one();
@@ -1075,7 +1075,7 @@ index 0000000..4d3050d
 +                       const char* message,
 +                       int message_len) override;
 +
-+    // 日志刷新到文件
++    // Log refresh to file
 +    void Flush() override;
 +    uint32_t LogSize() override;
 +
@@ -1127,36 +1127,36 @@ index 0000000..4d3050d
 +
 +    void Switch2Child(bool start);
 +
-+    // 后台线程写日志文件的logger
++    // logger for background thread writing log files
 +    std::unique_ptr<google::base::Logger> logger_;
 +
-+    // 后台写日志线程
++    // Background log writing thread
 +    std::thread loggerThreads_[2];
 +
-+    // buffer中日志的最大字节数
++    // The maximum number of bytes of logs in the buffer
 +    const uint32_t maxBufferSize_;
 +
-+    // buffer满时, 前台线程被阻塞的次数，for test
++    // The number of times a foreground thread is blocked when the buffer is full, for test
 +    std::atomic<uint32_t> appThreadsBlockedCount_;
 +
-+    // flush的次数
++    // Number of flushes
 +    std::atomic<uint64_t> flushCount_;
 +
 +    mutable std::mutex mutexs_[2];
 +
-+    // 用于唤醒后台写日志线程
++    // Used to wake up the backend log writing thread
 +    std::condition_variable wakeFluchCVs_[2];
 +
-+    // 用于唤醒前台线程
++    // Used to wake up foreground threads
 +    std::condition_variable freeBufferCVs_[2];
 +
-+    // 用于同步Flush过程
++    // Used to synchronize the Flush process
 +    std::condition_variable flushCompleteCVs_[2];
 +
-+    // 前台线程将日志保存到active buffer中
++    // The foreground thread saves the logs to the active buffer
 +    std::unique_ptr<Buffer> activeBuffer_;
 +
-+    // 后台线程将flush buffer中的日志写入文件
++    // The backend thread writes logs from the flush buffer to a file
 +    std::unique_ptr<Buffer> flushBuffer_;
 +
 +    std::atomic<bool> running_;
@@ -1278,7 +1278,7 @@ index 0000000..7089e40
 +
 +  CHECK_EQ(logger->message_count_, kNumMessages * kNumThreads);
 +  CHECK_LT(logger->flush_count_, kNumMessages * kNumThreads);
-+  logger.release();  // 内存已由async接管
++  logger.release();  // Memory taken over by async
 +}
 diff --git a/src/logging_unittest.cc b/src/logging_unittest.cc
 index 762c752..11eccc1 100644
@@ -1322,7 +1322,7 @@ index 762c752..11eccc1 100644
    // TODO: The golden test portion of this test is very flakey.
 -  EXPECT_TRUE(
 -      MungeAndDiffTestStderr(FLAGS_test_srcdir + "/src/logging_unittest.err"));
-+  // 时间格式转换成iso8601, diff 会失败
++  // Convert time format to iso8601, diff will fail
 +  // EXPECT_TRUE(MungeAndDiffTestStderr(FLAGS_test_srcdir + "/src/logging_unittest.err"));
  
    FLAGS_logtostderr = false;

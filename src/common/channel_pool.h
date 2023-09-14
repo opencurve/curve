@@ -39,18 +39,18 @@ namespace common {
 class ChannelPool {
  public:
     /**
-     * @brief 从channelMap获取或创建并Init到指定地址的channel
+     * @brief Obtain or create a channel from channelMap and Init it to the specified address
      *
-     * @param addr 对端的地址
-     * @param[out] channelPtr 到指定地址的channel
+     * @param addr The address of the opposite end
+     * @param[out] channelPtr to the specified channel address
      *
-     * @return 成功返回0，失败返回-1
+     * @return returns 0 for success, -1 for failure
      */
     int GetOrInitChannel(const std::string& addr,
                          ChannelPtr* channelPtr);
 
     /**
-     * @brief 清空map
+     * @brief Clear map
      */
     void Clear();
 

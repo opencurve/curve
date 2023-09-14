@@ -428,7 +428,7 @@ TEST_F(TestSnapshotServiceManager, TestDeleteSnapshotSuccess) {
     ASSERT_EQ(0, snapshotMetric_->snapshotFailed.get_value());
 }
 
-// 删除转cancel用例
+// Delete to cancel use case
 TEST_F(TestSnapshotServiceManager, TestDeleteSnapshotByCancelSuccess) {
     const std::string file = "file1";
     const std::string user = "user1";
@@ -1086,7 +1086,7 @@ TEST_F(TestSnapshotServiceManager,
                                 cond2.Signal();
                             }));
 
-    // 取消排队的快照会调一次
+    // Unqueued snapshots will be called once
     EXPECT_CALL(*core_, HandleCancelUnSchduledSnapshotTask(_))
         .WillOnce(Return(kErrCodeSuccess));
 
@@ -1107,7 +1107,7 @@ TEST_F(TestSnapshotServiceManager,
     ASSERT_EQ(kErrCodeSuccess, ret);
     ASSERT_EQ(uuid, uuidOut);
 
-    // 再打一个快照，覆盖排队的情况
+    // Take another snapshot to cover the queuing situation
     ret = manager_->CreateSnapshot(
         file,
         user,
@@ -1116,7 +1116,7 @@ TEST_F(TestSnapshotServiceManager,
     ASSERT_EQ(kErrCodeSuccess, ret);
     ASSERT_EQ(uuid2, uuidOut2);
 
-    // 先取消在排队的快照
+    // Cancel queued snapshots first
     ret = manager_->CancelSnapshot(uuidOut2,
         user,
         file);

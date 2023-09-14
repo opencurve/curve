@@ -86,7 +86,7 @@ class TestCloneCoreImpl : public ::testing::Test {
     }
 
  protected:
-    // 辅助mock函数
+    // Auxiliary mock function
     void MockBuildFileInfoFromSnapshotSuccess(
         std::shared_ptr<CloneTaskInfo> task);
 

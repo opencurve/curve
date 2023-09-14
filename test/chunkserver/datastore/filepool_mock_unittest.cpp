@@ -78,7 +78,7 @@ class CSChunkfilePoolMockTest : public testing::Test {
     void TearDown() {}
 
     static Json::Value GenerateMetaJson(bool hasBlockSize = false) {
-        // 正常的meta文件的json格式
+        // JSON format for normal meta files
         FilePoolMeta meta;
         meta.chunkSize = CHUNK_SIZE;
         meta.metaPageSize = PAGE_SIZE;
@@ -161,7 +161,7 @@ class CSChunkfilePoolMockTest : public testing::Test {
     std::shared_ptr<MockLocalFileSystem> lfs_;
 };
 
-// PersistEnCodeMetaInfo接口的异常测试
+// Exception testing for PersistEnCodeMetaInfo interface
 TEST_F(CSChunkfilePoolMockTest, PersistEnCodeMetaInfoTest) {
     FilePoolMeta meta;
     meta.chunkSize = CHUNK_SIZE;
@@ -169,7 +169,7 @@ TEST_F(CSChunkfilePoolMockTest, PersistEnCodeMetaInfoTest) {
     meta.hasBlockSize = false;
     meta.filePoolPath = poolDir;
 
-    // open失败
+    // open failed
     {
         EXPECT_CALL(*lfs_, Open(poolMetaPath, _))
             .WillOnce(Return(-1));
@@ -180,7 +180,7 @@ TEST_F(CSChunkfilePoolMockTest, PersistEnCodeMetaInfoTest) {
         ASSERT_EQ(-1, FilePoolHelper::PersistEnCodeMetaInfo(lfs_, meta,
                                                             poolMetaPath));
     }
-    // open成功，write失败
+    // open successful, write failed
     {
         EXPECT_CALL(*lfs_, Open(poolMetaPath, _))
             .WillOnce(Return(1));
@@ -191,7 +191,7 @@ TEST_F(CSChunkfilePoolMockTest, PersistEnCodeMetaInfoTest) {
         ASSERT_EQ(-1, FilePoolHelper::PersistEnCodeMetaInfo(lfs_, meta,
                                                             poolMetaPath));
     }
-    // open成功，write成功
+    // open successful, write successful
     {
         EXPECT_CALL(*lfs_, Open(poolMetaPath, _))
             .WillOnce(Return(1));
@@ -204,11 +204,11 @@ TEST_F(CSChunkfilePoolMockTest, PersistEnCodeMetaInfoTest) {
     }
 }
 
-// DecodeMetaInfoFromMetaFile接口的异常测试
+// Exception testing for DecodeMetaInfoFromMetaFile interface
 TEST_F(CSChunkfilePoolMockTest, DecodeMetaInfoFromMetaFileTest) {
     FilePoolMeta meta;
 
-    // open失败
+    // open failed
     {
         EXPECT_CALL(*lfs_, Open(poolMetaPath, _))
             .WillOnce(Return(-1));
@@ -219,7 +219,7 @@ TEST_F(CSChunkfilePoolMockTest, DecodeMetaInfoFromMetaFileTest) {
         ASSERT_EQ(-1, FilePoolHelper::DecodeMetaInfoFromMetaFile(
                           lfs_, poolMetaPath, metaFileSize, &meta));
     }
-    // read失败
+    // read failed
     {
         EXPECT_CALL(*lfs_, Open(poolMetaPath, _))
             .WillOnce(Return(1));
@@ -230,7 +230,7 @@ TEST_F(CSChunkfilePoolMockTest, DecodeMetaInfoFromMetaFileTest) {
         ASSERT_EQ(-1, FilePoolHelper::DecodeMetaInfoFromMetaFile(
                           lfs_, poolMetaPath, metaFileSize, &meta));
     }
-    // read成功，解析Json格式失败
+    // read successful, parsing Json format failed
     {
         char buf[metaFileSize] = {0};
         EXPECT_CALL(*lfs_, Open(poolMetaPath, _))
@@ -243,7 +243,7 @@ TEST_F(CSChunkfilePoolMockTest, DecodeMetaInfoFromMetaFileTest) {
         ASSERT_EQ(-1, FilePoolHelper::DecodeMetaInfoFromMetaFile(
                           lfs_, poolMetaPath, metaFileSize, &meta));
     }
-    // 解析Json格式成功，chunksize为空
+    // parsing Json format succeeded, chunksize is empty
     {
         char buf[metaFileSize] = {0};
         Json::Value root = GenerateMetaJson();
@@ -261,7 +261,7 @@ TEST_F(CSChunkfilePoolMockTest, DecodeMetaInfoFromMetaFileTest) {
         ASSERT_EQ(-1, FilePoolHelper::DecodeMetaInfoFromMetaFile(
                           lfs_, poolMetaPath, metaFileSize, &meta));
     }
-    // 解析Json格式成功，metapagesize为空
+    // parsing Json format succeeded, metapagesize is empty
     {
         char buf[metaFileSize] = {0};
         Json::Value root = GenerateMetaJson();
@@ -279,7 +279,7 @@ TEST_F(CSChunkfilePoolMockTest, DecodeMetaInfoFromMetaFileTest) {
         ASSERT_EQ(-1, FilePoolHelper::DecodeMetaInfoFromMetaFile(
                           lfs_, poolMetaPath, metaFileSize, &meta));
     }
-    // 解析Json格式成功，kFilePoolPath为空
+    // parsing Json format succeeded, kFilePoolPath is empty
     {
         char buf[metaFileSize] = {0};
         Json::Value root = GenerateMetaJson();
@@ -297,7 +297,7 @@ TEST_F(CSChunkfilePoolMockTest, DecodeMetaInfoFromMetaFileTest) {
         ASSERT_EQ(-1, FilePoolHelper::DecodeMetaInfoFromMetaFile(
                           lfs_, poolMetaPath, metaFileSize, &meta));
     }
-    // 解析Json格式成功，kCRC为空
+    // Successfully parsed Json format, kCRC is empty
     {
         char buf[metaFileSize] = {0};
         Json::Value root = GenerateMetaJson();
@@ -315,7 +315,7 @@ TEST_F(CSChunkfilePoolMockTest, DecodeMetaInfoFromMetaFileTest) {
         ASSERT_EQ(-1, FilePoolHelper::DecodeMetaInfoFromMetaFile(
                           lfs_, poolMetaPath, metaFileSize, &meta));
     }
-    // 解析Json格式成功，crc不匹配
+    // Successfully parsed Json format, crc mismatch
     {
         char buf[metaFileSize] = {0};
         Json::Value root = GenerateMetaJson();
@@ -333,7 +333,7 @@ TEST_F(CSChunkfilePoolMockTest, DecodeMetaInfoFromMetaFileTest) {
         ASSERT_EQ(-1, FilePoolHelper::DecodeMetaInfoFromMetaFile(
                           lfs_, poolMetaPath, metaFileSize, &meta));
     }
-    // 正常流程
+    // Normal process
     {
         char buf[metaFileSize] = {0};
         Json::Value root = GenerateMetaJson();
@@ -351,7 +351,7 @@ TEST_F(CSChunkfilePoolMockTest, DecodeMetaInfoFromMetaFileTest) {
                          lfs_, poolMetaPath, metaFileSize, &meta));
     }
 
-    // 正常流程
+    // Normal process
     {
         char buf[metaFileSize] = {0};
         Json::Value root = GenerateMetaJson(true);
@@ -371,7 +371,7 @@ TEST_F(CSChunkfilePoolMockTest, DecodeMetaInfoFromMetaFileTest) {
 }
 
 TEST_F(CSChunkfilePoolMockTest, InitializeTest) {
-    // 初始化options
+    // Initialize options
     FilePoolOptions options;
     options.getFileFromPool = true;
     memcpy(options.filePoolDir, poolDir.c_str(), poolDir.size());
@@ -381,12 +381,12 @@ TEST_F(CSChunkfilePoolMockTest, InitializeTest) {
     options.metaFileSize = metaFileSize;
     options.retryTimes = 3;
 
-    /****************getFileFromPool为true**************/
-    // checkvalid时失败
+    /****************getFileFromPool is true**************/
+    // Failed while checking valid
     {
-        // DecodeMetaInfoFromMetaFile在上面已经单独测试过了
-        // 这里选上面中的一组异常用例来检验即可
-        // 解析json格式失败
+        // DecodeMetaInfoFromMetaFile has been tested separately on it
+        // Here, select a set of uncommon examples from the above to test
+        // parsing JSON format failed
         FilePool pool(lfs_);
         char buf[metaFileSize] = {0};
         EXPECT_CALL(*lfs_, Open(poolMetaPath, _))
@@ -398,7 +398,7 @@ TEST_F(CSChunkfilePoolMockTest, InitializeTest) {
             .Times(1);
         ASSERT_EQ(false, pool.Initialize(options));
     }
-    // getFileFromPool为true,checkvalid成功，当前目录不存在
+    // getFileFromPool is true, checkvalid succeeded, current directory does not exist
     {
         FilePool pool(lfs_);
         FakeMetaFile();
@@ -406,7 +406,7 @@ TEST_F(CSChunkfilePoolMockTest, InitializeTest) {
             .WillOnce(Return(false));
         ASSERT_EQ(false, pool.Initialize(options));
     }
-    // 当前目录存在，list目录失败
+    // The current directory exists, list directory failed
     {
         FilePool pool(lfs_);
         FakeMetaFile();
@@ -416,7 +416,7 @@ TEST_F(CSChunkfilePoolMockTest, InitializeTest) {
             .WillOnce(Return(-1));
         ASSERT_EQ(false, pool.Initialize(options));
     }
-    // list目录成功，文件名中包含非数字字符
+    // list directory successful, file name contains non numeric characters
     {
         FilePool pool(lfs_);
         FakeMetaFile();
@@ -429,7 +429,7 @@ TEST_F(CSChunkfilePoolMockTest, InitializeTest) {
                             Return(0)));
         ASSERT_EQ(false, pool.Initialize(options));
     }
-    // list目录成功，目录中包含非普通文件类型的对象
+    // list directory succeeded, it contains objects of non ordinary file types
     {
         FilePool pool(lfs_);
         FakeMetaFile();
@@ -444,7 +444,7 @@ TEST_F(CSChunkfilePoolMockTest, InitializeTest) {
             .WillOnce(Return(false));
         ASSERT_EQ(false, pool.Initialize(options));
     }
-    // list目录成功，open文件时失败
+    // list directory successful, open file failed
     {
         FilePool pool(lfs_);
         FakeMetaFile();
@@ -461,7 +461,7 @@ TEST_F(CSChunkfilePoolMockTest, InitializeTest) {
             .WillOnce(Return(-1));
         ASSERT_EQ(false, pool.Initialize(options));
     }
-    // stat文件信息时失败
+    // Failed to retrieve stat file information
     {
         FilePool pool(lfs_);
         FakeMetaFile();
@@ -482,7 +482,7 @@ TEST_F(CSChunkfilePoolMockTest, InitializeTest) {
             .Times(1);
         ASSERT_EQ(false, pool.Initialize(options));
     }
-    // stat文件信息成功，文件大小不匹配
+    // stat file information successful, file size mismatch
     {
         FilePool pool(lfs_);
         FakeMetaFile();
@@ -507,7 +507,7 @@ TEST_F(CSChunkfilePoolMockTest, InitializeTest) {
             .Times(1);
         ASSERT_EQ(false, pool.Initialize(options));
     }
-    // 文件信息匹配
+    // File information matching
     {
         FilePool pool(lfs_);
         FakeMetaFile();
@@ -534,9 +534,9 @@ TEST_F(CSChunkfilePoolMockTest, InitializeTest) {
         ASSERT_EQ(1, pool.Size());
     }
 
-    /****************getFileFromPool为false**************/
+    /****************getFileFromPool is false**************/
     options.getFileFromPool = false;
-    // 当前目录不存在，创建目录失败
+    // The current directory does not exist, creating directory failed
     {
         FilePool pool(lfs_);
         EXPECT_CALL(*lfs_, DirExists(_))
@@ -545,7 +545,7 @@ TEST_F(CSChunkfilePoolMockTest, InitializeTest) {
             .WillOnce(Return(-1));
         ASSERT_EQ(false, pool.Initialize(options));
     }
-    // 当前目录不存在，创建目录成功
+    // The current directory does not exist, creating the directory succeeded
     {
         FilePool pool(lfs_);
         EXPECT_CALL(*lfs_, DirExists(_))
@@ -554,7 +554,7 @@ TEST_F(CSChunkfilePoolMockTest, InitializeTest) {
             .WillOnce(Return(0));
         ASSERT_EQ(true, pool.Initialize(options));
     }
-    // 当前目录存在
+    // The current directory exists
     {
         FilePool pool(lfs_);
         EXPECT_CALL(*lfs_, DirExists(_))
@@ -564,7 +564,7 @@ TEST_F(CSChunkfilePoolMockTest, InitializeTest) {
 }
 
 TEST_F(CSChunkfilePoolMockTest, GetFileTest) {
-    // 初始化options
+    // Initialize options
     FilePoolOptions options;
     options.getFileFromPool = true;
     memcpy(options.filePoolDir, poolDir.c_str(), poolDir.size());
@@ -577,14 +577,14 @@ TEST_F(CSChunkfilePoolMockTest, GetFileTest) {
 
     char metapage[PAGE_SIZE] = {0};
 
-    /****************getFileFromPool为true**************/
-    // 没有剩余chunk的情况
+    /****************getFileFromPool is true**************/
+    // There is no remaining chunk situation
     {
         FilePool pool(lfs_);
         FakePool(&pool, options, 0);
         ASSERT_EQ(-1, pool.GetFile(targetPath, metapage));
     }
-    // 存在chunk，open时失败
+    // Chunk present, open failed
     {
         FilePool pool(lfs_);
         FakePool(&pool, options, 10);
@@ -596,7 +596,7 @@ TEST_F(CSChunkfilePoolMockTest, GetFileTest) {
         ASSERT_EQ(-1, pool.GetFile(targetPath, metapage));
         ASSERT_EQ(10 - retryTimes, pool.Size());
     }
-    // 存在chunk，write时失败
+    // Chunk exists, write failed
     {
         FilePool pool(lfs_);
         FakePool(&pool, options, 10);
@@ -611,7 +611,7 @@ TEST_F(CSChunkfilePoolMockTest, GetFileTest) {
         ASSERT_EQ(-1, pool.GetFile(targetPath, metapage));
         ASSERT_EQ(10 - retryTimes, pool.Size());
     }
-    // 存在chunk，fsync时失败
+    // Chunk present, fsync failed
     {
         FilePool pool(lfs_);
         FakePool(&pool, options, 10);
@@ -629,7 +629,7 @@ TEST_F(CSChunkfilePoolMockTest, GetFileTest) {
         ASSERT_EQ(-1, pool.GetFile(targetPath, metapage));
         ASSERT_EQ(10 - retryTimes, pool.Size());
     }
-    // 存在chunk，close时失败
+    // Chunk exists, closing failed
     {
         FilePool pool(lfs_);
         FakePool(&pool, options, 10);
@@ -648,7 +648,7 @@ TEST_F(CSChunkfilePoolMockTest, GetFileTest) {
         ASSERT_EQ(-1, pool.GetFile(targetPath, metapage));
         ASSERT_EQ(10 - retryTimes, pool.Size());
     }
-    // 存在chunk，rename时返回EEXIST错误
+    // Chunk exists, EEXIST error returned when renaming
     {
         FilePool pool(lfs_);
         FakePool(&pool, options, 10);
@@ -665,7 +665,7 @@ TEST_F(CSChunkfilePoolMockTest, GetFileTest) {
         ASSERT_EQ(-EEXIST, pool.GetFile(targetPath, metapage));
         ASSERT_EQ(9, pool.Size());
     }
-    // 存在chunk，rename时返回非EEXIST错误
+    // Chunk exists, non EEXIST error returned when renaming
     {
         FilePool pool(lfs_);
         FakePool(&pool, options, 10);
@@ -687,7 +687,7 @@ TEST_F(CSChunkfilePoolMockTest, GetFileTest) {
         ASSERT_EQ(-1, pool.GetFile(targetPath, metapage));
         ASSERT_EQ(10 - retryTimes, pool.Size());
     }
-    // 存在chunk，rename成功
+    // Chunk exists, rename successful
     {
         FilePool pool(lfs_);
         FakePool(&pool, options, 10);
@@ -706,8 +706,8 @@ TEST_F(CSChunkfilePoolMockTest, GetFileTest) {
     }
 
     options.getFileFromPool = false;
-    /****************getFileFromPool为false**************/
-    // open 时失败
+    /****************getFileFromPool is false**************/
+    // Failed on open
     {
         FilePool pool(lfs_);
         FakePool(&pool, options, 0);
@@ -718,7 +718,7 @@ TEST_F(CSChunkfilePoolMockTest, GetFileTest) {
             .Times(0);
         ASSERT_EQ(-1, pool.GetFile(targetPath, metapage));
     }
-    // fallocate 时失败
+    // Failed while failing
     {
         FilePool pool(lfs_);
         FakePool(&pool, options, 0);
@@ -732,7 +732,7 @@ TEST_F(CSChunkfilePoolMockTest, GetFileTest) {
             .Times(retryTimes);
         ASSERT_EQ(-1, pool.GetFile(targetPath, metapage));
     }
-    // write 时失败
+    // Failed while writing
     {
         FilePool pool(lfs_);
         FakePool(&pool, options, 0);
@@ -750,7 +750,7 @@ TEST_F(CSChunkfilePoolMockTest, GetFileTest) {
             .Times(retryTimes);
         ASSERT_EQ(-1, pool.GetFile(targetPath, metapage));
     }
-    // fsync 时失败
+    // Fsync failed
     {
         FilePool pool(lfs_);
         FakePool(&pool, options, 0);
@@ -771,7 +771,7 @@ TEST_F(CSChunkfilePoolMockTest, GetFileTest) {
             .Times(retryTimes);
         ASSERT_EQ(-1, pool.GetFile(targetPath, metapage));
     }
-    // close 时失败
+    // Failed to close
     {
         FilePool pool(lfs_);
         FakePool(&pool, options, 0);
@@ -796,7 +796,7 @@ TEST_F(CSChunkfilePoolMockTest, GetFileTest) {
 }
 
 TEST_F(CSChunkfilePoolMockTest, RecycleFileTest) {
-    // 初始化options
+    // Initialize options
     FilePoolOptions options;
     options.getFileFromPool = true;
     memcpy(options.filePoolDir, poolDir.c_str(), poolDir.size());
@@ -807,9 +807,9 @@ TEST_F(CSChunkfilePoolMockTest, RecycleFileTest) {
     int retryTimes = 3;
     options.retryTimes = retryTimes;
 
-    /****************getFileFromPool为false**************/
+    /****************getFileFromPool is false**************/
     options.getFileFromPool = false;
-    // delete文件时失败
+    // Failed to delete file
     {
         FilePool pool(lfs_);
         FakePool(&pool, options, 0);
@@ -817,7 +817,7 @@ TEST_F(CSChunkfilePoolMockTest, RecycleFileTest) {
             .WillOnce(Return(-1));
         ASSERT_EQ(-1, pool.RecycleFile(filePath1));
     }
-    // delete文件成功
+    // Successfully deleted file
     {
         FilePool pool(lfs_);
         FakePool(&pool, options, 0);
@@ -826,31 +826,31 @@ TEST_F(CSChunkfilePoolMockTest, RecycleFileTest) {
         ASSERT_EQ(0, pool.RecycleFile(filePath1));
     }
 
-    /****************getFileFromPool为true**************/
+    /****************getFileFromPool is true**************/
     options.getFileFromPool = true;
-    // open失败
+    // open failed
     {
         FilePool pool(lfs_);
         FakePool(&pool, options, 0);
 
         EXPECT_CALL(*lfs_, Open(targetPath, _))
             .WillOnce(Return(-1));
-        // 失败直接Delete
+        // Failed to delete directly
         EXPECT_CALL(*lfs_, Delete(targetPath))
             .WillOnce(Return(0));
-        // Delete 成功就返回0
+        // If Delete is successful, return 0
         ASSERT_EQ(0, pool.RecycleFile(targetPath));
 
         EXPECT_CALL(*lfs_, Open(targetPath, _))
             .WillOnce(Return(-1));
-        // 失败直接Delete
+        // Failed to delete directly
         EXPECT_CALL(*lfs_, Delete(targetPath))
             .WillOnce(Return(-1));
-        // Delete 失败就返回错误码
+        // If Delete fails, an error code will be returned
         ASSERT_EQ(-1, pool.RecycleFile(targetPath));
     }
 
-    // Fstat失败
+    // Fstat failed
     {
         FilePool pool(lfs_);
         FakePool(&pool, options, 0);
@@ -861,10 +861,10 @@ TEST_F(CSChunkfilePoolMockTest, RecycleFileTest) {
             .WillOnce(Return(-1));
         EXPECT_CALL(*lfs_, Close(1))
             .Times(1);
-        // 失败直接Delete
+        // Failed to delete directly
         EXPECT_CALL(*lfs_, Delete(targetPath))
             .WillOnce(Return(0));
-        // Delete 成功就返回0
+        // If Delete is successful, return 0
         ASSERT_EQ(0, pool.RecycleFile(targetPath));
 
         EXPECT_CALL(*lfs_, Open(targetPath, _))
@@ -873,14 +873,14 @@ TEST_F(CSChunkfilePoolMockTest, RecycleFileTest) {
             .WillOnce(Return(-1));
         EXPECT_CALL(*lfs_, Close(1))
             .Times(1);
-        // 失败直接Delete
+        // Failed to delete directly
         EXPECT_CALL(*lfs_, Delete(targetPath))
             .WillOnce(Return(-1));
-        // Delete 失败就返回错误码
+        // If Delete fails, an error code will be returned
         ASSERT_EQ(-1, pool.RecycleFile(targetPath));
     }
 
-    // Fstat成功，大小不匹配
+    // Fstat successful, size mismatch
     {
         FilePool pool(lfs_);
         FakePool(&pool, options, 0);
@@ -894,10 +894,10 @@ TEST_F(CSChunkfilePoolMockTest, RecycleFileTest) {
                             Return(0)));
         EXPECT_CALL(*lfs_, Close(1))
             .Times(1);
-        // 失败直接Delete
+        // Failed to delete directly
         EXPECT_CALL(*lfs_, Delete(targetPath))
             .WillOnce(Return(0));
-        // Delete 成功就返回0
+        // If Delete is successful, return 0
         ASSERT_EQ(0, pool.RecycleFile(targetPath));
 
         EXPECT_CALL(*lfs_, Open(targetPath, _))
@@ -907,14 +907,14 @@ TEST_F(CSChunkfilePoolMockTest, RecycleFileTest) {
                             Return(0)));
         EXPECT_CALL(*lfs_, Close(1))
             .Times(1);
-        // 失败直接Delete
+        // Failed to delete directly
         EXPECT_CALL(*lfs_, Delete(targetPath))
             .WillOnce(Return(-1));
-        // Delete 失败就返回错误码
+        // If Delete fails, an error code will be returned
         ASSERT_EQ(-1, pool.RecycleFile(targetPath));
     }
 
-    // Fstat信息匹配，rename失败
+    // Fstat information matching, rename failed
     {
         FilePool pool(lfs_);
         FakePool(&pool, options, 0);
@@ -934,7 +934,7 @@ TEST_F(CSChunkfilePoolMockTest, RecycleFileTest) {
         ASSERT_EQ(0, pool.Size());
     }
 
-    // Fstat信息匹配，rename成功
+    // Fstat information matching, rename successful
     {
         FilePool pool(lfs_);
         FakePool(&pool, options, 0);

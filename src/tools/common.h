@@ -34,9 +34,9 @@ namespace curve {
 namespace tool {
 
 /**
- *  @brief 格式化，从metric获取的string
- *         去掉string两边的双引号以及空格和回车
- *  @param[out] str 要格式化的string
+ * @brief formatting, string obtained from metric
+ *          Remove double quotes, spaces, and carriage returns around the string
+ * @param[out] str The string to format
  */
 void TrimMetricString(std::string* str);
 

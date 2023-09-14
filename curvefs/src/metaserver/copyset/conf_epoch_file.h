@@ -40,29 +40,29 @@ class ConfEpochFile {
  public:
     explicit ConfEpochFile(curve::fs::LocalFileSystem* fs) : fs_(fs) {}
 
-    /**
-     * 加载快照文件中的配置版本
-     * @param path:文件路径
-     * @param logicPoolID:逻辑池id
-     * @param copysetID:复制组id
-     * @param epoch:配置版本，出参，返回读取的epoch值
-     * @return 0，成功； -1失败
+     /**
+     * Load the configuration version in the snapshot file
+     * @param path: File path
+     * @param logicPoolID: Logical Pool ID
+     * @param copysetID: Copy group ID
+     * @param epoch: Configuration version, output parameters, return the read epoch value
+     * @return 0, successful; - 1 failed
      */
     int Load(const std::string& path, PoolId* poolId, CopysetId* copysetId,
              uint64_t* epoch);
 
-    /**
-     * 保存配置版本信息到快照文件中序列化的格式如下，处理head表示长度，使用二
-     * 进制，其它都是文本格式，便于必要的时候能够直接用查看，sync保证数据落盘
-     * |              head           |          配置版本信息               |
-     * | 8 bytes size_t   | uint32_t |              变 长文本              |
-     * |     length       |   crc32  | logic pool id | copyset id | epoch |
-     * 上面的持久化使用 ‘：’ 分隔
-     * @param path:文件路径
-     * @param logicPoolID:逻辑池id
-     * @param copysetID:复制组id
-     * @param epoch:配置版本
-     * @return 0成功； -1失败
+     /**
+     * Serialize configuration version information and save it to a snapshot file. The format is as follows:
+     * The 'head' indicates the length and is in binary format. The rest is in text format for easy viewing when necessary. 'sync' ensures data persistence.
+     *|            head             |Configuration version information|
+     *| 8 bytes size_t   | uint32_t |       Variable length text      |
+     *|     length       | crc32  | logic pool id | copyset id | epoch|
+     * The persistence above is separated by ':'
+     * @param path: File path
+     * @param logicPoolID: Logical Pool ID
+     * @param copysetID: Copy group ID
+     * @param epoch: Configuration version
+     * @return 0 succeeded; - 1 failed
      */
     int Save(const std::string& path, const PoolId poolId,
              const CopysetId copysetId, const uint64_t epoch);

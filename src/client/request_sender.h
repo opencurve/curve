@@ -39,8 +39,8 @@ namespace curve {
 namespace client {
 
 /**
- * 一个RequestSender负责管理一个ChunkServer的所有
- * connection，目前一个ChunkServer仅有一个connection
+ * A RequestSender is responsible for managing all aspects of a ChunkServer
+ * Connection, currently there is only one connection for a ChunkServer
  */
 class RequestSender {
  public:
@@ -54,13 +54,13 @@ class RequestSender {
     int Init(const IOSenderOption& ioSenderOpt);
 
     /**
-     * 读Chunk
-     * @param idinfo为chunk相关的id信息
-     * @param sn:文件版本号
-     * @param offset:读的偏移
-     * @param length:读的长度
-     * @param sourceInfo 数据源信息
-     * @param done:上一层异步回调的closure
+     * Reading Chunk
+     * @param IDInfo is the ID information related to chunk
+     * @param sn: File version number
+     * @param offset: Read offset
+     * @param length: Read length
+     * @param sourceInfo Data source information
+     * @param done: closure of asynchronous callback on the previous layer
      */
     int ReadChunk(const ChunkIDInfo& idinfo,
                   uint64_t sn,
@@ -70,16 +70,16 @@ class RequestSender {
                   ClientClosure *done);
 
     /**
-   * 写Chunk
-   * @param idinfo为chunk相关的id信息
+   * Write Chunk
+   * @param IDInfo is the ID information related to chunk
    * @param fileId: file id
    * @param epoch: file epoch
-   * @param sn:文件版本号
-   * @param data 要写入的数据
-    *@param offset:写的偏移
-   * @param length:写的长度
-   * @param sourceInfo 数据源信息
-   * @param done:上一层异步回调的closure
+   * @param sn: File version number
+   * @param data The data to be written
+   * @param offset: write offset
+   * @param length: The length written
+   * @param sourceInfo Data source information
+   * @param done: closure of asynchronous callback on the previous layer
    */
     int WriteChunk(const ChunkIDInfo& idinfo,
                    uint64_t fileId,
@@ -92,12 +92,12 @@ class RequestSender {
                    ClientClosure *done);
 
     /**
-     * 读Chunk快照文件
-     * @param idinfo为chunk相关的id信息
-     * @param sn:文件版本号
-     * @param offset:读的偏移
-     * @param length:读的长度
-     * @param done:上一层异步回调的closure
+     * Reading Chunk snapshot files
+     * @param IDInfo is the ID information related to chunk
+     * @param sn: File version number
+     * @param offset: Read offset
+     * @param length: Read length
+     * @param done: closure of asynchronous callback on the previous layer
      */
     int ReadChunkSnapshot(const ChunkIDInfo& idinfo,
                           uint64_t sn,
@@ -106,41 +106,41 @@ class RequestSender {
                           ClientClosure *done);
 
     /**
-     * 删除此次转储时产生的或者历史遗留的快照
-     * 如果转储过程中没有产生快照，则修改chunk的correctedSn
-     * @param idinfo为chunk相关的id信息
-     * @param correctedSn:chunk需要修正的版本号
-     * @param done:上一层异步回调的closure
+     * Delete snapshots generated during this dump or left over from history
+     * If no snapshot is generated during the dump process, modify the correctedSn of the chunk
+     * @param IDInfo is the ID information related to chunk
+     * @param correctedSn: Chunk The version number that needs to be corrected
+     * @param done: closure of asynchronous callback on the previous layer
      */
     int DeleteChunkSnapshotOrCorrectSn(const ChunkIDInfo& idinfo,
                             uint64_t correctedSn,
                             ClientClosure *done);
 
     /**
-     * 获取chunk文件的信息
-     * @param idinfo为chunk相关的id信息
-     * @param done:上一层异步回调的closure
-     * @param retriedTimes:已经重试了几次
+     * Obtain information about chunk files
+     * @param IDInfo is the ID information related to chunk
+     * @param done: closure of asynchronous callback on the previous layer
+     * @param retriedTimes: Number of retries
      */
     int GetChunkInfo(const ChunkIDInfo& idinfo,
                      ClientClosure *done);
 
     /**
-    * @brief lazy 创建clone chunk
+    * @brief lazy Create clone chunk
     * @detail
-    *  - location的格式定义为 A@B的形式。
-    *  - 如果源数据在s3上，则location格式为uri@s3，uri为实际chunk对象的地址；
-    *  - 如果源数据在curvefs上，则location格式为/filename/chunkindex@cs
+    * - The format definition of a location is A@B The form of.
+    * - If the source data is on s3, the location format is uri@s3 Uri is the address of the actual chunk object;
+    * - If the source data is on curves, the location format is/filename/chunkindex@cs
     *
-    * @param idinfo为chunk相关的id信息
-    * @param done:上一层异步回调的closure
-    * @param:location 数据源的url
-    * @param:sn chunk的序列号
-    * @param:correntSn CreateCloneChunk时候用于修改chunk的correctedSn
-    * @param:chunkSize chunk的大小
-    * @param retriedTimes:已经重试了几次
+    * @param IDInfo is the ID information related to chunk
+    * @param done: closure of asynchronous callback on the previous layer
+    * @param: location, URL of the data source
+    * @param: sn chunk's serial number
+    * @param: correntSn used to modify the chunk when creating CloneChunk
+    * @param: chunkSize Chunk size
+    * @param retriedTimes: Number of retries
     *
-    * @return 错误码
+    * @return error code
     */
     int CreateCloneChunk(const ChunkIDInfo& idinfo,
                   ClientClosure *done,
@@ -150,22 +150,22 @@ class RequestSender {
                   uint64_t chunkSize);
 
    /**
-    * @brief 实际恢复chunk数据
-    * @param idinfo为chunk相关的id信息
-    * @param done:上一层异步回调的closure
-    * @param:offset 偏移
-    * @param:len 长度
-    * @param retriedTimes:已经重试了几次
+    * @brief Actual recovery chunk data
+    * @param IDInfo is the ID information related to chunk
+    * @param done: closure of asynchronous callback on the previous layer
+    * @param: offset: offset
+    * @param: len: length
+    * @param retriedTimes: Number of retries
     *
-    * @return 错误码
+    * @return error code
     */
     int RecoverChunk(const ChunkIDInfo& idinfo,
                      ClientClosure* done, uint64_t offset, uint64_t len);
     /**
-     * 重置和Chunk Server的链接
-     * @param chunkServerId:Chunk Server唯一标识
-     * @param serverEndPoint:Chunk Server
-     * @return 0成功，-1失败
+     * Reset Link to Chunk Server
+     * @param chunkServerId: Chunk Server unique identifier
+     * @param serverEndPoint: Chunk Server
+     * @return 0 succeeded, -1 failed
      */
     int ResetSender(ChunkServerID chunkServerId,
                     butil::EndPoint serverEndPoint);
@@ -181,13 +181,13 @@ class RequestSender {
                      google::protobuf::Message* rpcResponse) const;
 
  private:
-    // Rpc stub配置
+    // Rpc stub configuration
     IOSenderOption iosenderopt_;
-    // ChunkServer 的唯一标识 id
+    // The unique identification ID of ChunkServer
     ChunkServerID chunkServerId_;
-    // ChunkServer 的地址
+    // Address of ChunkServer
     butil::EndPoint serverEndPoint_;
-    brpc::Channel channel_; /* TODO(wudemiao): 后期会维护多个 channel */
+    brpc::Channel channel_; /* TODO(wudemiao): Multiple channels will be maintained in the later stage */
 };
 
 }   // namespace client

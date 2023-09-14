@@ -72,7 +72,7 @@ int main(int argc, char *argv[]) {
 
 
 
-    // 创建 copyset
+    // Create copyset
     {
         std::vector<PeerId> peers;
         conf.list_peers(&peers);

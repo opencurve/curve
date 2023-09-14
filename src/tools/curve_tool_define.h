@@ -40,10 +40,10 @@ DECLARE_string(password);
 
 namespace curve {
 namespace tool {
-// 显示版本命令
+// Display Version Command
 const char kVersionCmd[] = "version";
 
-// StatusTool相关命令
+// StatusTool related commands
 const char kStatusCmd[] = "status";
 const char kSpaceCmd[] = "space";
 const char kChunkserverStatusCmd[] = "chunkserver-status";
@@ -58,7 +58,7 @@ const char kSnapshotCloneStatusCmd[] = "snapshot-clone-status";
 const char kClusterStatusCmd[] = "cluster-status";
 const char kScanStatusCmd[] = "scan-status";
 
-// NameSpaceTool相关命令
+// NameSpaceTool related commands
 const char kGetCmd[] = "get";
 const char kListCmd[] = "list";
 const char kSegInfoCmd[] = "seginfo";
@@ -70,7 +70,7 @@ const char kChunkLocatitonCmd[] = "chunk-location";
 const char kUpdateThrottle[] = "update-throttle";
 const char kListPoolsets[] = "list-poolsets";
 
-// CopysetCheck相关命令
+// CopysetCheck related commands
 const char kCheckCopysetCmd[] = "check-copyset";
 const char kCheckChunnkServerCmd[] = "check-chunkserver";
 const char kCheckServerCmd[] = "check-server";
@@ -78,13 +78,13 @@ const char kCopysetsStatusCmd[] = "copysets-status";
 const char kCheckOperatorCmd[] = "check-operator";
 const char kListMayBrokenVolumes[] = "list-may-broken-vol";
 
-// CopysetTool相关命令
+// CopysetTool related commands
 const char kSetCopysetAvailFlag[] = "set-copyset-availflag";
 
-// 一致性检查命令
+// Consistency check command
 const char kCheckConsistencyCmd[] = "check-consistency";
 
-// 配置变更命令
+// Configuration change command
 const char kRemovePeerCmd[] = "remove-peer";
 const char kTransferLeaderCmd[] = "transfer-leader";
 const char kResetPeerCmd[] = "reset-peer";
@@ -95,18 +95,18 @@ const char kDoSnapshotAll[] = "do-snapshot-all";
 const char kRapidLeaderSchedule[] = "rapid-leader-schedule";
 const char kSetScanState[] = "set-scan-state";
 
-// curve文件meta相关的命令
+// Meta related commands for curve files
 const char kChunkMeta[] = "chunk-meta";
 const char kSnapshotMeta[] = "snapshot-meta";
 
-// raft log相关命令
+// raft log related commands
 const char kRaftLogMeta[] = "raft-log-meta";
 
 const char kOffline[] = "offline";
 const char kVars[] = "/vars/";
 const char kConfValue[] = "conf_value";
 
-// raft state 相关常量
+// raft state related constants
 const char kState[] = "state";
 const char kStateLeader[] = "LEADER";
 const char kStateFollower[] = "FOLLOWER";

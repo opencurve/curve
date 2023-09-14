@@ -153,7 +153,7 @@ class RaftSnapshotFilesystemAdaptorMockTest : public testing::Test {
 };
 
 TEST_F(RaftSnapshotFilesystemAdaptorMockTest, open_file_mock_test) {
-    // 1. open flag不带CREAT, open失败
+    // 1. open flag without CREAT, open failed
     CreateChunkFile("./10");
     std::string path = "./10";
     butil::File::Error e;
@@ -167,8 +167,8 @@ TEST_F(RaftSnapshotFilesystemAdaptorMockTest, open_file_mock_test) {
     ASSERT_EQ(FilePoolPtr_->Size(), 3);
     ASSERT_EQ(nullptr, fa);
 
-    // 2. open flag带CREAT, 从FilePool取文件，但是FilePool打开文件失败
-    // 所以还是走原有逻辑，本地创建文件成功
+    // 2. open flag with CREAT to retrieve files from FilePool, but FilePool failed to open the file
+    // So we still follow the original logic and successfully create the file locally
     EXPECT_CALL(*lfs, Open(_, _)).Times(3).WillOnce(Return(-1))
                                           .WillOnce(Return(-1))
                                           .WillOnce(Return(-1));
@@ -182,7 +182,7 @@ TEST_F(RaftSnapshotFilesystemAdaptorMockTest, open_file_mock_test) {
     ASSERT_FALSE(fsptr->FileExists("./10"));
     ASSERT_EQ(nullptr, fa);
 
-    // 3. 待创建文件在Filter中，但是直接本地创建该文件，创建成功
+    // 3. The file to be created is in Filter, but it was created locally and successfully
     EXPECT_CALL(*lfs, Open(_, _)).Times(1).WillOnce(Return(0));
     EXPECT_CALL(*lfs, FileExists(_)).Times(0);
     path = BRAFT_SNAPSHOT_META_FILE;
@@ -191,14 +191,14 @@ TEST_F(RaftSnapshotFilesystemAdaptorMockTest, open_file_mock_test) {
 }
 
 TEST_F(RaftSnapshotFilesystemAdaptorMockTest, delete_file_mock_test) {
-    // 1. 删除文件，文件存在且在过滤名单里，但delete失败，返回false
+    // 1. Delete file. The file exists and is on the filter list, but delete failed with false return
     EXPECT_CALL(*lfs, DirExists(_)).Times(1).WillRepeatedly(Return(false));
     EXPECT_CALL(*lfs, FileExists(_)).Times(1).WillRepeatedly(Return(true));
     EXPECT_CALL(*lfs, Delete(_)).Times(1).WillRepeatedly(Return(-1));
     bool ret = fsadaptor->delete_file(BRAFT_SNAPSHOT_META_FILE, true);
     ASSERT_FALSE(ret);
 
-    // 2. 删除文件，文件存在且不在过滤名单里，但recycle chunk失败，返回false
+    // 2. Delete file. The file exists and is not on the filter list, but the recycle chunk failed with false return
     EXPECT_CALL(*lfs, Delete(_)).Times(1).WillRepeatedly(Return(-1));
     EXPECT_CALL(*lfs, DirExists(_)).Times(1).WillRepeatedly(Return(false));
     EXPECT_CALL(*lfs, FileExists(_)).Times(1).WillRepeatedly(Return(true));
@@ -206,7 +206,7 @@ TEST_F(RaftSnapshotFilesystemAdaptorMockTest, delete_file_mock_test) {
     ret = fsadaptor->delete_file("temp", true);
     ASSERT_FALSE(ret);
 
-    // 3. 删除目录，文件存在且不在过滤名单里，但recycle chunk失败，返回false
+    // 3. Delete directory. The file exists and is not on the filter list, but the recycle chunk failed with false return
     std::vector<std::string> dircontent;
     dircontent.push_back("/2");
     dircontent.push_back("/1");
@@ -222,13 +222,13 @@ TEST_F(RaftSnapshotFilesystemAdaptorMockTest, delete_file_mock_test) {
 }
 
 TEST_F(RaftSnapshotFilesystemAdaptorMockTest, rename_mock_test) {
-    // 1. 重命名文件，文件存在且在过滤名单里，但Rename失败，返回false
+    // 1. Renaming file, file exists and is on the filter list, but Rename failed with false return
     EXPECT_CALL(*lfs, Rename(_, _, _)).Times(1).WillRepeatedly(Return(-1));
     EXPECT_CALL(*lfs, FileExists(_)).Times(0);
     bool ret = fsadaptor->rename("1", BRAFT_SNAPSHOT_META_FILE);
     ASSERT_FALSE(ret);
 
-    // 2. 重命名文件，文件存在且不在过滤名单里，但Rename失败，返回false
+    // 2. Renaming file. The file exists and is not on the filter list, but Rename failed with false return
     EXPECT_CALL(*lfs, Rename(_, _, _)).Times(1).WillRepeatedly(Return(0));
     EXPECT_CALL(*lfs, FileExists(_)).Times(1).WillRepeatedly(Return(true));
     EXPECT_CALL(*lfs, Open(_, _)).Times(1).WillRepeatedly(Return(0));

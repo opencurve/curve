@@ -73,10 +73,10 @@ struct CURVE_CACHELINE_ALIGNMENT RequestContext {
         done_ = nullptr;
     }
 
-    // chunk的ID信息，sender在发送rpc的时候需要附带其ID信息
+    // The ID information of the chunk, which the sender needs to include when sending rpc
     ChunkIDInfo         idinfo_;
 
-    // 用户IO被拆分之后，其小IO有自己的offset和length
+    // After user IO is split, its small IO has its own offset and length
     off_t               offset_ = 0;
     OpType              optype_ = OpType::UNKNOWN;
     size_t              rawlength_ = 0;
@@ -91,28 +91,28 @@ struct CURVE_CACHELINE_ALIGNMENT RequestContext {
     // write data of current request
     butil::IOBuf writeData_;
 
-    // 因为RPC都是异步发送，因此在一个Request结束时，RPC回调调用当前的done
-    // 来告知当前的request结束了
+    // Because RPC is sent asynchronously, at the end of a request, the RPC callback calls the current done
+    // To inform you that the current request is over
     RequestClosure*     done_ = nullptr;
 
     // file id
     uint64_t fileId_;
     // file epoch
     uint64_t epoch_;
-    // request的版本信息
+    // Version information of request
     uint64_t            seq_ = 0;
 
-    // 这个对应的GetChunkInfo的出参
+    // The output parameter of this corresponding GetChunkInfo
     ChunkInfoDetail*    chunkinfodetail_ = nullptr;
 
-    // clone chunk请求需要携带源chunk的location及所需要创建的chunk的大小
+    // The clone chunk request needs to carry the location of the source chunk and the size of the chunk that needs to be created
     uint32_t            chunksize_ = 0;
     std::string         location_;
     RequestSourceInfo   sourceInfo_;
-    // create clone chunk时候用于修改chunk的correctedSn
+    // CorrectedSn used to modify a chunk when creating a clone chunk
     uint64_t            correctedSeq_ = 0;
 
-    // 当前request context id
+    // Current request context id
     uint64_t            id_ = 0;
 
     static RequestContext* NewInitedRequestContext() {

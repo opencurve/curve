@@ -179,9 +179,9 @@ uint32_t Bitmap::NextSetBit(uint32_t index) const {
 
 uint32_t Bitmap::NextSetBit(uint32_t startIndex, uint32_t endIndex) const {
     uint32_t index = startIndex;
-    // bitmap中最后一个bit的index值
+    // The index value of the last bit in the bitmap
     uint32_t lastIndex = bits_ - 1;
-    // endIndex值不能超过lastIndex
+    // The endIndex value cannot exceed lastIndex
     if (endIndex > lastIndex)
         endIndex = lastIndex;
     for (; index <= endIndex; ++index) {
@@ -206,7 +206,7 @@ uint32_t Bitmap::NextClearBit(uint32_t index) const {
 uint32_t Bitmap::NextClearBit(uint32_t startIndex, uint32_t endIndex) const {
     uint32_t index = startIndex;
     uint32_t lastIndex = bits_ - 1;
-    // endIndex值不能超过lastIndex
+    // The endIndex value cannot exceed lastIndex
     if (endIndex > lastIndex)
         endIndex = lastIndex;
     for (; index <= endIndex; ++index) {
@@ -222,11 +222,11 @@ void Bitmap::Divide(uint32_t startIndex,
                     uint32_t endIndex,
                     vector<BitRange>* clearRanges,
                     vector<BitRange>* setRanges) const {
-    // endIndex的值不能小于startIndex
+    // The value of endIndex cannot be less than startIndex
     if (endIndex < startIndex)
         return;
 
-    // endIndex值不能超过lastIndex
+    // The endIndex value cannot exceed lastIndex
     uint32_t lastIndex = bits_ - 1;
     if (endIndex > lastIndex)
         endIndex = lastIndex;
@@ -235,20 +235,20 @@ void Bitmap::Divide(uint32_t startIndex,
     BitRange setRange;
     vector<BitRange> tmpClearRanges;
     vector<BitRange> tmpSetRanges;
-    // 下一个位为0的index
+    // Next index with 0 bits
     uint32_t nextClearIndex;
-    // 下一个位为1的index
+    // Next index with bit 1
     uint32_t nextSetIndex;
 
-    // 划分所有range
+    // Divide all ranges
     while (startIndex != NO_POS) {
         nextClearIndex = NextClearBit(startIndex, endIndex);
-        // 1.存放当前clear index之前的 set range
-        //   nextClearIndex如果等于startIndex说明前面没有 set range
+        // 1. Store the set range before the current clear index
+        //   If nextClearIndex is equal to startIndex, it indicates that there is no set range before it
         if (nextClearIndex != startIndex) {
             setRange.beginIndex = startIndex;
-            // nextClearIndex等于NO_POS说明已经找到末尾
-            // 最后一块连续区域是 set range
+            // nextClearIndex equals NO_POS description has found the end
+            // The last continuous area is set range
             setRange.endIndex = nextClearIndex == NO_POS
                               ? endIndex
                               : nextClearIndex - 1;
@@ -258,8 +258,8 @@ void Bitmap::Divide(uint32_t startIndex,
             break;
 
         nextSetIndex = NextSetBit(nextClearIndex, endIndex);
-        // 2.存放当前set index之前的 clear range
-        //   能到这一步说明前面肯定存在clear range，所以不用像第1步一样做判断
+        //2. Store the clear range before the current set index
+        //   Being able to reach this step indicates that there must be a clear range ahead, so there is no need to make a judgment like in step 1
         clearRange.beginIndex = nextClearIndex;
         clearRange.endIndex = nextSetIndex == NO_POS
                             ? endIndex
@@ -268,7 +268,7 @@ void Bitmap::Divide(uint32_t startIndex,
         startIndex = nextSetIndex;
     }
 
-    // 根据参数中的clearRanges和setRanges指针是否为空返回结果
+    // Returns a result based on whether the clearRanges and setRanges pointers in the parameters are empty
     if (clearRanges != nullptr) {
         *clearRanges = std::move(tmpClearRanges);
     }

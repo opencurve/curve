@@ -63,7 +63,7 @@ bool ChunkServerMetaHelper::DecodeChunkServerMeta(
         return false;
     }
 
-    // 验证meta是否正确
+    // Verify if the meta is correct
     uint32_t crc = MetadataCrc(*out);
     if (crc != out->checksum()) {
         LOG(ERROR) << "ChunkServer persisted metadata CRC dismatch."

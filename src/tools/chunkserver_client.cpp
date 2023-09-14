@@ -69,7 +69,7 @@ int ChunkServerClient::GetRaftStatus(butil::IOBuf* iobuf) {
         }
         retryTimes++;
     }
-    // 只打最后一次失败的原因
+    // The reason for only the last defeat
     std::cout << "Send RPC to chunkserver fail, error content: "
               << cntl.ErrorText() << std::endl;
     return -1;
@@ -122,7 +122,7 @@ int ChunkServerClient::GetCopysetStatus(
             return 0;
         }
     }
-    // 只打最后一次失败的原因
+    // The reason for only the last defeat
     std::cout << "Send RPC to chunkserver fail, error content: "
               << cntl.ErrorText() << std::endl;
     return -1;
@@ -159,7 +159,7 @@ int ChunkServerClient::GetChunkHash(const Chunk& chunk,
             return 0;
         }
     }
-    // 只打最后一次失败的原因
+    // The reason for only the last defeat
     std::cout << "Send RPC to chunkserver fail, error content: "
               << cntl.ErrorText() << std::endl;
     return -1;

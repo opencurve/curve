@@ -46,18 +46,18 @@ void ReadChunkSnapshotClosure::Run() {
 }
 
 /**
- * @brief 转储快照的单个chunk
+ * @brief Dump a single chunk of a snapshot
  * @detail
- *  由于单个chunk过大，chunk转储分片进行，分片大小为chunkSplitSize_，
- *  步骤如下：
- *  1. 创建一个转储任务transferTask，并调用DataChunkTranferInit初始化
- *  2. 调用ReadChunkSnapshot从curvefs读取chunk的一个分片
- *  3. 调用DataChunkTranferAddPart转储一个分片
- *  4. 重复2、3直到所有分片转储完成，调用DataChunkTranferComplete结束转储任务
- *  5. 中间如有读取或转储发生错误，则调用DataChunkTranferAbort放弃转储，
- *  并返回错误码
+ *  Since a single chunk is too large, chunk dumping is done in segments, with each segment size being chunkSplitSize_.
+ *  The steps are as follows:
+ *  1. Create a dump task transferTask and initialize it using DataChunkTransferInit.
+ *  2. Call ReadChunkSnapshot to read a segment of the chunk from CurveFS.
+ *  3. Call DataChunkTransferAddPart to dump a segment.
+ *  4. Repeat steps 2 and 3 until all segments have been dumped, and then call DataChunkTransferComplete to end the dump task.
+ *  5. If there are any errors during reading or dumping in the process, call DataChunkTransferAbort to abandon the dump 
+ *     and return an error code.
  *
- * @return 错误码
+ * @return Error code
  */
 int TransferSnapshotDataChunkTask::TransferSnapshotDataChunk() {
     ChunkDataName name = taskInfo_->name_;
@@ -113,7 +113,7 @@ int TransferSnapshotDataChunkTask::TransferSnapshotDataChunk() {
             std::list<ReadChunkSnapshotContextPtr> results =
                 tracker->PopResultContexts();
             if (0 == results.size()) {
-                // 已经完成，没有新的结果了
+                // Completed, no new results
                 break;
             }
             ret = HandleReadChunkSnapshotResultsAndRetry(

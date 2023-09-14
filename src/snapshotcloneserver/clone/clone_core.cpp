@@ -58,7 +58,7 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
     CloneTaskType taskType,
     std::string poolset,
     CloneInfo *cloneInfo) {
-    // 查询数据库中是否有任务正在执行
+    //Check if there are tasks executing in the database
     std::vector<CloneInfo> cloneInfoList;
     metaStore_->GetCloneInfoByFileName(destination, &cloneInfoList);
     bool needJudgeFileExist = false;
@@ -78,22 +78,22 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
                     (info.GetSrc() == source) &&
                     (info.GetIsLazy() == lazyFlag) &&
                     (info.GetTaskType() == taskType)) {
-                    // 视为同一个clone
+                    //Treat as the same clone
                     *cloneInfo = info;
                     return kErrCodeTaskExist;
                 } else {
-                    // 视为不同的克隆，那么文件实际上已被占用，返回文件已存在
+                    //Treat it as a different clone, then the file is actually occupied and the return file already exists
                     return kErrCodeFileExist;
                 }
             } else if (info.GetStatus() == CloneStatus::done ||
                        info.GetStatus() == CloneStatus::error ||
                        info.GetStatus() == CloneStatus::metaInstalled) {
-                // 可能已经删除，需要再判断文件存不存在，
-                // 在已删除的条件下，允许再克隆
+                //It may have been deleted, and it is necessary to determine whether the file exists again,
+                //Allowing further cloning under deleted conditions
                 existCloneInfos.push_back(info);
                 needJudgeFileExist = true;
             } else {
-                // 此时，有个相同的克隆任务正在删除中, 返回文件被占用
+                //At this point, the same clone task is being deleted and the return file is occupied
                 return kErrCodeFileExist;
             }
         } else {  // is recover
@@ -103,11 +103,11 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
                     (info.GetSrc() == source) &&
                     (info.GetIsLazy() == lazyFlag) &&
                     (info.GetTaskType() == taskType)) {
-                    // 视为同一个clone，返回任务已存在
+                    //Treat as the same clone, return task already exists
                     *cloneInfo = info;
                     return kErrCodeTaskExist;
                 } else {
-                    // 视为不同的克隆，那么文件实际上已被占用，返回文件已存在
+                    //Treat it as a different clone, then the file is actually occupied and the return file already exists
                     return kErrCodeFileExist;
                 }
             } else if (info.GetStatus() == CloneStatus::done ||
@@ -115,13 +115,13 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
                        info.GetStatus() == CloneStatus::metaInstalled) {
                 // nothing
             } else {
-                // 此时，有个相同的任务正在删除中, 返回文件被占用
+                //At this point, the same task is being deleted and the return file is occupied
                 return kErrCodeFileExist;
             }
         }
     }
 
-    // 目标文件已存在不能clone, 不存在不能recover
+    //The target file already exists and cannot be cloned or recovered if it does not exist
     FInfo destFInfo;
     int ret = client_->GetFileInfo(destination, mdsRootUser_, &destFInfo);
     switch (ret) {
@@ -129,7 +129,7 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
             if (CloneTaskType::kClone == taskType) {
                 if (needJudgeFileExist) {
                     bool match = false;
-                    //  找出inodeid匹配的cloneInfo
+                    //Find the cloneInfo that matches the inodeid
                     for (auto& existInfo : existCloneInfos) {
                         if (destFInfo.id == existInfo.GetDestId()) {
                             *cloneInfo = existInfo;
@@ -140,8 +140,8 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
                     if (match) {
                         return kErrCodeTaskExist;
                     } else {
-                        // 如果没找到，那么dest file都不是这些clone任务创建的，
-                        // 意味着文件重名了
+                        //If not found, then none of the dest files were created by these clone tasks,
+                        //It means the file has a duplicate name
                         LOG(ERROR) << "Clone dest file exist, "
                                    << "but task not match! "
                                    << "source = " << source
@@ -151,7 +151,7 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
                         return kErrCodeFileExist;
                     }
                 } else {
-                    // 没有对应的cloneInfo，意味着文件重名了
+                    //There is no corresponding cloneInfo, which means the file has a duplicate name
                     LOG(ERROR) << "Clone dest file must not exist"
                                << ", source = " << source
                                << ", user = " << user
@@ -160,7 +160,7 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
                     return kErrCodeFileExist;
                 }
             } else if (CloneTaskType::kRecover == taskType) {
-                // recover任务，卷的poolset信息不变
+                //The recover task keeps the poolset information of the volume unchanged
                 poolset = destFInfo.poolset;
             } else {
                 assert(false);
@@ -183,7 +183,7 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
             return kErrCodeInternalError;
     }
 
-    // 是否为快照
+    //Is it a snapshot
     SnapshotInfo snapInfo;
     CloneFileType fileType;
 
@@ -245,7 +245,7 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
             return kErrCodeFileStatusInvalid;
         }
 
-        // TODO(镜像克隆的用户认证待完善)
+        //TODO (User authentication for mirror cloning to be improved)
     }
 
     UUID uuid = UUIDGenerator().GenerateUUID();
@@ -256,9 +256,9 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
     } else {
         info.SetStatus(CloneStatus::recovering);
     }
-    // 这里必须先AddCloneInfo， 因为如果先SetCloneFileStatus，然后AddCloneInfo，
-    // 如果AddCloneInfo失败又意外重启，将没人知道SetCloneFileStatus调用过，造成
-    // 镜像无法删除
+    //Here, you must first AddCloneInfo because if you first set CloneFileStatus and then AddCloneInfo,
+    //If AddCloneInfo fails and unexpectedly restarts, no one will know that SetCloneFileStatus has been called, causing
+    //Mirror cannot be deleted
     ret = metaStore_->AddCloneInfo(info);
     if (ret < 0) {
         LOG(ERROR) << "AddCloneInfo error"
@@ -279,13 +279,13 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
             FileStatus::BeingCloned,
             mdsRootUser_);
         if (ret < 0) {
-            // 这里不处理SetCloneFileStatus的错误，
-            // 因为SetCloneFileStatus失败的所有结果都是可接受的，
-            // 相比于处理SetCloneFileStatus失败的情况更直接:
-            // 比如调用DeleteCloneInfo删除任务，
-            // 一旦DeleteCloneInfo失败，给用户返回error之后，
-            // 重启服务将造成Clone继续进行,
-            // 跟用户结果返回的结果不一致，造成用户的困惑
+            //The SetCloneFileStatus error is not handled here,
+            //Because all results of SetCloneFileStatus failure are acceptable,
+            //Compared to handling SetCloneFileStatus failure, it is more direct:
+            //For example, calling DeleteCloneInfo to delete a task,
+            //Once DeleteCloneInfo fails and an error is returned to the user,
+            //Restarting the service will cause Clone to continue,
+            //Inconsistency with the results returned by the user, causing confusion for the user
             LOG(WARNING) << "SetCloneFileStatus encounter an error"
                          << ", ret = " << ret
                          << ", source = " << source
@@ -311,7 +311,7 @@ int CloneCoreImpl::FlattenPre(
         case CloneStatus::done:
         case CloneStatus::cloning:
         case CloneStatus::recovering: {
-            // 已经完成的或正在进行中返回task exist, 表示不需要处理
+            //A task exists is returned for completed or in progress, indicating that it does not need to be processed
             return kErrCodeTaskExist;
         }
         case CloneStatus::metaInstalled: {
@@ -362,7 +362,7 @@ void CloneCoreImpl::HandleCloneOrRecoverTask(
         }
     }
 
-    // 在kCreateCloneMeta以后的步骤还需更新CloneChunkInfo信息中的chunkIdInfo
+    //In the steps after kCreateCloneMeta, it is necessary to update the chunkIdInfo in the CloneChunkInfo information
     if (NeedUpdateCloneMeta(task)) {
         ret = CreateOrUpdateCloneMeta(task, &newFileInfo, &segInfos);
         if (ret < 0) {
@@ -504,9 +504,9 @@ int CloneCoreImpl::BuildFileInfoFromSnapshot(
                            << ", taskid = " << task->GetTaskId();
                 return kErrCodeInternalError;
         }
-        // 从快照恢复的destinationId为目标文件的id
+        //The destinationId recovered from the snapshot is the ID of the target file
         task->GetCloneInfo().SetDestId(fInfo.id);
-        // 从快照恢复seqnum+1
+        //Restore seqnum+1 from snapshot
         newFileInfo->seqnum = fInfo.seqnum + 1;
     } else {
         newFileInfo->seqnum = kInitializeSeqNum;
@@ -574,7 +574,7 @@ int CloneCoreImpl::BuildFileInfoFromFile(
                    << ", taskid = " << task->GetTaskId();
         return kErrCodeFileNotExist;
     }
-    // GetOrAllocateSegment依赖fullPathName
+    //GetOrAllocateSegment depends on fullPathName
     fInfo.fullPathName = source;
 
     newFileInfo->chunksize = fInfo.chunksize;
@@ -657,7 +657,7 @@ int CloneCoreImpl::CreateCloneFile(
     const auto& poolset = fInfo.poolset;
 
     std::string source = "";
-    // 只有从文件克隆才带clone source
+    //Clone source is only available when cloning from a file
     if (CloneFileType::kFile == task->GetCloneInfo().GetFileType()) {
         source = task->GetCloneInfo().GetSrc();
     }
@@ -692,12 +692,12 @@ int CloneCoreImpl::CreateCloneFile(
     }
     task->GetCloneInfo().SetOriginId(fInfoOut.id);
     if (IsClone(task)) {
-        // 克隆情况下destinationId = originId;
+        //In the case of cloning, destinationId = originId;
         task->GetCloneInfo().SetDestId(fInfoOut.id);
     }
     task->GetCloneInfo().SetTime(fInfoOut.ctime);
-    // 如果是lazy&非快照，先不要createCloneMeta，createCloneChunk
-    // 等后面stage2阶段recoveryChunk之前去createCloneMeta，createCloneChunk
+    //If it is a lazy&non snapshot, do not createCloneMeta or createCloneChunk yet
+    //Wait until stage 2 recoveryChunk, go to createCloneMeta, createCloneChunk
     if (IsLazy(task) && IsFile(task)) {
         task->GetCloneInfo().SetNextStep(CloneStep::kCompleteCloneMeta);
     } else {
@@ -742,7 +742,7 @@ int CloneCoreImpl::CreateCloneChunk(
     int ret = kErrCodeSuccess;
     uint32_t chunkSize = fInfo.chunksize;
     uint32_t correctSn = 0;
-    // 克隆时correctSn为0，恢复时为新产生的文件版本
+    //When cloning, correctSn is 0, and when restoring, it is the newly generated file version
     if (IsClone(task)) {
         correctSn = 0;
     } else {
@@ -790,13 +790,13 @@ int CloneCoreImpl::CreateCloneChunk(
             }
         }
     }
-    // 最后剩余数量不足的任务
+    //Tasks with insufficient remaining quantity in the end
     do {
         tracker->WaitSome(1);
         std::list<CreateCloneChunkContextPtr> results =
             tracker->PopResultContexts();
         if (0 == results.size()) {
-            // 已经完成，没有新的结果了
+            //Completed, no new results
             break;
         }
         ret = HandleCreateCloneChunkResultsAndRetry(task, tracker, results);
@@ -954,13 +954,13 @@ int CloneCoreImpl::RecoverChunk(
 
     auto tracker = std::make_shared<RecoverChunkTaskTracker>();
     uint64_t workingChunkNum = 0;
-    // 为避免发往同一个chunk碰撞，异步请求不同的chunk
+    //To avoid collisions with the same chunk, asynchronous requests for different chunks
     for (auto & cloneSegmentInfo : segInfos) {
         for (auto & cloneChunkInfo : cloneSegmentInfo.second) {
             if (!cloneChunkInfo.second.needRecover) {
                 continue;
             }
-            // 当前并发工作的chunk数已大于要求的并发数时，先消化一部分
+            //When the current number of chunks for concurrent work exceeds the required number of concurrent tasks, digest a portion first
             while (workingChunkNum >= recoverChunkConcurrency_) {
                 uint64_t completeChunkNum = 0;
                 ret = ContinueAsyncRecoverChunkPartAndWaitSomeChunkEnd(task,
@@ -971,7 +971,7 @@ int CloneCoreImpl::RecoverChunk(
                 }
                 workingChunkNum -= completeChunkNum;
             }
-            // 加入新的工作的chunk
+            //Chunk joining a new job
             workingChunkNum++;
             auto context = std::make_shared<RecoverChunkContext>();
             context->cidInfo = cloneChunkInfo.second.chunkIdInfo;
@@ -1086,7 +1086,7 @@ int CloneCoreImpl::ContinueAsyncRecoverChunkPartAndWaitSomeChunkEnd(
                 return context->retCode;
             }
         } else {
-            // 启动一个新的分片，index++，并重置开始时间
+            //Start a new shard, index++, and reset the start time
             context->partIndex++;
             context->startTime = TimeUtility::GetTimeofDaySec();
             if (context->partIndex < context->totalPartNum) {
@@ -1147,14 +1147,14 @@ int CloneCoreImpl::RenameCloneFile(
         cloneTempDir_ + "/" + task->GetCloneInfo().GetTaskId();
     std::string destination = task->GetCloneInfo().GetDest();
 
-    // 先rename
+    //Rename first
     int ret = client_->RenameCloneFile(mdsRootUser_,
             originId,
             destinationId,
             origin,
             destination);
     if (-LIBCURVE_ERROR::NOTEXIST == ret) {
-        // 有可能是已经rename过了
+        //It is possible that it has already been renamed
         FInfo destFInfo;
         ret = client_->GetFileInfo(destination, mdsRootUser_, &destFInfo);
         if (ret != LIBCURVE_ERROR::OK) {
@@ -1442,7 +1442,7 @@ bool CloneCoreImpl::NeedRetry(std::shared_ptr<CloneTaskInfo> task,
         if (CloneStep::kRecoverChunk == step ||
             CloneStep::kCompleteCloneFile == step ||
             CloneStep::kEnd == step) {
-            // 文件不存在的场景下不需要再重试，因为可能已经被删除了
+            //In scenarios where the file does not exist, there is no need to retry as it may have been deleted
             if (retCode != kErrCodeFileNotExist) {
                 return true;
             }
@@ -1463,7 +1463,7 @@ int CloneCoreImpl::CreateOrUpdateCloneMeta(
     if (LIBCURVE_ERROR::OK == ret) {
         // nothing
     } else if (-LIBCURVE_ERROR::NOTEXIST == ret) {
-        // 可能已经rename过了
+        //Perhaps it has already been renamed
         newFileName = task->GetCloneInfo().GetDest();
         ret = client_->GetFileInfo(newFileName, mdsRootUser_, &fInfoOut);
         if (ret != LIBCURVE_ERROR::OK) {
@@ -1474,7 +1474,7 @@ int CloneCoreImpl::CreateOrUpdateCloneMeta(
                        << ", taskid = " << task->GetTaskId();
             return kErrCodeFileNotExist;
         }
-        // 如果是已经rename过，那么id应该一致
+        //If it has already been renamed, then the id should be consistent
         uint64_t originId = task->GetCloneInfo().GetOriginId();
         if (fInfoOut.id != originId) {
             LOG(ERROR) << "File is missing, fileId not equal, "
@@ -1493,9 +1493,9 @@ int CloneCoreImpl::CreateOrUpdateCloneMeta(
                    << ", taskid = " << task->GetTaskId();
         return kErrCodeInternalError;
     }
-    // 更新fInfo
+    //Update fInfo
     *fInfo = fInfoOut;
-    // GetOrAllocateSegment 依赖fullPathName，需要在此处更新
+    //GetOrAllocateSegment depends on fullPathName and needs to be updated here
     fInfo->fullPathName = newFileName;
 
     uint32_t segmentSize = fInfo->segmentsize;
@@ -1540,7 +1540,7 @@ int CloneCoreImpl::CleanCloneOrRecoverTaskPre(const std::string &user,
     CloneInfo *cloneInfo) {
     int ret = metaStore_->GetCloneInfo(taskId, cloneInfo);
     if (ret < 0) {
-        // 不存在时直接返回成功，使接口幂等
+        //Directly returns success when it does not exist, making the interface idempotent
         return kErrCodeSuccess;
     }
     if (cloneInfo->GetUser() != user) {
@@ -1576,11 +1576,11 @@ int CloneCoreImpl::CleanCloneOrRecoverTaskPre(const std::string &user,
 
 void CloneCoreImpl::HandleCleanCloneOrRecoverTask(
     std::shared_ptr<CloneTaskInfo> task) {
-    // 只有错误的clone/recover任务才清理临时文件
+    //Only the wrong clone/recover task cleans up temporary files
     if (CloneStatus::errorCleaning == task->GetCloneInfo().GetStatus()) {
-        // 错误情况下可能未清除镜像被克隆标志
+        //In the event of an error, the mirror being cloned flag may not be cleared
         if (IsFile(task)) {
-            // 重新发送
+            //Resend
             std::string source = task->GetCloneInfo().GetSrc();
             NameLockGuard lockGuard(cloneRef_->GetLock(), source);
             if (cloneRef_->GetRef(source) == 0) {
@@ -1668,10 +1668,10 @@ int CloneCoreImpl::CheckFileExists(const std::string &filename,
     return kErrCodeInternalError;
 }
 
-// 加减引用计数的时候，接口里面会对引用计数map加锁；
-// 加引用计数、处理引用计数减到0的时候，需要额外对修改的那条记录加锁。
+//When adding or subtracting reference counts, the interface will lock the reference count map;
+//When adding a reference count and reducing the reference count to 0, an additional lock needs to be added to the modified record.
 int CloneCoreImpl::HandleDeleteCloneInfo(const CloneInfo &cloneInfo) {
-    // 先减引用计数，如果是从镜像克隆且引用计数减到0，需要修改源镜像的状态为created
+    //First, reduce the reference count. If you are cloning from a mirror and the reference count is reduced to 0, you need to modify the status of the source mirror to 'created'
     std::string source = cloneInfo.GetSrc();
     if (cloneInfo.GetFileType() == CloneFileType::kSnapshot) {
         snapshotRef_->DecrementSnapshotRef(source);
@@ -1694,7 +1694,7 @@ int CloneCoreImpl::HandleDeleteCloneInfo(const CloneInfo &cloneInfo) {
         }
     }
 
-    // 删除这条记录，如果删除失败，把前面已经减掉的引用计数加回去
+    //Delete this record. If the deletion fails, add back the previously subtracted reference count
     int ret = metaStore_->DeleteCloneInfo(cloneInfo.GetTaskId());
     if (ret != 0) {
         if (cloneInfo.GetFileType() == CloneFileType::kSnapshot) {

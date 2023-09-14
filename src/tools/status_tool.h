@@ -63,22 +63,22 @@ struct LogicalpoolSpaceInfo {
     std::string poolName = "";
     uint64_t totalChunkSize = 0;
     uint64_t usedChunkSize = 0;
-    // 总体能容纳的文件大小
+    // The overall file size that can be accommodated
     uint64_t totalCapacity = 0;
-    // 分配大小
+    // Allocation size
     uint64_t allocatedSize = 0;
 };
 
 struct SpaceInfo {
     uint64_t totalChunkSize = 0;
     uint64_t usedChunkSize = 0;
-    // 总体能容纳的文件大小
+    // The overall file size that can be accommodated
     uint64_t totalCapacity = 0;
-    // 分配大小
+    // Allocation size
     uint64_t allocatedSize = 0;
-    // recycleBin的分配大小
+    // Allocation size of recycleBin
     uint64_t recycleAllocSize = 0;
-    // 系统中存在的文件大小
+    // File size present in the system
     uint64_t currentFileSize = 0;
     std::unordered_map<uint32_t, LogicalpoolSpaceInfo> lpoolspaceinfo;
 };
@@ -107,28 +107,28 @@ class StatusTool : public CurveTool {
     ~StatusTool() = default;
 
     /**
-     *  @brief 打印help信息
-     *  @param cmd：执行的命令
-     *  @return 无
+     * @brief Print help information
+     * @param cmd: Command executed
+     * @return None
      */
     void PrintHelp(const std::string &command) override;
 
     /**
-     *  @brief 执行命令
-     *  @param cmd：执行的命令
-     *  @return 成功返回0，失败返回-1
+     * @brief Execute command
+     * @param cmd: Command executed
+     * @return returns 0 for success, -1 for failure
      */
     int RunCommand(const std::string &command) override;
 
     /**
-     *  @brief 返回是否支持该命令
-     *  @param command：执行的命令
-     *  @return true / false
+     * @brief returns whether the command is supported
+     * @param command: The command executed
+     * @return true/false
      */
     static bool SupportCommand(const std::string &command);
 
     /**
-     *  @brief 判断集群是否健康
+     * @brief to determine whether the cluster is healthy
      */
     bool IsClusterHeatlhy();
 
@@ -156,62 +156,62 @@ class StatusTool : public CurveTool {
     int PrintSnapshotCloneStatus();
 
     /**
-     *  @brief 判断命令是否需要和etcd交互
-     *  @param command：执行的命令
-     *  @return 需要返回true，否则返回false
+     * @brief to determine if the command needs to interact with ETCD
+     * @param command: The command executed
+     * @return needs to return true, otherwise it will return false
      */
     bool CommandNeedEtcd(const std::string &command);
 
 
     /**
-     *  @brief 判断命令是否需要mds
-     *  @param command：执行的命令
-     *  @return 需要返回true，否则返回false
+     * @brief to determine if the command requires mds
+     * @param command: The command executed
+     * @return needs to return true, otherwise it will return false
      */
     bool CommandNeedMds(const std::string &command);
 
     /**
-     *  @brief 判断命令是否需要snapshot clone server
-     *  @param command：执行的命令
-     *  @return 需要返回true，否则返回false
+     * @brief: Determine if the command requires a snapshot clone server
+     * @param command: The command executed
+     * @return needs to return true, otherwise it will return false
      */
     bool CommandNeedSnapshotClone(const std::string &command);
 
     /**
-     *  @brief 打印在线状态
-     *  @param name : 在线状态对应的名字
-     *  @param onlineStatus 在线状态的map
+     * @brief Print online status
+     * @param name: The name corresponding to the online status
+     * @param onlineStatus Map of online status
      */
     void PrintOnlineStatus(const std::string &name,
                            const std::map<std::string, bool> &onlineStatus);
 
     /**
-     *  @brief 获取并打印mds version信息
+     * @brief Get and print mds version information
      */
     int GetAndPrintMdsVersion();
 
     /**
-     *  @brief 检查服务是否健康
-     *  @param name 服务名
+     * @brief Check if the service is healthy
+     * @param name Service Name
      */
     bool CheckServiceHealthy(const ServiceName &name);
 
  private:
-    // 向mds发送RPC的client
+    // Client sending RPC to mds
     std::shared_ptr<MDSClient> mdsClient_;
-    // Copyset检查工具，用于检查集群和chunkserver的健康状态
+    // Copyset checking tool, used to check the health status of clusters and chunkservers
     std::shared_ptr<CopysetCheckCore> copysetCheckCore_;
-    // etcd client，用于调etcd API获取状态
+    // ETCD client, used to call the ETCD API to obtain status
     std::shared_ptr<EtcdClient> etcdClient_;
-    // 用于获取metric
+    // Used to obtain metric
     std::shared_ptr<MetricClient> metricClient_;
-    // 用于获取snapshot clone的状态
+    // Used to obtain the status of snapshot clones
     std::shared_ptr<SnapshotCloneClient> snapshotClient_;
-    // version client，用于获取version信息
+    // Version client, used to obtain version information
     std::shared_ptr<VersionTool> versionTool_;
-    // mds是否初始化过
+    // Has the mds been initialized
     bool mdsInited_;
-    // etcd是否初始化过
+    // Has ETCD been initialized
     bool etcdInited_;
     // Is there a snapshot service or not
     bool noSnapshotServer_;
