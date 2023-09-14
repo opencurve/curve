@@ -66,21 +66,20 @@ struct SnapshotMetaPage {
     // bitmap  representing the current snapshot page status
     std::shared_ptr<Bitmap> bitmap;
 
-    SnapshotMetaPage()  : version(FORMAT_VERSION)
-                        , damaged(false)
-                        , bitmap(nullptr) {}
+    SnapshotMetaPage()  
+        : version(FORMAT_VERSION), damaged(false), bitmap(nullptr) {}
     SnapshotMetaPage(const SnapshotMetaPage &metaPage);
     SnapshotMetaPage &operator=(const SnapshotMetaPage &metaPage);
 
-    void encode(char *buf);
-    CSErrorCode decode(const char *buf);
+    void encode(char* buf);
+    CSErrorCode decode(const char* buf);
 };
 
 class CSSnapshot {
  public:
     CSSnapshot(std::shared_ptr<LocalFileSystem> lfs,
                std::shared_ptr<FilePool> chunkFilePool,
-               const ChunkOptions &options);
+               const ChunkOptions& options);
     virtual ~CSSnapshot();
     /**
      * open snapshot file, called when starting to load snapshot file or create
@@ -99,7 +98,7 @@ class CSSnapshot {
      * @param length: The length of the data requested to be written
      * @return: return error code
      */
-    CSErrorCode Write(const char *buf, off_t offset, size_t length);
+    CSErrorCode Write(const char* buf, off_t offset, size_t length);
     /**
      * Read the snapshot data, according to the bitmap to determine whether to
      * read the data from the chunk file
@@ -108,7 +107,7 @@ class CSSnapshot {
      * @param length: The length of the data requested to be read
      * @return: return error code
      */
-    CSErrorCode Read(char *buf, off_t offset, size_t length);
+    CSErrorCode Read(char* buf, off_t offset, size_t length);
     /**
      * Delete snapshot files
      * @return: return error code
@@ -140,7 +139,7 @@ class CSSnapshot {
      * will be changed
      * If it fails, it will not be changed
      */
-    CSErrorCode updateMetaPage(SnapshotMetaPage *metaPage);
+    CSErrorCode updateMetaPage(SnapshotMetaPage* metaPage);
     /**
      * Load metapage into memory
      */
@@ -151,9 +150,7 @@ class CSSnapshot {
                FileNameOperator::GenerateSnapshotName(chunkId_, metaPage_.sn);
     }
 
-    uint32_t fileSize() const {
-        return metaPageSize_ + size_;
-    }
+    uint32_t fileSize() const {return metaPageSize_ + size_;}
 
     inline int readMetaPage(char* buf) {
         return lfs_->Read(fd_, buf, 0, metaPageSize_);

@@ -20,15 +20,19 @@
  * Author: yangyaokai
  */
 
-#include <endian.h>
-#include <memory>
-#include "src/chunkserver/datastore/chunkserver_datastore.h"
 #include "src/chunkserver/datastore/chunkserver_snapshot.h"
+
+#include <endian.h>
+
+#include <memory>
+
+#include "src/chunkserver/datastore/chunkserver_datastore.h"
+
 
 namespace curve {
 namespace chunkserver {
 
-void SnapshotMetaPage::encode(char *buf) {
+void SnapshotMetaPage::encode(char* buf) {
     size_t len = 0;
 
     // uint8_t version 1 byte
@@ -64,7 +68,7 @@ void SnapshotMetaPage::encode(char *buf) {
     LOG(INFO) << "calculate crc:" << crc;
 }
 
-CSErrorCode SnapshotMetaPage::decode(const char *buf) {
+CSErrorCode SnapshotMetaPage::decode(const char* buf) {
     size_t len = 0;
 
     // uint8_t version 1 byte
@@ -128,7 +132,7 @@ CSErrorCode SnapshotMetaPage::decode(const char *buf) {
     return CSErrorCode::Success;
 }
 
-SnapshotMetaPage::SnapshotMetaPage(const SnapshotMetaPage &metaPage) {
+SnapshotMetaPage::SnapshotMetaPage(const SnapshotMetaPage& metaPage) {
     version = metaPage.version;
     damaged = metaPage.damaged;
     sn = metaPage.sn;
@@ -138,7 +142,8 @@ SnapshotMetaPage::SnapshotMetaPage(const SnapshotMetaPage &metaPage) {
 }
 
 SnapshotMetaPage &
-SnapshotMetaPage::operator=(const SnapshotMetaPage &metaPage) {
+SnapshotMetaPage::operator=(
+    const SnapshotMetaPage& metaPage) {
     if (this == &metaPage)
         return *this;
     version = metaPage.version;
@@ -189,9 +194,7 @@ CSErrorCode CSSnapshot::Open(bool createFile) {
     // The existence of snapshot files may be caused by the following conditions
     // getchunk succeeded, but failed later in stat or loadmetapage,
     // when the download is opened again;
-     if (createFile
-        && !lfs_->FileExists(snapshotPath)
-        && metaPage_.sn > 0) {
+     if (createFile && !lfs_->FileExists(snapshotPath) && metaPage_.sn > 0) {
         std::unique_ptr<char[]> buf(new char[metaPageSize_]);
         memset(buf.get(), 0, metaPageSize_);
         metaPage_.encode(buf.get());
@@ -225,7 +228,7 @@ CSErrorCode CSSnapshot::Open(bool createFile) {
     return loadMetaPage();
 }
 
-CSErrorCode CSSnapshot::Read(char *buf, off_t offset, size_t length) {
+CSErrorCode CSSnapshot::Read(char* buf, off_t offset, size_t length) {
     // TODO(yyk) Do you need to compare the bit state of the offset?
     int rc = readData(buf, offset, length);
     if (rc < 0) {
@@ -253,7 +256,7 @@ std::shared_ptr<const Bitmap> CSSnapshot::GetPageStatus() const {
     return metaPage_.bitmap;
 }
 
-CSErrorCode CSSnapshot::Write(const char *buf, off_t offset, size_t length) {
+CSErrorCode CSSnapshot::Write(const char* buf, off_t offset, size_t length) {
     int rc = writeData(buf, offset, length);
     if (rc < 0) {
         LOG(ERROR) << "Write snapshot failed."
