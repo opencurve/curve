@@ -320,7 +320,7 @@ void HeartbeatIntegrationCommon::BuildBasicCluster() {
     auto topologyServiceManager = std::make_shared<TopologyServiceManager>(
         topology_, topologyStat_, nullptr, copysetManager, nullptr);
 
-    // 初始化basic集群
+    // Initialize basic cluster
     PrepareBasicCluseter();
 
     // init coordinator
@@ -341,7 +341,7 @@ void HeartbeatIntegrationCommon::BuildBasicCluster() {
     heartbeatManager_->Init();
     heartbeatManager_->Run();
 
-    // 启动心跳rpc
+    // Start heartbeat rpc
     listenAddr_ = conf_.GetStringValue("mds.listen.addr");
     heartbeatService_ =
         std::make_shared<HeartbeatServiceImpl>(heartbeatManager_);

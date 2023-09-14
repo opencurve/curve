@@ -60,37 +60,37 @@ class SegmentParser {
                 localFS_(localFS) {}
 
     /**
-     *  @brief 初始化
-     *  @param fileName segmnet文件的文件名
-     *  @return 获取成功返回0，失败返回-1
+     * @brief initialization
+     * @param fileName The file name of the segmnet file
+     * @return returns 0 if successful, -1 if unsuccessful
      */
     virtual int Init(const std::string& fileName);
 
     /**
-     *  @brief 反初始化
+     * @brief deinitialization
      */
     virtual void UnInit();
 
     /**
-     *  @brief 获取下一个EntryHeader
-     *  @param[out] header log entry header
-     *  @return 获取成功返回true，失败返回false
+     * @brief Get the next EntryHeader
+     * @param[out] header log entry header
+     * @return returns true for success, false for failure
      */
     virtual bool GetNextEntryHeader(EntryHeader* header);
 
     /**
-     *  @brief 判断读取是否成功完成
+     * @brief Determine if the read was successfully completed
      */
     virtual bool SuccessfullyFinished() {
         return off_ >= fileLen_;
     }
 
  private:
-    // 文件描述符
+    // File Descriptor
     int fd_;
-    // 下一个Entry的偏移
+    // Offset for the next Entry
     int64_t off_;
-    // 文件长度
+    // File length
     int64_t fileLen_;
 
     std::shared_ptr<LocalFileSystem> localFS_;
@@ -102,46 +102,46 @@ class RaftLogTool : public CurveTool {
                                     parser_(parser) {}
 
     /**
-     *  @brief 执行命令
-     *  @param command 要执行的命令
-     *  @return 成功返回0，失败返回-1
+     * @brief Execute command
+     * @param command The command to be executed
+     * @return returns 0 for success, -1 for failure
     */
     int RunCommand(const std::string& command) override;
 
     /**
-     *  @brief 打印帮助信息
+     * @brief Print help information
     */
     void PrintHelp(const std::string& command) override;
 
     /**
-     *  @brief 返回是否支持该命令
-     *  @param command：执行的命令
-     *  @return true / false
+     * @brief returns whether the command is supported
+     * @param command: The command executed
+     * @return true/false
      */
     static bool SupportCommand(const std::string& command);
 
  private:
     /**
-     *  @brief 打印文件中所有raft log的头部信息
-     *  @param fileName raft log文件名
-     *  @return 成功返回0，否则返回-1
+     * @brief Print the header information of all raft logs in the file
+     * @param fileName raft log file name
+     * @return successfully returns 0, otherwise returns -1
      */
     int PrintHeaders(const std::string& fileName);
 
     /**
-     *  @brief 从文件解析出entry header
-     *  @param fd 文件描述符
-     *  @param offset 文件中的偏移
-     *  @param[out] head entry头部信息，返回值为0时有效
-     *  @return 成功返回0，否则返回-1
+     * @brief Parse the entry header from the file
+     * @param fd file descriptor
+     * @param offset Offset in file
+     * @param[out] head entry header information, valid when the return value is 0
+     * @return successfully returns 0, otherwise returns -1
      */
     int ParseEntryHeader(int fd, off_t offset, EntryHeader *head);
 
     /**
-     *  @brief 从文件名解析first index
-     *  @param fileName raft log文件名
-     *  @param[out] firstIndex segment文件包含的log entry的第一个index
-     *  @return 成功返回0，否则返回-1
+     * @brief Parsing first index from file name
+     * @param fileName raft log file name
+     * @param[out] firstIndex The first index of the log entry contained in the segment file
+     * @return successfully returns 0, otherwise returns -1
      */
     int ParseFirstIndexFromFileName(const std::string& fileName,
                                     int64_t* firstIndex);

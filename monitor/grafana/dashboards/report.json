@@ -224,7 +224,7 @@
       },
       {
         "columns": [],
-        "description": "copyset数量监控指标",
+        "description": "Copyset quantity monitoring indicator",
         "fontSize": "100%",
         "gridPos": {
           "h": 8,
@@ -244,7 +244,7 @@
         },
         "styles": [
           {
-            "alias": "指标",
+            "alias": "Indicator",
             "dateFormat": "YYYY-MM-DD HH:mm:ss",
             "decimals": 2,
             "pattern": "__name__",
@@ -252,7 +252,7 @@
             "unit": "short"
           },
           {
-            "alias": "值",
+            "alias": "Value",
             "colorMode": null,
             "colors": [
               "rgba(245, 54, 54, 0.9)",
@@ -299,7 +299,7 @@
       },
       {
         "columns": [],
-        "description": "leader数量监控指标",
+        "description": "Leader quantity monitoring indicator",
         "fontSize": "100%",
         "gridPos": {
           "h": 7,
@@ -319,7 +319,7 @@
         },
         "styles": [
           {
-            "alias": "指标",
+            "alias": "Indicator",
             "colorMode": null,
             "colors": [
               "rgba(245, 54, 54, 0.9)",
@@ -335,7 +335,7 @@
             "unit": "short"
           },
           {
-            "alias": "值",
+            "alias": "Value",
             "colorMode": null,
             "colors": [
               "rgba(245, 54, 54, 0.9)",
@@ -382,7 +382,7 @@
       },
       {
         "columns": [],
-        "description": "scatterwidth指标",
+        "description": "Scatterwidth indicator",
         "fontSize": "100%",
         "gridPos": {
           "h": 7,
@@ -402,7 +402,7 @@
         },
         "styles": [
           {
-            "alias": "指标",
+            "alias": "Indicator",
             "colorMode": null,
             "dateFormat": "YYYY-MM-DD HH:mm:ss",
             "decimals": 2,
@@ -411,7 +411,7 @@
             "unit": "short"
           },
           {
-            "alias": "值",
+            "alias": "Value",
             "colorMode": null,
             "colors": [
               "rgba(245, 54, 54, 0.9)",
@@ -470,7 +470,7 @@
         "dashLength": 10,
         "dashes": false,
         "datasource": "Prometheus",
-        "description": "MDS各rpc请求的latency",
+        "description": "Latency of each RPC request in MDS",
         "fill": 1,
         "gridPos": {
           "h": 8,
@@ -559,7 +559,7 @@
         "bars": false,
         "dashLength": 10,
         "dashes": false,
-        "description": "各请求rpc的qps",
+        "description": "Qps of each request rpc",
         "fill": 1,
         "gridPos": {
           "h": 8,
@@ -834,7 +834,7 @@
         "bars": false,
         "dashLength": 10,
         "dashes": false,
-        "description": "client用户接口层统计到的每秒读取字节数",
+        "description": "The number of bytes read per second counted by the client user interface layer",
         "fill": 1,
         "gridPos": {
           "h": 8,
@@ -1095,7 +1095,7 @@
         "bars": false,
         "dashLength": 10,
         "dashes": false,
-        "description": "client用户接口层统计到的每秒写入字节数",
+        "description": "The number of bytes written per second counted by the client user interface layer",
         "fill": 1,
         "gridPos": {
           "h": 8,
@@ -1268,7 +1268,7 @@
         "dashLength": 10,
         "dashes": false,
         "datasource": "Prometheus",
-        "description": "每秒get leader的重试rpc次数",
+        "description": "Number of retry rpc attempts per second to get leader",
         "fill": 1,
         "gridPos": {
           "h": 8,
@@ -1444,7 +1444,7 @@
         "dashLength": 10,
         "dashes": false,
         "datasource": "Prometheus",
-        "description": "client单位大小的平均latency",
+        "description": "Average latency of client unit size",
         "fill": 1,
         "gridPos": {
           "h": 8,
@@ -1747,7 +1747,7 @@
         "dashLength": 10,
         "dashes": false,
         "decimals": 0,
-        "description": "chunkfilepool中剩余的chunk的数量",
+        "description": "Number of remaining chunks in chunkfilepool",
         "fill": 1,
         "gridPos": {
           "h": 8,
@@ -1839,7 +1839,7 @@
         "dashLength": 10,
         "dashes": false,
         "decimals": 0,
-        "description": "chunkserver上所有已分配的chunk的数量",
+        "description": "The number of all allocated chunks on the chunkserver",
         "fill": 1,
         "gridPos": {
           "h": 8,
@@ -1938,7 +1938,7 @@
         "dashLength": 10,
         "dashes": false,
         "datasource": "Prometheus",
-        "description": "chunk service层面每秒成功处理的write chunk个数",
+        "description": "The number of write chunks successfully processed at the chunk service level per second",
         "fill": 1,
         "gridPos": {
           "h": 7,
@@ -2032,7 +2032,7 @@
         "dashLength": 10,
         "dashes": false,
         "datasource": "Prometheus",
-        "description": "chunkserver service层面每秒成功write chunk的字节数",
+        "description": "The number of bytes per second successfully written chunks at the chunkserver service level",
         "fill": 1,
         "gridPos": {
           "h": 7,
@@ -2209,7 +2209,7 @@
         "dashLength": 10,
         "dashes": false,
         "datasource": "Prometheus",
-        "description": "chunk service层面每秒成功处理的read chunk个数",
+        "description": "The number of read chunks successfully processed at the chunk service level per second",
         "fill": 1,
         "gridPos": {
           "h": 7,
@@ -2301,7 +2301,7 @@
         "dashLength": 10,
         "dashes": false,
         "datasource": "Prometheus",
-        "description": "chunkserver service层面每秒成功read chunk的字节数",
+        "description": "The number of bytes per second that successfully read chunks at the chunkserver service level",
         "fill": 1,
         "gridPos": {
           "h": 7,
@@ -2478,7 +2478,7 @@
         "dashLength": 10,
         "dashes": false,
         "datasource": "Prometheus",
-        "description": "chunkserver read chunk 单位大小内的平均延时",
+        "description": "Average latency per chunkserver read chunk unit size",
         "fill": 1,
         "gridPos": {
           "h": 7,
@@ -2572,7 +2572,7 @@
         "dashLength": 10,
         "dashes": false,
         "datasource": "Prometheus",
-        "description": "chunkserver write chunk 单位大小内的平均延时",
+        "description": "Average latency in chunkserver write chunk unit size",
         "fill": 1,
         "gridPos": {
           "h": 7,
@@ -3023,7 +3023,7 @@
         "bars": false,
         "dashLength": 10,
         "dashes": false,
-        "description": "raft日志落盘的延时",
+        "description": "Delay in the fall of raft logs",
         "fill": 1,
         "gridPos": {
           "h": 8,
@@ -3203,7 +3203,7 @@
         "bars": false,
         "dashLength": 10,
         "dashes": false,
-        "description": "安装快照的数据流量",
+        "description": "Data traffic for installing snapshots",
         "fill": 1,
         "gridPos": {
           "h": 8,

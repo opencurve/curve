@@ -55,8 +55,8 @@ bool IOManager4File::Initialize(const std::string& filename,
         return false;
     }
 
-    // IO Manager中不控制inflight IO数量，所以传入UINT64_MAX
-    // 但是IO Manager需要控制所有inflight IO在关闭的时候都被回收掉
+    // The IO Manager does not control the number of inflight IOs, so UINT64_MAX is passed.
+    // However, the IO Manager needs to ensure that all inflight IOs are reclaimed upon shutdown.
     inflightCntl_.SetMaxInflightNum(UINT64_MAX);
 
     scheduler_ = new (std::nothrow) RequestScheduler();
@@ -128,8 +128,8 @@ void IOManager4File::UnInitialize() {
     discardTaskManager_->Stop();
 
     {
-        // 这个锁保证设置exit_和delete scheduler_是原子的
-        // 这样保证在scheduler_被析构的时候lease线程不会使用scheduler_
+        // This lock ensures that setting exit_ and deleting scheduler_ are atomic.
+        // This ensures that the lease thread won't use scheduler_ when it is being destructed.
         std::unique_lock<std::mutex> lk(exitMtx_);
         exit_ = true;
 

@@ -105,7 +105,7 @@ int ChunkServiceOp::ReadChunk(struct ChunkServiceOpConf *opConf,
     CHUNK_OP_STATUS status = response.status();
     LOG_IF(ERROR, status) << "read failed: " << CHUNK_OP_STATUS_Name(status);
 
-    // 读成功，复制内容到data
+    // Successfully read, copy content to data
     if (status == CHUNK_OP_STATUS_SUCCESS && data != nullptr) {
         cntl.response_attachment().copy_to(data,
                                            cntl.response_attachment().size());
@@ -145,7 +145,7 @@ int ChunkServiceOp::ReadChunkSnapshot(struct ChunkServiceOpConf *opConf,
     LOG_IF(ERROR, status) << "readchunksnapshot failed: "
                           << CHUNK_OP_STATUS_Name(status);
 
-    // 读成功，复制内容到data
+    // Successfully read, copy content to data
     if (status == CHUNK_OP_STATUS_SUCCESS && data != nullptr) {
         cntl.response_attachment().copy_to(data,
                                            cntl.response_attachment().size());
@@ -342,7 +342,7 @@ int ChunkServiceVerify::VerifyWriteChunk(ChunkID chunkId, SequenceNum sn,
               << ", offset=" << offset << ", len=" << len
               << ", cloneFileSource=" << cloneFileSource
               << ", cloneFileOffset=" << cloneFileOffset << ", ret=" << ret;
-    // chunk写成功，同步更新chunkData内容和existChunks_
+    // Chunk successfully written, synchronously updating chunkData content and existChunks_
     if (ret == CHUNK_OP_STATUS_SUCCESS && chunkData != nullptr)
         chunkData->replace(offset, len, data);
     existChunks_.insert(chunkId);
@@ -381,12 +381,12 @@ int ChunkServiceVerify::VerifyReadChunk(ChunkID chunkId, SequenceNum sn,
         return -1;
     }
 
-    // 读成功，则判断内容是否与chunkData吻合
+    // If read successfully, determine if the content matches chunkData
     if (ret == CHUNK_OP_STATUS_SUCCESS && chunkData != nullptr) {
-        // 查找数据有差异的位置
+        // Find locations with data differences
         uint32_t i = 0;
         while (i < len && data[i] == (*chunkData)[offset + i]) ++i;
-        // 读取数据与预期相符，返回0
+        // Read data that matches expectations, return 0
         if (i == len)
             return 0;
 
@@ -394,7 +394,7 @@ int ChunkServiceVerify::VerifyReadChunk(ChunkID chunkId, SequenceNum sn,
                    << ", from offset " << offset + i << ", read "
                    << static_cast<int>(data[i]) << ", expected "
                    << static_cast<int>((*chunkData)[offset + i]);
-        // 打印每个page的第一个字节
+        // Print the first byte of each page
         uint32_t j = i / kPageSize * kPageSize;
         for (; j < len; j += kPageSize) {
             LOG(ERROR) << "chunk offset " << offset + j << ": read "
@@ -431,12 +431,12 @@ int ChunkServiceVerify::VerifyReadChunkSnapshot(ChunkID chunkId, SequenceNum sn,
         return -1;
     }
 
-    // 读成功，则判断内容是否与chunkData吻合
+    // If read successfully, determine if the content matches chunkData
     if (ret == CHUNK_OP_STATUS_SUCCESS && chunkData != nullptr) {
-        // 查找数据有差异的位置
+        // Find locations with data differences
         int i = 0;
         while (i < len && data[i] == (*chunkData)[offset + i]) ++i;
-        // 读取数据与预期相符，返回0
+        // Read data that matches expectations, return 0
         if (i == len)
             return 0;
 
@@ -444,7 +444,7 @@ int ChunkServiceVerify::VerifyReadChunkSnapshot(ChunkID chunkId, SequenceNum sn,
                    << ", from offset " << offset + i << ", read "
                    << static_cast<int>(data[i]) << ", expected "
                    << static_cast<int>((*chunkData)[offset + i]);
-        // 打印每个4KB的第一个字节
+        // Print the first byte of each 4KB
         int j = i / kPageSize * kPageSize;
         for (; j < len; j += kPageSize) {
             LOG(ERROR) << "chunk offset " << offset + j << ": read "
@@ -518,7 +518,7 @@ int ChunkServiceVerify::VerifyGetChunkInfo(ChunkID chunkId,
     bool chunk_existed = existChunks_.find(chunkId) != std::end(existChunks_);
     switch (ret) {
     case CHUNK_OP_STATUS_SUCCESS:
-        // 如果curSn或snapSn与预期不符，则返回-1
+        // If curSn or snapSn does not match expectations, return -1
         LOG_IF(ERROR, (curSn != expCurSn || snapSn != expSnapSn))
             << "GetChunkInfo for " << chunkId << " failed, curSn=" << curSn
             << ", expected " << expCurSn << "; snapSn=" << snapSn
@@ -526,14 +526,14 @@ int ChunkServiceVerify::VerifyGetChunkInfo(ChunkID chunkId,
         return (curSn != expCurSn || snapSn != expSnapSn) ? -1 : 0;
 
     case CHUNK_OP_STATUS_CHUNK_NOTEXIST:
-        // 如果chunk预期存在，则返回-1
+        // If chunk is expected to exist, return -1
         LOG_IF(ERROR, chunk_existed)
             << "Unexpected GetChunkInfo NOTEXIST, chunk " << chunkId
             << " must be existed";
         return chunk_existed ? -1 : 0;
 
     case CHUNK_OP_STATUS_REDIRECTED:
-        // 如果返回的redirectedLeader与给定的不符，则返回-1
+        // If the redirectedLeader returned does not match the given, then -1 is returned
         LOG_IF(ERROR, expLeader != redirectedLeader)
             << "GetChunkInfo failed, redirected to " << redirectedLeader
             << ", expected " << expLeader;

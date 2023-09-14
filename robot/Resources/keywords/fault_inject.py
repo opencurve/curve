@@ -1796,7 +1796,7 @@ def test_mds_clock_offset(offset):
     inject_clock_offset(ssh,offset)
     return ssh
 
-#使用cycle会从掉电到上电有１秒钟的间隔
+# There is a 1-second interval from power down to power up when using cycle
 def test_ipmitool_restart_chunkserver():
     chunkserver_host = random.choice(config.chunkserver_reset_list)
     logger.info("|------begin test chunkserver ipmitool cycle,host %s------|"%(chunkserver_host))
@@ -1832,7 +1832,7 @@ def test_ipmitool_restart_client():
             time.sleep(5)
     assert status,"restart host %s fail"%client_host
 
-#使用reset从掉电到上电没有间隔
+# There is no interval between power-off and power-on when using reset
 def test_ipmitool_reset_chunkserver():
     chunkserver_host = random.choice(config.chunkserver_reset_list)
     logger.info("|------begin test chunkserver ipmitool reset,host %s------|"%(chunkserver_host))
@@ -2103,10 +2103,10 @@ def clean_curve_data():
 def do_thrasher(action):
     #start level1
     if type(action) is types.StringType:
-        logger.debug("开始启动故障XXXXXXXXXXXXXXXXXXX %s XXXXXXXXXXXXXXXXXXXXXXXXX"%action)
+        logger.debug("Startup FailureXXXXXXXXXXXXXXXXXXX %s XXXXXXXXXXXXXXXXXXXXXXXXX"%action)
         globals()[action]()
     else:
-        logger.debug("开始启动故障XXXXXXXXXXXXXXXXXXX %s,%s XXXXXXXXXXXXXXXXXXXXXX"%(action[0],str(action[1])))
+        logger.debug("Startup FailureXXXXXXXXXXXXXXXXXXX %s,%s XXXXXXXXXXXXXXXXXXXXXX"%(action[0],str(action[1])))
         globals()[action[0]](action[1])
 
 def start_retired_and_down_chunkservers():

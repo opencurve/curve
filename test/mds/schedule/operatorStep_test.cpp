@@ -238,7 +238,7 @@ TEST(OperatorStepTest, OperatorStepTest_ChangePeer_Test) {
         changePeer = std::make_shared<ChangePeer>(3, 4);
 
     CopySetConf copySetConf;
-    // 1. change peer还未开始
+    // 1. change peer has not yet started
     {
         ASSERT_EQ(ApplyStatus::Ordered,
             changePeer->Apply(originCopySetInfo, &copySetConf));
@@ -248,7 +248,7 @@ TEST(OperatorStepTest, OperatorStepTest_ChangePeer_Test) {
     }
 
     auto testCopySetInfo = originCopySetInfo;
-    // 2. change peer完成
+    // 2. change peer completed
     {
         auto testCopySetInfo = originCopySetInfo;
         testCopySetInfo.peers.erase(testCopySetInfo.peers.begin() + 2);
@@ -258,7 +258,7 @@ TEST(OperatorStepTest, OperatorStepTest_ChangePeer_Test) {
               changePeer->Apply(testCopySetInfo, &copySetConf));
     }
 
-    // 3. change peer失败
+    // 3. change peer failed
     {
         testCopySetInfo = originCopySetInfo;
         testCopySetInfo.candidatePeerInfo = PeerInfo(4, 1, 1, "", 9000);
@@ -278,7 +278,7 @@ TEST(OperatorStepTest, OperatorStepTest_ChangePeer_Test) {
               changePeer->Apply(testCopySetInfo, &copySetConf));
     }
 
-    // 4. 上报未完成
+    // 4. Reporting incomplete
     {
         testCopySetInfo.configChangeInfo.set_finished(false);
         testCopySetInfo.configChangeInfo.release_err();
@@ -286,7 +286,7 @@ TEST(OperatorStepTest, OperatorStepTest_ChangePeer_Test) {
               changePeer->Apply(testCopySetInfo, &copySetConf));
     }
 
-    // 5. 上报的变更类型和mds中的oprator不相符合
+    // 5. The reported change type does not match the optimizer in mds
     {
         testCopySetInfo.configChangeInfo.set_type(ConfigChangeType::ADD_PEER);
         testCopySetInfo.configChangeInfo.set_finished(true);

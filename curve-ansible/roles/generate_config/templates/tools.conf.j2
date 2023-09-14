@@ -1,4 +1,4 @@
-# mds地址
+# Mds address
 {% set mds_address=[] -%}
 {% for host in groups.mds -%}
   {% set mds_ip = hostvars[host].ansible_ssh_host -%}
@@ -8,13 +8,13 @@
 mdsAddr={{ mds_address | join(',') }}
 # mds dummy port
 mdsDummyPort={{ hostvars[groups.mds[0]].mds_dummy_port }}
-# 发送rpc的超时时间
+# Time out for sending rpc
 rpcTimeout={{ tool_rpc_timeout }}
-# rpc重试次数
+# RPC retry count
 rpcRetryTimes={{ tool_rpc_retry_times }}
 # the rpc concurrency to chunkserver
 rpcConcurrentNum={{ tool_rpc_concurrent_num }}
-# etcd地址
+# ETCD address
 {% set etcd_address=[] -%}
 {% for host in groups.etcd -%}
   {% set etcd_ip = hostvars[host].ansible_ssh_host -%}
@@ -23,7 +23,7 @@ rpcConcurrentNum={{ tool_rpc_concurrent_num }}
 {% endfor -%}
 etcdAddr={{ etcd_address | join(',') }}
 {% if groups.snapshotclone is defined and groups.snapshotclone[0] is defined %}
-# snapshot clone server 地址
+# Snapshot clone server address
 {% set snap_address=[] -%}
 {% for host in groups.snapshotclone -%}
   {% set snap_ip = hostvars[host].ansible_ssh_host -%}

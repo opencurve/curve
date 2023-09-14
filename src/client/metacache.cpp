@@ -123,7 +123,7 @@ int MetaCache::GetLeader(LogicPoolID logicPoolId,
                       << "logicpool id = " << logicPoolId
                       << ", copyset id = " << copysetId;
 
-            // 重试失败，这时候需要向mds重新拉取最新的copyset信息了
+            // The retry failed. At this point, it is necessary to retrieve the latest copyset information from mds again
             ret = UpdateCopysetInfoFromMDS(logicPoolId, copysetId);
             if (ret == 0) {
                 continue;
@@ -166,7 +166,7 @@ int MetaCache::UpdateLeaderInternal(LogicPoolID logicPoolId,
 
     ret = toupdateCopyset->UpdateLeaderInfo(leaderaddr);
 
-    // 如果更新失败，说明leader地址不在当前配置组中，从mds获取chunkserver的信息
+    // If the update fails, it indicates that the leader address is not in the current configuration group. Obtain chunkserver information from MDS
     if (ret == -1 && !leaderaddr.IsEmpty()) {
         CopysetPeerInfo<ChunkServerID> csInfo;
         ret = mdsclient_->GetChunkServerInfo(leaderaddr, &csInfo);
@@ -201,9 +201,9 @@ int MetaCache::UpdateCopysetInfoFromMDS(LogicPoolID logicPoolId,
         return -1;
     }
 
-    // 更新chunkserverid到copyset映射关系
+    // Update chunkserverid to copyset mapping relationship
     UpdateChunkserverCopysetInfo(logicPoolId, copysetInfos[0]);
-    // 更新logicpool和copysetid到copysetinfo的映射
+    // Update the mapping of logicpool and copysetid to copysetinfo
     UpdateCopysetInfo(logicPoolId, copysetId, copysetInfos[0]);
 
     return 0;
@@ -224,9 +224,9 @@ void MetaCache::UpdateCopysetInfoIfMatchCurrentLeader(
                   << ", copyset id = " << copysetId
                   << ", current leader = " << leaderAddr.ToString();
 
-        // 更新chunkserverid到copyset的映射关系
+        // Update the mapping relationship between chunkserverid and copyset
         UpdateChunkserverCopysetInfo(logicPoolId, copysetInfos[0]);
-        // 更新logicpool和copysetid到copysetinfo的映射
+        // Update the mapping of logicpool and copysetid to copysetinfo
         UpdateCopysetInfo(logicPoolId, copysetId, copysetInfos[0]);
     }
 }
@@ -315,11 +315,11 @@ void MetaCache::SetChunkserverUnstable(ChunkServerID csid) {
             ChunkServerID leaderid;
             if (cpinfo->second.GetCurrentLeaderID(&leaderid)) {
                 if (leaderid == csid) {
-                    // 只设置leaderid为当前serverid的Lcopyset
+                    // Set only the Lcopyset with leaderid as the current serverid
                     cpinfo->second.SetLeaderUnstableFlag();
                 }
             } else {
-                // 当前copyset集群信息未知，直接设置LeaderUnStable
+                // The current copyset cluster information is unknown, set LeaderUnStable directly
                 cpinfo->second.SetLeaderUnstableFlag();
             }
         }
@@ -336,13 +336,13 @@ void MetaCache::UpdateChunkserverCopysetInfo(LogicPoolID lpid,
                                  const CopysetInfo<ChunkServerID>& cpinfo) {
     ReadLockGuard rdlk(rwlock4CopysetInfo_);
     const auto key = CalcLogicPoolCopysetID(lpid, cpinfo.cpid_);
-    // 先获取原来的chunkserver到copyset映射
+    // First, obtain the original chunkserver to copyset mapping
     auto previouscpinfo = lpcsid2CopsetInfoMap_.find(key);
     if (previouscpinfo != lpcsid2CopsetInfoMap_.end()) {
         std::vector<ChunkServerID> newID;
         std::vector<ChunkServerID> changedID;
 
-        // 先判断当前copyset有没有变更chunkserverid
+        // Determine if the current copyset has changed the chunkserverid
         for (auto iter : previouscpinfo->second.csinfos_) {
             changedID.push_back(iter.peerID);
         }
@@ -357,7 +357,7 @@ void MetaCache::UpdateChunkserverCopysetInfo(LogicPoolID lpid,
             }
         }
 
-        // 删除变更的copyset信息
+        // Delete changed copyset information
         for (auto chunkserverid : changedID) {
             {
                 WriteLockGuard wrlk(rwlock4CSCopysetIDMap_);
@@ -368,7 +368,7 @@ void MetaCache::UpdateChunkserverCopysetInfo(LogicPoolID lpid,
             }
         }
 
-        // 更新新的copyset信息到chunkserver
+        // Update new copyset information to chunkserver
         for (auto chunkserverid : newID) {
             WriteLockGuard wrlk(rwlock4CSCopysetIDMap_);
             chunkserverCopysetIDMap_[chunkserverid].emplace(lpid, cpinfo.cpid_);

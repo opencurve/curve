@@ -170,7 +170,7 @@ TEST_F(MDSClientTest, Createfile) {
     ASSERT_EQ(LIBCURVE_ERROR::OK,
               globalclient->Create(filename.c_str(), userinfo, len));
 
-    // 设置rpc失败，触发重试
+    // Failed to set rpc, triggering retry
     brpc::Controller cntl;
     cntl.SetFailed(-1, "failed");
 
@@ -223,7 +223,7 @@ TEST_F(MDSClientTest, MkDir) {
               globalclient->Mkdir(dirpath.c_str(), userinfo));
 
 
-    // 设置rpc失败，触发重试
+    // Failed to set rpc, triggering retry
     brpc::Controller cntl;
     cntl.SetFailed(-1, "failed");
 
@@ -272,7 +272,7 @@ TEST_F(MDSClientTest, Closefile) {
     ret = mdsclient_.CloseFile(filename.c_str(), userinfo, "sessid");
     ASSERT_EQ(ret, LIBCURVE_ERROR::OK);
 
-    // 设置rpc失败，触发重试
+    // Failed to set rpc, triggering retry
     brpc::Controller cntl;
     cntl.SetFailed(-1, "failed");
 
@@ -411,7 +411,7 @@ TEST_F(MDSClientTest, Openfile) {
     ASSERT_EQ(LIBCURVE_ERROR::OK, Write(fd, nullptr, 0, 0));
     ASSERT_EQ(LIBCURVE_ERROR::OK, Read(fd, nullptr, 0, 0));
 
-    // 测试关闭文件
+    // Test closing file
     ::curve::mds::CloseFileResponse closeresp;
     closeresp.set_statuscode(::curve::mds::StatusCode::kOK);
 
@@ -426,7 +426,7 @@ TEST_F(MDSClientTest, Openfile) {
     ASSERT_EQ(LIBCURVE_ERROR::OK, AioWrite(fd, &aioctx));
     ASSERT_EQ(LIBCURVE_ERROR::OK, AioRead(fd, &aioctx));
 
-    // 设置rpc失败，触发重试
+    // Failed to set rpc, triggering retry
     brpc::Controller cntl;
     cntl.SetFailed(-1, "failed");
 
@@ -515,7 +515,7 @@ TEST_F(MDSClientTest, Renamefile) {
     ASSERT_EQ(-1 * LIBCURVE_ERROR::INTERNAL_ERROR,
               globalclient->Rename(userinfo, filename1, filename2));
 
-    // 设置rpc失败，触发重试
+    // Failed to set rpc, triggering retry
     brpc::Controller cntl;
     cntl.SetFailed(-1, "failed");
 
@@ -611,7 +611,7 @@ TEST_F(MDSClientTest, Extendfile) {
     ASSERT_EQ(-1 * LIBCURVE_ERROR::NO_SHRINK_BIGGER_FILE,
               globalclient->Extend(filename1, userinfo, newsize));
 
-    // 设置rpc失败，触发重试
+    // Failed to set rpc, triggering retry
     brpc::Controller cntl;
     cntl.SetFailed(-1, "failed");
 
@@ -691,14 +691,14 @@ TEST_F(MDSClientTest, Deletefile) {
     ASSERT_EQ(-1 * LIBCURVE_ERROR::INTERNAL_ERROR,
               globalclient->Unlink(filename1, userinfo));
 
-    // 设置delete force
+    //Set delete force
     fiu_init(0);
     fiu_enable("test/client/fake/fakeMDS/forceDeleteFile", 1, nullptr, 0);
     ASSERT_EQ(-1 * LIBCURVE_ERROR::NOT_SUPPORT,
               globalclient->Unlink(filename1, userinfo, true));
     fiu_disable("test/client/fake/fakeMDS/forceDeleteFile");
 
-    // 设置rpc失败，触发重试
+    // Failed to set rpc, triggering retry
     brpc::Controller cntl;
     cntl.SetFailed(-1, "failed");
 
@@ -783,7 +783,7 @@ TEST_F(MDSClientTest, Rmdir) {
     ASSERT_EQ(-1 * LIBCURVE_ERROR::INTERNAL_ERROR,
               globalclient->Rmdir(filename1, userinfo));
 
-    // 设置rpc失败，触发重试
+    // Failed to set rpc, triggering retry
     brpc::Controller cntl;
     cntl.SetFailed(-1, "failed");
 
@@ -831,7 +831,7 @@ TEST_F(MDSClientTest, StatFile) {
     ASSERT_EQ(fstat.ctime, 12345678);
     ASSERT_EQ(fstat.length, 4 * 1024 * 1024 * 1024ul);
 
-    // 设置rpc失败，触发重试
+    // Failed to set rpc, triggering retry
     brpc::Controller cntl;
     cntl.SetFailed(-1, "failed");
 
@@ -890,7 +890,7 @@ TEST_F(MDSClientTest, GetFileInfo) {
         ASSERT_EQ(finfo->segmentsize, 1 * 1024 * 1024 * 1024ul);
         ASSERT_EQ(finfo->blocksize, hasBlockSize ? blocksize : 4096);
 
-        // 设置rpc失败，触发重试
+        // Failed to set rpc, triggering retry
         brpc::Controller cntl;
         cntl.SetFailed(-1, "failed");
 
@@ -1222,7 +1222,7 @@ TEST_F(MDSClientTest, GetLeaderTest) {
 
     mc.UpdateCopysetInfo(1234, 1234, cslist);
 
-    // 测试复制组里第三个addr为leader
+    // The third addr in the test replication group is the leader
     curve::chunkserver::GetLeaderResponse2 response1;
     curve::common::Peer *peer1 = new curve::common::Peer();
     peer1->set_address(peerinfo_3.internalAddr.ToString());
@@ -1245,9 +1245,9 @@ TEST_F(MDSClientTest, GetLeaderTest) {
     butil::str2endpoint("127.0.0.1", 29122, &expected);
     EXPECT_EQ(expected, leaderep);
 
-    // 测试拉取新leader失败，需要到mds重新fetch新的serverlist
-    // 当前新leader是3，尝试再刷新leader，这个时候会从1， 2获取leader
-    // 但是这时候leader找不到了，于是就会触发向mds重新拉取最新的server list
+    // The test failed to retrieve the new leader, and a new serverlist needs to be retrieved from the mds
+    // The current new leader is 3. Try refreshing the leader again, and at this time, the leader will be obtained from 1 and 2
+    // But at this point, the leader cannot be found, so it will trigger a new pull of the latest server list from the mds
     brpc::Controller controller11;
     controller11.SetFailed(-1, "error");
     FakeReturn fakeret111(&controller11, static_cast<void *>(&response1));
@@ -1279,14 +1279,14 @@ TEST_F(MDSClientTest, GetLeaderTest) {
     cliservice2.CleanInvokeTimes();
     cliservice3.CleanInvokeTimes();
 
-    // 向当前集群中拉取leader，然后会从mds一侧获取新server list
+    // Pull the leader from the current cluster, and then obtain a new server list from the mds side
     EXPECT_EQ(0, mc.GetLeader(1234, 1234, &ckid, &leaderep, true));
 
-    // getleader请求会跳过当前leader
+    // The getleader request will skip the current leader
     EXPECT_EQ(0, cliservice3.GetInvokeTimes());
 
-    // 因为从mds获取新的copyset信息了，所以其leader信息被重置了，需要重新获取新leader
-    // 获取新新的leader，这时候会从1，2，3，4这四个server拉取新leader，并成功获取新leader
+    // Because the new copyset information was obtained from the mds, its leader information has been reset and a new leader needs to be obtained
+    // Obtain a new leader, which will be pulled from servers 1, 2, 3, and 4 and successfully obtain the new leader
     std::string leader = "10.182.26.2:29123:0";
     peer1 = new curve::common::Peer();
     peer1->set_address(leader);
@@ -1309,7 +1309,7 @@ TEST_F(MDSClientTest, GetLeaderTest) {
     cliservice3.CleanInvokeTimes();
     cliservice4.CleanInvokeTimes();
 
-    // refresh为false，所以只会从metacache中获取，不会发起rpc请求
+    // Refresh is false, so it will only be obtained from the metacache and will not initiate rpc requests
     EXPECT_EQ(0, mc.GetLeader(1234, 1234, &ckid, &leaderep, false));
     EXPECT_EQ(expected, leaderep);
     EXPECT_EQ(0, cliservice1.GetInvokeTimes());
@@ -1317,8 +1317,8 @@ TEST_F(MDSClientTest, GetLeaderTest) {
     EXPECT_EQ(0, cliservice3.GetInvokeTimes());
     EXPECT_EQ(0, cliservice4.GetInvokeTimes());
 
-    // 测试新增一个leader，该节点不在配置组内, 然后通过向mds
-    // 查询其chunkserverInfo之后, 将其成功插入metacache
+    // Add a new leader to the test, which is not in the configuration group, and then add it to the mds
+    // After querying its chunkserverInfo, successfully insert it into the metacache
     curve::common::Peer *peer7 = new curve::common::Peer();
     leader = "10.182.26.2:29124:0";
     peer7->set_address(leader);
@@ -1407,7 +1407,7 @@ TEST_F(MDSClientTest, CreateCloneFile) {
     FInfo finfo;
     curve::mds::FileInfo *info = new curve::mds::FileInfo;
 
-    // 设置rpc失败，触发重试
+    // Failed to set rpc, triggering retry
     brpc::Controller cntl;
     cntl.SetFailed(-1, "failed");
 
@@ -1424,7 +1424,7 @@ TEST_F(MDSClientTest, CreateCloneFile) {
               mdsclient_.CreateCloneFile("source", "destination", userinfo,
                                          10 * 1024 * 1024, 0, 4 * 1024 * 1024,
                                          0, 0, "default", &finfo));
-    // 认证失败
+    // Authentication failed
     curve::mds::CreateCloneFileResponse response1;
     response1.set_statuscode(::curve::mds::StatusCode::kOwnerAuthFail);
 
@@ -1437,7 +1437,7 @@ TEST_F(MDSClientTest, CreateCloneFile) {
               mdsclient_.CreateCloneFile("source", "destination", userinfo,
                                          10 * 1024 * 1024, 0, 4 * 1024 * 1024,
                                          0, 0, "default", &finfo));
-    // 请求成功
+    // Request successful
     info->set_id(5);
     curve::mds::CreateCloneFileResponse response2;
     response2.set_statuscode(::curve::mds::StatusCode::kOK);
@@ -1463,7 +1463,7 @@ TEST_F(MDSClientTest, CreateCloneFile) {
 
 TEST_F(MDSClientTest, CompleteCloneMeta) {
     std::string filename = "/1_userinfo_";
-    // 设置rpc失败，触发重试
+    // Failed to set rpc, triggering retry
     brpc::Controller cntl;
     cntl.SetFailed(-1, "failed");
 
@@ -1479,7 +1479,7 @@ TEST_F(MDSClientTest, CompleteCloneMeta) {
     ASSERT_EQ(LIBCURVE_ERROR::FAILED,
               mdsclient_.CompleteCloneMeta("destination", userinfo));
 
-    // 认证失败
+    // Authentication failed
     curve::mds::SetCloneFileStatusResponse response1;
     response1.set_statuscode(::curve::mds::StatusCode::kOwnerAuthFail);
 
@@ -1490,7 +1490,7 @@ TEST_F(MDSClientTest, CompleteCloneMeta) {
 
     ASSERT_EQ(LIBCURVE_ERROR::AUTHFAIL,
               mdsclient_.CompleteCloneMeta("destination", userinfo));
-    // 请求成功
+    // Request successful
     curve::mds::SetCloneFileStatusResponse response2;
     response2.set_statuscode(::curve::mds::StatusCode::kOK);
 
@@ -1506,7 +1506,7 @@ TEST_F(MDSClientTest, CompleteCloneMeta) {
 TEST_F(MDSClientTest, CompleteCloneFile) {
     std::string filename = "/1_userinfo_";
 
-    // 设置rpc失败，触发重试
+    // Failed to set rpc, triggering retry
     brpc::Controller cntl;
     cntl.SetFailed(-1, "failed");
 
@@ -1522,7 +1522,7 @@ TEST_F(MDSClientTest, CompleteCloneFile) {
     ASSERT_EQ(LIBCURVE_ERROR::FAILED,
               mdsclient_.CompleteCloneFile("destination", userinfo));
 
-    // 认证失败
+    // Authentication failed
     curve::mds::SetCloneFileStatusResponse response1;
     response1.set_statuscode(::curve::mds::StatusCode::kOwnerAuthFail);
 
@@ -1533,7 +1533,7 @@ TEST_F(MDSClientTest, CompleteCloneFile) {
 
     ASSERT_EQ(LIBCURVE_ERROR::AUTHFAIL,
               mdsclient_.CompleteCloneFile("destination", userinfo));
-    // 请求成功
+    // Request successful
     curve::mds::SetCloneFileStatusResponse response2;
     response2.set_statuscode(::curve::mds::StatusCode::kOK);
 
@@ -1608,7 +1608,7 @@ TEST_F(MDSClientTest, ChangeOwner) {
     ASSERT_EQ(-1 * LIBCURVE_ERROR::INTERNAL_ERROR,
               globalclient->ChangeOwner(filename1, "newowner", userinfo));
 
-    // 设置rpc失败，触发重试
+    // Failed to set rpc, triggering retry
     brpc::Controller cntl;
     cntl.SetFailed(-1, "failed");
 
@@ -1796,7 +1796,7 @@ TEST_F(MDSClientTest, ListDir) {
     ASSERT_EQ(-1 * LIBCURVE_ERROR::INTERNAL_ERROR,
               globalclient->Listdir(filename1, userinfo, &filestatVec));
 
-    // 设置rpc失败，触发重试
+    // Failed to set rpc, triggering retry
     brpc::Controller cntl;
     cntl.SetFailed(-1, "failed");
 
@@ -1859,7 +1859,7 @@ class ServiceHelperGetLeaderTest : public MDSClientTest {
     using GetLeaderResponse2 = curve::chunkserver::GetLeaderResponse2;
 
     void SetUp() override {
-        // 添加service，并启动server
+        // Add a service and start the server
         for (int i = 0; i < kChunkServerNum; ++i) {
             auto &chunkserver = chunkServers[i];
             auto &fakeCliService = fakeCliServices[i];
@@ -1886,7 +1886,7 @@ class ServiceHelperGetLeaderTest : public MDSClientTest {
             externalAddrs[i] = PeerAddr(endpoint);
         }
 
-        // 设置copyset peer信息
+        //Set copyset peer information
         for (int i = 0; i < kChunkServerNum; ++i) {
             curve::client::CopysetPeerInfo<ChunkServerID> peerinfo;
             peerinfo.peerID = i + 1;
@@ -1971,7 +1971,7 @@ class ServiceHelperGetLeaderTest : public MDSClientTest {
 };
 
 TEST_F(ServiceHelperGetLeaderTest, NormalTest) {
-    // 测试复制组里第一个chunkserver为leader
+    // Test the first chunkserver in the replication group as the leader
     GetLeaderResponse2 response = MakeResponse(internalAddrs[0]);
 
     FakeReturn fakeret0(nullptr, static_cast<void *>(&response));
@@ -1993,7 +1993,7 @@ TEST_F(ServiceHelperGetLeaderTest, NormalTest) {
 
     ResetAllFakeCliService();
 
-    // 测试第二次拉取新的leader，直接跳过第一个chunkserver，查找第2，3两个
+    // Test pulling a new leader for the second time, skip the first chunkserver directly, and search for the second and third two
     int32_t currentLeaderIndex = 0;
     curve::client::PeerAddr currentLeader = internalAddrs[currentLeaderIndex];
 
@@ -2012,7 +2012,7 @@ TEST_F(ServiceHelperGetLeaderTest, NormalTest) {
 
     ResetAllFakeCliService();
 
-    // 测试第三次获取leader，会跳过第二个chunkserver，重试1/3
+    // Testing for the third time obtaining the leader will skip the second chunkserver and retry 1/3
     currentLeaderIndex = 1;
     currentLeader = internalAddrs[currentLeaderIndex];
 
@@ -2034,13 +2034,13 @@ TEST_F(ServiceHelperGetLeaderTest, NormalTest) {
 }
 
 TEST_F(ServiceHelperGetLeaderTest, RpcDelayTest) {
-    // 设置第三个chunkserver为leader
+    //Set the third chunkserver as the leader
     const auto currentLeaderIndex = 2;
     const auto &currentLeader = internalAddrs[2];
     SetGetLeaderResponse(currentLeader);
 
-    // 再次GetLeader会向chunkserver 1/2 发送请求
-    // 在chunksever GetLeader service 中加入sleep，触发backup request
+    //GetLeader will send a request to chunkserver 1/2 again
+    // Add a sleep in the chunksever GetLeader service to trigger a backup request
     fakeCliServices[0].SetDelayMs(200);
     fakeCliServices[1].SetDelayMs(200);
 
@@ -2063,15 +2063,15 @@ TEST_F(ServiceHelperGetLeaderTest, RpcDelayAndExceptionTest) {
     std::vector<int> exceptionErrCodes{ENOENT,       EAGAIN,     EHOSTDOWN,
                                        ECONNREFUSED, ECONNRESET, brpc::ELOGOFF};
 
-    // 设置第三个chunkserver为leader，GetLeader会向chunkserver 1/2发送请求
+    //Set the third chunkserver as the leader, and GetLeader will send a request to chunkserver 1/2
     const auto currentLeaderIndex = 2;
     const auto &currentLeader = internalAddrs[currentLeaderIndex];
     SetGetLeaderResponse(currentLeader);
 
-    // 设置第一个chunkserver GetLeader service 延迟
+    //Set the delay for the first chunkserver GetLeader service
     fakeCliServices[0].SetDelayMs(200);
 
-    // 设置第二个chunkserver 返回对应的错误码
+    //Set the second chunkserver to return the corresponding error code
     for (auto errCode : exceptionErrCodes) {
         fakeCliServices[1].SetErrorCode(errCode);
         brpc::Controller controller;
@@ -2105,13 +2105,13 @@ TEST_F(ServiceHelperGetLeaderTest, AllChunkServerExceptionTest) {
     std::vector<int> exceptionErrCodes{ENOENT,       EAGAIN,     EHOSTDOWN,
                                        ECONNREFUSED, ECONNRESET, brpc::ELOGOFF};
 
-    // 设置第三个chunkserver为leader
+    //Set the third chunkserver as the leader
     const auto currentLeaderIndex = 2;
     const auto &currentLeader = internalAddrs[currentLeaderIndex];
 
     SetGetLeaderResponse(currentLeader);
 
-    // 另外两个chunkserver都返回对应的错误码
+    // The other two chunkservers both return corresponding error codes
     for (auto errCode : exceptionErrCodes) {
         fakeCliServices[0].SetErrorCode(errCode);
         fakeCliServices[1].SetErrorCode(errCode);

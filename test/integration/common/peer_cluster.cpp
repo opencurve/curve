@@ -109,7 +109,7 @@ int PeerCluster::StartPeer(const Peer &peer,
         LOG(ERROR) << "start peer fork failed";
         return -1;
     } else if (0 == pid) {
-        /* 在子进程起一个 ChunkServer */
+        /* Starting a ChunkServer in a child process */
         StartPeerNode(id, params_[paramsIndexs_[id]]);
         exit(0);
     }
@@ -120,7 +120,7 @@ int PeerCluster::StartPeer(const Peer &peer,
                                std::unique_ptr<PeerNode>>(peerId.to_string(),
                                                           std::move(peerNode)));
 
-    // 在创建copyset之前，先等chunkserver启动
+    // Before creating a copyset, wait for chunkserver to start
     ::usleep(1500 * 1000);
 
     int ret = CreateCopyset(logicPoolID_, copysetID_, peer, peers_);
@@ -258,7 +258,7 @@ int PeerCluster:: ConfirmLeader(const LogicPoolID &logicPoolId,
 int PeerCluster::WaitLeader(Peer *leaderPeer) {
     butil::Status status;
     /**
-     * 等待选举结束
+     * Waiting for the election to end
      */
     ::usleep(3 * electionTimeoutMs_ * 1000);
     const int kMaxLoop = (3 * electionTimeoutMs_) / 100;
@@ -267,8 +267,8 @@ int PeerCluster::WaitLeader(Peer *leaderPeer) {
         status = GetLeader(logicPoolID_, copysetID_, conf_, leaderPeer);
         if (status.ok()) {
             /**
-             * 由于选举之后还需要提交应用 noop entry 之后才能提供服务，
-             * 所以这里需要等待 noop apply，这里等太短，可能容易失败，后期改进
+             * Due to the need to submit the application noop entry after the election to provide services,
+             * So we need to wait for the noop application here. If the wait time is too short, it may be easy to fail, so we need to improve it later
              */
             usleep(electionTimeoutMs_ * 1000);
             LOG(INFO) << "Wait leader success, leader is: "
@@ -446,15 +446,15 @@ std::shared_ptr<LocalFileSystem> PeerCluster::fs_
     = LocalFsFactory::CreateFs(FileSystemType::EXT4, "");
 
 /**
- * 正常 I/O 验证，先写进去，再读出来验证
- * @param leaderId      主的 id
- * @param logicPoolId   逻辑池 id
- * @param copysetId 复制组 id
+ * Normal I/O verification, write it in first, then read it out for verification
+ * @param leaderId      Primary ID
+ * @param logicPoolId   Logical Pool ID
+ * @param copysetId     Copy Group ID
  * @param chunkId   chunk id
- * @param length    每次 IO 的 length
- * @param fillCh    每次 IO 填充的字符
- * @param loop      重复发起 IO 的次数
- * @param sn        本次写入的版本号
+ * @param length    The length of each IO
+ * @param fillCh    Characters filled in each IO
+ * @param loop      The number of times repeatedly initiates IO
+ * @param sn        The version number written this time
  */
 void WriteThenReadVerify(Peer leaderPeer,
                          LogicPoolID logicPoolId,
@@ -521,14 +521,14 @@ void WriteThenReadVerify(Peer leaderPeer,
 }
 
 /**
- * 正常 I/O 验证，read 数据验证
- * @param leaderId      主的 id
- * @param logicPoolId   逻辑池 id
- * @param copysetId 复制组 id
+ * Normal I/O verification, read data verification
+ * @param leaderId      Primary ID
+ * @param logicPoolId   Logical Pool ID
+ * @param copysetId Copy Group ID
  * @param chunkId   chunk id
- * @param length    每次 IO 的 length
- * @param fillCh    每次 IO 填充的字符
- * @param loop      重复发起 IO 的次数
+ * @param length    The length of each IO
+ * @param fillCh    Characters filled in each IO
+ * @param loop      The number of times repeatedly initiates IO
  */
 void ReadVerify(Peer leaderPeer,
                 LogicPoolID logicPoolId,
@@ -569,14 +569,14 @@ void ReadVerify(Peer leaderPeer,
 }
 
 /**
- * 读chunk的snapshot进行验证
- * @param leaderId      主的 id
- * @param logicPoolId   逻辑池 id
- * @param copysetId 复制组 id
+ * Verify by reading the snapshot of the chunk
+ * @param leaderId Primary ID
+ * @param logicPoolId Logical Pool ID
+ * @param copysetId Copy Group ID
  * @param chunkId   chunk id
- * @param length    每次 IO 的 length
- * @param fillCh    每次 IO 填充的字符
- * @param loop      重复发起 IO 的次数
+ * @param length    The length of each IO
+ * @param fillCh    Characters filled in each IO
+ * @param loop      The number of times repeatedly initiates IO
  */
 void ReadSnapshotVerify(Peer leaderPeer,
                         LogicPoolID logicPoolId,
@@ -592,7 +592,7 @@ void ReadSnapshotVerify(Peer leaderPeer,
 
     ChunkService_Stub stub(&channel);
 
-    // 获取chunk的快照版本
+    // Obtain the snapshot version of the chunk
     uint64_t snapSn;
     {
         brpc::Controller cntl;
@@ -639,10 +639,10 @@ void ReadSnapshotVerify(Peer leaderPeer,
 }
 
 /**
- * 删除chunk的snapshot进行验证
- * @param leaderId      主的 id
- * @param logicPoolId   逻辑池 id
- * @param copysetId     复制组 id
+ * Delete snapshot of chunk for verification
+ * @param leaderId      Primary ID
+ * @param logicPoolId   Logical Pool ID
+ * @param copysetId     Copy Group ID
  * @param chunkId       chunk id
  * @param csn           corrected sn
  */
@@ -677,14 +677,14 @@ void DeleteSnapshotVerify(Peer leaderPeer,
 }
 
 /**
- * 异常I/O验证，read数据不符合预期
- * @param leaderId      主的 id
- * @param logicPoolId   逻辑池 id
- * @param copysetId 复制组 id
+ * Abnormal I/O verification, read data does not meet expectations
+ * @param leaderId      Primary ID
+ * @param logicPoolId   Logical Pool ID
+ * @param copysetId Copy Group ID
  * @param chunkId   chunk id
- * @param length    每次 IO 的 length
- * @param fillCh    每次 IO 填充的字符
- * @param loop      重复发起 IO 的次数
+ * @param length    The length of each IO
+ * @param fillCh    Characters filled in each IO
+ * @param loop      The number of times repeatedly initiates IO
  */
 void ReadNotVerify(Peer leaderPeer,
                    LogicPoolID logicPoolId,
@@ -725,14 +725,14 @@ void ReadNotVerify(Peer leaderPeer,
 }
 
 /**
- * 通过read验证可用性
- * @param leaderId      主的 id
- * @param logicPoolId   逻辑池 id
- * @param copysetId 复制组 id
+ * Verify availability through read
+ * @param leaderId      Primary ID
+ * @param logicPoolId   Logical Pool ID
+ * @param copysetId Copy Group ID
  * @param chunkId   chunk id
- * @param length    每次 IO 的 length
- * @param fillCh    每次 IO 填充的字符
- * @param loop      重复发起 IO 的次数
+ * @param length    The length of each IO
+ * @param fillCh    Characters filled in each IO
+ * @param loop      The number of times repeatedly initiates IO
  */
 void ReadVerifyNotAvailable(Peer leaderPeer,
                             LogicPoolID logicPoolId,
@@ -770,14 +770,14 @@ void ReadVerifyNotAvailable(Peer leaderPeer,
 }
 
 /**
- * 通过write验证可用性
- * @param leaderId      主的 id
- * @param logicPoolId   逻辑池 id
- * @param copysetId 复制组 id
+ * Verify availability through write
+ * @param leaderId      Primary ID
+ * @param logicPoolId   Logical Pool ID
+ * @param copysetId Copy Group ID
  * @param chunkId   chunk id
- * @param length    每次 IO 的 length
- * @param fillCh    每次 IO 填充的字符
- * @param loop      重复发起 IO 的次数
+ * @param length    The length of each IO
+ * @param fillCh    Characters filled in each IO
+ * @param loop      The number of times repeatedly initiates IO
  */
 void WriteVerifyNotAvailable(Peer leaderPeer,
                              LogicPoolID logicPoolId,
@@ -816,10 +816,10 @@ void WriteVerifyNotAvailable(Peer leaderPeer,
 }
 
 /**
- * 验证几个副本的copyset status是否一致
- * @param peerIds: 待验证的peers
- * @param logicPoolID: 逻辑池id
- * @param copysetId: 复制组id
+ * Verify if the copyset status of several replicas is consistent
+ * @param peerIds: peers to be verified
+ * @param logicPoolID: Logical Pool ID
+ * @param copysetId: Copy group ID
  */
 void CopysetStatusVerify(const std::vector<Peer> &peers,
                          LogicPoolID logicPoolID,
@@ -847,7 +847,7 @@ void CopysetStatusVerify(const std::vector<Peer> &peers,
         ASSERT_FALSE(cntl.Failed());
         LOG(INFO) << peerId.to_string() << "'s status is: \n"
                   << response.DebugString();
-        // 多个副本的state是不一样的，因为有leader，也有follower
+        // The states of multiple replicas are different because there are leaders and followers
         response.clear_state();
         response.clear_peer();
         response.clear_firstindex();

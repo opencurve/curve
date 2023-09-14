@@ -33,57 +33,57 @@ namespace curve {
 namespace chunkserver {
 
 /**
- * Cli就是配置变更相关接口的封装，方便使用，避免直接操作RPC
+ * Cli is the encapsulation of configuration change related interfaces, which is convenient to use and avoids direct RPC operations
  */
 
-// 获取leader
+// Get the leader
 butil::Status GetLeader(const LogicPoolID &logicPoolId,
                         const CopysetID &copysetId,
                         const Configuration &conf,
                         Peer *leader);
 
-// 增加一个peer
+// Add a peer
 butil::Status AddPeer(const LogicPoolID &logicPoolId,
                       const CopysetID &copysetId,
                       const Configuration &conf,
                       const Peer &peer,
                       const braft::cli::CliOptions &options);
 
-// 移除一个peer
+// Remove a peer
 butil::Status RemovePeer(const LogicPoolID &logicPoolId,
                          const CopysetID &copysetId,
                          const Configuration &conf,
                          const Peer &peer,
                          const braft::cli::CliOptions &options);
 
-// 变更配置
+// Change configuration
 butil::Status ChangePeers(const LogicPoolID &logicPoolId,
                           const CopysetID &copysetId,
                           const Configuration &conf,
                           const Configuration &newPeers,
                           const braft::cli::CliOptions &options);
 
-// 转移leader
+// Transfer leader
 butil::Status TransferLeader(const LogicPoolID &logicPoolId,
                              const CopysetID &copysetId,
                              const Configuration &conf,
                              const Peer &peer,
                              const braft::cli::CliOptions &options);
 
-// 重置复制组
+// Reset replication group
 butil::Status ResetPeer(const LogicPoolID &logicPoolId,
                         const CopysetID &copysetId,
                         const Configuration& newPeers,
                         const Peer& requestPeer,
                         const braft::cli::CliOptions& options);
 
-// 触发快照
+// Trigger snapshot
 butil::Status Snapshot(const LogicPoolID &logicPoolId,
                        const CopysetID &copysetId,
                        const Peer& peer,
                        const braft::cli::CliOptions& options);
 
-// 给chunkserver上全部copyset副本触发快照
+// Trigger a snapshot for all copyset replicas on the chunkserver
 butil::Status SnapshotAll(const Peer& peer,
                           const braft::cli::CliOptions& options);
 

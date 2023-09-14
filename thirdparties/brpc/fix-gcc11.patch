@@ -56,17 +56,17 @@ index f8e1a491..b16d9487 100644
 +++ b/docs/cn/thread_local.md
 @@ -57,9 +57,9 @@ Use *p ...                   -  still the errno of original pthread, undefined b
  
- 严格地说这个问题不是gcc4导致的，而是glibc给__errno_location的签名不够准确，一个返回thread-local指针的函数依赖于段寄存器（TLS的一般实现方式），这怎么能算const呢？由于我们还未找到覆盖__errno_location的方法，所以这个问题目前实际的解决方法是：
+ Strictly speaking, this issue is not caused by gcc4, but rather by the inaccurate signature of __errno_location provided by glibc. A function that returns a thread-local pointer depends on the segment register (a common implementation of TLS), which can't truly be considered const. Since we haven't found a method to override __errno_location yet, the current practical solution for this issue is as follows:
  
--**务必在直接或间接使用bthread的项目的gcc编译选项中添加`-D__const__=`，即把`__const__`定义为空，避免gcc4做相关优化。**
-+**务必在直接或间接使用bthread的项目的gcc编译选项中添加`-D__const__=__unused__`，即把`__const__`定义为空，避免gcc4做相关优化。**
+-**Make sure to add `-D__const__=` to the gcc compilation options of projects that directly or indirectly use bthread, This defines `__const__`as empty, preventing gcc4 optimizations.**
++**Make sure to add `-D__const__=__unused__` to the gcc compilation options of projects that directly or indirectly use bthread, This defines `__const__`as empty, preventing gcc4 optimizations.**
  
- 把`__const__`定义为空对程序其他部分的影响几乎为0。另外如果你没有**直接**使用errno（即你的项目中没有出现errno），或使用的是gcc
--3.4，即使没有定义`-D__const__=`，程序的正确性也不会受影响，但为了防止未来可能的问题，我们强烈建议加上。
-+3.4，即使没有定义`-D__const__=__unused__`，程序的正确性也不会受影响，但为了防止未来可能的问题，我们强烈建议加上。
+ Defining `__const__`as empty has minimal impact on other parts of the program. Additionally, if you're not **directly** using errno (meaning errno doesn't appear in your project), or if you're using GCC
+-3.4，Even with GCC 3.4, the correctness of the program won't be affected even if you don't define`-D__const__=`，, but to safeguard against potential future issues, we strongly recommend adding it.
++3.4，Even with GCC 3.4, the correctness of the program won't be affected even if you don't define`-D__const__=__unused__`，, but to safeguard against potential future issues, we strongly recommend adding it.
  
--需要说明的是，和errno类似，pthread_self也有类似的问题，不过一般pthread_self除了打日志没有其他用途，影响面较小，在`-D__const__=`后pthread_self也会正常。
-+需要说明的是，和errno类似，pthread_self也有类似的问题，不过一般pthread_self除了打日志没有其他用途，影响面较小，在`-D__const__=__unused__`后pthread_self也会正常。
+-It's important to note that, similar to errno, pthread_self also faces similar issues. However, in most cases, pthread_self serves little purpose beyond logging, and its impact is minimal. After defining`-D__const__=`, pthread_self will also function correctly.
++It's important to note that, similar to errno, pthread_self also faces similar issues. However, in most cases, pthread_self serves little purpose beyond logging, and its impact is minimal. After defining`-D__const__=__unused__`, pthread_self will also function correctly.
 diff --git a/example/asynchronous_echo_c++/CMakeLists.txt b/example/asynchronous_echo_c++/CMakeLists.txt
 index 91c3953f..74414e2a 100644
 --- a/example/asynchronous_echo_c++/CMakeLists.txt

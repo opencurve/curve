@@ -270,7 +270,7 @@ class RaftConfigChangeTest : public testing::Test {
     std::map<int, int> paramsIndexs;
     std::vector<char **> params;
     int maxWaitInstallSnapshotMs;
-    // 等待多个副本数据一致的时间
+    // Waiting for multiple replica data to be consistent
     int waitMultiReplicasBecomeConsistent;
 };
 
@@ -279,11 +279,11 @@ class RaftConfigChangeTest : public testing::Test {
 butil::AtExitManager atExitManager;
 
 /**
- * 1. 3个节点正常启动
- * 2. 移除一个follower
- * 3. 重复移除上一个follower
- * 4. 再添加回来
- * 5. 重复添加回来
+ * 1. 3 nodes start normally
+ * 2. Remove a follower
+ * 3. Repeatedly remove the previous follower
+ * 4. Add it back again
+ * 5. Repeatedly add back
  */
 TEST_F(RaftConfigChangeTest, ThreeNodeBasicAddAndRemovePeer) {
     LogicPoolID logicPoolId = 2;
@@ -293,7 +293,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeBasicAddAndRemovePeer) {
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动3个成员的复制组
+    // 1. Start a replication group of 3 member
     LOG(INFO) << "start 3 chunkservers";
     PeerId leaderId;
     Peer leaderPeer;
@@ -325,7 +325,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeBasicAddAndRemovePeer) {
                         ch++,
                         loop);
 
-    // 2. 移除1个follower
+    // 2. Remove 1 follower
     LOG(INFO) << "remove 1 follower";
     std::vector<Peer> followerPeers;
     PeerCluster::GetFollwerPeers(peers, leaderPeer, &followerPeers);
@@ -348,7 +348,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeBasicAddAndRemovePeer) {
                         ch++,
                         loop);
 
-    // 3. 重复移除，验证重复移除的逻辑是否正常
+    // 3. Duplicate removal, verify if the logic of duplicate removal is normal
     butil::Status
         st2 = RemovePeer(logicPoolId, copysetId, conf, removePeer, options);
     ASSERT_TRUE(st2.ok());
@@ -361,7 +361,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeBasicAddAndRemovePeer) {
                         ch++,
                         loop);
 
-    // 4. add回来
+    // 4. Add it back
     conf.remove_peer(removePeer.address());
     butil::Status
         st3 = AddPeer(logicPoolId, copysetId, conf, removePeer, options);
@@ -375,7 +375,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeBasicAddAndRemovePeer) {
                         ch++,
                         loop);
 
-    // 5. 重复add回来，验证重复添加的逻辑是否正常
+    // 5. Repeat the add and verify if the logic added repeatedly is normal
     conf.add_peer(removePeer.address());
     butil::Status
         st4 = AddPeer(logicPoolId, copysetId, conf, removePeer, options);
@@ -389,7 +389,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeBasicAddAndRemovePeer) {
                         ch++,
                         loop);
 
-    // 验证3个副本数据一致性
+    // Verify data consistency across 3 replicas
     ::usleep(waitMultiReplicasBecomeConsistent * 1000);
     CopysetStatusVerify(peers, logicPoolId, copysetId, 3);
 }
@@ -402,7 +402,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRemoveShutdownPeer) {
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动3个成员的复制组
+    // 1. Start a replication group of 3 members
     LOG(INFO) << "start 3 chunkservers";
     PeerId leaderId;
     Peer leaderPeer;
@@ -434,7 +434,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRemoveShutdownPeer) {
                         ch++,
                         loop);
 
-    // 2. 挂掉1个follower
+    // 2. Hang up 1 follower
     LOG(INFO) << "shutdown 1 follower";
     std::vector<Peer> followerPeers;
     PeerCluster::GetFollwerPeers(peers, leaderPeer, &followerPeers);
@@ -449,7 +449,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRemoveShutdownPeer) {
                         ch++,
                         loop);
 
-    // 3. 移除此follower
+    // 3. Remove this follower
     braft::cli::CliOptions options;
     options.max_retry = 3;
     options.timeout_ms = confChangeTimeoutMs;
@@ -466,18 +466,18 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRemoveShutdownPeer) {
                         ch++,
                         loop);
 
-    // 4. 拉起follower
+    // 4. Pull up the follower
     LOG(INFO) << "restart shutdown follower";
     ASSERT_EQ(0, cluster.StartPeer(shutdownPeer,
                                    PeerCluster::PeerToId(shutdownPeer)));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
 
-    // 5. add回来
+    // 5. Add it back
     conf.remove_peer(shutdownPeer.address());
     butil::Status
         st2 = AddPeer(logicPoolId, copysetId, conf, shutdownPeer, options);
     ASSERT_TRUE(st2.ok()) << st2.error_str();
-    // read之前写入的数据验证
+    // Verification of data written before read
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,
@@ -494,7 +494,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRemoveShutdownPeer) {
                         ch ++,
                         loop);
 
-    // 验证3个副本数据一致性
+    // Verify data consistency across 3 replicas
     ::usleep(1.3 * waitMultiReplicasBecomeConsistent * 1000);
     CopysetStatusVerify(peers, logicPoolId, copysetId, 2);
 }
@@ -507,7 +507,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRemoveHangPeer) {
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动3个成员的复制组
+    // 1. Start a replication group of 3 members
     LOG(INFO) << "start 3 chunkservers";
     PeerId leaderId;
     Peer leaderPeer;
@@ -539,7 +539,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRemoveHangPeer) {
                         ch++,
                         loop);
 
-    // 2. hang 1个follower
+    // 2. Hang 1 follower
     LOG(INFO) << "shutdown 1 follower";
     std::vector<Peer> followerPeers;
     PeerCluster::GetFollwerPeers(peers, leaderPeer, &followerPeers);
@@ -554,7 +554,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRemoveHangPeer) {
                         ch++,
                         loop);
 
-    // 3. 移除此follower
+    // 3. Remove this follower
     braft::cli::CliOptions options;
     options.max_retry = 3;
     options.timeout_ms = confChangeTimeoutMs;
@@ -571,16 +571,16 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRemoveHangPeer) {
                         ch++,
                         loop);
 
-    // 4. 恢复follower
+    // 4. Restore follower
     LOG(INFO) << "recover hang follower";
     ASSERT_EQ(0, cluster.SignalPeer(shutdownPeer));
 
-    // 5. add回来
+    // 5. Add it back
     conf.remove_peer(shutdownPeer.address());
     butil::Status
         st2 = AddPeer(logicPoolId, copysetId, conf, shutdownPeer, options);
     ASSERT_TRUE(st2.ok());
-    // read之前写入的数据验证
+    // Verification of data written before read
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,
@@ -597,15 +597,15 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRemoveHangPeer) {
                         ch ++,
                         loop);
 
-    // 验证3个副本数据一致性
+    // Verify data consistency across 3 replicas
     ::usleep(waitMultiReplicasBecomeConsistent * 1000);
     CopysetStatusVerify(peers, logicPoolId, copysetId, 2);
 }
 
 /**
- * 1. 3个节点正常启动
- * 2. 移除leader
- * 3. 再将old leader添加回来
+ * 1. 3 nodes start normally
+ * 2. Remove leader
+ * 3. Add the old leader back again
  */
 TEST_F(RaftConfigChangeTest, ThreeNodeRemoveLeader) {
     LogicPoolID logicPoolId = 2;
@@ -615,7 +615,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRemoveLeader) {
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动3个成员的复制组
+    // 1. Start a replication group of 3 members
     LOG(INFO) << "start 3 chunkservers";
     PeerId leaderId;
     Peer leaderPeer;
@@ -646,7 +646,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRemoveLeader) {
                         ch++,
                         loop);
 
-    // 2. 移除leader
+    // 2. Remove leader
     LOG(INFO) << "remove leader";
     braft::cli::CliOptions options;
     options.max_retry = 3;
@@ -677,7 +677,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRemoveLeader) {
                         ch++,
                         loop);
 
-    // 3. add回来
+    // 3. Add it back
     conf.remove_peer(oldLeader.address());
     butil::Status
         st3 = AddPeer(logicPoolId, copysetId, conf, oldLeader, options);
@@ -695,16 +695,16 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRemoveLeader) {
                         ch++,
                         loop);
 
-    // 验证3个副本数据一致性
+    // Verify data consistency across 3 replicas
     ::usleep(waitMultiReplicasBecomeConsistent * 1000);
     CopysetStatusVerify(peers, logicPoolId, copysetId, 3);
 }
 
 /**
- * 1. 3个节点正常启动
- * 2. 挂一个follower
- * 3. 再将leader移除掉
- * 4. follower拉起来
+ * 1. 3 nodes start normally
+ * 2. Hang a follower
+ * 3. Remove the leader again
+ * 4. pull it up follower
  */
 TEST_F(RaftConfigChangeTest, ThreeNodeShutdownPeerThenRemoveLeader) {
     LogicPoolID logicPoolId = 2;
@@ -714,7 +714,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeShutdownPeerThenRemoveLeader) {
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动3个成员的复制组
+    // 1. Start a replication group of 3 members
     LOG(INFO) << "start 3 chunkservers";
     PeerId leaderId;
     Peer leaderPeer;
@@ -746,7 +746,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeShutdownPeerThenRemoveLeader) {
                         ch++,
                         loop);
 
-    // 2. 挂掉1个follower
+    // 2. Hang up 1 follower
     LOG(INFO) << "shutdown 1 follower";
     std::vector<Peer> followerPeers;
     PeerCluster::GetFollwerPeers(peers, leaderPeer, &followerPeers);
@@ -761,7 +761,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeShutdownPeerThenRemoveLeader) {
                         ch++,
                         loop);
 
-    // 3. 移除leader
+    // 3. Remove leader
     LOG(INFO) << "remove leader: " << leaderPeer.address();
     braft::cli::CliOptions options;
     options.max_retry = 3;
@@ -771,10 +771,10 @@ TEST_F(RaftConfigChangeTest, ThreeNodeShutdownPeerThenRemoveLeader) {
         st1 = RemovePeer(logicPoolId, copysetId, conf, leaderPeer, options);
     Peer oldLeader = leaderPeer;
     /**
-     * 一般能够移除成功，但是因为一个follower已经down了，那么
-     * leader会自动进行check term，会发现已经有大多数的follower
-     * 已经失联，此时leader会主动step down，所以的request会提前
-     * 返回失败，所以下面的断言会失败，但是移除本身会成功
+     * Removal is generally successful, but if one follower has already gone down,
+     * the leader will automatically perform a term check and discover that
+     * the majority of followers are no longer connected. At this point, the leader will proactively step down, causing all requests to return as failures prematurely.
+     * Therefore, the assertions below may fail, but the removal itself will be successful.
      */
 //    ASSERT_TRUE(st1.ok());
     ReadVerifyNotAvailable(leaderPeer,
@@ -786,14 +786,14 @@ TEST_F(RaftConfigChangeTest, ThreeNodeShutdownPeerThenRemoveLeader) {
                            1);
 
     ::usleep(1000 * electionTimeoutMs * 2);
-    // 4. 拉起follower
+    // 4. Pull up the follower
     LOG(INFO) << "restart shutdown follower";
     ASSERT_EQ(0, cluster.StartPeer(shutdownPeer,
                                    PeerCluster::PeerToId(shutdownPeer)));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
 
-    // read之前写入的数据验证
+    // Verification of data written before read
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,
@@ -810,7 +810,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeShutdownPeerThenRemoveLeader) {
                         ch ++,
                         loop);
 
-    // leader已经移除，所以只用验证2个副本数据一致性
+    // The leader has been removed, so only the consistency of the data for two replicas is verified
     ::usleep(waitMultiReplicasBecomeConsistent * 1000);
     std::vector<Peer> newPeers;
     for (Peer peer : peers) {
@@ -822,10 +822,10 @@ TEST_F(RaftConfigChangeTest, ThreeNodeShutdownPeerThenRemoveLeader) {
 }
 
 /**
- * 1. 3个节点正常启动
- * 2. hang一个follower
- * 3. 再将leader移除掉
- * 4. follower拉起来
+ * 1. 3 nodes start normally
+ * 2. Hang a follower
+ * 3. Remove the leader again
+ * 4. pull up follower
  */
 TEST_F(RaftConfigChangeTest, ThreeNodeHangPeerThenRemoveLeader) {
     LogicPoolID logicPoolId = 2;
@@ -835,7 +835,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeHangPeerThenRemoveLeader) {
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动3个成员的复制组
+    // 1. Start a replication group of 3 members
     LOG(INFO) << "start 3 chunkservers";
     PeerId leaderId;
     Peer leaderPeer;
@@ -867,7 +867,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeHangPeerThenRemoveLeader) {
                         ch++,
                         loop);
 
-    // 2. hang1个follower
+    // 2. Hang 1 follower
     LOG(INFO) << "shutdown 1 follower";
     std::vector<Peer> followerPeers;
     PeerCluster::GetFollwerPeers(peers, leaderPeer, &followerPeers);
@@ -882,7 +882,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeHangPeerThenRemoveLeader) {
                         ch++,
                         loop);
 
-    // 3. 移除leader
+    // 3. Remove leader
     LOG(INFO) << "remove leader: " << leaderPeer.address();
     braft::cli::CliOptions options;
     options.max_retry = 3;
@@ -892,10 +892,10 @@ TEST_F(RaftConfigChangeTest, ThreeNodeHangPeerThenRemoveLeader) {
         st1 = RemovePeer(logicPoolId, copysetId, conf, leaderPeer, options);
     Peer oldLeader = leaderPeer;
     /**
-     * 一般能够移除成功，但是因为一个follower已经down了，那么
-     * leader会自动进行check term，会发现已经有大多数的follower
-     * 已经失联，此时leader会主动step down，所以的request会提前
-     * 返回失败，所以下面的断言会失败，但是移除本身会成功
+     * Removal is generally successful, but if one follower has already gone down,
+     * the leader will automatically perform a term check and discover that
+     * the majority of followers are no longer connected. At this point, the leader will proactively step down, causing all requests to return as failures prematurely.
+     * Therefore, the assertions below may fail, but the removal itself will be successful.
      */
 //    ASSERT_TRUE(st1.ok());
     ReadVerifyNotAvailable(leaderPeer,
@@ -907,13 +907,13 @@ TEST_F(RaftConfigChangeTest, ThreeNodeHangPeerThenRemoveLeader) {
                            1);
 
     ::usleep(1000 * electionTimeoutMs * 2);
-    // 4. 拉起follower
+    // 4. Pull up the follower
     LOG(INFO) << "restart shutdown follower";
     ASSERT_EQ(0, cluster.SignalPeer(hangPeer));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
 
-    // read之前写入的数据验证
+    // Verification of data written before read
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,
@@ -930,7 +930,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeHangPeerThenRemoveLeader) {
                         ch ++,
                         loop);
 
-    // leader已经移除，所以验证2个副本数据一致性
+    // The leader has been removed, so verify the data consistency of the two replicas
     ::usleep(waitMultiReplicasBecomeConsistent * 1000);
     std::vector<Peer> newPeers;
     for (Peer peer : peers) {
@@ -942,9 +942,9 @@ TEST_F(RaftConfigChangeTest, ThreeNodeHangPeerThenRemoveLeader) {
 }
 
 /**
- * 1. {A、B、C} 3个节点正常启动，假设A是leader
- * 2. 挂掉B，transfer leader给B
- * 3. 拉起B，transfer leader给B
+ * 1. {A, B, C} three nodes start normally, assuming A is the leader
+ * 2. Hang up B, transfer leader to B
+ * 3. Pull up B, transfer leader to B
  */
 TEST_F(RaftConfigChangeTest, ThreeNodeShutdownPeerThenTransferLeaderTo) {
     LogicPoolID logicPoolId = 2;
@@ -954,7 +954,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeShutdownPeerThenTransferLeaderTo) {
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动3个成员的复制组
+    // 1. Start a replication group of 3 members
     LOG(INFO) << "start 3 chunkservers";
     PeerId leaderId;
     Peer leaderPeer;
@@ -986,7 +986,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeShutdownPeerThenTransferLeaderTo) {
                         ch++,
                         loop);
 
-    // 2. 挂掉1个follower
+    // 2. Hang up 1 follower
     LOG(INFO) << "shutdown 1 follower";
     std::vector<Peer> followerPeers;
     PeerCluster::GetFollwerPeers(peers, leaderPeer, &followerPeers);
@@ -1021,7 +1021,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeShutdownPeerThenTransferLeaderTo) {
     ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
     ASSERT_STRNE(shutdownPeer.address().c_str(), leaderId.to_string().c_str());
 
-    // 4. 拉起follower，然后再把leader transfer过去
+    // 4. Pull up the follower and then transfer the leader over
     LOG(INFO) << "restart shutdown follower";
     ASSERT_EQ(0, cluster.StartPeer(shutdownPeer,
                                    PeerCluster::PeerToId(shutdownPeer)));
@@ -1050,7 +1050,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeShutdownPeerThenTransferLeaderTo) {
 
     ASSERT_STREQ(shutdownPeer.address().c_str(), leaderPeer.address().c_str());
 
-    // read之前写入的数据验证
+    // Verification of data written before read
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,
@@ -1067,15 +1067,15 @@ TEST_F(RaftConfigChangeTest, ThreeNodeShutdownPeerThenTransferLeaderTo) {
                         ch ++,
                         loop);
 
-    // 验证3个副本数据一致性
+    // Verify data consistency across 3 replicas
     ::usleep(waitMultiReplicasBecomeConsistent * 1000);
     CopysetStatusVerify(peers, logicPoolId, copysetId, 2);
 }
 
 /**
- * 1. {A、B、C} 3个节点正常启动，假设A是leader
- * 2. hang B，transfer leader给B
- * 3. 恢复 B，transfer leader给B
+ * 1. {A, B, C} three nodes start normally, assuming A is the leader
+ * 2. Hang B, transfer leader to B
+ * 3. Restore B, transfer leader to B
  */
 TEST_F(RaftConfigChangeTest, ThreeNodeHangPeerThenTransferLeaderTo) {
     LogicPoolID logicPoolId = 2;
@@ -1085,7 +1085,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeHangPeerThenTransferLeaderTo) {
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动3个成员的复制组
+    // 1. Start a replication group of 3 members
     LOG(INFO) << "start 3 chunkservers";
     PeerId leaderId;
     Peer leaderPeer;
@@ -1117,7 +1117,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeHangPeerThenTransferLeaderTo) {
                         ch++,
                         loop);
 
-    // 2. hang1个follower
+    // 2. Hang 1 follower
     LOG(INFO) << "shutdown 1 follower";
     std::vector<Peer> followerPeers;
     PeerCluster::GetFollwerPeers(peers, leaderPeer, &followerPeers);
@@ -1145,7 +1145,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeHangPeerThenTransferLeaderTo) {
     ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
     ASSERT_STRNE(hangPeer.address().c_str(), leaderId.to_string().c_str());
 
-    // 4. 恢复follower，然后再把leader transfer过去
+    // 4. Restore the follower and then transfer the leader
     LOG(INFO) << "restart shutdown follower";
     ASSERT_EQ(0, cluster.SignalPeer(hangPeer));
 
@@ -1173,7 +1173,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeHangPeerThenTransferLeaderTo) {
 
     ASSERT_STREQ(hangPeer.address().c_str(), leaderPeer.address().c_str());
 
-    // read之前写入的数据验证
+    // Verification of data written before read
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,
@@ -1190,17 +1190,17 @@ TEST_F(RaftConfigChangeTest, ThreeNodeHangPeerThenTransferLeaderTo) {
                         ch ++,
                         loop);
 
-    // 验证3个副本数据一致性
+    // Verify data consistency across 3 replicas
     ::usleep(waitMultiReplicasBecomeConsistent * 1000);
     CopysetStatusVerify(peers, logicPoolId, copysetId, 2);
 }
 
 /**
  *
- * 1. {A、B、C} 3个节点正常启
- * 2. 挂掉一个follower
- * 3. 起一个节点D，Add D（需要额外确保通过snapshot恢复）
- * 4. remove挂掉的follower
+ * 1. {A, B, C} three nodes start normally
+ * 2. Hang up a follower
+ * 3. Start a node D, Add D (additional ensure recovery through snapshot)
+ * 4. Remove the failed follower
  */
 TEST_F(RaftConfigChangeTest, ThreeNodeShutdownPeerAndThenAddNewFollowerFromInstallSnapshot) {   // NOLINT
     LogicPoolID logicPoolId = 2;
@@ -1210,7 +1210,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeShutdownPeerAndThenAddNewFollowerFromInsta
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动3个成员的复制组
+    // 1. Start a replication group of 3 members
     LOG(INFO) << "start 3 chunkservers";
     PeerId leaderId;
     Peer leaderPeer;
@@ -1242,7 +1242,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeShutdownPeerAndThenAddNewFollowerFromInsta
                         ch++,
                         loop);
 
-    // 2. 挂掉1个follower
+    // 2. Hang up 1 follower
     LOG(INFO) << "shutdown 1 follower";
     std::vector<Peer> followerPeers;
     PeerCluster::GetFollwerPeers(peers, leaderPeer, &followerPeers);
@@ -1257,10 +1257,10 @@ TEST_F(RaftConfigChangeTest, ThreeNodeShutdownPeerAndThenAddNewFollowerFromInsta
                         ch++,
                         loop);
 
-    // wait snapshot, 通过打两次快照确保后面的恢复必须走安装快照
+    // Wait snapshot, ensuring that subsequent restores must follow the installation snapshot by taking two snapshots
     LOG(INFO) << "wait snapshot 1";
     ::sleep(2 * snapshotIntervalS);
-    // 再次发起 read/write
+    // Initiate read/write again
     WriteThenReadVerify(leaderPeer,
                         logicPoolId,
                         copysetId,
@@ -1270,7 +1270,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeShutdownPeerAndThenAddNewFollowerFromInsta
                         loop);
     LOG(INFO) << "wait snapshot 2";
     ::sleep(2 * snapshotIntervalS);
-    // 再次发起 read/write
+    // Initiate read/write again
     WriteThenReadVerify(leaderPeer,
                         logicPoolId,
                         copysetId,
@@ -1279,7 +1279,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeShutdownPeerAndThenAddNewFollowerFromInsta
                         ch ++,
                         loop);
 
-    // 3. 拉起peer4
+    // 3. Pull up peer4
     ASSERT_EQ(0, cluster.StartPeer(peer4,
                                    PeerCluster::PeerToId(peer4)));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
@@ -1291,7 +1291,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeShutdownPeerAndThenAddNewFollowerFromInsta
     butil::Status st = AddPeer(logicPoolId, copysetId, conf, peer4, options);
     ASSERT_TRUE(st.ok()) << st.error_str();
 
-    // read之前写入的数据验证
+    // Verification of data written before read
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,
@@ -1324,10 +1324,10 @@ TEST_F(RaftConfigChangeTest, ThreeNodeShutdownPeerAndThenAddNewFollowerFromInsta
 
 /**
  *
- * 1. {A、B、C} 3个节点正常启
- * 2. hang一个follower
- * 3. 起一个节点D，Add D（需要额外确保通过snapshot恢复）
- * 4. remove挂掉的follower
+ * 1. {A, B, C} three nodes start normally
+ * 2. Hang a follower
+ * 3. Start a node D, Add D (additional ensure recovery through snapshot)
+ * 4. Remove the failed follower
  */
 TEST_F(RaftConfigChangeTest, ThreeNodeHangPeerAndThenAddNewFollowerFromInstallSnapshot) {   // NOLINT
     LogicPoolID logicPoolId = 2;
@@ -1337,7 +1337,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeHangPeerAndThenAddNewFollowerFromInstallSn
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动3个成员的复制组
+    // 1. Start a replication group of 3 members
     LOG(INFO) << "start 3 chunkservers";
     PeerId leaderId;
     Peer leaderPeer;
@@ -1369,7 +1369,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeHangPeerAndThenAddNewFollowerFromInstallSn
                         ch++,
                         loop);
 
-    // 2. 挂掉1个follower
+    // 2. Hang up 1 follower
     LOG(INFO) << "shutdown 1 follower";
     std::vector<Peer> followerPeers;
     PeerCluster::GetFollwerPeers(peers, leaderPeer, &followerPeers);
@@ -1384,10 +1384,10 @@ TEST_F(RaftConfigChangeTest, ThreeNodeHangPeerAndThenAddNewFollowerFromInstallSn
                         ch++,
                         loop);
 
-    // wait snapshot, 保证能够触发安装快照
+    // Wait snapshot to ensure that the installation snapshot can be triggered
     LOG(INFO) << "wait snapshot 1";
     ::sleep(2 * snapshotIntervalS);
-    // 再次发起 read/write
+    // Initiate read/write again
     WriteThenReadVerify(leaderPeer,
                         logicPoolId,
                         copysetId,
@@ -1397,7 +1397,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeHangPeerAndThenAddNewFollowerFromInstallSn
                         loop);
     LOG(INFO) << "wait snapshot 2";
     ::sleep(2 * snapshotIntervalS);
-    // 再次发起 read/write
+    // Initiate read/write again
     WriteThenReadVerify(leaderPeer,
                         logicPoolId,
                         copysetId,
@@ -1406,7 +1406,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeHangPeerAndThenAddNewFollowerFromInstallSn
                         ch ++,
                         loop);
 
-    // 3. 拉起peer4
+    // 3. Pull up peer4
     ASSERT_EQ(0, cluster.StartPeer(peer4,
                                    PeerCluster::PeerToId(peer4)));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
@@ -1419,7 +1419,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeHangPeerAndThenAddNewFollowerFromInstallSn
     butil::Status st = AddPeer(logicPoolId, copysetId, conf, peer4, options);
     ASSERT_TRUE(st.ok());
 
-    // read之前写入的数据验证
+    // Verification of data written before read
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,
@@ -1451,9 +1451,9 @@ TEST_F(RaftConfigChangeTest, ThreeNodeHangPeerAndThenAddNewFollowerFromInstallSn
 }
 
 /**
- * 1. {A、B、C} 3个节点正常启
- * 2. 挂了follower，并删除其所有raft log和数据
- * 3. 重启follower，follower能够通过数据恢复最终追上leader
+ * 1. {A, B, C} three nodes start normally
+ * 2. Hang up the follower and delete all its raft logs and data
+ * 3. Restart the follower, and the follower can eventually catch up with the leader through data recovery
  */
 TEST_F(RaftConfigChangeTest, ThreeNodeRemoveDataAndThenRecoverFromInstallSnapshot) {    // NOLINT
     LogicPoolID logicPoolId = 2;
@@ -1463,7 +1463,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRemoveDataAndThenRecoverFromInstallSnapsho
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动3个成员的复制组
+    // 1. Start a replication group of 3 members
     LOG(INFO) << "start 3 chunkservers";
     PeerId leaderId;
     Peer leaderPeer;
@@ -1495,7 +1495,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRemoveDataAndThenRecoverFromInstallSnapsho
                         ch++,
                         loop);
 
-    // 2. 挂掉1个follower
+    // 2. Hang up 1 follower
     LOG(INFO) << "shutdown 1 follower";
     std::vector<Peer> followerPeers;
     PeerCluster::GetFollwerPeers(peers, leaderPeer, &followerPeers);
@@ -1510,7 +1510,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRemoveDataAndThenRecoverFromInstallSnapsho
                         ch++,
                         loop);
 
-    // 删除此peer的数据，然后重启
+    // Delete the data for this peer and restart it
     ASSERT_EQ(0,
               ::system(PeerCluster::RemoveCopysetDirCmd(shutdownPeer).c_str()));
     std::shared_ptr<LocalFileSystem>
@@ -1518,10 +1518,10 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRemoveDataAndThenRecoverFromInstallSnapsho
     ASSERT_FALSE(fs->DirExists(PeerCluster::CopysetDirWithoutProtocol(
         shutdownPeer)));
 
-    // wait snapshot, 保证能够触发安装快照
+    // Wait snapshot to ensure that the installation snapshot can be triggered
     LOG(INFO) << "wait snapshot 1";
     ::sleep(2 * snapshotIntervalS);
-    // 再次发起 read/write
+    // Initiate read/write again
     WriteThenReadVerify(leaderPeer,
                         logicPoolId,
                         copysetId,
@@ -1531,7 +1531,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRemoveDataAndThenRecoverFromInstallSnapsho
                         loop);
     LOG(INFO) << "wait snapshot 2";
     ::sleep(2 * snapshotIntervalS);
-    // 再次发起 read/write
+    // Initiate read/write again
     WriteThenReadVerify(leaderPeer,
                         logicPoolId,
                         copysetId,
@@ -1540,13 +1540,13 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRemoveDataAndThenRecoverFromInstallSnapsho
                         ch ++,
                         loop);
 
-    // 3. 拉起follower
+    // 3. Pull up the follower
     LOG(INFO) << "restart shutdown follower";
     ASSERT_EQ(0, cluster.StartPeer(shutdownPeer,
                                    PeerCluster::PeerToId(shutdownPeer)));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
 
-    // read之前写入的数据验证
+    // Verification of data written before read
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,
@@ -1568,9 +1568,9 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRemoveDataAndThenRecoverFromInstallSnapsho
 }
 
 /**
- * 1. {A、B、C} 3个节点正常启
- * 2. 挂了follower，并删除其所有raft log
- * 3. 重启follower
+ * 1. {A, B, C} three nodes start normally
+ * 2. Hang up the follower and delete all its raft logs
+ * 3. Restart follower
  */
 TEST_F(RaftConfigChangeTest, ThreeNodeRemoveRaftLogAndThenRecoverFromInstallSnapshot) {    // NOLINT
     LogicPoolID logicPoolId = 2;
@@ -1580,7 +1580,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRemoveRaftLogAndThenRecoverFromInstallSnap
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动3个成员的复制组
+    // 1. Start a replication group of 3 members
     LOG(INFO) << "start 3 chunkservers";
     PeerId leaderId;
     Peer leaderPeer;
@@ -1612,7 +1612,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRemoveRaftLogAndThenRecoverFromInstallSnap
                         ch++,
                         loop);
 
-    // 2. 挂掉1个follower
+    // 2. Hang up 1 follower
     LOG(INFO) << "shutdown 1 follower";
     std::vector<Peer> followerPeers;
     PeerCluster::GetFollwerPeers(peers, leaderPeer, &followerPeers);
@@ -1627,7 +1627,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRemoveRaftLogAndThenRecoverFromInstallSnap
                         ch++,
                         loop);
 
-    // 删除此peer的log，然后重启
+    // Delete the log of this peer and restart it
     ::system(PeerCluster::RemoveCopysetLogDirCmd(shutdownPeer,
                                                  logicPoolId,
                                                  copysetId).c_str());
@@ -1637,10 +1637,10 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRemoveRaftLogAndThenRecoverFromInstallSnap
                                                                    logicPoolId,
                                                                    copysetId)));
 
-    // wait snapshot, 保证能够触发安装快照
+    // Wait snapshot to ensure that the installation snapshot can be triggered
     LOG(INFO) << "wait snapshot 1";
     ::sleep(2 * snapshotIntervalS);
-    // 再次发起 read/write
+    // Initiate read/write again
     WriteThenReadVerify(leaderPeer,
                         logicPoolId,
                         copysetId,
@@ -1650,7 +1650,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRemoveRaftLogAndThenRecoverFromInstallSnap
                         loop);
     LOG(INFO) << "wait snapshot 2";
     ::sleep(2 * snapshotIntervalS);
-    // 再次发起 read/write
+    // Initiate read/write again
     WriteThenReadVerify(leaderPeer,
                         logicPoolId,
                         copysetId,
@@ -1659,13 +1659,13 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRemoveRaftLogAndThenRecoverFromInstallSnap
                         ch ++,
                         loop);
 
-    // 3. 拉起follower
+    // 3. Pull up the follower
     LOG(INFO) << "restart shutdown follower";
     ASSERT_EQ(0, cluster.StartPeer(shutdownPeer,
                                    PeerCluster::PeerToId(shutdownPeer)));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
 
-    // read之前写入的数据验证
+    // Verification of data written before read
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,
@@ -1687,11 +1687,11 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRemoveRaftLogAndThenRecoverFromInstallSnap
 }
 
 /**
- * 1. {A、B、C} 3个节点正常启动
- * 2. 挂了follower
- * 3. 重启恢复follower（需要额外确保通过snapshot恢复），恢复过程中挂掉leader
- *    本次install snapshot失败，但是new leader会被选出来，new leader继续给
- *    follower恢复数据，最终follower数据追上leader并一致
+ * 1. {A, B, C} 3 nodes start normally
+ * 2. Hang up the follower
+ * 3. Restart to recover the follower (additional assurance is required to recover through snapshot), and hang the leader during the recovery process
+ *    The install snapshot failed this time, but the new leader will be selected and will continue to provide
+ *    The follower recovers data, and ultimately the follower data catches up with the leader and is consistent
  */
 TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButLeaderShutdown) {    // NOLINT
     LogicPoolID logicPoolId = 2;
@@ -1701,7 +1701,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButLeade
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动3个成员的复制组
+    // 1. Start a replication group of 3 members
     LOG(INFO) << "start 3 chunkservers";
     PeerId leaderId;
     Peer leaderPeer;
@@ -1733,7 +1733,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButLeade
                         ch++,
                         loop);
 
-    // 2. 挂掉1个follower
+    // 2. Hang up 1 follower
     LOG(INFO) << "shutdown 1 follower";
     std::vector<Peer> followerPeers;
     PeerCluster::GetFollwerPeers(peers, leaderPeer, &followerPeers);
@@ -1748,10 +1748,10 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButLeade
                         ch++,
                         loop);
 
-    // wait snapshot, 保证能够触发安装快照
+    // Wait snapshot to ensure that the installation snapshot can be triggered
     LOG(INFO) << "wait snapshot 1";
     ::sleep(2 * snapshotIntervalS);
-    // 再次发起 read/write
+    // Initiate read/write again
     WriteThenReadVerify(leaderPeer,
                         logicPoolId,
                         copysetId,
@@ -1761,7 +1761,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButLeade
                         loop);
     LOG(INFO) << "wait snapshot 2";
     ::sleep(2 * snapshotIntervalS);
-    // 再次发起 read/write
+    // Initiate read/write again
     WriteThenReadVerify(leaderPeer,
                         logicPoolId,
                         copysetId,
@@ -1770,13 +1770,13 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButLeade
                         ch ++,
                         loop);
 
-    // 3. 拉起follower
+    // 3. Pull up the follower
     LOG(INFO) << "restart shutdown follower";
     ASSERT_EQ(0, cluster.StartPeer(shutdownPeer,
                                    PeerCluster::PeerToId(shutdownPeer)));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
 
-    // 4. 随机睡眠一段时间后，挂掉leader，模拟install snapshot的时候leader挂掉
+    // 4. After a period of random sleep, hang up the leader and simulate the installation snapshot when the leader hangs up
     int sleepMs = butil::fast_rand_less_than(maxWaitInstallSnapshotMs) + 1;
     ::usleep(1000 * sleepMs);
 
@@ -1794,7 +1794,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButLeade
     ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
     LOG(INFO) << "new leader is: " << leaderPeer.address();
 
-    // read之前写入的数据验证
+    // Verification of data written before read
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,
@@ -1822,9 +1822,9 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButLeade
 }
 
 /**
- * 1. {A、B、C} 3个节点正常启动
- * 2. 挂了follower
- * 3. 重启恢复follower（需要额外确保通过snapshot恢复），恢复过程中leader重启
+ * 1. {A, B, C} 3 nodes start normally
+ * 2. Hang up the follower
+ * 3. Restart to recover the follower (additional assurance is required to recover through snapshot), and restart the leader during the recovery process
  */
 TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButLeaderRestart) {    // NOLINT
     LogicPoolID logicPoolId = 2;
@@ -1834,7 +1834,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButLeade
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动3个成员的复制组
+    // 1. Start a replication group of 3 members
     LOG(INFO) << "start 3 chunkservers";
     PeerId leaderId;
     Peer leaderPeer;
@@ -1866,7 +1866,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButLeade
                         ch++,
                         loop);
 
-    // 2. 挂掉1个follower
+    // 2. Hang up 1 follower
     LOG(INFO) << "shutdown 1 follower";
     std::vector<Peer> followerPeers;
     PeerCluster::GetFollwerPeers(peers, leaderPeer, &followerPeers);
@@ -1881,10 +1881,10 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButLeade
                         ch++,
                         loop);
 
-    // wait snapshot, 保证能够触发安装快照
+    // Wait snapshot to ensure that the installation snapshot can be triggered
     LOG(INFO) << "wait snapshot 1";
     ::sleep(2 * snapshotIntervalS);
-    // 再次发起 read/write
+    // Initiate read/write again
     WriteThenReadVerify(leaderPeer,
                         logicPoolId,
                         copysetId,
@@ -1894,7 +1894,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButLeade
                         loop);
     LOG(INFO) << "wait snapshot 2";
     ::sleep(2 * snapshotIntervalS);
-    // 再次发起 read/write
+    // Initiate read/write again
     WriteThenReadVerify(leaderPeer,
                         logicPoolId,
                         copysetId,
@@ -1903,13 +1903,13 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButLeade
                         ch ++,
                         loop);
 
-    // 3. 拉起follower
+    // 3. Pull up the follower
     LOG(INFO) << "restart shutdown follower";
     ASSERT_EQ(0, cluster.StartPeer(shutdownPeer,
                                    PeerCluster::PeerToId(shutdownPeer)));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
 
-    // 4. 随机睡眠一段时间后，挂掉leader，模拟install snapshot的时候leader挂掉
+    // 4. After a period of random sleep, hang up the leader and simulate the installation snapshot when the leader hangs up
     int sleepMs = butil::fast_rand_less_than(maxWaitInstallSnapshotMs) + 1;
     ::usleep(1000 * sleepMs);
 
@@ -1929,7 +1929,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButLeade
     ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
     LOG(INFO) << "new leader is: " << leaderPeer.address();
 
-    // read之前写入的数据验证
+    // Verification of data written before read
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,
@@ -1957,9 +1957,9 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButLeade
 }
 
 /**
- * 1. {A、B、C} 3个节点正常启动
- * 2. 挂了follower
- * 3. 重启恢复follower（需要额外确保通过snapshot恢复），恢复过程中hang leader
+ * 1. {A, B, C} 3 nodes start normally
+ * 2. Hang up the follower
+ * 3. Restart to recover the follower (additional assurance is required to recover through snapshot), and hang the leader during the recovery process
  */
 TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButLeaderHang) {    // NOLINT
     LogicPoolID logicPoolId = 2;
@@ -1969,7 +1969,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButLeade
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动3个成员的复制组
+    // 1. Start a replication group of 3 members
     LOG(INFO) << "start 3 chunkservers";
     PeerId leaderId;
     Peer leaderPeer;
@@ -2001,7 +2001,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButLeade
                         ch++,
                         loop);
 
-    // 2. 挂掉1个follower
+    // 2. Hang up 1 follower
     LOG(INFO) << "shutdown 1 follower";
     std::vector<Peer> followerPeers;
     PeerCluster::GetFollwerPeers(peers, leaderPeer, &followerPeers);
@@ -2016,10 +2016,10 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButLeade
                         ch++,
                         loop);
 
-    // wait snapshot, 保证能够触发安装快照
+    // Wait snapshot to ensure that the installation snapshot can be triggered
     LOG(INFO) << "wait snapshot 1";
     ::sleep(2 * snapshotIntervalS);
-    // 再次发起 read/write
+    // Initiate read/write again
     WriteThenReadVerify(leaderPeer,
                         logicPoolId,
                         copysetId,
@@ -2029,7 +2029,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButLeade
                         loop);
     LOG(INFO) << "wait snapshot 2";
     ::sleep(2 * snapshotIntervalS);
-    // 再次发起 read/write
+    // Initiate read/write again
     WriteThenReadVerify(leaderPeer,
                         logicPoolId,
                         copysetId,
@@ -2038,13 +2038,13 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButLeade
                         ch ++,
                         loop);
 
-    // 3. 拉起follower
+    // 3. Pull up the follower
     LOG(INFO) << "restart shutdown follower";
     ASSERT_EQ(0, cluster.StartPeer(shutdownPeer,
                                    PeerCluster::PeerToId(shutdownPeer)));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
 
-    // 4. 随机睡眠一段时间后，挂掉leader，模拟install snapshot的时候leader hang
+    // 4. After a period of random sleep, hang up the leader and simulate the leader hang during installation snapshot
     int sleepMs = butil::fast_rand_less_than(maxWaitInstallSnapshotMs) + 1;
     ::usleep(1000 * sleepMs);
 
@@ -2062,7 +2062,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButLeade
     ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
     LOG(INFO) << "new leader is: " << leaderPeer.address();
 
-    // read之前写入的数据验证
+    // Verification of data written before read
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,
@@ -2090,9 +2090,9 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButLeade
 }
 
 /**
- * 1. {A、B、C} 3个节点正常启动
- * 2. 挂了follower
- * 3. 重启恢复follower（需要额外确保通过snapshot恢复），恢复过程中leader hang一会
+ * 1. {A, B, C} 3 nodes start normally
+ * 2. Hang up the follower
+ * 3. Restart to recover the follower (additional assurance is required to recover through snapshot), and during the recovery process, the leader will hang for a while
  */
 TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButLeaderHangMoment) {    // NOLINT
     LogicPoolID logicPoolId = 2;
@@ -2102,7 +2102,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButLeade
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动3个成员的复制组
+    // 1. Start a replication group of 3 members
     LOG(INFO) << "start 3 chunkservers";
     PeerId leaderId;
     Peer leaderPeer;
@@ -2134,7 +2134,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButLeade
                         ch++,
                         loop);
 
-    // 2. 挂掉1个follower
+    // 2. Hang up 1 follower
     LOG(INFO) << "shutdown 1 follower";
     std::vector<Peer> followerPeers;
     PeerCluster::GetFollwerPeers(peers, leaderPeer, &followerPeers);
@@ -2149,10 +2149,10 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButLeade
                         ch++,
                         loop);
 
-    // wait snapshot, 保证能够触发安装快照
+    // Wait snapshot to ensure that the installation snapshot can be triggered
     LOG(INFO) << "wait snapshot 1";
     ::sleep(2 * snapshotIntervalS);
-    // 再次发起 read/write
+    // Initiate read/write again
     WriteThenReadVerify(leaderPeer,
                         logicPoolId,
                         copysetId,
@@ -2162,7 +2162,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButLeade
                         loop);
     LOG(INFO) << "wait snapshot 2";
     ::sleep(2 * snapshotIntervalS);
-    // 再次发起 read/write
+    // Initiate read/write again
     WriteThenReadVerify(leaderPeer,
                         logicPoolId,
                         copysetId,
@@ -2171,13 +2171,13 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButLeade
                         ch ++,
                         loop);
 
-    // 3. 拉起follower
+    // 3. Pull up the follower
     LOG(INFO) << "restart shutdown follower";
     ASSERT_EQ(0, cluster.StartPeer(shutdownPeer,
                                    PeerCluster::PeerToId(shutdownPeer)));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
 
-    // 4. 随机睡眠一段时间后，挂掉leader，模拟install snapshot的时候leader挂掉
+    // 4. After a period of random sleep, hang up the leader and simulate the installation snapshot when the leader hangs up
     int sleepMs1 = butil::fast_rand_less_than(maxWaitInstallSnapshotMs) + 1;
     ::usleep(1000 * sleepMs1);
 
@@ -2191,7 +2191,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButLeade
     ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
     LOG(INFO) << "new leader is: " << leaderPeer.address();
 
-    // read之前写入的数据验证
+    // Verification of data written before read
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,
@@ -2219,10 +2219,10 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButLeade
 }
 
 /**
- * 1. {A、B、C} 3个节点正常启动
- * 2. 挂了follower，
- * 3. 重启恢复follower（需要额外确保通过snapshot恢复），恢复过程中follower挂了
- * 4. 一段时间后拉起来
+ * 1. {A, B, C} 3 nodes start normally
+ * 2. Hang up the follower,
+ * 3. Restart to recover the follower (additional assurance is required to recover through snapshot), but the follower hung during the recovery process
+ * 4. After a period of time, pull it up
  */
 TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButFollowerShutdown) {  // NOLINT
     LogicPoolID logicPoolId = 2;
@@ -2232,7 +2232,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButFollo
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动3个成员的复制组
+    // 1. Start a replication group of 3 members
     LOG(INFO) << "start 3 chunkservers";
     PeerId leaderId;
     Peer leaderPeer;
@@ -2264,7 +2264,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButFollo
                         ch++,
                         loop);
 
-    // 2. 挂掉1个follower
+    // 2. Hang up 1 follower
     LOG(INFO) << "shutdown 1 follower";
     std::vector<Peer> followerPeers;
     PeerCluster::GetFollwerPeers(peers, leaderPeer, &followerPeers);
@@ -2279,10 +2279,10 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButFollo
                         ch++,
                         loop);
 
-    // wait snapshot, 保证能够触发安装快照
+    // Wait snapshot to ensure that the installation snapshot can be triggered
     LOG(INFO) << "wait snapshot 1";
     ::sleep(2 * snapshotIntervalS);
-    // 再次发起 read/write
+    // Initiate read/write again
     WriteThenReadVerify(leaderPeer,
                         logicPoolId,
                         copysetId,
@@ -2292,7 +2292,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButFollo
                         loop);
     LOG(INFO) << "wait snapshot 2";
     ::sleep(2 * snapshotIntervalS);
-    // 再次发起 read/write
+    // Initiate read/write again
     WriteThenReadVerify(leaderPeer,
                         logicPoolId,
                         copysetId,
@@ -2301,18 +2301,18 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButFollo
                         ch ++,
                         loop);
 
-    // 3. 拉起follower
+    // 3. Pull up the follower
     LOG(INFO) << "restart shutdown follower";
     ASSERT_EQ(0, cluster.StartPeer(shutdownPeer,
                                    PeerCluster::PeerToId(shutdownPeer)));
 
-    // 4. 随机睡眠一段时间后，挂掉follower，模拟install snapshot的时候
-    // follower出现问题
+    // 4. After a random period of sleep, hang up the follower and simulate the installation snapshot
+    // Problem with follower
     int sleepMs1 = butil::fast_rand_less_than(maxWaitInstallSnapshotMs) + 1;
     ::usleep(1000 * sleepMs1);
     ASSERT_EQ(0, cluster.ShutdownPeer(shutdownPeer));
 
-    // 5. 把follower拉来
+    // 5. Bring the follower here
     int sleepMs2 = butil::fast_rand_less_than(1000) + 1;
     ::usleep(1000 * sleepMs2);
     ASSERT_EQ(0, cluster.StartPeer(shutdownPeer,
@@ -2321,7 +2321,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButFollo
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
 
-    // read之前写入的数据验证
+    // Verification of data written before read
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,
@@ -2343,9 +2343,9 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButFollo
 }
 
 /**
- * 1. {A、B、C} 3个节点正常启动
- * 2. 挂了follower，
- * 3. 重启恢复follower（需要额外确保通过snapshot恢复），恢复过程中follower重启了
+ * 1. {A, B, C} 3 nodes start normally
+ * 2. Hang up the follower,
+ * 3. Restart to recover the follower (additional assurance is required to recover through snapshot). During the recovery process, the follower restarted
  */
 TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButFollowerRestart) {  // NOLINT
     LogicPoolID logicPoolId = 2;
@@ -2355,7 +2355,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButFollo
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动3个成员的复制组
+    // 1. Start a replication group of 3 members
     LOG(INFO) << "start 3 chunkservers";
     PeerId leaderId;
     Peer leaderPeer;
@@ -2387,7 +2387,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButFollo
                         ch++,
                         loop);
 
-    // 2. 挂掉1个follower
+    // 2. Hang up 1 follower
     LOG(INFO) << "shutdown 1 follower";
     std::vector<Peer> followerPeers;
     PeerCluster::GetFollwerPeers(peers, leaderPeer, &followerPeers);
@@ -2402,10 +2402,10 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButFollo
                         ch++,
                         loop);
 
-    // wait snapshot, 保证能够触发安装快照
+    // Wait snapshot to ensure that the installation snapshot can be triggered
     LOG(INFO) << "wait snapshot 1";
     ::sleep(2 * snapshotIntervalS);
-    // 再次发起 read/write
+    // Initiate read/write again
     WriteThenReadVerify(leaderPeer,
                         logicPoolId,
                         copysetId,
@@ -2415,7 +2415,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButFollo
                         loop);
     LOG(INFO) << "wait snapshot 2";
     ::sleep(2 * snapshotIntervalS);
-    // 再次发起 read/write
+    // Initiate read/write again
     WriteThenReadVerify(leaderPeer,
                         logicPoolId,
                         copysetId,
@@ -2424,25 +2424,25 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButFollo
                         ch ++,
                         loop);
 
-    // 3. 拉起follower
+    // 3. Pull up the follower
     LOG(INFO) << "restart shutdown follower";
     ASSERT_EQ(0, cluster.StartPeer(shutdownPeer,
                                    PeerCluster::PeerToId(shutdownPeer)));
 
-    // 4. 随机睡眠一段时间后，挂掉follower，模拟install snapshot的时候
-    // follower出现问题
+    // 4. After a random period of sleep, hang up the follower and simulate the installation snapshot
+    // Problem with follower
     int sleepMs1 = butil::fast_rand_less_than(maxWaitInstallSnapshotMs) + 1;
     ::usleep(1000 * sleepMs1);
     ASSERT_EQ(0, cluster.ShutdownPeer(shutdownPeer));
 
-    // 5. 把follower拉来
+    // 5. Bring the follower here
     ASSERT_EQ(0, cluster.StartPeer(shutdownPeer,
                                    PeerCluster::PeerToId(shutdownPeer)));
 
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
 
-    // read之前写入的数据验证
+    // Verification of data written before read
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,
@@ -2464,10 +2464,10 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButFollo
 }
 
 /**
- * 1. {A、B、C} 3个节点正常启动
- * 2. 挂了follower，
- * 3. 重启恢复follower（需要额外确保通过snapshot恢复），恢复过程中follower hang了
- * 4. 一段时间后恢复
+ * 1. {A, B, C} 3 nodes start normally
+ * 2. Hang up the follower,
+ * 3. Restart to recover the follower (additional assurance is required to recover through snapshot), and the follower has changed during the recovery process
+ * 4. Restore after a period of time
  */
 TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButFollowerHang) {  // NOLINT
     LogicPoolID logicPoolId = 2;
@@ -2477,7 +2477,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButFollo
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动3个成员的复制组
+    // 1. Start a replication group of 3 members
     LOG(INFO) << "start 3 chunkservers";
     PeerId leaderId;
     Peer leaderPeer;
@@ -2509,7 +2509,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButFollo
                         ch++,
                         loop);
 
-    // 2. 挂掉1个follower
+    // 2. Hang up 1 follower
     LOG(INFO) << "shutdown 1 follower";
     std::vector<Peer> followerPeers;
     PeerCluster::GetFollwerPeers(peers, leaderPeer, &followerPeers);
@@ -2524,10 +2524,10 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButFollo
                         ch++,
                         loop);
 
-    // wait snapshot, 保证能够触发安装快照
+    // Wait snapshot to ensure that the installation snapshot can be triggered
     LOG(INFO) << "wait snapshot 1";
     ::sleep(2 * snapshotIntervalS);
-    // 再次发起 read/write
+    // Initiate read/write again
     WriteThenReadVerify(leaderPeer,
                         logicPoolId,
                         copysetId,
@@ -2537,7 +2537,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButFollo
                         loop);
     LOG(INFO) << "wait snapshot 2";
     ::sleep(2 * snapshotIntervalS);
-    // 再次发起 read/write
+    // Initiate read/write again
     WriteThenReadVerify(leaderPeer,
                         logicPoolId,
                         copysetId,
@@ -2546,18 +2546,18 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButFollo
                         ch ++,
                         loop);
 
-    // 3. 拉起follower
+    // 3. Pull up the follower
     LOG(INFO) << "restart shutdown follower";
     ASSERT_EQ(0, cluster.StartPeer(shutdownPeer,
                                    PeerCluster::PeerToId(shutdownPeer)));
 
-    // 4. 随机睡眠一段时间后，hang follower，模拟install snapshot的时候
-    // follower出现问题
+    // 4. After a period of random sleep, hang the follower and simulate the installation snapshot
+    // Problem with follower
     int sleepMs1 = butil::fast_rand_less_than(maxWaitInstallSnapshotMs) + 1;
     ::usleep(1000 * sleepMs1);
     ASSERT_EQ(0, cluster.HangPeer(shutdownPeer));
 
-    // 5. 把follower恢复
+    // 5. Restore the follower
     int sleepMs2 = butil::fast_rand_less_than(1000) + 1;
     ::usleep(1000 * sleepMs2);
     ASSERT_EQ(0, cluster.SignalPeer(shutdownPeer));
@@ -2565,7 +2565,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButFollo
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
 
-    // read之前写入的数据验证
+    // Verification of data written before read
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,
@@ -2587,10 +2587,10 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButFollo
 }
 
 /**
- * 验证3个节点的复制组，并挂掉follower
- * 1. 创建3个成员的复制组，等待leader产生，write数据，然后read出来验证一遍
- * 2. 挂掉follower
- * 3. 恢复follower
+ * Verify the replication groups of three nodes and hang the follower
+ * 1. Create a replication group of 3 members, wait for the leader to generate, write the data, and then read it out for verification
+ * 2. Hang up the follower
+ * 3. Restore follower
  */
 TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshot) {
     LogicPoolID logicPoolId = 2;
@@ -2600,7 +2600,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshot) {
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动3个成员的复制组
+    // 1. Start a replication group of 3 members
     LOG(INFO) << "start 3 chunkservers";
     PeerId leaderId;
     Peer leaderPeer;
@@ -2632,7 +2632,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshot) {
                         ch++,
                         loop);
 
-    // 2. 挂掉1个follower
+    // 2. Hang up 1 follower
     LOG(INFO) << "shutdown 1 follower";
     std::vector<Peer> followerPeers;
     PeerCluster::GetFollwerPeers(peers, leaderPeer, &followerPeers);
@@ -2647,10 +2647,10 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshot) {
                         ch++,
                         loop);
 
-    // wait snapshot, 保证能够触发安装快照
+    // Wait snapshot to ensure that the installation snapshot can be triggered
     LOG(INFO) << "wait snapshot 1";
     ::sleep(2 * snapshotIntervalS);
-    // 再次发起 read/write
+    // Initiate read/write again
     WriteThenReadVerify(leaderPeer,
                         logicPoolId,
                         copysetId,
@@ -2660,7 +2660,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshot) {
                         loop);
     LOG(INFO) << "wait snapshot 2";
     ::sleep(2 * snapshotIntervalS);
-    // 再次发起 read/write
+    // Initiate read/write again
     WriteThenReadVerify(leaderPeer,
                         logicPoolId,
                         copysetId,
@@ -2669,7 +2669,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshot) {
                         ch ++,
                         loop);
 
-    // 3. 拉起follower
+    // 3. Pull up the follower
     LOG(INFO) << "restart shutdown follower";
     ASSERT_EQ(0, cluster.StartPeer(shutdownPeer,
                                    PeerCluster::PeerToId(shutdownPeer)));
@@ -2703,7 +2703,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshot) {
     ASSERT_EQ(0, ::strcmp(leaderPeer.address().c_str(),
                           shutdownPeer.address().c_str()));
 
-    // read之前写入的数据验证
+    // Verification of data written before read
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,
@@ -2725,9 +2725,9 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshot) {
 }
 
 /**
- * 1. 创建5个成员的复制组，等待leader产生，write数据，然后read出来验证一遍
- * 2. 挂掉两个follower
- * 3. 让两个follower从installsnapshot恢复
+ * 1. Create a replication group of 5 members, wait for the leader to generate, write the data, and then read it out for verification
+ * 2. Hang up two followers
+ * 3. Restore two followers from installsnapshot
  */
 TEST_F(RaftConfigChangeTest, FiveNodeRecoverTwoFollowerFromInstallSnapshot) {
     LogicPoolID logicPoolId = 2;
@@ -2737,7 +2737,7 @@ TEST_F(RaftConfigChangeTest, FiveNodeRecoverTwoFollowerFromInstallSnapshot) {
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动5个成员的复制组
+    // 1. Start a replication group of 5 member
     LOG(INFO) << "start 5 chunkservers";
     PeerId leaderId;
     Peer leaderPeer;
@@ -2773,7 +2773,7 @@ TEST_F(RaftConfigChangeTest, FiveNodeRecoverTwoFollowerFromInstallSnapshot) {
                         ch++,
                         loop);
 
-    // 2. 挂掉2个follower
+    // 2. Hang up 2 followers
     LOG(INFO) << "shutdown 2 follower";
     std::vector<Peer> followerPeers;
     PeerCluster::GetFollwerPeers(peers, leaderPeer, &followerPeers);
@@ -2790,10 +2790,10 @@ TEST_F(RaftConfigChangeTest, FiveNodeRecoverTwoFollowerFromInstallSnapshot) {
                         ch++,
                         loop);
 
-    // wait snapshot, 保证能够触发安装快照
+    // Wait snapshot to ensure that the installation snapshot can be triggered
     LOG(INFO) << "wait snapshot 1";
     ::sleep(2 * snapshotIntervalS);
-    // 再次发起 read/write
+    // Initiate read/write again
     WriteThenReadVerify(leaderPeer,
                         logicPoolId,
                         copysetId,
@@ -2803,7 +2803,7 @@ TEST_F(RaftConfigChangeTest, FiveNodeRecoverTwoFollowerFromInstallSnapshot) {
                         loop);
     LOG(INFO) << "wait snapshot 2";
     ::sleep(2 * snapshotIntervalS);
-    // 再次发起 read/write
+    // Initiate read/write again
     WriteThenReadVerify(leaderPeer,
                         logicPoolId,
                         copysetId,
@@ -2812,7 +2812,7 @@ TEST_F(RaftConfigChangeTest, FiveNodeRecoverTwoFollowerFromInstallSnapshot) {
                         ch ++,
                         loop);
 
-    // 3. 拉起follower
+    // 3. Pull up the follower
     LOG(INFO) << "restart shutdown 2 follower";
     ASSERT_EQ(0, cluster.StartPeer(shutdownPeer1,
                                    PeerCluster::PeerToId(shutdownPeer1)));
@@ -2820,7 +2820,7 @@ TEST_F(RaftConfigChangeTest, FiveNodeRecoverTwoFollowerFromInstallSnapshot) {
                                    PeerCluster::PeerToId(shutdownPeer2)));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
 
-    // read之前写入的数据验证
+    // Verification of data written before read
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,
@@ -2842,11 +2842,11 @@ TEST_F(RaftConfigChangeTest, FiveNodeRecoverTwoFollowerFromInstallSnapshot) {
 }
 
 /**
- * 验证3个节点的复制组{A、B、C}，并挂掉follower
- * 1. 创建3个成员的复制组，等待leader产生，write数据，然后read出来验证一遍
- * 2. 挂掉follower
- * 3. 变更配置为{A、B、D}
- * 4. transfer leader 到 D，并读取数据验证
+ * Verify the replication groups {A, B, C} of three nodes and hang the follower
+ * 1. Create a replication group of 3 members, wait for the leader to generate, write the data, and then read it out for verification
+ * 2. Hang up the follower
+ * 3. Change the configuration to {A, B, D}
+ * 4. Transfer leader to D and read data validation
  */
 TEST_F(RaftConfigChangeTest, ThreeNodeKillFollowerThenChangePeers) {
     LogicPoolID logicPoolId = 2;
@@ -2856,7 +2856,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeKillFollowerThenChangePeers) {
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动3个成员的复制组
+    // 1. Start a replication group of 3 members
     LOG(INFO) << "start 3 chunkservers";
     Peer leaderPeer;
     std::vector<Peer> peers;
@@ -2886,7 +2886,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeKillFollowerThenChangePeers) {
                         ch++,   // a
                         loop);
 
-    // 2. 挂掉1个follower
+    // 2. Hang up 1 follower
     LOG(INFO) << "shutdown 1 follower";
     std::vector<Peer> followerPeers;
     PeerCluster::GetFollwerPeers(peers, leaderPeer, &followerPeers);
@@ -2901,7 +2901,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeKillFollowerThenChangePeers) {
                         ch++,   // b
                         loop);
 
-    // 3.拉起peer4并变更配置
+    // 3. Pull up Peer4 and change the configuration
     ASSERT_EQ(0, cluster.StartPeer(peer4, PeerCluster::PeerToId(peer4)));
     ::sleep(2);
 
@@ -2921,7 +2921,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeKillFollowerThenChangePeers) {
 
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
 
-    // read之前写入的数据验证
+    // Verification of data written before read
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,
@@ -2930,10 +2930,10 @@ TEST_F(RaftConfigChangeTest, ThreeNodeKillFollowerThenChangePeers) {
                ch - 1,  // b
                loop);
 
-    // transfer leader 到新加入的节点
+    // Transfer leader to newly added node
     TransferLeaderAssertSuccess(&cluster, peer4, options);
     leaderPeer = peer4;
-    // read之前写入的数据验证
+    // Verification of data written before read
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,
@@ -2954,11 +2954,11 @@ TEST_F(RaftConfigChangeTest, ThreeNodeKillFollowerThenChangePeers) {
 }
 
 /**
- * 验证3个节点的复制组{A、B、C}，并Hang follower
- * 1. 创建3个成员的复制组，等待leader产生，write数据，然后read出来验证一遍
- * 2. hang follower
- * 3. 变更配置为{A、B、D}
- * 4. transfer leader 到 D，并读取数据验证
+ * Verify the replication groups {A, B, C} of three nodes and hang the follower
+ * 1. Create a replication group of 3 members, wait for the leader to generate, write the data, and then read it out for verification
+ * 2. Hang follower
+ * 3. Change the configuration to {A, B, D}
+ * 4. Transfer leader to D and read data validation
  */
 TEST_F(RaftConfigChangeTest, ThreeNodeHangFollowerThenChangePeers) {
     LogicPoolID logicPoolId = 2;
@@ -2968,7 +2968,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeHangFollowerThenChangePeers) {
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动3个成员的复制组
+    // 1. Start a replication group of 3 members
     LOG(INFO) << "start 3 chunkservers";
     Peer leaderPeer;
     std::vector<Peer> peers;
@@ -2998,7 +2998,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeHangFollowerThenChangePeers) {
                         ch++,   // a
                         loop);
 
-    // 2. 挂掉1个follower
+    // 2. Hang up 1 follower
     LOG(INFO) << "hang 1 follower";
     std::vector<Peer> followerPeers;
     PeerCluster::GetFollwerPeers(peers, leaderPeer, &followerPeers);
@@ -3013,7 +3013,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeHangFollowerThenChangePeers) {
                         ch++,   // b
                         loop);
 
-    // 3.拉起peer4并变更配置
+    // 3. Pull up Peer4 and change the configuration
     ASSERT_EQ(0, cluster.StartPeer(peer4, PeerCluster::PeerToId(peer4)));
     ::sleep(2);
 
@@ -3033,7 +3033,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeHangFollowerThenChangePeers) {
 
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
 
-    // read之前写入的数据验证
+    // Verification of data written before read
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,
@@ -3042,10 +3042,10 @@ TEST_F(RaftConfigChangeTest, ThreeNodeHangFollowerThenChangePeers) {
                ch - 1,  // b
                loop);
 
-    // transfer leader 到新加入的节点
+    // Transfer leader to newly added node
     TransferLeaderAssertSuccess(&cluster, peer4, options);
     leaderPeer = peer4;
-    // read之前写入的数据验证
+    // Verification of data written before read
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,
@@ -3066,11 +3066,11 @@ TEST_F(RaftConfigChangeTest, ThreeNodeHangFollowerThenChangePeers) {
 }
 
 /**
- * 验证3个节点的复制组{A、B、C}，并挂掉leader
- * 1. 创建3个成员的复制组，等待leader产生，write数据，然后read出来验证一遍
- * 2. 挂掉leader
- * 3. 变更配置为{A、B、D}
- * 4. transfer leader 到 D，并读取数据验证
+ * Verify the replication groups {A, B, C} of three nodes and hang the leader
+ * 1. Create a replication group of 3 members, wait for the leader to generate, write the data, and then read it out for verification
+ * 2. Hang up the leader
+ * 3. Change the configuration to {A, B, D}
+ * 4. Transfer leader to D and read data validation
  */
 TEST_F(RaftConfigChangeTest, ThreeNodeKillLeaderThenChangePeers) {
     LogicPoolID logicPoolId = 2;
@@ -3080,7 +3080,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeKillLeaderThenChangePeers) {
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动3个成员的复制组
+    // 1. Start a replication group of 3 members
     LOG(INFO) << "start 3 chunkservers";
     Peer leaderPeer;
     std::vector<Peer> peers;
@@ -3110,11 +3110,11 @@ TEST_F(RaftConfigChangeTest, ThreeNodeKillLeaderThenChangePeers) {
                         ch++,   // a
                         loop);
 
-    // 2. 挂掉leader
+    // 2. Hang up the leader
     LOG(INFO) << "shutdown 1 leader";
     Peer shutdownPeer = leaderPeer;
     ASSERT_EQ(0, cluster.ShutdownPeer(shutdownPeer));
-    // 等待新的leader产生
+    // Waiting for a new leader to be generated
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     WriteThenReadVerify(leaderPeer,
                         logicPoolId,
@@ -3124,7 +3124,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeKillLeaderThenChangePeers) {
                         ch++,   // b
                         loop);
 
-    // 3.拉起peer4并变更配置
+    // 3. Pull up Peer4 and change the configuration
     ASSERT_EQ(0, cluster.StartPeer(peer4, PeerCluster::PeerToId(peer4)));
     ::sleep(2);
 
@@ -3144,7 +3144,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeKillLeaderThenChangePeers) {
 
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
 
-    // read之前写入的数据验证
+    // Verification of data written before read
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,
@@ -3153,10 +3153,10 @@ TEST_F(RaftConfigChangeTest, ThreeNodeKillLeaderThenChangePeers) {
                ch - 1,  // b
                loop);
 
-    // transfer leader 到新加入的节点
+    // Transfer leader to newly added node
     TransferLeaderAssertSuccess(&cluster, peer4, options);
     leaderPeer = peer4;
-    // read之前写入的数据验证
+    // Verification of data written before read
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,
@@ -3177,11 +3177,11 @@ TEST_F(RaftConfigChangeTest, ThreeNodeKillLeaderThenChangePeers) {
 }
 
 /**
- * 验证3个节点的复制组{A、B、C}，并Hang leader
- * 1. 创建3个成员的复制组，等待leader产生，write数据，然后read出来验证一遍
- * 2. hang leader
- * 3. 变更配置为{A、B、D}
- * 4. transfer leader 到 D，并读取数据验证
+ * Verify the replication groups {A, B, C} of three nodes and hang the leader
+ * 1. Create a replication group of 3 members, wait for the leader to generate, write the data, and then read it out for verification
+ * 2. Hang leader
+ * 3. Change the configuration to {A, B, D}
+ * 4. Transfer leader to D and read data validation
  */
 TEST_F(RaftConfigChangeTest, ThreeNodeHangLeaderThenChangePeers) {
     LogicPoolID logicPoolId = 2;
@@ -3191,7 +3191,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeHangLeaderThenChangePeers) {
     char ch = 'a';
     int loop = 25;
 
-    // 1. 启动3个成员的复制组
+    // 1. Start a replication group of 3 members
     LOG(INFO) << "start 3 chunkservers";
     Peer leaderPeer;
     std::vector<Peer> peers;
@@ -3221,11 +3221,11 @@ TEST_F(RaftConfigChangeTest, ThreeNodeHangLeaderThenChangePeers) {
                         ch++,   // a
                         loop);
 
-    // 2. 挂掉1个follower
+    // 2. Hang up 1 follower
     LOG(INFO) << "hang 1 leader";
     Peer hangPeer = leaderPeer;
     ASSERT_EQ(0, cluster.HangPeer(hangPeer));
-    // 等待新的leader产生
+    // Waiting for a new leader to be generated
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     WriteThenReadVerify(leaderPeer,
                         logicPoolId,
@@ -3235,7 +3235,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeHangLeaderThenChangePeers) {
                         ch++,   // b
                         loop);
 
-    // 3.拉起peer4并变更配置
+    // 3. Pull up Peer4 and change the configuration
     ASSERT_EQ(0, cluster.StartPeer(peer4, PeerCluster::PeerToId(peer4)));
     ::sleep(2);
 
@@ -3255,7 +3255,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeHangLeaderThenChangePeers) {
 
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
 
-    // read之前写入的数据验证
+    // Verification of data written before read
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,
@@ -3264,10 +3264,10 @@ TEST_F(RaftConfigChangeTest, ThreeNodeHangLeaderThenChangePeers) {
                ch - 1,  // b
                loop);
 
-    // transfer leader 到新加入的节点
+    // Transfer leader to newly added node
     TransferLeaderAssertSuccess(&cluster, peer4, options);
     leaderPeer = peer4;
-    // read之前写入的数据验证
+    // Verification of data written before read
     ReadVerify(leaderPeer,
                logicPoolId,
                copysetId,

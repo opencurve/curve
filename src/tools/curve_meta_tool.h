@@ -53,36 +53,36 @@ class CurveMetaTool : public CurveTool {
                               localFS_(localFs) {}
 
     /**
-     *  @brief 执行命令
-     *  @param command 要执行的命令
-     *  @return 成功返回0，失败返回-1
+     * @brief Execute command
+     * @param command The command to be executed
+     * @return returns 0 for success, -1 for failure
     */
     int RunCommand(const std::string& command) override;
 
     /**
-     *  @brief 打印帮助信息
+     * @brief Print help information
     */
     void PrintHelp(const std::string& command) override;
 
     /**
-     *  @brief 返回是否支持该命令
-     *  @param command：执行的命令
-     *  @return true / false
+     * @brief returns whether the command is supported
+     * @param command: The command executed
+     * @return true/false
      */
     static bool SupportCommand(const std::string& command);
 
  private:
     /**
-     *  @brief 打印chunk文件元数据
-     *  @param chunkFileName chunk文件的文件名
-     *  @return 成功返回0，否则返回-1
+     * @brief Print chunk file metadata
+     * @param chunkFileName The file name of the chunk file
+     * @return successfully returns 0, otherwise returns -1
      */
     int PrintChunkMeta(const std::string& chunkFileName);
 
     /**
-     *  @brief 打印快照文件元数据
-     *  @param snapFileName 快照文件的文件名
-     *  @return 成功返回0，否则返回-1
+     * @brief Print snapshot file metadata
+     * @param snapFileName The file name of the snapshot file
+     * @return successfully returns 0, otherwise returns -1
      */
     int PrintSnapshotMeta(const std::string& snapFileName);
 

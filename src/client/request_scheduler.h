@@ -43,8 +43,8 @@ using curve::common::Uncopyable;
 
 struct RequestContext;
 /**
- * 请求调度器，上层拆分的I/O会交给Scheduler的线程池
- * 分发到具体的ChunkServer，后期QoS也会放在这里处理
+ * Request the scheduler, and the split I/O from the upper layer will be handed over to the scheduler's thread pool
+ * Distribute to specific ChunkServers, where QoS will also be handled in the future
  */
 class RequestScheduler : public Uncopyable {
  public:
@@ -56,57 +56,57 @@ class RequestScheduler : public Uncopyable {
     virtual ~RequestScheduler();
 
     /**
-     * 初始化
-     * @param: reqSchdulerOpt为scheduler的配置选项
-     * @param: metacache为meta信息
-     * @param: filematric为文件的metric信息
+     * Initialize
+     * @param: reqSchdulerOpt is the configuration option for the scheduler
+     * @param: metacache is the meta information
+     * @param: filematric is the metric information of the file
      */
     virtual int Init(const RequestScheduleOption& reqSchdulerOpt,
                      MetaCache *metaCache,
                      FileMetric* fileMetric = nullptr);
     /**
-     * 启动Scheduler的线程池开始处理request
-     * 启动之后才能push request，除此之外，只有当
-     * queue里面的任务都被处理完了，才会Scheduler
-     * 的 thread pool里面的所有线程都退出
-     * @return 0成功，-1失败
+     * Start the Scheduler's thread pool to begin processing requests.
+     * Requests can only be pushed after starting. Furthermore, only when
+     * all tasks in the queue have been processed will all threads in the Scheduler's
+     * thread pool exit.
+     * @return 0 for success, -1 for failure
      */
     virtual int Run();
 
     /**
-     * Stop Scheduler，一旦调用了Fini，那么
-     * 此Scheduler不再接收新的request
-     * @return 0成功，-1失败
+     * Stop Scheduler, once Fini is called, then
+     * This scheduler no longer receives new requests
+     * @return 0 succeeded, -1 failed
      */
     virtual int Fini();
 
     /**
-     * 将request push到Scheduler处理
-     * @param requests:请求列表
-     * @return 0成功，-1失败
+     * Push the request to the scheduler for processing
+     * @param requests: Request List
+     * @return 0 succeeded, -1 failed
      */
     virtual int ScheduleRequest(const std::vector<RequestContext*>& requests);
 
     /**
-     * 将request push到Scheduler处理
-     * @param request:一个request
-     * @return 0成功，-1失败
+     * Push the request to the scheduler for processing
+     * @param request: A request
+     * @return 0 succeeded, -1 failed
      */
     virtual int ScheduleRequest(RequestContext *request);
 
     /**
-     * 对于需要重新入队的RPC将其放在头部
+     * For RPC that need to be re queued, place them at the top
      */
     virtual int ReSchedule(RequestContext *request);
 
     /**
-     * 关闭scheduler之前如果队列在sessionnotvalid睡眠就将其唤醒
+     * Before closing the scheduler, if the queue is in sessionnotvalid, wake it up
      */
     virtual void WakeupBlockQueueAtExit();
 
     /**
-     * 当LeaseExecutor续约失败的时候，调用LeaseTimeoutDisableIO
-     * 后续的IO调度会被阻塞
+     * When LeaseExecutor renewal fails, call LeaseTimeoutDisableIO
+     * Subsequent IO scheduling will be blocked
      */
     void LeaseTimeoutBlockIO() {
         std::unique_lock<std::mutex> lk(leaseRefreshmtx_);
@@ -115,8 +115,8 @@ class RequestScheduler : public Uncopyable {
     }
 
     /**
-     * 当lease又续约成功的时候，LeaseExecutor调用该接口恢复IO,
-     * IO调度被恢复
+     * When the lease is successfully renewed, the LeaseExecutor calls the interface to restore IO,
+     * IO scheduling restored
      */
     void ResumeIO() {
         std::unique_lock<std::mutex> lk(leaseRefreshmtx_);
@@ -126,7 +126,7 @@ class RequestScheduler : public Uncopyable {
     }
 
     /**
-     * 测试使用，获取队列
+     * For testing purposes, get the queue.
      */
     BoundedBlockingDeque<BBQItem<RequestContext*>>* GetQueue() {
         return &queue_;
@@ -134,14 +134,14 @@ class RequestScheduler : public Uncopyable {
 
  private:
     /**
-     * Thread pool的运行函数，会从queue中取request进行处理
+     * The run function of the Thread pool will retrieve the request from the queue for processing
      */
     void Process();
 
     void ProcessOne(RequestContext* ctx);
 
     void WaitValidSession() {
-        // lease续约失败的时候需要阻塞IO直到续约成功
+        // When the lease renewal fails, IO needs to be blocked until the renewal is successful
         if (blockIO_.load(std::memory_order_acquire) && blockingQueue_) {
             std::unique_lock<std::mutex> lk(leaseRefreshmtx_);
             leaseRefreshcv_.wait(lk, [&]() -> bool {
@@ -151,28 +151,28 @@ class RequestScheduler : public Uncopyable {
     }
 
  private:
-    // 线程池和queue容量的配置参数
+    // Configuration parameters for thread pool and queue capacity
     RequestScheduleOption reqschopt_;
-    // 存放 request 的队列
+    // Queue for storing request
     BoundedBlockingDeque<BBQItem<RequestContext *>> queue_;
-    // 处理 request 的线程池
+    // Thread pool for processing request
     ThreadPool threadPool_;
-    // Scheduler 运行标记，只有运行了，才接收 request
+    // The running flag of the Scheduler, it only accepts requests when it's running
     std::atomic<bool> running_;
-    // stop thread pool 标记，当调用 Scheduler Fini
-    // 之后且 queue 里面的 request 都处理完了，就可以
-    // 让所有处理线程退出了
+    // stop thread pool flag, when calling Scheduler Fini
+    // After processing all the requests in the queue, you can proceed
+    // Let all processing threads exit
     std::atomic<bool> stop_;
-    // 访问复制组Chunk的客户端
+    // Client accessing replication group Chunk
     CopysetClient client_;
-    // 续约失败，卡住IO
+    // Renewal failed, IO stuck
     std::atomic<bool> blockIO_;
-    // 此锁与LeaseRefreshcv_条件变量配合使用
-    // 在leasee续约失败的时候，所有新下发的IO被阻塞直到续约成功
+    // This lock is associated with LeaseRefreshcv_ Using Conditional Variables Together
+    // When lease renewal fails, all newly issued IO is blocked until the renewal is successful
     std::mutex    leaseRefreshmtx_;
-    // 条件变量，用于唤醒和hang IO
+    // Conditional variables for wake-up and hang IO
     std::condition_variable leaseRefreshcv_;
-    // 阻塞队列
+    // Blocking queue
     bool blockingQueue_;
 };
 

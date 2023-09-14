@@ -35,7 +35,7 @@
 
 const std::string kTestPrefix = "MainSCSTest";  // NOLINT
 
-// 一些常数定义
+// Some constant definitions
 const char* cloneTempDir_ = "/clone";
 const char* mdsRootUser_ = "root";
 const char* mdsRootPassword_ = "root_password";
@@ -135,11 +135,11 @@ class SnapshotCloneServerMainTest : public ::testing::Test {
         cluster_ = new CurveCluster();
         ASSERT_NE(nullptr, cluster_);
 
-        // 初始化db
+        // Initialize db
         std::string rmcmd = "rm -rf " + std::string(kEtcdName) + ".etcd";
         system(rmcmd.c_str());
 
-        // 启动etcd
+        // Start etcd
         pid_t pid = cluster_->StartSingleEtcd(
             1, kEtcdClientIpPort, kEtcdPeerIpPort,
             std::vector<std::string>{"--name=" + std::string(kEtcdName)});
@@ -150,7 +150,7 @@ class SnapshotCloneServerMainTest : public ::testing::Test {
         cluster_->PrepareConfig<MDSConfigGenerator>(kMdsConfigPath,
                                                     mdsConfigOptions);
 
-        // 启动一个mds
+        // Start an mds
         pid = cluster_->StartSingleMDS(1, kMdsIpPort, kMdsDummyPort, mdsConf1,
                                        true);
         LOG(INFO) << "mds 1 started on " << kMdsIpPort << ", pid = " << pid;
@@ -201,7 +201,7 @@ TEST_F(SnapshotCloneServerMainTest, testmain) {
 
     std::this_thread::sleep_for(std::chrono::seconds(2));
 
-    // 测试验证是否状态为active
+    // Test and verify if the status is active
     // "curl "127.0.0.1:port/vars/snapshotcloneserver_status"";
     std::string cmd =
         "curl \"127.0.0.1:" + std::string(kSnapshotCloneServerDummyServerPort) +

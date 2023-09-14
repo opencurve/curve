@@ -43,10 +43,10 @@ namespace mds {
 class CleanTaskManager {
  public:
     /**
-     *  @brief 初始化TaskManager
-     *  @param channelPool: 连接池
-     *  @param threadNum: worker线程的数量
-     *  @param checkPeriod: 周期性任务检查线程时间, ms
+     * @brief Initialize TaskManager
+     * @param channelPool: Connection Pool
+     * @param threadNum: Number of worker threads
+     * @param checkPeriod: Periodic task check thread time, ms
      */
     explicit CleanTaskManager(std::shared_ptr<ChannelPool> channelPool,
                               int threadNum = 10, int checkPeriod = 10000);
@@ -55,28 +55,28 @@ class CleanTaskManager {
     }
 
     /**
-     * @brief 启动worker线程池、启动检查线程
+     * @brief: Start worker thread pool, start check thread
      *
      */
     bool Start(void);
 
     /**
-     * @brief 停止worker线程池、启动检查线程
+     * @brief: Stop worker thread pool, start check thread
      *
      */
     bool Stop(void);
 
     /**
-     *  @brief 向线程池推送task
-     *  @param task: 对应的工作任务
-     *  @return 推送task是否成功，如已存在对应的任务，推送是吧
+     * @brief Push task to thread pool
+     * @param task: corresponding work task
+     * @return: Is the task successfully pushed? If a corresponding task already exists, is it pushed
      */
     bool PushTask(std::shared_ptr<Task> task);
 
     /**
-     * @brief 获取当前的task
-     * @param id: 对应任务的相关文件InodeID
-     * @return 返回对应task的shared_ptr 或者 不存在返回nullptr
+     * @brief Get the current task
+     * @param id: The relevant file InodeID of the corresponding task
+     * @return returns the shared_ptr of the corresponding task or return nullptr if it does not exist
      */
     std::shared_ptr<Task> GetTask(TaskIDType id);
 
@@ -94,7 +94,7 @@ class CleanTaskManager {
 
     Atomic<bool> stopFlag_;
     InterruptibleSleeper sleeper_;
-    // 连接池，和chunkserverClient共享，没有任务在执行时清空
+    // Connection pool, shared with chunkserverClient, no tasks cleared during execution
     std::shared_ptr<ChannelPool> channelPool_;
 };
 

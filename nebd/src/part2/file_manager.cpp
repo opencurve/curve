@@ -62,14 +62,14 @@ int NebdFileManager::Fini() {
 }
 
 int NebdFileManager::Load() {
-    // 从元数据文件中读取持久化的文件信息
+    // Reading persistent file information from metadata files
     std::vector<NebdFileMeta> fileMetas;
     int ret = metaFileManager_->ListFileMeta(&fileMetas);
     if (ret < 0) {
         LOG(ERROR) << "Load file metas failed.";
         return ret;
     }
-    // 根据持久化的信息重新open文件
+    // Reopen files based on persistent information
     int maxFd = 0;
     for (auto& fileMeta : fileMetas) {
         NebdFileEntityPtr entity =
@@ -221,7 +221,7 @@ NebdFileEntityPtr NebdFileManager::GenerateFileEntity(
         }
     }
 
-    // 检测是否存在冲突的文件记录
+    // Detect for conflicting file records
     auto iter = fileMap_.find(fd);
     if (iter != fileMap_.end()) {
         LOG(ERROR) << "File entity conflict. "

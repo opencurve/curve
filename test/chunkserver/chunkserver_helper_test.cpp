@@ -27,7 +27,7 @@
 namespace curve {
 namespace chunkserver {
 TEST(ChunkServerMeta, test_encode_and_decode) {
-    // 1. 正常编解码
+    // 1. Normal encoding and decoding
     ChunkServerMetadata metadata;
     metadata.set_version(CURRENT_METADATA_VERSION);
     metadata.set_id(1);
@@ -43,13 +43,13 @@ TEST(ChunkServerMeta, test_encode_and_decode) {
     ASSERT_EQ(metadata.id(), metaOut.id());
     ASSERT_EQ(metadata.token(), metaOut.token());
 
-    // 2. 编码异常
+    // 2. Encoding anomaly
     metadata.clear_token();
     strOut.clear();
     ASSERT_FALSE(
         ChunkServerMetaHelper::EncodeChunkServerMeta(metadata, &strOut));
 
-    // 3. 解码异常
+    // 3. Decoding exception
     metadata.set_token("hello");
     metadata.set_checksum(9999);
     ASSERT_TRUE(

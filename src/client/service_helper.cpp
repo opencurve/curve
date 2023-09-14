@@ -171,10 +171,10 @@ class GetLeaderProxy : public std::enable_shared_from_this<GetLeaderProxy> {
           success_(false) {}
 
     /**
-     * @brief 等待GetLeader返回结果
-     * @param[out] leaderId leader的id
-     * @param[out] leaderAddr leader的ip地址
-     * @return 0 成功 / -1 失败
+     * @brief waiting for GetLeader to return results
+     * @param[out] leaderId The ID of the leader
+     * @param[out] leaderAddr The IP address of the leader
+     * @return 0 successful/-1 failed
      */
     int Wait(ChunkServerID* leaderId, PeerAddr* leaderAddr) {
         {
@@ -212,11 +212,11 @@ class GetLeaderProxy : public std::enable_shared_from_this<GetLeaderProxy> {
     }
 
     /**
-     * @brief 发起GetLeader请求
-     * @param peerAddresses 除当前leader以外的peer地址
-     * @param logicPoolId getleader请求的logicpool id
-     * @param copysetId getleader请求的copyset id
-     * @param fileMetric metric统计
+     * @brief initiates GetLeader request
+     * @param peerAddresses Peer addresses other than the current leader
+     * @param logicPoolId getleader requested logicpool ID
+     * @param copysetId getleader requested copyset id
+     * @param fileMetric metric statistics
      */
     void StartGetLeader(const std::unordered_set<std::string>& peerAddresses,
                         const GetLeaderRpcOption& rpcOption,
@@ -270,10 +270,10 @@ class GetLeaderProxy : public std::enable_shared_from_this<GetLeaderProxy> {
     }
 
     /**
-     * @brief 处理异步请求结果
-     * @param callId rpc请求id
-     * @param success rpc请求是否成功
-     * @param peer rpc请求返回的leader信息
+     * @brief processing asynchronous request results
+     * @param callId rpc request id
+     * @param success rpc request successful
+     * @param peer The leader information returned by the rpc request
      */
     void HandleResponse(brpc::CallId callId, bool success,
                         const curve::common::Peer& peer) {
@@ -289,7 +289,7 @@ class GetLeaderProxy : public std::enable_shared_from_this<GetLeaderProxy> {
                     continue;
                 }
 
-                // cancel以后,后续的rpc请求回调仍然会执行,但是会标记为失败
+                // After canceling, subsequent rpc request callbacks will still be executed, but will be marked as failed
                 brpc::StartCancel(id);
             }
 
@@ -301,10 +301,10 @@ class GetLeaderProxy : public std::enable_shared_from_this<GetLeaderProxy> {
             success_ = true;
             finishCv_.notify_one();
         } else {
-            // 删除当前call id
+            // Delete the current call id
             callIds_.erase(callId);
 
-            // 如果为空，说明是最后一个rpc返回，需要标记请求失败，并向上返回
+            // If it is empty, it indicates that it is the last rpc returned, and the request needs to be marked as failed and returned upwards
             if (callIds_.empty()) {
                 std::lock_guard<bthread::Mutex> ulk(finishMtx_);
                 finish_ = true;
@@ -317,24 +317,24 @@ class GetLeaderProxy : public std::enable_shared_from_this<GetLeaderProxy> {
  private:
     uint64_t proxyId_;
 
-    // 是否完成请求
-    //   1. 其中一个请求成功
-    //   2. 最后一个请求返回
-    // 都会标记为true
+    //Whether to complete the request
+    //  1. One of the requests was successful
+    //  2. Last request returned
+    //Will be marked as true
     bool finish_;
     bthread::ConditionVariable finishCv_;
     bthread::Mutex finishMtx_;
 
-    // 记录cntl id
+    // Record cntl id
     std::set<brpc::CallId> callIds_;
 
-    // 请求是否成功
+    // Is the request successful
     bool success_;
 
-    // leader信息
+    // leader Information
     curve::common::Peer leader_;
 
-    // 保护callIds_/success_，避免异步rpc回调同时操作
+    // Protect callIds_/success_, Avoiding asynchronous rpc callbacks from operating simultaneously
     bthread::Mutex mtx_;
 
     LogicPoolID logicPooldId_;
@@ -437,7 +437,7 @@ int ServiceHelper::CheckChunkServerHealth(
         return -1;
     }
 
-    // 访问 ip:port/health
+    // Accessing ip:port/health
     cntl.http_request().uri() = ipPort + "/health";
     cntl.set_timeout_ms(requestTimeoutMs);
     httpChannel.CallMethod(nullptr, &cntl, nullptr, nullptr, nullptr);

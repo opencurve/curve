@@ -57,11 +57,11 @@ class IOManager4File : public IOManager {
     ~IOManager4File() = default;
 
     /**
-     * 初始化函数
-     * @param: filename为当前iomanager服务的文件名
-     * @param: ioopt为当前iomanager的配置信息
-     * @param: mdsclient向下透传给metacache
-     * @return: 成功true,失败false
+     * Initialization function
+     * @param: filename is the file name of the current iomanager service
+     * @param: ioopt is the configuration information of the current iomanager
+     * @param: mdsclient penetrates downwards to Metacache
+     * @return: Success true, failure false
      */
     bool Initialize(const std::string& filename,
                     const IOOption& ioOpt,
@@ -73,39 +73,39 @@ class IOManager4File : public IOManager {
     void UnInitialize();
 
     /**
-     * 同步模式读
-     * @param: buf为当前待读取的缓冲区
-     * @param：offset文件内的便宜
-     * @parma：length为待读取的长度
-     * @param: mdsclient透传给底层，在必要的时候与mds通信
-     * @return: 成功返回读取真实长度，-1为失败
+     * Synchronous mode reading
+     * @param: buf is the current buffer to be read
+     * @param: offset is the offset in file
+     * @parma: length is the length to be read
+     * @param: mdsclient transparently transmits to the underlying layer and communicates with mds when necessary
+     * @return: Successfully returned reading the true length, -1 indicates failure
      */
     int Read(char* buf, off_t offset, size_t length, MDSClient* mdsclient);
     /**
-     * 同步模式写
-     * @param: mdsclient透传给底层，在必要的时候与mds通信
-     * @param: buf为当前待写入的缓冲区
-     * @param：offset文件内的便宜
-     * @param：length为待读取的长度
-     * @return： 成功返回写入真实长度，-1为失败
+     * Synchronous mode write
+     * @param: mdsclient transparently transmits to the underlying layer and communicates with mds when necessary
+     * @param: buf is the current buffer to be written
+     * @param: offset is the offset within the file
+     * @param: length is the length to be read
+     * @return: Success returns the true length of the write, -1 indicates failure
      */
     int Write(const char* buf, off_t offset, size_t length,
               MDSClient* mdsclient);
     /**
-     * 异步模式读
-     * @param: mdsclient透传给底层，在必要的时候与mds通信
-     * @param: aioctx为异步读写的io上下文，保存基本的io信息
+     * Asynchronous mode read
+     * @param: mdsclient transparently transmits to the underlying layer and communicates with mds when necessary
+     * @param: aioctx is an asynchronous read/write IO context that stores basic IO information
      * @param dataType type of aioctx->buf
-     * @return： 0为成功，小于0为失败
+     * @return: 0 indicates success, less than 0 indicates failure
      */
     int AioRead(CurveAioContext* aioctx, MDSClient* mdsclient,
                 UserDataType dataType);
     /**
-     * 异步模式写
-     * @param: mdsclient透传给底层，在必要的时候与mds通信
-     * @param: aioctx为异步读写的io上下文，保存基本的io信息
+     * Asynchronous mode write
+     * @param: mdsclient transparently transmits to the underlying layer and communicates with mds when necessary
+     * @param: aioctx is an asynchronous read/write IO context that stores basic IO information
      * @param dataType type of aioctx->buf
-     * @return： 0为成功，小于0为失败
+     * @return: 0 indicates success, less than 0 indicates failure
      */
     int AioWrite(CurveAioContext* aioctx, MDSClient* mdsclient,
                  UserDataType dataType);
@@ -128,52 +128,52 @@ class IOManager4File : public IOManager {
     int AioDiscard(CurveAioContext* aioctx, MDSClient* mdsclient);
 
     /**
-     * @brief 获取rpc发送令牌
+     * @brief Get rpc send token
      */
     void GetInflightRpcToken() override;
 
     /**
-     * @brief 释放rpc发送令牌
+     * @brief Release RPC Send Token
      */
     void ReleaseInflightRpcToken() override;
 
     /**
-     * 获取metacache，测试代码使用
+     * Obtain Metacache, test code usage
      */
     MetaCache* GetMetaCache() {
         return &mc_;
     }
     /**
-     * 设置scheduler，测试代码使用
+     * Set the scheduler to test the code using
      */
     void SetRequestScheduler(RequestScheduler* scheduler) {
         scheduler_ = scheduler;
     }
 
     /**
-     * 获取metric信息，测试代码使用
+     * Obtain metric information and test code usage
      */
     FileMetric* GetMetric() {
         return fileMetric_;
     }
 
     /**
-     * 重新设置io配置信息，测试使用
+     * Reset IO configuration information for testing use
      */
     void SetIOOpt(const IOOption& opt) {
         ioopt_ = opt;
     }
 
     /**
-     * 测试使用，获取request scheduler
+     * Test usage, obtain request scheduler
      */
     RequestScheduler* GetScheduler() {
         return scheduler_;
     }
 
     /**
-     * lease excutor在检查到版本更新的时候，需要通知iomanager更新文件版本信息
-     * @param: fi为当前需要更新的文件信息
+     * When the lease excutor detects a version update, it needs to notify the iomanager to update the file version information
+     * @param: fi is the current file information that needs to be updated
      */
     void UpdateFileInfo(const FInfo_t& fi);
 
@@ -190,14 +190,14 @@ class IOManager4File : public IOManager {
     }
 
     /**
-     * 返回文件最新版本号
+     * Return the latest version number of the file
      */
     uint64_t GetLatestFileSn() const {
         return mc_.GetLatestFileSn();
     }
 
     /**
-     * 更新文件最新版本号
+     * Update the latest version number of the file
      */
     void SetLatestFileSn(uint64_t newSn) {
         mc_.SetLatestFileSn(newSn);
@@ -220,26 +220,26 @@ class IOManager4File : public IOManager {
     friend class LeaseExecutor;
     friend class FlightIOGuard;
     /**
-     * lease相关接口，当LeaseExecutor续约失败的时候，调用LeaseTimeoutDisableIO
-     * 将新下发的IO全部失败返回
+     * lease related interface, when LeaseExecutor contract renewal fails, calls LeaseTimeoutDisableIO
+     * Failed to return all newly issued IOs
      */
     void LeaseTimeoutBlockIO();
 
     /**
-     * 当lease又续约成功的时候，LeaseExecutor调用该接口恢复IO
+     * When the lease is successfully renewed, the LeaseExecutor calls the interface to restore IO
      */
     void ResumeIO();
 
     /**
-     * 当lesaeexcutor发现版本变更，调用该接口开始等待inflight回来，这段期间IO是hang的
+     * When the lesaeexcutor detects a version change, it calls the interface and waits for inflight to return. During this period, IO is hanging
      */
     void BlockIO();
 
     /**
-     * 因为curve client底层都是异步IO，每个IO会分配一个IOtracker跟踪IO
-     * 当这个IO做完之后，底层需要告知当前io manager来释放这个IOTracker，
-     * HandleAsyncIOResponse负责释放IOTracker
-     * @param: iotracker是返回的异步io
+     * Because the bottom layer of the curve client is asynchronous IO, each IO is assigned an IOtracker to track IO
+     * After this IO is completed, the underlying layer needs to inform the current IO manager to release this IOTracker,
+     * HandleAsyncIOResponse is responsible for releasing the IOTracker
+     * @param: iotracker is an asynchronous io returned
      */
     void HandleAsyncIOResponse(IOTracker* iotracker) override;
 
@@ -261,42 +261,42 @@ class IOManager4File : public IOManager {
     bool IsNeedDiscard(size_t len) const;
 
  private:
-    // 每个IOManager都有其IO配置，保存在iooption里
+    // Each IOManager has its IO configuration, which is saved in the iooption
     IOOption ioopt_;
 
-    // metacache存储当前文件的所有元数据信息
+    // metacache stores all metadata information for the current file
     MetaCache mc_;
 
-    // IO最后由schedule模块向chunkserver端分发，scheduler由IOManager创建和释放
+    // The IO is finally distributed by the schedule module to the chunkserver end, and the scheduler is created and released by the IOManager
     RequestScheduler* scheduler_;
 
-    // client端metric统计信息
+    // Metric statistics on the client side
     FileMetric* fileMetric_;
 
-    // task thread pool为了将qemu线程与curve线程隔离
+    // The task thread pool is used to isolate the QEMU thread from the curve thread
     curve::common::TaskThreadPool<bthread::Mutex, bthread::ConditionVariable>
         taskPool_;
 
-    // inflight IO控制
+    // inflight IO control
     InflightControl inflightCntl_;
 
-    // inflight rpc控制
+    // inflight rpc control
     InflightControl inflightRpcCntl_;
 
     std::unique_ptr<common::Throttle> throttle_;
 
-    // 是否退出
+    // Exit or not
     bool exit_;
 
-    // lease续约线程与qemu一侧线程调用是并发的
-    // qemu在调用close的时候会关闭iomanager及其对应
-    // 资源。lease续约线程在续约成功或失败的时候会通知iomanager的
-    // scheduler线程现在需要block IO或者resume IO，所以
-    // 如果在lease续约线程需要通知iomanager的时候，这时候
-    // 如果iomanager的资源scheduler已经被释放了，就会
-    // 导致crash，所以需要对这个资源加一把锁，在退出的时候
-    // 不会有并发的情况，保证在资源被析构的时候lease续约
-    // 线程不会再用到这些资源.
+    // The lease renewal thread and the QEMU-side thread are concurrent.
+    // When QEMU calls close, it closes the iomanager and its corresponding resources.
+    // The lease renewal thread notifies the iomanager's scheduler thread when renewal succeeds or fails,
+    // indicating whether it needs to block or resume IO. Therefore,
+    // if the lease renewal thread needs to notify the iomanager at this point,
+    // and if the iomanager's scheduler resources have already been released,
+    // it may lead to a crash. So, it's necessary to add a lock to protect this resource,
+    // ensuring that there is no concurrency when exiting. This ensures that
+    // the lease renewal thread won't use these resources when they are being destructed.
     std::mutex exitMtx_;
 
     // enable/disable stripe for read/write of stripe file

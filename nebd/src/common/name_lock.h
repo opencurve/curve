@@ -40,26 +40,26 @@ class NameLock : public Uncopyable {
     explicit NameLock(int bucketNum = 256);
 
     /**
-     * @brief 对指定string加锁
+     * @brief locks the specified string
      *
-     * @param lockStr 被加锁的string
+     * @param lockStr locked string
      */
     void Lock(const std::string &lockStr);
 
     /**
-     * @brief 尝试指定sting加锁
+     * @brief Attempt to specify sting lock
      *
-     * @param lockStr 被加锁的string
+     * @param lockStr locked string
      *
-     * @retval 成功
-     * @retval 失败
+     * @retval succeeded
+     * @retval failed
      */
     bool TryLock(const std::string &lockStr);
 
     /**
-     * @brief 对指定string解锁
+     * @brief unlocks the specified string
      *
-     * @param lockStr 被加锁的string
+     * @param lockStr locked string
      */
     void Unlock(const std::string &lockStr);
 

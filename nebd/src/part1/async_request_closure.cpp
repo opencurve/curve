@@ -52,7 +52,7 @@ void AsyncRequestClosure::Run() {
         if (nebd::client::RetCode::kOK == retCode) {
             DVLOG(6) << OpTypeToString(aioCtx->op) << " success, fd = " << fd;
 
-            // 读请求复制数据
+            // Read Request Copy Data
             if (aioCtx->op == LIBAIO_OP::LIBAIO_OP_READ) {
                 cntl.response_attachment().copy_to(
                     aioCtx->buf, cntl.response_attachment().size());
@@ -73,8 +73,8 @@ void AsyncRequestClosure::Run() {
 }
 
 int64_t AsyncRequestClosure::GetRpcRetryIntervalUs(int64_t retryCount) const {
-    // EHOSTDOWN: 找不到可用的server。
-    // server可能停止服务了，也可能正在退出中(返回了ELOGOFF)
+    // EHOSTDOWN: Unable to find an available server.
+    // The server may have stopped serving or may be exiting (returning ELOGOFF)
     if (cntl.ErrorCode() == EHOSTDOWN) {
         return requestOption_.rpcHostDownRetryIntervalUs;
     }

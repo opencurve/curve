@@ -258,7 +258,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
     }
 
     // read snapshot
-    // 1. 先 write snapshot
+    // 1. Write snapshot first
     {
         RequestContext *reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
@@ -282,7 +282,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
         ASSERT_EQ(0, requestScheduler.ScheduleRequest(reqCtxs));
         cond.Wait();
     }
-    // 2. 再 read snapshot 验证一遍
+    // 2. Verify with read snapshot again
     {
         RequestContext *reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ_SNAP;
@@ -309,7 +309,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
         ASSERT_EQ(reqCtx->readData_, expectReadData);
         ASSERT_EQ(0, reqDone->GetErrorCode());
     }
-    // 3. 在 delete snapshot
+    // 3. In delete snapshot
     {
         RequestContext *reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::DELETE_SNAP;
@@ -332,7 +332,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
         cond.Wait();
         ASSERT_EQ(0, reqDone->GetErrorCode());
     }
-    // 4. 重复 delete snapshot
+    // 4. Repeat delete snapshot
     {
         RequestContext *reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::DELETE_SNAP;
@@ -357,7 +357,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
                   reqDone->GetErrorCode());
     }
 
-    // 测试 get chunk info
+    // Test get chunk info
     {
         ChunkInfoDetail chunkInfo;
         RequestContext *reqCtx = new FakeRequestContext();
@@ -383,7 +383,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
                   reqDone->GetErrorCode());
     }
 
-    // 测试createClonechunk
+    // Test createClonechunk
     {
         RequestContext *reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::CREATE_CLONE;
@@ -407,7 +407,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
         ASSERT_EQ(0, reqDone->GetErrorCode());
     }
 
-    // 测试recoverChunk
+    // Testing recoverChunk
     {
         RequestContext *reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::RECOVER_CHUNK;
@@ -505,7 +505,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
         ASSERT_EQ(-1, reqDone->GetErrorCode());
     }
 
-    /* 2. 并发测试 */
+    /* 2. Concurrent testing */
     curve::common::CountDownEvent cond(4 * kMaxLoop);
     auto func = [&]() {
         for (int i = 0; i < kMaxLoop; ++i) {
@@ -578,11 +578,11 @@ TEST(RequestSchedulerTest, CommonTest) {
     MetaCache metaCache;
     FileMetric fm("test");
 
-    // scheduleQueueCapacity 设置为 0
+    // scheduleQueueCapacity set to 0
     opt.scheduleQueueCapacity = 0;
     ASSERT_EQ(-1, sche.Init(opt, &metaCache, &fm));
 
-    // threadpoolsize 设置为 0
+    // threadpoolsize set to 0
     opt.scheduleQueueCapacity = 4096;
     opt.scheduleThreadpoolSize = 0;
     ASSERT_EQ(-1, sche.Init(opt, &metaCache, &fm));

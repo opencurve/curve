@@ -48,7 +48,7 @@ TEST(UnstableHelperTest, normal_test) {
         chunkservers.emplace_back(std::make_pair(i, ep));
     }
 
-    // 先对每个chunkserver进行10次连续超时
+    //First, perform 10 consecutive timeouts on each chunkserver
     for (const auto& cs : chunkservers) {
         for (int i = 1; i <= opt.maxStableChunkServerTimeoutTimes; ++i) {
             helper.IncreTimeout(cs.first);
@@ -59,8 +59,8 @@ TEST(UnstableHelperTest, normal_test) {
         }
     }
 
-    // 再对每个chunkserver增加一次超时
-    // 前两个是chunkserver unstable状态，第三个是server unstable
+    //Add another timeout to each chunkserver
+    //The first two are in the chunkserver unstable state, and the third is in the server unstable state
     helper.IncreTimeout(chunkservers[0].first);
     ASSERT_EQ(UnstableState::ChunkServerUnstable,
               helper.GetCurrentUnstableState(
@@ -76,8 +76,8 @@ TEST(UnstableHelperTest, normal_test) {
               helper.GetCurrentUnstableState(
                   chunkservers[2].first, chunkservers[2].second));
 
-    // 继续增加超时次数
-    // 这种情况下，每次都是chunkserver unstable
+    //Continue to increase the number of timeouts
+    //In this case, it is always chunkserver unstable
     helper.IncreTimeout(chunkservers[0].first);
     ASSERT_EQ(UnstableState::ChunkServerUnstable,
               helper.GetCurrentUnstableState(
@@ -91,7 +91,7 @@ TEST(UnstableHelperTest, normal_test) {
               helper.GetCurrentUnstableState(
                   chunkservers[2].first, chunkservers[2].second));
 
-    // 新chunkserver第一次超时，根据ip判断，可以直接设置为chunkserver unstable
+    //The first timeout of a new chunkserver can be directly set to chunkserver unstable based on the IP address
     butil::EndPoint ep;
     butil::str2endpoint("127.100.0.1:60999", &ep);
     auto chunkserver4 = std::make_pair(4, ep);
@@ -102,7 +102,7 @@ TEST(UnstableHelperTest, normal_test) {
               helper.GetCurrentUnstableState(
                   chunkserver4.first, chunkserver4.second));
 
-    // 其他ip的chunkserver
+    //Chunkservers for other IPs
     butil::str2endpoint("127.200.0.1:60999", &ep);
     auto chunkserver5 = std::make_pair(5, ep);
     for (int i = 1; i <= opt.maxStableChunkServerTimeoutTimes; ++i) {

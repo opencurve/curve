@@ -31,7 +31,7 @@ namespace test {
 class FileCommonOperation {
  public:
   /**
-   * 指定文件名，打开文件，如果没创建则先创建，返回fd
+   * Specify a file name, open the file, if not created, create it first, return fd
    */
     static int Open(const std::string& filename, const std::string& owner);
 

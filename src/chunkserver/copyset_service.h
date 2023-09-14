@@ -34,7 +34,7 @@ using ::google::protobuf::Closure;
 class CopysetNodeManager;
 
 /**
- * 复制组管理的Rpc服务，目前仅有创建复制组
+ * The Rpc service for replication group management currently only creates replication groups
  */
 class CopysetServiceImpl : public CopysetService {
  public:
@@ -43,7 +43,7 @@ class CopysetServiceImpl : public CopysetService {
     ~CopysetServiceImpl() {}
 
     /**
-     * 创建复制组，一次只能创建一个
+     * Create replication groups, only one can be created at a time
      */
     void CreateCopysetNode(RpcController *controller,
                            const CopysetRequest *request,
@@ -51,7 +51,7 @@ class CopysetServiceImpl : public CopysetService {
                            Closure *done);
 
     /*
-     * 创建复制组，一次可以创建多个
+     * Create replication groups, multiple can be created at once
      */
     void CreateCopysetNode2(RpcController *controller,
                             const CopysetRequest2 *request,
@@ -72,7 +72,7 @@ class CopysetServiceImpl : public CopysetService {
                           Closure *done);
 
  private:
-    // 复制组管理者
+    // Copy Group Manager
     CopysetNodeManager* copysetNodeManager_;
 };
 

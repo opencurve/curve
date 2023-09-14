@@ -92,27 +92,27 @@ TEST_F(StressTestSuit, StressTest) {
 
     printf("===============TEST WRITE==================\n");
 
-    // 测试单线程性能
+    // Testing Single Thread Performance
     RunStress(1, 0, 10000);
-    // 10个线程
+    // 10 threads
     RunStress(10, 0, 50000);
-    // 50个线程
+    // 50 threads
     RunStress(50, 0, 100000);
 
     printf("===============TEST READ==================\n");
-    // 测试单线程性能
+    // Testing Single Thread Performance
     RunStress(1, 100, 10000);
-    // 10个线程
+    // 10 threads
     RunStress(10, 100, 50000);
-    // 50个线程
+    // 50 threads
     RunStress(50, 100, 100000);
 
     printf("===============TEST READWRITE==================\n");
-    // 测试单线程性能
+    // Testing Single Thread Performance
     RunStress(1, 50, 10000);
-    // 10个线程
+    // 10 threads
     RunStress(10, 50, 50000);
-    // 50个线程
+    // 50 threads
     RunStress(50, 50, 100000);
 }
 

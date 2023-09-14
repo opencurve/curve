@@ -17,7 +17,7 @@
 #
 
 dir=`pwd`
-#step1 清除生成的目录和文件
+# step1 Clear generated directories and files
 bazel clean
 rm -rf curvefs_python/BUILD
 rm -rf curvefs_python/tmplib/
@@ -29,8 +29,8 @@ then
     exit
 fi
 
-#step2 获取tag版本和git提交版本信息
-#获取tag版本
+# step2 Obtaining Tag Version and Git Submission Version Information
+# Get Tag Version
 tag_version=`git status | grep -w "HEAD detached at" | awk '{print $NF}' | awk -F"v" '{print $2}'`
 if [ -z ${tag_version} ]
 then
@@ -38,7 +38,7 @@ then
     tag_version=9.9.9
 fi
 
-#获取git提交版本信息
+# Obtain git submission version information
 commit_id=`git show --abbrev-commit HEAD|head -n 1|awk '{print $2}'`
 if [ "$1" = "debug" ]
 then
@@ -50,7 +50,7 @@ fi
 curve_version=${tag_version}+${commit_id}${debug}
 
 
-#step3 执行编译
+# step3 Execute Compilation
 # check bazel verion, bazel vesion must = 4.2.2
 bazel_version=`bazel version | grep "Build label" | awk '{print $3}'`
 if [ -z ${bazel_version} ]

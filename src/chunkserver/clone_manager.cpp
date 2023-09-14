@@ -40,7 +40,7 @@ int CloneManager::Init(const CloneOptions& options) {
 int CloneManager::Run() {
     if (isRunning_.load(std::memory_order_acquire))
         return 0;
-    // 启动线程池
+    // Start Thread Pool
     LOG(INFO) << "Begin to run clone manager.";
     tp_ = std::make_shared<TaskThreadPool<>>();
     int ret = tp_->Start(options_.threadNum, options_.queueCapacity);
@@ -70,7 +70,7 @@ int CloneManager::Fini() {
 std::shared_ptr<CloneTask> CloneManager::GenerateCloneTask(
     std::shared_ptr<ReadChunkRequest> request,
     ::google::protobuf::Closure *done) {
-    // 如果core是空的,任务无法被处理,所以返回空
+    // If the core is empty, the task cannot be processed, so it returns empty
     if (options_.core == nullptr)
         return nullptr;
 

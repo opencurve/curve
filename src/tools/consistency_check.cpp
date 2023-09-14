@@ -25,11 +25,11 @@
 #include "src/tools/consistency_check.h"
 
 DEFINE_string(filename, "", "filename to check consistency");
-DEFINE_bool(check_hash, true, R"(用户需要先确认copyset的applyindex一致之后
-                        再去查copyset内容是不是一致。通常需要先设置
-                        check_hash = false先检查copyset的applyindex是否一致
-                        如果一致了再设置check_hash = true，
-                        检查copyset内容是不是一致)");
+DEFINE_bool(check_hash, true, R"(Users need to confirm whether the apply index of the copyset is consistent
+                        before checking if the copyset content is consistent. Usually, you should first set
+                        check_hash = false to initially verify if the apply index of the copyset is consistent.
+                        Once confirmed, then set check_hash = true,
+                        to check if the copyset content is consistent)");
 DEFINE_uint32(chunkServerBasePort, 8200, "base port of chunkserver");
 DECLARE_string(mdsAddr);
 
@@ -180,9 +180,9 @@ int ConsistencyCheck::CheckCopysetConsistency(
         std::string csAddr = hostIp + ":" + std::to_string(port);
         csAddrs.emplace_back(csAddr);
     }
-    // 检查当前copyset的chunkserver内容是否一致
+    // Check if the chunkserver content of the current copyset is consistent
     if (checkHash) {
-        // 先检查apply index是否一致
+        // First, check if the application index is consistent
         res = CheckApplyIndex(copyset, csAddrs);
         if (res != 0) {
             std::cout << "Apply index not match when check hash!" << std::endl;

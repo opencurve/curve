@@ -49,8 +49,8 @@ class MetaCache;
 class CopysetClient;
 
 /**
- * ClientClosure，负责保存Rpc上下文，
- * 包含cntl和response已经重试次数
+ * ClientClosure, responsible for saving Rpc context,
+ * Contains cntl and response retries
  */
 class ClientClosure : public Closure {
  public:
@@ -83,43 +83,43 @@ class ClientClosure : public Closure {
         return chunkserverEndPoint_;
     }
 
-    // 统一Run函数入口
+    // Unified Run Function Entry
     void Run() override;
 
-    // 重试请求
+    // Retrying the request
     void OnRetry();
 
-    // Rpc Failed 处理函数
+    // Rpc Failed processing function
     void OnRpcFailed();
 
-    // 返回成功 处理函数
+    // Return successful processing function
     virtual void OnSuccess();
 
-    // 返回重定向 处理函数
+    // Return redirection processing function
     virtual void OnRedirected();
 
-    // copyset不存在
+    // copyset does not exist
     void OnCopysetNotExist();
 
-    // 返回backward
+    // Return backward
     void OnBackward();
 
-    // 返回chunk不存在 处理函数
+    // Returning chunk with no processing function present
     virtual void OnChunkNotExist();
 
-    // 返回chunk存在 处理函数
+    // Return Chunk Existence Processing Function
     void OnChunkExist();
 
     // handle epoch too old
     void OnEpochTooOld();
 
-    // 非法参数
+    // Illegal parameter
     void OnInvalidRequest();
 
-    // 发送重试请求
+    // Send retry request
     virtual void SendRetryRequest() = 0;
 
-    // 获取response返回的状态码
+    // Obtain the status code returned by the response
     virtual CHUNK_OP_STATUS GetResponseStatus() const {
         return response_->status();
     }
@@ -142,7 +142,7 @@ class ClientClosure : public Closure {
         return done_;
     }
 
-    // 测试使用，设置closure
+    // Test usage, set closure
     void SetClosure(Closure* done) {
         done_ = done;
     }
@@ -152,25 +152,25 @@ class ClientClosure : public Closure {
     }
 
     /**
-     * 在重试之前根据返回值进行预处理
-     * 场景1: rpc timeout，那么这时候会指数增加当前rpc的超时时间，然后直接进行重试
-     * 场景2：底层OVERLOAD，那么需要在重试之前睡眠一段时间，睡眠时间根据重试次数指数增长
-     * @param: rpcstatue为rpc返回值
-     * @param: cntlstatus为本次rpc controller返回值
+     * Preprocess based on the return value before retrying
+     * Scenario 1: rpc timeout, which will exponentially increase the current rpc timeout and then directly retry
+     * Scenario 2: Underlying Overload, then it is necessary to sleep for a period of time before retrying, and the sleep time increases exponentially based on the number of retries
+     * @param: rpcstatue returns the value for rpc
+     * @param: cntlstatus is the return value of this rpc controller
      */
     void PreProcessBeforeRetry(int rpcstatue, int cntlstatus);
 
     /**
-     * 底层chunkserver overload之后需要根据重试次数进行退避
-     * @param: currentRetryTimes为当前已重试的次数
-     * @return: 返回当前的需要睡眠的时间
+     * After the underlying chunkserver overload, it is necessary to backoff based on the number of retries
+     * @param: currentRetryTimes is the current number of retries
+     * @return: Returns the current time required for sleep
      */
     static uint64_t OverLoadBackOff(uint64_t currentRetryTimes);
 
     /**
-     * rpc timeout之后需要根据重试次数进行退避
-     * @param: currentRetryTimes为当前已重试的次数
-     * @return: 返回下一次RPC 超时时间
+     * After the rpc timeout, it is necessary to backoff based on the number of retries
+     * @param: currentRetryTimes is the current number of retries
+     * @return: Returns the next RPC timeout time
      */
     static uint64_t TimeoutBackOff(uint64_t currentRetryTimes);
 
@@ -213,25 +213,25 @@ class ClientClosure : public Closure {
     std::unique_ptr<ChunkResponse>      response_;
     CopysetClient*                      client_;
     Closure*                            done_;
-    // 这里保存chunkserverID，是为了区别当前这个rpc是发给哪个chunkserver的
-    // 这样方便在rpc closure里直接找到，当前是哪个chunkserver返回的失败
+    // The chunkserverID is saved here to distinguish which chunkserver the current rpc is sent to
+    // This makes it easy to directly find which chunkserver is currently returning the failure in the rpc closure
     ChunkServerID                       chunkserverID_;
     butil::EndPoint                     chunkserverEndPoint_;
 
-    // 记录当前请求的相关信息
+    // Record relevant information for the current request
     MetaCache*                          metaCache_;
     RequestClosure*                     reqDone_;
     FileMetric*                         fileMetric_;
     RequestContext*                     reqCtx_;
     ChunkIDInfo                         chunkIdInfo_;
 
-    // 发送重试请求前是否睡眠
+    // Whether to sleep before sending a retry request
     bool retryDirectly_ = false;
 
-    // response 状态码
+    // response status code
     int                                 status_;
 
-    // rpc 状态码
+    // rpc status code
     int                                 cntlstatus_;
 };
 

@@ -30,26 +30,26 @@ namespace common {
 class  WaitInterval {
  public:
     /**
-     * Init 初始化任务的执行间隔
+     * Init Execution interval of initialization task
      *
-     * @param[in] intervalMs 执行间隔单位是ms
+     * @param[in] intervalMs The execution interval unit is ms
      */
     void Init(uint64_t intervalMs);
 
     /**
-     * WaitForNextExcution 根据最近一次的执行时间点和周期确定需要等待多久之后再执行
+     * WaitForNextExcution determines how long to wait before executing based on the latest execution time and cycle
      */
     void WaitForNextExcution();
 
     /**
-     * StopWait 退出sleep等待
+     * StopWait Exit Sleep Wait
      */
     void StopWait();
 
  private:
-    // 最近一次的执行时间
+    // Last execution time
     uint64_t lastSend_;
-    // 任务的执行周期
+    // Task execution cycle
     uint64_t intevalMs_;
 
     InterruptibleSleeper sleeper_;

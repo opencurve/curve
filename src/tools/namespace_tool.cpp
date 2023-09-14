@@ -77,7 +77,7 @@ bool NameSpaceTool::SupportCommand(const std::string& command) {
                                || command == kListPoolsets);
 }
 
-// 根据命令行参数选择对应的操作
+// Select the corresponding operation based on command line parameters
 int NameSpaceTool::RunCommand(const std::string &cmd) {
     if (Init() != 0) {
         std::cout << "Init NameSpaceTool failed" << std::endl;
@@ -92,7 +92,7 @@ int NameSpaceTool::RunCommand(const std::string &cmd) {
     } else if (cmd == kSegInfoCmd) {
         return PrintSegmentInfo(fileName);
     } else if (cmd == kDeleteCmd) {
-        // 单元测试不判断输入
+        // Unit testing does not judge input
         if (FLAGS_isTest) {
             return core_->DeleteFile(fileName, FLAGS_forcedelete);
         }
@@ -204,7 +204,7 @@ int NameSpaceTool::PrintFileInfoAndActualSize(const std::string& fullName,
                                               const FileInfo& fileInfo) {
     PrintFileInfo(fileInfo);
     int ret = GetAndPrintAllocSize(fullName);
-    // 如果是目录的话，计算目录中的文件大小(用户创建时指定的)
+    // If it is a directory, calculate the file size in the directory (specified by the user when creating it)
     if (fileInfo.filetype() == curve::mds::FileType::INODE_DIRECTORY) {
         ret = GetAndPrintFileSize(fullName);
     }
@@ -255,14 +255,14 @@ void NameSpaceTool::PrintFileInfo(const FileInfo& fileInfo) {
     curve::common::SplitString(fileInfoStr, "\n", &items);
     for (const auto& item : items) {
         if (item.compare(0, 5, "ctime") == 0) {
-            // ctime是微妙，打印的时候只打印到秒
+            // CTIME is subtle, printing only takes seconds
             time_t ctime = fileInfo.ctime() / 1000000;
             std::string standard;
             curve::common::TimeUtility::TimeStampToStandard(ctime, &standard);
             std::cout << "ctime: " << standard << std::endl;
             continue;
         }
-        // 把length转换成GB
+        // Convert length to GB
         if (item.compare(0, 6, "length") == 0) {
             uint64_t length = fileInfo.length();
             double fileSize = static_cast<double>(length) / curve::mds::kGB;
@@ -400,7 +400,7 @@ int NameSpaceTool::PrintChunkLocation(const std::string& fileName,
 }
 
 void NameSpaceTool::TrimEndingSlash(std::string* fileName) {
-    // 如果最后面有/，去掉
+    //If there is/at the end, remove it
     if (fileName->size() > 1 && fileName->back() == '/') {
         fileName->pop_back();
     }

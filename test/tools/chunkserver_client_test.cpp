@@ -61,17 +61,17 @@ TEST_F(ChunkServerClientTest, Init) {
 TEST_F(ChunkServerClientTest, GetRaftStatus) {
     std::vector<FakeRaftStateService *> statServices =
                                     fakemds.GetRaftStateService();
-    // 正常情况
+    // Normal situation
     butil::IOBuf iobuf;
     iobuf.append("test");
     statServices[0]->SetBuf(iobuf);
     ASSERT_EQ(0, client.Init("127.0.0.1:9191"));
     ASSERT_EQ(0, client.GetRaftStatus(&iobuf));
 
-    // 传入空指针
+    // Incoming null pointer
     ASSERT_EQ(-1, client.GetRaftStatus(nullptr));
 
-    // RPC失败的情况
+    // The situation of RPC failure
     statServices[0]->SetFailed(true);
     ASSERT_EQ(-1, client.GetRaftStatus(&iobuf));
 }
@@ -85,11 +85,11 @@ TEST_F(ChunkServerClientTest, CheckChunkServerOnline) {
     std::unique_ptr<FakeReturn> fakeret(
         new FakeReturn(&cntl, static_cast<void*>(response.get())));
     chunkServices[0]->SetGetChunkInfo(fakeret.get());
-    // 正常情况
+    // Normal situation
     ASSERT_EQ(0, client.Init("127.0.0.1:9191"));
     ASSERT_EQ(true, client.CheckChunkServerOnline());
 
-    // RPC失败的情况
+    // The situation of RPC failure
     cntl.SetFailed("fail for test");
     ASSERT_EQ(false, client.CheckChunkServerOnline());
 }
@@ -105,16 +105,16 @@ TEST_F(ChunkServerClientTest, GetCopysetStatus2) {
     request.set_allocated_peer(peer);
     request.set_queryhash(true);
 
-    // 正常情况
+    // Normal situation
     ASSERT_EQ(0, client.Init("127.0.0.1:9191"));
     ASSERT_EQ(0, client.GetCopysetStatus(request, &response));
 
-    // 返回码不ok的情况
+    // The situation where the return code is not OK
     copysetServices[0]->SetStatus(
         COPYSET_OP_STATUS::COPYSET_OP_STATUS_COPYSET_NOTEXIST);
     ASSERT_EQ(-1, client.GetCopysetStatus(request, &response));
 
-    // RPC失败的情况
+    // The situation of RPC failure
     brpc::Controller cntl;
     std::unique_ptr<FakeReturn> fakeret(new FakeReturn(&cntl, nullptr));
     copysetServices[0]->SetFakeReturn(fakeret.get());
@@ -132,17 +132,17 @@ TEST_F(ChunkServerClientTest, GetChunkHash) {
         new FakeReturn(&cntl, static_cast<void*>(response.get())));
     chunkServices[0]->SetGetChunkHash(fakeret.get());
     Chunk chunk(1, 100, 1001);
-    // 正常情况
+    // Normal situation
     ASSERT_EQ(0, client.Init("127.0.0.1:9191"));
     std::string hash;
     ASSERT_EQ(0, client.GetChunkHash(chunk, &hash));
     ASSERT_EQ("1234", hash);
 
-    // RPC失败的情况
+    // The situation of RPC failure
     cntl.SetFailed("fail for test");
     ASSERT_EQ(-1, client.GetChunkHash(chunk, &hash));
 
-    // 返回码不为ok
+    // The return code is not OK
     response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
     ASSERT_EQ(-1, client.GetChunkHash(chunk, &hash));
 }

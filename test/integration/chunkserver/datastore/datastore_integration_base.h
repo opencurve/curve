@@ -60,7 +60,7 @@ extern const string poolDir;  // NOLINT
 extern const string poolMetaPath;  // NOLINT
 
 /**
- * DataStore层集成LocalFileSystem层测试
+ * Datastore layer integration LocalFileSystem layer testing
  */
 class DatastoreIntegrationBase : public testing::Test {
  public:

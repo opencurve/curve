@@ -71,8 +71,8 @@ void ChunkOpRequest::Process() {
     }
 
     /**
-     * 如果propose成功，说明request成功交给了raft处理，
-     * 那么done_就不能被调用，只有propose失败了才需要提前返回
+     * If the proposal is successful, it indicates that the request has been successfully handed over to the raft for processing,
+     * So, done_ cannot be called, only if the proposal fails, it needs to be returned in advance
      */
     if (0 == Propose(request_, cntl_ ? &cntl_->request_attachment() :
                      nullptr)) {
@@ -82,7 +82,7 @@ void ChunkOpRequest::Process() {
 
 int ChunkOpRequest::Propose(const ChunkRequest *request,
                             const butil::IOBuf *data) {
-    // 打包op request为task
+    // Pack op request as task
     braft::Task task;
     butil::IOBuf log;
     if (0 != Encode(request, data, &log)) {
@@ -93,10 +93,10 @@ int ChunkOpRequest::Propose(const ChunkRequest *request,
     task.data = &log;
     task.done = new ChunkClosure(shared_from_this());
     /**
-     * 由于apply是异步的，有可能某个节点在term1是leader，apply了一条log，
-     * 但是中间发生了主从切换，在很短的时间内这个节点又变为term3的leader，
-     * 之前apply的日志才开始进行处理，这种情况下要实现严格意义上的复制状态
-     * 机，需要解决这种ABA问题，可以在apply的时候设置leader当时的term
+     * Due to the asynchronous nature of the application, it is possible that a node in term1 is a leader and has applied a log,
+     * But there was a master-slave switch in the middle, and in a short period of time, this node became the leader of term3 again,
+     * Previously applied logs were only processed, in which case strict replication status needs to be implemented
+     * To solve this ABA problem, you can set the term of the leader at the time of application
      */
     task.expected_term = node_->LeaderTerm();
 
@@ -106,8 +106,8 @@ int ChunkOpRequest::Propose(const ChunkRequest *request,
 }
 
 void ChunkOpRequest::RedirectChunkRequest() {
-    // 编译时加上 --copt -DUSE_BTHREAD_MUTEX
-    // 否则可能发生死锁: CLDCFS-1120
+    // Compile with --copt -DUSE_BTHREAD_MUTEX
+    // Otherwise, a deadlock may occur: CLDCFS-1120
     // PeerId leader = node_->GetLeaderId();
     // if (!leader.is_empty()) {
     //     response_->set_redirect(leader.to_string());
@@ -221,7 +221,7 @@ void DeleteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                                         const ChunkRequest &request,
                                         const butil::IOBuf &data) {
     (void)data;
-    // NOTE: 处理过程中优先使用参数传入的datastore/request
+    // NOTE: Prioritize the use of datastore/request passed in as parameters during processing
     auto ret = datastore->DeleteChunk(request.chunkid(),
                                       request.sn());
     if (CSErrorCode::Success == ret)
@@ -299,7 +299,7 @@ void ReadChunkRequest::Process() {
 
 void ReadChunkRequest::OnApply(uint64_t index,
                                ::google::protobuf::Closure *done) {
-    // 先清除response中的status，以保证CheckForward后的判断的正确性
+    // Clear the status in the response first to ensure the correctness of the judgment after CheckForward
     response_->clear_status();
 
     CSChunkInfo chunkInfo;
@@ -307,7 +307,7 @@ void ReadChunkRequest::OnApply(uint64_t index,
                                                      &chunkInfo);
     do {
         bool needLazyClone = false;
-        // 如果需要Read的chunk不存在，但是请求包含Clone源信息，则尝试从Clone源读取数据
+        // If the chunk that needs to be read does not exist, but the request contains Clone source information, try reading data from the Clone source
         if (CSErrorCode::ChunkNotExistError == errorCode) {
             if (existCloneInfo(request_)) {
                 needLazyClone = true;
@@ -324,14 +324,14 @@ void ReadChunkRequest::OnApply(uint64_t index,
                 CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
             break;
         }
-        // 如果需要从源端拷贝数据，需要将请求转发给clone manager处理
+        // If you need to copy data from the source, you need to forward the request to the clone manager for processing
         if ( needLazyClone || NeedClone(chunkInfo) ) {
             applyIndex = index;
             std::shared_ptr<CloneTask> cloneTask =
             cloneMgr_->GenerateCloneTask(
                 std::dynamic_pointer_cast<ReadChunkRequest>(shared_from_this()),
                 done);
-            // TODO(yyk) 尽量不能阻塞队列，后面要具体考虑
+            // TODO(yyk) should try not to block the queue, and specific considerations should be taken later
             bool result = cloneMgr_->IssueCloneTask(cloneTask);
             if (!result) {
                 LOG(ERROR) << "issue clone task failed: "
@@ -340,14 +340,14 @@ void ReadChunkRequest::OnApply(uint64_t index,
                     CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
                 break;
             }
-            // 如果请求成功转发给了clone manager就可以直接返回了
+            // If the request is successfully forwarded to the clone manager, it can be returned directly
             return;
         }
-        // 如果是ReadChunk请求还需要从本地读取数据
+        // If it is a ReadChunk request, data needs to be read locally
         if (request_->optype() == CHUNK_OP_TYPE::CHUNK_OP_READ) {
             ReadChunk();
         }
-        // 如果是recover请求，说明请求区域已经被写过了，可以直接返回成功
+        // If it is a recover request, it indicates that the request area has been written and can directly return success
         if (request_->optype() == CHUNK_OP_TYPE::CHUNK_OP_RECOVER) {
             response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
         }
@@ -367,19 +367,19 @@ void ReadChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
     (void)datastore;
     (void)request;
     (void)data;
-    // NOTE: 处理过程中优先使用参数传入的datastore/request
-    // read什么都不用做
+    // NOTE: Prioritize the use of datastore/request passed in as parameters during processing
+    // Read doesn't need to do anything
 }
 
 bool ReadChunkRequest::NeedClone(const CSChunkInfo& chunkInfo) {
-    // 如果不是 clone chunk，就不需要拷贝
+    // If it's not a clone chunk, there's no need to copy it
     if (chunkInfo.isClone) {
         off_t offset = request_->offset();
         size_t length = request_->size();
         uint32_t blockSize = chunkInfo.blockSize;
         uint32_t beginIndex = offset / blockSize;
         uint32_t endIndex = (offset + length - 1) / blockSize;
-        // 如果是clone chunk，且存在未被写过的page，就需要拷贝
+        // If it is a clone chunk and there are unwritten pages, it needs to be copied
         if (chunkInfo.bitmap->NextClearBit(beginIndex, endIndex)
             != Bitmap::NO_POS) {
             return true;
@@ -450,8 +450,8 @@ void WriteChunkRequest::OnApply(uint64_t index,
         response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
         node_->UpdateAppliedIndex(index);
     } else if (CSErrorCode::BackwardRequestError == ret) {
-        // 打快照那一刻是有可能出现旧版本的请求
-        // 返回错误给客户端，让客户端带新版本来重试
+        // At the moment of taking a snapshot, there may be requests for older versions
+        // Return an error to the client and ask them to try again with the new version of the original
         LOG(WARNING) << "write failed: "
                      << " data store return: " << ret
                      << ", request: " << request_->ShortDebugString();
@@ -461,9 +461,9 @@ void WriteChunkRequest::OnApply(uint64_t index,
                CSErrorCode::CrcCheckError == ret ||
                CSErrorCode::FileFormatError == ret) {
         /**
-         * internalerror一般是磁盘错误,为了防止副本不一致,让进程退出
-         * TODO(yyk): 当前遇到write错误直接fatal退出整个
-         * ChunkServer后期考虑仅仅标坏这个copyset，保证较好的可用性
+         * An internal error is usually a disk error. To prevent inconsistent replicas, the process is forced to exit
+         * TODO(yyk): Currently encountering a write error, directly fatally exit the entire process
+         * ChunkServer will consider only flagging this copyset in the later stage to ensure good availability
         */
         LOG(FATAL) << "write failed: "
                    << " data store return: " << ret
@@ -483,7 +483,7 @@ void WriteChunkRequest::OnApply(uint64_t index,
 void WriteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                                        const ChunkRequest &request,
                                        const butil::IOBuf &data) {
-    // NOTE: 处理过程中优先使用参数传入的datastore/request
+    // NOTE: Prioritize the use of datastore/request passed in as parameters during processing
     uint32_t cost;
     std::string  cloneSourceLocation;
     if (existCloneInfo(&request)) {
@@ -536,7 +536,7 @@ void ReadSnapshotRequest::OnApply(uint64_t index,
 
     do {
         /**
-         * 1.成功
+         * 1. Success
          */
         if (CSErrorCode::Success == ret) {
             cntl_->response_attachment().append(wrapper);
@@ -548,7 +548,7 @@ void ReadSnapshotRequest::OnApply(uint64_t index,
          * 2.chunk not exist
          */
         if (CSErrorCode::ChunkNotExistError == ret) {
-            response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST); //NOLINT
+            response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST); // NOLINT
             break;
         }
         /**
@@ -560,7 +560,7 @@ void ReadSnapshotRequest::OnApply(uint64_t index,
                        << ", request: " << request_->ShortDebugString();
         }
         /**
-         * 4.其他错误
+         * 4. Other errors
          */
         LOG(ERROR) << "read snapshot failed: "
                    << " data store return: " << ret
@@ -578,8 +578,8 @@ void ReadSnapshotRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
     (void)datastore;
     (void)request;
     (void)data;
-    // NOTE: 处理过程中优先使用参数传入的datastore/request
-    // read什么都不用做
+    // NOTE: Prioritize the use of datastore/request passed in as parameters during processing
+    // Read doesn't need to do anything
 }
 
 void DeleteSnapshotRequest::OnApply(uint64_t index,
@@ -611,11 +611,11 @@ void DeleteSnapshotRequest::OnApply(uint64_t index,
     response_->set_appliedindex(MaxAppliedIndex(node_, index));
 }
 
-void DeleteSnapshotRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,  //NOLINT
+void DeleteSnapshotRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,  // NOLINT
                                            const ChunkRequest &request,
                                            const butil::IOBuf &data) {
     (void)data;
-    // NOTE: 处理过程中优先使用参数传入的datastore/request
+    // NOTE: Prioritize the use of datastore/request passed in as parameters during processing
     auto ret = datastore->DeleteSnapshotChunkOrCorrectSn(
         request.chunkid(), request.correctedsn());
     if (CSErrorCode::Success == ret) {
@@ -652,8 +652,8 @@ void CreateCloneChunkRequest::OnApply(uint64_t index,
                CSErrorCode::CrcCheckError == ret ||
                CSErrorCode::FileFormatError == ret) {
         /**
-         * TODO(yyk): 当前遇到createclonechunk错误直接fatal退出整个
-         * ChunkServer后期考虑仅仅标坏这个copyset，保证较好的可用性
+         * TODO(yyk): Currently encountering the createclonechunk error, directly fatally exit the entire process
+         * ChunkServer will consider only flagging this copyset in the later stage to ensure good availability
          */
         LOG(FATAL) << "create clone failed: "
                    << ", request: " << request_->ShortDebugString();
@@ -674,11 +674,11 @@ void CreateCloneChunkRequest::OnApply(uint64_t index,
     response_->set_appliedindex(MaxAppliedIndex(node_, index));
 }
 
-void CreateCloneChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,  //NOLINT
+void CreateCloneChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,  // NOLINT
                                              const ChunkRequest &request,
                                              const butil::IOBuf &data) {
     (void)data;
-    // NOTE: 处理过程中优先使用参数传入的datastore/request
+    // NOTE: Prioritize the use of datastore/request passed in as parameters during processing
     auto ret = datastore->CreateCloneChunk(request.chunkid(),
                                            request.sn(),
                                            request.correctedsn(),
@@ -714,8 +714,8 @@ void PasteChunkInternalRequest::Process() {
     }
 
     /**
-     * 如果propose成功，说明request成功交给了raft处理，
-     * 那么done_就不能被调用，只有propose失败了才需要提前返回
+     * If the proposal is successful, it indicates that the request has been successfully handed over to the raft for processing,
+     * So, done_ cannot be called, only if the proposal fails, it needs to be returned in advance
      */
     if (0 == Propose(request_, &data_)) {
         doneGuard.release();
@@ -727,7 +727,7 @@ void PasteChunkInternalRequest::OnApply(uint64_t index,
     brpc::ClosureGuard doneGuard(done);
 
     auto ret = datastore_->PasteChunk(request_->chunkid(),
-                                      data_.to_string().c_str(),  //NOLINT
+                                      data_.to_string().c_str(),  // NOLINT
                                       request_->offset(),
                                       request_->size());
 
@@ -746,10 +746,10 @@ void PasteChunkInternalRequest::OnApply(uint64_t index,
     response_->set_appliedindex(MaxAppliedIndex(node_, index));
 }
 
-void PasteChunkInternalRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,  //NOLINT
+void PasteChunkInternalRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,  // NOLINT
                                                const ChunkRequest &request,
                                                const butil::IOBuf &data) {
-    // NOTE: 处理过程中优先使用参数传入的datastore/request
+    // NOTE: Prioritize the use of datastore/request passed in as parameters during processing
     auto ret = datastore->PasteChunk(request.chunkid(),
                                      data.to_string().c_str(),
                                      request.offset(),
@@ -819,7 +819,7 @@ void ScanChunkRequest::OnApply(uint64_t index,
     }
 }
 
-void ScanChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,  //NOLINT
+void ScanChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,  // NOLINT
                                                const ChunkRequest &request,
                                                const butil::IOBuf &data) {
     (void)data;

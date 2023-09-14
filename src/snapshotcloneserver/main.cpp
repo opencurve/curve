@@ -30,12 +30,12 @@ using Configuration = ::curve::common::Configuration;
 using SnapShotCloneServer = ::curve::snapshotcloneserver::SnapShotCloneServer;
 
 void LoadConfigFromCmdline(Configuration *conf) {
-    // 如果命令行有设置, 命令行覆盖配置文件中的字段
+    // If there are settings on the command line, the command line overwrites the fields in the configuration file
     google::CommandLineFlagInfo info;
     if (GetCommandLineFlagInfo("addr", &info) && !info.is_default) {
         conf->SetStringValue("server.address", FLAGS_addr);
     }
-    // 设置日志存放文件夹
+    // Set log storage folder
     if (FLAGS_log_dir.empty()) {
         if (!conf->GetStringValue("log.dir", &FLAGS_log_dir)) {
             LOG(WARNING) << "no log.dir in " << FLAGS_conf

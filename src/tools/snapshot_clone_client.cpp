@@ -48,7 +48,7 @@ int SnapshotCloneClient::InitDummyServerMap(const std::string& dummyPort) {
         std::cout << "split dummy server fail!" << std::endl;
         return -1;
     }
-    // 只指定了一个端口，对所有mds采用这个端口
+    // Only one port has been specified, and this port is used for all mds
     if (dummyPortVec.size() == 1) {
         for (uint64_t i = 0; i < serverAddrVec_.size() - 1; ++i) {
             dummyPortVec.emplace_back(dummyPortVec[0]);
@@ -77,7 +77,7 @@ int SnapshotCloneClient::InitDummyServerMap(const std::string& dummyPort) {
 std::vector<std::string> SnapshotCloneClient::GetActiveAddrs() {
     std::vector<std::string> activeAddrs;
     for (const auto &item : dummyServerMap_) {
-        // 获取status来判断正在服务的地址
+        // Obtain status to determine the address being served
         std::string status;
         MetricRet ret = metricClient_->GetMetric(item.second,
                             kSnapshotCloneStatusMetricName, &status);
@@ -87,7 +87,7 @@ std::vector<std::string> SnapshotCloneClient::GetActiveAddrs() {
             continue;
         }
         if (status == kSnapshotCloneStatusActive) {
-            // 如果是active状态，再访问一下服务端口
+            // If it is in an active state, please visit the service port again
             MetricRet ret = metricClient_->GetMetric(item.first,
                             kSnapshotCloneStatusMetricName, &status);
             if (ret != MetricRet::kOK) {
@@ -107,7 +107,7 @@ void SnapshotCloneClient::GetOnlineStatus(
     for (const auto &item : dummyServerMap_) {
         std::string listenAddr;
         int res = GetListenAddrFromDummyPort(item.second, &listenAddr);
-        // 如果获取到的监听地址与记录的mds地址不一致，也认为不在线
+        // If the obtained listening address does not match the recorded MDS address, it is also considered offline
         if (res != 0 || listenAddr != item.first) {
             onlineStatus->emplace(item.first, false);
             continue;

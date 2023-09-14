@@ -59,7 +59,7 @@ class CurveSnapshotAttachmentMockTest : public testing::Test {
 };
 
 TEST_F(CurveSnapshotAttachmentMockTest, ListTest) {
-    // 返回成功
+    // Return successful
     vector<std::string> fileNames;
     fileNames.emplace_back("chunk_1");
     fileNames.emplace_back("chunk_1_snap_1");
@@ -76,13 +76,13 @@ TEST_F(CurveSnapshotAttachmentMockTest, ListTest) {
     EXPECT_THAT(snapFiles, UnorderedElementsAre(snapPath1.c_str(),
                                                 snapPath2.c_str()));
 
-    // 路径结尾添加反斜杠
+    // Add a backslash at the end of the path
     EXPECT_CALL(*fs_, List(kDataDir, _))
         .WillOnce(DoAll(SetArgPointee<1>(fileNames), Return(0)));
     attachment_->list_attach_files(&snapFiles, std::string(kRaftSnapDir) + "/");
     EXPECT_THAT(snapFiles, UnorderedElementsAre(snapPath1.c_str(),
                                                 snapPath2.c_str()));
-    // 返回失败
+    // Return failed
     EXPECT_CALL(*fs_, List(kDataDir, _))
         .WillRepeatedly(Return(-1));
     ASSERT_DEATH(attachment_->list_attach_files(&snapFiles, kRaftSnapDir), "");

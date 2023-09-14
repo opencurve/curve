@@ -68,7 +68,7 @@ class CurveFSTest: public ::testing::Test {
         mockcleanManager_ = std::make_shared<MockCleanManager>();
         topology_ = std::make_shared<MockTopology>();
         snapshotClient_ = std::make_shared<MockSnapshotCloneClient>();
-        // session repo已经mock，数据库相关参数不需要
+        // The session repo has been mocked, and database related parameters are not required
         fileRecordManager_ = std::make_shared<MockFileRecordManager>();
         fileRecordOptions_.fileRecordExpiredTimeUs = 5 * 1000;
         fileRecordOptions_.scanIntervalTimeUs = 1 * 1000;
@@ -1645,18 +1645,18 @@ TEST_F(CurveFSTest, testRenameFile) {
         fileInfo3.set_id(11);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(6)
-        // 查找/file1
+        // Find /file1
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
                         Return(StoreStatus::OK)))
-        // check /file1是否有快照
+        // Check if /file1 has a snapshot
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
                         Return(StoreStatus::OK)))
-        // 查找/trash/file2
+        // Find /trash/file2
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
                         Return(StoreStatus::OK)))
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo3),
                         Return(StoreStatus::OK)))
-        // check /trash/file2是否有快照
+        //  Check if /trash/file2 has a snapshot
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
                         Return(StoreStatus::OK)))
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo3),
@@ -1684,13 +1684,13 @@ TEST_F(CurveFSTest, testRenameFile) {
         fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(4)
-        // 查找/file1
+        // Find /file1
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
                         Return(StoreStatus::OK)))
-        // check /file1是否有快照
+        // Check if /file1 has a snapshot
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
                         Return(StoreStatus::OK)))
-        // 查找/trash/file2
+        // Find /trash/file2
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
                         Return(StoreStatus::OK)))
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
@@ -1708,18 +1708,18 @@ TEST_F(CurveFSTest, testRenameFile) {
         fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(6)
-        // 查找/file1
+        // Find /file1
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
                         Return(StoreStatus::OK)))
-        // check /file1是否有快照
+        // Check if /file1 has a snapshot
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
                         Return(StoreStatus::OK)))
-        // 查找/trash/file2
+        // Find /trash/file2
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
                         Return(StoreStatus::OK)))
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
                         Return(StoreStatus::OK)))
-        // check /trash/file2是否有快照
+        // Check if /trash/file2 has a snapshot
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
                         Return(StoreStatus::OK)))
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
@@ -1745,18 +1745,18 @@ TEST_F(CurveFSTest, testRenameFile) {
         fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(6)
-        // 查找/file1
+        // Find /file1
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
                         Return(StoreStatus::OK)))
-        // check /file1是否有快照
+        // Check if /file1 has a snapshot
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
                         Return(StoreStatus::OK)))
-        // 查找/trash/file2
+        // Find /trash/file2
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
                         Return(StoreStatus::OK)))
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
                         Return(StoreStatus::OK)))
-        // check /trash/file2是否有快照
+        // Check if /trash/file2 has a snapshot
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
                         Return(StoreStatus::OK)))
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
@@ -1783,18 +1783,18 @@ TEST_F(CurveFSTest, testRenameFile) {
         fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(6)
-        // 查找/file1
+        // Find/file1
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
                         Return(StoreStatus::OK)))
-        // check /file1是否有快照
+        // Check if /file1 has a snapshot
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
                         Return(StoreStatus::OK)))
-        // 查找/trash/file2
+        // Find/trash/file2
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
                         Return(StoreStatus::OK)))
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
                         Return(StoreStatus::OK)))
-        // check /trash/file2是否有快照
+        // Check/trash/file2 if there is a snapshot
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
                         Return(StoreStatus::OK)))
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
@@ -1821,18 +1821,18 @@ TEST_F(CurveFSTest, testRenameFile) {
         fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(6)
-        // 查找/file1
+        // Find/file1
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
                         Return(StoreStatus::OK)))
-        // check /file1是否有快照
+        // Check if /file1 has a snapshot
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
                         Return(StoreStatus::OK)))
-        // 查找/trash/file2
+        // Find/trash/file2
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
                         Return(StoreStatus::OK)))
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
                         Return(StoreStatus::OK)))
-        // check /trash/file2是否有快照
+        // Check/trash/file2 if there is a snapshot
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
                         Return(StoreStatus::OK)))
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
@@ -1859,18 +1859,18 @@ TEST_F(CurveFSTest, testRenameFile) {
         fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
             .Times(6)
-            // 查找/file1
+            // Find/file1
             .WillOnce(
                 DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
-            // check /file1是否有快照
+            // Check if /file1 has a snapshot
             .WillOnce(
                 DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
-            // 查找/trash/file2
+            // Find/trash/file2
             .WillOnce(
                 DoAll(SetArgPointee<2>(fileInfo2), Return(StoreStatus::OK)))
             .WillOnce(
                 DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
-            // check /trash/file2是否有快照
+            // Check/trash/file2 if there is a snapshot
             .WillOnce(
                 DoAll(SetArgPointee<2>(fileInfo2), Return(StoreStatus::OK)))
             .WillOnce(
@@ -3643,7 +3643,7 @@ TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
 }
 
 TEST_F(CurveFSTest, testOpenFile) {
-    // 文件不存在
+    // File does not exist
     {
         ProtoSession protoSession;
         FileInfo  fileInfo;
@@ -3657,7 +3657,7 @@ TEST_F(CurveFSTest, testOpenFile) {
         ASSERT_EQ(curvefs_->GetOpenFileNum(), 0);
     }
 
-    // open目录
+    // Open directory
     {
         ProtoSession protoSession;
         FileInfo  fileInfo;
@@ -3671,7 +3671,7 @@ TEST_F(CurveFSTest, testOpenFile) {
         ASSERT_EQ(curvefs_->GetOpenFileNum(), 0);
     }
 
-    // 执行成功
+    // Execution successful
     {
         ProtoSession protoSession;
         FileInfo  fileInfo;
@@ -3857,7 +3857,7 @@ TEST_F(CurveFSTest, testCloseFile) {
     FileInfo  fileInfo;
     fileInfo.set_filetype(FileType::INODE_PAGEFILE);
 
-    // 先插入session
+    // Insert session first
     EXPECT_CALL(*storage_, GetFile(_, _, _))
     .Times(1)
     .WillOnce(Return(StoreStatus::OK));
@@ -3866,7 +3866,7 @@ TEST_F(CurveFSTest, testCloseFile) {
         curvefs_->OpenFile("/file1", "127.0.0.1", &protoSession, &fileInfo),
         StatusCode::kOK);
 
-    // 执行成功
+    // Execution successful
     {
         EXPECT_CALL(*storage_, GetFile(_, _, _))
             .Times(1)
@@ -3883,7 +3883,7 @@ TEST_F(CurveFSTest, testRefreshSession) {
     FileInfo  fileInfo;
     fileInfo.set_filetype(FileType::INODE_PAGEFILE);
 
-    // 先插入session
+    // Insert session first
     EXPECT_CALL(*storage_, GetFile(_, _, _))
     .Times(1)
     .WillOnce(Return(StoreStatus::OK));
@@ -3892,7 +3892,7 @@ TEST_F(CurveFSTest, testRefreshSession) {
                                     &protoSession, &fileInfo),
                 StatusCode::kOK);
 
-    // 文件不存在
+    // File does not exist
     {
         FileInfo  fileInfo1;
         EXPECT_CALL(*storage_, GetFile(_, _, _))
@@ -3903,7 +3903,7 @@ TEST_F(CurveFSTest, testRefreshSession) {
                   StatusCode::kFileNotExists);
     }
 
-    // 执行成功
+    //Execution successful
     {
         FileInfo  fileInfo1;
         EXPECT_CALL(*storage_, GetFile(_, _, _))
@@ -3921,7 +3921,7 @@ TEST_F(CurveFSTest, testRefreshSession) {
 TEST_F(CurveFSTest, testCheckRenameNewfilePathOwner) {
     uint64_t date = TimeUtility::GetTimeofDayUs();
 
-    // root用户，签名匹配，date超时
+    // Root user, signature matching, date timeout
     {
         std::string filename = "/file1";
         std::string str2sig = Authenticator::GetString2Signature(date,
@@ -3937,14 +3937,14 @@ TEST_F(CurveFSTest, testCheckRenameNewfilePathOwner) {
                   StatusCode::kOwnerAuthFail);
     }
 
-    // root用户，签名不匹配
+    // Root user, signature mismatch
     {
         ASSERT_EQ(curvefs_->CheckDestinationOwner("/file1",
                     authOptions_.rootOwner, "wrongpass", date),
                   StatusCode::kOwnerAuthFail);
     }
 
-    // 普通用户，根目录下的文件非root用户认证失败
+    // Ordinary user, non root user authentication failed for files in the root directory
     {
         FileInfo fileInfo;
         fileInfo.set_owner(authOptions_.rootOwner);
@@ -3961,7 +3961,7 @@ TEST_F(CurveFSTest, testCheckRenameNewfilePathOwner) {
 TEST_F(CurveFSTest, testCheckPathOwner) {
     uint64_t date = TimeUtility::GetTimeofDayUs();
 
-    // root用户，签名匹配, 并检测date过期
+    // Root user, signature matching, and detecting date expiration
     {
         std::string filename = "/file1";
         std::string str2sig = Authenticator::GetString2Signature(date,
@@ -3978,14 +3978,14 @@ TEST_F(CurveFSTest, testCheckPathOwner) {
                   StatusCode::kOwnerAuthFail);
     }
 
-    // root用户，签名不匹配
+    // Root user, signature mismatch
     {
         ASSERT_EQ(curvefs_->CheckPathOwner("/file1", authOptions_.rootOwner,
                                             "wrongpass", date),
                   StatusCode::kOwnerAuthFail);
     }
 
-    // 普通用户，根目录下的文件非root用户认证成功, 并检测date超时
+    // Normal user, non root user authentication successful for files in the root directory, and detection of date timeout
     {
         ASSERT_EQ(curvefs_->CheckPathOwner("/file1", "normaluser",
                                             "wrongpass", date),
@@ -3999,7 +3999,7 @@ TEST_F(CurveFSTest, testCheckPathOwner) {
 
 TEST_F(CurveFSTest, testCheckFileOwner) {
     uint64_t date = TimeUtility::GetTimeofDayUs();
-    // root用户，签名匹配
+    // Root user, signature matching
     {
         std::string filename = "/file1";
         std::string str2sig = Authenticator::GetString2Signature(date,
@@ -4015,14 +4015,14 @@ TEST_F(CurveFSTest, testCheckFileOwner) {
                   StatusCode::kOwnerAuthFail);
     }
 
-    // root用户，签名不匹配
+    // Root user, signature mismatch
     {
         ASSERT_EQ(curvefs_->CheckFileOwner("/file1",
                     authOptions_.rootOwner, "wrongpass", date),
                   StatusCode::kOwnerAuthFail);
     }
 
-    // 普通用户，根目录下的文件非root用户认证成功
+    // Normal user, non root user authentication succeeded for files in the root directory
     {
         FileInfo fileInfo;
         fileInfo.set_owner("normaluser");
@@ -4035,7 +4035,7 @@ TEST_F(CurveFSTest, testCheckFileOwner) {
                     "normaluser", "", date), StatusCode::kOK);
     }
 
-    // 普通用户，根目录下的文件非root用户认证失败
+    // Ordinary user, non root user authentication failed for files in the root directory
     {
         FileInfo fileInfo;
         fileInfo.set_owner("normaluser");

@@ -53,7 +53,7 @@ TEST(ChunkserverHealthyChecker, test_checkHeartBeat_interval) {
 
     HeartbeatInfo info;
     {
-        // chunkserver首次更新heartbeatInfo
+        // Chunkserver updates heartbeatInfo for the first time
         checker->UpdateLastReceivedHeartbeatTime(1, steady_clock::now());
         checker->UpdateLastReceivedHeartbeatTime(
             2, steady_clock::now() - std::chrono::milliseconds(4000));
@@ -94,16 +94,16 @@ TEST(ChunkserverHealthyChecker, test_checkHeartBeat_interval) {
     }
 
     {
-        // chunkserver-1 更新为online
-        // chunkserver-2 心跳miss，保持unstable
-        // chunkserver-3,chunkserver-5,chunkserver-6心跳offline,
-        // chunkserver-3的retired状态会被更新, 从心跳map中移除
-        // chunkserver-5已经是retired状态，无需更新
-        // chunkserver-6 get info失败, 未成功更新状态
-        // chunnkserver-7 update失败, 未成功更新状态
-        // chunkserver-8, pendding && online, 更新为onLine
-        // chunkserver-9, pendding && unstable, 更新为retired
-        // chunkserver-10, pendding && offline, 更新为retired
+        // chunkserver-1 update to online
+        // chunkserver-2 Heartbeat Miss, Keep Unstable
+        // chunkserver-3, chunkserver-5, chunkserver-6 heartbeat offline,
+        // The retried status of chunkserver-3 will be updated and removed from the heartbeat map
+        // chunkserver-5 is already in a retired state and does not need to be updated
+        // chunkserver-6 get info failed, status not successfully updated
+        // chunkserver-7 update failed, status not successfully updated
+        // chunkserver-8, pendding && online, updated to onLine
+        // chunkserver-9, pendding && unstable, updated to retired
+        // chunkserver-10, pendding && offline, updated to retired
         EXPECT_CALL(*topology, UpdateChunkServerOnlineState(_, _))
             .Times(7).WillRepeatedly(Return(kTopoErrCodeSuccess));
         ChunkServer cs2(2, "", "", 1, "", 0, "",
@@ -164,7 +164,7 @@ TEST(ChunkserverHealthyChecker, test_checkHeartBeat_interval) {
     }
 
     {
-        // chunkserver 2, 6 ,7 收到心跳
+        // chunkserver 2, 6, 7 Heartbeat received
         checker->UpdateLastReceivedHeartbeatTime(
             2, steady_clock::now());
         checker->UpdateLastReceivedHeartbeatTime(

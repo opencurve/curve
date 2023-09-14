@@ -36,10 +36,10 @@ extern "C" {
 #include <unistd.h>
 #include <aio.h>
 
-// 文件路径最大的长度，单位字节
+// The maximum length of the file path, in bytes
 #define NEBD_MAX_FILE_PATH_LEN   1024
 
-// nebd异步请求的类型
+// Types of nebd asynchronous requests
 typedef enum LIBAIO_OP {
     LIBAIO_OP_READ,
     LIBAIO_OP_WRITE,
@@ -55,139 +55,139 @@ void nebd_lib_init_open_flags(NebdOpenFlags* flags);
 
 struct NebdClientAioContext;
 
-// nebd回调函数的类型
+// The type of nebd callback function
 typedef void (*LibAioCallBack)(struct NebdClientAioContext* context);
 
 struct NebdClientAioContext {
-    off_t offset;             // 请求的offset
-    size_t length;            // 请求的length
-    int ret;                  // 记录异步返回的返回值
-    LIBAIO_OP op;             // 异步请求的类型，详见定义
-    LibAioCallBack cb;        // 异步请求的回调函数
-    void* buf;                // 请求的buf
-    unsigned int retryCount;  // 记录异步请求的重试次数
+    off_t offset;             // Requested offset
+    size_t length;            // Requested length
+    int ret;                  // Record the return value returned asynchronously
+    LIBAIO_OP op;             // The type of asynchronous request, as defined in the definition
+    LibAioCallBack cb;        // Callback function for asynchronous requests
+    void* buf;                // Buf requested
+    unsigned int retryCount;  // Record the number of retries for asynchronous requests
 };
 
 // int nebd_lib_fini(void);
 /**
- *  @brief 初始化nebd，仅在第一次调用的时候真正执行初始化逻辑
- *  @param none
- *  @return 成功返回0，失败返回-1
+ * @brief initializes nebd and only executes the initialization logic on the first call
+ * @param none
+ * @return returns 0 for success, -1 for failure
  */
 int nebd_lib_init(void);
 
 int nebd_lib_init_with_conf(const char* confPath);
 
 /**
- *  @brief 反初始化nebd
- *  @param none
- *  @return 成功返回0，失败返回-1
+ * @brief uninitialize nebd
+ * @param none
+ * @return returns 0 for success, -1 for failure
  */
 int nebd_lib_uninit(void);
 
 /**
- *  @brief open文件
- *  @param filename：文件名
- *  @return 成功返回文件fd，失败返回错误码
+ * @brief open file
+ * @param filename: File name
+ * @return successfully returned the file fd, but failed with an error code
  */
 int nebd_lib_open(const char* filename);
 int nebd_lib_open_with_flags(const char* filename,
                              const NebdOpenFlags* openflags);
 
 /**
- *  @brief close文件
- *  @param fd：文件的fd
- *  @return 成功返回0，失败返回错误码
+ * @brief close file
+ * @param fd: fd of the file
+ * @return success returns 0, failure returns error code
  */
 int nebd_lib_close(int fd);
 
 /**
- *  @brief 同步读文件
- *  @param fd：文件的fd
- *         buf：存放读取data的buf
- *         offset：读取的位置offset
- *         length：读取的长度
- *  @return 成功返回0，失败返回错误码
+ * @brief Synchronize file reading
+ * @param fd: fd of the file
+ *         buf: Store and read data buf
+ *         offset: The position read offset
+ *         length: The length read
+ * @return success returns 0, failure returns error code
  */
 int nebd_lib_pread(int fd, void* buf, off_t offset, size_t length);
 
 /**
- *  @brief 同步写文件
- *  @param fd：文件的fd
- *         buf：存放写入data的buf
- *         offset：写入的位置offset
- *         length：写入的长度
- *  @return 成功返回0，失败返回错误码
+ * @brief Synchronize file writing
+ * @param fd: fd of the file
+ *         buf: Store and read data buf
+ *         offset: The position read offset
+ *         length: The length read
+ * @return success returns 0, failure returns error code
  */
 int nebd_lib_pwrite(int fd, const void* buf, off_t offset, size_t length);
 
 /**
- *  @brief discard文件，异步函数
- *  @param fd：文件的fd
- *         context：异步请求的上下文，包含请求所需的信息以及回调
- *  @return 成功返回0，失败返回错误码
+ * @brief discard file, asynchronous function
+ * @param fd: fd of the file
+ *        context: The context of an asynchronous request, including the information required for the request and the callback
+ * @return success returns 0, failure returns error code
  */
 int nebd_lib_discard(int fd, struct NebdClientAioContext* context);
 
 /**
- *  @brief 读文件，异步函数
- *  @param fd：文件的fd
- *         context：异步请求的上下文，包含请求所需的信息以及回调
- *  @return 成功返回0，失败返回错误码
+ * @brief Read file, asynchronous function
+ * @param fd: fd of the file
+ *        context: The context of an asynchronous request, including the information required for the request and the callback
+ * @return success returns 0, failure returns error code
  */
 int nebd_lib_aio_pread(int fd, struct NebdClientAioContext* context);
 
 /**
- *  @brief 写文件，异步函数
- *  @param fd：文件的fd
- *         context：异步请求的上下文，包含请求所需的信息以及回调
- *  @return 成功返回0，失败返回错误码
+ * @brief write file, asynchronous function
+ * @param fd: fd of the file
+ *        context: The context of an asynchronous request, including the information required for the request and the callback
+ * @return success returns 0, failure returns error code
  */
 int nebd_lib_aio_pwrite(int fd, struct NebdClientAioContext* context);
 
 /**
- *  @brief sync文件
- *  @param fd：文件的fd
- *  @return 成功返回0，失败返回错误码
+ * @brief sync file
+ * @param fd: fd of the file
+ * @return success returns 0, failure returns error code
  */
 int nebd_lib_sync(int fd);
 
 /**
- *  @brief 获取文件size
- *  @param fd：文件的fd
- *  @return 成功返回文件size，失败返回错误码
+ * @brief Get file size
+ * @param fd: fd of the file
+ * @return successfully returned the file size, but failed with an error code
  */
 int64_t nebd_lib_filesize(int fd);
 
 int64_t nebd_lib_blocksize(int fd);
 
 /**
- *  @brief resize文件
- *  @param fd：文件的fd
- *         size：调整后的文件size
- *  @return 成功返回0，失败返回错误码
+ * @brief resize file
+ * @param fd: fd of the file
+ *        size: adjusted file size
+ * @return success returns 0, failure returns error code
  */
 int nebd_lib_resize(int fd, int64_t size);
 
 /**
- *  @brief flush文件，异步函数
- *  @param fd：文件的fd
- *         context：异步请求的上下文，包含请求所需的信息以及回调
- *  @return 成功返回0，失败返回错误码
+ * @brief flush file, asynchronous function
+ * @param fd: fd of the file
+ *        context: The context of an asynchronous request, including the information required for the request and the callback
+ * @return success returns 0, failure returns error code
  */
 int nebd_lib_flush(int fd, struct NebdClientAioContext* context);
 
 /**
- *  @brief 获取文件info
- *  @param fd：文件的fd
- *  @return 成功返回文件对象size，失败返回错误码
+ * @brief Get file information
+ * @param fd: fd of the file
+ * @return successfully returned the file object size, but failed with an error code
  */
 int64_t nebd_lib_getinfo(int fd);
 
 /**
- *  @brief 刷新cache，等所有异步请求返回
- *  @param fd：文件的fd
- *  @return 成功返回0，失败返回错误码
+ * @brief refresh cache, wait for all asynchronous requests to return
+ * @param fd: fd of the file
+ * @return success returns 0, failure returns error code
  */
 int nebd_lib_invalidcache(int fd);
 

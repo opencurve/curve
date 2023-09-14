@@ -39,7 +39,7 @@ int MDSClient::Init(const std::string& mdsAddr,
     if (isInited_) {
         return 0;
     }
-    // 初始化channel
+    // Initialize channel
     curve::common::SplitString(mdsAddr, ",", &mdsAddrVec_);
     if (mdsAddrVec_.empty()) {
         std::cout << "Split mds address fail!" << std::endl;
@@ -57,7 +57,7 @@ int MDSClient::Init(const std::string& mdsAddr,
             std::cout << "Init channel to " << mdsAddr << "fail!" << std::endl;
             continue;
         }
-        // 寻找哪个mds存活
+        // Looking for which mds survived
         curve::mds::topology::ListPhysicalPoolRequest request;
         curve::mds::topology::ListPhysicalPoolResponse response;
         curve::mds::topology::TopologyService_Stub stub(&channel_);
@@ -83,7 +83,7 @@ int MDSClient::InitDummyServerMap(const std::string& dummyPort) {
         std::cout << "split dummy server fail!" << std::endl;
         return -1;
     }
-    // 只指定了一个端口，对所有mds采用这个端口
+    // Only one port has been specified, and this port is used for all mds
     if (dummyPortVec.size() == 1) {
         for (uint64_t i = 0; i < mdsAddrVec_.size() - 1; ++i) {
             dummyPortVec.emplace_back(dummyPortVec[0]);
@@ -606,7 +606,7 @@ int MDSClient::ListChunkServersOnServer(ListChunkServerRequest* request,
                 response.statuscode() == kTopoErrCodeSuccess) {
         for (int i = 0; i < response.chunkserverinfos_size(); ++i) {
             const auto& chunkserver = response.chunkserverinfos(i);
-            // 跳过retired状态的chunkserver
+            // Skipping chunkserver in Retired State
             if (chunkserver.status() == ChunkServerStatus::RETIRED) {
                 continue;
             }
@@ -915,7 +915,7 @@ void MDSClient::GetMdsOnlineStatus(std::map<std::string, bool>* onlineStatus) {
     for (const auto &item : dummyServerMap_) {
         std::string listenAddr;
         int res = GetListenAddrFromDummyPort(item.second, &listenAddr);
-        // 如果获取到的监听地址与记录的mds地址不一致，也认为不在线
+        // If the obtained listening address does not match the recorded MDS address, it is also considered offline
         if (res != 0 || listenAddr != item.first) {
             onlineStatus->emplace(item.first, false);
             continue;
@@ -973,7 +973,7 @@ bool MDSClient::ChangeMDServer() {
 std::vector<std::string> MDSClient::GetCurrentMds() {
     std::vector<std::string> leaderAddrs;
     for (const auto &item : dummyServerMap_) {
-        // 获取status来判断正在服务的地址
+        // Obtain status to determine the address being served
         std::string status;
         MetricRet ret = metricClient_.GetMetric(item.second,
                                         kMdsStatusMetricName, &status);
@@ -1105,7 +1105,7 @@ int MDSClient::SendRpcToMds(Request* request, Response* response, T* obp,
         cntl.set_timeout_ms(FLAGS_rpcTimeout);
         (obp->*func)(&cntl, request, response, nullptr);
         if (!cntl.Failed()) {
-            // 如果成功了，就返回0，对response的判断放到上一层
+            //If successful, return 0 and place the response judgment on the previous level
             return 0;
         }
         bool needRetry = (cntl.ErrorCode() != EHOSTDOWN &&
@@ -1121,10 +1121,10 @@ int MDSClient::SendRpcToMds(Request* request, Response* response, T* obp,
             }
             return 0;
         }
-        // 对于需要重试的错误，重试次数用完了还没成功就返回错误不切换
-        // ERPCTIMEDOUT比较特殊，这种情况下，mds可能切换了也可能没切换，所以
-        // 需要重试并且重试次数用完后切换
-        // 只有不需要重试的，也就是mds不在线的才会去切换mds
+        // For errors that require retries, if the retry limit is exhausted without success, return an error without switching.
+        // However, for ERPCTIMEDOUT, which is a special case, the MDS may have switched or may not have switched, 
+        // so it needs to be retried, and if the retry limit is exhausted, then switch.
+        // Only for errors that do not require retries, meaning when the MDS is not online, will the MDS be switched.
         if (needRetry && cntl.ErrorCode() != brpc::ERPCTIMEDOUT) {
             std::cout << "Send RPC to mds fail, error content: "
                       << cntl.ErrorText() << std::endl;
