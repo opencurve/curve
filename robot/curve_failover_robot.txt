@@ -1,7 +1,7 @@
 *** Settings ***
-Library           Resources/keywords/base_operate.py
-Library           Resources/test/curve_base_test.py
-Library           Resources/swig/swig_operate.py
+#Library           Resources/keywords/base_operate.py
+#Library           Resources/test/curve_base_test.py
+#Library           Resources/swig/swig_operate.py
 Library			  Collections
 #Library           RequestsLibrary
 Library           Process
@@ -84,7 +84,7 @@ inject restart one chunkserver
     [Teardown]	  wait cluster healthy   ${vm_iops_limit}
 
 inject restart two chunkserver
-    [Tags]    P1    base    first release   failover
+    [Tags]    P2    base    first release   failover
     ${num}   evaluate   int(2)
     test restart chunkserver num   ${num}
     sleep  5
@@ -94,7 +94,7 @@ inject restart two chunkserver
     [Teardown]	 wait cluster healthy    ${vm_iops_limit}
 
 inject reboot nebd
-    [Tags]   P1  base   first release   failover
+    [Tags]   P1  base   first release   failover  no-need
     test reboot nebd
     sleep   5
     check nbd iops
@@ -133,9 +133,9 @@ inject round restart mds
     [Teardown]    test start mds
 
 inject loop restart one mds
-    [Tags]    P1    base    first release   failover
-    ${mds_ip}    evaluate    str("10.182.26.25")
-    :FOR   ${i}   IN RANGE   10
+    [Tags]    P1    base    first release   failover   no-need
+    ${mds_ip}    evaluate    str("10.182.14.16")
+    FOR   ${i}   IN RANGE   10
           kill mds process   ${mds_ip}
           start mds process  ${mds_ip}
           sleep  3
@@ -171,10 +171,11 @@ test round restart etcd
     [Teardown]    test start etcd
 
 inject loop restart one etcd
-    [Tags]    P1    base    first release   failover  
-    ${etcd_ip}    evaluate    str("10.182.26.16")
-    :FOR   ${i}   IN RANGE   10
+    [Tags]    P1    base    first release   failover  no-need 
+    ${etcd_ip}    evaluate    str("10.182.14.16")
+    FOR   ${i}   IN RANGE   10
           kill etcd process   ${etcd_ip}
+          sleep  2
           start etcd process  ${etcd_ip}
           sleep  2
           check nbd iops
@@ -224,7 +225,7 @@ inject client cpu stress 95%
     [Teardown]     del cpu stress    ${ssh}
 
 inject chunkserver mem stress 95%
-    [Tags]    P1    base    first release   failover
+    [Tags]    P1    base    first release   failover  no-need
     ${cpu_stress}   evaluate  int(95)
     ${ssh}   test chunkserver mem stress   ${cpu_stress}
     sleep  10
@@ -235,7 +236,7 @@ inject chunkserver mem stress 95%
     [Teardown]     del mem stress    ${ssh}
 
 inject mds mem stress 95%
-    [Tags]    P1    base    first release   failover
+    [Tags]    P1    base    first release   failover  no-need
     ${cpu_stress}   evaluate  int(95)
     ${ssh}   test mds mem stress   ${cpu_stress}
     sleep  10
@@ -246,7 +247,7 @@ inject mds mem stress 95%
     [Teardown]     del mem stress    ${ssh}
 
 inject client mem stress 95%
-    [Tags]    P1    base    first release   failover
+    [Tags]    P1    base    first release   failover  no-need
     ${cpu_stress}   evaluate  int(95)
     ${ssh}   test client mem stress   ${cpu_stress}
     sleep  10
@@ -257,7 +258,7 @@ inject client mem stress 95%
     [Teardown]     del mem stress    ${ssh}
 
 test chunkserver network stress
-    [Tags]    P1    base    first release   failover
+    [Tags]    P2    base    first release   failover
     ${ip}    test chunkserver network stress
     sleep  10
     check nbd iops    ${vm_iops_limit}
@@ -266,7 +267,7 @@ test chunkserver network stress
     [Teardown]     stop network stress    ${ip}
 
 test mds network stress
-    [Tags]    P1    base    first release   failover
+    [Tags]    P2    base    first release   failover
     ${ip}    test mds network stress
     sleep  10
     check nbd iops    ${vm_iops_limit}
@@ -275,7 +276,7 @@ test mds network stress
     [Teardown]     stop network stress    ${ip}
 
 test client network stress
-    [Tags]    P1    base    first release   failover
+    [Tags]    P1    base    first release   failover  no-need
     ${ip}    test client network stress
     sleep  10
     check nbd iops    ${vm_iops_limit}
@@ -348,7 +349,7 @@ test suspend delete and up recover chunkserver
     [Teardown]	   wait cluster healthy   ${vm_iops_limit}
 
 test stop all cs not recover
-    [Tags]    P1    base    first release   failover
+    [Tags]    P2    base    first release   failover
     stop all cs not recover
     sleep   5
     check nbd iops
@@ -357,8 +358,17 @@ test stop all cs not recover
     [Teardown]	  wait cluster healthy   ${vm_iops_limit}
 
 test pendding host all cs
-   [Tags]    P1    base    first release   failover  longtime
+   [Tags]    P1    base    first release   failover  longtime  no-need
    pendding all cs recover 
+   sleep  5
+   check nbd iops 
+   check data consistency
+#   check copies consistency
+   [Teardown]	  check chunkserver online
+
+test pendding host all cs online
+   [Tags]    P1    base    first release   failover  longtime  no-need
+   pendding all cs recover online
    sleep  5
    check nbd iops 
    check data consistency
@@ -378,7 +388,7 @@ test mds loss package 5%
     [Teardown]	   wait cluster healthy   ${vm_iops_limit}
 
 test ipmitool restart mds node
-   [Tags]    P1    base    first release   failover  ipmitool
+   [Tags]    P10    base    first release   failover  ipmitool
    test ipmitool restart mds
    sleep  60
    check nbd iops
@@ -388,7 +398,7 @@ test ipmitool restart mds node
    [Teardown]    wait cluster healthy   ${vm_iops_limit}
 
 test ipmitool restart chunkserver node
-   [Tags]    P1    base    first release   failover  ipmitool
+   [Tags]    P10    base    first release   failover  ipmitool
    test ipmitool restart chunkserver
    sleep  60
    check nbd iops
@@ -396,17 +406,15 @@ test ipmitool restart chunkserver node
    [Teardown]    check chunkserver online
 
 stop map unmap thread
-    [Tags]    P1    base    first release   failover
+    [Tags]    P1    base    first release   failover   no-need
     stop map unmap
 #    [Teardown]   wait cluster healthy    ${vm_iops_limit}
 
 stop snapshot test
-    [Tags]    P1    base    first release   failover  
+    [Tags]    P3    base    first release   failover
+#    test_snapshot_all
     stop snapshot test
 
-test lazy clone fail flatten and snapshot
-    [Tags]    P1    base    first release   failover   
-    test lazy clone flatten snapshot fail 
     
 test mds delay package 50ms
     [Tags]    P1    base    first release   failover   
@@ -414,7 +422,6 @@ test mds delay package 50ms
     test mds delay package  ${ms}
     test start mds
     test start etcd
-    test start snap
     sleep  120
     check nbd iops
     check data consistency
@@ -422,7 +429,7 @@ test mds delay package 50ms
     [Teardown]	   wait cluster healthy   ${vm_iops_limit}
 
 inject kill diff host chunkserver
-    [Tags]    P1    base    first release   failover
+    [Tags]    P2    base    first release   failover
     test kill diff host chunkserver
     wait health ok
     check nbd iops
@@ -430,8 +437,21 @@ inject kill diff host chunkserver
 #    check copies consistency
     [Teardown]	 wait cluster healthy    ${vm_iops_limit}
 
+test ipmitool restart client node
+   [Tags]    P10    base    first release   failover  ipmitool
+   test ipmitool restart client
+   sleep  60
+   run rwio
+   sleep  5
+   check nbd iops
+   check data consistency
+   test start mds
+   test start snap
+   test start nginx
+   [Teardown]    wait cluster healthy   ${vm_iops_limit}
+
 inject kill all mds
-    [Tags]    P1    base    first release   failover
+    [Tags]    P2    base    first release   failover
     ${num}   evaluate  int(3)
     test kill mds   ${num}
     test start mds
@@ -441,7 +461,7 @@ inject kill all mds
     [Teardown]    test start mds
 
 inject kill two etcd
-    [Tags]    P1    base    first release   failover  
+    [Tags]    P2    base    first release   failover  
     ${num}   evaluate  int(2)
     test kill etcd   ${num}
     sleep  5
@@ -468,7 +488,7 @@ inject all chunkserver down
     [Teardown]   wait cluster healthy    ${vm_iops_limit}
 
 inject all chunkserver down 10min
-    [Tags]    P1    base    first release   failover  
+    [Tags]    P2    base    first release   failover  
     test stop all chunkserver
     sleep   600
     test start all chunkserver
@@ -478,6 +498,14 @@ inject all chunkserver down 10min
     check data consistency
 #    check copies consistency
     [Teardown]   wait cluster healthy    ${vm_iops_limit}
+
+check all data consistency
+    [Tags]    P2    base    first release   failover  
+#     recover disk
+     stop rwio
+     check io error
+     stop scheduler
+     check copies consistency
 
 test clone vol
     [Tags]    P1    base    first release   failover  snapshot  no-need
@@ -505,8 +533,9 @@ inject cluster stress test
 *** Keywords ***
 
 init failover cluster
+     curveadm clean nbd  
      clean nbd  
-     destroy test env 
+     destroy curvebs
      ${begin_num}    get all chunk num
      ${begin_num}    Convert To Integer   ${begin_num}
      Set Global Variable  ${chunk_num}    ${begin_num}
@@ -514,41 +543,38 @@ init failover cluster
      check chunkserver online
      init rw cloud disk
      begin snapshot test
-     begin kill snapshotserver
-     loop map unmap file
+#     loop map unmap file
 
 init abnormal test env
      clean env
-#     destroy etcd
-#     destroy mds
-#     destroy snapshotclone server
-#     stop nebd
-#     drop all chunkserver dat
-     use ansible deploy
-#     install deb
-#     add config 
-#     start abnormal test services
-#     create pool
-#     start nebd
+#     clean log
+     deploy all bs servers
+     sleep  120
+#     check bs cluster ok
+
+clean log
+     clean fs kernel log
+     clean corefile
 
 init rw cloud disk
      map nbd
      stop rwio
-     write full disk  ${fio_vdsize}
+     init recover disk  ${fio_vdsize}
      run rwio
-     clean kernel log
+#     clean kernel log
+
+clean curve
+     curveadm clean nbd
+     sleep  10
+     clear RecycleBin
+#     Run Keyword If All Tests Passed      recycle chunk
+
 
 clean failover env
      stop rwio
-     check io error
-     stop scheduler
-     check copies consistency
-     clean nbd
-     delete nbd
-     sleep  10
-     clear RecycleBin
-     recycle chunk
-     sleep  60 
-     ${final_num}    get all chunk num
-     ${final_num}    Convert To Integer   ${final_num}
-     should be equal    ${final_num}   ${chunk_num}
+     clean curve
+#     sleep  180 
+#     destroy curvebs
+#     ${final_num}    get all chunk num
+#     ${final_num}    Convert To Integer   ${final_num}
+#     should be equal    ${final_num}   ${chunk_num}

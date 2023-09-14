@@ -50,12 +50,12 @@ mds_port = 6666
 mds_listen = "-listenAddr=127.0.0.1:6666"
 
 #abnormal test
-chunkserver_list = ["10.182.26.16","10.182.26.17","10.182.26.18","10.182.26.34","10.182.26.35","10.182.26.36"]
-mds_list = ["10.182.26.25","10.182.26.16","10.182.26.17"]
-etcd_list = ["10.182.26.16","10.182.26.17","10.182.26.18"]
-client_list = ["10.182.26.25"]
-chunkserver_reset_list = ["10.182.26.34","10.182.26.35","10.182.26.36"]
-mds_reset_list = ["10.182.26.16","10.182.26.17"]
+chunkserver_list = ["10.182.14.16","10.182.14.17","10.182.14.18","10.182.2.89","10.182.2.40","10.182.2.90"]
+mds_list = ["10.182.14.16","10.182.14.17","10.182.14.18"]
+etcd_list = ["10.182.14.16","10.182.14.17","10.182.14.18"]
+client_list = ["10.187.0.91"]
+chunkserver_reset_list = ["10.182.2.89","10.182.2.40","10.182.2.90"]
+mds_reset_list = ["10.182.14.16","10.182.14.17"]
 abnormal_user = "nbs"
 pravie_key_path = "/home/nbs/rsa/id_rsa"
 abnormal_db_host = "10.182.2.25"
@@ -64,14 +64,19 @@ offline_timeout = 100
 vol_uuid = ""
 thrash_map = True
 thrash_thread = []
+recover_vol_md5 = ""
+bs_test_client = ["10.187.0.91"]
+curveadm_host = "10.187.0.91"
+chunkserver_begin_port = 8200
+bs_test_vol = ["fiofile","vdbenchfile","recover"]
 #snapshot_test
-snap_server_list = ["10.182.26.25","10.182.26.16","10.182.26.17"]
+snap_server_list = ["10.182.14.16","10.182.14.17","10.182.14.18"]
 snap_version = '2019-08-01'
 snapshot_size = 10
 snapshot_timeout = 1200
 snapshot_thrash = ""
 snapshot_volid = ""
-snapshot_vip = "10.182.26.25"
+snapshot_vip = "10.182.24.25"
 # db info
 db_host = "127.0.0.1"
 db_port = 3306
@@ -82,6 +87,25 @@ snap_db_name = "curve_snapshot"
 curve_sql = "./src/repo/curve_mds.sql"
 snap_sql = "./src/repo/curve_snapshot.sql"
 
+
+#fs test cfg
+fs_cfg_path = "/var/lib/jenkins/workspace/ansibe-conf-fs"
+fs_test_client = ["10.182.4.48"]
+fs_mount_path = "/home/nbs/failover/"
+fs_mount_dir = ["test1","test2"]
+fs_md5check_dir = ["test1"]
+fs_mds = ["10.182.26.34","10.182.26.35","10.182.26.36"]
+fs_metaserver = ["10.182.26.34","10.182.26.35","10.182.26.36"]
+fs_etcd = ["10.182.26.34","10.182.26.35","10.182.26.36"]
+md5_check = []
+fs_md5check_thread = ""
+fs_mount_thread = ""
+fs_pjdtest_thread = ""
+fs_use_curvebs = False
+thrash_fs_mount = True
+thrash_fs_mdtest = True
+thrash_mount_host = "pubbeta2-nova48-3"
+pjdtest_source_path = "/var/lib/jenkins/workspace/pjdfstest"
 # chunkserver mount point
 cs_0 = curve_workspace + "0"
 cs_1 = curve_workspace + "1"
@@ -111,7 +135,7 @@ fake_mds_false = "false"
 fake_chunkserver_false = "false"
 
 #nova_host
-nova_host ="10.187.0.10"
+nova_host ="10.182.2.25"
 nova_user = "nbs"
 ssh_key = "/home/nbs/rsa/id_rsa"
 #vm_host
@@ -125,8 +149,9 @@ snapshot_file_name = "/lc"
 snapshot_s3_object_location = "snapshot_test_chunk_data@s3"
 
 #curve thrash 
-image_id = "94f54f29-af1e-4afd-acc9-8481c560356b"
-avail_zone = "dongguan1.curve1:pubbeta2-curve17.dg.163.org"
+#image_id = "94f54f29-af1e-4afd-acc9-8481c560356b"
+image_id = "ecd25866-b3d1-4e84-bd74-ddd5544f1809"
+avail_zone = "dongguan1.curve2:pubbeta2-curve2.dg.163.org"
 vm_prefix = ""
 
 level1 = [('test_kill_chunkserver_num',1),\
@@ -138,7 +163,7 @@ level1 = [('test_kill_chunkserver_num',1),\
           ('test_kill_etcd',1),\
           ('test_reboot_nebd')]
 level2 = [('reboot_curve_vm'),\
-          ('test_ipmitool_restart_client'),\
+#          ('test_ipmitool_restart_client'),\
           ('test_chunkserver_cpu_stress',95),\
           ('test_mds_cpu_stress',95),\
           ('test_client_cpu_stress',95),\
