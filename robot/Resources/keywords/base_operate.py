@@ -133,7 +133,9 @@ def check_process_exsits(process_name):
     pid = shell_operator.run_exec2(grep_cmd)
     logger.info("pid=%s" %pid)
     if pid:
-        logger.debug("process %s exsits" % process_name)
+        cmd = "ps -ef|grep %s | grep -v grep" % process_name
+        process = shell_operator.run_exec2(cmd)
+        logger.debug("process is: %s" % process)
         return 0
     else:
         logger.debug("process %s not exsits" % process_name)

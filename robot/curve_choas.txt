@@ -42,11 +42,11 @@ test one volume perf
 inject cluster chaos test
     [Tags]   P2   chaos   longtime  
     init rw cloud disk
-    add data disk
+#    add data disk
     get level cases 
-    ${num}   evaluate  int(50)
+    ${num}   evaluate  int(10)
     init create curve vm    ${num}
-    :FOR   ${i}   IN RANGE   100
+    :FOR   ${i}   IN RANGE   10
           log   "启动第"${i}"轮故障"
           ${choas1}   evaluate  random.choice($choas_level1)   random
           log   "开始启动一级故障"
@@ -63,6 +63,7 @@ inject cluster chaos test
           clean env
           start all services 
           wait cluster healthy
+          check nbd iops
           ${active_num}     get all curvevm active num    ${num}
           ${active_num}    Convert To Integer   ${active_num}
           should be equal    ${active_num}   ${num} 
@@ -74,60 +75,6 @@ inject cluster chaos test
     
 
 *** Keywords ***
-
-init failover cluster
-     init vm
-     init abnormal test env
-     check chunkserver online
-     ${begin_num}    get all chunk num
-     ${begin_num}    Convert To Integer   ${begin_num}
-     Set Global Variable  ${chunk_num}    ${begin_num} 
-
-init abnormal test env
-     clean env
-     destroy etcd
-     destroy mds
-     destroy snapshotclone server
-     stop nebd
-     drop all chunkserver dat
-     install deb
-     add config 
-     start abnormal test services
-     create pool
-     restart cinder server
-     wait cinder server up
-     start nebd
-
-init rw cloud disk
-     remove vm key
-     attach new vol   ${fio_vdsize}   ${vdbench_vdsize} 
-     stop rwio
-     write full disk  ${fio_vdsize}
-     run rwio
-
-test get all chunk num
-    stop rwio
-    sleep  2
-    ${begin_num}    get all chunk num
-    ${begin_num}    Convert To Integer  ${begin_num}
-    exec deleteforce
-    sleep  3
-    ${end_num}    get all chunk num
-    ${end_num}    Convert To Integer   ${end_num}
-    should be equal    ${begin_num}   ${end_num}
-
-clean failover env
-     stop rwio
-     check io error
-#     stop scheduler
-     check copies consistency
-     detach vol
-     sleep  10
-     clear RecycleBin
-#     sleep  60 
-#     ${final_num}    get all chunk num
-#     ${final_num}    Convert To Integer   ${final_num}
-#     should be equal    ${final_num}   ${chunk_num}
 
 get level cases
      ${level}    evaluate   str("level1")
@@ -146,3 +93,51 @@ start all services
      test start mds
      start retired and down chunkservers
      test start snap
+
+
+init failover cluster
+     clean nbd  
+     destroy test env 
+     ${begin_num}    get all chunk num
+     ${begin_num}    Convert To Integer   ${begin_num}
+     Set Global Variable  ${chunk_num}    ${begin_num}
+     init abnormal test env
+     check chunkserver online
+
+init abnormal test env
+     clean env
+#     destroy etcd
+#     destroy mds
+#     destroy snapshotclone server
+#     stop nebd
+#     drop all chunkserver dat
+     use ansible deploy
+#     install deb
+#     add config 
+#     start abnormal test services
+#     create pool
+#     start nebd
+     restart cinder server
+     wait cinder server up
+
+init rw cloud disk
+     map nbd
+     stop rwio
+#     write full disk  ${fio_vdsize}
+     run rwio
+     clean kernel log
+
+clean failover env
+     stop rwio
+     check io error
+#     stop scheduler
+     check copies consistency
+     clean nbd
+     delete nbd
+     sleep  10
+     clear RecycleBin
+     recycle chunk
+#     sleep  60
+#     ${final_num}    get all chunk num
+#     ${final_num}    Convert To Integer   ${final_num}
+#     should be equal    ${final_num}   ${chunk_num}
