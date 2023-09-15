@@ -220,6 +220,14 @@ void ChunkServiceImpl::ReadChunk(RpcController *controller,
                                  const ChunkRequest *request,
                                  ChunkResponse *response,
                                  Closure *done) {
+/*
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
+    response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
+    cntl->response_attachment().resize(request->size());
+    done->Run();
+    return;
+*/
+
     ChunkServiceClosure* closure =
         new (std::nothrow) ChunkServiceClosure(inflightThrottle_,
                                                request,

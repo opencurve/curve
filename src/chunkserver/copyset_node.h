@@ -286,6 +286,11 @@ class CopysetNode : public braft::StateMachine,
      */
     virtual void Propose(const braft::Task &task);
 
+    virtual void zyb_test1(uint64_t index);
+    void UpdateSnapshotIndex();
+    virtual uint64_t GetSnapshotIndex() const;
+    virtual std::shared_ptr<RaftNode> GetRaftNode() const;
+
     /**
      * 获取复制组成员
      * @param peers:返回的成员列表(输出参数)
@@ -419,6 +424,10 @@ class CopysetNode : public braft::StateMachine,
 
     void WaitSnapshotDone();
 
+    bool isDoingSnapshot();
+    void SetDoingSnapshot();
+    void CleanDoingSnapshot();
+
  private:
     inline std::string GroupId() {
         return ToGroupId(logicPoolId_, copysetId_);
@@ -474,6 +483,7 @@ class CopysetNode : public braft::StateMachine,
     // transfer leader的目标，状态为TRANSFERRING时有效
     Peer transferee_;
     int64_t lastSnapshotIndex_;
+    uint64_t snapshot_index_;
     // enable O_DSYNC when open file
     bool enableOdsyncWhenOpenChunkFile_;
     // sync chunk timer
@@ -486,6 +496,7 @@ class CopysetNode : public braft::StateMachine,
     mutable curve::common::Mutex chunkIdsLock_;
     // is syncing
     std::atomic<bool> isSyncing_;
+    std::atomic<bool> isDoingSnapshot_;
     // do snapshot check syncing interval
     uint32_t checkSyncingIntervalMs_;
     // async snapshot future object

@@ -125,7 +125,23 @@ int ChunkOpRequest::Encode(const ChunkRequest *request,
         LOG(ERROR) << "Fail to serialize request";
         return -1;
     }
+#if 0
+    // 3.1 compress the op data
+    size_t origSize = ((butil::IOBuf *)data)->size();
+    std::string input = "";
+    std::string output = "";
+    ((butil::IOBuf *)data)->cutn(&input, origSize);
 
+    LOG(ERROR) << "zyb snappy::Compress begin: "
+                << "intput size: " << input.size();
+    snappy::Compress(input.data(), input.size(), &output);
+
+    ((butil::IOBuf *)data)->append(output);
+    ((butil::IOBuf *)data)->resize(output.size());
+
+    LOG(ERROR) << "zyb snappy::Compress end: "
+                << "output size: " << output.size();
+#endif
     // 3.append op data
     if (data != nullptr) {
         log->append(*data);
@@ -497,6 +513,99 @@ void WriteChunkRequest::OnApply(uint64_t index,
         (index > node_->GetAppliedIndex() ? index : node_->GetAppliedIndex());
     response_->set_appliedindex(maxIndex);
     node_->ShipToSync(request_->chunkid());
+
+    //for concurrent apply delete
+    //auto LogStorage = node_->GetLogStorage();
+    auto task = std::bind(&WriteChunkRequest::zyb_test2,
+                        this,
+                        index);
+    auto concurrentApplyModule = node_->GetConcurrentApplyModule();
+    concurrentApplyModule->Push(
+        request_->chunkid(), CHUNK_OP_TYPE::CHUNK_OP_PASTE, task);
+}
+
+void WriteChunkRequest::zyb_test2(uint64_t index) {
+#define DEFAULT_SNAPSHOT_DIFF 200
+    bool need_snapshot = false;
+    bool leader_in_snapshot = false;
+    bool follower_in_snapshot = false;
+    uint64_t threshold = DEFAULT_SNAPSHOT_DIFF;
+
+    LogicPoolID logicPoolId = node_->GetLogicPoolId();
+    CopysetID copysetId = node_->GetCopysetId();
+
+    uint64_t curIndex = node_->GetAppliedIndex();
+    uint64_t snapshot_index = node_->GetSnapshotIndex();
+
+
+    LOG(INFO) << "zyb 2 WRITE " 
+              << " index: " << index 
+              << " curIndex: " << curIndex
+              << " snapshot_index: " << snapshot_index
+              << " groupid: " << ToGroupIdString(logicPoolId, copysetId);
+
+    if(node_->isDoingSnapshot()) {
+        LOG(INFO) << "zyb 2 doing snapshot: return" << std::endl;
+        return;
+    }
+    //if (node_->IsLeaderTerm()) 
+    {
+        braft::NodeStatus status;
+        node_->GetStatus(&status);
+        LOG(INFO) << "zyb 2 status: "
+                  << " leader_id: " << status.leader_id.to_string()
+                  << " peer_id: " << status.peer_id.to_string()
+                  << " applying_index " << status.applying_index;
+
+        for(auto it1 : status.stable_followers) {
+            LOG(INFO) << "zyb 2 stable_followers: " << it1.first.to_string() << " snapshot: " << it1.second.installing_snapshot;
+            if (it1.second.installing_snapshot) {
+                if (it1.first == status.leader_id) 
+                    leader_in_snapshot = true;
+                else
+                    follower_in_snapshot = true;
+                break;
+            }
+        }
+        for(auto it2 : status.unstable_followers) {
+            LOG(INFO) << "zyb 2 unstable_followers: " << it2.first.to_string() << "snapshot: " << it2.second.installing_snapshot;
+            if (it2.second.installing_snapshot) {
+                if (it2.first == status.leader_id) 
+                    leader_in_snapshot = true;
+                else
+                    follower_in_snapshot = true;
+                break;
+            }
+        }
+    }
+
+    if (follower_in_snapshot) {
+        LOG(INFO) << "zyb 2 follower in snapshot, return" << std::endl;
+        return;
+    }
+
+    if (leader_in_snapshot) {
+        threshold = 10*DEFAULT_SNAPSHOT_DIFF;
+        LOG(INFO) << "zyb 2 leader in snapshot, extend threshold: " << threshold;
+        if (curIndex - snapshot_index > threshold) {
+            need_snapshot = true;
+        }
+    } else {
+        LOG(INFO) << "zyb 2 check snapshot, threshold: " << threshold << " need_snapshot: " << need_snapshot;
+        if (curIndex - snapshot_index > threshold) {
+            need_snapshot = true;
+        }
+    }
+
+    if(!need_snapshot)
+        return;
+
+    LOG(INFO) << "zyb 2 do snapshot: appliedIndex_ " << curIndex << " snapshot_index " << snapshot_index << " threshold " << threshold;
+    SnapshotDone *done = new SnapshotDone(node_);
+    node_->SetDoingSnapshot();
+    //braft::Closure* done = NewCallback(snapshot_done, this);
+    node_->GetRaftNode()->snapshot(done);
+
 }
 
 void WriteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
@@ -545,6 +654,15 @@ void WriteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                    << " data size: " << request.size()
                    << " data store return: " << ret;
     }
+
+    //for concurrent apply delete
+    //auto LogStorage = node_->GetLogStorage();
+    auto task = std::bind(&WriteChunkRequest::zyb_test2,
+                        this,
+                        0);
+    auto concurrentApplyModule = node_->GetConcurrentApplyModule();
+    concurrentApplyModule->Push(
+        request.chunkid(), CHUNK_OP_TYPE::CHUNK_OP_PASTE, task);
 }
 
 void ReadSnapshotRequest::OnApply(uint64_t index,

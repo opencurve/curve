@@ -69,10 +69,12 @@ CopysetNode::CopysetNode(const LogicPoolID &logicPoolId,
     appliedIndex_(0),
     leaderTerm_(-1),
     lastSnapshotIndex_(0),
+    snapshot_index_(0),
     configChange_(std::make_shared<ConfigurationChange>()),
     enableOdsyncWhenOpenChunkFile_(false),
     syncTimerIntervalMs_(30000),
     isSyncing_(false),
+    isDoingSnapshot_(false),
     checkSyncingIntervalMs_(500) {
 }
 
@@ -323,6 +325,19 @@ void CopysetNode::WaitSnapshotDone() {
     if (snapshotFuture_.valid()) {
         snapshotFuture_.wait();
     }
+}
+
+void CopysetNode::SetDoingSnapshot() {
+    isDoingSnapshot_.store(true, std::memory_order_acquire);
+
+}
+
+void CopysetNode::CleanDoingSnapshot() {
+    isDoingSnapshot_.store(false, std::memory_order_acquire);
+}
+
+bool CopysetNode::isDoingSnapshot() {
+    return isDoingSnapshot_.load(std::memory_order_acquire);
 }
 
 void CopysetNode::save_snapshot_background(::braft::SnapshotWriter *writer,
@@ -781,12 +796,28 @@ void CopysetNode::UpdateAppliedIndex(uint64_t index) {
     }
 }
 
+static void snapshot_done(CopysetNode *node) {
+    node->UpdateSnapshotIndex();
+}
+
+
+void CopysetNode::UpdateSnapshotIndex() {
+    snapshot_index_ = GetAppliedIndex();
+}
+
+uint64_t CopysetNode::GetSnapshotIndex() const {
+    return snapshot_index_;
+}
+
 uint64_t CopysetNode::GetAppliedIndex() const {
     return appliedIndex_.load(std::memory_order_acquire);
 }
 
 std::shared_ptr<CSDataStore> CopysetNode::GetDataStore() const {
     return dataStore_;
+}
+std::shared_ptr<RaftNode> CopysetNode::GetRaftNode() const {
+    return raftNode_;
 }
 
 CurveSegmentLogStorage* CopysetNode::GetLogStorage() const {
@@ -799,6 +830,19 @@ ConcurrentApplyModule *CopysetNode::GetConcurrentApplyModule() const {
 
 void CopysetNode::Propose(const braft::Task &task) {
     raftNode_->apply(task);
+}
+
+
+void CopysetNode::zyb_test1(uint64_t index) {
+    LOG(INFO) << "zyb WRITE index: " << index;
+
+    uint64_t curIndex = GetAppliedIndex();
+    if (curIndex - snapshot_index_ > 100) {
+        LOG(INFO) << "zyb do snapshot: appliedIndex_ " << curIndex << " snapshot_index_ " << snapshot_index_;
+        //SnapshotDone *done = new SnapshotDone(this);
+        //braft::Closure* done = NewCallback(snapshot_done, this);
+        raftNode_->snapshot(nullptr);
+    }
 }
 
 int CopysetNode::GetConfChange(ConfigChangeType *type,

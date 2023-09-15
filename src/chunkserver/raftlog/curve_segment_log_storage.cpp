@@ -476,6 +476,7 @@ int CurveSegmentLogStorage::truncate_prefix(const int64_t first_index_kept) {
         popped[i]->unlink();
         popped[i] = NULL;
     }
+    LOG(INFO) << "zyb, Do truncate_prefix first_index_kept: " << first_index_kept << std::endl;
     return 0;
 }
 
@@ -612,6 +613,7 @@ int CurveSegmentLogStorage::truncate_suffix(const int64_t last_index_kept) {
         }
     }
 
+    LOG(INFO) << "zyb,Do truncate_suffix, last_index_kept=" << last_index_kept;
     return ret;
 }
 
@@ -674,6 +676,13 @@ void CurveSegmentLogStorage::sync() {
     for (size_t i = 0; i < segments.size(); i++) {
         segments[i]->sync(true);
     }
+}
+
+void CurveSegmentLogStorage::zyb_test(uint64_t index) {
+    LOG(INFO) << "DELETE WAL index: " << index;
+    
+    //if(truncate_prefix(index))
+    //    LOG(ERROR) << "truncate_prefix WAL index: " << index << " failed";
 }
 
 braft::LogStorage* CurveSegmentLogStorage::new_instance(

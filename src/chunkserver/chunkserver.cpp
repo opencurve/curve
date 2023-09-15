@@ -61,6 +61,7 @@ DEFINE_string(chunkServerMetaUri,
 DEFINE_string(copySetUri, "local://./0/copysets", "copyset data uri");
 DEFINE_string(raftSnapshotUri, "curve://./0/copysets", "raft snapshot uri");
 DEFINE_string(raftLogUri, "curve://./0/copysets", "raft log uri");
+DEFINE_string(raftMetaUri, "local://./0/copysets", "zyb, raft mata uri");
 DEFINE_string(recycleUri, "local://./0/recycler" , "recycle uri");
 DEFINE_string(chunkFilePoolDir, "./0/", "chunk file pool location");
 DEFINE_string(chunkFilePoolMetaPath,
@@ -73,6 +74,10 @@ DEFINE_bool(enableWalfilepool, true, "enable WAL filepool");
 DEFINE_string(walFilePoolDir, "./0/", "WAL filepool location");
 DEFINE_string(walFilePoolMetaPath, "./walfilepool.meta",
                                     "WAL filepool meta path");
+DEFINE_bool(useChunkFilePool, false,
+                                    "zyb, walfilepool.use_chunk_file_pool");
+DEFINE_uint32(walFilePoolSegmentSize, 16777216,
+                                    "zyb, walfilepool.segment_size");
 
 const char* kProtocalCurve = "curve";
 
@@ -104,6 +109,7 @@ int ChunkServer::Run(int argc, char** argv) {
     curve::common::ExposeCurveVersion();
 
     // ============================初始化各模块==========================//
+    LOG(INFO) << "zyb mod ChunkServer";
     LOG(INFO) << "Initializing ChunkServer modules";
 
     LOG_IF(FATAL, !conf.GetUInt32Value("global.min_io_alignment",
@@ -710,9 +716,6 @@ void ChunkServer::LoadConfigFromCmdline(common::Configuration *conf) {
     if (GetCommandLineFlagInfo("raftSnapshotUri", &info) && !info.is_default) {
         conf->SetStringValue(
                             "copyset.raft_snapshot_uri", FLAGS_raftSnapshotUri);
-    } else {
-        LOG(FATAL)
-        << "raftSnapshotUri must be set when run chunkserver in command.";
     }
     if (GetCommandLineFlagInfo("raftLogUri", &info) && !info.is_default) {
         conf->SetStringValue(
@@ -720,6 +723,10 @@ void ChunkServer::LoadConfigFromCmdline(common::Configuration *conf) {
     } else {
         LOG(FATAL)
         << "raftLogUri must be set when run chunkserver in command.";
+    }
+    if (GetCommandLineFlagInfo("raftMetaUri", &info) && !info.is_default) {
+        conf->SetStringValue(
+                            "copyset.raft_meta_uri", FLAGS_raftMetaUri);
     }
 
     if (GetCommandLineFlagInfo("recycleUri", &info) &&
@@ -765,6 +772,18 @@ void ChunkServer::LoadConfigFromCmdline(common::Configuration *conf) {
         LOG(FATAL)
         << "walFilePoolMetaPath must be set when run chunkserver in command.";
     }
+
+    if (GetCommandLineFlagInfo("useChunkFilePool", &info) &&
+        !info.is_default) {
+        conf->SetBoolValue(
+            "walfilepool.use_chunk_file_pool", FLAGS_useChunkFilePool);
+    } 
+
+    if (GetCommandLineFlagInfo("walFilePoolSegmentSize", &info) &&
+        !info.is_default) {
+        conf->SetIntValue(
+            "walfilepool.segment_size", FLAGS_walFilePoolSegmentSize);
+    } 
 
     if (GetCommandLineFlagInfo("mdsListenAddr", &info) && !info.is_default) {
         conf->SetStringValue("mds.listen.addr", FLAGS_mdsListenAddr);

@@ -33,6 +33,7 @@
 #include "include/chunkserver/chunkserver_common.h"
 #include "src/chunkserver/concurrent_apply/concurrent_apply.h"
 #include "src/chunkserver/datastore/define.h"
+#include "src/chunkserver/copyset_node.h"
 
 using ::google::protobuf::RpcController;
 using ::curve::chunkserver::concurrent::ConcurrentApplyModule;
@@ -56,6 +57,22 @@ inline bool existCloneInfo(const ChunkRequest *request) {
     }
     return false;
 }
+
+struct SnapshotDone : public braft::Closure {
+    void Run() {
+        // 遇到部分请求报has no applied logs since last snapshot
+        // 不调用on_snapshot_save导致不更新_snapshot_time_cost等信息
+        if (node_ != nullptr) {
+            node_->UpdateSnapshotIndex();
+            node_->CleanDoingSnapshot();
+        }
+        delete this;
+    }
+    SnapshotDone(std::shared_ptr<CopysetNode> nodePtr) : node_(nodePtr) {}
+    std::shared_ptr<CopysetNode> node_;
+    int ret = 0;
+    //int retry = 0;
+};
 
 class ChunkOpRequest : public std::enable_shared_from_this<ChunkOpRequest> {
  public:
@@ -259,6 +276,7 @@ class WriteChunkRequest : public ChunkOpRequest {
     void OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                         const ChunkRequest &request,
                         const butil::IOBuf &data) override;
+    void zyb_test2(uint64_t index);
 };
 
 class ReadSnapshotRequest : public ChunkOpRequest {

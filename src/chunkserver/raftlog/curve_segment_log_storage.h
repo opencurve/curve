@@ -138,6 +138,7 @@ class CurveSegmentLogStorage : public braft::LogStorage {
 
     // append entry to log
     int append_entry(const braft::LogEntry* entry);
+    void zyb_test(uint64_t index);
 
     // append entries to log, return success append number
     virtual int append_entries(const std::vector<braft::LogEntry*>& entries);

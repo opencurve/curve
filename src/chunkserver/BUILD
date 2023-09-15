@@ -120,7 +120,7 @@ cc_library(
     ],
 )
 
-# chunkserver exec
+#chunkserver exec
 cc_binary(
     name = "chunkserver",
     srcs = glob([

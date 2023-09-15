@@ -18,16 +18,16 @@
 
 dir=`pwd`
 #step1 清除生成的目录和文件
-bazel clean
+#bazel clean
 rm -rf curvefs_python/BUILD
 rm -rf curvefs_python/tmplib/
 
-git submodule update --init
-if [ $? -ne 0 ]
-then
-    echo "submodule init failed"
-    exit
-fi
+#git submodule update --init
+#if [ $? -ne 0 ]
+#then
+#    echo "submodule init failed"
+#    exit
+#fi
 
 #step2 获取tag版本和git提交版本信息
 #获取tag版本
@@ -90,17 +90,17 @@ fi
 echo "gcc version : "`gcc -dumpversion`
 
 echo "start compile"
-cd ${dir}/thirdparties/etcdclient
-make clean
-make all
-if [ $? -ne 0 ]
-then
-    echo "make etcd client failed"
-    exit
-fi
-cd ${dir}
-
-cp ${dir}/thirdparties/etcdclient/libetcdclient.h ${dir}/include/etcdclient/etcdclient.h
+#cd ${dir}/thirdparties/etcdclient
+#make clean
+#make all
+#if [ $? -ne 0 ]
+#then
+#    echo "make etcd client failed"
+#    exit
+#fi
+#cd ${dir}
+#
+#cp ${dir}/thirdparties/etcdclient/libetcdclient.h ${dir}/include/etcdclient/etcdclient.h
 
 if [ `gcc -dumpversion | awk -F'.' '{print $1}'` -le 6 ]
 then
@@ -108,6 +108,7 @@ then
 else
     bazelflags='--copt -faligned-new'
 fi
+echo "bazelflags=$bazelflags"
 
 if [ "$1" = "debug" ]
 then
@@ -138,30 +139,21 @@ then
     exit
 fi
 else
-bazel build ... --copt -DHAVE_ZLIB=1 --copt -O2 -s --define=with_glog=true \
+#bazel build ... --copt -DHAVE_ZLIB=1 --copt -O2 -s --define=with_glog=true \
+#bazel build //src/chunkserver:chunkserver --copt -DHAVE_ZLIB=1 --copt -O2 -s --define=with_glog=true \
+#bazel build //src/client:all --copt -DHAVE_ZLIB=1 --copt -O2 -s --define=with_glog=true \
+#bazel build //:curvebs-sdk --copt -DHAVE_ZLIB=1 --copt -O2 -s --define=with_glog=true \
+#bazel build --spawn_strategy=local //src/chunkserver:chunkserver --copt -DHAVE_ZLIB=1 --copt -O2 -s --define=with_glog=true \
+cmd="bazel build  //src/chunkserver:chunkserver --copt -DHAVE_ZLIB=1 --copt -O2 -s --define=with_glog=true \
 --define=libunwind=true --copt -DGFLAGS_NS=google --copt \
 -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --copt -DCURVEVERSION=${curve_version} \
---linkopt -L/usr/local/lib ${bazelflags}
+--linkopt -L/usr/local/lib ${bazelflags}"
+
+echo $cmd
+$cmd
 if [ $? -ne 0 ]
 then
     echo "build phase1 failed"
-    exit
-fi
-bash ./curvefs_python/configure.sh
-if [ $? -ne 0 ]
-then
-    echo "configure failed"
-    exit
-fi
-bazel build curvefs_python:curvefs  --copt -DHAVE_ZLIB=1 --copt -O2 -s \
---define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google \
---copt \
--Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --linkopt \
--L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${curve_version} \
---linkopt -L/usr/local/lib ${bazelflags}
-if [ $? -ne 0 ]
-then
-    echo "build phase2 failed"
     exit
 fi
 fi
