@@ -143,15 +143,28 @@ list_target() {
         bazel query 'kind("cc_binary", //tools/...)'
         bazel query 'kind("cc_binary", //nebd/src/...)'
         bazel query 'kind("cc_binary", //nbd/src/...)'
+
+        bazel query 'kind("cc_library", //include/...)'
+        bazel query 'kind("cc_library", //src/...)'
+        bazel query 'kind("cc_library", //nebd/src/...)'
+        bazel query 'kind("cc_library", //nbd/src/...)'
+
         print_title " TEST TARGETS "
         bazel query 'kind("cc_(test|binary)", //test/...)'
         bazel query 'kind("cc_(test|binary)", //nebd/test/...)'
         bazel query 'kind("cc_(test|binary)", //nbd/test/...)'
+
+        bazel query 'kind("cc_(test|library)", //test/...)'
+        bazel query 'kind("cc_(test|library)", //nebd/test/...)'
+        bazel query 'kind("cc_(test|library)", //nbd/test/...)'
     elif [ "$g_stor" == "fs" ]; then
         print_title "SOURCE TARGETS"
         bazel query 'kind("cc_binary", //curvefs/src/...)'
+        bazel query 'kind("cc_library", //curvefs/src/...)'
+
         print_title " TEST TARGETS "
         bazel query 'kind("cc_(test|binary)", //curvefs/test/...)'
+        bazel query 'kind("cc_(test|library)", //curvefs/test/...)'
     fi
 }
 
@@ -184,13 +197,13 @@ build_target() {
         if [[ "$g_target" = "*" ]]; then
             target_array=("-- //... -//curvefs/...")
         else
-            target_array=($(bazel query 'kind("cc_(test|binary)", //... -//curvefs/...)' | grep -E "$g_target"))
+            target_array=($(bazel query 'kind("cc_(test|binary|library)", //... -//curvefs/...)' | grep -E "$g_target"))
         fi
     elif [ "$g_stor" == "fs" ]; then
         if [[ "$g_target" = "*" ]]; then
             target_array=("-- //curvefs/...")
         else
-            target_array=($(bazel query 'kind("cc_(test|binary)", //curvefs/...)' | grep -E "$g_target"))
+            target_array=($(bazel query 'kind("cc_(test|binary|library)", //curvefs/...)' | grep -E "$g_target"))
         fi
     fi
 
