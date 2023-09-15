@@ -355,7 +355,7 @@ int FileClient::Create2(const CreateFileContext& context) {
 }
 
 int FileClient::Read(int fd, char *buf, off_t offset, size_t len) {
-    // 长度为0，直接返回，不做任何操作
+    // Length is 0, returns directly without any operation
     if (len == 0) {
         return -LIBCURVE_ERROR::OK;
     }
@@ -370,7 +370,7 @@ int FileClient::Read(int fd, char *buf, off_t offset, size_t len) {
 }
 
 int FileClient::Write(int fd, const char *buf, off_t offset, size_t len) {
-    // 长度为0，直接返回，不做任何操作
+    // Length is 0, returns directly without any operation
     if (len == 0) {
         return -LIBCURVE_ERROR::OK;
     }
@@ -397,7 +397,7 @@ int FileClient::Discard(int fd, off_t offset, size_t length) {
 
 int FileClient::AioRead(int fd, CurveAioContext *aioctx,
                         UserDataType dataType) {
-    // 长度为0，直接返回，不做任何操作
+    // Length is 0, returns directly without any operation
     if (aioctx->length == 0) {
         return -LIBCURVE_ERROR::OK;
     }
@@ -417,7 +417,7 @@ int FileClient::AioRead(int fd, CurveAioContext *aioctx,
 
 int FileClient::AioWrite(int fd, CurveAioContext *aioctx,
                          UserDataType dataType) {
-    // 长度为0，直接返回，不做任何操作
+    // Length is 0, returns directly without any operation
     if (aioctx->length == 0) {
         return -LIBCURVE_ERROR::OK;
     }
@@ -753,7 +753,7 @@ bool FileClient::StartDummyServer() {
         return false;
     }
 
-    // 获取本地ip
+    // Obtain local IP
     std::string ip;
     if (!common::NetCommon::GetLocalIP(&ip)) {
         LOG(ERROR) << "Get local ip failed!";
@@ -771,7 +771,7 @@ bool FileClient::StartDummyServer() {
 }  // namespace curve
 
 
-// 全局初始化与反初始化
+// Global initialization and deinitialization
 int GlobalInit(const char *configpath);
 void GlobalUnInit();
 

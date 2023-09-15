@@ -41,20 +41,20 @@ inline void GetStringValue(std::ostream& os, void* arg) {
     os << *static_cast<std::string*>(arg);
 }
 
-// 悬挂IO统计，文件级别统计，方便定位
+//Suspend IO statistics and file level statistics for easy positioning
 struct IOSuspendMetric {
-    // 当前persecond计数总数
+    //Current total number of second counts
     bvar::Adder<uint64_t> count;
 
     IOSuspendMetric(const std::string& prefix, const std::string& name)
         : count(prefix, name + "_total_count") {}
 };
 
-// 秒级信息统计
+//Second-level information statistics
 struct PerSecondMetric {
-    // 当前persecond计数总数
+    //Current total number of second counts
     bvar::Adder<uint64_t> count;
-    // persecond真实数据，这个数据依赖于count
+    //persecond real data depends on the count
     bvar::PerSecond<bvar::Adder<uint64_t>> value;
 
     PerSecondMetric(const std::string& prefix, const std::string& name)
@@ -62,21 +62,21 @@ struct PerSecondMetric {
           value(prefix, name, &count, 1) {}
 };
 
-// 接口统计信息metric信息统计
+//Interface statistics information metric information statistics
 struct InterfaceMetric {
-    // 接口统计信息调用qps
+    //Call qps for interface statistics information
     PerSecondMetric qps;
     // error request persecond
     PerSecondMetric eps;
     // receive request persecond
     PerSecondMetric rps;
-    // 调用吞吐
+    //Call throughput
     PerSecondMetric bps;
-    // 调用超时次数qps
+    //Call timeout count qps
     PerSecondMetric timeoutQps;
-    // 调用redirect次数qps
+    //Number of calls to redirect qps
     PerSecondMetric redirectQps;
-    // 调用latency
+    //Call latency
     bvar::LatencyRecorder latency;
 
     InterfaceMetric(const std::string& prefix, const std::string& name)
@@ -102,36 +102,36 @@ struct DiscardMetric {
     bvar::Adder<int64_t> pending;
 };
 
-// 文件级别metric信息统计
+//File level metric information statistics
 struct FileMetric {
     const std::string prefix = "curve_client";
 
-    // 当前metric归属于哪个文件
+    //Which file does the current metric belong to
     std::string filename;
 
-    // 当前文件inflight io数量
+    //Current file inflight io quantity
     bvar::Adder<int64_t> inflightRPCNum;
 
-    // 当前文件请求的最大请求字节数，这种统计方式可以很方便的看到最大值，分位值
+    //The maximum number of request bytes for the current file request, which is a convenient statistical method to see the maximum and quantile values
     bvar::LatencyRecorder readSizeRecorder;
     bvar::LatencyRecorder writeSizeRecorder;
     bvar::LatencyRecorder discardSizeRecorder;
 
-    // libcurve最底层read rpc接口统计信息metric统计
+    //Libcurve's lowest level read rpc interface statistics information metric statistics
     InterfaceMetric readRPC;
-    // libcurve最底层write rpc接口统计信息metric统计
+    //Libcurve's lowest level write rpc interface statistics information metric statistics
     InterfaceMetric writeRPC;
-    // 用户读请求qps、eps、rps
+    //User Read Request QPS, EPS, RPS
     InterfaceMetric userRead;
-    // 用户写请求qps、eps、rps
+    //User write request QPS, EPS, RPS
     InterfaceMetric userWrite;
     // user's discard request
     InterfaceMetric userDiscard;
 
-    // get leader失败重试qps
+    //Get leader failed and retry qps
     PerSecondMetric getLeaderRetryQPS;
 
-    // 当前文件上的悬挂IO数量
+    //The number of suspended IOs on the current file
     IOSuspendMetric suspendRPCMetric;
 
     DiscardMetric discardMetric;
@@ -152,52 +152,52 @@ struct FileMetric {
           discardMetric(prefix + filename) {}
 };
 
-// 用于全局mds接口统计信息调用信息统计
+//Used for global mds interface statistics, call information statistics
 struct MDSClientMetric {
     std::string prefix;
 
-    // mds的地址信息
+    //Address information of mds
     std::string metaserverAddr;
     bvar::PassiveStatus<std::string> metaserverAddress;
 
-    // openfile接口统计信息
+    //openfile interface statistics
     InterfaceMetric openFile;
-    // createFile接口统计信息
+    //createFile interface statistics
     InterfaceMetric createFile;
-    // closeFile接口统计信息
+    //closeFile interface statistics
     InterfaceMetric closeFile;
-    // getFileInfo接口统计信息
+    //GetFileInfo interface statistics
     InterfaceMetric getFile;
-    // RefreshSession接口统计信息
+    //RefreshSession Interface Statistics
     InterfaceMetric refreshSession;
-    // GetServerList接口统计信息
+    //GetServerList interface statistics
     InterfaceMetric getServerList;
-    // GetOrAllocateSegment接口统计信息
+    //GetOrAllocateSegment interface statistics
     InterfaceMetric getOrAllocateSegment;
-    // DeAllocateSegment接口统计信息
+    //DeAllocateSegment Interface Statistics
     InterfaceMetric deAllocateSegment;
-    // RenameFile接口统计信息
+    //RenameFile Interface Statistics
     InterfaceMetric renameFile;
-    // Extend接口统计信息
+    //Extend Interface Statistics
     InterfaceMetric extendFile;
-    // DeleteFile接口统计信息
+    //deleteFile interface statistics
     InterfaceMetric deleteFile;
     // RecoverFile interface metric
     InterfaceMetric recoverFile;
-    // changeowner接口统计信息
+    //changeowner Interface Statistics
     InterfaceMetric changeOwner;
-    // listdir接口统计信息
+    //Listdir interface statistics
     InterfaceMetric listDir;
-    // register接口统计信息
+    //Register Interface Statistics
     InterfaceMetric registerClient;
-    // GetChunkServerID接口统计
+    //GetChunkServerID interface statistics
     InterfaceMetric getChunkServerId;
-    // ListChunkServerInServer接口统计
+    //ListChunkServerInServer Interface Statistics
     InterfaceMetric listChunkserverInServer;
     // IncreaseEpoch
     InterfaceMetric increaseEpoch;
 
-    // 切换mds server总次数
+    //Total number of switching MDS server
     bvar::Adder<uint64_t> mdsServerChangeTimes;
 
     explicit MDSClientMetric(const std::string& prefix_ = "")
@@ -244,8 +244,8 @@ struct LatencyGuard {
 class MetricHelper {
  public:
     /**
-     * 统计getleader重试次数
-     * @param: fm为当前文件的metric指针
+     * Count the number of retries for getleader
+     * @param: fm is the metric pointer of the current file
      */
     static void IncremGetLeaderRetryTime(FileMetric* fm) {
         if (fm != nullptr) {
@@ -254,10 +254,10 @@ class MetricHelper {
     }
 
     /**
-     * 统计用户当前读写请求次数，用于qps计算
-     * @param: fm为当前文件的metric指针
-     * @param: length为当前请求大小
-     * @param: read为当前操作是读操作还是写操作
+     * Count the current number of read and write requests from users for QPS calculation
+     * @param: fm is the metric pointer of the current file
+     * @param: length is the current request size
+     * @param: read is whether the current operation is a read or write operation
      */
     static void IncremUserQPSCount(FileMetric* fm,
                                    uint64_t length,
@@ -285,9 +285,9 @@ class MetricHelper {
     }
 
     /**
-     * 统计用户当前读写请求失败次数，用于eps计算
-     * @param: fm为当前文件的metric指针
-     * @param: read为当前操作是读操作还是写操作
+     * Count the current number of failed read/write requests by users for EPS calculation
+     * @param: fm is the metric pointer of the current file
+     * @param: read is whether the current operation is a read or write operation
      */
     static void IncremUserEPSCount(FileMetric* fm, OpType type) {
         if (fm != nullptr) {
@@ -307,13 +307,13 @@ class MetricHelper {
     }
 
     /**
-     * 统计用户当前接收到的读写请求次数，用于rps计算
-     * rps: receive request persecond, 就是当前接口每秒接收到的请求数量
-     * qps: query request persecond, 就是当前接口每秒处理的请求数量
-     * eps: error request persecond, 就是当前接口每秒出错的请求数量
-     * rps减去qps就是当前client端每秒钟等待的请求数量，这部分请求会持久占用当前一秒内的内存
-     * @param: fm为当前文件的metric指针
-     * @param: read为当前操作是读操作还是写操作
+     * Count the number of read and write requests currently received by the user for RPS calculation
+     * rps: receive request persecond, which is the number of requests received by the current interface per second
+     * qps: query request persecond, which is the number of requests processed by the current interface per second
+     * eps: error request persecond, which is the number of requests that make errors per second on the current interface
+     * rps minus qps is the number of requests that the current client is waiting for per second, which will persistently occupy the current memory for one second
+     * @param: fm is the metric pointer of the current file
+     * @param: read is whether the current operation is a read or write operation
      */
     static void IncremUserRPSCount(FileMetric* fm, OpType type) {
         if (fm != nullptr) {
@@ -333,9 +333,9 @@ class MetricHelper {
     }
 
     /**
-     * 统计当前rpc失败次数，用于eps计算
-     * @param: fm为当前文件的metric指针
-     * @param: read为当前操作是读操作还是写操作
+     * Count the current number of RPC failures for EPS calculation
+     * @param: fm is the metric pointer of the current file
+     * @param: read is whether the current operation is a read or write operation
      */
     static void IncremFailRPCCount(FileMetric* fm, OpType type) {
         if (fm != nullptr) {
@@ -353,9 +353,9 @@ class MetricHelper {
     }
 
     /**
-     * 统计用户当前读写请求超时次数，用于timeoutQps计算
-     * @param: fm为当前文件的metric指针
-     * @param: read为当前操作是读操作还是写操作
+     * Counts the number of times a user's current read/write request has timed out, used for timeoutQps calculation
+     * @param: fm is the metric pointer of the current file
+     * @param: read is whether the current operation is a read or write operation
      */
     static void IncremTimeOutRPCCount(FileMetric* fm, OpType type) {
         if (fm != nullptr) {
@@ -373,9 +373,9 @@ class MetricHelper {
     }
 
     /**
-     * 统计请求被redirect的次数
-     * @param fileMetric 当前文件的metric指针
-     * @param opType 请求类型
+     * Count the number of times requests have been redirected
+     * @param fileMetric The metric pointer of the current file
+     * @param opType request type
      */
     static void IncremRedirectRPCCount(FileMetric* fileMetric, OpType opType) {
         if (fileMetric) {
@@ -393,10 +393,10 @@ class MetricHelper {
     }
 
     /**
-     * 统计读写RPC接口统计信息请求次数及带宽统计，用于qps及bps计算
-     * @param: fm为当前文件的metric指针
-     * @param: length为当前请求大小
-     * @param: read为当前操作是读操作还是写操作
+     *Statistics of the number of requests and bandwidth for reading and writing RPC interfaces, used for QPS and bps calculations
+     * @param: fm is the metric pointer of the current file
+     * @param: length is the current request size
+     * @param: read is whether the current operation is a read or write operation
      */
     static void IncremRPCQPSCount(FileMetric* fm,
                                   uint64_t length,
@@ -418,10 +418,10 @@ class MetricHelper {
     }
 
     /**
-     * 统计读写RPC接口统计信息请求次数及带宽统计，用于rps计算
-     * @param: fm为当前文件的metric指针
-     * @param: length为当前请求大小
-     * @param: read为当前操作是读操作还是写操作
+     *Statistics of the number of requests and bandwidth for reading and writing RPC interfaces, used for RPS calculations
+     * @param: fm is the metric pointer of the current file
+     * @param: length is the current request size
+     * @param: read is whether the current operation is a read or write operation
      */
     static void IncremRPCRPSCount(FileMetric* fm,
                                   OpType type) {

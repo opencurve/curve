@@ -38,14 +38,14 @@ using ::google::protobuf::RpcController;
 using ::google::protobuf::Closure;
 
 /**
- * @brief 快照转储rpc服务实现
+ * @brief snapshot dump rpc service implementation
  */
 class SnapshotCloneServiceImpl : public SnapshotCloneService {
  public:
      /**
-      * @brief 构造函数
+      * @brief constructor
       *
-      * @param manager 快照转储服务管理对象
+      * @param manager snapshot dump service management object
       */
     SnapshotCloneServiceImpl(
         std::shared_ptr<SnapshotServiceManager> snapshotManager,
@@ -55,12 +55,12 @@ class SnapshotCloneServiceImpl : public SnapshotCloneService {
     virtual ~SnapshotCloneServiceImpl() {}
 
     /**
-     * @brief http服务默认方法
+     * @brief HTTP service default method
      *
      * @param cntl rpc controller
-     * @param req  http请求报文
-     * @param resp http回复报文
-     * @param done http异步回调闭包
+     * @param req HTTP request message
+     * @param resp HTTP reply message
+     * @param done HTTP asynchronous callback closure
      */
     void default_method(RpcController* cntl,
                         const HttpRequest* req,
@@ -104,7 +104,7 @@ class SnapshotCloneServiceImpl : public SnapshotCloneService {
                         const std::string &uuid = "");
 
  private:
-    // 快照转储服务管理对象
+    // Snapshot Dump Service Management Object
     std::shared_ptr<SnapshotServiceManager> snapshotManager_;
     std::shared_ptr<CloneServiceManager> cloneManager_;
 };

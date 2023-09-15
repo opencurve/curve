@@ -38,7 +38,7 @@ const uint64_t fileLength = 64ULL * 1024 * 1024;
 
 
 int FakeCurveFsClient::Init(const CurveClientOptions &options) {
-    // 初始化一个文件用打快照和克隆
+    // Initialize a file for snapshot and cloning
     FInfo fileInfo;
     fileInfo.id = 100;
     fileInfo.parentid = 3;
@@ -125,7 +125,7 @@ int FakeCurveFsClient::GetSnapshotSegmentInfo(const std::string &filename,
     segInfo->segmentsize = segmentSize;
     segInfo->chunksize = chunkSize;
     segInfo->startoffset = offset;
-    // 一共2个segment
+    // 2 segments in total
     if (offset == 0) {
         segInfo->chunkvec = {{1, 1, 1}, {2, 2, 1}};
     } else {
@@ -295,7 +295,7 @@ int FakeCurveFsClient::GetOrAllocateSegmentInfo(
     segInfo->segmentsize = segmentSize;
     segInfo->chunksize = chunkSize;
     segInfo->startoffset = offset;
-    // 一共2个segment
+    // 2 segments in total
     if (offset == 0) {
         segInfo->chunkvec = {{1, 1, 1}, {2, 2, 1}};
     } else {

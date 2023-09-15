@@ -16,7 +16,7 @@
 
 /*
  * Project: curve
- * File Created: 2019年11月20日
+ * File Created: November 20, 2019
  * Author: wuhanqing
  */
 

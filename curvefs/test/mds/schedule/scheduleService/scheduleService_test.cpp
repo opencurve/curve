@@ -75,7 +75,7 @@ TEST_F(TestScheduleService, test_QueryMetaServerRecoverStatus) {
     request.add_metaserverid(1);
     QueryMetaServerRecoverStatusResponse response;
 
-    // 1. 查询metaserver恢复状态返回成功
+    // 1. Querying metaserver recovery status returned success
     {
         std::map<MetaServerIdType, bool> expectRes{{1, 1}};
         EXPECT_CALL(*coordinator_, QueryMetaServerRecoverStatus(
@@ -91,7 +91,7 @@ TEST_F(TestScheduleService, test_QueryMetaServerRecoverStatus) {
         ASSERT_TRUE(response.recoverstatusmap().begin()->second);
     }
 
-    // 2. 传入的metaserverid不合法
+    // 2. The metaserverid passed in is illegal
     {
         std::map<MetaServerIdType, bool> expectRes{{1, 1}};
         EXPECT_CALL(*coordinator_, QueryMetaServerRecoverStatus(

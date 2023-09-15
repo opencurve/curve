@@ -13,7 +13,7 @@ import os
 sender = 'Grafana<xxxxxxxxx@163.com>'
 to_address = ['xxxxxxxxx@163.com']
 username = 'xxxxxxxxx@163.com'
-password = 'xxxxxxxxx' # SMTP授权码
+password = 'xxxxxxxxx' # SMTP authorization code
 smtpserver = 'xxxx.163.com:1234'
 sourcefile= '/etc/curve/monitor/grafana/report/report.tex'
 imagedir= '/etc/curve/monitor/grafana/report/images/'
@@ -60,33 +60,33 @@ def attach_body(msgRoot):
     html_str = '<html><head><style>#string{text-align:center;font-size:25px;}</style></head><body>%s</body></html>' % (image_body)
 
     mailMsg = """
-    <p>可点击如下链接在grafana面板中查看（若显示混乱，请在附件pdf中查看）</p>
-    <p><a href="http://%s">grafana链接</a></p>
+    <p>You can click the following link to view it in the Grafana dashboard (if the display is chaotic, please refer to the attached PDF)</p>
+    <p><a href="http://%s">grafana link</a></p>
     """ % (grafanauri)
     mailMsg += html_str
     print(mailMsg)
     content = MIMEText(mailMsg,'html','utf-8')
     msgRoot.attach(content)
 
-# 发送dashboard日报邮件
+# Send dashboard daily email
 def send_mail():
     time_now = int(Time.time())
     time_local = Time.localtime(time_now)
     dt = Time.strftime("%Y%m%d",time_local)
 
     msgRoot = MIMEMultipart('related')
-    msgRoot['Subject'] = '%s集群监控日报-%s' % (clustername, dt)
+    msgRoot['Subject'] = '%sCluster Monitoring Daily Report-%s' % (clustername, dt)
     msgRoot['From'] = sender
-    msgRoot['To'] = ",".join( to_address ) # 发给多人
+    msgRoot['To'] = ",".join( to_address ) # Send to multiple people
 
-    # 添加pdf附件
+    # Add PDF attachment
     pdf_attach = MIMEText(open(pdfpath, 'rb').read(), 'base64', 'utf-8')
     pdf_attach["Content-Type"] = 'application/octet-stream'
-    # 这里的filename可以任意写，写什么名字，邮件中显示什么名字
+    # The file name here can be written arbitrarily, including the name you want to write and the name displayed in the email
     pdf_attach["Content-Disposition"] = 'attachment; filename="reporter-{}.pdf"'.format(dt)
     msgRoot.attach(pdf_attach)
 
-    # 添加正文
+    # Add Body
     attach_body(msgRoot)
 
     smtp = smtplib.SMTP_SSL(smtpserver)

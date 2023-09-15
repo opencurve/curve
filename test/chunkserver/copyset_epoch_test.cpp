@@ -81,7 +81,7 @@ TEST_F(CopysetEpochTest, DISABLED_basic) {
     uint64_t lastIncludeIndex = 0;
 
     /**
-     * 启动一个chunkserver
+     * Start a chunkserver
      */
     std::string copysetdir = "local://./" + dir1;
     auto startChunkServerFunc = [&] {
@@ -125,10 +125,10 @@ TEST_F(CopysetEpochTest, DISABLED_basic) {
     confEpochPath1.append(kCurveConfEpochFilename);
     ASSERT_EQ(true, fs->FileExists(confEpochPath1));
 
-    // 等待生成快照
+    // Waiting for snapshot generation
     ::sleep(2 * snapshotInterval);
 
-    // node关闭重启，会执行load snapshot，从snapshot中加载epoch
+    // When the node is shut down and restarted, a load snapshot will be executed to load the epoch from the snapshot
     node->Fini();
     node->Run();
     {
@@ -149,10 +149,10 @@ TEST_F(CopysetEpochTest, DISABLED_basic) {
     confEpochPath2.append(kCurveConfEpochFilename);
     ASSERT_EQ(true, fs->FileExists(confEpochPath2));
 
-    // 等待生成快照
+    // Waiting for snapshot generation
     ::sleep(2 * snapshotInterval);
 
-    // node关闭重启，会执行load snapshot，从snapshot中加载epoch
+    // When the node is shut down and restarted, a load snapshot will be executed to load the epoch from the snapshot
     node->Fini();
     node->Run();
     {
@@ -173,7 +173,7 @@ TEST_F(CopysetEpochTest, DISABLED_basic) {
     confEpochPath3.append(kCurveConfEpochFilename);
     ASSERT_EQ(true, fs->FileExists(confEpochPath3));
 
-    // node关闭重启，会执行load snapshot，从snapshot中加载epoch
+    // When the node is shut down and restarted, a load snapshot will be executed to load the epoch from the snapshot
     node->Fini();
     node->Run();
     {
@@ -194,7 +194,7 @@ TEST_F(CopysetEpochTest, DISABLED_basic) {
     confEpochPath4.append(kCurveConfEpochFilename);
     ASSERT_EQ(true, fs->FileExists(confEpochPath4));
 
-    // node关闭重启，会执行load snapshot，从snapshot中加载epoch
+    // When the node is shut down and restarted, a load snapshot will be executed to load the epoch from the snapshot
     node->Fini();
     node->Run();
     {

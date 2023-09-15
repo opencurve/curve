@@ -75,7 +75,7 @@ int NebdServer::Init(const std::string &confPath,
     LOG(INFO) << "NebdServer init heartbeatManager ok";
 
     LOG(INFO) << "NebdServer init ok";
-    // 暴露版本信息
+    // Expose version information
     LOG(INFO) << "nebd version: " << nebd::common::NebdVersion();
     nebd::common::ExposeNebdVersion();
     return 0;
@@ -238,7 +238,7 @@ bool NebdServer::StartServer() {
     // start brcp server
     brpc::ServerOptions option;
     option.idle_timeout_sec = -1;
-    // 获取文件锁
+    // Obtain file lock
     common::FileLock fileLock(listenAddress_ + ".lock");
     if (fileLock.AcquireFileLock() != 0) {
         LOG(ERROR) << "Address already in use";

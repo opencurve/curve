@@ -41,14 +41,14 @@ class CurveRequestExecutor;
 
 using OpenFlags = nebd::client::ProtoOpenFlags;
 
-// 具体RequestExecutor中会用到的文件实例上下文信息
-// RequestExecutor需要用到的文件上下文信息都记录到FileInstance内
+// The file instance context information used in the specific RequestExecutor
+// The file context information required for RequestExecutor is recorded in FileInstance
 class NebdFileInstance {
  public:
     NebdFileInstance() {}
     virtual ~NebdFileInstance() {}
-    // 需要持久化到文件的内容，以kv形式返回，例如curve open时返回的sessionid
-    // 文件reopen的时候也会用到该内容
+    // The content that needs to be persisted to the file is returned in kv format, such as the sessionid returned when curve open
+    // This content will also be used when reopening files
     ExtendAttribute xattr;
 };
 

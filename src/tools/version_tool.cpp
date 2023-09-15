@@ -159,7 +159,7 @@ void VersionTool::GetVersionMap(const std::vector<std::string>& addrVec,
         MetricRet res = metricClient_->GetMetric(addr, kCurveVersionMetricName,
                                            &version);
         if (res != MetricRet::kOK) {
-            // 0.0.5.2版本之前没有curve_version的metric，因此再判断一下
+            // Before version 0.0.5.2, there was no "curve_version" metric, so let's double-check.
             if (res == MetricRet::kNotFound) {
                 version = kOldVersion;
             } else {

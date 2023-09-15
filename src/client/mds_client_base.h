@@ -92,18 +92,18 @@ using curve::mds::topology::ListPoolsetResponse;
 
 extern const char* kRootUserName;
 
-// MDSClientBase将所有与mds的RPC接口抽离，与业务逻辑解耦
-// 这里只负责rpc的发送，具体的业务处理逻辑通过reponse和controller向上
-// 返回给调用者，有调用者处理
+// MDSClientBase abstracts all RPC interfaces with the MDS, decoupling them from business logic. 
+// Here, it is responsible only for sending RPC requests, while the specific business logic processing is returned to the caller through responses and controllers, 
+// which are handled by the caller.
 class MDSClientBase {
  public:
     /**
-     * 打开文件
-     * @param: filename是文件名
-     * @param: userinfo为user信息
-     * @param[out]: response为该rpc的response，提供给外部处理
-     * @param[in|out]: cntl既是入参，也是出参，返回RPC状态
-     * @param[in]:channel是当前与mds建立的通道
+     * Open File
+     * @param: filename is the file name
+     * @param: userinfo is the user information
+     * @param[out]: response is the response of the rpc, provided for external processing
+     * @param[in|out]: cntl is both an input and output parameter, returning RPC status
+     * @param[in]: channel is the current channel established with MDS
      */
     void OpenFile(const std::string& filename,
                   const UserInfo_t& userinfo,
@@ -112,27 +112,27 @@ class MDSClientBase {
                   brpc::Channel* channel);
 
     /**
-     * 创建文件
-     * @param: filename创建文件的文件名
-     * @param: userinfo为user信息
-     * @param: size文件长度
-     * @param: normalFile表示创建的是普通文件还是目录文件，如果是目录则忽略size
-     * @param[out]: response为该rpc的response，提供给外部处理
-     * @param[in|out]: cntl既是入参，也是出参，返回RPC状态
-     * @param[in]:channel是当前与mds建立的通道
+     * Create File
+     * @param: filename The file name used to create the file
+     * @param: userinfo is the user information
+     * @param: size File length
+     * @param: normalFile indicates whether the created file is a regular file or a directory file. If it is a directory, size is ignored
+     * @param[out]: response is the response of the rpc, provided for external processing
+     * @param[in|out]: cntl is both an input and output parameter, returning RPC status
+     * @param[in]: channel is the current channel established with MDS
      */
     void CreateFile(const CreateFileContext& context,
                     CreateFileResponse* response,
                     brpc::Controller* cntl,
                     brpc::Channel* channel);
     /**
-     * 关闭文件，需要携带sessionid，这样mds端会在数据库删除该session信息
-     * @param: filename是要续约的文件名
-     * @param: userinfo为user信息
-     * @param: sessionid是文件的session信息
-     * @param[out]: response为该rpc的response，提供给外部处理
-     * @param[in|out]: cntl既是入参，也是出参，返回RPC状态
-     * @param[in]:channel是当前与mds建立的通道
+     * To close the file, it is necessary to carry the sessionid, so that the mds side will delete the session information in the database
+     * @param: filename is the file name to be renewed
+     * @param: userinfo is the user information
+     * @param: sessionid is the session information of the file
+     * @param[out]: response is the response of the rpc, provided for external processing
+     * @param[in|out]: cntl is both an input and output parameter, returning RPC status
+     * @param[in]: channel is the current channel established with MDS
      */
     void CloseFile(const std::string& filename,
                    const UserInfo_t& userinfo,
@@ -141,12 +141,12 @@ class MDSClientBase {
                    brpc::Controller* cntl,
                    brpc::Channel* channel);
     /**
-     * 获取文件信息，fi是出参
-     * @param: filename是文件名
-     * @param: userinfo为user信息
-     * @param[out]: response为该rpc的response，提供给外部处理
-     * @param[in|out]: cntl既是入参，也是出参，返回RPC状态
-     * @param[in]:channel是当前与mds建立的通道
+     * Obtain file information, where fi is the output parameter
+     * @param: filename is the file name
+     * @param: userinfo is the user information
+     * @param[out]: response is the response of the rpc, provided for external processing
+     * @param[in|out]: cntl is both an input and output parameter, returning RPC status
+     * @param[in]: channel is the current channel established with MDS
      */
     void GetFileInfo(const std::string& filename,
                      const UserInfo_t& userinfo,
@@ -171,12 +171,12 @@ class MDSClientBase {
                         brpc::Channel* channel);
 
     /**
-     * 创建版本号为seq的快照
-     * @param: userinfo是用户信息
-     * @param: filename是要创建快照的文件名
-     * @param[out]: response为该rpc的response，提供给外部处理
-     * @param[in|out]: cntl既是入参，也是出参，返回RPC状态
-     * @param[in]:channel是当前与mds建立的通道
+     * Create a snapshot with version number seq
+     * @param: userinfo is the user information
+     * @param: filename is the file name to create the snapshot
+     * @param[out]: response is the response of the rpc, provided for external processing
+     * @param[in|out]: cntl is both an input and output parameter, returning RPC status
+     * @param[in]: channel is the current channel established with MDS
      */
     void CreateSnapShot(const std::string& filename,
                         const UserInfo_t& userinfo,
@@ -184,13 +184,13 @@ class MDSClientBase {
                         brpc::Controller* cntl,
                         brpc::Channel* channel);
     /**
-     * 删除版本号为seq的快照
-     * @param: userinfo是用户信息
-     * @param: filename是要快照的文件名
-     * @param: seq是创建快照时文件的版本信息
-     * @param[out]: response为该rpc的response，提供给外部处理
-     * @param[in|out]: cntl既是入参，也是出参，返回RPC状态
-     * @param[in]:channel是当前与mds建立的通道
+     * Delete snapshot with version number seq
+     * @param: userinfo is the user information
+     * @param: filename is the file name to be snapshot
+     * @param: seq is the version information of the file when creating the snapshot
+     * @param[out]: response is the response of the rpc, provided for external processing
+     * @param[in|out]: cntl is both an input and output parameter, returning RPC status
+     * @param[in]: channel is the current channel established with MDS
      */
     void DeleteSnapShot(const std::string& filename,
                         const UserInfo_t& userinfo,
@@ -199,13 +199,13 @@ class MDSClientBase {
                         brpc::Controller* cntl,
                         brpc::Channel* channel);
     /**
-     * 以列表的形式获取版本号为seq的snapshot文件信息，snapif是出参
-     * @param: filename是要快照的文件名
-     * @param: userinfo是用户信息
-     * @param: seq是创建快照时文件的版本信息
-     * @param[out]: response为该rpc的response，提供给外部处理
-     * @param[in|out]: cntl既是入参，也是出参，返回RPC状态
-     * @param[in]:channel是当前与mds建立的通道
+     * Obtain snapshot file information with version number seq in the form of a list, where snapif is the output parameter
+     * @param: filename is the file name to be snapshot
+     * @param: userinfo is the user information
+     * @param: seq is the version information of the file when creating the snapshot
+     * @param[out]: response is the response of the rpc, provided for external processing
+     * @param[in|out]: cntl is both an input and output parameter, returning RPC status
+     * @param[in]: channel is the current channel established with MDS
      */
     void ListSnapShot(const std::string& filename,
                       const UserInfo_t& userinfo,
@@ -214,14 +214,14 @@ class MDSClientBase {
                       brpc::Controller* cntl,
                       brpc::Channel* channel);
     /**
-     * 获取快照的chunk信息并更新到metacache，segInfo是出参
-     * @param: filename是要快照的文件名
-     * @param: userinfo是用户信息
-     * @param: seq是创建快照时文件的版本信息
-     * @param: offset是文件内的偏移
-     * @param[out]: response为该rpc的response，提供给外部处理
-     * @param[in|out]: cntl既是入参，也是出参，返回RPC状态
-     * @param[in]:channel是当前与mds建立的通道
+     * Obtain the chunk information of the snapshot and update it to the metacache, where segInfo is the output parameter
+     * @param: filename is the file name to be snapshot
+     * @param: userinfo is the user information
+     * @param: seq is the version information of the file when creating the snapshot
+     * @param: offset is the offset within the file
+     * @param[out]: response is the response of the rpc, provided for external processing
+     * @param[in|out]: cntl is both an input and output parameter, returning RPC status
+     * @param[in]: channel is the current channel established with MDS
      */
     void GetSnapshotSegmentInfo(const std::string& filename,
                                 const UserInfo_t& userinfo,
@@ -232,13 +232,13 @@ class MDSClientBase {
                                 brpc::Channel* channel);
 
     /**
-     * 文件接口在打开文件的时候需要与mds保持心跳，refresh用来续约
-     * 续约结果将会通过LeaseRefreshResult* resp返回给调用层
-     * @param: filename是要续约的文件名
-     * @param: sessionid是文件的session信息
-     * @param[out]: response为该rpc的response，提供给外部处理
-     * @param[in|out]: cntl既是入参，也是出参，返回RPC状态
-     * @param[in]:channel是当前与mds建立的通道
+     * The file interface needs to maintain a heartbeat with MDS when opening files, and refresh is used to renew the contract
+     * The renewal result will be returned to the calling layer through LeaseRefreshResult* resp
+     * @param: filename is the file name to be renewed
+     * @param: sessionid is the session information of the file
+     * @param[out]: response is the response of the rpc, provided for external processing
+     * @param[in|out]: cntl is both an input and output parameter, returning RPC status
+     * @param[in]: channel is the current channel established with MDS
      */
     void RefreshSession(const std::string& filename,
                         const UserInfo_t& userinfo,
@@ -247,13 +247,13 @@ class MDSClientBase {
                         brpc::Controller* cntl,
                         brpc::Channel* channel);
     /**
-     * 获取快照状态
-     * @param: filenam文件名
-     * @param: userinfo是用户信息
-     * @param: seq是文件版本号信息
-     * @param[out]: response为该rpc的response，提供给外部处理
-     * @param[in|out]: cntl既是入参，也是出参，返回RPC状态
-     * @param[in]:channel是当前与mds建立的通道
+     * Get snapshot status
+     * @param: filenam file name
+     * @param: userinfo is the user information
+     * @param: seq is the file version number information
+     * @param[out]: response is the response of the rpc, provided for external processing
+     * @param[in|out]: cntl is both an input and output parameter, returning RPC status
+     * @param[in]: channel is the current channel established with MDS
      */
     void CheckSnapShotStatus(const std::string& filename,
                              const UserInfo_t& userinfo,
@@ -262,12 +262,12 @@ class MDSClientBase {
                              brpc::Controller* cntl,
                              brpc::Channel* channel);
     /**
-     * 获取copysetid对应的serverlist信息并更新到metacache
-     * @param: logicPoolId逻辑池信息
-     * @param: copysetidvec为要获取的copyset列表
-     * @param[out]: response为该rpc的response，提供给外部处理
-     * @param[in|out]: cntl既是入参，也是出参，返回RPC状态
-     * @param[in]:channel是当前与mds建立的通道
+     * Obtain the serverlist information corresponding to the copysetid and update it to the metacache
+     * @param: logicPoolId Logical Pool Information
+     * @param: copysetidvec is the list of copysets to obtain
+     * @param[out]: response is the response of the rpc, provided for external processing
+     * @param[in|out]: cntl is both an input and output parameter, returning RPC status
+     * @param[in]: channel is the current channel established with MDS
      */
     void GetServerList(const LogicPoolID& logicalpooid,
                        const std::vector<CopysetID>& copysetidvec,
@@ -276,10 +276,10 @@ class MDSClientBase {
                        brpc::Channel* channel);
 
     /**
-     * 获取mds对应的cluster id
-     * @param[out]: response为该rpc的respoonse，提供给外部处理
-     * @param[in|out]: cntl既是入参，也是出参，返回RPC状态
-     * @param[in]: channel是当前与mds建立的通道
+     * Obtain the cluster ID corresponding to the mds
+     * @param[out]: response is the response of the rpc, provided for external processing
+     * @param[in|out]: cntl is both an input and output parameter, returning RPC status
+     * @param[in]: channel is the current channel established with MDS
      */
     void GetClusterInfo(GetClusterInfoResponse* response,
                         brpc::Controller* cntl,
@@ -290,18 +290,18 @@ class MDSClientBase {
                      brpc::Channel* channel);
 
     /**
-     * 创建clone文件
-     * @param source 克隆源文件名
-     * @param:destination clone目标文件名
-     * @param:userinfo 用户信息
-     * @param:size 文件大小
-     * @param:sn 版本号
-     * @param:chunksize是创建文件的chunk大小
+     * Create clone file
+     * @param source Clone source file name
+     * @param: destination clone Destination file name
+     * @param: userinfo User Information
+     * @param: size File size
+     * @param: sn version number
+     * @param: chunksize is the chunk size of the created file
      * @param stripeUnit stripe size
      * @param stripeCount stripe count
-     * @param[out]: response为该rpc的response，提供给外部处理
-     * @param[in|out]: cntl既是入参，也是出参，返回RPC状态
-     * @param[in]:channel是当前与mds建立的通道
+     * @param[out]: response is the response of the rpc, provided for external processing
+     * @param[in|out]: cntl is both an input and output parameter, returning RPC status
+     * @param[in]: channel is the current channel established with MDS
      */
     void CreateCloneFile(const std::string& source,
                          const std::string& destination,
@@ -317,14 +317,14 @@ class MDSClientBase {
                          brpc::Channel* channel);
 
     /**
-     * @brief 通知mds完成Clone Meta
-     * @param: filename 目标文件
-     * @param: filestatus为要设置的目标状态
-     * @param: userinfo用户信息
-     * @param: fileId为文件ID信息，非必填
-     * @param[out]: response为该rpc的response，提供给外部处理
-     * @param[in|out]: cntl既是入参，也是出参，返回RPC状态
-     * @param[in]:channel是当前与mds建立的通道
+     * @brief Notify mds to complete Clone Meta
+     * @param: filename Target file
+     * @param: filestatus is the target state to be set
+     * @param: userinfo User information
+     * @param: fileId is the file ID information, not required
+     * @param[out]: response is the response of the rpc, provided for external processing
+     * @param[in|out]: cntl is both an input and output parameter, returning RPC status
+     * @param[in]: channel is the current channel established with MDS
      */
     void SetCloneFileStatus(const std::string& filename,
                             const FileStatus& filestatus,
@@ -357,15 +357,15 @@ class MDSClientBase {
                            brpc::Controller* cntl, brpc::Channel* channel);
 
     /**
-     * @brief 重名文件
-     * @param:userinfo 用户信息
-     * @param:originId 被恢复的原始文件Id
-     * @param:destinationId 克隆出的目标文件Id
-     * @param:origin 被恢复的原始文件名
-     * @param:destination 克隆出的目标文件
-     * @param[out]: response为该rpc的response，提供给外部处理
-     * @param[in|out]: cntl既是入参，也是出参，返回RPC状态
-     * @param[in]:channel是当前与mds建立的通道
+     * @brief duplicate file
+     * @param: userinfo User Information
+     * @param: originId The original file ID that was restored
+     * @param: destinationId The cloned target file ID
+     * @param: origin The original file name of the recovered file
+     * @param: destination The cloned target file
+     * @param[out]: response is the response of the rpc, provided for external processing
+     * @param[in|out]: cntl is both an input and output parameter, returning RPC status
+     * @param[in]: channel is the current channel established with MDS
      */
     void RenameFile(const UserInfo_t& userinfo,
                     const std::string &origin,
@@ -376,13 +376,13 @@ class MDSClientBase {
                     brpc::Controller* cntl,
                     brpc::Channel* channel);
     /**
-     * 扩展文件
-     * @param: userinfo是用户信息
-     * @param: filename文件名
-     * @param: newsize新的size
-     * @param[out]: response为该rpc的response，提供给外部处理
-     * @param[in|out]: cntl既是入参，也是出参，返回RPC状态
-     * @param[in]:channel是当前与mds建立的通道
+     * Extension file
+     * @param: userinfo is the user information
+     * @param: filename File name
+     * @param: newsize New size
+     * @param[out]: response is the response of the rpc, provided for external processing
+     * @param[in|out]: cntl is both an input and output parameter, returning RPC status
+     * @param[in]: channel is the current channel established with MDS
      */
     void Extend(const std::string& filename,
                 const UserInfo_t& userinfo,
@@ -391,14 +391,14 @@ class MDSClientBase {
                 brpc::Controller* cntl,
                 brpc::Channel* channel);
     /**
-     * 删除文件
-     * @param: userinfo是用户信息
-     * @param: filename待删除的文件名
-     * @param: deleteforce是否强制删除而不放入垃圾回收站
-     * @param: id为文件id，默认值为0，如果用户不指定该值，不会传id到mds
-     * @param[out]: response为该rpc的response，提供给外部处理
-     * @param[in|out]: cntl既是入参，也是出参，返回RPC状态
-     * @param[in]:channel是当前与mds建立的通道
+     * Delete files
+     * @param: userinfo is the user information
+     * @param: filename The file name to be deleted
+     * @param: Does deleteforce force deletion without placing it in the garbage bin
+     * @param: id is the file id, with a default value of 0. If the user does not specify this value, the id will not be passed to mds
+     * @param[out]: response is the response of the rpc, provided for external processing
+     * @param[in|out]: cntl is both an input and output parameter, returning RPC status
+     * @param[in]: channel is the current channel established with MDS
      */
     void DeleteFile(const std::string& filename,
                     const UserInfo_t& userinfo,
@@ -425,13 +425,13 @@ class MDSClientBase {
                     brpc::Channel* channel);
 
     /**
-     * 变更owner
-     * @param: filename待变更的文件名
-     * @param: newOwner新的owner信息
-     * @param: userinfo执行此操作的user信息，只有root用户才能执行变更
-     * @param[out]: response为该rpc的response，提供给外部处理
-     * @param[in|out]: cntl既是入参，也是出参，返回RPC状态
-     * @param[in]:channel是当前与mds建立的通道
+     * Change owner
+     * @param: filename The file name to be changed
+     * @param: newOwner New owner information
+     * @param: userinfo The user information for performing this operation, only the root user can perform changes
+     * @param[out]: response is the response of the rpc, provided for external processing
+     * @param[in|out]: cntl is both an input and output parameter, returning RPC status
+     * @param[in]: channel is the current channel established with MDS
      */
     void ChangeOwner(const std::string& filename,
                      const std::string& newOwner,
@@ -440,12 +440,12 @@ class MDSClientBase {
                      brpc::Controller* cntl,
                      brpc::Channel* channel);
     /**
-     * 枚举目录内容
-     * @param: userinfo是用户信息
-     * @param: dirpath是目录路径
-     * @param[out]: response为该rpc的response，提供给外部处理
-     * @param[in|out]: cntl既是入参，也是出参，返回RPC状态
-     * @param[in]:channel是当前与mds建立的通道
+     * Enumerate directory contents
+     * @param: userinfo is the user information
+     * @param: dirpath is the directory path
+     * @param[out]: response is the response of the rpc, provided for external processing
+     * @param[in|out]: cntl is both an input and output parameter, returning RPC status
+     * @param[in]: channel is the current channel established with MDS
       */
     void Listdir(const std::string& dirpath,
                  const UserInfo_t& userinfo,
@@ -453,12 +453,12 @@ class MDSClientBase {
                  brpc::Controller* cntl,
                  brpc::Channel* channel);
     /**
-     * 获取chunkserverID信息
-     * @param[in]: ip为当前client的监听地址
-     * @param[in]: port为监听端口
-     * @param[out]: response为该rpc的response，提供给外部处理
-     * @param[in|out]: cntl既是入参，也是出参，返回RPC状态
-     * @param[in]:channel是当前与mds建立的通道
+     * Obtain chunkserverID information
+     * @param[in]: IP is the listening address of the current client
+     * @param[in]: port is the listening port
+     * @param[out]: response is the response of the rpc, provided for external processing
+     * @param[in|out]: cntl is both an input and output parameter, returning RPC status
+     * @param[in]: channel is the current channel established with MDS
      */
     void GetChunkServerInfo(const std::string& ip,
                             uint16_t port,
@@ -467,11 +467,11 @@ class MDSClientBase {
                             brpc::Channel* channel);
 
     /**
-     * 获取server上的所有chunkserver的id
-     * @param[in]: ip为当前server的地址
-     * @param[out]: response是当前rpc调用的response，返回给外部处理
-     * @param[in|out]: cntl既是入参也是出参
-     * @param[in]: channel是当前与mds建立的通道
+     * Obtain the IDs of all chunkservers on the server
+     * @param[in]: IP is the address of the current server
+     * @param[out]: response is the response of the current rpc call, returned to external processing
+     * @param[in|out]: cntl is both an input and output parameter
+     * @param[in]: channel is the current channel established with MDS
      */
     void ListChunkServerInServer(const std::string& ip,
                                  ListChunkServerResponse* response,
@@ -480,8 +480,8 @@ class MDSClientBase {
 
  private:
     /**
-     * 为不同的request填充user信息
-     * @param: request是待填充的变量指针
+     * Fill in user information for different requests
+     * @param: request is the pointer to the variable to be filled in
      */
     template <typename T>
     void FillUserInfo(T* request, const UserInfo_t& userinfo) {

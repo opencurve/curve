@@ -135,7 +135,7 @@ int CurveCluster::StartSingleMDS(int id, const std::string &ipPort,
         LOG(ERROR) << "start mds " << ipPort << " fork failed";
         return -1;
     } else if (0 == pid) {
-        // 在子进程中起一个mds
+        // Start an mds in a child process
         // ./bazel-bin/src/mds/main/curvemds
         std::vector<std::string> args;
         args.emplace_back("./bazel-bin/src/mds/main/curvemds");
@@ -147,8 +147,8 @@ int CurveCluster::StartSingleMDS(int id, const std::string &ipPort,
 
         std::vector<char *> argv = VecStr2VecChar(args);
         /**
-         *  重要提示！！！！
-         *  fork后，子进程尽量不要用LOG()打印，可能死锁！！！
+         * Important reminder!!!!
+         * After forking, try not to use LOG() printing for child processes, as it may cause deadlock!!!
          */
         execv("./bazel-bin/src/mds/main/curvemds", argv.data());
         ClearArgv(argv);
@@ -229,7 +229,7 @@ int CurveCluster::StartSnapshotCloneServer(
         LOG(ERROR) << "start snapshotcloneserver " << ipPort << " fork failed";
         return -1;
     } else if (0 == pid) {
-        // 在子进程中起一个snapshotcloneserver
+        //Starting a snapshotcloneserver in a child process
         std::vector<std::string> args;
         args.emplace_back(
             "./bazel-bin/src/snapshotcloneserver/snapshotcloneserver");
@@ -239,8 +239,8 @@ int CurveCluster::StartSnapshotCloneServer(
         }
         std::vector<char *> argv = VecStr2VecChar(args);
         /**
-         *  重要提示！！！！
-         *  fork后，子进程尽量不要用LOG()打印，可能死锁！！！
+         * Important reminder!!!!
+         * After forking, try not to use LOG() printing for child processes, as it may cause deadlock!!!
          */
         execv("./bazel-bin/src/snapshotcloneserver/snapshotcloneserver",
               argv.data());
@@ -321,7 +321,7 @@ int CurveCluster::StopAllSnapshotCloneServer() {
             ret = -1;
     }
 
-    // 等待进程完全退出
+    // Wait for the process to completely exit
     ::sleep(2);
     LOG(INFO) << "stop all snapshotcloneservver end.";
     return ret;
@@ -337,7 +337,7 @@ int CurveCluster::StartSingleEtcd(int id, const std::string &clientIpPort,
         LOG(ERROR) << "start etcd " << id << " fork failed";
         return -1;
     } else if (0 == pid) {
-        // 在子进程中起一个etcd
+        // Start an ETCD in a child process
         // ip netns exec integ_etcd1 etcd
         std::vector<std::string> args{"etcd"};
         args.emplace_back("--listen-peer-urls=http://" + peerIpPort);
@@ -354,8 +354,8 @@ int CurveCluster::StartSingleEtcd(int id, const std::string &clientIpPort,
 
         std::vector<char *> argv = VecStr2VecChar(args);
         /**
-         *  重要提示！！！！
-         *  fork后，子进程尽量不要用LOG()打印，可能死锁！！！
+         * Important reminder!!!!
+         * After forking, try not to use LOG() printing for child processes, as it may cause deadlock!!!
          */
         execvp("etcd", argv.data());
         ClearArgv(argv);
@@ -500,7 +500,7 @@ int CurveCluster::StartSingleChunkServer(
         LOG(ERROR) << "start chunkserver " << id << " fork failed";
         return -1;
     } else if (0 == pid) {
-        // 在子进程中起一个chunkserver
+        // Starting a chunkserver in a child process
         std::vector<std::string> args;
         args.emplace_back("./bazel-bin/src/chunkserver/chunkserver");
         args.emplace_back("-chunkServerIp=" + split[0]);
@@ -511,8 +511,8 @@ int CurveCluster::StartSingleChunkServer(
 
         std::vector<char *> argv = VecStr2VecChar(args);
         /**
-         *  重要提示！！！！
-         *  fork后，子进程尽量不要用LOG()打印，可能死锁！！！
+         * Important reminder!!!!
+         * After forking, try not to use LOG() printing for child processes, as it may cause deadlock!!!
          */
         execv("./bazel-bin/src/chunkserver/chunkserver", argv.data());
         ClearArgv(argv);
@@ -547,7 +547,7 @@ int CurveCluster::StartSingleChunkServerInBackground(
         LOG(ERROR) << "start chunkserver " << id << " fork failed";
         return -1;
     } else if (0 == pid) {
-        // 在子进程中起一个chunkserver
+        // Starting a chunkserver in a child process
         std::vector<std::string> args;
         args.emplace_back("netns");
         args.emplace_back("exec");
@@ -560,8 +560,8 @@ int CurveCluster::StartSingleChunkServerInBackground(
         }
         std::vector<char *> argv = VecStr2VecChar(args);
         /**
-         *  重要提示！！！！
-         *  fork后，子进程尽量不要用LOG()打印，可能死锁！！！
+         * Important reminder!!!!
+         * After forking, try not to use LOG() printing for child processes, as it may cause deadlock!!!
          */
         execvp("ip", argv.data());
         ClearArgv(argv);

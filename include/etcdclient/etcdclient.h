@@ -41,7 +41,7 @@ typedef struct { const char *p; ptrdiff_t n; } _GoString_;
 
 enum EtcdErrCode
 {
-    // grpc errCode, 具体的含义见:
+    // The specific meaning of grpc errCode is as follows:
     // https://godoc.org/go.etcd.io/etcd/etcdserver/api/v3rpc/rpctypes#ErrGRPCNoSpace
     // https://godoc.org/google.golang.org/grpc/codes#Code
     EtcdOK = 0,
@@ -62,7 +62,7 @@ enum EtcdErrCode
     EtcdDataLoss = 15,
     EtcdUnauthenticated = 16,
 
-    // 自定义错误码
+    // Custom error code
     EtcdTxnUnkownOp = 17,
     EtcdObjectNotExist = 18,
     EtcdErrObjectType = 19,
@@ -149,7 +149,7 @@ extern "C" {
 #endif
 
 
-// TODO(lixiaocui): 日志打印看是否需要glog
+// TODO(lixiaocui): Log printing to see if glog is required
 
 extern GoUint32 NewEtcdClientV3(struct EtcdConf p0);
 
@@ -182,7 +182,7 @@ struct EtcdClientList_return {
 	GoInt64 r2;
 };
 
-// TODO(lixiaocui): list可能需要有长度限制
+// TODO(lixiaocui): list may require a length limit
 
 extern struct EtcdClientList_return EtcdClientList(int p0, char* p1, char* p2, int p3, int p4);
 

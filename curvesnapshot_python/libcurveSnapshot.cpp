@@ -48,32 +48,32 @@ class TaskTracker {
       lastErr_(0) {}
 
     /**
-     * @brief 增加一个追踪任务
+     * @brief Add a tracking task
      */
     void AddOneTrace() {
         concurrent_.fetch_add(1, std::memory_order_acq_rel);
     }
 
     /**
-     * @brief 获取任务数量
+     * @brief Get the number of tasks
      *
-     * @return 任务数量
+     * @return Number of tasks
      */
     uint32_t GetTaskNum() const {
         return concurrent_;
     }
 
     /**
-     * @brief 处理任务返回值
+     * @brief processing task return value
      *
-     * @param retCode 返回值
+     * @param retCode return value
      */
     void HandleResponse(int retCode) {
         if (retCode < 0) {
             lastErr_ = retCode;
         }
         if (1 == concurrent_.fetch_sub(1, std::memory_order_acq_rel)) {
-            // 最后一次需拿锁再发信号，防止先发信号后等待导致死锁
+            // The last time you need to take the lock and send the signal again, to prevent deadlock caused by waiting after sending the signal first
             std::unique_lock<Mutex> lk(cv_m);
             cv_.notify_all();
         } else {
@@ -82,7 +82,7 @@ class TaskTracker {
     }
 
     /**
-     * @brief 等待追踪的所有任务完成
+     * @brief Waiting for all tracked tasks to be completed
      */
     void Wait() {
         std::unique_lock<Mutex> lk(cv_m);
@@ -91,21 +91,21 @@ class TaskTracker {
     }
 
     /**
-     * @brief 获取最后一个错误
+     * @brief Get Last Error
      *
-     * @return 错误码
+     * @return error code
      */
     int GetResult() {
         return lastErr_;
     }
 
  private:
-    // 等待的条件变量
+    // Waiting condition variable
     ConditionVariable cv_;
     Mutex cv_m;
-    // 并发数量
+    // Concurrent quantity
     std::atomic<uint32_t> concurrent_;
-    // 错误码
+    // Error code
     int lastErr_;
 };
 

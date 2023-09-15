@@ -107,7 +107,7 @@ void HeartbeatManager::CheckTimeoutFunc() {
 bool HeartbeatManager::CheckNeedClosed(NebdFileEntityPtr entity) {
     uint64_t curTime = TimeUtility::GetTimeofDayMs();
     uint64_t interval = curTime - entity->GetFileTimeStamp();
-    // 文件如果是opened状态，并且已经超时，则需要调用close
+    // If the file is in an open state and has timed out, you need to call close
     bool needClose = entity->GetFileStatus() == NebdFileStatus::OPENED
                      && interval > (uint64_t)1000 * heartbeatTimeoutS_;
     return needClose;

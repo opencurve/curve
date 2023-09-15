@@ -107,8 +107,8 @@ def snapshot_create_with_empty_str_file(file_name=" ", user_name=config.user_nam
     return rc
 
 
-# "特殊字符`-=[];',./ ~!@#$%^&*()_+{}|:\"<>?"
-# "特殊   字符`-=[]\\;',./ ~!@#$%^&*()_+{}|:\"<>?"
+# "Special Characters`-=[];',./ ~!@#$%^&*()_+{}|:\"<>?"
+# "Special   Characters`-=[]\\;',./ ~!@#$%^&*()_+{}|:\"<>?"
 def snapshot_create_with_special_file_name(file_name="/特殊   字符`-=[]\\;',./ ~!@#$%^&*()_+{}|:\"<>?",
                                            user_name=config.user_name, password=config.pass_word):
     client = snapshot_client.CurveSnapshot()
@@ -131,7 +131,7 @@ def get_sanpshot_info(seq):
     return finfo
 
 
-# 创建并获取快照文件信息
+# Create and obtain snapshot file information
 def create_snapshot_and_get_snapshot_info(file_name=config.snapshot_file_name, user_name=config.user_name,
                                           password=config.pass_word):
     client = snapshot_client.CurveSnapshot()
@@ -141,7 +141,7 @@ def create_snapshot_and_get_snapshot_info(file_name=config.snapshot_file_name, u
     return finfo
 
 
-# 正常获取快照文件分配信息
+# Obtain snapshot file allocation information normally
 def get_normal_snapshot_segment_info(file_name=config.snapshot_file_name, user_name=config.user_name,
                                      password=config.pass_word):
     seq = snapshot_normal_create(file_name, user_name, password)
@@ -159,7 +159,7 @@ def get_normal_chunk_info(file_name=config.snapshot_file_name, user_name=config.
     client = snapshot_client.CurveSnapshot()
     chunkinfo = client.get_chunk_Info(seginfo.chunkvec[0])
     logger.info("get_normal_chunkInfo chunkInfo info = %s" % chunkinfo)
-    return chunkinfo  # 可以对chunInfo.chunkSn进行断言验证
+    return chunkinfo  # Can perform assertion validation on chunInfo.chunkSn
 
 
 def get_chunk_info_with_chunk_id_info(idinfo):

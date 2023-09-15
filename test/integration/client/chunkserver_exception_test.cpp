@@ -143,7 +143,7 @@ class CSModuleException : public ::testing::Test {
         cluster->PrepareConfig<curve::ClientConfigGenerator>(confPath,
                                                              clientConf);
 
-        // 1. 启动etcd
+        // 1. Start etcd
         pid_t pid = cluster->StartSingleEtcd(
             1, "127.0.0.1:22233", "127.0.0.1:22234",
             std::vector<std::string>{
@@ -151,7 +151,7 @@ class CSModuleException : public ::testing::Test {
         LOG(INFO) << "etcd 1 started on 127.0.0.1:22233:22234, pid = " << pid;
         ASSERT_GT(pid, 0);
 
-        // 2. 先启动一个mds，让其成为leader，然后再启动另外两个mds节点
+        // 2. Start one mds first, make it a leader, and then start the other two mds nodes
         pid =
             cluster->StartSingleMDS(1, "127.0.0.1:22122", 22128, mdsConf, true);
         LOG(INFO) << "mds 1 started on 127.0.0.1:22122, pid = " << pid;
@@ -168,7 +168,7 @@ class CSModuleException : public ::testing::Test {
         ASSERT_GT(pid, 0);
         std::this_thread::sleep_for(std::chrono::seconds(8));
 
-        // 3. 创建物理池
+        // 3. Creating a physical pool
         std::string createPPCmd = std::string("./bazel-bin/tools/curvefsTool") +
                                   std::string(
                                       " -cluster_map=./test/integration/client/"
@@ -190,7 +190,7 @@ class CSModuleException : public ::testing::Test {
             retry++;
         }
 
-        // 4. 创建chunkserver
+        // 4. Create chunkserver
         pid = cluster->StartSingleChunkServer(1, "127.0.0.1:22125",
                                               chunkserverConf4);
         LOG(INFO) << "chunkserver 1 started on 127.0.0.1:22125, pid = " << pid;
@@ -207,7 +207,7 @@ class CSModuleException : public ::testing::Test {
         ASSERT_GT(pid, 0);
 
         std::this_thread::sleep_for(std::chrono::seconds(5));
-        // 5. 创建逻辑池, 并睡眠一段时间让底层copyset先选主
+        // 5. Create a logical pool and sleep for a period of time to let the underlying copyset select the primary first
         std::string createLPCmd =
             std::string("./bazel-bin/tools/curvefsTool") +
             std::string(
@@ -228,15 +228,15 @@ class CSModuleException : public ::testing::Test {
         }
         ASSERT_EQ(ret, 0);
 
-        // 6. 初始化client配置
+        // 6. Initialize client configuration
         ret = Init(confPath.c_str());
         ASSERT_EQ(ret, 0);
 
-        // 7. 创建一个文件
+        // 7. Create a file
         fd = curve::test::FileCommonOperation::Open("/test1", "curve");
         ASSERT_NE(fd, -1);
 
-        // 8. 先睡眠10s，让chunkserver选出leader
+        // 8. Sleep for 10 seconds first and let chunkserver select the leader
         std::this_thread::sleep_for(std::chrono::seconds(10));
     }
 
@@ -282,12 +282,12 @@ class CSModuleException : public ::testing::Test {
     }
 
     /**
-     * 监测client io能否在预期时间内正常下发
-     * @param: off是当前需要下发IO的偏移
-     * @param: size是下发io的大小
-     * @param: predictTimeS是预期在多少秒内IO可以恢复
-     * @param[out]: failCount为当前io下发中错误返回的数量
-     * @return: 如果io在预期时间内能够正常下发，则返true，否则返回false
+     * Monitor whether client io can be issued normally within the expected time
+     * @param: off is the offset that currently requires issuing IO
+     * @param: size is the size of the distributed io
+     * @param: predictTimeS is the expected number of seconds in which IO can be restored
+     * @param[out]: failCount is the number of error returns in the current io distribution
+     * @return: If io can be issued normally within the expected time, return true; otherwise, return false
      */
     bool MonitorResume(uint64_t off, uint64_t size, uint64_t predictTimeS,
                        uint64_t* failCount = nullptr) {
@@ -335,7 +335,7 @@ class CSModuleException : public ::testing::Test {
 
         failCount == nullptr ? 0 : (*failCount = ioFailedCount);
 
-        // 唤醒io线程
+        // Wake up IO thread
         iothread.join();
         inflightContl.WaitInflightAllComeBack();
 
@@ -345,7 +345,7 @@ class CSModuleException : public ::testing::Test {
 
     int fd;
 
-    // 是否出现挂卸载失败
+    // Is there a failure to hang and uninstall
     bool createOrOpenFailed;
     bool createDone;
     std::mutex createMtx;
@@ -354,173 +354,173 @@ class CSModuleException : public ::testing::Test {
     CurveCluster* cluster;
 };
 
-// 测试环境拓扑：在单节点上启动一个client、三个chunkserver、三个mds、一个etcd
+//Test environment topology: Start one client, three chunkservers, three mds, and one etcd on a single node
 
 TEST_F(CSModuleException, ChunkserverException) {
     LOG(INFO) << "current case: KillOneChunkserverThenRestartTheChunkserver";
     /********* KillOneChunkserverThenRestartTheChunkserver **********/
-    // 1. 测试重启一个chunkserver
-    // 2.预期：
-    //    a. 集群状态正常时：client读写请求可以正常下发
-    //    b. kill一台chunkserver：client 读写请求最多卡顿
-    //       election_timeout*2s可以正常读写
-    //    c. 恢复chunkserver：client 读写请求无影响
-    // 1. 集群最初状态，io正常下发
+    // 1.. Test restarting a chunkserver
+    // 2.. Expected:
+    //    a. When the cluster status is normal: client read and write requests can be issued normally
+    //    b. Kill a chunkserver: The client's read and write requests are stuck at most
+    //       election_timeout*2s can read and write normally
+    //    c. Restoring chunkserver: Client read and write requests have no impact
+    // 1. The initial state of the cluster, IO is issued normally
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
-    // 2. kill掉一个chunkserver
+    // 2. Kill a chunkserver
     ASSERT_EQ(0, cluster->StopChunkServer(1));
 
-    // 3. kill掉一个chunkserver之后，client的io预期最多会在2*electtime后恢复
+    // 3. After killing a chunkserver, the client's IO is expected to recover at most 2 * electtime
     ASSERT_TRUE(MonitorResume(0, 4096, 2));
 
-    // 4. 拉起刚才被kill的chunkserver
+    // 4. Pull up the chunkserver that was just killed
     pid_t pid =
         cluster->StartSingleChunkServer(1, "127.0.0.1:22125", chunkserverConf4);
     LOG(INFO) << "chunkserver 1 started on 127.0.0.1:22125, pid = " << pid;
     ASSERT_GT(pid, 0);
 
-    // 5. 重新拉起对client IO没有影响
+    // 5. Pulling back has no impact on client IO
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
     LOG(INFO) << "current case: HangOneChunkserverThenResumeTheChunkserver";
     /********* HangOneChunkserverThenResumeTheChunkserver ***********/
-    // 1. hang一台chunkserver，然后恢复hang的chunkserver
-    // 2.预期
-    //    a. 集群状态正常时：client读写请求可以正常下发
-    //    b. hang一台chunkserver：client
-    //       读写请求最多卡顿election_timeout*2s可以正常读写
-    //    c. 恢复chunkserver：client 读写请求无影响
-    // 1. 集群最初状态，io正常下发
+    // 1. Hang a chunk server, and then restore the hang's chunk server
+    // 2.. Expectations
+    //      a. When the cluster status is normal: client read and write requests can be issued normally
+    //      b. Hang a chunkserver: client
+    //         Read and write requests may experience a maximum delay of selection_timeout*2s for normal read and write operations
+    //      c. Restoring chunkserver: Client read and write requests have no impact
+    // 1. The initial state of the cluster, IO is issued normally
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
-    // 2. hang一个chunkserver
+    // 2. Hang a chunkserver
     ASSERT_EQ(0, cluster->HangChunkServer(1));
 
-    // 3. hang一个chunkserver之后，client的io预期最多会在2*electtime后恢复
+    // 3. After hanging a chunkserver, the client's IO is expected to recover at most 2 * electtime
     ASSERT_TRUE(MonitorResume(0, 4096, 2));
 
-    // 4. 拉起刚才被hang的chunkserver
+    // 4. Pull up the chunkserver that was just hung
     ASSERT_EQ(0, cluster->RecoverHangChunkServer(1));
 
-    // 5. 重新拉起对client IO没有影响
+    // 5. Pulling back has no impact on client IO
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
     LOG(INFO) << "current case: KillTwoChunkserverThenRestartTheChunkserver";
     /******** KillTwoChunkserverThenRestartTheChunkserver *********/
-    // 1. 测试重启两个chunkserver
-    // 2.预期：
-    //    a. 集群状态正常时：client读写请求可以正常下发
-    //    b. kill两台chunkserver：预期client IO持续hang，新写IO和覆盖写都hang
-    //       拉起被kill中的一台chunkserver：client IO预期在最多在
-    //      （chunkserver启动回放数据+2*election_timeout）时间内恢复读写
-    //    c. 拉起另外一台kill的chunkserver：client IO无影响
-    // 1. 集群最初状态，io正常下发
+    // 1. Test restarting two chunkservers
+    // 2.. Expected:
+    //      a. When the cluster status is normal: client read and write requests can be issued normally
+    //      b. Kill two chunkservers: expected client IO to continue to hang, new write IO and overwrite write both hang
+    //         Pulling up a chunkserver in the kill: client IO is expected to be at most
+    //         Restore read and write within (chunkserver starts playback of data+2 * selection_timeout) time
+    //      c. Pulling up another kill chunkserver: client IO has no impact
+    // 1. The initial state of the cluster, IO is issued normally
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
-    // 2. kill掉两个chunkserver
+    // 2. Kill two chunkservers
     ASSERT_EQ(0, cluster->StopChunkServer(1));
     ASSERT_EQ(0, cluster->StopChunkServer(2));
 
-    // 3. kill掉两个chunkserver, io无法正常下发
+    // 3. Kill two chunkservers, IO cannot be issued normally
     ASSERT_FALSE(MonitorResume(0, 4096, 30));
 
-    // 4. 拉起刚才被kill的chunkserver的第一个
+    // 4. Pull up the first chunk server that was just killed
     pid =
         cluster->StartSingleChunkServer(1, "127.0.0.1:22125", chunkserverConf4);
     LOG(INFO) << "chunkserver 1 started on 127.0.0.1:22125, pid = " << pid;
     ASSERT_GT(pid, 0);
 
-    // 5. 拉起刚才被kill的chunkserver的第一个，
-    //    client的io预期最多会在2*electtime后恢复
-    // 如果配置了慢启动，则需要等待
+    // 5. Pull up the first chunk server that was just killed,
+    //    The client's IO is expected to recover at most 2 * electtime
+    //If slow start is configured, wait
     // (copysetNum / load_concurrency) * election_timeout
     ASSERT_TRUE(MonitorResume(0, 4096, 80));
 
-    // 6. 拉起刚才被kill的chunkserver的第二个
+    // 6. Pull up the second chunk server that was just killed
     pid =
         cluster->StartSingleChunkServer(2, "127.0.0.1:22126", chunkserverConf5);
     LOG(INFO) << "chunkserver 2 started on 127.0.0.1:22126, pid = " << pid;
     ASSERT_GT(pid, 0);
 
-    // 7. 集群io不影响，正常下发
+    // 7. Cluster IO is not affected and is distributed normally
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
     LOG(INFO) << "current case: HangTwoChunkserverThenResumeTheChunkserver";
     /******* HangTwoChunkserverThenResumeTheChunkserver **********/
-    // 1. hang两台chunkserver，然后恢复hang的chunkserver
-    // 2.预期
-    //    a. 集群状态正常时：client读写请求可以正常下发
-    //    b. hang两台chunkserver：client IO持续hang，新写IO和覆盖写都hang
-    //    c. 恢复其中的一台chunkserver：client IO 恢复读写，
-    //       从恢复chunkserver到client IO恢复时间在election_timeout*2
-    //    d. 恢复另外一台hang的chunkserver：client IO无影响
-    // 1. 集群最初状态，io正常下发
+    // 1. Hang two chunkservers, and then restore Hang's chunkservers
+    // 2.. Expectations
+    //      a. When the cluster status is normal: client read and write requests can be issued normally
+    //      b. Hang two chunkservers: client IO continues to hang, while new write IO and overwrite write both hang
+    //      c. Restore one of the chunkservers: client IO restores read and write,
+    //          Recovery time from chunkserver to client IO during election_ Timeout * 2
+    //      d. Restoring another hang's chunkserver: client IO has no impact
+    // 1. The initial state of the cluster, IO is issued normally
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
-    // 2. hang掉两个个chunkserver
+    // 2. Hang off two chunkservers
     ASSERT_EQ(0, cluster->HangChunkServer(1));
     ASSERT_EQ(0, cluster->HangChunkServer(2));
 
-    // 3. hang两个chunkserver, io无法正常下发
+    // 3. Hang two chunkservers, IO cannot be issued normally
     ASSERT_FALSE(MonitorResume(0, 4096, 2));
 
-    // 4. 拉起刚才被hang的chunkserver的第一个
+    // 4. Pull up the first chunkserver that was just hung
     ASSERT_EQ(0, cluster->RecoverHangChunkServer(1));
 
-    // 5. 拉起刚才被hang的chunkserver的第一个，
-    //    client的io预期最多会在2*electtime后恢复
-    // 如果配置了慢启动，则需要等待
+    // 5. Pull up the first chunkserver that was just hung,
+    //The client's IO is expected to recover at most 2 * electtime
+    //If slow start is configured, wait
     // (copysetNum / load_concurrency) * election_timeout
     ASSERT_TRUE(MonitorResume(0, 4096, 80));
 
-    // 6. 拉起刚才被hang的chunkserver的第二个
+    // 6. Pull up the second chunk server that was just hung
     ASSERT_EQ(0, cluster->RecoverHangChunkServer(2));
 
-    // 7. 集群io不影响，正常下发
+    // 7. Cluster IO is not affected and is distributed normally
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
     LOG(INFO) << "current case: KillThreeChunkserverThenRestartTheChunkserver";
     /******** KillThreeChunkserverThenRestartTheChunkserver ******/
-    // 1. 测试重启三个chunkserver
-    // 2.预期：
-    //    a. 集群状态正常时：client读写请求可以正常下发
-    //    b. 关闭三台chunkserver：client IO hang
-    //    c. 重启一台chunkserver：client IO hang
-    //    d. 重启第二台chunkserver：client IO hang，
-    //       直到chunkserver完全恢复，IO恢复。
-    //       恢复时间约等于（chunkserver启动回放数据+2*election_timeout）
-    //    e. 重启第三台chunkserver：client IO无影响
-    // 1. 集群最初状态，io正常下发
+    // 1. Test restarting three chunkservers
+    // 2. Expected:
+    //      a. When the cluster status is normal: client read and write requests can be issued normally
+    //      b. Close three chunkservers: client IO hang
+    //      c. Restart a chunkserver: client IO hang
+    //      d. Restart the second chunkserver: client IO hang,
+    //         Until the chunkserver is fully restored and IO is restored.
+    //         The recovery time is approximately equal to (chunkserver starts playback data+2 * election_timeout)
+    //      e. Restarting the third chunkserver: No impact on client IO
+    // 1. The initial state of the cluster, IO is issued normally
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
-    // 2. kill掉三个chunkserver
+    // 2. Kill three chunkservers
     ASSERT_EQ(0, cluster->StopChunkServer(1));
     ASSERT_EQ(0, cluster->StopChunkServer(2));
     ASSERT_EQ(0, cluster->StopChunkServer(3));
 
-    // 3. kill掉三个chunkserver, io无法正常下发
+    // 3. Kill three chunkservers, IO cannot be issued normally
     ASSERT_FALSE(MonitorResume(0, 4096, 2));
 
-    // 4. 拉起刚才被kill的chunkserver的第一个
+    // 4. Pull up the first chunk server that was just killed
     pid =
         cluster->StartSingleChunkServer(1, "127.0.0.1:22125", chunkserverConf4);
     LOG(INFO) << "chunkserver 1 started on 127.0.0.1:22125, pid = " << pid;
     ASSERT_GT(pid, 0);
 
-    // 5. 只有一个chunkserver工作, io无法正常下发
+    // 5. Only one chunkserver is working, IO cannot be issued normally
     ASSERT_FALSE(MonitorResume(0, 4096, 80));
 
-    // 6. 拉起刚才被kill的chunkserver的第二个
+    // 6. Pull up the second chunk server that was just killed
     pid =
         cluster->StartSingleChunkServer(2, "127.0.0.1:22126", chunkserverConf5);
     LOG(INFO) << "chunkserver 2 started on 127.0.0.1:22126, pid = " << pid;
     ASSERT_GT(pid, 0);
 
-    // 7. client的io恢复
+    // 7. Client's IO recovery
     ASSERT_TRUE(MonitorResume(0, 4096, 80));
 
-    // 8. 拉起其他被kil的chunkserver
+    // 8. Pull up other chunkservers that have been killed
     pid =
         cluster->StartSingleChunkServer(3, "127.0.0.1:22127", chunkserverConf6);
     LOG(INFO) << "chunkserver 3 started on 127.0.0.1:22127, pid = " << pid;
@@ -528,37 +528,37 @@ TEST_F(CSModuleException, ChunkserverException) {
 
     LOG(INFO) << "current case: HangThreeChunkserverThenResumeTheChunkserver";
     /******** HangThreeChunkserverThenResumeTheChunkserver **********/
-    // 1. hang三台chunkserver，然后恢复hang的chunkserver
-    // 2.预期
-    //    a. 集群状态正常时：client读写请求可以正常下发
-    //    b. hang三台chunkserver：client IO hang
-    //    c. 恢复一台chunkserver：client IO hang
-    //    d. 再恢复一台chunkserver：预期在
-    //       election_timeout*2左右的时间，client IO恢复
-    //    e. 恢复最后一台chunkserver：预期client IO无影响
-    // 1. 集群最初状态，io正常下发
+    // 1. Hang three chunkservers, and then restore Hang's chunkservers
+    // 2. Expectations
+    //      a. When the cluster status is normal: client read and write requests can be issued normally
+    //      b. Hang three chunkservers: client IO hang
+    //      c. Restore a chunkserver: client IO hang
+    //      d. Restore another chunkserver: expected to be
+    //          election_ About timeout * 2, client IO recovery
+    //      e. Restore the last chunkserver: Expected no impact on client IO
+    // 1. The initial state of the cluster, IO is issued normally
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
-    // 2. hang掉三个chunkserver
+    // 2. Hang down three chunkservers
     ASSERT_EQ(0, cluster->HangChunkServer(1));
     ASSERT_EQ(0, cluster->HangChunkServer(2));
     ASSERT_EQ(0, cluster->HangChunkServer(3));
 
-    // 3. hang三个chunkserver, io无法正常下发
+    // 3. Hang three chunkservers, IO cannot be distributed normally
     ASSERT_FALSE(MonitorResume(0, 4096, 30));
 
-    // 4. 拉起刚才被hang的chunkserver的第一个
+    // 4. Pull up the first chunk server that was just hung
     ASSERT_EQ(0, cluster->RecoverHangChunkServer(1));
 
-    // 5. 只有一个chunkserver工作, io无法正常下发
+    // 5. Only one chunkserver is working, IO cannot be issued normally
     ASSERT_FALSE(MonitorResume(0, 4096, 80));
 
-    // 6. 拉起刚才被hang的chunkserver的第二个
+    // 6. Pull up the second chunk server that was just hung
     ASSERT_EQ(0, cluster->RecoverHangChunkServer(2));
     ASSERT_EQ(0, cluster->RecoverHangChunkServer(3));
 
-    // 7. client的io预期最多会在2*electtime s内恢复
-    // 如果配置了慢启动，则需要等待
+    // 7. The client's IO is expected to recover within a maximum of 2 * electtime seconds
+    // If slow start is configured, wait
     // (copysetNum / load_concurrency) * election_timeout
     ASSERT_TRUE(MonitorResume(0, 4096, 80));
 }

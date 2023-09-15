@@ -34,7 +34,7 @@
 namespace curve {
 namespace chunkserver {
 
-// chunk service层的闭包，对rpc的闭包再做一层封装，用于请求返回时统计metric信息
+// The closure of the chunk service layer encapsulates the closure of the rpc layer, which is used to count metric information when requesting returns
 class ChunkServiceClosure : public braft::Closure {
  public:
     explicit ChunkServiceClosure(
@@ -47,43 +47,43 @@ class ChunkServiceClosure : public braft::Closure {
         , response_(response)
         , brpcDone_(done)
         , receivedTimeUs_(common::TimeUtility::GetTimeofDayUs()) {
-            // closure创建的什么加1，closure调用的时候减1
+            // What does the closure create add 1, and when the closure is called, subtract 1
             if (nullptr != inflightThrottle_) {
                 inflightThrottle_->Increment();
             }
-            // 统计请求数量
+            // Count the number of requests
             OnRequest();
         }
 
     ~ChunkServiceClosure() = default;
 
     /**
-     * 该闭包的guard生命周期结束时会调用该函数
-     * 该函数内目前主要是对读写请求返回结果的一些metric统计
-     * 后面如果有类似的场景（在service请求结束时做一些处理）可以在内部添加逻辑
+     * This function will be called at the end of the guard lifecycle of the closure
+     * Currently, this function mainly performs some metric statistics on the returned results of read and write requests
+     * If there are similar scenarios in the future (doing some processing at the end of the service request), logic can be added internally
      */
     void Run() override;
 
  private:
     /**
-     * 统计请求数量和速率
+     * Count the number and rate of requests
      */
     void OnRequest();
     /**
-     * 记录请求处理的结果，例如请求是否出错、请求的延时等
+     * Record the results of request processing, such as whether the request was incorrect, the delay of the request, etc
      */
     void OnResonse();
 
  private:
-    // inflight流控
+    // inflight flow control
     std::shared_ptr<InflightThrottle> inflightThrottle_;
-    // rpc请求的request
+    // Request for rpc requests
     const ChunkRequest *request_;
-    // rpc请求的response
+    // Response to rpc requests
     ChunkResponse *response_;
-    // rpc请求回调
+    // Rpc request callback
     google::protobuf::Closure *brpcDone_;
-    // 接受到请求的时间
+    // Time of receiving the request
     uint64_t receivedTimeUs_;
 };
 

@@ -36,7 +36,7 @@ using ::testing::Return;
 using ::testing::_;
 
 TEST(ChunkServerServiceImplTest, test_ChunkServerStatus) {
-    // 启动ChunkServerService
+    // Start ChunkServerService
     auto server = new brpc::Server();
     MockCopysetNodeManager* copysetNodeManager = new MockCopysetNodeManager();
     ChunkServerServiceImpl* chunkserverService =
@@ -53,7 +53,7 @@ TEST(ChunkServerServiceImplTest, test_ChunkServerStatus) {
     ChunkServerStatusRequest request;
     ChunkServerStatusResponse response;
 
-    // 1. 指定chunkserver加载copyset完成
+    // 1. Specify chunkserver to load copyset complete
     {
         EXPECT_CALL(*copysetNodeManager, LoadFinished())
             .WillOnce(Return(false));
@@ -63,7 +63,7 @@ TEST(ChunkServerServiceImplTest, test_ChunkServerStatus) {
         ASSERT_FALSE(response.copysetloadfin());
     }
 
-    // 2. 指定chunkserver加载copyset未完成
+    // 2. The specified chunkserver loading copyset did not complete
     {
         EXPECT_CALL(*copysetNodeManager, LoadFinished())
             .WillOnce(Return(true));
@@ -73,13 +73,13 @@ TEST(ChunkServerServiceImplTest, test_ChunkServerStatus) {
         ASSERT_TRUE(response.copysetloadfin());
     }
 
-    // 停止chunkserver service
+    // Stop chunkserver service
     server->Stop(0);
     server->Join();
     delete server;
     server = nullptr;
 
-    // 3. 未获取到指定chunkserver加载copyset状态
+    // 3. Unable to obtain the specified chunkserver loading copyset status
     {
         brpc::Controller cntl;
         stub.ChunkServerStatus(&cntl, &request, &response, nullptr);

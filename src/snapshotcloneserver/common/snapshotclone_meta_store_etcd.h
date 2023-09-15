@@ -83,16 +83,16 @@ class SnapshotCloneMetaStoreEtcd : public SnapshotCloneMetaStore {
 
  private:
     /**
-     * @brief 加载快照信息
+     * @brief Load snapshot information
      *
-     * @return 0 加载成功/ -1 加载失败
+     * @return 0 successfully loaded/ -1 failed to load
      */
     int LoadSnapshotInfos();
 
     /**
-     * @brief 加载克隆信息
+     * @brief Load clone information
      *
-     * @return 0 加载成功/ -1 加载失败
+     * @return 0 successfully loaded/ -1 failed to load
      */
     int LoadCloneInfos();
 
@@ -100,11 +100,11 @@ class SnapshotCloneMetaStoreEtcd : public SnapshotCloneMetaStore {
     std::shared_ptr<KVStorageClient> client_;
     std::shared_ptr<SnapshotCloneCodec> codec_;
 
-    // key is UUID, map 需要考虑并发保护
+    // Key is UUID, map needs to consider concurrency protection
     std::map<UUID, SnapshotInfo> snapInfos_;
     // snap info lock
     RWLock snapInfos_mutex;
-    // key is TaskIdType, map 需要考虑并发保护
+    // Key is TaskIdType, map needs to consider concurrency protection
     std::map<std::string, CloneInfo> cloneInfos_;
     // clone info map lock
     RWLock cloneInfos_lock_;

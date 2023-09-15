@@ -47,13 +47,13 @@ struct AsyncRequestClosure : public google::protobuf::Closure {
 
     void Retry() const;
 
-    // 请求fd
+    // Request fd
     int fd;
 
-    // 请求上下文信息
+    // Request Context Information
     NebdClientAioContext* aioCtx;
 
-    // brpc请求的controller
+    // Controller requested by brpc
     brpc::Controller cntl;
 
     RequestOption requestOption_;

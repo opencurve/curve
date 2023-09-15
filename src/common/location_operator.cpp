@@ -44,8 +44,8 @@ std::string LocationOperator::GenerateCurveLocation(
 
 OriginType LocationOperator::ParseLocation(
     const std::string& location, std::string* originPath) {
-    // 找到最后一个“@”,不能简单用SplitString
-    // 因为不能保证OriginPath中不包含“@”
+    // Found the last '@', cannot simply use SplitString
+    // Because it cannot be guaranteed that OriginPath does not contain '@'
     std::string::size_type pos =
         location.find_last_of(kOriginTypeSeprator);
     if (std::string::npos == pos) {

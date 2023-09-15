@@ -44,9 +44,9 @@ class Task {
     Task& operator=(Task&&) = default;
 
     /**
-     * @brief 获取快照任务执行体闭包
+     * @brief Get snapshot task execution body closure
      *
-     * @return 快照任务执行体
+     * @return Snapshot Task Execution Body
      */
     virtual std::function<void()> clousre() {
         return [this] () {
@@ -55,21 +55,21 @@ class Task {
     }
 
     /**
-     * @brief 获取快照任务id
+     * @brief Get snapshot task ID
      *
-     * @return 快照任务id
+     * @return Snapshot Task ID
      */
     TaskIdType GetTaskId() const {
         return taskId_;
     }
 
     /**
-     * @brief 快照执行函数接口
+     * @brief snapshot execution function interface
      */
     virtual void Run() = 0;
 
  private:
-    // 快照id
+    // Snapshot ID
     TaskIdType taskId_;
 };
 

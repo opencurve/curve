@@ -34,7 +34,7 @@
 
 namespace curve {
 namespace common {
-// curve系统中共用的定义，对于各模块自己独有的放在各模块自己的define中
+// The definition shared in the curve system is unique to each module and placed in its own definition
 using ChunkID           = uint64_t;
 using CopysetID         = uint32_t;
 using ChunkIndex        = uint32_t;
@@ -55,7 +55,7 @@ const uint32_t kKB      = 1024;
 const uint32_t kMB      = 1024*kKB;
 const uint32_t kGB      = 1024*kMB;
 
-// maigic number用于FilePool_meta file计算crc
+// maigic number for FilePool_meta file calculation of crc
 const char kFilePoolMagic[3] = "01";
 
 constexpr uint32_t kDefaultBlockSize = 4096;

@@ -143,7 +143,7 @@ TEST_F(CopysetNodeManagerTest, NormalTest) {
 
     ASSERT_EQ(0, copysetNodeManager->Init(defaultOptions_));
 
-    // 本地 copyset 未加载完成，则无法创建新的copyset
+    // Cannot create a new copyset if the local copyset has not been loaded completely
     ASSERT_FALSE(copysetNodeManager->CreateCopysetNode(logicPoolId,
                                                        copysetId,
                                                        conf));
@@ -152,7 +152,7 @@ TEST_F(CopysetNodeManagerTest, NormalTest) {
                                                        copysetId,
                                                        conf));
     ASSERT_TRUE(copysetNodeManager->IsExist(logicPoolId, copysetId));
-    // 重复创建
+    // Duplicate creation
     ASSERT_FALSE(copysetNodeManager->CreateCopysetNode(logicPoolId,
                                                        copysetId,
                                                        conf));
@@ -185,20 +185,20 @@ TEST_F(CopysetNodeManagerTest, CheckCopysetTest) {
     std::shared_ptr<MockCopysetNode> mockNode
         = std::make_shared<MockCopysetNode>();
 
-    // 测试copyset node manager还没运行
+    // The test copyset node manager has not been run yet
     EXPECT_CALL(*mockNode, GetStatus(_)).Times(0);
     EXPECT_CALL(*mockNode, GetLeaderStatus(_)).Times(0);
     ASSERT_FALSE(copysetNodeManager->CheckCopysetUntilLoadFinished(mockNode));
 
-    // 启动copyset node manager
+    // Start the copyset node manager
     ASSERT_EQ(0, copysetNodeManager->Run());
 
-    // 测试node为空
+    // Test node is empty
     EXPECT_CALL(*mockNode, GetStatus(_)).Times(0);
     EXPECT_CALL(*mockNode, GetLeaderStatus(_)).Times(0);
     ASSERT_FALSE(copysetNodeManager->CheckCopysetUntilLoadFinished(nullptr));
 
-    // 测试无法获取到leader status的情况
+    // Test the situation where the leader status cannot be obtained
     EXPECT_CALL(*mockNode, GetStatus(_)).Times(0);
     NodeStatus leaderStatus;
     EXPECT_CALL(*mockNode, GetLeaderStatus(_))
@@ -207,7 +207,7 @@ TEST_F(CopysetNodeManagerTest, CheckCopysetTest) {
     ASSERT_FALSE(copysetNodeManager->CheckCopysetUntilLoadFinished(mockNode));
 
     leaderStatus.leader_id.parse("127.0.0.1:9043:0");
-    // 测试leader first_index 大于 follower last_index的情况
+    // Test the situation that leader first_index greater than follower last_index
     leaderStatus.first_index = 1000;
     NodeStatus followerStatus;
     followerStatus.last_index = 999;
@@ -217,7 +217,7 @@ TEST_F(CopysetNodeManagerTest, CheckCopysetTest) {
     .WillOnce(DoAll(SetArgPointee<0>(leaderStatus), Return(true)));
     ASSERT_FALSE(copysetNodeManager->CheckCopysetUntilLoadFinished(mockNode));
 
-    // 测试可以获取到leader status,且follower当前不在安装快照 的情况
+    // The test can obtain the leader status and the follower is currently not installing the snapshot
     leaderStatus.first_index = 1;
     leaderStatus.committed_index = 2000;
     NodeStatus status1;
@@ -258,10 +258,10 @@ TEST_F(CopysetNodeManagerTest, ReloadTest) {
         LOG(FATAL) << "Fail to start Server";
     }
 
-    // 构造初始环境
+    // Construct initial environment
     ASSERT_EQ(0, copysetNodeManager->Init(defaultOptions_));
     ASSERT_EQ(0, copysetNodeManager->Run());
-    // 创建多个copyset
+    // Create multiple copyset
     int copysetNum = 5;
     for (int i = 0; i < copysetNum; ++i) {
         ASSERT_TRUE(copysetNodeManager->CreateCopysetNode(logicPoolId,
@@ -277,7 +277,7 @@ TEST_F(CopysetNodeManagerTest, ReloadTest) {
     ASSERT_EQ(0, copysetNodes.size());
 
 
-    // 本地 copyset 未加载完成，则无法创建新的copyset
+    // Cannot create a new copyset if the local copyset has not been loaded completely
     ASSERT_FALSE(copysetNodeManager->CreateCopysetNode(logicPoolId,
                                                        copysetId + 5,
                                                        conf));

@@ -59,10 +59,10 @@ class HeartbeatManagerTest : public ::testing::Test {
 
 TEST_F(HeartbeatManagerTest, CheckTimeoutTest) {
     ASSERT_EQ(heartbeatManager_->Run(), 0);
-    // 已经在run了不允许重复Run或者Init
+    // It is already running, and duplicate Run or Init is not allowed
     ASSERT_EQ(heartbeatManager_->Run(), -1);
 
-    // 构造file entity
+    // Construct file entity
     uint64_t curTime = TimeUtility::GetTimeofDayMs();
     std::shared_ptr<MockFileEntity> entity1 =
         std::make_shared<MockFileEntity>();
@@ -83,7 +83,7 @@ TEST_F(HeartbeatManagerTest, CheckTimeoutTest) {
     EXPECT_CALL(*entity3, GetFileStatus())
     .WillRepeatedly(Return(NebdFileStatus::OPENED));
 
-    // 构造file map
+    // Construct a file map
     FileEntityMap entityMap;
     entityMap.emplace(1, entity1);
     entityMap.emplace(2, entity2);
@@ -91,7 +91,7 @@ TEST_F(HeartbeatManagerTest, CheckTimeoutTest) {
     EXPECT_CALL(*fileManager_, GetFileEntityMap())
     .WillRepeatedly(Return(entityMap));
 
-    // 预期结果
+    // Expected results
     EXPECT_CALL(*entity1, Close(false))
     .Times(AtLeast(1));
     EXPECT_CALL(*entity2, Close(false))
@@ -101,7 +101,7 @@ TEST_F(HeartbeatManagerTest, CheckTimeoutTest) {
 
     ::sleep(2);
     ASSERT_EQ(heartbeatManager_->Fini(), 0);
-    // 重复Fini，也返回成功
+    // Repeat Fini and return success
     ASSERT_EQ(heartbeatManager_->Fini(), 0);
 }
 

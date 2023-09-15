@@ -290,7 +290,7 @@
     {
       "columns": [],
       "datasource": null,
-      "description": "mds的配置",
+      "description": "Configuration of MDS",
       "fieldConfig": {
         "defaults": {
           "custom": {
@@ -336,7 +336,7 @@
       },
       "styles": [
         {
-          "alias": "实例",
+          "alias": "Instance",
           "colorMode": null,
           "colors": [
             "rgba(245, 54, 54, 0.9)",
@@ -352,7 +352,7 @@
           "unit": "short"
         },
         {
-          "alias": "配置项",
+          "alias": "Configuration item",
           "colorMode": null,
           "colors": [
             "rgba(245, 54, 54, 0.9)",
@@ -368,7 +368,7 @@
           "unit": "short"
         },
         {
-          "alias": "配置值",
+          "alias": "Configuration value",
           "colorMode": null,
           "colors": [
             "rgba(245, 54, 54, 0.9)",

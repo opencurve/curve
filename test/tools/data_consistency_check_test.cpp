@@ -110,7 +110,7 @@ TEST_F(ConsistencyCheckTest, Consistency) {
     CopysetStatusResponse response;
     GetCopysetStatusForTest(&response);
 
-    // 设置期望
+    // Set expectations
     EXPECT_CALL(*nameSpaceTool_, Init(_))
         .Times(2)
         .WillRepeatedly(Return(0));
@@ -133,19 +133,19 @@ TEST_F(ConsistencyCheckTest, Consistency) {
         .Times(30)
         .WillRepeatedly(DoAll(SetArgPointee<1>("1111"),
                         Return(0)));
-    // 1、检查hash
+    // 1. Check hash
     FLAGS_check_hash = true;
     curve::tool::ConsistencyCheck cfc1(nameSpaceTool_, csClient_);
     cfc1.PrintHelp("check-consistency");
     cfc1.PrintHelp("check-nothing");
     ASSERT_EQ(0, cfc1.RunCommand("check-consistency"));
-    // 2、检查applyIndex
+    // 2. Check the applyIndex
     FLAGS_check_hash = false;
     curve::tool::ConsistencyCheck cfc2(nameSpaceTool_, csClient_);
     ASSERT_EQ(0, cfc2.RunCommand("check-consistency"));
     ASSERT_EQ(-1, cfc2.RunCommand("check-nothing"));
 
-    // mds返回副本为空的情况
+    // Mds returns a situation where the replica is empty
     EXPECT_CALL(*nameSpaceTool_, GetFileSegments(_, _))
         .Times(2)
         .WillRepeatedly(DoAll(SetArgPointee<1>(segments),
@@ -180,7 +180,7 @@ TEST_F(ConsistencyCheckTest, NotConsistency) {
     CopysetStatusResponse response3;
     GetCopysetStatusForTest(&response3, 2222);
 
-    // 设置期望
+    // Set expectations
     EXPECT_CALL(*nameSpaceTool_, Init(_))
         .Times(3)
         .WillRepeatedly(Return(0));
@@ -193,7 +193,7 @@ TEST_F(ConsistencyCheckTest, NotConsistency) {
         .WillRepeatedly(DoAll(SetArgPointee<2>(csLocs),
                         Return(0)));
 
-    // 1、检查hash，apply index一致，hash不一致
+    // 1. Check if the hash and apply index are consistent and the hash is inconsistent
     FLAGS_check_hash = true;
     EXPECT_CALL(*csClient_, Init(_))
         .Times(5)
@@ -211,7 +211,7 @@ TEST_F(ConsistencyCheckTest, NotConsistency) {
     curve::tool::ConsistencyCheck cfc1(nameSpaceTool_, csClient_);
     ASSERT_EQ(-1, cfc1.RunCommand("check-consistency"));
 
-    // 2、检查hash的时候apply index不一致
+    // 2. When checking the hash, the apply index is inconsistent
     EXPECT_CALL(*csClient_, Init(_))
         .Times(2)
         .WillRepeatedly(Return(0));
@@ -224,7 +224,7 @@ TEST_F(ConsistencyCheckTest, NotConsistency) {
     curve::tool::ConsistencyCheck cfc2(nameSpaceTool_, csClient_);
     ASSERT_EQ(-1, cfc2.RunCommand("check-consistency"));
 
-    // 3、检查applyIndex
+    // 3. Check the applyIndex
     FLAGS_check_hash = false;
     EXPECT_CALL(*csClient_, Init(_))
         .Times(2)
@@ -254,12 +254,12 @@ TEST_F(ConsistencyCheckTest, CheckError) {
     }
     FLAGS_check_hash = false;
     curve::tool::ConsistencyCheck cfc(nameSpaceTool_, csClient_);
-    // 0、Init失败
+    // 0. Init failed
     EXPECT_CALL(*nameSpaceTool_, Init(_))
         .Times(1)
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, cfc.RunCommand("check-consistency"));
-    // 1、获取segment失败
+    // 1. Failed to obtain segment
     EXPECT_CALL(*nameSpaceTool_, Init(_))
         .Times(1)
         .WillOnce(Return(0));
@@ -268,7 +268,7 @@ TEST_F(ConsistencyCheckTest, CheckError) {
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, cfc.RunCommand("check-consistency"));
 
-    // 2、获取chunkserver list失败
+    // 2. Failed to obtain chunkserver list
     EXPECT_CALL(*nameSpaceTool_, GetFileSegments(_, _))
         .Times(4)
         .WillRepeatedly(DoAll(SetArgPointee<1>(segments),
@@ -278,7 +278,7 @@ TEST_F(ConsistencyCheckTest, CheckError) {
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, cfc.RunCommand("check-consistency"));
 
-    // 3、init 向chunkserverclient init失败
+    // 3. Failed to init to chunkserverclient init
     EXPECT_CALL(*nameSpaceTool_, GetChunkServerListInCopySet(_, _, _))
         .Times(3)
         .WillRepeatedly(DoAll(SetArgPointee<2>(csLocs),
@@ -288,7 +288,7 @@ TEST_F(ConsistencyCheckTest, CheckError) {
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, cfc.RunCommand("check-consistency"));
 
-    // 4、从chunkserver获取copyset status失败
+    // 4. Failed to obtain copyset status from chunkserver
     EXPECT_CALL(*csClient_, Init(_))
         .Times(1)
         .WillOnce(Return(0));
@@ -297,7 +297,7 @@ TEST_F(ConsistencyCheckTest, CheckError) {
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, cfc.RunCommand("check-consistency"));
 
-    // 5、从chunkserver获取chunk hash失败
+    // 5. Failed to obtain chunk hash from chunkserver
     FLAGS_check_hash = true;
     CopysetStatusResponse response1;
     GetCopysetStatusForTest(&response1);

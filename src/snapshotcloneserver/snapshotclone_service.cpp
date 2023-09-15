@@ -263,7 +263,7 @@ void SnapshotCloneServiceImpl::HandleGetFileSnapshotInfoAction(
         HandleBadRequestError(bcntl, requestId);
         return;
     }
-    // 默认值为10
+    // Default value is 10
     uint64_t limitNum = 10;
     if ((limit != nullptr) && !limit->empty()) {
         if (!curve::common::StringToUll(*limit, &limitNum)) {
@@ -271,7 +271,7 @@ void SnapshotCloneServiceImpl::HandleGetFileSnapshotInfoAction(
             return;
         }
     }
-    // 默认值为0
+    // Default value is 0
     uint64_t offsetNum = 0;
     if ((offset != nullptr) && !offset->empty()) {
         if (!curve::common::StringToUll(*offset, &offsetNum)) {
@@ -526,7 +526,7 @@ void SnapshotCloneServiceImpl::HandleGetCloneTasksAction(
         HandleBadRequestError(bcntl, requestId);
         return;
     }
-    // 默认值为10
+    // Default value is 10
     uint64_t limitNum = 10;
     if ((limit != nullptr) && !limit->empty()) {
         if (!curve::common::StringToUll(*limit, &limitNum)) {
@@ -534,7 +534,7 @@ void SnapshotCloneServiceImpl::HandleGetCloneTasksAction(
             return;
         }
     }
-    // 默认值为0
+    // Default value is 0
     uint64_t offsetNum = 0;
     if ((offset != nullptr) && !offset->empty()) {
         if (!curve::common::StringToUll(*offset, &offsetNum)) {
@@ -684,7 +684,7 @@ void SnapshotCloneServiceImpl::HandleGetFileSnapshotListAction(
         HandleBadRequestError(bcntl, requestId);
         return;
     }
-    // 默认值为10
+    // Default value is 10
     uint64_t limitNum = 10;
     if ((limit != nullptr) && !limit->empty()) {
         if (!curve::common::StringToUll(*limit, &limitNum)) {
@@ -692,7 +692,7 @@ void SnapshotCloneServiceImpl::HandleGetFileSnapshotListAction(
             return;
         }
     }
-    // 默认值为0
+    // Default value is 0
     uint64_t offsetNum = 0;
     if ((offset != nullptr) && !offset->empty()) {
         if (!curve::common::StringToUll(*offset, &offsetNum)) {
@@ -784,7 +784,7 @@ void SnapshotCloneServiceImpl::HandleGetCloneTaskListAction(
         HandleBadRequestError(bcntl, requestId);
         return;
     }
-    // 默认值为10
+    // Default value is 10
     uint64_t limitNum = 10;
     if ((limit != nullptr) && !limit->empty()) {
         if (!curve::common::StringToUll(*limit, &limitNum)) {
@@ -792,7 +792,7 @@ void SnapshotCloneServiceImpl::HandleGetCloneTaskListAction(
             return;
         }
     }
-    // 默认值为0
+    // Default value is 0
     uint64_t offsetNum = 0;
     if ((offset != nullptr) && !offset->empty()) {
         if (!curve::common::StringToUll(*offset, &offsetNum)) {

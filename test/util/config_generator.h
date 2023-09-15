@@ -32,7 +32,7 @@ namespace curve {
 
 using curve::common::Configuration;
 
-// 各模块继承该接口，实现自己的初始化配置函数
+// Each module inherits this interface and implements its own initialization configuration function
 class ConfigGenerator {
  public:
     ConfigGenerator() = default;
@@ -51,15 +51,15 @@ class ConfigGenerator {
         configPath_ = configPath;
     }
 
-    // 设置配置项
+    // Set Configuration Items
     virtual void SetKV(const std::string& key, const std::string& value) {
         config_.SetValue(key, value);
     }
 
     /**
-     * @brief 批量设置配置项
+     * @brief Batch Set Configuration Items
      *
-     * @param options 配置项表，形如 "Ip=127.0.0.1"
+     * @param options configuration item table, in the form of "Ip=127.0.0.1"
      */
     virtual void SetConfigOptions(
         const std::vector<std::string> &options) {
@@ -71,7 +71,7 @@ class ConfigGenerator {
         }
     }
 
-    // 用于生成配置文件
+    // Used to generate configuration files
     virtual bool Generate() {
         if (configPath_ != "") {
             config_.SetConfigPath(configPath_);
@@ -85,15 +85,15 @@ class ConfigGenerator {
         return Generate();
     }
 
-    // 删除配置文件
+    // Delete Profile
     virtual int Remove() {
         return ::remove(configPath_.c_str());
     }
 
  protected:
-    // 配置文件路径
+    // Configuration file path
     std::string configPath_;
-    // 配置器
+    // Configurator
     Configuration config_;
 };
 

@@ -42,7 +42,7 @@ using ::testing::Invoke;
 using curve::chunkserver::ChunkService;
 using curve::chunkserver::CHUNK_OP_STATUS;
 
-/* 当前仅仅模拟单 chunk read/write */
+/*Currently, only single chunk read/write is simulated*/
 class FakeChunkServiceImpl : public ChunkService {
  public:
     virtual ~FakeChunkServiceImpl() {}
@@ -132,8 +132,8 @@ class FakeChunkServiceImpl : public ChunkService {
 
  private:
     std::set<ChunkID> chunkIds_;
-    /* 由于 bthread 栈空间的限制，这里不会开很大的空间，如果测试需要更大的空间
-     * 请在堆上申请 */
+    /* Due to the limitations of the bthread stack space, there will not be a large amount of space opened here. If testing requires more space
+     * Please apply on the pile*/
     char chunk_[4096] = {0};
 };
 

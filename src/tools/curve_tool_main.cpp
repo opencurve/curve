@@ -80,8 +80,8 @@ extern std::string rootUserPassword;
 }  // namespace curve
 
 void UpdateFlagsFromConf(curve::common::Configuration* conf) {
-    // 如果配置文件不存在的话不报错，以命令行为准,这是为了不强依赖配置
-    // 如果配置文件存在并且没有指定命令行的话，就以配置文件为准
+    // If the configuration file does not exist, no error will be reported, and the command line will prevail. This is to avoid strong dependence on the configuration
+    // If the configuration file exists and no command line is specified, the configuration file shall prevail
     google::CommandLineFlagInfo info;
     if (GetCommandLineFlagInfo("mdsAddr", &info) && info.is_default) {
         conf->GetStringValue("mdsAddr", &FLAGS_mdsAddr);
@@ -168,7 +168,7 @@ int main(int argc, char** argv) {
 
     UpdateFlagsFromConf(&conf);
 
-    // 关掉健康检查，否则Not Connect to的时候重试没有意义
+    // Turn off the health check, otherwise trying again when Not Connect to is meaningless
     brpc::FLAGS_health_check_interval = -1;
     auto curveTool = curve::tool::CurveToolFactory::GenerateCurveTool(command);
     if (!curveTool) {

@@ -53,7 +53,7 @@ constexpr uint64_t KiB = 1024;
 constexpr uint64_t MiB = 1024 * KiB;
 constexpr uint64_t GiB = 1024 * MiB;
 
-// 操作类型
+// Operation type
 enum class OpType {
     READ = 0,
     WRITE,
@@ -67,7 +67,7 @@ enum class OpType {
 };
 
 /**
- * 与nameserver.proto中的FileStatus一一对应
+ * Corresponds one-to-one with FileStatus in nameserver.proto
  */
 enum class FileStatus {
     Created = 0,
@@ -95,7 +95,7 @@ typedef struct ChunkIDInfo {
     }
 } ChunkIDInfo_t;
 
-// 保存每个chunk对应的版本信息
+// Save the version information corresponding to each chunk
 typedef struct ChunkInfoDetail {
     std::vector<uint64_t> chunkSn;
 } ChunkInfoDetail_t;
@@ -106,7 +106,7 @@ typedef struct LeaseSession {
     uint64_t createTime;
 } LeaseSession_t;
 
-// 保存logicalpool中segment对应的copysetid信息
+// Save the copysetid information corresponding to the segment in the logicalpool
 typedef struct LogicalPoolCopysetIDInfo {
     LogicPoolID lpid;
     std::vector<CopysetID> cpidVec;
@@ -117,7 +117,7 @@ typedef struct LogicalPoolCopysetIDInfo {
     }
 } LogicalPoolCopysetIDInfo_t;
 
-// 保存每个segment的基本信息
+//Save basic information for each segment
 typedef struct SegmentInfo {
     uint32_t segmentsize;
     uint32_t chunksize;
@@ -147,9 +147,9 @@ typedef struct FInfo {
     uint64_t length;
     uint64_t ctime;
     uint64_t seqnum;
-    // userinfo是当前操作这个文件的用户信息
+    // userinfo is the user information currently operating on this file
     UserInfo_t userinfo;
-    // owner是当前文件所属信息
+    // owner is the information to which the current file belongs
     std::string owner;
     std::string filename;
     std::string fullPathName;
@@ -187,10 +187,10 @@ typedef struct FileEpoch {
     }
 } FileEpoch_t;
 
-// PeerAddr 代表一个copyset group里的一个chunkserver节点
-// 与braft中的PeerID对应
+// PeerAddr represents a chunkserver node in a copyset group
+// Corresponds to PeerID in braft
 struct PeerAddr {
-    // 节点的地址信息
+    // Address information of nodes
     EndPoint addr_;
 
     PeerAddr() = default;
@@ -201,13 +201,13 @@ struct PeerAddr {
                 addr_.socket_file.empty();
     }
 
-    // 重置当前地址信息
+    // Reset current address information
     void Reset() {
         addr_.ip = butil::IP_ANY;
         addr_.port = 0;
     }
 
-    // 从字符串中将地址信息解析出来
+    // Parse address information from a string
     int Parse(const std::string &str) {
         int idx;
         char ip_str[64];
@@ -224,8 +224,8 @@ struct PeerAddr {
         return 0;
     }
 
-    // 将该节点地址信息转化为字符串形式
-    // 在get leader调用中可以将该值直接传入request
+    // Convert the node address information into a string format
+    // In the get leader call, this value can be directly passed into the request
     std::string ToString() const {
         char str[128];
         snprintf(str, sizeof(str), "%s:%d", butil::endpoint2str(addr_).c_str(),

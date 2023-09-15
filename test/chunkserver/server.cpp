@@ -142,7 +142,7 @@ int main(int argc, char *argv[]) {
     std::shared_ptr<LocalFileSystem> fs(
         LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));
     const uint32_t kMaxChunkSize = 16 * 1024 * 1024;
-    // TODO(yyk) 这部分实现不太优雅，后续进行重构
+    // The implementation of TODO(yyk) is not very elegant, and will be refactored in the future
     std::string copysetUri = FLAGS_copyset_dir + "/copysets";
     CopysetNodeOptions copysetNodeOptions;
     copysetNodeOptions.ip = FLAGS_ip;

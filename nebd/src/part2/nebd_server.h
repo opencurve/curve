@@ -52,62 +52,62 @@ class NebdServer {
 
  private:
     /**
-     * @brief 从配置文件加载配置项
-     * @param[in] confPath 配置文件路径
-     * @return false-加载配置文件失败 true-加载配置文件成功
+     * @brief Load configuration items from the configuration file
+     * @param[in] confPath Configuration file path
+     * @return false-Failed to load configuration file, true-Successfully loaded configuration file
      */
     bool LoadConfFromFile(const std::string &confPath);
 
     /**
-     * @brief 初始化NebdFileManager
-     * @return false-初始化失败 true-初始化成功
+     * @brief Initialize NebdFileManager
+     * @return false-initialization failed, true-initialization successful
      */
     bool InitFileManager();
 
     /**
-     * @brief 初始化request_executor_curve
-     * @return false-初始化失败 true-初始化成功
+     * @brief initialization request_executor_curve
+     * @return false-initialization failed, true-initialization successful
      */
     bool InitCurveRequestExecutor();
 
     /**
-     * @brief 初始化NebdMetaFileManager
-     * @return nullptr-初始化不成功 否则表示初始化成功
+     * @brief Initialize NebdMetaFileManager
+     * @return nullptr - initialization failed; otherwise, it indicates successful initialization
      */
     MetaFileManagerPtr InitMetaFileManager();
 
     /**
-     * @brief 初始化HeartbeatManagerOption
+     * @brief Initialize HeartbeatManagerOption
      * @param[out] opt
-     * @return false-初始化失败 true-初始化成功
+     * @return false-initialization failed, true-initialization successful
      */
     bool InitHeartbeatManagerOption(HeartbeatManagerOption *opt);
 
     /**
-     * @brief 初始化HeartbeatManager
-     * @return false-初始化失败 true-初始化成功
+     * @brief Initialize HeartbeatManager
+     * @return false-initialization failed, true-initialization successful
      */
     bool InitHeartbeatManager();
 
     /**
-     * @brief 启动brpc service
-     * @return false-启动service失败 true-启动service成功
+     * @brief Start brpc service
+     * @return false-Failed to start service, true-Successfully started service
      */
     bool StartServer();
 
  private:
-    // 配置项
+    // Configuration Item
     Configuration conf_;
-    // NebdServer监听地址
+    // NebdServer Listening Address
     std::string listenAddress_;
-    // NebdServer是否处于running状态
+    // Is NebdServer in running state
     bool isRunning_ =  false;
 
     // brpc server
     brpc::Server server_;
-    // 用于接受和处理client端的各种请求
+    // Used to accept and process various requests from the client side
     std::shared_ptr<NebdFileManager> fileManager_;
-    // 负责文件心跳超时处理
+    // Responsible for handling file heartbeat timeout
     std::shared_ptr<HeartbeatManager> heartbeatManager_;
     // curveclient
     std::shared_ptr<CurveClient> curveClient_;

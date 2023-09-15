@@ -108,7 +108,7 @@ int SnapshotCloneServerModule::Start(
         return kErrCodeServerInitFail;
     }
 
-    // 先启动clone服务再启动snapshot服务，因为删除快照依赖是否有clone引用
+    // Start the clone service first and then the snapshot service, because there is a clone reference when deleting snapshot dependencies
     int ret = cloneServiceManager_->Start();
     if (ret < 0) {
         LOG(ERROR) << "cloneServiceManager start fail"

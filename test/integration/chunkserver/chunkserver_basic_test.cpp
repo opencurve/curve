@@ -106,7 +106,7 @@ class ChunkServerIoTest : public testing::Test {
         paramsIndexs_[PeerCluster::PeerToId(peer1_)] = 0;
         params_.push_back(const_cast<char**>(chunkServerParams[0]));
 
-        // 初始化chunkfilepool，这里会预先分配一些chunk
+        // Initialize chunkfilepool, where some chunks will be pre allocated
         lfs_ = LocalFsFactory::CreateFs(FileSystemType::EXT4, "");
         poolDir_ = "./" + std::to_string(PeerCluster::PeerToId(peer1_)) +
                    "/chunkfilepool/";
@@ -124,7 +124,7 @@ class ChunkServerIoTest : public testing::Test {
 
         ::system(rmdir1.c_str());
 
-        //  等待进程结束
+        // Waiting for the process to end
         ::usleep(100 * 1000);
     }
 
@@ -138,7 +138,7 @@ class ChunkServerIoTest : public testing::Test {
             return -1;
         }
 
-        // 等待leader产生
+        // Waiting for the leader to be generated
         if (cluster->WaitLeader(&leaderPeer_)) {
             LOG(ERROR) << "WaiteLeader failed";
             return -1;
@@ -171,13 +171,13 @@ class ChunkServerIoTest : public testing::Test {
         ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
         ASSERT_EQ(0, InitCluster(&cluster));
 
-        /* 场景一：新建的文件，Chunk文件不存在 */
+        /*Scenario 1: Newly created file, Chunk file does not exist*/
         ASSERT_EQ(0, verify->VerifyReadChunk(chunkId, sn1, 0, length, nullptr));
         ASSERT_EQ(0, verify->VerifyGetChunkInfo(
                                 chunkId, NULL_SN, NULL_SN, leader));
         ASSERT_EQ(0, verify->VerifyDeleteChunk(chunkId, sn1));
 
-        /* 场景二：通过WriteChunk产生chunk文件后操作 */
+        /*Scenario 2: After generating a chunk file through WriteChunk, perform the operation*/
         data.assign(length, 'a');
         ASSERT_EQ(0, verify->VerifyWriteChunk(chunkId, sn1, 0, 4 * KB,
                                              data.c_str(), &chunkData));
@@ -202,7 +202,7 @@ class ChunkServerIoTest : public testing::Test {
         ASSERT_EQ(0,
               verify->VerifyReadChunk(chunkId, sn1, 0, 12 * KB, &chunkData));
 
-        /* 场景三：用户删除文件 */
+        /*Scenario 3: User deletes files*/
         ASSERT_EQ(0, verify->VerifyDeleteChunk(chunkId, sn1));
         ASSERT_EQ(0, verify->VerifyGetChunkInfo(
                                 chunkId, NULL_SN, NULL_SN, leader));
@@ -216,148 +216,148 @@ class ChunkServerIoTest : public testing::Test {
         const SequenceNum sn3 = 3;
         int length = kOpRequestAlignSize;
         std::string data(length * 4, 0);
-        std::string chunkData1a(kChunkSize, 0);  // chunk1版本1预期数据
-        std::string chunkData1b(kChunkSize, 0);  // chunk1版本2预期数据
-        std::string chunkData1c(kChunkSize, 0);  // chunk1版本3预期数据
-        std::string chunkData2(kChunkSize, 0);   // chunk2预期数据
+        std::string chunkData1a(kChunkSize, 0);  // chunk1 version 1 expected data
+        std::string chunkData1b(kChunkSize, 0);  // chunk1 version 2 expected data
+        std::string chunkData1c(kChunkSize, 0);  // chunk1 version 3 expected data
+        std::string chunkData2(kChunkSize, 0);   // chunk2 expected data
         std::string leader = "";
         PeerCluster cluster("InitShutdown-cluster", logicPoolId_, copysetId_,
                         peers_, params_, paramsIndexs_);
         ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
         ASSERT_EQ(0, InitCluster(&cluster));
 
-        // 构造初始环境
-        // 写chunk1产生chunk1，chunk1版本为1，chunk2开始不存在。
+        // Construct initial environment
+        // Writing chunk1 generates chunk1, which is version 1 and does not exist at the beginning of chunk2.
         data.assign(length, 'a');
         ASSERT_EQ(0, verify->VerifyWriteChunk(chunk1, sn1, 0, 12 * KB,
                                              data.c_str(), &chunkData1a));
 
         /*
-        *  场景一：第一次给文件打快照
+        *Scenario 1: Taking a snapshot of a file for the first time
         */
-        chunkData1b.assign(chunkData1a);  // 模拟对chunk1数据进行COW
+        chunkData1b.assign(chunkData1a);  //Simulate COW on chunk1 data
         data.assign(length, 'b');
         ASSERT_EQ(0, verify->VerifyWriteChunk(chunk1, sn2, 4 * KB, 4 * KB,
                                              data.c_str(), &chunkData1b));
-        // 重复写入同一区域，用于验证不会重复cow
+        // Write repeatedly to the same area to verify that there will be no duplicate rows
         data.assign(length, 'c');
         ASSERT_EQ(0, verify->VerifyWriteChunk(chunk1, sn2, 4 * KB, 4 * KB,
                                              data.c_str(), &chunkData1b));
 
-        // 读取chunk1快照，预期读到版本1数据
+        // Reading chunk1 snapshot, expected to read version 1 data
         ASSERT_EQ(0, verify->VerifyReadChunkSnapshot(chunk1, sn1, 0, 12 * KB,
                                                     &chunkData1a));
 
-        // chunk1写[0, 4KB]
+        // Chunk1 write [0, 4KB]
         data.assign(length, 'd');
         ASSERT_EQ(0, verify->VerifyWriteChunk(chunk1, sn2, 0, 4 * KB,
                                              data.c_str(), &chunkData1b));
-        // chunk1写[4KB, 16KB]
+        // Chunk1 write [4KB, 16KB]
         data.assign(length, 'e');
         ASSERT_EQ(0, verify->VerifyWriteChunk(chunk1, sn2, 4 * KB, 12 * KB,
                                              data.c_str(), &chunkData1b));
 
-        // 获取chunk1信息，预期其版本为2，快照版本为1，
+        // Obtain chunk1 information, with expected version 2 and snapshot version 1,
         ASSERT_EQ(0, verify->VerifyGetChunkInfo(chunk1, sn2, sn1, leader));
 
-        // chunk1读[0, 12KB], 预期读到版本2数据
+        // Chunk1 read [0, 12KB], expected to read version 2 data
         ASSERT_EQ(0,
               verify->VerifyReadChunk(chunk1, sn2, 0, 12 * KB, &chunkData1b));
 
-        // 读取chunk1的快照, 预期读到版本1数据
+        // Reading snapshot of chunk1, expected to read version 1 data
         ASSERT_EQ(0, verify->VerifyReadChunkSnapshot(chunk1, sn1, 0, 12 * KB,
                                                     &chunkData1a));
 
-        // 读取chunk2的快照, 预期chunk不存在
+        // Reading snapshot of chunk2, expected chunk not to exist
         ASSERT_EQ(0, verify->VerifyReadChunkSnapshot(
                                 chunk2, sn1, 0, 12 * KB, nullptr));
 
         /*
-         *  场景二：第一次快照结束，删除快照
+         *Scenario 2: The first snapshot ends and the snapshot is deleted
         */
-        // 删除chunk1快照
+        // Delete chunk1 snapshot
         ASSERT_EQ(CHUNK_OP_STATUS_SUCCESS,
               verify->VerifyDeleteChunkSnapshotOrCorrectSn(chunk1, sn2));
-        // 获取chunk1信息，预期其版本为2，无快照版本
+        // Obtain chunk1 information, expect its version to be 2, no snapshot version
         ASSERT_EQ(0, verify->VerifyGetChunkInfo(chunk1, sn2, NULL_SN, leader));
 
-        // 删chunk2快照，预期成功
+        // Delete chunk2 snapshot, expected success
         ASSERT_EQ(CHUNK_OP_STATUS_SUCCESS,
               verify->VerifyDeleteChunkSnapshotOrCorrectSn(chunk2, sn2));
 
-        // chunk2写[0, 8KB]
+        // Chunk2 write [0, 8KB]
         data.assign(length, 'f');
         ASSERT_EQ(0, verify->VerifyWriteChunk(chunk2, sn2, 0, 8 * KB,
                                              data.c_str(), &chunkData2));
-        // 获取chunk2信息，预期其版本为2，无快照版本
+        // Obtain chunk2 information, expect its version to be 2, no snapshot version
         ASSERT_EQ(0, verify->VerifyGetChunkInfo(chunk2, sn2, NULL_SN, leader));
 
         /*
-        *  场景三：第二次打快照
+        *Scenario 3: Taking a second snapshot
         */
-        // chunk1写[0, 8KB]
-        chunkData1c.assign(chunkData1b);  // 模拟对chunk1数据进行COW
+        // Chunk1 write [0, 8KB]
+        chunkData1c.assign(chunkData1b);  //Simulate COW on chunk1 data
         data.assign(length, 'g');
         ASSERT_EQ(0, verify->VerifyWriteChunk(chunk1, sn3, 0, 8 * KB,
                                              data.c_str(), &chunkData1c));
-        // 获取chunk1信息，预期其版本为3，快照版本为2
+        // Obtain chunk1 information, expect its version to be 3 and snapshot version to be 2
         ASSERT_EQ(0, verify->VerifyGetChunkInfo(chunk1, sn3, sn2, leader));
 
-        // 读取chunk1的快照, 预期读到版本2数据
+        // Reading snapshot of chunk1, expected to read version 2 data
         ASSERT_EQ(0, verify->VerifyReadChunkSnapshot(chunk1, sn2, 0, 12 * KB,
                                                     &chunkData1b));
 
-        // 读取chunk2的快照, 预期读到版本2数据
+        // Reading snapshot of chunk2, expected to read version 2 data
         ASSERT_EQ(0, verify->VerifyReadChunkSnapshot(chunk2, sn2, 0, 8 * KB,
                                                     &chunkData2));
 
-        // 删除chunk1文件，预期成功，本地快照存在的情况下，会将快照也一起删除
+        // Delete chunk1 file, expected success. If the local snapshot exists, the snapshot will also be deleted together
         ASSERT_EQ(CHUNK_OP_STATUS_SUCCESS,
                         verify->VerifyDeleteChunk(chunk1, sn3));
 
         /*
-        *  场景四：第二次快照结束，删除快照
+        *Scenario 4: The second snapshot ends and the snapshot is deleted
         */
-        // 删除chunk1快照，因为chunk1及其快照上一步已经删除，预期成功
+        // Delete chunk1 snapshot because chunk1 and its snapshot have been deleted in the previous step and are expected to succeed
         ASSERT_EQ(CHUNK_OP_STATUS_SUCCESS,
               verify->VerifyDeleteChunkSnapshotOrCorrectSn(chunk1, sn3));
-        // 获取chunk1信息，预期不存在
+        // Obtaining chunk1 information, expected not to exist
         ASSERT_EQ(0, verify->VerifyGetChunkInfo(
                                     chunk1, NULL_SN, NULL_SN, leader));
 
-        // 删除chunk2快照，预期成功
+        // Delete chunk2 snapshot, expected success
         ASSERT_EQ(CHUNK_OP_STATUS_SUCCESS,
               verify->VerifyDeleteChunkSnapshotOrCorrectSn(chunk2, sn3));
-        // 获取chunk2信息，预期其版本为2，无快照版本
+        // Obtain chunk2 information, expect its version to be 2, no snapshot version
         ASSERT_EQ(0, verify->VerifyGetChunkInfo(chunk2, sn2, NULL_SN, leader));
 
-        // chunk2写[0, 4KB]
+        // Chunk2 write [0, 4KB]
         data.assign(length, 'h');
         ASSERT_EQ(0, verify->VerifyWriteChunk(chunk2, sn3, 0, 4 * KB,
                                              data.c_str(), &chunkData2));
-        // 获取chunk2信息，预期其版本为3，无快照版本
+        // Obtain chunk2 information, expect its version to be 3, no snapshot version
         ASSERT_EQ(0, verify->VerifyGetChunkInfo(chunk2, sn3, NULL_SN, leader));
 
-        // chunk2写[0, 4KB]
+        // Chunk2 write [0, 4KB]
         data.assign(length, 'i');
         ASSERT_EQ(0, verify->VerifyWriteChunk(chunk2, sn3, 0, 4 * KB,
                                               data.c_str(), &chunkData2));
-        // 获取chunk2信息，预期其版本为3，无快照版本
+        // Obtain chunk2 information, expect its version to be 3, no snapshot version
         ASSERT_EQ(0, verify->VerifyGetChunkInfo(chunk2, sn3, NULL_SN, leader));
 
         /*
-        *  场景五：用户删除文件
+        *Scenario 5: User deletes files
         */
-        // 删除chunk1，已不存在，预期成功
+        // Delete chunk1, it no longer exists, expected success
         ASSERT_EQ(CHUNK_OP_STATUS_SUCCESS,
                                 verify->VerifyDeleteChunk(chunk1, sn3));
-        // 获取chunk1信息，预期不存在
+        // Obtaining chunk1 information, expected not to exist
         ASSERT_EQ(0, verify->VerifyGetChunkInfo(
                                 chunk1, NULL_SN, NULL_SN, leader));
-        // 删除chunk2，预期成功
+        // Delete chunk2, expected success
         ASSERT_EQ(CHUNK_OP_STATUS_SUCCESS,
                                 verify->VerifyDeleteChunk(chunk2, sn3));
-        // 获取chunk2信息，预期不存在
+        // Obtaining chunk2 information, expected not to exist
         ASSERT_EQ(0, verify->VerifyGetChunkInfo(
                                 chunk2, NULL_SN, NULL_SN, leader));
     }

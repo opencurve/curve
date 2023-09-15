@@ -49,10 +49,10 @@ const uint64_t chunkSize = 16ULL * 1024 * 1024;
 const uint64_t segmentSize = 32ULL * 1024 * 1024;
 const uint64_t chunkSplitSize = 8388608;
 
-// 测试文件只写2个segment
+//Write only 2 segments in the test file
 const uint64_t testFile1AllocSegmentNum = 2;
 
-// 一些常数定义
+//Some constant definitions
 const char *cloneTempDir_ = "/clone";
 const char *mdsRootUser_ = "root";
 const char *mdsRootPassword_ = "root_password";
@@ -261,13 +261,13 @@ class SnapshotCloneServerTest : public ::testing::Test {
         cluster_ = new CurveCluster();
         ASSERT_NE(nullptr, cluster_);
 
-        // 初始化db
+        //Initialize db
         system(std::string("rm -rf " + kTestPrefix + ".etcd").c_str());
         system(std::string("rm -rf " + kTestPrefix + "1").c_str());
         system(std::string("rm -rf " + kTestPrefix + "2").c_str());
         system(std::string("rm -rf " + kTestPrefix + "3").c_str());
 
-        // 启动etcd
+        //Start etcd
         pid_t pid = cluster_->StartSingleEtcd(
             1, kEtcdClientIpPort, kEtcdPeerIpPort,
             std::vector<std::string>{ "--name=" + kTestPrefix });
@@ -280,13 +280,13 @@ class SnapshotCloneServerTest : public ::testing::Test {
         cluster_->PrepareConfig<MDSConfigGenerator>(kMdsConfigPath,
                                                     mdsConfigOptions);
 
-        // 启动一个mds
+        //Start an mds
         pid = cluster_->StartSingleMDS(1, kMdsIpPort, kMdsDummyPort, mdsConf1,
                                        true);
         LOG(INFO) << "mds 1 started on " << kMdsIpPort << ", pid = " << pid;
         ASSERT_GT(pid, 0);
 
-        // 创建物理池
+        // Creating a physical pool
         ASSERT_EQ(0, cluster_->PreparePhysicalPool(
                          1,
                          "./test/integration/snapshotcloneserver/"
@@ -323,7 +323,7 @@ class SnapshotCloneServerTest : public ::testing::Test {
         cluster_->PrepareConfig<CSConfigGenerator>(kCSConfigPath,
                                                    chunkserverConfigOptions);
 
-        // 创建chunkserver
+        // Create chunkserver
         pid = cluster_->StartSingleChunkServer(1, kChunkServerIpPort1,
                                                chunkserverConf1);
         LOG(INFO) << "chunkserver 1 started on " << kChunkServerIpPort1
@@ -342,7 +342,7 @@ class SnapshotCloneServerTest : public ::testing::Test {
 
         std::this_thread::sleep_for(std::chrono::seconds(5));
 
-        // 创建逻辑池, 并睡眠一段时间让底层copyset先选主
+        // Create a logical pool and sleep for a period of time to let the underlying copyset select the primary first
         ASSERT_EQ(0, cluster_->PrepareLogicalPool(
                          1,
                          "./test/integration/snapshotcloneserver/"
@@ -403,7 +403,7 @@ class SnapshotCloneServerTest : public ::testing::Test {
             LOG(ERROR) << "Open fail, ret = " << *fdOut;
             return false;
         }
-        // 2个segment，每个写第一个chunk
+        //2 segments, each with the first chunk written
         for (uint64_t i = 0; i < testFile1AllocSegmentNum; i++) {
             ret = fileClient_->Write(*fdOut, dataSample.c_str(),
                                      i * segmentSize, dataSample.size());
@@ -427,7 +427,7 @@ class SnapshotCloneServerTest : public ::testing::Test {
         userinfo.owner = user;
 
         int ret = 0;
-        // 检查文件状态
+        // Check file status
         FInfo fileInfo;
         ret = snapClient_->GetFileInfo(fileName, userinfo, &fileInfo);
         if (ret < 0) {
@@ -512,9 +512,9 @@ class SnapshotCloneServerTest : public ::testing::Test {
                                bool IsRecover = false) {
         uint64_t seqNum = 1;
         if (IsRecover) {
-            seqNum = 2;  // 恢复新文件使用版本号+1
+            seqNum = 2;  // Restore new files using version number+1
         } else {
-            seqNum = 1;  // 克隆新文件使用初始版本号1
+            seqNum = 1;  // Clone new files using initial version number 1
         }
         int ret = snapClient_->CreateCloneFile(
                 testFile1_, fileName,
@@ -554,11 +554,11 @@ class SnapshotCloneServerTest : public ::testing::Test {
                 name.chunkIndex_ = i * segmentSize / chunkSize;
                 std::string location =
                     LocationOperator::GenerateS3Location(name.ToDataChunkKey());
-                // 由于测试文件每个segment只写了第一个chunk，
-                // 快照可以做到只转储当前写过的chunk，
-                // 所以从快照克隆每个segment只Create第一个chunk。
-                // 而从文件克隆，由于mds不知道chunk写没写过，
-                // 所以需要Create全部的chunk。
+                //Due to the fact that each segment in the test file only writes the first chunk,
+                //Snapshots can only dump the currently written chunks,
+                //So cloning each segment from the snapshot only creates the first chunk.
+                //And when cloning from a file, because mds doesn't know if chunk has been written or not,
+                //So we need to create all chunks.
                 ChunkIDInfo cidInfo = segInfoVec[i].chunkvec[0];
                 SnapCloneCommonClosure *cb =
                     new SnapCloneCommonClosure(tracker);
@@ -570,8 +570,8 @@ class SnapshotCloneServerTest : public ::testing::Test {
                           << ", seqNum = " << 1 << ", csn = " << 2;
                 int ret = snapClient_->CreateCloneChunk(
                     location, cidInfo,
-                    1,  // 恢复使用快照中chunk的版本号
-                    2,  // 恢复使用新文件的版本号, 即原文件版本号+1
+                    1,  // Restore the version number of the chunk in the snapshot
+                    2,  // Restore the version number of the new file, which is the original file version number+1
                     chunkSize, cb);
                 if (ret != LIBCURVE_ERROR::OK) {
                     return ret;
@@ -594,8 +594,8 @@ class SnapshotCloneServerTest : public ::testing::Test {
                               << ", seqNum = " << 1 << ", csn = " << 0;
                     int ret =
                         snapClient_->CreateCloneChunk(location, cidInfo,
-                                                      1,  // 克隆使用初始版本号1
-                                                      0,  // 克隆使用0
+                                                      1,  // Clone using initial version number 1
+                                                      0,  // Clone using 0
                                                       chunkSize, cb);
                     if (ret != LIBCURVE_ERROR::OK) {
                         return ret;
@@ -629,11 +629,11 @@ class SnapshotCloneServerTest : public ::testing::Test {
         auto tracker = std::make_shared<TaskTracker>();
         if (IsSnapshot) {
             for (int i = 0; i < testFile1AllocSegmentNum; i++) {
-                // 由于测试文件每个segment只写了第一个chunk，
-                // 快照可以做到只转储当前写过的chunk，
-                // 所以从快照克隆每个segment只Recover第一个chunk。
-                // 而从文件克隆，由于mds不知道chunk写没写过，
-                // 所以需要Recover全部的chunk。
+                //Due to the fact that each segment in the test file only writes the first chunk,
+                //Snapshots can only dump the currently written chunks,
+                //So clone each segment from the snapshot and only recover the first chunk.
+                //And when cloning from a file, because mds doesn't know if chunk has been written or not,
+                //So we need to recover all chunks.
                 ChunkIDInfo cidInfo = segInfoVec[i].chunkvec[0];
                 for (uint64_t k = 0; k < chunkSize / chunkSplitSize; k++) {
                     SnapCloneCommonClosure *cb =
@@ -715,7 +715,7 @@ CurveCluster *SnapshotCloneServerTest::cluster_ = nullptr;
 FileClient *SnapshotCloneServerTest::fileClient_ = nullptr;
 SnapshotClient *SnapshotCloneServerTest::snapClient_ = nullptr;
 
-// 未在curve中创建快照阶段，重启恢复
+//Failed to create snapshot phase in curve, restart recovery
 TEST_F(SnapshotCloneServerTest, TestRecoverSnapshotWhenNotCreateSnapOnCurvefs) {
     std::string uuid1 = UUIDGenerator().GenerateUUID();
     SnapshotInfo snapInfo(uuid1, testUser1_, testFile1_,
@@ -739,10 +739,10 @@ TEST_F(SnapshotCloneServerTest, TestRecoverSnapshotWhenNotCreateSnapOnCurvefs) {
     ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 }
 
-// 已在curve中创建快照，但成功结果未返回，重启恢复
+//A snapshot has been created in the curve, but the successful result has not been returned. Restart for recovery
 TEST_F(SnapshotCloneServerTest,
        TestRecoverSnapshotWhenHasCreateSnapOnCurvefsNotReturn) {
-    // 调用client接口创建快照
+    // Calling the client interface to create a snapshot
     uint64_t seq = 0;
     snapClient_->CreateSnapShot(testFile1_, UserInfo_t(testUser1_, ""), &seq);
 
@@ -768,10 +768,10 @@ TEST_F(SnapshotCloneServerTest,
     ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 }
 
-// 已在curve中创建快照，结果已返回，重启恢复
+//A snapshot has been created in the curve, and the results have been returned. Restart to recover
 TEST_F(SnapshotCloneServerTest,
        TestRecoverSnapshotWhenHasCreateSnapOnCurvefsReturn) {
-    // 调用client接口创建快照
+    // Calling the client interface to create a snapshot
     uint64_t seq = 0;
     snapClient_->CreateSnapShot(testFile1_, UserInfo_t(testUser1_, ""), &seq);
 
@@ -796,7 +796,7 @@ TEST_F(SnapshotCloneServerTest,
     ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 }
 
-// 已在curve中创建快照阶段，nos上传部分快照，重启恢复
+// The snapshot phase has been created in the curve. NOS uploads some snapshots and restarts for recovery
 TEST_F(SnapshotCloneServerTest, TestRecoverSnapshotWhenHasTransferSomeData) {
     std::string uuid1;
     int ret = MakeSnapshot(testUser1_, testFile1_, "snap1", &uuid1);
@@ -811,7 +811,7 @@ TEST_F(SnapshotCloneServerTest, TestRecoverSnapshotWhenHasTransferSomeData) {
         }
         if (info1.GetSnapshotInfo().GetStatus() == Status::pending) {
             if (info1.GetSnapProgress() > kProgressTransferSnapshotDataStart) {
-                //  当进度到达转储的百分比时重启
+                // Restart when the progress reaches the percentage of the dump
                 pid_t pid = cluster_->RestartSnapshotCloneServer(1, true);
                 LOG(INFO) << "SnapshotCloneServer 1 restarted, pid = " << pid;
                 ASSERT_GT(pid, 0);
@@ -835,7 +835,7 @@ TEST_F(SnapshotCloneServerTest, TestRecoverSnapshotWhenHasTransferSomeData) {
     ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 }
 
-// CreateCloneFile阶段重启，mds上未创建文件
+// Reboot during the CreateCloneFile phase, no files were created on the mds
 TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotCreateCloneFile) {
     std::string uuid1 = UUIDGenerator().GenerateUUID();
     std::string dstFile = "/RcvItUser1/TestRecoverCloneHasNotCreateCloneFile";
@@ -859,7 +859,7 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotCreateCloneFile) {
     ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
-// CreateCloneFile阶段重启，mds上创建文件成功未返回
+// Reboot during the CreateCloneFile phase, successful file creation on mds but not returned
 TEST_F(SnapshotCloneServerTest,
        TestRecoverCloneHasCreateCloneFileSuccessNotReturn) {
     std::string uuid1 = UUIDGenerator().GenerateUUID();
@@ -889,7 +889,7 @@ TEST_F(SnapshotCloneServerTest,
     ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
-// CreateCloneMeta阶段重启， 在mds上未创建segment
+// Reboot during the CreateCloneMeta phase, no segment was created on mds
 TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotCreateCloneMeta) {
     std::string uuid1 = UUIDGenerator().GenerateUUID();
     std::string fileName = std::string(cloneTempDir_) + "/" + uuid1;
@@ -917,7 +917,7 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotCreateCloneMeta) {
     ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
-// CreateCloneMeta阶段重启， 在mds上创建segment成功未返回
+// Reboot during the CreateCloneMeta phase, successfully creating segment on mds but not returning
 TEST_F(SnapshotCloneServerTest,
        TestRecoverCloneCreateCloneMetaSuccessNotReturn) {
     std::string uuid1 = UUIDGenerator().GenerateUUID();
@@ -951,7 +951,7 @@ TEST_F(SnapshotCloneServerTest,
     ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
-// CreateCloneChunk阶段重启，未在chunkserver上创建clonechunk
+// Reboot during the CreateCloneChunk phase, cloneChunk not created on chunkserver
 TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotCreateCloneChunk) {
     std::string uuid1 = UUIDGenerator().GenerateUUID();
     std::string fileName = std::string(cloneTempDir_) + "/" + uuid1;
@@ -983,7 +983,7 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotCreateCloneChunk) {
     ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
-// CreateCloneChunk阶段重启，在chunkserver上创建部分clonechunk
+// Restart the CreateCloneChunk phase and create a partial clone chunk on the chunkserver
 TEST_F(SnapshotCloneServerTest,
        TestRecoverCloneCreateCloneChunkSuccessNotReturn) {
     std::string uuid1 = UUIDGenerator().GenerateUUID();
@@ -1019,7 +1019,7 @@ TEST_F(SnapshotCloneServerTest,
     ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
-// CompleteCloneMeta阶段重启
+// CompleteCloneMeta phase restart
 TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotCompleteCloneMeta) {
     std::string uuid1 = UUIDGenerator().GenerateUUID();
     std::string fileName = std::string(cloneTempDir_) + "/" + uuid1;
@@ -1053,7 +1053,7 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotCompleteCloneMeta) {
     ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
-// CompleteCloneMeta阶段重启，同时在mds上调用CompleteCloneMeta成功但未返回
+// The CompleteCloneMeta phase was restarted, and the call to CompleteCloneMeta on mds was successful but did not return
 TEST_F(SnapshotCloneServerTest,
        TestRecoverCloneCompleteCloneMetaSuccessNotReturn) {
     std::string uuid1 = UUIDGenerator().GenerateUUID();
@@ -1091,7 +1091,7 @@ TEST_F(SnapshotCloneServerTest,
     ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
-// RecoverChunk阶段重启，在chunkserver上未调用RecoverChunk
+// RecoverChunk phase restarted, RecoverChunk was not called on chunkserver
 TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotRecoverChunk) {
     std::string uuid1 = UUIDGenerator().GenerateUUID();
     std::string fileName = std::string(cloneTempDir_) + "/" + uuid1;
@@ -1127,7 +1127,7 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotRecoverChunk) {
     ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
-// RecoverChunk阶段重启，在chunkserver上部分调用RecoverChunk
+// Restart the RecoverChunk phase and partially call RecoverChunk on the chunkserver
 TEST_F(SnapshotCloneServerTest, TestRecoverCloneRecoverChunkSuccssNotReturn) {
     std::string uuid1 = UUIDGenerator().GenerateUUID();
     std::string fileName = std::string(cloneTempDir_) + "/" + uuid1;
@@ -1166,7 +1166,7 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneRecoverChunkSuccssNotReturn) {
     ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
-// CompleteCloneFile阶段重启
+// CompleteCloneFile stage restart
 TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotCompleteCloneFile) {
     std::string uuid1 = UUIDGenerator().GenerateUUID();
     std::string fileName = std::string(cloneTempDir_) + "/" + uuid1;
@@ -1204,7 +1204,7 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotCompleteCloneFile) {
     ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
-// CompleteCloneFile阶段重启，但mds上CompleteCloneFile已成功未返回
+// CompleteCloneFile stage restarted, but CompleteCloneFile successfully did not return on mds
 TEST_F(SnapshotCloneServerTest,
        TestRecoverCloneCompleteCloneFileSuccessNotReturn) {
     std::string uuid1 = UUIDGenerator().GenerateUUID();
@@ -1246,7 +1246,7 @@ TEST_F(SnapshotCloneServerTest,
     ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
-// ChangeOwner阶段重启
+// ChangeOwner phase restart
 TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotChangeOwner) {
     std::string uuid1 = UUIDGenerator().GenerateUUID();
     std::string fileName = std::string(cloneTempDir_) + "/" + uuid1;
@@ -1286,7 +1286,7 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotChangeOwner) {
     ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
-// ChangeOwner阶段重启，但mds上ChangeOwner成功未返回
+// The ChangeOwner phase restarts, but the ChangeOwner on mds successfully did not return
 TEST_F(SnapshotCloneServerTest, TestRecoverCloneChangeOwnerSuccessNotReturn) {
     std::string uuid1 = UUIDGenerator().GenerateUUID();
     std::string fileName = std::string(cloneTempDir_) + "/" + uuid1;
@@ -1329,7 +1329,7 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneChangeOwnerSuccessNotReturn) {
     ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
-// RenameCloneFile阶段重启
+// RenameCloneFile stage restart
 TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotRenameCloneFile) {
     std::string uuid1 = UUIDGenerator().GenerateUUID();
     std::string fileName = std::string(cloneTempDir_) + "/" + uuid1;
@@ -1371,7 +1371,7 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneHasNotRenameCloneFile) {
     ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
-// RenameCloneFile阶段重启，但mds上已RenameCloneFile成功未返回
+// RenameCloneFile stage restarted, but RenameCloneFile successfully did not return on mds
 TEST_F(SnapshotCloneServerTest,
        TestRecoverCloneRenameCloneFileSuccessNotReturn) {
     std::string uuid1 = UUIDGenerator().GenerateUUID();
@@ -1419,8 +1419,8 @@ TEST_F(SnapshotCloneServerTest,
     ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 }
 
-// 以下为Lazy模式用例
-// CreateCloneFile阶段重启，mds上未创建文件
+// The following are the Lazy pattern use cases
+// Reboot during the CreateCloneFile phase, no files were created on the mds
 TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotCreateCloneFile) {
     std::string snapId;
     PrepareSnapshotForTestFile1(&snapId);
@@ -1450,7 +1450,7 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotCreateCloneFile) {
     ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 }
 
-// CreateCloneFile阶段重启，mds上创建文件成功未返回
+// Reboot during the CreateCloneFile phase, successful file creation on mds but not returned
 TEST_F(SnapshotCloneServerTest,
        TestRecoverCloneLazyHasCreateCloneFileSuccessNotReturn) {
     std::string snapId;
@@ -1486,7 +1486,7 @@ TEST_F(SnapshotCloneServerTest,
     ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 }
 
-// CreateCloneMeta阶段重启， 在mds上未创建segment
+// Reboot during the CreateCloneMeta phase, no segment was created on mds
 TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotCreateCloneMeta) {
     std::string snapId;
     PrepareSnapshotForTestFile1(&snapId);
@@ -1521,7 +1521,7 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotCreateCloneMeta) {
     ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 }
 
-// CreateCloneMeta阶段重启， 在mds上创建segment成功未返回
+// Reboot during the CreateCloneMeta phase, successfully creating segment on mds but not returning
 TEST_F(SnapshotCloneServerTest,
        TestRecoverCloneLazyCreateCloneMetaSuccessNotReturn) {
     std::string snapId;
@@ -1561,7 +1561,7 @@ TEST_F(SnapshotCloneServerTest,
     ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 }
 
-// CreateCloneChunk阶段重启，未在chunkserver上创建clonechunk
+// Reboot during the CreateCloneChunk phase, cloneChunk not created on chunkserver
 TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotCreateCloneChunk) {
     std::string snapId;
     PrepareSnapshotForTestFile1(&snapId);
@@ -1600,7 +1600,7 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotCreateCloneChunk) {
     ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 }
 
-// CreateCloneChunk阶段重启，在chunkserver上创建部分clonechunk
+// Restart the CreateCloneChunk phase and create a partial clone chunk on the chunkserver
 TEST_F(SnapshotCloneServerTest,
        TestRecoverCloneLazyCreateCloneChunkSuccessNotReturn) {
     std::string snapId;
@@ -1642,7 +1642,7 @@ TEST_F(SnapshotCloneServerTest,
     ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 }
 
-// CompleteCloneMeta阶段重启
+// CompleteCloneMeta phase restart
 TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotCompleteCloneMeta) {
     std::string snapId;
     PrepareSnapshotForTestFile1(&snapId);
@@ -1683,7 +1683,7 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotCompleteCloneMeta) {
     ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 }
 
-// CompleteCloneMeta阶段重启，同时在mds上调用CompleteCloneMeta成功但未返回
+// The CompleteCloneMeta phase was restarted, and the call to CompleteCloneMeta on mds was successful but did not return
 TEST_F(SnapshotCloneServerTest,
        TestRecoverCloneLazyCompleteCloneMetaSuccessNotReturn) {
     std::string snapId;
@@ -1727,7 +1727,7 @@ TEST_F(SnapshotCloneServerTest,
     ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 }
 
-// ChangeOwner阶段重启
+// ChangeOwner phase restart
 TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotChangeOwner) {
     std::string snapId;
     PrepareSnapshotForTestFile1(&snapId);
@@ -1770,7 +1770,7 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotChangeOwner) {
     ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 }
 
-// ChangeOwner阶段重启，但mds上ChangeOwner成功未返回
+// The ChangeOwner phase restarts, but the ChangeOwner on mds successfully did not return
 TEST_F(SnapshotCloneServerTest,
        TestRecoverCloneLazyChangeOwnerSuccessNotReturn) {
     std::string snapId;
@@ -1816,7 +1816,7 @@ TEST_F(SnapshotCloneServerTest,
     ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 }
 
-// RenameCloneFile阶段重启
+// RenameCloneFile stage restart
 TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotRenameCloneFile) {
     std::string snapId;
     PrepareSnapshotForTestFile1(&snapId);
@@ -1861,7 +1861,7 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotRenameCloneFile) {
     ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 }
 
-// RenameCloneFile阶段重启，但mds上已RenameCloneFile成功未返回
+// RenameCloneFile stage restarted, but RenameCloneFile successfully did not return on mds
 TEST_F(SnapshotCloneServerTest,
        TestRecoverCloneLazyRenameCloneFileSuccessNotReturn) {
     std::string snapId;
@@ -1910,7 +1910,7 @@ TEST_F(SnapshotCloneServerTest,
     ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 }
 
-// RecoverChunk阶段重启，在chunkserver上未调用RecoverChunk
+// RecoverChunk phase restarted, RecoverChunk was not called on chunkserver
 TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotRecoverChunk) {
     std::string snapId;
     PrepareSnapshotForTestFile1(&snapId);
@@ -1953,7 +1953,7 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotRecoverChunk) {
     ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 }
 
-// RecoverChunk阶段重启，在chunkserver上部分调用RecoverChunk
+// Restart the RecoverChunk phase and partially call RecoverChunk on the chunkserver
 TEST_F(SnapshotCloneServerTest,
        TestRecoverCloneLazyRecoverChunkSuccssNotReturn) {
     std::string snapId;
@@ -1999,7 +1999,7 @@ TEST_F(SnapshotCloneServerTest,
     ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 }
 
-// CompleteCloneFile阶段重启
+// CompleteCloneFile stage restart
 TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotCompleteCloneFile) {
     std::string snapId;
     PrepareSnapshotForTestFile1(&snapId);
@@ -2044,7 +2044,7 @@ TEST_F(SnapshotCloneServerTest, TestRecoverCloneLazyHasNotCompleteCloneFile) {
     ASSERT_TRUE(CheckFileData(testFile1_, testUser1_, fakeData));
 }
 
-// CompleteCloneFile阶段重启，但mds上CompleteCloneFile已成功未返回
+// CompleteCloneFile stage restarted, but CompleteCloneFile successfully did not return on mds
 TEST_F(SnapshotCloneServerTest,
        TestRecoverCloneLazyCompleteCloneFileSuccessNotReturn) {
     std::string snapId;

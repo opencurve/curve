@@ -28,7 +28,7 @@ namespace curve {
 namespace snapshotcloneserver {
 
 bool ToChunkDataName(const std::string &name, ChunkDataName *cName) {
-    // 逆向解析string，以支持文件名具有分隔字符的情况
+    // Reverse parsing of strings to support cases where file names have separator characters
     std::string::size_type pos =
         name.find_last_of(kChunkDataNameSeprator);
     std::string::size_type lastPos = std::string::npos;
@@ -65,7 +65,7 @@ bool ChunkIndexData::Serialize(std::string *data) const {
                 ChunkDataName(fileName_, m.second, m.first).
                 ToDataChunkKey()});
     }
-    // Todo：可以转化为stream给adpater接口使用SerializeToOstream
+    // Todo: Can be converted into a stream for the adpater interface to use SerializeToOstream
     return map.SerializeToString(data);
 }
 

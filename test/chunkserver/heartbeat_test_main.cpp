@@ -133,7 +133,7 @@ int main(int argc, char *argv[]) {
             LOG(FATAL) << "Failed to create chunkserver process 0";
         } else if (pids[i] == 0) {
             /*
-             * RunChunkServer内部会调用LOG(), 有较低概率因不兼容fork()而卡死
+             * RunChunkServer will call LOG() internally, with a low probability of getting stuck due to incompatible fork()
              */
             return RunChunkServer(i, sizeof(param[i]) / sizeof(char *),
                                   const_cast<char **>(param[i]));
@@ -148,8 +148,8 @@ int main(int argc, char *argv[]) {
             LOG(FATAL) << "Failed to create test proccess";
         } else if (pid == 0) {
             /*
-             * RUN_ALL_TESTS内部可能会调用LOG(),
-             * 有较低概率因不兼容fork()而卡死
+             * LOG() may be called internally in RUN_ALL_TESTS,
+             * There is a low probability of getting stuck due to incompatible fork()
              */
             ret = RUN_ALL_TESTS();
             return ret;
@@ -171,7 +171,7 @@ int main(int argc, char *argv[]) {
             LOG(FATAL) << "Failed to restart chunkserver process 1";
         } else if (pid == 0) {
             /*
-             * RunChunkServer内部会调用LOG(), 有较低概率因不兼容fork()而卡死
+             * RunChunkServer will call LOG() internally, with a low probability of getting stuck due to incompatible fork()
              */
             ret = RunChunkServer(1, sizeof(param[1]) / sizeof(char *),
                                  const_cast<char **>(param[1]));

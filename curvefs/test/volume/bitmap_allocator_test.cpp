@@ -225,7 +225,7 @@ TEST_F(BitmapAllocatorTest, TestMarkUsedRandom) {
     uint64_t off = opt_.startOffset;
     uint64_t usedSize = 0;
 
-    // 对于每一个 size per bit，随机其中一部分设置
+    // For each size per bit, randomly set a portion of it
     auto select = [this, &usedSize](uint64_t startOffset) {
         auto off = rand_r(&seed) * 4096 % opt_.sizePerBit;
         auto len = rand_r(&seed) * 4096 % opt_.sizePerBit;

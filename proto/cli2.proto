@@ -23,17 +23,17 @@ package curve.chunkserver;
 option cc_generic_services = true;
 option go_package = "proto/cli2";
 
-// cli.proto 供老的使用保证
+// cli.proto guarantee for elderly use
 message AddPeerRequest2 {
-    required uint32 logicPoolId     = 1;    // 逻辑池id
-    required uint32 copysetId       = 2;    // 复制组id
+    required uint32 logicPoolId     = 1;    // Logical Pool ID
+    required uint32 copysetId       = 2;    // Copy Group ID
     required common.Peer leader     = 3;    // leader
-    required common.Peer addPeer    = 4;    // 新增peer
+    required common.Peer addPeer    = 4;    // Add a peer
 }
 
 message AddPeerResponse2 {
-    repeated common.Peer oldPeers   = 1;    // 老配置
-    repeated common.Peer newPeers   = 2;    // 新配置
+    repeated common.Peer oldPeers   = 1;    // Old configuration
+    repeated common.Peer newPeers   = 2;    // New configuration
 }
 
 message RemovePeerRequest2 {
@@ -87,11 +87,11 @@ message SnapshotAllResponse {
 message GetLeaderRequest2 {
     required uint32 logicPoolId     = 1;
     required uint32 copysetId       = 2;
-    optional common.Peer peer       = 3;    // 可以不指定peer查leader
+    optional common.Peer peer       = 3;    // You can check the leader without specifying a peer
 }
 
 message GetLeaderResponse2 {
-    required common.Peer leader     = 1;    // 通过peer判空来判断是否返回leader
+    required common.Peer leader     = 1;    // Determine whether to return the leader by judging whether the peer is null
 }
 
 message ResetPeerRequest2 {

@@ -48,7 +48,7 @@ class MetricClientTest : public ::testing::Test {
 
 TEST_F(MetricClientTest, GetMetric) {
     MetricClient client;
-    // 正常情况
+    // Normal situation
     std::string metricName = "string_metric";
     bvar::Status<std::string> metric(metricName, "value");
     std::string value;
@@ -56,11 +56,11 @@ TEST_F(MetricClientTest, GetMetric) {
                                       metricName,
                                       &value));
     ASSERT_EQ("value", value);
-    // bvar不存在
+    // Bvar does not exist
     ASSERT_EQ(MetricRet::kNotFound, client.GetMetric(serverAddr,
                                       "not-exist-metric",
                                       &value));
-    // 其他错误
+    // Other errors
     ASSERT_EQ(MetricRet::kOtherErr, client.GetMetric("127.0.0.1:9191",
                                       "not-exist-metric",
                                       &value));
@@ -68,7 +68,7 @@ TEST_F(MetricClientTest, GetMetric) {
 
 TEST_F(MetricClientTest, GetMetricUint) {
     MetricClient client;
-    // 正常情况
+    // Normal situation
     std::string metricName = "uint_metric";
     bvar::Status<uint64_t> metric(metricName, 10);
     uint64_t value;
@@ -76,15 +76,15 @@ TEST_F(MetricClientTest, GetMetricUint) {
                                       metricName,
                                       &value));
     ASSERT_EQ(10, value);
-    // bvar不存在
+    // Bvar does not exist
     ASSERT_EQ(MetricRet::kNotFound, client.GetMetricUint(serverAddr,
                                       "not-exist-metric",
                                       &value));
-    // 其他错误
+    // Other errors
     ASSERT_EQ(MetricRet::kOtherErr, client.GetMetricUint("127.0.0.1:9191",
                                       "not-exist-metric",
                                       &value));
-    // 解析失败
+    // Parsing failed
     bvar::Status<std::string> metric2("string_metric", "value");
     ASSERT_EQ(MetricRet::kOtherErr, client.GetMetricUint(serverAddr,
                                       "string_metric",
@@ -93,7 +93,7 @@ TEST_F(MetricClientTest, GetMetricUint) {
 
 TEST_F(MetricClientTest, GetConfValue) {
     MetricClient client;
-    // 正常情况
+    // Normal situation
     std::string metricName = "conf_metric";
     bvar::Status<std::string> conf_metric(metricName, "");
     conf_metric.set_value("{\"conf_name\":\"key\","
@@ -103,17 +103,17 @@ TEST_F(MetricClientTest, GetConfValue) {
                                                             metricName,
                                                             &value));
     ASSERT_EQ("value", value);
-    // bvar不存在
+    // Bvar does not exist
     ASSERT_EQ(MetricRet::kNotFound, client.GetConfValueFromMetric(
                                                         serverAddr,
                                                         "not-exist-metric",
                                                         &value));
-    // 其他错误
+    // Other errors
     ASSERT_EQ(MetricRet::kOtherErr, client.GetConfValueFromMetric(
                                                         "127.0.0.1:9191",
                                                         "not-exist-metric",
                                                         &value));
-    // 解析失败
+    // Parsing failed
     conf_metric.set_value("string");
     ASSERT_EQ(MetricRet::kOtherErr, client.GetConfValueFromMetric(
                                                         serverAddr,

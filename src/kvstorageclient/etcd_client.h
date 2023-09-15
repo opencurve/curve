@@ -209,7 +209,7 @@ class EtcdClientImp : public KVStorageClient {
      *                            leader when the session expired after
      *                            client offline.
      * @param[in] electionTimeoutMs the timeout，0 will block always
-     * @param[out] leaderOid leader的objectId，recorded in objectManager
+     * @param[out] leaderOid leader's objectId，recorded in objectManager
      *
      * @return EtcdErrCode::EtcdCampaignLeaderSuccess success，others fail
      */

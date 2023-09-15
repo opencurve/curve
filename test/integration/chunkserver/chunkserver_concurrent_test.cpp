@@ -94,7 +94,7 @@ const int kChunkNum = 10;
 const ChunkSizeType kChunkSize = 16 * 1024 * 1024;
 const PageSizeType kPageSize = kOpRequestAlignSize;
 
-// chunk不从FilePool获取的chunkserver并发测试
+// Chunkserver concurrency testing for chunks not obtained from FilePool
 class ChunkServerConcurrentNotFromFilePoolTest : public testing::Test {
  protected:
     virtual void SetUp() {
@@ -143,7 +143,7 @@ class ChunkServerConcurrentNotFromFilePoolTest : public testing::Test {
         cluster->SetsnapshotIntervalS(snapshotIntervalS);
         ASSERT_EQ(0, cluster->StartPeer(peer1, PeerCluster::PeerToId(peer1)));
 
-        // 等待leader产生
+        // Waiting for the leader to be generated
         ASSERT_EQ(0, cluster->WaitLeader(&leaderPeer));
         ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
         ASSERT_STREQ(peer1.address().c_str(), leaderId.to_string().c_str());
@@ -165,7 +165,7 @@ class ChunkServerConcurrentNotFromFilePoolTest : public testing::Test {
     std::vector<char **> params;
 };
 
-// chunk从FilePool获取的chunkserver并发测试
+// Chunkserver concurrency test obtained by chunk from FilePool
 class ChunkServerConcurrentFromFilePoolTest : public testing::Test {
  protected:
     virtual void SetUp() {
@@ -197,7 +197,7 @@ class ChunkServerConcurrentFromFilePoolTest : public testing::Test {
 
         params.push_back(const_cast<char**>(chunkConcurrencyParams2[0]));
 
-        // 初始化FilePool，这里会预先分配一些chunk
+        // Initialize FilePool, where some chunks will be pre allocated
         lfs = LocalFsFactory::CreateFs(FileSystemType::EXT4, "");
         poolDir = "./"
             + std::to_string(PeerCluster::PeerToId(peer1))
@@ -230,7 +230,7 @@ class ChunkServerConcurrentFromFilePoolTest : public testing::Test {
         cluster->SetsnapshotIntervalS(snapshotIntervalS);
         ASSERT_EQ(0, cluster->StartPeer(peer1, PeerCluster::PeerToId(peer1)));
 
-        // 等待leader产生
+        // Waiting for the leader to be generated
         ASSERT_EQ(0, cluster->WaitLeader(&leaderPeer));
         ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
         ASSERT_STREQ(peer1.address().c_str(), leaderId.to_string().c_str());
@@ -256,7 +256,7 @@ class ChunkServerConcurrentFromFilePoolTest : public testing::Test {
     std::shared_ptr<LocalFileSystem>  lfs;
 };
 
-// 写chunk
+// Write chunk
 int WriteChunk(Peer leader,
                LogicPoolID logicPoolId,
                CopysetID copysetId,
@@ -298,7 +298,7 @@ int WriteChunk(Peer leader,
     return 0;
 }
 
-// 随机选择一个chunk的随机offset进行read
+// Randomly select a chunk's random offset for read
 void RandReadChunk(Peer leader,
                    LogicPoolID logicPoolId,
                    CopysetID copysetId,
@@ -313,7 +313,7 @@ void RandReadChunk(Peer leader,
     ChunkService_Stub stub(&channel);
 
     for (int i = 0; i < loop; ++i) {
-        // 随机选择一个chunk
+        // Randomly select a chunk
         ChunkID chunkId = butil::fast_rand_less_than(chunkIdRange);
         chunkId += 1;
 
@@ -329,7 +329,7 @@ void RandReadChunk(Peer leader,
         request.set_size(kOpRequestAlignSize);
         request.set_appliedindex(appliedIndex);
 
-        // 随机选择一个offset
+        // Randomly select an offset
         uint64_t pageIndex = butil::fast_rand_less_than(kChunkSize / kPageSize);
         request.set_offset(pageIndex * kPageSize);
 
@@ -351,7 +351,7 @@ void RandReadChunk(Peer leader,
     }
 }
 
-// 随机选择一个chunk的随机offset进行write
+// Randomly select a chunk's random offset for writing
 void RandWriteChunk(Peer leader,
                     LogicPoolID logicPoolId,
                     CopysetID copysetId,
@@ -368,7 +368,7 @@ void RandWriteChunk(Peer leader,
     ChunkService_Stub stub(&channel);
 
     for (int i = 0; i < loop; ++i) {
-        // 随机选择一个chunk
+        // Randomly select a chunk
         ChunkID chunkId = butil::fast_rand_less_than(chunkIdRange);
         chunkId += 1;
 
@@ -384,7 +384,7 @@ void RandWriteChunk(Peer leader,
         request.set_size(kOpRequestAlignSize);
         cntl.request_attachment().append(data, length);
 
-        // 随机选择一个offset
+        // Randomly select an offset
         uint64_t pageIndex = butil::fast_rand_less_than(kChunkSize / kPageSize);
         request.set_offset(pageIndex * kPageSize);
 
@@ -405,7 +405,7 @@ void RandWriteChunk(Peer leader,
     }
 }
 
-// 随机选择一个chunk删除
+// Randomly select a chunk to delete
 void RandDeleteChunk(Peer leader,
                      LogicPoolID logicPoolId,
                      CopysetID copysetId,
@@ -419,7 +419,7 @@ void RandDeleteChunk(Peer leader,
     ChunkService_Stub stub(&channel);
 
     for (int i = 0; i < loop; ++i) {
-        // 随机选择一个chunk
+        // Randomly select a chunk
         ChunkID chunkId = butil::fast_rand_less_than(chunkIdRange);
         chunkId += 1;
 
@@ -449,7 +449,7 @@ void RandDeleteChunk(Peer leader,
     }
 }
 
-// 创建clone chunk
+// Create clone chunk
 void CreateCloneChunk(Peer leader,
                       LogicPoolID logicPoolId,
                       CopysetID copysetId,
@@ -496,10 +496,10 @@ void CreateCloneChunk(Peer leader,
 }
 
 /**
- * chunk不是事先在FilePool分配好的
+ *Chunks are not pre allocated in FilePool
  */
 
-// 多线程并发随机读同一个chunk
+// Multiple threads simultaneously randomly read the same chunk
 TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandReadOneChunk) {
     uint64_t chunkId = 1;
     off_t offset = 0;
@@ -510,7 +510,7 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandReadOneChunk) {
     ChunkID chunkIdRange = 1;
     const int sn = 1;
 
-    // 1. 启动一个成员的复制组
+    // 1. Start a replication group for a member
     PeerCluster cluster("InitShutdown-cluster",
                         logicPoolId,
                         copysetId,
@@ -521,7 +521,7 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandReadOneChunk) {
     InitCluster(&cluster);
 
 
-    // 2. 对chunk发起一次写，保证chunk已经产生
+    // 2. Initiate a write to the chunk to ensure that it has been generated
     ASSERT_EQ(0, WriteChunk(leaderPeer,
                             logicPoolId,
                             copysetId,
@@ -531,7 +531,7 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandReadOneChunk) {
                             data.c_str(),
                             sn));
 
-    // 3. 起多个线程执行随机read chunk
+    // 3. Starting multiple threads to execute random read chunks
     std::vector<Thread> threads;
     for (int i = 0; i < kThreadNum; ++i) {
         threads.push_back(Thread(RandReadChunk,
@@ -548,14 +548,14 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandReadOneChunk) {
     }
 }
 
-// 多线程并发随机写同一个chunk
+// Multiple threads concurrently randomly write the same chunk
 TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandWriteOneChunk) {
     const int kThreadNum = 10;
     const int kMaxLoop = 200;
     ChunkID chunkIdRange = 1;
     const int sn = 1;
 
-    // 1. 启动一个成员的复制组
+    // 1. Start a replication group for a member
     PeerCluster cluster("InitShutdown-cluster",
                         logicPoolId,
                         copysetId,
@@ -565,7 +565,7 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandWriteOneChunk) {
     ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
-    // 2. 起多个线程执行随机write chunk
+    // 2. Starting multiple threads to execute random write chunks
     std::vector<Thread> threads;
     for (int i = 0; i < kThreadNum; ++i) {
         threads.push_back(Thread(RandWriteChunk,
@@ -582,7 +582,7 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandWriteOneChunk) {
     }
 }
 
-// 多线程并发写同一个chunk同一个offset
+// Multiple threads simultaneously writing the same chunk and offset
 TEST_F(ChunkServerConcurrentNotFromFilePoolTest, WriteOneChunkOnTheSameOffset) {   //NOLINT
     const int kThreadNum = 10;
     std::vector<string> datas;
@@ -591,7 +591,7 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, WriteOneChunkOnTheSameOffset) {
     int length = 2 * kOpRequestAlignSize;
     const int sn = 1;
 
-    // 1. 启动一个成员的复制组
+    // 1. Start a replication group for a member
     PeerCluster cluster("InitShutdown-cluster",
                         logicPoolId,
                         copysetId,
@@ -601,7 +601,7 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, WriteOneChunkOnTheSameOffset) {
     ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
-    // 2. 起多个线程执行随机write chunk
+    // 2. Starting multiple threads to execute random write chunks
     std::vector<Thread> threads;
     for (int i = 0; i < kThreadNum; ++i) {
         std::string data(length, 'a' + i);
@@ -621,7 +621,7 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, WriteOneChunkOnTheSameOffset) {
         threads[j].join();
     }
 
-    // 3. 将数据read出来验证
+    // 3. Read out the data for verification
     brpc::Channel channel;
     channel.Init(leaderId.addr, NULL);
     ChunkService_Stub stub(&channel);
@@ -645,7 +645,7 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, WriteOneChunkOnTheSameOffset) {
     std::string result = cntl.response_attachment().to_string();
     ASSERT_EQ(length, result.size());
 
-    // 读出来的数据的字符>='a' 且<= 'a' + kThreadNum - 1
+    // The characters of the read data>='a 'and<='a'+kThreadNum -1
     ASSERT_GE(result[0] - 'a', 0);
     ASSERT_LE(result[0] - 'a', kThreadNum - 1);
     for (int i = 1; i < length - 1; ++i) {
@@ -653,7 +653,7 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, WriteOneChunkOnTheSameOffset) {
     }
 }
 
-// 多线程并发随机读写同一个chunk
+// Multiple threads concurrently randomly read and write the same chunk
 TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandReadWriteOneChunk) {
     off_t offset = 0;
     int length = kOpRequestAlignSize;
@@ -663,7 +663,7 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandReadWriteOneChunk) {
     ChunkID chunkIdRange = 1;
     const int sn = 1;
 
-    // 1. 启动一个成员的复制组
+    // 1. Start a replication group for a member
     PeerCluster cluster("InitShutdown-cluster",
                         logicPoolId,
                         copysetId,
@@ -673,7 +673,7 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandReadWriteOneChunk) {
     ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
-    // 2. 对chunk发起一次写，保证chunk已经产生
+    // 2. Initiate a write to the chunk to ensure that it has been generated
     for (int k = 1; k < chunkIdRange + 1; ++k) {
         ASSERT_EQ(0, WriteChunk(leaderPeer,
                                 logicPoolId,
@@ -685,12 +685,12 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandReadWriteOneChunk) {
                                 sn));
     }
 
-    // 3. 起多个线程执行随机read write chunk
+    // 3. Starting multiple threads to execute random read write chunks
     std::vector<Thread> threads;
     for (int i = 0; i < kThreadNum; ++i) {
         int read = butil::fast_rand_less_than(2);
         if (read) {
-            // 起read线程
+            // Start read thread
             threads.push_back(Thread(RandReadChunk,
                                      leaderPeer,
                                      logicPoolId,
@@ -699,7 +699,7 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandReadWriteOneChunk) {
                                      kMaxLoop,
                                      sn));
         } else {
-            // 起write线程
+            // Start write thread
             threads.push_back(Thread(RandWriteChunk,
                                      leaderPeer,
                                      logicPoolId,
@@ -715,7 +715,7 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandReadWriteOneChunk) {
     }
 }
 
-// 多线程并发读不同的chunk
+// Multiple threads concurrently reading different chunks
 TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandReadMultiChunk) {
     off_t offset = 0;
     int length = kOpRequestAlignSize;
@@ -725,7 +725,7 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandReadMultiChunk) {
     ChunkID chunkIdRange = kChunkNum;
     const int sn = 1;
 
-    // 1. 启动一个成员的复制组
+    // 1. Start a replication group for a member
     PeerCluster cluster("InitShutdown-cluster",
                         logicPoolId,
                         copysetId,
@@ -735,7 +735,7 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandReadMultiChunk) {
     ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
-    // 2. 对chunk发起一次写，保证chunk已经产生
+    // 2. Initiate a write to the chunk to ensure that it has been generated
     for (int k = 1; k < chunkIdRange + 1; ++k) {
         ASSERT_EQ(0, WriteChunk(leaderPeer,
                                 logicPoolId,
@@ -747,7 +747,7 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandReadMultiChunk) {
                                 sn));
     }
 
-    // 3. 起多个线程执行随机read chunk
+    // 3. Starting multiple threads to execute random read chunks
     std::vector<Thread> threads;
     for (int i = 0; i < kThreadNum; ++i) {
         threads.push_back(Thread(RandReadChunk,
@@ -764,14 +764,14 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandReadMultiChunk) {
     }
 }
 
-// 多线程并发读不同的chunk，注意这些chunk都还没有被写过
+// Multiple threads simultaneously read different chunks, please note that none of these chunks have been written yet
 TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandReadMultiNotExistChunk) {  //NOLINT
     const int kThreadNum = 10;
     const int kMaxLoop = 200;
     ChunkID chunkIdRange = kChunkNum;
     const int sn = 1;
 
-    // 1. 启动一个成员的复制组
+    // 1. Start a replication group for a member
     PeerCluster cluster("InitShutdown-cluster",
                         logicPoolId,
                         copysetId,
@@ -781,7 +781,7 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandReadMultiNotExistChunk) {  
     ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
-    // 2. 起多个线程执行随机read chunk
+    // 2. Starting multiple threads to execute random read chunks
     std::vector<Thread> threads;
     for (int i = 0; i < kThreadNum; ++i) {
         threads.push_back(Thread(RandReadChunk,
@@ -798,7 +798,7 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandReadMultiNotExistChunk) {  
     }
 }
 
-// 多线程并发随机写同多个chunk
+// Multiple threads concurrently randomly write to the same chunk
 TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandWriteMultiChunk) {
     off_t offset = 0;
     int length = kOpRequestAlignSize;
@@ -808,7 +808,7 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandWriteMultiChunk) {
     ChunkID chunkIdRange = kChunkNum;
     const int sn = 1;
 
-    // 1. 启动一个成员的复制组
+    // 1. Start a replication group for a member
     PeerCluster cluster("InitShutdown-cluster",
                         logicPoolId,
                         copysetId,
@@ -818,8 +818,8 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandWriteMultiChunk) {
     ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
-    // 2. 对chunk发起一次写，保证chunk已经产生，避免下面同时从
-    //    chunkfile pool生成new chunk导致write 超时失败
+    // 2. Initiate a write to the chunk to ensure that the chunk has already been generated, avoiding the need for both
+    //    Chunkfile pool generates new chunks, resulting in write timeout failure
     for (int k = 1; k < chunkIdRange + 1; ++k) {
         ASSERT_EQ(0, WriteChunk(leaderPeer,
                                 logicPoolId,
@@ -831,7 +831,7 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandWriteMultiChunk) {
                                 sn));
     }
 
-    // 4. 起多个线程执行随机write chunk
+    // 4. Starting multiple threads to execute random write chunks
     std::vector<Thread> threads;
     for (int i = 0; i < kThreadNum; ++i) {
         threads.push_back(Thread(RandWriteChunk,
@@ -848,7 +848,7 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandWriteMultiChunk) {
     }
 }
 
-// 多线程并发随机读写同多个chunk
+// Multi thread concurrent random read and write of the same chunk
 TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandReadWriteMultiChunk) {
     std::string data(kOpRequestAlignSize, 'a');
     const int kThreadNum = 10;
@@ -856,7 +856,7 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandReadWriteMultiChunk) {
     ChunkID chunkIdRange = kChunkNum;
     const int sn = 1;
 
-    // 1. 启动一个成员的复制组
+    // 1. Start a replication group for a member
     PeerCluster cluster("InitShutdown-cluster",
                         logicPoolId,
                         copysetId,
@@ -866,12 +866,12 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandReadWriteMultiChunk) {
     ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
-    // 2. 起多个线程执行随机read write chunk
+    // 2. Starting multiple threads to execute random read write chunks
     std::vector<Thread> threads;
     for (int i = 0; i < kThreadNum; ++i) {
         int read = butil::fast_rand_less_than(2);
         if (read) {
-            // 起read线程
+            // Start read thread
             threads.push_back(Thread(RandReadChunk,
                                      leaderPeer,
                                      logicPoolId,
@@ -880,7 +880,7 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandReadWriteMultiChunk) {
                                      kMaxLoop,
                                      sn));
         } else {
-            // 起write线程
+            // Start write thread
             threads.push_back(Thread(RandWriteChunk,
                                      leaderPeer,
                                      logicPoolId,
@@ -896,7 +896,7 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandReadWriteMultiChunk) {
     }
 }
 
-// 多线程并发删除不同的chunk
+// Simultaneous deletion of different chunks through multiple threads
 TEST_F(ChunkServerConcurrentNotFromFilePoolTest, DeleteMultiChunk) {
     off_t offset = 0;
     int length = kOpRequestAlignSize;
@@ -906,7 +906,7 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, DeleteMultiChunk) {
     ChunkID chunkIdRange = kChunkNum;
     const int sn = 1;
 
-    // 1. 启动一个成员的复制组
+    // 1. Start a replication group for a member
     PeerCluster cluster("InitShutdown-cluster",
                         logicPoolId,
                         copysetId,
@@ -916,7 +916,7 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, DeleteMultiChunk) {
     ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
-    // 2. 对chunk发起一次写，保证chunk已经产生
+    // 2. Initiate a write to the chunk to ensure that it has been generated
     for (int k = 1; k < chunkIdRange + 1; ++k) {
         ASSERT_EQ(0, WriteChunk(leaderPeer,
                                 logicPoolId,
@@ -928,10 +928,10 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, DeleteMultiChunk) {
                                 sn));
     }
 
-    // 3. 起多个线程执行随机delete chunk
+    // 3. Starting multiple threads to execute random delete chunks
     std::vector<Thread> threads;
     for (int i = 0; i < kThreadNum; ++i) {
-        // 起delete线程
+        // Start delete thread
         threads.push_back(Thread(RandDeleteChunk,
                                  leaderPeer,
                                  logicPoolId,
@@ -945,12 +945,12 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, DeleteMultiChunk) {
     }
 }
 
-// 多线程并发create clone不同的chunk
+// Multiple threads concurrent create clones with different chunks
 TEST_F(ChunkServerConcurrentNotFromFilePoolTest, CreateCloneMultiChunk) {
     const int kThreadNum = 10;
     ChunkID chunkIdRange = kChunkNum;
 
-    // 1. 启动一个成员的复制组
+    // 1. Start a replication group for a member
     PeerCluster cluster("InitShutdown-cluster",
                         logicPoolId,
                         copysetId,
@@ -960,7 +960,7 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, CreateCloneMultiChunk) {
     ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
-    // 2. 起多个线程执行随机create clone chunk
+    // 2. Starting multiple threads to execute random create clone chunks
     std::vector<Thread> threads;
     int chunksPerThread = chunkIdRange / kThreadNum;
     for (int i = 0; i < kThreadNum; ++i) {
@@ -978,10 +978,10 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, CreateCloneMultiChunk) {
 }
 
 /**
- * chunk是事先在FilePool分配好的
+ * Chunks are pre allocated in FilePool
  */
 
-// 多线程并发随机读同一个chunk
+// Multiple threads simultaneously randomly read the same chunk
 TEST_F(ChunkServerConcurrentFromFilePoolTest, RandReadOneChunk) {
     uint64_t chunkId = 1;
     off_t offset = 0;
@@ -992,7 +992,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, RandReadOneChunk) {
     ChunkID chunkIdRange = 1;
     const int sn = 1;
 
-    // 1. 启动一个成员的复制组
+    // 1. Start a replication group for a member
     PeerCluster cluster("InitShutdown-cluster",
                         logicPoolId,
                         copysetId,
@@ -1002,7 +1002,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, RandReadOneChunk) {
     ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
-    // 2. 对chunk发起一次写，保证chunk已经产生
+    // 2. Initiate a write to the chunk to ensure that it has been generated
     ASSERT_EQ(0, WriteChunk(leaderPeer,
                             logicPoolId,
                             copysetId,
@@ -1012,7 +1012,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, RandReadOneChunk) {
                             data.c_str(),
                             sn));
 
-    // 3. 起多个线程执行随机read chunk
+    // 3. Starting multiple threads to execute random read chunks
     std::vector<Thread> threads;
     for (int i = 0; i < kThreadNum; ++i) {
         threads.push_back(Thread(RandReadChunk,
@@ -1029,14 +1029,14 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, RandReadOneChunk) {
     }
 }
 
-// 多线程并发随机写同一个chunk
+// Multiple threads concurrently randomly write the same chunk
 TEST_F(ChunkServerConcurrentFromFilePoolTest, RandWriteOneChunk) {
     const int kThreadNum = 10;
     const int kMaxLoop = 200;
     ChunkID chunkIdRange = 1;
     const int sn = 1;
 
-    // 1. 启动一个成员的复制组
+    // 1. Start a replication group for a member
     PeerCluster cluster("InitShutdown-cluster",
                         logicPoolId,
                         copysetId,
@@ -1046,7 +1046,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, RandWriteOneChunk) {
     ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
-    // 2. 起多个线程执行随机write chunk
+    // 2. Starting multiple threads to execute random write chunk
     std::vector<Thread> threads;
     for (int i = 0; i < kThreadNum; ++i) {
         threads.push_back(Thread(RandWriteChunk,
@@ -1063,7 +1063,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, RandWriteOneChunk) {
     }
 }
 
-// 多线程并发写同一个chunk同一个offset
+// Multiple threads simultaneously writing the same chunk and offset
 TEST_F(ChunkServerConcurrentFromFilePoolTest, WriteOneChunkOnTheSameOffset) {   //NOLINT
     const int kThreadNum = 10;
     std::vector<string> datas;
@@ -1072,7 +1072,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, WriteOneChunkOnTheSameOffset) {   
     int length = 2 * kOpRequestAlignSize;
     const int sn = 1;
 
-    // 1. 启动一个成员的复制组
+    // 1. Start a replication group for a member
     PeerCluster cluster("InitShutdown-cluster",
                         logicPoolId,
                         copysetId,
@@ -1082,7 +1082,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, WriteOneChunkOnTheSameOffset) {   
     ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
-    // 2. 起多个线程执行随机write chunk
+    // 2. Starting multiple threads to execute random write chunk
     std::vector<Thread> threads;
     for (int i = 0; i < kThreadNum; ++i) {
         std::string data(length, 'a' + i);
@@ -1102,7 +1102,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, WriteOneChunkOnTheSameOffset) {   
         threads[j].join();
     }
 
-    // 4. 将数据read出来验证
+    // 4. Read out the data for verification
     brpc::Channel channel;
     channel.Init(leaderId.addr, NULL);
     ChunkService_Stub stub(&channel);
@@ -1126,7 +1126,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, WriteOneChunkOnTheSameOffset) {   
     std::string result = cntl.response_attachment().to_string();
     ASSERT_EQ(length, result.size());
 
-    // 读出来的数据的字符>='a' 且<= 'a' + kThreadNum - 1
+    // The characters of the read data >='a' and  <= 'a' + kThreadNum - 1
     ASSERT_GE(result[0] - 'a', 0);
     ASSERT_LE(result[0] - 'a', kThreadNum - 1);
     for (int i = 1; i < length - 1; ++i) {
@@ -1134,7 +1134,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, WriteOneChunkOnTheSameOffset) {   
     }
 }
 
-// 多线程并发随机读写同一个chunk
+// Multiple threads concurrently randomly read and write the same chunk
 TEST_F(ChunkServerConcurrentFromFilePoolTest, RandReadWriteOneChunk) {
     std::string data(kOpRequestAlignSize, 'a');
     const int kThreadNum = 10;
@@ -1142,7 +1142,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, RandReadWriteOneChunk) {
     ChunkID chunkIdRange = 1;
     const int sn = 1;
 
-    // 1. 启动一个成员的复制组
+    // 1. Start a replication group for a member
     PeerCluster cluster("InitShutdown-cluster",
                         logicPoolId,
                         copysetId,
@@ -1152,12 +1152,12 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, RandReadWriteOneChunk) {
     ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
-    // 2. 起多个线程执行随机read write chunk
+    // 2. Starting multiple threads to execute random read write chunks
     std::vector<Thread> threads;
     for (int i = 0; i < kThreadNum; ++i) {
         int read = butil::fast_rand_less_than(2);
         if (read) {
-            // 起read线程
+            // Start read thread
             threads.push_back(Thread(RandReadChunk,
                                      leaderPeer,
                                      logicPoolId,
@@ -1166,7 +1166,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, RandReadWriteOneChunk) {
                                      kMaxLoop,
                                      sn));
         } else {
-            // 起write线程
+            // Start write thread
             threads.push_back(Thread(RandWriteChunk,
                                      leaderPeer,
                                      logicPoolId,
@@ -1182,7 +1182,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, RandReadWriteOneChunk) {
     }
 }
 
-// 多线程并发读不同的chunk
+// Multiple threads concurrently reading different chunks
 TEST_F(ChunkServerConcurrentFromFilePoolTest, RandReadMultiChunk) {
     off_t offset = 0;
     int length = kOpRequestAlignSize;
@@ -1192,7 +1192,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, RandReadMultiChunk) {
     ChunkID chunkIdRange = kChunkNum;
     const int sn = 1;
 
-    // 1. 启动一个成员的复制组
+    // 1. Start a replication group for a member
     PeerCluster cluster("InitShutdown-cluster",
                         logicPoolId,
                         copysetId,
@@ -1202,7 +1202,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, RandReadMultiChunk) {
     ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
-    // 2. 对chunk发起一次写，保证chunk已经产生
+    // 2. Initiate a write to the chunk to ensure that it has been generated
     for (int k = 1; k < chunkIdRange + 1; ++k) {
         ASSERT_EQ(0, WriteChunk(leaderPeer,
                                 logicPoolId,
@@ -1214,7 +1214,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, RandReadMultiChunk) {
                                 sn));
     }
 
-    // 4. 起多个线程执行随机read chunk
+    // 4. Starting multiple threads to execute random read chunks
     std::vector<Thread> threads;
     for (int i = 0; i < kThreadNum; ++i) {
         threads.push_back(Thread(RandReadChunk,
@@ -1231,14 +1231,14 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, RandReadMultiChunk) {
     }
 }
 
-// 多线程并发读不同的chunk，注意这些chunk都还没有被写过
+// Multiple threads simultaneously read different chunks, please note that none of these chunks have been written yet
 TEST_F(ChunkServerConcurrentFromFilePoolTest, RandReadMultiNotExistChunk) {
     const int kThreadNum = 10;
     const int kMaxLoop = 200;
     ChunkID chunkIdRange = kChunkNum;
     const int sn = 1;
 
-    // 1. 启动一个成员的复制组
+    // 1. Start a replication group for a member
     PeerCluster cluster("InitShutdown-cluster",
                         logicPoolId,
                         copysetId,
@@ -1248,7 +1248,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, RandReadMultiNotExistChunk) {
     ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
-    // 2. 起多个线程执行随机read chunk
+    // 2. Starting multiple threads to execute random read chunks
     std::vector<Thread> threads;
     for (int i = 0; i < kThreadNum; ++i) {
         threads.push_back(Thread(RandReadChunk,
@@ -1265,7 +1265,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, RandReadMultiNotExistChunk) {
     }
 }
 
-// 多线程并发随机写同多个chunk
+// Multiple threads concurrently randomly write to the same chunk
 TEST_F(ChunkServerConcurrentFromFilePoolTest, RandWriteMultiChunk) {
     std::string data(kOpRequestAlignSize, 'a');
     const int kThreadNum = 10;
@@ -1273,7 +1273,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, RandWriteMultiChunk) {
     ChunkID chunkIdRange = kChunkNum;
     const int sn = 1;
 
-    // 1. 启动一个成员的复制组
+    // 1. Start a replication group for a member
     PeerCluster cluster("InitShutdown-cluster",
                         logicPoolId,
                         copysetId,
@@ -1283,7 +1283,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, RandWriteMultiChunk) {
     ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
-    // 2. 起多个线程执行随机write chunk
+    // 2. Starting multiple threads to execute random write chunks
     std::vector<Thread> threads;
     for (int i = 0; i < kThreadNum; ++i) {
         threads.push_back(Thread(RandWriteChunk,
@@ -1300,7 +1300,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, RandWriteMultiChunk) {
     }
 }
 
-// 多线程并发随机读写同多个chunk
+// Multi thread concurrent random read and write of the same chunk
 TEST_F(ChunkServerConcurrentFromFilePoolTest, RandReadWriteMultiChunk) {
     std::string data(kOpRequestAlignSize, 'a');
     const int kThreadNum = 10;
@@ -1308,7 +1308,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, RandReadWriteMultiChunk) {
     ChunkID chunkIdRange = kChunkNum;
     const int sn = 1;
 
-    // 1. 启动一个成员的复制组
+    // 1. Start a replication group for a member
     PeerCluster cluster("InitShutdown-cluster",
                         logicPoolId,
                         copysetId,
@@ -1318,12 +1318,12 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, RandReadWriteMultiChunk) {
     ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
-    // 2. 起多个线程执行随机read write chunk
+    // 2. Starting multiple threads to execute random read write chunks
     std::vector<Thread> threads;
     for (int i = 0; i < kThreadNum; ++i) {
         int read = butil::fast_rand_less_than(2);
         if (read) {
-            // 起read线程
+            // Start read thread
             threads.push_back(Thread(RandReadChunk,
                                      leaderPeer,
                                      logicPoolId,
@@ -1332,7 +1332,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, RandReadWriteMultiChunk) {
                                      kMaxLoop,
                                      sn));
         } else {
-            // 起write线程
+            // Start write thread
             threads.push_back(Thread(RandWriteChunk,
                                      leaderPeer,
                                      logicPoolId,
@@ -1348,7 +1348,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, RandReadWriteMultiChunk) {
     }
 }
 
-// 多线程并发删除不同的chunk
+// Simultaneous deletion of different chunks through multiple threads
 TEST_F(ChunkServerConcurrentFromFilePoolTest, DeleteMultiChunk) {
     off_t offset = 0;
     int length = kOpRequestAlignSize;
@@ -1358,7 +1358,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, DeleteMultiChunk) {
     ChunkID chunkIdRange = kChunkNum;
     const int sn = 1;
 
-    // 1. 启动一个成员的复制组
+    // 1. Start a replication group for a member
     PeerCluster cluster("InitShutdown-cluster",
                         logicPoolId,
                         copysetId,
@@ -1368,7 +1368,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, DeleteMultiChunk) {
     ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
-    // 2. 对chunk发起一次写，保证chunk已经产生
+    // 2. Initiate a write to the chunk to ensure that it has been generated
     for (int k = 1; k < chunkIdRange + 1; ++k) {
         ASSERT_EQ(0, WriteChunk(leaderPeer,
                                 logicPoolId,
@@ -1380,10 +1380,10 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, DeleteMultiChunk) {
                                 sn));
     }
 
-    // 3. 起多个线程执行随机delete chunk
+    // 3. Starting multiple threads to execute random delete chunks
     std::vector<Thread> threads;
     for (int i = 0; i < kThreadNum; ++i) {
-        // 起delete线程
+        // Start delete thread
         threads.push_back(Thread(RandDeleteChunk,
                                  leaderPeer,
                                  logicPoolId,
@@ -1397,12 +1397,12 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, DeleteMultiChunk) {
     }
 }
 
-// 多线程并发create clone不同的chunk
+// Multiple threads concurrent create clones with different chunks
 TEST_F(ChunkServerConcurrentFromFilePoolTest, CreateCloneMultiChunk) {
     const int kThreadNum = 10;
     ChunkID chunkIdRange = kChunkNum;
 
-    // 1. 启动一个成员的复制组
+    // 1. Start a replication group for a member
     PeerCluster cluster("InitShutdown-cluster",
                         logicPoolId,
                         copysetId,
@@ -1412,7 +1412,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, CreateCloneMultiChunk) {
     ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
-    // 2. 起多个线程执行随机create clone chunk
+    // 2. Starting multiple threads to execute random create clone chunks
     std::vector<Thread> threads;
     int chunksPerThread = chunkIdRange / kThreadNum;
     for (int i = 0; i < kThreadNum; ++i) {
@@ -1429,7 +1429,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, CreateCloneMultiChunk) {
     }
 }
 
-// 多线程并发随机读写同多个chunk，同事伴随这并发的COW
+// Multiple threads simultaneously read and write randomly to the same chunk, with colleagues accompanying the concurrent COW
 TEST_F(ChunkServerConcurrentFromFilePoolTest, RandWriteMultiChunkWithCOW) {
     off_t offset = 0;
     int length = kOpRequestAlignSize;
@@ -1439,7 +1439,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, RandWriteMultiChunkWithCOW) {
     ChunkID chunkIdRange = kChunkNum / 2;
     int sn = 1;
 
-    // 1. 启动一个成员的复制组
+    // 1. Start a replication group for a member
     PeerCluster cluster("InitShutdown-cluster",
                         logicPoolId,
                         copysetId,
@@ -1449,7 +1449,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, RandWriteMultiChunkWithCOW) {
     ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
-    // 2. 用低版本的sn写一遍chunk
+    // 2. Write a chunk using a lower version of SN
     for (int k = 1; k <= chunkIdRange; ++k) {
         ASSERT_EQ(0, WriteChunk(leaderPeer,
                                 logicPoolId,
@@ -1460,15 +1460,15 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, RandWriteMultiChunkWithCOW) {
                                 data.c_str(),
                                 sn));
     }
-    // sn加1，保证后面的write会产生COW
+    // Add 1 to sn to ensure that subsequent writes will generate COW
     sn += 1;
 
-    // 3. 起多个线程执行随机read write chunk
+    // 3. Starting multiple threads to execute random read write chunks
     std::vector<Thread> threads;
     for (int i = 0; i < kThreadNum; ++i) {
         int read = butil::fast_rand_less_than(10);
         if (read <= 1) {
-            // 起read线程，20%概率
+            // Start read thread with a 20% probability
             threads.push_back(Thread(RandReadChunk,
                                      leaderPeer,
                                      logicPoolId,
@@ -1477,7 +1477,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, RandWriteMultiChunkWithCOW) {
                                      kMaxLoop,
                                      sn));
         } else {
-            // 起write线程
+            // Start write thread
             threads.push_back(Thread(RandWriteChunk,
                                      leaderPeer,
                                      logicPoolId,

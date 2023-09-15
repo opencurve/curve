@@ -190,7 +190,7 @@ void LeaseExecutor::ResetRefreshSessionTask() {
         return;
     }
 
-    // 等待前一个任务退出
+    // Waiting for the previous task to exit
     task_->Stop();
     task_->WaitTaskExit();
 

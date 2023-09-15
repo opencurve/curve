@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# curve-snapshotcloneserver路径
+# curve-snapshotcloneserver path
 curveBin={{ curve_bin_dir }}/curve-snapshotcloneserver
 
-# 默认配置文件
+# Default configuration file
 confPath={{ snapshot_config_path }}
 
-# 日志文件路径
+# Log file path
 logPath={{ snapshot_clone_server_log_dir }}
 
 # serverAddr
@@ -28,30 +28,30 @@ function ip_value() {
   }'
 }
 
-# 启动snapshotcloneserver
+# Starting snapshotcloneserver
 function start_server() {
-    # 检查daemon
+    # Check the daemon
     if ! type daemon &> /dev/null
     then
         echo "No daemon installed"
         exit
     fi
 
-    # 检查curve-snapshotcloneserver
+    # Check the curve-snapshotcloneserver
     if [ ! -f ${curveBin} ]
     then
         echo "No curve-snapshotcloneserver installed, Path is ${curveBin}"
         exit
     fi
 
-    # 检查配置文件
+    # Check configuration file
     if [ ! -f ${confPath} ]
     then
         echo "Not found snapshot_clone_server.conf, Path is ${confPath}"
         exit
     fi
 
-    # 判断是否已经通过daemon启动了curve-snapshotcloneserver
+    # Determine if the curve-snapshotcloneserver has been started through daemon
     daemon --name curve-snapshotcloneserver --pidfile ${pidFile} --running
     if [ $? -eq 0 ]
     then
@@ -59,7 +59,7 @@ function start_server() {
         exit
     fi
 
-    # 创建logPath
+    # Create logPath
     mkdir -p ${logPath} > /dev/null 2>&1
     if [ $? -ne 0 ]
     then
@@ -67,14 +67,14 @@ function start_server() {
         exit
     fi
 
-    # 检查logPath是否有写权限
+    # Check if logPath has write permission
     if [ ! -w ${logPath} ]
     then
         echo "Write permission denied: ${logPath}"
         exit 1
     fi
 
-    # 检查consoleLog是否可写或者能否创建，初始化glog之前的日志存放在这里
+    # Check if the consoleLog can be written or created, and store the logs before initializing the glog here
     touch ${consoleLog} > /dev/null 2>&1
     if [ $? -ne 0 ]
     then
@@ -82,7 +82,7 @@ function start_server() {
         exit
     fi
 
-    # 检查daemonLog是否可写或者是否能够创建
+    # Check if the daemonLog is writable or can be created
     touch ${daemonLog} > /dev/null 2>&1
     if [ $? -ne 0 ]
     then
@@ -90,7 +90,7 @@ function start_server() {
         exit
     fi
 
-    # 未指定serverAddr, 从配置文件中解析出网段
+    # No serverAddr specified, resolving network segment from configuration file
     if [ -z ${serverAddr} ]
     then
         subnet=`cat $confPath|grep server.subnet|awk -F"=" '{print $2}'`
@@ -101,11 +101,11 @@ function start_server() {
         ip=
         echo "subnet: $subnet"
         echo "port: $port"
-        # 对prefix再取一次模，为了支持10.182.26.50/22这种格式
+        # Take the module again for the prefix to support the format 10.182.26.50/22
         prefix=$(($prefix&$mask))
         for i in `/sbin/ifconfig -a|grep inet|grep -v inet6|awk '{print $2}'|tr -d "addr:"`
         do
-                # 把ip转换成整数
+                # Convert IP to an integer
                 ip_int=$(ip_value $i)
                 if [ $(($ip_int&$mask)) -eq $prefix ]
                 then
@@ -132,9 +132,9 @@ function start_server() {
     show_status
 }
 
-# 停止daemon进程和curve-snapshotcloneserver
+# Stop the daemon process and curve-snapshotcloneserver
 function stop_server() {
-    # 判断是否已经通过daemon启动了curve-snapshotcloneserver
+    # Determine if the curve-snapshotcloneserver has been started through daemon
     daemon --name curve-snapshotcloneserver --pidfile ${pidFile} --running
     if [ $? -ne 0 ]
     then
@@ -154,7 +154,7 @@ function stop_server() {
 
 # restart
 function restart_server() {
-    # 判断是否已经通过daemon启动了curve-snapshotcloneserver
+    # Determine if the curve-snapshotcloneserver has been started through daemon
     daemon --name curve-snapshotcloneserver --pidfile ${pidFile} --running
     if [ $? -ne 0 ]
     then
@@ -171,7 +171,7 @@ function restart_server() {
 
 # show status
 function show_status() {
-    # 判断是否已经通过daemon启动了curve-snapshotcloneserver
+    # Determine if the curve-snapshotcloneserver has been started through daemon
     daemon --name curve-snapshotcloneserver --pidfile ${pidFile} --running
     if [ $? -ne 0 ]
     then
@@ -179,11 +179,11 @@ function show_status() {
         exit 1
     fi
 
-    # 查询leader的IP
+    # Query the IP of the leader
     leaderAddr=`tac ${consoleLog}|grep -a -m 1 -B 1000000 "Logging before InitGoogleLogging()"|grep "leader"|grep -E -o "([0-9]{1,3}[\.]){3}[0-9]{1,3}"|head -n1`
 
-    # 如果load configuration之后的日志，没有leader相关日志
-    # 那么leaderAddr为空, snapshotcloneserver应该没有起来
+    # If there are no leader related logs in the logs after load configuration
+    # So the leaderAddr is empty, and the snapshotcloneserver should not be up
     if [ -z ${leaderAddr} ]
     then
         echo "SnapshotClone may not start successfully, check log"
@@ -194,7 +194,7 @@ function show_status() {
     then
         echo "Current SnapshotClone is LEADER"
     else
-        # 查询是否和自身ip相等
+        # Check if it is equal to its own IP address
         for ip in `(hostname -I)`
         do
             if [ ${leaderAddr} = ${ip} ]
@@ -208,7 +208,7 @@ function show_status() {
     fi
 }
 
-# 使用方式
+# Usage
 function usage() {
     echo "Usage:"
     echo "  snapshot-daemon start -- start deamon process and watch on curve-snapshotcloneserver process"
@@ -222,7 +222,7 @@ function usage() {
     echo "  snapshot-daemon start -c /etc/curve/snapshot_clone_server.conf -l ${HOME}/ -a 127.0.0.1:5555"
 }
 
-# 检查参数启动参数，最少1个
+# Check parameter startup parameters, at least 1
 if [ $# -lt 1 ]
 then
     usage
@@ -233,7 +233,7 @@ case $1 in
 "start")
     shift # pass first argument
 
-    # 解析参数
+    # Parsing parameters
     while [[ $# -gt 1 ]]
     do
         key=$1

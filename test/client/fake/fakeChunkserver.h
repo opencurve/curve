@@ -209,7 +209,7 @@ class FakeChunkService : public ChunkService {
     }
 
  private:
-    // wait4netunstable用来模拟网络延时，当打开之后，每个读写rpc会停留一段时间再返回
+    // wait4netunstable is used to simulate network latency. When turned on, each read/write rpc will pause for a period of time before returning
     bool wait4netunstable;
     uint64_t waittimeMS;
     bool rpcFailed;
