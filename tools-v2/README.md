@@ -1753,6 +1753,24 @@ Output:
 +---------+--------+
 ```
 
+##### update volume flatten
+
+update volume flatten in curvebs cluster
+
+Usage:
+```bash
+curve bs update volume --user root --taskid d26e27a8-fcbd-4f7a-adf8-53795217cbb0
+```
+
+Output:
+```
++------+--------------------------------------+---------+            
+| USER |               TASK ID                | RESULT  |            
++------+--------------------------------------+---------+            
+| root | d26e27a8-fcbd-4f7a-adf8-53795217cbb0 | success |            
++------+--------------------------------------+---------+  
+```
+
 #### create
 
 ##### create file
