@@ -22,9 +22,10 @@
 package volume
 
 import (
-	"github.com/spf13/cobra"
-
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/delete/volume/clone"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/delete/volume/recover"
+	"github.com/spf13/cobra"
 )
 
 type RecoverCommand struct {
@@ -35,8 +36,8 @@ var _ basecmd.MidCurveCmdFunc = (*RecoverCommand)(nil) // check interface
 
 func (dCmd *RecoverCommand) AddSubCommands() {
 	dCmd.Cmd.AddCommand(
-		NewRecoverCommand(),
-		NewCloneCommand(),
+		recover.NewRecoverCommand(),
+		clone.NewCloneCommand(),
 	)
 }
 
