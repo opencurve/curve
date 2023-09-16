@@ -634,6 +634,14 @@ func AddBsFailedOptionFlag(cmd *cobra.Command) {
 	AddBsBoolOptionFlag(cmd, CURVEBS_FAILED, "failed")
 }
 
+func AddBsUserRequireFlag(cmd *cobra.Command) {
+	AddBsStringRequiredFlag(cmd, CURVEBS_USER, "user name")
+}
+
+func AddBsTaskIDRequireFlag(cmd *cobra.Command) {
+	AddBsStringRequiredFlag(cmd, CURVEBS_TASKID, "task id")
+}
+
 // get stingslice flag
 func GetBsFlagStringSlice(cmd *cobra.Command, flagName string) []string {
 	var value []string
