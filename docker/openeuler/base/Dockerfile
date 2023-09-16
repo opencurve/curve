@@ -11,19 +11,9 @@ RUN yum update -y\
     && yum install -y jemalloc libevent fuse3 snappy zlib openssl libnl3 libuuid libcurl boost libunwind musl-libc nginx wget make gcc gcc-c++ util-linux\
     && wget https://curve-build.nos-eastchina1.126.net/libfiu-1.00.tar.gz \
     && tar -zxvf libfiu-1.00.tar.gz && cd libfiu-1.00 && make libfiu \
-    && make libfiu_install \
+    && cp libfiu/libfiu.so.1.00 /usr/lib && ln -s libfiu.so.1.00 libfiu.so\
+    && cp libfiu/*.h /usr/include \
     && cd .. && rm -rf libfiu-1.00 \
-    && ln -s /usr/lib64/libjemalloc.so.2 /usr/local/lib/libjemalloc.so \
-    && wget https://www.python.org/ftp/python/2.7.18/Python-2.7.18.tgz && \
-    tar xvf Python-2.7.18.tgz && \
-    cd Python-2.7.18 &&\
-    ./configure --prefix=/usr/ && \
-    make all -j &&\
-    make altinstall &&\
-    ln -s /usr/bin/python2.7 /usr/bin/python && \
-    ln -s /usr/bin/python2.7 /usr/bin/python2 \
-    && wget https://bootstrap.pypa.io/pip/2.7/get-pip.py && python2 get-pip.py \
-    && python2 -m pip install wheel setuptools
-ONBUILD COPY libetcdclient.so /usr/lib/
+    && ln -s /usr/lib64/libjemalloc.so.2 /usr/local/lib/libjemalloc.so
 ONBUILD COPY entrypoint.sh /
 ENTRYPOINT ["/entrypoint.sh"]

@@ -19,9 +19,12 @@
 * Author: setcy
  */
 
-package volume
+package clone
 
 import (
+	"encoding/json"
+	"fmt"
+	"sync"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -48,6 +51,7 @@ type CloneCmd struct {
 	taskID string
 	all    bool
 	failed bool
+	status string
 }
 
 var _ basecmd.FinalCurveCmdFunc = (*CloneCmd)(nil)
@@ -65,22 +69,75 @@ func (rCmd *CloneCmd) Init(cmd *cobra.Command, args []string) error {
 	rCmd.taskID = config.GetBsFlagString(rCmd.Cmd, config.CURVEBS_TASKID)
 	rCmd.all = config.GetBsFlagBool(rCmd.Cmd, config.CURVEBS_ALL)
 	rCmd.failed = config.GetBsFlagBool(rCmd.Cmd, config.CURVEBS_FAILED)
+	if rCmd.failed {
+		rCmd.status = "5"
+	}
 	rCmd.SetHeader([]string{cobrautil.ROW_USER, cobrautil.ROW_SRC, cobrautil.ROW_TASK_ID, cobrautil.ROW_FILE, cobrautil.ROW_RESULT})
 	return nil
 }
 
 func (rCmd *CloneCmd) RunCommand(cmd *cobra.Command, args []string) error {
-	c := newCloneOrRecover(rCmd.snapshotAddrs, rCmd.timeout, rCmd.user, rCmd.src, rCmd.dest, rCmd.taskID, rCmd.all, rCmd.failed)
-	records := c.queryCloneOrRecoverBy(cloneTaskType)
-	for _, item := range records {
-		err := c.cleanCloneOrRecover(item.UUID, item.User)
-		if err == nil {
-			item.Result = "success"
-		} else {
-			item.Result = "fail"
-		}
-		rCmd.TableNew.Append([]string{item.User, item.Src, item.UUID, item.File, item.Result})
+	params := map[string]any{
+		cobrautil.QueryAction:      cobrautil.ActionGetCloneTaskList,
+		cobrautil.QueryType:        cobrautil.TypeCloneTask,
+		cobrautil.QueryUser:        rCmd.user,
+		cobrautil.QueryUUID:        rCmd.taskID,
+		cobrautil.QuerySource:      rCmd.src,
+		cobrautil.QueryDestination: rCmd.dest,
+		cobrautil.QueryStatus:      rCmd.status,
+		cobrautil.QueryLimit:       100,
+		cobrautil.QueryOffset:      0,
 	}
+	records := make([]map[string]string, 0)
+	for {
+		subUri := cobrautil.NewSnapshotQuerySubUri(params)
+		metric := basecmd.NewMetric(rCmd.snapshotAddrs, subUri, rCmd.timeout)
+		result, err := basecmd.QueryMetric(metric)
+		if err.TypeCode() != cmderror.CODE_SUCCESS {
+			return err.ToError()
+		}
+
+		var resp struct {
+			Code       string              `json:"Code"`
+			TaskInfos  []map[string]string `json:"TaskInfos"`
+			TotalCount int                 `json:"TotalCount"`
+		}
+		if err := json.Unmarshal([]byte(result), &resp); err != nil {
+			return err
+		}
+		if resp.Code != "0" {
+			return fmt.Errorf("get clone list fail, error code: %s", resp.Code)
+		}
+		if len(resp.TaskInfos) == 0 {
+			break
+		} else {
+			records = append(records, resp.TaskInfos...)
+			params[cobrautil.QueryOffset] = params[cobrautil.QueryOffset].(int) + params[cobrautil.QueryLimit].(int)
+		}
+	}
+
+	wg := sync.WaitGroup{}
+	for _, item := range records {
+		wg.Add(1)
+		go func(item map[string]string) {
+			params := map[string]any{
+				cobrautil.QueryAction: cobrautil.ActionCleanCloneTask,
+				cobrautil.QueryUser:   item["User"],
+				cobrautil.QueryUUID:   item["UUID"],
+			}
+			subUri := cobrautil.NewSnapshotQuerySubUri(params)
+			metric := basecmd.NewMetric(rCmd.snapshotAddrs, subUri, rCmd.timeout)
+			_, err := basecmd.QueryMetric(metric)
+			if err.TypeCode() != cmderror.CODE_SUCCESS {
+				item["Result"] = "fail"
+			} else {
+				item["Result"] = "success"
+			}
+			rCmd.TableNew.Append([]string{item["User"], item["Src"], item["UUID"], item["File"], item["Result"]})
+			wg.Done()
+		}(item)
+	}
+	wg.Wait()
 	rCmd.Result = records
 	rCmd.Error = cmderror.Success()
 	return nil
