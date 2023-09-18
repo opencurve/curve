@@ -1,0 +1,36 @@
+noValidConfiguration
+unmatchedSuppression
+
+missingInclude
+missingIncludeSystem
+
+unusedFunction
+
+# style
+cstyleCast
+unreadVariable
+variableScope
+constVariableReference
+shadowVariable
+shadowFunction
+shadowArgument
+missingOverride
+useStlAlgorithm
+redundantInitialization
+
+# portability
+arithOperationsOnVoidPointer
+
+# information
+ConfigurationNotChecked
+
+# warning
+invalidscanf:src/client/client_common.h
+
+# error
+ctuOneDefinitionRuleViolation:curvefs/src/mds/topology/topology_id_generator.h
+deallocuse:curvefs/src/metaserver/storage/rocksdb_storage.cpp
+deallocuse:nebd/src/part2/file_service.cpp
+
+# performance
+uselessCallsSubstr

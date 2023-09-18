@@ -1,22 +1,25 @@
-name: cppcheck-action
-on: [push, pull_request]
+name: Static Checker
+
+on:
+  pull_request
 
 jobs:
   cppcheck:
+    name: CppCheck
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3  
-      - uses: deep5050/cppcheck-action@main 
+      - uses: actions/checkout@v4
+
+      - uses: chmorgan/cppcheck-action@v1.4
         with:
+          enable: all
+          std: c++11
           inconclusive: disable
-          other_options: "--suppress=syntaxError:* --suppress=danglingTemporaryLifetime:* --suppress=deallocuse:* --suppress=uninitvar:* --suppress=unknownMacro:* --suppress=ctuOneDefinitionRuleViolation:*"
-      - name: Error check
-        run: |
-            if grep -qF 'error: ' cppcheck_report.txt; then
-              exit 1
-            fi 
+          output_file: ./cppcheck_report.txt
+          other_options: "-j4 --suppressions-list=util/cppcheck/cppcheck.suppressions --error-exitcode=1 -itest -icurvefs/test -inebd/test -inbd/test -icurvefs_python -icurvesnapshot_python -ithirdparties"
+
       - uses: actions/upload-artifact@v3
-        if: always()
+        if: failure()
         with:
-          name: cppcheck
-          path: cppcheck_report.txt
+          name: cppcheck-error-report
+          path: ./cppcheck_report.txt
