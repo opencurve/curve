@@ -25,6 +25,7 @@
 #include <set>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include "src/client/client_common.h"
 #include "src/client/client_config.h"

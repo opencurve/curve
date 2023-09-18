@@ -27,6 +27,8 @@
 #include <vector>
 #include <map>
 #include <string>
+#include <list>
+
 #include "src/mds/nameserver2/chunk_allocator.h"
 
 namespace curve {

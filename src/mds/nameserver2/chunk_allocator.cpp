@@ -101,8 +101,8 @@ bool ChunkSegmentAllocatorImpl::CloneChunkSegment(
     std::map<PoolIdType, double> enoughSpacePools;
     topologyChunkAllocator_->GetRemainingSpaceInLogicalPool(
             logicalPools, &enoughSpacePools);
-    if ((enoughSpacePools.empty()) || 
-        (enoughSpacePools[srcSegment.logicalpoolid()] < 
+    if ((enoughSpacePools.empty()) ||
+        (enoughSpacePools[srcSegment.logicalpoolid()] <
             srcSegment.segmentsize())) {
         LOG(ERROR) << "logical id: " << srcSegment.logicalpoolid()
                    << ", space not enough";

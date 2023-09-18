@@ -172,9 +172,9 @@ void LeaseExecutor::CheckNeedUpdateFileInfo(const FInfo& fileInfo) {
 
     std::string currentSnaps = Snaps2Str(metaCache->GetLatestSnaps());
     std::string newSnaps = Snaps2Str(fileInfo.snaps);
-    if(newSnaps != currentSnaps) {
+    if (newSnaps != currentSnaps) {
         LOG(INFO) << "Update snaps, new snaps = " << newSnaps
-                  << ", current snaps = " << currentSnaps 
+                  << ", current snaps = " << currentSnaps
                   << ", filename = " << fullFileName_;
         metaCache->SetLatestSnaps(fileInfo.snaps);
     }

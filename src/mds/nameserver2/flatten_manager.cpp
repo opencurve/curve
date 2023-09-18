@@ -30,7 +30,7 @@ namespace mds {
 void FlattenTask::Run() {
     // do flatten
     flattenCore_->DoFlatten(
-        fileName_, fileInfo_, 
+        fileName_, fileInfo_,
         snapFileInfo_,
         GetMutableTaskProgress());
     return;
@@ -55,7 +55,7 @@ bool FlattenManagerImpl::SubmitFlattenJob(uint64_t uniqueId,
     return taskManager_->SubmitTask(task);
 }
 
-std::shared_ptr<FlattenTask> 
+std::shared_ptr<FlattenTask>
 FlattenManagerImpl::GetFlattenTask(uint64_t uniqueId) {
     auto task =  taskManager_->GetTask(uniqueId);
     return std::dynamic_pointer_cast<FlattenTask>(task);

@@ -28,6 +28,8 @@
 #include <map>
 #include <string>
 #include <memory>
+#include <list>
+
 #include "src/mds/common/mds_define.h"
 #include "src/mds/nameserver2/idgenerator/chunk_id_generator.h"
 #include "src/mds/topology/topology_chunk_allocator.h"

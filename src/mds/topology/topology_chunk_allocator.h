@@ -28,6 +28,7 @@
 #include <functional>
 #include <string>
 #include <map>
+#include <list>
 
 #include "src/mds/topology/topology.h"
 #include "proto/nameserver2.pb.h"

@@ -41,6 +41,9 @@
 
 #include "src/chunkserver/raftsnapshot/curve_snapshot_copier.h"
 
+#include <algorithm>
+#include <map>
+
 namespace curve {
 namespace chunkserver {
 
@@ -74,7 +77,8 @@ struct FileCloneMeta {
     uint64_t    cloneno;
 };
 
-bool compareFileCloneMeta(const FileCloneMeta& meta1, const FileCloneMeta& meta2) {
+bool compareFileCloneMeta(
+    const FileCloneMeta& meta1, const FileCloneMeta& meta2) {
     return meta1.cloneno < meta2.cloneno;
 }
 
@@ -92,23 +96,24 @@ void CurveSnapshotCopier::copy() {
         std::vector<std::string> files;
         _remote_snapshot.list_files(&files);
 
-        //check that if file has the meta, and get the cloneno and virtualid
-        //use another map <cloneno, file> to sort by cloneno, and get the clonefile list
+        // check that if file has the meta, and get the cloneno and virtualid
+        // use another map <cloneno, file> to sort by cloneno,
+        // and get the clonefile list
 
-        //now build the map <chunkid, clone>
+        // now build the map <chunkid, clone>
         std::map<uint64_t, uint64_t> chunkid2clone;
 
         for (auto it = files.begin(); it != files.end(); ) {
             std::string filepath = *it;
-            //find if the filepath has the "._" means that it is a clone vector
+            // find if the filepath has the "._" means that it is a clone vector
             auto pos = filepath.find("._");
             if (pos == filepath.npos) {
                 it++;
                 continue;
             }
-            //now it is the map of vector get string behaind "._"
+            // now it is the map of vector get string behaind "._"
             std::string chunkidstr = filepath.substr(pos + 2);
-            //the string format is chunkid_cloneno, get the chunkid 
+            // the string format is chunkid_cloneno, get the chunkid
             pos = chunkidstr.find("_");
             if (pos == chunkidstr.npos) {
                 it++;
@@ -116,7 +121,7 @@ void CurveSnapshotCopier::copy() {
             }
             std::string chunkid = chunkidstr.substr(0, pos);
             uint64_t cid = std::stoull(chunkid);
-            //get the cloneno
+            // get the cloneno
             std::string clonenostr = chunkidstr.substr(pos + 1);
             uint64_t cloneno = std::stoull(clonenostr);
             chunkid2clone[cid] = cloneno;
@@ -127,24 +132,25 @@ void CurveSnapshotCopier::copy() {
 
         lfiles.reserve(files.size());
 
-        for(auto it = files.begin(); it != files.end(); ) {
+        for (auto it = files.begin(); it != files.end(); ) {
             std::string filepath = *it;
-            //it is the normal chunkfile name ,the formant is /path/path/filename, now get the filename
+            // it is the normal chunkfile name,
+            // the formant is /path/path/filename, now get the filename
             auto pos = filepath.rfind("/");
             if (pos == filepath.npos) {
                 it++;
                 continue;
             }
             std::string filename = filepath.substr(pos + 1);
-            //get the chunkid
+            // get the chunkid
             uint64_t cid = DatastoreFileHelper::GetChunkFileID(filename);
-            //search the chunkid in the map, if it is not in the map than next
+            // search the chunkid in the map, if it is not in the map than next
             auto it2 = chunkid2clone.find(cid);
             if (it2 == chunkid2clone.end()) {
                 it++;
                 continue;
             }
-            //get the cloneno
+            // get the cloneno
             uint64_t cloneno = it2->second;
 
             FileCloneMeta fcmeta;

@@ -22,6 +22,7 @@
 
 #include <thread> //NOLINT
 #include <chrono> //NOLINT
+#include <vector>
 
 #include "src/mds/chunkserverclient/copyset_client.h"
 

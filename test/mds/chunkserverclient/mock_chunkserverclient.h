@@ -65,7 +65,7 @@ class MockChunkServerClient : public ChunkServerClient {
 
     MOCK_METHOD3(FlattenChunk,
         int(ChunkServerIdType leaderId,
-        const std::shared_ptr<FlattenChunkContext> &ctx, 
+        const std::shared_ptr<FlattenChunkContext> &ctx,
         ChunkServerClientClosure *done));
 };
 

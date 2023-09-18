@@ -145,7 +145,8 @@ int CurveFsClientImpl::CheckSnapShotStatus(std::string filename,
                         FileStatus* filestatus,
                         uint32_t* progress) {
     UserInfo userInfo = GetUserInfo(user);
-    RetryMethod method = [this, &filename, &userInfo, seq, filestatus, progress] () {
+    RetryMethod method =
+        [this, &filename, &userInfo, seq, filestatus, progress] () {
         return snapClient_->CheckSnapShotStatus(filename,
             userInfo,
             seq, filestatus, progress);

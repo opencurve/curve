@@ -172,8 +172,9 @@ void RequestScheduler::ProcessOne(RequestContext* ctx) {
             client_.WriteChunk(ctx, guard.release());
             break;
         case OpType::READ_SNAP:
-            client_.ReadChunkSnapshot(ctx->idinfo_, ctx->seq_, ctx->snaps_, ctx->offset_,
-                                      ctx->rawlength_, guard.release());
+            client_.ReadChunkSnapshot(
+                ctx->idinfo_, ctx->seq_, ctx->snaps_, ctx->offset_,
+                ctx->rawlength_, guard.release());
             break;
         case OpType::DELETE_SNAP:
             client_.DeleteChunkSnapshotOrCorrectSn(

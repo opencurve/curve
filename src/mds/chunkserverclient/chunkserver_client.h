@@ -28,6 +28,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "src/mds/common/mds_define.h"
 #include "src/mds/topology/topology.h"
@@ -35,7 +36,6 @@
 #include "proto/chunk.pb.h"
 #include "src/mds/chunkserverclient/chunkserverclient_config.h"
 #include "src/common/channel_pool.h"
-#include "src/mds/common/mds_define.h"
 
 using ::curve::mds::topology::Topology;
 using ::curve::mds::topology::ChunkServerIdType;
@@ -192,7 +192,7 @@ class ChunkServerClient {
         ChunkServerIdType * leader);
 
     virtual int FlattenChunk(ChunkServerIdType leaderId,
-        const std::shared_ptr<FlattenChunkContext> &ctx, 
+        const std::shared_ptr<FlattenChunkContext> &ctx,
         ChunkServerClientClosure *done);
 
     static void OnFlattenChunkReturned(FlattenChunkRpcContext *ctx);

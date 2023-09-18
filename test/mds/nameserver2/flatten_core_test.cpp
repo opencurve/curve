@@ -52,7 +52,7 @@ class FlattenCoreTest : public ::testing::Test {
  public:
     void SetUp() override {
         storage_ = std::make_shared<MockNameServerStorage>();
-        csClient_= std::make_shared<MockCopysetClient>();
+        csClient_ = std::make_shared<MockCopysetClient>();
         fileLockManager_ = new FileLockManager(8);
         core_ = std::make_shared<FlattenCore>(
             flattenOption_, storage_, csClient_,
@@ -165,8 +165,8 @@ TEST_F(FlattenCoreTest, DoFlatten) {
             .WillRepeatedly(DoAll(SetArgPointee<2>(segment),
                             Return(StoreStatus::OK)));
 
-        int repeatTimes = (cloneLength + 
-            flattenOption_.flattenChunkPartSize - 1) / 
+        int repeatTimes = (cloneLength +
+            flattenOption_.flattenChunkPartSize - 1) /
             flattenOption_.flattenChunkPartSize;
         EXPECT_CALL(*csClient_, FlattenChunk(_, _))
             .Times(repeatTimes)

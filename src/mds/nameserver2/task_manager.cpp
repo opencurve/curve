@@ -34,7 +34,7 @@ bool TaskManager::Start(void) {
     taskWorkers_ = new ::curve::common::TaskThreadPool<>();
 
     if (taskWorkers_->Start(threadNum_) != 0) {
-        LOG(ERROR) << "task worker thread start failed, threadNum_: " 
+        LOG(ERROR) << "task worker thread start failed, threadNum_: "
                    << threadNum_;
         return false;
     }
@@ -59,7 +59,7 @@ bool TaskManager::Stop(void) {
         delete checkThread_;
 
         LOG(INFO) << "task manager stop success";
-    } 
+    }
     return true;
 }
 

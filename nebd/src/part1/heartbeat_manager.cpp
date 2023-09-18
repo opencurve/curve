@@ -108,9 +108,10 @@ void HeartbeatManager::SendHeartBeat() {
     }
 
     // zzw: it's possible to cause undefined behavior if the deinitialization of
-    //      this LOG object is happening after the deinitialization of static nebdclient 
+    //      this LOG object is happening
+    //      after the deinitialization of static nebdclient
     //      when app exits.
-     
+
     // LOG(INFO) << "Send Heartbeat request, log id = " << cntl.log_id()
     //           << ", pid = " << request.pid()
     //           << ", nebd version = " << request.nebdversion()

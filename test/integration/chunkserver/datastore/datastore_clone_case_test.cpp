@@ -34,7 +34,7 @@ class CloneTestSuit : public DatastoreIntegrationBase {
     CloneTestSuit() {}
     ~CloneTestSuit() {}
 };
-//TODO: this unit test is suitable for the new version of datastore
+// TODO(dxiang): this unit test is suitable for the new version of datastore
 //      and will be modified later dxiang@corp.netease.com
 
 #if 0

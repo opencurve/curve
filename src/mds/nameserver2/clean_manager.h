@@ -75,6 +75,7 @@ class CleanManager : public CleanManagerInterface {
     std::shared_ptr<Task> GetTask(TaskIDType id) override;
 
     std::shared_ptr<Task> GetTask(TaskIDType id, TaskIDType sn) override;
+
  private:
     std::shared_ptr<NameServerStorage> storage_;
     std::shared_ptr<CleanCore> cleanCore_;

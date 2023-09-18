@@ -111,7 +111,7 @@ void ChunkServiceImpl::WriteChunk(RpcController *controller,
 
     brpc::ClosureGuard doneGuard(closure);
 
-    //check if the proto compatiable
+    // check if the proto compatiable
     if (false == CheckProtoCompatible(request)) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_VERSION_OLD);
         LOG(ERROR) << "WriteChunk illegal proto:"
@@ -194,7 +194,7 @@ void ChunkServiceImpl::CreateCloneChunk(RpcController *controller,
 
     brpc::ClosureGuard doneGuard(closure);
 
-    //check if the proto compatiable
+    // check if the proto compatiable
     if (false == CheckProtoCompatible(request)) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_VERSION_OLD);
         LOG(ERROR) << "CreateCloneChunk illegal proto:"
@@ -321,7 +321,7 @@ void ChunkServiceImpl::RecoverChunk(RpcController *controller,
 
     brpc::ClosureGuard doneGuard(closure);
 
-    //check if the proto compatiable
+    // check if the proto compatiable
     if (false == CheckProtoCompatible(request)) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_VERSION_OLD);
         LOG(ERROR) << "RecoverChunk illegal proto:"
@@ -434,7 +434,7 @@ void ChunkServiceImpl::DeleteChunkSnapshotOrCorrectSn(
 
     brpc::ClosureGuard doneGuard(closure);
 
-    //check if the proto compatiable
+    // check if the proto compatiable
     if (false == CheckProtoCompatible(request)) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_VERSION_OLD);
         LOG(ERROR) << "DeleteChunkSnapshotOrCorrectSn illegal proto:"
@@ -662,7 +662,7 @@ void ChunkServiceImpl::FlattenChunk(RpcController *controller,
 
     brpc::ClosureGuard doneGuard(closure);
 
-    //check if the proto compatiable
+    // check if the proto compatiable
     if (false == CheckProtoCompatible(request)) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_VERSION_OLD);
         LOG(ERROR) << "FlattenChunk illegal proto:"
@@ -686,7 +686,7 @@ void ChunkServiceImpl::FlattenChunk(RpcController *controller,
 
     DVLOG(3) << "Get FlattenChunk I/O request, op: " << request->optype()
              << " chunkId: " << request->chunkid()
-             << " copysetId: " << request->copysetid() 
+             << " copysetId: " << request->copysetid()
              << " chunkIndex: " << request->chunkindex()
              << " originChunkId: " << request->originfileid()
              << " fileID: " << request->fileid();
@@ -719,7 +719,6 @@ void ChunkServiceImpl::FlattenChunk(RpcController *controller,
                                                   response,
                                                   doneGuard.release());
     req->Process();
-
 }
 
 }  // namespace chunkserver

@@ -324,7 +324,8 @@ class CurveFS {
      *  @return StatusCode::kOK if succeeded
      */
     StatusCode ListSnapShotFile(const std::string & fileName,
-                            std::vector<FileInfo> *snapshotFileInfos, FileInfo *srcfileInfo = nullptr) const;
+                            std::vector<FileInfo> *snapshotFileInfos,
+                            FileInfo *srcfileInfo = nullptr) const;
     // async interface
     /**
      *  @brief Delete the snapshot file of the file specified by seq

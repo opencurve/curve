@@ -24,6 +24,9 @@
 #define SRC_MDS_NAMESERVER2_CLEAN_CORE_H_
 
 #include <memory>
+#include <vector>
+#include <string>
+
 #include "src/mds/nameserver2/namespace_storage.h"
 #include "src/mds/common/mds_define.h"
 #include "src/mds/nameserver2/task_progress.h"
@@ -82,11 +85,11 @@ class CleanCore {
 
 inline std::string Snaps2Str(const std::vector<uint64_t>& snaps) {
     std::string str;
-    std::for_each(snaps.begin(),snaps.end(), [&] (uint64_t seq) {
+    std::for_each(snaps.begin(), snaps.end(), [&] (uint64_t seq) {
         str.append(std::to_string(seq));
         str.append(",");
     });
-    if(str.length() > 0) {
+    if (str.length() > 0) {
         str.pop_back();
     }
     return str;

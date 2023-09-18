@@ -152,7 +152,7 @@ class NameServerStorage {
         const FileInfo &originFileInfo, const FileInfo &recycleFileInfo) = 0;
 
     virtual StoreStatus MoveCloneFileToRecycle(
-        const FileInfo &originFileInfo, 
+        const FileInfo &originFileInfo,
         const FileInfo &snapshotFileInfo,
         const FileInfo &recycleFileInfo) = 0;
 
@@ -329,7 +329,6 @@ class NameServerStorageImp : public NameServerStorage {
     StoreStatus LoadFileInfos(std::vector<FileInfo> *fileInfos) override;
 
  private:
-
     StoreStatus GetFileInternal(FileType type,
                                 InodeID parentid,
                                 const std::string &filename,

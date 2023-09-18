@@ -302,7 +302,7 @@ class MockTopologyStat : public TopologyStat {
         bool(ChunkServerIdType csId,
         ChunkServerStat *stat));
 
-    MOCK_METHOD2(GetPhysicalPoolStat, 
+    MOCK_METHOD2(GetPhysicalPoolStat,
         bool(PoolIdType pId, PhysicalPoolStat* stat));
 };
 

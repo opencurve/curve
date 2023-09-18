@@ -21,12 +21,15 @@
  */
 
 #include "src/mds/nameserver2/curvefs.h"
+
 #include <glog/logging.h>
 #include <memory>
 #include <chrono>    //NOLINT
 #include <set>
 #include <utility>
 #include <map>
+#include <list>
+
 #include "src/common/string_util.h"
 #include "src/common/encode.h"
 #include "src/common/timeutility.h"
@@ -311,7 +314,8 @@ StatusCode CurveFS::CreateFile(const std::string& fileName,
         chunkSegAllocator_->GetRemainingSpaceInLogicalPool(
             logicalPools, &remianingSpace);
 
-        for (auto it = remianingSpace.begin(); it != remianingSpace.end(); it++) {
+        for (auto it = remianingSpace.begin();
+            it != remianingSpace.end(); it++) {
             allRemianingSpace +=it->second;
         }
         if (allRemianingSpace < length) {
@@ -437,7 +441,8 @@ StatusCode CurveFS::GetFileInfoWithCloneChain(const std::string & filename,
     FileInfo parentFileInfo;
     auto ret = WalkPath(filename, &parentFileInfo, &lastEntry);
     if (ret != StatusCode::kOK) {
-        if (ret == StatusCode::kNotDirectory) { return StatusCode::kFileNotExists;
+        if (ret == StatusCode::kNotDirectory) {
+            return StatusCode::kFileNotExists;
         }
         return ret;
     } else {
@@ -1461,7 +1466,7 @@ StatusCode CurveFS::CreateSnapShotFile(const std::string &fileName,
     snapshotFileInfo->set_ctime(::curve::common::TimeUtility::GetTimeofDayUs());
     snapshotFileInfo->set_parentid(fileInfo.id());
     snapshotFileInfo->set_filename(fileInfo.filename() + "-" +
-                  std::to_string(fileInfo.seqnum())); 
+                  std::to_string(fileInfo.seqnum()));
     snapshotFileInfo->set_filestatus(FileStatus::kFileCreated);
 
     // add original file snapshot seq number
@@ -1542,7 +1547,7 @@ StatusCode CurveFS::CreateSnapShotFile2(const std::string &fileName,
     } else {
         // for compatibility, if snapName is empty, use old style snapname
         snapshotFileInfo->set_filename(fileInfo.filename() + "-" +
-                  std::to_string(fileInfo.seqnum())); 
+                  std::to_string(fileInfo.seqnum()));
     }
     snapshotFileInfo->set_filestatus(FileStatus::kFileCreated);
 
@@ -1563,7 +1568,8 @@ StatusCode CurveFS::CreateSnapShotFile2(const std::string &fileName,
 }
 
 StatusCode CurveFS::ListSnapShotFile(const std::string & fileName,
-                            std::vector<FileInfo> *snapshotFileInfos, FileInfo *srcfileInfo) const {
+                            std::vector<FileInfo> *snapshotFileInfos,
+                            FileInfo *srcfileInfo) const {
     FileInfo parentFileInfo;
     std::string lastEntry;
 
@@ -1607,7 +1613,8 @@ StatusCode CurveFS::ListSnapShotFile(const std::string & fileName,
 }
 
 StatusCode CurveFS::GetSnapShotFileInfo(const std::string &fileName,
-                        FileSeqType seq, FileInfo *snapshotFileInfo, FileInfo *fileInfo) const {
+    FileSeqType seq,
+    FileInfo *snapshotFileInfo, FileInfo *fileInfo) const {
     std::vector<FileInfo> snapShotFileInfos;
     StatusCode ret = ListSnapShotFile(fileName, &snapShotFileInfos, fileInfo);
     if (ret != StatusCode::kOK) {
@@ -1636,7 +1643,8 @@ StatusCode CurveFS::GetSnapShotFileInfo(const std::string &fileName,
 }
 
 StatusCode CurveFS::GetSnapShotFileInfo(const std::string &fileName,
-    const std::string &snapName, FileInfo *snapshotFileInfo, FileInfo *srcfileInfo) const {
+    const std::string &snapName,
+    FileInfo *snapshotFileInfo, FileInfo *srcfileInfo) const {
     FileInfo tmpfileInfo;
     FileInfo* fileInfo = srcfileInfo != nullptr ? srcfileInfo : &tmpfileInfo;
 
@@ -1774,7 +1782,8 @@ StatusCode CurveFS::DeleteFileSnapShotFile2(const std::string &fileName,
         LOG(ERROR) << fileName << ", SnapShotFile error";
         return StatusCode::kStorageError;
     }
-    LOG(INFO) << "DeleteFileSnapShotFile2 update snap and file to storage success"
+    LOG(INFO) << "DeleteFileSnapShotFile2 update snap and file "
+              << "to storage success"
               << ", snapInfo: \n" << snapShotFileInfo.DebugString();
 
     //  message the snapshot delete manager
@@ -1852,8 +1861,10 @@ StatusCode CurveFS::CheckSnapShotFileStatus2(const std::string &fileName,
 
     *status = snapShotFileInfo.filestatus();
     if (snapShotFileInfo.filestatus() == FileStatus::kFileDeleting) {
-        TaskIDType fileID = static_cast<TaskIDType>(snapShotFileInfo.parentid());
-        TaskIDType snapSn = static_cast<TaskIDType>(snapShotFileInfo.seqnum());
+        TaskIDType fileID =
+            static_cast<TaskIDType>(snapShotFileInfo.parentid());
+        TaskIDType snapSn =
+            static_cast<TaskIDType>(snapShotFileInfo.seqnum());
         auto task = cleanManager_->GetTask(fileID, snapSn);
         if (task == nullptr) {
             // GetSnapShotFileInfo again
@@ -2148,7 +2159,8 @@ StatusCode CurveFS::Clone(const std::string &fileName,
                 return StatusCode::kSegmentAllocateError;
             }
             int64_t revision;
-            if (storage_->PutSegment(fileInfo->id(), offset, &segment, &revision)
+            if (storage_->PutSegment(fileInfo->id(), offset,
+                                     &segment, &revision)
                 != StoreStatus::OK) {
                 LOG(ERROR) << "PutSegment fail, fileInfo.id() = "
                            << fileInfo->id()
@@ -2221,7 +2233,7 @@ StatusCode CurveFS::LookUpCloneChain(
                   << ", fileId: " << cinfo->fileid()
                   << ", clonesn: " << cinfo->clonesn();
         tmpInfo = cloneSourceFileInfo;
-    };
+    }
     return StatusCode::kOK;
 }
 
@@ -2512,7 +2524,8 @@ StatusCode CurveFS::OpenFile(const std::string &fileName,
     if (fileInfo->filetype() == FileType::INODE_CLONE_PAGEFILE) {
         ret = LookUpCloneChain(*fileInfo, fileInfo);
     } else {
-        if (fileInfo->has_clonesource() && isPathValid(fileInfo->clonesource())) {
+        if (fileInfo->has_clonesource() &&
+            isPathValid(fileInfo->clonesource())) {
             ret = ListCloneSourceFileSegments(fileInfo, cloneSourceSegment);
         }
     }
@@ -3390,7 +3403,8 @@ bool CurveFS::ResumeFlattenJob() {
             FileSeqType seq = fileInfo.clonesn();
             FileInfo srcFileInfo;
             FileInfo snapFileInfo;
-            ret = GetSnapShotFileInfo(srcFileName, seq, &snapFileInfo, &srcFileInfo);
+            ret = GetSnapShotFileInfo(
+                srcFileName, seq, &snapFileInfo, &srcFileInfo);
             if (ret != StatusCode::kOK) {
                 LOG(ERROR) << "GetSnapShotFileInfo failed, ret: " << ret;
                 success = false;

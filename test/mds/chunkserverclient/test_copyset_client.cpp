@@ -364,7 +364,7 @@ TEST_F(TestCopysetClient, TestDeleteChunkFail) {
             Return(true)));
 
     EXPECT_CALL(*mockCsClient_, DeleteChunk(
-            _, fileId, originFileId, chunkIndex, 
+            _, fileId, originFileId, chunkIndex,
             logicalPoolId, copysetId, chunkId, sn))
         .WillRepeatedly(Return(kMdsFail));
 

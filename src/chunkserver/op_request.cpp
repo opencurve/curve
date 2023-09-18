@@ -29,6 +29,8 @@
 
 #include <memory>
 #include <string>
+#include <algorithm>
+#include <vector>
 
 #include "src/chunkserver/copyset_node.h"
 #include "src/chunkserver/chunk_closure.h"
@@ -41,7 +43,7 @@ namespace chunkserver {
 static std::vector<SequenceNum> getSnapIds(const ChunkRequest* request) {
     // std::vector has move-semantics in c++11
     std::vector<SequenceNum> snaps;
-    for (long i = 0; i < request->snaps_size(); ++i) {
+    for (size_t i = 0; i < request->snaps_size(); ++i) {
         snaps.push_back(request->snaps(i));
     }
     std::sort(snaps.begin(), snaps.end());
@@ -189,8 +191,8 @@ void DeleteChunkRequest::OnApply(uint64_t index,
     brpc::ClosureGuard doneGuard(done);
 
     auto ret = datastore_->DeleteChunk(request_->chunkid(),
-                                       request_->sn(),
-                                       std::make_shared<SnapContext>(getSnapIds(request_)));
+        request_->sn(),
+        std::make_shared<SnapContext>(getSnapIds(request_)));
     if (CSErrorCode::Success == ret) {
         response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
         node_->UpdateAppliedIndex(index);
@@ -219,8 +221,8 @@ void DeleteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                                         const butil::IOBuf &data) {
     // NOTE: 处理过程中优先使用参数传入的datastore/request
     auto ret = datastore->DeleteChunk(request.chunkid(),
-                                      request.sn(),
-                                      std::make_shared<SnapContext>(getSnapIds(&request)));
+        request.sn(),
+        std::make_shared<SnapContext>(getSnapIds(&request)));
     if (CSErrorCode::Success == ret)
         return;
 
@@ -274,25 +276,25 @@ void ReadChunkRequest::Process() {
          */
         auto thisPtr
             = std::dynamic_pointer_cast<ReadChunkRequest>(shared_from_this());
-        /*
-         * 将read扔给并发层出于两个原因：
-         *  (1). 将read I/O操作和write等其它I/O操作都放在并发层处理，以便隔离
-         *  disk I/O和其他逻辑
-         *  (2). 为了保证线性一致性read的语义。因为当前apply是并发的，所以applied
-         *  index更新也是并发的，尽管applied index更新能够保证单调的，但是可能会存
-         *  在更新跳跃的情况，例如，index=6,7的2个op同时进入并发模块，并且都执行成
-         *  功返回了，这个时候leader挂了，new leader选出来，new leader上面有
-         *  index=6,7两个op的日志，但是没有apply，那么new leader必然需要回放这两
-         *  条日志，因为是并发的，所以index=7的op log可能先于index=6的被apply，然后
-         *  new leader的applied index会被更新为7，这个时候client来了一个想读index=6
-         *  的op写下的数据，携带的是applied index=7，这个时候ChunkServer比较携带的
-         *  applied index和Chunkserver的applied index，那么会判定通过走直接读，但是
-         *  ChunkServer实际上index=6的数据还没落盘。那么就会出现stale read。解决方法
-         *  就是read也进并发层排队，那么需要read index=6的read request，必定会排在
-         *  index=6的op的后面，也就是它们操作的是同一个chunk，并发层会将它们放在同一个
-         *  队列中，这样就能保证index=6的op apply之后，read才会被执行，这样就不会出现
-         *  stale read，保证了read的线性一致性
-         */
+/*
+ * 将read扔给并发层出于两个原因：
+ *  (1). 将read I/O操作和write等其它I/O操作都放在并发层处理，以便隔离
+ *  disk I/O和其他逻辑
+ *  (2). 为了保证线性一致性read的语义。因为当前apply是并发的，所以applied
+ *  index更新也是并发的，尽管applied index更新能够保证单调的，但是可能会存
+ *  在更新跳跃的情况，例如，index=6,7的2个op同时进入并发模块，并且都执行成
+ *  功返回了，这个时候leader挂了，new leader选出来，new leader上面有
+ *  index=6,7两个op的日志，但是没有apply，那么new leader必然需要回放这两
+ *  条日志，因为是并发的，所以index=7的op log可能先于index=6的被apply，然后
+ *  new leader的applied index会被更新为7，这个时候client来了一个想读index=6
+ *  的op写下的数据，携带的是applied index=7，这个时候ChunkServer比较携带的
+ *  applied index和Chunkserver的applied index，那么会判定通过走直接读，但是
+ *  ChunkServer实际上index=6的数据还没落盘。那么就会出现stale read。解决方法
+ *  就是read也进并发层排队，那么需要read index=6的read request，必定会排在
+ *  index=6的op的后面，也就是它们操作的是同一个chunk，并发层会将它们放在同一个
+ *  队列中，这样就能保证index=6的op apply之后，read才会被执行，这样就不会出现
+ *  stale read，保证了read的线性一致性
+ */
         auto task = std::bind(&ReadChunkRequest::OnApply,
                               thisPtr,
                               node_->GetAppliedIndex(),
@@ -317,17 +319,20 @@ void ReadChunkRequest::OnApply(uint64_t index,
 
     CSChunkInfo chunkInfo;
     CSErrorCode errorCode = CSErrorCode::Success;
-    
-    if ((false == request_->has_originfileid()) || (request_->originfileid() == 0)) {
+
+    if ((false == request_->has_originfileid()) ||
+        (request_->originfileid() == 0)) {
         errorCode = datastore_->GetChunkInfo(request_->chunkid(),
                                                         &chunkInfo);
     }
-    
-    chunkInfo.isClone = false; //need to set NeedClone() to false, use new protocol
+
+    // need to set NeedClone() to false, use new protocol
+    chunkInfo.isClone = false;
 
     do {
         bool needLazyClone = false;
-        // 如果需要Read的chunk不存在，但是请求包含Clone源信息，则尝试从Clone源读取数据
+        // 如果需要Read的chunk不存在，但是请求包含Clone源信息，
+        // 则尝试从Clone源读取数据
         if (CSErrorCode::ChunkNotExistError == errorCode) {
             if (existCloneInfo(request_)) {
                 needLazyClone = true;
@@ -368,8 +373,10 @@ void ReadChunkRequest::OnApply(uint64_t index,
         }
         // 如果是ReadChunk请求还需要从本地读取数据
         if (request_->optype() == CHUNK_OP_TYPE::CHUNK_OP_READ) {
-            if ((false == request_->has_originfileid()) || (request_->originfileid() == 0)) {
-                assert(chunkInfo.bitmap == nullptr); //not clone chunk, the bitmap is to be nullptr
+            if ((false == request_->has_originfileid()) ||
+                (request_->originfileid() == 0)) {
+                // not clone chunk, the bitmap is to be nullptr
+                assert(chunkInfo.bitmap == nullptr);
             }
             ReadChunk();
         }
@@ -426,14 +433,15 @@ void ReadChunkRequest::ReadChunk() {
     CHECK(nullptr != readBuffer)
         << "new readBuffer failed " << strerror(errno);
 
-    if ((false == request_->has_originfileid()) || (request_->originfileid() == 0)) {
+    if ((false == request_->has_originfileid()) ||
+        (request_->originfileid() == 0)) {
         ret = datastore_->ReadChunk(request_->chunkid(),
                                      request_->sn(),
                                      readBuffer,
                                      request_->offset(),
                                      size);
     } else {
-        //now get the clone about parameter to the context
+        // now get the clone about parameter to the context
         std::unique_ptr<struct CloneContext> ctx(new CloneContext());
 
         ctx->cloneNo = request_->fileid();
@@ -450,7 +458,7 @@ void ReadChunkRequest::ReadChunk() {
         string clonesinfo = "";
         for (int i = 0; i < ctx->clones.size(); i++) {
             clonesinfo += " clone no: " + std::to_string(ctx->clones[i].cloneNo)
-                        + " clone sn: " + std::to_string(ctx->clones[i].cloneSn);
+                + " clone sn: " + std::to_string(ctx->clones[i].cloneSn);
         }
         DVLOG(3) << "ReadChunk chunk with clone info: "
                   << " logic pool id: " << request_->logicpoolid()
@@ -515,19 +523,19 @@ void WriteChunkRequest::OnApply(uint64_t index,
                             request_->clonefileoffset());
     }
 
-    if ((false == request_->has_originfileid()) || (request_->originfileid() == 0)) {
+    if ((false == request_->has_originfileid()) ||
+        (request_->originfileid() == 0)) {
         ret = datastore_->WriteChunk(request_->chunkid(),
-                                      request_->sn(),
-                                      cntl_->request_attachment(),
-                                      request_->offset(),
-                                      request_->size(),
-                                      request_->chunkindex(),
-                                      request_->fileid(),
-                                      &cost,
-                                      std::make_shared<SnapContext>(getSnapIds(request_)),
-                                      cloneSourceLocation);
+            request_->sn(),
+            cntl_->request_attachment(),
+            request_->offset(),
+            request_->size(),
+            request_->chunkindex(),
+            request_->fileid(),
+            &cost,
+            std::make_shared<SnapContext>(getSnapIds(request_)),
+            cloneSourceLocation);
     } else {
-
         std::unique_ptr<struct CloneContext> ctx(new CloneContext());
 
         ctx->cloneNo = request_->fileid();
@@ -544,7 +552,7 @@ void WriteChunkRequest::OnApply(uint64_t index,
         string clonesinfo = "";
         for (int i = 0; i < ctx->clones.size(); i++) {
             clonesinfo += " clone no: " + std::to_string(ctx->clones[i].cloneNo)
-                        + " clone sn: " + std::to_string(ctx->clones[i].cloneSn);
+                + " clone sn: " + std::to_string(ctx->clones[i].cloneSn);
         }
         DVLOG(3) << "WriteChunkRequest::OnApply with clone info: "
                   << " logic pool id: " << request_->logicpoolid()
@@ -559,15 +567,15 @@ void WriteChunkRequest::OnApply(uint64_t index,
                   << " clones info: " << clonesinfo;
 
         ret = datastore_->WriteChunk(request_->chunkid(),
-                                    request_->sn(),
-                                    cntl_->request_attachment(),
-                                    request_->offset(),
-                                    request_->size(),
-                                    request_->chunkindex(),
-                                    request_->fileid(),
-                                    &cost,
-                                    std::make_shared<SnapContext>(getSnapIds(request_)),
-                                    ctx);
+            request_->sn(),
+            cntl_->request_attachment(),
+            request_->offset(),
+            request_->size(),
+            request_->chunkindex(),
+            request_->fileid(),
+            &cost,
+            std::make_shared<SnapContext>(getSnapIds(request_)),
+            ctx);
     }
 
     if (CSErrorCode::Success == ret) {
@@ -627,19 +635,19 @@ void WriteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
     }
 
     CSErrorCode ret = CSErrorCode::Success;
-    if ((false == request.has_originfileid()) || (request.originfileid() == 0)) {
+    if ((false == request.has_originfileid()) ||
+        (request.originfileid() == 0)) {
     auto ret = datastore->WriteChunk(request.chunkid(),
-                                     request.sn(),
-                                     data,
-                                     request.offset(),
-                                     request.size(),
-                                     request.chunkindex(),
-                                     request.fileid(),
-                                     &cost,
-                                     std::make_shared<SnapContext>(getSnapIds(&request)),
-                                     cloneSourceLocation);
+        request.sn(),
+        data,
+        request.offset(),
+        request.size(),
+        request.chunkindex(),
+        request.fileid(),
+        &cost,
+        std::make_shared<SnapContext>(getSnapIds(&request)),
+        cloneSourceLocation);
     } else {
-        
         std::unique_ptr<struct CloneContext> ctx(new CloneContext());
 
         ctx->cloneNo = request.fileid();
@@ -656,7 +664,7 @@ void WriteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
         string clonesinfo = "";
         for (int i = 0; i < ctx->clones.size(); i++) {
             clonesinfo += " clone no: " + std::to_string(ctx->clones[i].cloneNo)
-                        + " clone sn: " + std::to_string(ctx->clones[i].cloneSn);
+                + " clone sn: " + std::to_string(ctx->clones[i].cloneSn);
         }
         DVLOG(3) << "WriteChunkRequest::OnApplyFromLog with clone info: "
                   << " logic pool id: " << request.logicpoolid()
@@ -669,19 +677,18 @@ void WriteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                   << " root id: " << request.originfileid()
                   << " virtual id: " << request.chunkindex()
                   << " clones info: " << clonesinfo;
-        
+
 
         ret = datastore->WriteChunk(request.chunkid(),
-                                    request.sn(),
-                                    data,
-                                    request.offset(),
-                                    request.size(),
-                                    request.chunkindex(),
-                                    request.fileid(),
-                                    &cost,
-                                    std::make_shared<SnapContext>(getSnapIds(&request)),
-                                    ctx);
-
+            request.sn(),
+            data,
+            request.offset(),
+            request.size(),
+            request.chunkindex(),
+            request.fileid(),
+            &cost,
+            std::make_shared<SnapContext>(getSnapIds(&request)),
+            ctx);
     }
 
      if (CSErrorCode::Success == ret) {
@@ -721,17 +728,18 @@ void ReadSnapshotRequest::OnApply(uint64_t index,
     readBuffer = new(std::nothrow)char[size];
     CHECK(nullptr != readBuffer) << "new readBuffer failed, "
                                  << errno << ":" << strerror(errno);
-    
-    if ((false == request_->has_originfileid()) || (request_->originfileid() == 0)) {
+
+    if ((false == request_->has_originfileid()) ||
+        (request_->originfileid() == 0)) {
         ret = datastore_->ReadSnapshotChunk(request_->chunkid(),
-                                             request_->sn(),
-                                             readBuffer,
-                                             request_->offset(),
-                                             request_->size(),
-                                             std::make_shared<SnapContext>(getSnapIds(request_)));
+             request_->sn(),
+             readBuffer,
+             request_->offset(),
+             request_->size(),
+             std::make_shared<SnapContext>(getSnapIds(request_)));
     } else {
         std::unique_ptr<CloneContext> ctx(new CloneContext());
-        
+
         ctx->cloneNo = request_->fileid();
         ctx->rootId = request_->originfileid();
         ctx->virtualId = request_->chunkindex();
@@ -747,7 +755,7 @@ void ReadSnapshotRequest::OnApply(uint64_t index,
         string clonesinfo = "";
         for (int i = 0; i < ctx->clones.size(); i++) {
             clonesinfo += " clone no: " + std::to_string(ctx->clones[i].cloneNo)
-                        + " clone sn: " + std::to_string(ctx->clones[i].cloneSn);
+                + " clone sn: " + std::to_string(ctx->clones[i].cloneSn);
         }
         DVLOG(3) << "ReadSnapshotRequest::OnApply info: "
                   << " logic pool id: " << request_->logicpoolid()
@@ -762,12 +770,12 @@ void ReadSnapshotRequest::OnApply(uint64_t index,
                   << " clones info: " << clonesinfo;
 
         ret = datastore_->ReadSnapshotChunk(request_->chunkid(),
-                                            request_->sn(),
-                                            readBuffer,
-                                            request_->offset(),
-                                            request_->size(),
-                                            std::make_shared<SnapContext>(getSnapIds(request_)),
-                                            ctx);
+            request_->sn(),
+            readBuffer,
+            request_->offset(),
+            request_->size(),
+            std::make_shared<SnapContext>(getSnapIds(request_)),
+            ctx);
     }
 
     butil::IOBuf wrapper;
@@ -790,7 +798,8 @@ void ReadSnapshotRequest::OnApply(uint64_t index,
             response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST); //NOLINT
             break;
         }
-        std::string snapsStr = request_->snaps_size() == 0 ? "empty": std::to_string(request_->snaps(request_->snaps_size()-1));
+        std::string snapsStr = request_->snaps_size() == 0 ? "empty":
+            std::to_string(request_->snaps(request_->snaps_size()-1));
         /**
          * 3.internal error
          */
@@ -839,7 +848,8 @@ void DeleteSnapshotRequest::OnApply(uint64_t index,
                                     ::google::protobuf::Closure *done) {
     brpc::ClosureGuard doneGuard(done);
     CSErrorCode ret = datastore_->DeleteSnapshotChunk(
-        request_->chunkid(), request_->snapsn(), std::make_shared<SnapContext>(getSnapIds(request_)));
+        request_->chunkid(), request_->snapsn(),
+        std::make_shared<SnapContext>(getSnapIds(request_)));
     if (CSErrorCode::Success == ret) {
         response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
         node_->UpdateAppliedIndex(index);
@@ -879,7 +889,8 @@ void DeleteSnapshotRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastor
                                            const butil::IOBuf &data) {
     // NOTE: 处理过程中优先使用参数传入的datastore/request
     auto ret = datastore->DeleteSnapshotChunk(
-        request.chunkid(), request.snapsn(), std::make_shared<SnapContext>(getSnapIds(&request)));
+        request.chunkid(), request.snapsn(),
+        std::make_shared<SnapContext>(getSnapIds(&request)));
     if (CSErrorCode::Success == ret) {
         return;
     } else if (CSErrorCode::BackwardRequestError == ret) {
@@ -1085,7 +1096,6 @@ FlattenChunkRequest::FlattenChunkRequest(std::shared_ptr<CopysetNode> nodePtr,
                                         ChunkResponse *response,
                                         ::google::protobuf::Closure *done) :
     ChunkOpRequest(nodePtr, cntl, request, response, done) {
-
 }
 
 void FlattenChunkRequest::OnApply(uint64_t index,
@@ -1125,10 +1135,10 @@ void FlattenChunkRequest::OnApply(uint64_t index,
                 << " virtual id: " << request_->chunkindex()
                 << " clones info: " << clonesinfo;
 
-    ret = datastore_->FlattenChunk(request_->chunkid(), 
-                                request_->sn(), 
-                                request_->offset(), 
-                                request_->size(), 
+    ret = datastore_->FlattenChunk(request_->chunkid(),
+                                request_->sn(),
+                                request_->offset(),
+                                request_->size(),
                                 ctx);
 
     if (CSErrorCode::Success == ret) {
@@ -1208,11 +1218,11 @@ void FlattenChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                 << " root id: " << request.originfileid()
                 << " virtual id: " << request.chunkindex()
                 << " clones info: " << clonesinfo;
-    
-    ret = datastore->FlattenChunk(request.chunkid(), 
-                                request.sn(), 
-                                request.offset(), 
-                                request.size(), 
+
+    ret = datastore->FlattenChunk(request.chunkid(),
+                                request.sn(),
+                                request.offset(),
+                                request.size(),
                                 ctx);
 
     if (CSErrorCode::Success == ret) {

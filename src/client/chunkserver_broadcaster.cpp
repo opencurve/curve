@@ -22,6 +22,8 @@
 
 #include "src/client/chunkserver_broadcaster.h"
 
+#include <memory>
+
 #include "src/common/task_tracker.h"
 
 using ::curve::common::TaskTracker;

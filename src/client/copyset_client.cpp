@@ -26,6 +26,7 @@
 #include <unistd.h>
 #include <memory>
 #include <utility>
+#include <vector>
 
 #include "src/client/request_sender.h"
 #include "src/client/metacache.h"
@@ -183,11 +184,13 @@ int CopysetClient::ReadChunk(RequestContext* ctx,
 }
 
 int CopysetClient::ReadChunkSnapshot(const ChunkIDInfo& idinfo,
-    uint64_t sn, const std::vector<uint64_t>& snaps, off_t offset, size_t length, Closure *done) {
+    uint64_t sn, const std::vector<uint64_t>& snaps,
+    off_t offset, size_t length, Closure *done) {
 
     auto task = [&](Closure* done, std::shared_ptr<RequestSender> senderPtr) {
         ReadChunkSnapClosure *readDone = new ReadChunkSnapClosure(this, done);
-        senderPtr->ReadChunkSnapshot(idinfo, sn, snaps, offset, length, readDone);
+        senderPtr->ReadChunkSnapshot(
+            idinfo, sn, snaps, offset, length, readDone);
     };
 
     return DoRPCTask(idinfo, task, done);

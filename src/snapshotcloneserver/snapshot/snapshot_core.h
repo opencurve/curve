@@ -128,7 +128,7 @@ class SnapshotCore {
      */
     virtual int HandleCreateSyncSnapshotTask(
         std::shared_ptr<SnapshotTaskInfo> task) = 0;
-        
+
 
     /**
      * @brief 删除快照前置操作
@@ -269,7 +269,7 @@ class SnapshotCoreImpl : public SnapshotCore {
 
     void HandleCreateSnapshotTask(
         std::shared_ptr<SnapshotTaskInfo> task) override;
-        
+
     int HandleCreateSyncSnapshotTask(
         std::shared_ptr<SnapshotTaskInfo> task) override;
 
@@ -348,10 +348,11 @@ class SnapshotCoreImpl : public SnapshotCore {
      *
      * @param info 快照信息
      * @param task 快照删除任务，用于更新删除进度
-     * 
+     *
      * @return 错误码
      */
-    int DeleteSnapshotOnCurvefs(const SnapshotInfo &info, std::shared_ptr<SnapshotTaskInfo> task = nullptr);
+    int DeleteSnapshotOnCurvefs(const SnapshotInfo &info,
+        std::shared_ptr<SnapshotTaskInfo> task = nullptr);
 
     /**
      * @brief 构建索引块

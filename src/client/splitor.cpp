@@ -76,7 +76,8 @@ int Splitor::IO2ChunkRequests(IOTracker* iotracker, MetaCache* metaCache,
 int Splitor::SingleChunkIO2ChunkRequests(
     IOTracker* iotracker, MetaCache* metaCache,
     std::vector<RequestContext*>* targetlist, const ChunkIDInfo& idinfo,
-    butil::IOBuf* data, off_t offset, uint64_t length, uint64_t seq, const std::vector<uint64_t>& snaps) {
+    butil::IOBuf* data, off_t offset, uint64_t length, uint64_t seq,
+    const std::vector<uint64_t>& snaps) {
     if (targetlist == nullptr || metaCache == nullptr || iotracker == nullptr) {
         return -1;
     }
@@ -87,9 +88,10 @@ int Splitor::SingleChunkIO2ChunkRequests(
 
     if (iotracker->Optype() == OpType::READ_SNAP) {
         auto it = std::find(snaps.begin(), snaps.end(), seq);
-        if (it == snaps.end() ) {
+        if (it == snaps.end()) {
             LOG(ERROR) << "Invalid READ_SNAP request, snap sn = " << seq
-                       << ", not contained in snaps [" << Snaps2Str(snaps) << "]";
+                       << ", not contained in snaps ["
+                       << Snaps2Str(snaps) << "]";
             return -1;
         }
     }
@@ -156,7 +158,8 @@ bool Splitor::AssignInternal(IOTracker* iotracker, MetaCache* metaCache,
     if (NeedGetOrAllocateSegment(errCode, iotracker->Optype(), chunkIdInfo,
                                  metaCache)) {
         bool isAllocateSegment =
-           (iotracker->Optype() == OpType::READ || iotracker->Optype() == OpType::READ_SNAP) ? false : true;
+           (iotracker->Optype() == OpType::READ ||
+            iotracker->Optype() == OpType::READ_SNAP) ? false : true;
         if (false == GetOrAllocateSegment(
                          isAllocateSegment,
                          static_cast<uint64_t>(chunkidx) * fileInfo->chunksize,
@@ -179,8 +182,11 @@ bool Splitor::AssignInternal(IOTracker* iotracker, MetaCache* metaCache,
 
         std::vector<RequestContext*> templist;
         ret = SingleChunkIO2ChunkRequests(iotracker, metaCache, &templist,
-                                          chunkIdInfo, data, off, len,
-                                          (iotracker->Optype() == OpType::READ_SNAP? fileInfo->snapSeqnum : fileInfo->seqnum), fileInfo->snaps);
+            chunkIdInfo, data, off, len,
+            (iotracker->Optype() == OpType::READ_SNAP?
+                fileInfo->snapSeqnum :
+                fileInfo->seqnum),
+            fileInfo->snaps);
         if (ret != 0) {
             LOG(ERROR) << "SingleChunkIO2ChunkRequests return ret: " << ret;
             return false;
@@ -201,7 +207,7 @@ bool Splitor::AssignInternal(IOTracker* iotracker, MetaCache* metaCache,
         }
         if (fileInfo->filetype == FileType::INODE_CLONE_PAGEFILE) {
             ret = AssignCloneFileInfo(
-                iotracker, &templist, mdsclient, 
+                iotracker, &templist, mdsclient,
                 fileInfo, chunkidx, chunkIdInfo);
         }
 
@@ -311,7 +317,7 @@ int Splitor::SplitForNormal(IOTracker* iotracker, MetaCache* metaCache,
         uint64_t requestLength =
             std::min(currentChunkEndOffset, endRequestOffest) -
             currentRequestOffset;
-        
+
         DVLOG(9) << "request split"
                  << ", off = " << currentChunkOffset
                  << ", len = " << requestLength

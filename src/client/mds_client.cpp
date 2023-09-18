@@ -1235,7 +1235,7 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate, uint64_t offset,
             ChunkID chunkid = pfs.chunks(i).chunkid();
             CopysetID copysetid = pfs.chunks(i).copysetid();
             segInfo->lpcpIDInfo.cpidVec.push_back(copysetid);
-            segInfo->chunkvec.emplace_back(chunkid, logicpoolid, copysetid, 
+            segInfo->chunkvec.emplace_back(chunkid, logicpoolid, copysetid,
                 pfs.originfileid());
         }
         return LIBCURVE_ERROR::OK;

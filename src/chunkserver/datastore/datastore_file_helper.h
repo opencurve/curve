@@ -79,6 +79,7 @@ class DatastoreFileHelper {
     static bool IsChunkFile(const string& fileName);
 
     static uint64_t GetChunkFileID(const string& fileName);
+
  private:
     std::shared_ptr<LocalFileSystem> fs_;
 };

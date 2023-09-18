@@ -73,7 +73,7 @@ TEST_F(SnapshotTestSuit, SnapshotTest) {
                                        buf1_1,
                                        offset,
                                        length,
-                                       chunkIndex, // chunkIndex
+                                       chunkIndex,  // chunkIndex
                                        fileId,  // file id
                                        nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
@@ -89,7 +89,7 @@ TEST_F(SnapshotTestSuit, SnapshotTest) {
     length = 1 * PAGE_SIZE;
     char buf1_2[3 * PAGE_SIZE];
     memset(buf1_2, '2', 3 * PAGE_SIZE);
-    
+
     std::shared_ptr<SnapContext> context = std::make_shared<SnapContext>(snaps);
     errorCode = dataStore_->WriteChunk(id1,  // id
                                        fileSn,
@@ -346,8 +346,8 @@ TEST_F(SnapshotTestSuit, SnapshotTest) {
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(2, chunk2Info.curSn);
     ASSERT_EQ(0, chunk2Info.snapSn);
-    //not use correctedSn just skip the assert
-    //ASSERT_EQ(fileSn, chunk2Info.correctedSn);
+    // not use correctedSn just skip the assert
+    // ASSERT_EQ(fileSn, chunk2Info.correctedSn);
 
     // 向chunk2的[0KB, 4KB)区域写入数据 “b”
     offset = 0;
@@ -369,8 +369,8 @@ TEST_F(SnapshotTestSuit, SnapshotTest) {
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(fileSn, chunk2Info.curSn);
     ASSERT_EQ(0, chunk2Info.snapSn);
-    //not use correctedSn just skip the assert
-    //ASSERT_EQ(fileSn, chunk2Info.correctedSn);
+    // not use correctedSn just skip the assert
+    // ASSERT_EQ(fileSn, chunk2Info.correctedSn);
 
     // 再次向chunk2的[0KB, 8KB)区域写入数据
     errorCode = dataStore_->WriteChunk(id2,  // id
@@ -387,8 +387,8 @@ TEST_F(SnapshotTestSuit, SnapshotTest) {
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(fileSn, chunk2Info.curSn);
     ASSERT_EQ(0, chunk2Info.snapSn);
-    //not use correctedSn just skip the assert
-    //ASSERT_EQ(fileSn, chunk2Info.correctedSn);
+    // not use correctedSn just skip the assert
+    // ASSERT_EQ(fileSn, chunk2Info.correctedSn);
 
     /******************场景五：用户删除文件******************/
 

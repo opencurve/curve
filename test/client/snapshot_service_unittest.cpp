@@ -544,7 +544,8 @@ TEST(SnapInstance, ReadChunkSnapshotTest) {
 
     mocksch->EnableScheduleFailed();
     ASSERT_EQ(0,
-    ioctxmana->ReadSnapChunk(ChunkIDInfo(cid, 2, 3), 0, {0}, 0, len, buf, &scc2));
+    ioctxmana->ReadSnapChunk(
+        ChunkIDInfo(cid, 2, 3), 0, {0}, 0, len, buf, &scc2));
 
     cl.UnInit();
 }

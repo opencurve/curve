@@ -134,7 +134,7 @@ bool TopologyChunkAllocatorImpl::ChooseSingleLogicalPool(
 
     LogicalPoolType poolType;
     switch (fileType) {
-    case INODE_PAGEFILE: 
+    case INODE_PAGEFILE:
     case INODE_CLONE_PAGEFILE: {
         poolType = LogicalPoolType::PAGEFILE;
         break;
@@ -205,7 +205,7 @@ void TopologyChunkAllocatorImpl::GetRemainingSpaceInLogicalPool(
         uint64_t diskCapacity = 0;
         uint64_t logicalCapacity = 0;
         double available = available_;
-    
+
         PhysicalPoolStat poolStat;
         topoStat_->GetPhysicalPoolStat(lPool.GetPhysicalPoolId(), &poolStat);
         if (chunkFilePoolAllocHelp_->GetUseChunkFilepool()) {
@@ -251,8 +251,8 @@ void TopologyChunkAllocatorImpl::GetRemainingSpaceInLogicalPool(
                   << ", isSomeCSFull: " << isSomeCSFull
                   << "}";
 
-        if ((diskRemianning > 0) && 
-            (allocRemainning > 0) && 
+        if ((diskRemianning > 0) &&
+            (allocRemainning > 0) &&
             !isSomeCSFull) {
             (*enoughSpacePools)[pid] = diskRemianning;
         }

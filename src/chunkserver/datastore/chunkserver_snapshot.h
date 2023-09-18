@@ -27,6 +27,7 @@
 #include <string>
 #include <memory>
 #include <set>
+#include <vector>
 
 #include "src/common/bitmap.h"
 #include "src/common/crc32.h"
@@ -149,7 +150,8 @@ class CSSnapshot {
     /**
      * Read in ranges
     */
-    CSErrorCode ReadRanges(char *buf, off_t offset, size_t length, std::vector<BitRange>& ranges);
+    CSErrorCode ReadRanges(char *buf, off_t offset, size_t length,
+        std::vector<BitRange>& ranges);   // NOLINT
 
     inline string path() {
         return baseDir_ + "/" +
@@ -211,30 +213,33 @@ class CSSnapshot {
 
 class CSSnapshots {
  public:
-    CSSnapshots(ChunkSizeType size): blockSize_(size) {
+    explicit CSSnapshots(ChunkSizeType size): blockSize_(size) {
         uint32_t bit_wiz = 0;
         uint32_t index = size;
         while (index >>= 1) ++bit_wiz;
 
         blockSize_shift_ = bit_wiz;
     }
-    
+
     bool insert(CSSnapshot* s);
     CSSnapshot* pop(SequenceNum sn);
     bool contains(SequenceNum sn) const;
     SequenceNum getCurrentSn() const;
     CSSnapshot* getCurrentSnapshot();
-    CSErrorCode Read(SequenceNum sn, char * buf, off_t offset, size_t length, vector<BitRange>* clearRanges);
-    CSErrorCode Delete(CSChunkFile* chunkf, SequenceNum sn, std::shared_ptr<SnapContext> ctx);
+    CSErrorCode Read(
+        SequenceNum sn, char * buf, off_t offset, size_t length,
+        vector<BitRange>* clearRanges);
+    CSErrorCode Delete(
+        CSChunkFile* chunkf, SequenceNum sn, std::shared_ptr<SnapContext> ctx);
 
     CSErrorCode Move(SequenceNum from, SequenceNum to);
     CSErrorCode Merge(SequenceNum from, SequenceNum to);
     virtual ~CSSnapshots();
 
-    
-    bool DivideSnapshotObjInfoByIndex (SequenceNum sn, std::vector<BitRange>& range, 
-                                    std::vector<BitRange>& notInRanges, 
-                                    std::vector<ObjectInfo>& objInfos);
+    bool DivideSnapshotObjInfoByIndex(SequenceNum sn,
+        std::vector<BitRange>& range,  // NOLINT
+        std::vector<BitRange>& notInRanges,  // NOLINT
+        std::vector<ObjectInfo>& objInfos); // NOLINT
 
  private:
     std::vector<CSSnapshot*>::iterator find(SequenceNum sn);

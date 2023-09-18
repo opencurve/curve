@@ -28,6 +28,7 @@
 #include <vector>
 #include <map>
 #include <string>
+#include <list>
 #include "src/mds/topology/topology_chunk_allocator.h"
 
 using ::curve::mds::topology::TopologyChunkAllocator;

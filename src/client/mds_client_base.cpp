@@ -362,7 +362,7 @@ void MDSClientBase::Clone(const std::string& source,
     CloneResponse* response,
     brpc::Controller* cntl,
     brpc::Channel* channel) {
-    CloneRequest request; 
+    CloneRequest request;
     request.set_filename(destination);
     FillUserInfo(&request, userinfo);
 

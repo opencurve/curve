@@ -26,6 +26,8 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <vector>
+
 #include "src/mds/chunkserverclient/copyset_client.h"
 
 namespace curve {

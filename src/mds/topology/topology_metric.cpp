@@ -218,7 +218,8 @@ void TopologyMetricService::UpdateTopologyMetrics() {
         if (pool.GetReplicaNum() != 0) {
             if (chunkFilePoolAllocHelp_->GetUseChunkFilepool()) {
                 PhysicalPoolStat poolStat;
-                topoStat_->GetPhysicalPoolStat(pool.GetPhysicalPoolId(), &poolStat);
+                topoStat_->GetPhysicalPoolStat(
+                     pool.GetPhysicalPoolId(), &poolStat);
                 uint64_t diskCapacity = poolStat.chunkFilePoolSize *
                     chunkFilePoolAllocHelp_->GetAvailable() / 100;
                 it->second->logicalCapacity.set_value(
