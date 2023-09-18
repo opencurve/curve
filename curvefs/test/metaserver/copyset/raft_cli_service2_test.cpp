@@ -20,6 +20,8 @@
  * Author: wuhanqing
  */
 
+#include "curvefs/src/metaserver/copyset/raft_cli_service2.h"
+
 #include <brpc/server.h>
 #include <butil/endpoint.h>
 #include <butil/status.h>
@@ -27,12 +29,12 @@
 #include <glog/logging.h>
 #include <google/protobuf/util/message_differencer.h>
 #include <gtest/gtest.h>
+#include <unistd.h>
 
 #include <utility>
 
 #include "curvefs/src/metaserver/copyset/copyset_node_manager.h"
 #include "curvefs/src/metaserver/copyset/raft_cli2.h"
-#include "curvefs/src/metaserver/copyset/raft_cli_service2.h"
 #include "src/common/uuid.h"
 #include "src/fs/local_filesystem.h"
 
@@ -470,6 +472,7 @@ TEST_F(RaftCliService2Test, ChangePeerTest) {
 
     // change peer succeed
     {
+        sleep(20);
         ChangePeersRequest2 request;
         ChangePeersResponse2 response;
         SetRequestPoolAndCopysetId(&request);

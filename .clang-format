@@ -9,4 +9,7 @@ Language: Proto
 BasedOnStyle:  Google
 IndentWidth:     4
 ColumnLimit:     120
+---
+Language: Json
+DisableFormat: true
 ...
