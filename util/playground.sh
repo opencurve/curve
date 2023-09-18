@@ -8,7 +8,7 @@
 g_obm_cfg=".obm.cfg"
 g_worker_dir="/curve"
 g_container_name="curve-build-playground.master"
-g_container_image="opencurvedocker/curve-base:build-debian9"
+g_container_image="opencurvedocker/curve-base:build-debian11"
 g_init_script=$(cat << EOF
 useradd -m -s /bin/bash -N -u $UID $USER
 echo "${USER} ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers
