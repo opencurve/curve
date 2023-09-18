@@ -24,6 +24,8 @@
 #define SRC_MDS_NAMESERVER2_TASK_MANAGER_H_
 
 #include <map>
+#include <memory>
+
 #include "src/common/concurrent/task_thread_pool.h"
 #include "src/mds/nameserver2/clean_task.h"
 
@@ -85,7 +87,7 @@ class TaskManager {
     bool SubmitTask(const std::shared_ptr<CancelableTask> &task);
 
     bool CancelTask(uint64_t taskId) {
-        // TODO(xuchaojie); 任务取消
+        // TODO(xuchaojie): 任务取消
         return false;
     }
 

@@ -75,14 +75,15 @@ StoreStatus NameServerStorageImp::PutFile(const FileInfo &fileInfo) {
 StoreStatus NameServerStorageImp::GetFile(InodeID parentid,
                                           const std::string &filename,
                                           FileInfo *fileInfo) {
-    return GetFileInternal(FileType::INODE_PAGEFILE, parentid, filename, fileInfo);
+    return GetFileInternal(
+        FileType::INODE_PAGEFILE, parentid, filename, fileInfo);
 }
 
 StoreStatus NameServerStorageImp::GetSnapFile(InodeID parentid,
                                           const std::string &filename,
                                           FileInfo *fileInfo) {
-    return GetFileInternal(FileType::INODE_SNAPSHOT_PAGEFILE, parentid, filename,
-        fileInfo);
+    return GetFileInternal(
+        FileType::INODE_SNAPSHOT_PAGEFILE, parentid, filename, fileInfo);
 }
 
 StoreStatus NameServerStorageImp::GetFileInternal(FileType type,
@@ -376,7 +377,8 @@ StoreStatus NameServerStorageImp::MoveFileToRecycle(
     return getErrorCode(errCode);
 }
 
-StoreStatus NameServerStorageImp::MoveCloneFileToRecycle(const FileInfo &originFileInfo,
+StoreStatus NameServerStorageImp::MoveCloneFileToRecycle(
+    const FileInfo &originFileInfo,
     const FileInfo &snapshotFileInfo,
     const FileInfo &recycleFileInfo) {
     std::string originFileInfoKey;

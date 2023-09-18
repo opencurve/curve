@@ -77,10 +77,9 @@ inline bool isPathValid(const std::string path) {
     return true;
 }
 
-const std::string kfilePathSeprator = "/";
-const std::string kSnapPathSeprator = "@";
+const char kSnapPathSeprator[] = "@";
 
-inline std::string MakeSnapshotPath(const std::string &filePath, 
+inline std::string MakeSnapshotPath(const std::string &filePath,
     const std::string &snapName) {
     return filePath + kSnapPathSeprator + snapName;
 }

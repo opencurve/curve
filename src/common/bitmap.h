@@ -172,7 +172,7 @@ class Bitmap {
         Initialize the bitmap with buf
         return value is the bitmap size
     */
-   uint32_t initialize(char *buf);
+    uint32_t initialize(char *buf);
 
  private:
     // bitmap的字节数

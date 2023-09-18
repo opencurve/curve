@@ -122,8 +122,9 @@ class SnapshotClient {
    * @param: scc是异步回调
    * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
    */
-  int ReadChunkSnapshot(ChunkIDInfo cidinfo, uint64_t seq, const std::vector<uint64_t>& snaps, uint64_t offset,
-                        uint64_t len, char *buf, SnapCloneClosure* scc);
+  int ReadChunkSnapshot(ChunkIDInfo cidinfo, uint64_t seq,
+        const std::vector<uint64_t>& snaps, uint64_t offset,
+        uint64_t len, char *buf, SnapCloneClosure* scc);
   /**
    * 删除此次转储时产生的或者历史遗留的快照
    * 如果转储过程中没有产生快照，则修改chunk的correctedSn

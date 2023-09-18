@@ -26,6 +26,8 @@
 #include <chrono>  //NOLINT
 #include <thread>  //NOLINT
 #include <utility>
+#include <algorithm>
+#include <vector>
 
 using ::curve::mds::topology::ChunkServer;
 using ::curve::mds::topology::SplitPeerId;
@@ -171,7 +173,7 @@ int ChunkServerClient::DeleteChunkSnapshot(
     request.set_copysetid(copysetId);
     request.set_chunkid(chunkId);
     request.set_snapsn(snapSn);
-    for (auto snap: snaps) {
+    for (auto snap : snaps) {
         request.add_snaps(snap);
     }
 
@@ -180,7 +182,6 @@ int ChunkServerClient::DeleteChunkSnapshot(
     do {
         cntl.Reset();
         cntl.set_timeout_ms(retryOps_.rpcTimeoutMs);
-        //stub.DeleteChunkSnapshot(&cntl,
         // 这里目前还是维持的旧的删除RPC接口，后面根据新旧快照兼容方案来修改
         stub.DeleteChunkSnapshotOrCorrectSn(&cntl,
             &request,
@@ -455,7 +456,7 @@ int ChunkServerClient::GetOrInitChannel(ChunkServerIdType csId,
 
 int ChunkServerClient::FlattenChunk(
     ChunkServerIdType leaderId,
-    const std::shared_ptr<FlattenChunkContext> &ctx, 
+    const std::shared_ptr<FlattenChunkContext> &ctx,
     ChunkServerClientClosure* done) {
     std::unique_ptr<FlattenChunkRpcContext> rpcCtx(new FlattenChunkRpcContext);
 
@@ -515,7 +516,7 @@ void ChunkServerClient::OnFlattenChunkReturned(FlattenChunkRpcContext *ctx) {
             ctx->cntl.ErrorCode() == ECONNRESET ||
             ctx->cntl.ErrorCode() == ECONNREFUSED) {
             ctx->done->SetErrCode(kCsClientCSOffline);
-            return; 
+            return;
         }
 
         if (ctx->curTry < ctx->retryOps_.rpcRetryTimes) {

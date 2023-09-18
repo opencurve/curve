@@ -58,7 +58,8 @@ class TestTopologyChunkAllocator : public ::testing::Test {
         chunkFilePoolAllocHelp_ =
                 std::make_shared<ChunkFilePoolAllocHelp>();
         chunkFilePoolAllocHelp_->UpdateChunkFilePoolAllocConfig(true, true, 15);
-        topoStat_ = std::make_shared<TopologyStatImpl>(topology_, chunkFilePoolAllocHelp_);
+        topoStat_ = std::make_shared<TopologyStatImpl>(
+            topology_, chunkFilePoolAllocHelp_);
         TopologyOption option;
         option.PoolUsagePercentLimit = 85;
         option.enableLogicalPoolStatus = true;

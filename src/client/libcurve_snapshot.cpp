@@ -156,7 +156,8 @@ int SnapshotClient::CheckSnapShotStatus(const std::string& filename,
                                         FileStatus* filestatus,
                                         uint32_t* progress) {
     LIBCURVE_ERROR ret = mdsclient_.CheckSnapShotStatus(filename, userinfo,
-                                                        seq, filestatus, progress);
+                                                        seq,
+                                                        filestatus, progress);
     return -ret;
 }
 
@@ -305,7 +306,8 @@ int SnapshotClient::ReadChunkSnapshot(ChunkIDInfo cidinfo,
                                         uint64_t len,
                                         char *buf,
                                         SnapCloneClosure* scc) {
-    return iomanager4chunk_.ReadSnapChunk(cidinfo, seq, snaps, offset, len, buf, scc);
+    return iomanager4chunk_.ReadSnapChunk(cidinfo, seq, snaps,
+        offset, len, buf, scc);
 }
 
 int SnapshotClient::DeleteChunkSnapshotOrCorrectSn(

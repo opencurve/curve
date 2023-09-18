@@ -27,6 +27,7 @@
 #include <mutex>    // NOLINT
 #include <string>
 #include <condition_variable>   // NOLINT
+#include <vector>
 
 #include "src/client/metacache.h"
 #include "src/client/iomanager.h"

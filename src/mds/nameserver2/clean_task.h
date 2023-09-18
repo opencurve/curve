@@ -29,6 +29,9 @@
 #include <map>
 #include <unordered_set>
 #include <condition_variable>
+#include <vector>
+#include <utility>
+
 #include "src/common/concurrent/concurrent.h"
 #include <brpc/closure_guard.h>  //NOLINT
 #include <brpc/controller.h>    //NOLINT
@@ -157,18 +160,23 @@ class SnapShotCleanTask2: public Task {
         mdsSessionTimeUs_ = mdsSessionTimeUs;
     }
     void Run(void) override {
-        // 删除快照需等待2个session时间，以保证seq同步到所有client，否则client历史
-        // 的seq下发到chunkserver可能导致已删除的chunk snapshot再次COW生成而遗留。
+        // 删除快照需等待2个session时间，以保证seq同步到所有client，
+        // 否则client历史
+        // 的seq下发到chunkserver可能导致已删除的
+        // chunk snapshot再次COW生成而遗留。
         {
             std::unique_lock<common::Mutex> lk(cvMutex_);
             auto now = std::chrono::system_clock::now();
-            if (cv_.wait_until(lk, now + std::chrono::microseconds(mdsSessionTimeUs_ * 2), 
+            if (cv_.wait_until(lk,
+                    now + std::chrono::microseconds(mdsSessionTimeUs_ * 2),
                         [&](){return taskCanRun_;})) {
-                LOG(INFO) << "SnapShotCleanTask2 filename " << fileInfo_.filename()
-                        << " finished waiting";       
+                LOG(INFO) << "SnapShotCleanTask2 filename "
+                    << fileInfo_.filename()
+                    << " finished waiting";
             } else {
-                LOG(WARNING) << "SnapShotCleanTask2 filename " << fileInfo_.filename()
-                        << " wait timeout " << mdsSessionTimeUs_ * 2 << " us."; 
+                LOG(WARNING) << "SnapShotCleanTask2 filename "
+                    << fileInfo_.filename()
+                    << " wait timeout " << mdsSessionTimeUs_ * 2 << " us.";
             }
         }
 
@@ -246,33 +254,38 @@ class SnapShotBatchCleanTask: public Task {
         do {
             auto task = front();
             if (!task) {
-                LOG(INFO) << "SnapShotBatchCleanTask run finished, taskid = " << GetTaskID();
+                LOG(INFO) << "SnapShotBatchCleanTask run finished, taskid = "
+                    << GetTaskID();
                 GetMutableTaskProgress()->SetProgress(100);
                 GetMutableTaskProgress()->SetStatus(TaskStatus::SUCCESS);
                 return;
             }
 
-            LOG(INFO) << "Ready to clean snapshot " << task->GetMutableFileInfo()->filename()
+            LOG(INFO) << "Ready to clean snapshot "
+                      << task->GetMutableFileInfo()->filename()
                       << ", batch taskid = " << GetTaskID();
             // CAUTION: Fill the snaps field of snapshot fileinfo with currently
-            //          existed snapshot file seqnum prior to the snap to be deleted
+            // existed snapshot file seqnum prior to the snap to be deleted
             if (!setCurrentExistingSnaps(task->GetMutableFileInfo())) {
-                LOG(ERROR) << "Unable to get snaps from storage, clean task failed."
-                        << " batch taskid = " << GetTaskID();
+                LOG(ERROR)
+                    << "Unable to get snaps from storage, clean task failed."
+                    << " batch taskid = " << GetTaskID();
                 GetMutableTaskProgress()->SetStatus(TaskStatus::FAILED);
                 return;
             }
             // Start to do snapshot clean task synchronously.
             task->Run();
             if (task->GetTaskProgress().GetStatus() == TaskStatus::SUCCESS) {
-                LOG(INFO) << "Snapshot " << task->GetMutableFileInfo()->filename()
-                        << " cleaned success, batch taskid = " << GetTaskID();
+                LOG(INFO) << "Snapshot "
+                    << task->GetMutableFileInfo()->filename()
+                    << " cleaned success, batch taskid = " << GetTaskID();
                 pop(task->GetMutableFileInfo()->seqnum());
             } else {
-                // Notify CleanTaskManager with failed status and may try 
-                // again before exceeding retry times 
-                LOG(INFO) << "Snapshot " << task->GetMutableFileInfo()->filename()
-                        << " cleaned failed, batch taskid = " << GetTaskID();
+                // Notify CleanTaskManager with failed status and may try
+                // again before exceeding retry times
+                LOG(INFO) << "Snapshot "
+                    << task->GetMutableFileInfo()->filename()
+                    << " cleaned failed, batch taskid = " << GetTaskID();
                 GetMutableTaskProgress()->SetStatus(TaskStatus::FAILED);
                 return;
             }
@@ -281,16 +294,21 @@ class SnapShotBatchCleanTask: public Task {
 
     bool PushTask(const FileInfo &snapfileInfo) {
         common::LockGuard lck(mutexSnapTask_);
-        
-        if (cleanOrderedSnapTasks_.find(snapfileInfo.seqnum()) != cleanOrderedSnapTasks_.end()) {
+
+        if (cleanOrderedSnapTasks_.find(
+            snapfileInfo.seqnum()) != cleanOrderedSnapTasks_.end()) {
             return false;
         }
-        auto task = std::make_shared<SnapShotCleanTask2>(static_cast<TaskIDType>(snapfileInfo.seqnum()), 
-                                    cleanCore_, snapfileInfo, asyncEntity_, mdsSessionTimeUs_);
+        auto task = std::make_shared<SnapShotCleanTask2>(
+            static_cast<TaskIDType>(snapfileInfo.seqnum()),
+                cleanCore_, snapfileInfo, asyncEntity_, mdsSessionTimeUs_);
         task->StartTimer();
-        cleanOrderedSnapTasks_.insert(std::make_pair(static_cast<SeqNum>(snapfileInfo.seqnum()), task));
-        LOG(INFO) << "SnapShotBatchCleanTask push snapshot " << snapfileInfo.filename()
-                  << ", to be deleted snapshot count = " << cleanOrderedSnapTasks_.size()
+        cleanOrderedSnapTasks_.insert(
+            std::make_pair(static_cast<SeqNum>(snapfileInfo.seqnum()), task));
+        LOG(INFO) << "SnapShotBatchCleanTask push snapshot "
+                  << snapfileInfo.filename()
+                  << ", to be deleted snapshot count = "
+                  << cleanOrderedSnapTasks_.size()
                   << ", batch taskid = " << GetTaskID();
         return true;
     }
@@ -303,13 +321,13 @@ class SnapShotBatchCleanTask: public Task {
             return nullptr;
         } else {
             return iter->second;
-        }        
+        }
     }
 
     bool IsEmpty() {
         common::LockGuard lck(mutexSnapTask_);
         return cleanOrderedSnapTasks_.empty();
-    } 
+    }
 
  private:
     std::shared_ptr<SnapShotCleanTask2> front() {
@@ -325,7 +343,8 @@ class SnapShotBatchCleanTask: public Task {
         common::LockGuard lck(mutexSnapTask_);
         cleanOrderedSnapTasks_.erase(sn);
         LOG(INFO) << "SnapShotBatchCleanTask pop snapshot " << sn
-                  << ", remain snapshot count = " << cleanOrderedSnapTasks_.size()
+                  << ", remain snapshot count = "
+                  << cleanOrderedSnapTasks_.size()
                   << ", batch taskid = " << GetTaskID();
     }
 
@@ -343,12 +362,12 @@ class SnapShotBatchCleanTask: public Task {
                                             &snapshotFileInfos);
         if (storeStatus != StoreStatus::KeyNotExist &&
             storeStatus != StoreStatus::OK) {
-            LOG(ERROR) << "snapshot name " << snapshotInfo->filename() 
+            LOG(ERROR) << "snapshot name " << snapshotInfo->filename()
                        << ", storage ListSnapshotFile return " << storeStatus;
             return false;
-        } 
+        }
         snapshotInfo->clear_snaps();
-        for (FileInfo& info:snapshotFileInfos) {
+        for (FileInfo& info : snapshotFileInfos) {
             // only snaps prior to the deleted snapshot matter.
             if (info.seqnum() < snapshotInfo->seqnum()) {
                 snapshotInfo->add_snaps(info.seqnum());
@@ -363,7 +382,8 @@ class SnapShotBatchCleanTask: public Task {
     std::shared_ptr<AsyncDeleteSnapShotEntity> asyncEntity_;
     uint32_t mdsSessionTimeUs_;
     // snapshot clean task ordered by its snap seqnum
-    std::map<SeqNum, std::shared_ptr<SnapShotCleanTask2>> cleanOrderedSnapTasks_;
+    std::map<SeqNum, std::shared_ptr<SnapShotCleanTask2>>
+        cleanOrderedSnapTasks_;
     common::Mutex mutexSnapTask_;
     std::shared_ptr<NameServerStorage> storage_;
 };

@@ -373,11 +373,11 @@ class LocalSnapshotCloneTest: public ::testing::Test {
             std::string data(buf, 4096);
             for (int i = 0; i < data.size(); i++) {
                 if (data[i] != dataSample[i]) {
-                    LOG(ERROR) << "CheckFileData not Equal, offset = " 
+                    LOG(ERROR) << "CheckFileData not Equal, offset = "
                                << i * chunkSize * chunkGap
                                << ", diff i = " << i
                                << ", data = [" << data
-                               << "] , expect data = [" 
+                               << "] , expect data = ["
                                << dataSample << "].";
                     return false;
                 }
@@ -407,7 +407,7 @@ class LocalSnapshotCloneTest: public ::testing::Test {
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         }
         if (FileStatus::Created != fileStatus || progress != 100) {
-            LOG(ERROR) << "WaitFlattenSuccess fail, fileStatus = " 
+            LOG(ERROR) << "WaitFlattenSuccess fail, fileStatus = "
                        << static_cast<int>(fileStatus)
                        << ", progress = " << progress;
             return false;
@@ -443,7 +443,7 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotOnceAndClone) {
     UserInfo_t userinfo1;
     userinfo1.owner = testUser1_;
     ASSERT_EQ(0, snapClient_->CreateSnapShot(testFile1Snap0, userinfo1, &seq0));
-    
+
     // testFile1_写x
     std::string fakeData(4096, 'x');
     ASSERT_TRUE(WriteFile(testFile1_, testUser1_, fakeData));
@@ -559,7 +559,7 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshot3TimesAndClone) {
             &finfo3));
 
     ASSERT_TRUE(CheckFileData(testFile2Clone3, testUser1_, fakeData3));
-    
+
     // 写testFile2，不影响另外3个卷
     std::string fakeData5(4096, 'b');
     ASSERT_TRUE(WriteFile(testFile2_, testUser1_, fakeData5));
@@ -664,7 +664,8 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotAndClone3Times) {
     // 对testFile3Clone11 打快照
     std::string testFile3Clone11Snap1 = testFile3Clone11 + "@snap1";
     uint64_t seq3 = 0;
-    ASSERT_EQ(0, snapClient_->CreateSnapShot(testFile3Clone11Snap1, userinfo1, &seq3));
+    ASSERT_EQ(0, snapClient_->CreateSnapShot(
+        testFile3Clone11Snap1, userinfo1, &seq3));
 
     // testFile3Clone11写a
     std::string fakeData4(4096, 'a');
@@ -819,8 +820,8 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotEmptyAndClone) {
 }
 
 
-} // namespace client
-} // namespace curve
+}  // namespace client
+}  // namespace curve
 
 
 

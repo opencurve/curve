@@ -25,11 +25,12 @@
 
 #include <string>
 #include <memory>
+#include <vector>
 
 #include "include/chunkserver/chunkserver_common.h"
 #include "src/common/bitmap.h"
 
-//switch on/off memory sanity check
+// switch on/off memory sanity check
 #define MEMORY_SANITY_CHECK
 
 namespace curve {
@@ -63,10 +64,10 @@ DECLARE_uint32(minIoAlignment);
 
 #define OBJECTINFO_SIZE 16
 struct ObjectInfo {
-    ObjectInfo() : snapptr (nullptr)
-                 , sn (0)
-                 , offset (0)
-                 , length (0) {}
+    ObjectInfo() : snapptr(nullptr)
+                 , sn(0)
+                 , offset(0)
+                 , length(0) {}
 
     CSSnapshot* snapptr;
     SequenceNum sn;
@@ -82,9 +83,8 @@ struct File_ObjectInfo {
 using File_ObjectInfoPtr = std::unique_ptr<File_ObjectInfo>;
 
 struct File_Object {
-
-    File_Object(CSChunkFilePtr& ptr, struct ObjectInfo info): fileptr(ptr)
-                                                            , obj(info) { }
+    File_Object(CSChunkFilePtr& ptr, struct ObjectInfo info)  // NOLINT
+      : fileptr(ptr) , obj(info) { }
 
     CSChunkFilePtr& fileptr;
     struct ObjectInfo obj;
@@ -133,7 +133,7 @@ enum CSErrorCode {
     PageNerverWrittenError = 13,
     // Thrown when given snapshot is not found for a chunk.
     SnapshotNotExistError = 14,
-    //Flatten Again Flag
+    // Flatten Again Flag
     FlattenAgain = 15,
 };
 
@@ -205,7 +205,7 @@ struct CSChunkInfo {
 
 class SnapContext {
  public:
-    SnapContext(const std::vector<SequenceNum>& snaps);
+    explicit SnapContext(const std::vector<SequenceNum>& snaps);
     virtual ~SnapContext() = default;
 
     static std::shared_ptr<SnapContext> build_empty() {

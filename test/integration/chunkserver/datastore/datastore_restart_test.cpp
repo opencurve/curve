@@ -151,17 +151,17 @@ class ExecStep {
     std::shared_ptr<SnapContext> snapContext_;
 };
 
-//default fileId = 1
-//chunkIndex = chunkId
-//snapContext needs to be set
+// default fileId = 1
+// chunkIndex = chunkId
+// snapContext needs to be set
 class ExecWrite : public ExecStep {
  public:
     ExecWrite(std::shared_ptr<CSDataStore>* datastore, ChunkID id,
               SequenceNum sn, RangeData data)
         : ExecStep(datastore, id)
         , sn_(sn)
-        , data_(data) 
-        , snapContext_(nullptr) 
+        , data_(data)
+        , snapContext_(nullptr)
         , fileId_(1)
         , cloneInfo_(nullptr) {}
 
@@ -188,15 +188,17 @@ class ExecWrite : public ExecStep {
             clone->virtualId = cloneInfo_->virtualId;
             clone->clones = cloneInfo_->clones;
             butil::IOBuf databuf;
-            databuf.append_user_data(const_cast<char*>(buf), data_.length, TrivialDeleter);
+            databuf.append_user_data(
+                const_cast<char*>(buf), data_.length, TrivialDeleter);
             (*datastore_)->WriteChunk(id_, sn_, databuf,
-                                      data_.offset, data_.length, 
-                                      id_, fileId_, nullptr, 
+                                      data_.offset, data_.length,
+                                      id_, fileId_, nullptr,
                                       snapContext_, clone);
         } else {
-            if (snapContext_ == nullptr) {//if the snapContext_ is not set, use the default one
+            if (snapContext_ == nullptr) {
+                // if the snapContext_ is not set, use the default one
                 (*datastore_)->WriteChunk(id_, sn_, buf,
-                                          data_.offset, data_.length, 
+                                          data_.offset, data_.length,
                                           id_, fileId_, nullptr);
             } else {
                 (*datastore_)->WriteChunk(id_, sn_, buf,
@@ -252,12 +254,12 @@ class ExecDelete : public ExecStep {
     ExecDelete(std::shared_ptr<CSDataStore>* datastore, ChunkID id,
                SequenceNum sn)
         : ExecStep(datastore, id)
-        , sn_(sn) 
+        , sn_(sn)
         , snapContext_(nullptr) {}
     ExecDelete(std::shared_ptr<CSDataStore>* datastore, ChunkID id,
                SequenceNum sn, std::shared_ptr<SnapContext> snapContext)
         : ExecStep(datastore, id, snapContext)
-        , sn_(sn) 
+        , sn_(sn)
         , snapContext_(snapContext) {}
     ~ExecDelete() {}
 
@@ -357,7 +359,8 @@ class StepList {
     }
 
     // 重启前，用户最后执行的操作可能为任意步骤，
-    // 需要验证每个步骤作为最后执行操作时，日志从该步骤前任意步骤进行恢复的幂等性
+    // 需要验证每个步骤作为最后执行操作时，
+    // 日志从该步骤前任意步骤进行恢复的幂等性
     // 对于未执行的步骤可以不必验证，只要保证已执行步骤的恢复是幂等的
     // 未执行的步骤恢复一定是幂等的
     bool VerifyLogReplay() {
@@ -633,7 +636,7 @@ TEST_F(RestartTestSuit, SnapshotTest) {
     std::vector<SequenceNum> snaps;
     snaps.clear();
     std::shared_ptr<SnapContext> context = nullptr;
- 
+
     // 第一步：WriteChunk,写[0, 8kb]区域
     RangeData step1Data;
     step1Data.offset = 0;
@@ -734,21 +737,22 @@ TEST_F(RestartTestSuit, SnapshotTest) {
 TEST_F(RestartTestSuit, CloneTest) {
     StepList list(clearFunc);
 
-    //build origin chunk, which is the clone source, does not exist, and snapshot 1, also not exist
-    //the fileId = 1 and originfileId = 1
-    //chunkIndex = id
-    //the clone fileId/cloneno = 2
+    // build origin chunk, which is the clone source,
+    // does not exist, and snapshot 1, also not exist
+    // the fileId = 1 and originfileId = 1
+    // chunkIndex = id
+    // the clone fileId/cloneno = 2
 
     uint64_t fileId = 2;
     uint64_t originFileId = 1;
     ChunkID id = 1;
     SequenceNum sn = 1;
     SequenceNum correctedSn = 0;
-    //std::string location("test@s3");
-    //no need location in clone chunk
+    // std::string location("test@s3");
+    // no need location in clone chunk
     std::string location("");
 
-    //build the cloneInfo for write clone chunk
+    // build the cloneInfo for write clone chunk
     struct CloneContext cloneInfo;
     struct CloneInfos infos;
     infos.cloneNo = fileId;
@@ -764,15 +768,16 @@ TEST_F(RestartTestSuit, CloneTest) {
     snaps.clear();
     std::shared_ptr<SnapContext> context = nullptr;
 
-    id = 2; //change the id to clone chunk id
-    
+    id = 2;  // change the id to clone chunk id
+
     // 第二步：WriteChunk，写[0kb, 8kb]区域
     RangeData step2Data;
     step2Data.offset = 0;
     step2Data.length = 2 * PAGE_SIZE;
     step2Data.data = '2';
     std::shared_ptr<ExecWrite> step2 =
-        std::make_shared<ExecWrite>(&dataStore_, id, sn, step2Data, nullptr, &cloneInfo);
+        std::make_shared<ExecWrite>(
+            &dataStore_, id, sn, step2Data, nullptr, &cloneInfo);
     list.Add(step2);
 
     // 第三步：WriteChunk，写[4kb, 12kb]区域
@@ -781,7 +786,8 @@ TEST_F(RestartTestSuit, CloneTest) {
     step3Data.length = 2 * PAGE_SIZE;
     step3Data.data = '3';
     std::shared_ptr<ExecWrite> step3 =
-        std::make_shared<ExecWrite>(&dataStore_, id, sn, step3Data, nullptr, &cloneInfo);
+        std::make_shared<ExecWrite>(
+            &dataStore_, id, sn, step3Data, nullptr, &cloneInfo);
     list.Add(step3);
 
     // 第四步：通过WriteChunk 遍写chunk
@@ -790,13 +796,14 @@ TEST_F(RestartTestSuit, CloneTest) {
     step4Data.length = CHUNK_SIZE;
     step4Data.data = '4';
     std::shared_ptr<ExecWrite> step4 =
-        std::make_shared<ExecWrite>(&dataStore_, id, sn, step4Data, nullptr, &cloneInfo);
+        std::make_shared<ExecWrite>(
+            &dataStore_, id, sn, step4Data, nullptr, &cloneInfo);
     list.Add(step4);
 
     // 模拟打快照
     snaps.push_back(sn);
     ++sn;
-    
+
     // 第五步：WriteChunk，写[4kb, 12kb]区域
     RangeData step5Data;
     step5Data.offset = PAGE_SIZE;
@@ -804,7 +811,8 @@ TEST_F(RestartTestSuit, CloneTest) {
     step5Data.data = '5';
     context = std::make_shared<SnapContext>(snaps);
     std::shared_ptr<ExecWrite> step5 =
-        std::make_shared<ExecWrite>(&dataStore_, id, sn, step5Data, context, &cloneInfo);
+        std::make_shared<ExecWrite>(
+            &dataStore_, id, sn, step5Data, context, &cloneInfo);
     list.Add(step5);
 
     // 第六步：用户请求删除快照
@@ -827,21 +835,22 @@ TEST_F(RestartTestSuit, CloneTest) {
 TEST_F(RestartTestSuit, RecoverTest) {
     StepList list(clearFunc);
 
-    //build origin chunk, which is the clone source, does not exist, and snapshot 1, also not exist
-    //the fileId = 1 and originfileId = 1
-    //chunkIndex = id
-    //the clone fileId/cloneno = 2
+    // build origin chunk, which is the clone source,
+    // does not exist, and snapshot 1, also not exist
+    // the fileId = 1 and originfileId = 1
+    // chunkIndex = id
+    // the clone fileId/cloneno = 2
 
     uint64_t fileId = 2;
     uint64_t originFileId = 1;
     ChunkID id = 1;
     SequenceNum sn = 3;
     SequenceNum correctedSn = 0;
-    //std::string location("test@s3");
-    //no need location in clone chunk
+    // std::string location("test@s3");
+    // no need location in clone chunk
     std::string location("");
 
-    //build the cloneInfo for write clone chunk
+    // build the cloneInfo for write clone chunk
     struct CloneContext cloneInfo;
     struct CloneInfos infos;
     infos.cloneNo = fileId;
@@ -870,7 +879,7 @@ TEST_F(RestartTestSuit, RecoverTest) {
 #endif
     // 数据写入的版本应为最新的版本
     sn = 5;
-    id = 2; //change the id to clone chunk id
+    id = 2;  // change the id to clone chunk id
 
     // 第二步：PasteChunk，写[0kb, 8kb]区域
     RangeData step2Data;
@@ -878,7 +887,8 @@ TEST_F(RestartTestSuit, RecoverTest) {
     step2Data.length = 2 * PAGE_SIZE;
     step2Data.data = '2';
     std::shared_ptr<ExecWrite> step2 =
-        std::make_shared<ExecWrite>(&dataStore_, id, sn, step2Data, nullptr, &cloneInfo);
+        std::make_shared<ExecWrite>(
+            &dataStore_, id, sn, step2Data, nullptr, &cloneInfo);
     list.Add(step2);
 
     // 第三步：PasteChunk，写[4kb, 12kb]区域
@@ -887,7 +897,8 @@ TEST_F(RestartTestSuit, RecoverTest) {
     step3Data.length = 2 * PAGE_SIZE;
     step3Data.data = '3';
     std::shared_ptr<ExecWrite> step3 =
-        std::make_shared<ExecWrite>(&dataStore_, id, sn, step3Data, nullptr, &cloneInfo);
+        std::make_shared<ExecWrite>(
+            &dataStore_, id, sn, step3Data, nullptr, &cloneInfo);
     list.Add(step3);
 
     // 第四步：通过PasteChunk 遍写chunk
@@ -896,7 +907,8 @@ TEST_F(RestartTestSuit, RecoverTest) {
     step4Data.length = CHUNK_SIZE;
     step4Data.data = '4';
     std::shared_ptr<ExecWrite> step4 =
-        std::make_shared<ExecWrite>(&dataStore_, id, sn, step4Data, nullptr, &cloneInfo);
+        std::make_shared<ExecWrite>(
+            &dataStore_, id, sn, step4Data, nullptr, &cloneInfo);
     list.Add(step4);
 
     // 第五步：DeleteChunk
@@ -911,21 +923,22 @@ TEST_F(RestartTestSuit, RecoverTest) {
 TEST_F(RestartTestSuit, RandomCombine) {
     StepList list(clearFunc);
 
-    //build origin chunk, which is the clone source, does not exist, and snapshot 1, also not exist
-    //the fileId = 1 and originfileId = 1
-    //chunkIndex = id
-    //the clone fileId/cloneno = 2
+    // build origin chunk, which is the clone source,
+    // does not exist, and snapshot 1, also not exist
+    // the fileId = 1 and originfileId = 1
+    // chunkIndex = id
+    // the clone fileId/cloneno = 2
 
     uint64_t fileId = 2;
     uint64_t originFileId = 1;
     ChunkID id = 1;
     SequenceNum sn = 1;
     SequenceNum correctedSn = 0;
-    //std::string location("test@s3");
-    //no need location in clone chunk
+    // std::string location("test@s3");
+    // no need location in clone chunk
     std::string location("");
 
-    //build the cloneInfo for write clone chunk
+    // build the cloneInfo for write clone chunk
     struct CloneContext cloneInfo;
     struct CloneInfos infos;
     infos.cloneNo = fileId;
@@ -944,7 +957,7 @@ TEST_F(RestartTestSuit, RandomCombine) {
 
     std::srand(std::time(nullptr));
 
-    id = 2; //change the id to clone chunk id
+    id = 2;  // change the id to clone chunk id
 
     // 写随机地址的数据,在[0, kMaxSize]范围内写
     auto randWriteOrPaste = [&](bool isPaste) {
@@ -964,7 +977,8 @@ TEST_F(RestartTestSuit, RandomCombine) {
                        << std::endl;
 
             std::shared_ptr<ExecWrite> step =
-                std::make_shared<ExecWrite>(&dataStore_, id, sn, stepData, context, &cloneInfo);
+                std::make_shared<ExecWrite>(
+                    &dataStore_, id, sn, stepData, context, &cloneInfo);
             list.Add(step);
         } else {
             std::cout << "ExecWrite "
@@ -977,7 +991,8 @@ TEST_F(RestartTestSuit, RandomCombine) {
                        << std::endl;
 
             std::shared_ptr<ExecWrite> step =
-                std::make_shared<ExecWrite>(&dataStore_, id, sn, stepData, context, &cloneInfo);
+                std::make_shared<ExecWrite>(
+                    &dataStore_, id, sn, stepData, context, &cloneInfo);
             list.Add(step);
         }
     };
@@ -985,7 +1000,7 @@ TEST_F(RestartTestSuit, RandomCombine) {
     // 随机的克隆过程
     auto randClone = [&]() {
         // 二分之一概率，模拟恢复过程
-        //build the clone context for the clone chunk
+        // build the clone context for the clone chunk
 #if 0
         if (std::rand() % 2 == 0)
             correctedSn = 2;
@@ -1013,7 +1028,8 @@ TEST_F(RestartTestSuit, RandomCombine) {
         pasteData.length = CHUNK_SIZE;
         pasteData.data = 'x';
         std::shared_ptr<ExecWrite> pasteStep =
-            std::make_shared<ExecWrite>(&dataStore_, id, sn, pasteData, context, &cloneInfo);
+            std::make_shared<ExecWrite>(
+                &dataStore_, id, sn, pasteData, context, &cloneInfo);
         list.Add(pasteStep);
     };
 
@@ -1029,7 +1045,8 @@ TEST_F(RestartTestSuit, RandomCombine) {
                 snaps.pop_back();
                 context = std::make_shared<SnapContext>(snaps);
                 std::shared_ptr<ExecDeleteSnapshot> step =
-                    std::make_shared<ExecDeleteSnapshot>(&dataStore_, id, lastSn, context);
+                    std::make_shared<ExecDeleteSnapshot>(
+                        &dataStore_, id, lastSn, context);
                 list.Add(step);
                 break;
             } else {

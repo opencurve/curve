@@ -87,7 +87,8 @@ class CleanTaskManager {
      *  @param snapfileInfo: 待删除的快照信息
      *  @return 推送task是否成功，如已存在对应的任务，推送失败
      */
-    bool PushTask(std::shared_ptr<SnapShotBatchCleanTask> task, const FileInfo &snapfileInfo);
+    bool PushTask(std::shared_ptr<SnapShotBatchCleanTask> task,
+        const FileInfo &snapfileInfo);
 
     /**
      * @brief 获取快照删除task中指定快照sn的task
@@ -96,6 +97,7 @@ class CleanTaskManager {
      * @return 返回对应task的shared_ptr 或者 不存在返回nullptr
      */
     std::shared_ptr<Task> GetTask(TaskIDType id, TaskIDType sn);
+
  private:
     void CheckCleanResult(void);
 
@@ -113,9 +115,11 @@ class CleanTaskManager {
     // 连接池，和task_manager, chunkserverClient共享，没有任务在执行时清空
     std::shared_ptr<ChannelPool> channelPool_;
 
-    // 针对同一文件的本地多层快照的清除任务放到一起串行执行，防止并发删除导致的快照数据破坏和快照遗留问题
+    // 针对同一文件的本地多层快照的清除任务放到一起串行执行，
+    // 防止并发删除导致的快照数据破坏和快照遗留问题
     // 尽量按快照sn从小到大开始删除，以减少额外的快照数据搬迁
-    std::unordered_map<TaskIDType, std::shared_ptr<SnapShotBatchCleanTask>> cleanBatchSnapTasks_;
+    std::unordered_map<TaskIDType, std::shared_ptr<SnapShotBatchCleanTask>>
+        cleanBatchSnapTasks_;
     common::Mutex mutexBatch_;
 };
 

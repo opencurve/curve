@@ -29,6 +29,7 @@
 #include <utility>
 #include <map>
 #include <string>
+#include <list>
 #include "src/mds/common/mds_define.h"
 #include "src/common/namespace_define.h"
 #include "src/mds/nameserver2/idgenerator/inode_id_generator.h"
@@ -124,11 +125,13 @@ class FakeNameServerStorage : public NameServerStorage {
             case FileType::INODE_PAGEFILE:
             case FileType::INODE_DIRECTORY:
             case FileType::INODE_CLONE_PAGEFILE:
-                *storeKey = NameSpaceStorageCodec::EncodeFileStoreKey(id, filename);
+                *storeKey = NameSpaceStorageCodec::EncodeFileStoreKey(
+                    id, filename);
                 break;
             case FileType::INODE_SNAPSHOT_PAGEFILE:
                 *storeKey =
-                    NameSpaceStorageCodec::EncodeSnapShotFileStoreKey(id, filename);
+                    NameSpaceStorageCodec::EncodeSnapShotFileStoreKey(
+                        id, filename);
                 break;
             default:
                 LOG(ERROR) << "filetype: "
@@ -364,7 +367,8 @@ class FakeNameServerStorage : public NameServerStorage {
         const FileInfo &snapshotFileInfo,
         const FileInfo &recycleFileInfo) {
         std::string originFileInfoKey;
-        auto res = GetStoreKey(originFileInfo.filetype(), originFileInfo.parentid(),
+        auto res = GetStoreKey(originFileInfo.filetype(),
+            originFileInfo.parentid(),
             originFileInfo.filename(), &originFileInfoKey);
         if (res != StoreStatus::OK) {
             LOG(ERROR) << "get store key failed, filename = "
@@ -373,7 +377,8 @@ class FakeNameServerStorage : public NameServerStorage {
         }
 
         std::string snapshotFileInfoKey;
-        res = GetStoreKey(snapshotFileInfo.filetype(), snapshotFileInfo.parentid(),
+        res = GetStoreKey(snapshotFileInfo.filetype(),
+            snapshotFileInfo.parentid(),
             snapshotFileInfo.filename(), &snapshotFileInfoKey);
         if (res != StoreStatus::OK) {
             LOG(ERROR) << "get store key failed, filename = "
@@ -384,13 +389,15 @@ class FakeNameServerStorage : public NameServerStorage {
         std::string encodeSnapshotFInfo;
         if (!NameSpaceStorageCodec::EncodeFileInfo(
             snapshotFileInfo, &encodeSnapshotFInfo)) {
-            LOG(ERROR) << "encode snapshot file: " << snapshotFileInfo.filename()
-                      << " err";
+            LOG(ERROR) << "encode snapshot file: "
+                << snapshotFileInfo.filename()
+                << " err";
             return StoreStatus::InternalError;
         }
 
         std::string recycleFileInfoKey;
-        res = GetStoreKey(recycleFileInfo.filetype(), recycleFileInfo.parentid(),
+        res = GetStoreKey(recycleFileInfo.filetype(),
+                recycleFileInfo.parentid(),
             recycleFileInfo.filename(), &recycleFileInfoKey);
         if (res != StoreStatus::OK) {
             LOG(ERROR) << "get store key failed, filename = "

@@ -228,7 +228,8 @@ void IOTracker::DoWrite(MDSClient* mdsclient, const FInfo_t* fileInfo,
 }
 
 void IOTracker::ReadSnapChunk(const ChunkIDInfo &cinfo,
-    uint64_t seq, const std::vector<uint64_t>& snaps, uint64_t offset, uint64_t len,
+    uint64_t seq, const std::vector<uint64_t>& snaps,
+    uint64_t offset, uint64_t len,
     char *buf, SnapCloneClosure* scc) {
     scc_    = scc;
     data_   = buf;

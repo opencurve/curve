@@ -28,6 +28,7 @@
 #include <butil/iobuf.h>
 
 #include <string>
+#include <vector>
 
 #include "src/client/client_config.h"
 #include "src/client/client_common.h"

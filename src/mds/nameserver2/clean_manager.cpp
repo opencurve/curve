@@ -31,7 +31,8 @@ CleanManager::CleanManager(std::shared_ptr<CleanCore> core,
                 std::shared_ptr<CleanTaskManager> taskMgr,
                 std::shared_ptr<NameServerStorage> storage,
                 uint32_t mdsSessionTimeUs)
-                    : storage_(storage), cleanCore_(core), taskMgr_(taskMgr), mdsSessionTimeUs_(mdsSessionTimeUs) {}
+                    : storage_(storage), cleanCore_(core),
+                    taskMgr_(taskMgr), mdsSessionTimeUs_(mdsSessionTimeUs) {}
 
 bool CleanManager::Start(void) {
     return taskMgr_->Start();
@@ -50,13 +51,15 @@ bool CleanManager::SubmitDeleteSnapShotFileJob(const FileInfo &fileInfo,
     return taskMgr_->PushTask(snapShotCleanTask);
 }
 
-bool CleanManager::SubmitDeleteBatchSnapShotFileJob(const FileInfo &snapfileInfo,
-                            std::shared_ptr<AsyncDeleteSnapShotEntity> entity) {
+bool CleanManager::SubmitDeleteBatchSnapShotFileJob(
+    const FileInfo &snapfileInfo,
+    std::shared_ptr<AsyncDeleteSnapShotEntity> entity) {
     auto taskID = static_cast<TaskIDType>(snapfileInfo.parentid());
     auto snapshotBatchCleanTask =
         std::make_shared<SnapShotBatchCleanTask>(taskID, cleanCore_, storage_,
                                              entity, mdsSessionTimeUs_);
-    // SnapShotBatchCleanTask这个任务对外不可见（无法查询进度），真正可见的是其内部的
+    // SnapShotBatchCleanTask这个任务对外不可见（无法查询进度），
+    // 真正可见的是其内部的
     // 快照删除子任务
     return taskMgr_->PushTask(snapshotBatchCleanTask, snapfileInfo);
 }

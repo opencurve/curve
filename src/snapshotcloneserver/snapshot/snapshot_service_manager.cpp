@@ -105,13 +105,14 @@ int SnapshotServiceManager::CreateSyncSnapshot(const std::string &file,
     ret =  core_->HandleCreateSyncSnapshotTask(taskInfo);
     if (ret < 0) {
         LOG(ERROR) << "HandleCreateSyncSnapshotTask error and ready to delete, "
-                   << " ret = " << ret 
+                   << " ret = " << ret
                    << ", file = " << file
                    << ", snapshotName = " << snapshotName
                    << ", uuid = " << snapInfo.GetUuid();
         int retTmp = DeleteSyncSnapshot(*uuid, user, file);
         if (retTmp < 0) {
-            LOG(ERROR) << "DeleteSyncSnapshot fail when HandleCreateSyncSnapshotTask error,"
+            LOG(ERROR) << "DeleteSyncSnapshot fail "
+                       << "when HandleCreateSyncSnapshotTask error,"
                        << " ret = " << retTmp;
         }
         return ret;
@@ -205,8 +206,7 @@ int SnapshotServiceManager::DeleteSyncSnapshot(
     int ret = core_->DeleteSyncSnapshotPre(uuid, user, file, &snapInfo);
     if (kErrCodeTaskExist == ret) {
         return kErrCodeSuccess;
-    } 
-    else if (ret < 0) {
+    } else if (ret < 0) {
         LOG(ERROR) << "DeleteSyncSnapshotPre fail"
                    << ", ret = " << ret
                    << ", uuid = " << uuid
@@ -226,7 +226,7 @@ int SnapshotServiceManager::DeleteSyncSnapshot(
                    << " ret = " << ret;
         return ret;
     }
-    return kErrCodeSuccess;    
+    return kErrCodeSuccess;
 }
 
 int SnapshotServiceManager::GetFileSnapshotInfo(const std::string &file,

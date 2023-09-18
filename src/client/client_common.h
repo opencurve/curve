@@ -85,7 +85,7 @@ typedef struct ChunkIDInfo {
 
     ChunkIDInfo(ChunkID cid, LogicPoolID lpid, CopysetID cpid,
         uint64_t originFileId = 0)
-          : cid_(cid), cpid_(cpid), lpid_(lpid), 
+          : cid_(cid), cpid_(cpid), lpid_(lpid),
             originFileId_(originFileId) {}
 
     bool Valid() const {
@@ -152,7 +152,7 @@ typedef struct FInfo {
     uint64_t length;
     uint64_t ctime;
     uint64_t seqnum;
-    uint64_t snapSeqnum; // 待读取的快照版本号（用于测试读快照文件接口）
+    uint64_t snapSeqnum;  // 待读取的快照版本号, 用于测试读快照文件接口
     std::vector<uint64_t> snaps;
     // userinfo是当前操作这个文件的用户信息
     UserInfo_t      userinfo;
@@ -379,11 +379,11 @@ struct CreateFileContext {
 
 inline std::string Snaps2Str(const std::vector<uint64_t>& snaps) {
     std::string str;
-    std::for_each(snaps.begin(),snaps.end(), [&] (uint64_t seq) {
+    std::for_each(snaps.begin(), snaps.end(), [&] (uint64_t seq) {
         str.append(std::to_string(seq));
         str.append(",");
     });
-    if(str.length() > 0) {
+    if (str.length() > 0) {
         str.pop_back();
     }
     return str;

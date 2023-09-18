@@ -22,6 +22,8 @@
 
 #include "src/mds/nameserver2/clean_core.h"
 
+#include <vector>
+
 namespace curve {
 namespace mds {
 StatusCode CleanCore::CleanSnapShotFile(const FileInfo & fileInfo,
@@ -111,9 +113,10 @@ StatusCode CleanCore::CleanSnapShotFile2(const FileInfo & fileInfo,
                                                     &segment);
         if (storeRet == StoreStatus::KeyNotExist) {
             progress->SetProgress(100 * (i+1) / segmentNum);
-            LOG(INFO) << "CleanSnapShotFile2 skip non-existed segment num = " << i+1
-                    << ", total segment num = " << segmentNum
-                    << ", progress = " << progress->GetProgress();
+            LOG(INFO) << "CleanSnapShotFile2 skip non-existed segment num = "
+                      << i+1
+                      << ", total segment num = " << segmentNum
+                      << ", progress = " << progress->GetProgress();
             continue;
         } else if (storeRet !=  StoreStatus::OK) {
             LOG(ERROR) << "cleanSnapShot2 File Error: "

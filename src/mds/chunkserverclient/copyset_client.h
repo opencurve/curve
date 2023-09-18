@@ -24,6 +24,7 @@
 #define SRC_MDS_CHUNKSERVERCLIENT_COPYSET_CLIENT_H_
 
 #include <memory>
+#include <vector>
 #include "src/mds/common/mds_define.h"
 #include "src/mds/topology/topology.h"
 
@@ -80,7 +81,7 @@ class CopysetClientInterface {
         ChunkID chunkId,
         uint64_t sn) = 0;
     virtual int FlattenChunk(
-        const std::shared_ptr<FlattenChunkContext> &ctx, 
+        const std::shared_ptr<FlattenChunkContext> &ctx,
         CopysetClientClosure* done) = 0;
 };
 
@@ -166,7 +167,7 @@ class CopysetClient : public CopysetClientInterface {
 
 
     int FlattenChunk(
-        const std::shared_ptr<FlattenChunkContext> &ctx, 
+        const std::shared_ptr<FlattenChunkContext> &ctx,
         CopysetClientClosure* done) override;
 
  private:

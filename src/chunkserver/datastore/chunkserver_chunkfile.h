@@ -31,6 +31,7 @@
 #include <functional>
 #include <memory>
 #include <condition_variable>
+#include <map>
 
 #include "include/curve_compiler_specific.h"
 #include "include/chunkserver/chunkserver_common.h"
@@ -108,7 +109,7 @@ struct ChunkFileMetaPage {
                         , sn(0)
                         , correctedSn(0)
                         , location("")
-                        , bitmap(nullptr) 
+                        , bitmap(nullptr)
                         , cloneNo(0)
                         , virtualId(0)
                         , fileId(0) {}
@@ -118,22 +119,23 @@ struct ChunkFileMetaPage {
     void encode(char* buf);
     CSErrorCode decode(const char* buf);
 
-    // if it is a clone chunk the cloneNo indicate the clone no in the root chunk
+    // if it is a clone chunk the cloneNo
+    // indicate the clone no in the root chunk
     // if it is not a clone chunk, then the cloneNo = 0
-    // if it a clone chunk then the virtualId indicate that the chunkid of the root
+    // if it a clone chunk then the virtualId
+    // indicate that the chunkid of the root
     uint64_t    cloneNo;
-    //chunk Index of the clone chunk or the original chunk
+    // chunk Index of the clone chunk or the original chunk
     uint64_t    virtualId;
-    //the fileid of the chunk itself
+    // the fileid of the chunk itself
     uint64_t    fileId;
-    //bool isclone;
-    //just for clone chunk, the parent chunk's sn and the parent chunk's id
-    //if the parentChunkId is -1 then that it is not a CloneChunk
-    //std::vector<struct CloneInfos> clones;
+    // bool isclone;
+    // just for clone chunk, the parent chunk's sn and the parent chunk's id
+    // if the parentChunkId is -1 then that it is not a CloneChunk
+    // std::vector<struct CloneInfos> clones;
 
-    //just remember the snap vector Ctx of the ChunkFile
-    std::vector<SequenceNum> snapCtx; 
-
+    // just remember the snap vector Ctx of the ChunkFile
+    std::vector<SequenceNum> snapCtx;
 };
 
 struct ChunkOptions {
@@ -172,9 +174,9 @@ struct ChunkOptions {
                    , chunkSize(0)
                    , blockSize(0)
                    , metaPageSize(0)
-                   , metric(nullptr) 
+                   , metric(nullptr)
                    , cloneNo(0)
-                   , virtualId (0)
+                   , virtualId(0)
                    , fileId(0)
                    , blockSize_shift(0) {}
 };
@@ -199,7 +201,6 @@ class CSChunkFile {
      */
     CSErrorCode Open(bool createFile);
 
-    //CSErrorCode Open(bool createFile, uint64_t cloneNo);
     /**
      * Called when a snapshot file is found during Datastore initialization
      * Load the metapage of the snapshot file into the memory inside the
@@ -230,21 +231,20 @@ class CSChunkFile {
                       size_t length,
                       uint32_t* cost,
                       std::shared_ptr<SnapContext> ctx = nullptr);
-    
+
     CSErrorCode cloneWrite(SequenceNum sn,
                         const butil::IOBuf& buf,
                         off_t offset,
                         size_t length,
                         uint32_t* cost,
-                        std::unique_ptr<CloneContext>& cloneCtx,
-                        CSDataStore& datastore,
+                        const std::unique_ptr<CloneContext>& cloneCtx,
+                        CSDataStore* datastore,
                         std::shared_ptr<SnapContext> ctx = nullptr);
 
     CSErrorCode flattenWrite(SequenceNum sn,
                         off_t offset, size_t length,
-                        std::unique_ptr<CloneContext>& cloneCtx,
-                        CSDataStore& datastore);
-
+                        const std::unique_ptr<CloneContext>& cloneCtx,
+                        CSDataStore* datastore);
 
     CSErrorCode Sync();
 
@@ -312,14 +312,15 @@ class CSChunkFile {
      *  snapshot.
      * @return: return error code
      */
-    CSErrorCode DeleteSnapshot(SequenceNum snapSn, std::shared_ptr<SnapContext> ctx = nullptr);
+    CSErrorCode DeleteSnapshot(SequenceNum snapSn,
+        std::shared_ptr<SnapContext> ctx = nullptr);
     /**
      * Get chunk info
      * @param[out]: the chunk info getted
      */
     void GetInfo(CSChunkInfo* info);
 
-    void GetCloneInfo(uint64_t& virtualId, uint64_t& cloneNo);
+    void GetCloneInfo(uint64_t virtualId, uint64_t cloneNo);
     /**
      * Get the hash value of the chunk, this interface is used for test
      * @param[out]: chunk hash value
@@ -355,34 +356,35 @@ class CSChunkFile {
     }
 
     ChunkID getVirtualId() {
-        return metaPage_.virtualId; 
+        return metaPage_.virtualId;
     }
 
     uint64_t getFileID() {
         return metaPage_.fileId;
     }
 
-    CSErrorCode writeDataDirect(const butil::IOBuf& buf, off_t offset, size_t length); 
+    CSErrorCode writeDataDirect(
+        const butil::IOBuf& buf, off_t offset, size_t length);
 
-    bool DivideObjInfoByIndex (SequenceNum sn, 
-                        std::vector<BitRange>& range, 
-                        std::vector<BitRange>& notInRanges, 
-                        std::vector<ObjectInfo>& objInfos);
+    bool DivideObjInfoByIndex(SequenceNum sn,
+                        std::vector<BitRange>& range,  // NOLINT
+                        std::vector<BitRange>& notInRanges,  // NOLINT
+                        std::vector<ObjectInfo>& objInfos);  // NOLINT
 
-    bool DivideObjInfoByIndexLockless (SequenceNum sn, 
-                        std::vector<BitRange>& range, 
-                        std::vector<BitRange>& notInRanges, 
-                        std::vector<ObjectInfo>& objInfos);
+    bool DivideObjInfoByIndexLockless(SequenceNum sn,
+                        std::vector<BitRange>& range,  // NOLINT
+                        std::vector<BitRange>& notInRanges,  // NOLINT
+                        std::vector<ObjectInfo>& objInfos);  // NOLINT
 
-    bool DivideSnapshotObjInfoByIndex (SequenceNum sn, 
-                        std::vector<BitRange>& range, 
-                        std::vector<BitRange>& notInRanges, 
-                        std::vector<ObjectInfo>& objInfos);
+    bool DivideSnapshotObjInfoByIndex(SequenceNum sn,
+                        std::vector<BitRange>& range,  // NOLINT
+                        std::vector<BitRange>& notInRanges,  // NOLINT
+                        std::vector<ObjectInfo>& objInfos);  // NOLINT
 
-    CSErrorCode ReadSpecifiedSnap (SequenceNum sn, 
-                        CSSnapshot* snap, 
-                        char* buff, 
-                        off_t offset, 
+    CSErrorCode ReadSpecifiedSnap(SequenceNum sn,
+                        CSSnapshot* snap,
+                        char* buff,
+                        off_t offset,
                         size_t length);
 
     // default synclimit
@@ -390,14 +392,14 @@ class CSChunkFile {
     // high threshold limit
     static uint64_t syncThreshold_;
 
-    int FindExtraReadFromParent(std::vector<File_ObjectInfoPtr>& objIns, 
-                                CSChunkFilePtr& chunkFile, 
-                                off_t offset, 
+    int FindExtraReadFromParent(std::vector<File_ObjectInfoPtr>& objIns,  // NOLINT
+                                CSChunkFilePtr& chunkFile,  // NOLINT
+                                off_t offset,
                                 size_t length);
 
-    void MergeObjectForRead(std::map<int32_t, Offset_InfoPtr>& objmap, 
-                            std::vector<File_ObjectInfoPtr>& objIns, 
-                            CSChunkFilePtr& chunkFile);
+    void MergeObjectForRead(std::map<int32_t, Offset_InfoPtr>& objmap,  // NOLINT
+                            std::vector<File_ObjectInfoPtr>& objIns,  // NOLINT
+                            CSChunkFilePtr& chunkFile);  // NOLINT
 
     CSErrorCode writeSnapData(SequenceNum sn,
                             const butil::IOBuf& buf,
@@ -405,9 +407,11 @@ class CSChunkFile {
                             size_t length,
                             uint32_t* cost,
                             std::shared_ptr<SnapContext> ctx = nullptr);
+
  private:
      /**
-     * Called when a snapshot file is deleted and merged to a non-existent snapshot file.
+     * Called when a snapshot file is deleted
+     * and merged to a non-existent snapshot file.
      * Write lock should NOT be added
      * @param sn: the sequence number of the snapshot file to be loaded
      * @return: return error code

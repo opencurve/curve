@@ -76,9 +76,11 @@ void MDS::InitMdsOptions(std::shared_ptr<Configuration> conf) {
     conf_->GetValueFatalIfFail(
         "mds.filelock.bucketNum", &options_.mdsFilelockBucketNum);
 
-    if (!conf->GetUInt32Value("mds.mdsSessionTimeUs", &options_.mdsSessionTimeUs)) {
+    if (!conf->GetUInt32Value("mds.mdsSessionTimeUs",
+        &options_.mdsSessionTimeUs)) {
         options_.mdsSessionTimeUs = 3000*1000;
-        LOG(INFO) << "Conf mds.mdsSessionTimeUs defaults to " << options_.mdsSessionTimeUs;
+        LOG(INFO) << "Conf mds.mdsSessionTimeUs defaults to "
+            << options_.mdsSessionTimeUs;
     }
 }
 
@@ -161,7 +163,7 @@ void MDS::Run() {
     kCurveFS.Run();
     LOG_IF(FATAL, !flattenManager_->Start())
         << "start flattenManager fail.";
-    LOG_IF(ERROR, !kCurveFS.ResumeFlattenJob()) 
+    LOG_IF(ERROR, !kCurveFS.ResumeFlattenJob())
         << "resume flatten job have some errors!";
     LOG_IF(FATAL, !cleanManager_->Start()) << "start cleanManager fail.";
     // recover unfinished tasks
@@ -564,7 +566,7 @@ void MDS::InitCleanManager() {
                                                  segmentAllocStatistic_);
 
     cleanManager_ = std::make_shared<CleanManager>(cleanCore,
-                                            taskManager, nameServerStorage_, options_.mdsSessionTimeUs);
+        taskManager, nameServerStorage_, options_.mdsSessionTimeUs);
     LOG(INFO) << "init CleanManager success.";
 }
 

@@ -179,7 +179,8 @@ class TopologyStat {
      * @param pId physicalId
      * @param chunkpoolsize the size of chunkpool
      */
-    virtual bool GetPhysicalPoolStat(PoolIdType pId, PhysicalPoolStat* stat) = 0;
+    virtual bool GetPhysicalPoolStat(PoolIdType pId,
+        PhysicalPoolStat* stat) = 0;
 };
 
 class TopologyStatImpl : public TopologyStat {

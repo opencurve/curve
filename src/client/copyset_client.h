@@ -28,6 +28,7 @@
 
 #include <string>
 #include <memory>
+#include <vector>
 
 #include "include/curve_compiler_specific.h"
 #include "src/client/client_common.h"

@@ -19,6 +19,9 @@
  * File Created: Wednesday, 26th December 2018 3:48:08 pm
  * Author: tongguangxun
  */
+
+#include <vector>
+
 #include "include/curve_compiler_specific.h"
 #include "src/client/client_config.h"
 #include "src/client/iomanager4chunk.h"

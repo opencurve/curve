@@ -506,7 +506,6 @@ int CloneCoreImpl::BuildFileInfoFromSnapshot(
     }
     newFileInfo->owner = task->GetCloneInfo().GetUser();
 
-    // TODO: to fill `segInfos'.
     if (!dataStore_->Enabled()) {
         return kErrCodeSuccess;
     }

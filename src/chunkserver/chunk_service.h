@@ -97,7 +97,7 @@ class ChunkServiceImpl : public ChunkService {
                     const UpdateEpochRequest *request,
                     UpdateEpochResponse *response,
                     Closure *done);
-    
+
     void FlattenChunk(RpcController *controller,
                       const ChunkRequest *request,
                       ChunkResponse *response,
@@ -109,7 +109,7 @@ class ChunkServiceImpl : public ChunkService {
              return request->version() >= protoVersion;
          }
          return false;
-      #endif 
+      #endif
       return true;
     }
 
@@ -132,7 +132,7 @@ class ChunkServiceImpl : public ChunkService {
     uint32_t blockSize_;
 
     // 当前chunkserver的版本号, need versison >= protoVersion to support
-    const uint32_t protoVersion = 2; 
+    const uint32_t protoVersion = 2;
 };
 
 }  // namespace chunkserver

@@ -119,13 +119,13 @@ CSSnapshot::CSSnapshot(std::shared_ptr<LocalFileSystem> lfs,
       lfs_(lfs),
       chunkFilePool_(chunkFilePool),
       metric_(options.metric),
-      cloneNo_ (options.cloneNo) {
+      cloneNo_(options.cloneNo) {
     CHECK(!baseDir_.empty()) << "Create snapshot failed";
     CHECK(lfs_ != nullptr) << "Create snapshot failed";
 
-    //if the blockSize == 0, than use the default size 4096
+    // if the blockSize == 0, than use the default size 4096
     if (0 == blockSize_) {
-        blockSize_ = 4096; //default block size is 4096
+        blockSize_ = 4096;  // default block size is 4096
         DVLOG(3) << "CSSnapshot() blockSize_ is 0, use default size 4096";
     }
 
@@ -201,24 +201,29 @@ CSErrorCode CSSnapshot::Read(char * buf, off_t offset, size_t length) {
     return CSErrorCode::Success;
 }
 
-CSErrorCode CSSnapshot::ReadRanges(char * buf, off_t offset, size_t length, std::vector<BitRange>& ranges) {
+CSErrorCode CSSnapshot::ReadRanges(
+    char * buf, off_t offset, size_t length, std::vector<BitRange>& ranges) {
     off_t readOff;
     size_t readSize;
 
     for (auto& range : ranges) {
         readOff = range.beginIndex * blockSize_;
         readSize = (range.endIndex - range.beginIndex + 1) * blockSize_;
-        DVLOG(9) << "ReadRanges: readOff " << readOff << ", readSize " << readSize
-                  << ", offset " << offset << ",  length " << length
-                  << ", range.beginIndex " << range.beginIndex << ", range.endIndex " << range.endIndex
-                  << ", chunkid " << chunkId_ << ", sn " << metaPage_.sn;
+        DVLOG(9) << "ReadRanges: readOff " << readOff
+                 << ", readSize " << readSize
+                 << ", offset " << offset << ",  length " << length
+                 << ", range.beginIndex "
+                 << range.beginIndex << ", range.endIndex " << range.endIndex
+                 << ", chunkid " << chunkId_ << ", sn " << metaPage_.sn;
 #ifdef MEMORY_SANITY_CHECK
         // check if memory is out of range
         CHECK((readOff - offset) + readSize <= length)
-                << "ReadRanges: readOff " << readOff << ", readSize " << readSize
+                << "ReadRanges: readOff " << readOff
+                << ", readSize " << readSize
                 << ", offset " << offset << ",  length " << length;
         CHECK((readOff - offset) >= 0)
-                << "ReadRanges: readOff " << readOff << ", readSize " << readSize
+                << "ReadRanges: readOff " << readOff
+                << ", readSize " << readSize
                 << ", offset " << offset << ",  length " << length;
 #endif
         int rc = readData(buf + (readOff - offset),
@@ -388,7 +393,8 @@ CSSnapshot* CSSnapshots::getCurrentSnapshot() {
  * Assuming timeline of snapshots, from older to newer:
  *   prev -> curr -> next
 */
-CSErrorCode CSSnapshots::Delete(CSChunkFile* chunkf, SequenceNum snapSn, std::shared_ptr<SnapContext> ctx) {
+CSErrorCode CSSnapshots::Delete(
+    CSChunkFile* chunkf, SequenceNum snapSn, std::shared_ptr<SnapContext> ctx) {
     // snapshot chunk not exists on disk.
     if (!this->contains(snapSn)) {
         return CSErrorCode::Success;
@@ -437,7 +443,9 @@ CSErrorCode CSSnapshots::Delete(CSChunkFile* chunkf, SequenceNum snapSn, std::sh
  * after `sn' until a hit.  If all missed, mark it into
  * `clearRanges' so that caller will read the data from chunk.
  */
-CSErrorCode CSSnapshots::Read(SequenceNum sn, char * buf, off_t offset, size_t length, vector<BitRange>* clearRanges) {
+CSErrorCode CSSnapshots::Read(
+    SequenceNum sn, char * buf, off_t offset,
+    size_t length, vector<BitRange>* clearRanges) {
     // contains COW with seqnum >= sn, in ascending order
     std::vector<CSSnapshot*> snapshots;
     uint32_t blockBeginIndex = offset / blockSize_;
@@ -457,15 +465,17 @@ CSErrorCode CSSnapshots::Read(SequenceNum sn, char * buf, off_t offset, size_t l
     // indicate whether given page has COW
     std::unique_ptr<Bitmap> snapBitmap(new Bitmap(blockEndIndex+1));
 
-    for (auto snapshot: snapshots) {
+    for (auto snapshot : snapshots) {
         const auto it = snapshot->GetPageStatus();
         std::unique_ptr<Bitmap> curBitmap(new Bitmap(blockEndIndex+1));
         for (uint32_t i = blockBeginIndex; i <= blockEndIndex; i++) {
             if (!it->Test(i)) continue;  // page not in current COW
-            if (snapBitmap->Test(i)) continue; // page already hit in previous COW
-
-            curBitmap->Set(i);  // current copy have to read those set in `curBitmap'
-            snapBitmap->Set(i); // further copy must ignore those set in `snapBitmap'
+            // page already hit in previous COW
+            if (snapBitmap->Test(i)) continue;
+            // current copy have to read those set in `curBitmap'
+            curBitmap->Set(i);
+            // further copy must ignore those set in `snapBitmap'
+            snapBitmap->Set(i);
         }
 
         std::vector<BitRange> copiedRange;
@@ -475,15 +485,17 @@ CSErrorCode CSSnapshots::Read(SequenceNum sn, char * buf, off_t offset, size_t l
                           &copiedRange);
 
         string rangInfo = "";
-        for (auto range: copiedRange) {
-            rangInfo += "(" + std::to_string(range.beginIndex) + "," + std::to_string(range.endIndex) + ")";
+        for (auto range : copiedRange) {
+            rangInfo += "(" + std::to_string(range.beginIndex) + ","
+                + std::to_string(range.endIndex) + ")";
         }
         DLOG(INFO) << "Read from snapshot: " << snapshot->GetSn()
                   << ", buf " << static_cast<const void*>(buf)
-                  << ", offset " << offset << ", length " << length 
+                  << ", offset " << offset << ", length " << length
                   << ", copiedRange: " << rangInfo;
 
-        CSErrorCode errorCode = snapshot->ReadRanges(buf, offset, length, copiedRange);
+        CSErrorCode errorCode = snapshot->ReadRanges(
+            buf, offset, length, copiedRange);
         if (errorCode != CSErrorCode::Success) {
             return errorCode;
         }
@@ -498,14 +510,15 @@ CSErrorCode CSSnapshots::Read(SequenceNum sn, char * buf, off_t offset, size_t l
 
 /*
     Given the sn and Bit Range range to search to
-    get the 
+    get the
     notInRanges
     and objInfos, which indicate that which snapshot the obj lies in
     and when the snap ptr is null, means that the data is in the chunk its self
 */
-bool CSSnapshots::DivideSnapshotObjInfoByIndex (SequenceNum sn, std::vector<BitRange>& range, 
-                                                std::vector<BitRange>& notInRanges, 
-                                                std::vector<ObjectInfo>& objInfos) {
+bool CSSnapshots::DivideSnapshotObjInfoByIndex(
+    SequenceNum sn, std::vector<BitRange>& range,  // NOLINT
+    std::vector<BitRange>& notInRanges,  // NOLINT
+    std::vector<ObjectInfo>& objInfos) {  // NOLINT
     CSSnapshot* snapshot = nullptr;
     bool isFinish = false;
     bool isFound = false;
@@ -514,12 +527,12 @@ bool CSSnapshots::DivideSnapshotObjInfoByIndex (SequenceNum sn, std::vector<BitR
     std::vector<BitRange> setRanges;
     std::vector<BitRange> tmpRanges;
     std::vector<BitRange> searchRanges;
-    
+
     searchRanges = range;
 
-    if (0 == sn) { //sn == 0 means that this is not a snapshot
+    if (0 == sn) {  // sn == 0 means that this is not a snapshot
         for (auto& tmpc : searchRanges) {
-            notInRanges.push_back (tmpc);
+            notInRanges.push_back(tmpc);
         }
         return isFinish;
     }
@@ -543,10 +556,11 @@ bool CSSnapshots::DivideSnapshotObjInfoByIndex (SequenceNum sn, std::vector<BitR
             for (auto& r : searchRanges) {
                 clearRanges.clear();
                 setRanges.clear();
-                snapshot->GetPageStatus()->Divide(r.beginIndex, r.endIndex, &clearRanges, &setRanges);
+                snapshot->GetPageStatus()->Divide(
+                    r.beginIndex, r.endIndex, &clearRanges, &setRanges);
                 if (true != clearRanges.empty()) {
-                    for (auto & ctmp: clearRanges) {
-                        tmpRanges.push_back (ctmp);
+                    for (auto & ctmp : clearRanges) {
+                        tmpRanges.push_back(ctmp);
                     }
                 }
 
@@ -555,7 +569,9 @@ bool CSSnapshots::DivideSnapshotObjInfoByIndex (SequenceNum sn, std::vector<BitR
                     objInfo.sn = sn;
                     objInfo.snapptr = snapshot;
                     objInfo.offset = tmpr.beginIndex << blockSize_shift_;
-                    objInfo.length = (tmpr.endIndex - tmpr.beginIndex + 1) << blockSize_shift_;
+                    objInfo.length =
+                        (tmpr.endIndex - tmpr.beginIndex + 1)
+                        << blockSize_shift_;
                     objInfos.push_back(objInfo);
                 }
             }
@@ -565,16 +581,16 @@ bool CSSnapshots::DivideSnapshotObjInfoByIndex (SequenceNum sn, std::vector<BitR
                 break;
             }
 
-            //for next snapshot search
+            // for next snapshot search
             searchRanges = tmpRanges;
             tmpRanges.clear();
         }
     }
 
     if (false == isFinish) {
-        //not any snapshot also lead the tmpRanges to empty
+        // not any snapshot also lead the tmpRanges to empty
         for (auto& tmpc : searchRanges) {
-            notInRanges.push_back (tmpc);
+            notInRanges.push_back(tmpc);
         }
     }
 
@@ -596,7 +612,8 @@ CSErrorCode CSSnapshots::Move(SequenceNum from, SequenceNum to) {
         return errorCode;
     }
 
-    int rc = snapFrom->lfs_->Rename(snapFrom->path(from), snapFrom->path(to), RENAME_NOREPLACE);
+    int rc = snapFrom->lfs_->Rename(
+        snapFrom->path(from), snapFrom->path(to), RENAME_NOREPLACE);
     if (rc != 0) {
         LOG(ERROR) << "Rename snap chunk " << snapFrom->path(from)
                    << " to " << snapFrom->path(to) << " failed: " << rc;
@@ -617,9 +634,10 @@ CSErrorCode CSSnapshots::Merge(SequenceNum from, SequenceNum to) {
     CSSnapshot* snapTo = *find(to);
 
     uint32_t pos = 0;
-    char buf[blockSize_];
-    // TODO read/write in ranges
-    for (pos = snapFrom->metaPage_.bitmap->NextSetBit(pos); pos != Bitmap::NO_POS; pos =snapFrom->metaPage_.bitmap->NextSetBit(pos+1)) {
+    char buf[blockSize_];  // NOLINT
+    for (pos = snapFrom->metaPage_.bitmap->NextSetBit(pos);
+        pos != Bitmap::NO_POS;
+        pos = snapFrom->metaPage_.bitmap->NextSetBit(pos+1)) {
         if (!snapTo->metaPage_.bitmap->Test(pos)) {
             off_t offset = blockSize_ * pos;
             int rc = snapFrom->readData(buf, offset, blockSize_);

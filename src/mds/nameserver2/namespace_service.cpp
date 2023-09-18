@@ -975,7 +975,8 @@ void NameSpaceService::CreateSnapShot(
         // for compatibility, if snapfilename is not a snapshot path,
         // not return kParaError
         LOG(WARNING) << "logid = " << cntl->log_id()
-                     << ", CreateSnapShot request path is invalid, snapfilename = "
+                     << ", CreateSnapShot request path is invalid"
+                     << ", snapfilename = "
                      << request->snapfilename();
         srcFileName = request->snapfilename();
     }
@@ -1102,7 +1103,7 @@ void NameSpaceService::ListSnapShot(
         auto size =  request->seq_size();
         // if not have seq, return all snapshots
         if (0 == size) {
-            for (const auto &item: snapShotFiles) {
+            for (const auto &item : snapShotFiles) {
                 FileInfo *fileinfo = response->add_fileinfo();
                 fileinfo->CopyFrom(item);
             }
@@ -1411,10 +1412,11 @@ void NameSpaceService::GetSnapShotFileSegment(
     return;
 }
 
-void NameSpaceService::ProtectSnapShot(::google::protobuf::RpcController* controller,
-                   const ::curve::mds::ProtectSnapShotRequest* request,
-                   ::curve::mds::ProtectSnapShotResponse* response,
-                   ::google::protobuf::Closure* done) {
+void NameSpaceService::ProtectSnapShot(
+    ::google::protobuf::RpcController* controller,
+    const ::curve::mds::ProtectSnapShotRequest* request,
+    ::curve::mds::ProtectSnapShotResponse* response,
+    ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
     ExpiredTime expiredTime;
@@ -1427,7 +1429,8 @@ void NameSpaceService::ProtectSnapShot(::google::protobuf::RpcController* contro
     if (!SplitSnapshotPath(request->snapfilename(), &srcFileName, &snapName)) {
         response->set_statuscode(StatusCode::kParaError);
         LOG(ERROR) << "logid = " << cntl->log_id()
-                  << ", ProtectSnapShot request path is invalid, snapfilename = "
+                  << ", ProtectSnapShot request path is invalid"
+                  << ", snapfilename = "
                   << request->snapfilename();
         return;
     }
@@ -1498,10 +1501,11 @@ void NameSpaceService::ProtectSnapShot(::google::protobuf::RpcController* contro
     }
 }
 
-void NameSpaceService::UnprotectSnapShot(::google::protobuf::RpcController* controller,
-                   const ::curve::mds::UnprotectSnapShotRequest* request,
-                   ::curve::mds::UnprotectSnapShotResponse* response,
-                   ::google::protobuf::Closure* done) {
+void NameSpaceService::UnprotectSnapShot(
+    ::google::protobuf::RpcController* controller,
+    const ::curve::mds::UnprotectSnapShotRequest* request,
+    ::curve::mds::UnprotectSnapShotResponse* response,
+    ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
     ExpiredTime expiredTime;
@@ -1514,7 +1518,8 @@ void NameSpaceService::UnprotectSnapShot(::google::protobuf::RpcController* cont
     if (!SplitSnapshotPath(request->snapfilename(), &srcFileName, &snapName)) {
         response->set_statuscode(StatusCode::kParaError);
         LOG(ERROR) << "logid = " << cntl->log_id()
-                  << ", UnprotectSnapShot request path is invalid, snapfilename = "
+                  << ", UnprotectSnapShot request path is invalid"
+                  << ", snapfilename = "
                   << request->snapfilename();
         return;
     }

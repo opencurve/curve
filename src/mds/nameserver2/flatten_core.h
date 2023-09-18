@@ -24,6 +24,7 @@
 #define SRC_MDS_NAMESERVER2_FLATTEN_CORE_H_
 
 #include <memory>
+#include <string>
 
 #include "src/mds/nameserver2/task_progress.h"
 #include "src/mds/nameserver2/namespace_storage.h"
@@ -39,13 +40,13 @@ using ::curve::common::ContextTaskTracker;
 namespace curve {
 namespace mds {
 
-using FlattenChunkTaskTracker = 
+using FlattenChunkTaskTracker =
     ContextTaskTracker<std::shared_ptr<FlattenChunkContext>>;
 
 struct FlattenOption {
     uint32_t flattenChunkConcurrency;
     uint64_t flattenChunkPartSize;
-    FlattenOption() : 
+    FlattenOption() :
         flattenChunkConcurrency(64),
         flattenChunkPartSize(1048576) {}
 };
@@ -54,11 +55,11 @@ class FlattenCore {
  public:
     explicit FlattenCore(
         const FlattenOption &option,
-        const std::shared_ptr<NameServerStorage> &storage, 
+        const std::shared_ptr<NameServerStorage> &storage,
         const std::shared_ptr<CopysetClientInterface> &copysetClient,
         FileLockManager *fileLockManager)
-        : option_(option), 
-          storage_(storage), 
+        : option_(option),
+          storage_(storage),
           copysetClient_(copysetClient),
           fileLockManager_(fileLockManager) {}
 

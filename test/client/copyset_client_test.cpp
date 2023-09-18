@@ -258,7 +258,7 @@ TEST_F(CopysetClientTest, normal_test) {
         reqCtx->writeData_ = iobuf;
         reqCtx->offset_ = offset;
         reqCtx->rawlength_ = len;
-        
+
         reqCtx->fileId_ = fileId;
         reqCtx->epoch_ = epoch;
         reqCtx->seq_ = 0;

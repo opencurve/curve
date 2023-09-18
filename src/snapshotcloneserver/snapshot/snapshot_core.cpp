@@ -135,14 +135,21 @@ int SnapshotCoreImpl::CreateSyncSnapshotPre(const std::string &file,
     std::vector<SnapshotInfo> fileInfo;
     metaStore_->GetSnapshotList(file, &fileInfo);
     for (auto& snap : fileInfo) {
-        // 1. Pending status means there existed an unfinished snapshot creation, and shall 
-        //    be cleaned first. 
-        // 2. Error status means something abnormal has happened, and shall be cleaned first.
-        // 3. In both cases, the snapshot in invalid status should be cleaned through recover
-        //    task when app starts up or manual deletion of the snapshot. The deletion process
-        //    may be time-consuming and should not be invoked in sync snapshot creation. 
-        if (snap.GetStatus() == Status::pending || snap.GetStatus() == Status::error) {
-            LOG(INFO) << "Can not create snapshot when finding snapshot with status =  " 
+        // 1. Pending status means there existed an
+        //    unfinished snapshot creation, and shall
+        //    be cleaned first.
+        // 2. Error status means something abnormal has happened,
+        //    and shall be cleaned first.
+        // 3. In both cases, the snapshot in invalid status
+        //    should be cleaned through recover
+        //    task when app starts up or manual
+        //    deletion of the snapshot. The deletion process
+        //    may be time-consuming and should not
+        //    be invoked in sync snapshot creation.
+        if (snap.GetStatus() == Status::pending ||
+            snap.GetStatus() == Status::error) {
+            LOG(INFO) << "Can not create snapshot "
+                      << "when finding snapshot with status =  "
                       << static_cast<int>(snap.GetStatus())
                       << ", file = " << file
                       << ", user = " << user
@@ -202,7 +209,7 @@ int SnapshotCoreImpl::CreateSyncSnapshotPre(const std::string &file,
         return ret;
     }
     *snapInfo = info;
-    return kErrCodeSuccess;   
+    return kErrCodeSuccess;
 }
 
 constexpr uint32_t kProgressCreateSnapshotOnCurvefsComplete = 5;
@@ -703,11 +710,12 @@ int SnapshotCoreImpl::CreateSnapshotOnCurvefs(
     // 打完快照需等待2个session时间，以保证seq同步到所有client
     // 防止阻塞耗时影响同步接口返回，取消sleep
     // std::this_thread::sleep_for(
-    //     std::chrono::microseconds(mdsSessionTimeUs_ * 2)); 
+    //     std::chrono::microseconds(mdsSessionTimeUs_ * 2));
     return kErrCodeSuccess;
 }
 
-int SnapshotCoreImpl::DeleteSnapshotOnCurvefs(const SnapshotInfo &info, std::shared_ptr<SnapshotTaskInfo> task) {
+int SnapshotCoreImpl::DeleteSnapshotOnCurvefs(
+    const SnapshotInfo &info, std::shared_ptr<SnapshotTaskInfo> task) {
     std::string fileName = info.GetFileName();
     std::string user = info.GetUser();
     uint64_t seqNum = info.GetSeqNum();
@@ -1145,7 +1153,8 @@ void SnapshotCoreImpl::HandleDeleteSnapshotTask(
     UUID uuid = task->GetUuid();
     uint64_t seqNum = info.GetSeqNum();
     LOG(INFO) << "HandleDeleteSnapshotTask start, uuid = " << uuid
-              << ", seqNum = " << seqNum << ", snapshotName =  " << info.GetSnapshotName();
+              << ", seqNum = " << seqNum
+              << ", snapshotName =  " << info.GetSnapshotName();
     FileSnapMap fileSnapshotMap;
     int ret = 0;
     if (dataStore_->Enabled()) {
@@ -1274,9 +1283,11 @@ void SnapshotCoreImpl::HandleDeleteSyncSnapshotTask(
     UUID uuid = task->GetUuid();
     uint64_t seqNum = info.GetSeqNum();
     LOG(INFO) << "HandleDeleteSyncSnapshotTask start, uuid = " << uuid
-              << ", seqNum = " << seqNum << ", snapshotName =  " << info.GetSnapshotName();
+              << ", seqNum = " << seqNum
+              << ", snapshotName =  " << info.GetSnapshotName();
     int ret = 0;
-    // Pending means unfinished creation and can be marked as deleting before deletion starts
+    // Pending means unfinished creation and
+    // can be marked as deleting before deletion starts
     if (Status::pending == info.GetStatus()) {
         info.SetStatus(Status::deleting);
         ret = metaStore_->UpdateSnapshot(info);
@@ -1297,7 +1308,7 @@ void SnapshotCoreImpl::HandleDeleteSyncSnapshotTask(
         return;
     }
 
-    task->UpdateMetric(); // ?
+    task->UpdateMetric();
     ret = metaStore_->DeleteSnapshot(uuid);
     if (ret < 0) {
         LOG(ERROR) << "DeleteSnapshot error, "

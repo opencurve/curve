@@ -25,6 +25,8 @@
 
 #include <gmock/gmock.h>
 
+#include <string>
+
 #include "src/mds/nameserver2/flatten_manager.h"
 
 namespace curve {
@@ -36,7 +38,8 @@ class MockFlattenManager : public FlattenManager {
                                         const FileInfo &fileInfo,
                                         const FileInfo &snapFileInfo));
 
-    MOCK_METHOD1(GetFlattenTask, std::shared_ptr<FlattenTask>(uint64_t uniqueId));
+    MOCK_METHOD1(GetFlattenTask,
+        std::shared_ptr<FlattenTask>(uint64_t uniqueId));
 };
 
 }  // namespace mds

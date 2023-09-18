@@ -24,6 +24,7 @@
 #include <glog/logging.h>
 
 #include <algorithm>
+#include <vector>
 
 #include "proto/chunk.pb.h"
 #include "src/common/timeutility.h"
@@ -101,7 +102,7 @@ int RequestSender::WriteChunk(RequestContext *ctx,
     request.set_copysetid(idinfo.cpid_);
     request.set_chunkid(idinfo.cid_);
     request.set_sn(sn);
-    for(uint64_t seq:snaps) {
+    for (uint64_t seq : snaps) {
         request.add_snaps(seq);
     }
     request.set_offset(offset);
@@ -115,7 +116,7 @@ int RequestSender::WriteChunk(RequestContext *ctx,
 
     if (ctx->filetype_ == FileType::INODE_CLONE_PAGEFILE) {
         request.set_originfileid(ctx->originFileId_);
-        for(int i = 0; i < ctx->cloneChain_.size(); i++) {
+        for (int i = 0; i < ctx->cloneChain_.size(); i++) {
             auto cinfo = request.add_clones();
             cinfo->set_fileid(ctx->cloneChain_[i].fileId);
             cinfo->set_clonesn(ctx->cloneChain_[i].cloneSn);
@@ -165,7 +166,7 @@ int RequestSender::ReadChunk(RequestContext *ctx,
 
     if (ctx->filetype_ == FileType::INODE_CLONE_PAGEFILE) {
         request.set_originfileid(ctx->originFileId_);
-        for(int i = 0; i < ctx->cloneChain_.size(); i++) {
+        for (int i = 0; i < ctx->cloneChain_.size(); i++) {
             auto cinfo = request.add_clones();
             cinfo->set_fileid(ctx->cloneChain_[i].fileId);
             cinfo->set_clonesn(ctx->cloneChain_[i].cloneSn);
@@ -208,7 +209,7 @@ int RequestSender::ReadChunkSnapshot(const ChunkIDInfo& idinfo,
     request.set_copysetid(idinfo.cpid_);
     request.set_chunkid(idinfo.cid_);
     request.set_sn(sn);
-    for(uint64_t seq:snaps) {
+    for (uint64_t seq : snaps) {
         request.add_snaps(seq);
     }
     request.set_offset(offset);

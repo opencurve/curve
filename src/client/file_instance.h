@@ -140,7 +140,8 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
         const UserInfo& userInfo,
         const OpenFlags& openflags = DefaultReadonlyOpenFlags());
 
-    // 当sn大于0时，代表该file instance用于读取快照文件，sn代表要读取的快照版本号
+    // 当sn大于0时，代表该file instance用于读取快照文件，
+    // sn代表要读取的快照版本号
     void SetReadSnapshotSn(uint64_t sn) {
         if (sn > 0) {
             finfo_.snapSeqnum = sn;

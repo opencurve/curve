@@ -21,6 +21,9 @@
  */
 
 #include "src/mds/nameserver2/flatten_core.h"
+
+#include <list>
+
 #include "src/mds/nameserver2/helper/namespace_helper.h"
 
 using curve::mds::chunkserverclient::CopysetClientClosure;
@@ -90,7 +93,8 @@ void FlattenCore::DoFlatten(
         for (uint32_t j = 0; j != chunkNum; j++) {
             while (workingChunkNum >= option_.flattenChunkConcurrency) {
                 uint32_t completeChunkNum = 0;
-                ret = WaitAsycnFlattenChunkDoneAndSendNewPart(tracker, &completeChunkNum);
+                ret = WaitAsycnFlattenChunkDoneAndSendNewPart(
+                    tracker, &completeChunkNum);
                 workingChunkNum -= completeChunkNum;
                 if (ret < 0) {
                     break;
@@ -130,7 +134,8 @@ void FlattenCore::DoFlatten(
 
     while (workingChunkNum > 0 && ret >= 0) {
         uint32_t completeChunkNum = 0;
-        ret = WaitAsycnFlattenChunkDoneAndSendNewPart(tracker, &completeChunkNum);
+        ret = WaitAsycnFlattenChunkDoneAndSendNewPart(
+            tracker, &completeChunkNum);
         workingChunkNum -= completeChunkNum;
         if (ret < 0) {
             break;
@@ -152,10 +157,10 @@ void FlattenCore::DoFlatten(
         std::string srcFileName = fileInfo.clonesource();
         FileSeqType seq = fileInfo.clonesn();
         FileWriteLockGuard guard(fileLockManager_, fileName, srcFileName);
-        // reget FileInfo 
+        // reget FileInfo
         FileInfo fileInfoNew;
         StoreStatus st = storage_->GetFile(
-            fileInfo.parentid(), fileInfo.filename(), 
+            fileInfo.parentid(), fileInfo.filename(),
             &fileInfoNew);
         if (st != StoreStatus::OK) {
             LOG(ERROR) << "get file info fail, file: " << fileName
@@ -174,10 +179,10 @@ void FlattenCore::DoFlatten(
             snapFileInfo.parentid(), snapFileInfo.filename(),
             &snapFileInfoNew);
         if (st != StoreStatus::OK) {
-            LOG(ERROR) << "flatten LookUp SnapFile srcfile: " 
+            LOG(ERROR) << "flatten LookUp SnapFile srcfile: "
                        << snapFileInfo.filename()
                        << ", failed, ret: " << st;
-            // not return error, to compatibility 
+            // not return error, to compatibility
             // with error scenarios
             st = storage_->PutFile(fileInfoNew);
             if (st != StoreStatus::OK) {
@@ -191,15 +196,15 @@ void FlattenCore::DoFlatten(
                 progress->SetProgress(100);
             }
         } else {
-            for (auto it = snapFileInfoNew.mutable_children()->begin(); 
-                it != snapFileInfoNew.mutable_children()->end(); 
+            for (auto it = snapFileInfoNew.mutable_children()->begin();
+                it != snapFileInfoNew.mutable_children()->end();
                 ++it) {
                 if (*it == fileName) {
                     snapFileInfoNew.mutable_children()->erase(it);
                     break;
                 }
             }
-            if (storage_->Put2File(fileInfoNew, snapFileInfoNew) 
+            if (storage_->Put2File(fileInfoNew, snapFileInfoNew)
                 != StoreStatus::OK) {
                 LOG(ERROR) << "update file info fail, file: " << fileName
                            << ", id: " << fileInfo.id();
@@ -225,7 +230,7 @@ int FlattenCore::StartAsyncFlattenChunkPart(
     if (ret < 0) {
         LOG(ERROR) << "Start flatten chunk fail, ret: " << ret;
         return ret;
-    } 
+    }
     cb.release();
     tracker->AddOneTrace();
     return ret;
@@ -236,7 +241,7 @@ int FlattenCore::WaitAsycnFlattenChunkDoneAndSendNewPart(
     uint32_t *completeChunkNum) {
     *completeChunkNum = 0;
     tracker->WaitSome(1);
-    std::list<std::shared_ptr<FlattenChunkContext>> results = 
+    std::list<std::shared_ptr<FlattenChunkContext>> results =
         tracker->PopResultContexts();
     for (auto &context : results) {
         if (context->retCode < 0) {
@@ -245,20 +250,20 @@ int FlattenCore::WaitAsycnFlattenChunkDoneAndSendNewPart(
             return context->retCode;
         } else {
             context->partIndex++;
-            if (context->partIndex * option_.flattenChunkPartSize >= 
+            if (context->partIndex * option_.flattenChunkPartSize >=
                     context->chunkSize) {
                 (*completeChunkNum)++;
                 continue;
             }
 
-            if ((context->partIndex + 1) * option_.flattenChunkPartSize > 
+            if ((context->partIndex + 1) * option_.flattenChunkPartSize >
                     context->chunkSize) {
-                context->partSize = context->chunkSize - 
+                context->partSize = context->chunkSize -
                     context->partIndex * option_.flattenChunkPartSize;
             } else {
                 context->partSize = option_.flattenChunkPartSize;
             }
-        
+
             int ret = StartAsyncFlattenChunkPart(tracker, context);
             if (ret < 0) {
                 LOG(ERROR) << "StartAsyncFlattenChunk fail, ret: " << ret;

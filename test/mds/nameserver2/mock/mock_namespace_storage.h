@@ -67,7 +67,7 @@ class MockNameServerStorage : public NameServerStorage {
                                             const FileInfo &));
 
     MOCK_METHOD3(MoveCloneFileToRecycle, StoreStatus(
-        const FileInfo &originFileInfo, 
+        const FileInfo &originFileInfo,
         const FileInfo &snapshotFileInfo,
         const FileInfo &recycleFileInfo));
 
