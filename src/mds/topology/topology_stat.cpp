@@ -77,6 +77,9 @@ void TopologyStatImpl::UpdateChunkServerStat(ChunkServerIdType csId,
             physicalPoolStats_[belongPhysicalPoolId].almostFullCsList
                 .emplace(csId);
         } else {
+            LOG(INFO) << "UpdateChunkServerStat, chunkserver is not full,"
+                      << "remove from almost list, chunkserverId = "
+                      << csId;
             physicalPoolStats_[belongPhysicalPoolId].almostFullCsList
                 .erase(csId);
         }
