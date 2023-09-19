@@ -18,9 +18,9 @@ SHELL=/bin/bash
 
 pwd := $(shell pwd)
 
-all: install-go install-etcdclient libetcdclient
+all: intall-go install-etcdclient libetcdclient
 
-install-go:
+intall-go:
 	mkdir -p $(pwd)/tmp
 	cd $(pwd)/tmp && wget -N https://golang.google.cn/dl/go1.12.8.linux-amd64.tar.gz
 	cd $(pwd)/tmp && tar zxvf go1.12.8.linux-amd64.tar.gz
