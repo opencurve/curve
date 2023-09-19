@@ -4,86 +4,50 @@ set -x
 # Copyright (C) 2021 Jingli Chen (Wine93), NetEase Inc.
 
 ############################  GLOBAL VARIABLES
+g_stor=""
+g_list=0
+g_depend=0
+g_target=""
+g_release=0
+g_ci=0
+g_build_rocksdb=0
+g_build_opts=(
+    "--define=with_glog=true"
+    "--define=libunwind=true"
+    "--copt -DHAVE_ZLIB=1"
+    "--copt -DGFLAGS_NS=google"
+    "--copt -DUSE_BTHREAD_MUTEX"
+)
+
 g_os="debian11"
 
-############################  BASIC FUNCTIONS
-msg() {
-    printf '%b' "$1" >&2
-}
 
-success() {
-    msg "\33[32m[✔]\33[0m ${1}${2}"
-}
-
-die() {
-    msg "\33[31m[✘]\33[0m ${1}${2}"
-    exit 1
-}
-
-print_title() {
-    local delimiter=$(printf '=%.0s' {1..20})
-    msg "$delimiter [$1] $delimiter\n"
-}
-
-############################ FUNCTIONS
-
-get_options() {
-    local args=`getopt -o ldorh --long stor:,list,dep:,only:,os:,release:,ci:,build_rocksdb: -n "$0" -- "$@"`
-    eval set -- "${args}"
-    while true
-    do
-        case "$1" in
-            -s|--stor)
-                g_stor=$2
-                shift 2
-                ;;
-            -l|--list)
-                g_list=1
-                shift 1
-                ;;
-            -d|--dep)
-                g_depend=$2
-                shift 2
-                ;;
-            -o|--only)
-                g_target=$2
-                shift 2
-                ;;
-            -r|--release)
-                g_release=$2
-                shift 2
-                ;;
-            -c|--ci)
-                g_ci=$2
-                shift 2
-                ;;
-            --os)
-                g_os=$2
-                shift 2
-                ;;
-            --build_rocksdb)
-                g_build_rocksdb=$2
-                shift 2
-                ;;
-            -h)
-                usage
-                exit 1
-                ;;
-            --)
-                shift
-                break
-                ;;
-            *)
-                exit 1
-                ;;
-        esac
-    done
-}
 
 main() {
-    get_options "$@"
+    source "util/basic.sh"
+    source "util/build_functions.sh"
 
-    sudo docker run --rm -w /curve --user $(id -u ${USER}):$(id -g ${USER}) -v $(pwd):/curve -v ${HOME}:${HOME} -v /etc/passwd:/etc/passwd:ro -v /etc/group:/etc/group:ro -v /etc/shadow:/etc/shadow:ro --privileged opencurvedocker/curve-base:build-$g_os bash util/build_in_image.sh "$@"
+    get_options "$@"
+    get_version
+
+    if [[ "$g_stor" != "bs" && "$g_stor" != "fs" ]]; then
+        die "stor option must be either bs or fs\n"
+    fi
+
+    if [ "$g_list" -eq 1 ]; then
+        list_target
+    elif [[ "$g_target" == "" && "$g_depend" -ne 1 ]]; then
+        die "must not disable both only option or dep option\n"
+    else
+        if [ "$g_depend" -eq 1 ]; then
+            build_requirements
+        fi
+        if [ -n "$g_target" ]; then
+            build_target
+        fi
+    fi
+
+    #sudo docker run --rm -w /curve --user $(id -u ${USER}):$(id -g ${USER}) -v $(pwd):/curve -v ${HOME}:${HOME} -v /etc/passwd:/etc/passwd:ro -v /etc/group:/etc/group:ro -v /etc/shadow:/etc/shadow:ro --privileged opencurvedocker/curve-base:build-$g_os bash util/build_in_image.sh "$@"
 }
 
 ############################  MAIN()
