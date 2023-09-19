@@ -20,6 +20,7 @@
  * Author: qinyi
  */
 
+#include <vector>
 #include "test/integration/common/chunkservice_op.h"
 #include "proto/chunk.pb.h"
 
@@ -33,13 +34,16 @@ int ChunkServiceOp::WriteChunk(struct ChunkServiceOpConf *opConf,
                                ChunkID chunkId, SequenceNum sn, off_t offset,
                                size_t len, const char *data,
                                const std::string& cloneFileSource,
-                               off_t cloneFileOffset) {
+                               off_t cloneFileOffset,
+                               std::vector<SequenceNum>* snaps) {
     PeerId leaderId(opConf->leaderPeer->address());
     brpc::Channel channel;
     channel.Init(leaderId.addr, NULL);
     ChunkService_Stub stub(&channel);
     brpc::Controller cntl;
     cntl.set_timeout_ms(opConf->rpcTimeout);
+    uint64_t fileId = 1;
+    uint64_t chunkIndex = chunkId;
 
     ChunkRequest request;
     ChunkResponse response;
@@ -50,6 +54,15 @@ int ChunkServiceOp::WriteChunk(struct ChunkServiceOpConf *opConf,
     request.set_sn(sn);
     request.set_offset(offset);
     request.set_size(len);
+    request.set_fileid(fileId);
+    request.set_chunkindex(chunkIndex);
+
+    if (nullptr != snaps) {
+        for (auto& snap : *snaps) {
+            request.add_snaps(snap);
+        }
+    }
+
     if (!cloneFileSource.empty()) {
         request.set_clonefilesource(cloneFileSource);
         request.set_clonefileoffset(cloneFileOffset);
@@ -115,7 +128,8 @@ int ChunkServiceOp::ReadChunk(struct ChunkServiceOpConf *opConf,
 int ChunkServiceOp::ReadChunkSnapshot(struct ChunkServiceOpConf *opConf,
                                       ChunkID chunkId, SequenceNum sn,
                                       off_t offset, size_t len,
-                                      std::string *data) {
+                                      std::string *data,
+                                      std::vector<SequenceNum> *snaps) {
     PeerId leaderId(opConf->leaderPeer->address());
     brpc::Channel channel;
     channel.Init(leaderId.addr, NULL);
@@ -132,6 +146,11 @@ int ChunkServiceOp::ReadChunkSnapshot(struct ChunkServiceOpConf *opConf,
     request.set_sn(sn);
     request.set_offset(offset);
     request.set_size(len);
+    if (nullptr != snaps) {
+        for (auto& snap : *snaps) {
+            request.add_snaps(snap);
+        }
+    }
 
     stub.ReadChunkSnapshot(&cntl, &request, &response, nullptr);
     if (cntl.Failed()) {
@@ -153,13 +172,16 @@ int ChunkServiceOp::ReadChunkSnapshot(struct ChunkServiceOpConf *opConf,
 }
 
 int ChunkServiceOp::DeleteChunk(struct ChunkServiceOpConf *opConf,
-                                ChunkID chunkId, SequenceNum sn) {
+                                ChunkID chunkId, SequenceNum sn,
+                                std::vector<SequenceNum>* snaps) {
     PeerId leaderId(opConf->leaderPeer->address());
     brpc::Channel channel;
     channel.Init(leaderId.addr, NULL);
     ChunkService_Stub stub(&channel);
     brpc::Controller cntl;
     cntl.set_timeout_ms(opConf->rpcTimeout);
+    uint64_t fileId = 1;
+    uint64_t chunkIndex = chunkId;
 
     ChunkRequest request;
     ChunkResponse response;
@@ -168,6 +190,14 @@ int ChunkServiceOp::DeleteChunk(struct ChunkServiceOpConf *opConf,
     request.set_copysetid(opConf->copysetId);
     request.set_chunkid(chunkId);
     request.set_sn(sn);
+    request.set_fileid(fileId);
+    request.set_chunkindex(chunkIndex);
+    // set snaps
+    if (nullptr != snaps) {
+        for (auto& snap : *snaps) {
+            request.add_snaps(snap);
+        }
+    }
     stub.DeleteChunk(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
@@ -189,6 +219,8 @@ int ChunkServiceOp::DeleteChunkSnapshotOrCorrectSn(
     ChunkService_Stub stub(&channel);
     brpc::Controller cntl;
     cntl.set_timeout_ms(opConf->rpcTimeout);
+    uint64_t fileId = 1;
+    uint64_t chunkIndex = chunkId;
 
     ChunkRequest request;
     ChunkResponse response;
@@ -197,6 +229,8 @@ int ChunkServiceOp::DeleteChunkSnapshotOrCorrectSn(
     request.set_copysetid(opConf->copysetId);
     request.set_chunkid(chunkId);
     request.set_snapsn(snapSn);
+    request.set_fileid(fileId);
+    request.set_chunkindex(chunkIndex);
     stub.DeleteChunkSnapshotOrCorrectSn(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
@@ -330,10 +364,11 @@ int ChunkServiceVerify::VerifyWriteChunk(ChunkID chunkId, SequenceNum sn,
                                          off_t offset, size_t len,
                                          const char *data, string *chunkData,
                                          const std::string& cloneFileSource,
-                                         off_t cloneFileOffset) {
+                                         off_t cloneFileOffset,
+                                         std::vector<SequenceNum>* snaps) {
     int ret =
         ChunkServiceOp::WriteChunk(opConf_, chunkId, sn, offset, len, data,
-                                   cloneFileSource, cloneFileOffset);
+                                   cloneFileSource, cloneFileOffset, snaps);
 
     LOG(INFO) << "Write Chunk " << chunkId << ", sn=" << sn
               << ", offset=" << offset << ", len=" << len
@@ -404,14 +439,16 @@ int ChunkServiceVerify::VerifyReadChunk(ChunkID chunkId, SequenceNum sn,
     return 0;
 }
 
-int ChunkServiceVerify::VerifyReadChunkSnapshot(ChunkID chunkId, SequenceNum sn,
-                                                off_t offset, size_t len,
-                                                string *chunkData) {
+int ChunkServiceVerify::VerifyReadChunkSnapshot(ChunkID chunkId,
+                                            SequenceNum sn,
+                                            off_t offset, size_t len,
+                                            string *chunkData,
+                                            std::vector<SequenceNum> *snaps) {
     std::string data(len, 0);
     bool chunk_existed = existChunks_.find(chunkId) != std::end(existChunks_);
 
     int ret = ChunkServiceOp::ReadChunkSnapshot(opConf_, chunkId, sn, offset,
-                                                len, &data);
+                                                len, &data, snaps);
     LOG(INFO) << "Read Snapshot for Chunk " << chunkId << ", sn=" << sn
               << ", offset=" << offset << ", len=" << len << ", ret=" << ret;
 
@@ -454,8 +491,9 @@ int ChunkServiceVerify::VerifyReadChunkSnapshot(ChunkID chunkId, SequenceNum sn,
     return 0;
 }
 
-int ChunkServiceVerify::VerifyDeleteChunk(ChunkID chunkId, SequenceNum sn) {
-    int ret = ChunkServiceOp::DeleteChunk(opConf_, chunkId, sn);
+int ChunkServiceVerify::VerifyDeleteChunk(ChunkID chunkId, SequenceNum sn,
+                                        std::vector<SequenceNum>* snaps) {
+    int ret = ChunkServiceOp::DeleteChunk(opConf_, chunkId, sn, snaps);
     LOG(INFO) << "Delete Chunk " << chunkId << ", sn " << sn << ", ret=" << ret;
 
     if (ret == CHUNK_OP_STATUS_SUCCESS)

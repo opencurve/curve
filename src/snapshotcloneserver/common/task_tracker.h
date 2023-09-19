@@ -23,6 +23,7 @@
 #ifndef SRC_SNAPSHOTCLONESERVER_COMMON_TASK_TRACKER_H_
 #define SRC_SNAPSHOTCLONESERVER_COMMON_TASK_TRACKER_H_
 
+#include <memory>
 #include "src/common/snapshotclone/snapshotclone_define.h"
 #include "src/common/task_tracker.h"
 

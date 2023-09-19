@@ -26,6 +26,7 @@
 #include <gmock/gmock.h>
 
 #include <string>
+#include <memory>
 
 #include "src/mds/nameserver2/flatten_manager.h"
 

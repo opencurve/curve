@@ -27,6 +27,7 @@
 #include <string>
 #include <set>
 #include <memory>
+#include <vector>
 #include "include/chunkserver/chunkserver_common.h"
 #include "proto/common.pb.h"
 
@@ -64,7 +65,8 @@ class ChunkServiceOp {
                           SequenceNum sn, off_t offset, size_t len,
                           const char *data,
                           const std::string& cloneFileSource = "",
-                          off_t cloneFileOffset = 0);
+                          off_t cloneFileOffset = 0,
+                          std::vector<SequenceNum>* snaps = nullptr);
 
     /**
      * @brief 通过chunkService读chunk
@@ -96,7 +98,8 @@ class ChunkServiceOp {
      */
     static int ReadChunkSnapshot(struct ChunkServiceOpConf *opConf,
                                  ChunkID chunkId, SequenceNum sn, off_t offset,
-                                 size_t len, std::string *data);
+                                 size_t len, std::string *data,
+                                 std::vector<SequenceNum>* snaps = nullptr);
 
     /**
      * @brief 通过chunkService删除chunk
@@ -106,7 +109,8 @@ class ChunkServiceOp {
      * @return 请求执行失败则返回-1，否则返回错误码
      */
     static int DeleteChunk(struct ChunkServiceOpConf *opConf, ChunkID chunkId,
-                           SequenceNum sn);
+                           SequenceNum sn,
+                           std::vector<SequenceNum>* snaps = nullptr);
 
     /**
      * @brief 通过chunkService删除此次转储时产生的或者历史遗留的快照
@@ -180,7 +184,8 @@ class ChunkServiceVerify {
     int VerifyWriteChunk(ChunkID chunkId, SequenceNum sn, off_t offset,
                          size_t len, const char *data, string *chunkData,
                          const std::string& cloneFileSource = "",
-                         off_t cloneFileOffset = 0);
+                         off_t cloneFileOffset = 0,
+                         std::vector<SequenceNum>* snaps = nullptr);
 
     /**
      * @brief 执行读chunk, 并验证读取内容是否与chunkdata对应区域的预期数据吻合。
@@ -209,7 +214,8 @@ class ChunkServiceVerify {
      * @return 读请求结果符合预期返回0，否则返回-1
      */
     int VerifyReadChunkSnapshot(ChunkID chunkId, SequenceNum sn, off_t offset,
-                                size_t len, string *chunkData);
+                                size_t len, string *chunkData,
+                                std::vector<SequenceNum>* snaps = nullptr);
 
     /**
      * @brief 删除chunk
@@ -217,7 +223,8 @@ class ChunkServiceVerify {
      * @param sn chunk版本
      * @return 返回删除操作的错误码
      */
-    int VerifyDeleteChunk(ChunkID chunkId, SequenceNum sn);
+    int VerifyDeleteChunk(ChunkID chunkId, SequenceNum sn,
+                          std::vector<SequenceNum>* snaps = nullptr);
 
     /**
      * @brief 删除chunk的快照

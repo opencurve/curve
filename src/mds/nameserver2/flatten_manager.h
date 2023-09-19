@@ -25,6 +25,7 @@
 
 #include <map>
 #include <string>
+#include <memory>
 
 #include "proto/nameserver2.pb.h"
 #include "src/mds/nameserver2/task_manager.h"
