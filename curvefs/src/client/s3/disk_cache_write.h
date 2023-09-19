@@ -22,35 +22,34 @@
 #ifndef CURVEFS_SRC_CLIENT_S3_DISK_CACHE_WRITE_H_
 #define CURVEFS_SRC_CLIENT_S3_DISK_CACHE_WRITE_H_
 
+#include <sys/stat.h>
 #include <bthread/condition_variable.h>
 #include <bthread/mutex.h>
-#include <sys/stat.h>
 
-#include <list>
 #include <memory>
-#include <set>
 #include <string>
+#include <list>
+#include <set>
 
-#include "curvefs/src/client/common/config.h"
-#include "curvefs/src/client/s3/client_s3.h"
-#include "curvefs/src/client/s3/disk_cache_base.h"
-#include "curvefs/src/client/s3/disk_cache_read.h"
-#include "curvefs/src/common/utils.h"
-#include "curvefs/src/common/wrap_posix.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/interruptible_sleeper.h"
 #include "src/common/lru_cache.h"
 #include "src/common/throttle.h"
 #include "src/common/wait_interval.h"
+#include "curvefs/src/common/wrap_posix.h"
+#include "curvefs/src/common/utils.h"
+#include "curvefs/src/client/s3/client_s3.h"
+#include "curvefs/src/client/s3/disk_cache_read.h"
+#include "curvefs/src/client/common/config.h"
+#include "curvefs/src/client/s3/disk_cache_base.h"
 
 namespace curvefs {
 namespace client {
 
-using curve::common::InterruptibleSleeper;
-using curve::common::PutObjectAsyncCallBack;
-using ::curve::common::SglLRUCache;
-using curvefs::client::metric::S3Metric;
 using curvefs::common::PosixWrapper;
+using curve::common::InterruptibleSleeper;
+using ::curve::common::SglLRUCache;
+using curve::common::PutObjectAsyncCallBack;
 
 class DiskCacheWrite : public DiskCacheBase {
  public:
@@ -131,10 +130,8 @@ class DiskCacheWrite : public DiskCacheBase {
      */
     virtual int AsyncUploadStop();
 
-    virtual void InitMetrics(std::shared_ptr<DiskCacheMetric> metric,
-                             std::shared_ptr<S3Metric> s3Metric) {
+    virtual void InitMetrics(std::shared_ptr<DiskCacheMetric> metric) {
         metric_ = metric;
-        s3Metric_ = s3Metric;
     }
 
     /**
@@ -163,7 +160,6 @@ class DiskCacheWrite : public DiskCacheBase {
     // file system operation encapsulation
     std::shared_ptr<PosixWrapper> posixWrapper_;
     std::shared_ptr<DiskCacheMetric> metric_;
-    std::shared_ptr<S3Metric> s3Metric_;
 
     std::shared_ptr<SglLRUCache<std::string>> cachedObjName_;
 };

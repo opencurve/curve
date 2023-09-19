@@ -108,7 +108,11 @@ TEST_F(ClientS3Test, uploadync) {
     uint64_t len = 1024;
     char* buf = new char[len];
     std::shared_ptr<PutObjectAsyncContext> context =
-        std::make_shared<PutObjectAsyncContext>("name", buf, 1, nullptr);
+      std::make_shared<PutObjectAsyncContext>();
+    context->key = "name";
+    context->buffer = buf;
+    context->bufferSize = 1;
+    context->cb = nullptr;
     EXPECT_CALL(*s3Client_, PutObjectAsync(_))
         .WillOnce(Return());
     client_->UploadAsync(context);
@@ -120,7 +124,12 @@ TEST_F(ClientS3Test, downloadAsync) {
     uint64_t len = 1024;
     char* buf = new char[len];
 
-    auto context = std::make_shared<GetObjectAsyncContext>("name", buf, 1, 10);
+    auto context = std::make_shared<GetObjectAsyncContext>();
+    context->key = "name";
+    context->buf = buf;
+    context->offset = 1;
+    context->len = 10;
+    context->cb = nullptr;
 
     EXPECT_CALL(*s3Client_, GetObjectAsync(_))
         .WillOnce(Return());

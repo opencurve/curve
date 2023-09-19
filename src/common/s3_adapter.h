@@ -22,43 +22,40 @@
 
 #ifndef SRC_COMMON_S3_ADAPTER_H_
 #define SRC_COMMON_S3_ADAPTER_H_
-#include <aws/core/Aws.h>                                 //NOLINT
-#include <aws/core/auth/AWSCredentialsProvider.h>         //NOLINT
-#include <aws/core/client/ClientConfiguration.h>          //NOLINT
-#include <aws/core/http/HttpRequest.h>                    //NOLINT
-#include <aws/core/http/Scheme.h>                         //NOLINT
-#include <aws/core/utils/memory/AWSMemory.h>              //NOLINT
-#include <aws/core/utils/memory/stl/AWSString.h>          //NOLINT
-#include <aws/core/utils/memory/stl/AWSStringStream.h>    //NOLINT
-#include <aws/core/utils/threading/Executor.h>            //NOLINT
-#include <aws/s3/S3Client.h>                              //NOLINT
-#include <aws/s3/model/AbortMultipartUploadRequest.h>     //NOLINT
-#include <aws/s3/model/BucketLocationConstraint.h>        //NOLINT
-#include <aws/s3/model/CompleteMultipartUploadRequest.h>  //NOLINT
-#include <aws/s3/model/CompletedPart.h>                   //NOLINT
-#include <aws/s3/model/CreateBucketConfiguration.h>       //NOLINT
-#include <aws/s3/model/CreateBucketRequest.h>             //NOLINT
-#include <aws/s3/model/CreateMultipartUploadRequest.h>    //NOLINT
-#include <aws/s3/model/Delete.h>                          //NOLINT
-#include <aws/s3/model/DeleteBucketRequest.h>             //NOLINT
-#include <aws/s3/model/DeleteObjectRequest.h>             //NOLINT
-#include <aws/s3/model/DeleteObjectsRequest.h>            //NOLINT
-#include <aws/s3/model/GetObjectRequest.h>                //NOLINT
-#include <aws/s3/model/HeadBucketRequest.h>               //NOLINT
-#include <aws/s3/model/HeadObjectRequest.h>               //NOLINT
-#include <aws/s3/model/ObjectIdentifier.h>                //NOLINT
-#include <aws/s3/model/PutObjectRequest.h>                //NOLINT
-#include <aws/s3/model/UploadPartRequest.h>               //NOLINT
-
-#include <condition_variable>
 #include <cstdint>
-#include <list>
 #include <map>
+#include <list>
+#include <string>
 #include <memory>
 #include <mutex>
-#include <string>
-#include <utility>
-
+#include <condition_variable>
+#include <aws/core/utils/memory/AWSMemory.h>              //NOLINT
+#include <aws/core/Aws.h>                                 //NOLINT
+#include <aws/s3/S3Client.h>                              //NOLINT
+#include <aws/core/client/ClientConfiguration.h>          //NOLINT
+#include <aws/core/auth/AWSCredentialsProvider.h>         //NOLINT
+#include <aws/s3/model/PutObjectRequest.h>                //NOLINT
+#include <aws/s3/model/CreateBucketRequest.h>             //NOLINT
+#include <aws/s3/model/DeleteBucketRequest.h>             //NOLINT
+#include <aws/s3/model/HeadBucketRequest.h>               //NOLINT
+#include <aws/s3/model/HeadObjectRequest.h>               //NOLINT
+#include <aws/s3/model/GetObjectRequest.h>                //NOLINT
+#include <aws/s3/model/DeleteObjectRequest.h>             //NOLINT
+#include <aws/s3/model/CreateMultipartUploadRequest.h>    //NOLINT
+#include <aws/s3/model/UploadPartRequest.h>               //NOLINT
+#include <aws/s3/model/CompleteMultipartUploadRequest.h>  //NOLINT
+#include <aws/s3/model/AbortMultipartUploadRequest.h>     //NOLINT
+#include <aws/s3/model/ObjectIdentifier.h>                //NOLINT
+#include <aws/s3/model/Delete.h>                          //NOLINT
+#include <aws/s3/model/DeleteObjectsRequest.h>            //NOLINT
+#include <aws/core/http/HttpRequest.h>                    //NOLINT
+#include <aws/s3/model/CompletedPart.h>                   //NOLINT
+#include <aws/core/http/Scheme.h>                         //NOLINT
+#include <aws/core/utils/memory/stl/AWSString.h>          //NOLINT
+#include <aws/core/utils/memory/stl/AWSStringStream.h>    //NOLINT
+#include <aws/s3/model/BucketLocationConstraint.h>        //NOLINT
+#include <aws/s3/model/CreateBucketConfiguration.h>       //NOLINT
+#include <aws/core/utils/threading/Executor.h>            //NOLINT
 #include "src/common/configuration.h"
 #include "src/common/throttle.h"
 
@@ -110,39 +107,19 @@ void InitS3AdaptorOptionExceptS3InfoOption(Configuration *conf,
 
 void InitS3AdaptorOption(Configuration *conf, S3AdapterOption *s3Opt);
 
-using GetObjectAsyncCallBack = std::function<void(
-    const S3Adapter*, const std::shared_ptr<GetObjectAsyncContext>&)>;
+typedef std::function<void(const S3Adapter *,
+                           const std::shared_ptr<GetObjectAsyncContext> &)>
+    GetObjectAsyncCallBack;
 
-// get/put object context type
-enum class ContextType {
-    Unkown,  // should be default value
-    S3,
-    Disk,
-};
 struct GetObjectAsyncContext : public Aws::Client::AsyncCallerContext {
     std::string key;
-    char* buf;
+    char *buf;
     off_t offset;
     size_t len;
-    int retCode;  // >= 0 success, < 0 fail
+    GetObjectAsyncCallBack cb;
+    int retCode;
     uint32_t retry;
     size_t actualLen;
-    GetObjectAsyncCallBack cb;
-    butil::Timer timer;
-    ContextType type = ContextType::Unkown;
-
-    explicit GetObjectAsyncContext(
-        std::string key, char* buf, off_t offset, size_t len,
-        GetObjectAsyncCallBack cb =
-            [](const S3Adapter*,
-               const std::shared_ptr<GetObjectAsyncContext>&) {},
-        ContextType type = ContextType::Unkown)
-        : key(std::move(key)),
-          buf(buf),
-          offset(offset),
-          len(len),
-          cb(std::move(cb)),
-          type(type) {}
 };
 
 /*
@@ -150,28 +127,16 @@ typedef std::function<void(const S3Adapter*,
     const std::shared_ptr<PutObjectAsyncContext>&)>
         PutObjectAsyncCallBack;
 */
-using PutObjectAsyncCallBack =
-    std::function<void(const std::shared_ptr<PutObjectAsyncContext>&)>;
+typedef std::function<void(const std::shared_ptr<PutObjectAsyncContext> &)>
+    PutObjectAsyncCallBack;
 
 struct PutObjectAsyncContext : public Aws::Client::AsyncCallerContext {
     std::string key;
-    const char* buffer;
+    const char *buffer;
     size_t bufferSize;
     PutObjectAsyncCallBack cb;
-    butil::Timer timer;
-    int retCode;  // >= 0 success, < 0 fail
-    ContextType type;
-
-    explicit PutObjectAsyncContext(
-        std::string key, const char* buffer, size_t bufferSize,
-        PutObjectAsyncCallBack cb =
-            [](const std::shared_ptr<PutObjectAsyncContext>&) {},
-        ContextType type = ContextType::Unkown)
-        : key(std::move(key)),
-          buffer(buffer),
-          bufferSize(bufferSize),
-          cb(std::move(cb)),
-          type(type) {}
+    uint64_t startTime;
+    int retCode;
 };
 
 class S3Adapter {
@@ -412,7 +377,6 @@ class FakeS3Adapter : public S3Adapter {
     void
     PutObjectAsync(std::shared_ptr<PutObjectAsyncContext> context) override {
         context->retCode = 0;
-        context->timer.stop();
         context->cb(context);
     }
 

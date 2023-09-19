@@ -19,19 +19,15 @@
  * Created Date: 21-08-13
  * Author: hzwuhongsong
  */
-#include "curvefs/src/client/s3/disk_cache_manager_impl.h"
-
-#include <errno.h>
 #include <sys/vfs.h>
-
-#include <cstdint>
+#include <errno.h>
+#include <string>
 #include <cstdio>
 #include <list>
 #include <memory>
-#include <string>
 
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
-#include "curvefs/src/client/s3/disk_cache_write.h"
+#include "curvefs/src/client/s3/disk_cache_manager_impl.h"
 
 namespace curvefs {
 
@@ -83,11 +79,6 @@ int DiskCacheManagerImpl::WriteReadDirectClosure(
         int ret = WriteReadDirect(context->key,
                             context->buffer, context->bufferSize);
         VLOG(9) << "WriteReadClosure end, name: " << context->key;
-        context->retCode = ret;
-        context->timer.stop();
-        if (context->cb != nullptr) {
-            context->cb(context);
-        }
         return ret;
 }
 
@@ -176,14 +167,11 @@ int DiskCacheManagerImpl::Read(const std::string name, char *buf,
     int ret = diskCacheManager_->ReadDiskFile(name, buf, offset, length);
     if (ret < static_cast<int64_t>(length)) {
         LOG(ERROR) << "read disk file error. readRet = " << ret;
-        int64_t start = butil::cpuwide_time_us();
         ret = client_->Download(name, buf, offset, length);
         if (ret < 0) {
             LOG(ERROR) << "download object fail. object name = " << name;
             return ret;
         }
-        metric::CollectMetrics(&diskCacheManager_->GetS3Metric()->readFromS3,
-                               length, butil::cpuwide_time_us() - start);
     }
     VLOG(9) << "read success, read name = " << name;
     return ret;
@@ -209,9 +197,8 @@ int DiskCacheManagerImpl::UmountDiskCache() {
     return 0;
 }
 
-void DiskCacheManagerImpl::InitMetrics(std::string fsName,
-                                       std::shared_ptr<S3Metric> s3Metric) {
-    diskCacheManager_->InitMetrics(fsName, s3Metric);
+void DiskCacheManagerImpl::InitMetrics(std::string fsName) {
+    diskCacheManager_->InitMetrics(fsName);
 }
 
 int DiskCacheManagerImpl::UploadWriteCacheByInode(const std::string &inode) {
