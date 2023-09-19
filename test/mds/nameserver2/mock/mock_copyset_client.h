@@ -27,6 +27,7 @@
 #include <gtest/gtest.h>
 
 #include <vector>
+#include <memory>
 
 #include "src/mds/chunkserverclient/copyset_client.h"
 

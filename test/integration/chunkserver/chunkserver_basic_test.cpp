@@ -229,6 +229,9 @@ class ChunkServerIoTest : public testing::Test {
         ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
         ASSERT_EQ(0, InitCluster(&cluster));
 
+        std::vector<SequenceNum> snaps;
+        snaps.clear();
+
         // 构造初始环境
         // 写chunk1产生chunk1，chunk1版本为1，chunk2开始不存在。
         data.assign(length, 'a');
@@ -238,27 +241,32 @@ class ChunkServerIoTest : public testing::Test {
         /*
         *  场景一：第一次给文件打快照
         */
+        snaps.push_back(sn1);
         chunkData1b.assign(chunkData1a);  // 模拟对chunk1数据进行COW
         data.assign(length, 'b');
         ASSERT_EQ(0, verify->VerifyWriteChunk(chunk1, sn2, 4 * KB, 4 * KB,
-                                             data.c_str(), &chunkData1b));
+                                             data.c_str(), &chunkData1b,
+                                             "", 0, &snaps));
         // 重复写入同一区域，用于验证不会重复cow
         data.assign(length, 'c');
         ASSERT_EQ(0, verify->VerifyWriteChunk(chunk1, sn2, 4 * KB, 4 * KB,
-                                             data.c_str(), &chunkData1b));
+                                             data.c_str(), &chunkData1b,
+                                             "", 0, &snaps));
 
         // 读取chunk1快照，预期读到版本1数据
         ASSERT_EQ(0, verify->VerifyReadChunkSnapshot(chunk1, sn1, 0, 12 * KB,
-                                                    &chunkData1a));
+                                                    &chunkData1a, &snaps));
 
         // chunk1写[0, 4KB]
         data.assign(length, 'd');
         ASSERT_EQ(0, verify->VerifyWriteChunk(chunk1, sn2, 0, 4 * KB,
-                                             data.c_str(), &chunkData1b));
+                                             data.c_str(), &chunkData1b,
+                                             "", 0, &snaps));
         // chunk1写[4KB, 16KB]
         data.assign(length, 'e');
         ASSERT_EQ(0, verify->VerifyWriteChunk(chunk1, sn2, 4 * KB, 12 * KB,
-                                             data.c_str(), &chunkData1b));
+                                             data.c_str(), &chunkData1b,
+                                             "", 0, &snaps));
 
         // 获取chunk1信息，预期其版本为2，快照版本为1，
         ASSERT_EQ(0, verify->VerifyGetChunkInfo(chunk1, sn2, sn1, leader));
@@ -269,18 +277,19 @@ class ChunkServerIoTest : public testing::Test {
 
         // 读取chunk1的快照, 预期读到版本1数据
         ASSERT_EQ(0, verify->VerifyReadChunkSnapshot(chunk1, sn1, 0, 12 * KB,
-                                                    &chunkData1a));
+                                                    &chunkData1a, &snaps));
 
         // 读取chunk2的快照, 预期chunk不存在
         ASSERT_EQ(0, verify->VerifyReadChunkSnapshot(
-                                chunk2, sn1, 0, 12 * KB, nullptr));
+                                chunk2, sn1, 0, 12 * KB, nullptr, &snaps));
 
         /*
          *  场景二：第一次快照结束，删除快照
         */
         // 删除chunk1快照
+        snaps.pop_back();
         ASSERT_EQ(CHUNK_OP_STATUS_SUCCESS,
-              verify->VerifyDeleteChunkSnapshotOrCorrectSn(chunk1, sn2));
+              verify->VerifyDeleteChunkSnapshotOrCorrectSn(chunk1, sn1));
         // 获取chunk1信息，预期其版本为2，无快照版本
         ASSERT_EQ(0, verify->VerifyGetChunkInfo(chunk1, sn2, NULL_SN, leader));
 
@@ -299,29 +308,32 @@ class ChunkServerIoTest : public testing::Test {
         *  场景三：第二次打快照
         */
         // chunk1写[0, 8KB]
+        snaps.push_back(sn2);
         chunkData1c.assign(chunkData1b);  // 模拟对chunk1数据进行COW
         data.assign(length, 'g');
         ASSERT_EQ(0, verify->VerifyWriteChunk(chunk1, sn3, 0, 8 * KB,
-                                             data.c_str(), &chunkData1c));
+                                             data.c_str(), &chunkData1c,
+                                             "", 0, &snaps));
         // 获取chunk1信息，预期其版本为3，快照版本为2
         ASSERT_EQ(0, verify->VerifyGetChunkInfo(chunk1, sn3, sn2, leader));
 
         // 读取chunk1的快照, 预期读到版本2数据
         ASSERT_EQ(0, verify->VerifyReadChunkSnapshot(chunk1, sn2, 0, 12 * KB,
-                                                    &chunkData1b));
+                                                    &chunkData1b, &snaps));
 
         // 读取chunk2的快照, 预期读到版本2数据
         ASSERT_EQ(0, verify->VerifyReadChunkSnapshot(chunk2, sn2, 0, 8 * KB,
-                                                    &chunkData2));
+                                                    &chunkData2, &snaps));
 
         // 删除chunk1文件，预期成功，本地快照存在的情况下，会将快照也一起删除
+        ASSERT_EQ(CHUNK_OP_STATUS_SUCCESS,
+              verify->VerifyDeleteChunkSnapshotOrCorrectSn(chunk1, sn2));
         ASSERT_EQ(CHUNK_OP_STATUS_SUCCESS,
                         verify->VerifyDeleteChunk(chunk1, sn3));
 
         /*
         *  场景四：第二次快照结束，删除快照
         */
-        // 删除chunk1快照，因为chunk1及其快照上一步已经删除，预期成功
         ASSERT_EQ(CHUNK_OP_STATUS_SUCCESS,
               verify->VerifyDeleteChunkSnapshotOrCorrectSn(chunk1, sn3));
         // 获取chunk1信息，预期不存在
