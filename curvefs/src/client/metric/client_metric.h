@@ -25,9 +25,12 @@
 #define CURVEFS_SRC_CLIENT_METRIC_CLIENT_METRIC_H_
 
 #include <bvar/bvar.h>
+
 #include <cstdint>
 #include <string>
+
 #include "src/client/client_metric.h"
+#include "src/common/s3_adapter.h"
 
 using curve::client::InterfaceMetric;
 
@@ -92,13 +95,12 @@ struct MetaServerClientMetric {
     // volume extent
     InterfaceMetric updateVolumeExtent;
     InterfaceMetric getVolumeExtent;
+    InterfaceMetric updateDeallocatableBlockGroup;
 
     MetaServerClientMetric()
-        : getDentry(prefix, "getDentry"),
-          listDentry(prefix, "listDentry"),
+        : getDentry(prefix, "getDentry"), listDentry(prefix, "listDentry"),
           createDentry(prefix, "createDentry"),
-          deleteDentry(prefix, "deleteDentry"),
-          getInode(prefix, "getInode"),
+          deleteDentry(prefix, "deleteDentry"), getInode(prefix, "getInode"),
           batchGetInodeAttr(prefix, "batchGetInodeAttr"),
           batchGetXattr(prefix, "batchGetXattr"),
           createInode(prefix, "createInode"),
@@ -107,7 +109,9 @@ struct MetaServerClientMetric {
           appendS3ChunkInfo(prefix, "appendS3ChunkInfo"),
           prepareRenameTx(prefix, "prepareRenameTx"),
           updateVolumeExtent(prefix, "updateVolumeExtent"),
-          getVolumeExtent(prefix, "getVolumeExtent") {}
+          getVolumeExtent(prefix, "getVolumeExtent"),
+          updateDeallocatableBlockGroup(prefix,
+                                        "updateDeallocatableBlockGroup") {}
 };
 
 struct InflightGuard {
@@ -237,10 +241,22 @@ struct S3Metric {
     InterfaceMetric adaptorWriteDiskCache;
     InterfaceMetric adaptorReadS3;
     InterfaceMetric adaptorReadDiskCache;
+    // Write to the backend s3
+    InterfaceMetric writeToS3;
+    // Read from backend s3 (excluding warmup)
+    InterfaceMetric readFromS3;
+    // write to the disk cache (excluding warmup)
+    InterfaceMetric writeToDiskCache;
+    // read from the disk cache (excluding warmup)
+    InterfaceMetric readFromDiskCache;
+    // write to kv cache (excluding warmup)
+    InterfaceMetric writeToKVCache;
+    // read from kv cache (excluding warmup)
+    InterfaceMetric readFromKVCache;
     bvar::Status<uint32_t> readSize;
     bvar::Status<uint32_t> writeSize;
 
-    explicit S3Metric(const std::string &name = "")
+    explicit S3Metric(const std::string& name = "")
         : fsName(!name.empty() ? name
                                : prefix + curve::common::ToHexString(this)),
           adaptorWrite(prefix, fsName + "_adaptor_write"),
@@ -249,6 +265,12 @@ struct S3Metric {
           adaptorWriteDiskCache(prefix, fsName + "_adaptor_write_disk_cache"),
           adaptorReadS3(prefix, fsName + "_adaptor_read_s3"),
           adaptorReadDiskCache(prefix, fsName + "_adaptor_read_disk_cache"),
+          writeToS3(prefix, fsName + "_write_to_s3"),
+          readFromS3(prefix, fsName + "_read_from_s3"),
+          writeToDiskCache(prefix, fsName + "_write_to_disk_cache"),
+          readFromDiskCache(prefix, fsName + "_read_from_disk_cache"),
+          writeToKVCache(prefix, fsName + "_write_to_kv_cache"),
+          readFromKVCache(prefix, fsName + "_read_from_kv_cache"),
           readSize(prefix, fsName + "_adaptor_read_size", 0),
           writeSize(prefix, fsName + "_adaptor_write_size", 0) {}
 };
@@ -294,6 +316,16 @@ struct WarmupManagerS3Metric {
         : warmupS3Cached(prefix, "s3_cached"),
           warmupS3CacheSize(prefix, "s3_cache_size") {}
 };
+
+void CollectMetrics(InterfaceMetric* interface, int count, uint64_t start);
+
+void AsyncContextCollectMetrics(
+    std::shared_ptr<S3Metric> s3Metric,
+    const std::shared_ptr<curve::common::PutObjectAsyncContext>& context);
+
+void AsyncContextCollectMetrics(
+    std::shared_ptr<S3Metric> s3Metric,
+    const std::shared_ptr<curve::common::GetObjectAsyncContext>& context);
 
 }  // namespace metric
 }  // namespace client

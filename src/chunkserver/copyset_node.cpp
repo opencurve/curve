@@ -50,6 +50,10 @@
 #include "src/common/crc32.h"
 #include "src/common/fs_util.h"
 
+namespace braft {
+DECLARE_bool(raft_enable_leader_lease);
+}  // namespace braft
+
 namespace curve {
 namespace chunkserver {
 
@@ -126,7 +130,8 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
     DataStoreOptions dsOptions;
     dsOptions.baseDir = chunkDataApath_;
     dsOptions.chunkSize = options.maxChunkSize;
-    dsOptions.pageSize = options.pageSize;
+    dsOptions.metaPageSize = options.metaPageSize;
+    dsOptions.blockSize = options.blockSize;
     dsOptions.locationLimit = options.locationLimit;
     dsOptions.enableOdsyncWhenOpenChunkFile =
         options.enableOdsyncWhenOpenChunkFile;
@@ -153,6 +158,11 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
 
     recyclerUri_ = options.recyclerUri;
 
+    // init braft lease
+    if (options.enbaleLeaseRead) {
+        braft::FLAGS_raft_enable_leader_lease = true;
+    }
+
     // initialize raft node options corresponding to the copy set node
     InitRaftNodeOptions(options);
 
@@ -167,6 +177,7 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
     peerId_ = PeerId(addr, 0);
     raftNode_ = std::make_shared<RaftNode>(groupId, peerId_);
     concurrentapply_ = options.concurrentapply;
+
 
     /*
      * 初始化copyset性能metrics
@@ -292,7 +303,7 @@ void CopysetNode::on_apply(::braft::Iterator &iter) {
             CHECK(nullptr != chunkClosure)
                 << "ChunkClosure dynamic cast failed";
             std::shared_ptr<ChunkOpRequest>& opRequest = chunkClosure->request_;
-            concurrentapply_->Push(opRequest->ChunkId(), opRequest->OpType(),
+            concurrentapply_->Push(opRequest->ChunkId(), ChunkOpRequest::Schedule(opRequest->OpType()),  // NOLINT
                                    &ChunkOpRequest::OnApply, opRequest,
                                    iter.index(), doneGuard.release());
         } else {
@@ -309,7 +320,7 @@ void CopysetNode::on_apply(::braft::Iterator &iter) {
             auto opReq = ChunkOpRequest::Decode(log, &request, &data,
                                                 iter.index(), GetLeaderId());
             auto chunkId = request.chunkid();
-            concurrentapply_->Push(chunkId, request.optype(),
+            concurrentapply_->Push(chunkId, ChunkOpRequest::Schedule(request.optype()),  // NOLINT
                                    &ChunkOpRequest::OnApplyFromLog, opReq,
                                    dataStore_, std::move(request), data);
         }
@@ -498,6 +509,25 @@ int CopysetNode::on_snapshot_load(::braft::SnapshotReader *reader) {
 }
 
 void CopysetNode::on_leader_start(int64_t term) {
+    /*
+     * Invoke order in on_leader_start: 
+     *   1. flush concurrent apply queue.
+     *   2. set term in states machine.
+     *
+     * Why is this order?
+     *   If we want to invoke local read (lease read)
+     *   in the leader state machine,
+     *   states machine which raft leader node located must be newest.
+     *   However, some tasks will accumulate in concurrent apply queue,
+     *   so we must flush it before we enable local read.
+     *
+     * Connotation of order:
+     *   If we set `leaderTerm_` in `on_leader_start`,
+     *   it means that we will enable local read in current node.
+     *
+     * Corner case can reference by following pr:
+     *   https://github.com/opencurve/curve/pull/2448
+     */
     ChunkServerMetric::GetInstance()->IncreaseLeaderCount();
     concurrentapply_->Flush();
     leaderTerm_.store(term, std::memory_order_release);
@@ -656,6 +686,29 @@ bool CopysetNode::IsLeaderTerm() const {
     if (0 < leaderTerm_.load(std::memory_order_acquire))
         return true;
     return false;
+}
+
+bool CopysetNode::IsLeaseLeader(const braft::LeaderLeaseStatus &lease_status) const {  // NOLINT
+    /*
+     * Why not use lease_status.state==LEASE_VALID directly to judge?
+     *
+     * Because of the existence of concurrent apply queue,
+     * maybe there are some read/write requests in apply queue,
+     * so the FSM is not up-to-date.
+     * If we local read from this FSM,
+     * we will meet some stale read problems.
+     *
+     * According to aforementioned reasons,
+     * we judge leader lease when FSM had invoke on_leader_start,
+     * and flush the concurrent apply queue.
+     */
+    auto term = leaderTerm_.load(std::memory_order_acquire);
+    // if term == lease_status.term, the lease status must be LEASE_VALID
+    return term > 0 && term == lease_status.term;
+}
+
+bool CopysetNode::IsLeaseExpired(const braft::LeaderLeaseStatus &lease_status) const {  // NOLINT
+    return lease_status.state == braft::LEASE_EXPIRED;
 }
 
 PeerId CopysetNode::GetLeaderId() const {
@@ -923,6 +976,10 @@ int CopysetNode::GetHash(std::string *hash) {
 
 void CopysetNode::GetStatus(NodeStatus *status) {
     raftNode_->get_status(status);
+}
+
+void CopysetNode::GetLeaderLeaseStatus(braft::LeaderLeaseStatus *status) {
+    raftNode_->get_leader_lease_status(status);
 }
 
 bool CopysetNode::GetLeaderStatus(NodeStatus *leaderStaus) {

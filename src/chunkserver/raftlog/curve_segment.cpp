@@ -66,7 +66,7 @@ int CurveSegment::create() {
     memset(metaPage, 0, _meta_page_size);
     memcpy(metaPage, &_meta.bytes, sizeof(_meta.bytes));
     int res = _walFilePool->GetFile(path, metaPage);
-    delete metaPage;
+    delete[] metaPage;
     if (res != 0) {
         LOG(ERROR) << "Get segment from chunk file pool fail!";
         return -1;
@@ -232,11 +232,11 @@ int CurveSegment::_load_meta() {
     char* metaPage = new char[_meta_page_size];
     int res = ::pread(_fd, metaPage, _meta_page_size, 0);
     if (res != static_cast<int>(_meta_page_size)) {
-        delete metaPage;
+        delete[] metaPage;
         return -1;
     }
     memcpy(&_meta.bytes, metaPage, sizeof(_meta.bytes));
-    delete metaPage;
+    delete[] metaPage;
     LOG(INFO) << "loaded bytes: " << _meta.bytes;
     return 0;
 }

@@ -273,33 +273,6 @@ void MetaCache::UpdateCopysetInfo(LogicPoolID logicPoolid, CopysetID copysetid,
     lpcsid2CopsetInfoMap_[key] = csinfo;
 }
 
-void MetaCache::UpdateAppliedIndex(LogicPoolID logicPoolId,
-                                   CopysetID copysetId,
-                                   uint64_t appliedindex) {
-    const auto key = CalcLogicPoolCopysetID(logicPoolId, copysetId);
-
-    ReadLockGuard wrlk(rwlock4CopysetInfo_);
-    auto iter = lpcsid2CopsetInfoMap_.find(key);
-    if (iter == lpcsid2CopsetInfoMap_.end()) {
-        return;
-    }
-
-    iter->second.UpdateAppliedIndex(appliedindex);
-}
-
-uint64_t MetaCache::GetAppliedIndex(LogicPoolID logicPoolId,
-                                    CopysetID copysetId) {
-    const auto key = CalcLogicPoolCopysetID(logicPoolId, copysetId);
-
-    ReadLockGuard rdlk(rwlock4CopysetInfo_);
-    auto iter = lpcsid2CopsetInfoMap_.find(key);
-    if (iter == lpcsid2CopsetInfoMap_.end()) {
-        return 0;
-    }
-
-    return iter->second.GetAppliedIndex();
-}
-
 void MetaCache::UpdateChunkInfoByID(ChunkID cid, const ChunkIDInfo& cidinfo) {
     WriteLockGuard wrlk(rwlock4chunkInfoMap_);
     chunkid2chunkInfoMap_[cid] = cidinfo;

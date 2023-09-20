@@ -28,6 +28,10 @@
 
 #include "include/curve_compiler_specific.h"
 #include "src/client/client_common.h"
+#include "src/client/client_metric.h"
+#include "src/client/inflight_controller.h"
+#include "src/common/concurrent/concurrent.h"
+#include "src/common/timeutility.h"
 
 namespace curve {
 namespace client {
@@ -137,33 +141,26 @@ class CURVE_CACHELINE_ALIGNMENT RequestClosure
         nextTimeoutMS_ = timeout;
     }
 
-    /**
-     * 设置当前的IO为悬挂IO
-     */
-    void SetSuspendRPCFlag() {
-        suspendRPC_ = true;
-    }
+    bool IsSlowRequest() const { return slowRequest_; }
 
-    bool IsSuspendRPC() const {
-        return suspendRPC_;
-    }
+    void MarkAsSlowRequest() { slowRequest_ = true; }
 
- protected:
-    // request context of this closure
-    RequestContext* reqCtx_ = nullptr;
-
-    // iotracker of current request context
-    IOTracker* tracker_ = nullptr;
+    uint64_t CreatedMS() const { return createdMS_; }
 
  private:
-    // suspend io标志
-    bool suspendRPC_ = false;
+    bool slowRequest_ = false;
 
     // whether own inflight count
     bool ownInflight_ = false;
 
     // 当前request的错误码
     int errcode_ = -1;
+
+    // 当前request的tracker信息
+    IOTracker* tracker_ = nullptr;
+
+    // closure的request信息
+    RequestContext* reqCtx_ = nullptr;
 
     // metric信息
     FileMetric* metric_ = nullptr;
@@ -176,50 +173,9 @@ class CURVE_CACHELINE_ALIGNMENT RequestClosure
 
     // 下一次rpc超时时间
     uint64_t nextTimeoutMS_ = 0;
-};
 
-// PaddingReadClosure is used to process unaligned request
-// it wraps the original unaligned request and forms an aligned request
-class PaddingReadClosure : public RequestClosure {
- public:
-    PaddingReadClosure(RequestContext* requestCtx, RequestScheduler* scheduler);
-
-    void Run() override;
-
-    RequestContext* GetReqCtx() override {
-        return alignedCtx_;
-    }
-
-    RequestContext* AlignedRequest() const {
-        return alignedCtx_;
-    }
-
- private:
-    /**
-     * @brief Called in Run(), handle original read request
-     */
-    void HandleRead();
-
-    /**
-     * @brief Called in Run(), handle original write request
-     */
-    void HandleWrite();
-
-    /**
-     * @brief Called when error occurs
-     */
-    void HandleError(int errCode);
-
-    /**
-     * @brief Generate an aligned request based on RequestClosure::reqCtx_
-     */
-    void GenAlignedRequest();
-
- private:
-    // aligned request context based on RequestClosure::reqCtx_
-    RequestContext* alignedCtx_;
-
-    RequestScheduler* scheduler_;
+    // create time of this closure(in millisecond)
+    uint64_t createdMS_ = common::TimeUtility::GetTimeofDayMs();
 };
 
 }  // namespace client

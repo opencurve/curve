@@ -123,6 +123,12 @@ inline std::string ToGroupIdString(const LogicPoolID &logicPoolId,
 }
 #define ToGroupIdStr   ToGroupIdString
 
+// Meta page is header of chunkfile, and is used to store meta data of
+// chunkfile.
+// Currently, we need to ensure the atomicity of the meta page update, so set
+// its size to 4k.
+constexpr size_t kChunkfileMetaPageSize = 4096;
+
 }  // namespace chunkserver
 }  // namespace curve
 

@@ -103,8 +103,11 @@ class InodeManager {
                                            S3ChunkInfoMap* m,
                                            uint64_t limit = 0);
 
-    MetaStatusCode UpdateInodeWhenCreateOrRemoveSubNode(uint32_t fsId,
-        uint64_t inodeId, FsFileType type, bool isCreate);
+    MetaStatusCode UpdateInodeWhenCreateOrRemoveSubNode(
+        const Dentry &dentry,
+        uint64_t now,
+        uint32_t now_ns,
+        bool isCreate);
 
     MetaStatusCode InsertInode(const Inode &inode);
 
@@ -113,7 +116,7 @@ class InodeManager {
     // Update one or more volume extent slice
     MetaStatusCode UpdateVolumeExtent(uint32_t fsId,
                                       uint64_t inodeId,
-                                      const VolumeExtentList &extents);
+                                      const VolumeExtentSliceList &extents);
 
     // Update only one volume extent slice
     MetaStatusCode UpdateVolumeExtentSlice(uint32_t fsId,
@@ -123,7 +126,7 @@ class InodeManager {
     MetaStatusCode GetVolumeExtent(uint32_t fsId,
                                    uint64_t inodeId,
                                    const std::vector<uint64_t> &slices,
-                                   VolumeExtentList *extents);
+                                   VolumeExtentSliceList *extents);
 
  private:
     void GenerateInodeInternal(uint64_t inodeId, const InodeParam &param,

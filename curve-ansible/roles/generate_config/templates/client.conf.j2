@@ -175,10 +175,3 @@ discard.enable={{ client_discard_enable }}
 discard.granularity={{ client_discard_granularity }}
 # discard cleanup task delay times in millisecond
 discard.taskDelayMs={{ client_discard_task_delay_ms }}
-
-##### alignment #####
-# default alignment
-global.alignment.commonVolume={{ client_alignment_common }}
-# alignment for clone volume
-# default is 4096, because lazy clone chunk bitmap granularity is 4096
-global.alignment.cloneVolume={{ client_alignment_clone }}

@@ -96,7 +96,6 @@ int main(int argc, char ** argv) {
     opt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
     opt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
     opt.ioOpt.metaCacheOpt.metacacheGetLeaderRetry = 3;
-    opt.ioOpt.ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
     opt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = 64;
     opt.loginfo.logLevel = 0;
 

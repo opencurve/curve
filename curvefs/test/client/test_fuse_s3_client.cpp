@@ -20,24 +20,24 @@
  * Author: xuchaojie
  */
 
-
-#include <gmock/gmock-generated-actions.h>
-#include <gmock/gmock-more-actions.h>
+#include <fmt/format.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <memory>
 #include <unordered_map>
+#include <utility>
 
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/client/common/common.h"
 #include "curvefs/src/client/filesystem/error.h"
+#include "curvefs/src/client/filesystem/filesystem.h"
 #include "curvefs/src/client/filesystem/meta.h"
 #include "curvefs/src/client/fuse_s3_client.h"
+#include "curvefs/src/client/inode_wrapper.h"
 #include "curvefs/src/client/rpcclient/metaserver_client.h"
 #include "curvefs/src/client/s3/disk_cache_manager_impl.h"
 #include "curvefs/src/client/warmup/warmup_manager.h"
-#include "curvefs/src/client/filesystem/filesystem.h"
 #include "curvefs/src/common/define.h"
 #include "curvefs/test/client/mock_client_s3.h"
 #include "curvefs/test/client/mock_client_s3_adaptor.h"
@@ -46,9 +46,10 @@
 #include "curvefs/test/client/mock_inode_cache_manager.h"
 #include "curvefs/test/client/mock_metaserver_client.h"
 #include "curvefs/test/client/rpcclient/mock_mds_client.h"
+#include "fuse3/fuse_lowlevel.h"
 
 struct fuse_req {
-    struct fuse_ctx *ctx;
+    struct fuse_ctx* ctx;
 };
 
 namespace curvefs {
@@ -71,12 +72,12 @@ DECLARE_uint64(fuseClientBurstReadBytesSecs);
 namespace curvefs {
 namespace client {
 
-
 using ::curve::common::Configuration;
 using ::curvefs::mds::topology::PartitionTxId;
 using ::testing::_;
 using ::testing::AtLeast;
 using ::testing::Contains;
+using ::testing::DoAll;
 using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::SetArgPointee;
@@ -95,10 +96,40 @@ using ::curvefs::client::filesystem::FileOut;
 
 #define EQUAL(a) (lhs.a() == rhs.a())
 
-static bool operator==(const Dentry &lhs, const Dentry &rhs) {
+static bool operator==(const Dentry& lhs, const Dentry& rhs) {
     return EQUAL(fsid) && EQUAL(parentinodeid) && EQUAL(name) && EQUAL(txid) &&
            EQUAL(inodeid) && EQUAL(flag);
 }
+
+class WarmupManagerS3Test : public warmup::WarmupManagerS3Impl {
+ public:
+    WarmupManagerS3Test(std::shared_ptr<MetaServerClient> metaClient,
+                        std::shared_ptr<InodeCacheManager> inodeManager,
+                        std::shared_ptr<DentryCacheManager> dentryManager,
+                        std::shared_ptr<FsInfo> fsInfo,
+                        warmup::FuseOpReadFunctionType readFunc,
+                        warmup::FuseOpReadLinkFunctionType readLinkFunc,
+                        std::shared_ptr<KVClientManager> kvClientManager,
+                        std::shared_ptr<S3ClientAdaptor> s3Adaptor)
+        : warmup::WarmupManagerS3Impl(
+              std::move(metaClient), std::move(inodeManager),
+              std::move(dentryManager), std::move(fsInfo), std::move(readFunc),
+              std::move(readLinkFunc), std::move(kvClientManager),
+              std::move(s3Adaptor)) {}
+    bool GetInodeSubPathParent(fuse_ino_t inode,
+                               std::vector<std::string> subPath,
+                               fuse_ino_t* ret, std::string* lastPath,
+                               uint32_t* symlink_depth) {
+        return warmup::WarmupManagerS3Impl::GetInodeSubPathParent(
+            inode, subPath, ret, lastPath, symlink_depth);
+    }
+
+    void FetchDentry(fuse_ino_t key, fuse_ino_t ino, const std::string& file,
+                     uint32_t symlink_depth) {
+        return warmup::WarmupManagerS3Impl::FetchDentry(key, ino, file,
+                                                        symlink_depth);
+    }
+};
 
 class TestFuseS3Client : public ::testing::Test {
  protected:
@@ -112,23 +143,29 @@ class TestFuseS3Client : public ::testing::Test {
         s3ClientAdaptor_ = std::make_shared<MockS3ClientAdaptor>();
         inodeManager_ = std::make_shared<MockInodeCacheManager>();
         dentryManager_ = std::make_shared<MockDentryCacheManager>();
-        warmupManager_ = std::make_shared<warmup::WarmupManagerS3Impl>(
+        warmupManager_ = std::make_shared<WarmupManagerS3Test>(
             metaClient_, inodeManager_, dentryManager_, nullptr, nullptr,
-            s3ClientAdaptor_, nullptr);
+            nullptr, nullptr, s3ClientAdaptor_);
         client_ = std::make_shared<FuseS3Client>(
             mdsClient_, metaClient_, inodeManager_, dentryManager_,
             s3ClientAdaptor_, warmupManager_);
 
         auto readFunc = [this](fuse_req_t req, fuse_ino_t ino, size_t size,
-                               off_t off, struct fuse_file_info *fi,
-                               char *buffer, size_t *rSize) {
+                               off_t off, struct fuse_file_info* fi,
+                               char* buffer, size_t* rSize) {
             return client_->FuseOpRead(req, ino, size, off, fi, buffer, rSize);
         };
         warmupManager_->SetFuseOpRead(readFunc);
+        auto readLinkFunc = [this](fuse_req_t req, fuse_ino_t ino,
+                                   std::string* symLink) {
+            return client_->FuseOpReadLink(req, ino, symLink);
+        };
+        warmupManager_->SetFuseOpReadLink(readLinkFunc);
 
         InitOptionBasic(&fuseClientOption_);
         InitFSInfo(client_);
         fuseClientOption_.s3Opt.s3AdaptrOpt.asyncThreadNum = 1;
+        fuseClientOption_.s3Opt.s3AdaptrOpt.userAgent = "S3 Browser";
         fuseClientOption_.dummyServerStartPort = 5000;
         fuseClientOption_.fileSystemOption.maxNameLength = 20u;
         fuseClientOption_.listDentryThreads = 2;
@@ -167,10 +204,11 @@ class TestFuseS3Client : public ::testing::Test {
         warmupManager_->SetFsInfo(fsInfo);
     }
 
-    void InitOptionBasic(FuseClientOption *opt) {
+    void InitOptionBasic(FuseClientOption* opt) {
         opt->s3Opt.s3ClientAdaptorOpt.readCacheThreads = 2;
         opt->s3Opt.s3ClientAdaptorOpt.writeCacheMaxByte = 838860800;
         opt->s3Opt.s3AdaptrOpt.asyncThreadNum = 1;
+        opt->s3Opt.s3AdaptrOpt.userAgent = "S3 Browser";
         opt->dummyServerStartPort = 5000;
         opt->fileSystemOption.maxNameLength = 20u;
         opt->listDentryThreads = 2;
@@ -194,7 +232,7 @@ class TestFuseS3Client : public ::testing::Test {
     std::shared_ptr<FuseS3Client> client_;
     FuseClientOption fuseClientOption_;
     Aws::SDKOptions awsOptions_;
-    std::shared_ptr<warmup::WarmupManager> warmupManager_;
+    std::shared_ptr<WarmupManagerS3Test> warmupManager_;
 };
 
 TEST_F(TestFuseS3Client, test_Init_with_KVCache) {
@@ -307,7 +345,7 @@ TEST_F(TestFuseS3Client, warmUp_Warmfile_error_GetDentry01) {
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     size_t len = 20;
-    char *tmpbuf = new char[len];
+    char* tmpbuf = new char[len];
     memset(tmpbuf, '\n', len);
     tmpbuf[0] = '/';
     tmpbuf[1] = 't';
@@ -366,7 +404,7 @@ TEST_F(TestFuseS3Client, warmUp_Warmfile_error_GetDentry02) {
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     size_t len = 20;
-    char *tmpbuf = new char[len];
+    char* tmpbuf = new char[len];
     memset(tmpbuf, '\n', len);
     tmpbuf[0] = '/';
     tmpbuf[1] = 't';
@@ -425,7 +463,7 @@ TEST_F(TestFuseS3Client, warmUp_fetchDataEnqueue__error_getinode) {
                         Return(CURVEFS_ERROR::NOTEXIST)));
 
     size_t len = 20;
-    char *tmpbuf = new char[len];
+    char* tmpbuf = new char[len];
     memset(tmpbuf, '\n', len);
     tmpbuf[0] = '/';
     tmpbuf[1] = 't';
@@ -483,7 +521,7 @@ TEST_F(TestFuseS3Client, warmUp_fetchDataEnqueue_chunkempty) {
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     size_t len = 20;
-    char *tmpbuf = new char[len];
+    char* tmpbuf = new char[len];
     memset(tmpbuf, '\n', len);
     tmpbuf[0] = '/';
     tmpbuf[1] = 't';
@@ -543,10 +581,12 @@ TEST_F(TestFuseS3Client, warmUp_FetchDentry_TYPE_SYM_LINK) {
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
         .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     size_t len = 20;
-    char *tmpbuf = new char[len];
+    char* tmpbuf = new char[len];
     memset(tmpbuf, '\n', len);
     tmpbuf[0] = '/';
     tmpbuf[1] = 't';
@@ -607,11 +647,13 @@ TEST_F(TestFuseS3Client, warmUp_FetchDentry_error_TYPE_DIRECTORY) {
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
         .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     std::list<Dentry> dlist;
     size_t len = 20;
-    char *tmpbuf = new char[len];
+    char* tmpbuf = new char[len];
     memset(tmpbuf, '\n', len);
     tmpbuf[0] = '/';
     tmpbuf[1] = 't';
@@ -672,7 +714,7 @@ TEST_F(TestFuseS3Client, warmUp_lookpath_multilevel) {
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     size_t len = 20;
-    char *tmpbuf = new char[len];
+    char* tmpbuf = new char[len];
     memset(tmpbuf, '\n', len);
     tmpbuf[0] = '/';
     tmpbuf[1] = 'a';
@@ -730,7 +772,7 @@ TEST_F(TestFuseS3Client, warmUp_lookpath_unkown) {
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     size_t len = 20;
-    char *tmpbuf = new char[len];
+    char* tmpbuf = new char[len];
     memset(tmpbuf, '\n', len);
     EXPECT_CALL(*s3ClientAdaptor_, Read(_, _, _, _))
         .WillOnce(
@@ -785,7 +827,7 @@ TEST_F(TestFuseS3Client, warmUp_FetchChildDentry_error_ListDentry) {
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
     size_t len = 20;
-    char *tmpbuf = new char[len];
+    char* tmpbuf = new char[len];
     memset(tmpbuf, '\n', len);
     tmpbuf[0] = '/';
     tmpbuf[1] = '\n';
@@ -811,18 +853,27 @@ TEST_F(TestFuseS3Client, warmUp_FetchChildDentry_error_ListDentry) {
 }
 
 // success
+/*
+inode 1 (parent)
+|
+|- inode 5 (test, directory)
+|- inode 2 ("2", file)
+|- inode 3 (file, unknown type)
+\- inode 4 (file, unknown type)
+ */
 TEST_F(TestFuseS3Client, warmUp_FetchChildDentry_suc_ListDentry) {
     sleep(1);
     fuse_ino_t parent = 1;
     std::string name = "test";
-    fuse_ino_t inodeid = 5;
+    fuse_ino_t inodeid = 2;
 
-    Dentry dentry;
-    dentry.set_fsid(fsId);
-    dentry.set_name(name);
-    dentry.set_parentinodeid(parent);
-    dentry.set_inodeid(inodeid);
-    dentry.set_type(FsFileType::TYPE_S3);
+    Dentry dentry2;
+    dentry2.set_fsid(fsId);
+    dentry2.set_name(name);
+    dentry2.set_parentinodeid(parent);
+    dentry2.set_inodeid(inodeid);
+    dentry2.set_name("2");
+    dentry2.set_type(FsFileType::TYPE_S3);
 
     Inode inode;
     inode.set_fsid(fsId);
@@ -832,32 +883,49 @@ TEST_F(TestFuseS3Client, warmUp_FetchChildDentry_suc_ListDentry) {
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
 
     std::list<Dentry> dlist;
-    Dentry dentry1;
-    dentry1.set_fsid(fsId);
-    dentry1.set_inodeid(inodeid);
-    dentry1.set_parentinodeid(parent);
-    dentry1.set_name("5");
-    dentry1.set_type(FsFileType::TYPE_DIRECTORY);
-    dlist.emplace_back(dentry1);
+    Dentry dentry5;
+    dentry5.set_fsid(fsId);
+    dentry5.set_inodeid(inodeid);
+    dentry5.set_parentinodeid(parent);
+    dentry5.set_name("5");
+    dentry5.set_type(FsFileType::TYPE_DIRECTORY);
+    dlist.emplace_back(dentry5);
 
-    dentry.set_inodeid(2);
-    dentry.set_name("2");
-    dentry.set_type(FsFileType::TYPE_S3);
-    dlist.emplace_back(dentry);
-
-    Dentry dentry2;
-    dentry2.set_inodeid(3);
-    dentry2.set_parentinodeid(parent);
-    dentry2.set_name("3");
-    dentry2.set_type(FsFileType::TYPE_SYM_LINK);
     dlist.emplace_back(dentry2);
 
     Dentry dentry3;
-    dentry3.set_inodeid(4);
+    dentry3.set_inodeid(3);
     dentry3.set_parentinodeid(parent);
-    dentry3.set_name("4");
-    dentry3.set_type(FsFileType::TYPE_FILE);  // unknown type
+    dentry3.set_name("3");
+    dentry3.set_type(FsFileType::TYPE_FILE);
     dlist.emplace_back(dentry3);
+
+    Dentry dentry4;
+    dentry4.set_inodeid(4);
+    dentry4.set_parentinodeid(parent);
+    dentry4.set_name("4");
+    dentry4.set_type(FsFileType::TYPE_FILE);  // unknown type
+    dlist.emplace_back(dentry4);
+
+    auto GetDentryReplace = [=](fuse_ino_t ino, const std::string& file,
+                                Dentry* dentry) {
+        if (ino == parent) {
+            if (file == "5") {
+                *dentry = dentry5;
+                return CURVEFS_ERROR::OK;
+            } else if (file == "2") {
+                *dentry = dentry2;
+                return CURVEFS_ERROR::OK;
+            } else if (file == "3") {
+                *dentry = dentry3;
+                return CURVEFS_ERROR::OK;
+            } else if (file == "4") {
+                *dentry = dentry4;
+                return CURVEFS_ERROR::OK;
+            }
+        }
+        return CURVEFS_ERROR::NOTEXIST;
+    };
 
     EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
         .WillOnce(DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)))
@@ -872,8 +940,11 @@ TEST_F(TestFuseS3Client, warmUp_FetchChildDentry_suc_ListDentry) {
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
+    EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
+        .WillRepeatedly(Invoke(GetDentryReplace));
+
     size_t len = 20;
-    char *tmpbuf = new char[len];
+    char* tmpbuf = new char[len];
     memset(tmpbuf, '\n', len);
     tmpbuf[0] = '/';
     tmpbuf[1] = '\n';
@@ -896,6 +967,2162 @@ TEST_F(TestFuseS3Client, warmUp_FetchChildDentry_suc_ListDentry) {
     LOG(INFO) << "ret:" << ret << " Warmup progress: " << progress.ToString();
     // After sleeping for 5s, the scan should be completed
     ASSERT_FALSE(ret);
+}
+
+TEST_F(TestFuseS3Client, warmUp_GetInodeSubPathParent_empty) {
+    /*
+.(1) parent
+    */
+    fuse_ino_t inode = 0;
+    std::string lastPath;
+    ASSERT_EQ(warmupManager_->GetInodeSubPathParent(
+                  0, std::vector<std::string>(), &inode, &lastPath, nullptr),
+              false);
+}
+
+TEST_F(TestFuseS3Client, warmUp_GetInodeSubPathParent_1depth) {
+    /*
+.(1) parent
+├── A(2)
+    */
+    constexpr fuse_ino_t root = 1;
+    constexpr fuse_ino_t aInodeid = 2;
+    fuse_ino_t ret = 0;
+
+    std::string aName = "A";
+    Dentry dentryA;
+    dentryA.set_fsid(fsId);
+    dentryA.set_name(aName);
+    dentryA.set_parentinodeid(root);
+    dentryA.set_inodeid(aInodeid);
+    dentryA.set_type(FsFileType::TYPE_S3);
+
+    Inode inodeA;
+    inodeA.set_fsid(fsId);
+    inodeA.set_inodeid(aInodeid);
+    inodeA.add_parent(root);
+    std::shared_ptr<InodeWrapper> inodeWrapperA =
+        std::make_shared<InodeWrapper>(inodeA, metaClient_);
+
+    auto GetInodeReplace =
+        [aInodeid, inodeWrapperA](
+            uint64_t inodeId,
+            std::shared_ptr<InodeWrapper>& out) -> CURVEFS_ERROR {
+        switch (inodeId) {
+            case aInodeid:
+                out = inodeWrapperA;
+                return CURVEFS_ERROR::OK;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+    };
+
+    EXPECT_CALL(*inodeManager_, GetInode(_, _))
+        .WillRepeatedly(Invoke(GetInodeReplace));
+
+    auto GetDentryReplace = [=](fuse_ino_t parent, const std::string& name,
+                                Dentry* out) -> CURVEFS_ERROR {
+        switch (parent) {
+            case root:
+                if (name == aName) {
+                    *out = dentryA;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+        return CURVEFS_ERROR::OK;
+    };
+
+    EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
+        .WillOnce(Invoke(GetDentryReplace));
+
+    auto ListDentryReplace = [=](uint64_t parent, std::list<Dentry>* dentryList,
+                                 uint32_t limit, bool onlyDir = false,
+                                 uint32_t nlink = 0) -> CURVEFS_ERROR {
+        switch (parent) {
+            case root:
+                dentryList->emplace_back(dentryA);
+                return CURVEFS_ERROR::OK;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+        return CURVEFS_ERROR::NOTEXIST;
+    };
+    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
+        .WillOnce(Invoke(ListDentryReplace));
+
+    std::string lastPath;
+    ASSERT_TRUE(warmupManager_->GetInodeSubPathParent(
+        root, std::vector<std::string>{aName}, &ret, &lastPath, nullptr));
+    ASSERT_EQ(ret, root);
+    ASSERT_EQ(lastPath, aName);
+}
+
+TEST_F(TestFuseS3Client, warmUp_GetInodeSubPathParent_2depth) {
+    /*
+.(1) parent
+└── A(2)
+    ├── B(3)
+    */
+    constexpr fuse_ino_t root = 1;
+    fuse_ino_t ret = 0;
+
+    std::string aName = "A";
+    constexpr fuse_ino_t aInodeid = 2;
+    Dentry dentryA;
+    dentryA.set_fsid(fsId);
+    dentryA.set_name(aName);
+    dentryA.set_parentinodeid(root);
+    dentryA.set_inodeid(aInodeid);
+    dentryA.set_type(FsFileType::TYPE_DIRECTORY);
+
+    std::string bName = "B";
+    constexpr fuse_ino_t bInodeid = 3;
+    Dentry dentryB;
+    dentryB.set_fsid(fsId);
+    dentryB.set_name(bName);
+    dentryB.set_parentinodeid(dentryA.inodeid());
+    dentryB.set_inodeid(bInodeid);
+    dentryB.set_type(FsFileType::TYPE_DIRECTORY);
+    Inode inodeB;
+    inodeB.set_fsid(fsId);
+    inodeB.set_inodeid(aInodeid);
+    inodeB.add_parent(aInodeid);
+    std::shared_ptr<InodeWrapper> inodeWrapperB =
+        std::make_shared<InodeWrapper>(inodeB, metaClient_);
+
+    auto GetDentryReplace = [=](fuse_ino_t parent, const std::string& name,
+                                Dentry* out) -> CURVEFS_ERROR {
+        switch (parent) {
+            case root:
+                if (name == aName) {
+                    *out = dentryA;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            case aInodeid:
+                if (name == bName) {
+                    *out = dentryB;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+        return CURVEFS_ERROR::OK;
+    };
+
+    auto GetInodeReplace =
+        [bInodeid, inodeWrapperB](
+            uint64_t inodeId,
+            std::shared_ptr<InodeWrapper>& out) -> CURVEFS_ERROR {
+        switch (inodeId) {
+            case bInodeid:
+                out = inodeWrapperB;
+                return CURVEFS_ERROR::OK;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+    };
+
+    EXPECT_CALL(*inodeManager_, GetInode(_, _))
+        .WillRepeatedly(Invoke(GetInodeReplace));
+
+    EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
+        .WillOnce(Invoke(GetDentryReplace))
+        .WillOnce(Invoke(GetDentryReplace));
+
+    auto ListDentryReplace = [=](uint64_t parent, std::list<Dentry>* dentryList,
+                                 uint32_t limit, bool onlyDir = false,
+                                 uint32_t nlink = 0) -> CURVEFS_ERROR {
+        switch (parent) {
+            case aInodeid:
+                dentryList->emplace_back(dentryB);
+                return CURVEFS_ERROR::OK;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+        return CURVEFS_ERROR::NOTEXIST;
+    };
+    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
+        .WillOnce(Invoke(ListDentryReplace));
+
+    std::string lastName;
+    ASSERT_EQ(warmupManager_->GetInodeSubPathParent(
+                  root, std::vector<std::string>{aName, bName}, &ret, &lastName,
+                  nullptr),
+              true);
+    ASSERT_EQ(ret, aInodeid);
+    ASSERT_EQ(lastName, bName);
+}
+
+TEST_F(TestFuseS3Client, warmUp_GetInodeSubPathParent_getDentryFailed) {
+    /*
+.(1) parent
+└── A(2)
+    ├── B(3)
+    */
+    constexpr fuse_ino_t root = 1;
+    fuse_ino_t ret = 0;
+
+    std::string aName = "A";
+    constexpr fuse_ino_t aInodeid = 2;
+    Dentry dentryA;
+    dentryA.set_fsid(fsId);
+    dentryA.set_name(aName);
+    dentryA.set_parentinodeid(root);
+    dentryA.set_inodeid(aInodeid);
+    dentryA.set_type(FsFileType::TYPE_DIRECTORY);
+
+    std::string bName = "B";
+    constexpr fuse_ino_t bInodeid = 3;
+    Dentry dentryB;
+    dentryB.set_fsid(fsId);
+    dentryB.set_name(bName);
+    dentryB.set_parentinodeid(dentryA.inodeid());
+    dentryB.set_inodeid(bInodeid);
+    dentryB.set_type(FsFileType::TYPE_DIRECTORY);
+
+    auto GetDentryReplace = [](fuse_ino_t parent, const std::string& name,
+                               Dentry* out) -> CURVEFS_ERROR {
+        switch (parent) {
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+        return CURVEFS_ERROR::OK;
+    };
+
+    EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
+        .WillOnce(Invoke(GetDentryReplace));
+
+    std::string lastName;
+    ASSERT_EQ(warmupManager_->GetInodeSubPathParent(
+                  root, std::vector<std::string>{aName, bName}, &ret, &lastName,
+                  nullptr),
+              false);
+}
+
+TEST_F(TestFuseS3Client, warmUp_GetInodeSubPathParent_3depth) {
+    /*
+.(1) parent
+└── A(2)
+│   ├── B(3)
+│   │   ├──C(4)
+    */
+    constexpr fuse_ino_t root = 1;
+    fuse_ino_t ret = 0;
+
+    std::string aName = "A";
+    constexpr fuse_ino_t aInodeid = 2;
+    Dentry dentryA;
+    dentryA.set_fsid(fsId);
+    dentryA.set_name(aName);
+    dentryA.set_parentinodeid(root);
+    dentryA.set_inodeid(aInodeid);
+    dentryA.set_type(FsFileType::TYPE_DIRECTORY);
+
+    std::string bName = "B";
+    constexpr fuse_ino_t bInodeid = 3;
+    Dentry dentryB;
+    dentryB.set_fsid(fsId);
+    dentryB.set_name(bName);
+    dentryB.set_parentinodeid(dentryA.inodeid());
+    dentryB.set_inodeid(bInodeid);
+    dentryB.set_type(FsFileType::TYPE_DIRECTORY);
+
+    std::string cName = "C";
+    constexpr fuse_ino_t cInodeid = 4;
+    Dentry dentryC;
+    dentryC.set_fsid(fsId);
+    dentryC.set_name(cName);
+    dentryC.set_parentinodeid(dentryB.inodeid());
+    dentryC.set_inodeid(cInodeid);
+    dentryC.set_type(FsFileType::TYPE_DIRECTORY);
+    Inode inodeC;
+    inodeC.set_fsid(fsId);
+    inodeC.set_inodeid(cInodeid);
+    inodeC.add_parent(dentryB.inodeid());
+    std::shared_ptr<InodeWrapper> inodeWrapperC =
+        std::make_shared<InodeWrapper>(inodeC, metaClient_);
+
+    auto GetDentryReplace = [root, aName, dentryA, aInodeid, bName, dentryB,
+                             bInodeid, cName, dentryC](
+                                fuse_ino_t parent, const std::string& name,
+                                Dentry* out) -> CURVEFS_ERROR {
+        switch (parent) {
+            case root:
+                if (name == aName) {
+                    *out = dentryA;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            case aInodeid:
+                if (name == bName) {
+                    *out = dentryB;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            case bInodeid:
+                if (name == cName) {
+                    *out = dentryC;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+        return CURVEFS_ERROR::OK;
+    };
+
+    EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
+        .WillRepeatedly(Invoke(GetDentryReplace));
+
+    auto GetInodeReplace =
+        [cInodeid, inodeWrapperC](
+            uint64_t inodeId,
+            std::shared_ptr<InodeWrapper>& out) -> CURVEFS_ERROR {
+        switch (inodeId) {
+            case cInodeid:
+                out = inodeWrapperC;
+                return CURVEFS_ERROR::OK;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+    };
+
+    EXPECT_CALL(*inodeManager_, GetInode(_, _))
+        .WillRepeatedly(Invoke(GetInodeReplace));
+
+    auto ListDentryReplace = [=](uint64_t parent, std::list<Dentry>* dentryList,
+                                 uint32_t limit, bool onlyDir = false,
+                                 uint32_t nlink = 0) -> CURVEFS_ERROR {
+        switch (parent) {
+            case bInodeid:
+                dentryList->emplace_back(dentryC);
+                return CURVEFS_ERROR::OK;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+        return CURVEFS_ERROR::NOTEXIST;
+    };
+    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
+        .WillOnce(Invoke(ListDentryReplace));
+
+    std::string lastName;
+    ASSERT_EQ(warmupManager_->GetInodeSubPathParent(
+                  root, std::vector<std::string>{aName, bName, cName}, &ret,
+                  &lastName, nullptr),
+              true);
+    ASSERT_EQ(ret, bInodeid);
+    ASSERT_EQ(lastName, cName);
+}
+
+TEST_F(TestFuseS3Client,
+       warmUp_GetInodeSubPathParent_symLink_getInodeAttrFailed) {
+    /*
+.(1) parent
+└── A(2)
+│   ├── B(3)
+│   │   └── D(5)
+│   ├── C(4) -> B
+│   │   └── D(5)
+    */
+    constexpr fuse_ino_t root = 1;
+    fuse_ino_t ret = 0;
+
+    std::string aName = "A";
+    constexpr fuse_ino_t aInodeid = 2;
+    Dentry dentryA;
+    dentryA.set_fsid(fsId);
+    dentryA.set_name(aName);
+    dentryA.set_parentinodeid(root);
+    dentryA.set_inodeid(aInodeid);
+    dentryA.set_type(FsFileType::TYPE_DIRECTORY);
+
+    std::string bName = "B";
+    constexpr fuse_ino_t bInodeid = 3;
+    Dentry dentryB;
+    dentryB.set_fsid(fsId);
+    dentryB.set_name(bName);
+    dentryB.set_parentinodeid(dentryA.inodeid());
+    dentryB.set_inodeid(bInodeid);
+    dentryB.set_type(FsFileType::TYPE_DIRECTORY);
+
+    std::string cName = "C";
+    constexpr fuse_ino_t cInodeid = 4;
+    Dentry dentryC;
+    dentryC.set_fsid(fsId);
+    dentryC.set_name(cName);
+    dentryC.set_parentinodeid(dentryA.inodeid());
+    dentryC.set_inodeid(cInodeid);
+    dentryC.set_type(FsFileType::TYPE_SYM_LINK);
+
+    std::string dName = "D";
+    constexpr fuse_ino_t dInodeid = 5;
+    Dentry dentryD;
+    dentryD.set_fsid(fsId);
+    dentryD.set_name(dName);
+    dentryD.set_parentinodeid(dentryB.inodeid());
+    dentryD.set_inodeid(dInodeid);
+    dentryD.set_type(FsFileType::TYPE_DIRECTORY);
+
+    auto GetDentryReplace = [root, aName, dentryA, aInodeid, bName, dentryB,
+                             bInodeid, cName, dentryC, dName, dentryD](
+                                fuse_ino_t parent, const std::string& name,
+                                Dentry* out) -> CURVEFS_ERROR {
+        switch (parent) {
+            case root:
+                if (name == aName) {
+                    *out = dentryA;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            case aInodeid:
+                if (name == bName) {
+                    *out = dentryB;
+                    return CURVEFS_ERROR::OK;
+                } else if (name == cName) {
+                    *out = dentryC;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            case bInodeid:
+                if (name == dName) {
+                    *out = dentryD;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+        return CURVEFS_ERROR::OK;
+    };
+
+    EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
+        .WillRepeatedly(Invoke(GetDentryReplace));
+
+    auto GetInodeAttrReplace = [](uint64_t inodeId,
+                                  InodeAttr* out) -> CURVEFS_ERROR {
+        switch (inodeId) {
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+    };
+
+    EXPECT_CALL(*inodeManager_, GetInodeAttr(_, _))
+        .WillOnce(Invoke(GetInodeAttrReplace));
+
+    std::string lastName;
+    ASSERT_EQ(warmupManager_->GetInodeSubPathParent(
+                  root, std::vector<std::string>{aName, cName, dName}, &ret,
+                  &lastName, nullptr),
+              false);
+}
+
+TEST_F(TestFuseS3Client, warmUp_FetchDentry_symLink_getInodeAttrFailed) {
+    /*
+.(1) parent
+└── A(2)
+│   ├── B(3)
+│   │   └── D(5)
+│   ├── C(4) -> B
+│   │   └── D(5)
+    */
+    constexpr fuse_ino_t root = 1;
+    fuse_ino_t ret = 0;
+
+    std::string aName = "A";
+    constexpr fuse_ino_t aInodeid = 2;
+    Dentry dentryA;
+    dentryA.set_fsid(fsId);
+    dentryA.set_name(aName);
+    dentryA.set_parentinodeid(root);
+    dentryA.set_inodeid(aInodeid);
+    dentryA.set_type(FsFileType::TYPE_DIRECTORY);
+
+    std::string bName = "B";
+    constexpr fuse_ino_t bInodeid = 3;
+    Dentry dentryB;
+    dentryB.set_fsid(fsId);
+    dentryB.set_name(bName);
+    dentryB.set_parentinodeid(dentryA.inodeid());
+    dentryB.set_inodeid(bInodeid);
+    dentryB.set_type(FsFileType::TYPE_DIRECTORY);
+
+    std::string cName = "C";
+    constexpr fuse_ino_t cInodeid = 4;
+    Dentry dentryC;
+    dentryC.set_fsid(fsId);
+    dentryC.set_name(cName);
+    dentryC.set_parentinodeid(dentryA.inodeid());
+    dentryC.set_inodeid(cInodeid);
+    dentryC.set_type(FsFileType::TYPE_SYM_LINK);
+
+    std::string dName = "D";
+    constexpr fuse_ino_t dInodeid = 5;
+    Dentry dentryD;
+    dentryD.set_fsid(fsId);
+    dentryD.set_name(dName);
+    dentryD.set_parentinodeid(dentryB.inodeid());
+    dentryD.set_inodeid(dInodeid);
+    dentryD.set_type(FsFileType::TYPE_DIRECTORY);
+
+    auto GetDentryReplace = [root, aName, dentryA, aInodeid, bName, dentryB,
+                             bInodeid, cName, dentryC, dName, dentryD](
+                                fuse_ino_t parent, const std::string& name,
+                                Dentry* out) -> CURVEFS_ERROR {
+        switch (parent) {
+            case root:
+                if (name == aName) {
+                    *out = dentryA;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            case aInodeid:
+                if (name == bName) {
+                    *out = dentryB;
+                    return CURVEFS_ERROR::OK;
+                } else if (name == cName) {
+                    *out = dentryC;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            case bInodeid:
+                if (name == dName) {
+                    *out = dentryD;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+        return CURVEFS_ERROR::OK;
+    };
+
+    EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
+        .WillRepeatedly(Invoke(GetDentryReplace));
+
+    auto GetInodeAttrReplace = [](uint64_t inodeId,
+                                  InodeAttr* out) -> CURVEFS_ERROR {
+        switch (inodeId) {
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+    };
+
+    EXPECT_CALL(*inodeManager_, GetInodeAttr(_, _))
+        .WillOnce(Invoke(GetInodeAttrReplace));
+
+    warmupManager_->FetchDentry(123, aInodeid, cName, 0);
+    sleep(5);
+}
+
+TEST_F(TestFuseS3Client, warmUp_GetInodeSubPathParent_symLink_1depth) {
+    /*
+.(1) parent
+└── A(2)
+│   ├── B(3)
+│   │   └── D(5)
+│   ├── C(4) -> B
+│   │   └── D(5)
+    */
+    constexpr fuse_ino_t root = 1;
+    fuse_ino_t ret = 0;
+
+    std::string aName = "A";
+    constexpr fuse_ino_t aInodeid = 2;
+    Dentry dentryA;
+    dentryA.set_fsid(fsId);
+    dentryA.set_name(aName);
+    dentryA.set_parentinodeid(root);
+    dentryA.set_inodeid(aInodeid);
+    dentryA.set_type(FsFileType::TYPE_DIRECTORY);
+
+    std::string bName = "B";
+    constexpr fuse_ino_t bInodeid = 3;
+    Dentry dentryB;
+    dentryB.set_fsid(fsId);
+    dentryB.set_name(bName);
+    dentryB.set_parentinodeid(dentryA.inodeid());
+    dentryB.set_inodeid(bInodeid);
+    dentryB.set_type(FsFileType::TYPE_DIRECTORY);
+
+    std::string cName = "C";
+    constexpr fuse_ino_t cInodeid = 4;
+    Dentry dentryC;
+    dentryC.set_fsid(fsId);
+    dentryC.set_name(cName);
+    dentryC.set_parentinodeid(dentryA.inodeid());
+    dentryC.set_inodeid(cInodeid);
+    dentryC.set_type(FsFileType::TYPE_SYM_LINK);
+    InodeAttr attrC;
+    attrC.set_symlink(bName);
+
+    std::string dName = "D";
+    constexpr fuse_ino_t dInodeid = 5;
+    Dentry dentryD;
+    dentryD.set_fsid(fsId);
+    dentryD.set_name(dName);
+    dentryD.set_parentinodeid(dentryB.inodeid());
+    dentryD.set_inodeid(dInodeid);
+    dentryD.set_type(FsFileType::TYPE_DIRECTORY);
+    Inode inodeD;
+    inodeD.set_fsid(fsId);
+    inodeD.set_inodeid(dInodeid);
+    inodeD.add_parent(dentryB.inodeid());
+    std::shared_ptr<InodeWrapper> inodeWrapperD =
+        std::make_shared<InodeWrapper>(inodeD, metaClient_);
+
+    auto GetDentryReplace = [root, aName, dentryA, aInodeid, bName, dentryB,
+                             bInodeid, cName, dentryC, dName, dentryD](
+                                fuse_ino_t parent, const std::string& name,
+                                Dentry* out) -> CURVEFS_ERROR {
+        switch (parent) {
+            case root:
+                if (name == aName) {
+                    *out = dentryA;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            case aInodeid:
+                if (name == bName) {
+                    *out = dentryB;
+                    return CURVEFS_ERROR::OK;
+                } else if (name == cName) {
+                    *out = dentryC;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            case bInodeid:
+                if (name == dName) {
+                    *out = dentryD;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+        return CURVEFS_ERROR::OK;
+    };
+
+    EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
+        .WillRepeatedly(Invoke(GetDentryReplace));
+
+    auto GetInodeAttrReplace =
+        [cInodeid, attrC](uint64_t inodeId, InodeAttr* out) -> CURVEFS_ERROR {
+        switch (inodeId) {
+            case cInodeid:
+                *out = attrC;
+                return CURVEFS_ERROR::OK;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+    };
+
+    EXPECT_CALL(*inodeManager_, GetInodeAttr(_, _))
+        .WillOnce(Invoke(GetInodeAttrReplace));
+
+    auto GetInodeReplace =
+        [dInodeid, inodeWrapperD](
+            uint64_t inodeId,
+            std::shared_ptr<InodeWrapper>& out) -> CURVEFS_ERROR {
+        switch (inodeId) {
+            case dInodeid:
+                out = inodeWrapperD;
+                return CURVEFS_ERROR::OK;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+    };
+
+    EXPECT_CALL(*inodeManager_, GetInode(_, _))
+        .WillRepeatedly(Invoke(GetInodeReplace));
+
+    auto ListDentryReplace = [=](uint64_t parent, std::list<Dentry>* dentryList,
+                                 uint32_t limit, bool onlyDir = false,
+                                 uint32_t nlink = 0) -> CURVEFS_ERROR {
+        switch (parent) {
+            case bInodeid:
+                dentryList->emplace_back(dentryD);
+                return CURVEFS_ERROR::OK;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+        return CURVEFS_ERROR::NOTEXIST;
+    };
+    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
+        .WillOnce(Invoke(ListDentryReplace));
+
+    std::string lastName;
+    ASSERT_EQ(warmupManager_->GetInodeSubPathParent(
+                  root, std::vector<std::string>{aName, cName, dName}, &ret,
+                  &lastName, nullptr),
+              true);
+    ASSERT_EQ(ret, bInodeid);
+    ASSERT_EQ(lastName, dName);
+}
+
+TEST_F(TestFuseS3Client, warmUp_GetInodeSubPathParent_symLink_1depth_samePath) {
+    /*
+.(1) parent
+└── A(2)
+│   ├── B(3)
+│   │   └── D(5)
+│   ├── C(4) -> ./B
+│   │   └── D(5)
+    */
+    constexpr fuse_ino_t root = 1;
+    fuse_ino_t ret = 0;
+
+    std::string aName = "A";
+    constexpr fuse_ino_t aInodeid = 2;
+    Dentry dentryA;
+    dentryA.set_fsid(fsId);
+    dentryA.set_name(aName);
+    dentryA.set_parentinodeid(root);
+    dentryA.set_inodeid(aInodeid);
+    dentryA.set_type(FsFileType::TYPE_DIRECTORY);
+
+    std::string bName = "B";
+    constexpr fuse_ino_t bInodeid = 3;
+    Dentry dentryB;
+    dentryB.set_fsid(fsId);
+    dentryB.set_name(bName);
+    dentryB.set_parentinodeid(dentryA.inodeid());
+    dentryB.set_inodeid(bInodeid);
+    dentryB.set_type(FsFileType::TYPE_DIRECTORY);
+
+    std::string cName = "C";
+    constexpr fuse_ino_t cInodeid = 4;
+    Dentry dentryC;
+    dentryC.set_fsid(fsId);
+    dentryC.set_name(cName);
+    dentryC.set_parentinodeid(dentryA.inodeid());
+    dentryC.set_inodeid(cInodeid);
+    dentryC.set_type(FsFileType::TYPE_SYM_LINK);
+    InodeAttr attrC;
+    attrC.set_symlink(fmt::format("./{}", bName));
+
+    std::string dName = "D";
+    constexpr fuse_ino_t dInodeid = 5;
+    Dentry dentryD;
+    dentryD.set_fsid(fsId);
+    dentryD.set_name(dName);
+    dentryD.set_parentinodeid(dentryB.inodeid());
+    dentryD.set_inodeid(dInodeid);
+    dentryD.set_type(FsFileType::TYPE_DIRECTORY);
+    Inode inodeD;
+    inodeD.set_fsid(fsId);
+    inodeD.set_inodeid(dInodeid);
+    inodeD.add_parent(dentryB.inodeid());
+    std::shared_ptr<InodeWrapper> inodeWrapperD =
+        std::make_shared<InodeWrapper>(inodeD, metaClient_);
+
+    auto GetDentryReplace = [root, aName, dentryA, aInodeid, bName, dentryB,
+                             bInodeid, cName, dentryC, dName, dentryD](
+                                fuse_ino_t parent, const std::string& name,
+                                Dentry* out) -> CURVEFS_ERROR {
+        switch (parent) {
+            case root:
+                if (name == aName) {
+                    *out = dentryA;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            case aInodeid:
+                if (name == bName) {
+                    *out = dentryB;
+                    return CURVEFS_ERROR::OK;
+                } else if (name == cName) {
+                    *out = dentryC;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            case bInodeid:
+                if (name == dName) {
+                    *out = dentryD;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+        return CURVEFS_ERROR::OK;
+    };
+
+    EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
+        .WillRepeatedly(Invoke(GetDentryReplace));
+
+    auto GetInodeAttrReplace =
+        [cInodeid, attrC](uint64_t inodeId, InodeAttr* out) -> CURVEFS_ERROR {
+        switch (inodeId) {
+            case cInodeid:
+                *out = attrC;
+                return CURVEFS_ERROR::OK;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+    };
+
+    EXPECT_CALL(*inodeManager_, GetInodeAttr(_, _))
+        .WillOnce(Invoke(GetInodeAttrReplace));
+    auto GetInodeReplace =
+        [dInodeid, inodeWrapperD](
+            uint64_t inodeId,
+            std::shared_ptr<InodeWrapper>& out) -> CURVEFS_ERROR {
+        switch (inodeId) {
+            case dInodeid:
+                out = inodeWrapperD;
+                return CURVEFS_ERROR::OK;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+    };
+    EXPECT_CALL(*inodeManager_, GetInode(_, _))
+        .WillRepeatedly(Invoke(GetInodeReplace));
+
+    auto ListDentryReplace = [=](uint64_t parent, std::list<Dentry>* dentryList,
+                                 uint32_t limit, bool onlyDir = false,
+                                 uint32_t nlink = 0) -> CURVEFS_ERROR {
+        switch (parent) {
+            case bInodeid:
+                dentryList->emplace_back(dentryD);
+                return CURVEFS_ERROR::OK;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+        return CURVEFS_ERROR::NOTEXIST;
+    };
+    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
+        .WillOnce(Invoke(ListDentryReplace));
+
+    std::string lastName;
+    ASSERT_EQ(warmupManager_->GetInodeSubPathParent(
+                  root, std::vector<std::string>{aName, cName, dName}, &ret,
+                  &lastName, nullptr),
+              true);
+    ASSERT_EQ(ret, bInodeid);
+    ASSERT_EQ(lastName, dName);
+}
+
+TEST_F(TestFuseS3Client, warmUp_FetchDentry_symLink_1depth_1) {
+    /*
+.(1) parent
+└── A(2)
+│   ├── B(3)
+│   │   └── D(5)
+│   ├── C(4) -> ./B
+│   │   └── D(5)
+    */
+    constexpr fuse_ino_t root = 1;
+    fuse_ino_t ret = 0;
+
+    std::string aName = "A";
+    constexpr fuse_ino_t aInodeid = 2;
+    Dentry dentryA;
+    dentryA.set_fsid(fsId);
+    dentryA.set_name(aName);
+    dentryA.set_parentinodeid(root);
+    dentryA.set_inodeid(aInodeid);
+    dentryA.set_type(FsFileType::TYPE_DIRECTORY);
+
+    std::string bName = "B";
+    constexpr fuse_ino_t bInodeid = 3;
+    Dentry dentryB;
+    dentryB.set_fsid(fsId);
+    dentryB.set_name(bName);
+    dentryB.set_parentinodeid(dentryA.inodeid());
+    dentryB.set_inodeid(bInodeid);
+    dentryB.set_type(FsFileType::TYPE_DIRECTORY);
+    Inode inodeB;
+    inodeB.set_fsid(fsId);
+    inodeB.set_inodeid(bInodeid);
+    inodeB.add_parent(dentryA.inodeid());
+    std::shared_ptr<InodeWrapper> inodeWrapperB =
+        std::make_shared<InodeWrapper>(inodeB, metaClient_);
+
+    std::string cName = "C";
+    constexpr fuse_ino_t cInodeid = 4;
+    Dentry dentryC;
+    dentryC.set_fsid(fsId);
+    dentryC.set_name(cName);
+    dentryC.set_parentinodeid(dentryA.inodeid());
+    dentryC.set_inodeid(cInodeid);
+    dentryC.set_type(FsFileType::TYPE_SYM_LINK);
+    InodeAttr attrC;
+    attrC.set_symlink(fmt::format("./{}", bName));
+
+    std::string dName = "D";
+    constexpr fuse_ino_t dInodeid = 5;
+    Dentry dentryD;
+    dentryD.set_fsid(fsId);
+    dentryD.set_name(dName);
+    dentryD.set_parentinodeid(dentryB.inodeid());
+    dentryD.set_inodeid(dInodeid);
+    dentryD.set_type(FsFileType::TYPE_DIRECTORY);
+
+    auto GetDentryReplace = [root, aName, dentryA, aInodeid, bName, dentryB,
+                             bInodeid, cName, dentryC, dName, dentryD](
+                                fuse_ino_t parent, const std::string& name,
+                                Dentry* out) -> CURVEFS_ERROR {
+        switch (parent) {
+            case root:
+                if (name == aName) {
+                    *out = dentryA;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            case aInodeid:
+                if (name == bName) {
+                    *out = dentryB;
+                    return CURVEFS_ERROR::OK;
+                } else if (name == cName) {
+                    *out = dentryC;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            case bInodeid:
+                if (name == dName) {
+                    *out = dentryD;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+        return CURVEFS_ERROR::OK;
+    };
+
+    EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
+        .WillRepeatedly(Invoke(GetDentryReplace));
+
+    auto GetInodeAttrReplace =
+        [cInodeid, attrC](uint64_t inodeId, InodeAttr* out) -> CURVEFS_ERROR {
+        switch (inodeId) {
+            case cInodeid:
+                *out = attrC;
+                return CURVEFS_ERROR::OK;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+    };
+
+    EXPECT_CALL(*inodeManager_, GetInodeAttr(_, _))
+        .WillOnce(Invoke(GetInodeAttrReplace));
+
+    auto GetInodeReplace =
+        [=](uint64_t inodeId,
+            std::shared_ptr<InodeWrapper>& out) -> CURVEFS_ERROR {
+        switch (inodeId) {
+            case bInodeid:
+                out = inodeWrapperB;
+                return CURVEFS_ERROR::OK;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+    };
+    EXPECT_CALL(*inodeManager_, GetInode(_, _))
+        .WillRepeatedly(Invoke(GetInodeReplace));
+
+    warmupManager_->FetchDentry(123, aInodeid, cName, 0);
+}
+
+TEST_F(TestFuseS3Client,
+       warmUp_GetInodeSubPathParent_symLink_2depth_GetInodeWrapperFailed) {
+    /*
+.(1) parent
+└── A(2)
+│   ├── B(3)
+│   │   └── D(5)
+│   ├── C(4) -> ../A
+│   │   ├── B(3)
+│   │   │   └── D(5)
+│   │   ├── C(4)
+    */
+    constexpr fuse_ino_t root = 1;
+    fuse_ino_t ret = 0;
+
+    std::string aName = "A";
+    constexpr fuse_ino_t aInodeid = 2;
+    Dentry dentryA;
+    dentryA.set_fsid(fsId);
+    dentryA.set_name(aName);
+    dentryA.set_parentinodeid(root);
+    dentryA.set_inodeid(aInodeid);
+    dentryA.set_type(FsFileType::TYPE_DIRECTORY);
+    Inode inodeA;
+    inodeA.set_fsid(fsId);
+    inodeA.set_inodeid(aInodeid);
+    std::shared_ptr<InodeWrapper> inodeWrapperA =
+        std::make_shared<InodeWrapper>(inodeA, metaClient_);
+
+    std::string bName = "B";
+    constexpr fuse_ino_t bInodeid = 3;
+    Dentry dentryB;
+    dentryB.set_fsid(fsId);
+    dentryB.set_name(bName);
+    dentryB.set_parentinodeid(dentryA.inodeid());
+    dentryB.set_inodeid(bInodeid);
+    dentryB.set_type(FsFileType::TYPE_DIRECTORY);
+
+    std::string cName = "C";
+    constexpr fuse_ino_t cInodeid = 4;
+    Dentry dentryC;
+    dentryC.set_fsid(fsId);
+    dentryC.set_name(cName);
+    dentryC.set_parentinodeid(dentryA.inodeid());
+    dentryC.set_inodeid(cInodeid);
+    dentryC.set_type(FsFileType::TYPE_SYM_LINK);
+    InodeAttr attrC;
+    attrC.set_symlink(fmt::format("../{}", aName));
+
+    std::string dName = "D";
+    constexpr fuse_ino_t dInodeid = 5;
+    Dentry dentryD;
+    dentryD.set_fsid(fsId);
+    dentryD.set_name(dName);
+    dentryD.set_parentinodeid(dentryB.inodeid());
+    dentryD.set_inodeid(dInodeid);
+    dentryD.set_type(FsFileType::TYPE_DIRECTORY);
+
+    auto GetDentryReplace = [root, aName, dentryA, aInodeid, bName, dentryB,
+                             bInodeid, cName, dentryC, dName, dentryD](
+                                fuse_ino_t parent, const std::string& name,
+                                Dentry* out) -> CURVEFS_ERROR {
+        switch (parent) {
+            case root:
+                if (name == aName) {
+                    *out = dentryA;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            case aInodeid:
+                if (name == bName) {
+                    *out = dentryB;
+                    return CURVEFS_ERROR::OK;
+                } else if (name == cName) {
+                    *out = dentryC;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            case bInodeid:
+                if (name == dName) {
+                    *out = dentryD;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+        return CURVEFS_ERROR::OK;
+    };
+
+    EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
+        .WillRepeatedly(Invoke(GetDentryReplace));
+
+    auto GetInodeAttrReplace =
+        [cInodeid, attrC](uint64_t inodeId, InodeAttr* out) -> CURVEFS_ERROR {
+        switch (inodeId) {
+            case cInodeid:
+                *out = attrC;
+                return CURVEFS_ERROR::OK;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+    };
+
+    EXPECT_CALL(*inodeManager_, GetInodeAttr(_, _))
+        .WillOnce(Invoke(GetInodeAttrReplace));
+
+    auto GetInodeReplace =
+        [](uint64_t inodeId,
+           std::shared_ptr<InodeWrapper>& out) -> CURVEFS_ERROR {
+        switch (inodeId) {
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+    };
+
+    EXPECT_CALL(*inodeManager_, GetInode(_, _))
+        .WillOnce(Invoke(GetInodeReplace));
+
+    std::string lastName;
+    ASSERT_EQ(warmupManager_->GetInodeSubPathParent(
+                  root, std::vector<std::string>{aName, cName, bName, dName},
+                  &ret, &lastName, nullptr),
+              false);
+}
+
+TEST_F(TestFuseS3Client,
+       warmUp_GetInodeSubPathParent_symLink_2depth_noparents) {
+    /*
+.(1) parent
+└── A(2)
+│   ├── B(3)
+│   │   └── D(5)
+│   ├── C(4) -> ../A
+│   │   ├── B(3)
+│   │   │   └── D(5)
+│   │   ├── C(4)
+    */
+    constexpr fuse_ino_t root = 1;
+    fuse_ino_t ret = 0;
+
+    std::string aName = "A";
+    constexpr fuse_ino_t aInodeid = 2;
+    Dentry dentryA;
+    dentryA.set_fsid(fsId);
+    dentryA.set_name(aName);
+    dentryA.set_parentinodeid(root);
+    dentryA.set_inodeid(aInodeid);
+    dentryA.set_type(FsFileType::TYPE_DIRECTORY);
+    Inode inodeA;
+    inodeA.set_fsid(fsId);
+    inodeA.set_inodeid(aInodeid);
+    std::shared_ptr<InodeWrapper> inodeWrapperA =
+        std::make_shared<InodeWrapper>(inodeA, metaClient_);
+
+    std::string bName = "B";
+    constexpr fuse_ino_t bInodeid = 3;
+    Dentry dentryB;
+    dentryB.set_fsid(fsId);
+    dentryB.set_name(bName);
+    dentryB.set_parentinodeid(dentryA.inodeid());
+    dentryB.set_inodeid(bInodeid);
+    dentryB.set_type(FsFileType::TYPE_DIRECTORY);
+
+    std::string cName = "C";
+    constexpr fuse_ino_t cInodeid = 4;
+    Dentry dentryC;
+    dentryC.set_fsid(fsId);
+    dentryC.set_name(cName);
+    dentryC.set_parentinodeid(dentryA.inodeid());
+    dentryC.set_inodeid(cInodeid);
+    dentryC.set_type(FsFileType::TYPE_SYM_LINK);
+    InodeAttr attrC;
+    attrC.set_symlink(fmt::format("../{}", aName));
+    Inode inodeC;
+    inodeC.set_fsid(fsId);
+    inodeC.set_inodeid(cInodeid);
+    std::shared_ptr<InodeWrapper> inodeWrapperC =
+        std::make_shared<InodeWrapper>(inodeC, metaClient_);
+
+    std::string dName = "D";
+    constexpr fuse_ino_t dInodeid = 5;
+    Dentry dentryD;
+    dentryD.set_fsid(fsId);
+    dentryD.set_name(dName);
+    dentryD.set_parentinodeid(dentryB.inodeid());
+    dentryD.set_inodeid(dInodeid);
+    dentryD.set_type(FsFileType::TYPE_DIRECTORY);
+
+    auto GetDentryReplace = [root, aName, dentryA, aInodeid, bName, dentryB,
+                             bInodeid, cName, dentryC, dName, dentryD](
+                                fuse_ino_t parent, const std::string& name,
+                                Dentry* out) -> CURVEFS_ERROR {
+        switch (parent) {
+            case root:
+                if (name == aName) {
+                    *out = dentryA;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            case aInodeid:
+                if (name == bName) {
+                    *out = dentryB;
+                    return CURVEFS_ERROR::OK;
+                } else if (name == cName) {
+                    *out = dentryC;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            case bInodeid:
+                if (name == dName) {
+                    *out = dentryD;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+        return CURVEFS_ERROR::OK;
+    };
+
+    EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
+        .WillRepeatedly(Invoke(GetDentryReplace));
+
+    auto GetInodeAttrReplace =
+        [cInodeid, attrC](uint64_t inodeId, InodeAttr* out) -> CURVEFS_ERROR {
+        switch (inodeId) {
+            case cInodeid:
+                *out = attrC;
+                return CURVEFS_ERROR::OK;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+    };
+
+    EXPECT_CALL(*inodeManager_, GetInodeAttr(_, _))
+        .WillOnce(Invoke(GetInodeAttrReplace));
+
+    auto GetInodeReplace =
+        [aInodeid, inodeWrapperA, cInodeid, inodeWrapperC](
+            uint64_t inodeId,
+            std::shared_ptr<InodeWrapper>& out) -> CURVEFS_ERROR {
+        switch (inodeId) {
+            case aInodeid:
+                out = inodeWrapperA;
+                return CURVEFS_ERROR::OK;
+            case cInodeid:
+                out = inodeWrapperC;
+                return CURVEFS_ERROR::OK;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+    };
+
+    EXPECT_CALL(*inodeManager_, GetInode(_, _))
+        .WillOnce(Invoke(GetInodeReplace));
+    std::string lastName;
+    ASSERT_EQ(warmupManager_->GetInodeSubPathParent(
+                  root, std::vector<std::string>{aName, cName, bName, dName},
+                  &ret, &lastName, nullptr),
+              false);
+}
+
+TEST_F(TestFuseS3Client, warmUp_GetInodeSubPathParent_symLink_2depth) {
+    /*
+.(1) parent
+└── A(2)
+│   ├── B(3)
+│   │   └── D(5)
+│   ├── C(4) -> ../A
+│   │   ├── B(3)
+│   │   │   └── D(5)
+│   │   ├── C(4)
+    */
+    constexpr fuse_ino_t root = 1;
+    fuse_ino_t ret = 0;
+
+    std::string aName = "A";
+    constexpr fuse_ino_t aInodeid = 2;
+    Dentry dentryA;
+    dentryA.set_fsid(fsId);
+    dentryA.set_name(aName);
+    dentryA.set_parentinodeid(root);
+    dentryA.set_inodeid(aInodeid);
+    dentryA.set_type(FsFileType::TYPE_DIRECTORY);
+    Inode inodeA;
+    inodeA.set_fsid(fsId);
+    inodeA.set_inodeid(aInodeid);
+    inodeA.add_parent(root);
+    std::shared_ptr<InodeWrapper> inodeWrapperA =
+        std::make_shared<InodeWrapper>(inodeA, metaClient_);
+
+    std::string bName = "B";
+    constexpr fuse_ino_t bInodeid = 3;
+    Dentry dentryB;
+    dentryB.set_fsid(fsId);
+    dentryB.set_name(bName);
+    dentryB.set_parentinodeid(dentryA.inodeid());
+    dentryB.set_inodeid(bInodeid);
+    dentryB.set_type(FsFileType::TYPE_DIRECTORY);
+
+    std::string cName = "C";
+    constexpr fuse_ino_t cInodeid = 4;
+    Dentry dentryC;
+    dentryC.set_fsid(fsId);
+    dentryC.set_name(cName);
+    dentryC.set_parentinodeid(dentryA.inodeid());
+    dentryC.set_inodeid(cInodeid);
+    dentryC.set_type(FsFileType::TYPE_SYM_LINK);
+    InodeAttr attrC;
+    attrC.set_symlink(fmt::format("../{}", aName));
+    Inode inodeC;
+    inodeC.set_fsid(fsId);
+    inodeC.set_inodeid(cInodeid);
+    inodeC.add_parent(aInodeid);
+    std::shared_ptr<InodeWrapper> inodeWrapperC =
+        std::make_shared<InodeWrapper>(inodeC, metaClient_);
+
+    std::string dName = "D";
+    constexpr fuse_ino_t dInodeid = 5;
+    Dentry dentryD;
+    dentryD.set_fsid(fsId);
+    dentryD.set_name(dName);
+    dentryD.set_parentinodeid(dentryB.inodeid());
+    dentryD.set_inodeid(dInodeid);
+    dentryD.set_type(FsFileType::TYPE_DIRECTORY);
+    Inode inodeD;
+    inodeD.set_fsid(fsId);
+    inodeD.set_inodeid(dInodeid);
+    inodeD.add_parent(dentryB.inodeid());
+    std::shared_ptr<InodeWrapper> inodeWrapperD =
+        std::make_shared<InodeWrapper>(inodeD, metaClient_);
+
+    auto GetDentryReplace = [root, aName, dentryA, aInodeid, bName, dentryB,
+                             bInodeid, cName, dentryC, dName, dentryD](
+                                fuse_ino_t parent, const std::string& name,
+                                Dentry* out) -> CURVEFS_ERROR {
+        switch (parent) {
+            case root:
+                if (name == aName) {
+                    *out = dentryA;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            case aInodeid:
+                if (name == bName) {
+                    *out = dentryB;
+                    return CURVEFS_ERROR::OK;
+                } else if (name == cName) {
+                    *out = dentryC;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            case bInodeid:
+                if (name == dName) {
+                    *out = dentryD;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+        return CURVEFS_ERROR::OK;
+    };
+
+    EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
+        .WillRepeatedly(Invoke(GetDentryReplace));
+
+    auto GetInodeAttrReplace =
+        [cInodeid, attrC](uint64_t inodeId, InodeAttr* out) -> CURVEFS_ERROR {
+        switch (inodeId) {
+            case cInodeid:
+                *out = attrC;
+                return CURVEFS_ERROR::OK;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+    };
+
+    EXPECT_CALL(*inodeManager_, GetInodeAttr(_, _))
+        .WillOnce(Invoke(GetInodeAttrReplace));
+
+    auto GetInodeReplace =
+        [aInodeid, inodeWrapperA, cInodeid, inodeWrapperC, dInodeid,
+         inodeWrapperD](uint64_t inodeId,
+                        std::shared_ptr<InodeWrapper>& out) -> CURVEFS_ERROR {
+        switch (inodeId) {
+            case aInodeid:
+                out = inodeWrapperA;
+                return CURVEFS_ERROR::OK;
+            case cInodeid:
+                out = inodeWrapperC;
+                return CURVEFS_ERROR::OK;
+            case dInodeid:
+                out = inodeWrapperD;
+                return CURVEFS_ERROR::OK;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+    };
+
+    EXPECT_CALL(*inodeManager_, GetInode(_, _))
+        .WillRepeatedly(Invoke(GetInodeReplace));
+
+    auto ListDentryReplace = [=](uint64_t parent, std::list<Dentry>* dentryList,
+                                 uint32_t limit, bool onlyDir = false,
+                                 uint32_t nlink = 0) -> CURVEFS_ERROR {
+        switch (parent) {
+            case bInodeid:
+                dentryList->emplace_back(dentryD);
+                return CURVEFS_ERROR::OK;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+        return CURVEFS_ERROR::NOTEXIST;
+    };
+    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
+        .WillOnce(Invoke(ListDentryReplace));
+
+    std::string lastName;
+    ASSERT_EQ(warmupManager_->GetInodeSubPathParent(
+                  root, std::vector<std::string>{aName, cName, bName, dName},
+                  &ret, &lastName, nullptr),
+              true);
+    ASSERT_EQ(ret, bInodeid);
+    ASSERT_EQ(lastName, dName);
+}
+
+TEST_F(TestFuseS3Client, warmUp_GetInodeSubPathParent_symLink_double_point) {
+    /*
+.(1) parent
+└── A(2)
+│   ├── B(3)
+│   │   ├── C(4) -> ..
+│   │   │   ├── B(3)
+    */
+    constexpr fuse_ino_t root = 1;
+
+    std::string aName = "A";
+    constexpr fuse_ino_t aInodeid = 2;
+    Dentry dentryA;
+    dentryA.set_fsid(fsId);
+    dentryA.set_name(aName);
+    dentryA.set_parentinodeid(root);
+    dentryA.set_inodeid(aInodeid);
+    dentryA.set_type(FsFileType::TYPE_DIRECTORY);
+    Inode inodeA;
+    inodeA.set_fsid(fsId);
+    inodeA.set_inodeid(aInodeid);
+    inodeA.add_parent(root);
+    std::shared_ptr<InodeWrapper> inodeWrapperA =
+        std::make_shared<InodeWrapper>(inodeA, metaClient_);
+
+    std::string bName = "B";
+    constexpr fuse_ino_t bInodeid = 3;
+    Dentry dentryB;
+    dentryB.set_fsid(fsId);
+    dentryB.set_name(bName);
+    dentryB.set_parentinodeid(dentryA.inodeid());
+    dentryB.set_inodeid(bInodeid);
+    dentryB.set_type(FsFileType::TYPE_DIRECTORY);
+    Inode inodeB;
+    inodeB.set_fsid(fsId);
+    inodeB.set_inodeid(bInodeid);
+    inodeB.add_parent(dentryA.inodeid());
+    std::shared_ptr<InodeWrapper> inodeWrapperB =
+        std::make_shared<InodeWrapper>(inodeB, metaClient_);
+
+    std::string cName = "C";
+    constexpr fuse_ino_t cInodeid = 4;
+    Dentry dentryC;
+    dentryC.set_fsid(fsId);
+    dentryC.set_name(cName);
+    dentryC.set_parentinodeid(dentryB.inodeid());
+    dentryC.set_inodeid(cInodeid);
+    dentryC.set_type(FsFileType::TYPE_SYM_LINK);
+    InodeAttr attrC;
+    attrC.set_symlink("..");
+    Inode inodeC;
+    inodeC.set_fsid(fsId);
+    inodeC.set_inodeid(cInodeid);
+    std::shared_ptr<InodeWrapper> inodeWrapperC =
+        std::make_shared<InodeWrapper>(inodeC, metaClient_);
+
+    auto GetDentryReplace = [root, aName, dentryA, aInodeid, bName, dentryB,
+                             bInodeid, cName, dentryC](
+                                fuse_ino_t parent, const std::string& name,
+                                Dentry* out) -> CURVEFS_ERROR {
+        switch (parent) {
+            case root:
+                if (name == aName) {
+                    *out = dentryA;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            case aInodeid:
+                if (name == bName) {
+                    *out = dentryB;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            case bInodeid:
+                if (name == cName) {
+                    *out = dentryC;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+        return CURVEFS_ERROR::NOTEXIST;
+    };
+
+    EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
+        .WillRepeatedly(Invoke(GetDentryReplace));
+
+    auto GetInodeAttrReplace =
+        [cInodeid, attrC](uint64_t inodeId, InodeAttr* out) -> CURVEFS_ERROR {
+        switch (inodeId) {
+            case cInodeid:
+                *out = attrC;
+                return CURVEFS_ERROR::OK;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+    };
+
+    EXPECT_CALL(*inodeManager_, GetInodeAttr(_, _))
+        .WillRepeatedly(Invoke(GetInodeAttrReplace));
+
+    auto GetInodeReplace =
+        [aInodeid, inodeWrapperA, bInodeid, inodeWrapperB, cInodeid,
+         inodeWrapperC](uint64_t inodeId,
+                        std::shared_ptr<InodeWrapper>& out) -> CURVEFS_ERROR {
+        switch (inodeId) {
+            case aInodeid:
+                out = inodeWrapperA;
+                return CURVEFS_ERROR::OK;
+            case bInodeid:
+                out = inodeWrapperB;
+                return CURVEFS_ERROR::OK;
+            case cInodeid:
+                out = inodeWrapperC;
+                return CURVEFS_ERROR::OK;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+    };
+
+    EXPECT_CALL(*inodeManager_, GetInode(_, _))
+        .WillRepeatedly(Invoke(GetInodeReplace));
+
+    auto ListDentryReplace = [=](uint64_t parent, std::list<Dentry>* dentryList,
+                                 uint32_t limit, bool onlyDir = false,
+                                 uint32_t nlink = 0) -> CURVEFS_ERROR {
+        switch (parent) {
+            case aInodeid:
+                dentryList->emplace_back(dentryB);
+                return CURVEFS_ERROR::OK;
+            case root:
+                dentryList->emplace_back(dentryA);
+                return CURVEFS_ERROR::OK;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+        return CURVEFS_ERROR::NOTEXIST;
+    };
+    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
+        .WillRepeatedly(Invoke(ListDentryReplace));
+
+    std::string lastName;
+    fuse_ino_t ret = 0;
+    ASSERT_EQ(warmupManager_->GetInodeSubPathParent(
+                  root, std::vector<std::string>{aName, bName, cName}, &ret,
+                  &lastName, nullptr),
+              true);
+    ASSERT_EQ(ret, root);
+    ASSERT_EQ(lastName, aName);
+    ASSERT_EQ(warmupManager_->GetInodeSubPathParent(
+                  root, std::vector<std::string>{aName, bName, cName, bName},
+                  &ret, &lastName, nullptr),
+              true);
+    ASSERT_EQ(ret, aInodeid);
+    ASSERT_EQ(lastName, bName);
+}
+
+TEST_F(TestFuseS3Client,
+       warmUp_GetInodeSubPathParent_symLink_double_point_to_root) {
+    /*
+.(1) parent
+└── A(2)
+│   ├── B(3) -> ..
+│   │   ├── A(2)
+    */
+    constexpr fuse_ino_t root = 1;
+    Inode inodeRoot;
+    inodeRoot.set_fsid(fsId);
+    inodeRoot.set_inodeid(root);
+    inodeRoot.add_parent(0);
+    std::shared_ptr<InodeWrapper> inodeWrapperRoot =
+        std::make_shared<InodeWrapper>(inodeRoot, metaClient_);
+
+    std::string aName = "A";
+    constexpr fuse_ino_t aInodeid = 2;
+    Dentry dentryA;
+    dentryA.set_fsid(fsId);
+    dentryA.set_name(aName);
+    dentryA.set_parentinodeid(root);
+    dentryA.set_inodeid(aInodeid);
+    dentryA.set_type(FsFileType::TYPE_DIRECTORY);
+    Inode inodeA;
+    inodeA.set_fsid(fsId);
+    inodeA.set_inodeid(aInodeid);
+    inodeA.add_parent(root);
+    std::shared_ptr<InodeWrapper> inodeWrapperA =
+        std::make_shared<InodeWrapper>(inodeA, metaClient_);
+
+    std::string bName = "B";
+    constexpr fuse_ino_t bInodeid = 3;
+    Dentry dentryB;
+    dentryB.set_fsid(fsId);
+    dentryB.set_name(bName);
+    dentryB.set_parentinodeid(dentryA.inodeid());
+    dentryB.set_inodeid(bInodeid);
+    dentryB.set_type(FsFileType::TYPE_SYM_LINK);
+    Inode inodeB;
+    inodeB.set_fsid(fsId);
+    inodeB.set_inodeid(bInodeid);
+    inodeB.add_parent(dentryA.inodeid());
+    std::shared_ptr<InodeWrapper> inodeWrapperB =
+        std::make_shared<InodeWrapper>(inodeB, metaClient_);
+    InodeAttr attrB;
+    attrB.set_symlink("..");
+    Inode inodeC;
+    inodeB.set_fsid(fsId);
+    inodeB.set_inodeid(bInodeid);
+    std::shared_ptr<InodeWrapper> inodeWrapperb =
+        std::make_shared<InodeWrapper>(inodeC, metaClient_);
+
+    auto GetDentryReplace = [=](fuse_ino_t parent, const std::string& name,
+                                Dentry* out) -> CURVEFS_ERROR {
+        switch (parent) {
+            case root:
+                if (name == aName) {
+                    *out = dentryA;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            case aInodeid:
+                if (name == bName) {
+                    *out = dentryB;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+        return CURVEFS_ERROR::NOTEXIST;
+    };
+
+    EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
+        .WillRepeatedly(Invoke(GetDentryReplace));
+
+    auto GetInodeAttrReplace = [=](uint64_t inodeId,
+                                   InodeAttr* out) -> CURVEFS_ERROR {
+        switch (inodeId) {
+            case bInodeid:
+                *out = attrB;
+                return CURVEFS_ERROR::OK;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+    };
+
+    EXPECT_CALL(*inodeManager_, GetInodeAttr(_, _))
+        .WillRepeatedly(Invoke(GetInodeAttrReplace));
+
+    auto GetInodeReplace =
+        [=](uint64_t inodeId,
+            std::shared_ptr<InodeWrapper>& out) -> CURVEFS_ERROR {
+        switch (inodeId) {
+            case root:
+                out = inodeWrapperRoot;
+                return CURVEFS_ERROR::OK;
+            case aInodeid:
+                out = inodeWrapperA;
+                return CURVEFS_ERROR::OK;
+            case bInodeid:
+                out = inodeWrapperB;
+                return CURVEFS_ERROR::OK;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+    };
+
+    EXPECT_CALL(*inodeManager_, GetInode(_, _))
+        .WillRepeatedly(Invoke(GetInodeReplace));
+
+    auto ListDentryReplace = [=](uint64_t parent, std::list<Dentry>* dentryList,
+                                 uint32_t limit, bool onlyDir = false,
+                                 uint32_t nlink = 0) -> CURVEFS_ERROR {
+        switch (parent) {
+            case aInodeid:
+                dentryList->emplace_back(dentryB);
+                return CURVEFS_ERROR::OK;
+            case root:
+                dentryList->emplace_back(dentryA);
+                return CURVEFS_ERROR::OK;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+        return CURVEFS_ERROR::NOTEXIST;
+    };
+    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
+        .WillRepeatedly(Invoke(ListDentryReplace));
+
+    std::string lastName;
+    fuse_ino_t ret = 0;
+    ASSERT_EQ(warmupManager_->GetInodeSubPathParent(
+                  root, std::vector<std::string>{aName, bName}, &ret, &lastName,
+                  nullptr),
+              true);
+    ASSERT_EQ(ret, 0);
+    ASSERT_EQ(lastName, "/");
+    ASSERT_EQ(warmupManager_->GetInodeSubPathParent(
+                  root, std::vector<std::string>{aName, bName, aName}, &ret,
+                  &lastName, nullptr),
+              true);
+    ASSERT_EQ(ret, root);
+    ASSERT_EQ(lastName, aName);
+}
+
+TEST_F(TestFuseS3Client,
+       warmUp_GetInodeSubPathParent_symLink_doublePointx2_to_root) {
+    /*
+.(1) parent
+└── A(2)
+│   ├── B(3)
+│   │   ├── C(4) -> ../..
+│   │   │   ├── A(2)
+    */
+    constexpr fuse_ino_t root = 1;
+    Inode inodeRoot;
+    inodeRoot.set_fsid(fsId);
+    inodeRoot.set_inodeid(root);
+    inodeRoot.add_parent(0);
+    std::shared_ptr<InodeWrapper> inodeWrapperRoot =
+        std::make_shared<InodeWrapper>(inodeRoot, metaClient_);
+
+    std::string aName = "A";
+    constexpr fuse_ino_t aInodeid = 2;
+    Dentry dentryA;
+    dentryA.set_fsid(fsId);
+    dentryA.set_name(aName);
+    dentryA.set_parentinodeid(root);
+    dentryA.set_inodeid(aInodeid);
+    dentryA.set_type(FsFileType::TYPE_DIRECTORY);
+    Inode inodeA;
+    inodeA.set_fsid(fsId);
+    inodeA.set_inodeid(aInodeid);
+    inodeA.add_parent(root);
+    std::shared_ptr<InodeWrapper> inodeWrapperA =
+        std::make_shared<InodeWrapper>(inodeA, metaClient_);
+
+    std::string bName = "B";
+    constexpr fuse_ino_t bInodeid = 3;
+    Dentry dentryB;
+    dentryB.set_fsid(fsId);
+    dentryB.set_name(bName);
+    dentryB.set_parentinodeid(dentryA.inodeid());
+    dentryB.set_inodeid(bInodeid);
+    dentryB.set_type(FsFileType::TYPE_DIRECTORY);
+    Inode inodeB;
+    inodeB.set_fsid(fsId);
+    inodeB.set_inodeid(bInodeid);
+    inodeB.add_parent(dentryA.inodeid());
+    std::shared_ptr<InodeWrapper> inodeWrapperB =
+        std::make_shared<InodeWrapper>(inodeB, metaClient_);
+
+    std::string cName = "C";
+    constexpr fuse_ino_t cInodeid = 4;
+    Dentry dentryC;
+    dentryC.set_fsid(fsId);
+    dentryC.set_name(cName);
+    dentryC.set_parentinodeid(dentryB.inodeid());
+    dentryC.set_inodeid(cInodeid);
+    dentryC.set_type(FsFileType::TYPE_SYM_LINK);
+    InodeAttr attrC;
+    attrC.set_symlink("../..");
+    Inode inodeC;
+    inodeC.set_fsid(fsId);
+    inodeC.set_inodeid(cInodeid);
+    std::shared_ptr<InodeWrapper> inodeWrapperC =
+        std::make_shared<InodeWrapper>(inodeC, metaClient_);
+
+    auto GetDentryReplace = [root, aName, dentryA, aInodeid, bName, dentryB,
+                             bInodeid, cName, dentryC](
+                                fuse_ino_t parent, const std::string& name,
+                                Dentry* out) -> CURVEFS_ERROR {
+        switch (parent) {
+            case root:
+                if (name == aName) {
+                    *out = dentryA;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            case aInodeid:
+                if (name == bName) {
+                    *out = dentryB;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            case bInodeid:
+                if (name == cName) {
+                    *out = dentryC;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+        return CURVEFS_ERROR::NOTEXIST;
+    };
+
+    EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
+        .WillRepeatedly(Invoke(GetDentryReplace));
+
+    auto GetInodeAttrReplace =
+        [cInodeid, attrC](uint64_t inodeId, InodeAttr* out) -> CURVEFS_ERROR {
+        switch (inodeId) {
+            case cInodeid:
+                *out = attrC;
+                return CURVEFS_ERROR::OK;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+    };
+
+    EXPECT_CALL(*inodeManager_, GetInodeAttr(_, _))
+        .WillRepeatedly(Invoke(GetInodeAttrReplace));
+
+    auto GetInodeReplace =
+        [=](uint64_t inodeId,
+            std::shared_ptr<InodeWrapper>& out) -> CURVEFS_ERROR {
+        switch (inodeId) {
+            case root:
+                out = inodeWrapperRoot;
+                return CURVEFS_ERROR::OK;
+            case aInodeid:
+                out = inodeWrapperA;
+                return CURVEFS_ERROR::OK;
+            case bInodeid:
+                out = inodeWrapperB;
+                return CURVEFS_ERROR::OK;
+            case cInodeid:
+                out = inodeWrapperC;
+                return CURVEFS_ERROR::OK;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+    };
+
+    EXPECT_CALL(*inodeManager_, GetInode(_, _))
+        .WillRepeatedly(Invoke(GetInodeReplace));
+
+    auto ListDentryReplace = [=](uint64_t parent, std::list<Dentry>* dentryList,
+                                 uint32_t limit, bool onlyDir = false,
+                                 uint32_t nlink = 0) -> CURVEFS_ERROR {
+        switch (parent) {
+            case aInodeid:
+                dentryList->emplace_back(dentryB);
+                return CURVEFS_ERROR::OK;
+            case root:
+                dentryList->emplace_back(dentryA);
+                return CURVEFS_ERROR::OK;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+        return CURVEFS_ERROR::NOTEXIST;
+    };
+    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
+        .WillRepeatedly(Invoke(ListDentryReplace));
+
+    std::string lastName;
+    fuse_ino_t ret = 0;
+    ASSERT_EQ(warmupManager_->GetInodeSubPathParent(
+                  root, std::vector<std::string>{aName, bName, cName}, &ret,
+                  &lastName, nullptr),
+              true);
+    ASSERT_EQ(ret, 0);
+    ASSERT_EQ(lastName, "/");
+    ASSERT_EQ(warmupManager_->GetInodeSubPathParent(
+                  root, std::vector<std::string>{aName, bName, cName, aName},
+                  &ret, &lastName, nullptr),
+              true);
+    ASSERT_EQ(ret, root);
+    ASSERT_EQ(lastName, aName);
+}
+
+TEST_F(TestFuseS3Client, warmUp_Fetch_loop) {
+    /*
+.(1) parent
+└── A(2)
+│   ├── B(3)
+│   │   ├── C(4) -> ..
+│   │   │   ├── B(3)
+│   │   │   ├── D(5)
+│   │   └── D(5)
+    */
+    constexpr fuse_ino_t root = 1;
+
+    std::string aName = "A";
+    constexpr fuse_ino_t aInodeid = 2;
+    Dentry dentryA;
+    dentryA.set_fsid(fsId);
+    dentryA.set_name(aName);
+    dentryA.set_parentinodeid(root);
+    dentryA.set_inodeid(aInodeid);
+    dentryA.set_type(FsFileType::TYPE_DIRECTORY);
+    Inode inodeA;
+    inodeA.set_fsid(fsId);
+    inodeA.set_inodeid(aInodeid);
+    inodeA.add_parent(root);
+    std::shared_ptr<InodeWrapper> inodeWrapperA =
+        std::make_shared<InodeWrapper>(inodeA, metaClient_);
+
+    std::string bName = "B";
+    constexpr fuse_ino_t bInodeid = 3;
+    Dentry dentryB;
+    dentryB.set_fsid(fsId);
+    dentryB.set_name(bName);
+    dentryB.set_parentinodeid(dentryA.inodeid());
+    dentryB.set_inodeid(bInodeid);
+    dentryB.set_type(FsFileType::TYPE_DIRECTORY);
+    Inode inodeB;
+    inodeB.set_fsid(fsId);
+    inodeB.set_inodeid(bInodeid);
+    inodeB.add_parent(dentryA.inodeid());
+    std::shared_ptr<InodeWrapper> inodeWrapperB =
+        std::make_shared<InodeWrapper>(inodeB, metaClient_);
+
+    std::string cName = "C";
+    constexpr fuse_ino_t cInodeid = 4;
+    Dentry dentryC;
+    dentryC.set_fsid(fsId);
+    dentryC.set_name(cName);
+    dentryC.set_parentinodeid(dentryB.inodeid());
+    dentryC.set_inodeid(cInodeid);
+    dentryC.set_type(FsFileType::TYPE_SYM_LINK);
+    InodeAttr attrC;
+    attrC.set_symlink("..");
+    Inode inodeC;
+    inodeC.set_fsid(fsId);
+    inodeC.set_inodeid(cInodeid);
+    std::shared_ptr<InodeWrapper> inodeWrapperC =
+        std::make_shared<InodeWrapper>(inodeC, metaClient_);
+
+    std::string dName = "D";
+    constexpr fuse_ino_t dInodeid = 5;
+    Dentry dentryD;
+    dentryD.set_fsid(fsId);
+    dentryD.set_name(dName);
+    dentryD.set_parentinodeid(dentryB.inodeid());
+    dentryD.set_inodeid(dInodeid);
+    dentryD.set_type(FsFileType::TYPE_S3);
+    Inode inodeD;
+    inodeD.set_fsid(fsId);
+    inodeD.set_inodeid(dInodeid);
+    inodeD.add_parent(dentryB.inodeid());
+    std::shared_ptr<InodeWrapper> inodeWrapperD =
+        std::make_shared<InodeWrapper>(inodeD, metaClient_);
+
+    auto GetDentryReplace = [root, aName, dentryA, aInodeid, bName, dentryB,
+                             bInodeid, cName, dentryC](
+                                fuse_ino_t parent, const std::string& name,
+                                Dentry* out) -> CURVEFS_ERROR {
+        switch (parent) {
+            case root:
+                if (name == aName) {
+                    *out = dentryA;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            case aInodeid:
+                if (name == bName) {
+                    *out = dentryB;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            case bInodeid:
+                if (name == cName) {
+                    *out = dentryC;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+        return CURVEFS_ERROR::NOTEXIST;
+    };
+
+    EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
+        .WillRepeatedly(Invoke(GetDentryReplace));
+
+    auto GetInodeAttrReplace =
+        [cInodeid, attrC](uint64_t inodeId, InodeAttr* out) -> CURVEFS_ERROR {
+        switch (inodeId) {
+            case cInodeid:
+                *out = attrC;
+                return CURVEFS_ERROR::OK;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+    };
+
+    EXPECT_CALL(*inodeManager_, GetInodeAttr(_, _))
+        .WillRepeatedly(Invoke(GetInodeAttrReplace));
+
+    auto GetInodeReplace =
+        [aInodeid, inodeWrapperA, bInodeid, inodeWrapperB, cInodeid,
+         inodeWrapperC](uint64_t inodeId,
+                        std::shared_ptr<InodeWrapper>& out) -> CURVEFS_ERROR {
+        switch (inodeId) {
+            case aInodeid:
+                out = inodeWrapperA;
+                return CURVEFS_ERROR::OK;
+            case bInodeid:
+                out = inodeWrapperB;
+                return CURVEFS_ERROR::OK;
+            case cInodeid:
+                out = inodeWrapperC;
+                return CURVEFS_ERROR::OK;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+    };
+
+    EXPECT_CALL(*inodeManager_, GetInode(_, _))
+        .WillRepeatedly(Invoke(GetInodeReplace));
+
+    auto ListDentryReplace = [=](uint64_t parent, std::list<Dentry>* dentryList,
+                                 uint32_t limit, bool onlyDir = false,
+                                 uint32_t nlink = 0) -> CURVEFS_ERROR {
+        switch (parent) {
+            case root:
+                dentryList->emplace_back(dentryA);
+                return CURVEFS_ERROR::OK;
+            case aInodeid:
+                dentryList->emplace_back(dentryB);
+                return CURVEFS_ERROR::OK;
+            case bInodeid:
+                dentryList->emplace_back(dentryC);
+                dentryList->emplace_back(dentryD);
+                return CURVEFS_ERROR::OK;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+        return CURVEFS_ERROR::NOTEXIST;
+    };
+    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
+        .WillRepeatedly(Invoke(ListDentryReplace));
+
+    std::string lastName;
+    fuse_ino_t ret = 0;
+
+    warmupManager_->FetchDentry(0, bInodeid, cName, 0);
+    sleep(1);
+}
+
+TEST_F(TestFuseS3Client,
+       warmUp_GetInodeSubPathParent_symLink_2depth_outcurvefs) {
+    /*
+.(1) root
+└── A(2)
+│   ├── C(4) -> ../../F
+│   │   ├── D(3)
+    */
+    constexpr fuse_ino_t root = 1;
+    Inode inodeRoot;
+    inodeRoot.set_fsid(fsId);
+    inodeRoot.set_inodeid(root);
+    std::shared_ptr<InodeWrapper> inodeWrapperRoot =
+        std::make_shared<InodeWrapper>(inodeRoot, metaClient_);
+
+    fuse_ino_t ret = 0;
+
+    std::string aName = "A";
+    constexpr fuse_ino_t aInodeid = 2;
+    Dentry dentryA;
+    dentryA.set_fsid(fsId);
+    dentryA.set_name(aName);
+    dentryA.set_parentinodeid(root);
+    dentryA.set_inodeid(aInodeid);
+    dentryA.set_type(FsFileType::TYPE_DIRECTORY);
+    Inode inodeA;
+    inodeA.set_fsid(fsId);
+    inodeA.set_inodeid(aInodeid);
+    inodeA.add_parent(root);
+    std::shared_ptr<InodeWrapper> inodeWrapperA =
+        std::make_shared<InodeWrapper>(inodeA, metaClient_);
+
+    std::string cName = "C";
+    constexpr fuse_ino_t cInodeid = 4;
+    Dentry dentryC;
+    dentryC.set_fsid(fsId);
+    dentryC.set_name(cName);
+    dentryC.set_parentinodeid(dentryA.inodeid());
+    dentryC.set_inodeid(cInodeid);
+    dentryC.set_type(FsFileType::TYPE_SYM_LINK);
+    InodeAttr attrC;
+    attrC.set_symlink("../../F");
+    Inode inodeC;
+    inodeC.set_fsid(fsId);
+    inodeC.set_inodeid(cInodeid);
+    inodeC.add_parent(aInodeid);
+    std::shared_ptr<InodeWrapper> inodeWrapperC =
+        std::make_shared<InodeWrapper>(inodeC, metaClient_);
+
+    std::string dName = "D";
+    constexpr fuse_ino_t dInodeid = 5;
+    Dentry dentryD;
+    dentryD.set_fsid(fsId);
+    dentryD.set_name(dName);
+    dentryD.set_parentinodeid(1234);
+    dentryD.set_inodeid(dInodeid);
+    dentryD.set_type(FsFileType::TYPE_DIRECTORY);
+
+    auto GetDentryReplace = [root, aName, dentryA, aInodeid, cName, dentryC](
+                                fuse_ino_t parent, const std::string& name,
+                                Dentry* out) -> CURVEFS_ERROR {
+        switch (parent) {
+            case root:
+                if (name == aName) {
+                    *out = dentryA;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            case aInodeid:
+                if (name == cName) {
+                    *out = dentryC;
+                    return CURVEFS_ERROR::OK;
+                }
+                break;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+        return CURVEFS_ERROR::OK;
+    };
+
+    EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
+        .WillRepeatedly(Invoke(GetDentryReplace));
+
+    auto GetInodeAttrReplace =
+        [cInodeid, attrC](uint64_t inodeId, InodeAttr* out) -> CURVEFS_ERROR {
+        switch (inodeId) {
+            case cInodeid:
+                *out = attrC;
+                return CURVEFS_ERROR::OK;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+    };
+
+    EXPECT_CALL(*inodeManager_, GetInodeAttr(_, _))
+        .WillOnce(Invoke(GetInodeAttrReplace));
+
+    auto GetInodeReplace =
+        [inodeWrapperRoot, aInodeid, inodeWrapperA, cInodeid, inodeWrapperC](
+            uint64_t inodeId,
+            std::shared_ptr<InodeWrapper>& out) -> CURVEFS_ERROR {
+        switch (inodeId) {
+            case root:
+                out = inodeWrapperRoot;
+                return CURVEFS_ERROR::OK;
+            case aInodeid:
+                out = inodeWrapperA;
+                return CURVEFS_ERROR::OK;
+            case cInodeid:
+                out = inodeWrapperC;
+                return CURVEFS_ERROR::OK;
+            default:
+                return CURVEFS_ERROR::NOTEXIST;
+        }
+    };
+
+    EXPECT_CALL(*inodeManager_, GetInode(_, _))
+        .WillRepeatedly(Invoke(GetInodeReplace));
+
+    std::string lastName;
+
+    ASSERT_EQ(warmupManager_->GetInodeSubPathParent(
+                  root, std::vector<std::string>{aName, cName, dName}, &ret,
+                  &lastName, nullptr),
+              false);
 }
 
 TEST_F(TestFuseS3Client, FuseInit_when_fs_exist) {
@@ -939,7 +3166,7 @@ TEST_F(TestFuseS3Client, FuseOpDestroy) {
 TEST_F(TestFuseS3Client, FuseOpWriteSmallSize) {
     fuse_req_t req = nullptr;
     fuse_ino_t ino = 1;
-    const char *buf = "xxx";
+    const char* buf = "xxx";
     size_t size = 4;
     off_t off = 0;
     struct fuse_file_info fi;
@@ -970,7 +3197,7 @@ TEST_F(TestFuseS3Client, FuseOpWriteSmallSize) {
 TEST_F(TestFuseS3Client, FuseOpWriteFailed) {
     fuse_req_t req = nullptr;
     fuse_ino_t ino = 1;
-    const char *buf = "xxx";
+    const char* buf = "xxx";
     size_t size = 4;
     off_t off = 0;
     struct fuse_file_info fi;
@@ -1058,7 +3285,7 @@ TEST_F(TestFuseS3Client, FuseOpReadFailed) {
 TEST_F(TestFuseS3Client, FuseOpFsync) {
     fuse_req_t req = nullptr;
     fuse_ino_t ino = 1;
-    struct fuse_file_info *fi = nullptr;
+    struct fuse_file_info* fi = nullptr;
 
     Inode inode;
     inode.set_inodeid(ino);
@@ -1088,7 +3315,7 @@ TEST_F(TestFuseS3Client, FuseOpFsync) {
 TEST_F(TestFuseS3Client, FuseOpFlush) {
     fuse_req_t req = nullptr;
     fuse_ino_t ino = 1;
-    struct fuse_file_info *fi = nullptr;
+    struct fuse_file_info* fi = nullptr;
     Inode inode;
     inode.set_inodeid(ino);
     inode.set_length(0);
@@ -1176,7 +3403,6 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir) {
     dentry.set_type(FsFileType::TYPE_FILE);
     dlist1.emplace_back(dentry);
 
-
     std::list<InodeAttr> attrs;
     InodeAttr attr;
     attr.set_fsid(fsId);
@@ -1206,32 +3432,24 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir) {
     inode.mutable_xattr()->insert({XATTRFBYTES, "0"});
 
     EXPECT_CALL(*inodeManager_, GetInodeAttr(ino, _))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)));
+        .WillOnce(DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(dlist1), Return(CURVEFS_ERROR::OK)));
+        .WillOnce(DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(DoAll(SetArgPointee<1>(dlist1), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*inodeManager_, BatchGetInodeAttr(_, _))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(attrs), Return(CURVEFS_ERROR::OK)))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(attrs1), Return(CURVEFS_ERROR::OK)));
+        .WillOnce(DoAll(SetArgPointee<1>(attrs), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(DoAll(SetArgPointee<1>(attrs1), Return(CURVEFS_ERROR::OK)));
 
     CURVEFS_ERROR ret = client_->FuseOpGetXattr(req, ino, rname, &value, size);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(value, "4596");
 
     EXPECT_CALL(*inodeManager_, GetInodeAttr(ino, _))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)));
+        .WillOnce(DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)));
+        .WillOnce(DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*inodeManager_, BatchGetInodeAttr(_, _))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(attrs), Return(CURVEFS_ERROR::OK)));
+        .WillOnce(DoAll(SetArgPointee<1>(attrs), Return(CURVEFS_ERROR::OK)));
 
     ret = client_->FuseOpGetXattr(req, ino, name, &value, size);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
@@ -1280,15 +3498,14 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir_Failed) {
 
     // get inode failed
     EXPECT_CALL(*inodeManager_, GetInodeAttr(ino, _))
-        .WillOnce(DoAll(SetArgPointee<1>(inode),
-                        Return(CURVEFS_ERROR::INTERNAL)));
+        .WillOnce(
+            DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::INTERNAL)));
     CURVEFS_ERROR ret = client_->FuseOpGetXattr(req, ino, rname, &value, size);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 
     // list dentry failed
     EXPECT_CALL(*inodeManager_, GetInodeAttr(ino, _))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)));
+        .WillOnce(DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
         .WillOnce(Return(CURVEFS_ERROR::NOTEXIST));
     ret = client_->FuseOpGetXattr(req, ino, rname, &value, size);
@@ -1296,11 +3513,9 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir_Failed) {
 
     // BatchGetInodeAttr failed
     EXPECT_CALL(*inodeManager_, GetInodeAttr(ino, _))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)));
+        .WillOnce(DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)));
+        .WillOnce(DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*inodeManager_, BatchGetInodeAttr(_, _))
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL));
     ret = client_->FuseOpGetXattr(req, ino, rname, &value, size);
@@ -1355,20 +3570,15 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir) {
 
     EXPECT_CALL(*inodeManager_, GetInodeAttr(ino, _))
         .Times(3)
-        .WillOnce(
-            DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(attr), Return(CURVEFS_ERROR::OK)));
+        .WillOnce(DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(DoAll(SetArgPointee<1>(attr), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)))
         .WillOnce(
             DoAll(SetArgPointee<1>(emptyDlist), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*inodeManager_, BatchGetXAttr(_, _))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(xattrs), Return(CURVEFS_ERROR::OK)));
+        .WillOnce(DoAll(SetArgPointee<1>(xattrs), Return(CURVEFS_ERROR::OK)));
 
     CURVEFS_ERROR ret = client_->FuseOpGetXattr(req, ino, name, &value, size);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
@@ -1430,8 +3640,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir_Failed) {
 
     // AddUllStringToFirst failed
     EXPECT_CALL(*inodeManager_, GetInodeAttr(ino, _))
-        .WillOnce(DoAll(SetArgPointee<1>(inode),
-                        Return(CURVEFS_ERROR::OK)));
+        .WillOnce(DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)));
     ret = client_->FuseOpGetXattr(req, ino, name, &value, size);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
     inode.mutable_xattr()->find(XATTRFBYTES)->second = "100";
@@ -1452,8 +3661,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir_Failed) {
         .WillRepeatedly(
             DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)))
         .WillRepeatedly(
             DoAll(SetArgPointee<1>(emptyDlist), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*inodeManager_, BatchGetXAttr(_, _))
@@ -1468,13 +3676,11 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir_Failed) {
         .WillRepeatedly(
             DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)))
         .WillRepeatedly(
             DoAll(SetArgPointee<1>(emptyDlist), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*inodeManager_, BatchGetXAttr(_, _))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(xattrs), Return(CURVEFS_ERROR::OK)));
+        .WillOnce(DoAll(SetArgPointee<1>(xattrs), Return(CURVEFS_ERROR::OK)));
     ret = client_->FuseOpGetXattr(req, ino, rname, &value, size);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 
@@ -1486,13 +3692,11 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir_Failed) {
         .WillRepeatedly(
             DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)))
         .WillRepeatedly(
             DoAll(SetArgPointee<1>(emptyDlist), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*inodeManager_, BatchGetXAttr(_, _))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(xattrs), Return(CURVEFS_ERROR::OK)));
+        .WillOnce(DoAll(SetArgPointee<1>(xattrs), Return(CURVEFS_ERROR::OK)));
     ret = client_->FuseOpGetXattr(req, ino, rname, &value, size);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 
@@ -1504,13 +3708,11 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir_Failed) {
         .WillRepeatedly(
             DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)))
         .WillRepeatedly(
             DoAll(SetArgPointee<1>(emptyDlist), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*inodeManager_, BatchGetXAttr(_, _))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(xattrs), Return(CURVEFS_ERROR::OK)));
+        .WillOnce(DoAll(SetArgPointee<1>(xattrs), Return(CURVEFS_ERROR::OK)));
     ret = client_->FuseOpGetXattr(req, ino, rname, &value, size);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 }
@@ -1554,15 +3756,11 @@ TEST_F(TestFuseS3Client, FuseOpCreate_EnableSummary) {
     parentInode.mutable_xattr()->insert({XATTRENTRIES, "2"});
     parentInode.mutable_xattr()->insert({XATTRFBYTES, "100"});
 
-    auto parentInodeWrapper = std::make_shared<InodeWrapper>(
-        parentInode, metaClient_);
+    auto parentInodeWrapper =
+        std::make_shared<InodeWrapper>(parentInode, metaClient_);
     EXPECT_CALL(*inodeManager_, GetInode(_, _))
-        .WillOnce(
-            DoAll(SetArgReferee<1>(parentInodeWrapper),
-                Return(CURVEFS_ERROR::OK)))
-        .WillOnce(
-            DoAll(SetArgReferee<1>(parentInodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+        .WillOnce(DoAll(SetArgReferee<1>(parentInodeWrapper),
+                        Return(CURVEFS_ERROR::OK)));
 
     EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _))
         .WillRepeatedly(Return(MetaStatusCode::OK));
@@ -1571,8 +3769,8 @@ TEST_F(TestFuseS3Client, FuseOpCreate_EnableSummary) {
         .Times(1);  // update mtime directly
 
     EntryOut entryOut;
-    CURVEFS_ERROR ret = client_->FuseOpCreate(req, parent, name, mode, &fi,
-                                              &entryOut);
+    CURVEFS_ERROR ret =
+        client_->FuseOpCreate(req, parent, name, mode, &fi, &entryOut);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 
     auto p = parentInodeWrapper->GetInodeLocked();
@@ -1610,18 +3808,15 @@ TEST_F(TestFuseS3Client, FuseOpWrite_EnableSummary) {
     parentInode.mutable_xattr()->insert({XATTRENTRIES, "1"});
     parentInode.mutable_xattr()->insert({XATTRFBYTES, "0"});
 
-    auto parentInodeWrapper = std::make_shared<InodeWrapper>(
-        parentInode, metaClient_);
-    EXPECT_CALL(*inodeManager_, ShipToFlush(_))
-        .Times(2);
+    auto parentInodeWrapper =
+        std::make_shared<InodeWrapper>(parentInode, metaClient_);
+    EXPECT_CALL(*inodeManager_, ShipToFlush(_)).Times(2);
     EXPECT_CALL(*inodeManager_, GetInode(_, _))
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
-        .WillOnce(
-            DoAll(SetArgReferee<1>(parentInodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
-    EXPECT_CALL(*s3ClientAdaptor_, Write(_, _, _, _))
-        .WillOnce(Return(size));
+        .WillOnce(DoAll(SetArgReferee<1>(parentInodeWrapper),
+                        Return(CURVEFS_ERROR::OK)));
+    EXPECT_CALL(*s3ClientAdaptor_, Write(_, _, _, _)).WillOnce(Return(size));
 
     FileOut fileOut;
     CURVEFS_ERROR ret =
@@ -1670,11 +3865,10 @@ TEST_F(TestFuseS3Client, FuseOpLink_EnableSummary) {
         .WillRepeatedly(Return(MetaStatusCode::OK));
     EXPECT_CALL(*dentryManager_, CreateDentry(_))
         .WillOnce(Return(CURVEFS_ERROR::OK));
-    EXPECT_CALL(*inodeManager_, ShipToFlush(_))
-        .Times(1);
+    EXPECT_CALL(*inodeManager_, ShipToFlush(_)).Times(1);
     EntryOut entryOut;
-    CURVEFS_ERROR ret = client_->FuseOpLink(req, ino, newparent, newname,
-                                            &entryOut);
+    CURVEFS_ERROR ret =
+        client_->FuseOpLink(req, ino, newparent, newname, &entryOut);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     auto p = pinodeWrapper->GetInode();
     ASSERT_EQ(p.xattr().find(XATTRFILES)->second, "1");
@@ -1704,7 +3898,7 @@ TEST_F(TestFuseS3Client, FuseOpUnlink_EnableSummary) {
         .WillOnce(DoAll(SetArgPointee<2>(dentry), Return(CURVEFS_ERROR::OK)));
 
     EXPECT_CALL(*dentryManager_,
-        DeleteDentry(parent, name, FsFileType::TYPE_S3))
+                DeleteDentry(parent, name, FsFileType::TYPE_S3))
         .WillOnce(Return(CURVEFS_ERROR::OK));
 
     Inode inode;
@@ -1730,25 +3924,22 @@ TEST_F(TestFuseS3Client, FuseOpUnlink_EnableSummary) {
     attr.set_inodeid(inodeid);
     attr.set_nlink(nlink);
 
-    auto parentInodeWrapper = std::make_shared<InodeWrapper>(
-        parentInode, metaClient_);
+    auto parentInodeWrapper =
+        std::make_shared<InodeWrapper>(parentInode, metaClient_);
 
     EXPECT_CALL(*inodeManager_, GetInode(_, _))
-        .WillOnce(
-            DoAll(SetArgReferee<1>(parentInodeWrapper),
-                Return(CURVEFS_ERROR::OK)))
+        .WillOnce(DoAll(SetArgReferee<1>(parentInodeWrapper),
+                        Return(CURVEFS_ERROR::OK)))
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
-        .WillOnce(
-            DoAll(SetArgReferee<1>(parentInodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+        .WillOnce(DoAll(SetArgReferee<1>(parentInodeWrapper),
+                        Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*metaClient_, GetInodeAttr(_, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(attr), Return(MetaStatusCode::OK)));
     EXPECT_CALL(*metaClient_, UpdateInodeAttr(_, _, _))
         .WillRepeatedly(Return(MetaStatusCode::OK));
 
-    EXPECT_CALL(*inodeManager_, ShipToFlush(_))
-        .Times(1);
+    EXPECT_CALL(*inodeManager_, ShipToFlush(_)).Times(1);
 
     CURVEFS_ERROR ret = client_->FuseOpUnlink(req, parent, name.c_str());
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
@@ -1793,8 +3984,8 @@ TEST_F(TestFuseS3Client, FuseOpOpen_Trunc_EnableSummary) {
     parentInode.mutable_xattr()->insert({XATTRENTRIES, "2"});
     parentInode.mutable_xattr()->insert({XATTRFBYTES, "4196"});
 
-    auto parentInodeWrapper = std::make_shared<InodeWrapper>(
-        parentInode, metaClient_);
+    auto parentInodeWrapper =
+        std::make_shared<InodeWrapper>(parentInode, metaClient_);
 
     uint64_t parentId = 1;
 
@@ -1811,15 +4002,13 @@ TEST_F(TestFuseS3Client, FuseOpOpen_Trunc_EnableSummary) {
     EXPECT_CALL(*inodeManager_, GetInode(_, _))
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
-        .WillOnce(
-            DoAll(SetArgReferee<1>(parentInodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+        .WillOnce(DoAll(SetArgReferee<1>(parentInodeWrapper),
+                        Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*s3ClientAdaptor_, Truncate(_, _))
         .WillOnce(Return(CURVEFS_ERROR::OK));
     EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _))
         .WillRepeatedly(Return(MetaStatusCode::OK));
-    EXPECT_CALL(*inodeManager_, ShipToFlush(_))
-        .Times(0);
+    EXPECT_CALL(*inodeManager_, ShipToFlush(_)).Times(0);
 
     FileOut fileOut;
     CURVEFS_ERROR ret = client_->FuseOpOpen(req, ino, &fi, &fileOut);
@@ -1852,27 +4041,22 @@ TEST_F(TestFuseS3Client, FuseOpListXattr) {
     // failed when get inode
     EXPECT_CALL(*inodeManager_, GetInodeAttr(ino, _))
         .WillOnce(
-            DoAll(SetArgPointee<1>(inode),
-                Return(CURVEFS_ERROR::INTERNAL)));
-    CURVEFS_ERROR ret = client_->FuseOpListXattr(
-        req, ino, buf, size, &realSize);
+            DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::INTERNAL)));
+    CURVEFS_ERROR ret =
+        client_->FuseOpListXattr(req, ino, buf, size, &realSize);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 
     EXPECT_CALL(*inodeManager_, GetInodeAttr(ino, _))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)));
-    ret = client_->FuseOpListXattr(
-        req, ino, buf, size, &realSize);
+        .WillOnce(DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)));
+    ret = client_->FuseOpListXattr(req, ino, buf, size, &realSize);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(realSize, key.length() + 1);
 
     realSize = 0;
     inode.set_type(FsFileType::TYPE_DIRECTORY);
     EXPECT_CALL(*inodeManager_, GetInodeAttr(ino, _))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)));
-    ret = client_->FuseOpListXattr(
-        req, ino, buf, size, &realSize);
+        .WillOnce(DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)));
+    ret = client_->FuseOpListXattr(req, ino, buf, size, &realSize);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     auto expected = key.length() + 1 + strlen(XATTRRFILES) + 1 +
                     strlen(XATTRRSUBDIRS) + 1 + strlen(XATTRRENTRIES) + 1 +
@@ -1881,18 +4065,14 @@ TEST_F(TestFuseS3Client, FuseOpListXattr) {
 
     realSize = 0;
     EXPECT_CALL(*inodeManager_, GetInodeAttr(ino, _))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)));
-    ret = client_->FuseOpListXattr(
-        req, ino, buf, expected - 1, &realSize);
+        .WillOnce(DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)));
+    ret = client_->FuseOpListXattr(req, ino, buf, expected - 1, &realSize);
     ASSERT_EQ(CURVEFS_ERROR::OUT_OF_RANGE, ret);
 
     realSize = 0;
     EXPECT_CALL(*inodeManager_, GetInodeAttr(ino, _))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)));
-    ret = client_->FuseOpListXattr(
-        req, ino, buf, expected, &realSize);
+        .WillOnce(DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)));
+    ret = client_->FuseOpListXattr(req, ino, buf, expected, &realSize);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 }
 
@@ -1905,8 +4085,7 @@ TEST_F(TestFuseS3Client, FuseOpSetXattr_TooLong) {
     char value[64 * 1024 + 1];
     std::memset(value, 0, size);
 
-    CURVEFS_ERROR ret = client_->FuseOpSetXattr(
-        req, ino, name, value, size, 0);
+    CURVEFS_ERROR ret = client_->FuseOpSetXattr(req, ino, name, value, size, 0);
     ASSERT_EQ(CURVEFS_ERROR::OUT_OF_RANGE, ret);
 }
 
@@ -1922,8 +4101,7 @@ TEST_F(TestFuseS3Client, FuseOpSetXattr) {
     // get inode failed
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL));
-    CURVEFS_ERROR ret = client_->FuseOpSetXattr(
-        req, ino, name, value, size, 0);
+    CURVEFS_ERROR ret = client_->FuseOpSetXattr(req, ino, name, value, size, 0);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 
     // updateInode failed
@@ -1933,8 +4111,7 @@ TEST_F(TestFuseS3Client, FuseOpSetXattr) {
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _))
         .WillOnce(Return(MetaStatusCode::NOT_FOUND));
-    ret = client_->FuseOpSetXattr(
-        req, ino, name, value, size, 0);
+    ret = client_->FuseOpSetXattr(req, ino, name, value, size, 0);
     ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret);
 
     // success
@@ -1943,8 +4120,7 @@ TEST_F(TestFuseS3Client, FuseOpSetXattr) {
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _))
         .WillOnce(Return(MetaStatusCode::OK));
-    ret = client_->FuseOpSetXattr(
-        req, ino, name, value, size, 0);
+    ret = client_->FuseOpSetXattr(req, ino, name, value, size, 0);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 }
 
@@ -1954,7 +4130,7 @@ TEST_F(TestFuseS3Client, FuseOpWriteQosTest) {
     curvefs::client::common::FLAGS_fuseClientBurstWriteBytesSecs = 180;
     std::this_thread::sleep_for(std::chrono::milliseconds(1500));
 
-    auto qosWriteTest = [&] (int id, int len) {
+    auto qosWriteTest = [&](int id, int len) {
         fuse_ino_t ino = id;
         Inode inode;
         inode.set_inodeid(ino);
@@ -1962,8 +4138,8 @@ TEST_F(TestFuseS3Client, FuseOpWriteQosTest) {
         auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
 
         EXPECT_CALL(*inodeManager_, GetInode(ino, _))
-           .WillOnce(
-              DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
+            .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
+                            Return(CURVEFS_ERROR::OK)));
 
         fuse_req_t req = nullptr;
         off_t off = 0;
@@ -1979,8 +4155,8 @@ TEST_F(TestFuseS3Client, FuseOpWriteQosTest) {
 
         client_->Add(false, size);
 
-        CURVEFS_ERROR ret = client_->FuseOpWrite(
-            req, ino, buf.c_str(), size, off, &fi, &fileOut);
+        CURVEFS_ERROR ret = client_->FuseOpWrite(req, ino, buf.c_str(), size,
+                                                 off, &fi, &fileOut);
         ASSERT_EQ(CURVEFS_ERROR::OK, ret);
         ASSERT_EQ(s3Size, fileOut.nwritten);
     };
@@ -1998,7 +4174,7 @@ TEST_F(TestFuseS3Client, FuseOpReadQosTest) {
 
     std::this_thread::sleep_for(std::chrono::milliseconds(1500));
 
-    auto qosReadTest = [&] (int id, int size) {
+    auto qosReadTest = [&](int id, int size) {
         fuse_req_t req = nullptr;
         fuse_ino_t ino = id;
         off_t off = 0;
@@ -2012,14 +4188,14 @@ TEST_F(TestFuseS3Client, FuseOpReadQosTest) {
         auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
 
         EXPECT_CALL(*inodeManager_, GetInode(ino, _))
-          .WillOnce(
-             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
+            .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
+                            Return(CURVEFS_ERROR::OK)));
 
         std::unique_ptr<char[]> buffer(new char[size]);
         size_t rSize = 0;
         client_->Add(true, size);
-        CURVEFS_ERROR ret = client_->FuseOpRead(
-            req, ino, size, off, &fi, buffer.get(), &rSize);
+        CURVEFS_ERROR ret =
+            client_->FuseOpRead(req, ino, size, off, &fi, buffer.get(), &rSize);
         ASSERT_EQ(CURVEFS_ERROR::OK, ret);
         ASSERT_EQ(0, rSize);
     };

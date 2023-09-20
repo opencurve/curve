@@ -45,7 +45,6 @@ TEST(RequestSchedulerTest, fake_server_test) {
     opt.ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 200;
     opt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 5;
     opt.ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 5000;
-    opt.ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
 
     brpc::Server server;
     std::string listenAddr = "127.0.0.1:9109";
@@ -574,7 +573,6 @@ TEST(RequestSchedulerTest, CommonTest) {
     opt.ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 200;
     opt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 5;
     opt.ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 5000;
-    opt.ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
 
     RequestScheduler sche;
     MetaCache metaCache;

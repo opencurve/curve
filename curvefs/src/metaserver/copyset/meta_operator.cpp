@@ -66,9 +66,25 @@ void MetaOperator::Propose() {
 
     // check if operator can bypass propose to raft
     if (CanBypassPropose()) {
-        FastApplyTask();
-        doneGuard.release();
-        return;
+        braft::LeaderLeaseStatus lease_status;
+        node_->GetLeaderLeaseStatus(&lease_status);
+
+        // local read: read from current FSM
+        if (node_->IsLeaseLeader(lease_status)) {
+            FastApplyTask();
+            doneGuard.release();
+            return;
+        }
+
+        // illegal request, redirect
+        if (node_->IsLeaseExpired(lease_status)) {
+            Redirect();
+            return;
+        }
+
+        // this request is NOT handled
+        // lease state is LEASE_NOT_READY or LEASE_DISABLED => log read
+        // reuse `ProposeTask`, propose to raft
     }
 
     // propose to raft
@@ -113,41 +129,20 @@ void MetaOperator::FastApplyTask() {
     g_concurrent_fast_apply_wait_latency << timer.u_elapsed();
 }
 
-bool GetInodeOperator::CanBypassPropose() const {
-    auto *req = static_cast<const GetInodeRequest *>(request_);
-    return req->has_appliedindex() &&
-           node_->GetAppliedIndex() >= req->appliedindex();
-}
+#define OPERATOR_CAN_BY_PASS_PROPOSE(TYPE)                                     \
+    bool TYPE##Operator::CanBypassPropose() const {                            \
+        return true;                                                           \
+    }                                                                          \
 
-bool ListDentryOperator::CanBypassPropose() const {
-    auto *req = static_cast<const ListDentryRequest *>(request_);
-    return req->has_appliedindex() &&
-           node_->GetAppliedIndex() >= req->appliedindex();
-}
+// below operator are readonly, so can enable lease read
+OPERATOR_CAN_BY_PASS_PROPOSE(GetDentry);
+OPERATOR_CAN_BY_PASS_PROPOSE(ListDentry);
+OPERATOR_CAN_BY_PASS_PROPOSE(GetInode);
+OPERATOR_CAN_BY_PASS_PROPOSE(BatchGetInodeAttr);
+OPERATOR_CAN_BY_PASS_PROPOSE(BatchGetXAttr);
+OPERATOR_CAN_BY_PASS_PROPOSE(GetVolumeExtent);
 
-bool BatchGetInodeAttrOperator::CanBypassPropose() const {
-    auto *req = static_cast<const BatchGetInodeAttrRequest *>(request_);
-    return req->has_appliedindex() &&
-           node_->GetAppliedIndex() >= req->appliedindex();
-}
-
-bool BatchGetXAttrOperator::CanBypassPropose() const {
-    auto *req = static_cast<const BatchGetXAttrRequest *>(request_);
-    return req->has_appliedindex() &&
-           node_->GetAppliedIndex() >= req->appliedindex();
-}
-
-bool GetDentryOperator::CanBypassPropose() const {
-    auto *req = static_cast<const GetDentryRequest *>(request_);
-    return req->has_appliedindex() &&
-           node_->GetAppliedIndex() >= req->appliedindex();
-}
-
-bool GetVolumeExtentOperator::CanBypassPropose() const {
-    const auto *req = static_cast<const GetVolumeExtentRequest *>(request_);
-    return req->has_appliedindex() &&
-           node_->GetAppliedIndex() >= req->appliedindex();
-}
+#undef OPERATOR_CAN_BY_PASS_PROPOSE
 
 #define OPERATOR_ON_APPLY(TYPE)                                                \
     void TYPE##Operator::OnApply(int64_t index,                                \
@@ -192,6 +187,7 @@ OPERATOR_ON_APPLY(CreatePartition);
 OPERATOR_ON_APPLY(DeletePartition);
 OPERATOR_ON_APPLY(PrepareRenameTx);
 OPERATOR_ON_APPLY(UpdateVolumeExtent);
+OPERATOR_ON_APPLY(UpdateDeallocatableBlockGroup);
 
 #undef OPERATOR_ON_APPLY
 
@@ -270,7 +266,7 @@ void GetVolumeExtentOperator::OnApply(int64_t index,
     }
 
     // in streaming mode, swap slices out and send them by streaming
-    VolumeExtentList extents;
+    VolumeExtentSliceList extents;
     response->mutable_slices()->Swap(&extents);
     response->clear_slices();
 
@@ -317,6 +313,7 @@ OPERATOR_ON_APPLY_FROM_LOG(CreatePartition);
 OPERATOR_ON_APPLY_FROM_LOG(DeletePartition);
 OPERATOR_ON_APPLY_FROM_LOG(PrepareRenameTx);
 OPERATOR_ON_APPLY_FROM_LOG(UpdateVolumeExtent);
+OPERATOR_ON_APPLY_FROM_LOG(UpdateDeallocatableBlockGroup);
 
 #undef OPERATOR_ON_APPLY_FROM_LOG
 
@@ -375,6 +372,7 @@ OPERATOR_REDIRECT(DeletePartition);
 OPERATOR_REDIRECT(PrepareRenameTx);
 OPERATOR_REDIRECT(GetVolumeExtent);
 OPERATOR_REDIRECT(UpdateVolumeExtent);
+OPERATOR_REDIRECT(UpdateDeallocatableBlockGroup);
 
 #undef OPERATOR_REDIRECT
 
@@ -401,6 +399,7 @@ OPERATOR_ON_FAILED(DeletePartition);
 OPERATOR_ON_FAILED(PrepareRenameTx);
 OPERATOR_ON_FAILED(GetVolumeExtent);
 OPERATOR_ON_FAILED(UpdateVolumeExtent);
+OPERATOR_ON_FAILED(UpdateDeallocatableBlockGroup);
 
 #undef OPERATOR_ON_FAILED
 
@@ -426,6 +425,8 @@ OPERATOR_HASH_CODE(PrepareRenameTx);
 OPERATOR_HASH_CODE(DeletePartition);
 OPERATOR_HASH_CODE(GetVolumeExtent);
 OPERATOR_HASH_CODE(UpdateVolumeExtent);
+OPERATOR_HASH_CODE(UpdateDeallocatableBlockGroup);
+
 
 #undef OPERATOR_HASH_CODE
 
@@ -463,6 +464,7 @@ OPERATOR_TYPE(CreatePartition);
 OPERATOR_TYPE(DeletePartition);
 OPERATOR_TYPE(GetVolumeExtent);
 OPERATOR_TYPE(UpdateVolumeExtent);
+OPERATOR_TYPE(UpdateDeallocatableBlockGroup);
 
 #undef OPERATOR_TYPE
 

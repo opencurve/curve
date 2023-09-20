@@ -29,6 +29,10 @@ cc_library(
         ["storage/*.cpp"],
     ) + glob(
         ["streaming/*.cpp"],
+    ) + glob(
+        ["space/*.cpp"],
+    ) + glob(
+        ["mds/*.cpp"],
     ),
     hdrs = glob(
         ["*.h"],
@@ -38,6 +42,10 @@ cc_library(
         ["storage/*.h"],
     ) + glob(
         ["streaming/*.h"],
+    ) + glob(
+        ["space/*.h"],
+    ) + glob(
+        ["mds/*.h"],
     ),
     copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
@@ -51,6 +59,8 @@ cc_library(
         "//curvefs/proto:mds_cc_proto",
         "//curvefs/src/common:curvefs_common",
         "//curvefs/src/metaserver/common:fs_metaserver_common",
+        "//curvefs/src/volume:volume",
+        "//curvefs/src/client:fuse_client_lib",
         "//external:braft",
         "//src/common:curve_common",
         "//src/fs:lfs",
@@ -61,6 +71,7 @@ cc_library(
         "@com_google_absl//absl/container:btree",
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/utility",
+        "@com_google_protobuf//:protobuf",
         "//external:gtest",
     ],
 )

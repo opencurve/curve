@@ -152,11 +152,15 @@ class MockMetaServerClient : public MetaServerClient {
     MOCK_METHOD4(AsyncUpdateVolumeExtent,
                  void(uint32_t,
                       uint64_t,
-                      const VolumeExtentList &,
+                      const VolumeExtentSliceList &,
                       MetaServerClientDone *));
 
-    MOCK_METHOD4(GetVolumeExtent,
-                 MetaStatusCode(uint32_t, uint64_t, bool, VolumeExtentList *));
+    MOCK_METHOD4(GetVolumeExtent, MetaStatusCode(uint32_t, uint64_t, bool,
+                                                 VolumeExtentSliceList *));
+
+    MOCK_METHOD3(UpdateDeallocatableBlockGroup,
+                 MetaStatusCode(uint32_t, uint64_t,
+                                DeallocatableBlockGroupMap *));
 };
 
 }  // namespace rpcclient

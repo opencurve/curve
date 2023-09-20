@@ -84,7 +84,7 @@ TEST_F(ChunkCacheManagerTest, test_write_new_data) {
     chunkCacheManager_->WriteNewDataCache(s3ClientAdaptor_, offset, len, buf);
     ASSERT_EQ(65536, s3ClientAdaptor_->GetFsCacheManager()->GetDataCacheSize());
 
-    delete buf;
+    delete[] buf;
 }
 
 TEST_F(ChunkCacheManagerTest, test_add_read_data_cache) {
@@ -110,7 +110,7 @@ TEST_F(ChunkCacheManagerTest, test_add_read_data_cache) {
     chunkCacheManager_->AddReadDataCache(dataCache2);
     ASSERT_EQ(1.5 * 1024 * 1024,
               s3ClientAdaptor_->GetFsCacheManager()->GetLruByte());
-    delete buf;
+    delete[] buf;
 }
 
 TEST_F(ChunkCacheManagerTest, test_find_writeable_datacache) {
@@ -135,7 +135,7 @@ TEST_F(ChunkCacheManagerTest, test_find_writeable_datacache) {
                            offset, len, &mergeDataCacheVer, inodeId));
     ASSERT_EQ(1, mergeDataCacheVer.size());
 
-    delete buf;
+    delete[] buf;
 }
 
 TEST_F(ChunkCacheManagerTest, test_read_by_write_cache) {
@@ -172,8 +172,8 @@ TEST_F(ChunkCacheManagerTest, test_read_by_write_cache) {
     requests.clear();
 
     len = 2048;
-    delete buf;
-    delete expectBuf;
+    delete[] buf;
+    delete[] expectBuf;
     buf = new char[len + 1];
     expectBuf = new char[len + 1];
     memset(buf, 'a', len);
@@ -187,8 +187,8 @@ TEST_F(ChunkCacheManagerTest, test_read_by_write_cache) {
     requests.clear();
 
     len = 512;
-    delete buf;
-    delete expectBuf;
+    delete[] buf;
+    delete[] expectBuf;
     buf = new char[len + 1];
     expectBuf = new char[len + 1];
     memset(buf, 'a', len - 1);
@@ -202,8 +202,8 @@ TEST_F(ChunkCacheManagerTest, test_read_by_write_cache) {
     requests.clear();
 
     len = 1024;
-    delete buf;
-    delete expectBuf;
+    delete[] buf;
+    delete[] expectBuf;
     buf = new char[len + 1];
     expectBuf = new char[len + 1];
     memset(buf, 'a', len);
@@ -217,9 +217,9 @@ TEST_F(ChunkCacheManagerTest, test_read_by_write_cache) {
     ASSERT_EQ(1, requests.size());
     requests.clear();
 
-    delete buf;
-    delete expectBuf;
-    delete dataCacheBuf;
+    delete[] buf;
+    delete[] expectBuf;
+    delete[] dataCacheBuf;
 }
 
 TEST_F(ChunkCacheManagerTest, test_read_by_read_cache) {
@@ -257,8 +257,8 @@ TEST_F(ChunkCacheManagerTest, test_read_by_read_cache) {
     requests.clear();
 
     len = 2048;
-    delete buf;
-    delete expectBuf;
+    delete[] buf;
+    delete[] expectBuf;
     buf = new char[len + 1];
     expectBuf = new char[len + 1];
     memset(buf, 'a', len);
@@ -272,8 +272,8 @@ TEST_F(ChunkCacheManagerTest, test_read_by_read_cache) {
     requests.clear();
 
     len = 512;
-    delete buf;
-    delete expectBuf;
+    delete[] buf;
+    delete[] expectBuf;
     buf = new char[len + 1];
     expectBuf = new char[len + 1];
     memset(buf, 'a', len - 1);
@@ -287,8 +287,8 @@ TEST_F(ChunkCacheManagerTest, test_read_by_read_cache) {
     requests.clear();
 
     len = 1024;
-    delete buf;
-    delete expectBuf;
+    delete[] buf;
+    delete[] expectBuf;
     buf = new char[len + 1];
     expectBuf = new char[len + 1];
     memset(buf, 'a', len);
@@ -302,9 +302,9 @@ TEST_F(ChunkCacheManagerTest, test_read_by_read_cache) {
     ASSERT_EQ(1, requests.size());
     requests.clear();
 
-    delete buf;
-    delete expectBuf;
-    delete dataCacheBuf;
+    delete[] buf;
+    delete[] expectBuf;
+    delete[] dataCacheBuf;
 }
 
 TEST_F(ChunkCacheManagerTest, test_flush) {
@@ -335,7 +335,7 @@ TEST_F(ChunkCacheManagerTest, test_flush) {
               chunkCacheManager_->Flush(inodeId, true, true));
     chunkCacheManager_->ReleaseCacheForTest();
 
-    delete buf;
+    delete[] buf;
 }
 
 TEST_F(ChunkCacheManagerTest, test_release_read_dataCache) {
@@ -348,7 +348,7 @@ TEST_F(ChunkCacheManagerTest, test_release_read_dataCache) {
     chunkCacheManager_->ReleaseReadDataCache(offset);
     ASSERT_EQ(true, chunkCacheManager_->IsEmpty());
 
-    delete buf;
+    delete[] buf;
 }
 
 
@@ -377,7 +377,7 @@ TEST_F(ChunkCacheManagerTest, test_truncate_cache) {
     ASSERT_EQ(true, chunkCacheManager_->IsEmpty());
 
     chunkCacheManager_->ReleaseCacheForTest();
-    delete buf;
+    delete[] buf;
 }
 
 }  // namespace client

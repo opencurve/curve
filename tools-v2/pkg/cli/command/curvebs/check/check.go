@@ -24,8 +24,10 @@ package check
 
 import (
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/check/chunkserver"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/check/copyset"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/check/operator"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/check/server"
 	"github.com/spf13/cobra"
 )
 
@@ -39,6 +41,8 @@ func (checkCmd *CheckCommand) AddSubCommands() {
 	checkCmd.Cmd.AddCommand(
 		copyset.NewCopysetCommand(),
 		operator.NewOperatorCommand(),
+		server.NewServerCommand(),
+		chunkserver.NewChunkserverCommand(),
 	)
 }
 

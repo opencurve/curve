@@ -52,6 +52,7 @@ using ::curvefs::metaserver::copyset::DeletePartitionOperator;
 using ::curvefs::metaserver::copyset::PrepareRenameTxOperator;
 using ::curvefs::metaserver::copyset::GetVolumeExtentOperator;
 using ::curvefs::metaserver::copyset::UpdateVolumeExtentOperator;
+using ::curvefs::metaserver::copyset::UpdateDeallocatableBlockGroupOperator;
 
 namespace {
 
@@ -296,6 +297,17 @@ void MetaServerServiceImpl::UpdateVolumeExtent(
     helper.operator()<UpdateVolumeExtentOperator>(controller, request, response,
                                                   done, request->poolid(),
                                                   request->copysetid());
+}
+
+void MetaServerServiceImpl::UpdateDeallocatableBlockGroup(
+    ::google::protobuf::RpcController *controller,
+    const UpdateDeallocatableBlockGroupRequest *request,
+    UpdateDeallocatableBlockGroupResponse *response,
+    ::google::protobuf::Closure *done) {
+    OperatorHelper helper(copysetNodeManager_, inflightThrottle_);
+    helper.operator()<UpdateDeallocatableBlockGroupOperator>(
+        controller, request, response, done, request->poolid(),
+        request->copysetid());
 }
 
 }  // namespace metaserver

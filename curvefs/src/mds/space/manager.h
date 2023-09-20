@@ -53,10 +53,10 @@ class SpaceManager {
 class SpaceManagerImpl final : public SpaceManager {
  public:
     SpaceManagerImpl(
-        const std::shared_ptr<curve::kvstorage::KVStorageClient>& kvstore,
-        std::shared_ptr<FsStorage> fsStorage)
+        const std::shared_ptr<curve::kvstorage::KVStorageClient> &kvstore,
+        std::shared_ptr<FsStorage> fsStorage, uint64_t calcIntervalSec)
         : storage_(new BlockGroupStorageImpl(kvstore)),
-          fsStorage_(std::move(fsStorage)) {}
+          fsStorage_(std::move(fsStorage)), calcIntervalSec_(calcIntervalSec) {}
 
     SpaceManagerImpl(const SpaceManagerImpl&) = delete;
     SpaceManagerImpl& operator=(const SpaceManagerImpl&) = delete;
@@ -80,6 +80,8 @@ class SpaceManagerImpl final : public SpaceManager {
     curve::common::GenericNameLock<Mutex> namelock_;
 
     std::shared_ptr<FsStorage> fsStorage_;
+
+    uint64_t calcIntervalSec_;
 };
 
 }  // namespace space

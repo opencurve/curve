@@ -23,5 +23,5 @@
 package version
 
 var (
-	Version = ""
+	Version = "unknown"
 )

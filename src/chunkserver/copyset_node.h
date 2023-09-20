@@ -192,6 +192,18 @@ class CopysetNode : public braft::StateMachine,
     virtual bool IsLeaderTerm() const;
 
     /**
+     * check if current node is in lease leader
+     * @return
+     */
+    virtual bool IsLeaseLeader(const braft::LeaderLeaseStatus &lease_status) const;  // NOLINT
+
+    /**
+     * check if current node is expired
+     * @return
+     */
+    virtual bool IsLeaseExpired(const braft::LeaderLeaseStatus &lease_status) const;  // NOLINT
+
+    /**
      * 返回当前的任期
      * @return 当前的任期
      */
@@ -272,6 +284,12 @@ class CopysetNode : public braft::StateMachine,
      * @param status[out]: copyset node status
      */
     virtual void GetStatus(NodeStatus *status);
+
+    /**
+     * @brief: get raft node leader lease status
+     * @param status[out]: raft node leader lease status
+     */
+    virtual void GetLeaderLeaseStatus(braft::LeaderLeaseStatus *status);
 
     /**
      * 获取此copyset的leader上的status
@@ -490,7 +508,7 @@ class CopysetNode : public braft::StateMachine,
     // The log storage for braft
     CurveSegmentLogStorage* logStorage_;
     // 并发模块
-    ConcurrentApplyModule *concurrentapply_;
+    ConcurrentApplyModule *concurrentapply_ = nullptr;
     // 配置版本持久化工具接口
     std::unique_ptr<ConfEpochFile> epochFile_;
     // 复制组的apply index

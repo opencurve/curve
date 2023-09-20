@@ -30,6 +30,7 @@
 #include <functional>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 #include "absl/container/btree_set.h"
 #include "absl/container/btree_map.h"
@@ -49,8 +50,12 @@ using ::curvefs::metaserver::storage::StorageTransaction;
 using ::curvefs::metaserver::storage::Key4Inode;
 using ::curvefs::metaserver::storage::Converter;
 using ::curvefs::metaserver::storage::NameGenerator;
+
 using S3ChunkInfoMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
+using DeallocatableBlockGroupVec =
+    google::protobuf::RepeatedPtrField<DeallocatableBlockGroup>;
 using Transaction = std::shared_ptr<StorageTransaction>;
+
 class InodeStorage {
  public:
     InodeStorage(std::shared_ptr<KVStorage> kvStorage,
@@ -98,9 +103,10 @@ class InodeStorage {
     /**
      * @brief update inode from storage
      * @param[in] inode: the inode want to update
+     * @param[in] inodeDeallocate: Whether the inode needs to deallocate space
      * @return If inode not exist, return NOT_FOUND; else replace and return OK
      */
-    MetaStatusCode Update(const Inode& inode);
+    MetaStatusCode Update(const Inode& inode, bool inodeDeallocate = false);
 
     std::shared_ptr<Iterator> GetAllInode();
 
@@ -141,19 +147,24 @@ class InodeStorage {
 
     MetaStatusCode GetAllVolumeExtent(uint32_t fsId,
                                       uint64_t inodeId,
-                                      VolumeExtentList* extents);
+                                      VolumeExtentSliceList* extents);
+
+    std::shared_ptr<Iterator> GetAllVolumeExtent(uint32_t fsId,
+                                                 uint64_t inodeId);
 
     MetaStatusCode GetVolumeExtentByOffset(uint32_t fsId,
                                            uint64_t inodeId,
                                            uint64_t offset,
                                            VolumeExtentSlice* slice);
 
-    MetaStatusCode AddS3ChunkInfoList(
-        std::shared_ptr<StorageTransaction> txn,
-        uint32_t fsId,
-        uint64_t inodeId,
-        uint64_t chunkIndex,
-        const S3ChunkInfoList* list2add);
+    // use the transaction to delete {inodes} in the deallocatable_inode_list
+    // and update the statistics of each item of blockgroup_list
+    MetaStatusCode
+    UpdateDeallocatableBlockGroup(uint32_t fsId,
+                                  const DeallocatableBlockGroupVec &update);
+
+    MetaStatusCode GetAllBlockGroup(
+        std::vector<DeallocatableBlockGroup> *deallocatableBlockGroupVec);
 
  private:
     MetaStatusCode UpdateInodeS3MetaSize(Transaction txn, uint32_t fsId,
@@ -162,12 +173,25 @@ class InodeStorage {
 
     uint64_t GetInodeS3MetaSize(uint32_t fsId, uint64_t inodeId);
 
-    MetaStatusCode DelS3ChunkInfoList(
-        std::shared_ptr<StorageTransaction> txn,
-        uint32_t fsId,
-        uint64_t inodeId,
-        uint64_t chunkIndex,
-        const S3ChunkInfoList* list2del);
+    MetaStatusCode DelS3ChunkInfoList(Transaction txn,
+                                      uint32_t fsId, uint64_t inodeId,
+                                      uint64_t chunkIndex,
+                                      const S3ChunkInfoList *list2del);
+
+    MetaStatusCode AddS3ChunkInfoList(Transaction txn,
+                                      uint32_t fsId, uint64_t inodeId,
+                                      uint64_t chunkIndex,
+                                      const S3ChunkInfoList *list2add);
+
+    MetaStatusCode Increase(Transaction txn, uint32_t fsId,
+                            const IncreaseDeallocatableBlockGroup &increase,
+                            DeallocatableBlockGroup *out);
+
+    MetaStatusCode Decrease(const DecreaseDeallocatableBlockGroup &decrease,
+                            DeallocatableBlockGroup *out);
+
+    MetaStatusCode Mark(const MarkDeallocatableBlockGroup &mark,
+                        DeallocatableBlockGroup *out);
 
  private:
     // FIXME: please remove this lock, because we has locked each inode
@@ -179,6 +203,9 @@ class InodeStorage {
     std::string table4S3ChunkInfo_;
     std::string table4VolumeExtent_;
     std::string table4InodeAuxInfo_;
+    std::string table4DeallocatableBlockGroup_;
+    std::string table4DeallocatableInode_;
+
     size_t nInode_;
     Converter conv_;
 };

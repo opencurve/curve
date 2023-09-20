@@ -59,18 +59,27 @@ std::mutex interfacemtx;
 std::condition_variable interfacecv;
 
 void writecallbacktest(CurveAioContext *context) {
+    std::lock_guard<std::mutex> lk(writeinterfacemtx);
     writeflag = true;
     writeinterfacecv.notify_one();
     LOG(INFO) << "aio call back here, errorcode = " << context->ret;
 }
 
 void readcallbacktest(CurveAioContext *context) {
+    std::lock_guard<std::mutex> lk(writeinterfacemtx);
     readflag = true;
     interfacecv.notify_one();
     LOG(INFO) << "aio call back here, errorcode = " << context->ret;
 }
 
-TEST(TestLibcurveInterface, InterfaceTest) {
+class TestLibcurveInterface : public ::testing::Test {
+ protected:
+    void SetUp() override {}
+
+    void TearDown() override {}
+};
+
+TEST_F(TestLibcurveInterface, InterfaceTest) {
     FLAGS_chunkserver_list =
         "127.0.0.1:9115:0,127.0.0.1:9116:0,127.0.0.1:9117:0";
 
@@ -224,7 +233,7 @@ TEST(TestLibcurveInterface, InterfaceTest) {
     UnInit();
 }
 
-TEST(TestLibcurveInterface, FileClientTest) {
+TEST_F(TestLibcurveInterface, FileClientTest) {
     fiu_init(0);
     FLAGS_chunkserver_list =
         "127.0.0.1:9115:0,127.0.0.1:9116:0,127.0.0.1:9117:0";
@@ -295,6 +304,7 @@ TEST(TestLibcurveInterface, FileClientTest) {
         writeinterfacecv.wait(lk, []() -> bool { return writeflag; });
     }
     char *readbuffer = new char[8 * 1024];
+    memset(readbuffer, 0xFF, 8 * 1024);
     CurveAioContext readaioctx;
     readaioctx.buf = readbuffer;
     readaioctx.offset = 0;
@@ -308,6 +318,7 @@ TEST(TestLibcurveInterface, FileClientTest) {
         interfacecv.wait(lk, []() -> bool { return readflag; });
     }
 
+    ASSERT_EQ(readaioctx.ret, readaioctx.length);
     for (int i = 0; i < 1024; i++) {
         ASSERT_EQ(readbuffer[i], 'a');
         ASSERT_EQ(readbuffer[i + 1024], 'b');
@@ -351,7 +362,6 @@ TEST(TestLibcurveInterface, ChunkserverUnstableTest) {
     fopt.metaServerOpt.chunkserverRPCTimeoutMS = 500;
     fopt.loginfo.logLevel = 0;
     fopt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = 64;
-    fopt.ioOpt.ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
     fopt.ioOpt.ioSenderOpt.chunkserverRPCTimeoutMS = 1000;
     fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
     fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
@@ -576,7 +586,7 @@ TEST(TestLibcurveInterface, ChunkserverUnstableTest) {
     delete[] buffer;
 }
 */
-TEST(TestLibcurveInterface, InterfaceExceptionTest) {
+TEST_F(TestLibcurveInterface, InterfaceExceptionTest) {
     std::string filename = "/1_userinfo_";
 
     C_UserInfo_t userinfo;
@@ -600,20 +610,8 @@ TEST(TestLibcurveInterface, InterfaceExceptionTest) {
 
     ASSERT_EQ(0, Init(configpath.c_str()));
 
-
     char *buffer = new char[8 * 1024];
     memset(buffer, 'a', 8 * 1024);
-
-    // not aligned test
-    CurveAioContext ctx;
-    ctx.buf = buffer;
-    ctx.offset = 1;
-    ctx.length = 7 * 1024;
-    ctx.cb = writecallbacktest;
-    ASSERT_EQ(-LIBCURVE_ERROR::NOT_ALIGNED, AioWrite(1234, &ctx));
-    ASSERT_EQ(-LIBCURVE_ERROR::NOT_ALIGNED, AioRead(1234, &ctx));
-    ASSERT_EQ(-LIBCURVE_ERROR::NOT_ALIGNED, Write(1234, buffer, 1, 4096));
-    ASSERT_EQ(-LIBCURVE_ERROR::NOT_ALIGNED, Read(1234, buffer, 4096, 123));
 
     CurveAioContext writeaioctx;
     writeaioctx.buf = buffer;
@@ -648,7 +646,7 @@ TEST(TestLibcurveInterface, InterfaceExceptionTest) {
     mds.UnInitialize();
 }
 
-TEST(TestLibcurveInterface, UnstableChunkserverTest) {
+TEST_F(TestLibcurveInterface, UnstableChunkserverTest) {
     std::string filename = "/1_userinfo_";
 
     UserInfo_t userinfo;
@@ -665,7 +663,6 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
     fopt.metaServerOpt.rpcRetryOpt.rpcTimeoutMs = 500;
     fopt.loginfo.logLevel = 0;
     fopt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = 64;
-    fopt.ioOpt.ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
     fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 1000;
     fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
     fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
@@ -700,7 +697,7 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
     mds.CreateCopysetNode(true);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-    int fd = fileinstance_.Open(filename.c_str(), userinfo);
+    int fd = fileinstance_.Open();
 
     MetaCache *mc = fileinstance_.GetIOManager4File()->GetMetaCache();
 
@@ -841,7 +838,7 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
     delete[] buffer;
 }
 
-TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
+TEST_F(TestLibcurveInterface, ResumeTimeoutBackoff) {
     std::string filename = "/1_userinfo_";
 
     UserInfo_t userinfo;
@@ -858,7 +855,6 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
     fopt.metaServerOpt.rpcRetryOpt.rpcTimeoutMs = 500;
     fopt.loginfo.logLevel = 0;
     fopt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = 64;
-    fopt.ioOpt.ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
     fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 1000;
     fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverMaxRPCTimeoutMS = 8000;
     fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 11;
@@ -889,7 +885,7 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
     mds.CreateCopysetNode(true);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-    int fd = fileinstance_.Open(filename.c_str(), userinfo);
+    int fd = fileinstance_.Open();
 
     MetaCache *mc = fileinstance_.GetIOManager4File()->GetMetaCache();
 
@@ -954,7 +950,7 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
     delete[] buffer;
 }
 
-TEST(TestLibcurveInterface, InterfaceStripeTest) {
+TEST_F(TestLibcurveInterface, InterfaceStripeTest) {
     FLAGS_chunkserver_list =
         "127.0.0.1:9115:0,127.0.0.1:9116:0,127.0.0.1:9117:0";
 

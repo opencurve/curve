@@ -637,7 +637,7 @@ void FuseOpWrite(fuse_req_t req,
     FileOut fileOut;
     auto client = Client();
     auto fs = client->GetFileSystem();
-    MetricGuard(Read);
+    MetricGuard(Write);
     AccessLogGuard log([&](){
         return StrFormat("write (%d,%d,%d,%d): %s (%d)",
                          ino, size, off, fi->fh, StrErr(rc), fileOut.nwritten);

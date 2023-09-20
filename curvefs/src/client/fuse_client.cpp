@@ -117,10 +117,12 @@ using common::FLAGS_fuseClientAvgReadBytes;
 using common::FLAGS_fuseClientBurstReadBytes;
 using common::FLAGS_fuseClientBurstReadBytesSecs;
 
-static void on_throttle_timer(void *arg) {
-    FuseClient *fuseClient = reinterpret_cast<FuseClient *>(arg);
-    fuseClient->InitQosParam();
-}
+
+// FIXME: multi-threaded concurrency issues with FuseClient::UnInit()
+// static void on_throttle_timer(void *arg) {
+//     FuseClient *fuseClient = reinterpret_cast<FuseClient *>(arg);
+//     fuseClient->InitQosParam();
+// }
 
 CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
     option_ = option;
@@ -197,9 +199,9 @@ void FuseClient::UnInit() {
     delete mdsBase_;
     mdsBase_ = nullptr;
 
-    while (bthread_timer_del(throttleTimer_) == 1) {
-        bthread_usleep(1000);
-    }
+    // while (bthread_timer_del(throttleTimer_) == 1) {
+    //     bthread_usleep(1000);
+    // }
 }
 
 CURVEFS_ERROR FuseClient::Run() {
@@ -438,7 +440,6 @@ CURVEFS_ERROR FuseClient::MakeNode(
     if (type == FsFileType::TYPE_FILE || type == FsFileType::TYPE_S3) {
         dentry.set_flag(DentryFlag::TYPE_FILE_FLAG);
     }
-
     ret = dentryManager_->CreateDentry(dentry);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "dentryManager_ CreateDentry fail, ret = " << ret
@@ -451,15 +452,6 @@ CURVEFS_ERROR FuseClient::MakeNode(
             LOG(ERROR) << "Also delete inode failed, ret = " << ret2
                        << ", inodeid = " << inodeWrapper->GetInodeId();
         }
-        return ret;
-    }
-
-    ret = UpdateParentMCTimeAndNlink(parent, type, NlinkChange::kAddOne);
-    if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "UpdateParentMCTimeAndNlink failed"
-                   << ", parent: " << parent
-                   << ", name: " << name
-                   << ", type: " << type;
         return ret;
     }
 
@@ -618,7 +610,6 @@ CURVEFS_ERROR FuseClient::CreateManageNode(fuse_req_t req,
     if (type == FsFileType::TYPE_FILE || type == FsFileType::TYPE_S3) {
         dentry.set_flag(DentryFlag::TYPE_FILE_FLAG);
     }
-
     ret = dentryManager_->CreateDentry(dentry);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "dentryManager_ CreateDentry fail, ret = " << ret
@@ -631,15 +622,6 @@ CURVEFS_ERROR FuseClient::CreateManageNode(fuse_req_t req,
             LOG(ERROR) << "Also delete inode failed, ret = " << ret2
                        << ", inodeid = " << inodeWrapper->GetInodeId();
         }
-        return ret;
-    }
-
-    ret = UpdateParentMCTimeAndNlink(parent, type, NlinkChange::kAddOne);
-    if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "UpdateParentMCTimeAndNlink failed"
-                   << ", parent: " << parent
-                   << ", name: " << name
-                   << ", type: " << type;
         return ret;
     }
 
@@ -1229,17 +1211,6 @@ CURVEFS_ERROR FuseClient::FuseOpSymlink(fuse_req_t req,
         return ret;
     }
 
-    ret = UpdateParentMCTimeAndNlink(parent, FsFileType::TYPE_SYM_LINK,
-        NlinkChange::kAddOne);
-    if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "UpdateParentMCTimeAndNlink failed"
-                   << ", link:" << link
-                   << ", parent: " << parent
-                   << ", name: " << name
-                   << ", type: " << FsFileType::TYPE_SYM_LINK;
-        return ret;
-    }
-
     if (enableSumInDir_.load()) {
         // update parent summary info
         XAttr xattr;
@@ -1301,15 +1272,6 @@ CURVEFS_ERROR FuseClient::FuseOpLink(fuse_req_t req,
         return ret;
     }
 
-    ret = UpdateParentMCTimeAndNlink(newparent, type, NlinkChange::kAddOne);
-    if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "UpdateParentMCTimeAndNlink failed"
-                   << ", parent: " << newparent
-                   << ", name: " << newname
-                   << ", type: " << type;
-        return ret;
-    }
-
     if (enableSumInDir_.load()) {
         // update parent summary info
         XAttr xattr;
@@ -1333,7 +1295,6 @@ CURVEFS_ERROR FuseClient::FuseOpLink(fuse_req_t req,
 CURVEFS_ERROR FuseClient::FuseOpReadLink(fuse_req_t req, fuse_ino_t ino,
                                          std::string *linkStr) {
     (void)req;
-    VLOG(1) << "FuseOpReadLink, ino: " << ino << ", linkStr: " << linkStr;
     InodeAttr attr;
     CURVEFS_ERROR ret = inodeManager_->GetInodeAttr(ino, &attr);
     if (ret != CURVEFS_ERROR::OK) {
@@ -1342,6 +1303,7 @@ CURVEFS_ERROR FuseClient::FuseOpReadLink(fuse_req_t req, fuse_ino_t ino,
         return ret;
     }
     *linkStr = attr.symlink();
+    VLOG(1) << "FuseOpReadLink, ino: " << ino << ", linkStr: " << *linkStr;
     return CURVEFS_ERROR::OK;
 }
 
@@ -1431,11 +1393,11 @@ void FuseClient::InitQosParam() {
 
     throttle_.UpdateThrottleParams(params);
 
-    int ret = bthread_timer_add(&throttleTimer_, butil::seconds_from_now(1),
-                                on_throttle_timer, this);
-    if (ret != 0) {
-        LOG(ERROR) << "Create fuse client throttle timer failed!";
-    }
+    // int ret = bthread_timer_add(&throttleTimer_, butil::seconds_from_now(1),
+    //                             on_throttle_timer, this);
+    // if (ret != 0) {
+    //     LOG(ERROR) << "Create fuse client throttle timer failed!";
+    // }
 }
 
 }  // namespace client

@@ -42,7 +42,7 @@ using curve::fs::LocalFsFactory;
 
 const uint64_t kMB = 1024 * 1024;
 const ChunkSizeType CHUNK_SIZE = 16 * kMB;
-
+static constexpr uint32_t kOpRequestAlignSize = 4096;
 
 #define BASIC_TEST_CHUNK_SERVER_PORT "9078"
 #define KB 1024
@@ -72,7 +72,6 @@ static const char *chunkServerParams[1][16] = {
 butil::AtExitManager atExitManager;
 const int kChunkNum = 10;
 const ChunkSizeType kChunkSize = 16 * 1024 * 1024;
-const uint32_t kOpRequestAlignSize = 4096;
 const PageSizeType kPageSize = kOpRequestAlignSize;
 
 class ChunkServerIoTest : public testing::Test {
@@ -100,6 +99,8 @@ class ChunkServerIoTest : public testing::Test {
         cg1_.SetKV("global.external_ip", externalIp_);
         cg1_.SetKV("global.enable_external_server", "true");
         cg1_.SetKV("mds.listen.addr", kFakeMdsAddr);
+        cg1_.SetKV("global.meta_page_size", "4096");
+        cg1_.SetKV("global.block_size", "4096");
         ASSERT_TRUE(cg1_.Generate());
 
         paramsIndexs_[PeerCluster::PeerToId(peer1_)] = 0;
@@ -111,8 +112,9 @@ class ChunkServerIoTest : public testing::Test {
                    "/chunkfilepool/";
         metaDir_ = "./" + std::to_string(PeerCluster::PeerToId(peer1_)) +
                    "/chunkfilepool.meta";
-        FilePoolHelper::PersistEnCodeMetaInfo(lfs_, kChunkSize, kPageSize,
-                                                   poolDir_, metaDir_);
+
+        FilePoolMeta meta(kChunkSize, kPageSize, poolDir_);
+        FilePoolHelper::PersistEnCodeMetaInfo(lfs_, meta, metaDir_);
         allocateChunk(lfs_, kChunkNum, poolDir_, kChunkSize);
     }
 

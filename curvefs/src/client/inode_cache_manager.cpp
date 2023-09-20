@@ -85,6 +85,7 @@ InodeCacheManagerImpl::GetInode(uint64_t inodeId,
         option_.refreshDataIntervalSec);
 
     // refresh data
+    VLOG(9) << "get inode: " << inodeId << " from icache fail, get from remote";
     REFRESH_DATA_REMOTE(out, streaming);
 
     return CURVEFS_ERROR::OK;

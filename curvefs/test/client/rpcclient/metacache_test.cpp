@@ -149,12 +149,11 @@ TEST_F(MetaCacheTest, test_GetTarget) {
 
     // out
     CopysetTarget target;
-    uint64_t applyIndex;
 
     LOG(INFO) << "test1: list partition fail";
     EXPECT_CALL(*mockMdsClient_.get(), ListPartition(fsID, _))
         .WillOnce(Return(false));
-    bool ret = metaCache_.GetTarget(fsID, inodeID, &target, &applyIndex);
+    bool ret = metaCache_.GetTarget(fsID, inodeID, &target);
     ASSERT_FALSE(ret);
 
     LOG(INFO) << "test2: get partition info fail";
@@ -162,7 +161,7 @@ TEST_F(MetaCacheTest, test_GetTarget) {
         .WillOnce(DoAll(SetArgPointee<1>(pInfoList_), Return(true)));
     EXPECT_CALL(*mockMdsClient_.get(), GetCopysetOfPartitions(_, _))
         .WillOnce(Return(false));
-    ret = metaCache_.GetTarget(fsID, inodeID, &target, &applyIndex);
+    ret = metaCache_.GetTarget(fsID, inodeID, &target);
     ASSERT_FALSE(ret);
 
     LOG(INFO) << "test3: get metaserver fail";
@@ -174,7 +173,7 @@ TEST_F(MetaCacheTest, test_GetTarget) {
         .WillOnce(DoAll(SetArgPointee<1>(copysetMap_), Return(true)));
     EXPECT_CALL(*mockMdsClient_.get(), GetMetaServerListInCopysets(_, _, _))
         .WillOnce(Return(false));
-    ret = metaCache_.GetTarget(fsID, inodeID, &target, &applyIndex);
+    ret = metaCache_.GetTarget(fsID, inodeID, &target);
     ASSERT_FALSE(ret);
 
     LOG(INFO) << "test4: get target ok";
@@ -184,7 +183,7 @@ TEST_F(MetaCacheTest, test_GetTarget) {
         .WillOnce(DoAll(SetArgPointee<1>(copysetMap_), Return(true)));
     EXPECT_CALL(*mockMdsClient_.get(), GetMetaServerListInCopysets(_, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(metaServerInfos), Return(true)));
-    ret = metaCache_.GetTarget(fsID, inodeID, &target, &applyIndex);
+    ret = metaCache_.GetTarget(fsID, inodeID, &target);
     ASSERT_TRUE(ret);
     ASSERT_TRUE(CopysetTargetEQ(target, expect));
 
@@ -193,7 +192,7 @@ TEST_F(MetaCacheTest, test_GetTarget) {
     pd.Parse("127.0.0.1:9120:0");
     EXPECT_CALL(*mockCli2Client_.get(), GetLeader(_, _, _, _, _, _))
         .WillOnce(DoAll(SetArgPointee<4>(pd), Return(true)));
-    ret = metaCache_.GetTarget(fsID, inodeID, &target, &applyIndex, true);
+    ret = metaCache_.GetTarget(fsID, inodeID, &target, true);
     ASSERT_TRUE(ret);
     ASSERT_TRUE(CopysetTargetEQ(target, expect));
 
@@ -205,7 +204,7 @@ TEST_F(MetaCacheTest, test_GetTarget) {
         .Times(2)
         .WillOnce(Return(false))
         .WillOnce(DoAll(SetArgPointee<2>(metaServerInfos), Return(true)));
-    ret = metaCache_.GetTarget(fsID, inodeID, &target, &applyIndex, true);
+    ret = metaCache_.GetTarget(fsID, inodeID, &target, true);
     ASSERT_TRUE(ret);
     ASSERT_TRUE(CopysetTargetEQ(target, expect));
 
@@ -216,7 +215,7 @@ TEST_F(MetaCacheTest, test_GetTarget) {
         .WillOnce(DoAll(SetArgPointee<1>(copysetMap_), Return(true)));
     EXPECT_CALL(*mockMdsClient_.get(), GetMetaServerListInCopysets(_, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(metaServerInfos), Return(true)));
-    ret = metaCache_.GetTarget(fsID, inodeID1, &target, &applyIndex);
+    ret = metaCache_.GetTarget(fsID, inodeID1, &target);
     ASSERT_TRUE(ret);
 
     LOG(INFO) << "test8: mark partition full";
@@ -225,7 +224,6 @@ TEST_F(MetaCacheTest, test_GetTarget) {
 
 TEST_F(MetaCacheTest, SetTxId) {
     CopysetTarget target;
-    uint64_t applyIdx;
     uint32_t partitionId;
     uint64_t txId;
     uint32_t fsId = 1;
@@ -246,7 +244,7 @@ TEST_F(MetaCacheTest, SetTxId) {
     EXPECT_CALL(*mockMdsClient_.get(), GetMetaServerListInCopysets(_, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(metaServerInfos), Return(true)));
 
-    auto succ = metaCache_.GetTarget(fsId, inodeId, &target, &applyIdx);
+    auto succ = metaCache_.GetTarget(fsId, inodeId, &target);
     ASSERT_TRUE(succ);
     ASSERT_TRUE(CopysetTargetEQ(target, expect));
 
@@ -273,14 +271,13 @@ TEST_F(MetaCacheTest, test_SelectTarget) {
 
     // out
     CopysetTarget target;
-    uint64_t applyIndex;
 
     LOG(INFO) << "test1: list partition fail";
     EXPECT_CALL(*mockMdsClient_.get(), CreatePartition(_, _, _))
         .WillOnce(Return(false));
     EXPECT_CALL(*mockMdsClient_.get(), ListPartition(fsID, _))
         .WillOnce(Return(false));
-    bool ret = metaCache_.SelectTarget(fsID, &target, &applyIndex);
+    bool ret = metaCache_.SelectTarget(fsID, &target);
     ASSERT_FALSE(ret);
 
     LOG(INFO) << "test2: random select, need to update leader";
@@ -299,30 +296,15 @@ TEST_F(MetaCacheTest, test_SelectTarget) {
         .WillOnce(DoAll(SetArgPointee<2>(metaServerInfos), Return(true)));
     EXPECT_CALL(*mockCli2Client_.get(), GetLeader(_, _, _, _, _, _))
         .WillOnce(DoAll(SetArgPointee<4>(pd), Return(true)));
-    ret = metaCache_.SelectTarget(fsID, &target, &applyIndex);
+    ret = metaCache_.SelectTarget(fsID, &target);
     ASSERT_TRUE(ret);
     ASSERT_TRUE(CopysetTargetEQ(target, expect));
     metaServerList_.UpdateLeaderIndex(0);
 
     LOG(INFO) << "test3: random select target ok";
-    ret = metaCache_.SelectTarget(fsID, &target, &applyIndex);
+    ret = metaCache_.SelectTarget(fsID, &target);
     ASSERT_TRUE(ret);
     ASSERT_TRUE(CopysetTargetEQ(target, expect));
-}
-
-TEST_F(MetaCacheTest, test_UpdateAndGetApplyIndex) {
-    // in
-    CopysetGroupID groupID(1, 1);
-    uint64_t applyIndex = 100;
-
-    // test1: no copyset
-    metaCache_.UpdateApplyIndex(groupID, applyIndex);
-    ASSERT_EQ(0, metaCache_.GetApplyIndex(groupID));
-
-    // test2: update ok
-    metaCache_.UpdateCopysetInfo(groupID, metaServerList_);
-    metaCache_.UpdateApplyIndex(groupID, applyIndex);
-    ASSERT_EQ(100, metaCache_.GetApplyIndex(groupID));
 }
 
 TEST_F(MetaCacheTest, test_IsLeaderMayChange) {

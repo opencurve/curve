@@ -37,7 +37,7 @@ DEFINE_int32(timeout_ms, 500, "Timeout for each request");
 DEFINE_int32(election_timeout_ms, 3000, "election timeout ms");
 DEFINE_int32(write_percentage, 100, "Percentage of fetch_add");
 DEFINE_string(confs,
-              "127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0",
+              "127.0.0.1:18200:0,127.0.0.1:18201:0,127.0.0.1:18202:0",
               "Configuration of the raft group");
 
 using curve::chunkserver::CopysetRequest;

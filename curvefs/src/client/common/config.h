@@ -73,11 +73,6 @@ struct LeaseOpt {
     uint32_t leaseTimeUs = 20000000;
 };
 
-struct SpaceAllocServerOption {
-    std::string spaceaddr;
-    uint64_t rpcTimeoutMs;
-};
-
 struct KVClientManagerOpt {
     int setThreadPooln = 4;
     int getThreadPooln = 4;
@@ -94,9 +89,11 @@ struct DiskCacheOption {
     // async load interval
     uint64_t asyncLoadPeriodMs;
     // trim start if disk usage over fullRatio
-    uint64_t fullRatio;
-    // trim finish until disk usage below safeRatio
-    uint64_t safeRatio;
+    uint32_t fullRatio = 90;
+    // disk usage safeRatio
+    uint32_t safeRatio = 70;
+    // trim finish until disk usage < safeRatio*trimRatio/100
+    uint32_t trimRatio = 50;
     // the max size disk cache can use
     uint64_t maxUsableSpaceBytes;
     // the max file nums can cache
@@ -164,6 +161,9 @@ struct VolumeOption {
     uint64_t volBlockSize;
     uint64_t fsBlockSize;
     VolumeAllocatorOption allocatorOption;
+
+    double threshold{1.0};
+    uint64_t releaseInterSec{300};
 };
 
 struct ExtentManagerOption {
@@ -232,7 +232,6 @@ struct FuseClientOption {
     MetaCacheOpt metaCacheOpt;
     ExcutorOpt excutorOpt;
     ExcutorOpt excutorInternalOpt;
-    SpaceAllocServerOption spaceOpt;
     BlockDeviceClientOptions bdevOpt;
     S3Option s3Opt;
     ExtentManagerOption extentManagerOpt;

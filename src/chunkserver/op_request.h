@@ -37,6 +37,7 @@
 
 using ::google::protobuf::RpcController;
 using ::curve::chunkserver::concurrent::ConcurrentApplyModule;
+using ::curve::chunkserver::concurrent::ApplyTaskType;
 
 namespace curve {
 namespace chunkserver {
@@ -155,6 +156,8 @@ class ChunkOpRequest : public std::enable_shared_from_this<ChunkOpRequest> {
                                                   butil::IOBuf *data,
                                                   uint64_t index,
                                                   PeerId leaderId);
+
+    static ApplyTaskType Schedule(CHUNK_OP_TYPE opType);
 
  protected:
     /**

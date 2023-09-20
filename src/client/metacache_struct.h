@@ -82,15 +82,13 @@ inline std::ostream &operator<<(std::ostream &os, const CopysetPeerInfo<T> &c) {
     return os;
 }
 
-// copyset的基本信息，包含peer信息、leader信息、appliedindex信息
+// copyset's informations inclucing peer and leader information
 
 template <typename T> struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
     // leader存在变更可能标志位
     bool leaderMayChange_ = false;
     // 当前copyset的节点信息
     std::vector<CopysetPeerInfo<T>> csinfos_;
-    // 当前节点的apply信息，在read的时候需要，用来避免读IO进入raft
-    std::atomic<uint64_t> lastappliedindex_{0};
     // leader在本copyset信息中的索引，用于后面避免重复尝试同一个leader
     int16_t leaderindex_ = -1;
     // 当前copyset的id信息
@@ -107,20 +105,14 @@ template <typename T> struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
         this->lpid_ = other.lpid_;
         this->csinfos_ = other.csinfos_;
         this->leaderindex_ = other.leaderindex_;
-        this->lastappliedindex_.store(other.lastappliedindex_);
         this->leaderMayChange_ = other.leaderMayChange_;
         return *this;
     }
 
     CopysetInfo(const CopysetInfo &other)
         : leaderMayChange_(other.leaderMayChange_), csinfos_(other.csinfos_),
-          lastappliedindex_(other.lastappliedindex_.load()),
           leaderindex_(other.leaderindex_), cpid_(other.cpid_),
           lpid_(other.lpid_) {}
-
-    uint64_t GetAppliedIndex() const {
-        return lastappliedindex_.load(std::memory_order_acquire);
-    }
 
     void SetLeaderUnstableFlag() { leaderMayChange_ = true; }
 
@@ -131,26 +123,6 @@ template <typename T> struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
     bool HasValidLeader() const {
         return !leaderMayChange_ && leaderindex_ >= 0 &&
                leaderindex_ < csinfos_.size();
-    }
-
-    /**
-     * read,write返回时，会携带最新的appliedindex更新当前的appliedindex
-     * 如果read，write失败，那么会将appliedindex更新为0
-     * @param: appliedindex为待更新的值
-     */
-    void UpdateAppliedIndex(uint64_t appliedindex) {
-        uint64_t curIndex = lastappliedindex_.load(std::memory_order_acquire);
-
-        if (appliedindex != 0 && appliedindex <= curIndex) {
-            return;
-        }
-
-        while (!lastappliedindex_.compare_exchange_strong(
-            curIndex, appliedindex, std::memory_order_acq_rel)) {
-            if (curIndex >= appliedindex) {
-                break;
-            }
-        }
     }
 
     /**
@@ -271,7 +243,6 @@ inline std::ostream &operator<<(std::ostream &os,
                                 const CopysetInfo<T> &copyset) {
     os << "pool id : " << copyset.lpid_ << ", copyset id : " << copyset.cpid_
        << ", leader index : " << copyset.leaderindex_
-       << ", applied index : " << copyset.lastappliedindex_
        << ", leader may change : " << copyset.leaderMayChange_ << ", peers : ";
 
     for (auto &p : copyset.csinfos_) {

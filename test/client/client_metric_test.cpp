@@ -29,6 +29,7 @@
 #include <mutex>    //  NOLINT
 #include <condition_variable>   // NOLINT
 
+#include "proto/nameserver2.pb.h"
 #include "include/client/libcurve.h"
 #include "src/client/client_metric.h"
 #include "src/client/file_instance.h"
@@ -96,12 +97,31 @@ TEST(MetricTest, ChunkServer_MetricTest) {
     mds.StartCliService(pd);
     mds.CreateCopysetNode(true);
 
+    auto nameService = mds.GetMDSService();
+    OpenFileResponse resp;
+    resp.set_statuscode(curve::mds::StatusCode::kOK);
+    auto* session = resp.mutable_protosession();
+    session->set_sessionid("xxx");
+    session->set_leasetime(10000);
+    session->set_createtime(10000);
+    session->set_sessionstatus(curve::mds::SessionStatus::kSessionOK);
+    auto* fileinfo = resp.mutable_fileinfo();
+    fileinfo->set_id(1);
+    fileinfo->set_filename(filename);
+    fileinfo->set_parentid(0);
+    fileinfo->set_length(10ULL * 1024 * 1024 * 1024);
+    fileinfo->set_blocksize(4096);
+
+    FakeReturn fakeOpen(nullptr, static_cast<void*>(&resp));
+    nameService->SetOpenFile(&fakeOpen);
+
     UserInfo_t userinfo;
     userinfo.owner = "test";
     auto opt = cc.GetFileServiceOption();
 
     FileInstance fi;
     ASSERT_TRUE(fi.Initialize(filename, mdsclient, userinfo, OpenFlags{}, opt));
+    ASSERT_EQ(LIBCURVE_ERROR::OK, fi.Open());
 
     FileMetric* fm = fi.GetIOManager4File()->GetMetric();
 
@@ -170,6 +190,8 @@ TEST(MetricTest, ChunkServer_MetricTest) {
     mds.UnInitialize();
 }
 
+namespace {
+
 bool flag = false;
 std::mutex mtx;
 std::condition_variable cv;
@@ -179,7 +201,9 @@ void cb(CurveAioContext* ctx) {
     cv.notify_one();
 }
 
-TEST(MetricTest, SuspendRPC_MetricTest) {
+}  // namespace
+
+TEST(MetricTest, SlowRequestMetricTest) {
     MetaServerOption  metaopt;
     metaopt.rpcRetryOpt.addrs.push_back(mdsMetaServerAddr);
     metaopt.rpcRetryOpt.rpcTimeoutMs = 500;
@@ -208,12 +232,13 @@ TEST(MetricTest, SuspendRPC_MetricTest) {
     userinfo.owner = "test";
 
     FileServiceOption opt;
-    opt.ioOpt.reqSchdulerOpt.
-    ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 50;
-    opt.ioOpt.reqSchdulerOpt.
-    ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 50;
-    opt.ioOpt.reqSchdulerOpt.
-    ioSenderOpt.failRequestOpt.chunkserverMaxRPCTimeoutMS = 50;
+    auto& failRequestOpt = opt.ioOpt.reqSchdulerOpt.ioSenderOpt.failRequestOpt;
+
+    // request will retry 50 times, and each request's timeout is 50ms
+    failRequestOpt.chunkserverOPMaxRetry = 50;
+    failRequestOpt.chunkserverRPCTimeoutMS = 50;
+    failRequestOpt.chunkserverMaxRPCTimeoutMS = 50;
+    failRequestOpt.chunkserverSlowRequestThresholdMS = 1500;
 
     FileInstance fi;
     ASSERT_TRUE(fi.Initialize(filename, mdsclient, userinfo, OpenFlags{}, opt));
@@ -260,7 +285,7 @@ TEST(MetricTest, SuspendRPC_MetricTest) {
     ret = fi.Read(buffer, 0, 4096);
     ASSERT_EQ(-2, ret);
 
-    ASSERT_EQ(fm->suspendRPCMetric.count.get_value(), 0);
+    ASSERT_EQ(fm->slowRequestMetric.count.get_value(), 0);
 
     mds.EnableNetUnstable(100);
 
@@ -274,11 +299,11 @@ TEST(MetricTest, SuspendRPC_MetricTest) {
     fi.AioWrite(aioctx, UserDataType::RawBuffer);
 
     std::this_thread::sleep_for(std::chrono::seconds(2));
-    ASSERT_EQ(fm->suspendRPCMetric.count.get_value(), 1);
+    ASSERT_EQ(fm->slowRequestMetric.count.get_value(), 1);
 
     {
         std::unique_lock<std::mutex> lk(mtx);
-        cv.wait(lk, [](){return flag;});
+        cv.wait(lk, []() { return flag; });
     }
 
     delete[] buffer;
@@ -309,8 +334,8 @@ TEST(MetricTest, MetricHelperTest) {
     ASSERT_NO_THROW(MetricHelper::UserLatencyRecord(fm, 0, OpType::READ));
     ASSERT_NO_THROW(MetricHelper::IncremInflightRPC(fm));
     ASSERT_NO_THROW(MetricHelper::DecremInflightRPC(fm));
-    ASSERT_NO_THROW(MetricHelper::IncremIOSuspendNum(fm));
-    ASSERT_NO_THROW(MetricHelper::DecremIOSuspendNum(fm));
+    ASSERT_NO_THROW(MetricHelper::IncremSlowRequestNum(fm));
+    ASSERT_NO_THROW(MetricHelper::DecremSlowRequestNum(fm));
     ASSERT_NO_THROW(MetricHelper::LatencyRecord(fm, 0, OpType::READ));
     ASSERT_NO_THROW(MetricHelper::IncremRedirectRPCCount(fm, OpType::READ));
     ASSERT_NO_THROW(MetricHelper::IncremRedirectRPCCount(fm, OpType::WRITE));
@@ -336,8 +361,8 @@ TEST(MetricTest, MetricHelperTest) {
     ASSERT_NO_THROW(MetricHelper::UserLatencyRecord(&fm2, 0, OpType::READ));
     ASSERT_NO_THROW(MetricHelper::IncremInflightRPC(&fm2));
     ASSERT_NO_THROW(MetricHelper::DecremInflightRPC(&fm2));
-    ASSERT_NO_THROW(MetricHelper::IncremIOSuspendNum(&fm2));
-    ASSERT_NO_THROW(MetricHelper::DecremIOSuspendNum(&fm2));
+    ASSERT_NO_THROW(MetricHelper::IncremSlowRequestNum(&fm2));
+    ASSERT_NO_THROW(MetricHelper::DecremSlowRequestNum(&fm2));
     ASSERT_NO_THROW(MetricHelper::LatencyRecord(&fm2, 0, OpType::READ));
 
     ASSERT_NO_THROW(MetricHelper::IncremRedirectRPCCount(&fm2, OpType::READ));
@@ -354,8 +379,8 @@ TEST(MetricTest, MetricHelperTest) {
     ASSERT_NO_THROW(MetricHelper::LatencyRecord(nullptr, 0, OpType::READ));
     ASSERT_NO_THROW(MetricHelper::IncremInflightRPC(nullptr));
     ASSERT_NO_THROW(MetricHelper::DecremInflightRPC(nullptr));
-    ASSERT_NO_THROW(MetricHelper::IncremIOSuspendNum(nullptr));
-    ASSERT_NO_THROW(MetricHelper::DecremIOSuspendNum(nullptr));
+    ASSERT_NO_THROW(MetricHelper::IncremSlowRequestNum(nullptr));
+    ASSERT_NO_THROW(MetricHelper::IncremSlowRequestNum(nullptr));
 }
 
 }   //  namespace client

@@ -81,11 +81,11 @@ const std::vector<std::string> mdsConfigOptions{
 };
 
 const std::vector<std::string> mdsConf1{
-    { " --graceful_quit_on_sigterm" },
-    std::string(" --confPath=") + kMdsConfigPath,
-    std::string(" --log_dir=") + kLogPath,
-    std::string(" --segmentSize=") + std::to_string(segmentSize),
-    { " --stderrthreshold=3" },
+    { "--graceful_quit_on_sigterm" },
+    std::string("--confPath=") + kMdsConfigPath,
+    std::string("--log_dir=") + kLogPath,
+    std::string("--segmentSize=") + std::to_string(segmentSize),
+    { "--stderrthreshold=3" },
 };
 
 const std::vector<std::string> snapClientConfigOptions{
@@ -117,9 +117,9 @@ const std::vector<std::string> snapshotcloneserverConfigOptions{
 };
 
 const std::vector<std::string> snapshotcloneConf{
-    std::string(" --conf=") + kSCSConfigPath,
-    std::string(" --log_dir=") + kLogPath,
-    { " --stderrthreshold=3" },
+    std::string("--conf=") + kSCSConfigPath,
+    std::string("--log_dir=") + kLogPath,
+    { "--stderrthreshold=3" },
 };
 
 namespace curve {
@@ -130,6 +130,7 @@ class SnapshotCloneServerMainTest : public ::testing::Test {
     void SetUp() {
         std::string mkLogDirCmd = std::string("mkdir -p ") + kLogPath;
         system(mkLogDirCmd.c_str());
+        system("mkdir -p /data/log/curve ./fakes3");
 
         cluster_ = new CurveCluster();
         ASSERT_NE(nullptr, cluster_);
@@ -141,7 +142,7 @@ class SnapshotCloneServerMainTest : public ::testing::Test {
         // 启动etcd
         pid_t pid = cluster_->StartSingleEtcd(
             1, kEtcdClientIpPort, kEtcdPeerIpPort,
-            std::vector<std::string>{ " --name " + std::string(kEtcdName) });
+            std::vector<std::string>{"--name=" + std::string(kEtcdName)});
         LOG(INFO) << "etcd 1 started on " << kEtcdClientIpPort
                   << "::" << kEtcdPeerIpPort << ", pid = " << pid;
         ASSERT_GT(pid, 0);

@@ -183,6 +183,8 @@ void InitDiskCacheOption(Configuration *conf,
                               &diskCacheOption->fullRatio);
     conf->GetValueFatalIfFail("diskCache.safeRatio",
                               &diskCacheOption->safeRatio);
+    conf->GetValueFatalIfFail("diskCache.trimRatio",
+                              &diskCacheOption->trimRatio);
     conf->GetValueFatalIfFail("diskCache.maxUsableSpaceBytes",
                               &diskCacheOption->maxUsableSpaceBytes);
     conf->GetValueFatalIfFail("diskCache.maxFileNums",
@@ -245,6 +247,10 @@ void InitVolumeOption(Configuration *conf, VolumeOption *volumeOpt) {
     conf->GetValueFatalIfFail("volume.fsBlockSize", &volumeOpt->fsBlockSize);
     conf->GetValueFatalIfFail("volume.allocator.type",
                               &volumeOpt->allocatorOption.type);
+    conf->GetValueFatalIfFail("volume.space.useThreshold",
+                              &volumeOpt->threshold);
+    conf->GetValueFatalIfFail("volume.space.releaseInterSec",
+                              &volumeOpt->releaseInterSec);
 
     conf->GetValueFatalIfFail(
         "volume.blockGroup.allocateOnce",

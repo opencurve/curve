@@ -43,6 +43,7 @@ class MockCopysetNode : public CopysetNode {
     MOCK_METHOD0(Run, int());
     MOCK_METHOD0(Fini, void());
     MOCK_CONST_METHOD0(IsLeaderTerm, bool());
+    MOCK_METHOD(bool, IsLeaseLeader, (const braft::LeaderLeaseStatus&), (const, override));  // NOLINT
     MOCK_CONST_METHOD0(GetLeaderId, PeerId());
     MOCK_METHOD1(ListPeers, void(std::vector<Peer>*));
     MOCK_CONST_METHOD0(GetConfEpoch, uint64_t());
@@ -52,6 +53,7 @@ class MockCopysetNode : public CopysetNode {
     MOCK_METHOD1(GetHash, int(std::string*));
     MOCK_METHOD1(GetStatus, void(NodeStatus*));
     MOCK_METHOD1(GetLeaderStatus, bool(NodeStatus*));
+    MOCK_METHOD(void, GetLeaderLeaseStatus, (braft::LeaderLeaseStatus*), (override));  // NOLINT
     MOCK_CONST_METHOD0(GetDataStore, std::shared_ptr<CSDataStore>());
     MOCK_CONST_METHOD0(GetConcurrentApplyModule, ConcurrentApplyModule*());
     MOCK_METHOD0(GetFailedScanMap, std::vector<ScanMap>&());

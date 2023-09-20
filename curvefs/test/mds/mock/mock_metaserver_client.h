@@ -23,7 +23,6 @@
 #ifndef CURVEFS_TEST_MDS_MOCK_MOCK_METASERVER_CLIENT_H_
 #define CURVEFS_TEST_MDS_MOCK_MOCK_METASERVER_CLIENT_H_
 
-#include <gmock/gmock-generated-function-mockers.h>
 #include <gmock/gmock.h>
 #include <set>
 #include <string>

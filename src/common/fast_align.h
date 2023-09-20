@@ -5,6 +5,10 @@ Distributed under the Boost Software License, Version 1.0.
 (http://www.boost.org/LICENSE_1_0.txt)
 */
 
+// FIXME(wuhanqing): this file is copy and paste from
+//                   curvefs/src/common/fast_align.h,
+//                   we should union these two files later.
+
 #ifndef SRC_COMMON_FAST_ALIGN_H_
 #define SRC_COMMON_FAST_ALIGN_H_
 

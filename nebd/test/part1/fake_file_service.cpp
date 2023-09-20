@@ -35,11 +35,6 @@ void FakeNebdFileService::OpenFile(::google::protobuf::RpcController* controller
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
 
     LOG(INFO) << "logid = " << cntl->log_id() << ", OpenFile.";
-    if (buffer == nullptr) {
-        response->set_retcode(RetCode::kNoOK);
-        response->set_retmsg("OpenFile FAIL");
-        return;
-    }
 
     response->set_retcode(RetCode::kOK);
     response->set_retmsg("OpenFile OK");
@@ -157,6 +152,7 @@ void FakeNebdFileService::GetInfo(::google::protobuf::RpcController* controller,
     info->set_size(fileSize_);
     info->set_objsize(fileSize_);
     info->set_objnums(1);
+    info->set_blocksize(blockSize_);
     response->set_retcode(RetCode::kOK);
     response->set_retmsg("GetInfo OK");
     response->set_allocated_info(info);

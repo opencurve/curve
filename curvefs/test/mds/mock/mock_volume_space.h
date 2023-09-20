@@ -48,6 +48,14 @@ class MockVolumeSpace : public AbstractVolumeSpace {
 
     MOCK_METHOD1(ReleaseBlockGroups,
                  SpaceErrCode(const std::vector<BlockGroup>& blockGroups));
+
+    MOCK_METHOD1(ReleaseBlockGroups, SpaceErrCode(const std::string &));
+
+    MOCK_METHOD4(UpdateDeallocatableBlockGroup,
+                 bool(uint32_t metaserverId,
+                      const DeallocatableBlockGroupVec &groups,
+                      const BlockGroupDeallcateStatusMap &stats,
+                      uint64_t *issue));
 };
 
 }  // namespace space

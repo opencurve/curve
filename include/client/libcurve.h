@@ -54,6 +54,7 @@ typedef struct FileStatInfo {
     int             fileStatus;
     uint64_t        stripeUnit;
     uint64_t        stripeCount;
+    uint32_t        blocksize;
 } FileStatInfo_t;
 
 // 存储用户信息
@@ -368,6 +369,7 @@ inline bool operator==(const UserInfo& lhs, const UserInfo& rhs) {
 
 struct OpenFlags {
     bool exclusive;
+    std::string confPath;
 
     OpenFlags() : exclusive(true) {}
 };
@@ -434,10 +436,10 @@ class CurveClient {
 
     /**
      * 获取文件大小
-     * @param filename 文件名，格式为：文件名_用户名_
+     * @param fd 文件fd
      * @return 返回错误码
      */
-    virtual int64_t StatFile(const std::string& filename);
+    virtual int64_t StatFile(int fd, FileStatInfo* fileStat);
 
     /**
      * 异步读

@@ -89,12 +89,16 @@ std::shared_ptr<FilePool> InitFilePool(std::shared_ptr<LocalFileSystem> fsptr,  
     /**
      * 持久化FilePool meta file
      */
+
+    FilePoolMeta meta;
+    meta.chunkSize = chunkfileSize;
+    meta.metaPageSize = metaPageSize;
+    meta.hasBlockSize = true;
+    meta.blockSize = 4096;
+    meta.filePoolPath = dirname;
+
     int ret = curve::chunkserver::FilePoolHelper::PersistEnCodeMetaInfo(
-                                                fsptr,
-                                                chunkfileSize,
-                                                metaPageSize,
-                                                dirname,
-                                                metaPath);
+        fsptr, meta, metaPath);
 
     if (ret == -1) {
         LOG(ERROR) << "persist chunkfile pool meta info failed!";
@@ -193,7 +197,8 @@ int StartChunkserver(const char *ip,
     DataStoreOptions options;
     options.baseDir = "./test-temp";
     options.chunkSize = 16 * 1024 * 1024;
-    options.pageSize = 4 * 1024;
+    options.metaPageSize = 4 * 1024;
+    options.blockSize = 4 * 1024;
     std::shared_ptr<FakeCSDataStore> dataStore =
         std::make_shared<FakeCSDataStore>(options, fs);
     copysetNode->SetCSDateStore(dataStore);

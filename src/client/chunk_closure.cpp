@@ -282,12 +282,6 @@ void ClientClosure::OnRpcFailed() {
         << ", remote side = "
         << butil::endpoint2str(cntl_->remote_side()).c_str();
 
-    // it will be invoked in brpc's bthread
-    if (reqCtx_->optype_ == OpType::WRITE) {
-        metaCache_->UpdateAppliedIndex(
-            chunkIdInfo_.lpid_, chunkIdInfo_.cpid_, 0);
-    }
-
     ProcessUnstableState();
 }
 
@@ -420,15 +414,15 @@ void ClientClosure::OnRetry() {
         return;
     }
 
-    if (!reqDone_->IsSuspendRPC() && reqDone_->GetRetriedTimes() >=
-        failReqOpt_.chunkserverMaxRetryTimesBeforeConsiderSuspend) {
-        reqDone_->SetSuspendRPCFlag();
-        MetricHelper::IncremIOSuspendNum(fileMetric_);
-        LOG(ERROR) << "IO Retried "
-                    << failReqOpt_.chunkserverMaxRetryTimesBeforeConsiderSuspend
-                    << " times, set suspend flag! " << *reqCtx_
-                    << ", IO id = " << reqDone_->GetIOTracker()->GetID()
-                    << ", request id = " << reqCtx_->id_;
+    if (CURVE_UNLIKELY(!reqDone_->IsSlowRequest() &&
+                       (TimeUtility::GetTimeofDayMs() - reqDone_->CreatedMS() >
+                        failReqOpt_.chunkserverSlowRequestThresholdMS))) {
+        reqDone_->MarkAsSlowRequest();
+        MetricHelper::IncremSlowRequestNum(fileMetric_);
+        LOG(ERROR) << "Slow request, " << *reqCtx_
+                   << ", IO id = " << reqDone_->GetIOTracker()->GetID()
+                   << ", request id = " << reqCtx_->id_
+                   << ", request created at " << reqDone_->CreatedMS();
     }
 
     PreProcessBeforeRetry(status_, cntlstatus_);
@@ -497,18 +491,12 @@ void WriteChunkClosure::SendRetryRequest() {
 
 void WriteChunkClosure::OnSuccess() {
     ClientClosure::OnSuccess();
-
-    metaCache_->UpdateAppliedIndex(
-        chunkIdInfo_.lpid_,
-        chunkIdInfo_.cpid_,
-        response_->appliedindex());
 }
 
 void ReadChunkClosure::SendRetryRequest() {
     client_->ReadChunk(reqCtx_->idinfo_, reqCtx_->seq_,
                        reqCtx_->offset_,
                        reqCtx_->rawlength_,
-                       reqCtx_->appliedindex_,
                        reqCtx_->sourceInfo_,
                        done_);
 }
@@ -517,11 +505,6 @@ void ReadChunkClosure::OnSuccess() {
     ClientClosure::OnSuccess();
 
     reqCtx_->readData_ = cntl_->response_attachment();
-
-    metaCache_->UpdateAppliedIndex(
-        reqCtx_->idinfo_.lpid_,
-        reqCtx_->idinfo_.cpid_,
-        response_->appliedindex());
 }
 
 void ReadChunkClosure::OnChunkNotExist() {
@@ -529,8 +512,6 @@ void ReadChunkClosure::OnChunkNotExist() {
 
     reqDone_->SetFailed(0);
     reqCtx_->readData_.resize(reqCtx_->rawlength_, 0);
-    metaCache_->UpdateAppliedIndex(chunkIdInfo_.lpid_, chunkIdInfo_.cpid_,
-                                   response_->appliedindex());
 }
 
 void ReadChunkSnapClosure::SendRetryRequest() {

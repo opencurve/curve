@@ -30,7 +30,6 @@ import (
 	"time"
 
 	mapset "github.com/deckarep/golang-set/v2"
-	"github.com/olekukonko/tablewriter"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -352,7 +351,7 @@ func CheckCopysets(caller *cobra.Command) (map[uint64]cobrautil.ClUSTER_HEALTH_S
 	return cCmd.Key2Health, cmderror.Success()
 }
 
-func GetCopysetsStatus(caller *cobra.Command) (*tablewriter.Table, *cmderror.CmdError) {
+func GetCopysetsStatus(caller *cobra.Command) (*interface{}, *cmderror.CmdError) {
 	cCmd := NewCheckCopysetCommand()
 	cCmd.Cmd.SetArgs([]string{fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT})
 	config.AlignFlagsValue(caller, cCmd.Cmd, []string{
@@ -367,5 +366,5 @@ func GetCopysetsStatus(caller *cobra.Command) (*tablewriter.Table, *cmderror.Cmd
 		retErr.Format(err.Error())
 		return nil, retErr
 	}
-	return cCmd.TableNew, cCmd.Error
+	return &cCmd.Result, cCmd.Error
 }

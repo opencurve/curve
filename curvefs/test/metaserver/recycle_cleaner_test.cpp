@@ -30,6 +30,7 @@
 #include "curvefs/test/client/rpcclient/mock_mds_client.h"
 #include "curvefs/test/metaserver/copyset/mock/mock_copyset_node.h"
 #include "curvefs/test/metaserver/storage/utils.h"
+#include "curvefs/src/metaserver/mds/fsinfo_manager.h"
 #include "src/fs/ext4_filesystem_impl.h"
 
 using ::testing::_;
@@ -70,7 +71,8 @@ class RecycleCleanerTest : public testing::Test {
         partitionInfo.set_fsid(fsId);
         partitionInfo.set_start(0);
         partitionInfo.set_end(2000);
-        partition_ = std::make_shared<Partition>(partitionInfo, kvStorage_);
+        partition_ = std::make_shared<Partition>(partitionInfo, kvStorage_,
+                                                 false, false);
         cleaner_ = std::make_shared<RecycleCleaner>(partition_);
         mdsclient_ = std::make_shared<MockMdsClient>();
         metaClient_ = std::make_shared<MockMetaServerClient>();
@@ -79,6 +81,7 @@ class RecycleCleanerTest : public testing::Test {
         cleaner_->SetMdsClient(mdsclient_);
         cleaner_->SetMetaClient(metaClient_);
         cleaner_->SetScanLimit(5);
+        FsInfoManager::GetInstance().SetMdsClient(mdsclient_);
 
         // create recycle dir and root dir
         InodeParam rootPram;
@@ -101,7 +104,11 @@ class RecycleCleanerTest : public testing::Test {
         dentry.set_parentinodeid(ROOTINODEID);
         dentry.set_type(FsFileType::TYPE_DIRECTORY);
         dentry.set_txid(0);
-        ASSERT_EQ(partition_->CreateDentry(dentry), MetaStatusCode::OK);
+        Time tm;
+        tm.set_sec(0);
+        tm.set_nsec(0);
+        ASSERT_EQ(partition_->CreateDentry(dentry, tm),
+                  MetaStatusCode::OK);
     }
 
     void TearDown() override {
@@ -170,7 +177,8 @@ TEST_F(RecycleCleanerTest, dir_time_out_test) {
     EXPECT_CALL(*mdsclient_, GetFsInfo(2, _))
         .WillOnce(DoAll(SetArgPointee<1>(fsInfo),
                         Return(FSStatusCode::UNKNOWN_ERROR)))
-        .WillOnce(DoAll(SetArgPointee<1>(fsInfo), Return(FSStatusCode::OK)));
+        .WillOnce(DoAll(SetArgPointee<1>(fsInfo),
+                        Return(FSStatusCode::OK)));
     ASSERT_FALSE(cleaner_->UpdateFsInfo());
     ASSERT_TRUE(cleaner_->UpdateFsInfo());
 
@@ -351,8 +359,11 @@ TEST_F(RecycleCleanerTest, scan_recycle_test5) {
     dentry2.set_inodeid(2001);
     dentry2.set_txid(0);
     dentry2.set_type(FsFileType::TYPE_DIRECTORY);
-    partition_->CreateDentry(dentry1);
-    partition_->CreateDentry(dentry2);
+    Time tm;
+    tm.set_sec(0);
+    tm.set_nsec(0);
+    partition_->CreateDentry(dentry1, tm);
+    partition_->CreateDentry(dentry2, tm);
     LOG(INFO) << "create dentry1 " << dentry1.ShortDebugString();
     LOG(INFO) << "create dentry2 " << dentry2.ShortDebugString();
 
@@ -381,8 +392,13 @@ TEST_F(RecycleCleanerTest, scan_recycle_test6) {
     dentry2.set_inodeid(2001);
     dentry2.set_txid(0);
     dentry2.set_type(FsFileType::TYPE_DIRECTORY);
-    ASSERT_EQ(partition_->CreateDentry(dentry1), MetaStatusCode::OK);
-    ASSERT_EQ(partition_->CreateDentry(dentry2), MetaStatusCode::OK);
+    Time tm;
+    tm.set_sec(0);
+    tm.set_nsec(0);
+    ASSERT_EQ(partition_->CreateDentry(dentry1, tm),
+              MetaStatusCode::OK);
+    ASSERT_EQ(partition_->CreateDentry(dentry2, tm),
+              MetaStatusCode::OK);
     LOG(INFO) << "create dentry1 " << dentry1.ShortDebugString();
     LOG(INFO) << "create dentry2 " << dentry2.ShortDebugString();
 

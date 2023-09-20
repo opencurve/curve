@@ -220,10 +220,10 @@ int CurvefsBuildTopologyTool::InitServerZoneData() {
         Server serverData;
         Zone zoneData;
         if (!server[kName].isString()) {
-            LOG(ERROR) << "server name must be string";
-            return -1;
+            LOG(ERROR) << "server name should be string";
+        } else {
+            serverData.name = server[kName].asString();
         }
-        serverData.name = server[kName].asString();
         if (!server[kInternalIp].isString()) {
             LOG(ERROR) << "server internal ip must be string";
             return -1;
@@ -628,7 +628,9 @@ int CurvefsBuildTopologyTool::CreateServer() {
     for (auto it : serverDatas) {
         ServerRegistRequest request;
         ServerRegistResponse response;
-        request.set_hostname(it.name);
+        if (!it.name.empty()) {
+            request.set_hostname(it.name);
+        }
         request.set_internalip(it.internalIp);
         request.set_internalport(it.internalPort);
         request.set_externalip(it.externalIp);

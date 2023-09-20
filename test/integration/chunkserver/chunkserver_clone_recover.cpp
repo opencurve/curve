@@ -81,7 +81,7 @@ using std::string;
 #define CHUNKSERVER2_BASE_DIR string("./runlog/CSCloneTest/cs2")
 
 #define CURVEFS_FILENAME string("/test_clone_recover")
-#define S3_BUCKET_NAME "cs_clone_recover_test"
+#define S3_BUCKET_NAME "cs-clone-recover-test"
 
 #define KB 1024
 
@@ -91,11 +91,11 @@ const uint32_t kChunkSize = 16 * 1024 * 1024;
 const uint32_t kChunkServerMaxIoSize = 64 * 1024;
 
 const std::vector<string> mdsConf0{
-    { " --confPath=" + MDS0_CONF_PATH },
-    { " --log_dir=" + CSCLONE_BASE_DIR },
-    { " --mdsDbName=" + CSCLONE_TEST_MDS_DBNAME },
-    { " --sessionInterSec=20" },
-    { " --etcdAddr=" + ETCD_CLIENT_IP_PORT },
+    { "--confPath=" + MDS0_CONF_PATH },
+    { "--log_dir=" + CSCLONE_BASE_DIR },
+    { "--mdsDbName=" + CSCLONE_TEST_MDS_DBNAME },
+    { "--sessionInterSec=20" },
+    { "--etcdAddr=" + ETCD_CLIENT_IP_PORT },
 };
 
 const std::vector<string> mdsFileConf0{
@@ -124,75 +124,77 @@ const std::vector<string> csCommonConf{
     string("mds.listen.addr=" + ALLMDS_IP_PORT),
     string("curve.config_path=" + clientConfPath),
     string("s3.config_path=" + kS3ConfigPath),
+    string("global.block_size=4096"),
+    string("global.meta_page_size=4096"),
 };
 
 const std::vector<string> chunkserverConf1{
-    { " -chunkServerStoreUri=local://" + CHUNKSERVER0_BASE_DIR },
-    { " -chunkServerMetaUri=local://" + CHUNKSERVER0_BASE_DIR +
+    { "-chunkServerStoreUri=local://" + CHUNKSERVER0_BASE_DIR },
+    { "-chunkServerMetaUri=local://" + CHUNKSERVER0_BASE_DIR +
       "/chunkserver.dat" },
-    { " -copySetUri=local://" + CHUNKSERVER0_BASE_DIR + "/copysets" },
-    { " -raftSnapshotUri=curve://" + CHUNKSERVER0_BASE_DIR + "/copysets" },
-    { " -raftLogUri=curve://" + CHUNKSERVER0_BASE_DIR + "/copysets" },
-    { " -recycleUri=local://" + CHUNKSERVER0_BASE_DIR + "/recycler" },
-    { " -chunkFilePoolDir=" + CHUNKSERVER0_BASE_DIR + "/chunkfilepool" },
-    { " -chunkFilePoolMetaPath=" + CHUNKSERVER0_BASE_DIR +
+    { "-copySetUri=local://" + CHUNKSERVER0_BASE_DIR + "/copysets" },
+    { "-raftSnapshotUri=curve://" + CHUNKSERVER0_BASE_DIR + "/copysets" },
+    { "-raftLogUri=curve://" + CHUNKSERVER0_BASE_DIR + "/copysets" },
+    { "-recycleUri=local://" + CHUNKSERVER0_BASE_DIR + "/recycler" },
+    { "-chunkFilePoolDir=" + CHUNKSERVER0_BASE_DIR + "/chunkfilepool" },
+    { "-chunkFilePoolMetaPath=" + CHUNKSERVER0_BASE_DIR +
       "/chunkfilepool.meta" },
-    { " -conf=" + CHUNKSERVER_CONF_PATH },
-    { " -raft_sync_segments=true" },
-    { " --log_dir=" + CSCLONE_BASE_DIR },
-    { " --graceful_quit_on_sigterm" },
-    { " -chunkServerIp=127.0.0.1" },
-    { " -chunkServerPort=" + CHUNK_SERVER0_PORT },
-    { " -enableChunkfilepool=false" },
-    { " -enableWalfilepool=false" },
-    { " -walFilePoolDir=" + CHUNKSERVER0_BASE_DIR + "/walfilepool" },
-    { " -walFilePoolMetaPath=" + CHUNKSERVER0_BASE_DIR + "/walfilepool.meta" }
+    { "-conf=" + CHUNKSERVER_CONF_PATH },
+    { "-raft_sync_segments=true" },
+    { "--log_dir=" + CSCLONE_BASE_DIR },
+    { "--graceful_quit_on_sigterm" },
+    { "-chunkServerIp=127.0.0.1" },
+    { "-chunkServerPort=" + CHUNK_SERVER0_PORT },
+    { "-enableChunkfilepool=false" },
+    { "-enableWalfilepool=false" },
+    { "-walFilePoolDir=" + CHUNKSERVER0_BASE_DIR + "/walfilepool" },
+    { "-walFilePoolMetaPath=" + CHUNKSERVER0_BASE_DIR + "/walfilepool.meta" }
 };
 
 const std::vector<string> chunkserverConf2{
-    { " -chunkServerStoreUri=local://" + CHUNKSERVER1_BASE_DIR },
-    { " -chunkServerMetaUri=local://" + CHUNKSERVER1_BASE_DIR +
+    { "-chunkServerStoreUri=local://" + CHUNKSERVER1_BASE_DIR },
+    { "-chunkServerMetaUri=local://" + CHUNKSERVER1_BASE_DIR +
       "/chunkserver.dat" },
-    { " -copySetUri=local://" + CHUNKSERVER1_BASE_DIR + "/copysets" },
-    { " -raftSnapshotUri=curve://" + CHUNKSERVER1_BASE_DIR + "/copysets" },
-    { " -raftLogUri=curve://" + CHUNKSERVER1_BASE_DIR + "/copysets" },
-    { " -recycleUri=local://" + CHUNKSERVER1_BASE_DIR + "/recycler" },
-    { " -chunkFilePoolDir=" + CHUNKSERVER1_BASE_DIR + "/filepool" },
-    { " -chunkFilePoolMetaPath=" + CHUNKSERVER1_BASE_DIR +
+    { "-copySetUri=local://" + CHUNKSERVER1_BASE_DIR + "/copysets" },
+    { "-raftSnapshotUri=curve://" + CHUNKSERVER1_BASE_DIR + "/copysets" },
+    { "-raftLogUri=curve://" + CHUNKSERVER1_BASE_DIR + "/copysets" },
+    { "-recycleUri=local://" + CHUNKSERVER1_BASE_DIR + "/recycler" },
+    { "-chunkFilePoolDir=" + CHUNKSERVER1_BASE_DIR + "/filepool" },
+    { "-chunkFilePoolMetaPath=" + CHUNKSERVER1_BASE_DIR +
       "/chunkfilepool.meta" },
-    { " -conf=" + CHUNKSERVER_CONF_PATH },
-    { " -raft_sync_segments=true" },
-    { " --log_dir=" + CSCLONE_BASE_DIR },
-    { " --graceful_quit_on_sigterm" },
-    { " -chunkServerIp=127.0.0.1" },
-    { " -chunkServerPort=" + CHUNK_SERVER1_PORT },
-    { " -enableChunkfilepool=false" },
-    { " -enableWalfilepool=false" },
-    { " -walFilePoolDir=" + CHUNKSERVER1_BASE_DIR + "/walfilepool" },
-    { " -walFilePoolMetaPath=" + CHUNKSERVER1_BASE_DIR + "/walfilepool.meta" }
+    { "-conf=" + CHUNKSERVER_CONF_PATH },
+    { "-raft_sync_segments=true" },
+    { "--log_dir=" + CSCLONE_BASE_DIR },
+    { "--graceful_quit_on_sigterm" },
+    { "-chunkServerIp=127.0.0.1" },
+    { "-chunkServerPort=" + CHUNK_SERVER1_PORT },
+    { "-enableChunkfilepool=false" },
+    { "-enableWalfilepool=false" },
+    { "-walFilePoolDir=" + CHUNKSERVER1_BASE_DIR + "/walfilepool" },
+    { "-walFilePoolMetaPath=" + CHUNKSERVER1_BASE_DIR + "/walfilepool.meta" }
 };
 
 const std::vector<string> chunkserverConf3{
-    { " -chunkServerStoreUri=local://" + CHUNKSERVER2_BASE_DIR },
-    { " -chunkServerMetaUri=local://" + CHUNKSERVER2_BASE_DIR +
+    { "-chunkServerStoreUri=local://" + CHUNKSERVER2_BASE_DIR },
+    { "-chunkServerMetaUri=local://" + CHUNKSERVER2_BASE_DIR +
       "/chunkserver.dat" },
-    { " -copySetUri=local://" + CHUNKSERVER2_BASE_DIR + "/copysets" },
-    { " -raftSnapshotUri=curve://" + CHUNKSERVER2_BASE_DIR + "/copysets" },
-    { " -raftLogUri=curve://" + CHUNKSERVER2_BASE_DIR + "/copysets" },
-    { " -recycleUri=local://" + CHUNKSERVER2_BASE_DIR + "/recycler" },
-    { " -chunkFilePoolDir=" + CHUNKSERVER2_BASE_DIR + "/filepool" },
-    { " -chunkFilePoolMetaPath=" + CHUNKSERVER2_BASE_DIR +
+    { "-copySetUri=local://" + CHUNKSERVER2_BASE_DIR + "/copysets" },
+    { "-raftSnapshotUri=curve://" + CHUNKSERVER2_BASE_DIR + "/copysets" },
+    { "-raftLogUri=curve://" + CHUNKSERVER2_BASE_DIR + "/copysets" },
+    { "-recycleUri=local://" + CHUNKSERVER2_BASE_DIR + "/recycler" },
+    { "-chunkFilePoolDir=" + CHUNKSERVER2_BASE_DIR + "/filepool" },
+    { "-chunkFilePoolMetaPath=" + CHUNKSERVER2_BASE_DIR +
       "/chunkfilepool.meta" },
-    { " -conf=" + CHUNKSERVER_CONF_PATH },
-    { " -raft_sync_segments=true" },
-    { " --log_dir=" + CSCLONE_BASE_DIR },
-    { " --graceful_quit_on_sigterm" },
-    { " -chunkServerIp=127.0.0.1" },
-    { " -chunkServerPort=" + CHUNK_SERVER2_PORT },
-    { " -enableChunkfilepool=false" },
-    { " -enableWalfilepool=false" },
-    { " -walFilePoolDir=" + CHUNKSERVER2_BASE_DIR + "/walfilepool" },
-    { " -walFilePoolMetaPath=" + CHUNKSERVER2_BASE_DIR + "/walfilepool.meta" }
+    { "-conf=" + CHUNKSERVER_CONF_PATH },
+    { "-raft_sync_segments=true" },
+    { "--log_dir=" + CSCLONE_BASE_DIR },
+    { "--graceful_quit_on_sigterm" },
+    { "-chunkServerIp=127.0.0.1" },
+    { "-chunkServerPort=" + CHUNK_SERVER2_PORT },
+    { "-enableChunkfilepool=false" },
+    { "-enableWalfilepool=false" },
+    { "-walFilePoolDir=" + CHUNKSERVER2_BASE_DIR + "/walfilepool" },
+    { "-walFilePoolMetaPath=" + CHUNKSERVER2_BASE_DIR + "/walfilepool.meta" }
 };
 
 namespace curve {
@@ -223,7 +225,7 @@ class CSCloneRecoverTest : public ::testing::Test {
         LOG(INFO) << "begin to start etcd";
         pid_t pid = cluster_->StartSingleEtcd(
             1, ETCD_CLIENT_IP_PORT, ETCD_PEER_IP_PORT,
-            std::vector<string>{ " --name " + ETCD_NAME });
+            std::vector<string>{"--name=" + ETCD_NAME});
         LOG(INFO) << "etcd 1 started on " + ETCD_CLIENT_IP_PORT + ", pid = "
                   << pid;
         ASSERT_GT(pid, 0);
@@ -231,7 +233,7 @@ class CSCloneRecoverTest : public ::testing::Test {
 
         // 2. 先启动一个mds，让其成为leader，然后再启动另外两个mds节点
         pid = cluster_->StartSingleMDS(0, MDS0_IP_PORT, MDS0_DUMMY_PORT,
-                                       mdsConf0, true);
+                                            mdsConf0, true);
         LOG(INFO) << "mds 0 started on " + MDS0_IP_PORT + ", pid = " << pid;
         ASSERT_GT(pid, 0);
         std::this_thread::sleep_for(std::chrono::seconds(8));

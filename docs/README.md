@@ -24,11 +24,6 @@ Curve架构概览：
 [运维工具手册](https://github.com/opencurve/curveadm/wiki)
 
 ### 命令行手册
-即将废弃版本：
-- [CurveBS命令行工具手册](cn/curve_ops_tool.md)
-- [CurveFS命令行工具手册](../curvefs/src/tools#readme)
-
-新版本：
 - [Curve命令行工具手册](../tools-v2#README)
   
 ### 监控告警配置

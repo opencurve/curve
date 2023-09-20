@@ -34,6 +34,9 @@
 
 namespace curve {
 namespace mds {
+
+extern uint32_t g_block_size;
+
 namespace topology {
 
 using ::testing::Return;
@@ -41,6 +44,7 @@ using ::testing::_;
 using ::testing::AnyOf;
 using ::testing::SetArgPointee;
 using ::testing::Invoke;
+using ::testing::DoAll;
 
 using ::curve::chunkserver::MockCopysetServiceImpl;
 using ::curve::chunkserver::CopysetResponse2;
@@ -255,7 +259,6 @@ class TestTopologyServiceManager : public ::testing::Test {
     MockCopysetServiceImpl *mockCopySetService;
 };
 
-
 TEST_F(TestTopologyServiceManager, test_RegistChunkServer_SuccessWithExIp) {
     PrepareAddPoolset();
     ChunkServerIdType csId = 0x41;
@@ -440,6 +443,44 @@ TEST_F(TestTopologyServiceManager, test_RegistChunkServer_AddChunkServerFail) {
     serviceManager_->RegistChunkServer(&request, &response);
 
     ASSERT_EQ(kTopoErrCodeStorgeFail, response.statuscode());
+    ASSERT_FALSE(response.has_chunkserverid());
+    ASSERT_FALSE(response.has_token());
+}
+
+TEST_F(TestTopologyServiceManager, test_RegistChunkServer_BlockSizeConflict) {
+    ChunkServerRegistRequest request;
+    request.set_disktype("ssd");
+    request.set_diskpath("/");
+    request.set_hostip("testInternalIp");
+    request.set_port(100);
+    request.set_blocksize(512);
+    request.set_chunksize(16 * 1024 * 1024);
+    g_block_size = 4096;
+    g_chunk_size = 16 * 1024 * 1024;
+
+    ChunkServerRegistResponse response;
+
+    serviceManager_->RegistChunkServer(&request, &response);
+    ASSERT_EQ(kTopoErrCodeConflictBlockSizeAndChunkSize, response.statuscode());
+    ASSERT_FALSE(response.has_chunkserverid());
+    ASSERT_FALSE(response.has_token());
+}
+
+TEST_F(TestTopologyServiceManager, test_RegistChunkServer_ChunkSizeConflict) {
+    ChunkServerRegistRequest request;
+    request.set_disktype("ssd");
+    request.set_diskpath("/");
+    request.set_hostip("testInternalIp");
+    request.set_port(100);
+    request.set_blocksize(4096);
+    request.set_chunksize(4 * 1024 * 1024);
+    g_block_size = 4096;
+    g_chunk_size = 16 * 1024 * 1024;
+
+    ChunkServerRegistResponse response;
+
+    serviceManager_->RegistChunkServer(&request, &response);
+    ASSERT_EQ(kTopoErrCodeConflictBlockSizeAndChunkSize, response.statuscode());
     ASSERT_FALSE(response.has_chunkserverid());
     ASSERT_FALSE(response.has_token());
 }
@@ -3532,7 +3573,7 @@ TEST_F(TestTopologyServiceManager, test_SetCopysetsAvailFlag) {
     }
     std::vector<CopySetInfo> copysets =
                 topology_->GetCopySetInfosInLogicalPool(logicalPoolId1);
-    for (const auto copyset : copysets) {
+    for (const auto &copyset : copysets) {
         ASSERT_TRUE(copyset.IsAvailable());
     }
     // success
@@ -3551,7 +3592,7 @@ TEST_F(TestTopologyServiceManager, test_SetCopysetsAvailFlag) {
         serviceManager_->SetCopysetsAvailFlag(&request, &response);
         ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
         copysets = topology_->GetCopySetInfosInLogicalPool(logicalPoolId1);
-        for (const auto copyset : copysets) {
+        for (const auto &copyset : copysets) {
             if (copyset.GetId() <= 10) {
                 ASSERT_FALSE(copyset.IsAvailable());
             } else {
@@ -3565,7 +3606,7 @@ TEST_F(TestTopologyServiceManager, test_SetCopysetsAvailFlag) {
         serviceManager_->SetCopysetsAvailFlag(&request, &response);
         ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
         copysets = topology_->GetCopySetInfosInLogicalPool(logicalPoolId1);
-        for (const auto copyset : copysets) {
+        for (const auto &copyset : copysets) {
             ASSERT_TRUE(copyset.IsAvailable());
         }
     }

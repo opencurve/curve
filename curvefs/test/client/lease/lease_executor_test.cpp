@@ -36,7 +36,7 @@ using curvefs::mds::topology::PartitionTxId;
 using ::testing::AtLeast;
 using ::testing::Return;
 using ::testing::SetArgPointee;
-
+using ::testing::DoAll;
 
 namespace curvefs {
 namespace client {

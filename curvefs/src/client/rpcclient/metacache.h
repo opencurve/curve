@@ -131,16 +131,9 @@ class MetaCache {
     virtual void GetAllTxIds(std::vector<PartitionTxId> *txIds);
 
     virtual bool GetTarget(uint32_t fsID, uint64_t inodeID,
-                           CopysetTarget *target, uint64_t *applyIndex,
-                           bool refresh = false);
+                           CopysetTarget *target, bool refresh = false);
 
-    virtual bool SelectTarget(uint32_t fsID, CopysetTarget *target,
-                              uint64_t *applyIndex);
-
-    virtual void UpdateApplyIndex(const CopysetGroupID &groupID,
-                                  uint64_t applyIndex);
-
-    virtual uint64_t GetApplyIndex(const CopysetGroupID &groupID);
+    virtual bool SelectTarget(uint32_t fsID, CopysetTarget *target);
 
     virtual bool IsLeaderMayChange(const CopysetGroupID &groupID);
 
@@ -149,8 +142,7 @@ class MetaCache {
     virtual void UpdateCopysetInfo(const CopysetGroupID &groupID,
                                    const CopysetInfo<MetaserverID> &csinfo);
 
-    virtual bool GetTargetLeader(CopysetTarget *target, uint64_t *applyindex,
-                                 bool refresh = false);
+    virtual bool GetTargetLeader(CopysetTarget *target, bool refresh = false);
 
     virtual bool GetPartitionIdByInodeId(uint32_t fsID, uint64_t inodeID,
                                          PartitionID *pid);

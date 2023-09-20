@@ -75,11 +75,14 @@ bind(
 )
 
 #import the  gtest files.
-new_git_repository(
+http_archive(
     name = "com_google_googletest",
-    build_file = "//:thirdparties/gmock.BUILD",
-    remote = "https://github.com/google/googletest",
-    tag = "release-1.8.0",
+    urls = [
+        "https://curve-build.nos-eastchina1.126.net/googletest-release-1.12.1.tar.gz",
+        "https://github.com/google/googletest/archive/refs/tags/release-1.12.1.tar.gz",
+    ],
+    sha256 = "81964fe578e9bd7c94dfdb09c8e4d6e6759e19967e397dbea48d1c10e45d0df2",
+    strip_prefix = "googletest-release-1.12.1",
 )
 
 bind(
@@ -130,7 +133,7 @@ git_repository(
     name = "com_github_brpc_brpc",
     remote = "https://github.com/apache/incubator-brpc",
     commit = "1b9e00641cbec1c8803da6a1f7f555398c954cb0",
-    patches = ["//:thirdparties/brpc/brpc.patch"],
+    patches = ["//:thirdparties/brpc/brpc.patch","//:thirdparties/brpc/fix-gcc11.patch"],
     patch_args = ["-p1"],
 )
 

@@ -34,50 +34,54 @@ using ::curve::client::UserInfo_t;
 const char* kSessionAttrKey = "session";
 const char* kOpenFlagsAttrKey = "openflags";
 
-curve::client::OpenFlags ConverToCurveOpenFlags(const OpenFlags* flags) {
+curve::client::OpenFlags ConverToCurveOpenFlags(
+    const OpenFlags* flags, const std::string& confPath) {
     curve::client::OpenFlags curveflags;
-
+    curveflags.confPath = confPath;
     if (!flags) {
         return curveflags;
     } else {
         if (flags->has_exclusive()) {
             curveflags.exclusive = flags->exclusive();
         }
-
         return curveflags;
     }
 }
 
-std::string FileNameParser::Parse(const std::string& fileName) {
+std::pair<std::string, std::string>
+FileNameParser::Parse(const std::string& fileName) {
+    std::string confPath;
     auto beginPos = fileName.find_first_of("/");
     if (beginPos == std::string::npos) {
         LOG(ERROR) << "error format fileName: " << fileName;
-        return "";
+        return std::make_pair("", "");
     }
     beginPos += 1;
 
     auto endPos = fileName.find_last_of(":");
     if (endPos == std::string::npos) {
         LOG(ERROR) << "error format fileName: " << fileName;
-        return "";
+        return std::make_pair("", "");
     }
 
     if (endPos < beginPos) {
         endPos = fileName.length();
+    } else if (endPos < fileName.length() - 1) {
+        confPath = fileName.substr(endPos + 1);
     }
 
     if (beginPos >= endPos) {
         LOG(ERROR) << "error format fileName: " << fileName;
-        return "";
+        return std::make_pair("", "");
     }
 
     auto length = endPos - beginPos;
     if (length <= 2) {
         LOG(ERROR) << "error format fileName: " << fileName;
-        return "";
+        return std::make_pair("", "");
     }
 
-    return fileName.substr(beginPos, length);
+    return std::make_pair(fileName.substr(beginPos, length), confPath);
 }
 
 void CurveRequestExecutor::Init(const std::shared_ptr<CurveClient> &client) {
@@ -86,17 +90,19 @@ void CurveRequestExecutor::Init(const std::shared_ptr<CurveClient> &client) {
 
 std::shared_ptr<NebdFileInstance> CurveRequestExecutor::Open(
     const std::string& filename, const OpenFlags* openFlags) {
-    std::string curveFileName = FileNameParser::Parse(filename);
-    if (curveFileName.empty()) {
+    auto curveFileInfo = FileNameParser::Parse(filename);
+    if (curveFileInfo.first.empty()) {
         return nullptr;
     }
 
-    int fd = client_->Open(curveFileName, ConverToCurveOpenFlags(openFlags));
+    int fd = client_->Open(
+        curveFileInfo.first,
+        ConverToCurveOpenFlags(openFlags, curveFileInfo.second));
 
     if (fd >= 0) {
         auto curveFileInstance = std::make_shared<CurveFileInstance>();
         curveFileInstance->fd = fd;
-        curveFileInstance->fileName = curveFileName;
+        curveFileInstance->fileName = curveFileInfo.first;
         curveFileInstance->xattr[kSessionAttrKey] = "";
 
         if (openFlags) {
@@ -113,8 +119,8 @@ std::shared_ptr<NebdFileInstance> CurveRequestExecutor::Open(
 std::shared_ptr<NebdFileInstance>
 CurveRequestExecutor::Reopen(const std::string& filename,
                              const ExtendAttribute& xattr) {
-    std::string curveFileName = FileNameParser::Parse(filename);
-    if (curveFileName.empty()) {
+    auto curveFileInfo = FileNameParser::Parse(filename);
+    if (curveFileInfo.first.empty()) {
         return nullptr;
     }
 
@@ -129,11 +135,13 @@ CurveRequestExecutor::Reopen(const std::string& filename,
         }
     }
 
-    int fd = client_->ReOpen(curveFileName, ConverToCurveOpenFlags(&flags));
+    int fd = client_->ReOpen(
+        curveFileInfo.first,
+        ConverToCurveOpenFlags(&flags, curveFileInfo.second));
     if (fd >= 0) {
         auto curveFileInstance = std::make_shared<CurveFileInstance>();
         curveFileInstance->fd = fd;
-        curveFileInstance->fileName = curveFileName;
+        curveFileInstance->fileName = curveFileInfo.first;
         curveFileInstance->xattr[kSessionAttrKey] = newSessionId;
         if (xattr.count(kOpenFlagsAttrKey)) {
             curveFileInstance->xattr[kOpenFlagsAttrKey] =
@@ -175,17 +183,20 @@ int CurveRequestExecutor::Extend(NebdFileInstance* fd, int64_t newsize) {
 
 int CurveRequestExecutor::GetInfo(
     NebdFileInstance* fd, NebdFileInfo* fileInfo) {
-    std::string fileName = GetFileNameFromNebdFileInstance(fd);
-    if (fileName.empty()) {
+    int curveFd = GetCurveFdFromNebdFileInstance(fd);
+    if (curveFd < 0) {
+        LOG(ERROR) << "Parse curve fd failed";
         return -1;
     }
 
-    int64_t size = client_->StatFile(fileName);
-    if (size < 0) {
+    FileStatInfo statInfo;
+    int64_t rc = client_->StatFile(curveFd, &statInfo);
+    if (rc < 0) {
         return -1;
     }
 
-    fileInfo->size = size;
+    fileInfo->size = statInfo.length;
+    fileInfo->block_size = statInfo.blocksize;
     return 0;
 }
 

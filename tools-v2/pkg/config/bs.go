@@ -57,8 +57,10 @@ const (
 	CURVEBS_DEFAULT_FORCE             = false
 	CURVEBS_LOGIC_POOL_ID             = "logicalpoolid"
 	VIPER_CURVEBS_LOGIC_POOL_ID       = "curvebs.logicalpoolid"
+	CURVEBS_DEFAULT_LOGIC_POOL_ID     = uint32(0)
 	CURVEBS_COPYSET_ID                = "copysetid"
 	VIPER_CURVEBS_COPYSET_ID          = "curvebs.copysetid"
+	CURVEBS_DEFAULT_COPYSET_ID        = uint32(0)
 	CURVEBS_PEERS_ADDRESS             = "peers"
 	VIPER_CURVEBS_PEERS_ADDRESS       = "curvebs.peers"
 	CURVEBS_OFFSET                    = "offset"
@@ -125,6 +127,23 @@ const (
 	CURVEBS_FIlTER                    = "filter"
 	VIPER_CURVEBS_FILTER              = "curvebs.filter"
 	CURVEBS_DEFAULT_FILTER            = false
+	CURVEBS_SERVER_ID                 = "serverid"
+	VIPER_CURVEBS_SERVER_ID           = "curvebs.serverid"
+	CURVEBS_SERVER_IP                 = "ip"
+	VIPER_CURVEBS_SERVER_IP           = "curvebs.ip"
+	CURVEBS_SERVER_PORT               = "port"
+	VIPER_CURVEBS_SERVER_PORT         = "curvebs.port"
+	CURVEBS_ALL                       = "all"
+	VIPER_CURVEBS_ALL                 = "curvebs.all"
+	CURVEBS_DEFAULT_ALL               = false
+	CURVEBS_SRC                       = "src"
+	VIPER_CURVEBS_SRC                 = "curvebs.src"
+	CURVEBS_DEST                      = "dest"
+	VIPER_CURVEBS_DEST                = "curvebs.dest"
+	CURVEBS_TASKID                    = "taskid"
+	VIPER_CURVEBS_TASKID              = "curvebs.taskid"
+	CURVEBS_FAILED                    = "failed"
+	VIPER_CURVEBS_FAILED              = "curvebs.failed"
 )
 
 var (
@@ -171,6 +190,14 @@ var (
 		CURVEBS_CHUNK_ID:            VIPER_CURVEBS_CHUNK_ID,
 		CURVEBS_CHUNKSERVER_ADDRESS: VIPER_CURVEBS_CHUNKSERVER_ADDRESS,
 		CURVEBS_FIlTER:              VIPER_CURVEBS_FILTER,
+		CURVEBS_SERVER_ID:           VIPER_CURVEBS_SERVER_ID,
+		CURVEBS_SERVER_IP:           VIPER_CURVEBS_SERVER_IP,
+		CURVEBS_SERVER_PORT:         VIPER_CURVEBS_SERVER_PORT,
+		CURVEBS_ALL:                 VIPER_CURVEBS_ALL,
+		CURVEBS_SRC:                 VIPER_CURVEBS_SRC,
+		CURVEBS_DEST:                VIPER_CURVEBS_DEST,
+		CURVEBS_TASKID:              VIPER_CURVEBS_TASKID,
+		CURVEBS_FAILED:              VIPER_CURVEBS_FAILED,
 	}
 
 	BSFLAG2DEFAULT = map[string]interface{}{
@@ -191,6 +218,9 @@ var (
 		CURVEBS_CHUNKSERVER_ID: CURVEBS_DEFAULT_CHUNKSERVER_ID,
 		CURVEBS_DRYRUN:         CURVEBS_DEFAULT_DRYRUN,
 		CURVEBS_FIlTER:         CURVEBS_DEFAULT_FILTER,
+		CURVEBS_ALL:            CURVEBS_DEFAULT_ALL,
+		CURVEBS_LOGIC_POOL_ID:  CURVEBS_DEFAULT_LOGIC_POOL_ID,
+		CURVEBS_COPYSET_ID:     CURVEBS_DEFAULT_COPYSET_ID,
 	}
 )
 
@@ -298,6 +328,18 @@ func AddBsDurationOptionFlag(cmd *cobra.Command, name string, usage string) {
 		defaultValue = 0
 	}
 	cmd.Flags().Duration(name, defaultValue.(time.Duration), usage)
+	err := viper.BindPFlag(BSFLAG2VIPER[name], cmd.Flags().Lookup(name))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
+func AddBsUint32OptionFlag(cmd *cobra.Command, name string, usage string) {
+	defaultValue := BSFLAG2DEFAULT[name]
+	if defaultValue == nil {
+		defaultValue = uint32(0)
+	}
+	cmd.Flags().Uint32(name, defaultValue.(uint32), usage)
 	err := viper.BindPFlag(BSFLAG2VIPER[name], cmd.Flags().Lookup(name))
 	if err != nil {
 		cobra.CheckErr(err)
@@ -462,6 +504,34 @@ func AddBsScanOptionFlag(cmd *cobra.Command) {
 	AddBsBoolOptionFlag(cmd, CURVEBS_SCAN, "enable/disable scan for logical pool")
 }
 
+// leader-schedule
+func AddBsLogicalPoolIdOptionFlag(cmd *cobra.Command) {
+	AddBsUint32OptionFlag(cmd, CURVEBS_LOGIC_POOL_ID, "logical pool id")
+}
+
+func AddBsAllOptionFlag(cmd *cobra.Command) {
+	AddBsBoolOptionFlag(cmd, CURVEBS_ALL, "all")
+}
+
+func AddBsCopysetIdOptionFlag(cmd *cobra.Command) {
+	AddBsUint32OptionFlag(cmd, CURVEBS_COPYSET_ID, "copyset id")
+}
+
+// serverid
+func AddBsServerIdOptionFlag(cmd *cobra.Command) {
+	AddBsUint32OptionFlag(cmd, CURVEBS_SERVER_ID, "server id")
+}
+
+// ip(server)
+func AddBsServerIpOptionFlag(cmd *cobra.Command) {
+	AddBsStringOptionFlag(cmd, CURVEBS_SERVER_IP, "server ip")
+}
+
+// port(server)
+func AddBsServerPortOptionFlag(cmd *cobra.Command) {
+	AddBsUint32OptionFlag(cmd, CURVEBS_SERVER_PORT, "port")
+}
+
 // add flag required
 // add path[required]
 func AddBsPathRequiredFlag(cmd *cobra.Command) {
@@ -548,6 +618,22 @@ func AddBsChunkServerAddressSliceRequiredFlag(cmd *cobra.Command) {
 	AddBsStringSliceRequiredFlag(cmd, CURVEBS_CHUNKSERVER_ADDRESS, "chunk server address")
 }
 
+func AddBsSrcOptionFlag(cmd *cobra.Command) {
+	AddBsStringOptionFlag(cmd, CURVEBS_SRC, "source")
+}
+
+func AddBsDestOptionFlag(cmd *cobra.Command) {
+	AddBsStringOptionFlag(cmd, CURVEBS_DEST, "destination")
+}
+
+func AddBsTaskIDOptionFlag(cmd *cobra.Command) {
+	AddBsStringOptionFlag(cmd, CURVEBS_TASKID, "task id")
+}
+
+func AddBsFailedOptionFlag(cmd *cobra.Command) {
+	AddBsBoolOptionFlag(cmd, CURVEBS_FAILED, "failed")
+}
+
 // get stingslice flag
 func GetBsFlagStringSlice(cmd *cobra.Command, flagName string) []string {
 	var value []string
@@ -607,6 +693,11 @@ func GetBsFlagInt64(cmd *cobra.Command, flagName string) int64 {
 	return value
 }
 
+// determine whether the flag is changed
+func GetBsFlagChanged(cmd *cobra.Command, flagName string) bool {
+	return cmd.Flag(flagName).Changed
+}
+
 // get mdsaddr
 func GetBsAddrSlice(cmd *cobra.Command, addrType string) ([]string, *cmderror.CmdError) {
 	var addrsStr string
@@ -619,6 +710,12 @@ func GetBsAddrSlice(cmd *cobra.Command, addrType string) ([]string, *cmderror.Cm
 	addrslice := strings.Split(addrsStr, ",")
 	for i, addr := range addrslice {
 		addrslice[i] = strings.TrimSpace(addr)
+	}
+
+	if addrType == CURVEBS_SNAPSHOTADDR && len(strings.TrimSpace(addrsStr)) == 0 {
+		err := cmderror.ErrSnapShotAddrNotConfigured()
+		err.Format(fmt.Sprint(CURVEBS_SNAPSHOTADDR, " is not configured"))
+		return nil, err
 	}
 
 	for _, addr := range addrslice {

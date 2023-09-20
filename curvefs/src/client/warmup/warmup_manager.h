@@ -35,22 +35,22 @@
 #include <mutex>
 #include <set>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
-#include <unordered_map>
 
 #include "curvefs/src/client/common/common.h"
 #include "curvefs/src/client/dentry_cache_manager.h"
 #include "curvefs/src/client/fuse_common.h"
 #include "curvefs/src/client/inode_cache_manager.h"
 #include "curvefs/src/client/kvclient/kvclient_manager.h"
+#include "curvefs/src/client/metric/client_metric.h"
 #include "curvefs/src/client/rpcclient/metaserver_client.h"
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
 #include "curvefs/src/client/s3/client_s3_cache_manager.h"
+#include "curvefs/src/common/task_thread_pool.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/concurrent/rw_lock.h"
-#include "curvefs/src/common/task_thread_pool.h"
-#include "curvefs/src/client/metric/client_metric.h"
 
 namespace curvefs {
 namespace client {
@@ -71,7 +71,7 @@ class WarmupFile {
 
     fuse_ino_t GetKey() const { return key_; }
     uint64_t GetFileLen() const { return fileLen_; }
-    bool operator==(const WarmupFile &other) const {
+    bool operator==(const WarmupFile& other) const {
         return key_ == other.key_;
     }
 
@@ -89,7 +89,7 @@ class WarmupInodes {
         : key_(key), readAheadFiles_(std::move(list)) {}
 
     fuse_ino_t GetKey() const { return key_; }
-    const std::set<fuse_ino_t> &GetReadAheadFiles() const {
+    const std::set<fuse_ino_t>& GetReadAheadFiles() const {
         return readAheadFiles_;
     }
 
@@ -100,19 +100,15 @@ class WarmupInodes {
     std::set<fuse_ino_t> readAheadFiles_;
 };
 
-
-using FuseOpReadFunctionType =
-    std::function<CURVEFS_ERROR(fuse_req_t, fuse_ino_t, size_t, off_t,
-                                struct fuse_file_info *, char *, size_t *)>;
-
 class WarmupProgress {
  public:
     explicit WarmupProgress(WarmupStorageType type = curvefs::client::common::
                                 WarmupStorageType::kWarmupStorageTypeUnknown)
         : total_(0), finished_(0), storageType_(type) {}
 
-    WarmupProgress(const WarmupProgress &wp)
-        : total_(wp.total_), finished_(wp.finished_),
+    WarmupProgress(const WarmupProgress& wp)
+        : total_(wp.total_),
+          finished_(wp.finished_),
           storageType_(wp.storageType_) {}
 
     void AddTotal(uint64_t add) {
@@ -120,7 +116,7 @@ class WarmupProgress {
         total_ += add;
     }
 
-    WarmupProgress &operator=(const WarmupProgress &wp) {
+    WarmupProgress& operator=(const WarmupProgress& wp) {
         total_ = wp.total_;
         finished_ = wp.finished_;
         return *this;
@@ -148,9 +144,7 @@ class WarmupProgress {
                ",finished:" + std::to_string(finished_);
     }
 
-    WarmupStorageType GetStorageType() {
-        return storageType_;
-    }
+    WarmupStorageType GetStorageType() { return storageType_; }
 
  private:
     uint64_t total_;
@@ -159,6 +153,13 @@ class WarmupProgress {
     std::mutex finishedMutex_;
     WarmupStorageType storageType_;
 };
+
+using FuseOpReadFunctionType =
+    std::function<CURVEFS_ERROR(fuse_req_t, fuse_ino_t, size_t, off_t,
+                                struct fuse_file_info*, char*, size_t*)>;
+
+using FuseOpReadLinkFunctionType =
+    std::function<CURVEFS_ERROR(fuse_req_t, fuse_ino_t, std::string*)>;
 
 class WarmupManager {
  public:
@@ -176,30 +177,36 @@ class WarmupManager {
                            std::shared_ptr<DentryCacheManager> dentryManager,
                            std::shared_ptr<FsInfo> fsInfo,
                            FuseOpReadFunctionType readFunc,
+                           FuseOpReadLinkFunctionType readLinkFunc,
                            std::shared_ptr<KVClientManager> kvClientManager)
-        : mounted_(false), metaClient_(std::move(metaClient)),
+        : mounted_(false),
+          metaClient_(std::move(metaClient)),
           inodeManager_(std::move(inodeManager)),
-          dentryManager_(std::move(dentryManager)), fsInfo_(std::move(fsInfo)),
+          dentryManager_(std::move(dentryManager)),
+          fsInfo_(std::move(fsInfo)),
           fuseOpRead_(std::move(readFunc)),
+          fuseOpReadLink_(std::move(readLinkFunc)),
           kvClientManager_(std::move(kvClientManager)) {}
 
-    virtual void Init(const FuseClientOption &option) {
-        option_ = option;
-    }
+    virtual void Init(const FuseClientOption& option) { option_ = option; }
     virtual void UnInit() { ClearWarmupProcess(); }
 
     virtual bool AddWarmupFilelist(fuse_ino_t key, WarmupStorageType type) = 0;
-    virtual bool AddWarmupFile(fuse_ino_t key, const std::string &path,
+    virtual bool AddWarmupFile(fuse_ino_t key, const std::string& path,
                                WarmupStorageType type) = 0;
 
     void SetMounted(bool mounted) {
         mounted_.store(mounted, std::memory_order_release);
     }
 
-    void SetFsInfo(const std::shared_ptr<FsInfo> &fsinfo) { fsInfo_ = fsinfo; }
+    void SetFsInfo(const std::shared_ptr<FsInfo>& fsinfo) { fsInfo_ = fsinfo; }
 
-    void SetFuseOpRead(const FuseOpReadFunctionType &read) {
+    void SetFuseOpRead(const FuseOpReadFunctionType& read) {
         fuseOpRead_ = read;
+    }
+
+    void SetFuseOpReadLink(const FuseOpReadLinkFunctionType& readLink) {
+        fuseOpReadLink_ = readLink;
     }
 
     void SetKVClientManager(std::shared_ptr<KVClientManager> kvClientManager) {
@@ -214,7 +221,7 @@ class WarmupManager {
      * @return true
      * @return false no this warmup task or finished
      */
-    bool QueryWarmupProgress(fuse_ino_t key, WarmupProgress *progress) {
+    bool QueryWarmupProgress(fuse_ino_t key, WarmupProgress* progress) {
         bool ret = true;
         ReadLockGuard lock(inode2ProgressMutex_);
         auto iter = FindWarmupProgressByKeyLocked(key);
@@ -225,8 +232,6 @@ class WarmupManager {
         }
         return ret;
     }
-
-    void CollectMetrics(InterfaceMetric *interface, int count, uint64_t start);
 
  protected:
     /**
@@ -275,6 +280,9 @@ class WarmupManager {
     // FuseOpRead
     FuseOpReadFunctionType fuseOpRead_;
 
+    // FuseOpReadLink
+    FuseOpReadLinkFunctionType fuseOpReadLink_;
+
     // warmup progress
     std::unordered_map<fuse_ino_t, WarmupProgress> inode2Progress_;
     BthreadRWLock inode2ProgressMutex_;
@@ -291,33 +299,57 @@ class WarmupManagerS3Impl : public WarmupManager {
         std::shared_ptr<InodeCacheManager> inodeManager,
         std::shared_ptr<DentryCacheManager> dentryManager,
         std::shared_ptr<FsInfo> fsInfo, FuseOpReadFunctionType readFunc,
-        std::shared_ptr<S3ClientAdaptor> s3Adaptor,
-        std::shared_ptr<KVClientManager> kvClientManager)
+        FuseOpReadLinkFunctionType readLinkFunc,
+        std::shared_ptr<KVClientManager> kvClientManager,
+        std::shared_ptr<S3ClientAdaptor> s3Adaptor)
         : WarmupManager(std::move(metaClient), std::move(inodeManager),
                         std::move(dentryManager), std::move(fsInfo),
-                        std::move(readFunc), std::move(kvClientManager)),
+                        std::move(readFunc), std::move(readLinkFunc),
+                        std::move(kvClientManager)),
           s3Adaptor_(std::move(s3Adaptor)) {}
 
     bool AddWarmupFilelist(fuse_ino_t key, WarmupStorageType type) override;
-    bool AddWarmupFile(fuse_ino_t key, const std::string &path,
+    bool AddWarmupFile(fuse_ino_t key, const std::string& path,
                        WarmupStorageType type) override;
 
-    void Init(const FuseClientOption &option) override;
+    void Init(const FuseClientOption& option) override;
     void UnInit() override;
 
- private:
+ protected:
     void BackGroundFetch();
 
-    void GetWarmupList(const WarmupFilelist &filelist,
-                       std::vector<std::string> *list);
+    void GetWarmupList(const WarmupFilelist& filelist,
+                       std::vector<std::string>* list);
 
-    void FetchDentryEnqueue(fuse_ino_t key, const std::string &file);
+    void FetchDentryEnqueue(fuse_ino_t key, const std::string& file);
 
     void LookPath(fuse_ino_t key, std::string file);
 
-    void FetchDentry(fuse_ino_t key, fuse_ino_t ino, const std::string &file);
+    /**
+     * @brief Given parent inode id and subpath to get the parent of realpath
+     * and lastname. If there is a soft link in the middle, it will be converted
+     * automatically. for example: inode = 1(/a), subPath{b,c}(b/c) then the ret
+     * is the inodeid of /a/b, last name is c for example: inode = 1(/a) subPath
+     * = {b,c,d}(b/c/d), d link to ".." then the ret is the inodeid of /a, last
+     * name is b
+     *
+     * @param parent
+     * @param subPath
+     * @param ret the parent of realpath
+     * @param lastPath the last name of realpath
+     * @param symlink_depth per sym link, ++symlink_depth;
+     * @return false: subPath isn't belong to inode
+     */
+    bool GetInodeSubPathParent(fuse_ino_t inode,
+                               const std::vector<std::string>& subPath,
+                               fuse_ino_t* ret, std::string* lastPath,
+                               uint32_t* symlink_depth);
 
-    void FetchChildDentry(fuse_ino_t key, fuse_ino_t ino);
+    void FetchDentry(fuse_ino_t key, fuse_ino_t ino, const std::string& file,
+                     uint32_t symlink_depth);
+
+    void FetchChildDentry(fuse_ino_t key, fuse_ino_t ino,
+                          uint32_t symlink_depth);
 
     /**
      * @brief
@@ -325,11 +357,11 @@ class WarmupManagerS3Impl : public WarmupManager {
      * @param key
      * @return std::deque<WarmupInodes>::iterator
      */
-    std::deque<WarmupInodes>::iterator
-    FindWarmupInodesByKeyLocked(fuse_ino_t key) {
+    std::deque<WarmupInodes>::iterator FindWarmupInodesByKeyLocked(
+        fuse_ino_t key) {
         return std::find_if(warmupInodesDeque_.begin(),
                             warmupInodesDeque_.end(),
-                            [key](const WarmupInodes &inodes) {
+                            [key](const WarmupInodes& inodes) {
                                 return key == inodes.GetKey();
                             });
     }
@@ -340,11 +372,11 @@ class WarmupManagerS3Impl : public WarmupManager {
      * @param key
      * @return std::deque<WarmupFilelist>::iterator
      */
-    std::deque<WarmupFilelist>::iterator
-    FindWarmupFilelistByKeyLocked(fuse_ino_t key) {
+    std::deque<WarmupFilelist>::iterator FindWarmupFilelistByKeyLocked(
+        fuse_ino_t key) {
         return std::find_if(warmupFilelistDeque_.begin(),
                             warmupFilelistDeque_.end(),
-                            [key](const WarmupFilelist &filelist_) {
+                            [key](const WarmupFilelist& filelist_) {
                                 return key == filelist_.GetKey();
                             });
     }
@@ -379,17 +411,17 @@ class WarmupManagerS3Impl : public WarmupManager {
 
     // travel all chunks
     void TravelChunks(fuse_ino_t key, fuse_ino_t ino,
-                      const S3ChunkInfoMapType &s3ChunkInfoMap);
+                      const S3ChunkInfoMapType& s3ChunkInfoMap);
 
     using ObjectListType = std::list<std::pair<std::string, uint64_t>>;
     // travel and download all objs belong to the chunk
-    void TravelChunk(fuse_ino_t ino, const S3ChunkInfoList &chunkInfo,
-                     ObjectListType *prefetchObjs);
+    void TravelChunk(fuse_ino_t ino, const S3ChunkInfoList& chunkInfo,
+                     ObjectListType* prefetchObjs);
 
     // warmup all the prefetchObjs
     void WarmUpAllObjs(
         fuse_ino_t key,
-        const std::list<std::pair<std::string, uint64_t>> &prefetchObjs);
+        const std::list<std::pair<std::string, uint64_t>>& prefetchObjs);
 
     /**
      * @brief Whether the warmup task[key] is completed (or terminated)
@@ -413,8 +445,8 @@ class WarmupManagerS3Impl : public WarmupManager {
 
     void AddFetchS3objectsTask(fuse_ino_t key, std::function<void()> task);
 
-    void PutObjectToCache(fuse_ino_t key, const std::string &filename,
-                          const char *data, uint64_t len);
+    void PutObjectToCache(
+        fuse_ino_t key, const std::shared_ptr<GetObjectAsyncContext>& context);
 
  protected:
     std::deque<WarmupFilelist> warmupFilelistDeque_;

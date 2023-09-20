@@ -23,8 +23,6 @@
 #include <gtest/gtest.h>
 #include <unistd.h>
 #include <brpc/server.h>
-#include <gmock/gmock-more-actions.h>
-#include <gmock/gmock-generated-function-mockers.h>
 
 #include <memory>
 #include <cstdio>
@@ -300,6 +298,8 @@ TEST_F(CopysetNodeTest, error_test) {
     }
     // ShipToSync & handle sync time out
     {
+        CopysetNode::copysetSyncPool_ =
+            std::make_shared<common::TaskThreadPool<>>();
         LogicPoolID logicPoolID = 123;
         CopysetID copysetID = 1345;
         Configuration conf;
@@ -337,7 +337,8 @@ TEST_F(CopysetNodeTest, error_test) {
         DataStoreOptions options;
         options.baseDir = "./test-temp";
         options.chunkSize = 16 * 1024 * 1024;
-        options.pageSize = 4 * 1024;
+        options.metaPageSize = 4 * 1024;
+        options.blockSize = 4 * 1024;
         std::shared_ptr<FakeCSDataStore> dataStore =
             std::make_shared<FakeCSDataStore>(options, fs);
         copysetNode.SetCSDateStore(dataStore);
@@ -365,7 +366,8 @@ TEST_F(CopysetNodeTest, error_test) {
         DataStoreOptions options;
         options.baseDir = "./test-temp";
         options.chunkSize = 16 * 1024 * 1024;
-        options.pageSize = 4 * 1024;
+        options.metaPageSize = 4 * 1024;
+        options.blockSize = 4 * 1024;
         std::shared_ptr<FakeCSDataStore> dataStore =
             std::make_shared<FakeCSDataStore>(options, fs);
         copysetNode.SetCSDateStore(dataStore);
@@ -1077,6 +1079,55 @@ TEST_F(CopysetNodeTest, get_leader_status) {
                   leaderStatus.committed_index);
         ASSERT_EQ(mockLeaderStatus.known_applied_index,
                   leaderStatus.known_applied_index);
+    }
+}
+
+TEST_F(CopysetNodeTest, is_lease_leader) {
+    LogicPoolID logicPoolID = 1;
+    CopysetID copysetID = 1;
+    Configuration conf;
+    std::shared_ptr<MockNode> mockNode
+            = std::make_shared<MockNode>(logicPoolID,
+                                         copysetID);
+    CopysetNode copysetNode(logicPoolID, copysetID, conf);
+    copysetNode.Init(defaultOptions_);
+    copysetNode.SetCopysetNode(mockNode);
+
+    EXPECT_FALSE(copysetNode.IsLeaderTerm());
+    EXPECT_EQ(-1, copysetNode.LeaderTerm());
+
+    // not leader now
+    {
+        std::vector<braft::LeaseState> states = {
+            braft::LEASE_DISABLED,
+            braft::LEASE_VALID,
+            braft::LEASE_NOT_READY,
+            braft::LEASE_EXPIRED
+        };
+        braft::LeaderLeaseStatus status;
+        for (auto &state : states) {
+            status.state = state;
+            ASSERT_FALSE(copysetNode.IsLeaseLeader(status));
+        }
+    }
+
+    // ABA problem, current node is term 8(on leader start),
+    // but leader lease term is 10
+    {
+        copysetNode.on_leader_start(8);
+        braft::LeaderLeaseStatus status;
+        status.term = 10;
+        status.state = braft::LEASE_NOT_READY;
+        ASSERT_FALSE(copysetNode.IsLeaseLeader(status));
+    }
+
+    // normal condition
+    {
+        copysetNode.on_leader_start(10);
+        braft::LeaderLeaseStatus status;
+        status.term = 10;
+        status.state = braft::LEASE_VALID;
+        ASSERT_TRUE(copysetNode.IsLeaseLeader(status));
     }
 }
 

@@ -74,7 +74,8 @@ TEST_F(ExceptionTestSuit, ExceptionTest1) {
     DataStoreOptions options;
     options.baseDir = baseDir;
     options.chunkSize = CHUNK_SIZE;
-    options.pageSize = PAGE_SIZE;
+    options.metaPageSize = PAGE_SIZE;
+    options.blockSize = BLOCK_SIZE;
     // 构造新的dataStore_，并重新初始化,重启失败
     dataStore_ = std::make_shared<CSDataStore>(lfs_,
                                                filePool_,
@@ -130,7 +131,8 @@ TEST_F(ExceptionTestSuit, ExceptionTest2) {
     DataStoreOptions options;
     options.baseDir = baseDir;
     options.chunkSize = CHUNK_SIZE;
-    options.pageSize = PAGE_SIZE;
+    options.metaPageSize = PAGE_SIZE;
+    options.blockSize = BLOCK_SIZE;
     // 构造新的dataStore_，并重新初始化,重启失败
     dataStore_ = std::make_shared<CSDataStore>(lfs_,
                                                filePool_,
@@ -186,7 +188,8 @@ TEST_F(ExceptionTestSuit, ExceptionTest3) {
     DataStoreOptions options;
     options.baseDir = baseDir;
     options.chunkSize = CHUNK_SIZE;
-    options.pageSize = PAGE_SIZE;
+    options.metaPageSize = PAGE_SIZE;
+    options.blockSize = BLOCK_SIZE;
     // 构造新的dataStore_，并重新初始化,重启失败
     dataStore_ = std::make_shared<CSDataStore>(lfs_,
                                                filePool_,
@@ -251,7 +254,8 @@ TEST_F(ExceptionTestSuit, ExceptionTest4) {
     DataStoreOptions options;
     options.baseDir = baseDir;
     options.chunkSize = CHUNK_SIZE;
-    options.pageSize = PAGE_SIZE;
+    options.metaPageSize = PAGE_SIZE;
+    options.blockSize = BLOCK_SIZE;
     // 构造新的dataStore_，并重新初始化,重启失败
     dataStore_ = std::make_shared<CSDataStore>(lfs_,
                                                filePool_,
@@ -300,7 +304,8 @@ TEST_F(ExceptionTestSuit, ExceptionTest5) {
     DataStoreOptions options;
     options.baseDir = baseDir;
     options.chunkSize = CHUNK_SIZE;
-    options.pageSize = PAGE_SIZE;
+    options.metaPageSize = PAGE_SIZE;
+    options.blockSize = BLOCK_SIZE;
     // 构造新的dataStore_，并重新初始化,重启失败
     dataStore_ = std::make_shared<CSDataStore>(lfs_,
                                                filePool_,
@@ -383,7 +388,8 @@ TEST_F(ExceptionTestSuit, ExceptionTest6) {
     DataStoreOptions options;
     options.baseDir = baseDir;
     options.chunkSize = CHUNK_SIZE;
-    options.pageSize = PAGE_SIZE;
+    options.metaPageSize = PAGE_SIZE;
+    options.blockSize = BLOCK_SIZE;
     // 构造新的dataStore_，并重新初始化,重启失败
     dataStore_ = std::make_shared<CSDataStore>(lfs_,
                                                filePool_,
@@ -440,7 +446,8 @@ TEST_F(ExceptionTestSuit, ExceptionTest7) {
     chunkOption.sn = 1;
     chunkOption.baseDir = baseDir;
     chunkOption.chunkSize = CHUNK_SIZE;
-    chunkOption.pageSize = PAGE_SIZE;
+    chunkOption.blockSize = BLOCK_SIZE;
+    chunkOption.metaPageSize = PAGE_SIZE;
     CSSnapshot snapshot(lfs_, filePool_, chunkOption);
     errorCode = snapshot.Open(true);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
@@ -449,7 +456,8 @@ TEST_F(ExceptionTestSuit, ExceptionTest7) {
     DataStoreOptions options;
     options.baseDir = baseDir;
     options.chunkSize = CHUNK_SIZE;
-    options.pageSize = PAGE_SIZE;
+    options.metaPageSize = PAGE_SIZE;
+    options.blockSize = BLOCK_SIZE;
     // 构造新的dataStore_，并重新初始化,重启失败
     dataStore_ = std::make_shared<CSDataStore>(lfs_,
                                                filePool_,
@@ -553,7 +561,8 @@ TEST_F(ExceptionTestSuit, ExceptionTest8) {
     chunkOption.sn = 2;
     chunkOption.baseDir = baseDir;
     chunkOption.chunkSize = CHUNK_SIZE;
-    chunkOption.pageSize = PAGE_SIZE;
+    chunkOption.metaPageSize = PAGE_SIZE;
+    chunkOption.blockSize = BLOCK_SIZE;
     CSSnapshot snapshot(lfs_, filePool_, chunkOption);
     errorCode = snapshot.Open(true);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
@@ -562,7 +571,8 @@ TEST_F(ExceptionTestSuit, ExceptionTest8) {
     DataStoreOptions options;
     options.baseDir = baseDir;
     options.chunkSize = CHUNK_SIZE;
-    options.pageSize = PAGE_SIZE;
+    options.metaPageSize = PAGE_SIZE;
+    options.blockSize = BLOCK_SIZE;
     // 构造新的dataStore_，并重新初始化,重启失败
     dataStore_ = std::make_shared<CSDataStore>(lfs_,
                                                filePool_,
@@ -656,7 +666,8 @@ TEST_F(ExceptionTestSuit, ExceptionTest9) {
     chunkOption.sn = 1;
     chunkOption.baseDir = baseDir;
     chunkOption.chunkSize = CHUNK_SIZE;
-    chunkOption.pageSize = PAGE_SIZE;
+    chunkOption.metaPageSize = PAGE_SIZE;
+    chunkOption.blockSize = BLOCK_SIZE;
     CSSnapshot snapshot(lfs_, filePool_, chunkOption);
     errorCode = snapshot.Open(true);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
@@ -684,7 +695,8 @@ TEST_F(ExceptionTestSuit, ExceptionTest9) {
     DataStoreOptions options;
     options.baseDir = baseDir;
     options.chunkSize = CHUNK_SIZE;
-    options.pageSize = PAGE_SIZE;
+    options.metaPageSize = PAGE_SIZE;
+    options.blockSize = BLOCK_SIZE;
     // 构造新的dataStore_，并重新初始化,重启失败
     dataStore_ = std::make_shared<CSDataStore>(lfs_,
                                                filePool_,
@@ -805,7 +817,8 @@ TEST_F(ExceptionTestSuit, ExceptionTest10) {
     DataStoreOptions options;
     options.baseDir = baseDir;
     options.chunkSize = CHUNK_SIZE;
-    options.pageSize = PAGE_SIZE;
+    options.metaPageSize = PAGE_SIZE;
+    options.blockSize = BLOCK_SIZE;
     // 构造新的dataStore_，并重新初始化,重启失败
     dataStore_ = std::make_shared<CSDataStore>(lfs_,
                                                filePool_,
@@ -927,7 +940,8 @@ TEST_F(ExceptionTestSuit, ExceptionTest11) {
     DataStoreOptions options;
     options.baseDir = baseDir;
     options.chunkSize = CHUNK_SIZE;
-    options.pageSize = PAGE_SIZE;
+    options.metaPageSize = PAGE_SIZE;
+    options.blockSize = BLOCK_SIZE;
     // 构造新的dataStore_，并重新初始化,重启失败
     dataStore_ = std::make_shared<CSDataStore>(lfs_,
                                                filePool_,
@@ -1027,7 +1041,8 @@ TEST_F(ExceptionTestSuit, ExceptionTest12) {
     ASSERT_EQ(0, info.snapSn);
     ASSERT_EQ(correctedSn, info.correctedSn);
     ASSERT_EQ(id, info.chunkId);
-    ASSERT_EQ(PAGE_SIZE, info.pageSize);
+    ASSERT_EQ(PAGE_SIZE, info.metaPageSize);
+    ASSERT_EQ(BLOCK_SIZE, info.blockSize);
     ASSERT_EQ(CHUNK_SIZE, info.chunkSize);
     ASSERT_EQ(true, info.isClone);
     ASSERT_NE(nullptr, info.bitmap);
@@ -1051,7 +1066,8 @@ TEST_F(ExceptionTestSuit, ExceptionTest12) {
     DataStoreOptions options;
     options.baseDir = baseDir;
     options.chunkSize = CHUNK_SIZE;
-    options.pageSize = PAGE_SIZE;
+    options.blockSize = BLOCK_SIZE;
+    options.metaPageSize = PAGE_SIZE;
     // 构造新的dataStore_，并重新初始化,重启失败
     dataStore_ = std::make_shared<CSDataStore>(lfs_,
                                                filePool_,

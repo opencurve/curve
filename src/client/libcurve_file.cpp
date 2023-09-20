@@ -45,7 +45,7 @@
 #include "src/common/curve_version.h"
 #include "src/common/net_common.h"
 #include "src/common/uuid.h"
-#include "src/common/fast_align.h"
+#include "src/common/string_util.h"
 
 bool globalclientinited_ = false;
 curve::client::FileClient *globalclient = nullptr;
@@ -61,8 +61,6 @@ namespace client {
 
 using curve::common::ReadLockGuard;
 using curve::common::WriteLockGuard;
-
-uint32_t kMinIOAlignment = 512;
 
 namespace {
 
@@ -141,12 +139,7 @@ FileClient::FileClient()
       inited_(false),
       openedFileNum_("open_file_num_" + common::ToHexString(this)) {}
 
-bool FileClient::CheckAligned(off_t offset, size_t length) const {
-    return common::is_aligned(offset, kMinIOAlignment) &&
-           common::is_aligned(length, kMinIOAlignment);
-}
-
-int FileClient::Init(const std::string &configpath) {
+int FileClient::Init(const std::string& configpath) {
     if (inited_) {
         LOG(WARNING) << "already inited!";
         return 0;
@@ -219,15 +212,33 @@ void FileClient::UnInit() {
 int FileClient::Open(const std::string &filename, const UserInfo_t &userinfo,
                      const OpenFlags &openflags) {
     LOG(INFO) << "Opening filename: " << filename << ", flags: " << openflags;
+    ClientConfig clientConfig;
+    if (openflags.confPath.empty()) {
+        clientConfig = clientconfig_;
+    } else {
+        if (-1 == clientConfig.Init(openflags.confPath)) {
+            LOG(ERROR) << "config init client failed!";
+            return -LIBCURVE_ERROR::FAILED;
+        }
+    }
+
+    auto mdsClient = std::make_shared<MDSClient>();
+    auto res = mdsClient->Initialize(
+        clientConfig.GetFileServiceOption().metaServerOpt);
+    if (LIBCURVE_ERROR::OK != res) {
+        LOG(ERROR) << "Init mds client failed!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
     FileInstance *fileserv = FileInstance::NewInitedFileInstance(
-        clientconfig_.GetFileServiceOption(), mdsClient_, filename, userinfo,
+        clientConfig.GetFileServiceOption(), mdsClient, filename, userinfo,
         openflags, false);
     if (fileserv == nullptr) {
         LOG(ERROR) << "NewInitedFileInstance fail";
         return -1;
     }
 
-    int ret = fileserv->Open(filename, userinfo);
+    int ret = fileserv->Open();
     if (ret != LIBCURVE_ERROR::OK) {
         LOG(ERROR) << "Open file failed, filename: " << filename
                    << ", retCode: " << ret;
@@ -349,12 +360,6 @@ int FileClient::Read(int fd, char *buf, off_t offset, size_t len) {
         return -LIBCURVE_ERROR::OK;
     }
 
-    if (CheckAligned(offset, len) == false) {
-        LOG(ERROR) << "Read request not aligned, length = " << len
-                   << ", offset = " << offset << ", fd = " << fd;
-        return -LIBCURVE_ERROR::NOT_ALIGNED;
-    }
-
     ReadLockGuard lk(rwlock_);
     if (CURVE_UNLIKELY(fileserviceMap_.find(fd) == fileserviceMap_.end())) {
         LOG(ERROR) << "invalid fd!";
@@ -368,12 +373,6 @@ int FileClient::Write(int fd, const char *buf, off_t offset, size_t len) {
     // 长度为0，直接返回，不做任何操作
     if (len == 0) {
         return -LIBCURVE_ERROR::OK;
-    }
-
-    if (CheckAligned(offset, len) == false) {
-        LOG(ERROR) << "Write request not aligned, length = " << len
-                   << ", offset = " << offset << ", fd = " << fd;
-        return -LIBCURVE_ERROR::NOT_ALIGNED;
     }
 
     ReadLockGuard lk(rwlock_);
@@ -403,19 +402,14 @@ int FileClient::AioRead(int fd, CurveAioContext *aioctx,
         return -LIBCURVE_ERROR::OK;
     }
 
-    if (CheckAligned(aioctx->offset, aioctx->length) == false) {
-        LOG(ERROR) << "AioRead request not aligned, length = " << aioctx->length
-                   << ", offset = " << aioctx->offset << ", fd = " << fd;
-        return -LIBCURVE_ERROR::NOT_ALIGNED;
-    }
-
     int ret = -LIBCURVE_ERROR::FAILED;
     ReadLockGuard lk(rwlock_);
-    if (CURVE_UNLIKELY(fileserviceMap_.find(fd) == fileserviceMap_.end())) {
+    auto it = fileserviceMap_.find(fd);
+    if (CURVE_UNLIKELY(it == fileserviceMap_.end())) {
         LOG(ERROR) << "invalid fd!";
         ret = -LIBCURVE_ERROR::BAD_FD;
     } else {
-        ret = fileserviceMap_[fd]->AioRead(aioctx, dataType);
+        ret = it->second->AioRead(aioctx, dataType);
     }
 
     return ret;
@@ -428,20 +422,14 @@ int FileClient::AioWrite(int fd, CurveAioContext *aioctx,
         return -LIBCURVE_ERROR::OK;
     }
 
-    if (CheckAligned(aioctx->offset, aioctx->length) == false) {
-        LOG(ERROR) << "AioWrite request not aligned, length = "
-                   << aioctx->length << ", offset = " << aioctx->offset
-                   << ", fd = " << fd;
-        return -LIBCURVE_ERROR::NOT_ALIGNED;
-    }
-
     int ret = -LIBCURVE_ERROR::FAILED;
     ReadLockGuard lk(rwlock_);
-    if (CURVE_UNLIKELY(fileserviceMap_.find(fd) == fileserviceMap_.end())) {
+    auto it = fileserviceMap_.find(fd);
+    if (CURVE_UNLIKELY(it == fileserviceMap_.end())) {
         LOG(ERROR) << "invalid fd!";
         ret = -LIBCURVE_ERROR::BAD_FD;
     } else {
-        ret = fileserviceMap_[fd]->AioWrite(aioctx, dataType);
+        ret = it->second->AioWrite(aioctx, dataType);
     }
 
     return ret;
@@ -517,6 +505,23 @@ int FileClient::Recover(const std::string &filename, const UserInfo_t &userinfo,
     return -ret;
 }
 
+int FileClient::StatFile(int fd, FileStatInfo *finfo) {
+    FInfo_t fi;
+    {
+        ReadLockGuard lk(rwlock_);
+        auto iter = fileserviceMap_.find(fd);
+        if (iter == fileserviceMap_.end()) {
+            LOG(ERROR) << "StatFile failed not found fd = " << fd;
+            return -LIBCURVE_ERROR::FAILED;
+        }
+        FileInstance *instance = fileserviceMap_[fd];
+        fi = instance->GetCurrentFileInfo();
+    }
+    BuildFileStatInfo(fi, finfo);
+
+    return LIBCURVE_ERROR::OK;
+}
+
 int FileClient::StatFile(const std::string &filename,
                          const UserInfo_t &userinfo, FileStatInfo *finfo) {
     FInfo_t fi;
@@ -532,20 +537,7 @@ int FileClient::StatFile(const std::string &filename,
     }
 
     if (ret == LIBCURVE_ERROR::OK) {
-        finfo->id = fi.id;
-        finfo->parentid = fi.parentid;
-        finfo->ctime = fi.ctime;
-        finfo->length = fi.length;
-        finfo->filetype = fi.filetype;
-        finfo->stripeUnit = fi.stripeUnit;
-        finfo->stripeCount = fi.stripeCount;
-
-        memcpy(finfo->filename, fi.filename.c_str(),
-               std::min(sizeof(finfo->filename), fi.filename.size() + 1));
-        memcpy(finfo->owner, fi.owner.c_str(),
-               std::min(sizeof(finfo->owner), fi.owner.size() + 1));
-
-        finfo->fileStatus = static_cast<int>(fi.filestatus);
+        BuildFileStatInfo(fi, finfo);
     }
 
     return -ret;
@@ -712,6 +704,24 @@ std::vector<std::string> FileClient::ListPoolset() {
     LOG_IF(WARNING, ret != LIBCURVE_ERROR::OK)
             << "Failed to list poolset, error: " << ret;
     return out;
+}
+
+void FileClient::BuildFileStatInfo(const FInfo_t &fi, FileStatInfo *finfo) {
+    finfo->id = fi.id;
+    finfo->parentid = fi.parentid;
+    finfo->ctime = fi.ctime;
+    finfo->length = fi.length;
+    finfo->blocksize = fi.blocksize;
+    finfo->filetype = fi.filetype;
+    finfo->stripeUnit = fi.stripeUnit;
+    finfo->stripeCount = fi.stripeCount;
+
+    memcpy(finfo->filename, fi.filename.c_str(),
+               std::min(sizeof(finfo->filename), fi.filename.size() + 1));
+    memcpy(finfo->owner, fi.owner.c_str(),
+            std::min(sizeof(finfo->owner), fi.owner.size() + 1));
+
+    finfo->fileStatus = static_cast<int>(fi.filestatus);
 }
 
 bool FileClient::StartDummyServer() {

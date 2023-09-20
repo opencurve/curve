@@ -71,4 +71,6 @@ struct HeartbeatOption {
     int64_t rpcTimeoutMs;
 };
 
+constexpr uint32_t kDefaultBlockSize = 4096;
+
 #endif  // NEBD_SRC_PART1_NEBD_COMMON_H_

@@ -38,6 +38,7 @@
 #include "curvefs/src/metaserver/trash_manager.h"
 #include "curvefs/src/metaserver/storage/storage.h"
 #include "curvefs/src/metaserver/storage/rocksdb_perf.h"
+#include "curvefs/src/metaserver/mds/fsinfo_manager.h"
 #include "src/common/crc32.h"
 #include "src/common/curve_version.h"
 #include "src/common/s3_adapter.h"
@@ -46,6 +47,7 @@
 #include "src/common/uri_parser.h"
 #include "curvefs/src/metaserver/resource_statistic.h"
 #include "src/fs/ext4_filesystem_impl.h"
+#include "curvefs/src/metaserver/metacli_manager.h"
 
 namespace braft {
 
@@ -99,6 +101,9 @@ void Metaserver::InitOptions(std::shared_ptr<Configuration> conf) {
             << "Parse bthread.worker_count to int failed, string value: "
             << value;
     }
+    conf_->GetValueFatalIfFail("server.idleTimeoutSec",
+                               &options_.idleTimeoutSec);
+
 
     InitBRaftFlags(conf);
 }
@@ -131,8 +136,8 @@ void Metaserver::InitLocalFileSystem() {
 void InitS3Option(const std::shared_ptr<Configuration>& conf,
                   S3ClientAdaptorOption* s3Opt) {
     LOG_IF(FATAL, !conf->GetUInt64Value("s3.batchsize", &s3Opt->batchSize));
-    LOG_IF(FATAL, !conf->GetBoolValue("s3.enableDeleteObjects",
-                                      &s3Opt->enableDeleteObjects));
+    LOG_IF(FATAL, !conf->GetBoolValue("s3.enableBatchDelete",
+                                      &s3Opt->enableBatchDelete));
 }
 
 void Metaserver::InitPartitionOption(std::shared_ptr<S3ClientAdaptor> s3Adaptor,
@@ -155,6 +160,16 @@ void Metaserver::InitRecycleManagerOption(
                                          &recycleManagerOption->scanPeriodSec));
     LOG_IF(FATAL, !conf_->GetUInt32Value("recycle.cleaner.scanLimit",
                                          &recycleManagerOption->scanLimit));
+}
+
+void Metaserver::InitVolumeDeallocateOption(
+    VolumeDeallocateWorkerQueueOption *queueOpt,
+    VolumeDeallocateExecuteOption *execOpt) {
+    conf_->GetValueFatalIfFail("volume.deallocate.enable", &queueOpt->enable);
+    conf_->GetValueFatalIfFail("volume.deallocate.workerNum",
+                               &queueOpt->workerNum);
+    conf_->GetValueFatalIfFail("volume.deallocate.batchClean",
+                               &execOpt->batchClean);
 }
 
 void InitExcutorOption(const std::shared_ptr<Configuration>& conf,
@@ -205,6 +220,8 @@ void Metaserver::Init() {
     mdsClient_ = std::make_shared<MdsClientImpl>();
     mdsClient_->Init(mdsOptions_, mdsBase_);
 
+    FsInfoManager::GetInstance().SetMdsClient(mdsClient_);
+
     // init metaserver client for recycle
     InitMetaClient();
 
@@ -242,6 +259,20 @@ void Metaserver::Init() {
 
     S3CompactManager::GetInstance().Init(conf_);
 
+    VolumeSpaceManagerOptions spaceManagerOpt;
+    spaceManagerOpt.mdsClient = mdsClient_;
+    conf_->GetValueFatalIfFail("volume.sdk.confPath",
+                               &spaceManagerOpt.deviceOpt.configPath);
+    auto volumeSpaceMgr = std::make_shared<VolumeSpaceManager>();
+    volumeSpaceMgr->Init(spaceManagerOpt);
+
+    VolumeDeallocateWorkerQueueOption queueOpt;
+    VolumeDeallocateExecuteOption executeOpt;
+    executeOpt.metaClient = metaClient_;
+    executeOpt.volumeSpaceManager = std::move(volumeSpaceMgr);
+    InitVolumeDeallocateOption(&queueOpt, &executeOpt);
+    VolumeDeallocateManager::GetInstance().Init(queueOpt, executeOpt);
+
     PartitionCleanOption partitionCleanOption;
     InitPartitionOption(s3Adaptor_, mdsClient_, &partitionCleanOption);
     PartitionCleanManager::GetInstance().Init(partitionCleanOption);
@@ -263,6 +294,15 @@ void Metaserver::InitMetaClient() {
     InitExcutorOption(conf_, &excutorOpt, false);
     InitExcutorOption(conf_, &internalOpt, true);
     metaClient_->Init(excutorOpt, internalOpt, metaCache, channelManager);
+
+    MetaCliManagerOpt opt;
+    opt.metaCacheOpt = std::move(metaCacheOpt);
+    opt.executorOpt = std::move(excutorOpt);
+    opt.internalOpt = std::move(internalOpt);
+    opt.cli2Cli = cli2Client;
+    opt.mdsCli = mdsClient_;
+    opt.channelManager = channelManager;
+    MetaCliManager::GetInstance().Init(std::move(opt));
 }
 
 void Metaserver::GetMetaserverDataByLoadOrRegister() {
@@ -455,6 +495,7 @@ void Metaserver::Run() {
     if (options_.bthreadWorkerCount != -1) {
         option.num_threads = options_.bthreadWorkerCount;
     }
+    option.idle_timeout_sec = options_.idleTimeoutSec;
     LOG_IF(FATAL, server_->Start(listenAddr, &option) != 0)
         << "start internal brpc server error";
 
@@ -490,6 +531,9 @@ void Metaserver::Run() {
     LOG_IF(FATAL, S3CompactManager::GetInstance().Run() != 0);
     running_ = true;
 
+    // start volume deallocate manager
+    VolumeDeallocateManager::GetInstance().Run();
+
     // start copyset node manager
     LOG_IF(FATAL, !copysetNodeManager_->Start())
         << "Failed to start copyset node manager";
@@ -524,6 +568,7 @@ void Metaserver::Stop() {
 
     s3Adaptor_ = nullptr;
     S3CompactManager::GetInstance().Stop();
+    VolumeDeallocateManager::GetInstance().Stop();
     LOG(INFO) << "MetaServer stopped success";
 }
 
@@ -619,60 +664,48 @@ void Metaserver::InitCopysetNodeOptions() {
            copysetNodeOptions_.port <= 0 || copysetNodeOptions_.port >= 65535)
         << "Invalid server port: " << copysetNodeOptions_.port;
 
-    LOG_IF(FATAL, !conf_->GetStringValue("copyset.data_uri",
-                                         &copysetNodeOptions_.dataUri));
-    LOG_IF(FATAL,
-           !conf_->GetIntValue(
-               "copyset.election_timeout_ms",
-               &copysetNodeOptions_.raftNodeOptions.election_timeout_ms));
-    LOG_IF(FATAL,
-           !conf_->GetIntValue(
-               "copyset.snapshot_interval_s",
-               &copysetNodeOptions_.raftNodeOptions.snapshot_interval_s));
-    LOG_IF(FATAL, !conf_->GetIntValue(
-                      "copyset.catchup_margin",
-                      &copysetNodeOptions_.raftNodeOptions.catchup_margin));
-    LOG_IF(FATAL, !conf_->GetStringValue(
-                      "copyset.raft_log_uri",
-                      &copysetNodeOptions_.raftNodeOptions.log_uri));
-    LOG_IF(FATAL, !conf_->GetStringValue(
-                      "copyset.raft_meta_uri",
-                      &copysetNodeOptions_.raftNodeOptions.raft_meta_uri));
-    LOG_IF(FATAL, !conf_->GetStringValue(
-                      "copyset.raft_snapshot_uri",
-                      &copysetNodeOptions_.raftNodeOptions.snapshot_uri));
-    LOG_IF(FATAL, !conf_->GetUInt32Value("copyset.load_concurrency",
-                                         &copysetNodeOptions_.loadConcurrency));
-    LOG_IF(FATAL, !conf_->GetUInt32Value("copyset.check_retrytimes",
-                                         &copysetNodeOptions_.checkRetryTimes));
-    LOG_IF(FATAL,
-           !conf_->GetUInt32Value("copyset.finishload_margin",
-                                  &copysetNodeOptions_.finishLoadMargin));
-    LOG_IF(FATAL, !conf_->GetUInt32Value(
-                      "copyset.check_loadmargin_interval_ms",
-                      &copysetNodeOptions_.checkLoadMarginIntervalMs));
+    bool ret = conf_->GetBoolValue("copyset.enable_lease_read",
+                &copysetNodeOptions_.enbaleLeaseRead);
+    LOG_IF(WARNING, ret == false)
+        << "config no copyset.enable_lease_read info, using default value "
+        << copysetNodeOptions_.enbaleLeaseRead;
 
-    LOG_IF(FATAL, !conf_->GetIntValue(
-                      "applyqueue.write_worker_count",
-                      &copysetNodeOptions_.applyQueueOption.wconcurrentsize));
-    LOG_IF(FATAL, !conf_->GetIntValue(
-                      "applyqueue.write_queue_depth",
-                      &copysetNodeOptions_.applyQueueOption.wqueuedepth));
-    LOG_IF(FATAL, !conf_->GetIntValue(
-                      "applyqueue.read_worker_count",
-                      &copysetNodeOptions_.applyQueueOption.rconcurrentsize));
-    LOG_IF(FATAL, !conf_->GetIntValue(
-                      "applyqueue.read_queue_depth",
-                      &copysetNodeOptions_.applyQueueOption.rqueuedepth));
-    LOG_IF(FATAL,
-           !conf_->GetStringValue("copyset.trash.uri",
-                                  &copysetNodeOptions_.trashOptions.trashUri));
-    LOG_IF(FATAL, !conf_->GetUInt32Value(
-                      "copyset.trash.expired_aftersec",
-                      &copysetNodeOptions_.trashOptions.expiredAfterSec));
-    LOG_IF(FATAL, !conf_->GetUInt32Value(
-                      "copyset.trash.scan_periodsec",
-                      &copysetNodeOptions_.trashOptions.scanPeriodSec));
+    LOG_IF(FATAL, !conf_->GetStringValue("copyset.data_uri",
+                &copysetNodeOptions_.dataUri));
+    LOG_IF(FATAL, !conf_->GetIntValue("copyset.election_timeout_ms",
+                &copysetNodeOptions_.raftNodeOptions.election_timeout_ms));
+    LOG_IF(FATAL, !conf_->GetIntValue("copyset.snapshot_interval_s",
+                &copysetNodeOptions_.raftNodeOptions.snapshot_interval_s));
+    LOG_IF(FATAL, !conf_->GetIntValue("copyset.catchup_margin",
+                &copysetNodeOptions_.raftNodeOptions.catchup_margin));
+    LOG_IF(FATAL, !conf_->GetStringValue("copyset.raft_log_uri",
+                &copysetNodeOptions_.raftNodeOptions.log_uri));
+    LOG_IF(FATAL, !conf_->GetStringValue("copyset.raft_meta_uri",
+                &copysetNodeOptions_.raftNodeOptions.raft_meta_uri));
+    LOG_IF(FATAL, !conf_->GetStringValue("copyset.raft_snapshot_uri",
+                &copysetNodeOptions_.raftNodeOptions.snapshot_uri));
+    LOG_IF(FATAL, !conf_->GetUInt32Value("copyset.load_concurrency",
+                &copysetNodeOptions_.loadConcurrency));
+    LOG_IF(FATAL, !conf_->GetUInt32Value("copyset.check_retrytimes",
+                &copysetNodeOptions_.checkRetryTimes));
+    LOG_IF(FATAL, !conf_->GetUInt32Value("copyset.finishload_margin",
+                &copysetNodeOptions_.finishLoadMargin));
+    LOG_IF(FATAL, !conf_->GetUInt32Value("copyset.check_loadmargin_interval_ms",  // NOLINT
+                &copysetNodeOptions_.checkLoadMarginIntervalMs));
+    LOG_IF(FATAL, !conf_->GetIntValue("applyqueue.write_worker_count",
+                &copysetNodeOptions_.applyQueueOption.wconcurrentsize));
+    LOG_IF(FATAL, !conf_->GetIntValue("applyqueue.write_queue_depth",
+                &copysetNodeOptions_.applyQueueOption.wqueuedepth));
+    LOG_IF(FATAL, !conf_->GetIntValue("applyqueue.read_worker_count",
+                &copysetNodeOptions_.applyQueueOption.rconcurrentsize));
+    LOG_IF(FATAL, !conf_->GetIntValue("applyqueue.read_queue_depth",
+                &copysetNodeOptions_.applyQueueOption.rqueuedepth));
+    LOG_IF(FATAL, !conf_->GetStringValue("copyset.trash.uri",
+                &copysetNodeOptions_.trashOptions.trashUri));
+    LOG_IF(FATAL, !conf_->GetUInt32Value("copyset.trash.expired_aftersec",
+                &copysetNodeOptions_.trashOptions.expiredAfterSec));
+    LOG_IF(FATAL, !conf_->GetUInt32Value("copyset.trash.scan_periodsec",
+                &copysetNodeOptions_.trashOptions.scanPeriodSec));
 
     CHECK(localFileSystem_);
     copysetNodeOptions_.localFileSystem = localFileSystem_.get();

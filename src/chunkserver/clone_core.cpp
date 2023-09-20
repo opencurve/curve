@@ -140,24 +140,24 @@ int CloneCore::CloneReadByLocalInfo(
     const ChunkRequest* request = readRequest->request_;
     off_t offset = request->offset();
     size_t length = request->size();
-    uint32_t pageSize = chunkInfo.pageSize;
+    const uint32_t blockSize = chunkInfo.blockSize;
 
-    // offset 和 length 必须与 pageSize 对齐
-    if (offset % pageSize != 0 || length % pageSize != 0) {
+    // offset and length must be aligned with blockSize
+    if (offset % blockSize != 0 || length % blockSize != 0) {
         LOG(ERROR) << "Invalid offset or length: "
                    << " logic pool id: " << request->logicpoolid()
                    << " copyset id: " << request->copysetid()
                    << " chunkid: " << request->chunkid()
                    << " offset: " << offset
                    << " length: " << length
-                   << " page size: " << pageSize;
+                   << " block size: " << blockSize;
         SetResponse(readRequest,
                     CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
         return -1;
     }
 
-    uint32_t beginIndex = offset / pageSize;
-    uint32_t endIndex = (offset + length - 1) / pageSize;
+    uint32_t beginIndex = offset / blockSize;
+    uint32_t endIndex = (offset + length - 1) / blockSize;
 
     // 请求提交到CloneManager的时候，chunk一定是clone chunk
     // 但是由于有其他请求操作相同的chunk，此时chunk有可能已经被遍写过了
@@ -358,9 +358,9 @@ int CloneCore::ReadThenMerge(std::shared_ptr<ReadChunkRequest> readRequest,
 
     off_t offset = request->offset();
     size_t length = request->size();
-    uint32_t pageSize = chunkInfo.pageSize;
-    uint32_t beginIndex = offset / pageSize;
-    uint32_t endIndex = (offset + length - 1) / pageSize;
+    uint32_t blockSize = chunkInfo.blockSize;
+    uint32_t beginIndex = offset / blockSize;
+    uint32_t endIndex = (offset + length - 1) / blockSize;
     // 获取chunk文件已经写过和未被写过的区域
     std::vector<BitRange> copiedRanges;
     std::vector<BitRange> uncopiedRanges;
@@ -385,8 +385,8 @@ int CloneCore::ReadThenMerge(std::shared_ptr<ReadChunkRequest> readRequest,
     // 1.Read 对于已写过的区域，从chunk文件中读取
     CSErrorCode errorCode;
     for (auto& range : copiedRanges) {
-        readOff = range.beginIndex * pageSize;
-        readSize = (range.endIndex - range.beginIndex + 1) * pageSize;
+        readOff = range.beginIndex * blockSize;
+        readSize = (range.endIndex - range.beginIndex + 1) * blockSize;
         relativeOff = readOff - offset;
         errorCode = dataStore->ReadChunk(request->chunkid(),
                                          request->sn(),
@@ -407,8 +407,8 @@ int CloneCore::ReadThenMerge(std::shared_ptr<ReadChunkRequest> readRequest,
 
     // 2.Merge 对于未写过的区域，从源端下载的区域中拷贝出来进行merge
     for (auto& range : uncopiedRanges) {
-        readOff = range.beginIndex * pageSize;
-        readSize = (range.endIndex - range.beginIndex + 1) * pageSize;
+        readOff = range.beginIndex * blockSize;
+        readSize = (range.endIndex - range.beginIndex + 1) * blockSize;
         relativeOff = readOff - offset;
         cloneData->copy_to(chunkData + relativeOff, readSize, relativeOff);
     }

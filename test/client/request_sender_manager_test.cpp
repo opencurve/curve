@@ -32,7 +32,6 @@ TEST(RequestSenderManagerTest, basic_test) {
     IOSenderOption ioSenderOpt;
     ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
     ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
-    ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
 
     std::unique_ptr<RequestSenderManager> senderManager(
         new RequestSenderManager());
@@ -53,7 +52,6 @@ TEST(RequestSenderManagerTest, fail_test) {
     IOSenderOption ioSenderOpt;
     ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
     ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
-    ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
 
     std::unique_ptr<RequestSenderManager> senderManager(
         new RequestSenderManager());

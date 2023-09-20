@@ -30,14 +30,25 @@ import (
 	"github.com/spf13/viper"
 
 	cobratemplate "github.com/opencurve/curve/tools-v2/internal/utils/template"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/completion"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/upgrade"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/version"
 	config "github.com/opencurve/curve/tools-v2/pkg/config"
 )
 
 func addSubCommands(cmd *cobra.Command) {
-	cmd.AddCommand(curvefs.NewCurveFsCommand(), curvebs.NewCurveBsCommand())
+	completionCmd := completion.NewCompletionCommand()
+	cmd.AddCommand(
+		curvefs.NewCurveFsCommand(),
+		curvebs.NewCurveBsCommand(),
+		completionCmd,
+		upgrade.NewUpgradeCurveCommand(),
+	)
+	
+	// build completion
+	cobratemplate.SetupCompletionCommand(completionCmd)
 }
 
 func setupRootCommand(cmd *cobra.Command) {

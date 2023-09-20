@@ -41,6 +41,7 @@ const char* kFileName = "nebd-lib-test-filename";
 const char* kNebdServerTestAddress = "./nebd-lib-unittest.sock";
 const char* kNebdClientConf = "./nebd/test/part1/nebd-lib-test.conf";
 const int64_t kFileSize = 10LL * 1024 * 1024 * 1024;
+const uint32_t kBlockSize = 4096;
 const int64_t kBufSize = 1024;
 
 namespace nebd {
@@ -89,7 +90,7 @@ class NebdLibTest : public ::testing::Test {
     }
 
     brpc::Server server;
-    FakeNebdFileService fakeService;
+    FakeNebdFileService fakeService{kBlockSize};
     MockNebdFileService mockService;
 };
 
@@ -106,6 +107,7 @@ TEST_F(NebdLibTest, CommonTest) {
     ASSERT_EQ(0, nebd_lib_resize(fd, kFileSize));
     ASSERT_EQ(kFileSize, nebd_lib_filesize(fd));
     ASSERT_EQ(kFileSize, nebd_lib_getinfo(fd));
+    ASSERT_EQ(kBlockSize, nebd_lib_blocksize(fd));
     ASSERT_EQ(0, nebd_lib_invalidcache(fd));
 
     ASSERT_EQ(-1, nebd_lib_pread(fd, 0, 0, 0));

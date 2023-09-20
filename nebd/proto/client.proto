@@ -98,6 +98,7 @@ message FileInfo {
    required uint64 size = 1;
    required uint64 objSize = 2;
    required uint64 objNums = 3;
+   optional uint32 blocksize = 4;
 }
 
 message GetInfoRequest {

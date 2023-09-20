@@ -79,7 +79,7 @@ message ZoneData {
 
 message ServerData {
     required uint32 serverId = 1;
-    required string hostName = 2;
+    optional string hostName = 2;
     required string internalIP = 3;
     required uint32 internalPort = 4;
     required string externalIP = 5;
@@ -90,7 +90,7 @@ message ServerData {
 
 message MetaServerData {
     required uint32 MetaServerId = 1;
-    required string hostName = 2;
+    optional string hostName = 2;
     required string token = 3;
     required string internalIP = 4;
     required uint32 internalPort = 5;
@@ -131,7 +131,7 @@ message MetaServerInfo {
 
 // MetaServer message
 message MetaServerRegistRequest {
-    required string hostName = 1;
+    optional string hostName = 1;
     required string internalIp = 2;
     required uint32 internalPort = 3;
     required string externalIp = 4;
@@ -188,7 +188,7 @@ message ServerInfo {
 }
 
 message ServerRegistRequest {
-    required string hostName = 1;
+    optional string hostName = 1;
     required string internalIp = 2;
     optional uint32 internalPort = 3;
     required string externalIp = 4;

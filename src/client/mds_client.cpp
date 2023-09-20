@@ -278,17 +278,21 @@ LIBCURVE_ERROR MDSClient::OpenFile(const std::string &filename,
 
         bool flag = response.has_protosession() && response.has_fileinfo();
         if (flag) {
-            ProtoSession leasesession = response.protosession();
+            const ProtoSession &leasesession = response.protosession();
             lease->sessionID = leasesession.sessionid();
             lease->leaseTime = leasesession.leasetime();
             lease->createTime = leasesession.createtime();
 
             const curve::mds::FileInfo &protoFileInfo = response.fileinfo();
+            LOG(INFO) << "OpenFile succeeded, filename: " << filename
+                      << ", file info " << protoFileInfo.DebugString();
             ServiceHelper::ProtoFileInfo2Local(protoFileInfo, fi, fEpoch);
 
-            if (protoFileInfo.has_clonesource() &&
-                protoFileInfo.filestatus() ==
-                    curve::mds::FileStatus::kFileCloneMetaInstalled) {
+            const bool isLazyCloneFile =
+                protoFileInfo.has_clonesource() &&
+                (protoFileInfo.filestatus() ==
+                 curve::mds::FileStatus::kFileCloneMetaInstalled);
+            if (isLazyCloneFile) {
                 if (!response.has_clonesourcesegment()) {
                     LOG(WARNING) << filename
                                  << " has clone source and status is "
@@ -464,7 +468,8 @@ LIBCURVE_ERROR MDSClient::IncreaseEpoch(const std::string& filename,
             butil::str2endpoint(response.cslocs(i).hostip().c_str(),
                     response.cslocs(i).port(), &internal);
             EndPoint external;
-            if (response.cslocs(i).has_externalip()) {
+            const bool hasExternalIp = response.cslocs(i).has_externalip();
+            if (hasExternalIp) {
                 butil::str2endpoint(response.cslocs(i).externalip().c_str(),
                     response.cslocs(i).port(), &external);
             }

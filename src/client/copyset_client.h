@@ -85,7 +85,6 @@ class CopysetClient {
      * @param sn:文件版本号
      * @param offset:读的偏移
      * @param length:读的长度
-     * @param appliedindex:需要读到>=appliedIndex的数据
      * @param souceInfo chunk克隆源信息
      * @param done:上一层异步回调的closure
      */
@@ -93,7 +92,6 @@ class CopysetClient {
                   uint64_t sn,
                   off_t offset,
                   size_t length,
-                  uint64_t appliedindex,
                   const RequestSourceInfo& sourceInfo,
                   google::protobuf::Closure *done);
 

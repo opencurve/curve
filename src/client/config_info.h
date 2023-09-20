@@ -138,11 +138,6 @@ struct ChunkServerUnstableOption {
  * copyset 标记为unstable，促使其下次发送rpc前，先去getleader。
  * @chunkserverMinRetryTimesForceTimeoutBackoff:
  * 当一个请求重试次数超过阈值时，还在重试 使其超时时间进行指数退避
- * @chunkserverMaxRetryTimesBeforeConsiderSuspend:
- * rpc重试超过这个次数后被认为是悬挂IO，
- *                          因为发往chunkserver底层的rpc重试次数非常大，如果一个rpc连续
- *                          失败超过该阈值的时候，可以认为当前IO处于悬挂状态，通过metric
- *                          向上报警。
  */
 struct FailureRequestOption {
     uint32_t chunkserverOPMaxRetry = 3;
@@ -151,17 +146,19 @@ struct FailureRequestOption {
     uint64_t chunkserverMaxRPCTimeoutMS = 64000;
     uint64_t chunkserverMaxRetrySleepIntervalUS = 64ull * 1000 * 1000;
     uint64_t chunkserverMinRetryTimesForceTimeoutBackoff = 5;
-    uint64_t chunkserverMaxRetryTimesBeforeConsiderSuspend = 20;
+
+    // When a request remains outstanding beyond this threshold, it is marked as
+    // a slow request.
+    // Default: 45s
+    uint32_t chunkserverSlowRequestThresholdMS = 45 * 1000;
 };
 
 /**
  * 发送rpc给chunkserver的配置
- * @chunkserverEnableAppliedIndexRead: 是否开启使用appliedindex read
  * @inflightOpt: 一个文件向chunkserver发送请求时的inflight 请求控制配置
  * @failRequestOpt: rpc发送失败之后，需要进行rpc重试的相关配置
  */
 struct IOSenderOption {
-    bool chunkserverEnableAppliedIndexRead;
     InFlightIOCntlInfo inflightOpt;
     FailureRequestOption failRequestOpt;
 };
@@ -210,11 +207,6 @@ struct MetaCacheOption {
     ChunkServerUnstableOption chunkserverUnstableOption;
 };
 
-struct AlignmentOption {
-    uint32_t commonVolume = 512;
-    uint32_t cloneVolume = 4096;
-};
-
 /**
  * IO 拆分模块配置信息
  * @fileIOSplitMaxSizeKB:
@@ -223,7 +215,6 @@ struct AlignmentOption {
  */
 struct IOSplitOption {
     uint64_t fileIOSplitMaxSizeKB = 64;
-    AlignmentOption alignment;
 };
 
 /**

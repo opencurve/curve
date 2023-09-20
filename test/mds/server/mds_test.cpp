@@ -22,6 +22,7 @@
 
 #include <fiu-control.h>
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
 #include <brpc/channel.h>
 #include <json/json.h>
 #include <string>
@@ -32,6 +33,8 @@
 #include "src/common/timeutility.h"
 #include "src/common/string_util.h"
 
+#include "test/mds/mock/mock_etcdclient.h"
+
 using ::curve::common::Thread;
 
 DECLARE_string(mdsAddr);
@@ -39,6 +42,9 @@ DECLARE_string(etcdAddr);
 
 namespace curve {
 namespace mds {
+
+extern uint32_t g_block_size;
+
 class MDSTest : public ::testing::Test {
  protected:
     void SetUp() {
@@ -48,18 +54,16 @@ class MDSTest : public ::testing::Test {
         if (0 > etcdPid) {
             ASSERT_TRUE(false);
         } else if (0 == etcdPid) {
-            std::string runEtcd =
-                std::string("etcd --listen-client-urls") +
-                std::string(" 'http://localhost:10032'") +
-                std::string(" --advertise-client-urls") +
-                std::string(" 'http://localhost:10032'") +
-                std::string(" --listen-peer-urls 'http://localhost:10033'") +
-                std::string(" --name testMds");
             /**
              *  重要提示！！！！
              *  fork后，子进程尽量不要用LOG()打印，可能死锁！！！
              */
-            ASSERT_EQ(0, execl("/bin/sh", "sh", "-c", runEtcd.c_str(), NULL));
+            ASSERT_EQ(0, execlp("etcd", "etcd", "--listen-client-urls",
+                                "http://localhost:10032",
+                                "--advertise-client-urls",
+                                "http://localhost:10032", "--listen-peer-urls",
+                                "http://localhost:10033", "--name", "testMds",
+                                nullptr));
             exit(0);
         }
         // 一定时间内尝试init直到etcd完全起来
@@ -251,6 +255,45 @@ TEST(TestParsePoolsetRules, Test) {
         ASSERT_EQ("system", rules["/system/"]);
         ASSERT_EQ("data", rules["/data/"]);
         ASSERT_EQ("system-sub", rules["/system/sub/"]);
+    }
+}
+
+TEST_F(MDSTest, TestBlockSize) {
+    using ::testing::_;
+    using ::testing::Return;
+    using ::testing::Invoke;
+
+    auto client = std::make_shared<MockEtcdClient>();
+
+    // etcd doesn't has block size on startup
+    {
+        EXPECT_CALL(*client, Get(_, _))
+            .WillOnce(Return(EtcdErrCode::EtcdKeyNotExist));
+        EXPECT_CALL(*client, Put(_, _))
+            .WillOnce(Return(EtcdErrCode::EtcdOK));
+        ASSERT_TRUE(CheckOrInsertBlockSize(client.get()));
+    }
+
+    // etcd has block size but different with `g_block_size`
+    {
+        g_block_size = 4096;
+        EXPECT_CALL(*client, Get(_, _))
+            .WillOnce(Invoke([](const std::string&, std::string* value) {
+                *value = std::to_string(g_block_size / 2);
+                return EtcdErrCode::EtcdOK;
+            }));
+        ASSERT_FALSE(CheckOrInsertBlockSize(client.get()));
+    }
+
+    // etcd has block size
+    {
+        g_block_size = 4096;
+        EXPECT_CALL(*client, Get(_, _))
+            .WillOnce(Invoke([](const std::string&, std::string* value) {
+                *value = std::to_string(g_block_size);
+                return EtcdErrCode::EtcdOK;
+            }));
+        ASSERT_TRUE(CheckOrInsertBlockSize(client.get()));
     }
 }
 
