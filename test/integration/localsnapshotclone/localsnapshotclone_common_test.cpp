@@ -170,6 +170,8 @@ const std::vector<std::string> clientConfigOptions{
 
 const std::vector<std::string> snapClientConfigOptions{
     std::string("mds.listen.addr=") + kMdsIpPort,
+    std::string("global.logPath=") + kLogPath,
+    std::string("mds.rpcTimeoutMS=4000"),
 };
 
 
