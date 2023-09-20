@@ -15,5 +15,5 @@
 #  limitations under the License.
 #
 
-- name: generate config with template
+- name: generate config with templates
   include_tasks: include/generate_config_with_template.yml

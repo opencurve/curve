@@ -79,7 +79,7 @@
     - name: generate nebd-daemon
       vars:
         jemalloc_path: "{{ lib_install_prefix }}/lib/libjemalloc.so.1"
-      local_action: template src=nebd-daemon.j2 dest=/tmp/nebd-daemon mode=0755
+      local_action: templates src=nebd-daemon.j2 dest=/tmp/nebd-daemon mode=0755
     - name: copy nebd-daemon
       vars:
         remote_dir_name: "{{ curve_bin_dir }}"
