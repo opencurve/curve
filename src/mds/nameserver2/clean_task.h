@@ -128,12 +128,12 @@ class SnapShotCleanTask: public Task {
             if (ret != StatusCode::kOK) {
                 LOG(ERROR) << "logid = " << cntl->log_id()
                     << ", CleanSnapShotFile fail, filename = "
-                    << request->snapfilename()
+                    << request->filename()
                     << ", statusCode = " << ret;
             } else {
                 LOG(INFO) << "logid = " << cntl->log_id()
                     << ", CleanSnapShotFile ok, filename = "
-                    <<  request->snapfilename();
+                    <<  request->filename();
             }
         }
         return;
@@ -195,12 +195,12 @@ class SnapShotCleanTask2: public Task {
             if (ret != StatusCode::kOK) {
                 LOG(ERROR) << "logid = " << cntl->log_id()
                     << ", CleanSnapShotFile fail, filename = "
-                    << request->snapfilename()
+                    << request->filename()
                     << ", statusCode = " << ret;
             } else {
                 LOG(INFO) << "logid = " << cntl->log_id()
                     << ", CleanSnapShotFile ok, filename = "
-                    <<  request->snapfilename();
+                    <<  request->filename();
             }
         }
         return;

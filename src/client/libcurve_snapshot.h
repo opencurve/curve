@@ -60,8 +60,8 @@ class SnapshotClient {
    * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
    */
   int CreateSnapShot(const std::string& filename,
-                                const UserInfo_t& userinfo,
-                                uint64_t* seq);
+                     const UserInfo_t& userinfo,
+                     FInfo* snapInfo);
   /**
    * 删除快照
    * @param: userinfo是用户信息

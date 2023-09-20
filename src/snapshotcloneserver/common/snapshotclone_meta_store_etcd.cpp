@@ -40,6 +40,13 @@ int SnapshotCloneMetaStoreEtcd::Init() {
     return 0;
 }
 
+const char kSnapPathSeprator[] = "@";
+
+inline std::string MakeSnapshotKey(const std::string &filePath,
+    const std::string &snapName) {
+    return filePath + kSnapPathSeprator + snapName;
+}
+
 int SnapshotCloneMetaStoreEtcd::AddSnapshot(const SnapshotInfo &info) {
     std::string key = codec_->EncodeSnapshotKey(info.GetUuid());
     std::string value;
@@ -59,7 +66,12 @@ int SnapshotCloneMetaStoreEtcd::AddSnapshot(const SnapshotInfo &info) {
         return -1;
     }
 
-    snapInfos_.emplace(info.GetUuid(), info);
+    auto item = std::make_shared<SnapshotInfo>(info);
+    snapInfos_.emplace(info.GetUuid(), item);
+
+    std::string snapPath = MakeSnapshotKey(info.GetFileName(),
+        info.GetSnapshotName());
+    snapInfosByName_.emplace(snapPath, item);
     return 0;
 }
 
@@ -76,6 +88,9 @@ int SnapshotCloneMetaStoreEtcd::DeleteSnapshot(const UUID &uuid) {
     auto search = snapInfos_.find(uuid);
     if (search != snapInfos_.end()) {
         snapInfos_.erase(search);
+        std::string snapPath = MakeSnapshotKey(search->second->GetFileName(),
+            search->second->GetSnapshotName());
+        snapInfosByName_.erase(snapPath);
     }
     return 0;
 }
@@ -97,11 +112,18 @@ int SnapshotCloneMetaStoreEtcd::UpdateSnapshot(const SnapshotInfo &info) {
                    << ", snapInfo : " << info;
         return -1;
     }
+
+    std::string snapPath = MakeSnapshotKey(info.GetFileName(),
+        info.GetSnapshotName());
+
     auto search = snapInfos_.find(info.GetUuid());
     if (search != snapInfos_.end()) {
-        search->second = info;
+        *(search->second) = info;
+        *(snapInfosByName_[snapPath]) = info;
     } else {
-        snapInfos_.emplace(info.GetUuid(), info);
+        auto item = std::make_shared<SnapshotInfo>(info);
+        snapInfos_.emplace(info.GetUuid(), item);
+        snapInfosByName_.emplace(snapPath, item);
     }
     return 0;
 }
@@ -109,7 +131,7 @@ int SnapshotCloneMetaStoreEtcd::UpdateSnapshot(const SnapshotInfo &info) {
 int SnapshotCloneMetaStoreEtcd::CASSnapshot(const UUID& uuid, CASFunc cas) {
     WriteLockGuard guard(snapInfos_mutex);
     auto iter = snapInfos_.find(uuid);
-    auto info = cas(iter == snapInfos_.end() ? nullptr : &(iter->second));
+    auto info = cas(iter == snapInfos_.end() ? nullptr : iter->second.get());
     if (nullptr == info) {  // Not needed to update snapshot
         return 0;
     }
@@ -126,12 +148,17 @@ int SnapshotCloneMetaStoreEtcd::CASSnapshot(const UUID& uuid, CASFunc cas) {
         return -1;
     }
 
-    if (iter != snapInfos_.end()) {
-        iter->second = *info;
-    } else {
-        snapInfos_.emplace(uuid, *info);
-    }
+    std::string snapPath = MakeSnapshotKey(info->GetFileName(),
+        info->GetSnapshotName());
 
+    if (iter != snapInfos_.end()) {
+        *(iter->second) = *info;
+        *(snapInfosByName_[snapPath]) = *info;
+    } else {
+        auto item = std::make_shared<SnapshotInfo>(*info);
+        snapInfos_.emplace(uuid, item);
+        snapInfosByName_.emplace(snapPath, item);
+    }
     return 0;
 }
 
@@ -140,7 +167,19 @@ int SnapshotCloneMetaStoreEtcd::GetSnapshotInfo(
     ReadLockGuard guard(snapInfos_mutex);
     auto search = snapInfos_.find(uuid);
     if (search != snapInfos_.end()) {
-        *info = search->second;
+        *info = *(search->second);
+        return 0;
+    }
+    return -1;
+}
+
+int SnapshotCloneMetaStoreEtcd::GetSnapshotInfo(
+    const std::string &file, const std::string &snapshotName,
+    SnapshotInfo *info) {
+    std::string snapshotPath = MakeSnapshotKey(file, snapshotName);
+    auto search = snapInfosByName_.find(snapshotPath);
+    if (search != snapInfosByName_.end()) {
+        *info = *(search->second);
         return 0;
     }
     return -1;
@@ -152,8 +191,8 @@ int SnapshotCloneMetaStoreEtcd::GetSnapshotList(const std::string &filename,
     for (auto it = snapInfos_.begin();
          it != snapInfos_.end();
          it++) {
-        if (filename == it->second.GetFileName()) {
-            v->push_back(it->second);
+        if (filename == it->second->GetFileName()) {
+            v->push_back(*(it->second));
         }
     }
     if (v->size() != 0) {
@@ -168,7 +207,7 @@ int SnapshotCloneMetaStoreEtcd::GetSnapshotList(
     for (auto it = snapInfos_.begin();
           it != snapInfos_.end();
           it++) {
-       list->push_back(it->second);
+       list->push_back(*(it->second));
     }
     if (list->size() != 0) {
         return 0;
@@ -305,13 +344,17 @@ int SnapshotCloneMetaStoreEtcd::LoadSnapshotInfos() {
         return -1;
     }
     for (int i = 0; i < out.size(); i++) {
-        SnapshotInfo data;
-        errCode = codec_->DecodeSnapshotData(out[i], &data);
+        auto item = std::make_shared<SnapshotInfo>();
+        errCode = codec_->DecodeSnapshotData(out[i], item.get());
         if (!errCode) {
             LOG(ERROR) << "DecodeSnapshotData err";
             return -1;
         }
-        snapInfos_.emplace(data.GetUuid(), data);
+        snapInfos_.emplace(item->GetUuid(), item);
+
+        std::string snapPath = MakeSnapshotKey(item->GetFileName(),
+                                               item->GetSnapshotName());
+        snapInfosByName_.emplace(snapPath, item);
     }
     LOG(INFO) << "LoadSnapshotInfos size = " << snapInfos_.size();
     return 0;

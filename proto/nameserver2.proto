@@ -97,6 +97,7 @@ message FileInfo {
 
     optional bool isProtected = 25;  // for snapshot
     repeated string children = 26;
+    optional uint32 version = 27;
 }
 
 // status code
@@ -181,12 +182,8 @@ enum  StatusCode {
     kSnapshotFileNotProtected = 144;
     // snapshot protected
     kSnapshotFileProtected=145;
-    // file is flattening
-    kFileIsFlattening = 146;
-    // file not flattening
-    kFileNotFlattening = 147;
     // snapshot exist
-    kSnapshotExist = 148;
+    kSnapshotExist = 146;
 
     // 元数据存储错误
     kStorageError = 501;
@@ -345,7 +342,8 @@ message ListDirResponse {
 
 // create snapshot
 message CreateSnapShotRequest {
-    required string     snapFileName = 1;
+    // user filename  or snapshot filename
+    required string     filename = 1;
 
     required string     owner = 2;
     optional string     signature = 3;
@@ -374,7 +372,9 @@ message ListSnapShotFileInfoResponse {
 
 // delete snapshot
 message DeleteSnapShotRequest {
-    required string     snapFileName = 1;
+    // user filename & seq or snapshot filename
+    required string     fileName = 1;
+    optional uint64     seq = 3;
 
     required string     owner = 2;
     optional string     signature = 4;

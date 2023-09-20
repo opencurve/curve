@@ -47,6 +47,9 @@ struct CurveClientOptions {
 struct SnapshotCloneServerOptions {
     // snapshot&clone server address
     std::string  addr;
+    // disable s3 snapshot & clone
+    bool disableS3SnapshotClone;
+
     // 调用client异步方法重试总时间
     uint64_t clientAsyncMethodRetryTimeSec;
     // 调用client异步方法重试时间间隔
@@ -67,6 +70,8 @@ struct SnapshotCloneServerOptions {
     uint32_t mdsSessionTimeUs;
     // ReadChunkSnapshot同时进行的异步请求数量
     uint32_t readChunkSnapshotConcurrency;
+    // localsnapshot beckend checking interval
+    uint32_t localSnapshotBackendCheckIntervalMs;
 
     // 用于Lazy克隆元数据部分的线程池线程数
     int stage1PoolThreadNum;
@@ -90,6 +95,31 @@ struct SnapshotCloneServerOptions {
     uint32_t backEndReferenceRecordScanIntervalMs;
     // 引用计数后台扫描每轮间隔
     uint32_t backEndReferenceFuncScanIntervalMs;
+
+    SnapshotCloneServerOptions()
+      : addr(""),
+        clientAsyncMethodRetryTimeSec(5),
+        clientAsyncMethodRetryIntervalMs(1),
+        snapshotPoolThreadNum(256),
+        snapshotTaskManagerScanIntervalMs(1000),
+        chunkSplitSize(1048576),
+        checkSnapshotStatusIntervalMs(1000),
+        maxSnapshotLimit(1024),
+        snapshotCoreThreadNum(64),
+        mdsSessionTimeUs(5000000),
+        readChunkSnapshotConcurrency(16),
+        localSnapshotBackendCheckIntervalMs(1000),
+        stage1PoolThreadNum(256),
+        stage2PoolThreadNum(256),
+        commonPoolThreadNum(256),
+        cloneTaskManagerScanIntervalMs(1000),
+        cloneChunkSplitSize(65536),
+        cloneTempDir("/clone"),
+        mdsRootUser("root"),
+        createCloneChunkConcurrency(64),
+        recoverChunkConcurrency(64),
+        backEndReferenceRecordScanIntervalMs(500),
+        backEndReferenceFuncScanIntervalMs(3600000) {}
 };
 
 }  // namespace snapshotcloneserver

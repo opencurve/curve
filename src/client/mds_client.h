@@ -199,7 +199,7 @@ class MDSClient : public MDSClientBase,
      */
     LIBCURVE_ERROR CreateSnapShot(const std::string& filename,
                                   const UserInfo_t& userinfo,
-                                  uint64_t* seq);
+                                  FInfo* snapInfo);
     /**
      * 删除版本号为seq的快照
      * @param: userinfo是用户信息

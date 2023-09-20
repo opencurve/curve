@@ -238,7 +238,7 @@ class FileClient {
       * stat file
       * @param: fd is file descriptor.
       * @param: finfo is an output para, carry the base info of current file.
-      * @return: returns int::ok if success, 
+      * @return: returns int::ok if success,
       *          otherwise returns an error code less than 0
       */
     virtual int StatFile(int fd, FileStatInfo* finfo);

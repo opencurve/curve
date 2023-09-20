@@ -196,6 +196,7 @@ bool Splitor::AssignInternal(IOTracker* iotracker, MetaCache* metaCache,
             ctx->filetype_ = fileInfo->filetype;
             ctx->fileId_ = fileInfo->id;
             ctx->chunkIndex_ = chunkidx;
+            ctx->version_ = fileInfo->version;
             if (fEpoch != nullptr) {
                 ctx->epoch_ = fEpoch->epoch;
             } else {

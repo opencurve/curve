@@ -232,6 +232,34 @@ class CloneServiceManager {
     virtual void Stop();
 
     /**
+     * @brief local clone
+     *
+     * @param file  source volume of clone
+     * @param snapshotName  source snapshot name of clone
+     * @param user  user of the clone destination volume
+     * @param destination destination volume of clone
+     * @param poolset poolset of the clone destination volume
+     *
+     * @return error code
+     */
+    virtual int CloneLocal(const std::string &file,
+        const std::string &snapshotName,
+        const std::string &user,
+        const std::string &destination,
+        const std::string &poolset);
+
+    /**
+     * @brief local flatten
+     *
+     * @param file  source volume of flatten
+     * @param user  user of the flatten destination volume
+     *
+     * @return  error code
+     */
+    virtual int FlattenLocal(const std::string &file,
+        const std::string &user);
+
+    /**
      * @brief 从文件或快照克隆出一个文件
      *
      * @param source  文件或快照的uuid

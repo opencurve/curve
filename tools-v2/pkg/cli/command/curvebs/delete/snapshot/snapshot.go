@@ -71,7 +71,7 @@ func (fCmd *snapshotCommand) Init(cmd *cobra.Command, args []string) error {
         return errDat.ToError()
     }
     request := &nameserver2.DeleteSnapShotRequest {
-        SnapFileName: &snapFileName,
+        FileName: &snapFileName,
         Owner:        &owner,
         Date:     &date,
     }
@@ -103,7 +103,7 @@ func (fCmd *snapshotCommand) RunCommand(cmd *cobra.Command, args []string) error
     fCmd.Response = result.(*nameserver2.DeleteSnapShotResponse)
     fCmd.Result = fCmd.Response
 
-    err = cmderror.ErrBsDeleteSnapShot(fCmd.Response.GetStatusCode(), fCmd.Rpc.Request.GetSnapFileName())
+    err = cmderror.ErrBsDeleteSnapShot(fCmd.Response.GetStatusCode(), fCmd.Rpc.Request.GetFileName())
     return err.ToError()
 }
 

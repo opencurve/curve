@@ -126,6 +126,8 @@ struct CURVE_CACHELINE_ALIGNMENT RequestContext {
     uint64_t            originFileId_;
     uint64_t            chunkIndex_;
 
+    uint32_t version_;
+
     static RequestContext* NewInitedRequestContext() {
         RequestContext* ctx = new (std::nothrow) RequestContext();
         if (ctx && ctx->Init()) {

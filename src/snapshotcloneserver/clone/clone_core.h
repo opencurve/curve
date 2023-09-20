@@ -50,6 +50,15 @@ class CloneCore {
     CloneCore() {}
     virtual ~CloneCore() {}
 
+    virtual int CloneLocal(const std::string &file,
+        const std::string &snapshotName,
+        const std::string &user,
+        const std::string &destination,
+        const std::string &poolset) = 0;
+
+    virtual int FlattenLocal(const std::string &file,
+        const std::string &user) = 0;
+
     /**
      * @brief 克隆或恢复任务前置
      *
@@ -245,6 +254,15 @@ class CloneCoreImpl : public CloneCore {
     }
 
     int Init();
+
+    int CloneLocal(const std::string &file,
+        const std::string &snapshotName,
+        const std::string &user,
+        const std::string &destination,
+        const std::string &poolset) override;
+
+    int FlattenLocal(const std::string &file,
+        const std::string &user) override;
 
     int CloneOrRecoverPre(const UUID &source,
          const std::string &user,

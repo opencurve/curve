@@ -147,6 +147,7 @@ int ChunkServerClient::DeleteChunkSnapshot(
     uint64_t fileId,
     uint64_t originFileId,
     uint64_t chunkIndex,
+    uint32_t version,
     LogicalPoolID logicalPoolId,
     CopysetID copysetId,
     ChunkID chunkId,
@@ -173,6 +174,7 @@ int ChunkServerClient::DeleteChunkSnapshot(
     request.set_copysetid(copysetId);
     request.set_chunkid(chunkId);
     request.set_snapsn(snapSn);
+    request.set_version(version);
     for (auto snap : snaps) {
         request.add_snaps(snap);
     }
@@ -251,6 +253,7 @@ int ChunkServerClient::DeleteChunk(ChunkServerIdType leaderId,
     uint64_t fileId,
     uint64_t originFileId,
     uint64_t chunkIndex,
+    uint32_t version,
     LogicalPoolID logicalPoolId,
     CopysetID copysetId,
     ChunkID chunkId,
@@ -276,6 +279,7 @@ int ChunkServerClient::DeleteChunk(ChunkServerIdType leaderId,
     request.set_copysetid(copysetId);
     request.set_chunkid(chunkId);
     request.set_sn(sn);
+    request.set_version(version);
 
     ChunkResponse response;
     uint32_t retry = 0;
@@ -478,6 +482,7 @@ int ChunkServerClient::FlattenChunk(
     rpcCtx->request.set_size(ctx->partSize);
     rpcCtx->request.set_originfileid(ctx->originFileId);
     rpcCtx->request.set_chunkindex(ctx->chunkIndex);
+    rpcCtx->request.set_version(ctx->version);
     for (auto &clone : ctx->cloneChain) {
         auto cinfo = rpcCtx->request.add_clones();
         cinfo->set_fileid(clone.fileId);
@@ -553,7 +558,7 @@ void ChunkServerClient::OnFlattenChunkReturned(FlattenChunkRpcContext *ctx) {
             case CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS:
             case CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST: {
                 ctx->done->SetErrCode(kMdsSuccess);
-                LOG(INFO) << "Received FlattenChunk "
+                VLOG(3) << "Received FlattenChunk "
                           << "success, [log_id="
                           << ctx->cntl.log_id()
                           << "] from " << ctx->cntl.remote_side()

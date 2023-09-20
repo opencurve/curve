@@ -100,6 +100,7 @@ bool SnapshotInfo::SerializeToString(std::string *value) const {
     data.set_poolset(poolset_);
     data.set_time(time_);
     data.set_status(static_cast<int>(status_));
+    data.set_location(static_cast<int>(locationType_));
     return data.SerializeToString(value);
 }
 
@@ -127,6 +128,7 @@ bool SnapshotInfo::ParseFromString(const std::string &value) {
     poolset_ = data.poolset();
     time_ = data.time();
     status_ = static_cast<Status>(data.status());
+    locationType_ = static_cast<LocationType>(data.location());
     return ret;
 }
 

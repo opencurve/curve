@@ -46,6 +46,7 @@
 #include "src/snapshotcloneserver/snapshot/snapshot_service_manager.h"
 #include "src/snapshotcloneserver/clone/clone_service_manager.h"
 #include "src/snapshotcloneserver/common/snapshotclone_meta_store_etcd.h"
+#include "src/snapshotcloneserver/volume/voume_service_manager.h"
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -152,6 +153,7 @@ class SnapShotCloneServer {
     std::shared_ptr<CloneTaskManager>     cloneTaskMgr_;
     std::shared_ptr<CloneServiceManagerBackendImpl> cloneServiceManagerBackend_;
     std::shared_ptr<CloneServiceManager>  cloneServiceManager_;
+    std::shared_ptr<VolumeServiceManager> volumeServiceManager_;
     std::shared_ptr<SnapshotCloneServiceImpl> service_;
     std::shared_ptr<brpc::Server>          server_;
 

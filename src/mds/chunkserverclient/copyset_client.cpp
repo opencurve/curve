@@ -97,6 +97,7 @@ int CopysetClient::DeleteChunkSnapshot(
     uint64_t fileId,
     uint64_t originFileId,
     uint64_t chunkIndex,
+    uint32_t version,
     LogicalPoolID logicalPoolId,
     CopysetID copysetId,
     ChunkID chunkId,
@@ -116,7 +117,7 @@ int CopysetClient::DeleteChunkSnapshot(
 
     if (leaderId != UNINTIALIZE_ID) {
         ret = chunkserverClient_->DeleteChunkSnapshot(leaderId,
-            fileId, originFileId, chunkIndex,
+            fileId, originFileId, chunkIndex, version,
             logicalPoolId, copysetId, chunkId, snapSn, snaps);
         if (kMdsSuccess == ret) {
             return ret;
@@ -144,7 +145,7 @@ int CopysetClient::DeleteChunkSnapshot(
 
         if (leaderId != UNINTIALIZE_ID) {
             ret = chunkserverClient_->DeleteChunkSnapshot(leaderId,
-                fileId, originFileId, chunkIndex,
+                fileId, originFileId, chunkIndex, version,
                 logicalPoolId, copysetId, chunkId, snapSn, snaps);
             if (kMdsSuccess == ret) {
                 break;
@@ -162,6 +163,7 @@ int CopysetClient::DeleteChunk(
     uint64_t fileId,
     uint64_t originFileId,
     uint64_t chunkIndex,
+    uint32_t version,
     LogicalPoolID logicalPoolId,
     CopysetID copysetId,
     ChunkID chunkId,
@@ -180,7 +182,7 @@ int CopysetClient::DeleteChunk(
 
     if (leaderId != UNINTIALIZE_ID) {
         ret = chunkserverClient_->DeleteChunk(leaderId,
-            fileId, originFileId, chunkIndex,
+            fileId, originFileId, chunkIndex, version,
             logicalPoolId, copysetId, chunkId, sn);
         if (kMdsSuccess == ret) {
             return ret;
@@ -210,7 +212,7 @@ int CopysetClient::DeleteChunk(
 
         if (leaderId != UNINTIALIZE_ID) {
             ret = chunkserverClient_->DeleteChunk(leaderId,
-                fileId, originFileId, chunkIndex,
+                fileId, originFileId, chunkIndex, version,
                 logicalPoolId, copysetId, chunkId, sn);
             if (kMdsSuccess == ret) {
                 break;

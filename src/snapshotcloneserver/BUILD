@@ -42,6 +42,8 @@ cc_library(
         "snapshot/*.h",
         "common/*.cpp",
         "common/*.h",
+        "volume/*.cpp",
+        "volume/*.h",
         "*.cpp",
         "*.h"
     ],
@@ -87,6 +89,8 @@ cc_binary(
         "snapshot/*.h",
         "common/*.cpp",
         "common/*.h",
+        "volume/*.cpp",
+        "volume/*.h",
         "*.cpp",
         "*.h"
     ]),

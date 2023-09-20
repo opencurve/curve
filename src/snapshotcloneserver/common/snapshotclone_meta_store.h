@@ -81,6 +81,11 @@ class SnapshotCloneMetaStore {
      * @return 0 获取成功/ -1 获取失败
      */
     virtual int GetSnapshotInfo(const UUID &uuid, SnapshotInfo *info) = 0;
+
+    virtual int GetSnapshotInfo(
+        const std::string &file, const std::string &snapshotName,
+        SnapshotInfo *info) = 0;
+
     /**
      * 获取指定文件的快照信息列表
      * @param 文件名

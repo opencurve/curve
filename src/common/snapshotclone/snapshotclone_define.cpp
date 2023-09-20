@@ -29,6 +29,10 @@ namespace snapshotcloneserver {
 
 // 字符串常量定义
 const char* kServiceName = "SnapshotCloneService";
+
+const char* kCreateFileAction = "CreateFile";
+const char* kDeleteFileAction = "DeleteFile";
+const char* kListFileAction = "ListFile";
 const char* kCreateSnapshotAction = "CreateSnapshot";
 const char* kDeleteSnapshotAction = "DeleteSnapshot";
 const char* kCancelSnapshotAction = "CancelSnapshot";
@@ -57,12 +61,18 @@ const char* kPoolset = "Poolset";
 const char* kStatusStr = "Status";
 const char* kTypeStr = "Type";
 const char* kInodeStr = "Inode";
+const char* kSizeStr = "Size";
+const char* kStripeUnitStr = "StripeUnit";
+const char* kStripeCountStr = "StripeCount";
+const char* kPoolSetStr = "PoolSet";
+const char* kDirStr = "Dir";
 
 const char* kCodeStr = "Code";
 const char* kMessageStr = "Message";
 const char* kRequestIdStr = "RequestId";
 const char* kTotalCountStr = "TotalCount";
 const char* kSnapshotsStr = "Snapshots";
+const char* kFileInfosStr = "FileInfos";
 const char* kTaskInfosStr = "TaskInfos";
 const char* kRefStatusStr = "RefStatus";
 const char* kCloneFileInfoStr = "CloneFileInfo";
@@ -90,6 +100,9 @@ std::map<int, std::string> code2Msg = {
     {kErrCodeFileExist, "File exist."},
     {kErrCodeTaskIsFull, "Task is full."},
     {kErrCodeNotSupport, "Not support."},
+    {kErrCodeUnderSnapShot, "File is under snapshot."},
+    {kErrCodeFileOccupied, "File is occupied."},
+    {kErrCodeInvalidArgument, "Invalid argument."},
 };
 
 std::string BuildErrorMessage(

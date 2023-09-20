@@ -28,6 +28,12 @@
 namespace curve {
 namespace common {
 
+// curve file version
+// old version not support local snapshot and clone
+constexpr uint32_t kBaseFileVersion = 1u;
+// support local snapshot and clone
+constexpr uint32_t kSupportLocalSnapshotFileVersion = 2u;
+
 std::string CurveVersion();
 void ExposeCurveVersion();
 

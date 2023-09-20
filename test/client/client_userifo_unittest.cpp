@@ -230,6 +230,7 @@ TEST_F(CurveClientUserAuthFail, CurveSnapClientUserAuthFailTest) {
 
     std::string filename = "./1_usertest_.img";
     brpc::Server server;
+    FInfo snapInfo;
     uint64_t seq = 1;
     // test create snap
     // normal test
@@ -241,7 +242,7 @@ TEST_F(CurveClientUserAuthFail, CurveSnapClientUserAuthFailTest) {
     curvefsservice.SetCreateSnapShot(fakeret);
     ASSERT_EQ(-LIBCURVE_ERROR::FAILED, cl.CreateSnapShot(filename,
                                                         emptyuserinfo,
-                                                        &seq));
+                                                        &snapInfo));
 
     // set response
     response.set_statuscode(::curve::mds::StatusCode::kOwnerAuthFail);
@@ -262,7 +263,7 @@ TEST_F(CurveClientUserAuthFail, CurveSnapClientUserAuthFailTest) {
 
     ASSERT_EQ(-LIBCURVE_ERROR::AUTHFAIL, cl.CreateSnapShot(filename,
                                                         emptyuserinfo,
-                                                        &seq));
+                                                        &snapInfo));
 
     // test delete
     // normal delete test
@@ -366,6 +367,7 @@ TEST_F(CurveClientUserAuthFail, CurveSnapClientRootUserAuthTest) {
 
     std::string filename = "./1_usertest_.img";
     brpc::Server server;
+    FInfo snapInfo;
     uint64_t seq = 1;
     // test create snap
     // normal test
@@ -377,7 +379,7 @@ TEST_F(CurveClientUserAuthFail, CurveSnapClientRootUserAuthTest) {
     curvefsservice.SetCreateSnapShot(fakeret);
     ASSERT_EQ(-LIBCURVE_ERROR::FAILED, cl.CreateSnapShot(filename,
                                                         rootuserinfo,
-                                                        &seq));
+                                                        &snapInfo));
 
     // set response
     response.set_statuscode(::curve::mds::StatusCode::kOwnerAuthFail);
@@ -398,7 +400,7 @@ TEST_F(CurveClientUserAuthFail, CurveSnapClientRootUserAuthTest) {
 
     ASSERT_EQ(-LIBCURVE_ERROR::AUTHFAIL, cl.CreateSnapShot(filename,
                                                         rootuserinfo,
-                                                        &seq));
+                                                        &snapInfo));
 
     // test delete
     // normal delete test

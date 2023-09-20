@@ -116,6 +116,7 @@ void FlattenCore::DoFlatten(
             context->partSize = option_.flattenChunkPartSize;
             context->originFileId = segment.originfileid();
             context->chunkIndex = chunkNumPerSegment * i + j;
+            context->version = fileInfo.version();
             for (int i = 0; i < fileInfo.clones_size(); i++) {
                 CloneInfo cloneInfo;
                 cloneInfo.fileId = fileInfo.clones(i).fileid();

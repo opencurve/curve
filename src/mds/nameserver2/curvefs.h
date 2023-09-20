@@ -349,6 +349,7 @@ class CurveFS {
      */
     StatusCode DeleteFileSnapShotFile2(const std::string &fileName,
                             const std::string &snapName,
+                            FileSeqType seq,
                             std::shared_ptr<AsyncDeleteSnapShotEntity> entity);
 
     /**

@@ -38,6 +38,7 @@ message ChunkMap {
     map<uint32, string> indexmap = 1;
 };
 
+
 message SnapshotInfoData {
     required string uuid = 1;
     required string user = 2;
@@ -52,6 +53,7 @@ message SnapshotInfoData {
     optional uint64 stripeUnit = 11;
     optional uint64 stripeCount = 12;
     optional string poolset = 13;
+    optional int32 location = 14;
 };
 
 message CloneInfoData {

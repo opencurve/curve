@@ -497,7 +497,7 @@ LIBCURVE_ERROR MDSClient::IncreaseEpoch(const std::string& filename,
 
 LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string& filename,
                                          const UserInfo_t& userinfo,
-                                         uint64_t* seq) {
+                                         FInfo* snapInfo) {
     auto task = RPCTaskDefine {
         CreateSnapShotResponse response;
         MDSClientBase::CreateSnapShot(filename, userinfo,
@@ -511,33 +511,27 @@ LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string& filename,
         }
 
         bool hasinfo = response.has_snapshotfileinfo();
-        StatusCode stcode = response.statuscode();
-
-        if ((stcode == StatusCode::kOK ||
-             stcode == StatusCode::kFileUnderSnapShot) &&
-            hasinfo) {
-            FInfo_t *fi = new (std::nothrow) FInfo_t;
+        if (hasinfo) {
             FileEpoch_t fEpoch;
             ServiceHelper::ProtoFileInfo2Local(response.snapshotfileinfo(),
-                                               fi, &fEpoch);
-            *seq = fi->seqnum;
-            delete fi;
+                                               snapInfo, &fEpoch);  // NOLINT
+        }
+
+        StatusCode stcode = response.statuscode();
+        if ((stcode == StatusCode::kOK ||
+             stcode == StatusCode::kFileUnderSnapShot ||
+             stcode == StatusCode::kSnapshotExist) &&
+            hasinfo) {
             if (stcode == StatusCode::kOK) {
                 return LIBCURVE_ERROR::OK;
-            } else {
+            } else if (stcode == StatusCode::kFileUnderSnapShot) {
                 return LIBCURVE_ERROR::UNDER_SNAPSHOT;
+            } else {
+                return LIBCURVE_ERROR::EXISTS;
             }
         } else if (!hasinfo && stcode == StatusCode::kOK) {
             LOG(WARNING) << "mds side response has no snapshot file info!";
             return LIBCURVE_ERROR::FAILED;
-        }
-
-        if (hasinfo) {
-            FInfo_t fi;
-            FileEpoch_t fEpoch;
-            ServiceHelper::ProtoFileInfo2Local(response.snapshotfileinfo(),
-                                               &fi, &fEpoch);  // NOLINT
-            *seq = fi.seqnum;
         }
 
         LIBCURVE_ERROR retcode;
@@ -1011,7 +1005,8 @@ LIBCURVE_ERROR MDSClient::Clone(const std::string& source,
             << ", error msg = " << StatusCode_Name(stcode)
             << ", log id = " << cntl->log_id();
 
-        if (stcode == StatusCode::kOK) {
+        if (stcode == StatusCode::kOK ||
+            stcode == StatusCode::kFileExists) {
             FileEpoch_t fEpoch;
             ServiceHelper::ProtoFileInfo2Local(response.fileinfo(),
                                                fileinfo, &fEpoch);
@@ -1465,6 +1460,9 @@ LIBCURVE_ERROR MDSClient::Listdir(const std::string& dirpath,
                 filestat.parentid = finfo.parentid();
                 filestat.filetype = static_cast<FileType>(finfo.filetype());
                 filestat.ctime = finfo.ctime();
+                filestat.blocksize = finfo.blocksize();
+                filestat.stripeUnit = finfo.stripeunit();
+                filestat.stripeCount = finfo.stripecount();
                 memset(filestat.owner, 0, NAME_MAX_SIZE);
                 memcpy(filestat.owner, finfo.owner().c_str(), NAME_MAX_SIZE);
                 memset(filestat.filename, 0, NAME_MAX_SIZE);

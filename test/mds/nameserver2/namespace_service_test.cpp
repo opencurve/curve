@@ -1145,7 +1145,7 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     cntl.Reset();
     CreateSnapShotRequest snapshotRequest;
     CreateSnapShotResponse snapshotResponses;
-    snapshotRequest.set_snapfilename("/file1@snap1");
+    snapshotRequest.set_filename("/file1@snap1");
     snapshotRequest.set_owner("owner1");
     snapshotRequest.set_date(TimeUtility::GetTimeofDayUs());
     stub.CreateSnapShot(&cntl, &snapshotRequest, &snapshotResponses, NULL);
@@ -1164,7 +1164,7 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     }
 
     cntl.Reset();
-    snapshotRequest.set_snapfilename("/file1/@snap1");
+    snapshotRequest.set_filename("/file1/@snap1");
     snapshotRequest.set_owner("owner1");
     snapshotRequest.set_date(TimeUtility::GetTimeofDayUs());
     stub.CreateSnapShot(&cntl, &snapshotRequest, &snapshotResponses, NULL);
@@ -1261,7 +1261,7 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     cntl.Reset();
     DeleteSnapShotRequest deleteRequest;
     DeleteSnapShotResponse deleteResponse;
-    deleteRequest.set_snapfilename("/file1@snap1");
+    deleteRequest.set_filename("/file1@snap1");
     deleteRequest.set_owner("owner1");
     deleteRequest.set_date(TimeUtility::GetTimeofDayUs());
     stub.DeleteSnapShot(&cntl, &deleteRequest, &deleteResponse, NULL);
@@ -1273,7 +1273,7 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     }
 
     cntl.Reset();
-    deleteRequest.set_snapfilename("/file1/@snap1");
+    deleteRequest.set_filename("/file1/@snap1");
     deleteRequest.set_owner("owner1");
     deleteRequest.set_date(TimeUtility::GetTimeofDayUs());
     stub.DeleteSnapShot(&cntl, &deleteRequest, &deleteResponse, NULL);
@@ -1487,7 +1487,7 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
     cntl.Reset();
     CreateSnapShotRequest snapshotRequest;
     CreateSnapShotResponse snapshotResponses;
-    snapshotRequest.set_snapfilename("/file1@snap1");
+    snapshotRequest.set_filename("/file1@snap1");
     snapshotRequest.set_owner("owner");
     snapshotRequest.set_date(TimeUtility::GetTimeofDayUs());
     stub.CreateSnapShot(&cntl, &snapshotRequest, &snapshotResponses, NULL);
@@ -1523,7 +1523,7 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
     cntl.Reset();
     DeleteSnapShotRequest deleteRequest;
     DeleteSnapShotResponse deleteResponse;
-    deleteRequest.set_snapfilename("/file1@snap1");
+    deleteRequest.set_filename("/file1@snap1");
     deleteRequest.set_owner("owner");
     deleteRequest.set_date(TimeUtility::GetTimeofDayUs());
     stub.DeleteSnapShot(&cntl, &deleteRequest, &deleteResponse, NULL);

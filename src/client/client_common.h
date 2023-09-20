@@ -168,6 +168,7 @@ typedef struct FInfo {
     uint64_t stripeUnit;
     uint64_t stripeCount;
     std::string poolset;
+    uint32_t version;
 
     OpenFlags       openflags;
 
@@ -341,6 +342,8 @@ inline const char* FileStatusToName(FileStatus status) {
             return "Cloned";
         case FileStatus::BeingCloned:
             return "BeingCloned";
+        case FileStatus::Flattening:
+            return "Flattening";
         default:
             return "Unknown";
     }

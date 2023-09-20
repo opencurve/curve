@@ -36,6 +36,7 @@
 #include "src/mds/nameserver2/namespace_storage.h"
 #include "src/mds/common/mds_define.h"
 #include "src/mds/nameserver2/helper/namespace_helper.h"
+#include "src/common/curve_version.h"
 
 #include "absl/strings/match.h"
 
@@ -50,6 +51,9 @@ using curve::mds::topology::ChunkServer;
 using curve::mds::topology::ChunkServerStatus;
 using curve::mds::topology::OnlineState;
 using curve::mds::topology::Poolset;
+
+using curve::common::kBaseFileVersion;
+using curve::common::kSupportLocalSnapshotFileVersion;
 
 namespace curve {
 namespace mds {
@@ -368,6 +372,7 @@ StatusCode CurveFS::CreateFile(const std::string& fileName,
         fileInfo.set_stripeunit(stripeUnit);
         fileInfo.set_stripecount(stripeCount);
         fileInfo.set_blocksize(g_block_size);
+        fileInfo.set_version(kSupportLocalSnapshotFileVersion);
 
         ret = PutFile(fileInfo);
         return ret;
@@ -1073,7 +1078,7 @@ StatusCode CurveFS::CheckFileCanChange(const std::string &fileName,
     if (fileInfo.filestatus() == FileStatus::kFileFlattening) {
         LOG(WARNING) << "CheckFileCanChange, file is being Flattening, "
                    << "need check first, fileName = " << fileName;
-        return StatusCode::kFileIsFlattening;
+        return StatusCode::kFileOccupied;
     }
 
     // since the file record is not persistent, after mds switching the leader,
@@ -1720,14 +1725,23 @@ StatusCode CurveFS::DeleteFileSnapShotFile(const std::string &fileName,
 }
 
 StatusCode CurveFS::DeleteFileSnapShotFile2(const std::string &fileName,
-                        const std::string &snapName,
-                        std::shared_ptr<AsyncDeleteSnapShotEntity> entity) {
+    const std::string &snapName,
+    FileSeqType seq,
+    std::shared_ptr<AsyncDeleteSnapShotEntity> entity) {
     FileInfo snapShotFileInfo, fileInfo;
-    StatusCode ret =  GetSnapShotFileInfo(
-        fileName, snapName, &snapShotFileInfo, &fileInfo);
+    StatusCode ret = StatusCode::kOK;
+    if (!snapName.empty()) {
+        ret =  GetSnapShotFileInfo(
+            fileName, snapName, &snapShotFileInfo, &fileInfo);
+    } else {
+        ret = GetSnapShotFileInfo(
+            fileName, seq, &snapShotFileInfo, &fileInfo);
+    }
+
     if (ret != StatusCode::kOK) {
         LOG(INFO) << "fileName = " << fileName
             << ", snapName = "<< snapName
+            << ", seq = " << seq
             << ", GetSnapShotFileInfo file ,ret = " << ret;
         return ret;
     }
@@ -1735,21 +1749,25 @@ StatusCode CurveFS::DeleteFileSnapShotFile2(const std::string &fileName,
     if (snapShotFileInfo.filestatus() == FileStatus::kFileDeleting) {
         LOG(INFO) << "fileName = " << fileName
         << ", snapName = " << snapName
+        << ", seq = " << seq
         << ", snapshot is under deleting";
         return StatusCode::kSnapshotDeleting;
     }
 
     if (snapShotFileInfo.filestatus() != FileStatus::kFileCreated) {
         LOG(ERROR) << "fileName = " << fileName
-        << ", snapName = " << snapName
-        << ", status error, status = " << snapShotFileInfo.filestatus();
+            << ", snapName = " << snapName
+            << ", seq = " << seq
+            << ", status error, status = " << snapShotFileInfo.filestatus();
         return StatusCode::KInternalError;
     }
+
     // check if snapshot is protected
     if (snapShotFileInfo.isprotected()) {
         LOG(ERROR) << "fileName = " << fileName
-        << ", snapName = " << snapName
-        << ", snapshot is protected";
+            << ", snapName = " << snapName
+            << ", seq = " << seq
+            << ", snapshot is protected";
         return StatusCode::kSnapshotFileProtected;
     }
 
@@ -1757,7 +1775,7 @@ StatusCode CurveFS::DeleteFileSnapShotFile2(const std::string &fileName,
     // remove snapshot snapName number from fileInfo,
     // in order to let client know the latest snaps through RefreshSession rpc
     auto snaps = fileInfo.mutable_snaps();
-    FileSeqType seq = fileInfo.seqnum();
+    seq = snapShotFileInfo.seqnum();
     auto findSnap = std::find(snaps->begin(), snaps->end(), seq);
     if (findSnap == snaps->end()) {
         LOG(WARNING) << "fileName = " << fileName
@@ -1778,6 +1796,7 @@ StatusCode CurveFS::DeleteFileSnapShotFile2(const std::string &fileName,
     if (ret != StatusCode::kOK) {
         LOG(ERROR) << "fileName = " << fileName
             << ", snapName = " << snapName
+            << ", seq = " << seq
             << ", SnapShotFile error = " << ret;
         LOG(ERROR) << fileName << ", SnapShotFile error";
         return StatusCode::kStorageError;
@@ -1790,8 +1809,9 @@ StatusCode CurveFS::DeleteFileSnapShotFile2(const std::string &fileName,
     if (!cleanManager_->SubmitDeleteBatchSnapShotFileJob(
                         snapShotFileInfo, entity)) {
         LOG(ERROR) << "fileName = " << fileName
-                << ", snapName = " << snapName
-                << ", Delete Task Deduplicated";
+            << ", snapName = " << snapName
+            << ", seq = " << seq
+            << ", Delete Task Deduplicated";
         return StatusCode::KInternalError;
     }
     return StatusCode::kOK;
@@ -2139,13 +2159,17 @@ StatusCode CurveFS::Clone(const std::string &fileName,
     fileInfo->set_ctime(::curve::common::TimeUtility::GetTimeofDayUs());
     fileInfo->set_seqnum(kStartSeqNum);
     fileInfo->set_filestatus(FileStatus::kFileCreated);
-    fileInfo->set_stripeunit(snapFileInfo.stripeunit());
-    fileInfo->set_stripecount(snapFileInfo.stripecount());
 
     fileInfo->set_clonesource(srcFileName);
     uint64_t cloneLength = snapFileInfo.length();
     // use length when doing snapshot
     fileInfo->set_clonelength(cloneLength);
+    fileInfo->set_stripeunit(snapFileInfo.stripeunit());
+    fileInfo->set_stripecount(snapFileInfo.stripecount());
+    fileInfo->set_poolset(snapFileInfo.poolset());
+    fileInfo->set_blocksize(snapFileInfo.blocksize());
+
+    fileInfo->set_version(kSupportLocalSnapshotFileVersion);
 
     fileInfo->set_initclonesegment(false);
 
@@ -2283,6 +2307,12 @@ StatusCode CurveFS::Flatten(const std::string &fileName,
 
     // check file type
     if (fileInfo.filetype() != FileType::INODE_CLONE_PAGEFILE) {
+        if (fileInfo.filetype() == FileType::INODE_PAGEFILE) {
+            LOG(INFO) << "Flatten file type is not clone file, "
+                      << " fileName = " << fileName
+                      << ", fileType = " << fileInfo.filetype();
+            return StatusCode::kOK;
+        }
         LOG(ERROR) << "Flatten file type not match, "
             << " fileName = " << fileName
             << ", fileType = " << fileInfo.filetype();
@@ -2459,7 +2489,7 @@ StatusCode CurveFS::QueryFlattenStatus(const std::string &fileName,
                 << ", maybe task finished error or resume task failed"
                 << ", fileName = " << fileName
                 << ", fileType = " << fileInfo.filetype();
-            return StatusCode::kFileNotFlattening;
+            return StatusCode::KInternalError;
         } else {
             LOG(ERROR) << "QueryFlattenStatus file type not match"
                 << ", fileName = " << fileName
@@ -2710,6 +2740,7 @@ StatusCode CurveFS::CreateCloneFile(const std::string &fileName,
         fileInfo.set_stripeunit(stripeUnit);
         fileInfo.set_stripecount(stripeCount);
         fileInfo.set_poolset(poolset);
+        fileInfo.set_version(kBaseFileVersion);
 
         ret = PutFile(fileInfo);
         if (ret == StatusCode::kOK && retFileInfo != nullptr) {
