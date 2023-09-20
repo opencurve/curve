@@ -73,6 +73,7 @@ TEST(SnapInstance, SnapShotTest) {
     SnapshotClient cl;
     ASSERT_TRUE(!cl.Init(opt));
 
+    FInfo snapInfo;
     uint64_t seq = 1;
     std::string filename = "./1_test_.img";
 
@@ -103,7 +104,7 @@ TEST(SnapInstance, SnapShotTest) {
     curvefsservice.SetCreateSnapShot(fakeret);
     ASSERT_EQ(-LIBCURVE_ERROR::FAILED, cl.CreateSnapShot(filename,
                                                         userinfo,
-                                                        &seq));
+                                                        &snapInfo));
 
     // set sequence
     response.set_statuscode(::curve::mds::StatusCode::kOK);
@@ -123,7 +124,8 @@ TEST(SnapInstance, SnapShotTest) {
     curvefsservice.SetCreateSnapShot(fakeret1);
     ASSERT_EQ(LIBCURVE_ERROR::OK, cl.CreateSnapShot(filename,
                                                     emptyuserinfo,
-                                                    &seq));
+                                                    &snapInfo));
+    seq = snapInfo.seqnum;
     ASSERT_EQ(2, seq);
 
     // rpc failed
@@ -135,7 +137,7 @@ TEST(SnapInstance, SnapShotTest) {
     curvefsservice.SetCreateSnapShot(fakeret2);
     ASSERT_EQ(-LIBCURVE_ERROR::FAILED, cl.CreateSnapShot(filename,
                                                         userinfo,
-                                                        &seq));
+                                                        &snapInfo));
 
     // set return kFileUnderSnapShot
     response.set_statuscode(::curve::mds::StatusCode::kFileUnderSnapShot);
@@ -144,7 +146,7 @@ TEST(SnapInstance, SnapShotTest) {
     curvefsservice.SetCreateSnapShot(checkfakeret3);
     ASSERT_EQ(-LIBCURVE_ERROR::UNDER_SNAPSHOT, cl.CreateSnapShot(filename,
                                                         userinfo,
-                                                        &seq));
+                                                        &snapInfo));
 
     // set return kClientVersionNotMatch
     ::curve::mds::CreateSnapShotResponse versionNotMatchResponse;
@@ -155,7 +157,7 @@ TEST(SnapInstance, SnapShotTest) {
 
     curvefsservice.SetCreateSnapShot(versionNotMatchFakeRetrun.get());
     ASSERT_EQ(-LIBCURVE_ERROR::CLIENT_NOT_SUPPORT_SNAPSHOT,
-              cl.CreateSnapShot(filename, userinfo, &seq));
+              cl.CreateSnapShot(filename, userinfo, &snapInfo));
 
     // test renamefile
     ::curve::mds::RenameFileResponse renameresp;
@@ -172,7 +174,7 @@ TEST(SnapInstance, SnapShotTest) {
     curvefsservice.SetRenameFile(renamefakeret1);
     ASSERT_EQ(-LIBCURVE_ERROR::AUTHFAIL, cl.RenameCloneFile(userinfo,
                                                         1, 2, "1", "2"));
-    ASSERT_EQ(2, seq);
+    ASSERT_EQ(2, snapInfo.seqnum);
 
     curvefsservice.CleanRetryTimes();
     brpc::Controller renamecntl;

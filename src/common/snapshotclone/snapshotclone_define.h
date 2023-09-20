@@ -32,6 +32,9 @@ namespace snapshotcloneserver {
 // snapshotcloneservice字符串常量定义
 extern const char* kServiceName;
 // action
+extern const char* kCreateFileAction;
+extern const char* kDeleteFileAction;
+extern const char* kListFileAction;
 extern const char* kCreateSnapshotAction;
 extern const char* kDeleteSnapshotAction;
 extern const char* kCancelSnapshotAction;
@@ -60,6 +63,11 @@ extern const char* kPoolset;
 extern const char* kStatusStr;
 extern const char* kTypeStr;
 extern const char* kInodeStr;
+extern const char* kSizeStr;
+extern const char* kStripeUnitStr;
+extern const char* kStripeCountStr;
+extern const char* kPoolSetStr;
+extern const char* kDirStr;
 
 // json key
 extern const char* kCodeStr;
@@ -67,6 +75,7 @@ extern const char* kMessageStr;
 extern const char* kRequestIdStr;
 extern const char* kTotalCountStr;
 extern const char* kSnapshotsStr;
+extern const char* kFileInfosStr;
 extern const char* kTaskInfosStr;
 extern const char* kRefStatusStr;
 extern const char* kCloneFileInfoStr;
@@ -134,6 +143,12 @@ const int kErrCodeFileExist = -19;
 const int kErrCodeTaskIsFull = -20;
 // 错误码：不支持
 const int kErrCodeNotSupport = -21;
+// errcode: file has snapshot
+const int kErrCodeUnderSnapShot = -22;
+// errcode: file occupied
+const int kErrCodeFileOccupied = -23;
+// errcode: invalid argument
+const int kErrCodeInvalidArgument = -24;
 
 extern std::map<int, std::string> code2Msg;
 

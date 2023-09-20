@@ -47,11 +47,12 @@ class MockChunkServerClient : public ChunkServerClient {
         ChunkID chunkId,
         uint64_t sn));
 
-    MOCK_METHOD8(DeleteChunk,
+    MOCK_METHOD9(DeleteChunk,
         int(ChunkServerIdType csId,
         uint64_t fileId,
         uint64_t originFileId,
         uint64_t chunkIndex,
+        uint32_t version,
         LogicalPoolID logicalPoolId,
         CopysetID copysetId,
         ChunkID chunkId,

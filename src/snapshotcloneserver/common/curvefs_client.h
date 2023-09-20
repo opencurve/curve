@@ -89,6 +89,9 @@ class RetryHelper {
     RetryCondition condition_;
 };
 
+
+int LibCurveErrToSnapshotCloneErr(int errCode);
+
 class CurveFsClient {
  public:
     CurveFsClient() {}
@@ -108,6 +111,16 @@ class CurveFsClient {
      */
     virtual int UnInit() = 0;
 
+    virtual int CreateFile(const std::string &file,
+        const std::string &user,
+        uint64_t size,
+        uint64_t stripeUnit,
+        uint64_t stripeCount,
+        const std::string &poolset) = 0;
+
+    virtual int DeleteFile(const std::string &file,
+        const std::string &user) = 0;
+
     /**
      * @brief 创建快照
      *
@@ -119,7 +132,7 @@ class CurveFsClient {
      */
     virtual int CreateSnapshot(const std::string &filename,
         const std::string &user,
-        uint64_t *seq) = 0;
+        FInfo* snapInfo) = 0;
 
     /**
      * @brief 删除快照
@@ -383,6 +396,14 @@ class CurveFsClient {
             const std::string &user,
             uint64_t fileId) = 0;
 
+    virtual int StatFile(const std::string &file,
+        const std::string &user,
+        FileStatInfo *statInfo) = 0;
+
+    virtual int ListDir(const std::string &dir,
+        const std::string &user,
+        std::vector<FileStatInfo> *fileStatInfos) = 0;
+
     /**
      * @brief 创建目录
      *
@@ -404,7 +425,54 @@ class CurveFsClient {
      */
     virtual int ChangeOwner(const std::string& filename,
         const std::string& newOwner) = 0;
+
+    /**
+     * @brief clone
+     *
+     * @param file  source volume path
+     * @param snapshotName  source snapshot name
+     * @param user  user
+     * @param destination  the destination volume of clone
+     * @param poolset  the poolset of destination volume
+     * @param finfo  the file info of destination volume
+     *
+     * @return error code
+     */
+    virtual int Clone(const std::string &snapPath,
+        const std::string &user,
+        const std::string &destination,
+        const std::string &poolset,
+        FInfo* finfo) = 0;
+
+    /**
+     * @brief flatten a file
+     *
+     * @param file  file to flatten
+     * @param user  user of the file to flatten
+     *
+     * @return  error code
+     */
+    virtual int Flatten(const std::string &file,
+        const std::string &user) = 0;
+
+    virtual int QueryFlattenStatus(const std::string &file,
+        const std::string &user,
+        FileStatus* filestatus,
+        uint32_t* progress) = 0;
+
+    virtual int ProtectSnapshot(const std::string &snapPath,
+        const std::string user) = 0;
+
+    virtual int UnprotectSnapshot(const std::string &snapPath,
+        const std::string user) = 0;
 };
+
+constexpr char kSnapPathSeprator[] = "@";
+
+inline std::string MakeSnapshotPath(const std::string &filePath,
+    const std::string &snapName) {
+    return filePath + kSnapPathSeprator + snapName;
+}
 
 class CurveFsClientImpl : public CurveFsClient {
  public:
@@ -418,9 +486,27 @@ class CurveFsClientImpl : public CurveFsClient {
 
     int UnInit() override;
 
+    int CreateFile(const std::string &file,
+        const std::string &user,
+        uint64_t size,
+        uint64_t stripeUnit,
+        uint64_t stripeCount,
+        const std::string &poolset) override;
+
+    int DeleteFile(const std::string &file,
+        const std::string &user) override;
+
+    int StatFile(const std::string &file,
+        const std::string &user,
+        FileStatInfo *statInfo) override;
+
+    int ListDir(const std::string &dir,
+        const std::string &user,
+        std::vector<FileStatInfo> *fileStatInfos) override;
+
     int CreateSnapshot(const std::string &filename,
         const std::string &user,
-        uint64_t *seq) override;
+        FInfo* snapInfo) override;
 
     int DeleteSnapshot(const std::string &filename,
         const std::string &user,
@@ -521,6 +607,26 @@ class CurveFsClientImpl : public CurveFsClient {
 
     int ChangeOwner(const std::string& filename,
                     const std::string& newOwner) override;
+
+    int Clone(const std::string &snapPath,
+        const std::string &user,
+        const std::string &destination,
+        const std::string &poolset,
+        FInfo* finfo) override;
+
+    int Flatten(const std::string &file,
+        const std::string &user) override;
+
+    int QueryFlattenStatus(const std::string &file,
+        const std::string &user,
+        FileStatus* filestatus,
+        uint32_t* progress) override;
+
+    int ProtectSnapshot(const std::string &snapPath,
+        const std::string user) override;
+
+    int UnprotectSnapshot(const std::string &snapPath,
+        const std::string user) override;
 
  private:
     UserInfo GetUserInfo(const std::string &user) {

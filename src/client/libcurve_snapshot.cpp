@@ -75,9 +75,10 @@ void SnapshotClient::UnInit() {
 }
 
 int SnapshotClient::CreateSnapShot(const std::string& filename,
-                                        const UserInfo_t& userinfo,
-                                        uint64_t* seq) {
-    LIBCURVE_ERROR ret = mdsclient_.CreateSnapShot(filename, userinfo, seq);
+                                   const UserInfo_t& userinfo,
+                                   FInfo* snapInfo) {
+    LIBCURVE_ERROR ret = mdsclient_.CreateSnapShot(
+        filename, userinfo, snapInfo);
     return -ret;
 }
 

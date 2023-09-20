@@ -159,7 +159,7 @@ void MDSClientBase::CreateSnapShot(const std::string& filename,
                                    brpc::Controller* cntl,
                                    brpc::Channel* channel) {
     CreateSnapShotRequest request;
-    request.set_snapfilename(filename);
+    request.set_filename(filename);
     FillUserInfo(&request, userinfo);
 
     LOG(INFO) << "CreateSnapShot: filename = " << filename
@@ -177,8 +177,9 @@ void MDSClientBase::DeleteSnapShot(const std::string& filename,
                                    brpc::Controller* cntl,
                                    brpc::Channel* channel) {
     DeleteSnapShotRequest request;;
-    request.set_snapfilename(filename);
+    request.set_filename(filename);
     FillUserInfo(&request, userinfo);
+    request.set_seq(seq);
 
     LOG(INFO) << "DeleteSnapShot: filename = " << filename
                 << ", owner = " << userinfo.owner

@@ -57,32 +57,42 @@ void TopologyStatImpl::UpdateChunkServerStat(ChunkServerIdType csId,
             it->second.chunkSizeUsedBytes;
         physicalPoolStats_[belongPhysicalPoolId].chunkFilePoolUsed += diffUsed;
 
-        LOG(INFO) << "UpdateChunkServerStat, chunkserver stat update,"
-                  << " chunkserverId = "
-                  << csId
-                  << ", chunkFilePoolSize = "
-                  << stat.chunkFilepoolSize
-                  << ", chunkFilePoolUsed = "
-                  << stat.chunkSizeUsedBytes
-                  << ", diff = "
-                  << diff
-                  << ", diffUsed = "
-                  << diffUsed;
-
         if (chunkFilePoolAllocHelp_->GetUseChunkFilepool()) {
             if (stat.chunkSizeUsedBytes >
                     (stat.chunkFilepoolSize * available / 100)) {
-                LOG(WARNING) << "Find chunkserver is almost full,"
-                             << " chunkserverId = "
-                             << csId;
-                physicalPoolStats_[belongPhysicalPoolId].almostFullCsList
+                auto rt = physicalPoolStats_[belongPhysicalPoolId]
+                    .almostFullCsList
                     .emplace(csId);
+                if (rt.second) {
+                    LOG(WARNING) << "Find chunkserver is almost full,"
+                        << " chunkserverId = "
+                        << csId
+                        << ", chunkFilePoolSize = "
+                        << stat.chunkFilepoolSize
+                        << ", chunkFilePoolUsed = "
+                        << stat.chunkSizeUsedBytes
+                        << ", diff = "
+                        << diff
+                        << ", diffUsed = "
+                        << diffUsed;
+                }
             } else {
-                LOG(INFO) << "Find chunkserver is not full,"
-                          << "remove from almost list, chunkserverId = "
-                          << csId;
-                physicalPoolStats_[belongPhysicalPoolId].almostFullCsList
+                auto ct = physicalPoolStats_[belongPhysicalPoolId]
+                    .almostFullCsList
                     .erase(csId);
+                if (ct != 0) {
+                    LOG(INFO) << "Find chunkserver is not full,"
+                        << "remove from almost full list, chunkserverId = "
+                        << csId
+                        << ", chunkFilePoolSize = "
+                        << stat.chunkFilepoolSize
+                        << ", chunkFilePoolUsed = "
+                        << stat.chunkSizeUsedBytes
+                        << ", diff = "
+                        << diff
+                        << ", diffUsed = "
+                        << diffUsed;
+                }
             }
         }
         it->second = stat;

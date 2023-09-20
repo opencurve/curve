@@ -113,6 +113,7 @@ int RequestSender::WriteChunk(RequestContext *ctx,
         request.set_epoch(epoch);
     }
     request.set_chunkindex(ctx->chunkIndex_);
+    request.set_version(ctx->version_);
 
     if (ctx->filetype_ == FileType::INODE_CLONE_PAGEFILE) {
         request.set_originfileid(ctx->originFileId_);
@@ -163,6 +164,7 @@ int RequestSender::ReadChunk(RequestContext *ctx,
 
     request.set_fileid(fileId);
     request.set_chunkindex(ctx->chunkIndex_);
+    request.set_version(ctx->version_);
 
     if (ctx->filetype_ == FileType::INODE_CLONE_PAGEFILE) {
         request.set_originfileid(ctx->originFileId_);

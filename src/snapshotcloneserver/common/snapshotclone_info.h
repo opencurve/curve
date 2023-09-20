@@ -271,6 +271,11 @@ enum class Status{
     error
 };
 
+enum class LocationType {
+    kLocationS3 = 1,
+    kLocationCurve = 2,
+};
+
 //快照信息
 class SnapshotInfo {
  public:
@@ -283,7 +288,8 @@ class SnapshotInfo {
         stripeUnit_(0),
         stripeCount_(0),
         time_(0),
-        status_(Status::pending) {}
+        status_(Status::pending),
+        locationType_(LocationType::kLocationS3) {}
 
     SnapshotInfo(UUID uuid,
             const std::string &user,
@@ -300,7 +306,9 @@ class SnapshotInfo {
         stripeUnit_(0),
         stripeCount_(0),
         time_(0),
-        status_(Status::pending) {}
+        status_(Status::pending),
+        locationType_(LocationType::kLocationS3) {}
+
     SnapshotInfo(UUID uuid,
             const std::string &user,
             const std::string &fileName,
@@ -313,7 +321,8 @@ class SnapshotInfo {
             uint64_t stripeCount,
             const std::string& poolset,
             uint64_t time,
-            Status status)
+            Status status,
+            LocationType locationType)
         :uuid_(uuid),
         user_(user),
         fileName_(fileName),
@@ -326,7 +335,8 @@ class SnapshotInfo {
         stripeCount_(stripeCount),
         poolset_(poolset),
         time_(time),
-        status_(status) {}
+        status_(status),
+        locationType_(locationType) {}
 
     void SetUuid(const UUID &uuid) {
         uuid_ = uuid;
@@ -432,6 +442,14 @@ class SnapshotInfo {
         return status_;
     }
 
+    LocationType GetLocation() const {
+        return locationType_;
+    }
+
+    void SetLocation(LocationType locationType) {
+        locationType_ = locationType;
+    }
+
     bool SerializeToString(std::string *value) const;
 
     bool ParseFromString(const std::string &value);
@@ -463,6 +481,8 @@ class SnapshotInfo {
     uint64_t time_;
     // 快照处理的状态
     Status status_;
+    // snapshot location type
+    LocationType locationType_;
 };
 
 std::ostream& operator<<(std::ostream& os, const SnapshotInfo &snapshotInfo);

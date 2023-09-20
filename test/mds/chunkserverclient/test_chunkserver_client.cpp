@@ -609,7 +609,7 @@ TEST_F(TestChunkServerClient, TestDeleteChunkSuccess) {
                     })));
 
     int ret = client_->DeleteChunk(
-        csId, fileId, originFileId, chunkIndex,
+        csId, fileId, originFileId, chunkIndex, 1,
         logicalPoolId, copysetId, chunkId, sn);
     ASSERT_EQ(kMdsSuccess, ret);
 }
@@ -639,7 +639,7 @@ TEST_F(TestChunkServerClient, TestDeleteChunkGetChunkServerFail) {
 
 
     int ret = client_->DeleteChunk(
-        csId, fileId, originFileId, chunkIndex,
+        csId, fileId, originFileId, chunkIndex, 1,
         logicalPoolId, copysetId, chunkId, sn);
     ASSERT_EQ(kMdsFail, ret);
 }
@@ -668,7 +668,7 @@ TEST_F(TestChunkServerClient, TestDeleteChunkChunkServerOFFLINE) {
             Return(true)));
 
     int ret = client_->DeleteChunk(
-        csId, fileId, originFileId, chunkIndex,
+        csId, fileId, originFileId, chunkIndex, 1,
         logicalPoolId, copysetId, chunkId, sn);
     ASSERT_EQ(kCsClientCSOffline, ret);
 }
@@ -697,7 +697,7 @@ TEST_F(TestChunkServerClient, TestDeleteChunkRpcChannelInitFail) {
             Return(true)));
 
     int ret = client_->DeleteChunk(
-        csId, fileId, originFileId, chunkIndex,
+        csId, fileId, originFileId, chunkIndex, 1,
         logicalPoolId, copysetId, chunkId, sn);
     ASSERT_EQ(kRpcChannelInitFail, ret);
 }
@@ -740,7 +740,7 @@ TEST_F(TestChunkServerClient, TestDeleteChunkRpcCntlFail) {
                     })));
 
     int ret = client_->DeleteChunk(
-        csId, fileId, originFileId, chunkIndex,
+        csId, fileId, originFileId, chunkIndex, 1,
         logicalPoolId, copysetId, chunkId, sn);
     ASSERT_EQ(kRpcFail, ret);
 }
@@ -779,7 +779,7 @@ TEST_F(TestChunkServerClient, TestDeleteChunkRpcReturnFail) {
                     })));
 
     int ret = client_->DeleteChunk(
-        csId, fileId, originFileId, chunkIndex,
+        csId, fileId, originFileId, chunkIndex, 1,
         logicalPoolId, copysetId, chunkId, sn);
     ASSERT_EQ(kCsClientReturnFail, ret);
 }
@@ -818,7 +818,7 @@ TEST_F(TestChunkServerClient, TestDeleteChunkReturnNotLeader) {
                     })));
 
     int ret = client_->DeleteChunk(
-        csId, fileId, originFileId, chunkIndex,
+        csId, fileId, originFileId, chunkIndex, 1,
         logicalPoolId, copysetId, chunkId, sn);
     ASSERT_EQ(kCsClientNotLeader, ret);
 }

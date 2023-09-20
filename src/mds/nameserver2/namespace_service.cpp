@@ -971,21 +971,22 @@ void NameSpaceService::CreateSnapShot(
 
     std::string srcFileName;
     std::string snapName;
-    if (!SplitSnapshotPath(request->snapfilename(), &srcFileName, &snapName)) {
-        // for compatibility, if snapfilename is not a snapshot path,
+    if (!SplitSnapshotPath(request->filename(), &srcFileName, &snapName)) {
+        // for compatibility, if filename is not a snapshot path,
         // not return kParaError
         LOG(WARNING) << "logid = " << cntl->log_id()
-                     << ", CreateSnapShot request path is invalid"
-                     << ", snapfilename = "
-                     << request->snapfilename();
-        srcFileName = request->snapfilename();
+                     << ", CreateSnapShot request path split failed"
+                     << ", filename = "
+                     << request->filename();
+        srcFileName = request->filename();
+        snapName = "";
     }
     if (!isPathValid(srcFileName)) {
         response->set_statuscode(StatusCode::kParaError);
         LOG(ERROR) << "logid = " << cntl->log_id()
                   << ", CreateSnapShot request path is invalid, "
-                  << "snapfilename = "
-                  << request->snapfilename();
+                  << "filename = "
+                  << request->filename();
         return;
     }
 
@@ -1022,15 +1023,15 @@ void NameSpaceService::CreateSnapShot(
         response->set_statuscode(retCode);
         if (google::ERROR != GetMdsLogLevel(retCode)) {
             LOG(WARNING) << "logid = " << cntl->log_id()
-                         << ", CreateSnapShot fail, snapfilename = "
-                         << request->snapfilename()
+                         << ", CreateSnapShot fail, filename = "
+                         << request->filename()
                          << ", statusCode = " << retCode
                          << ", StatusCode_Name = " << StatusCode_Name(retCode)
                          << ", cost " << expiredTime.ExpiredMs() << " ms";
         } else {
             LOG(ERROR) << "logid = " << cntl->log_id()
-                       << ", CreateSnapShot fail, snapfilename = "
-                       << request->snapfilename()
+                       << ", CreateSnapShot fail, filename = "
+                       << request->filename()
                        << ", statusCode = " << retCode
                        << ", StatusCode_Name = " << StatusCode_Name(retCode)
                        << ", cost " << expiredTime.ExpiredMs() << " ms";
@@ -1039,8 +1040,8 @@ void NameSpaceService::CreateSnapShot(
     } else {
         response->set_statuscode(StatusCode::kOK);
         LOG(INFO) << "logid = " << cntl->log_id()
-                  << ", CreateSnapShot ok, snapfilename = "
-                  << request->snapfilename()
+                  << ", CreateSnapShot ok, filename = "
+                  << request->filename()
                   << ", seq = " << response->snapshotfileinfo().seqnum()
                   << ", cost " << expiredTime.ExpiredMs() << " ms";
     }
@@ -1163,20 +1164,36 @@ void NameSpaceService::DeleteSnapShot(
 
     std::string srcFileName;
     std::string snapName;
-    if (!SplitSnapshotPath(request->snapfilename(), &srcFileName, &snapName)) {
-        response->set_statuscode(StatusCode::kParaError);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-                  << ", DeleteSnapShot request path is invalid, snapfilename = "
-                  << request->snapfilename();
-        return;
+    if (!SplitSnapshotPath(request->filename(), &srcFileName, &snapName)) {
+        // for compatibility, if filename is not a snapshot path,
+        // not return kParaError
+        LOG(WARNING) << "logid = " << cntl->log_id()
+                  << ", DeleteSnapShot request path split failed, filename = "
+                  << request->filename();
+        srcFileName = request->filename();
+        snapName = "";
     }
+
     if (!isPathValid(srcFileName)) {
         response->set_statuscode(StatusCode::kParaError);
         LOG(ERROR) << "logid = " << cntl->log_id()
                   << ", DeleteSnapShot request path is invalid, "
-                  << "snapfilename = "
-                  << request->snapfilename();
+                  << "filename = "
+                  << request->filename();
         return;
+    }
+    FileSeqType seq = 0;
+    if (snapName.empty()) {
+        // snapName ro seq must be set
+        if (!request->has_seq()) {
+            response->set_statuscode(StatusCode::kParaError);
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                      << ", DeleteSnapShot request seq is not set, "
+                      << "filename = "
+                      << request->filename();
+            return;
+        }
+        seq = request->seq();
     }
 
     std::string signature;
@@ -1206,21 +1223,23 @@ void NameSpaceService::DeleteSnapShot(
     }
 
     retCode =  kCurveFS.DeleteFileSnapShotFile2(srcFileName,
-                                    snapName, nullptr);
+                                    snapName, seq, nullptr);
 
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
         if (google::ERROR != GetMdsLogLevel(retCode)) {
             LOG(WARNING) << "logid = " << cntl->log_id()
-                         << ", DeleteSnapShot fail, filename = "
-                         << srcFileName << ", snapName = " << snapName
+                         << ", DeleteSnapShot fail, filename = " << srcFileName
+                         << ", snapName = " << snapName
+                         << ", seq = " << seq
                          << ", statusCode = " << retCode
                          << ", StatusCode_Name = " << StatusCode_Name(retCode)
                          << ", cost " << expiredTime.ExpiredMs() << " ms";
         } else {
             LOG(ERROR) << "logid = " << cntl->log_id()
-                       << ", DeleteSnapShot fail, filename = "
-                       << srcFileName << ", snapName = " << snapName
+                       << ", DeleteSnapShot fail, filename = " << srcFileName
+                       << ", snapName = " << snapName
+                       << ", seq = " << seq
                        << ", statusCode = " << retCode
                        << ", StatusCode_Name = " << StatusCode_Name(retCode)
                        << ", cost " << expiredTime.ExpiredMs() << " ms";

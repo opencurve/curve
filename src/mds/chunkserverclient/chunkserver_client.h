@@ -67,6 +67,7 @@ struct FlattenChunkContext {
     uint64_t seqNum;
     uint64_t originFileId;
     ChunkID chunkIndex;
+    uint32_t version;
     std::vector<CloneInfo> cloneChain;
 
     uint64_t chunkSize;
@@ -148,6 +149,7 @@ class ChunkServerClient {
         uint64_t fileId,
         uint64_t originFileId,
         uint64_t chunkIndex,
+        uint32_t version,
         LogicalPoolID logicalPoolId,
         CopysetID copysetId,
         ChunkID chunkId,
@@ -169,6 +171,7 @@ class ChunkServerClient {
         uint64_t fileId,
         uint64_t originFileId,
         uint64_t chunkIndex,
+        uint32_t version,
         LogicalPoolID logicalPoolId,
         CopysetID copysetId,
         ChunkID chunkId,

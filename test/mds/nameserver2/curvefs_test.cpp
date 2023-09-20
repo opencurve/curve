@@ -5313,7 +5313,7 @@ TEST_F(CurveFSTest, QueryFlattenStatus) {
                     Return(StoreStatus::OK)));
         EXPECT_CALL(*mockFlattenManager_, GetFlattenTask(_))
             .WillOnce(Return(nullptr));
-        ASSERT_EQ(StatusCode::kFileNotFlattening,
+        ASSERT_EQ(StatusCode::KInternalError,
                 curvefs_->QueryFlattenStatus(fileName, owner1, &status,
                     &progress));
         ASSERT_EQ(FileStatus::kFileFlattening, status);

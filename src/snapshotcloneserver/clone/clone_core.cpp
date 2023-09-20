@@ -51,6 +51,68 @@ int CloneCoreImpl::Init() {
     return kErrCodeSuccess;
 }
 
+int CloneCoreImpl::CloneLocal(const std::string &file,
+    const std::string &snapshotName,
+    const std::string &user,
+    const std::string &destination,
+    const std::string &poolset) {
+    std::string snapPath = MakeSnapshotPath(file, snapshotName);
+    FInfo finfo;
+    int ret = client_->Clone(snapPath, user, destination,
+        poolset, &finfo);
+    ret = LibCurveErrToSnapshotCloneErr(ret);
+    if (kErrCodeFileExist == ret) {
+        if ((finfo.cloneSource == file) &&
+            (finfo.owner == user) &&
+            (poolset.empty() || poolset == finfo.poolset)){
+            return kErrCodeSuccess;
+        } else {
+            LOG(WARNING) << "Clone fail, ret = " << ret
+                         << ", file = " << file
+                         << ", snapshotName = " << snapshotName
+                         << ", user = " << user
+                         << ", destination = " << destination
+                         << ", exist finfo.cloneSource: "
+                         << finfo.cloneSource
+                         << ", finfo.owner: " << finfo.owner
+                         << ", poolset = " << poolset;
+            return kErrCodeFileExist;
+        }
+    } else if (ret != kErrCodeSuccess) {
+        LOG(ERROR) << "Clone fail, ret = " << ret
+                   << ", file = " << file
+                   << ", snapshotName = " << snapshotName
+                   << ", user = " << user
+                   << ", destination = " << destination
+                   << ", poolset = " << poolset;
+        return ret;
+    }
+
+    LOG(INFO) << "Clone success, ret = " << ret
+              << ", file = " << file
+              << ", snapshotName = " << snapshotName
+              << ", user = " << user
+              << ", destination = " << destination
+              << ", poolset = " << poolset;
+    return ret;
+}
+
+int CloneCoreImpl::FlattenLocal(const std::string &file,
+    const std::string &user) {
+    int ret = client_->Flatten(file, user);
+    ret = LibCurveErrToSnapshotCloneErr(ret);
+    if (ret != kErrCodeSuccess) {
+        LOG(ERROR) << "Flatten fail, ret = " << ret
+                   << ", file = " << file
+                   << ", user = " << user;
+        return ret;
+    }
+    LOG(INFO) << "Flatten success, ret = " << ret
+              << ", file = " << file
+              << ", user = " << user;
+    return ret;
+}
+
 int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
     const std::string &user,
     const std::string &destination,
@@ -505,10 +567,6 @@ int CloneCoreImpl::BuildFileInfoFromSnapshot(
         newFileInfo->seqnum = kInitializeSeqNum;
     }
     newFileInfo->owner = task->GetCloneInfo().GetUser();
-
-    if (!dataStore_->Enabled()) {
-        return kErrCodeSuccess;
-    }
 
     ChunkIndexDataName indexName(snapInfo.GetFileName(),
          snapInfo.GetSeqNum());

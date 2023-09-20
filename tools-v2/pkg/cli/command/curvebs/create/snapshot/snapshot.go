@@ -74,7 +74,7 @@ func (fCmd *snapshotCommand) Init(cmd *cobra.Command, args []string) error {
         return errDat.ToError()
     }
     request := &nameserver2.CreateSnapShotRequest {
-          SnapFileName: &snapFileName,
+          Filename: &snapFileName,
           Date:     &date,
           Owner:    &owner,
     }
@@ -118,7 +118,7 @@ func (fCmd *snapshotCommand) RunCommand(cmd *cobra.Command, args []string) error
     fCmd.Result = fCmd.Response
 
     if fCmd.Response.GetStatusCode() != nameserver2.StatusCode_kOK {
-        err = cmderror.ErrBsCreateSnapShot(fCmd.Response.GetStatusCode(), fCmd.Rpc.Request.GetSnapFileName())
+        err = cmderror.ErrBsCreateSnapShot(fCmd.Response.GetStatusCode(), fCmd.Rpc.Request.GetFilename())
         return err.ToError()
     }
 

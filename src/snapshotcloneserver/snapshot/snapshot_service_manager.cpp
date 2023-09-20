@@ -24,6 +24,9 @@
 
 #include <glog/logging.h>
 #include "src/common/string_util.h"
+#include "src/common/curve_version.h"
+
+using ::curve::common::kSupportLocalSnapshotFileVersion;
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -43,6 +46,28 @@ void SnapshotServiceManager::Stop() {
 }
 
 int SnapshotServiceManager::CreateSnapshot(const std::string &file,
+    const std::string &user,
+    const std::string &snapshotName,
+    UUID *uuid) {
+    FInfo fInfo;
+    int ret = core_->GetFileInfo(file, user, &fInfo);
+    if (ret < 0) {
+        return ret;
+    }
+    if (fInfo.version < kSupportLocalSnapshotFileVersion) {
+        LOG(INFO) << "find file version is "
+                  << fInfo.version
+                  << ", not support local snapshot, use s3 snapshot";
+        return CreateS3Snapshot(file, user, snapshotName, uuid);
+    } else {
+        LOG(INFO) << "find file version is "
+                  << fInfo.version
+                  << ", support local snapshot, use local snapshot";
+        return CreateLocalSnapshot(file, user, snapshotName, uuid);
+    }
+}
+
+int SnapshotServiceManager::CreateS3Snapshot(const std::string &file,
     const std::string &user,
     const std::string &snapshotName,
     UUID *uuid) {
@@ -84,14 +109,14 @@ int SnapshotServiceManager::CreateSnapshot(const std::string &file,
     return kErrCodeSuccess;
 }
 
-int SnapshotServiceManager::CreateSyncSnapshot(const std::string &file,
+int SnapshotServiceManager::CreateLocalSnapshot(const std::string &file,
     const std::string &user,
     const std::string &snapshotName,
     UUID *uuid) {
     SnapshotInfo snapInfo;
-    int ret = core_->CreateSyncSnapshotPre(file, user, snapshotName, &snapInfo);
+    int ret = core_->CreateLocalSnapshot(file, user, snapshotName, &snapInfo);
     if (ret < 0) {
-        LOG(ERROR) << "CreateSyncSnapshotPre error, "
+        LOG(ERROR) << "CreateLocalSnapshot error, "
                    << " ret = " << ret
                    << ", file = " << file
                    << ", snapshotName = " << snapshotName
@@ -99,24 +124,6 @@ int SnapshotServiceManager::CreateSyncSnapshot(const std::string &file,
         return ret;
     }
     *uuid = snapInfo.GetUuid();
-
-    std::shared_ptr<SnapshotTaskInfo> taskInfo =
-        std::make_shared<SnapshotTaskInfo>(snapInfo, nullptr);
-    ret =  core_->HandleCreateSyncSnapshotTask(taskInfo);
-    if (ret < 0) {
-        LOG(ERROR) << "HandleCreateSyncSnapshotTask error and ready to delete, "
-                   << " ret = " << ret
-                   << ", file = " << file
-                   << ", snapshotName = " << snapshotName
-                   << ", uuid = " << snapInfo.GetUuid();
-        int retTmp = DeleteSyncSnapshot(*uuid, user, file);
-        if (retTmp < 0) {
-            LOG(ERROR) << "DeleteSyncSnapshot fail "
-                       << "when HandleCreateSyncSnapshotTask error,"
-                       << " ret = " << retTmp;
-        }
-        return ret;
-    }
     return kErrCodeSuccess;
 }
 
@@ -151,7 +158,50 @@ int SnapshotServiceManager::CancelSnapshot(
     return kErrCodeSuccess;
 }
 
-int SnapshotServiceManager::DeleteSnapshot(
+int SnapshotServiceManager::DeleteSnapshotBySnapshotName(const std::string &file,
+    const std::string &user,
+    const std::string &snapshotName) {
+    SnapshotInfo info;
+    int ret = core_->GetSnapshotInfo(file, snapshotName, &info);
+    if (ret < 0) {
+        LOG(INFO) << "snapshot not exist, file = "
+                  << file
+                  << ", snapshotName = "
+                  << snapshotName;
+        return kErrCodeSuccess;
+    }
+    if (info.GetLocation() == LocationType::kLocationCurve) {
+        LOG(INFO) << "snapshot location is in curve, "
+                  << "use local snapshot delete";
+        return DeleteLocalSnapshot(info.GetUuid(), user, file);
+    } else {
+        LOG(INFO) << "snapshot location is in s3, "
+                  << "use s3 snapshot delete";
+        return DeleteS3Snapshot(info.GetUuid(), user, file);
+    }
+}
+
+int SnapshotServiceManager::DeleteSnapshotByUUID(const std::string &file,
+    const std::string &user,
+    const std::string &uuid) {
+    SnapshotInfo info;
+    int ret = core_->GetSnapshotInfo(uuid, &info);
+    if (ret < 0) {
+        LOG(INFO) << "snapshot not exist, uuid = " << uuid;
+        return kErrCodeSuccess;
+    }
+    if (info.GetLocation() == LocationType::kLocationCurve) {
+        LOG(INFO) << "snapshot location is in curve, "
+                  << "use local snapshot delete";
+        return DeleteLocalSnapshot(info.GetUuid(), user, file);
+    } else {
+        LOG(INFO) << "snapshot location is in s3, "
+                  << "use s3 snapshot delete";
+        return DeleteS3Snapshot(info.GetUuid(), user, file);
+    }
+}
+
+int SnapshotServiceManager::DeleteS3Snapshot(
     const UUID &uuid,
     const std::string &user,
     const std::string &file) {
@@ -198,35 +248,19 @@ int SnapshotServiceManager::DeleteSnapshot(
     return kErrCodeSuccess;
 }
 
-int SnapshotServiceManager::DeleteSyncSnapshot(
+int SnapshotServiceManager::DeleteLocalSnapshot(
     const UUID &uuid,
     const std::string &user,
     const std::string &file) {
-    SnapshotInfo snapInfo;
-    int ret = core_->DeleteSyncSnapshotPre(uuid, user, file, &snapInfo);
-    if (kErrCodeTaskExist == ret) {
-        return kErrCodeSuccess;
-    } else if (ret < 0) {
-        LOG(ERROR) << "DeleteSyncSnapshotPre fail"
-                   << ", ret = " << ret
-                   << ", uuid = " << uuid
-                   << ", file =" << file;
-        return ret;
-    }
-    auto snapInfoMetric = std::make_shared<SnapshotInfoMetric>(uuid);
-    std::shared_ptr<SnapshotTaskInfo> taskInfo =
-        std::make_shared<SnapshotTaskInfo>(snapInfo, snapInfoMetric);
-    taskInfo->UpdateMetric();
-    std::shared_ptr<SnapshotDeleteSyncTask> task =
-        std::make_shared<SnapshotDeleteSyncTask>(
-            snapInfo.GetUuid(), taskInfo, core_);
-    ret = taskMgr_->PushTask(task);
+    int ret = core_->DeleteLocalSnapshot(uuid, user, file);
     if (ret < 0) {
-        LOG(ERROR) << "Push Task error, "
-                   << " ret = " << ret;
-        return ret;
+        LOG(ERROR) << "DeleteLocalSnapshot failed"
+                   << " ret = " << ret
+                   << ", file = " << file
+                   << ", user = " << user
+                   << ", uuid = " << uuid;
     }
-    return kErrCodeSuccess;
+    return ret;
 }
 
 int SnapshotServiceManager::GetFileSnapshotInfo(const std::string &file,
@@ -267,6 +301,31 @@ int SnapshotServiceManager::GetFileSnapshotInfoById(const std::string &file,
     return GetFileSnapshotInfoInner(snapInfos, user, info);
 }
 
+int SnapshotServiceManager::GetFileSnapshotInfoBySnapshotName(
+    const std::string &file,
+    const std::string &user,
+    const std::string &snapshotName,
+    std::vector<FileSnapshotInfo> *info) {
+    std::vector<SnapshotInfo> snapInfos;
+    SnapshotInfo snap;
+    int ret = core_->GetSnapshotInfo(file, snapshotName, &snap);
+    if (ret < 0) {
+        LOG(ERROR) << "GetSnapshotInfo error, "
+                   << " ret ="
+                   << ret
+                   << ", file = "
+                   << file
+                   << ", snapshotName = "
+                   << snapshotName;
+        return kErrCodeFileNotExist;
+    }
+    if (snap.GetUser() != user) {
+        return kErrCodeInvalidUser;
+    }
+    snapInfos.push_back(snap);
+    return GetFileSnapshotInfoInner(snapInfos, user, info);
+}
+
 int SnapshotServiceManager::GetFileSnapshotInfoInner(
     std::vector<SnapshotInfo> snapInfos,
     const std::string &user,
@@ -286,7 +345,32 @@ int SnapshotServiceManager::GetFileSnapshotInfoInner(
                     break;
                 }
                 case Status::deleting:
-                case Status::errorDeleting: {
+                case Status::errorDeleting:
+                case Status::pending: {
+                    if (LocationType::kLocationCurve == snap.GetLocation()) {
+                        Status st;
+                        uint32_t progress;
+                        ret = core_->GetLocalSnapshotStatus(snap.GetFileName(),
+                            snap.GetUser(),
+                            snap.GetSeqNum(),
+                            &st, &progress);
+                        if (kErrCodeSuccess == ret) {
+                            SnapshotInfo newInfo = snap;
+                            newInfo.SetStatus(st);
+                            info->emplace_back(newInfo, progress);
+                            continue;
+                        } else if (kErrCodeFileNotExist == ret) {
+                            continue;
+                        } else {
+                            LOG(ERROR) << "GetLocalSnapshotStatus error, "
+                                       << " ret = " << ret
+                                       << ", file = " << snap.GetFileName()
+                                       << ", user = " << snap.GetUser()
+                                       << ", seq = " << snap.GetSeqNum();
+                            return ret;
+                        }
+                    }
+
                     UUID uuid = snap.GetUuid();
                     std::shared_ptr<SnapshotTask> task =
                         taskMgr_->GetTask(uuid);
@@ -318,11 +402,6 @@ int SnapshotServiceManager::GetFileSnapshotInfoInner(
                                 return kErrCodeInternalError;
                         }
                     }
-                    break;
-                }
-                case Status::pending: {
-                    //对于同步创建的快照，不存在任务和进度的概念
-                    info->emplace_back(snap, 1);
                     break;
                 }
                 default:
@@ -381,7 +460,8 @@ int SnapshotServiceManager::GetSnapshotListInner(
                     break;
                 }
                 case Status::deleting:
-                case Status::errorDeleting: {
+                case Status::errorDeleting:
+                case Status::pending: {
                     UUID uuid = snap.GetUuid();
                     std::shared_ptr<SnapshotTask> task =
                         taskMgr_->GetTask(uuid);
@@ -413,11 +493,6 @@ int SnapshotServiceManager::GetSnapshotListInner(
                                 return kErrCodeInternalError;
                         }
                     }
-                    break;
-                }
-                case Status::pending: {
-                    //对于同步创建的快照，不存在任务和进度的概念
-                    info->emplace_back(snap, 1);
                     break;
                 }
                 default:
@@ -452,7 +527,6 @@ int SnapshotServiceManager::RecoverSnapshotTask() {
     for (auto &snap : list) {
         Status st = snap.GetStatus();
         switch (st) {
-            /*
             case Status::pending : {
                 auto snapInfoMetric =
                     std::make_shared<SnapshotInfoMetric>(snap.GetUuid());
@@ -474,11 +548,6 @@ int SnapshotServiceManager::RecoverSnapshotTask() {
                 }
                 break;
             }
-            */
-            // 创建快照改为同步之后，重启程序发现状态为pending的快照记录，
-            // 则用户必然未收到快照创建成功的响应，因此要回滚删除快照记录。
-            // 删除快照可能比较耗时，因此以异步任务方式进行
-           case Status::pending :
             // 重启恢复的canceling等价于errorDeleting
             case Status::canceling :
             case Status::deleting :
@@ -488,8 +557,8 @@ int SnapshotServiceManager::RecoverSnapshotTask() {
                 std::shared_ptr<SnapshotTaskInfo> taskInfo =
                     std::make_shared<SnapshotTaskInfo>(snap, snapInfoMetric);
                 taskInfo->UpdateMetric();
-                std::shared_ptr<SnapshotDeleteSyncTask> task =
-                    std::make_shared<SnapshotDeleteSyncTask>(
+                std::shared_ptr<SnapshotDeleteTask> task =
+                    std::make_shared<SnapshotDeleteTask>(
                         snap.GetUuid(),
                         taskInfo,
                         core_);

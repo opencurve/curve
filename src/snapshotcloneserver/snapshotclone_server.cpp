@@ -58,6 +58,8 @@ void InitSnapshotCloneServerOptions(std::shared_ptr<Configuration> conf,
                                     SnapshotCloneServerOptions *serverOption) {
     conf->GetValueFatalIfFail("server.address",
                                         &serverOption->addr);
+    conf->GetValueFatalIfFail("server.disableS3SnapshotClone",
+                            &serverOption->disableS3SnapshotClone);
     conf->GetValueFatalIfFail("server.clientAsyncMethodRetryTimeSec",
         &serverOption->clientAsyncMethodRetryTimeSec);
     conf->GetValueFatalIfFail(
@@ -81,6 +83,9 @@ void InitSnapshotCloneServerOptions(std::shared_ptr<Configuration> conf,
                                         &serverOption->mdsSessionTimeUs);
     conf->GetValueFatalIfFail("server.readChunkSnapshotConcurrency",
             &serverOption->readChunkSnapshotConcurrency);
+
+    conf->GetUInt32Value("server.localSnapshotBackendCheckIntervalMs",
+            &serverOption->localSnapshotBackendCheckIntervalMs);
 
     conf->GetValueFatalIfFail("server.stage1PoolThreadNum",
                                      &serverOption->stage1PoolThreadNum);
@@ -151,6 +156,9 @@ void SnapShotCloneServer::InitAllSnapshotCloneOptions(void) {
 
     conf_->GetValueFatalIfFail("leader.election.timeoutms",
         &(snapshotCloneServerOptions_.electionTimeoutMs));
+
+    conf_->GetValue("s3.config_path",
+        &(snapshotCloneServerOptions_.s3ConfPath));
 }
 
 void SnapShotCloneServer::StartDummy() {
@@ -250,11 +258,12 @@ bool SnapShotCloneServer::Init() {
     }
 
     dataStore_ = std::make_shared<S3SnapshotDataStore>();
-    if (dataStore_->Init(snapshotCloneServerOptions_.s3ConfPath) < 0) {
-        LOG(ERROR) << "dataStore init fail.";
-        return false;
+    if (!snapshotCloneServerOptions_.serverOption.disableS3SnapshotClone) {
+        if (dataStore_->Init(snapshotCloneServerOptions_.s3ConfPath) < 0) {
+            LOG(ERROR) << "dataStore init fail.";
+            return false;
+        }
     }
-
 
     snapshotRef_ = std::make_shared<SnapshotReference>();
     snapshotMetric_ = std::make_shared<SnapshotMetric>(metaStore_);
@@ -307,9 +316,12 @@ bool SnapShotCloneServer::Init() {
         LOG(ERROR) << "CloneServiceManager init fail.";
         return false;
     }
+    volumeServiceManager_ = std::make_shared<VolumeServiceManager>(
+        client_);
     service_ = std::make_shared<SnapshotCloneServiceImpl>(
             snapshotServiceManager_,
-            cloneServiceManager_);
+            cloneServiceManager_,
+            volumeServiceManager_);
     server_  = std::make_shared<brpc::Server>();
     if (server_->AddService(service_.get(),
                             brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {

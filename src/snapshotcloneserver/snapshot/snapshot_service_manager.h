@@ -184,6 +184,11 @@ class SnapshotServiceManager {
      */
     virtual void Stop();
 
+    virtual int CreateSnapshot(const std::string &file,
+        const std::string &user,
+        const std::string &snapshotName,
+        UUID *uuid);
+
     /**
      * @brief 创建快照服务
      *
@@ -194,25 +199,33 @@ class SnapshotServiceManager {
      *
      * @return 错误码
      */
-    virtual int CreateSnapshot(const std::string &file,
+    virtual int CreateS3Snapshot(const std::string &file,
         const std::string &user,
         const std::string &snapshotName,
         UUID *uuid);
 
     /**
-     * @brief 创建同步快照服务(多层秒级快照的创建快照方式采用同步，而非异步任务方式)
+     * @brief create local snapshot
      *
-     * @param file 文件名
-     * @param user 文件所属用户
-     * @param snapshotName 快照名
-     * @param uuid 快照uuid
+     * @param file  volume path
+     * @param user  owner of the volume
+     * @param snapshotName  snapshot name to create
+     * @param uuid  uuid of snapshot
      *
-     * @return 错误码
+     * @return  error code
      */
-    virtual int CreateSyncSnapshot(const std::string &file,
+    virtual int CreateLocalSnapshot(const std::string &file,
         const std::string &user,
         const std::string &snapshotName,
         UUID *uuid);
+
+    virtual int DeleteSnapshotBySnapshotName(const std::string &file,
+        const std::string &user,
+        const std::string &snapshotName);
+
+    virtual int DeleteSnapshotByUUID(const std::string &file,
+        const std::string &user,
+        const std::string &uuid);
 
     /**
      * @brief 删除快照服务
@@ -223,7 +236,7 @@ class SnapshotServiceManager {
      *
      * @return 错误码
      */
-    virtual int DeleteSnapshot(const UUID &uuid,
+    virtual int DeleteS3Snapshot(const UUID &uuid,
         const std::string &user,
         const std::string &file);
 
@@ -236,7 +249,7 @@ class SnapshotServiceManager {
      *
      * @return 错误码
      */
-    virtual int DeleteSyncSnapshot(const UUID &uuid,
+    virtual int DeleteLocalSnapshot(const UUID &uuid,
         const std::string &user,
         const std::string &file);
 
@@ -279,6 +292,11 @@ class SnapshotServiceManager {
     virtual int GetFileSnapshotInfoById(const std::string &file,
         const std::string &user,
         const UUID &uuid,
+        std::vector<FileSnapshotInfo> *info);
+
+    virtual int GetFileSnapshotInfoBySnapshotName(const std::string &file,
+        const std::string &user,
+        const std::string &snapshotName,
         std::vector<FileSnapshotInfo> *info);
 
     /**

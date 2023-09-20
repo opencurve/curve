@@ -30,6 +30,7 @@
 #include "proto/snapshotcloneserver.pb.h"
 #include "src/snapshotcloneserver/snapshot/snapshot_service_manager.h"
 #include "src/snapshotcloneserver/clone/clone_service_manager.h"
+#include "src/snapshotcloneserver/volume/voume_service_manager.h"
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -48,10 +49,12 @@ class SnapshotCloneServiceImpl : public SnapshotCloneService {
       * @param manager 快照转储服务管理对象
       */
     SnapshotCloneServiceImpl(
-        std::shared_ptr<SnapshotServiceManager> snapshotManager,
-        std::shared_ptr<CloneServiceManager> cloneManager)
+        const std::shared_ptr<SnapshotServiceManager> &snapshotManager,
+        const std::shared_ptr<CloneServiceManager> &cloneManager,
+        const std::shared_ptr<VolumeServiceManager> &volumeManager)
         : snapshotManager_(snapshotManager),
-          cloneManager_(cloneManager) {}
+          cloneManager_(cloneManager),
+          volumeManager_(volumeManager) {}
     virtual ~SnapshotCloneServiceImpl() {}
 
     /**
@@ -68,6 +71,16 @@ class SnapshotCloneServiceImpl : public SnapshotCloneService {
                         Closure* done);
 
  private:
+
+    void HandleCreateFileAction(brpc::Controller* bcntl,
+        const std::string &requestId);
+    void HandleDeleteFileAction(
+        brpc::Controller* bcntl,
+        const std::string &requestId);
+    void HandleListFileAction(
+        brpc::Controller* bcntl,
+        const std::string &requestId);
+
     void HandleCreateSnapshotAction(brpc::Controller* bcntl,
         const std::string &requestId);
     void HandleDeleteSnapshotAction(brpc::Controller* bcntl,
@@ -76,6 +89,7 @@ class SnapshotCloneServiceImpl : public SnapshotCloneService {
         const std::string &requestId);
     void HandleGetFileSnapshotInfoAction(brpc::Controller* bcntl,
         const std::string &requestId);
+
     void HandleCloneAction(brpc::Controller* bcntl,
         const std::string &requestId,
         Closure* done);
@@ -107,7 +121,9 @@ class SnapshotCloneServiceImpl : public SnapshotCloneService {
     // 快照转储服务管理对象
     std::shared_ptr<SnapshotServiceManager> snapshotManager_;
     std::shared_ptr<CloneServiceManager> cloneManager_;
+    std::shared_ptr<VolumeServiceManager> volumeManager_;
 };
+
 }  // namespace snapshotcloneserver
 }  // namespace curve
 

@@ -61,6 +61,10 @@ class SnapshotCloneMetaStoreEtcd : public SnapshotCloneMetaStore {
 
     int GetSnapshotInfo(const UUID &uuid, SnapshotInfo *info) override;
 
+    int GetSnapshotInfo(
+        const std::string &file, const std::string &snapshotName,
+        SnapshotInfo *info) override;
+
     int GetSnapshotList(const std::string &filename,
                         std::vector<SnapshotInfo> *v) override;
 
@@ -101,7 +105,10 @@ class SnapshotCloneMetaStoreEtcd : public SnapshotCloneMetaStore {
     std::shared_ptr<SnapshotCloneCodec> codec_;
 
     // key is UUID, map 需要考虑并发保护
-    std::map<UUID, SnapshotInfo> snapInfos_;
+    std::map<UUID, std::shared_ptr<SnapshotInfo>> snapInfos_;
+
+    // key is snapshot path
+    std::map<std::string, std::shared_ptr<SnapshotInfo>> snapInfosByName_;
     // snap info lock
     RWLock snapInfos_mutex;
     // key is TaskIdType, map 需要考虑并发保护
