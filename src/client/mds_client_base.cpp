@@ -359,6 +359,7 @@ void MDSClientBase::UnprotectSnapShot(const std::string& snapFileName,
 void MDSClientBase::Clone(const std::string& source,
     const std::string& destination,
     const UserInfo_t& userinfo,
+    const std::string& poolset,
     CloneResponse* response,
     brpc::Controller* cntl,
     brpc::Channel* channel) {
@@ -367,6 +368,7 @@ void MDSClientBase::Clone(const std::string& source,
     FillUserInfo(&request, userinfo);
 
     request.set_snapfilename(source);
+    request.set_poolset(poolset);
 
     LOG(INFO) << "Clone: source = " << source
               << ", destination = " << destination

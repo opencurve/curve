@@ -421,6 +421,7 @@ class CurveFS {
             const std::string& owner,
             const std::string &srcFileName,
             const std::string &snapName,
+            const std::string &poolset,
             FileInfo *fileInfo);
 
     // flatten

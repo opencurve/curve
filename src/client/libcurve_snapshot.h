@@ -161,6 +161,7 @@ class SnapshotClient {
   int Clone(const std::string& source,
             const std::string& destination,
             const UserInfo_t& userinfo,
+            const std::string& poolset,
             FInfo* finfo);
 
   int Flatten(const std::string& filename,
