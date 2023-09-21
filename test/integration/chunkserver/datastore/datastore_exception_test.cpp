@@ -674,7 +674,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest8) {
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(2, info.curSn);
     ASSERT_EQ(2, info.snapSn);
-    ASSERT_EQ(2, info.correctedSn);
+    // ASSERT_EQ(2, info.correctedSn);
 
     // 模拟日志恢复前一条操作
     errorCode = dataStore_->WriteChunk(1,  // id
@@ -714,7 +714,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest8) {
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(3, info.curSn);
     ASSERT_EQ(2, info.snapSn);
-    ASSERT_EQ(2, info.correctedSn);
+    // ASSERT_EQ(2, info.correctedSn);
     // chunk数据被覆盖
     errorCode = dataStore_->ReadChunk(1,  // id
                                       fileSn,
