@@ -29,6 +29,7 @@
 #include "absl/memory/memory.h"
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
 #include "curvefs/src/common/s3util.h"
+#include "curvefs/src/client/fsused_updater.h"
 
 namespace curvefs {
 
@@ -181,6 +182,7 @@ CURVEFS_ERROR S3ClientAdaptorImpl::Truncate(InodeWrapper *inodeWrapper,
     const auto *inode = inodeWrapper->GetInodeLocked();
     uint64_t fileSize = inode->length();
 
+    int64_t deltaBytes = 0;
     if (size < fileSize) {
         VLOG(6) << "Truncate size:" << size
                 << " less than fileSize:" << fileSize;
@@ -188,9 +190,8 @@ CURVEFS_ERROR S3ClientAdaptorImpl::Truncate(InodeWrapper *inodeWrapper,
             fsCacheManager_->FindOrCreateFileCacheManager(fsId_,
                                                           inode->inodeid());
         fileCacheManager->TruncateCache(size, fileSize);
-        return CURVEFS_ERROR::OK;
+        deltaBytes = -1 * (fileSize - size);
     } else if (size == fileSize) {
-        return CURVEFS_ERROR::OK;
     } else {
         VLOG(6) << "Truncate size:" << size << " more than fileSize"
                 << fileSize;
@@ -243,8 +244,10 @@ CURVEFS_ERROR S3ClientAdaptorImpl::Truncate(InodeWrapper *inodeWrapper,
             offset += n;
             chunkId++;
         }
-        return CURVEFS_ERROR::OK;
+        deltaBytes = size - fileSize;
     }
+    FsUsedUpdater::GetInstance().UpdateDeltaBytes(deltaBytes);
+    return CURVEFS_ERROR::OK;
 }
 
 void S3ClientAdaptorImpl::ReleaseCache(uint64_t inodeId) {

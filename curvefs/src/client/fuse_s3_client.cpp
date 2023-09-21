@@ -26,6 +26,7 @@
 
 #include "curvefs/src/client/fuse_s3_client.h"
 #include "curvefs/src/client/kvclient/memcache_client.h"
+#include "curvefs/src/client/fsused_updater.h"
 
 namespace curvefs {
 namespace client {
@@ -218,6 +219,8 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
             }
         }
     }
+
+    FsUsedUpdater::GetInstance().UpdateDeltaBytes(changeSize);
 
     inodeWrapper->GetInodeAttrLocked(&fileOut->attr);
     return ret;
