@@ -79,6 +79,9 @@ using curvefs::metaserver::CreatePartitionResponse;
 using curvefs::metaserver::DeletePartitionRequest;
 using curvefs::metaserver::DeletePartitionResponse;
 
+using curvefs::metaserver::UpdateFsUsedRequest;
+using curvefs::metaserver::UpdateFsUsedResponse;
+
 using ::curvefs::metaserver::copyset::OnSnapshotSaveDoneClosure;
 using ::curvefs::metaserver::storage::Iterator;
 using ::curvefs::common::StreamServer;
@@ -208,6 +211,10 @@ class MetaStore {
     virtual MetaStatusCode UpdateDeallocatableBlockGroup(
         const UpdateDeallocatableBlockGroupRequest* request,
         UpdateDeallocatableBlockGroupResponse* response, int64_t logIndex) = 0;
+
+    virtual MetaStatusCode UpdateFsUsed(const UpdateFsUsedRequest* request,
+                                        UpdateFsUsedResponse* response,
+                                        int64_t logIndex) = 0;
 };
 
 class MetaStoreImpl : public MetaStore {
@@ -318,6 +325,10 @@ class MetaStoreImpl : public MetaStore {
         const UpdateDeallocatableBlockGroupRequest* request,
         UpdateDeallocatableBlockGroupResponse* response,
         int64_t logIndex) override;
+
+    MetaStatusCode UpdateFsUsed(const UpdateFsUsedRequest* request,
+                                UpdateFsUsedResponse* response,
+                                int64_t logIndex) override;
 
  private:
     FRIEND_TEST(MetastoreTest, partition);

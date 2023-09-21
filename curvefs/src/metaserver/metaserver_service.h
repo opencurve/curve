@@ -29,6 +29,7 @@
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/metaserver/copyset/copyset_node_manager.h"
 #include "curvefs/src/metaserver/inflight_throttle.h"
+#include "curvefs/src/metaserver/fsused_manager.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -37,10 +38,11 @@ using ::curvefs::metaserver::copyset::CopysetNodeManager;
 
 class MetaServerServiceImpl : public MetaServerService {
  public:
-    MetaServerServiceImpl(CopysetNodeManager* copysetNodeManager,
-                          InflightThrottle* inflightThrottle)
+    MetaServerServiceImpl(CopysetNodeManager *copysetNodeManager,
+                          InflightThrottle *inflightThrottle,
+                          FsUsedManager *fsUsedManager)
         : copysetNodeManager_(copysetNodeManager),
-          inflightThrottle_(inflightThrottle) {}
+          inflightThrottle_(inflightThrottle), fsUsedManager_(fsUsedManager) {}
 
     void GetDentry(::google::protobuf::RpcController* controller,
                    const ::curvefs::metaserver::GetDentryRequest* request,
@@ -129,9 +131,15 @@ class MetaServerServiceImpl : public MetaServerService {
         UpdateDeallocatableBlockGroupResponse *response,
         ::google::protobuf::Closure *done) override;
 
+    void UpdateFsUsed(::google::protobuf::RpcController *controller,
+                      const UpdateFsUsedRequest *request,
+                      UpdateFsUsedResponse *response,
+                      ::google::protobuf::Closure *done) override;
+
  private:
     CopysetNodeManager* copysetNodeManager_;
     InflightThrottle* inflightThrottle_;
+    FsUsedManager* fsUsedManager_;
 };
 }  // namespace metaserver
 }  // namespace curvefs

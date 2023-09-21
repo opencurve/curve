@@ -531,6 +531,24 @@ message UpdateVolumeExtentResponse {
     optional uint64 appliedIndex = 2;
 }
 
+message FsUsedDelta {
+    required uint32 fsId = 1;
+    optional int64 bytes = 2;
+}
+
+message UpdateFsUsedRequest {
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+    required uint32 partitionId = 3;
+    optional FsUsedDelta delta = 4;
+    optional bool fromClient = 5;
+}
+
+message UpdateFsUsedResponse {
+    required MetaStatusCode statusCode = 1;
+    optional uint64 appliedIndex = 2;
+}
+
 service MetaServerService {
     // dentry interface
     rpc GetDentry(GetDentryRequest) returns (GetDentryResponse);
@@ -561,4 +579,7 @@ service MetaServerService {
 
     // block group with deallocatable inode list interface
     rpc UpdateDeallocatableBlockGroup(UpdateDeallocatableBlockGroupRequest) returns (UpdateDeallocatableBlockGroupResponse);
+
+    // update fsused
+    rpc UpdateFsUsed(UpdateFsUsedRequest) returns (UpdateFsUsedResponse);
 }

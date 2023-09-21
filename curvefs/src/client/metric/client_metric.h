@@ -98,6 +98,8 @@ struct MetaServerClientMetric {
     InterfaceMetric getVolumeExtent;
     InterfaceMetric updateDeallocatableBlockGroup;
 
+    InterfaceMetric updateFsUsed;
+
     MetaServerClientMetric()
         : getDentry(prefix, "getDentry"), listDentry(prefix, "listDentry"),
           createDentry(prefix, "createDentry"),
@@ -112,7 +114,8 @@ struct MetaServerClientMetric {
           updateVolumeExtent(prefix, "updateVolumeExtent"),
           getVolumeExtent(prefix, "getVolumeExtent"),
           updateDeallocatableBlockGroup(prefix,
-                                        "updateDeallocatableBlockGroup") {}
+                                        "updateDeallocatableBlockGroup"),
+          updateFsUsed(prefix, "updateFsUsed") {}
 };
 
 struct InflightGuard {

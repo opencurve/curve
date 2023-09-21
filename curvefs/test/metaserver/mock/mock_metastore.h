@@ -122,6 +122,10 @@ class MockMetaStore : public curvefs::metaserver::MetaStore {
                  MetaStatusCode(const UpdateDeallocatableBlockGroupRequest*,
                                 UpdateDeallocatableBlockGroupResponse*,
                                 int64_t logIndex));
+
+    MOCK_METHOD3(UpdateFsUsed,
+                 MetaStatusCode(const UpdateFsUsedRequest*,
+                                UpdateFsUsedResponse*, int64_t logIndex));
 };
 
 }  // namespace mock

@@ -277,6 +277,8 @@ void Metaserver::Init() {
     InitPartitionOption(s3Adaptor_, mdsClient_, &partitionCleanOption);
     PartitionCleanManager::GetInstance().Init(partitionCleanOption);
 
+    fsUsedManager_ = absl::make_unique<FsUsedManager>(metaClient_);
+
     conf_->ExposeMetric("curvefs_metaserver_config");
     inited_ = true;
 }
@@ -469,7 +471,7 @@ void Metaserver::Run() {
     // add internal server
     server_ = absl::make_unique<brpc::Server>();
     metaService_ = absl::make_unique<MetaServerServiceImpl>(
-        copysetNodeManager_, inflightThrottle_.get());
+        copysetNodeManager_, inflightThrottle_.get(), fsUsedManager_.get());
     copysetService_ =
         absl::make_unique<CopysetServiceImpl>(copysetNodeManager_);
     raftCliService2_ = absl::make_unique<RaftCliService2>(copysetNodeManager_);
@@ -537,6 +539,8 @@ void Metaserver::Run() {
     // start copyset node manager
     LOG_IF(FATAL, !copysetNodeManager_->Start())
         << "Failed to start copyset node manager";
+
+    StartUpdateFsUsedTask(fsUsedManager_.get(), 5);
 
     brpc::FLAGS_graceful_quit_on_sigterm = true;
     server_->RunUntilAskedToQuit();

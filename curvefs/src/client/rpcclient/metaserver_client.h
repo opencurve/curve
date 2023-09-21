@@ -41,6 +41,7 @@
 #include "curvefs/src/client/metric/client_metric.h"
 #include "curvefs/src/common/rpc_stream.h"
 #include "absl/types/optional.h"
+#include "curvefs/src/common/define.h"
 
 using ::curvefs::client::metric::MetaServerClientMetric;
 using ::curvefs::metaserver::Dentry;
@@ -64,6 +65,7 @@ namespace rpcclient {
 
 using S3ChunkInfoMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
 using ::curvefs::metaserver::VolumeExtentSliceList;
+using ::curvefs::metaserver::FsUsedDelta;
 
 struct DataIndices {
     absl::optional<S3ChunkInfoMap> s3ChunkInfoMap;
@@ -176,6 +178,9 @@ class MetaServerClient {
     virtual MetaStatusCode
     UpdateDeallocatableBlockGroup(uint32_t fsId, uint64_t inodeId,
                                   DeallocatableBlockGroupMap *statistic) = 0;
+
+    virtual MetaStatusCode UpdateFsUsed(uint32_t fsId, const FsUsedDelta &delta,
+                                        bool fromClient) = 0;
 };
 
 class MetaServerClientImpl : public MetaServerClient {
@@ -284,6 +289,9 @@ class MetaServerClientImpl : public MetaServerClient {
     MetaStatusCode UpdateDeallocatableBlockGroup(
         uint32_t fsId, uint64_t inodeId,
         DeallocatableBlockGroupMap *statistic) override;
+
+    MetaStatusCode UpdateFsUsed(uint32_t fsId, const FsUsedDelta &delta,
+                                bool fromClient) override;
 
  private:
     MetaStatusCode UpdateInode(const UpdateInodeRequest &request,

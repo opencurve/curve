@@ -61,6 +61,7 @@ enum class MetaServerOpType {
     UpdateVolumeExtent,
     CreateManageInode,
     UpdateDeallocatableBlockGroup,
+    UpdateFsUsed,
 };
 
 std::ostream &operator<<(std::ostream &os, MetaServerOpType optype);

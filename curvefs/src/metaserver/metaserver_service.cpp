@@ -53,6 +53,7 @@ using ::curvefs::metaserver::copyset::PrepareRenameTxOperator;
 using ::curvefs::metaserver::copyset::GetVolumeExtentOperator;
 using ::curvefs::metaserver::copyset::UpdateVolumeExtentOperator;
 using ::curvefs::metaserver::copyset::UpdateDeallocatableBlockGroupOperator;
+using ::curvefs::metaserver::copyset::UpdateFsUsedOperator;
 
 namespace {
 
@@ -309,6 +310,32 @@ void MetaServerServiceImpl::UpdateDeallocatableBlockGroup(
         controller, request, response, done, request->poolid(),
         request->copysetid());
 }
+
+void MetaServerServiceImpl::UpdateFsUsed(
+    ::google::protobuf::RpcController *controller,
+    const UpdateFsUsedRequest *request, UpdateFsUsedResponse *response,
+    ::google::protobuf::Closure *done) {
+
+    if (!request->has_delta() || !request->has_fromclient()) {
+        response->set_statuscode(MetaStatusCode::PARAM_ERROR);
+        done->Run();
+        return;
+    }
+
+    if (request->fromclient() == true) {
+        auto delta = request->delta();
+        fsUsedManager_->AddFsUsedDelta(std::move(delta));
+        response->set_statuscode(MetaStatusCode::OK);
+        done->Run();
+        return;
+    }
+
+    OperatorHelper helper(copysetNodeManager_, inflightThrottle_);
+    helper.operator()<UpdateFsUsedOperator>(controller, request, response, done,
+                                            request->poolid(),
+                                            request->copysetid());
+}
+
 
 }  // namespace metaserver
 }  // namespace curvefs

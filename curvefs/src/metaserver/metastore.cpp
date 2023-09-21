@@ -849,6 +849,18 @@ MetaStatusCode MetaStoreImpl::UpdateDeallocatableBlockGroup(
     return st;
 }
 
+MetaStatusCode MetaStoreImpl::UpdateFsUsed(const UpdateFsUsedRequest* request,
+                                           UpdateFsUsedResponse* response,
+                                           int64_t logIndex) {
+    ReadLockGuard readLockGuard(rwLock_);
+    std::shared_ptr<Partition> partition;
+    GET_PARTITION_OR_RETURN(partition);
+
+    MetaStatusCode rc = partition->UpdateFsUsed(*request, logIndex);
+    response->set_statuscode(rc);
+    return rc;
+}
+
 bool MetaStoreImpl::InitStorage() {
     if (storageOptions_.type == "memory") {
         kvStorage_ = std::make_shared<MemoryStorage>(storageOptions_);

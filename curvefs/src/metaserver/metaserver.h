@@ -48,6 +48,7 @@
 #include "curvefs/src/metaserver/space/volume_deallocate_manager.h"
 #include "curvefs/src/metaserver/space/inode_volume_space_deallocate.h"
 #include "curvefs/src/metaserver/space/volume_space_manager.h"
+#include "curvefs/src/metaserver/fsused_manager.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -148,6 +149,8 @@ class Metaserver {
 
     std::unique_ptr<InflightThrottle> inflightThrottle_;
     std::shared_ptr<curve::fs::LocalFileSystem> localFileSystem_;
+
+    std::unique_ptr<FsUsedManager> fsUsedManager_;
 };
 }  // namespace metaserver
 }  // namespace curvefs
