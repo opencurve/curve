@@ -527,7 +527,7 @@ bool MetaCache::GetCopysetInfowithCopySetID(
 }
 
 bool TryGetPartitionIdByInodeId(const std::vector<PartitionInfo> &plist,
-                                RWLock *lock, uint64_t inodeID,
+                                BthreadRWLock *lock, uint64_t inodeID,
                                 PartitionID *pid) {
     ReadLockGuard rl(*lock);
     for (const auto &it : plist) {
