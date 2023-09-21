@@ -27,6 +27,7 @@
 #include "curvefs/src/client/fuse_s3_client.h"
 #include "curvefs/src/client/kvclient/memcache_client.h"
 #include "curvefs/src/client/fsused_updater.h"
+#include "curvefs/src/client/fsquota_checker.h"
 
 namespace curvefs {
 namespace client {
@@ -195,6 +196,9 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
     if (inodeWrapper->GetLengthLocked() < off + *wSize) {
         changeSize = off + *wSize - inodeWrapper->GetLengthLocked();
         inodeWrapper->SetLengthLocked(off + *wSize);
+        if (!FsQuotaChecker::GetInstance().QuotaBytesCheck(changeSize)) {
+            return CURVEFS_ERROR::NO_SPACE;
+        }
     }
 
     inodeWrapper->UpdateTimestampLocked(kModifyTime | kChangeTime);

@@ -30,6 +30,7 @@
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
 #include "curvefs/src/common/s3util.h"
 #include "curvefs/src/client/fsused_updater.h"
+#include "curvefs/src/client/fsquota_checker.h"
 
 namespace curvefs {
 
@@ -195,6 +196,10 @@ CURVEFS_ERROR S3ClientAdaptorImpl::Truncate(InodeWrapper *inodeWrapper,
     } else {
         VLOG(6) << "Truncate size:" << size << " more than fileSize"
                 << fileSize;
+        deltaBytes = size - fileSize;
+        if (!FsQuotaChecker::GetInstance().QuotaBytesCheck(deltaBytes)) {
+            return CURVEFS_ERROR::NO_SPACE;
+        }
         uint64_t offset = fileSize;
         uint64_t len = size - fileSize;
         uint64_t index = offset / chunkSize_;
@@ -244,7 +249,6 @@ CURVEFS_ERROR S3ClientAdaptorImpl::Truncate(InodeWrapper *inodeWrapper,
             offset += n;
             chunkId++;
         }
-        deltaBytes = size - fileSize;
     }
     FsUsedUpdater::GetInstance().UpdateDeltaBytes(deltaBytes);
     return CURVEFS_ERROR::OK;
