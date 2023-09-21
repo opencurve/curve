@@ -66,6 +66,7 @@ using GetOrModifyS3ChunkInfoExcutor = TaskExecutor;
 using UpdateVolumeExtentExecutor = TaskExecutor;
 using GetVolumeExtentExecutor = TaskExecutor;
 using UpdateDeallocatableBlockGroupExcutor = TaskExecutor;
+using UpdateFsUsedExcutor = TaskExecutor;
 
 using ::curvefs::common::LatencyUpdater;
 using ::curvefs::common::StreamConnection;
@@ -1543,6 +1544,54 @@ MetaStatusCode MetaServerClientImpl::GetInodeAttr(
     }
     *attr = attrs.front();
     return MetaStatusCode::OK;
+}
+
+MetaStatusCode MetaServerClientImpl::UpdateFsUsed(uint32_t fsId,
+                                                  const FsUsedDelta &delta,
+                                                  bool fromClient) {
+    auto task = RPCTask {
+        (void)txId;
+        (void)taskExecutorDone;
+        metric_.updateFsUsed.qps.count << 1;
+        LatencyUpdater updater(&metric_.updateFsUsed.latency);
+
+        metaserver::UpdateFsUsedRequest req;
+        req.set_poolid(poolID);
+        req.set_copysetid(copysetID);
+        req.set_partitionid(partitionID);
+        *(req.mutable_delta()) = delta;
+        req.set_fromclient(fromClient);
+
+        metaserver::UpdateFsUsedResponse resp;
+        curvefs::metaserver::MetaServerService_Stub stub(channel);
+        stub.UpdateFsUsed(cntl, &req, &resp, nullptr);
+
+        if (cntl->Failed()) {
+            metric_.updateFsUsed.eps.count << 1;
+            LOG(WARNING) << "UpdateFsUsed Failed, errorcode = "
+                         << cntl->ErrorCode()
+                         << ", error content:" << cntl->ErrorText()
+                         << ", log id = " << cntl->log_id();
+            return -cntl->ErrorCode();
+        }
+
+        MetaStatusCode ret = resp.statuscode();
+        if (ret != MetaStatusCode::OK) {
+            LOG(WARNING) << "UpdateFsUsed: request: " << req.DebugString()
+                         << ", errcode = " << ret
+                         << ", errmsg = " << MetaStatusCode_Name(ret);
+        }
+
+        VLOG(6) << "UpdateFsUsed done, request: " << req.DebugString()
+                << "response: " << resp.DebugString();
+        return ret;
+    };
+
+    auto taskCtx = std::make_shared<TaskContext>(MetaServerOpType::UpdateFsUsed,
+                                                 task, fsId, ROOTINODEID);
+    UpdateFsUsedExcutor excutor(opt_, metaCache_, channelManager_,
+                                std::move(taskCtx));
+    return ConvertToMetaStatusCode(excutor.DoRPCTask());
 }
 
 }  // namespace rpcclient

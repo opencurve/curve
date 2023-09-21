@@ -161,6 +161,9 @@ class MockMetaServerClient : public MetaServerClient {
     MOCK_METHOD3(UpdateDeallocatableBlockGroup,
                  MetaStatusCode(uint32_t, uint64_t,
                                 DeallocatableBlockGroupMap *));
+
+    MOCK_METHOD3(UpdateFsUsed,
+                 MetaStatusCode(uint32_t, const FsUsedDelta&, bool));
 };
 
 }  // namespace rpcclient

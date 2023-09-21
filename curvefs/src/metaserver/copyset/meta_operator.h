@@ -548,6 +548,25 @@ class UpdateDeallocatableBlockGroupOperator : public MetaOperator {
     void OnFailed(MetaStatusCode code) override;
 };
 
+class UpdateFsUsedOperator : public MetaOperator {
+ public:
+    using MetaOperator::MetaOperator;
+
+    void OnApply(int64_t index, google::protobuf::Closure *done,
+                 uint64_t startTimeUs) override;
+
+    void OnApplyFromLog(int64_t index, uint64_t startTimeUs) override;
+
+    uint64_t HashCode() const override;
+
+    OperatorType GetOperatorType() const override;
+
+ private:
+    void Redirect() override;
+
+    void OnFailed(MetaStatusCode code) override;
+};
+
 }  // namespace copyset
 }  // namespace metaserver
 }  // namespace curvefs

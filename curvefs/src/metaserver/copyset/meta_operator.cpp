@@ -186,6 +186,7 @@ OPERATOR_ON_APPLY(DeletePartition);
 OPERATOR_ON_APPLY(PrepareRenameTx);
 OPERATOR_ON_APPLY(UpdateVolumeExtent);
 OPERATOR_ON_APPLY(UpdateDeallocatableBlockGroup);
+OPERATOR_ON_APPLY(UpdateFsUsed);
 
 #undef OPERATOR_ON_APPLY
 
@@ -313,6 +314,7 @@ OPERATOR_ON_APPLY_FROM_LOG(DeletePartition);
 OPERATOR_ON_APPLY_FROM_LOG(PrepareRenameTx);
 OPERATOR_ON_APPLY_FROM_LOG(UpdateVolumeExtent);
 OPERATOR_ON_APPLY_FROM_LOG(UpdateDeallocatableBlockGroup);
+OPERATOR_ON_APPLY_FROM_LOG(UpdateFsUsed);
 
 #undef OPERATOR_ON_APPLY_FROM_LOG
 
@@ -374,6 +376,7 @@ OPERATOR_REDIRECT(PrepareRenameTx);
 OPERATOR_REDIRECT(GetVolumeExtent);
 OPERATOR_REDIRECT(UpdateVolumeExtent);
 OPERATOR_REDIRECT(UpdateDeallocatableBlockGroup);
+OPERATOR_REDIRECT(UpdateFsUsed);
 
 #undef OPERATOR_REDIRECT
 
@@ -401,6 +404,7 @@ OPERATOR_ON_FAILED(PrepareRenameTx);
 OPERATOR_ON_FAILED(GetVolumeExtent);
 OPERATOR_ON_FAILED(UpdateVolumeExtent);
 OPERATOR_ON_FAILED(UpdateDeallocatableBlockGroup);
+OPERATOR_ON_FAILED(UpdateFsUsed);
 
 #undef OPERATOR_ON_FAILED
 
@@ -427,6 +431,7 @@ OPERATOR_HASH_CODE(DeletePartition);
 OPERATOR_HASH_CODE(GetVolumeExtent);
 OPERATOR_HASH_CODE(UpdateVolumeExtent);
 OPERATOR_HASH_CODE(UpdateDeallocatableBlockGroup);
+OPERATOR_HASH_CODE(UpdateFsUsed);
 
 
 #undef OPERATOR_HASH_CODE
@@ -466,6 +471,7 @@ OPERATOR_TYPE(DeletePartition);
 OPERATOR_TYPE(GetVolumeExtent);
 OPERATOR_TYPE(UpdateVolumeExtent);
 OPERATOR_TYPE(UpdateDeallocatableBlockGroup);
+OPERATOR_TYPE(UpdateFsUsed);
 
 #undef OPERATOR_TYPE
 

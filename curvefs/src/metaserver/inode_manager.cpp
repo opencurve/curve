@@ -444,6 +444,44 @@ MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest& request,
     return MetaStatusCode::OK;
 }
 
+MetaStatusCode InodeManager::UpdateFsUsed(const UpdateFsUsedRequest& request,
+                                          int64_t logIndex) {
+    if (!request.has_delta())
+        return MetaStatusCode::OK;
+    auto fsid = request.delta().fsid();
+    auto inodeid = ROOTINODEID;
+    NameLockGuard lg(inodeLock_, GetInodeLockName(fsid, inodeid));
+
+    Inode root;
+    MetaStatusCode ret = inodeStorage_->Get(Key4Inode(fsid, inodeid), &root);
+    if (ret != MetaStatusCode::OK) {
+        LOG(ERROR) << "GetInode fail, " << request.ShortDebugString()
+                   << ", ret: " << MetaStatusCode_Name(ret);
+        return ret;
+    }
+
+    const auto& delta = request.delta();
+
+    auto xattr = root.mutable_xattr();
+    uint64_t usedBytes = std::stoull((*xattr)[XATTR_FS_BYTES]);
+    int64_t deltaBytes = delta.bytes();
+    VLOG(9) << "update fs used, fsid: " << fsid << ", used: " << usedBytes
+            << ", delta: " << deltaBytes;
+    if (deltaBytes < 0 && usedBytes <= abs(deltaBytes)) {
+        (*xattr)[XATTR_FS_BYTES] = "0";
+    } else {
+        (*xattr)[XATTR_FS_BYTES] = std::to_string(usedBytes + deltaBytes);
+    }
+
+    ret = inodeStorage_->Update(root, logIndex);
+    if (ret != MetaStatusCode::OK) {
+        LOG(ERROR) << "UpdateInode fail, " << request.ShortDebugString()
+                   << ", ret: " << MetaStatusCode_Name(ret);
+    }
+
+    return ret;
+}
+
 MetaStatusCode InodeManager::GetOrModifyS3ChunkInfo(
     uint32_t fsId, uint64_t inodeId, const S3ChunkInfoMap& map2add,
     const S3ChunkInfoMap& map2del, bool returnS3ChunkInfoMap,

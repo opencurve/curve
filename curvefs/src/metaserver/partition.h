@@ -108,6 +108,9 @@ class Partition {
     MetaStatusCode UpdateInode(const UpdateInodeRequest& request,
                                int64_t logIndex);
 
+    MetaStatusCode UpdateFsUsed(const UpdateFsUsedRequest& request,
+                                int64_t logIndex);
+
     MetaStatusCode GetOrModifyS3ChunkInfo(uint32_t fsId, uint64_t inodeId,
                                           const S3ChunkInfoMap& map2add,
                                           const S3ChunkInfoMap& map2del,

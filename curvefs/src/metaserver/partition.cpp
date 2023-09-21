@@ -335,6 +335,11 @@ MetaStatusCode Partition::UpdateInode(const UpdateInodeRequest& request,
     return ret;
 }
 
+MetaStatusCode Partition::UpdateFsUsed(const UpdateFsUsedRequest& request,
+                                       int64_t logIndex) {
+    return inodeManager_->UpdateFsUsed(request, logIndex);
+}
+
 MetaStatusCode Partition::GetOrModifyS3ChunkInfo(
     uint32_t fsId, uint64_t inodeId, const S3ChunkInfoMap& map2add,
     const S3ChunkInfoMap& map2del, bool returnS3ChunkInfoMap,

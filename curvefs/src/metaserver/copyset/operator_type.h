@@ -53,6 +53,7 @@ enum class OperatorType : uint32_t {
     UpdateVolumeExtent = 16,
     CreateManageInode = 17,
     UpdateDeallocatableBlockGroup = 18,
+    UpdateFsUsed = 19,
 
     // NOTE:
     //   Add new operator before `OperatorTypeMax`

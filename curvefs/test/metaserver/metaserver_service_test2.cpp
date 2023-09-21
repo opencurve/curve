@@ -62,7 +62,7 @@ class MetaServerServiceTest2 : public testing::Test {
 TEST_F(MetaServerServiceTest2, ServiceOverload) {
     throttle_ = absl::make_unique<InflightThrottle>(0);
     metaServer_ = absl::make_unique<MetaServerServiceImpl>(
-        nullptr, throttle_.get());
+        nullptr, throttle_.get(), nullptr);
 
     throttle_->Increment();
 
@@ -103,7 +103,7 @@ TEST_F(MetaServerServiceTest2, ServiceOverload) {
 TEST_F(MetaServerServiceTest2, CopysetNodeNotFound) {
     throttle_ = absl::make_unique<InflightThrottle>(1);
     metaServer_ = absl::make_unique<MetaServerServiceImpl>(
-        &CopysetNodeManager::GetInstance(), throttle_.get());
+        &CopysetNodeManager::GetInstance(), throttle_.get(), nullptr);
 
 #define TEST_COPYSETNODE_NOTFOUND(TYPE)                                     \
     do {                                                                    \
