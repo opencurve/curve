@@ -43,7 +43,7 @@
 using ::curve::client::CopysetID;
 using ::curve::client::CopysetInfo;
 using ::curve::client::LogicPoolID;
-using ::curve::common::RWLock;
+using ::curve::common::BthreadRWLock;
 using ::curvefs::client::common::MetaCacheOpt;
 using ::curvefs::client::common::MetaserverID;
 using ::curvefs::client::common::MetaServerOpType;
@@ -194,12 +194,12 @@ class MetaCache {
     }
 
  private:
-    RWLock txIdLock_;
+    BthreadRWLock txIdLock_;
     std::unordered_map<uint32_t, uint64_t> partitionTxId_;
 
-    RWLock rwlock4Partitions_;
+    BthreadRWLock rwlock4Partitions_;
     PartitionInfoList partitionInfos_;
-    RWLock rwlock4copysetInfoMap_;
+    BthreadRWLock rwlock4copysetInfoMap_;
     CopysetInfoMap copysetInfoMap_;
 
     Mutex createMutex_;
