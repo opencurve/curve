@@ -310,6 +310,7 @@ class MDSClientBase {
     void Clone(const std::string& source,
          const std::string& destination,
          const UserInfo_t& userinfo,
+         const std::string& poolset,
          CloneResponse* response,
          brpc::Controller* cntl,
          brpc::Channel* channel);

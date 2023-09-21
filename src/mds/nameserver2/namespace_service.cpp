@@ -1654,6 +1654,7 @@ void NameSpaceService::Clone(::google::protobuf::RpcController* controller,
                                     request->owner(),
                                     srcFileName,
                                     snapName,
+                                    request->poolset(),
                                     response->mutable_fileinfo());
     response->set_statuscode(ret);
     if (ret != StatusCode::kOK) {

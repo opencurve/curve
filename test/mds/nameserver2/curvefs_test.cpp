@@ -4295,7 +4295,7 @@ TEST_F(CurveFSTest, Clone) {
             .WillOnce(Return(StoreStatus::InternalError));
         ASSERT_EQ(StatusCode::kStorageError,
             curvefs_->Clone(dstFile1, owner1,
-                srcFileName, snapName, &dstFileInfo));
+                srcFileName, snapName, "", &dstFileInfo));
     }
     // dst is a dir
     {
@@ -4311,7 +4311,7 @@ TEST_F(CurveFSTest, Clone) {
                     Return(StoreStatus::OK)));
         ASSERT_EQ(StatusCode::kFileExists,
             curvefs_->Clone(dstFile, owner1,
-                srcFileName, snapName, &dstFileInfo));
+                srcFileName, snapName, "", &dstFileInfo));
     }
     // dst is file and exist
     {
@@ -4328,7 +4328,7 @@ TEST_F(CurveFSTest, Clone) {
                     Return(StoreStatus::OK)));
         ASSERT_EQ(StatusCode::kFileExists,
             curvefs_->Clone(dstFile, owner1,
-                srcFileName, snapName, &dstFileInfo));
+                srcFileName, snapName, "", &dstFileInfo));
     }
     // lookUpFile fail
     {
@@ -4341,7 +4341,7 @@ TEST_F(CurveFSTest, Clone) {
             .WillOnce(Return(StoreStatus::InternalError));
         ASSERT_EQ(StatusCode::kStorageError,
             curvefs_->Clone(dstFile1, owner1,
-                srcFileName, snapName, &dstFileInfo));
+                srcFileName, snapName, "", &dstFileInfo));
     }
 
     // GetSnapshotFileInfo fail
@@ -4356,7 +4356,7 @@ TEST_F(CurveFSTest, Clone) {
             .WillOnce(Return(StoreStatus::InternalError));
         ASSERT_EQ(StatusCode::kStorageError,
             curvefs_->Clone(dstFile1, owner1,
-                srcFileName, snapName, &dstFileInfo));
+                srcFileName, snapName, "", &dstFileInfo));
     }
     // snapshot not protected
     {
@@ -4378,7 +4378,7 @@ TEST_F(CurveFSTest, Clone) {
                     Return(StoreStatus::OK)));
         ASSERT_EQ(StatusCode::kSnapshotFileNotProtected,
             curvefs_->Clone(dstFile1, owner1,
-                srcFileName, snapName, &dstFileInfo));
+                srcFileName, snapName, "", &dstFileInfo));
     }
     // gen inode id fail
     {
@@ -4402,7 +4402,7 @@ TEST_F(CurveFSTest, Clone) {
             .WillOnce(Return(false));
         ASSERT_EQ(StatusCode::kStorageError,
             curvefs_->Clone(dstFile1, owner1,
-                srcFileName, snapName, &dstFileInfo));
+                srcFileName, snapName, "", &dstFileInfo));
     }
     // Put Clone File fail
     {
@@ -4428,7 +4428,7 @@ TEST_F(CurveFSTest, Clone) {
             .WillOnce(Return(StoreStatus::InternalError));
         ASSERT_EQ(StatusCode::kStorageError,
             curvefs_->Clone(dstFile1, owner1,
-                srcFileName, snapName, &dstFileInfo));
+                srcFileName, snapName, "", &dstFileInfo));
     }
     // get segment fail
     constexpr uint64_t segmentSize = 1ULL * 1024 * 1024 * 1024;  // 1GiB
@@ -4461,7 +4461,7 @@ TEST_F(CurveFSTest, Clone) {
             .WillOnce(Return(StoreStatus::InternalError));
         ASSERT_EQ(StatusCode::kStorageError,
             curvefs_->Clone(dstFile1, owner1,
-                srcFileName, snapName, &dstFileInfo));
+                srcFileName, snapName, "", &dstFileInfo));
     }
     // clone segment fail
     {
@@ -4494,7 +4494,7 @@ TEST_F(CurveFSTest, Clone) {
             .WillOnce(Return(false));
         ASSERT_EQ(StatusCode::kSegmentAllocateError,
             curvefs_->Clone(dstFile1, owner1,
-                srcFileName, snapName, &dstFileInfo));
+                srcFileName, snapName, "", &dstFileInfo));
     }
     // put segment error
     {
@@ -4529,7 +4529,7 @@ TEST_F(CurveFSTest, Clone) {
             .WillOnce(Return(StoreStatus::InternalError));
         ASSERT_EQ(StatusCode::kStorageError,
             curvefs_->Clone(dstFile1, owner1,
-                srcFileName, snapName, &dstFileInfo));
+                srcFileName, snapName, "", &dstFileInfo));
     }
     // lookup clone train fail
     {
@@ -4567,7 +4567,7 @@ TEST_F(CurveFSTest, Clone) {
         EXPECT_CALL(*allocStatistic_, AllocSpace(_, _, _));
         ASSERT_EQ(StatusCode::kStorageError,
             curvefs_->Clone(dstFile1, owner1,
-                srcFileName, snapName, &dstFileInfo));
+                srcFileName, snapName, "", &dstFileInfo));
     }
     // put clone file 2 fail
     {
@@ -4610,7 +4610,7 @@ TEST_F(CurveFSTest, Clone) {
             .WillOnce(Return(StoreStatus::InternalError));
         ASSERT_EQ(StatusCode::kStorageError,
             curvefs_->Clone(dstFile1, owner1,
-                srcFileName, snapName, &dstFileInfo));
+                srcFileName, snapName, "", &dstFileInfo));
     }
     // clone success
     {
@@ -4653,7 +4653,7 @@ TEST_F(CurveFSTest, Clone) {
             .WillOnce(Return(StoreStatus::OK));
         ASSERT_EQ(StatusCode::kOK,
             curvefs_->Clone(dstFile1, owner1,
-                srcFileName, snapName, &dstFileInfo));
+                srcFileName, snapName, "", &dstFileInfo));
     }
     // clone snap len is 0
     {
@@ -4689,7 +4689,7 @@ TEST_F(CurveFSTest, Clone) {
             .WillOnce(Return(StoreStatus::OK));
         ASSERT_EQ(StatusCode::kOK,
             curvefs_->Clone(dstFile1, owner1,
-                srcFileName, snapName, &dstFileInfo));
+                srcFileName, snapName, "", &dstFileInfo));
     }
     // clone src is origin
     {
@@ -4720,7 +4720,7 @@ TEST_F(CurveFSTest, Clone) {
             .WillOnce(Return(StoreStatus::OK));
         ASSERT_EQ(StatusCode::kOK,
             curvefs_->Clone(dstFile1, owner1,
-                srcFileName, snapName, &dstFileInfo));
+                srcFileName, snapName, "", &dstFileInfo));
     }
 }
 

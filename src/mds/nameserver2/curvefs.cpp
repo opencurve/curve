@@ -2059,11 +2059,17 @@ StatusCode CurveFS::Clone(const std::string &fileName,
         const std::string& owner,
         const std::string &srcFileName,
         const std::string &snapName,
+        const std::string &poolset,
         FileInfo *fileInfo) {
+    std::string poolsetDst = poolset;
+    auto ret = CheckOrAssignPoolset(fileName, &poolsetDst);
+    if (ret != StatusCode::kOK) {
+        return ret;
+    }
     // check the existence of the file
     FileInfo parentFileInfo;
     std::string lastEntry;
-    auto ret = WalkPath(fileName, &parentFileInfo, &lastEntry);
+    ret = WalkPath(fileName, &parentFileInfo, &lastEntry);
     if ( ret != StatusCode::kOK ) {
         LOG(ERROR) << "WalkPath failed, ret: " << ret
                    << ", path: " << fileName;
@@ -2093,6 +2099,18 @@ StatusCode CurveFS::Clone(const std::string &fileName,
     if (ret != StatusCode::kOK) {
         LOG(ERROR) << "GetSnapShotFileInfo failed, ret: " << ret;
         return ret;
+    }
+
+    // check poolset match
+    if (((!snapFileInfo.has_poolset()) &&
+         (poolsetDst == kDefaultPoolsetName)) ||
+        (snapFileInfo.poolset() == poolsetDst)) {
+        // check success
+    } else {
+        LOG(ERROR) << "Clone find poolset not match"
+                   << ", snapFileInfo.poolset(): " << snapFileInfo.poolset()
+                   << ", dstination poolset: " << poolsetDst;
+        return StatusCode::kNotSupported;
     }
 
     // Check if the snapshot is protected

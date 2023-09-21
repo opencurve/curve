@@ -464,6 +464,7 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotOnceAndClone) {
     // 从testFile1_的快照克隆出testFile1Clone1, 并断言数据为x
     FInfo finfo;
     ASSERT_EQ(0, snapClient_->Clone(testFile1Snap1, testFile1Clone1, userinfo1,
+            "",
             &finfo));
 
     ASSERT_TRUE(CheckFileData(testFile1Clone1, testUser1_, fakeData));
@@ -471,6 +472,7 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotOnceAndClone) {
     // 从testFile1_的快照克隆出testFile1Clone2, 并断言数据为x
     FInfo finfo2;
     ASSERT_EQ(0, snapClient_->Clone(testFile1Snap1, testFile1Clone2, userinfo1,
+            "",
             &finfo));
     ASSERT_TRUE(CheckFileData(testFile1Clone2, testUser1_, fakeData));
 
@@ -542,6 +544,7 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshot3TimesAndClone) {
     // 从testFile2_的快照1克隆出testFile2Clone1, 并断言数据为x
     FInfo finfo;
     ASSERT_EQ(0, snapClient_->Clone(testFile2Snap1, testFile2Clone1, userinfo1,
+            "",
             &finfo));
 
     ASSERT_TRUE(CheckFileData(testFile2Clone1, testUser1_, fakeData));
@@ -550,6 +553,7 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshot3TimesAndClone) {
     // 从testFile2_的快照2克隆出testFile2Clone2, 并断言数据为y
     FInfo finfo2;
     ASSERT_EQ(0, snapClient_->Clone(testFile2Snap2, testFile2Clone2, userinfo1,
+            "",
             &finfo2));
 
     ASSERT_TRUE(CheckFileData(testFile2Clone2, testUser1_, fakeData2));
@@ -558,6 +562,7 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshot3TimesAndClone) {
     // 从testFile2_的快照3克隆出testFile2Clone3, 并断言数据为z
     FInfo finfo3;
     ASSERT_EQ(0, snapClient_->Clone(testFile2Snap3, testFile2Clone3, userinfo1,
+            "",
             &finfo3));
 
     ASSERT_TRUE(CheckFileData(testFile2Clone3, testUser1_, fakeData3));
@@ -621,6 +626,7 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotAndClone3Times) {
     // 从testFile3 快照克隆出testFile3Clone1, 并断言数据为x
     FInfo finfo;
     ASSERT_EQ(0, snapClient_->Clone(testFile3Snap1, testFile3Clone1, userinfo1,
+            "",
             &finfo));
     ASSERT_TRUE(CheckFileData(testFile3Clone1, testUser1_, fakeData));
 
@@ -650,7 +656,9 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotAndClone3Times) {
     // 从testFile3Clone1的快照克隆出testFile3Clone11, 并断言数据为z
     FInfo finfo2;
     ASSERT_EQ(0, snapClient_->Clone(
-        testFile3Clone1Snap1, testFile3Clone11, userinfo1, &finfo2));
+        testFile3Clone1Snap1, testFile3Clone11, userinfo1,
+        "",
+        &finfo2));
     ASSERT_TRUE(CheckFileData(testFile3Clone11, testUser1_, fakeData3));
 
     // flatten testFile3Clone11
@@ -680,7 +688,9 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotAndClone3Times) {
     // 从testFile3Clone11的快照克隆出testFile3Clone111, 并断言数据为z
     FInfo finfo3;
     ASSERT_EQ(0, snapClient_->Clone(
-        testFile3Clone11Snap1, testFile3Clone111, userinfo1, &finfo3));
+        testFile3Clone11Snap1, testFile3Clone111, userinfo1,
+        "",
+        &finfo3));
     ASSERT_TRUE(CheckFileData(testFile3Clone111, testUser1_, fakeData2));
 
     // flatten testFile3Clone111
@@ -748,6 +758,7 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotAndCloneEmpty) {
     // 从testFile4 快照克隆出testFile4Clone1, 并断言数据为x
     FInfo finfo;
     ASSERT_EQ(0, snapClient_->Clone(testFile4Snap1, testFile4Clone1, userinfo1,
+            "",
             &finfo));
     ASSERT_TRUE(CheckFileData(testFile4Clone1, testUser1_, fakeData));
 
@@ -762,7 +773,9 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotAndCloneEmpty) {
     // 从testFile4Clone1的快照克隆出testFile4Clone11, 并断言数据为x
     FInfo finfo2;
     ASSERT_EQ(0, snapClient_->Clone(
-        testFile4Clone1Snap1, testFile4Clone11, userinfo1, &finfo2));
+        testFile4Clone1Snap1, testFile4Clone11, userinfo1,
+        "",
+        &finfo2));
     ASSERT_TRUE(CheckFileData(testFile4Clone11, testUser1_, fakeData));
 
     // testFile4Clone11写a
@@ -797,6 +810,7 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotEmptyAndClone) {
     // 从testFile5 快照克隆出testFile5Clone1, 并断言数据为null
     FInfo finfo;
     ASSERT_EQ(0, snapClient_->Clone(testFile5Snap1, testFile5Clone1, userinfo1,
+            "",
             &finfo));
     ASSERT_TRUE(CheckFileData(testFile5Clone1, testUser1_, fakeDataNull));
 
@@ -812,7 +826,9 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotEmptyAndClone) {
     // 从testFile5Clone1的快照克隆出testFile5Clone11, 并断言数据为null
     FInfo finfo2;
     ASSERT_EQ(0, snapClient_->Clone(
-        testFile5Clone1Snap1, testFile5Clone11, userinfo1, &finfo2));
+        testFile5Clone1Snap1, testFile5Clone11, userinfo1,
+        "",
+        &finfo2));
     ASSERT_TRUE(CheckFileData(testFile5Clone11, testUser1_, fakeDataNull));
 
     // testFile5Clone11写a

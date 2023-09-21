@@ -985,10 +985,11 @@ LIBCURVE_ERROR MDSClient::UnprotectSnapShot(const std::string& snapFileName,
 LIBCURVE_ERROR MDSClient::Clone(const std::string& source,
         const std::string& destination,
         const UserInfo_t& userinfo,
+        const std::string& poolset,
         FInfo* fileinfo) {
     auto task = RPCTaskDefine {
         CloneResponse response;
-        MDSClientBase::Clone(source, destination, userinfo,
+        MDSClientBase::Clone(source, destination, userinfo, poolset,
                              &response, cntl, channel);
         if (cntl->Failed()) {
             LOG(WARNING) << "Clone failed, errcorde = "

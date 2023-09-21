@@ -289,6 +289,7 @@ class MDSClient : public MDSClientBase,
     LIBCURVE_ERROR Clone(const std::string& source,
             const std::string& destination,
             const UserInfo_t& userinfo,
+            const std::string& poolset,
             FInfo* finfo);
 
     // flatten

@@ -437,6 +437,8 @@ message CloneRequest {
     required string     owner = 3;
     optional string     signature = 4;
     required uint64     date = 5;
+
+    optional string     poolset = 6;
 }
 
 message CloneResponse {
