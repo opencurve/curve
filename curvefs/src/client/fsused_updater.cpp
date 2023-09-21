@@ -19,6 +19,8 @@ void FsUsedUpdater::UpdateFsUsed() {
     metaserverClient_->UpdateFsUsed(fsId_, delta, true);
 }
 
+int64_t FsUsedUpdater::GetDeltaBytes() { return deltaBytes_.load(); }
+
 bool UpdateFsUsedTask::OnTriggeringTask(timespec *next_abstime) {
     fsUsedUpdater_->UpdateFsUsed();
     *next_abstime = butil::seconds_from_now(interval_s_);

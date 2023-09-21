@@ -47,6 +47,7 @@
 #include "src/client/client_common.h"
 #include "absl/memory/memory.h"
 #include "curvefs/src/client/fsused_updater.h"
+#include "curvefs/src/client/fsquota_checker.h"
 
 #define PORT_LIMIT 65535
 
@@ -189,6 +190,11 @@ CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
 
     FsUsedUpdater::GetInstance().Init(fsInfo_->fsid(), metaClient_);
     StartUpdateFsUsedTask(&FsUsedUpdater::GetInstance(), 5);
+
+    FsQuotaChecker::GetInstance().Init(fsInfo_->fsid(), mdsClient_,
+                                       metaClient_);
+    FsQuotaChecker::GetInstance().UpdateQuotaCache();
+    StartUpdateQuotaCacheTask(&FsQuotaChecker::GetInstance(), 5);
 
     InitQosParam();
 

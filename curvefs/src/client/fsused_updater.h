@@ -26,6 +26,8 @@ class FsUsedUpdater {
 
     void UpdateFsUsed();
 
+    int64_t GetDeltaBytes();
+
  private:
     uint32_t fsId_;
     std::atomic<int64_t> deltaBytes_;
