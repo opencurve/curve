@@ -20,6 +20,8 @@
  * Author: hzwuhongsong
  */
 
+#include <dirent.h>
+#include <gflags/gflags_declare.h>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <sys/stat.h>
@@ -42,6 +44,7 @@ using ::testing::DoAll;
 using ::testing::ElementsAre;
 using ::testing::Ge;
 using ::testing::Gt;
+using ::testing::Invoke;
 using ::testing::Mock;
 using ::testing::NotNull;
 using ::testing::Return;
@@ -52,6 +55,8 @@ using ::testing::ReturnRef;
 using ::testing::SetArgPointee;
 using ::testing::SetArgReferee;
 using ::testing::StrEq;
+
+DECLARE_uint32(diskTrimRatio);
 
 class TestDiskCacheManager : public ::testing::Test {
  protected:
@@ -71,6 +76,7 @@ class TestDiskCacheManager : public ::testing::Test {
               (0, std::make_shared<CacheMetrics>("diskcache"));
         diskCacheWrite_->Init(client_, wrapper, "/mnt/test", 0,
                                     1, cachedObjName);
+        s3Metric_ = std::make_shared<S3Metric>();
     }
 
     virtual void TearDown() {
@@ -84,6 +90,7 @@ class TestDiskCacheManager : public ::testing::Test {
     std::shared_ptr<DiskCacheManager> diskCacheManager_;
     std::shared_ptr<MockPosixWrapper> wrapper;
     std::shared_ptr<MockS3Client> client_;
+    std::shared_ptr<S3Metric> s3Metric_;
 };
 
 TEST_F(TestDiskCacheManager, Init) {
@@ -208,9 +215,9 @@ TEST_F(TestDiskCacheManager, IsCached) {
     ASSERT_EQ(true, ret);
 }
 
-TEST_F(TestDiskCacheManager, SetDiskFsUsedRatio) {
+TEST_F(TestDiskCacheManager, UpdateDiskFsUsedRatio) {
     EXPECT_CALL(*wrapper, statfs(NotNull(), NotNull())).WillOnce(Return(-1));
-    int ret = diskCacheManager_->SetDiskFsUsedRatio();
+    int ret = diskCacheManager_->UpdateDiskFsUsedRatio();
     ASSERT_EQ(-1, ret);
 
     struct statfs stat;
@@ -220,7 +227,7 @@ TEST_F(TestDiskCacheManager, SetDiskFsUsedRatio) {
     stat.f_bavail = 0;
     EXPECT_CALL(*wrapper, statfs(NotNull(), _))
         .WillOnce(DoAll(SetArgPointee<1>(stat), Return(0)));
-    ret = diskCacheManager_->SetDiskFsUsedRatio();
+    ret = diskCacheManager_->UpdateDiskFsUsedRatio();
     ASSERT_EQ(-1, ret);
 
     stat.f_frsize = 1;
@@ -229,16 +236,13 @@ TEST_F(TestDiskCacheManager, SetDiskFsUsedRatio) {
     stat.f_bavail = 0;
     EXPECT_CALL(*wrapper, statfs(NotNull(), _))
         .WillOnce(DoAll(SetArgPointee<1>(stat), Return(0)));
-    ret = diskCacheManager_->SetDiskFsUsedRatio();
+    ret = diskCacheManager_->UpdateDiskFsUsedRatio();
     ASSERT_EQ(101, ret);
 }
 
 TEST_F(TestDiskCacheManager, IsDiskCacheFull) {
     int ret = diskCacheManager_->IsDiskCacheFull();
-    ASSERT_EQ(true, ret);
-
-    ret = diskCacheManager_->IsDiskCacheFull();
-    ASSERT_EQ(true, ret);
+    ASSERT_EQ(false, ret);
 }
 
 TEST_F(TestDiskCacheManager, IsDiskCacheSafe) {
@@ -253,7 +257,7 @@ TEST_F(TestDiskCacheManager, IsDiskCacheSafe) {
     option.diskCacheOpt.cmdTimeoutSec = 5;
     option.diskCacheOpt.asyncLoadPeriodMs = 10;
     diskCacheManager_->Init(client_, option);
-    bool ret = diskCacheManager_->IsDiskCacheSafe();
+    bool ret = diskCacheManager_->IsDiskCacheSafe(kRatioLevel);
     ASSERT_EQ(false, ret);
 
     option.diskCacheOpt.fullRatio = 100;
@@ -261,8 +265,114 @@ TEST_F(TestDiskCacheManager, IsDiskCacheSafe) {
     option.diskCacheOpt.maxUsableSpaceBytes = 100000000;
     option.objectPrefix = 0;
     diskCacheManager_->Init(client_, option);
-    ret = diskCacheManager_->IsDiskCacheSafe();
+    ret = diskCacheManager_->IsDiskCacheSafe(kRatioLevel);
     ASSERT_EQ(true, ret);
+}
+
+
+TEST_F(TestDiskCacheManager, IsDiskCacheSafe_TrimRatio_Full) {
+    //
+    //       ok           nearfull               full
+    // |------------|-------------------|----------------------|
+    // 0     trimRatio*safeRatio    safeRatio               fullRatio
+    //
+    // 1. 0<=ok<trimRatio*safeRatio;
+    // 2. trimRatio*safeRatio<=nearfull<safeRatio
+    // 3. safeRatio<=full<=fullRatio
+    S3ClientAdaptorOption option;
+    option.objectPrefix = 0;
+    option.diskCacheOpt.diskCacheType = (DiskCacheType)2;
+    option.diskCacheOpt.cacheDir = "/mnt/test_unit";
+    option.diskCacheOpt.trimCheckIntervalSec = 1;
+    option.diskCacheOpt.fullRatio = 90;
+    option.diskCacheOpt.safeRatio = 70;
+    option.diskCacheOpt.trimRatio = 50;
+    option.diskCacheOpt.cmdTimeoutSec = 5;
+    option.diskCacheOpt.asyncLoadPeriodMs = 10;
+    diskCacheManager_->Init(client_, option);
+
+    struct statfs stat;
+    stat.f_frsize = 1;
+    stat.f_blocks = 100;  // total
+    stat.f_bfree = 5;  // free
+    stat.f_bavail = 5;  // avaliable
+    EXPECT_CALL(*wrapper, statfs(NotNull(), _))
+        .WillOnce(DoAll(SetArgPointee<1>(stat), Return(0)));
+
+    diskCacheManager_->UpdateDiskFsUsedRatio();
+
+    ASSERT_EQ(false, diskCacheManager_->IsDiskCacheSafe(kRatioLevel));
+    ASSERT_EQ(false, diskCacheManager_->IsDiskCacheSafe(FLAGS_diskTrimRatio));
+}
+
+TEST_F(TestDiskCacheManager, IsDiskCacheSafe_TrimRatio_Nearfull) {
+    //
+    //       ok           nearfull               full
+    // |------------|-------------------|----------------------|
+    // 0     trimRatio*safeRatio    safeRatio               fullRatio
+    //
+    // 1. 0<=ok<trimRatio*safeRatio;
+    // 2. trimRatio*safeRatio<=nearfull<safeRatio
+    // 3. safeRatio<=full<=fullRatio
+    S3ClientAdaptorOption option;
+    option.objectPrefix = 0;
+    option.diskCacheOpt.diskCacheType = (DiskCacheType)2;
+    option.diskCacheOpt.cacheDir = "/mnt/test_unit";
+    option.diskCacheOpt.trimCheckIntervalSec = 1;
+    option.diskCacheOpt.fullRatio = 90;
+    option.diskCacheOpt.safeRatio = 70;
+    option.diskCacheOpt.trimRatio = 50;
+    option.diskCacheOpt.cmdTimeoutSec = 5;
+    option.diskCacheOpt.asyncLoadPeriodMs = 10;
+    diskCacheManager_->Init(client_, option);
+
+    struct statfs stat;
+    stat.f_frsize = 1;
+    stat.f_blocks = 100;  // total
+    stat.f_bfree = 40;     // free
+    stat.f_bavail = 40;    // avaliable
+    EXPECT_CALL(*wrapper, statfs(NotNull(), _))
+        .WillOnce(DoAll(SetArgPointee<1>(stat), Return(0)));
+
+    diskCacheManager_->UpdateDiskFsUsedRatio();
+
+    ASSERT_EQ(true, diskCacheManager_->IsDiskCacheSafe(kRatioLevel));
+    ASSERT_EQ(false, diskCacheManager_->IsDiskCacheSafe(FLAGS_diskTrimRatio));
+}
+
+TEST_F(TestDiskCacheManager, IsDiskCacheSafe_TrimRatio_Ok) {
+    //
+    //       ok           nearfull               full
+    // |------------|-------------------|----------------------|
+    // 0     trimRatio*safeRatio    safeRatio               fullRatio
+    //
+    // 1. 0<=ok<trimRatio*safeRatio;
+    // 2. trimRatio*safeRatio<=nearfull<safeRatio
+    // 3. safeRatio<=full<=fullRatio
+    S3ClientAdaptorOption option;
+    option.objectPrefix = 0;
+    option.diskCacheOpt.diskCacheType = (DiskCacheType)2;
+    option.diskCacheOpt.cacheDir = "/mnt/test_unit";
+    option.diskCacheOpt.trimCheckIntervalSec = 1;
+    option.diskCacheOpt.fullRatio = 90;
+    option.diskCacheOpt.safeRatio = 70;
+    option.diskCacheOpt.trimRatio = 50;
+    option.diskCacheOpt.cmdTimeoutSec = 5;
+    option.diskCacheOpt.asyncLoadPeriodMs = 10;
+    diskCacheManager_->Init(client_, option);
+
+    struct statfs stat;
+    stat.f_frsize = 1;
+    stat.f_blocks = 100;  // total
+    stat.f_bfree = 80;    // free
+    stat.f_bavail = 80;   // avaliable
+    EXPECT_CALL(*wrapper, statfs(NotNull(), _))
+        .WillOnce(DoAll(SetArgPointee<1>(stat), Return(0)));
+
+    diskCacheManager_->UpdateDiskFsUsedRatio();
+
+    ASSERT_EQ(true, diskCacheManager_->IsDiskCacheSafe(kRatioLevel));
+    ASSERT_EQ(true, diskCacheManager_->IsDiskCacheSafe(FLAGS_diskTrimRatio));
 }
 
 TEST_F(TestDiskCacheManager, TrimStop) {
@@ -278,7 +388,7 @@ TEST_F(TestDiskCacheManager, TrimRun_1) {
     EXPECT_CALL(*wrapper, stat(NotNull(), NotNull())).WillOnce(Return(-1));
     EXPECT_CALL(*wrapper, mkdir(_, _)).WillOnce(Return(-1));
     diskCacheManager_->Init(client_, option);
-    diskCacheManager_->InitMetrics("test");
+    diskCacheManager_->InitMetrics("test", s3Metric_);
     EXPECT_CALL(*wrapper, statfs(NotNull(), NotNull()))
         .WillRepeatedly(Return(-1));
     (void)diskCacheManager_->TrimRun();
@@ -312,7 +422,7 @@ TEST_F(TestDiskCacheManager, TrimCache_2) {
     EXPECT_CALL(*wrapper, stat(NotNull(), NotNull())).WillOnce(Return(-1));
     EXPECT_CALL(*wrapper, mkdir(_, _)).WillOnce(Return(-1));
     diskCacheManager_->Init(client_, option);
-    diskCacheManager_->InitMetrics("test");
+    diskCacheManager_->InitMetrics("test", s3Metric_);
     diskCacheManager_->AddCache("test");
     (void)diskCacheManager_->TrimRun();
     sleep(6);
@@ -348,7 +458,7 @@ TEST_F(TestDiskCacheManager, TrimCache_4) {
     EXPECT_CALL(*wrapper, mkdir(_, _)).WillOnce(Return(-1));
     option.objectPrefix = 0;
     diskCacheManager_->Init(client_, option);
-    diskCacheManager_->InitMetrics("test");
+    diskCacheManager_->InitMetrics("test", s3Metric_);
     diskCacheManager_->AddCache("test");
     (void)diskCacheManager_->TrimRun();
     sleep(6);
@@ -385,7 +495,7 @@ TEST_F(TestDiskCacheManager, TrimCache_5) {
     EXPECT_CALL(*wrapper, stat(NotNull(), NotNull())).WillOnce(Return(-1));
     EXPECT_CALL(*wrapper, mkdir(_, _)).WillOnce(Return(-1));
     diskCacheManager_->Init(client_, option);
-    diskCacheManager_->InitMetrics("test");
+    diskCacheManager_->InitMetrics("test", s3Metric_);
     diskCacheManager_->AddCache("test");
     (void)diskCacheManager_->TrimRun();
     sleep(6);
@@ -398,9 +508,10 @@ TEST_F(TestDiskCacheManager, TrimCache_noexceed) {
     option.diskCacheOpt.diskCacheType = (DiskCacheType)2;
     option.diskCacheOpt.cacheDir = "/tmp";
     option.diskCacheOpt.trimCheckIntervalSec = 1;
-    option.diskCacheOpt.fullRatio = 0;
-    option.diskCacheOpt.safeRatio = 0;
-    option.diskCacheOpt.maxUsableSpaceBytes = 0;
+    option.diskCacheOpt.fullRatio = 90;
+    option.diskCacheOpt.safeRatio = 70;
+    option.diskCacheOpt.trimRatio = 50;
+    option.diskCacheOpt.maxUsableSpaceBytes = 374321784000;
     option.diskCacheOpt.cmdTimeoutSec = 5;
     option.diskCacheOpt.asyncLoadPeriodMs = 10;
     option.objectPrefix = 0;
@@ -414,22 +525,16 @@ TEST_F(TestDiskCacheManager, TrimCache_noexceed) {
 
     struct statfs stat;
     stat.f_frsize = 1;
-    stat.f_blocks = 1;
-    stat.f_bfree = 0;
-    stat.f_bavail = 0;
+    stat.f_blocks = 100;  // total
+    stat.f_bfree = 80;    // free
+    stat.f_bavail = 80;   // avaliable
     EXPECT_CALL(*wrapper, statfs(NotNull(), _))
-        .WillRepeatedly(DoAll(SetArgPointee<1>(stat), Return(-1)));
+        .WillRepeatedly(DoAll(SetArgPointee<1>(stat), Return(0)));
     EXPECT_CALL(*wrapper, remove(_)).WillRepeatedly(Return(0));
     diskCacheManager_->AddCache("test");
 
-    struct stat rf;
-    rf.st_size = 0;
-    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull()))
-        .Times(2)
-        .WillOnce(Return(-1))
-        .WillOnce(DoAll(SetArgPointee<1>(rf), Return(0)));
     (void)diskCacheManager_->TrimRun();
-    diskCacheManager_->InitMetrics("test");
+    diskCacheManager_->InitMetrics("test", s3Metric_);
     sleep(6);
     diskCacheManager_->UmountDiskCache();
 }
@@ -443,6 +548,7 @@ TEST_F(TestDiskCacheManager, TrimCache_exceed) {
     option.diskCacheOpt.trimCheckIntervalSec = 1;
     option.diskCacheOpt.fullRatio = 90;
     option.diskCacheOpt.safeRatio = 70;
+    option.diskCacheOpt.trimRatio = 50;
     option.diskCacheOpt.maxUsableSpaceBytes =
       std::numeric_limits<uint64_t>::max();
     option.diskCacheOpt.cmdTimeoutSec = 5;
@@ -471,11 +577,9 @@ TEST_F(TestDiskCacheManager, TrimCache_exceed) {
     struct stat rf;
     rf.st_size = 0;
     EXPECT_CALL(*wrapper, stat(NotNull(), _))
-        .Times(2)
-        .WillOnce(Return(-1))
-        .WillOnce(DoAll(SetArgPointee<1>(rf), Return(0)));
+        .WillRepeatedly(Return(-1));
     diskCacheManager_->TrimRun();
-    diskCacheManager_->InitMetrics("test");
+    diskCacheManager_->InitMetrics("test", s3Metric_);
     sleep(6);
     diskCacheManager_->UmountDiskCache();
 }

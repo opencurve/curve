@@ -103,8 +103,11 @@ class InodeManager {
                                            S3ChunkInfoMap* m,
                                            uint64_t limit = 0);
 
-    MetaStatusCode UpdateInodeWhenCreateOrRemoveSubNode(uint32_t fsId,
-        uint64_t inodeId, FsFileType type, bool isCreate);
+    MetaStatusCode UpdateInodeWhenCreateOrRemoveSubNode(
+        const Dentry &dentry,
+        uint64_t now,
+        uint32_t now_ns,
+        bool isCreate);
 
     MetaStatusCode InsertInode(const Inode &inode);
 

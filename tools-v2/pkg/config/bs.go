@@ -136,6 +136,14 @@ const (
 	CURVEBS_ALL                       = "all"
 	VIPER_CURVEBS_ALL                 = "curvebs.all"
 	CURVEBS_DEFAULT_ALL               = false
+	CURVEBS_SRC                       = "src"
+	VIPER_CURVEBS_SRC                 = "curvebs.src"
+	CURVEBS_DEST                      = "dest"
+	VIPER_CURVEBS_DEST                = "curvebs.dest"
+	CURVEBS_TASKID                    = "taskid"
+	VIPER_CURVEBS_TASKID              = "curvebs.taskid"
+	CURVEBS_FAILED                    = "failed"
+	VIPER_CURVEBS_FAILED              = "curvebs.failed"
 )
 
 var (
@@ -186,6 +194,10 @@ var (
 		CURVEBS_SERVER_IP:           VIPER_CURVEBS_SERVER_IP,
 		CURVEBS_SERVER_PORT:         VIPER_CURVEBS_SERVER_PORT,
 		CURVEBS_ALL:                 VIPER_CURVEBS_ALL,
+		CURVEBS_SRC:                 VIPER_CURVEBS_SRC,
+		CURVEBS_DEST:                VIPER_CURVEBS_DEST,
+		CURVEBS_TASKID:              VIPER_CURVEBS_TASKID,
+		CURVEBS_FAILED:              VIPER_CURVEBS_FAILED,
 	}
 
 	BSFLAG2DEFAULT = map[string]interface{}{
@@ -604,6 +616,22 @@ func AddBsChunkIdSliceRequiredFlag(cmd *cobra.Command) {
 
 func AddBsChunkServerAddressSliceRequiredFlag(cmd *cobra.Command) {
 	AddBsStringSliceRequiredFlag(cmd, CURVEBS_CHUNKSERVER_ADDRESS, "chunk server address")
+}
+
+func AddBsSrcOptionFlag(cmd *cobra.Command) {
+	AddBsStringOptionFlag(cmd, CURVEBS_SRC, "source")
+}
+
+func AddBsDestOptionFlag(cmd *cobra.Command) {
+	AddBsStringOptionFlag(cmd, CURVEBS_DEST, "destination")
+}
+
+func AddBsTaskIDOptionFlag(cmd *cobra.Command) {
+	AddBsStringOptionFlag(cmd, CURVEBS_TASKID, "task id")
+}
+
+func AddBsFailedOptionFlag(cmd *cobra.Command) {
+	AddBsBoolOptionFlag(cmd, CURVEBS_FAILED, "failed")
 }
 
 // get stingslice flag
