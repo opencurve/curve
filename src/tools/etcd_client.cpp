@@ -88,6 +88,7 @@ int EtcdClient::GetAndCheckEtcdVersion(std::string* version,
             continue;
         }
         brpc::Controller cntl;
+        cntl.set_timeout_ms(-1);
         cntl.http_request().uri() = addr + kEtcdVersionUri;
         httpChannel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
         if (cntl.Failed()) {
