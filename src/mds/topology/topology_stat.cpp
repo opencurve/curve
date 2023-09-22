@@ -69,21 +69,22 @@ void TopologyStatImpl::UpdateChunkServerStat(ChunkServerIdType csId,
                   << ", diffUsed = "
                   << diffUsed;
 
-        if (stat.chunkSizeUsedBytes >
-                (stat.chunkFilepoolSize * available / 100)) {
-            LOG(WARNING) << "UpdateChunkServerStat, chunkserver is almost full,"
-                         << " chunkserverId = "
-                         << csId;
-            physicalPoolStats_[belongPhysicalPoolId].almostFullCsList
-                .emplace(csId);
-        } else {
-            LOG(INFO) << "UpdateChunkServerStat, chunkserver is not full,"
-                      << "remove from almost list, chunkserverId = "
-                      << csId;
-            physicalPoolStats_[belongPhysicalPoolId].almostFullCsList
-                .erase(csId);
+        if (chunkFilePoolAllocHelp_->GetUseChunkFilepool()) {
+            if (stat.chunkSizeUsedBytes >
+                    (stat.chunkFilepoolSize * available / 100)) {
+                LOG(WARNING) << "Find chunkserver is almost full,"
+                             << " chunkserverId = "
+                             << csId;
+                physicalPoolStats_[belongPhysicalPoolId].almostFullCsList
+                    .emplace(csId);
+            } else {
+                LOG(INFO) << "Find chunkserver is not full,"
+                          << "remove from almost list, chunkserverId = "
+                          << csId;
+                physicalPoolStats_[belongPhysicalPoolId].almostFullCsList
+                    .erase(csId);
+            }
         }
-
         it->second = stat;
     } else {
         chunkServerStats_.emplace(csId, stat);

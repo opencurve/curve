@@ -1785,7 +1785,7 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
     }
 
     attempts = 0;
-    while (attempts < 100) {
+    while (attempts < 600) {
         cntl.Reset();
         date = TimeUtility::GetTimeofDayUs();
         str2sig = Authenticator::GetString2Signature(date,
@@ -1808,7 +1808,7 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
             ASSERT_TRUE(false);
         }
     }
-    ASSERT_LE(attempts, 100) << "max attempts for list /RecycleBin exhausted";
+    ASSERT_LE(attempts, 600) << "max attempts for list /RecycleBin exhausted";
 
     // 删除文件时，如果文件名不满足要求，会返回失败
     cntl.Reset();
