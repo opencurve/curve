@@ -69,8 +69,8 @@ func NewFlattenCmd() *FlattenCmd {
 func (fCmd *FlattenCmd) AddFlags() {
 	config.AddBsSnapshotCloneFlagOption(fCmd.Cmd)
 	config.AddHttpTimeoutFlag(fCmd.Cmd)
-	config.AddBsUserRequireFlag(fCmd.Cmd)
-	config.AddBsTaskIDRequireFlag(fCmd.Cmd)
+	config.AddBsUserRequiredFlag(fCmd.Cmd)
+	config.AddBsTaskIDRequiredFlag(fCmd.Cmd)
 }
 
 func (fCmd *FlattenCmd) Init(cmd *cobra.Command, args []string) error {

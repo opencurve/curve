@@ -38,6 +38,7 @@ const (
 	QueryStatus      = "Status"
 	QueryType        = "Type"
 	QueryFile        = "File"
+	QueryName        = "Name"
 
 	ActionClone               = "Clone"
 	ActionRecover             = "Recover"
