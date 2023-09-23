@@ -88,6 +88,7 @@ A tool for CurveFS & CurveBs.
       - [create](#create-1)
         - [create file](#create-file)
         - [create dir](#create-dir)
+        - [create volume snapshot](#create-volume-snapshot)
       - [check](#check-1)
         - [check copyset](#check-copyset-1)
         - [check chunkserver](#check-chunkserver)
@@ -1850,6 +1851,24 @@ Output:
 +---------+
 | success |
 +---------+
+```
+
+##### create volume snapshot
+
+create snapshot
+
+Usage:
+```bash
+curve bs create volume snapshot --user root --filename test --snapshotname snap-test
+```
+
+Output:
+```
++------+----------+--------------+
+| USER | FILENAME | SNAPSHOTNAME |
++------+----------+---------------
+| root |   test   |  snap-test   |
++------+----------+--------------+
 ```
 
 #### check

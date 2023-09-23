@@ -136,6 +136,7 @@ const (
 	ROW_ISLAZY               = "isLazy"
 	ROW_NEXTSTEP             = "nextStep"
 	ROW_TIME                 = "time"
+	ROW_SNAPSHOTNAME         = "snapshotName"
 
 	ROW_RW_STATUS               = "rwStatus"
 	ROW_DISK_STATE              = "diskState"
