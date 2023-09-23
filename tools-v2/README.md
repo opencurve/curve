@@ -1737,6 +1737,24 @@ Output:
 +---------+
 ```
 
+##### create snapshot
+
+create snapshot
+
+Usage:
+```bash
+curve bs create volume snapshot --user root --filename test --snapshotname snap-test
+```
+
+Output:
+```
++------+----------+--------------+---------+            
+| USER | FILENAME | SNAPSHOTNAME | RESULT  |             
++------+----------+------------------------+
+| root |   test   |  snap-test   | success |
++------+----------+--------------+---------+
+```
+
 #### check
 
 ##### check copyset

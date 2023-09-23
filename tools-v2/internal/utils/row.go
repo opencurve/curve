@@ -128,6 +128,7 @@ const (
 	ROW_UNHEALTHY_COUNT      = "unhealthyCount"
 	ROW_HEALTHY_RATIO        = "ratio"
 	ROW_UNHEALTHY_RATIO      = "unhealthy-Ratio"
+	ROW_SNAPSHOTNAME         = "snapshotName"
 
 	ROW_RW_STATUS               = "rwStatus"
 	ROW_DISK_STATE              = "diskState"

@@ -144,6 +144,10 @@ const (
 	VIPER_CURVEBS_TASKID              = "curvebs.taskid"
 	CURVEBS_FAILED                    = "failed"
 	VIPER_CURVEBS_FAILED              = "curvebs.failed"
+	CURVEBS_FILENAME                  = "filename"
+	VIPER_CURVEBS_FILENAME            = "curvebs.filename"
+	CURVEBS_SNAPSHOTNAME              = "snapshotname"
+	VIPER_CURVEBS_SNAPSHOTNAME        = "curvebs.snapshotname"
 )
 
 var (
@@ -198,6 +202,8 @@ var (
 		CURVEBS_DEST:                VIPER_CURVEBS_DEST,
 		CURVEBS_TASKID:              VIPER_CURVEBS_TASKID,
 		CURVEBS_FAILED:              VIPER_CURVEBS_FAILED,
+		CURVEBS_FILENAME:            VIPER_CURVEBS_FILENAME,
+		CURVEBS_SNAPSHOTNAME:        VIPER_CURVEBS_SNAPSHOTNAME,
 	}
 
 	BSFLAG2DEFAULT = map[string]interface{}{
@@ -632,6 +638,18 @@ func AddBsTaskIDOptionFlag(cmd *cobra.Command) {
 
 func AddBsFailedOptionFlag(cmd *cobra.Command) {
 	AddBsBoolOptionFlag(cmd, CURVEBS_FAILED, "failed")
+}
+
+func AddBsUserRequiredFlag(cmd *cobra.Command) {
+	AddBsStringRequiredFlag(cmd, CURVEBS_USER, "user name")
+}
+
+func AddBsFileNameRequiredFlag(cmd *cobra.Command) {
+	AddBsStringRequiredFlag(cmd, CURVEBS_FILENAME, "file name")
+}
+
+func AddBsSnapshotNameRequiredFlag(cmd *cobra.Command) {
+	AddBsStringRequiredFlag(cmd, CURVEBS_SNAPSHOTNAME, "snapshot name")
 }
 
 // get stingslice flag
