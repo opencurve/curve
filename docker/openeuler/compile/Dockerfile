@@ -30,6 +30,6 @@ RUN wget https://www.python.org/ftp/python/2.7.18/Python-2.7.18.tgz && tar xvf P
     ln -s /usr/bin/python2.7 /usr/bin/python2 && \
     python3 -m pip install -i https://pypi.tuna.tsinghua.edu.cn/simple  wheel
 RUN wget https://curve-build.nos-eastchina1.126.net/memcache/libmemcached-1.1.2.tar.gz && tar -zxf libmemcached-1.1.2.tar.gz && cd libmemcached-1.1.2 && mkdir build-libmemcached && cd build-libmemcached && cmake .. && make libmemcached -j && make install
-
+RUN export GOPATH=/usr/local/go && export PATH=$PATH:$GOPATH/bin
 ENV GOPATH=/usr/local/go \
     PATH=$PATH:$GOPATH/bin
