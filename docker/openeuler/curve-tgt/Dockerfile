@@ -1,6 +1,5 @@
 FROM opencurvedocker/curve-base:build-openeuler AS curve-sdk
 ENV GITHUB_PROXY=https://ghproxy.com/ 
-RUN echo $PATH
 
 RUN git clone https://github.com/opencurve/curve && \
      cd /curve && git checkout a9db5df70898dad53c76369ed0f732477f3e4c4f  \
@@ -29,4 +28,3 @@ RUN tar -zxvf curve_sdk.tar.gz && \
     git clone --branch curve ${GITHUB_PROXY}https://github.com/opencurve/curve-tgt && \
     cd curve-tgt && \
     make programs
-RUN cd /

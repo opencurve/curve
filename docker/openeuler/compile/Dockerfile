@@ -11,7 +11,7 @@ RUN yum update -y\
     && yum install -y gcc gcc-c++ bison bison-devel python3-devel python3-pip flex flex-devel cmake make wget curl git protobuf-compiler patch libevent-devel musl-gcc\
     && yum install -y unzip which zlib zlib-devel openssl openssl-devel libnl3 libnl3-devel libuuid libuuid-devel libcurl-devel boost boost-devel wget cmake tar  \
     && yum install -y libunwind libunwind-devel
-RUN wget https://github.com/bazelbuild/bazel/releases/download/4.2.2/bazel-4.2.2-installer-linux-x86_64.sh && bash bazel-4.2.2-installer-linux-x86_64.sh && wget https://golang.google.cn/dl/go1.20.6.linux-amd64.tar.gz && tar xzvf go1.20.6.linux-amd64.tar.gz
+RUN wget https://github.com/bazelbuild/bazel/releases/download/4.2.2/bazel-4.2.2-installer-linux-x86_64.sh && bash bazel-4.2.2-installer-linux-x86_64.sh && rm bazel-4.2.2-installer-linux-x86_64.sh -f && cd /usr/local/ &&  wget https://golang.google.cn/dl/go1.20.6.linux-amd64.tar.gz && tar xzvf go1.20.6.linux-amd64.tar.gz && rm go1.20.6.linux-amd64.tar.gz -rf 
     
 RUN wget https://curve-build.nos-eastchina1.126.net/libfiu-1.00.tar.gz && tar -zxvf libfiu-1.00.tar.gz && cd libfiu-1.00 && make libfiu && cp libfiu/*.h /usr/include && cp libfiu/libfiu.so.1.00 /usr/lib && ln -s /usr/lib/libfiu.so.1.00 /usr/lib/libfiu.so && cd .. &&rm -rf libfiu-1.00*
 RUN wget https://curve-build.nos-eastchina1.126.net/memcache/memcached-1.6.17.tar.gz \
@@ -31,6 +31,5 @@ RUN wget https://www.python.org/ftp/python/2.7.18/Python-2.7.18.tgz && tar xvf P
     python3 -m pip install -i https://pypi.tuna.tsinghua.edu.cn/simple  wheel
 RUN wget https://curve-build.nos-eastchina1.126.net/memcache/libmemcached-1.1.2.tar.gz && tar -zxf libmemcached-1.1.2.tar.gz && cd libmemcached-1.1.2 && mkdir build-libmemcached && cd build-libmemcached && cmake .. && make libmemcached -j && make install
 
-RUN echo -e "export GOPATH=/go\nexport PATH=$PATH:/go/bin" >> ~/.bashrc
-ENV GOPATH=/go \
-    PATH=$PATH:/go/bin
+ENV GOPATH=/usr/local/go \
+    PATH=$PATH:$GOPATH/bin
