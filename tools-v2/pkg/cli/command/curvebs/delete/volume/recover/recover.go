@@ -22,8 +22,6 @@
 package recover
 
 import (
-	"encoding/json"
-	"fmt"
 	"sync"
 	"time"
 
@@ -33,6 +31,8 @@ import (
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
 	"github.com/spf13/cobra"
+
+	. "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/query/volume/clone_recover"
 )
 
 const (
@@ -76,43 +76,22 @@ func (rCmd *RecoverCmd) Init(cmd *cobra.Command, args []string) error {
 }
 
 func (rCmd *RecoverCmd) RunCommand(cmd *cobra.Command, args []string) error {
-	params := map[string]any{
-		cobrautil.QueryAction:      cobrautil.ActionGetCloneTaskList,
-		cobrautil.QueryType:        cobrautil.TypeRecoverTask,
-		cobrautil.QueryUser:        rCmd.user,
-		cobrautil.QueryUUID:        rCmd.taskID,
-		cobrautil.QuerySource:      rCmd.src,
-		cobrautil.QueryDestination: rCmd.dest,
-		cobrautil.QueryStatus:      rCmd.status,
-		cobrautil.QueryLimit:       100,
-		cobrautil.QueryOffset:      0,
+	cloneRecoverCmd := CloneRecoverCmd{
+		FinalCurveCmd: rCmd.FinalCurveCmd,
+		SnapshotAddrs: rCmd.snapshotAddrs,
+		Timeout:       rCmd.timeout,
+		User:          rCmd.user,
+		Src:           rCmd.src,
+		Dest:          rCmd.dest,
+		TaskID:        rCmd.taskID,
+		All:           rCmd.all,
+		Failed:        rCmd.failed,
+		Status:        rCmd.status,
 	}
-	records := make([]map[string]string, 0)
-	for {
-		subUri := cobrautil.NewSnapshotQuerySubUri(params)
-		metric := basecmd.NewMetric(rCmd.snapshotAddrs, subUri, rCmd.timeout)
-		result, err := basecmd.QueryMetric(metric)
-		if err.TypeCode() != cmderror.CODE_SUCCESS {
-			return err.ToError()
-		}
 
-		var resp struct {
-			Code       string              `json:"Code"`
-			TaskInfos  []map[string]string `json:"TaskInfos"`
-			TotalCount int                 `json:"TotalCount"`
-		}
-		if err := json.Unmarshal([]byte(result), &resp); err != nil {
-			return err
-		}
-		if resp.Code != "0" {
-			return fmt.Errorf("get clone list fail, error code: %s", resp.Code)
-		}
-		if len(resp.TaskInfos) == 0 {
-			break
-		} else {
-			records = append(records, resp.TaskInfos...)
-			params[cobrautil.QueryOffset] = params[cobrautil.QueryOffset].(int) + params[cobrautil.QueryLimit].(int)
-		}
+	records, err := QueryTaskList(&cloneRecoverCmd)
+	if err != nil {
+		return err
 	}
 
 	wg := sync.WaitGroup{}

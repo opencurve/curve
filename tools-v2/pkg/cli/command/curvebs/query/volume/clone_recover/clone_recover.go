@@ -32,27 +32,27 @@ import (
 
 type CloneRecoverCmd struct {
 	basecmd.FinalCurveCmd
-	snapshotAddrs []string
-	timeout       time.Duration
+	SnapshotAddrs []string
+	Timeout       time.Duration
 
-	user   string
-	src    string
-	dest   string
-	taskID string
-	all    bool
-	failed bool
-	status string
+	User   string
+	Src    string
+	Dest   string
+	TaskID string
+	All    bool
+	Failed bool
+	Status string
 }
 
 func QueryTaskList(rCmd *CloneRecoverCmd) ([]map[string]string, error) {
 	params := map[string]interface{}{
 		cobrautil.QueryAction:      cobrautil.ActionGetCloneTaskList,
 		cobrautil.QueryType:        cobrautil.TypeCloneTask,
-		cobrautil.QueryUser:        rCmd.user,
-		cobrautil.QueryUUID:        rCmd.taskID,
-		cobrautil.QuerySource:      rCmd.src,
-		cobrautil.QueryDestination: rCmd.dest,
-		cobrautil.QueryStatus:      rCmd.status,
+		cobrautil.QueryUser:        rCmd.User,
+		cobrautil.QueryUUID:        rCmd.TaskID,
+		cobrautil.QuerySource:      rCmd.Src,
+		cobrautil.QueryDestination: rCmd.Dest,
+		cobrautil.QueryStatus:      rCmd.Status,
 		cobrautil.QueryLimit:       100,
 		cobrautil.QueryOffset:      0,
 	}
@@ -60,7 +60,7 @@ func QueryTaskList(rCmd *CloneRecoverCmd) ([]map[string]string, error) {
 
 	for {
 		subUri := cobrautil.NewSnapshotQuerySubUri(params)
-		metric := basecmd.NewMetric(rCmd.snapshotAddrs, subUri, rCmd.timeout)
+		metric := basecmd.NewMetric(rCmd.SnapshotAddrs, subUri, rCmd.Timeout)
 		result, err := basecmd.QueryMetric(metric)
 		if err.TypeCode() != cmderror.CODE_SUCCESS {
 			return nil, err.ToError()
