@@ -58,7 +58,6 @@ bool TopologyChunkAllocatorImpl::AllocateChunkRandomInSingleLogicalPool(
     double csDiskAvailable = csDiskAvailable_;
     std::set<ChunkServerIdType> insufficientNodes = topology_->
       CalucateUnAllocateNodes(csDiskAvailable);
-
     CopySetFilter filter = [](const CopySetInfo &copyset) {
         return copyset.IsAvailable();
     };

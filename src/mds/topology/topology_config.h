@@ -56,7 +56,8 @@ struct TopologyOption {
           CreateCopysetRpcRetrySleepTimeMs(500),
           UpdateMetricIntervalSec(0),
           choosePoolPolicy(0),
-          enableLogicalPoolStatus(false) {}
+          enableLogicalPoolStatus(false),
+          ChunkServerUsagePercentLimit(100) {}
 };
 
 }  // namespace topology
