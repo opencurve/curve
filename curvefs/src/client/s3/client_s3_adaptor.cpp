@@ -145,7 +145,8 @@ int S3ClientAdaptorImpl::Write(uint64_t inodeId, uint64_t offset,
     int ret = fileCacheManager->Write(offset, length, buf);
     fsCacheManager_->DataCacheByteDec(length);
     if (s3Metric_ != nullptr) {
-        CollectMetrics(&s3Metric_->adaptorWrite, ret, start);
+        metric::CollectMetrics(&s3Metric_->adaptorWrite, ret,
+                               butil::cpuwide_time_us() - start);
         s3Metric_->writeSize.set_value(length);
     }
     VLOG(6) << "write end inodeId: " << inodeId << ", ret: " << ret;
@@ -166,7 +167,8 @@ int S3ClientAdaptorImpl::Read(uint64_t inodeId, uint64_t offset,
         return ret;
     }
     if (s3Metric_.get() != nullptr) {
-        CollectMetrics(&s3Metric_->adaptorRead, ret, start);
+        metric::CollectMetrics(&s3Metric_->adaptorRead, ret,
+                               butil::cpuwide_time_us() - start);
         s3Metric_->readSize.set_value(length);
     }
     VLOG(6) << "read end offset:" << offset << ", len:" << length
@@ -344,15 +346,8 @@ void S3ClientAdaptorImpl::InitMetrics(const std::string &fsName) {
     fsName_ = fsName;
     s3Metric_ = std::make_shared<S3Metric>(fsName);
     if (HasDiskCache()) {
-        diskCacheManagerImpl_->InitMetrics(fsName);
+        diskCacheManagerImpl_->InitMetrics(fsName, s3Metric_);
     }
-}
-
-void S3ClientAdaptorImpl::CollectMetrics(InterfaceMetric *interface, int count,
-                                         uint64_t start) {
-    interface->bps.count << count;
-    interface->qps.count << 1;
-    interface->latency << (butil::cpuwide_time_us() - start);
 }
 
 CURVEFS_ERROR S3ClientAdaptorImpl::FlushAllCache(uint64_t inodeId) {

@@ -20,15 +20,18 @@
  * Author: hzwuhongsong
  */
 
+#include "curvefs/src/client/s3/disk_cache_write.h"
+
+#include <dirent.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <errno.h>
-#include <dirent.h>
 
 #include <vector>
-#include "curvefs/src/client/s3/disk_cache_write.h"
+
 #include "curvefs/src/common/s3util.h"
+#include "src/common/s3_adapter.h"
 
 namespace curvefs {
 
@@ -136,14 +139,16 @@ int DiskCacheWrite::UploadFile(const std::string &name,
     }
     VLOG(9) << "async upload start, file = " << name;
     PutObjectAsyncCallBack cb =
-        [&, buffer, syncTask, name]
-            (const std::shared_ptr<PutObjectAsyncContext> &context) {
-            if (context->retCode == 0) {
+        [&, buffer, syncTask,
+         name](const std::shared_ptr<PutObjectAsyncContext>& context) {
+            if (context->retCode >= 0) {
                 if (metric_ != nullptr) {
-                    metric_->writeS3.bps.count << context->bufferSize;
-                    metric_->writeS3.qps.count << 1;
-                    metric_->writeS3.latency
-                        << (butil::cpuwide_time_us() - context->startTime);
+                    metric::CollectMetrics(&metric_->writeS3,
+                                           context->bufferSize,
+                                           context->timer.u_elapsed());
+                }
+                if (s3Metric_ != nullptr) {
+                    metric::AsyncContextCollectMetrics(s3Metric_, context);
                 }
                 RemoveFile(context->key);
                 VLOG(9) << " PutObjectAsyncCallBack success, "
@@ -161,12 +166,8 @@ int DiskCacheWrite::UploadFile(const std::string &name,
             LOG(WARNING) << "upload object failed: " << context->key;
             client_->UploadAsync(context);
         };
-    auto context = std::make_shared<PutObjectAsyncContext>();
-    context->key = name;
-    context->buffer = buffer;
-    context->bufferSize = fileSize;
-    context->cb = cb;
-    context->startTime = butil::cpuwide_time_us();
+    auto context = std::make_shared<PutObjectAsyncContext>(
+        name, buffer, fileSize, cb, curve::common::ContextType::S3);
     client_->UploadAsync(context);
     VLOG(9) << "async upload end, file = " << name;
     return 0;
@@ -399,26 +400,30 @@ int DiskCacheWrite::UploadAllCacheWriteFile() {
             continue;
         }
         PutObjectAsyncCallBack cb =
-        [&, buffer](const std::shared_ptr<PutObjectAsyncContext> &context) {
-            if (context->retCode == 0) {
-                if (pendingReq.fetch_sub(1, std::memory_order_seq_cst) == 1) {
-                    VLOG(3) << "pendingReq is over";
-                    cond.Signal();
+            [&, buffer](const std::shared_ptr<PutObjectAsyncContext>& context) {
+                if (context->retCode >= 0) {
+                    if (s3Metric_ != nullptr) {
+                        metric::CollectMetrics(&metric_->writeS3,
+                                               context->bufferSize,
+                                               context->timer.u_elapsed());
+                        metric::AsyncContextCollectMetrics(s3Metric_, context);
+                    }
+                    if (pendingReq.fetch_sub(1, std::memory_order_seq_cst) ==
+                        1) {
+                        VLOG(3) << "pendingReq is over";
+                        cond.Signal();
+                    }
+                    VLOG(3) << "PutObjectAsyncCallBack success"
+                            << ", file: " << context->key;
+                    posixWrapper_->free(buffer);
+                    return;
                 }
-                VLOG(3) << "PutObjectAsyncCallBack success"
-                        << ", file: " << context->key;
-                posixWrapper_->free(buffer);
-                return;
-            }
-            LOG(WARNING) << "upload object failed: " << context->key;
-            client_->UploadAsync(context);
-        };
-        auto context = std::make_shared<PutObjectAsyncContext>();
-        context->key = curvefs::common::s3util::GenPathByObjName(
-                                *iter, objectPrefix_);
-        context->buffer = buffer;
-        context->bufferSize = fileSize;
-        context->cb = cb;
+                LOG(WARNING) << "upload object failed: " << context->key;
+                client_->UploadAsync(context);
+            };
+        auto context = std::make_shared<PutObjectAsyncContext>(
+            curvefs::common::s3util::GenPathByObjName(*iter, objectPrefix_),
+            buffer, fileSize, cb, curve::common::ContextType::S3);
         client_->UploadAsync(context);
     }
     if (pendingReq.load(std::memory_order_seq_cst)) {

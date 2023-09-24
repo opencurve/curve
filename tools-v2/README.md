@@ -68,6 +68,9 @@ A tool for CurveFS & CurveBs.
         - [status copyset](#status-copyset-1)
       - [delete](#delete-1)
         - [delete peer](#delete-peer)
+        - [delete volume](#delete-volume)
+          - [delete volume clone](#delete-volume-clone)
+          - [delete volume recover](#delete-volume-recover)
       - [update](#update)
         - [update peer](#update-peer)
         - [update leader](#update-leader)
@@ -1523,6 +1526,48 @@ Output:
 +------------------+------------------+---------+---------+--------+
 | 127.0.0.1:8201:0 | 127.0.0.1:8202:0 | (1:29)  | success | null   |
 +------------------+------------------+---------+---------+--------+
+```
+
+##### delete volume
+
+###### delete volume clone
+
+delete volume clone tasks in curvebs cluster
+
+Usage:
+
+```bash
+curve bs delete volume clone
+```
+
+Output:
+
+```bash
++------+--------------------------------------+--------------------------------------+-------+---------+            
+| USER |                 SRC                  |               TASK ID                | FILE  | RESULT  |            
++------+--------------------------------------+--------------------------------------+-------+---------+            
+| root | a19b5e5e-b306-488f-8e6d-d87282c869cb | d26e27a8-fcbd-4f7a-adf8-53795217cbb0 | /root | success |            
++------+--------------------------------------+--------------------------------------+-------+---------+  
+```
+
+###### delete volume recover
+
+delete volume recover tasks in curvebs cluster
+
+Usage:
+
+```bash
+curve bs delete volume recover
+```
+
+Output:
+
+```bash
++------+--------------------------------------+--------------------------------------+-------+---------+             
+| USER |                 SRC                  |               TASK ID                | FILE  | RESULT  |             
++------+--------------------------------------+--------------------------------------+-------+---------+             
+| root | a19b5e5e-b306-488f-8e6d-d87282c869cb | 9dfa8699-a275-4891-8ec2-e447a0ccc77c | /root | success |             
++------+--------------------------------------+--------------------------------------+-------+---------+   
 ```
 
 #### update

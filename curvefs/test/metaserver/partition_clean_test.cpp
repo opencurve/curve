@@ -136,9 +136,15 @@ TEST_F(PartitionCleanManagerTest, test1) {
     dentry.set_inodeid(1100);
     dentry.set_txid(0);
     dentry.set_type(FsFileType::TYPE_DIRECTORY);
+
+    Time tm;
+    tm.set_sec(0);
+    tm.set_nsec(0);
     ASSERT_EQ(partition->CreateRootInode(param), MetaStatusCode::OK);
-    ASSERT_EQ(partition->CreateDentry(dentry), MetaStatusCode::OK);
-    ASSERT_EQ(partition->CreateDentry(dentry), MetaStatusCode::OK);
+    ASSERT_EQ(partition->CreateDentry(dentry, tm),
+              MetaStatusCode::OK);
+    ASSERT_EQ(partition->CreateDentry(dentry, tm),
+              MetaStatusCode::OK);
 
     Inode inode1;
     param.type = FsFileType::TYPE_S3;

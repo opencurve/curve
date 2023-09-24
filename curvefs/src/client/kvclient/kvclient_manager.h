@@ -43,39 +43,48 @@ namespace curvefs {
 namespace client {
 
 class KVClientManager;
-class SetKVCacheTask;
-class GetKVCacheTask;
+struct SetKVCacheTask;
+struct GetKVCacheTask;
 using curve::common::TaskThreadPool;
 using curvefs::client::common::KVClientManagerOpt;
 
-typedef std::function<void(const std::shared_ptr<SetKVCacheTask> &)>
-    SetKVCacheDone;
-typedef std::function<void(const std::shared_ptr<GetKVCacheTask> &)>
-    GetKVCacheDone;
+using SetKVCacheDone =
+    std::function<void(const std::shared_ptr<SetKVCacheTask>&)>;
+using GetKVCacheDone =
+    std::function<void(const std::shared_ptr<GetKVCacheTask>&)>;
 
 struct SetKVCacheTask {
     std::string key;
-    const char *value;
+    const char* value;
     uint64_t length;
+    bool res;
     SetKVCacheDone done;
-    SetKVCacheTask() = default;
-    SetKVCacheTask(
-        const std::string &k, const char *val, const uint64_t len,
-        SetKVCacheDone done = [](const std::shared_ptr<SetKVCacheTask> &) {})
-        : key(k), value(val), length(len), done(std::move(done)) {}
+    butil::Timer timer;
+
+    explicit SetKVCacheTask(
+        const std::string& k, const char* val, const uint64_t len,
+        SetKVCacheDone done = [](const std::shared_ptr<SetKVCacheTask>&) {})
+        : key(k), value(val), length(len), res(false), done(std::move(done)) {}
 };
 
 struct GetKVCacheTask {
-    const std::string &key;
-    char *value;
+    const std::string& key;
+    char* value;
     uint64_t offset;
     uint64_t length;
     bool res;
     GetKVCacheDone done;
-    GetKVCacheTask(const std::string &k, char *v, uint64_t off, uint64_t len)
-        : key(k), value(v), offset(off), length(len), res(false) {
-        done = [](const std::shared_ptr<GetKVCacheTask> &) {};
-    }
+    butil::Timer timer;
+
+    explicit GetKVCacheTask(
+        const std::string& k, char* v, uint64_t off, uint64_t len,
+        GetKVCacheDone done = [](const std::shared_ptr<GetKVCacheTask>&) {})
+        : key(k),
+          value(v),
+          offset(off),
+          length(len),
+          res(false),
+          done(std::move(done)) {}
 };
 
 class KVClientManager {
