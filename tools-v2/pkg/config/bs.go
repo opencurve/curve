@@ -130,6 +130,7 @@ const (
 	CURVEBS_ALL                       = "all"
 	VIPER_CURVEBS_ALL                 = "curvebs.all"
 	CURVEBS_DEFAULT_ALL               = false
+	CURVEBS_NAME                      = "name"
 )
 
 var (
@@ -200,6 +201,7 @@ var (
 		CURVEBS_ALL:            CURVEBS_DEFAULT_ALL,
 		CURVEBS_LOGIC_POOL_ID:  CURVEBS_DEFAULT_LOGIC_POOL_ID,
 		CURVEBS_COPYSET_ID:     CURVEBS_DEFAULT_COPYSET_ID,
+		CURVEBS_NAME:           "",
 	}
 )
 

@@ -22,125 +22,231 @@
 package snapshot
 
 import (
-	"context"
+	"encoding/json"
+	"fmt"
+	"net/url"
+	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	"google.golang.org/grpc"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
-	"github.com/opencurve/curve/tools-v2/proto/proto/nameserver2"
 )
 
 const (
 	createSnapShotExample = `curve bs create volume snapshot --path /curvebs-file-path --user [username] [--password password]`
+	// TODO: I write it as a const here
+	version = "0.0.6"
 )
 
-type CreateSnapShotRpc struct {
-	Info      *basecmd.Rpc
-	Request   *nameserver2.CreateSnapShotRequest
-	mdsClient nameserver2.CurveFSServiceClient
-}
+// TODO: I delete the following code, since we don't use rpc
+// type CreateSnapShotRpc struct {
+// 	Info      *basecmd.Rpc
+// 	Request   *nameserver2.CreateSnapShotRequest
+// 	mdsClient nameserver2.CurveFSServiceClient
+// }
 
-type CreateCommand struct {
+type CreateSnapshotCommand struct {
 	basecmd.FinalCurveCmd
-	Rpc      *CreateSnapShotRpc
-	Response *nameserver2.CreateSnapShotResponse
+	serverAddress []string
+	timeout       time.Duration
+
+	User     string
+	File     string
+	Name     string
+	TaskID   string
+	All      bool
+	Failed   bool
+	messages []string
 }
 
-var _ basecmd.FinalCurveCmdFunc = (*CreateCommand)(nil)
-
-func (gRpc *CreateSnapShotRpc) NewRpcClient(cc grpc.ClientConnInterface) {
-	gRpc.mdsClient = nameserver2.NewCurveFSServiceClient(cc)
-
+type QueryParams struct {
+	Action  string `json:"Action"`
+	Version string `json:"Version"`
+	User    string `json:"User"`
+	File    string `json:"File"`
+	Name    string `json:"Name"`
 }
 
-func (gRpc *CreateSnapShotRpc) Stub_Func(ctx context.Context) (interface{}, error) {
-	return gRpc.mdsClient.CreateSnapShot(ctx, gRpc.Request)
+// TODO: What's Record? I didn't find it in the original python code, and it's not used in this task
+type Record struct {
+	UUID string `json:"UUID"`
+	User string `json:"User"`
+	Src  string `json:"Src"`
+	File string `json:"File"`
+
+	Result string `json:"Result"`
 }
 
-func (CreateCommand *CreateCommand) Init(cmd *cobra.Command, args []string) error {
-	mdsAddrs, err := config.GetBsMdsAddrSlice(CreateCommand.Cmd)
+var _ basecmd.FinalCurveCmdFunc = (*CreateSnapshotCommand)(nil)
+
+// func (gRpc *CreateSnapShotRpc) NewRpcClient(cc grpc.ClientConnInterface) {
+// 	gRpc.mdsClient = nameserver2.NewCurveFSServiceClient(cc)
+
+// }
+
+// func (gRpc *CreateSnapShotRpc) Stub_Func(ctx context.Context) (interface{}, error) {
+// 	return gRpc.mdsClient.CreateSnapShot(ctx, gRpc.Request)
+// }
+
+func (c *CreateSnapshotCommand) Init(cmd *cobra.Command, args []string) error {
+	mdsAddrs, err := config.GetBsMdsAddrSlice(c.Cmd)
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		return err.ToError()
 	}
-	timeout := config.GetFlagDuration(CreateCommand.Cmd, config.RPCTIMEOUT)
-	retrytimes := config.GetFlagInt32(CreateCommand.Cmd, config.RPCRETRYTIMES)
-	path := config.GetBsFlagString(CreateCommand.Cmd, config.CURVEBS_PATH)
-	username := config.GetBsFlagString(CreateCommand.Cmd, config.CURVEBS_USER)
-	password := config.GetBsFlagString(CreateCommand.Cmd, config.CURVEBS_PASSWORD)
-	date, errDat := cobrautil.GetTimeofDayUs()
-	if errDat.TypeCode() != cmderror.CODE_SUCCESS {
-		return errDat.ToError()
-	}
+	c.serverAddress = mdsAddrs
+	c.timeout = config.GetFlagDuration(c.Cmd, config.HTTPTIMEOUT)
+	c.User = config.GetBsFlagString(c.Cmd, config.CURVEBS_USER)
+	// TODO: Not sure whther this is curvebs_path
+	c.File = config.GetBsFlagString(c.Cmd, config.CURVEBS_PATH)
+	// TODO: name is snapshot name! The bs.go line 204.
+	c.Name = config.GetBsFlagString(c.Cmd, config.CURVEBS_NAME)
 
-	createRequest := nameserver2.CreateSnapShotRequest{
-		FileName: &path,
-		Owner:    &username,
-		Date:     &date,
-	}
+	// TODO: The pr has added this CURVEBS_TASKID to bs.go, but what's the usage of it to our task?
+	// c.TaskID = config.GetBsFlagString(c.Cmd, config.CURVEBS_TASKID)
+	// c.All = config.GetFlagBool(c.Cmd, config.CURVEBS_ALL)
+	// c.Failed = config.GetFlagBool(c.Cmd, config.CURVEBS_FAILED)
+	// c.SetHeader([]string{cobrautil.ROW_USER, cobrautil.ROW_SRC, cobrautil.ROW_TASK_ID, cobrautil.ROW_FILE, cobrautil.ROW_RESULT})
+	// return nil
 
-	if username == viper.GetString(config.VIPER_CURVEBS_USER) && len(password) != 0 {
-		strSig := cobrautil.GetString2Signature(date, username)
-		sig := cobrautil.CalcString2Signature(strSig, password)
-		createRequest.Signature = &sig
-	}
-	CreateCommand.Rpc = &CreateSnapShotRpc{
-		Info:    basecmd.NewRpc(mdsAddrs, timeout, retrytimes, "CreateSnapShot"),
-		Request: &createRequest,
-	}
+	// type CreateSnapshotCommand struct {
+	// 	basecmd.FinalCurveCmd
+	// 	serverAddress []string
+	// 	timeout       time.Duration
+
+	// 	User    	string
+	// 	File    	string
+	// 	Name    	string
+	// 	TaskID  	string
+	// 	All    		bool
+	// 	Failed 		bool
+	// 	messages	[]string
+
+	// }
+
+	// timeout := config.GetFlagDuration(c.Cmd, config.RPCTIMEOUT)
+	// retrytimes := config.GetFlagInt32(c.Cmd, config.RPCRETRYTIMES)
+	// TODO: not used
+	// path := config.GetBsFlagString(c.Cmd, config.CURVEBS_PATH)
+	// username := config.GetBsFlagString(c.Cmd, config.CURVEBS_USER)
+	// password := config.GetBsFlagString(c.Cmd, config.CURVEBS_PASSWORD)
+	// date, errDat := cobrautil.GetTimeofDayUs()
+	// if errDat.TypeCode() != cmderror.CODE_SUCCESS {
+	// 	return errDat.ToError()
+	// }
+
+	// TODO: deleted because we don't use rpc
+	// createRequest := nameserver2.CreateSnapShotRequest{
+	// 	FileName: &path,
+	// 	Owner:    &username,
+	// 	Date:     &date,
+	// }
+
+	// TODO: What's the function of following code?
+	// if username == viper.GetString(config.VIPER_CURVEBS_USER) && len(password) != 0 {
+	// 	strSig := cobrautil.GetString2Signature(date, username)
+	// 	sig := cobrautil.CalcString2Signature(strSig, password)
+	// 	createRequest.Signature = &sig
+	// }
+	// c.Rpc = &CreateSnapShotRpc{
+	// 	Info:    basecmd.NewRpc(mdsAddrs, timeout, retrytimes, "CreateSnapShot"),
+	// 	Request: &createRequest,
+	// }
+
 	header := []string{cobrautil.ROW_RESULT}
-	CreateCommand.SetHeader(header)
-	CreateCommand.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
-		CreateCommand.Header, header,
+	c.SetHeader(header)
+	c.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
+		c.Header, header,
 	))
 	return nil
 }
 
-func (CreateCommand *CreateCommand) RunCommand(cmd *cobra.Command, args []string) error {
-	result, err := basecmd.GetRpcResponse(CreateCommand.Rpc.Info, CreateCommand.Rpc)
-	if err.TypeCode() != cmderror.CODE_SUCCESS {
-		CreateCommand.Error = err
-		CreateCommand.Result = result
-		return err.ToError()
+func (c *CreateSnapshotCommand) encodeParam(params QueryParams) string {
+	values := url.Values{}
+	// TODO: I changed the paramsMap according to the original python code
+	paramsMap := map[string]string{
+		"Action":  params.Action,
+		"Version": params.Version,
+		"User":    params.User,
+		"File":    params.File,
+		"Name":    params.Name,
 	}
-	CreateCommand.Response = result.(*nameserver2.CreateSnapShotResponse)
-	if CreateCommand.Response.GetStatusCode() != nameserver2.StatusCode_kOK {
-		err = cmderror.ErrCreateSnapShotFile(CreateCommand.Response.GetStatusCode(), CreateCommand.Rpc.Request.GetFileName())
-		return err.ToError()
-	}
-	out := make(map[string]string)
-	out[cobrautil.ROW_RESULT] = cobrautil.ROW_VALUE_SUCCESS
-	list := cobrautil.Map2List(out, []string{cobrautil.ROW_RESULT})
-	CreateCommand.TableNew.Append(list)
 
-	CreateCommand.Result, CreateCommand.Error = result, cmderror.Success()
+	for key, value := range paramsMap {
+		if value != "" {
+			values.Add(key, value)
+		}
+	}
+
+	return values.Encode()
+}
+func (c *CreateSnapshotCommand) query(params QueryParams, data interface{}) error {
+	encodedParams := c.encodeParam(params)
+
+	subUri := fmt.Sprintf("/CreateSnapshotService?%s", encodedParams)
+
+	metric := basecmd.NewMetric(c.serverAddress, subUri, c.timeout)
+
+	result, err := basecmd.QueryMetric(metric)
+	if err.TypeCode() != cmderror.CODE_SUCCESS {
+		return err.ToError()
+	}
+
+	if err := json.Unmarshal([]byte(result), &data); err != nil {
+		return err
+	}
+
 	return nil
 }
 
-func (CreateCommand *CreateCommand) Print(cmd *cobra.Command, args []string) error {
+func (c *CreateSnapshotCommand) RunCommand(cmd *cobra.Command, args []string) error {
+	params := QueryParams{
+		Action:  "CreateSnapshot",
+		Version: version,
+		User:    c.User,
+		File:    c.File,
+		Name:    c.Name,
+	}
+
+	var resp struct {
+		Code      string
+		Message   string
+		RequestId string
+		// TODO: What's Record? I didn't find it in the original python code
+		TaskInfos  []*Record
+		TotalCount int
+	}
+	err := c.query(params, &resp)
+	if err != nil || resp.Code != "0" {
+		fmt.Printf("create snapshot fail, error=%s\n", err)
+		return nil
+	}
+	// TODO: Originally it's 'return resp.TaskInfos', but in this task I only need to return err
+	return err
+
+}
+
+func (CreateCommand *CreateSnapshotCommand) Print(cmd *cobra.Command, args []string) error {
 	return output.FinalCmdOutput(&CreateCommand.FinalCurveCmd, CreateCommand)
 }
 
-func (CreateCommand *CreateCommand) ResultPlainOutput() error {
+func (CreateCommand *CreateSnapshotCommand) ResultPlainOutput() error {
 	return output.FinalCmdOutputPlain(&CreateCommand.FinalCurveCmd)
 }
 
-func (CreateCommand *CreateCommand) AddFlags() {
-	config.AddBsMdsFlagOption(CreateCommand.Cmd)
-	config.AddRpcTimeoutFlag(CreateCommand.Cmd)
-	config.AddRpcRetryTimesFlag(CreateCommand.Cmd)
-	config.AddBsPathRequiredFlag(CreateCommand.Cmd)
-	config.AddBsUserOptionFlag(CreateCommand.Cmd)
-	config.AddBsPasswordOptionFlag(CreateCommand.Cmd)
+func (c *CreateSnapshotCommand) AddFlags() {
+	config.AddBsMdsFlagOption(c.Cmd)
+	config.AddBsUserOptionFlag(c.Cmd)
+	config.AddBsPathRequiredFlag(c.Cmd)
+	config.AddBsUserOptionFlag(c.Cmd)
+	config.AddBsPasswordOptionFlag(c.Cmd)
 }
 
-func NewCreateSnapShotCommand() *CreateCommand {
-	CreateCommand := &CreateCommand{
+func NewCreateSnapShotCommand() *CreateSnapshotCommand {
+	CreateCommand := &CreateSnapshotCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
 			Use:     "snapshot",
 			Short:   "create volumn snapshot in curvebs",
@@ -155,7 +261,9 @@ func NewSnapShotCommand() *cobra.Command {
 	return NewCreateSnapShotCommand().Cmd
 }
 
-func CreateFile(caller *cobra.Command) (*nameserver2.CreateSnapShotResponse, *cmderror.CmdError) {
+// TODO, in this function the parameter about '*nameserver2.CreateSnapShotResponse' is deleted.
+// But I don't have any idea about what this function is.
+func CreateFile(caller *cobra.Command) *cmderror.CmdError {
 	creCmd := NewCreateSnapShotCommand()
 	config.AlignFlagsValue(caller, creCmd.Cmd, []string{
 		config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEBS_MDSADDR,
@@ -168,7 +276,7 @@ func CreateFile(caller *cobra.Command) (*nameserver2.CreateSnapShotResponse, *cm
 	if err != nil {
 		retErr := cmderror.ErrBsCreateFileOrDirectoryType()
 		retErr.Format(err.Error())
-		return creCmd.Response, retErr
+		return retErr
 	}
-	return creCmd.Response, cmderror.Success()
+	return cmderror.Success()
 }
