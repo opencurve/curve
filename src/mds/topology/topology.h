@@ -373,7 +373,7 @@ class Topology {
         std::set<ChunkServerIdType> insufficientNodes,
         CopySetFilter filter = [](const CopySetInfo&) {
             return true;}) const = 0;
-        
+
     virtual std::vector<CopySetInfo> GetCopySetInfosInLogicalPool(
         PoolIdType logicalPoolId,
         CopySetFilter filter = [](const CopySetInfo&) {
@@ -383,6 +383,8 @@ class Topology {
         GetCopySetsInChunkServer(ChunkServerIdType id,
         CopySetFilter filter = [](const CopySetInfo&) {
             return true;}) const = 0;
+
+    virtual std::set<ChunkServerIdType> CalucateUnAllocateNodes(double csDiskAvailable) const =0;
 
     virtual std::string GetHostNameAndPortById(ChunkServerIdType csId) = 0;
 };
@@ -640,13 +642,10 @@ class TopologyImpl : public Topology {
     // get copyset list
     std::vector<CopySetIdType> GetCopySetsInLogicalPool(
         PoolIdType logicalPoolId,
+        std::set<ChunkServerIdType> insufficientNodes,
         CopySetFilter filter = [](const CopySetInfo&) {
             return true;}) const override;
 
-    std::vector<CopySetIdType> FilterCopySets(
-        PoolIdType logicalPoolId,
-        std::vector<CopySetIdType> copySetIds, double csAvailable) const override;
-    
     std::vector<CopySetInfo> GetCopySetInfosInLogicalPool(
         PoolIdType logicalPoolId,
         CopySetFilter filter = [](const CopySetInfo&) {
@@ -657,6 +656,7 @@ class TopologyImpl : public Topology {
         CopySetFilter filter = [](const CopySetInfo&) {
             return true;}) const override;
 
+    std::set<ChunkServerIdType> CalucateUnAllocateNodes(double csDiskAvailable) const override;
     /**
      * @brief get physicalPool Id that the chunkserver belongs to
      *

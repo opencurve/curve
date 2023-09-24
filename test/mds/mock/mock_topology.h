@@ -25,6 +25,7 @@
 
 #include <gmock/gmock.h>
 #include <string>
+#include <set>
 #include <list>
 #include <vector>
 #include "src/mds/topology/topology.h"
@@ -277,9 +278,13 @@ class MockTopology : public Topology {
         std::list<ZoneIdType>(PoolIdType id,
             ZoneFilter filter));
 
-    MOCK_CONST_METHOD2(GetCopySetsInLogicalPool,
+    MOCK_CONST_METHOD3(GetCopySetsInLogicalPool,
         std::vector<CopySetIdType>(PoolIdType logicalPoolId,
+            std::set<ChunkServerIdType> insufficientNodes,
             CopySetFilter filter));
+
+    MOCK_CONST_METHOD1(CalucateUnAllocateNodes,
+        std::set<ChunkServerIdType>(double csDiskAvailable));
 
     MOCK_CONST_METHOD2(GetCopySetInfosInLogicalPool,
         std::vector<CopySetInfo>(

@@ -54,11 +54,17 @@ bool TopologyChunkAllocatorImpl::AllocateChunkRandomInSingleLogicalPool(
         return false;
     }
 
+    // calculate unAllocate chunkServer list
+    double csDiskAvailable = csDiskAvailable_;
+    std::set<ChunkServerIdType> insufficientNodes = topology_->
+      CalucateUnAllocateNodes(csDiskAvailable);
+
     CopySetFilter filter = [](const CopySetInfo &copyset) {
         return copyset.IsAvailable();
     };
     std::vector<CopySetIdType> copySetIds =
-        topology_->GetCopySetsInLogicalPool(logicalPoolChosenId, filter);
+        topology_->GetCopySetsInLogicalPool(logicalPoolChosenId,
+        insufficientNodes, filter);
 
     if (0 == copySetIds.size()) {
         LOG(ERROR) << "[AllocateChunkRandomInSingleLogicalPool]:"
@@ -89,7 +95,7 @@ bool TopologyChunkAllocatorImpl::AllocateChunkRoundRobinInSingleLogicalPool(
     // calculate unAllocate chunkServer list
     double csDiskAvailable = csDiskAvailable_;
     std::set<ChunkServerIdType> insufficientNodes = topology_->
-      CalucateUnAllocateNodes(logicalPoolChosenId, csDiskAvailable);
+      CalucateUnAllocateNodes(csDiskAvailable);
     CopySetFilter filter = [](const CopySetInfo &copyset) {
         return copyset.IsAvailable();
     };
