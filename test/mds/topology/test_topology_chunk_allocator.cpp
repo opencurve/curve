@@ -790,7 +790,7 @@ TEST_F(TestTopologyChunkAllocator,
     PrepareAddServer(0x32, "server2", "127.0.0.1", "127.0.0.1", 0x22, 0x11);
     PrepareAddServer(0x33, "server3", "127.0.0.1", "127.0.0.1", 0x23, 0x11);
     PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200,
-      871, 1024);
+      871, 1024);  // set one cs use over 85% limit
     PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
     PrepareAddLogicalPool(logicalPoolId, "logicalPool1", physicalPoolId,
@@ -808,7 +808,7 @@ TEST_F(TestTopologyChunkAllocator,
     bool ret =
         testObj_->AllocateChunkRandomInSingleLogicalPool(INODE_PAGEFILE,
             "testPoolset",
-            2,
+            1,
             1024,
             &infos);
 
