@@ -211,32 +211,40 @@ int FileClient::Open(const std::string& filename,
 
     uint64_t sn = 0;
     std::string realfilename = filename;
+
+    FileInstance* fileserv = nullptr;
     bool isSnapshot = curve::client::ServiceHelper::GetSnapSeqFromFilename(
         filename, sn, &realfilename);
     if (isSnapshot) {
-        LOG(INFO) << "Opening Snapshot sn: " << sn
-            << ", realfilename: " << realfilename;
-    }
-
-    FileInstance* fileserv = FileInstance::NewInitedFileInstance(
-        clientConfig.GetFileServiceOption(), mdsClient, realfilename, userinfo,
-        openflags, isSnapshot);
-    if (fileserv == nullptr) {
-        LOG(ERROR) << "NewInitedFileInstance fail";
-        return -1;
-    }
-
-    if (isSnapshot) {
+        LOG(INFO) << "Opening Snapshot sn: "
+            << sn << ", realfilename: " << realfilename;
+        fileserv = FileInstance::Open4Readonly(
+            clientConfig.GetFileServiceOption(), mdsClient,
+            realfilename, userinfo, openflags);
+        if (fileserv == nullptr) {
+            LOG(ERROR) << "Open4Readonly snapshot file failed, filename = "
+                << filename;
+            return -1;
+        }
         fileserv->SetReadSnapshotSn(sn);
-    }
+        fileserv->GetIOManager4File()->UpdateFileInfo(fileserv->GetCurrentFileInfo());
+    } else {
+        fileserv = FileInstance::NewInitedFileInstance(
+            clientConfig.GetFileServiceOption(), mdsClient, realfilename, userinfo,
+            openflags, false);
+        if (fileserv == nullptr) {
+            LOG(ERROR) << "NewInitedFileInstance fail";
+            return -1;
+        }
 
-    int ret = fileserv->Open();
-    if (ret != LIBCURVE_ERROR::OK) {
-        LOG(ERROR) << "Open file failed, filename: " << realfilename
-                   << ", retCode: " << ret;
-        fileserv->UnInitialize();
-        delete fileserv;
-        return ret;
+        int ret = fileserv->Open();
+        if (ret != LIBCURVE_ERROR::OK) {
+            LOG(ERROR) << "Open file failed, filename: " << realfilename
+                    << ", retCode: " << ret;
+            fileserv->UnInitialize();
+            delete fileserv;
+            return ret;
+        }
     }
 
     int fd = fdcount_.fetch_add(1, std::memory_order_relaxed);
