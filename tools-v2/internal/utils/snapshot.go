@@ -53,6 +53,9 @@ const (
 	ActionGetCloneTaskList    = "GetCloneTaskList"
 	ActionGetFileSnapshotList = "GetFileSnapshotList"
 	ActionGetFileSnapshotInfo = "GetFileSnapshotInfo"
+
+	ResultCode    = "Code"
+	ResultSuccess = "0"
 )
 
 func NewSnapshotQuerySubUri(params map[string]any) string {
