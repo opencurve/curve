@@ -91,6 +91,12 @@ void CleanTaskManager::CheckCleanResult(void) {
                     } else {
                         LOG(INFO) << "Found residual task in cleanBatchSnapTask"
                                   << " before erase, run it again";
+                        // fix bug: task status should be set to PROGRESSING,
+                        // or else this task may be running
+                        //          concurrently and cause undefined behavior.
+                        iter->second->GetMutableTaskProgress()->SetProgress(0);
+                        iter->second->GetMutableTaskProgress()->SetStatus(
+                            TaskStatus::PROGRESSING);
                         cleanWorkers_->Enqueue(iter->second->Closure());
                     }
                 } else if (taskProgress.GetStatus() == TaskStatus::FAILED) {
