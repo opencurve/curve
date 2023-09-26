@@ -27,7 +27,7 @@ print_title() {
 ############################ FUNCTIONS
 
 get_options() {
-    local args=`getopt -o ldorh --long stor:,list,dep:,only:,os:,release:,ci:,build_rocksdb: -n "$0" -- "$@"`
+    local args=`getopt -o ldorhS --long sanitizer:,stor:,list,dep:,only:,os:,release:,ci:,build_rocksdb: -n "$0" -- "$@"`
     eval set -- "${args}"
     while true
     do
@@ -54,6 +54,10 @@ get_options() {
                 ;;
             -c|--ci)
                 g_ci=$2
+                shift 2
+                ;;
+            -S|--sanitizer)
+                g_san=$2
                 shift 2
                 ;;
             --os)
