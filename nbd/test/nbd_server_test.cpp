@@ -58,7 +58,7 @@ class NBDServerTest : public ::testing::Test {
 
         image_ = std::make_shared<MockImageInstance>();
         safeIO_ = std::make_shared<MockSafeIO>();
-        server_.reset(new NBDServer(fd_[1], nullptr, image_));
+        server_.reset(new NBDServer(fd_[1], image_));
     }
 
     void TearDown() override {
@@ -120,7 +120,7 @@ TEST_F(NBDServerTest, InvalidRequestMagicTest) {
 
 TEST_F(NBDServerTest, ReadRequestErrorTest) {
     auto fakeSafeIO = std::make_shared<FakeSafeIO>();
-    server_.reset(new NBDServer(fd_[1], nullptr, image_, fakeSafeIO));
+    server_.reset(new NBDServer(fd_[1], image_, fakeSafeIO));
 
     fakeSafeIO->SetReadExactTask(
         [](int fd, void* buf, size_t count) { return -1; });
@@ -266,7 +266,7 @@ TEST_F(NBDServerTest, DisconnectTest) {
 
 TEST_F(NBDServerTest, ReadWriteDataErrorTest) {
     auto fakeSafeIO = std::make_shared<FakeSafeIO>();
-    server_.reset(new NBDServer(fd_[1], nullptr, image_, fakeSafeIO));
+    server_.reset(new NBDServer(fd_[1], image_, fakeSafeIO));
 
     request_.from = 0;
     request_.len = htonl(8);
