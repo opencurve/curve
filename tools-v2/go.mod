@@ -5,11 +5,10 @@ go 1.19
 replace github.com/optiopay/kafka => github.com/cilium/kafka v0.0.0-20180809090225-01ce283b732b
 
 require (
-	github.com/cilium/cilium v1.13.4
+	github.com/cilium/cilium v1.13.7
 	github.com/deckarep/golang-set/v2 v2.3.0
 	github.com/docker/cli v24.0.2+incompatible
 	github.com/dustin/go-humanize v1.0.1
-	github.com/go-resty/resty/v2 v2.7.0
 	github.com/gookit/color v1.5.3
 	github.com/moby/term v0.5.0
 	github.com/olekukonko/tablewriter v0.0.5
