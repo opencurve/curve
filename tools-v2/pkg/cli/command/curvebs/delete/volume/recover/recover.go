@@ -104,7 +104,7 @@ func (rCmd *RecoverCmd) RunCommand(cmd *cobra.Command, args []string) error {
 		if err := json.Unmarshal([]byte(result), &resp); err != nil {
 			return err
 		}
-		if resp.Code != "0" {
+		if resp.Code != cobrautil.ResultSuccess {
 			return fmt.Errorf("get clone list fail, error code: %s", resp.Code)
 		}
 		if len(resp.TaskInfos) == 0 {
@@ -119,6 +119,7 @@ func (rCmd *RecoverCmd) RunCommand(cmd *cobra.Command, args []string) error {
 	for _, item := range records {
 		wg.Add(1)
 		go func(item map[string]string) {
+			defer wg.Done()
 			params := map[string]any{
 				cobrautil.QueryAction: cobrautil.ActionCleanCloneTask,
 				cobrautil.QueryUser:   item["User"],
@@ -126,14 +127,21 @@ func (rCmd *RecoverCmd) RunCommand(cmd *cobra.Command, args []string) error {
 			}
 			subUri := cobrautil.NewSnapshotQuerySubUri(params)
 			metric := basecmd.NewMetric(rCmd.snapshotAddrs, subUri, rCmd.timeout)
-			_, err := basecmd.QueryMetric(metric)
+			result, err := basecmd.QueryMetric(metric)
 			if err.TypeCode() != cmderror.CODE_SUCCESS {
-				item["Result"] = "fail"
+				item["Result"] = cobrautil.ROW_VALUE_FAILED
 			} else {
-				item["Result"] = "success"
+				payload := map[string]any{}
+				if err := json.Unmarshal([]byte(result), &payload); err != nil {
+					item["Result"] = cobrautil.ROW_VALUE_FAILED
+				} else {
+					if payload[cobrautil.ResultCode] != cobrautil.ResultSuccess {
+						item["Result"] = cobrautil.ROW_VALUE_FAILED
+					}
+				}
 			}
+			item["Result"] = cobrautil.ROW_VALUE_SUCCESS
 			rCmd.TableNew.Append([]string{item["User"], item["Src"], item["UUID"], item["File"], item["Result"]})
-			wg.Done()
 		}(item)
 	}
 	wg.Wait()
