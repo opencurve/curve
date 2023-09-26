@@ -39,6 +39,8 @@
 
 #include "nbd/src/NBDController.h"
 
+#include <linux/nbd-netlink.h>
+
 namespace curve {
 namespace nbd {
 
