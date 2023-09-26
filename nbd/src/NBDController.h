@@ -51,7 +51,6 @@
 #include <string>
 #include <memory>
 
-#include "nbd/src/nbd-netlink.h"
 #include "nbd/src/define.h"
 #include "nbd/src/util.h"
 
