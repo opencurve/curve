@@ -105,6 +105,7 @@ class NBDController {
         if (nbdFd_ < 0) {
             return;
         }
+        ioctl(nbdFd_, NBD_CLEAR_SOCK);
         close(nbdFd_);
         nbdFd_ = -1;
         nbdIndex_ = -1;
