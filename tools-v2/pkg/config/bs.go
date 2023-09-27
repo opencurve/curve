@@ -142,6 +142,8 @@ const (
 	VIPER_CURVEBS_DEST                = "curvebs.dest"
 	CURVEBS_TASKID                    = "taskid"
 	VIPER_CURVEBS_TASKID              = "curvebs.taskid"
+	CURVEBS_SNAPSHOTSEQID             = "snapshotseqid"
+	VIPER_CURVEBS_SNAPSHOTSEQID       = "curvebs.snapshotseqid"
 	CURVEBS_FAILED                    = "failed"
 	VIPER_CURVEBS_FAILED              = "curvebs.failed"
 )
@@ -197,6 +199,7 @@ var (
 		CURVEBS_SRC:                 VIPER_CURVEBS_SRC,
 		CURVEBS_DEST:                VIPER_CURVEBS_DEST,
 		CURVEBS_TASKID:              VIPER_CURVEBS_TASKID,
+		CURVEBS_SNAPSHOTSEQID:       VIPER_CURVEBS_SNAPSHOTSEQID,
 		CURVEBS_FAILED:              VIPER_CURVEBS_FAILED,
 	}
 
@@ -628,6 +631,10 @@ func AddBsDestOptionFlag(cmd *cobra.Command) {
 
 func AddBsTaskIDOptionFlag(cmd *cobra.Command) {
 	AddBsStringOptionFlag(cmd, CURVEBS_TASKID, "task id")
+}
+
+func AddBsSnapshotSeqIDOptionFlag(cmd *cobra.Command) {
+	AddBsStringOptionFlag(cmd, CURVEBS_SNAPSHOTSEQID, "snapshot seqId")
 }
 
 func AddBsFailedOptionFlag(cmd *cobra.Command) {
