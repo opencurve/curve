@@ -18,8 +18,7 @@ jobs:
           output_file: ./cppcheck_report.txt
           other_options: "-j4 --suppressions-list=util/cppcheck/cppcheck.suppressions --error-exitcode=1 -itest -icurvefs/test -inebd/test -inbd/test -icurvefs_python -icurvesnapshot_python -ithirdparties"
 
-      - uses: actions/upload-artifact@v3
+      - name: Show cppcheck report
         if: failure()
-        with:
-          name: cppcheck-error-report
-          path: ./cppcheck_report.txt
+        run: |
+          cat ./cppcheck_report.txt
