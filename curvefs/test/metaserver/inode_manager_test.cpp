@@ -517,5 +517,41 @@ TEST_F(InodeManagerTest, testCreateManageInode) {
     ASSERT_TRUE(CompareInode(inode, temp1));
 }
 
+TEST_F(InodeManagerTest, testUpdateFsUsed) {
+    ASSERT_EQ(MetaStatusCode::OK,
+              manager->CreateRootInode(param_, logIndex_++));
+    Inode temp;
+    ASSERT_EQ(manager->GetInode(1, ROOTINODEID, &temp), MetaStatusCode::OK);
+    {
+        // case 1. increase
+        UpdateFsUsedRequest request;
+        request.mutable_delta()->set_fsid(1);
+        request.mutable_delta()->set_bytes(100);
+        ASSERT_EQ(manager->UpdateFsUsed(request, logIndex_++),
+                  MetaStatusCode::OK);
+        ASSERT_EQ(manager->GetInode(1, ROOTINODEID, &temp), MetaStatusCode::OK);
+        ASSERT_EQ(temp.xattr().at(XATTR_FS_BYTES), "100");
+    }
+    {
+        // case 2. decrease
+        UpdateFsUsedRequest request;
+        request.mutable_delta()->set_fsid(1);
+        request.mutable_delta()->set_bytes(-99);
+        ASSERT_EQ(manager->UpdateFsUsed(request, logIndex_++),
+                  MetaStatusCode::OK);
+        ASSERT_EQ(manager->GetInode(1, ROOTINODEID, &temp), MetaStatusCode::OK);
+        ASSERT_EQ(temp.xattr().at(XATTR_FS_BYTES), "1");
+    }
+    {
+        // case 3. bad request without bytes
+        UpdateFsUsedRequest request;
+        request.mutable_delta()->set_fsid(1);
+        ASSERT_EQ(manager->UpdateFsUsed(request, logIndex_++),
+                  MetaStatusCode::OK);
+        ASSERT_EQ(manager->GetInode(1, ROOTINODEID, &temp), MetaStatusCode::OK);
+        ASSERT_EQ(temp.xattr().at(XATTR_FS_BYTES), "1");
+    }
+}
+
 }  // namespace metaserver
 }  // namespace curvefs

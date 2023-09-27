@@ -47,6 +47,7 @@ cc_test(
             "//curvefs/test/metaserver/mock:metaserver_test_mock",
             "@com_google_absl//absl/types:optional",
             "//curvefs/test/client/rpcclient:rpcclient_test_mock",
+            "//curvefs/test/client:mock",
     ],
 )
 
