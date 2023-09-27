@@ -17,6 +17,12 @@ shadowArgument
 missingOverride
 useStlAlgorithm
 redundantInitialization
+constVariable
+knownConditionTrueFalse:curvefs/src/client/s3/client_s3_cache_manager.cpp
+knownConditionTrueFalse:curvefs/src/client/s3/disk_cache_write.cpp
+knownConditionTrueFalse:curvefs/src/metaserver/s3compact_inode.cpp
+knownConditionTrueFalse:curvefs/src/volume/free_extents.cpp
+unusedStructMember:src/chunkserver/raftlog/curve_segment.cpp
 
 # portability
 arithOperationsOnVoidPointer

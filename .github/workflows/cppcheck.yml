@@ -1,7 +1,6 @@
 name: Static Checker
 
-on:
-  pull_request
+on: pull_request
 
 jobs:
   cppcheck:
@@ -22,3 +21,4 @@ jobs:
         if: failure()
         run: |
           cat ./cppcheck_report.txt
+          exit 1

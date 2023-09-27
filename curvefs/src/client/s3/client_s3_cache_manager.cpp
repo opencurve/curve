@@ -1039,7 +1039,8 @@ void FileCacheManager::ReleaseCache() {
     }
 
     chunkCacheMap_.clear();
-    g_s3MultiManagerMetric->chunkManagerNum << -1 * chunNum;
+    g_s3MultiManagerMetric->chunkManagerNum
+        << -1 * static_cast<int64_t>(chunNum);
     return;
 }
 
@@ -1576,7 +1577,8 @@ void ChunkCacheManager::AddReadDataCache(DataCachePtr dataCache) {
         uint64_t actualLen = (*dcpIter)->GetActualLen();
         if (s3ClientAdaptor_->GetFsCacheManager()->Delete(dcpIter)) {
             g_s3MultiManagerMetric->readDataCacheNum << -1;
-            g_s3MultiManagerMetric->readDataCacheByte << -1 * actualLen;
+            g_s3MultiManagerMetric->readDataCacheByte
+                << -1 * static_cast<int64_t>(actualLen);
             dataRCacheMap_.erase(iter);
         }
     }
@@ -1669,7 +1671,8 @@ void ChunkCacheManager::TruncateReadCache(uint64_t chunkPos) {
         if ((dcChunkPos + dcLen) > chunkPos) {
             if (s3ClientAdaptor_->GetFsCacheManager()->Delete(rIter->second)) {
                 g_s3MultiManagerMetric->readDataCacheNum << -1;
-                g_s3MultiManagerMetric->readDataCacheByte << -1 * dcActualLen;
+                g_s3MultiManagerMetric->readDataCacheByte
+                    << -1 * static_cast<int64_t>(dcActualLen);
                 dataRCacheMap_.erase(next(rIter).base());
             }
         } else {
