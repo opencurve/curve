@@ -15,6 +15,11 @@ STARTED_AS_ROOT=false
 USERS_FILE=/etc/nebd/users
 USERS=()
 
+# set nofile soft limit to hard limit
+# we found that soft limit of nebd-daemon and nebd-server are 1024 after system reboot
+# even /etc/security/limits.conf already set nofile limit to large number
+ulimit -Sn $(ulimit -Hn)
+
 if [[ $(id -u) -eq 0 ]]; then
     STARTED_AS_ROOT=true
 fi
