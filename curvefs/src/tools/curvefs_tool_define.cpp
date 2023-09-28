@@ -76,8 +76,8 @@ DEFINE_uint64(s3_blocksize, 1048576, "s3 block size");
 DEFINE_uint64(s3_chunksize, 4194304, "s3 chunk size");
 DEFINE_uint32(s3_objectPrefix, 0, "object prefix");
 DEFINE_bool(enableSumInDir, false, "statistic info in xattr");
-DEFINE_uint64(capacity, (uint64_t)100 * 1024 * 1024 * 1024,
-              "capacity of fs, default 100G");
+DEFINE_uint64(capacity, (uint64_t)0,
+              "capacity of fs, unit is bytes, default 0 to disable quota");
 DEFINE_string(user, "anonymous", "user of request");
 DEFINE_string(inodeId, "1,2,3", "inodes id");
 
