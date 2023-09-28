@@ -48,9 +48,9 @@ func (sCmd *StopCmd) RunCommand(cmd *cobra.Command, args []string) error {
 	for _, item := range records {
 		err := s.stopSnapShot(item.UUID, item.User, item.File)
 		if err == nil {
-			item.Result = "success"
+			item.Result = cobrautil.ROW_VALUE_SUCCESS
 		} else {
-			item.Result = "fail"
+			item.Result = cobrautil.ROW_VALUE_FAILED
 		}
 		sCmd.TableNew.Append([]string{item.Result})
 	}
