@@ -4,6 +4,7 @@ BasedOnStyle:  Google
 AccessModifierOffset: -3
 DerivePointerAlignment: false
 IndentWidth:     4
+SortIncludes: false
 ---
 Language: Proto
 BasedOnStyle:  Google
