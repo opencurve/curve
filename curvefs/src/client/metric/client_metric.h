@@ -100,9 +100,11 @@ struct MetaServerClientMetric {
     InterfaceMetric updateFsUsed;
 
     MetaServerClientMetric()
-        : getDentry(prefix, "getDentry"), listDentry(prefix, "listDentry"),
+        : getDentry(prefix, "getDentry"),
+          listDentry(prefix, "listDentry"),
           createDentry(prefix, "createDentry"),
-          deleteDentry(prefix, "deleteDentry"), getInode(prefix, "getInode"),
+          deleteDentry(prefix, "deleteDentry"),
+          getInode(prefix, "getInode"),
           batchGetInodeAttr(prefix, "batchGetInodeAttr"),
           batchGetXattr(prefix, "batchGetXattr"),
           createInode(prefix, "createInode"),

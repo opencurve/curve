@@ -1547,7 +1547,7 @@ MetaStatusCode MetaServerClientImpl::GetInodeAttr(
 }
 
 MetaStatusCode MetaServerClientImpl::UpdateFsUsed(uint32_t fsId,
-                                                  const FsUsedDelta &delta,
+                                                  const FsUsedDelta& delta,
                                                   bool fromClient) {
     auto task = RPCTask {
         (void)txId;

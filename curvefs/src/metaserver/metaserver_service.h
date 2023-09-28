@@ -38,11 +38,12 @@ using ::curvefs::metaserver::copyset::CopysetNodeManager;
 
 class MetaServerServiceImpl : public MetaServerService {
  public:
-    MetaServerServiceImpl(CopysetNodeManager *copysetNodeManager,
-                          InflightThrottle *inflightThrottle,
-                          FsUsedManager *fsUsedManager)
+    MetaServerServiceImpl(CopysetNodeManager* copysetNodeManager,
+                          InflightThrottle* inflightThrottle,
+                          FsUsedManager* fsUsedManager)
         : copysetNodeManager_(copysetNodeManager),
-          inflightThrottle_(inflightThrottle), fsUsedManager_(fsUsedManager) {}
+          inflightThrottle_(inflightThrottle),
+          fsUsedManager_(fsUsedManager) {}
 
     void GetDentry(::google::protobuf::RpcController* controller,
                    const ::curvefs::metaserver::GetDentryRequest* request,
@@ -131,10 +132,10 @@ class MetaServerServiceImpl : public MetaServerService {
         UpdateDeallocatableBlockGroupResponse *response,
         ::google::protobuf::Closure *done) override;
 
-    void UpdateFsUsed(::google::protobuf::RpcController *controller,
-                      const UpdateFsUsedRequest *request,
-                      UpdateFsUsedResponse *response,
-                      ::google::protobuf::Closure *done) override;
+    void UpdateFsUsed(::google::protobuf::RpcController* controller,
+                      const UpdateFsUsedRequest* request,
+                      UpdateFsUsedResponse* response,
+                      ::google::protobuf::Closure* done) override;
 
  private:
     CopysetNodeManager* copysetNodeManager_;
