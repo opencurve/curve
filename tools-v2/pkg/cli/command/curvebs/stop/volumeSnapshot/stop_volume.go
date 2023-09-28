@@ -12,6 +12,8 @@ import (
 
 const (
 	version = "0.0.6"
+	limit   = "100"
+	offset  = "0"
 )
 
 type Stop struct {
@@ -35,16 +37,6 @@ func newStopSnapShot(serverAddress []string, timeout time.Duration, user, fileNa
 	}
 }
 
-// func newStop(serverAddress []string, timeout time.Duration, user, fileName, uuid string) *Stop {
-// 	return &Stop{
-// 		serverAddress: serverAddress,
-// 		timeout:       timeout,
-// 		User:          user,
-// 		FileName:      fileName,
-// 		UUID:          uuid,
-// 	}
-// }
-
 type Record struct {
 	UUID string `json:"UUID"`
 	User string `json:"User"`
@@ -66,8 +58,8 @@ func (s *Stop) getSnapShotListAll() []*Record {
 		User:    s.User,
 		UUID:    s.UUID,
 		File:    s.FileName,
-		Limit:   "100",
-		Offset:  "0",
+		Limit:   limit,
+		Offset:  offset,
 	}
 	for {
 		records := s.getSnapShotList(params)
@@ -77,8 +69,6 @@ func (s *Stop) getSnapShotListAll() []*Record {
 		receiveRecords = append(receiveRecords, records...)
 
 		params.Offset = params.Offset + params.Limit
-
-		// params[Offset] = strconv.Itoa(strconv.Atoi(params[Offset]) + strconv.Atoi(params[Limit]))
 
 	}
 	return receiveRecords
@@ -130,7 +120,6 @@ func (s *Stop) query(params QueryParams, data interface{}) error {
 }
 
 func (s *Stop) encodeParam(params QueryParams) string {
-	// values := url.Values{}
 	paramsMap := map[string]string{}
 	if params.Action == "CancelSnapshot" {
 		paramsMap = map[string]string{
@@ -152,13 +141,6 @@ func (s *Stop) encodeParam(params QueryParams) string {
 		}
 	}
 
-	// for key, value := range paramsMap {
-	// 	if value != "" {
-	// 		values.Add(key, fmt.Sprintf("%s", value))
-	// 	}
-	// }
-
-	// return values.Encode()
 	values := strings.Builder{}
 	for key, value := range paramsMap {
 		if value != "" {
