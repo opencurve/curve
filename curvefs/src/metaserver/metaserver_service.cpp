@@ -33,27 +33,27 @@ static bvar::LatencyRecorder g_oprequest_in_service_before_propose_latency(
 namespace curvefs {
 namespace metaserver {
 
-using ::curvefs::metaserver::copyset::GetDentryOperator;
-using ::curvefs::metaserver::copyset::ListDentryOperator;
-using ::curvefs::metaserver::copyset::CreateDentryOperator;
-using ::curvefs::metaserver::copyset::DeleteDentryOperator;
-using ::curvefs::metaserver::copyset::GetInodeOperator;
 using ::curvefs::metaserver::copyset::BatchGetInodeAttrOperator;
 using ::curvefs::metaserver::copyset::BatchGetXAttrOperator;
+using ::curvefs::metaserver::copyset::CreateDentryOperator;
 using ::curvefs::metaserver::copyset::CreateInodeOperator;
-using ::curvefs::metaserver::copyset::CreateRootInodeOperator;
 using ::curvefs::metaserver::copyset::CreateManageInodeOperator;
-using ::curvefs::metaserver::copyset::UpdateInodeOperator;
-using ::curvefs::metaserver::copyset::GetOrModifyS3ChunkInfoOperator;
-using ::curvefs::metaserver::copyset::DeleteInodeOperator;
-using ::curvefs::metaserver::copyset::UpdateInodeS3VersionOperator;
 using ::curvefs::metaserver::copyset::CreatePartitionOperator;
+using ::curvefs::metaserver::copyset::CreateRootInodeOperator;
+using ::curvefs::metaserver::copyset::DeleteDentryOperator;
+using ::curvefs::metaserver::copyset::DeleteInodeOperator;
 using ::curvefs::metaserver::copyset::DeletePartitionOperator;
-using ::curvefs::metaserver::copyset::PrepareRenameTxOperator;
+using ::curvefs::metaserver::copyset::GetDentryOperator;
+using ::curvefs::metaserver::copyset::GetInodeOperator;
+using ::curvefs::metaserver::copyset::GetOrModifyS3ChunkInfoOperator;
 using ::curvefs::metaserver::copyset::GetVolumeExtentOperator;
-using ::curvefs::metaserver::copyset::UpdateVolumeExtentOperator;
+using ::curvefs::metaserver::copyset::ListDentryOperator;
+using ::curvefs::metaserver::copyset::PrepareRenameTxOperator;
 using ::curvefs::metaserver::copyset::UpdateDeallocatableBlockGroupOperator;
 using ::curvefs::metaserver::copyset::UpdateFsUsedOperator;
+using ::curvefs::metaserver::copyset::UpdateInodeOperator;
+using ::curvefs::metaserver::copyset::UpdateInodeS3VersionOperator;
+using ::curvefs::metaserver::copyset::UpdateVolumeExtentOperator;
 
 namespace {
 
@@ -312,10 +312,9 @@ void MetaServerServiceImpl::UpdateDeallocatableBlockGroup(
 }
 
 void MetaServerServiceImpl::UpdateFsUsed(
-    ::google::protobuf::RpcController *controller,
-    const UpdateFsUsedRequest *request, UpdateFsUsedResponse *response,
-    ::google::protobuf::Closure *done) {
-
+    ::google::protobuf::RpcController* controller,
+    const UpdateFsUsedRequest* request, UpdateFsUsedResponse* response,
+    ::google::protobuf::Closure* done) {
     if (!request->has_delta() || !request->has_fromclient()) {
         response->set_statuscode(MetaStatusCode::PARAM_ERROR);
         done->Run();
@@ -335,7 +334,6 @@ void MetaServerServiceImpl::UpdateFsUsed(
                                             request->poolid(),
                                             request->copysetid());
 }
-
 
 }  // namespace metaserver
 }  // namespace curvefs

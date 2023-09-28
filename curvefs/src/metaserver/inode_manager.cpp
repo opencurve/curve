@@ -446,8 +446,7 @@ MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest& request,
 
 MetaStatusCode InodeManager::UpdateFsUsed(const UpdateFsUsedRequest& request,
                                           int64_t logIndex) {
-    if (!request.has_delta())
-        return MetaStatusCode::OK;
+    if (!request.has_delta()) return MetaStatusCode::OK;
     auto fsid = request.delta().fsid();
     auto inodeid = ROOTINODEID;
     NameLockGuard lg(inodeLock_, GetInodeLockName(fsid, inodeid));

@@ -64,8 +64,8 @@ namespace client {
 namespace rpcclient {
 
 using S3ChunkInfoMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
-using ::curvefs::metaserver::VolumeExtentSliceList;
 using ::curvefs::metaserver::FsUsedDelta;
+using ::curvefs::metaserver::VolumeExtentSliceList;
 
 struct DataIndices {
     absl::optional<S3ChunkInfoMap> s3ChunkInfoMap;
@@ -179,7 +179,7 @@ class MetaServerClient {
     UpdateDeallocatableBlockGroup(uint32_t fsId, uint64_t inodeId,
                                   DeallocatableBlockGroupMap *statistic) = 0;
 
-    virtual MetaStatusCode UpdateFsUsed(uint32_t fsId, const FsUsedDelta &delta,
+    virtual MetaStatusCode UpdateFsUsed(uint32_t fsId, const FsUsedDelta& delta,
                                         bool fromClient) = 0;
 };
 
@@ -290,7 +290,7 @@ class MetaServerClientImpl : public MetaServerClient {
         uint32_t fsId, uint64_t inodeId,
         DeallocatableBlockGroupMap *statistic) override;
 
-    MetaStatusCode UpdateFsUsed(uint32_t fsId, const FsUsedDelta &delta,
+    MetaStatusCode UpdateFsUsed(uint32_t fsId, const FsUsedDelta& delta,
                                 bool fromClient) override;
 
  private:

@@ -1108,8 +1108,7 @@ CURVEFS_ERROR FuseClient::FuseOpSetXattr(fuse_req_t req, fuse_ino_t ino,
     std::string strname(name);
     std::string strvalue(value, size);
     VLOG(1) << "FuseOpSetXattr ino: " << ino << ", name: " << name
-            << ", size = " << size
-            << ", strvalue: " << strvalue;
+            << ", size = " << size << ", strvalue: " << strvalue;
 
     if (strname == curvefs::XATTR_FS_BYTES) {
         LOG(INFO) << "set curve.fs.bytes by client is not allowed";

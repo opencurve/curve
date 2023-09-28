@@ -433,7 +433,6 @@ OPERATOR_HASH_CODE(UpdateVolumeExtent);
 OPERATOR_HASH_CODE(UpdateDeallocatableBlockGroup);
 OPERATOR_HASH_CODE(UpdateFsUsed);
 
-
 #undef OPERATOR_HASH_CODE
 
 #define PARTITION_OPERATOR_HASH_CODE(TYPE)                                     \
