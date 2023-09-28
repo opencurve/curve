@@ -25,6 +25,7 @@
 #include <set>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include "src/client/client_common.h"
 #include "src/client/client_config.h"
@@ -124,6 +125,10 @@ class MetaCache {
     virtual void UpdateCopysetInfo(LogicPoolID logicPoolId, CopysetID copysetId,
                                    const CopysetInfo<ChunkServerID> &csinfo);
 
+    // Add copysets info to cache, and skip already copyset
+    void AddCopysetsInfo(
+        LogicPoolID poolId,
+        std::vector<CopysetInfo<ChunkServerID>>&& copysetsInfo);
 
     /**
      * 通过chunk id更新chunkid信息
