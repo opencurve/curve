@@ -92,7 +92,7 @@ A tool for CurveFS & CurveBs.
         - [check chunkserver](#check-chunkserver)
         - [check server](#check-server)
       - [stop](#stop)
-          - [stop volume snapshot](#stop volume snapshot)
+          - [stop volume snapshot](#stop-volume-snapshot)
       
       - [snapshot](#snapshot)
         - [snapshot copyset](#snapshot-copyset)
