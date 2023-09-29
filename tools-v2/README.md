@@ -6,10 +6,14 @@ A tool for CurveFS & CurveBs.
   - [How to use curve tool](#how-to-use-curve-tool)
     - [Install](#install)
     - [Introduction](#introduction)
+    
   - [Command](#command)
     - [version](#version)
+    
     - [completion](#completion)
+    
     - [upgrade](#upgrade)
+    
     - [fs](#fs)
       - [check](#check)
         - [check copyset](#check-copyset)
@@ -43,6 +47,7 @@ A tool for CurveFS & CurveBs.
         - [usage metadata](#usage-metadata)
       - [warmup](#warmup)
       - [warmup add](#warmup-add)
+      
     - [bs](#bs)
       - [list](#list-1)
           - [list logical-pool](#list-logical-pool)
@@ -55,9 +60,9 @@ A tool for CurveFS & CurveBs.
           - [list may-broken-vol](#list-may-broken-vol)
       - [clean-recycle](#clean-recycle)
       - [query](#query-1)
-          - [query file](#query-file)
-          - [query chunk](#query-chunk)
-          - [query segment](#query-segment)
+        - [query file](#query-file)
+        - [query chunk](#query-chunk)
+        - [query segment](#query-segment)
         - [query scan-status](#query-scan-status)
       - [status](#status-1)
         - [status etcd](#status-etcd-1)
@@ -86,9 +91,14 @@ A tool for CurveFS & CurveBs.
         - [check copyset](#check-copyset-1)
         - [check chunkserver](#check-chunkserver)
         - [check server](#check-server)
+      - [stop](#stop)
+          - [stop volume snapshot](#stop volume snapshot)
+      
       - [snapshot](#snapshot)
         - [snapshot copyset](#snapshot-copyset)
+    
   - [Comparison of old and new commands](#comparison-of-old-and-new-commands)
+    
     - [curve fs](#curve-fs)
     - [curve bs](#curve-bs)
 
