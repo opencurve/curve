@@ -1799,6 +1799,28 @@ Output:
 +--------+-----------+-------+------------------+
 ```
 
+#### stop
+
+##### stop volume snapshot
+
+stop volume snapshot
+
+Usage:
+
+```shell
+curve bs stop volumeSnapshot
+```
+
+Output:
+
+```
++---------+
+| RESULT  |
++---------+
+| success |
++---------+
+```
+
 #### snapshot
 
 ##### snapshot copyset
