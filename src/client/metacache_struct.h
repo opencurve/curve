@@ -23,16 +23,16 @@
 #ifndef SRC_CLIENT_METACACHE_STRUCT_H_
 #define SRC_CLIENT_METACACHE_STRUCT_H_
 
-#include <atomic>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "include/curve_compiler_specific.h"
 #include "src/client/client_common.h"
-#include "src/common/concurrent/spinlock.h"
-#include "src/common/concurrent/rw_lock.h"
 #include "src/common/bitmap.h"
+#include "src/common/concurrent/rw_lock.h"
+#include "src/common/concurrent/spinlock.h"
 
 namespace curve {
 namespace client {
@@ -45,7 +45,8 @@ using curve::common::WriteLockGuard;
 
 // copyset内的chunkserver节点的基本信息
 // 包含当前chunkserver的id信息，以及chunkserver的地址信息
-template <typename T> struct CURVE_CACHELINE_ALIGNMENT CopysetPeerInfo {
+template <typename T>
+struct CopysetPeerInfo {
     // 当前chunkserver节点的ID
     T peerID = 0;
     // 当前chunkserver节点的内部地址
@@ -54,9 +55,6 @@ template <typename T> struct CURVE_CACHELINE_ALIGNMENT CopysetPeerInfo {
     PeerAddr externalAddr;
 
     CopysetPeerInfo() = default;
-
-    CopysetPeerInfo(const CopysetPeerInfo &) = default;
-    CopysetPeerInfo &operator=(const CopysetPeerInfo &other) = default;
 
     CopysetPeerInfo(const T &cid, const PeerAddr &internal,
                     const PeerAddr &external)
@@ -82,8 +80,7 @@ inline std::ostream &operator<<(std::ostream &os, const CopysetPeerInfo<T> &c) {
     return os;
 }
 
-// copyset's informations inclucing peer and leader information
-
+// copyset's informations including peer and leader information
 template <typename T> struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
     // leader存在变更可能标志位
     bool leaderMayChange_ = false;
@@ -113,6 +110,25 @@ template <typename T> struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
         : leaderMayChange_(other.leaderMayChange_), csinfos_(other.csinfos_),
           leaderindex_(other.leaderindex_), cpid_(other.cpid_),
           lpid_(other.lpid_) {}
+
+    CopysetInfo(CopysetInfo&& other) noexcept
+        : leaderMayChange_(other.leaderMayChange_),
+          csinfos_(std::move(other.csinfos_)),
+          leaderindex_(other.leaderindex_),
+          cpid_(other.cpid_),
+          lpid_(other.lpid_) {}
+
+    CopysetInfo& operator=(CopysetInfo&& other) noexcept {
+        using std::swap;
+
+        swap(leaderMayChange_, other.leaderMayChange_);
+        swap(csinfos_, other.csinfos_);
+        swap(leaderindex_, other.leaderindex_);
+        swap(cpid_, other.cpid_);
+        swap(lpid_, other.lpid_);
+
+        return *this;
+    }
 
     void SetLeaderUnstableFlag() { leaderMayChange_ = true; }
 
@@ -258,9 +274,6 @@ struct CopysetIDInfo {
 
     CopysetIDInfo(LogicPoolID logicpoolid, CopysetID copysetid)
         : lpid(logicpoolid), cpid(copysetid) {}
-
-    CopysetIDInfo(const CopysetIDInfo &other) = default;
-    CopysetIDInfo &operator=(const CopysetIDInfo &other) = default;
 };
 
 inline bool operator<(const CopysetIDInfo &cpidinfo1,
