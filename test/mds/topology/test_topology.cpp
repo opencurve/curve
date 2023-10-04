@@ -2859,12 +2859,8 @@ TEST_F(TestTopology, GetCopySetsInLogicalPool_success) {
     replicas.insert(0x43);
     PrepareAddCopySet(copysetId, logicalPoolId, replicas);
 
-   CopySetFilter filter = [](const CopySetInfo&) {
-            return true;
-    };
-    std::set<ChunkServerIdType> defaultSet = std::set<ChunkServerIdType>();
     std::vector<CopySetIdType> csList =
-    topology_->GetCopySetsInLogicalPool(logicalPoolId,defaultSet,filter);
+    topology_->GetCopySetsInLogicalPool(logicalPoolId);
     ASSERT_EQ(1, csList.size());
 }
 

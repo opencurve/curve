@@ -62,7 +62,6 @@ class TestTopologyChunkAllocator : public ::testing::Test {
                 std::make_shared<ChunkFilePoolAllocHelp>();
         chunkFilePoolAllocHelp_->UpdateChunkFilePoolAllocConfig(true, true, 15);
         option.PoolUsagePercentLimit = 85;
-        option.ChunkServerUsagePercentLimit = 85;
         option.enableLogicalPoolStatus = true;
         allocStatistic_ = std::make_shared<MockAllocStatistic>();
         testObj_ = std::make_shared<TopologyChunkAllocatorImpl>(topology_,
@@ -772,89 +771,6 @@ TEST(TestAllocateChunkPolicy,
     }
 }
 
-TEST_F(TestTopologyChunkAllocator,
-    TestAllocateChunkRoundRobinInSingleLogicalPool_EmptyCopySetWithInSufficentCapacityNode) {
-    std::vector<CopysetIdInfo> infos;
-
-    PrepareAddPoolset();
-    PoolIdType logicalPoolId = 0x01;
-    PoolIdType physicalPoolId = 0x11;
-    CopySetIdType copysetId = 0x51;
-
-    PrepareAddPhysicalPool(physicalPoolId);
-    PrepareAddZone(0x21, "zone1", physicalPoolId);
-    PrepareAddZone(0x22, "zone2", physicalPoolId);
-    PrepareAddZone(0x23, "zone3", physicalPoolId);
-    PrepareAddServer(0x31, "server1", "127.0.0.1", "127.0.0.1", 0x21, 0x11);
-    PrepareAddServer(0x32, "server2", "127.0.0.1", "127.0.0.1", 0x22, 0x11);
-    PrepareAddServer(0x33, "server3", "127.0.0.1", "127.0.0.1", 0x23, 0x11);
-    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200, "/",
-      871, 1024);  // set one cs use over 85% limit
-    PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
-    PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
-    PrepareAddLogicalPool(logicalPoolId, "logicalPool1", physicalPoolId,
-        PAGEFILE);
-    std::set<ChunkServerIdType> replicas;
-    replicas.insert(0x41);
-    replicas.insert(0x42);
-    replicas.insert(0x43);
-    PrepareAddCopySet(copysetId, logicalPoolId, replicas);
-    PrepareAddCopySet(copysetId + 1, logicalPoolId, replicas, false);
-
-    EXPECT_CALL(*allocStatistic_, GetAllocByLogicalPool(_, _))
-        .WillRepeatedly(Return(true));
-
-    bool ret =
-        testObj_->AllocateChunkRandomInSingleLogicalPool(INODE_PAGEFILE,
-            "testPoolset",
-            1,
-            1024,
-            &infos);
-
-    ASSERT_TRUE(!ret);
-}
-
-TEST_F(TestTopologyChunkAllocator,
-    TestAllocateChunkRoundRobinInSingleLogicalPool_EmptyCopySetWithSufficentCapacityNode) {
-    std::vector<CopysetIdInfo> infos;
-
-    PrepareAddPoolset();
-    PoolIdType logicalPoolId = 0x01;
-    PoolIdType physicalPoolId = 0x11;
-    CopySetIdType copysetId = 0x51;
-
-    PrepareAddPhysicalPool(physicalPoolId);
-    PrepareAddZone(0x21, "zone1", physicalPoolId);
-    PrepareAddZone(0x22, "zone2", physicalPoolId);
-    PrepareAddZone(0x23, "zone3", physicalPoolId);
-    PrepareAddServer(0x31, "server1", "127.0.0.1", "127.0.0.1", 0x21, 0x11);
-    PrepareAddServer(0x32, "server2", "127.0.0.1", "127.0.0.1", 0x22, 0x11);
-    PrepareAddServer(0x33, "server3", "127.0.0.1", "127.0.0.1", 0x23, 0x11);
-    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200, "/",
-      819, 1024);  // set one cs use 80% capacity
-    PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
-    PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
-    PrepareAddLogicalPool(logicalPoolId, "logicalPool1", physicalPoolId,
-        PAGEFILE);
-    std::set<ChunkServerIdType> replicas;
-    replicas.insert(0x41);
-    replicas.insert(0x42);
-    replicas.insert(0x43);
-    PrepareAddCopySet(copysetId, logicalPoolId, replicas);
-    PrepareAddCopySet(copysetId + 1, logicalPoolId, replicas, false);
-
-    EXPECT_CALL(*allocStatistic_, GetAllocByLogicalPool(_, _))
-        .WillRepeatedly(Return(true));
-
-    bool ret =
-        testObj_->AllocateChunkRandomInSingleLogicalPool(INODE_PAGEFILE,
-            "testPoolset",
-            1,
-            1024,
-            &infos);
-
-    ASSERT_TRUE(ret);
-}
 }  // namespace topology
 }  // namespace mds
 }  // namespace curve

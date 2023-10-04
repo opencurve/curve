@@ -25,7 +25,6 @@
 #include <unordered_map>
 #include <string>
 #include <list>
-#include <set>
 #include <memory>
 #include <vector>
 #include <map>
@@ -370,7 +369,6 @@ class Topology {
     // get copyset list
     virtual std::vector<CopySetIdType> GetCopySetsInLogicalPool(
         PoolIdType logicalPoolId,
-        std::set<ChunkServerIdType> insufficientNodes,
         CopySetFilter filter = [](const CopySetInfo&) {
             return true;}) const = 0;
 
@@ -383,8 +381,6 @@ class Topology {
         GetCopySetsInChunkServer(ChunkServerIdType id,
         CopySetFilter filter = [](const CopySetInfo&) {
             return true;}) const = 0;
-
-    virtual std::set<ChunkServerIdType> CalucateUnAllocateNodes(double csDiskAvailable) const =0;
 
     virtual std::string GetHostNameAndPortById(ChunkServerIdType csId) = 0;
 };
@@ -642,7 +638,6 @@ class TopologyImpl : public Topology {
     // get copyset list
     std::vector<CopySetIdType> GetCopySetsInLogicalPool(
         PoolIdType logicalPoolId,
-        std::set<ChunkServerIdType> insufficientNodes,
         CopySetFilter filter = [](const CopySetInfo&) {
             return true;}) const override;
 
@@ -656,7 +651,6 @@ class TopologyImpl : public Topology {
         CopySetFilter filter = [](const CopySetInfo&) {
             return true;}) const override;
 
-    std::set<ChunkServerIdType> CalucateUnAllocateNodes(double csDiskAvailable) const override;
     /**
      * @brief get physicalPool Id that the chunkserver belongs to
      *

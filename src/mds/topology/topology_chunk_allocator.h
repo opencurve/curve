@@ -123,8 +123,7 @@ class TopologyChunkAllocatorImpl : public TopologyChunkAllocator {
           topoStat_(topologyStat),
           chunkFilePoolAllocHelp_(ChunkFilePoolAllocHelp),
           policy_(static_cast<ChoosePoolPolicy>(option.choosePoolPolicy)),
-          enableLogicalPoolStatus_(option.enableLogicalPoolStatus),
-          csDiskAvailable_(option.ChunkServerUsagePercentLimit) {
+          enableLogicalPoolStatus_(option.enableLogicalPoolStatus) {
         std::srand(std::time(nullptr));
     }
     ~TopologyChunkAllocatorImpl() {}
@@ -221,8 +220,6 @@ class TopologyChunkAllocatorImpl : public TopologyChunkAllocator {
     ChoosePoolPolicy policy_;
     // enableLogicalPoolStatus
     bool enableLogicalPoolStatus_;
-    // usage limit percentage of cs capacity
-    uint32_t csDiskAvailable_;
 };
 
 /**

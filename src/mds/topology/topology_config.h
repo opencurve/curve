@@ -46,8 +46,6 @@ struct TopologyOption {
     int choosePoolPolicy;
     // enable LogicalPool ALLOW/DENY status
     bool enableLogicalPoolStatus;
-    // threshold of maximum usage of a chunkserver capacity
-    uint32_t ChunkServerUsagePercentLimit;
 
     TopologyOption()
         : TopologyUpdateToRepoSec(0),
@@ -56,8 +54,7 @@ struct TopologyOption {
           CreateCopysetRpcRetrySleepTimeMs(500),
           UpdateMetricIntervalSec(0),
           choosePoolPolicy(0),
-          enableLogicalPoolStatus(false),
-          ChunkServerUsagePercentLimit(100) {}
+          enableLogicalPoolStatus(false) {}
 };
 
 }  // namespace topology

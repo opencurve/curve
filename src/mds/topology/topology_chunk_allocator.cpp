@@ -28,7 +28,6 @@
 #include <ctime>
 #include <vector>
 #include <list>
-#include <set>
 #include <random>
 
 
@@ -54,16 +53,11 @@ bool TopologyChunkAllocatorImpl::AllocateChunkRandomInSingleLogicalPool(
         return false;
     }
 
-    // calculate unAllocate chunkServer list
-    double csDiskAvailable = csDiskAvailable_;
-    std::set<ChunkServerIdType> insufficientNodes = topology_->
-      CalucateUnAllocateNodes(csDiskAvailable);
     CopySetFilter filter = [](const CopySetInfo &copyset) {
         return copyset.IsAvailable();
     };
     std::vector<CopySetIdType> copySetIds =
-        topology_->GetCopySetsInLogicalPool(logicalPoolChosenId,
-        insufficientNodes, filter);
+        topology_->GetCopySetsInLogicalPool(logicalPoolChosenId, filter);
 
     if (0 == copySetIds.size()) {
         LOG(ERROR) << "[AllocateChunkRandomInSingleLogicalPool]:"
@@ -91,16 +85,13 @@ bool TopologyChunkAllocatorImpl::AllocateChunkRoundRobinInSingleLogicalPool(
         LOG(ERROR) << "ChooseSingleLogicalPool fail, ret = false.";
         return false;
     }
-    // calculate unAllocate chunkServer list
-    double csDiskAvailable = csDiskAvailable_;
-    std::set<ChunkServerIdType> insufficientNodes = topology_->
-      CalucateUnAllocateNodes(csDiskAvailable);
+
     CopySetFilter filter = [](const CopySetInfo &copyset) {
         return copyset.IsAvailable();
     };
     std::vector<CopySetIdType> copySetIds =
-        topology_->GetCopySetsInLogicalPool(logicalPoolChosenId,
-        insufficientNodes, filter);
+        topology_->GetCopySetsInLogicalPool(logicalPoolChosenId, filter);
+
     if (0 == copySetIds.size()) {
         LOG(ERROR) << "[AllocateChunkRoundRobinInSingleLogicalPool]:"
                    << " Does not have any available copySets,"

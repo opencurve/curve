@@ -24,7 +24,7 @@
 #include <glog/logging.h>
 
 #include <utility>
-#include <set>
+
 #include "src/common/namespace_define.h"
 #include "src/common/timeutility.h"
 #include "src/common/uuid.h"
@@ -1323,42 +1323,16 @@ bool TopologyImpl::GetCopySet(CopySetKey key, CopySetInfo *out) const {
 }
 
 std::vector<CopySetIdType> TopologyImpl::GetCopySetsInLogicalPool(
-    PoolIdType logicalPoolId, std::set<ChunkServerIdType> insufficientNodes,
+    PoolIdType logicalPoolId,
     CopySetFilter filter) const {
     std::vector<CopySetIdType> ret;
     ReadLockGuard rlockCopySet(copySetMutex_);
     for (auto it : copySetMap_) {
         if (filter(it.second) && it.first.first == logicalPoolId) {
-            std::set<ChunkServerIdType> intersection;
-            // calculate peers and insufficientNodes intersection
-            std::set<ChunkServerIdType> peers;
-            peers = it.second.GetCopySetMembers();
-            std::set_intersection(peers.begin(), peers.end(),
-             insufficientNodes.begin(),
-             insufficientNodes.end(),
-             std::inserter(intersection, intersection.begin()));
-             if (intersection.empty()) {
-                // add sufficient copySet
-                ret.push_back(it.first.second);
-             }
+            ret.push_back(it.first.second);
         }
     }
     return ret;
-}
-
-std::set<ChunkServerIdType> TopologyImpl::CalucateUnAllocateNodes(
-    double csDiskAvailable) const {
-    ReadLockGuard rLockChunkServer(chunkServerMutex_);
-    // calculate insufficient nodes
-    std::set<ChunkServerIdType> insufficientNodes;
-    for (auto it : chunkServerMap_) {
-        ChunkServerState st = it.second.GetChunkServerState();
-        uint64_t diskCapacity =  csDiskAvailable * st.GetDiskCapacity() / 100;
-        if (diskCapacity <= st.GetDiskUsed()) {
-            insufficientNodes.insert(it.second.GetId());
-        }
-    }
-    return insufficientNodes;
 }
 
 std::vector<CopySetInfo> TopologyImpl::GetCopySetInfosInLogicalPool(
