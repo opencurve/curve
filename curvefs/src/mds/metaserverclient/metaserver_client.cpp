@@ -274,7 +274,12 @@ FSStatusCode MetaserverClient::CreateDentry(
     d->set_txid(0);
     d->set_type(FsFileType::TYPE_DIRECTORY);
     request.set_allocated_dentry(d);
-
+    struct timespec now;
+    clock_gettime(CLOCK_REALTIME, &now);
+    Time *tm = new Time();
+    tm->set_sec(now.tv_sec);
+    tm->set_nsec(now.tv_nsec);
+    request.set_allocated_create(tm);
     auto fp = &MetaServerService_Stub::CreateDentry;
     LeaderCtx ctx;
     ctx.addrs = addrs;

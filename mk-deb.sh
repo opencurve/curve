@@ -16,6 +16,10 @@
 #  limitations under the License.
 #
 
+if ! grep -iq debian /etc/os-release; then
+    echo "$0 only support Debian"
+fi
+
 set -o errexit
 
 dir=$(pwd)
@@ -168,9 +172,9 @@ cd ${dir}/thirdparties/etcdclient &&
 cp ${dir}/thirdparties/etcdclient/libetcdclient.h ${dir}/include/etcdclient/etcdclient.h
 
 if [ $(gcc -dumpversion | awk -F'.' '{print $1}') -le 6 ]; then
-    bazelflags=''
+    bazelflags='--copt -w'
 else
-    bazelflags='--copt -faligned-new'
+    bazelflags='--copt -w --cxxopt -faligned-new'
 fi
 
 if [ "$1" = "debug" ]; then
@@ -311,19 +315,21 @@ cp -r k8s/nbd/nbd-package build/k8s-nbd-package
 mkdir -p build/k8s-nbd-package/usr/bin
 cp bazel-bin/nbd/src/curve-nbd build/k8s-nbd-package/usr/bin
 
-# step5 记录到debian包的配置文件，打包debian包
-version="Version: ${curve_version}"
-echo ${version} >>build/curve-mds/DEBIAN/control
-echo ${version} >>build/curve-sdk/DEBIAN/control
-echo ${version} >>build/curve-chunkserver/DEBIAN/control
-echo ${version} >>build/curve-tools/DEBIAN/control
-echo ${version} >>build/curve-monitor/DEBIAN/control
-echo ${version} >>build/curve-snapshotcloneserver/DEBIAN/control
-echo ${version} >>build/curve-nginx/DEBIAN/control
-echo ${version} >>build/nebd-package/DEBIAN/control
-echo ${version} >>build/k8s-nebd-package/DEBIAN/control
-echo ${version} >>build/nbd-package/DEBIAN/control
-echo ${version} >>build/k8s-nbd-package/DEBIAN/control
+#step5 记录到debian包的配置文件，打包debian包
+debian_version=$(grep VERSION_ID /etc/os-release | cut -d '=' -f 2 | tr -d '"')
+version="Version: ${curve_version}+deb${debian_version}"
+
+echo ${version} >> build/curve-mds/DEBIAN/control
+echo ${version} >> build/curve-sdk/DEBIAN/control
+echo ${version} >> build/curve-chunkserver/DEBIAN/control
+echo ${version} >> build/curve-tools/DEBIAN/control
+echo ${version} >> build/curve-monitor/DEBIAN/control
+echo ${version} >> build/curve-snapshotcloneserver/DEBIAN/control
+echo ${version} >> build/curve-nginx/DEBIAN/control
+echo ${version} >> build/nebd-package/DEBIAN/control
+echo ${version} >> build/k8s-nebd-package/DEBIAN/control
+echo ${version} >> build/nbd-package/DEBIAN/control
+echo ${version} >> build/k8s-nbd-package/DEBIAN/control
 
 dpkg-deb -b build/curve-mds .
 dpkg-deb -b build/curve-sdk .

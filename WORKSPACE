@@ -35,6 +35,12 @@ git_repository(
     name = "com_github_baidu_braft",
     remote = "https://github.com/baidu/braft",
     commit = "d12de388c97998f5ccd5cb97ed0da728815ef438",
+    patches = [
+        "//:thirdparties/braft/0001-fix-change-set_error-to-set_errorv.patch",
+    ],
+    patch_args = [
+        "-p1"
+    ],
 )
 
 bind(
@@ -133,7 +139,11 @@ git_repository(
     name = "com_github_brpc_brpc",
     remote = "https://github.com/apache/incubator-brpc",
     commit = "1b9e00641cbec1c8803da6a1f7f555398c954cb0",
-    patches = ["//:thirdparties/brpc/brpc.patch","//:thirdparties/brpc/fix-gcc11.patch"],
+    patches = [
+        "//:thirdparties/brpc/brpc.patch",
+        "//:thirdparties/brpc/fix-gcc11.patch",
+        "//:thirdparties/brpc/0001-bvar-warning-on-conflict-bvar-name.patch", 
+    ],
     patch_args = ["-p1"],
 )
 
@@ -272,11 +282,11 @@ http_archive(
     # Replace the commit hash in both places (below) with the latest, rather than using the stale one here.
     # Even better, set up Renovate and let it do the work for you (see "Suggestion: Updates" in the README).
     urls = [
-        "https://curve-build.nos-eastchina1.126.net/bazel-compile-commands-extractor-af9af15f7bc16fc3e407e2231abfcb62907d258f.tar.gz",
-        "https://github.com/hedronvision/bazel-compile-commands-extractor/archive/af9af15f7bc16fc3e407e2231abfcb62907d258f.tar.gz",
+        "https://curve-build.nos-eastchina1.126.net/bazel-compile-commands-extractor-3dddf205a1f5cde20faf2444c1757abe0564ff4c.tar.gz",
+        "https://github.com/hedronvision/bazel-compile-commands-extractor/archive/3dddf205a1f5cde20faf2444c1757abe0564ff4c.tar.gz",
     ],
-    strip_prefix = "bazel-compile-commands-extractor-af9af15f7bc16fc3e407e2231abfcb62907d258f",
-    # When you first run this tool, it'll recommend a sha256 hash to put here with a message like: "DEBUG: Rule 'hedron_compile_commands' indicated that a canonical reproducible form can be obtained by modifying arguments sha256 = ..."
+    strip_prefix = "bazel-compile-commands-extractor-3dddf205a1f5cde20faf2444c1757abe0564ff4c",
+    sha256 = "3cd0e49f0f4a6d406c1d74b53b7616f5e24f5fd319eafc1bf8eee6e14124d115",
 )
 load("@hedron_compile_commands//:workspace_setup.bzl", "hedron_compile_commands_setup")
 hedron_compile_commands_setup()

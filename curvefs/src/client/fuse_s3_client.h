@@ -53,13 +53,17 @@ class FuseS3Client : public FuseClient {
     FuseS3Client()
         : FuseClient(), s3Adaptor_(std::make_shared<S3ClientAdaptorImpl>()) {
         auto readFunc = [this](fuse_req_t req, fuse_ino_t ino, size_t size,
-                               off_t off, struct fuse_file_info *fi,
-                               char *buffer, size_t *rSize) {
+                               off_t off, struct fuse_file_info* fi,
+                               char* buffer, size_t* rSize) {
             return FuseOpRead(req, ino, size, off, fi, buffer, rSize);
+        };
+        auto readLinkFunc = [this](fuse_req_t req, fuse_ino_t ino,
+                                   std::string* linkStr) {
+            return FuseClient::FuseOpReadLink(req, ino, linkStr);
         };
         warmupManager_ = std::make_shared<warmup::WarmupManagerS3Impl>(
             metaClient_, inodeManager_, dentryManager_, fsInfo_, readFunc,
-            s3Adaptor_, nullptr);
+            readLinkFunc, nullptr, s3Adaptor_);
     }
 
     FuseS3Client(const std::shared_ptr<MdsClient> &mdsClient,

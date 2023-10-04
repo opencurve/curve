@@ -358,8 +358,17 @@ MetaStatusCode MetaStoreImpl::CreateDentry(const CreateDentryRequest *request,
     ReadLockGuard readLockGuard(rwLock_);
     std::shared_ptr<Partition> partition;
     GET_PARTITION_OR_RETURN(partition);
-
-    MetaStatusCode status = partition->CreateDentry(request->dentry());
+    uint64_t now = 0;
+    uint32_t now_ns = 0;
+    if (request->has_create()) {
+        now = request->create().sec();
+        now_ns = request->create().nsec();
+    }
+    Time tm;
+    tm.set_sec(now);
+    tm.set_nsec(now_ns);
+    MetaStatusCode status =
+        partition->CreateDentry(request->dentry(), tm);
     response->set_statuscode(status);
     return status;
 }

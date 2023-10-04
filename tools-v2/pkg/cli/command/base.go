@@ -235,6 +235,7 @@ func httpGet(url string, timeout time.Duration, response chan string, errs chan 
 		interErr := cmderror.ErrHttpCreateGetRequest()
 		interErr.Format(err.Error())
 		errs <- interErr
+		return
 	}
 	// for get curl url
 	req.Header.Set("User-Agent", CURL_VERSION)
@@ -246,20 +247,24 @@ func httpGet(url string, timeout time.Duration, response chan string, errs chan 
 		interErr := cmderror.ErrHttpClient()
 		interErr.Format(err.Error())
 		errs <- interErr
+		return
 	} else if resp.StatusCode != http.StatusOK {
 		statusErr := cmderror.ErrHttpStatus(resp.StatusCode)
 		statusErr.Format(url, resp.StatusCode)
 		errs <- statusErr
+		return
 	} else {
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			interErr := cmderror.ErrHttpUnreadableResult()
 			interErr.Format(url, err.Error())
 			errs <- interErr
+			return
 		}
 		// get response
 		response <- string(body)
 		errs <- cmderror.ErrSuccess()
+		return
 	}
 }
 

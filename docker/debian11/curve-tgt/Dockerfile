@@ -2,6 +2,7 @@ FROM opencurvedocker/curve-base:build-debian11 AS curve-sdk
 ENV GITHUB_PROXY=https://ghproxy.com/
 RUN git clone ${GITHUB_PROXY}https://github.com/opencurve/curve && \
     cd /curve && \
+    git checkout a14bcd3ecdfcedd9398cbe74edf17b8173e417a0 && \
     bash replace-curve-repo.sh && \
     make dep stor=fs && \
     bash mk-tar.sh && \

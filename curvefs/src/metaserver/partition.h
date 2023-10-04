@@ -56,7 +56,8 @@ class Partition {
     Partition() = default;
 
     // dentry
-    MetaStatusCode CreateDentry(const Dentry& dentry);
+    MetaStatusCode CreateDentry(const Dentry& dentry,
+                                const Time& tm);
 
     MetaStatusCode LoadDentry(const DentryVec& vec, bool merge);
 

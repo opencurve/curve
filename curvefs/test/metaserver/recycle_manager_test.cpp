@@ -172,7 +172,11 @@ TEST_F(RecycleManangeTest, test_empty_recycle) {
     dentry.set_parentinodeid(ROOTINODEID);
     dentry.set_type(FsFileType::TYPE_DIRECTORY);
     dentry.set_txid(0);
-    ASSERT_EQ(partition->CreateDentry(dentry), MetaStatusCode::OK);
+    Time tm;
+    tm.set_sec(0);
+    tm.set_nsec(0);
+    ASSERT_EQ(partition->CreateDentry(dentry, tm),
+              MetaStatusCode::OK);
 
     // create recycle time dir
     InodeParam param;
@@ -189,7 +193,8 @@ TEST_F(RecycleManangeTest, test_empty_recycle) {
     dentry1.set_inodeid(2001);
     dentry1.set_txid(0);
     dentry1.set_type(FsFileType::TYPE_DIRECTORY);
-    ASSERT_EQ(partition->CreateDentry(dentry1), MetaStatusCode::OK);
+    ASSERT_EQ(partition->CreateDentry(dentry1, tm),
+              MetaStatusCode::OK);
 
     // wait clean recycle
     sleep(3);
