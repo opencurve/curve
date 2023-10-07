@@ -38,7 +38,7 @@ extern int g_nbd_index;
 
 std::ostream& operator<<(std::ostream& os, const DeviceInfo& info) {
     TextTable tbl;
-    tbl.define_column("pid", TextTable::LEFT, TextTable::LEFT);
+    tbl.define_column("id", TextTable::LEFT, TextTable::LEFT);
     tbl.define_column("image", TextTable::LEFT, TextTable::LEFT);
     tbl.define_column("device", TextTable::LEFT, TextTable::LEFT);
     tbl.define_column("options", TextTable::LEFT, TextTable::LEFT);
