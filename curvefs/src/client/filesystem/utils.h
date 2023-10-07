@@ -42,7 +42,7 @@ bool IsS3File(const InodeAttr& attr);
 bool IsVolmeFile(const InodeAttr& attr);
 
 // symbol link
-bool IsSymLink(const InodeAttr& attr);
+bool IsSymlink(const InodeAttr& attr);
 
 struct TimeSpec AttrMtime(const InodeAttr& attr);
 

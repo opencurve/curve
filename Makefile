@@ -60,10 +60,10 @@ list:
 	@bash util/build.sh --stor=$(stor) --list
 
 build:
-	@bash util/build.sh --stor=$(stor) --only=$(only) --dep=$(dep) --release=$(release) --ci=$(ci) --os=$(os)
+	@bash util/build_in_image.sh --stor=$(stor) --only=$(only) --dep=$(dep) --release=$(release) --ci=$(ci) --os=$(os)
 
 dep:
-	@bash util/build.sh --stor=$(stor) --only="" --dep=1
+	@bash util/build_in_image.sh --stor=$(stor) --only="" --dep=1
 
 ci-build:
 	@bash util/build_in_image.sh --stor=$(stor) --only=$(only) --dep=$(dep) --release=$(release) --ci=$(ci) --os=$(os) --sanitizer=$(sanitizer)
@@ -88,5 +88,12 @@ test:
 
 docker:
 	@bash util/docker.sh --os=$(os) --ci=$(ci)
+
 format:
 	@bash util/format.sh $(commit_id)
+
+init-hadoop:
+	@bash util/init-hadoop.sh
+
+sdk:
+	@bash util/sdk.sh

@@ -36,6 +36,7 @@
 #include <utility>
 #include <vector>
 
+#include "src/common/configuration.h"
 #include "curvefs/proto/common.pb.h"
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/src/client/client_operator.h"
@@ -84,6 +85,7 @@ using rpcclient::MdsClient;
 using rpcclient::MdsClientImpl;
 using rpcclient::MetaServerClient;
 using rpcclient::MetaServerClientImpl;
+using ::curve::common::Configuration;
 using ::curvefs::client::filesystem::FileSystem;
 using ::curvefs::client::filesystem::EntryOut;
 using ::curvefs::client::filesystem::AttrOut;
@@ -110,7 +112,10 @@ class FuseClient {
         enableSumInDir_(false),
         warmupManager_(nullptr),
         mdsBase_(nullptr),
-        isStop_(true) {}
+        isStop_(true) {
+        //ExternalMember member(dentryManager_, inodeManager_);
+        //fs_ = std::make_shared<FileSystem>(option_.fileSystemOption, member);
+    }
 
     virtual ~FuseClient() {}
 
@@ -128,7 +133,10 @@ class FuseClient {
             enableSumInDir_(false),
             warmupManager_(warmupManager),
             mdsBase_(nullptr),
-            isStop_(true) {}
+            isStop_(true) {
+        //ExternalMember member(dentryManager_, inodeManager_);
+        //fs_ = std::make_shared<FileSystem>(option_.fileSystemOption, member);
+    }
 
     virtual CURVEFS_ERROR Init(const FuseClientOption &option);
 
@@ -289,16 +297,16 @@ class FuseClient {
     }
 
     void SetMounted(bool mounted) {
-        if (warmupManager_ != nullptr) {
-            warmupManager_->SetMounted(mounted);
-        }
+        //if (warmupManager_ != nullptr) {
+        //    warmupManager_->SetMounted(mounted);
+        //}
     }
 
     std::shared_ptr<FsInfo> GetFsInfo() {
         return fsInfo_;
     }
 
-    std::shared_ptr<FileSystem> GetFileSystem() {
+    virtual std::shared_ptr<FileSystem> GetFileSystem() {
         return fs_;
     }
 
@@ -348,6 +356,8 @@ class FuseClient {
         }
         return false;
     }
+
+    CURVEFS_ERROR GetMountOption(struct MountOption* mountOption);
 
     CURVEFS_ERROR SetMountStatus(const struct MountOption *mountOption);
 
@@ -469,6 +479,8 @@ class FuseClient {
     std::shared_ptr<FileSystem> fs_;
 
  private:
+    struct MountOption mountOption_;
+
     MDSBaseClient* mdsBase_;
 
     Atomic<bool> isStop_;

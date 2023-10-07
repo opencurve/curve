@@ -147,7 +147,7 @@ CURVEFS_ERROR InodeCacheManagerImpl::BatchGetInodeAttrAsync(
     // split inodeIds by partitionId and batch limit
     std::vector<std::vector<uint64_t>> inodeGroups;
     if (!metaClient_->SplitRequestInodes(fsId_, *inodeIds, &inodeGroups)) {
-        return CURVEFS_ERROR::NOTEXIST;
+        return CURVEFS_ERROR::NOT_EXIST;
     }
 
     ::curve::common::Mutex mutex;

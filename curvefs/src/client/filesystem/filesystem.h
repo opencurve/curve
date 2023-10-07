@@ -67,25 +67,23 @@ class FileSystem {
     void Destory();
 
     // fuse request
-    CURVEFS_ERROR Lookup(Request req,
-                         Ino parent,
+    CURVEFS_ERROR Lookup(Ino parent,
                          const std::string& name,
                          EntryOut* entryOut);
 
-    CURVEFS_ERROR GetAttr(Request req, Ino ino, AttrOut* attrOut);
+    CURVEFS_ERROR GetAttr(Ino ino, AttrOut* attrOut);
 
-    CURVEFS_ERROR OpenDir(Request req, Ino ino, FileInfo* fi);
+    CURVEFS_ERROR OpenDir(Ino ino, FileInfo* fi);
 
-    CURVEFS_ERROR ReadDir(Request req,
-                          Ino ino,
+    CURVEFS_ERROR ReadDir(Ino ino,
                           FileInfo* fi,
                           std::shared_ptr<DirEntryList>* entries);
 
-    CURVEFS_ERROR ReleaseDir(Request req, Ino ino, FileInfo* fi);
+    CURVEFS_ERROR ReleaseDir(Ino ino, FileInfo* fi);
 
-    CURVEFS_ERROR Open(Request req, Ino ino, FileInfo* fi);
+    CURVEFS_ERROR Open(Ino ino, FileInfo* fi);
 
-    CURVEFS_ERROR Release(Request req, Ino ino);
+    CURVEFS_ERROR Release(Ino ino);
 
     // fuse reply: we control all replies to vfs layer in same entrance.
     void ReplyError(Request req, CURVEFS_ERROR code);
@@ -129,15 +127,6 @@ class FileSystem {
 
     void ReleaseHandler(uint64_t fh);
 
-    // utility: others
-    FileSystemMember BorrowMember();
-
- private:
-    FRIEND_TEST(FileSystemTest, Attr2Stat);
-    FRIEND_TEST(FileSystemTest, Entry2Param);
-    FRIEND_TEST(FileSystemTest, SetEntryTimeout);
-    FRIEND_TEST(FileSystemTest, SetAttrTimeout);
-
     // utility: convert to system type.
     void Attr2Stat(InodeAttr* attr, struct stat* stat);
 
@@ -147,6 +136,9 @@ class FileSystem {
     void SetEntryTimeout(EntryOut* entryOut);
 
     void SetAttrTimeout(AttrOut* attrOut);
+
+    // utility: others
+    FileSystemMember BorrowMember();
 
  private:
     FileSystemOption option_;
