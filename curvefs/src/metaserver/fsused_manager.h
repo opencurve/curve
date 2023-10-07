@@ -34,15 +34,25 @@ using curvefs::client::rpcclient::MetaServerClient;
 class FsUsedManager {
  public:
     explicit FsUsedManager(std::shared_ptr<MetaServerClient> metaserverClient)
-        : metaserverClient_(metaserverClient), fsUsedDeltas_() {}
+        : metaserverClient_(metaserverClient),
+          fsUsedDeltas_(),
+          needStop_(false),
+          stop_(false) {}
 
     void AddFsUsedDelta(FsUsedDelta&& fsUsedDelta);
     void ApplyFsUsedDeltas();
+    void Stop();
+    bool NeedStop();
+    void SetStopped();
 
  private:
     std::shared_ptr<MetaServerClient> metaserverClient_;
     std::deque<FsUsedDelta> fsUsedDeltas_;
     bthread::Mutex dirtyLock_;
+    bool needStop_;
+    bool stop_;
+    bthread::Mutex stopLock_;
+    bthread::ConditionVariable stopCond_;
 };
 
 class UpdateFsUsedTask : public brpc::PeriodicTask {

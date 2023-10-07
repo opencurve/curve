@@ -50,7 +50,30 @@ void FsUsedManager::AddFsUsedDelta(FsUsedDelta&& fsUsedDelta) {
     fsUsedDeltas_.emplace_back(std::move(fsUsedDelta));
 }
 
+void FsUsedManager::Stop() {
+    std::unique_lock<bthread::Mutex> lock_guard(stopLock_);
+    needStop_ = true;
+    while (!stop_) {
+        stopCond_.wait(lock_guard);
+    }
+}
+
+bool FsUsedManager::NeedStop() {
+    std::unique_lock<bthread::Mutex> lock_guard(stopLock_);
+    return needStop_;
+}
+
+void FsUsedManager::SetStopped() {
+    std::unique_lock<bthread::Mutex> lock_guard(stopLock_);
+    stop_ = true;
+    stopCond_.notify_all();
+}
+
 bool UpdateFsUsedTask::OnTriggeringTask(timespec* next_abstime) {
+    if (fsUsedManager_->NeedStop()) {
+        fsUsedManager_->SetStopped();
+        return false;
+    }
     fsUsedManager_->ApplyFsUsedDeltas();
     *next_abstime = butil::seconds_from_now(interval_s_);
     return true;

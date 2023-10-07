@@ -31,11 +31,11 @@ using testing::Matcher;
 class FsQuotaCheckerTest : public testing::Test {
  protected:
     virtual void SetUp() {
+        mockMdsClient_ = std::make_shared<MockMdsClient>();
+        mockMetaServerClient_ = std::make_shared<MockMetaServerClient>();
         FsQuotaChecker::GetInstance().Init(1, mockMdsClient_,
                                            mockMetaServerClient_);
         FsUsedUpdater::GetInstance().Init(1, mockMetaServerClient_);
-        mockMdsClient_ = std::make_shared<MockMdsClient>();
-        mockMetaServerClient_ = std::make_shared<MockMetaServerClient>();
     }
     virtual void TearDown() {}
 
