@@ -56,13 +56,14 @@ namespace client {
 using ::curve::common::Configuration;
 using ::curvefs::mds::topology::PartitionTxId;
 using ::testing::_;
-using ::testing::DoAll;
+using ::testing::AtLeast;
 using ::testing::Contains;
+using ::testing::DoAll;
+using ::testing::Eq;
 using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::SetArgReferee;
-using ::testing::AtLeast;
 using ::testing::SetArrayArgument;
 
 using rpcclient::MockMdsClient;
@@ -115,12 +116,19 @@ class TestFuseVolumeClient : public ::testing::Test {
 
         spaceManager_ = new MockSpaceManager();
         volumeStorage_ = new MockVolumeStorage();
+        auto getRootInode = [](uint32_t, uint64_t, Inode* inode,
+                               bool*) -> MetaStatusCode {
+            (*inode->mutable_xattr())[curvefs::XATTR_FS_BYTES] = "0";
+            return MetaStatusCode::OK;
+        };
+        EXPECT_CALL(*metaClient_, GetInode(_, Eq(ROOTINODEID), _, _))
+            .WillRepeatedly(Invoke(getRootInode));
         client_ = std::make_shared<FuseVolumeClient>(
             mdsClient_, metaClient_, inodeManager_, dentryManager_,
             blockDeviceClient_);
 
-        client_->Init(fuseClientOption_);
         PrepareFsInfo();
+        client_->Init(fuseClientOption_);
         PrepareEnv();
     }
 
@@ -569,6 +577,8 @@ TEST_F(TestFuseVolumeClient, FuseOpUnlink) {
         std::make_shared<InodeWrapper>(parentInode, metaClient_);
 
     EXPECT_CALL(*inodeManager_, GetInode(_, _))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
         .WillOnce(DoAll(SetArgReferee<1>(parentInodeWrapper),
                         Return(CURVEFS_ERROR::OK)))
         .WillOnce(
@@ -630,6 +640,8 @@ TEST_F(TestFuseVolumeClient, FuseOpRmDir) {
         std::make_shared<InodeWrapper>(parentInode, metaClient_);
 
     EXPECT_CALL(*inodeManager_, GetInode(_, _))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
         .WillOnce(DoAll(SetArgReferee<1>(parentInodeWrapper),
                         Return(CURVEFS_ERROR::OK)))
         .WillOnce(
@@ -695,9 +707,13 @@ TEST_F(TestFuseVolumeClient, FuseOpUnlinkFailed) {
         std::make_shared<InodeWrapper>(parentInode, metaClient_);
 
     EXPECT_CALL(*inodeManager_, GetInode(_, _))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
         .WillOnce(DoAll(SetArgReferee<1>(parentInodeWrapper),
                         Return(CURVEFS_ERROR::OK)))
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
         .WillOnce(DoAll(SetArgReferee<1>(parentInodeWrapper),
                         Return(CURVEFS_ERROR::OK)))
         .WillOnce(

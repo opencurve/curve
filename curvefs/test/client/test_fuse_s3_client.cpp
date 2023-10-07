@@ -47,6 +47,7 @@
 #include "curvefs/test/client/mock_metaserver_client.h"
 #include "curvefs/test/client/rpcclient/mock_mds_client.h"
 #include "fuse3/fuse_lowlevel.h"
+#include "curvefs/src/client/fsquota_checker.h"
 
 struct fuse_req {
     struct fuse_ctx* ctx;
@@ -78,6 +79,7 @@ using ::testing::_;
 using ::testing::AtLeast;
 using ::testing::Contains;
 using ::testing::DoAll;
+using ::testing::Eq;
 using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::SetArgPointee;
@@ -136,6 +138,12 @@ class TestFuseS3Client : public ::testing::Test {
     TestFuseS3Client() {}
     ~TestFuseS3Client() {}
 
+    static MetaStatusCode getRootInode(uint32_t, uint64_t, Inode* inode,
+                                       bool*) {
+        (*inode->mutable_xattr())[curvefs::XATTR_FS_BYTES] = "0";
+        return MetaStatusCode::OK;
+    }
+
     virtual void SetUp() {
         Aws::InitAPI(awsOptions_);
         mdsClient_ = std::make_shared<MockMdsClient>();
@@ -146,6 +154,7 @@ class TestFuseS3Client : public ::testing::Test {
         warmupManager_ = std::make_shared<WarmupManagerS3Test>(
             metaClient_, inodeManager_, dentryManager_, nullptr, nullptr,
             nullptr, nullptr, s3ClientAdaptor_);
+        fsQuotaCheckerMetaClient_ = std::make_shared<MockMetaServerClient>();
         client_ = std::make_shared<FuseS3Client>(
             mdsClient_, metaClient_, inodeManager_, dentryManager_,
             s3ClientAdaptor_, warmupManager_);
@@ -181,7 +190,14 @@ class TestFuseS3Client : public ::testing::Test {
         fsInfo->set_fsid(fsId);
         fsInfo->set_fsname("s3fs");
         client_->SetFsInfo(fsInfo);
+        EXPECT_CALL(*metaClient_, GetInode(_, Eq(ROOTINODEID), _, _))
+            .WillOnce(Invoke(getRootInode));
         client_->Init(fuseClientOption_);
+        EXPECT_CALL(*fsQuotaCheckerMetaClient_,
+                    GetInode(_, Eq(ROOTINODEID), _, _))
+            .WillRepeatedly(Invoke(getRootInode));
+        FsQuotaChecker::GetInstance().Init(fsId, mdsClient_,
+                                           fsQuotaCheckerMetaClient_);
         PrepareFsInfo();
     }
 
@@ -233,6 +249,7 @@ class TestFuseS3Client : public ::testing::Test {
     FuseClientOption fuseClientOption_;
     Aws::SDKOptions awsOptions_;
     std::shared_ptr<WarmupManagerS3Test> warmupManager_;
+    std::shared_ptr<MockMetaServerClient> fsQuotaCheckerMetaClient_;
 };
 
 TEST_F(TestFuseS3Client, test_Init_with_KVCache) {
@@ -251,7 +268,8 @@ TEST_F(TestFuseS3Client, test_Init_with_KVCache) {
     {
         EXPECT_CALL(*mdsClient_, AllocOrGetMemcacheCluster(_, _))
             .WillOnce(DoAll(SetArgPointee<1>(memcacheCluster), Return(true)));
-
+        EXPECT_CALL(*metaClient_, GetInode(_, Eq(ROOTINODEID), _, _))
+            .WillOnce(Invoke(getRootInode));
         ASSERT_EQ(CURVEFS_ERROR::OK, testclient->Init(opt));
 
         testclient->UnInit();
@@ -261,6 +279,8 @@ TEST_F(TestFuseS3Client, test_Init_with_KVCache) {
     {
         EXPECT_CALL(*mdsClient_, AllocOrGetMemcacheCluster(_, _))
             .WillOnce(DoAll(SetArgPointee<1>(memcacheCluster), Return(false)));
+        EXPECT_CALL(*metaClient_, GetInode(_, Eq(ROOTINODEID), _, _))
+            .WillOnce(Invoke(getRootInode));
 
         ASSERT_EQ(CURVEFS_ERROR::INTERNAL, testclient->Init(opt));
         testclient->UnInit();
@@ -277,6 +297,8 @@ TEST_F(TestFuseS3Client, test_Init_with_cache_size_0) {
     InitOptionBasic(&opt);
     InitFSInfo(testClient);
 
+    EXPECT_CALL(*metaClient_, GetInode(_, Eq(ROOTINODEID), _, _))
+        .WillOnce(Invoke(getRootInode));
     // test init when write cache is 0
     opt.s3Opt.s3ClientAdaptorOpt.writeCacheMaxByte = 0;
     ASSERT_EQ(CURVEFS_ERROR::CACHETOOSMALL, testClient->Init(opt));
@@ -3939,6 +3961,8 @@ TEST_F(TestFuseS3Client, FuseOpUnlink_EnableSummary) {
         std::make_shared<InodeWrapper>(parentInode, metaClient_);
 
     EXPECT_CALL(*inodeManager_, GetInode(_, _))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
         .WillOnce(DoAll(SetArgReferee<1>(parentInodeWrapper),
                         Return(CURVEFS_ERROR::OK)))
         .WillOnce(

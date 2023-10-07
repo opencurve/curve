@@ -573,6 +573,9 @@ void Metaserver::Stop() {
     s3Adaptor_ = nullptr;
     S3CompactManager::GetInstance().Stop();
     VolumeDeallocateManager::GetInstance().Stop();
+
+    fsUsedManager_->Stop();
+
     LOG(INFO) << "MetaServer stopped success";
 }
 
