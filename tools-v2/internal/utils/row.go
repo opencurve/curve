@@ -132,6 +132,10 @@ const (
 	ROW_HEALTHY_RATIO        = "ratio"
 	ROW_UNHEALTHY_RATIO      = "unhealthyRatio"
 	ROW_FORMAT_PERCENT       = "formatPercent"
+	ROW_TASKTYPE             = "taskType"
+	ROW_ISLAZY               = "isLazy"
+	ROW_NEXTSTEP             = "nextStep"
+	ROW_TIME                 = "time"
 
 	ROW_RW_STATUS               = "rwStatus"
 	ROW_DISK_STATE              = "diskState"

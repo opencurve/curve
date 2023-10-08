@@ -28,6 +28,7 @@ import (
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/query/file"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/query/scanstatus"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/query/seginfo"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/query/volume"
 	"github.com/spf13/cobra"
 )
 
@@ -43,6 +44,7 @@ func (queryCmd *QueryCommand) AddSubCommands() {
 		seginfo.NewSeginfoCommand(),
 		chunk.NewChunkCommand(),
 		scanstatus.NewScanStatusCommand(),
+		volume.NewVolumeCommand(),
 	)
 }
 

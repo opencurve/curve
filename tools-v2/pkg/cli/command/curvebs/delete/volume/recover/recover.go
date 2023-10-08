@@ -31,6 +31,7 @@ import (
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	snapshotutil "github.com/opencurve/curve/tools-v2/internal/utils/snapshot"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
+	clone_recover "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/query/volume/clone-recover"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
 	"github.com/spf13/cobra"
@@ -77,56 +78,26 @@ func (rCmd *RecoverCmd) Init(cmd *cobra.Command, args []string) error {
 }
 
 func (rCmd *RecoverCmd) RunCommand(cmd *cobra.Command, args []string) error {
-	params := map[string]any{
-		snapshotutil.QueryAction:      snapshotutil.ActionGetCloneTaskList,
-		snapshotutil.QueryType:        snapshotutil.TypeRecoverTask,
-		snapshotutil.QueryUser:        rCmd.user,
-		snapshotutil.QueryUUID:        rCmd.taskID,
-		snapshotutil.QuerySource:      rCmd.src,
-		snapshotutil.QueryDestination: rCmd.dest,
-		snapshotutil.QueryStatus:      rCmd.status,
-		snapshotutil.QueryLimit:       100,
-		snapshotutil.QueryOffset:      0,
-	}
-	records := make(snapshotutil.TaskInfos, 0)
-	for {
-		subUri := snapshotutil.NewQuerySubUri(params)
-		metric := basecmd.NewMetric(rCmd.snapshotAddrs, subUri, rCmd.timeout)
-		result, err := basecmd.QueryMetric(metric)
-		if err.TypeCode() != cmderror.CODE_SUCCESS {
-			return err.ToError()
-		}
-
-		var payload struct {
-			snapshotutil.Response
-			TaskInfos  snapshotutil.TaskInfos `json:"TaskInfos"`
-			TotalCount int                    `json:"TotalCount"`
-		}
-		if err := json.Unmarshal([]byte(result), &payload); err != nil {
-			return err
-		}
-		if payload.Code != snapshotutil.ResultSuccess {
-			return fmt.Errorf("get clone list fail, requestId: %s, code: %s, message: %s", payload.RequestId, payload.Code, payload.Message)
-		}
-		if len(payload.TaskInfos) == 0 {
-			break
-		} else {
-			records = append(records, payload.TaskInfos...)
-			params[snapshotutil.QueryOffset] = params[snapshotutil.QueryOffset].(int) + params[snapshotutil.QueryLimit].(int)
-		}
+	config.AddBsTaskTypeOptionFlag(rCmd.Cmd)
+	rCmd.Cmd.ParseFlags([]string{
+		fmt.Sprintf("--%s", config.CURVEBS_TYPE), "recover",
+	})
+	records, err := clone_recover.GetCloneOrRecoverList(rCmd.Cmd)
+	if err.TypeCode() != cmderror.CODE_SUCCESS {
+		return err.ToError()
 	}
 
 	wg := sync.WaitGroup{}
 	for _, item := range records {
 		wg.Add(1)
-		go func(clone snapshotutil.TaskInfo) {
+		go func(recover snapshotutil.TaskInfo) {
 			defer wg.Done()
 			result := cobrautil.ROW_VALUE_SUCCESS
 			reason := ""
 			params := map[string]any{
 				snapshotutil.QueryAction: snapshotutil.ActionCleanCloneTask,
-				snapshotutil.QueryUser:   clone.User,
-				snapshotutil.QueryUUID:   clone.UUID,
+				snapshotutil.QueryUser:   recover.User,
+				snapshotutil.QueryUUID:   recover.UUID,
 			}
 			subUri := snapshotutil.NewQuerySubUri(params)
 			metric := basecmd.NewMetric(rCmd.snapshotAddrs, subUri, rCmd.timeout)
@@ -147,16 +118,17 @@ func (rCmd *RecoverCmd) RunCommand(cmd *cobra.Command, args []string) error {
 				}
 			}
 			rCmd.TableNew.Append(cobrautil.Map2List(map[string]string{
-				cobrautil.ROW_USER:    clone.User,
-				cobrautil.ROW_SRC:     clone.Src,
-				cobrautil.ROW_TASK_ID: clone.UUID,
-				cobrautil.ROW_FILE:    clone.File,
+				cobrautil.ROW_USER:    recover.User,
+				cobrautil.ROW_SRC:     recover.Src,
+				cobrautil.ROW_TASK_ID: recover.UUID,
+				cobrautil.ROW_FILE:    recover.File,
 				cobrautil.ROW_RESULT:  result,
 				cobrautil.ROW_REASON:  reason,
 			}, rCmd.Header))
 		}(item)
 	}
 	wg.Wait()
+
 	rCmd.Result = records
 	rCmd.Error = cmderror.Success()
 	return nil

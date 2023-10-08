@@ -48,21 +48,22 @@ A tool for CurveFS & CurveBs.
         - [warmup query](#warmup-query)
     - [bs](#bs)
       - [list](#list-1)
-          - [list logical-pool](#list-logical-pool)
-          - [list server](#list-server)
-          - [list client](#list-client)
-          - [list dir](#list-dir)
-          - [list space](#list-space)
-          - [list chunkserver](#list-chunkserver)
-          - [list scan-status](#list-scan-status)
-          - [list may-broken-vol](#list-may-broken-vol)
-          - [list snapshot](#list-snapshot)
+        - [list logical-pool](#list-logical-pool)
+        - [list server](#list-server)
+        - [list client](#list-client)
+        - [list dir](#list-dir)
+        - [list space](#list-space)
+        - [list chunkserver](#list-chunkserver)
+        - [list scan-status](#list-scan-status)
+        - [list may-broken-vol](#list-may-broken-vol)
+        - [list snapshot](#list-snapshot)
       - [clean-recycle](#clean-recycle)
       - [query](#query-1)
-          - [query file](#query-file)
-          - [query chunk](#query-chunk)
-          - [query segment](#query-segment)
+        - [query file](#query-file)
+        - [query chunk](#query-chunk)
+        - [query segment](#query-segment)
         - [query scan-status](#query-scan-status)
+        - [query volume clone-recover](#query-volume-clone-recover)
       - [status](#status-1)
         - [status etcd](#status-etcd-1)
         - [status mds](#status-mds-1)
@@ -1439,6 +1440,24 @@ Output:
 +-------------+-----------+-------+-------------+--------------------+
 | 1           | 1         | false | 1684425801  | true               |
 +-------------+-----------+-------+-------------+--------------------+
+```
+
+
+##### query volume clone-recover
+query volume clone and recover in curvebs cluster
+
+Usage:
+```bash
+curve bs query volume clone-recover
+```
+
+Output:
+```bash
++------+--------------------------------------+--------------------------------------+----------+-------+----------+--------+----------+--------+----------+---------------------+
+| USER |                 SRC                  |               TASK ID                | TASKTYPE | FILE  | FILETYPE | ISLAZY | NEXTSTEP | STATUS | PROGRESS |        TIME         |
++------+--------------------------------------+--------------------------------------+----------+-------+----------+--------+----------+--------+----------+---------------------+
+| root | a19b5e5e-b306-488f-8e6d-d87282c869cb | d26e27a8-fcbd-4f7a-adf8-53795217cbb0 |  clone   | /root |   file   | false  |   end    |  done  |    1     | 2006-01-02 15:04:05 |
++------+--------------------------------------+--------------------------------------+----------+-------+----------+--------+----------+--------+----------+---------------------+
 ```
 
 #### status

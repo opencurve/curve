@@ -64,17 +64,17 @@ type SnapshotInfos []SnapshotInfo
 var SnapshotStatus = []string{"done", "in-progress", "deleting", "errorDeleting", "canceling", "error"}
 
 type TaskInfo struct {
-	File       string `json:"File"`
-	FileType   int    `json:"FileType"`
-	IsLazy     bool   `json:"IsLazy"`
-	NextStep   int    `json:"NextStep"`
-	Progress   int    `json:"Progress"`
-	Src        string `json:"Src"`
-	TaskStatus int    `json:"TaskStatus"`
-	TaskType   int    `json:"TaskType"`
-	Time       int    `json:"Time"`
-	UUID       string `json:"UUID"`
-	User       string `json:"User"`
+	File       string  `json:"File"`
+	FileType   int     `json:"FileType"`
+	IsLazy     bool    `json:"IsLazy"`
+	NextStep   int     `json:"NextStep"`
+	Progress   float64 `json:"Progress"`
+	Src        string  `json:"Src"`
+	TaskStatus int     `json:"TaskStatus"`
+	TaskType   int     `json:"TaskType"`
+	Time       int64   `json:"Time"`
+	UUID       string  `json:"UUID"`
+	User       string  `json:"User"`
 }
 
 type TaskInfos []TaskInfo
@@ -83,4 +83,3 @@ var TaskStatus = []string{"Done", "Cloning", "Recovering", "Cleaning", "ErrorCle
 var TaskType = []string{"clone", "recover"}
 var FileType = []string{"file", "snapshot"}
 var CloneStep = []string{"CreateCloneFile", "CreateCloneMeta", "CreateCloneChunk", "CompleteCloneMeta", "RecoverChunk", "ChangeOwner", "RenameCloneFile", "CompleteCloneFile", "End"}
-var IsLazy = []string{"false", "true"}

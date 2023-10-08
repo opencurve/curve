@@ -24,6 +24,7 @@ package clone
 import (
 	"encoding/json"
 	"fmt"
+	clone_recover "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/query/volume/clone-recover"
 	"sync"
 	"time"
 
@@ -78,43 +79,13 @@ func (rCmd *CloneCmd) Init(cmd *cobra.Command, args []string) error {
 }
 
 func (rCmd *CloneCmd) RunCommand(cmd *cobra.Command, args []string) error {
-	params := map[string]any{
-		snapshotutil.QueryAction:      snapshotutil.ActionGetCloneTaskList,
-		snapshotutil.QueryType:        snapshotutil.TypeCloneTask,
-		snapshotutil.QueryUser:        rCmd.user,
-		snapshotutil.QueryUUID:        rCmd.taskID,
-		snapshotutil.QuerySource:      rCmd.src,
-		snapshotutil.QueryDestination: rCmd.dest,
-		snapshotutil.QueryStatus:      rCmd.status,
-		snapshotutil.QueryLimit:       100,
-		snapshotutil.QueryOffset:      0,
-	}
-	records := make(snapshotutil.TaskInfos, 0)
-	for {
-		subUri := snapshotutil.NewQuerySubUri(params)
-		metric := basecmd.NewMetric(rCmd.snapshotAddrs, subUri, rCmd.timeout)
-		result, err := basecmd.QueryMetric(metric)
-		if err.TypeCode() != cmderror.CODE_SUCCESS {
-			return err.ToError()
-		}
-
-		var payload struct {
-			snapshotutil.Response
-			TaskInfos  snapshotutil.TaskInfos `json:"TaskInfos"`
-			TotalCount int                    `json:"TotalCount"`
-		}
-		if err := json.Unmarshal([]byte(result), &payload); err != nil {
-			return err
-		}
-		if payload.Code != snapshotutil.ResultSuccess {
-			return fmt.Errorf("get clone list fail, requestId: %s, code: %s, message: %s", payload.RequestId, payload.Code, payload.Message)
-		}
-		if len(payload.TaskInfos) == 0 {
-			break
-		} else {
-			records = append(records, payload.TaskInfos...)
-			params[snapshotutil.QueryOffset] = params[snapshotutil.QueryOffset].(int) + params[snapshotutil.QueryLimit].(int)
-		}
+	config.AddBsTaskTypeOptionFlag(rCmd.Cmd)
+	rCmd.Cmd.ParseFlags([]string{
+		fmt.Sprintf("--%s", config.CURVEBS_TYPE), "clone",
+	})
+	records, err := clone_recover.GetCloneOrRecoverList(rCmd.Cmd)
+	if err.TypeCode() != cmderror.CODE_SUCCESS {
+		return err.ToError()
 	}
 
 	wg := sync.WaitGroup{}

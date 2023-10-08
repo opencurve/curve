@@ -675,6 +675,10 @@ func AddBsSnapshotIDOptionFlag(cmd *cobra.Command) {
 	AddBsStringOptionFlag(cmd, CURVEBS_SNAPSHOT_ID, "snapshot seqId")
 }
 
+func AddBsTaskTypeOptionFlag(cmd *cobra.Command) {
+	AddBsStringOptionFlag(cmd, CURVEBS_TYPE, "only query target type (clone or recover)")
+}
+
 // get stingslice flag
 func GetBsFlagStringSlice(cmd *cobra.Command, flagName string) []string {
 	var value []string
