@@ -50,5 +50,8 @@ sed -i "s;https://github.com/bazelbuild/platforms/archive/98939346da932eef0b54cf
 # rules_cc
 sed -i "s;https://github.com/bazelbuild/rules_cc/archive/9e10b8a6db775b1ecd358d8ddd3dab379a2c29a5.zip;https://curve-build.nos-eastchina1.126.net/rules_cc-9e10b8a6db775b1ecd358d8ddd3dab379a2c29a5.zip;g" WORKSPACE
 
+# spdlog
+sed -i "s;https://github.com/gabime/spdlog/archive/refs/tags/v1.11.0.tar.gz;https://curve-build.nos-eastchina1.126.net/spdlog-1.11.0.tar.gz;g" WORKSPACE
+
 # curve-nbd
 sed -i "s;https://github.com/opencurve/curve-nbd;https://gitee.com/NetEase_Curve/curve-nbd;g" .gitmodules
