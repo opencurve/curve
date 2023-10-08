@@ -497,6 +497,9 @@ var (
 	ErrBsListSnaspshot = func(requestId, code, message string) *CmdError {
 		return NewInternalCmdError(78, fmt.Sprintf("list snapshot fail, requestId: %s, code: %s, message: %s", requestId, code, message))
 	}
+	ErrBsGetCloneRecover = func() *CmdError {
+		return NewInternalCmdError(73, "get clone-recover fail, err: %s")
+	}
 
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {
