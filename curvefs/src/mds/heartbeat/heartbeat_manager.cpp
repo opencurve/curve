@@ -43,12 +43,13 @@ namespace heartbeat {
 HeartbeatManager::HeartbeatManager(
     const HeartbeatOption &option, const std::shared_ptr<Topology> &topology,
     const std::shared_ptr<Coordinator> &coordinator,
+    const std::shared_ptr<TopologyManager> &topologyManager,
     const std::shared_ptr<SpaceManager> &spaceManager)
     : topology_(topology), spaceManager_(spaceManager) {
     healthyChecker_ =
         std::make_shared<MetaserverHealthyChecker>(option, topology);
 
-    topoUpdater_ = std::make_shared<TopoUpdater>(topology);
+    topoUpdater_ = std::make_shared<TopoUpdater>(topology, topologyManager);
 
     copysetConfGenerator_ = std::make_shared<CopysetConfGenerator>(
         topology, coordinator, option.mdsStartTime,

@@ -765,6 +765,16 @@ TopoStatusCode TopologyManager::DeletePartition(uint32_t partitionId) {
     return TopoStatusCode::TOPO_OK;
 }
 
+void TopologyManager::DeleteAbnormalPartition(uint32_t poolId, uint32_t copysetId, uint32_t partitionId,
+                             const std::set<std::string> &addrs){
+    auto fret = metaserverClient_->DeletePartition(poolId, copysetId, partitionId, addrs);
+    if (fret != FSStatusCode::OK) {
+        LOG(ERROR) << "Failed to delete partition. PoolId: " << poolId 
+                   << ", CopysetId: " << copysetId 
+                   << ", PartitionId: " << partitionId;
+    }
+}
+
 void TopologyManager::DeletePartition(const DeletePartitionRequest *request,
                                       DeletePartitionResponse *response) {
     uint32_t partitionId = request->partitionid();
@@ -1256,6 +1266,10 @@ void TopologyManager::GetTopology(ListTopologyResponse *response) {
     ListZone(response->mutable_zones());
     ListServer(response->mutable_servers());
     ListMetaserverOfCluster(response->mutable_metaservers());
+}
+
+std::shared_ptr<MetaserverClient> TopologyManager::GetMetaserverClient(){
+    return metaserverclient_;
 }
 
 void TopologyManager::ListZone(ListZoneResponse *response) {

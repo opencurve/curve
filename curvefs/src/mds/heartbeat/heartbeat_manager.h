@@ -68,6 +68,7 @@ class HeartbeatManager {
     HeartbeatManager(const HeartbeatOption &option,
                      const std::shared_ptr<Topology> &topology,
                      const std::shared_ptr<Coordinator> &coordinator,
+                     const std::shared_ptr<TopologyManager> &topologyManager,
                      const std::shared_ptr<SpaceManager> &spaceManager);
 
     ~HeartbeatManager() { Stop(); }

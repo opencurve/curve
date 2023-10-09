@@ -37,7 +37,8 @@ namespace heartbeat {
 using curvefs::mds::topology::CopySetIdType;
 class TopoUpdater {
  public:
-    explicit TopoUpdater(const std::shared_ptr<Topology> &topo) : topo_(topo) {}
+    explicit TopoUpdater(const std::shared_ptr<Topology> &topo,
+    const std::shared_ptr<TopologyManager> &topologyManager) : topo_(topo), topologyManager_(topologyManager){}
     ~TopoUpdater() {}
 
     /*
@@ -65,6 +66,7 @@ class TopoUpdater {
 
  private:
     std::shared_ptr<Topology> topo_;
+    std::shared_ptr<TopologyManager> topologyManager_;
 };
 }  // namespace heartbeat
 }  // namespace mds
