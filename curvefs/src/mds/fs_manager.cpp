@@ -791,9 +791,7 @@ FSStatusCode FsManager::GetFsInfo(const std::string& fsName, uint32_t fsId,
 }
 
 int FsManager::IsExactlySameOrCreateUnComplete(const std::string& fsName,
-                                               FSType fsType,
-                                               uint64_t blocksize,
-                                               const FsDetail& detail) {
+    FSType fsType, uint64_t blocksize, const FsDetail& detail) {
     FsInfoWrapper existFs;
 
     auto volumeInfoComparator = [](common::Volume lhs, common::Volume rhs) {
@@ -808,16 +806,34 @@ int FsManager::IsExactlySameOrCreateUnComplete(const std::string& fsName,
         return google::protobuf::util::MessageDifferencer::Equals(lhs, rhs);
     };
 
-    auto checkFsInfo = [fsType, volumeInfoComparator](const FsDetail& lhs,
-                                                      const FsDetail& rhs) {
+    auto s3InfoComparator = [](common::S3Info newFs, common::S3Info existFs) {
+        // If the s3info detail stored in mds doesn't have prefix, the new
+        // client which has prefix value bigger than 0 can't mount filesystem.
+        if (newFs.has_objectprefix() && !existFs.has_objectprefix() &&
+            newFs.objectprefix() != 0) {
+            return false;
+        }
+        // If the s3info detail stored in mds has prefix value bigger than 0,
+        // the old client which doesn't have prefix can't mount filesystem.
+        if (existFs.has_objectprefix() && !newFs.has_objectprefix() &&
+            existFs.objectprefix() != 0) {
+            return false;
+        }
+
+        return google::protobuf::util::MessageDifferencer::Equals(
+              newFs, existFs);
+    };
+
+    auto checkFsInfo = [fsType, volumeInfoComparator, s3InfoComparator](
+                           const FsDetail& newFs, const FsDetail& existFs) {
         switch (fsType) {
             case curvefs::common::FSType::TYPE_S3:
-                return MessageDifferencer::Equals(lhs.s3info(), rhs.s3info());
+                return s3InfoComparator(newFs.s3info(), existFs.s3info());
             case curvefs::common::FSType::TYPE_VOLUME:
-                return volumeInfoComparator(lhs.volume(), rhs.volume());
+                return volumeInfoComparator(newFs.volume(), existFs.volume());
             case curvefs::common::FSType::TYPE_HYBRID:
-                return MessageDifferencer::Equals(lhs.s3info(), rhs.s3info()) &&
-                       volumeInfoComparator(lhs.volume(), rhs.volume());
+                return s3InfoComparator(newFs.s3info(), existFs.s3info()) &&
+                       volumeInfoComparator(newFs.volume(), existFs.volume());
         }
 
         return false;
