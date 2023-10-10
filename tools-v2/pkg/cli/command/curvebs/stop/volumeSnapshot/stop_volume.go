@@ -11,9 +11,9 @@ import (
 )
 
 const (
-	version = "0.0.6"
-	limit   = "100"
-	offset  = "0"
+	VERSION = "0.0.6"
+	LIMIT   = "100"
+	OFFSET  = "0"
 )
 
 type Stop struct {
@@ -45,33 +45,31 @@ type Record struct {
 	Result string `json:"Result"`
 }
 
-func (s *Stop) queryStopBy() []*Record {
-	records := s.getSnapShotListAll()
-	return records
+func (s *Stop) queryStopBy() ([]*Record, *cmderror.CmdError) {
+	records, err := s.getSnapShotListAll()
+	return records, err
 }
 
-func (s *Stop) getSnapShotListAll() []*Record {
+func (s *Stop) getSnapShotListAll() ([]*Record, *cmderror.CmdError) {
 	var receiveRecords []*Record
 	params := QueryParams{
 		Action:  "GetFileSnapshotList",
-		Version: version,
+		Version: VERSION,
 		User:    s.User,
 		UUID:    s.UUID,
 		File:    s.FileName,
-		Limit:   limit,
-		Offset:  offset,
+		Limit:   LIMIT,
+		Offset:  OFFSET,
 	}
 	for {
-		records := s.getSnapShotList(params)
-		if len(records) == 0 || records == nil {
-			break
+		records, err := s.getSnapShotList(params)
+		if err != nil || len(records) == 0 || records == nil {
+			return receiveRecords, err
 		}
 		receiveRecords = append(receiveRecords, records...)
 
 		params.Offset = params.Offset + params.Limit
-
 	}
-	return receiveRecords
 }
 
 type QueryParams struct {
@@ -84,7 +82,7 @@ type QueryParams struct {
 	Offset  string `json:"Offset"`
 }
 
-func (s *Stop) getSnapShotList(params QueryParams) []*Record {
+func (s *Stop) getSnapShotList(params QueryParams) ([]*Record, *cmderror.CmdError) {
 	var resp struct {
 		Code       string
 		Message    string
@@ -94,13 +92,12 @@ func (s *Stop) getSnapShotList(params QueryParams) []*Record {
 	}
 	err := s.query(params, &resp)
 	if err != nil || resp.Code != "0" {
-		fmt.Printf("get snapshot list fail, error=%s\n", err)
-		return nil
+		return resp.SnapShots, err
 	}
-	return resp.SnapShots
+	return resp.SnapShots, nil
 }
 
-func (s *Stop) query(params QueryParams, data interface{}) error {
+func (s *Stop) query(params QueryParams, data interface{}) *cmderror.CmdError {
 	encodedParams := s.encodeParam(params)
 
 	subUri := fmt.Sprintf("/SnapshotCloneService?%s", encodedParams)
@@ -109,11 +106,13 @@ func (s *Stop) query(params QueryParams, data interface{}) error {
 
 	result, err := basecmd.QueryMetric(metric)
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
-		return err.ToError()
+		return err
 	}
 
 	if err := json.Unmarshal([]byte(result), &data); err != nil {
-		return err
+		retErr := cmderror.ErrUnmarshalJson()
+		retErr.Format(err.Error())
+		return retErr
 	}
 
 	return nil
@@ -154,10 +153,10 @@ func (s *Stop) encodeParam(params QueryParams) string {
 	return str[:len(str)-1]
 }
 
-func (s *Stop) stopSnapShot(uuid, user, file string) error {
+func (s *Stop) stopSnapShot(uuid, user, file string) *cmderror.CmdError {
 	params := QueryParams{
 		Action:  "CancelSnapshot",
-		Version: version,
+		Version: VERSION,
 		User:    user,
 		UUID:    uuid,
 		File:    file,

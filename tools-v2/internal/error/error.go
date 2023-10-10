@@ -475,6 +475,12 @@ var (
 	ErrBsGetAllSnapshotResult = func() *CmdError {
 		return NewInternalCmdError(72, "get all snapshot results fail, err: %s")
 	}
+	ErrBsGetSnapShotListResult = func() *CmdError {
+		return NewInternalCmdError(73, "get snapshot list results fail, err: %s")
+	}
+	ErrBsEligibleSnapShot = func() *CmdError {
+		return NewInternalCmdError(74, "no eligible snapshot")
+	}
 
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {

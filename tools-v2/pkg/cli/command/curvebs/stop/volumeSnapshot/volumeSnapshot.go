@@ -37,22 +37,31 @@ func (sCmd *StopCmd) Init(cmd *cobra.Command, args []string) error {
 	sCmd.user = config.GetBsFlagString(sCmd.Cmd, config.CURVEBS_USER)
 	sCmd.fileName = config.GetBsFlagString(sCmd.Cmd, config.CURVEBS_PATH)
 	sCmd.uuid = config.GetBsFlagString(sCmd.Cmd, config.CURVEBS_SNAPSHOTSEQID)
-	header := []string{cobrautil.ROW_RESULT}
+	header := []string{cobrautil.ROW_ID, cobrautil.ROW_RESULT}
 	sCmd.SetHeader(header)
 	return nil
 }
 
 func (sCmd *StopCmd) RunCommand(cmd *cobra.Command, args []string) error {
 	s := newStopSnapShot(sCmd.snapshotAddrs, sCmd.timeout, sCmd.user, sCmd.fileName, sCmd.uuid)
-	records := s.queryStopBy()
+	records, err := s.queryStopBy()
+	if err != nil {
+		sCmd.Error = err
+		return sCmd.Error.ToError()
+	}
+	if records == nil || len(records) == 0 {
+		sCmd.Result = cobrautil.ROW_VALUE_FAILED
+		sCmd.Error = cmderror.ErrBsEligibleSnapShot()
+		return sCmd.Error.ToError()
+	}
 	for _, item := range records {
 		err := s.stopSnapShot(item.UUID, item.User, item.File)
-		if err == nil {
+		if err.TypeCode() == cmderror.CODE_SUCCESS {
 			item.Result = cobrautil.ROW_VALUE_SUCCESS
 		} else {
 			item.Result = cobrautil.ROW_VALUE_FAILED
 		}
-		sCmd.TableNew.Append([]string{item.Result})
+		sCmd.TableNew.Append([]string{item.UUID, item.Result})
 	}
 	sCmd.Result = records
 	sCmd.Error = cmderror.Success()

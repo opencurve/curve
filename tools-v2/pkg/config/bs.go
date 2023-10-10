@@ -633,12 +633,12 @@ func AddBsTaskIDOptionFlag(cmd *cobra.Command) {
 	AddBsStringOptionFlag(cmd, CURVEBS_TASKID, "task id")
 }
 
-func AddBsSnapshotSeqIDOptionFlag(cmd *cobra.Command) {
-	AddBsStringOptionFlag(cmd, CURVEBS_SNAPSHOTSEQID, "snapshot seqId")
-}
-
 func AddBsFailedOptionFlag(cmd *cobra.Command) {
 	AddBsBoolOptionFlag(cmd, CURVEBS_FAILED, "failed")
+}
+
+func AddBsSnapshotSeqIDOptionFlag(cmd *cobra.Command) {
+	AddBsStringOptionFlag(cmd, CURVEBS_SNAPSHOTSEQID, "snapshot seqId")
 }
 
 // get stingslice flag
