@@ -2233,6 +2233,8 @@ StatusCode CurveFS::Clone(const std::string &fileName,
     // add child to snapshot
     snapFileInfo.add_children(fileName);
 
+    FileInfo fileInfo2 = *fileInfo;
+
     // first lookup clone chain to assume clone chain is ok, then put clone file
     FileInfo_CloneInfos *cinfo = fileInfo->add_clones();
     cinfo->set_fileid(srcFileInfo.id());
@@ -2243,7 +2245,7 @@ StatusCode CurveFS::Clone(const std::string &fileName,
         return ret;
     }
 
-    if (storage_->Put2File(*fileInfo, snapFileInfo) != StoreStatus::OK) {
+    if (storage_->Put2File(fileInfo2, snapFileInfo) != StoreStatus::OK) {
         LOG(ERROR) << "Clone Put2File fail, fileName = "
                    << fileName
                    << ", fileInfo.id() = "
