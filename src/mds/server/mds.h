@@ -225,6 +225,7 @@ class MDS {
 
     std::shared_ptr<EtcdClientImp> etcdClient_;
     std::shared_ptr<LeaderElection> leaderElection_;
+    std::shared_ptr<ChunkSegmentAllocator> chunkSegmentAllocate_;
     std::shared_ptr<AllocStatistic> segmentAllocStatistic_;
     std::shared_ptr<NameServerStorage> nameServerStorage_;
     std::shared_ptr<TopologyImpl> topology_;

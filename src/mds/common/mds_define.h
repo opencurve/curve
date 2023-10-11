@@ -48,6 +48,8 @@ const int kCsClientReturnFail = -5;
 const int kCsClientCSOffline = -6;
 // error code: leader not in copyset
 const int kLeaderNotInCopyset = -7;
+// error code：not exist
+const int kMdsNotExist = -8;
 
 // kStaledRequestTimeIntervalUs indicates the expiration time of the request
 // to prevent the request from being intercepted and played back

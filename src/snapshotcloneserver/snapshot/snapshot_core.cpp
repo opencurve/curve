@@ -25,6 +25,7 @@
 #include <glog/logging.h>
 #include <utility>
 #include <algorithm>
+#include <list>
 
 #include "src/common/snapshotclone/snapshotclone_define.h"
 #include "src/snapshotcloneserver/snapshot/snapshot_task.h"

@@ -108,6 +108,7 @@ class NameSpaceServiceTest : public ::testing::Test {
         FlattenOption flattenOption;
         flattenCore_ = std::make_shared<FlattenCore>(
             flattenOption, storage_,
+            chunkSegmentAllocate_, allocStatistic_,
             client, fileLockManager_.get());
         flattenTaskManager_ = std::make_shared<TaskManager>(channelPool);
         flattenManager_ = std::make_shared<FlattenManagerImpl>(

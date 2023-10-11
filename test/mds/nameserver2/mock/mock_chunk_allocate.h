@@ -37,17 +37,17 @@ class MockChunkAllocator: public ChunkSegmentAllocator {
  public:
     ~MockChunkAllocator() {}
 
-    MOCK_METHOD6(AllocateChunkSegment,
+    MOCK_METHOD7(AllocateChunkSegment,
                  bool(FileType,
                       SegmentSizeType,
                       ChunkSizeType,
                       const std::string&,
                       offset_t,
+                      uint64_t,
                       PageFileSegment*));
 
-    MOCK_METHOD4(CloneChunkSegment,
-        bool(const std::string &srcFileName,
-        uint64_t srcFileId,
+    MOCK_METHOD3(CloneChunkSegment,
+        bool(uint64_t srcFileId,
         const PageFileSegment &srcSegment,
         PageFileSegment *segment));
 

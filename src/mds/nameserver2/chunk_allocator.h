@@ -47,11 +47,11 @@ class ChunkSegmentAllocator {
                                       SegmentSizeType segmentSize,
                                       ChunkSizeType chunkSize,
                                       const std::string& pstName,
+                                      uint64_t seqNum,
                                       offset_t offset,
                                       PageFileSegment* segment) = 0;
 
     virtual bool CloneChunkSegment(
-        const std::string &srcFileName,
         uint64_t srcFileId,
         const PageFileSegment &srcSegment,
         PageFileSegment *segment) = 0;
@@ -74,7 +74,9 @@ class ChunkSegmentAllocatorImpl: public ChunkSegmentAllocator {
 
     bool AllocateChunkSegment(FileType type,
         SegmentSizeType segmentSize, ChunkSizeType chunkSize,
-        const std::string& pstName, offset_t offset,
+        const std::string& pstName,
+        uint64_t seqNum,
+        offset_t offset,
         PageFileSegment *segment) override;
 
     void GetRemainingSpaceInLogicalPool(
@@ -85,7 +87,6 @@ class ChunkSegmentAllocatorImpl: public ChunkSegmentAllocator {
         }
 
     bool CloneChunkSegment(
-        const std::string &srcFileName,
         uint64_t srcFileId,
         const PageFileSegment &srcSegment,
         PageFileSegment *segment) override;

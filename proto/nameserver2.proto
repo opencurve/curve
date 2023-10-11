@@ -84,20 +84,13 @@ message FileInfo {
     // sequence numbers of snapshots
     repeated    uint64      snaps = 21;
 
-    optional    bool initCloneSegment = 22;  // 是否已经初始化克隆的segment
+    optional    uint64      cloneSn = 22;  // 如果该卷是克隆卷，保存源快照sn
 
-    optional    uint64      cloneSn = 23;  // 如果该卷是克隆卷，保存源快照sn
+    repeated    common.CloneInfos  clones = 23;  // 向client端返回的克隆链，不持久化
 
-    //clone tree
-    message CloneInfos {
-        required uint64 fileId = 1;
-        required uint64 cloneSn = 2;
-    }
-    repeated    CloneInfos  clones = 24;  // 向client端返回的克隆链，不持久化
-
-    optional bool isProtected = 25;  // for snapshot
-    repeated string children = 26;
-    optional uint32 version = 27;
+    optional bool isProtected = 24;  // for snapshot
+    repeated string children = 25;
+    optional uint32 version = 26;
 }
 
 // status code
@@ -203,7 +196,8 @@ message PageFileSegment {
     required uint32 chunkSize = 4;
     required uint64 startOffset = 2;
     repeated PageFileChunkInfo chunks = 5;
-    optional uint64 originFileId = 6; // 克隆源文件id
+    optional uint64 seqNum = 6;  // segment belong snap sn
+    optional uint64 originFileId = 7; // 克隆源文件id
 }
 
 message CreateFileRequest {
@@ -272,6 +266,7 @@ message GetOrAllocateSegmentRequest {
     required uint64     date = 7;
 
     optional uint64     epoch = 8;
+    repeated common.CloneInfos clones = 9;
 }
 
 message GetOrAllocateSegmentResponse {

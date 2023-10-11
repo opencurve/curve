@@ -1339,6 +1339,7 @@ StatusCode CurveFS::ChangeOwner(const std::string &filename,
 
 StatusCode CurveFS::GetOrAllocateSegment(const std::string & filename,
         offset_t offset, bool allocateIfNoExist,
+        const ::google::protobuf::RepeatedPtrField<CloneInfos> &clones,
         PageFileSegment *segment) {
     assert(segment != nullptr);
     FileInfo  fileInfo;
@@ -1368,6 +1369,60 @@ StatusCode CurveFS::GetOrAllocateSegment(const std::string & filename,
     if (storeRet == StoreStatus::OK) {
         return StatusCode::kOK;
     } else if (storeRet == StoreStatus::KeyNotExist) {
+        if (FileType::INODE_CLONE_PAGEFILE == fileInfo.filetype() &&
+            offset < fileInfo.clonelength()) {
+            if (clones.size() == 0) {
+                LOG(ERROR) << "allocate clone segment found "
+                           << "clone chain is empty, filename = " << filename
+                           << ", offset = " << offset;
+                return StatusCode::KInternalError;
+            }
+            for (const auto& cloneInfo : clones) {
+                PageFileSegment originSegment;
+                storeRet = storage_->GetSegment(
+                    cloneInfo.fileid(), offset, &originSegment);
+                if (storeRet == StoreStatus::OK) {
+                    if (originSegment.seqnum() <= cloneInfo.clonesn()) {
+                        auto ifok = chunkSegAllocator_->CloneChunkSegment(
+                                cloneInfo.fileid(), originSegment, segment);
+                        if (ifok == false) {
+                            LOG(ERROR) << "CloneChunkSegment error";
+                            return StatusCode::kSegmentAllocateError;
+                        }
+                        int64_t revision;
+                        if (storage_->PutSegment(fileInfo.id(), offset,
+                                                 segment, &revision)
+                            != StoreStatus::OK) {
+                            LOG(ERROR) << "PutSegment fail, fileInfo.id() = "
+                                       << fileInfo.id()
+                                       << ", offset = "
+                                       << offset;
+                            return StatusCode::kStorageError;
+                        }
+                        allocStatistic_->AllocSpace(segment->logicalpoolid(),
+                                segment->segmentsize(),
+                                revision);
+                        LOG(INFO) << "clone segment success, fileInfo.id() = "
+                                  << fileInfo.id()
+                                  << ", offset = " << offset;
+                        return StatusCode::kOK;
+                    } else {
+                        // the origin segment is new allocated,
+                        // user normal allocation
+                        break;
+                    }
+                } else if (storeRet == StoreStatus::KeyNotExist) {
+                    continue;
+                } else {
+                    LOG(ERROR) << "GetSegment error, fileid = "
+                               << cloneInfo.fileid()
+                               << ", offset = " << offset
+                               << ", storeRet = " << storeRet;
+                    return StatusCode::kStorageError;
+                }
+            }
+        }
+
         if (allocateIfNoExist == false) {
             LOG(INFO) << "file = " << filename <<", segment offset = " << offset
                       << ", not allocated";
@@ -1379,6 +1434,7 @@ StatusCode CurveFS::GetOrAllocateSegment(const std::string & filename,
                     fileInfo.chunksize(),
                     fileInfo.has_poolset() ? fileInfo.poolset()
                                            : kDefaultPoolsetName,
+                    fileInfo.seqnum(),
                     offset, segment);
             if (ifok == false) {
                 LOG(ERROR) << "AllocateChunkSegment error";
@@ -2098,14 +2154,8 @@ StatusCode CurveFS::Clone(const std::string &fileName,
 
     ret = LookUpFile(parentFileInfo, lastEntry, fileInfo);
     if (ret == StatusCode::kOK) {
-        if (fileInfo->filetype() != FileType::INODE_CLONE_PAGEFILE) {
-            LOG(ERROR) << "Clone failed, dstfile exist.";
-            return StatusCode::kFileExists;
-        }
-        if (fileInfo->initclonesegment()) {
-            LOG(ERROR) << "Clone failed, dstfile exist.";
-            return StatusCode::kFileExists;
-        }
+        LOG(ERROR) << "Clone failed, dstfile exist.";
+        return StatusCode::kFileExists;
     } else if (ret != StatusCode::kFileNotExists) {
         LOG(ERROR) << "LookUpFile failed, ret: " << ret;
         return ret;
@@ -2171,64 +2221,7 @@ StatusCode CurveFS::Clone(const std::string &fileName,
 
     fileInfo->set_version(kSupportLocalSnapshotFileVersion);
 
-    fileInfo->set_initclonesegment(false);
-
-    // 先持久化一次，万一clone中断，可依据此Fileinfo做清理
-    // TODO(xuchaojie): 克隆失败时需清理segment
-    ret = PutFile(*fileInfo);
-    if (ret != StatusCode::kOK) {
-        LOG(ERROR) << "Clone failed, PutFile failed, "
-                   << "fileName: " << fileName
-                   << ", owner: " << owner
-                   << ", srcFileName: " << srcFileName
-                   << ", snapName: " << snapName
-                   << ", ret: " << ret;
-        return ret;
-    }
-
-    // clone segment
-    LOG(INFO) << "Clone Segment length: " << cloneLength;
-    for (uint64_t offset = 0; offset < cloneLength; offset += segmentSize) {
-        PageFileSegment segment;
-        PageFileSegment srcSegment;
-        auto storeRet = storage_->GetSegment(
-            srcFileInfo.id(), offset, &srcSegment);
-        if (storeRet == StoreStatus::OK) {
-            auto ifok = chunkSegAllocator_->CloneChunkSegment(
-                    srcFileName, srcFileInfo.id(), srcSegment, &segment);
-            if (ifok == false) {
-                LOG(ERROR) << "CloneChunkSegment error";
-                return StatusCode::kSegmentAllocateError;
-            }
-            int64_t revision;
-            if (storage_->PutSegment(fileInfo->id(), offset,
-                                     &segment, &revision)
-                != StoreStatus::OK) {
-                LOG(ERROR) << "PutSegment fail, fileInfo.id() = "
-                           << fileInfo->id()
-                           << ", offset = "
-                           << offset;
-                return StatusCode::kStorageError;
-            }
-            allocStatistic_->AllocSpace(segment.logicalpoolid(),
-                    segment.segmentsize(),
-                    revision);
-            LOG(INFO) << "clone segment success, fileInfo.id() = "
-                      << fileInfo->id()
-                      << ", offset = " << offset;
-        } else if (storeRet == StoreStatus::KeyNotExist) {
-            LOG(INFO) << "clone segment source not exist"
-                      << ", use normal allocate logical.";
-            // not exist, use normal allocate logical
-        } else {
-            LOG(ERROR) << "Clone Get srcSegment error";
-            return StatusCode::kStorageError;
-        }
-    }
-
-    // allocate cloneNo
     fileInfo->set_clonesn(snapFileInfo.seqnum());
-    fileInfo->set_initclonesegment(true);
 
     // add child to snapshot
     snapFileInfo.add_children(fileName);
@@ -2236,7 +2229,7 @@ StatusCode CurveFS::Clone(const std::string &fileName,
     FileInfo fileInfo2 = *fileInfo;
 
     // first lookup clone chain to assume clone chain is ok, then put clone file
-    FileInfo_CloneInfos *cinfo = fileInfo->add_clones();
+    auto cinfo = fileInfo->add_clones();
     cinfo->set_fileid(srcFileInfo.id());
     cinfo->set_clonesn(snapFileInfo.seqnum());
     ret = LookUpCloneChain(srcFileInfo, fileInfo);
@@ -2269,7 +2262,7 @@ StatusCode CurveFS::LookUpCloneChain(
             return ret;
         }
 
-        FileInfo_CloneInfos *cinfo = fileInfo->add_clones();
+        auto cinfo = fileInfo->add_clones();
         cinfo->set_fileid(cloneSourceFileInfo.id());
         cinfo->set_clonesn(tmpInfo.clonesn());
         LOG(INFO) << "LookUpCloneChain one step success"

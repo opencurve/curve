@@ -22,9 +22,11 @@
 
 #include "src/snapshotcloneserver/volume/voume_service_manager.h"
 
-#include "src/common/snapshotclone/snapshotclone_define.h"
-
 #include <memory>
+#include <string>
+#include <vector>
+
+#include "src/common/snapshotclone/snapshotclone_define.h"
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -98,7 +100,8 @@ int VolumeServiceManager::BuildFileInfo(const std::string &file,
     if (FileType::INODE_CLONE_PAGEFILE == statInfo.filetype) {
         FileStatus fileStatus;
         uint32_t progress;
-        int ret = client_->QueryFlattenStatus(file, user, &fileStatus, &progress);
+        int ret = client_->QueryFlattenStatus(
+            file, user, &fileStatus, &progress);
         if (ret != LIBCURVE_ERROR::OK) {
             LOG(ERROR) << "QueryFlattenStatus fail, ret = " << ret
                        << ", file = " << file
@@ -141,7 +144,7 @@ int VolumeServiceManager::ListFile(const std::string &dir,
         return ret;
     }
 
-    for (const auto &statInfo: statInfos) {
+    for (const auto &statInfo : statInfos) {
         FileInfo fileInfo;
         std::string fullPathName;
         if (dir[dir.size() - 1] == '/') {
