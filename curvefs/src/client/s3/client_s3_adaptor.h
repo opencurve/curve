@@ -143,12 +143,15 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
     CURVEFS_ERROR FlushAllCache(uint64_t inodeId);
     CURVEFS_ERROR FsSync();
     int Stop();
+
     uint64_t GetBlockSize() {
         return blockSize_;
     }
+
     uint64_t GetChunkSize() {
         return chunkSize_;
     }
+
     uint32_t GetObjectPrefix() {
         return objectPrefix_;
     }
@@ -156,32 +159,43 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
     std::shared_ptr<FsCacheManager> GetFsCacheManager() {
         return fsCacheManager_;
     }
+
     uint32_t GetFlushInterval() { return flushIntervalSec_; }
+
     std::shared_ptr<S3Client> GetS3Client() { return client_; }
+
     uint32_t GetPrefetchBlocks() {
         return prefetchBlocks_;
     }
+
     uint32_t GetDiskCacheType() {
         return diskCacheType_;
     }
+
     bool DisableDiskCache() {
         return diskCacheType_ == DiskCacheType::Disable;
     }
+
     bool HasDiskCache() {
         return diskCacheType_ != DiskCacheType::Disable;
     }
+
     bool IsReadCache() {
         return diskCacheType_ == DiskCacheType::OnlyRead;
     }
+
     bool IsReadWriteCache() {
         return diskCacheType_ == DiskCacheType::ReadWrite;
     }
+
     std::shared_ptr<InodeCacheManager> GetInodeCacheManager() {
         return inodeManager_;
     }
+
     std::shared_ptr<DiskCacheManagerImpl> GetDiskCacheManager() {
         return diskCacheManagerImpl_;
     }
+
     FSStatusCode AllocS3ChunkId(uint32_t fsId, uint32_t idNum,
                                 uint64_t *chunkId);
     void FsSyncSignal() {
@@ -189,21 +203,26 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
         VLOG(3) << "fs sync signal";
         cond_.notify_one();
     }
+
     void FsSyncSignalAndDataCacheInc() {
         std::lock_guard<std::mutex> lk(mtx_);
         fsCacheManager_->DataCacheNumInc();
         VLOG(3) << "fs sync signal";
         cond_.notify_one();
     }
+
     void SetFsId(uint32_t fsId) {
         fsId_ = fsId;
     }
+
     uint32_t GetFsId() {
         return fsId_;
     }
+
     uint32_t GetPageSize() {
         return pageSize_;
     }
+
     void InitMetrics(const std::string &fsName);
 
     void SetDiskCache(DiskCacheType type) {
@@ -253,6 +272,11 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
     uint32_t flushIntervalSec_;
     uint32_t chunkFlushThreads_;
     uint32_t memCacheNearfullRatio_;
+    bool memClusterToLocal_;
+    bool s3ToLocal_;
+    uint32_t bigIoSize_;
+    uint32_t bigIoRetryTimes_;
+    uint32_t bigIoRetryIntervalUs_;
     uint32_t throttleBaseSleepUs_;
     uint32_t maxReadRetryIntervalMs_;
     uint32_t readRetryIntervalMs_;

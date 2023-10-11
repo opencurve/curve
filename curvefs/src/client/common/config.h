@@ -127,6 +127,11 @@ struct S3ClientAdaptorOption {
     uint32_t flushIntervalSec;
     uint64_t writeCacheMaxByte;
     uint64_t readCacheMaxByte;
+    bool memClusterToLocal;
+    bool s3ToLocal;
+    uint32_t bigIoSize;
+    uint32_t bigIoRetryTimes;
+    uint32_t bigIoRetryIntervalUs;
     uint32_t readCacheThreads;
     uint32_t nearfullRatio;
     uint32_t baseSleepUs;

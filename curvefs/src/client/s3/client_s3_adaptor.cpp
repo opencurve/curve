@@ -20,19 +20,42 @@
  * Author: huyao
  */
 
+#include "curvefs/src/client/s3/client_s3_adaptor.h"
+
 #include <brpc/channel.h>
 #include <brpc/controller.h>
+
 #include <algorithm>
 #include <list>
 #include <utility>
 
 #include "absl/memory/memory.h"
-#include "curvefs/src/client/s3/client_s3_adaptor.h"
 #include "curvefs/src/common/s3util.h"
 
 namespace curvefs {
-
 namespace client {
+
+/**
+ * use curl -L mdsIp:port/flags/memClusterToLocal?setvalue=true
+ * for dynamic parameter configuration
+ */
+static bool pass_uint32(const char*, uint32_t) { return true; }
+static bool pass_bool(const char*, bool) { return true; }
+DEFINE_bool(memClusterToLocal, true,
+            "The data in the cache cluster download to local");
+DEFINE_validator(memClusterToLocal, &pass_bool);
+DEFINE_bool(s3ToLocal, true, "The data in the s3 storage download to local");
+DEFINE_validator(s3ToLocal, &pass_bool);
+DEFINE_uint32(
+    bigIoSize, 131072,
+    "read size bigger than this value will read until prefetch is finished");
+DEFINE_validator(bigIoSize, &pass_uint32);
+DEFINE_uint32(bigIoRetryTimes, 100, "retry times when read big io failed");
+DEFINE_validator(bigIoRetryTimes, &pass_uint32);
+DEFINE_uint32(bigIoRetryIntervalUs, 100,
+              "retry interval when read big io failed");
+DEFINE_validator(bigIoRetryIntervalUs, &pass_uint32);
+
 CURVEFS_ERROR
 S3ClientAdaptorImpl::Init(
     const S3ClientAdaptorOption &option, std::shared_ptr<S3Client> client,
@@ -55,6 +78,11 @@ S3ClientAdaptorImpl::Init(
     prefetchExecQueueNum_ = option.prefetchExecQueueNum;
     diskCacheType_ = option.diskCacheOpt.diskCacheType;
     memCacheNearfullRatio_ = option.nearfullRatio;
+    FLAGS_memClusterToLocal = option.memClusterToLocal;
+    FLAGS_s3ToLocal = option.s3ToLocal;
+    FLAGS_bigIoSize = option.bigIoSize;
+    FLAGS_bigIoRetryTimes = option.bigIoRetryTimes;
+    FLAGS_bigIoRetryIntervalUs = option.bigIoRetryIntervalUs;
     throttleBaseSleepUs_ = option.baseSleepUs;
     flushIntervalSec_ = option.flushIntervalSec;
     chunkFlushThreads_ = option.chunkFlushThreads;
@@ -100,7 +128,13 @@ S3ClientAdaptorImpl::Init(
               << ", readCacheMaxByte: " << option.readCacheMaxByte
               << ", readCacheThreads: " << option.readCacheThreads
               << ", nearfullRatio: " << option.nearfullRatio
-              << ", baseSleepUs: " << option.baseSleepUs;
+              << ", baseSleepUs: " << option.baseSleepUs
+              << ", memClusterToLocal: " << FLAGS_memClusterToLocal
+              << ", s3ToLocal: " << FLAGS_s3ToLocal
+              << ", bigIoSize: " << FLAGS_bigIoSize
+              << ", bigIoRetryTimes: " << FLAGS_bigIoRetryTimes
+              << ", bigIoRetryIntervalUs: " << FLAGS_bigIoRetryIntervalUs;
+
     // start chunk flush threads
     taskPool_.Start(chunkFlushThreads_);
     return CURVEFS_ERROR::OK;

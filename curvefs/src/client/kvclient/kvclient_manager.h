@@ -46,6 +46,11 @@ namespace client {
 class KVClientManager;
 struct SetKVCacheTask;
 struct GetKVCacheTask;
+
+class GetKvCacheContext;
+class SetKvCacheContext;
+
+using curve::common::GetObjectAsyncContext;
 using curve::common::TaskThreadPool;
 using curvefs::client::common::KVClientManagerOpt;
 
@@ -96,6 +101,33 @@ struct GetKVCacheTask {
           timer(butil::Timer::STARTED) {}
 };
 
+using GetKvCacheCallBack =
+    std::function<void(const std::shared_ptr<GetKvCacheContext>&)>;
+
+using SetKvCacheCallBack =
+    std::function<void(const std::shared_ptr<SetKvCacheContext>&)>;
+
+struct KvCacheContext {
+    std::string key;
+    uint64_t inodeId;
+    uint64_t offset;
+    uint64_t length;
+    uint64_t chunkIndex;
+    uint64_t chunkPos;
+    uint64_t startTime;
+};
+
+struct GetKvCacheContext : KvCacheContext {
+    char* value;
+    bool res;
+    GetKvCacheCallBack cb;
+};
+
+struct SetKvCacheContext : KvCacheContext {
+    const char* value;
+    SetKvCacheCallBack cb;
+};
+
 class KVClientManager {
  public:
     KVClientManager() = default;
@@ -118,8 +150,11 @@ class KVClientManager {
         return kvClientManagerMetric_.get();
     }
 
+    void Enqueue(std::shared_ptr<GetObjectAsyncContext> context);
+
  private:
     void Uninit();
+    int GetKvCache(std::shared_ptr<GetObjectAsyncContext> context);
 
  private:
     TaskThreadPool<bthread::Mutex, bthread::ConditionVariable> threadPool_;
@@ -129,4 +164,4 @@ class KVClientManager {
 
 }  // namespace client
 }  // namespace curvefs
-#endif   // CURVEFS_SRC_CLIENT_KVCLIENT_KVCLIENT_MANAGER_H_
+#endif  // CURVEFS_SRC_CLIENT_KVCLIENT_KVCLIENT_MANAGER_H_
