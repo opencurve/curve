@@ -31,6 +31,7 @@ import (
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	snapshotutil "github.com/opencurve/curve/tools-v2/internal/utils/snapshot"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -72,80 +73,92 @@ func (rCmd *CloneCmd) Init(cmd *cobra.Command, args []string) error {
 	if rCmd.failed {
 		rCmd.status = "5"
 	}
-	rCmd.SetHeader([]string{cobrautil.ROW_USER, cobrautil.ROW_SRC, cobrautil.ROW_TASK_ID, cobrautil.ROW_FILE, cobrautil.ROW_RESULT})
+	rCmd.SetHeader([]string{cobrautil.ROW_USER, cobrautil.ROW_SRC, cobrautil.ROW_TASK_ID, cobrautil.ROW_FILE, cobrautil.ROW_RESULT, cobrautil.ROW_REASON})
 	return nil
 }
 
 func (rCmd *CloneCmd) RunCommand(cmd *cobra.Command, args []string) error {
 	params := map[string]any{
-		cobrautil.QueryAction:      cobrautil.ActionGetCloneTaskList,
-		cobrautil.QueryType:        cobrautil.TypeCloneTask,
-		cobrautil.QueryUser:        rCmd.user,
-		cobrautil.QueryUUID:        rCmd.taskID,
-		cobrautil.QuerySource:      rCmd.src,
-		cobrautil.QueryDestination: rCmd.dest,
-		cobrautil.QueryStatus:      rCmd.status,
-		cobrautil.QueryLimit:       100,
-		cobrautil.QueryOffset:      0,
+		snapshotutil.QueryAction:      snapshotutil.ActionGetCloneTaskList,
+		snapshotutil.QueryType:        snapshotutil.TypeCloneTask,
+		snapshotutil.QueryUser:        rCmd.user,
+		snapshotutil.QueryUUID:        rCmd.taskID,
+		snapshotutil.QuerySource:      rCmd.src,
+		snapshotutil.QueryDestination: rCmd.dest,
+		snapshotutil.QueryStatus:      rCmd.status,
+		snapshotutil.QueryLimit:       100,
+		snapshotutil.QueryOffset:      0,
 	}
-	records := make([]map[string]string, 0)
+	records := make(snapshotutil.TaskInfos, 0)
 	for {
-		subUri := cobrautil.NewSnapshotQuerySubUri(params)
+		subUri := snapshotutil.NewQuerySubUri(params)
 		metric := basecmd.NewMetric(rCmd.snapshotAddrs, subUri, rCmd.timeout)
 		result, err := basecmd.QueryMetric(metric)
 		if err.TypeCode() != cmderror.CODE_SUCCESS {
 			return err.ToError()
 		}
 
-		var resp struct {
-			Code       string              `json:"Code"`
-			TaskInfos  []map[string]string `json:"TaskInfos"`
-			TotalCount int                 `json:"TotalCount"`
+		var payload struct {
+			snapshotutil.Response
+			TaskInfos  snapshotutil.TaskInfos `json:"TaskInfos"`
+			TotalCount int                    `json:"TotalCount"`
 		}
-		if err := json.Unmarshal([]byte(result), &resp); err != nil {
+		if err := json.Unmarshal([]byte(result), &payload); err != nil {
 			return err
 		}
-		if resp.Code != cobrautil.ResultSuccess {
-			return fmt.Errorf("get clone list fail, error code: %s", resp.Code)
+		if payload.Code != snapshotutil.ResultSuccess {
+			return fmt.Errorf("get clone list fail, requestId: %s, code: %s, message: %s", payload.RequestId, payload.Code, payload.Message)
 		}
-		if len(resp.TaskInfos) == 0 {
+		if len(payload.TaskInfos) == 0 {
 			break
 		} else {
-			records = append(records, resp.TaskInfos...)
-			params[cobrautil.QueryOffset] = params[cobrautil.QueryOffset].(int) + params[cobrautil.QueryLimit].(int)
+			records = append(records, payload.TaskInfos...)
+			params[snapshotutil.QueryOffset] = params[snapshotutil.QueryOffset].(int) + params[snapshotutil.QueryLimit].(int)
 		}
 	}
 
 	wg := sync.WaitGroup{}
 	for _, item := range records {
 		wg.Add(1)
-		go func(item map[string]string) {
+		go func(clone snapshotutil.TaskInfo) {
 			defer wg.Done()
+			result := cobrautil.ROW_VALUE_SUCCESS
+			reason := ""
 			params := map[string]any{
-				cobrautil.QueryAction: cobrautil.ActionCleanCloneTask,
-				cobrautil.QueryUser:   item["User"],
-				cobrautil.QueryUUID:   item["UUID"],
+				snapshotutil.QueryAction: snapshotutil.ActionCleanCloneTask,
+				snapshotutil.QueryUser:   clone.User,
+				snapshotutil.QueryUUID:   clone.UUID,
 			}
-			subUri := cobrautil.NewSnapshotQuerySubUri(params)
+			subUri := snapshotutil.NewQuerySubUri(params)
 			metric := basecmd.NewMetric(rCmd.snapshotAddrs, subUri, rCmd.timeout)
-			result, err := basecmd.QueryMetric(metric)
+			retStr, err := basecmd.QueryMetric(metric)
 			if err.TypeCode() != cmderror.CODE_SUCCESS {
-				item[cobrautil.ROW_RESULT] = cobrautil.ROW_VALUE_FAILED
+				result = cobrautil.ROW_VALUE_FAILED
+				reason = err.ToError().Error()
 			} else {
-				payload := map[string]any{}
-				if err := json.Unmarshal([]byte(result), &payload); err != nil {
-					item[cobrautil.ROW_RESULT] = cobrautil.ROW_VALUE_FAILED
+				payload := snapshotutil.Response{}
+				if err := json.Unmarshal([]byte(retStr), &payload); err != nil {
+					result = cobrautil.ROW_VALUE_FAILED
+					reason = err.Error()
 				} else {
-					if payload[cobrautil.ResultCode] != cobrautil.ResultSuccess {
-						item[cobrautil.ROW_RESULT] = cobrautil.ROW_VALUE_FAILED
+					if payload.Code != snapshotutil.ResultSuccess {
+						result = cobrautil.ROW_VALUE_FAILED
+						reason = payload.Message
 					}
 				}
 			}
-			item[cobrautil.ROW_RESULT] = cobrautil.ROW_VALUE_SUCCESS
-			rCmd.TableNew.Append([]string{item["User"], item["Src"], item["UUID"], item["File"], item["Result"]})
+			rCmd.TableNew.Append(cobrautil.Map2List(map[string]string{
+				cobrautil.ROW_USER:    clone.User,
+				cobrautil.ROW_SRC:     clone.Src,
+				cobrautil.ROW_TASK_ID: clone.UUID,
+				cobrautil.ROW_FILE:    clone.File,
+				cobrautil.ROW_RESULT:  result,
+				cobrautil.ROW_REASON:  reason,
+			}, rCmd.Header))
 		}(item)
 	}
 	wg.Wait()
+
 	rCmd.Result = records
 	rCmd.Error = cmderror.Success()
 	return nil

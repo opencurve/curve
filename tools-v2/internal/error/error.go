@@ -493,6 +493,9 @@ var (
 	ErrBsGetChunkHash = func() *CmdError {
 		return NewInternalCmdError(77, "get chunk hash fail, err: %s")
 	}
+	ErrBsListSnaspshot = func(requestId, code, message string) *CmdError {
+		return NewInternalCmdError(78, fmt.Sprintf("list snapshot fail, requestId: %s, code: %s, message: %s", requestId, code, message))
+	}
 
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {

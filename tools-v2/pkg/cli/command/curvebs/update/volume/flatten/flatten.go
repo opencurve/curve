@@ -23,10 +23,12 @@ package flatten
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	snapshotutil "github.com/opencurve/curve/tools-v2/internal/utils/snapshot"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -86,17 +88,17 @@ func (fCmd *FlattenCmd) Init(cmd *cobra.Command, args []string) error {
 
 func (fCmd *FlattenCmd) RunCommand(cmd *cobra.Command, args []string) error {
 	params := map[string]any{
-		cobrautil.QueryAction: cobrautil.ActionFlatten,
-		cobrautil.QueryUser:   fCmd.user,
-		cobrautil.QueryUUID:   fCmd.taskID,
+		snapshotutil.QueryAction: snapshotutil.ActionFlatten,
+		snapshotutil.QueryUser:   fCmd.user,
+		snapshotutil.QueryUUID:   fCmd.taskID,
 	}
-	subUri := cobrautil.NewSnapshotQuerySubUri(params)
+	subUri := snapshotutil.NewQuerySubUri(params)
 	metric := basecmd.NewMetric(fCmd.snapshotAddrs, subUri, fCmd.timeout)
 	result, err := basecmd.QueryMetric(metric)
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		return err.ToError()
 	}
-	payload := map[string]any{}
+	payload := snapshotutil.Response{}
 	if err := json.Unmarshal([]byte(result), &payload); err != nil {
 		return err
 	}
@@ -104,12 +106,12 @@ func (fCmd *FlattenCmd) RunCommand(cmd *cobra.Command, args []string) error {
 	row[cobrautil.ROW_USER] = fCmd.user
 	row[cobrautil.ROW_TASK_ID] = fCmd.taskID
 
-	if payload[cobrautil.ResultCode] != cobrautil.ResultSuccess {
-		row[cobrautil.ROW_RESULT] = cobrautil.ROW_VALUE_FAILED
-	} else {
-		row[cobrautil.ROW_RESULT] = cobrautil.ROW_VALUE_SUCCESS
+	if payload.Code != snapshotutil.ResultSuccess {
+		return fmt.Errorf("update flatten failed, requestId: %s, code: %s, message: %s", payload.RequestId, payload.Code, payload.Message)
 	}
+	row[cobrautil.ROW_RESULT] = cobrautil.ROW_VALUE_SUCCESS
 
+	fCmd.TableNew.Append([]string{row[cobrautil.ROW_USER], row[cobrautil.ROW_TASK_ID], row[cobrautil.ROW_RESULT]})
 	fCmd.Result = row
 	return nil
 }
