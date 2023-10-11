@@ -3,6 +3,7 @@ package snapshot
 import (
 	"encoding/json"
 	"fmt"
+	snapshotutil "github.com/opencurve/curve/tools-v2/internal/utils/snapshot"
 	"strconv"
 	"time"
 
@@ -17,26 +18,6 @@ import (
 const (
 	snapshotExample = `$ curve bs list snapshot`
 )
-
-type Response struct {
-	Code       string          `json:"Code"`
-	Message    string          `json:"Message"`
-	RequestId  string          `json:"RequestId"`
-	TotalCount int             `json:"TotalCount"`
-	SnapShots  []*SnapShotInfo `json:"Snapshots"`
-}
-
-type SnapShotInfo struct {
-	File       string `json:"File"`
-	FileLength int    `json:"FileLength"`
-	Name       string `json:"Name"`
-	Progress   int    `json:"Progress"`
-	SeqNum     int    `json:"SeqNum"`
-	Status     int    `json:"Status"`
-	Time       int    `json:"Time"`
-	UUID       string `json:"UUID"`
-	User       string `json:"User"`
-}
 
 type SnapShotCommand struct {
 	basecmd.FinalCurveCmd
@@ -109,15 +90,14 @@ func (sCmd *SnapShotCommand) Print(cmd *cobra.Command, args []string) error {
 
 func (sCmd *SnapShotCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	params := map[string]any{
-		cobrautil.QueryAction:  cobrautil.ActionGetFileSnapshotList,
-		cobrautil.QueryVersion: cobrautil.Version,
-		cobrautil.QueryUser:    sCmd.user,
-		cobrautil.QueryFile:    sCmd.file,
-		cobrautil.QueryLimit:   cobrautil.Limit,
-		cobrautil.QueryOffset:  cobrautil.Offset,
+		snapshotutil.QueryAction: snapshotutil.ActionGetFileSnapshotList,
+		snapshotutil.QueryUser:   sCmd.user,
+		snapshotutil.QueryFile:   sCmd.file,
+		snapshotutil.QueryLimit:  snapshotutil.Limit,
+		snapshotutil.QueryOffset: snapshotutil.Offset,
 	}
 	if sCmd.uuid != "*" {
-		params[cobrautil.QueryUUID] = sCmd.uuid
+		params[snapshotutil.QueryUUID] = sCmd.uuid
 	}
 	snapshotsInfo, err := ListSnapShot(sCmd.snapshotAddrs, sCmd.timeout, params)
 	if err != nil {
@@ -149,11 +129,15 @@ func (sCmd *SnapShotCommand) ResultPlainOutput() error {
 	return output.FinalCmdOutputPlain(&sCmd.FinalCurveCmd)
 }
 
-func ListSnapShot(addrs []string, timeout time.Duration, params map[string]any) ([]*SnapShotInfo, *cmderror.CmdError) {
-	var snapshotsInfo []*SnapShotInfo
+func ListSnapShot(addrs []string, timeout time.Duration, params map[string]any) ([]*snapshotutil.SnapshotInfo, *cmderror.CmdError) {
+	var snapshotsInfo []*snapshotutil.SnapshotInfo
 	for {
-		var resp Response
-		subUri := cobrautil.NewSubUri(params)
+		var resp struct {
+			snapshotutil.Response
+			TotalCount int                          `json:"TotalCount"`
+			SnapShots  []*snapshotutil.SnapshotInfo `json:"SnapShots"`
+		}
+		subUri := snapshotutil.NewQuerySubUri(params)
 		metric := basecmd.NewMetric(addrs, subUri, timeout)
 
 		result, err := basecmd.QueryMetric(metric)
@@ -165,12 +149,15 @@ func ListSnapShot(addrs []string, timeout time.Duration, params map[string]any) 
 			retErr.Format(err.Error())
 			return snapshotsInfo, retErr
 		}
+		if resp.Code != snapshotutil.ResultSuccess {
+			return snapshotsInfo, cmderror.ErrBsListSnaspshot(resp.RequestId, resp.Code, resp.Message)
+		}
 		if len(resp.SnapShots) == 0 || resp.SnapShots == nil {
 			return snapshotsInfo, nil
 		}
 		snapshotsInfo = append(snapshotsInfo, resp.SnapShots...)
-		offsetValue, _ := strconv.Atoi(params[cobrautil.QueryOffset].(string))
-		limitValue, _ := strconv.Atoi(params[cobrautil.QueryLimit].(string))
-		params[cobrautil.QueryOffset] = strconv.Itoa(offsetValue + limitValue)
+		offsetValue, _ := strconv.Atoi(params[snapshotutil.QueryOffset].(string))
+		limitValue, _ := strconv.Atoi(params[snapshotutil.QueryLimit].(string))
+		params[snapshotutil.QueryOffset] = strconv.Itoa(offsetValue + limitValue)
 	}
 }

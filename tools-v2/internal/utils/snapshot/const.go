@@ -20,13 +20,7 @@
  * Author: baytan0720
  */
 
-package cobrautil
-
-import (
-	"fmt"
-	"net/url"
-	"strings"
-)
+package snapshot
 
 const (
 	Version         = "0.0.6"
@@ -61,32 +55,3 @@ const (
 	Limit         = "100"
 	Offset        = "0"
 )
-
-func NewSnapshotQuerySubUri(params map[string]any) string {
-	values := url.Values{}
-
-	values.Add(QueryVersion, Version)
-	for key, value := range params {
-		if value != "" {
-			values.Add(key, fmt.Sprintf("%s", value))
-		}
-	}
-
-	return "/SnapshotCloneService?" + values.Encode()
-}
-
-func NewSubUri(params map[string]any) string {
-	values := strings.Builder{}
-	for key, value := range params {
-		if value != "" {
-			values.WriteString(key)
-			values.WriteString("=")
-			values.WriteString(value.(string))
-			values.WriteString("&")
-		}
-	}
-	str := values.String()
-	encodedParams := str[:len(str)-1]
-	subUri := fmt.Sprintf("/SnapshotCloneService?%s", encodedParams)
-	return subUri
-}
