@@ -107,5 +107,26 @@ void KVClientManager::Get(std::shared_ptr<GetKVCacheTask> task) {
     });
 }
 
+void KVClientManager::Enqueue(std::shared_ptr<GetObjectAsyncContext> context) {
+    auto task = [this, context]() { this->GetKvCache(context); };
+    threadPool_.Enqueue(task);
+}
+
+int KVClientManager::GetKvCache(
+    std::shared_ptr<GetObjectAsyncContext> context) {
+    VLOG(9) << "GetKvCache start: " << context->key;
+    std::string error_log;
+    memcached_return_t retCode;
+    uint64_t actLength = 0;
+    context->retCode =
+        !client_->Get(context->key, context->buf, context->offset, context->len,
+                      &error_log, &actLength, &retCode);
+    context->actualLen = actLength;
+    context->cb(nullptr, context);
+    VLOG(9) << "GetKvCache end: " << context->key << ", " << context->retCode
+            << ", " << context->actualLen;
+    return 0;
+}
+
 }  // namespace client
 }  // namespace curvefs

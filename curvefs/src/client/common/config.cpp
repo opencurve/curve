@@ -227,6 +227,16 @@ void InitS3Option(Configuration *conf, S3Option *s3Opt) {
                               &s3Opt->s3ClientAdaptorOpt.writeCacheMaxByte);
     conf->GetValueFatalIfFail("s3.readCacheMaxByte",
                               &s3Opt->s3ClientAdaptorOpt.readCacheMaxByte);
+    conf->GetValueFatalIfFail("s3.memClusterToLocal",
+                              &s3Opt->s3ClientAdaptorOpt.memClusterToLocal);
+    conf->GetValueFatalIfFail("s3.s3ToLocal",
+                              &s3Opt->s3ClientAdaptorOpt.s3ToLocal);
+    conf->GetValueFatalIfFail("s3.bigIoSize",
+                              &s3Opt->s3ClientAdaptorOpt.bigIoSize);
+    conf->GetValueFatalIfFail("s3.bigIoRetryTimes",
+                              &s3Opt->s3ClientAdaptorOpt.bigIoRetryTimes);
+    conf->GetValueFatalIfFail("s3.bigIoRetryIntervalUs",
+                              &s3Opt->s3ClientAdaptorOpt.bigIoRetryIntervalUs);
     conf->GetValueFatalIfFail("s3.readCacheThreads",
                               &s3Opt->s3ClientAdaptorOpt.readCacheThreads);
     conf->GetValueFatalIfFail("s3.nearfullRatio",
@@ -240,6 +250,7 @@ void InitS3Option(Configuration *conf, S3Option *s3Opt) {
                               &s3Opt->s3ClientAdaptorOpt.readRetryIntervalMs);
     ::curve::common::InitS3AdaptorOptionExceptS3InfoOption(conf,
                                                            &s3Opt->s3AdaptrOpt);
+
     InitDiskCacheOption(conf, &s3Opt->s3ClientAdaptorOpt.diskCacheOpt);
 }
 

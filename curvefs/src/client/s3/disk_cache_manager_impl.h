@@ -79,7 +79,7 @@ class DiskCacheManagerImpl {
      * @param[in] option config option
      * @return success: 0, fail : < 0
      */
-    int Init(const S3ClientAdaptorOption option);
+    virtual int Init(const S3ClientAdaptorOption option);
     /**
      * @brief Write obj
      * @param[in] name obj name
@@ -87,13 +87,13 @@ class DiskCacheManagerImpl {
      * @param[in] length write length
      * @return success: write length, fail : < 0
      */
-    int Write(const std::string name, const char *buf, uint64_t length);
+    virtual int Write(const std::string name, const char* buf, uint64_t length);
     /**
      * @brief whether obj is cached in cached disk
      * @param[in] name obj name
      * @return cached: true, not cached : < 0
      */
-    bool IsCached(const std::string name);
+    virtual bool IsCached(const std::string name);
     /**
      * @brief read obj
      * @param[in] name obj name
@@ -102,17 +102,17 @@ class DiskCacheManagerImpl {
      * @param[in] length read length
      * @return success: length, fail : < length
      */
-    int Read(const std::string name, char *buf, uint64_t offset,
-             uint64_t length);
+    virtual int Read(const std::string name, char* buf, uint64_t offset,
+                     uint64_t length);
     /**
      * @brief umount disk cache
      * @return success: 0, fail : < 0
      */
-    int UmountDiskCache();
+    virtual int UmountDiskCache();
 
     bool IsDiskCacheFull();
-    int WriteReadDirect(const std::string fileName, const char *buf,
-                        uint64_t length);
+    virtual int WriteReadDirect(const std::string fileName, const char* buf,
+                                uint64_t length);
     void InitMetrics(std::string fsName, std::shared_ptr<S3Metric> s3Metric);
 
     virtual int UploadWriteCacheByInode(const std::string &inode);
