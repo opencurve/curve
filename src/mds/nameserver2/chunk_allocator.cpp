@@ -29,7 +29,9 @@ namespace curve {
 namespace mds {
 bool ChunkSegmentAllocatorImpl::AllocateChunkSegment(FileType type,
         SegmentSizeType segmentSize, ChunkSizeType chunkSize,
-        const std::string& pstName, offset_t offset,
+        const std::string& pstName,
+        uint64_t seqNum,
+        offset_t offset,
         PageFileSegment *segment)  {
         if (segment == nullptr) {
             LOG(ERROR) << "segment pointer is null";
@@ -87,11 +89,12 @@ bool ChunkSegmentAllocatorImpl::AllocateChunkSegment(FileType type,
             chunkinfo->set_chunkid(chunkID);
             chunkinfo->set_copysetid(copysets[i].copySetId);
         }
+
+        segment->set_seqnum(seqNum);
         return true;
 }
 
 bool ChunkSegmentAllocatorImpl::CloneChunkSegment(
-    const std::string &srcFileName,
     uint64_t srcFileId,
     const PageFileSegment &srcSegment,
     PageFileSegment *segment) {
@@ -128,6 +131,7 @@ bool ChunkSegmentAllocatorImpl::CloneChunkSegment(
         chunkinfo->set_chunkid(chunkID);
         chunkinfo->set_copysetid(srcSegment.chunks(i).copysetid());
     }
+    segment->set_seqnum(kStartSeqNum);
     return true;
 }
 

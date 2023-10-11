@@ -23,11 +23,11 @@
 #ifndef SRC_SNAPSHOTCLONESERVER_VOLUME_VOUME_SERVICE_MANAGER_H_
 #define SRC_SNAPSHOTCLONESERVER_VOLUME_VOUME_SERVICE_MANAGER_H_
 
+#include <memory>
+#include <vector>
+#include <string>
 
 #include "json/json.h"
-
-#include <memory>
-
 #include "src/snapshotcloneserver/common/curvefs_client.h"
 
 namespace curve {

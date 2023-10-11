@@ -65,20 +65,18 @@ void FlattenCore::DoFlatten(
     uint32_t workingChunkNum = 0;
     auto tracker = std::make_shared<FlattenChunkTaskTracker>();
     for (uint64_t i = 0; i < cloneSegmentNum; i++) {
+        uint64_t offset = i * segmentSize;
         progress->SetProgress(100 * i / cloneSegmentNum);
 
         // 2. 加载克隆的segment
         PageFileSegment segment;
-        StoreStatus storeRet = storage_->GetSegment(fileInfo.id(),
-            i * segmentSize, &segment);
-        if (storeRet == StoreStatus::KeyNotExist) {
-            // not exist, mains not clone segment
+        ret = GetOrAllocCloneSegment(fileName, fileInfo, offset, &segment);
+        if (kMdsNotExist == ret) {
+            // segment not exist, skip
+            ret = kMdsSuccess;
             continue;
-        } else if (storeRet != StoreStatus::OK) {
-            LOG(ERROR) << "load clone segment fail, file: " << fileName
-                       << ", id: " << fileInfo.id()
-                       << ", offset: " << i * segmentSize;
-            ret = kMdsFail;
+        } else if (ret < 0) {
+            LOG(ERROR) << "get or alloc clone segment fail, ret: " << ret;
             break;
         }
 
@@ -219,6 +217,83 @@ void FlattenCore::DoFlatten(
         }
     }
     return;
+}
+
+int FlattenCore::GetOrAllocCloneSegment(
+    const std::string &fileName,
+    const FileInfo &fileInfo,
+    uint64_t offset,
+    PageFileSegment *segment) {
+    // 加锁防止与curvefs中分配segment并发执行
+    FileWriteLockGuard guard(fileLockManager_, fileName);
+    StoreStatus storeRet = storage_->GetSegment(fileInfo.id(),
+        offset, segment);
+    if (storeRet == StoreStatus::KeyNotExist) {
+        if (fileInfo.clones_size() == 0) {
+            LOG(ERROR) << "flatten fileInfo does not have clone chain"
+                       << ", file: " << fileName;
+            return kMdsFail;
+        }
+        bool ifCloneSegment = false;
+        // lookup clonechain
+        for (const auto& cloneInfo : fileInfo.clones()) {
+            PageFileSegment originSegment;
+            storeRet = storage_->GetSegment(
+                cloneInfo.fileid(), offset, &originSegment);
+            if (storeRet == StoreStatus::OK) {
+                if (originSegment.seqnum() <= cloneInfo.clonesn()) {
+                    auto ifok = chunkSegAllocator_->CloneChunkSegment(
+                            cloneInfo.fileid(), originSegment, segment);
+                    if (ifok == false) {
+                        LOG(ERROR) << "CloneChunkSegment error";
+                        return kMdsFail;
+                    }
+                    int64_t revision;
+                    if (storage_->PutSegment(fileInfo.id(), offset,
+                                             segment, &revision)
+                        != StoreStatus::OK) {
+                        LOG(ERROR) << "PutSegment fail, fileid = "
+                                   << fileInfo.id()
+                                   << ", offset = "
+                                   << offset;
+                        return kMdsFail;
+                    }
+                    allocStatistic_->AllocSpace(
+                        segment->logicalpoolid(),
+                        segment->segmentsize(),
+                        revision);
+                    ifCloneSegment = true;
+                    LOG(INFO) << "Flatten clone segment success"
+                              << ", fileInfo.id() = "
+                              << fileInfo.id()
+                              << ", offset = " << offset;
+                    break;
+                } else {
+                    // the origin segment is new allocated,
+                    // user normal allocation
+                    ifCloneSegment = false;
+                    break;
+                }
+            } else if (storeRet == StoreStatus::KeyNotExist) {
+                continue;
+            } else {
+                LOG(ERROR) << "GetSegment error, fileid = "
+                           << cloneInfo.fileid()
+                           << ", offset = " << offset
+                           << ", storeRet = " << storeRet;
+                return kMdsFail;
+            }
+        }
+        if (!ifCloneSegment) {
+            return kMdsNotExist;
+        }
+    } else if (storeRet != StoreStatus::OK) {
+        LOG(ERROR) << "load clone segment fail, file: " << fileName
+                   << ", id: " << fileInfo.id()
+                   << ", offset: " << offset;
+        return kMdsFail;
+    }
+    return kMdsSuccess;
 }
 
 int FlattenCore::StartAsyncFlattenChunkPart(

@@ -49,6 +49,7 @@
 using curve::common::Authenticator;
 using curve::mds::snapshotcloneclient::SnapshotCloneClient;
 using curve::common::ChunkServerLocation;
+using curve::common::CloneInfos;
 
 namespace curve {
 namespace mds {
@@ -291,7 +292,9 @@ class CurveFS {
     StatusCode GetOrAllocateSegment(
         const std::string & filename,
         offset_t offset,
-        bool allocateIfNoExist, PageFileSegment *segment);
+        bool allocateIfNoExist,
+        const ::google::protobuf::RepeatedPtrField<CloneInfos> &clones,
+        PageFileSegment *segment);
 
     /**
      *  @brief get the root file info

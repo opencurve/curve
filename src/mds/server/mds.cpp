@@ -467,6 +467,8 @@ void MDS::InitFlattenManager() {
     InitFlattenOption(&flattenOption);
     auto flattenCore = std::make_shared<FlattenCore>(
         flattenOption, nameServerStorage_,
+        chunkSegmentAllocate_,
+        segmentAllocStatistic_,
         copysetClient_, fileLockManager_);
     auto flattenTaskManager = std::make_shared<TaskManager>(channelPool_);
     flattenManager_ = std::make_shared<FlattenManagerImpl>(
@@ -481,7 +483,7 @@ void MDS::InitCurveFS(const CurveFSOption& curveFSOptions) {
     auto chunkIdGenerator = std::make_shared<ChunkIDGeneratorImp>(etcdClient_);
 
     // init ChunkSegmentAllocator
-    auto chunkSegmentAllocate =
+    chunkSegmentAllocate_ =
         std::make_shared<ChunkSegmentAllocatorImpl>(
                         topologyChunkAllocator_, chunkIdGenerator);
     LOG(INFO) << "init ChunkSegmentAllocator success.";
@@ -498,7 +500,7 @@ void MDS::InitCurveFS(const CurveFSOption& curveFSOptions) {
     InitFlattenManager();
 
     LOG_IF(FATAL, !kCurveFS.Init(nameServerStorage_, inodeIdGenerator,
-                  chunkSegmentAllocate, cleanManager_,
+                  chunkSegmentAllocate_, cleanManager_,
                   fileRecordManager,
                   segmentAllocStatistic_,
                   curveFSOptions, topology_,

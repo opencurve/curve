@@ -327,7 +327,7 @@ void ReadChunkRequest::OnApply(uint64_t index,
     }
 
     // need to set NeedClone() to false, use new protocol
-    if ("" == chunkInfo.location) {//if is new protocol or not clone chunk
+    if ("" == chunkInfo.location) {  // if is new protocol or not clone chunk
         chunkInfo.isClone = false;
     }
 
@@ -378,11 +378,12 @@ void ReadChunkRequest::OnApply(uint64_t index,
             if ((false == request_->has_originfileid()) ||
                 (request_->originfileid() == 0)) {
                 // not clone chunk, the bitmap is to be nullptr
-                // compatiable with old version need to judge that location is ""
+                // compatiable with old version
+                // need to judge that location is ""
                 // if location is "", do assert code
                 if ("" == chunkInfo.location) {
                     assert(chunkInfo.bitmap == nullptr);
-                }            
+                }
             }
             ReadChunk();
         }

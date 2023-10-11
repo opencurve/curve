@@ -42,3 +42,8 @@ message ChunkServerLocation {
     optional string externalIp = 4;
 }
 
+message CloneInfos {
+    required uint64 fileId = 1;
+    required uint64 cloneSn = 2; //the snapshot used to create the next clone;
+}
+

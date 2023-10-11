@@ -64,7 +64,7 @@ int CloneCoreImpl::CloneLocal(const std::string &file,
     if (kErrCodeFileExist == ret) {
         if ((finfo.cloneSource == file) &&
             (finfo.owner == user) &&
-            (poolset.empty() || poolset == finfo.poolset)){
+            (poolset.empty() || poolset == finfo.poolset)) {
             return kErrCodeSuccess;
         } else {
             LOG(WARNING) << "Clone fail, ret = " << ret

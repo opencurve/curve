@@ -493,10 +493,17 @@ void MDSClientBase::GetOrAllocateSegment(bool allocate,
     }
     FillUserInfo(&request, fi->userinfo);
 
+    for (const auto &cloneInfo : fi->cloneChain) {
+        auto cinfo = request.add_clones();
+        cinfo->set_fileid(cloneInfo.fileId);
+        cinfo->set_clonesn(cloneInfo.cloneSn);
+    }
+
     LOG(INFO) << "GetOrAllocateSegment: filename = " << fi->fullPathName
               << ", allocate = " << allocate << ", owner = " << fi->owner
               << ", offset = " << offset << ", segment offset = " << seg_offset
-              << ", log id = " << cntl->log_id();
+              << ", log id = " << cntl->log_id()
+              << ", request = " << request.ShortDebugString();
 
     curve::mds::CurveFSService_Stub stub(channel);
     stub.GetOrAllocateSegment(cntl, &request, response, NULL);

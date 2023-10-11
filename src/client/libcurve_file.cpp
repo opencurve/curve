@@ -227,10 +227,12 @@ int FileClient::Open(const std::string& filename,
             return -1;
         }
         fileserv->SetReadSnapshotSn(sn);
-        fileserv->GetIOManager4File()->UpdateFileInfo(fileserv->GetCurrentFileInfo());
+        fileserv->GetIOManager4File()->UpdateFileInfo(
+            fileserv->GetCurrentFileInfo());
     } else {
         fileserv = FileInstance::NewInitedFileInstance(
-            clientConfig.GetFileServiceOption(), mdsClient, realfilename, userinfo,
+            clientConfig.GetFileServiceOption(),
+            mdsClient, realfilename, userinfo,
             openflags, false);
         if (fileserv == nullptr) {
             LOG(ERROR) << "NewInitedFileInstance fail";

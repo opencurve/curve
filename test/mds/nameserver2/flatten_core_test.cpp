@@ -27,6 +27,8 @@
 #include "src/mds/nameserver2/flatten_core.h"
 #include "test/mds/nameserver2/mock/mock_namespace_storage.h"
 #include "test/mds/nameserver2/mock/mock_copyset_client.h"
+#include "test/mds/mock/mock_alloc_statistic.h"
+#include "test/mds/nameserver2/mock/mock_chunk_allocate.h"
 
 using ::testing::AtLeast;
 using ::testing::StrEq;
@@ -53,9 +55,13 @@ class FlattenCoreTest : public ::testing::Test {
     void SetUp() override {
         storage_ = std::make_shared<MockNameServerStorage>();
         csClient_ = std::make_shared<MockCopysetClient>();
+        mockChunkAllocator_ = std::make_shared<MockChunkAllocator>();
+        allocStatistic_ = std::make_shared<MockAllocStatistic>();
         fileLockManager_ = new FileLockManager(8);
         core_ = std::make_shared<FlattenCore>(
-            flattenOption_, storage_, csClient_,
+            flattenOption_, storage_,
+            mockChunkAllocator_, allocStatistic_,
+            csClient_,
             fileLockManager_);
     }
 
@@ -68,6 +74,8 @@ class FlattenCoreTest : public ::testing::Test {
 
  protected:
     std::shared_ptr<MockNameServerStorage> storage_;
+    std::shared_ptr<MockChunkAllocator> mockChunkAllocator_;
+    std::shared_ptr<MockAllocStatistic> allocStatistic_;
     std::shared_ptr<MockCopysetClient> csClient_;
     std::shared_ptr<FlattenCore> core_;
     FileLockManager* fileLockManager_;
@@ -105,7 +113,7 @@ TEST_F(FlattenCoreTest, DoFlatten) {
         ASSERT_EQ(TaskStatus::SUCCESS, progress.GetStatus());
         ASSERT_EQ(100, progress.GetProgress());
     }
-    // segment not exist, flatten success
+    // segment not exist, not have clone chain, flatten falied
     {
         std::string fileName = "/clone1";
         FileInfo fileInfo;
@@ -117,6 +125,189 @@ TEST_F(FlattenCoreTest, DoFlatten) {
 
         EXPECT_CALL(*storage_, GetSegment(_, _, _))
             .WillOnce(Return(StoreStatus::KeyNotExist));
+
+        core_->DoFlatten(fileName, fileInfo, snapFileInfo, &progress);
+        ASSERT_EQ(TaskStatus::FAILED, progress.GetStatus());
+        ASSERT_EQ(0, progress.GetProgress());
+    }
+    // segment not exist, parent segment also not exist, flatten success
+    {
+        std::string fileName = "/clone1";
+        FileInfo fileInfo;
+        fileInfo.set_segmentsize(kSegmentSize);
+        fileInfo.set_chunksize(kChunkSize);
+        fileInfo.set_clonelength(kSegmentSize);
+        auto cloneInfo = fileInfo.add_clones();
+        cloneInfo->set_fileid(100);
+        cloneInfo->set_clonesn(1);
+
+        FileInfo snapFileInfo;
+        TaskProgress progress;
+
+        EXPECT_CALL(*storage_, GetSegment(_, _, _))
+            .WillOnce(Return(StoreStatus::KeyNotExist))
+            .WillOnce(Return(StoreStatus::KeyNotExist));
+
+        core_->DoFlatten(fileName, fileInfo, snapFileInfo, &progress);
+        ASSERT_EQ(TaskStatus::SUCCESS, progress.GetStatus());
+        ASSERT_EQ(100, progress.GetProgress());
+    }
+    // segment not exist, parent segment get failed, flatten failed
+    {
+        std::string fileName = "/clone1";
+        FileInfo fileInfo;
+        fileInfo.set_segmentsize(kSegmentSize);
+        fileInfo.set_chunksize(kChunkSize);
+        fileInfo.set_clonelength(kSegmentSize);
+        auto cloneInfo = fileInfo.add_clones();
+        cloneInfo->set_fileid(100);
+        cloneInfo->set_clonesn(1);
+
+        FileInfo snapFileInfo;
+        TaskProgress progress;
+
+        EXPECT_CALL(*storage_, GetSegment(_, _, _))
+            .WillOnce(Return(StoreStatus::KeyNotExist))
+            .WillOnce(Return(StoreStatus::InternalError));
+
+        core_->DoFlatten(fileName, fileInfo, snapFileInfo, &progress);
+        ASSERT_EQ(TaskStatus::FAILED, progress.GetStatus());
+        ASSERT_EQ(0, progress.GetProgress());
+    }
+    // segment not exist, parent segment sn is new, flatten success
+    {
+        std::string fileName = "/clone1";
+        FileInfo fileInfo;
+        fileInfo.set_segmentsize(kSegmentSize);
+        fileInfo.set_chunksize(kChunkSize);
+        fileInfo.set_clonelength(kSegmentSize);
+        auto cloneInfo = fileInfo.add_clones();
+        cloneInfo->set_fileid(100);
+        cloneInfo->set_clonesn(1);
+
+        FileInfo snapFileInfo;
+        TaskProgress progress;
+
+        PageFileSegment parentSegment;
+        parentSegment.set_seqnum(2);
+        EXPECT_CALL(*storage_, GetSegment(_, _, _))
+            .WillOnce(Return(StoreStatus::KeyNotExist))
+            .WillOnce(DoAll(SetArgPointee<2>(parentSegment),
+                            Return(StoreStatus::OK)));
+
+        core_->DoFlatten(fileName, fileInfo, snapFileInfo, &progress);
+        ASSERT_EQ(TaskStatus::SUCCESS, progress.GetStatus());
+        ASSERT_EQ(100, progress.GetProgress());
+    }
+    // segment not exist, parent segment exist, CloneChunkSegment failed
+    {
+        std::string fileName = "/clone1";
+        FileInfo fileInfo;
+        fileInfo.set_segmentsize(kSegmentSize);
+        fileInfo.set_chunksize(kChunkSize);
+        fileInfo.set_clonelength(kSegmentSize);
+        auto cloneInfo = fileInfo.add_clones();
+        cloneInfo->set_fileid(100);
+        cloneInfo->set_clonesn(1);
+
+        FileInfo snapFileInfo;
+        TaskProgress progress;
+
+        PageFileSegment parentSegment;
+        parentSegment.set_seqnum(1);
+        EXPECT_CALL(*storage_, GetSegment(_, _, _))
+            .WillOnce(Return(StoreStatus::KeyNotExist))
+            .WillOnce(DoAll(SetArgPointee<2>(parentSegment),
+                            Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*mockChunkAllocator_, CloneChunkSegment(_, _, _))
+            .WillOnce(Return(false));
+
+        core_->DoFlatten(fileName, fileInfo, snapFileInfo, &progress);
+        ASSERT_EQ(TaskStatus::FAILED, progress.GetStatus());
+        ASSERT_EQ(0, progress.GetProgress());
+    }
+    // segment not exist, parent segment exist, put segment failed
+    {
+        std::string fileName = "/clone1";
+        FileInfo fileInfo;
+        fileInfo.set_segmentsize(kSegmentSize);
+        fileInfo.set_chunksize(kChunkSize);
+        fileInfo.set_clonelength(kSegmentSize);
+        auto cloneInfo = fileInfo.add_clones();
+        cloneInfo->set_fileid(100);
+        cloneInfo->set_clonesn(1);
+
+        FileInfo snapFileInfo;
+        TaskProgress progress;
+
+        PageFileSegment parentSegment;
+        parentSegment.set_seqnum(1);
+        EXPECT_CALL(*storage_, GetSegment(_, _, _))
+            .WillOnce(Return(StoreStatus::KeyNotExist))
+            .WillOnce(DoAll(SetArgPointee<2>(parentSegment),
+                            Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*mockChunkAllocator_, CloneChunkSegment(_, _, _))
+            .WillOnce(Return(true));
+
+        EXPECT_CALL(*storage_, PutSegment(_, _, _, _))
+            .WillOnce(Return(StoreStatus::InternalError));
+
+        core_->DoFlatten(fileName, fileInfo, snapFileInfo, &progress);
+        ASSERT_EQ(TaskStatus::FAILED, progress.GetStatus());
+        ASSERT_EQ(0, progress.GetProgress());
+    }
+    // segment not exist, parent segment exist, clone segment success
+    // flatten success
+    {
+        std::string fileName = "/clone1";
+        FileInfo fileInfo;
+        fileInfo.set_segmentsize(kSegmentSize);
+        fileInfo.set_chunksize(kChunkSize);
+        fileInfo.set_clonelength(kSegmentSize);
+        auto cloneInfo = fileInfo.add_clones();
+        cloneInfo->set_fileid(100);
+        cloneInfo->set_clonesn(1);
+
+        FileInfo snapFileInfo;
+        TaskProgress progress;
+
+        PageFileSegment parentSegment;
+        parentSegment.set_seqnum(1);
+
+        EXPECT_CALL(*storage_, GetSegment(_, _, _))
+            .WillOnce(Return(StoreStatus::KeyNotExist))
+            .WillOnce(DoAll(SetArgPointee<2>(parentSegment),
+                            Return(StoreStatus::OK)));
+
+        PageFileSegment segment;
+        segment.set_originfileid(100);
+        for (int i = 0; i < kSegmentSize; i += kChunkSize) {
+            auto chunk = segment.add_chunks();
+            chunk->set_copysetid(i);
+            chunk->set_chunkid(i);
+        }
+
+        EXPECT_CALL(*mockChunkAllocator_, CloneChunkSegment(_, _, _))
+            .WillOnce(DoAll(SetArgPointee<2>(segment),
+                            Return(true)));
+
+        EXPECT_CALL(*storage_, PutSegment(_, _, _, _))
+            .WillOnce(Return(StoreStatus::OK));
+
+        int repeatTimes = (kSegmentSize +
+            flattenOption_.flattenChunkPartSize - 1) /
+            flattenOption_.flattenChunkPartSize;
+        EXPECT_CALL(*csClient_, FlattenChunk(_, _))
+            .Times(repeatTimes)
+            .WillRepeatedly(Invoke(
+                [](const std::shared_ptr<FlattenChunkContext> &ctx,
+        CopysetClientClosure* done) {
+            done->SetErrCode(kMdsSuccess);
+            brpc::ClosureGuard doneGuard(done);
+            return kMdsSuccess;
+                }));
 
         core_->DoFlatten(fileName, fileInfo, snapFileInfo, &progress);
         ASSERT_EQ(TaskStatus::SUCCESS, progress.GetStatus());
@@ -141,7 +332,7 @@ TEST_F(FlattenCoreTest, DoFlatten) {
         ASSERT_EQ(TaskStatus::SUCCESS, progress.GetStatus());
         ASSERT_EQ(100, progress.GetProgress());
     }
-    // clone segment, flatten success
+    // segment is clone segment, flatten success
     {
         std::string fileName = "/clone1";
         uint64_t cloneLength = kSegmentSize * 10;
@@ -229,8 +420,10 @@ TEST_F(FlattenCoreTest, DoFlatten) {
         FileInfo snapFileInfo;
         TaskProgress progress;
 
+        PageFileSegment segment;
         EXPECT_CALL(*storage_, GetSegment(_, _, _))
-            .WillOnce(Return(StoreStatus::KeyNotExist));
+            .WillOnce(DoAll(SetArgPointee<2>(segment),
+                            Return(StoreStatus::OK)));
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
             .WillOnce(Return(StoreStatus::InternalError));
@@ -248,8 +441,10 @@ TEST_F(FlattenCoreTest, DoFlatten) {
         FileInfo snapFileInfo;
         TaskProgress progress;
 
+        PageFileSegment segment;
         EXPECT_CALL(*storage_, GetSegment(_, _, _))
-            .WillOnce(Return(StoreStatus::KeyNotExist));
+            .WillOnce(DoAll(SetArgPointee<2>(segment),
+                            Return(StoreStatus::OK)));
 
         FileInfo fileInfoNew;
         EXPECT_CALL(*storage_, GetFile(_, _, _))
@@ -276,8 +471,10 @@ TEST_F(FlattenCoreTest, DoFlatten) {
         FileInfo snapFileInfo;
         TaskProgress progress;
 
+        PageFileSegment segment;
         EXPECT_CALL(*storage_, GetSegment(_, _, _))
-            .WillOnce(Return(StoreStatus::KeyNotExist));
+            .WillOnce(DoAll(SetArgPointee<2>(segment),
+                            Return(StoreStatus::OK)));
 
         FileInfo fileInfoNew;
         EXPECT_CALL(*storage_, GetFile(_, _, _))
@@ -305,8 +502,10 @@ TEST_F(FlattenCoreTest, DoFlatten) {
         FileInfo snapFileInfo;
         TaskProgress progress;
 
+        PageFileSegment segment;
         EXPECT_CALL(*storage_, GetSegment(_, _, _))
-            .WillOnce(Return(StoreStatus::KeyNotExist));
+            .WillOnce(DoAll(SetArgPointee<2>(segment),
+                            Return(StoreStatus::OK)));
 
         FileInfo fileInfoNew;
         EXPECT_CALL(*storage_, GetFile(_, _, _))
@@ -335,8 +534,10 @@ TEST_F(FlattenCoreTest, DoFlatten) {
         FileInfo snapFileInfo;
         TaskProgress progress;
 
+        PageFileSegment segment;
         EXPECT_CALL(*storage_, GetSegment(_, _, _))
-            .WillOnce(Return(StoreStatus::KeyNotExist));
+            .WillOnce(DoAll(SetArgPointee<2>(segment),
+                            Return(StoreStatus::OK)));
 
         FileInfo fileInfoNew;
         EXPECT_CALL(*storage_, GetFile(_, _, _))

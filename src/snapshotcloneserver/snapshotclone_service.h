@@ -71,7 +71,6 @@ class SnapshotCloneServiceImpl : public SnapshotCloneService {
                         Closure* done);
 
  private:
-
     void HandleCreateFileAction(brpc::Controller* bcntl,
         const std::string &requestId);
     void HandleDeleteFileAction(

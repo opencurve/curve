@@ -64,20 +64,20 @@ TEST_F(ChunkAllocatorTest, testcase1) {
     // test segment pointer == nullptr
     ASSERT_EQ(impl->AllocateChunkSegment(FileType::INODE_PAGEFILE,
                                          DefaultSegmentSize, DefaultChunkSize,
-                                         "ssdPoolset1", 0, nullptr),
+                                         "ssdPoolset1", 1, 0, nullptr),
               false);
 
     // test offset not align with segmentsize
     PageFileSegment segment;
     ASSERT_EQ(impl->AllocateChunkSegment(FileType::INODE_PAGEFILE,
                                          DefaultSegmentSize, DefaultChunkSize,
-                                         "", 1, &segment),
+                                         "", 1, 1, &segment),
               false);
 
     // test  chunkSize not align with segmentsize
     ASSERT_EQ(impl->AllocateChunkSegment(
                       FileType::INODE_PAGEFILE, DefaultSegmentSize,
-                      DefaultChunkSize - 1, "ssdPoolset1", 0, &segment),
+                      DefaultChunkSize - 1, "ssdPoolset1", 1, 0, &segment),
               false);
 
     // test  topologyAdmin_AllocateChunkRoundRobinInSingleLogicalPool
@@ -92,7 +92,7 @@ TEST_F(ChunkAllocatorTest, testcase1) {
 
         ASSERT_EQ(impl->AllocateChunkSegment(
                           FileType::INODE_PAGEFILE, DefaultSegmentSize,
-                          DefaultChunkSize, "ssdPoolset1", 0, &segment),
+                          DefaultChunkSize, "ssdPoolset1", 1, 0, &segment),
                   false);
     }
 
@@ -109,7 +109,7 @@ TEST_F(ChunkAllocatorTest, testcase1) {
 
         ASSERT_EQ(impl->AllocateChunkSegment(
                           FileType::INODE_PAGEFILE, DefaultSegmentSize,
-                          DefaultChunkSize, "ssdPoolset1", 0, &segment),
+                          DefaultChunkSize, "ssdPoolset1", 1, 0, &segment),
                   false);
     }
 
@@ -135,7 +135,7 @@ TEST_F(ChunkAllocatorTest, testcase1) {
 
         ASSERT_EQ(impl->AllocateChunkSegment(
                           FileType::INODE_PAGEFILE, DefaultSegmentSize,
-                          DefaultChunkSize, "ssdPoolset1", 0, &segment),
+                          DefaultChunkSize, "ssdPoolset1", 1, 0, &segment),
                   false);
     }
 
@@ -161,7 +161,7 @@ TEST_F(ChunkAllocatorTest, testcase1) {
 
         ASSERT_EQ(impl->AllocateChunkSegment(
                           FileType::INODE_PAGEFILE, DefaultSegmentSize,
-                          DefaultChunkSize, "ssdPoolset1", 0, &segment),
+                          DefaultChunkSize, "ssdPoolset1", 1, 0, &segment),
                   false);
     }
 
@@ -186,7 +186,7 @@ TEST_F(ChunkAllocatorTest, testcase1) {
 
         ASSERT_EQ(impl->AllocateChunkSegment(FileType::INODE_PAGEFILE,
                                              segmentSize, DefaultChunkSize,
-                                             "ssdPoolset1", 0, &segment),
+                                             "ssdPoolset1", 1, 0, &segment),
                   false);
     }
 
@@ -216,7 +216,7 @@ TEST_F(ChunkAllocatorTest, testcase1) {
 
         ASSERT_EQ(impl->AllocateChunkSegment(FileType::INODE_PAGEFILE,
                                              segmentSize, DefaultChunkSize,
-                                             "ssdPoolset1", 0, &segment),
+                                             "ssdPoolset1", 1, 0, &segment),
                   true);
 
         PageFileSegment expectSegment;
@@ -224,6 +224,7 @@ TEST_F(ChunkAllocatorTest, testcase1) {
         expectSegment.set_segmentsize(segmentSize);
         expectSegment.set_startoffset(0);
         expectSegment.set_logicalpoolid(logicalPoolID);
+        expectSegment.set_seqnum(1);
         for (uint32_t i = 0; i < segmentSize/DefaultChunkSize ; i++) {
             PageFileChunkInfo* chunkinfo =  expectSegment.add_chunks();
             chunkinfo->set_chunkid(1);

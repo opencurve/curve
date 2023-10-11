@@ -28,6 +28,8 @@
 
 #include "src/mds/nameserver2/task_progress.h"
 #include "src/mds/nameserver2/namespace_storage.h"
+#include "src/mds/nameserver2/chunk_allocator.h"
+#include "src/mds/nameserver2/allocstatistic/alloc_statistic.h"
 #include "src/mds/chunkserverclient/copyset_client.h"
 #include "src/mds/nameserver2/file_lock.h"
 #include "src/common/task_tracker.h"
@@ -53,13 +55,17 @@ struct FlattenOption {
 
 class FlattenCore {
  public:
-    explicit FlattenCore(
+    FlattenCore(
         const FlattenOption &option,
         const std::shared_ptr<NameServerStorage> &storage,
+        const std::shared_ptr<ChunkSegmentAllocator> &chunkSegAllocator,
+        const std::shared_ptr<AllocStatistic> &allocStatistic,
         const std::shared_ptr<CopysetClientInterface> &copysetClient,
         FileLockManager *fileLockManager)
         : option_(option),
           storage_(storage),
+          chunkSegAllocator_(chunkSegAllocator),
+          allocStatistic_(allocStatistic),
           copysetClient_(copysetClient),
           fileLockManager_(fileLockManager) {}
 
@@ -78,10 +84,18 @@ class FlattenCore {
         const std::shared_ptr<FlattenChunkTaskTracker> &tracker,
         uint32_t *completeChunkNum);
 
+    int GetOrAllocCloneSegment(
+        const std::string &fileName,
+        const FileInfo &fileInfo,
+        uint64_t offset,
+        PageFileSegment *segment);
+
  private:
     FlattenOption option_;
 
     std::shared_ptr<NameServerStorage> storage_;
+    std::shared_ptr<ChunkSegmentAllocator> chunkSegAllocator_;
+    std::shared_ptr<AllocStatistic> allocStatistic_;
     std::shared_ptr<CopysetClientInterface> copysetClient_;
     FileLockManager *fileLockManager_;
 };

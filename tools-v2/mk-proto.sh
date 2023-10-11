@@ -8,6 +8,7 @@ protoc --go_out=proto --proto_path=internal/proto \
 ## curvebs
 ### proto/chunk.proto
 protoc --go_out=proto --proto_path=.. \
+    --go_opt=Mproto/common.proto=github.com/opencurve/curve/tools-v2/proto/proto/common \
     ../proto/chunk.proto
 ### proto/chunkserver.proto
 protoc --go_out=proto --proto_path=.. \

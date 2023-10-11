@@ -158,7 +158,8 @@ int SnapshotServiceManager::CancelSnapshot(
     return kErrCodeSuccess;
 }
 
-int SnapshotServiceManager::DeleteSnapshotBySnapshotName(const std::string &file,
+int SnapshotServiceManager::DeleteSnapshotBySnapshotName(
+    const std::string &file,
     const std::string &user,
     const std::string &snapshotName) {
     SnapshotInfo info;

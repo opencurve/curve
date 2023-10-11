@@ -2180,6 +2180,7 @@ TEST_F(CurveFSTest, testChangeOwner) {
 }
 
 TEST_F(CurveFSTest, testGetOrAllocateSegment) {
+    ::google::protobuf::RepeatedPtrField<CloneInfos> emptyClones;
     // test normal get exist segment
     {
         PageFileSegment segment;
@@ -2205,7 +2206,7 @@ TEST_F(CurveFSTest, testGetOrAllocateSegment) {
         .WillOnce(Return(StoreStatus::OK));
 
         ASSERT_EQ(curvefs_->GetOrAllocateSegment("/user1/file2",
-                  0, false,  &segment), StatusCode::kOK);
+                  0, false, emptyClones, &segment), StatusCode::kOK);
     }
 
     // test normal get & allocate not exist segment
@@ -2234,7 +2235,7 @@ TEST_F(CurveFSTest, testGetOrAllocateSegment) {
 
 
         EXPECT_CALL(*mockChunkAllocator_,
-                   AllocateChunkSegment(_, _, _, _, _, _))
+                   AllocateChunkSegment(_, _, _, _, _, _, _))
         .Times(1)
         .WillOnce(Return(true));
 
@@ -2244,7 +2245,7 @@ TEST_F(CurveFSTest, testGetOrAllocateSegment) {
         .WillOnce(Return(StoreStatus::OK));
 
         ASSERT_EQ(curvefs_->GetOrAllocateSegment("/user1/file2",
-                  0, true,  &segment), StatusCode::kOK);
+                  0, true, emptyClones, &segment), StatusCode::kOK);
     }
 
     // file is a directory
@@ -2265,7 +2266,7 @@ TEST_F(CurveFSTest, testGetOrAllocateSegment) {
                         Return(StoreStatus::OK)));
 
         ASSERT_EQ(curvefs_->GetOrAllocateSegment("/user1/file2",
-                  0, false,  &segment), StatusCode::kParaError);
+                  0, false, emptyClones, &segment), StatusCode::kParaError);
     }
 
     // segment offset not align file segment size
@@ -2289,7 +2290,7 @@ TEST_F(CurveFSTest, testGetOrAllocateSegment) {
                         Return(StoreStatus::OK)));
 
         ASSERT_EQ(curvefs_->GetOrAllocateSegment("/user1/file2",
-                  1, false,  &segment), StatusCode::kParaError);
+                  1, false, emptyClones, &segment), StatusCode::kParaError);
     }
 
     // file length < segment offset + segmentsize
@@ -2313,7 +2314,8 @@ TEST_F(CurveFSTest, testGetOrAllocateSegment) {
                         Return(StoreStatus::OK)));
 
         ASSERT_EQ(curvefs_->GetOrAllocateSegment("/user1/file2",
-                  kMiniFileLength, false,  &segment), StatusCode::kParaError);
+              kMiniFileLength, false, emptyClones, &segment),
+            StatusCode::kParaError);
     }
 
     // alloc chunk segment fail
@@ -2342,12 +2344,13 @@ TEST_F(CurveFSTest, testGetOrAllocateSegment) {
 
 
         EXPECT_CALL(*mockChunkAllocator_,
-                   AllocateChunkSegment(_, _, _, _, _, _))
+                   AllocateChunkSegment(_, _, _, _, _, _, _))
         .Times(1)
         .WillOnce(Return(false));
 
         ASSERT_EQ(curvefs_->GetOrAllocateSegment("/user1/file2",
-                  0, true,  &segment), StatusCode::kSegmentAllocateError);
+            0, true, emptyClones, &segment),
+            StatusCode::kSegmentAllocateError);
     }
 
     // put segment fail
@@ -2376,7 +2379,7 @@ TEST_F(CurveFSTest, testGetOrAllocateSegment) {
 
 
         EXPECT_CALL(*mockChunkAllocator_,
-            AllocateChunkSegment(_, _, _, _, _, _))
+            AllocateChunkSegment(_, _, _, _, _, _, _))
         .Times(1)
         .WillOnce(Return(true));
 
@@ -2386,7 +2389,297 @@ TEST_F(CurveFSTest, testGetOrAllocateSegment) {
         .WillOnce(Return(StoreStatus::InternalError));
 
         ASSERT_EQ(curvefs_->GetOrAllocateSegment("/user1/file2",
-                  0, true,  &segment), StatusCode::kStorageError);
+            0, true, emptyClones, &segment),
+            StatusCode::kStorageError);
+    }
+}
+
+TEST_F(CurveFSTest, testGetOrAllocateSegmentForClone) {
+    // test allocate clone segment, bu not have clonechain
+    {
+        PageFileSegment segment;
+
+        FileInfo fileInfo1;
+        fileInfo1.set_filetype(FileType::INODE_DIRECTORY);
+
+        FileInfo fileInfo2;
+        fileInfo2.set_filetype(FileType::INODE_CLONE_PAGEFILE);
+        fileInfo2.set_length(kMiniFileLength);
+        fileInfo2.set_segmentsize(DefaultSegmentSize);
+        fileInfo2.set_poolset("default");
+        fileInfo2.set_clonelength(kMiniFileLength);
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(2)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
+                        Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*storage_, GetSegment(_, _, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::KeyNotExist));
+
+        ::google::protobuf::RepeatedPtrField<CloneInfos> emptyClones;
+        ASSERT_EQ(curvefs_->GetOrAllocateSegment("/user1/file2",
+                  0, true, emptyClones, &segment), StatusCode::KInternalError);
+    }
+    // test allocate clone segment, get parent segment failed
+    {
+        PageFileSegment segment;
+
+        FileInfo fileInfo1;
+        fileInfo1.set_filetype(FileType::INODE_DIRECTORY);
+
+        FileInfo fileInfo2;
+        fileInfo2.set_filetype(FileType::INODE_CLONE_PAGEFILE);
+        fileInfo2.set_length(kMiniFileLength);
+        fileInfo2.set_segmentsize(DefaultSegmentSize);
+        fileInfo2.set_poolset("default");
+        fileInfo2.set_clonelength(kMiniFileLength);
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(2)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
+                        Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*storage_, GetSegment(_, _, _))
+        .WillOnce(Return(StoreStatus::KeyNotExist))
+        .WillOnce(Return(StoreStatus::InternalError));
+
+        ::google::protobuf::RepeatedPtrField<CloneInfos> clones;
+        auto cloneInfo = clones.Add();
+        cloneInfo->set_fileid(100);
+        cloneInfo->set_clonesn(1);
+
+        ASSERT_EQ(curvefs_->GetOrAllocateSegment("/user1/file2",
+                  0, true, clones, &segment), StatusCode::kStorageError);
+    }
+    // test allocate clone segment, get parent segment not exist,
+    // use normal allocate
+    {
+        PageFileSegment segment;
+
+        FileInfo fileInfo1;
+        fileInfo1.set_filetype(FileType::INODE_DIRECTORY);
+
+        FileInfo fileInfo2;
+        fileInfo2.set_filetype(FileType::INODE_CLONE_PAGEFILE);
+        fileInfo2.set_length(kMiniFileLength);
+        fileInfo2.set_segmentsize(DefaultSegmentSize);
+        fileInfo2.set_poolset("default");
+        fileInfo2.set_clonelength(kMiniFileLength);
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(2)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
+                        Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*storage_, GetSegment(_, _, _))
+        .WillOnce(Return(StoreStatus::KeyNotExist))
+        .WillOnce(Return(StoreStatus::KeyNotExist));
+
+        ::google::protobuf::RepeatedPtrField<CloneInfos> clones;
+        auto cloneInfo = clones.Add();
+        cloneInfo->set_fileid(100);
+        cloneInfo->set_clonesn(1);
+
+        EXPECT_CALL(*mockChunkAllocator_,
+                   AllocateChunkSegment(_, _, _, _, _, _, _))
+        .Times(1)
+        .WillOnce(Return(true));
+
+
+        EXPECT_CALL(*storage_, PutSegment(_, _, _, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
+
+        ASSERT_EQ(curvefs_->GetOrAllocateSegment("/user1/file2",
+                  0, true, clones, &segment), StatusCode::kOK);
+    }
+    // test allocate clone segment, get parent segment exist, but sn is new
+    // use normal allocate
+    {
+        PageFileSegment segment;
+
+        FileInfo fileInfo1;
+        fileInfo1.set_filetype(FileType::INODE_DIRECTORY);
+
+        FileInfo fileInfo2;
+        fileInfo2.set_filetype(FileType::INODE_CLONE_PAGEFILE);
+        fileInfo2.set_length(kMiniFileLength);
+        fileInfo2.set_segmentsize(DefaultSegmentSize);
+        fileInfo2.set_poolset("default");
+        fileInfo2.set_clonelength(kMiniFileLength);
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(2)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
+                        Return(StoreStatus::OK)));
+
+        PageFileSegment originSegment;
+        originSegment.set_seqnum(2);
+        EXPECT_CALL(*storage_, GetSegment(_, _, _))
+        .WillOnce(Return(StoreStatus::KeyNotExist))
+        .WillOnce(DoAll(SetArgPointee<2>(originSegment),
+                Return(StoreStatus::OK)));
+
+        ::google::protobuf::RepeatedPtrField<CloneInfos> clones;
+        auto cloneInfo = clones.Add();
+        cloneInfo->set_fileid(100);
+        cloneInfo->set_clonesn(1);
+
+        EXPECT_CALL(*mockChunkAllocator_,
+                   AllocateChunkSegment(_, _, _, _, _, _, _))
+        .Times(1)
+        .WillOnce(Return(true));
+
+        EXPECT_CALL(*storage_, PutSegment(_, _, _, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
+
+        ASSERT_EQ(curvefs_->GetOrAllocateSegment("/user1/file2",
+                  0, true, clones, &segment), StatusCode::kOK);
+    }
+    // test allocate clone segment, get parent segment exist,
+    // CloneChunkSegment failed
+    {
+        PageFileSegment segment;
+
+        FileInfo fileInfo1;
+        fileInfo1.set_filetype(FileType::INODE_DIRECTORY);
+
+        FileInfo fileInfo2;
+        fileInfo2.set_filetype(FileType::INODE_CLONE_PAGEFILE);
+        fileInfo2.set_length(kMiniFileLength);
+        fileInfo2.set_segmentsize(DefaultSegmentSize);
+        fileInfo2.set_poolset("default");
+        fileInfo2.set_clonelength(kMiniFileLength);
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(2)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
+                        Return(StoreStatus::OK)));
+
+        PageFileSegment originSegment;
+        originSegment.set_seqnum(1);
+        EXPECT_CALL(*storage_, GetSegment(_, _, _))
+        .WillOnce(Return(StoreStatus::KeyNotExist))
+        .WillOnce(DoAll(SetArgPointee<2>(originSegment),
+                Return(StoreStatus::OK)));
+
+        ::google::protobuf::RepeatedPtrField<CloneInfos> clones;
+        auto cloneInfo = clones.Add();
+        cloneInfo->set_fileid(100);
+        cloneInfo->set_clonesn(1);
+
+        EXPECT_CALL(*mockChunkAllocator_,
+                   CloneChunkSegment(_, _, _))
+        .Times(1)
+        .WillOnce(Return(false));
+
+        ASSERT_EQ(curvefs_->GetOrAllocateSegment("/user1/file2",
+                  0, true, clones, &segment), StatusCode::kSegmentAllocateError);
+    }
+    // test allocate clone segment, get parent segment exist,
+    // CloneChunkSegment success, but put segment failed
+    {
+        PageFileSegment segment;
+
+        FileInfo fileInfo1;
+        fileInfo1.set_filetype(FileType::INODE_DIRECTORY);
+
+        FileInfo fileInfo2;
+        fileInfo2.set_filetype(FileType::INODE_CLONE_PAGEFILE);
+        fileInfo2.set_length(kMiniFileLength);
+        fileInfo2.set_segmentsize(DefaultSegmentSize);
+        fileInfo2.set_poolset("default");
+        fileInfo2.set_clonelength(kMiniFileLength);
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(2)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
+                        Return(StoreStatus::OK)));
+
+        PageFileSegment originSegment;
+        originSegment.set_seqnum(1);
+        EXPECT_CALL(*storage_, GetSegment(_, _, _))
+        .WillOnce(Return(StoreStatus::KeyNotExist))
+        .WillOnce(DoAll(SetArgPointee<2>(originSegment),
+                Return(StoreStatus::OK)));
+
+        ::google::protobuf::RepeatedPtrField<CloneInfos> clones;
+        auto cloneInfo = clones.Add();
+        cloneInfo->set_fileid(100);
+        cloneInfo->set_clonesn(1);
+
+        EXPECT_CALL(*mockChunkAllocator_,
+                   CloneChunkSegment(_, _, _))
+        .Times(1)
+        .WillOnce(Return(true));
+
+        EXPECT_CALL(*storage_, PutSegment(_, _, _, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::InternalError));
+
+        ASSERT_EQ(curvefs_->GetOrAllocateSegment("/user1/file2",
+                  0, true, clones, &segment), StatusCode::kStorageError);
+    }
+    // test allocate clone segment, get parent segment exist,
+    // CloneChunkSegment success, put segment success
+    {
+        PageFileSegment segment;
+
+        FileInfo fileInfo1;
+        fileInfo1.set_filetype(FileType::INODE_DIRECTORY);
+
+        FileInfo fileInfo2;
+        fileInfo2.set_filetype(FileType::INODE_CLONE_PAGEFILE);
+        fileInfo2.set_length(kMiniFileLength);
+        fileInfo2.set_segmentsize(DefaultSegmentSize);
+        fileInfo2.set_poolset("default");
+        fileInfo2.set_clonelength(kMiniFileLength);
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(2)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
+                        Return(StoreStatus::OK)));
+
+        PageFileSegment originSegment;
+        originSegment.set_seqnum(1);
+        EXPECT_CALL(*storage_, GetSegment(_, _, _))
+        .WillOnce(Return(StoreStatus::KeyNotExist))
+        .WillOnce(DoAll(SetArgPointee<2>(originSegment),
+                Return(StoreStatus::OK)));
+
+        ::google::protobuf::RepeatedPtrField<CloneInfos> clones;
+        auto cloneInfo = clones.Add();
+        cloneInfo->set_fileid(100);
+        cloneInfo->set_clonesn(1);
+
+        EXPECT_CALL(*mockChunkAllocator_,
+                   CloneChunkSegment(_, _, _))
+        .Times(1)
+        .WillOnce(Return(true));
+
+        EXPECT_CALL(*storage_, PutSegment(_, _, _, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
+
+        ASSERT_EQ(curvefs_->GetOrAllocateSegment("/user1/file2",
+                  0, true, clones, &segment), StatusCode::kOK);
     }
 }
 
@@ -4322,7 +4615,6 @@ TEST_F(CurveFSTest, Clone) {
         FileInfo dstFileInfoOut;
         FileInfo dstFileInfo;
         dstFileInfo.set_filetype(FileType::INODE_CLONE_PAGEFILE);
-        dstFileInfo.set_initclonesegment(true);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
             .WillOnce(DoAll(SetArgPointee<2>(dstFileInfo),
                     Return(StoreStatus::OK)));
@@ -4404,133 +4696,8 @@ TEST_F(CurveFSTest, Clone) {
             curvefs_->Clone(dstFile1, owner1,
                 srcFileName, snapName, "", &dstFileInfo));
     }
-    // Put Clone File fail
-    {
-        std::string dstFile1 = "/dst1";
-        std::string owner1 = "owner1";
-        std::string srcFileName = "/src1";
-        std::string snapName = "snap1";
-        FileInfo dstFileInfo;
-        FileInfo srcFileInfo;
-        srcFileInfo.set_filetype(FileType::INODE_CLONE_PAGEFILE);
-        EXPECT_CALL(*storage_, GetFile(_, _, _))
-            .WillOnce(Return(StoreStatus::KeyNotExist))
-            .WillOnce(DoAll(SetArgPointee<2>(srcFileInfo),
-                    Return(StoreStatus::OK)));
-        FileInfo snapshotInfo;
-        snapshotInfo.set_isprotected(true);
-        EXPECT_CALL(*storage_, GetSnapFile(_, _, _))
-            .WillOnce(DoAll(SetArgPointee<2>(snapshotInfo),
-                    Return(StoreStatus::OK)));
-        EXPECT_CALL(*inodeIdGenerator_, GenInodeID(_))
-            .WillOnce(Return(true));
-        EXPECT_CALL(*storage_, PutFile(_))
-            .WillOnce(Return(StoreStatus::InternalError));
-        ASSERT_EQ(StatusCode::kStorageError,
-            curvefs_->Clone(dstFile1, owner1,
-                srcFileName, snapName, "", &dstFileInfo));
-    }
-    // get segment fail
     constexpr uint64_t segmentSize = 1ULL * 1024 * 1024 * 1024;  // 1GiB
     constexpr uint64_t chunkSize = 16ULL * 1024 * 1024;          // 16MiB
-    {
-        std::string dstFile1 = "/dst1";
-        std::string owner1 = "owner1";
-        std::string srcFileName = "/src1";
-        std::string snapName = "snap1";
-        FileInfo dstFileInfo;
-        FileInfo srcFileInfo;
-        srcFileInfo.set_filetype(FileType::INODE_CLONE_PAGEFILE);
-        EXPECT_CALL(*storage_, GetFile(_, _, _))
-            .WillOnce(Return(StoreStatus::KeyNotExist))
-            .WillOnce(DoAll(SetArgPointee<2>(srcFileInfo),
-                    Return(StoreStatus::OK)));
-        FileInfo snapshotInfo;
-        snapshotInfo.set_isprotected(true);
-        snapshotInfo.set_length(segmentSize);
-        snapshotInfo.set_segmentsize(segmentSize);
-        snapshotInfo.set_chunksize(chunkSize);
-        EXPECT_CALL(*storage_, GetSnapFile(_, _, _))
-            .WillOnce(DoAll(SetArgPointee<2>(snapshotInfo),
-                    Return(StoreStatus::OK)));
-        EXPECT_CALL(*inodeIdGenerator_, GenInodeID(_))
-            .WillOnce(Return(true));
-        EXPECT_CALL(*storage_, PutFile(_))
-            .WillOnce(Return(StoreStatus::OK));
-        EXPECT_CALL(*storage_, GetSegment(_, _, _))
-            .WillOnce(Return(StoreStatus::InternalError));
-        ASSERT_EQ(StatusCode::kStorageError,
-            curvefs_->Clone(dstFile1, owner1,
-                srcFileName, snapName, "", &dstFileInfo));
-    }
-    // clone segment fail
-    {
-        std::string dstFile1 = "/dst1";
-        std::string owner1 = "owner1";
-        std::string srcFileName = "/src1";
-        std::string snapName = "snap1";
-        FileInfo dstFileInfo;
-        FileInfo srcFileInfo;
-        srcFileInfo.set_filetype(FileType::INODE_CLONE_PAGEFILE);
-        EXPECT_CALL(*storage_, GetFile(_, _, _))
-            .WillOnce(Return(StoreStatus::KeyNotExist))
-            .WillOnce(DoAll(SetArgPointee<2>(srcFileInfo),
-                    Return(StoreStatus::OK)));
-        FileInfo snapshotInfo;
-        snapshotInfo.set_isprotected(true);
-        snapshotInfo.set_length(segmentSize);
-        snapshotInfo.set_segmentsize(segmentSize);
-        snapshotInfo.set_chunksize(chunkSize);
-        EXPECT_CALL(*storage_, GetSnapFile(_, _, _))
-            .WillOnce(DoAll(SetArgPointee<2>(snapshotInfo),
-                    Return(StoreStatus::OK)));
-        EXPECT_CALL(*inodeIdGenerator_, GenInodeID(_))
-            .WillOnce(Return(true));
-        EXPECT_CALL(*storage_, PutFile(_))
-            .WillOnce(Return(StoreStatus::OK));
-        EXPECT_CALL(*storage_, GetSegment(_, _, _))
-            .WillOnce(Return(StoreStatus::OK));
-        EXPECT_CALL(*mockChunkAllocator_, CloneChunkSegment(_, _, _, _))
-            .WillOnce(Return(false));
-        ASSERT_EQ(StatusCode::kSegmentAllocateError,
-            curvefs_->Clone(dstFile1, owner1,
-                srcFileName, snapName, "", &dstFileInfo));
-    }
-    // put segment error
-    {
-        std::string dstFile1 = "/dst1";
-        std::string owner1 = "owner1";
-        std::string srcFileName = "/src1";
-        std::string snapName = "snap1";
-        FileInfo dstFileInfo;
-        FileInfo srcFileInfo;
-        srcFileInfo.set_filetype(FileType::INODE_CLONE_PAGEFILE);
-        EXPECT_CALL(*storage_, GetFile(_, _, _))
-            .WillOnce(Return(StoreStatus::KeyNotExist))
-            .WillOnce(DoAll(SetArgPointee<2>(srcFileInfo),
-                    Return(StoreStatus::OK)));
-        FileInfo snapshotInfo;
-        snapshotInfo.set_isprotected(true);
-        snapshotInfo.set_length(segmentSize);
-        snapshotInfo.set_segmentsize(segmentSize);
-        snapshotInfo.set_chunksize(chunkSize);
-        EXPECT_CALL(*storage_, GetSnapFile(_, _, _))
-            .WillOnce(DoAll(SetArgPointee<2>(snapshotInfo),
-                    Return(StoreStatus::OK)));
-        EXPECT_CALL(*inodeIdGenerator_, GenInodeID(_))
-            .WillOnce(Return(true));
-        EXPECT_CALL(*storage_, PutFile(_))
-            .WillOnce(Return(StoreStatus::OK));
-        EXPECT_CALL(*storage_, GetSegment(_, _, _))
-            .WillOnce(Return(StoreStatus::OK));
-        EXPECT_CALL(*mockChunkAllocator_, CloneChunkSegment(_, _, _, _))
-            .WillOnce(Return(true));
-        EXPECT_CALL(*storage_, PutSegment(_, _, _, _))
-            .WillOnce(Return(StoreStatus::InternalError));
-        ASSERT_EQ(StatusCode::kStorageError,
-            curvefs_->Clone(dstFile1, owner1,
-                srcFileName, snapName, "", &dstFileInfo));
-    }
     // lookup clone train fail
     {
         std::string dstFile1 = "/dst1";
@@ -4556,15 +4723,6 @@ TEST_F(CurveFSTest, Clone) {
                     Return(StoreStatus::OK)));
         EXPECT_CALL(*inodeIdGenerator_, GenInodeID(_))
             .WillOnce(Return(true));
-        EXPECT_CALL(*storage_, PutFile(_))
-            .WillOnce(Return(StoreStatus::OK));
-        EXPECT_CALL(*storage_, GetSegment(_, _, _))
-            .WillOnce(Return(StoreStatus::OK));
-        EXPECT_CALL(*mockChunkAllocator_, CloneChunkSegment(_, _, _, _))
-            .WillOnce(Return(true));
-        EXPECT_CALL(*storage_, PutSegment(_, _, _, _))
-            .WillOnce(Return(StoreStatus::OK));
-        EXPECT_CALL(*allocStatistic_, AllocSpace(_, _, _));
         ASSERT_EQ(StatusCode::kStorageError,
             curvefs_->Clone(dstFile1, owner1,
                 srcFileName, snapName, "", &dstFileInfo));
@@ -4597,15 +4755,6 @@ TEST_F(CurveFSTest, Clone) {
                     Return(StoreStatus::OK)));
         EXPECT_CALL(*inodeIdGenerator_, GenInodeID(_))
             .WillOnce(Return(true));
-        EXPECT_CALL(*storage_, PutFile(_))
-            .WillOnce(Return(StoreStatus::OK));
-        EXPECT_CALL(*storage_, GetSegment(_, _, _))
-            .WillOnce(Return(StoreStatus::OK));
-        EXPECT_CALL(*mockChunkAllocator_, CloneChunkSegment(_, _, _, _))
-            .WillOnce(Return(true));
-        EXPECT_CALL(*storage_, PutSegment(_, _, _, _))
-            .WillOnce(Return(StoreStatus::OK));
-        EXPECT_CALL(*allocStatistic_, AllocSpace(_, _, _));
         EXPECT_CALL(*storage_, Put2File(_, _))
             .WillOnce(Return(StoreStatus::InternalError));
         ASSERT_EQ(StatusCode::kStorageError,
@@ -4640,51 +4789,6 @@ TEST_F(CurveFSTest, Clone) {
                     Return(StoreStatus::OK)));
         EXPECT_CALL(*inodeIdGenerator_, GenInodeID(_))
             .WillOnce(Return(true));
-        EXPECT_CALL(*storage_, PutFile(_))
-            .WillOnce(Return(StoreStatus::OK));
-        EXPECT_CALL(*storage_, GetSegment(_, _, _))
-            .WillOnce(Return(StoreStatus::OK));
-        EXPECT_CALL(*mockChunkAllocator_, CloneChunkSegment(_, _, _, _))
-            .WillOnce(Return(true));
-        EXPECT_CALL(*storage_, PutSegment(_, _, _, _))
-            .WillOnce(Return(StoreStatus::OK));
-        EXPECT_CALL(*allocStatistic_, AllocSpace(_, _, _));
-        EXPECT_CALL(*storage_, Put2File(_, _))
-            .WillOnce(Return(StoreStatus::OK));
-        ASSERT_EQ(StatusCode::kOK,
-            curvefs_->Clone(dstFile1, owner1,
-                srcFileName, snapName, "", &dstFileInfo));
-    }
-    // clone snap len is 0
-    {
-        std::string dstFile1 = "/dst1";
-        std::string owner1 = "owner1";
-        std::string srcFileName = "/src1";
-        std::string snapName = "snap1";
-        FileInfo dstFileInfo;
-        FileInfo srcFileInfo;
-        srcFileInfo.set_filetype(FileType::INODE_CLONE_PAGEFILE);
-        srcFileInfo.set_clonesource("/origin1");
-        FileInfo originFileInfo;
-        originFileInfo.set_filetype(FileType::INODE_PAGEFILE);
-        EXPECT_CALL(*storage_, GetFile(_, _, _))
-            .WillOnce(Return(StoreStatus::KeyNotExist))
-            .WillOnce(DoAll(SetArgPointee<2>(srcFileInfo),
-                    Return(StoreStatus::OK)))
-            .WillOnce(DoAll(SetArgPointee<2>(originFileInfo),
-                    Return(StoreStatus::OK)));
-        FileInfo snapshotInfo;
-        snapshotInfo.set_isprotected(true);
-        snapshotInfo.set_length(0);
-        snapshotInfo.set_segmentsize(segmentSize);
-        snapshotInfo.set_chunksize(chunkSize);
-        EXPECT_CALL(*storage_, GetSnapFile(_, _, _))
-            .WillOnce(DoAll(SetArgPointee<2>(snapshotInfo),
-                    Return(StoreStatus::OK)));
-        EXPECT_CALL(*inodeIdGenerator_, GenInodeID(_))
-            .WillOnce(Return(true));
-        EXPECT_CALL(*storage_, PutFile(_))
-            .WillOnce(Return(StoreStatus::OK));
         EXPECT_CALL(*storage_, Put2File(_, _))
             .WillOnce(Return(StoreStatus::OK));
         ASSERT_EQ(StatusCode::kOK,
@@ -4714,8 +4818,6 @@ TEST_F(CurveFSTest, Clone) {
                     Return(StoreStatus::OK)));
         EXPECT_CALL(*inodeIdGenerator_, GenInodeID(_))
             .WillOnce(Return(true));
-        EXPECT_CALL(*storage_, PutFile(_))
-            .WillOnce(Return(StoreStatus::OK));
         EXPECT_CALL(*storage_, Put2File(_, _))
             .WillOnce(Return(StoreStatus::OK));
         ASSERT_EQ(StatusCode::kOK,

@@ -498,6 +498,7 @@ void NameSpaceService::GetOrAllocateSegment(
     retCode = kCurveFS.GetOrAllocateSegment(request->filename(),
                 request->offset(),
                 request->allocateifnotexist(),
+                request->clones(),
                 response->mutable_pagefilesegment());
 
     if (retCode != StatusCode::kOK)  {
