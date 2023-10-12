@@ -23,6 +23,7 @@
 package cmderror
 
 import (
+	"errors"
 	"fmt"
 
 	fscopyset "github.com/opencurve/curve/tools-v2/proto/curvefs/proto/copyset"
@@ -69,7 +70,7 @@ func (ce *CmdError) ToError() error {
 	if ce.Code == CODE_SUCCESS {
 		return nil
 	}
-	return fmt.Errorf(ce.Message)
+	return errors.New(ce.Message)
 }
 
 func NewSucessCmdError() *CmdError {
