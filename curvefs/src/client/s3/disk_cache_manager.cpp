@@ -20,17 +20,20 @@
  * Author: hzwuhongsong
  */
 
+#include "curvefs/src/client/s3/disk_cache_manager.h"
+
+#include <errno.h>
 #include <glog/logging.h>
 #include <sys/vfs.h>
-#include <errno.h>
-#include <string>
-#include <cstdio>
-#include <memory>
-#include <list>
-#include <cstdint>
 
+#include <cstdint>
+#include <cstdio>
+#include <list>
+#include <memory>
+#include <string>
+
+#include "curvefs/src/client/metric/client_metric.h"
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
-#include "curvefs/src/client/s3/disk_cache_manager.h"
 #include "curvefs/src/common/s3util.h"
 
 namespace curvefs {
@@ -244,8 +247,9 @@ int DiskCacheManager::WriteDiskFile(const std::string fileName, const char *buf,
     // write throttle
     diskCacheThrottle_.Add(false, length);
     int ret = cacheWrite_->WriteDiskFile(fileName, buf, length, force);
-    if (ret > 0)
-        AddDiskUsedBytes(ret);
+    if (ret > 0) {
+        UpdateDiskUsedBytes(ret);
+    }
     return ret;
 }
 
@@ -265,8 +269,9 @@ int DiskCacheManager::WriteReadDirect(const std::string fileName,
     // write hrottle
     diskCacheThrottle_.Add(false, length);
     int ret = cacheRead_->WriteDiskFile(fileName, buf, length);
-    if (ret > 0)
-        AddDiskUsedBytes(ret);
+    if (ret > 0) {
+        UpdateDiskUsedBytes(ret);
+    }
     return ret;
 }
 
@@ -296,6 +301,7 @@ int64_t DiskCacheManager::UpdateDiskFsUsedRatio() {
     }
     int64_t usedPercent = 100 * usedBytes / (usedBytes + availableBytes) + 1;
     diskFsUsedRatio_.store(usedPercent);
+    totalBytes_.store(totalBytes);
     return usedPercent;
 }
 
@@ -316,8 +322,6 @@ void DiskCacheManager::SetDiskInitUsedBytes() {
         return;
     }
     usedBytes_.fetch_add(usedBytes);
-    if (metric_.get() != nullptr)
-        metric_->diskUsedBytes.set_value(usedBytes_);
     diskUsedInit_.store(true);
     VLOG(9) << "cache disk used size is: " << result;
     return;
@@ -429,6 +433,7 @@ void DiskCacheManager::TrimCache() {
                     break;
                 }
 
+                uint64_t start = butil::cpuwide_time_us();
                 VLOG(6) << "obj will be removed01: " << cacheKey;
                 cacheReadFile = cacheReadFullDir + "/" +
                                 curvefs::common::s3util::GenPathByObjName(
@@ -470,7 +475,9 @@ void DiskCacheManager::TrimCache() {
                         << "error is: " << errno;
                     continue;
                 }
-                DecDiskUsedBytes(statReadFile.st_size);
+                metric::CollectMetrics(&metric_->trim_, statReadFile.st_size,
+                                       butil::cpuwide_time_us() - start);
+                UpdateDiskUsedBytes(-statReadFile.st_size);
                 VLOG(6) << "remove disk file success, file is: " << cacheKey;
             }
         }
@@ -507,7 +514,8 @@ int DiskCacheManager::TrimStop() {
 
 void DiskCacheManager::InitMetrics(const std::string& fsName,
                                    std::shared_ptr<S3Metric> s3Metric) {
-    metric_ = std::make_shared<DiskCacheMetric>(fsName);
+    metric_ =
+        std::make_shared<DiskCacheMetric>(fsName, &usedBytes_, &totalBytes_);
     cacheWrite_->InitMetrics(metric_, s3Metric);
     cacheRead_->InitMetrics(metric_);
     // this function move to here from init，

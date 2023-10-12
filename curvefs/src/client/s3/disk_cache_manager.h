@@ -138,31 +138,14 @@ class DiskCacheManager {
      */
     bool IsDiskCacheSafe(uint32_t baseRatio);
 
-    /**
-     * @brief add the used bytes of disk cache.
-     */
-    void AddDiskUsedBytes(uint64_t length) {
+    // update disk used bytes by length
+    void UpdateDiskUsedBytes(int64_t length) {
         usedBytes_.fetch_add(length);
-        if (metric_.get() != nullptr)
-            metric_->diskUsedBytes.set_value(usedBytes_/1024/1024);
-        VLOG(9) << "add disk used size is: " << length
-                << ", now is: " << usedBytes_.load();
-        return;
-    }
-    /**
-     * @brief dec the used bytes of disk cache.
-     * can not dec disk used bytes after file have been loaded,
-     * because there are link in read cache
-     */
-    void DecDiskUsedBytes(uint64_t length) {
-        usedBytes_.fetch_sub(length);
         assert(usedBytes_ >= 0);
-        if (metric_.get() != nullptr)
-            metric_->diskUsedBytes.set_value(usedBytes_);
-        VLOG(9) << "dec disk used size is: " << length
+        VLOG(9) << "update disk used size is: " << length
                 << ", now is: " << usedBytes_.load();
-        return;
     }
+
     void SetDiskInitUsedBytes();
     uint64_t GetDiskUsedbytes() {
         return usedBytes_.load();
@@ -194,8 +177,11 @@ class DiskCacheManager {
     curve::common::InterruptibleSleeper sleeper_;
     curve::common::WaitInterval waitIntervalSec_;
     uint32_t objectPrefix_;
-    // used bytes of disk cache
+    // The size of the object cached to the local disk,
+    // rather than the size of the used capacity of the cache disk
     std::atomic<int64_t> usedBytes_;
+    // Cache disk size
+    std::atomic<int64_t> totalBytes_;
     // used ratio of the file system in disk cache
     std::atomic<int32_t> diskFsUsedRatio_;
     uint32_t cmdTimeoutSec_;

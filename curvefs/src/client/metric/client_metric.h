@@ -26,6 +26,7 @@
 
 #include <bvar/bvar.h>
 
+#include <atomic>
 #include <cstdint>
 #include <string>
 
@@ -275,18 +276,32 @@ struct S3Metric {
           writeSize(prefix, fsName + "_adaptor_write_size", 0) {}
 };
 
+template <typename Tp>
+uint64_t LoadAtomicValue(void* atomValue) {
+    std::atomic<Tp>* bytes = reinterpret_cast<std::atomic<Tp>*>(atomValue);
+    return static_cast<uint64_t>(bytes->load());
+}
+
 struct DiskCacheMetric {
     static const std::string prefix;
 
     std::string fsName;
     InterfaceMetric writeS3;
-    bvar::Status<uint64_t> diskUsedBytes;
+    bvar::PassiveStatus<uint64_t> usedBytes_;
+    bvar::PassiveStatus<uint64_t> totalBytes_;
+    InterfaceMetric trim_;
 
-    explicit DiskCacheMetric(const std::string &name = "")
+    explicit DiskCacheMetric(const std::string& name = "",
+                             std::atomic<int64_t>* usedBytes = nullptr,
+                             std::atomic<int64_t>* totalBytes = nullptr)
         : fsName(!name.empty() ? name
                                : prefix + curve::common::ToHexString(this)),
           writeS3(prefix, fsName + "_write_s3"),
-          diskUsedBytes(prefix, fsName + "_diskcache_usedbytes", 0) {}
+          usedBytes_(prefix, fsName + "_diskcache_usedbytes",
+                     LoadAtomicValue<int64_t>, usedBytes),
+          totalBytes_(prefix, fsName + "_diskcache_totalbytes",
+                      LoadAtomicValue<int64_t>, totalBytes),
+          trim_(prefix, fsName + "_diskcache_trim") {}
 };
 
 struct KVClientMetric {
