@@ -304,13 +304,41 @@ struct DiskCacheMetric {
           trim_(prefix, fsName + "_diskcache_trim") {}
 };
 
-struct KVClientMetric {
+struct KVClientManagerMetric {
     static const std::string prefix;
-    InterfaceMetric kvClientGet;
-    InterfaceMetric kvClientSet;
 
-    KVClientMetric()
-        : kvClientGet(prefix, "get"), kvClientSet(prefix, "set") {}
+    std::string fsName;
+    InterfaceMetric get;
+    InterfaceMetric set;
+    // kvcache count
+    bvar::Adder<uint64_t> count;
+    // kvcache hit
+    bvar::Adder<uint64_t> hit;
+    // kvcache miss
+    bvar::Adder<uint64_t> miss;
+
+    explicit KVClientManagerMetric(const std::string& name = "")
+        : fsName(!name.empty() ? name
+                               : prefix + curve::common::ToHexString(this)),
+          get(prefix, fsName + "_get"),
+          set(prefix, fsName + "_set"),
+          count(prefix, fsName + "_count"),
+          hit(prefix, fsName + "_hit"),
+          miss(prefix, fsName + "_miss") {}
+};
+
+struct MemcacheClientMetric {
+    static const std::string prefix;
+
+    std::string fsName;
+    InterfaceMetric get;
+    InterfaceMetric set;
+
+    explicit MemcacheClientMetric(const std::string& name = "")
+        : fsName(!name.empty() ? name
+                               : prefix + curve::common::ToHexString(this)),
+          get(prefix, fsName + "_get"),
+          set(prefix, fsName + "_set") {}
 };
 
 struct S3ChunkInfoMetric {
@@ -332,7 +360,7 @@ struct WarmupManagerS3Metric {
           warmupS3CacheSize(prefix, "s3_cache_size") {}
 };
 
-void CollectMetrics(InterfaceMetric* interface, int count, uint64_t start);
+void CollectMetrics(InterfaceMetric* interface, int count, uint64_t u_elapsed);
 
 void AsyncContextCollectMetrics(
     std::shared_ptr<S3Metric> s3Metric,

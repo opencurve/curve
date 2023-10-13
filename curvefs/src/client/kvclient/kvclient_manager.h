@@ -25,19 +25,20 @@
 
 #include <bthread/condition_variable.h>
 
-#include <thread>
+#include <cstdint>
 #include <memory>
-#include <utility>
 #include <string>
+#include <thread>
+#include <utility>
 
 #include "absl/strings/string_view.h"
-#include "curvefs/src/client/kvclient/kvclient.h"
 #include "curvefs/src/client/common/config.h"
+#include "curvefs/src/client/kvclient/kvclient.h"
 #include "curvefs/src/client/metric/client_metric.h"
 #include "src/common/concurrent/task_thread_pool.h"
 #include "src/common/s3_adapter.h"
 
-using curvefs::client::metric::KVClientMetric;
+using curvefs::client::metric::KVClientManagerMetric;
 
 namespace curvefs {
 namespace client {
@@ -76,7 +77,8 @@ struct GetKVCacheTask {
     const std::string& key;
     char* value;
     uint64_t offset;
-    uint64_t length;
+    uint64_t valueLength;
+    uint64_t length;  // actual length of value
     bool res;
     GetKVCacheDone done;
     butil::Timer timer;
@@ -87,7 +89,8 @@ struct GetKVCacheTask {
         : key(k),
           value(v),
           offset(off),
-          length(len),
+          valueLength(len),
+          length(0),
           res(false),
           done(std::move(done)),
           timer(butil::Timer::STARTED) {}
@@ -98,8 +101,9 @@ class KVClientManager {
     KVClientManager() = default;
     ~KVClientManager() { Uninit(); }
 
-    bool Init(const KVClientManagerOpt &config,
-              const std::shared_ptr<KVClient> &kvclient);
+    bool Init(const KVClientManagerOpt& config,
+              const std::shared_ptr<KVClient>& kvclient,
+              const std::string& fsName);
 
     /**
      * It will get a db client and set the key value asynchronusly.
@@ -110,7 +114,9 @@ class KVClientManager {
 
     void Get(std::shared_ptr<GetKVCacheTask> task);
 
-    KVClientMetric *GetClientMetricForTesting() { return &kvClientMetric_; }
+    KVClientManagerMetric* GetMetricForTesting() {
+        return kvClientManagerMetric_.get();
+    }
 
  private:
     void Uninit();
@@ -118,7 +124,7 @@ class KVClientManager {
  private:
     TaskThreadPool<bthread::Mutex, bthread::ConditionVariable> threadPool_;
     std::shared_ptr<KVClient> client_;
-    KVClientMetric kvClientMetric_;
+    std::unique_ptr<KVClientManagerMetric> kvClientManagerMetric_;
 };
 
 }  // namespace client

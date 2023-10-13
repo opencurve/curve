@@ -31,15 +31,15 @@
 
 #include "src/common/s3_adapter.h"
 
+using ::curvefs::client::metric::ClientOpMetric;
+using ::curvefs::client::metric::DiskCacheMetric;
+using ::curvefs::client::metric::FSMetric;
+using ::curvefs::client::metric::KVClientManagerMetric;
 using ::curvefs::client::metric::MDSClientMetric;
 using ::curvefs::client::metric::MetaServerClientMetric;
-using ::curvefs::client::metric::ClientOpMetric;
-using ::curvefs::client::metric::S3MultiManagerMetric;
-using ::curvefs::client::metric::FSMetric;
-using ::curvefs::client::metric::S3Metric;
-using ::curvefs::client::metric::DiskCacheMetric;
-using ::curvefs::client::metric::KVClientMetric;
 using ::curvefs::client::metric::S3ChunkInfoMetric;
+using ::curvefs::client::metric::S3Metric;
+using ::curvefs::client::metric::S3MultiManagerMetric;
 using ::curvefs::client::metric::WarmupManagerS3Metric;
 
 
@@ -89,8 +89,8 @@ TEST_F(ClientMetricTest, test_prefix) {
     }
 
     {
-        const char* prefix = "curvefs_kvclient";
-        ASSERT_EQ(0, ::strcmp(KVClientMetric::prefix.c_str(), prefix));
+        const char* prefix = "curvefs_kvclient_manager";
+        ASSERT_EQ(0, ::strcmp(KVClientManagerMetric::prefix.c_str(), prefix));
     }
 
     {

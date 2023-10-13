@@ -167,7 +167,7 @@ class ClientS3IntegrationTest : public testing::Test {
 
         KVClientManagerOpt opt;
         std::shared_ptr<MockKVClient> mockKVClient(&mockKVClient_);
-        kvClientManager_->Init(opt, mockKVClient);
+        kvClientManager_->Init(opt, mockKVClient, "test");
     }
 
  protected:
@@ -2896,7 +2896,7 @@ TEST_F(ClientS3IntegrationTest, test_write_read_remotekvcache) {
         EXPECT_CALL(mockInodeManager_, GetInode(_, _))
             .WillOnce(
                 DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::OK)));
-        EXPECT_CALL(mockKVClient_, Get(_, _, 0, len, _))
+        EXPECT_CALL(mockKVClient_, Get(_, _, 0, len, _, _, _))
             .WillOnce(DoAll(SetArrayArgument<1>(buf, buf + len), Return(true)));
         int readLen = s3ClientAdaptor_->Read(inodeId, offset_0, len, readBuf);
         EXPECT_EQ(readLen, len);
@@ -2910,7 +2910,7 @@ TEST_F(ClientS3IntegrationTest, test_write_read_remotekvcache) {
         EXPECT_CALL(mockInodeManager_, GetInode(_, _))
             .WillOnce(
                 DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::OK)));
-        EXPECT_CALL(mockKVClient_, Get(_, _, 0, len, _))
+        EXPECT_CALL(mockKVClient_, Get(_, _, 0, len, _, _, _))
             .WillOnce(DoAll(SetArrayArgument<1>(buf, buf + len), Return(true)));
         int readLen = s3ClientAdaptor_->Read(inodeId, offset_4M, len, readBuf);
         EXPECT_EQ(readLen, len);
@@ -2924,7 +2924,7 @@ TEST_F(ClientS3IntegrationTest, test_write_read_remotekvcache) {
         EXPECT_CALL(mockInodeManager_, GetInode(_, _))
             .WillOnce(
                 DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::OK)));
-        EXPECT_CALL(mockKVClient_, Get(_, _, 0, len, _))
+        EXPECT_CALL(mockKVClient_, Get(_, _, 0, len, _, _, _))
             .WillOnce(Return(false));
         EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
             .WillOnce(DoAll(SetArrayArgument<1>(buf, buf + len), Return(true)));

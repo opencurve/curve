@@ -116,14 +116,14 @@ bool FuseS3Client::InitKVCache(const KVClientManagerOpt &opt) {
 
     // init kvcache client
     auto memcacheClient = std::make_shared<MemCachedClient>();
-    if (!memcacheClient->Init(kvcachecluster)) {
+    if (!memcacheClient->Init(kvcachecluster, fsInfo_->fsname())) {
         LOG(ERROR) << "FLAGS_supportKVcache = " << FLAGS_supportKVcache
                    << ", but init memcache client fail";
         return false;
     }
 
     kvClientManager_ = std::make_shared<KVClientManager>();
-    if (!kvClientManager_->Init(opt, memcacheClient)) {
+    if (!kvClientManager_->Init(opt, memcacheClient, fsInfo_->fsname())) {
         LOG(ERROR) << "FLAGS_supportKVcache = " << FLAGS_supportKVcache
                    << ", but init kvClientManager fail";
         return false;
