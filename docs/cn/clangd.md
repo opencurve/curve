@@ -1,6 +1,6 @@
 ## 生成compile_commands.json
 
-1. 清楚之前的编译缓存，`bazel clean`
+1. 清除之前的编译缓存，`bazel clean`
 2. 编译整个项目，`bazel build //...`
 3. 生成compile_commands.json，`bazel run @hedron_compile_commands//:refresh_all` (更多使用方式可以参考https://github.com/hedronvision/bazel-compile-commands-extractor)
 
