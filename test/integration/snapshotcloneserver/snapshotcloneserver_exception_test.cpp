@@ -20,15 +20,15 @@
  * Author: xuchaojie
  */
 
-#include <gtest/gtest.h>
-#include <glog/logging.h>
-#include <gflags/gflags.h>
 #include <fiu-control.h>
 #include <fiu.h>
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+#include <gtest/gtest.h>
 
+#include "test/integration/cluster_common/cluster.h"
 #include "test/integration/snapshotcloneserver/snapshotcloneserver_module.h"
 #include "test/integration/snapshotcloneserver/test_snapshotcloneserver_helpler.h"
-#include "test/integration/cluster_common/cluster.h"
 
 using curve::CurveCluster;
 
@@ -73,9 +73,9 @@ class SnapshotCloneServerTest : public ::testing::Test {
         cluster_ = new CurveCluster();
         ASSERT_NE(nullptr, cluster_);
         system(std::string("rm -rf ExcSCSTest.etcd").c_str());
-        pid_t pid = cluster_->StartSingleEtcd(1, kEtcdClientIpPort,
-            kEtcdPeerIpPort,
-            std::vector<std::string>{ "--name=ExcSCSTest"});
+        pid_t pid = cluster_->StartSingleEtcd(
+            1, kEtcdClientIpPort, kEtcdPeerIpPort,
+            std::vector<std::string>{"--name=ExcSCSTest"});
         LOG(INFO) << "etcd 1 started on " << kEtcdPeerIpPort
                   << ", pid = " << pid;
         ASSERT_GT(pid, 0);
@@ -92,22 +92,18 @@ class SnapshotCloneServerTest : public ::testing::Test {
         system(std::string("rm -rf ExcSCSTest.etcd").c_str());
     }
 
-    void SetUp() override {
-        fiu_init(0);
-    }
+    void SetUp() override { fiu_init(0); }
     void TearDown() override {
         // noop
     }
 
-    bool JudgeSnapTaskFailCleanTaskAndCheck(
-        const std::string &user,
-        const std::string &file,
-        const std::string &uuid,
-        SnapshotInfo *snapInfo) {
-        // 验证任务失败
+    bool JudgeSnapTaskFailCleanTaskAndCheck(const std::string& user,
+                                            const std::string& file,
+                                            const std::string& uuid,
+                                            SnapshotInfo* snapInfo) {
+        // Verification task failed
         FileSnapshotInfo info1;
-        int ret = GetSnapshotInfo(
-            user, file, uuid, &info1);
+        int ret = GetSnapshotInfo(user, file, uuid, &info1);
         if (ret < 0) {
             LOG(INFO) << "GetSnapshotInfo Fail"
                       << ", ret = " << ret;
@@ -126,7 +122,7 @@ class SnapshotCloneServerTest : public ::testing::Test {
             return false;
         }
 
-        // 验证任务不存在
+        // Verification task does not exist
         SnapshotInfo sinfo;
         ret = server_->GetMetaStore()->GetSnapshotInfo(uuid, &sinfo);
         if (ret != -1) {
@@ -137,28 +133,27 @@ class SnapshotCloneServerTest : public ::testing::Test {
         return true;
     }
 
-    bool JudgeSnapTaskFailCleanEnvAndCheck(
-        const std::string &user,
-        const std::string &file,
-        const std::string &uuid) {
+    bool JudgeSnapTaskFailCleanEnvAndCheck(const std::string& user,
+                                           const std::string& file,
+                                           const std::string& uuid) {
         SnapshotInfo snapInfo;
-        bool success = JudgeSnapTaskFailCleanTaskAndCheck(
-            user, file, uuid, &snapInfo);
+        bool success =
+            JudgeSnapTaskFailCleanTaskAndCheck(user, file, uuid, &snapInfo);
         if (!success) {
             return false;
         }
         int seqNum = snapInfo.GetSeqNum();
-        // 验证curve上无快照
+        // Verify that there are no snapshots on the curve
         FInfo fInfo;
-        int ret = server_->GetCurveFsClient()->GetSnapshot(
-            file, user, seqNum, &fInfo);
+        int ret = server_->GetCurveFsClient()->GetSnapshot(file, user, seqNum,
+                                                           &fInfo);
         if (ret != -LIBCURVE_ERROR::NOTEXIST) {
             LOG(INFO) << "AssertEnvClean Fail, snapshot exist on curve"
                       << ", ret = " << ret;
             return false;
         }
 
-        // 验证nos上无快照
+        // Verify that there are no snapshots on NOS
         ChunkIndexDataName indexData(file, seqNum);
         if (server_->GetDataStore()->ChunkIndexDataExist(indexData)) {
             LOG(INFO) << "AssertEnvClean Fail, snapshot exist on nos.";
@@ -167,13 +162,11 @@ class SnapshotCloneServerTest : public ::testing::Test {
         return true;
     }
 
-    bool JudgeCloneTaskFailCleanEnvAndCheck(
-        const std::string &user,
-        const std::string &uuid) {
-        // 验证任务状态为error
+    bool JudgeCloneTaskFailCleanEnvAndCheck(const std::string& user,
+                                            const std::string& uuid) {
+        // Verify that the task status is error
         TaskCloneInfo info1;
-        int ret = GetCloneTaskInfo(
-            user, uuid, &info1);
+        int ret = GetCloneTaskInfo(user, uuid, &info1);
         if (ret < 0) {
             LOG(INFO) << "GetCloneTask fail"
                       << ", ret = " << ret;
@@ -188,31 +181,28 @@ class SnapshotCloneServerTest : public ::testing::Test {
         return CleanCloneTaskAndCheckEnvClean(user, uuid);
     }
 
-    bool JudgeCloneTaskNotExistCleanEnvAndCheck(
-        const std::string &user,
-        const std::string &uuid) {
-        // 验证任务不存在
+    bool JudgeCloneTaskNotExistCleanEnvAndCheck(const std::string& user,
+                                                const std::string& uuid) {
+        // Verification task does not exist
         TaskCloneInfo info1;
-        int ret = GetCloneTaskInfo(
-            user, uuid, &info1);
+        int ret = GetCloneTaskInfo(user, uuid, &info1);
         if (ret != kErrCodeFileNotExist) {
             LOG(INFO) << "AsserTaskNotExist fail"
                       << ", ret = " << ret;
             return false;
         }
 
-        // 验证curvefs上无临时文件
+        // Verify that there are no temporary files on curvefs
         if (server_->GetCurveFsClient()->JudgeCloneDirHasFile()) {
             LOG(INFO) << "AssertEnvClean fail"
-                       << ", ret = " << ret;
+                      << ", ret = " << ret;
             return false;
         }
         return true;
     }
 
-    bool CleanCloneTaskAndCheckEnvClean(
-        const std::string &user,
-        const std::string &uuid) {
+    bool CleanCloneTaskAndCheckEnvClean(const std::string& user,
+                                        const std::string& uuid) {
         int ret = CleanCloneTask(user, uuid);
         if (ret < 0) {
             LOG(INFO) << "CleanCloneTask fail"
@@ -222,7 +212,7 @@ class SnapshotCloneServerTest : public ::testing::Test {
 
         std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-        // 验证任务不存在
+        // Verification task does not exist
         TaskCloneInfo info;
         ret = GetCloneTaskInfo(user, uuid, &info);
         if (kErrCodeFileNotExist != ret) {
@@ -231,34 +221,29 @@ class SnapshotCloneServerTest : public ::testing::Test {
             return false;
         }
 
-        // 验证curvefs上无临时文件
+        // Verify that there are no temporary files on curvefs
         if (server_->GetCurveFsClient()->JudgeCloneDirHasFile()) {
             LOG(INFO) << "AssertEnvClean fail"
-                       << ", ret = " << ret;
+                      << ", ret = " << ret;
             return false;
         }
         return true;
     }
 
-    bool PrepreTestSnapshot(
-        const std::string &user,
-        const std::string &file,
-        const std::string &snapName,
-        std::string *uuid) {
-        int ret = MakeSnapshot(user,
-            file , snapName, uuid);
+    bool PrepreTestSnapshot(const std::string& user, const std::string& file,
+                            const std::string& snapName, std::string* uuid) {
+        int ret = MakeSnapshot(user, file, snapName, uuid);
         if (ret < 0) {
             return false;
         }
-        bool success1 = CheckSnapshotSuccess(user, file,
-            *uuid);
+        bool success1 = CheckSnapshotSuccess(user, file, *uuid);
         return success1;
     }
 
     bool PrepreTestSnapshotIfNotExist() {
         if (testSnapId_.empty()) {
-            bool ret = PrepreTestSnapshot(testUser1,
-                testFile1, "testSnap", &testSnapId_);
+            bool ret = PrepreTestSnapshot(testUser1, testFile1, "testSnap",
+                                          &testSnapId_);
             return ret;
         }
         return true;
@@ -266,53 +251,56 @@ class SnapshotCloneServerTest : public ::testing::Test {
 
     std::string testSnapId_;
 
-    static SnapshotCloneServerModule *server_;
-    static SnapshotCloneServerOptions *options_;
+    static SnapshotCloneServerModule* server_;
+    static SnapshotCloneServerOptions* options_;
     static CurveCluster* cluster_;
 };
 
-SnapshotCloneServerModule * SnapshotCloneServerTest::server_ = nullptr;
-SnapshotCloneServerOptions * SnapshotCloneServerTest::options_ = nullptr;
-CurveCluster * SnapshotCloneServerTest::cluster_ = nullptr;
+SnapshotCloneServerModule* SnapshotCloneServerTest::server_ = nullptr;
+SnapshotCloneServerOptions* SnapshotCloneServerTest::options_ = nullptr;
+CurveCluster* SnapshotCloneServerTest::cluster_ = nullptr;
 
 TEST_F(SnapshotCloneServerTest, TestCreateSnapshotFailOnCurvefs) {
     std::string uuid;
     std::string user = testUser1;
     std::string file = testFile1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.CreateSnapshot", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.CreateSnapshot",  // NOLINT
         1, NULL, 0);
 
-    int ret = MakeSnapshot(user, file , "snap1", &uuid);
+    int ret = MakeSnapshot(user, file, "snap1", &uuid);
     ASSERT_EQ(0, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.CreateSnapshot");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.CreateSnapshot");  // NOLINT
 
     SnapshotInfo snapInfo;
-    ASSERT_TRUE(JudgeSnapTaskFailCleanTaskAndCheck(
-                user, file, uuid, &snapInfo));
+    ASSERT_TRUE(
+        JudgeSnapTaskFailCleanTaskAndCheck(user, file, uuid, &snapInfo));
 }
-
 
 TEST_F(SnapshotCloneServerTest, TestCreateSnapshotFailOnGetSnapshot) {
     std::string uuid;
     std::string user = testUser1;
     std::string file = testFile1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.GetSnapshot", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.GetSnapshot",  // NOLINT
         1, NULL, 0);
 
-    int ret = MakeSnapshot(user, file , "snap2", &uuid);
+    int ret = MakeSnapshot(user, file, "snap2", &uuid);
     ASSERT_EQ(0, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.GetSnapshot");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.GetSnapshot");  // NOLINT
 
-    ASSERT_TRUE(JudgeSnapTaskFailCleanEnvAndCheck(
-                user, file, uuid));
+    ASSERT_TRUE(JudgeSnapTaskFailCleanEnvAndCheck(user, file, uuid));
 }
 
 TEST_F(SnapshotCloneServerTest, TestCreateSnapshotFailOnDeleteSnapshot) {
@@ -320,18 +308,20 @@ TEST_F(SnapshotCloneServerTest, TestCreateSnapshotFailOnDeleteSnapshot) {
     std::string user = testUser1;
     std::string file = testFile1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.DeleteSnapshot", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.DeleteSnapshot",  // NOLINT
         1, NULL, 0);
 
-    int ret = MakeSnapshot(user, file , "snap3", &uuid);
+    int ret = MakeSnapshot(user, file, "snap3", &uuid);
     ASSERT_EQ(0, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.DeleteSnapshot");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.DeleteSnapshot");  // NOLINT
 
-    ASSERT_TRUE(JudgeSnapTaskFailCleanEnvAndCheck(
-                user, file, uuid));
+    ASSERT_TRUE(JudgeSnapTaskFailCleanEnvAndCheck(user, file, uuid));
 }
 
 TEST_F(SnapshotCloneServerTest, TestCreateSnapshotFailOnCheckSnapShotStatus) {
@@ -339,38 +329,44 @@ TEST_F(SnapshotCloneServerTest, TestCreateSnapshotFailOnCheckSnapShotStatus) {
     std::string user = testUser1;
     std::string file = testFile1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.CheckSnapShotStatus", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.CheckSnapShotStatus",  // NOLINT
         1, NULL, 0);
 
-    int ret = MakeSnapshot(user, file , "snap4", &uuid);
+    int ret = MakeSnapshot(user, file, "snap4", &uuid);
     ASSERT_EQ(0, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.CheckSnapShotStatus");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.CheckSnapShotStatus");  // NOLINT
 
-    ASSERT_TRUE(JudgeSnapTaskFailCleanEnvAndCheck(
-                user, file, uuid));
+    ASSERT_TRUE(JudgeSnapTaskFailCleanEnvAndCheck(user, file, uuid));
 }
 
 TEST_F(SnapshotCloneServerTest,
-    TestCreateSnapshotFailOnGetSnapshotSegmentInfo) {
+       TestCreateSnapshotFailOnGetSnapshotSegmentInfo) {
     std::string uuid;
     std::string user = testUser1;
     std::string file = testFile1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.GetSnapshotSegmentInfo", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.GetSnapshotSegmentInfo",  // NOLINT
         1, NULL, 0);
 
-    int ret = MakeSnapshot(user, file , "snap5", &uuid);
+    int ret = MakeSnapshot(user, file, "snap5", &uuid);
     ASSERT_EQ(0, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.GetSnapshotSegmentInfo");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.GetSnapshotSegmentInfo");  // NOLINT
 
-    ASSERT_TRUE(JudgeSnapTaskFailCleanEnvAndCheck(
-                user, file, uuid));
+    ASSERT_TRUE(JudgeSnapTaskFailCleanEnvAndCheck(user, file, uuid));
 }
 
 TEST_F(SnapshotCloneServerTest, TestCreateSnapshotFailOnReadChunkSnapshot) {
@@ -378,18 +374,21 @@ TEST_F(SnapshotCloneServerTest, TestCreateSnapshotFailOnReadChunkSnapshot) {
     std::string user = testUser1;
     std::string file = testFile1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.ReadChunkSnapshot", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.ReadChunkSnapshot",  // NOLINT
         1, NULL, 0);
 
-    int ret = MakeSnapshot(user, file , "snap6", &uuid);
+    int ret = MakeSnapshot(user, file, "snap6", &uuid);
     ASSERT_EQ(0, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.ReadChunkSnapshot");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.ReadChunkSnapshot");  // NOLINT
 
-    ASSERT_TRUE(JudgeSnapTaskFailCleanEnvAndCheck(
-                user, file, uuid));
+    ASSERT_TRUE(JudgeSnapTaskFailCleanEnvAndCheck(user, file, uuid));
 }
 
 TEST_F(SnapshotCloneServerTest, TestCreateSnapshotFailOnGetChunkInfo) {
@@ -397,18 +396,19 @@ TEST_F(SnapshotCloneServerTest, TestCreateSnapshotFailOnGetChunkInfo) {
     std::string user = testUser1;
     std::string file = testFile1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.GetChunkInfo", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.GetChunkInfo",  // NOLINT
         1, NULL, 0);
 
-    int ret = MakeSnapshot(user, file , "snap7", &uuid);
+    int ret = MakeSnapshot(user, file, "snap7", &uuid);
     ASSERT_EQ(0, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.GetChunkInfo");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.GetChunkInfo");  // NOLINT
 
-    ASSERT_TRUE(JudgeSnapTaskFailCleanEnvAndCheck(
-                user, file, uuid));
+    ASSERT_TRUE(JudgeSnapTaskFailCleanEnvAndCheck(user, file, uuid));
 }
 
 TEST_F(SnapshotCloneServerTest, TestCreateSnapshotFailOnAddSnapshot) {
@@ -416,16 +416,20 @@ TEST_F(SnapshotCloneServerTest, TestCreateSnapshotFailOnAddSnapshot) {
     std::string user = testUser1;
     std::string file = testFile1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeSnapshotCloneMetaStore.AddSnapshot", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/"
+        "FakeSnapshotCloneMetaStore.AddSnapshot",  // NOLINT
         1, NULL, 0);
 
-    // 验证任务失败
-    int ret = MakeSnapshot(user, file , "snap8", &uuid);
+    // Verification task failed
+    int ret = MakeSnapshot(user, file, "snap8", &uuid);
     ASSERT_EQ(-1, ret);
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeSnapshotCloneMetaStore.AddSnapshot");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/"
+        "FakeSnapshotCloneMetaStore.AddSnapshot");  // NOLINT
 
-    // 验证任务不存在
+    // Verification task does not exist
     SnapshotInfo sinfo;
     ret = server_->GetMetaStore()->GetSnapshotInfo(uuid, &sinfo);
     ASSERT_EQ(-1, ret);
@@ -436,20 +440,23 @@ TEST_F(SnapshotCloneServerTest, TestCreateSnapshotFailOnUpdateSnapshot) {
     std::string user = testUser1;
     std::string file = testFile1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeSnapshotCloneMetaStore.UpdateSnapshot", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/"
+        "FakeSnapshotCloneMetaStore.UpdateSnapshot",  // NOLINT
         1, NULL, 0);
 
-    int ret = MakeSnapshot(user, file , "snap9", &uuid);
+    int ret = MakeSnapshot(user, file, "snap9", &uuid);
     ASSERT_EQ(0, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeSnapshotCloneMetaStore.UpdateSnapshot");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/"
+        "FakeSnapshotCloneMetaStore.UpdateSnapshot");  // NOLINT
 
-    // 验证任务失败
+    // Verification task failed
     FileSnapshotInfo info1;
-    ret = GetSnapshotInfo(
-        user, file, uuid, &info1);
+    ret = GetSnapshotInfo(user, file, uuid, &info1);
 
     ASSERT_EQ(kErrCodeInternalError, ret);
 
@@ -462,38 +469,44 @@ TEST_F(SnapshotCloneServerTest, TestCreateSnapshotFailOnPutChunkIndexData) {
     std::string user = testUser1;
     std::string file = testFile1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeSnapshotDataStore.PutChunkIndexData", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/"
+        "FakeSnapshotDataStore.PutChunkIndexData",  // NOLINT
         1, NULL, 0);
 
-    int ret = MakeSnapshot(user, file , "snap10", &uuid);
+    int ret = MakeSnapshot(user, file, "snap10", &uuid);
     ASSERT_EQ(0, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeSnapshotDataStore.PutChunkIndexData");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/"
+        "FakeSnapshotDataStore.PutChunkIndexData");  // NOLINT
 
-    ASSERT_TRUE(JudgeSnapTaskFailCleanEnvAndCheck(
-                user, file, uuid));
+    ASSERT_TRUE(JudgeSnapTaskFailCleanEnvAndCheck(user, file, uuid));
 }
 
 TEST_F(SnapshotCloneServerTest,
-    TestCreateSnapshotFailOnDataChunkTranferComplete) {
+       TestCreateSnapshotFailOnDataChunkTranferComplete) {
     std::string uuid;
     std::string user = testUser1;
     std::string file = testFile1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeSnapshotDataStore.DataChunkTranferComplete", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/"
+        "FakeSnapshotDataStore.DataChunkTranferComplete",  // NOLINT
         1, NULL, 0);
 
-    int ret = MakeSnapshot(user, file , "snap11", &uuid);
+    int ret = MakeSnapshot(user, file, "snap11", &uuid);
     ASSERT_EQ(0, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeSnapshotDataStore.DataChunkTranferComplete");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/"
+        "FakeSnapshotDataStore.DataChunkTranferComplete");  // NOLINT
 
-    ASSERT_TRUE(JudgeSnapTaskFailCleanEnvAndCheck(
-                user, file, uuid));
+    ASSERT_TRUE(JudgeSnapTaskFailCleanEnvAndCheck(user, file, uuid));
 }
 
 TEST_F(SnapshotCloneServerTest, TestDeleteSnapshotFailOnGetChunkIndexData) {
@@ -503,16 +516,20 @@ TEST_F(SnapshotCloneServerTest, TestDeleteSnapshotFailOnGetChunkIndexData) {
 
     ASSERT_TRUE(PrepreTestSnapshot(user, file, "snap12", &uuid));
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeSnapshotDataStore.GetChunkIndexData", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/"
+        "FakeSnapshotDataStore.GetChunkIndexData",  // NOLINT
         1, NULL, 0);
 
-    // 验证删除失败
+    // Verification deletion failed
     int ret = DeleteAndCheckSnapshotSuccess(user, file, uuid);
     ASSERT_EQ(-1, ret);
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeSnapshotDataStore.GetChunkIndexData");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/"
+        "FakeSnapshotDataStore.GetChunkIndexData");  // NOLINT
 
-    // 验证任务失败
+    // Verification task failed
     SnapshotInfo sinfo;
     ret = server_->GetMetaStore()->GetSnapshotInfo(uuid, &sinfo);
     ASSERT_EQ(0, ret);
@@ -526,16 +543,20 @@ TEST_F(SnapshotCloneServerTest, TestDeleteSnapshotFailOnDeleteChunkData) {
 
     ASSERT_TRUE(PrepreTestSnapshot(user, file, "snap13", &uuid));
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeSnapshotDataStore.DeleteChunkData", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/"
+        "FakeSnapshotDataStore.DeleteChunkData",  // NOLINT
         1, NULL, 0);
 
-    // 验证删除失败
+    // Verification deletion failed
     int ret = DeleteAndCheckSnapshotSuccess(user, file, uuid);
     ASSERT_EQ(-1, ret);
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeSnapshotDataStore.DeleteChunkData");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/"
+        "FakeSnapshotDataStore.DeleteChunkData");  // NOLINT
 
-    // 验证任务失败
+    // Verification task failed
     SnapshotInfo sinfo;
     ret = server_->GetMetaStore()->GetSnapshotInfo(uuid, &sinfo);
     ASSERT_EQ(0, ret);
@@ -549,16 +570,20 @@ TEST_F(SnapshotCloneServerTest, TestDeleteSnapshotFailOnDeleteChunkIndexData) {
 
     ASSERT_TRUE(PrepreTestSnapshot(user, file, "snap14", &uuid));
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeSnapshotDataStore.DeleteChunkIndexData", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/"
+        "FakeSnapshotDataStore.DeleteChunkIndexData",  // NOLINT
         1, NULL, 0);
 
-    // 验证删除失败
+    // Verification deletion failed
     int ret = DeleteAndCheckSnapshotSuccess(user, file, uuid);
     ASSERT_EQ(-1, ret);
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeSnapshotDataStore.DeleteChunkIndexData");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/"
+        "FakeSnapshotDataStore.DeleteChunkIndexData");  // NOLINT
 
-    // 验证任务失败
+    // Verification task failed
     SnapshotInfo sinfo;
     ret = server_->GetMetaStore()->GetSnapshotInfo(uuid, &sinfo);
     ASSERT_EQ(0, ret);
@@ -572,16 +597,20 @@ TEST_F(SnapshotCloneServerTest, TestDeleteSnapshotFailOnDeleteSnapshot) {
 
     ASSERT_TRUE(PrepreTestSnapshot(user, file, "snap15", &uuid));
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeSnapshotCloneMetaStore.DeleteSnapshot", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/"
+        "FakeSnapshotCloneMetaStore.DeleteSnapshot",  // NOLINT
         1, NULL, 0);
 
-    // 验证删除失败
+    // Verification deletion failed
     int ret = DeleteAndCheckSnapshotSuccess(user, file, uuid);
     ASSERT_EQ(-1, ret);
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeSnapshotCloneMetaStore.DeleteSnapshot");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/"
+        "FakeSnapshotCloneMetaStore.DeleteSnapshot");  // NOLINT
 
-    // 验证任务失败
+    // Verification task failed
     SnapshotInfo sinfo;
     ret = server_->GetMetaStore()->GetSnapshotInfo(uuid, &sinfo);
     ASSERT_EQ(0, ret);
@@ -592,220 +621,234 @@ TEST_F(SnapshotCloneServerTest, TestLazyCloneSnapFailOnCreateCloneFile) {
     ASSERT_TRUE(PrepreTestSnapshotIfNotExist());
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.CreateCloneFile", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.CreateCloneFile",  // NOLINT
         1, NULL, 0);
 
-    int ret = CloneOrRecover("Clone", testUser1, testSnapId_,
-        "/user1/clone1", true,
-        &uuid1);
+    int ret = CloneOrRecover("Clone", testUser1, testSnapId_, "/user1/clone1",
+                             true, &uuid1);
     ASSERT_EQ(kErrCodeInternalError, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.CreateCloneFile");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.CreateCloneFile");  // NOLINT
 
-    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(
-            testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(testUser1, uuid1));
 }
 
 TEST_F(SnapshotCloneServerTest, TestLazyCloneSnapFailOnCompleteCloneMeta) {
     ASSERT_TRUE(PrepreTestSnapshotIfNotExist());
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.CompleteCloneMeta", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.CompleteCloneMeta",  // NOLINT
         1, NULL, 0);
 
-    int ret = CloneOrRecover("Clone", testUser1, testSnapId_,
-        "/user1/clone1", true,
-        &uuid1);
+    int ret = CloneOrRecover("Clone", testUser1, testSnapId_, "/user1/clone1",
+                             true, &uuid1);
     ASSERT_EQ(kErrCodeInternalError, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.CompleteCloneMeta");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.CompleteCloneMeta");  // NOLINT
 
-    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(
-            testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(testUser1, uuid1));
 }
 
 TEST_F(SnapshotCloneServerTest, TestLazyCloneSnapFailOnGetFileInfo) {
     ASSERT_TRUE(PrepreTestSnapshotIfNotExist());
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.GetFileInfo", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.GetFileInfo",  // NOLINT
         1, NULL, 0);
 
-    int ret = CloneOrRecover("Clone", testUser1, testSnapId_,
-        "/user1/clone1", true,
-        &uuid1);
+    int ret = CloneOrRecover("Clone", testUser1, testSnapId_, "/user1/clone1",
+                             true, &uuid1);
     ASSERT_EQ(kErrCodeInternalError, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.GetFileInfo");  // NOLINT
-    ASSERT_TRUE(JudgeCloneTaskNotExistCleanEnvAndCheck(
-                testUser1, uuid1));
+    fiu_disable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.GetFileInfo");  // NOLINT
+    ASSERT_TRUE(JudgeCloneTaskNotExistCleanEnvAndCheck(testUser1, uuid1));
 }
 
 TEST_F(SnapshotCloneServerTest,
-    TestLazyCloneSnapFailOnGetOrAllocateSegmentInfo) {
+       TestLazyCloneSnapFailOnGetOrAllocateSegmentInfo) {
     ASSERT_TRUE(PrepreTestSnapshotIfNotExist());
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.GetOrAllocateSegmentInfo", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.GetOrAllocateSegmentInfo",  // NOLINT
         1, NULL, 0);
 
-    int ret = CloneOrRecover("Clone", testUser1, testSnapId_,
-        "/user1/clone1", true,
-        &uuid1);
+    int ret = CloneOrRecover("Clone", testUser1, testSnapId_, "/user1/clone1",
+                             true, &uuid1);
     ASSERT_EQ(kErrCodeInternalError, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.GetOrAllocateSegmentInfo");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.GetOrAllocateSegmentInfo");  // NOLINT
 
-    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(
-                testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(testUser1, uuid1));
 }
 
 TEST_F(SnapshotCloneServerTest, TestLazyCloneSnapFailOnRenameCloneFile) {
     ASSERT_TRUE(PrepreTestSnapshotIfNotExist());
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.RenameCloneFile", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.RenameCloneFile",  // NOLINT
         1, NULL, 0);
 
-    int ret = CloneOrRecover("Clone", testUser1, testSnapId_,
-        "/user1/clone1", true,
-        &uuid1);
+    int ret = CloneOrRecover("Clone", testUser1, testSnapId_, "/user1/clone1",
+                             true, &uuid1);
     ASSERT_EQ(kErrCodeInternalError, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.RenameCloneFile");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.RenameCloneFile");  // NOLINT
 
-    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(
-                testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(testUser1, uuid1));
 }
 
 TEST_F(SnapshotCloneServerTest, TestLazyCloneSnapFailOnCreateCloneChunk) {
     ASSERT_TRUE(PrepreTestSnapshotIfNotExist());
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.CreateCloneChunk", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.CreateCloneChunk",  // NOLINT
         1, NULL, 0);
 
-    int ret = CloneOrRecover("Clone", testUser1, testSnapId_,
-        "/user1/clone1", true,
-        &uuid1);
+    int ret = CloneOrRecover("Clone", testUser1, testSnapId_, "/user1/clone1",
+                             true, &uuid1);
     ASSERT_EQ(kErrCodeInternalError, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.CreateCloneChunk");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.CreateCloneChunk");  // NOLINT
 
-    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(
-                testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(testUser1, uuid1));
 }
 
 TEST_F(SnapshotCloneServerTest, TestLazyCloneSnapFailOnChangeOwner) {
     ASSERT_TRUE(PrepreTestSnapshotIfNotExist());
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.ChangeOwner", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.ChangeOwner",  // NOLINT
         1, NULL, 0);
 
-    int ret = CloneOrRecover("Clone", testUser1, testSnapId_,
-        "/user1/clone1", true,
-        &uuid1);
+    int ret = CloneOrRecover("Clone", testUser1, testSnapId_, "/user1/clone1",
+                             true, &uuid1);
     ASSERT_EQ(kErrCodeInternalError, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.ChangeOwner");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.ChangeOwner");  // NOLINT
 
-    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(
-                testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(testUser1, uuid1));
 }
 
 TEST_F(SnapshotCloneServerTest, TestLazyCloneSnapFailOnGetChunkIndexData) {
     ASSERT_TRUE(PrepreTestSnapshotIfNotExist());
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeSnapshotDataStore.GetChunkIndexData", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/"
+        "FakeSnapshotDataStore.GetChunkIndexData",  // NOLINT
         1, NULL, 0);
 
-    int ret = CloneOrRecover("Clone", testUser1, testSnapId_,
-        "/user1/clone1", true,
-        &uuid1);
+    int ret = CloneOrRecover("Clone", testUser1, testSnapId_, "/user1/clone1",
+                             true, &uuid1);
     ASSERT_EQ(kErrCodeInternalError, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeSnapshotDataStore.GetChunkIndexData");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/"
+        "FakeSnapshotDataStore.GetChunkIndexData");  // NOLINT
 
-    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(
-                testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(testUser1, uuid1));
 }
 
 TEST_F(SnapshotCloneServerTest, TestLazyCloneSnapFailOnAddCloneInfo) {
     ASSERT_TRUE(PrepreTestSnapshotIfNotExist());
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeSnapshotCloneMetaStore.AddCloneInfo", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/"
+        "FakeSnapshotCloneMetaStore.AddCloneInfo",  // NOLINT
         1, NULL, 0);
 
-    int ret = CloneOrRecover("Clone", testUser1, testSnapId_,
-        "/user1/clone1", true,
-        &uuid1);
+    int ret = CloneOrRecover("Clone", testUser1, testSnapId_, "/user1/clone1",
+                             true, &uuid1);
     ASSERT_EQ(kErrCodeInternalError, ret);
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeSnapshotCloneMetaStore.AddCloneInfo");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/"
+        "FakeSnapshotCloneMetaStore.AddCloneInfo");  // NOLINT
 
-    ASSERT_TRUE(JudgeCloneTaskNotExistCleanEnvAndCheck(
-                testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskNotExistCleanEnvAndCheck(testUser1, uuid1));
 }
 
 TEST_F(SnapshotCloneServerTest,
-    TestLazyCloneSnapFailOnFileNotExistWhenRecoverChunk) {
+       TestLazyCloneSnapFailOnFileNotExistWhenRecoverChunk) {
     ASSERT_TRUE(PrepreTestSnapshotIfNotExist());
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.RecoverChunk", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.RecoverChunk",  // NOLINT
         1, NULL, 0);
 
-    int ret = CloneOrRecover("Clone", testUser1, testSnapId_,
-        "/user1/clone1", true,
-        &uuid1);
+    int ret = CloneOrRecover("Clone", testUser1, testSnapId_, "/user1/clone1",
+                             true, &uuid1);
     ASSERT_EQ(0, ret);
 
     // Flatten
     ret = Flatten(testUser1, uuid1);
     ASSERT_EQ(0, ret);
 
-    // 克隆未完成前删除目标文件
+    // Delete target file before cloning is completed
     ASSERT_EQ(LIBCURVE_ERROR::OK,
-        server_->GetCurveFsClient()->DeleteFile("/user1/clone1", "", 0));
+              server_->GetCurveFsClient()->DeleteFile("/user1/clone1", "", 0));
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(
-                testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(testUser1, uuid1));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.RecoverChunk");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.RecoverChunk");  // NOLINT
 }
 
 TEST_F(SnapshotCloneServerTest,
-    TestLazyCloneSnapSuccessWhenRecoverChunkFailOneTime) {
+       TestLazyCloneSnapSuccessWhenRecoverChunkFailOneTime) {
     ASSERT_TRUE(PrepreTestSnapshotIfNotExist());
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.RecoverChunk", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.RecoverChunk",  // NOLINT
         1, NULL, FIU_ONETIME);
 
     int ret = CloneOrRecover("Clone", testUser1, testSnapId_,
-        "/user1/cloneSuccess1", true,
-        &uuid1);
+                             "/user1/cloneSuccess1", true, &uuid1);
     ASSERT_EQ(0, ret);
 
     // Flatten
@@ -815,238 +858,251 @@ TEST_F(SnapshotCloneServerTest,
     bool success1 = CheckCloneOrRecoverSuccess(testUser1, uuid1, true);
     ASSERT_TRUE(success1);
 
-    ASSERT_EQ(LIBCURVE_ERROR::OK,
-        server_->GetCurveFsClient()->DeleteFile("/user1/cloneSuccess1", "", 0));
+    ASSERT_EQ(LIBCURVE_ERROR::OK, server_->GetCurveFsClient()->DeleteFile(
+                                      "/user1/cloneSuccess1", "", 0));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.RecoverChunk");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.RecoverChunk");  // NOLINT
 
-    ASSERT_TRUE(CleanCloneTaskAndCheckEnvClean(
-                testUser1, uuid1));
+    ASSERT_TRUE(CleanCloneTaskAndCheckEnvClean(testUser1, uuid1));
 }
 
 TEST_F(SnapshotCloneServerTest, TestNotLazyCloneSnapFailOnRecoverChunk) {
     ASSERT_TRUE(PrepreTestSnapshotIfNotExist());
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.RecoverChunk", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.RecoverChunk",  // NOLINT
         1, NULL, 0);
 
-    int ret = CloneOrRecover("Clone", testUser1, testSnapId_,
-        "/user1/clone1", false,
-        &uuid1);
+    int ret = CloneOrRecover("Clone", testUser1, testSnapId_, "/user1/clone1",
+                             false, &uuid1);
     ASSERT_EQ(0, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.RecoverChunk");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.RecoverChunk");  // NOLINT
 
-    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(
-                testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(testUser1, uuid1));
 }
 
 TEST_F(SnapshotCloneServerTest, TestNotLazyCloneSnapFailOnRenameCloneFile) {
     ASSERT_TRUE(PrepreTestSnapshotIfNotExist());
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.RenameCloneFile", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.RenameCloneFile",  // NOLINT
         1, NULL, 0);
 
-    int ret = CloneOrRecover("Clone", testUser1, testSnapId_,
-        "/user1/clone1", false,
-        &uuid1);
+    int ret = CloneOrRecover("Clone", testUser1, testSnapId_, "/user1/clone1",
+                             false, &uuid1);
     ASSERT_EQ(0, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.RenameCloneFile");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.RenameCloneFile");  // NOLINT
 
-    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(
-                testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(testUser1, uuid1));
 }
 
 TEST_F(SnapshotCloneServerTest, TestNotLazyCloneSnapFailOnChangeOwner) {
     ASSERT_TRUE(PrepreTestSnapshotIfNotExist());
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.ChangeOwner", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.ChangeOwner",  // NOLINT
         1, NULL, 0);
 
-    int ret = CloneOrRecover("Clone", testUser1, testSnapId_,
-        "/user1/clone1", false,
-        &uuid1);
+    int ret = CloneOrRecover("Clone", testUser1, testSnapId_, "/user1/clone1",
+                             false, &uuid1);
     ASSERT_EQ(0, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.ChangeOwner");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.ChangeOwner");  // NOLINT
 
-    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(
-                testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(testUser1, uuid1));
 }
 
 TEST_F(SnapshotCloneServerTest, TestNotLazyCloneSnapFailOnCompleteCloneFile) {
     ASSERT_TRUE(PrepreTestSnapshotIfNotExist());
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.CompleteCloneFile", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.CompleteCloneFile",  // NOLINT
         1, NULL, 0);
 
-    int ret = CloneOrRecover("Clone", testUser1, testSnapId_,
-        "/user1/clone1", false,
-        &uuid1);
+    int ret = CloneOrRecover("Clone", testUser1, testSnapId_, "/user1/clone1",
+                             false, &uuid1);
     ASSERT_EQ(0, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.CompleteCloneFile");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.CompleteCloneFile");  // NOLINT
 
-    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(
-                testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(testUser1, uuid1));
 }
 
 TEST_F(SnapshotCloneServerTest, TestLazyCloneImageFailOnCreateCloneFile) {
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.CreateCloneFile", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.CreateCloneFile",  // NOLINT
         1, NULL, 0);
 
-    int ret = CloneOrRecover("Clone", testUser1, testFile1,
-        "/user1/clone1", true,
-        &uuid1);
+    int ret = CloneOrRecover("Clone", testUser1, testFile1, "/user1/clone1",
+                             true, &uuid1);
     ASSERT_EQ(kErrCodeInternalError, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.CreateCloneFile");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.CreateCloneFile");  // NOLINT
 
-    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(
-                testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(testUser1, uuid1));
 }
 
 TEST_F(SnapshotCloneServerTest, TestLazyCloneImageFailOnCompleteCloneMeta) {
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.CompleteCloneMeta", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.CompleteCloneMeta",  // NOLINT
         1, NULL, 0);
 
-    int ret = CloneOrRecover("Clone", testUser1, testFile1,
-        "/user1/clone1", true,
-        &uuid1);
+    int ret = CloneOrRecover("Clone", testUser1, testFile1, "/user1/clone1",
+                             true, &uuid1);
     ASSERT_EQ(kErrCodeInternalError, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.CompleteCloneMeta");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.CompleteCloneMeta");  // NOLINT
 
-    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(
-                testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(testUser1, uuid1));
 }
 
 TEST_F(SnapshotCloneServerTest, TestLazyCloneImageFailOnGetFileInfo) {
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.GetFileInfo", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.GetFileInfo",  // NOLINT
         1, NULL, 0);
 
-    int ret = CloneOrRecover("Clone", testUser1, testFile1,
-        "/user1/clone1", true,
-        &uuid1);
+    int ret = CloneOrRecover("Clone", testUser1, testFile1, "/user1/clone1",
+                             true, &uuid1);
     ASSERT_EQ(kErrCodeInternalError, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.GetFileInfo");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.GetFileInfo");  // NOLINT
 
-    ASSERT_TRUE(JudgeCloneTaskNotExistCleanEnvAndCheck(
-                testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskNotExistCleanEnvAndCheck(testUser1, uuid1));
 }
 
 TEST_F(SnapshotCloneServerTest,
-    TestLazyCloneImageFailOnGetOrAllocateSegmentInfo) {
+       TestLazyCloneImageFailOnGetOrAllocateSegmentInfo) {
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.GetOrAllocateSegmentInfo", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.GetOrAllocateSegmentInfo",  // NOLINT
         1, NULL, 0);
 
-    int ret = CloneOrRecover("Clone", testUser1, testFile1,
-        "/user1/clone1", true,
-        &uuid1);
+    int ret = CloneOrRecover("Clone", testUser1, testFile1, "/user1/clone1",
+                             true, &uuid1);
     ASSERT_EQ(kErrCodeInternalError, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.GetOrAllocateSegmentInfo");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.GetOrAllocateSegmentInfo");  // NOLINT
 
-    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(
-                testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(testUser1, uuid1));
 }
 
-TEST_F(SnapshotCloneServerTest,
-    TestLazyCloneImageFailOnRenameCloneFile) {
+TEST_F(SnapshotCloneServerTest, TestLazyCloneImageFailOnRenameCloneFile) {
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.RenameCloneFile", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.RenameCloneFile",  // NOLINT
         1, NULL, 0);
 
-    int ret = CloneOrRecover("Clone", testUser1, testFile1,
-        "/user1/clone1", true,
-        &uuid1);
+    int ret = CloneOrRecover("Clone", testUser1, testFile1, "/user1/clone1",
+                             true, &uuid1);
     ASSERT_EQ(kErrCodeInternalError, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.RenameCloneFile");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.RenameCloneFile");  // NOLINT
 
-    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(
-                testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(testUser1, uuid1));
 }
 
 TEST_F(SnapshotCloneServerTest, TestLazyCloneImageFailOnAddCloneInfo) {
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeSnapshotCloneMetaStore.AddCloneInfo", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/"
+        "FakeSnapshotCloneMetaStore.AddCloneInfo",  // NOLINT
         1, NULL, 0);
 
-    int ret = CloneOrRecover("Clone", testUser1, testFile1,
-        "/user1/clone1", true,
-        &uuid1);
+    int ret = CloneOrRecover("Clone", testUser1, testFile1, "/user1/clone1",
+                             true, &uuid1);
     ASSERT_EQ(kErrCodeInternalError, ret);
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeSnapshotCloneMetaStore.AddCloneInfo");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/"
+        "FakeSnapshotCloneMetaStore.AddCloneInfo");  // NOLINT
 
-    ASSERT_TRUE(JudgeCloneTaskNotExistCleanEnvAndCheck(
-                testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskNotExistCleanEnvAndCheck(testUser1, uuid1));
 }
 
 TEST_F(SnapshotCloneServerTest, TestLazyCloneSnapImageOnChangeOwner) {
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.ChangeOwner", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.ChangeOwner",  // NOLINT
         1, NULL, 0);
 
-    int ret = CloneOrRecover("Clone", testUser1, testFile1,
-        "/user1/clone1", true,
-        &uuid1);
+    int ret = CloneOrRecover("Clone", testUser1, testFile1, "/user1/clone1",
+                             true, &uuid1);
     ASSERT_EQ(kErrCodeInternalError, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.ChangeOwner");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.ChangeOwner");  // NOLINT
 
-    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(
-                testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(testUser1, uuid1));
 }
 
-TEST_F(SnapshotCloneServerTest,
-    TestLazyCloneImageFailOnCreateCloneChunk) {
+TEST_F(SnapshotCloneServerTest, TestLazyCloneImageFailOnCreateCloneChunk) {
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.CreateCloneChunk", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.CreateCloneChunk",  // NOLINT
         1, NULL, 0);
 
-    int ret = CloneOrRecover("Clone", testUser1, testFile1,
-        "/user1/clone1", true,
-        &uuid1);
+    int ret = CloneOrRecover("Clone", testUser1, testFile1, "/user1/clone1",
+                             true, &uuid1);
     ASSERT_EQ(0, ret);
 
     // Flatten
@@ -1056,52 +1112,53 @@ TEST_F(SnapshotCloneServerTest,
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
     ASSERT_EQ(LIBCURVE_ERROR::OK,
-        server_->GetCurveFsClient()->DeleteFile("/user1/clone1", "", 0));
+              server_->GetCurveFsClient()->DeleteFile("/user1/clone1", "", 0));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.CreateCloneChunk");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.CreateCloneChunk");  // NOLINT
 
-    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(
-                testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(testUser1, uuid1));
 }
 
 TEST_F(SnapshotCloneServerTest,
-    TestLazyCloneImageFailOnFileNotExistWhenRecoverChunk) {
+       TestLazyCloneImageFailOnFileNotExistWhenRecoverChunk) {
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.RecoverChunk", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.RecoverChunk",  // NOLINT
         1, NULL, 0);
 
-    int ret = CloneOrRecover("Clone", testUser1, testFile1,
-        "/user1/clone1", true,
-        &uuid1);
+    int ret = CloneOrRecover("Clone", testUser1, testFile1, "/user1/clone1",
+                             true, &uuid1);
     ASSERT_EQ(0, ret);
 
     // Flatten
     ret = Flatten(testUser1, uuid1);
     ASSERT_EQ(0, ret);
 
-    // 克隆未完成前删除目标文件
+    // Delete target file before cloning is completed
     ASSERT_EQ(LIBCURVE_ERROR::OK,
-        server_->GetCurveFsClient()->DeleteFile("/user1/clone1", "", 0));
+              server_->GetCurveFsClient()->DeleteFile("/user1/clone1", "", 0));
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(
-                testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(testUser1, uuid1));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.RecoverChunk");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.RecoverChunk");  // NOLINT
 }
 
 TEST_F(SnapshotCloneServerTest,
-    TestLazyCloneImageSuccessWhenRecoverChunkFailOneTime) {
+       TestLazyCloneImageSuccessWhenRecoverChunkFailOneTime) {
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.RecoverChunk", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.RecoverChunk",  // NOLINT
         1, NULL, FIU_ONETIME);
 
     int ret = CloneOrRecover("Clone", testUser1, testFile1,
-        "/user1/cloneSuccess2", true,
-        &uuid1);
+                             "/user1/cloneSuccess2", true, &uuid1);
     ASSERT_EQ(0, ret);
 
     // Flatten
@@ -1111,276 +1168,299 @@ TEST_F(SnapshotCloneServerTest,
     bool success1 = CheckCloneOrRecoverSuccess(testUser1, uuid1, true);
     ASSERT_TRUE(success1);
 
-    ASSERT_EQ(LIBCURVE_ERROR::OK,
-        server_->GetCurveFsClient()->DeleteFile("/user1/cloneSuccess2", "", 0));
+    ASSERT_EQ(LIBCURVE_ERROR::OK, server_->GetCurveFsClient()->DeleteFile(
+                                      "/user1/cloneSuccess2", "", 0));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.RecoverChunk");  // NOLINT
-    ASSERT_TRUE(CleanCloneTaskAndCheckEnvClean(
-                testUser1, uuid1));
+    fiu_disable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.RecoverChunk");  // NOLINT
+    ASSERT_TRUE(CleanCloneTaskAndCheckEnvClean(testUser1, uuid1));
 }
 
-TEST_F(SnapshotCloneServerTest,
-    TestNotLazyCloneImageFailOnRecoverChunk) {
+TEST_F(SnapshotCloneServerTest, TestNotLazyCloneImageFailOnRecoverChunk) {
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.RecoverChunk", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.RecoverChunk",  // NOLINT
         1, NULL, 0);
 
-    int ret = CloneOrRecover("Clone", testUser1, testFile1,
-        "/user1/clone1", false,
-        &uuid1);
+    int ret = CloneOrRecover("Clone", testUser1, testFile1, "/user1/clone1",
+                             false, &uuid1);
     ASSERT_EQ(0, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.RecoverChunk");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.RecoverChunk");  // NOLINT
 
-    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(
-                testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(testUser1, uuid1));
 }
 
-TEST_F(SnapshotCloneServerTest,
-    TestNotLazyCloneImageFailOnRenameCloneFile) {
+TEST_F(SnapshotCloneServerTest, TestNotLazyCloneImageFailOnRenameCloneFile) {
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.RenameCloneFile", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.RenameCloneFile",  // NOLINT
         1, NULL, 0);
 
-    int ret = CloneOrRecover("Clone", testUser1, testFile1,
-        "/user1/clone1", false,
-        &uuid1);
+    int ret = CloneOrRecover("Clone", testUser1, testFile1, "/user1/clone1",
+                             false, &uuid1);
     ASSERT_EQ(0, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.RenameCloneFile");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.RenameCloneFile");  // NOLINT
 
-    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(
-                testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(testUser1, uuid1));
 }
 
 TEST_F(SnapshotCloneServerTest, TestNotLazyCloneSnapImageOnChangeOwner) {
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.ChangeOwner", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.ChangeOwner",  // NOLINT
         1, NULL, 0);
 
-    int ret = CloneOrRecover("Clone", testUser1, testFile1,
-        "/user1/clone1", false,
-        &uuid1);
+    int ret = CloneOrRecover("Clone", testUser1, testFile1, "/user1/clone1",
+                             false, &uuid1);
     ASSERT_EQ(0, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.ChangeOwner");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.ChangeOwner");  // NOLINT
 
-    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(
-                testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(testUser1, uuid1));
 }
 
-TEST_F(SnapshotCloneServerTest,
-    TestNotLazyCloneImageFailOnCompleteCloneFile) {
+TEST_F(SnapshotCloneServerTest, TestNotLazyCloneImageFailOnCompleteCloneFile) {
     ASSERT_TRUE(PrepreTestSnapshotIfNotExist());
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.CompleteCloneFile", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.CompleteCloneFile",  // NOLINT
         1, NULL, 0);
 
-    int ret = CloneOrRecover("Clone", testUser1, testFile1,
-        "/user1/clone1", false,
-        &uuid1);
+    int ret = CloneOrRecover("Clone", testUser1, testFile1, "/user1/clone1",
+                             false, &uuid1);
     ASSERT_EQ(0, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.CompleteCloneFile");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.CompleteCloneFile");  // NOLINT
 
-    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(
-                testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(testUser1, uuid1));
 }
 
 TEST_F(SnapshotCloneServerTest, TestLazyRecoverSnapFailOnCreateCloneFile) {
     ASSERT_TRUE(PrepreTestSnapshotIfNotExist());
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.CreateCloneFile", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.CreateCloneFile",  // NOLINT
         1, NULL, 0);
 
     int ret = CloneOrRecover("Recover", testUser1, testSnapId_, testFile1, true,
-        &uuid1);
+                             &uuid1);
     ASSERT_EQ(kErrCodeInternalError, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.CreateCloneFile");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.CreateCloneFile");  // NOLINT
 
-    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(
-                testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(testUser1, uuid1));
 }
 
 TEST_F(SnapshotCloneServerTest, TestLazyRecoverSnapFailOnCompleteCloneMeta) {
     ASSERT_TRUE(PrepreTestSnapshotIfNotExist());
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.CompleteCloneMeta", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.CompleteCloneMeta",  // NOLINT
         1, NULL, 0);
 
     int ret = CloneOrRecover("Recover", testUser1, testSnapId_, testFile1, true,
-        &uuid1);
+                             &uuid1);
     ASSERT_EQ(kErrCodeInternalError, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.CompleteCloneMeta");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.CompleteCloneMeta");  // NOLINT
 
-    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(
-                testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(testUser1, uuid1));
 }
 
 TEST_F(SnapshotCloneServerTest, TestLazyRecoverSnapFailOnGetFileInfo) {
     ASSERT_TRUE(PrepreTestSnapshotIfNotExist());
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.GetFileInfo", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.GetFileInfo",  // NOLINT
         1, NULL, 0);
 
     int ret = CloneOrRecover("Recover", testUser1, testSnapId_, testFile1, true,
-        &uuid1);
+                             &uuid1);
     ASSERT_EQ(kErrCodeInternalError, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.GetFileInfo");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.GetFileInfo");  // NOLINT
 
-    ASSERT_TRUE(JudgeCloneTaskNotExistCleanEnvAndCheck(
-                testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskNotExistCleanEnvAndCheck(testUser1, uuid1));
 }
 
 TEST_F(SnapshotCloneServerTest,
-    TestLazyRecoverSnapFailOnGetOrAllocateSegmentInfo) {
+       TestLazyRecoverSnapFailOnGetOrAllocateSegmentInfo) {
     ASSERT_TRUE(PrepreTestSnapshotIfNotExist());
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.GetOrAllocateSegmentInfo", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.GetOrAllocateSegmentInfo",  // NOLINT
         1, NULL, 0);
 
     int ret = CloneOrRecover("Recover", testUser1, testSnapId_, testFile1, true,
-        &uuid1);
+                             &uuid1);
     ASSERT_EQ(kErrCodeInternalError, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.GetOrAllocateSegmentInfo");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.GetOrAllocateSegmentInfo");  // NOLINT
 
-    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(
-                testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(testUser1, uuid1));
 }
 
 TEST_F(SnapshotCloneServerTest, TestLazyRecoverSnapFailOnRenameCloneFile) {
     ASSERT_TRUE(PrepreTestSnapshotIfNotExist());
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.RenameCloneFile", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.RenameCloneFile",  // NOLINT
         1, NULL, 0);
 
     int ret = CloneOrRecover("Recover", testUser1, testSnapId_, testFile1, true,
-        &uuid1);
+                             &uuid1);
     ASSERT_EQ(kErrCodeInternalError, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.RenameCloneFile");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.RenameCloneFile");  // NOLINT
 
-    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(
-                testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(testUser1, uuid1));
 }
 
 TEST_F(SnapshotCloneServerTest, TestLazyRecoverSnapFailOnCreateCloneChunk) {
     ASSERT_TRUE(PrepreTestSnapshotIfNotExist());
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.CreateCloneChunk", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.CreateCloneChunk",  // NOLINT
         1, NULL, 0);
 
     int ret = CloneOrRecover("Recover", testUser1, testSnapId_, testFile1, true,
-        &uuid1);
+                             &uuid1);
     ASSERT_EQ(kErrCodeInternalError, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.CreateCloneChunk");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.CreateCloneChunk");  // NOLINT
 
-    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(
-                testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(testUser1, uuid1));
 }
 
 TEST_F(SnapshotCloneServerTest, TestLazyRecoverSnapFailOnGetChunkIndexData) {
     ASSERT_TRUE(PrepreTestSnapshotIfNotExist());
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeSnapshotDataStore.GetChunkIndexData", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/"
+        "FakeSnapshotDataStore.GetChunkIndexData",  // NOLINT
         1, NULL, 0);
 
     int ret = CloneOrRecover("Recover", testUser1, testSnapId_, testFile1, true,
-        &uuid1);
+                             &uuid1);
     ASSERT_EQ(kErrCodeInternalError, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeSnapshotDataStore.GetChunkIndexData");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/"
+        "FakeSnapshotDataStore.GetChunkIndexData");  // NOLINT
 
-    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(
-                testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(testUser1, uuid1));
 }
 
 TEST_F(SnapshotCloneServerTest, TestLazyRecoverSnapFailOnAddCloneInfo) {
     ASSERT_TRUE(PrepreTestSnapshotIfNotExist());
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeSnapshotCloneMetaStore.AddCloneInfo", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/"
+        "FakeSnapshotCloneMetaStore.AddCloneInfo",  // NOLINT
         1, NULL, 0);
 
     int ret = CloneOrRecover("Recover", testUser1, testSnapId_, testFile1, true,
-        &uuid1);
+                             &uuid1);
     ASSERT_EQ(kErrCodeInternalError, ret);
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeSnapshotCloneMetaStore.AddCloneInfo");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/"
+        "FakeSnapshotCloneMetaStore.AddCloneInfo");  // NOLINT
 
-    ASSERT_TRUE(JudgeCloneTaskNotExistCleanEnvAndCheck(
-                testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskNotExistCleanEnvAndCheck(testUser1, uuid1));
 }
 
 TEST_F(SnapshotCloneServerTest, TestLazyRecoverSnapFailOnChangeOwner) {
     ASSERT_TRUE(PrepreTestSnapshotIfNotExist());
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.ChangeOwner", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.ChangeOwner",  // NOLINT
         1, NULL, 0);
 
     int ret = CloneOrRecover("Recover", testUser1, testSnapId_, testFile1, true,
-        &uuid1);
+                             &uuid1);
     ASSERT_EQ(kErrCodeInternalError, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.ChangeOwner");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.ChangeOwner");  // NOLINT
 
-    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(
-                testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(testUser1, uuid1));
 }
 
-
 TEST_F(SnapshotCloneServerTest,
-    TestLazyRecoverSnapSuccessWhenRecoverChunkFailOneTime) {
+       TestLazyRecoverSnapSuccessWhenRecoverChunkFailOneTime) {
     ASSERT_TRUE(PrepreTestSnapshotIfNotExist());
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.RecoverChunk", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.RecoverChunk",  // NOLINT
         1, NULL, FIU_ONETIME);
 
-    int ret = CloneOrRecover("Recover", testUser1, testSnapId_,
-        testFile1, true,
-        &uuid1);
+    int ret = CloneOrRecover("Recover", testUser1, testSnapId_, testFile1, true,
+                             &uuid1);
     ASSERT_EQ(0, ret);
 
     // Flatten
@@ -1390,116 +1470,121 @@ TEST_F(SnapshotCloneServerTest,
     bool success1 = CheckCloneOrRecoverSuccess(testUser1, uuid1, false);
     ASSERT_TRUE(success1);
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.RecoverChunk");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.RecoverChunk");  // NOLINT
 }
 
 TEST_F(SnapshotCloneServerTest, TestNotLazyRecoverSnapFailOnRecoverChunk) {
     ASSERT_TRUE(PrepreTestSnapshotIfNotExist());
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.RecoverChunk", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.RecoverChunk",  // NOLINT
         1, NULL, 0);
 
-    int ret = CloneOrRecover("Recover", testUser1, testSnapId_,
-        testFile1, false,
-        &uuid1);
+    int ret = CloneOrRecover("Recover", testUser1, testSnapId_, testFile1,
+                             false, &uuid1);
     ASSERT_EQ(0, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.RecoverChunk");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.RecoverChunk");  // NOLINT
 
-    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(
-                testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(testUser1, uuid1));
 }
 
 TEST_F(SnapshotCloneServerTest, TestNotLazyRecoverSnapFailOnRenameCloneFile) {
     ASSERT_TRUE(PrepreTestSnapshotIfNotExist());
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.RenameCloneFile", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.RenameCloneFile",  // NOLINT
         1, NULL, 0);
 
-    int ret = CloneOrRecover("Recover", testUser1, testSnapId_,
-        testFile1, false,
-        &uuid1);
+    int ret = CloneOrRecover("Recover", testUser1, testSnapId_, testFile1,
+                             false, &uuid1);
     ASSERT_EQ(0, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.RenameCloneFile");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.RenameCloneFile");  // NOLINT
 
-    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(
-                testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(testUser1, uuid1));
 }
 
 TEST_F(SnapshotCloneServerTest, TestNotLazyRecoverSnapFailOnChangeOwner) {
     ASSERT_TRUE(PrepreTestSnapshotIfNotExist());
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.ChangeOwner", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.ChangeOwner",  // NOLINT
         1, NULL, 0);
 
-    int ret = CloneOrRecover("Recover", testUser1, testSnapId_,
-        testFile1, false,
-        &uuid1);
+    int ret = CloneOrRecover("Recover", testUser1, testSnapId_, testFile1,
+                             false, &uuid1);
     ASSERT_EQ(0, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.ChangeOwner");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.ChangeOwner");  // NOLINT
 
-    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(
-                testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(testUser1, uuid1));
 }
 
 TEST_F(SnapshotCloneServerTest, TestNotLazyRecoverSnapFailOnCompleteCloneFile) {
     ASSERT_TRUE(PrepreTestSnapshotIfNotExist());
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.CompleteCloneFile", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.CompleteCloneFile",  // NOLINT
         1, NULL, 0);
 
-    int ret = CloneOrRecover("Recover", testUser1, testSnapId_,
-        testFile1, false,
-        &uuid1);
+    int ret = CloneOrRecover("Recover", testUser1, testSnapId_, testFile1,
+                             false, &uuid1);
     ASSERT_EQ(0, ret);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.CompleteCloneFile");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.CompleteCloneFile");  // NOLINT
 
-    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(
-                testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(testUser1, uuid1));
 }
 
 TEST_F(SnapshotCloneServerTest,
-    TestLazyRecoverSnapFailOnFileNotExistWhenRecoverChunk) {
+       TestLazyRecoverSnapFailOnFileNotExistWhenRecoverChunk) {
     ASSERT_TRUE(PrepreTestSnapshotIfNotExist());
     std::string uuid1;
 
-    fiu_enable("test/integration/snapshotcloneserver/FakeCurveFsClient.RecoverChunk", // NOLINT
+    fiu_enable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.RecoverChunk",  // NOLINT
         1, NULL, 0);
 
-    int ret = CloneOrRecover("Recover", testUser1, testSnapId_,
-        testFile1, true,
-        &uuid1);
+    int ret = CloneOrRecover("Recover", testUser1, testSnapId_, testFile1, true,
+                             &uuid1);
     ASSERT_EQ(0, ret);
 
     // Flatten
     ret = Flatten(testUser1, uuid1);
     ASSERT_EQ(0, ret);
 
-    // 恢复未完成前删除目标文件
+    // Delete target files before recovery is complete
     ASSERT_EQ(LIBCURVE_ERROR::OK,
-        server_->GetCurveFsClient()->DeleteFile(testFile1, "", 0));
+              server_->GetCurveFsClient()->DeleteFile(testFile1, "", 0));
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
-    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(
-                testUser1, uuid1));
+    ASSERT_TRUE(JudgeCloneTaskFailCleanEnvAndCheck(testUser1, uuid1));
 
-    fiu_disable("test/integration/snapshotcloneserver/FakeCurveFsClient.RecoverChunk");  // NOLINT
+    fiu_disable(
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.RecoverChunk");  // NOLINT
 }
 
 }  // namespace snapshotcloneserver

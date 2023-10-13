@@ -27,49 +27,39 @@
 #include <string>
 #include <vector>
 
+#include "json/json.h"
+#include "src/common/snapshotclone/snapshotclone_define.h"
+#include "src/snapshotcloneserver/common/config.h"
 #include "src/snapshotcloneserver/snapshot/snapshot_core.h"
 #include "src/snapshotcloneserver/snapshot/snapshot_task.h"
 #include "src/snapshotcloneserver/snapshot/snapshot_task_manager.h"
-#include "src/common/snapshotclone/snapshotclone_define.h"
-#include "src/snapshotcloneserver/common/config.h"
-#include "json/json.h"
 
 namespace curve {
 namespace snapshotcloneserver {
 
 /**
- * @brief 文件单个快照信息
+ * @brief file single snapshot information
  */
 class FileSnapshotInfo {
  public:
     FileSnapshotInfo() = default;
 
-     /**
-      * @brief 构造函数
-      *
-      * @param snapInfo 快照信息
-      * @param snapProgress 快照完成度百分比
-      */
-    FileSnapshotInfo(const SnapshotInfo &snapInfo,
-        uint32_t snapProgress)
-        : snapInfo_(snapInfo),
-          snapProgress_(snapProgress) {}
+    /**
+     * @brief constructor
+     *
+     * @param snapInfo snapshot information
+     * @param snapProgress snapshot completion percentage
+     */
+    FileSnapshotInfo(const SnapshotInfo& snapInfo, uint32_t snapProgress)
+        : snapInfo_(snapInfo), snapProgress_(snapProgress) {}
 
-    void SetSnapshotInfo(const SnapshotInfo &snapInfo) {
-        snapInfo_ = snapInfo;
-    }
+    void SetSnapshotInfo(const SnapshotInfo& snapInfo) { snapInfo_ = snapInfo; }
 
-    SnapshotInfo GetSnapshotInfo() const {
-        return snapInfo_;
-    }
+    SnapshotInfo GetSnapshotInfo() const { return snapInfo_; }
 
-    void SetSnapProgress(uint32_t progress) {
-        snapProgress_ = progress;
-    }
+    void SetSnapProgress(uint32_t progress) { snapProgress_ = progress; }
 
-    uint32_t GetSnapProgress() const {
-        return snapProgress_;
-    }
+    uint32_t GetSnapProgress() const { return snapProgress_; }
 
     Json::Value ToJsonObj() const {
         Json::Value fileSnapObj;
@@ -86,7 +76,7 @@ class FileSnapshotInfo {
         return fileSnapObj;
     }
 
-    void LoadFromJsonObj(const Json::Value &jsonObj) {
+    void LoadFromJsonObj(const Json::Value& jsonObj) {
         SnapshotInfo snapInfo;
         snapInfo.SetUuid(jsonObj["UUID"].asString());
         snapInfo.SetUser(jsonObj["User"].asString());
@@ -101,209 +91,185 @@ class FileSnapshotInfo {
     }
 
  private:
-    // 快照信息
+    // Snapshot Information
     SnapshotInfo snapInfo_;
-    // 快照处理进度百分比
+    // Snapshot processing progress percentage
     uint32_t snapProgress_;
 };
 
 class SnapshotFilterCondition {
  public:
     SnapshotFilterCondition()
-                   : uuid_(nullptr),
-                    file_(nullptr),
-                    user_(nullptr),
-                    status_(nullptr) {}
+        : uuid_(nullptr), file_(nullptr), user_(nullptr), status_(nullptr) {}
 
-    SnapshotFilterCondition(const std::string *uuid, const std::string *file,
-                        const std::string *user,
-                        const std::string *status)
-                   : uuid_(uuid),
-                    file_(file),
-                    user_(user),
-                    status_(status) {}
-    bool IsMatchCondition(const SnapshotInfo &snapInfo);
+    SnapshotFilterCondition(const std::string* uuid, const std::string* file,
+                            const std::string* user, const std::string* status)
+        : uuid_(uuid), file_(file), user_(user), status_(status) {}
+    bool IsMatchCondition(const SnapshotInfo& snapInfo);
 
-    void SetUuid(const std::string *uuid) {
-        uuid_ = uuid;
-    }
+    void SetUuid(const std::string* uuid) { uuid_ = uuid; }
 
-    void SetFile(const std::string *file) {
-        file_ = file;
-    }
+    void SetFile(const std::string* file) { file_ = file; }
 
-    void SetUser(const std::string *user) {
-        user_ = user;
-    }
+    void SetUser(const std::string* user) { user_ = user; }
 
-    void SetStatus(const std::string *status) {
-        status_ = status;
-    }
-
+    void SetStatus(const std::string* status) { status_ = status; }
 
  private:
-    const std::string *uuid_;
-    const std::string *file_;
-    const std::string *user_;
-    const std::string *status_;
+    const std::string* uuid_;
+    const std::string* file_;
+    const std::string* user_;
+    const std::string* status_;
 };
 
 class SnapshotServiceManager {
  public:
-     /**
-      * @brief 构造函数
-      *
-      * @param taskMgr 快照任务管理类对象
-      * @param core 快照核心模块
-      */
-    SnapshotServiceManager(
-        std::shared_ptr<SnapshotTaskManager> taskMgr,
-        std::shared_ptr<SnapshotCore> core)
-          : taskMgr_(taskMgr),
-            core_(core) {}
+    /**
+     * @brief constructor
+     *
+     * @param taskMgr snapshot task management class object
+     * @param core snapshot core module
+     */
+    SnapshotServiceManager(std::shared_ptr<SnapshotTaskManager> taskMgr,
+                           std::shared_ptr<SnapshotCore> core)
+        : taskMgr_(taskMgr), core_(core) {}
 
     virtual ~SnapshotServiceManager() {}
 
     /**
-     * @brief 初始化
+     * @brief initialization
      *
-     * @return 错误码
+     * @return error code
      */
-    virtual int Init(const SnapshotCloneServerOptions &option);
+    virtual int Init(const SnapshotCloneServerOptions& option);
 
     /**
-     * @brief 启动服务
+     * @brief Start Service
      *
-     * @return 错误码
+     * @return error code
      */
     virtual int Start();
 
     /**
-     * @brief 停止服务
+     * @brief Stop service
      *
      */
     virtual void Stop();
 
     /**
-     * @brief 创建快照服务
+     * @brief Create snapshot service
      *
-     * @param file 文件名
-     * @param user 文件所属用户
-     * @param snapshotName 快照名
-     * @param uuid 快照uuid
+     * @param file file name
+     * @param user The user to whom the file belongs
+     * @param snapshotName SnapshotName
+     * @param uuid Snapshot uuid
      *
-     * @return 错误码
+     * @return error code
      */
-    virtual int CreateSnapshot(const std::string &file,
-        const std::string &user,
-        const std::string &snapshotName,
-        UUID *uuid);
+    virtual int CreateSnapshot(const std::string& file, const std::string& user,
+                               const std::string& snapshotName, UUID* uuid);
 
     /**
-     * @brief 删除快照服务
+     * @brief Delete snapshot service
      *
-     * @param uuid 快照uuid
-     * @param user 快照文件的用户
-     * @param file 快照所属文件的文件名
+     * @param uuid Snapshot uuid
+     * @param user The user of the snapshot file
+     * @param file The file name of the file to which the snapshot belongs
      *
-     * @return 错误码
+     * @return error code
      */
-    virtual int DeleteSnapshot(const UUID &uuid,
-        const std::string &user,
-        const std::string &file);
+    virtual int DeleteSnapshot(const UUID& uuid, const std::string& user,
+                               const std::string& file);
 
     /**
-     * @brief 取消快照服务
+     * @brief Cancel snapshot service
      *
-     * @param uuid 快照的uuid
-     * @param user 快照的用户
-     * @param file 快照所属文件的文件名
+     * @param uuid The uuid of the snapshot
+     * @param user snapshot user
+     * @param file The file name of the file to which the snapshot belongs
      *
-     * @return 错误码
+     * @return error code
      */
-    virtual int CancelSnapshot(const UUID &uuid,
-        const std::string &user,
-        const std::string &file);
+    virtual int CancelSnapshot(const UUID& uuid, const std::string& user,
+                               const std::string& file);
 
     /**
-     * @brief 获取文件的快照信息服务接口
+     * @brief Gets the snapshot information service interface for files
      *
-     * @param file 文件名
-     * @param user 用户名
-     * @param info 快照信息列表
+     * @param file file name
+     * @param user username
+     * @param info snapshot information list
      *
-     * @return 错误码
+     * @return error code
      */
-    virtual int GetFileSnapshotInfo(const std::string &file,
-        const std::string &user,
-        std::vector<FileSnapshotInfo> *info);
+    virtual int GetFileSnapshotInfo(const std::string& file,
+                                    const std::string& user,
+                                    std::vector<FileSnapshotInfo>* info);
 
     /**
-     * @brief 根据Id获取文件的快照信息
+     * @brief Obtain snapshot information of the file based on the ID
      *
-     * @param file 文件名
-     * @param user 用户名
-     * @param uuid 快照Id
-     * @param info 快照信息列表
+     * @param file file name
+     * @param user username
+     * @param uuid SnapshotId
+     * @param info snapshot information list
      *
-     * @return 错误码
+     * @return error code
      */
-    virtual int GetFileSnapshotInfoById(const std::string &file,
-        const std::string &user,
-        const UUID &uuid,
-        std::vector<FileSnapshotInfo> *info);
+    virtual int GetFileSnapshotInfoById(const std::string& file,
+                                        const std::string& user,
+                                        const UUID& uuid,
+                                        std::vector<FileSnapshotInfo>* info);
 
     /**
-     * @brief 获取快照列表
+     * @brief Get snapshot list
      *
-     * @param filter 过滤条件
-     * @param info 快照信息列表
+     * @param filter filtering conditions
+     * @param info snapshot information list
      *
-     * @return 错误码
+     * @return error code
      */
-    virtual int GetSnapshotListByFilter(const SnapshotFilterCondition &filter,
-                    std::vector<FileSnapshotInfo> *info);
+    virtual int GetSnapshotListByFilter(const SnapshotFilterCondition& filter,
+                                        std::vector<FileSnapshotInfo>* info);
 
     /**
-     * @brief 恢复快照任务接口
+     * @brief Restore Snapshot Task Interface
      *
-     * @return 错误码
+     * @return error code
      */
     virtual int RecoverSnapshotTask();
 
  private:
     /**
-     * @brief 根据快照信息获取快照任务信息
+     * @brief Obtain snapshot task information based on snapshot information
      *
-     * @param snapInfos 快照信息
-     * @param user 用户名
-     * @param[out] info 快照任务信息
+     * @param snapInfos snapshot information
+     * @param user username
+     * @param[out] info snapshot task information
      *
-     * @return 错误码
+     * @return error code
      */
-    int GetFileSnapshotInfoInner(
-        std::vector<SnapshotInfo> snapInfos,
-        const std::string &user,
-        std::vector<FileSnapshotInfo> *info);
+    int GetFileSnapshotInfoInner(std::vector<SnapshotInfo> snapInfos,
+                                 const std::string& user,
+                                 std::vector<FileSnapshotInfo>* info);
 
     /**
-     * @brief 根据快照信息获取快照任务信息
+     * @brief Obtain snapshot task information based on snapshot information
      *
-     * @param snapInfos 快照信息
-     * @param filter 过滤条件
-     * @param[out] info 快照任务信息
+     * @param snapInfos snapshot information
+     * @param filter filtering conditions
+     * @param[out] info snapshot task information
      *
-     * @return 错误码
+     * @return error code
      */
-    int GetSnapshotListInner(
-        std::vector<SnapshotInfo> snapInfos,
-        SnapshotFilterCondition filter,
-        std::vector<FileSnapshotInfo> *info);
+    int GetSnapshotListInner(std::vector<SnapshotInfo> snapInfos,
+                             SnapshotFilterCondition filter,
+                             std::vector<FileSnapshotInfo>* info);
 
  private:
-    // 快照任务管理类对象
+    // Snapshot Task Management Class Object
     std::shared_ptr<SnapshotTaskManager> taskMgr_;
-    // 快照核心模块
+    // Snapshot Core Module
     std::shared_ptr<SnapshotCore> core_;
 };
 

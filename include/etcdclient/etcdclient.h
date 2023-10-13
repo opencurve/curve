@@ -18,7 +18,6 @@
 
 /* package command-line-arguments */
 
-
 #line 1 "cgo-builtin-export-prolog"
 
 #include <stddef.h> /* for ptrdiff_t below */
@@ -27,21 +26,22 @@
 #define GO_CGO_EXPORT_PROLOGUE_H
 
 #ifndef GO_CGO_GOSTRING_TYPEDEF
-typedef struct { const char *p; ptrdiff_t n; } _GoString_;
+typedef struct {
+    const char* p;
+    ptrdiff_t n;
+} _GoString_;
 #endif
 
 #endif
 
 /* Start of preamble from import "C" comments.  */
 
-
 #line 19 "etcdclient.go"
 
 #include <stdlib.h>
 
-enum EtcdErrCode
-{
-    // grpc errCode, 具体的含义见:
+enum EtcdErrCode {
+    // The specific meaning of grpc errCode is as follows:
     // https://godoc.org/go.etcd.io/etcd/etcdserver/api/v3rpc/rpctypes#ErrGRPCNoSpace
     // https://godoc.org/google.golang.org/grpc/codes#Code
     EtcdOK = 0,
@@ -62,7 +62,7 @@ enum EtcdErrCode
     EtcdDataLoss = 15,
     EtcdUnauthenticated = 16,
 
-    // 自定义错误码
+    // Custom error code
     EtcdTxnUnkownOp = 17,
     EtcdObjectNotExist = 18,
     EtcdErrObjectType = 19,
@@ -79,30 +79,25 @@ enum EtcdErrCode
     EtcdObjectLenNotEnough = 30,
 };
 
-enum OpType {
-  OpPut = 1,
-  OpDelete = 2
-};
+enum OpType { OpPut = 1, OpDelete = 2 };
 
 struct EtcdConf {
-    char *Endpoints;
+    char* Endpoints;
     int len;
     int DialTimeout;
 };
 
 struct Operation {
     enum OpType opType;
-    char *key;
-    char *value;
+    char* key;
+    char* value;
     int keyLen;
     int valueLen;
 };
 
 #line 1 "cgo-generated-wrapper"
 
-
 /* End of preamble from import "C" comments.  */
-
 
 /* Start of boilerplate cgo prologue.  */
 #line 1 "cgo-gcc-export-header-prolog"
@@ -130,15 +125,23 @@ typedef double _Complex GoComplex128;
   static assertion to make sure the file is being used on architecture
   at least with matching size of GoInt.
 */
-typedef char _check_for_64_bit_pointer_matching_GoInt[sizeof(void*)==64/8 ? 1:-1];
+typedef char
+    _check_for_64_bit_pointer_matching_GoInt[sizeof(void*) == 64 / 8 ? 1 : -1];
 
 #ifndef GO_CGO_GOSTRING_TYPEDEF
 typedef _GoString_ GoString;
 #endif
-typedef void *GoMap;
-typedef void *GoChan;
-typedef struct { void *t; void *v; } GoInterface;
-typedef struct { void *data; GoInt len; GoInt cap; } GoSlice;
+typedef void* GoMap;
+typedef void* GoChan;
+typedef struct {
+    void* t;
+    void* v;
+} GoInterface;
+typedef struct {
+    void* data;
+    GoInt len;
+    GoInt cap;
+} GoSlice;
 
 #endif
 
@@ -148,8 +151,7 @@ typedef struct { void *data; GoInt len; GoInt cap; } GoSlice;
 extern "C" {
 #endif
 
-
-// TODO(lixiaocui): 日志打印看是否需要glog
+// TODO(lixiaocui): Log printing to see if glog is required
 
 extern GoUint32 NewEtcdClientV3(struct EtcdConf p0);
 
@@ -159,66 +161,77 @@ extern GoUint32 EtcdClientPut(int p0, char* p1, char* p2, int p3, int p4);
 
 /* Return type for EtcdClientPutRewtihRevision */
 struct EtcdClientPutRewtihRevision_return {
-	GoUint32 r0;
-	GoInt64 r1;
+    GoUint32 r0;
+    GoInt64 r1;
 };
 
-extern struct EtcdClientPutRewtihRevision_return EtcdClientPutRewtihRevision(int p0, char* p1, char* p2, int p3, int p4);
+extern struct EtcdClientPutRewtihRevision_return EtcdClientPutRewtihRevision(
+    int p0, char* p1, char* p2, int p3, int p4);
 
 /* Return type for EtcdClientGet */
 struct EtcdClientGet_return {
-	GoUint32 r0;
-	char* r1;
-	GoInt r2;
-	GoInt64 r3;
+    GoUint32 r0;
+    char* r1;
+    GoInt r2;
+    GoInt64 r3;
 };
 
 extern struct EtcdClientGet_return EtcdClientGet(int p0, char* p1, int p2);
 
 /* Return type for EtcdClientList */
 struct EtcdClientList_return {
-	GoUint32 r0;
-	GoUint64 r1;
-	GoInt64 r2;
+    GoUint32 r0;
+    GoUint64 r1;
+    GoInt64 r2;
 };
 
-// TODO(lixiaocui): list可能需要有长度限制
+// TODO(lixiaocui): list may require a length limit
 
-extern struct EtcdClientList_return EtcdClientList(int p0, char* p1, char* p2, int p3, int p4);
+extern struct EtcdClientList_return EtcdClientList(int p0, char* p1, char* p2,
+                                                   int p3, int p4);
 
 /* Return type for EtcdClientListWithLimitAndRevision */
 struct EtcdClientListWithLimitAndRevision_return {
-	GoUint32 r0;
-	GoUint64 r1;
-	GoInt r2;
-	GoInt64 r3;
+    GoUint32 r0;
+    GoUint64 r1;
+    GoInt r2;
+    GoInt64 r3;
 };
 
-extern struct EtcdClientListWithLimitAndRevision_return EtcdClientListWithLimitAndRevision(unsigned int p0, char* p1, char* p2, int p3, int p4, GoInt64 p5, GoInt64 p6);
+extern struct EtcdClientListWithLimitAndRevision_return
+EtcdClientListWithLimitAndRevision(unsigned int p0, char* p1, char* p2, int p3,
+                                   int p4, GoInt64 p5, GoInt64 p6);
 
 extern GoUint32 EtcdClientDelete(int p0, char* p1, int p2);
 
 /* Return type for EtcdClientDeleteRewithRevision */
 struct EtcdClientDeleteRewithRevision_return {
-	GoUint32 r0;
-	GoInt64 r1;
+    GoUint32 r0;
+    GoInt64 r1;
 };
 
-extern struct EtcdClientDeleteRewithRevision_return EtcdClientDeleteRewithRevision(int p0, char* p1, int p2);
+extern struct EtcdClientDeleteRewithRevision_return
+EtcdClientDeleteRewithRevision(int p0, char* p1, int p2);
 
-extern GoUint32 EtcdClientTxn2(int p0, struct Operation p1, struct Operation p2);
+extern GoUint32 EtcdClientTxn2(int p0, struct Operation p1,
+                               struct Operation p2);
 
-extern GoUint32 EtcdClientTxn3(int p0, struct Operation p1, struct Operation p2, struct Operation p3);
+extern GoUint32 EtcdClientTxn3(int p0, struct Operation p1, struct Operation p2,
+                               struct Operation p3);
 
-extern GoUint32 EtcdClientCompareAndSwap(int p0, char* p1, char* p2, char* p3, int p4, int p5, int p6);
+extern GoUint32 EtcdClientCompareAndSwap(int p0, char* p1, char* p2, char* p3,
+                                         int p4, int p5, int p6);
 
 /* Return type for EtcdElectionCampaign */
 struct EtcdElectionCampaign_return {
-	GoUint32 r0;
-	GoUint64 r1;
+    GoUint32 r0;
+    GoUint64 r1;
 };
 
-extern struct EtcdElectionCampaign_return EtcdElectionCampaign(char* p0, int p1, char* p2, int p3, GoUint32 p4, GoUint32 p5);
+extern struct EtcdElectionCampaign_return EtcdElectionCampaign(char* p0, int p1,
+                                                               char* p2, int p3,
+                                                               GoUint32 p4,
+                                                               GoUint32 p5);
 
 extern GoUint32 EtcdLeaderObserve(GoUint64 p0, char* p1, int p2);
 
@@ -226,23 +239,25 @@ extern GoUint32 EtcdLeaderResign(GoUint64 p0, GoUint64 p1);
 
 /* Return type for EtcdClientGetSingleObject */
 struct EtcdClientGetSingleObject_return {
-	GoUint32 r0;
-	char* r1;
-	GoInt r2;
+    GoUint32 r0;
+    char* r1;
+    GoInt r2;
 };
 
-extern struct EtcdClientGetSingleObject_return EtcdClientGetSingleObject(GoUint64 p0);
+extern struct EtcdClientGetSingleObject_return EtcdClientGetSingleObject(
+    GoUint64 p0);
 
 /* Return type for EtcdClientGetMultiObject */
 struct EtcdClientGetMultiObject_return {
-	GoUint32 r0;
-	char* r1;
-	GoInt r2;
-	char* r3;
-	GoInt r4;
+    GoUint32 r0;
+    char* r1;
+    GoInt r2;
+    char* r3;
+    GoInt r4;
 };
 
-extern struct EtcdClientGetMultiObject_return EtcdClientGetMultiObject(GoUint64 p0, GoInt p1);
+extern struct EtcdClientGetMultiObject_return EtcdClientGetMultiObject(
+    GoUint64 p0, GoInt p1);
 
 extern void EtcdClientRemoveObject(GoUint64 p0);
 

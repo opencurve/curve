@@ -20,18 +20,18 @@
  * Author: wuhanqing
  */
 
-#include <gtest/gtest.h>
-#include <gflags/gflags.h>
-#include <brpc/server.h>
-
-#include <mutex>  // NOLINT
-#include <condition_variable>  // NOLINT
-#include <atomic>
-
 #include "nebd/src/part1/nebd_client.h"
+
+#include <brpc/server.h>
+#include <gflags/gflags.h>
+#include <gtest/gtest.h>
+
+#include <atomic>
+#include <condition_variable>  // NOLINT
+#include <mutex>               // NOLINT
+
 #include "nebd/src/part1/libnebd.h"
 #include "nebd/src/part1/libnebd_file.h"
-
 #include "nebd/test/part1/fake_file_service.h"
 #include "nebd/test/part1/mock_file_service.h"
 #include "nebd/test/utils/config_generator.h"
@@ -79,16 +79,14 @@ void AioRpcFailCallBack(NebdClientAioContext* ctx) {
 
 template <typename Request, typename Response>
 void MockClientFunc(google::protobuf::RpcController* cntl_base,
-                    const Request* request,
-                    Response* response,
+                    const Request* request, Response* response,
                     google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
 }
 
 template <typename Request, typename Response, int RpcErrCode>
 void MockClientRpcFailedFunc(google::protobuf::RpcController* cntl_base,
-                             const Request* request,
-                             Response* response,
+                             const Request* request, Response* response,
                              google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     static int invokeTimes = 0;
@@ -110,20 +108,20 @@ class NebdFileClientTest : public ::testing::Test {
     void TearDown() override {}
 
     void AddFakeService() {
-        ASSERT_EQ(0, server.AddService(
-            &fakeService,
-            brpc::SERVER_DOESNT_OWN_SERVICE)) << "Add service failed";
+        ASSERT_EQ(
+            0, server.AddService(&fakeService, brpc::SERVER_DOESNT_OWN_SERVICE))
+            << "Add service failed";
     }
 
     void AddMockService() {
-        ASSERT_EQ(0, server.AddService(
-            &mockService,
-            brpc::SERVER_DOESNT_OWN_SERVICE)) << "Add service failed";
+        ASSERT_EQ(
+            0, server.AddService(&mockService, brpc::SERVER_DOESNT_OWN_SERVICE))
+            << "Add service failed";
     }
 
     void StartServer(const std::string& address = kNebdServerTestAddress) {
-        ASSERT_EQ(0, server.StartAtSockFile(
-            address.c_str(), nullptr)) << "Start server failed";
+        ASSERT_EQ(0, server.StartAtSockFile(address.c_str(), nullptr))
+            << "Start server failed";
     }
 
     void StopServer() {
@@ -137,15 +135,15 @@ class NebdFileClientTest : public ::testing::Test {
 };
 
 using ::testing::_;
+using ::testing::AnyNumber;
+using ::testing::AtLeast;
+using ::testing::DoAll;
+using ::testing::InSequence;
 using ::testing::Invoke;
 using ::testing::Return;
-using ::testing::AnyNumber;
-using ::testing::DoAll;
+using ::testing::SaveArgPointee;
 using ::testing::SetArgPointee;
 using ::testing::SetArgReferee;
-using ::testing::InSequence;
-using ::testing::AtLeast;
-using ::testing::SaveArgPointee;
 
 TEST_F(NebdFileClientTest, AioRpcFailTest) {
     AddMockService();
@@ -167,7 +165,8 @@ TEST_F(NebdFileClientTest, AioRpcFailTest) {
         EXPECT_CALL(mockService, Write(_, _, _, _))
             .Times(10)
             .WillRepeatedly(
-                Invoke(MockClientRpcFailedFunc<WriteRequest, WriteResponse, EINVAL>));  // NOLINT
+                Invoke(MockClientRpcFailedFunc<WriteRequest, WriteResponse,
+                                               EINVAL>));  // NOLINT
 
         aioOpReturn = false;
         auto start = std::chrono::system_clock::now();
@@ -177,9 +176,11 @@ TEST_F(NebdFileClientTest, AioRpcFailTest) {
         cond.wait(ulk, []() { return aioOpReturn.load(); });
         ASSERT_TRUE(aioOpReturn.load());
         auto end = std::chrono::system_clock::now();
-        auto elpased = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();  // NOLINT
+        auto elpased =
+            std::chrono::duration_cast<std::chrono::milliseconds>(end - start)
+                .count();  // NOLINT
 
-        // 重试睡眠时间: 100ms + 200ms + ... + 900ms = 4500ms
+        // Retrying sleep time: 100ms + 200ms + ... + 900ms = 4500ms
         ASSERT_TRUE(elpased >= 4000 && elpased <= 5000);
     }
 
@@ -196,7 +197,8 @@ TEST_F(NebdFileClientTest, AioRpcFailTest) {
         EXPECT_CALL(mockService, Read(_, _, _, _))
             .Times(10)
             .WillRepeatedly(
-                Invoke(MockClientRpcFailedFunc<ReadRequest, ReadResponse, EINVAL>));  // NOLINT
+                Invoke(MockClientRpcFailedFunc<ReadRequest, ReadResponse,
+                                               EINVAL>));  // NOLINT
         aioOpReturn = false;
         ASSERT_EQ(0, AioRead4Nebd(1, ctx));
 
@@ -218,7 +220,8 @@ TEST_F(NebdFileClientTest, AioRpcFailTest) {
         EXPECT_CALL(mockService, Discard(_, _, _, _))
             .Times(10)
             .WillRepeatedly(
-                Invoke(MockClientRpcFailedFunc<DiscardRequest, DiscardResponse, EINVAL>));  // NOLINT
+                Invoke(MockClientRpcFailedFunc<DiscardRequest, DiscardResponse,
+                                               EINVAL>));  // NOLINT
         aioOpReturn = false;
         ASSERT_EQ(0, Discard4Nebd(1, ctx));
 
@@ -240,7 +243,8 @@ TEST_F(NebdFileClientTest, AioRpcFailTest) {
         EXPECT_CALL(mockService, Flush(_, _, _, _))
             .Times(10)
             .WillRepeatedly(
-                Invoke(MockClientRpcFailedFunc<FlushRequest, FlushResponse, EINVAL>));  // NOLINT
+                Invoke(MockClientRpcFailedFunc<FlushRequest, FlushResponse,
+                                               EINVAL>));  // NOLINT
         aioOpReturn = false;
         ASSERT_EQ(0, Flush4Nebd(1, ctx));
 
@@ -261,10 +265,12 @@ TEST_F(NebdFileClientTest, NoNebdServerTest) {
         auto start = std::chrono::system_clock::now();
         ASSERT_EQ(-1, Open4Nebd(kFileName, nullptr));
         auto end = std::chrono::system_clock::now();
-        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-            end - start).count();
+        auto elapsed =
+            std::chrono::duration_cast<std::chrono::milliseconds>(end - start)
+                .count();
 
-        // rpc failed的清空下，睡眠100ms后继续重试，共重试10次
+        // Clear RPC failed and continue to retry after sleeping for 100ms, a
+        // total of 10 retries
         ASSERT_TRUE(elapsed >= 900 && elapsed <= 1100);
     }
     ASSERT_EQ(-1, Extend4Nebd(1, kFileSize));
@@ -380,8 +386,8 @@ TEST_F(NebdFileClientTest, ReOpenTest) {
     int fd = Open4Nebd(kFileName, nullptr);
     ASSERT_GT(fd, 0);
 
-    // 文件已经被打开，并占用文件锁
-    // 再次打开时，获取文件锁失败，直接返回
+    // The file has been opened and is occupying the file lock
+    // When reopening, obtaining the file lock failed and returned directly
     ASSERT_EQ(-1, Open4Nebd(kFileName, nullptr));
 
     ASSERT_EQ(0, Close4Nebd(fd));
@@ -406,9 +412,10 @@ TEST_F(NebdFileClientTest, ResponseFailTest) {
         response.set_retcode(RetCode::kNoOK);
         EXPECT_CALL(mockService, OpenFile(_, _, _, _))
             .Times(1)
-            .WillOnce(DoAll(
-                SetArgPointee<2>(response),
-                Invoke(MockClientFunc<OpenFileRequest, OpenFileResponse>)));  // NOLINT
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response),
+                      Invoke(MockClientFunc<OpenFileRequest,
+                                            OpenFileResponse>)));  // NOLINT
         ASSERT_EQ(-1, Open4Nebd(kFileName, nullptr));
     }
 
@@ -417,9 +424,10 @@ TEST_F(NebdFileClientTest, ResponseFailTest) {
         response.set_retcode(RetCode::kNoOK);
         EXPECT_CALL(mockService, CloseFile(_, _, _, _))
             .Times(1)
-            .WillOnce(DoAll(
-                SetArgPointee<2>(response),
-                Invoke(MockClientFunc<CloseFileRequest, CloseFileResponse>)));  // NOLINT
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response),
+                      Invoke(MockClientFunc<CloseFileRequest,
+                                            CloseFileResponse>)));  // NOLINT
         ASSERT_EQ(0, Close4Nebd(0));
     }
 
@@ -428,9 +436,9 @@ TEST_F(NebdFileClientTest, ResponseFailTest) {
         response.set_retcode(RetCode::kNoOK);
         EXPECT_CALL(mockService, ResizeFile(_, _, _, _))
             .Times(1)
-            .WillOnce(DoAll(
-                SetArgPointee<2>(response),
-                Invoke(MockClientFunc<ResizeRequest, ResizeResponse>)));
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response),
+                      Invoke(MockClientFunc<ResizeRequest, ResizeResponse>)));
         ASSERT_EQ(-1, Extend4Nebd(1, kFileSize));
     }
 
@@ -439,9 +447,10 @@ TEST_F(NebdFileClientTest, ResponseFailTest) {
         response.set_retcode(RetCode::kNoOK);
         EXPECT_CALL(mockService, GetInfo(_, _, _, _))
             .Times(1)
-            .WillOnce(DoAll(
-                SetArgPointee<2>(response),
-                Invoke(MockClientFunc<GetInfoRequest, GetInfoResponse>)));  // NOLINT
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response),
+                      Invoke(MockClientFunc<GetInfoRequest,
+                                            GetInfoResponse>)));  // NOLINT
         ASSERT_EQ(-1, GetFileSize4Nebd(1));
     }
 
@@ -450,9 +459,9 @@ TEST_F(NebdFileClientTest, ResponseFailTest) {
         response.set_retcode(RetCode::kNoOK);
         EXPECT_CALL(mockService, GetInfo(_, _, _, _))
             .Times(1)
-            .WillOnce(DoAll(
-                SetArgPointee<2>(response),
-                Invoke(MockClientFunc<GetInfoRequest, GetInfoResponse>)));
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response),
+                      Invoke(MockClientFunc<GetInfoRequest, GetInfoResponse>)));
         ASSERT_EQ(-1, GetBlockSize4Nebd(1));
     }
 
@@ -461,9 +470,10 @@ TEST_F(NebdFileClientTest, ResponseFailTest) {
         response.set_retcode(RetCode::kNoOK);
         EXPECT_CALL(mockService, GetInfo(_, _, _, _))
             .Times(1)
-            .WillOnce(DoAll(
-                SetArgPointee<2>(response),
-                Invoke(MockClientFunc<GetInfoRequest, GetInfoResponse>)));  // NOLINT
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response),
+                      Invoke(MockClientFunc<GetInfoRequest,
+                                            GetInfoResponse>)));  // NOLINT
         ASSERT_EQ(-1, GetInfo4Nebd(1));
     }
 
@@ -474,7 +484,8 @@ TEST_F(NebdFileClientTest, ResponseFailTest) {
             .Times(1)
             .WillOnce(DoAll(
                 SetArgPointee<2>(response),
-                Invoke(MockClientFunc<InvalidateCacheRequest, InvalidateCacheResponse>)));  // NOLINT
+                Invoke(MockClientFunc<InvalidateCacheRequest,
+                                      InvalidateCacheResponse>)));  // NOLINT
         ASSERT_EQ(-1, InvalidCache4Nebd(1));
     }
 
@@ -496,7 +507,8 @@ TEST_F(NebdFileClientTest, ResponseFailTest) {
             .Times(1)
             .WillOnce(DoAll(
                 SetArgPointee<2>(response),
-                Invoke(MockClientFunc<WriteRequest, WriteResponse>)));  // NOLINT
+                Invoke(
+                    MockClientFunc<WriteRequest, WriteResponse>)));  // NOLINT
         aioOpReturn = false;
         ASSERT_EQ(0, AioWrite4Nebd(1, ctx));
         std::unique_lock<std::mutex> ulk(mtx);
@@ -518,9 +530,8 @@ TEST_F(NebdFileClientTest, ResponseFailTest) {
         response.set_retcode(RetCode::kNoOK);
         EXPECT_CALL(mockService, Read(_, _, _, _))
             .Times(1)
-            .WillOnce(DoAll(
-                SetArgPointee<2>(response),
-                Invoke(MockClientFunc<ReadRequest, ReadResponse>)));
+            .WillOnce(DoAll(SetArgPointee<2>(response),
+                            Invoke(MockClientFunc<ReadRequest, ReadResponse>)));
         aioOpReturn = false;
         ASSERT_EQ(0, AioRead4Nebd(1, ctx));
         std::unique_lock<std::mutex> ulk(mtx);
@@ -542,9 +553,10 @@ TEST_F(NebdFileClientTest, ResponseFailTest) {
         response.set_retcode(RetCode::kNoOK);
         EXPECT_CALL(mockService, Discard(_, _, _, _))
             .Times(1)
-            .WillOnce(DoAll(
-                SetArgPointee<2>(response),
-                Invoke(MockClientFunc<DiscardRequest, DiscardResponse>)));  // NOLINT
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response),
+                      Invoke(MockClientFunc<DiscardRequest,
+                                            DiscardResponse>)));  // NOLINT
         aioOpReturn = false;
         ASSERT_EQ(0, Discard4Nebd(1, ctx));
         std::unique_lock<std::mutex> ulk(mtx);
@@ -566,9 +578,9 @@ TEST_F(NebdFileClientTest, ResponseFailTest) {
         response.set_retcode(RetCode::kNoOK);
         EXPECT_CALL(mockService, Flush(_, _, _, _))
             .Times(1)
-            .WillOnce(DoAll(
-                SetArgPointee<2>(response),
-                Invoke(MockClientFunc<FlushRequest, FlushResponse>)));
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response),
+                      Invoke(MockClientFunc<FlushRequest, FlushResponse>)));
         aioOpReturn = false;
         ASSERT_EQ(0, Flush4Nebd(1, ctx));
         std::unique_lock<std::mutex> ulk(mtx);
@@ -596,14 +608,12 @@ TEST_F(NebdFileClientTest, InitAndUninitTest) {
 }  // namespace client
 }  // namespace nebd
 
-
 int main(int argc, char* argv[]) {
-    std::vector<std::string> nebdConfig {
+    std::vector<std::string> nebdConfig{
         std::string("nebdserver.serverAddress=") + kNebdServerTestAddress,
         std::string("metacache.fileLockPath=/tmp"),
         std::string("request.syncRpcMaxRetryTimes=10"),
-        std::string("log.path=.")
-    };
+        std::string("log.path=.")};
 
     nebd::common::NebdClientConfigGenerator generator;
     generator.SetConfigPath(kNebdClientConf);

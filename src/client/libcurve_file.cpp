@@ -49,7 +49,7 @@
 #include "src/common/uuid.h"
 
 bool globalclientinited_ = false;
-curve::client::FileClient *globalclient = nullptr;
+curve::client::FileClient* globalclient = nullptr;
 
 using curve::client::UserInfo;
 
@@ -71,9 +71,9 @@ char g_processname[kProcessNameMax];
 
 class LoggerGuard {
  private:
-    friend void InitLogging(const std::string &confPath);
+    friend void InitLogging(const std::string& confPath);
 
-    explicit LoggerGuard(const std::string &confpath) {
+    explicit LoggerGuard(const std::string& confpath) {
         InitInternal(confpath);
     }
 
@@ -83,13 +83,13 @@ class LoggerGuard {
         }
     }
 
-    void InitInternal(const std::string &confpath);
+    void InitInternal(const std::string& confpath);
 
  private:
     bool needShutdown_ = false;
 };
 
-void LoggerGuard::InitInternal(const std::string &confPath) {
+void LoggerGuard::InitInternal(const std::string& confPath) {
     curve::common::Configuration conf;
     conf.SetConfigPath(confPath);
 
@@ -127,14 +127,18 @@ void LoggerGuard::InitInternal(const std::string &confPath) {
     needShutdown_ = true;
 }
 
-void InitLogging(const std::string &confPath) {
+void InitLogging(const std::string& confPath) {
     static LoggerGuard guard(confPath);
 }
 
 }  // namespace
 
 FileClient::FileClient()
-    : rwlock_(), fdcount_(0), fileserviceMap_(), clientconfig_(), mdsClient_(),
+    : rwlock_(),
+      fdcount_(0),
+      fileserviceMap_(),
+      clientconfig_(),
+      mdsClient_(),
       csClient_(std::make_shared<ChunkServerClient>()),
       csBroadCaster_(std::make_shared<ChunkServerBroadCaster>(csClient_)),
       inited_(false),
@@ -214,8 +218,8 @@ void FileClient::UnInit() {
     inited_ = false;
 }
 
-int FileClient::Open(const std::string &filename, const UserInfo_t &userinfo,
-                     const OpenFlags &openflags) {
+int FileClient::Open(const std::string& filename, const UserInfo_t& userinfo,
+                     const OpenFlags& openflags) {
     LOG(INFO) << "Opening filename: " << filename << ", flags: " << openflags;
     ClientConfig clientConfig;
     if (openflags.confPath.empty()) {
@@ -235,7 +239,7 @@ int FileClient::Open(const std::string &filename, const UserInfo_t &userinfo,
         return -LIBCURVE_ERROR::FAILED;
     }
 
-    FileInstance *fileserv = FileInstance::NewInitedFileInstance(
+    FileInstance* fileserv = FileInstance::NewInitedFileInstance(
         clientConfig.GetFileServiceOption(), mdsClient, filename, userinfo,
         openflags, false);
     if (fileserv == nullptr) {
@@ -266,9 +270,9 @@ int FileClient::Open(const std::string &filename, const UserInfo_t &userinfo,
     return fd;
 }
 
-int FileClient::Open4ReadOnly(const std::string &filename,
-                              const UserInfo_t &userinfo, bool disableStripe) {
-    FileInstance *instance = FileInstance::Open4Readonly(
+int FileClient::Open4ReadOnly(const std::string& filename,
+                              const UserInfo_t& userinfo, bool disableStripe) {
+    FileInstance* instance = FileInstance::Open4Readonly(
         clientconfig_.GetFileServiceOption(), mdsClient_, filename, userinfo);
 
     if (instance == nullptr) {
@@ -293,8 +297,8 @@ int FileClient::Open4ReadOnly(const std::string &filename,
     return fd;
 }
 
-int FileClient::IncreaseEpoch(const std::string &filename,
-                              const UserInfo_t &userinfo) {
+int FileClient::IncreaseEpoch(const std::string& filename,
+                              const UserInfo_t& userinfo) {
     LOG(INFO) << "IncreaseEpoch, filename: " << filename;
     FInfo_t fi;
     FileEpoch_t fEpoch;
@@ -324,8 +328,7 @@ int FileClient::IncreaseEpoch(const std::string &filename,
     return ret2;
 }
 
-int FileClient::Create(const std::string& filename,
-                       const UserInfo& userinfo,
+int FileClient::Create(const std::string& filename, const UserInfo& userinfo,
                        size_t size) {
     LIBCURVE_ERROR ret;
     if (mdsClient_ != nullptr) {
@@ -350,8 +353,8 @@ int FileClient::Create2(const CreateFileContext& context) {
     if (mdsClient_ != nullptr) {
         ret = mdsClient_->CreateFile(context);
         LOG_IF(ERROR, ret != LIBCURVE_ERROR::OK)
-                << "Create file failed, filename: " << context.name
-                << ", ret: " << ret;
+            << "Create file failed, filename: " << context.name
+            << ", ret: " << ret;
     } else {
         LOG(ERROR) << "global mds client not inited!";
         return -LIBCURVE_ERROR::FAILED;
@@ -359,8 +362,8 @@ int FileClient::Create2(const CreateFileContext& context) {
     return -ret;
 }
 
-int FileClient::Read(int fd, char *buf, off_t offset, size_t len) {
-    // 长度为0，直接返回，不做任何操作
+int FileClient::Read(int fd, char* buf, off_t offset, size_t len) {
+    // Length is 0, returns directly without any operation
     if (len == 0) {
         return -LIBCURVE_ERROR::OK;
     }
@@ -374,8 +377,8 @@ int FileClient::Read(int fd, char *buf, off_t offset, size_t len) {
     return fileserviceMap_[fd]->Read(buf, offset, len);
 }
 
-int FileClient::Write(int fd, const char *buf, off_t offset, size_t len) {
-    // 长度为0，直接返回，不做任何操作
+int FileClient::Write(int fd, const char* buf, off_t offset, size_t len) {
+    // Length is 0, returns directly without any operation
     if (len == 0) {
         return -LIBCURVE_ERROR::OK;
     }
@@ -400,9 +403,9 @@ int FileClient::Discard(int fd, off_t offset, size_t length) {
     return iter->second->Discard(offset, length);
 }
 
-int FileClient::AioRead(int fd, CurveAioContext *aioctx,
+int FileClient::AioRead(int fd, CurveAioContext* aioctx,
                         UserDataType dataType) {
-    // 长度为0，直接返回，不做任何操作
+    // Length is 0, returns directly without any operation
     if (aioctx->length == 0) {
         return -LIBCURVE_ERROR::OK;
     }
@@ -420,9 +423,9 @@ int FileClient::AioRead(int fd, CurveAioContext *aioctx,
     return ret;
 }
 
-int FileClient::AioWrite(int fd, CurveAioContext *aioctx,
+int FileClient::AioWrite(int fd, CurveAioContext* aioctx,
                          UserDataType dataType) {
-    // 长度为0，直接返回，不做任何操作
+    // Length is 0, returns directly without any operation
     if (aioctx->length == 0) {
         return -LIBCURVE_ERROR::OK;
     }
@@ -440,7 +443,7 @@ int FileClient::AioWrite(int fd, CurveAioContext *aioctx,
     return ret;
 }
 
-int FileClient::AioDiscard(int fd, CurveAioContext *aioctx) {
+int FileClient::AioDiscard(int fd, CurveAioContext* aioctx) {
     ReadLockGuard lk(rwlock_);
     auto iter = fileserviceMap_.find(fd);
     if (CURVE_UNLIKELY(iter == fileserviceMap_.end())) {
@@ -451,8 +454,8 @@ int FileClient::AioDiscard(int fd, CurveAioContext *aioctx) {
     }
 }
 
-int FileClient::Rename(const UserInfo_t &userinfo, const std::string &oldpath,
-                       const std::string &newpath) {
+int FileClient::Rename(const UserInfo_t& userinfo, const std::string& oldpath,
+                       const std::string& newpath) {
     LIBCURVE_ERROR ret;
     if (mdsClient_ != nullptr) {
         ret = mdsClient_->RenameFile(userinfo, oldpath, newpath);
@@ -466,7 +469,7 @@ int FileClient::Rename(const UserInfo_t &userinfo, const std::string &oldpath,
     return -ret;
 }
 
-int FileClient::Extend(const std::string &filename, const UserInfo_t &userinfo,
+int FileClient::Extend(const std::string& filename, const UserInfo_t& userinfo,
                        uint64_t newsize) {
     LIBCURVE_ERROR ret;
     if (mdsClient_ != nullptr) {
@@ -481,7 +484,7 @@ int FileClient::Extend(const std::string &filename, const UserInfo_t &userinfo,
     return -ret;
 }
 
-int FileClient::Unlink(const std::string &filename, const UserInfo_t &userinfo,
+int FileClient::Unlink(const std::string& filename, const UserInfo_t& userinfo,
                        bool deleteforce) {
     LIBCURVE_ERROR ret;
     if (mdsClient_ != nullptr) {
@@ -496,7 +499,7 @@ int FileClient::Unlink(const std::string &filename, const UserInfo_t &userinfo,
     return -ret;
 }
 
-int FileClient::Recover(const std::string &filename, const UserInfo_t &userinfo,
+int FileClient::Recover(const std::string& filename, const UserInfo_t& userinfo,
                         uint64_t fileId) {
     LIBCURVE_ERROR ret;
     if (mdsClient_ != nullptr) {
@@ -510,7 +513,7 @@ int FileClient::Recover(const std::string &filename, const UserInfo_t &userinfo,
     return -ret;
 }
 
-int FileClient::StatFile(int fd, FileStatInfo *finfo) {
+int FileClient::StatFile(int fd, FileStatInfo* finfo) {
     FInfo_t fi;
     {
         ReadLockGuard lk(rwlock_);
@@ -519,7 +522,7 @@ int FileClient::StatFile(int fd, FileStatInfo *finfo) {
             LOG(ERROR) << "StatFile failed not found fd = " << fd;
             return -LIBCURVE_ERROR::FAILED;
         }
-        FileInstance *instance = fileserviceMap_[fd];
+        FileInstance* instance = fileserviceMap_[fd];
         fi = instance->GetCurrentFileInfo();
     }
     BuildFileStatInfo(fi, finfo);
@@ -527,8 +530,8 @@ int FileClient::StatFile(int fd, FileStatInfo *finfo) {
     return LIBCURVE_ERROR::OK;
 }
 
-int FileClient::StatFile(const std::string &filename,
-                         const UserInfo_t &userinfo, FileStatInfo *finfo) {
+int FileClient::StatFile(const std::string& filename,
+                         const UserInfo_t& userinfo, FileStatInfo* finfo) {
     FInfo_t fi;
     FileEpoch_t fEpoch;
     int ret;
@@ -548,8 +551,8 @@ int FileClient::StatFile(const std::string &filename,
     return -ret;
 }
 
-int FileClient::Listdir(const std::string &dirpath, const UserInfo_t &userinfo,
-                        std::vector<FileStatInfo> *filestatVec) {
+int FileClient::Listdir(const std::string& dirpath, const UserInfo_t& userinfo,
+                        std::vector<FileStatInfo>* filestatVec) {
     LIBCURVE_ERROR ret;
     if (mdsClient_ != nullptr) {
         ret = mdsClient_->Listdir(dirpath, userinfo, filestatVec);
@@ -563,7 +566,7 @@ int FileClient::Listdir(const std::string &dirpath, const UserInfo_t &userinfo,
     return -ret;
 }
 
-int FileClient::Mkdir(const std::string &dirpath, const UserInfo_t &userinfo) {
+int FileClient::Mkdir(const std::string& dirpath, const UserInfo_t& userinfo) {
     LIBCURVE_ERROR ret;
     if (mdsClient_ != nullptr) {
         CreateFileContext context;
@@ -588,7 +591,7 @@ int FileClient::Mkdir(const std::string &dirpath, const UserInfo_t &userinfo) {
     return -ret;
 }
 
-int FileClient::Rmdir(const std::string &dirpath, const UserInfo_t &userinfo) {
+int FileClient::Rmdir(const std::string& dirpath, const UserInfo_t& userinfo) {
     LIBCURVE_ERROR ret;
     if (mdsClient_ != nullptr) {
         ret = mdsClient_->DeleteFile(dirpath, userinfo);
@@ -601,9 +604,9 @@ int FileClient::Rmdir(const std::string &dirpath, const UserInfo_t &userinfo) {
     return -ret;
 }
 
-int FileClient::ChangeOwner(const std::string &filename,
-                            const std::string &newOwner,
-                            const UserInfo_t &userinfo) {
+int FileClient::ChangeOwner(const std::string& filename,
+                            const std::string& newOwner,
+                            const UserInfo_t& userinfo) {
     LIBCURVE_ERROR ret;
     if (mdsClient_ != nullptr) {
         ret = mdsClient_->ChangeOwner(filename, newOwner, userinfo);
@@ -651,7 +654,7 @@ int FileClient::Close(int fd) {
     return -LIBCURVE_ERROR::FAILED;
 }
 
-int FileClient::GetClusterId(char *buf, int len) {
+int FileClient::GetClusterId(char* buf, int len) {
     std::string result = GetClusterId();
 
     if (result.empty()) {
@@ -685,7 +688,7 @@ std::string FileClient::GetClusterId() {
     return {};
 }
 
-int FileClient::GetFileInfo(int fd, FInfo *finfo) {
+int FileClient::GetFileInfo(int fd, FInfo* finfo) {
     int ret = -LIBCURVE_ERROR::FAILED;
     ReadLockGuard lk(rwlock_);
 
@@ -707,11 +710,11 @@ std::vector<std::string> FileClient::ListPoolset() {
 
     const auto ret = mdsClient_->ListPoolset(&out);
     LOG_IF(WARNING, ret != LIBCURVE_ERROR::OK)
-            << "Failed to list poolset, error: " << ret;
+        << "Failed to list poolset, error: " << ret;
     return out;
 }
 
-void FileClient::BuildFileStatInfo(const FInfo_t &fi, FileStatInfo *finfo) {
+void FileClient::BuildFileStatInfo(const FInfo_t& fi, FileStatInfo* finfo) {
     finfo->id = fi.id;
     finfo->parentid = fi.parentid;
     finfo->ctime = fi.ctime;
@@ -722,9 +725,9 @@ void FileClient::BuildFileStatInfo(const FInfo_t &fi, FileStatInfo *finfo) {
     finfo->stripeCount = fi.stripeCount;
 
     memcpy(finfo->filename, fi.filename.c_str(),
-               std::min(sizeof(finfo->filename), fi.filename.size() + 1));
+           std::min(sizeof(finfo->filename), fi.filename.size() + 1));
     memcpy(finfo->owner, fi.owner.c_str(),
-            std::min(sizeof(finfo->owner), fi.owner.size() + 1));
+           std::min(sizeof(finfo->owner), fi.owner.size() + 1));
 
     finfo->fileStatus = static_cast<int>(fi.filestatus);
 }
@@ -758,7 +761,7 @@ bool FileClient::StartDummyServer() {
         return false;
     }
 
-    // 获取本地ip
+    // Obtain local IP
     std::string ip;
     if (!common::NetCommon::GetLocalIP(&ip)) {
         LOG(ERROR) << "Get local ip failed!";
@@ -775,14 +778,13 @@ bool FileClient::StartDummyServer() {
 }  // namespace client
 }  // namespace curve
 
-
-// 全局初始化与反初始化
-int GlobalInit(const char *configpath);
+// Global initialization and deinitialization
+int GlobalInit(const char* configpath);
 void GlobalUnInit();
 
-int Init(const char *path) { return GlobalInit(path); }
+int Init(const char* path) { return GlobalInit(path); }
 
-int Open4Qemu(const char *filename) {
+int Open4Qemu(const char* filename) {
     curve::client::UserInfo_t userinfo;
     std::string realname;
     bool ret = curve::client::ServiceHelper::GetUserInfoFromFilename(
@@ -800,7 +802,7 @@ int Open4Qemu(const char *filename) {
     return globalclient->Open(realname, userinfo);
 }
 
-int IncreaseEpoch(const char *filename) {
+int IncreaseEpoch(const char* filename) {
     curve::client::UserInfo_t userinfo;
     std::string realname;
     bool ret = curve::client::ServiceHelper::GetUserInfoFromFilename(
@@ -818,7 +820,7 @@ int IncreaseEpoch(const char *filename) {
     return globalclient->IncreaseEpoch(realname, userinfo);
 }
 
-int Extend4Qemu(const char *filename, int64_t newsize) {
+int Extend4Qemu(const char* filename, int64_t newsize) {
     curve::client::UserInfo_t userinfo;
     std::string realname;
     bool ret = curve::client::ServiceHelper::GetUserInfoFromFilename(
@@ -840,7 +842,7 @@ int Extend4Qemu(const char *filename, int64_t newsize) {
                                 static_cast<uint64_t>(newsize));
 }
 
-int Open(const char *filename, const C_UserInfo_t *userinfo) {
+int Open(const char* filename, const C_UserInfo_t* userinfo) {
     if (globalclient == nullptr) {
         LOG(ERROR) << "not inited!";
         return -LIBCURVE_ERROR::FAILED;
@@ -850,7 +852,7 @@ int Open(const char *filename, const C_UserInfo_t *userinfo) {
                               UserInfo(userinfo->owner, userinfo->password));
 }
 
-int Read(int fd, char *buf, off_t offset, size_t length) {
+int Read(int fd, char* buf, off_t offset, size_t length) {
     if (globalclient == nullptr) {
         LOG(ERROR) << "not inited!";
         return -LIBCURVE_ERROR::FAILED;
@@ -859,7 +861,7 @@ int Read(int fd, char *buf, off_t offset, size_t length) {
     return globalclient->Read(fd, buf, offset, length);
 }
 
-int Write(int fd, const char *buf, off_t offset, size_t length) {
+int Write(int fd, const char* buf, off_t offset, size_t length) {
     if (globalclient == nullptr) {
         LOG(ERROR) << "not inited!";
         return -LIBCURVE_ERROR::FAILED;
@@ -877,7 +879,7 @@ int Discard(int fd, off_t offset, size_t length) {
     return globalclient->Discard(fd, offset, length);
 }
 
-int AioRead(int fd, CurveAioContext *aioctx) {
+int AioRead(int fd, CurveAioContext* aioctx) {
     if (globalclient == nullptr) {
         LOG(ERROR) << "not inited!";
         return -LIBCURVE_ERROR::FAILED;
@@ -888,7 +890,7 @@ int AioRead(int fd, CurveAioContext *aioctx) {
     return globalclient->AioRead(fd, aioctx);
 }
 
-int AioWrite(int fd, CurveAioContext *aioctx) {
+int AioWrite(int fd, CurveAioContext* aioctx) {
     if (globalclient == nullptr) {
         LOG(ERROR) << "not inited!";
         return -LIBCURVE_ERROR::FAILED;
@@ -896,11 +898,11 @@ int AioWrite(int fd, CurveAioContext *aioctx) {
 
     DVLOG(9) << "offset: " << aioctx->offset << " length: " << aioctx->length
              << " op: " << aioctx->op
-             << " buf: " << *(unsigned int *)aioctx->buf;
+             << " buf: " << *(unsigned int*)aioctx->buf;
     return globalclient->AioWrite(fd, aioctx);
 }
 
-int AioDiscard(int fd, CurveAioContext *aioctx) {
+int AioDiscard(int fd, CurveAioContext* aioctx) {
     if (globalclient == nullptr) {
         LOG(ERROR) << "Not inited!";
         return -LIBCURVE_ERROR::FAILED;
@@ -909,7 +911,7 @@ int AioDiscard(int fd, CurveAioContext *aioctx) {
     return globalclient->AioDiscard(fd, aioctx);
 }
 
-int Create(const char *filename, const C_UserInfo_t *userinfo, size_t size) {
+int Create(const char* filename, const C_UserInfo_t* userinfo, size_t size) {
     if (globalclient == nullptr) {
         LOG(ERROR) << "not inited!";
         return -LIBCURVE_ERROR::FAILED;
@@ -919,8 +921,8 @@ int Create(const char *filename, const C_UserInfo_t *userinfo, size_t size) {
         filename, UserInfo(userinfo->owner, userinfo->password), size);
 }
 
-int Rename(const C_UserInfo_t* userinfo,
-    const char* oldpath, const char* newpath) {
+int Rename(const C_UserInfo_t* userinfo, const char* oldpath,
+           const char* newpath) {
     if (globalclient == nullptr) {
         LOG(ERROR) << "not inited!";
         return -LIBCURVE_ERROR::FAILED;
@@ -930,7 +932,7 @@ int Rename(const C_UserInfo_t* userinfo,
                                 oldpath, newpath);
 }
 
-int Extend(const char *filename, const C_UserInfo_t *userinfo,
+int Extend(const char* filename, const C_UserInfo_t* userinfo,
            uint64_t newsize) {
     if (globalclient == nullptr) {
         LOG(ERROR) << "not inited!";
@@ -941,7 +943,7 @@ int Extend(const char *filename, const C_UserInfo_t *userinfo,
         filename, UserInfo(userinfo->owner, userinfo->password), newsize);
 }
 
-int Unlink(const char *filename, const C_UserInfo_t *userinfo) {
+int Unlink(const char* filename, const C_UserInfo_t* userinfo) {
     if (globalclient == nullptr) {
         LOG(ERROR) << "not inited!";
         return -LIBCURVE_ERROR::FAILED;
@@ -951,7 +953,7 @@ int Unlink(const char *filename, const C_UserInfo_t *userinfo) {
                                 UserInfo(userinfo->owner, userinfo->password));
 }
 
-int DeleteForce(const char *filename, const C_UserInfo_t *userinfo) {
+int DeleteForce(const char* filename, const C_UserInfo_t* userinfo) {
     if (globalclient == nullptr) {
         LOG(ERROR) << "not inited!";
         return -LIBCURVE_ERROR::FAILED;
@@ -961,7 +963,7 @@ int DeleteForce(const char *filename, const C_UserInfo_t *userinfo) {
         filename, UserInfo(userinfo->owner, userinfo->password), true);
 }
 
-int Recover(const char *filename, const C_UserInfo_t *userinfo,
+int Recover(const char* filename, const C_UserInfo_t* userinfo,
             uint64_t fileId) {
     if (globalclient == nullptr) {
         LOG(ERROR) << "not inited!";
@@ -972,21 +974,21 @@ int Recover(const char *filename, const C_UserInfo_t *userinfo,
         filename, UserInfo(userinfo->owner, userinfo->password), fileId);
 }
 
-DirInfo_t *OpenDir(const char *dirpath, const C_UserInfo_t *userinfo) {
+DirInfo_t* OpenDir(const char* dirpath, const C_UserInfo_t* userinfo) {
     if (globalclient == nullptr) {
         LOG(ERROR) << "not inited!";
         return nullptr;
     }
 
-    DirInfo_t *dirinfo = new (std::nothrow) DirInfo_t;
-    dirinfo->dirpath = const_cast<char *>(dirpath);
-    dirinfo->userinfo = const_cast<C_UserInfo_t *>(userinfo);
+    DirInfo_t* dirinfo = new (std::nothrow) DirInfo_t;
+    dirinfo->dirpath = const_cast<char*>(dirpath);
+    dirinfo->userinfo = const_cast<C_UserInfo_t*>(userinfo);
     dirinfo->fileStat = nullptr;
 
     return dirinfo;
 }
 
-int Listdir(DirInfo_t *dirinfo) {
+int Listdir(DirInfo_t* dirinfo) {
     if (globalclient == nullptr) {
         LOG(ERROR) << "not inited!";
         return -LIBCURVE_ERROR::FAILED;
@@ -1027,7 +1029,7 @@ int Listdir(DirInfo_t *dirinfo) {
     return ret;
 }
 
-void CloseDir(DirInfo_t *dirinfo) {
+void CloseDir(DirInfo_t* dirinfo) {
     if (dirinfo != nullptr) {
         if (dirinfo->fileStat != nullptr) {
             delete[] dirinfo->fileStat;
@@ -1037,7 +1039,7 @@ void CloseDir(DirInfo_t *dirinfo) {
     }
 }
 
-int Mkdir(const char *dirpath, const C_UserInfo_t *userinfo) {
+int Mkdir(const char* dirpath, const C_UserInfo_t* userinfo) {
     if (globalclient == nullptr) {
         LOG(ERROR) << "not inited!";
         return -LIBCURVE_ERROR::FAILED;
@@ -1047,7 +1049,7 @@ int Mkdir(const char *dirpath, const C_UserInfo_t *userinfo) {
                                UserInfo(userinfo->owner, userinfo->password));
 }
 
-int Rmdir(const char *dirpath, const C_UserInfo_t *userinfo) {
+int Rmdir(const char* dirpath, const C_UserInfo_t* userinfo) {
     if (globalclient == nullptr) {
         LOG(ERROR) << "not inited!";
         return -LIBCURVE_ERROR::FAILED;
@@ -1066,7 +1068,7 @@ int Close(int fd) {
     return globalclient->Close(fd);
 }
 
-int StatFile4Qemu(const char *filename, FileStatInfo *finfo) {
+int StatFile4Qemu(const char* filename, FileStatInfo* finfo) {
     curve::client::UserInfo_t userinfo;
     std::string realname;
     bool ret = curve::client::ServiceHelper::GetUserInfoFromFilename(
@@ -1084,8 +1086,8 @@ int StatFile4Qemu(const char *filename, FileStatInfo *finfo) {
     return globalclient->StatFile(realname, userinfo, finfo);
 }
 
-int StatFile(const char *filename, const C_UserInfo_t *cuserinfo,
-             FileStatInfo *finfo) {
+int StatFile(const char* filename, const C_UserInfo_t* cuserinfo,
+             FileStatInfo* finfo) {
     if (globalclient == nullptr) {
         LOG(ERROR) << "not inited!";
         return -LIBCURVE_ERROR::FAILED;
@@ -1095,8 +1097,8 @@ int StatFile(const char *filename, const C_UserInfo_t *cuserinfo,
     return globalclient->StatFile(filename, userinfo, finfo);
 }
 
-int ChangeOwner(const char *filename, const char *newOwner,
-                const C_UserInfo_t *cuserinfo) {
+int ChangeOwner(const char* filename, const char* newOwner,
+                const C_UserInfo_t* cuserinfo) {
     if (globalclient == nullptr) {
         LOG(ERROR) << "not inited!";
         return -LIBCURVE_ERROR::FAILED;
@@ -1108,7 +1110,7 @@ int ChangeOwner(const char *filename, const char *newOwner,
 
 void UnInit() { GlobalUnInit(); }
 
-int GetClusterId(char *buf, int len) {
+int GetClusterId(char* buf, int len) {
     if (globalclient == nullptr) {
         LOG(ERROR) << "not inited!";
         return -LIBCURVE_ERROR::FAILED;
@@ -1117,7 +1119,7 @@ int GetClusterId(char *buf, int len) {
     return globalclient->GetClusterId(buf, len);
 }
 
-int GlobalInit(const char *path) {
+int GlobalInit(const char* path) {
     int ret = 0;
     if (globalclientinited_) {
         LOG(INFO) << "global cient already inited!";
@@ -1154,74 +1156,74 @@ void GlobalUnInit() {
     }
 }
 
-const char *LibCurveErrorName(LIBCURVE_ERROR err) {
+const char* LibCurveErrorName(LIBCURVE_ERROR err) {
     switch (err) {
-    case LIBCURVE_ERROR::OK:
-        return "OK";
-    case LIBCURVE_ERROR::EXISTS:
-        return "EXISTS";
-    case LIBCURVE_ERROR::FAILED:
-        return "FAILED";
-    case LIBCURVE_ERROR::DISABLEIO:
-        return "DISABLEIO";
-    case LIBCURVE_ERROR::AUTHFAIL:
-        return "AUTHFAIL";
-    case LIBCURVE_ERROR::DELETING:
-        return "DELETING";
-    case LIBCURVE_ERROR::NOTEXIST:
-        return "NOTEXIST";
-    case LIBCURVE_ERROR::UNDER_SNAPSHOT:
-        return "UNDER_SNAPSHOT";
-    case LIBCURVE_ERROR::NOT_UNDERSNAPSHOT:
-        return "NOT_UNDERSNAPSHOT";
-    case LIBCURVE_ERROR::DELETE_ERROR:
-        return "DELETE_ERROR";
-    case LIBCURVE_ERROR::NOT_ALLOCATE:
-        return "NOT_ALLOCATE";
-    case LIBCURVE_ERROR::NOT_SUPPORT:
-        return "NOT_SUPPORT";
-    case LIBCURVE_ERROR::NOT_EMPTY:
-        return "NOT_EMPTY";
-    case LIBCURVE_ERROR::NO_SHRINK_BIGGER_FILE:
-        return "NO_SHRINK_BIGGER_FILE";
-    case LIBCURVE_ERROR::SESSION_NOTEXISTS:
-        return "SESSION_NOTEXISTS";
-    case LIBCURVE_ERROR::FILE_OCCUPIED:
-        return "FILE_OCCUPIED";
-    case LIBCURVE_ERROR::PARAM_ERROR:
-        return "PARAM_ERROR";
-    case LIBCURVE_ERROR::INTERNAL_ERROR:
-        return "INTERNAL_ERROR";
-    case LIBCURVE_ERROR::CRC_ERROR:
-        return "CRC_ERROR";
-    case LIBCURVE_ERROR::INVALID_REQUEST:
-        return "INVALID_REQUEST";
-    case LIBCURVE_ERROR::DISK_FAIL:
-        return "DISK_FAIL";
-    case LIBCURVE_ERROR::NO_SPACE:
-        return "NO_SPACE";
-    case LIBCURVE_ERROR::NOT_ALIGNED:
-        return "NOT_ALIGNED";
-    case LIBCURVE_ERROR::BAD_FD:
-        return "BAD_FD";
-    case LIBCURVE_ERROR::LENGTH_NOT_SUPPORT:
-        return "LENGTH_NOT_SUPPORT";
-    case LIBCURVE_ERROR::SESSION_NOT_EXIST:
-        return "SESSION_NOT_EXIST";
-    case LIBCURVE_ERROR::STATUS_NOT_MATCH:
-        return "STATUS_NOT_MATCH";
-    case LIBCURVE_ERROR::DELETE_BEING_CLONED:
-        return "DELETE_BEING_CLONED";
-    case LIBCURVE_ERROR::CLIENT_NOT_SUPPORT_SNAPSHOT:
-        return "CLIENT_NOT_SUPPORT_SNAPSHOT";
-    case LIBCURVE_ERROR::SNAPSTHO_FROZEN:
-        return "SNAPSTHO_FROZEN";
-    case LIBCURVE_ERROR::RETRY_UNTIL_SUCCESS:
-        return "RETRY_UNTIL_SUCCESS";
-    case LIBCURVE_ERROR::EPOCH_TOO_OLD:
-        return "EPOCH_TOO_OLD";
-    case LIBCURVE_ERROR::UNKNOWN:
-        break;
+        case LIBCURVE_ERROR::OK:
+            return "OK";
+        case LIBCURVE_ERROR::EXISTS:
+            return "EXISTS";
+        case LIBCURVE_ERROR::FAILED:
+            return "FAILED";
+        case LIBCURVE_ERROR::DISABLEIO:
+            return "DISABLEIO";
+        case LIBCURVE_ERROR::AUTHFAIL:
+            return "AUTHFAIL";
+        case LIBCURVE_ERROR::DELETING:
+            return "DELETING";
+        case LIBCURVE_ERROR::NOTEXIST:
+            return "NOTEXIST";
+        case LIBCURVE_ERROR::UNDER_SNAPSHOT:
+            return "UNDER_SNAPSHOT";
+        case LIBCURVE_ERROR::NOT_UNDERSNAPSHOT:
+            return "NOT_UNDERSNAPSHOT";
+        case LIBCURVE_ERROR::DELETE_ERROR:
+            return "DELETE_ERROR";
+        case LIBCURVE_ERROR::NOT_ALLOCATE:
+            return "NOT_ALLOCATE";
+        case LIBCURVE_ERROR::NOT_SUPPORT:
+            return "NOT_SUPPORT";
+        case LIBCURVE_ERROR::NOT_EMPTY:
+            return "NOT_EMPTY";
+        case LIBCURVE_ERROR::NO_SHRINK_BIGGER_FILE:
+            return "NO_SHRINK_BIGGER_FILE";
+        case LIBCURVE_ERROR::SESSION_NOTEXISTS:
+            return "SESSION_NOTEXISTS";
+        case LIBCURVE_ERROR::FILE_OCCUPIED:
+            return "FILE_OCCUPIED";
+        case LIBCURVE_ERROR::PARAM_ERROR:
+            return "PARAM_ERROR";
+        case LIBCURVE_ERROR::INTERNAL_ERROR:
+            return "INTERNAL_ERROR";
+        case LIBCURVE_ERROR::CRC_ERROR:
+            return "CRC_ERROR";
+        case LIBCURVE_ERROR::INVALID_REQUEST:
+            return "INVALID_REQUEST";
+        case LIBCURVE_ERROR::DISK_FAIL:
+            return "DISK_FAIL";
+        case LIBCURVE_ERROR::NO_SPACE:
+            return "NO_SPACE";
+        case LIBCURVE_ERROR::NOT_ALIGNED:
+            return "NOT_ALIGNED";
+        case LIBCURVE_ERROR::BAD_FD:
+            return "BAD_FD";
+        case LIBCURVE_ERROR::LENGTH_NOT_SUPPORT:
+            return "LENGTH_NOT_SUPPORT";
+        case LIBCURVE_ERROR::SESSION_NOT_EXIST:
+            return "SESSION_NOT_EXIST";
+        case LIBCURVE_ERROR::STATUS_NOT_MATCH:
+            return "STATUS_NOT_MATCH";
+        case LIBCURVE_ERROR::DELETE_BEING_CLONED:
+            return "DELETE_BEING_CLONED";
+        case LIBCURVE_ERROR::CLIENT_NOT_SUPPORT_SNAPSHOT:
+            return "CLIENT_NOT_SUPPORT_SNAPSHOT";
+        case LIBCURVE_ERROR::SNAPSTHO_FROZEN:
+            return "SNAPSTHO_FROZEN";
+        case LIBCURVE_ERROR::RETRY_UNTIL_SUCCESS:
+            return "RETRY_UNTIL_SUCCESS";
+        case LIBCURVE_ERROR::EPOCH_TOO_OLD:
+            return "EPOCH_TOO_OLD";
+        case LIBCURVE_ERROR::UNKNOWN:
+            break;
     }
 
     static thread_local char message[64];

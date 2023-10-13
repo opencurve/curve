@@ -16,17 +16,18 @@
 
 /*
  * Project: curve
- * File Created: 2019年11月20日
+ * File Created: November 20, 2019
  * Author: wuhanqing
  */
 
+#include "src/client/lease_executor.h"
+
+#include <brpc/server.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
-#include <brpc/server.h>
 
 #include "src/client/iomanager4file.h"
-#include "src/client/lease_executor.h"
 #include "src/client/mds_client.h"
 #include "test/client/mock/mock_namespace_service.h"
 
@@ -81,8 +82,8 @@ class LeaseExecutorTest : public ::testing::Test {
         response_.set_allocated_fileinfo(fileInfo);
 
         EXPECT_CALL(curveFsService_, RefreshSession(_, _, _, _))
-            .WillRepeatedly(DoAll(SetArgPointee<2>(response_),
-                                  Invoke(MockRefreshSession)));
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(response_), Invoke(MockRefreshSession)));
     }
 
  protected:

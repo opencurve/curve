@@ -30,17 +30,18 @@ namespace curve {
 namespace test {
 class FileCommonOperation {
  public:
-  /**
-   * 指定文件名，打开文件，如果没创建则先创建，返回fd
-   */
+    /**
+     * Specify a file name, open the file, if not created, create it first,
+     * return fd
+     */
     static int Open(const std::string& filename, const std::string& owner);
 
     static void Close(int fd);
 
     static int Open(const std::string& filename, const std::string& owner,
-                              uint64_t stripeUnit, uint64_t stripeCount);
+                    uint64_t stripeUnit, uint64_t stripeCount);
 };
-}   //  namespace test
-}   //  namespace curve
+}  //  namespace test
+}  //  namespace curve
 
 #endif  // TEST_INTEGRATION_CLIENT_COMMON_FILE_OPERATION_H_

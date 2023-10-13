@@ -25,8 +25,8 @@
 namespace curve {
 namespace chunkserver {
 
-const string baseDir = "./data_int_clo";    // NOLINT
-const string poolDir = "./chunkfilepool_int_clo";  // NOLINT
+const string baseDir = "./data_int_clo";                     // NOLINT
+const string poolDir = "./chunkfilepool_int_clo";            // NOLINT
 const string poolMetaPath = "./chunkfilepool_int_clo.meta";  // NOLINT
 
 class CloneTestSuit : public DatastoreIntegrationBase {
@@ -36,7 +36,7 @@ class CloneTestSuit : public DatastoreIntegrationBase {
 };
 
 /**
- * 克隆场景测试
+ * Clone scenario testing
  */
 TEST_F(CloneTestSuit, CloneTest) {
     ChunkID id = 1;
@@ -48,16 +48,14 @@ TEST_F(CloneTestSuit, CloneTest) {
     CSChunkInfo info;
     std::string location("test@s3");
 
-    /******************场景一：创建克隆文件******************/
+    /******************Scenario 1: Creating Cloned Files******************/
 
-    // 创建克隆文件chunk1
-    errorCode = dataStore_->CreateCloneChunk(id,  // chunk id
-                                             sn,
-                                             correctedSn,
-                                             CHUNK_SIZE,
-                                             location);
+    // Create clone file chunk1
+    errorCode =
+        dataStore_->CreateCloneChunk(id,  // chunk id
+                                     sn, correctedSn, CHUNK_SIZE, location);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
-    // 检查chunk的各项信息，都符合预期
+    // Check all the information of the chunk and ensure it meets expectations
     errorCode = dataStore_->GetChunkInfo(id, &info);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(sn, info.curSn);
@@ -71,14 +69,13 @@ TEST_F(CloneTestSuit, CloneTest) {
     ASSERT_NE(nullptr, info.bitmap);
     ASSERT_EQ(Bitmap::NO_POS, info.bitmap->NextSetBit(0));
 
-    // 再次调该接口，仍返回成功，chunk的信息不变
-    errorCode = dataStore_->CreateCloneChunk(id,  // chunk id
-                                             sn,
-                                             correctedSn,
-                                             CHUNK_SIZE,
-                                             location);
+    // Call the interface again, but still return success. Chunk information
+    // remains unchanged
+    errorCode =
+        dataStore_->CreateCloneChunk(id,  // chunk id
+                                     sn, correctedSn, CHUNK_SIZE, location);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
-    // 检查chunk的各项信息，都符合预期
+    // Check all the information of the chunk and ensure it meets expectations
     errorCode = dataStore_->GetChunkInfo(id, &info);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(sn, info.curSn);
@@ -92,14 +89,12 @@ TEST_F(CloneTestSuit, CloneTest) {
     ASSERT_NE(nullptr, info.bitmap);
     ASSERT_EQ(Bitmap::NO_POS, info.bitmap->NextSetBit(0));
 
-    // 创建克隆文件chunk2
-    errorCode = dataStore_->CreateCloneChunk(2,  // chunk id
-                                             sn,
-                                             correctedSn,
-                                             CHUNK_SIZE,
-                                             location);
+    // Create clone file chunk2
+    errorCode =
+        dataStore_->CreateCloneChunk(2,  // chunk id
+                                     sn, correctedSn, CHUNK_SIZE, location);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
-    // 检查chunk的各项信息，都符合预期
+    // Check all the information of the chunk and ensure it meets expectations
     errorCode = dataStore_->GetChunkInfo(2, &info);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(sn, info.curSn);
@@ -113,23 +108,19 @@ TEST_F(CloneTestSuit, CloneTest) {
     ASSERT_NE(nullptr, info.bitmap);
     ASSERT_EQ(Bitmap::NO_POS, info.bitmap->NextSetBit(0));
 
-    /******************场景二：恢复克隆文件******************/
-    // 构造原始数据
+    /******************Scene 2: Restoring Cloned Files******************/
+    // Construct raw data
     char pasteBuf[4 * PAGE_SIZE];
     memset(pasteBuf, '1', 4 * PAGE_SIZE);
-    // WriteChunk写数据到clone chunk的[0, 8KB]区域
+    // WriteChunk writes data to the [0, 8KB] area of the clone chunk
     offset = 0;
     length = 2 * PAGE_SIZE;
     char writeBuf1[2 * PAGE_SIZE];
     memset(writeBuf1, 'a', length);
-    errorCode = dataStore_->WriteChunk(id,
-                                       sn,
-                                       writeBuf1,
-                                       offset,
-                                       length,
-                                       nullptr);
+    errorCode =
+        dataStore_->WriteChunk(id, sn, writeBuf1, offset, length, nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
-    // 检查chunk的各项信息，都符合预期
+    // Check all the information of the chunk and ensure it meets expectations
     errorCode = dataStore_->GetChunkInfo(id, &info);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(sn, info.curSn);
@@ -137,26 +128,23 @@ TEST_F(CloneTestSuit, CloneTest) {
     ASSERT_EQ(correctedSn, info.correctedSn);
     ASSERT_EQ(true, info.isClone);
     ASSERT_NE(nullptr, info.bitmap);
-    // 写入PAGE对应bit置为1，其余都为0
+    // Write the corresponding bit of PAGE to 1, and all other bits are set to 0
     ASSERT_EQ(0, info.bitmap->NextSetBit(0));
     ASSERT_EQ(2, info.bitmap->NextClearBit(0));
     ASSERT_EQ(Bitmap::NO_POS, info.bitmap->NextSetBit(2));
-    // 读Chunk数据，[0, 8KB]数据应为‘1’
+    // Reading Chunk data, [0, 8KB] data should be '1'
     size_t readSize = 2 * PAGE_SIZE;
     char readBuf[3 * PAGE_SIZE];
     errorCode = dataStore_->ReadChunk(id, sn, readBuf, 0, readSize);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(0, memcmp(writeBuf1, readBuf, readSize));
 
-    // PasteChunk再次写数据到clone chunk的[0, 8KB]区域
+    // PasteChunk writes data again to the [0, 8KB] area of the clone chunk
     offset = 0;
     length = 2 * PAGE_SIZE;
-    errorCode = dataStore_->PasteChunk(id,
-                                       pasteBuf,
-                                       offset,
-                                       length);
+    errorCode = dataStore_->PasteChunk(id, pasteBuf, offset, length);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
-    // 检查chunk的各项信息，都符合预期
+    // Check all the information of the chunk and ensure it meets expectations
     errorCode = dataStore_->GetChunkInfo(id, &info);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(sn, info.curSn);
@@ -164,30 +152,26 @@ TEST_F(CloneTestSuit, CloneTest) {
     ASSERT_EQ(correctedSn, info.correctedSn);
     ASSERT_EQ(true, info.isClone);
     ASSERT_NE(nullptr, info.bitmap);
-    // 写入PAGE对应bit置为1，其余都为0
+    // Write the corresponding bit of PAGE to 1, and all other bits are set to 0
     ASSERT_EQ(0, info.bitmap->NextSetBit(0));
     ASSERT_EQ(2, info.bitmap->NextClearBit(0));
     ASSERT_EQ(Bitmap::NO_POS, info.bitmap->NextSetBit(2));
-    // 读Chunk数据，[0, 8KB]数据应为‘a’
+    // Reading Chunk data, [0, 8KB] data should be 'a'
     readSize = 2 * PAGE_SIZE;
     memset(readBuf, 0, sizeof(readBuf));
     errorCode = dataStore_->ReadChunk(id, sn, readBuf, 0, readSize);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(0, memcmp(writeBuf1, readBuf, readSize));
 
-    // WriteChunk再次写数据到clone chunk的[4KB, 12KB]区域
+    // WriteChunk writes data again to the [4KB, 12KB] area of the clone chunk
     offset = PAGE_SIZE;
     length = 2 * PAGE_SIZE;
     char writeBuf3[2 * PAGE_SIZE];
     memset(writeBuf3, 'c', length);
-    errorCode = dataStore_->WriteChunk(id,
-                                       sn,
-                                       writeBuf3,
-                                       offset,
-                                       length,
-                                       nullptr);
+    errorCode =
+        dataStore_->WriteChunk(id, sn, writeBuf3, offset, length, nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
-    // 检查chunk的各项信息，都符合预期
+    // Check all the information of the chunk and ensure it meets expectations
     errorCode = dataStore_->GetChunkInfo(id, &info);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(sn, info.curSn);
@@ -195,11 +179,12 @@ TEST_F(CloneTestSuit, CloneTest) {
     ASSERT_EQ(correctedSn, info.correctedSn);
     ASSERT_EQ(true, info.isClone);
     ASSERT_NE(nullptr, info.bitmap);
-    // 写入PAGE对应bit置为1，其余都为0
+    // Write the corresponding bit of PAGE to 1, and all other bits are set to 0
     ASSERT_EQ(0, info.bitmap->NextSetBit(0));
     ASSERT_EQ(3, info.bitmap->NextClearBit(0));
     ASSERT_EQ(Bitmap::NO_POS, info.bitmap->NextSetBit(3));
-    // 读Chunk数据，[0, 4KB]数据应为‘a’，[4KB, 12KB]数据应为‘c’
+    // Reading Chunk data, [0, 4KB] data should be 'a', [4KB, 12KB] data should
+    // be 'c'
     readSize = 3 * PAGE_SIZE;
     memset(readBuf, 0, sizeof(readBuf));
     errorCode = dataStore_->ReadChunk(id, sn, readBuf, 0, readSize);
@@ -207,17 +192,18 @@ TEST_F(CloneTestSuit, CloneTest) {
     ASSERT_EQ(0, memcmp(writeBuf1, readBuf, PAGE_SIZE));
     ASSERT_EQ(0, memcmp(writeBuf3, readBuf + PAGE_SIZE, 2 * PAGE_SIZE));
 
-    /******************场景三：clone文件遍写后转换为普通chunk文件*************/
+    /******************Scene 3: Conversion of Cloned Files after Iterative
+     * Writing into Regular Chunk Files*************/
 
     char overBuf[1 * kMB] = {0};
     for (int i = 0; i < 16; ++i) {
-        errorCode = dataStore_->PasteChunk(id,
-                                           overBuf,
+        errorCode = dataStore_->PasteChunk(id, overBuf,
                                            i * kMB,   // offset
                                            1 * kMB);  // length
         ASSERT_EQ(errorCode, CSErrorCode::Success);
     }
-    // 检查chunk的各项信息，都符合预期,chunk转为了普通的chunk
+    // Check all the information of the chunk and ensure it meets expectations.
+    // The chunk will be converted to a regular chunk
     errorCode = dataStore_->GetChunkInfo(id, &info);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(sn, info.curSn);
@@ -226,15 +212,15 @@ TEST_F(CloneTestSuit, CloneTest) {
     ASSERT_EQ(false, info.isClone);
     ASSERT_EQ(nullptr, info.bitmap);
 
-    /******************场景三：删除文件****************/
+    /******************Scene 3: Delete File****************/
 
-    // 此时删除Chunk1，返回Success
+    // At this point, delete Chunk1 and return to Success
     errorCode = dataStore_->DeleteChunk(1, sn);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     errorCode = dataStore_->GetChunkInfo(1, &info);
     ASSERT_EQ(errorCode, CSErrorCode::ChunkNotExistError);
 
-    // 此时删除Chunk2，返回Success
+    // At this point, delete Chunk2 and return to Success
     errorCode = dataStore_->DeleteChunk(2, sn);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     errorCode = dataStore_->GetChunkInfo(2, &info);
@@ -242,7 +228,7 @@ TEST_F(CloneTestSuit, CloneTest) {
 }
 
 /**
- * 恢复场景测试
+ * Recovery scenario testing
  */
 TEST_F(CloneTestSuit, RecoverTest) {
     ChunkID id = 1;
@@ -254,16 +240,15 @@ TEST_F(CloneTestSuit, RecoverTest) {
     CSChunkInfo info;
     std::string location("test@s3");
 
-    /******************场景一：创建克隆文件******************/
+    /******************Scenario 1: Creating Cloned Files******************/
 
-    // 创建克隆文件chunk1
+    // Create clone file chunk1
     errorCode = dataStore_->CreateCloneChunk(id,  // chunk id
                                              sn,
                                              correctedSn,  // corrected sn
-                                             CHUNK_SIZE,
-                                             location);
+                                             CHUNK_SIZE, location);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
-    // 检查chunk的各项信息，都符合预期
+    // Check all the information of the chunk and ensure it meets expectations
     errorCode = dataStore_->GetChunkInfo(id, &info);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(sn, info.curSn);
@@ -277,14 +262,14 @@ TEST_F(CloneTestSuit, RecoverTest) {
     ASSERT_NE(nullptr, info.bitmap);
     ASSERT_EQ(Bitmap::NO_POS, info.bitmap->NextSetBit(0));
 
-    // 再次调该接口，仍返回成功，chunk的信息不变
+    // Call the interface again, but still return success. Chunk information
+    // remains unchanged
     errorCode = dataStore_->CreateCloneChunk(id,  // chunk id
                                              sn,
                                              3,  // corrected sn
-                                             CHUNK_SIZE,
-                                             location);
+                                             CHUNK_SIZE, location);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
-    // 检查chunk的各项信息，都符合预期
+    // Check all the information of the chunk and ensure it meets expectations
     errorCode = dataStore_->GetChunkInfo(id, &info);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(sn, info.curSn);
@@ -298,20 +283,17 @@ TEST_F(CloneTestSuit, RecoverTest) {
     ASSERT_NE(nullptr, info.bitmap);
     ASSERT_EQ(Bitmap::NO_POS, info.bitmap->NextSetBit(0));
 
-    /******************场景二：恢复克隆文件******************/
+    /******************Scene 2: Restoring Cloned Files******************/
     sn = 3;
-    // 构造原始数据
+    // Construct raw data
     char pasteBuf[4 * PAGE_SIZE];
     memset(pasteBuf, '1', 4 * PAGE_SIZE);
-    // PasteChunk写数据到clone chunk的[0, 8KB]区域
+    // PasteChunk writes data to the [0, 8KB] area of the clone chunk
     offset = 0;
     length = 2 * PAGE_SIZE;
-    errorCode = dataStore_->PasteChunk(id,
-                                       pasteBuf,
-                                       offset,
-                                       length);
+    errorCode = dataStore_->PasteChunk(id, pasteBuf, offset, length);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
-    // 检查chunk的各项信息，都符合预期
+    // Check all the information of the chunk and ensure it meets expectations
     errorCode = dataStore_->GetChunkInfo(id, &info);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(2, info.curSn);
@@ -319,30 +301,26 @@ TEST_F(CloneTestSuit, RecoverTest) {
     ASSERT_EQ(correctedSn, info.correctedSn);
     ASSERT_EQ(true, info.isClone);
     ASSERT_NE(nullptr, info.bitmap);
-    // 写入PAGE对应bit置为1，其余都为0
+    // Write the corresponding bit of PAGE to 1, and all other bits are set to 0
     ASSERT_EQ(0, info.bitmap->NextSetBit(0));
     ASSERT_EQ(2, info.bitmap->NextClearBit(0));
     ASSERT_EQ(Bitmap::NO_POS, info.bitmap->NextSetBit(2));
-    // 读Chunk数据，[0, 8KB]数据应为‘1’
+    // Reading Chunk data, [0, 8KB] data should be '1'
     size_t readSize = 2 * PAGE_SIZE;
     char readBuf[3 * PAGE_SIZE];
     errorCode = dataStore_->ReadChunk(id, sn, readBuf, 0, readSize);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(0, memcmp(pasteBuf, readBuf, readSize));
 
-    // WriteChunk再次写数据到clone chunk的[0, 8KB]区域
+    // WriteChunk writes data again to the [0, 8KB] area of the clone chunk
     offset = 0;
     length = 2 * PAGE_SIZE;
     char writeBuf2[2 * PAGE_SIZE];
     memset(writeBuf2, 'b', length);
-    errorCode = dataStore_->WriteChunk(id,
-                                       sn,
-                                       writeBuf2,
-                                       offset,
-                                       length,
-                                       nullptr);
+    errorCode =
+        dataStore_->WriteChunk(id, sn, writeBuf2, offset, length, nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
-    // 检查chunk的各项信息，都符合预期
+    // Check all the information of the chunk and ensure it meets expectations
     errorCode = dataStore_->GetChunkInfo(id, &info);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(sn, info.curSn);
@@ -350,26 +328,23 @@ TEST_F(CloneTestSuit, RecoverTest) {
     ASSERT_EQ(correctedSn, info.correctedSn);
     ASSERT_EQ(true, info.isClone);
     ASSERT_NE(nullptr, info.bitmap);
-    // 写入PAGE对应bit置为1，其余都为0
+    // Write the corresponding bit of PAGE to 1, and all other bits are set to 0
     ASSERT_EQ(0, info.bitmap->NextSetBit(0));
     ASSERT_EQ(2, info.bitmap->NextClearBit(0));
     ASSERT_EQ(Bitmap::NO_POS, info.bitmap->NextSetBit(2));
-    // 读Chunk数据，[0, 8KB]数据应为‘b’
+    // Reading Chunk data, [0, 8KB] data should be 'b'
     readSize = 2 * PAGE_SIZE;
     memset(readBuf, 0, sizeof(readBuf));
     errorCode = dataStore_->ReadChunk(id, sn, readBuf, 0, readSize);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(0, memcmp(writeBuf2, readBuf, readSize));
 
-    // PasteChunk再次写数据到clone chunk的[4KB, 12KB]区域
+    // PasteChunk writes data again to the [4KB, 12KB] area of the clone chunk
     offset = PAGE_SIZE;
     length = 2 * PAGE_SIZE;
-    errorCode = dataStore_->PasteChunk(id,
-                                       pasteBuf,
-                                       offset,
-                                       length);
+    errorCode = dataStore_->PasteChunk(id, pasteBuf, offset, length);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
-    // 检查chunk的各项信息，都符合预期
+    // Check all the information of the chunk and ensure it meets expectations
     errorCode = dataStore_->GetChunkInfo(id, &info);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(sn, info.curSn);
@@ -377,11 +352,12 @@ TEST_F(CloneTestSuit, RecoverTest) {
     ASSERT_EQ(correctedSn, info.correctedSn);
     ASSERT_EQ(true, info.isClone);
     ASSERT_NE(nullptr, info.bitmap);
-    // 写入PAGE对应bit置为1，其余都为0
+    // Write the corresponding bit of PAGE to 1, and all other bits are set to 0
     ASSERT_EQ(0, info.bitmap->NextSetBit(0));
     ASSERT_EQ(3, info.bitmap->NextClearBit(0));
     ASSERT_EQ(Bitmap::NO_POS, info.bitmap->NextSetBit(3));
-    // 读Chunk数据，[0, 8KB]数据应为‘b’，[8KB, 12KB]数据应为‘1’
+    // Reading Chunk data, [0, 8KB] data should be 'b', [8KB, 12KB] data should
+    // be '1'
     readSize = 3 * PAGE_SIZE;
     memset(readBuf, 0, sizeof(readBuf));
     errorCode = dataStore_->ReadChunk(id, sn, readBuf, 0, readSize);
@@ -389,19 +365,19 @@ TEST_F(CloneTestSuit, RecoverTest) {
     ASSERT_EQ(0, memcmp(writeBuf2, readBuf, 2 * PAGE_SIZE));
     ASSERT_EQ(0, memcmp(pasteBuf, readBuf + 2 * PAGE_SIZE, PAGE_SIZE));
 
-    /******************场景三：clone文件遍写后转换为普通chunk文件*************/
+    /******************Scene 3: Convert Cloned Files from Sequential Write to
+     * Regular Chunk Files*************/
 
     char overBuf[1 * kMB] = {0};
     for (int i = 0; i < 16; ++i) {
-        errorCode = dataStore_->WriteChunk(id,
-                                           sn,
-                                           overBuf,
-                                           i * kMB,   // offset
+        errorCode = dataStore_->WriteChunk(id, sn, overBuf,
+                                           i * kMB,  // offset
                                            1 * kMB,
                                            nullptr);  // length
         ASSERT_EQ(errorCode, CSErrorCode::Success);
     }
-    // 检查chunk的各项信息，都符合预期,chunk转为了普通的chunk
+    // Check all the information of the chunk and ensure it meets expectations.
+    // The chunk will be converted to a regular chunk
     errorCode = dataStore_->GetChunkInfo(id, &info);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(sn, info.curSn);

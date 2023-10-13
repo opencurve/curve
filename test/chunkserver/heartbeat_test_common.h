@@ -23,20 +23,20 @@
 #ifndef TEST_CHUNKSERVER_HEARTBEAT_TEST_COMMON_H_
 #define TEST_CHUNKSERVER_HEARTBEAT_TEST_COMMON_H_
 
-#include <braft/node_manager.h>
 #include <braft/node.h>
+#include <braft/node_manager.h>
 
-#include <string>
-#include <vector>
 #include <atomic>
-#include <thread>    //NOLINT
+#include <string>
+#include <thread>  //NOLINT
+#include <vector>
 
 #include "include/chunkserver/chunkserver_common.h"
-#include "src/chunkserver/copyset_node_manager.h"
 #include "proto/heartbeat.pb.h"
-#include "src/common/configuration.h"
-#include "src/chunkserver/heartbeat.h"
 #include "src/chunkserver/cli.h"
+#include "src/chunkserver/copyset_node_manager.h"
+#include "src/chunkserver/heartbeat.h"
+#include "src/common/configuration.h"
 #include "src/common/uri_parser.h"
 #include "test/client/fake/fakeMDS.h"
 
@@ -47,7 +47,7 @@ using ::curve::common::UriParser;
 
 class HeartbeatTestCommon {
  public:
-    explicit HeartbeatTestCommon(const std::string &filename) {
+    explicit HeartbeatTestCommon(const std::string& filename) {
         hbtestCommon_ = this;
         handlerReady_.store(false, std::memory_order_release);
 
@@ -57,17 +57,11 @@ class HeartbeatTestCommon {
         mds_->StartService();
     }
 
-    std::atomic<bool>& GetReady() {
-        return handlerReady_;
-    }
+    std::atomic<bool>& GetReady() { return handlerReady_; }
 
-    std::mutex& GetMutex() {
-        return hbMtx_;
-    }
+    std::mutex& GetMutex() { return hbMtx_; }
 
-    std::condition_variable& GetCV() {
-        return hbCV_;
-    }
+    std::condition_variable& GetCV() { return hbCV_; }
 
     void UnInitializeMds() {
         mds_->UnInitialize();
@@ -75,105 +69,110 @@ class HeartbeatTestCommon {
     }
 
     /**
-     * CleanPeer 清空peer上指定copyset数据
+     * CleanPeer: Clear the specified copyset data on the peer
      *
-     * @param[in] poolId 逻辑池id
-     * @param[in] copysetId copyset id
-     * @param[in] peer chunkserver ip
+     * @param[in] poolId Logical pool ID
+     * @param[in] copysetId copyset ID
+     * @param[in] peer chunkserver IP
      */
-    void CleanPeer(
-        LogicPoolID poolId, CopysetID copysetId, const std::string& peer);
+    void CleanPeer(LogicPoolID poolId, CopysetID copysetId,
+                   const std::string& peer);
 
     /**
-     * CreateCopysetPeers 在指定chunkserverlist上创建指定配置的copyset
+     * CreateCopysetPeers: Create a copyset of the specified configuration on
+     * the specified chunkserverlist
      *
-     * @param[in] poolId 逻辑池id
-     * @param[in] copysetId copyset id
-     * @param[in] cslist 待创建copyset的chunkserver列表
-     * @param[in] conf 使用该配置作为初始配置创建copyset
+     * @param[in] poolId Logical pool ID
+     * @param[in] copysetId copyset ID
+     * @param[in] cslist The chunkserver list for the copyset to be created
+     * @param[in] conf Use this configuration as the initial configuration to
+     * create a copyset
      */
     void CreateCopysetPeers(LogicPoolID poolId, CopysetID copysetId,
-        const std::vector<std::string> &cslist, const std::string& conf);
+                            const std::vector<std::string>& cslist,
+                            const std::string& conf);
 
     /**
-     * WaitCopysetReady 等待指定copyset选出leader
+     * WaitCopysetReady: Wait for the specified copyset to select the leader
      *
-     * @param[in] poolId 逻辑池id
-     * @param[in] copysetId copyset id
-     * @param[in] conf 指定copyset复制组成员
+     * @param[in] poolId Logical pool ID
+     * @param[in] copysetId copyset ID
+     * @param[in] conf specifies the copyset replication group members
      */
-    void WaitCopysetReady(
-        LogicPoolID poolId, CopysetID copysetId, const std::string& conf);
+    void WaitCopysetReady(LogicPoolID poolId, CopysetID copysetId,
+                          const std::string& conf);
 
     /**
-     * TransferLeaderSync 触发transferleader并等待完成
+     * TransferLeaderSync: Trigger transferleader and waits for completion
      *
-     * @param[in] poolId 逻辑池id
-     * @param[in] copysetId copyset id
-     * @param[in] conf 指定copyset复制组成员
-     * @param[in] newLeader 目标leader
+     * @param[in] poolId Logical pool ID
+     * @param[in] copysetId copyset ID
+     * @param[in] conf specifies the copyset replication group members
+     * @param[in] newLeader Target Leader
      */
     void TransferLeaderSync(LogicPoolID poolId, CopysetID copysetId,
-        const std::string& conf, const std::string& newLeader);
+                            const std::string& conf,
+                            const std::string& newLeader);
 
     /**
-     * WailForConfigChangeOk 指定时间内(timeLimitMs),chunkserver是否上报了
-     *                       符合预期的copyset信息
+     * WailForConfigChangeOk: Determine whether the chunkserver has reported the
+     * expected copyset information within the specified time limit
+     * (timeLimitMs).
      *
-     * @param[in] conf mds需要下发给指定copyset的变更命令
-     * @param[in] expectedInfo 变更之后期望复制组配置
-     * @param[in] timeLimitMs 等待时间
+     * @param[in] conf mds needs to issue a change command to the specified
+     * copyset
+     * @param[in] expectedInfo replication group configuration after change
+     * @param[in] timeLimitMs waiting time
      *
-     * @return false-指定时间内copyset配置未能达到预期， true-达到预期
+     * @return false - Copyset configuration failed to meet expectations within
+     * the specified time, true - met expectations
      */
     bool WailForConfigChangeOk(
-        const ::curve::mds::heartbeat::CopySetConf &conf,
-        ::curve::mds::heartbeat::CopySetInfo expectedInfo,
-        int timeLimitMs);
+        const ::curve::mds::heartbeat::CopySetConf& conf,
+        ::curve::mds::heartbeat::CopySetInfo expectedInfo, int timeLimitMs);
 
     /**
-     * SameCopySetInfo 比较两个copysetInfo是否一致
+     * SameCopySetInfo: Compare two copysetInfo structures to check if they are
+     * identical.
      *
-     * @param[in] orig 待比较的copysetInfo
-     * @param[in] expect 期望copysetInfo
+     * @param[in] orig The copysetInfo to compare.
+     * @param[in] expect The expected copysetInfo for comparison.
      *
-     * @return true-一致 false-不一致
+     * @return true if they are identical, false if they are not.
      */
-    bool SameCopySetInfo(
-        const ::curve::mds::heartbeat::CopySetInfo &orig,
-        const ::curve::mds::heartbeat::CopySetInfo &expect);
+    bool SameCopySetInfo(const ::curve::mds::heartbeat::CopySetInfo& orig,
+                         const ::curve::mds::heartbeat::CopySetInfo& expect);
 
     /**
-     * ReleaseHeartbeat heartbeat中的会掉设置为nullptr
+     * ReleaseHeartbeat: Set the callback in the heartbeat to nullptr.
      */
     void ReleaseHeartbeat();
 
     /**
-     * SetHeartbeatInfo 把mds接受到的cntl等信息复制到成员变量
+     * SetHeartbeatInfo: Copy the cntl and other information received by mds to
+     * the member variable
      */
-    void SetHeartbeatInfo(
-        ::google::protobuf::RpcController* cntl,
-        const HeartbeatRequest* request,
-        HeartbeatResponse* response,
-        ::google::protobuf::Closure* done);
+    void SetHeartbeatInfo(::google::protobuf::RpcController* cntl,
+                          const HeartbeatRequest* request,
+                          HeartbeatResponse* response,
+                          ::google::protobuf::Closure* done);
 
     /**
-     * GetHeartbeat 把当前成员中的cntl等变量设置到rpc中
+     * GetHeartbeat: Set the current member's cntl and other variables into the
+     * RPC.
      */
-    void GetHeartbeat(
-        ::google::protobuf::RpcController** cntl,
-        const HeartbeatRequest** request,
-        HeartbeatResponse** response,
-        ::google::protobuf::Closure** done);
+    void GetHeartbeat(::google::protobuf::RpcController** cntl,
+                      const HeartbeatRequest** request,
+                      HeartbeatResponse** response,
+                      ::google::protobuf::Closure** done);
 
     /**
-     * HeartbeatCallback heartbeat回掉
+     * HeartbeatCallback: heartbeat callback
      */
-    static void HeartbeatCallback(
-        ::google::protobuf::RpcController* controller,
-        const HeartbeatRequest* request,
-        HeartbeatResponse* response,
-        ::google::protobuf::Closure* done);
+    static void HeartbeatCallback(::google::protobuf::RpcController* controller,
+                                  const HeartbeatRequest* request,
+                                  HeartbeatResponse* response,
+                                  ::google::protobuf::Closure* done);
 
  private:
     FakeMDS* mds_;

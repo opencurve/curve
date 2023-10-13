@@ -19,16 +19,17 @@
  * Created Date: Wednesday December 19th 2018
  * Author: hzsunjianliang
  */
-#include <utility>
-#include <memory>
 #include "src/mds/nameserver2/clean_task_manager.h"
+
+#include <memory>
+#include <utility>
 
 namespace curve {
 namespace mds {
 
 CleanTaskManager::CleanTaskManager(std::shared_ptr<ChannelPool> channelPool,
-                            int threadNum, int checkPeriod)
-                                     : channelPool_(channelPool) {
+                                   int threadNum, int checkPeriod)
+    : channelPool_(channelPool) {
     threadNum_ = threadNum;
     checkPeriod_ = checkPeriod;
     stopFlag_ = true;
@@ -43,30 +44,29 @@ void CleanTaskManager::CheckCleanResult(void) {
                 auto taskProgress = iter->second->GetTaskProgress();
                 if (taskProgress.GetStatus() == TaskStatus::SUCCESS) {
                     LOG(INFO) << "going to remove task, taskID = "
-                        << iter->second->GetTaskID();
+                              << iter->second->GetTaskID();
                     iter = cleanTasks_.erase(iter);
                     continue;
                 } else if (taskProgress.GetStatus() == TaskStatus::FAILED) {
                     iter->second->Retry();
                     if (!iter->second->RetryTimesExceed()) {
-                        LOG(WARNING) << "CleanTaskManager find Task Failed,"
-                                     << " retry,"
-                                     << " taskID = "
-                                     << iter->second->GetTaskID();
+                        LOG(WARNING)
+                            << "CleanTaskManager find Task Failed,"
+                            << " retry,"
+                            << " taskID = " << iter->second->GetTaskID();
                         cleanWorkers_->Enqueue(iter->second->Closure());
                     } else {
                         LOG(ERROR) << "CleanTaskManager find Task Failed,"
-                                     << " retry times exceed,"
-                                     << " going to remove task,"
-                                     << " taskID = "
-                                     << iter->second->GetTaskID();
+                                   << " retry times exceed,"
+                                   << " going to remove task,"
+                                   << " taskID = " << iter->second->GetTaskID();
                         iter = cleanTasks_.erase(iter);
                         continue;
                     }
                 }
                 ++iter;
             }
-            // clean task为空，清空channelPool
+            // Clean task is empty, clear channelPool
             if (cleanTasks_.empty() && notEmptyBefore) {
                 LOG(INFO) << "All tasks completed, clear channel pool";
                 channelPool_->Clear();
@@ -81,7 +81,7 @@ bool CleanTaskManager::Start(void) {
     stopFlag_ = false;
 
     // start worker thread
-    cleanWorkers_ =  new ::curve::common::TaskThreadPool<>();
+    cleanWorkers_ = new ::curve::common::TaskThreadPool<>();
 
     if (cleanWorkers_->Start(threadNum_) != 0) {
         LOG(ERROR) << "thread pool start error";
@@ -89,8 +89,8 @@ bool CleanTaskManager::Start(void) {
     }
 
     // start check thread
-    checkThread_ = new common::Thread(&CleanTaskManager::CheckCleanResult,
-                                        this);
+    checkThread_ =
+        new common::Thread(&CleanTaskManager::CheckCleanResult, this);
     LOG(INFO) << "TaskManger check thread started";
     return true;
 }
@@ -117,7 +117,7 @@ bool CleanTaskManager::PushTask(std::shared_ptr<Task> task) {
     common::LockGuard lck(mutex_);
     if (stopFlag_) {
         LOG(ERROR) << "task manager not started, taskID = "
-            << task->GetTaskID();
+                   << task->GetTaskID();
         return false;
     }
     if (cleanTasks_.find(task->GetTaskID()) != cleanTasks_.end()) {
@@ -137,7 +137,7 @@ std::shared_ptr<Task> CleanTaskManager::GetTask(TaskIDType id) {
 
     auto iter = cleanTasks_.begin();
     if ((iter = cleanTasks_.find(id)) == cleanTasks_.end()) {
-        LOG(INFO) << "taskid = "<< id << ", not found";
+        LOG(INFO) << "taskid = " << id << ", not found";
         return nullptr;
     } else {
         return iter->second;

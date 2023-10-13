@@ -25,9 +25,10 @@
 #include <stdint.h>
 #include <sys/time.h>
 #include <sys/types.h>
+
+#include <ctime>
 #include <string>
 #include <vector>
-#include <ctime>
 
 namespace curve {
 namespace common {
@@ -57,7 +58,8 @@ class TimeUtility {
         return localtime(&now)->tm_hour;
     }
 
-    // 时间戳转成标准时间输出在standard里面,时间戳单位为秒
+    // Convert the timestamp to standard time and output it in standard, with
+    // the timestamp unit in seconds
     static inline void TimeStampToStandard(time_t timeStamp,
                                            std::string* standard) {
         char now[64];
@@ -67,7 +69,7 @@ class TimeUtility {
         *standard = std::string(now);
     }
 
-    // 时间戳转成标准时间并返回,时间戳单位为秒
+    // The timestamp is converted to standard time and returned in seconds
     static inline std::string TimeStampToStandard(time_t timeStamp) {
         char now[64];
         struct tm p;
@@ -85,13 +87,9 @@ class ExpiredTime {
  public:
     ExpiredTime() : startUs_(TimeUtility::GetTimeofDayUs()) {}
 
-    double ExpiredSec() const {
-        return ExpiredUs() / 1000000;
-    }
+    double ExpiredSec() const { return ExpiredUs() / 1000000; }
 
-    double ExpiredMs() const {
-        return ExpiredUs() / 1000;
-    }
+    double ExpiredMs() const { return ExpiredUs() / 1000; }
 
     double ExpiredUs() const {
         return TimeUtility::GetTimeofDayUs() - startUs_;
@@ -101,7 +99,7 @@ class ExpiredTime {
     uint64_t startUs_;
 };
 
-}   // namespace common
-}   // namespace curve
+}  // namespace common
+}  // namespace curve
 
-#endif   // SRC_COMMON_TIMEUTILITY_H_
+#endif  // SRC_COMMON_TIMEUTILITY_H_

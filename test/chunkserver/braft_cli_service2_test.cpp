@@ -20,25 +20,26 @@
  * Author: wudemiao
  */
 
-#include <gtest/gtest.h>
-#include <gflags/gflags.h>
-#include <glog/logging.h>
-#include <bthread/bthread.h>
+#include "src/chunkserver/braft_cli_service2.h"
+
 #include <brpc/channel.h>
 #include <brpc/controller.h>
 #include <brpc/server.h>
+#include <bthread/bthread.h>
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+#include <gtest/gtest.h>
 
 #include <iostream>
 
+#include "proto/copyset.pb.h"
+#include "src/chunkserver/cli.h"
 #include "src/chunkserver/copyset_node.h"
 #include "src/chunkserver/copyset_node_manager.h"
-#include "src/chunkserver/braft_cli_service2.h"
-#include "src/chunkserver/cli.h"
-#include "proto/copyset.pb.h"
-#include "test/chunkserver/chunkserver_test_util.h"
-#include "src/common/uuid.h"
 #include "src/common/timeutility.h"
+#include "src/common/uuid.h"
 #include "src/fs/local_filesystem.h"
+#include "test/chunkserver/chunkserver_test_util.h"
 
 namespace curve {
 namespace chunkserver {
@@ -48,10 +49,12 @@ using curve::common::UUIDGenerator;
 class BraftCliService2Test : public testing::Test {
  protected:
     static void SetUpTestCase() {
-        LOG(INFO) << "BraftCliServiceTest " << "SetUpTestCase";
+        LOG(INFO) << "BraftCliServiceTest "
+                  << "SetUpTestCase";
     }
     static void TearDownTestCase() {
-        LOG(INFO) << "BraftCliServiceTest " << "TearDownTestCase";
+        LOG(INFO) << "BraftCliServiceTest "
+                  << "TearDownTestCase";
     }
     virtual void SetUp() {
         peer1.set_address("127.0.0.1:9310:0");
@@ -75,10 +78,10 @@ class BraftCliService2Test : public testing::Test {
     }
 
  public:
-    const char *ip    = "127.0.0.1";
-    int port          = 9310;
-    const char *confs = "127.0.0.1:9310:0,127.0.0.1:9311:0,127.0.0.1:9312:0";
-    int snapshotInterval  = 3600;  // 防止自动打快照
+    const char* ip = "127.0.0.1";
+    int port = 9310;
+    const char* confs = "127.0.0.1:9310:0,127.0.0.1:9311:0,127.0.0.1:9312:0";
+    int snapshotInterval = 3600;  // Prevent automatic snapshot taking
     int electionTimeoutMs = 3000;
 
     pid_t pid1;
@@ -128,12 +131,8 @@ TEST_F(BraftCliService2Test, basic2) {
         ASSERT_TRUE(false);
     } else if (0 == pid1) {
         std::string copysetdir = "local://./" + dirMap[peer1.address()];
-        StartChunkserver(ip,
-                         port + 0,
-                         copysetdir.c_str(),
-                         confs,
-                         snapshotInterval,
-                         electionTimeoutMs);
+        StartChunkserver(ip, port + 0, copysetdir.c_str(), confs,
+                         snapshotInterval, electionTimeoutMs);
         return;
     }
 
@@ -143,12 +142,8 @@ TEST_F(BraftCliService2Test, basic2) {
         ASSERT_TRUE(false);
     } else if (0 == pid2) {
         std::string copysetdir = "local://./" + dirMap[peer2.address()];
-        StartChunkserver(ip,
-                         port + 1,
-                         copysetdir.c_str(),
-                         confs,
-                         snapshotInterval,
-                         electionTimeoutMs);
+        StartChunkserver(ip, port + 1, copysetdir.c_str(), confs,
+                         snapshotInterval, electionTimeoutMs);
         return;
     }
 
@@ -158,16 +153,12 @@ TEST_F(BraftCliService2Test, basic2) {
         ASSERT_TRUE(false);
     } else if (0 == pid3) {
         std::string copysetdir = "local://./" + dirMap[peer3.address()];
-        StartChunkserver(ip,
-                         port + 2,
-                         copysetdir.c_str(),
-                         confs,
-                         snapshotInterval,
-                         electionTimeoutMs);
+        StartChunkserver(ip, port + 2, copysetdir.c_str(), confs,
+                         snapshotInterval, electionTimeoutMs);
         return;
     }
 
-    /* 保证进程一定会退出 */
+    /*Ensure that the process will definitely exit*/
     WaitpidGuard waitpidGuard(pid1, pid2, pid3);
 
     ::usleep(1.2 * 1000 * electionTimeoutMs);
@@ -182,15 +173,15 @@ TEST_F(BraftCliService2Test, basic2) {
     options.timeout_ms = 3000;
     options.max_retry = 3;
 
-    /* add peer - 非法copyset */
+    /*Add peer - illegal copyset*/
     {
-        Peer *leaderPeer = new Peer();
-        Peer *peer = new Peer();
+        Peer* leaderPeer = new Peer();
+        Peer* peer = new Peer();
         brpc::Channel channel;
         ASSERT_EQ(0, channel.Init(leaderAddr, NULL));
 
         AddPeerRequest2 request;
-        // 设置一个不存在的logicPoolId
+        // Set a non-existent logicPoolId
         request.set_logicpoolid(logicPoolId + 1);
         request.set_copysetid(copysetId);
         request.set_allocated_leader(leaderPeer);
@@ -210,10 +201,10 @@ TEST_F(BraftCliService2Test, basic2) {
         ASSERT_TRUE(cntl.Failed());
         ASSERT_EQ(ENOENT, cntl.ErrorCode());
     }
-    /* add peer - 非法peerid */
+    /*Add peer - illegal peer id*/
     {
-        Peer *leaderPeer = new Peer();
-        Peer *peer = new Peer();
+        Peer* leaderPeer = new Peer();
+        Peer* peer = new Peer();
         brpc::Channel channel;
         ASSERT_EQ(0, channel.Init(leaderAddr, NULL));
 
@@ -223,7 +214,7 @@ TEST_F(BraftCliService2Test, basic2) {
         request.set_allocated_leader(leaderPeer);
         *leaderPeer = gLeader;
         request.set_allocated_addpeer(peer);
-        // request中的peer id是非法的
+        // The peer id in the request is illegal
         peer->set_address("127.0.0");
 
         AddPeerResponse2 response;
@@ -237,13 +228,14 @@ TEST_F(BraftCliService2Test, basic2) {
         ASSERT_EQ(EINVAL, cntl.ErrorCode());
         LOG(INFO) << "add peer: " << cntl.ErrorText();
     }
-    /* add peer - 发送给不是leader的peer */
+    /*Add peer - sent to peers who are not leaders*/
     {
-        Peer *leaderPeer = new Peer();
-        Peer *peer = new Peer();
+        Peer* leaderPeer = new Peer();
+        Peer* peer = new Peer();
         PeerId leaderId;
         LOG(INFO) << "true leader is: " << gLeader.address();
-        // 找一个不是leader的peer，然后将配置变更请求发送给它处理
+        // Find a peer that is not a leader and send the configuration change
+        // request to it for processing
         if (0 == strcmp(gLeader.address().c_str(), peer1.address().c_str())) {
             leaderId.parse(peer2.address());
             *leaderPeer = peer2;
@@ -274,15 +266,15 @@ TEST_F(BraftCliService2Test, basic2) {
         ASSERT_TRUE(cntl.Failed());
         ASSERT_EQ(EPERM, cntl.ErrorCode());
     }
-    /* remove peer - 非法copyset */
+    /*Remove peer - illegal copyset*/
     {
-        Peer *leaderPeer = new Peer();
-        Peer *peer = new Peer();
+        Peer* leaderPeer = new Peer();
+        Peer* peer = new Peer();
         brpc::Channel channel;
         ASSERT_EQ(0, channel.Init(leaderAddr, NULL));
 
         RemovePeerRequest2 request;
-        // 设置一个不存在的logicPoolId
+        // Set a non-existent logicPoolId
         request.set_logicpoolid(logicPoolId + 1);
         request.set_copysetid(copysetId);
         request.set_allocated_leader(leaderPeer);
@@ -302,10 +294,10 @@ TEST_F(BraftCliService2Test, basic2) {
         ASSERT_TRUE(cntl.Failed());
         ASSERT_EQ(ENOENT, cntl.ErrorCode());
     }
-    /* remove peer - 非法peer id */
+    /*Remove peer - illegal peer id*/
     {
-        Peer *leaderPeer = new Peer();
-        Peer *peer = new Peer();
+        Peer* leaderPeer = new Peer();
+        Peer* peer = new Peer();
         brpc::Channel channel;
         ASSERT_EQ(0, channel.Init(leaderAddr, NULL));
 
@@ -315,7 +307,7 @@ TEST_F(BraftCliService2Test, basic2) {
         request.set_allocated_leader(leaderPeer);
         *leaderPeer = gLeader;
         request.set_allocated_removepeer(peer);
-        // request中的peer id是非法的
+        // The peer id in the request is illegal
         peer->set_address("127.0.0");
 
         RemovePeerResponse2 response;
@@ -329,15 +321,15 @@ TEST_F(BraftCliService2Test, basic2) {
         ASSERT_EQ(EINVAL, cntl.ErrorCode());
         LOG(INFO) << "remove peer: " << cntl.ErrorText();
     }
-    /* remove peer - 发送给不是leader的peer */
+    /*Remove peer - sent to peers who are not leaders*/
     {
-        Peer *leaderPeer = new Peer();
-        Peer *peer = new Peer();
+        Peer* leaderPeer = new Peer();
+        Peer* peer = new Peer();
         PeerId leaderId;
         LOG(INFO) << "true leader is: " << gLeader.address();
-        // 找一个不是leader的peer，然后将配置变更请求发送给它处理
-        if (0
-            == strcmp(gLeader.address().c_str(), peer1.address().c_str())) {
+        // Find a peer that is not a leader and send the configuration change
+        // request to it for processing
+        if (0 == strcmp(gLeader.address().c_str(), peer1.address().c_str())) {
             leaderId.parse(peer2.address());
             *leaderPeer = peer2;
         } else {
@@ -367,15 +359,15 @@ TEST_F(BraftCliService2Test, basic2) {
         ASSERT_TRUE(cntl.Failed());
         ASSERT_EQ(EPERM, cntl.ErrorCode());
     }
-    /* transfer leader - 非法copyset */
+    /* Transfer leader - illegal copyset*/
     {
-        Peer *leaderPeer = new Peer();
-        Peer *peer = new Peer();
+        Peer* leaderPeer = new Peer();
+        Peer* peer = new Peer();
         brpc::Channel channel;
         ASSERT_EQ(0, channel.Init(leaderAddr, NULL));
 
         TransferLeaderRequest2 request;
-        // 设置一个不存在的logicPoolId
+        // Set a non-existent logicPoolId
         request.set_logicpoolid(logicPoolId + 1);
         request.set_copysetid(copysetId);
         request.set_allocated_leader(leaderPeer);
@@ -395,8 +387,8 @@ TEST_F(BraftCliService2Test, basic2) {
     }
     /* transfer leader to leader */
     {
-        Peer *leaderPeer = new Peer();
-        Peer *peer = new Peer();
+        Peer* leaderPeer = new Peer();
+        Peer* peer = new Peer();
         brpc::Channel channel;
         ASSERT_EQ(0, channel.Init(leaderAddr, NULL));
 
@@ -417,10 +409,10 @@ TEST_F(BraftCliService2Test, basic2) {
         stub.TransferLeader(&cntl, &request, &response, NULL);
         ASSERT_FALSE(cntl.Failed());
     }
-    /* transfer leader - 非法peer */
+    /*Transfer leader - illegal peer*/
     {
-        Peer *leaderPeer = new Peer();
-        Peer *peer = new Peer();
+        Peer* leaderPeer = new Peer();
+        Peer* peer = new Peer();
         brpc::Channel channel;
         ASSERT_EQ(0, channel.Init(leaderAddr, NULL));
 
@@ -430,7 +422,7 @@ TEST_F(BraftCliService2Test, basic2) {
         request.set_allocated_leader(leaderPeer);
         *leaderPeer = gLeader;
         request.set_allocated_transferee(peer);
-        // request中的peer id是非法的
+        // The peer id in the request is illegal
         peer->set_address("127.0.0");
 
         TransferLeaderResponse2 response;
@@ -444,18 +436,17 @@ TEST_F(BraftCliService2Test, basic2) {
         ASSERT_EQ(EINVAL, cntl.ErrorCode());
         LOG(INFO) << "Transfer leader peer: " << cntl.ErrorText();
     }
-    /* get leader - 非法copyset */
+    /*Get leader - illegal copyset*/
     {
         PeerId leaderId = leaderId;
         brpc::Channel channel;
         ASSERT_EQ(0, channel.Init(leaderAddr, NULL));
 
-
         GetLeaderRequest2 request;
         GetLeaderResponse2 response;
 
         brpc::Controller cntl;
-        // 设置一个不存在的logicPoolId
+        // Set a non-existent logicPoolId
         request.set_logicpoolid(logicPoolId + 1);
         request.set_copysetid(copysetId);
 
@@ -467,14 +458,13 @@ TEST_F(BraftCliService2Test, basic2) {
     /* remove peer then add peer */
     {
         // 1 remove peer
-        Peer *removePeer = new Peer();
-        Peer *leaderPeer1 = new Peer();
-        Peer *leaderPeer2 = new Peer();
-        Peer *addPeer = new Peer();
+        Peer* removePeer = new Peer();
+        Peer* leaderPeer1 = new Peer();
+        Peer* leaderPeer2 = new Peer();
+        Peer* addPeer = new Peer();
         PeerId removePeerId;
-        // 找一个不是leader的peer，作为remove peer
-        if (0
-            == strcmp(gLeader.address().c_str(), peer1.address().c_str())) {
+        // Find a peer that is not a leader as a remove peer
+        if (0 == strcmp(gLeader.address().c_str(), peer1.address().c_str())) {
             removePeerId.parse(peer2.address());
             *removePeer = peer2;
         } else {
@@ -508,7 +498,6 @@ TEST_F(BraftCliService2Test, basic2) {
         ASSERT_FALSE(cntl1.Failed());
         ASSERT_EQ(0, cntl1.ErrorCode());
 
-
         // add peer
         AddPeerRequest2 request2;
         request2.set_logicpoolid(logicPoolId);
@@ -529,17 +518,17 @@ TEST_F(BraftCliService2Test, basic2) {
         ASSERT_FALSE(cntl2.Failed());
         ASSERT_EQ(0, cntl2.ErrorCode());
     }
-    /* snapshot - 非法copyset */
+    /*Snapshot - illegal copyset*/
     {
         PeerId peer(peer1.address());
         brpc::Channel channel;
         ASSERT_EQ(0, channel.Init(peer.addr, NULL));
 
         SnapshotRequest2 request;
-        /* 非法 copyset */
+        /*Illegal copyset*/
         request.set_logicpoolid(logicPoolId + 1);
         request.set_copysetid(copysetId);
-        Peer *peerPtr = new Peer();
+        Peer* peerPtr = new Peer();
         *peerPtr = peer1;
         request.set_allocated_peer(peerPtr);
 
@@ -557,11 +546,12 @@ TEST_F(BraftCliService2Test, basic2) {
     }
     /* snapshot - normal */
     {
-        // 初始状态快照不为空
+        // The initial state snapshot is not empty
         std::string copysetDataDir = dirMap[gLeader.address()] + "/" +
-                ToGroupId(logicPoolId, copysetId) + "/" + RAFT_LOG_DIR;
+                                     ToGroupId(logicPoolId, copysetId) + "/" +
+                                     RAFT_LOG_DIR;
         std::shared_ptr<LocalFileSystem> fs(
-        LocalFsFactory::CreateFs(curve::fs::FileSystemType::EXT4, ""));
+            LocalFsFactory::CreateFs(curve::fs::FileSystemType::EXT4, ""));
         std::vector<std::string> files;
         fs->List(copysetDataDir.c_str(), &files);
         ASSERT_GE(files.size(), 1);
@@ -574,7 +564,7 @@ TEST_F(BraftCliService2Test, basic2) {
         SnapshotRequest2 request;
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
-        Peer *peerPtr = new Peer();
+        Peer* peerPtr = new Peer();
         peerPtr->set_address(leaderId.to_string());
         request.set_allocated_peer(peerPtr);
 
@@ -586,19 +576,20 @@ TEST_F(BraftCliService2Test, basic2) {
         LOG(INFO) << "Start do snapshot";
         CliService2_Stub stub(&channel);
         stub.Snapshot(&cntl, &request, &response, NULL);
-        ASSERT_FALSE(cntl.Failed()) << "Do snapshot fail, error: "
-                                    << cntl.ErrorText();
-        // 需要连续打两次快照才能删除第一次快照时的log
+        ASSERT_FALSE(cntl.Failed())
+            << "Do snapshot fail, error: " << cntl.ErrorText();
+        // Two consecutive snapshots are required to delete the log from the
+        // first snapshot
         sleep(5);
         cntl.Reset();
         LOG(INFO) << "Start do snapshot";
         stub.Snapshot(&cntl, &request, &response, NULL);
-        ASSERT_FALSE(cntl.Failed()) << "Do snapshot fail, error: "
-                                    << cntl.ErrorText();
+        ASSERT_FALSE(cntl.Failed())
+            << "Do snapshot fail, error: " << cntl.ErrorText();
         for (int i = 0; i < 60; ++i) {
             files.clear();
             fs->List(copysetDataDir.c_str(), &files);
-            // 打完快照应该只剩下meta信息
+            // After taking the snapshot, only meta information should be left
             if (files.size() == 1) {
                 break;
             }
@@ -619,18 +610,18 @@ TEST_F(BraftCliService2Test, basic2) {
 
         CliService2_Stub stub(&channel);
         stub.SnapshotAll(&cntl, &request, &response, NULL);
-        ASSERT_FALSE(cntl.Failed()) << "Do snapshot all fail, error: "
-                                    << cntl.ErrorText();
+        ASSERT_FALSE(cntl.Failed())
+            << "Do snapshot all fail, error: " << cntl.ErrorText();
     }
-    /* reset peer - 非法 copyset */
+    /*Reset peer - illegal copyset*/
     {
-        Peer *targetPeer = new Peer();
+        Peer* targetPeer = new Peer();
         *targetPeer = peer1;
         PeerId peer(peer1.address());
         brpc::Channel channel;
         ASSERT_EQ(0, channel.Init(peer.addr, NULL));
         ResetPeerRequest2 request;
-        /* 非法 copyset */
+        /*Illegal copyset*/
         request.set_logicpoolid(logicPoolId + 1);
         request.set_copysetid(copysetId);
         request.set_allocated_requestpeer(targetPeer);
@@ -646,9 +637,9 @@ TEST_F(BraftCliService2Test, basic2) {
         ASSERT_TRUE(cntl.Failed());
         ASSERT_EQ(ENOENT, cntl.ErrorCode());
     }
-    /* reset peer - new peer为空 */
+    /*Reset peer - new peer is empty*/
     {
-        Peer *targetPeer = new Peer();
+        Peer* targetPeer = new Peer();
         *targetPeer = peer1;
         PeerId peer(peer1.address());
         brpc::Channel channel;
@@ -669,7 +660,7 @@ TEST_F(BraftCliService2Test, basic2) {
     }
     /* reset peer - normal */
     {
-        Peer *targetPeer = new Peer();
+        Peer* targetPeer = new Peer();
         *targetPeer = peer1;
         PeerId peer(peer1.address());
         brpc::Channel channel;

@@ -20,12 +20,14 @@
  * Author: yangyaokai
  */
 
-#include <gtest/gtest.h>
+#include "src/chunkserver/raftsnapshot/curve_snapshot_attachment.h"
+
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
 #include <memory>
 #include <string>
 
-#include "src/chunkserver/raftsnapshot/curve_snapshot_attachment.h"
 #include "test/fs/mock_local_filesystem.h"
 
 namespace curve {
@@ -34,11 +36,11 @@ namespace chunkserver {
 using curve::fs::MockLocalFileSystem;
 
 using ::testing::_;
-using ::testing::Return;
-using ::testing::Mock;
 using ::testing::DoAll;
-using ::testing::ReturnArg;
 using ::testing::ElementsAre;
+using ::testing::Mock;
+using ::testing::Return;
+using ::testing::ReturnArg;
 using ::testing::SetArgPointee;
 using ::testing::UnorderedElementsAre;
 
@@ -53,13 +55,14 @@ class CurveSnapshotAttachmentMockTest : public testing::Test {
             new CurveSnapshotAttachment(fs_));
     }
     void TearDown() {}
+
  protected:
     std::shared_ptr<MockLocalFileSystem> fs_;
     scoped_refptr<CurveSnapshotAttachment> attachment_;
 };
 
 TEST_F(CurveSnapshotAttachmentMockTest, ListTest) {
-    // 返回成功
+    // Return successful
     vector<std::string> fileNames;
     fileNames.emplace_back("chunk_1");
     fileNames.emplace_back("chunk_1_snap_1");
@@ -69,24 +72,21 @@ TEST_F(CurveSnapshotAttachmentMockTest, ListTest) {
     vector<std::string> snapFiles;
     attachment_->list_attach_files(&snapFiles, kRaftSnapDir);
 
-    std::string snapPath1 =
-        "../../data/chunk_1_snap_1";
-    std::string snapPath2 =
-        "../../data/chunk_2_snap_1";
-    EXPECT_THAT(snapFiles, UnorderedElementsAre(snapPath1.c_str(),
-                                                snapPath2.c_str()));
+    std::string snapPath1 = "../../data/chunk_1_snap_1";
+    std::string snapPath2 = "../../data/chunk_2_snap_1";
+    EXPECT_THAT(snapFiles,
+                UnorderedElementsAre(snapPath1.c_str(), snapPath2.c_str()));
 
-    // 路径结尾添加反斜杠
+    // Add a backslash at the end of the path
     EXPECT_CALL(*fs_, List(kDataDir, _))
         .WillOnce(DoAll(SetArgPointee<1>(fileNames), Return(0)));
     attachment_->list_attach_files(&snapFiles, std::string(kRaftSnapDir) + "/");
-    EXPECT_THAT(snapFiles, UnorderedElementsAre(snapPath1.c_str(),
-                                                snapPath2.c_str()));
-    // 返回失败
-    EXPECT_CALL(*fs_, List(kDataDir, _))
-        .WillRepeatedly(Return(-1));
+    EXPECT_THAT(snapFiles,
+                UnorderedElementsAre(snapPath1.c_str(), snapPath2.c_str()));
+    // Return failed
+    EXPECT_CALL(*fs_, List(kDataDir, _)).WillRepeatedly(Return(-1));
     ASSERT_DEATH(attachment_->list_attach_files(&snapFiles, kRaftSnapDir), "");
 }
 
-}   // namespace chunkserver
-}   // namespace curve
+}  // namespace chunkserver
+}  // namespace curve

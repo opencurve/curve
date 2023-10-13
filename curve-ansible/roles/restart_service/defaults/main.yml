@@ -16,7 +16,7 @@
 #
 
 check_health: False
-# 启动一个chunkserver需要的最大时间
+# The maximum time required to start a chunkserver
 restart_chunkserver_async: 100
 restart_chunkserver_check_delay: 5
 restart_chunkserver_check_times: 20

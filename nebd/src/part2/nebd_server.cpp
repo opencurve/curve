@@ -20,19 +20,22 @@
  * Author: lixiaocui
  */
 
-#include <glog/logging.h>
-#include <memory>
-#include "nebd/src/common/file_lock.h"
 #include "nebd/src/part2/nebd_server.h"
+
+#include <glog/logging.h>
+
+#include <memory>
+
+#include "nebd/src/common/file_lock.h"
+#include "nebd/src/common/nebd_version.h"
 #include "nebd/src/part2/file_service.h"
 #include "nebd/src/part2/heartbeat_service.h"
-#include "nebd/src/common/nebd_version.h"
 
 namespace nebd {
 namespace server {
 
-int NebdServer::Init(const std::string &confPath,
-    std::shared_ptr<CurveClient> curveClient) {
+int NebdServer::Init(const std::string& confPath,
+                     std::shared_ptr<CurveClient> curveClient) {
     if (isRunning_) {
         LOG(WARNING) << "NebdServer is inited";
         return -1;
@@ -75,7 +78,7 @@ int NebdServer::Init(const std::string &confPath,
     LOG(INFO) << "NebdServer init heartbeatManager ok";
 
     LOG(INFO) << "NebdServer init ok";
-    // 暴露版本信息
+    // Expose version information
     LOG(INFO) << "nebd version: " << nebd::common::NebdVersion();
     nebd::common::ExposeNebdVersion();
     return 0;
@@ -100,7 +103,7 @@ int NebdServer::Fini() {
     }
 
     if (curveClient_ != nullptr) {
-        curveClient_ ->UnInit();
+        curveClient_->UnInit();
     }
 
     if (heartbeatManager_ != nullptr) {
@@ -110,7 +113,7 @@ int NebdServer::Fini() {
     return 0;
 }
 
-bool NebdServer::LoadConfFromFile(const std::string &confPath) {
+bool NebdServer::LoadConfFromFile(const std::string& confPath) {
     conf_.SetConfigPath(confPath);
     return conf_.LoadConfig();
 }
@@ -172,16 +175,16 @@ MetaFileManagerPtr NebdServer::InitMetaFileManager() {
     return metaFileManager;
 }
 
-bool NebdServer::InitHeartbeatManagerOption(HeartbeatManagerOption *opt) {
-    bool getOk = conf_.GetUInt32Value(
-        HEARTBEATTIMEOUTSEC, &opt->heartbeatTimeoutS);
+bool NebdServer::InitHeartbeatManagerOption(HeartbeatManagerOption* opt) {
+    bool getOk =
+        conf_.GetUInt32Value(HEARTBEATTIMEOUTSEC, &opt->heartbeatTimeoutS);
     if (false == getOk) {
         LOG(ERROR) << "NebdServer get heartbeat.timeout.sec fail";
         return false;
     }
 
-    getOk = conf_.GetUInt32Value(
-        HEARTBEATCHECKINTERVALMS, &opt->checkTimeoutIntervalMs);
+    getOk = conf_.GetUInt32Value(HEARTBEATCHECKINTERVALMS,
+                                 &opt->checkTimeoutIntervalMs);
     if (false == getOk) {
         LOG(ERROR) << "NebdServer get heartbeat.check.interval.ms fail";
         return false;
@@ -212,24 +215,24 @@ bool NebdServer::InitHeartbeatManager() {
 bool NebdServer::StartServer() {
     // add service
     bool returnRpcWhenIoError;
-    bool ret = conf_.GetBoolValue(RESPONSERETURNRPCWHENIOERROR,
-                                  &returnRpcWhenIoError);
+    bool ret =
+        conf_.GetBoolValue(RESPONSERETURNRPCWHENIOERROR, &returnRpcWhenIoError);
     if (false == ret) {
         LOG(ERROR) << "get " << RESPONSERETURNRPCWHENIOERROR << " fail";
         return false;
     }
 
     NebdFileServiceImpl fileService(fileManager_, returnRpcWhenIoError);
-    int addFileServiceRes = server_.AddService(
-        &fileService, brpc::SERVER_DOESNT_OWN_SERVICE);
+    int addFileServiceRes =
+        server_.AddService(&fileService, brpc::SERVER_DOESNT_OWN_SERVICE);
     if (0 != addFileServiceRes) {
         LOG(ERROR) << "NebdServer add file service fail";
         return false;
     }
 
     NebdHeartbeatServiceImpl heartbeatService(heartbeatManager_);
-    addFileServiceRes = server_.AddService(
-        &heartbeatService, brpc::SERVER_DOESNT_OWN_SERVICE);
+    addFileServiceRes =
+        server_.AddService(&heartbeatService, brpc::SERVER_DOESNT_OWN_SERVICE);
     if (0 != addFileServiceRes) {
         LOG(ERROR) << "NebdServer add heartbeat service fail";
         return false;
@@ -238,17 +241,17 @@ bool NebdServer::StartServer() {
     // start brcp server
     brpc::ServerOptions option;
     option.idle_timeout_sec = -1;
-    // 获取文件锁
+    // Obtain file lock
     common::FileLock fileLock(listenAddress_ + ".lock");
     if (fileLock.AcquireFileLock() != 0) {
         LOG(ERROR) << "Address already in use";
         return -1;
     }
-    int startBrpcServerRes = server_.StartAtSockFile(
-                                    listenAddress_.c_str(), &option);
+    int startBrpcServerRes =
+        server_.StartAtSockFile(listenAddress_.c_str(), &option);
     if (0 != startBrpcServerRes) {
         LOG(ERROR) << "NebdServer start brpc server fail, res="
-            << startBrpcServerRes;
+                   << startBrpcServerRes;
         return false;
     }
 

@@ -43,24 +43,25 @@ using curve::common::ReadLockGuard;
 using curve::common::SpinLock;
 using curve::common::WriteLockGuard;
 
-// copyset内的chunkserver节点的基本信息
-// 包含当前chunkserver的id信息，以及chunkserver的地址信息
+// Basic information of chunkserver nodes in the copyset
+// Contains the ID information of the current chunkserver and the address
+// information of the chunkserver
 template <typename T>
 struct CopysetPeerInfo {
-    // 当前chunkserver节点的ID
+    // The ID of the current chunkserver node
     T peerID = 0;
-    // 当前chunkserver节点的内部地址
+    // The internal address of the current chunkserver node
     PeerAddr internalAddr;
-    // 当前chunkserver节点的外部地址
+    // The external address of the current chunkserver node
     PeerAddr externalAddr;
 
     CopysetPeerInfo() = default;
 
-    CopysetPeerInfo(const T &cid, const PeerAddr &internal,
-                    const PeerAddr &external)
+    CopysetPeerInfo(const T& cid, const PeerAddr& internal,
+                    const PeerAddr& external)
         : peerID(cid), internalAddr(internal), externalAddr(external) {}
 
-    bool operator==(const CopysetPeerInfo &other) const {
+    bool operator==(const CopysetPeerInfo& other) const {
         return this->internalAddr == other.internalAddr &&
                this->externalAddr == other.externalAddr;
     }
@@ -72,7 +73,7 @@ struct CopysetPeerInfo {
 };
 
 template <typename T>
-inline std::ostream &operator<<(std::ostream &os, const CopysetPeerInfo<T> &c) {
+inline std::ostream& operator<<(std::ostream& os, const CopysetPeerInfo<T>& c) {
     os << "peer id : " << c.peerID
        << ", internal address : " << c.internalAddr.ToString()
        << ", external address : " << c.externalAddr.ToString();
@@ -81,23 +82,25 @@ inline std::ostream &operator<<(std::ostream &os, const CopysetPeerInfo<T> &c) {
 }
 
 // copyset's informations including peer and leader information
-template <typename T> struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
-    // leader存在变更可能标志位
+template <typename T>
+struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
+    // Possible flag bits for leader changes
     bool leaderMayChange_ = false;
-    // 当前copyset的节点信息
+    // Node information of the current copyset
     std::vector<CopysetPeerInfo<T>> csinfos_;
-    // leader在本copyset信息中的索引，用于后面避免重复尝试同一个leader
+    // The index of the leader in this copyset information is used to avoid
+    // repeated attempts at the same leader in the future
     int16_t leaderindex_ = -1;
-    // 当前copyset的id信息
+    // The ID information of the current copyset
     CopysetID cpid_ = 0;
     LogicPoolID lpid_ = 0;
-    // 用于保护对copyset信息的修改
+    // Used to protect modifications to copyset information
     SpinLock spinlock_;
 
     CopysetInfo() = default;
     ~CopysetInfo() = default;
 
-    CopysetInfo &operator=(const CopysetInfo &other) {
+    CopysetInfo& operator=(const CopysetInfo& other) {
         this->cpid_ = other.cpid_;
         this->lpid_ = other.lpid_;
         this->csinfos_ = other.csinfos_;
@@ -106,9 +109,11 @@ template <typename T> struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
         return *this;
     }
 
-    CopysetInfo(const CopysetInfo &other)
-        : leaderMayChange_(other.leaderMayChange_), csinfos_(other.csinfos_),
-          leaderindex_(other.leaderindex_), cpid_(other.cpid_),
+    CopysetInfo(const CopysetInfo& other)
+        : leaderMayChange_(other.leaderMayChange_),
+          csinfos_(other.csinfos_),
+          leaderindex_(other.leaderindex_),
+          cpid_(other.cpid_),
           lpid_(other.lpid_) {}
 
     CopysetInfo(CopysetInfo&& other) noexcept
@@ -142,11 +147,11 @@ template <typename T> struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
     }
 
     /**
-     * 获取当前leader的索引
+     * Get the index of the current leader
      */
     int16_t GetCurrentLeaderIndex() const { return leaderindex_; }
 
-    bool GetCurrentLeaderID(T *id) const {
+    bool GetCurrentLeaderID(T* id) const {
         if (leaderindex_ >= 0) {
             if (static_cast<int>(csinfos_.size()) < leaderindex_) {
                 return false;
@@ -160,10 +165,11 @@ template <typename T> struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
     }
 
     /**
-     * 更新leaderindex，如果leader不在当前配置组中，则返回-1
-     * @param: addr为新的leader的地址信息
+     * Update the leaderindex, if the leader is not in the current configuration
+     * group, return -1
+     * @param: addr is the address information of the new leader
      */
-    int UpdateLeaderInfo(const PeerAddr &addr,
+    int UpdateLeaderInfo(const PeerAddr& addr,
                          CopysetPeerInfo<T> csInfo = CopysetPeerInfo<T>()) {
         VLOG(3) << "update leader info, pool " << lpid_ << ", copyset " << cpid_
                 << ", current leader " << addr.ToString();
@@ -179,7 +185,8 @@ template <typename T> struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
             tempindex++;
         }
 
-        // 新的addr不在当前copyset内，如果csInfo不为空，那么将其插入copyset
+        // The new addr is not within the current copyset. If csInfo is not
+        // empty, insert it into the copyset
         if (!exists && !csInfo.IsEmpty()) {
             csinfos_.push_back(csInfo);
         } else if (exists == false) {
@@ -198,8 +205,10 @@ template <typename T> struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
      * @param[out]: peer id
      * @param[out]: ep
      */
-    int GetLeaderInfo(T *peerid, EndPoint *ep) {
-        // 第一次获取leader,如果当前leader信息没有确定，返回-1，由外部主动发起更新leader
+    int GetLeaderInfo(T* peerid, EndPoint* ep) {
+        // For the first time obtaining the leader, if the current leader
+        // information is not determined, return -1, and the external initiative
+        // will be initiated to update the leader
         if (leaderindex_ < 0 ||
             leaderindex_ >= static_cast<int>(csinfos_.size())) {
             LOG(INFO) << "GetLeaderInfo pool " << lpid_ << ", copyset " << cpid_
@@ -219,32 +228,32 @@ template <typename T> struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
     }
 
     /**
-     * 添加copyset的peerinfo
-     * @param: csinfo为待添加的peer信息
+     * Add peerinfo for copyset
+     * @param: csinfo is the peer information to be added
      */
-    void AddCopysetPeerInfo(const CopysetPeerInfo<T> &csinfo) {
+    void AddCopysetPeerInfo(const CopysetPeerInfo<T>& csinfo) {
         spinlock_.Lock();
         csinfos_.push_back(csinfo);
         spinlock_.UnLock();
     }
 
     /**
-     * 当前CopysetInfo是否合法
+     * Is the current CopysetInfo legal
      */
     bool IsValid() const { return !csinfos_.empty(); }
 
     /**
-     * 更新leaderindex
+     * Update leaderindex
      */
     void UpdateLeaderIndex(int index) { leaderindex_ = index; }
 
     /**
-     * 当前copyset是否存在对应的chunkserver address
-     * @param: addr需要检测的chunkserver
-     * @return: true存在；false不存在
+     * Does the current copyset have a corresponding chunkserver address
+     * @param: addr Chunkserver to be detected
+     * @return: true exists; False does not exist
      */
-    bool HasPeerInCopyset(const PeerAddr &addr) const {
-        for (const auto &peer : csinfos_) {
+    bool HasPeerInCopyset(const PeerAddr& addr) const {
+        for (const auto& peer : csinfos_) {
             if (peer.internalAddr == addr || peer.externalAddr == addr) {
                 return true;
             }
@@ -255,13 +264,13 @@ template <typename T> struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
 };
 
 template <typename T>
-inline std::ostream &operator<<(std::ostream &os,
-                                const CopysetInfo<T> &copyset) {
+inline std::ostream& operator<<(std::ostream& os,
+                                const CopysetInfo<T>& copyset) {
     os << "pool id : " << copyset.lpid_ << ", copyset id : " << copyset.cpid_
        << ", leader index : " << copyset.leaderindex_
        << ", leader may change : " << copyset.leaderMayChange_ << ", peers : ";
 
-    for (auto &p : copyset.csinfos_) {
+    for (auto& p : copyset.csinfos_) {
         os << p << " ";
     }
 
@@ -276,13 +285,13 @@ struct CopysetIDInfo {
         : lpid(logicpoolid), cpid(copysetid) {}
 };
 
-inline bool operator<(const CopysetIDInfo &cpidinfo1,
-                      const CopysetIDInfo &cpidinfo2) {
+inline bool operator<(const CopysetIDInfo& cpidinfo1,
+                      const CopysetIDInfo& cpidinfo2) {
     return cpidinfo1.lpid <= cpidinfo2.lpid && cpidinfo1.cpid < cpidinfo2.cpid;
 }
 
-inline bool operator==(const CopysetIDInfo &cpidinfo1,
-                       const CopysetIDInfo &cpidinfo2) {
+inline bool operator==(const CopysetIDInfo& cpidinfo1,
+                       const CopysetIDInfo& cpidinfo2) {
     return cpidinfo1.cpid == cpidinfo2.cpid && cpidinfo1.lpid == cpidinfo2.lpid;
 }
 
@@ -290,9 +299,12 @@ class FileSegment {
  public:
     FileSegment(SegmentIndex segmentIndex, uint32_t segmentSize,
                 uint32_t discardGranularity)
-        : segmentIndex_(segmentIndex), segmentSize_(segmentSize),
-          discardGranularity_(discardGranularity), rwlock_(),
-          discardBitmap_(segmentSize_ / discardGranularity_), chunks_() {}
+        : segmentIndex_(segmentIndex),
+          segmentSize_(segmentSize),
+          discardGranularity_(discardGranularity),
+          rwlock_(),
+          discardBitmap_(segmentSize_ / discardGranularity_),
+          chunks_() {}
 
     /**
      * @brief Confirm if all bit was discarded
@@ -312,7 +324,7 @@ class FileSegment {
      * @brief Get internal bitmap for unit-test
      * @return Internal bitmap
      */
-    Bitmap &GetBitmap() { return discardBitmap_; }
+    Bitmap& GetBitmap() { return discardBitmap_; }
 
     void SetBitmap(const uint64_t offset, const uint64_t length);
     void ClearBitmap(const uint64_t offset, const uint64_t length);
@@ -370,14 +382,15 @@ inline void FileSegment::ClearBitmap(const uint64_t offset,
 
 enum class FileSegmentLockType { Read, Write };
 
-template <FileSegmentLockType type> class FileSegmentLockGuard {
+template <FileSegmentLockType type>
+class FileSegmentLockGuard {
  public:
-    explicit FileSegmentLockGuard(FileSegment *segment) : segment_(segment) {
+    explicit FileSegmentLockGuard(FileSegment* segment) : segment_(segment) {
         Lock();
     }
 
-    FileSegmentLockGuard(const FileSegmentLockGuard &) = delete;
-    FileSegmentLockGuard &operator=(const FileSegmentLockGuard &) = delete;
+    FileSegmentLockGuard(const FileSegmentLockGuard&) = delete;
+    FileSegmentLockGuard& operator=(const FileSegmentLockGuard&) = delete;
 
     ~FileSegmentLockGuard() { UnLock(); }
 
@@ -392,7 +405,7 @@ template <FileSegmentLockType type> class FileSegmentLockGuard {
     void UnLock() { segment_->ReleaseLock(); }
 
  private:
-    FileSegment *segment_;
+    FileSegment* segment_;
 };
 
 using FileSegmentReadLockGuard =

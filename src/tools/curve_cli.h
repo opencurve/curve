@@ -23,64 +23,65 @@
 #ifndef SRC_TOOLS_CURVE_CLI_H_
 #define SRC_TOOLS_CURVE_CLI_H_
 
-#include <gflags/gflags.h>
-#include <butil/string_splitter.h>
 #include <braft/cli.h>
 #include <braft/configuration.h>
+#include <butil/string_splitter.h>
+#include <gflags/gflags.h>
 
-#include <map>
-#include <string>
 #include <iostream>
+#include <map>
 #include <memory>
+#include <string>
 
 #include "include/chunkserver/chunkserver_common.h"
-#include "src/chunkserver/copyset_node.h"
+#include "proto/copyset.pb.h"
 #include "src/chunkserver/cli2.h"
+#include "src/chunkserver/copyset_node.h"
 #include "src/tools/curve_tool.h"
 #include "src/tools/curve_tool_define.h"
 #include "src/tools/mds_client.h"
-#include "proto/copyset.pb.h"
 
 namespace curve {
 namespace tool {
 
-using ::curve::chunkserver::LogicPoolID;
 using ::curve::chunkserver::CopysetID;
 using ::curve::chunkserver::CopysetRequest;
 using ::curve::chunkserver::CopysetResponse;
 using ::curve::chunkserver::CopysetService_Stub;
+using ::curve::chunkserver::LogicPoolID;
+using ::curve::chunkserver::COPYSET_OP_STATUS::
+    COPYSET_OP_STATUS_FAILURE_UNKNOWN;  // NOLINT
 using ::curve::chunkserver::COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS;
-using ::curve::chunkserver::COPYSET_OP_STATUS::COPYSET_OP_STATUS_FAILURE_UNKNOWN;  // NOLINT
 
 class CurveCli : public CurveTool {
  public:
-    explicit CurveCli(std::shared_ptr<MDSClient> mdsClient) :
-                                       mdsClient_(mdsClient) {}
+    explicit CurveCli(std::shared_ptr<MDSClient> mdsClient)
+        : mdsClient_(mdsClient) {}
 
     /**
-     *  @brief 初始化mds client
-     *  @return 成功返回0，失败返回-1
+     * @brief Initialize mds client
+     * @return returns 0 for success, -1 for failure
      */
     int Init();
 
     /**
-     *  @brief 打印help信息
-     *  @param 无
-     *  @return 无
+     * @brief Print help information
+     * @param None
+     * @return None
      */
-    void PrintHelp(const std::string &cmd) override;
+    void PrintHelp(const std::string& cmd) override;
 
     /**
-     *  @brief 执行命令
-     *  @param cmd：执行的命令
-     *  @return 成功返回0，失败返回-1
+     * @brief Execute command
+     * @param cmd: Command executed
+     * @return returns 0 for success, -1 for failure
      */
-    int RunCommand(const std::string &cmd) override;
+    int RunCommand(const std::string& cmd) override;
 
     /**
-     *  @brief 返回是否支持该命令
-     *  @param command：执行的命令
-     *  @return true / false
+     * @brief returns whether the command is supported
+     * @param command: The command executed
+     * @return true/false
      */
     static bool SupportCommand(const std::string& command);
 
@@ -97,47 +98,48 @@ class CurveCli : public CurveTool {
                                       const CopysetID& copysetId);
 
     /**
-     *  @brief 删除peer
-     *  @param 无
-     *  @return 成功返回0，失败返回-1
+     * @brief delete peer
+     * @param None
+     * @return returns 0 for success, -1 for failure
      */
     int RemovePeer();
 
     /**
-     *  @brief 转移leader
-     *  @param 无
-     *  @return 成功返回0，失败返回-1
+     * @brief transfer leader
+     * @param None
+     * @return returns 0 for success, -1 for failure
      */
     int TransferLeader();
 
     /**
-     *  @brief 触发打快照
-     *  @param 无
-     *  @return 成功返回0，失败返回-1
+     * @brief trigger to take a snapshot
+     * @param None
+     * @return returns 0 for success, -1 for failure
      */
     int DoSnapshot();
 
     /**
-     *  @brief 触发打快照
-     *  @param lgPoolId 逻辑池id
-     *  @param copysetId 复制组id
-     *  @param peer 复制组成员
-     *  @return 成功返回0，失败返回-1
+     * @brief trigger to take a snapshot
+     * @param lgPoolId Logical Pool ID
+     * @param copysetId Copy Group ID
+     * @param peer replication group members
+     * @return returns 0 for success, -1 for failure
      */
     int DoSnapshot(uint32_t lgPoolId, uint32_t copysetId,
                    const curve::common::Peer& peer);
 
     /**
-     *  @brief 给集群中全部copyset node触发打快照
-     *  @param 无
-     *  @return 成功返回0，失败返回-1
+     * @brief Trigger a snapshot of all copyset nodes in the cluster
+     * @param None
+     * @return returns 0 for success, -1 for failure
      */
     int DoSnapshotAll();
 
     /**
-     *  @brief 重置配置组成员，目前只支持reset成一个成员
-     *  @param 无
-     *  @return 成功返回0，失败返回-1
+     * @brief Reset configuration group members, currently only supports
+     * resetting to one member
+     * @param None
+     * @return returns 0 for success, -1 for failure
      */
     int ResetPeer();
 

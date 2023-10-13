@@ -20,15 +20,17 @@
  * Author: yangyaokai
  */
 
-#include <gtest/gtest.h>
-#include <gmock/gmock.h>
-#include <string>
-#include <memory>
-
 #include "nebd/src/part2/file_manager.h"
+
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
+#include <memory>
+#include <string>
+
 #include "nebd/src/part2/file_entity.h"
-#include "nebd/test/part2/mock_request_executor.h"
 #include "nebd/test/part2/mock_metafile_manager.h"
+#include "nebd/test/part2/mock_request_executor.h"
 
 namespace nebd {
 namespace server {
@@ -38,11 +40,11 @@ const char testFile2[] = "test:/cinder/222";
 const char unknownFile[] = "un:/cinder/666";
 
 using ::testing::_;
-using ::testing::Return;
-using ::testing::NotNull;
 using ::testing::DoAll;
-using ::testing::ReturnArg;
 using ::testing::ElementsAre;
+using ::testing::NotNull;
+using ::testing::Return;
+using ::testing::ReturnArg;
 using ::testing::SetArgPointee;
 using ::testing::SetArrayArgument;
 
@@ -66,12 +68,10 @@ class FileManagerTest : public ::testing::Test {
         metaFileManager_ = std::make_shared<MockMetaFileManager>();
         fileManager_ = std::make_shared<NebdFileManager>(metaFileManager_);
     }
-    void TearDown() {
-        delete aioContext_;
-    }
+    void TearDown() { delete aioContext_; }
 
     using TestTask = std::function<int(int)>;
-    // 构造初始环境
+    // Construct initial environment
     void InitEnv() {
         NebdFileMeta meta;
         meta.fd = 1;
@@ -80,18 +80,14 @@ class FileManagerTest : public ::testing::Test {
         fileMetas.emplace_back(meta);
 
         EXPECT_CALL(*metaFileManager_, ListFileMeta(_))
-        .WillOnce(DoAll(SetArgPointee<0>(fileMetas),
-                        Return(0)));
-        EXPECT_CALL(*executor_, Reopen(_, _))
-        .WillOnce(Return(mockInstance_));
+            .WillOnce(DoAll(SetArgPointee<0>(fileMetas), Return(0)));
+        EXPECT_CALL(*executor_, Reopen(_, _)).WillOnce(Return(mockInstance_));
         EXPECT_CALL(*metaFileManager_, UpdateFileMeta(_, _))
-        .WillOnce(Return(0));
+            .WillOnce(Return(0));
         ASSERT_EQ(fileManager_->Run(), 0);
     }
 
-    void UnInitEnv() {
-        ASSERT_EQ(fileManager_->Fini(), 0);
-    }
+    void UnInitEnv() { ASSERT_EQ(fileManager_->Fini(), 0); }
 
     void ExpectCallRequest(RequestType type, int ret) {
         switch (type) {
@@ -125,20 +121,19 @@ class FileManagerTest : public ::testing::Test {
         ASSERT_NE(nullptr, entity1);
         ASSERT_EQ(entity1->GetFileStatus(), NebdFileStatus::OPENED);
 
-        // 文件状态为OPENED
+        // The file status is OPENED
         ExpectCallRequest(type, 0);
         ASSERT_EQ(0, task(1));
         ASSERT_EQ(entity1->GetFileStatus(), NebdFileStatus::OPENED);
 
-        EXPECT_CALL(*executor_, Close(NotNull()))
-        .WillOnce(Return(0));
+        EXPECT_CALL(*executor_, Close(NotNull())).WillOnce(Return(0));
         ASSERT_EQ(entity1->Close(false), 0);
         ASSERT_EQ(entity1->GetFileStatus(), NebdFileStatus::CLOSED);
-        // 文件状态为CLOSED
+        // The file status is CLOSED
         EXPECT_CALL(*executor_, Open(testFile1, _))
-        .WillOnce(Return(mockInstance_));
+            .WillOnce(Return(mockInstance_));
         EXPECT_CALL(*metaFileManager_, UpdateFileMeta(testFile1, _))
-        .WillOnce(Return(0));
+            .WillOnce(Return(0));
         ExpectCallRequest(type, 0);
         ASSERT_EQ(0, task(1));
         ASSERT_EQ(entity1->GetFileStatus(), NebdFileStatus::OPENED);
@@ -147,53 +142,47 @@ class FileManagerTest : public ::testing::Test {
 
     void RequestFailTest(RequestType type, TestTask task) {
         InitEnv();
-        // 将文件close
+        // Close the file
         NebdFileEntityPtr entity1 = fileManager_->GetFileEntity(1);
         ASSERT_NE(nullptr, entity1);
-        EXPECT_CALL(*executor_, Close(NotNull()))
-        .WillOnce(Return(0));
+        EXPECT_CALL(*executor_, Close(NotNull())).WillOnce(Return(0));
         ASSERT_EQ(entity1->Close(false), 0);
         ASSERT_EQ(entity1->GetFileStatus(), NebdFileStatus::CLOSED);
 
-        // open文件失败
-        EXPECT_CALL(*executor_, Open(testFile1, _))
-        .WillOnce(Return(nullptr));
-        EXPECT_CALL(*metaFileManager_, UpdateFileMeta(testFile1, _))
-        .Times(0);
+        // Open file failed
+        EXPECT_CALL(*executor_, Open(testFile1, _)).WillOnce(Return(nullptr));
+        EXPECT_CALL(*metaFileManager_, UpdateFileMeta(testFile1, _)).Times(0);
         ASSERT_EQ(-1, task(1));
         ASSERT_EQ(entity1->GetFileStatus(), NebdFileStatus::CLOSED);
 
-        // 更新元数据文件失败
+        // Failed to update metadata file
         EXPECT_CALL(*executor_, Open(testFile1, _))
-        .WillOnce(Return(mockInstance_));
+            .WillOnce(Return(mockInstance_));
         EXPECT_CALL(*metaFileManager_, UpdateFileMeta(testFile1, _))
-        .WillOnce(Return(-1));
-        EXPECT_CALL(*executor_, Close(NotNull()))
-        .WillOnce(Return(0));
+            .WillOnce(Return(-1));
+        EXPECT_CALL(*executor_, Close(NotNull())).WillOnce(Return(0));
         ASSERT_EQ(-1, task(1));
         ASSERT_EQ(entity1->GetFileStatus(), NebdFileStatus::CLOSED);
 
-        // 执行处理函数失败
+        // Failed to execute processing function
         EXPECT_CALL(*executor_, Open(testFile1, _))
-        .WillOnce(Return(mockInstance_));
+            .WillOnce(Return(mockInstance_));
         EXPECT_CALL(*metaFileManager_, UpdateFileMeta(testFile1, _))
-        .WillOnce(Return(0));
+            .WillOnce(Return(0));
         ExpectCallRequest(type, -1);
         ASSERT_EQ(-1, task(1));
         ASSERT_EQ(entity1->GetFileStatus(), NebdFileStatus::OPENED);
 
-        // 将文件状态置为DESTROYED
-        EXPECT_CALL(*executor_, Close(NotNull()))
-        .WillOnce(Return(0));
+        // Set the file status to DESTROYED
+        EXPECT_CALL(*executor_, Close(NotNull())).WillOnce(Return(0));
         EXPECT_CALL(*metaFileManager_, RemoveFileMeta(testFile1))
-        .WillOnce(Return(0));
+            .WillOnce(Return(0));
         ASSERT_EQ(entity1->Close(true), 0);
         ASSERT_EQ(entity1->GetFileStatus(), NebdFileStatus::DESTROYED);
-        EXPECT_CALL(*executor_, Open(testFile1, _))
-        .Times(0);
+        EXPECT_CALL(*executor_, Open(testFile1, _)).Times(0);
         ASSERT_EQ(-1, task(1));
 
-        // 直接将文件删除
+        // Delete files directly
         ASSERT_EQ(0, fileManager_->Close(1, true));
         ASSERT_EQ(nullptr, fileManager_->GetFileEntity(1));
         ASSERT_EQ(-1, task(1));
@@ -216,17 +205,14 @@ TEST_F(FileManagerTest, RunTest) {
     fileMetas.emplace_back(meta);
 
     EXPECT_CALL(*metaFileManager_, ListFileMeta(_))
-    .WillOnce(DoAll(SetArgPointee<0>(fileMetas),
-                    Return(0)));
-    EXPECT_CALL(*executor_, Reopen(_, _))
-    .WillOnce(Return(mockInstance_));
-    EXPECT_CALL(*metaFileManager_, UpdateFileMeta(_, _))
-    .WillOnce(Return(0));
+        .WillOnce(DoAll(SetArgPointee<0>(fileMetas), Return(0)));
+    EXPECT_CALL(*executor_, Reopen(_, _)).WillOnce(Return(mockInstance_));
+    EXPECT_CALL(*metaFileManager_, UpdateFileMeta(_, _)).WillOnce(Return(0));
     ASSERT_EQ(fileManager_->Run(), 0);
-    // 重复run返回失败
+    // Repeated run returns failed
     ASSERT_EQ(fileManager_->Run(), -1);
 
-    // 校验结果
+    // Verification results
     FileEntityMap entityMap = fileManager_->GetFileEntityMap();
     ASSERT_EQ(1, entityMap.size());
     ASSERT_NE(nullptr, entityMap[meta.fd]);
@@ -239,44 +225,36 @@ TEST_F(FileManagerTest, RunFailTest) {
     std::vector<NebdFileMeta> fileMetas;
     fileMetas.emplace_back(meta);
 
-    // list file meta失败
-    EXPECT_CALL(*metaFileManager_, ListFileMeta(_))
-    .WillOnce(Return(-1));
+    // List file meta failed
+    EXPECT_CALL(*metaFileManager_, ListFileMeta(_)).WillOnce(Return(-1));
     ASSERT_EQ(fileManager_->Run(), -1);
 
-    // reopen失败不影响Run成功
+    // Reopen failure does not affect Run success
     EXPECT_CALL(*metaFileManager_, ListFileMeta(_))
-    .WillOnce(DoAll(SetArgPointee<0>(fileMetas),
-                    Return(0)));
-    EXPECT_CALL(*executor_, Reopen(_, _))
-    .WillOnce(Return(nullptr));
+        .WillOnce(DoAll(SetArgPointee<0>(fileMetas), Return(0)));
+    EXPECT_CALL(*executor_, Reopen(_, _)).WillOnce(Return(nullptr));
     ASSERT_EQ(fileManager_->Run(), 0);
     ASSERT_EQ(fileManager_->Fini(), 0);
 
-    // 更新metafile失败不影响Run成功
+    // Failure to update metafile does not affect the success of Run
     EXPECT_CALL(*metaFileManager_, ListFileMeta(_))
-    .WillOnce(DoAll(SetArgPointee<0>(fileMetas),
-                    Return(0)));
-    EXPECT_CALL(*executor_, Reopen(_, _))
-    .WillOnce(Return(mockInstance_));
-    EXPECT_CALL(*metaFileManager_, UpdateFileMeta(_, _))
-    .WillOnce(Return(-1));
-    EXPECT_CALL(*executor_, Close(NotNull()))
-    .Times(1);
+        .WillOnce(DoAll(SetArgPointee<0>(fileMetas), Return(0)));
+    EXPECT_CALL(*executor_, Reopen(_, _)).WillOnce(Return(mockInstance_));
+    EXPECT_CALL(*metaFileManager_, UpdateFileMeta(_, _)).WillOnce(Return(-1));
+    EXPECT_CALL(*executor_, Close(NotNull())).Times(1);
     ASSERT_EQ(fileManager_->Run(), 0);
 }
 
 TEST_F(FileManagerTest, OpenTest) {
     InitEnv();
-    // open一个不存在的文件
-    EXPECT_CALL(*executor_, Open(testFile2, _))
-    .WillOnce(Return(mockInstance_));
+    // Open a non-existent file
+    EXPECT_CALL(*executor_, Open(testFile2, _)).WillOnce(Return(mockInstance_));
     EXPECT_CALL(*metaFileManager_, UpdateFileMeta(testFile2, _))
-    .WillOnce(Return(0));
+        .WillOnce(Return(0));
     int fd = fileManager_->Open(testFile2, nullptr);
     ASSERT_EQ(fd, 2);
 
-    // 重复open
+    // Repeat open
     fd = fileManager_->Open(testFile2, nullptr);
     ASSERT_EQ(fd, 2);
 
@@ -288,15 +266,13 @@ TEST_F(FileManagerTest, OpenTest) {
     ASSERT_NE(entity2, nullptr);
     ASSERT_EQ(entity2->GetFileStatus(), NebdFileStatus::OPENED);
 
-    EXPECT_CALL(*executor_, Close(_))
-    .WillOnce(Return(0));
+    EXPECT_CALL(*executor_, Close(_)).WillOnce(Return(0));
     ASSERT_EQ(entity2->Close(false), 0);
     ASSERT_EQ(entity2->GetFileStatus(), NebdFileStatus::CLOSED);
-    // open 已经close的文件, fd不变
-    EXPECT_CALL(*executor_, Open(testFile2, _))
-    .WillOnce(Return(mockInstance_));
+    // Open closed files, keep fd unchanged
+    EXPECT_CALL(*executor_, Open(testFile2, _)).WillOnce(Return(mockInstance_));
     EXPECT_CALL(*metaFileManager_, UpdateFileMeta(testFile2, _))
-    .WillOnce(Return(0));
+        .WillOnce(Return(0));
     fd = fileManager_->Open(testFile2, nullptr);
     ASSERT_EQ(fd, 2);
     ASSERT_EQ(entity2->GetFileStatus(), NebdFileStatus::OPENED);
@@ -304,79 +280,67 @@ TEST_F(FileManagerTest, OpenTest) {
 
 TEST_F(FileManagerTest, OpenFailTest) {
     InitEnv();
-    // 调用后端open接口时出错
-    EXPECT_CALL(*executor_, Open(testFile2, _))
-    .WillOnce(Return(nullptr));
-    EXPECT_CALL(*metaFileManager_, UpdateFileMeta(testFile2, _))
-    .Times(0);
+    // Error calling backend open interface
+    EXPECT_CALL(*executor_, Open(testFile2, _)).WillOnce(Return(nullptr));
+    EXPECT_CALL(*metaFileManager_, UpdateFileMeta(testFile2, _)).Times(0);
     int fd = fileManager_->Open(testFile2, nullptr);
     ASSERT_EQ(fd, -1);
 
-    // 持久化元数据信息失败
-    EXPECT_CALL(*executor_, Open(testFile2, _))
-    .WillOnce(Return(mockInstance_));
+    // Persisting metadata information failed
+    EXPECT_CALL(*executor_, Open(testFile2, _)).WillOnce(Return(mockInstance_));
     EXPECT_CALL(*metaFileManager_, UpdateFileMeta(testFile2, _))
-    .WillOnce(Return(-1));
-    EXPECT_CALL(*executor_, Close(_))
-    .Times(1);
+        .WillOnce(Return(-1));
+    EXPECT_CALL(*executor_, Close(_)).Times(1);
     fd = fileManager_->Open(testFile2, nullptr);
     ASSERT_EQ(fd, -1);
 
-    // Open一个非法的filename
-    EXPECT_CALL(*executor_, Open(_, _))
-    .Times(0);
+    // Open an illegal filename
+    EXPECT_CALL(*executor_, Open(_, _)).Times(0);
     fd = fileManager_->Open(unknownFile, nullptr);
     ASSERT_EQ(fd, -1);
 }
 
 TEST_F(FileManagerTest, CloseTest) {
     InitEnv();
-    // 指定的fd不存在,直接返回成功
+    // The specified fd does not exist, return success directly
     ASSERT_EQ(nullptr, fileManager_->GetFileEntity(2));
     ASSERT_EQ(0, fileManager_->Close(2, true));
 
     NebdFileEntityPtr entity1 = fileManager_->GetFileEntity(1);
     ASSERT_NE(nullptr, entity1);
     ASSERT_EQ(entity1->GetFileStatus(), NebdFileStatus::OPENED);
-    // 文件存在，且文件状态为OPENED，removeRecord为false
-    EXPECT_CALL(*executor_, Close(NotNull()))
-    .WillOnce(Return(0));
-    EXPECT_CALL(*metaFileManager_, RemoveFileMeta(testFile1))
-    .Times(0);
+    // The file exists and its status is OPENED, while removeRecord is false
+    EXPECT_CALL(*executor_, Close(NotNull())).WillOnce(Return(0));
+    EXPECT_CALL(*metaFileManager_, RemoveFileMeta(testFile1)).Times(0);
     ASSERT_EQ(0, fileManager_->Close(1, false));
     ASSERT_EQ(entity1->GetFileStatus(), NebdFileStatus::CLOSED);
 
-    // 文件存在，文件状态为CLOSED，removeRecord为false
-    EXPECT_CALL(*executor_, Close(NotNull()))
-    .Times(0);
-    EXPECT_CALL(*metaFileManager_, RemoveFileMeta(testFile1))
-    .Times(0);
+    // File exists, file status is CLOSED, removeRecord is false
+    EXPECT_CALL(*executor_, Close(NotNull())).Times(0);
+    EXPECT_CALL(*metaFileManager_, RemoveFileMeta(testFile1)).Times(0);
     ASSERT_EQ(0, fileManager_->Close(1, false));
     ASSERT_EQ(entity1->GetFileStatus(), NebdFileStatus::CLOSED);
 
-    // 文件存在，文件状态为CLOSED，removeRecord为true
-    EXPECT_CALL(*executor_, Close(NotNull()))
-    .Times(0);
+    // The file exists, the file status is CLOSED, and removeRecord is true
+    EXPECT_CALL(*executor_, Close(NotNull())).Times(0);
     EXPECT_CALL(*metaFileManager_, RemoveFileMeta(testFile1))
-    .WillOnce(Return(0));
+        .WillOnce(Return(0));
     ASSERT_EQ(0, fileManager_->Close(1, true));
     ASSERT_EQ(entity1->GetFileStatus(), NebdFileStatus::DESTROYED);
     ASSERT_EQ(nullptr, fileManager_->GetFileEntity(1));
 
-    EXPECT_CALL(*executor_, Open(testFile2, _))
-    .WillOnce(Return(mockInstance_));
+    EXPECT_CALL(*executor_, Open(testFile2, _)).WillOnce(Return(mockInstance_));
     EXPECT_CALL(*metaFileManager_, UpdateFileMeta(testFile2, _))
-    .WillOnce(Return(0));
+        .WillOnce(Return(0));
     int fd = fileManager_->Open(testFile2, nullptr);
     ASSERT_EQ(fd, 2);
     NebdFileEntityPtr entity2 = fileManager_->GetFileEntity(2);
     ASSERT_NE(entity2, nullptr);
     ASSERT_EQ(entity2->GetFileStatus(), NebdFileStatus::OPENED);
-    // 文件存在，文件状态为OPENED，removeRecord为true
-    EXPECT_CALL(*executor_, Close(NotNull()))
-    .WillOnce(Return(0));
+    // File exists, file status is OPENED, removeRecord is true
+    EXPECT_CALL(*executor_, Close(NotNull())).WillOnce(Return(0));
     EXPECT_CALL(*metaFileManager_, RemoveFileMeta(testFile2))
-    .WillOnce(Return(0));
+        .WillOnce(Return(0));
     ASSERT_EQ(0, fileManager_->Close(fd, true));
     ASSERT_EQ(nullptr, fileManager_->GetFileEntity(1));
 }
@@ -387,36 +351,31 @@ TEST_F(FileManagerTest, CloseFailTest) {
     ASSERT_NE(nullptr, entity1);
     ASSERT_EQ(entity1->GetFileStatus(), NebdFileStatus::OPENED);
 
-    // executor close 失败
-    EXPECT_CALL(*executor_, Close(NotNull()))
-    .WillOnce(Return(-1));
-    EXPECT_CALL(*metaFileManager_, RemoveFileMeta(testFile1))
-    .Times(0);
+    // Executor close failed
+    EXPECT_CALL(*executor_, Close(NotNull())).WillOnce(Return(-1));
+    EXPECT_CALL(*metaFileManager_, RemoveFileMeta(testFile1)).Times(0);
     ASSERT_EQ(-1, fileManager_->Close(1, true));
     ASSERT_NE(nullptr, fileManager_->GetFileEntity(1));
     ASSERT_EQ(entity1->GetFileStatus(), NebdFileStatus::OPENED);
 
-    // remove file meta 失败
-    EXPECT_CALL(*executor_, Close(NotNull()))
-    .WillOnce(Return(0));
+    // Remove file meta failed
+    EXPECT_CALL(*executor_, Close(NotNull())).WillOnce(Return(0));
     EXPECT_CALL(*metaFileManager_, RemoveFileMeta(testFile1))
-    .WillOnce(Return(-1));
+        .WillOnce(Return(-1));
     ASSERT_EQ(-1, fileManager_->Close(1, true));
     ASSERT_NE(nullptr, fileManager_->GetFileEntity(1));
     ASSERT_EQ(entity1->GetFileStatus(), NebdFileStatus::CLOSED);
 }
 
 TEST_F(FileManagerTest, ExtendTest) {
-    auto task = [&](int fd)->int {
-        return fileManager_->Extend(fd, 4096);
-    };
+    auto task = [&](int fd) -> int { return fileManager_->Extend(fd, 4096); };
     RequestSuccssTest(RequestType::EXTEND, task);
     RequestFailTest(RequestType::EXTEND, task);
 }
 
 TEST_F(FileManagerTest, GetInfoTest) {
     NebdFileInfo fileInfo;
-    auto task = [&](int fd)->int {
+    auto task = [&](int fd) -> int {
         return fileManager_->GetInfo(fd, &fileInfo);
     };
     RequestSuccssTest(RequestType::GETINFO, task);
@@ -424,16 +383,14 @@ TEST_F(FileManagerTest, GetInfoTest) {
 }
 
 TEST_F(FileManagerTest, InvalidCacheTest) {
-    auto task = [&](int fd)->int {
-        return fileManager_->InvalidCache(fd);
-    };
+    auto task = [&](int fd) -> int { return fileManager_->InvalidCache(fd); };
     RequestSuccssTest(RequestType::INVALIDCACHE, task);
     RequestFailTest(RequestType::INVALIDCACHE, task);
 }
 
 TEST_F(FileManagerTest, AioReadTest) {
     NebdServerAioContext aioContext;
-    auto task = [&](int fd)->int {
+    auto task = [&](int fd) -> int {
         int ret = fileManager_->AioRead(fd, &aioContext);
         if (ret < 0) {
             if (aioContext.done != nullptr) {
@@ -457,7 +414,7 @@ TEST_F(FileManagerTest, AioReadTest) {
 
 TEST_F(FileManagerTest, AioWriteTest) {
     NebdServerAioContext aioContext;
-    auto task = [&](int fd)->int {
+    auto task = [&](int fd) -> int {
         int ret = fileManager_->AioWrite(fd, &aioContext);
         if (ret < 0) {
             if (aioContext.done != nullptr) {
@@ -481,7 +438,7 @@ TEST_F(FileManagerTest, AioWriteTest) {
 
 TEST_F(FileManagerTest, DiscardTest) {
     NebdServerAioContext aioContext;
-    auto task = [&](int fd)->int {
+    auto task = [&](int fd) -> int {
         int ret = fileManager_->Discard(fd, &aioContext);
         if (ret < 0) {
             if (aioContext.done != nullptr) {
@@ -505,7 +462,7 @@ TEST_F(FileManagerTest, DiscardTest) {
 
 TEST_F(FileManagerTest, FlushTest) {
     NebdServerAioContext aioContext;
-    auto task = [&](int fd)->int {
+    auto task = [&](int fd) -> int {
         int ret = fileManager_->Flush(fd, &aioContext);
         if (ret < 0) {
             if (aioContext.done != nullptr) {
@@ -544,7 +501,7 @@ TEST_F(FileManagerTest, UpdateTimestampTest) {
 }  // namespace server
 }  // namespace nebd
 
-int main(int argc, char ** argv) {
+int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     ::testing::InitGoogleMock(&argc, argv);
     return RUN_ALL_TESTS();

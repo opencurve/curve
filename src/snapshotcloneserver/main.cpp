@@ -19,24 +19,27 @@
  * Created Date: Fri Dec 14 2018
  * Author: xuchaojie
  */
-#include <glog/logging.h>
 #include <gflags/gflags.h>
+#include <glog/logging.h>
+
 #include "src/snapshotcloneserver/snapshotclone_server.h"
 #include "src/common/log_util.h"
 
-DEFINE_string(conf, "conf/snapshot_clone_server.conf", "snapshot&clone server config file path");  //NOLINT
+DEFINE_string(conf, "conf/snapshot_clone_server.conf",
+              "snapshot&clone server config file path");  // NOLINT
 DEFINE_string(addr, "127.0.0.1:5555", "snapshotcloneserver address");
 
 using Configuration = ::curve::common::Configuration;
 using SnapShotCloneServer = ::curve::snapshotcloneserver::SnapShotCloneServer;
 
-void LoadConfigFromCmdline(Configuration *conf) {
-    // 如果命令行有设置, 命令行覆盖配置文件中的字段
+void LoadConfigFromCmdline(Configuration* conf) {
+    // If there are settings on the command line, the command line overwrites
+    // the fields in the configuration file
     google::CommandLineFlagInfo info;
     if (GetCommandLineFlagInfo("addr", &info) && !info.is_default) {
         conf->SetStringValue("server.address", FLAGS_addr);
     }
-    // 设置日志存放文件夹
+    // Set log storage folder
     if (FLAGS_log_dir.empty()) {
         if (!conf->GetStringValue("log.dir", &FLAGS_log_dir)) {
             LOG(WARNING) << "no log.dir in " << FLAGS_conf
@@ -69,13 +72,12 @@ int snapshotcloneserver_main(std::shared_ptr<Configuration> conf) {
     return 0;
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
     google::ParseCommandLineFlags(&argc, &argv, true);
     std::shared_ptr<Configuration> conf = std::make_shared<Configuration>();
     conf->SetConfigPath(FLAGS_conf);
     if (!conf->LoadConfig()) {
-        LOG(ERROR) << "Failed to open config file: "
-        << conf->GetConfigPath();
+        LOG(ERROR) << "Failed to open config file: " << conf->GetConfigPath();
         return -1;
     }
     LoadConfigFromCmdline(conf.get());
@@ -85,4 +87,3 @@ int main(int argc, char **argv) {
     google::InitGoogleLogging(argv[0]);
     snapshotcloneserver_main(conf);
 }
-

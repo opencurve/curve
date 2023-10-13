@@ -34,65 +34,65 @@
 #define CURVEINODE_APPENDFILE 2
 #define CURVE_INODE_APPENDECFILE 3
 
-#define CURVE_ERROR_OK  0
-// 文件或者目录已存在
+#define CURVE_ERROR_OK 0
+// The file or directory already exists
 #define CURVE_ERROR_EXISTS 1
-// 操作失败
+// Operation failed
 #define CURVE_ERROR_FAILED 2
-// 禁止IO
+// Prohibit IO
 #define CURVE_ERROR_DISABLEIO 3
-// 认证失败
+// Authentication failed
 #define CURVE_ERROR_AUTHFAIL 4
-// 正在删除
+// Removing
 #define CURVE_ERROR_DELETING 5
-// 文件不存在
+// File does not exist
 #define CURVE_ERROR_NOTEXIST 6
-// 快照中
+// In the snapshot
 #define CURVE_ERROR_UNDER_SNAPSHOT 7
-// 非快照期间
+// During non snapshot periods
 #define CURVE_ERROR_NOT_UNDERSNAPSHOT 8
-// 删除错误
+// Delete Error
 #define CURVE_ERROR_DELETE_ERROR 9
-// segment未分配
+// Segment not allocated
 #define CURVE_ERROR_NOT_ALLOCATE 10
-// 操作不支持
+// Operation not supported
 #define CURVE_ERROR_NOT_SUPPORT 11
-// 目录非空
+// Directory is not empty
 #define CURVE_ERROR_NOT_EMPTY 12
-// 禁止缩容
+// Prohibit shrinkage
 #define CURVE_ERROR_NO_SHRINK_BIGGER_FILE 13
-// session不存在
+// Session does not exist
 #define CURVE_ERROR_SESSION_NOTEXISTS 14
-// 文件被占用
+// File occupied
 #define CURVE_ERROR_FILE_OCCUPIED 15
-// 参数错误
+// Parameter error
 #define CURVE_ERROR_PARAM_ERROR 16
-// MDS一侧存储错误
+// MDS side storage error
 #define CURVE_ERROR_INTERNAL_ERROR 17
-// crc检查错误
+// CRC check error
 #define CURVE_ERROR_CRC_ERROR 18
-// request参数存在问题
+// There is an issue with the request parameter
 #define CURVE_ERROR_INVALID_REQUEST 19
-// 磁盘存在问题
+// There is a problem with the disk
 #define CURVE_ERROR_DISK_FAIL 20
-// 空间不足
+// Insufficient space
 #define CURVE_ERROR_NO_SPACE 21
-// IO未对齐
+// IO misalignment
 #define CURVE_ERROR_NOT_ALIGNED 22
-// 文件被关闭，fd不可用
+// File closed, fd not available
 #define CURVE_ERROR_BAD_FD 23
-// 文件长度不支持
+// File length not supported
 #define CURVE_ERROR_LENGTH_NOT_SUPPORT 24
 
-// 文件状态
-#define CURVE_FILE_CREATED            0
-#define CURVE_FILE_DELETING           1
-#define CURVE_FILE_CLONING            2
+// File Status
+#define CURVE_FILE_CREATED 0
+#define CURVE_FILE_DELETING 1
+#define CURVE_FILE_CLONING 2
 #define CURVE_FILE_CLONEMETAINSTALLED 3
-#define CURVE_FILE_CLONED             4
-#define CURVE_FILE_BEINGCLONED        5
+#define CURVE_FILE_CLONED 4
+#define CURVE_FILE_BEINGCLONED 5
 
-// 未知错误
+// Unknown error
 #define CURVE_ERROR_UNKNOWN 100
 
 #define CURVE_OP_READ 0
@@ -100,11 +100,10 @@
 
 #define CLUSTERIDMAX 256
 
-
 typedef void (*AioCallBack)(struct AioContext* context);
 typedef struct AioContext {
-    unsigned long offset;  //NOLINT
-    unsigned long length;  //NOLINT
+    unsigned long offset;  // NOLINT
+    unsigned long length;  // NOLINT
     int ret;
     int op;
     AioCallBack cb;
@@ -117,32 +116,32 @@ typedef struct UserInfo {
 } UserInfo_t;
 
 typedef struct FileInfo {
-    uint64_t      id;
-    uint64_t      parentid;
-    int           filetype;
-    uint64_t      length;
-    uint64_t      ctime;
-    char          filename[256];
-    char          owner[256];
-    int           fileStatus;
-    uint64_t        stripeUnit;
-    uint64_t        stripeCount;
+    uint64_t id;
+    uint64_t parentid;
+    int filetype;
+    uint64_t length;
+    uint64_t ctime;
+    char filename[256];
+    char owner[256];
+    int fileStatus;
+    uint64_t stripeUnit;
+    uint64_t stripeCount;
 } FileInfo_t;
 
 typedef struct DirInfos {
-    char*         dirpath;
-    UserInfo_t*   userinfo;
-    uint64_t      dirsize;
-    FileInfo_t*   fileinfo;
+    char* dirpath;
+    UserInfo_t* userinfo;
+    uint64_t dirsize;
+    FileInfo_t* fileinfo;
 } DirInfos_t;
 
 struct CreateContext {
-    std::string     name;
-    size_t          length;
-    UserInfo        user;
-    std::string     poolset;
-    uint64_t        stripeUnit;
-    uint64_t        stripeCount;
+    std::string name;
+    size_t length;
+    UserInfo user;
+    std::string poolset;
+    uint64_t stripeUnit;
+    uint64_t stripeCount;
 };
 
 #endif  // CURVEFS_PYTHON_CURVE_TYPE_H_

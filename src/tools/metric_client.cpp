@@ -30,9 +30,9 @@ DECLARE_uint64(rpcRetryTimes);
 namespace curve {
 namespace tool {
 
-MetricRet MetricClient::GetMetric(const std::string &addr,
-                                  const std::string &metricName,
-                                  std::string *value) {
+MetricRet MetricClient::GetMetric(const std::string& addr,
+                                  const std::string& metricName,
+                                  std::string* value) {
     brpc::Channel httpChannel;
     brpc::ChannelOptions options;
     brpc::Controller cntl;
@@ -70,15 +70,16 @@ MetricRet MetricClient::GetMetric(const std::string &addr,
         res = GetValueFromAttachment(attachment, value);
         return (res == 0) ? MetricRet::kOK : MetricRet::kOtherErr;
     }
-    // 这里不输出错误，因为对mds有切换的可能，把打印的处理交给外部
+    // There is no output error here, as there is a possibility of switching
+    // between mds, and the printing process is handed over to external parties
     bool notExist = cntl.ErrorCode() == brpc::EHTTP &&
                     cntl.http_response().status_code() == kHttpCodeNotFound;
     return notExist ? MetricRet::kNotFound : MetricRet::kOtherErr;
 }
 
-MetricRet MetricClient::GetMetricUint(const std::string &addr,
-                                      const std::string &metricName,
-                                      uint64_t *value) {
+MetricRet MetricClient::GetMetricUint(const std::string& addr,
+                                      const std::string& metricName,
+                                      uint64_t* value) {
     std::string str;
     MetricRet res = GetMetric(addr, metricName, &str);
     if (res != MetricRet::kOK) {
@@ -92,9 +93,9 @@ MetricRet MetricClient::GetMetricUint(const std::string &addr,
     return MetricRet::kOK;
 }
 
-MetricRet MetricClient::GetConfValueFromMetric(const std::string &addr,
-                                               const std::string &metricName,
-                                               std::string *confValue) {
+MetricRet MetricClient::GetConfValueFromMetric(const std::string& addr,
+                                               const std::string& metricName,
+                                               std::string* confValue) {
     std::string jsonString;
     brpc::Controller cntl;
     MetricRet res = GetMetric(addr, metricName, &jsonString);
@@ -118,8 +119,8 @@ MetricRet MetricClient::GetConfValueFromMetric(const std::string &addr,
     return MetricRet::kOK;
 }
 
-int MetricClient::GetValueFromAttachment(const std::string &attachment,
-                                         std::string *value) {
+int MetricClient::GetValueFromAttachment(const std::string& attachment,
+                                         std::string* value) {
     auto pos = attachment.find(":");
     if (pos == std::string::npos) {
         std::cout << "parse response attachment fail!" << std::endl;

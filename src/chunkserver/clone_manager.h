@@ -25,16 +25,17 @@
 
 #include <glog/logging.h>
 #include <google/protobuf/stubs/callback.h>
-#include <thread>  // NOLINT
-#include <mutex>   // NOLINT
+
 #include <memory>
-#include <vector>
+#include <mutex>  // NOLINT
 #include <string>
+#include <thread>  // NOLINT
+#include <vector>
 
 #include "include/chunkserver/chunkserver_common.h"
-#include "src/common/concurrent/task_thread_pool.h"
-#include "src/chunkserver/clone_task.h"
 #include "src/chunkserver/clone_core.h"
+#include "src/chunkserver/clone_task.h"
+#include "src/common/concurrent/task_thread_pool.h"
 
 namespace curve {
 namespace chunkserver {
@@ -44,18 +45,16 @@ using curve::common::TaskThreadPool;
 class ReadChunkRequest;
 
 struct CloneOptions {
-    // 核心逻辑处理类
+    // Core logic processing class
     std::shared_ptr<CloneCore> core;
-    // 最大线程数
+    // Maximum number of threads
     uint32_t threadNum;
-    // 最大队列深度
+    // Maximum queue depth
     uint32_t queueCapacity;
-    // 任务状态检查的周期,单位ms
+    // The cycle of task status check, in ms
     uint32_t checkPeriod;
-    CloneOptions() : core(nullptr)
-                   , threadNum(10)
-                   , queueCapacity(100)
-                   , checkPeriod(5000) {}
+    CloneOptions()
+        : core(nullptr), threadNum(10), queueCapacity(100), checkPeriod(5000) {}
 };
 
 class CloneManager {
@@ -64,49 +63,51 @@ class CloneManager {
     virtual ~CloneManager();
 
     /**
-     * 初始化
+     * Initialize
      *
-     * @param options[in]:初始化参数
-     * @return 错误码
+     * @param options[in]: initialization parameters
+     * @return error code
      */
     virtual int Init(const CloneOptions& options);
 
     /**
-     * 启动所有线程
+     * Start all threads
      *
-     * @return 成功返回0，失败返回-1
+     * @return returns 0 for success, -1 for failure
      */
     virtual int Run();
 
     /**
-     * 停止所有线程
+     * Stop all threads
      *
-     * @return 成功返回0，失败返回-1
+     * @return returns 0 for success, -1 for failure
      */
     virtual int Fini();
 
     /**
-     * 生成克隆任务
-     * @param request[in]:请求信息
-     * @return:返回生成的克隆任务，如果生成失败，返回nullptr
+     * Generate Clone Task
+     * @param request[in]: Request information
+     * @return: Returns the generated clone task. If the generation fails,
+     * returns nullptr
      */
     virtual std::shared_ptr<CloneTask> GenerateCloneTask(
         std::shared_ptr<ReadChunkRequest> request,
         ::google::protobuf::Closure* done);
 
     /**
-     * 发布克隆任务，产生克隆任务放到线程池中处理
-     * @param task[in]:克隆任务
-     * @return  成功返回true，失败返回false
+     * Publish clone tasks, generate clone tasks, and place them in the thread
+     * pool for processing
+     * @param task[in]: Clone task
+     * @return returns true for success, false for failure
      */
     virtual bool IssueCloneTask(std::shared_ptr<CloneTask> cloneTask);
 
  private:
-    // 克隆任务管理相关的选项，调Init的时候初始化
+    // Clone task management related options, initialization when calling Init
     CloneOptions options_;
-    // 处理克隆任务的异步线程池
+    // Asynchronous thread pool for processing cloning tasks
     std::shared_ptr<TaskThreadPool<>> tp_;
-    // 当前线程池是否处于工作状态
+    // Is the current thread pool in working state
     std::atomic<bool> isRunning_;
 };
 

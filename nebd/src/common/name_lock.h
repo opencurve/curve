@@ -23,12 +23,12 @@
 #ifndef NEBD_SRC_COMMON_NAME_LOCK_H_
 #define NEBD_SRC_COMMON_NAME_LOCK_H_
 
+#include <atomic>
+#include <memory>
+#include <mutex>  // NOLINT
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include <memory>
-#include <atomic>
-#include <mutex>  // NOLINT
 
 #include "nebd/src/common/uncopyable.h"
 
@@ -40,29 +40,28 @@ class NameLock : public Uncopyable {
     explicit NameLock(int bucketNum = 256);
 
     /**
-     * @brief 对指定string加锁
+     * @brief locks the specified string
      *
-     * @param lockStr 被加锁的string
+     * @param lockStr locked string
      */
-    void Lock(const std::string &lockStr);
+    void Lock(const std::string& lockStr);
 
     /**
-     * @brief 尝试指定sting加锁
+     * @brief Attempt to specify sting lock
      *
-     * @param lockStr 被加锁的string
+     * @param lockStr locked string
      *
-     * @retval 成功
-     * @retval 失败
+     * @retval succeeded
+     * @retval failed
      */
-    bool TryLock(const std::string &lockStr);
+    bool TryLock(const std::string& lockStr);
 
     /**
-     * @brief 对指定string解锁
+     * @brief unlocks the specified string
      *
-     * @param lockStr 被加锁的string
+     * @param lockStr locked string
      */
-    void Unlock(const std::string &lockStr);
-
+    void Unlock(const std::string& lockStr);
 
  private:
     struct LockEntry {
@@ -77,7 +76,7 @@ class NameLock : public Uncopyable {
     };
     using LockBucketPtr = std::shared_ptr<LockBucket>;
 
-    int GetBucketOffset(const std::string &lockStr);
+    int GetBucketOffset(const std::string& lockStr);
 
  private:
     std::vector<LockBucketPtr> locks_;
@@ -85,24 +84,21 @@ class NameLock : public Uncopyable {
 
 class NameLockGuard : public Uncopyable {
  public:
-    NameLockGuard(NameLock &lock, const std::string &lockStr) :  //NOLINT
-        lock_(lock),
-        lockStr_(lockStr) {
+    NameLockGuard(NameLock& lock, const std::string& lockStr)
+        :  // NOLINT
+          lock_(lock),
+          lockStr_(lockStr) {
         lock_.Lock(lockStr_);
     }
 
-    ~NameLockGuard() {
-        lock_.Unlock(lockStr_);
-    }
+    ~NameLockGuard() { lock_.Unlock(lockStr_); }
 
  private:
-    NameLock &lock_;
+    NameLock& lock_;
     std::string lockStr_;
 };
 
-
-}   // namespace common
-}   // namespace nebd
-
+}  // namespace common
+}  // namespace nebd
 
 #endif  // NEBD_SRC_COMMON_NAME_LOCK_H_

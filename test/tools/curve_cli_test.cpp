@@ -20,22 +20,25 @@
  * Author: charisu
  */
 
-#include <gtest/gtest.h>
-#include <brpc/controller.h>
-#include <brpc/channel.h>
-#include <brpc/server.h>
-#include <string>
 #include "src/tools/curve_cli.h"
+
+#include <brpc/channel.h>
+#include <brpc/controller.h>
+#include <brpc/server.h>
+#include <gtest/gtest.h>
+
+#include <string>
+
 #include "test/tools/mock/mock_cli_service.h"
 #include "test/tools/mock/mock_copyset_service.h"
 #include "test/tools/mock/mock_mds_client.h"
 
 using ::testing::_;
-using ::testing::Return;
-using ::testing::Invoke;
-using ::testing::DoAll;
-using ::testing::SetArgPointee;
 using ::testing::An;
+using ::testing::DoAll;
+using ::testing::Invoke;
+using ::testing::Return;
+using ::testing::SetArgPointee;
 
 DECLARE_int32(timeout_ms);
 DECLARE_int32(max_retry);
@@ -50,10 +53,8 @@ DECLARE_bool(affirm);
 namespace curve {
 namespace tool {
 
-template<typename Req, typename Resp>
-void callback(RpcController* controller,
-              const Req* request,
-              Resp* response,
+template <typename Req, typename Resp>
+void callback(RpcController* controller, const Req* request, Resp* response,
               Closure* done) {
     brpc::ClosureGuard doneGuard(done);
 }
@@ -67,7 +68,7 @@ class CurveCliTest : public ::testing::Test {
         mockCliService = new MockCliService();
         mockCopysetService_ = std::make_shared<MockCopysetService>();
         ASSERT_EQ(0, server->AddService(mockCliService,
-                                      brpc::SERVER_DOESNT_OWN_SERVICE));
+                                        brpc::SERVER_DOESNT_OWN_SERVICE));
         ASSERT_EQ(0, server->AddService(mockCopysetService_.get(),
                                         brpc::SERVER_DOESNT_OWN_SERVICE));
         ASSERT_EQ(0, server->Start("127.0.0.1:9192", nullptr));
@@ -82,8 +83,8 @@ class CurveCliTest : public ::testing::Test {
         mockCliService = nullptr;
     }
 
-    brpc::Server *server;
-    MockCliService *mockCliService;
+    brpc::Server* server;
+    MockCliService* mockCliService;
     std::shared_ptr<MockCopysetService> mockCopysetService_;
     const std::string conf = "127.0.0.1:9192:0";
     const std::string peer = "127.0.0.1:9192:0";
@@ -113,20 +114,20 @@ TEST_F(CurveCliTest, RemovePeer) {
     curveCli.PrintHelp("remove-peer");
     curveCli.PrintHelp("test");
     curveCli.RunCommand("test");
-    // peer为空
+    // peer is empty
     FLAGS_peer = "";
     ASSERT_EQ(-1, curveCli.RunCommand("remove-peer"));
-    // conf为空
+    // conf is empty
     FLAGS_peer = peer;
     FLAGS_conf = "";
     ASSERT_EQ(-1, curveCli.RunCommand("remove-peer"));
-    // 解析conf失败
+    // Failed to parse conf
     FLAGS_conf = "1234";
     ASSERT_EQ(-1, curveCli.RunCommand("remove-peer"));
-    // 解析peer失败
+    // Parsing peer failed
     FLAGS_conf = conf;
     FLAGS_peer = "1234";
-    // 执行变更成功
+    // Successfully executed changes
     FLAGS_peer = peer;
     curve::common::Peer* targetPeer = new curve::common::Peer;
     targetPeer->set_address(peer);
@@ -134,32 +135,27 @@ TEST_F(CurveCliTest, RemovePeer) {
     response.set_allocated_leader(targetPeer);
     EXPECT_CALL(*mockCliService, GetLeader(_, _, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(response),
-                Invoke([](RpcController *controller,
-                          const GetLeaderRequest2 *request,
-                          GetLeaderResponse2 *response,
-                          Closure *done){
-                          brpc::ClosureGuard doneGuard(done);
-                    })));
+                        Invoke([](RpcController* controller,
+                                  const GetLeaderRequest2* request,
+                                  GetLeaderResponse2* response, Closure* done) {
+                            brpc::ClosureGuard doneGuard(done);
+                        })));
     EXPECT_CALL(*mockCliService, RemovePeer(_, _, _, _))
-        .WillOnce(Invoke([](RpcController *controller,
-                          const RemovePeerRequest2 *request,
-                          RemovePeerResponse2 *response,
-                          Closure *done){
-                          brpc::ClosureGuard doneGuard(done);
-                    }));
+        .WillOnce(Invoke(
+            [](RpcController* controller, const RemovePeerRequest2* request,
+               RemovePeerResponse2* response,
+               Closure* done) { brpc::ClosureGuard doneGuard(done); }));
     ASSERT_EQ(0, curveCli.RunCommand("remove-peer"));
-    // 执行变更失败
+    // Failed to execute changes
     EXPECT_CALL(*mockCliService, GetLeader(_, _, _, _))
-        .WillOnce(
-                Invoke([](RpcController *controller,
-                          const GetLeaderRequest2 *request,
-                          GetLeaderResponse2 *response,
-                          Closure *done){
-                          brpc::ClosureGuard doneGuard(done);
-                          brpc::Controller *cntl =
-                            dynamic_cast<brpc::Controller *>(controller);
-                          cntl->SetFailed("test");
-                    }));
+        .WillOnce(Invoke([](RpcController* controller,
+                            const GetLeaderRequest2* request,
+                            GetLeaderResponse2* response, Closure* done) {
+            brpc::ClosureGuard doneGuard(done);
+            brpc::Controller* cntl =
+                dynamic_cast<brpc::Controller*>(controller);
+            cntl->SetFailed("test");
+        }));
     ASSERT_EQ(-1, curveCli.RunCommand("remove-peer"));
 
     // TEST CASES: remove broken copyset after remove peer
@@ -181,8 +177,8 @@ TEST_F(CurveCliTest, RemovePeer) {
 
         EXPECT_CALL(*mockCliService, GetLeader(_, _, _, _))
             .Times(3)
-            .WillRepeatedly(DoAll(SetArgPointee<2>(getLeaderResp),
-                                  Invoke(getLeaderFunc)));
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(getLeaderResp), Invoke(getLeaderFunc)));
         EXPECT_CALL(*mockCliService, RemovePeer(_, _, _, _))
             .Times(3)
             .WillRepeatedly(Invoke(removePeerFunc));
@@ -210,21 +206,21 @@ TEST_F(CurveCliTest, RemovePeer) {
 TEST_F(CurveCliTest, TransferLeader) {
     curve::tool::CurveCli curveCli(mdsClient_);
     curveCli.PrintHelp("transfer-leader");
-    // peer为空
+    // peer is empty
     FLAGS_peer = "";
     ASSERT_EQ(-1, curveCli.RunCommand("transfer-leader"));
-    // conf为空
+    // conf is empty
     FLAGS_peer = peer;
     FLAGS_conf = "";
     ASSERT_EQ(-1, curveCli.RunCommand("transfer-leader"));
-    // 解析conf失败
+    // Failed to parse conf
     FLAGS_conf = "1234";
     ASSERT_EQ(-1, curveCli.RunCommand("transfer-leader"));
-    // 解析peer失败
+    // Parsing peer failed
     FLAGS_conf = conf;
     FLAGS_peer = "1234";
     ASSERT_EQ(-1, curveCli.RunCommand("transfer-leader"));
-    // 执行变更成功
+    // Successfully executed changes
     FLAGS_peer = peer;
     curve::common::Peer* targetPeer = new curve::common::Peer;
     targetPeer->set_address(peer);
@@ -232,147 +228,132 @@ TEST_F(CurveCliTest, TransferLeader) {
     response.set_allocated_leader(targetPeer);
     EXPECT_CALL(*mockCliService, GetLeader(_, _, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(response),
-                Invoke([](RpcController *controller,
-                          const GetLeaderRequest2 *request,
-                          GetLeaderResponse2 *response,
-                          Closure *done){
-                          brpc::ClosureGuard doneGuard(done);
-                    })));
+                        Invoke([](RpcController* controller,
+                                  const GetLeaderRequest2* request,
+                                  GetLeaderResponse2* response, Closure* done) {
+                            brpc::ClosureGuard doneGuard(done);
+                        })));
     ASSERT_EQ(0, curveCli.RunCommand("transfer-leader"));
-    // 执行变更失败
+    // Failed to execute changes
     EXPECT_CALL(*mockCliService, GetLeader(_, _, _, _))
-        .WillOnce(
-                Invoke([](RpcController *controller,
-                          const GetLeaderRequest2 *request,
-                          GetLeaderResponse2 *response,
-                          Closure *done){
-                          brpc::ClosureGuard doneGuard(done);
-                          brpc::Controller *cntl =
-                            dynamic_cast<brpc::Controller *>(controller);
-                          cntl->SetFailed("test");
-                    }));
+        .WillOnce(Invoke([](RpcController* controller,
+                            const GetLeaderRequest2* request,
+                            GetLeaderResponse2* response, Closure* done) {
+            brpc::ClosureGuard doneGuard(done);
+            brpc::Controller* cntl =
+                dynamic_cast<brpc::Controller*>(controller);
+            cntl->SetFailed("test");
+        }));
     ASSERT_EQ(-1, curveCli.RunCommand("transfer-leader"));
 }
 
 TEST_F(CurveCliTest, ResetPeer) {
     curve::tool::CurveCli curveCli(mdsClient_);
     curveCli.PrintHelp("reset-peer");
-    // peer为空
+    // peer is empty
     FLAGS_peer = "";
     ASSERT_EQ(-1, curveCli.RunCommand("reset-peer"));
-    // newConf为空
+    // newConf is empty
     FLAGS_peer = peer;
     FLAGS_new_conf = "";
     ASSERT_EQ(-1, curveCli.RunCommand("reset-peer"));
-    // 解析newConf失败
+    // Failed to parse newConf
     FLAGS_new_conf = "1234";
     ASSERT_EQ(-1, curveCli.RunCommand("reset-peer"));
-    // 解析peer失败
+    // Parsing peer failed
     FLAGS_new_conf = conf;
     FLAGS_peer = "1234";
     ASSERT_EQ(-1, curveCli.RunCommand("reset-peer"));
-    // newConf有三个副本
+    // newConf has three copies
     FLAGS_peer = peer;
     FLAGS_new_conf = "127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0";
     ASSERT_EQ(-1, curveCli.RunCommand("reset-peer"));
-    // newConf不包含peer
+    // newConf does not contain peer
     FLAGS_new_conf = "127.0.0.1:8201:0";
     ASSERT_EQ(-1, curveCli.RunCommand("reset-peer"));
-    // 执行变更成功
+    // Successfully executed changes
     FLAGS_new_conf = conf;
     EXPECT_CALL(*mockCliService, ResetPeer(_, _, _, _))
-        .WillOnce(Invoke([](RpcController *controller,
-                          const ResetPeerRequest2 *request,
-                          ResetPeerResponse2 *response,
-                          Closure *done){
-                          brpc::ClosureGuard doneGuard(done);
-                    }));
+        .WillOnce(Invoke(
+            [](RpcController* controller, const ResetPeerRequest2* request,
+               ResetPeerResponse2* response,
+               Closure* done) { brpc::ClosureGuard doneGuard(done); }));
     ASSERT_EQ(0, curveCli.RunCommand("reset-peer"));
-    // 执行变更失败
-     EXPECT_CALL(*mockCliService, ResetPeer(_, _, _, _))
-        .WillOnce(Invoke([](RpcController *controller,
-                          const ResetPeerRequest2 *request,
-                          ResetPeerResponse2 *response,
-                          Closure *done){
-                          brpc::ClosureGuard doneGuard(done);
-                          brpc::Controller *cntl =
-                            dynamic_cast<brpc::Controller *>(controller);
-                          cntl->SetFailed("test");
-                    }));
+    // Failed to execute changes
+    EXPECT_CALL(*mockCliService, ResetPeer(_, _, _, _))
+        .WillOnce(Invoke([](RpcController* controller,
+                            const ResetPeerRequest2* request,
+                            ResetPeerResponse2* response, Closure* done) {
+            brpc::ClosureGuard doneGuard(done);
+            brpc::Controller* cntl =
+                dynamic_cast<brpc::Controller*>(controller);
+            cntl->SetFailed("test");
+        }));
     ASSERT_EQ(-1, curveCli.RunCommand("reset-peer"));
 }
 
 TEST_F(CurveCliTest, DoSnapshot) {
     curve::tool::CurveCli curveCli(mdsClient_);
     curveCli.PrintHelp("do-snapshot");
-    // peer为空
+    // peer is empty
     FLAGS_peer = "";
     ASSERT_EQ(-1, curveCli.RunCommand("do-snapshot"));
-    // 解析peer失败
+    // Parsing peer failed
     FLAGS_peer = "1234";
     ASSERT_EQ(-1, curveCli.RunCommand("do-snapshot"));
-    // 执行变更成功
+    // Successfully executed changes
     FLAGS_peer = peer;
     EXPECT_CALL(*mockCliService, Snapshot(_, _, _, _))
-        .WillOnce(Invoke([](RpcController *controller,
-                          const SnapshotRequest2 *request,
-                          SnapshotResponse2 *response,
-                          Closure *done){
-                          brpc::ClosureGuard doneGuard(done);
-                    }));
+        .WillOnce(Invoke(
+            [](RpcController* controller, const SnapshotRequest2* request,
+               SnapshotResponse2* response,
+               Closure* done) { brpc::ClosureGuard doneGuard(done); }));
     ASSERT_EQ(0, curveCli.RunCommand("do-snapshot"));
-    // 执行变更失败
-     EXPECT_CALL(*mockCliService, Snapshot(_, _, _, _))
-        .WillOnce(Invoke([](RpcController *controller,
-                          const SnapshotRequest2 *request,
-                          SnapshotResponse2 *response,
-                          Closure *done){
-                          brpc::ClosureGuard doneGuard(done);
-                          brpc::Controller *cntl =
-                            dynamic_cast<brpc::Controller *>(controller);
-                          cntl->SetFailed("test");
-                    }));
+    // Failed to execute changes
+    EXPECT_CALL(*mockCliService, Snapshot(_, _, _, _))
+        .WillOnce(Invoke([](RpcController* controller,
+                            const SnapshotRequest2* request,
+                            SnapshotResponse2* response, Closure* done) {
+            brpc::ClosureGuard doneGuard(done);
+            brpc::Controller* cntl =
+                dynamic_cast<brpc::Controller*>(controller);
+            cntl->SetFailed("test");
+        }));
     ASSERT_EQ(-1, curveCli.RunCommand("do-snapshot"));
 }
 
 TEST_F(CurveCliTest, DoSnapshotAll) {
     curve::tool::CurveCli curveCli(mdsClient_);
     curveCli.PrintHelp("do-snapshot-all");
-    // 执行变更成功
+    // Successfully executed changes
     std::vector<ChunkServerInfo> chunkservers;
     ChunkServerInfo csInfo;
     csInfo.set_hostip("127.0.0.1");
     csInfo.set_port(9192);
     chunkservers.emplace_back(csInfo);
-    EXPECT_CALL(*mdsClient_, Init(_))
+    EXPECT_CALL(*mdsClient_, Init(_)).Times(2).WillRepeatedly(Return(0));
+    EXPECT_CALL(*mdsClient_,
+                ListChunkServersInCluster(An<std::vector<ChunkServerInfo>*>()))
         .Times(2)
-        .WillRepeatedly(Return(0));
-    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(
-        An<std::vector<ChunkServerInfo>*>()))
-        .Times(2)
-        .WillRepeatedly(DoAll(SetArgPointee<0>(chunkservers),
-                        Return(0)));
+        .WillRepeatedly(DoAll(SetArgPointee<0>(chunkservers), Return(0)));
     EXPECT_CALL(*mockCliService, SnapshotAll(_, _, _, _))
         .Times(1)
-        .WillOnce(Invoke([](RpcController *controller,
-                          const SnapshotAllRequest *request,
-                          SnapshotAllResponse *response,
-                          Closure *done){
-                          brpc::ClosureGuard doneGuard(done);
-                    }));
+        .WillOnce(Invoke(
+            [](RpcController* controller, const SnapshotAllRequest* request,
+               SnapshotAllResponse* response,
+               Closure* done) { brpc::ClosureGuard doneGuard(done); }));
     ASSERT_EQ(0, curveCli.RunCommand("do-snapshot-all"));
-    // 执行变更失败
-     EXPECT_CALL(*mockCliService, SnapshotAll(_, _, _, _))
+    // Failed to execute changes
+    EXPECT_CALL(*mockCliService, SnapshotAll(_, _, _, _))
         .Times(1)
-        .WillOnce(Invoke([](RpcController *controller,
-                          const SnapshotAllRequest *request,
-                          SnapshotAllResponse *response,
-                          Closure *done){
-                          brpc::ClosureGuard doneGuard(done);
-                          brpc::Controller *cntl =
-                            dynamic_cast<brpc::Controller *>(controller);
-                          cntl->SetFailed("test");
-                    }));
+        .WillOnce(Invoke([](RpcController* controller,
+                            const SnapshotAllRequest* request,
+                            SnapshotAllResponse* response, Closure* done) {
+            brpc::ClosureGuard doneGuard(done);
+            brpc::Controller* cntl =
+                dynamic_cast<brpc::Controller*>(controller);
+            cntl->SetFailed("test");
+        }));
     ASSERT_EQ(-1, curveCli.RunCommand("do-snapshot-all"));
 }
 

@@ -20,24 +20,24 @@
  * Author: wudemiao
  */
 
+#include "src/chunkserver/chunk_service.h"
 
-#include <unistd.h>
-#include <gtest/gtest.h>
-#include <gflags/gflags.h>
-#include <glog/logging.h>
-#include <bthread/bthread.h>
 #include <brpc/channel.h>
 #include <brpc/controller.h>
 #include <brpc/server.h>
+#include <bthread/bthread.h>
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+#include <gtest/gtest.h>
+#include <unistd.h>
 
 #include "include/chunkserver/chunkserver_common.h"
+#include "proto/copyset.pb.h"
+#include "src/chunkserver/cli.h"
 #include "src/chunkserver/copyset_node.h"
 #include "src/chunkserver/copyset_node_manager.h"
-#include "src/chunkserver/cli.h"
-#include "proto/copyset.pb.h"
-#include "test/chunkserver/chunkserver_test_util.h"
 #include "src/common/uuid.h"
-#include "src/chunkserver/chunk_service.h"
+#include "test/chunkserver/chunkserver_test_util.h"
 
 namespace curve {
 namespace chunkserver {
@@ -75,11 +75,10 @@ class ChunkserverTest : public testing::Test {
 
 butil::AtExitManager atExitManager;
 
-
 TEST_F(ChunkserverTest, normal_read_write_test) {
-    const char *ip = "127.0.0.1";
+    const char* ip = "127.0.0.1";
     int port = 9020;
-    const char *confs = "127.0.0.1:9020:0,127.0.0.1:9021:0,127.0.0.1:9022:0";
+    const char* confs = "127.0.0.1:9020:0,127.0.0.1:9021:0,127.0.0.1:9022:0";
     int rpcTimeoutMs = 3000;
     int snapshotInterval = 600;
 
@@ -96,12 +95,8 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
         ASSERT_TRUE(false);
     } else if (0 == pid1) {
         std::string copysetdir = "local://./" + dir1;
-        StartChunkserver(ip,
-                         port + 0,
-                         copysetdir.c_str(),
-                         confs,
-                         snapshotInterval,
-                         electionTimeoutMs);
+        StartChunkserver(ip, port + 0, copysetdir.c_str(), confs,
+                         snapshotInterval, electionTimeoutMs);
         return;
     }
 
@@ -111,12 +106,8 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
         ASSERT_TRUE(false);
     } else if (0 == pid2) {
         std::string copysetdir = "local://./" + dir2;
-        StartChunkserver(ip,
-                         port + 1,
-                         copysetdir.c_str(),
-                         confs,
-                         snapshotInterval,
-                         electionTimeoutMs);
+        StartChunkserver(ip, port + 1, copysetdir.c_str(), confs,
+                         snapshotInterval, electionTimeoutMs);
         return;
     }
 
@@ -126,16 +117,12 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
         ASSERT_TRUE(false);
     } else if (0 == pid3) {
         std::string copysetdir = "local://./" + dir3;
-        StartChunkserver(ip,
-                         port + 2,
-                         copysetdir.c_str(),
-                         confs,
-                         snapshotInterval,
-                         electionTimeoutMs);
+        StartChunkserver(ip, port + 2, copysetdir.c_str(), confs,
+                         snapshotInterval, electionTimeoutMs);
         return;
     }
 
-    /* 保证进程一定会退出 */
+    /*Ensure that the process will definitely exit*/
     class WaitpidGuard {
      public:
         WaitpidGuard(pid_t pid1, pid_t pid2, pid_t pid3) {
@@ -152,6 +139,7 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
             kill(pid3_, SIGINT);
             waitpid(pid3_, &waitState, 0);
         }
+
      private:
         pid_t pid1_;
         pid_t pid2_;
@@ -313,7 +301,7 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                           response.status());
             }
-            /* delete 一个不存在的 chunk（重复删除） */
+            /*Delete a non-existent chunk (duplicate deletion)*/
             {
                 brpc::Controller cntl;
                 cntl.set_timeout_ms(rpcTimeoutMs);
@@ -329,7 +317,7 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
                           response.status());
             }
-            /* Read 一个不存在的 Chunk */
+            /*Read a non-existent Chunk*/
             {
                 brpc::Controller cntl;
                 cntl.set_timeout_ms(rpcTimeoutMs);
@@ -347,7 +335,7 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST,
                           response.status());
             }
-            /* Applied index Read 一个不存在的 Chunk */
+            /*Applied index Read a non-existent Chunk*/
             {
                 brpc::Controller cntl;
                 cntl.set_timeout_ms(rpcTimeoutMs);
@@ -416,9 +404,7 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 request.set_copysetid(copysetId);
                 request.set_chunkid(chunkId);
                 request.set_correctedsn(sn);
-                stub.DeleteChunkSnapshotOrCorrectSn(&cntl,
-                                                    &request,
-                                                    &response,
+                stub.DeleteChunkSnapshotOrCorrectSn(&cntl, &request, &response,
                                                     nullptr);
                 ASSERT_FALSE(cntl.Failed());
                 ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
@@ -435,9 +421,7 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 request.set_copysetid(copysetId);
                 request.set_chunkid(chunkId);
                 request.set_correctedsn(sn);
-                stub.DeleteChunkSnapshotOrCorrectSn(&cntl,
-                                                    &request,
-                                                    &response,
+                stub.DeleteChunkSnapshotOrCorrectSn(&cntl, &request, &response,
                                                     nullptr);
                 ASSERT_FALSE(cntl.Failed());
                 ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
@@ -467,7 +451,7 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
         ASSERT_EQ(0, channel.Init(leader.addr, NULL));
         ChunkService_Stub stub(&channel);
 
-        // get hash : 访问不存在的chunk
+        // Get hash: Access non-existent chunks
         {
             brpc::Controller cntl;
             cntl.set_timeout_ms(rpcTimeoutMs);
@@ -485,7 +469,7 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
             ASSERT_STREQ("0", response.hash().c_str());
         }
 
-        // get hash : 非法的offset和length
+        // Get hash: illegal offset and length
         {
             brpc::Controller cntl;
             cntl.set_timeout_ms(rpcTimeoutMs);
@@ -560,7 +544,7 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
             ASSERT_EQ(1, response.chunksn().size());
         }
 
-        // get hash : 访问存在的chunk
+        // Get hash: Access existing chunks
         {
             brpc::Controller cntl;
             cntl.set_timeout_ms(rpcTimeoutMs);
@@ -579,7 +563,7 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
         }
     }
 
-    /* 多 chunk read/write/delete */
+    /*Multi chunk read/write/delete*/
     {
         brpc::Channel channel;
         if (channel.Init(leader.addr, NULL) != 0) {
@@ -685,7 +669,7 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                           response.status());
             }
-            /* delete 一个不存在的 chunk（重复删除） */
+            /*Delete a non-existent chunk (duplicate deletion)*/
             {
                 brpc::Controller cntl;
                 cntl.set_timeout_ms(rpcTimeoutMs);
@@ -703,7 +687,7 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
             }
         }
     }
-    /* read 一个不存在的 chunk */
+    /*Read a non-existent chunk*/
     {
         brpc::Channel channel;
         uint32_t requestSize = kOpRequestAlignSize;
@@ -770,7 +754,7 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
             ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                       response.status());
         }
-        /* read 一个不存在的 chunk */
+        /*Read a non-existent chunk*/
         {
             brpc::Controller cntl;
             cntl.set_timeout_ms(rpcTimeoutMs);

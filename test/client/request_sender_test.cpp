@@ -20,11 +20,12 @@
  * Author: wudemiao
  */
 
+#include "src/client/request_sender.h"
+
 #include <brpc/server.h>
 #include <gtest/gtest.h>
 
 #include "src/client/client_common.h"
-#include "src/client/request_sender.h"
 #include "src/common/concurrent/count_down_event.h"
 #include "test/client/mock/mock_chunkservice.h"
 
@@ -54,9 +55,7 @@ class FakeChunkClosure : public ClientClosure {
         SetClosure(&reqeustClosure);
     }
 
-    void Run() override {
-        event->Signal();
-    }
+    void Run() override { event->Signal(); }
 
     void SendRetryRequest() override {}
 
@@ -96,7 +95,7 @@ class RequestSenderTest : public ::testing::Test {
 };
 
 TEST_F(RequestSenderTest, BasicTest) {
-    // 非法的 port
+    // Illegal port
     std::string leaderStr = "127.0.0.1:65539";
     butil::EndPoint leaderAddr;
     ChunkServerID leaderId = 1;
@@ -126,8 +125,8 @@ TEST_F(RequestSenderTest, TestWriteChunkSourceInfo) {
         FakeChunkClosure closure(&event);
 
         sourceInfo.cloneFileSource.clear();
-        requestSender.WriteChunk(ChunkIDInfo(), 1, 1, 0, {}, 0, 0,
-                                 sourceInfo, &closure);
+        requestSender.WriteChunk(ChunkIDInfo(), 1, 1, 0, {}, 0, 0, sourceInfo,
+                                 &closure);
 
         event.Wait();
         ASSERT_FALSE(chunkRequest.has_clonefilesource());
@@ -148,8 +147,8 @@ TEST_F(RequestSenderTest, TestWriteChunkSourceInfo) {
         sourceInfo.cloneFileOffset = 0;
         sourceInfo.valid = true;
 
-        requestSender.WriteChunk(ChunkIDInfo(), 1, 1, 0, {}, 0, 0,
-                                 sourceInfo, &closure);
+        requestSender.WriteChunk(ChunkIDInfo(), 1, 1, 0, {}, 0, 0, sourceInfo,
+                                 &closure);
 
         event.Wait();
         ASSERT_TRUE(chunkRequest.has_clonefilesource());

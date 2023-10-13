@@ -23,36 +23,30 @@
 #ifndef SRC_COMMON_CONCURRENT_COUNT_DOWN_EVENT_H_
 #define SRC_COMMON_CONCURRENT_COUNT_DOWN_EVENT_H_
 
-#include <mutex>                //NOLINT
-#include <condition_variable>   //NOLINT
-#include <chrono>               //NOLINT
+#include <chrono>              //NOLINT
+#include <condition_variable>  //NOLINT
+#include <mutex>               //NOLINT
 
 namespace curve {
 namespace common {
 
 /**
- * 用于线程间同步，CountDownEvent是通过一个计数器来实现的，计数器的
- * 初始值initCnt为需要等待event的总数，通过接口Wait等待。每当一个
- * event发生，就会调用Signal接口，让计数器的值就会减 1。当计数器值到
- * 达0时，则Wait等待就会结束。一般用于等待一些事件发生
+ * Used for inter-thread synchronization, CountDownEvent is implemented using a
+ * counter with an initial value (initCnt) representing the total number of
+ * events to wait for. Threads can wait for events using the Wait interface.
+ * Each time an event occurs, the Signal interface is called, decrementing the
+ * counter by 1. When the counter reaches 0, the waiting in Wait will conclude.
+ * It is typically used to wait for certain events to occur.
  */
 class CountDownEvent {
  public:
-    CountDownEvent() :
-        mutex_(),
-        cond_(),
-        count_() {
-    }
+    CountDownEvent() : mutex_(), cond_(), count_() {}
 
-    explicit CountDownEvent(int initCnt) :
-        mutex_(),
-        cond_(),
-        count_(initCnt) {
-    }
+    explicit CountDownEvent(int initCnt) : mutex_(), cond_(), count_(initCnt) {}
 
     /**
-     * 重新设置event计数
-     * @param eventCount:事件计数
+     * Reset event count
+     * @param eventCount: Event Count
      */
     void Reset(int eventCount) {
         std::unique_lock<std::mutex> guard(mutex_);
@@ -60,7 +54,7 @@ class CountDownEvent {
     }
 
     /**
-     * 通知wait event发生了一次，计数减1
+     * Notify that a wait event has occurred once, count minus 1
      */
     void Signal() {
         std::unique_lock<std::mutex> guard(mutex_);
@@ -71,7 +65,7 @@ class CountDownEvent {
     }
 
     /**
-     * 等待initCnt的event发生之后，再唤醒
+     * Wait for the event of initCnt to occur before waking up
      */
     void Wait() {
         std::unique_lock<std::mutex> guard(mutex_);
@@ -81,9 +75,9 @@ class CountDownEvent {
     }
 
     /**
-     * 等待initCnt的event发生，或者指定时长
-     * @param waitMs: 等待的ms数
-     * @return：如果所有等待的event都发生，那么就返回true，否则false
+     * Wait for the event of initCnt to occur, or specify a duration
+     * @param waitMs: Number of ms waiting
+     * @return: If all waiting events occur, then return true; otherwise, false
      */
     bool WaitFor(int waitMs) {
         std::unique_lock<std::mutex> guard(mutex_);
@@ -92,11 +86,11 @@ class CountDownEvent {
         while (count_ > 0) {
             auto now = std::chrono::high_resolution_clock::now();
             std::chrono::duration<double, std::milli> elapsed = now - start;
-            // 计算还剩余多少时间
+            // Calculate how much time is left
             int leftMs = waitMs - static_cast<int>(elapsed.count());
             if (leftMs > 0) {
-                auto ret = cond_.wait_for(guard,
-                                          std::chrono::milliseconds(leftMs));
+                auto ret =
+                    cond_.wait_for(guard, std::chrono::milliseconds(leftMs));
                 (void)ret;
             } else {
                 break;
@@ -113,7 +107,7 @@ class CountDownEvent {
  private:
     mutable std::mutex mutex_;
     std::condition_variable cond_;
-    // 需要等待的事件计数
+    // Count of events to wait for
     int count_;
 };
 

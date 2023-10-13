@@ -61,69 +61,78 @@ class MetaCache {
     virtual ~MetaCache() = default;
 
     /**
-     * 初始化函数
-     * @param: metacacheopt为当前metacache的配置option信息
-     * @param: mdsclient为与mds通信的指针。
-     * 为什么这里需要把mdsclient传进来？
-     * 因为首先metacache充当的角色就是对于MDS一侧的信息缓存
-     * 所以对于底层想使用metacache的copyset client或者chunk closure
-     * 来说，他只需要知道metacache就可以了，不需要再去向mds查询信息，
-     * 在copyset client或者chunk closure发送IO失败之后会重新获取leader
-     * 然后再重试，如果leader获取不成功，需要向mds一侧查询当前copyset的最新信息，
-     * 这里将查询mds封装在内部了，这样copyset client和chunk closure就不感知mds了
+     * Initialization function
+     * @param: metacacheopt is the configuration option information for the
+     * current Metacache
+     * @param: mdsclient is the pointer that communicates with mds.
+     * Why does it need to pass in mdsclient here?
+     * Because the first role that Metacache plays is to cache information on
+     * the MDS side So for low-level users who want to use Metacache's copyset
+     * client or chunk closure For example, he only needs to know the Metacache
+     * and no longer needs to query information from MDS, After the copyset
+     * client or chunk closure fails to send IO, it will retrieve the leader
+     * again Then try again. If the leader acquisition is unsuccessful, you need
+     * to query the latest information of the current copyset from the mds side,
+     * Here, the query mds is encapsulated internally, so that the copyset
+     * client and chunk closure are not aware of mds
      */
-    void Init(const MetaCacheOption &metaCacheOpt, MDSClient *mdsclient);
+    void Init(const MetaCacheOption& metaCacheOpt, MDSClient* mdsclient);
 
     /**
-     * 通过chunk index获取chunkid信息
-     * @param: chunkidx以index查询chunk对应的id信息
-     * @param: chunkinfo是出参，存储chunk的版本信息
-     * @param: 成功返回OK, 否则返回UNKNOWN_ERROR
+     * Obtain chunk information through chunk index
+     * @param: chunkidx queries the ID information corresponding to chunks using
+     * index
+     * @param: chunkinfo is an outgoing parameter that stores the version
+     * information of the chunk
+     * @param: Successfully returns OK, otherwise returns UNKNOWN_ ERROR
      */
     virtual MetaCacheErrorType GetChunkInfoByIndex(ChunkIndex chunkidx,
-                                                   ChunkIDInfo_t *chunkinfo);
+                                                   ChunkIDInfo_t* chunkinfo);
 
     /**
      * @brief Update cached chunk info by chunk index
      */
     virtual void UpdateChunkInfoByIndex(ChunkIndex cindex,
-                                        const ChunkIDInfo &chunkinfo);
+                                        const ChunkIDInfo& chunkinfo);
 
     /**
-     * sender发送数据的时候需要知道对应的leader然后发送给对应的chunkserver
-     * 如果get不到的时候，外围设置refresh为true，然后向chunkserver端拉取最新的
-     * server信息，然后更新metacache。
-     * 如果当前copyset的leaderMayChange置位的时候，即使refresh为false，也需要
-     * 先去拉取新的leader信息，才能继续下发IO.
-     * @param: lpid逻辑池id
-     * @param: cpid是copysetid
-     * @param: serverId对应chunkserver的id信息，是出参
-     * @param: serverAddr为serverid对应的ip信息
-     * @param: refresh，如果get不到的时候，外围设置refresh为true，
-     *         然后向chunkserver端拉取最新的
-     * @param: fm用于统计metric
-     * @param: 成功返回0， 否则返回-1
+     * When the sender sends data, it needs to know the corresponding leader and
+     * send it to the corresponding chunkserver. If it cannot retrieve the
+     * leader, and the external setting has "refresh" set to true, it will then
+     * fetch the latest server information from the chunkserver side and update
+     * the metacache. If the "leaderMayChange" flag of the current copyset is
+     * set, even if "refresh" is set to false, it is still necessary to fetch
+     * the new leader information before continuing with IO operations.
+     * @param: lpid Logical Pool ID
+     * @param: cpid is copysetid
+     * @param: The serverId corresponds to the ID information of the
+     * chunkserver, which is the output parameter
+     * @param: serverAddr is the IP information corresponding to serverid
+     * @param: refresh. If it cannot be obtained, set the peripheral refresh to
+     * true, Then pull the latest data from the chunkserver end
+     * @param: fm for statistical metrics
+     * @param: Successfully returns 0, otherwise returns -1
      */
     virtual int GetLeader(LogicPoolID logicPoolId, CopysetID copysetId,
-                          ChunkServerID *serverId, butil::EndPoint *serverAddr,
-                          bool refresh = false, FileMetric *fm = nullptr);
+                          ChunkServerID* serverId, butil::EndPoint* serverAddr,
+                          bool refresh = false, FileMetric* fm = nullptr);
     /**
-     * 更新某个copyset的leader信息
-     * @param logicPoolId 逻辑池id
-     * @param copysetId 复制组id
-     * @param leaderAddr leader地址
-     * @return: 成功返回0， 否则返回-1
+     * Update the leader information of a copyset
+     * @param logicPoolId Logical Pool ID
+     * @param copysetId Copy Group ID
+     * @param leaderAddr leader address
+     * @return: Successfully returns 0, otherwise returns -1
      */
     virtual int UpdateLeader(LogicPoolID logicPoolId, CopysetID copysetId,
-                             const butil::EndPoint &leaderAddr);
+                             const butil::EndPoint& leaderAddr);
     /**
-     * 更新copyset数据信息，包含serverlist
-     * @param: lpid逻辑池id
-     * @param: cpid是copysetid
-     * @param: csinfo是要更新的copyset info
+     * Update copyset data information, including serverlist
+     * @param: lpid Logical Pool ID
+     * @param: cpid is copysetid
+     * @param: csinfo is the copyset info to be updated
      */
     virtual void UpdateCopysetInfo(LogicPoolID logicPoolId, CopysetID copysetId,
-                                   const CopysetInfo<ChunkServerID> &csinfo);
+                                   const CopysetInfo<ChunkServerID>& csinfo);
 
     // Add copysets info to cache, and skip already copyset
     void AddCopysetsInfo(
@@ -131,26 +140,26 @@ class MetaCache {
         std::vector<CopysetInfo<ChunkServerID>>&& copysetsInfo);
 
     /**
-     * 通过chunk id更新chunkid信息
-     * @param: cid为chunkid
-     * @param: cidinfo为当前chunk对应的id信息
+     * Update chunk information through chunk id
+     * @param: cid is chunkid
+     * @param: cininfo is the ID information corresponding to the current chunk
      */
-    virtual void UpdateChunkInfoByID(ChunkID cid, const ChunkIDInfo &cidinfo);
+    virtual void UpdateChunkInfoByID(ChunkID cid, const ChunkIDInfo& cidinfo);
 
     /**
-     * 获取当前copyset的server list信息
-     * @param: lpid逻辑池id
-     * @param: cpid是copysetid
-     * @return: 当前copyset的copysetinfo信息
+     * Obtain the server list information for the current copyset
+     * @param: lpid Logical Pool ID
+     * @param: cpid is copysetid
+     * @return: The copysetinfo information of the current copyset
      */
     virtual CopysetInfo<ChunkServerID> GetServerList(LogicPoolID logicPoolId,
                                                      CopysetID copysetId);
 
     /**
-     * 将ID转化为cache的key
-     * @param: lpid逻辑池id
-     * @param: cpid是copysetid
-     * @return: 为当前的key
+     * Convert ID to key for cache
+     * @param: lpid Logical Pool ID
+     * @param: cpid is copysetid
+     * @return: is the current key
      */
     static LogicPoolCopysetID CalcLogicPoolCopysetID(LogicPoolID logicPoolId,
                                                      CopysetID copysetId) {
@@ -159,45 +168,45 @@ class MetaCache {
     }
 
     /**
-     * @brief: 标记整个server上的所有chunkserver为unstable状态
+     * @brief: Mark all chunkservers on the entire server as unstable
      *
-     * @param: serverIp server的ip地址
-     * @return: 0 设置成功 / -1 设置失败
+     * @param: serverIp The IP address of the server
+     * @return: 0 set successfully/-1 set failed
      */
-    virtual int SetServerUnstable(const std::string &endPoint);
+    virtual int SetServerUnstable(const std::string& endPoint);
 
     /**
-     * 如果leader所在的chunkserver出现问题了，导致RPC失败。这时候这个
-     * chunkserver上的其他leader copyset也会存在同样的问题，所以需要
-     * 通知当前chunkserver上的leader copyset. 主要是通过设置这个copyset
-     * 的leaderMayChange标志，当该copyset的再次下发IO的时候会查看这个
-     * 状态，当这个标志位置位的时候，IO下发需要先进行leader refresh，
-     * 如果leaderrefresh成功，leaderMayChange会被reset。
-     * SetChunkserverUnstable就会遍历当前chunkserver上的所有copyset
-     * 并设置这个chunkserver的leader copyset的leaderMayChange标志。
-     * @param: csid是当前不稳定的chunkserver ID
+     * If the chunkserver where the leader is located encounters a problem,
+     * leading to RPC failures, then other leader copysets on this chunkserver
+     * will also face the same issue. Therefore, it is necessary to notify the
+     * leader copysets on the current chunkserver. This is primarily done by
+     * setting the "leaderMayChange" flag for these copysets. When IO is issued
+     * again for a copyset with this flag set, the system will check this
+     * status. When this flag is set, IO issuance will first perform a leader
+     * refresh. If the leader refresh is successful, the "leaderMayChange" flag
+     * will be reset. The "SetChunkserverUnstable" operation will iterate
+     * through all the copysets on the current chunkserver and set the
+     * "leaderMayChange" flag for the leader copysets of that chunkserver.
+     * @param: csid is the currently unstable chunkserver ID
      */
     virtual void SetChunkserverUnstable(ChunkServerID csid);
 
     /**
-     * 向map中添加对应chunkserver的copyset信息
-     * @param: csid为当前chunkserverid
-     * @param: cpid为当前copyset的id信息
+     * Add copyset information for the corresponding chunkserver to the map
+     * @param: csid is the current chunkserverid
+     * @param: cpid is the ID information of the current copyset
      */
     virtual void AddCopysetIDInfo(ChunkServerID csid,
-                                  const CopysetIDInfo &cpid);
+                                  const CopysetIDInfo& cpid);
 
-    virtual void
-    UpdateChunkserverCopysetInfo(LogicPoolID lpid,
-                                 const CopysetInfo<ChunkServerID> &cpinfo);
+    virtual void UpdateChunkserverCopysetInfo(
+        LogicPoolID lpid, const CopysetInfo<ChunkServerID>& cpinfo);
 
-    void UpdateFileInfo(const FInfo &fileInfo) { fileInfo_ = fileInfo; }
+    void UpdateFileInfo(const FInfo& fileInfo) { fileInfo_ = fileInfo; }
 
-    const FInfo *GetFileInfo() const { return &fileInfo_; }
+    const FInfo* GetFileInfo() const { return &fileInfo_; }
 
-    void UpdateFileEpoch(const FileEpoch& fEpoch) {
-        fEpoch_ = fEpoch;
-    }
+    void UpdateFileEpoch(const FileEpoch& fEpoch) { fEpoch_ = fEpoch; }
 
     const FileEpoch* GetFileEpoch() const { return &fEpoch_; }
 
@@ -212,26 +221,26 @@ class MetaCache {
     }
 
     /**
-     * 获取对应的copyset的LeaderMayChange标志
+     * Get the LeaderMayChange flag of the corresponding copyset
      */
     virtual bool IsLeaderMayChange(LogicPoolID logicpoolId,
                                    CopysetID copysetId);
 
     /**
-     * 测试使用
-     * 获取copysetinfo信息
+     * Test Usage
+     * Obtain copysetinfo information
      */
     virtual CopysetInfo<ChunkServerID> GetCopysetinfo(LogicPoolID lpid,
                                                       CopysetID csid);
 
-    UnstableHelper &GetUnstableHelper() { return unstableHelper_; }
+    UnstableHelper& GetUnstableHelper() { return unstableHelper_; }
 
     uint64_t InodeId() const { return fileInfo_.id; }
 
     /**
      * @brief Get file segment info about the segmentIndex
      */
-    FileSegment *GetFileSegment(SegmentIndex segmentIndex);
+    FileSegment* GetFileSegment(SegmentIndex segmentIndex);
 
     /**
      * @brief Clean chunks of this segment
@@ -240,68 +249,71 @@ class MetaCache {
 
  private:
     /**
-     * @brief 从mds更新copyset复制组信息
-     * @param logicPoolId 逻辑池id
-     * @param copysetId 复制组id
-     * @return 0 成功 / -1 失败
+     * @brief Update copyset replication group information from mds
+     * @param logicPoolId Logical Pool ID
+     * @param copysetId Copy Group ID
+     * @return 0 successful/-1 failed
      */
     int UpdateCopysetInfoFromMDS(LogicPoolID logicPoolId, CopysetID copysetId);
 
     /**
-     * 更新copyset的leader信息
-     * @param[in]: logicPoolId逻辑池信息
-     * @param[in]: copysetId复制组信息
-     * @param[out]: toupdateCopyset为metacache中待更新的copyset信息指针
+     * Update the leader information of the copyset
+     * @param[in]: logicPoolId Logical Pool Information
+     * @param[in]: copysetId Copy group information
+     * @param[out]: toupdateCopyset is the pointer to the copyset information to
+     * be updated in the metacache
      */
     int UpdateLeaderInternal(LogicPoolID logicPoolId, CopysetID copysetId,
-                             CopysetInfo<ChunkServerID> *toupdateCopyset,
-                             FileMetric *fm = nullptr);
+                             CopysetInfo<ChunkServerID>* toupdateCopyset,
+                             FileMetric* fm = nullptr);
 
     /**
-     * 从mds拉去复制组信息，如果当前leader在复制组中
-     * 则更新本地缓存，反之则不更新
-     * @param: logicPoolId 逻辑池id
-     * @param: copysetId 复制组id
-     * @param: leaderAddr 当前的leader address
+     * Pull replication group information from MDS, if the current leader is in
+     * the replication group Update local cache, otherwise do not update
+     * @param: logicPoolId Logical Pool ID
+     * @param: copysetId Copy group ID
+     * @param: leaderAddr The current leader address
      */
     void UpdateCopysetInfoIfMatchCurrentLeader(LogicPoolID logicPoolId,
                                                CopysetID copysetId,
-                                               const PeerAddr &leaderAddr);
+                                               const PeerAddr& leaderAddr);
 
  private:
-    MDSClient *mdsclient_;
+    MDSClient* mdsclient_;
     MetaCacheOption metacacheopt_;
 
-    // chunkindex到chunkidinfo的映射表
+    // Mapping table from chunkindex to chunkidinfo
     CURVE_CACHELINE_ALIGNMENT ChunkIndexInfoMap chunkindex2idMap_;
 
     CURVE_CACHELINE_ALIGNMENT RWLock rwlock4Segments_;
     CURVE_CACHELINE_ALIGNMENT std::unordered_map<SegmentIndex, FileSegment>
         segments_;  // NOLINT
 
-    // logicalpoolid和copysetid到copysetinfo的映射表
+    // Mapping table for logicalpoolid and copysetid to copysetinfo
     CURVE_CACHELINE_ALIGNMENT CopysetInfoMap lpcsid2CopsetInfoMap_;
 
-    // chunkid到chunkidinfo的映射表
+    // chunkid to chunkidinfo mapping table
     CURVE_CACHELINE_ALIGNMENT ChunkInfoMap chunkid2chunkInfoMap_;
 
-    // 三个读写锁分别保护上述三个映射表
+    // Three read and write locks protect each of the three mapping tables
+    // mentioned above
     CURVE_CACHELINE_ALIGNMENT RWLock rwlock4chunkInfoMap_;
     CURVE_CACHELINE_ALIGNMENT RWLock rwlock4ChunkInfo_;
     CURVE_CACHELINE_ALIGNMENT RWLock rwlock4CopysetInfo_;
 
-    // chunkserverCopysetIDMap_存放当前chunkserver到copyset的映射
-    // 当rpc closure设置SetChunkserverUnstable时，会设置该chunkserver
-    // 的所有copyset处于leaderMayChange状态，后续copyset需要判断该值来看
-    // 是否需要刷新leader
+    // chunkserverCopysetIDMap_ stores the mapping of the current chunkserver to
+    // copysets. When an RPC closure sets SetChunkserverUnstable, it sets all
+    // the copysets of that chunkserver to the leaderMayChange state. Subsequent
+    // copyset operations will check this value to determine whether a leader
+    // refresh is needed.
 
-    // chunkserverid到copyset的映射
+    // Mapping chunkserverid to copyset
     std::unordered_map<ChunkServerID, std::set<CopysetIDInfo>>
         chunkserverCopysetIDMap_;  // NOLINT
-    // 读写锁保护unStableCSMap
+    // Read write lock protection unstableCSMap
     CURVE_CACHELINE_ALIGNMENT RWLock rwlock4CSCopysetIDMap_;
 
-    // 当前文件信息
+    // Current file information
     FInfo fileInfo_;
 
     // epoch info

@@ -20,19 +20,20 @@
  * Author: lixiaocui
  */
 
-#include <json2pb/pb_to_json.h>
-#include <json2pb/json_to_pb.h>
+#include "src/chunkserver/chunkserver_helper.h"
+
 #include <glog/logging.h>
+#include <json2pb/json_to_pb.h>
+#include <json2pb/pb_to_json.h>
 
 #include "src/common/crc32.h"
-#include "src/chunkserver/chunkserver_helper.h"
 
 namespace curve {
 namespace chunkserver {
 const uint64_t DefaultMagic = 0x6225929368674118;
 
 bool ChunkServerMetaHelper::EncodeChunkServerMeta(
-    const ChunkServerMetadata &meta, std::string *out) {
+    const ChunkServerMetadata& meta, std::string* out) {
     if (!out->empty()) {
         LOG(ERROR) << "out string must empty!";
         return false;
@@ -50,8 +51,8 @@ bool ChunkServerMetaHelper::EncodeChunkServerMeta(
     return true;
 }
 
-bool ChunkServerMetaHelper::DecodeChunkServerMeta(
-    const std::string &meta, ChunkServerMetadata *out) {
+bool ChunkServerMetaHelper::DecodeChunkServerMeta(const std::string& meta,
+                                                  ChunkServerMetadata* out) {
     std::string jsonStr(meta);
     std::string err;
     json2pb::Json2PbOptions opt;
@@ -63,7 +64,7 @@ bool ChunkServerMetaHelper::DecodeChunkServerMeta(
         return false;
     }
 
-    // 验证meta是否正确
+    // Verify if the meta is correct
     uint32_t crc = MetadataCrc(*out);
     if (crc != out->checksum()) {
         LOG(ERROR) << "ChunkServer persisted metadata CRC dismatch."
@@ -75,8 +76,7 @@ bool ChunkServerMetaHelper::DecodeChunkServerMeta(
     return true;
 }
 
-uint32_t ChunkServerMetaHelper::MetadataCrc(
-    const ChunkServerMetadata &meta) {
+uint32_t ChunkServerMetaHelper::MetadataCrc(const ChunkServerMetadata& meta) {
     uint32_t crc = 0;
     uint32_t ver = meta.version();
     uint32_t id = meta.id();
@@ -87,7 +87,7 @@ uint32_t ChunkServerMetaHelper::MetadataCrc(
     crc = curve::common::CRC32(crc, reinterpret_cast<char*>(&id), sizeof(id));
     crc = curve::common::CRC32(crc, token, meta.token().size());
     crc = curve::common::CRC32(crc, reinterpret_cast<char*>(&magic),
-        sizeof(magic));
+                               sizeof(magic));
 
     return crc;
 }

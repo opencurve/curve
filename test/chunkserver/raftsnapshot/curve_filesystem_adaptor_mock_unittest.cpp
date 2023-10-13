@@ -20,38 +20,38 @@
  * Author: tongguangxun
  */
 
-#include <gtest/gtest.h>
-#include <gmock/gmock.h>
 #include <braft/snapshot.h>
 #include <butil/memory/ref_counted.h>
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include <memory>
 
-#include "src/fs/local_filesystem.h"
-#include "test/fs/mock_local_filesystem.h"
 #include "src/chunkserver/datastore/file_pool.h"
 #include "src/chunkserver/raftsnapshot/curve_filesystem_adaptor.h"
 #include "src/chunkserver/raftsnapshot/define.h"
+#include "src/fs/local_filesystem.h"
+#include "test/fs/mock_local_filesystem.h"
 
 using ::testing::_;
+using ::testing::AtLeast;
+using ::testing::DoAll;
+using ::testing::ElementsAre;
 using ::testing::Ge;
 using ::testing::Gt;
 using ::testing::Mock;
-using ::testing::DoAll;
-using ::testing::Return;
-using ::testing::ReturnPointee;
 using ::testing::NotNull;
-using ::testing::StrEq;
-using ::testing::ElementsAre;
-using ::testing::SetArgPointee;
+using ::testing::Return;
 using ::testing::ReturnArg;
+using ::testing::ReturnPointee;
+using ::testing::SetArgPointee;
 using ::testing::SetArgReferee;
-using ::testing::AtLeast;
+using ::testing::StrEq;
 
+using curve::chunkserver::FilePool;
 using curve::fs::FileSystemType;
 using curve::fs::LocalFileSystem;
 using curve::fs::LocalFsFactory;
-using curve::chunkserver::FilePool;
 using curve::fs::MockLocalFileSystem;
 namespace curve {
 namespace chunkserver {
@@ -63,7 +63,7 @@ class RaftSnapshotFilesystemAdaptorMockTest : public testing::Test {
  public:
     void SetUp() {
         fsptr = curve::fs::LocalFsFactory::CreateFs(
-                        curve::fs::FileSystemType::EXT4, "/dev/sda");
+            curve::fs::FileSystemType::EXT4, "/dev/sda");
         FilePoolPtr_ = std::make_shared<FilePool>(fsptr);
         ASSERT_TRUE(FilePoolPtr_);
 
@@ -146,32 +146,33 @@ class RaftSnapshotFilesystemAdaptorMockTest : public testing::Test {
     }
 
     scoped_refptr<braft::FileSystemAdaptor> fsadaptor;
-    std::shared_ptr<FilePool>  FilePoolPtr_;
-    std::shared_ptr<LocalFileSystem>  fsptr;
-    std::shared_ptr<MockLocalFileSystem>  lfs;
-    CurveFilesystemAdaptor*  rfa;
+    std::shared_ptr<FilePool> FilePoolPtr_;
+    std::shared_ptr<LocalFileSystem> fsptr;
+    std::shared_ptr<MockLocalFileSystem> lfs;
+    CurveFilesystemAdaptor* rfa;
 };
 
 TEST_F(RaftSnapshotFilesystemAdaptorMockTest, open_file_mock_test) {
-    // 1. open flag不带CREAT, open失败
+    // 1. open flag without CREAT, open failed
     CreateChunkFile("./10");
     std::string path = "./10";
     butil::File::Error e;
     ASSERT_EQ(FilePoolPtr_->Size(), 3);
     EXPECT_CALL(*lfs, Open(_, _)).Times(AtLeast(1)).WillRepeatedly(Return(-1));
-    braft::FileAdaptor* fa = fsadaptor->open(path,
-                                             O_RDONLY | O_CLOEXEC,
-                                             nullptr,
-                                             &e);
+    braft::FileAdaptor* fa =
+        fsadaptor->open(path, O_RDONLY | O_CLOEXEC, nullptr, &e);
 
     ASSERT_EQ(FilePoolPtr_->Size(), 3);
     ASSERT_EQ(nullptr, fa);
 
-    // 2. open flag带CREAT, 从FilePool取文件，但是FilePool打开文件失败
-    // 所以还是走原有逻辑，本地创建文件成功
-    EXPECT_CALL(*lfs, Open(_, _)).Times(3).WillOnce(Return(-1))
-                                          .WillOnce(Return(-1))
-                                          .WillOnce(Return(-1));
+    // 2. open flag with CREAT to retrieve files from FilePool, but FilePool
+    // failed to open the file So we still follow the original logic and
+    // successfully create the file locally
+    EXPECT_CALL(*lfs, Open(_, _))
+        .Times(3)
+        .WillOnce(Return(-1))
+        .WillOnce(Return(-1))
+        .WillOnce(Return(-1));
     EXPECT_CALL(*lfs, FileExists(_)).Times(1).WillRepeatedly(Return(0));
     ASSERT_EQ(FilePoolPtr_->Size(), 3);
     path = "./11";
@@ -182,7 +183,8 @@ TEST_F(RaftSnapshotFilesystemAdaptorMockTest, open_file_mock_test) {
     ASSERT_FALSE(fsptr->FileExists("./10"));
     ASSERT_EQ(nullptr, fa);
 
-    // 3. 待创建文件在Filter中，但是直接本地创建该文件，创建成功
+    // 3. The file to be created is in Filter, but it was created locally and
+    // successfully
     EXPECT_CALL(*lfs, Open(_, _)).Times(1).WillOnce(Return(0));
     EXPECT_CALL(*lfs, FileExists(_)).Times(0);
     path = BRAFT_SNAPSHOT_META_FILE;
@@ -191,14 +193,16 @@ TEST_F(RaftSnapshotFilesystemAdaptorMockTest, open_file_mock_test) {
 }
 
 TEST_F(RaftSnapshotFilesystemAdaptorMockTest, delete_file_mock_test) {
-    // 1. 删除文件，文件存在且在过滤名单里，但delete失败，返回false
+    // 1. Delete file. The file exists and is on the filter list, but delete
+    // failed with false return
     EXPECT_CALL(*lfs, DirExists(_)).Times(1).WillRepeatedly(Return(false));
     EXPECT_CALL(*lfs, FileExists(_)).Times(1).WillRepeatedly(Return(true));
     EXPECT_CALL(*lfs, Delete(_)).Times(1).WillRepeatedly(Return(-1));
     bool ret = fsadaptor->delete_file(BRAFT_SNAPSHOT_META_FILE, true);
     ASSERT_FALSE(ret);
 
-    // 2. 删除文件，文件存在且不在过滤名单里，但recycle chunk失败，返回false
+    // 2. Delete file. The file exists and is not on the filter list, but the
+    // recycle chunk failed with false return
     EXPECT_CALL(*lfs, Delete(_)).Times(1).WillRepeatedly(Return(-1));
     EXPECT_CALL(*lfs, DirExists(_)).Times(1).WillRepeatedly(Return(false));
     EXPECT_CALL(*lfs, FileExists(_)).Times(1).WillRepeatedly(Return(true));
@@ -206,29 +210,35 @@ TEST_F(RaftSnapshotFilesystemAdaptorMockTest, delete_file_mock_test) {
     ret = fsadaptor->delete_file("temp", true);
     ASSERT_FALSE(ret);
 
-    // 3. 删除目录，文件存在且不在过滤名单里，但recycle chunk失败，返回false
+    // 3. Delete directory. The file exists and is not on the filter list, but
+    // the recycle chunk failed with false return
     std::vector<std::string> dircontent;
     dircontent.push_back("/2");
     dircontent.push_back("/1");
     dircontent.push_back(BRAFT_SNAPSHOT_META_FILE);
-    EXPECT_CALL(*lfs, DirExists(_)).Times(2).WillOnce(Return(true))
-                                          .WillOnce(Return(false));
+    EXPECT_CALL(*lfs, DirExists(_))
+        .Times(2)
+        .WillOnce(Return(true))
+        .WillOnce(Return(false));
     EXPECT_CALL(*lfs, Delete(_)).Times(1).WillRepeatedly(Return(-1));
     EXPECT_CALL(*lfs, Open(_, _)).Times(1).WillRepeatedly(Return(-1));
-    EXPECT_CALL(*lfs, List(_, _)).Times(2).WillRepeatedly(DoAll(
-                                SetArgPointee<1>(dircontent), Return(-1)));
+    EXPECT_CALL(*lfs, List(_, _))
+        .Times(2)
+        .WillRepeatedly(DoAll(SetArgPointee<1>(dircontent), Return(-1)));
     ret = fsadaptor->delete_file("1", true);
     ASSERT_FALSE(ret);
 }
 
 TEST_F(RaftSnapshotFilesystemAdaptorMockTest, rename_mock_test) {
-    // 1. 重命名文件，文件存在且在过滤名单里，但Rename失败，返回false
+    // 1. Renaming file, file exists and is on the filter list, but Rename
+    // failed with false return
     EXPECT_CALL(*lfs, Rename(_, _, _)).Times(1).WillRepeatedly(Return(-1));
     EXPECT_CALL(*lfs, FileExists(_)).Times(0);
     bool ret = fsadaptor->rename("1", BRAFT_SNAPSHOT_META_FILE);
     ASSERT_FALSE(ret);
 
-    // 2. 重命名文件，文件存在且不在过滤名单里，但Rename失败，返回false
+    // 2. Renaming file. The file exists and is not on the filter list, but
+    // Rename failed with false return
     EXPECT_CALL(*lfs, Rename(_, _, _)).Times(1).WillRepeatedly(Return(0));
     EXPECT_CALL(*lfs, FileExists(_)).Times(1).WillRepeatedly(Return(true));
     EXPECT_CALL(*lfs, Open(_, _)).Times(1).WillRepeatedly(Return(0));
@@ -237,5 +247,5 @@ TEST_F(RaftSnapshotFilesystemAdaptorMockTest, rename_mock_test) {
     ASSERT_TRUE(ret);
 }
 
-}   // namespace chunkserver
-}   // namespace curve
+}  // namespace chunkserver
+}  // namespace curve

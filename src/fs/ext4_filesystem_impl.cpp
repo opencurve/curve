@@ -20,14 +20,15 @@
  * Author: yangyaokai
  */
 
-#include <glog/logging.h>
-#include <sys/vfs.h>
-#include <sys/utsname.h>
-#include <linux/version.h>
+#include "src/fs/ext4_filesystem_impl.h"
+
 #include <dirent.h>
+#include <glog/logging.h>
+#include <linux/version.h>
+#include <sys/utsname.h>
+#include <sys/vfs.h>
 
 #include "src/common/string_util.h"
-#include "src/fs/ext4_filesystem_impl.h"
 #include "src/fs/wrap_posix.h"
 
 #define MIN_KERNEL_VERSION KERNEL_VERSION(3, 15, 0)
@@ -40,13 +41,11 @@ std::mutex Ext4FileSystemImpl::mutex_;
 
 Ext4FileSystemImpl::Ext4FileSystemImpl(
     std::shared_ptr<PosixWrapper> posixWrapper)
-    : posixWrapper_(posixWrapper)
-    , enableRenameat2_(false) {
+    : posixWrapper_(posixWrapper), enableRenameat2_(false) {
     CHECK(posixWrapper_ != nullptr) << "PosixWrapper is null";
 }
 
-Ext4FileSystemImpl::~Ext4FileSystemImpl() {
-}
+Ext4FileSystemImpl::~Ext4FileSystemImpl() {}
 
 std::shared_ptr<Ext4FileSystemImpl> Ext4FileSystemImpl::getInstance() {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -54,13 +53,14 @@ std::shared_ptr<Ext4FileSystemImpl> Ext4FileSystemImpl::getInstance() {
         std::shared_ptr<PosixWrapper> wrapper =
             std::make_shared<PosixWrapper>();
         self_ = std::shared_ptr<Ext4FileSystemImpl>(
-                new(std::nothrow) Ext4FileSystemImpl(wrapper));
+            new (std::nothrow) Ext4FileSystemImpl(wrapper));
         CHECK(self_ != nullptr) << "Failed to new ext4 local fs.";
     }
     return self_;
 }
 
-void Ext4FileSystemImpl::SetPosixWrapper(std::shared_ptr<PosixWrapper> wrapper) {  //NOLINT
+void Ext4FileSystemImpl::SetPosixWrapper(
+    std::shared_ptr<PosixWrapper> wrapper) {  // NOLINT
     CHECK(wrapper != nullptr) << "PosixWrapper is null";
     posixWrapper_ = wrapper;
 }
@@ -71,16 +71,17 @@ bool Ext4FileSystemImpl::CheckKernelVersion() {
 
     ret = posixWrapper_->uname(&kernel_info);
     if (ret != 0) {
-         LOG(ERROR) << "Get kernel info failed.";
-         return false;
+        LOG(ERROR) << "Get kernel info failed.";
+        return false;
     }
 
     LOG(INFO) << "Kernel version: " << kernel_info.release;
     LOG(INFO) << "System version: " << kernel_info.version;
     LOG(INFO) << "Machine: " << kernel_info.machine;
 
-    // 通过uname获取的版本字符串格式可能为a.b.c-xxx
-    // a为主版本号，b为此版本号，c为修正号
+    // The version string format obtained through uname may be a.b.c-xxx
+    // A is the main version number, b is the version number, and c is the
+    // revision number
     vector<string> elements;
     ::curve::common::SplitString(kernel_info.release, "-", &elements);
     if (elements.size() == 0) {
@@ -90,7 +91,8 @@ bool Ext4FileSystemImpl::CheckKernelVersion() {
 
     vector<string> numbers;
     ::curve::common::SplitString(elements[0], ".", &numbers);
-    // 有些系统可能版本格式前面部分是a.b.c.d，但是a.b.c是不变的
+    // Some systems may have a version format with the front part being a.b.c.d,
+    // but a.b.c remains unchanged
     if (numbers.size() < 3) {
         LOG(ERROR) << "parse kenel version failed.";
         return false;
@@ -99,11 +101,10 @@ bool Ext4FileSystemImpl::CheckKernelVersion() {
     int major = std::stoi(numbers[0]);
     int minor = std::stoi(numbers[1]);
     int revision = std::stoi(numbers[2]);
-    LOG(INFO) << "major: " << major
-              << ", minor: " << minor
+    LOG(INFO) << "major: " << major << ", minor: " << minor
               << ", revision: " << revision;
 
-    // 内核版本必须大于3.15,用于支持renameat2
+    // The kernel version must be greater than 3.15 to support renameat2
     if (KERNEL_VERSION(major, minor, revision) < MIN_KERNEL_VERSION) {
         LOG(ERROR) << "Kernel older than 3.15 is not supported.";
         return false;
@@ -114,14 +115,13 @@ bool Ext4FileSystemImpl::CheckKernelVersion() {
 int Ext4FileSystemImpl::Init(const LocalFileSystemOption& option) {
     enableRenameat2_ = option.enableRenameat2;
     if (enableRenameat2_) {
-        if (!CheckKernelVersion())
-            return -1;
+        if (!CheckKernelVersion()) return -1;
     }
     return 0;
 }
 
 int Ext4FileSystemImpl::Statfs(const string& path,
-                               struct FileSystemInfo *info) {
+                               struct FileSystemInfo* info) {
     struct statfs diskInfo;
     int rc = posixWrapper_->statfs(path.c_str(), &diskInfo);
     if (rc < 0) {
@@ -157,7 +157,8 @@ int Ext4FileSystemImpl::Close(int fd) {
 
 int Ext4FileSystemImpl::Delete(const string& path) {
     int rc = 0;
-    // 如果删除对象是目录的话，需要先删除目录下的子对象
+    // If the deleted object is a directory, you need to first delete the sub
+    // objects under the directory
     if (DirExists(path)) {
         vector<string> names;
         rc = List(path, &names);
@@ -165,9 +166,9 @@ int Ext4FileSystemImpl::Delete(const string& path) {
             LOG(WARNING) << "List " << path << " failed.";
             return rc;
         }
-        for (auto &name : names) {
+        for (auto& name : names) {
             string subPath = path + "/" + name;
-            // 递归删除子对象
+            // Recursively delete sub objects
             rc = Delete(subPath);
             if (rc < 0) {
                 LOG(WARNING) << "Delete " << subPath << " failed.";
@@ -189,20 +190,19 @@ int Ext4FileSystemImpl::Mkdir(const string& dirName) {
     ::curve::common::SplitString(dirName, "/", &names);
 
     // root dir must exists
-    if (0 == names.size())
-        return 0;
+    if (0 == names.size()) return 0;
 
     string path;
     for (size_t i = 0; i < names.size(); ++i) {
-        if (0 == i && dirName[0] != '/')  // 相对路径
+        if (0 == i && dirName[0] != '/')  // Relative path
             path = path + names[i];
         else
             path = path + "/" + names[i];
-        if (DirExists(path))
-            continue;
-        // 目录需要755权限，不然会出现“Permission denied”
+        if (DirExists(path)) continue;
+        // Directory requires 755 permissions, otherwise 'Permission denied'
+        // will appear
         if (posixWrapper_->mkdir(path.c_str(), 0755) < 0) {
-            LOG(WARNING) << "mkdir " << path << " failed. "<< strerror(errno);
+            LOG(WARNING) << "mkdir " << path << " failed. " << strerror(errno);
             return -errno;
         }
     }
@@ -226,8 +226,7 @@ bool Ext4FileSystemImpl::FileExists(const string& filePath) {
         return false;
 }
 
-int Ext4FileSystemImpl::DoRename(const string& oldPath,
-                                 const string& newPath,
+int Ext4FileSystemImpl::DoRename(const string& oldPath, const string& newPath,
                                  unsigned int flags) {
     int rc = 0;
     if (enableRenameat2_) {
@@ -237,8 +236,7 @@ int Ext4FileSystemImpl::DoRename(const string& oldPath,
     }
     if (rc < 0) {
         LOG(WARNING) << "rename failed: " << strerror(errno)
-                     << ". old path: " << oldPath
-                     << ", new path: " << newPath
+                     << ". old path: " << oldPath << ", new path: " << newPath
                      << ", flag: " << flags;
         return -errno;
     }
@@ -246,21 +244,22 @@ int Ext4FileSystemImpl::DoRename(const string& oldPath,
 }
 
 int Ext4FileSystemImpl::List(const string& dirName,
-                             vector<std::string> *names) {
-    DIR *dir = posixWrapper_->opendir(dirName.c_str());
+                             vector<std::string>* names) {
+    DIR* dir = posixWrapper_->opendir(dirName.c_str());
     if (nullptr == dir) {
         LOG(WARNING) << "opendir:" << dirName << " failed:" << strerror(errno);
         return -errno;
     }
-    struct dirent *dirIter;
+    struct dirent* dirIter;
     errno = 0;
-    while ((dirIter=posixWrapper_->readdir(dir)) != nullptr) {
-        if (strcmp(dirIter->d_name, ".") == 0
-                || strcmp(dirIter->d_name, "..") == 0)
+    while ((dirIter = posixWrapper_->readdir(dir)) != nullptr) {
+        if (strcmp(dirIter->d_name, ".") == 0 ||
+            strcmp(dirIter->d_name, "..") == 0)
             continue;
         names->push_back(dirIter->d_name);
     }
-    // 可能存在其他携程改变了errno，但是只能通过此方式判断readdir是否成功
+    // There may be other Ctrip changes to errno, but this is the only way to
+    // determine whether readdir is successful
     if (errno != 0) {
         LOG(WARNING) << "readdir failed: " << strerror(errno);
     }
@@ -268,19 +267,14 @@ int Ext4FileSystemImpl::List(const string& dirName,
     return -errno;
 }
 
-int Ext4FileSystemImpl::Read(int fd,
-                             char *buf,
-                             uint64_t offset,
-                             int length) {
+int Ext4FileSystemImpl::Read(int fd, char* buf, uint64_t offset, int length) {
     int remainLength = length;
     int relativeOffset = 0;
     int retryTimes = 0;
     while (remainLength > 0) {
-        int ret = posixWrapper_->pread(fd,
-                                       buf + relativeOffset,
-                                       remainLength,
+        int ret = posixWrapper_->pread(fd, buf + relativeOffset, remainLength,
                                        offset);
-        // 如果offset大于文件长度，pread会返回0
+        // If the offset is greater than the file length, pread will return 0
         if (ret == 0) {
             LOG(WARNING) << "pread returns zero."
                          << "offset: " << offset
@@ -304,17 +298,13 @@ int Ext4FileSystemImpl::Read(int fd,
     return length - remainLength;
 }
 
-int Ext4FileSystemImpl::Write(int fd,
-                              const char *buf,
-                              uint64_t offset,
+int Ext4FileSystemImpl::Write(int fd, const char* buf, uint64_t offset,
                               int length) {
     int remainLength = length;
     int relativeOffset = 0;
     int retryTimes = 0;
     while (remainLength > 0) {
-        int ret = posixWrapper_->pwrite(fd,
-                                        buf + relativeOffset,
-                                        remainLength,
+        int ret = posixWrapper_->pwrite(fd, buf + relativeOffset, remainLength,
                                         offset);
         if (ret < 0) {
             if (errno == EINTR && retryTimes < MAX_RETYR_TIME) {
@@ -333,9 +323,7 @@ int Ext4FileSystemImpl::Write(int fd,
     return length;
 }
 
-int Ext4FileSystemImpl::Write(int fd,
-                              butil::IOBuf buf,
-                              uint64_t offset,
+int Ext4FileSystemImpl::Write(int fd, butil::IOBuf buf, uint64_t offset,
                               int length) {
     if (length != static_cast<int>(buf.size())) {
         LOG(ERROR) << "IOBuf::pcut_into_file_descriptor failed, fd: " << fd
@@ -376,9 +364,7 @@ int Ext4FileSystemImpl::Sync(int fd) {
     return 0;
 }
 
-int Ext4FileSystemImpl::Append(int fd,
-                               const char *buf,
-                               int length) {
+int Ext4FileSystemImpl::Append(int fd, const char* buf, int length) {
     (void)fd;
     (void)buf;
     (void)length;
@@ -386,10 +372,7 @@ int Ext4FileSystemImpl::Append(int fd,
     return 0;
 }
 
-int Ext4FileSystemImpl::Fallocate(int fd,
-                                  int op,
-                                  uint64_t offset,
-                                  int length) {
+int Ext4FileSystemImpl::Fallocate(int fd, int op, uint64_t offset, int length) {
     int rc = posixWrapper_->fallocate(fd, op, offset, length);
     if (rc < 0) {
         LOG(ERROR) << "fallocate failed: " << strerror(errno);
@@ -398,7 +381,7 @@ int Ext4FileSystemImpl::Fallocate(int fd,
     return 0;
 }
 
-int Ext4FileSystemImpl::Fstat(int fd, struct stat *info) {
+int Ext4FileSystemImpl::Fstat(int fd, struct stat* info) {
     int rc = posixWrapper_->fstat(fd, info);
     if (rc < 0) {
         LOG(ERROR) << "fstat failed: " << strerror(errno);

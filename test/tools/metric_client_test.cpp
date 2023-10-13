@@ -20,10 +20,12 @@
  * Author: charisu
  */
 
-#include <gtest/gtest.h>
-#include <brpc/server.h>
-#include <string>
 #include "src/tools/metric_client.h"
+
+#include <brpc/server.h>
+#include <gtest/gtest.h>
+
+#include <string>
 
 namespace curve {
 namespace tool {
@@ -43,82 +45,71 @@ class MetricClientTest : public ::testing::Test {
         delete server;
         server = nullptr;
     }
-    brpc::Server *server;
+    brpc::Server* server;
 };
 
 TEST_F(MetricClientTest, GetMetric) {
     MetricClient client;
-    // 正常情况
+    // Normal situation
     std::string metricName = "string_metric";
     bvar::Status<std::string> metric(metricName, "value");
     std::string value;
-    ASSERT_EQ(MetricRet::kOK, client.GetMetric(serverAddr,
-                                      metricName,
-                                      &value));
+    ASSERT_EQ(MetricRet::kOK, client.GetMetric(serverAddr, metricName, &value));
     ASSERT_EQ("value", value);
-    // bvar不存在
-    ASSERT_EQ(MetricRet::kNotFound, client.GetMetric(serverAddr,
-                                      "not-exist-metric",
-                                      &value));
-    // 其他错误
-    ASSERT_EQ(MetricRet::kOtherErr, client.GetMetric("127.0.0.1:9191",
-                                      "not-exist-metric",
-                                      &value));
+    // Bvar does not exist
+    ASSERT_EQ(MetricRet::kNotFound,
+              client.GetMetric(serverAddr, "not-exist-metric", &value));
+    // Other errors
+    ASSERT_EQ(MetricRet::kOtherErr,
+              client.GetMetric("127.0.0.1:9191", "not-exist-metric", &value));
 }
 
 TEST_F(MetricClientTest, GetMetricUint) {
     MetricClient client;
-    // 正常情况
+    // Normal situation
     std::string metricName = "uint_metric";
     bvar::Status<uint64_t> metric(metricName, 10);
     uint64_t value;
-    ASSERT_EQ(MetricRet::kOK, client.GetMetricUint(serverAddr,
-                                      metricName,
-                                      &value));
+    ASSERT_EQ(MetricRet::kOK,
+              client.GetMetricUint(serverAddr, metricName, &value));
     ASSERT_EQ(10, value);
-    // bvar不存在
-    ASSERT_EQ(MetricRet::kNotFound, client.GetMetricUint(serverAddr,
-                                      "not-exist-metric",
-                                      &value));
-    // 其他错误
-    ASSERT_EQ(MetricRet::kOtherErr, client.GetMetricUint("127.0.0.1:9191",
-                                      "not-exist-metric",
-                                      &value));
-    // 解析失败
+    // Bvar does not exist
+    ASSERT_EQ(MetricRet::kNotFound,
+              client.GetMetricUint(serverAddr, "not-exist-metric", &value));
+    // Other errors
+    ASSERT_EQ(
+        MetricRet::kOtherErr,
+        client.GetMetricUint("127.0.0.1:9191", "not-exist-metric", &value));
+    // Parsing failed
     bvar::Status<std::string> metric2("string_metric", "value");
-    ASSERT_EQ(MetricRet::kOtherErr, client.GetMetricUint(serverAddr,
-                                      "string_metric",
-                                      &value));
+    ASSERT_EQ(MetricRet::kOtherErr,
+              client.GetMetricUint(serverAddr, "string_metric", &value));
 }
 
 TEST_F(MetricClientTest, GetConfValue) {
     MetricClient client;
-    // 正常情况
+    // Normal situation
     std::string metricName = "conf_metric";
     bvar::Status<std::string> conf_metric(metricName, "");
-    conf_metric.set_value("{\"conf_name\":\"key\","
-                          "\"conf_value\":\"value\"}");
+    conf_metric.set_value(
+        "{\"conf_name\":\"key\","
+        "\"conf_value\":\"value\"}");
     std::string value;
-    ASSERT_EQ(MetricRet::kOK, client.GetConfValueFromMetric(serverAddr,
-                                                            metricName,
-                                                            &value));
+    ASSERT_EQ(MetricRet::kOK,
+              client.GetConfValueFromMetric(serverAddr, metricName, &value));
     ASSERT_EQ("value", value);
-    // bvar不存在
-    ASSERT_EQ(MetricRet::kNotFound, client.GetConfValueFromMetric(
-                                                        serverAddr,
-                                                        "not-exist-metric",
-                                                        &value));
-    // 其他错误
-    ASSERT_EQ(MetricRet::kOtherErr, client.GetConfValueFromMetric(
-                                                        "127.0.0.1:9191",
-                                                        "not-exist-metric",
-                                                        &value));
-    // 解析失败
+    // Bvar does not exist
+    ASSERT_EQ(
+        MetricRet::kNotFound,
+        client.GetConfValueFromMetric(serverAddr, "not-exist-metric", &value));
+    // Other errors
+    ASSERT_EQ(MetricRet::kOtherErr,
+              client.GetConfValueFromMetric("127.0.0.1:9191",
+                                            "not-exist-metric", &value));
+    // Parsing failed
     conf_metric.set_value("string");
-    ASSERT_EQ(MetricRet::kOtherErr, client.GetConfValueFromMetric(
-                                                        serverAddr,
-                                                        metricName,
-                                                        &value));
+    ASSERT_EQ(MetricRet::kOtherErr,
+              client.GetConfValueFromMetric(serverAddr, metricName, &value));
 }
 
 }  // namespace tool

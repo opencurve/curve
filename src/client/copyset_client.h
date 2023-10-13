@@ -23,11 +23,11 @@
 #ifndef SRC_CLIENT_COPYSET_CLIENT_H_
 #define SRC_CLIENT_COPYSET_CLIENT_H_
 
-#include <google/protobuf/stubs/callback.h>
 #include <butil/iobuf.h>
+#include <google/protobuf/stubs/callback.h>
 
-#include <string>
 #include <memory>
+#include <string>
 
 #include "include/curve_compiler_specific.h"
 #include "src/client/client_common.h"
@@ -43,12 +43,14 @@ namespace client {
 using curve::common::Uncopyable;
 using ::google::protobuf::Closure;
 
-// TODO(tongguangxun) :后续除了read、write的接口也需要调整重试逻辑
+// TODO(tongguangxun): In addition to the read and write interfaces, the retry
+// logic needs to be adjusted in the future
 class MetaCache;
 class RequestScheduler;
 /**
- * 负责管理 ChunkServer 的链接，向上层提供访问
- * 指定 copyset 的 chunk 的 read/write 等接口
+ * Responsible for managing connections to ChunkServers and providing
+ * upper-layer access to read/write interfaces for specific chunks within a
+ * copyset.
  */
 class CopysetClient {
  public:
@@ -68,120 +70,101 @@ class CopysetClient {
         senderManager_ = nullptr;
     }
 
-    int Init(MetaCache *metaCache,
-             const IOSenderOption& ioSenderOpt,
+    int Init(MetaCache* metaCache, const IOSenderOption& ioSenderOpt,
              RequestScheduler* scheduler = nullptr,
              FileMetric* fileMetic = nullptr);
     /**
-     * 返回依赖的Meta Cache
+     * Return dependent Meta Cache
      */
-    MetaCache* GetMetaCache() {
-        return metaCache_;
-    }
+    MetaCache* GetMetaCache() { return metaCache_; }
 
     /**
-     * 读Chunk
-     * @param idinfo为chunk相关的id信息
-     * @param sn:文件版本号
-     * @param offset:读的偏移
-     * @param length:读的长度
-     * @param souceInfo chunk克隆源信息
-     * @param done:上一层异步回调的closure
+     * Reading Chunk
+     * @param idinfo is the ID information related to chunk
+     * @param sn: File version number
+     * @param offset: Read offset
+     * @param length: Read length
+     * @param sourceInfo chunk Clone source information
+     * @param done: closure of asynchronous callback on the previous layer
      */
-    int ReadChunk(const ChunkIDInfo& idinfo,
-                  uint64_t sn,
-                  off_t offset,
-                  size_t length,
-                  const RequestSourceInfo& sourceInfo,
-                  google::protobuf::Closure *done);
+    int ReadChunk(const ChunkIDInfo& idinfo, uint64_t sn, off_t offset,
+                  size_t length, const RequestSourceInfo& sourceInfo,
+                  google::protobuf::Closure* done);
 
     /**
-    * 写Chunk
-    * @param idinfo为chunk相关的id信息
-    * @param fileId: file id
-    * @param epoch: file epoch
-    * @param sn:文件版本号
-    * @param writeData:要写入的数据
-     *@param offset:写的偏移
-    * @param length:写的长度
-    * @param sourceInfo chunk克隆源信息
-    * @param done:上一层异步回调的closure
-    */
-    int WriteChunk(const ChunkIDInfo& idinfo,
-                   uint64_t fileId,
-                   uint64_t epoch,
-                   uint64_t sn,
-                   const butil::IOBuf& writeData,
-                   off_t offset,
-                   size_t length,
-                   const RequestSourceInfo& sourceInfo,
-                   Closure *done);
-
-    /**
-     * 读Chunk快照文件
-     * @param idinfo为chunk相关的id信息
-     * @param sn:文件版本号
-     * @param offset:读的偏移
-     * @param length:读的长度
-     * @param done:上一层异步回调的closure
+     * Write Chunk
+     * @param idinfo is the ID information related to chunk
+     * @param fileId: file id
+     * @param epoch: file epoch
+     * @param sn: File version number
+     * @param writeData: The data to be written
+     *@param offset: write offset
+     * @param length: The length written
+     * @param sourceInfo: chunk Clone source information
+     * @param done: closure of asynchronous callback on the previous layer
      */
-    int ReadChunkSnapshot(const ChunkIDInfo& idinfo,
-                  uint64_t sn,
-                  off_t offset,
-                  size_t length,
-                  Closure *done);
+    int WriteChunk(const ChunkIDInfo& idinfo, uint64_t fileId, uint64_t epoch,
+                   uint64_t sn, const butil::IOBuf& writeData, off_t offset,
+                   size_t length, const RequestSourceInfo& sourceInfo,
+                   Closure* done);
 
     /**
-     * 删除此次转储时产生的或者历史遗留的快照
-     * 如果转储过程中没有产生快照，则修改chunk的correctedSn
-     * @param idinfo为chunk相关的id信息
-     * @param correctedSn:需要修正的版本号
-     * @param done:上一层异步回调的closure
+     *Reading Chunk snapshot files
+     * @param idinfo: the ID information related to chunk
+     * @param sn: File version number
+     * @param offset: Read offset
+     * @param length: Read length
+     * @param done: closure of asynchronous callback on the previous layer
+     */
+    int ReadChunkSnapshot(const ChunkIDInfo& idinfo, uint64_t sn, off_t offset,
+                          size_t length, Closure* done);
+
+    /**
+     * Delete snapshots generated during this dump or left over from history
+     * If no snapshot is generated during the dump process, modify the
+     * correctedSn of the chunk
+     * @param idinfo is the ID information related to chunk
+     * @param correctedSn: Version number that needs to be corrected
+     * @param done: closure of asynchronous callback on the previous layer
      */
     int DeleteChunkSnapshotOrCorrectSn(const ChunkIDInfo& idinfo,
-                  uint64_t correctedSn,
-                  Closure *done);
+                                       uint64_t correctedSn, Closure* done);
 
     /**
-     * 获取chunk文件的信息
-     * @param idinfo为chunk相关的id信息
-     * @param done:上一层异步回调的closure
+     * Obtain information about chunk files
+     * @param idinfo: the ID information related to chunk
+     * @param done: closure of asynchronous callback on the previous layer
      */
-    int GetChunkInfo(const ChunkIDInfo& idinfo,
-                  Closure *done);
+    int GetChunkInfo(const ChunkIDInfo& idinfo, Closure* done);
 
     /**
-    * @brief lazy 创建clone chunk
-    * @param idinfo为chunk相关的id信息
-    * @param:location 数据源的url
-    * @param:sn chunk的序列号
-    * @param:correntSn CreateCloneChunk时候用于修改chunk的correctedSn
-    * @param:chunkSize chunk的大小
-    * @param done:上一层异步回调的closure
-    * @return 错误码
-    */
-    int CreateCloneChunk(const ChunkIDInfo& idinfo,
-                  const std::string &location,
-                  uint64_t sn,
-                  uint64_t correntSn,
-                  uint64_t chunkSize,
-                  Closure *done);
-
-   /**
-    * @brief 实际恢复chunk数据
-    * @param idinfo为chunk相关的id信息
-    * @param:offset 偏移
-    * @param:len 长度
-    * @param done:上一层异步回调的closure
-    * @return 错误码
-    */
-    int RecoverChunk(const ChunkIDInfo& idinfo,
-                  uint64_t offset,
-                  uint64_t len,
-                  Closure *done);
+     * @brief lazy Create clone chunk
+     * @param idinfo: the ID information related to chunk
+     * @param location: URL of the data source
+     * @param sn: chunk's serial number
+     * @param correntSn: used to modify the chunk when creating CloneChunk
+     * @param chunkSize: Chunk size
+     * @param done: closure of asynchronous callback on the previous layer
+     * @return error code
+     */
+    int CreateCloneChunk(const ChunkIDInfo& idinfo, const std::string& location,
+                         uint64_t sn, uint64_t correntSn, uint64_t chunkSize,
+                         Closure* done);
 
     /**
-     * @brief 如果csId对应的RequestSender不健康，就进行重置
+     * @brief Actual recovery chunk data
+     * @param idinfo is the ID information related to chunk
+     * @param offset: offset
+     * @param len: length
+     * @param done: closure of asynchronous callback on the previous layer
+     * @return error code
+     */
+    int RecoverChunk(const ChunkIDInfo& idinfo, uint64_t offset, uint64_t len,
+                     Closure* done);
+
+    /**
+     * @brief If the RequestSender corresponding to csId is not healthy, reset
+     * it
      * @param csId chunkserver id
      */
     void ResetSenderIfNotHealth(const ChunkServerID& csId) {
@@ -189,24 +172,21 @@ class CopysetClient {
     }
 
     /**
-     * session过期，需要将重试RPC停住
+     * session expired, retry RPC needs to be stopped
      */
-    void StartRecycleRetryRPC() {
-        sessionNotValid_ = true;
-    }
+    void StartRecycleRetryRPC() { sessionNotValid_ = true; }
 
     /**
-     * session恢复通知不再回收重试的RPC
+     * session recovery notification no longer recycles retried RPCs
      */
-    void ResumeRPCRetry() {
-        sessionNotValid_ = false;
-    }
+    void ResumeRPCRetry() { sessionNotValid_ = false; }
 
     /**
-     * 在文件关闭的时候接收上层关闭通知, 根据session有效状态
-     * 置位exitFlag, 如果sessio无效状态下再有rpc超时返回，这
-     * 些RPC会直接错误返回，如果session正常，则将继续正常下发
-     * RPC，直到重试次数结束或者成功返回
+     * Receive upper-layer closure notification when the file is closed.
+     * Set the exitFlag based on the session's validity status. If there are RPC
+     * timeouts under an invalid session state, these RPCs will return errors
+     * directly. If the session is valid, RPCs will continue to be issued until
+     * the retry limit is reached or they return successfully.
      */
     void ResetExitFlag() {
         if (sessionNotValid_) {
@@ -218,47 +198,49 @@ class CopysetClient {
     friend class WriteChunkClosure;
     friend class ReadChunkClosure;
 
-    // 拉取新的leader信息
-    bool FetchLeader(LogicPoolID lpid,
-                     CopysetID cpid,
-                     ChunkServerID* leaderid,
+    // Pull new leader information
+    bool FetchLeader(LogicPoolID lpid, CopysetID cpid, ChunkServerID* leaderid,
                      butil::EndPoint* leaderaddr);
 
     /**
-     * 执行发送rpc task，并进行错误重试
-     * @param[in]: idinfo为当前rpc task的id信息
-     * @param[in]: task为本次要执行的rpc task
-     * @param[in]: done是本次rpc 任务的异步回调
-     * @return: 成功返回0， 否则-1
+     * Execute the send rpc task and retry with an error
+     * @param[in]: idinfo is the ID information of the current rpc task
+     * @param[in]: task is the rpc task executed this time
+     * @param[in]: done is the asynchronous callback for this RPC task
+     * @return: Successfully returns 0, otherwise -1
      */
-    int DoRPCTask(const ChunkIDInfo& idinfo,
+    int DoRPCTask(
+        const ChunkIDInfo& idinfo,
         std::function<void(Closure*, std::shared_ptr<RequestSender>)> task,
-        Closure *done);
+        Closure* done);
 
  private:
-    // 元数据缓存
-    MetaCache            *metaCache_;
-    // 所有ChunkServer的链接管理者
-    RequestSenderManager *senderManager_;
-    // 配置
+    // Metadata cache
+    MetaCache* metaCache_;
+    // Link managers for all ChunkServers
+    RequestSenderManager* senderManager_;
+    // Configuration
     IOSenderOption iosenderopt_;
 
-    // session是否有效，如果session无效那么需要将重试的RPC停住
-    // RPC停住通过将这个rpc重新push到request scheduler队列，这样不会
-    // 阻塞brpc内部的线程，防止一个文件的操作影响到其他文件
+    // Check if the session is valid. If the session is invalid, it's necessary
+    // to pause the retry RPCs by re-pushing this RPC into the request scheduler
+    // queue. This ensures that it doesn't block the internal threads of BRPC
+    // and prevents operations on one file from affecting other files.
     bool sessionNotValid_;
 
-    // request 调度器，在session过期的时候重新将RPC push到调度队列
+    // request scheduler to push RPC back to the scheduling queue when the
+    // session expires
     RequestScheduler* scheduler_;
 
-    // 当前copyset client对应的文件metric
+    // The file metric corresponding to the current copyset client
     FileMetric* fileMetric_;
 
-    // 是否在停止状态中，如果是在关闭过程中且session失效，需要将rpc直接返回不下发
+    // Is it in a stopped state? If it is during the shutdown process and the
+    // session fails, it is necessary to directly return rpc without issuing it
     bool exitFlag_;
 };
 
-}   // namespace client
-}   // namespace curve
+}  // namespace client
+}  // namespace curve
 
 #endif  // SRC_CLIENT_COPYSET_CLIENT_H_

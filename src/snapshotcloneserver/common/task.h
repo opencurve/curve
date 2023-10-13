@@ -25,6 +25,7 @@
 
 #include <functional>
 #include <memory>
+
 #include "src/common/snapshotclone/snapshotclone_define.h"
 #include "src/snapshotcloneserver/common/task_tracker.h"
 
@@ -33,8 +34,7 @@ namespace snapshotcloneserver {
 
 class Task {
  public:
-    explicit Task(const TaskIdType &taskId)
-        : taskId_(taskId) {}
+    explicit Task(const TaskIdType& taskId) : taskId_(taskId) {}
 
     virtual ~Task() {}
 
@@ -44,47 +44,40 @@ class Task {
     Task& operator=(Task&&) = default;
 
     /**
-     * @brief 获取快照任务执行体闭包
+     * @brief Get snapshot task execution body closure
      *
-     * @return 快照任务执行体
+     * @return Snapshot Task Execution Body
      */
     virtual std::function<void()> clousre() {
-        return [this] () {
-            Run();
-        };
+        return [this]() { Run(); };
     }
 
     /**
-     * @brief 获取快照任务id
+     * @brief Get snapshot task ID
      *
-     * @return 快照任务id
+     * @return Snapshot Task ID
      */
-    TaskIdType GetTaskId() const {
-        return taskId_;
-    }
+    TaskIdType GetTaskId() const { return taskId_; }
 
     /**
-     * @brief 快照执行函数接口
+     * @brief snapshot execution function interface
      */
     virtual void Run() = 0;
 
  private:
-    // 快照id
+    // Snapshot ID
     TaskIdType taskId_;
 };
 
 class TrackerTask : public Task {
  public:
-    explicit TrackerTask(const TaskIdType &taskId)
-        : Task(taskId) {}
+    explicit TrackerTask(const TaskIdType& taskId) : Task(taskId) {}
 
     void SetTracker(std::shared_ptr<TaskTracker> tracker) {
         tracker_ = tracker;
     }
 
-    std::shared_ptr<TaskTracker> GetTracker() {
-        return tracker_;
-    }
+    std::shared_ptr<TaskTracker> GetTracker() { return tracker_; }
 
  private:
     std::shared_ptr<TaskTracker> tracker_;
@@ -92,6 +85,5 @@ class TrackerTask : public Task {
 
 }  // namespace snapshotcloneserver
 }  // namespace curve
-
 
 #endif  // SRC_SNAPSHOTCLONESERVER_COMMON_TASK_H_

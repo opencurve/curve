@@ -6,7 +6,7 @@ dataDir={{ chunkserver_data_dir }}
 raftLogProtocol={{ chunkserver_raft_log_procotol }}
 source ./chunkserver_deploy.sh
 
-# 使用方式
+# Usage
 function help() {
     echo "COMMANDS:"
     echo "    start   :  start chunkserver"
@@ -50,18 +50,18 @@ function ip_value() {
   }'
 }
 
-# 从subnet获取ip
+# Obtain IP from subnet
 function get_ip_from_subnet() {
     subnet=$1
     prefix=$(ip_value $subnet)
     mod=`echo $subnet|awk -F/ '{print $2}'`
     mask=$((2**32-2**(32-$mod)))
-    # 对prefix再取一次模，为了支持10.182.26.50/22这种格式
+    # Take the module again for the prefix to support the format 10.182.26.50/22
     prefix=$(($prefix&$mask))
     ip=
     for i in `/sbin/ifconfig -a|grep inet|grep -v inet6|awk '{print $2}'|tr -d "addr:"`
     do
-        # 把ip转换成整数
+        # Convert IP to an integer
         ip_int=$(ip_value $i)
         if [ $(($ip_int&$mask)) -eq $prefix ]
         then
@@ -76,7 +76,7 @@ function get_ip_from_subnet() {
     fi
 }
 
-# 启动chunkserver
+# Start chunkserver
 function start() {
     if [ $# -lt 1 ]
     then
@@ -87,7 +87,7 @@ function start() {
     then
 	    confPath=$3
     fi
-    # 检查配置文件
+    # Check configuration file
     if [ ! -f ${confPath} ]
     then
         echo "confPath $confPath not exist!"
@@ -104,7 +104,7 @@ function start() {
     get_ip_from_subnet $external_subnet
     external_ip=$ip
     enableExternalServer=true
-    # external ip和internal ip一致或external ip为127.0.0.1时不启动external server
+    # Do not start the external server when the external IP and internal IP are consistent or when the external IP is 127.0.0.1
     if [ $internal_ip = $external_ip -o $external_ip = "127.0.0.1" ]
     then
         enableExternalServer=false
@@ -148,7 +148,7 @@ function start_one() {
     fi
 
     jemallocpath={{ jemalloc_path }}
-    # 检查jemalloc库文件
+    # Check the Jemalloc library file
     if [ ! -f ${jemallocpath} ]
     then
         echo "Not found jemalloc library, Path is ${jemallocpath}"
@@ -230,7 +230,7 @@ function restart() {
 }
 
 function wait_stop() {
-    # wait 3秒钟让它退出
+    # Wait for 3 seconds to exit
     retry_times=0
     while [ $retry_times -le 3 ]
     do
@@ -244,7 +244,7 @@ function wait_stop() {
             break
         fi
     done
-    # 如果进程还在，就kill -9
+    # If the process is still in progress, kill -9
     ps -efl|grep -E "curve-chunkserver .*${dataDir}/chunkserver$1 "|grep -v grep > /dev/null 2>&1
     if [ $? -eq 0 ]
     then
@@ -325,12 +325,12 @@ function deploy() {
 }
 
 function format() {
-    # 格式化chunkfile pool
+     Format chunkfile pool
     curve-format $*
 }
 
 function recordmeta() {
-    # 将当前的磁盘的uuid及其md5备份到磁盘的disk.meta文件中
+    # Back up the current disk's uuid and its md5 to the disk's disk.meta file
     meta_record;
 }
 

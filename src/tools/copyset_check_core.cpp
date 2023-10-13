@@ -20,15 +20,19 @@
  * Author: charisu
  */
 #include "src/tools/copyset_check_core.h"
+
 #include <math.h>
+
 #include <cstdint>
 
 DEFINE_uint64(margin, 1000, "The threshold of the gap between peers");
 DEFINE_uint64(replicasNum, 3, "the number of replicas that required");
-DEFINE_uint64(operatorMaxPeriod, 30, "max period of operator generating, "
-                    "if no operators in a period, it considered to be healthy");
-DEFINE_bool(checkOperator, false, "if true, the operator number of "
-                                    "mds will be considered");
+DEFINE_uint64(operatorMaxPeriod, 30,
+              "max period of operator generating, "
+              "if no operators in a period, it considered to be healthy");
+DEFINE_bool(checkOperator, false,
+            "if true, the operator number of "
+            "mds will be considered");
 
 namespace curve {
 namespace tool {
@@ -38,24 +42,22 @@ int CopysetCheckCore::Init(const std::string& mdsAddr) {
 }
 
 CopysetStatistics::CopysetStatistics(uint64_t total, uint64_t unhealthy)
-            : totalNum(total), unhealthyNum(unhealthy) {
+    : totalNum(total), unhealthyNum(unhealthy) {
     if (total != 0) {
-        unhealthyRatio =
-            static_cast<double>(unhealthyNum) / totalNum;
+        unhealthyRatio = static_cast<double>(unhealthyNum) / totalNum;
     } else {
         unhealthyRatio = 0;
     }
 }
 
 CheckResult CopysetCheckCore::CheckOneCopyset(const PoolIdType& logicalPoolId,
-                                  const CopySetIdType& copysetId) {
+                                              const CopySetIdType& copysetId) {
     Clear();
     std::vector<ChunkServerLocation> chunkserverLocation;
-    int res = mdsClient_->GetChunkServerListInCopySet(logicalPoolId,
-                                copysetId, &chunkserverLocation);
+    int res = mdsClient_->GetChunkServerListInCopySet(logicalPoolId, copysetId,
+                                                      &chunkserverLocation);
     if (res != 0) {
-        std::cout << "GetChunkServerListInCopySet from mds fail!"
-                  << std::endl;
+        std::cout << "GetChunkServerListInCopySet from mds fail!" << std::endl;
         return CheckResult::kOtherErr;
     }
     int majority = chunkserverLocation.size() / 2 + 1;
@@ -69,7 +71,7 @@ CheckResult CopysetCheckCore::CheckOneCopyset(const PoolIdType& logicalPoolId,
         butil::IOBuf iobuf;
         int res = QueryChunkServer(csAddr, &iobuf);
         if (res != 0) {
-            // 如果查询chunkserver失败，认为不在线
+            // If the query for chunkserver fails, it is considered offline
             serviceExceptionChunkServers_.emplace(csAddr);
             chunkserverCopysets_[csAddr] = {};
             ++offlinePeers;
@@ -92,7 +94,7 @@ CheckResult CopysetCheckCore::CheckOneCopyset(const PoolIdType& logicalPoolId,
             }
         } else {
             if (copysetInfo.count(kLeader) == 0 ||
-                            copysetInfo[kLeader] == kEmptyAddr) {
+                copysetInfo[kLeader] == kEmptyAddr) {
                 checkRes = CheckResult::kOtherErr;
             }
         }
@@ -106,20 +108,20 @@ CheckResult CopysetCheckCore::CheckOneCopyset(const PoolIdType& logicalPoolId,
 }
 
 int CopysetCheckCore::CheckCopysetsOnChunkServer(
-                        const ChunkServerIdType& chunkserverId) {
+    const ChunkServerIdType& chunkserverId) {
     Clear();
     return CheckCopysetsOnChunkServer(chunkserverId, "");
 }
 
 int CopysetCheckCore::CheckCopysetsOnChunkServer(
-                        const std::string& chunkserverAddr) {
+    const std::string& chunkserverAddr) {
     Clear();
     return CheckCopysetsOnChunkServer(0, chunkserverAddr);
 }
 
 int CopysetCheckCore::CheckCopysetsOnChunkServer(
-                        const ChunkServerIdType& chunkserverId,
-                        const std::string& chunkserverAddr) {
+    const ChunkServerIdType& chunkserverId,
+    const std::string& chunkserverAddr) {
     curve::mds::topology::ChunkServerInfo csInfo;
     int res = 0;
     if (chunkserverId > 0) {
@@ -131,7 +133,7 @@ int CopysetCheckCore::CheckCopysetsOnChunkServer(
         std::cout << "GetChunkServerInfo from mds fail!" << std::endl;
         return -1;
     }
-    // 如果chunkserver retired的话不发送请求
+    // If chunkserver is redirected, do not send the request
     if (csInfo.status() == ChunkServerStatus::RETIRED) {
         std::cout << "ChunkServer is retired!" << std::endl;
         return 0;
@@ -139,7 +141,7 @@ int CopysetCheckCore::CheckCopysetsOnChunkServer(
     std::string hostIp = csInfo.hostip();
     uint64_t port = csInfo.port();
     std::string csAddr = hostIp + ":" + std::to_string(port);
-    // 向chunkserver发送RPC请求获取raft state
+    // Send RPC request to chunkserver to obtain raft state
     ChunkServerHealthStatus csStatus = CheckCopysetsOnChunkServer(csAddr, {});
     if (csStatus == ChunkServerHealthStatus::kHealthy) {
         return 0;
@@ -149,11 +151,8 @@ int CopysetCheckCore::CheckCopysetsOnChunkServer(
 }
 
 ChunkServerHealthStatus CopysetCheckCore::CheckCopysetsOnChunkServer(
-                                const std::string& chunkserverAddr,
-                                const std::set<std::string>& groupIds,
-                                bool queryLeader,
-                                std::pair<int, butil::IOBuf> *record,
-                                bool queryCs) {
+    const std::string& chunkserverAddr, const std::set<std::string>& groupIds,
+    bool queryLeader, std::pair<int, butil::IOBuf>* record, bool queryCs) {
     bool isHealthy = true;
     int res = 0;
     butil::IOBuf iobuf;
@@ -165,33 +164,38 @@ ChunkServerHealthStatus CopysetCheckCore::CheckCopysetsOnChunkServer(
     }
 
     if (res != 0) {
-        // 如果查询chunkserver失败，认为不在线，把它上面所有的
-        // copyset都添加到peerNotOnlineCopysets_里面
+        // If querying the chunkserver fails, consider it offline and add all
+        // its copysets to the peerNotOnlineCopysets_.
         UpdatePeerNotOnlineCopysets(chunkserverAddr);
         serviceExceptionChunkServers_.emplace(chunkserverAddr);
         chunkserverCopysets_[chunkserverAddr] = {};
         return ChunkServerHealthStatus::kNotOnline;
     }
-    // 存储每一个copyset的详细信息
+    // Store detailed information for each copyset
     CopySetInfosType copysetInfos;
     ParseResponseAttachment(groupIds, &iobuf, &copysetInfos);
-    // 只有查询全部chunkserver的时候才更新chunkServer上的copyset列表
+    // Only update the copyset list on chunkServer when querying all
+    // chunkservers
     if (groupIds.empty()) {
         UpdateChunkServerCopysets(chunkserverAddr, copysetInfos);
     }
 
-    // 对应的chunkserver上没有要找的leader的copyset，可能已经迁移出去了，
-    // 但是follower这边还没更新，这种情况也认为chunkserver不健康
+    // There is no copyset for the leader you are looking for on the
+    // corresponding chunkserver, it may have already been migrated, But the
+    // follower has not been updated yet, and this situation also suggests that
+    // chunkserver is unhealthy
     if (copysetInfos.empty() ||
-            (!groupIds.empty() && copysetInfos.size() != groupIds.size())) {
+        (!groupIds.empty() && copysetInfos.size() != groupIds.size())) {
         std::cout << "Some copysets not found on chunkserver, may be tranfered"
                   << std::endl;
         return ChunkServerHealthStatus::kNotHealthy;
     }
-    // 存储需要发送消息的chunkserver的地址和对应的groupId
-    // key是chunkserver地址，value是groupId的列表
+    // Store the address and corresponding groupId of the chunkserver that needs
+    // to send messages Key is the chunkserver address, and value is a list of
+    // groupIds
     std::map<std::string, std::set<std::string>> csAddrMap;
-    // 存储没有leader的copyset对应的peers，key为groupId，value为配置
+    // Store the peers corresponding to the copyset without a leader, with key
+    // as groupId and value as configuration
     std::map<std::string, std::vector<std::string>> noLeaderCopysetsPeers;
     for (auto& copysetInfo : copysetInfos) {
         std::string groupId = copysetInfo[kGroupId];
@@ -228,17 +232,17 @@ ChunkServerHealthStatus CopysetCheckCore::CheckCopysetsOnChunkServer(
                     break;
             }
         } else if (state == kStateFollower) {
-            // 如果没有leader，检查是否是大多数不在线
-            // 是的话标记为大多数不在线，否则标记为No leader
+            // If there is no leader, check if most are offline
+            // If yes, mark it as mostly offline, otherwise mark it as No leader
             if (copysetInfo.count(kLeader) == 0 ||
-                        copysetInfo[kLeader] == kEmptyAddr) {
+                copysetInfo[kLeader] == kEmptyAddr) {
                 std::vector<std::string> peers;
                 curve::common::SplitString(copysetInfo[kPeers], " ", &peers);
                 noLeaderCopysetsPeers[groupId] = peers;
                 continue;
             }
             if (queryLeader) {
-                // 向leader发送rpc请求
+                // Send an rpc request to the leader
                 auto pos = copysetInfo[kLeader].rfind(":");
                 auto csAddr = copysetInfo[kLeader].substr(0, pos);
                 csAddrMap[csAddr].emplace(groupId);
@@ -247,25 +251,25 @@ ChunkServerHealthStatus CopysetCheckCore::CheckCopysetsOnChunkServer(
             copysets_[kNoLeader].emplace(groupId);
             isHealthy = false;
         } else {
-            // 其他情况有ERROR,UNINITIALIZED,SHUTTING和SHUTDOWN，这种都认为不健康，统计到
-            // copyset里面
+            // In other cases such as ERROR, UNINITIALIZED, SHUTTING, and
+            // SHUTDOWN, they are considered unhealthy and are counted within
+            // the copyset.
             std::string key = "state " + copysetInfo[kState];
             copysets_[key].emplace(groupId);
             isHealthy = false;
         }
     }
 
-    // 遍历没有leader的copyset
-    bool health = CheckCopysetsNoLeader(chunkserverAddr,
-                                        noLeaderCopysetsPeers);
+    // Traverse copysets without leaders
+    bool health = CheckCopysetsNoLeader(chunkserverAddr, noLeaderCopysetsPeers);
     if (!health) {
         isHealthy = false;
     }
 
-    // 遍历chunkserver发送请求
+    // Traverse chunkserver to send requests
     for (const auto& item : csAddrMap) {
-        ChunkServerHealthStatus res = CheckCopysetsOnChunkServer(item.first,
-                                                                 item.second);
+        ChunkServerHealthStatus res =
+            CheckCopysetsOnChunkServer(item.first, item.second);
         if (res != ChunkServerHealthStatus::kHealthy) {
             isHealthy = false;
         }
@@ -277,10 +281,9 @@ ChunkServerHealthStatus CopysetCheckCore::CheckCopysetsOnChunkServer(
     }
 }
 
-bool CopysetCheckCore::CheckCopysetsNoLeader(const std::string& csAddr,
-                                             const std::map<std::string,
-                                             std::vector<std::string>>&
-                                             copysetsPeers) {
+bool CopysetCheckCore::CheckCopysetsNoLeader(
+    const std::string& csAddr,
+    const std::map<std::string, std::vector<std::string>>& copysetsPeers) {
     if (copysetsPeers.empty()) {
         return true;
     }
@@ -296,13 +299,12 @@ bool CopysetCheckCore::CheckCopysetsNoLeader(const std::string& csAddr,
         return false;
     }
     for (const auto& item : result) {
-        // 如果在配置组中，检查是否是majority offline
+        // If in the configuration group, check if it is a majority offline
         if (item.second) {
             isHealthy = false;
             std::string groupId = item.first;
-            CheckResult checkRes = CheckPeerOnlineStatus(
-                                        groupId,
-                                        copysetsPeers.at(item.first));
+            CheckResult checkRes =
+                CheckPeerOnlineStatus(groupId, copysetsPeers.at(item.first));
             if (checkRes == CheckResult::kMajorityPeerNotOnline) {
                 copysets_[kMajorityPeerNotOnline].emplace(groupId);
                 continue;
@@ -313,9 +315,9 @@ bool CopysetCheckCore::CheckCopysetsNoLeader(const std::string& csAddr,
     return isHealthy;
 }
 
-int CopysetCheckCore::CheckIfChunkServerInCopysets(const std::string& csAddr,
-                                    const std::set<std::string> copysets,
-                                    std::map<std::string, bool>* result) {
+int CopysetCheckCore::CheckIfChunkServerInCopysets(
+    const std::string& csAddr, const std::set<std::string> copysets,
+    std::map<std::string, bool>* result) {
     PoolIdType logicPoolId;
     std::vector<CopySetIdType> copysetIds;
     for (const auto& gId : copysets) {
@@ -330,8 +332,8 @@ int CopysetCheckCore::CheckIfChunkServerInCopysets(const std::string& csAddr,
     }
 
     std::vector<CopySetServerInfo> csServerInfos;
-    int res = mdsClient_->GetChunkServerListInCopySets(logicPoolId,
-                                                copysetIds, &csServerInfos);
+    int res = mdsClient_->GetChunkServerListInCopySets(logicPoolId, copysetIds,
+                                                       &csServerInfos);
     if (res != 0) {
         std::cout << "GetChunkServerListInCopySets fail!" << std::endl;
         return res;
@@ -340,8 +342,8 @@ int CopysetCheckCore::CheckIfChunkServerInCopysets(const std::string& csAddr,
         CopySetIdType copysetId = info.copysetid();
         std::string groupId = ToGroupId(logicPoolId, copysetId);
         for (const auto& csLoc : info.cslocs()) {
-            std::string addr = csLoc.hostip() + ":"
-                               + std::to_string(csLoc.port());
+            std::string addr =
+                csLoc.hostip() + ":" + std::to_string(csLoc.port());
             if (addr == csAddr) {
                 (*result)[groupId] = true;
                 break;
@@ -351,22 +353,23 @@ int CopysetCheckCore::CheckIfChunkServerInCopysets(const std::string& csAddr,
     return 0;
 }
 
-int CopysetCheckCore::CheckCopysetsOnServer(const ServerIdType& serverId,
-                            std::vector<std::string>* unhealthyChunkServers) {
+int CopysetCheckCore::CheckCopysetsOnServer(
+    const ServerIdType& serverId,
+    std::vector<std::string>* unhealthyChunkServers) {
     Clear();
     return CheckCopysetsOnServer(serverId, "", true, unhealthyChunkServers);
 }
 
-int CopysetCheckCore::CheckCopysetsOnServer(const std::string& serverIp,
-                            std::vector<std::string>* unhealthyChunkServers) {
+int CopysetCheckCore::CheckCopysetsOnServer(
+    const std::string& serverIp,
+    std::vector<std::string>* unhealthyChunkServers) {
     Clear();
     return CheckCopysetsOnServer(0, serverIp, true, unhealthyChunkServers);
 }
 
 void CopysetCheckCore::ConcurrentCheckCopysetsOnServer(
-                const std::vector<ChunkServerInfo> &chunkservers,
-                uint32_t *index, std::map<std::string,
-                std::pair<int, butil::IOBuf>> *result) {
+    const std::vector<ChunkServerInfo>& chunkservers, uint32_t* index,
+    std::map<std::string, std::pair<int, butil::IOBuf>>* result) {
     while (1) {
         indexMutex.lock();
         if (*index + 1 > chunkservers.size()) {
@@ -386,11 +389,11 @@ void CopysetCheckCore::ConcurrentCheckCopysetsOnServer(
     }
 }
 
-int CopysetCheckCore::CheckCopysetsOnServer(const ServerIdType& serverId,
-                            const std::string& serverIp, bool queryLeader,
-                            std::vector<std::string>* unhealthyChunkServers) {
+int CopysetCheckCore::CheckCopysetsOnServer(
+    const ServerIdType& serverId, const std::string& serverIp, bool queryLeader,
+    std::vector<std::string>* unhealthyChunkServers) {
     bool isHealthy = true;
-    // 向mds发送RPC
+    // Send RPC to mds
     int res = 0;
     std::vector<ChunkServerInfo> chunkservers;
     if (serverId > 0) {
@@ -406,16 +409,15 @@ int CopysetCheckCore::CheckCopysetsOnServer(const ServerIdType& serverId,
     std::map<std::string, std::pair<int, butil::IOBuf>> queryCsResult;
     uint32_t index = 0;
     for (uint64_t i = 0; i < FLAGS_rpcConcurrentNum; i++) {
-        threadpool.emplace_back(Thread(
-                        &CopysetCheckCore::ConcurrentCheckCopysetsOnServer,
-                        this, std::ref(chunkservers), &index,
-                        &queryCsResult));
+        threadpool.emplace_back(
+            Thread(&CopysetCheckCore::ConcurrentCheckCopysetsOnServer, this,
+                   std::ref(chunkservers), &index, &queryCsResult));
     }
-    for (auto &thread : threadpool) {
+    for (auto& thread : threadpool) {
         thread.join();
     }
 
-    for (auto &record : queryCsResult) {
+    for (auto& record : queryCsResult) {
         std::string chunkserverAddr = record.first;
         auto res = CheckCopysetsOnChunkServer(chunkserverAddr, {}, queryLeader,
                                               &record.second, false);
@@ -429,7 +431,7 @@ int CopysetCheckCore::CheckCopysetsOnServer(const ServerIdType& serverId,
 
     if (isHealthy) {
         return 0;
-    }  else {
+    } else {
         return -1;
     }
 }
@@ -450,18 +452,21 @@ int CopysetCheckCore::CheckCopysetsInCluster() {
             isHealthy = false;
         }
     }
-    // 检查从chunkserver上获取的copyset数量与mds记录的数量是否一致
+    // Check if the number of copysets obtained from chunkserver matches the
+    // number of mds records
     res = CheckCopysetsWithMds();
     if (res != 0) {
         std::cout << "CheckCopysetNumWithMds fail!" << std::endl;
         return -1;
     }
-    // 如果不健康，直接返回，如果健康，还需要对operator作出判断
+    // If not healthy, return directly. If healthy, make a judgment on the
+    // operator
     if (!isHealthy) {
         return -1;
     }
-    // 默认不检查operator，在测试脚本之类的要求比较严格的地方才检查operator，不然
-    // 每次执行命令等待30秒很不方便
+    // By default, operators are not checked, and only checked in areas with
+    // strict requirements such as test scripts, otherwise waiting for 30
+    // seconds each time executing a command is inconvenient
     if (FLAGS_checkOperator) {
         int res = CheckOperator(kTotalOpName, FLAGS_operatorMaxPeriod);
         if (res != 0) {
@@ -482,21 +487,22 @@ int CopysetCheckCore::CheckCopysetsWithMds() {
     if (copysetsInMds.size() != copysets_[kTotal].size()) {
         std::cout << "Copyset numbers in chunkservers not consistent"
                      " with mds, please check! copysets on chunkserver: "
-                     << copysets_[kTotal].size() << ", copysets in mds: "
-                     << copysetsInMds.size() << std::endl;
+                  << copysets_[kTotal].size()
+                  << ", copysets in mds: " << copysetsInMds.size() << std::endl;
         return -1;
     }
     std::set<std::string> copysetsInMdsGid;
     for (const auto& copyset : copysetsInMds) {
-        std::string gId = ToGroupId(copyset.logicalpoolid(),
-                                    copyset.copysetid());
+        std::string gId =
+            ToGroupId(copyset.logicalpoolid(), copyset.copysetid());
         copysetsInMdsGid.insert(gId);
     }
     int ret = 0;
     std::vector<std::string> copysetsInMdsNotInCs(10);
-    auto iter = std::set_difference(copysetsInMdsGid.begin(),
-                    copysetsInMdsGid.end(), copysets_[kTotal].begin(),
-                    copysets_[kTotal].end(), copysetsInMdsNotInCs.begin());
+    auto iter =
+        std::set_difference(copysetsInMdsGid.begin(), copysetsInMdsGid.end(),
+                            copysets_[kTotal].begin(), copysets_[kTotal].end(),
+                            copysetsInMdsNotInCs.begin());
     copysetsInMdsNotInCs.resize(iter - copysetsInMdsNotInCs.begin());
     if (!copysetsInMdsNotInCs.empty()) {
         std::cout << "There are " << copysetsInMdsNotInCs.size()
@@ -508,9 +514,10 @@ int CopysetCheckCore::CheckCopysetsWithMds() {
         ret = -1;
     }
     std::vector<std::string> copysetsInCsNotInMds(10);
-    iter = std::set_difference(copysets_[kTotal].begin(),
-                copysets_[kTotal].end(), copysetsInMdsGid.begin(),
-                    copysetsInMdsGid.end(), copysetsInCsNotInMds.begin());
+    iter =
+        std::set_difference(copysets_[kTotal].begin(), copysets_[kTotal].end(),
+                            copysetsInMdsGid.begin(), copysetsInMdsGid.end(),
+                            copysetsInCsNotInMds.begin());
     copysetsInCsNotInMds.resize(iter - copysetsInCsNotInMds.begin());
     if (!copysetsInCsNotInMds.empty()) {
         std::cout << "There are " << copysetsInCsNotInMds.size()
@@ -542,8 +549,8 @@ int CopysetCheckCore::CheckScanStatus(
             continue;
         }
 
-        auto groupId = ToGroupId(copysetInfo.logicalpoolid(),
-                                 copysetInfo.copysetid());
+        auto groupId =
+            ToGroupId(copysetInfo.logicalpoolid(), copysetInfo.copysetid());
         copysets_[kThreeCopiesInconsistent].emplace(groupId);
         count++;
     }
@@ -565,37 +572,41 @@ int CopysetCheckCore::CheckOperator(const std::string& opName,
         if (opNum != 0) {
             return opNum;
         }
-        if (curve::common::TimeUtility::GetTimeofDaySec() -
-                                        startTime >= checkTimeSec) {
+        if (curve::common::TimeUtility::GetTimeofDaySec() - startTime >=
+            checkTimeSec) {
             break;
         }
         sleep(1);
-    } while (curve::common::TimeUtility::GetTimeofDaySec() -
-                                        startTime < checkTimeSec);
+    } while (curve::common::TimeUtility::GetTimeofDaySec() - startTime <
+             checkTimeSec);
     return 0;
 }
 
-// 每个copyset的信息都会存储在一个map里面，map的key有
-// groupId: 复制组的groupId
-// peer_id: 10.182.26.45:8210:0格式的peer id
-// state: 节点的状态，LEADER,FOLLOWER,CANDIDATE等等
-// peers: 配置组里的成员，通过空格分隔
-// last_log_id: 最后一个log entry的index
-// leader: state为LEADER时才存在这个key，指向复制组leader
+// Information for each copyset is stored in a map. The map's keys include:
+// - groupId: The groupId of the replication group.
+// - peer_id: The peer id in the format 10.182.26.45:8210:0.
+// - state: The node's state, which can be LEADER, FOLLOWER, CANDIDATE, etc.
+// - peers: Members in the configuration group, separated by spaces.
+// - last_log_id: The index of the last log entry.
+// - leader: This key exists only when the state is LEADER and points to the
+// leader of the replication group.
 //
-// replicator_1: 第一个follower的复制状态,value如下：
-// next_index=6349842  flying_append_entries_size=0 idle hc=1234 ac=123 ic=0
-//     next_index为下一个要发送给该follower的index
-//     flying_append_entries_size是发出去还未确认的entry的数量
-//     idle表明没有在安装快照，如果在安装快照的话是installing snapshot {12, 3},
-//     1234和3分别是快照包含的最后一个log entry的index和term
-//     hc,ac,ic分别是发向follower的heartbeat，append entry，
-//     和install snapshot的rpc的数量
+// replicator_1: The replication status of the first follower, with values as
+// follows: next_index=6349842 flying_append_entries_size=0 idle hc=1234 ac=123
+// ic=0
+//     - next_index: The next index to be sent to this follower.
+//     - flying_append_entries_size: The number of unconfirmed entries that have
+//     been sent.
+//     - idle: Indicates whether there is no snapshot installation. If a
+//     snapshot is being installed, it will show as "installing snapshot {12,
+//     3}",
+//       where 1234 and 3 are the last log entry's index and term included in
+//       the snapshot.
+//     - hc, ac, ic: The counts of RPCs sent to the follower for heartbeat,
+//     append entry, and install snapshot, respectively.
 void CopysetCheckCore::ParseResponseAttachment(
-                    const std::set<std::string>& gIds,
-                    butil::IOBuf* iobuf,
-                    CopySetInfosType* copysetInfos,
-                    bool saveIobufStr) {
+    const std::set<std::string>& gIds, butil::IOBuf* iobuf,
+    CopySetInfosType* copysetInfos, bool saveIobufStr) {
     butil::IOBuf copyset;
     iobuf->append("\r\n");
     while (iobuf->cut_until(&copyset, "\r\n\r\n") == 0) {
@@ -629,7 +640,7 @@ void CopysetCheckCore::ParseResponseAttachment(
                     continue;
                 }
             }
-            // 找到了copyset
+            // Found copyset
             auto pos = line.npos;
             if (line.find(kReplicator) != line.npos) {
                 pos = line.rfind(":");
@@ -640,7 +651,7 @@ void CopysetCheckCore::ParseResponseAttachment(
                 continue;
             }
             std::string key = line.substr(0, pos);
-            // 如果是replicator，把key简化一下
+            // If it's a replicator, simplify the key
             if (key.find(kReplicator) != key.npos) {
                 key = kReplicator + std::to_string(i);
                 ++i;
@@ -660,10 +671,11 @@ void CopysetCheckCore::ParseResponseAttachment(
 }
 
 int CopysetCheckCore::QueryChunkServer(const std::string& chunkserverAddr,
-                                   butil::IOBuf* iobuf) {
+                                       butil::IOBuf* iobuf) {
     // unit test will set csClient_ to mock
-    auto csClient = (csClient_ == nullptr) ?
-                     std::make_shared<ChunkServerClient>() : csClient_;
+    auto csClient = (csClient_ == nullptr)
+                        ? std::make_shared<ChunkServerClient>()
+                        : csClient_;
     int res = csClient->Init(chunkserverAddr);
     if (res != 0) {
         std::cout << "Init chunkserverClient fail!" << std::endl;
@@ -673,8 +685,7 @@ int CopysetCheckCore::QueryChunkServer(const std::string& chunkserverAddr,
 }
 
 void CopysetCheckCore::UpdateChunkServerCopysets(
-                        const std::string& csAddr,
-                        const CopySetInfosType& copysetInfos) {
+    const std::string& csAddr, const CopySetInfosType& copysetInfos) {
     std::set<std::string> copysetIds;
     for (const auto& copyset : copysetInfos) {
         copysetIds.emplace(copyset.at(kGroupId));
@@ -682,11 +693,12 @@ void CopysetCheckCore::UpdateChunkServerCopysets(
     chunkserverCopysets_[csAddr] = copysetIds;
 }
 
-// 通过发送RPC检查chunkserver是否在线
+// Check if chunkserver is online by sending RPC
 bool CopysetCheckCore::CheckChunkServerOnline(
-                    const std::string& chunkserverAddr) {
-    auto csClient = (csClient_ == nullptr) ?
-                     std::make_shared<ChunkServerClient>() : csClient_;
+    const std::string& chunkserverAddr) {
+    auto csClient = (csClient_ == nullptr)
+                        ? std::make_shared<ChunkServerClient>()
+                        : csClient_;
     int res = csClient->Init(chunkserverAddr);
     if (res != 0) {
         std::cout << "Init chunkserverClient fail!" << std::endl;
@@ -718,7 +730,7 @@ bool CopysetCheckCore::CheckCopySetOnline(const std::string& csAddr,
     butil::IOBuf iobuf;
     int res = QueryChunkServer(csAddr, &iobuf);
     if (res != 0) {
-        // 如果查询chunkserver失败，认为不在线
+        // If the query for chunkserver fails, it is considered offline
         serviceExceptionChunkServers_.emplace(csAddr);
         chunkserverCopysets_[csAddr] = {};
         return false;
@@ -727,7 +739,7 @@ bool CopysetCheckCore::CheckCopySetOnline(const std::string& csAddr,
     ParseResponseAttachment({}, &iobuf, &copysetInfos);
     UpdateChunkServerCopysets(csAddr, copysetInfos);
     bool online = (chunkserverCopysets_[csAddr].find(groupId) !=
-                                    chunkserverCopysets_[csAddr].end());
+                   chunkserverCopysets_[csAddr].end());
     if (!online) {
         copysetLoacExceptionChunkServers_.emplace(csAddr);
     }
@@ -735,8 +747,7 @@ bool CopysetCheckCore::CheckCopySetOnline(const std::string& csAddr,
 }
 
 CheckResult CopysetCheckCore::CheckPeerOnlineStatus(
-                            const std::string& groupId,
-                            const std::vector<std::string>& peers) {
+    const std::string& groupId, const std::vector<std::string>& peers) {
     int notOnlineNum = 0;
     for (const auto& peer : peers) {
         auto pos = peer.rfind(":");
@@ -762,20 +773,20 @@ CheckResult CopysetCheckCore::CheckPeerOnlineStatus(
 }
 
 CheckResult CopysetCheckCore::CheckHealthOnLeader(
-                std::map<std::string, std::string>* map) {
-    // 先判断peers是否小于3
+    std::map<std::string, std::string>* map) {
+    // First, determine if the peers are less than 3
     std::vector<std::string> peers;
     curve::common::SplitString((*map)[kPeers], " ", &peers);
     if (peers.size() < FLAGS_replicasNum) {
         return CheckResult::kPeersNoSufficient;
     }
     std::string groupId = (*map)[kGroupId];
-    // 检查不在线peer的数量
+    // Check the number of offline peers
     CheckResult checkRes = CheckPeerOnlineStatus(groupId, peers);
     if (checkRes != CheckResult::kHealthy) {
         return checkRes;
     }
-    // 根据replicator的情况判断log index之间的差距
+    // Judging the gap between log indices based on the replicator's situation
     uint64_t lastLogId;
     std::string str = (*map)[kStorage];
     auto pos1 = str.find("=");
@@ -785,7 +796,7 @@ CheckResult CopysetCheckCore::CheckHealthOnLeader(
         return CheckResult::kParseError;
     }
     bool res = curve::common::StringToUll(str.substr(pos1 + 1, pos2 - pos1 - 1),
-                                                        &lastLogId);
+                                          &lastLogId);
     if (!res) {
         std::cout << "parse last log id from string fail!" << std::endl;
         return CheckResult::kParseError;
@@ -805,16 +816,15 @@ CheckResult CopysetCheckCore::CheckHealthOnLeader(
                 }
             }
             if (info.substr(0, pos) == kNextIndex) {
-                res = curve::common::StringToUll(
-                        info.substr(pos + 1), &nextIndex);
+                res = curve::common::StringToUll(info.substr(pos + 1),
+                                                 &nextIndex);
                 if (!res) {
                     std::cout << "parse next index fail!" << std::endl;
                     return CheckResult::kParseError;
                 }
             }
             if (info.substr(0, pos) == "flying_append_entries_size") {
-                res = curve::common::StringToUll(info.substr(pos + 1),
-                                                            &flying);
+                res = curve::common::StringToUll(info.substr(pos + 1), &flying);
                 if (!res) {
                     std::cout << "parse flying_size fail!" << std::endl;
                     return CheckResult::kParseError;
@@ -835,8 +845,8 @@ void CopysetCheckCore::UpdatePeerNotOnlineCopysets(const std::string& csAddr) {
     std::vector<CopysetInfo> copysets;
     int res = mdsClient_->GetCopySetsInChunkServer(csAddr, &copysets);
     if (res != 0) {
-        std::cout << "GetCopySetsInChunkServer " << csAddr
-                  << " fail!" << std::endl;
+        std::cout << "GetCopySetsInChunkServer " << csAddr << " fail!"
+                  << std::endl;
         return;
     } else if (copysets.empty()) {
         std::cout << "No copysets on chunkserver " << csAddr << std::endl;
@@ -849,26 +859,24 @@ void CopysetCheckCore::UpdatePeerNotOnlineCopysets(const std::string& csAddr) {
         copysetIds.emplace_back(csInfo.copysetid());
     }
 
-    // 获取每个copyset的成员
+    // Get the members of each copyset
     std::vector<CopySetServerInfo> csServerInfos;
-    res = mdsClient_->GetChunkServerListInCopySets(logicalPoolId,
-                                                   copysetIds,
+    res = mdsClient_->GetChunkServerListInCopySets(logicalPoolId, copysetIds,
                                                    &csServerInfos);
     if (res != 0) {
         std::cout << "GetChunkServerListInCopySets fail" << std::endl;
         return;
     }
-    // 遍历每个copyset
+    // Traverse each copyset
     for (const auto& info : csServerInfos) {
         std::vector<std::string> peers;
         for (const auto& csLoc : info.cslocs()) {
-            std::string peer = csLoc.hostip() + ":"
-                               + std::to_string(csLoc.port()) + ":0";
+            std::string peer =
+                csLoc.hostip() + ":" + std::to_string(csLoc.port()) + ":0";
             peers.emplace_back(peer);
         }
         CopySetIdType copysetId = info.copysetid();
-        std::string groupId = ToGroupId(logicalPoolId,
-                                        copysetId);
+        std::string groupId = ToGroupId(logicalPoolId, copysetId);
         CheckResult checkRes = CheckPeerOnlineStatus(groupId, peers);
         if (checkRes == CheckResult::kMinorityPeerNotOnline) {
             copysets_[kMinorityPeerNotOnline].emplace(groupId);
@@ -889,9 +897,8 @@ CopysetStatistics CopysetCheckCore::GetCopysetStatistics() {
         if (item.first == kTotal) {
             total = item.second.size();
         } else {
-            // 求并集
-            unhealthyCopysets.insert(item.second.begin(),
-                                     item.second.end());
+            // Union
+            unhealthyCopysets.insert(item.second.begin(), item.second.end());
         }
     }
     uint64_t unhealthyNum = unhealthyCopysets.size();
@@ -907,7 +914,7 @@ void CopysetCheckCore::Clear() {
 }
 
 int CopysetCheckCore::ListMayBrokenVolumes(
-                    std::vector<std::string>* fileNames) {
+    std::vector<std::string>* fileNames) {
     int res = CheckCopysetsOnOfflineChunkServer();
     if (res != 0) {
         std::cout << "CheckCopysetsOnOfflineChunkServer fail" << std::endl;
@@ -928,10 +935,10 @@ int CopysetCheckCore::ListMayBrokenVolumes(
 }
 
 void CopysetCheckCore::GetCopysetInfos(const char* key,
-                                std::vector<CopysetInfo>* copysets) {
+                                       std::vector<CopysetInfo>* copysets) {
     (void)key;
     for (auto iter = copysets_[kMajorityPeerNotOnline].begin();
-                    iter != copysets_[kMajorityPeerNotOnline].end(); ++iter) {
+         iter != copysets_[kMajorityPeerNotOnline].end(); ++iter) {
         std::string gid = *iter;
         uint64_t groupId;
         if (!curve::common::StringToUll(gid, &groupId)) {

@@ -22,30 +22,42 @@
 
 #include "nebd/src/part1/nebd_client.h"
 
-#include <unistd.h>
-#include <sys/file.h>
-#include <brpc/controller.h>
 #include <brpc/channel.h>
-#include <glog/logging.h>
-#include <gflags/gflags.h>
+#include <brpc/controller.h>
 #include <bthread/bthread.h>
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+#include <sys/file.h>
+#include <unistd.h>
+
 #include <string>
 
-#include "nebd/src/part1/async_request_closure.h"
 #include "nebd/src/common/configuration.h"
+#include "nebd/src/part1/async_request_closure.h"
 
-#define RETURN_IF_FALSE(val) if (val == false) { return -1; }
+#define RETURN_IF_FALSE(val) \
+    if (val == false) {      \
+        return -1;           \
+    }
 
-// 修改brpc的health_check_interval参数，这个参数用来控制健康检查的周期
-// ## 健康检查
-// 连接断开的server会被暂时隔离而不会被负载均衡算法选中，brpc会定期连接被隔离的server，以检查他们是否恢复正常，间隔由参数-health_check_interval控制:   // NOLINT
-// | Name                      | Value | Description                              | Defined At              |                                // NOLINT
-// | ------------------------- | ----- | ---------------------------------------- | ----------------------- |                                // NOLINT
-// | health_check_interval （R） | 3     | seconds between consecutive health-checkings | src/brpc/socket_map.cpp |                           // NOLINT
-// 一旦server被连接上，它会恢复为可用状态。如果在隔离过程中，server从命名服务中删除了，brpc也会停止连接尝试。                                         // NOLINT
+// Modify health_check_interval parameter is used to control the period of
+// health checks
+// ## Health Check
+// The disconnected servers will be temporarily isolated and not selected by the
+// load balancing algorithm. brpc will periodically connect to the isolated
+// servers to check if they have returned to normal. The interval is determined
+// by the parameter-health_check_interval://NOLINT | Name                      |
+// Value | Description                              | Defined At              |
+// // NOLINT | ------------------------- | ----- |
+// ---------------------------------------- | ----------------------- | //
+// NOLINT | health_check_interval （R） | 3     | seconds between consecutive
+// health-checkings | src/brpc/socket_map.cpp |                           //
+// NOLINT Once the server is connected, it will return to an available state. If
+// the server is removed from the naming service during the isolation process,
+// brpc will also stop connection attempts// NOLINT
 namespace brpc {
-    DECLARE_int32(health_check_interval);
-    DECLARE_int32(circuit_breaker_max_isolation_duration_ms);
+DECLARE_int32(health_check_interval);
+DECLARE_int32(circuit_breaker_max_isolation_duration_ms);
 }  // namespace brpc
 
 namespace nebd {
@@ -53,7 +65,7 @@ namespace client {
 
 using nebd::common::FileLock;
 
-NebdClient &nebdClient = NebdClient::GetInstance();
+NebdClient& nebdClient = NebdClient::GetInstance();
 
 constexpr int32_t kBufSize = 128;
 
@@ -98,8 +110,7 @@ int NebdClient::Init(const char* confpath) {
     }
 
     metaCache_ = std::make_shared<NebdClientMetaCache>();
-    heartbeatMgr_ = std::make_shared<HeartbeatManager>(
-        metaCache_);
+    heartbeatMgr_ = std::make_shared<HeartbeatManager>(metaCache_);
 
     ret = heartbeatMgr_->Init(heartbeatOption);
     if (ret != 0) {
@@ -139,7 +150,7 @@ void NebdClient::Uninit() {
 }
 
 int NebdClient::Open(const char* filename, const NebdOpenFlags* flags) {
-    // 加文件锁
+    // Add file lock
     std::string fileLockName =
         option_.fileLockPath + "/" + ReplaceSlash(filename);
     FileLock fileLock(fileLockName);
@@ -150,8 +161,7 @@ int NebdClient::Open(const char* filename, const NebdOpenFlags* flags) {
         return -1;
     }
 
-    auto task = [&](brpc::Controller* cntl,
-                    brpc::Channel* channel,
+    auto task = [&](brpc::Controller* cntl, brpc::Channel* channel,
                     bool* rpcFailed) -> int64_t {
         NebdFileService_Stub stub(channel);
         OpenFileRequest request;
@@ -168,8 +178,7 @@ int NebdClient::Open(const char* filename, const NebdOpenFlags* flags) {
 
         *rpcFailed = cntl->Failed();
         if (*rpcFailed) {
-            LOG(WARNING) << "OpenFile rpc failed, error = "
-                         << cntl->ErrorText()
+            LOG(WARNING) << "OpenFile rpc failed, error = " << cntl->ErrorText()
                          << ", filename = " << filename
                          << ", log id = " << cntl->log_id();
             return -1;
@@ -177,7 +186,7 @@ int NebdClient::Open(const char* filename, const NebdOpenFlags* flags) {
             if (response.retcode() != RetCode::kOK) {
                 LOG(ERROR) << "OpenFile failed, "
                            << "retcode = " << response.retcode()
-                           <<",  retmsg = " << response.retmsg()
+                           << ",  retmsg = " << response.retmsg()
                            << ", filename = " << filename
                            << ", log id = " << cntl->log_id();
                 return -1;
@@ -199,8 +208,7 @@ int NebdClient::Open(const char* filename, const NebdOpenFlags* flags) {
 }
 
 int NebdClient::Close(int fd) {
-    auto task = [&](brpc::Controller* cntl,
-                    brpc::Channel* channel,
+    auto task = [&](brpc::Controller* cntl, brpc::Channel* channel,
                     bool* rpcFailed) -> int64_t {
         NebdFileService_Stub stub(channel);
         CloseFileRequest request;
@@ -219,7 +227,7 @@ int NebdClient::Close(int fd) {
             if (response.retcode() != RetCode::kOK) {
                 LOG(ERROR) << "CloseFile failed, "
                            << "retcode = " << response.retcode()
-                           <<",  retmsg = " << response.retmsg()
+                           << ",  retmsg = " << response.retmsg()
                            << ", fd = " << fd
                            << ", log id = " << cntl->log_id();
             }
@@ -240,8 +248,7 @@ int NebdClient::Close(int fd) {
 }
 
 int NebdClient::Extend(int fd, int64_t newsize) {
-    auto task = [&](brpc::Controller* cntl,
-                    brpc::Channel* channel,
+    auto task = [&](brpc::Controller* cntl, brpc::Channel* channel,
                     bool* rpcFailed) -> int64_t {
         (void)channel;
         nebd::client::NebdFileService_Stub stub(&channel_);
@@ -255,17 +262,15 @@ int NebdClient::Extend(int fd, int64_t newsize) {
 
         *rpcFailed = cntl->Failed();
         if (*rpcFailed) {
-            LOG(WARNING) << "Resize RPC failed, error = "
-                         << cntl->ErrorText()
+            LOG(WARNING) << "Resize RPC failed, error = " << cntl->ErrorText()
                          << ", log id = " << cntl->log_id();
             return -1;
         } else {
             if (response.retcode() != nebd::client::RetCode::kOK) {
                 LOG(ERROR) << "ExtendFile failed, "
                            << "retcode = " << response.retcode()
-                           <<",  retmsg = " << response.retmsg()
-                           << ", fd = " << fd
-                           << ", newsize = " << newsize
+                           << ",  retmsg = " << response.retmsg()
+                           << ", fd = " << fd << ", newsize = " << newsize
                            << ", log id = " << cntl->log_id();
                 return -1;
             } else {
@@ -276,15 +281,13 @@ int NebdClient::Extend(int fd, int64_t newsize) {
 
     int64_t ret = ExecuteSyncRpc(task);
     if (ret < 0) {
-        LOG(ERROR) << "Extend failed, fd = " << fd
-                   << ", newsize = " << newsize;
+        LOG(ERROR) << "Extend failed, fd = " << fd << ", newsize = " << newsize;
     }
     return ret;
 }
 
 int64_t NebdClient::GetFileSize(int fd) {
-    auto task = [&](brpc::Controller* cntl,
-                    brpc::Channel* channel,
+    auto task = [&](brpc::Controller* cntl, brpc::Channel* channel,
                     bool* rpcFailed) -> int64_t {
         nebd::client::NebdFileService_Stub stub(channel);
         nebd::client::GetInfoRequest request;
@@ -295,15 +298,14 @@ int64_t NebdClient::GetFileSize(int fd) {
 
         *rpcFailed = cntl->Failed();
         if (*rpcFailed) {
-            LOG(WARNING) << "GetFileSize failed, error = "
-                         << cntl->ErrorText()
+            LOG(WARNING) << "GetFileSize failed, error = " << cntl->ErrorText()
                          << ", log id = " << cntl->log_id();
             return -1;
         } else {
             if (response.retcode() != nebd::client::RetCode::kOK) {
                 LOG(ERROR) << "GetFileSize failed, "
                            << "retcode = " << response.retcode()
-                           <<",  retmsg = " << response.retmsg()
+                           << ",  retmsg = " << response.retmsg()
                            << ", fd = " << fd
                            << ", log id = " << cntl->log_id();
                 return -1;
@@ -366,8 +368,8 @@ int NebdClient::Discard(int fd, NebdClientAioContext* aioctx) {
         request.set_offset(aioctx->offset);
         request.set_size(aioctx->length);
 
-        AioDiscardClosure* done = new(std::nothrow) AioDiscardClosure(
-            fd, aioctx, option_.requestOption);
+        AioDiscardClosure* done = new (std::nothrow)
+            AioDiscardClosure(fd, aioctx, option_.requestOption);
         done->cntl.set_timeout_ms(-1);
         done->cntl.set_log_id(logId_.fetch_add(1, std::memory_order_relaxed));
         stub.Discard(&done->cntl, &request, &done->response, done);
@@ -386,8 +388,8 @@ int NebdClient::AioRead(int fd, NebdClientAioContext* aioctx) {
         request.set_offset(aioctx->offset);
         request.set_size(aioctx->length);
 
-        AioReadClosure* done = new(std::nothrow) AioReadClosure(
-            fd, aioctx, option_.requestOption);
+        AioReadClosure* done = new (std::nothrow)
+            AioReadClosure(fd, aioctx, option_.requestOption);
         done->cntl.set_timeout_ms(-1);
         done->cntl.set_log_id(logId_.fetch_add(1, std::memory_order_relaxed));
         stub.Read(&done->cntl, &request, &done->response, done);
@@ -398,9 +400,7 @@ int NebdClient::AioRead(int fd, NebdClientAioContext* aioctx) {
     return 0;
 }
 
-static void EmptyDeleter(void* m) {
-    (void)m;
-}
+static void EmptyDeleter(void* m) { (void)m; }
 
 int NebdClient::AioWrite(int fd, NebdClientAioContext* aioctx) {
     auto task = [this, fd, aioctx]() {
@@ -410,8 +410,8 @@ int NebdClient::AioWrite(int fd, NebdClientAioContext* aioctx) {
         request.set_offset(aioctx->offset);
         request.set_size(aioctx->length);
 
-        AioWriteClosure* done = new(std::nothrow) AioWriteClosure(
-            fd, aioctx, option_.requestOption);
+        AioWriteClosure* done = new (std::nothrow)
+            AioWriteClosure(fd, aioctx, option_.requestOption);
 
         done->cntl.set_timeout_ms(-1);
         done->cntl.set_log_id(logId_.fetch_add(1, std::memory_order_relaxed));
@@ -431,8 +431,8 @@ int NebdClient::Flush(int fd, NebdClientAioContext* aioctx) {
         nebd::client::FlushRequest request;
         request.set_fd(fd);
 
-        AioFlushClosure* done = new(std::nothrow) AioFlushClosure(
-            fd, aioctx, option_.requestOption);
+        AioFlushClosure* done = new (std::nothrow)
+            AioFlushClosure(fd, aioctx, option_.requestOption);
         done->cntl.set_timeout_ms(-1);
         done->cntl.set_log_id(logId_.fetch_add(1, std::memory_order_relaxed));
         stub.Flush(&done->cntl, &request, &done->response, done);
@@ -444,8 +444,7 @@ int NebdClient::Flush(int fd, NebdClientAioContext* aioctx) {
 }
 
 int64_t NebdClient::GetInfo(int fd) {
-    auto task = [&](brpc::Controller* cntl,
-                    brpc::Channel* channel,
+    auto task = [&](brpc::Controller* cntl, brpc::Channel* channel,
                     bool* rpcFailed) -> int64_t {
         nebd::client::NebdFileService_Stub stub(channel);
         nebd::client::GetInfoRequest request;
@@ -456,15 +455,14 @@ int64_t NebdClient::GetInfo(int fd) {
 
         *rpcFailed = cntl->Failed();
         if (*rpcFailed) {
-            LOG(WARNING) << "GetInfo rpc failed, error = "
-                         << cntl->ErrorText()
+            LOG(WARNING) << "GetInfo rpc failed, error = " << cntl->ErrorText()
                          << ", log id = " << cntl->log_id();
             return -1;
         } else {
             if (response.retcode() != nebd::client::RetCode::kOK) {
                 LOG(ERROR) << "GetInfo failed, "
                            << "retcode = " << response.retcode()
-                           <<",  retmsg = " << response.retmsg()
+                           << ",  retmsg = " << response.retmsg()
                            << ", fd = " << fd
                            << ", log id = " << cntl->log_id();
                 return -1;
@@ -482,8 +480,7 @@ int64_t NebdClient::GetInfo(int fd) {
 }
 
 int NebdClient::InvalidCache(int fd) {
-    auto task = [&](brpc::Controller* cntl,
-                    brpc::Channel* channel,
+    auto task = [&](brpc::Controller* cntl, brpc::Channel* channel,
                     bool* rpcFailed) -> int64_t {
         nebd::client::NebdFileService_Stub stub(channel);
         nebd::client::InvalidateCacheRequest request;
@@ -502,7 +499,7 @@ int NebdClient::InvalidCache(int fd) {
             if (response.retcode() != nebd::client::RetCode::kOK) {
                 LOG(ERROR) << "InvalidCache failed, "
                            << "retcode = " << response.retcode()
-                           <<",  retmsg = " << response.retmsg()
+                           << ",  retmsg = " << response.retmsg()
                            << ", fd = " << fd
                            << ", log id = " << cntl->log_id();
                 return -1;
@@ -526,8 +523,7 @@ int NebdClient::InitNebdClientOption(Configuration* conf) {
     LOG_IF(ERROR, ret != true) << "Load nebdserver.serverAddress failed";
     RETURN_IF_FALSE(ret);
 
-    ret = conf->GetStringValue("metacache.fileLockPath",
-                               &option_.fileLockPath);
+    ret = conf->GetStringValue("metacache.fileLockPath", &option_.fileLockPath);
     LOG_IF(ERROR, ret != true) << "Load metacache.fileLockPath failed";
     RETURN_IF_FALSE(ret);
 
@@ -550,7 +546,8 @@ int NebdClient::InitNebdClientOption(Configuration* conf) {
 
     ret = conf->GetInt64Value("request.rpcHostDownRetryIntervalUs",
                               &requestOption.rpcHostDownRetryIntervalUs);
-    LOG_IF(ERROR, ret != true) << "Load request.rpcHostDownRetryIntervalUs failed";  // NOLINT
+    LOG_IF(ERROR, ret != true)
+        << "Load request.rpcHostDownRetryIntervalUs failed";  // NOLINT
     RETURN_IF_FALSE(ret);
 
     ret = conf->GetInt64Value("request.rpcHealthCheckIntervalS",
@@ -560,7 +557,8 @@ int NebdClient::InitNebdClientOption(Configuration* conf) {
 
     ret = conf->GetInt64Value("request.rpcMaxDelayHealthCheckIntervalMs",
                               &requestOption.rpcMaxDelayHealthCheckIntervalMs);
-    LOG_IF(ERROR, ret != true) << "Load request.rpcMaxDelayHealthCheckIntervalMs failed";  // NOLINT
+    LOG_IF(ERROR, ret != true)
+        << "Load request.rpcMaxDelayHealthCheckIntervalMs failed";  // NOLINT
     RETURN_IF_FALSE(ret);
 
     ret = conf->GetUInt32Value("request.rpcSendExecQueueNum",
@@ -581,8 +579,8 @@ int NebdClient::InitNebdClientOption(Configuration* conf) {
 
 int NebdClient::InitHeartBeatOption(Configuration* conf,
                                     HeartbeatOption* heartbeatOption) {
-    bool ret = conf->GetInt64Value("heartbeat.intervalS",
-                                   &heartbeatOption->intervalS);
+    bool ret =
+        conf->GetInt64Value("heartbeat.intervalS", &heartbeatOption->intervalS);
     LOG_IF(ERROR, ret != true) << "Load heartbeat.intervalS failed";
     RETURN_IF_FALSE(ret);
 
@@ -604,8 +602,7 @@ int NebdClient::InitChannel() {
         option_.requestOption.rpcHealthCheckIntervalS;
     brpc::FLAGS_circuit_breaker_max_isolation_duration_ms =
         option_.requestOption.rpcMaxDelayHealthCheckIntervalMs;
-    int ret = channel_.InitWithSockFile(
-        option_.serverAddress.c_str(), nullptr);
+    int ret = channel_.InitWithSockFile(option_.serverAddress.c_str(), nullptr);
     if (ret != 0) {
         LOG(ERROR) << "Init Channel failed, socket addr = "
                    << option_.serverAddress;
@@ -652,7 +649,6 @@ std::string NebdClient::ReplaceSlash(const std::string& str) {
     return ret;
 }
 
-
 void NebdClient::InitLogger(const LogOption& logOption) {
     static const char* kProcessName = "nebd-client";
 
@@ -661,8 +657,9 @@ void NebdClient::InitLogger(const LogOption& logOption) {
     google::InitGoogleLogging(kProcessName);
 }
 
-int NebdClient::ExecAsyncRpcTask(void* meta,
-                                 bthread::TaskIterator<AsyncRpcTask>& iter) {  // NOLINT
+int NebdClient::ExecAsyncRpcTask(
+    void* meta,
+    bthread::TaskIterator<AsyncRpcTask>& iter) {  // NOLINT
     (void)meta;
     if (iter.is_queue_stopped()) {
         return 0;

@@ -26,188 +26,182 @@
 #include <butil/status.h>
 #include <unistd.h>
 
-#include <string>
-#include <vector>
-#include <set>
 #include <memory>
+#include <set>
+#include <string>
 #include <unordered_map>
+#include <vector>
 
-#include "src/chunkserver/datastore/file_pool.h"
 #include "include/chunkserver/chunkserver_common.h"
-#include "src/fs/local_filesystem.h"
 #include "src/chunkserver/copyset_node.h"
+#include "src/chunkserver/datastore/file_pool.h"
+#include "src/fs/local_filesystem.h"
 
 namespace curve {
 namespace chunkserver {
 
 using curve::fs::LocalFileSystem;
 
-std::string Exec(const char *cmd);
+std::string Exec(const char* cmd);
 
 /**
- * 当前FilePool需要事先格式化，才能使用，此函数用于事先格式化FilePool
- * @param fsptr:本文文件系统指针
- * @param chunkfileSize:chunk文件的大小
- * @param metaPageSize:chunk文件的meta page大小
- * @param poolpath:文件池的路径，例如./chunkfilepool/
- * @param metaPath:meta文件路径，例如./chunkfilepool/chunkfilepool.meta
- * @return 初始化成功返回FilePool指针，否则返回null
+ * The current FilePool needs to be formatted in advance before it can be used.
+ * This function is used to format the FilePool in advance
+ * @param fsptr: This article's file system pointer
+ * @param chunkfileSize: Chunk file size
+ * @param metaPageSize: The metapage size of the chunk file
+ * @param poolpath: The path to the file pool, for example ./chunkfilepool/
+ * @param metaPath: meta file path, for example
+ * ./chunkfilepool/chunkfilepool.meta
+ * @return successfully initializes and returns the FilePool pointer. Otherwise,
+ * it returns null
  */
-std::shared_ptr<FilePool> InitFilePool(std::shared_ptr<LocalFileSystem> fsptr,    //NOLINT
-                                                 int chunkfileCount,
-                                                 int chunkfileSize,
-                                                 int metaPageSize,
-                                                 std::string poolpath,
-                                                 std::string metaPath);
+std::shared_ptr<FilePool> InitFilePool(
+    std::shared_ptr<LocalFileSystem> fsptr,  // NOLINT
+    int chunkfileCount, int chunkfileSize, int metaPageSize,
+    std::string poolpath, std::string metaPath);
 
-int StartChunkserver(const char *ip,
-                     int port,
-                     const char *copysetdir,
-                     const char *confs,
-                     const int snapshotInterval,
+int StartChunkserver(const char* ip, int port, const char* copysetdir,
+                     const char* confs, const int snapshotInterval,
                      const int electionTimeoutMs);
 
-butil::Status WaitLeader(const LogicPoolID &logicPoolId,
-                         const CopysetID &copysetId,
-                         const Configuration &conf,
-                         PeerId *leaderId,
-                         int electionTimeoutMs);
+butil::Status WaitLeader(const LogicPoolID& logicPoolId,
+                         const CopysetID& copysetId, const Configuration& conf,
+                         PeerId* leaderId, int electionTimeoutMs);
 
 /**
- * PeerNode 状态
- * 1. exit：未启动，或者被关闭
- * 2. running：正在运行
- * 3. stop：hang 住了
+ * PeerNode status
+ * 1. exit: Not started or closed
+ * 2. running: Running
+ * 3. stop: hang
  */
 enum class PeerNodeState {
-    EXIT = 0,       // 退出
-    RUNNING = 1,    // 正在运行
-    STOP = 2,       // hang住
+    EXIT = 0,     // Exit
+    RUNNING = 1,  // Running
+    STOP = 2,     // Hang Stay
 };
 
 /**
- * 一个 ChunkServer 进程，包含某个 Copyset 的某个副本
+ * A ChunkServer process that contains a copy of a Copyset
  */
 struct PeerNode {
     PeerNode() : pid(0), options(), state(PeerNodeState::EXIT) {}
-    // Peer对应的进程id
+    // Process ID corresponding to Peer
     pid_t pid;
-    // Peer的地址
+    // Peer's address
     PeerId peerId;
-    // copyset的集群配置
+    // Cluster configuration for copyset
     Configuration conf;
-    // copyset的基本配置
+    // Basic configuration of copyset
     CopysetNodeOptions options;
-    // PeerNode的状态
+    // Status of PeerNode
     PeerNodeState state;
 };
 
 /**
- * 封装模拟 cluster 测试相关的接口
+ * Package simulation cluster testing related interfaces
  */
 class TestCluster {
  public:
-    TestCluster(const std::string &clusterName,
-                const LogicPoolID logicPoolID,
-                const CopysetID copysetID,
-                const std::vector<PeerId> &peers);
+    TestCluster(const std::string& clusterName, const LogicPoolID logicPoolID,
+                const CopysetID copysetID, const std::vector<PeerId>& peers);
     virtual ~TestCluster() { StopAllPeers(); }
 
  public:
     /**
-     * 启动一个 Peer
+     * Start a Peer
      * @param peerId
-     * @param empty 初始化配置是否为空
-     * @param: get_chunk_from_pool是否从FilePool获取chunk
-     * @param: createFilePool是否创建FilePool，重启的情况下不需要
-     * @return 0：成功，-1 失败
+     * @param empty Is the initialization configuration empty
+     * @param: get_chunk_from_pool Does obtain a chunk from FilePool
+     * @param: createFilePool: create a FilePool? It is not necessary to restart
+     * it
+     * @return 0: Success, -1 failed
      */
-    int StartPeer(const PeerId &peerId,
-                  const bool empty = false,
-                  bool getChunkFrom_pool = false,
-                  bool createFilePool = true);
+    int StartPeer(const PeerId& peerId, const bool empty = false,
+                  bool getChunkFrom_pool = false, bool createFilePool = true);
     /**
-     * 关闭一个 peer，使用 SIGINT
+     * Close a peer and use SIGINT
      * @param peerId
-     * @return 0：成功，-1 失败
+     * @return 0: Success, -1 failed
      */
-    int ShutdownPeer(const PeerId &peerId);
-
+    int ShutdownPeer(const PeerId& peerId);
 
     /**
-     * hang 住一个 peer，使用 SIGSTOP
+     * Hang lives in a peer and uses SIGSTOP
      * @param peerId
-     * @return 0：成功，-1 失败
+     * @return 0: Success, -1 failed
      */
-    int StopPeer(const PeerId &peerId);
+    int StopPeer(const PeerId& peerId);
     /**
-    * 恢复 hang 住的 peer，使用 SIGCONT
-    * @param peerId
-    * @return 0：成功，-1 失败
-    */
-    int ContPeer(const PeerId &peerId);
-    /**
-     * 反复重试直到等到新的 leader 产生
-     * @param leaderId 出参，返回 leader id
-     * @return 0：成功，-1 失败
+     * Restore the peer where Hang lives and use SIGCONT
+     * @param peerId
+     * @return 0: Success, -1 failed
      */
-    int WaitLeader(PeerId *leaderId);
+    int ContPeer(const PeerId& peerId);
+    /**
+     * Try again and again until a new leader is generated
+     * @param leaderId takes a parameter and returns the leader id
+     * @return 0: Success, -1 failed
+     */
+    int WaitLeader(PeerId* leaderId);
 
     /**
-     * Stop 所有的 peer
-     * @return 0：成功，-1 失败
+     * Stop all peers
+     * @return 0: Success, -1 failed
      */
     int StopAllPeers();
 
  public:
-    /* 返回集群当前的配置 */
+    /*Returns the current configuration of the cluster*/
     const Configuration CopysetConf() const;
 
-    /* 修改 PeerNode 配置相关的接口，单位: s */
+    /*Modify the interface related to PeerNode configuration, unit: s*/
     int SetsnapshotIntervalS(int snapshotIntervalS);
     int SetElectionTimeoutMs(int electionTimeoutMs);
     int SetCatchupMargin(int catchupMargin);
 
     static int StartPeerNode(CopysetNodeOptions options,
-                              const Configuration conf,
-                              bool from_chunkfile_pool = false,
-                              bool createFilePool = true);
+                             const Configuration conf,
+                             bool from_chunkfile_pool = false,
+                             bool createFilePool = true);
 
  public:
     /**
-    * 返回执行 peer 的 copyset 路径 with protocol, ex: local://./127.0.0.1:9101:0
-    */
-    static const std::string CopysetDirWithProtocol(const PeerId &peerId);
-    /**
-     * 返回执行 peer 的 copyset 路径 without protocol, ex: ./127.0.0.1:9101:0
+     * Returns the copyset path for executing peer with protocol, ex:
+     * local://./127.0.0.1:9101:0
      */
-    static const std::string CopysetDirWithoutProtocol(const PeerId &peerId);
+    static const std::string CopysetDirWithProtocol(const PeerId& peerId);
+    /**
+     * Returns the copyset path for executing peer without protocol, ex:
+     * ./127.0.0.1:9101:0
+     */
+    static const std::string CopysetDirWithoutProtocol(const PeerId& peerId);
     /**
      * remove peer's copyset dir's cmd
      */
-    static const std::string RemoveCopysetDirCmd(const PeerId &peerid);
+    static const std::string RemoveCopysetDirCmd(const PeerId& peerid);
 
  private:
-    // 集群名字
-    std::string         clusterName_;
-    // 集群的peer集合
-    std::set<PeerId>    peers_;
-    // peer集合的映射map
+    // Cluster Name
+    std::string clusterName_;
+    // The peer set of the cluster
+    std::set<PeerId> peers_;
+    // Mapping Map of Peer Set
     std::unordered_map<std::string, std::unique_ptr<PeerNode>> peersMap_;
 
-    // 快照间隔
+    // Snapshot interval
     int snapshotIntervalS_;
-    // 选举超时时间
+    // Election timeout
     int electionTimeoutMs_;
-    // catchup margin配置
+    // Catchup margin configuration
     int catchupMargin_;
-    // 集群成员配置
+    // Cluster member configuration
     Configuration conf_;
 
-    // 逻辑池id
-    static LogicPoolID  logicPoolID_;
-    // 复制组id
-    static CopysetID    copysetID_;
+    // Logical Pool ID
+    static LogicPoolID logicPoolID_;
+    // Copy Group ID
+    static CopysetID copysetID_;
 };
 
 }  // namespace chunkserver

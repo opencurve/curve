@@ -1,24 +1,24 @@
 #
 # Global settings
 #
-# log等级INFO=0/WARNING=1/ERROR=2/FATAL=3
+# Log level INFO=0/WARNING=1/ERROR=2/FATAL=3
 global.ip={{ ansible_ssh_host }}
 global.port={{ chunkserver_base_port }}
 global.subnet={{ chunkserver_subnet }}
 global.enable_external_server={{ chunkserver_enable_external_server }}
 global.external_ip={{ ansible_ssh_host }}
 global.external_subnet={{ chunkserver_external_subnet }}
-# chunk大小，一般16MB
+# Chunk size, usually 16MB
 global.chunk_size={{ chunk_size }}
-# chunk 元数据页大小，一般4KB
+# Chunk metadata page size, usually 4KB
 global.meta_page_size={{ chunkserver_meta_page_size }}
-# clone chunk允许的最长location长度
+# The maximum allowed location length for clone chunks
 global.location_limit={{ chunkserver_location_limit }}
 
 #
 # MDS settings
 #
-#支持mds多地址，以逗号分隔 127.0.0.1:6666,127.0.0.1:7777
+# Supports MDS multiple addresses, separated by commas 127.0.0.1:6666,127.0.0.1:7777
 {% set mds_address=[] -%}
 {% for host in groups.mds -%}
   {% set mds_ip = hostvars[host].ansible_ssh_host -%}
@@ -26,30 +26,30 @@ global.location_limit={{ chunkserver_location_limit }}
   {% set _ = mds_address.append("%s:%s" % (mds_ip, mds_port)) -%}
 {% endfor -%}
 mds.listen.addr={{ mds_address | join(',') }}
-# 向mds注册的最大重试次数
+# Maximum number of retries registered with mds
 mds.register_retries={{ chunkserver_register_retries }}
-# 向mds注册的rpc超时时间，一般1000ms
+# RPC timeout for registering with mds, typically 1000ms
 mds.register_timeout={{ chunkserver_register_timeout }}
-# 向mds发送心跳的间隔，一般10s
+# The interval between sending heartbeat to MDS, usually 10s
 mds.heartbeat_interval={{ chunkserver_heartbeat_interval }}
-# 向mds发送心跳的rpc超时间，一般1000ms
+# Send rpc timeout of heartbeat to mds, usually 1000ms
 mds.heartbeat_timeout={{ chunkserver_heartbeat_timeout }}
 
 #
 # Chunkserver settings
 #
-# chunkserver主目录
+# Chunkserver home directory
 chunkserver.stor_uri={{ chunkserver_stor_uri }}
-# chunkserver元数据文件
+# Chunkserver metadata file
 chunkserver.meta_uri={{ chunkserver_meta_uri }}
-# disk类型
+# Disk type
 chunkserver.disk_type={{ chunkserver_disk_type }}
-# raft内部install snapshot带宽上限，一般20MB
+# Raft internal install snapshot bandwidth limit, usually 20MB
 chunkserver.snapshot_throttle_throughput_bytes={{ chunkserver_snapshot_throttle_throughput_bytes }}
-# check cycles是为了更精细的进行带宽控制，以snapshotThroughputBytes=100MB，
-# check cycles=10为例，它可以保证每1/10秒的带宽是10MB，且不累积，例如第1个
-# 1/10秒的带宽是10MB，但是就过期了，在第2个1/10秒依然只能用10MB的带宽，而
-# 不是20MB的带宽
+# Check cycles are used for more precise bandwidth control, with snapshots ThroughputBytes=100MB,
+# Taking check cycles=10 as an example, it can ensure that the bandwidth is 10MB every 1/10 second and does not accumulate, such as the first one
+# The bandwidth of 1/10 second is 10MB, but it expires. In the second 1/10 second, only 10MB of bandwidth can be used, and
+# Not a bandwidth of 20MB
 chunkserver.snapshot_throttle_check_cycles={{ chunkserver_snapshot_throttle_check_cycles }}
 chunkserver.max_inflight_requests={{ chunkserver_max_inflight_requests }}
 
@@ -64,39 +64,39 @@ test.testcopyset_conf={{ chunkserver_test_testcopyset_conf }}
 #
 # Copyset settings
 #
-# 是否检查任期，一般检查
+# Whether to check the term of office, general inspection
 copyset.check_term={{ chunkserver_copyset_check_term }}
-# 是否关闭raft配置变更的服务，一般不关闭
+# Do you want to close the service for raft configuration changes? Generally, it is not closed
 copyset.disable_cli={{ chunkserver_copyset_disable_cli }}
 copyset.log_applied_task={{ chunkserver_copyset_log_applied_task }}
-# raft选举超时时间，一般是5000ms
+# Raft election timeout, usually 5000ms
 copyset.election_timeout_ms={{ chunkserver_copyset_election_timeout_ms }}
-# raft打快照间隔，一般是1800s，也就是30分钟
+# The snapshot interval for the raft is usually 1800s, which is 30 minutes
 copyset.snapshot_interval_s={{ chunkserver_copyset_snapshot_interval_s }}
-# add一个节点，add的节点首先以类似learner的角色拷贝数据
-# 在跟leader差距catchup_margin个entry的时候，leader
-# 会尝试将配置变更的entry进行提交(一般来说提交的entry肯定
-# 会commit&apply，catchup_margin较小可以大概率确保learner
-# 后续很快可以加入复制组
+# Add a node. The node added by 'add' first copies data in a way similar to a learner.
+# When the difference from the leader reaches 'catchup_margin' entries,
+# the leader will attempt to commit the configuration-changing entry.
+# Generally, the committed and applied entry will definitely be committed and applied.
+# A smaller catchup_margin can significantly ensure that the learner can quickly join the replication group soon after.
 copyset.catchup_margin={{ chunkserver_copyset_catchup_margin }}
-# copyset chunk数据目录
+# Copyset chunk data directory
 copyset.chunk_data_uri={{ chunkserver_copyset_chunk_data_uri }}
-# raft wal log目录
+# Raft wal log directory
 copyset.raft_log_uri={{ chunkserver_copyset_raft_log_uri }}
-# raft元数据目录
+# Raft metadata directory
 copyset.raft_meta_uri={{ chunkserver_copyset_raft_meta_uri }}
-# raft snapshot目录
+# Raft snapshot directory
 copyset.raft_snapshot_uri={{ chunkserver_copyset_raft_snapshot_uri }}
-# copyset回收目录
+# Copyset Recycle Directory
 copyset.recycler_uri={{ chunkserver_copyset_recycler_uri }}
-# chunkserver启动时，copyset并发加载的阈值,为0则表示不做限制
+# When chunkserver is started, the threshold for copyset concurrent loading is set to 0, indicating no restrictions are imposed
 copyset.load_concurrency={{ chunkserver_copyset_load_concurrency }}
-# 检查copyset是否加载完成出现异常时的最大重试次数
+# Check if the copyset has completed loading and the maximum number of retries when an exception occurs
 copyset.check_retrytimes={{ chunkserver_copyset_check_retrytimes }}
-# 当前peer的applied_index与leader上的committed_index差距小于该值
-# 则判定copyset已经加载完成
+# The difference between the applied_index of the current peer and the committed_index on the leader is less than this value.
+# Then it is determined that the copyset has been loaded successfully
 copyset.finishload_margin={{ chunkserver_copyset_finishload_margin }}
-# 循环判定copyset是否加载完成的内部睡眠时间
+# Internal sleep time for loop determination of whether copyset has been loaded and completed
 copyset.check_loadmargin_interval_ms={{ chunkserver_copyset_check_loadmargin_interval_ms }}
 # scan copyset interval
 copyset.scan_interval_sec={{ chunkserver_copyset_scan_interval_sec }}
@@ -115,26 +115,26 @@ copyset.check_syncing_interval_ms={{ chunkserver_copyset_check_syncing_interval_
 #
 # Clone settings
 #
-# 禁止使用curveclient
+# Prohibit the use of curveclient
 clone.disable_curve_client={{ disable_snapshot_clone }}
-# 禁止使用s3adapter
+# Prohibit the use of s3adapter
 clone.disable_s3_adapter={{ disable_snapshot_clone }}
-# 克隆的分片大小，一般1MB
+# The shard size of the clone, usually 1MB
 clone.slice_size={{ chunkserver_clone_slice_size }}
-# 读clone chunk时是否需要paste到本地
-# 该配置对recover chunk请求类型无效
+# Do I need to paste to the local location when reading the clone chunk
+# This configuration is not valid for the recover chunk request type
 clone.enable_paste={{ chunkserver_clone_enable_paste }}
-# 克隆的线程数量
+# Number of cloned threads
 clone.thread_num={{ chunkserver_clone_thread_num }}
-# 克隆的队列深度
+# Queue depth for cloning
 clone.queue_depth={{ chunkserver_clone_queue_depth }}
-# curve用户名
+# Curve username
 curve.root_username={{ curve_root_username }}
-# curve密码
+# Curve password
 curve.root_password={{ curve_root_password }}
-# client配置文件
+# Client configuration file
 curve.config_path={{ chunkserver_client_config_path }}
-# s3配置文件
+# S3 configuration file
 s3.config_path={{ chunkserver_s3_config_path }}
 # Curve File time to live
 curve.curve_file_timeout_s={{ curve_file_timeout_s }}
@@ -142,7 +142,7 @@ curve.curve_file_timeout_s={{ curve_file_timeout_s }}
 #
 # Local FileSystem settings
 #
-# 是否开启使用renameat2，ext4内核3.15以后开始支持
+# Whether to enable the use of renameat2, ext4 kernel support starting from 3.15 onwards
 fs.enable_renameat2={{ chunkserver_fs_enable_renameat2 }}
 
 #
@@ -163,27 +163,27 @@ storeng.sync_write={{ chunkserver_storeng_sync_write }}
 #
 # Concurrent apply module
 #
-# 并发模块的并发度，一般是10
+# The concurrency of concurrent modules is generally 10
 wconcurrentapply.size={{ chunkserver_wconcurrentapply_size }}
-# 并发模块线程的队列深度
+# Queue depth of concurrent module threads
 wconcurrentapply.queuedepth={{ chunkserver_wconcurrentapply_queuedepth }}
-# 并发模块读线程的并发度，一般是5
+# The concurrency of concurrent module read threads is generally 5
 rconcurrentapply.size={{ chunkserver_rconcurrentapply_size }}
-# 并发模块读线程的队列深度
+# Queue depth of concurrent module read threads
 rconcurrentapply.queuedepth={{ chunkserver_rconcurrentapply_queuedepth }}
 
 #
 # Chunkfile pool
 #
-# 是否开启从chunkfilepool获取chunk，一般是true
+# Whether to enable obtaining chunks from chunkfilepool, usually true
 chunkfilepool.enable_get_chunk_from_pool={{ chunkserver_format_disk }}
-# chunkfilepool目录
+# chunkfilepool directory
 chunkfilepool.chunk_file_pool_dir={{ chunkserver_chunkfilepool_chunk_file_pool_dir }}
-# chunkfilepool meta文件路径
+# chunkfilepool meta file path
 #chunkfilepool.meta_path=./chunkfilepool.meta
-# chunkfilepool meta文件大小
+# chunkfilepool meta file size
 chunkfilepool.cpmeta_file_size={{ chunkserver_chunkfilepool_cpmeta_file_size }}
-# chunkfilepool get chunk最大重试次数
+# chunkfilepool get chunk maximum retry count
 chunkfilepool.retry_times=5
 # Enable clean chunk
 chunkfilepool.clean.enable={{ chunkserver_chunkfilepool_clean_enable }}
@@ -195,34 +195,34 @@ chunkfilepool.clean.throttle_iops={{ chunkserver_chunkfilepool_clean_throttle_io
 #
 # WAL file pool
 #
-# walpool是否共用chunkfilepool，如果为true，则以下配置无效
+# Does walpool share chunkfilepool? If true, the following configuration is invalid
 walfilepool.use_chunk_file_pool={{ walfilepool_use_chunk_file_pool }}
-# 是否开启从walfilepool获取chunk，一般是true
+# Whether to enable obtaining chunks from walfilepool, usually true
 walfilepool.enable_get_segment_from_pool={{ chunkserver_format_disk }}
-# walpool目录
+# Walpool directory
 walfilepool.file_pool_dir={{ chunkserver_walfilepool_file_pool_dir }}
-# walpool meta文件路径
+# Walpool Meta File Path
 walfilepool.meta_path={{ chunkserver_walfilepool_meta_path }}
-# walpool meta文件大小
+# Walpool Meta File Size
 walfilepool.segment_size={{ chunkserver_walfilepool_segment_size }}
-# WAL metapage大小
+# WAL metapage size
 walfilepool.metapage_size={{ chunkserver_walfilepool_metapage_size }}
-# WAL filepool 元数据文件大小
+# WAL filepool metadata file size
 walfilepool.meta_file_size={{ chunkserver_walfilepool_meta_file_size }}
-# WAL filepool get chunk最大重试次数
+# WAL filepool get chunk maximum retry count
 walfilepool.retry_times={{ chunkserver_walfilepool_retry_times }}
 
 #
 # trash settings
 #
-# chunkserver回收数据彻底删除的过期时间
+# The expiration time for chunkserver to completely delete data for recycling
 trash.expire_afterSec={{ chunkserver_trash_expire_after_sec }}
-# chunkserver检查回收数据过期时间的周期
+# Chunkserver checks the cycle of recycling data expiration time
 trash.scan_periodSec={{ chunkserver_trash_scan_period_sec }}
 
 # common option
 #
-# chunkserver 日志存放文件夹
+# Chunkserver log storage folder
 chunkserver.common.logDir={{ chunkserver_common_log_dir }}
-# 单元测试情况下
+# In the case of unit testing
 # chunkserver.common.logDir=./runlog/

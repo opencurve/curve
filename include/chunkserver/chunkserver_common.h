@@ -24,9 +24,9 @@
 #define INCLUDE_CHUNKSERVER_CHUNKSERVER_COMMON_H_
 
 #include <braft/configuration.h>
+#include <braft/file_system_adaptor.h>
 #include <braft/raft.h>
 #include <braft/snapshot_throttle.h>
-#include <braft/file_system_adaptor.h>
 
 #include <cstdint>
 #include <string>
@@ -35,16 +35,16 @@ namespace curve {
 namespace chunkserver {
 
 /* for IDs */
-using LogicPoolID   = uint32_t;
-using CopysetID     = uint32_t;
-using ChunkID       = uint64_t;
-using SnapshotID    = uint64_t;
-using SequenceNum   = uint64_t;
+using LogicPoolID = uint32_t;
+using CopysetID = uint32_t;
+using ChunkID = uint64_t;
+using SnapshotID = uint64_t;
+using SequenceNum = uint64_t;
 
 using ChunkSizeType = uint32_t;
-using PageSizeType  = uint32_t;
+using PageSizeType = uint32_t;
 
-using GroupNid      = uint64_t;
+using GroupNid = uint64_t;
 using ChunkServerID = uint32_t;
 
 // braft
@@ -60,57 +60,55 @@ using PosixFileSystemAdaptor = braft::PosixFileSystemAdaptor;
 using SnapshotThrottle = braft::SnapshotThrottle;
 using ThroughputSnapshotThrottle = braft::ThroughputSnapshotThrottle;
 
-
-// TODO(lixiaocui): 考虑一下后续的单元测试或者校验要怎么做
+// TODO(lixiaocui): Consider how to proceed with subsequent unit testing or
+// validation
 /*
- * IO性能统计复合metric类型
+ * IO performance statistics composite metric type
  */
 struct IoPerfMetric {
-    uint64_t    readCount;
-    uint64_t    writeCount;
-    uint64_t    readBytes;
-    uint64_t    writeBytes;
-    uint64_t    readIops;
-    uint64_t    writeIops;
-    uint64_t    readBps;
-    uint64_t    writeBps;
+    uint64_t readCount;
+    uint64_t writeCount;
+    uint64_t readBytes;
+    uint64_t writeBytes;
+    uint64_t readIops;
+    uint64_t writeIops;
+    uint64_t readBps;
+    uint64_t writeBps;
 };
 
 /**
- *  将(LogicPoolID, CopysetID)二元组转换成数字格式的复制组ID,格式如下：
- *  |            group id           |
- *  |     32         |      32      |
+ * Convert the (LogicPoolID, CopysetID) binary into a copy group ID in numerical
+ * format, as follows: |            group id           | |     32         | 32 |
  *  | logic pool id  |  copyset id  |
  */
-inline GroupNid ToGroupNid(const LogicPoolID &logicPoolId,
-                         const CopysetID &copysetId) {
+inline GroupNid ToGroupNid(const LogicPoolID& logicPoolId,
+                           const CopysetID& copysetId) {
     return (static_cast<uint64_t>(logicPoolId) << 32) | copysetId;
 }
 /**
- *  将(LogicPoolID, CopysetID)二元组转换成字符串格式的复制组ID
+ *Convert the (LogicPoolID, CopysetID) binary to a copy group ID in string
+ *format
  */
-inline GroupId ToGroupId(const LogicPoolID &logicPoolId,
-                         const CopysetID &copysetId) {
+inline GroupId ToGroupId(const LogicPoolID& logicPoolId,
+                         const CopysetID& copysetId) {
     return std::to_string(ToGroupNid(logicPoolId, copysetId));
 }
-#define ToBraftGroupId   ToGroupId
+#define ToBraftGroupId ToGroupId
 
 /**
- *  从数字格式的复制组ID中解析LogicPoolID
+ *Parsing LogicPoolID from Copy Group ID in Numeric Format
  */
-inline LogicPoolID GetPoolID(const GroupNid &groupId) {
-    return groupId >> 32;
-}
+inline LogicPoolID GetPoolID(const GroupNid& groupId) { return groupId >> 32; }
 /**
- *  从数字格式的复制组ID中解析CopysetID
+ *Parsing CopysetID from Copy Group ID in Numeric Format
  */
-inline CopysetID GetCopysetID(const GroupNid &groupId) {
+inline CopysetID GetCopysetID(const GroupNid& groupId) {
     return groupId & (((uint64_t)1 << 32) - 1);
 }
 
-/* 格式输出 group id 的 字符串 (logicPoolId, copysetId) */
-inline std::string ToGroupIdString(const LogicPoolID &logicPoolId,
-                                   const CopysetID &copysetId) {
+/*Format output string for group ID (logicPoolId, copysetId)*/
+inline std::string ToGroupIdString(const LogicPoolID& logicPoolId,
+                                   const CopysetID& copysetId) {
     std::string groupIdString;
     groupIdString.append("(");
     groupIdString.append(std::to_string(logicPoolId));
@@ -121,7 +119,7 @@ inline std::string ToGroupIdString(const LogicPoolID &logicPoolId,
     groupIdString.append(")");
     return groupIdString;
 }
-#define ToGroupIdStr   ToGroupIdString
+#define ToGroupIdStr ToGroupIdString
 
 // Meta page is header of chunkfile, and is used to store meta data of
 // chunkfile.

@@ -24,26 +24,27 @@
 #define TEST_INTEGRATION_CHUNKSERVER_DATASTORE_DATASTORE_INTEGRATION_BASE_H_
 
 #include <glog/logging.h>
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 #include <time.h>
+
 #include <climits>
 #include <memory>
 
+#include "src/chunkserver/datastore/chunkserver_datastore.h"
+#include "src/chunkserver/datastore/define.h"
+#include "src/chunkserver/datastore/file_pool.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/timeutility.h"
 #include "src/fs/local_filesystem.h"
-#include "src/chunkserver/datastore/define.h"
-#include "src/chunkserver/datastore/file_pool.h"
-#include "src/chunkserver/datastore/chunkserver_datastore.h"
 #include "test/chunkserver/datastore/filepool_helper.h"
 
-using curve::fs::FileSystemType;
-using curve::fs::LocalFileSystem;
-using curve::fs::LocalFsFactory;
 using curve::common::Atomic;
 using curve::common::Thread;
 using curve::common::TimeUtility;
+using curve::fs::FileSystemType;
+using curve::fs::LocalFileSystem;
+using curve::fs::LocalFsFactory;
 
 using ::testing::UnorderedElementsAre;
 
@@ -55,12 +56,12 @@ const ChunkSizeType CHUNK_SIZE = 16 * kMB;
 const ChunkSizeType BLOCK_SIZE = 4096;
 const PageSizeType PAGE_SIZE = 4 * 1024;
 
-extern const string baseDir;    // NOLINT
-extern const string poolDir;  // NOLINT
+extern const string baseDir;       // NOLINT
+extern const string poolDir;       // NOLINT
 extern const string poolMetaPath;  // NOLINT
 
 /**
- * DataStore层集成LocalFileSystem层测试
+ * Datastore layer integration LocalFileSystem layer testing
  */
 class DatastoreIntegrationBase : public testing::Test {
  public:
@@ -79,9 +80,7 @@ class DatastoreIntegrationBase : public testing::Test {
         options.chunkSize = CHUNK_SIZE;
         options.metaPageSize = PAGE_SIZE;
         options.blockSize = BLOCK_SIZE;
-        dataStore_ = std::make_shared<CSDataStore>(lfs_,
-                                                   filePool_,
-                                                   options);
+        dataStore_ = std::make_shared<CSDataStore>(lfs_, filePool_, options);
         if (dataStore_ == nullptr) {
             LOG(FATAL) << "allocate chunkfile pool failed!";
         }
@@ -105,8 +104,7 @@ class DatastoreIntegrationBase : public testing::Test {
         cfop.metaPageSize = PAGE_SIZE;
         memcpy(cfop.metaPath, poolMetaPath.c_str(), poolMetaPath.size());
 
-        if (lfs_->DirExists(poolDir))
-            lfs_->Delete(poolDir);
+        if (lfs_->DirExists(poolDir)) lfs_->Delete(poolDir);
         allocateChunk(lfs_, chunkNum, poolDir, CHUNK_SIZE);
         ASSERT_TRUE(filePool_->Initialize(cfop));
         ASSERT_EQ(chunkNum, filePool_->Size());
@@ -121,8 +119,8 @@ class DatastoreIntegrationBase : public testing::Test {
     }
 
  protected:
-    std::shared_ptr<FilePool>  filePool_;
-    std::shared_ptr<LocalFileSystem>  lfs_;
+    std::shared_ptr<FilePool> filePool_;
+    std::shared_ptr<LocalFileSystem> lfs_;
     std::shared_ptr<CSDataStore> dataStore_;
 };
 

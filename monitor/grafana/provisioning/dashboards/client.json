@@ -101,7 +101,7 @@
           "thresholds": "1,2",
           "timeFrom": null,
           "timeShift": null,
-          "title": "客户端运行时间",
+          "title": "Client runtime",
           "type": "singlestat",
           "valueFontSize": "80%",
           "valueMaps": [
@@ -200,7 +200,7 @@
           }
         }
       ],
-      "title": "进程资源",
+      "title": "Process Resources",
       "type": "row"
     },
     {
@@ -215,7 +215,7 @@
       "panels": [
         {
           "columns": [],
-          "description": "客户端的配置情况",
+          "description": "Configuration of the client",
           "fontSize": "100%",
           "gridPos": {
             "h": 8,
@@ -235,7 +235,7 @@
           },
           "styles": [
             {
-              "alias": "实例",
+              "alias": "Instance",
               "colorMode": null,
               "colors": [
                 "rgba(245, 54, 54, 0.9)",
@@ -251,7 +251,7 @@
               "unit": "short"
             },
             {
-              "alias": "配置项",
+              "alias": "Configuration Item",
               "colorMode": null,
               "colors": [
                 "rgba(245, 54, 54, 0.9)",
@@ -267,7 +267,7 @@
               "unit": "short"
             },
             {
-              "alias": "值",
+              "alias": "Value",
               "colorMode": null,
               "colors": [
                 "rgba(245, 54, 54, 0.9)",
@@ -309,12 +309,12 @@
           ],
           "timeFrom": null,
           "timeShift": null,
-          "title": "客户端配置",
+          "title": "Client Configuration",
           "transform": "table",
           "type": "table"
         }
       ],
-      "title": "客户端配置",
+      "title": "Client Configuration",
       "type": "row"
     },
     {
@@ -681,7 +681,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "description": "client用户接口层统计到的每秒读取字节数",
+          "description": "The number of bytes read per second counted by the client user interface layer",
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
@@ -769,7 +769,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "description": "client用户接口层统计到的每秒写入字节数",
+          "description": "The number of bytes written per second counted by the client user interface layer",
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
@@ -1129,7 +1129,7 @@
           }
         }
       ],
-      "title": "用户接口层指标",
+      "title": "User Interface Layer Metrics",
       "type": "row"
     },
     {
@@ -1236,7 +1236,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "Prometheus",
-          "description": "每秒get leader的重试rpc次数",
+          "description": "Number of retry rpc attempts per second to get leader",
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
@@ -1323,7 +1323,7 @@
           }
         }
       ],
-      "title": "中间业务层指标",
+      "title": "Intermediate Business Layer Indicators",
       "type": "row"
     },
     {
@@ -1982,7 +1982,7 @@
           }
         }
       ],
-      "title": "rpc层指标",
+      "title": "Rpc layer metrics",
       "type": "row"
     },
     {
@@ -2085,7 +2085,7 @@
           }
         }
       ],
-      "title": "与MDS通信指标",
+      "title": "Communication metrics with MDS",
       "type": "row"
     }
   ],
@@ -2108,7 +2108,7 @@
         "definition": "label_values({__name__=~\"curve_client.*\", instance=~\".*:90.*\"}, instance)",
         "hide": 0,
         "includeAll": true,
-        "label": "客户端",
+        "label": "Client",
         "multi": true,
         "name": "client",
         "options": [],
@@ -2136,7 +2136,7 @@
         "definition": "{__name__=~\"curve_client.*write_qps\", instance=~\"$client\"}",
         "hide": 0,
         "includeAll": true,
-        "label": "文件",
+        "label": "File",
         "multi": true,
         "name": "file",
         "options": [],

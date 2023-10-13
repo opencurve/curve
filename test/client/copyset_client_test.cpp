@@ -20,26 +20,27 @@
  * Author: wudemiao
  */
 
-#include <brpc/controller.h>
-#include <brpc/channel.h>
-#include <brpc/server.h>
-#include <gtest/gtest.h>
-#include <gmock/gmock.h>
-
-#include <thread>   //NOLINT
-#include <chrono>   // NOLINT
-
 #include "src/client/copyset_client.h"
-#include "test/client/mock/mock_meta_cache.h"
-#include "src/common/concurrent/count_down_event.h"
-#include "test/client/mock/mock_chunkservice.h"
-#include "test/client/mock/mock_request_context.h"
+
+#include <brpc/channel.h>
+#include <brpc/controller.h>
+#include <brpc/server.h>
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
+#include <chrono>  // NOLINT
+#include <thread>  //NOLINT
+
 #include "src/client/chunk_closure.h"
+#include "src/client/metacache.h"
+#include "src/client/request_closure.h"
+#include "src/common/concurrent/count_down_event.h"
 #include "src/common/timeutility.h"
 #include "test/client/fake/fakeChunkserver.h"
+#include "test/client/mock/mock_chunkservice.h"
+#include "test/client/mock/mock_meta_cache.h"
+#include "test/client/mock/mock_request_context.h"
 #include "test/client/mock/mock_request_scheduler.h"
-#include "src/client/request_closure.h"
-#include "src/client/metacache.h"
 
 namespace curve {
 namespace client {
@@ -47,18 +48,18 @@ namespace client {
 using curve::chunkserver::CHUNK_OP_STATUS;
 using curve::chunkserver::ChunkRequest;
 
-using ::testing::_;
-using ::testing::Invoke;
-using ::testing::Return;
-using ::testing::AnyNumber;
-using ::testing::DoAll;
-using ::testing::SetArgPointee;
-using ::testing::SetArgReferee;
-using ::testing::InSequence;
-using ::testing::AtLeast;
-using ::testing::SaveArgPointee;
 using curve::client::MetaCache;
 using curve::common::TimeUtility;
+using ::testing::_;
+using ::testing::AnyNumber;
+using ::testing::AtLeast;
+using ::testing::DoAll;
+using ::testing::InSequence;
+using ::testing::Invoke;
+using ::testing::Return;
+using ::testing::SaveArgPointee;
+using ::testing::SetArgPointee;
+using ::testing::SetArgReferee;
 
 class CopysetClientTest : public testing::Test {
  protected:
@@ -76,60 +77,62 @@ class CopysetClientTest : public testing::Test {
 
  public:
     std::string listenAddr_;
-    brpc::Server *server_;
+    brpc::Server* server_;
 };
 
-/* TODO(wudemiao) 当前 controller 错误不能通过 mock 返回 */
+/* TODO(wudemiao) current controller error cannot be returned through mock */
 int gWriteCntlFailedCode = 0;
 int gReadCntlFailedCode = 0;
 
-static void WriteChunkFunc(::google::protobuf::RpcController *controller,
-                           const ::curve::chunkserver::ChunkRequest *request,
-                           ::curve::chunkserver::ChunkResponse *response,
-                           google::protobuf::Closure *done) {
+static void WriteChunkFunc(::google::protobuf::RpcController* controller,
+                           const ::curve::chunkserver::ChunkRequest* request,
+                           ::curve::chunkserver::ChunkResponse* response,
+                           google::protobuf::Closure* done) {
     /* return response */
     brpc::ClosureGuard doneGuard(done);
     if (0 != gWriteCntlFailedCode) {
         if (gWriteCntlFailedCode == brpc::ERPCTIMEDOUT) {
             std::this_thread::sleep_for(std::chrono::milliseconds(3500));
         }
-        brpc::Controller *cntl = dynamic_cast<brpc::Controller *>(controller);
+        brpc::Controller* cntl = dynamic_cast<brpc::Controller*>(controller);
         cntl->SetFailed(gWriteCntlFailedCode, "write controller error");
     }
 }
 
-static void ReadChunkFunc(::google::protobuf::RpcController *controller,
-                          const ::curve::chunkserver::ChunkRequest *request,
-                          ::curve::chunkserver::ChunkResponse *response,
-                          google::protobuf::Closure *done) {
+static void ReadChunkFunc(::google::protobuf::RpcController* controller,
+                          const ::curve::chunkserver::ChunkRequest* request,
+                          ::curve::chunkserver::ChunkResponse* response,
+                          google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     if (0 != gReadCntlFailedCode) {
         if (gReadCntlFailedCode == brpc::ERPCTIMEDOUT) {
             std::this_thread::sleep_for(std::chrono::milliseconds(4000));
         }
-        brpc::Controller *cntl = dynamic_cast<brpc::Controller *>(controller);
+        brpc::Controller* cntl = dynamic_cast<brpc::Controller*>(controller);
         cntl->SetFailed(gReadCntlFailedCode, "read controller error");
     }
 }
 
-static void ReadChunkSnapshotFunc(::google::protobuf::RpcController *controller,
-                                    const ::curve::chunkserver::ChunkRequest *request,  //NOLINT
-                                    ::curve::chunkserver::ChunkResponse *response,      //NOLINT
-                                    google::protobuf::Closure *done) {
+static void ReadChunkSnapshotFunc(
+    ::google::protobuf::RpcController* controller,
+    const ::curve::chunkserver::ChunkRequest* request,  // NOLINT
+    ::curve::chunkserver::ChunkResponse* response,      // NOLINT
+    google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     if (0 != gReadCntlFailedCode) {
-        brpc::Controller *cntl = dynamic_cast<brpc::Controller *>(controller);
+        brpc::Controller* cntl = dynamic_cast<brpc::Controller*>(controller);
         cntl->SetFailed(-1, "read snapshot controller error");
     }
 }
 
-static void DeleteChunkSnapshotFunc(::google::protobuf::RpcController *controller,      //NOLINT
-                                  const ::curve::chunkserver::ChunkRequest *request,    //NOLINT
-                                  ::curve::chunkserver::ChunkResponse *response,
-                                  google::protobuf::Closure *done) {
+static void DeleteChunkSnapshotFunc(
+    ::google::protobuf::RpcController* controller,      // NOLINT
+    const ::curve::chunkserver::ChunkRequest* request,  // NOLINT
+    ::curve::chunkserver::ChunkResponse* response,
+    google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     if (0 != gReadCntlFailedCode) {
-        brpc::Controller *cntl = dynamic_cast<brpc::Controller *>(controller);
+        brpc::Controller* cntl = dynamic_cast<brpc::Controller*>(controller);
         cntl->SetFailed(-1, "delete snapshot controller error");
     }
 }
@@ -146,32 +149,35 @@ static void CreateCloneChunkFunc(
     }
 }
 
-static void RecoverChunkFunc(::google::protobuf::RpcController *controller,      //NOLINT
-                                  const ::curve::chunkserver::ChunkRequest *request,    //NOLINT
-                                  ::curve::chunkserver::ChunkResponse *response,
-                                  google::protobuf::Closure *done) {
+static void RecoverChunkFunc(
+    ::google::protobuf::RpcController* controller,      // NOLINT
+    const ::curve::chunkserver::ChunkRequest* request,  // NOLINT
+    ::curve::chunkserver::ChunkResponse* response,
+    google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     if (0 != gReadCntlFailedCode) {
-        brpc::Controller *cntl = dynamic_cast<brpc::Controller *>(controller);
+        brpc::Controller* cntl = dynamic_cast<brpc::Controller*>(controller);
         cntl->SetFailed(-1, "recover chunk controller error");
     }
 }
 
-static void GetChunkInfoFunc(::google::protobuf::RpcController *controller,
-                             const ::curve::chunkserver::GetChunkInfoRequest *request,  //NOLINT
-                             ::curve::chunkserver::GetChunkInfoResponse *response,      //NOLINT
-                             google::protobuf::Closure *done) {
+static void GetChunkInfoFunc(
+    ::google::protobuf::RpcController* controller,
+    const ::curve::chunkserver::GetChunkInfoRequest* request,  // NOLINT
+    ::curve::chunkserver::GetChunkInfoResponse* response,      // NOLINT
+    google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     if (0 != gReadCntlFailedCode) {
-        brpc::Controller *cntl = dynamic_cast<brpc::Controller *>(controller);
+        brpc::Controller* cntl = dynamic_cast<brpc::Controller*>(controller);
         cntl->SetFailed(-1, "get chunk info controller error");
     }
 }
 
 TEST_F(CopysetClientTest, normal_test) {
     MockChunkServiceImpl mockChunkService;
-    ASSERT_EQ(server_->AddService(&mockChunkService,
-                                  brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+    ASSERT_EQ(
+        server_->AddService(&mockChunkService, brpc::SERVER_DOESNT_OWN_SERVICE),
+        0);
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
     IOSenderOption ioSenderOpt;
@@ -215,7 +221,7 @@ TEST_F(CopysetClientTest, normal_test) {
 
     // write success
     for (int i = 0; i < 10; ++i) {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
@@ -225,29 +231,29 @@ TEST_F(CopysetClientTest, normal_test) {
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
 
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).
-                                            Times(AtLeast(1))
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(AtLeast(1))
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(1)
-            .WillOnce(DoAll(SetArgPointee<2>(response),
-                            Invoke(WriteChunkFunc)));
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
-                                 iobuf, offset, len, {}, reqDone);
+                            SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _))
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response), Invoke(WriteChunkFunc)));
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, iobuf,
+                                 offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
@@ -256,30 +262,30 @@ TEST_F(CopysetClientTest, normal_test) {
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).
-                                            Times(AtLeast(1))
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(AtLeast(1))
             .WillOnce(Return(-1))
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(1)
-            .WillOnce(DoAll(SetArgPointee<2>(response),
-                            Invoke(WriteChunkFunc)));
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
-                                 iobuf, offset, len, {}, reqDone);
+                            SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _))
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response), Invoke(WriteChunkFunc)));
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, iobuf,
+                                 offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
@@ -288,35 +294,34 @@ TEST_F(CopysetClientTest, normal_test) {
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).
-                                            Times(AtLeast(1))
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(AtLeast(1))
             .WillOnce(Return(-1))
             .WillOnce(Return(-1))
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(1)
-            .WillOnce(DoAll(SetArgPointee<2>(response),
-                            Invoke(WriteChunkFunc)));
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
-                                 iobuf, offset, len, {}, reqDone);
+                            SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _))
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response), Invoke(WriteChunkFunc)));
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, iobuf,
+                                 offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
     // read success
     for (int i = 0; i < 10; ++i) {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->seq_ = sn;
         reqCtx->offset_ = i * 8;
@@ -324,29 +329,27 @@ TEST_F(CopysetClientTest, normal_test) {
         reqCtx->subIoIndex_ = 0;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).
-                                            Times(AtLeast(1))
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(AtLeast(1))
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _)).Times(1)
-            .WillOnce(DoAll(SetArgPointee<2>(response),
-                            Invoke(ReadChunkFunc)));
-        copysetClient.ReadChunk(reqCtx->idinfo_, sn,
-                                offset, len, {}, reqDone);
+                            SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _))
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(response), Invoke(ReadChunkFunc)));
+        copysetClient.ReadChunk(reqCtx->idinfo_, sn, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
@@ -355,30 +358,28 @@ TEST_F(CopysetClientTest, normal_test) {
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).
-                                            Times(AtLeast(1))
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(AtLeast(1))
             .WillOnce(Return(-1))
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _)).Times(1)
-            .WillOnce(DoAll(SetArgPointee<2>(response),
-                            Invoke(ReadChunkFunc)));
-        copysetClient.ReadChunk(reqCtx->idinfo_, sn,
-                                offset, len, {}, reqDone);
+                            SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _))
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(response), Invoke(ReadChunkFunc)));
+        copysetClient.ReadChunk(reqCtx->idinfo_, sn, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
@@ -387,25 +388,23 @@ TEST_F(CopysetClientTest, normal_test) {
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).
-                                            Times(AtLeast(1))
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(AtLeast(1))
             .WillOnce(Return(-1))
             .WillOnce(Return(-1))
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _)).Times(1)
-            .WillOnce(DoAll(SetArgPointee<2>(response),
-                            Invoke(ReadChunkFunc)));
-        copysetClient.ReadChunk(reqCtx->idinfo_, sn,
-                                offset, len, {}, reqDone);
+                            SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _))
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(response), Invoke(ReadChunkFunc)));
+        copysetClient.ReadChunk(reqCtx->idinfo_, sn, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -417,8 +416,9 @@ TEST_F(CopysetClientTest, normal_test) {
  */
 TEST_F(CopysetClientTest, write_error_test) {
     MockChunkServiceImpl mockChunkService;
-    ASSERT_EQ(server_->AddService(&mockChunkService,
-                                  brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+    ASSERT_EQ(
+        server_->AddService(&mockChunkService, brpc::SERVER_DOESNT_OWN_SERVICE),
+        0);
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
     IOSenderOption ioSenderOpt;
@@ -465,9 +465,9 @@ TEST_F(CopysetClientTest, write_error_test) {
     FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
 
-    /* 非法参数 */
+    /* Illegal parameter */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
@@ -476,7 +476,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
 
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
@@ -485,21 +485,22 @@ TEST_F(CopysetClientTest, write_error_test) {
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
         EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
-            .Times(AtLeast(1)).WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                                              SetArgPointee<3>(leaderAddr),
-                                              Return(0)));
-        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(1)
-            .WillOnce(DoAll(SetArgPointee<2>(response),
-                            Invoke(WriteChunkFunc)));
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
-                                 iobuf, offset, len, {}, reqDone);
+            .Times(AtLeast(1))
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId),
+                            SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _))
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response), Invoke(WriteChunkFunc)));
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, iobuf,
+                                 offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
                   reqDone->GetErrorCode());
     }
     /* controller error */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
@@ -507,24 +508,27 @@ TEST_F(CopysetClientTest, write_error_test) {
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
-        // 配置文件设置的重试睡眠时间为5000，因为没有触发底层指数退避，所以重试之间不会睡眠
+        // The retry sleep time set in the configuration file is 5000, as there
+        // is no triggering of underlying index backoff, so there will be no
+        // sleep between retries
         uint64_t start = TimeUtility::GetTimeofDayUs();
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         gWriteCntlFailedCode = -1;
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(6)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(6)
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                                  SetArgPointee<3>(leaderAddr),
-                                  Return(0)));
-        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(3)
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _))
+            .Times(3)
             .WillRepeatedly(Invoke(WriteChunkFunc));
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
-                                 iobuf, offset, len, {}, reqDone);
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, iobuf,
+                                 offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_NE(0, reqDone->GetErrorCode());
 
@@ -534,7 +538,7 @@ TEST_F(CopysetClientTest, write_error_test) {
     }
     /* controller set timeout */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
@@ -543,14 +547,17 @@ TEST_F(CopysetClientTest, write_error_test) {
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
-        // 配置文件设置的重试超时时间为5000，因为chunkserver设置返回timeout
-        // 导致触发底层超时时间指数退避，每次重试间隔增大。重试三次正常只需要睡眠3*1000
-        // 但是增加指数退避之后，超时时间将增加到1000 + 2000 + 2000 = 5000
-        // 加上随机因子，三次重试时间应该大于7000, 且小于8000
+        // The retry timeout set by the configuration file is 5000 because the
+        // chunkserver setting returns timeout Causing the triggering of an
+        // exponential backoff of the underlying timeout time, increasing the
+        // interval between each retry. Retrying three times is normal, only 3 *
+        // 1000 sleep is required But after increasing the index backoff, the
+        // timeout will increase to 1000+2000+2000=5000 Adding random factors,
+        // the three retry times should be greater than 7000 and less than 8000
         uint64_t start = TimeUtility::GetTimeofDayMs();
 
         reqCtx->done_ = reqDone;
@@ -558,12 +565,12 @@ TEST_F(CopysetClientTest, write_error_test) {
         EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
             .Times(AtLeast(3))
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                                  SetArgPointee<3>(leaderAddr),
-                                  Return(0)));
-        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(3)
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _))
+            .Times(3)
             .WillRepeatedly(Invoke(WriteChunkFunc));
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
-                                 iobuf, offset, len, {}, reqDone);
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, iobuf,
+                                 offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_NE(0, reqDone->GetErrorCode());
 
@@ -577,7 +584,7 @@ TEST_F(CopysetClientTest, write_error_test) {
 
     /* controller set timeout */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
@@ -586,31 +593,35 @@ TEST_F(CopysetClientTest, write_error_test) {
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
-        // 配置文件设置的重试睡眠时间为5000，因为chunkserver设置返回timeout
-        // 导致触发底层指数退避，每次重试间隔增大。重试三次正常只需要睡眠3*5000
-        // 但是增加指数退避之后，睡眠间隔将增加到10000 + 20000 = 30000
-        // 加上随机因子，三次重试时间应该大于29000, 且小于50000
+        // The retry sleep time set in the configuration file is 5000 because
+        // the chunkserver setting returns timeout Causing triggering of
+        // low-level exponential backoff, increasing the interval between each
+        // retry. Retrying three times is normal, only 3 * 5000 sleep is
+        // required But after increasing the index retreat, the sleep interval
+        // will increase to 10000+20000=30000 Adding random factors, the three
+        // retry times should be greater than 29000 and less than 50000
         uint64_t start = TimeUtility::GetTimeofDayUs();
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD);
         EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
-            .Times(3).WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                                           SetArgPointee<3>(leaderAddr),
-                                           Return(0)));
-        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(3)
-            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
-                                  Invoke(WriteChunkFunc)));
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
-                                 iobuf, offset, len, {}, reqDone);
+            .Times(3)
+            .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _))
+            .Times(3)
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(response), Invoke(WriteChunkFunc)));
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, iobuf,
+                                 offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD,
-                 reqDone->GetErrorCode());
+                  reqDone->GetErrorCode());
 
         uint64_t end = TimeUtility::GetTimeofDayUs();
         ASSERT_GT(end - start, 28000);
@@ -618,9 +629,9 @@ TEST_F(CopysetClientTest, write_error_test) {
         gWriteCntlFailedCode = 0;
     }
 
-    /* 其他错误 */
+    /* Other errors */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
@@ -629,7 +640,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -637,21 +648,22 @@ TEST_F(CopysetClientTest, write_error_test) {
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
         EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
-            .Times(3).WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                                           SetArgPointee<3>(leaderAddr),
-                                           Return(0)));
-        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(3)
-            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
-                                  Invoke(WriteChunkFunc)));
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
-                                 iobuf, offset, len, {}, reqDone);
+            .Times(3)
+            .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _))
+            .Times(3)
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(response), Invoke(WriteChunkFunc)));
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, iobuf,
+                                 offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
-                 reqDone->GetErrorCode());
+                  reqDone->GetErrorCode());
     }
-    /* 不是 leader，返回正确的 leader */
+    /* Not a leader, returning the correct leader */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
@@ -660,7 +672,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -670,28 +682,31 @@ TEST_F(CopysetClientTest, write_error_test) {
         response1.set_redirect(leaderStr);
         ChunkResponse response2;
         response2.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(3)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(3)
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockMetaCache, UpdateLeader(_, _, _)).Times(1)
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockMetaCache, UpdateLeader(_, _, _))
+            .Times(1)
             .WillOnce(Return(0));
-        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(2)
-            .WillOnce(DoAll(SetArgPointee<2>(response1),
-                            Invoke(WriteChunkFunc)))
-            .WillOnce(DoAll(SetArgPointee<2>(response2),
-                            Invoke(WriteChunkFunc)));
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
-                                 iobuf, offset, len, {}, reqDone);
+        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _))
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response1), Invoke(WriteChunkFunc)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response2), Invoke(WriteChunkFunc)));
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, iobuf,
+                                 offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
 
         ASSERT_EQ(1, fm.writeRPC.redirectQps.count.get_value());
     }
-    /* 不是 leader，没有返回 leader，刷新 meta cache 成功 */
+    /* Not a leader, did not return a leader, refreshing the meta cache
+     * succeeded */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
@@ -700,35 +715,37 @@ TEST_F(CopysetClientTest, write_error_test) {
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
-//        response1.set_redirect(leaderStr2);
+        //        response1.set_redirect(leaderStr2);
         ChunkResponse response2;
         response2.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(3)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(3)
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(2)
-            .WillOnce(DoAll(SetArgPointee<2>(response1),
-                            Invoke(WriteChunkFunc)))
-            .WillOnce(DoAll(SetArgPointee<2>(response2),
-                            Invoke(WriteChunkFunc)));
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _))
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response1), Invoke(WriteChunkFunc)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response2), Invoke(WriteChunkFunc)));
 
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
-                                 iobuf, offset, len, {}, reqDone);
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, iobuf,
+                                 offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
-    /* 不是 leader，没有返回 leader，刷新 meta cache 失败 */
+    /* Not a leader, did not return a leader, refreshing the meta cache failed
+     */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
@@ -737,38 +754,38 @@ TEST_F(CopysetClientTest, write_error_test) {
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
-//        response1.set_redirect(leaderStr2);
+        //        response1.set_redirect(leaderStr2);
         ChunkResponse response2;
         response2.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(3)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(3)
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)))
+                            SetArgPointee<3>(leaderAddr), Return(0)))
             .WillOnce(Return(-1))
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(2)
-            .WillOnce(DoAll(SetArgPointee<2>(response1),
-                            Invoke(WriteChunkFunc)))
-            .WillOnce(DoAll(SetArgPointee<2>(response2),
-                            Invoke(WriteChunkFunc)));
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
-                                 iobuf, offset, len, {}, reqDone);
+                            SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _))
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response1), Invoke(WriteChunkFunc)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response2), Invoke(WriteChunkFunc)));
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, iobuf,
+                                 offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
-    /* 不是 leader，但返回的是错误 leader */
+    /* Not a leader, but returned an incorrect leader */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
@@ -777,7 +794,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         FileMetric fm("test");
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
@@ -786,33 +803,36 @@ TEST_F(CopysetClientTest, write_error_test) {
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
         response.set_redirect(leaderStr);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(6)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(6)
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
         EXPECT_CALL(mockMetaCache, UpdateLeader(_, _, _))
             .Times(3)
             .WillRepeatedly(Return(0));
-        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(3)
-            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
-                            Invoke(WriteChunkFunc)));
+        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _))
+            .Times(3)
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(response), Invoke(WriteChunkFunc)));
         auto startTimeUs = curve::common::TimeUtility::GetTimeofDayUs();
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
-                                 iobuf, offset, len, {}, reqDone);
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, iobuf,
+                                 offset, len, {}, reqDone);
         cond.Wait();
-        auto elpased = curve::common::TimeUtility::GetTimeofDayUs()
-                     - startTimeUs;
+        auto elpased =
+            curve::common::TimeUtility::GetTimeofDayUs() - startTimeUs;
         // chunkserverOPRetryIntervalUS = 5000
-        // 每次redirect睡眠500us，共重试2次(chunkserverOPMaxRetry=3，判断时大于等于就返回，所以共只重试了两次)
-        // 所以总共耗费时间大于1000us
+        // redirect sleep for 500us each time and retry a total of 2 times
+        // (chunkserverOPMaxRetry=3, returns if it is greater than or equal to,
+        // so only two retries were made) So the total time spent is greater
+        // than 1000us
         ASSERT_GE(elpased, 1000);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
                   reqDone->GetErrorCode());
         ASSERT_EQ(3, fm.writeRPC.redirectQps.count.get_value());
     }
-    /* copyset 不存在，更新 leader 依然失败 */
+    /* copyset does not exist, updating leader still failed */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
@@ -821,7 +841,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -829,22 +849,23 @@ TEST_F(CopysetClientTest, write_error_test) {
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
         response.set_redirect(leaderStr);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(6)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(6)
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(3)
-            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
-                            Invoke(WriteChunkFunc)));
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
-                                 iobuf, offset, len, {}, reqDone);
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _))
+            .Times(3)
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(response), Invoke(WriteChunkFunc)));
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, iobuf,
+                                 offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
                   reqDone->GetErrorCode());
     }
-    /* copyset 不存在，更新 leader 成功 */
+    /* copyset does not exist, updating leader succeeded */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
@@ -853,7 +874,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -864,24 +885,25 @@ TEST_F(CopysetClientTest, write_error_test) {
         ChunkResponse response2;
         response2.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
         response2.set_redirect(leaderStr);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(3)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(3)
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(2)
-            .WillOnce(DoAll(SetArgPointee<2>(response1),
-                            Invoke(WriteChunkFunc)))
-            .WillOnce(DoAll(SetArgPointee<2>(response2),
-                            Invoke(WriteChunkFunc)));
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
-                                 iobuf, offset, len, {}, reqDone);
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _))
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response1), Invoke(WriteChunkFunc)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response2), Invoke(WriteChunkFunc)));
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, iobuf,
+                                 offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
     // epoch too old
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
@@ -890,7 +912,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -898,17 +920,18 @@ TEST_F(CopysetClientTest, write_error_test) {
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_EPOCH_TOO_OLD);
         EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
-            .Times(AtLeast(1)).WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                                              SetArgPointee<3>(leaderAddr),
-                                              Return(0)));
-        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(1)
-            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
-                                  Invoke(WriteChunkFunc)));
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
-                                 iobuf, offset, len, {}, reqDone);
+            .Times(AtLeast(1))
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId),
+                            SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _))
+            .Times(1)
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(response), Invoke(WriteChunkFunc)));
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, iobuf,
+                                 offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_EPOCH_TOO_OLD,
-                 reqDone->GetErrorCode());
+                  reqDone->GetErrorCode());
     }
 
     scheduler.Fini();
@@ -919,8 +942,9 @@ TEST_F(CopysetClientTest, write_error_test) {
  */
 TEST_F(CopysetClientTest, write_failed_test) {
     MockChunkServiceImpl mockChunkService;
-    ASSERT_EQ(server_->AddService(&mockChunkService,
-                                  brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+    ASSERT_EQ(
+        server_->AddService(&mockChunkService, brpc::SERVER_DOESNT_OWN_SERVICE),
+        0);
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
     IOSenderOption ioSenderOpt;
@@ -968,7 +992,7 @@ TEST_F(CopysetClientTest, write_failed_test) {
 
     /* controller set timeout */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
@@ -977,13 +1001,16 @@ TEST_F(CopysetClientTest, write_failed_test) {
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
-        // 配置文件设置的重试超时时间为500，因为chunkserver设置返回timeout
-        // 导致触发底层超时时间指数退避，每次重试间隔增大。重试50次正常只需要超时49*500
-        // 但是增加指数退避之后，超时时间将增加到49*1000 = 49000
+        // The retry timeout set by the configuration file is 500 because the
+        // chunkserver setting returns timeout Causing the triggering of an
+        // exponential backoff of the underlying timeout time, increasing the
+        // interval between each retry. Retrying 50 times normally only requires
+        // a timeout of 49 * 500 But after increasing the index backoff, the
+        // timeout will increase to 49 * 1000=49000
         uint64_t start = TimeUtility::GetTimeofDayMs();
 
         reqCtx->done_ = reqDone;
@@ -991,12 +1018,12 @@ TEST_F(CopysetClientTest, write_failed_test) {
         EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
             .Times(AtLeast(50))
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                                  SetArgPointee<3>(leaderAddr),
-                                  Return(0)));
-        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(50)
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _))
+            .Times(50)
             .WillRepeatedly(Invoke(WriteChunkFunc));
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
-                                 iobuf, offset, len, {}, reqDone);
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, iobuf,
+                                 offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_NE(0, reqDone->GetErrorCode());
 
@@ -1009,7 +1036,7 @@ TEST_F(CopysetClientTest, write_failed_test) {
     }
 
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
@@ -1018,31 +1045,34 @@ TEST_F(CopysetClientTest, write_failed_test) {
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
-        // 配置文件设置的重试睡眠时间为5000us，因为chunkserver设置返回timeout
-        // 导致触发底层指数退避，每次重试间隔增大。重试50次正常只需要睡眠49*5000us
-        // 但是增加指数退避之后，睡眠间隔将增加到
-        // 10000 + 20000 + 40000... ~= 4650000
+        // The retry sleep time set in the configuration file is 5000us because
+        // the chunkserver setting returns timeout Causing triggering of
+        // low-level exponential backoff, increasing the interval between each
+        // retry. Retrying 50 times normally only requires 49 * 5000us of sleep
+        // But after increasing the index of retreat, the sleep interval will
+        // increase to 10000 + 20000 + 40000... ~= 4650000
         uint64_t start = TimeUtility::GetTimeofDayUs();
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD);
         EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
-            .Times(50).WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                                           SetArgPointee<3>(leaderAddr),
-                                           Return(0)));
-        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(50)
-            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
-                                  Invoke(WriteChunkFunc)));
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
-                                 iobuf, offset, len, {}, reqDone);
+            .Times(50)
+            .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _))
+            .Times(50)
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(response), Invoke(WriteChunkFunc)));
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, iobuf,
+                                 offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD,
-                 reqDone->GetErrorCode());
+                  reqDone->GetErrorCode());
 
         uint64_t end = TimeUtility::GetTimeofDayUs();
         ASSERT_GT(end - start, 250000);
@@ -1052,14 +1082,14 @@ TEST_F(CopysetClientTest, write_failed_test) {
     scheduler.Fini();
 }
 
-
 /**
  * read failed testing
  */
 TEST_F(CopysetClientTest, read_failed_test) {
     MockChunkServiceImpl mockChunkService;
-    ASSERT_EQ(server_->AddService(&mockChunkService,
-                                  brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+    ASSERT_EQ(
+        server_->AddService(&mockChunkService, brpc::SERVER_DOESNT_OWN_SERVICE),
+        0);
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
     IOSenderOption ioSenderOpt;
@@ -1105,7 +1135,7 @@ TEST_F(CopysetClientTest, read_failed_test) {
 
     /* controller set timeout */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
@@ -1113,13 +1143,16 @@ TEST_F(CopysetClientTest, read_failed_test) {
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
-        // 配置文件设置的重试超时时间为500，因为chunkserver设置返回timeout
-        // 导致触发底层超时时间指数退避，每次重试间隔增大。重试50次正常只需要50*500
-        // 但是增加指数退避之后，超时时间将增加到500 + 1000 + 2000... ~= 60000
+        // The retry timeout set by the configuration file is 500 because the
+        // chunkserver setting returns timeout Causing the triggering of an
+        // exponential backoff of the underlying timeout time, increasing the
+        // interval between each retry. Retrying 50 times normally only requires
+        // 50 * 500 But after increasing the index retreat, the timeout will
+        // increase to 500+1000+2000...~=60000
         uint64_t start = TimeUtility::GetTimeofDayMs();
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -1128,12 +1161,11 @@ TEST_F(CopysetClientTest, read_failed_test) {
         EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
             .Times(AtLeast(50))
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                                  SetArgPointee<3>(leaderAddr),
-                                  Return(0)));
-        EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _)).Times(50)
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _))
+            .Times(50)
             .WillRepeatedly(Invoke(ReadChunkFunc));
-        copysetClient.ReadChunk(reqCtx->idinfo_, sn,
-                                offset, len, {}, reqDone);
+        copysetClient.ReadChunk(reqCtx->idinfo_, sn, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_NE(0, reqDone->GetErrorCode());
 
@@ -1146,9 +1178,9 @@ TEST_F(CopysetClientTest, read_failed_test) {
         gReadCntlFailedCode = 0;
     }
 
-    /* 设置 overload */
+    /* Set overload */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
@@ -1157,29 +1189,32 @@ TEST_F(CopysetClientTest, read_failed_test) {
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
-        // 配置文件设置的重试睡眠时间为5000us，因为chunkserver设置返回timeout
-        // 导致触发底层指数退避，每次重试间隔增大。重试50次正常只需要睡眠49*5000
-        // 但是增加指数退避之后，睡眠间隔将增加到
-        // 10000 + 20000 + 40000 ... = 4650000
-        // 加上随机因子，三次重试时间应该大于2900, 且小于5000
+        // The retry sleep time set in the configuration file is 5000us because
+        // the chunkserver setting returns timeout Causing triggering of
+        // low-level exponential backoff, increasing the interval between each
+        // retry. Retrying 50 times is normal, only requiring 49 * 5000 sleep
+        // But after increasing the index of retreat, the sleep interval will
+        // increase to 10000 + 20000 + 40000 ... = 4650000 Adding random
+        // factors, the three retry times should be greater than 2900 and less
+        // than 5000
         uint64_t start = TimeUtility::GetTimeofDayUs();
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD);
         EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
-            .Times(50).WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                                           SetArgPointee<3>(leaderAddr),
-                                           Return(0)));
-        EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _)).Times(50)
-            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
-                                  Invoke(ReadChunkFunc)));
-        copysetClient.ReadChunk(reqCtx->idinfo_, sn,
-                                offset, len, {}, reqDone);
+            .Times(50)
+            .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _))
+            .Times(50)
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(response), Invoke(ReadChunkFunc)));
+        copysetClient.ReadChunk(reqCtx->idinfo_, sn, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD,
                   reqDone->GetErrorCode());
@@ -1196,8 +1231,9 @@ TEST_F(CopysetClientTest, read_failed_test) {
  */
 TEST_F(CopysetClientTest, read_error_test) {
     MockChunkServiceImpl mockChunkService;
-    ASSERT_EQ(server_->AddService(&mockChunkService,
-                                  brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+    ASSERT_EQ(
+        server_->AddService(&mockChunkService, brpc::SERVER_DOESNT_OWN_SERVICE),
+        0);
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
     IOSenderOption ioSenderOpt;
@@ -1242,9 +1278,9 @@ TEST_F(CopysetClientTest, read_error_test) {
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
     iot.PrepareReadIOBuffers(1);
 
-    /* 非法参数 */
+    /* Illegal parameter */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
@@ -1253,7 +1289,7 @@ TEST_F(CopysetClientTest, read_error_test) {
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -1261,21 +1297,20 @@ TEST_F(CopysetClientTest, read_error_test) {
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
         EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
-            .Times(AtLeast(1)).WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                                              SetArgPointee<3>(leaderAddr),
-                                              Return(0)));
-        EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _)).Times(1)
-            .WillOnce(DoAll(SetArgPointee<2>(response),
-                            Invoke(ReadChunkFunc)));
-        copysetClient.ReadChunk(reqCtx->idinfo_, sn,
-                                offset, len, {}, reqDone);
+            .Times(AtLeast(1))
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId),
+                            SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _))
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(response), Invoke(ReadChunkFunc)));
+        copysetClient.ReadChunk(reqCtx->idinfo_, sn, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
                   reqDone->GetErrorCode());
     }
     /* chunk not exist */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
@@ -1284,7 +1319,7 @@ TEST_F(CopysetClientTest, read_error_test) {
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -1292,20 +1327,19 @@ TEST_F(CopysetClientTest, read_error_test) {
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST);
         EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
-            .Times(AtLeast(1)).WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                                              SetArgPointee<3>(leaderAddr),
-                                              Return(0)));
-        EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _)).Times(1)
-            .WillOnce(DoAll(SetArgPointee<2>(response),
-                            Invoke(ReadChunkFunc)));
-        copysetClient.ReadChunk(reqCtx->idinfo_, sn,
-                                offset, len, {}, reqDone);
+            .Times(AtLeast(1))
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId),
+                            SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _))
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(response), Invoke(ReadChunkFunc)));
+        copysetClient.ReadChunk(reqCtx->idinfo_, sn, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(0, reqDone->GetErrorCode());
     }
     /* controller error */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
@@ -1313,11 +1347,13 @@ TEST_F(CopysetClientTest, read_error_test) {
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
-        // 配置文件设置的重试睡眠时间为5000，因为没有触发底层指数退避，所以重试之间不会睡眠
+        // The retry sleep time set in the configuration file is 5000, as there
+        // is no triggering of underlying index backoff, so there will be no
+        // sleep between retries
         uint64_t start = TimeUtility::GetTimeofDayUs();
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -1326,12 +1362,11 @@ TEST_F(CopysetClientTest, read_error_test) {
         EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
             .Times(AtLeast(3))
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                                  SetArgPointee<3>(leaderAddr),
-                                  Return(0)));
-        EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _)).Times(3)
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _))
+            .Times(3)
             .WillRepeatedly(Invoke(ReadChunkFunc));
-        copysetClient.ReadChunk(reqCtx->idinfo_, sn,
-                                offset, len, {}, reqDone);
+        copysetClient.ReadChunk(reqCtx->idinfo_, sn, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_NE(0, reqDone->GetErrorCode());
 
@@ -1342,7 +1377,7 @@ TEST_F(CopysetClientTest, read_error_test) {
 
     /* controller set timeout */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
@@ -1350,14 +1385,17 @@ TEST_F(CopysetClientTest, read_error_test) {
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
-        // 配置文件设置的超时时间为1000，因为chunkserver设置返回timeout
-        // 导致触发底层超时时间指数退避，每次重试间隔增大。重试三次正常只需要睡眠3*1000
-        // 但是增加指数退避之后，超时时间将增加到1000 + 2000 + 2000 = 5000
-        // 加上随机因子，三次重试时间应该大于7000, 且小于8000
+        // The timeout configured in the settings file is 1000, but due to chunk
+        // server timeout, it triggers exponential backoff, increasing the
+        // interval between retries. In normal conditions, three retries would
+        // only require a sleep time of 3 * 1000. However, with the added
+        // exponential backoff, the timeout intervals will increase to 1000 +
+        // 2000 + 2000 = 5000. Considering the random factor, the total time for
+        // three retries should be greater than 7000 and less than 8000.
         uint64_t start = TimeUtility::GetTimeofDayMs();
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -1366,12 +1404,11 @@ TEST_F(CopysetClientTest, read_error_test) {
         EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
             .Times(AtLeast(3))
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                                  SetArgPointee<3>(leaderAddr),
-                                  Return(0)));
-        EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _)).Times(3)
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _))
+            .Times(3)
             .WillRepeatedly(Invoke(ReadChunkFunc));
-        copysetClient.ReadChunk(reqCtx->idinfo_, sn,
-                                offset, len, {}, reqDone);
+        copysetClient.ReadChunk(reqCtx->idinfo_, sn, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_NE(0, reqDone->GetErrorCode());
 
@@ -1384,9 +1421,9 @@ TEST_F(CopysetClientTest, read_error_test) {
         gReadCntlFailedCode = 0;
     }
 
-    /* 设置 overload */
+    /* Set overload */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
@@ -1395,28 +1432,31 @@ TEST_F(CopysetClientTest, read_error_test) {
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
-        // 配置文件设置的重试睡眠时间为500，因为chunkserver设置返回timeout
-        // 导致触发底层指数退避，每次重试间隔增大。重试三次正常只需要睡眠3*500
-        // 但是增加指数退避之后，睡眠间隔将增加到1000 + 2000 = 3000
-        // 加上随机因子，三次重试时间应该大于2900, 且小于5000
+        // The retry sleep time set in the configuration file is 500, but due to
+        // chunkserver timeouts, it triggers exponential backoff, increasing the
+        // interval between retries. In normal conditions, three retries would
+        // only require a sleep time of 3 * 500. However, with the added
+        // exponential backoff, the sleep intervals will increase to 1000 + 2000
+        // = 3000. Considering the random factor, the total time for three
+        // retries should be greater than 2900 and less than 5000.
         uint64_t start = TimeUtility::GetTimeofDayUs();
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD);
         EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
-            .Times(3).WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                                           SetArgPointee<3>(leaderAddr),
-                                           Return(0)));
-        EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _)).Times(3)
-            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
-                                  Invoke(ReadChunkFunc)));
-        copysetClient.ReadChunk(reqCtx->idinfo_, sn,
-                                offset, len, {}, reqDone);
+            .Times(3)
+            .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _))
+            .Times(3)
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(response), Invoke(ReadChunkFunc)));
+        copysetClient.ReadChunk(reqCtx->idinfo_, sn, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD,
                   reqDone->GetErrorCode());
@@ -1426,9 +1466,9 @@ TEST_F(CopysetClientTest, read_error_test) {
         ASSERT_LT(end - start, 3 * 5000);
     }
 
-    /* 其他错误 */
+    /* Other errors */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
@@ -1437,7 +1477,7 @@ TEST_F(CopysetClientTest, read_error_test) {
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -1445,21 +1485,21 @@ TEST_F(CopysetClientTest, read_error_test) {
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
         EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
-            .Times(3).WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                                           SetArgPointee<3>(leaderAddr),
-                                           Return(0)));
-        EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _)).Times(3)
-            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
-                                  Invoke(ReadChunkFunc)));
-        copysetClient.ReadChunk(reqCtx->idinfo_, sn,
-                                offset, len, {}, reqDone);
+            .Times(3)
+            .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _))
+            .Times(3)
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(response), Invoke(ReadChunkFunc)));
+        copysetClient.ReadChunk(reqCtx->idinfo_, sn, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
                   reqDone->GetErrorCode());
     }
-    /* 不是 leader，返回正确的 leader */
+    /* Not a leader, returning the correct leader */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
@@ -1468,7 +1508,7 @@ TEST_F(CopysetClientTest, read_error_test) {
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -1478,26 +1518,27 @@ TEST_F(CopysetClientTest, read_error_test) {
         response1.set_redirect(leaderStr);
         ChunkResponse response2;
         response2.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(3)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(3)
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockMetaCache, UpdateLeader(_, _, _)).Times(1)
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockMetaCache, UpdateLeader(_, _, _))
+            .Times(1)
             .WillOnce(Return(0));
-        EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _)).Times(2)
-            .WillOnce(DoAll(SetArgPointee<2>(response1),
-                            Invoke(ReadChunkFunc)))
-            .WillOnce(DoAll(SetArgPointee<2>(response2),
-                            Invoke(ReadChunkFunc)));
-        copysetClient.ReadChunk(reqCtx->idinfo_, sn,
-                                offset, len, {}, reqDone);
+        EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _))
+            .Times(2)
+            .WillOnce(DoAll(SetArgPointee<2>(response1), Invoke(ReadChunkFunc)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response2), Invoke(ReadChunkFunc)));
+        copysetClient.ReadChunk(reqCtx->idinfo_, sn, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
-    /* 不是 leader，但是没有返回 leader，刷新 meta cache 成功 */
+    /* Not a leader, but did not return a leader, refreshing the meta cache
+     * succeeded */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
@@ -1506,40 +1547,38 @@ TEST_F(CopysetClientTest, read_error_test) {
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
-//        response1.set_redirect(leaderStr2);
+        //        response1.set_redirect(leaderStr2);
         ChunkResponse response2;
         response2.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(3)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(3)
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)))
+                            SetArgPointee<3>(leaderAddr), Return(0)))
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)))
+                            SetArgPointee<3>(leaderAddr), Return(0)))
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _)).Times(2)
-            .WillOnce(DoAll(SetArgPointee<2>(response1),
-                            Invoke(ReadChunkFunc)))
-            .WillOnce(DoAll(SetArgPointee<2>(response2),
-                            Invoke(ReadChunkFunc)));
-        copysetClient.ReadChunk(reqCtx->idinfo_, sn,
-                                offset, len, {}, reqDone);
+                            SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _))
+            .Times(2)
+            .WillOnce(DoAll(SetArgPointee<2>(response1), Invoke(ReadChunkFunc)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response2), Invoke(ReadChunkFunc)));
+        copysetClient.ReadChunk(reqCtx->idinfo_, sn, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
-    /* 不是 leader，但是没有返回 leader，刷新 meta cache 失败 */
+    /* Not a leader, but did not return a leader, refreshing the meta cache
+     * failed */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
@@ -1548,40 +1587,37 @@ TEST_F(CopysetClientTest, read_error_test) {
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
-//        response1.set_redirect(leaderStr2);
+        //        response1.set_redirect(leaderStr2);
         ChunkResponse response2;
         response2.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(3)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(3)
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)))
+                            SetArgPointee<3>(leaderAddr), Return(0)))
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(-1)))
+                            SetArgPointee<3>(leaderAddr), Return(-1)))
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _)).Times(2)
-            .WillOnce(DoAll(SetArgPointee<2>(response1),
-                            Invoke(ReadChunkFunc)))
-            .WillOnce(DoAll(SetArgPointee<2>(response2),
-                            Invoke(ReadChunkFunc)));
-        copysetClient.ReadChunk(reqCtx->idinfo_, sn,
-                                offset, len, {}, reqDone);
+                            SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _))
+            .Times(2)
+            .WillOnce(DoAll(SetArgPointee<2>(response1), Invoke(ReadChunkFunc)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response2), Invoke(ReadChunkFunc)));
+        copysetClient.ReadChunk(reqCtx->idinfo_, sn, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
-    /* 不是 leader，但返回的是错误 leader */
+    /* Not a leader, but returned an incorrect leader */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
@@ -1590,7 +1626,7 @@ TEST_F(CopysetClientTest, read_error_test) {
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -1598,24 +1634,25 @@ TEST_F(CopysetClientTest, read_error_test) {
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
         response.set_redirect(leaderStr);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(6)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(6)
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockMetaCache, UpdateLeader(_, _, _)).Times(3)
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockMetaCache, UpdateLeader(_, _, _))
+            .Times(3)
             .WillRepeatedly(Return(0));
-        EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _)).Times(3)
-            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
-                            Invoke(ReadChunkFunc)));
-        copysetClient.ReadChunk(reqCtx->idinfo_, sn,
-                                offset, len, {}, reqDone);
+        EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _))
+            .Times(3)
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(response), Invoke(ReadChunkFunc)));
+        copysetClient.ReadChunk(reqCtx->idinfo_, sn, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
                   reqDone->GetErrorCode());
     }
-    /* copyset 不存在，更新 leader 依然失败 */
+    /* copyset does not exist, updating leader still failed */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
@@ -1624,7 +1661,7 @@ TEST_F(CopysetClientTest, read_error_test) {
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -1632,22 +1669,22 @@ TEST_F(CopysetClientTest, read_error_test) {
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
         response.set_redirect(leaderStr);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(6)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(6)
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _)).Times(3)
-            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
-                            Invoke(ReadChunkFunc)));
-        copysetClient.ReadChunk(reqCtx->idinfo_, sn,
-                                offset, len, {}, reqDone);
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _))
+            .Times(3)
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(response), Invoke(ReadChunkFunc)));
+        copysetClient.ReadChunk(reqCtx->idinfo_, sn, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
                   reqDone->GetErrorCode());
     }
-    /* copyset 不存在，更新 leader 成功 */
+    /* copyset does not exist, updating leader succeeded */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
@@ -1656,7 +1693,7 @@ TEST_F(CopysetClientTest, read_error_test) {
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -1667,23 +1704,20 @@ TEST_F(CopysetClientTest, read_error_test) {
         ChunkResponse response2;
         response2.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
         response2.set_redirect(leaderStr);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(3)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(3)
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)))
+                            SetArgPointee<3>(leaderAddr), Return(0)))
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)))
+                            SetArgPointee<3>(leaderAddr), Return(0)))
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _)).Times(2)
-            .WillOnce(DoAll(SetArgPointee<2>(response1),
-                            Invoke(ReadChunkFunc)))
-            .WillOnce(DoAll(SetArgPointee<2>(response2),
-                            Invoke(ReadChunkFunc)));
-        copysetClient.ReadChunk(reqCtx->idinfo_, sn,
-                                offset, len, {}, reqDone);
+                            SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _))
+            .Times(2)
+            .WillOnce(DoAll(SetArgPointee<2>(response1), Invoke(ReadChunkFunc)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response2), Invoke(ReadChunkFunc)));
+        copysetClient.ReadChunk(reqCtx->idinfo_, sn, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -1696,8 +1730,9 @@ TEST_F(CopysetClientTest, read_error_test) {
  */
 TEST_F(CopysetClientTest, read_snapshot_error_test) {
     MockChunkServiceImpl mockChunkService;
-    ASSERT_EQ(server_->AddService(&mockChunkService,
-                                  brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+    ASSERT_EQ(
+        server_->AddService(&mockChunkService, brpc::SERVER_DOESNT_OWN_SERVICE),
+        0);
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
     IOSenderOption ioSenderOpt;
@@ -1732,19 +1767,18 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
     FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
 
-    /* 非法参数 */
+    /* Illegal parameter */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->seq_ = sn;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -1752,31 +1786,31 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
         EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
-            .Times(AtLeast(1)).WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                                              SetArgPointee<3>(leaderAddr),
-                                              Return(0)));
-        EXPECT_CALL(mockChunkService, ReadChunkSnapshot(_, _, _, _)).Times(1)
+            .Times(AtLeast(1))
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId),
+                            SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, ReadChunkSnapshot(_, _, _, _))
+            .Times(1)
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(ReadChunkSnapshotFunc)));
-        copysetClient.ReadChunkSnapshot(reqCtx->idinfo_,
-                                        sn, offset, len, reqDone);
+        copysetClient.ReadChunkSnapshot(reqCtx->idinfo_, sn, offset, len,
+                                        reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
                   reqDone->GetErrorCode());
     }
     /* chunk snapshot not exist */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->seq_ = sn;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -1784,61 +1818,61 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST);
         EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
-            .Times(AtLeast(1)).WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                                              SetArgPointee<3>(leaderAddr),
-                                              Return(0)));
-        EXPECT_CALL(mockChunkService, ReadChunkSnapshot(_, _, _, _)).Times(1)
+            .Times(AtLeast(1))
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId),
+                            SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, ReadChunkSnapshot(_, _, _, _))
+            .Times(1)
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(ReadChunkSnapshotFunc)));
-        copysetClient.ReadChunkSnapshot(reqCtx->idinfo_,
-                                        sn, offset, len, reqDone);
+        copysetClient.ReadChunkSnapshot(reqCtx->idinfo_, sn, offset, len,
+                                        reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST,
                   reqDone->GetErrorCode());
     }
     /* controller error */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->seq_ = sn;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         gReadCntlFailedCode = -1;
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(6)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(6)
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                                  SetArgPointee<3>(leaderAddr),
-                                  Return(0)));
-        EXPECT_CALL(mockChunkService, ReadChunkSnapshot(_, _, _, _)).Times(3)
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, ReadChunkSnapshot(_, _, _, _))
+            .Times(3)
             .WillRepeatedly(Invoke(ReadChunkSnapshotFunc));
-        copysetClient.ReadChunkSnapshot(reqCtx->idinfo_,
-                                        sn, offset, len, reqDone);
+        copysetClient.ReadChunkSnapshot(reqCtx->idinfo_, sn, offset, len,
+                                        reqDone);
         cond.Wait();
         ASSERT_NE(0, reqDone->GetErrorCode());
         gReadCntlFailedCode = 0;
     }
-    /* 其他错误 */
+    /* Other errors */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->seq_ = sn;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -1846,31 +1880,31 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
         EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
-            .Times(3).WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                                           SetArgPointee<3>(leaderAddr),
-                                           Return(0)));
-        EXPECT_CALL(mockChunkService, ReadChunkSnapshot(_, _, _, _)).Times(3)
+            .Times(3)
+            .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, ReadChunkSnapshot(_, _, _, _))
+            .Times(3)
             .WillRepeatedly(DoAll(SetArgPointee<2>(response),
                                   Invoke(ReadChunkSnapshotFunc)));
-        copysetClient.ReadChunkSnapshot(reqCtx->idinfo_,
-                                        sn, offset, len, reqDone);
+        copysetClient.ReadChunkSnapshot(reqCtx->idinfo_, sn, offset, len,
+                                        reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
                   reqDone->GetErrorCode());
     }
-    /* 不是 leader，返回正确的 leader */
+    /* Not a leader, returning the correct leader */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->seq_ = sn;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -1880,36 +1914,38 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
         response1.set_redirect(leaderStr);
         ChunkResponse response2;
         response2.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(3)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(3)
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockMetaCache, UpdateLeader(_, _, _)).Times(1)
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockMetaCache, UpdateLeader(_, _, _))
+            .Times(1)
             .WillOnce(Return(0));
-        EXPECT_CALL(mockChunkService, ReadChunkSnapshot(_, _, _, _)).Times(2)
+        EXPECT_CALL(mockChunkService, ReadChunkSnapshot(_, _, _, _))
+            .Times(2)
             .WillOnce(DoAll(SetArgPointee<2>(response1),
                             Invoke(ReadChunkSnapshotFunc)))
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(ReadChunkSnapshotFunc)));
-        copysetClient.ReadChunkSnapshot(reqCtx->idinfo_,
-                                        sn, offset, len, reqDone);
+        copysetClient.ReadChunkSnapshot(reqCtx->idinfo_, sn, offset, len,
+                                        reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
-    /* 不是 leader，但是没有返回 leader，刷新 meta cache 成功 */
+    /* Not a leader, but did not return a leader, refreshing the meta cache
+     * succeeded */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->seq_ = sn;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -1918,34 +1954,35 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
         ChunkResponse response2;
         response2.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(3)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(3)
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, ReadChunkSnapshot(_, _, _, _)).Times(2)
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, ReadChunkSnapshot(_, _, _, _))
+            .Times(2)
             .WillOnce(DoAll(SetArgPointee<2>(response1),
                             Invoke(ReadChunkSnapshotFunc)))
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(ReadChunkSnapshotFunc)));
-        copysetClient.ReadChunkSnapshot(reqCtx->idinfo_,
-                                        sn, offset, len, reqDone);
+        copysetClient.ReadChunkSnapshot(reqCtx->idinfo_, sn, offset, len,
+                                        reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
-    /* 不是 leader，但是没有返回 leader，刷新 meta cache 失败 */
+    /* Not a leader, but did not return a leader, refreshing the meta cache
+     * failed */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->seq_ = sn;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -1954,38 +1991,37 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
         ChunkResponse response2;
         response2.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(3)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(3)
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)))
+                            SetArgPointee<3>(leaderAddr), Return(0)))
             .WillOnce(Return(-1))
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, ReadChunkSnapshot(_, _, _, _)).Times(2)
+                            SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, ReadChunkSnapshot(_, _, _, _))
+            .Times(2)
             .WillOnce(DoAll(SetArgPointee<2>(response1),
                             Invoke(ReadChunkSnapshotFunc)))
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(ReadChunkSnapshotFunc)));
-        copysetClient.ReadChunkSnapshot(reqCtx->idinfo_,
-                                        sn, offset, len, reqDone);
+        copysetClient.ReadChunkSnapshot(reqCtx->idinfo_, sn, offset, len,
+                                        reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
-    /* 不是 leader，但返回的是错误 leader */
+    /* Not a leader, but returned an incorrect leader */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->seq_ = sn;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -1993,34 +2029,35 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
         response.set_redirect(leaderStr);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(6)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(6)
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockMetaCache, UpdateLeader(_, _, _)).Times(3)
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockMetaCache, UpdateLeader(_, _, _))
+            .Times(3)
             .WillRepeatedly(Return(0));
-        EXPECT_CALL(mockChunkService, ReadChunkSnapshot(_, _, _, _)).Times(3)
+        EXPECT_CALL(mockChunkService, ReadChunkSnapshot(_, _, _, _))
+            .Times(3)
             .WillRepeatedly(DoAll(SetArgPointee<2>(response),
-                            Invoke(ReadChunkSnapshotFunc)));
-        copysetClient.ReadChunkSnapshot(reqCtx->idinfo_,
-                                        sn, offset, len, reqDone);
+                                  Invoke(ReadChunkSnapshotFunc)));
+        copysetClient.ReadChunkSnapshot(reqCtx->idinfo_, sn, offset, len,
+                                        reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
                   reqDone->GetErrorCode());
     }
-    /* copyset 不存在，更新 leader 依然失败 */
+    /* copyset does not exist, updating leader still failed */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->seq_ = sn;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -2028,32 +2065,32 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
         response.set_redirect(leaderStr);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(6)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(6)
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, ReadChunkSnapshot(_, _, _, _)).Times(3)
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, ReadChunkSnapshot(_, _, _, _))
+            .Times(3)
             .WillRepeatedly(DoAll(SetArgPointee<2>(response),
-                            Invoke(ReadChunkSnapshotFunc)));
-        copysetClient.ReadChunkSnapshot(reqCtx->idinfo_,
-                                        sn, offset, len, reqDone);
+                                  Invoke(ReadChunkSnapshotFunc)));
+        copysetClient.ReadChunkSnapshot(reqCtx->idinfo_, sn, offset, len,
+                                        reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
                   reqDone->GetErrorCode());
     }
-    /* copyset 不存在，更新 leader 成功 */
+    /* copyset does not exist, updating leader succeeded */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->seq_ = sn;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -2064,51 +2101,51 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
         ChunkResponse response2;
         response2.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
         response2.set_redirect(leaderStr);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(3)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(3)
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, ReadChunkSnapshot(_, _, _, _)).Times(2)
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, ReadChunkSnapshot(_, _, _, _))
+            .Times(2)
             .WillOnce(DoAll(SetArgPointee<2>(response1),
                             Invoke(ReadChunkSnapshotFunc)))
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(ReadChunkSnapshotFunc)));
-        copysetClient.ReadChunkSnapshot(reqCtx->idinfo_,
-                                        sn, offset, len, reqDone);
+        copysetClient.ReadChunkSnapshot(reqCtx->idinfo_, sn, offset, len,
+                                        reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->seq_ = sn;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).
-                                            Times(AtLeast(1))
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(AtLeast(1))
             .WillOnce(Return(-1))
             .WillOnce(Return(-1))
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, ReadChunkSnapshot(_, _, _, _)).Times(1)
+                            SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, ReadChunkSnapshot(_, _, _, _))
+            .Times(1)
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(ReadChunkSnapshotFunc)));
-        copysetClient.ReadChunkSnapshot(reqCtx->idinfo_,
-                                        sn, offset, len, reqDone);
+        copysetClient.ReadChunkSnapshot(reqCtx->idinfo_, sn, offset, len,
+                                        reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -2120,8 +2157,9 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
  */
 TEST_F(CopysetClientTest, delete_snapshot_error_test) {
     MockChunkServiceImpl mockChunkService;
-    ASSERT_EQ(server_->AddService(&mockChunkService,
-                                  brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+    ASSERT_EQ(
+        server_->AddService(&mockChunkService, brpc::SERVER_DOESNT_OWN_SERVICE),
+        0);
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
     IOSenderOption ioSenderOpt;
@@ -2148,17 +2186,16 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
     FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
 
-    /* 非法参数 */
+    /* Illegal parameter */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::DELETE_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -2166,59 +2203,59 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
         EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
-            .Times(AtLeast(1)).WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                                              SetArgPointee<3>(leaderAddr),
-                                              Return(0)));
-        EXPECT_CALL(mockChunkService, DeleteChunkSnapshotOrCorrectSn(_, _, _, _))  // NOLINT
+            .Times(AtLeast(1))
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId),
+                            SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService,
+                    DeleteChunkSnapshotOrCorrectSn(_, _, _, _))  // NOLINT
             .Times(1)
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(DeleteChunkSnapshotFunc)));
-        copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_,
-                  sn, reqDone);
+        copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_, sn,
+                                                     reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
                   reqDone->GetErrorCode());
     }
     /* controller error */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::DELETE_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         gReadCntlFailedCode = -1;
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(6)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(6)
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                                  SetArgPointee<3>(leaderAddr),
-                                  Return(0)));
-        EXPECT_CALL(mockChunkService, DeleteChunkSnapshotOrCorrectSn(_, _, _, _))  // NOLINT
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService,
+                    DeleteChunkSnapshotOrCorrectSn(_, _, _, _))  // NOLINT
             .Times(3)
             .WillRepeatedly(Invoke(DeleteChunkSnapshotFunc));
-        copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_,
-                  sn, reqDone);
+        copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_, sn,
+                                                     reqDone);
         cond.Wait();
         ASSERT_NE(0, reqDone->GetErrorCode());
         gReadCntlFailedCode = 0;
     }
-    /* 其他错误 */
+    /* Other errors */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::DELETE_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -2226,30 +2263,30 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
         EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
-            .Times(3).WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                                           SetArgPointee<3>(leaderAddr),
-                                           Return(0)));
-        EXPECT_CALL(mockChunkService, DeleteChunkSnapshotOrCorrectSn(_, _, _, _))  // NOLINT
+            .Times(3)
+            .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService,
+                    DeleteChunkSnapshotOrCorrectSn(_, _, _, _))  // NOLINT
             .Times(3)
             .WillRepeatedly(DoAll(SetArgPointee<2>(response),
                                   Invoke(DeleteChunkSnapshotFunc)));
-        copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_,
-                  sn, reqDone);
+        copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_, sn,
+                                                     reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
                   reqDone->GetErrorCode());
     }
-    /* 不是 leader，返回正确的 leader */
+    /* Not a leader, returning the correct leader */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::DELETE_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -2259,38 +2296,39 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
         response1.set_redirect(leaderStr);
         ChunkResponse response2;
         response2.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(3)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(3)
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)))
+                            SetArgPointee<3>(leaderAddr), Return(0)))
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockMetaCache, UpdateLeader(_, _, _)).Times(1)
+                            SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockMetaCache, UpdateLeader(_, _, _))
+            .Times(1)
             .WillOnce(Return(0));
-        EXPECT_CALL(mockChunkService, DeleteChunkSnapshotOrCorrectSn(_, _, _, _))  // NOLINT
+        EXPECT_CALL(mockChunkService,
+                    DeleteChunkSnapshotOrCorrectSn(_, _, _, _))  // NOLINT
             .Times(2)
             .WillOnce(DoAll(SetArgPointee<2>(response1),
                             Invoke(ReadChunkSnapshotFunc)))
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(DeleteChunkSnapshotFunc)));
-        copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_,
-                  sn, reqDone);
+        copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_, sn,
+                                                     reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
-    /* 不是 leader，但是没有返回 leader，刷新 meta cache 成功 */
+    /* Not a leader, but did not return a leader, refreshing the meta cache
+     * succeeded */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::DELETE_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -2299,33 +2337,34 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
         ChunkResponse response2;
         response2.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(3)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(3)
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, DeleteChunkSnapshotOrCorrectSn(_, _, _, _))  // NOLINT
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService,
+                    DeleteChunkSnapshotOrCorrectSn(_, _, _, _))  // NOLINT
             .Times(2)
             .WillOnce(DoAll(SetArgPointee<2>(response1),
                             Invoke(DeleteChunkSnapshotFunc)))
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(DeleteChunkSnapshotFunc)));
-        copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_,
-                  sn, reqDone);
+        copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_, sn,
+                                                     reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
-    /* 不是 leader，但是没有返回 leader，刷新 meta cache 失败 */
+    /* Not a leader, but did not return a leader, refreshing the meta cache
+     * failed */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::DELETE_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -2334,73 +2373,73 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
         ChunkResponse response2;
         response2.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(3)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(3)
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)))
+                            SetArgPointee<3>(leaderAddr), Return(0)))
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(-1)))
+                            SetArgPointee<3>(leaderAddr), Return(-1)))
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, DeleteChunkSnapshotOrCorrectSn(_, _, _, _))  // NOLINT
+                            SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService,
+                    DeleteChunkSnapshotOrCorrectSn(_, _, _, _))  // NOLINT
             .Times(2)
             .WillOnce(DoAll(SetArgPointee<2>(response1),
                             Invoke(DeleteChunkSnapshotFunc)))
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(DeleteChunkSnapshotFunc)));
-        copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_,
-                  sn, reqDone);
+        copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_, sn,
+                                                     reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
-    /* 不是 leader，但返回的是错误 leader */
+    /* Not a leader, but returned an incorrect leader */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::DELETE_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
-        response.set_redirect(leaderStr);;
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(6)
+        response.set_redirect(leaderStr);
+        ;
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(6)
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockMetaCache, UpdateLeader(_, _, _)).Times(3)
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockMetaCache, UpdateLeader(_, _, _))
+            .Times(3)
             .WillRepeatedly(Return(0));
-        EXPECT_CALL(mockChunkService, DeleteChunkSnapshotOrCorrectSn(_, _, _, _))  // NOLINT
+        EXPECT_CALL(mockChunkService,
+                    DeleteChunkSnapshotOrCorrectSn(_, _, _, _))  // NOLINT
             .Times(3)
             .WillRepeatedly(DoAll(SetArgPointee<2>(response),
-                            Invoke(DeleteChunkSnapshotFunc)));
-        copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_,
-                  sn, reqDone);
+                                  Invoke(DeleteChunkSnapshotFunc)));
+        copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_, sn,
+                                                     reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
                   reqDone->GetErrorCode());
     }
-    /* copyset 不存在，更新 leader 依然失败 */
+    /* copyset does not exist, updating leader still failed */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::DELETE_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -2408,31 +2447,31 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
         response.set_redirect(leaderStr);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(6)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(6)
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, DeleteChunkSnapshotOrCorrectSn(_, _, _, _))  // NOLINT
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService,
+                    DeleteChunkSnapshotOrCorrectSn(_, _, _, _))  // NOLINT
             .Times(3)
             .WillRepeatedly(DoAll(SetArgPointee<2>(response),
-                            Invoke(DeleteChunkSnapshotFunc)));
-        copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_,
-                  sn, reqDone);
+                                  Invoke(DeleteChunkSnapshotFunc)));
+        copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_, sn,
+                                                     reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
                   reqDone->GetErrorCode());
     }
-    /* copyset 不存在，更新 leader 成功 */
+    /* copyset does not exist, updating leader succeeded */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::DELETE_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -2443,55 +2482,53 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
         ChunkResponse response2;
         response2.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
         response2.set_redirect(leaderStr);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(3)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(3)
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, DeleteChunkSnapshotOrCorrectSn(_, _, _, _))  // NOLINT
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService,
+                    DeleteChunkSnapshotOrCorrectSn(_, _, _, _))  // NOLINT
             .Times(2)
             .WillOnce(DoAll(SetArgPointee<2>(response1),
                             Invoke(DeleteChunkSnapshotFunc)))
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(DeleteChunkSnapshotFunc)));
-        copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_,
-                  sn, reqDone);
+        copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_, sn,
+                                                     reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::DELETE_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).
-                                            Times(AtLeast(1))
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(AtLeast(1))
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(-1)))
+                            SetArgPointee<3>(leaderAddr), Return(-1)))
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(-1)))
+                            SetArgPointee<3>(leaderAddr), Return(-1)))
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, DeleteChunkSnapshotOrCorrectSn(_, _, _, _))  // NOLINT
+                            SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService,
+                    DeleteChunkSnapshotOrCorrectSn(_, _, _, _))  // NOLINT
             .Times(1)
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(DeleteChunkSnapshotFunc)));
-        copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_,
-                                          sn, reqDone);
+        copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_, sn,
+                                                     reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -2503,8 +2540,9 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
  */
 TEST_F(CopysetClientTest, create_s3_clone_error_test) {
     MockChunkServiceImpl mockChunkService;
-    ASSERT_EQ(server_->AddService(&mockChunkService,
-                                  brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+    ASSERT_EQ(
+        server_->AddService(&mockChunkService, brpc::SERVER_DOESNT_OWN_SERVICE),
+        0);
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
     IOSenderOption ioSenderOpt;
@@ -2531,17 +2569,16 @@ TEST_F(CopysetClientTest, create_s3_clone_error_test) {
     FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
 
-    /* 非法参数 */
+    /* Illegal parameter */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::CREATE_CLONE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->seq_ = sn;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -2549,57 +2586,57 @@ TEST_F(CopysetClientTest, create_s3_clone_error_test) {
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
         EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
-            .Times(AtLeast(1)).WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                                              SetArgPointee<3>(leaderAddr),
-                                              Return(0)));
-        EXPECT_CALL(mockChunkService, CreateCloneChunk(_, _, _, _)).Times(1)      // NOLINT
+            .Times(AtLeast(1))
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId),
+                            SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, CreateCloneChunk(_, _, _, _))
+            .Times(1)  // NOLINT
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(CreateCloneChunkFunc)));
-        copysetClient.CreateCloneChunk(reqCtx->idinfo_,
-                                        "destination", sn, 1, 1024, reqDone);
+        copysetClient.CreateCloneChunk(reqCtx->idinfo_, "destination", sn, 1,
+                                       1024, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
                   reqDone->GetErrorCode());
     }
     /* controller error */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::DELETE_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         gReadCntlFailedCode = -1;
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(6)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(6)
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                                  SetArgPointee<3>(leaderAddr),
-                                  Return(0)));
-        EXPECT_CALL(mockChunkService, CreateCloneChunk(_, _, _, _)).Times(3)      // NOLINT
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, CreateCloneChunk(_, _, _, _))
+            .Times(3)  // NOLINT
             .WillRepeatedly(Invoke(CreateCloneChunkFunc));
-        copysetClient.CreateCloneChunk(reqCtx->idinfo_,
-        "destination", sn, 1, 1024, reqDone);
+        copysetClient.CreateCloneChunk(reqCtx->idinfo_, "destination", sn, 1,
+                                       1024, reqDone);
         cond.Wait();
         ASSERT_NE(0, reqDone->GetErrorCode());
         gReadCntlFailedCode = 0;
     }
-    // /* 其他错误 */
+    // /* Other errors */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::DELETE_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -2607,29 +2644,29 @@ TEST_F(CopysetClientTest, create_s3_clone_error_test) {
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
         EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
-            .Times(3).WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                                           SetArgPointee<3>(leaderAddr),
-                                           Return(0)));
-        EXPECT_CALL(mockChunkService, CreateCloneChunk(_, _, _, _)).Times(3)      // NOLINT
+            .Times(3)
+            .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, CreateCloneChunk(_, _, _, _))
+            .Times(3)  // NOLINT
             .WillRepeatedly(DoAll(SetArgPointee<2>(response),
                                   Invoke(CreateCloneChunkFunc)));
-        copysetClient.CreateCloneChunk(reqCtx->idinfo_,
-        "destination", sn, 1, 1024, reqDone);
+        copysetClient.CreateCloneChunk(reqCtx->idinfo_, "destination", sn, 1,
+                                       1024, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
                   reqDone->GetErrorCode());
     }
     /* op success */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::DELETE_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -2637,33 +2674,33 @@ TEST_F(CopysetClientTest, create_s3_clone_error_test) {
 
         ChunkResponse response2;
         response2.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(1)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(1)
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)))
+                            SetArgPointee<3>(leaderAddr), Return(0)))
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, CreateCloneChunk(_, _, _, _)).Times(1)
+                            SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, CreateCloneChunk(_, _, _, _))
+            .Times(1)
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(CreateCloneChunkFunc)));
-        copysetClient.CreateCloneChunk(reqCtx->idinfo_,
-        "destination", sn, 1, 1024, reqDone);
+        copysetClient.CreateCloneChunk(reqCtx->idinfo_, "destination", sn, 1,
+                                       1024, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
-    /* 不是 leader，但是没有返回 leader，刷新 meta cache 成功 */
+    /* Not a leader, but did not return a leader, refreshing the meta cache
+     * succeeded */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::DELETE_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -2672,32 +2709,33 @@ TEST_F(CopysetClientTest, create_s3_clone_error_test) {
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
         ChunkResponse response2;
         response2.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(3)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(3)
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, CreateCloneChunk(_, _, _, _)).Times(2)      // NOLINT
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, CreateCloneChunk(_, _, _, _))
+            .Times(2)  // NOLINT
             .WillOnce(DoAll(SetArgPointee<2>(response1),
                             Invoke(CreateCloneChunkFunc)))
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(CreateCloneChunkFunc)));
-        copysetClient.CreateCloneChunk(reqCtx->idinfo_,
-        "destination", sn, 1, 1024, reqDone);
+        copysetClient.CreateCloneChunk(reqCtx->idinfo_, "destination", sn, 1,
+                                       1024, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
-    /* 不是 leader，但是没有返回 leader，刷新 meta cache 失败 */
+    /* Not a leader, but did not return a leader, refreshing the meta cache
+     * failed */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::DELETE_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -2706,36 +2744,35 @@ TEST_F(CopysetClientTest, create_s3_clone_error_test) {
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
         ChunkResponse response2;
         response2.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(3)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(3)
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)))
+                            SetArgPointee<3>(leaderAddr), Return(0)))
             .WillOnce(Return(-1))
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, CreateCloneChunk(_, _, _, _)).Times(2)      // NOLINT
+                            SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, CreateCloneChunk(_, _, _, _))
+            .Times(2)  // NOLINT
             .WillOnce(DoAll(SetArgPointee<2>(response1),
                             Invoke(CreateCloneChunkFunc)))
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(CreateCloneChunkFunc)));
-        copysetClient.CreateCloneChunk(reqCtx->idinfo_,
-        "destination", sn, 1, 1024, reqDone);
+        copysetClient.CreateCloneChunk(reqCtx->idinfo_, "destination", sn, 1,
+                                       1024, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
-    /* 不是 leader，但返回的是错误 leader */
+    /* Not a leader, but returned an incorrect leader */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::DELETE_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -2743,32 +2780,33 @@ TEST_F(CopysetClientTest, create_s3_clone_error_test) {
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
         response.set_redirect(leaderStr);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(6)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(6)
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockMetaCache, UpdateLeader(_, _, _)).Times(3)
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockMetaCache, UpdateLeader(_, _, _))
+            .Times(3)
             .WillRepeatedly(Return(0));
-        EXPECT_CALL(mockChunkService, CreateCloneChunk(_, _, _, _)).Times(3)      // NOLINT
+        EXPECT_CALL(mockChunkService, CreateCloneChunk(_, _, _, _))
+            .Times(3)  // NOLINT
             .WillRepeatedly(DoAll(SetArgPointee<2>(response),
-                            Invoke(CreateCloneChunkFunc)));
-        copysetClient.CreateCloneChunk(reqCtx->idinfo_,
-                                "destination", sn, 1, 1024, reqDone);
+                                  Invoke(CreateCloneChunkFunc)));
+        copysetClient.CreateCloneChunk(reqCtx->idinfo_, "destination", sn, 1,
+                                       1024, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
                   reqDone->GetErrorCode());
     }
-    /* copyset 不存在，更新 leader 依然失败 */
+    /* copyset does not exist, updating leader still failed */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::DELETE_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -2776,30 +2814,30 @@ TEST_F(CopysetClientTest, create_s3_clone_error_test) {
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
         response.set_redirect(leaderStr);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(6)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(6)
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, CreateCloneChunk(_, _, _, _)).Times(3)      // NOLINT
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, CreateCloneChunk(_, _, _, _))
+            .Times(3)  // NOLINT
             .WillRepeatedly(DoAll(SetArgPointee<2>(response),
-                            Invoke(CreateCloneChunkFunc)));
-        copysetClient.CreateCloneChunk(reqCtx->idinfo_,
-                             "destination", sn, 1, 1024, reqDone);
+                                  Invoke(CreateCloneChunkFunc)));
+        copysetClient.CreateCloneChunk(reqCtx->idinfo_, "destination", sn, 1,
+                                       1024, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
                   reqDone->GetErrorCode());
     }
-    /* copyset 不存在，更新 leader 成功 */
+    /* copyset does not exist, updating leader succeeded */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::DELETE_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -2810,69 +2848,67 @@ TEST_F(CopysetClientTest, create_s3_clone_error_test) {
         ChunkResponse response2;
         response2.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
         response2.set_redirect(leaderStr);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(3)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(3)
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)))
+                            SetArgPointee<3>(leaderAddr), Return(0)))
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)))
+                            SetArgPointee<3>(leaderAddr), Return(0)))
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, CreateCloneChunk(_, _, _, _)).Times(2)      // NOLINT
+                            SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, CreateCloneChunk(_, _, _, _))
+            .Times(2)  // NOLINT
             .WillOnce(DoAll(SetArgPointee<2>(response1),
                             Invoke(CreateCloneChunkFunc)))
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(CreateCloneChunkFunc)));
-        copysetClient.CreateCloneChunk(reqCtx->idinfo_,
-                             "destination", sn, 1, 1024, reqDone);
+        copysetClient.CreateCloneChunk(reqCtx->idinfo_, "destination", sn, 1,
+                                       1024, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::DELETE_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).
-                                            Times(AtLeast(1))
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(AtLeast(1))
             .WillOnce(Return(-1))
             .WillOnce(Return(-1))
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, CreateCloneChunk(_, _, _, _)).Times(1)      // NOLINT
+                            SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, CreateCloneChunk(_, _, _, _))
+            .Times(1)  // NOLINT
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(CreateCloneChunkFunc)));
-        copysetClient.CreateCloneChunk(reqCtx->idinfo_,
-                                        "destination", sn, 1, 1024, reqDone);
+        copysetClient.CreateCloneChunk(reqCtx->idinfo_, "destination", sn, 1,
+                                       1024, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
 }
 
-
 /**
  * recover chunk error testing
  */
 TEST_F(CopysetClientTest, recover_chunk_error_test) {
     MockChunkServiceImpl mockChunkService;
-    ASSERT_EQ(server_->AddService(&mockChunkService,
-                                  brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+    ASSERT_EQ(
+        server_->AddService(&mockChunkService, brpc::SERVER_DOESNT_OWN_SERVICE),
+        0);
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
     IOSenderOption ioSenderOpt;
@@ -2899,17 +2935,16 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
     FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
 
-    /* 非法参数 */
+    /* Illegal parameter */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::DELETE_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -2917,12 +2952,13 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
         EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
-            .Times(AtLeast(1)).WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                                              SetArgPointee<3>(leaderAddr),
-                                              Return(0)));
-        EXPECT_CALL(mockChunkService, RecoverChunk(_, _, _, _)).Times(1)
-            .WillOnce(DoAll(SetArgPointee<2>(response),
-                            Invoke(RecoverChunkFunc)));
+            .Times(AtLeast(1))
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId),
+                            SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, RecoverChunk(_, _, _, _))
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response), Invoke(RecoverChunkFunc)));
         copysetClient.RecoverChunk(reqCtx->idinfo_, 0, 4096, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
@@ -2930,42 +2966,41 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
     }
     /* controller error */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::DELETE_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         gReadCntlFailedCode = -1;
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(6)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(6)
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                                  SetArgPointee<3>(leaderAddr),
-                                  Return(0)));
-        EXPECT_CALL(mockChunkService, RecoverChunk(_, _, _, _)).Times(3)
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, RecoverChunk(_, _, _, _))
+            .Times(3)
             .WillRepeatedly(Invoke(RecoverChunkFunc));
         copysetClient.RecoverChunk(reqCtx->idinfo_, 0, 4096, reqDone);
         cond.Wait();
         ASSERT_NE(0, reqDone->GetErrorCode());
         gReadCntlFailedCode = 0;
     }
-    /* 其他错误 */
+    /* Other errors */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::DELETE_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -2973,28 +3008,28 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
         EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
-            .Times(3).WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                                           SetArgPointee<3>(leaderAddr),
-                                           Return(0)));
-        EXPECT_CALL(mockChunkService, RecoverChunk(_, _, _, _)).Times(3)
-            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
-                                  Invoke(RecoverChunkFunc)));
+            .Times(3)
+            .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, RecoverChunk(_, _, _, _))
+            .Times(3)
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(response), Invoke(RecoverChunkFunc)));
         copysetClient.RecoverChunk(reqCtx->idinfo_, 0, 4096, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
                   reqDone->GetErrorCode());
     }
-    /* 不是 leader，返回正确的 leader */
+    /* Not a leader, returning the correct leader */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::DELETE_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -3004,29 +3039,30 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
         response1.set_redirect(leaderStr);
         ChunkResponse response2;
         response2.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(1)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(1)
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, RecoverChunk(_, _, _, _)).Times(1)
-            .WillOnce(DoAll(SetArgPointee<2>(response2),
-                            Invoke(RecoverChunkFunc)));
+                            SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, RecoverChunk(_, _, _, _))
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response2), Invoke(RecoverChunkFunc)));
         copysetClient.RecoverChunk(reqCtx->idinfo_, 0, 4096, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
-    /* 不是 leader，但是没有返回 leader，刷新 meta cache 成功 */
+    /* Not a leader, but did not return a leader, refreshing the meta cache
+     * succeeded */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::DELETE_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -3035,37 +3071,36 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
         ChunkResponse response2;
         response2.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(3)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(3)
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)))
+                            SetArgPointee<3>(leaderAddr), Return(0)))
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)))
+                            SetArgPointee<3>(leaderAddr), Return(0)))
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, RecoverChunk(_, _, _, _)).Times(2)
-            .WillOnce(DoAll(SetArgPointee<2>(response1),
-                            Invoke(RecoverChunkFunc)))
-            .WillOnce(DoAll(SetArgPointee<2>(response2),
-                            Invoke(RecoverChunkFunc)));
+                            SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, RecoverChunk(_, _, _, _))
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response1), Invoke(RecoverChunkFunc)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response2), Invoke(RecoverChunkFunc)));
         copysetClient.RecoverChunk(reqCtx->idinfo_, 0, 4096, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
-    /* 不是 leader，但是没有返回 leader，刷新 meta cache 失败 */
+    /* Not a leader, but did not return a leader, refreshing the meta cache
+     * failed */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::DELETE_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -3074,35 +3109,34 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
         ChunkResponse response2;
         response2.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(3)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(3)
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)))
+                            SetArgPointee<3>(leaderAddr), Return(0)))
             .WillOnce(Return(-1))
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, RecoverChunk(_, _, _, _)).Times(2)
-            .WillOnce(DoAll(SetArgPointee<2>(response1),
-                            Invoke(RecoverChunkFunc)))
-            .WillOnce(DoAll(SetArgPointee<2>(response2),
-                            Invoke(RecoverChunkFunc)));
+                            SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, RecoverChunk(_, _, _, _))
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response1), Invoke(RecoverChunkFunc)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response2), Invoke(RecoverChunkFunc)));
         copysetClient.RecoverChunk(reqCtx->idinfo_, 0, 4096, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
-    /* 不是 leader，但返回的是错误 leader */
+    /* Not a leader, but returned an incorrect leader */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::DELETE_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -3110,31 +3144,32 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
         response.set_redirect(leaderStr);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(6)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(6)
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockMetaCache, UpdateLeader(_, _, _)).Times(3)
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockMetaCache, UpdateLeader(_, _, _))
+            .Times(3)
             .WillRepeatedly(Return(0));
-        EXPECT_CALL(mockChunkService, RecoverChunk(_, _, _, _)).Times(3)
-            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
-                            Invoke(RecoverChunkFunc)));
+        EXPECT_CALL(mockChunkService, RecoverChunk(_, _, _, _))
+            .Times(3)
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(response), Invoke(RecoverChunkFunc)));
         copysetClient.RecoverChunk(reqCtx->idinfo_, 0, 4096, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
                   reqDone->GetErrorCode());
     }
-    /* copyset 不存在，更新 leader 依然失败 */
+    /* copyset does not exist, updating leader still failed */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::DELETE_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -3142,29 +3177,29 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
         response.set_redirect(leaderStr);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(6)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(6)
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, RecoverChunk(_, _, _, _)).Times(3)
-            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
-                            Invoke(RecoverChunkFunc)));
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, RecoverChunk(_, _, _, _))
+            .Times(3)
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(response), Invoke(RecoverChunkFunc)));
         copysetClient.RecoverChunk(reqCtx->idinfo_, 0, 4096, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
                   reqDone->GetErrorCode());
     }
-    /* copyset 不存在，更新 leader 成功 */
+    /* copyset does not exist, updating leader succeeded */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::DELETE_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
 
@@ -3175,47 +3210,46 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
         ChunkResponse response2;
         response2.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
         response2.set_redirect(leaderStr);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(3)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(3)
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, RecoverChunk(_, _, _, _)).Times(2)
-            .WillOnce(DoAll(SetArgPointee<2>(response1),
-                            Invoke(RecoverChunkFunc)))
-            .WillOnce(DoAll(SetArgPointee<2>(response2),
-                            Invoke(RecoverChunkFunc)));
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, RecoverChunk(_, _, _, _))
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response1), Invoke(RecoverChunkFunc)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response2), Invoke(RecoverChunkFunc)));
         copysetClient.RecoverChunk(reqCtx->idinfo_, 0, 4096, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::DELETE_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).
-                                            Times(AtLeast(1))
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(AtLeast(1))
             .WillOnce(Return(-1))
             .WillOnce(Return(-1))
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, RecoverChunk(_, _, _, _)).Times(1)
-            .WillOnce(DoAll(SetArgPointee<2>(response),
-                            Invoke(RecoverChunkFunc)));
-        copysetClient.RecoverChunk(reqCtx->idinfo_,
-                                          0, 4096, reqDone);
+                            SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, RecoverChunk(_, _, _, _))
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response), Invoke(RecoverChunkFunc)));
+        copysetClient.RecoverChunk(reqCtx->idinfo_, 0, 4096, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -3227,8 +3261,9 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
  */
 TEST_F(CopysetClientTest, get_chunk_info_test) {
     MockChunkServiceImpl mockChunkService;
-    ASSERT_EQ(server_->AddService(&mockChunkService,
-                                  brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+    ASSERT_EQ(
+        server_->AddService(&mockChunkService, brpc::SERVER_DOESNT_OWN_SERVICE),
+        0);
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
     IOSenderOption ioSenderOpt;
@@ -3254,28 +3289,27 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
     FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
 
-    /* 非法参数 */
+    /* Illegal parameter */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::GET_CHUNK_INFO;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
-
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
         GetChunkInfoResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
         EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
-            .Times(AtLeast(1)).WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                                              SetArgPointee<3>(leaderAddr),
-                                              Return(0)));
-        EXPECT_CALL(mockChunkService, GetChunkInfo(_, _, _, _)).Times(1)
-            .WillOnce(DoAll(SetArgPointee<2>(response),
-                            Invoke(GetChunkInfoFunc)));
+            .Times(AtLeast(1))
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId),
+                            SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, GetChunkInfo(_, _, _, _))
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response), Invoke(GetChunkInfoFunc)));
         copysetClient.GetChunkInfo(reqCtx->idinfo_, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
@@ -3283,66 +3317,62 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
     }
     /* controller error */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::GET_CHUNK_INFO;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
-
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
         gReadCntlFailedCode = -1;
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(6)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(6)
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                                  SetArgPointee<3>(leaderAddr),
-                                  Return(0)));
-        EXPECT_CALL(mockChunkService, GetChunkInfo(_, _, _, _)).Times(3)
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, GetChunkInfo(_, _, _, _))
+            .Times(3)
             .WillRepeatedly(Invoke(GetChunkInfoFunc));
         copysetClient.GetChunkInfo(reqCtx->idinfo_, reqDone);
         cond.Wait();
         ASSERT_NE(0, reqDone->GetErrorCode());
         gReadCntlFailedCode = 0;
     }
-    /* 其他错误 */
+    /* Other errors */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::GET_CHUNK_INFO;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
-
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
         GetChunkInfoResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
         EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
-            .Times(3).WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                                           SetArgPointee<3>(leaderAddr),
-                                           Return(0)));
-        EXPECT_CALL(mockChunkService, GetChunkInfo(_, _, _, _)).Times(3)
-            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
-                                  Invoke(GetChunkInfoFunc)));
+            .Times(3)
+            .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, GetChunkInfo(_, _, _, _))
+            .Times(3)
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(response), Invoke(GetChunkInfoFunc)));
         copysetClient.GetChunkInfo(reqCtx->idinfo_, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
                   reqDone->GetErrorCode());
     }
-    /* 不是 leader，返回正确的 leader */
+    /* Not a leader, returning the correct leader */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::GET_CHUNK_INFO;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
-
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
@@ -3351,32 +3381,33 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
         response1.set_redirect(leaderStr);
         GetChunkInfoResponse response2;
         response2.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(3)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(3)
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockMetaCache, UpdateLeader(_, _, _)).Times(1)
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockMetaCache, UpdateLeader(_, _, _))
+            .Times(1)
             .WillOnce(Return(0));
-        EXPECT_CALL(mockChunkService, GetChunkInfo(_, _, _, _)).Times(2)
-            .WillOnce(DoAll(SetArgPointee<2>(response1),
-                            Invoke(GetChunkInfoFunc)))
-            .WillOnce(DoAll(SetArgPointee<2>(response2),
-                            Invoke(GetChunkInfoFunc)));
+        EXPECT_CALL(mockChunkService, GetChunkInfo(_, _, _, _))
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response1), Invoke(GetChunkInfoFunc)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response2), Invoke(GetChunkInfoFunc)));
         copysetClient.GetChunkInfo(reqCtx->idinfo_, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
-    /* 不是 leader，但是没有返回 leader，刷新 meta cache 成功 */
+    /* Not a leader, but did not return a leader, refreshing the meta cache
+     * succeeded */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::GET_CHUNK_INFO;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
-
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
@@ -3384,30 +3415,30 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
         GetChunkInfoResponse response2;
         response2.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(3)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(3)
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, GetChunkInfo(_, _, _, _)).Times(2)
-            .WillOnce(DoAll(SetArgPointee<2>(response1),
-                            Invoke(GetChunkInfoFunc)))
-            .WillOnce(DoAll(SetArgPointee<2>(response2),
-                            Invoke(GetChunkInfoFunc)));
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, GetChunkInfo(_, _, _, _))
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response1), Invoke(GetChunkInfoFunc)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response2), Invoke(GetChunkInfoFunc)));
         copysetClient.GetChunkInfo(reqCtx->idinfo_, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
-    /* 不是 leader，但是没有返回 leader，刷新 meta cache 失败 */
+    /* Not a leader, but did not return a leader, refreshing the meta cache
+     * failed */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::GET_CHUNK_INFO;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
-
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
@@ -3415,92 +3446,89 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
         GetChunkInfoResponse response2;
         response2.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(3)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(3)
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)))
+                            SetArgPointee<3>(leaderAddr), Return(0)))
             .WillOnce(Return(-1))
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, GetChunkInfo(_, _, _, _)).Times(2)
-            .WillOnce(DoAll(SetArgPointee<2>(response1),
-                            Invoke(GetChunkInfoFunc)))
-            .WillOnce(DoAll(SetArgPointee<2>(response2),
-                            Invoke(GetChunkInfoFunc)));
+                            SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, GetChunkInfo(_, _, _, _))
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response1), Invoke(GetChunkInfoFunc)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response2), Invoke(GetChunkInfoFunc)));
         copysetClient.GetChunkInfo(reqCtx->idinfo_, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
-    /* 不是 leader，但返回的是错误 leader */
+    /* Not a leader, but returned an incorrect leader */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::GET_CHUNK_INFO;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
-
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
         GetChunkInfoResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
         response.set_redirect(leaderStr);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(6)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(6)
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockMetaCache, UpdateLeader(_, _, _)).Times(3)
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockMetaCache, UpdateLeader(_, _, _))
+            .Times(3)
             .WillRepeatedly(Return(0));
-        EXPECT_CALL(mockChunkService, GetChunkInfo(_, _, _, _)).Times(3)
-            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
-                            Invoke(GetChunkInfoFunc)));
+        EXPECT_CALL(mockChunkService, GetChunkInfo(_, _, _, _))
+            .Times(3)
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(response), Invoke(GetChunkInfoFunc)));
         copysetClient.GetChunkInfo(reqCtx->idinfo_, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
                   reqDone->GetErrorCode());
     }
-    /* copyset 不存在，更新 leader 依然失败 */
+    /* copyset does not exist, updating leader still failed */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::GET_CHUNK_INFO;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
-
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
         GetChunkInfoResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
         response.set_redirect(leaderStr);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(6)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(6)
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, GetChunkInfo(_, _, _, _)).Times(3)
-            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
-                            Invoke(GetChunkInfoFunc)));
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, GetChunkInfo(_, _, _, _))
+            .Times(3)
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(response), Invoke(GetChunkInfoFunc)));
         copysetClient.GetChunkInfo(reqCtx->idinfo_, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
                   reqDone->GetErrorCode());
     }
-    /* copyset 不存在，更新 leader 成功 */
+    /* copyset does not exist, updating leader succeeded */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::GET_CHUNK_INFO;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
-
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
@@ -3510,54 +3538,49 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
         GetChunkInfoResponse response2;
         response2.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
         response2.set_redirect(leaderStr);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(3)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(3)
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)))
+                            SetArgPointee<3>(leaderAddr), Return(0)))
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)))
+                            SetArgPointee<3>(leaderAddr), Return(0)))
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, GetChunkInfo(_, _, _, _)).Times(2)
-            .WillOnce(DoAll(SetArgPointee<2>(response1),
-                            Invoke(GetChunkInfoFunc)))
-            .WillOnce(DoAll(SetArgPointee<2>(response2),
-                            Invoke(GetChunkInfoFunc)));
+                            SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, GetChunkInfo(_, _, _, _))
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response1), Invoke(GetChunkInfoFunc)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response2), Invoke(GetChunkInfoFunc)));
         copysetClient.GetChunkInfo(reqCtx->idinfo_, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::GET_CHUNK_INFO;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
-
-
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
         GetChunkInfoResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).
-                    Times(AtLeast(1))
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(AtLeast(1))
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(-1)))
+                            SetArgPointee<3>(leaderAddr), Return(-1)))
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(-1)))
+                            SetArgPointee<3>(leaderAddr), Return(-1)))
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr),
-                            Return(0)));
-        EXPECT_CALL(mockChunkService, GetChunkInfo(_, _, _, _)).Times(1)
-            .WillOnce(DoAll(SetArgPointee<2>(response),
-                            Invoke(GetChunkInfoFunc)));
+                            SetArgPointee<3>(leaderAddr), Return(0)));
+        EXPECT_CALL(mockChunkService, GetChunkInfo(_, _, _, _))
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(response), Invoke(GetChunkInfoFunc)));
         copysetClient.GetChunkInfo(reqCtx->idinfo_, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
@@ -3574,23 +3597,22 @@ void WriteCallBack(CurveAioContext* aioctx) {
     delete aioctx;
 }
 
-void PrepareOpenFile(FakeCurveFSService *service,
-                     OpenFileResponse *openresp,
-                     FakeReturn *fakeReturn) {
+void PrepareOpenFile(FakeCurveFSService* service, OpenFileResponse* openresp,
+                     FakeReturn* fakeReturn) {
     openresp->set_statuscode(curve::mds::StatusCode::kOK);
-    auto *session = openresp->mutable_protosession();
+    auto* session = openresp->mutable_protosession();
     session->set_sessionid("xxx");
     session->set_leasetime(10000);
     session->set_createtime(10000);
     session->set_sessionstatus(curve::mds::SessionStatus::kSessionOK);
-    auto *fileinfo = openresp->mutable_fileinfo();
+    auto* fileinfo = openresp->mutable_fileinfo();
     fileinfo->set_id(1);
     fileinfo->set_filename("filename");
     fileinfo->set_parentid(0);
     fileinfo->set_length(10ULL * 1024 * 1024 * 1024);
     fileinfo->set_blocksize(4096);
 
-    *fakeReturn = FakeReturn(nullptr, static_cast<void *>(openresp));
+    *fakeReturn = FakeReturn(nullptr, static_cast<void*>(openresp));
 
     service->SetOpenFile(fakeReturn);
 }
@@ -3620,7 +3642,7 @@ TEST(ChunkServerBackwardTest, ChunkServerBackwardTest) {
 
     // create fake chunkserver service
     FakeChunkServerService fakechunkservice;
-    // 设置cli服务
+    // Set up cli service
     CliServiceFake fakeCliservice;
 
     FakeCurveFSService curvefsService;
@@ -3631,9 +3653,11 @@ TEST(ChunkServerBackwardTest, ChunkServerBackwardTest) {
 
     brpc::Server server;
     ASSERT_EQ(0, server.AddService(&fakechunkservice,
-        brpc::SERVER_DOESNT_OWN_SERVICE)) << "Fail to add fakechunkservice";
-    ASSERT_EQ(0, server.AddService(&fakeCliservice,
-        brpc::SERVER_DOESNT_OWN_SERVICE)) << "Fail to add fakecliservice";
+                                   brpc::SERVER_DOESNT_OWN_SERVICE))
+        << "Fail to add fakechunkservice";
+    ASSERT_EQ(
+        0, server.AddService(&fakeCliservice, brpc::SERVER_DOESNT_OWN_SERVICE))
+        << "Fail to add fakecliservice";
     ASSERT_EQ(
         0, server.AddService(&curvefsService, brpc::SERVER_DOESNT_OWN_SERVICE))
         << "Fail to add curvefsService";
@@ -3670,11 +3694,12 @@ TEST(ChunkServerBackwardTest, ChunkServerBackwardTest) {
 
     ASSERT_EQ(LIBCURVE_ERROR::OK, fileinstance.Open());
 
-    // 设置文件版本号
+    // Set file version number
     fileinstance.GetIOManager4File()->SetLatestFileSn(kNewFileSn);
 
-    // 发送写请求，并等待sec秒后检查io是否返回
-    auto startWriteAndCheckResult = [&fileinstance](int sec)-> bool {  // NOLINT
+    // Send a write request and wait for seconds to check if IO returns
+    auto startWriteAndCheckResult =
+        [&fileinstance](int sec) -> bool {  // NOLINT
         CurveAioContext* aioctx = new CurveAioContext();
         char buffer[4096];
 
@@ -3684,29 +3709,30 @@ TEST(ChunkServerBackwardTest, ChunkServerBackwardTest) {
         aioctx->op = LIBCURVE_OP::LIBCURVE_OP_WRITE;
         aioctx->cb = WriteCallBack;
 
-        // 下发写请求
+        // Send write request
         fileinstance.AioWrite(aioctx, UserDataType::RawBuffer);
 
         std::this_thread::sleep_for(std::chrono::seconds(sec));
         return gWriteSuccessFlag;
     };
 
-    // 第一次写成功，并更新chunkserver端的文件版本号
+    // Successfully written for the first time and updated the file version
+    // number on the chunkserver side
     ASSERT_TRUE(startWriteAndCheckResult(3));
 
-    // 设置一个旧的版本号去写
+    // Set an old version number to write
     fileinstance.GetIOManager4File()->SetLatestFileSn(kOldFileSn);
     gWriteSuccessFlag = false;
 
-    // chunkserver返回backward，重新获取版本号后还是旧的版本
-    // IO hang
+    // chunkserver returns the feedback, and after obtaining the version number
+    // again, it is still the old version IO hang
     ASSERT_FALSE(startWriteAndCheckResult(3));
 
-    // 更新版本号为正常状态
+    // Update version number to normal state
     fileinstance.GetIOManager4File()->SetLatestFileSn(kNewFileSn);
     std::this_thread::sleep_for(std::chrono::seconds(1));
 
-    // 上次写请求成功
+    // Last write request successful
     ASSERT_EQ(true, gWriteSuccessFlag);
 
     server.Stop(0);
@@ -3763,8 +3789,8 @@ TEST_F(CopysetClientTest, retry_rpc_sleep_test) {
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
 
     {
-        // redirect情况下, chunkserver返回新的leader
-        // 重试之前不会睡眠
+        // In the redirect case, chunkserver returns a new leader
+        // Will not sleep until retry
         RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
@@ -3791,7 +3817,7 @@ TEST_F(CopysetClientTest, retry_rpc_sleep_test) {
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
                             SetArgPointee<3>(leaderAddr), Return(0)))
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId2),
-                            SetArgPointee<3>(leaderAddr), Return(0)));
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
         EXPECT_CALL(mockMetaCache, UpdateLeader(_, _, _))
             .Times(1)
             .WillOnce(Return(0));
@@ -3803,21 +3829,20 @@ TEST_F(CopysetClientTest, retry_rpc_sleep_test) {
                 DoAll(SetArgPointee<2>(response2), Invoke(WriteChunkFunc)));
 
         auto startUs = curve::common::TimeUtility::GetTimeofDayUs();
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
-                                 iobuf, offset, len, {},
-                                 reqDone);
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, iobuf,
+                                 offset, len, {}, reqDone);
         cond.Wait();
         auto endUs = curve::common::TimeUtility::GetTimeofDayUs();
 
-        // 返回新的leader id，所以重试之前不会进行睡眠
+        // Returns a new leader ID, so there will be no sleep before retrying
         ASSERT_LE(endUs - startUs, sleepUsBeforeRetry / 10);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
 
     {
-        // redirect情况下,chunkserver返回旧leader
-        // 重试之前会睡眠
+        // In the redirect case, chunkserver returns the old leader
+        // Sleep before retrying
         RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
@@ -3842,7 +3867,7 @@ TEST_F(CopysetClientTest, retry_rpc_sleep_test) {
         EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
             .Times(3)
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr), Return(0)));
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
         EXPECT_CALL(mockMetaCache, UpdateLeader(_, _, _))
             .Times(1)
             .WillOnce(Return(0));
@@ -3853,21 +3878,20 @@ TEST_F(CopysetClientTest, retry_rpc_sleep_test) {
             .WillOnce(
                 DoAll(SetArgPointee<2>(response2), Invoke(WriteChunkFunc)));
         auto startUs = curve::common::TimeUtility::GetTimeofDayUs();
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
-                                 iobuf, offset, len, {},
-                                 reqDone);
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, iobuf,
+                                 offset, len, {}, reqDone);
         cond.Wait();
         auto endUs = curve::common::TimeUtility::GetTimeofDayUs();
 
-        // 返回同样的leader id，重试之前会进行睡眠
+        // Return the same leader ID and sleep before retrying
         ASSERT_GE(endUs - startUs, sleepUsBeforeRetry / 10);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
 
     {
-        // redirect情况下,chunkserver未返回leader
-        // 主动refresh获取到新leader
+        // In the redirect case, chunkserver did not return a leader
+        // Actively refresh to obtain a new leader
         RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
@@ -3893,7 +3917,7 @@ TEST_F(CopysetClientTest, retry_rpc_sleep_test) {
             .WillOnce(DoAll(SetArgPointee<2>(leaderId),
                             SetArgPointee<3>(leaderAddr), Return(0)))
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId2),
-                            SetArgPointee<3>(leaderAddr), Return(0)));
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
         EXPECT_CALL(mockMetaCache, UpdateLeader(_, _, _)).Times(0);
         EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _))
             .Times(2)
@@ -3902,21 +3926,20 @@ TEST_F(CopysetClientTest, retry_rpc_sleep_test) {
             .WillOnce(
                 DoAll(SetArgPointee<2>(response2), Invoke(WriteChunkFunc)));
         auto startUs = curve::common::TimeUtility::GetTimeofDayUs();
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
-                                 iobuf, offset, len, {},
-                                 reqDone);
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, iobuf,
+                                 offset, len, {}, reqDone);
         cond.Wait();
         auto endUs = curve::common::TimeUtility::GetTimeofDayUs();
 
-        // 返回新的leader id，所以重试之前不会进行睡眠
+        // Returns a new leader id, so there will be no sleep before retrying
         ASSERT_LE(endUs - startUs, sleepUsBeforeRetry / 10);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
 
     {
-        // redirect情况下,chunkserver未返回leader
-        // 主动refresh获取到旧leader
+        // In the redirect case, chunkserver did not return a leader
+        // Actively refresh to obtain old leader
         RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
@@ -3940,7 +3963,7 @@ TEST_F(CopysetClientTest, retry_rpc_sleep_test) {
         EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
             .Times(3)
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId),
-                            SetArgPointee<3>(leaderAddr), Return(0)));
+                                  SetArgPointee<3>(leaderAddr), Return(0)));
         EXPECT_CALL(mockMetaCache, UpdateLeader(_, _, _)).Times(0);
         EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _))
             .Times(2)
@@ -3949,9 +3972,8 @@ TEST_F(CopysetClientTest, retry_rpc_sleep_test) {
             .WillOnce(
                 DoAll(SetArgPointee<2>(response2), Invoke(WriteChunkFunc)));
         auto startUs = curve::common::TimeUtility::GetTimeofDayUs();
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
-                                 iobuf, offset, len, {},
-                                 reqDone);
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, iobuf,
+                                 offset, len, {}, reqDone);
         cond.Wait();
         auto endUs = curve::common::TimeUtility::GetTimeofDayUs();
 
@@ -3966,19 +3988,16 @@ class TestRunnedRequestClosure : public RequestClosure {
  public:
     TestRunnedRequestClosure() : RequestClosure(nullptr) {}
 
-    void Run() override {
-        runned_ = true;
-    }
+    void Run() override { runned_ = true; }
 
-    bool IsRunned() const {
-        return runned_;
-    }
+    bool IsRunned() const { return runned_; }
 
  private:
     bool runned_ = false;
 };
 
-// 测试session失效后，重试请求会被重新放入请求队列
+// After the test session fails, the retry request will be placed back in the
+// request queue
 TEST(CopysetClientBasicTest, TestReScheduleWhenSessionNotValid) {
     MockRequestScheduler requestScheduler;
     CopysetClient copysetClient;
@@ -3988,12 +4007,11 @@ TEST(CopysetClientBasicTest, TestReScheduleWhenSessionNotValid) {
     ASSERT_EQ(0, copysetClient.Init(&metaCache, ioSenderOption,
                                     &requestScheduler, nullptr));
 
-    // 设置session not valid
+    // Set session not valid
     copysetClient.StartRecycleRetryRPC();
 
     {
-        EXPECT_CALL(requestScheduler, ReSchedule(_))
-            .Times(1);
+        EXPECT_CALL(requestScheduler, ReSchedule(_)).Times(1);
 
         TestRunnedRequestClosure closure;
         copysetClient.ReadChunk({}, 0, 0, 0, {}, &closure);
@@ -4001,8 +4019,7 @@ TEST(CopysetClientBasicTest, TestReScheduleWhenSessionNotValid) {
     }
 
     {
-        EXPECT_CALL(requestScheduler, ReSchedule(_))
-            .Times(1);
+        EXPECT_CALL(requestScheduler, ReSchedule(_)).Times(1);
 
         TestRunnedRequestClosure closure;
         copysetClient.WriteChunk({}, 1, 1, 0, {}, 0, 0, {}, &closure);
@@ -4010,5 +4027,5 @@ TEST(CopysetClientBasicTest, TestReScheduleWhenSessionNotValid) {
     }
 }
 
-}   // namespace client
-}   // namespace curve
+}  // namespace client
+}  // namespace curve

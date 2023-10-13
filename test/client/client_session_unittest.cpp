@@ -20,30 +20,29 @@
  * Author: tongguangxun
  */
 
-#include <gtest/gtest.h>
-#include <gmock/gmock.h>
+#include <brpc/server.h>
+#include <fcntl.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
-#include <brpc/server.h>
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <sys/stat.h>
-#include <fcntl.h>
 
-
-#include <mutex>    // NOLINT
-#include <chrono>   // NOLINT
 #include <atomic>
+#include <chrono>              // NOLINT
+#include <condition_variable>  // NOLINT
 #include <functional>
-#include <condition_variable>    // NOLINT
+#include <mutex>  // NOLINT
 #include <string>
 
 #include "src/client/client_config.h"
-#include "test/client/fake/fakeMDS.h"
 #include "src/client/file_instance.h"
 #include "src/client/iomanager4file.h"
 #include "src/client/libcurve_file.h"
 #include "test/client/fake/fakeChunkserver.h"
+#include "test/client/fake/fakeMDS.h"
 #include "test/integration/cluster_common/cluster.h"
 #include "test/util/config_generator.h"
 
@@ -72,7 +71,7 @@ void sessioncallback(CurveAioContext* aioctx) {
 
 TEST(ClientSession, LeaseTaskTest) {
     FLAGS_chunkserver_list =
-             "127.0.0.1:9176:0,127.0.0.1:9177:0,127.0.0.1:9178:0";
+        "127.0.0.1:9176:0,127.0.0.1:9177:0,127.0.0.1:9178:0";
 
     std::string filename = "/1";
 
@@ -80,7 +79,7 @@ TEST(ClientSession, LeaseTaskTest) {
     FakeMDS mds(filename);
     mds.Initialize();
     mds.StartService();
-    // 设置leaderid
+    // Set leaderid
     curve::client::EndPoint ep;
     butil::str2endpoint("127.0.0.1", 9176, &ep);
     PeerId pd(ep);
@@ -104,7 +103,7 @@ TEST(ClientSession, LeaseTaskTest) {
 
     // set openfile response
     ::curve::mds::OpenFileResponse openresponse;
-    curve::mds::FileInfo * finfo = new curve::mds::FileInfo;
+    curve::mds::FileInfo* finfo = new curve::mds::FileInfo;
     ::curve::mds::ProtoSession* se = new ::curve::mds::ProtoSession;
     se->set_sessionid("1");
     se->set_createtime(12345);
@@ -117,8 +116,8 @@ TEST(ClientSession, LeaseTaskTest) {
     openresponse.set_allocated_protosession(se);
     openresponse.set_allocated_fileinfo(finfo);
 
-    FakeReturn* openfakeret
-     = new FakeReturn(nullptr, static_cast<void*>(&openresponse));
+    FakeReturn* openfakeret =
+        new FakeReturn(nullptr, static_cast<void*>(&openresponse));
     curvefsservice->SetOpenFile(openfakeret);
 
     // 2. set refresh response
@@ -129,7 +128,7 @@ TEST(ClientSession, LeaseTaskTest) {
         std::unique_lock<std::mutex> lk(mtx);
         refreshcv.notify_one();
     };
-    curve::mds::FileInfo * info = new curve::mds::FileInfo;
+    curve::mds::FileInfo* info = new curve::mds::FileInfo;
     info->set_filename(filename);
     info->set_seqnum(2);
     info->set_id(1);
@@ -143,8 +142,8 @@ TEST(ClientSession, LeaseTaskTest) {
     refreshresp.set_statuscode(::curve::mds::StatusCode::kOK);
     refreshresp.set_sessionid("1234");
     refreshresp.set_allocated_fileinfo(info);
-    FakeReturn* refreshfakeret
-    = new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
+    FakeReturn* refreshfakeret =
+        new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
     curvefsservice->SetRefreshSession(refreshfakeret, refresht);
 
     // 3. open the file
@@ -253,10 +252,9 @@ TEST(ClientSession, LeaseTaskTest) {
     refreshresp.set_allocated_fileinfo(newFileInfo);
     refreshresp.set_statuscode(::curve::mds::StatusCode::kOK);
 
-    FakeReturn* refreshFakeRetWithNewInodeId = new FakeReturn(
-        nullptr, static_cast<void*>(&refreshresp));
-    curvefsservice->SetRefreshSession(
-        refreshFakeRetWithNewInodeId, refresht);
+    FakeReturn* refreshFakeRetWithNewInodeId =
+        new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
+    curvefsservice->SetRefreshSession(refreshFakeRetWithNewInodeId, refresht);
 
     {
         std::unique_lock<std::mutex> lk(mtx);
@@ -302,8 +300,8 @@ TEST(ClientSession, LeaseTaskTest) {
     // 11. set fake close return
     ::curve::mds::CloseFileResponse closeresp;
     closeresp.set_statuscode(::curve::mds::StatusCode::kOK);
-    FakeReturn* closefileret
-     = new FakeReturn(nullptr, static_cast<void*>(&closeresp));
+    FakeReturn* closefileret =
+        new FakeReturn(nullptr, static_cast<void*>(&closeresp));
     curvefsservice->SetCloseFile(closefileret);
 
     LOG(INFO) << "uninit fileinstance";
@@ -321,12 +319,12 @@ TEST(ClientSession, LeaseTaskTest) {
 }  // namespace client
 }  // namespace curve
 
-std::string mdsMetaServerAddr = "127.0.0.1:9101";     // NOLINT
-uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
-uint32_t chunk_size = 4 * 1024 * 1024;   // NOLINT
-std::string configpath = "./test/client/configs/client_session.conf";   // NOLINT
+std::string mdsMetaServerAddr = "127.0.0.1:9101";                      // NOLINT
+uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;                      // NOLINT
+uint32_t chunk_size = 4 * 1024 * 1024;                                 // NOLINT
+std::string configpath = "./test/client/configs/client_session.conf";  // NOLINT
 
-const std::vector<std::string> clientConf {
+const std::vector<std::string> clientConf{
     std::string("mds.listen.addr=127.0.0.1:9101,127.0.0.1:9102"),
     std::string("global.logPath=./runlog/"),
     std::string("chunkserver.rpcTimeoutMS=1000"),
@@ -337,18 +335,17 @@ const std::vector<std::string> clientConf {
     std::string("metacache.rpcRetryIntervalUS=500"),
     std::string("mds.rpcRetryIntervalUS=500"),
     std::string("schedule.threadpoolSize=2"),
-    std::string("mds.maxRetryMS=5000")
-};
+    std::string("mds.maxRetryMS=5000")};
 
-int main(int argc, char ** argv) {
+int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     ::testing::InitGoogleMock(&argc, argv);
     google::ParseCommandLineFlags(&argc, &argv, false);
 
     curve::CurveCluster* cluster = new curve::CurveCluster();
 
-    cluster->PrepareConfig<curve::ClientConfigGenerator>(
-        configpath, clientConf);
+    cluster->PrepareConfig<curve::ClientConfigGenerator>(configpath,
+                                                         clientConf);
 
     int ret = RUN_ALL_TESTS();
     return ret;

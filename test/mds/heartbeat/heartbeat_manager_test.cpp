@@ -20,52 +20,54 @@
  * Author: lixiaocui
  */
 
-#include <gtest/gtest.h>
-#include <glog/logging.h>
-#include <sys/time.h>
 #include "src/mds/heartbeat/heartbeat_manager.h"
-#include "src/mds/heartbeat/chunkserver_healthy_checker.h"
-#include "src/common/timeutility.h"
-#include "test/mds/mock/mock_coordinator.h"
-#include "test/mds/mock/mock_topology.h"
-#include "test/mds/mock/mock_topoAdapter.h"
-#include "test/mds/heartbeat/common.h"
 
-using ::testing::Return;
-using ::testing::SetArgPointee;
-using ::testing::DoAll;
-using ::testing::_;
+#include <glog/logging.h>
+#include <gtest/gtest.h>
+#include <sys/time.h>
+
+#include "src/common/timeutility.h"
+#include "src/mds/heartbeat/chunkserver_healthy_checker.h"
+#include "test/mds/heartbeat/common.h"
+#include "test/mds/mock/mock_coordinator.h"
+#include "test/mds/mock/mock_topoAdapter.h"
+#include "test/mds/mock/mock_topology.h"
+
 using ::curve::mds::topology::MockTopology;
 using ::curve::mds::topology::MockTopologyStat;
+using ::testing::_;
+using ::testing::DoAll;
+using ::testing::Return;
+using ::testing::SetArgPointee;
 
 namespace curve {
 namespace mds {
 namespace heartbeat {
 class TestHeartbeatManager : public ::testing::Test {
  protected:
-  TestHeartbeatManager() {}
-  ~TestHeartbeatManager() {}
+    TestHeartbeatManager() {}
+    ~TestHeartbeatManager() {}
 
-  void SetUp() override {
-    HeartbeatOption option;
-    option.cleanFollowerAfterMs = 0;
-    option.heartbeatMissTimeOutMs = 10000;
-    option.offLineTimeOutMs = 30000;
-    option.mdsStartTime = steady_clock::now();
-    topology_ = std::make_shared<MockTopology>();
-    coordinator_ = std::make_shared<MockCoordinator>();
-    topologyStat_ = std::make_shared<MockTopologyStat>();
-    heartbeatManager_ = std::make_shared<HeartbeatManager>(
-        option, topology_, topologyStat_, coordinator_);
-  }
+    void SetUp() override {
+        HeartbeatOption option;
+        option.cleanFollowerAfterMs = 0;
+        option.heartbeatMissTimeOutMs = 10000;
+        option.offLineTimeOutMs = 30000;
+        option.mdsStartTime = steady_clock::now();
+        topology_ = std::make_shared<MockTopology>();
+        coordinator_ = std::make_shared<MockCoordinator>();
+        topologyStat_ = std::make_shared<MockTopologyStat>();
+        heartbeatManager_ = std::make_shared<HeartbeatManager>(
+            option, topology_, topologyStat_, coordinator_);
+    }
 
-  void TearDown() override {}
+    void TearDown() override {}
 
  protected:
-  std::shared_ptr<MockTopology> topology_;
-  std::shared_ptr<MockTopologyStat> topologyStat_;
-  std::shared_ptr<MockCoordinator> coordinator_;
-  std::shared_ptr<HeartbeatManager> heartbeatManager_;
+    std::shared_ptr<MockTopology> topology_;
+    std::shared_ptr<MockTopologyStat> topologyStat_;
+    std::shared_ptr<MockCoordinator> coordinator_;
+    std::shared_ptr<HeartbeatManager> heartbeatManager_;
 };
 
 TEST_F(TestHeartbeatManager, test_stop_and_run) {
@@ -124,9 +126,10 @@ TEST_F(TestHeartbeatManager, test_checkReuqest_abnormal) {
     ASSERT_EQ(0, response.needupdatecopysets_size());
 
     // 7. startTime not initialized
-    // TODO(lixiaocui): 后续考虑心跳加上错误码
-    ::curve::mds::topology::ChunkServer normalCs(
-        1, "hello", "", 1, "192.168.10.1", 9000, "");
+    // TODO(lixiaocui): Consider adding an error code to the heartbeat in the
+    // future
+    ::curve::mds::topology::ChunkServer normalCs(1, "hello", "", 1,
+                                                 "192.168.10.1", 9000, "");
     EXPECT_CALL(*topology_, GetChunkServer(_, _))
         .WillOnce(DoAll(SetArgPointee<1>(normalCs), Return(true)));
     heartbeatManager_->ChunkServerHeartbeat(req, &response);
@@ -138,7 +141,7 @@ TEST_F(TestHeartbeatManager, test_checkReuqest_abnormal) {
     EXPECT_CALL(*topology_, GetChunkServer(_, _))
         .WillOnce(DoAll(SetArgPointee<1>(normalCs), Return(true)));
     EXPECT_CALL(*topology_,
-        UpdateChunkServerStartUpTime(t, req.chunkserverid()))
+                UpdateChunkServerStartUpTime(t, req.chunkserverid()))
         .WillOnce(Return(::curve::mds::topology::kTopoErrCodeSuccess));
     heartbeatManager_->ChunkServerHeartbeat(req, &response);
     ASSERT_EQ(0, response.needupdatecopysets_size());
@@ -148,7 +151,7 @@ TEST_F(TestHeartbeatManager, test_checkReuqest_abnormal) {
     EXPECT_CALL(*topology_, GetChunkServer(_, _))
         .WillOnce(DoAll(SetArgPointee<1>(normalCs), Return(true)));
     EXPECT_CALL(*topology_,
-        UpdateChunkServerStartUpTime(0, req.chunkserverid()))
+                UpdateChunkServerStartUpTime(0, req.chunkserverid()))
         .WillOnce(Return(::curve::mds::topology::kTopoErrCodeSuccess));
     heartbeatManager_->ChunkServerHeartbeat(req, &response);
     ASSERT_EQ(0, response.needupdatecopysets_size());
@@ -394,8 +397,7 @@ TEST_F(TestHeartbeatManager,
         2, "hello", "", 1, "192.168.10.2", 9000, "",
         ::curve::mds::topology::ChunkServerStatus::READWRITE);
     EXPECT_CALL(*topology_, GetChunkServerNotRetired("192.168.10.2", _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(leaderChunkServer),
-                                 Return(true)));
+        .WillOnce(DoAll(SetArgPointee<2>(leaderChunkServer), Return(true)));
     EXPECT_CALL(*topology_, GetChunkServerNotRetired("192.168.10.1", _, _))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer1), Return(true)));
     ::curve::mds::topology::ChunkServer chunkServer3(
@@ -450,8 +452,7 @@ TEST_F(TestHeartbeatManager,
         2, "hello", "", 1, "192.168.10.2", 9000, "",
         ::curve::mds::topology::ChunkServerStatus::READWRITE);
     EXPECT_CALL(*topology_, GetChunkServerNotRetired("192.168.10.2", _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(leaderChunkServer),
-                                 Return(true)));
+        .WillOnce(DoAll(SetArgPointee<2>(leaderChunkServer), Return(true)));
     EXPECT_CALL(*topology_, GetChunkServerNotRetired("192.168.10.1", _, _))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer1), Return(true)));
     ::curve::mds::topology::ChunkServer chunkServer3(
@@ -509,8 +510,7 @@ TEST_F(TestHeartbeatManager,
         2, "hello", "", 1, "192.168.10.2", 9000, "",
         ::curve::mds::topology::ChunkServerStatus::READWRITE);
     EXPECT_CALL(*topology_, GetChunkServerNotRetired("192.168.10.2", _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(leaderChunkServer),
-                                 Return(true)));
+        .WillOnce(DoAll(SetArgPointee<2>(leaderChunkServer), Return(true)));
     EXPECT_CALL(*topology_, GetChunkServerNotRetired("192.168.10.1", _, _))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer1), Return(true)));
     ::curve::mds::topology::ChunkServer chunkServer3(
@@ -626,7 +626,8 @@ TEST_F(TestHeartbeatManager, test_chunkServer_heartbeat_get_copySetInfo_err) {
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer2), Return(true)))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer3), Return(true)));
     EXPECT_CALL(*topology_, GetCopySet(_, _))
-        .Times(2).WillRepeatedly(Return(false));
+        .Times(2)
+        .WillRepeatedly(Return(false));
     heartbeatManager_->ChunkServerHeartbeat(request, &response);
     ASSERT_EQ(1, response.needupdatecopysets_size());
     ASSERT_EQ(1, response.needupdatecopysets(0).logicalpoolid());
@@ -634,8 +635,7 @@ TEST_F(TestHeartbeatManager, test_chunkServer_heartbeat_get_copySetInfo_err) {
     ASSERT_EQ(0, response.needupdatecopysets(0).epoch());
 }
 
-TEST_F(TestHeartbeatManager,
-       test_handle_copySetInfo_stale_epoch_update_err) {
+TEST_F(TestHeartbeatManager, test_handle_copySetInfo_stale_epoch_update_err) {
     auto request = GetChunkServerHeartbeatRequestForTest();
     ChunkServerHeartbeatResponse response;
     ::curve::mds::topology::ChunkServer chunkServer1(
@@ -937,5 +937,3 @@ TEST_F(TestHeartbeatManager, test_patrol_copySetInfo_return_order) {
 }  // namespace heartbeat
 }  // namespace mds
 }  // namespace curve
-
-

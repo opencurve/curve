@@ -31,22 +31,22 @@
 #include <condition_variable>  //NOLINT
 #include <mutex>               // NOLINT
 #include <string>
-#include <thread>              //NOLINT
+#include <thread>  //NOLINT
 
+#include "include/client/libcurve.h"
 #include "src/client/client_common.h"
 #include "src/client/client_config.h"
 #include "src/client/config_info.h"
 #include "src/client/file_instance.h"
 #include "src/client/io_tracker.h"
 #include "src/client/iomanager4file.h"
-#include "include/client/libcurve.h"
 #include "src/client/libcurve_file.h"
 #include "src/client/mds_client.h"
 #include "src/client/metacache.h"
 #include "src/client/metacache_struct.h"
 #include "src/client/request_context.h"
-#include "src/client/splitor.h"
 #include "src/client/source_reader.h"
+#include "src/client/splitor.h"
 #include "test/client/fake/fakeMDS.h"
 #include "test/client/fake/mockMDS.h"
 #include "test/client/fake/mock_schedule.h"
@@ -90,7 +90,8 @@ class IOTrackerSplitorTest : public ::testing::Test {
         fopt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = 64;
         fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 1000;
         fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
-        fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;   // NOLINT
+        fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS =
+            500;  // NOLINT
         fopt.ioOpt.metaCacheOpt.metacacheGetLeaderRetry = 3;
         fopt.ioOpt.metaCacheOpt.metacacheRPCRetryIntervalUS = 500;
         fopt.ioOpt.reqSchdulerOpt.scheduleQueueCapacity = 4096;
@@ -131,11 +132,11 @@ class IOTrackerSplitorTest : public ::testing::Test {
 
     void InsertMetaCache() {
         if (server.AddService(&curvefsservice,
-                            brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
+                              brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
             LOG(FATAL) << "Fail to add service";
         }
         if (server.AddService(&topologyservice,
-                            brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
+                              brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
             LOG(FATAL) << "Fail to add service";
         }
         brpc::ServerOptions options;
@@ -148,7 +149,7 @@ class IOTrackerSplitorTest : public ::testing::Test {
          * 1. set openfile response
          */
         ::curve::mds::OpenFileResponse* openresponse =
-        new ::curve::mds::OpenFileResponse();
+            new ::curve::mds::OpenFileResponse();
         ::curve::mds::ProtoSession* se = new ::curve::mds::ProtoSession;
         se->set_sessionid("1");
         se->set_createtime(12345);
@@ -170,21 +171,23 @@ class IOTrackerSplitorTest : public ::testing::Test {
         openresponse->set_statuscode(::curve::mds::StatusCode::kOK);
         openresponse->set_allocated_protosession(se);
         openresponse->set_allocated_fileinfo(fin);
-        FakeReturn* openfakeret = new FakeReturn(nullptr, static_cast<void*>(openresponse));      // NOLINT
+        FakeReturn* openfakeret = new FakeReturn(
+            nullptr, static_cast<void*>(openresponse));  // NOLINT
         curvefsservice.SetOpenFile(openfakeret);
         fileinstance_->Open();
 
         /**
          * 2. set closefile response
          */
-        ::curve::mds::CloseFileResponse* closeresp = new ::curve::mds::CloseFileResponse;    // NOLINT
+        ::curve::mds::CloseFileResponse* closeresp =
+            new ::curve::mds::CloseFileResponse;  // NOLINT
         closeresp->set_statuscode(::curve::mds::StatusCode::kOK);
-        FakeReturn* closefileret
-        = new FakeReturn(nullptr, static_cast<void*>(closeresp));
+        FakeReturn* closefileret =
+            new FakeReturn(nullptr, static_cast<void*>(closeresp));
         curvefsservice.SetCloseFile(closefileret);
 
         /**
-         * 3. 设置GetOrAllocateSegmentresponse
+         * 3. Set GetOrAllocateSegmentresponse
          */
         curve::mds::GetOrAllocateSegmentResponse* response =
             new curve::mds::GetOrAllocateSegmentResponse();
@@ -192,30 +195,27 @@ class IOTrackerSplitorTest : public ::testing::Test {
 
         response->set_statuscode(::curve::mds::StatusCode::kOK);
         response->set_allocated_pagefilesegment(pfs);
-        response->mutable_pagefilesegment()->
-            set_logicalpoolid(1234);
-        response->mutable_pagefilesegment()->
-            set_segmentsize(1 * 1024 * 1024 * 1024);
-        response->mutable_pagefilesegment()->
-            set_chunksize(4 * 1024 * 1024);
-        response->mutable_pagefilesegment()->
-            set_startoffset(0);
+        response->mutable_pagefilesegment()->set_logicalpoolid(1234);
+        response->mutable_pagefilesegment()->set_segmentsize(1 * 1024 * 1024 *
+                                                             1024);
+        response->mutable_pagefilesegment()->set_chunksize(4 * 1024 * 1024);
+        response->mutable_pagefilesegment()->set_startoffset(0);
 
-        for (int i = 0; i < 256; i ++) {
+        for (int i = 0; i < 256; i++) {
             auto chunk = response->mutable_pagefilesegment()->add_chunks();
             chunk->set_copysetid(i);
             chunk->set_chunkid(i);
         }
-        getsegmentfakeret = new FakeReturn(nullptr,
-                    static_cast<void*>(response));
+        getsegmentfakeret =
+            new FakeReturn(nullptr, static_cast<void*>(response));
         curvefsservice.SetGetOrAllocateSegmentFakeReturn(getsegmentfakeret);
 
         curve::mds::GetOrAllocateSegmentResponse* notallocateresponse =
-                            new curve::mds::GetOrAllocateSegmentResponse();
-        notallocateresponse->set_statuscode(::curve::mds::StatusCode
-                                            ::kSegmentNotAllocated);
-        notallocatefakeret = new FakeReturn(nullptr,
-                                    static_cast<void*>(notallocateresponse));
+            new curve::mds::GetOrAllocateSegmentResponse();
+        notallocateresponse->set_statuscode(
+            ::curve::mds::StatusCode ::kSegmentNotAllocated);
+        notallocatefakeret =
+            new FakeReturn(nullptr, static_cast<void*>(notallocateresponse));
 
         // set GetOrAllocateSegmentResponse for read from clone source
         curve::mds::GetOrAllocateSegmentResponse* cloneSourceResponse =
@@ -224,28 +224,27 @@ class IOTrackerSplitorTest : public ::testing::Test {
 
         cloneSourceResponse->set_statuscode(::curve::mds::StatusCode::kOK);
         cloneSourceResponse->set_allocated_pagefilesegment(clonepfs);
-        cloneSourceResponse->mutable_pagefilesegment()->
-            set_logicalpoolid(1);
-        cloneSourceResponse->mutable_pagefilesegment()->
-            set_segmentsize(1 * 1024 * 1024 * 1024);
-        cloneSourceResponse->mutable_pagefilesegment()->
-            set_chunksize(4 * 1024 * 1024);
-        cloneSourceResponse->mutable_pagefilesegment()->
-            set_startoffset(1 * 1024 * 1024 * 1024);
+        cloneSourceResponse->mutable_pagefilesegment()->set_logicalpoolid(1);
+        cloneSourceResponse->mutable_pagefilesegment()->set_segmentsize(
+            1 * 1024 * 1024 * 1024);
+        cloneSourceResponse->mutable_pagefilesegment()->set_chunksize(4 * 1024 *
+                                                                      1024);
+        cloneSourceResponse->mutable_pagefilesegment()->set_startoffset(
+            1 * 1024 * 1024 * 1024);
 
         for (int i = 256; i < 512; i++) {
-            auto chunk = cloneSourceResponse->mutable_pagefilesegment()
-                                                        ->add_chunks();
+            auto chunk =
+                cloneSourceResponse->mutable_pagefilesegment()->add_chunks();
             chunk->set_copysetid(i);
             chunk->set_chunkid(i);
         }
-        getsegmentfakeretclone = new FakeReturn(nullptr,
-                    static_cast<void*>(cloneSourceResponse));
+        getsegmentfakeretclone =
+            new FakeReturn(nullptr, static_cast<void*>(cloneSourceResponse));
 
         /**
          * 4. set refresh response
          */
-        curve::mds::FileInfo * info = new curve::mds::FileInfo;
+        curve::mds::FileInfo* info = new curve::mds::FileInfo;
         info->set_filename("1_userinfo_.txt");
         info->set_seqnum(2);
         info->set_id(1);
@@ -260,18 +259,19 @@ class IOTrackerSplitorTest : public ::testing::Test {
         refreshresp->set_statuscode(::curve::mds::StatusCode::kOK);
         refreshresp->set_sessionid("1234");
         refreshresp->set_allocated_fileinfo(info);
-        FakeReturn* refreshfakeret
-        = new FakeReturn(nullptr, static_cast<void*>(refreshresp));
+        FakeReturn* refreshfakeret =
+            new FakeReturn(nullptr, static_cast<void*>(refreshresp));
         curvefsservice.SetRefreshSession(refreshfakeret, nullptr);
 
         /**
-         * 5. 设置topology返回值
+         * 5. Set topology return value
          */
-        ::curve::mds::topology::GetChunkServerListInCopySetsResponse* response_1
-        = new ::curve::mds::topology::GetChunkServerListInCopySetsResponse;
+        ::curve::mds::topology::GetChunkServerListInCopySetsResponse*
+            response_1 = new ::curve::mds::topology::
+                GetChunkServerListInCopySetsResponse;
         response_1->set_statuscode(0);
         uint64_t chunkserveridc = 1;
-        for (int i = 0; i < 256; i ++) {
+        for (int i = 0; i < 256; i++) {
             auto csinfo = response_1->add_csinfo();
             csinfo->set_copysetid(i);
 
@@ -282,23 +282,23 @@ class IOTrackerSplitorTest : public ::testing::Test {
                 cslocs->set_port(9104);
             }
         }
-        FakeReturn* faktopologyeret = new FakeReturn(nullptr,
-                    static_cast<void*>(response_1));
+        FakeReturn* faktopologyeret =
+            new FakeReturn(nullptr, static_cast<void*>(response_1));
         topologyservice.SetFakeReturn(faktopologyeret);
 
-        curve::client::MetaCache* mc = fileinstance_->GetIOManager4File()->
-                                                            GetMetaCache();
+        curve::client::MetaCache* mc =
+            fileinstance_->GetIOManager4File()->GetMetaCache();
         curve::client::FInfo_t fi;
         fi.userinfo = userinfo;
-        fi.chunksize   = 4 * 1024 * 1024;
+        fi.chunksize = 4 * 1024 * 1024;
         fi.segmentsize = 1 * 1024 * 1024 * 1024ul;
         SegmentInfo sinfo;
         LogicalPoolCopysetIDInfo_t lpcsIDInfo;
         mdsclient_->GetOrAllocateSegment(true, 0, &fi, nullptr, &sinfo);
         int count = 0;
         for (auto iter : sinfo.chunkvec) {
-            uint64_t index = (sinfo.startoffset + count*fi.chunksize )
-                            / fi.chunksize;
+            uint64_t index =
+                (sinfo.startoffset + count * fi.chunksize) / fi.chunksize;
             mc->UpdateChunkInfoByIndex(index, iter);
             ++count;
         }
@@ -339,17 +339,17 @@ class IOTrackerSplitorTest : public ::testing::Test {
         curvefsservice.SetOpenFile(fakeOpen_.get());
     }
 
-    FileClient *fileClient_;
+    FileClient* fileClient_;
     UserInfo_t userinfo;
     std::shared_ptr<MDSClient> mdsclient_;
     FileServiceOption fopt;
-    FileInstance *fileinstance_;
+    FileInstance* fileinstance_;
     brpc::Server server;
     FakeMDSCurveFSService curvefsservice;
     FakeTopologyService topologyservice;
-    FakeReturn *getsegmentfakeret;
-    FakeReturn *notallocatefakeret;
-    FakeReturn *getsegmentfakeretclone;
+    FakeReturn* getsegmentfakeret;
+    FakeReturn* notallocatefakeret;
+    FakeReturn* getsegmentfakeretclone;
 
     OpenFileResponse openResp_;
     std::unique_ptr<FakeReturn> fakeOpen_;
@@ -376,7 +376,7 @@ TEST_F(IOTrackerSplitorTest, AsyncStartRead) {
 
     {
         std::unique_lock<std::mutex> lk(readmtx);
-        readcv.wait(lk, []()->bool{return ioreadflag;});
+        readcv.wait(lk, []() -> bool { return ioreadflag; });
     }
     LOG(ERROR) << "address = " << &data;
     ASSERT_EQ('a', data[0]);
@@ -521,7 +521,7 @@ TEST_F(IOTrackerSplitorTest, ManagerAsyncStartRead) {
 
     {
         std::unique_lock<std::mutex> lk(readmtx);
-        readcv.wait(lk, []()->bool{return ioreadflag;});
+        readcv.wait(lk, []() -> bool { return ioreadflag; });
     }
     ASSERT_EQ('a', data[0]);
     ASSERT_EQ('a', data[4 * 1024 - 1]);
@@ -557,7 +557,7 @@ TEST_F(IOTrackerSplitorTest, ManagerAsyncStartWrite) {
 
     {
         std::unique_lock<std::mutex> lk(writemtx);
-        writecv.wait(lk, []()->bool{return iowriteflag;});
+        writecv.wait(lk, []() -> bool { return iowriteflag; });
     }
 
     std::unique_ptr<char[]> writebuffer(new char[aioctx->length]);
@@ -603,13 +603,11 @@ TEST_F(IOTrackerSplitorTest, ManagerAsyncStartWriteReadGetSegmentFail) {
     memset(data + 4 * 1024, 'b', chunk_size);
     memset(data + 4 * 1024 + chunk_size, 'c', 4 * 1024);
 
-    // 设置mds一侧get segment接口返回失败，底层task thread层会一直重试，
-    // 但是不会阻塞上层继续向下发送IO请求
-    int reqcount = 32;
-    auto threadFunc1 = [&]() {
-        while (reqcount > 0) {
-            fileinstance_->AioWrite(aioctx);
-            reqcount--;
+    // When the 'get segment' interface on the MDS (Metadata Server) side is
+reported as failed, the underlying task thread layer will keep retrying.
+    // However, this will not block the upper layer from continuing to send IO
+requests downward. int reqcount = 32; auto threadFunc1 = [&]() { while (reqcount
+> 0) { fileinstance_->AioWrite(aioctx); reqcount--;
         }
     };
 
@@ -636,15 +634,12 @@ TEST_F(IOTrackerSplitorTest, ManagerAsyncStartWriteReadGetServerlistFail) {
     ioctxmana->SetRequestScheduler(mockschuler);
     ioctxmana->SetIOOpt(fopt.ioOpt);
 
-    // offset 10*1024*1024*1024ul 不在metacache里
-    // client回去mds拿segment和serverlist
-    CurveAioContext* aioctx = new CurveAioContext;
-    aioctx->offset = 10*1024*1024*1024ul;
-    aioctx->length = chunk_size + 8 * 1024;
-    aioctx->ret = LIBCURVE_ERROR::OK;
-    aioctx->cb = writecallback;
-    aioctx->buf = new char[aioctx->length];
-    aioctx->op = LIBCURVE_OP::LIBCURVE_OP_WRITE;
+    // The offset offset 10*1024*1024*1024ul  is not in the metacache.
+    // The client will request the segment and serverlist from the MDS (Metadata
+Server). CurveAioContext* aioctx = new CurveAioContext; aioctx->offset =
+10*1024*1024*1024ul; aioctx->length = chunk_size + 8 * 1024; aioctx->ret =
+LIBCURVE_ERROR::OK; aioctx->cb = writecallback; aioctx->buf = new
+char[aioctx->length]; aioctx->op = LIBCURVE_OP::LIBCURVE_OP_WRITE;
 
     char* data = static_cast<char*>(aioctx->buf);
 
@@ -652,10 +647,10 @@ TEST_F(IOTrackerSplitorTest, ManagerAsyncStartWriteReadGetServerlistFail) {
     memset(data + 4 * 1024, 'b', chunk_size);
     memset(data + 4 * 1024 + chunk_size, 'c', 4 * 1024);
 
-    // 设置mds一侧get server list接口返回失败，底层task thread层会一直重试
-    // 但是不会阻塞，上层继续向下发送IO请求
-    int reqcount = 32;
-    auto threadFunc1 = [&]() {
+    // If the "get server list" interface on the MDS side is reported as a
+failure, the underlying task thread layer will keep retrying.
+    // However, this won't block the process, and the upper layer will continue
+sending IO requests downstream. int reqcount = 32; auto threadFunc1 = [&]() {
         while (reqcount > 0) {
             fileinstance_->AioWrite(aioctx);
             reqcount--;
@@ -722,7 +717,7 @@ TEST_F(IOTrackerSplitorTest, ManagerStartWrite) {
         process.join();
     }
 
-     std::unique_ptr<char[]> writebuffer(new char[length]);
+    std::unique_ptr<char[]> writebuffer(new char[length]);
     memcpy(writebuffer.get(), writeData.to_string().c_str(), length);
 
     ASSERT_EQ('a', writebuffer[0]);
@@ -768,8 +763,8 @@ TEST_F(IOTrackerSplitorTest, ExceptionTest_TEST) {
 
     auto threadfunc = [&]() {
         iotracker->SetUserDataType(UserDataType::RawBuffer);
-        iotracker->StartWrite(nullptr, offset, length, mdsclient_.get(),
-            &fi, nullptr);
+        iotracker->StartWrite(nullptr, offset, length, mdsclient_.get(), &fi,
+                              nullptr);
     };
 
     std::thread process(threadfunc);
@@ -800,8 +795,7 @@ TEST_F(IOTrackerSplitorTest, BoundaryTEST) {
 
     // this offset and length will make splitor split fail.
     // we set disk size = 1G.
-    uint64_t offset = 1 * 1024 * 1024 * 1024 -
-                     4 * 1024 * 1024 - 4 *1024;
+    uint64_t offset = 1 * 1024 * 1024 * 1024 - 4 * 1024 * 1024 - 4 * 1024;
     uint64_t length = 4 * 1024 * 1024 + 8 * 1024;
     char* buf = new char[length];
 
@@ -828,10 +822,9 @@ TEST_F(IOTrackerSplitorTest, largeIOTest) {
     /**
      * this offset and length will make splitor split into two 8k IO.
      */
-    uint64_t length = 2 * 64 * 1024;  // 128KB
+    uint64_t length = 2 * 64 * 1024;             // 128KB
     uint64_t offset = 4 * 1024 * 1024 - length;  // 4MB - 128KB
     char* buf = new char[length];
-
 
     memset(buf, 'a', 64 * 1024);              // 64KB
     memset(buf + 64 * 1024, 'b', 64 * 1024);  // 64KB
@@ -902,37 +895,33 @@ TEST_F(IOTrackerSplitorTest, InvalidParam) {
                       mdsclient_.get(), &fi, nullptr));
 
     ASSERT_EQ(-1, curve::client::Splitor::SingleChunkIO2ChunkRequests(
-                      nullptr, mc,
-                      &reqlist, cid, &iobuf, offset, length, 0));
+                      nullptr, mc, &reqlist, cid, &iobuf, offset, length, 0));
 
     ASSERT_EQ(-1, curve::client::Splitor::IO2ChunkRequests(
                       iotracker, nullptr, &reqlist, &iobuf, offset, length,
                       mdsclient_.get(), nullptr, nullptr));
 
-    ASSERT_EQ(-1, curve::client::Splitor::SingleChunkIO2ChunkRequests(
-                      iotracker, nullptr,
-                      &reqlist, cid, &iobuf, offset, length, 0));
+    ASSERT_EQ(
+        -1, curve::client::Splitor::SingleChunkIO2ChunkRequests(
+                iotracker, nullptr, &reqlist, cid, &iobuf, offset, length, 0));
 
     ASSERT_EQ(-1, curve::client::Splitor::IO2ChunkRequests(
                       iotracker, mc, &reqlist, &iobuf, offset, length,
                       mdsclient_.get(), nullptr, nullptr));
 
-    ASSERT_EQ(
-        -1, curve::client::Splitor::IO2ChunkRequests(
-                iotracker, mc, &reqlist, &iobuf, offset, length, nullptr,
-                &fi, nullptr));
+    ASSERT_EQ(-1, curve::client::Splitor::IO2ChunkRequests(
+                      iotracker, mc, &reqlist, &iobuf, offset, length, nullptr,
+                      &fi, nullptr));
 
     ASSERT_EQ(0, curve::client::Splitor::SingleChunkIO2ChunkRequests(
-                     iotracker, mc,
-                     &reqlist, cid, &iobuf, offset, length, 0));
+                     iotracker, mc, &reqlist, cid, &iobuf, offset, length, 0));
 
     ASSERT_EQ(-1, curve::client::Splitor::IO2ChunkRequests(
                       iotracker, mc, nullptr, &iobuf, offset, length,
                       mdsclient_.get(), nullptr, nullptr));
 
     ASSERT_EQ(-1, curve::client::Splitor::SingleChunkIO2ChunkRequests(
-                      iotracker, mc,
-                      nullptr, cid, &iobuf, offset, length, 0));
+                      iotracker, mc, nullptr, cid, &iobuf, offset, length, 0));
 
     ASSERT_EQ(-1, curve::client::Splitor::IO2ChunkRequests(
                       iotracker, mc, &reqlist, nullptr, offset, length,
@@ -961,7 +950,7 @@ TEST_F(IOTrackerSplitorTest, RequestSourceInfoTest) {
 
     MetaCache metaCache;
     FInfo_t fileInfo;
-    fileInfo.chunksize = 16 * 1024 * 1024;          // 16M
+    fileInfo.chunksize = 16 * 1024 * 1024;  // 16M
     fileInfo.filestatus = FileStatus::CloneMetaInstalled;
 
     CloneSourceInfo cloneSourceInfo;
@@ -969,7 +958,7 @@ TEST_F(IOTrackerSplitorTest, RequestSourceInfoTest) {
     cloneSourceInfo.length = 10ull * 1024 * 1024 * 1024;      // 10GB
     cloneSourceInfo.segmentSize = 1ull * 1024 * 1024 * 1024;  // 1GB
 
-    // 源卷只分配了第一个和最后一个segment
+    // The source volume has only allocated the first and last segments
     cloneSourceInfo.allocatedSegmentOffsets.insert(0);
     cloneSourceInfo.allocatedSegmentOffsets.insert(cloneSourceInfo.length -
                                                    cloneSourceInfo.segmentSize);
@@ -980,14 +969,14 @@ TEST_F(IOTrackerSplitorTest, RequestSourceInfoTest) {
     ChunkIndex chunkIdx = 0;
     RequestSourceInfo sourceInfo;
 
-    // 第一个chunk
+    // First chunk
     sourceInfo =
         Splitor::CalcRequestSourceInfo(&ioTracker, &metaCache, chunkIdx);
     ASSERT_TRUE(sourceInfo.IsValid());
     ASSERT_EQ(sourceInfo.cloneFileSource, fileInfo.sourceInfo.name);
     ASSERT_EQ(sourceInfo.cloneFileOffset, 0);
 
-    // 克隆卷最后一个chunk
+    // Clone the last chunk of the volume
     chunkIdx = fileInfo.sourceInfo.length / fileInfo.chunksize - 1;
     LOG(INFO) << "clone length = " << fileInfo.sourceInfo.length
               << ", chunk size = " << fileInfo.chunksize
@@ -1000,19 +989,19 @@ TEST_F(IOTrackerSplitorTest, RequestSourceInfoTest) {
     ASSERT_EQ(sourceInfo.cloneFileSource, fileInfo.sourceInfo.name);
     ASSERT_EQ(sourceInfo.cloneFileOffset, 10720641024);
 
-    // 源卷未分配segment
-    // 读取每个segment的第一个chunk
+    // Source volume unassigned segment
+    // Read the first chunk of each segment
     for (int i = 1; i < 9; ++i) {
         ChunkIndex chunkIdx =
             i * cloneSourceInfo.segmentSize / fileInfo.chunksize;
-        RequestSourceInfo sourceInfo = Splitor::CalcRequestSourceInfo(
-            &ioTracker, &metaCache, chunkIdx);
+        RequestSourceInfo sourceInfo =
+            Splitor::CalcRequestSourceInfo(&ioTracker, &metaCache, chunkIdx);
         ASSERT_FALSE(sourceInfo.IsValid());
         ASSERT_TRUE(sourceInfo.cloneFileSource.empty());
         ASSERT_EQ(sourceInfo.cloneFileOffset, 0);
     }
 
-    // 超过长度
+    // Exceeding length
     chunkIdx = fileInfo.sourceInfo.length / fileInfo.chunksize;
 
     sourceInfo =
@@ -1021,7 +1010,7 @@ TEST_F(IOTrackerSplitorTest, RequestSourceInfoTest) {
     ASSERT_TRUE(sourceInfo.cloneFileSource.empty());
     ASSERT_EQ(sourceInfo.cloneFileOffset, 0);
 
-    // 源卷长度为0
+    // Source volume length is 0
     chunkIdx = 0;
     fileInfo.sourceInfo.length = 0;
     metaCache.UpdateFileInfo(fileInfo);
@@ -1031,7 +1020,7 @@ TEST_F(IOTrackerSplitorTest, RequestSourceInfoTest) {
     ASSERT_TRUE(sourceInfo.cloneFileSource.empty());
     ASSERT_EQ(sourceInfo.cloneFileOffset, 0);
 
-    // 不是read/write请求
+    // Not a read/write request
     chunkIdx = 1;
     ioTracker.SetOpType(OpType::READ_SNAP);
     sourceInfo =
@@ -1045,7 +1034,7 @@ TEST_F(IOTrackerSplitorTest, RequestSourceInfoTest) {
 
     chunkIdx = 0;
 
-    // 不是克隆卷
+    // Not a clone volume
     sourceInfo =
         Splitor::CalcRequestSourceInfo(&ioTracker, &metaCache, chunkIdx);
     ASSERT_FALSE(sourceInfo.IsValid());
@@ -1068,7 +1057,7 @@ TEST_F(IOTrackerSplitorTest, stripeTest) {
     fi.segmentsize = 1 * 1024 * 1024 * 1024ul;
     fi.stripeUnit = 1 * 1024 * 1024;
     fi.stripeCount = 4;
-    memset(buf, 'a', length);              // 64KB
+    memset(buf, 'a', length);  // 64KB
     dataCopy.append(buf, length);
     curve::client::IOManager4File* iomana = fileinstance_->GetIOManager4File();
     MetaCache* mc = iomana->GetMetaCache();
@@ -1162,9 +1151,9 @@ TEST_F(IOTrackerSplitorTest, TestDisableStripeForStripeFile) {
 
     IOTracker ioTracker(iomanager, cache, &scheduler, nullptr, true);
     std::vector<RequestContext*> reqlist;
-    ASSERT_EQ(0,
-              Splitor::IO2ChunkRequests(&ioTracker, cache, &reqlist, &dataCopy,
-                    offset, length, mdsclient_.get(), &fi, nullptr));
+    ASSERT_EQ(0, Splitor::IO2ChunkRequests(&ioTracker, cache, &reqlist,
+                                           &dataCopy, offset, length,
+                                           mdsclient_.get(), &fi, nullptr));
 
     ASSERT_EQ(2, reqlist.size());
     auto* first = reqlist[0];
@@ -1206,7 +1195,7 @@ TEST_F(IOTrackerSplitorTest, StartReadNotAllocateSegment) {
     }
 
     for (int i = 0; i < length; i++) {
-       ASSERT_EQ(0, data[i]);
+        ASSERT_EQ(0, data[i]);
     }
     delete[] data;
 }
@@ -1233,11 +1222,11 @@ TEST_F(IOTrackerSplitorTest, AsyncStartReadNotAllocateSegment) {
 
     {
         std::unique_lock<std::mutex> lk(readmtx);
-        readcv.wait(lk, []()->bool{return ioreadflag;});
+        readcv.wait(lk, []() -> bool { return ioreadflag; });
     }
 
     for (int i = 0; i < aioctx.length; i++) {
-       ASSERT_EQ(0, data[i]);
+        ASSERT_EQ(0, data[i]);
     }
     delete[] data;
 }
@@ -1303,7 +1292,7 @@ TEST_F(IOTrackerSplitorTest, AsyncStartReadNotAllocateSegment2) {
 
     {
         std::unique_lock<std::mutex> lk(readmtx);
-        readcv.wait(lk, []()->bool{return ioreadflag;});
+        readcv.wait(lk, []() -> bool { return ioreadflag; });
     }
 
     for (int i = 0; i < 4 * 1024; i++) {
@@ -1342,8 +1331,7 @@ TEST_F(IOTrackerSplitorTest, StartReadNotAllocateSegmentFromOrigin) {
 
     auto& handlers = SourceReader::GetInstance().GetReadHandlers();
     handlers.emplace(
-        std::piecewise_construct,
-        std::forward_as_tuple("/clonesource"),
+        std::piecewise_construct, std::forward_as_tuple("/clonesource"),
         std::forward_as_tuple(fileinstance2, ::time(nullptr), false));
 
     curve::client::IOManager4File* iomana = fileinstance_->GetIOManager4File();
@@ -1352,7 +1340,7 @@ TEST_F(IOTrackerSplitorTest, StartReadNotAllocateSegmentFromOrigin) {
     mc->UpdateChunkInfoByIndex(257, chunkIdInfo);
 
     FInfo_t fileInfo;
-    fileInfo.chunksize = 4 * 1024 * 1024;               // 4M
+    fileInfo.chunksize = 4 * 1024 * 1024;  // 4M
     fileInfo.fullPathName = "/1_userinfo_.txt";
     fileInfo.owner = "userinfo";
     fileInfo.filestatus = FileStatus::CloneMetaInstalled;
@@ -1389,7 +1377,6 @@ TEST_F(IOTrackerSplitorTest, StartReadNotAllocateSegmentFromOrigin) {
     ASSERT_EQ('a', data[4 * 1024 + chunk_size]);
     ASSERT_EQ('a', data[length - 1]);
 
-
     fileinstance2->UnInitialize();
     delete fileinstance2;
 
@@ -1398,8 +1385,8 @@ TEST_F(IOTrackerSplitorTest, StartReadNotAllocateSegmentFromOrigin) {
 
 TEST_F(IOTrackerSplitorTest, AsyncStartReadNotAllocateSegmentFromOrigin) {
     curvefsservice.SetGetOrAllocateSegmentFakeReturn(notallocatefakeret);
-    curvefsservice.SetGetOrAllocateSegmentFakeReturnForClone
-                                                (getsegmentfakeretclone);
+    curvefsservice.SetGetOrAllocateSegmentFakeReturnForClone(
+        getsegmentfakeretclone);
     PrepareOpenFile();
 
     MockRequestScheduler* mockschuler = new MockRequestScheduler;
@@ -1420,8 +1407,7 @@ TEST_F(IOTrackerSplitorTest, AsyncStartReadNotAllocateSegmentFromOrigin) {
 
     auto& handlers = SourceReader::GetInstance().GetReadHandlers();
     handlers.emplace(
-        std::piecewise_construct,
-        std::forward_as_tuple("/clonesource"),
+        std::piecewise_construct, std::forward_as_tuple("/clonesource"),
         std::forward_as_tuple(fileinstance2, ::time(nullptr), false));
 
     curve::client::IOManager4File* iomana = fileinstance_->GetIOManager4File();
@@ -1460,7 +1446,7 @@ TEST_F(IOTrackerSplitorTest, AsyncStartReadNotAllocateSegmentFromOrigin) {
 
     {
         std::unique_lock<std::mutex> lk(readmtx);
-        readcv.wait(lk, []()->bool{return ioreadflag;});
+        readcv.wait(lk, []() -> bool { return ioreadflag; });
     }
     LOG(ERROR) << "address = " << &data;
     ASSERT_EQ('a', data[0]);
@@ -1478,28 +1464,22 @@ TEST_F(IOTrackerSplitorTest, AsyncStartReadNotAllocateSegmentFromOrigin) {
 TEST_F(IOTrackerSplitorTest, TimedCloseFd) {
     std::unordered_map<std::string, SourceReader::ReadHandler> fakeHandlers;
     fakeHandlers.emplace(
-        std::piecewise_construct,
-        std::forward_as_tuple("/1"),
+        std::piecewise_construct, std::forward_as_tuple("/1"),
         std::forward_as_tuple(
-            nullptr,
-            ::time(nullptr) - fopt.ioOpt.closeFdThreadOption.fdTimeout,
+            nullptr, ::time(nullptr) - fopt.ioOpt.closeFdThreadOption.fdTimeout,
             true));
     fakeHandlers.emplace(
-        std::piecewise_construct,
-        std::forward_as_tuple("/2"),
+        std::piecewise_construct, std::forward_as_tuple("/2"),
         std::forward_as_tuple(
-            nullptr,
-            ::time(nullptr) - fopt.ioOpt.closeFdThreadOption.fdTimeout,
+            nullptr, ::time(nullptr) - fopt.ioOpt.closeFdThreadOption.fdTimeout,
             false));
 
     FileInstance* instance = new FileInstance();
     fakeHandlers.emplace(
-        std::piecewise_construct,
-        std::forward_as_tuple("/3"),
+        std::piecewise_construct, std::forward_as_tuple("/3"),
         std::forward_as_tuple(
             instance,
-            ::time(nullptr) - fopt.ioOpt.closeFdThreadOption.fdTimeout,
-            false));
+            ::time(nullptr) - fopt.ioOpt.closeFdThreadOption.fdTimeout, false));
 
     SourceReader::GetInstance().SetReadHandlers(fakeHandlers);
 

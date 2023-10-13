@@ -23,172 +23,153 @@
 #ifndef SRC_SNAPSHOTCLONESERVER_SNAPSHOT_SNAPSHOT_TASK_H_
 #define SRC_SNAPSHOTCLONESERVER_SNAPSHOT_SNAPSHOT_TASK_H_
 
-#include <string>
-#include <memory>
 #include <list>
+#include <memory>
+#include <string>
 
-#include "src/snapshotcloneserver/snapshot/snapshot_core.h"
 #include "src/common/snapshotclone/snapshotclone_define.h"
+#include "src/snapshotcloneserver/common/snapshotclone_metric.h"
 #include "src/snapshotcloneserver/common/task.h"
 #include "src/snapshotcloneserver/common/task_info.h"
-#include "src/snapshotcloneserver/common/snapshotclone_metric.h"
 #include "src/snapshotcloneserver/common/task_tracker.h"
+#include "src/snapshotcloneserver/snapshot/snapshot_core.h"
 
 namespace curve {
 namespace snapshotcloneserver {
 
 /**
- * @brief 快照任务信息
+ * @brief snapshot task information
  */
 class SnapshotTaskInfo : public TaskInfo {
  public:
-     /**
-      * @brief 构造函数
-      *
-      * @param snapInfo 快照信息
-      */
-    explicit SnapshotTaskInfo(const SnapshotInfo &snapInfo,
-        std::shared_ptr<SnapshotInfoMetric> metric)
-        : TaskInfo(),
-          snapshotInfo_(snapInfo),
-          metric_(metric) {}
+    /**
+     * @brief constructor
+     *
+     * @param snapInfo snapshot information
+     */
+    explicit SnapshotTaskInfo(const SnapshotInfo& snapInfo,
+                              std::shared_ptr<SnapshotInfoMetric> metric)
+        : TaskInfo(), snapshotInfo_(snapInfo), metric_(metric) {}
 
     /**
-     * @brief 获取快照信息
+     * @brief Get snapshot information
      *
-     * @return 快照信息
+     * @return snapshot information
      */
-    SnapshotInfo& GetSnapshotInfo() {
-        return snapshotInfo_;
-    }
+    SnapshotInfo& GetSnapshotInfo() { return snapshotInfo_; }
 
     /**
-     * @brief 获取快照uuid
+     * @brief Get snapshot uuid
      *
-     * @return 快照uuid
+     * @return snapshot uuid
      */
-    UUID GetUuid() const {
-        return snapshotInfo_.GetUuid();
-    }
+    UUID GetUuid() const { return snapshotInfo_.GetUuid(); }
 
     /**
-     * @brief 获取文件名
+     * @brief Get file name
      *
-     * @return 文件名
+     * @return file name
      */
-    std::string GetFileName() const {
-        return snapshotInfo_.GetFileName();
-    }
+    std::string GetFileName() const { return snapshotInfo_.GetFileName(); }
 
-    void UpdateMetric() {
-        metric_->Update(this);
-    }
+    void UpdateMetric() { metric_->Update(this); }
 
  private:
-    // 快照信息
+    // Snapshot Information
     SnapshotInfo snapshotInfo_;
-    // metric 信息
+    // Metric Information
     std::shared_ptr<SnapshotInfoMetric> metric_;
 };
-
 
 class SnapshotTask : public Task {
  public:
     /**
-      * @brief 构造函数
-      *
-      * @param taskId 快照任务id
-      * @param taskInfo 快照任务信息
-      */
-    SnapshotTask(const TaskIdType &taskId,
-        std::shared_ptr<SnapshotTaskInfo> taskInfo,
-        std::shared_ptr<SnapshotCore> core)
-        : Task(taskId),
-          taskInfo_(taskInfo),
-          core_(core) {}
+     * @brief constructor
+     *
+     * @param taskId Snapshot task ID
+     * @param taskInfo snapshot task information
+     */
+    SnapshotTask(const TaskIdType& taskId,
+                 std::shared_ptr<SnapshotTaskInfo> taskInfo,
+                 std::shared_ptr<SnapshotCore> core)
+        : Task(taskId), taskInfo_(taskInfo), core_(core) {}
 
     /**
-     * @brief 获取快照任务信息对象指针
+     * @brief Get snapshot task information object pointer
      *
-     * @return 快照任务信息对象指针
+     * @return Snapshot task information object pointer
      */
-    std::shared_ptr<SnapshotTaskInfo> GetTaskInfo() const {
-        return taskInfo_;
-    }
+    std::shared_ptr<SnapshotTaskInfo> GetTaskInfo() const { return taskInfo_; }
 
  protected:
-    // 快照任务信息
+    // Snapshot Task Information
     std::shared_ptr<SnapshotTaskInfo> taskInfo_;
-    // 快照核心逻辑对象
+    // Snapshot Core Logical Object
     std::shared_ptr<SnapshotCore> core_;
 };
 
 /**
- * @brief 创建快照任务
+ * @brief Create snapshot task
  */
 class SnapshotCreateTask : public SnapshotTask {
  public:
-     /**
-      * @brief 构造函数
-      *
-      * @param taskId 快照任务id
-      * @param taskInfo 快照任务信息
-      * @param core 快照核心逻辑对象
-      */
-    SnapshotCreateTask(const TaskIdType &taskId,
-        std::shared_ptr<SnapshotTaskInfo> taskInfo,
-        std::shared_ptr<SnapshotCore> core)
+    /**
+     * @brief constructor
+     *
+     * @param taskId Snapshot task ID
+     * @param taskInfo snapshot task information
+     * @param core snapshot core logical object
+     */
+    SnapshotCreateTask(const TaskIdType& taskId,
+                       std::shared_ptr<SnapshotTaskInfo> taskInfo,
+                       std::shared_ptr<SnapshotCore> core)
         : SnapshotTask(taskId, taskInfo, core) {}
 
     /**
-     * @brief 快照执行函数
+     * @brief snapshot execution function
      */
-    void Run() override {
-        core_->HandleCreateSnapshotTask(taskInfo_);
-    }
+    void Run() override { core_->HandleCreateSnapshotTask(taskInfo_); }
 };
 
 /**
- * @brief 删除快照任务
+ * @brief Delete snapshot task
  */
 class SnapshotDeleteTask : public SnapshotTask {
  public:
-     /**
-      * @brief 构造函数
-      *
-      * @param taskId 快照任务id
-      * @param taskInfo 快照任务信息
-      * @param core 快照核心逻辑对象
-      */
-    SnapshotDeleteTask(const TaskIdType &taskId,
-        std::shared_ptr<SnapshotTaskInfo> taskInfo,
-        std::shared_ptr<SnapshotCore> core)
+    /**
+     * @brief constructor
+     *
+     * @param taskId Snapshot task ID
+     * @param taskInfo snapshot task information
+     * @param core snapshot core logical object
+     */
+    SnapshotDeleteTask(const TaskIdType& taskId,
+                       std::shared_ptr<SnapshotTaskInfo> taskInfo,
+                       std::shared_ptr<SnapshotCore> core)
         : SnapshotTask(taskId, taskInfo, core) {}
 
     /**
-     * @brief 快照执行函数
+     * @brief snapshot execution function
      */
-    void Run() override {
-        core_->HandleDeleteSnapshotTask(taskInfo_);
-    }
+    void Run() override { core_->HandleDeleteSnapshotTask(taskInfo_); }
 };
 
 struct ReadChunkSnapshotContext {
-    // chunkid 信息
+    // Chunkid information
     ChunkIDInfo cidInfo;
     // seq
     uint64_t seqNum;
-    // 分片的索引
+    // Fragmented index
     uint64_t partIndex;
-    // 分片的buffer
+    // Sliced buffer
     std::unique_ptr<char[]> buf;
-    // 分片长度
+    // Slice length
     uint64_t len;
-    // 返回值
+    // Return value
     int retCode;
-    // 异步请求开始时间
+    // Asynchronous request start time
     uint64_t startTime;
-    // 异步请求重试总时间
+    // Total retry time for asynchronous requests
     uint64_t clientAsyncMethodRetryTimeSec;
 };
 
@@ -200,8 +181,7 @@ struct ReadChunkSnapshotClosure : public SnapCloneClosure {
     ReadChunkSnapshotClosure(
         std::shared_ptr<ReadChunkSnapshotTaskTracker> tracker,
         std::shared_ptr<ReadChunkSnapshotContext> context)
-        : tracker_(tracker),
-          context_(context) {}
+        : tracker_(tracker), context_(context) {}
     void Run() override;
     std::shared_ptr<ReadChunkSnapshotTaskTracker> tracker_;
     std::shared_ptr<ReadChunkSnapshotContext> context_;
@@ -216,13 +196,13 @@ struct TransferSnapshotDataChunkTaskInfo : public TaskInfo {
     uint64_t clientAsyncMethodRetryIntervalMs_;
     uint32_t readChunkSnapshotConcurrency_;
 
-    TransferSnapshotDataChunkTaskInfo(const ChunkDataName &name,
-        uint64_t chunkSize,
-        const ChunkIDInfo &cidInfo,
-        uint64_t chunkSplitSize,
-        uint64_t clientAsyncMethodRetryTimeSec,
-        uint64_t clientAsyncMethodRetryIntervalMs,
-        uint32_t readChunkSnapshotConcurrency)
+    TransferSnapshotDataChunkTaskInfo(const ChunkDataName& name,
+                                      uint64_t chunkSize,
+                                      const ChunkIDInfo& cidInfo,
+                                      uint64_t chunkSplitSize,
+                                      uint64_t clientAsyncMethodRetryTimeSec,
+                                      uint64_t clientAsyncMethodRetryIntervalMs,
+                                      uint32_t readChunkSnapshotConcurrency)
         : name_(name),
           chunkSize_(chunkSize),
           cidInfo_(cidInfo),
@@ -234,7 +214,8 @@ struct TransferSnapshotDataChunkTaskInfo : public TaskInfo {
 
 class TransferSnapshotDataChunkTask : public TrackerTask {
  public:
-    TransferSnapshotDataChunkTask(const TaskIdType &taskId,
+    TransferSnapshotDataChunkTask(
+        const TaskIdType& taskId,
         std::shared_ptr<TransferSnapshotDataChunkTaskInfo> taskInfo,
         std::shared_ptr<CurveFsClient> client,
         std::shared_ptr<SnapshotDataStore> dataStore)
@@ -255,44 +236,43 @@ class TransferSnapshotDataChunkTask : public TrackerTask {
 
  private:
     /**
-     * @brief 转储快照单个chunk
+     * @brief Dump snapshot single chunk
      *
-     * @return 错误码
+     * @return error code
      */
     int TransferSnapshotDataChunk();
 
     /**
-     * @brief 开始异步ReadSnapshotChunk
+     * @brief Start asynchronous ReadSnapshotChunk
      *
-     * @param tracker 异步ReadSnapshotChunk追踪器
-     * @param context ReadSnapshotChunk上下文
+     * @param tracker asynchronous ReadSnapshotChunk tracker
+     * @param context ReadSnapshotChunk context
      *
-     * @return 错误码
+     * @return error code
      */
     int StartAsyncReadChunkSnapshot(
         std::shared_ptr<ReadChunkSnapshotTaskTracker> tracker,
         std::shared_ptr<ReadChunkSnapshotContext> context);
 
     /**
-     * @brief 处理ReadChunkSnapshot的结果并重试
+     * @brief Process the results of ReadChunkSnapshot and try again
      *
-     * @param tracker 异步ReadSnapshotChunk追踪器
-     * @param transferTask 转储任务
-     * @param results ReadChunkSnapshot结果列表
+     * @param tracker asynchronous ReadSnapshotChunk tracker
+     * @param transferTask Dump Task
+     * @param results ReadChunkSnapshot result list
      *
-     * @return 错误码
+     * @return error code
      */
     int HandleReadChunkSnapshotResultsAndRetry(
         std::shared_ptr<ReadChunkSnapshotTaskTracker> tracker,
         std::shared_ptr<TransferTask> transferTask,
-        const std::list<ReadChunkSnapshotContextPtr> &results);
+        const std::list<ReadChunkSnapshotContextPtr>& results);
 
  protected:
     std::shared_ptr<TransferSnapshotDataChunkTaskInfo> taskInfo_;
     std::shared_ptr<CurveFsClient> client_;
     std::shared_ptr<SnapshotDataStore> dataStore_;
 };
-
 
 }  // namespace snapshotcloneserver
 }  // namespace curve
