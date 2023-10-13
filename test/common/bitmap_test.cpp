@@ -20,9 +20,9 @@
  * Author: yangyaokai
  */
 
-#include <gtest/gtest.h>
-
 #include "src/common/bitmap.h"
+
+#include <gtest/gtest.h>
 
 namespace curve {
 namespace common {
@@ -62,7 +62,7 @@ TEST(BitmapTEST, constructor_test) {
         delete[] mem;
     }
 
-    // 测试拷贝构造
+    // Test copy construction
     {
         Bitmap bitmap1(32);
         Bitmap bitmap2(bitmap1);
@@ -72,7 +72,7 @@ TEST(BitmapTEST, constructor_test) {
         }
     }
 
-    // 测试赋值操作
+    // Test assignment operation
     {
         Bitmap bitmap1(32);
         Bitmap bitmap2(16);
@@ -88,7 +88,7 @@ TEST(BitmapTEST, constructor_test) {
         }
     }
 
-    // 测试比较操作符
+    // Test Comparison Operator
     {
         Bitmap bitmap1(16);
         Bitmap bitmap2(16);
@@ -229,7 +229,7 @@ TEST(BitmapTEST, divide_test) {
     vector<BitRange> clearRanges;
     vector<BitRange> setRanges;
 
-    // 所有位为0
+    // All bits are 0
     {
         bitmap.Clear();
         bitmap.Divide(0, 31, &clearRanges, &setRanges);
@@ -241,7 +241,7 @@ TEST(BitmapTEST, divide_test) {
         setRanges.clear();
     }
 
-    // 所有位为1
+    // All bits are 1
     {
         bitmap.Set();
         bitmap.Divide(0, 31, &clearRanges, &setRanges);
@@ -253,7 +253,7 @@ TEST(BitmapTEST, divide_test) {
         setRanges.clear();
     }
 
-    // 两个range，起始为clear range，末尾为set range
+    // Two ranges, starting with a clear range and ending with a set range
     {
         bitmap.Clear(0, 16);
         bitmap.Set(17, 31);
@@ -268,7 +268,7 @@ TEST(BitmapTEST, divide_test) {
         setRanges.clear();
     }
 
-    // 两个range，起始为 set range，末尾为 clear range
+    // Two ranges, starting with set range and ending with clear range
     {
         bitmap.Set(0, 16);
         bitmap.Clear(17, 31);
@@ -283,7 +283,8 @@ TEST(BitmapTEST, divide_test) {
         setRanges.clear();
     }
 
-    // 三个range，头尾为 set range，中间为 clear range
+    // Three ranges, with set ranges at the beginning and end, and clear ranges
+    // in the middle
     {
         bitmap.Set(0, 8);
         bitmap.Clear(9, 25);
@@ -301,7 +302,8 @@ TEST(BitmapTEST, divide_test) {
         setRanges.clear();
     }
 
-    // 三个range，头尾为 clear range，中间为 set range
+    // Three ranges, with clear ranges at the beginning and end, and set ranges
+    // in the middle
     {
         bitmap.Clear(0, 8);
         bitmap.Set(9, 25);
@@ -319,7 +321,7 @@ TEST(BitmapTEST, divide_test) {
         setRanges.clear();
     }
 
-    // 四个range，头为 clear range，末尾为 set range
+    // Four ranges, starting with a clear range and ending with a set range
     {
         bitmap.Clear(0, 7);
         bitmap.Set(8, 15);
@@ -340,7 +342,7 @@ TEST(BitmapTEST, divide_test) {
         setRanges.clear();
     }
 
-    // 四个range，头为 set range，末尾为 clear range
+    // Four ranges, starting with set range and ending with clear range
     {
         bitmap.Set(0, 7);
         bitmap.Clear(8, 15);
@@ -361,7 +363,7 @@ TEST(BitmapTEST, divide_test) {
         setRanges.clear();
     }
 
-    // 复杂场景随机偏移测试
+    // Random offset testing for complex scenes
     {
         bitmap.Set(0, 5);
         bitmap.Clear(6, 9);

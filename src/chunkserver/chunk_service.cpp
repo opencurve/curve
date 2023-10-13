@@ -22,22 +22,21 @@
 
 #include "src/chunkserver/chunk_service.h"
 
-#include <glog/logging.h>
 #include <brpc/closure_guard.h>
 #include <brpc/controller.h>
+#include <glog/logging.h>
 
-#include <memory>
 #include <cerrno>
+#include <memory>
 #include <vector>
 
+#include "include/curve_compiler_specific.h"
+#include "src/chunkserver/chunk_service_closure.h"
+#include "src/chunkserver/chunkserver_metrics.h"
 #include "src/chunkserver/copyset_node.h"
 #include "src/chunkserver/copyset_node_manager.h"
-#include "src/chunkserver/chunkserver_metrics.h"
 #include "src/chunkserver/op_request.h"
-#include "src/chunkserver/chunk_service_closure.h"
 #include "src/common/fast_align.h"
-
-#include "include/curve_compiler_specific.h"
 
 namespace curve {
 namespace chunkserver {
@@ -45,8 +44,8 @@ namespace chunkserver {
 using ::curve::common::is_aligned;
 
 ChunkServiceImpl::ChunkServiceImpl(
-        const ChunkServiceOptions& chunkServiceOptions,
-        const std::shared_ptr<EpochMap>& epochMap)
+    const ChunkServiceOptions& chunkServiceOptions,
+    const std::shared_ptr<EpochMap>& epochMap)
     : chunkServiceOptions_(chunkServiceOptions),
       copysetNodeManager_(chunkServiceOptions.copysetNodeManager),
       inflightThrottle_(chunkServiceOptions.inflightThrottle),
@@ -55,15 +54,11 @@ ChunkServiceImpl::ChunkServiceImpl(
     maxChunkSize_ = copysetNodeManager_->GetCopysetNodeOptions().maxChunkSize;
 }
 
-void ChunkServiceImpl::DeleteChunk(RpcController *controller,
-                                   const ChunkRequest *request,
-                                   ChunkResponse *response,
-                                   Closure *done) {
-    ChunkServiceClosure* closure =
-        new (std::nothrow) ChunkServiceClosure(inflightThrottle_,
-                                               request,
-                                               response,
-                                               done);
+void ChunkServiceImpl::DeleteChunk(RpcController* controller,
+                                   const ChunkRequest* request,
+                                   ChunkResponse* response, Closure* done) {
+    ChunkServiceClosure* closure = new (std::nothrow)
+        ChunkServiceClosure(inflightThrottle_, request, response, done);
     CHECK(nullptr != closure) << "new chunk service closure failed";
 
     brpc::ClosureGuard doneGuard(closure);
@@ -76,7 +71,7 @@ void ChunkServiceImpl::DeleteChunk(RpcController *controller,
         return;
     }
 
-    // 判断copyset是否存在
+    // Determine if the copyset exists
     auto nodePtr = copysetNodeManager_->GetCopysetNode(request->logicpoolid(),
                                                        request->copysetid());
     if (nullptr == nodePtr) {
@@ -86,24 +81,17 @@ void ChunkServiceImpl::DeleteChunk(RpcController *controller,
         return;
     }
 
-    std::shared_ptr<DeleteChunkRequest>
-        req = std::make_shared<DeleteChunkRequest>(nodePtr,
-                                                   controller,
-                                                   request,
-                                                   response,
-                                                   doneGuard.release());
+    std::shared_ptr<DeleteChunkRequest> req =
+        std::make_shared<DeleteChunkRequest>(nodePtr, controller, request,
+                                             response, doneGuard.release());
     req->Process();
 }
 
-void ChunkServiceImpl::WriteChunk(RpcController *controller,
-                                  const ChunkRequest *request,
-                                  ChunkResponse *response,
-                                  Closure *done) {
-    ChunkServiceClosure* closure =
-        new (std::nothrow) ChunkServiceClosure(inflightThrottle_,
-                                               request,
-                                               response,
-                                               done);
+void ChunkServiceImpl::WriteChunk(RpcController* controller,
+                                  const ChunkRequest* request,
+                                  ChunkResponse* response, Closure* done) {
+    ChunkServiceClosure* closure = new (std::nothrow)
+        ChunkServiceClosure(inflightThrottle_, request, response, done);
     CHECK(nullptr != closure) << "new chunk service closure failed";
 
     brpc::ClosureGuard doneGuard(closure);
@@ -116,11 +104,11 @@ void ChunkServiceImpl::WriteChunk(RpcController *controller,
         return;
     }
 
-    brpc::Controller *cntl = dynamic_cast<brpc::Controller *>(controller);
+    brpc::Controller* cntl = dynamic_cast<brpc::Controller*>(controller);
     DVLOG(9) << "Get write I/O request, op: " << request->optype()
-             << " offset: " << request->offset()
-             << " size: " << request->size() << " buf header: "
-             << *(unsigned int *) cntl->request_attachment().to_string().c_str()
+             << " offset: " << request->offset() << " size: " << request->size()
+             << " buf header: "
+             << *(unsigned int*)cntl->request_attachment().to_string().c_str()
              << " attachement size " << cntl->request_attachment().size();
 
     if (request->has_epoch()) {
@@ -134,7 +122,7 @@ void ChunkServiceImpl::WriteChunk(RpcController *controller,
         }
     }
 
-    // 判断request参数是否合法
+    // Determine whether the request parameter is legal
     if (!CheckRequestOffsetAndLength(request->offset(), request->size())) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
         DVLOG(9) << "I/O request, op: " << request->optype()
@@ -144,7 +132,7 @@ void ChunkServiceImpl::WriteChunk(RpcController *controller,
         return;
     }
 
-    // 判断copyset是否存在
+    // Determine if the copyset exists
     auto nodePtr = copysetNodeManager_->GetCopysetNode(request->logicpoolid(),
                                                        request->copysetid());
     if (nullptr == nodePtr) {
@@ -154,24 +142,18 @@ void ChunkServiceImpl::WriteChunk(RpcController *controller,
         return;
     }
 
-    std::shared_ptr<WriteChunkRequest>
-        req = std::make_shared<WriteChunkRequest>(nodePtr,
-                                                  controller,
-                                                  request,
-                                                  response,
-                                                  doneGuard.release());
+    std::shared_ptr<WriteChunkRequest> req =
+        std::make_shared<WriteChunkRequest>(nodePtr, controller, request,
+                                            response, doneGuard.release());
     req->Process();
 }
 
-void ChunkServiceImpl::CreateCloneChunk(RpcController *controller,
-                                        const ChunkRequest *request,
-                                        ChunkResponse *response,
-                                        Closure *done) {
-    ChunkServiceClosure* closure =
-        new (std::nothrow) ChunkServiceClosure(inflightThrottle_,
-                                               request,
-                                               response,
-                                               done);
+void ChunkServiceImpl::CreateCloneChunk(RpcController* controller,
+                                        const ChunkRequest* request,
+                                        ChunkResponse* response,
+                                        Closure* done) {
+    ChunkServiceClosure* closure = new (std::nothrow)
+        ChunkServiceClosure(inflightThrottle_, request, response, done);
     CHECK(nullptr != closure) << "new chunk service closure failed";
 
     brpc::ClosureGuard doneGuard(closure);
@@ -184,7 +166,8 @@ void ChunkServiceImpl::CreateCloneChunk(RpcController *controller,
         return;
     }
 
-    // 请求创建的chunk大小和copyset配置的大小不一致
+    // The chunk size requested for creation does not match the size configured
+    // for copyset
     if (request->size() != maxChunkSize_) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
         DVLOG(9) << "Invalid chunk size: " << request->optype()
@@ -193,7 +176,7 @@ void ChunkServiceImpl::CreateCloneChunk(RpcController *controller,
         return;
     }
 
-    // 判断copyset是否存在
+    // Determine if the copyset exists
     auto nodePtr = copysetNodeManager_->GetCopysetNode(request->logicpoolid(),
                                                        request->copysetid());
     if (nullptr == nodePtr) {
@@ -203,19 +186,15 @@ void ChunkServiceImpl::CreateCloneChunk(RpcController *controller,
         return;
     }
 
-    std::shared_ptr<CreateCloneChunkRequest>
-        req = std::make_shared<CreateCloneChunkRequest>(nodePtr,
-                                                        controller,
-                                                        request,
-                                                        response,
-                                                        doneGuard.release());
+    std::shared_ptr<CreateCloneChunkRequest> req =
+        std::make_shared<CreateCloneChunkRequest>(
+            nodePtr, controller, request, response, doneGuard.release());
     req->Process();
 }
 
-void ChunkServiceImpl::CreateS3CloneChunk(RpcController* controller,
-                       const CreateS3CloneChunkRequest* request,
-                       CreateS3CloneChunkResponse* response,
-                       Closure* done) {
+void ChunkServiceImpl::CreateS3CloneChunk(
+    RpcController* controller, const CreateS3CloneChunkRequest* request,
+    CreateS3CloneChunkResponse* response, Closure* done) {
     (void)controller;
     (void)request;
     brpc::ClosureGuard doneGuard(done);
@@ -223,15 +202,11 @@ void ChunkServiceImpl::CreateS3CloneChunk(RpcController* controller,
     LOG(INFO) << "Invalid request, serverSide Not implement yet";
 }
 
-void ChunkServiceImpl::ReadChunk(RpcController *controller,
-                                 const ChunkRequest *request,
-                                 ChunkResponse *response,
-                                 Closure *done) {
-    ChunkServiceClosure* closure =
-        new (std::nothrow) ChunkServiceClosure(inflightThrottle_,
-                                               request,
-                                               response,
-                                               done);
+void ChunkServiceImpl::ReadChunk(RpcController* controller,
+                                 const ChunkRequest* request,
+                                 ChunkResponse* response, Closure* done) {
+    ChunkServiceClosure* closure = new (std::nothrow)
+        ChunkServiceClosure(inflightThrottle_, request, response, done);
     CHECK(nullptr != closure) << "new chunk service closure failed";
 
     brpc::ClosureGuard doneGuard(closure);
@@ -244,7 +219,7 @@ void ChunkServiceImpl::ReadChunk(RpcController *controller,
         return;
     }
 
-    // 判断request参数是否合法
+    // Determine whether the request parameter is legal
     if (!CheckRequestOffsetAndLength(request->offset(), request->size())) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
         LOG(ERROR) << "I/O request, op: " << request->optype()
@@ -254,7 +229,7 @@ void ChunkServiceImpl::ReadChunk(RpcController *controller,
         return;
     }
 
-    // 判断copyset是否存在
+    // Determine if the copyset exists
     auto nodePtr = copysetNodeManager_->GetCopysetNode(request->logicpoolid(),
                                                        request->copysetid());
     if (nullptr == nodePtr) {
@@ -264,25 +239,17 @@ void ChunkServiceImpl::ReadChunk(RpcController *controller,
         return;
     }
 
-    std::shared_ptr<ReadChunkRequest> req =
-        std::make_shared<ReadChunkRequest>(nodePtr,
-                                           chunkServiceOptions_.cloneManager,
-                                           controller,
-                                           request,
-                                           response,
-                                           doneGuard.release());
+    std::shared_ptr<ReadChunkRequest> req = std::make_shared<ReadChunkRequest>(
+        nodePtr, chunkServiceOptions_.cloneManager, controller, request,
+        response, doneGuard.release());
     req->Process();
 }
 
-void ChunkServiceImpl::RecoverChunk(RpcController *controller,
-                                    const ChunkRequest *request,
-                                    ChunkResponse *response,
-                                    Closure *done) {
-    ChunkServiceClosure* closure =
-        new (std::nothrow) ChunkServiceClosure(inflightThrottle_,
-                                               request,
-                                               response,
-                                               done);
+void ChunkServiceImpl::RecoverChunk(RpcController* controller,
+                                    const ChunkRequest* request,
+                                    ChunkResponse* response, Closure* done) {
+    ChunkServiceClosure* closure = new (std::nothrow)
+        ChunkServiceClosure(inflightThrottle_, request, response, done);
     CHECK(nullptr != closure) << "new chunk service closure failed";
 
     brpc::ClosureGuard doneGuard(closure);
@@ -295,7 +262,7 @@ void ChunkServiceImpl::RecoverChunk(RpcController *controller,
         return;
     }
 
-    // 判断request参数是否合法
+    // Determine whether the request parameter is legal
     if (!CheckRequestOffsetAndLength(request->offset(), request->size())) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
         LOG(ERROR) << "I/O request, op: " << request->optype()
@@ -305,7 +272,7 @@ void ChunkServiceImpl::RecoverChunk(RpcController *controller,
         return;
     }
 
-    // 判断copyset是否存在
+    // Determine if the copyset exists
     auto nodePtr = copysetNodeManager_->GetCopysetNode(request->logicpoolid(),
                                                        request->copysetid());
     if (nullptr == nodePtr) {
@@ -315,26 +282,19 @@ void ChunkServiceImpl::RecoverChunk(RpcController *controller,
         return;
     }
 
-    // RecoverChunk请求和ReadChunk请求共用ReadChunkRequest
-    std::shared_ptr<ReadChunkRequest> req =
-        std::make_shared<ReadChunkRequest>(nodePtr,
-                                           chunkServiceOptions_.cloneManager,
-                                           controller,
-                                           request,
-                                           response,
-                                           doneGuard.release());
+    // RecoverChunk request and ReadChunk request share ReadChunkRequest
+    std::shared_ptr<ReadChunkRequest> req = std::make_shared<ReadChunkRequest>(
+        nodePtr, chunkServiceOptions_.cloneManager, controller, request,
+        response, doneGuard.release());
     req->Process();
 }
 
-void ChunkServiceImpl::ReadChunkSnapshot(RpcController *controller,
-                                         const ChunkRequest *request,
-                                         ChunkResponse *response,
-                                         Closure *done) {
-    ChunkServiceClosure* closure =
-        new (std::nothrow) ChunkServiceClosure(inflightThrottle_,
-                                               request,
-                                               response,
-                                               done);
+void ChunkServiceImpl::ReadChunkSnapshot(RpcController* controller,
+                                         const ChunkRequest* request,
+                                         ChunkResponse* response,
+                                         Closure* done) {
+    ChunkServiceClosure* closure = new (std::nothrow)
+        ChunkServiceClosure(inflightThrottle_, request, response, done);
     CHECK(nullptr != closure) << "new chunk service closure failed";
 
     brpc::ClosureGuard doneGuard(closure);
@@ -347,13 +307,13 @@ void ChunkServiceImpl::ReadChunkSnapshot(RpcController *controller,
         return;
     }
 
-    // 判断request参数是否合法
+    // Determine whether the request parameter is legal
     if (!CheckRequestOffsetAndLength(request->offset(), request->size())) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
         return;
     }
 
-    // 判断copyset是否存在
+    // Determine if the copyset exists
     auto nodePtr = copysetNodeManager_->GetCopysetNode(request->logicpoolid(),
                                                        request->copysetid());
     if (nullptr == nodePtr) {
@@ -363,25 +323,17 @@ void ChunkServiceImpl::ReadChunkSnapshot(RpcController *controller,
         return;
     }
 
-    std::shared_ptr<ReadSnapshotRequest>
-        req = std::make_shared<ReadSnapshotRequest>(nodePtr,
-                                                    controller,
-                                                    request,
-                                                    response,
-                                                    doneGuard.release());
+    std::shared_ptr<ReadSnapshotRequest> req =
+        std::make_shared<ReadSnapshotRequest>(nodePtr, controller, request,
+                                              response, doneGuard.release());
     req->Process();
 }
 
 void ChunkServiceImpl::DeleteChunkSnapshotOrCorrectSn(
-    RpcController *controller,
-    const ChunkRequest *request,
-    ChunkResponse *response,
-    Closure *done) {
-    ChunkServiceClosure* closure =
-        new (std::nothrow) ChunkServiceClosure(inflightThrottle_,
-                                               request,
-                                               response,
-                                               done);
+    RpcController* controller, const ChunkRequest* request,
+    ChunkResponse* response, Closure* done) {
+    ChunkServiceClosure* closure = new (std::nothrow)
+        ChunkServiceClosure(inflightThrottle_, request, response, done);
     CHECK(nullptr != closure) << "new chunk service closure failed";
 
     brpc::ClosureGuard doneGuard(closure);
@@ -401,7 +353,7 @@ void ChunkServiceImpl::DeleteChunkSnapshotOrCorrectSn(
         return;
     }
 
-    // 判断copyset是否存在
+    // Determine if the copyset exists
     auto nodePtr = copysetNodeManager_->GetCopysetNode(request->logicpoolid(),
                                                        request->copysetid());
     if (nullptr == nodePtr) {
@@ -412,31 +364,26 @@ void ChunkServiceImpl::DeleteChunkSnapshotOrCorrectSn(
         return;
     }
 
-    std::shared_ptr<DeleteSnapshotRequest>
-        req = std::make_shared<DeleteSnapshotRequest>(nodePtr,
-                                                      controller,
-                                                      request,
-                                                      response,
-                                                      doneGuard.release());
+    std::shared_ptr<DeleteSnapshotRequest> req =
+        std::make_shared<DeleteSnapshotRequest>(nodePtr, controller, request,
+                                                response, doneGuard.release());
 
     req->Process();
 }
 
 /**
- * 当前GetChunkInfo在rpc service层定义和Chunk Service分离的，
- * 且其并不经过QoS或者raft一致性协议，所以这里没有让其继承
- * OpRequest或者QoSRequest来重新封装，而是直接原地处理掉了
+ * Currently, GetChunkInfo is defined in the rpc service layer and separated
+ * from Chunk Service, And it does not go through QoS or raft consistency
+ * protocols, so it is not allowed to inherit here OpRequest or QoSRequest to be
+ * re encapsulated, but directly processed in place
  */
-void ChunkServiceImpl::GetChunkInfo(RpcController *controller,
-                                    const GetChunkInfoRequest *request,
-                                    GetChunkInfoResponse *response,
-                                    Closure *done) {
+void ChunkServiceImpl::GetChunkInfo(RpcController* controller,
+                                    const GetChunkInfoRequest* request,
+                                    GetChunkInfoResponse* response,
+                                    Closure* done) {
     (void)controller;
-    ChunkServiceClosure* closure =
-        new (std::nothrow) ChunkServiceClosure(inflightThrottle_,
-                                               nullptr,
-                                               nullptr,
-                                               done);
+    ChunkServiceClosure* closure = new (std::nothrow)
+        ChunkServiceClosure(inflightThrottle_, nullptr, nullptr, done);
     CHECK(nullptr != closure) << "new chunk service closure failed";
 
     brpc::ClosureGuard doneGuard(closure);
@@ -449,10 +396,9 @@ void ChunkServiceImpl::GetChunkInfo(RpcController *controller,
         return;
     }
 
-    // 判断copyset是否存在
-    auto nodePtr =
-        copysetNodeManager_->GetCopysetNode(request->logicpoolid(),
-                                            request->copysetid());
+    // Determine if the copyset exists
+    auto nodePtr = copysetNodeManager_->GetCopysetNode(request->logicpoolid(),
+                                                       request->copysetid());
     if (nullptr == nodePtr) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
         LOG(WARNING) << "GetChunkInfo failed, copyset node is not found: "
@@ -460,7 +406,7 @@ void ChunkServiceImpl::GetChunkInfo(RpcController *controller,
         return;
     }
 
-    // 检查任期和自己是不是Leader
+    // Check tenure and whether you are a leader
     if (!nodePtr->IsLeaderTerm()) {
         PeerId leader = nodePtr->GetLeaderId();
         if (!leader.is_empty()) {
@@ -476,16 +422,15 @@ void ChunkServiceImpl::GetChunkInfo(RpcController *controller,
     ret = nodePtr->GetDataStore()->GetChunkInfo(request->chunkid(), &chunkInfo);
 
     if (CSErrorCode::Success == ret) {
-        // 1.成功，此时chunk文件肯定存在
+        // 1. Success, the chunk file must exist at this time
         response->add_chunksn(chunkInfo.curSn);
-        if (chunkInfo.snapSn > 0)
-            response->add_chunksn(chunkInfo.snapSn);
+        if (chunkInfo.snapSn > 0) response->add_chunksn(chunkInfo.snapSn);
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
     } else if (CSErrorCode::ChunkNotExistError == ret) {
-        // 2.chunk文件不存在，返回的版本集合为空
+        // 2. Chunk file does not exist, returned version set is empty
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
     } else {
-        // 3.其他错误
+        // 3. Other errors
         LOG(ERROR) << "get chunk info failed, "
                    << " logic pool id: " << request->logicpoolid()
                    << " copyset id: " << request->copysetid()
@@ -497,14 +442,14 @@ void ChunkServiceImpl::GetChunkInfo(RpcController *controller,
     }
 }
 
-void ChunkServiceImpl::GetChunkHash(RpcController *controller,
-                                    const GetChunkHashRequest *request,
-                                    GetChunkHashResponse *response,
-                                    Closure *done) {
+void ChunkServiceImpl::GetChunkHash(RpcController* controller,
+                                    const GetChunkHashRequest* request,
+                                    GetChunkHashResponse* response,
+                                    Closure* done) {
     (void)controller;
     brpc::ClosureGuard doneGuard(done);
 
-    // 判断request参数是否合法
+    // Determine whether the request parameter is legal
     if (!CheckRequestOffsetAndLength(request->offset(), request->length())) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
         LOG(ERROR) << "GetChunkHash illegal parameter:"
@@ -517,10 +462,9 @@ void ChunkServiceImpl::GetChunkHash(RpcController *controller,
         return;
     }
 
-    // 判断copyset是否存在
-    auto nodePtr =
-        copysetNodeManager_->GetCopysetNode(request->logicpoolid(),
-                                            request->copysetid());
+    // Determine if the copyset exists
+    auto nodePtr = copysetNodeManager_->GetCopysetNode(request->logicpoolid(),
+                                                       request->copysetid());
     if (nullptr == nodePtr) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
         LOG(WARNING) << "GetChunkHash failed, copyset node is not found: "
@@ -531,21 +475,19 @@ void ChunkServiceImpl::GetChunkHash(RpcController *controller,
     CSErrorCode ret;
     std::string hash;
 
-    ret = nodePtr->GetDataStore()->GetChunkHash(request->chunkid(),
-                                                request->offset(),
-                                                request->length(),
-                                                &hash);
+    ret = nodePtr->GetDataStore()->GetChunkHash(
+        request->chunkid(), request->offset(), request->length(), &hash);
 
     if (CSErrorCode::Success == ret) {
-        // 1.成功
+        // 1. Success
         response->set_hash(hash);
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
     } else if (CSErrorCode::ChunkNotExistError == ret) {
-        // 2.chunk文件不存在，返回0的hash值
+        // 2. Chunk file does not exist, return a hash value of 0
         response->set_hash("0");
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
     } else {
-        // 3.其他错误
+        // 3. Other errors
         LOG(ERROR) << "get chunk hash failed, "
                    << " logic pool id: " << request->logicpoolid()
                    << " copyset id: " << request->copysetid()
@@ -557,18 +499,17 @@ void ChunkServiceImpl::GetChunkHash(RpcController *controller,
     }
 }
 
-void ChunkServiceImpl::UpdateEpoch(RpcController *controller,
-                const UpdateEpochRequest *request,
-                UpdateEpochResponse *response,
-                Closure *done) {
+void ChunkServiceImpl::UpdateEpoch(RpcController* controller,
+                                   const UpdateEpochRequest* request,
+                                   UpdateEpochResponse* response,
+                                   Closure* done) {
     (void)controller;
     brpc::ClosureGuard doneGuard(done);
     bool success = epochMap_->UpdateEpoch(request->fileid(), request->epoch());
     if (success) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
         LOG(INFO) << "Update fileId: " << request->fileid()
-                  << " to epoch: " << request->epoch()
-                  << " success.";
+                  << " to epoch: " << request->epoch() << " success.";
     } else {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_EPOCH_TOO_OLD);
         LOG(WARNING) << "Update fileId: " << request->fileid()
@@ -579,7 +520,7 @@ void ChunkServiceImpl::UpdateEpoch(RpcController *controller,
 
 bool ChunkServiceImpl::CheckRequestOffsetAndLength(uint32_t offset,
                                                    uint32_t len) const {
-    // 检查offset+len是否越界
+    // Check if offset+len is out of range
     if (CURVE_UNLIKELY(offset + len > maxChunkSize_)) {
         return false;
     }

@@ -21,11 +21,11 @@
  */
 #include "src/client/mds_client.h"
 
-#include <glog/logging.h>
 #include <brpc/errno.pb.h>
+#include <glog/logging.h>
 
-#include <utility>
 #include <algorithm>
+#include <utility>
 
 #include "src/client/lease_executor.h"
 #include "src/common/net_common.h"
@@ -35,6 +35,7 @@
 namespace curve {
 namespace client {
 
+using curve::common::ChunkServerLocation;
 using curve::common::NetCommon;
 using curve::common::TimeUtility;
 using curve::mds::FileInfo;
@@ -42,24 +43,23 @@ using curve::mds::PageFileChunkInfo;
 using curve::mds::PageFileSegment;
 using curve::mds::ProtoSession;
 using curve::mds::StatusCode;
-using curve::common::ChunkServerLocation;
 using curve::mds::topology::CopySetServerInfo;
 
-// rpc发送和mds地址切换状态机
+// Rpc sending and mds address switching state machine
 int RPCExcutorRetryPolicy::DoRPCTask(RPCFunc rpctask, uint64_t maxRetryTimeMS) {
-    // 记录上一次正在服务的mds index
+    // Record the last serving mds index
     int lastWorkingMDSIndex = currentWorkingMDSAddrIndex_;
 
-    // 记录当前正在使用的mds index
+    // Record the currently used mds index
     int curRetryMDSIndex = currentWorkingMDSAddrIndex_;
 
-    // 记录当前mds重试的次数
+    // Record the number of current mds retries
     uint64_t currentMDSRetryCount = 0;
 
-    // 执行起始时间点
+    // Execution start time point
     uint64_t startTime = TimeUtility::GetTimeofDayMs();
 
-    // rpc超时时间
+    // RPC timeout
     uint64_t rpcTimeOutMS = retryOpt_.rpcTimeoutMs;
 
     // The count of normal retry
@@ -68,16 +68,18 @@ int RPCExcutorRetryPolicy::DoRPCTask(RPCFunc rpctask, uint64_t maxRetryTimeMS) {
     int retcode = -1;
     bool retryUnlimit = (maxRetryTimeMS == 0);
     while (GoOnRetry(startTime, maxRetryTimeMS)) {
-        // 1. 创建当前rpc需要使用的channel和controller，执行rpc任务
+        // 1. Create the channels and controllers required for the current RPC
+        // and execute the RPC task
         retcode = ExcuteTask(curRetryMDSIndex, rpcTimeOutMS, rpctask);
 
-        // 2. 根据rpc返回值进行预处理
+        // 2. Preprocessing based on rpc return value
         if (retcode < 0) {
             curRetryMDSIndex = PreProcessBeforeRetry(
                 retcode, retryUnlimit, &normalRetryCount, &currentMDSRetryCount,
                 curRetryMDSIndex, &lastWorkingMDSIndex, &rpcTimeOutMS);
             continue;
-            // 3. 此时rpc是正常返回的，更新当前正在服务的mds地址index
+            // 3. At this point, rpc returns normally and updates the index of
+            // the currently serving mds address
         } else {
             currentWorkingMDSAddrIndex_.store(curRetryMDSIndex);
             break;
@@ -98,11 +100,11 @@ bool RPCExcutorRetryPolicy::GoOnRetry(uint64_t startTimeMS,
 }
 
 int RPCExcutorRetryPolicy::PreProcessBeforeRetry(int status, bool retryUnlimit,
-                                                 uint64_t *normalRetryCount,
-                                                 uint64_t *curMDSRetryCount,
+                                                 uint64_t* normalRetryCount,
+                                                 uint64_t* curMDSRetryCount,
                                                  int curRetryMDSIndex,
-                                                 int *lastWorkingMDSIndex,
-                                                 uint64_t *timeOutMS) {
+                                                 int* lastWorkingMDSIndex,
+                                                 uint64_t* timeOutMS) {
     int nextMDSIndex = 0;
     bool rpcTimeout = false;
     bool needChangeMDS = false;
@@ -115,44 +117,48 @@ int RPCExcutorRetryPolicy::PreProcessBeforeRetry(int status, bool retryUnlimit,
             bthread_usleep(retryOpt_.waitSleepMs * 1000);
         }
 
-        // 1. 访问存在的IP地址，但无人监听：ECONNREFUSED
-        // 2. 正常发送RPC情况下，对端进程挂掉了：EHOSTDOWN
-        // 3. 对端server调用了Stop：ELOGOFF
-        // 4. 对端链接已关闭：ECONNRESET
-        // 5. 在一个mds节点上rpc失败超过限定次数
-        // 在这几种场景下，主动切换mds。
+        // 1. Access to an existing IP address, but no one is listening:
+        // ECONNREFUSED
+        // 2. In the normal RPC scenario, the remote process has crashed:
+        // EHOSTDOWN
+        // 3. The remote server called Stop: ELOGOFF
+        // 4. The remote connection has been closed: ECONNRESET
+        // 5. RPC failures on a single MDS node exceed the specified limit.
+        // In these scenarios, actively switch the MDS.
     } else if (status == -EHOSTDOWN || status == -ECONNRESET ||
                status == -ECONNREFUSED || status == -brpc::ELOGOFF ||
                *curMDSRetryCount >= retryOpt_.maxFailedTimesBeforeChangeAddr) {
         needChangeMDS = true;
 
-        // 在开启健康检查的情况下，在底层tcp连接失败时
-        // rpc请求会本地直接返回 EHOSTDOWN
-        // 这种情况下，增加一些睡眠时间，避免大量的重试请求占满bthread
-        // TODO(wuhanqing): 关闭健康检查
+        // When health checks are enabled, in the event of a failure in the
+        // underlying TCP connection, RPC requests will directly return
+        // EHOSTDOWN locally. In this situation, add some sleep time to avoid a
+        // large number of retry requests overwhelming bthread.
+        // TODO(wuhanqing): Disable health checks.
         if (status == -EHOSTDOWN) {
             bthread_usleep(retryOpt_.rpcRetryIntervalUS);
         }
     } else if (status == -brpc::ERPCTIMEDOUT || status == -ETIMEDOUT) {
         rpcTimeout = true;
         needChangeMDS = false;
-        // 触发超时指数退避
+        // Trigger timeout index backoff
         *timeOutMS *= 2;
         *timeOutMS = std::min(*timeOutMS, retryOpt_.maxRPCTimeoutMS);
         *timeOutMS = std::max(*timeOutMS, retryOpt_.rpcTimeoutMs);
     }
 
-    // 获取下一次需要重试的mds索引
+    // Obtain the mds index that needs to be retried next time
     nextMDSIndex = GetNextMDSIndex(needChangeMDS, curRetryMDSIndex,
                                    lastWorkingMDSIndex);  // NOLINT
 
-    // 更新curMDSRetryCount和rpctimeout
+    // Update curMDSRetryCount and rpctimeout
     if (nextMDSIndex != curRetryMDSIndex) {
         *curMDSRetryCount = 0;
         *timeOutMS = retryOpt_.rpcTimeoutMs;
     } else {
         ++(*curMDSRetryCount);
-        // 还是在当前mds上重试，且rpc不是超时错误，就进行睡眠，然后再重试
+        // Try again on the current mds, and if the rpc is not a timeout error,
+        // go to sleep and try again
         if (!rpcTimeout) {
             bthread_usleep(retryOpt_.rpcRetryIntervalUS);
         }
@@ -161,20 +167,21 @@ int RPCExcutorRetryPolicy::PreProcessBeforeRetry(int status, bool retryUnlimit,
     return nextMDSIndex;
 }
 /**
- * 根据输入状态获取下一次需要重试的mds索引，mds切换逻辑：
- * 记录三个状态：curRetryMDSIndex、lastWorkingMDSIndex、
- *             currentWorkingMDSIndex
- * 1. 开始的时候curRetryMDSIndex = currentWorkingMDSIndex
+ * Obtain the next MDS index to retry based on the input state. The MDS
+ * switching logic is as follows: Record three states: curRetryMDSIndex,
+ * lastWorkingMDSIndex, currentWorkingMDSIndex
+ * 1. At the beginning, curRetryMDSIndex = currentWorkingMDSIndex
  *            lastWorkingMDSIndex = currentWorkingMDSIndex
- * 2. 如果rpc失败，会触发切换curRetryMDSIndex，如果这时候lastWorkingMDSIndex
- *    与currentWorkingMDSIndex相等，这时候会顺序切换到下一个mds索引，
- *    如果lastWorkingMDSIndex与currentWorkingMDSIndex不相等，那么
- *    说明有其他接口更新了currentWorkingMDSAddrIndex_，那么本次切换
- *    直接切换到currentWorkingMDSAddrIndex_
+ * 2. If an RPC fails, it triggers a switch to curRetryMDSIndex. If at this
+ * point, lastWorkingMDSIndex is equal to currentWorkingMDSIndex, then
+ * sequentially switch to the next MDS index. If lastWorkingMDSIndex is not
+ * equal to currentWorkingMDSIndex, it means that another interface has updated
+ * currentWorkingMDSAddrIndex_, so this time, switch directly to
+ * currentWorkingMDSAddrIndex_.
  */
 int RPCExcutorRetryPolicy::GetNextMDSIndex(bool needChangeMDS,
                                            int currentRetryIndex,
-                                           int *lastWorkingindex) {
+                                           int* lastWorkingindex) {
     int nextMDSIndex = 0;
     if (std::atomic_compare_exchange_strong(
             &currentWorkingMDSAddrIndex_, lastWorkingindex,
@@ -194,13 +201,14 @@ int RPCExcutorRetryPolicy::ExcuteTask(int mdsindex, uint64_t rpcTimeOutMS,
     assert(mdsindex >= 0 &&
            mdsindex < static_cast<int>(retryOpt_.addrs.size()));
 
-    const std::string &mdsaddr = retryOpt_.addrs[mdsindex];
+    const std::string& mdsaddr = retryOpt_.addrs[mdsindex];
 
     brpc::Channel channel;
     int ret = channel.Init(mdsaddr.c_str(), nullptr);
     if (ret != 0) {
         LOG(WARNING) << "Init channel failed! addr = " << mdsaddr;
-        // 返回EHOSTDOWN给上层调用者，促使其切换mds
+        // Return EHOSTDOWN to the upper level caller, prompting them to switch
+        // mds
         return -EHOSTDOWN;
     }
 
@@ -211,14 +219,15 @@ int RPCExcutorRetryPolicy::ExcuteTask(int mdsindex, uint64_t rpcTimeOutMS,
     return task(mdsindex, rpcTimeOutMS, &channel, &cntl);
 }
 
-
-MDSClient::MDSClient(const std::string &metricPrefix)
-    : inited_(false), metaServerOpt_(), mdsClientMetric_(metricPrefix),
+MDSClient::MDSClient(const std::string& metricPrefix)
+    : inited_(false),
+      metaServerOpt_(),
+      mdsClientMetric_(metricPrefix),
       rpcExcutor_() {}
 
 MDSClient::~MDSClient() { UnInitialize(); }
 
-LIBCURVE_ERROR MDSClient::Initialize(const MetaServerOption &metaServerOpt) {
+LIBCURVE_ERROR MDSClient::Initialize(const MetaServerOption& metaServerOpt) {
     if (inited_) {
         LOG(INFO) << "MDSClient already started!";
         return LIBCURVE_ERROR::OK;
@@ -229,7 +238,7 @@ LIBCURVE_ERROR MDSClient::Initialize(const MetaServerOption &metaServerOpt) {
     rpcExcutor_.SetOption(metaServerOpt.rpcRetryOpt);
 
     std::ostringstream oss;
-    for (const auto &addr : metaServerOpt_.rpcRetryOpt.addrs) {
+    for (const auto& addr : metaServerOpt_.rpcRetryOpt.addrs) {
         oss << " " << addr;
     }
 
@@ -238,19 +247,15 @@ LIBCURVE_ERROR MDSClient::Initialize(const MetaServerOption &metaServerOpt) {
     return LIBCURVE_ERROR::OK;
 }
 
-
-void MDSClient::UnInitialize() {
-    inited_ = false;
-}
+void MDSClient::UnInitialize() { inited_ = false; }
 
 #define RPCTaskDefine                                                   \
     [&](CURVE_UNUSED int addrindex, CURVE_UNUSED uint64_t rpctimeoutMS, \
         brpc::Channel* channel, brpc::Controller* cntl) -> int
 
-LIBCURVE_ERROR MDSClient::OpenFile(const std::string &filename,
-                                   const UserInfo_t &userinfo, FInfo_t *fi,
-                                   FileEpoch_t *fEpoch,
-                                   LeaseSession *lease) {
+LIBCURVE_ERROR MDSClient::OpenFile(const std::string& filename,
+                                   const UserInfo_t& userinfo, FInfo_t* fi,
+                                   FileEpoch_t* fEpoch, LeaseSession* lease) {
     auto task = RPCTaskDefine {
         (void)addrindex;
         (void)rpctimeoutMS;
@@ -278,12 +283,12 @@ LIBCURVE_ERROR MDSClient::OpenFile(const std::string &filename,
 
         bool flag = response.has_protosession() && response.has_fileinfo();
         if (flag) {
-            const ProtoSession &leasesession = response.protosession();
+            const ProtoSession& leasesession = response.protosession();
             lease->sessionID = leasesession.sessionid();
             lease->leaseTime = leasesession.leasetime();
             lease->createTime = leasesession.createtime();
 
-            const curve::mds::FileInfo &protoFileInfo = response.fileinfo();
+            const curve::mds::FileInfo& protoFileInfo = response.fileinfo();
             LOG(INFO) << "OpenFile succeeded, filename: " << filename
                       << ", file info " << protoFileInfo.DebugString();
             ServiceHelper::ProtoFileInfo2Local(protoFileInfo, fi, fEpoch);
@@ -349,9 +354,9 @@ LIBCURVE_ERROR MDSClient::CreateFile(const CreateFileContext& context) {
         rpcExcutor_.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS));
 }
 
-LIBCURVE_ERROR MDSClient::CloseFile(const std::string &filename,
-                                    const UserInfo_t &userinfo,
-                                    const std::string &sessionid) {
+LIBCURVE_ERROR MDSClient::CloseFile(const std::string& filename,
+                                    const UserInfo_t& userinfo,
+                                    const std::string& sessionid) {
     auto task = RPCTaskDefine {
         (void)addrindex;
         (void)rpctimeoutMS;
@@ -385,9 +390,9 @@ LIBCURVE_ERROR MDSClient::CloseFile(const std::string &filename,
         rpcExcutor_.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS));
 }
 
-LIBCURVE_ERROR MDSClient::GetFileInfo(const std::string &filename,
-                                      const UserInfo_t &uinfo, FInfo_t *fi,
-                                      FileEpoch_t *fEpoch) {
+LIBCURVE_ERROR MDSClient::GetFileInfo(const std::string& filename,
+                                      const UserInfo_t& uinfo, FInfo_t* fi,
+                                      FileEpoch_t* fEpoch) {
     auto task = RPCTaskDefine {
         (void)addrindex;
         (void)rpctimeoutMS;
@@ -421,19 +426,17 @@ LIBCURVE_ERROR MDSClient::GetFileInfo(const std::string &filename,
         rpcExcutor_.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS));
 }
 
-LIBCURVE_ERROR MDSClient::IncreaseEpoch(const std::string& filename,
-    const UserInfo_t& userinfo,
-    FInfo_t* fi,
-    FileEpoch_t *fEpoch,
-    std::list<CopysetPeerInfo<ChunkServerID>> *csLocs) {
+LIBCURVE_ERROR MDSClient::IncreaseEpoch(
+    const std::string& filename, const UserInfo_t& userinfo, FInfo_t* fi,
+    FileEpoch_t* fEpoch, std::list<CopysetPeerInfo<ChunkServerID>>* csLocs) {
     auto task = RPCTaskDefine {
         (void)addrindex;
         (void)rpctimeoutMS;
         IncreaseFileEpochResponse response;
         mdsClientMetric_.increaseEpoch.qps.count << 1;
         LatencyGuard lg(&mdsClientMetric_.increaseEpoch.latency);
-        MDSClientBase::IncreaseEpoch(
-            filename, userinfo, &response, cntl, channel);
+        MDSClientBase::IncreaseEpoch(filename, userinfo, &response, cntl,
+                                     channel);
 
         if (cntl->Failed()) {
             mdsClientMetric_.increaseEpoch.eps.count << 1;
@@ -445,10 +448,10 @@ LIBCURVE_ERROR MDSClient::IncreaseEpoch(const std::string& filename,
             LIBCURVE_ERROR retcode;
             MDSStatusCode2LibcurveError(stcode, &retcode);
             LOG(ERROR) << "IncreaseEpoch: filename = " << filename
-                << ", owner = " << userinfo.owner
-                << ", errocde = " << retcode
-                << ", error msg = " << StatusCode_Name(stcode)
-                << ", log id = " << cntl->log_id();
+                       << ", owner = " << userinfo.owner
+                       << ", errocde = " << retcode
+                       << ", error msg = " << StatusCode_Name(stcode)
+                       << ", log id = " << cntl->log_id();
             return retcode;
         }
 
@@ -466,12 +469,12 @@ LIBCURVE_ERROR MDSClient::IncreaseEpoch(const std::string& filename,
             csinfo.peerID = response.cslocs(i).chunkserverid();
             EndPoint internal;
             butil::str2endpoint(response.cslocs(i).hostip().c_str(),
-                    response.cslocs(i).port(), &internal);
+                                response.cslocs(i).port(), &internal);
             EndPoint external;
             const bool hasExternalIp = response.cslocs(i).has_externalip();
             if (hasExternalIp) {
                 butil::str2endpoint(response.cslocs(i).externalip().c_str(),
-                    response.cslocs(i).port(), &external);
+                                    response.cslocs(i).port(), &external);
             }
             csinfo.internalAddr = PeerAddr(internal);
             csinfo.externalAddr = PeerAddr(external);
@@ -508,10 +511,10 @@ LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string& filename,
         if ((stcode == StatusCode::kOK ||
              stcode == StatusCode::kFileUnderSnapShot) &&
             hasinfo) {
-            FInfo_t *fi = new (std::nothrow) FInfo_t;
+            FInfo_t* fi = new (std::nothrow) FInfo_t;
             FileEpoch_t fEpoch;
-            ServiceHelper::ProtoFileInfo2Local(response.snapshotfileinfo(),
-                                               fi, &fEpoch);
+            ServiceHelper::ProtoFileInfo2Local(response.snapshotfileinfo(), fi,
+                                               &fEpoch);
             *seq = fi->seqnum;
             delete fi;
             if (stcode == StatusCode::kOK) {
@@ -527,8 +530,8 @@ LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string& filename,
         if (hasinfo) {
             FInfo_t fi;
             FileEpoch_t fEpoch;
-            ServiceHelper::ProtoFileInfo2Local(response.snapshotfileinfo(),
-                                               &fi, &fEpoch);  // NOLINT
+            ServiceHelper::ProtoFileInfo2Local(response.snapshotfileinfo(), &fi,
+                                               &fEpoch);  // NOLINT
             *seq = fi.seqnum;
         }
 
@@ -545,8 +548,8 @@ LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string& filename,
         rpcExcutor_.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS));
 }
 
-LIBCURVE_ERROR MDSClient::DeleteSnapShot(const std::string &filename,
-                                         const UserInfo_t &userinfo,
+LIBCURVE_ERROR MDSClient::DeleteSnapShot(const std::string& filename,
+                                         const UserInfo_t& userinfo,
                                          uint64_t seq) {
     auto task = RPCTaskDefine {
         (void)addrindex;
@@ -578,10 +581,10 @@ LIBCURVE_ERROR MDSClient::DeleteSnapShot(const std::string &filename,
         rpcExcutor_.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS));
 }
 
-LIBCURVE_ERROR MDSClient::ListSnapShot(const std::string &filename,
-                                       const UserInfo_t &userinfo,
-                                       const std::vector<uint64_t> *seq,
-                                       std::map<uint64_t, FInfo> *snapif) {
+LIBCURVE_ERROR MDSClient::ListSnapShot(const std::string& filename,
+                                       const UserInfo_t& userinfo,
+                                       const std::vector<uint64_t>* seq,
+                                       std::map<uint64_t, FInfo>* snapif) {
     auto task = RPCTaskDefine {
         (void)addrindex;
         (void)rpctimeoutMS;
@@ -612,8 +615,8 @@ LIBCURVE_ERROR MDSClient::ListSnapShot(const std::string &filename,
         for (int i = 0; i < response.fileinfo_size(); i++) {
             FInfo_t tempInfo;
             FileEpoch_t fEpoch;
-            ServiceHelper::ProtoFileInfo2Local(response.fileinfo(i),
-                                               &tempInfo, &fEpoch);
+            ServiceHelper::ProtoFileInfo2Local(response.fileinfo(i), &tempInfo,
+                                               &fEpoch);
             snapif->insert(std::make_pair(tempInfo.seqnum, tempInfo));
         }
 
@@ -628,10 +631,10 @@ LIBCURVE_ERROR MDSClient::ListSnapShot(const std::string &filename,
         rpcExcutor_.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS));
 }
 
-LIBCURVE_ERROR MDSClient::GetSnapshotSegmentInfo(const std::string &filename,
-                                                 const UserInfo_t &userinfo,
+LIBCURVE_ERROR MDSClient::GetSnapshotSegmentInfo(const std::string& filename,
+                                                 const UserInfo_t& userinfo,
                                                  uint64_t seq, uint64_t offset,
-                                                 SegmentInfo *segInfo) {
+                                                 SegmentInfo* segInfo) {
     auto task = RPCTaskDefine {
         (void)addrindex;
         (void)rpctimeoutMS;
@@ -692,11 +695,11 @@ LIBCURVE_ERROR MDSClient::GetSnapshotSegmentInfo(const std::string &filename,
         rpcExcutor_.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS));
 }
 
-LIBCURVE_ERROR MDSClient::RefreshSession(const std::string &filename,
-                                         const UserInfo_t &userinfo,
-                                         const std::string &sessionid,
-                                         LeaseRefreshResult *resp,
-                                         LeaseSession *lease) {
+LIBCURVE_ERROR MDSClient::RefreshSession(const std::string& filename,
+                                         const UserInfo_t& userinfo,
+                                         const std::string& sessionid,
+                                         LeaseRefreshResult* resp,
+                                         LeaseSession* lease) {
     auto task = RPCTaskDefine {
         (void)addrindex;
         (void)rpctimeoutMS;
@@ -728,40 +731,39 @@ LIBCURVE_ERROR MDSClient::RefreshSession(const std::string &filename,
         }
 
         switch (stcode) {
-        case StatusCode::kSessionNotExist:
-        case StatusCode::kFileNotExists:
-            resp->status = LeaseRefreshResult::Status::NOT_EXIST;
-            break;
-        case StatusCode::kOwnerAuthFail:
-            resp->status = LeaseRefreshResult::Status::FAILED;
-            return LIBCURVE_ERROR::AUTHFAIL;
-            break;
-        case StatusCode::kOK:
-            if (response.has_fileinfo()) {
-                FileEpoch_t fEpoch;
-                ServiceHelper::ProtoFileInfo2Local(response.fileinfo(),
-                                                   &resp->finfo,
-                                                   &fEpoch);
-                resp->status = LeaseRefreshResult::Status::OK;
-            } else {
-                LOG(WARNING) << "session response has no fileinfo!";
-                return LIBCURVE_ERROR::FAILED;
-            }
-            if (nullptr != lease) {
-                if (!response.has_protosession()) {
-                    LOG(WARNING) << "session response has no protosession";
+            case StatusCode::kSessionNotExist:
+            case StatusCode::kFileNotExists:
+                resp->status = LeaseRefreshResult::Status::NOT_EXIST;
+                break;
+            case StatusCode::kOwnerAuthFail:
+                resp->status = LeaseRefreshResult::Status::FAILED;
+                return LIBCURVE_ERROR::AUTHFAIL;
+                break;
+            case StatusCode::kOK:
+                if (response.has_fileinfo()) {
+                    FileEpoch_t fEpoch;
+                    ServiceHelper::ProtoFileInfo2Local(response.fileinfo(),
+                                                       &resp->finfo, &fEpoch);
+                    resp->status = LeaseRefreshResult::Status::OK;
+                } else {
+                    LOG(WARNING) << "session response has no fileinfo!";
                     return LIBCURVE_ERROR::FAILED;
                 }
-                ProtoSession leasesession = response.protosession();
-                lease->sessionID = leasesession.sessionid();
-                lease->leaseTime = leasesession.leasetime();
-                lease->createTime = leasesession.createtime();
-            }
-            break;
-        default:
-            resp->status = LeaseRefreshResult::Status::FAILED;
-            return LIBCURVE_ERROR::FAILED;
-            break;
+                if (nullptr != lease) {
+                    if (!response.has_protosession()) {
+                        LOG(WARNING) << "session response has no protosession";
+                        return LIBCURVE_ERROR::FAILED;
+                    }
+                    ProtoSession leasesession = response.protosession();
+                    lease->sessionID = leasesession.sessionid();
+                    lease->leaseTime = leasesession.leasetime();
+                    lease->createTime = leasesession.createtime();
+                }
+                break;
+            default:
+                resp->status = LeaseRefreshResult::Status::FAILED;
+                return LIBCURVE_ERROR::FAILED;
+                break;
         }
         return LIBCURVE_ERROR::OK;
     };
@@ -769,10 +771,10 @@ LIBCURVE_ERROR MDSClient::RefreshSession(const std::string &filename,
         rpcExcutor_.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS));
 }
 
-LIBCURVE_ERROR MDSClient::CheckSnapShotStatus(const std::string &filename,
-                                              const UserInfo_t &userinfo,
+LIBCURVE_ERROR MDSClient::CheckSnapShotStatus(const std::string& filename,
+                                              const UserInfo_t& userinfo,
                                               uint64_t seq,
-                                              FileStatus *filestatus) {
+                                              FileStatus* filestatus) {
     auto task = RPCTaskDefine {
         (void)addrindex;
         (void)rpctimeoutMS;
@@ -807,9 +809,9 @@ LIBCURVE_ERROR MDSClient::CheckSnapShotStatus(const std::string &filename,
 }
 
 LIBCURVE_ERROR
-MDSClient::GetServerList(const LogicPoolID &logicalpooid,
-                         const std::vector<CopysetID> &copysetidvec,
-                         std::vector<CopysetInfo<ChunkServerID>> *cpinfoVec) {
+MDSClient::GetServerList(const LogicPoolID& logicalpooid,
+                         const std::vector<CopysetID>& copysetidvec,
+                         std::vector<CopysetInfo<ChunkServerID>>* cpinfoVec) {
     auto task = RPCTaskDefine {
         (void)addrindex;
         (void)rpctimeoutMS;
@@ -875,7 +877,7 @@ MDSClient::GetServerList(const LogicPoolID &logicalpooid,
     return ReturnError(rpcExcutor_.DoRPCTask(task, 0));
 }
 
-LIBCURVE_ERROR MDSClient::GetClusterInfo(ClusterContext *clsctx) {
+LIBCURVE_ERROR MDSClient::GetClusterInfo(ClusterContext* clsctx) {
     auto task = RPCTaskDefine {
         (void)addrindex;
         (void)rpctimeoutMS;
@@ -927,19 +929,14 @@ LIBCURVE_ERROR MDSClient::ListPoolset(std::vector<std::string>* out) {
     };
 
     return ReturnError(
-            rpcExcutor_.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS));
+        rpcExcutor_.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS));
 }
 
-LIBCURVE_ERROR MDSClient::CreateCloneFile(const std::string& source,
-                                          const std::string& destination,
-                                          const UserInfo_t& userinfo,
-                                          uint64_t size,
-                                          uint64_t sn,
-                                          uint32_t chunksize,
-                                          uint64_t stripeUnit,
-                                          uint64_t stripeCount,
-                                          const std::string& poolset,
-                                          FInfo* fileinfo) {
+LIBCURVE_ERROR MDSClient::CreateCloneFile(
+    const std::string& source, const std::string& destination,
+    const UserInfo_t& userinfo, uint64_t size, uint64_t sn, uint32_t chunksize,
+    uint64_t stripeUnit, uint64_t stripeCount, const std::string& poolset,
+    FInfo* fileinfo) {
     auto task = RPCTaskDefine {
         (void)addrindex;
         (void)rpctimeoutMS;
@@ -970,8 +967,8 @@ LIBCURVE_ERROR MDSClient::CreateCloneFile(const std::string& source,
 
         if (stcode == StatusCode::kOK) {
             FileEpoch_t fEpoch;
-            ServiceHelper::ProtoFileInfo2Local(response.fileinfo(),
-                                               fileinfo, &fEpoch);
+            ServiceHelper::ProtoFileInfo2Local(response.fileinfo(), fileinfo,
+                                               &fEpoch);
             fileinfo->sourceInfo.name = response.fileinfo().clonesource();
             fileinfo->sourceInfo.length = response.fileinfo().clonelength();
         }
@@ -982,20 +979,20 @@ LIBCURVE_ERROR MDSClient::CreateCloneFile(const std::string& source,
         rpcExcutor_.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS));
 }
 
-LIBCURVE_ERROR MDSClient::CompleteCloneMeta(const std::string &destination,
-                                            const UserInfo_t &userinfo) {
+LIBCURVE_ERROR MDSClient::CompleteCloneMeta(const std::string& destination,
+                                            const UserInfo_t& userinfo) {
     return SetCloneFileStatus(destination, FileStatus::CloneMetaInstalled,
                               userinfo);
 }
 
-LIBCURVE_ERROR MDSClient::CompleteCloneFile(const std::string &destination,
-                                            const UserInfo_t &userinfo) {
+LIBCURVE_ERROR MDSClient::CompleteCloneFile(const std::string& destination,
+                                            const UserInfo_t& userinfo) {
     return SetCloneFileStatus(destination, FileStatus::Cloned, userinfo);
 }
 
-LIBCURVE_ERROR MDSClient::SetCloneFileStatus(const std::string &filename,
-                                             const FileStatus &filestatus,
-                                             const UserInfo_t &userinfo,
+LIBCURVE_ERROR MDSClient::SetCloneFileStatus(const std::string& filename,
+                                             const FileStatus& filestatus,
+                                             const UserInfo_t& userinfo,
                                              uint64_t fileID) {
     auto task = RPCTaskDefine {
         (void)addrindex;
@@ -1028,9 +1025,9 @@ LIBCURVE_ERROR MDSClient::SetCloneFileStatus(const std::string &filename,
 }
 
 LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate, uint64_t offset,
-                                               const FInfo_t *fi,
-                                               const FileEpoch_t *fEpoch,
-                                               SegmentInfo *segInfo) {
+                                               const FInfo_t* fi,
+                                               const FileEpoch_t* fEpoch,
+                                               SegmentInfo* segInfo) {
     auto task = RPCTaskDefine {
         (void)addrindex;
         (void)rpctimeoutMS;
@@ -1050,23 +1047,23 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate, uint64_t offset,
 
         auto statuscode = response.statuscode();
         switch (statuscode) {
-        case StatusCode::kParaError:
-            LOG(WARNING) << "GetOrAllocateSegment: error param!";
-            return LIBCURVE_ERROR::FAILED;
-        case StatusCode::kOwnerAuthFail:
-            LOG(WARNING) << "GetOrAllocateSegment: auth failed!";
-            return LIBCURVE_ERROR::AUTHFAIL;
-        case StatusCode::kFileNotExists:
-            LOG(WARNING) << "GetOrAllocateSegment: file not exists!";
-            return LIBCURVE_ERROR::FAILED;
-        case StatusCode::kSegmentNotAllocated:
-            LOG(WARNING) << "GetOrAllocateSegment: segment not allocated!";
-            return LIBCURVE_ERROR::NOT_ALLOCATE;
-        case StatusCode::kEpochTooOld:
-            LOG(WARNING) << "GetOrAllocateSegment return epoch too old!";
-            return LIBCURVE_ERROR::EPOCH_TOO_OLD;
-        default:
-            break;
+            case StatusCode::kParaError:
+                LOG(WARNING) << "GetOrAllocateSegment: error param!";
+                return LIBCURVE_ERROR::FAILED;
+            case StatusCode::kOwnerAuthFail:
+                LOG(WARNING) << "GetOrAllocateSegment: auth failed!";
+                return LIBCURVE_ERROR::AUTHFAIL;
+            case StatusCode::kFileNotExists:
+                LOG(WARNING) << "GetOrAllocateSegment: file not exists!";
+                return LIBCURVE_ERROR::FAILED;
+            case StatusCode::kSegmentNotAllocated:
+                LOG(WARNING) << "GetOrAllocateSegment: segment not allocated!";
+                return LIBCURVE_ERROR::NOT_ALLOCATE;
+            case StatusCode::kEpochTooOld:
+                LOG(WARNING) << "GetOrAllocateSegment return epoch too old!";
+                return LIBCURVE_ERROR::EPOCH_TOO_OLD;
+            default:
+                break;
         }
 
         PageFileSegment pfs = response.pagefilesegment();
@@ -1094,7 +1091,7 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate, uint64_t offset,
     return ReturnError(rpcExcutor_.DoRPCTask(task, 0));
 }
 
-LIBCURVE_ERROR MDSClient::DeAllocateSegment(const FInfo *fileInfo,
+LIBCURVE_ERROR MDSClient::DeAllocateSegment(const FInfo* fileInfo,
                                             uint64_t offset) {
     auto task = RPCTaskDefine {
         (void)addrindex;
@@ -1133,9 +1130,9 @@ LIBCURVE_ERROR MDSClient::DeAllocateSegment(const FInfo *fileInfo,
         rpcExcutor_.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS));
 }
 
-LIBCURVE_ERROR MDSClient::RenameFile(const UserInfo_t &userinfo,
-                                     const std::string &origin,
-                                     const std::string &destination,
+LIBCURVE_ERROR MDSClient::RenameFile(const UserInfo_t& userinfo,
+                                     const std::string& origin,
+                                     const std::string& destination,
                                      uint64_t originId,
                                      uint64_t destinationId) {
     auto task = RPCTaskDefine {
@@ -1177,8 +1174,8 @@ LIBCURVE_ERROR MDSClient::RenameFile(const UserInfo_t &userinfo,
         rpcExcutor_.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS));
 }
 
-LIBCURVE_ERROR MDSClient::Extend(const std::string &filename,
-                                 const UserInfo_t &userinfo, uint64_t newsize) {
+LIBCURVE_ERROR MDSClient::Extend(const std::string& filename,
+                                 const UserInfo_t& userinfo, uint64_t newsize) {
     auto task = RPCTaskDefine {
         (void)addrindex;
         (void)rpctimeoutMS;
@@ -1211,8 +1208,8 @@ LIBCURVE_ERROR MDSClient::Extend(const std::string &filename,
         rpcExcutor_.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS));
 }
 
-LIBCURVE_ERROR MDSClient::DeleteFile(const std::string &filename,
-                                     const UserInfo_t &userinfo,
+LIBCURVE_ERROR MDSClient::DeleteFile(const std::string& filename,
+                                     const UserInfo_t& userinfo,
                                      bool deleteforce, uint64_t fileid) {
     auto task = RPCTaskDefine {
         (void)addrindex;
@@ -1251,8 +1248,8 @@ LIBCURVE_ERROR MDSClient::DeleteFile(const std::string &filename,
         rpcExcutor_.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS));
 }
 
-LIBCURVE_ERROR MDSClient::RecoverFile(const std::string &filename,
-                                      const UserInfo_t &userinfo,
+LIBCURVE_ERROR MDSClient::RecoverFile(const std::string& filename,
+                                      const UserInfo_t& userinfo,
                                       uint64_t fileid) {
     auto task = RPCTaskDefine {
         (void)addrindex;
@@ -1285,9 +1282,9 @@ LIBCURVE_ERROR MDSClient::RecoverFile(const std::string &filename,
         rpcExcutor_.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS));
 }
 
-LIBCURVE_ERROR MDSClient::ChangeOwner(const std::string &filename,
-                                      const std::string &newOwner,
-                                      const UserInfo_t &userinfo) {
+LIBCURVE_ERROR MDSClient::ChangeOwner(const std::string& filename,
+                                      const std::string& newOwner,
+                                      const UserInfo_t& userinfo) {
     auto task = RPCTaskDefine {
         (void)addrindex;
         (void)rpctimeoutMS;
@@ -1326,9 +1323,9 @@ LIBCURVE_ERROR MDSClient::ChangeOwner(const std::string &filename,
         rpcExcutor_.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS));
 }
 
-LIBCURVE_ERROR MDSClient::Listdir(const std::string &dirpath,
-                                  const UserInfo_t &userinfo,
-                                  std::vector<FileStatInfo> *filestatVec) {
+LIBCURVE_ERROR MDSClient::Listdir(const std::string& dirpath,
+                                  const UserInfo_t& userinfo,
+                                  std::vector<FileStatInfo>* filestatVec) {
     auto task = RPCTaskDefine {
         (void)addrindex;
         (void)rpctimeoutMS;
@@ -1379,8 +1376,8 @@ LIBCURVE_ERROR MDSClient::Listdir(const std::string &dirpath,
         rpcExcutor_.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS));
 }
 
-LIBCURVE_ERROR MDSClient::GetChunkServerInfo(const PeerAddr &csAddr,
-                             CopysetPeerInfo<ChunkServerID> *chunkserverInfo) {
+LIBCURVE_ERROR MDSClient::GetChunkServerInfo(
+    const PeerAddr& csAddr, CopysetPeerInfo<ChunkServerID>* chunkserverInfo) {
     if (!chunkserverInfo) {
         LOG(ERROR) << "chunkserverInfo pointer is null!";
         return LIBCURVE_ERROR::FAILED;
@@ -1403,7 +1400,7 @@ LIBCURVE_ERROR MDSClient::GetChunkServerInfo(const PeerAddr &csAddr,
 
         std::vector<std::string> strs;
         curve::common::SplitString(csAddr.ToString(), ":", &strs);
-        const std::string &ip = strs[0];
+        const std::string& ip = strs[0];
 
         uint64_t port;
         bool succ = curve::common::StringToUll(strs[1], &port);
@@ -1428,7 +1425,7 @@ LIBCURVE_ERROR MDSClient::GetChunkServerInfo(const PeerAddr &csAddr,
             << ", log id = " << cntl->log_id();
 
         if (statusCode == 0) {
-            const auto &csInfo = response.chunkserverinfo();
+            const auto& csInfo = response.chunkserverinfo();
             ChunkServerID csId = csInfo.chunkserverid();
             std::string internalIp = csInfo.hostip();
             std::string externalIp = internalIp;
@@ -1440,9 +1437,8 @@ LIBCURVE_ERROR MDSClient::GetChunkServerInfo(const PeerAddr &csAddr,
             butil::str2endpoint(internalIp.c_str(), port, &internal);
             EndPoint external;
             butil::str2endpoint(externalIp.c_str(), port, &external);
-            *chunkserverInfo =
-                CopysetPeerInfo<ChunkServerID>(csId, PeerAddr(internal),
-                                               PeerAddr(external));
+            *chunkserverInfo = CopysetPeerInfo<ChunkServerID>(
+                csId, PeerAddr(internal), PeerAddr(external));
             return LIBCURVE_ERROR::OK;
         } else {
             return LIBCURVE_ERROR::FAILED;
@@ -1453,8 +1449,8 @@ LIBCURVE_ERROR MDSClient::GetChunkServerInfo(const PeerAddr &csAddr,
 }
 
 LIBCURVE_ERROR
-MDSClient::ListChunkServerInServer(const std::string &serverIp,
-                                   std::vector<ChunkServerID> *csIds) {
+MDSClient::ListChunkServerInServer(const std::string& serverIp,
+                                   std::vector<ChunkServerID>* csIds) {
     auto task = RPCTaskDefine {
         (void)addrindex;
         (void)rpctimeoutMS;
@@ -1497,81 +1493,80 @@ MDSClient::ListChunkServerInServer(const std::string &serverIp,
         rpcExcutor_.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS));
 }
 
-void MDSClient::MDSStatusCode2LibcurveError(const StatusCode &status,
-                                            LIBCURVE_ERROR *errcode) {
+void MDSClient::MDSStatusCode2LibcurveError(const StatusCode& status,
+                                            LIBCURVE_ERROR* errcode) {
     switch (status) {
-    case StatusCode::kOK:
-        *errcode = LIBCURVE_ERROR::OK;
-        break;
-    case StatusCode::kFileExists:
-        *errcode = LIBCURVE_ERROR::EXISTS;
-        break;
-    case StatusCode::kSnapshotFileNotExists:
-    case StatusCode::kFileNotExists:
-    case StatusCode::kDirNotExist:
-    case StatusCode::kPoolsetNotExist:
-        *errcode = LIBCURVE_ERROR::NOTEXIST;
-        break;
-    case StatusCode::kSegmentNotAllocated:
-        *errcode = LIBCURVE_ERROR::NOT_ALLOCATE;
-        break;
-    case StatusCode::kShrinkBiggerFile:
-        *errcode = LIBCURVE_ERROR::NO_SHRINK_BIGGER_FILE;
-        break;
-    case StatusCode::kNotSupported:
-        *errcode = LIBCURVE_ERROR::NOT_SUPPORT;
-        break;
-    case StatusCode::kOwnerAuthFail:
-        *errcode = LIBCURVE_ERROR::AUTHFAIL;
-        break;
-    case StatusCode::kSnapshotFileDeleteError:
-        *errcode = LIBCURVE_ERROR::DELETE_ERROR;
-        break;
-    case StatusCode::kFileUnderSnapShot:
-        *errcode = LIBCURVE_ERROR::UNDER_SNAPSHOT;
-        break;
-    case StatusCode::kFileNotUnderSnapShot:
-        *errcode = LIBCURVE_ERROR::NOT_UNDERSNAPSHOT;
-        break;
-    case StatusCode::kSnapshotDeleting:
-        *errcode = LIBCURVE_ERROR::DELETING;
-        break;
-    case StatusCode::kDirNotEmpty:
-        *errcode = LIBCURVE_ERROR::NOT_EMPTY;
-        break;
-    case StatusCode::kFileOccupied:
-        *errcode = LIBCURVE_ERROR::FILE_OCCUPIED;
-        break;
-    case StatusCode::kSessionNotExist:
-        *errcode = LIBCURVE_ERROR::SESSION_NOT_EXIST;
-        break;
-    case StatusCode::kParaError:
-        *errcode = LIBCURVE_ERROR::PARAM_ERROR;
-        break;
-    case StatusCode::kStorageError:
-        *errcode = LIBCURVE_ERROR::INTERNAL_ERROR;
-        break;
-    case StatusCode::kFileLengthNotSupported:
-        *errcode = LIBCURVE_ERROR::LENGTH_NOT_SUPPORT;
-        break;
-    case ::curve::mds::StatusCode::kCloneStatusNotMatch:
-        *errcode = LIBCURVE_ERROR::STATUS_NOT_MATCH;
-        break;
-    case ::curve::mds::StatusCode::kDeleteFileBeingCloned:
-        *errcode = LIBCURVE_ERROR::DELETE_BEING_CLONED;
-        break;
-    case ::curve::mds::StatusCode::kClientVersionNotMatch:
-        *errcode = LIBCURVE_ERROR::CLIENT_NOT_SUPPORT_SNAPSHOT;
-        break;
-    case ::curve::mds::StatusCode::kSnapshotFrozen:
-        *errcode = LIBCURVE_ERROR::SNAPSTHO_FROZEN;
-        break;
-    default:
-        *errcode = LIBCURVE_ERROR::UNKNOWN;
-        break;
+        case StatusCode::kOK:
+            *errcode = LIBCURVE_ERROR::OK;
+            break;
+        case StatusCode::kFileExists:
+            *errcode = LIBCURVE_ERROR::EXISTS;
+            break;
+        case StatusCode::kSnapshotFileNotExists:
+        case StatusCode::kFileNotExists:
+        case StatusCode::kDirNotExist:
+        case StatusCode::kPoolsetNotExist:
+            *errcode = LIBCURVE_ERROR::NOTEXIST;
+            break;
+        case StatusCode::kSegmentNotAllocated:
+            *errcode = LIBCURVE_ERROR::NOT_ALLOCATE;
+            break;
+        case StatusCode::kShrinkBiggerFile:
+            *errcode = LIBCURVE_ERROR::NO_SHRINK_BIGGER_FILE;
+            break;
+        case StatusCode::kNotSupported:
+            *errcode = LIBCURVE_ERROR::NOT_SUPPORT;
+            break;
+        case StatusCode::kOwnerAuthFail:
+            *errcode = LIBCURVE_ERROR::AUTHFAIL;
+            break;
+        case StatusCode::kSnapshotFileDeleteError:
+            *errcode = LIBCURVE_ERROR::DELETE_ERROR;
+            break;
+        case StatusCode::kFileUnderSnapShot:
+            *errcode = LIBCURVE_ERROR::UNDER_SNAPSHOT;
+            break;
+        case StatusCode::kFileNotUnderSnapShot:
+            *errcode = LIBCURVE_ERROR::NOT_UNDERSNAPSHOT;
+            break;
+        case StatusCode::kSnapshotDeleting:
+            *errcode = LIBCURVE_ERROR::DELETING;
+            break;
+        case StatusCode::kDirNotEmpty:
+            *errcode = LIBCURVE_ERROR::NOT_EMPTY;
+            break;
+        case StatusCode::kFileOccupied:
+            *errcode = LIBCURVE_ERROR::FILE_OCCUPIED;
+            break;
+        case StatusCode::kSessionNotExist:
+            *errcode = LIBCURVE_ERROR::SESSION_NOT_EXIST;
+            break;
+        case StatusCode::kParaError:
+            *errcode = LIBCURVE_ERROR::PARAM_ERROR;
+            break;
+        case StatusCode::kStorageError:
+            *errcode = LIBCURVE_ERROR::INTERNAL_ERROR;
+            break;
+        case StatusCode::kFileLengthNotSupported:
+            *errcode = LIBCURVE_ERROR::LENGTH_NOT_SUPPORT;
+            break;
+        case ::curve::mds::StatusCode::kCloneStatusNotMatch:
+            *errcode = LIBCURVE_ERROR::STATUS_NOT_MATCH;
+            break;
+        case ::curve::mds::StatusCode::kDeleteFileBeingCloned:
+            *errcode = LIBCURVE_ERROR::DELETE_BEING_CLONED;
+            break;
+        case ::curve::mds::StatusCode::kClientVersionNotMatch:
+            *errcode = LIBCURVE_ERROR::CLIENT_NOT_SUPPORT_SNAPSHOT;
+            break;
+        case ::curve::mds::StatusCode::kSnapshotFrozen:
+            *errcode = LIBCURVE_ERROR::SNAPSTHO_FROZEN;
+            break;
+        default:
+            *errcode = LIBCURVE_ERROR::UNKNOWN;
+            break;
     }
 }
-
 
 LIBCURVE_ERROR MDSClient::ReturnError(int retcode) {
     // logic error
@@ -1581,12 +1576,12 @@ LIBCURVE_ERROR MDSClient::ReturnError(int retcode) {
 
     // rpc error or special defined error
     switch (retcode) {
-    case -LIBCURVE_ERROR::NOT_SUPPORT:
-        return LIBCURVE_ERROR::NOT_SUPPORT;
-    case -LIBCURVE_ERROR::FILE_OCCUPIED:
-        return LIBCURVE_ERROR::FILE_OCCUPIED;
-    default:
-        return LIBCURVE_ERROR::FAILED;
+        case -LIBCURVE_ERROR::NOT_SUPPORT:
+            return LIBCURVE_ERROR::NOT_SUPPORT;
+        case -LIBCURVE_ERROR::FILE_OCCUPIED:
+            return LIBCURVE_ERROR::FILE_OCCUPIED;
+        default:
+            return LIBCURVE_ERROR::FAILED;
     }
 }
 

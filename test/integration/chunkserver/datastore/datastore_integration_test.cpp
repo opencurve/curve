@@ -28,8 +28,8 @@ namespace chunkserver {
 const uint64_t kMB = 1024 * 1024;
 const ChunkSizeType CHUNK_SIZE = 16 * kMB;
 const PageSizeType PAGE_SIZE = 4 * 1024;
-const string baseDir = "./data_int";    // NOLINT
-const string poolDir = "./chunkfilepool_int";  // NOLINT
+const string baseDir = "./data_int";                     // NOLINT
+const string poolDir = "./chunkfilepool_int";            // NOLINT
 const string poolMetaPath = "./chunkfilepool_int.meta";  // NOLINT
 
 class DatastoreIntegrationTest : public DatastoreIntegrationBase {
@@ -39,51 +39,49 @@ class DatastoreIntegrationTest : public DatastoreIntegrationBase {
 };
 
 /**
- * 基本功能测试验证
- * 读、写、删、获取文件信息
+ * Basic functional testing verification
+ * Read, write, delete, and obtain file information
  */
 TEST_F(DatastoreIntegrationTest, BasicTest) {
     ChunkID id = 1;
     SequenceNum sn = 1;
     off_t offset = 0;
     size_t length = PAGE_SIZE;
-    std::string chunkPath = baseDir + "/" +
-        FileNameOperator::GenerateChunkFileName(id);
+    std::string chunkPath =
+        baseDir + "/" + FileNameOperator::GenerateChunkFileName(id);
     CSErrorCode errorCode;
     CSChunkInfo info;
 
-    /******************场景一：新建的文件，Chunk文件不存在******************/
+    /******************Scenario 1: New File Created, Chunk File Does Not
+     * Exist******************/
 
-    // 文件不存在
+    // File does not exist
     ASSERT_FALSE(lfs_->FileExists(chunkPath));
 
-    // 读chunk时返回ChunkNotExistError
+    // chunkNotExistError returned when reading chunk
     char readbuf[3 * PAGE_SIZE];
     errorCode = dataStore_->ReadChunk(id, sn, readbuf, offset, length);
     ASSERT_EQ(errorCode, CSErrorCode::ChunkNotExistError);
 
-    // 无法获取到chunk的版本号
+    // Unable to obtain the version number of the chunk
     errorCode = dataStore_->GetChunkInfo(id, &info);
     ASSERT_EQ(errorCode, CSErrorCode::ChunkNotExistError);
 
-    // 删除chunk返回Success
+    // Delete chunk and return Success
     errorCode = dataStore_->DeleteChunk(id, sn);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
-    /******************场景二：通过WriteChunk产生chunk文件后操作**************/
+    /******************Scene 2: Operations after generating chunk files via
+     * WriteChunk.**************/
 
     char buf1_1_1[PAGE_SIZE];
     memset(buf1_1_1, 'a', length);
-    // 第一次WriteChunk会产生chunk文件
-    errorCode = dataStore_->WriteChunk(id,
-                                        sn,
-                                        buf1_1_1,
-                                        offset,
-                                        length,
-                                        nullptr);
+    // The first WriteChunk will generate a chunk file
+    errorCode =
+        dataStore_->WriteChunk(id, sn, buf1_1_1, offset, length, nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
-    // 可以获取到chunk的信息，且各项信息符合预期
+    // Chunk information can be obtained and all information meets expectations
     errorCode = dataStore_->GetChunkInfo(id, &info);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(1, info.curSn);
@@ -95,87 +93,63 @@ TEST_F(DatastoreIntegrationTest, BasicTest) {
     ASSERT_EQ(false, info.isClone);
     ASSERT_EQ(nullptr, info.bitmap);
 
-    // 读取写入的4KB验证一下,应当与写入数据相等
+    // Verify that the 4KB read and written should be equal to the data written
     errorCode = dataStore_->ReadChunk(id, sn, readbuf, offset, length);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(0, memcmp(buf1_1_1, readbuf, length));
 
-    // 没被写过的区域也可以读，但是不保证读到的数据内容
-    errorCode = dataStore_->ReadChunk(id,
-                                      sn,
-                                      readbuf,
-                                      CHUNK_SIZE - PAGE_SIZE,
-                                      length);
+    // Areas that have not been written can also be read, but the data content
+    // read is not guaranteed
+    errorCode =
+        dataStore_->ReadChunk(id, sn, readbuf, CHUNK_SIZE - PAGE_SIZE, length);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
-    // chunk 存在时，覆盖写
+    // Overwrite when chunk exists
     char buf1_1_2[PAGE_SIZE];
     memset(buf1_1_2, 'b', length);
-    errorCode = dataStore_->WriteChunk(id,
-                                       sn,
-                                       buf1_1_2,
-                                       offset,
-                                       length,
-                                       nullptr);
+    errorCode =
+        dataStore_->WriteChunk(id, sn, buf1_1_2, offset, length, nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
-    // 没被写过的区域也可以读，但是不保证读到的数据内容
-    errorCode = dataStore_->ReadChunk(id,
-                                      sn,
-                                      readbuf,
-                                      offset,
-                                      3 * PAGE_SIZE);
+    // Areas that have not been written can also be read, but the data content
+    // read is not guaranteed
+    errorCode = dataStore_->ReadChunk(id, sn, readbuf, offset, 3 * PAGE_SIZE);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(0, memcmp(buf1_1_2, readbuf, length));
 
-    // chunk 存在时，写入未写过区域
+    // When a chunk exists, write to an unwritten area
     char buf1_1_3[PAGE_SIZE];
     memset(buf1_1_3, 'c', length);
     offset = PAGE_SIZE;
     length = PAGE_SIZE;
-    errorCode = dataStore_->WriteChunk(id,
-                                       sn,
-                                       buf1_1_3,
-                                       offset,
-                                       length,
-                                       nullptr);
+    errorCode =
+        dataStore_->WriteChunk(id, sn, buf1_1_3, offset, length, nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
-    // 没被写过的区域也可以读，但是不保证读到的数据内容
-    errorCode = dataStore_->ReadChunk(id,
-                                      sn,
-                                      readbuf,
-                                      0,
-                                      3 * PAGE_SIZE);
+    // Areas that have not been written can also be read, but the data content
+    // read is not guaranteed
+    errorCode = dataStore_->ReadChunk(id, sn, readbuf, 0, 3 * PAGE_SIZE);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(0, memcmp(buf1_1_2, readbuf, PAGE_SIZE));
     ASSERT_EQ(0, memcmp(buf1_1_3, readbuf + PAGE_SIZE, PAGE_SIZE));
 
-    // chunk 存在时，覆盖部分区域
+    // When a chunk exists, it covers some areas
     char buf1_1_4[2 * PAGE_SIZE];
     memset(buf1_1_4, 'd', length);
     offset = PAGE_SIZE;
     length = 2 * PAGE_SIZE;
-    errorCode = dataStore_->WriteChunk(id,
-                                       sn,
-                                       buf1_1_4,
-                                       offset,
-                                       length,
-                                       nullptr);
+    errorCode =
+        dataStore_->WriteChunk(id, sn, buf1_1_4, offset, length, nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
-    // 没被写过的区域也可以读，但是不保证读到的数据内容
-    errorCode = dataStore_->ReadChunk(id,
-                                      sn,
-                                      readbuf,
-                                      0,
-                                      3 * PAGE_SIZE);
+    // Areas that have not been written can also be read, but the data content
+    // read is not guaranteed
+    errorCode = dataStore_->ReadChunk(id, sn, readbuf, 0, 3 * PAGE_SIZE);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     ASSERT_EQ(0, memcmp(buf1_1_2, readbuf, PAGE_SIZE));
     ASSERT_EQ(0, memcmp(buf1_1_4, readbuf + PAGE_SIZE, 2 * PAGE_SIZE));
 
-
-    /******************场景三：用户删除文件******************/
+    /******************Scene 3: User Deletes File******************/
 
     errorCode = dataStore_->DeleteChunk(id, sn);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
@@ -185,7 +159,7 @@ TEST_F(DatastoreIntegrationTest, BasicTest) {
 }
 
 /**
- * 重启恢复测试
+ * Restart Recovery Test
  */
 TEST_F(DatastoreIntegrationTest, RestartTest) {
     SequenceNum fileSn = 1;
@@ -196,7 +170,7 @@ TEST_F(DatastoreIntegrationTest, RestartTest) {
     CSChunkInfo info3;
     std::string location("test@s3");
 
-    // 构造要用到的读写缓冲区
+    // Construct read and write buffers to be used
     char buf1_1[2 * PAGE_SIZE];
     memset(buf1_1, 'a', length);
     char buf2_1[2 * PAGE_SIZE];
@@ -212,7 +186,8 @@ TEST_F(DatastoreIntegrationTest, RestartTest) {
     size_t readSize = 4 * PAGE_SIZE;
     char readBuf[4 * PAGE_SIZE];
 
-    // 各个操作对应的错误码返回值，错误码命名格式为 e_optype_chunid_sn
+    // The error code return value corresponding to each operation, and the
+    // error code naming format is e_optype_chunid_sn
     CSErrorCode e_write_1_1;
     CSErrorCode e_write_2_1;
     CSErrorCode e_write_2_2;
@@ -224,112 +199,99 @@ TEST_F(DatastoreIntegrationTest, RestartTest) {
     CSErrorCode e_delsnap_2_3;
     CSErrorCode e_clone_3_1;
 
-    // 模拟所有用户请求，用lamdba函数可以用于验证日志恢复时重用这部分代码
-    // 如果后面要加用例，只需要在函数内加操作即可
+    // Simulate all user requests and use the lamdba function to validate the
+    // reuse of this code during log recovery If you want to add use cases
+    // later, you only need to add operations within the function
     auto ApplyRequests = [&]() {
         fileSn = 1;
-        // 模拟普通文件操作，WriteChunk产生chunk1、chunk2
+        // Simulate ordinary file operations, WriteChunk generates chunk1,
+        // chunk2
         offset = 0;
         length = 2 * PAGE_SIZE;
-        // 产生chunk1
-        e_write_1_1 = dataStore_->WriteChunk(1,    // chunk id
-                                        fileSn,
-                                        buf1_1,
-                                        offset,
-                                        length,
-                                        nullptr);
-        // 产生chunk2
-        e_write_2_1 = dataStore_->WriteChunk(2,    // chunk id
-                                        fileSn,
-                                        buf1_1,
-                                        offset,
-                                        length,
-                                        nullptr);
-        // 删除chunk1
+        // Generate chunk1
+        e_write_1_1 =
+            dataStore_->WriteChunk(1,  // chunk id
+                                   fileSn, buf1_1, offset, length, nullptr);
+        // Generate chunk2
+        e_write_2_1 =
+            dataStore_->WriteChunk(2,  // chunk id
+                                   fileSn, buf1_1, offset, length, nullptr);
+        // Delete chunk1
         e_del_1_1 = dataStore_->DeleteChunk(1, fileSn);
 
-        // 模拟快照操作
+        // Simulate snapshot operations
         ++fileSn;
         offset = 1 * PAGE_SIZE;
         length = 2 * PAGE_SIZE;
-        // 写chunk2，产生快照文件
-        e_write_2_2 = dataStore_->WriteChunk(2,    // chunk id
-                                        fileSn,
-                                        buf2_2,
-                                        offset,
-                                        length,
-                                        nullptr);
-        // 删除chunk2快照
+        // Write chunk2 to generate a snapshot file
+        e_write_2_2 =
+            dataStore_->WriteChunk(2,  // chunk id
+                                   fileSn, buf2_2, offset, length, nullptr);
+        // Delete chunk2 snapshot
         e_delsnap_2_2 = dataStore_->DeleteSnapshotChunkOrCorrectSn(2, fileSn);
-        // 模拟再次快照，然后删除chunk2快照
+        // Simulate taking another snapshot and then delete the chunk2 snapshot
         ++fileSn;
         e_delsnap_2_3 = dataStore_->DeleteSnapshotChunkOrCorrectSn(2, fileSn);
-        // 模拟再次快照，然后写数据到chunk2产生快照
+        // Simulate another snapshot, then write data to chunk2 to generate a
+        // snapshot
         ++fileSn;
         offset = 2 * PAGE_SIZE;
         length = 2 * PAGE_SIZE;
-        // 写chunk2，产生快照文件
-        e_write_2_4 = dataStore_->WriteChunk(2,    // chunk id
-                                        fileSn,
-                                        buf2_4,
-                                        offset,
-                                        length,
-                                        nullptr);
+        // Write chunk2 to generate a snapshot file
+        e_write_2_4 =
+            dataStore_->WriteChunk(2,  // chunk id
+                                   fileSn, buf2_4, offset, length, nullptr);
 
-        // 模拟克隆操作
+        // Simulate Clone Operations
         e_clone_3_1 = dataStore_->CreateCloneChunk(3,  // chunk id
-                                                1,  // sn
-                                                0,  // corrected sn
-                                                CHUNK_SIZE,
-                                                location);
-        // 写数据到chunk3
+                                                   1,  // sn
+                                                   0,  // corrected sn
+                                                   CHUNK_SIZE, location);
+        // Write data to chunk3
         offset = 0;
         length = 2 * PAGE_SIZE;
-        // 写chunk3
-        e_write_3_1 = dataStore_->WriteChunk(3,    // chunk id
-                                        1,    // sn
-                                        writeBuf,
-                                        offset,
-                                        length,
-                                        nullptr);
-        // paste数据到chunk3
+        // Write chunk3
+        e_write_3_1 = dataStore_->WriteChunk(3,  // chunk id
+                                             1,  // sn
+                                             writeBuf, offset, length, nullptr);
+        // Paste data to chunk3
         offset = 1 * PAGE_SIZE;
         length = 2 * PAGE_SIZE;
-        e_paste_3_1 = dataStore_->PasteChunk(3,    // chunk id
-                                        pasteBuf,
-                                        offset,
-                                        length);
+        e_paste_3_1 = dataStore_->PasteChunk(3,  // chunk id
+                                             pasteBuf, offset, length);
     };
 
-    // 检查上面用户操作以后，DataStore层各文件的状态，可重用
+    // After checking the user actions above, the status of each file in the
+    // DataStore layer can be reused
     auto CheckStatus = [&]() {
         CSErrorCode errorCode;
-        // chunk1 不存在
+        // Chunk1 does not exist
         errorCode = dataStore_->GetChunkInfo(1, &info1);
         ASSERT_EQ(errorCode, CSErrorCode::ChunkNotExistError);
-        // chunk2存在，版本为4，correctedSn为3，存在快照，快照版本为2
+        // Chunk2 exists, version 4, correctedSn is 3, snapshot exists, snapshot
+        // version 2
         errorCode = dataStore_->GetChunkInfo(2, &info2);
         ASSERT_EQ(errorCode, CSErrorCode::Success);
         ASSERT_EQ(4, info2.curSn);
         ASSERT_EQ(2, info2.snapSn);
         ASSERT_EQ(3, info2.correctedSn);
-        // 检查chunk2数据，[0, 1KB]:a , [1KB, 2KB]:b , [2KB, 4KB]:c
+        // Check chunk2 data, [0, 1KB]:a , [1KB, 2KB]:b , [2KB, 4KB]:c
         errorCode = dataStore_->ReadChunk(2, fileSn, readBuf, 0, readSize);
         ASSERT_EQ(errorCode, CSErrorCode::Success);
         ASSERT_EQ(0, memcmp(buf2_1, readBuf, 1 * PAGE_SIZE));
         ASSERT_EQ(0, memcmp(buf2_2, readBuf + 1 * PAGE_SIZE, 1 * PAGE_SIZE));
         ASSERT_EQ(0, memcmp(buf2_4, readBuf + 2 * PAGE_SIZE, 2 * PAGE_SIZE));
-        // 检查chunk2快照数据，[0, 1KB]:a , [1KB, 3KB]:b
+        // Check chunk2 snapshot data, [0, 1KB]:a , [1KB, 3KB]:b
         errorCode = dataStore_->ReadSnapshotChunk(2, 2, readBuf, 0, readSize);
         ASSERT_EQ(errorCode, CSErrorCode::Success);
         ASSERT_EQ(0, memcmp(buf2_1, readBuf, 1 * PAGE_SIZE));
         ASSERT_EQ(0, memcmp(buf2_2, readBuf + 1 * PAGE_SIZE, 2 * PAGE_SIZE));
     };
 
-    /******************构造重启前的数据******************/
-    // 提交操作
+    /******************Generate data before reboot******************/
+    // Submit Action
     ApplyRequests();
-    // 检查每次操作的返回值是否符合预期
+    // Check if the return value of each operation meets expectations
     ASSERT_EQ(e_write_1_1, CSErrorCode::Success);
     ASSERT_EQ(e_write_2_1, CSErrorCode::Success);
     ASSERT_EQ(e_del_1_1, CSErrorCode::Success);
@@ -340,27 +302,27 @@ TEST_F(DatastoreIntegrationTest, RestartTest) {
     ASSERT_EQ(e_clone_3_1, CSErrorCode::Success);
     ASSERT_EQ(e_write_3_1, CSErrorCode::Success);
     ASSERT_EQ(e_paste_3_1, CSErrorCode::Success);
-    // 检查此时各个文件的状态
+    // Check the status of each file at this time
     CheckStatus();
 
-    /******************场景一：重启重新加载文件******************/
-    // 模拟重启
+    /******************Scene 1: Reboot and Reload Files******************/
+    // Simulate restart
     DataStoreOptions options;
     options.baseDir = baseDir;
     options.chunkSize = CHUNK_SIZE;
     options.pageSize = PAGE_SIZE;
-    // 构造新的dataStore_，并重新初始化
-    dataStore_ = std::make_shared<CSDataStore>(lfs_,
-                                               filePool_,
-                                               options);
+    // Construct a new dataStore_, And reinitialize
+    dataStore_ = std::make_shared<CSDataStore>(lfs_, filePool_, options);
     ASSERT_TRUE(dataStore_->Initialize());
-    // 检查各个chunk的状态，应该与前面的一致
+    // Check the status of each chunk, which should be consistent with the
+    // previous one
     CheckStatus();
 
-    /******************场景二：恢复日志，重放之前的操作******************/
-    // 模拟日志回放
+    /******************Scene 2: Restore logs, replay previous
+     * actions******************/
+    // Simulate log playback
     ApplyRequests();
-    // 检查每次操作的返回值是否符合预期
+    // Check if the return value of each operation meets expectations
     ASSERT_EQ(e_write_1_1, CSErrorCode::Success);
     ASSERT_EQ(e_write_2_1, CSErrorCode::BackwardRequestError);
     ASSERT_EQ(e_del_1_1, CSErrorCode::Success);

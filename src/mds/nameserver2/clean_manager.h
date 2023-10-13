@@ -26,18 +26,19 @@
 #include <map>
 #include <memory>
 #include <string>
+
 #include "proto/nameserver2.pb.h"
-#include "src/mds/nameserver2/clean_task_manager.h"
-#include "src/mds/nameserver2/clean_core.h"
-#include "src/mds/nameserver2/namespace_storage.h"
-#include "src/mds/nameserver2/async_delete_snapshot_entity.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/concurrent/dlock.h"
+#include "src/mds/nameserver2/async_delete_snapshot_entity.h"
+#include "src/mds/nameserver2/clean_core.h"
+#include "src/mds/nameserver2/clean_task_manager.h"
+#include "src/mds/nameserver2/namespace_storage.h"
 
 using curve::common::DLock;
 using curve::common::DLockOpts;
 
-namespace  curve {
+namespace curve {
 namespace mds {
 
 class CleanDiscardSegmentTask;
@@ -45,8 +46,8 @@ class CleanDiscardSegmentTask;
 class CleanManagerInterface {
  public:
     virtual ~CleanManagerInterface() {}
-    virtual bool SubmitDeleteSnapShotFileJob(const FileInfo&,
-      std::shared_ptr<AsyncDeleteSnapShotEntity> entity) = 0;
+    virtual bool SubmitDeleteSnapShotFileJob(
+        const FileInfo&, std::shared_ptr<AsyncDeleteSnapShotEntity> entity) = 0;
     virtual std::shared_ptr<Task> GetTask(TaskIDType id) = 0;
     virtual bool SubmitDeleteCommonFileJob(const FileInfo&) = 0;
 
@@ -56,24 +57,26 @@ class CleanManagerInterface {
         curve::common::CountDownEvent* counter) = 0;
 };
 /**
- * CleanManager 用于异步清理 删除快照对应的数据
- * 1. 接收在线的删除快照请求
- * 2. 线程池异步处理实际的chunk删除任务
+ * CleanManager is used for asynchronous cleaning and deleting data
+ *corresponding to snapshots.
+ * 1. Receives online requests for snapshot deletion.
+ * 2. Asynchronously processes the actual chunk deletion tasks in a thread pool.
  **/
 class CleanManager : public CleanManagerInterface {
  public:
     explicit CleanManager(std::shared_ptr<CleanCore> core,
-                std::shared_ptr<CleanTaskManager> taskMgr,
-                std::shared_ptr<NameServerStorage> storage);
+                          std::shared_ptr<CleanTaskManager> taskMgr,
+                          std::shared_ptr<NameServerStorage> storage);
 
     bool Start(void);
 
     bool Stop(void);
 
-    bool SubmitDeleteSnapShotFileJob(const FileInfo &fileInfo,
-         std::shared_ptr<AsyncDeleteSnapShotEntity> entity) override;
+    bool SubmitDeleteSnapShotFileJob(
+        const FileInfo& fileInfo,
+        std::shared_ptr<AsyncDeleteSnapShotEntity> entity) override;
 
-    bool SubmitDeleteCommonFileJob(const FileInfo&fileInfo) override;
+    bool SubmitDeleteCommonFileJob(const FileInfo& fileInfo) override;
 
     bool SubmitCleanDiscardSegmentJob(
         const std::string& cleanSegmentKey,

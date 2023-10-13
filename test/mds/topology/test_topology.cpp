@@ -22,25 +22,25 @@
 
 #include <gtest/gtest.h>
 
-#include "test/mds/topology/mock_topology.h"
-#include "src/mds/topology/topology.h"
-#include "src/mds/topology/topology_item.h"
 #include "src/common/configuration.h"
 #include "src/common/namespace_define.h"
+#include "src/mds/topology/topology.h"
+#include "src/mds/topology/topology_item.h"
+#include "test/mds/topology/mock_topology.h"
 
 namespace curve {
 namespace mds {
 namespace topology {
 
-using ::testing::Return;
-using ::testing::_;
-using ::testing::Contains;
-using ::testing::SetArgPointee;
-using ::testing::SaveArg;
-using ::testing::DoAll;
 using ::curve::common::Configuration;
 using ::curve::common::kDefaultPoolsetId;
 using ::curve::common::kDefaultPoolsetName;
+using ::testing::_;
+using ::testing::Contains;
+using ::testing::DoAll;
+using ::testing::Return;
+using ::testing::SaveArg;
+using ::testing::SetArgPointee;
 
 class TestTopology : public ::testing::Test {
  protected:
@@ -52,13 +52,11 @@ class TestTopology : public ::testing::Test {
         tokenGenerator_ = std::make_shared<MockTokenGenerator>();
         storage_ = std::make_shared<MockStorage>();
         topology_ = std::make_shared<TopologyImpl>(idGenerator_,
-                                               tokenGenerator_,
-                                               storage_);
+                                                   tokenGenerator_, storage_);
 
         const std::unordered_map<PoolsetIdType, Poolset> poolsetMap{
             {kDefaultPoolsetId,
-             {kDefaultPoolsetId, kDefaultPoolsetName, "", ""}}
-        };
+             {kDefaultPoolsetId, kDefaultPoolsetName, "", ""}}};
 
         ON_CALL(*storage_, LoadPoolset(_, _))
             .WillByDefault(DoAll(
@@ -80,128 +78,90 @@ class TestTopology : public ::testing::Test {
                            const std::string& type = "SSD",
                            const std::string& desc = "descPoolset") {
         Poolset poolset(id, name, type, desc);
-        EXPECT_CALL(*storage_, StoragePoolset(_))
-            .WillOnce(Return(true));
+        EXPECT_CALL(*storage_, StoragePoolset(_)).WillOnce(Return(true));
 
         int ret = topology_->AddPoolset(poolset);
         ASSERT_EQ(kTopoErrCodeSuccess, ret);
     }
 
-    void PrepareAddLogicalPool(PoolIdType id = 0x01,
-            const std::string &name = "testLogicalPool",
-            PoolIdType phyPoolId = 0x11,
-            LogicalPoolType  type = PAGEFILE,
-            const LogicalPool::RedundanceAndPlaceMentPolicy &rap =
-                LogicalPool::RedundanceAndPlaceMentPolicy(),
-            const LogicalPool::UserPolicy &policy = LogicalPool::UserPolicy(),
-            uint64_t createTime = 0x888
-            ) {
-        LogicalPool pool(id,
-                name,
-                phyPoolId,
-                type,
-                rap,
-                policy,
-                createTime,
-                true,
-                true);
+    void PrepareAddLogicalPool(
+        PoolIdType id = 0x01, const std::string& name = "testLogicalPool",
+        PoolIdType phyPoolId = 0x11, LogicalPoolType type = PAGEFILE,
+        const LogicalPool::RedundanceAndPlaceMentPolicy& rap =
+            LogicalPool::RedundanceAndPlaceMentPolicy(),
+        const LogicalPool::UserPolicy& policy = LogicalPool::UserPolicy(),
+        uint64_t createTime = 0x888) {
+        LogicalPool pool(id, name, phyPoolId, type, rap, policy, createTime,
+                         true, true);
 
-        EXPECT_CALL(*storage_, StorageLogicalPool(_))
-            .WillOnce(Return(true));
+        EXPECT_CALL(*storage_, StorageLogicalPool(_)).WillOnce(Return(true));
 
         int ret = topology_->AddLogicalPool(pool);
         ASSERT_EQ(kTopoErrCodeSuccess, ret)
             << "should have PrepareAddPhysicalPool()";
     }
 
-
     void PrepareAddPhysicalPool(PoolIdType id = 0x11,
-                 const std::string &name = "testPhysicalPool",
-                 PoolsetIdType pid = 0x61,
-                 const std::string &desc = "descPhysicalPool",
-                 uint64_t diskCapacity = 0) {
-        PhysicalPool pool(id,
-                name,
-                pid,
-                desc);
+                                const std::string& name = "testPhysicalPool",
+                                PoolsetIdType pid = 0x61,
+                                const std::string& desc = "descPhysicalPool",
+                                uint64_t diskCapacity = 0) {
+        PhysicalPool pool(id, name, pid, desc);
         pool.SetDiskCapacity(diskCapacity);
-        EXPECT_CALL(*storage_, StoragePhysicalPool(_))
-            .WillOnce(Return(true));
+        EXPECT_CALL(*storage_, StoragePhysicalPool(_)).WillOnce(Return(true));
 
         int ret = topology_->AddPhysicalPool(pool);
         ASSERT_EQ(kTopoErrCodeSuccess, ret);
     }
 
     void PrepareAddZone(ZoneIdType id = 0x21,
-            const std::string &name = "testZone",
-            PoolIdType physicalPoolId = 0x11,
-            const std::string &desc = "descZone") {
+                        const std::string& name = "testZone",
+                        PoolIdType physicalPoolId = 0x11,
+                        const std::string& desc = "descZone") {
         Zone zone(id, name, physicalPoolId, desc);
-        EXPECT_CALL(*storage_, StorageZone(_))
-            .WillOnce(Return(true));
+        EXPECT_CALL(*storage_, StorageZone(_)).WillOnce(Return(true));
         int ret = topology_->AddZone(zone);
         ASSERT_EQ(kTopoErrCodeSuccess, ret)
             << "should have PrepareAddPhysicalPool()";
     }
 
     void PrepareAddServer(ServerIdType id = 0x31,
-           const std::string &hostName = "testServer",
-           const std::string &internalHostIp = "testInternalIp",
-           uint32_t internalPort = 0,
-           const std::string &externalHostIp = "testExternalIp",
-           uint32_t externalPort = 0,
-           ZoneIdType zoneId = 0x21,
-           PoolIdType physicalPoolId = 0x11,
-           const std::string &desc = "descServer") {
-        Server server(id,
-                hostName,
-                internalHostIp,
-                internalPort,
-                externalHostIp,
-                externalPort,
-                zoneId,
-                physicalPoolId,
-                desc);
-        EXPECT_CALL(*storage_, StorageServer(_))
-            .WillOnce(Return(true));
+                          const std::string& hostName = "testServer",
+                          const std::string& internalHostIp = "testInternalIp",
+                          uint32_t internalPort = 0,
+                          const std::string& externalHostIp = "testExternalIp",
+                          uint32_t externalPort = 0, ZoneIdType zoneId = 0x21,
+                          PoolIdType physicalPoolId = 0x11,
+                          const std::string& desc = "descServer") {
+        Server server(id, hostName, internalHostIp, internalPort,
+                      externalHostIp, externalPort, zoneId, physicalPoolId,
+                      desc);
+        EXPECT_CALL(*storage_, StorageServer(_)).WillOnce(Return(true));
         int ret = topology_->AddServer(server);
         ASSERT_EQ(kTopoErrCodeSuccess, ret) << "should have PrepareAddZone()";
     }
 
-    void PrepareAddChunkServer(ChunkServerIdType id = 0x41,
-                const std::string &token = "testToken",
-                const std::string &diskType = "nvme",
-                ServerIdType serverId = 0x31,
-                const std::string &hostIp = "testInternalIp",
-                uint32_t port = 0,
-                const std::string &diskPath = "/",
-                uint64_t diskUsed = 512,
-                uint64_t diskCapacity = 1024) {
-            ChunkServer cs(id,
-                    token,
-                    diskType,
-                    serverId,
-                    hostIp,
-                    port,
-                    diskPath);
-            ChunkServerState state;
-            state.SetDiskCapacity(diskCapacity);
-            state.SetDiskUsed(diskUsed);
-            cs.SetChunkServerState(state);
-            EXPECT_CALL(*storage_, StorageChunkServer(_))
-                .WillOnce(Return(true));
+    void PrepareAddChunkServer(
+        ChunkServerIdType id = 0x41, const std::string& token = "testToken",
+        const std::string& diskType = "nvme", ServerIdType serverId = 0x31,
+        const std::string& hostIp = "testInternalIp", uint32_t port = 0,
+        const std::string& diskPath = "/", uint64_t diskUsed = 512,
+        uint64_t diskCapacity = 1024) {
+        ChunkServer cs(id, token, diskType, serverId, hostIp, port, diskPath);
+        ChunkServerState state;
+        state.SetDiskCapacity(diskCapacity);
+        state.SetDiskUsed(diskUsed);
+        cs.SetChunkServerState(state);
+        EXPECT_CALL(*storage_, StorageChunkServer(_)).WillOnce(Return(true));
         int ret = topology_->AddChunkServer(cs);
         ASSERT_EQ(kTopoErrCodeSuccess, ret) << "should have PrepareAddServer()";
     }
 
-    void PrepareAddCopySet(CopySetIdType copysetId,
-        PoolIdType logicalPoolId,
-        const std::set<ChunkServerIdType> &members) {
-        CopySetInfo cs(logicalPoolId,
-            copysetId);
+    void PrepareAddCopySet(CopySetIdType copysetId, PoolIdType logicalPoolId,
+                           const std::set<ChunkServerIdType>& members) {
+        CopySetInfo cs(logicalPoolId, copysetId);
         cs.SetCopySetMembers(members);
-        EXPECT_CALL(*storage_, StorageCopySet(_))
-            .WillOnce(Return(true));
+        EXPECT_CALL(*storage_, StorageCopySet(_)).WillOnce(Return(true));
         int ret = topology_->AddCopySet(cs);
         ASSERT_EQ(kTopoErrCodeSuccess, ret)
             << "should have PrepareAddLogicalPool()";
@@ -218,16 +178,12 @@ class TestTopology : public ::testing::Test {
 TEST_F(TestTopology, test_init_success) {
     std::vector<ClusterInformation> infos;
     EXPECT_CALL(*storage_, LoadClusterInfo(_))
-        .WillOnce(DoAll(SetArgPointee<0>(infos),
-                Return(true)));
+        .WillOnce(DoAll(SetArgPointee<0>(infos), Return(true)));
 
-    EXPECT_CALL(*storage_, StorageClusterInfo(_))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, StorageClusterInfo(_)).WillOnce(Return(true));
 
     const std::unordered_map<PoolsetIdType, Poolset> poolsetMap{
-        {kDefaultPoolsetId,
-         {kDefaultPoolsetId, kDefaultPoolsetName, "", ""}}
-    };
+        {kDefaultPoolsetId, {kDefaultPoolsetId, kDefaultPoolsetName, "", ""}}};
     std::unordered_map<PoolIdType, LogicalPool> logicalPoolMap_;
     std::unordered_map<PoolIdType, PhysicalPool> physicalPoolMap_;
     std::unordered_map<ZoneIdType, Zone> zoneMap_;
@@ -235,40 +191,33 @@ TEST_F(TestTopology, test_init_success) {
     std::unordered_map<ChunkServerIdType, ChunkServer> chunkServerMap_;
     std::map<CopySetKey, CopySetInfo> copySetMap_;
 
-    logicalPoolMap_[0x01] = LogicalPool(0x01, "lpool1", 0x11, PAGEFILE,
-        LogicalPool::RedundanceAndPlaceMentPolicy(),
-        LogicalPool::UserPolicy(),
-        0, false, true);
+    logicalPoolMap_[0x01] =
+        LogicalPool(0x01, "lpool1", 0x11, PAGEFILE,
+                    LogicalPool::RedundanceAndPlaceMentPolicy(),
+                    LogicalPool::UserPolicy(), 0, false, true);
     physicalPoolMap_[0x11] = PhysicalPool(0x11, "pPool1", 0X61, "des1");
     zoneMap_[0x21] = Zone(0x21, "zone1", 0x11, "desc1");
-    serverMap_[0x31] = Server(0x31, "server1", "127.0.0.1", 8200,
-        "127.0.0.1", 8200, 0x21, 0x11, "desc1");
-    chunkServerMap_[0x41] = ChunkServer(0x41, "token", "ssd",
-        0x31, "127.0.0.1", 8200, "/");
+    serverMap_[0x31] = Server(0x31, "server1", "127.0.0.1", 8200, "127.0.0.1",
+                              8200, 0x21, 0x11, "desc1");
+    chunkServerMap_[0x41] =
+        ChunkServer(0x41, "token", "ssd", 0x31, "127.0.0.1", 8200, "/");
     copySetMap_[std::pair<PoolIdType, CopySetIdType>(0x01, 0x51)] =
         CopySetInfo(0x01, 0x51);
 
     EXPECT_CALL(*storage_, LoadPoolset(_, _))
-        .WillOnce(DoAll(SetArgPointee<0>(poolsetMap),
-                    Return(true)));
+        .WillOnce(DoAll(SetArgPointee<0>(poolsetMap), Return(true)));
     EXPECT_CALL(*storage_, LoadLogicalPool(_, _))
-        .WillOnce(DoAll(SetArgPointee<0>(logicalPoolMap_),
-                    Return(true)));
+        .WillOnce(DoAll(SetArgPointee<0>(logicalPoolMap_), Return(true)));
     EXPECT_CALL(*storage_, LoadPhysicalPool(_, _))
-        .WillOnce(DoAll(SetArgPointee<0>(physicalPoolMap_),
-                    Return(true)));
+        .WillOnce(DoAll(SetArgPointee<0>(physicalPoolMap_), Return(true)));
     EXPECT_CALL(*storage_, LoadZone(_, _))
-        .WillOnce(DoAll(SetArgPointee<0>(zoneMap_),
-                    Return(true)));
+        .WillOnce(DoAll(SetArgPointee<0>(zoneMap_), Return(true)));
     EXPECT_CALL(*storage_, LoadServer(_, _))
-        .WillOnce(DoAll(SetArgPointee<0>(serverMap_),
-                    Return(true)));
+        .WillOnce(DoAll(SetArgPointee<0>(serverMap_), Return(true)));
     EXPECT_CALL(*storage_, LoadChunkServer(_, _))
-        .WillOnce(DoAll(SetArgPointee<0>(chunkServerMap_),
-                    Return(true)));
+        .WillOnce(DoAll(SetArgPointee<0>(chunkServerMap_), Return(true)));
     EXPECT_CALL(*storage_, LoadCopySet(_, _))
-        .WillOnce(DoAll(SetArgPointee<0>(copySetMap_),
-                    Return(true)));
+        .WillOnce(DoAll(SetArgPointee<0>(copySetMap_), Return(true)));
 
     EXPECT_CALL(*idGenerator_, initPoolsetIdGenerator(_));
     EXPECT_CALL(*idGenerator_, initLogicalPoolIdGenerator(_));
@@ -278,10 +227,8 @@ TEST_F(TestTopology, test_init_success) {
     EXPECT_CALL(*idGenerator_, initChunkServerIdGenerator(_));
     EXPECT_CALL(*idGenerator_, initCopySetIdGenerator(_));
 
-    EXPECT_CALL(*storage_, DeleteLogicalPool(_))
-        .WillOnce(Return(true));
-    EXPECT_CALL(*storage_, DeleteCopySet(_))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, DeleteLogicalPool(_)).WillOnce(Return(true));
+    EXPECT_CALL(*storage_, DeleteCopySet(_)).WillOnce(Return(true));
 
     TopologyOption option;
     int ret = topology_->Init(option);
@@ -291,8 +238,7 @@ TEST_F(TestTopology, test_init_success) {
 TEST_F(TestTopology, test_init_loadClusterFail) {
     std::vector<ClusterInformation> infos;
     EXPECT_CALL(*storage_, LoadClusterInfo(_))
-        .WillOnce(DoAll(SetArgPointee<0>(infos),
-                Return(false)));
+        .WillOnce(DoAll(SetArgPointee<0>(infos), Return(false)));
 
     TopologyOption option;
     int ret = topology_->Init(option);
@@ -302,11 +248,9 @@ TEST_F(TestTopology, test_init_loadClusterFail) {
 TEST_F(TestTopology, test_init_StorageClusterInfoFail) {
     std::vector<ClusterInformation> infos;
     EXPECT_CALL(*storage_, LoadClusterInfo(_))
-        .WillOnce(DoAll(SetArgPointee<0>(infos),
-                Return(true)));
+        .WillOnce(DoAll(SetArgPointee<0>(infos), Return(true)));
 
-    EXPECT_CALL(*storage_, StorageClusterInfo(_))
-        .WillOnce(Return(false));
+    EXPECT_CALL(*storage_, StorageClusterInfo(_)).WillOnce(Return(false));
 
     TopologyOption option;
     int ret = topology_->Init(option);
@@ -318,11 +262,9 @@ TEST_F(TestTopology, test_init_loadLogicalPoolFail) {
     ClusterInformation info("uuid1");
     infos.push_back(info);
     EXPECT_CALL(*storage_, LoadClusterInfo(_))
-        .WillOnce(DoAll(SetArgPointee<0>(infos),
-                Return(true)));
+        .WillOnce(DoAll(SetArgPointee<0>(infos), Return(true)));
 
-    EXPECT_CALL(*storage_, LoadLogicalPool(_, _))
-        .WillOnce(Return(false));
+    EXPECT_CALL(*storage_, LoadLogicalPool(_, _)).WillOnce(Return(false));
 
     TopologyOption option;
     int ret = topology_->Init(option);
@@ -334,13 +276,10 @@ TEST_F(TestTopology, test_init_LoadPhysicalPoolFail) {
     ClusterInformation info("uuid1");
     infos.push_back(info);
     EXPECT_CALL(*storage_, LoadClusterInfo(_))
-        .WillOnce(DoAll(SetArgPointee<0>(infos),
-                Return(true)));
+        .WillOnce(DoAll(SetArgPointee<0>(infos), Return(true)));
 
-    EXPECT_CALL(*storage_, LoadLogicalPool(_, _))
-        .WillOnce(Return(true));
-    EXPECT_CALL(*storage_, LoadPhysicalPool(_, _))
-        .WillOnce(Return(false));
+    EXPECT_CALL(*storage_, LoadLogicalPool(_, _)).WillOnce(Return(true));
+    EXPECT_CALL(*storage_, LoadPhysicalPool(_, _)).WillOnce(Return(false));
 
     EXPECT_CALL(*idGenerator_, initLogicalPoolIdGenerator(_));
 
@@ -354,15 +293,11 @@ TEST_F(TestTopology, test_init_LoadZoneFail) {
     ClusterInformation info("uuid1");
     infos.push_back(info);
     EXPECT_CALL(*storage_, LoadClusterInfo(_))
-        .WillOnce(DoAll(SetArgPointee<0>(infos),
-                Return(true)));
+        .WillOnce(DoAll(SetArgPointee<0>(infos), Return(true)));
 
-    EXPECT_CALL(*storage_, LoadLogicalPool(_, _))
-        .WillOnce(Return(true));
-    EXPECT_CALL(*storage_, LoadPhysicalPool(_, _))
-        .WillOnce(Return(true));
-    EXPECT_CALL(*storage_, LoadZone(_, _))
-        .WillOnce(Return(false));
+    EXPECT_CALL(*storage_, LoadLogicalPool(_, _)).WillOnce(Return(true));
+    EXPECT_CALL(*storage_, LoadPhysicalPool(_, _)).WillOnce(Return(true));
+    EXPECT_CALL(*storage_, LoadZone(_, _)).WillOnce(Return(false));
 
     EXPECT_CALL(*idGenerator_, initLogicalPoolIdGenerator(_));
     EXPECT_CALL(*idGenerator_, initPhysicalPoolIdGenerator(_));
@@ -377,16 +312,11 @@ TEST_F(TestTopology, test_init_LoadServerFail) {
     ClusterInformation info("uuid1");
     infos.push_back(info);
     EXPECT_CALL(*storage_, LoadClusterInfo(_))
-        .WillOnce(DoAll(SetArgPointee<0>(infos),
-                Return(true)));
-    EXPECT_CALL(*storage_, LoadLogicalPool(_, _))
-        .WillOnce(Return(true));
-    EXPECT_CALL(*storage_, LoadPhysicalPool(_, _))
-        .WillOnce(Return(true));
-    EXPECT_CALL(*storage_, LoadZone(_, _))
-        .WillOnce(Return(true));
-    EXPECT_CALL(*storage_, LoadServer(_, _))
-        .WillOnce(Return(false));
+        .WillOnce(DoAll(SetArgPointee<0>(infos), Return(true)));
+    EXPECT_CALL(*storage_, LoadLogicalPool(_, _)).WillOnce(Return(true));
+    EXPECT_CALL(*storage_, LoadPhysicalPool(_, _)).WillOnce(Return(true));
+    EXPECT_CALL(*storage_, LoadZone(_, _)).WillOnce(Return(true));
+    EXPECT_CALL(*storage_, LoadServer(_, _)).WillOnce(Return(false));
 
     EXPECT_CALL(*idGenerator_, initLogicalPoolIdGenerator(_));
     EXPECT_CALL(*idGenerator_, initPhysicalPoolIdGenerator(_));
@@ -402,19 +332,13 @@ TEST_F(TestTopology, test_init_LoadChunkServerFail) {
     ClusterInformation info("uuid1");
     infos.push_back(info);
     EXPECT_CALL(*storage_, LoadClusterInfo(_))
-        .WillOnce(DoAll(SetArgPointee<0>(infos),
-                Return(true)));
+        .WillOnce(DoAll(SetArgPointee<0>(infos), Return(true)));
 
-    EXPECT_CALL(*storage_, LoadLogicalPool(_, _))
-        .WillOnce(Return(true));
-    EXPECT_CALL(*storage_, LoadPhysicalPool(_, _))
-        .WillOnce(Return(true));
-    EXPECT_CALL(*storage_, LoadZone(_, _))
-        .WillOnce(Return(true));
-    EXPECT_CALL(*storage_, LoadServer(_, _))
-        .WillOnce(Return(true));
-    EXPECT_CALL(*storage_, LoadChunkServer(_, _))
-        .WillOnce(Return(false));
+    EXPECT_CALL(*storage_, LoadLogicalPool(_, _)).WillOnce(Return(true));
+    EXPECT_CALL(*storage_, LoadPhysicalPool(_, _)).WillOnce(Return(true));
+    EXPECT_CALL(*storage_, LoadZone(_, _)).WillOnce(Return(true));
+    EXPECT_CALL(*storage_, LoadServer(_, _)).WillOnce(Return(true));
+    EXPECT_CALL(*storage_, LoadChunkServer(_, _)).WillOnce(Return(false));
 
     EXPECT_CALL(*idGenerator_, initLogicalPoolIdGenerator(_));
     EXPECT_CALL(*idGenerator_, initPhysicalPoolIdGenerator(_));
@@ -431,21 +355,14 @@ TEST_F(TestTopology, test_init_LoadCopysetFail) {
     ClusterInformation info("uuid1");
     infos.push_back(info);
     EXPECT_CALL(*storage_, LoadClusterInfo(_))
-        .WillOnce(DoAll(SetArgPointee<0>(infos),
-                Return(true)));
+        .WillOnce(DoAll(SetArgPointee<0>(infos), Return(true)));
 
-    EXPECT_CALL(*storage_, LoadLogicalPool(_, _))
-        .WillOnce(Return(true));
-    EXPECT_CALL(*storage_, LoadPhysicalPool(_, _))
-        .WillOnce(Return(true));
-    EXPECT_CALL(*storage_, LoadZone(_, _))
-        .WillOnce(Return(true));
-    EXPECT_CALL(*storage_, LoadServer(_, _))
-        .WillOnce(Return(true));
-    EXPECT_CALL(*storage_, LoadChunkServer(_, _))
-        .WillOnce(Return(true));
-    EXPECT_CALL(*storage_, LoadCopySet(_, _))
-        .WillOnce(Return(false));
+    EXPECT_CALL(*storage_, LoadLogicalPool(_, _)).WillOnce(Return(true));
+    EXPECT_CALL(*storage_, LoadPhysicalPool(_, _)).WillOnce(Return(true));
+    EXPECT_CALL(*storage_, LoadZone(_, _)).WillOnce(Return(true));
+    EXPECT_CALL(*storage_, LoadServer(_, _)).WillOnce(Return(true));
+    EXPECT_CALL(*storage_, LoadChunkServer(_, _)).WillOnce(Return(true));
+    EXPECT_CALL(*storage_, LoadCopySet(_, _)).WillOnce(Return(false));
 
     EXPECT_CALL(*idGenerator_, initLogicalPoolIdGenerator(_));
     EXPECT_CALL(*idGenerator_, initPhysicalPoolIdGenerator(_));
@@ -462,18 +379,11 @@ TEST_F(TestTopology, test_AddLogicalPool_success) {
     PrepareAddPoolset();
     PoolIdType physicalPoolId = 0x11;
     PrepareAddPhysicalPool(physicalPoolId);
-    LogicalPool pool(0x01,
-            "test1",
-            physicalPoolId,
-            PAGEFILE,
-            LogicalPool::RedundanceAndPlaceMentPolicy(),
-            LogicalPool::UserPolicy(),
-            0,
-            true,
-            true);
+    LogicalPool pool(0x01, "test1", physicalPoolId, PAGEFILE,
+                     LogicalPool::RedundanceAndPlaceMentPolicy(),
+                     LogicalPool::UserPolicy(), 0, true, true);
 
-    EXPECT_CALL(*storage_, StorageLogicalPool(_))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, StorageLogicalPool(_)).WillOnce(Return(true));
 
     int ret = topology_->AddLogicalPool(pool);
 
@@ -487,15 +397,9 @@ TEST_F(TestTopology, test_AddLogicalPool_IdDuplicated) {
     PoolIdType id = 0x01;
     PrepareAddLogicalPool(id, "test1", physicalPoolId);
 
-    LogicalPool pool(id,
-            "test2",
-            physicalPoolId,
-            PAGEFILE,
-            LogicalPool::RedundanceAndPlaceMentPolicy(),
-            LogicalPool::UserPolicy(),
-            0,
-            true,
-            true);
+    LogicalPool pool(id, "test2", physicalPoolId, PAGEFILE,
+                     LogicalPool::RedundanceAndPlaceMentPolicy(),
+                     LogicalPool::UserPolicy(), 0, true, true);
 
     int ret = topology_->AddLogicalPool(pool);
 
@@ -506,18 +410,11 @@ TEST_F(TestTopology, test_AddLogicalPool_StorageFail) {
     PrepareAddPoolset();
     PoolIdType physicalPoolId = 0x11;
     PrepareAddPhysicalPool(physicalPoolId);
-    LogicalPool pool(0x01,
-            "test1",
-            physicalPoolId,
-            PAGEFILE,
-            LogicalPool::RedundanceAndPlaceMentPolicy(),
-            LogicalPool::UserPolicy(),
-            0,
-            true,
-            true);
+    LogicalPool pool(0x01, "test1", physicalPoolId, PAGEFILE,
+                     LogicalPool::RedundanceAndPlaceMentPolicy(),
+                     LogicalPool::UserPolicy(), 0, true, true);
 
-    EXPECT_CALL(*storage_, StorageLogicalPool(_))
-        .WillOnce(Return(false));
+    EXPECT_CALL(*storage_, StorageLogicalPool(_)).WillOnce(Return(false));
 
     int ret = topology_->AddLogicalPool(pool);
 
@@ -528,16 +425,9 @@ TEST_F(TestTopology, test_AddLogicalPool_PhysicalPoolNotFound) {
     PrepareAddPoolset();
     PoolIdType physicalPoolId = 0x11;
     PrepareAddPhysicalPool(physicalPoolId);
-    LogicalPool pool(0x01,
-            "test1",
-            ++physicalPoolId,
-            PAGEFILE,
-            LogicalPool::RedundanceAndPlaceMentPolicy(),
-            LogicalPool::UserPolicy(),
-            0,
-            true,
-            true);
-
+    LogicalPool pool(0x01, "test1", ++physicalPoolId, PAGEFILE,
+                     LogicalPool::RedundanceAndPlaceMentPolicy(),
+                     LogicalPool::UserPolicy(), 0, true, true);
 
     int ret = topology_->AddLogicalPool(pool);
 
@@ -546,26 +436,18 @@ TEST_F(TestTopology, test_AddLogicalPool_PhysicalPoolNotFound) {
 
 TEST_F(TestTopology, test_AddPhysicalPool_success) {
     PrepareAddPoolset();
-    PhysicalPool pool(0x11,
-            "test1",
-            0X61,
-            "desc");
-    EXPECT_CALL(*storage_, StoragePhysicalPool(_))
-        .WillOnce(Return(true));
+    PhysicalPool pool(0x11, "test1", 0X61, "desc");
+    EXPECT_CALL(*storage_, StoragePhysicalPool(_)).WillOnce(Return(true));
 
     int ret = topology_->AddPhysicalPool(pool);
     ASSERT_EQ(kTopoErrCodeSuccess, ret);
 }
 
-
 TEST_F(TestTopology, test_AddPhysicalPool_IdDuplicated) {
     PrepareAddPoolset();
     PoolIdType id = 0x11;
     PoolsetIdType pid = 0x61;
-    PhysicalPool pool(id,
-            "test1",
-            pid,
-            "desc");
+    PhysicalPool pool(id, "test1", pid, "desc");
     PrepareAddPhysicalPool(id);
     int ret = topology_->AddPhysicalPool(pool);
     ASSERT_EQ(kTopoErrCodeIdDuplicated, ret);
@@ -573,12 +455,8 @@ TEST_F(TestTopology, test_AddPhysicalPool_IdDuplicated) {
 
 TEST_F(TestTopology, test_AddPhysicalPool_StorageFail) {
     PrepareAddPoolset();
-    PhysicalPool pool(0x11,
-            "test1",
-            0X61,
-            "desc");
-    EXPECT_CALL(*storage_, StoragePhysicalPool(_))
-        .WillOnce(Return(false));
+    PhysicalPool pool(0x11, "test1", 0X61, "desc");
+    EXPECT_CALL(*storage_, StoragePhysicalPool(_)).WillOnce(Return(false));
 
     int ret = topology_->AddPhysicalPool(pool);
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
@@ -590,13 +468,9 @@ TEST_F(TestTopology, test_AddZone_success) {
     ZoneIdType zoneId = 0x21;
     PrepareAddPhysicalPool(physicalPoolId);
 
-    Zone zone(zoneId,
-            "testZone",
-            physicalPoolId,
-            "desc");
+    Zone zone(zoneId, "testZone", physicalPoolId, "desc");
 
-    EXPECT_CALL(*storage_, StorageZone(_))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, StorageZone(_)).WillOnce(Return(true));
 
     int ret = topology_->AddZone(zone);
 
@@ -616,10 +490,7 @@ TEST_F(TestTopology, test_AddZone_IdDuplicated) {
     ZoneIdType zoneId = 0x21;
     PrepareAddPhysicalPool(physicalPoolId);
     PrepareAddZone(zoneId, "test", physicalPoolId);
-    Zone zone(zoneId,
-            "testZone",
-            physicalPoolId,
-            "desc");
+    Zone zone(zoneId, "testZone", physicalPoolId, "desc");
 
     int ret = topology_->AddZone(zone);
 
@@ -631,13 +502,9 @@ TEST_F(TestTopology, test_AddZone_StorageFail) {
     PoolIdType physicalPoolId = 0x11;
     PrepareAddPhysicalPool(physicalPoolId);
 
-    Zone zone(0x21,
-            "testZone",
-            physicalPoolId,
-            "desc");
+    Zone zone(0x21, "testZone", physicalPoolId, "desc");
 
-    EXPECT_CALL(*storage_, StorageZone(_))
-        .WillOnce(Return(false));
+    EXPECT_CALL(*storage_, StorageZone(_)).WillOnce(Return(false));
 
     int ret = topology_->AddZone(zone);
 
@@ -649,11 +516,7 @@ TEST_F(TestTopology, test_AddZone_PhysicalPoolNotFound) {
     PoolIdType physicalPoolId = 0x11;
     ZoneIdType zoneId = 0x21;
 
-    Zone zone(zoneId,
-            "testZone",
-            physicalPoolId,
-            "desc");
-
+    Zone zone(zoneId, "testZone", physicalPoolId, "desc");
 
     int ret = topology_->AddZone(zone);
 
@@ -668,18 +531,10 @@ TEST_F(TestTopology, test_AddServer_success) {
     PrepareAddPhysicalPool(physicalPoolId);
     PrepareAddZone(zoneId, "test", physicalPoolId);
 
-    EXPECT_CALL(*storage_, StorageServer(_))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, StorageServer(_)).WillOnce(Return(true));
 
-    Server server(id,
-           "server1",
-           "ip1",
-           0,
-           "ip2",
-           0,
-           zoneId,
-           physicalPoolId,
-           "desc");
+    Server server(id, "server1", "ip1", 0, "ip2", 0, zoneId, physicalPoolId,
+                  "desc");
 
     int ret = topology_->AddServer(server);
     ASSERT_EQ(kTopoErrCodeSuccess, ret);
@@ -701,15 +556,8 @@ TEST_F(TestTopology, test_AddServer_IdDuplicated) {
     PrepareAddZone(zoneId, "test", physicalPoolId);
     PrepareAddServer(id);
 
-    Server server(id,
-           "server1",
-           "ip1",
-           0,
-           "ip2",
-           0,
-           zoneId,
-           physicalPoolId,
-           "desc");
+    Server server(id, "server1", "ip1", 0, "ip2", 0, zoneId, physicalPoolId,
+                  "desc");
 
     int ret = topology_->AddServer(server);
 
@@ -724,45 +572,28 @@ TEST_F(TestTopology, test_AddServer_StorageFail) {
     PrepareAddPhysicalPool(physicalPoolId);
     PrepareAddZone(zoneId, "test", physicalPoolId);
 
-    EXPECT_CALL(*storage_, StorageServer(_))
-        .WillOnce(Return(false));
+    EXPECT_CALL(*storage_, StorageServer(_)).WillOnce(Return(false));
 
-    Server server(id,
-           "server1",
-           "ip1",
-           0,
-           "ip2",
-           0,
-           zoneId,
-           physicalPoolId,
-           "desc");
+    Server server(id, "server1", "ip1", 0, "ip2", 0, zoneId, physicalPoolId,
+                  "desc");
 
     int ret = topology_->AddServer(server);
 
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
 }
 
-
 TEST_F(TestTopology, test_AddServer_ZoneNotFound) {
     PrepareAddPoolset();
     ServerIdType id = 0x31;
     PoolIdType physicalPoolId = 0x11;
     ZoneIdType zoneId = 0x21;
-    Server server(id,
-           "server1",
-           "ip1",
-           0,
-           "ip2",
-           0,
-           zoneId,
-           physicalPoolId,
-           "desc");
+    Server server(id, "server1", "ip1", 0, "ip2", 0, zoneId, physicalPoolId,
+                  "desc");
 
     int ret = topology_->AddServer(server);
 
     ASSERT_EQ(kTopoErrCodeZoneNotFound, ret);
 }
-
 
 TEST_F(TestTopology, test_AddChunkServers_success) {
     PrepareAddPoolset();
@@ -773,20 +604,13 @@ TEST_F(TestTopology, test_AddChunkServers_success) {
     PrepareAddZone();
     PrepareAddServer(serverId);
 
-    ChunkServer cs(csId,
-            "token",
-            "ssd",
-            serverId,
-            "ip1",
-            100,
-            "/");
+    ChunkServer cs(csId, "token", "ssd", serverId, "ip1", 100, "/");
     ChunkServerState state;
     state.SetDiskCapacity(1024);
     state.SetDiskUsed(512);
     cs.SetChunkServerState(state);
 
-    EXPECT_CALL(*storage_, StorageChunkServer(_))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, StorageChunkServer(_)).WillOnce(Return(true));
 
     int ret = topology_->AddChunkServer(cs);
 
@@ -812,18 +636,9 @@ TEST_F(TestTopology, test_AddChunkServer_IdDuplicated) {
     PrepareAddPhysicalPool();
     PrepareAddZone();
     PrepareAddServer(serverId);
-    PrepareAddChunkServer(csId,
-            "token2",
-            "ssd",
-            serverId);
+    PrepareAddChunkServer(csId, "token2", "ssd", serverId);
 
-    ChunkServer cs(csId,
-            "token",
-            "ssd",
-            serverId,
-            "ip1",
-            100,
-            "/");
+    ChunkServer cs(csId, "token", "ssd", serverId, "ip1", 100, "/");
 
     int ret = topology_->AddChunkServer(cs);
 
@@ -839,16 +654,9 @@ TEST_F(TestTopology, test_AddChunkServer_StorageFail) {
     PrepareAddZone();
     PrepareAddServer(serverId);
 
-    ChunkServer cs(csId,
-            "token",
-            "ssd",
-            serverId,
-            "ip1",
-            100,
-            "/");
+    ChunkServer cs(csId, "token", "ssd", serverId, "ip1", 100, "/");
 
-    EXPECT_CALL(*storage_, StorageChunkServer(_))
-        .WillOnce(Return(false));
+    EXPECT_CALL(*storage_, StorageChunkServer(_)).WillOnce(Return(false));
 
     int ret = topology_->AddChunkServer(cs);
 
@@ -860,13 +668,7 @@ TEST_F(TestTopology, test_AddChunkServer_ServerNotFound) {
     ChunkServerIdType csId = 0x41;
     ServerIdType serverId = 0x31;
 
-    ChunkServer cs(csId,
-            "token",
-            "ssd",
-            serverId,
-            "ip1",
-            100,
-            "/");
+    ChunkServer cs(csId, "token", "ssd", serverId, "ip1", 100, "/");
 
     int ret = topology_->AddChunkServer(cs);
 
@@ -880,8 +682,7 @@ TEST_F(TestTopology, test_RemoveLogicalPool_success) {
     PoolIdType id = 0x01;
     PrepareAddLogicalPool(id, "name", physicalPoolId);
 
-    EXPECT_CALL(*storage_, DeleteLogicalPool(_))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, DeleteLogicalPool(_)).WillOnce(Return(true));
 
     int ret = topology_->RemoveLogicalPool(id);
 
@@ -904,8 +705,7 @@ TEST_F(TestTopology, test_RemoveLogicalPool_StorageFail) {
     PoolIdType id = 0x01;
     PrepareAddLogicalPool(id, "name", physicalPoolId);
 
-    EXPECT_CALL(*storage_, DeleteLogicalPool(_))
-        .WillOnce(Return(false));
+    EXPECT_CALL(*storage_, DeleteLogicalPool(_)).WillOnce(Return(false));
 
     int ret = topology_->RemoveLogicalPool(id);
 
@@ -917,8 +717,7 @@ TEST_F(TestTopology, test_RemovePhysicalPool_success) {
     PoolIdType poolId = 0x11;
     PrepareAddPhysicalPool(poolId);
 
-    EXPECT_CALL(*storage_, DeletePhysicalPool(_))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, DeletePhysicalPool(_)).WillOnce(Return(true));
 
     int ret = topology_->RemovePhysicalPool(poolId);
 
@@ -939,8 +738,7 @@ TEST_F(TestTopology, test_RemovePhysicalPool_StorageFail) {
     PoolIdType poolId = 0x11;
     PrepareAddPhysicalPool(poolId);
 
-    EXPECT_CALL(*storage_, DeletePhysicalPool(_))
-        .WillOnce(Return(false));
+    EXPECT_CALL(*storage_, DeletePhysicalPool(_)).WillOnce(Return(false));
 
     int ret = topology_->RemovePhysicalPool(poolId);
 
@@ -952,12 +750,9 @@ TEST_F(TestTopology, test_RemoveZone_success) {
     ZoneIdType zoneId = 0x21;
     PoolIdType poolId = 0x11;
     PrepareAddPhysicalPool(poolId);
-    PrepareAddZone(zoneId,
-            "testZone",
-            poolId);
+    PrepareAddZone(zoneId, "testZone", poolId);
 
-    EXPECT_CALL(*storage_, DeleteZone(_))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, DeleteZone(_)).WillOnce(Return(true));
 
     int ret = topology_->RemoveZone(zoneId);
     ASSERT_EQ(kTopoErrCodeSuccess, ret);
@@ -982,8 +777,7 @@ TEST_F(TestTopology, test_RemoveZone_StorageFail) {
     PrepareAddPhysicalPool();
     PrepareAddZone(zoneId);
 
-    EXPECT_CALL(*storage_, DeleteZone(_))
-        .WillOnce(Return(false));
+    EXPECT_CALL(*storage_, DeleteZone(_)).WillOnce(Return(false));
 
     int ret = topology_->RemoveZone(zoneId);
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
@@ -995,16 +789,9 @@ TEST_F(TestTopology, test_RemoveServer_success) {
     ZoneIdType zoneId = 0x21;
     PrepareAddPhysicalPool();
     PrepareAddZone(zoneId);
-    PrepareAddServer(serverId,
-            "testSever",
-            "ip1",
-            0,
-            "ip2",
-            0,
-            zoneId);
+    PrepareAddServer(serverId, "testSever", "ip1", 0, "ip2", 0, zoneId);
 
-    EXPECT_CALL(*storage_, DeleteServer(_))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, DeleteServer(_)).WillOnce(Return(true));
 
     int ret = topology_->RemoveServer(serverId);
     ASSERT_EQ(kTopoErrCodeSuccess, ret);
@@ -1030,16 +817,9 @@ TEST_F(TestTopology, test_RemoveServer_StorageFail) {
     ZoneIdType zoneId = 0x21;
     PrepareAddPhysicalPool();
     PrepareAddZone(zoneId);
-    PrepareAddServer(serverId,
-            "testSever",
-            "ip1",
-            0,
-            "ip2",
-            0,
-            zoneId);
+    PrepareAddServer(serverId, "testSever", "ip1", 0, "ip2", 0, zoneId);
 
-    EXPECT_CALL(*storage_, DeleteServer(_))
-        .WillOnce(Return(false));
+    EXPECT_CALL(*storage_, DeleteServer(_)).WillOnce(Return(false));
 
     int ret = topology_->RemoveServer(serverId);
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
@@ -1052,18 +832,14 @@ TEST_F(TestTopology, test_RemoveChunkServer_success) {
     PrepareAddPhysicalPool();
     PrepareAddZone();
     PrepareAddServer(serverId);
-    PrepareAddChunkServer(csId,
-            "token",
-            "ssd",
-            serverId);
+    PrepareAddChunkServer(csId, "token", "ssd", serverId);
 
-    int ret = topology_->UpdateChunkServerRwState(
-        ChunkServerStatus::RETIRED, csId);
+    int ret =
+        topology_->UpdateChunkServerRwState(ChunkServerStatus::RETIRED, csId);
 
     ASSERT_EQ(kTopoErrCodeSuccess, ret);
 
-    EXPECT_CALL(*storage_, DeleteChunkServer(_))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, DeleteChunkServer(_)).WillOnce(Return(true));
 
     ret = topology_->RemoveChunkServer(csId);
     ASSERT_EQ(kTopoErrCodeSuccess, ret);
@@ -1074,7 +850,6 @@ TEST_F(TestTopology, test_RemoveChunkServer_success) {
     auto it = std::find(csList.begin(), csList.end(), serverId);
     ASSERT_TRUE(it == csList.end());
 }
-
 
 TEST_F(TestTopology, test_RemoveChunkServer_ChunkSeverNotFound) {
     ChunkServerIdType csId = 0x41;
@@ -1090,19 +865,14 @@ TEST_F(TestTopology, test_RemoveChunkServer_StorageFail) {
     PrepareAddPhysicalPool();
     PrepareAddZone();
     PrepareAddServer(serverId);
-    PrepareAddChunkServer(csId,
-            "token",
-            "ssd",
-            serverId);
+    PrepareAddChunkServer(csId, "token", "ssd", serverId);
 
-    int ret = topology_->UpdateChunkServerRwState(
-        ChunkServerStatus::RETIRED, csId);
+    int ret =
+        topology_->UpdateChunkServerRwState(ChunkServerStatus::RETIRED, csId);
 
     ASSERT_EQ(kTopoErrCodeSuccess, ret);
 
-
-    EXPECT_CALL(*storage_, DeleteChunkServer(_))
-        .WillOnce(Return(false));
+    EXPECT_CALL(*storage_, DeleteChunkServer(_)).WillOnce(Return(false));
 
     ret = topology_->RemoveChunkServer(csId);
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
@@ -1113,26 +883,15 @@ TEST_F(TestTopology, UpdateLogicalPool_success) {
     PoolIdType logicalPoolId = 0x01;
     PoolIdType physicalPoolId = 0x11;
     PrepareAddPhysicalPool(physicalPoolId);
-    PrepareAddLogicalPool(logicalPoolId,
-            "name1",
-            physicalPoolId,
-            PAGEFILE,
-            LogicalPool::RedundanceAndPlaceMentPolicy(),
-            LogicalPool::UserPolicy(),
-            0);
+    PrepareAddLogicalPool(logicalPoolId, "name1", physicalPoolId, PAGEFILE,
+                          LogicalPool::RedundanceAndPlaceMentPolicy(),
+                          LogicalPool::UserPolicy(), 0);
 
-    LogicalPool pool(logicalPoolId,
-            "name1",
-            physicalPoolId,
-            APPENDFILE,
-            LogicalPool::RedundanceAndPlaceMentPolicy(),
-            LogicalPool::UserPolicy(),
-            0,
-            true,
-            true);
+    LogicalPool pool(logicalPoolId, "name1", physicalPoolId, APPENDFILE,
+                     LogicalPool::RedundanceAndPlaceMentPolicy(),
+                     LogicalPool::UserPolicy(), 0, true, true);
 
-    EXPECT_CALL(*storage_, UpdateLogicalPool(_))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, UpdateLogicalPool(_)).WillOnce(Return(true));
 
     int ret = topology_->UpdateLogicalPool(pool);
 
@@ -1146,15 +905,9 @@ TEST_F(TestTopology, UpdateLogicalPool_success) {
 TEST_F(TestTopology, UpdateLogicalPool_LogicalPoolNotFound) {
     PoolIdType logicalPoolId = 0x01;
     PoolIdType physicalPoolId = 0x11;
-    LogicalPool pool(logicalPoolId,
-            "name1",
-            physicalPoolId,
-            APPENDFILE,
-            LogicalPool::RedundanceAndPlaceMentPolicy(),
-            LogicalPool::UserPolicy(),
-            0,
-            true,
-            true);
+    LogicalPool pool(logicalPoolId, "name1", physicalPoolId, APPENDFILE,
+                     LogicalPool::RedundanceAndPlaceMentPolicy(),
+                     LogicalPool::UserPolicy(), 0, true, true);
 
     int ret = topology_->UpdateLogicalPool(pool);
 
@@ -1166,26 +919,15 @@ TEST_F(TestTopology, UpdateLogicalPool_StorageFail) {
     PoolIdType logicalPoolId = 0x01;
     PoolIdType physicalPoolId = 0x11;
     PrepareAddPhysicalPool(physicalPoolId);
-    PrepareAddLogicalPool(logicalPoolId,
-            "name1",
-            physicalPoolId,
-            PAGEFILE,
-            LogicalPool::RedundanceAndPlaceMentPolicy(),
-            LogicalPool::UserPolicy(),
-            0);
+    PrepareAddLogicalPool(logicalPoolId, "name1", physicalPoolId, PAGEFILE,
+                          LogicalPool::RedundanceAndPlaceMentPolicy(),
+                          LogicalPool::UserPolicy(), 0);
 
-    LogicalPool pool(logicalPoolId,
-            "name1",
-            physicalPoolId,
-            APPENDFILE,
-            LogicalPool::RedundanceAndPlaceMentPolicy(),
-            LogicalPool::UserPolicy(),
-            0,
-            true,
-            true);
+    LogicalPool pool(logicalPoolId, "name1", physicalPoolId, APPENDFILE,
+                     LogicalPool::RedundanceAndPlaceMentPolicy(),
+                     LogicalPool::UserPolicy(), 0, true, true);
 
-    EXPECT_CALL(*storage_, UpdateLogicalPool(_))
-        .WillOnce(Return(false));
+    EXPECT_CALL(*storage_, UpdateLogicalPool(_)).WillOnce(Return(false));
 
     int ret = topology_->UpdateLogicalPool(pool);
 
@@ -1197,24 +939,19 @@ TEST_F(TestTopology, UpdateLogicalPoolAllocateStatus_success) {
     PoolIdType logicalPoolId = 0x01;
     PoolIdType physicalPoolId = 0x11;
     PrepareAddPhysicalPool(physicalPoolId);
-    PrepareAddLogicalPool(logicalPoolId,
-            "name1",
-            physicalPoolId,
-            PAGEFILE,
-            LogicalPool::RedundanceAndPlaceMentPolicy(),
-            LogicalPool::UserPolicy(),
-            0);
+    PrepareAddLogicalPool(logicalPoolId, "name1", physicalPoolId, PAGEFILE,
+                          LogicalPool::RedundanceAndPlaceMentPolicy(),
+                          LogicalPool::UserPolicy(), 0);
 
     LogicalPool pool2;
     topology_->GetLogicalPool(logicalPoolId, &pool2);
     ASSERT_EQ(AllocateStatus::ALLOW, pool2.GetStatus());
 
     // update to deny
-    EXPECT_CALL(*storage_, UpdateLogicalPool(_))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, UpdateLogicalPool(_)).WillOnce(Return(true));
 
-    int ret = topology_->UpdateLogicalPoolAllocateStatus(
-        AllocateStatus::DENY, logicalPoolId);
+    int ret = topology_->UpdateLogicalPoolAllocateStatus(AllocateStatus::DENY,
+                                                         logicalPoolId);
 
     ASSERT_EQ(kTopoErrCodeSuccess, ret);
 
@@ -1223,11 +960,10 @@ TEST_F(TestTopology, UpdateLogicalPoolAllocateStatus_success) {
     ASSERT_EQ(AllocateStatus::DENY, pool3.GetStatus());
 
     // update to allow
-    EXPECT_CALL(*storage_, UpdateLogicalPool(_))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, UpdateLogicalPool(_)).WillOnce(Return(true));
 
-    ret = topology_->UpdateLogicalPoolAllocateStatus(
-        AllocateStatus::ALLOW, logicalPoolId);
+    ret = topology_->UpdateLogicalPoolAllocateStatus(AllocateStatus::ALLOW,
+                                                     logicalPoolId);
 
     ASSERT_EQ(kTopoErrCodeSuccess, ret);
 
@@ -1239,18 +975,12 @@ TEST_F(TestTopology, UpdateLogicalPoolAllocateStatus_success) {
 TEST_F(TestTopology, UpdateLogicalPoolAllocateStatus_LogicalPoolNotFound) {
     PoolIdType logicalPoolId = 0x01;
     PoolIdType physicalPoolId = 0x11;
-    LogicalPool pool(logicalPoolId,
-            "name1",
-            physicalPoolId,
-            APPENDFILE,
-            LogicalPool::RedundanceAndPlaceMentPolicy(),
-            LogicalPool::UserPolicy(),
-            0,
-            true,
-            true);
+    LogicalPool pool(logicalPoolId, "name1", physicalPoolId, APPENDFILE,
+                     LogicalPool::RedundanceAndPlaceMentPolicy(),
+                     LogicalPool::UserPolicy(), 0, true, true);
 
-    int ret = topology_->UpdateLogicalPoolAllocateStatus(
-        AllocateStatus::ALLOW, logicalPoolId);
+    int ret = topology_->UpdateLogicalPoolAllocateStatus(AllocateStatus::ALLOW,
+                                                         logicalPoolId);
 
     ASSERT_EQ(kTopoErrCodeLogicalPoolNotFound, ret);
 }
@@ -1260,19 +990,14 @@ TEST_F(TestTopology, UpdateLogicalPoolAllocateStatus_StorageFail) {
     PoolIdType logicalPoolId = 0x01;
     PoolIdType physicalPoolId = 0x11;
     PrepareAddPhysicalPool(physicalPoolId);
-    PrepareAddLogicalPool(logicalPoolId,
-            "name1",
-            physicalPoolId,
-            PAGEFILE,
-            LogicalPool::RedundanceAndPlaceMentPolicy(),
-            LogicalPool::UserPolicy(),
-            0);
+    PrepareAddLogicalPool(logicalPoolId, "name1", physicalPoolId, PAGEFILE,
+                          LogicalPool::RedundanceAndPlaceMentPolicy(),
+                          LogicalPool::UserPolicy(), 0);
 
-    EXPECT_CALL(*storage_, UpdateLogicalPool(_))
-        .WillOnce(Return(false));
+    EXPECT_CALL(*storage_, UpdateLogicalPool(_)).WillOnce(Return(false));
 
-    int ret = topology_->UpdateLogicalPoolAllocateStatus(
-        AllocateStatus::ALLOW, logicalPoolId);
+    int ret = topology_->UpdateLogicalPoolAllocateStatus(AllocateStatus::ALLOW,
+                                                         logicalPoolId);
 
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
 }
@@ -1285,8 +1010,7 @@ TEST_F(TestTopology, TestUpdateLogicalPoolScanState) {
     PrepareAddLogicalPool(lpid, "name", ppid);
 
     auto set_state = [&](PoolIdType lpid, bool scanEnable) {
-        EXPECT_CALL(*storage_, UpdateLogicalPool(_))
-            .WillOnce(Return(true));
+        EXPECT_CALL(*storage_, UpdateLogicalPool(_)).WillOnce(Return(true));
         auto retCode = topology_->UpdateLogicalPoolScanState(lpid, scanEnable);
         ASSERT_EQ(retCode, kTopoErrCodeSuccess);
     };
@@ -1309,14 +1033,12 @@ TEST_F(TestTopology, TestUpdateLogicalPoolScanState) {
     check_state(lpid, true);
 
     // CASE 4: logical pool not found -> set scan state fail
-    EXPECT_CALL(*storage_, UpdateLogicalPool(_))
-        .Times(0);
+    EXPECT_CALL(*storage_, UpdateLogicalPool(_)).Times(0);
     auto retCode = topology_->UpdateLogicalPoolScanState(lpid + 1, true);
     ASSERT_EQ(retCode, kTopoErrCodeLogicalPoolNotFound);
 
     // CASE 5: update storage fail -> set scan state fail
-    EXPECT_CALL(*storage_, UpdateLogicalPool(_))
-        .WillOnce(Return(false));
+    EXPECT_CALL(*storage_, UpdateLogicalPool(_)).WillOnce(Return(false));
     retCode = topology_->UpdateLogicalPoolScanState(lpid, true);
     ASSERT_EQ(retCode, kTopoErrCodeStorgeFail);
 }
@@ -1325,18 +1047,11 @@ TEST_F(TestTopology, UpdatePhysicalPool_success) {
     PrepareAddPoolset();
     PoolIdType physicalPoolId = 0x11;
     PoolsetIdType poolsetId = 0x61;
-    PrepareAddPhysicalPool(physicalPoolId,
-            "name1",
-             poolsetId,
-            "desc1");
+    PrepareAddPhysicalPool(physicalPoolId, "name1", poolsetId, "desc1");
 
-    PhysicalPool newPool(physicalPoolId,
-            "name1",
-            poolsetId,
-            "desc2");
+    PhysicalPool newPool(physicalPoolId, "name1", poolsetId, "desc2");
 
-    EXPECT_CALL(*storage_, UpdatePhysicalPool(_))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, UpdatePhysicalPool(_)).WillOnce(Return(true));
 
     int ret = topology_->UpdatePhysicalPool(newPool);
     ASSERT_EQ(kTopoErrCodeSuccess, ret);
@@ -1349,69 +1064,45 @@ TEST_F(TestTopology, UpdatePhysicalPool_success) {
 TEST_F(TestTopology, UpdatePhysicalPool_PhysicalPoolNotFound) {
     PoolIdType physicalPoolId = 0x11;
     PoolIdType pid = 0x61;
-    PhysicalPool newPool(physicalPoolId,
-            "name1",
-            pid,
-            "desc2");
+    PhysicalPool newPool(physicalPoolId, "name1", pid, "desc2");
 
     int ret = topology_->UpdatePhysicalPool(newPool);
     ASSERT_EQ(kTopoErrCodePhysicalPoolNotFound, ret);
 }
 
-
 TEST_F(TestTopology, UpdatePhysicalPool_StorageFail) {
     PrepareAddPoolset();
     PoolIdType physicalPoolId = 0x11;
     PoolsetIdType poolsetId = 0x61;
-    PrepareAddPhysicalPool(physicalPoolId,
-            "name1",
-            poolsetId,
-            "desc1");
+    PrepareAddPhysicalPool(physicalPoolId, "name1", poolsetId, "desc1");
 
-    PhysicalPool newPool(physicalPoolId,
-            "name1",
-            poolsetId,
-            "desc2");
+    PhysicalPool newPool(physicalPoolId, "name1", poolsetId, "desc2");
 
-    EXPECT_CALL(*storage_, UpdatePhysicalPool(_))
-        .WillOnce(Return(false));
+    EXPECT_CALL(*storage_, UpdatePhysicalPool(_)).WillOnce(Return(false));
 
     int ret = topology_->UpdatePhysicalPool(newPool);
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
 }
-
-
 
 TEST_F(TestTopology, UpdateZone_success) {
     PrepareAddPoolset();
     ZoneIdType zoneId = 0x21;
     PoolIdType physicalPoolId = 0x11;
     PrepareAddPhysicalPool(physicalPoolId);
-    PrepareAddZone(zoneId,
-            "name1",
-            physicalPoolId,
-            "desc1");
+    PrepareAddZone(zoneId, "name1", physicalPoolId, "desc1");
 
-    Zone newZone(zoneId,
-            "name1",
-            physicalPoolId,
-            "desc2");
+    Zone newZone(zoneId, "name1", physicalPoolId, "desc2");
 
-    EXPECT_CALL(*storage_, UpdateZone(_))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, UpdateZone(_)).WillOnce(Return(true));
     int ret = topology_->UpdateZone(newZone);
     ASSERT_EQ(kTopoErrCodeSuccess, ret);
 }
-
 
 TEST_F(TestTopology, UpdateZone_ZoneNotFound) {
     ZoneIdType zoneId = 0x21;
     PoolIdType physicalPoolId = 0x11;
 
-    Zone newZone(zoneId,
-            "name1",
-            physicalPoolId,
-            "desc2");
+    Zone newZone(zoneId, "name1", physicalPoolId, "desc2");
 
     int ret = topology_->UpdateZone(newZone);
     ASSERT_EQ(kTopoErrCodeZoneNotFound, ret);
@@ -1422,18 +1113,11 @@ TEST_F(TestTopology, UpdateZone_StorageFail) {
     ZoneIdType zoneId = 0x21;
     PoolIdType physicalPoolId = 0x11;
     PrepareAddPhysicalPool(physicalPoolId);
-    PrepareAddZone(zoneId,
-            "name1",
-            physicalPoolId,
-            "desc1");
+    PrepareAddZone(zoneId, "name1", physicalPoolId, "desc1");
 
-    Zone newZone(zoneId,
-            "name1",
-            physicalPoolId,
-            "desc2");
+    Zone newZone(zoneId, "name1", physicalPoolId, "desc2");
 
-    EXPECT_CALL(*storage_, UpdateZone(_))
-        .WillOnce(Return(false));
+    EXPECT_CALL(*storage_, UpdateZone(_)).WillOnce(Return(false));
     int ret = topology_->UpdateZone(newZone);
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
 }
@@ -1445,28 +1129,13 @@ TEST_F(TestTopology, UpdateServer_success) {
     ServerIdType serverId = 0x31;
     PrepareAddPhysicalPool(physicalPoolId);
     PrepareAddZone(zoneId);
-    PrepareAddServer(serverId,
-            "name1",
-            "ip1",
-            0,
-            "ip2",
-            0,
-            zoneId,
-            physicalPoolId,
-            "desc1");
+    PrepareAddServer(serverId, "name1", "ip1", 0, "ip2", 0, zoneId,
+                     physicalPoolId, "desc1");
 
-    Server newServer(serverId,
-            "name1",
-            "ip1",
-            0,
-            "ip2",
-            0,
-            zoneId,
-            physicalPoolId,
-            "desc2");
+    Server newServer(serverId, "name1", "ip1", 0, "ip2", 0, zoneId,
+                     physicalPoolId, "desc2");
 
-    EXPECT_CALL(*storage_, UpdateServer(_))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, UpdateServer(_)).WillOnce(Return(true));
 
     int ret = topology_->UpdateServer(newServer);
     ASSERT_EQ(kTopoErrCodeSuccess, ret);
@@ -1477,15 +1146,8 @@ TEST_F(TestTopology, UpdateServer_ServerNotFound) {
     ZoneIdType zoneId = 0x21;
     ServerIdType serverId = 0x31;
 
-    Server newServer(serverId,
-            "name1",
-            "ip1",
-            0,
-            "ip2",
-            0,
-            zoneId,
-            physicalPoolId,
-            "desc2");
+    Server newServer(serverId, "name1", "ip1", 0, "ip2", 0, zoneId,
+                     physicalPoolId, "desc2");
 
     int ret = topology_->UpdateServer(newServer);
     ASSERT_EQ(kTopoErrCodeServerNotFound, ret);
@@ -1498,33 +1160,17 @@ TEST_F(TestTopology, UpdateServer_StorageFail) {
     ServerIdType serverId = 0x31;
     PrepareAddPhysicalPool(physicalPoolId);
     PrepareAddZone(zoneId);
-    PrepareAddServer(serverId,
-            "name1",
-            "ip1",
-            0,
-            "ip2",
-            0,
-            zoneId,
-            physicalPoolId,
-            "desc1");
+    PrepareAddServer(serverId, "name1", "ip1", 0, "ip2", 0, zoneId,
+                     physicalPoolId, "desc1");
 
-    Server newServer(serverId,
-            "name1",
-            "ip1",
-            0,
-            "ip2",
-            0,
-            zoneId,
-            physicalPoolId,
-            "desc2");
+    Server newServer(serverId, "name1", "ip1", 0, "ip2", 0, zoneId,
+                     physicalPoolId, "desc2");
 
-    EXPECT_CALL(*storage_, UpdateServer(_))
-        .WillOnce(Return(false));
+    EXPECT_CALL(*storage_, UpdateServer(_)).WillOnce(Return(false));
 
     int ret = topology_->UpdateServer(newServer);
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
 }
-
 
 TEST_F(TestTopology, UpdateChunkServerTopo_success) {
     PrepareAddPoolset();
@@ -1535,24 +1181,11 @@ TEST_F(TestTopology, UpdateChunkServerTopo_success) {
     PrepareAddPhysicalPool(physicalPoolId);
     PrepareAddZone(zoneId);
     PrepareAddServer(serverId);
-    PrepareAddChunkServer(csId,
-            "token",
-            "ssd",
-            serverId,
-            "ip1",
-            100,
-            "/");
+    PrepareAddChunkServer(csId, "token", "ssd", serverId, "ip1", 100, "/");
 
-    ChunkServer newCs(csId,
-            "token",
-            "ssd",
-            serverId,
-            "ip1",
-            100,
-            "/abc");
+    ChunkServer newCs(csId, "token", "ssd", serverId, "ip1", 100, "/abc");
 
-    EXPECT_CALL(*storage_, UpdateChunkServer(_))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, UpdateChunkServer(_)).WillOnce(Return(true));
     int ret = topology_->UpdateChunkServerTopo(newCs);
     ASSERT_EQ(kTopoErrCodeSuccess, ret);
 }
@@ -1566,28 +1199,15 @@ TEST_F(TestTopology, UpdateChunkServerTopo_UpdateServerSuccess) {
     ChunkServerIdType csId = 0x41;
     PrepareAddPhysicalPool(physicalPoolId);
     PrepareAddZone(zoneId);
-    PrepareAddServer(serverId, "server1",
-        "ip1", 0, "ip2", 0, zoneId, physicalPoolId);
-    PrepareAddServer(serverId2, "server2",
-        "ip3", 0, "ip4", 0, zoneId, physicalPoolId);
-    PrepareAddChunkServer(csId,
-            "token",
-            "ssd",
-            serverId,
-            "ip1",
-            100,
-            "/");
+    PrepareAddServer(serverId, "server1", "ip1", 0, "ip2", 0, zoneId,
+                     physicalPoolId);
+    PrepareAddServer(serverId2, "server2", "ip3", 0, "ip4", 0, zoneId,
+                     physicalPoolId);
+    PrepareAddChunkServer(csId, "token", "ssd", serverId, "ip1", 100, "/");
 
-    ChunkServer newCs(csId,
-            "token",
-            "ssd",
-            serverId2,
-            "ip3",
-            100,
-            "/abc");
+    ChunkServer newCs(csId, "token", "ssd", serverId2, "ip3", 100, "/abc");
 
-    EXPECT_CALL(*storage_, UpdateChunkServer(_))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, UpdateChunkServer(_)).WillOnce(Return(true));
     int ret = topology_->UpdateChunkServerTopo(newCs);
     ASSERT_EQ(kTopoErrCodeSuccess, ret);
 }
@@ -1596,13 +1216,7 @@ TEST_F(TestTopology, UpdateChunkServerTopo_ChunkServerNotFound) {
     ServerIdType serverId = 0x31;
     ChunkServerIdType csId = 0x41;
 
-    ChunkServer newCs(csId,
-            "token",
-            "ssd",
-            serverId,
-            "ip1",
-            100,
-            "/abc");
+    ChunkServer newCs(csId, "token", "ssd", serverId, "ip1", 100, "/abc");
 
     int ret = topology_->UpdateChunkServerTopo(newCs);
     ASSERT_EQ(kTopoErrCodeChunkServerNotFound, ret);
@@ -1617,24 +1231,11 @@ TEST_F(TestTopology, UpdateChunkServerTopo_StorageFail) {
     PrepareAddPhysicalPool(physicalPoolId);
     PrepareAddZone(zoneId);
     PrepareAddServer(serverId);
-    PrepareAddChunkServer(csId,
-            "token",
-            "ssd",
-            serverId,
-            "ip1",
-            100,
-            "/");
+    PrepareAddChunkServer(csId, "token", "ssd", serverId, "ip1", 100, "/");
 
-    ChunkServer newCs(csId,
-            "token",
-            "ssd",
-            serverId,
-            "ip1",
-            100,
-            "/abc");
+    ChunkServer newCs(csId, "token", "ssd", serverId, "ip1", 100, "/abc");
 
-    EXPECT_CALL(*storage_, UpdateChunkServer(_))
-        .WillOnce(Return(false));
+    EXPECT_CALL(*storage_, UpdateChunkServer(_)).WillOnce(Return(false));
     int ret = topology_->UpdateChunkServerTopo(newCs);
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
 }
@@ -1648,11 +1249,7 @@ TEST_F(TestTopology, UpdateChunkServerDiskStatus_success) {
     PrepareAddPhysicalPool(physicalPoolId);
     PrepareAddZone(zoneId);
     PrepareAddServer(serverId);
-    PrepareAddChunkServer(csId,
-            "token",
-            "ssd",
-            serverId,
-            "/");
+    PrepareAddChunkServer(csId, "token", "ssd", serverId, "/");
 
     PhysicalPool pool;
     ASSERT_TRUE(topology_->GetPhysicalPool(0x11, &pool));
@@ -1662,17 +1259,16 @@ TEST_F(TestTopology, UpdateChunkServerDiskStatus_success) {
     csState.SetDiskState(DISKERROR);
     csState.SetDiskCapacity(100);
 
-    int ret = topology_->UpdateChunkServerDiskStatus(csState,  csId);
+    int ret = topology_->UpdateChunkServerDiskStatus(csState, csId);
     ASSERT_EQ(kTopoErrCodeSuccess, ret);
 
     ASSERT_TRUE(topology_->GetPhysicalPool(0x11, &pool));
     ASSERT_EQ(100, pool.GetDiskCapacity());
 
-    // 只刷一次
-    EXPECT_CALL(*storage_, UpdateChunkServer(_))
-        .WillOnce(Return(true));
+    // Only brush once
+    EXPECT_CALL(*storage_, UpdateChunkServer(_)).WillOnce(Return(true));
     topology_->Run();
-    // sleep 等待刷数据库
+    // Sleep waiting to flush the database
     sleep(5);
     topology_->Stop();
 }
@@ -1684,7 +1280,7 @@ TEST_F(TestTopology, UpdateChunkServerDiskStatus_ChunkServerNotFound) {
     csState.SetDiskState(DISKERROR);
     csState.SetDiskCapacity(100);
 
-    int ret = topology_->UpdateChunkServerDiskStatus(csState,  csId);
+    int ret = topology_->UpdateChunkServerDiskStatus(csState, csId);
     ASSERT_EQ(kTopoErrCodeChunkServerNotFound, ret);
 }
 
@@ -1697,22 +1293,17 @@ TEST_F(TestTopology, UpdateChunkServerRwStateToStorage_success) {
     PrepareAddPhysicalPool(physicalPoolId);
     PrepareAddZone(zoneId);
     PrepareAddServer(serverId);
-    PrepareAddChunkServer(csId,
-            "token",
-            "ssd",
-            serverId,
-            "/");
+    PrepareAddChunkServer(csId, "token", "ssd", serverId, "/");
 
     ChunkServerStatus rwState;
     rwState = ChunkServerStatus::PENDDING;
-    int ret = topology_->UpdateChunkServerRwState(rwState,  csId);
+    int ret = topology_->UpdateChunkServerRwState(rwState, csId);
     ASSERT_EQ(kTopoErrCodeSuccess, ret);
 
-    // 只刷一次
-    EXPECT_CALL(*storage_, UpdateChunkServer(_))
-        .WillOnce(Return(true));
+    // Only brush once
+    EXPECT_CALL(*storage_, UpdateChunkServer(_)).WillOnce(Return(true));
     topology_->Run();
-    // sleep 等待刷数据库
+    // Sleep waiting to flush the database
     sleep(5);
     topology_->Stop();
 }
@@ -1726,60 +1317,50 @@ TEST_F(TestTopology, UpdateChunkServerRwStateTestPhysicalPoolCapacity_success) {
     PrepareAddPhysicalPool(physicalPoolId);
     PrepareAddZone(zoneId);
     PrepareAddServer(serverId);
-    PrepareAddChunkServer(csId,
-            "token",
-            "ssd",
-            serverId,
-            "/");
+    PrepareAddChunkServer(csId, "token", "ssd", serverId, "/");
 
     PhysicalPool pool;
     ASSERT_TRUE(topology_->GetPhysicalPool(0x11, &pool));
     ASSERT_EQ(1024, pool.GetDiskCapacity());
 
     // READWRITE -> RETIRED
-    ASSERT_EQ(kTopoErrCodeSuccess,
-        topology_->UpdateChunkServerRwState(
-            ChunkServerStatus::RETIRED,  csId));
+    ASSERT_EQ(kTopoErrCodeSuccess, topology_->UpdateChunkServerRwState(
+                                       ChunkServerStatus::RETIRED, csId));
 
     ASSERT_TRUE(topology_->GetPhysicalPool(0x11, &pool));
     ASSERT_EQ(0, pool.GetDiskCapacity());
 
     // RETIRED -> PENDDING
-    ASSERT_EQ(kTopoErrCodeSuccess,
-        topology_->UpdateChunkServerRwState(
-            ChunkServerStatus::PENDDING,  csId));
+    ASSERT_EQ(kTopoErrCodeSuccess, topology_->UpdateChunkServerRwState(
+                                       ChunkServerStatus::PENDDING, csId));
 
     ASSERT_TRUE(topology_->GetPhysicalPool(0x11, &pool));
     ASSERT_EQ(1024, pool.GetDiskCapacity());
 
     // PENDDING -> RETIRED
-    ASSERT_EQ(kTopoErrCodeSuccess,
-        topology_->UpdateChunkServerRwState(
-            ChunkServerStatus::RETIRED,  csId));
+    ASSERT_EQ(kTopoErrCodeSuccess, topology_->UpdateChunkServerRwState(
+                                       ChunkServerStatus::RETIRED, csId));
 
     ASSERT_TRUE(topology_->GetPhysicalPool(0x11, &pool));
     ASSERT_EQ(0, pool.GetDiskCapacity());
 
     // RETIRED -> READWRITE
-    ASSERT_EQ(kTopoErrCodeSuccess,
-        topology_->UpdateChunkServerRwState(
-            ChunkServerStatus::READWRITE,  csId));
+    ASSERT_EQ(kTopoErrCodeSuccess, topology_->UpdateChunkServerRwState(
+                                       ChunkServerStatus::READWRITE, csId));
 
     ASSERT_TRUE(topology_->GetPhysicalPool(0x11, &pool));
     ASSERT_EQ(1024, pool.GetDiskCapacity());
 
     // READWRITE -> PENDDING
-    ASSERT_EQ(kTopoErrCodeSuccess,
-        topology_->UpdateChunkServerRwState(
-            ChunkServerStatus::PENDDING,  csId));
+    ASSERT_EQ(kTopoErrCodeSuccess, topology_->UpdateChunkServerRwState(
+                                       ChunkServerStatus::PENDDING, csId));
 
     ASSERT_TRUE(topology_->GetPhysicalPool(0x11, &pool));
     ASSERT_EQ(1024, pool.GetDiskCapacity());
 
     // PENDDING -> READWRITE
-    ASSERT_EQ(kTopoErrCodeSuccess,
-        topology_->UpdateChunkServerRwState(
-            ChunkServerStatus::READWRITE,  csId));
+    ASSERT_EQ(kTopoErrCodeSuccess, topology_->UpdateChunkServerRwState(
+                                       ChunkServerStatus::READWRITE, csId));
 
     ASSERT_TRUE(topology_->GetPhysicalPool(0x11, &pool));
     ASSERT_EQ(1024, pool.GetDiskCapacity());
@@ -1790,7 +1371,7 @@ TEST_F(TestTopology, UpdateChunkServerRwState_ChunkServerNotFound) {
 
     ChunkServerStatus rwState;
     rwState = ChunkServerStatus::PENDDING;
-    int ret = topology_->UpdateChunkServerRwState(rwState,  csId);
+    int ret = topology_->UpdateChunkServerRwState(rwState, csId);
     ASSERT_EQ(kTopoErrCodeChunkServerNotFound, ret);
 }
 
@@ -1803,13 +1384,9 @@ TEST_F(TestTopology, UpdateChunkServerStartUpTime_success) {
     PrepareAddPhysicalPool(physicalPoolId);
     PrepareAddZone(zoneId);
     PrepareAddServer(serverId);
-    PrepareAddChunkServer(csId,
-            "token",
-            "ssd",
-            serverId,
-            "/");
+    PrepareAddChunkServer(csId, "token", "ssd", serverId, "/");
     uint64_t time = 0x1234567812345678;
-    int ret = topology_->UpdateChunkServerStartUpTime(time,  csId);
+    int ret = topology_->UpdateChunkServerStartUpTime(time, csId);
     ASSERT_EQ(kTopoErrCodeSuccess, ret);
 
     ChunkServer cs;
@@ -1819,7 +1396,7 @@ TEST_F(TestTopology, UpdateChunkServerStartUpTime_success) {
 
 TEST_F(TestTopology, UpdateChunkServerStartUpTime_ChunkServerNotFound) {
     ChunkServerIdType csId = 0x41;
-    int ret = topology_->UpdateChunkServerStartUpTime(1000,  csId);
+    int ret = topology_->UpdateChunkServerStartUpTime(1000, csId);
     ASSERT_EQ(kTopoErrCodeChunkServerNotFound, ret);
 }
 
@@ -1831,19 +1408,18 @@ TEST_F(TestTopology, FindLogicalPool_success) {
     std::string physicalPoolName = "PhysiclPool1";
     PrepareAddPhysicalPool(physicalPoolId, physicalPoolName);
     PrepareAddLogicalPool(logicalPoolId, logicalPoolName, physicalPoolId);
-    PoolIdType ret = topology_->FindLogicalPool(logicalPoolName,
-        physicalPoolName);
+    PoolIdType ret =
+        topology_->FindLogicalPool(logicalPoolName, physicalPoolName);
     ASSERT_EQ(logicalPoolId, ret);
 }
 
 TEST_F(TestTopology, FindLogicalPool_LogicalPoolNotFound) {
     std::string logicalPoolName = "logicalPool1";
     std::string physicalPoolName = "PhysiclPool1";
-    PoolIdType ret = topology_->FindLogicalPool(logicalPoolName,
-                                                physicalPoolName);
+    PoolIdType ret =
+        topology_->FindLogicalPool(logicalPoolName, physicalPoolName);
 
-    ASSERT_EQ(static_cast<PoolIdType>(UNINTIALIZE_ID),
-                                      ret);
+    ASSERT_EQ(static_cast<PoolIdType>(UNINTIALIZE_ID), ret);
 }
 
 TEST_F(TestTopology, FindPhysicalPool_success) {
@@ -1858,10 +1434,8 @@ TEST_F(TestTopology, FindPhysicalPool_success) {
 TEST_F(TestTopology, FindPhysicalPool_PhysicalPoolNotFound) {
     std::string physicalPoolName = "physicalPoolName";
     PoolIdType ret = topology_->FindPhysicalPool(physicalPoolName);
-    ASSERT_EQ(static_cast<PoolIdType>(UNINTIALIZE_ID),
-                                      ret);
+    ASSERT_EQ(static_cast<PoolIdType>(UNINTIALIZE_ID), ret);
 }
-
 
 TEST_F(TestTopology, FindZone_success) {
     PrepareAddPoolset();
@@ -1879,8 +1453,7 @@ TEST_F(TestTopology, FindZone_ZoneNotFound) {
     std::string physicalPoolName = "physicalPoolName";
     std::string zoneName = "zoneName";
     ZoneIdType ret = topology_->FindZone(zoneName, physicalPoolName);
-    ASSERT_EQ(static_cast<ZoneIdType>(UNINTIALIZE_ID),
-                                      ret);
+    ASSERT_EQ(static_cast<ZoneIdType>(UNINTIALIZE_ID), ret);
 }
 
 TEST_F(TestTopology, FindZone_success2) {
@@ -1900,8 +1473,7 @@ TEST_F(TestTopology, FindZone_ZoneNotFound2) {
     std::string physicalPoolName = "physicalPoolName";
     std::string zoneName = "zoneName";
     ZoneIdType ret = topology_->FindZone(zoneName, physicalPoolId);
-    ASSERT_EQ(static_cast<ZoneIdType>(UNINTIALIZE_ID),
-                                      ret);
+    ASSERT_EQ(static_cast<ZoneIdType>(UNINTIALIZE_ID), ret);
 }
 
 TEST_F(TestTopology, FindServerByHostName_success) {
@@ -1910,8 +1482,7 @@ TEST_F(TestTopology, FindServerByHostName_success) {
     std::string hostName = "host1";
     PrepareAddPhysicalPool();
     PrepareAddZone();
-    PrepareAddServer(serverId,
-            hostName);
+    PrepareAddServer(serverId, hostName);
 
     ServerIdType ret = topology_->FindServerByHostName(hostName);
     ASSERT_EQ(serverId, ret);
@@ -1920,8 +1491,7 @@ TEST_F(TestTopology, FindServerByHostName_success) {
 TEST_F(TestTopology, FindServerByHostName_ServerNotFound) {
     std::string hostName = "host1";
     ServerIdType ret = topology_->FindServerByHostName(hostName);
-    ASSERT_EQ(static_cast<ServerIdType>(UNINTIALIZE_ID),
-                                        ret);
+    ASSERT_EQ(static_cast<ServerIdType>(UNINTIALIZE_ID), ret);
 }
 
 TEST_F(TestTopology, FindServerByHostIpPort_success) {
@@ -1932,12 +1502,7 @@ TEST_F(TestTopology, FindServerByHostIpPort_success) {
     std::string externalHostIp = "ip2";
     PrepareAddPhysicalPool();
     PrepareAddZone();
-    PrepareAddServer(serverId,
-            hostName,
-            internalHostIp,
-            0,
-            externalHostIp,
-            0);
+    PrepareAddServer(serverId, hostName, internalHostIp, 0, externalHostIp, 0);
 
     ServerIdType ret = topology_->FindServerByHostIpPort(internalHostIp, 0);
     ASSERT_EQ(serverId, ret);
@@ -1954,16 +1519,10 @@ TEST_F(TestTopology, FindSeverByHostIp_ServerNotFound) {
     std::string externalHostIp = "ip2";
     PrepareAddPhysicalPool();
     PrepareAddZone();
-    PrepareAddServer(serverId,
-            hostName,
-            internalHostIp,
-            0,
-            externalHostIp,
-            0);
+    PrepareAddServer(serverId, hostName, internalHostIp, 0, externalHostIp, 0);
 
     ServerIdType ret = topology_->FindServerByHostIpPort("ip3", 0);
-    ASSERT_EQ(static_cast<ServerIdType>(UNINTIALIZE_ID),
-                                        ret);
+    ASSERT_EQ(static_cast<ServerIdType>(UNINTIALIZE_ID), ret);
 }
 
 TEST_F(TestTopology, FindChunkServerNotRetired_success) {
@@ -1977,21 +1536,11 @@ TEST_F(TestTopology, FindChunkServerNotRetired_success) {
 
     PrepareAddPhysicalPool();
     PrepareAddZone();
-    PrepareAddServer(serverId,
-            hostName,
-            internalHostIp,
-            0,
-            externalHostIp,
-            0);
-    PrepareAddChunkServer(csId,
-            "token",
-            "ssd",
-            serverId,
-            "/",
-            port);
+    PrepareAddServer(serverId, hostName, internalHostIp, 0, externalHostIp, 0);
+    PrepareAddChunkServer(csId, "token", "ssd", serverId, "/", port);
 
-    ChunkServerIdType ret = topology_->FindChunkServerNotRetired(
-            internalHostIp, port);
+    ChunkServerIdType ret =
+        topology_->FindChunkServerNotRetired(internalHostIp, port);
     ASSERT_EQ(csId, ret);
 }
 
@@ -2006,22 +1555,11 @@ TEST_F(TestTopology, FindChunkServerNotRetired_ChunkServerNotFound) {
 
     PrepareAddPhysicalPool();
     PrepareAddZone();
-    PrepareAddServer(serverId,
-            hostName,
-            internalHostIp,
-            0,
-            externalHostIp,
-            0);
-    PrepareAddChunkServer(csId,
-            "token",
-            "ssd",
-            serverId,
-            "/",
-            port);
+    PrepareAddServer(serverId, hostName, internalHostIp, 0, externalHostIp, 0);
+    PrepareAddChunkServer(csId, "token", "ssd", serverId, "/", port);
 
     ChunkServerIdType ret = topology_->FindChunkServerNotRetired("ip3", port);
-    ASSERT_EQ(static_cast<ChunkServerIdType>(
-              UNINTIALIZE_ID), ret);
+    ASSERT_EQ(static_cast<ChunkServerIdType>(UNINTIALIZE_ID), ret);
 }
 
 TEST_F(TestTopology, GetLogicalPool_success) {
@@ -2089,7 +1627,6 @@ TEST_F(TestTopology, GetServer_success) {
     ASSERT_EQ(true, ret);
 }
 
-
 TEST_F(TestTopology, GetServer_GetServerNotFound) {
     PrepareAddPoolset();
     PoolIdType physicalPoolId = 0x11;
@@ -2132,7 +1669,6 @@ TEST_F(TestTopology, GetChunkServer_ChunkServerNotFound) {
     bool ret = topology_->GetChunkServer(csId + 1, &chunkserver);
     ASSERT_EQ(false, ret);
 }
-
 
 TEST_F(TestTopology, GetChunkServerInCluster_success) {
     PoolIdType physicalPoolId = 0x11;
@@ -2371,8 +1907,8 @@ TEST_F(TestTopology, GetChunkServerInLogicalPool_success) {
     PrepareAddPoolset();
     PrepareAddPhysicalPool(physicalPoolId);
     PrepareAddZone(zoneId, "name", physicalPoolId);
-    PrepareAddServer(
-        serverId, "name2", "ip1", 0, "ip2", 0, zoneId, physicalPoolId);
+    PrepareAddServer(serverId, "name2", "ip1", 0, "ip2", 0, zoneId,
+                     physicalPoolId);
     PrepareAddChunkServer(csId, "token", "ssd", serverId);
     PrepareAddChunkServer(csId2, "token", "ssd", serverId);
     PrepareAddLogicalPool(logicalPoolId, "logicalPool1", physicalPoolId);
@@ -2452,12 +1988,12 @@ TEST_F(TestTopology, AddCopySet_success) {
     PrepareAddZone(0x21, "zone1", physicalPoolId);
     PrepareAddZone(0x22, "zone2", physicalPoolId);
     PrepareAddZone(0x23, "zone3", physicalPoolId);
-    PrepareAddServer(
-        0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21, 0x11);
-    PrepareAddServer(
-        0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22, 0x11);
-    PrepareAddServer(
-        0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23, 0x11);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21,
+                     0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22,
+                     0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23,
+                     0x11);
     PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
@@ -2470,8 +2006,7 @@ TEST_F(TestTopology, AddCopySet_success) {
     CopySetInfo csInfo(logicalPoolId, copysetId);
     csInfo.SetCopySetMembers(replicas);
 
-    EXPECT_CALL(*storage_, StorageCopySet(_))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, StorageCopySet(_)).WillOnce(Return(true));
     int ret = topology_->AddCopySet(csInfo);
     ASSERT_EQ(kTopoErrCodeSuccess, ret);
 }
@@ -2486,12 +2021,12 @@ TEST_F(TestTopology, AddCopySet_IdDuplicated) {
     PrepareAddZone(0x21, "zone1", physicalPoolId);
     PrepareAddZone(0x22, "zone2", physicalPoolId);
     PrepareAddZone(0x23, "zone3", physicalPoolId);
-    PrepareAddServer(
-        0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21, 0x11);
-    PrepareAddServer(
-        0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22, 0x11);
-    PrepareAddServer(
-        0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23, 0x11);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21,
+                     0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22,
+                     0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23,
+                     0x11);
     PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
@@ -2519,12 +2054,12 @@ TEST_F(TestTopology, AddCopySet_LogicalPoolNotFound) {
     PrepareAddZone(0x21, "zone1", physicalPoolId);
     PrepareAddZone(0x22, "zone2", physicalPoolId);
     PrepareAddZone(0x23, "zone3", physicalPoolId);
-    PrepareAddServer(
-        0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21, 0x11);
-    PrepareAddServer(
-        0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22, 0x11);
-    PrepareAddServer(
-        0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23, 0x11);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21,
+                     0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22,
+                     0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23,
+                     0x11);
     PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
@@ -2551,12 +2086,12 @@ TEST_F(TestTopology, AddCopySet_StorageFail) {
     PrepareAddZone(0x21, "zone1", physicalPoolId);
     PrepareAddZone(0x22, "zone2", physicalPoolId);
     PrepareAddZone(0x23, "zone3", physicalPoolId);
-    PrepareAddServer(
-        0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21, 0x11);
-    PrepareAddServer(
-        0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22, 0x11);
-    PrepareAddServer(
-        0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23, 0x11);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21,
+                     0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22,
+                     0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23,
+                     0x11);
     PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
@@ -2569,8 +2104,7 @@ TEST_F(TestTopology, AddCopySet_StorageFail) {
     CopySetInfo csInfo(logicalPoolId, copysetId);
     csInfo.SetCopySetMembers(replicas);
 
-    EXPECT_CALL(*storage_, StorageCopySet(_))
-        .WillOnce(Return(false));
+    EXPECT_CALL(*storage_, StorageCopySet(_)).WillOnce(Return(false));
     int ret = topology_->AddCopySet(csInfo);
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
 }
@@ -2585,12 +2119,12 @@ TEST_F(TestTopology, RemoveCopySet_success) {
     PrepareAddZone(0x21, "zone1", physicalPoolId);
     PrepareAddZone(0x22, "zone2", physicalPoolId);
     PrepareAddZone(0x23, "zone3", physicalPoolId);
-    PrepareAddServer(
-        0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21, 0x11);
-    PrepareAddServer(
-        0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22, 0x11);
-    PrepareAddServer(
-        0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23, 0x11);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21,
+                     0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22,
+                     0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23,
+                     0x11);
     PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
@@ -2601,8 +2135,7 @@ TEST_F(TestTopology, RemoveCopySet_success) {
     replicas.insert(0x43);
     PrepareAddCopySet(copysetId, logicalPoolId, replicas);
 
-    EXPECT_CALL(*storage_, DeleteCopySet(_))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, DeleteCopySet(_)).WillOnce(Return(true));
 
     int ret = topology_->RemoveCopySet(
         std::pair<PoolIdType, CopySetIdType>(logicalPoolId, copysetId));
@@ -2620,12 +2153,12 @@ TEST_F(TestTopology, RemoveCopySet_storageFail) {
     PrepareAddZone(0x21, "zone1", physicalPoolId);
     PrepareAddZone(0x22, "zone2", physicalPoolId);
     PrepareAddZone(0x23, "zone3", physicalPoolId);
-    PrepareAddServer(
-        0x31, "server1", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x21, 0x11);
-    PrepareAddServer(
-        0x32, "server2", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x22, 0x11);
-    PrepareAddServer(
-        0x33, "server3", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x23, 0x11);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21,
+                     0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22,
+                     0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23,
+                     0x11);
     PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
@@ -2636,8 +2169,7 @@ TEST_F(TestTopology, RemoveCopySet_storageFail) {
     replicas.insert(0x43);
     PrepareAddCopySet(copysetId, logicalPoolId, replicas);
 
-    EXPECT_CALL(*storage_, DeleteCopySet(_))
-        .WillOnce(Return(false));
+    EXPECT_CALL(*storage_, DeleteCopySet(_)).WillOnce(Return(false));
 
     int ret = topology_->RemoveCopySet(
         std::pair<PoolIdType, CopySetIdType>(logicalPoolId, copysetId));
@@ -2655,12 +2187,12 @@ TEST_F(TestTopology, RemoveCopySet_CopySetNotFound) {
     PrepareAddZone(0x21, "zone1", physicalPoolId);
     PrepareAddZone(0x22, "zone2", physicalPoolId);
     PrepareAddZone(0x23, "zone3", physicalPoolId);
-    PrepareAddServer(
-        0x31, "server1", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x21, 0x11);
-    PrepareAddServer(
-        0x32, "server2", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x22, 0x11);
-    PrepareAddServer(
-        0x33, "server3", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x23, 0x11);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21,
+                     0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22,
+                     0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23,
+                     0x11);
     PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
@@ -2687,12 +2219,12 @@ TEST_F(TestTopology, UpdateCopySetTopo_success) {
     PrepareAddZone(0x21, "zone1", physicalPoolId);
     PrepareAddZone(0x22, "zone2", physicalPoolId);
     PrepareAddZone(0x23, "zone3", physicalPoolId);
-    PrepareAddServer(
-        0x31, "server1", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x21, 0x11);
-    PrepareAddServer(
-        0x32, "server2", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x22, 0x11);
-    PrepareAddServer(
-        0x33, "server3", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x23, 0x11);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21,
+                     0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22,
+                     0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23,
+                     0x11);
     PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
@@ -2716,11 +2248,10 @@ TEST_F(TestTopology, UpdateCopySetTopo_success) {
 
     ASSERT_EQ(kTopoErrCodeSuccess, ret);
 
-    // 只刷一次
-    EXPECT_CALL(*storage_, UpdateCopySet(_))
-        .WillOnce(Return(true));
+    // Only brush once
+    EXPECT_CALL(*storage_, UpdateCopySet(_)).WillOnce(Return(true));
     topology_->Run();
-    // sleep 等待刷数据库
+    // Sleep waiting to flush the database
     sleep(5);
     topology_->Stop();
 }
@@ -2735,12 +2266,12 @@ TEST_F(TestTopology, UpdateCopySetTopo_CopySetNotFound) {
     PrepareAddZone(0x21, "zone1", physicalPoolId);
     PrepareAddZone(0x22, "zone2", physicalPoolId);
     PrepareAddZone(0x23, "zone3", physicalPoolId);
-    PrepareAddServer(
-        0x31, "server1", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x21, 0x11);
-    PrepareAddServer(
-        0x32, "server2", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x22, 0x11);
-    PrepareAddServer(
-        0x33, "server3", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x23, 0x11);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21,
+                     0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22,
+                     0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23,
+                     0x11);
     PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
@@ -2775,12 +2306,12 @@ TEST_F(TestTopology, GetCopySet_success) {
     PrepareAddZone(0x21, "zone1", physicalPoolId);
     PrepareAddZone(0x22, "zone2", physicalPoolId);
     PrepareAddZone(0x23, "zone3", physicalPoolId);
-    PrepareAddServer(
-        0x31, "server1", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x21, 0x11);
-    PrepareAddServer(
-        0x32, "server2", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x22, 0x11);
-    PrepareAddServer(
-        0x33, "server3", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x23, 0x11);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21,
+                     0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22,
+                     0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23,
+                     0x11);
     PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
@@ -2809,12 +2340,12 @@ TEST_F(TestTopology, GetCopySet_CopysetNotFound) {
     PrepareAddZone(0x21, "zone1", physicalPoolId);
     PrepareAddZone(0x22, "zone2", physicalPoolId);
     PrepareAddZone(0x23, "zone3", physicalPoolId);
-    PrepareAddServer(
-        0x31, "server1", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x21, 0x11);
-    PrepareAddServer(
-        0x32, "server2", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x22, 0x11);
-    PrepareAddServer(
-        0x33, "server3", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x23, 0x11);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21,
+                     0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22,
+                     0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23,
+                     0x11);
     PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
@@ -2843,12 +2374,12 @@ TEST_F(TestTopology, GetCopySetsInLogicalPool_success) {
     PrepareAddZone(0x21, "zone1", physicalPoolId);
     PrepareAddZone(0x22, "zone2", physicalPoolId);
     PrepareAddZone(0x23, "zone3", physicalPoolId);
-    PrepareAddServer(
-        0x31, "server1", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x21, 0x11);
-    PrepareAddServer(
-        0x32, "server2", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x22, 0x11);
-    PrepareAddServer(
-        0x33, "server3", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x23, 0x11);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21,
+                     0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22,
+                     0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23,
+                     0x11);
     PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
@@ -2860,7 +2391,7 @@ TEST_F(TestTopology, GetCopySetsInLogicalPool_success) {
     PrepareAddCopySet(copysetId, logicalPoolId, replicas);
 
     std::vector<CopySetIdType> csList =
-    topology_->GetCopySetsInLogicalPool(logicalPoolId);
+        topology_->GetCopySetsInLogicalPool(logicalPoolId);
     ASSERT_EQ(1, csList.size());
 }
 
@@ -2874,12 +2405,12 @@ TEST_F(TestTopology, GetCopySetsInCluster_success) {
     PrepareAddZone(0x21, "zone1", physicalPoolId);
     PrepareAddZone(0x22, "zone2", physicalPoolId);
     PrepareAddZone(0x23, "zone3", physicalPoolId);
-    PrepareAddServer(
-        0x31, "server1", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x21, 0x11);
-    PrepareAddServer(
-        0x32, "server2", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x22, 0x11);
-    PrepareAddServer(
-        0x33, "server3", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x23, 0x11);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21,
+                     0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22,
+                     0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23,
+                     0x11);
     PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
@@ -2890,8 +2421,7 @@ TEST_F(TestTopology, GetCopySetsInCluster_success) {
     replicas.insert(0x43);
     PrepareAddCopySet(copysetId, logicalPoolId, replicas);
 
-    std::vector<CopySetKey> csList =
-    topology_->GetCopySetsInCluster();
+    std::vector<CopySetKey> csList = topology_->GetCopySetsInCluster();
     ASSERT_EQ(1, csList.size());
 }
 
@@ -2905,12 +2435,12 @@ TEST_F(TestTopology, GetCopySetsInChunkServer_success) {
     PrepareAddZone(0x21, "zone1", physicalPoolId);
     PrepareAddZone(0x22, "zone2", physicalPoolId);
     PrepareAddZone(0x23, "zone3", physicalPoolId);
-    PrepareAddServer(
-        0x31, "server1", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x21, 0x11);
-    PrepareAddServer(
-        0x32, "server2", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x22, 0x11);
-    PrepareAddServer(
-        0x33, "server3", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x23, 0x11);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21,
+                     0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22,
+                     0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23,
+                     0x11);
     PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
@@ -2921,44 +2451,33 @@ TEST_F(TestTopology, GetCopySetsInChunkServer_success) {
     replicas.insert(0x43);
     PrepareAddCopySet(copysetId, logicalPoolId, replicas);
 
-    std::vector<CopySetKey> csList =
-    topology_->GetCopySetsInChunkServer(0x41);
+    std::vector<CopySetKey> csList = topology_->GetCopySetsInChunkServer(0x41);
     ASSERT_EQ(1, csList.size());
 }
 
 TEST_F(TestTopology, test_create_default_poolset) {
-    EXPECT_CALL(*storage_, LoadClusterInfo(_))
-        .WillOnce(Return(true));
-    EXPECT_CALL(*storage_, StorageClusterInfo(_))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, LoadClusterInfo(_)).WillOnce(Return(true));
+    EXPECT_CALL(*storage_, StorageClusterInfo(_)).WillOnce(Return(true));
 
-    EXPECT_CALL(*storage_, LoadPoolset(_, _))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, LoadPoolset(_, _)).WillOnce(Return(true));
 
     Poolset poolset;
     EXPECT_CALL(*storage_, StoragePoolset(_))
-        .WillOnce(
-            DoAll(SaveArg<0>(&poolset), Return(true)));
+        .WillOnce(DoAll(SaveArg<0>(&poolset), Return(true)));
 
     std::unordered_map<PoolIdType, PhysicalPool> physicalPoolMap{
         {1, {1, "pool1", UNINTIALIZE_ID, ""}},
         {2, {2, "pool2", UNINTIALIZE_ID, ""}},
     };
     EXPECT_CALL(*storage_, LoadPhysicalPool(_, _))
-        .WillOnce(DoAll(SetArgPointee<0>(physicalPoolMap),
-                        SetArgPointee<1>(2),
+        .WillOnce(DoAll(SetArgPointee<0>(physicalPoolMap), SetArgPointee<1>(2),
                         Return(true)));
 
-    EXPECT_CALL(*storage_, LoadLogicalPool(_, _))
-        .WillOnce(Return(true));
-    EXPECT_CALL(*storage_, LoadZone(_, _))
-        .WillOnce(Return(true));
-    EXPECT_CALL(*storage_, LoadServer(_, _))
-        .WillOnce(Return(true));
-    EXPECT_CALL(*storage_, LoadChunkServer(_, _))
-        .WillOnce(Return(true));
-    EXPECT_CALL(*storage_, LoadCopySet(_, _))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, LoadLogicalPool(_, _)).WillOnce(Return(true));
+    EXPECT_CALL(*storage_, LoadZone(_, _)).WillOnce(Return(true));
+    EXPECT_CALL(*storage_, LoadServer(_, _)).WillOnce(Return(true));
+    EXPECT_CALL(*storage_, LoadChunkServer(_, _)).WillOnce(Return(true));
+    EXPECT_CALL(*storage_, LoadCopySet(_, _)).WillOnce(Return(true));
 
     int rc = topology_->Init({});
     ASSERT_EQ(kTopoErrCodeSuccess, rc);

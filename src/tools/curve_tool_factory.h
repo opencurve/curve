@@ -23,18 +23,18 @@
 #ifndef SRC_TOOLS_CURVE_TOOL_FACTORY_H_
 #define SRC_TOOLS_CURVE_TOOL_FACTORY_H_
 
-#include <string>
 #include <memory>
 #include <set>
+#include <string>
 
-#include "src/tools/curve_tool.h"
-#include "src/tools/status_tool.h"
-#include "src/tools/namespace_tool.h"
 #include "src/tools/consistency_check.h"
-#include "src/tools/curve_cli.h"
 #include "src/tools/copyset_check.h"
-#include "src/tools/schedule_tool.h"
 #include "src/tools/copyset_tool.h"
+#include "src/tools/curve_cli.h"
+#include "src/tools/curve_tool.h"
+#include "src/tools/namespace_tool.h"
+#include "src/tools/schedule_tool.h"
+#include "src/tools/status_tool.h"
 
 namespace curve {
 namespace tool {
@@ -42,41 +42,41 @@ namespace tool {
 class CurveToolFactory {
  public:
     /**
-     *  @brief 根据输入的command获取CurveTool对象
-     *  @param command 要执行的命令的名称
-     *  @return CurveTool实例
+     * @brief Retrieve the CurveTool object based on the input command
+     * @param command The name of the command to be executed
+     * @return CurveTool instance
      */
     static std::shared_ptr<CurveTool> GenerateCurveTool(
-                                    const std::string& command);
+        const std::string& command);
 
  private:
     /**
-     *  @brief 获取StatusTool实例
+     * @brief Get StatusTool instance
      */
     static std::shared_ptr<StatusTool> GenerateStatusTool();
 
     /**
-     *  @brief 获取NameSpaceTool实例
+     * @brief Get NameSpaceTool instance
      */
     static std::shared_ptr<NameSpaceTool> GenerateNameSpaceTool();
 
     /**
-     *  @brief 获取ConsistencyCheck实例
+     * @brief Get ConsistencyCheck instance
      */
     static std::shared_ptr<ConsistencyCheck> GenerateConsistencyCheck();
 
     /**
-     *  @brief 获取CurveCli实例
+     * @brief Get CurveCli instance
      */
     static std::shared_ptr<CurveCli> GenerateCurveCli();
 
     /**
-     *  @brief 获取CopysetCheck实例
+     * @brief Get CopysetCheck instance
      */
     static std::shared_ptr<CopysetCheck> GenerateCopysetCheck();
 
     /**
-     *  @brief 获取ScheduleTool实例
+     * @brief to obtain a ScheduleTool instance
      */
     static std::shared_ptr<ScheduleTool> GenerateScheduleTool();
 

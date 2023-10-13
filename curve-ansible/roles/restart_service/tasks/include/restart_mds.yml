@@ -17,7 +17,7 @@
 
 - name: Determine need restart or not
   block:
-    # 获取mds的版本
+    # Obtain the version of mds
     - name: get curve version
       vars:
         metric_port: "{{ mds_dummy_port }}"

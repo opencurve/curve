@@ -20,46 +20,46 @@
  * Author: wudemiao
  */
 
+#include "src/chunkserver/copyset_node.h"
+
+#include <brpc/server.h>
 #include <gtest/gtest.h>
 #include <unistd.h>
-#include <brpc/server.h>
 
-#include <memory>
 #include <cstdio>
-#include <vector>
-#include <string>
 #include <cstdlib>
+#include <memory>
+#include <string>
+#include <vector>
 
-#include "test/fs/mock_local_filesystem.h"
-#include "src/chunkserver/copyset_node_manager.h"
-#include "src/chunkserver/copyset_node.h"
-#include "test/chunkserver/fake_datastore.h"
-#include "test/chunkserver/mock_node.h"
-#include "src/chunkserver/conf_epoch_file.h"
 #include "proto/heartbeat.pb.h"
-#include "src/chunkserver/raftsnapshot/curve_snapshot_attachment.h"
-#include "test/chunkserver/mock_curve_filesystem_adaptor.h"
 #include "src/chunkserver/concurrent_apply/concurrent_apply.h"
+#include "src/chunkserver/conf_epoch_file.h"
+#include "src/chunkserver/copyset_node_manager.h"
+#include "src/chunkserver/raftsnapshot/curve_snapshot_attachment.h"
+#include "test/chunkserver/fake_datastore.h"
+#include "test/chunkserver/mock_curve_filesystem_adaptor.h"
+#include "test/chunkserver/mock_node.h"
+#include "test/fs/mock_local_filesystem.h"
 
 namespace curve {
 namespace chunkserver {
 
 using ::testing::_;
-using ::testing::Invoke;
-using ::testing::Return;
 using ::testing::AnyNumber;
-using ::testing::Matcher;
+using ::testing::AtLeast;
 using ::testing::DoAll;
+using ::testing::InSequence;
+using ::testing::Invoke;
+using ::testing::Matcher;
+using ::testing::Return;
+using ::testing::SaveArgPointee;
 using ::testing::SetArgPointee;
 using ::testing::SetArgReferee;
-using ::testing::InSequence;
-using ::testing::AtLeast;
-using ::testing::SaveArgPointee;
 
-using curve::fs::MockLocalFileSystem;
+using curve::chunkserver::concurrent::ConcurrentApplyOption;
 using curve::fs::FileSystemType;
 using curve::fs::MockLocalFileSystem;
-using curve::chunkserver::concurrent::ConcurrentApplyOption;
 
 const char copysetUri[] = "local://./copyset_node_test";
 const int port = 9044;
@@ -67,52 +67,36 @@ const int port = 9044;
 class FakeSnapshotReader : public braft::SnapshotReader {
  public:
     std::string get_path() {
-        /* 返回一个不存在的 path */
+        /*Returns a non-existent path*/
         return std::string("/1002093939/temp/238408034");
     }
-    void list_files(std::vector<std::string> *files) {
-        return;
-    }
-    int load_meta(braft::SnapshotMeta *meta) {
-        return 1;
-    }
-    std::string generate_uri_for_copy() {
-        return std::string("");
-    }
+    void list_files(std::vector<std::string>* files) { return; }
+    int load_meta(braft::SnapshotMeta* meta) { return 1; }
+    std::string generate_uri_for_copy() { return std::string(""); }
 };
 
 class FakeSnapshotWriter : public braft::SnapshotWriter {
  public:
     std::string get_path() {
-        /* 返回一个不存在的 path */
+        /*Returns a non-existent path*/
         return std::string(".");
     }
-    void list_files(std::vector<std::string> *files) {
-        return;
-    }
-    virtual int save_meta(const braft::SnapshotMeta &meta) {
+    void list_files(std::vector<std::string>* files) { return; }
+    virtual int save_meta(const braft::SnapshotMeta& meta) { return 0; }
+
+    virtual int add_file(const std::string& filename) { return 0; }
+
+    virtual int add_file(const std::string& filename,
+                         const ::google::protobuf::Message* file_meta) {
         return 0;
     }
 
-    virtual int add_file(const std::string &filename) {
-        return 0;
-    }
-
-    virtual int add_file(const std::string &filename,
-                         const ::google::protobuf::Message *file_meta) {
-        return 0;
-    }
-
-    virtual int remove_file(const std::string &filename) {
-        return 0;
-    }
+    virtual int remove_file(const std::string& filename) { return 0; }
 };
 
 class FakeClosure : public braft::Closure {
  public:
-    void Run() {
-        std::cerr << "FakeClosure run" << std::endl;
-    }
+    void Run() { std::cerr << "FakeClosure run" << std::endl; }
 };
 
 class CopysetNodeTest : public ::testing::Test {
@@ -140,24 +124,21 @@ class CopysetNodeTest : public ::testing::Test {
             LocalFsFactory::CreateFs(FileSystemType::EXT4, "");
         ASSERT_TRUE(nullptr != fs);
         defaultOptions_.localFileSystem = fs;
-        defaultOptions_.chunkFilePool =
-            std::make_shared<FilePool>(fs);
+        defaultOptions_.chunkFilePool = std::make_shared<FilePool>(fs);
         defaultOptions_.trash = std::make_shared<Trash>();
         defaultOptions_.enableOdsyncWhenOpenChunkFile = true;
     }
 
-    void TearDown() {
-        ::system("rm -rf copyset_node_test");
-    }
+    void TearDown() { ::system("rm -rf copyset_node_test"); }
 
  protected:
-    CopysetNodeOptions  defaultOptions_;
+    CopysetNodeOptions defaultOptions_;
     ConcurrentApplyModule concurrentModule_;
 };
 
 TEST_F(CopysetNodeTest, error_test) {
-    std::shared_ptr<LocalFileSystem>
-        fs(LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));    //NOLINT
+    std::shared_ptr<LocalFileSystem> fs(
+        LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));  // NOLINT
     std::string rmCmd("rm -f ");
     rmCmd += kCurveConfEpochFilename;
 
@@ -170,23 +151,24 @@ TEST_F(CopysetNodeTest, error_test) {
         files.push_back("test-1.txt");
         files.push_back("test-2.txt");
 
-        const char *json = "{\"logicPoolId\":123,\"copysetId\":1345,\"epoch\":0,\"checksum\":774340440}";  // NOLINT
+        const char* json =
+            "{\"logicPoolId\":123,\"copysetId\":1345,\"epoch\":0,\"checksum\":"
+            "774340440}";  // NOLINT
         std::string jsonStr(json);
 
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
         ASSERT_EQ(0, copysetNode.Init(defaultOptions_));
         FakeClosure closure;
         FakeSnapshotWriter writer;
-        std::shared_ptr<MockLocalFileSystem>
-            mockfs = std::make_shared<MockLocalFileSystem>();
-        std::unique_ptr<ConfEpochFile>
-            epochFile(new ConfEpochFile(mockfs));
-
+        std::shared_ptr<MockLocalFileSystem> mockfs =
+            std::make_shared<MockLocalFileSystem>();
+        std::unique_ptr<ConfEpochFile> epochFile(new ConfEpochFile(mockfs));
 
         copysetNode.SetLocalFileSystem(mockfs);
         copysetNode.SetConfEpochFile(std::move(epochFile));
         EXPECT_CALL(*mockfs, Open(_, _)).Times(1).WillOnce(Return(10));
-        EXPECT_CALL(*mockfs, Write(_, Matcher<const char*>(_), _, _)).Times(1)
+        EXPECT_CALL(*mockfs, Write(_, Matcher<const char*>(_), _, _))
+            .Times(1)
             .WillOnce(Return(jsonStr.size()));
         EXPECT_CALL(*mockfs, Fsync(_)).Times(1).WillOnce(Return(0));
         EXPECT_CALL(*mockfs, Close(_)).Times(1).WillOnce(Return(0));
@@ -210,10 +192,10 @@ TEST_F(CopysetNodeTest, error_test) {
         ASSERT_EQ(0, copysetNode.Init(defaultOptions_));
         FakeClosure closure;
         FakeSnapshotWriter writer;
-        std::shared_ptr<MockLocalFileSystem>
-            mockfs = std::make_shared<MockLocalFileSystem>();
-        std::unique_ptr<ConfEpochFile>
-            epochFile(new ConfEpochFile(mockfs));;
+        std::shared_ptr<MockLocalFileSystem> mockfs =
+            std::make_shared<MockLocalFileSystem>();
+        std::unique_ptr<ConfEpochFile> epochFile(new ConfEpochFile(mockfs));
+        ;
 
         copysetNode.SetLocalFileSystem(mockfs);
         copysetNode.SetConfEpochFile(std::move(epochFile));
@@ -232,26 +214,30 @@ TEST_F(CopysetNodeTest, error_test) {
         files.push_back("test-1.txt");
         files.push_back("test-2.txt");
 
-        const char *json = "{\"logicPoolId\":123,\"copysetId\":1345,\"epoch\":0,\"checksum\":774340440}";  // NOLINT
+        const char* json =
+            "{\"logicPoolId\":123,\"copysetId\":1345,\"epoch\":0,\"checksum\":"
+            "774340440}";  // NOLINT
         std::string jsonStr(json);
 
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
         ASSERT_EQ(0, copysetNode.Init(defaultOptions_));
         FakeClosure closure;
         FakeSnapshotWriter writer;
-        std::shared_ptr<MockLocalFileSystem>
-            mockfs = std::make_shared<MockLocalFileSystem>();
-        std::unique_ptr<ConfEpochFile>
-            epochFile(new ConfEpochFile(mockfs));;
+        std::shared_ptr<MockLocalFileSystem> mockfs =
+            std::make_shared<MockLocalFileSystem>();
+        std::unique_ptr<ConfEpochFile> epochFile(new ConfEpochFile(mockfs));
+        ;
 
         copysetNode.SetLocalFileSystem(mockfs);
         copysetNode.SetConfEpochFile(std::move(epochFile));
         EXPECT_CALL(*mockfs, Open(_, _)).Times(1).WillOnce(Return(10));
-        EXPECT_CALL(*mockfs, Write(_, Matcher<const char*>(_), _, _)).Times(1)
+        EXPECT_CALL(*mockfs, Write(_, Matcher<const char*>(_), _, _))
+            .Times(1)
             .WillOnce(Return(jsonStr.size()));
         EXPECT_CALL(*mockfs, Fsync(_)).Times(1).WillOnce(Return(0));
         EXPECT_CALL(*mockfs, Close(_)).Times(1).WillOnce(Return(0));
-        EXPECT_CALL(*mockfs, List(_, _)).Times(1)
+        EXPECT_CALL(*mockfs, List(_, _))
+            .Times(1)
             .WillOnce(DoAll(SetArgPointee<1>(files), Return(0)));
 
         copysetNode.on_snapshot_save(&writer, &closure);
@@ -267,7 +253,9 @@ TEST_F(CopysetNodeTest, error_test) {
         files.push_back("test-1.txt");
         files.push_back("test-2.txt");
 
-        const char *json = "{\"logicPoolId\":123,\"copysetId\":1345,\"epoch\":0,\"checksum\":774340440}";  // NOLINT
+        const char* json =
+            "{\"logicPoolId\":123,\"copysetId\":1345,\"epoch\":0,\"checksum\":"
+            "774340440}";  // NOLINT
         std::string jsonStr(json);
 
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
@@ -278,19 +266,21 @@ TEST_F(CopysetNodeTest, error_test) {
         ASSERT_EQ(0, copysetNode.Init(defaultOptions_));
         FakeClosure closure;
         FakeSnapshotWriter writer;
-        std::shared_ptr<MockLocalFileSystem>
-            mockfs = std::make_shared<MockLocalFileSystem>();
-        std::unique_ptr<ConfEpochFile>
-            epochFile(new ConfEpochFile(mockfs));;
+        std::shared_ptr<MockLocalFileSystem> mockfs =
+            std::make_shared<MockLocalFileSystem>();
+        std::unique_ptr<ConfEpochFile> epochFile(new ConfEpochFile(mockfs));
+        ;
 
         copysetNode.SetLocalFileSystem(mockfs);
         copysetNode.SetConfEpochFile(std::move(epochFile));
         EXPECT_CALL(*mockfs, Open(_, _)).Times(1).WillOnce(Return(10));
-        EXPECT_CALL(*mockfs, Write(_, Matcher<const char*>(_), _, _)).Times(1)
+        EXPECT_CALL(*mockfs, Write(_, Matcher<const char*>(_), _, _))
+            .Times(1)
             .WillOnce(Return(jsonStr.size()));
         EXPECT_CALL(*mockfs, Fsync(_)).Times(1).WillOnce(Return(0));
         EXPECT_CALL(*mockfs, Close(_)).Times(1).WillOnce(Return(0));
-        EXPECT_CALL(*mockfs, List(_, _)).Times(1)
+        EXPECT_CALL(*mockfs, List(_, _))
+            .Times(1)
             .WillOnce(DoAll(SetArgPointee<1>(files), Return(0)));
 
         copysetNode.on_snapshot_save(&writer, &closure);
@@ -328,10 +318,10 @@ TEST_F(CopysetNodeTest, error_test) {
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
         FakeClosure closure;
         FakeSnapshotReader reader;
-        std::shared_ptr<MockLocalFileSystem>
-            mockfs = std::make_shared<MockLocalFileSystem>();
-        std::unique_ptr<ConfEpochFile>
-            epochFile(new ConfEpochFile(mockfs));;
+        std::shared_ptr<MockLocalFileSystem> mockfs =
+            std::make_shared<MockLocalFileSystem>();
+        std::unique_ptr<ConfEpochFile> epochFile(new ConfEpochFile(mockfs));
+        ;
         copysetNode.SetLocalFileSystem(mockfs);
         copysetNode.SetConfEpochFile(std::move(epochFile));
         DataStoreOptions options;
@@ -355,10 +345,10 @@ TEST_F(CopysetNodeTest, error_test) {
         CopysetID copysetID = 1345;
         Configuration conf;
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
-        std::shared_ptr<MockLocalFileSystem>
-            mockfs = std::make_shared<MockLocalFileSystem>();
-        std::unique_ptr<ConfEpochFile>
-            epochFile(new ConfEpochFile(mockfs));;
+        std::shared_ptr<MockLocalFileSystem> mockfs =
+            std::make_shared<MockLocalFileSystem>();
+        std::unique_ptr<ConfEpochFile> epochFile(new ConfEpochFile(mockfs));
+        ;
         FakeClosure closure;
         FakeSnapshotReader reader;
         copysetNode.SetLocalFileSystem(mockfs);
@@ -387,10 +377,10 @@ TEST_F(CopysetNodeTest, error_test) {
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
         FakeClosure closure;
         FakeSnapshotReader reader;
-        std::shared_ptr<MockLocalFileSystem>
-            mockfs = std::make_shared<MockLocalFileSystem>();
-        std::unique_ptr<ConfEpochFile>
-            epochFile(new ConfEpochFile(mockfs));;
+        std::shared_ptr<MockLocalFileSystem> mockfs =
+            std::make_shared<MockLocalFileSystem>();
+        std::unique_ptr<ConfEpochFile> epochFile(new ConfEpochFile(mockfs));
+        ;
         copysetNode.SetLocalFileSystem(mockfs);
         copysetNode.SetConfEpochFile(std::move(epochFile));
 
@@ -409,19 +399,17 @@ TEST_F(CopysetNodeTest, error_test) {
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
         FakeClosure closure;
         FakeSnapshotReader reader;
-        std::shared_ptr<MockLocalFileSystem>
-            mockfs = std::make_shared<MockLocalFileSystem>();
-        std::unique_ptr<ConfEpochFile>
-            epochFile(new ConfEpochFile(mockfs));;
-        MockCurveFilesystemAdaptor* cfa =
-            new MockCurveFilesystemAdaptor();
+        std::shared_ptr<MockLocalFileSystem> mockfs =
+            std::make_shared<MockLocalFileSystem>();
+        std::unique_ptr<ConfEpochFile> epochFile(new ConfEpochFile(mockfs));
+        ;
+        MockCurveFilesystemAdaptor* cfa = new MockCurveFilesystemAdaptor();
         auto sfs = new scoped_refptr<braft::FileSystemAdaptor>(cfa);
         copysetNode.SetSnapshotFileSystem(sfs);
         copysetNode.SetLocalFileSystem(mockfs);
         copysetNode.SetConfEpochFile(std::move(epochFile));
         EXPECT_CALL(*mockfs, DirExists(_)).Times(1).WillOnce(Return(true));
-        EXPECT_CALL(*cfa,
-                    delete_file(_, _)).Times(1).WillOnce(Return(false));
+        EXPECT_CALL(*cfa, delete_file(_, _)).Times(1).WillOnce(Return(false));
 
         ASSERT_EQ(-1, copysetNode.on_snapshot_load(&reader));
     }
@@ -434,22 +422,19 @@ TEST_F(CopysetNodeTest, error_test) {
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
         FakeClosure closure;
         FakeSnapshotReader reader;
-        std::shared_ptr<MockLocalFileSystem>
-            mockfs = std::make_shared<MockLocalFileSystem>();
-        std::unique_ptr<ConfEpochFile>
-            epochFile(new ConfEpochFile(mockfs));;
+        std::shared_ptr<MockLocalFileSystem> mockfs =
+            std::make_shared<MockLocalFileSystem>();
+        std::unique_ptr<ConfEpochFile> epochFile(new ConfEpochFile(mockfs));
+        ;
         defaultOptions_.localFileSystem = mockfs;
-        MockCurveFilesystemAdaptor* cfa =
-            new MockCurveFilesystemAdaptor();
+        MockCurveFilesystemAdaptor* cfa = new MockCurveFilesystemAdaptor();
         auto sfs = new scoped_refptr<braft::FileSystemAdaptor>(cfa);
         copysetNode.SetSnapshotFileSystem(sfs);
         copysetNode.SetLocalFileSystem(mockfs);
         copysetNode.SetConfEpochFile(std::move(epochFile));
         EXPECT_CALL(*mockfs, DirExists(_)).Times(1).WillOnce(Return(true));
-        EXPECT_CALL(*cfa,
-                    delete_file(_, _)).Times(1).WillOnce(Return(true));
-        EXPECT_CALL(*cfa,
-                    rename(_, _)).Times(1).WillOnce(Return(false));
+        EXPECT_CALL(*cfa, delete_file(_, _)).Times(1).WillOnce(Return(true));
+        EXPECT_CALL(*cfa, rename(_, _)).Times(1).WillOnce(Return(false));
 
         ASSERT_EQ(-1, copysetNode.on_snapshot_load(&reader));
     }
@@ -466,27 +451,21 @@ TEST_F(CopysetNodeTest, error_test) {
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
         FakeClosure closure;
         FakeSnapshotReader reader;
-        std::shared_ptr<MockLocalFileSystem>
-            mockfs = std::make_shared<MockLocalFileSystem>();
-        std::unique_ptr<ConfEpochFile>
-            epochFile(new ConfEpochFile(mockfs));;
+        std::shared_ptr<MockLocalFileSystem> mockfs =
+            std::make_shared<MockLocalFileSystem>();
+        std::unique_ptr<ConfEpochFile> epochFile(new ConfEpochFile(mockfs));
+        ;
         defaultOptions_.localFileSystem = mockfs;
-        MockCurveFilesystemAdaptor* cfa =
-            new MockCurveFilesystemAdaptor();
+        MockCurveFilesystemAdaptor* cfa = new MockCurveFilesystemAdaptor();
         auto sfs = new scoped_refptr<braft::FileSystemAdaptor>(cfa);
         copysetNode.SetSnapshotFileSystem(sfs);
         copysetNode.SetLocalFileSystem(mockfs);
         copysetNode.SetConfEpochFile(std::move(epochFile));
-        EXPECT_CALL(*mockfs, DirExists(_)).Times(1)
-            .WillOnce(Return(true));
-        EXPECT_CALL(*cfa,
-                    delete_file(_, _)).Times(1).WillOnce(Return(true));
-        EXPECT_CALL(*cfa,
-                    rename(_, _)).Times(1).WillOnce(Return(true));
-        EXPECT_CALL(*mockfs, FileExists(_)).Times(1)
-            .WillOnce(Return(true));
-        EXPECT_CALL(*mockfs, Open(_, _)).Times(1)
-            .WillOnce(Return(-1));
+        EXPECT_CALL(*mockfs, DirExists(_)).Times(1).WillOnce(Return(true));
+        EXPECT_CALL(*cfa, delete_file(_, _)).Times(1).WillOnce(Return(true));
+        EXPECT_CALL(*cfa, rename(_, _)).Times(1).WillOnce(Return(true));
+        EXPECT_CALL(*mockfs, FileExists(_)).Times(1).WillOnce(Return(true));
+        EXPECT_CALL(*mockfs, Open(_, _)).Times(1).WillOnce(Return(-1));
 
         ASSERT_EQ(-1, copysetNode.on_snapshot_load(&reader));
         LOG(INFO) << "OK";
@@ -545,7 +524,7 @@ TEST_F(CopysetNodeTest, error_test) {
         copysetNode.Fini();
         ::system(rmCmd.c_str());
     }
-    /* load: logic pool id 错误 */
+    /* Load: logic pool id error */
     {
         LogicPoolID logicPoolID = 123;
         CopysetID copysetID = 1345;
@@ -554,18 +533,15 @@ TEST_F(CopysetNodeTest, error_test) {
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
         auto fs = LocalFsFactory::CreateFs(FileSystemType::EXT4, "");
         ConfEpochFile confEpochFile(fs);
-        ASSERT_EQ(0,
-                  confEpochFile.Save(kCurveConfEpochFilename,
-                                     logicPoolID + 1,
-                                     copysetID,
-                                     epoch));
+        ASSERT_EQ(0, confEpochFile.Save(kCurveConfEpochFilename,
+                                        logicPoolID + 1, copysetID, epoch));
         defaultOptions_.localFileSystem = fs;
         ASSERT_EQ(0, copysetNode.Init(defaultOptions_));
         ASSERT_NE(0, copysetNode.LoadConfEpoch(kCurveConfEpochFilename));
         copysetNode.Fini();
         ::system(rmCmd.c_str());
     }
-    /* load: copyset id 错误 */
+    /* Load: copyset id error */
     {
         LogicPoolID logicPoolID = 123;
         CopysetID copysetID = 1345;
@@ -575,11 +551,8 @@ TEST_F(CopysetNodeTest, error_test) {
         ASSERT_EQ(0, copysetNode.Init(defaultOptions_));
         auto fs = LocalFsFactory::CreateFs(FileSystemType::EXT4, "");
         ConfEpochFile confEpochFile(fs);
-        ASSERT_EQ(0,
-                  confEpochFile.Save(kCurveConfEpochFilename,
-                                     logicPoolID,
-                                     copysetID + 1,
-                                     epoch));
+        ASSERT_EQ(0, confEpochFile.Save(kCurveConfEpochFilename, logicPoolID,
+                                        copysetID + 1, epoch));
         defaultOptions_.localFileSystem = fs;
         ASSERT_EQ(0, copysetNode.Init(defaultOptions_));
         ASSERT_NE(0, copysetNode.LoadConfEpoch(kCurveConfEpochFilename));
@@ -589,8 +562,8 @@ TEST_F(CopysetNodeTest, error_test) {
 }
 
 TEST_F(CopysetNodeTest, get_conf_change) {
-    std::shared_ptr<LocalFileSystem>
-        fs(LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));    //NOLINT
+    std::shared_ptr<LocalFileSystem> fs(
+        LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));  // NOLINT
     std::string rmCmd("rm -f ");
     rmCmd += kCurveConfEpochFilename;
 
@@ -607,12 +580,11 @@ TEST_F(CopysetNodeTest, get_conf_change) {
     conf1.add_peer(peer1);
     conf2.add_peer(peer1);
 
-    // 当前没有在做配置变更
+    // There are currently no configuration changes in progress
     {
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
-        std::shared_ptr<MockNode> mockNode
-            = std::make_shared<MockNode>(logicPoolID,
-                                         copysetID);
+        std::shared_ptr<MockNode> mockNode =
+            std::make_shared<MockNode>(logicPoolID, copysetID);
         ASSERT_EQ(0, copysetNode.Init(defaultOptions_));
         copysetNode.SetCopysetNode(mockNode);
 
@@ -628,12 +600,11 @@ TEST_F(CopysetNodeTest, get_conf_change) {
         EXPECT_EQ(0, copysetNode.GetConfChange(&type, &oldConf, &alterPeer));
         EXPECT_EQ(ConfigChangeType::NONE, type);
     }
-    // 当前正在Add Peer
+    // Currently adding Peer
     {
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
-        std::shared_ptr<MockNode> mockNode
-            = std::make_shared<MockNode>(logicPoolID,
-                                         copysetID);
+        std::shared_ptr<MockNode> mockNode =
+            std::make_shared<MockNode>(logicPoolID, copysetID);
         ASSERT_EQ(0, copysetNode.Init(defaultOptions_));
         copysetNode.SetCopysetNode(mockNode);
 
@@ -643,14 +614,12 @@ TEST_F(CopysetNodeTest, get_conf_change) {
 
         copysetNode.on_leader_start(8);
 
-        EXPECT_CALL(*mockNode, add_peer(_, _))
-            .Times(1);
+        EXPECT_CALL(*mockNode, add_peer(_, _)).Times(1);
         EXPECT_CALL(*mockNode, remove_peer(_, _))
-            .WillOnce(
-                Invoke([](const PeerId& peer, braft::Closure* done) {
-                    done->status().set_error(-1,
-                                "another config change is ongoing");
-                }));
+            .WillOnce(Invoke([](const PeerId& peer, braft::Closure* done) {
+                done->status().set_error(-1,
+                                         "another config change is ongoing");
+            }));
         Peer addPeer;
         addPeer.set_address("127.0.0.1:3202:0");
         Peer removePeer;
@@ -666,12 +635,11 @@ TEST_F(CopysetNodeTest, get_conf_change) {
         EXPECT_EQ(ConfigChangeType::ADD_PEER, type);
         EXPECT_EQ(addPeer.address(), alterPeer.address());
     }
-    // 当前正在Remove Peer
+    // Currently removing Peer
     {
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
-        std::shared_ptr<MockNode> mockNode
-            = std::make_shared<MockNode>(logicPoolID,
-                                         copysetID);
+        std::shared_ptr<MockNode> mockNode =
+            std::make_shared<MockNode>(logicPoolID, copysetID);
         ASSERT_EQ(0, copysetNode.Init(defaultOptions_));
         copysetNode.SetCopysetNode(mockNode);
 
@@ -681,13 +649,12 @@ TEST_F(CopysetNodeTest, get_conf_change) {
 
         copysetNode.on_leader_start(8);
 
-        EXPECT_CALL(*mockNode, remove_peer(_, _))
-            .Times(1);
+        EXPECT_CALL(*mockNode, remove_peer(_, _)).Times(1);
         EXPECT_CALL(*mockNode, add_peer(_, _))
             .WillOnce(
                 Invoke([](const braft::PeerId& peer, braft::Closure* done) {
-                    done->status().set_error(-1,
-                            "another config change is ongoing");
+                    done->status().set_error(
+                        -1, "another config change is ongoing");
                 }));
         Peer addPeer1;
         addPeer1.set_address("127.0.0.1:3202:0");
@@ -704,12 +671,11 @@ TEST_F(CopysetNodeTest, get_conf_change) {
         EXPECT_EQ(ConfigChangeType::REMOVE_PEER, type);
         EXPECT_EQ(removePeer.address(), alterPeer.address());
     }
-    // 当前正在Transfer leader
+    // Currently transferring leader
     {
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
-        std::shared_ptr<MockNode> mockNode
-            = std::make_shared<MockNode>(logicPoolID,
-                                         copysetID);
+        std::shared_ptr<MockNode> mockNode =
+            std::make_shared<MockNode>(logicPoolID, copysetID);
         ASSERT_EQ(0, copysetNode.Init(defaultOptions_));
         copysetNode.SetCopysetNode(mockNode);
 
@@ -742,12 +708,11 @@ TEST_F(CopysetNodeTest, get_conf_change) {
         EXPECT_EQ(ConfigChangeType::TRANSFER_LEADER, type);
         EXPECT_EQ(transferee1.address(), alterPeer.address());
     }
-    // 当前正在Change Peer
+    // Currently changing Peer
     {
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
-        std::shared_ptr<MockNode> mockNode
-            = std::make_shared<MockNode>(logicPoolID,
-                                         copysetID);
+        std::shared_ptr<MockNode> mockNode =
+            std::make_shared<MockNode>(logicPoolID, copysetID);
         ASSERT_EQ(0, copysetNode.Init(defaultOptions_));
         copysetNode.SetCopysetNode(mockNode);
 
@@ -757,8 +722,7 @@ TEST_F(CopysetNodeTest, get_conf_change) {
 
         copysetNode.on_leader_start(8);
 
-        EXPECT_CALL(*mockNode, change_peers(_, _))
-            .Times(1);
+        EXPECT_CALL(*mockNode, change_peers(_, _)).Times(1);
 
         Peer addPeer1;
         addPeer1.set_address("127.0.0.1:3201:0");
@@ -778,7 +742,7 @@ TEST_F(CopysetNodeTest, get_conf_change) {
         EXPECT_EQ(ConfigChangeType::CHANGE_PEER, type);
         EXPECT_EQ(addPeer1.address(), alterPeer.address());
     }
-    // leader term小于0
+    // leader term is less than 0
     {
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
         ASSERT_EQ(0, copysetNode.Init(defaultOptions_));
@@ -792,8 +756,8 @@ TEST_F(CopysetNodeTest, get_conf_change) {
 }
 
 TEST_F(CopysetNodeTest, get_hash) {
-    std::shared_ptr<LocalFileSystem>
-        fs(LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));    //NOLINT
+    std::shared_ptr<LocalFileSystem> fs(
+        LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));  // NOLINT
     std::string rmCmd("rm -f ");
     rmCmd += kCurveConfEpochFilename;
 
@@ -816,21 +780,26 @@ TEST_F(CopysetNodeTest, get_hash) {
 
         ASSERT_EQ(0, copysetNode.Init(defaultOptions_));
 
-        // 生成多个有数据的文件
-        ::system("echo \"abcddddddddd333\" >"
-                 "copyset_node_test/8589934594/data/test-2.txt");
-        ::system("echo \"mmmmmmmm\" >"
-                 "copyset_node_test/8589934594/data/test-4.txt");
-        ::system("dd if=/dev/zero of="
-                 "copyset_node_test/8589934594/data/test-3.txt bs=512 count=15");  // NOLINT
-        ::system("echo \"eeeeeeeeeee\" > "
-                 "copyset_node_test/8589934594/data/test-5.txt");
+        // Generate multiple files with data
+        ::system(
+            "echo \"abcddddddddd333\" >"
+            "copyset_node_test/8589934594/data/test-2.txt");
+        ::system(
+            "echo \"mmmmmmmm\" >"
+            "copyset_node_test/8589934594/data/test-4.txt");
+        ::system(
+            "dd if=/dev/zero of="
+            "copyset_node_test/8589934594/data/test-3.txt bs=512 count=15");  // NOLINT
+        ::system(
+            "echo \"eeeeeeeeeee\" > "
+            "copyset_node_test/8589934594/data/test-5.txt");
 
         ::system("touch copyset_node_test/8589934594/data/test-1.txt");
-        ::system("echo \"wwwww\" > "
-                 "copyset_node_test/8589934594/data/test-1.txt");
+        ::system(
+            "echo \"wwwww\" > "
+            "copyset_node_test/8589934594/data/test-1.txt");
 
-        // 获取hash
+        // Get hash
         ASSERT_EQ(0, copysetNode.GetHash(&hash));
         ASSERT_STREQ(hashValue.c_str(), hash.c_str());
         ::system("rm -fr copyset_node_test/8589934594");
@@ -838,26 +807,32 @@ TEST_F(CopysetNodeTest, get_hash) {
 
     {
         std::string hash;
-        // 使用不同的copyset id，让目录不一样
+        // Using different copyset IDs to make the directory different
         CopysetNode copysetNode(logicPoolID, copysetID + 1, conf);
 
         ASSERT_EQ(0, copysetNode.Init(defaultOptions_));
 
-        // 生成多个有数据的文件，并且交换生成文件的顺序
+        // Generate multiple files with data and exchange the order of generated
+        // files
         ::system("touch copyset_node_test/8589934595/data/test-1.txt");
-        ::system("echo \"wwwww\" > "
-                 "copyset_node_test/8589934595/data/test-1.txt");
+        ::system(
+            "echo \"wwwww\" > "
+            "copyset_node_test/8589934595/data/test-1.txt");
 
-        ::system("echo \"mmmmmmmm\" > "
-                 "copyset_node_test/8589934595/data/test-4.txt");
-        ::system("echo \"eeeeeeeeeee\" > "
-                 "copyset_node_test/8589934595/data/test-5.txt");
-        ::system("dd if=/dev/zero of="
-                 "copyset_node_test/8589934595/data/test-3.txt bs=512 count=15");  // NOLINT
-        ::system("echo \"abcddddddddd333\" > "
-                 "copyset_node_test/8589934595/data/test-2.txt");
+        ::system(
+            "echo \"mmmmmmmm\" > "
+            "copyset_node_test/8589934595/data/test-4.txt");
+        ::system(
+            "echo \"eeeeeeeeeee\" > "
+            "copyset_node_test/8589934595/data/test-5.txt");
+        ::system(
+            "dd if=/dev/zero of="
+            "copyset_node_test/8589934595/data/test-3.txt bs=512 count=15");  // NOLINT
+        ::system(
+            "echo \"abcddddddddd333\" > "
+            "copyset_node_test/8589934595/data/test-2.txt");
 
-        // 获取hash
+        // Get hash
         ASSERT_EQ(0, copysetNode.GetHash(&hash));
         ASSERT_STREQ(hashValue.c_str(), hash.c_str());
         ::system("rm -fr copyset_node_test/8589934595");
@@ -868,18 +843,17 @@ TEST_F(CopysetNodeTest, get_hash) {
         std::string hash;
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
 
-        std::shared_ptr<MockLocalFileSystem>
-            mockfs = std::make_shared<MockLocalFileSystem>();
+        std::shared_ptr<MockLocalFileSystem> mockfs =
+            std::make_shared<MockLocalFileSystem>();
         copysetNode.SetLocalFileSystem(mockfs);
 
         std::vector<std::string> files;
         files.push_back("test-1.txt");
 
-
-        EXPECT_CALL(*mockfs, List(_, _)).Times(1)
+        EXPECT_CALL(*mockfs, List(_, _))
+            .Times(1)
             .WillOnce(DoAll(SetArgPointee<1>(files), Return(0)));
-        EXPECT_CALL(*mockfs, Open(_, _)).Times(1)
-            .WillOnce(Return(-1));
+        EXPECT_CALL(*mockfs, Open(_, _)).Times(1).WillOnce(Return(-1));
 
         ASSERT_EQ(-1, copysetNode.GetHash(&hash));
     }
@@ -888,13 +862,14 @@ TEST_F(CopysetNodeTest, get_hash) {
     {
         std::string hash;
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
-        std::shared_ptr<MockLocalFileSystem>
-            mockfs = std::make_shared<MockLocalFileSystem>();
+        std::shared_ptr<MockLocalFileSystem> mockfs =
+            std::make_shared<MockLocalFileSystem>();
         copysetNode.SetLocalFileSystem(mockfs);
 
         std::vector<std::string> files;
 
-        EXPECT_CALL(*mockfs, List(_, _)).Times(1)
+        EXPECT_CALL(*mockfs, List(_, _))
+            .Times(1)
             .WillOnce(DoAll(SetArgPointee<1>(files), Return(0)));
 
         ASSERT_EQ(0, copysetNode.GetHash(&hash));
@@ -905,18 +880,17 @@ TEST_F(CopysetNodeTest, get_hash) {
     {
         std::string hash;
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
-        std::shared_ptr<MockLocalFileSystem>
-            mockfs = std::make_shared<MockLocalFileSystem>();
+        std::shared_ptr<MockLocalFileSystem> mockfs =
+            std::make_shared<MockLocalFileSystem>();
         copysetNode.SetLocalFileSystem(mockfs);
 
         std::vector<std::string> files;
         files.push_back("test-1.txt");
 
-
-        EXPECT_CALL(*mockfs, List(_, _)).Times(1)
+        EXPECT_CALL(*mockfs, List(_, _))
+            .Times(1)
             .WillOnce(DoAll(SetArgPointee<1>(files), Return(0)));
-        EXPECT_CALL(*mockfs, Open(_, _)).Times(1)
-            .WillOnce(Return(-1));
+        EXPECT_CALL(*mockfs, Open(_, _)).Times(1).WillOnce(Return(-1));
 
         ASSERT_EQ(-1, copysetNode.GetHash(&hash));
     }
@@ -925,20 +899,18 @@ TEST_F(CopysetNodeTest, get_hash) {
     {
         std::string hash;
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
-        std::shared_ptr<MockLocalFileSystem>
-            mockfs = std::make_shared<MockLocalFileSystem>();
+        std::shared_ptr<MockLocalFileSystem> mockfs =
+            std::make_shared<MockLocalFileSystem>();
         copysetNode.SetLocalFileSystem(mockfs);
 
         std::vector<std::string> files;
         files.push_back("test-1.txt");
 
-
-        EXPECT_CALL(*mockfs, List(_, _)).Times(1)
+        EXPECT_CALL(*mockfs, List(_, _))
+            .Times(1)
             .WillOnce(DoAll(SetArgPointee<1>(files), Return(0)));
-        EXPECT_CALL(*mockfs, Open(_, _)).Times(1)
-            .WillOnce(Return(3));
-        EXPECT_CALL(*mockfs, Fstat(_, _)).Times(1)
-            .WillOnce(Return(-1));
+        EXPECT_CALL(*mockfs, Open(_, _)).Times(1).WillOnce(Return(3));
+        EXPECT_CALL(*mockfs, Fstat(_, _)).Times(1).WillOnce(Return(-1));
 
         ASSERT_EQ(-1, copysetNode.GetHash(&hash));
     }
@@ -949,49 +921,49 @@ TEST_F(CopysetNodeTest, get_hash) {
         struct stat fileInfo;
         fileInfo.st_size = 1024;
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
-        std::shared_ptr<MockLocalFileSystem>
-            mockfs = std::make_shared<MockLocalFileSystem>();
+        std::shared_ptr<MockLocalFileSystem> mockfs =
+            std::make_shared<MockLocalFileSystem>();
         copysetNode.SetLocalFileSystem(mockfs);
 
         std::vector<std::string> files;
         files.push_back("test-1.txt");
 
-
-        EXPECT_CALL(*mockfs, List(_, _)).Times(1)
+        EXPECT_CALL(*mockfs, List(_, _))
+            .Times(1)
             .WillOnce(DoAll(SetArgPointee<1>(files), Return(0)));
-        EXPECT_CALL(*mockfs, Open(_, _)).Times(1)
-            .WillOnce(Return(3));
-        EXPECT_CALL(*mockfs, Fstat(_, _)).Times(1)
+        EXPECT_CALL(*mockfs, Open(_, _)).Times(1).WillOnce(Return(3));
+        EXPECT_CALL(*mockfs, Fstat(_, _))
+            .Times(1)
             .WillOnce(DoAll(SetArgPointee<1>(fileInfo), Return(0)));
-        EXPECT_CALL(*mockfs, Read(_, _, _, _)).Times(1)
-            .WillOnce(Return(-1));
+        EXPECT_CALL(*mockfs, Read(_, _, _, _)).Times(1).WillOnce(Return(-1));
 
         ASSERT_EQ(-1, copysetNode.GetHash(&hash));
     }
 
     // List success,  open success, fstat success, read success
     {
-        char *buff = new (std::nothrow) char[1024];
+        char* buff = new (std::nothrow) char[1024];
         ::memset(buff, 'a', 1024);
         std::string hash;
         struct stat fileInfo;
         fileInfo.st_size = 1024;
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
-        std::shared_ptr<MockLocalFileSystem>
-            mockfs = std::make_shared<MockLocalFileSystem>();
+        std::shared_ptr<MockLocalFileSystem> mockfs =
+            std::make_shared<MockLocalFileSystem>();
         copysetNode.SetLocalFileSystem(mockfs);
 
         std::vector<std::string> files;
         files.push_back("test-1.txt");
 
-
-        EXPECT_CALL(*mockfs, List(_, _)).Times(1)
+        EXPECT_CALL(*mockfs, List(_, _))
+            .Times(1)
             .WillOnce(DoAll(SetArgPointee<1>(files), Return(0)));
-        EXPECT_CALL(*mockfs, Open(_, _)).Times(1)
-            .WillOnce(Return(3));
-        EXPECT_CALL(*mockfs, Fstat(_, _)).Times(1)
+        EXPECT_CALL(*mockfs, Open(_, _)).Times(1).WillOnce(Return(3));
+        EXPECT_CALL(*mockfs, Fstat(_, _))
+            .Times(1)
             .WillOnce(DoAll(SetArgPointee<1>(fileInfo), Return(0)));
-        EXPECT_CALL(*mockfs, Read(_, _, _, _)).Times(1)
+        EXPECT_CALL(*mockfs, Read(_, _, _, _))
+            .Times(1)
             .WillOnce(DoAll(SetArgPointee<1>(*buff), Return(1024)));
 
         ASSERT_EQ(0, copysetNode.GetHash(&hash));
@@ -1002,40 +974,38 @@ TEST_F(CopysetNodeTest, get_leader_status) {
     LogicPoolID logicPoolID = 1;
     CopysetID copysetID = 1;
     Configuration conf;
-    std::shared_ptr<MockNode> mockNode
-            = std::make_shared<MockNode>(logicPoolID,
-                                         copysetID);
+    std::shared_ptr<MockNode> mockNode =
+        std::make_shared<MockNode>(logicPoolID, copysetID);
     CopysetNode copysetNode(logicPoolID, copysetID, conf);
     copysetNode.SetCopysetNode(mockNode);
 
-    // 当前peer不是leader，且当前无leader
+    // The current peer is not a leader, and there is currently no leader
     {
         NodeStatus status;
         EXPECT_CALL(*mockNode, get_status(_))
-        .WillOnce(SetArgPointee<0>(status));
+            .WillOnce(SetArgPointee<0>(status));
         NodeStatus leaderStatus;
         ASSERT_FALSE(copysetNode.GetLeaderStatus(&leaderStatus));
     }
 
-    // 当前peer为leader
+    // The current peer is the leader
     {
         NodeStatus status;
         status.leader_id.parse("127.0.0.1:3200:0");
         status.peer_id = status.leader_id;
         status.committed_index = 6666;
         EXPECT_CALL(*mockNode, get_status(_))
-        .WillOnce(SetArgPointee<0>(status));
+            .WillOnce(SetArgPointee<0>(status));
         NodeStatus leaderStatus;
         ASSERT_TRUE(copysetNode.GetLeaderStatus(&leaderStatus));
-        ASSERT_EQ(status.committed_index,
-                  leaderStatus.committed_index);
+        ASSERT_EQ(status.committed_index, leaderStatus.committed_index);
     }
 
-    // 存在leader，但不是当前peer
+    // There is a leader, but it is not the current peer
     {
-        // 模拟启动chunkserver
-        CopysetNodeManager* copysetNodeManager
-            = &CopysetNodeManager::GetInstance();
+        // Simulate starting chunkserver
+        CopysetNodeManager* copysetNodeManager =
+            &CopysetNodeManager::GetInstance();
         ASSERT_EQ(0, copysetNodeManager->Init(defaultOptions_));
         ASSERT_EQ(0, copysetNodeManager->Run());
         PeerId leader_peer("127.0.0.1:9044:0");
@@ -1044,17 +1014,15 @@ TEST_F(CopysetNodeTest, get_leader_status) {
         if (server.Start(port, NULL) != 0) {
             LOG(FATAL) << "Fail to start Server";
         }
-        // 构造leader copyset
+        // Construct a leader copyset
         ASSERT_TRUE(copysetNodeManager->CreateCopysetNode(logicPoolID,
-                                                          copysetID,
-                                                          conf));
-        auto leaderNode = copysetNodeManager->GetCopysetNode(logicPoolID,
-                                                             copysetID);
+                                                          copysetID, conf));
+        auto leaderNode =
+            copysetNodeManager->GetCopysetNode(logicPoolID, copysetID);
         ASSERT_TRUE(nullptr != leaderNode);
-        // 设置预期值
-        std::shared_ptr<MockNode> mockLeader
-            = std::make_shared<MockNode>(logicPoolID,
-                                         copysetID);
+        // Set expected values
+        std::shared_ptr<MockNode> mockLeader =
+            std::make_shared<MockNode>(logicPoolID, copysetID);
         leaderNode->SetCopysetNode(mockLeader);
         NodeStatus mockLeaderStatus;
         mockLeaderStatus.leader_id = leader_peer;
@@ -1062,16 +1030,17 @@ TEST_F(CopysetNodeTest, get_leader_status) {
         mockLeaderStatus.committed_index = 10000;
         mockLeaderStatus.known_applied_index = 6789;
         EXPECT_CALL(*mockLeader, get_status(_))
-        .WillRepeatedly(SetArgPointee<0>(mockLeaderStatus));
+            .WillRepeatedly(SetArgPointee<0>(mockLeaderStatus));
 
-        // 测试通过follower的node获取leader的committed index
+        // Test obtaining the committed index of the leader through the node of
+        // the follower
         NodeStatus followerStatus;
         followerStatus.leader_id = leader_peer;
         followerStatus.peer_id.parse("127.0.0.1:3201:0");
         followerStatus.committed_index = 3456;
         followerStatus.known_applied_index = 3456;
         EXPECT_CALL(*mockNode, get_status(_))
-        .WillOnce(SetArgPointee<0>(followerStatus));
+            .WillOnce(SetArgPointee<0>(followerStatus));
 
         NodeStatus leaderStatus;
         ASSERT_TRUE(copysetNode.GetLeaderStatus(&leaderStatus));
@@ -1086,9 +1055,8 @@ TEST_F(CopysetNodeTest, is_lease_leader) {
     LogicPoolID logicPoolID = 1;
     CopysetID copysetID = 1;
     Configuration conf;
-    std::shared_ptr<MockNode> mockNode
-            = std::make_shared<MockNode>(logicPoolID,
-                                         copysetID);
+    std::shared_ptr<MockNode> mockNode =
+        std::make_shared<MockNode>(logicPoolID, copysetID);
     CopysetNode copysetNode(logicPoolID, copysetID, conf);
     copysetNode.Init(defaultOptions_);
     copysetNode.SetCopysetNode(mockNode);
@@ -1099,13 +1067,10 @@ TEST_F(CopysetNodeTest, is_lease_leader) {
     // not leader now
     {
         std::vector<braft::LeaseState> states = {
-            braft::LEASE_DISABLED,
-            braft::LEASE_VALID,
-            braft::LEASE_NOT_READY,
-            braft::LEASE_EXPIRED
-        };
+            braft::LEASE_DISABLED, braft::LEASE_VALID, braft::LEASE_NOT_READY,
+            braft::LEASE_EXPIRED};
         braft::LeaderLeaseStatus status;
-        for (auto &state : states) {
+        for (auto& state : states) {
             status.state = state;
             ASSERT_FALSE(copysetNode.IsLeaseLeader(status));
         }

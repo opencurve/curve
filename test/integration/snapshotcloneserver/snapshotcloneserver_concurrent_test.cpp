@@ -20,24 +20,24 @@
  * Author: xuchaojie
  */
 
-#include <gtest/gtest.h>
-#include <glog/logging.h>
 #include <gflags/gflags.h>
+#include <glog/logging.h>
+#include <gtest/gtest.h>
 #include <json/json.h>
 
-#include "test/integration/cluster_common/cluster.h"
 #include "src/client/libcurve_file.h"
-#include "src/snapshotcloneserver/snapshot/snapshot_service_manager.h"
-#include "src/snapshotcloneserver/clone/clone_service_manager.h"
-#include "test/integration/snapshotcloneserver/test_snapshotcloneserver_helpler.h"
-#include "src/common/snapshotclone/snapshotclone_define.h"
-#include "src/snapshotcloneserver/common/snapshotclone_meta_store.h"
 #include "src/client/source_reader.h"
+#include "src/common/snapshotclone/snapshotclone_define.h"
+#include "src/snapshotcloneserver/clone/clone_service_manager.h"
+#include "src/snapshotcloneserver/common/snapshotclone_meta_store.h"
+#include "src/snapshotcloneserver/snapshot/snapshot_service_manager.h"
+#include "test/integration/cluster_common/cluster.h"
+#include "test/integration/snapshotcloneserver/test_snapshotcloneserver_helpler.h"
 
 using curve::CurveCluster;
 using curve::client::FileClient;
-using curve::client::UserInfo_t;
 using curve::client::SourceReader;
+using curve::client::UserInfo_t;
 
 const std::string kTestPrefix = "ConSCSTest";  // NOLINT
 
@@ -96,11 +96,11 @@ const std::vector<std::string> mdsConfigOptions{
 };
 
 const std::vector<std::string> mdsConf1{
-    { "--graceful_quit_on_sigterm" },
+    {"--graceful_quit_on_sigterm"},
     std::string("--confPath=") + kMdsConfigPath,
     std::string("--log_dir=") + kLogPath,
     std::string("--segmentSize=") + std::to_string(segmentSize),
-    { "--stderrthreshold=3" },
+    {"--stderrthreshold=3"},
 };
 
 const std::vector<std::string> chunkserverConfigOptions{
@@ -124,66 +124,63 @@ const std::vector<std::string> snapClientConfigOptions{
 const std::vector<std::string> s3ConfigOptions{};
 
 const std::vector<std::string> chunkserverConf1{
-    { "--graceful_quit_on_sigterm" },
-    { "-chunkServerStoreUri=local://./" + kTestPrefix + "1/" },
-    { "-chunkServerMetaUri=local://./" + kTestPrefix +
-      "1/chunkserver.dat" },  // NOLINT
-    { "-copySetUri=local://./" + kTestPrefix + "1/copysets" },
-    { "-raftSnapshotUri=curve://./" + kTestPrefix + "1/copysets" },
-    { "-recycleUri=local://./" + kTestPrefix + "1/recycler" },
-    { "-chunkFilePoolDir=./" + kTestPrefix + "1/chunkfilepool/" },
-    { "-chunkFilePoolMetaPath=./" + kTestPrefix +
-      "1/chunkfilepool.meta" },  // NOLINT
+    {"--graceful_quit_on_sigterm"},
+    {"-chunkServerStoreUri=local://./" + kTestPrefix + "1/"},
+    {"-chunkServerMetaUri=local://./" + kTestPrefix +
+     "1/chunkserver.dat"},  // NOLINT
+    {"-copySetUri=local://./" + kTestPrefix + "1/copysets"},
+    {"-raftSnapshotUri=curve://./" + kTestPrefix + "1/copysets"},
+    {"-recycleUri=local://./" + kTestPrefix + "1/recycler"},
+    {"-chunkFilePoolDir=./" + kTestPrefix + "1/chunkfilepool/"},
+    {"-chunkFilePoolMetaPath=./" + kTestPrefix +
+     "1/chunkfilepool.meta"},  // NOLINT
     std::string("-conf=") + kCSConfigPath,
-    { "-raft_sync_segments=true" },
+    {"-raft_sync_segments=true"},
     std::string("--log_dir=") + kLogPath,
-    { "--stderrthreshold=3" },
-    { "-raftLogUri=curve://./" + kTestPrefix + "1/copysets" },
-    { "-walFilePoolDir=./" + kTestPrefix + "1/walfilepool/" },
-    { "-walFilePoolMetaPath=./" + kTestPrefix +
-        "1/walfilepool.meta" },
+    {"--stderrthreshold=3"},
+    {"-raftLogUri=curve://./" + kTestPrefix + "1/copysets"},
+    {"-walFilePoolDir=./" + kTestPrefix + "1/walfilepool/"},
+    {"-walFilePoolMetaPath=./" + kTestPrefix + "1/walfilepool.meta"},
 };
 
 const std::vector<std::string> chunkserverConf2{
-    { "--graceful_quit_on_sigterm" },
-    { "-chunkServerStoreUri=local://./" + kTestPrefix + "2/" },
-    { "-chunkServerMetaUri=local://./" + kTestPrefix +
-      "2/chunkserver.dat" },  // NOLINT
-    { "-copySetUri=local://./" + kTestPrefix + "2/copysets" },
-    { "-raftSnapshotUri=curve://./" + kTestPrefix + "2/copysets" },
-    { "-recycleUri=local://./" + kTestPrefix + "2/recycler" },
-    { "-chunkFilePoolDir=./" + kTestPrefix + "2/chunkfilepool/" },
-    { "-chunkFilePoolMetaPath=./" + kTestPrefix +
-      "2/chunkfilepool.meta" },  // NOLINT
+    {"--graceful_quit_on_sigterm"},
+    {"-chunkServerStoreUri=local://./" + kTestPrefix + "2/"},
+    {"-chunkServerMetaUri=local://./" + kTestPrefix +
+     "2/chunkserver.dat"},  // NOLINT
+    {"-copySetUri=local://./" + kTestPrefix + "2/copysets"},
+    {"-raftSnapshotUri=curve://./" + kTestPrefix + "2/copysets"},
+    {"-recycleUri=local://./" + kTestPrefix + "2/recycler"},
+    {"-chunkFilePoolDir=./" + kTestPrefix + "2/chunkfilepool/"},
+    {"-chunkFilePoolMetaPath=./" + kTestPrefix +
+     "2/chunkfilepool.meta"},  // NOLINT
     std::string("-conf=") + kCSConfigPath,
-    { "-raft_sync_segments=true" },
+    {"-raft_sync_segments=true"},
     std::string("--log_dir=") + kLogPath,
-    { "--stderrthreshold=3" },
-    { "-raftLogUri=curve://./" + kTestPrefix + "2/copysets" },
-    { "-walFilePoolDir=./" + kTestPrefix + "2/walfilepool/" },
-    { "-walFilePoolMetaPath=./" + kTestPrefix +
-        "2/walfilepool.meta" },
+    {"--stderrthreshold=3"},
+    {"-raftLogUri=curve://./" + kTestPrefix + "2/copysets"},
+    {"-walFilePoolDir=./" + kTestPrefix + "2/walfilepool/"},
+    {"-walFilePoolMetaPath=./" + kTestPrefix + "2/walfilepool.meta"},
 };
 
 const std::vector<std::string> chunkserverConf3{
-    { "--graceful_quit_on_sigterm" },
-    { "-chunkServerStoreUri=local://./" + kTestPrefix + "3/" },
-    { "-chunkServerMetaUri=local://./" + kTestPrefix +
-      "3/chunkserver.dat" },  // NOLINT
-    { "-copySetUri=local://./" + kTestPrefix + "3/copysets" },
-    { "-raftSnapshotUri=curve://./" + kTestPrefix + "3/copysets" },
-    { "-recycleUri=local://./" + kTestPrefix + "3/recycler" },
-    { "-chunkFilePoolDir=./" + kTestPrefix + "3/chunkfilepool/" },
-    { "-chunkFilePoolMetaPath=./" + kTestPrefix +
-      "3/chunkfilepool.meta" },  // NOLINT
+    {"--graceful_quit_on_sigterm"},
+    {"-chunkServerStoreUri=local://./" + kTestPrefix + "3/"},
+    {"-chunkServerMetaUri=local://./" + kTestPrefix +
+     "3/chunkserver.dat"},  // NOLINT
+    {"-copySetUri=local://./" + kTestPrefix + "3/copysets"},
+    {"-raftSnapshotUri=curve://./" + kTestPrefix + "3/copysets"},
+    {"-recycleUri=local://./" + kTestPrefix + "3/recycler"},
+    {"-chunkFilePoolDir=./" + kTestPrefix + "3/chunkfilepool/"},
+    {"-chunkFilePoolMetaPath=./" + kTestPrefix +
+     "3/chunkfilepool.meta"},  // NOLINT
     std::string("-conf=") + kCSConfigPath,
-    { "-raft_sync_segments=true" },
+    {"-raft_sync_segments=true"},
     std::string("--log_dir=") + kLogPath,
-    { "--stderrthreshold=3" },
-    { "-raftLogUri=curve://./" + kTestPrefix + "3/copysets" },
-    { "-walFilePoolDir=./" + kTestPrefix + "3/walfilepool/" },
-    { "-walFilePoolMetaPath=./" + kTestPrefix +
-        "3/walfilepool.meta" },
+    {"--stderrthreshold=3"},
+    {"-raftLogUri=curve://./" + kTestPrefix + "3/copysets"},
+    {"-walFilePoolDir=./" + kTestPrefix + "3/walfilepool/"},
+    {"-walFilePoolMetaPath=./" + kTestPrefix + "3/walfilepool.meta"},
 };
 
 const std::vector<std::string> snapshotcloneserverConfigOptions{
@@ -195,7 +192,8 @@ const std::vector<std::string> snapshotcloneserverConfigOptions{
     std::string("server.clonePoolThreadNum=8"),
     std::string("server.createCloneChunkConcurrency=2"),
     std::string("server.recoverChunkConcurrency=2"),
-    // 最大快照数修改为3，以测试快照达到上限的用例
+    // Modify the maximum number of snapshots to 3 to test cases where snapshots
+    // reach the upper limit
     std::string("server.maxSnapshotLimit=3"),
     std::string("client.methodRetryTimeSec=1"),
     std::string("server.clientAsyncMethodRetryTimeSec=1"),
@@ -210,7 +208,7 @@ const std::vector<std::string> snapshotcloneserverConfigOptions{
 const std::vector<std::string> snapshotcloneConf{
     std::string("--conf=") + kSCSConfigPath,
     std::string("--log_dir=") + kLogPath,
-    { "--stderrthreshold=3" },
+    {"--stderrthreshold=3"},
 };
 
 const std::vector<std::string> clientConfigOptions{
@@ -221,7 +219,8 @@ const std::vector<std::string> clientConfigOptions{
 
 const char* testFile1_ = "/concurrentItUser1/file1";
 const char* testFile2_ =
-    "/concurrentItUser1/file2";  // 将在TestImage2Clone2Success中删除  //NOLINT
+    "/concurrentItUser1/file2";  // Will be removed from
+                                 // TestImage2Clone2Success//NOLINT
 const char* testFile3_ = "/concurrentItUser2/file3";
 const char* testFile4_ = "/concurrentItUser1/file3";
 const char* testUser1_ = "concurrentItUser1";
@@ -239,16 +238,16 @@ class SnapshotCloneServerTest : public ::testing::Test {
         cluster_ = new CurveCluster();
         ASSERT_NE(nullptr, cluster_);
 
-        // 初始化db
+        // Initialize db
         system(std::string("rm -rf " + kTestPrefix + ".etcd").c_str());
         system(std::string("rm -rf " + kTestPrefix + "1").c_str());
         system(std::string("rm -rf " + kTestPrefix + "2").c_str());
         system(std::string("rm -rf " + kTestPrefix + "3").c_str());
 
-        // 启动etcd
+        // Start etcd
         pid_t pid = cluster_->StartSingleEtcd(
             1, kEtcdClientIpPort, kEtcdPeerIpPort,
-            std::vector<std::string>{ "--name=" + kTestPrefix });
+            std::vector<std::string>{"--name=" + kTestPrefix});
         LOG(INFO) << "etcd 1 started on " << kEtcdClientIpPort
                   << "::" << kEtcdPeerIpPort << ", pid = " << pid;
         ASSERT_GT(pid, 0);
@@ -256,13 +255,13 @@ class SnapshotCloneServerTest : public ::testing::Test {
         cluster_->PrepareConfig<MDSConfigGenerator>(kMdsConfigPath,
                                                     mdsConfigOptions);
 
-        // 启动一个mds
+        // Start an mds
         pid = cluster_->StartSingleMDS(1, kMdsIpPort, kMdsDummyPort, mdsConf1,
                                        true);
         LOG(INFO) << "mds 1 started on " << kMdsIpPort << ", pid = " << pid;
         ASSERT_GT(pid, 0);
 
-        // 创建物理池
+        // Creating a physical pool
         ASSERT_EQ(0, cluster_->PreparePhysicalPool(
                          1,
                          "./test/integration/snapshotcloneserver/"
@@ -271,21 +270,18 @@ class SnapshotCloneServerTest : public ::testing::Test {
         // format chunkfilepool and walfilepool
         std::vector<std::thread> threadpool(3);
 
-        threadpool[0] =
-            std::thread(&CurveCluster::FormatFilePool, cluster_,
-                        "./" + kTestPrefix + "1/chunkfilepool/",
-                        "./" + kTestPrefix + "1/chunkfilepool.meta",
-                        "./" + kTestPrefix + "1/chunkfilepool/", 1);
-        threadpool[1] =
-            std::thread(&CurveCluster::FormatFilePool, cluster_,
-                        "./" + kTestPrefix + "2/chunkfilepool/",
-                        "./" + kTestPrefix + "2/chunkfilepool.meta",
-                        "./" + kTestPrefix + "2/chunkfilepool/", 1);
-        threadpool[2] =
-            std::thread(&CurveCluster::FormatFilePool, cluster_,
-                        "./" + kTestPrefix + "3/chunkfilepool/",
-                        "./" + kTestPrefix + "3/chunkfilepool.meta",
-                        "./" + kTestPrefix + "3/chunkfilepool/", 1);
+        threadpool[0] = std::thread(&CurveCluster::FormatFilePool, cluster_,
+                                    "./" + kTestPrefix + "1/chunkfilepool/",
+                                    "./" + kTestPrefix + "1/chunkfilepool.meta",
+                                    "./" + kTestPrefix + "1/chunkfilepool/", 1);
+        threadpool[1] = std::thread(&CurveCluster::FormatFilePool, cluster_,
+                                    "./" + kTestPrefix + "2/chunkfilepool/",
+                                    "./" + kTestPrefix + "2/chunkfilepool.meta",
+                                    "./" + kTestPrefix + "2/chunkfilepool/", 1);
+        threadpool[2] = std::thread(&CurveCluster::FormatFilePool, cluster_,
+                                    "./" + kTestPrefix + "3/chunkfilepool/",
+                                    "./" + kTestPrefix + "3/chunkfilepool.meta",
+                                    "./" + kTestPrefix + "3/chunkfilepool/", 1);
         for (int i = 0; i < 3; i++) {
             threadpool[i].join();
         }
@@ -299,7 +295,7 @@ class SnapshotCloneServerTest : public ::testing::Test {
         cluster_->PrepareConfig<CSConfigGenerator>(kCSConfigPath,
                                                    chunkserverConfigOptions);
 
-        // 创建chunkserver
+        // Create chunkserver
         pid = cluster_->StartSingleChunkServer(1, kChunkServerIpPort1,
                                                chunkserverConf1);
         LOG(INFO) << "chunkserver 1 started on " << kChunkServerIpPort1
@@ -318,7 +314,8 @@ class SnapshotCloneServerTest : public ::testing::Test {
 
         std::this_thread::sleep_for(std::chrono::seconds(5));
 
-        // 创建逻辑池, 并睡眠一段时间让底层copyset先选主
+        // Create a logical pool and sleep for a period of time to let the
+        // underlying copyset select the primary first
         ASSERT_EQ(0, cluster_->PrepareLogicalPool(
                          1,
                          "./test/integration/snapshotcloneserver/"
@@ -386,7 +383,7 @@ class SnapshotCloneServerTest : public ::testing::Test {
             LOG(ERROR) << "Open fail, ret = " << testfd1_;
             return false;
         }
-        // 每个chunk写前面4k数据, 写两个segment
+        // Write the first 4k data and two segments for each chunk
         uint64_t totalChunk = 2ULL * segmentSize / chunkSize;
         for (uint64_t i = 0; i < totalChunk / chunkGap; i++) {
             ret =
@@ -486,9 +483,9 @@ class SnapshotCloneServerTest : public ::testing::Test {
 CurveCluster* SnapshotCloneServerTest::cluster_ = nullptr;
 FileClient* SnapshotCloneServerTest::fileClient_ = nullptr;
 
-// 并发测试用例
+// Concurrent test cases
 
-// 这个用例测试快照层数，放在最前面
+// This use case tests the number of snapshot layers, placed at the top
 TEST_F(SnapshotCloneServerTest, TestSameFile3Snapshot) {
     std::string uuid1, uuid2, uuid3;
     int ret = MakeSnapshot(testUser1_, testFile1_, "snap1", &uuid1);
@@ -506,7 +503,8 @@ TEST_F(SnapshotCloneServerTest, TestSameFile3Snapshot) {
     bool success3 = CheckSnapshotSuccess(testUser1_, testFile1_, uuid3);
     ASSERT_TRUE(success3);
 
-    // 快照层数设置为3，尝试再打一次快照，超过层数失败
+    // Set the number of snapshot layers to 3. Attempt to take another snapshot,
+    // exceeding the number of layers failed
     ret = MakeSnapshot(testUser1_, testFile1_, "snap3", &uuid3);
     ASSERT_EQ(kErrCodeSnapshotCountReachLimit, ret);
 
@@ -585,7 +583,7 @@ TEST_F(SnapshotCloneServerTest, TestSnapSameClone1Success) {
     ret1 = CloneOrRecover("Clone", testUser1_, snapId, dstFile, true, &uuid1);
     ASSERT_EQ(0, ret1);
 
-    // 幂等
+    // Idempotent
     ret2 = CloneOrRecover("Clone", testUser1_, snapId, dstFile, true, &uuid2);
     ASSERT_EQ(0, ret2);
 
@@ -732,7 +730,7 @@ TEST_F(SnapshotCloneServerTest, TestReadWriteWhenLazyCloneSnap) {
     ASSERT_TRUE(WriteFile(dstFile, testUser1_, fakeData));
     ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 
-    // 判断是否clone成功
+    // Determine if the clone was successful
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, true);
     ASSERT_TRUE(success1);
 }
@@ -747,7 +745,8 @@ TEST_F(SnapshotCloneServerTest, TestReadWriteWhenLazyCloneImage) {
 
     ASSERT_TRUE(WaitMetaInstalledSuccess(testUser1_, uuid1, true));
 
-    // clone完成stage1之后即可对外提供服务，测试克隆卷是否能正常读取数据
+    // After the clone completes stage1, it can provide external services and
+    // test whether the cloned volume can read data normally
     std::string fakeData1(4096, 'x');
     ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData1));
 
@@ -759,7 +758,7 @@ TEST_F(SnapshotCloneServerTest, TestReadWriteWhenLazyCloneImage) {
     ASSERT_TRUE(WriteFile(dstFile, testUser1_, fakeData2));
     ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData2));
 
-    // 判断是否clone成功
+    // Determine if the clone was successful
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, true);
     ASSERT_TRUE(success1);
 }
@@ -782,7 +781,7 @@ TEST_F(SnapshotCloneServerTest, TestReadWriteWhenLazyRecoverSnap) {
     ASSERT_TRUE(WriteFile(dstFile, testUser1_, fakeData));
     ASSERT_TRUE(CheckFileData(dstFile, testUser1_, fakeData));
 
-    // 判断是否clone成功
+    // Determine if the clone was successful
     bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, false);
     ASSERT_TRUE(success1);
 }

@@ -512,7 +512,7 @@ TEST_F(TrashTest, recycle_wal_failed) {
                             "curve_log_inprogress_10088"))
         .WillOnce(Return(-1));
 
-    // 失败的情况下不应删除
+    // Should not be deleted in case of failure
     EXPECT_CALL(*lfs, Delete("./runlog/trash_test0/trash/4294967493.55555"))
         .Times(0);
 
@@ -556,8 +556,7 @@ TEST_F(TrashTest, recycle_copyset_dir_list_err) {
         .WillOnce(Return(false));
     EXPECT_CALL(*lfs, Mkdir(trashPath)).WillOnce(Return(0));
     EXPECT_CALL(*lfs, Rename(dirPath, _, 0)).WillOnce(Return(0));
-    EXPECT_CALL(*lfs, List(_, _))
-        .WillOnce(Return(-1));
+    EXPECT_CALL(*lfs, List(_, _)).WillOnce(Return(-1));
     ASSERT_EQ(0, trash->RecycleCopySet(dirPath));
 }
 
@@ -569,8 +568,7 @@ TEST_F(TrashTest, recycle_copyset_dir_ok) {
         .WillOnce(Return(false));
     EXPECT_CALL(*lfs, Mkdir(trashPath)).WillOnce(Return(0));
     EXPECT_CALL(*lfs, Rename(dirPath, _, 0)).WillOnce(Return(0));
-    EXPECT_CALL(*lfs, List(_, _))
-        .WillOnce(Return(0));
+    EXPECT_CALL(*lfs, List(_, _)).WillOnce(Return(0));
     ASSERT_EQ(0, trash->RecycleCopySet(dirPath));
 }
 
@@ -607,18 +605,18 @@ TEST_F(TrashTest, test_chunk_num_statistic) {
     //                           chunk_200_snap_1, abc          +1
     //                       log/
 
-    using item4list = struct{
+    using item4list = struct {
         std::string subdir;
         std::vector<std::string>& names;
     };
     std::vector<item4list> action4List{
-        { "", copysets },
-        { "/4294967493.55555", dirs},
-        { "/4294967493.55555/data", chunks1 },
-        { "/4294967493.55555/log", logfiles1 },
-        { "/4294967494.55555", dirs},
-        { "/4294967494.55555/data", chunks2 },
-        { "/4294967494.55555/log", logfiles2 },
+        {"", copysets},
+        {"/4294967493.55555", dirs},
+        {"/4294967493.55555/data", chunks1},
+        {"/4294967493.55555/log", logfiles1},
+        {"/4294967494.55555", dirs},
+        {"/4294967494.55555/data", chunks2},
+        {"/4294967494.55555/log", logfiles2},
     };
 
     for (auto& it : action4List) {
@@ -627,18 +625,18 @@ TEST_F(TrashTest, test_chunk_num_statistic) {
     }
 
     EXPECT_CALL(*lfs, DirExists(_))
-        .WillOnce(Return(true))      // data
-        .WillOnce(Return(false))     // chunk_100
-        .WillOnce(Return(false))     // chunk_101
-        .WillOnce(Return(true))      // log
-        .WillOnce(Return(false))     // curve_log_10086_10087
-        .WillOnce(Return(false))     // curve_log_inprogress_10088_10088
-        .WillOnce(Return(false))     // log_10083_10084
-        .WillOnce(Return(false))     // log_inprogress_10085
-        .WillOnce(Return(true))      // data
-        .WillOnce(Return(false))     // chunk_200_snap_1
-        .WillOnce(Return(false))     // abc
-        .WillOnce(Return(true));     // log
+        .WillOnce(Return(true))   // data
+        .WillOnce(Return(false))  // chunk_100
+        .WillOnce(Return(false))  // chunk_101
+        .WillOnce(Return(true))   // log
+        .WillOnce(Return(false))  // curve_log_10086_10087
+        .WillOnce(Return(false))  // curve_log_inprogress_10088_10088
+        .WillOnce(Return(false))  // log_10083_10084
+        .WillOnce(Return(false))  // log_inprogress_10085
+        .WillOnce(Return(true))   // data
+        .WillOnce(Return(false))  // chunk_200_snap_1
+        .WillOnce(Return(false))  // abc
+        .WillOnce(Return(true));  // log
 
     trash->Init(ops);
     ASSERT_EQ(5, trash->GetChunkNum());
@@ -657,14 +655,14 @@ TEST_F(TrashTest, test_chunk_num_statistic) {
     EXPECT_CALL(*lfs, DirExists(_))
         .WillOnce(Return(true))
         .WillOnce(Return(false))
-        .WillOnce(Return(true))   // data
+        .WillOnce(Return(true))  // data
         .WillOnce(Return(false))
         .WillOnce(Return(false))
-        .WillOnce(Return(true))   // log
+        .WillOnce(Return(true))  // log
         .WillOnce(Return(false))
-        .WillOnce(Return(true))   // raft_snapshot
-        .WillOnce(Return(true))   // temp
-        .WillOnce(Return(true))   // data
+        .WillOnce(Return(true))  // raft_snapshot
+        .WillOnce(Return(true))  // temp
+        .WillOnce(Return(true))  // data
         .WillOnce(Return(false));
 
     std::string trashedCopysetDir = "/trash_test0/copysets/4294967495";
@@ -695,21 +693,21 @@ TEST_F(TrashTest, test_chunk_num_statistic) {
     std::vector<std::string> raftfiles{RAFT_DATA_DIR, RAFT_LOG_DIR};
 
     // DirExists
-    using item4dirExists = struct{
+    using item4dirExists = struct {
         std::string subdir;
         bool exist;
     };
     std::vector<item4dirExists> action4DirExists{
-        { "", true },
-        { "/4294967493.55555", true },
-        { "/4294967493.55555/data", true },
-        { "/4294967493.55555/log", true },
-        { "/4294967493.55555/data/chunk_100", false },
-        { "/4294967493.55555/data/chunk_101", false },
-        { "/4294967493.55555/log/curve_log_10086_10087", false },
-        { "/4294967493.55555/log/curve_log_inprogress_10088", false },
-        { "/4294967493.55555/log/log_10083_10084", false },
-        { "/4294967493.55555/log/log_inprogress_10085", false },
+        {"", true},
+        {"/4294967493.55555", true},
+        {"/4294967493.55555/data", true},
+        {"/4294967493.55555/log", true},
+        {"/4294967493.55555/data/chunk_100", false},
+        {"/4294967493.55555/data/chunk_101", false},
+        {"/4294967493.55555/log/curve_log_10086_10087", false},
+        {"/4294967493.55555/log/curve_log_inprogress_10088", false},
+        {"/4294967493.55555/log/log_10083_10084", false},
+        {"/4294967493.55555/log/log_inprogress_10085", false},
     };
 
     for (auto& it : action4DirExists) {
@@ -719,10 +717,10 @@ TEST_F(TrashTest, test_chunk_num_statistic) {
 
     // List
     std::vector<item4list> action4List2{
-        { "", copysets },
-        { "/4294967493.55555", raftfiles },
-        { "/4294967493.55555/data", chunks1 },
-        { "/4294967493.55555/log", logfiles1 },
+        {"", copysets},
+        {"/4294967493.55555", raftfiles},
+        {"/4294967493.55555/data", chunks1},
+        {"/4294967493.55555/log", logfiles1},
     };
 
     for (auto& it : action4List2) {
@@ -735,16 +733,16 @@ TEST_F(TrashTest, test_chunk_num_statistic) {
     SetCopysetNeedDelete(trashPath + "/" + copysets[2], notNeedDelete);
 
     // RecycleFile
-    using item4CycleFile = struct{
+    using item4CycleFile = struct {
         std::shared_ptr<MockFilePool> pool;
         std::string subdir;
         int ret;
     };
     std::vector<item4CycleFile> action4CycleFile{
-        { pool, "/4294967493.55555/data/chunk_100", 0 },
-        { pool, "/4294967493.55555/data/chunk_101", -1 },
-        { walPool, "/4294967493.55555/log/curve_log_10086_10087", 0 },
-        { walPool, "/4294967493.55555/log/curve_log_inprogress_10088", -1 },
+        {pool, "/4294967493.55555/data/chunk_100", 0},
+        {pool, "/4294967493.55555/data/chunk_101", -1},
+        {walPool, "/4294967493.55555/log/curve_log_10086_10087", 0},
+        {walPool, "/4294967493.55555/log/curve_log_inprogress_10088", -1},
     };
 
     for (auto& it : action4CycleFile) {

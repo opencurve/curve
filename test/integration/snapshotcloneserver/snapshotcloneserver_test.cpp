@@ -20,22 +20,23 @@
  * Author: hzsunjianliang
  */
 
-#include <stdio.h>
-#include <gtest/gtest.h>
-#include <glog/logging.h>
 #include <gflags/gflags.h>
+#include <glog/logging.h>
+#include <gtest/gtest.h>
+#include <stdio.h>
+
 #include <chrono>  // NOLINT
 #include <thread>  // NOLINT
 
-#include "test/integration/cluster_common/cluster.h"
 #include "src/client/libcurve_file.h"
 #include "src/snapshotcloneserver/snapshotclone_server.h"
+#include "test/integration/cluster_common/cluster.h"
 #include "test/integration/snapshotcloneserver/test_snapshotcloneserver_helpler.h"
 #include "test/util/config_generator.h"
 
 const std::string kTestPrefix = "MainSCSTest";  // NOLINT
 
-// 一些常数定义
+// Some constant definitions
 const char* cloneTempDir_ = "/clone";
 const char* mdsRootUser_ = "root";
 const char* mdsRootPassword_ = "root_password";
@@ -56,13 +57,12 @@ const std::string kEtcdName = kTestPrefix;                       // NOLINT
 const std::string kMdsConfigPath =                               // NOLINT
     "./test/integration/snapshotcloneserver/config/" + kTestPrefix +
     "_mds.conf";
-const std::string kSnapClientConfigPath =                        // NOLINT
+const std::string kSnapClientConfigPath =  // NOLINT
     "./test/integration/snapshotcloneserver/config/" + kTestPrefix +
     "_snap_client.conf";
-const std::string kS3ConfigPath =                                // NOLINT
-    "./test/integration/snapshotcloneserver/config/" + kTestPrefix +
-    "_s3.conf";
-const std::string kSCSConfigPath =                               // NOLINT
+const std::string kS3ConfigPath =  // NOLINT
+    "./test/integration/snapshotcloneserver/config/" + kTestPrefix + "_s3.conf";
+const std::string kSCSConfigPath =  // NOLINT
     "./test/integration/snapshotcloneserver/config/" + kTestPrefix +
     "_scs.conf";
 
@@ -81,11 +81,11 @@ const std::vector<std::string> mdsConfigOptions{
 };
 
 const std::vector<std::string> mdsConf1{
-    { "--graceful_quit_on_sigterm" },
+    {"--graceful_quit_on_sigterm"},
     std::string("--confPath=") + kMdsConfigPath,
     std::string("--log_dir=") + kLogPath,
     std::string("--segmentSize=") + std::to_string(segmentSize),
-    { "--stderrthreshold=3" },
+    {"--stderrthreshold=3"},
 };
 
 const std::vector<std::string> snapClientConfigOptions{
@@ -119,7 +119,7 @@ const std::vector<std::string> snapshotcloneserverConfigOptions{
 const std::vector<std::string> snapshotcloneConf{
     std::string("--conf=") + kSCSConfigPath,
     std::string("--log_dir=") + kLogPath,
-    { "--stderrthreshold=3" },
+    {"--stderrthreshold=3"},
 };
 
 namespace curve {
@@ -135,11 +135,11 @@ class SnapshotCloneServerMainTest : public ::testing::Test {
         cluster_ = new CurveCluster();
         ASSERT_NE(nullptr, cluster_);
 
-        // 初始化db
+        // Initialize db
         std::string rmcmd = "rm -rf " + std::string(kEtcdName) + ".etcd";
         system(rmcmd.c_str());
 
-        // 启动etcd
+        // Start etcd
         pid_t pid = cluster_->StartSingleEtcd(
             1, kEtcdClientIpPort, kEtcdPeerIpPort,
             std::vector<std::string>{"--name=" + std::string(kEtcdName)});
@@ -150,7 +150,7 @@ class SnapshotCloneServerMainTest : public ::testing::Test {
         cluster_->PrepareConfig<MDSConfigGenerator>(kMdsConfigPath,
                                                     mdsConfigOptions);
 
-        // 启动一个mds
+        // Start an mds
         pid = cluster_->StartSingleMDS(1, kMdsIpPort, kMdsDummyPort, mdsConf1,
                                        true);
         LOG(INFO) << "mds 1 started on " << kMdsIpPort << ", pid = " << pid;
@@ -201,7 +201,7 @@ TEST_F(SnapshotCloneServerMainTest, testmain) {
 
     std::this_thread::sleep_for(std::chrono::seconds(2));
 
-    // 测试验证是否状态为active
+    // Test and verify if the status is active
     // "curl "127.0.0.1:port/vars/snapshotcloneserver_status"";
     std::string cmd =
         "curl \"127.0.0.1:" + std::string(kSnapshotCloneServerDummyServerPort) +

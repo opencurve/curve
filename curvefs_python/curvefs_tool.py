@@ -21,61 +21,65 @@ import curvefs
 import parser
 import time
 
-fileType = ["INODE_DIRECTORY", "INODE_PAGEFILE", "INODE_APPENDFILE", "INODE_APPENDECFILE", "INODE_SNAPSHOT_PAGEFILE"]
-fileStatus = ["Created", "Deleting", "Cloning", "CloneMetaInstalled", "Cloned", "BeingCloned"]
+fileType = ["INODE_DIRECTORY", "INODE_PAGEFILE", "INODE_APPENDFILE",
+            "INODE_APPENDECFILE", "INODE_SNAPSHOT_PAGEFILE"]
+fileStatus = ["Created", "Deleting", "Cloning",
+              "CloneMetaInstalled", "Cloned", "BeingCloned"]
 kGB = 1024 * 1024 * 1024
 kUnitializedFileID = 0
 
-# 参照curve/include/client/libcurve.h
-retCode = { 0 : "OK",
-            1 : "EXISTS",
-            2 : "FAILED",
-            3 : "DISABLEIO",
-            4 : "AUTHFAIL",
-            5 : "DELETING",
-            6 : "NOTEXIST",
-            7 : "UNDER_SNAPSHOT",
-            8 : "NOT_UNDERSNAPSHOT",
-            9 : "DELETE_ERROR",
-            10 : "NOT_ALLOCATE",
-            11 : "NOT_SUPPORT",
-            12 : "NOT_EMPTY",
-            13 : "NO_SHRINK_BIGGER_FILE",
-            14 : "SESSION_NOTEXISTS",
-            15 : "FILE_OCCUPIED",
-            16 : "PARAM_ERROR",
-            17 : "INTERNAL_ERROR",
-            18 : "CRC_ERROR",
-            19 : "INVALID_REQUEST",
-            20 : "DISK_FAIL",
-            21 : "NO_SPACE",
-            22 : "NOT_ALIGNED",
-            23 : "BAD_FD",
-            24 : "LENGTH_NOT_SUPPORT",
-            25 : "SESSION_NOT_EXIST",
-            26 : "STATUS_NOT_MATCH",
-            27 : "DELETE_BEING_CLONED",
-            28 : "CLIENT_NOT_SUPPORT_SNAPSHOT",
-            29 : "SNAPSTHO_FROZEN",
-            100 : "UNKNOWN"}
+# Refer to curve/include/client/libcurve.h
+retCode = {0: "OK",
+           1: "EXISTS",
+           2: "FAILED",
+           3: "DISABLEIO",
+           4: "AUTHFAIL",
+           5: "DELETING",
+           6: "NOTEXIST",
+           7: "UNDER_SNAPSHOT",
+           8: "NOT_UNDERSNAPSHOT",
+           9: "DELETE_ERROR",
+           10: "NOT_ALLOCATE",
+           11: "NOT_SUPPORT",
+           12: "NOT_EMPTY",
+           13: "NO_SHRINK_BIGGER_FILE",
+           14: "SESSION_NOTEXISTS",
+           15: "FILE_OCCUPIED",
+           16: "PARAM_ERROR",
+           17: "INTERNAL_ERROR",
+           18: "CRC_ERROR",
+           19: "INVALID_REQUEST",
+           20: "DISK_FAIL",
+           21: "NO_SPACE",
+           22: "NOT_ALIGNED",
+           23: "BAD_FD",
+           24: "LENGTH_NOT_SUPPORT",
+           25: "SESSION_NOT_EXIST",
+           26: "STATUS_NOT_MATCH",
+           27: "DELETE_BEING_CLONED",
+           28: "CLIENT_NOT_SUPPORT_SNAPSHOT",
+           29: "SNAPSTHO_FROZEN",
+           100: "UNKNOWN"}
+
 
 def getRetCodeMsg(ret):
-    if retCode.has_key(-ret) :
+    if retCode.has_key(-ret):
         return retCode[-ret]
     return "Unknown Error Code"
 
+
 if __name__ == '__main__':
-    # 参数解析
+    # Parameter parsing
     args = parser.get_parser().parse_args()
 
-    # 初始化client
+    # Initialize client
     cbd = curvefs.CBDClient()
     ret = cbd.Init(args.confpath)
     if ret != 0:
         print "init fail"
         exit(1)
 
-    # 获取文件user信息
+    # Obtain file user information
     user = curvefs.UserInfo_t()
     user.owner = args.user
     if args.password:
@@ -85,7 +89,8 @@ if __name__ == '__main__':
 
     if args.optype == "create":
         if args.stripeUnit or args.stripeCount:
-            ret = cbd.Create2(args.filename, user, args.length * kGB, args.stripeUnit, args.stripeCount)
+            ret = cbd.Create2(args.filename, user, args.length *
+                              kGB, args.stripeUnit, args.stripeCount)
         else:
             ret = cbd.Create(args.filename, user, args.length * kGB)
     elif args.optype == "delete":
@@ -116,7 +121,7 @@ if __name__ == '__main__':
         ret = cbd.Mkdir(args.dirname, user)
     elif args.optype == "rmdir":
         ret = cbd.Rmdir(args.dirname, user)
-    elif args.optype == "list" :
+    elif args.optype == "list":
         dir = cbd.Listdir(args.dirname, user)
         for i in dir:
             print i

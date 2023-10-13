@@ -21,15 +21,15 @@
  *          2018/11/23  Wenyu Zhou   Initial version
  */
 
-#include <gtest/gtest.h>
-#include <gmock/gmock.h>
-
-#include <string>
-#include <iostream>
-#include <fstream>
-#include <sstream>
-
 #include "nebd/src/common/configuration.h"
+
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
+#include <fstream>
+#include <iostream>
+#include <sstream>
+#include <string>
 
 namespace nebd {
 namespace common {
@@ -86,9 +86,7 @@ class ConfigurationTest : public ::testing::Test {
         cFile << confItem;
     }
 
-    void TearDown() {
-        ASSERT_EQ(0, unlink(confFile_.c_str()));
-    }
+    void TearDown() { ASSERT_EQ(0, unlink(confFile_.c_str())); }
 
     std::string confFile_;
 };
@@ -136,10 +134,10 @@ TEST_F(ConfigurationTest, ListConfig) {
     std::map<std::string, std::string> configs;
     configs = conf.ListConfig();
     ASSERT_NE(0, configs.size());
-    // 抽几个key来校验以下
+    // Pick a few keys for validation.
     ASSERT_EQ(configs["test.int1"], "12345");
     ASSERT_EQ(configs["test.bool1"], "0");
-    // 如果key不存在，返回为空
+    // If the key does not exist, return empty
     ASSERT_EQ(configs["xxx"], "");
 }
 
@@ -148,18 +146,19 @@ TEST_F(ConfigurationTest, SaveConfig) {
     Configuration conf;
     conf.SetConfigPath(confFile_);
 
-    // 自定义配置项并保存
+    // Customize configuration items and save them
     conf.SetStringValue("test.str1", "new");
     ret = conf.SaveConfig();
     ASSERT_EQ(ret, true);
 
-    // 重新加载配置项
+    // Reload Configuration Items
     Configuration conf2;
     conf2.SetConfigPath(confFile_);
     ret = conf2.LoadConfig();
     ASSERT_EQ(ret, true);
 
-    // 可以读取自定义配置项，原有配置项被覆盖，读取不到
+    // Custom configuration items can be read, but the original configuration
+    // items are overwritten and cannot be read
     ASSERT_EQ(conf2.GetValue("test.str1"), "new");
     ASSERT_EQ(conf2.GetValue("test.int1"), "");
 }
@@ -301,7 +300,7 @@ TEST_F(ConfigurationTest, GetSetDoubleAndFloatValue) {
 }  // namespace common
 }  // namespace nebd
 
-int main(int argc, char ** argv) {
+int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     ::testing::InitGoogleMock(&argc, argv);
     int ret = RUN_ALL_TESTS();

@@ -21,23 +21,25 @@
  */
 
 #include "curvefs/src/mds/schedule/scheduleMetrics.h"
+
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 #include <json2pb/json_to_pb.h>
+
 #include "curvefs/src/mds/schedule/operatorController.h"
 #include "curvefs/test/mds/mock/mock_topology.h"
 
-using ::curvefs::mds::topology::MockTopology;
 using ::curvefs::mds::topology::CopySetKey;
+using ::curvefs::mds::topology::MockTopology;
 using ::curvefs::mds::topology::TopologyIdGenerator;
-using ::curvefs::mds::topology::TopologyTokenGenerator;
 using ::curvefs::mds::topology::TopologyStorage;
+using ::curvefs::mds::topology::TopologyTokenGenerator;
 
 using ::testing::_;
-using ::testing::Return;
 using ::testing::AtLeast;
-using ::testing::SetArgPointee;
 using ::testing::DoAll;
+using ::testing::Return;
+using ::testing::SetArgPointee;
 
 namespace curvefs {
 namespace mds {
@@ -82,7 +84,7 @@ TEST_F(ScheduleMetricsTest, test_add_rm_addOp) {
     ::curvefs::mds::topology::CopySetInfo addCsInfo(1, 1);
     addCsInfo.SetCopySetMembers(std::set<MetaServerIdType>{1, 2});
     {
-        // 1. 增加normal级别/add类型的operator
+        // 1. Add operator of normal level/add type
         EXPECT_CALL(*topo, GetCopySet(CopySetKey{1, 1}, _))
             .WillOnce(DoAll(SetArgPointee<1>(addCsInfo), Return(true)));
         EXPECT_CALL(*topo, GetMetaServer(1, _))
@@ -150,7 +152,7 @@ TEST_F(ScheduleMetricsTest, test_add_rm_addOp) {
     }
 
     {
-        // 2. 移除 1中的operator
+        // 2. Remove operator from 1
         scheduleMetrics->UpdateRemoveMetric(addOp);
         ASSERT_EQ(0, scheduleMetrics->operatorNum.get_value());
         ASSERT_EQ(0, scheduleMetrics->addOpNum.get_value());
@@ -167,11 +169,10 @@ TEST_F(ScheduleMetricsTest, test_add_rm_rmOp) {
     rmCsInfo.SetLeader(1);
 
     {
-        // 1. 增加high级别/remove类型的operator
+        // 1. Add high level/remove type operators
         EXPECT_CALL(*topo, GetCopySet(CopySetKey{1, 2}, _))
             .WillOnce(DoAll(SetArgPointee<1>(rmCsInfo), Return(true)));
-        EXPECT_CALL(*topo, GetHostNameAndPortById(_))
-            .WillOnce(Return("haha"));
+        EXPECT_CALL(*topo, GetHostNameAndPortById(_)).WillOnce(Return("haha"));
 
         EXPECT_CALL(*topo, GetMetaServer(1, _))
             .WillOnce(DoAll(SetArgPointee<1>(GetMetaServer(1)), Return(true)));
@@ -245,7 +246,7 @@ TEST_F(ScheduleMetricsTest, test_add_rm_rmOp) {
     }
 
     {
-        // 2. 移除 1中的operator
+        // 2. Remove operator from 1
         scheduleMetrics->UpdateRemoveMetric(rmOp);
         ASSERT_EQ(0, scheduleMetrics->operatorNum.get_value());
         ASSERT_EQ(0, scheduleMetrics->removeOpNum.get_value());
@@ -263,7 +264,7 @@ TEST_F(ScheduleMetricsTest, test_add_rm_transferOp) {
     transCsInfo.SetLeader(1);
 
     {
-        // 1. 增加normal级别/transferleader类型的operator
+        // 1. Increase the operator of the normal level/transferleader type
         EXPECT_CALL(*topo, GetCopySet(CopySetKey{1, 3}, _))
             .WillOnce(DoAll(SetArgPointee<1>(transCsInfo), Return(true)));
         EXPECT_CALL(*topo, GetMetaServer(1, _))
@@ -329,7 +330,6 @@ TEST_F(ScheduleMetricsTest, test_add_rm_transferOp) {
             std::string("Normal\",\"opType\":\"TransferLeader\",\"poolId") +
             std::string("\":\"1\",\"startEpoch\":\"1\"}");
 
-
         ASSERT_EQ(res,
                   scheduleMetrics->operators[transferOp.copysetID].JsonBody());
         LOG(INFO)
@@ -338,14 +338,15 @@ TEST_F(ScheduleMetricsTest, test_add_rm_transferOp) {
     }
 
     {
-        // 2. 移除 1中的operator
+        // 2. Remove operator from 1
         scheduleMetrics->UpdateRemoveMetric(transferOp);
         ASSERT_EQ(0, scheduleMetrics->operatorNum.get_value());
         ASSERT_EQ(0, scheduleMetrics->transferOpNum.get_value());
         ASSERT_EQ(0, scheduleMetrics->normalOpNum.get_value());
         ASSERT_EQ(0, scheduleMetrics->operators.size());
 
-        // 移除map中不存在的metric应该没有问题
+        // There should be no problem removing metrics that do not exist in the
+        // map
         scheduleMetrics->UpdateRemoveMetric(transferOp);
     }
 }
@@ -358,7 +359,7 @@ TEST_F(ScheduleMetricsTest, test_add_rm_changeOp) {
     changeCsInfo.SetLeader(1);
 
     {
-        // 1. 增加normal级别/changePeer类型的operator
+        // 1. Increase operator of normal level/changePeer type
         EXPECT_CALL(*topo, GetCopySet(CopySetKey{1, 4}, _))
             .WillOnce(DoAll(SetArgPointee<1>(changeCsInfo), Return(true)));
         EXPECT_CALL(*topo, GetMetaServer(1, _))
@@ -426,14 +427,15 @@ TEST_F(ScheduleMetricsTest, test_add_rm_changeOp) {
     }
 
     {
-        // 2. 移除 1中的operator
+        // 2. Remove operator from 1
         scheduleMetrics->UpdateRemoveMetric(changeOp);
         ASSERT_EQ(0, scheduleMetrics->operatorNum.get_value());
         ASSERT_EQ(0, scheduleMetrics->changeOpNum.get_value());
         ASSERT_EQ(0, scheduleMetrics->normalOpNum.get_value());
         ASSERT_EQ(0, scheduleMetrics->operators.size());
 
-        // 移除map中不存在的metric应该没有问题
+        // There should be no problem removing metrics that do not exist in the
+        // map
         scheduleMetrics->UpdateRemoveMetric(changeOp);
     }
 }
@@ -446,7 +448,7 @@ TEST_F(ScheduleMetricsTest, test_abnormal) {
     transCsInfo.SetCopySetMembers(std::set<MetaServerIdType>{1, 2, 3});
     transCsInfo.SetLeader(1);
 
-    // 获取copyset失败
+    // Failed to obtain copyset
     EXPECT_CALL(*topo, GetCopySet(CopySetKey{1, 3}, _)).WillOnce(Return(false));
     scheduleMetrics->UpdateAddMetric(transferOp);
     ASSERT_EQ(1, scheduleMetrics->operatorNum.get_value());
@@ -459,7 +461,7 @@ TEST_F(ScheduleMetricsTest, test_abnormal) {
               << scheduleMetrics->operators[transferOp.copysetID].JsonBody();
     scheduleMetrics->UpdateRemoveMetric(transferOp);
 
-    // 获取metaserver 或者 server失败
+    // Failed to obtain metaserver or server
     EXPECT_CALL(*topo, GetCopySet(CopySetKey{1, 3}, _))
         .WillOnce(DoAll(SetArgPointee<1>(transCsInfo), Return(true)));
     EXPECT_CALL(*topo, GetMetaServer(1, _)).WillOnce(Return(false));

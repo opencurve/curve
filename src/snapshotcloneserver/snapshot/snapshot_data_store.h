@@ -26,16 +26,16 @@
 #include <glog/logging.h>
 
 #include <functional>
-#include <map>
-#include <vector>
 #include <list>
-#include <string>
+#include <map>
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "src/common/concurrent/concurrent.h"
 
-using ::curve::common::SpinLock;
 using ::curve::common::LockGuard;
+using ::curve::common::SpinLock;
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -47,25 +47,19 @@ const char kChunkDataNameSeprator[] = "-";
 
 class ChunkDataName {
  public:
-    ChunkDataName()
-        : chunkSeqNum_(0),
-          chunkIndex_(0) {}
-    ChunkDataName(const std::string &fileName,
-                  SnapshotSeqType seq,
+    ChunkDataName() : chunkSeqNum_(0), chunkIndex_(0) {}
+    ChunkDataName(const std::string& fileName, SnapshotSeqType seq,
                   ChunkIndexType chunkIndex)
-        : fileName_(fileName),
-          chunkSeqNum_(seq),
-          chunkIndex_(chunkIndex) {}
+        : fileName_(fileName), chunkSeqNum_(seq), chunkIndex_(chunkIndex) {}
     /**
-     * 构建datachunk对象的名称 文件名-chunk索引-版本号
-     * @return: 对象名称字符串
+     * Build the name of the datachunk object File name Chunk index Version
+     * number
+     * @return: Object name string
      */
     std::string ToDataChunkKey() const {
-        return fileName_
-            + kChunkDataNameSeprator
-            + std::to_string(this->chunkIndex_)
-            + kChunkDataNameSeprator
-            + std::to_string(this->chunkSeqNum_);
+        return fileName_ + kChunkDataNameSeprator +
+               std::to_string(this->chunkIndex_) + kChunkDataNameSeprator +
+               std::to_string(this->chunkSeqNum_);
     }
 
     std::string fileName_;
@@ -73,45 +67,41 @@ class ChunkDataName {
     ChunkIndexType chunkIndex_;
 };
 
-inline bool operator==(const ChunkDataName &lhs, const ChunkDataName &rhs) {
+inline bool operator==(const ChunkDataName& lhs, const ChunkDataName& rhs) {
     return (lhs.fileName_ == rhs.fileName_) &&
            (lhs.chunkSeqNum_ == rhs.chunkSeqNum_) &&
            (lhs.chunkIndex_ == rhs.chunkIndex_);
 }
 
 /**
- * @brief 根据对象名称解析生成chunkdataname对象
+ * @brief Generate chunkdataname object based on object name parsing
  *
- * @param name 对象名
- * @param[out] cName chunkDataName对象
+ * @param name Object name
+ * @param[out] cName chunkDataName object
  *
- * @retVal true 成功
- * @retVal false 失败
+ * @retval true succeeded
+ * @retval false failed
  */
-bool ToChunkDataName(const std::string &name, ChunkDataName *cName);
+bool ToChunkDataName(const std::string& name, ChunkDataName* cName);
 
 class ChunkIndexDataName {
  public:
-    ChunkIndexDataName()
-        : fileSeqNum_(0) {}
-    ChunkIndexDataName(std::string filename,
-                       SnapshotSeqType seq) {
+    ChunkIndexDataName() : fileSeqNum_(0) {}
+    ChunkIndexDataName(std::string filename, SnapshotSeqType seq) {
         fileName_ = filename;
         fileSeqNum_ = seq;
     }
     /**
-     * 构建索引chunk的名称 文件名+文件版本号
-     * @return: 索引chunk的名称字符串
+     * Build the name of the index chunk file name+file version number
+     * @return: The name string of the index chunk
      */
     std::string ToIndexDataChunkKey() const {
-        return this->fileName_
-            + "-"
-            + std::to_string(this->fileSeqNum_);
+        return this->fileName_ + "-" + std::to_string(this->fileSeqNum_);
     }
 
-    // 文件名
+    // File name
     std::string fileName_;
-    // 文件版本号
+    // File version number
     SnapshotSeqType fileSeqNum_;
 };
 
@@ -119,46 +109,41 @@ class ChunkIndexData {
  public:
     ChunkIndexData() {}
     /**
-     * 索引chunk数据序列化（使用protobuf实现）
-     * @param 保存序列化后数据的指针
-     * @return: true 序列化成功/ false 序列化失败
+     * Index chunk data serialization (implemented using protobuf)
+     * @param data Saves a pointer to serialized data
+     * @return: true Serialization succeeded/false Serialization failed
      */
-    bool Serialize(std::string *data) const;
+    bool Serialize(std::string* data) const;
 
     /**
-     * 反序列化索引chunk的数据到map中
-     * @param 索引chunk存储的数据
-     * @return: true 反序列化成功/ false 反序列化失败
+     * Deserialize the data of the index chunk into the map
+     * @param data The data stored in the index chunk
+     * @return: true Deserialization succeeded/false Deserialization failed
      */
-    bool Unserialize(const std::string &data);
+    bool Unserialize(const std::string& data);
 
-    void PutChunkDataName(const ChunkDataName &name) {
+    void PutChunkDataName(const ChunkDataName& name) {
         chunkMap_.emplace(name.chunkIndex_, name.chunkSeqNum_);
     }
 
     bool GetChunkDataName(ChunkIndexType index, ChunkDataName* nameOut) const;
 
-    bool IsExistChunkDataName(const ChunkDataName &name) const;
+    bool IsExistChunkDataName(const ChunkDataName& name) const;
 
     std::vector<ChunkIndexType> GetAllChunkIndex() const;
 
-    void SetFileName(const std::string &fileName) {
-        fileName_ = fileName;
-    }
+    void SetFileName(const std::string& fileName) { fileName_ = fileName; }
 
-    std::string GetFileName() {
-        return fileName_;
-    }
+    std::string GetFileName() { return fileName_; }
 
  private:
-    // 文件名
+    // File name
     std::string fileName_;
-    // 快照文件索引信息map
+    // Snapshot file index information map
     std::map<ChunkIndexType, SnapshotSeqType> chunkMap_;
 };
 
-
-class ChunkData{
+class ChunkData {
  public:
     ChunkData() {}
     std::string data_;
@@ -166,132 +151,131 @@ class ChunkData{
 
 class TransferTask {
  public:
-     TransferTask() {}
-     std::string uploadId_;
+    TransferTask() {}
+    std::string uploadId_;
 
-     void AddPartInfo(int partNum, std::string etag) {
-         m_.Lock();
-         partInfo_.emplace(partNum, etag);
-         m_.UnLock();
-     }
+    void AddPartInfo(int partNum, std::string etag) {
+        m_.Lock();
+        partInfo_.emplace(partNum, etag);
+        m_.UnLock();
+    }
 
-     std::map<int, std::string> GetPartInfo() {
-         return partInfo_;
-     }
+    std::map<int, std::string> GetPartInfo() { return partInfo_; }
 
  private:
-     mutable SpinLock m_;
-     // partnumber <=> etag
-     std::map<int, std::string> partInfo_;
+    mutable SpinLock m_;
+    // partnumber <=> etag
+    std::map<int, std::string> partInfo_;
 };
 
 class SnapshotDataStore {
  public:
-     SnapshotDataStore() {}
+    SnapshotDataStore() {}
     virtual ~SnapshotDataStore() {}
     /**
-     * 快照的datastore初始化，根据存储的类型有不同的实现
-     * @param s3配置文件路径
-     * @return 0 初始化成功/ -1 初始化失败
+     * The datastore initialization of snapshots can be implemented differently
+     * depending on the type of storage
+     * @param s3 configuration file path
+     * @return 0 initialization successful/-1 initialization failed
      */
-    virtual int Init(const std::string &confpath) = 0;
+    virtual int Init(const std::string& confpath) = 0;
     /**
-     * 存储快照文件的元数据信息到datastore中
-     * @param 元数据对象名
-     * @param 元数据对象的数据内容
-     * @return 0 保存成功/ -1 保存失败
+     * Store the metadata information of the snapshot file in the datastore
+     * @param name Metadata object name
+     * @param The data content of the metadata object
+     * @return 0 saved successfully/-1 failed to save
      */
-    virtual int PutChunkIndexData(const ChunkIndexDataName &name,
-                              const ChunkIndexData &meta) = 0;
+    virtual int PutChunkIndexData(const ChunkIndexDataName& name,
+                                  const ChunkIndexData& meta) = 0;
     /**
-     * 获取快照文件的元数据信息
-     * @param 元数据对象名
-     * @param 保存元数据数据内容的指针
-     * return: 0 获取成功/ -1 获取失败
+     * Obtain metadata information for snapshot files
+     * @param name Metadata object name
+     * @param Pointer to save metadata data content
+     * @return: 0 successfully obtained/-1 failed to obtain
      */
-    virtual int GetChunkIndexData(const ChunkIndexDataName &name,
-                                  ChunkIndexData *meta) = 0;
+    virtual int GetChunkIndexData(const ChunkIndexDataName& name,
+                                  ChunkIndexData* meta) = 0;
     /**
-     * 删除快照文件的元数据
-     * @param 元数据对象名
-     * @return: 0 删除成功/ -1 删除失败
+     * Delete metadata for snapshot files
+     * @param name Metadata object name
+     * @return: 0 successfully deleted/-1 failed to delete
      */
-    virtual int DeleteChunkIndexData(const ChunkIndexDataName &name) = 0;
-    // 快照元数据chunk是否存在
+    virtual int DeleteChunkIndexData(const ChunkIndexDataName& name) = 0;
+    // Does the snapshot metadata chunk exist
     /**
-     * 判断快照元数据是否存在
-     * @param 元数据对象名
-     * @return: true 存在/ false 不存在
+     * Determine whether snapshot metadata exists
+     * @param name Metadata object name
+     * @return: true exists/false does not exist
      */
-    virtual bool ChunkIndexDataExist(const ChunkIndexDataName &name) = 0;
-/*
-    // 存储快照文件的数据信息到datastore
-    virtual int PutChunkData(const ChunkDataName &name,
-                             const ChunkData &data) = 0;
+    virtual bool ChunkIndexDataExist(const ChunkIndexDataName& name) = 0;
+    /*
+        // Store the data information of the snapshot file in the datastore
+        virtual int PutChunkData(const ChunkDataName &name,
+                                 const ChunkData &data) = 0;
 
-    // 读取快照文件的数据信息
-    virtual int GetChunkData(const ChunkDataName &name,
-                             ChunkData *data) = 0;
-*/
+        // Reading data information from snapshot files
+        virtual int GetChunkData(const ChunkDataName &name,
+                                 ChunkData *data) = 0;
+    */
     /**
-     * 删除快照的数据chunk
-     * @param 数据chunk名
-     * @return: 0 删除成功/ -1 删除失败
+     * Delete the data chunk of the snapshot
+     * @param name chunk data name
+     * @return: 0 successfully deleted/-1 failed to delete
      */
-    virtual int DeleteChunkData(const ChunkDataName &name) = 0;
+    virtual int DeleteChunkData(const ChunkDataName& name) = 0;
     /**
-     * 判断快照的数据chunk是否存在
-     * @param 数据chunk名称
-     * @return: true 存在/ false 不存在
+     * Determine whether the data chunk of the snapshot exists
+     * @param name chunk data name
+     * @return: true exists/false does not exist
      */
-    virtual bool ChunkDataExist(const ChunkDataName &name) = 0;
-    // 设置快照转储完成标志
-/*
-    virtual int SetSnapshotFlag(const ChunkIndexDataName &name, int flag) = 0;
-    // 获取快照转储完成标志
-    virtual int GetSnapshotFlag(const ChunkIndexDataName &name) = 0;
-*/
+    virtual bool ChunkDataExist(const ChunkDataName& name) = 0;
+    // Set snapshot dump completion flag
+    /*
+        virtual int SetSnapshotFlag(const ChunkIndexDataName &name, int flag) =
+       0;
+        // Get snapshot dump completion flag
+        virtual int GetSnapshotFlag(const ChunkIndexDataName &name) = 0;
+    */
     /**
-     * 初始化数据库chunk的分片转储任务
-     * @param 数据chunk名称
-     * @param 管理转储任务的指针
-     * @return 0 任务初始化成功/ -1 任务初始化失败
+     * Initialize the sharded dump task of the database chunk
+     * @param name chunk data name
+     * @param task Pointer to management dump task
+     * @return 0 Task initialization successful/-1 Task initialization failed
      */
-    virtual int DataChunkTranferInit(const ChunkDataName &name,
-                                    std::shared_ptr<TransferTask> task) = 0;
+    virtual int DataChunkTranferInit(const ChunkDataName& name,
+                                     std::shared_ptr<TransferTask> task) = 0;
     /**
-     * 添加数据chunk的一个分片到转储任务中
-     * @param 数据chunk名
-     * @转储任务
-     * @第几个分片
-     * @分片大小
-     * @分片的数据内容
-     * @return: 0 添加成功/ -1 添加失败
+     * Add a shard of data chunk to a dumping task.
+     * @param name chunk name
+     * @param task Dumping task
+     * @param partNum Index of the shard
+     * @param partSize Shard size
+     * @param buf Shard data content
+     * @return: 0 for successful addition / -1 for failure to add
      */
-    virtual int DataChunkTranferAddPart(const ChunkDataName &name,
+    virtual int DataChunkTranferAddPart(const ChunkDataName& name,
                                         std::shared_ptr<TransferTask> task,
-                                       int partNum,
-                                       int partSize,
-                                       const char* buf) = 0;
+                                        int partNum, int partSize,
+                                        const char* buf) = 0;
     /**
-     * 完成数据chunk的转储任务
-     * @param 数据chunk名
-     * @param 转储任务管理结构
-     * @return: 0 转储任务完成/ 转储任务失败 -1
+     *Complete the dump task of data chunks
+     * @param name chunk data name
+     * @param task Dump Task Management Structure
+     * @return: 0 Dump task completed/Dump task failed -1
      */
-    virtual int DataChunkTranferComplete(const ChunkDataName &name,
-                                        std::shared_ptr<TransferTask> task) = 0;
+    virtual int DataChunkTranferComplete(
+        const ChunkDataName& name, std::shared_ptr<TransferTask> task) = 0;
     /**
-     * 终止数据chunk的分片转储任务
-     * @param 数据chunk名
-     * @param 转储任务管理结构
-     * @return: 0 任务终止成功/ -1 任务终止失败
+     *Terminate the sharded dump task of data chunks
+     * @param name chunk data name
+     * @param task Dump Task Management Structure
+     * @return: 0 mission terminated successfully/-1 mission terminated failed
      */
-    virtual int DataChunkTranferAbort(const ChunkDataName &name,
+    virtual int DataChunkTranferAbort(const ChunkDataName& name,
                                       std::shared_ptr<TransferTask> task) = 0;
 };
 
-}   // namespace snapshotcloneserver
-}   // namespace curve
+}  // namespace snapshotcloneserver
+}  // namespace curve
 
 #endif  // SRC_SNAPSHOTCLONESERVER_SNAPSHOT_SNAPSHOT_DATA_STORE_H_

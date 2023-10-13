@@ -19,46 +19,47 @@
  * Created Date: Wednesday September 12th 2018
  * Author: hzsunjianliang
  */
-#include <gtest/gtest.h>
-#include <gmock/gmock.h>
 #include "src/mds/nameserver2/curvefs.h"
-#include "src/mds/nameserver2/idgenerator/inode_id_generator.h"
-#include "src/mds/nameserver2/namespace_storage.h"
+
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
+#include "src/common/namespace_define.h"
 #include "src/common/timeutility.h"
 #include "src/mds/common/mds_define.h"
+#include "src/mds/nameserver2/idgenerator/inode_id_generator.h"
+#include "src/mds/nameserver2/namespace_storage.h"
 #include "src/mds/topology/topology_item.h"
-#include "src/common/namespace_define.h"
-
-#include "test/mds/nameserver2/mock/mock_namespace_storage.h"
-#include "test/mds/nameserver2/mock/mock_inode_id_generator.h"
-#include "test/mds/nameserver2/mock/mock_chunk_allocate.h"
-#include "test/mds/nameserver2/mock/mock_clean_manager.h"
-#include "test/mds/nameserver2/mock/mock_snapshotclone_client.h"
-#include "test/mds/nameserver2/mock/mock_file_record_manager.h"
 #include "test/mds/mock/mock_alloc_statistic.h"
 #include "test/mds/mock/mock_topology.h"
+#include "test/mds/nameserver2/mock/mock_chunk_allocate.h"
+#include "test/mds/nameserver2/mock/mock_clean_manager.h"
+#include "test/mds/nameserver2/mock/mock_file_record_manager.h"
+#include "test/mds/nameserver2/mock/mock_inode_id_generator.h"
+#include "test/mds/nameserver2/mock/mock_namespace_storage.h"
+#include "test/mds/nameserver2/mock/mock_snapshotclone_client.h"
 
-using ::testing::AtLeast;
-using ::testing::StrEq;
+using curve::common::Authenticator;
 using ::testing::_;
+using ::testing::AtLeast;
+using ::testing::DoAll;
+using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::ReturnArg;
-using ::testing::DoAll;
-using ::testing::SetArgPointee;
 using ::testing::SaveArg;
-using ::testing::Invoke;
-using curve::common::Authenticator;
+using ::testing::SetArgPointee;
+using ::testing::StrEq;
 
-using curve::common::TimeUtility;
-using curve::mds::topology::MockTopology;
-using curve::mds::snapshotcloneclient::MockSnapshotCloneClient;
-using curve::mds::snapshotcloneclient::DestFileInfo;
 using curve::common::kDefaultPoolsetName;
+using curve::common::TimeUtility;
+using curve::mds::snapshotcloneclient::DestFileInfo;
+using curve::mds::snapshotcloneclient::MockSnapshotCloneClient;
+using curve::mds::topology::MockTopology;
 
 namespace curve {
 namespace mds {
 
-class CurveFSTest: public ::testing::Test {
+class CurveFSTest : public ::testing::Test {
  protected:
     void SetUp() override {
         storage_ = std::make_shared<MockNameServerStorage>();
@@ -68,7 +69,8 @@ class CurveFSTest: public ::testing::Test {
         mockcleanManager_ = std::make_shared<MockCleanManager>();
         topology_ = std::make_shared<MockTopology>();
         snapshotClient_ = std::make_shared<MockSnapshotCloneClient>();
-        // session repo已经mock，数据库相关参数不需要
+        // The session repo has been mocked, and database related parameters are
+        // not required
         fileRecordManager_ = std::make_shared<MockFileRecordManager>();
         fileRecordOptions_.fileRecordExpiredTimeUs = 5 * 1000;
         fileRecordOptions_.scanIntervalTimeUs = 1 * 1000;
@@ -83,7 +85,7 @@ class CurveFSTest: public ::testing::Test {
         curveFSOptions_.authOptions = authOptions_;
         curveFSOptions_.fileRecordOptions = fileRecordOptions_;
 
-        curvefs_ =  &kCurveFS;
+        curvefs_ = &kCurveFS;
 
         allocStatistic_ = std::make_shared<MockAllocStatistic>();
         FileInfo fileInfo;
@@ -95,16 +97,12 @@ class CurveFSTest: public ::testing::Test {
         fileInfo.set_poolset("default");
         EXPECT_CALL(*storage_, GetFile(_, _, _))
             .Times(AtLeast(1))
-            .WillRepeatedly(DoAll(SetArgPointee<2>(fileInfo),
-                Return(StoreStatus::OK)));
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
 
         curvefs_->Init(storage_, inodeIdGenerator_, mockChunkAllocator_,
-                        mockcleanManager_,
-                        fileRecordManager_,
-                        allocStatistic_,
-                        curveFSOptions_,
-                        topology_,
-                        snapshotClient_);
+                       mockcleanManager_, fileRecordManager_, allocStatistic_,
+                       curveFSOptions_, topology_, snapshotClient_);
         DefaultSegmentSize = curvefs_->GetDefaultSegmentSize();
         kMiniFileLength = curvefs_->GetMinFileLength();
         kMaxFileLength = curvefs_->GetMaxFileLength();
@@ -115,11 +113,9 @@ class CurveFSTest: public ::testing::Test {
                 Return(std::vector<std::string>{kDefaultPoolsetName}));
     }
 
-    void TearDown() override {
-        curvefs_->Uninit();
-    }
+    void TearDown() override { curvefs_->Uninit(); }
 
-    CurveFS *curvefs_;
+    CurveFS* curvefs_;
     std::shared_ptr<MockNameServerStorage> storage_;
     std::shared_ptr<MockInodeIDGenerator> inodeIdGenerator_;
     std::shared_ptr<MockChunkAllocator> mockChunkAllocator_;
@@ -140,108 +136,112 @@ class CurveFSTest: public ::testing::Test {
 TEST_F(CurveFSTest, testCreateFile1) {
     // test parm error
     std::map<PoolIdType, double> spacePools;
-    spacePools.insert(std::pair<PoolIdType, double>(1,
-            kMaxFileLength - kMiniFileLength));
-    EXPECT_CALL(*mockChunkAllocator_,
-        GetRemainingSpaceInLogicalPool(_, _, _))
+    spacePools.insert(
+        std::pair<PoolIdType, double>(1, kMaxFileLength - kMiniFileLength));
+    EXPECT_CALL(*mockChunkAllocator_, GetRemainingSpaceInLogicalPool(_, _, _))
         .Times(AtLeast(1))
         .WillRepeatedly(DoAll(SetArgPointee<1>(spacePools), Return()));
-    ASSERT_EQ(curvefs_->CreateFile("/file1", "",
-                    "owner1", FileType::INODE_PAGEFILE,
-                    kMiniFileLength - 1, 0, 0),
-                    StatusCode::kFileLengthNotSupported);
+    ASSERT_EQ(
+        curvefs_->CreateFile("/file1", "", "owner1", FileType::INODE_PAGEFILE,
+                             kMiniFileLength - 1, 0, 0),
+        StatusCode::kFileLengthNotSupported);
 
-    ASSERT_EQ(curvefs_->CreateFile("/file1", "",
-                    "owner1", FileType::INODE_PAGEFILE,
-                    kMaxFileLength + 1, 0, 0),
-                    StatusCode::kFileLengthNotSupported);
+    ASSERT_EQ(
+        curvefs_->CreateFile("/file1", "", "owner1", FileType::INODE_PAGEFILE,
+                             kMaxFileLength + 1, 0, 0),
+        StatusCode::kFileLengthNotSupported);
 
-    ASSERT_EQ(curvefs_->CreateFile("/flie1", "",
-                                   "owner1", FileType::INODE_PAGEFILE,
-                                   kMiniFileLength + 1, 0, 0),
+    ASSERT_EQ(
+        curvefs_->CreateFile("/flie1", "", "owner1", FileType::INODE_PAGEFILE,
+                             kMiniFileLength + 1, 0, 0),
+        StatusCode::kFileLengthNotSupported);
+
+    ASSERT_EQ(curvefs_->CreateFile(
+                  "/flie1", "", "owner1", FileType::INODE_PAGEFILE,
+                  kMaxFileLength - kMiniFileLength + DefaultSegmentSize, 0, 0),
               StatusCode::kFileLengthNotSupported);
 
-    ASSERT_EQ(curvefs_->CreateFile("/flie1", "", "owner1",
-            FileType::INODE_PAGEFILE,
-            kMaxFileLength - kMiniFileLength + DefaultSegmentSize,
-            0, 0), StatusCode::kFileLengthNotSupported);
-
-    ASSERT_EQ(curvefs_->CreateFile("/", "", "", FileType::INODE_DIRECTORY,
-             0, 0, 0), StatusCode::kFileExists);
+    ASSERT_EQ(
+        curvefs_->CreateFile("/", "", "", FileType::INODE_DIRECTORY, 0, 0, 0),
+        StatusCode::kFileExists);
 
     {
         // test file exist
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(AtLeast(1))
-        .WillOnce(Return(StoreStatus::OK));
+            .Times(AtLeast(1))
+            .WillOnce(Return(StoreStatus::OK));
 
         auto statusCode = curvefs_->CreateFile("/file1", "", "owner1",
-                    FileType::INODE_PAGEFILE, kMiniFileLength, 0, 0);
+                                               FileType::INODE_PAGEFILE,
+                                               kMiniFileLength, 0, 0);
         ASSERT_EQ(statusCode, StatusCode::kFileExists);
     }
 
     {
         // test get storage error
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(AtLeast(1))
-        .WillOnce(Return(StoreStatus::InternalError));
+            .Times(AtLeast(1))
+            .WillOnce(Return(StoreStatus::InternalError));
 
         auto statusCode = curvefs_->CreateFile("/file1", "", "owner1",
-                    FileType::INODE_PAGEFILE, kMiniFileLength, 0, 0);
+                                               FileType::INODE_PAGEFILE,
+                                               kMiniFileLength, 0, 0);
         ASSERT_EQ(statusCode, StatusCode::kStorageError);
     }
 
     {
         // test put storage error
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(AtLeast(1))
-        .WillOnce(Return(StoreStatus::KeyNotExist));
+            .Times(AtLeast(1))
+            .WillOnce(Return(StoreStatus::KeyNotExist));
 
         EXPECT_CALL(*storage_, PutFile(_))
-        .Times(AtLeast(1))
-        .WillOnce(Return(StoreStatus::InternalError));
+            .Times(AtLeast(1))
+            .WillOnce(Return(StoreStatus::InternalError));
 
         EXPECT_CALL(*inodeIdGenerator_, GenInodeID(_))
-        .Times(1)
-        .WillOnce(Return(true));
+            .Times(1)
+            .WillOnce(Return(true));
 
         auto statusCode = curvefs_->CreateFile("/file1", "", "owner1",
-                    FileType::INODE_PAGEFILE, kMiniFileLength, 0, 0);
+                                               FileType::INODE_PAGEFILE,
+                                               kMiniFileLength, 0, 0);
         ASSERT_EQ(statusCode, StatusCode::kStorageError);
     }
 
     {
         // test put storage ok
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(AtLeast(1))
-        .WillOnce(Return(StoreStatus::KeyNotExist));
+            .Times(AtLeast(1))
+            .WillOnce(Return(StoreStatus::KeyNotExist));
 
         EXPECT_CALL(*storage_, PutFile(_))
-        .Times(AtLeast(1))
-        .WillOnce(Return(StoreStatus::OK));
+            .Times(AtLeast(1))
+            .WillOnce(Return(StoreStatus::OK));
 
         EXPECT_CALL(*inodeIdGenerator_, GenInodeID(_))
-        .Times(1)
-        .WillOnce(Return(true));
-
+            .Times(1)
+            .WillOnce(Return(true));
 
         auto statusCode = curvefs_->CreateFile("/file1", "", "owner1",
-            FileType::INODE_PAGEFILE, kMiniFileLength, 0, 0);
+                                               FileType::INODE_PAGEFILE,
+                                               kMiniFileLength, 0, 0);
         ASSERT_EQ(statusCode, StatusCode::kOK);
     }
 
     {
         // test inode allocate error
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(AtLeast(1))
-        .WillOnce(Return(StoreStatus::KeyNotExist));
+            .Times(AtLeast(1))
+            .WillOnce(Return(StoreStatus::KeyNotExist));
 
         EXPECT_CALL(*inodeIdGenerator_, GenInodeID(_))
-        .Times(1)
-        .WillOnce(Return(false));
+            .Times(1)
+            .WillOnce(Return(false));
 
         auto statusCode = curvefs_->CreateFile("/file1", "", "owner1",
-                FileType::INODE_PAGEFILE, kMiniFileLength, 0, 0);
+                                               FileType::INODE_PAGEFILE,
+                                               kMiniFileLength, 0, 0);
         ASSERT_EQ(statusCode, StatusCode::kStorageError);
     }
 
@@ -253,17 +253,15 @@ TEST_F(CurveFSTest, testCreateFile1) {
 
         FileInfo fileInfo;
         EXPECT_CALL(*storage_, PutFile(_))
-            .WillOnce(DoAll(
-                SaveArg<0>(&fileInfo),
-                Return(StoreStatus::OK)));
+            .WillOnce(DoAll(SaveArg<0>(&fileInfo), Return(StoreStatus::OK)));
 
         EXPECT_CALL(*inodeIdGenerator_, GenInodeID(_))
             .Times(1)
             .WillOnce(Return(true));
 
-        auto statusCode = curvefs_->CreateFile(
-            "/dir1", kDefaultPoolsetName, "owner1",
-            FileType::INODE_DIRECTORY, 0, 0, 0);
+        auto statusCode =
+            curvefs_->CreateFile("/dir1", kDefaultPoolsetName, "owner1",
+                                 FileType::INODE_DIRECTORY, 0, 0, 0);
         ASSERT_EQ(statusCode, StatusCode::kOK);
         ASSERT_FALSE(fileInfo.has_throttleparams());
     }
@@ -276,18 +274,15 @@ TEST_F(CurveFSTest, testCreateFile1) {
 
         FileInfo fileInfo;
         EXPECT_CALL(*storage_, PutFile(_))
-            .WillOnce(DoAll(
-                SaveArg<0>(&fileInfo),
-                Return(StoreStatus::OK)));
+            .WillOnce(DoAll(SaveArg<0>(&fileInfo), Return(StoreStatus::OK)));
 
         EXPECT_CALL(*inodeIdGenerator_, GenInodeID(_))
             .Times(1)
             .WillOnce(Return(true));
 
-        auto statusCode =
-            curvefs_->CreateFile("/file1", kDefaultPoolsetName,
-                                "owner1", FileType::INODE_PAGEFILE,
-                                kMiniFileLength, 0, 0);
+        auto statusCode = curvefs_->CreateFile(
+            "/file1", kDefaultPoolsetName, "owner1", FileType::INODE_PAGEFILE,
+            kMiniFileLength, 0, 0);
         ASSERT_EQ(statusCode, StatusCode::kOK);
         ASSERT_TRUE(fileInfo.has_throttleparams());
     }
@@ -300,71 +295,76 @@ TEST_F(CurveFSTest, testCreateStripeFile) {
         spacePools.insert(std::pair<PoolIdType, double>(1, kMaxFileLength));
         spacePools.insert(std::pair<PoolIdType, double>(2, kMaxFileLength));
         EXPECT_CALL(*mockChunkAllocator_,
-            GetRemainingSpaceInLogicalPool(_, _, _))
-         .Times(AtLeast(1))
-         .WillRepeatedly(DoAll(SetArgPointee<1>(spacePools), Return()));
+                    GetRemainingSpaceInLogicalPool(_, _, _))
+            .Times(AtLeast(1))
+            .WillRepeatedly(DoAll(SetArgPointee<1>(spacePools), Return()));
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(AtLeast(1))
-        .WillOnce(Return(StoreStatus::KeyNotExist));
+            .Times(AtLeast(1))
+            .WillOnce(Return(StoreStatus::KeyNotExist));
 
         EXPECT_CALL(*storage_, PutFile(_))
-        .Times(AtLeast(1))
-        .WillOnce(Return(StoreStatus::OK));
+            .Times(AtLeast(1))
+            .WillOnce(Return(StoreStatus::OK));
 
         EXPECT_CALL(*inodeIdGenerator_, GenInodeID(_))
-        .Times(1)
-        .WillOnce(Return(true));
+            .Times(1)
+            .WillOnce(Return(true));
 
         ASSERT_EQ(curvefs_->CreateFile("/file1", "", "owner1",
-                  FileType::INODE_PAGEFILE, kMiniFileLength,
-                  1 * 1024 * 1024, 4), StatusCode::kOK);
+                                       FileType::INODE_PAGEFILE,
+                                       kMiniFileLength, 1 * 1024 * 1024, 4),
+                  StatusCode::kOK);
     }
 
     {
         // test stripeStripe and stripeCount is not all zero
         ASSERT_EQ(curvefs_->CreateFile("/file1", "", "owner1",
-                   FileType::INODE_PAGEFILE, kMiniFileLength, 0, 1),
-                    StatusCode::kParaError);
+                                       FileType::INODE_PAGEFILE,
+                                       kMiniFileLength, 0, 1),
+                  StatusCode::kParaError);
         ASSERT_EQ(curvefs_->CreateFile("/file1", "", "owner1",
-                    FileType::INODE_PAGEFILE, kMiniFileLength, 1024*1024ul,
-                    0), StatusCode::kParaError);
+                                       FileType::INODE_PAGEFILE,
+                                       kMiniFileLength, 1024 * 1024ul, 0),
+                  StatusCode::kParaError);
     }
 
     {
         // test stripeUnit more then chunksize
-        ASSERT_EQ(curvefs_->CreateFile("/file1", "", "owner1",
-        FileType::INODE_PAGEFILE, kMiniFileLength, 16*1024*1024ul + 1,
-        0), StatusCode::kParaError);
+        ASSERT_EQ(curvefs_->CreateFile(
+                      "/file1", "", "owner1", FileType::INODE_PAGEFILE,
+                      kMiniFileLength, 16 * 1024 * 1024ul + 1, 0),
+                  StatusCode::kParaError);
     }
 
     {
         // test stripeUnit is not divisible by chunksize
-        ASSERT_EQ(curvefs_->CreateFile("/file1", "", "owner1",
-            FileType::INODE_PAGEFILE,  kMiniFileLength,
-            4*1024*1024ul + 1, 0), StatusCode::kParaError);
+        ASSERT_EQ(curvefs_->CreateFile(
+                      "/file1", "", "owner1", FileType::INODE_PAGEFILE,
+                      kMiniFileLength, 4 * 1024 * 1024ul + 1, 0),
+                  StatusCode::kParaError);
     }
 }
 
 TEST_F(CurveFSTest, testCreateFileWithPoolset) {
     const std::map<PoolIdType, double> spacePools{
-            {1, kMaxFileLength},
-            {2, kMaxFileLength},
+        {1, kMaxFileLength},
+        {2, kMaxFileLength},
     };
 
     EXPECT_CALL(*mockChunkAllocator_, GetRemainingSpaceInLogicalPool(_, _, _))
-            .Times(AtLeast(1))
-            .WillRepeatedly(DoAll(SetArgPointee<1>(spacePools), Return()));
+        .Times(AtLeast(1))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(spacePools), Return()));
 
     EXPECT_CALL(*storage_, GetFile(_, _, _))
-            .Times(AtLeast(1))
-            .WillRepeatedly(Return(StoreStatus::KeyNotExist));
+        .Times(AtLeast(1))
+        .WillRepeatedly(Return(StoreStatus::KeyNotExist));
 
     EXPECT_CALL(*inodeIdGenerator_, GenInodeID(_))
-            .WillRepeatedly(Invoke([](uint64_t* id) {
-                static std::atomic<uint64_t> counter{0};
-                *id = counter++;
-                return true;
-            }));
+        .WillRepeatedly(Invoke([](uint64_t* id) {
+            static std::atomic<uint64_t> counter{0};
+            *id = counter++;
+            return true;
+        }));
 
     // create file without poolset, assign to default poolset
     {
@@ -382,8 +382,8 @@ TEST_F(CurveFSTest, testCreateFileWithPoolset) {
     // create file with poolset but not same with anyone
     {
         EXPECT_CALL(*topology_, GetPoolsetNameInCluster(_))
-                .WillOnce(Return(
-                        std::vector<std::string>{kDefaultPoolsetName, "SSD"}));
+            .WillOnce(
+                Return(std::vector<std::string>{kDefaultPoolsetName, "SSD"}));
 
         ASSERT_EQ(StatusCode::kPoolsetNotExist,
                   curvefs_->CreateFile("/file1", "HDD", "owner",
@@ -393,8 +393,7 @@ TEST_F(CurveFSTest, testCreateFileWithPoolset) {
 
     // create file with poolset and poolset exists
     {
-        EXPECT_CALL(*storage_, PutFile(_))
-                .WillOnce(Return(StoreStatus::OK));
+        EXPECT_CALL(*storage_, PutFile(_)).WillOnce(Return(StoreStatus::OK));
         EXPECT_CALL(*topology_, GetPoolsetNameInCluster(_));
 
         ASSERT_EQ(StatusCode::kOK,
@@ -406,8 +405,7 @@ TEST_F(CurveFSTest, testCreateFileWithPoolset) {
     // cluster doesn't have poolset
     {
         EXPECT_CALL(*topology_, GetPoolsetNameInCluster(_))
-                .WillOnce(Return(
-                        std::vector<std::string>{}));
+            .WillOnce(Return(std::vector<std::string>{}));
         ASSERT_EQ(StatusCode::kPoolsetNotExist,
                   curvefs_->CreateFile("/file1", "SSD", "owner",
                                        FileType::INODE_PAGEFILE,
@@ -419,23 +417,19 @@ TEST(TestSelectPoolsetByRules, Test) {
     ASSERT_EQ(kDefaultPoolsetName, SelectPoolsetByRules("/filename", {}));
 
     {
-        std::map<std::string, std::string> rules{
-            {"/system/", "system"}
-        };
+        std::map<std::string, std::string> rules{{"/system/", "system"}};
         ASSERT_EQ("system", SelectPoolsetByRules("/system/file", rules));
     }
 
     {
-        std::map<std::string, std::string> rules{
-                {"/system/", "system"}
-        };
+        std::map<std::string, std::string> rules{{"/system/", "system"}};
         ASSERT_EQ(kDefaultPoolsetName, SelectPoolsetByRules("/systems", rules));
     }
 
     {
         std::map<std::string, std::string> rules{
-                {"/system/", "system"},
-                {"/systems/", "system1"},
+            {"/system/", "system"},
+            {"/systems/", "system1"},
         };
         ASSERT_EQ("system1", SelectPoolsetByRules("/systems/file", rules));
     }
@@ -443,9 +437,7 @@ TEST(TestSelectPoolsetByRules, Test) {
     // subdir rules
     {
         std::map<std::string, std::string> rules{
-                {"/system/", "system"},
-                {"/system/sub/", "system-sub"}
-        };
+            {"/system/", "system"}, {"/system/sub/", "system-sub"}};
         ASSERT_EQ("system-sub",
                   SelectPoolsetByRules("/system/sub/file", rules));
 
@@ -462,15 +454,15 @@ TEST_F(CurveFSTest, testGetFileInfo) {
 
     FileInfo rootFileInfo = curvefs_->GetRootFileInfo();
     ASSERT_EQ(fileInfo.id(), rootFileInfo.id());
-    ASSERT_EQ(fileInfo.filename(),  rootFileInfo.filename());
+    ASSERT_EQ(fileInfo.filename(), rootFileInfo.filename());
     ASSERT_EQ(fileInfo.filetype(), rootFileInfo.filetype());
 
     {
         // test path not exist
-        FileInfo  fileInfo;
+        FileInfo fileInfo;
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::KeyNotExist));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::KeyNotExist));
         ASSERT_EQ(curvefs_->GetFileInfo("/file1/file2", &fileInfo),
                   StatusCode::kFileNotExists);
     }
@@ -478,8 +470,8 @@ TEST_F(CurveFSTest, testGetFileInfo) {
         // test stoarge error
         FileInfo fileInfo;
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::InternalError));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::InternalError));
         ASSERT_EQ(curvefs_->GetFileInfo("/file1/file2", &fileInfo),
                   StatusCode::kStorageError);
     }
@@ -487,134 +479,134 @@ TEST_F(CurveFSTest, testGetFileInfo) {
         // test  ok
         FileInfo fileInfo;
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillRepeatedly(Return(StoreStatus::OK));
+            .Times(2)
+            .WillRepeatedly(Return(StoreStatus::OK));
 
         ASSERT_EQ(curvefs_->GetFileInfo("/file1/file2", &fileInfo),
                   StatusCode::kOK);
     }
     {
         // test  WalkPath NOT DIRECTORY
-        FileInfo  fileInfo;
+        FileInfo fileInfo;
         fileInfo.set_filetype(FileType::INODE_PAGEFILE);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
 
         FileInfo retFileInfo;
         std::string lastEntry;
         ASSERT_EQ(curvefs_->GetFileInfo("/testdir/file1", &retFileInfo),
-            StatusCode::kFileNotExists);
+                  StatusCode::kFileNotExists);
     }
     {
         // test LookUpFile internal Error
-        FileInfo  fileInfo;
+        FileInfo fileInfo;
         fileInfo.set_filetype(FileType::INODE_DIRECTORY);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
-            Return(StoreStatus::OK)))
-        .WillOnce(Return(StoreStatus::InternalError));
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)))
+            .WillOnce(Return(StoreStatus::InternalError));
 
         FileInfo fileInfo1;
         ASSERT_EQ(curvefs_->GetFileInfo("testdir/file1", &fileInfo1),
-            StatusCode::kStorageError);
+                  StatusCode::kStorageError);
     }
 }
 
 TEST_F(CurveFSTest, testDeleteFile) {
     // test remove root
     ASSERT_EQ(curvefs_->DeleteFile("/", kUnitializedFileID, false),
-                                                StatusCode::kParaError);
+              StatusCode::kParaError);
 
     // test delete directory ok
     {
-        FileInfo  fileInfo;
+        FileInfo fileInfo;
         fileInfo.set_filetype(FileType::INODE_DIRECTORY);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
 
         std::vector<FileInfo> fileInfoList;
         EXPECT_CALL(*storage_, ListFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfoList),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfoList), Return(StoreStatus::OK)));
 
         EXPECT_CALL(*storage_, DeleteFile(_, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::OK));
 
         ASSERT_EQ(curvefs_->DeleteFile("/dir1", kUnitializedFileID, false),
-                                                    StatusCode::kOK);
+                  StatusCode::kOK);
     }
 
     // test delete directory, directory is not empty
     {
-        FileInfo  fileInfo;
+        FileInfo fileInfo;
         fileInfo.set_filetype(FileType::INODE_DIRECTORY);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
 
         std::vector<FileInfo> fileInfoList;
         fileInfoList.push_back(fileInfo);
         EXPECT_CALL(*storage_, ListFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfoList),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfoList), Return(StoreStatus::OK)));
 
         ASSERT_EQ(curvefs_->DeleteFile("/dir1", kUnitializedFileID, false),
-                                        StatusCode::kDirNotEmpty);
+                  StatusCode::kDirNotEmpty);
     }
 
     // test delete directory, delete file fail
     {
-        FileInfo  fileInfo;
+        FileInfo fileInfo;
         fileInfo.set_filetype(FileType::INODE_DIRECTORY);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
 
         std::vector<FileInfo> fileInfoList;
         EXPECT_CALL(*storage_, ListFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfoList),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfoList), Return(StoreStatus::OK)));
 
         EXPECT_CALL(*storage_, DeleteFile(_, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::InternalError));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::InternalError));
 
         ASSERT_EQ(curvefs_->DeleteFile("/dir1", kUnitializedFileID, false),
-                                            StatusCode::kStorageError);
+                  StatusCode::kStorageError);
     }
 
     // test delete pagefile ok
     {
-        FileInfo  fileInfo;
+        FileInfo fileInfo;
         fileInfo.set_filetype(FileType::INODE_PAGEFILE);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillRepeatedly(DoAll(SetArgPointee<2>(fileInfo),
-            Return(StoreStatus::OK)));
+            .Times(2)
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
 
         std::vector<FileInfo> fileInfoList;
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfoList),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfoList), Return(StoreStatus::OK)));
 
         EXPECT_CALL(*storage_, MoveFileToRecycle(_, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::OK));
 
         ASSERT_EQ(curvefs_->DeleteFile("/file1", kUnitializedFileID, false),
-                                                    StatusCode::kOK);
+                  StatusCode::kOK);
     }
 
     // test delete recyclebin pagefile，cleanManager fail
@@ -623,44 +615,42 @@ TEST_F(CurveFSTest, testDeleteFile) {
         recycleBindir.set_parentid(ROOTINODEID);
         recycleBindir.set_filetype(FileType::INODE_DIRECTORY);
 
-        FileInfo  fileInfo;
+        FileInfo fileInfo;
         fileInfo.set_parentid(RECYCLEBININODEID);
         fileInfo.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(4)
-        .WillOnce(DoAll(SetArgPointee<2>(recycleBindir),
-            Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
-            Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(recycleBindir),
-            Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
-            Return(StoreStatus::OK)));
+            .Times(4)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(recycleBindir), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(recycleBindir), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
 
         EXPECT_CALL(*storage_, PutFile(_))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::OK));
 
         std::vector<FileInfo> fileInfoList;
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfoList),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfoList), Return(StoreStatus::OK)));
 
-        EXPECT_CALL(*mockcleanManager_,
-            GetTask(_))
+        EXPECT_CALL(*mockcleanManager_, GetTask(_))
             .Times(1)
             .WillOnce(Return(nullptr));
 
-        EXPECT_CALL(*mockcleanManager_,
-            SubmitDeleteCommonFileJob(_))
-        .Times(1)
-        .WillOnce(Return(false));
+        EXPECT_CALL(*mockcleanManager_, SubmitDeleteCommonFileJob(_))
+            .Times(1)
+            .WillOnce(Return(false));
 
         ASSERT_EQ(curvefs_->DeleteFile(RECYCLEBINDIR + "/file1",
-                                        kUnitializedFileID, true),
-            StatusCode::KInternalError);
+                                       kUnitializedFileID, true),
+                  StatusCode::KInternalError);
     }
 
     // test force delete recyclebin file ok
@@ -669,44 +659,42 @@ TEST_F(CurveFSTest, testDeleteFile) {
         recycleBindir.set_parentid(ROOTINODEID);
         recycleBindir.set_filetype(FileType::INODE_DIRECTORY);
 
-        FileInfo  fileInfo;
+        FileInfo fileInfo;
         fileInfo.set_parentid(RECYCLEBININODEID);
         fileInfo.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(4)
-        .WillOnce(DoAll(SetArgPointee<2>(recycleBindir),
-            Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
-            Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(recycleBindir),
-            Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
-            Return(StoreStatus::OK)));
+            .Times(4)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(recycleBindir), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(recycleBindir), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
 
         std::vector<FileInfo> fileInfoList;
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfoList),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfoList), Return(StoreStatus::OK)));
 
         EXPECT_CALL(*storage_, PutFile(_))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::OK));
 
-        EXPECT_CALL(*mockcleanManager_,
-            GetTask(_))
+        EXPECT_CALL(*mockcleanManager_, GetTask(_))
             .Times(1)
             .WillOnce(Return(nullptr));
 
-        EXPECT_CALL(*mockcleanManager_,
-            SubmitDeleteCommonFileJob(_))
-        .Times(1)
-        .WillOnce(Return(true));
+        EXPECT_CALL(*mockcleanManager_, SubmitDeleteCommonFileJob(_))
+            .Times(1)
+            .WillOnce(Return(true));
 
         ASSERT_EQ(curvefs_->DeleteFile(RECYCLEBINDIR + "/file1",
-                                    kUnitializedFileID, true),
-            StatusCode::kOK);
+                                       kUnitializedFileID, true),
+                  StatusCode::kOK);
     }
 
     // test force delete already deleting
@@ -715,250 +703,245 @@ TEST_F(CurveFSTest, testDeleteFile) {
         recycleBindir.set_parentid(ROOTINODEID);
         recycleBindir.set_filetype(FileType::INODE_DIRECTORY);
 
-        FileInfo  fileInfo;
+        FileInfo fileInfo;
         fileInfo.set_parentid(RECYCLEBININODEID);
         fileInfo.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(4)
-        .WillOnce(DoAll(SetArgPointee<2>(recycleBindir),
-            Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
-            Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(recycleBindir),
-            Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
-            Return(StoreStatus::OK)));
+            .Times(4)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(recycleBindir), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(recycleBindir), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
 
         std::vector<FileInfo> fileInfoList;
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfoList),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfoList), Return(StoreStatus::OK)));
 
         // mockcleanManager_ = std::make_shared<MockCleanManager>();
         auto notNullTask =
             std::make_shared<SnapShotCleanTask>(1, nullptr, fileInfo);
-        EXPECT_CALL(*mockcleanManager_,
-            GetTask(_))
+        EXPECT_CALL(*mockcleanManager_, GetTask(_))
             .Times(1)
             .WillOnce(Return(notNullTask));
 
         ASSERT_EQ(curvefs_->DeleteFile(RECYCLEBINDIR + "/file1",
-                                            kUnitializedFileID, true),
-            StatusCode::kOK);
+                                       kUnitializedFileID, true),
+                  StatusCode::kOK);
     }
 
-     // test force delete file not in recyclebin
+    // test force delete file not in recyclebin
     {
-        FileInfo  fileInfo;
+        FileInfo fileInfo;
         fileInfo.set_parentid(USERSTARTINODEID);
         fileInfo.set_filetype(FileType::INODE_PAGEFILE);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillRepeatedly(DoAll(SetArgPointee<2>(fileInfo),
-            Return(StoreStatus::OK)));
+            .Times(2)
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
 
         std::vector<FileInfo> fileInfoList;
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfoList),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfoList), Return(StoreStatus::OK)));
 
         ASSERT_EQ(curvefs_->DeleteFile("/file1", kUnitializedFileID, true),
-            StatusCode::kNotSupported);
+                  StatusCode::kNotSupported);
     }
     // test delete pagefile, file under snapshot
     {
-        FileInfo  fileInfo;
+        FileInfo fileInfo;
         fileInfo.set_filetype(FileType::INODE_PAGEFILE);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillRepeatedly(DoAll(SetArgPointee<2>(fileInfo),
-            Return(StoreStatus::OK)));
+            .Times(2)
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
 
         std::vector<FileInfo> fileInfoList;
         fileInfoList.push_back(fileInfo);
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfoList),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfoList), Return(StoreStatus::OK)));
 
         ASSERT_EQ(curvefs_->DeleteFile("/file1", kUnitializedFileID, false),
-                                StatusCode::kFileUnderSnapShot);
+                  StatusCode::kFileUnderSnapShot);
     }
 
     // test delete pagefile, storage error
     {
-        FileInfo  fileInfo;
+        FileInfo fileInfo;
         fileInfo.set_filetype(FileType::INODE_PAGEFILE);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillRepeatedly(DoAll(SetArgPointee<2>(fileInfo),
-            Return(StoreStatus::OK)));
+            .Times(2)
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
 
         std::vector<FileInfo> fileInfoList;
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfoList),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfoList), Return(StoreStatus::OK)));
 
         EXPECT_CALL(*storage_, MoveFileToRecycle(_, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::InternalError));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::InternalError));
 
         ASSERT_EQ(curvefs_->DeleteFile("/file1", kUnitializedFileID, false),
-                                     StatusCode::kStorageError);
+                  StatusCode::kStorageError);
     }
 
     //  test file not exist
     {
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(AtLeast(1))
-        .WillOnce(Return(StoreStatus::KeyNotExist));
+            .Times(AtLeast(1))
+            .WillOnce(Return(StoreStatus::KeyNotExist));
 
         ASSERT_EQ(curvefs_->DeleteFile("/file1", kUnitializedFileID, false),
-                                            StatusCode::kFileNotExists);
+                  StatusCode::kFileNotExists);
     }
 
     // delete not support file type
     {
-        FileInfo  fileInfo;
+        FileInfo fileInfo;
         fileInfo.set_filetype(FileType::INODE_APPENDFILE);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
 
         ASSERT_EQ(curvefs_->DeleteFile("/file1", kUnitializedFileID, false),
-                                                StatusCode::kNotSupported);
+                  StatusCode::kNotSupported);
     }
 
     // test delete pagefile, file under clone
     {
-        FileInfo  fileInfo;
+        FileInfo fileInfo;
         fileInfo.set_filetype(FileType::INODE_PAGEFILE);
         fileInfo.set_filestatus(FileStatus::kFileBeingCloned);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillRepeatedly(DoAll(SetArgPointee<2>(fileInfo),
-            Return(StoreStatus::OK)));
+            .Times(2)
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
 
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::OK));
 
         CloneRefStatus status = CloneRefStatus::kHasRef;
         EXPECT_CALL(*snapshotClient_, GetCloneRefStatus(_, _, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(status),
-            Return(StatusCode::kOK)));
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(status), Return(StatusCode::kOK)));
 
         ASSERT_EQ(curvefs_->DeleteFile("/file1", kUnitializedFileID, false),
-                                StatusCode::kDeleteFileBeingCloned);
+                  StatusCode::kDeleteFileBeingCloned);
     }
 
     // test delete pagefile, file under clone but has no ref but delete fail
     {
-        FileInfo  fileInfo;
+        FileInfo fileInfo;
         fileInfo.set_filetype(FileType::INODE_PAGEFILE);
         fileInfo.set_filestatus(FileStatus::kFileBeingCloned);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillRepeatedly(DoAll(SetArgPointee<2>(fileInfo),
-            Return(StoreStatus::OK)));
+            .Times(2)
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
 
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::OK));
 
         CloneRefStatus status = CloneRefStatus::kNoRef;
         EXPECT_CALL(*snapshotClient_, GetCloneRefStatus(_, _, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(status),
-            Return(StatusCode::kOK)));
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(status), Return(StatusCode::kOK)));
 
         EXPECT_CALL(*storage_, MoveFileToRecycle(_, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::InternalError));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::InternalError));
 
         ASSERT_EQ(curvefs_->DeleteFile("/file1", kUnitializedFileID, false),
-                                     StatusCode::kStorageError);
+                  StatusCode::kStorageError);
     }
 
     // test delete pagefile, file under clone but has no ref success
     {
-        FileInfo  fileInfo;
+        FileInfo fileInfo;
         fileInfo.set_filetype(FileType::INODE_PAGEFILE);
         fileInfo.set_filestatus(FileStatus::kFileBeingCloned);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillRepeatedly(DoAll(SetArgPointee<2>(fileInfo),
-            Return(StoreStatus::OK)));
+            .Times(2)
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
 
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::OK));
 
         CloneRefStatus status = CloneRefStatus::kNoRef;
         EXPECT_CALL(*snapshotClient_, GetCloneRefStatus(_, _, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(status),
-            Return(StatusCode::kOK)));
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(status), Return(StatusCode::kOK)));
 
         EXPECT_CALL(*storage_, MoveFileToRecycle(_, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::OK));
 
         ASSERT_EQ(curvefs_->DeleteFile("/file1", kUnitializedFileID, false),
-                                     StatusCode::kOK);
+                  StatusCode::kOK);
     }
 
     // test delete pagefile, file under clone but need check list empty
     {
-        FileInfo  fileInfo;
+        FileInfo fileInfo;
         fileInfo.set_filetype(FileType::INODE_PAGEFILE);
         fileInfo.set_filestatus(FileStatus::kFileBeingCloned);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillRepeatedly(DoAll(SetArgPointee<2>(fileInfo),
-            Return(StoreStatus::OK)));
+            .Times(2)
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
 
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::OK));
 
         CloneRefStatus status = CloneRefStatus::kNeedCheck;
         EXPECT_CALL(*snapshotClient_, GetCloneRefStatus(_, _, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(status),
-            Return(StatusCode::kOK)));
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(status), Return(StatusCode::kOK)));
 
         EXPECT_CALL(*storage_, MoveFileToRecycle(_, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::OK));
 
         ASSERT_EQ(curvefs_->DeleteFile("/file1", kUnitializedFileID, false),
-                                     StatusCode::kOK);
+                  StatusCode::kOK);
     }
 
     // test delete pagefile, file under clone but need check, file has ref
     {
-        FileInfo  fileInfo;
+        FileInfo fileInfo;
         fileInfo.set_filetype(FileType::INODE_PAGEFILE);
         fileInfo.set_filestatus(FileStatus::kFileBeingCloned);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(3)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
-            Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
-            Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
-            Return(StoreStatus::KeyNotExist)));
+            .Times(3)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)))
+            .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+                            Return(StoreStatus::KeyNotExist)));
 
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::OK));
 
         CloneRefStatus status = CloneRefStatus::kNeedCheck;
         std::vector<DestFileInfo> fileCheckList;
@@ -967,37 +950,37 @@ TEST_F(CurveFSTest, testDeleteFile) {
         info.inodeid = 100;
         fileCheckList.push_back(info);
         EXPECT_CALL(*snapshotClient_, GetCloneRefStatus(_, _, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(status),
-            SetArgPointee<3>(fileCheckList),
-            Return(StatusCode::kOK)));
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(status),
+                            SetArgPointee<3>(fileCheckList),
+                            Return(StatusCode::kOK)));
 
         EXPECT_CALL(*storage_, MoveFileToRecycle(_, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::OK));
 
         ASSERT_EQ(curvefs_->DeleteFile("/file1", kUnitializedFileID, false),
-                                     StatusCode::kOK);
+                  StatusCode::kOK);
     }
 
     // test delete pagefile, file under clone but need check, inode mismatch
     {
-        FileInfo  fileInfo;
+        FileInfo fileInfo;
         fileInfo.set_filetype(FileType::INODE_PAGEFILE);
         fileInfo.set_filestatus(FileStatus::kFileBeingCloned);
         fileInfo.set_id(10);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(3)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
-            Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
-            Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
-            Return(StoreStatus::OK)));
+            .Times(3)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
 
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::OK));
 
         CloneRefStatus status = CloneRefStatus::kNeedCheck;
         std::vector<DestFileInfo> fileCheckList;
@@ -1006,37 +989,37 @@ TEST_F(CurveFSTest, testDeleteFile) {
         info.inodeid = 100;
         fileCheckList.push_back(info);
         EXPECT_CALL(*snapshotClient_, GetCloneRefStatus(_, _, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(status),
-            SetArgPointee<3>(fileCheckList),
-            Return(StatusCode::kOK)));
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(status),
+                            SetArgPointee<3>(fileCheckList),
+                            Return(StatusCode::kOK)));
 
         EXPECT_CALL(*storage_, MoveFileToRecycle(_, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::OK));
 
         ASSERT_EQ(curvefs_->DeleteFile("/file1", kUnitializedFileID, false),
-                                     StatusCode::kOK);
+                  StatusCode::kOK);
     }
 
     // test delete pagefile, file under clone but need check, has ref
     {
-        FileInfo  fileInfo;
+        FileInfo fileInfo;
         fileInfo.set_filetype(FileType::INODE_PAGEFILE);
         fileInfo.set_filestatus(FileStatus::kFileBeingCloned);
         fileInfo.set_id(100);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(3)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
-            Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
-            Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
-            Return(StoreStatus::OK)));
+            .Times(3)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
 
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::OK));
 
         CloneRefStatus status = CloneRefStatus::kNeedCheck;
         std::vector<DestFileInfo> fileCheckList;
@@ -1045,17 +1028,17 @@ TEST_F(CurveFSTest, testDeleteFile) {
         info.inodeid = 100;
         fileCheckList.push_back(info);
         EXPECT_CALL(*snapshotClient_, GetCloneRefStatus(_, _, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(status),
-            SetArgPointee<3>(fileCheckList),
-            Return(StatusCode::kOK)));
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(status),
+                            SetArgPointee<3>(fileCheckList),
+                            Return(StatusCode::kOK)));
 
         // EXPECT_CALL(*storage_, MoveFileToRecycle(_, _))
         // .Times(1)
         // .WillOnce(Return(StoreStatus::OK));
 
         ASSERT_EQ(curvefs_->DeleteFile("/file1", kUnitializedFileID, false),
-                                     StatusCode::kDeleteFileBeingCloned);
+                  StatusCode::kDeleteFileBeingCloned);
     }
 
     // test delete failed when mds didn't start for enough time
@@ -1113,7 +1096,7 @@ TEST_F(CurveFSTest, testDeleteFile) {
 
 TEST_F(CurveFSTest, testGetAllocatedSize) {
     AllocatedSize allocSize;
-    FileInfo  fileInfo;
+    FileInfo fileInfo;
     uint64_t segmentSize = 1 * 1024 * 1024 * 1024ul;
     fileInfo.set_id(0);
     fileInfo.set_filetype(FileType::INODE_PAGEFILE);
@@ -1130,22 +1113,21 @@ TEST_F(CurveFSTest, testGetAllocatedSize) {
     segment.set_logicalpoolid(2);
     segments.emplace_back(segment);
 
-
     // test page file normal
     {
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
         EXPECT_CALL(*storage_, ListSegment(_, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(segments),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<1>(segments), Return(StoreStatus::OK)));
         ASSERT_EQ(StatusCode::kOK,
-                    curvefs_->GetAllocatedSize("/tests", &allocSize));
+                  curvefs_->GetAllocatedSize("/tests", &allocSize));
         ASSERT_EQ(3 * segmentSize, allocSize.total);
-        std::unordered_map<PoolIdType, uint64_t> expected =
-                        {{1, 2 * segmentSize}, {2, segmentSize}};
+        std::unordered_map<PoolIdType, uint64_t> expected = {
+            {1, 2 * segmentSize}, {2, segmentSize}};
         ASSERT_EQ(expected, allocSize.allocSizeMap);
     }
     // test directory normal
@@ -1157,73 +1139,72 @@ TEST_F(CurveFSTest, testGetAllocatedSize) {
             files.emplace_back(fileInfo);
         }
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillRepeatedly(DoAll(SetArgPointee<2>(dirInfo),
-            Return(StoreStatus::OK)));
+            .Times(2)
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(dirInfo), Return(StoreStatus::OK)));
         EXPECT_CALL(*storage_, ListFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(files),
-                        Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(files), Return(StoreStatus::OK)));
         EXPECT_CALL(*storage_, ListSegment(_, _))
-        .Times(3)
-        .WillRepeatedly(DoAll(SetArgPointee<1>(segments),
-            Return(StoreStatus::OK)));
+            .Times(3)
+            .WillRepeatedly(
+                DoAll(SetArgPointee<1>(segments), Return(StoreStatus::OK)));
         ASSERT_EQ(StatusCode::kOK,
-                    curvefs_->GetAllocatedSize("/tests", &allocSize));
+                  curvefs_->GetAllocatedSize("/tests", &allocSize));
         ASSERT_EQ(9 * segmentSize, allocSize.total);
-        std::unordered_map<PoolIdType, uint64_t> expected =
-                        {{1, 6 * segmentSize}, {2, 3 * segmentSize}};
+        std::unordered_map<PoolIdType, uint64_t> expected = {
+            {1, 6 * segmentSize}, {2, 3 * segmentSize}};
     }
     // test GetFile fail
     {
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::KeyNotExist));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::KeyNotExist));
         ASSERT_EQ(StatusCode::kFileNotExists,
-                    curvefs_->GetAllocatedSize("/tests", &allocSize));
+                  curvefs_->GetAllocatedSize("/tests", &allocSize));
     }
     // test file type not supported
     {
         FileInfo appendFileInfo;
         appendFileInfo.set_filetype(INODE_APPENDFILE);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(appendFileInfo),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(appendFileInfo),
+                            Return(StoreStatus::OK)));
         ASSERT_EQ(StatusCode::kNotSupported,
-                    curvefs_->GetAllocatedSize("/tests", &allocSize));
+                  curvefs_->GetAllocatedSize("/tests", &allocSize));
     }
     // test list segment fail
     {
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
         EXPECT_CALL(*storage_, ListSegment(_, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::InternalError));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::InternalError));
         ASSERT_EQ(StatusCode::kStorageError,
-                    curvefs_->GetAllocatedSize("/tests", &allocSize));
+                  curvefs_->GetAllocatedSize("/tests", &allocSize));
     }
     // test list directory fail
     {
         FileInfo dirInfo;
         dirInfo.set_filetype(FileType::INODE_DIRECTORY);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillRepeatedly(DoAll(SetArgPointee<2>(dirInfo),
-            Return(StoreStatus::OK)));
+            .Times(2)
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(dirInfo), Return(StoreStatus::OK)));
         EXPECT_CALL(*storage_, ListFile(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::InternalError));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::InternalError));
         ASSERT_EQ(StatusCode::kStorageError,
-                    curvefs_->GetAllocatedSize("/tests", &allocSize));
+                  curvefs_->GetAllocatedSize("/tests", &allocSize));
     }
 }
 
 TEST_F(CurveFSTest, testGetFileSize) {
     uint64_t fileSize;
-    FileInfo  fileInfo;
+    FileInfo fileInfo;
     fileInfo.set_id(0);
     fileInfo.set_filetype(FileType::INODE_PAGEFILE);
     fileInfo.set_length(10 * kGB);
@@ -1231,11 +1212,10 @@ TEST_F(CurveFSTest, testGetFileSize) {
     // test page file normal
     {
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
-            Return(StoreStatus::OK)));
-        ASSERT_EQ(StatusCode::kOK,
-                    curvefs_->GetFileSize("/tests", &fileSize));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
+        ASSERT_EQ(StatusCode::kOK, curvefs_->GetFileSize("/tests", &fileSize));
         ASSERT_EQ(10 * kGB, fileSize);
     }
     // test directory normal
@@ -1247,49 +1227,47 @@ TEST_F(CurveFSTest, testGetFileSize) {
             files.emplace_back(fileInfo);
         }
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillRepeatedly(DoAll(SetArgPointee<2>(dirInfo),
-            Return(StoreStatus::OK)));
+            .Times(2)
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(dirInfo), Return(StoreStatus::OK)));
         EXPECT_CALL(*storage_, ListFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(files),
-                        Return(StoreStatus::OK)));
-        ASSERT_EQ(StatusCode::kOK,
-                    curvefs_->GetFileSize("/tests", &fileSize));
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(files), Return(StoreStatus::OK)));
+        ASSERT_EQ(StatusCode::kOK, curvefs_->GetFileSize("/tests", &fileSize));
         ASSERT_EQ(30 * kGB, fileSize);
     }
     // test GetFile fail
     {
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::KeyNotExist));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::KeyNotExist));
         ASSERT_EQ(StatusCode::kFileNotExists,
-                    curvefs_->GetFileSize("/tests", &fileSize));
+                  curvefs_->GetFileSize("/tests", &fileSize));
     }
     // test file type not supported
     {
         FileInfo appendFileInfo;
         appendFileInfo.set_filetype(INODE_APPENDFILE);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(appendFileInfo),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(appendFileInfo),
+                            Return(StoreStatus::OK)));
         ASSERT_EQ(StatusCode::kNotSupported,
-                    curvefs_->GetFileSize("/tests", &fileSize));
+                  curvefs_->GetFileSize("/tests", &fileSize));
     }
     // test list directory fail
     {
         FileInfo dirInfo;
         dirInfo.set_filetype(FileType::INODE_DIRECTORY);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillRepeatedly(DoAll(SetArgPointee<2>(dirInfo),
-            Return(StoreStatus::OK)));
+            .Times(2)
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(dirInfo), Return(StoreStatus::OK)));
         EXPECT_CALL(*storage_, ListFile(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::InternalError));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::InternalError));
         ASSERT_EQ(StatusCode::kStorageError,
-                    curvefs_->GetFileSize("/tests", &fileSize));
+                  curvefs_->GetFileSize("/tests", &fileSize));
     }
 }
 
@@ -1301,9 +1279,9 @@ TEST_F(CurveFSTest, testReadDir) {
     {
         fileInfo.set_filetype(FileType::INODE_PAGEFILE);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
-                        Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
 
         ASSERT_EQ(curvefs_->ReadDir("/file1", &items),
                   StatusCode::kNotDirectory);
@@ -1313,8 +1291,8 @@ TEST_F(CurveFSTest, testReadDir) {
     // test getFile Not exist
     {
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::KeyNotExist));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::KeyNotExist));
 
         ASSERT_EQ(curvefs_->ReadDir("/file1", &items),
                   StatusCode::kDirNotExist);
@@ -1324,9 +1302,9 @@ TEST_F(CurveFSTest, testReadDir) {
     {
         fileInfo.set_filetype(FileType::INODE_DIRECTORY);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
-                        Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
 
         std::vector<FileInfo> sideEffectArgs;
         sideEffectArgs.clear();
@@ -1335,9 +1313,9 @@ TEST_F(CurveFSTest, testReadDir) {
         sideEffectArgs.push_back(fileInfo);
 
         EXPECT_CALL(*storage_, ListFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(sideEffectArgs),
-                        Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(sideEffectArgs),
+                            Return(StoreStatus::OK)));
 
         auto ret = curvefs_->ReadDir("/file1", &items);
         ASSERT_EQ(ret, StatusCode::kOK);
@@ -1355,16 +1333,16 @@ TEST_F(CurveFSTest, testRecoverFile) {
         fileInfo1.set_filetype(FileType::INODE_PAGEFILE);
         fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(3)
-        .WillOnce(Return(StoreStatus::KeyNotExist))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)));
+            .Times(3)
+            .WillOnce(Return(StoreStatus::KeyNotExist))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo2), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)));
 
         EXPECT_CALL(*storage_, RenameFile(_, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::OK));
 
         ASSERT_EQ(curvefs_->RecoverFile("/file1", "/RecycleBin/file1-10", 0),
                   StatusCode::kOK);
@@ -1373,19 +1351,19 @@ TEST_F(CurveFSTest, testRecoverFile) {
     // the upper dir not exist, can not recover
     {
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::KeyNotExist));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::KeyNotExist));
 
-        ASSERT_EQ(curvefs_->RecoverFile("/k8s/file1",
-                  "/RecycleBin/k8s/file1-10", 2),
-                  StatusCode::kFileNotExists);
+        ASSERT_EQ(
+            curvefs_->RecoverFile("/k8s/file1", "/RecycleBin/k8s/file1-10", 2),
+            StatusCode::kFileNotExists);
     }
 
     // the same file exist, can not recover
     {
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(AtLeast(1))
-        .WillOnce(Return(StoreStatus::OK));
+            .Times(AtLeast(1))
+            .WillOnce(Return(StoreStatus::OK));
 
         ASSERT_EQ(curvefs_->RecoverFile("/file1", "/RecycleBin/file1-10", 0),
                   StatusCode::kFileExists);
@@ -1400,12 +1378,12 @@ TEST_F(CurveFSTest, testRecoverFile) {
         fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(3)
-        .WillOnce(Return(StoreStatus::KeyNotExist))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)));
+            .Times(3)
+            .WillOnce(Return(StoreStatus::KeyNotExist))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo2), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)));
 
         ASSERT_EQ(curvefs_->RecoverFile("/file1", "/RecycleBin/file1-10", 2),
                   StatusCode::kFileIdNotMatch);
@@ -1420,12 +1398,12 @@ TEST_F(CurveFSTest, testRecoverFile) {
         fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(3)
-        .WillOnce(Return(StoreStatus::KeyNotExist))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)));
+            .Times(3)
+            .WillOnce(Return(StoreStatus::KeyNotExist))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo2), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)));
 
         ASSERT_EQ(curvefs_->RecoverFile("/file1", "/RecycleBin/file1-10", 0),
                   StatusCode::kFileUnderDeleting);
@@ -1440,12 +1418,12 @@ TEST_F(CurveFSTest, testRecoverFile) {
         fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(3)
-        .WillOnce(Return(StoreStatus::KeyNotExist))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)));
+            .Times(3)
+            .WillOnce(Return(StoreStatus::KeyNotExist))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo2), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)));
 
         ASSERT_EQ(curvefs_->RecoverFile("/file1", "/RecycleBin/file1-10", 0),
                   StatusCode::kRecoverFileCloneMetaInstalled);
@@ -1460,12 +1438,12 @@ TEST_F(CurveFSTest, testRecoverFile) {
         fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(3)
-        .WillOnce(Return(StoreStatus::KeyNotExist))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)));
+            .Times(3)
+            .WillOnce(Return(StoreStatus::KeyNotExist))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo2), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)));
 
         ASSERT_EQ(curvefs_->RecoverFile("/file1", "/RecycleBin/file1-10", 0),
                   StatusCode::kRecoverFileError);
@@ -1478,16 +1456,16 @@ TEST_F(CurveFSTest, testRecoverFile) {
         fileInfo1.set_filetype(FileType::INODE_PAGEFILE);
         fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(3)
-        .WillOnce(Return(StoreStatus::KeyNotExist))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)));
+            .Times(3)
+            .WillOnce(Return(StoreStatus::KeyNotExist))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo2), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)));
 
         EXPECT_CALL(*storage_, RenameFile(_, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::InternalError));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::InternalError));
 
         ASSERT_EQ(curvefs_->RecoverFile("/file1", "/RecycleBin/file1-10", 0),
                   StatusCode::kStorageError);
@@ -1502,22 +1480,22 @@ TEST_F(CurveFSTest, testRenameFile) {
         fileInfo1.set_filetype(FileType::INODE_PAGEFILE);
         fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(AtLeast(4))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)))
-        .WillOnce(Return(StoreStatus::KeyNotExist));
+            .Times(AtLeast(4))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo2), Return(StoreStatus::OK)))
+            .WillOnce(Return(StoreStatus::KeyNotExist));
 
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::KeyNotExist));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::KeyNotExist));
 
         EXPECT_CALL(*storage_, RenameFile(_, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::OK));
 
         ASSERT_EQ(curvefs_->RenameFile("/file1", "/trash/file2", 0, 0),
                   StatusCode::kOK);
@@ -1528,18 +1506,18 @@ TEST_F(CurveFSTest, testRenameFile) {
         FileInfo fileInfo1;
         fileInfo1.set_filetype(FileType::INODE_PAGEFILE);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)));
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapshotFileInfos;
         snapshotFileInfos.push_back(fileInfo1);
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(snapshotFileInfos),
-                        Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(snapshotFileInfos),
+                            Return(StoreStatus::OK)));
 
         ASSERT_EQ(curvefs_->RenameFile("/file1", "/trash/file2", 0, 0),
                   StatusCode::kFileUnderSnapShot);
@@ -1548,8 +1526,8 @@ TEST_F(CurveFSTest, testRenameFile) {
     // old file not exist
     {
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::KeyNotExist));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::KeyNotExist));
 
         ASSERT_EQ(curvefs_->RenameFile("/file1", "/trash/file2", 0, 0),
                   StatusCode::kFileNotExists);
@@ -1560,16 +1538,16 @@ TEST_F(CurveFSTest, testRenameFile) {
         FileInfo fileInfo;
         fileInfo.set_filetype(FileType::INODE_PAGEFILE);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(3)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
-                        Return(StoreStatus::OK)))
-        .WillOnce(Return(StoreStatus::KeyNotExist));
+            .Times(3)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)))
+            .WillOnce(Return(StoreStatus::KeyNotExist));
 
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::KeyNotExist));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::KeyNotExist));
 
         ASSERT_EQ(curvefs_->RenameFile("/file1", "/trash/file2", 0, 0),
                   StatusCode::kFileNotExists);
@@ -1582,22 +1560,22 @@ TEST_F(CurveFSTest, testRenameFile) {
         fileInfo1.set_filetype(FileType::INODE_PAGEFILE);
         fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(AtLeast(4))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)))
-        .WillOnce(Return(StoreStatus::KeyNotExist));
+            .Times(AtLeast(4))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo2), Return(StoreStatus::OK)))
+            .WillOnce(Return(StoreStatus::KeyNotExist));
 
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::KeyNotExist));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::KeyNotExist));
 
         EXPECT_CALL(*storage_, RenameFile(_, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::InternalError));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::InternalError));
 
         ASSERT_EQ(curvefs_->RenameFile("/file1", "/trash/file2", 0, 0),
                   StatusCode::kStorageError);
@@ -1625,9 +1603,9 @@ TEST_F(CurveFSTest, testRenameFile) {
         FileInfo fileInfo;
         fileInfo.set_filetype(FileType::INODE_DIRECTORY);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(AtLeast(1))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
-                        Return(StoreStatus::OK)));
+            .Times(AtLeast(1))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
 
         ASSERT_EQ(curvefs_->RenameFile("/file1", "/trash/file2", 0, 0),
                   StatusCode::kNotSupported);
@@ -1644,33 +1622,33 @@ TEST_F(CurveFSTest, testRenameFile) {
         fileInfo1.set_id(10);
         fileInfo3.set_id(11);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(6)
-        // 查找/file1
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        // check /file1是否有快照
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        // 查找/trash/file2
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo3),
-                        Return(StoreStatus::OK)))
-        // check /trash/file2是否有快照
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo3),
-                        Return(StoreStatus::OK)));
+            .Times(6)
+            // Find /file1
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
+            // Check if /file1 has a snapshot
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
+            // Find /trash/file2
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo2), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo3), Return(StoreStatus::OK)))
+            //  Check if /trash/file2 has a snapshot
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo2), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo3), Return(StoreStatus::OK)));
 
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(3)
-        .WillOnce(Return(StoreStatus::KeyNotExist))
-        .WillOnce(Return(StoreStatus::KeyNotExist))
-        .WillOnce(Return(StoreStatus::KeyNotExist));
+            .Times(3)
+            .WillOnce(Return(StoreStatus::KeyNotExist))
+            .WillOnce(Return(StoreStatus::KeyNotExist))
+            .WillOnce(Return(StoreStatus::KeyNotExist));
 
         EXPECT_CALL(*storage_, ReplaceFileAndRecycleOldFile(_, _, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::OK));
 
         ASSERT_EQ(curvefs_->RenameFile("/file1", "/trash/file2", 10, 11),
                   StatusCode::kOK);
@@ -1683,18 +1661,18 @@ TEST_F(CurveFSTest, testRenameFile) {
         fileInfo1.set_filetype(FileType::INODE_PAGEFILE);
         fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(4)
-        // 查找/file1
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        // check /file1是否有快照
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        // 查找/trash/file2
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)));
+            .Times(4)
+            // Find /file1
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
+            // Check if /file1 has a snapshot
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
+            // Find /trash/file2
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo2), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo2), Return(StoreStatus::OK)));
 
         ASSERT_EQ(curvefs_->RenameFile("/file1", "/trash/file2", 0, 0),
                   StatusCode::kFileExists);
@@ -1707,31 +1685,31 @@ TEST_F(CurveFSTest, testRenameFile) {
         fileInfo1.set_filetype(FileType::INODE_PAGEFILE);
         fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(6)
-        // 查找/file1
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        // check /file1是否有快照
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        // 查找/trash/file2
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        // check /trash/file2是否有快照
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)));
+            .Times(6)
+            // Find /file1
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
+            // Check if /file1 has a snapshot
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
+            // Find /trash/file2
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo2), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
+            // Check if /trash/file2 has a snapshot
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo2), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapshotFileInfos;
         snapshotFileInfos.push_back(fileInfo1);
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(2)
-        .WillOnce(Return(StoreStatus::KeyNotExist))
-        .WillOnce(DoAll(SetArgPointee<2>(snapshotFileInfos),
-                        Return(StoreStatus::OK)));
+            .Times(2)
+            .WillOnce(Return(StoreStatus::KeyNotExist))
+            .WillOnce(DoAll(SetArgPointee<2>(snapshotFileInfos),
+                            Return(StoreStatus::OK)));
 
         ASSERT_EQ(curvefs_->RenameFile("/file1", "/trash/file2", 0, 0),
                   StatusCode::kFileUnderSnapShot);
@@ -1744,32 +1722,32 @@ TEST_F(CurveFSTest, testRenameFile) {
         fileInfo1.set_filetype(FileType::INODE_PAGEFILE);
         fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(6)
-        // 查找/file1
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        // check /file1是否有快照
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        // 查找/trash/file2
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        // check /trash/file2是否有快照
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)));
+            .Times(6)
+            // Find /file1
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
+            // Check if /file1 has a snapshot
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
+            // Find /trash/file2
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo2), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
+            // Check if /trash/file2 has a snapshot
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo2), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)));
 
         EXPECT_CALL(*storage_, ReplaceFileAndRecycleOldFile(_, _, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::InternalError));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::InternalError));
 
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(2)
-        .WillOnce(Return(StoreStatus::KeyNotExist))
-        .WillOnce(Return(StoreStatus::KeyNotExist));
+            .Times(2)
+            .WillOnce(Return(StoreStatus::KeyNotExist))
+            .WillOnce(Return(StoreStatus::KeyNotExist));
 
         ASSERT_EQ(curvefs_->RenameFile("/file1", "/trash/file2", 0, 0),
                   StatusCode::kStorageError);
@@ -1782,32 +1760,32 @@ TEST_F(CurveFSTest, testRenameFile) {
         fileInfo1.set_filetype(FileType::INODE_PAGEFILE);
         fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(6)
-        // 查找/file1
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        // check /file1是否有快照
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        // 查找/trash/file2
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        // check /trash/file2是否有快照
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)));
+            .Times(6)
+            // Find/file1
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
+            // Check if /file1 has a snapshot
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
+            // Find/trash/file2
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo2), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
+            // Check/trash/file2 if there is a snapshot
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo2), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)));
 
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(2)
-        .WillOnce(Return(StoreStatus::KeyNotExist))
-        .WillOnce(Return(StoreStatus::KeyNotExist));
+            .Times(2)
+            .WillOnce(Return(StoreStatus::KeyNotExist))
+            .WillOnce(Return(StoreStatus::KeyNotExist));
 
         EXPECT_CALL(*storage_, ReplaceFileAndRecycleOldFile(_, _, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::InternalError));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::InternalError));
 
         ASSERT_EQ(curvefs_->RenameFile("/file1", "/trash/file2", 0, 0),
                   StatusCode::kStorageError);
@@ -1820,32 +1798,32 @@ TEST_F(CurveFSTest, testRenameFile) {
         fileInfo1.set_filetype(FileType::INODE_PAGEFILE);
         fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(6)
-        // 查找/file1
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        // check /file1是否有快照
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        // 查找/trash/file2
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        // check /trash/file2是否有快照
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)));
+            .Times(6)
+            // Find/file1
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
+            // Check if /file1 has a snapshot
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
+            // Find/trash/file2
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo2), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
+            // Check/trash/file2 if there is a snapshot
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo2), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)));
 
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(2)
-        .WillOnce(Return(StoreStatus::KeyNotExist))
-        .WillOnce(Return(StoreStatus::KeyNotExist));
+            .Times(2)
+            .WillOnce(Return(StoreStatus::KeyNotExist))
+            .WillOnce(Return(StoreStatus::KeyNotExist));
 
         EXPECT_CALL(*storage_, ReplaceFileAndRecycleOldFile(_, _, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::OK));
 
         ASSERT_EQ(curvefs_->RenameFile("/file1", "/trash/file2", 0, 0),
                   StatusCode::kOK);
@@ -1859,18 +1837,18 @@ TEST_F(CurveFSTest, testRenameFile) {
         fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
             .Times(6)
-            // 查找/file1
+            // Find/file1
             .WillOnce(
                 DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
-            // check /file1是否有快照
+            // Check if /file1 has a snapshot
             .WillOnce(
                 DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
-            // 查找/trash/file2
+            // Find/trash/file2
             .WillOnce(
                 DoAll(SetArgPointee<2>(fileInfo2), Return(StoreStatus::OK)))
             .WillOnce(
                 DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
-            // check /trash/file2是否有快照
+            // Check/trash/file2 if there is a snapshot
             .WillOnce(
                 DoAll(SetArgPointee<2>(fileInfo2), Return(StoreStatus::OK)))
             .WillOnce(
@@ -1908,26 +1886,25 @@ TEST_F(CurveFSTest, testExtendFile) {
         fileInfo2.set_filetype(FileType::INODE_PAGEFILE);
         fileInfo2.set_length(kMiniFileLength);
 
-
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)));
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo2), Return(StoreStatus::OK)));
 
         ASSERT_EQ(curvefs_->ExtendFile("/user1/file1", 0),
                   StatusCode::kShrinkBiggerFile);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)));
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo2), Return(StoreStatus::OK)));
 
-        ASSERT_EQ(curvefs_->ExtendFile("/user1/file1",
-                                       kMiniFileLength), StatusCode::kOK);
+        ASSERT_EQ(curvefs_->ExtendFile("/user1/file1", kMiniFileLength),
+                  StatusCode::kOK);
     }
 
     // test enlarge size unit is not segment
@@ -1941,14 +1918,14 @@ TEST_F(CurveFSTest, testExtendFile) {
         fileInfo2.set_segmentsize(DefaultSegmentSize);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)));
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo2), Return(StoreStatus::OK)));
 
-        ASSERT_EQ(curvefs_->ExtendFile("/user1/file1",
-            1 + kMiniFileLength), StatusCode::kExtentUnitError);
+        ASSERT_EQ(curvefs_->ExtendFile("/user1/file1", 1 + kMiniFileLength),
+                  StatusCode::kExtentUnitError);
     }
 
     // test enlarge size ok
@@ -1962,11 +1939,11 @@ TEST_F(CurveFSTest, testExtendFile) {
         fileInfo2.set_segmentsize(DefaultSegmentSize);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)));
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo2), Return(StoreStatus::OK)));
 
         FileInfo modifiedInfo;
         EXPECT_CALL(*storage_, PutFile(_))
@@ -1974,8 +1951,8 @@ TEST_F(CurveFSTest, testExtendFile) {
             .WillOnce(
                 DoAll(SaveArg<0>(&modifiedInfo), Return(StoreStatus::OK)));
 
-        ASSERT_EQ(curvefs_->ExtendFile("/user1/file1",
-                                       2 * kMiniFileLength), StatusCode::kOK);
+        ASSERT_EQ(curvefs_->ExtendFile("/user1/file1", 2 * kMiniFileLength),
+                  StatusCode::kOK);
 
         // previous fileinfo doesn't has throttle params
         ASSERT_FALSE(modifiedInfo.has_throttleparams());
@@ -1999,11 +1976,11 @@ TEST_F(CurveFSTest, testExtendFile) {
         p2->set_limit(1);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)));
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo2), Return(StoreStatus::OK)));
 
         FileInfo modifiedInfo;
         EXPECT_CALL(*storage_, PutFile(_))
@@ -2011,16 +1988,14 @@ TEST_F(CurveFSTest, testExtendFile) {
             .WillOnce(
                 DoAll(SaveArg<0>(&modifiedInfo), Return(StoreStatus::OK)));
 
-        ASSERT_EQ(curvefs_->ExtendFile("/user1/file1",
-                                       2 * kMiniFileLength), StatusCode::kOK);
+        ASSERT_EQ(curvefs_->ExtendFile("/user1/file1", 2 * kMiniFileLength),
+                  StatusCode::kOK);
 
         // previous fileinfo has throttle params and has been modified by user
         ASSERT_TRUE(modifiedInfo.has_throttleparams());
         ASSERT_EQ(2, modifiedInfo.throttleparams().throttleparams_size());
-        ASSERT_EQ(
-            1, modifiedInfo.throttleparams().throttleparams()[0].limit());
-        ASSERT_EQ(
-            1, modifiedInfo.throttleparams().throttleparams()[1].limit());
+        ASSERT_EQ(1, modifiedInfo.throttleparams().throttleparams()[0].limit());
+        ASSERT_EQ(1, modifiedInfo.throttleparams().throttleparams()[1].limit());
     }
 
     // test enlarge size ok, and update throttle params
@@ -2041,11 +2016,11 @@ TEST_F(CurveFSTest, testExtendFile) {
         p2->set_limit(120 * kMB);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)));
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo2), Return(StoreStatus::OK)));
 
         FileInfo modifiedInfo;
         EXPECT_CALL(*storage_, PutFile(_))
@@ -2053,16 +2028,14 @@ TEST_F(CurveFSTest, testExtendFile) {
             .WillOnce(
                 DoAll(SaveArg<0>(&modifiedInfo), Return(StoreStatus::OK)));
 
-        ASSERT_EQ(curvefs_->ExtendFile("/user1/file1",
-                                       2 * kMiniFileLength), StatusCode::kOK);
+        ASSERT_EQ(curvefs_->ExtendFile("/user1/file1", 2 * kMiniFileLength),
+                  StatusCode::kOK);
 
         // previous fileinfo has throttle params and has been modified by user
         ASSERT_TRUE(modifiedInfo.has_throttleparams());
         ASSERT_EQ(2, modifiedInfo.throttleparams().throttleparams_size());
-        ASSERT_NE(
-            1, modifiedInfo.throttleparams().throttleparams()[0].limit());
-        ASSERT_NE(
-            1, modifiedInfo.throttleparams().throttleparams()[1].limit());
+        ASSERT_NE(1, modifiedInfo.throttleparams().throttleparams()[0].limit());
+        ASSERT_NE(1, modifiedInfo.throttleparams().throttleparams()[1].limit());
     }
 
     // test size over maxsize
@@ -2076,14 +2049,14 @@ TEST_F(CurveFSTest, testExtendFile) {
         fileInfo2.set_segmentsize(DefaultSegmentSize);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)));
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo2), Return(StoreStatus::OK)));
 
-        ASSERT_EQ(curvefs_->ExtendFile("/user1/file1",
-                    2 * kMaxFileLength), StatusCode::kFileLengthNotSupported);
+        ASSERT_EQ(curvefs_->ExtendFile("/user1/file1", 2 * kMaxFileLength),
+                  StatusCode::kFileLengthNotSupported);
     }
 
     // file not exist
@@ -2097,14 +2070,13 @@ TEST_F(CurveFSTest, testExtendFile) {
         fileInfo2.set_segmentsize(DefaultSegmentSize);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        .WillOnce(Return(StoreStatus::KeyNotExist));
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
+            .WillOnce(Return(StoreStatus::KeyNotExist));
 
-        ASSERT_EQ(curvefs_->ExtendFile("/user1/file1",
-                                       2 * kMiniFileLength),
-                                       StatusCode::kFileNotExists);
+        ASSERT_EQ(curvefs_->ExtendFile("/user1/file1", 2 * kMiniFileLength),
+                  StatusCode::kFileNotExists);
     }
 
     // extend directory
@@ -2116,15 +2088,14 @@ TEST_F(CurveFSTest, testExtendFile) {
         fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)));
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo2), Return(StoreStatus::OK)));
 
-        ASSERT_EQ(curvefs_->ExtendFile("/user1/file1",
-                                       2 * kMiniFileLength),
-                                       StatusCode::kNotSupported);
+        ASSERT_EQ(curvefs_->ExtendFile("/user1/file1", 2 * kMiniFileLength),
+                  StatusCode::kNotSupported);
     }
 }
 
@@ -2135,20 +2106,19 @@ TEST_F(CurveFSTest, testChangeOwner) {
         fileInfo1.set_filetype(FileType::INODE_PAGEFILE);
         fileInfo1.set_owner("owner1");
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillRepeatedly(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)));
+            .Times(2)
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)));
 
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::KeyNotExist));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::KeyNotExist));
 
         EXPECT_CALL(*storage_, PutFile(_))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::OK));
 
-        ASSERT_EQ(curvefs_->ChangeOwner("/file1", "owner2"),
-                  StatusCode::kOK);
+        ASSERT_EQ(curvefs_->ChangeOwner("/file1", "owner2"), StatusCode::kOK);
     }
 
     // file owner same with newowner
@@ -2157,12 +2127,11 @@ TEST_F(CurveFSTest, testChangeOwner) {
         fileInfo1.set_filetype(FileType::INODE_PAGEFILE);
         fileInfo1.set_owner("owner1");
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillRepeatedly(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)));
+            .Times(1)
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)));
 
-        ASSERT_EQ(curvefs_->ChangeOwner("/file1", "owner1"),
-                  StatusCode::kOK);
+        ASSERT_EQ(curvefs_->ChangeOwner("/file1", "owner1"), StatusCode::kOK);
     }
 
     // file is under snapshot, can not changeOwner
@@ -2171,16 +2140,16 @@ TEST_F(CurveFSTest, testChangeOwner) {
         fileInfo1.set_filetype(FileType::INODE_PAGEFILE);
         fileInfo1.set_owner("owner1");
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillRepeatedly(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)));
+            .Times(2)
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapshotFileInfos;
         snapshotFileInfos.push_back(fileInfo1);
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(snapshotFileInfos),
-                        Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(snapshotFileInfos),
+                            Return(StoreStatus::OK)));
 
         ASSERT_EQ(curvefs_->ChangeOwner("/file1", "owner2"),
                   StatusCode::kFileUnderSnapShot);
@@ -2189,8 +2158,8 @@ TEST_F(CurveFSTest, testChangeOwner) {
     // file not exist
     {
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::KeyNotExist));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::KeyNotExist));
 
         ASSERT_EQ(curvefs_->ChangeOwner("/file1", "owner2"),
                   StatusCode::kFileNotExists);
@@ -2202,17 +2171,17 @@ TEST_F(CurveFSTest, testChangeOwner) {
         fileInfo1.set_filetype(FileType::INODE_PAGEFILE);
         fileInfo1.set_owner("owner1");
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillRepeatedly(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)));
+            .Times(2)
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)));
 
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::KeyNotExist));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::KeyNotExist));
 
         EXPECT_CALL(*storage_, PutFile(_))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::InternalError));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::InternalError));
 
         ASSERT_EQ(curvefs_->ChangeOwner("/file1", "owner2"),
                   StatusCode::kStorageError);
@@ -2224,20 +2193,19 @@ TEST_F(CurveFSTest, testChangeOwner) {
         fileInfo1.set_filetype(FileType::INODE_DIRECTORY);
         fileInfo1.set_owner("owner1");
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)));
 
         EXPECT_CALL(*storage_, ListFile(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::KeyNotExist));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::KeyNotExist));
 
         EXPECT_CALL(*storage_, PutFile(_))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::OK));
 
-        ASSERT_EQ(curvefs_->ChangeOwner("/file1", "owner2"),
-                  StatusCode::kOK);
+        ASSERT_EQ(curvefs_->ChangeOwner("/file1", "owner2"), StatusCode::kOK);
     }
 
     // changeOwner dir not empty
@@ -2246,16 +2214,16 @@ TEST_F(CurveFSTest, testChangeOwner) {
         fileInfo1.set_filetype(FileType::INODE_DIRECTORY);
         fileInfo1.set_owner("owner1");
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)));
 
         std::vector<FileInfo> fileInfoList;
         fileInfoList.push_back(fileInfo1);
         EXPECT_CALL(*storage_, ListFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfoList),
-                        Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfoList), Return(StoreStatus::OK)));
 
         ASSERT_EQ(curvefs_->ChangeOwner("/file1", "owner2"),
                   StatusCode::kDirNotEmpty);
@@ -2267,9 +2235,9 @@ TEST_F(CurveFSTest, testChangeOwner) {
         fileInfo1.set_filetype(FileType::INODE_APPENDECFILE);
         fileInfo1.set_owner("owner1");
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)));
 
         ASSERT_EQ(curvefs_->ChangeOwner("/file1", "owner2"),
                   StatusCode::kNotSupported);
@@ -2315,18 +2283,19 @@ TEST_F(CurveFSTest, testGetOrAllocateSegment) {
         fileInfo2.set_poolset("default");
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)));
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo2), Return(StoreStatus::OK)));
 
         EXPECT_CALL(*storage_, GetSegment(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::OK));
 
-        ASSERT_EQ(curvefs_->GetOrAllocateSegment("/user1/file2",
-                  0, false,  &segment), StatusCode::kOK);
+        ASSERT_EQ(
+            curvefs_->GetOrAllocateSegment("/user1/file2", 0, false, &segment),
+            StatusCode::kOK);
     }
 
     // test normal get & allocate not exist segment
@@ -2343,29 +2312,28 @@ TEST_F(CurveFSTest, testGetOrAllocateSegment) {
         fileInfo2.set_poolset("default");
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)));
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo2), Return(StoreStatus::OK)));
 
         EXPECT_CALL(*storage_, GetSegment(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::KeyNotExist));
-
+            .Times(1)
+            .WillOnce(Return(StoreStatus::KeyNotExist));
 
         EXPECT_CALL(*mockChunkAllocator_,
-                   AllocateChunkSegment(_, _, _, _, _, _))
-        .Times(1)
-        .WillOnce(Return(true));
-
+                    AllocateChunkSegment(_, _, _, _, _, _))
+            .Times(1)
+            .WillOnce(Return(true));
 
         EXPECT_CALL(*storage_, PutSegment(_, _, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::OK));
 
-        ASSERT_EQ(curvefs_->GetOrAllocateSegment("/user1/file2",
-                  0, true,  &segment), StatusCode::kOK);
+        ASSERT_EQ(
+            curvefs_->GetOrAllocateSegment("/user1/file2", 0, true, &segment),
+            StatusCode::kOK);
     }
 
     // file is a directory
@@ -2379,14 +2347,15 @@ TEST_F(CurveFSTest, testGetOrAllocateSegment) {
         fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)));
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo2), Return(StoreStatus::OK)));
 
-        ASSERT_EQ(curvefs_->GetOrAllocateSegment("/user1/file2",
-                  0, false,  &segment), StatusCode::kParaError);
+        ASSERT_EQ(
+            curvefs_->GetOrAllocateSegment("/user1/file2", 0, false, &segment),
+            StatusCode::kParaError);
     }
 
     // segment offset not align file segment size
@@ -2403,14 +2372,15 @@ TEST_F(CurveFSTest, testGetOrAllocateSegment) {
         fileInfo2.set_poolset("default");
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)));
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo2), Return(StoreStatus::OK)));
 
-        ASSERT_EQ(curvefs_->GetOrAllocateSegment("/user1/file2",
-                  1, false,  &segment), StatusCode::kParaError);
+        ASSERT_EQ(
+            curvefs_->GetOrAllocateSegment("/user1/file2", 1, false, &segment),
+            StatusCode::kParaError);
     }
 
     // file length < segment offset + segmentsize
@@ -2427,14 +2397,15 @@ TEST_F(CurveFSTest, testGetOrAllocateSegment) {
         fileInfo2.set_poolset("default");
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)));
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo2), Return(StoreStatus::OK)));
 
-        ASSERT_EQ(curvefs_->GetOrAllocateSegment("/user1/file2",
-                  kMiniFileLength, false,  &segment), StatusCode::kParaError);
+        ASSERT_EQ(curvefs_->GetOrAllocateSegment(
+                      "/user1/file2", kMiniFileLength, false, &segment),
+                  StatusCode::kParaError);
     }
 
     // alloc chunk segment fail
@@ -2451,24 +2422,24 @@ TEST_F(CurveFSTest, testGetOrAllocateSegment) {
         fileInfo2.set_poolset("default");
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)));
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo2), Return(StoreStatus::OK)));
 
         EXPECT_CALL(*storage_, GetSegment(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::KeyNotExist));
-
+            .Times(1)
+            .WillOnce(Return(StoreStatus::KeyNotExist));
 
         EXPECT_CALL(*mockChunkAllocator_,
-                   AllocateChunkSegment(_, _, _, _, _, _))
-        .Times(1)
-        .WillOnce(Return(false));
+                    AllocateChunkSegment(_, _, _, _, _, _))
+            .Times(1)
+            .WillOnce(Return(false));
 
-        ASSERT_EQ(curvefs_->GetOrAllocateSegment("/user1/file2",
-                  0, true,  &segment), StatusCode::kSegmentAllocateError);
+        ASSERT_EQ(
+            curvefs_->GetOrAllocateSegment("/user1/file2", 0, true, &segment),
+            StatusCode::kSegmentAllocateError);
     }
 
     // put segment fail
@@ -2485,29 +2456,28 @@ TEST_F(CurveFSTest, testGetOrAllocateSegment) {
         fileInfo2.set_poolset("default");
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)));
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo1), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo2), Return(StoreStatus::OK)));
 
         EXPECT_CALL(*storage_, GetSegment(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::KeyNotExist));
-
+            .Times(1)
+            .WillOnce(Return(StoreStatus::KeyNotExist));
 
         EXPECT_CALL(*mockChunkAllocator_,
-            AllocateChunkSegment(_, _, _, _, _, _))
-        .Times(1)
-        .WillOnce(Return(true));
-
+                    AllocateChunkSegment(_, _, _, _, _, _))
+            .Times(1)
+            .WillOnce(Return(true));
 
         EXPECT_CALL(*storage_, PutSegment(_, _, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::InternalError));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::InternalError));
 
-        ASSERT_EQ(curvefs_->GetOrAllocateSegment("/user1/file2",
-                  0, true,  &segment), StatusCode::kStorageError);
+        ASSERT_EQ(
+            curvefs_->GetOrAllocateSegment("/user1/file2", 0, true, &segment),
+            StatusCode::kStorageError);
     }
 }
 
@@ -2732,8 +2702,8 @@ TEST_F(CurveFSTest, testCreateSnapshotFile) {
         std::string fileName = "/snapshotFile1WithInvalidClientVersion";
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-            .WillOnce(DoAll(SetArgPointee<2>(originalFile),
-                            Return(StoreStatus::OK)));
+            .WillOnce(
+                DoAll(SetArgPointee<2>(originalFile), Return(StoreStatus::OK)));
 
         EXPECT_CALL(*fileRecordManager_, GetFileRecordExpiredTimeUs())
             .Times(1)
@@ -2753,10 +2723,10 @@ TEST_F(CurveFSTest, testCreateSnapshotFile) {
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillOnce(Return(StoreStatus::OK))
-        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
-            Return(StoreStatus::OK)));
+            .Times(2)
+            .WillOnce(Return(StoreStatus::OK))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(originalFile), Return(StoreStatus::OK)));
 
         EXPECT_CALL(*fileRecordManager_, GetFileRecordExpiredTimeUs())
             .Times(1)
@@ -2769,8 +2739,9 @@ TEST_F(CurveFSTest, testCreateSnapshotFile) {
 
         FileInfo snapShotFileInfoRet;
         ASSERT_EQ(curvefs_->CreateSnapShotFile(
-                "/snapshotFile1WithInvalidClientVersion2",
-                &snapShotFileInfoRet), StatusCode::kClientVersionNotMatch);
+                      "/snapshotFile1WithInvalidClientVersion2",
+                      &snapShotFileInfoRet),
+                  StatusCode::kClientVersionNotMatch);
     }
     {
         // test client version empty invalid
@@ -2780,10 +2751,10 @@ TEST_F(CurveFSTest, testCreateSnapshotFile) {
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillOnce(Return(StoreStatus::OK))
-        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
-            Return(StoreStatus::OK)));
+            .Times(2)
+            .WillOnce(Return(StoreStatus::OK))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(originalFile), Return(StoreStatus::OK)));
 
         EXPECT_CALL(*fileRecordManager_, GetFileRecordExpiredTimeUs())
             .Times(1)
@@ -2791,13 +2762,14 @@ TEST_F(CurveFSTest, testCreateSnapshotFile) {
 
         FileInfo info;
         ASSERT_EQ(StatusCode::kOK,
-            curvefs_->RefreshSession(
-                fileName, "", 0 , "", "127.0.0.1",  1234, "", &info));
+                  curvefs_->RefreshSession(fileName, "", 0, "", "127.0.0.1",
+                                           1234, "", &info));
 
         FileInfo snapShotFileInfoRet;
         ASSERT_EQ(curvefs_->CreateSnapShotFile(
-                "/snapshotFile1WithInvalidClientVersion2",
-                &snapShotFileInfoRet), StatusCode::kClientVersionNotMatch);
+                      "/snapshotFile1WithInvalidClientVersion2",
+                      &snapShotFileInfoRet),
+                  StatusCode::kClientVersionNotMatch);
     }
     {
         // test under snapshot
@@ -2806,9 +2778,9 @@ TEST_F(CurveFSTest, testCreateSnapshotFile) {
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(originalFile), Return(StoreStatus::OK)));
 
         EXPECT_CALL(*fileRecordManager_, GetFileRecordExpiredTimeUs())
             .Times(1)
@@ -2819,24 +2791,22 @@ TEST_F(CurveFSTest, testCreateSnapshotFile) {
         snapShotFiles.push_back(fileInfo1);
 
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
-                Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                            Return(StoreStatus::OK)));
 
         FileInfo snapShotFileInfoRet;
         ASSERT_EQ(curvefs_->CreateSnapShotFile("/snapshotFile1",
-                &snapShotFileInfoRet), StatusCode::kFileUnderSnapShot);
+                                               &snapShotFileInfoRet),
+                  StatusCode::kFileUnderSnapShot);
     }
     {
         // test File is not PageFile
-    }
-    {
+    } {
         // test storage ListFile error
-    }
-    {
+    } {
         // test GenId error
-    }
-    {
+    } {
         // test create snapshot ok
         FileInfo originalFile;
         originalFile.set_id(1);
@@ -2845,25 +2815,24 @@ TEST_F(CurveFSTest, testCreateSnapshotFile) {
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(originalFile), Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapShotFiles;
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
-                Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                            Return(StoreStatus::OK)));
 
         EXPECT_CALL(*inodeIdGenerator_, GenInodeID(_))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<0>(2),
-            Return(true)));
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<0>(2), Return(true)));
 
         FileInfo snapShotFileInfo;
         EXPECT_CALL(*storage_, SnapShotFile(_, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::OK));
 
         EXPECT_CALL(*fileRecordManager_, GetFileRecordExpiredTimeUs())
             .Times(1)
@@ -2871,15 +2840,16 @@ TEST_F(CurveFSTest, testCreateSnapshotFile) {
 
         // test client version valid
         FileInfo snapShotFileInfoRet;
-        ASSERT_EQ(curvefs_->CreateSnapShotFile("/originalFile",
-                &snapShotFileInfoRet), StatusCode::kOK);
+        ASSERT_EQ(
+            curvefs_->CreateSnapShotFile("/originalFile", &snapShotFileInfoRet),
+            StatusCode::kOK);
         ASSERT_EQ(snapShotFileInfoRet.parentid(), originalFile.id());
         ASSERT_EQ(snapShotFileInfoRet.filename(),
-            originalFile.filename() + "-" +
-            std::to_string(originalFile.seqnum()) );
+                  originalFile.filename() + "-" +
+                      std::to_string(originalFile.seqnum()));
         ASSERT_EQ(snapShotFileInfoRet.filestatus(), FileStatus::kFileCreated);
-        ASSERT_EQ(
-            snapShotFileInfoRet.filetype(), FileType::INODE_SNAPSHOT_PAGEFILE);
+        ASSERT_EQ(snapShotFileInfoRet.filetype(),
+                  FileType::INODE_SNAPSHOT_PAGEFILE);
     }
     {
         // test create snapshot ok
@@ -2890,25 +2860,24 @@ TEST_F(CurveFSTest, testCreateSnapshotFile) {
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(originalFile), Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapShotFiles;
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
-                Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                            Return(StoreStatus::OK)));
 
         EXPECT_CALL(*inodeIdGenerator_, GenInodeID(_))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<0>(2),
-            Return(true)));
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<0>(2), Return(true)));
 
         FileInfo snapShotFileInfo;
         EXPECT_CALL(*storage_, SnapShotFile(_, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::OK));
 
         EXPECT_CALL(*fileRecordManager_, GetFileRecordExpiredTimeUs())
             .Times(1)
@@ -2917,14 +2886,15 @@ TEST_F(CurveFSTest, testCreateSnapshotFile) {
         // test client version valid
         FileInfo snapShotFileInfoRet;
         ASSERT_EQ(curvefs_->CreateSnapShotFile("/originalFile2",
-                &snapShotFileInfoRet), StatusCode::kOK);
+                                               &snapShotFileInfoRet),
+                  StatusCode::kOK);
         ASSERT_EQ(snapShotFileInfoRet.parentid(), originalFile.id());
         ASSERT_EQ(snapShotFileInfoRet.filename(),
-            originalFile.filename() + "-" +
-            std::to_string(originalFile.seqnum()) );
+                  originalFile.filename() + "-" +
+                      std::to_string(originalFile.seqnum()));
         ASSERT_EQ(snapShotFileInfoRet.filestatus(), FileStatus::kFileCreated);
-        ASSERT_EQ(
-            snapShotFileInfoRet.filetype(), FileType::INODE_SNAPSHOT_PAGEFILE);
+        ASSERT_EQ(snapShotFileInfoRet.filetype(),
+                  FileType::INODE_SNAPSHOT_PAGEFILE);
     }
     {
         // test storage snapshotFile Error
@@ -2934,22 +2904,21 @@ TEST_F(CurveFSTest, testCreateSnapshotFile) {
 TEST_F(CurveFSTest, testListSnapShotFile) {
     {
         // workPath error
-    }
-    {
+    } {
         // dir not support
         std::vector<FileInfo> snapFileInfos;
         ASSERT_EQ(curvefs_->ListSnapShotFile("/", &snapFileInfos),
-        StatusCode::kNotSupported);
+                  StatusCode::kNotSupported);
     }
     {
         // lookupFile error
         std::vector<FileInfo> snapFileInfos;
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::KeyNotExist));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::KeyNotExist));
 
         ASSERT_EQ(curvefs_->ListSnapShotFile("/originalFile", &snapFileInfos),
-            StatusCode::kFileNotExists);
+                  StatusCode::kFileNotExists);
     }
     {
         // check type not support
@@ -2960,13 +2929,13 @@ TEST_F(CurveFSTest, testListSnapShotFile) {
         originalFile.set_filetype(FileType::INODE_DIRECTORY);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(originalFile), Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapFileInfos;
         ASSERT_EQ(curvefs_->ListSnapShotFile("originalFile", &snapFileInfos),
-        StatusCode::kNotSupported);
+                  StatusCode::kNotSupported);
     }
     {
         // ListFile error
@@ -2977,17 +2946,17 @@ TEST_F(CurveFSTest, testListSnapShotFile) {
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(originalFile), Return(StoreStatus::OK)));
 
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::InternalError));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::InternalError));
 
         std::vector<FileInfo> snapFileInfos;
         ASSERT_EQ(curvefs_->ListSnapShotFile("originalFile", &snapFileInfos),
-        StatusCode::kStorageError);
+                  StatusCode::kStorageError);
     }
     {
         // ListFile ok
@@ -2998,37 +2967,36 @@ TEST_F(CurveFSTest, testListSnapShotFile) {
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(originalFile), Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapFileInfos;
-        FileInfo  snapShotFile;
+        FileInfo snapShotFile;
         snapShotFile.set_parentid(1);
         snapFileInfos.push_back(snapShotFile);
 
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(snapFileInfos),
-        Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(snapFileInfos),
+                            Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapFileInfosRet;
         ASSERT_EQ(curvefs_->ListSnapShotFile("originalFile", &snapFileInfosRet),
-        StatusCode::kOK);
+                  StatusCode::kOK);
 
         ASSERT_EQ(snapFileInfosRet.size(), 1);
         ASSERT_EQ(snapFileInfosRet[0].SerializeAsString(),
-                snapShotFile.SerializeAsString());
-        }
+                  snapShotFile.SerializeAsString());
+    }
 }
-
 
 TEST_F(CurveFSTest, testGetSnapShotFileInfo) {
     {
         // ListSnapShotFile error
         FileInfo snapshotFileInfo;
         ASSERT_EQ(curvefs_->GetSnapShotFileInfo("/", 1, &snapshotFileInfo),
-        StatusCode::kNotSupported);
+                  StatusCode::kNotSupported);
     }
     {
         // snapfile not exist(not under snapshot)
@@ -3039,19 +3007,20 @@ TEST_F(CurveFSTest, testGetSnapShotFileInfo) {
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(originalFile), Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapShotFiles;
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
-                Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                            Return(StoreStatus::OK)));
 
         FileInfo snapshotFileInfo;
-        ASSERT_EQ(curvefs_->GetSnapShotFileInfo("/originalFile",
-            1, &snapshotFileInfo), StatusCode::kSnapshotFileNotExists);
+        ASSERT_EQ(curvefs_->GetSnapShotFileInfo("/originalFile", 1,
+                                                &snapshotFileInfo),
+                  StatusCode::kSnapshotFileNotExists);
     }
     {
         // under snapshot, butsnapfile not exist
@@ -3062,22 +3031,23 @@ TEST_F(CurveFSTest, testGetSnapShotFileInfo) {
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(originalFile), Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapShotFiles;
         FileInfo snapInfo;
         snapInfo.set_seqnum(2);
         snapShotFiles.push_back(snapInfo);
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
-                Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                            Return(StoreStatus::OK)));
 
         FileInfo snapshotFileInfo;
-        ASSERT_EQ(curvefs_->GetSnapShotFileInfo("/originalFile",
-            1, &snapshotFileInfo), StatusCode::kSnapshotFileNotExists);
+        ASSERT_EQ(curvefs_->GetSnapShotFileInfo("/originalFile", 1,
+                                                &snapshotFileInfo),
+                  StatusCode::kSnapshotFileNotExists);
     }
     {
         // test ok
@@ -3088,24 +3058,25 @@ TEST_F(CurveFSTest, testGetSnapShotFileInfo) {
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(originalFile), Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapShotFiles;
         FileInfo snapInfo;
         snapInfo.set_seqnum(1);
         snapShotFiles.push_back(snapInfo);
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
-                Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                            Return(StoreStatus::OK)));
 
         FileInfo snapshotFileInfo;
-        ASSERT_EQ(curvefs_->GetSnapShotFileInfo("/originalFile",
-            1, &snapshotFileInfo), StatusCode::kOK);
+        ASSERT_EQ(curvefs_->GetSnapShotFileInfo("/originalFile", 1,
+                                                &snapshotFileInfo),
+                  StatusCode::kOK);
         ASSERT_EQ(snapshotFileInfo.SerializeAsString(),
-        snapInfo.SerializeAsString());
+                  snapInfo.SerializeAsString());
     }
 }
 
@@ -3114,7 +3085,7 @@ TEST_F(CurveFSTest, GetSnapShotFileSegment) {
         // GetSnapShotFileInfo error
         PageFileSegment segment;
         ASSERT_EQ(curvefs_->GetSnapShotFileSegment("/", 1, 0, &segment),
-            StatusCode::kNotSupported);
+                  StatusCode::kNotSupported);
     }
     {
         // offset not align
@@ -3125,9 +3096,9 @@ TEST_F(CurveFSTest, GetSnapShotFileSegment) {
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(originalFile), Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapShotFiles;
         FileInfo snapInfo;
@@ -3135,13 +3106,14 @@ TEST_F(CurveFSTest, GetSnapShotFileSegment) {
         snapInfo.set_segmentsize(DefaultSegmentSize);
         snapShotFiles.push_back(snapInfo);
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
-                Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                            Return(StoreStatus::OK)));
 
         PageFileSegment segment;
-        ASSERT_EQ(curvefs_->GetSnapShotFileSegment("/originalFile",
-            1, 1, &segment), StatusCode::kParaError);
+        ASSERT_EQ(
+            curvefs_->GetSnapShotFileSegment("/originalFile", 1, 1, &segment),
+            StatusCode::kParaError);
     }
     {
         // storage->GetSegment return error
@@ -3154,11 +3126,11 @@ TEST_F(CurveFSTest, GetSnapShotFileSegment) {
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
-            Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
-            Return(StoreStatus::OK)));
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(originalFile), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(originalFile), Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapShotFiles;
         FileInfo snapInfo;
@@ -3167,17 +3139,18 @@ TEST_F(CurveFSTest, GetSnapShotFileSegment) {
         snapInfo.set_length(DefaultSegmentSize);
         snapShotFiles.push_back(snapInfo);
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
-                Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                            Return(StoreStatus::OK)));
 
         EXPECT_CALL(*storage_, GetSegment(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::KeyNotExist));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::KeyNotExist));
 
         PageFileSegment segment;
-        ASSERT_EQ(curvefs_->GetSnapShotFileSegment("/originalFile",
-            1, 0, &segment), StatusCode::kSegmentNotAllocated);
+        ASSERT_EQ(
+            curvefs_->GetSnapShotFileSegment("/originalFile", 1, 0, &segment),
+            StatusCode::kSegmentNotAllocated);
     }
     {
         // ok
@@ -3190,12 +3163,11 @@ TEST_F(CurveFSTest, GetSnapShotFileSegment) {
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
-            Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
-            Return(StoreStatus::OK)));
-
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(originalFile), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(originalFile), Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapShotFiles;
         FileInfo snapInfo;
@@ -3204,9 +3176,9 @@ TEST_F(CurveFSTest, GetSnapShotFileSegment) {
         snapInfo.set_length(DefaultSegmentSize);
         snapShotFiles.push_back(snapInfo);
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
-                Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                            Return(StoreStatus::OK)));
 
         PageFileSegment expectSegment;
         expectSegment.set_logicalpoolid(1);
@@ -3214,20 +3186,21 @@ TEST_F(CurveFSTest, GetSnapShotFileSegment) {
         expectSegment.set_chunksize(curvefs_->GetDefaultChunkSize());
         expectSegment.set_startoffset(0);
 
-        PageFileChunkInfo *chunkInfo = expectSegment.add_chunks();
+        PageFileChunkInfo* chunkInfo = expectSegment.add_chunks();
         chunkInfo->set_chunkid(1);
         chunkInfo->set_copysetid(1);
 
         EXPECT_CALL(*storage_, GetSegment(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(expectSegment),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(expectSegment),
+                            Return(StoreStatus::OK)));
 
         PageFileSegment segment;
-        ASSERT_EQ(curvefs_->GetSnapShotFileSegment("/originalFile",
-            1, 0, &segment), StatusCode::kOK);
+        ASSERT_EQ(
+            curvefs_->GetSnapShotFileSegment("/originalFile", 1, 0, &segment),
+            StatusCode::kOK);
         ASSERT_EQ(expectSegment.SerializeAsString(),
-                    segment.SerializeAsString());
+                  segment.SerializeAsString());
     }
 }
 
@@ -3236,7 +3209,7 @@ TEST_F(CurveFSTest, DeleteFileSnapShotFile) {
         // GetSnapShotFileInfo error
         FileInfo snapshotFileInfo;
         ASSERT_EQ(curvefs_->DeleteFileSnapShotFile("/", 1, nullptr),
-        StatusCode::kNotSupported);
+                  StatusCode::kNotSupported);
     }
     {
         // under deleteing
@@ -3247,9 +3220,9 @@ TEST_F(CurveFSTest, DeleteFileSnapShotFile) {
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(originalFile), Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapShotFiles;
         FileInfo snapInfo;
@@ -3258,12 +3231,12 @@ TEST_F(CurveFSTest, DeleteFileSnapShotFile) {
         snapShotFiles.push_back(snapInfo);
 
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
-                Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                            Return(StoreStatus::OK)));
 
         EXPECT_EQ(curvefs_->DeleteFileSnapShotFile("/originalFile", 1, nullptr),
-            StatusCode::kSnapshotDeleting);
+                  StatusCode::kSnapshotDeleting);
     }
     {
         // delete snapshot file filetype error (internal case)
@@ -3274,9 +3247,9 @@ TEST_F(CurveFSTest, DeleteFileSnapShotFile) {
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(originalFile), Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapShotFiles;
         FileInfo snapInfo;
@@ -3286,12 +3259,12 @@ TEST_F(CurveFSTest, DeleteFileSnapShotFile) {
         snapShotFiles.push_back(snapInfo);
 
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
-                Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                            Return(StoreStatus::OK)));
 
         EXPECT_EQ(curvefs_->DeleteFileSnapShotFile("/originalFile", 1, nullptr),
-            StatusCode::KInternalError);
+                  StatusCode::KInternalError);
     }
     {
         // delete storage error
@@ -3302,9 +3275,9 @@ TEST_F(CurveFSTest, DeleteFileSnapShotFile) {
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(originalFile), Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapShotFiles;
         FileInfo snapInfo;
@@ -3315,16 +3288,16 @@ TEST_F(CurveFSTest, DeleteFileSnapShotFile) {
         snapShotFiles.push_back(snapInfo);
 
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
-                Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                            Return(StoreStatus::OK)));
 
         EXPECT_CALL(*storage_, PutFile(_))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::InternalError));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::InternalError));
 
         EXPECT_EQ(curvefs_->DeleteFileSnapShotFile("/originalFile", 1, nullptr),
-            StatusCode::KInternalError);
+                  StatusCode::KInternalError);
     }
     {
         // delete snapshot ok
@@ -3335,9 +3308,9 @@ TEST_F(CurveFSTest, DeleteFileSnapShotFile) {
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(originalFile), Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapShotFiles;
         FileInfo snapInfo;
@@ -3348,21 +3321,20 @@ TEST_F(CurveFSTest, DeleteFileSnapShotFile) {
         snapShotFiles.push_back(snapInfo);
 
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
-                Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                            Return(StoreStatus::OK)));
 
         EXPECT_CALL(*storage_, PutFile(_))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::OK));
 
-        EXPECT_CALL(*mockcleanManager_,
-            SubmitDeleteSnapShotFileJob(_, _))
-        .Times(1)
-        .WillOnce(Return(true));
+        EXPECT_CALL(*mockcleanManager_, SubmitDeleteSnapShotFileJob(_, _))
+            .Times(1)
+            .WillOnce(Return(true));
 
         EXPECT_EQ(curvefs_->DeleteFileSnapShotFile("/originalFile", 1, nullptr),
-            StatusCode::kOK);
+                  StatusCode::kOK);
     }
     {
         //  message the snapshot delete manager error, return error
@@ -3373,9 +3345,9 @@ TEST_F(CurveFSTest, DeleteFileSnapShotFile) {
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(originalFile), Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapShotFiles;
         FileInfo snapInfo;
@@ -3386,21 +3358,20 @@ TEST_F(CurveFSTest, DeleteFileSnapShotFile) {
         snapShotFiles.push_back(snapInfo);
 
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
-                Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                            Return(StoreStatus::OK)));
 
         EXPECT_CALL(*storage_, PutFile(_))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::OK));
 
-        EXPECT_CALL(*mockcleanManager_,
-            SubmitDeleteSnapShotFileJob(_, _))
-        .Times(1)
-        .WillOnce(Return(false));
+        EXPECT_CALL(*mockcleanManager_, SubmitDeleteSnapShotFileJob(_, _))
+            .Times(1)
+            .WillOnce(Return(false));
 
         EXPECT_EQ(curvefs_->DeleteFileSnapShotFile("/originalFile", 1, nullptr),
-            StatusCode::KInternalError);
+                  StatusCode::KInternalError);
     }
 }
 
@@ -3409,7 +3380,7 @@ TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
     {
         PageFileSegment segment;
         ASSERT_EQ(curvefs_->GetSnapShotFileSegment("/", 1, 0, &segment),
-            StatusCode::kNotSupported);
+                  StatusCode::kNotSupported);
     }
 
     // snapshot file is not deleting
@@ -3421,9 +3392,9 @@ TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(originalFile), Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapShotFiles;
         FileInfo snapInfo;
@@ -3431,14 +3402,15 @@ TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
         snapInfo.set_filestatus(FileStatus::kFileCreated);
         snapShotFiles.push_back(snapInfo);
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
-                Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                            Return(StoreStatus::OK)));
 
         FileStatus fileStatus;
         uint32_t progress;
-        ASSERT_EQ(curvefs_->CheckSnapShotFileStatus("/originalFile",
-            1, &fileStatus, &progress), StatusCode::kOK);
+        ASSERT_EQ(curvefs_->CheckSnapShotFileStatus("/originalFile", 1,
+                                                    &fileStatus, &progress),
+                  StatusCode::kOK);
         ASSERT_EQ(fileStatus, FileStatus::kFileCreated);
         ASSERT_EQ(progress, 0);
     }
@@ -3452,9 +3424,9 @@ TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillRepeatedly(DoAll(SetArgPointee<2>(originalFile),
-            Return(StoreStatus::OK)));
+            .Times(2)
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(originalFile), Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapShotFiles;
         FileInfo snapInfo;
@@ -3464,21 +3436,21 @@ TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
 
         std::vector<FileInfo> snapShotFiles2;
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(2)
-        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
-                Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles2),
-                Return(StoreStatus::OK)));
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(snapShotFiles), Return(StoreStatus::OK)))
+            .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles2),
+                            Return(StoreStatus::OK)));
 
-        EXPECT_CALL(*mockcleanManager_,
-            GetTask(_))
-        .Times(1)
-        .WillOnce(Return(nullptr));
+        EXPECT_CALL(*mockcleanManager_, GetTask(_))
+            .Times(1)
+            .WillOnce(Return(nullptr));
 
         FileStatus fileStatus;
         uint32_t progress;
-        ASSERT_EQ(curvefs_->CheckSnapShotFileStatus("/originalFile",
-            1, &fileStatus, &progress), StatusCode::kSnapshotFileNotExists);
+        ASSERT_EQ(curvefs_->CheckSnapShotFileStatus("/originalFile", 1,
+                                                    &fileStatus, &progress),
+                  StatusCode::kSnapshotFileNotExists);
         ASSERT_EQ(progress, 100);
     }
 
@@ -3491,9 +3463,9 @@ TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillRepeatedly(DoAll(SetArgPointee<2>(originalFile),
-            Return(StoreStatus::OK)));
+            .Times(2)
+            .WillRepeatedly(
+                DoAll(SetArgPointee<2>(originalFile), Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapShotFiles;
         FileInfo snapInfo;
@@ -3501,19 +3473,19 @@ TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
         snapInfo.set_filestatus(FileStatus::kFileDeleting);
         snapShotFiles.push_back(snapInfo);
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(2)
-        .WillRepeatedly(DoAll(SetArgPointee<2>(snapShotFiles),
-                Return(StoreStatus::OK)));
+            .Times(2)
+            .WillRepeatedly(DoAll(SetArgPointee<2>(snapShotFiles),
+                                  Return(StoreStatus::OK)));
 
-        EXPECT_CALL(*mockcleanManager_,
-            GetTask(_))
-        .Times(1)
-        .WillOnce(Return(nullptr));
+        EXPECT_CALL(*mockcleanManager_, GetTask(_))
+            .Times(1)
+            .WillOnce(Return(nullptr));
 
         FileStatus fileStatus;
         uint32_t progress;
-        ASSERT_EQ(curvefs_->CheckSnapShotFileStatus("/originalFile",
-            1, &fileStatus, &progress), StatusCode::kSnapshotFileDeleteError);
+        ASSERT_EQ(curvefs_->CheckSnapShotFileStatus("/originalFile", 1,
+                                                    &fileStatus, &progress),
+                  StatusCode::kSnapshotFileDeleteError);
         ASSERT_EQ(fileStatus, FileStatus::kFileDeleting);
         ASSERT_EQ(progress, 0);
     }
@@ -3527,9 +3499,9 @@ TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(originalFile), Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapShotFiles;
         FileInfo snapInfo;
@@ -3537,24 +3509,25 @@ TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
         snapInfo.set_filestatus(FileStatus::kFileDeleting);
         snapShotFiles.push_back(snapInfo);
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
-                Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                            Return(StoreStatus::OK)));
 
         auto task =
-                 std::make_shared<SnapShotCleanTask>(1, nullptr, originalFile);
+            std::make_shared<SnapShotCleanTask>(1, nullptr, originalFile);
         TaskProgress taskProgress;
         taskProgress.SetProgress(50);
         taskProgress.SetStatus(TaskStatus::PROGRESSING);
         task->SetTaskProgress(taskProgress);
         EXPECT_CALL(*mockcleanManager_, GetTask(_))
-        .Times(1)
-        .WillOnce(Return(task));
+            .Times(1)
+            .WillOnce(Return(task));
 
         FileStatus fileStatus;
         uint32_t progress;
-        ASSERT_EQ(curvefs_->CheckSnapShotFileStatus("/originalFile",
-            1, &fileStatus, &progress), StatusCode::kOK);
+        ASSERT_EQ(curvefs_->CheckSnapShotFileStatus("/originalFile", 1,
+                                                    &fileStatus, &progress),
+                  StatusCode::kOK);
         ASSERT_EQ(fileStatus, FileStatus::kFileDeleting);
         ASSERT_EQ(progress, 50);
     }
@@ -3568,9 +3541,9 @@ TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(originalFile), Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapShotFiles;
         FileInfo snapInfo;
@@ -3578,24 +3551,25 @@ TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
         snapInfo.set_filestatus(FileStatus::kFileDeleting);
         snapShotFiles.push_back(snapInfo);
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
-                Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                            Return(StoreStatus::OK)));
 
         auto task =
-        std::make_shared<SnapShotCleanTask>(1, nullptr, originalFile);
+            std::make_shared<SnapShotCleanTask>(1, nullptr, originalFile);
         TaskProgress taskProgress;
         taskProgress.SetProgress(50);
         taskProgress.SetStatus(TaskStatus::FAILED);
         task->SetTaskProgress(taskProgress);
         EXPECT_CALL(*mockcleanManager_, GetTask(_))
-        .Times(1)
-        .WillOnce(Return(task));
+            .Times(1)
+            .WillOnce(Return(task));
 
         FileStatus fileStatus;
         uint32_t progress;
-        ASSERT_EQ(curvefs_->CheckSnapShotFileStatus("/originalFile",
-            1, &fileStatus, &progress), StatusCode::kOK);
+        ASSERT_EQ(curvefs_->CheckSnapShotFileStatus("/originalFile", 1,
+                                                    &fileStatus, &progress),
+                  StatusCode::kOK);
         ASSERT_EQ(fileStatus, FileStatus::kFileDeleting);
         ASSERT_EQ(progress, 50);
     }
@@ -3609,9 +3583,9 @@ TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(originalFile), Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapShotFiles;
         FileInfo snapInfo;
@@ -3619,66 +3593,67 @@ TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
         snapInfo.set_filestatus(FileStatus::kFileDeleting);
         snapShotFiles.push_back(snapInfo);
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
-                Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                            Return(StoreStatus::OK)));
 
         auto task =
-        std::make_shared<SnapShotCleanTask>(1, nullptr, originalFile);
+            std::make_shared<SnapShotCleanTask>(1, nullptr, originalFile);
         TaskProgress taskProgress;
         taskProgress.SetProgress(100);
         taskProgress.SetStatus(TaskStatus::SUCCESS);
         task->SetTaskProgress(taskProgress);
         EXPECT_CALL(*mockcleanManager_, GetTask(_))
-        .Times(1)
-        .WillOnce(Return(task));
+            .Times(1)
+            .WillOnce(Return(task));
 
         FileStatus fileStatus;
         uint32_t progress;
-        ASSERT_EQ(curvefs_->CheckSnapShotFileStatus("/originalFile",
-            1, &fileStatus, &progress), StatusCode::kOK);
+        ASSERT_EQ(curvefs_->CheckSnapShotFileStatus("/originalFile", 1,
+                                                    &fileStatus, &progress),
+                  StatusCode::kOK);
         ASSERT_EQ(fileStatus, FileStatus::kFileDeleting);
         ASSERT_EQ(progress, 100);
     }
 }
 
 TEST_F(CurveFSTest, testOpenFile) {
-    // 文件不存在
+    // File does not exist
     {
         ProtoSession protoSession;
-        FileInfo  fileInfo;
+        FileInfo fileInfo;
         fileInfo.set_filetype(FileType::INODE_PAGEFILE);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::KeyNotExist));
-        ASSERT_EQ(curvefs_->OpenFile("/file1", "127.0.0.1",
-                                     &protoSession, &fileInfo),
-                  StatusCode::kFileNotExists);
+            .Times(1)
+            .WillOnce(Return(StoreStatus::KeyNotExist));
+        ASSERT_EQ(
+            curvefs_->OpenFile("/file1", "127.0.0.1", &protoSession, &fileInfo),
+            StatusCode::kFileNotExists);
         ASSERT_EQ(curvefs_->GetOpenFileNum(), 0);
     }
 
-    // open目录
+    // Open directory
     {
         ProtoSession protoSession;
-        FileInfo  fileInfo;
+        FileInfo fileInfo;
         fileInfo.set_filetype(FileType::INODE_DIRECTORY);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
-        ASSERT_EQ(curvefs_->OpenFile("/file1", "127.0.0.1",
-                                     &protoSession, &fileInfo),
-                  StatusCode::kNotSupported);
+            .Times(1)
+            .WillOnce(Return(StoreStatus::OK));
+        ASSERT_EQ(
+            curvefs_->OpenFile("/file1", "127.0.0.1", &protoSession, &fileInfo),
+            StatusCode::kNotSupported);
         ASSERT_EQ(curvefs_->GetOpenFileNum(), 0);
     }
 
-    // 执行成功
+    // Execution successful
     {
         ProtoSession protoSession;
-        FileInfo  fileInfo;
+        FileInfo fileInfo;
         fileInfo.set_filetype(FileType::INODE_PAGEFILE);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::OK));
 
         ASSERT_EQ(
             curvefs_->OpenFile("/file1", "127.0.0.1", &protoSession, &fileInfo),
@@ -3854,19 +3829,19 @@ TEST_F(CurveFSTest, testOpenFile) {
 
 TEST_F(CurveFSTest, testCloseFile) {
     ProtoSession protoSession;
-    FileInfo  fileInfo;
+    FileInfo fileInfo;
     fileInfo.set_filetype(FileType::INODE_PAGEFILE);
 
-    // 先插入session
+    // Insert session first
     EXPECT_CALL(*storage_, GetFile(_, _, _))
-    .Times(1)
-    .WillOnce(Return(StoreStatus::OK));
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
 
     ASSERT_EQ(
         curvefs_->OpenFile("/file1", "127.0.0.1", &protoSession, &fileInfo),
         StatusCode::kOK);
 
-    // 执行成功
+    // Execution successful
     {
         EXPECT_CALL(*storage_, GetFile(_, _, _))
             .Times(1)
@@ -3880,39 +3855,41 @@ TEST_F(CurveFSTest, testCloseFile) {
 
 TEST_F(CurveFSTest, testRefreshSession) {
     ProtoSession protoSession;
-    FileInfo  fileInfo;
+    FileInfo fileInfo;
     fileInfo.set_filetype(FileType::INODE_PAGEFILE);
 
-    // 先插入session
+    // Insert session first
     EXPECT_CALL(*storage_, GetFile(_, _, _))
-    .Times(1)
-    .WillOnce(Return(StoreStatus::OK));
-
-    ASSERT_EQ(curvefs_->OpenFile("/file1", "127.0.0.1",
-                                    &protoSession, &fileInfo),
-                StatusCode::kOK);
-
-    // 文件不存在
-    {
-        FileInfo  fileInfo1;
-        EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::KeyNotExist));
-        ASSERT_EQ(curvefs_->RefreshSession("/file1", "sessionidxxxxx", 12345,
-                    "signaturexxxx", "127.0.0.1", 1234, "", &fileInfo1),
-                  StatusCode::kFileNotExists);
-    }
-
-    // 执行成功
-    {
-        FileInfo  fileInfo1;
-        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
+    ASSERT_EQ(
+        curvefs_->OpenFile("/file1", "127.0.0.1", &protoSession, &fileInfo),
+        StatusCode::kOK);
+
+    // File does not exist
+    {
+        FileInfo fileInfo1;
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+            .Times(1)
+            .WillOnce(Return(StoreStatus::KeyNotExist));
+        ASSERT_EQ(curvefs_->RefreshSession("/file1", "sessionidxxxxx", 12345,
+                                           "signaturexxxx", "127.0.0.1", 1234,
+                                           "", &fileInfo1),
+                  StatusCode::kFileNotExists);
+    }
+
+    // Execution successful
+    {
+        FileInfo fileInfo1;
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+            .Times(1)
+            .WillOnce(Return(StoreStatus::OK));
+
         uint64_t date = ::curve::common::TimeUtility::GetTimeofDayUs();
         ASSERT_EQ(curvefs_->RefreshSession("/file1", protoSession.sessionid(),
-                    date, "signaturexxxx", "127.0.0.1", 1234, "", &fileInfo1),
+                                           date, "signaturexxxx", "127.0.0.1",
+                                           1234, "", &fileInfo1),
                   StatusCode::kOK);
         ASSERT_EQ(1, curvefs_->GetOpenFileNum());
     }
@@ -3921,39 +3898,41 @@ TEST_F(CurveFSTest, testRefreshSession) {
 TEST_F(CurveFSTest, testCheckRenameNewfilePathOwner) {
     uint64_t date = TimeUtility::GetTimeofDayUs();
 
-    // root用户，签名匹配，date超时
+    // Root user, signature matching, date timeout
     {
         std::string filename = "/file1";
-        std::string str2sig = Authenticator::GetString2Signature(date,
-                                                authOptions_.rootOwner);
-        std::string sig = Authenticator::CalcString2Signature(str2sig,
-                                                authOptions_.rootPassword);
-        ASSERT_EQ(curvefs_->CheckDestinationOwner(filename,
-                    authOptions_.rootOwner, sig, date),
+        std::string str2sig =
+            Authenticator::GetString2Signature(date, authOptions_.rootOwner);
+        std::string sig = Authenticator::CalcString2Signature(
+            str2sig, authOptions_.rootPassword);
+        ASSERT_EQ(curvefs_->CheckDestinationOwner(
+                      filename, authOptions_.rootOwner, sig, date),
                   StatusCode::kOK);
 
-        ASSERT_EQ(curvefs_->CheckDestinationOwner(filename,
-                    authOptions_.rootOwner, sig, date + 15 * 2000 * 2000),
-                  StatusCode::kOwnerAuthFail);
+        ASSERT_EQ(
+            curvefs_->CheckDestinationOwner(filename, authOptions_.rootOwner,
+                                            sig, date + 15 * 2000 * 2000),
+            StatusCode::kOwnerAuthFail);
     }
 
-    // root用户，签名不匹配
+    // Root user, signature mismatch
     {
-        ASSERT_EQ(curvefs_->CheckDestinationOwner("/file1",
-                    authOptions_.rootOwner, "wrongpass", date),
+        ASSERT_EQ(curvefs_->CheckDestinationOwner(
+                      "/file1", authOptions_.rootOwner, "wrongpass", date),
                   StatusCode::kOwnerAuthFail);
     }
 
-    // 普通用户，根目录下的文件非root用户认证失败
+    // Ordinary user, non root user authentication failed for files in the root
+    // directory
     {
         FileInfo fileInfo;
         fileInfo.set_owner(authOptions_.rootOwner);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
             .Times(1)
-            .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
-                Return(StoreStatus::OK)));
-        ASSERT_EQ(curvefs_->CheckDestinationOwner("/file1",
-                    "normaluser", "wrongpass", date),
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
+        ASSERT_EQ(curvefs_->CheckDestinationOwner("/file1", "normaluser",
+                                                  "wrongpass", date),
                   StatusCode::kOwnerAuthFail);
     }
 }
@@ -3961,16 +3940,16 @@ TEST_F(CurveFSTest, testCheckRenameNewfilePathOwner) {
 TEST_F(CurveFSTest, testCheckPathOwner) {
     uint64_t date = TimeUtility::GetTimeofDayUs();
 
-    // root用户，签名匹配, 并检测date过期
+    // Root user, signature matching, and detecting date expiration
     {
         std::string filename = "/file1";
-        std::string str2sig = Authenticator::GetString2Signature(date,
-                                                authOptions_.rootOwner);
-        std::string sig = Authenticator::CalcString2Signature(str2sig,
-                                                authOptions_.rootPassword);
+        std::string str2sig =
+            Authenticator::GetString2Signature(date, authOptions_.rootOwner);
+        std::string sig = Authenticator::CalcString2Signature(
+            str2sig, authOptions_.rootPassword);
 
-        ASSERT_EQ(curvefs_->CheckPathOwner(filename,
-                    authOptions_.rootOwner, sig, date),
+        ASSERT_EQ(curvefs_->CheckPathOwner(filename, authOptions_.rootOwner,
+                                           sig, date),
                   StatusCode::kOK);
 
         ASSERT_EQ(curvefs_->CheckPathOwner(filename, authOptions_.rootOwner,
@@ -3978,168 +3957,176 @@ TEST_F(CurveFSTest, testCheckPathOwner) {
                   StatusCode::kOwnerAuthFail);
     }
 
-    // root用户，签名不匹配
+    // Root user, signature mismatch
     {
         ASSERT_EQ(curvefs_->CheckPathOwner("/file1", authOptions_.rootOwner,
-                                            "wrongpass", date),
+                                           "wrongpass", date),
                   StatusCode::kOwnerAuthFail);
     }
 
-    // 普通用户，根目录下的文件非root用户认证成功, 并检测date超时
+    // Normal user, non root user authentication successful for files in the
+    // root directory, and detection of date timeout
     {
-        ASSERT_EQ(curvefs_->CheckPathOwner("/file1", "normaluser",
-                                            "wrongpass", date),
-                  StatusCode::kOK);
+        ASSERT_EQ(
+            curvefs_->CheckPathOwner("/file1", "normaluser", "wrongpass", date),
+            StatusCode::kOK);
 
         ASSERT_EQ(curvefs_->CheckPathOwner("/file1", "normaluser", "wrongpass",
-                                            date + 15 * 2000 * 2000),
+                                           date + 15 * 2000 * 2000),
                   StatusCode::kOwnerAuthFail);
     }
 }
 
 TEST_F(CurveFSTest, testCheckFileOwner) {
     uint64_t date = TimeUtility::GetTimeofDayUs();
-    // root用户，签名匹配
+    // Root user, signature matching
     {
         std::string filename = "/file1";
-        std::string str2sig = Authenticator::GetString2Signature(date,
-                                                authOptions_.rootOwner);
-        std::string sig = Authenticator::CalcString2Signature(str2sig,
-                                                authOptions_.rootPassword);
+        std::string str2sig =
+            Authenticator::GetString2Signature(date, authOptions_.rootOwner);
+        std::string sig = Authenticator::CalcString2Signature(
+            str2sig, authOptions_.rootPassword);
 
-        ASSERT_EQ(curvefs_->CheckFileOwner(filename,
-                    authOptions_.rootOwner, sig, date),
+        ASSERT_EQ(curvefs_->CheckFileOwner(filename, authOptions_.rootOwner,
+                                           sig, date),
                   StatusCode::kOK);
-        ASSERT_EQ(curvefs_->CheckFileOwner(filename,
-                    authOptions_.rootOwner, sig, date + 15 * 2000 * 2000),
+        ASSERT_EQ(curvefs_->CheckFileOwner(filename, authOptions_.rootOwner,
+                                           sig, date + 15 * 2000 * 2000),
                   StatusCode::kOwnerAuthFail);
     }
 
-    // root用户，签名不匹配
+    // Root user, signature mismatch
     {
-        ASSERT_EQ(curvefs_->CheckFileOwner("/file1",
-                    authOptions_.rootOwner, "wrongpass", date),
+        ASSERT_EQ(curvefs_->CheckFileOwner("/file1", authOptions_.rootOwner,
+                                           "wrongpass", date),
                   StatusCode::kOwnerAuthFail);
     }
 
-    // 普通用户，根目录下的文件非root用户认证成功
+    // Normal user, non root user authentication succeeded for files in the root
+    // directory
     {
         FileInfo fileInfo;
         fileInfo.set_owner("normaluser");
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
-                        Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
 
-        ASSERT_EQ(curvefs_->CheckFileOwner("/file1",
-                    "normaluser", "", date), StatusCode::kOK);
+        ASSERT_EQ(curvefs_->CheckFileOwner("/file1", "normaluser", "", date),
+                  StatusCode::kOK);
     }
 
-    // 普通用户，根目录下的文件非root用户认证失败
+    // Ordinary user, non root user authentication failed for files in the root
+    // directory
     {
         FileInfo fileInfo;
         fileInfo.set_owner("normaluser");
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
-                        Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
 
-        ASSERT_EQ(curvefs_->CheckFileOwner("/file1",
-                    "normaluser1", "", date), StatusCode::kOwnerAuthFail);
+        ASSERT_EQ(curvefs_->CheckFileOwner("/file1", "normaluser1", "", date),
+                  StatusCode::kOwnerAuthFail);
     }
 }
 
-
 TEST_F(CurveFSTest, testCreateCloneFile) {
     // test parm error
-    ASSERT_EQ(curvefs_->CreateCloneFile("/file1", "owner1",
-                FileType::INODE_DIRECTORY, kMiniFileLength, kStartSeqNum,
-                curvefs_->GetDefaultChunkSize(), 0, 0, "default", nullptr),
-                StatusCode::kParaError);
+    ASSERT_EQ(curvefs_->CreateCloneFile(
+                  "/file1", "owner1", FileType::INODE_DIRECTORY,
+                  kMiniFileLength, kStartSeqNum,
+                  curvefs_->GetDefaultChunkSize(), 0, 0, "default", nullptr),
+              StatusCode::kParaError);
 
-    ASSERT_EQ(curvefs_->CreateCloneFile("/file1", "owner1",
-                FileType::INODE_PAGEFILE, kMiniFileLength - 1, kStartSeqNum,
-                curvefs_->GetDefaultChunkSize(), 0, 0, "default", nullptr),
-                StatusCode::kParaError);
+    ASSERT_EQ(curvefs_->CreateCloneFile(
+                  "/file1", "owner1", FileType::INODE_PAGEFILE,
+                  kMiniFileLength - 1, kStartSeqNum,
+                  curvefs_->GetDefaultChunkSize(), 0, 0, "default", nullptr),
+              StatusCode::kParaError);
 
     {
         // test file exist
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(AtLeast(1))
-        .WillOnce(Return(StoreStatus::OK));
+            .Times(AtLeast(1))
+            .WillOnce(Return(StoreStatus::OK));
 
-        auto statusCode = curvefs_->CreateCloneFile("/file1", "owner1",
-                    FileType::INODE_PAGEFILE, kMiniFileLength, kStartSeqNum,
-                    curvefs_->GetDefaultChunkSize(), 0, 0, "default", nullptr);
+        auto statusCode = curvefs_->CreateCloneFile(
+            "/file1", "owner1", FileType::INODE_PAGEFILE, kMiniFileLength,
+            kStartSeqNum, curvefs_->GetDefaultChunkSize(), 0, 0, "default",
+            nullptr);
         ASSERT_EQ(statusCode, StatusCode::kFileExists);
     }
 
     {
         // test get storage error
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(AtLeast(1))
-        .WillOnce(Return(StoreStatus::InternalError));
+            .Times(AtLeast(1))
+            .WillOnce(Return(StoreStatus::InternalError));
 
-        auto statusCode = curvefs_->CreateCloneFile("/file1", "owner1",
-                    FileType::INODE_PAGEFILE, kMiniFileLength, kStartSeqNum,
-                    curvefs_->GetDefaultChunkSize(), 0, 0, "default", nullptr);
+        auto statusCode = curvefs_->CreateCloneFile(
+            "/file1", "owner1", FileType::INODE_PAGEFILE, kMiniFileLength,
+            kStartSeqNum, curvefs_->GetDefaultChunkSize(), 0, 0, "default",
+            nullptr);
         ASSERT_EQ(statusCode, StatusCode::kStorageError);
     }
 
     {
         // test inode allocate error
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(AtLeast(1))
-        .WillOnce(Return(StoreStatus::KeyNotExist));
+            .Times(AtLeast(1))
+            .WillOnce(Return(StoreStatus::KeyNotExist));
 
         EXPECT_CALL(*inodeIdGenerator_, GenInodeID(_))
-        .Times(1)
-        .WillOnce(Return(false));
+            .Times(1)
+            .WillOnce(Return(false));
 
-        auto statusCode = curvefs_->CreateCloneFile("/file1", "owner1",
-                    FileType::INODE_PAGEFILE, kMiniFileLength, kStartSeqNum,
-                    curvefs_->GetDefaultChunkSize(), 0, 0, "default", nullptr);
+        auto statusCode = curvefs_->CreateCloneFile(
+            "/file1", "owner1", FileType::INODE_PAGEFILE, kMiniFileLength,
+            kStartSeqNum, curvefs_->GetDefaultChunkSize(), 0, 0, "default",
+            nullptr);
         ASSERT_EQ(statusCode, StatusCode::kStorageError);
     }
 
     {
         // test put storage error
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(AtLeast(1))
-        .WillOnce(Return(StoreStatus::KeyNotExist));
+            .Times(AtLeast(1))
+            .WillOnce(Return(StoreStatus::KeyNotExist));
 
         EXPECT_CALL(*storage_, PutFile(_))
-        .Times(AtLeast(1))
-        .WillOnce(Return(StoreStatus::InternalError));
+            .Times(AtLeast(1))
+            .WillOnce(Return(StoreStatus::InternalError));
 
         EXPECT_CALL(*inodeIdGenerator_, GenInodeID(_))
-        .Times(1)
-        .WillOnce(Return(true));
+            .Times(1)
+            .WillOnce(Return(true));
 
-        auto statusCode = curvefs_->CreateCloneFile("/file1", "owner1",
-                    FileType::INODE_PAGEFILE, kMiniFileLength, kStartSeqNum,
-                    curvefs_->GetDefaultChunkSize(), 0, 0, "default", nullptr);
+        auto statusCode = curvefs_->CreateCloneFile(
+            "/file1", "owner1", FileType::INODE_PAGEFILE, kMiniFileLength,
+            kStartSeqNum, curvefs_->GetDefaultChunkSize(), 0, 0, "default",
+            nullptr);
         ASSERT_EQ(statusCode, StatusCode::kStorageError);
     }
     {
         // test ok
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(AtLeast(1))
-        .WillOnce(Return(StoreStatus::KeyNotExist));
+            .Times(AtLeast(1))
+            .WillOnce(Return(StoreStatus::KeyNotExist));
 
         EXPECT_CALL(*inodeIdGenerator_, GenInodeID(_))
-        .Times(1)
-        .WillOnce(Return(true));
+            .Times(1)
+            .WillOnce(Return(true));
 
         EXPECT_CALL(*storage_, PutFile(_))
-        .Times(AtLeast(1))
-        .WillOnce(Return(StoreStatus::OK));
+            .Times(AtLeast(1))
+            .WillOnce(Return(StoreStatus::OK));
 
         FileInfo fileInfo;
-        auto statusCode = curvefs_->CreateCloneFile("/file1", "owner1",
-                    FileType::INODE_PAGEFILE, kMiniFileLength, kStartSeqNum,
-                    curvefs_->GetDefaultChunkSize(), 0, 0,
-                    "default", &fileInfo);
+        auto statusCode = curvefs_->CreateCloneFile(
+            "/file1", "owner1", FileType::INODE_PAGEFILE, kMiniFileLength,
+            kStartSeqNum, curvefs_->GetDefaultChunkSize(), 0, 0, "default",
+            &fileInfo);
         ASSERT_EQ(statusCode, StatusCode::kOK);
         ASSERT_EQ(fileInfo.filename(), "file1");
         ASSERT_EQ(fileInfo.owner(), "owner1");
@@ -4156,54 +4143,58 @@ TEST_F(CurveFSTest, testCreateCloneFile) {
 TEST_F(CurveFSTest, testSetCloneFileStatus) {
     {
         // test path not exist
-        FileInfo  fileInfo;
+        FileInfo fileInfo;
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::KeyNotExist));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::KeyNotExist));
 
-        ASSERT_EQ(curvefs_->SetCloneFileStatus("/dir1/file2",
-            kUnitializedFileID, FileStatus::kFileCloned),
-                  StatusCode::kFileNotExists);
+        ASSERT_EQ(
+            curvefs_->SetCloneFileStatus("/dir1/file2", kUnitializedFileID,
+                                         FileStatus::kFileCloned),
+            StatusCode::kFileNotExists);
     }
 
     {
         // test stoarge error
         FileInfo fileInfo;
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::InternalError));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::InternalError));
 
-        ASSERT_EQ(curvefs_->SetCloneFileStatus("/dir1/file2",
-            kUnitializedFileID, FileStatus::kFileCloned),
-                StatusCode::kStorageError);
+        ASSERT_EQ(
+            curvefs_->SetCloneFileStatus("/dir1/file2", kUnitializedFileID,
+                                         FileStatus::kFileCloned),
+            StatusCode::kStorageError);
     }
 
     {
         // test  WalkPath NOT DIRECTORY
-        FileInfo  fileInfo;
+        FileInfo fileInfo;
         fileInfo.set_filetype(FileType::INODE_PAGEFILE);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
 
-        ASSERT_EQ(curvefs_->SetCloneFileStatus("/dir1/file2",
-            kUnitializedFileID, FileStatus::kFileCloned),
-                StatusCode::kFileNotExists);
+        ASSERT_EQ(
+            curvefs_->SetCloneFileStatus("/dir1/file2", kUnitializedFileID,
+                                         FileStatus::kFileCloned),
+            StatusCode::kFileNotExists);
     }
     {
         // test LookUpFile internal Error
-        FileInfo  fileInfo;
+        FileInfo fileInfo;
         fileInfo.set_filetype(FileType::INODE_DIRECTORY);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
-            Return(StoreStatus::OK)))
-        .WillOnce(Return(StoreStatus::InternalError));
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)))
+            .WillOnce(Return(StoreStatus::InternalError));
 
-        ASSERT_EQ(curvefs_->SetCloneFileStatus("/dir1/file2",
-            kUnitializedFileID, FileStatus::kFileCloned),
-                StatusCode::kStorageError);
+        ASSERT_EQ(
+            curvefs_->SetCloneFileStatus("/dir1/file2", kUnitializedFileID,
+                                         FileStatus::kFileCloned),
+            StatusCode::kStorageError);
     }
     {
         // test inodeid not match
@@ -4211,13 +4202,13 @@ TEST_F(CurveFSTest, testSetCloneFileStatus) {
         fileInfo.set_filetype(FileType::INODE_PAGEFILE);
         fileInfo.set_id(100);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
 
-        ASSERT_EQ(curvefs_->SetCloneFileStatus("/dir1",
-            10, FileStatus::kFileCloned),
-                StatusCode::kFileIdNotMatch);
+        ASSERT_EQ(
+            curvefs_->SetCloneFileStatus("/dir1", 10, FileStatus::kFileCloned),
+            StatusCode::kFileIdNotMatch);
     }
     {
         // test filestatus not ok
@@ -4226,43 +4217,41 @@ TEST_F(CurveFSTest, testSetCloneFileStatus) {
             FileStatus setStatus;
             StatusCode expectReturn;
             int putFileTime;
-        } testCases[] {
+        } testCases[]{
             {FileStatus::kFileCloning, FileStatus::kFileCloneMetaInstalled,
-                StatusCode::kOK, 1},
+             StatusCode::kOK, 1},
             {FileStatus::kFileCloning, FileStatus::kFileCloning,
-                StatusCode::kOK, 1},
+             StatusCode::kOK, 1},
             {FileStatus::kFileCloneMetaInstalled, FileStatus::kFileCloned,
-                StatusCode::kOK, 1},
+             StatusCode::kOK, 1},
             {FileStatus::kFileCloneMetaInstalled,
-                FileStatus::kFileCloneMetaInstalled,
-                StatusCode::kOK, 1},
-            {FileStatus::kFileCloned, FileStatus::kFileCloned,
-                StatusCode::kOK, 1},
+             FileStatus::kFileCloneMetaInstalled, StatusCode::kOK, 1},
+            {FileStatus::kFileCloned, FileStatus::kFileCloned, StatusCode::kOK,
+             1},
             {FileStatus::kFileCreated, FileStatus::kFileBeingCloned,
-                StatusCode::kOK, 1},
+             StatusCode::kOK, 1},
             {FileStatus::kFileBeingCloned, FileStatus::kFileCreated,
-                StatusCode::kOK, 1},
+             StatusCode::kOK, 1},
             {FileStatus::kFileBeingCloned, FileStatus::kFileBeingCloned,
-                StatusCode::kOK, 1},
+             StatusCode::kOK, 1},
             {FileStatus::kFileCloned, FileStatus::kFileBeingCloned,
-                StatusCode::kOK, 1},
+             StatusCode::kOK, 1},
             {FileStatus::kFileBeingCloned, FileStatus::kFileCloned,
-                StatusCode::kOK, 1},
+             StatusCode::kOK, 1},
             {FileStatus::kFileCreated, FileStatus::kFileCreated,
-                StatusCode::kOK, 1},
+             StatusCode::kOK, 1},
             {FileStatus::kFileCloning, FileStatus::kFileCloned,
-                StatusCode::kCloneStatusNotMatch, 0},
+             StatusCode::kCloneStatusNotMatch, 0},
             {FileStatus::kFileCloneMetaInstalled, FileStatus::kFileCloning,
-                StatusCode::kCloneStatusNotMatch, 0},
+             StatusCode::kCloneStatusNotMatch, 0},
             {FileStatus::kFileCreated, FileStatus::kFileCloned,
-                StatusCode::kCloneStatusNotMatch, 0},
+             StatusCode::kCloneStatusNotMatch, 0},
             {FileStatus::kFileDeleting, FileStatus::kFileBeingCloned,
-                StatusCode::kCloneStatusNotMatch, 0},
+             StatusCode::kCloneStatusNotMatch, 0},
             {FileStatus::kFileCloning, FileStatus::kFileBeingCloned,
-                StatusCode::kCloneStatusNotMatch, 0},
+             StatusCode::kCloneStatusNotMatch, 0},
             {FileStatus::kFileCloneMetaInstalled, FileStatus::kFileBeingCloned,
-                StatusCode::kCloneStatusNotMatch, 0}
-        };
+             StatusCode::kCloneStatusNotMatch, 0}};
 
         for (int i = 0; i < sizeof(testCases) / sizeof(testCases[0]); i++) {
             {
@@ -4270,17 +4259,17 @@ TEST_F(CurveFSTest, testSetCloneFileStatus) {
                 fileInfo.set_filetype(FileType::INODE_PAGEFILE);
                 fileInfo.set_filestatus(testCases[i].originStatus);
                 EXPECT_CALL(*storage_, GetFile(_, _, _))
-                .Times(1)
-                .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
-                    Return(StoreStatus::OK)));
+                    .Times(1)
+                    .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+                                    Return(StoreStatus::OK)));
 
                 EXPECT_CALL(*storage_, PutFile(_))
-                .Times(AtLeast(testCases[i].putFileTime))
-                .WillOnce(Return(StoreStatus::OK));
+                    .Times(AtLeast(testCases[i].putFileTime))
+                    .WillOnce(Return(StoreStatus::OK));
 
-
-                ASSERT_EQ(curvefs_->SetCloneFileStatus("/dir1",
-                    kUnitializedFileID, testCases[i].setStatus),
+                ASSERT_EQ(
+                    curvefs_->SetCloneFileStatus("/dir1", kUnitializedFileID,
+                                                 testCases[i].setStatus),
                     testCases[i].expectReturn);
             }
         }
@@ -4291,17 +4280,17 @@ TEST_F(CurveFSTest, testSetCloneFileStatus) {
         fileInfo.set_filetype(FileType::INODE_PAGEFILE);
         fileInfo.set_filestatus(FileStatus::kFileCloneMetaInstalled);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
 
         EXPECT_CALL(*storage_, PutFile(_))
-        .Times(AtLeast(1))
-        .WillOnce(Return(StoreStatus::InternalError));
+            .Times(AtLeast(1))
+            .WillOnce(Return(StoreStatus::InternalError));
 
-        ASSERT_EQ(curvefs_->SetCloneFileStatus("/file1",
-            kUnitializedFileID, FileStatus::kFileCloned),
-                StatusCode::kStorageError);
+        ASSERT_EQ(curvefs_->SetCloneFileStatus("/file1", kUnitializedFileID,
+                                               FileStatus::kFileCloned),
+                  StatusCode::kStorageError);
     }
     {
         // test put file ok
@@ -4309,17 +4298,17 @@ TEST_F(CurveFSTest, testSetCloneFileStatus) {
         fileInfo.set_filetype(FileType::INODE_PAGEFILE);
         fileInfo.set_filestatus(FileStatus::kFileCloneMetaInstalled);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
-            Return(StoreStatus::OK)));
+            .Times(1)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
 
         EXPECT_CALL(*storage_, PutFile(_))
-        .Times(AtLeast(1))
-        .WillOnce(Return(StoreStatus::OK));
+            .Times(AtLeast(1))
+            .WillOnce(Return(StoreStatus::OK));
 
-        ASSERT_EQ(curvefs_->SetCloneFileStatus("/file1",
-            kUnitializedFileID, FileStatus::kFileCloned),
-                StatusCode::kOK);
+        ASSERT_EQ(curvefs_->SetCloneFileStatus("/file1", kUnitializedFileID,
+                                               FileStatus::kFileCloned),
+                  StatusCode::kOK);
     }
 }
 
@@ -4327,10 +4316,10 @@ TEST_F(CurveFSTest, Init) {
     // test getFile ok
     {
         FileInfo fileInfo1, fileInfo2, fileInfo3, fileInfo4, fileInfo5;
-        fileInfo1.set_parentid(ROOTINODEID+1);
+        fileInfo1.set_parentid(ROOTINODEID + 1);
 
         fileInfo2.set_parentid(ROOTINODEID);
-        fileInfo2.set_id(RECYCLEBININODEID+1);
+        fileInfo2.set_id(RECYCLEBININODEID + 1);
 
         fileInfo3.set_parentid(ROOTINODEID);
         fileInfo3.set_id(RECYCLEBININODEID);
@@ -4355,30 +4344,23 @@ TEST_F(CurveFSTest, Init) {
 
         const struct {
             FileInfo info;
-            bool      ret;
+            bool ret;
         } testCases[] = {
-            {fileInfo1, false},
-            {fileInfo2, false},
-            {fileInfo3, false},
-            {fileInfo4, false},
-            {fileInfo5, true},
+            {fileInfo1, false}, {fileInfo2, false}, {fileInfo3, false},
+            {fileInfo4, false}, {fileInfo5, true},
         };
 
-        for (int i = 0; i < sizeof(testCases)/ sizeof(testCases[0]); i++) {
+        for (int i = 0; i < sizeof(testCases) / sizeof(testCases[0]); i++) {
             EXPECT_CALL(*storage_, GetFile(_, _, _))
-            .Times(1)
-            .WillOnce(DoAll(SetArgPointee<2>(testCases[i].info),
-                Return(StoreStatus::OK)));
+                .Times(1)
+                .WillOnce(DoAll(SetArgPointee<2>(testCases[i].info),
+                                Return(StoreStatus::OK)));
 
-            ASSERT_EQ(testCases[i].ret, kCurveFS.Init(storage_,
-                                                      inodeIdGenerator_,
-                                                      mockChunkAllocator_,
-                                                      mockcleanManager_,
-                                                      fileRecordManager_,
-                                                      allocStatistic_,
-                                                      curveFSOptions_,
-                                                      topology_,
-                                                      nullptr));
+            ASSERT_EQ(testCases[i].ret,
+                      kCurveFS.Init(storage_, inodeIdGenerator_,
+                                    mockChunkAllocator_, mockcleanManager_,
+                                    fileRecordManager_, allocStatistic_,
+                                    curveFSOptions_, topology_, nullptr));
         }
     }
 
@@ -4388,15 +4370,10 @@ TEST_F(CurveFSTest, Init) {
             .Times(1)
             .WillOnce(Return(StoreStatus::InternalError));
 
-        ASSERT_EQ(false, kCurveFS.Init(storage_,
-                                       inodeIdGenerator_,
-                                       mockChunkAllocator_,
-                                       mockcleanManager_,
-                                       fileRecordManager_,
-                                       allocStatistic_,
-                                       curveFSOptions_,
-                                       topology_,
-                                       nullptr));
+        ASSERT_EQ(false, kCurveFS.Init(storage_, inodeIdGenerator_,
+                                       mockChunkAllocator_, mockcleanManager_,
+                                       fileRecordManager_, allocStatistic_,
+                                       curveFSOptions_, topology_, nullptr));
     }
 
     // test getfile not exist
@@ -4410,15 +4387,10 @@ TEST_F(CurveFSTest, Init) {
             .Times(1)
             .WillOnce(Return(StoreStatus::InternalError));
 
-        ASSERT_EQ(false, kCurveFS.Init(storage_,
-                                       inodeIdGenerator_,
-                                       mockChunkAllocator_,
-                                       mockcleanManager_,
-                                       fileRecordManager_,
-                                       allocStatistic_,
-                                       curveFSOptions_,
-                                       topology_,
-                                       nullptr));
+        ASSERT_EQ(false, kCurveFS.Init(storage_, inodeIdGenerator_,
+                                       mockChunkAllocator_, mockcleanManager_,
+                                       fileRecordManager_, allocStatistic_,
+                                       curveFSOptions_, topology_, nullptr));
 
         // putfile ok
         FileInfo fileInfo5;
@@ -4436,15 +4408,10 @@ TEST_F(CurveFSTest, Init) {
             .Times(1)
             .WillOnce(Return(StoreStatus::OK));
 
-        ASSERT_EQ(true, kCurveFS.Init(storage_,
-                                      inodeIdGenerator_,
-                                      mockChunkAllocator_,
-                                      mockcleanManager_,
-                                      fileRecordManager_,
-                                      allocStatistic_,
-                                      curveFSOptions_,
-                                      topology_,
-                                      nullptr));
+        ASSERT_EQ(true, kCurveFS.Init(storage_, inodeIdGenerator_,
+                                      mockChunkAllocator_, mockcleanManager_,
+                                      fileRecordManager_, allocStatistic_,
+                                      curveFSOptions_, topology_, nullptr));
     }
 }
 
@@ -4497,11 +4464,11 @@ TEST_F(CurveFSTest, ListAllVolumesOnCopyset) {
     {
         // normal test
         EXPECT_CALL(*storage_, ListFile(_, _, _))
-        .Times(2)
-        .WillOnce(DoAll(SetArgPointee<2>(fileVec1),
-                    Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileVec2),
-                    Return(StoreStatus::OK)));
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileVec1), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileVec2), Return(StoreStatus::OK)));
         PageFileSegment segment2 = segment;
         PageFileSegment segment3 = segment;
         auto chunk = segment.add_chunks();
@@ -4515,41 +4482,39 @@ TEST_F(CurveFSTest, ListAllVolumesOnCopyset) {
         std::vector<PageFileSegment> segVec2 = {segment2};
         std::vector<PageFileSegment> segVec3 = {segment3};
         EXPECT_CALL(*storage_, ListSegment(_, _))
-        .Times(3)
-        .WillOnce(DoAll(SetArgPointee<1>(segVec1),
-                    Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(segVec2),
-                    Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(segVec3),
-                    Return(StoreStatus::OK)));
+            .Times(3)
+            .WillOnce(DoAll(SetArgPointee<1>(segVec1), Return(StoreStatus::OK)))
+            .WillOnce(DoAll(SetArgPointee<1>(segVec2), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<1>(segVec3), Return(StoreStatus::OK)));
         ASSERT_EQ(StatusCode::kOK,
-                    curvefs_->ListVolumesOnCopyset(copysetVec, &fileNames));
+                  curvefs_->ListVolumesOnCopyset(copysetVec, &fileNames));
         ASSERT_EQ(1, fileNames.size());
         ASSERT_EQ("file1", fileNames[0]);
     }
     // list file fail
     {
         EXPECT_CALL(*storage_, ListFile(_, _, _))
-        .Times(2)
-        .WillOnce(DoAll(SetArgPointee<2>(fileVec1),
-                    Return(StoreStatus::OK)))
-        .WillOnce(Return(StoreStatus::KeyNotExist));
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileVec1), Return(StoreStatus::OK)))
+            .WillOnce(Return(StoreStatus::KeyNotExist));
         ASSERT_EQ(StatusCode::kStorageError,
-                    curvefs_->ListVolumesOnCopyset(copysetVec, &fileNames));
+                  curvefs_->ListVolumesOnCopyset(copysetVec, &fileNames));
     }
     // list segment fail
     {
         EXPECT_CALL(*storage_, ListFile(_, _, _))
-        .Times(2)
-        .WillOnce(DoAll(SetArgPointee<2>(fileVec1),
-                    Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileVec2),
-                    Return(StoreStatus::OK)));
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileVec1), Return(StoreStatus::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileVec2), Return(StoreStatus::OK)));
         EXPECT_CALL(*storage_, ListSegment(_, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::KeyNotExist));
+            .Times(1)
+            .WillOnce(Return(StoreStatus::KeyNotExist));
         ASSERT_EQ(StatusCode::kStorageError,
-                    curvefs_->ListVolumesOnCopyset(copysetVec, &fileNames));
+                  curvefs_->ListVolumesOnCopyset(copysetVec, &fileNames));
     }
 }
 
@@ -4571,8 +4536,8 @@ TEST_F(CurveFSTest, TestUpdateFileThrottleParams) {
 
         FileInfo updatedFileInfo;
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-            .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
-                            Return(StoreStatus::OK)));
+            .WillOnce(
+                DoAll(SetArgPointee<2>(fileInfo), Return(StoreStatus::OK)));
         EXPECT_CALL(*storage_, PutFile(_))
             .WillOnce(
                 DoAll(SaveArg<0>(&updatedFileInfo), Return(StoreStatus::OK)));
@@ -4635,8 +4600,8 @@ TEST(StripeParamTest, Test) {
     rc = CheckStripeParam(segmentSize, chunkSize, 4096, 128);
     EXPECT_EQ(StatusCode::kParaError, rc);
 
-    rc = CheckStripeParam(segmentSize, chunkSize, 4096,
-                          segmentSize / chunkSize);
+    rc =
+        CheckStripeParam(segmentSize, chunkSize, 4096, segmentSize / chunkSize);
     EXPECT_EQ(StatusCode::kOK, rc);
 }
 

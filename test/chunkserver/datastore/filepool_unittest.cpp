@@ -51,9 +51,9 @@ using ::testing::StrEq;
 
 using curve::chunkserver::FilePool;
 using curve::chunkserver::FilePoolHelper;
+using curve::chunkserver::FilePoolMeta;
 using curve::chunkserver::FilePoolOptions;
 using curve::chunkserver::FilePoolState;
-using curve::chunkserver::FilePoolMeta;
 using curve::common::kFilePoolMagic;
 using curve::fs::FileSystemType;
 using curve::fs::LocalFileSystem;
@@ -183,8 +183,9 @@ TEST_P(CSFilePool_test, InitializeTest) {
     // initialize
     ASSERT_TRUE(chunkFilePoolPtr_->Initialize(cfop));
     ASSERT_EQ(100, chunkFilePoolPtr_->Size());
-    // 初始化阶段会扫描FilePool内的所有文件，在扫描结束之后需要关闭这些文件
-    // 防止过多的文件描述符被占用
+    // During the initialization phase, all files in the FilePool will be
+    // scanned, and after the scan is completed, these files need to be closed
+    // Prevent excessive file descriptors from being occupied
     ASSERT_FALSE(CheckFileOpenOrNot(filePoolPath + "1"));
     ASSERT_FALSE(CheckFileOpenOrNot(filePoolPath + "2"));
     ASSERT_FALSE(CheckFileOpenOrNot(filePoolPath + "50.clean"));
@@ -233,8 +234,7 @@ TEST_P(CSFilePool_test, GetFileTest) {
     ASSERT_EQ(-2, fsptr->Delete("test0"));
 
     // CASE 2: get dirty chunk
-    auto checkBytes = [this](const std::string& filename,
-                             char byte,
+    auto checkBytes = [this](const std::string& filename, char byte,
                              bool isCleaned = false) {
         ASSERT_TRUE(fsptr->FileExists(filename));
         int fd = fsptr->Open(filename, O_RDWR);
@@ -573,8 +573,7 @@ TEST_P(CSFilePool_test, CleanChunkTest) {
     }
 }
 
-INSTANTIATE_TEST_CASE_P(CSFilePoolTest,
-                        CSFilePool_test,
+INSTANTIATE_TEST_CASE_P(CSFilePoolTest, CSFilePool_test,
                         ::testing::Values(false, true));
 
 TEST(CSFilePool, GetFileDirectlyTest) {
@@ -583,8 +582,9 @@ TEST(CSFilePool, GetFileDirectlyTest) {
     fsptr = LocalFsFactory::CreateFs(FileSystemType::EXT4, "");
     const std::string filePoolPath = FILEPOOL_DIR;
     // create chunkfile in chunkfile pool dir
-    // if chunkfile pool 的getFileFromPool开关关掉了，那么
-    // FilePool的size是一直为0，不会从pool目录中找
+    // if the getFileFromPool switch of the chunkfile pool is turned off, then
+    // The size of FilePool is always 0 and will not be found in the pool
+    // directory
     std::string filename = filePoolPath + "1000";
     fsptr->Mkdir(filePoolPath);
     int fd = fsptr->Open(filename.c_str(), O_RDWR | O_CREAT);
@@ -608,7 +608,8 @@ TEST(CSFilePool, GetFileDirectlyTest) {
     ASSERT_TRUE(chunkFilePoolPtr_->Initialize(cspopt));
     ASSERT_EQ(0, chunkFilePoolPtr_->Size());
 
-    // 测试获取chunk，chunkfile pool size不变一直为0
+    // Test to obtain chunk, chunkfile pool size remains unchanged and remains
+    // at 0
     char metapage[4096];
     memset(metapage, '1', 4096);
 
@@ -625,12 +626,12 @@ TEST(CSFilePool, GetFileDirectlyTest) {
         ASSERT_EQ(buf[i], '1');
     }
 
-    // 测试回收chunk,文件被删除，FilePool Size不受影响
+    // Test recycling chunk, file deleted, FilePool Size not affected
     chunkFilePoolPtr_->RecycleFile("./new1");
     ASSERT_EQ(0, chunkFilePoolPtr_->Size());
     ASSERT_FALSE(fsptr->FileExists("./new1"));
 
-    // 删除测试文件及目录
+    // Delete test files and directories
     ASSERT_EQ(0, fsptr->Close(fd));
     ASSERT_EQ(0, fsptr->Delete(filePoolPath + "1000"));
     ASSERT_EQ(0, fsptr->Delete(filePoolPath));

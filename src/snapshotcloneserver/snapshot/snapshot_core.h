@@ -23,19 +23,19 @@
 #ifndef SRC_SNAPSHOTCLONESERVER_SNAPSHOT_SNAPSHOT_CORE_H_
 #define SRC_SNAPSHOTCLONESERVER_SNAPSHOT_SNAPSHOT_CORE_H_
 
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
-#include <map>
 
-#include "src/snapshotcloneserver/common/curvefs_client.h"
-#include "src/snapshotcloneserver/common/snapshotclone_meta_store.h"
-#include "src/snapshotcloneserver/snapshot/snapshot_data_store.h"
+#include "src/common/concurrent/name_lock.h"
 #include "src/common/snapshotclone/snapshotclone_define.h"
 #include "src/snapshotcloneserver/common/config.h"
+#include "src/snapshotcloneserver/common/curvefs_client.h"
 #include "src/snapshotcloneserver/common/snapshot_reference.h"
-#include "src/common/concurrent/name_lock.h"
+#include "src/snapshotcloneserver/common/snapshotclone_meta_store.h"
 #include "src/snapshotcloneserver/common/thread_pool.h"
+#include "src/snapshotcloneserver/snapshot/snapshot_data_store.h"
 
 using ::curve::common::NameLock;
 
@@ -45,22 +45,23 @@ namespace snapshotcloneserver {
 class SnapshotTaskInfo;
 
 /**
- * @brief 文件的快照索引块映射表
+ * @brief Snapshot index block mapping table for file
  */
 struct FileSnapMap {
     std::vector<ChunkIndexData> maps;
 
     /**
-     * @brief 获取当前映射表中是否存在当前chunk数据
+     * @brief to obtain whether the current chunk data exists in the current
+     * mapping table
      *
-     * @param name chunk数据对象
+     * @param name chunk data object
      *
-     * @retval true 存在
-     * @retval false 不存在
+     * @retval true exists
+     * @retval false does not exist
      */
-    bool IsExistChunk(const ChunkDataName &name) const {
+    bool IsExistChunk(const ChunkDataName& name) const {
         bool find = false;
-        for (auto &v : maps) {
+        for (auto& v : maps) {
             find = v.IsExistChunkDataName(name);
             if (find) {
                 break;
@@ -71,7 +72,7 @@ struct FileSnapMap {
 };
 
 /**
- * @brief 快照核心模块
+ * @brief snapshot core module
  */
 class SnapshotCore {
  public:
@@ -79,80 +80,76 @@ class SnapshotCore {
     virtual ~SnapshotCore() {}
 
     /**
-     * @brief 创建快照前置操作
+     * @brief Create snapshot pre operation
      *
-     * @param file 文件名
-     * @param user 用户名
-     * @param snapshotName 快照名
-     * @param[out] snapInfo 快照信息
+     * @param file file name
+     * @param user username
+     * @param snapshotName SnapshotName
+     * @param[out] snapInfo snapshot information
      *
-     * @return 错误码
+     * @return error code
      */
-    virtual int CreateSnapshotPre(const std::string &file,
-        const std::string &user,
-        const std::string &snapshotName,
-        SnapshotInfo *snapInfo) = 0;
+    virtual int CreateSnapshotPre(const std::string& file,
+                                  const std::string& user,
+                                  const std::string& snapshotName,
+                                  SnapshotInfo* snapInfo) = 0;
 
     /**
-     * @brief 执行创建快照任务并更新progress
-     * 第一步，构建快照文件映射, put MateObj
-     * 第二步，从curvefs读取chunk文件，并put DataObj
-     * 第三步，删除curvefs中的临时快照
-     * 第四步，update status
+     * @brief Execute the task of creating a snapshot and update the progress
+     * Step 1, build a snapshot file mapping and put MateObj
+     * Step 2, read the chunk file from curvefs and put DataObj
+     * Step 3, delete the temporary snapshot in curves
+     * Step 4, update status
      *
-     * @param task 快照任务信息
+     * @param task snapshot task information
      */
     virtual void HandleCreateSnapshotTask(
         std::shared_ptr<SnapshotTaskInfo> task) = 0;
 
     /**
-     * @brief 删除快照前置操作
-     * 更新数据库中的快照记录为deleting状态
+     * @brief Delete snapshot pre operation
+     * Update the snapshot records in the database to a deleting state
      *
-     * @param uuid 快照uuid
-     * @param user 用户名
-     * @param fileName 文件名
-     * @param[out] snapInfo 快照信息
+     * @param uuid Snapshot uuid
+     * @param user username
+     * @param fileName File name
+     * @param[out] snapInfo snapshot information
      *
-     * @return 错误码
+     * @return error code
      */
-    virtual int DeleteSnapshotPre(
-        UUID uuid,
-        const std::string &user,
-        const std::string &fileName,
-        SnapshotInfo *snapInfo) = 0;
+    virtual int DeleteSnapshotPre(UUID uuid, const std::string& user,
+                                  const std::string& fileName,
+                                  SnapshotInfo* snapInfo) = 0;
 
     /**
-     * @brief 执行删除快照任务并更新progress
+     * @brief Execute the delete snapshot task and update the progress
      *
-     * @param task 快照任务信息
+     * @param task snapshot task information
      */
     virtual void HandleDeleteSnapshotTask(
         std::shared_ptr<SnapshotTaskInfo> task) = 0;
 
     /**
-     * @brief 获取文件的快照信息
+     * @brief Get snapshot information of files
      *
-     * @param file 文件名
-     * @param info 快照信息列表
+     * @param file file name
+     * @param info snapshot information list
      *
-     * @return 错误码
+     * @return error code
      */
-    virtual int GetFileSnapshotInfo(const std::string &file,
-        std::vector<SnapshotInfo> *info) = 0;
+    virtual int GetFileSnapshotInfo(const std::string& file,
+                                    std::vector<SnapshotInfo>* info) = 0;
 
     /**
-     * @brief 获取全部快照信息
+     * @brief Get all snapshot information
      *
-     * @param list 快照信息列表
+     * @param list snapshot information list
      *
-     * @return 错误码
+     * @return error code
      */
-    virtual int GetSnapshotList(std::vector<SnapshotInfo> *list) = 0;
+    virtual int GetSnapshotList(std::vector<SnapshotInfo>* list) = 0;
 
-
-    virtual int GetSnapshotInfo(const UUID uuid,
-        SnapshotInfo *info) = 0;
+    virtual int GetSnapshotInfo(const UUID uuid, SnapshotInfo* info) = 0;
 
     virtual int HandleCancelUnSchduledSnapshotTask(
         std::shared_ptr<SnapshotTaskInfo> task) = 0;
@@ -170,66 +167,61 @@ class SnapshotCore {
 
 class SnapshotCoreImpl : public SnapshotCore {
  public:
-     /**
-      * @brief 构造函数
-      *
-      * @param client curve客户端对象
-      * @param metaStore  meta存储对象
-      * @param dataStore  data存储对象
-      */
-    SnapshotCoreImpl(
-        std::shared_ptr<CurveFsClient> client,
-        std::shared_ptr<SnapshotCloneMetaStore> metaStore,
-        std::shared_ptr<SnapshotDataStore> dataStore,
-        std::shared_ptr<SnapshotReference> snapshotRef,
-        const SnapshotCloneServerOptions &option)
-    : client_(client),
-      metaStore_(metaStore),
-      dataStore_(dataStore),
-      snapshotRef_(snapshotRef),
-      chunkSplitSize_(option.chunkSplitSize),
-      checkSnapshotStatusIntervalMs_(option.checkSnapshotStatusIntervalMs),
-      maxSnapshotLimit_(option.maxSnapshotLimit),
-      snapshotCoreThreadNum_(option.snapshotCoreThreadNum),
-      mdsSessionTimeUs_(option.mdsSessionTimeUs),
-      clientAsyncMethodRetryTimeSec_(option.clientAsyncMethodRetryTimeSec),
-      clientAsyncMethodRetryIntervalMs_(
-                option.clientAsyncMethodRetryIntervalMs),
-      readChunkSnapshotConcurrency_(option.readChunkSnapshotConcurrency) {
-        threadPool_ = std::make_shared<ThreadPool>(
-            option.snapshotCoreThreadNum);
+    /**
+     * @brief constructor
+     *
+     * @param client curve client object
+     * @param metaStore MetaStorage Object
+     * @param dataStore data storage object
+     */
+    SnapshotCoreImpl(std::shared_ptr<CurveFsClient> client,
+                     std::shared_ptr<SnapshotCloneMetaStore> metaStore,
+                     std::shared_ptr<SnapshotDataStore> dataStore,
+                     std::shared_ptr<SnapshotReference> snapshotRef,
+                     const SnapshotCloneServerOptions& option)
+        : client_(client),
+          metaStore_(metaStore),
+          dataStore_(dataStore),
+          snapshotRef_(snapshotRef),
+          chunkSplitSize_(option.chunkSplitSize),
+          checkSnapshotStatusIntervalMs_(option.checkSnapshotStatusIntervalMs),
+          maxSnapshotLimit_(option.maxSnapshotLimit),
+          snapshotCoreThreadNum_(option.snapshotCoreThreadNum),
+          mdsSessionTimeUs_(option.mdsSessionTimeUs),
+          clientAsyncMethodRetryTimeSec_(option.clientAsyncMethodRetryTimeSec),
+          clientAsyncMethodRetryIntervalMs_(
+              option.clientAsyncMethodRetryIntervalMs),
+          readChunkSnapshotConcurrency_(option.readChunkSnapshotConcurrency) {
+        threadPool_ =
+            std::make_shared<ThreadPool>(option.snapshotCoreThreadNum);
     }
 
     int Init();
 
-    ~SnapshotCoreImpl() {
-        threadPool_->Stop();
-    }
+    ~SnapshotCoreImpl() { threadPool_->Stop(); }
 
-    // 公有接口定义见SnapshotCore接口注释
-    int CreateSnapshotPre(const std::string &file,
-        const std::string &user,
-        const std::string &snapshotName,
-        SnapshotInfo *snapInfo) override;
+    // Public interface definition can be found in the SnapshotCore interface
+    // annotation
+    int CreateSnapshotPre(const std::string& file, const std::string& user,
+                          const std::string& snapshotName,
+                          SnapshotInfo* snapInfo) override;
 
     void HandleCreateSnapshotTask(
         std::shared_ptr<SnapshotTaskInfo> task) override;
 
-    int DeleteSnapshotPre(UUID uuid,
-        const std::string &user,
-        const std::string &fileName,
-        SnapshotInfo *snapInfo) override;
+    int DeleteSnapshotPre(UUID uuid, const std::string& user,
+                          const std::string& fileName,
+                          SnapshotInfo* snapInfo) override;
 
     void HandleDeleteSnapshotTask(
         std::shared_ptr<SnapshotTaskInfo> task) override;
 
-    int GetFileSnapshotInfo(const std::string &file,
-        std::vector<SnapshotInfo> *info) override;
+    int GetFileSnapshotInfo(const std::string& file,
+                            std::vector<SnapshotInfo>* info) override;
 
-    int GetSnapshotInfo(const UUID uuid,
-        SnapshotInfo *info) override;
+    int GetSnapshotInfo(const UUID uuid, SnapshotInfo* info) override;
 
-    int GetSnapshotList(std::vector<SnapshotInfo> *list) override;
+    int GetSnapshotList(std::vector<SnapshotInfo>* list) override;
 
     int HandleCancelUnSchduledSnapshotTask(
         std::shared_ptr<SnapshotTaskInfo> task) override;
@@ -239,201 +231,188 @@ class SnapshotCoreImpl : public SnapshotCore {
 
  private:
     /**
-     * @brief 构建快照文件映射
+     * @brief Build snapshot file mapping
      *
-     * @param fileName 文件名
-     * @param seqNum 快照版本号
-     * @param fileSnapshotMap 快照文件映射表
+     * @param fileName File name
+     * @param seqNum snapshot version number
+     * @param fileSnapshotMap snapshot file mapping table
      *
-     * @return 错误码
+     * @return error code
      */
-    int BuildSnapshotMap(const std::string &fileName,
-        uint64_t seqNum,
-        FileSnapMap *fileSnapshotMap);
+    int BuildSnapshotMap(const std::string& fileName, uint64_t seqNum,
+                         FileSnapMap* fileSnapshotMap);
 
     /**
-     * @brief 构建Segment信息
+     * @brief Build Segment Information
      *
-     * @param info 快照信息
-     * @param segInfos Segment信息表
+     * @param info snapshot information
+     * @param segInfos Segment Information Table
      *
-     * @return 错误码
+     * @return error code
      */
-    int BuildSegmentInfo(
-        const SnapshotInfo &info,
-        std::map<uint64_t, SegmentInfo> *segInfos);
+    int BuildSegmentInfo(const SnapshotInfo& info,
+                         std::map<uint64_t, SegmentInfo>* segInfos);
 
     /**
-     * @brief 在curvefs上创建快照
+     * @brief Create a snapshot on curves
      *
-     * @param fileName 文件名
-     * @param info 快照信息
-     * @param task 快照任务信息
+     * @param fileName File name
+     * @param info snapshot information
+     * @param task snapshot task information
      *
-     * @return 错误码
+     * @return error code
      */
-    int CreateSnapshotOnCurvefs(
-        const std::string &fileName,
-        SnapshotInfo *info,
-        std::shared_ptr<SnapshotTaskInfo> task);
+    int CreateSnapshotOnCurvefs(const std::string& fileName, SnapshotInfo* info,
+                                std::shared_ptr<SnapshotTaskInfo> task);
 
     /**
-     * @brief 删除curvefs上的快照
+     * @brief Delete snapshot on curves
      *
-     * @param info 快照信息
+     * @param info snapshot information
      *
-     * @return 错误码
+     * @return error code
      */
-    int DeleteSnapshotOnCurvefs(const SnapshotInfo &info);
+    int DeleteSnapshotOnCurvefs(const SnapshotInfo& info);
 
     /**
-     * @brief 构建索引块
+     * @brief Build Index Block
      *
-     * @param info 快照信息
-     * @param[out] indexData 索引块
-     * @param[out] segInfos Segment信息
-     * @param task 快照任务信息
+     * @param info snapshot information
+     * @param[out] indexData index block
+     * @param[out] segInfos Segment Information
+     * @param task snapshot task information
      *
-     * @return 错误码
+     * @return error code
      */
-    int BuildChunkIndexData(
-        const SnapshotInfo &info,
-        ChunkIndexData *indexData,
-        std::map<uint64_t, SegmentInfo> *segInfos,
-        std::shared_ptr<SnapshotTaskInfo> task);
+    int BuildChunkIndexData(const SnapshotInfo& info, ChunkIndexData* indexData,
+                            std::map<uint64_t, SegmentInfo>* segInfos,
+                            std::shared_ptr<SnapshotTaskInfo> task);
 
-    using ChunkDataExistFilter =
-        std::function<bool(const ChunkDataName &)>;
+    using ChunkDataExistFilter = std::function<bool(const ChunkDataName&)>;
 
     /**
-     * @brief 转储快照过程
+     * @brief Dump snapshot process
      *
-     * @param indexData 索引块
-     * @param info 快照信息
-     * @param segInfos Segment信息
-     * @param filter 转储数据块过滤器
-     * @param task 快照任务信息
+     * @param indexData index block
+     * @param info snapshot information
+     * @param segInfos Segment Information
+     * @param filter Dump data block filter
+     * @param task snapshot task information
      *
-     * @return  错误码
+     * @return error code
      */
-    int TransferSnapshotData(
-        const ChunkIndexData indexData,
-        const SnapshotInfo &info,
-        const std::map<uint64_t, SegmentInfo> &segInfos,
-        const ChunkDataExistFilter &filter,
-        std::shared_ptr<SnapshotTaskInfo> task);
+    int TransferSnapshotData(const ChunkIndexData indexData,
+                             const SnapshotInfo& info,
+                             const std::map<uint64_t, SegmentInfo>& segInfos,
+                             const ChunkDataExistFilter& filter,
+                             std::shared_ptr<SnapshotTaskInfo> task);
 
     /**
-     * @brief 开始cancel，更新任务状态，更新数据库状态
+     * @brief Start cancel, update task status, update database status
      *
-     * @param task 快照任务信息
+     * @param task snapshot task information
      *
-     * @return  错误码
+     * @return error code
      */
-    int StartCancel(
-        std::shared_ptr<SnapshotTaskInfo> task);
+    int StartCancel(std::shared_ptr<SnapshotTaskInfo> task);
 
     /**
-     * @brief 转储数据之后取消快照过程
+     * @brief: Cancel the snapshot process after dumping data
      *
-     * @param task 快照任务信息
-     * @param indexData 索引块
-     * @param fileSnapshotMap 快照文件映射表
+     * @param task snapshot task information
+     * @param indexData index block
+     * @param fileSnapshotMap snapshot file mapping table
      */
-    void CancelAfterTransferSnapshotData(
-        std::shared_ptr<SnapshotTaskInfo> task,
-        const ChunkIndexData &indexData,
-        const FileSnapMap &fileSnapshotMap);
+    void CancelAfterTransferSnapshotData(std::shared_ptr<SnapshotTaskInfo> task,
+                                         const ChunkIndexData& indexData,
+                                         const FileSnapMap& fileSnapshotMap);
 
     /**
-     * @brief 创建索引块之后取消快照过程
+     * @brief Cancel the snapshot process after creating the index block
      *
-     * @param task 快照任务信息
+     * @param task snapshot task information
      */
     void CancelAfterCreateChunkIndexData(
         std::shared_ptr<SnapshotTaskInfo> task);
 
     /**
-     * @brief 在curvefs上创建快照之后取消快照过程
+     * @brief: Cancel the snapshot process after creating a snapshot on curves
      *
-     * @param task 快照任务信息
+     * @param task snapshot task information
      */
     void CancelAfterCreateSnapshotOnCurvefs(
         std::shared_ptr<SnapshotTaskInfo> task);
 
     /**
-     * @brief 在Mate数据存储在删除快照
+     * @brief in Mate data storage, delete snapshot
      *
-     * @param task 快照任务信息
+     * @param task snapshot task information
      */
-    void HandleClearSnapshotOnMateStore(
-        std::shared_ptr<SnapshotTaskInfo> task);
+    void HandleClearSnapshotOnMateStore(std::shared_ptr<SnapshotTaskInfo> task);
 
     /**
-     * @brief 处理创建快照任务成功
+     * @brief successfully processed the snapshot creation task
      *
-     * @param task 快照任务信息
+     * @param task snapshot task information
      */
-    void HandleCreateSnapshotSuccess(
-        std::shared_ptr<SnapshotTaskInfo> task);
+    void HandleCreateSnapshotSuccess(std::shared_ptr<SnapshotTaskInfo> task);
 
     /**
-     * @brief 处理创建快照任务失败过程
+     * @brief processing failed snapshot creation task process
      *
-     * @param task 快照任务信息
+     * @param task snapshot task information
      */
-    void HandleCreateSnapshotError(
-        std::shared_ptr<SnapshotTaskInfo> task);
+    void HandleCreateSnapshotError(std::shared_ptr<SnapshotTaskInfo> task);
 
     /**
-     * @brief 处理删除快照任务失败过程
+     * @brief failed to process the delete snapshot task process
      *
-     * @param task 快照任务信息
+     * @param task snapshot task information
      */
-    void HandleDeleteSnapshotError(
-        std::shared_ptr<SnapshotTaskInfo> task);
-
+    void HandleDeleteSnapshotError(std::shared_ptr<SnapshotTaskInfo> task);
 
     /**
-     * @brief 创建快照前尝试清理失败的快照，否则可能会再次失败
+     * @brief Attempt to clean up failed snapshots before creating them,
+     * otherwise they may fail again
      *
-     * @param task 快照任务信息
-     * @return 错误码
+     * @param task snapshot task information
+     * @return error code
      */
     int ClearErrorSnapBeforeCreateSnapshot(
         std::shared_ptr<SnapshotTaskInfo> task);
 
  private:
-    // curvefs客户端对象
+    // Curvefs client object
     std::shared_ptr<CurveFsClient> client_;
-    // meta数据存储
+    // Meta Data Storage
     std::shared_ptr<SnapshotCloneMetaStore> metaStore_;
-    // data数据存储
+    // Data storage
     std::shared_ptr<SnapshotDataStore> dataStore_;
-    // 快照引用计数管理模块
+    // Snapshot Reference Count Management Module
     std::shared_ptr<SnapshotReference> snapshotRef_;
 
-    // 执行并发步骤的线程池
+    // Thread pool for executing concurrent steps
     std::shared_ptr<ThreadPool> threadPool_;
 
-    // 锁住打快照的文件名，防止并发同时对其打快照，同一文件的快照需排队
+    // Lock the file name of the snapshot to prevent concurrent snapshots.
+    // Snapshots of the same file need to be queued
     NameLock snapshotNameLock_;
 
-    // 转储chunk分片大小
+    // Dump chunk shard size
     uint64_t chunkSplitSize_;
-    // CheckSnapShotStatus调用间隔
+    // CheckSnapShotStatus call interval
     uint32_t checkSnapshotStatusIntervalMs_;
-    // 最大快照数
+    // Maximum Snapshots
     uint32_t maxSnapshotLimit_;
-    // 线程数
+    // Number of threads
     uint32_t snapshotCoreThreadNum_;
-    // session超时时间
+    // Session timeout
     uint32_t mdsSessionTimeUs_;
-    // client异步回调请求的重试总时间
+    // Total retry time for client asynchronous callback requests
     uint64_t clientAsyncMethodRetryTimeSec_;
-    // 调用client异步方法重试时间间隔
+    // Call client asynchronous method retry interval
     uint64_t clientAsyncMethodRetryIntervalMs_;
-    // 异步ReadChunkSnapshot的并发数
+    // The concurrency of asynchronous ReadChunkSnapshots
     uint32_t readChunkSnapshotConcurrency_;
 };
 

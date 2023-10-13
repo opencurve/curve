@@ -20,17 +20,22 @@
  * Author: charisu
  */
 #include "src/tools/status_tool.h"
+
 #include <utility>
 
 DEFINE_bool(offline, false, "if true, only list offline chunskervers");
-DEFINE_bool(unhealthy, false, "if true, only list chunkserver that unhealthy "
-                              "ratio greater than 0");
-DEFINE_bool(checkHealth, true, "if true, it will check the health "
-                                "state of chunkserver in chunkserver-list");
-DEFINE_bool(checkCSAlive, false, "if true, it will check the online state of "
-                                "chunkservers with rpc in chunkserver-list");
-DEFINE_bool(listClientInRepo, true, "if true, list-client will list all clients"
-                                    " include that in repo");
+DEFINE_bool(unhealthy, false,
+            "if true, only list chunkserver that unhealthy "
+            "ratio greater than 0");
+DEFINE_bool(checkHealth, true,
+            "if true, it will check the health "
+            "state of chunkserver in chunkserver-list");
+DEFINE_bool(checkCSAlive, false,
+            "if true, it will check the online state of "
+            "chunkservers with rpc in chunkserver-list");
+DEFINE_bool(listClientInRepo, true,
+            "if true, list-client will list all clients"
+            " include that in repo");
 DEFINE_uint64(walSegmentSize, 8388608, "wal segment size");
 DECLARE_string(mdsAddr);
 DECLARE_string(etcdAddr);
@@ -42,8 +47,7 @@ const char* kProtocalCurve = "curve";
 namespace curve {
 namespace tool {
 
-std::ostream& operator<<(std::ostream& os,
-                    std::vector<std::string> strs) {
+std::ostream& operator<<(std::ostream& os, std::vector<std::string> strs) {
     for (uint32_t i = 0; i < strs.size(); ++i) {
         if (i != 0) {
             os << ", ";
@@ -54,11 +58,10 @@ std::ostream& operator<<(std::ostream& os,
 }
 
 std::string ToString(ServiceName name) {
-    static std::map<ServiceName, std::string> serviceNameMap =
-                           {{ServiceName::kMds, "mds"},
-                            {ServiceName::kEtcd, "etcd"},
-                            {ServiceName::kSnapshotCloneServer,
-                                       "snapshot-clone-server"}};
+    static std::map<ServiceName, std::string> serviceNameMap = {
+        {ServiceName::kMds, "mds"},
+        {ServiceName::kEtcd, "etcd"},
+        {ServiceName::kSnapshotCloneServer, "snapshot-clone-server"}};
     return serviceNameMap[name];
 }
 
@@ -83,7 +86,7 @@ int StatusTool::Init(const std::string& command) {
     }
     if (CommandNeedSnapshotClone(command)) {
         int snapshotRet = snapshotClient_->Init(FLAGS_snapshotCloneAddr,
-                                  FLAGS_snapshotCloneDummyPort);
+                                                FLAGS_snapshotCloneDummyPort);
         switch (snapshotRet) {
             case 0:
                 // success
@@ -114,18 +117,13 @@ bool StatusTool::CommandNeedSnapshotClone(const std::string& command) {
 }
 
 bool StatusTool::SupportCommand(const std::string& command) {
-    return (command == kSpaceCmd || command == kStatusCmd
-                                 || command == kChunkserverListCmd
-                                 || command == kChunkserverStatusCmd
-                                 || command == kMdsStatusCmd
-                                 || command == kEtcdStatusCmd
-                                 || command == kClientStatusCmd
-                                 || command == kClientListCmd
-                                 || command == kSnapshotCloneStatusCmd
-                                 || command == kClusterStatusCmd
-                                 || command == kServerListCmd
-                                 || command == kLogicalPoolList
-                                 || command == kScanStatusCmd);
+    return (command == kSpaceCmd || command == kStatusCmd ||
+            command == kChunkserverListCmd ||
+            command == kChunkserverStatusCmd || command == kMdsStatusCmd ||
+            command == kEtcdStatusCmd || command == kClientStatusCmd ||
+            command == kClientListCmd || command == kSnapshotCloneStatusCmd ||
+            command == kClusterStatusCmd || command == kServerListCmd ||
+            command == kLogicalPoolList || command == kScanStatusCmd);
 }
 
 void StatusTool::PrintHelp(const std::string& cmd) {
@@ -170,7 +168,7 @@ int StatusTool::SpaceCmd() {
     double physicalUsedRatio = 0;
     if (spaceInfo.totalChunkSize != 0) {
         physicalUsedRatio = static_cast<double>(spaceInfo.usedChunkSize) /
-                                                    spaceInfo.totalChunkSize;
+                            spaceInfo.totalChunkSize;
     }
 
     double logicalUsedRatio = 0;
@@ -179,28 +177,28 @@ int StatusTool::SpaceCmd() {
     double createdFileRatio = 0;
     if (spaceInfo.totalCapacity != 0) {
         logicalUsedRatio = static_cast<double>(spaceInfo.allocatedSize) /
-                                                    spaceInfo.totalCapacity;
-        logicalLeftRatio = static_cast<double>(
-                        spaceInfo.totalCapacity - spaceInfo.allocatedSize) /
-                                                    spaceInfo.totalCapacity;
+                           spaceInfo.totalCapacity;
+        logicalLeftRatio = static_cast<double>(spaceInfo.totalCapacity -
+                                               spaceInfo.allocatedSize) /
+                           spaceInfo.totalCapacity;
         createdFileRatio = static_cast<double>(spaceInfo.currentFileSize) /
-                                                    spaceInfo.totalCapacity;
+                           spaceInfo.totalCapacity;
     }
     if (spaceInfo.allocatedSize != 0) {
         canBeRecycledRatio = static_cast<double>(spaceInfo.recycleAllocSize) /
-                                                        spaceInfo.allocatedSize;
+                             spaceInfo.allocatedSize;
     }
-    std:: cout.setf(std::ios::fixed);
+    std::cout.setf(std::ios::fixed);
     std::cout << std::setprecision(2);
     std::cout << "Space info:" << std::endl;
-    std::cout << "physical: total = "
-              << spaceInfo.totalChunkSize / mds::kGB << "GB"
-              << ", used = " << spaceInfo.usedChunkSize / mds::kGB
-              << "GB(" << physicalUsedRatio * 100 << "%), left = "
+    std::cout << "physical: total = " << spaceInfo.totalChunkSize / mds::kGB
+              << "GB"
+              << ", used = " << spaceInfo.usedChunkSize / mds::kGB << "GB("
+              << physicalUsedRatio * 100 << "%), left = "
               << (spaceInfo.totalChunkSize - spaceInfo.usedChunkSize) / mds::kGB
               << "GB(" << (1 - physicalUsedRatio) * 100 << "%)" << std::endl;
-    std::cout << "logical: total = "
-              << spaceInfo.totalCapacity / mds::kGB << "GB"
+    std::cout << "logical: total = " << spaceInfo.totalCapacity / mds::kGB
+              << "GB"
               << ", used = " << spaceInfo.allocatedSize / mds::kGB << "GB"
               << "(" << logicalUsedRatio * 100 << "%, can be recycled = "
               << spaceInfo.recycleAllocSize / mds::kGB << "GB("
@@ -209,18 +207,19 @@ int StatusTool::SpaceCmd() {
               << (spaceInfo.totalCapacity - spaceInfo.allocatedSize) / mds::kGB
               << "GB(" << logicalLeftRatio * 100 << "%)"
               << ", created file size = "
-              << spaceInfo.currentFileSize / mds::kGB
-              << "GB(" << createdFileRatio * 100 << "%)" << std::endl;
+              << spaceInfo.currentFileSize / mds::kGB << "GB("
+              << createdFileRatio * 100 << "%)" << std::endl;
 
     std::cout << "Every Logicalpool Space info:" << std::endl;
-    for (const auto &i : spaceInfo.lpoolspaceinfo) {
-    std::cout << "logicalPool: name = "<< i.second.poolName
-              << ", poolid = " << i.first
-              << ", total = "<< i.second.totalCapacity / mds::kGB << "GB"
-              << ", used = " << i.second.allocatedSize / mds::kGB << "GB"
-              << ", left = " << (i.second.totalCapacity -
-                                i.second.allocatedSize) / mds::kGB
-              << "GB"<< std::endl;
+    for (const auto& i : spaceInfo.lpoolspaceinfo) {
+        std::cout << "logicalPool: name = " << i.second.poolName
+                  << ", poolid = " << i.first
+                  << ", total = " << i.second.totalCapacity / mds::kGB << "GB"
+                  << ", used = " << i.second.allocatedSize / mds::kGB << "GB"
+                  << ", left = "
+                  << (i.second.totalCapacity - i.second.allocatedSize) /
+                         mds::kGB
+                  << "GB" << std::endl;
     }
     return 0;
 }
@@ -253,9 +252,9 @@ int StatusTool::ChunkServerListCmd() {
 
         double unhealthyRatio = 0.0;
         if (FLAGS_checkCSAlive) {
-            // 发RPC重置online状态
-            std::string csAddr = chunkserver.hostip()
-                        + ":" + std::to_string(chunkserver.port());
+            // Send RPC to reset online status
+            std::string csAddr =
+                chunkserver.hostip() + ":" + std::to_string(chunkserver.port());
             bool isOnline = copysetCheckCore_->CheckChunkServerOnline(csAddr);
             if (isOnline) {
                 chunkserver.set_onlinestate(OnlineState::ONLINE);
@@ -279,7 +278,7 @@ int StatusTool::ChunkServerListCmd() {
             if (FLAGS_checkHealth) {
                 copysetCheckCore_->CheckCopysetsOnChunkServer(csId);
                 const auto& statistics =
-                                copysetCheckCore_->GetCopysetStatistics();
+                    copysetCheckCore_->GetCopysetStatistics();
                 unhealthyRatio = statistics.unhealthyRatio;
                 if (FLAGS_unhealthy && unhealthyRatio == 0) {
                     continue;
@@ -298,8 +297,7 @@ int StatusTool::ChunkServerListCmd() {
         std::cout << "chunkServerID = " << csId
                   << ", diskType = " << chunkserver.disktype()
                   << ", hostIP = " << chunkserver.hostip()
-                  << ", port = " << chunkserver.port()
-                  << ", rwStatus = "
+                  << ", port = " << chunkserver.port() << ", rwStatus = "
                   << ChunkServerStatus_Name(chunkserver.status())
                   << ", diskState = "
                   << DiskState_Name(chunkserver.diskstatus())
@@ -307,13 +305,13 @@ int StatusTool::ChunkServerListCmd() {
                   << OnlineState_Name(chunkserver.onlinestate())
                   << ", copysetNum = " << copysets.size()
                   << ", mountPoint = " << chunkserver.mountpoint()
-                  << ", diskCapacity = " << chunkserver.diskcapacity()
-                            / curve::mds::kGB << " GB"
-                  << ", diskUsed = " << chunkserver.diskused()
-                            / curve::mds::kGB << " GB";
+                  << ", diskCapacity = "
+                  << chunkserver.diskcapacity() / curve::mds::kGB << " GB"
+                  << ", diskUsed = " << chunkserver.diskused() / curve::mds::kGB
+                  << " GB";
         if (FLAGS_checkHealth) {
-            std::cout <<  ", unhealthyCopysetRatio = "
-                      << unhealthyRatio * 100 << "%";
+            std::cout << ", unhealthyCopysetRatio = " << unhealthyRatio * 100
+                      << "%";
         }
         if (chunkserver.has_externalip()) {
             std::cout << ", externalIP = " << chunkserver.externalip();
@@ -322,7 +320,7 @@ int StatusTool::ChunkServerListCmd() {
     }
     std::cout << "total: " << total << ", online: " << online;
     if (!FLAGS_checkCSAlive) {
-        std::cout <<", unstable: " << unstable;
+        std::cout << ", unstable: " << unstable;
     }
     std::cout << ", offline: " << offline << std::endl;
 
@@ -367,8 +365,8 @@ int StatusTool::LogicalPoolListCmd() {
     uint64_t total = 0;
     uint64_t allocSize;
     AllocMap allocMap;
-    res = mdsClient_->GetAllocatedSize(curve::mds::RECYCLEBINDIR,
-                                       &allocSize, &allocMap);
+    res = mdsClient_->GetAllocatedSize(curve::mds::RECYCLEBINDIR, &allocSize,
+                                       &allocMap);
     if (res != 0) {
         std::cout << "GetAllocatedSize of recycle bin fail!" << std::endl;
         return -1;
@@ -406,15 +404,17 @@ int StatusTool::LogicalPoolListCmd() {
                   << curve::mds::topology::LogicalPoolType_Name(lgPool.type())
                   << ", scanEnable = " << lgPool.scanenable()
                   << ", allocateStatus = "
-                  << curve::mds::topology::
-                  AllocateStatus_Name(lgPool.allocatestatus())
+                  << curve::mds::topology::AllocateStatus_Name(
+                         lgPool.allocatestatus())
                   << ", total space = " << totalSize / curve::mds::kGB << "GB"
                   << ", used space = " << usedSize / curve::mds::kGB << "GB"
-                  << "(" << usedRatio * 100 << "%, can be recycled = "
-                  << canBeRecycle / curve::mds::kGB  << "GB"
-                  << "(" << recycleRatio * 100 << "%))" << ", left space = "
-                  << (totalSize - usedSize) / curve::mds::kGB
-                  << "GB(" << (1 - usedRatio) * 100 << "%)" << std::endl;
+                  << "(" << usedRatio * 100
+                  << "%, can be recycled = " << canBeRecycle / curve::mds::kGB
+                  << "GB"
+                  << "(" << recycleRatio * 100 << "%))"
+                  << ", left space = "
+                  << (totalSize - usedSize) / curve::mds::kGB << "GB("
+                  << (1 - usedRatio) * 100 << "%)" << std::endl;
     }
     std::cout << "total: " << total << std::endl;
     return 0;
@@ -458,9 +458,7 @@ int StatusTool::StatusCmd() {
     }
 }
 
-int StatusTool::ChunkServerStatusCmd() {
-    return PrintChunkserverStatus(false);
-}
+int StatusTool::ChunkServerStatusCmd() { return PrintChunkserverStatus(false); }
 
 int StatusTool::PrintClusterStatus() {
     int ret = 0;
@@ -475,8 +473,8 @@ int StatusTool::PrintClusterStatus() {
     const auto& statistics = copysetCheckCore_->GetCopysetStatistics();
     std::cout << "total copysets: " << statistics.totalNum
               << ", unhealthy copysets: " << statistics.unhealthyNum
-              << ", unhealthy_ratio: "
-              << statistics.unhealthyRatio * 100 << "%" << std::endl;
+              << ", unhealthy_ratio: " << statistics.unhealthyRatio * 100 << "%"
+              << std::endl;
     std::vector<PhysicalPoolInfo> phyPools;
     std::vector<LogicalPoolInfo> lgPools;
     int res = GetPoolsInCluster(&phyPools, &lgPools);
@@ -495,24 +493,24 @@ int StatusTool::PrintClusterStatus() {
 
 bool StatusTool::IsClusterHeatlhy() {
     bool ret = true;
-    // 1、检查copyset健康状态
+    // 1. Check the health status of copyset
     int res = copysetCheckCore_->CheckCopysetsInCluster();
     if (res != 0) {
         std::cout << "Copysets are not healthy!" << std::endl;
         ret = false;
     }
 
-    // 2、检查mds状态
+    // 2. Check the mds status
     if (!CheckServiceHealthy(ServiceName::kMds)) {
         ret = false;
     }
 
-    // 3、检查etcd在线状态
+    // 3. Check the online status of ETCD
     if (!CheckServiceHealthy(ServiceName::kEtcd)) {
         ret = false;
     }
 
-    // 4、检查snapshot clone server状态
+    // 4. Check the status of the snapshot clone server
     if (!noSnapshotServer_ &&
         !CheckServiceHealthy(ServiceName::kSnapshotCloneServer)) {
         ret = false;
@@ -531,10 +529,10 @@ bool StatusTool::CheckServiceHealthy(const ServiceName& name) {
             break;
         }
         case ServiceName::kEtcd: {
-            int res = etcdClient_->GetEtcdClusterStatus(&leaderVec,
-                                                        &onlineStatus);
+            int res =
+                etcdClient_->GetEtcdClusterStatus(&leaderVec, &onlineStatus);
             if (res != 0) {
-                std:: cout << "GetEtcdClusterStatus fail!" << std::endl;
+                std::cout << "GetEtcdClusterStatus fail!" << std::endl;
                 return false;
             }
             break;
@@ -568,8 +566,8 @@ bool StatusTool::CheckServiceHealthy(const ServiceName& name) {
     return ret;
 }
 
-void StatusTool::PrintOnlineStatus(const std::string& name,
-                    const std::map<std::string, bool>& onlineStatus) {
+void StatusTool::PrintOnlineStatus(
+    const std::string& name, const std::map<std::string, bool>& onlineStatus) {
     std::vector<std::string> online;
     std::vector<std::string> offline;
     for (const auto& item : onlineStatus) {
@@ -663,8 +661,8 @@ int StatusTool::PrintSnapshotCloneStatus() {
     }
     std::string version;
     std::vector<std::string> failedList;
-    int res = versionTool_->GetAndCheckSnapshotCloneVersion(&version,
-                                                            &failedList);
+    int res =
+        versionTool_->GetAndCheckSnapshotCloneVersion(&version, &failedList);
     int ret = 0;
     if (res != 0) {
         std::cout << "GetAndCheckSnapshotCloneVersion fail" << std::endl;
@@ -699,7 +697,7 @@ int StatusTool::PrintClientStatus() {
             if (!first) {
                 std::cout << ", ";
             }
-            std::cout << "version-" <<  item2.first << ": "
+            std::cout << "version-" << item2.first << ": "
                       << item2.second.size();
             first = false;
         }
@@ -735,13 +733,12 @@ int StatusTool::ScanStatusCmd() {
             return -1;
         }
 
-        std::cout
-            << "Scan status for copyset("
-            << lpid << "," << copysetId << "):" << std::endl
-            << "  scaning=" << copysetInfo.scaning()
-            << "  lastScanSec=" << copysetInfo.lastscansec()
-            << "  lastScanConsistent=" << copysetInfo.lastscanconsistent()
-            << std::endl;
+        std::cout << "Scan status for copyset(" << lpid << "," << copysetId
+                  << "):" << std::endl
+                  << "  scaning=" << copysetInfo.scaning()
+                  << "  lastScanSec=" << copysetInfo.lastscansec()
+                  << "  lastScanConsistent=" << copysetInfo.lastscanconsistent()
+                  << std::endl;
 
         return 0;
     }
@@ -758,8 +755,8 @@ int StatusTool::ScanStatusCmd() {
         if (count % 5 == 0) {
             std::cout << std::endl;
         }
-        std::cout << "  (" << copysetInfo.logicalpoolid()
-                  << "," << copysetInfo.copysetid() << ")";
+        std::cout << "  (" << copysetInfo.logicalpoolid() << ","
+                  << copysetInfo.copysetid() << ")";
         count++;
     }
 
@@ -768,47 +765,47 @@ int StatusTool::ScanStatusCmd() {
     return 0;
 }
 
-int CheckUseWalPool(const std::map<PoolIdType, std::vector<ChunkServerInfo>>
-                     &poolChunkservers,
-                     bool *useWalPool,
-                     bool *useChunkFilePoolAsWalPool,
-                     std::shared_ptr<MetricClient> metricClient) {
+int CheckUseWalPool(
+    const std::map<PoolIdType, std::vector<ChunkServerInfo>>& poolChunkservers,
+    bool* useWalPool, bool* useChunkFilePoolAsWalPool,
+    std::shared_ptr<MetricClient> metricClient) {
     int ret = 0;
     if (!poolChunkservers.empty()) {
         ChunkServerInfo chunkserver = poolChunkservers.begin()->second[0];
-        std::string csAddr = chunkserver.hostip()
-                            + ":" + std::to_string(chunkserver.port());
+        std::string csAddr =
+            chunkserver.hostip() + ":" + std::to_string(chunkserver.port());
         // check whether use chunkfilepool
         std::string metricValue;
         std::string metricName = GetUseWalPoolName(csAddr);
-        MetricRet res = metricClient->GetConfValueFromMetric(csAddr,
-                                            metricName, &metricValue);
+        MetricRet res = metricClient->GetConfValueFromMetric(csAddr, metricName,
+                                                             &metricValue);
         if (res != MetricRet::kOK) {
-            std::cout << "Get use chunkfilepool conf "
-                    << csAddr << " fail!" << std::endl;
+            std::cout << "Get use chunkfilepool conf " << csAddr << " fail!"
+                      << std::endl;
             ret = -1;
         }
         std::string raftLogProtocol =
             curve::common::UriParser ::GetProtocolFromUri(metricValue);
-        *useWalPool =  kProtocalCurve == raftLogProtocol ? true : false;
+        *useWalPool = kProtocalCurve == raftLogProtocol ? true : false;
 
-        // check whether use chunkfilepool as walpool from chunkserver conf metric  // NOLINT
+        // check whether use chunkfilepool as walpool from chunkserver conf
+        // metric  // NOLINT
         metricName = GetUseChunkFilePoolAsWalPoolName(csAddr);
         res = metricClient->GetConfValueFromMetric(csAddr, metricName,
-                                                    &metricValue);
+                                                   &metricValue);
         if (res != MetricRet::kOK) {
-            std::cout << "Get use chunkfilepool as walpool conf "
-                    << csAddr << " fail!" << std::endl;
+            std::cout << "Get use chunkfilepool as walpool conf " << csAddr
+                      << " fail!" << std::endl;
             ret = -1;
         }
-        *useChunkFilePoolAsWalPool = StringToBool(metricValue,
-                                                 useChunkFilePoolAsWalPool);
+        *useChunkFilePoolAsWalPool =
+            StringToBool(metricValue, useChunkFilePoolAsWalPool);
     }
     return ret;
 }
 
 int PrintChunkserverOnlineStatus(
-    const std::map<PoolIdType, std::vector<ChunkServerInfo>> &poolChunkservers,
+    const std::map<PoolIdType, std::vector<ChunkServerInfo>>& poolChunkservers,
     std::shared_ptr<CopysetCheckCore> copysetCheckCore,
     std::shared_ptr<MDSClient> mdsClient) {
     int ret = 0;
@@ -819,8 +816,8 @@ int PrintChunkserverOnlineStatus(
     for (const auto& poolChunkserver : poolChunkservers) {
         for (const auto& chunkserver : poolChunkserver.second) {
             total++;
-            std::string csAddr = chunkserver.hostip()
-                            + ":" + std::to_string(chunkserver.port());
+            std::string csAddr =
+                chunkserver.hostip() + ":" + std::to_string(chunkserver.port());
             if (copysetCheckCore->CheckChunkServerOnline(csAddr)) {
                 online++;
             } else {
@@ -833,11 +830,11 @@ int PrintChunkserverOnlineStatus(
     std::vector<ChunkServerIdType> offlineRecover;
     if (offlineCs.size() > 0) {
         std::map<ChunkServerIdType, bool> statusMap;
-        int res = mdsClient->QueryChunkServerRecoverStatus(
-            offlineCs, &statusMap);
+        int res =
+            mdsClient->QueryChunkServerRecoverStatus(offlineCs, &statusMap);
         if (res != 0) {
             std::cout << "query offlinne chunkserver recover status fail";
-            ret =  -1;
+            ret = -1;
         } else {
             // Distinguish between recovering and unrecovered
             for (auto it = statusMap.begin(); it != statusMap.end(); ++it) {
@@ -847,14 +844,13 @@ int PrintChunkserverOnlineStatus(
             }
         }
     }
-    std::cout << "chunkserver: total num = " << total
-            << ", online = " << online
-            << ", offline = " << offline
-            << "(recoveringout = " << offlineRecover.size()
-            << ", chunkserverlist: [";
+    std::cout << "chunkserver: total num = " << total << ", online = " << online
+              << ", offline = " << offline
+              << "(recoveringout = " << offlineRecover.size()
+              << ", chunkserverlist: [";
 
     int i = 0;
-    for (ChunkServerIdType csId :  offlineRecover) {
+    for (ChunkServerIdType csId : offlineRecover) {
         i++;
         if (i == static_cast<int>(offlineRecover.size())) {
             std::cout << csId;
@@ -867,26 +863,25 @@ int PrintChunkserverOnlineStatus(
 }
 
 int GetChunkserverLeftSize(
-    const std::map<PoolIdType, std::vector<ChunkServerInfo>> &poolChunkservers,
-    std::map<PoolIdType, std::vector<uint64_t>> *poolChunkLeftSize,
-    std::map<PoolIdType, std::vector<uint64_t>> *poolWalSegmentLeftSize,
-    bool useWalPool,
-    bool useChunkFilePoolAsWalPool,
+    const std::map<PoolIdType, std::vector<ChunkServerInfo>>& poolChunkservers,
+    std::map<PoolIdType, std::vector<uint64_t>>* poolChunkLeftSize,
+    std::map<PoolIdType, std::vector<uint64_t>>* poolWalSegmentLeftSize,
+    bool useWalPool, bool useChunkFilePoolAsWalPool,
     std::shared_ptr<MetricClient> metricClient) {
     int ret = 0;
     for (const auto& poolChunkserver : poolChunkservers) {
         std::vector<uint64_t> chunkLeftSize;
         std::vector<uint64_t> walSegmentLeftSize;
         for (const auto& chunkserver : poolChunkserver.second) {
-            std::string csAddr = chunkserver.hostip()
-                            + ":" + std::to_string(chunkserver.port());
+            std::string csAddr =
+                chunkserver.hostip() + ":" + std::to_string(chunkserver.port());
             std::string metricName = GetCSLeftChunkName(csAddr);
             uint64_t chunkNum;
-            MetricRet res = metricClient->GetMetricUint(csAddr,
-                                                        metricName, &chunkNum);
+            MetricRet res =
+                metricClient->GetMetricUint(csAddr, metricName, &chunkNum);
             if (res != MetricRet::kOK) {
                 std::cout << "Get left chunk size of chunkserver " << csAddr
-                        << " fail!" << std::endl;
+                          << " fail!" << std::endl;
                 ret = -1;
                 continue;
             }
@@ -898,10 +893,10 @@ int GetChunkserverLeftSize(
                 metricName = GetCSLeftWalSegmentName(csAddr);
                 uint64_t walSegmentNum;
                 res = metricClient->GetMetricUint(csAddr, metricName,
-                                                        &walSegmentNum);
+                                                  &walSegmentNum);
                 if (res != MetricRet::kOK) {
                     std::cout << "Get left wal segment size of chunkserver "
-                            << csAddr << " fail!" << std::endl;
+                              << csAddr << " fail!" << std::endl;
                     ret = -1;
                     continue;
                 }
@@ -911,7 +906,7 @@ int GetChunkserverLeftSize(
         }
         poolChunkLeftSize->emplace(poolChunkserver.first, chunkLeftSize);
         poolWalSegmentLeftSize->emplace(poolChunkserver.first,
-                                                    walSegmentLeftSize);
+                                        walSegmentLeftSize);
     }
     return ret;
 }
@@ -921,8 +916,8 @@ int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
     std::cout << "ChunkServer status:" << std::endl;
     std::string version;
     std::vector<std::string> failedList;
-    int res = versionTool_->GetAndCheckChunkServerVersion(&version,
-                                                          &failedList);
+    int res =
+        versionTool_->GetAndCheckChunkServerVersion(&version, &failedList);
     int ret = 0;
     if (res != 0) {
         std::cout << "GetAndCheckChunkserverVersion fail" << std::endl;
@@ -943,8 +938,7 @@ int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
     }
 
     // get chunkserver online status
-    ret = PrintChunkserverOnlineStatus(poolChunkservers,
-                                       copysetCheckCore_,
+    ret = PrintChunkserverOnlineStatus(poolChunkservers, copysetCheckCore_,
                                        mdsClient_);
     if (!checkLeftSize) {
         return ret;
@@ -961,12 +955,9 @@ int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
     // get chunkserver left size
     std::map<PoolIdType, std::vector<uint64_t>> poolChunkLeftSize;
     std::map<PoolIdType, std::vector<uint64_t>> poolWalSegmentLeftSize;
-    ret = GetChunkserverLeftSize(poolChunkservers,
-                                 &poolChunkLeftSize,
-                                 &poolWalSegmentLeftSize,
-                                 useWalPool,
-                                 useChunkFilePoolAsWalPool,
-                                 metricClient_);
+    ret = GetChunkserverLeftSize(poolChunkservers, &poolChunkLeftSize,
+                                 &poolWalSegmentLeftSize, useWalPool,
+                                 useChunkFilePoolAsWalPool, metricClient_);
     if (0 != ret) {
         return ret;
     }
@@ -984,9 +975,9 @@ int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
     return ret;
 }
 
-void StatusTool::PrintCsLeftSizeStatistics(const std::string& name,
-                                    const std::map<PoolIdType,
-                                    std::vector<uint64_t>>& poolLeftSize) {
+void StatusTool::PrintCsLeftSizeStatistics(
+    const std::string& name,
+    const std::map<PoolIdType, std::vector<uint64_t>>& poolLeftSize) {
     if (poolLeftSize.empty()) {
         std::cout << "No " << name << " left size found!" << std::endl;
         return;
@@ -1015,19 +1006,19 @@ void StatusTool::PrintCsLeftSizeStatistics(const std::string& name,
         }
 
         double var = sum / leftSize.second.size();
-        std:: cout.setf(std::ios::fixed);
-        std::cout<< std::setprecision(2);
-        std::cout<< "pool" << leftSize.first << " " << name;
+        std::cout.setf(std::ios::fixed);
+        std::cout << std::setprecision(2);
+        std::cout << "pool" << leftSize.first << " " << name;
         std::cout << " left size: min = " << min << "GB"
-                    << ", max = " << max << "GB"
-                    << ", average = " << avg << "GB"
-                    << ", range = " << range << "GB"
-                    << ", variance = " << var << std::endl;
+                  << ", max = " << max << "GB"
+                  << ", average = " << avg << "GB"
+                  << ", range = " << range << "GB"
+                  << ", variance = " << var << std::endl;
     }
 }
 
 int StatusTool::GetPoolsInCluster(std::vector<PhysicalPoolInfo>* phyPools,
-                          std::vector<LogicalPoolInfo>* lgPools) {
+                                  std::vector<LogicalPoolInfo>* lgPools) {
     int res = mdsClient_->ListPhysicalPoolsInCluster(phyPools);
     if (res != 0) {
         std::cout << "ListPhysicalPoolsInCluster fail!" << std::endl;
@@ -1035,7 +1026,7 @@ int StatusTool::GetPoolsInCluster(std::vector<PhysicalPoolInfo>* phyPools,
     }
     for (const auto& phyPool : *phyPools) {
         int res = mdsClient_->ListLogicalPoolsInPhysicalPool(
-                    phyPool.physicalpoolid(), lgPools) != 0;
+                      phyPool.physicalpoolid(), lgPools) != 0;
         if (res != 0) {
             std::cout << "ListLogicalPoolsInPhysicalPool fail!" << std::endl;
             return -1;
@@ -1057,9 +1048,9 @@ int StatusTool::GetSpaceInfo(SpaceInfo* spaceInfo) {
         std::cout << "Get root directory file size from mds fail!" << std::endl;
         return -1;
     }
-    // 从metric获取space信息
+    // Obtain space information from metric
     for (const auto& lgPool : lgPools) {
-        LogicalpoolSpaceInfo   lpinfo;
+        LogicalpoolSpaceInfo lpinfo;
         std::string poolName = lgPool.logicalpoolname();
         lpinfo.poolName = poolName;
         std::string metricName = GetPoolTotalChunkSizeName(poolName);
@@ -1070,7 +1061,7 @@ int StatusTool::GetSpaceInfo(SpaceInfo* spaceInfo) {
             return -1;
         }
         spaceInfo->totalChunkSize += size;
-        lpinfo.totalChunkSize +=size;
+        lpinfo.totalChunkSize += size;
         metricName = GetPoolUsedChunkSizeName(poolName);
         res = mdsClient_->GetMetric(metricName, &size);
         if (res != 0) {
@@ -1096,10 +1087,10 @@ int StatusTool::GetSpaceInfo(SpaceInfo* spaceInfo) {
         spaceInfo->allocatedSize += size;
         lpinfo.allocatedSize += size;
         spaceInfo->lpoolspaceinfo.insert(
-                std::pair<uint32_t, LogicalpoolSpaceInfo>(
-                    lgPool.logicalpoolid(), lpinfo));
+            std::pair<uint32_t, LogicalpoolSpaceInfo>(lgPool.logicalpoolid(),
+                                                      lpinfo));
     }
-    // 获取RecycleBin的分配大小
+    // Obtain the allocation size of RecycleBin
     res = mdsClient_->GetAllocatedSize(curve::mds::RECYCLEBINDIR,
                                        &spaceInfo->recycleAllocSize);
     if (res != 0) {
@@ -1109,7 +1100,7 @@ int StatusTool::GetSpaceInfo(SpaceInfo* spaceInfo) {
     return 0;
 }
 
-int StatusTool::RunCommand(const std::string &cmd) {
+int StatusTool::RunCommand(const std::string& cmd) {
     if (Init(cmd) != 0) {
         std::cout << "Init StatusTool failed" << std::endl;
         return -1;

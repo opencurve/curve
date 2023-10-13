@@ -22,12 +22,11 @@
 
 #include <bvar/bvar.h>
 
-#include <string>
 #include <map>
+#include <string>
 
 #ifndef SRC_TOOLS_METRIC_NAME_H_
 #define SRC_TOOLS_METRIC_NAME_H_
-
 
 namespace curve {
 namespace tool {
@@ -37,7 +36,7 @@ const char kCurveVersionMetricName[] = "curve_version";
 
 // snapshot clone server metric name
 const char kSnapshotCloneConfMetricName[] =
-                                "snapshotcloneserver_config_server_address";
+    "snapshotcloneserver_config_server_address";
 const char kSnapshotCloneStatusMetricName[] = "snapshotcloneserver_status";
 const char kSnapshotCloneStatusActive[] = "active";
 
@@ -50,100 +49,92 @@ const char kSechduleOpMetricpPrefix[] = "mds_scheduler_metric_";
 const char kMdsListenAddrMetricName[] = "mds_config_mds_listen_addr";
 const char kMdsStatusMetricName[] = "mds_status";
 const char kMdsStatusLeader[] = "leader";
-// operator名称
+// operator Name
 const char kTotalOpName[] = "operator";
 const char kChangeOpName[] = "change_peer";
 const char kAddOpName[] = "add_peer";
 const char kRemoveOpName[] = "remove_peer";
 const char kTransferOpName[] = "transfer_leader";
 
-
-inline std::string GetPoolTotalChunkSizeName(
-                            const std::string& poolName) {
-    std::string tmpName = kLogicalPoolMetricPrefix +
-                                poolName + "_chunkSizeTotalBytes";
+inline std::string GetPoolTotalChunkSizeName(const std::string& poolName) {
+    std::string tmpName =
+        kLogicalPoolMetricPrefix + poolName + "_chunkSizeTotalBytes";
     std::string metricName;
     bvar::to_underscored_name(&metricName, tmpName);
     return metricName;
 }
 
-inline std::string GetPoolUsedChunkSizeName(
-                            const std::string& poolName) {
-    std::string tmpName = kLogicalPoolMetricPrefix +
-                            poolName + "_chunkSizeUsedBytes";
+inline std::string GetPoolUsedChunkSizeName(const std::string& poolName) {
+    std::string tmpName =
+        kLogicalPoolMetricPrefix + poolName + "_chunkSizeUsedBytes";
     std::string metricName;
     bvar::to_underscored_name(&metricName, tmpName);
     return metricName;
 }
 
-inline std::string GetPoolLogicalCapacityName(
-                            const std::string& poolName) {
-    std::string tmpName = kLogicalPoolMetricPrefix +
-                            poolName + "_logicalCapacity";
+inline std::string GetPoolLogicalCapacityName(const std::string& poolName) {
+    std::string tmpName =
+        kLogicalPoolMetricPrefix + poolName + "_logicalCapacity";
     std::string metricName;
     bvar::to_underscored_name(&metricName, tmpName);
     return metricName;
 }
 
-inline std::string GetPoolLogicalAllocName(
-                            const std::string& poolName) {
-    std::string tmpName = kLogicalPoolMetricPrefix +
-                            poolName + "_logicalAlloc";
+inline std::string GetPoolLogicalAllocName(const std::string& poolName) {
+    std::string tmpName = kLogicalPoolMetricPrefix + poolName + "_logicalAlloc";
     std::string metricName;
     bvar::to_underscored_name(&metricName, tmpName);
     return metricName;
 }
 
 inline std::string GetCSLeftChunkName(const std::string& csAddr) {
-    std::string tmpName = kChunkServerMetricPrefix +
-                        csAddr + "_chunkfilepool_left";
+    std::string tmpName =
+        kChunkServerMetricPrefix + csAddr + "_chunkfilepool_left";
     std::string metricName;
     bvar::to_underscored_name(&metricName, tmpName);
     return metricName;
 }
 
 inline std::string GetCSLeftWalSegmentName(const std::string& csAddr) {
-    std::string tmpName = kChunkServerMetricPrefix +
-                        csAddr + "_walfilepool_left";
+    std::string tmpName =
+        kChunkServerMetricPrefix + csAddr + "_walfilepool_left";
     std::string metricName;
     bvar::to_underscored_name(&metricName, tmpName);
     return metricName;
 }
 
 inline std::string GetUseWalPoolName(const std::string& csAddr) {
-    std::string tmpName = kChunkServerMetricPrefix +
-                        csAddr + "_config_copyset_raft_log_uri";
+    std::string tmpName =
+        kChunkServerMetricPrefix + csAddr + "_config_copyset_raft_log_uri";
     std::string metricName;
     bvar::to_underscored_name(&metricName, tmpName);
     return metricName;
 }
 
 inline std::string GetUseChunkFilePoolAsWalPoolName(const std::string& csAddr) {
-    std::string tmpName = kChunkServerMetricPrefix +
-                        csAddr + "_config_walfilepool_use_chunk_file_pool";
+    std::string tmpName = kChunkServerMetricPrefix + csAddr +
+                          "_config_walfilepool_use_chunk_file_pool";
     std::string metricName;
     bvar::to_underscored_name(&metricName, tmpName);
     return metricName;
 }
 
 inline std::string GetOpNumMetricName(const std::string& opName) {
-    std::string tmpName = kSechduleOpMetricpPrefix +
-                                opName + "_num";
+    std::string tmpName = kSechduleOpMetricpPrefix + opName + "_num";
     std::string metricName;
     bvar::to_underscored_name(&metricName, tmpName);
     return metricName;
 }
 
 inline bool SupportOpName(const std::string& opName) {
-    return opName == kTotalOpName || opName == kChangeOpName
-                || opName == kAddOpName || opName == kRemoveOpName
-                || opName == kTransferOpName;
+    return opName == kTotalOpName || opName == kChangeOpName ||
+           opName == kAddOpName || opName == kRemoveOpName ||
+           opName == kTransferOpName;
 }
 
 inline void PrintSupportOpName() {
-    std::cout << kTotalOpName << ", " << kChangeOpName
-              << ", " << kAddOpName << ", " << kRemoveOpName
-              << ", " << kTransferOpName << std::endl;
+    std::cout << kTotalOpName << ", " << kChangeOpName << ", " << kAddOpName
+              << ", " << kRemoveOpName << ", " << kTransferOpName << std::endl;
 }
 
 }  // namespace tool

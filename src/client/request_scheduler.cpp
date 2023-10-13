@@ -25,9 +25,9 @@
 #include <brpc/closure_guard.h>
 #include <glog/logging.h>
 
-#include "src/client/request_context.h"
-#include "src/client/request_closure.h"
 #include "src/client/chunk_closure.h"
+#include "src/client/request_closure.h"
+#include "src/client/request_context.h"
 
 namespace curve {
 namespace client {
@@ -35,8 +35,7 @@ namespace client {
 RequestScheduler::~RequestScheduler() {}
 
 int RequestScheduler::Init(const RequestScheduleOption& reqSchdulerOpt,
-                           MetaCache* metaCache,
-                           FileMetric* fm) {
+                           MetaCache* metaCache, FileMetric* fm) {
     blockIO_.store(false);
     reqschopt_ = reqSchdulerOpt;
 
@@ -58,8 +57,7 @@ int RequestScheduler::Init(const RequestScheduleOption& reqSchdulerOpt,
     }
 
     LOG(INFO) << "RequestScheduler conf info: "
-              << "scheduleQueueCapacity = "
-              << reqschopt_.scheduleQueueCapacity
+              << "scheduleQueueCapacity = " << reqschopt_.scheduleQueueCapacity
               << ", scheduleThreadpoolSize = "
               << reqschopt_.scheduleThreadpoolSize;
     return 0;
@@ -77,7 +75,7 @@ int RequestScheduler::Fini() {
     if (running_.exchange(false, std::memory_order_acq_rel)) {
         for (int i = 0; i < threadPool_.NumOfThreads(); ++i) {
             // notify the wait thread
-            BBQItem<RequestContext *> stopReq(nullptr, true);
+            BBQItem<RequestContext*> stopReq(nullptr, true);
             queue_.PutBack(stopReq);
         }
         threadPool_.Stop();
@@ -89,7 +87,7 @@ int RequestScheduler::Fini() {
 int RequestScheduler::ScheduleRequest(
     const std::vector<RequestContext*>& requests) {
     if (running_.load(std::memory_order_acquire)) {
-        /* TODO(wudemiao): 后期考虑 qos */
+        /* TODO(wudemiao): Consider QoS in the later stage */
         for (auto it : requests) {
             // skip the fake request
             if (!it->idinfo_.chunkExist) {
@@ -99,7 +97,7 @@ int RequestScheduler::ScheduleRequest(
                 continue;
             }
 
-            BBQItem<RequestContext *> req(it);
+            BBQItem<RequestContext*> req(it);
             queue_.PutBack(req);
         }
         return 0;
@@ -107,18 +105,18 @@ int RequestScheduler::ScheduleRequest(
     return -1;
 }
 
-int RequestScheduler::ScheduleRequest(RequestContext *request) {
+int RequestScheduler::ScheduleRequest(RequestContext* request) {
     if (running_.load(std::memory_order_acquire)) {
-        BBQItem<RequestContext *> req(request);
+        BBQItem<RequestContext*> req(request);
         queue_.PutBack(req);
         return 0;
     }
     return -1;
 }
 
-int RequestScheduler::ReSchedule(RequestContext *request) {
+int RequestScheduler::ReSchedule(RequestContext* request) {
     if (running_.load(std::memory_order_acquire)) {
-        BBQItem<RequestContext *> req(request);
+        BBQItem<RequestContext*> req(request);
         queue_.PutFront(req);
         return 0;
     }
@@ -126,14 +124,17 @@ int RequestScheduler::ReSchedule(RequestContext *request) {
 }
 
 void RequestScheduler::WakeupBlockQueueAtExit() {
-    // 在scheduler退出的时候要把队列的内容清空, 通知copyset client
-    // 当前操作是退出状态，copyset client会针对inflight RPC做响应处理
-    // 正常情况下队列内容一定会在Fini调用结束之后全部清空
-    // 但是在session刷新失败的时候，scheduler无法继续下发
-    // RPC请求，所以需要设置blockingQueue_标志，告知scheduler
-    // 把队列里内容统统扔到copyset client，因为在session
-    // 续约失败后copyset client会将IO全部失败返回，scheduler
-    // 模块不需要处理具体RPC请求，由copyset client负责。
+    // When the scheduler exits, it is necessary to clear the contents of the
+    // queue and notify the copyset client The current operation is in the exit
+    // state, and the copyset client will respond to the inflight RPC Under
+    // normal circumstances, the queue content must be completely cleared after
+    // Fini calls are completed But when the session refresh fails, the
+    // scheduler cannot continue issuing RPC request, therefore blockingQueue
+    // needs to be set_ Sign to inform scheduler Throw all the content in the
+    // queue to the copyset client because in the session After the renewal
+    // fails, the copyset client will return all IO failures to the scheduler
+    // The module does not need to handle specific RPC requests, and is the
+    // responsibility of the copyset client.
     client_.ResetExitFlag();
     blockingQueue_ = false;
     std::atomic_thread_fence(std::memory_order_acquire);
@@ -151,8 +152,8 @@ void RequestScheduler::Process() {
             ProcessOne(req);
         } else {
             /**
-             * 一旦遇到stop item，所有线程都可以退出，因为此时
-             * queue里面所有的request都被处理完了
+             * Once a stop item is encountered, all threads can exit because at
+             * this point All requests in the queue have been processed
              */
             stop_.store(true, std::memory_order_release);
         }
@@ -172,8 +173,8 @@ void RequestScheduler::ProcessOne(RequestContext* ctx) {
         case OpType::WRITE:
             ctx->done_->GetInflightRPCToken();
             client_.WriteChunk(ctx->idinfo_, ctx->fileId_, ctx->epoch_,
-                               ctx->seq_, ctx->writeData_,
-                               ctx->offset_, ctx->rawlength_, ctx->sourceInfo_,
+                               ctx->seq_, ctx->writeData_, ctx->offset_,
+                               ctx->rawlength_, ctx->sourceInfo_,
                                guard.release());
             break;
         case OpType::READ_SNAP:
@@ -197,11 +198,12 @@ void RequestScheduler::ProcessOne(RequestContext* ctx) {
                                  guard.release());
             break;
         default:
-            /* TODO(wudemiao) 后期整个链路错误发统一了在处理 */
+            /* In the later stage of TODO(wudemiao), the entire link error was
+             * sent and processed uniformly */
             ctx->done_->SetFailed(-1);
             LOG(ERROR) << "unknown op type: OpType::UNKNOWN";
     }
 }
 
-}   // namespace client
-}   // namespace curve
+}  // namespace client
+}  // namespace curve

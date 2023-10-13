@@ -21,21 +21,23 @@
  * Copyright (c)￼ 2018 netease
  */
 
-#include <gtest/gtest.h>
 #include "src/tools/version_tool.h"
+
+#include <gtest/gtest.h>
+
 #include "test/tools/mock/mock_mds_client.h"
 #include "test/tools/mock/mock_metric_client.h"
 #include "test/tools/mock/mock_snapshot_clone_client.h"
 
-using ::testing::_;
-using ::testing::Return;
-using ::testing::ReturnRef;
-using ::testing::DoAll;
-using ::testing::SetArgPointee;
-using ::testing::An;
 using curve::mds::topology::ChunkServerStatus;
 using curve::mds::topology::DiskState;
 using curve::mds::topology::OnlineState;
+using ::testing::_;
+using ::testing::An;
+using ::testing::DoAll;
+using ::testing::Return;
+using ::testing::ReturnRef;
+using ::testing::SetArgPointee;
 
 namespace curve {
 namespace tool {
@@ -53,8 +55,8 @@ class VersionToolTest : public ::testing::Test {
         metricClient_ = nullptr;
     }
 
-    void GetCsInfoForTest(curve::mds::topology::ChunkServerInfo *csInfo,
-                            uint64_t csId) {
+    void GetCsInfoForTest(curve::mds::topology::ChunkServerInfo* csInfo,
+                          uint64_t csId) {
         csInfo->set_chunkserverid(csId);
         csInfo->set_disktype("ssd");
         csInfo->set_hostip("127.0.0.1");
@@ -73,64 +75,61 @@ class VersionToolTest : public ::testing::Test {
 
 TEST_F(VersionToolTest, GetAndCheckMdsVersion) {
     VersionTool versionTool(mdsClient_, metricClient_, snapshotClient_);
-    std::map<std::string, std::string> dummyServerMap =
-                                {{"127.0.0.1:6666", "127.0.0.1:6667"},
-                                 {"127.0.0.1:6668", "127.0.0.1:6669"},
-                                 {"127.0.0.1:6670", "127.0.0.1:6671"}};
+    std::map<std::string, std::string> dummyServerMap = {
+        {"127.0.0.1:6666", "127.0.0.1:6667"},
+        {"127.0.0.1:6668", "127.0.0.1:6669"},
+        {"127.0.0.1:6670", "127.0.0.1:6671"}};
 
-    // 1、正常情况
+    // 1. Normal situation
     EXPECT_CALL(*mdsClient_, GetDummyServerMap())
         .Times(1)
         .WillOnce(ReturnRef(dummyServerMap));
     EXPECT_CALL(*metricClient_, GetMetric(_, _, _))
         .Times(3)
-        .WillRepeatedly(DoAll(SetArgPointee<2>("0.0.1"),
-                        Return(MetricRet::kOK)));
+        .WillRepeatedly(
+            DoAll(SetArgPointee<2>("0.0.1"), Return(MetricRet::kOK)));
     std::string version;
     std::vector<std::string> failedList;
     ASSERT_EQ(0, versionTool.GetAndCheckMdsVersion(&version, &failedList));
     ASSERT_EQ("0.0.1", version);
     ASSERT_TRUE(failedList.empty());
 
-    // 2、获取部分mds curve_version失败
+    // 2. Obtain partial mds curve_version failed
     EXPECT_CALL(*mdsClient_, GetDummyServerMap())
         .Times(1)
         .WillOnce(ReturnRef(dummyServerMap));
     EXPECT_CALL(*metricClient_, GetMetric(_, _, _))
         .Times(3)
         .WillOnce(Return(MetricRet::kOtherErr))
-        .WillRepeatedly(DoAll(SetArgPointee<2>("0.0.1"),
-                        Return(MetricRet::kOK)));
+        .WillRepeatedly(
+            DoAll(SetArgPointee<2>("0.0.1"), Return(MetricRet::kOK)));
     ASSERT_EQ(0, versionTool.GetAndCheckMdsVersion(&version, &failedList));
     ASSERT_EQ("0.0.1", version);
     std::vector<std::string> expectedList = {"127.0.0.1:6667"};
     ASSERT_EQ(expectedList, failedList);
 
-    // 3、dummyServerMap为空
+    // 3. dummyServerMap is empty
     std::map<std::string, std::string> dummyServerMap2;
     EXPECT_CALL(*mdsClient_, GetDummyServerMap())
         .Times(1)
         .WillOnce(ReturnRef(dummyServerMap2));
-    EXPECT_CALL(*metricClient_, GetMetric(_, _, _))
-        .Times(0);
+    EXPECT_CALL(*metricClient_, GetMetric(_, _, _)).Times(0);
     ASSERT_EQ(-1, versionTool.GetAndCheckMdsVersion(&version, &failedList));
     ASSERT_TRUE(failedList.empty());
 
-    // 4、version不一致
+    // 4. version inconsistency
     EXPECT_CALL(*mdsClient_, GetDummyServerMap())
         .Times(1)
         .WillOnce(ReturnRef(dummyServerMap));
     EXPECT_CALL(*metricClient_, GetMetric(_, _, _))
         .Times(3)
-        .WillOnce(DoAll(SetArgPointee<2>("0.0.2"),
-                        Return(MetricRet::kOK)))
-        .WillOnce(DoAll(SetArgPointee<2>("0.0.1"),
-                        Return(MetricRet::kOK)))
+        .WillOnce(DoAll(SetArgPointee<2>("0.0.2"), Return(MetricRet::kOK)))
+        .WillOnce(DoAll(SetArgPointee<2>("0.0.1"), Return(MetricRet::kOK)))
         .WillOnce(Return(MetricRet::kNotFound));
     ASSERT_EQ(-1, versionTool.GetAndCheckMdsVersion(&version, &failedList));
     ASSERT_TRUE(failedList.empty());
 
-    // 5、老版本mds
+    // 5. Old version of mds
     EXPECT_CALL(*mdsClient_, GetDummyServerMap())
         .Times(1)
         .WillOnce(ReturnRef(dummyServerMap));
@@ -151,123 +150,112 @@ TEST_F(VersionToolTest, GetChunkServerVersion) {
         chunkservers.emplace_back(csInfo);
     }
 
-    // 1、正常情况
-    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(
-        An<std::vector<ChunkServerInfo>*>()))
+    // 1. Normal situation
+    EXPECT_CALL(*mdsClient_,
+                ListChunkServersInCluster(An<std::vector<ChunkServerInfo>*>()))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<0>(chunkservers),
-                        Return(0)));
+        .WillOnce(DoAll(SetArgPointee<0>(chunkservers), Return(0)));
     EXPECT_CALL(*metricClient_, GetMetric(_, _, _))
         .Times(5)
-        .WillRepeatedly(DoAll(SetArgPointee<2>("0.0.1"),
-                        Return(MetricRet::kOK)));
+        .WillRepeatedly(
+            DoAll(SetArgPointee<2>("0.0.1"), Return(MetricRet::kOK)));
     std::string version;
     std::vector<std::string> failedList;
-    ASSERT_EQ(0, versionTool.GetAndCheckChunkServerVersion(&version,
-                                                           &failedList));
+    ASSERT_EQ(0,
+              versionTool.GetAndCheckChunkServerVersion(&version, &failedList));
     ASSERT_EQ("0.0.1", version);
     ASSERT_TRUE(failedList.empty());
 
-    // 2、ListChunkServersInCluster失败
-    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(
-        An<std::vector<ChunkServerInfo>*>()))
+    // 2. ListChunkServersInCluster failed
+    EXPECT_CALL(*mdsClient_,
+                ListChunkServersInCluster(An<std::vector<ChunkServerInfo>*>()))
         .Times(1)
         .WillOnce(Return(-1));
-    ASSERT_EQ(-1, versionTool.GetAndCheckChunkServerVersion(&version,
-                                                            &failedList));
+    ASSERT_EQ(-1,
+              versionTool.GetAndCheckChunkServerVersion(&version, &failedList));
 
-    // 3、获取metric失败
-    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(
-        An<std::vector<ChunkServerInfo>*>()))
+    // 3. Failed to obtain metric
+    EXPECT_CALL(*mdsClient_,
+                ListChunkServersInCluster(An<std::vector<ChunkServerInfo>*>()))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<0>(chunkservers),
-                        Return(0)));
+        .WillOnce(DoAll(SetArgPointee<0>(chunkservers), Return(0)));
     EXPECT_CALL(*metricClient_, GetMetric(_, _, _))
         .Times(5)
         .WillOnce(Return(MetricRet::kOtherErr))
-        .WillRepeatedly(DoAll(SetArgPointee<2>("0.0.1"),
-                              Return(MetricRet::kOK)));
-    ASSERT_EQ(0, versionTool.GetAndCheckChunkServerVersion(&version,
-                                                            &failedList));
+        .WillRepeatedly(
+            DoAll(SetArgPointee<2>("0.0.1"), Return(MetricRet::kOK)));
+    ASSERT_EQ(0,
+              versionTool.GetAndCheckChunkServerVersion(&version, &failedList));
     std::vector<std::string> expectList = {"127.0.0.1:9191"};
     ASSERT_EQ(expectList, failedList);
 
-    // 4、chunkserverList为空
-    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(
-        An<std::vector<ChunkServerInfo>*>()))
+    // 4. chunkserverList is empty
+    EXPECT_CALL(*mdsClient_,
+                ListChunkServersInCluster(An<std::vector<ChunkServerInfo>*>()))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<0>(std::vector<ChunkServerInfo>()),
-                        Return(0)));
-    EXPECT_CALL(*metricClient_, GetMetric(_, _, _))
-        .Times(0);
-    ASSERT_EQ(-1, versionTool.GetAndCheckChunkServerVersion(&version,
-                                                            &failedList));
+        .WillOnce(
+            DoAll(SetArgPointee<0>(std::vector<ChunkServerInfo>()), Return(0)));
+    EXPECT_CALL(*metricClient_, GetMetric(_, _, _)).Times(0);
+    ASSERT_EQ(-1,
+              versionTool.GetAndCheckChunkServerVersion(&version, &failedList));
     ASSERT_TRUE(failedList.empty());
 
-    // 5、version不一致
-    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(
-        An<std::vector<ChunkServerInfo>*>()))
+    // 5. version inconsistency
+    EXPECT_CALL(*mdsClient_,
+                ListChunkServersInCluster(An<std::vector<ChunkServerInfo>*>()))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<0>(chunkservers),
-                        Return(0)));
+        .WillOnce(DoAll(SetArgPointee<0>(chunkservers), Return(0)));
     EXPECT_CALL(*metricClient_, GetMetric(_, _, _))
         .Times(5)
-        .WillOnce(DoAll(SetArgPointee<2>("0.0.2"),
-                        Return(MetricRet::kOK)))
+        .WillOnce(DoAll(SetArgPointee<2>("0.0.2"), Return(MetricRet::kOK)))
         .WillOnce(Return(MetricRet::kNotFound))
-        .WillRepeatedly(DoAll(SetArgPointee<2>("0.0.1"),
-                        Return(MetricRet::kOK)));
-    ASSERT_EQ(-1, versionTool.GetAndCheckChunkServerVersion(&version,
-                                                            &failedList));
+        .WillRepeatedly(
+            DoAll(SetArgPointee<2>("0.0.1"), Return(MetricRet::kOK)));
+    ASSERT_EQ(-1,
+              versionTool.GetAndCheckChunkServerVersion(&version, &failedList));
     ASSERT_TRUE(failedList.empty());
 
-    // 6、老版本
-    EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(
-        An<std::vector<ChunkServerInfo>*>()))
+    // 6. Old version
+    EXPECT_CALL(*mdsClient_,
+                ListChunkServersInCluster(An<std::vector<ChunkServerInfo>*>()))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<0>(chunkservers),
-                        Return(0)));
+        .WillOnce(DoAll(SetArgPointee<0>(chunkservers), Return(0)));
     EXPECT_CALL(*metricClient_, GetMetric(_, _, _))
         .Times(5)
         .WillRepeatedly(Return(MetricRet::kNotFound));
-    ASSERT_EQ(0, versionTool.GetAndCheckChunkServerVersion(&version,
-                                                           &failedList));
+    ASSERT_EQ(0,
+              versionTool.GetAndCheckChunkServerVersion(&version, &failedList));
     ASSERT_EQ("before-0.0.5.2", version);
     ASSERT_TRUE(failedList.empty());
 }
 
 TEST_F(VersionToolTest, GetClientVersion) {
     VersionTool versionTool(mdsClient_, metricClient_, snapshotClient_);
-    std::vector<std::string> clientAddrs =
-                {"127.0.0.1:8000", "127.0.0.1:8001", "127.0.0.1:8002",
-                 "127.0.0.1:8003", "127.0.0.1:8004", "127.0.0.1:8005"};
+    std::vector<std::string> clientAddrs = {"127.0.0.1:8000", "127.0.0.1:8001",
+                                            "127.0.0.1:8002", "127.0.0.1:8003",
+                                            "127.0.0.1:8004", "127.0.0.1:8005"};
 
-    // 1、正常情况
+    // 1. Normal situation
     EXPECT_CALL(*mdsClient_, ListClient(_, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<0>(clientAddrs),
-                  Return(0)));
+        .WillOnce(DoAll(SetArgPointee<0>(clientAddrs), Return(0)));
     EXPECT_CALL(*metricClient_, GetMetric(_, kProcessCmdLineMetricName, _))
         .Times(6)
         .WillOnce(Return(MetricRet::kOtherErr))
-        .WillOnce(DoAll(SetArgPointee<2>(kProcessQemu),
-                        Return(MetricRet::kOK)))
-        .WillOnce(DoAll(SetArgPointee<2>(kProcessPython),
-                        Return(MetricRet::kOK)))
-        .WillOnce(DoAll(SetArgPointee<2>(kProcessOther),
-                        Return(MetricRet::kOK)))
+        .WillOnce(DoAll(SetArgPointee<2>(kProcessQemu), Return(MetricRet::kOK)))
+        .WillOnce(
+            DoAll(SetArgPointee<2>(kProcessPython), Return(MetricRet::kOK)))
+        .WillOnce(
+            DoAll(SetArgPointee<2>(kProcessOther), Return(MetricRet::kOK)))
         .WillRepeatedly(DoAll(SetArgPointee<2>(kProcessNebdServer),
-                        Return(MetricRet::kOK)));
+                              Return(MetricRet::kOK)));
     EXPECT_CALL(*metricClient_, GetMetric(_, kCurveVersionMetricName, _))
         .Times(5)
-        .WillOnce(DoAll(SetArgPointee<2>("0.0.5.2"),
-                        Return(MetricRet::kOK)))
-        .WillOnce(DoAll(SetArgPointee<2>("0.0.5.3"),
-                        Return(MetricRet::kOK)))
+        .WillOnce(DoAll(SetArgPointee<2>("0.0.5.2"), Return(MetricRet::kOK)))
+        .WillOnce(DoAll(SetArgPointee<2>("0.0.5.3"), Return(MetricRet::kOK)))
         .WillOnce(Return(MetricRet::kNotFound))
         .WillOnce(Return(MetricRet::kNotFound))
-        .WillOnce(DoAll(SetArgPointee<2>("0.0.5.2"),
-                        Return(MetricRet::kOK)));
+        .WillOnce(DoAll(SetArgPointee<2>("0.0.5.2"), Return(MetricRet::kOK)));
     ClientVersionMapType clientVersionMap;
     ClientVersionMapType expected;
     VersionMapType versionMap = {{"0.0.5.2", {"127.0.0.1:8004"}},
@@ -282,85 +270,80 @@ TEST_F(VersionToolTest, GetClientVersion) {
     ASSERT_EQ(0, versionTool.GetClientVersion(&clientVersionMap));
     ASSERT_EQ(expected, clientVersionMap);
 
-    // 2、ListClient失败
-    EXPECT_CALL(*mdsClient_, ListClient(_, _))
-        .Times(1)
-        .WillOnce(Return(-1));
+    // 2. ListClient failed
+    EXPECT_CALL(*mdsClient_, ListClient(_, _)).Times(1).WillOnce(Return(-1));
     ASSERT_EQ(-1, versionTool.GetClientVersion(&clientVersionMap));
 }
 
 TEST_F(VersionToolTest, GetAndCheckSnapshotCloneVersion) {
     VersionTool versionTool(mdsClient_, metricClient_, snapshotClient_);
-    std::map<std::string, std::string> dummyServerMap =
-                                {{"127.0.0.1:6666", "127.0.0.1:6667"},
-                                 {"127.0.0.1:6668", "127.0.0.1:6669"},
-                                 {"127.0.0.1:6670", "127.0.0.1:6671"}};
+    std::map<std::string, std::string> dummyServerMap = {
+        {"127.0.0.1:6666", "127.0.0.1:6667"},
+        {"127.0.0.1:6668", "127.0.0.1:6669"},
+        {"127.0.0.1:6670", "127.0.0.1:6671"}};
 
-    // 1、正常情况
+    // 1. Normal situation
     EXPECT_CALL(*snapshotClient_, GetDummyServerMap())
         .Times(1)
         .WillOnce(ReturnRef(dummyServerMap));
     EXPECT_CALL(*metricClient_, GetMetric(_, _, _))
         .Times(3)
-        .WillRepeatedly(DoAll(SetArgPointee<2>("0.0.1"),
-                        Return(MetricRet::kOK)));
+        .WillRepeatedly(
+            DoAll(SetArgPointee<2>("0.0.1"), Return(MetricRet::kOK)));
     std::string version;
     std::vector<std::string> failedList;
-    ASSERT_EQ(0, versionTool.GetAndCheckSnapshotCloneVersion(&version,
-                                                             &failedList));
+    ASSERT_EQ(
+        0, versionTool.GetAndCheckSnapshotCloneVersion(&version, &failedList));
     ASSERT_EQ("0.0.1", version);
     ASSERT_TRUE(failedList.empty());
 
-    // 2、获取部分curve_version失败
+    // 2. Obtain partial curve_version failed
     EXPECT_CALL(*snapshotClient_, GetDummyServerMap())
         .Times(1)
         .WillOnce(ReturnRef(dummyServerMap));
     EXPECT_CALL(*metricClient_, GetMetric(_, _, _))
         .Times(3)
         .WillOnce(Return(MetricRet::kOtherErr))
-        .WillRepeatedly(DoAll(SetArgPointee<2>("0.0.1"),
-                        Return(MetricRet::kOK)));
-    ASSERT_EQ(0, versionTool.GetAndCheckSnapshotCloneVersion(&version,
-                                                             &failedList));
+        .WillRepeatedly(
+            DoAll(SetArgPointee<2>("0.0.1"), Return(MetricRet::kOK)));
+    ASSERT_EQ(
+        0, versionTool.GetAndCheckSnapshotCloneVersion(&version, &failedList));
     ASSERT_EQ("0.0.1", version);
     std::vector<std::string> expectedList = {"127.0.0.1:6667"};
     ASSERT_EQ(expectedList, failedList);
 
-    // 3、dummyServerMap为空
+    // 3. dummyServerMap is empty
     std::map<std::string, std::string> dummyServerMap2;
     EXPECT_CALL(*snapshotClient_, GetDummyServerMap())
         .Times(1)
         .WillOnce(ReturnRef(dummyServerMap2));
-    EXPECT_CALL(*metricClient_, GetMetric(_, _, _))
-        .Times(0);
-    ASSERT_EQ(-1, versionTool.GetAndCheckSnapshotCloneVersion(&version,
-                                                              &failedList));
+    EXPECT_CALL(*metricClient_, GetMetric(_, _, _)).Times(0);
+    ASSERT_EQ(
+        -1, versionTool.GetAndCheckSnapshotCloneVersion(&version, &failedList));
     ASSERT_TRUE(failedList.empty());
 
-    // 4、version不一致
+    // 4. version inconsistency
     EXPECT_CALL(*snapshotClient_, GetDummyServerMap())
         .Times(1)
         .WillOnce(ReturnRef(dummyServerMap));
     EXPECT_CALL(*metricClient_, GetMetric(_, _, _))
         .Times(3)
-        .WillOnce(DoAll(SetArgPointee<2>("0.0.2"),
-                        Return(MetricRet::kOK)))
-        .WillOnce(DoAll(SetArgPointee<2>("0.0.1"),
-                        Return(MetricRet::kOK)))
+        .WillOnce(DoAll(SetArgPointee<2>("0.0.2"), Return(MetricRet::kOK)))
+        .WillOnce(DoAll(SetArgPointee<2>("0.0.1"), Return(MetricRet::kOK)))
         .WillOnce(Return(MetricRet::kNotFound));
-    ASSERT_EQ(-1, versionTool.GetAndCheckSnapshotCloneVersion(&version,
-                                                              &failedList));
+    ASSERT_EQ(
+        -1, versionTool.GetAndCheckSnapshotCloneVersion(&version, &failedList));
     ASSERT_TRUE(failedList.empty());
 
-    // 5、老版本mds
+    // 5. Old version of mds
     EXPECT_CALL(*snapshotClient_, GetDummyServerMap())
         .Times(1)
         .WillOnce(ReturnRef(dummyServerMap));
     EXPECT_CALL(*metricClient_, GetMetric(_, _, _))
         .Times(3)
         .WillRepeatedly(Return(MetricRet::kNotFound));
-    ASSERT_EQ(0, versionTool.GetAndCheckSnapshotCloneVersion(&version,
-                                                             &failedList));
+    ASSERT_EQ(
+        0, versionTool.GetAndCheckSnapshotCloneVersion(&version, &failedList));
     ASSERT_EQ("before-0.0.5.2", version);
     ASSERT_TRUE(failedList.empty());
 }

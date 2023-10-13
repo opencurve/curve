@@ -20,45 +20,41 @@
  * Author: tongguangxun
  */
 
-#include <glog/logging.h>
+#include <fcntl.h>
 #include <gflags/gflags.h>
+#include <glog/logging.h>
 #include <json/json.h>
 
-#include <fcntl.h>
-
-#include <set>
-#include <mutex>    // NOLINT
-#include <thread>   // NOLINT
 #include <atomic>
+#include <mutex>  // NOLINT
+#include <set>
+#include <thread>  // NOLINT
 #include <vector>
 
+#include "include/chunkserver/chunkserver_common.h"
+#include "src/chunkserver/datastore/file_pool.h"
+#include "src/common/bitmap.h"
+#include "src/common/crc32.h"
+#include "src/common/curve_define.h"
+#include "src/common/fast_align.h"
 #include "src/fs/fs_common.h"
 #include "src/fs/local_filesystem.h"
-#include "src/common/crc32.h"
-#include "src/common/bitmap.h"
-#include "src/common/curve_define.h"
-#include "src/chunkserver/datastore/file_pool.h"
-#include "src/common/fast_align.h"
-
-#include "include/chunkserver/chunkserver_common.h"
 
 using ::curve::common::align_up;
 using ::curve::common::is_aligned;
 
 /**
- * chunkfile pool预分配工具，提供两种分配方式
- * 1. 以磁盘空间百分比方式，指定需要分配的百分比
- * 2. 指定以chunk数量分配
- * 默认的分配方式是以磁盘空间百分比作为分配方式，可以通过-allocateByPercent=false/true
- * 调整分配方式。
+ * chunkfile pool pre allocation tool, providing two allocation methods
+ * 1. Specify the percentage to be allocated as a percentage of disk space
+ * 2. Specify allocation by chunk quantity
+ * The default allocation method is based on the percentage of disk space, which
+ * can be achieved by -allocateByPercent=false/true Adjust the allocation
+ * method.
  */
-DEFINE_bool(allocateByPercent,
-            true,
+DEFINE_bool(allocateByPercent, true,
             "allocate filePool by percent of disk size or by chunk num!");
 
-DEFINE_uint32(fileSize,
-              16 * 1024 * 1024,
-              "chunk size");
+DEFINE_uint32(fileSize, 16 * 1024 * 1024, "chunk size");
 
 DEFINE_uint32(blockSize, 4096, "minimum io alignment supported");
 
@@ -69,41 +65,34 @@ static bool ValidateBlockSize(const char* /*name*/, uint32_t blockSize) {
 
 DEFINE_validator(blockSize, &ValidateBlockSize);
 
-DEFINE_string(fileSystemPath,
-              "./",
-              "chunkserver disk path");
+DEFINE_string(fileSystemPath, "./", "chunkserver disk path");
 
-DEFINE_string(filePoolDir,
-              "./filePool/",
-              "chunkfile pool dir");
+DEFINE_string(filePoolDir, "./filePool/", "chunkfile pool dir");
 
-DEFINE_string(filePoolMetaPath,
-              "./filePool.meta",
+DEFINE_string(filePoolMetaPath, "./filePool.meta",
               "chunkfile pool meta info file path.");
 
-// preallocateNum仅在测试的时候使用，测试提前预分配固定数量的chunk
-// 当设置这个值的时候可以不用设置allocatepercent
-DEFINE_uint32(preAllocateNum,
-              0,
+// preallocateNum is only used during testing, and a fixed number of chunks are
+// pre allocated in advance during testing When setting this value, there is no
+// need to set allocatepercent
+DEFINE_uint32(preAllocateNum, 0,
               "preallocate chunk nums, this is JUST for curve test");
 
-// 在系统初始化的时候，管理员需要预先格式化磁盘，并进行预分配
-// 这时候只需要指定allocatepercent，allocatepercent是占整个盘的空间的百分比
-DEFINE_uint32(allocatePercent,
-              80,
-              "preallocate storage percent of total disk");
+// During system initialization, the administrator needs to pre format the disk
+// and pre allocate it At this point, only allocate percentage needs to be
+// specified, which is the percentage of the entire disk space occupied by
+// allocate percentage
+DEFINE_uint32(allocatePercent, 80, "preallocate storage percent of total disk");
 
-// 测试情况下置为false，加快测试速度
-DEFINE_bool(needWriteZero,
-        true,
-        "not write zero for test.");
+// Set to false during testing to accelerate testing speed
+DEFINE_bool(needWriteZero, true, "not write zero for test.");
 
-using curve::fs::FileSystemType;
-using curve::fs::LocalFsFactory;
-using curve::fs::FileSystemInfo;
-using curve::fs::LocalFileSystem;
-using curve::common::kFilePoolMagic;
 using curve::chunkserver::FilePoolMeta;
+using curve::common::kFilePoolMagic;
+using curve::fs::FileSystemInfo;
+using curve::fs::FileSystemType;
+using curve::fs::LocalFileSystem;
+using curve::fs::LocalFsFactory;
 
 class CompareInternal {
  public:
@@ -128,7 +117,7 @@ struct AllocateStruct {
 
 static int AllocateFiles(AllocateStruct* allocatestruct) {
     const size_t actualFileSize = allocatestruct->actualFileSize;
-    char* data = new(std::nothrow)char[actualFileSize];
+    char* data = new (std::nothrow) char[actualFileSize];
     memset(data, 0, actualFileSize);
 
     uint64_t count = 0;
@@ -137,14 +126,13 @@ static int AllocateFiles(AllocateStruct* allocatestruct) {
         {
             std::unique_lock<std::mutex> lk(*allocatestruct->mtx);
             allocatestruct->allocateChunknum->fetch_add(1);
-            filename = std::to_string(
-                            allocatestruct->allocateChunknum->load());
+            filename = std::to_string(allocatestruct->allocateChunknum->load());
         }
-        std::string tmpchunkfilepath = FLAGS_filePoolDir + "/"
-            + filename + allocatestruct->cleanChunkSuffix;
+        std::string tmpchunkfilepath = FLAGS_filePoolDir + "/" + filename +
+                                       allocatestruct->cleanChunkSuffix;
 
-        int ret = allocatestruct->fsptr->Open(tmpchunkfilepath,
-                                             O_RDWR | O_CREAT);
+        int ret =
+            allocatestruct->fsptr->Open(tmpchunkfilepath, O_RDWR | O_CREAT);
         if (ret < 0) {
             *allocatestruct->checkwrong = true;
             LOG(ERROR) << "file open failed, " << tmpchunkfilepath;
@@ -205,12 +193,12 @@ static bool CanBitmapFitInMetaPage() {
     constexpr size_t kMaximumBitmapBytes = 1024;
 
     auto bitmapBytes =
-            FLAGS_fileSize / FLAGS_blockSize / curve::common::BITMAP_UNIT_SIZE;
+        FLAGS_fileSize / FLAGS_blockSize / curve::common::BITMAP_UNIT_SIZE;
     LOG(INFO) << "bitmap bytes is " << bitmapBytes;
     return bitmapBytes <= kMaximumBitmapBytes;
 }
 
-// TODO(tongguangxun) :添加单元测试
+// TODO(tongguangxun): Adding unit tests
 int main(int argc, char** argv) {
     google::ParseCommandLineFlags(&argc, &argv, false);
     google::InitGoogleLogging(argv[0]);
@@ -247,7 +235,9 @@ int main(int argc, char** argv) {
     }
 
     tmpChunkSet_.insert(tmpvec.begin(), tmpvec.end());
-    uint64_t size = tmpChunkSet_.size() ? atoi((*(--tmpChunkSet_.end())).c_str()) : 0;          // NOLINT
+    uint64_t size = tmpChunkSet_.size()
+                        ? atoi((*(--tmpChunkSet_.end())).c_str())
+                        : 0;  // NOLINT
     allocateChunknum_.store(size + 1);
 
     FileSystemInfo finfo;
@@ -278,7 +268,7 @@ int main(int argc, char** argv) {
 
     bool checkwrong = false;
     // two threads concurrent, can reach the bandwidth of disk.
-    uint64_t threadAllocateNum = preAllocateChunkNum/2;
+    uint64_t threadAllocateNum = preAllocateChunkNum / 2;
     std::vector<std::thread> thvec;
     AllocateStruct allocateStruct;
     allocateStruct.fsptr = fsptr;
@@ -316,7 +306,7 @@ int main(int argc, char** argv) {
         return -1;
     }
 
-    // 读取meta文件，检查是否写入正确
+    // Read the meta file and check if it is written correctly
     FilePoolMeta recordMeta;
     ret = curve::chunkserver::FilePoolHelper::DecodeMetaInfoFromMetaFile(
         fsptr, FLAGS_filePoolMetaPath, 4096, &recordMeta);
@@ -345,8 +335,8 @@ int main(int argc, char** argv) {
 
         if (recordMeta.filePoolPath != FLAGS_filePoolDir) {
             LOG(ERROR) << "meta info persistency failed!"
-                    << ", read chunkpath = " << recordMeta.filePoolPath
-                    << ", real chunkpath = " << FLAGS_filePoolDir;
+                       << ", read chunkpath = " << recordMeta.filePoolPath
+                       << ", real chunkpath = " << FLAGS_filePoolDir;
             break;
         }
 

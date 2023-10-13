@@ -30,8 +30,7 @@ namespace curve {
 namespace client {
 
 RequestSenderManager::SenderPtr RequestSenderManager::GetOrCreateSender(
-    const ChunkServerID& leaderId,
-    const butil::EndPoint& leaderAddr,
+    const ChunkServerID& leaderId, const butil::EndPoint& leaderAddr,
     const IOSenderOption& senderopt) {
     {
         curve::common::ReadLockGuard guard(rwlock_);
@@ -66,7 +65,7 @@ void RequestSenderManager::ResetSenderIfNotHealth(const ChunkServerID& csId) {
         return;
     }
 
-    // 检查是否健康
+    // Check for health
     if (iter->second->IsSocketHealth()) {
         return;
     }
@@ -74,5 +73,5 @@ void RequestSenderManager::ResetSenderIfNotHealth(const ChunkServerID& csId) {
     senderPool_.erase(iter);
 }
 
-}   // namespace client
-}   // namespace curve
+}  // namespace client
+}  // namespace curve

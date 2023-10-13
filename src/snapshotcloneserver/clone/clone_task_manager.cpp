@@ -21,8 +21,8 @@
  */
 
 #include "src/snapshotcloneserver/clone/clone_task_manager.h"
-#include "src/common/snapshotclone/snapshotclone_define.h"
 
+#include "src/common/snapshotclone/snapshotclone_define.h"
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -48,9 +48,8 @@ int CloneTaskManager::Start() {
             return ret;
         }
         isStop_.store(false);
-        // isStop_标志先置，防止backEndThread先退出
-        backEndThread =
-            std::thread(&CloneTaskManager::BackEndThreadFunc, this);
+        // isStop_ Flag set first to prevent backEndThread from exiting first
+        backEndThread = std::thread(&CloneTaskManager::BackEndThreadFunc, this);
     }
     return kErrCodeSuccess;
 }
@@ -66,10 +65,8 @@ void CloneTaskManager::Stop() {
 }
 
 int CloneTaskManager::PushCommonTask(std::shared_ptr<CloneTaskBase> task) {
-    int ret =  PushTaskInternal(task,
-        &commonTaskMap_,
-        &commonTasksLock_,
-        commonPool_);
+    int ret =
+        PushTaskInternal(task, &commonTaskMap_, &commonTasksLock_, commonPool_);
     if (ret >= 0) {
         cloneMetric_->UpdateBeforeTaskBegin(
             task->GetTaskInfo()->GetCloneInfo().GetTaskType());
@@ -80,10 +77,8 @@ int CloneTaskManager::PushCommonTask(std::shared_ptr<CloneTaskBase> task) {
 }
 
 int CloneTaskManager::PushStage1Task(std::shared_ptr<CloneTaskBase> task) {
-    int ret = PushTaskInternal(task,
-        &stage1TaskMap_,
-        &stage1TasksLock_,
-        stage1Pool_);
+    int ret =
+        PushTaskInternal(task, &stage1TaskMap_, &stage1TasksLock_, stage1Pool_);
     if (ret >= 0) {
         cloneMetric_->UpdateBeforeTaskBegin(
             task->GetTaskInfo()->GetCloneInfo().GetTaskType());
@@ -93,12 +88,9 @@ int CloneTaskManager::PushStage1Task(std::shared_ptr<CloneTaskBase> task) {
     return ret;
 }
 
-int CloneTaskManager::PushStage2Task(
-    std::shared_ptr<CloneTaskBase> task) {
-    int ret = PushTaskInternal(task,
-        &stage2TaskMap_,
-        &stage2TasksLock_,
-        stage2Pool_);
+int CloneTaskManager::PushStage2Task(std::shared_ptr<CloneTaskBase> task) {
+    int ret =
+        PushTaskInternal(task, &stage2TaskMap_, &stage2TasksLock_, stage2Pool_);
     if (ret >= 0) {
         cloneMetric_->UpdateFlattenTaskBegin();
         LOG(INFO) << "Push Task Into Stage2 Pool for data install success,"
@@ -107,13 +99,13 @@ int CloneTaskManager::PushStage2Task(
     return ret;
 }
 
-int CloneTaskManager::PushTaskInternal(std::shared_ptr<CloneTaskBase> task,
-    std::map<std::string, std::shared_ptr<CloneTaskBase> > *taskMap,
-    Mutex *taskMapMutex,
-    std::shared_ptr<ThreadPool> taskPool) {
-    // 同一个clone的Stage1的Task和Stage2的Task的任务ID是一样的，
-    // clean task的ID也是一样的,
-    // 触发一次扫描，将已完成的任务Flush出去
+int CloneTaskManager::PushTaskInternal(
+    std::shared_ptr<CloneTaskBase> task,
+    std::map<std::string, std::shared_ptr<CloneTaskBase> >* taskMap,
+    Mutex* taskMapMutex, std::shared_ptr<ThreadPool> taskPool) {
+    // The task IDs for Stage1 and Stage2 of the same clone are the same,
+    // The ID of the clean task is also the same,
+    // Trigger a scan to flush out completed tasks
     ScanStage2Tasks();
     ScanStage1Tasks();
     ScanCommonTasks();
@@ -124,12 +116,9 @@ int CloneTaskManager::PushTaskInternal(std::shared_ptr<CloneTaskBase> task,
     WriteLockGuard taskMapWlock(cloneTaskMapLock_);
     LockGuard workingTasksLockGuard(*taskMapMutex);
 
-    std::string destination =
-        task->GetTaskInfo()->GetCloneInfo().GetDest();
+    std::string destination = task->GetTaskInfo()->GetCloneInfo().GetDest();
 
-    auto ret = taskMap->emplace(
-        destination,
-        task);
+    auto ret = taskMap->emplace(destination, task);
     if (!ret.second) {
         LOG(ERROR) << "CloneTaskManager::PushTaskInternal fail, "
                    << "same destination exist, "
@@ -152,7 +141,7 @@ int CloneTaskManager::PushTaskInternal(std::shared_ptr<CloneTaskBase> task,
 }
 
 std::shared_ptr<CloneTaskBase> CloneTaskManager::GetTask(
-    const TaskIdType &taskId) const {
+    const TaskIdType& taskId) const {
     ReadLockGuard taskMapRlock(cloneTaskMapLock_);
     auto it = cloneTaskMap_.find(taskId);
     if (it != cloneTaskMap_.end()) {
@@ -174,16 +163,13 @@ void CloneTaskManager::BackEndThreadFunc() {
 void CloneTaskManager::ScanCommonTasks() {
     WriteLockGuard taskMapWlock(cloneTaskMapLock_);
     LockGuard workingTasksLock(commonTasksLock_);
-    for (auto it = commonTaskMap_.begin();
-            it != commonTaskMap_.end();) {
+    for (auto it = commonTaskMap_.begin(); it != commonTaskMap_.end();) {
         auto taskInfo = it->second->GetTaskInfo();
-        // 处理已完成的任务
+        // Process completed tasks
         if (taskInfo->IsFinish()) {
-            CloneTaskType taskType =
-                taskInfo->GetCloneInfo().GetTaskType();
-            CloneStatus status =
-                taskInfo->GetCloneInfo().GetStatus();
-            // 移除任务并更新metric
+            CloneTaskType taskType = taskInfo->GetCloneInfo().GetTaskType();
+            CloneStatus status = taskInfo->GetCloneInfo().GetStatus();
+            // Remove task and update metric
             cloneMetric_->UpdateAfterTaskFinish(taskType, status);
             LOG(INFO) << "common task {"
                       << " TaskInfo : " << *taskInfo
@@ -200,15 +186,12 @@ void CloneTaskManager::ScanStage1Tasks() {
     WriteLockGuard taskMapWlock(cloneTaskMapLock_);
     LockGuard workingTasksLock(stage1TasksLock_);
     LockGuard workingTasksLockGuard(stage2TasksLock_);
-    for (auto it = stage1TaskMap_.begin();
-            it != stage1TaskMap_.end();) {
+    for (auto it = stage1TaskMap_.begin(); it != stage1TaskMap_.end();) {
         auto taskInfo = it->second->GetTaskInfo();
-        // 处理已完成的任务
+        // Process completed tasks
         if (taskInfo->IsFinish()) {
-            CloneTaskType taskType =
-                taskInfo->GetCloneInfo().GetTaskType();
-            CloneStatus status =
-                taskInfo->GetCloneInfo().GetStatus();
+            CloneTaskType taskType = taskInfo->GetCloneInfo().GetTaskType();
+            CloneStatus status = taskInfo->GetCloneInfo().GetStatus();
             cloneMetric_->UpdateAfterTaskFinish(taskType, status);
             LOG(INFO) << "stage1 task {"
                       << " TaskInfo : " << *taskInfo
@@ -224,27 +207,22 @@ void CloneTaskManager::ScanStage1Tasks() {
 void CloneTaskManager::ScanStage2Tasks() {
     WriteLockGuard taskMapWlock(cloneTaskMapLock_);
     LockGuard workingTasksLockGuard(stage2TasksLock_);
-    for (auto it = stage2TaskMap_.begin();
-        it != stage2TaskMap_.end();) {
+    for (auto it = stage2TaskMap_.begin(); it != stage2TaskMap_.end();) {
         auto taskInfo = it->second->GetTaskInfo();
-        // 处理完成的任务
+        // Process completed tasks
         if (taskInfo->IsFinish()) {
-            CloneTaskType taskType =
-                taskInfo->GetCloneInfo().GetTaskType();
-            CloneStatus status =
-                taskInfo->GetCloneInfo().GetStatus();
-            // retrying 状态的任务需要重试
+            CloneTaskType taskType = taskInfo->GetCloneInfo().GetTaskType();
+            CloneStatus status = taskInfo->GetCloneInfo().GetStatus();
+            // Tasks in the retrying state need to be retried
             if (CloneStatus::retrying == status) {
                 if (CloneTaskType::kClone == taskType) {
-                    taskInfo->GetCloneInfo().
-                        SetStatus(CloneStatus::cloning);
+                    taskInfo->GetCloneInfo().SetStatus(CloneStatus::cloning);
                 } else {
-                    taskInfo->GetCloneInfo().
-                        SetStatus(CloneStatus::recovering);
+                    taskInfo->GetCloneInfo().SetStatus(CloneStatus::recovering);
                 }
                 taskInfo->Reset();
                 stage2Pool_->PushTask(it->second);
-            // 其他任务结束更新metric
+                // Update metric after completing other tasks
             } else {
                 cloneMetric_->UpdateAfterFlattenTaskFinish(status);
                 LOG(INFO) << "stage2 task {"
@@ -261,4 +239,3 @@ void CloneTaskManager::ScanStage2Tasks() {
 
 }  // namespace snapshotcloneserver
 }  // namespace curve
-

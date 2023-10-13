@@ -34,12 +34,11 @@ int MDSClient::Init(const std::string& mdsAddr) {
     return Init(mdsAddr, std::to_string(kDefaultMdsDummyPort));
 }
 
-int MDSClient::Init(const std::string& mdsAddr,
-                    const std::string& dummyPort) {
+int MDSClient::Init(const std::string& mdsAddr, const std::string& dummyPort) {
     if (isInited_) {
         return 0;
     }
-    // 初始化channel
+    // Initialize channel
     curve::common::SplitString(mdsAddr, ",", &mdsAddrVec_);
     if (mdsAddrVec_.empty()) {
         std::cout << "Split mds address fail!" << std::endl;
@@ -57,7 +56,7 @@ int MDSClient::Init(const std::string& mdsAddr,
             std::cout << "Init channel to " << mdsAddr << "fail!" << std::endl;
             continue;
         }
-        // 寻找哪个mds存活
+        // Looking for which mds survived
         curve::mds::topology::ListPhysicalPoolRequest request;
         curve::mds::topology::ListPhysicalPoolResponse response;
         curve::mds::topology::TopologyService_Stub stub(&channel_);
@@ -83,7 +82,7 @@ int MDSClient::InitDummyServerMap(const std::string& dummyPort) {
         std::cout << "split dummy server fail!" << std::endl;
         return -1;
     }
-    // 只指定了一个端口，对所有mds采用这个端口
+    // Only one port has been specified, and this port is used for all mds
     if (dummyPortVec.size() == 1) {
         for (uint64_t i = 0; i < mdsAddrVec_.size() - 1; ++i) {
             dummyPortVec.emplace_back(dummyPortVec[0]);
@@ -92,7 +91,8 @@ int MDSClient::InitDummyServerMap(const std::string& dummyPort) {
 
     if (dummyPortVec.size() != mdsAddrVec_.size()) {
         std::cout << "mds dummy port list must be correspond as"
-                     " mds addr list" << std::endl;
+                     " mds addr list"
+                  << std::endl;
         return -1;
     }
 
@@ -109,8 +109,7 @@ int MDSClient::InitDummyServerMap(const std::string& dummyPort) {
     return 0;
 }
 
-int MDSClient::GetFileInfo(const std::string &fileName,
-                           FileInfo* fileInfo) {
+int MDSClient::GetFileInfo(const std::string& fileName, FileInfo* fileInfo) {
     assert(fileInfo != nullptr);
     curve::mds::GetFileInfoRequest request;
     curve::mds::GetFileInfoResponse response;
@@ -123,13 +122,12 @@ int MDSClient::GetFileInfo(const std::string &fileName,
         std::cout << "GetFileInfo info from all mds fail!" << std::endl;
         return -1;
     }
-    if (response.has_statuscode() &&
-                response.statuscode() == StatusCode::kOK) {
+    if (response.has_statuscode() && response.statuscode() == StatusCode::kOK) {
         fileInfo->CopyFrom(response.fileinfo());
         return 0;
     }
-    std::cout << "GetFileInfo fail with errCode: "
-              << response.statuscode() << std::endl;
+    std::cout << "GetFileInfo fail with errCode: " << response.statuscode()
+              << std::endl;
     return -1;
 }
 
@@ -150,19 +148,18 @@ int MDSClient::GetAllocatedSize(const std::string& fileName,
         *allocSize = response.allocatedsize();
         if (allocMap) {
             for (auto it = response.allocsizemap().begin();
-                    it != response.allocsizemap().end(); ++it) {
+                 it != response.allocsizemap().end(); ++it) {
                 allocMap->emplace(it->first, it->second);
             }
         }
         return 0;
     }
-    std::cout << "GetAllocatedSize fail with errCode: "
-              << response.statuscode() << std::endl;
+    std::cout << "GetAllocatedSize fail with errCode: " << response.statuscode()
+              << std::endl;
     return -1;
 }
 
-int MDSClient::GetFileSize(const std::string& fileName,
-                           uint64_t* fileSize) {
+int MDSClient::GetFileSize(const std::string& fileName, uint64_t* fileSize) {
     assert(fileSize != nullptr);
     curve::mds::GetFileSizeRequest request;
     curve::mds::GetFileSizeResponse response;
@@ -178,8 +175,8 @@ int MDSClient::GetFileSize(const std::string& fileName,
         *fileSize = response.filesize();
         return 0;
     }
-    std::cout << "GetAllocatedSize fail with errCode: "
-              << response.statuscode() << std::endl;
+    std::cout << "GetAllocatedSize fail with errCode: " << response.statuscode()
+              << std::endl;
     return -1;
 }
 
@@ -200,8 +197,7 @@ int MDSClient::ListDir(const std::string& dirName,
         std::cout << "ListDir from all mds fail!" << std::endl;
         return -1;
     }
-    if (response.has_statuscode() &&
-                response.statuscode() == StatusCode::kOK) {
+    if (response.has_statuscode() && response.statuscode() == StatusCode::kOK) {
         for (int i = 0; i < response.fileinfo_size(); ++i) {
             files->emplace_back(response.fileinfo(i));
         }
@@ -213,8 +209,8 @@ int MDSClient::ListDir(const std::string& dirName,
 }
 
 GetSegmentRes MDSClient::GetSegmentInfo(const std::string& fileName,
-                                         uint64_t offset,
-                                         PageFileSegment* segment) {
+                                        uint64_t offset,
+                                        PageFileSegment* segment) {
     if (!segment) {
         std::cout << "The argument is a null pointer!" << std::endl;
         return GetSegmentRes::kOtherError;
@@ -260,13 +256,13 @@ int MDSClient::DeleteFile(const std::string& fileName, bool forcedelete) {
     }
 
     if (response.has_statuscode() &&
-                (response.statuscode() == StatusCode::kOK ||
-                 response.statuscode() == StatusCode::kFileNotExists ||
-                 response.statuscode() == StatusCode::kFileUnderDeleting)) {
+        (response.statuscode() == StatusCode::kOK ||
+         response.statuscode() == StatusCode::kFileNotExists ||
+         response.statuscode() == StatusCode::kFileUnderDeleting)) {
         return 0;
     }
-    std::cout << "DeleteFile fail with errCode: "
-              << response.statuscode() << std::endl;
+    std::cout << "DeleteFile fail with errCode: " << response.statuscode()
+              << std::endl;
     return -1;
 }
 
@@ -294,8 +290,7 @@ int MDSClient::CreateFile(const CreateFileContext& context) {
         return -1;
     }
 
-    if (response.has_statuscode() &&
-                response.statuscode() == StatusCode::kOK) {
+    if (response.has_statuscode() && response.statuscode() == StatusCode::kOK) {
         return 0;
     }
     std::cout << "CreateFile fail with errCode: "
@@ -316,19 +311,18 @@ int MDSClient::ExtendVolume(const std::string& fileName, uint64_t newSize) {
         return -1;
     }
 
-    if (response.has_statuscode() &&
-                response.statuscode() == StatusCode::kOK) {
-                std::cout << "extendFile success!" << std::endl;
+    if (response.has_statuscode() && response.statuscode() == StatusCode::kOK) {
+        std::cout << "extendFile success!" << std::endl;
         return 0;
     }
-    std::cout << "extendFile fail with errCode: "
-              << response.statuscode() << std::endl;
+    std::cout << "extendFile fail with errCode: " << response.statuscode()
+              << std::endl;
     return -1;
 }
 
 int MDSClient::ListVolumesOnCopyset(
-                        const std::vector<common::CopysetInfo>& copysets,
-                        std::vector<std::string>* fileNames) {
+    const std::vector<common::CopysetInfo>& copysets,
+    std::vector<std::string>* fileNames) {
     curve::mds::ListVolumesOnCopysetsRequest request;
     curve::mds::ListVolumesOnCopysetsResponse response;
     for (const auto& copyset : copysets) {
@@ -343,8 +337,7 @@ int MDSClient::ListVolumesOnCopyset(
         return -1;
     }
 
-    if (response.has_statuscode() &&
-                response.statuscode() == StatusCode::kOK) {
+    if (response.has_statuscode() && response.statuscode() == StatusCode::kOK) {
         for (int i = 0; i < response.filenames_size(); ++i) {
             fileNames->emplace_back(response.filenames(i));
         }
@@ -373,31 +366,30 @@ int MDSClient::ListClient(std::vector<std::string>* clientAddrs,
         return -1;
     }
 
-    if (response.has_statuscode() &&
-                response.statuscode() == StatusCode::kOK) {
+    if (response.has_statuscode() && response.statuscode() == StatusCode::kOK) {
         for (int i = 0; i < response.clientinfos_size(); ++i) {
             const auto& clientInfo = response.clientinfos(i);
-            std::string clientAddr = clientInfo.ip() + ":" +
-                                     std::to_string(clientInfo.port());
+            std::string clientAddr =
+                clientInfo.ip() + ":" + std::to_string(clientInfo.port());
             clientAddrs->emplace_back(clientAddr);
         }
         return 0;
     }
-    std::cout << "ListClient fail with errCode: "
-              << response.statuscode() << std::endl;
+    std::cout << "ListClient fail with errCode: " << response.statuscode()
+              << std::endl;
     return -1;
 }
 
-int MDSClient::GetChunkServerListInCopySet(const PoolIdType& logicalPoolId,
-                                            const CopySetIdType& copysetId,
-                                    std::vector<ChunkServerLocation>* csLocs) {
+int MDSClient::GetChunkServerListInCopySet(
+    const PoolIdType& logicalPoolId, const CopySetIdType& copysetId,
+    std::vector<ChunkServerLocation>* csLocs) {
     if (!csLocs) {
         std::cout << "The argument is a null pointer!" << std::endl;
         return -1;
     }
     std::vector<CopySetServerInfo> csServerInfos;
-    int res = GetChunkServerListInCopySets(logicalPoolId,
-                                                {copysetId}, &csServerInfos);
+    int res = GetChunkServerListInCopySets(logicalPoolId, {copysetId},
+                                           &csServerInfos);
     if (res != 0) {
         std::cout << "GetChunkServerListInCopySets fail" << std::endl;
         return -1;
@@ -409,9 +401,10 @@ int MDSClient::GetChunkServerListInCopySet(const PoolIdType& logicalPoolId,
     return 0;
 }
 
-int MDSClient::GetChunkServerListInCopySets(const PoolIdType& logicalPoolId,
-                            const std::vector<CopySetIdType>& copysetIds,
-                            std::vector<CopySetServerInfo>* csServerInfos) {
+int MDSClient::GetChunkServerListInCopySets(
+    const PoolIdType& logicalPoolId,
+    const std::vector<CopySetIdType>& copysetIds,
+    std::vector<CopySetServerInfo>* csServerInfos) {
     if (!csServerInfos) {
         std::cout << "The argument is a null pointer!" << std::endl;
         return -1;
@@ -424,7 +417,8 @@ int MDSClient::GetChunkServerListInCopySets(const PoolIdType& logicalPoolId,
     }
     curve::mds::topology::TopologyService_Stub stub(&channel_);
 
-    auto fp = &curve::mds::topology::TopologyService_Stub::GetChunkServerListInCopySets;  // NOLINT
+    auto fp = &curve::mds::topology::TopologyService_Stub::
+                  GetChunkServerListInCopySets;  // NOLINT
     if (SendRpcToMds(&request, &response, &stub, fp) != 0) {
         std::cout << "GetChunkServerListInCopySets from all mds fail!"
                   << std::endl;
@@ -432,7 +426,7 @@ int MDSClient::GetChunkServerListInCopySets(const PoolIdType& logicalPoolId,
     }
 
     if (response.has_statuscode() &&
-                response.statuscode() == kTopoErrCodeSuccess) {
+        response.statuscode() == kTopoErrCodeSuccess) {
         for (int i = 0; i < response.csinfo_size(); ++i) {
             csServerInfos->emplace_back(response.csinfo(i));
         }
@@ -444,7 +438,7 @@ int MDSClient::GetChunkServerListInCopySets(const PoolIdType& logicalPoolId,
 }
 
 int MDSClient::ListPhysicalPoolsInCluster(
-                        std::vector<PhysicalPoolInfo>* pools) {
+    std::vector<PhysicalPoolInfo>* pools) {
     if (!pools) {
         std::cout << "The argument is a null pointer!" << std::endl;
         return -1;
@@ -455,20 +449,19 @@ int MDSClient::ListPhysicalPoolsInCluster(
 
     auto fp = &curve::mds::topology::TopologyService_Stub::ListPhysicalPool;
     if (SendRpcToMds(&request, &response, &stub, fp) != 0) {
-        std::cout << "ListPhysicalPool from all mds fail!"
-                  << std::endl;
+        std::cout << "ListPhysicalPool from all mds fail!" << std::endl;
         return -1;
     }
 
     if (response.has_statuscode() &&
-                response.statuscode() == kTopoErrCodeSuccess) {
+        response.statuscode() == kTopoErrCodeSuccess) {
         for (int i = 0; i < response.physicalpoolinfos_size(); ++i) {
             pools->emplace_back(response.physicalpoolinfos(i));
         }
         return 0;
     }
-    std::cout << "ListPhysicalPool fail with errCode: "
-              << response.statuscode() << std::endl;
+    std::cout << "ListPhysicalPool fail with errCode: " << response.statuscode()
+              << std::endl;
     return -1;
 }
 
@@ -481,8 +474,8 @@ int MDSClient::ListLogicalPoolsInCluster(std::vector<LogicalPoolInfo>* pools) {
     }
     for (const auto& phyPool : phyPools) {
         std::vector<LogicalPoolInfo> lgPools;
-        ret = ListLogicalPoolsInPhysicalPool(phyPool.physicalpoolid(),
-                                                 &lgPools);
+        ret =
+            ListLogicalPoolsInPhysicalPool(phyPool.physicalpoolid(), &lgPools);
         if (ret != 0) {
             std::cout << "ListLogicalPoolsInPhysicalPool "
                       << phyPool.physicalpoolid() << " fail" << std::endl;
@@ -493,8 +486,8 @@ int MDSClient::ListLogicalPoolsInCluster(std::vector<LogicalPoolInfo>* pools) {
     return 0;
 }
 
-int MDSClient::ListLogicalPoolsInPhysicalPool(const PoolIdType& id,
-                                      std::vector<LogicalPoolInfo>* pools) {
+int MDSClient::ListLogicalPoolsInPhysicalPool(
+    const PoolIdType& id, std::vector<LogicalPoolInfo>* pools) {
     assert(pools != nullptr);
     curve::mds::topology::ListLogicalPoolRequest request;
     curve::mds::topology::ListLogicalPoolResponse response;
@@ -503,20 +496,19 @@ int MDSClient::ListLogicalPoolsInPhysicalPool(const PoolIdType& id,
 
     auto fp = &curve::mds::topology::TopologyService_Stub::ListLogicalPool;
     if (SendRpcToMds(&request, &response, &stub, fp) != 0) {
-        std::cout << "ListLogicalPool from all mds fail!"
-                  << std::endl;
+        std::cout << "ListLogicalPool from all mds fail!" << std::endl;
         return -1;
     }
 
     if (response.has_statuscode() &&
-                response.statuscode() == kTopoErrCodeSuccess) {
+        response.statuscode() == kTopoErrCodeSuccess) {
         for (int i = 0; i < response.logicalpoolinfos_size(); ++i) {
             pools->emplace_back(response.logicalpoolinfos(i));
         }
         return 0;
     }
-    std::cout << "ListLogicalPool fail with errCode: "
-              << response.statuscode() << std::endl;
+    std::cout << "ListLogicalPool fail with errCode: " << response.statuscode()
+              << std::endl;
     return -1;
 }
 
@@ -530,20 +522,19 @@ int MDSClient::ListZoneInPhysicalPool(const PoolIdType& id,
 
     auto fp = &curve::mds::topology::TopologyService_Stub::ListPoolZone;
     if (SendRpcToMds(&request, &response, &stub, fp) != 0) {
-        std::cout << "ListPoolZone from all mds fail!"
-                  << std::endl;
+        std::cout << "ListPoolZone from all mds fail!" << std::endl;
         return -1;
     }
 
     if (response.has_statuscode() &&
-                response.statuscode() == kTopoErrCodeSuccess) {
+        response.statuscode() == kTopoErrCodeSuccess) {
         for (int i = 0; i < response.zones_size(); ++i) {
             zones->emplace_back(response.zones(i));
         }
         return 0;
     }
-    std::cout << "ListPoolZone fail with errCode: "
-              << response.statuscode() << std::endl;
+    std::cout << "ListPoolZone fail with errCode: " << response.statuscode()
+              << std::endl;
     return -1;
 }
 
@@ -557,55 +548,54 @@ int MDSClient::ListServersInZone(const ZoneIdType& id,
 
     auto fp = &curve::mds::topology::TopologyService_Stub::ListZoneServer;
     if (SendRpcToMds(&request, &response, &stub, fp) != 0) {
-        std::cout << "ListZoneServer from all mds fail!"
-                  << std::endl;
+        std::cout << "ListZoneServer from all mds fail!" << std::endl;
         return -1;
     }
 
     if (response.has_statuscode() &&
-                response.statuscode() == kTopoErrCodeSuccess) {
+        response.statuscode() == kTopoErrCodeSuccess) {
         for (int i = 0; i < response.serverinfo_size(); ++i) {
             servers->emplace_back(response.serverinfo(i));
         }
         return 0;
     }
-    std::cout << "ListZoneServer fail with errCode: "
-              << response.statuscode() << std::endl;
+    std::cout << "ListZoneServer fail with errCode: " << response.statuscode()
+              << std::endl;
     return -1;
 }
 
-int MDSClient::ListChunkServersOnServer(const ServerIdType& id,
-                                std::vector<ChunkServerInfo>* chunkservers) {
+int MDSClient::ListChunkServersOnServer(
+    const ServerIdType& id, std::vector<ChunkServerInfo>* chunkservers) {
     assert(chunkservers != nullptr);
     curve::mds::topology::ListChunkServerRequest request;
     request.set_serverid(id);
     return ListChunkServersOnServer(&request, chunkservers);
 }
-int MDSClient::ListChunkServersOnServer(const std::string& ip,
-                                 std::vector<ChunkServerInfo>* chunkservers) {
+int MDSClient::ListChunkServersOnServer(
+    const std::string& ip, std::vector<ChunkServerInfo>* chunkservers) {
     assert(chunkservers != nullptr);
     curve::mds::topology::ListChunkServerRequest request;
     request.set_ip(ip);
     return ListChunkServersOnServer(&request, chunkservers);
 }
 
-int MDSClient::ListChunkServersOnServer(ListChunkServerRequest* request,
-                                 std::vector<ChunkServerInfo>* chunkservers) {
+int MDSClient::ListChunkServersOnServer(
+    ListChunkServerRequest* request,
+    std::vector<ChunkServerInfo>* chunkservers) {
     curve::mds::topology::ListChunkServerResponse response;
     curve::mds::topology::TopologyService_Stub stub(&channel_);
 
     auto fp = &curve::mds::topology::TopologyService_Stub::ListChunkServer;
     if (SendRpcToMds(request, &response, &stub, fp) != 0) {
-        std::cout << "ListChunkServer from all mds fail!"
-                  << std::endl;
+        std::cout << "ListChunkServer from all mds fail!" << std::endl;
         return -1;
     }
 
     if (response.has_statuscode() &&
-                response.statuscode() == kTopoErrCodeSuccess) {
+        response.statuscode() == kTopoErrCodeSuccess) {
         for (int i = 0; i < response.chunkserverinfos_size(); ++i) {
             const auto& chunkserver = response.chunkserverinfos(i);
-            // 跳过retired状态的chunkserver
+            // Skipping chunkserver in Retired State
             if (chunkserver.status() == ChunkServerStatus::RETIRED) {
                 continue;
             }
@@ -613,9 +603,9 @@ int MDSClient::ListChunkServersOnServer(ListChunkServerRequest* request,
         }
         return 0;
     }
-    std::cout << "ListChunkServer fail with errCode: "
-              << response.statuscode() << std::endl;
-        return -1;
+    std::cout << "ListChunkServer fail with errCode: " << response.statuscode()
+              << std::endl;
+    return -1;
 }
 
 int MDSClient::GetChunkServerInfo(const ChunkServerIdType& id,
@@ -653,23 +643,22 @@ int MDSClient::GetChunkServerInfo(GetChunkServerInfoRequest* request,
 
     auto fp = &curve::mds::topology::TopologyService_Stub::GetChunkServer;
     if (SendRpcToMds(request, &response, &stub, fp) != 0) {
-        std::cout << "GetChunkServer from all mds fail!"
-                  << std::endl;
+        std::cout << "GetChunkServer from all mds fail!" << std::endl;
         return -1;
     }
 
     if (response.has_statuscode() &&
-                response.statuscode() == kTopoErrCodeSuccess) {
+        response.statuscode() == kTopoErrCodeSuccess) {
         chunkserver->CopyFrom(response.chunkserverinfo());
         return 0;
     }
-    std::cout << "GetChunkServer fail with errCode: "
-              << response.statuscode() << std::endl;
+    std::cout << "GetChunkServer fail with errCode: " << response.statuscode()
+              << std::endl;
     return -1;
 }
 
 int MDSClient::GetCopySetsInChunkServer(const ChunkServerIdType& id,
-                                 std::vector<CopysetInfo>* copysets) {
+                                        std::vector<CopysetInfo>* copysets) {
     assert(copysets != nullptr);
     curve::mds::topology::GetCopySetsInChunkServerRequest request;
     curve::mds::topology::GetCopySetsInChunkServerResponse response;
@@ -678,7 +667,7 @@ int MDSClient::GetCopySetsInChunkServer(const ChunkServerIdType& id,
 }
 
 int MDSClient::GetCopySetsInChunkServer(const std::string& csAddr,
-                                 std::vector<CopysetInfo>* copysets) {
+                                        std::vector<CopysetInfo>* copysets) {
     assert(copysets != nullptr);
     curve::mds::topology::GetCopySetsInChunkServerRequest request;
     curve::mds::topology::GetCopySetsInChunkServerResponse response;
@@ -697,7 +686,7 @@ int MDSClient::GetCopySetsInChunkServer(const std::string& csAddr,
 }
 
 int MDSClient::SetCopysetsAvailFlag(const std::vector<CopysetInfo> copysets,
-                                     bool availFlag) {
+                                    bool availFlag) {
     curve::mds::topology::SetCopysetsAvailFlagRequest request;
     curve::mds::topology::SetCopysetsAvailFlagResponse response;
     curve::mds::topology::TopologyService_Stub stub(&channel_);
@@ -708,13 +697,12 @@ int MDSClient::SetCopysetsAvailFlag(const std::vector<CopysetInfo> copysets,
     request.set_availflag(availFlag);
     auto fp = &curve::mds::topology::TopologyService_Stub::SetCopysetsAvailFlag;
     if (SendRpcToMds(&request, &response, &stub, fp) != 0) {
-        std::cout << "SetCopysetsAvailFlag from all mds fail!"
-                  << std::endl;
+        std::cout << "SetCopysetsAvailFlag from all mds fail!" << std::endl;
         return -1;
     }
 
     if (response.has_statuscode() &&
-                response.statuscode() == kTopoErrCodeSuccess) {
+        response.statuscode() == kTopoErrCodeSuccess) {
         return 0;
     }
     std::cout << "SetCopysetsAvailFlag fail with errCode: "
@@ -728,13 +716,12 @@ int MDSClient::ListUnAvailCopySets(std::vector<CopysetInfo>* copysets) {
     curve::mds::topology::TopologyService_Stub stub(&channel_);
     auto fp = &curve::mds::topology::TopologyService_Stub::ListUnAvailCopySets;
     if (SendRpcToMds(&request, &response, &stub, fp) != 0) {
-        std::cout << "ListUnAvailCopySets from all mds fail!"
-                  << std::endl;
+        std::cout << "ListUnAvailCopySets from all mds fail!" << std::endl;
         return -1;
     }
 
     if (response.has_statuscode() &&
-                response.statuscode() == kTopoErrCodeSuccess) {
+        response.statuscode() == kTopoErrCodeSuccess) {
         for (int i = 0; i < response.copysets_size(); ++i) {
             copysets->emplace_back(response.copysets(i));
         }
@@ -746,21 +733,21 @@ int MDSClient::ListUnAvailCopySets(std::vector<CopysetInfo>* copysets) {
 }
 
 int MDSClient::GetCopySetsInChunkServer(
-                            GetCopySetsInChunkServerRequest* request,
-                            std::vector<CopysetInfo>* copysets) {
+    GetCopySetsInChunkServerRequest* request,
+    std::vector<CopysetInfo>* copysets) {
     curve::mds::topology::GetCopySetsInChunkServerResponse response;
     curve::mds::topology::TopologyService_Stub stub(&channel_);
 
-    auto fp = &curve::mds::topology::TopologyService_Stub::GetCopySetsInChunkServer;  // NOLINT
+    auto fp = &curve::mds::topology::TopologyService_Stub::
+                  GetCopySetsInChunkServer;  // NOLINT
     if (SendRpcToMds(request, &response, &stub, fp) != 0) {
-        std::cout << "GetCopySetsInChunkServer from all mds fail!"
-                  << std::endl;
+        std::cout << "GetCopySetsInChunkServer from all mds fail!" << std::endl;
         return -1;
     }
 
     if (response.has_statuscode() &&
-                response.statuscode() == kTopoErrCodeSuccess) {
-        for (int i =0; i < response.copysetinfos_size(); ++i) {
+        response.statuscode() == kTopoErrCodeSuccess) {
+        for (int i = 0; i < response.copysetinfos_size(); ++i) {
             copysets->emplace_back(response.copysetinfos(i));
         }
         return 0;
@@ -783,14 +770,13 @@ int MDSClient::GetCopySetsInCluster(std::vector<CopysetInfo>* copysets,
 
     auto fp = &curve::mds::topology::TopologyService_Stub::GetCopySetsInCluster;
     if (SendRpcToMds(&request, &response, &stub, fp) != 0) {
-        std::cout << "GetCopySetsInCluster from all mds fail!"
-                  << std::endl;
+        std::cout << "GetCopySetsInCluster from all mds fail!" << std::endl;
         return -1;
     }
 
     if (response.has_statuscode() &&
-                response.statuscode() == kTopoErrCodeSuccess) {
-        for (int i =0; i < response.copysetinfos_size(); ++i) {
+        response.statuscode() == kTopoErrCodeSuccess) {
+        for (int i = 0; i < response.copysetinfos_size(); ++i) {
             copysets->emplace_back(response.copysetinfos(i));
         }
         return 0;
@@ -800,9 +786,7 @@ int MDSClient::GetCopySetsInCluster(std::vector<CopysetInfo>* copysets,
     return -1;
 }
 
-
-int MDSClient::GetCopyset(PoolIdType lpid,
-                          CopySetIdType copysetId,
+int MDSClient::GetCopyset(PoolIdType lpid, CopySetIdType copysetId,
                           CopysetInfo* copysetInfo) {
     curve::mds::topology::GetCopysetRequest request;
     curve::mds::topology::GetCopysetResponse response;
@@ -843,8 +827,8 @@ int MDSClient::ListServersInCluster(std::vector<ServerInfo>* servers) {
         }
         for (const auto& zone : zones) {
             if (ListServersInZone(zone.zoneid(), servers) != 0) {
-                std::cout << "ListServersInZone fail, zoneId :"
-                          << zone.zoneid() << std::endl;
+                std::cout << "ListServersInZone fail, zoneId :" << zone.zoneid()
+                          << std::endl;
                 return -1;
             }
         }
@@ -853,7 +837,7 @@ int MDSClient::ListServersInCluster(std::vector<ServerInfo>* servers) {
 }
 
 int MDSClient::ListChunkServersInCluster(
-                        std::vector<ChunkServerInfo>* chunkservers) {
+    std::vector<ChunkServerInfo>* chunkservers) {
     assert(chunkservers != nullptr);
     std::vector<ServerInfo> servers;
     if (ListServersInCluster(&servers) != 0) {
@@ -869,8 +853,8 @@ int MDSClient::ListChunkServersInCluster(
     return 0;
 }
 
-int MDSClient::ListChunkServersInCluster(std::map<PoolIdType,
-                            std::vector<ChunkServerInfo>>* chunkservers) {
+int MDSClient::ListChunkServersInCluster(
+    std::map<PoolIdType, std::vector<ChunkServerInfo>>* chunkservers) {
     assert(chunkservers != nullptr);
     std::vector<ServerInfo> servers;
     if (ListServersInCluster(&servers) != 0) {
@@ -880,8 +864,8 @@ int MDSClient::ListChunkServersInCluster(std::map<PoolIdType,
 
     for (const auto& server : servers) {
         std::vector<ChunkServerInfo> chunkserverList;
-        if (ListChunkServersOnServer(server.serverid(),
-                                &chunkserverList) != 0) {
+        if (ListChunkServersOnServer(server.serverid(), &chunkserverList) !=
+            0) {
             std::cout << "ListChunkServersOnServer fail!" << std::endl;
             return -1;
         }
@@ -889,7 +873,7 @@ int MDSClient::ListChunkServersInCluster(std::map<PoolIdType,
         auto iter = chunkservers->find(server.physicalpoolid());
         if (iter != chunkservers->end()) {
             iter->second.insert(iter->second.end(), chunkserverList.begin(),
-                                                    chunkserverList.end());
+                                chunkserverList.end());
         } else {
             chunkservers->emplace(server.physicalpoolid(), chunkserverList);
         }
@@ -900,8 +884,8 @@ int MDSClient::ListChunkServersInCluster(std::map<PoolIdType,
 int MDSClient::GetListenAddrFromDummyPort(const std::string& dummyAddr,
                                           std::string* listenAddr) {
     assert(listenAddr != nullptr);
-    MetricRet res = metricClient_.GetConfValueFromMetric(dummyAddr,
-                        kMdsListenAddrMetricName, listenAddr);
+    MetricRet res = metricClient_.GetConfValueFromMetric(
+        dummyAddr, kMdsListenAddrMetricName, listenAddr);
     if (res != MetricRet::kOK) {
         return -1;
     }
@@ -911,10 +895,11 @@ int MDSClient::GetListenAddrFromDummyPort(const std::string& dummyAddr,
 void MDSClient::GetMdsOnlineStatus(std::map<std::string, bool>* onlineStatus) {
     assert(onlineStatus != nullptr);
     onlineStatus->clear();
-    for (const auto &item : dummyServerMap_) {
+    for (const auto& item : dummyServerMap_) {
         std::string listenAddr;
         int res = GetListenAddrFromDummyPort(item.second, &listenAddr);
-        // 如果获取到的监听地址与记录的mds地址不一致，也认为不在线
+        // If the obtained listening address does not match the recorded MDS
+        // address, it is also considered offline
         if (res != 0 || listenAddr != item.first) {
             onlineStatus->emplace(item.first, false);
             continue;
@@ -943,7 +928,7 @@ int MDSClient::GetMetric(const std::string& metricName, std::string* value) {
     while (changeTimeLeft >= 0) {
         brpc::Controller cntl;
         MetricRet res = metricClient_.GetMetric(mdsAddrVec_[currentMdsIndex_],
-                                         metricName, value);
+                                                metricName, value);
         if (res == MetricRet::kOK) {
             return 0;
         }
@@ -962,8 +947,7 @@ bool MDSClient::ChangeMDServer() {
     if (currentMdsIndex_ > static_cast<int>(mdsAddrVec_.size() - 1)) {
         currentMdsIndex_ = 0;
     }
-    if (channel_.Init(mdsAddrVec_[currentMdsIndex_].c_str(),
-                                                nullptr) != 0) {
+    if (channel_.Init(mdsAddrVec_[currentMdsIndex_].c_str(), nullptr) != 0) {
         return false;
     }
     return true;
@@ -971,14 +955,14 @@ bool MDSClient::ChangeMDServer() {
 
 std::vector<std::string> MDSClient::GetCurrentMds() {
     std::vector<std::string> leaderAddrs;
-    for (const auto &item : dummyServerMap_) {
-        // 获取status来判断正在服务的地址
+    for (const auto& item : dummyServerMap_) {
+        // Obtain status to determine the address being served
         std::string status;
-        MetricRet ret = metricClient_.GetMetric(item.second,
-                                        kMdsStatusMetricName, &status);
+        MetricRet ret =
+            metricClient_.GetMetric(item.second, kMdsStatusMetricName, &status);
         if (ret != MetricRet::kOK) {
-            std::cout << "Get status metric from " << item.second
-                      << " fail" << std::endl;
+            std::cout << "Get status metric from " << item.second << " fail"
+                      << std::endl;
             continue;
         }
         if (status == kMdsStatusLeader) {
@@ -995,7 +979,8 @@ int MDSClient::RapidLeaderSchedule(PoolIdType lpoolId) {
 
     request.set_logicalpoolid(lpoolId);
 
-    auto fp = &::curve::mds::schedule::ScheduleService_Stub::RapidLeaderSchedule; // NOLINT
+    auto fp = &::curve::mds::schedule::ScheduleService_Stub::
+                  RapidLeaderSchedule;  // NOLINT
     if (0 != SendRpcToMds(&request, &response, &stub, fp)) {
         std::cout << "RapidLeaderSchedule fail" << std::endl;
         return -1;
@@ -1006,7 +991,7 @@ int MDSClient::RapidLeaderSchedule(PoolIdType lpoolId) {
         return 0;
     }
     std::cout << "RapidLeaderSchedule fail with errCode: "
-        << response.statuscode() << std::endl;
+              << response.statuscode() << std::endl;
     return -1;
 }
 
@@ -1027,8 +1012,8 @@ int MDSClient::SetLogicalPoolScanState(PoolIdType lpid, bool scanEnable) {
 
     auto retCode = response.statuscode();
     if (retCode != ::curve::mds::topology::kTopoErrCodeSuccess) {
-        std::cout << "SetLogicalPoolScanState fail with retCode: "
-                  << retCode << std::endl;
+        std::cout << "SetLogicalPoolScanState fail with retCode: " << retCode
+                  << std::endl;
         return -1;
     }
 
@@ -1037,7 +1022,7 @@ int MDSClient::SetLogicalPoolScanState(PoolIdType lpid, bool scanEnable) {
 
 int MDSClient::QueryChunkServerRecoverStatus(
     const std::vector<ChunkServerIdType>& cs,
-    std::map<ChunkServerIdType, bool> *statusMap) {
+    std::map<ChunkServerIdType, bool>* statusMap) {
     assert(statusMap != nullptr);
     ::curve::mds::schedule::QueryChunkServerRecoverStatusRequest request;
     ::curve::mds::schedule::QueryChunkServerRecoverStatusResponse response;
@@ -1047,7 +1032,8 @@ int MDSClient::QueryChunkServerRecoverStatus(
         request.add_chunkserverid(id);
     }
 
-    auto fp = &::curve::mds::schedule::ScheduleService_Stub::QueryChunkServerRecoverStatus; // NOLINT
+    auto fp = &::curve::mds::schedule::ScheduleService_Stub::
+                  QueryChunkServerRecoverStatus;  // NOLINT
     if (0 != SendRpcToMds(&request, &response, &stub, fp)) {
         std::cout << "QueryChunkServerRecoverStatus fail" << std::endl;
         return -1;
@@ -1056,13 +1042,13 @@ int MDSClient::QueryChunkServerRecoverStatus(
     if (response.statuscode() ==
         ::curve::mds::schedule::kScheduleErrCodeSuccess) {
         for (auto it = response.recoverstatusmap().begin();
-            it != response.recoverstatusmap().end(); ++it) {
+             it != response.recoverstatusmap().end(); ++it) {
             (*statusMap)[it->first] = it->second;
         }
         return 0;
     }
     std::cout << "QueryChunkServerRecoverStatus fail with errCode: "
-        << response.statuscode() << std::endl;
+              << response.statuscode() << std::endl;
     return -1;
 }
 
@@ -1095,21 +1081,22 @@ int MDSClient::UpdateFileThrottleParams(
 
 template <typename T, typename Request, typename Response>
 int MDSClient::SendRpcToMds(Request* request, Response* response, T* obp,
-                void (T::*func)(google::protobuf::RpcController*,
-                            const Request*, Response*,
-                            google::protobuf::Closure*)) {
+                            void (T::*func)(google::protobuf::RpcController*,
+                                            const Request*, Response*,
+                                            google::protobuf::Closure*)) {
     int changeTimeLeft = mdsAddrVec_.size() - 1;
     while (changeTimeLeft >= 0) {
         brpc::Controller cntl;
         cntl.set_timeout_ms(FLAGS_rpcTimeout);
         (obp->*func)(&cntl, request, response, nullptr);
         if (!cntl.Failed()) {
-            // 如果成功了，就返回0，对response的判断放到上一层
+            // If successful, return 0 and place the response judgment on the
+            // previous level
             return 0;
         }
-        bool needRetry = (cntl.ErrorCode() != EHOSTDOWN &&
-                          cntl.ErrorCode() != ETIMEDOUT &&
-                          cntl.ErrorCode() != brpc::ELOGOFF);
+        bool needRetry =
+            (cntl.ErrorCode() != EHOSTDOWN && cntl.ErrorCode() != ETIMEDOUT &&
+             cntl.ErrorCode() != brpc::ELOGOFF);
         uint64_t retryTimes = 0;
         while (needRetry && retryTimes < FLAGS_rpcRetryTimes) {
             cntl.Reset();
@@ -1120,10 +1107,13 @@ int MDSClient::SendRpcToMds(Request* request, Response* response, T* obp,
             }
             return 0;
         }
-        // 对于需要重试的错误，重试次数用完了还没成功就返回错误不切换
-        // ERPCTIMEDOUT比较特殊，这种情况下，mds可能切换了也可能没切换，所以
-        // 需要重试并且重试次数用完后切换
-        // 只有不需要重试的，也就是mds不在线的才会去切换mds
+        // For errors that require retries, if the retry limit is exhausted
+        // without success, return an error without switching. However, for
+        // ERPCTIMEDOUT, which is a special case, the MDS may have switched or
+        // may not have switched, so it needs to be retried, and if the retry
+        // limit is exhausted, then switch. Only for errors that do not require
+        // retries, meaning when the MDS is not online, will the MDS be
+        // switched.
         if (needRetry && cntl.ErrorCode() != brpc::ERPCTIMEDOUT) {
             std::cout << "Send RPC to mds fail, error content: "
                       << cntl.ErrorText() << std::endl;

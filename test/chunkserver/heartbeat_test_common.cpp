@@ -23,8 +23,8 @@
 
 #include "test/chunkserver/heartbeat_test_common.h"
 
-uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
-uint32_t chunk_size = 16 * 1024 * 1024;   // NOLINT
+uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;  // NOLINT
+uint32_t chunk_size = 16 * 1024 * 1024;            // NOLINT
 
 static const char* confPath[3] = {
     "./8200/chunkserver.conf",
@@ -37,12 +37,12 @@ namespace chunkserver {
 
 HeartbeatTestCommon* HeartbeatTestCommon::hbtestCommon_ = nullptr;
 
-void HeartbeatTestCommon::CleanPeer(
-    LogicPoolID poolId, CopysetID copysetId, const std::string& peer) {
-    ::google::protobuf::RpcController*  cntl;
-    ::google::protobuf::Closure*        done;
-    const HeartbeatRequest*             req;
-    HeartbeatResponse*                  resp;
+void HeartbeatTestCommon::CleanPeer(LogicPoolID poolId, CopysetID copysetId,
+                                    const std::string& peer) {
+    ::google::protobuf::RpcController* cntl;
+    ::google::protobuf::Closure* done;
+    const HeartbeatRequest* req;
+    HeartbeatResponse* resp;
 
     LOG(INFO) << "Cleaning peer " << peer;
 
@@ -52,16 +52,16 @@ void HeartbeatTestCommon::CleanPeer(
         GetHeartbeat(&cntl, &req, &resp, &done);
         brpc::ClosureGuard done_guard(done);
 
-        std::string sender = req->ip() + ":" + std::to_string(req->port())
-                             + ":0";
+        std::string sender =
+            req->ip() + ":" + std::to_string(req->port()) + ":0";
         if (sender != peer) {
             continue;
         }
         if (req->copysetinfos_size() >= 1) {
             int i = 0;
-            for (; i < req->copysetinfos_size(); i ++) {
-                if ( req->copysetinfos(i).logicalpoolid() == poolId &&
-                     req->copysetinfos(i).copysetid() == copysetId ) {
+            for (; i < req->copysetinfos_size(); i++) {
+                if (req->copysetinfos(i).logicalpoolid() == poolId &&
+                    req->copysetinfos(i).copysetid() == copysetId) {
                     break;
                 }
             }
@@ -94,7 +94,7 @@ void HeartbeatTestCommon::CleanPeer(
 
 void HeartbeatTestCommon::CreateCopysetPeers(
     LogicPoolID poolId, CopysetID copysetId,
-    const std::vector<std::string> &cslist, const std::string& confStr) {
+    const std::vector<std::string>& cslist, const std::string& confStr) {
     braft::Configuration conf;
     ASSERT_EQ(0, conf.parse_from(confStr));
     std::vector<braft::PeerId> confPeers;
@@ -113,8 +113,8 @@ void HeartbeatTestCommon::CreateCopysetPeers(
             cntl.set_timeout_ms(3000);
             request.set_logicpoolid(poolId);
             request.set_copysetid(copysetId);
-            for (auto peer = confPeers.begin();
-                peer != confPeers.end(); peer++) {
+            for (auto peer = confPeers.begin(); peer != confPeers.end();
+                 peer++) {
                 request.add_peerid(peer->to_string());
             }
 
@@ -122,11 +122,11 @@ void HeartbeatTestCommon::CreateCopysetPeers(
             copyset_stub.CreateCopysetNode(&cntl, &request, &response, nullptr);
 
             if (cntl.Failed()) {
-                LOG(ERROR) << "Creating copyset failed: "
-                           << cntl.ErrorCode() << " " << cntl.ErrorText();
+                LOG(ERROR) << "Creating copyset failed: " << cntl.ErrorCode()
+                           << " " << cntl.ErrorText();
             } else if (COPYSET_OP_STATUS_EXIST == response.status()) {
-                LOG(INFO) << "Skipped creating existed copyset <"
-                          << poolId << ", " << copysetId << ">: " << conf
+                LOG(INFO) << "Skipped creating existed copyset <" << poolId
+                          << ", " << copysetId << ">: " << conf
                           << " on peer: " << *it;
                 break;
             } else if (COPYSET_OP_STATUS_SUCCESS == response.status()) {
@@ -141,8 +141,9 @@ void HeartbeatTestCommon::CreateCopysetPeers(
     }
 }
 
-void HeartbeatTestCommon::WaitCopysetReady(
-    LogicPoolID poolId, CopysetID copysetId, const std::string& confStr) {
+void HeartbeatTestCommon::WaitCopysetReady(LogicPoolID poolId,
+                                           CopysetID copysetId,
+                                           const std::string& confStr) {
     braft::PeerId peerId;
     butil::Status status;
     Configuration conf;
@@ -160,9 +161,10 @@ void HeartbeatTestCommon::WaitCopysetReady(
     }
 }
 
-void HeartbeatTestCommon::TransferLeaderSync(
-    LogicPoolID poolId, CopysetID copysetId,
-    const std::string& confStr, const std::string& newLeader) {
+void HeartbeatTestCommon::TransferLeaderSync(LogicPoolID poolId,
+                                             CopysetID copysetId,
+                                             const std::string& confStr,
+                                             const std::string& newLeader) {
     braft::PeerId peerId;
     butil::Status status;
     Configuration conf;
@@ -198,21 +200,18 @@ void HeartbeatTestCommon::ReleaseHeartbeat() {
 }
 
 void HeartbeatTestCommon::SetHeartbeatInfo(
-    ::google::protobuf::RpcController* cntl,
-    const HeartbeatRequest* request,
-    HeartbeatResponse* response,
-    ::google::protobuf::Closure* done) {
+    ::google::protobuf::RpcController* cntl, const HeartbeatRequest* request,
+    HeartbeatResponse* response, ::google::protobuf::Closure* done) {
     cntl_ = cntl;
     req_ = request;
     resp_ = response;
     done_ = done;
 }
 
-void HeartbeatTestCommon::GetHeartbeat(
-    ::google::protobuf::RpcController** cntl,
-    const HeartbeatRequest** request,
-    HeartbeatResponse** response,
-    ::google::protobuf::Closure** done) {
+void HeartbeatTestCommon::GetHeartbeat(::google::protobuf::RpcController** cntl,
+                                       const HeartbeatRequest** request,
+                                       HeartbeatResponse** response,
+                                       ::google::protobuf::Closure** done) {
     std::unique_lock<std::mutex> lock(hbtestCommon_->GetMutex());
 
     handlerReady_.store(true, std::memory_order_release);
@@ -230,10 +229,8 @@ void HeartbeatTestCommon::GetHeartbeat(
 }
 
 void HeartbeatTestCommon::HeartbeatCallback(
-    ::google::protobuf::RpcController* cntl,
-    const HeartbeatRequest* request,
-    HeartbeatResponse* response,
-    ::google::protobuf::Closure* done) {
+    ::google::protobuf::RpcController* cntl, const HeartbeatRequest* request,
+    HeartbeatResponse* response, ::google::protobuf::Closure* done) {
     {
         std::unique_lock<std::mutex> lock(hbtestCommon_->GetMutex());
         if (!hbtestCommon_->GetReady().load(std::memory_order_acquire)) {
@@ -250,8 +247,8 @@ void HeartbeatTestCommon::HeartbeatCallback(
 }
 
 bool HeartbeatTestCommon::SameCopySetInfo(
-        const ::curve::mds::heartbeat::CopySetInfo &orig,
-        const ::curve::mds::heartbeat::CopySetInfo &expect) {
+    const ::curve::mds::heartbeat::CopySetInfo& orig,
+    const ::curve::mds::heartbeat::CopySetInfo& expect) {
     if (!expect.IsInitialized()) {
         if (!orig.IsInitialized()) {
             return true;
@@ -301,13 +298,12 @@ bool HeartbeatTestCommon::SameCopySetInfo(
 }
 
 bool HeartbeatTestCommon::WailForConfigChangeOk(
-    const ::curve::mds::heartbeat::CopySetConf &conf,
-    ::curve::mds::heartbeat::CopySetInfo expectedInfo,
-    int timeLimit) {
-    ::google::protobuf::RpcController*  cntl;
-    ::google::protobuf::Closure*        done;
-    const HeartbeatRequest*             req;
-    HeartbeatResponse*                  resp;
+    const ::curve::mds::heartbeat::CopySetConf& conf,
+    ::curve::mds::heartbeat::CopySetInfo expectedInfo, int timeLimit) {
+    ::google::protobuf::RpcController* cntl;
+    ::google::protobuf::Closure* done;
+    const HeartbeatRequest* req;
+    HeartbeatResponse* resp;
 
     int64_t startTime = butil::monotonic_time_ms();
     bool leaderPeerSet = expectedInfo.has_leaderpeer();
@@ -316,8 +312,8 @@ bool HeartbeatTestCommon::WailForConfigChangeOk(
         GetHeartbeat(&cntl, &req, &resp, &done);
         brpc::ClosureGuard done_guard(done);
 
-        // 获取当前copyset的leader
-         std::string sender =
+        // Get the leader of the current copyset
+        std::string sender =
             req->ip() + ":" + std::to_string(req->port()) + ":0";
         if (1 == req->copysetinfos_size()) {
             leader = req->copysetinfos(0).leaderpeer().address();
@@ -333,8 +329,10 @@ bool HeartbeatTestCommon::WailForConfigChangeOk(
             }
         }
 
-        // 如果当前req是leader发送的，判断req中的内容是否符合要求
-        // 如果符合要求，返回true; 如果不符合要求，设置resp中的内容
+        // If the current req is sent by the leader, determine whether the
+        // content in the req meets the requirements If it meets the
+        // requirements, return true; If it does not meet the requirements, set
+        // the content in resp
         if (leader == sender) {
             if (!leaderPeerSet) {
                 auto peer = new ::curve::common::Peer();
@@ -342,22 +340,23 @@ bool HeartbeatTestCommon::WailForConfigChangeOk(
                 expectedInfo.set_allocated_leaderpeer(peer);
             }
 
-            // 判断req是否符合要求, 符合要求返回true
+            // Determine whether the req meets the requirements, and return true
+            // if it meets the requirements
             if (req->copysetinfos_size() == 1) {
                 if (SameCopySetInfo(req->copysetinfos(0), expectedInfo)) {
                     return true;
                 }
                 LOG(INFO) << "req->copysetinfos:"
-                    << req->copysetinfos(0).DebugString()
-                    << ", expectedInfo: " << expectedInfo.DebugString();
+                          << req->copysetinfos(0).DebugString()
+                          << ", expectedInfo: " << expectedInfo.DebugString();
             } else if (req->copysetinfos_size() == 0) {
-                if (SameCopySetInfo(
-                    ::curve::mds::heartbeat::CopySetInfo{}, expectedInfo)) {
+                if (SameCopySetInfo(::curve::mds::heartbeat::CopySetInfo{},
+                                    expectedInfo)) {
                     return true;
                 }
             }
 
-            // 不符合要求设置resp
+            // Not meeting the requirements to set resp
             if (req->copysetinfos_size() == 1) {
                 auto build = resp->add_needupdatecopysets();
                 if (!build->has_epoch()) {
@@ -388,7 +387,7 @@ int RmDirData(std::string uri) {
 
 int RemovePeersData(bool rmChunkServerMeta) {
     common::Configuration conf;
-    for (int i = 0; i < 3; i ++) {
+    for (int i = 0; i < 3; i++) {
         conf.SetConfigPath(confPath[i]);
         CHECK(conf.LoadConfig()) << "load conf err";
 
@@ -396,35 +395,35 @@ int RemovePeersData(bool rmChunkServerMeta) {
         LOG_IF(FATAL, !conf.GetStringValue("copyset.chunk_data_uri", &res));
         if (RmDirData(res)) {
             LOG(ERROR) << "Failed to remove node " << i
-                    << " data dir: " << strerror(errno);
+                       << " data dir: " << strerror(errno);
             return -1;
         }
 
         LOG_IF(FATAL, !conf.GetStringValue("copyset.raft_log_uri", &res));
         if (RmDirData(res)) {
             LOG(ERROR) << "Failed to remove node " << i
-                    << " log dir: " << strerror(errno);
+                       << " log dir: " << strerror(errno);
             return -1;
         }
 
         LOG_IF(FATAL, !conf.GetStringValue("copyset.raft_log_uri", &res));
         if (RmDirData(res)) {
             LOG(ERROR) << "Failed to remove node " << i
-                    << " raft meta dir: " << strerror(errno);
+                       << " raft meta dir: " << strerror(errno);
             return -1;
         }
 
         LOG_IF(FATAL, !conf.GetStringValue("copyset.raft_snapshot_uri", &res));
         if (RmDirData(res)) {
             LOG(ERROR) << "Failed to remove node " << i
-                    << " raft snapshot dir: " << strerror(errno);
+                       << " raft snapshot dir: " << strerror(errno);
             return -1;
         }
 
         LOG_IF(FATAL, !conf.GetStringValue("copyset.recycler_uri", &res));
         if (RmDirData(res)) {
             LOG(ERROR) << "Failed to remove node " << i
-                    << " raft recycler dir: " << strerror(errno);
+                       << " raft recycler dir: " << strerror(errno);
             return -1;
         }
 
@@ -432,7 +431,7 @@ int RemovePeersData(bool rmChunkServerMeta) {
         if (rmChunkServerMeta) {
             if (RmFile(res)) {
                 LOG(ERROR) << "Failed to remove node " << i
-                        << " chunkserver meta file: " << strerror(errno);
+                           << " chunkserver meta file: " << strerror(errno);
                 return -1;
             }
         }

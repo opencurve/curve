@@ -100,7 +100,7 @@
           "thresholds": "1,2",
           "timeFrom": null,
           "timeShift": null,
-          "title": "进程运行时间",
+          "title": "Process running time",
           "type": "singlestat",
           "valueFontSize": "80%",
           "valueMaps": [
@@ -218,7 +218,7 @@
           }
         }
       ],
-      "title": "进程资源占用",
+      "title": "Process resource usage",
       "type": "row"
     },
     {
@@ -237,7 +237,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "Prometheus",
-          "description": "chunkserver上所有rpc的每秒处理成功的请求个数",
+          "description": "The number of successful requests processed per second for all RPCs on the chunkserver",
           "fill": 1,
           "gridPos": {
             "h": 7,
@@ -410,7 +410,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "Prometheus",
-          "description": "read_chunk每秒在rpc层面的错误个数",
+          "description": "The number of errors per second at the RPC level for the read_chunk operation",
           "fill": 1,
           "gridPos": {
             "h": 6,
@@ -675,7 +675,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "Prometheus",
-          "description": "write_chunk每秒在rpc层面的错误个数",
+          "description": "The number of errors per second at the RPC level for the write_chunk operation",
           "fill": 1,
           "gridPos": {
             "h": 6,
@@ -1027,7 +1027,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "description": "rpc层面read chunk延时的分位值",
+          "description": "Percentile values of RPC-level read chunk latency",
           "fill": 1,
           "gridPos": {
             "h": 7,
@@ -1281,7 +1281,7 @@
           }
         }
       ],
-      "title": "rpc层读写指标",
+      "title": "RPC layer read-write metrics",
       "type": "row"
     },
     {
@@ -1300,7 +1300,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "Prometheus",
-          "description": "read_chunk每秒在chunk service层面的错误个数",
+          "description": "Number of errors per second for read_chunk at the chunk service layer",
           "fill": 1,
           "gridPos": {
             "h": 7,
@@ -1392,7 +1392,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "Prometheus",
-          "description": "chunk service层面每秒成功处理的read chunk个数",
+          "description": "Number of read_chunk operations successfully processed per second at the chunk service layer",
           "fill": 1,
           "gridPos": {
             "h": 7,
@@ -1484,7 +1484,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "Prometheus",
-          "description": "chunk service层面每秒接收到的read_chunk请求个数",
+          "description": "Number of read_chunk requests received per second at the chunk service layer.",
           "fill": 1,
           "gridPos": {
             "h": 7,
@@ -1576,7 +1576,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "Prometheus",
-          "description": "chunk service层面write_chunk每秒返回错误的请求个数",
+          "description": "The number of requests per second that the chunk service level write_chunk returns errors",
           "fill": 1,
           "gridPos": {
             "h": 7,
@@ -1668,7 +1668,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "Prometheus",
-          "description": "chunk service层面每秒成功处理的write chunk个数",
+          "description": "The number of write chunks successfully processed at the chunk service level per second",
           "fill": 1,
           "gridPos": {
             "h": 7,
@@ -1762,7 +1762,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "Prometheus",
-          "description": "chunk service层面每秒接收到的write_chunk请求个数",
+          "description": "The number of Write_chunk requests received by the chunk service layer per second",
           "fill": 1,
           "gridPos": {
             "h": 7,
@@ -1854,7 +1854,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "Prometheus",
-          "description": "chunkserver service层面read chunk延时的分位值",
+          "description": "The percentile value of read chunk delay at the chunkserver service level",
           "fill": 1,
           "gridPos": {
             "h": 7,
@@ -1965,7 +1965,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "Prometheus",
-          "description": "chunkserver service层面write chunk延时的分位值",
+          "description": "The percentile value of write chunk delay at the chunkserver service level",
           "fill": 1,
           "gridPos": {
             "h": 7,
@@ -2076,7 +2076,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "Prometheus",
-          "description": "chunkserver service层面的read chunk的平均延时",
+          "description": "Average latency of read chunks at the chunkserver service level",
           "fill": 1,
           "gridPos": {
             "h": 7,
@@ -2166,7 +2166,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "Prometheus",
-          "description": "chunkserver service层面的write chunk的平均延时",
+          "description": "Average latency of write chunks at the chunkserver service level",
           "fill": 1,
           "gridPos": {
             "h": 7,
@@ -2256,7 +2256,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "Prometheus",
-          "description": "chunkserver service层面每秒成功read chunk的字节数",
+          "description": "The number of bytes per second that successfully read chunks at the chunkserver service level",
           "fill": 1,
           "gridPos": {
             "h": 7,
@@ -2346,7 +2346,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "Prometheus",
-          "description": "chunkserver service层面每秒成功write chunk的字节数",
+          "description": "The number of bytes per second successfully written chunks at the chunkserver service level",
           "fill": 1,
           "gridPos": {
             "h": 7,
@@ -2436,7 +2436,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "Prometheus",
-          "description": "chunkserver service层面read chunk的io大小的分位值",
+          "description": "The quantile value of the IO size of the read chunk at the chunkserver service level",
           "fill": 1,
           "gridPos": {
             "h": 7,
@@ -2541,7 +2541,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "Prometheus",
-          "description": "chunkserver service层面write chunk的io大小的分位值",
+          "description": "The quantile value of IO size for write chunks at the chunkserver service level",
           "fill": 1,
           "gridPos": {
             "h": 7,
@@ -2642,7 +2642,7 @@
         }
       ],
       "repeat": null,
-      "title": "chunkserver层读写指标",
+      "title": "Chunkserver layer read and write metrics",
       "type": "row"
     },
     {
@@ -2664,7 +2664,7 @@
             "rgba(237, 129, 40, 0.89)",
             "#299c46"
           ],
-          "description": "选中的copyset的数量",
+          "description": "Number of selected copysets",
           "format": "none",
           "gauge": {
             "maxValue": 100,
@@ -2747,7 +2747,7 @@
             "rgba(237, 129, 40, 0.89)",
             "#299c46"
           ],
-          "description": "选中的copyset的chunk数量的总和",
+          "description": "The total number of chunks in the selected copyset",
           "format": "none",
           "gauge": {
             "maxValue": 100,
@@ -2828,7 +2828,7 @@
           "dashLength": 10,
           "dashes": false,
           "decimals": 0,
-          "description": "各copyset上已分配的chunk的数量",
+          "description": "The number of allocated chunks on each copyset",
           "fill": 1,
           "gridPos": {
             "h": 6,
@@ -2920,7 +2920,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "Prometheus",
-          "description": "copyset层面每秒出错的read chunk请求个数",
+          "description": "The number of read chunk requests with errors per second at the copyset level",
           "fill": 1,
           "gridPos": {
             "h": 7,
@@ -3012,7 +3012,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "Prometheus",
-          "description": "copyset层面每秒成功处理的read chunk个数",
+          "description": "The number of read chunks successfully processed at the copyset level per second",
           "fill": 1,
           "gridPos": {
             "h": 7,
@@ -3104,7 +3104,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "Prometheus",
-          "description": "copyset层面每秒接收到的read chunk请求个数",
+          "description": "The number of read chunk requests received by the copyset layer per second",
           "fill": 1,
           "gridPos": {
             "h": 7,
@@ -3196,7 +3196,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "Prometheus",
-          "description": "copyset层面每秒出错的write chunk请求个数",
+          "description": "The number of write chunk requests with errors per second at the copyset level",
           "fill": 1,
           "gridPos": {
             "h": 7,
@@ -3288,7 +3288,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "Prometheus",
-          "description": "copyset层面每秒成功处理的write chunk个数",
+          "description": "The number of write chunks successfully processed at the copyset level per second",
           "fill": 1,
           "gridPos": {
             "h": 7,
@@ -3380,7 +3380,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "Prometheus",
-          "description": "copyset层面每秒接收到的write chunk请求个数",
+          "description": "The number of write chunk requests received by the copyset layer per second",
           "fill": 1,
           "gridPos": {
             "h": 7,
@@ -3472,7 +3472,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "Prometheus",
-          "description": "copyset层面每秒成功read chunk的字节数",
+          "description": "The number of bytes per second that successfully read chunks at the copyset level",
           "fill": 1,
           "gridPos": {
             "h": 7,
@@ -3564,7 +3564,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "Prometheus",
-          "description": "copyset层面每秒成功write chunk的字节数",
+          "description": "The number of bytes per second successfully written chunks at the copyset level",
           "fill": 1,
           "gridPos": {
             "h": 7,
@@ -3656,7 +3656,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "Prometheus",
-          "description": "copyset层面的read chunk的平均延时",
+          "description": "Average latency of read chunks at the copyset level",
           "fill": 1,
           "gridPos": {
             "h": 7,
@@ -3746,7 +3746,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "Prometheus",
-          "description": "copyset层面的write chunk的平均延时",
+          "description": "Average latency of write chunks at the copyset level",
           "fill": 1,
           "gridPos": {
             "h": 7,
@@ -3831,7 +3831,7 @@
           }
         }
       ],
-      "title": "copyset指标",
+      "title": "Copyset metric",
       "type": "row"
     },
     {
@@ -3850,7 +3850,7 @@
           "dashLength": 10,
           "dashes": false,
           "decimals": 0,
-          "description": "chunkserver上所有已分配的chunk的数量",
+          "description": "The number of all allocated chunks on the chunkserver",
           "fill": 1,
           "gridPos": {
             "h": 7,
@@ -3942,7 +3942,7 @@
           "dashLength": 10,
           "dashes": false,
           "decimals": 0,
-          "description": "chunkfilepool中剩余的chunk的数量",
+          "description": "Number of remaining chunks in chunkfilepool",
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -4033,7 +4033,7 @@
           "dashLength": 10,
           "dashes": false,
           "decimals": 0,
-          "description": "chunkserver上copyset的数量",
+          "description": "Number of copysets on chunkserver",
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -4119,7 +4119,7 @@
           }
         }
       ],
-      "title": "chunkserver关键指标",
+      "title": "Chunkserver Key Metrics",
       "type": "row"
     },
     {
@@ -4773,7 +4773,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "description": "raft日志落盘的延时",
+          "description": "Delay in the fall of raft logs",
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -4860,7 +4860,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "description": "安装快照的数据流量",
+          "description": "Data traffic for installing snapshots",
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -5121,7 +5121,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "description": "follower正在下载快照的任务数量（一个copyset最多一个任务）",
+          "description": "Number of tasks being downloaded by the follower (one copyset can only have one task)",
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -5204,7 +5204,7 @@
           }
         }
       ],
-      "title": "Raft关键指标",
+      "title": "Raft Key Metrics",
       "type": "row"
     },
     {
@@ -5228,7 +5228,7 @@
             "rgba(237, 129, 40, 0.89)",
             "#299c46"
           ],
-          "description": "chunkserver上bthread worker的数量",
+          "description": "Number of bthread workers on chunkserver",
           "format": "none",
           "gauge": {
             "maxValue": 100,
@@ -5311,7 +5311,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "description": "chunkserver上正在被使用的工作线程个数",
+          "description": "The number of worker threads currently in use on chunkserver",
           "fill": 1,
           "gridPos": {
             "h": 7,
@@ -5399,7 +5399,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "description": "chunkserver上bthread的数量",
+          "description": "Number of bthreads on chunkserver",
           "fill": 1,
           "gridPos": {
             "h": 7,
@@ -5487,7 +5487,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "description": "chunkserver上execution queue的数量",
+          "description": "Number of execution queues on chunkserver",
           "fill": 1,
           "gridPos": {
             "h": 7,
@@ -5585,7 +5585,7 @@
           }
         }
       ],
-      "title": "线程指标",
+      "title": "Thread metrics",
       "type": "row"
     }
   ],
@@ -5605,7 +5605,7 @@
         "definition": "{__name__=~\"rpc_server_.*_curve_chunkserver_chunk_service_write_chunk\", instance=~\"([[ip:pipe]]):[[port:regex]]\"}",
         "hide": 2,
         "includeAll": false,
-        "label": "实例",
+        "label": "Instance",
         "multi": true,
         "name": "instance",
         "options": [],
@@ -5630,7 +5630,7 @@
         "definition": "{__name__=~\"rpc_server_.*_curve_chunkserver_chunk_service_write_chunk\"}",
         "hide": 0,
         "includeAll": false,
-        "label": "主机",
+        "label": "Host",
         "multi": true,
         "name": "ip",
         "options": [],
@@ -5655,7 +5655,7 @@
         "definition": "{__name__=~\"rpc_server_.*_curve_chunkserver_chunk_service_write_chunk\", instance=~\"$ip.*\"}",
         "hide": 0,
         "includeAll": false,
-        "label": "端口号",
+        "label": "Port",
         "multi": true,
         "name": "port",
         "options": [],

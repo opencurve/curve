@@ -23,46 +23,39 @@
 #include "src/snapshotcloneserver/snapshot/snapshot_service_manager.h"
 
 #include <glog/logging.h>
+
 #include "src/common/string_util.h"
 
 namespace curve {
 namespace snapshotcloneserver {
 
-int SnapshotServiceManager::Init(const SnapshotCloneServerOptions &option) {
+int SnapshotServiceManager::Init(const SnapshotCloneServerOptions& option) {
     std::shared_ptr<ThreadPool> pool =
         std::make_shared<ThreadPool>(option.snapshotPoolThreadNum);
     return taskMgr_->Init(pool, option);
 }
 
-int SnapshotServiceManager::Start() {
-    return taskMgr_->Start();
-}
+int SnapshotServiceManager::Start() { return taskMgr_->Start(); }
 
-void SnapshotServiceManager::Stop() {
-    taskMgr_->Stop();
-}
+void SnapshotServiceManager::Stop() { taskMgr_->Stop(); }
 
-int SnapshotServiceManager::CreateSnapshot(const std::string &file,
-    const std::string &user,
-    const std::string &snapshotName,
-    UUID *uuid) {
+int SnapshotServiceManager::CreateSnapshot(const std::string& file,
+                                           const std::string& user,
+                                           const std::string& snapshotName,
+                                           UUID* uuid) {
     SnapshotInfo snapInfo;
     int ret = core_->CreateSnapshotPre(file, user, snapshotName, &snapInfo);
     if (ret < 0) {
         if (kErrCodeTaskExist == ret) {
-            // 任务已存在的情况下返回成功，使接口幂等
+            // Returns success if the task already exists, making the interface
+            // idempotent
             *uuid = snapInfo.GetUuid();
             return kErrCodeSuccess;
         }
         LOG(ERROR) << "CreateSnapshotPre error, "
-                   << " ret ="
-                   << ret
-                   << ", file = "
-                   << file
-                   << ", snapshotName = "
-                   << snapshotName
-                   << ", uuid = "
-                   << snapInfo.GetUuid();
+                   << " ret =" << ret << ", file = " << file
+                   << ", snapshotName = " << snapshotName
+                   << ", uuid = " << snapInfo.GetUuid();
         return ret;
     }
     *uuid = snapInfo.GetUuid();
@@ -72,87 +65,8 @@ int SnapshotServiceManager::CreateSnapshot(const std::string &file,
         std::make_shared<SnapshotTaskInfo>(snapInfo, snapInfoMetric);
     taskInfo->UpdateMetric();
     std::shared_ptr<SnapshotCreateTask> task =
-        std::make_shared<SnapshotCreateTask>(
-            snapInfo.GetUuid(), taskInfo, core_);
-    ret = taskMgr_->PushTask(task);
-    if (ret < 0) {
-        LOG(ERROR) << "Push Task error, "
-                   << " ret = "
-                   << ret;
-        return ret;
-    }
-    return kErrCodeSuccess;
-}
-
-int SnapshotServiceManager::CancelSnapshot(
-    const UUID &uuid,
-    const std::string &user,
-    const std::string &file) {
-    std::shared_ptr<SnapshotTask> task = taskMgr_->GetTask(uuid);
-    if (task != nullptr) {
-        if (user != task->GetTaskInfo()->GetSnapshotInfo().GetUser()) {
-            LOG(ERROR) << "Can not cancel snapshot by different user.";
-            return kErrCodeInvalidUser;
-        }
-        if ((!file.empty()) &&
-            (file != task->GetTaskInfo()->GetFileName())) {
-            LOG(ERROR) << "Can not cancel, fileName is not matched.";
-            return kErrCodeFileNameNotMatch;
-        }
-    }
-
-    int ret = taskMgr_->CancelTask(uuid);
-    if (ret < 0) {
-        LOG(ERROR) << "CancelSnapshot error, "
-                   << " ret ="
-                   << ret
-                   << ", uuid = "
-                   << uuid
-                   << ", file ="
-                   << file;
-        return ret;
-    }
-    return kErrCodeSuccess;
-}
-
-int SnapshotServiceManager::DeleteSnapshot(
-    const UUID &uuid,
-    const std::string &user,
-    const std::string &file) {
-    SnapshotInfo snapInfo;
-    int ret = core_->DeleteSnapshotPre(uuid, user, file, &snapInfo);
-    if (kErrCodeTaskExist == ret) {
-        return kErrCodeSuccess;
-    } else if (kErrCodeSnapshotCannotDeleteUnfinished == ret) {
-        // 转Cancel
-        ret = CancelSnapshot(uuid, user, file);
-        if (kErrCodeCannotCancelFinished == ret) {
-            // 防止这一过程中又执行完了
-            ret = core_->DeleteSnapshotPre(uuid, user, file, &snapInfo);
-            if (ret < 0) {
-                LOG(ERROR) << "DeleteSnapshotPre fail"
-                           << ", ret = " << ret
-                           << ", uuid = " << uuid
-                           << ", file =" << file;
-                return ret;
-            }
-        } else {
-            return ret;
-        }
-    } else if (ret < 0) {
-        LOG(ERROR) << "DeleteSnapshotPre fail"
-                   << ", ret = " << ret
-                   << ", uuid = " << uuid
-                   << ", file =" << file;
-        return ret;
-    }
-    auto snapInfoMetric = std::make_shared<SnapshotInfoMetric>(uuid);
-    std::shared_ptr<SnapshotTaskInfo> taskInfo =
-        std::make_shared<SnapshotTaskInfo>(snapInfo, snapInfoMetric);
-    taskInfo->UpdateMetric();
-    std::shared_ptr<SnapshotDeleteTask> task =
-        std::make_shared<SnapshotDeleteTask>(
-            snapInfo.GetUuid(), taskInfo, core_);
+        std::make_shared<SnapshotCreateTask>(snapInfo.GetUuid(), taskInfo,
+                                             core_);
     ret = taskMgr_->PushTask(task);
     if (ret < 0) {
         LOG(ERROR) << "Push Task error, "
@@ -162,31 +76,98 @@ int SnapshotServiceManager::DeleteSnapshot(
     return kErrCodeSuccess;
 }
 
-int SnapshotServiceManager::GetFileSnapshotInfo(const std::string &file,
-    const std::string &user,
-    std::vector<FileSnapshotInfo> *info) {
+int SnapshotServiceManager::CancelSnapshot(const UUID& uuid,
+                                           const std::string& user,
+                                           const std::string& file) {
+    std::shared_ptr<SnapshotTask> task = taskMgr_->GetTask(uuid);
+    if (task != nullptr) {
+        if (user != task->GetTaskInfo()->GetSnapshotInfo().GetUser()) {
+            LOG(ERROR) << "Can not cancel snapshot by different user.";
+            return kErrCodeInvalidUser;
+        }
+        if ((!file.empty()) && (file != task->GetTaskInfo()->GetFileName())) {
+            LOG(ERROR) << "Can not cancel, fileName is not matched.";
+            return kErrCodeFileNameNotMatch;
+        }
+    }
+
+    int ret = taskMgr_->CancelTask(uuid);
+    if (ret < 0) {
+        LOG(ERROR) << "CancelSnapshot error, "
+                   << " ret =" << ret << ", uuid = " << uuid
+                   << ", file =" << file;
+        return ret;
+    }
+    return kErrCodeSuccess;
+}
+
+int SnapshotServiceManager::DeleteSnapshot(const UUID& uuid,
+                                           const std::string& user,
+                                           const std::string& file) {
+    SnapshotInfo snapInfo;
+    int ret = core_->DeleteSnapshotPre(uuid, user, file, &snapInfo);
+    if (kErrCodeTaskExist == ret) {
+        return kErrCodeSuccess;
+    } else if (kErrCodeSnapshotCannotDeleteUnfinished == ret) {
+        // Transfer to Cancel
+        ret = CancelSnapshot(uuid, user, file);
+        if (kErrCodeCannotCancelFinished == ret) {
+            // To prevent the execution from completing again during this
+            // process
+            ret = core_->DeleteSnapshotPre(uuid, user, file, &snapInfo);
+            if (ret < 0) {
+                LOG(ERROR) << "DeleteSnapshotPre fail"
+                           << ", ret = " << ret << ", uuid = " << uuid
+                           << ", file =" << file;
+                return ret;
+            }
+        } else {
+            return ret;
+        }
+    } else if (ret < 0) {
+        LOG(ERROR) << "DeleteSnapshotPre fail"
+                   << ", ret = " << ret << ", uuid = " << uuid
+                   << ", file =" << file;
+        return ret;
+    }
+    auto snapInfoMetric = std::make_shared<SnapshotInfoMetric>(uuid);
+    std::shared_ptr<SnapshotTaskInfo> taskInfo =
+        std::make_shared<SnapshotTaskInfo>(snapInfo, snapInfoMetric);
+    taskInfo->UpdateMetric();
+    std::shared_ptr<SnapshotDeleteTask> task =
+        std::make_shared<SnapshotDeleteTask>(snapInfo.GetUuid(), taskInfo,
+                                             core_);
+    ret = taskMgr_->PushTask(task);
+    if (ret < 0) {
+        LOG(ERROR) << "Push Task error, "
+                   << " ret = " << ret;
+        return ret;
+    }
+    return kErrCodeSuccess;
+}
+
+int SnapshotServiceManager::GetFileSnapshotInfo(
+    const std::string& file, const std::string& user,
+    std::vector<FileSnapshotInfo>* info) {
     std::vector<SnapshotInfo> snapInfos;
     int ret = core_->GetFileSnapshotInfo(file, &snapInfos);
     if (ret < 0) {
         LOG(ERROR) << "GetFileSnapshotInfo error, "
-                   << " ret = " << ret
-                   << ", file = " << file;
+                   << " ret = " << ret << ", file = " << file;
         return ret;
     }
     return GetFileSnapshotInfoInner(snapInfos, user, info);
 }
 
-int SnapshotServiceManager::GetFileSnapshotInfoById(const std::string &file,
-    const std::string &user,
-    const UUID &uuid,
-    std::vector<FileSnapshotInfo> *info) {
+int SnapshotServiceManager::GetFileSnapshotInfoById(
+    const std::string& file, const std::string& user, const UUID& uuid,
+    std::vector<FileSnapshotInfo>* info) {
     std::vector<SnapshotInfo> snapInfos;
     SnapshotInfo snap;
     int ret = core_->GetSnapshotInfo(uuid, &snap);
     if (ret < 0) {
         LOG(ERROR) << "GetSnapshotInfo error, "
-                   << " ret = " << ret
-                   << ", file = " << file
+                   << " ret = " << ret << ", file = " << file
                    << ", uuid = " << uuid;
         return kErrCodeFileNotExist;
     }
@@ -201,11 +182,10 @@ int SnapshotServiceManager::GetFileSnapshotInfoById(const std::string &file,
 }
 
 int SnapshotServiceManager::GetFileSnapshotInfoInner(
-    std::vector<SnapshotInfo> snapInfos,
-    const std::string &user,
-    std::vector<FileSnapshotInfo> *info) {
+    std::vector<SnapshotInfo> snapInfos, const std::string& user,
+    std::vector<FileSnapshotInfo>* info) {
     int ret = kErrCodeSuccess;
-    for (auto &snap : snapInfos) {
+    for (auto& snap : snapInfos) {
         if (snap.GetUser() == user) {
             Status st = snap.GetStatus();
             switch (st) {
@@ -226,15 +206,15 @@ int SnapshotServiceManager::GetFileSnapshotInfoInner(
                         taskMgr_->GetTask(uuid);
                     if (task != nullptr) {
                         info->emplace_back(snap,
-                            task->GetTaskInfo()->GetProgress());
+                                           task->GetTaskInfo()->GetProgress());
                     } else {
-                        // 刚刚完成
+                        // Just completed
                         SnapshotInfo newInfo;
                         ret = core_->GetSnapshotInfo(uuid, &newInfo);
                         if (ret < 0) {
-                            LOG(ERROR) << "GetSnapshotInfo fail"
-                                       << ", ret = " << ret
-                                       << ", uuid = " << uuid;
+                            LOG(ERROR)
+                                << "GetSnapshotInfo fail"
+                                << ", ret = " << ret << ", uuid = " << uuid;
                             return ret;
                         }
                         switch (newInfo.GetStatus()) {
@@ -248,7 +228,8 @@ int SnapshotServiceManager::GetFileSnapshotInfoInner(
                             }
                             default:
                                 LOG(ERROR) << "can not reach here!";
-                                // 当更新数据库失败时，有可能进入这里
+                                // When updating the database fails, it is
+                                // possible to enter here
                                 return kErrCodeInternalError;
                         }
                     }
@@ -263,7 +244,7 @@ int SnapshotServiceManager::GetFileSnapshotInfoInner(
     return kErrCodeSuccess;
 }
 
-bool SnapshotFilterCondition::IsMatchCondition(const SnapshotInfo &snapInfo) {
+bool SnapshotFilterCondition::IsMatchCondition(const SnapshotInfo& snapInfo) {
     if (user_ != nullptr && *user_ != snapInfo.GetUser()) {
         return false;
     }
@@ -277,14 +258,12 @@ bool SnapshotFilterCondition::IsMatchCondition(const SnapshotInfo &snapInfo) {
     }
 
     int status;
-    if (status_ != nullptr
-        && common::StringToInt(*status_, &status) == false) {
+    if (status_ != nullptr && common::StringToInt(*status_, &status) == false) {
         return false;
     }
 
-    if (status_ != nullptr
-        && common::StringToInt(*status_, &status) == true
-        && status != static_cast<int>(snapInfo.GetStatus())) {
+    if (status_ != nullptr && common::StringToInt(*status_, &status) == true &&
+        status != static_cast<int>(snapInfo.GetStatus())) {
         return false;
     }
 
@@ -292,11 +271,10 @@ bool SnapshotFilterCondition::IsMatchCondition(const SnapshotInfo &snapInfo) {
 }
 
 int SnapshotServiceManager::GetSnapshotListInner(
-    std::vector<SnapshotInfo> snapInfos,
-    SnapshotFilterCondition filter,
-    std::vector<FileSnapshotInfo> *info) {
+    std::vector<SnapshotInfo> snapInfos, SnapshotFilterCondition filter,
+    std::vector<FileSnapshotInfo>* info) {
     int ret = kErrCodeSuccess;
-    for (auto &snap : snapInfos) {
+    for (auto& snap : snapInfos) {
         if (filter.IsMatchCondition(snap)) {
             Status st = snap.GetStatus();
             switch (st) {
@@ -317,15 +295,15 @@ int SnapshotServiceManager::GetSnapshotListInner(
                         taskMgr_->GetTask(uuid);
                     if (task != nullptr) {
                         info->emplace_back(snap,
-                            task->GetTaskInfo()->GetProgress());
+                                           task->GetTaskInfo()->GetProgress());
                     } else {
-                        // 刚刚完成
+                        // Just completed
                         SnapshotInfo newInfo;
                         ret = core_->GetSnapshotInfo(uuid, &newInfo);
                         if (ret < 0) {
-                            LOG(ERROR) << "GetSnapshotInfo fail"
-                                       << ", ret = " << ret
-                                       << ", uuid = " << uuid;
+                            LOG(ERROR)
+                                << "GetSnapshotInfo fail"
+                                << ", ret = " << ret << ", uuid = " << uuid;
                             return ret;
                         }
                         switch (newInfo.GetStatus()) {
@@ -339,7 +317,8 @@ int SnapshotServiceManager::GetSnapshotListInner(
                             }
                             default:
                                 LOG(ERROR) << "can not reach here!";
-                                // 当更新数据库失败时，有可能进入这里
+                                // When updating the database fails, it is
+                                // possible to enter here
                                 return kErrCodeInternalError;
                         }
                     }
@@ -355,8 +334,8 @@ int SnapshotServiceManager::GetSnapshotListInner(
 }
 
 int SnapshotServiceManager::GetSnapshotListByFilter(
-                    const SnapshotFilterCondition &filter,
-                    std::vector<FileSnapshotInfo> *info) {
+    const SnapshotFilterCondition& filter,
+    std::vector<FileSnapshotInfo>* info) {
     std::vector<SnapshotInfo> snapInfos;
     int ret = core_->GetSnapshotList(&snapInfos);
     if (ret < 0) {
@@ -374,50 +353,44 @@ int SnapshotServiceManager::RecoverSnapshotTask() {
         LOG(ERROR) << "GetSnapshotList error";
         return ret;
     }
-    for (auto &snap : list) {
+    for (auto& snap : list) {
         Status st = snap.GetStatus();
         switch (st) {
-            case Status::pending : {
+            case Status::pending: {
                 auto snapInfoMetric =
                     std::make_shared<SnapshotInfoMetric>(snap.GetUuid());
                 std::shared_ptr<SnapshotTaskInfo> taskInfo =
                     std::make_shared<SnapshotTaskInfo>(snap, snapInfoMetric);
                 taskInfo->UpdateMetric();
                 std::shared_ptr<SnapshotCreateTask> task =
-                    std::make_shared<SnapshotCreateTask>(
-                        snap.GetUuid(),
-                        taskInfo,
-                        core_);
+                    std::make_shared<SnapshotCreateTask>(snap.GetUuid(),
+                                                         taskInfo, core_);
                 ret = taskMgr_->PushTask(task);
                 if (ret < 0) {
-                    LOG(ERROR) << "RecoverSnapshotTask push task error, ret = "
-                               << ret
-                               << ", uuid = "
-                               << snap.GetUuid();
+                    LOG(ERROR)
+                        << "RecoverSnapshotTask push task error, ret = " << ret
+                        << ", uuid = " << snap.GetUuid();
                     return ret;
                 }
                 break;
             }
-            // 重启恢复的canceling等价于errorDeleting
-            case Status::canceling :
-            case Status::deleting :
-            case Status::errorDeleting : {
+            // canceling restart recovery is equivalent to errorDeleting
+            case Status::canceling:
+            case Status::deleting:
+            case Status::errorDeleting: {
                 auto snapInfoMetric =
                     std::make_shared<SnapshotInfoMetric>(snap.GetUuid());
                 std::shared_ptr<SnapshotTaskInfo> taskInfo =
                     std::make_shared<SnapshotTaskInfo>(snap, snapInfoMetric);
                 taskInfo->UpdateMetric();
                 std::shared_ptr<SnapshotDeleteTask> task =
-                    std::make_shared<SnapshotDeleteTask>(
-                        snap.GetUuid(),
-                        taskInfo,
-                        core_);
+                    std::make_shared<SnapshotDeleteTask>(snap.GetUuid(),
+                                                         taskInfo, core_);
                 ret = taskMgr_->PushTask(task);
                 if (ret < 0) {
-                    LOG(ERROR) << "RecoverSnapshotTask push task error, ret = "
-                               << ret
-                               << ", uuid = "
-                               << snap.GetUuid();
+                    LOG(ERROR)
+                        << "RecoverSnapshotTask push task error, ret = " << ret
+                        << ", uuid = " << snap.GetUuid();
                     return ret;
                 }
                 break;
@@ -431,4 +404,3 @@ int SnapshotServiceManager::RecoverSnapshotTask() {
 
 }  // namespace snapshotcloneserver
 }  // namespace curve
-

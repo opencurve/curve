@@ -20,18 +20,20 @@
  * Author: lixiaocui1
  */
 
-#include <gtest/gtest.h>
 #include <glog/logging.h>
-#include <thread>  //NOLINT
+#include <gtest/gtest.h>
+
 #include <chrono>  //NOLINT
 #include <cstdlib>
 #include <memory>
-#include "src/kvstorageclient/etcd_client.h"
-#include "src/mds/nameserver2/helper/namespace_helper.h"
-#include "src/common/timeutility.h"
-#include "src/common/concurrent/concurrent.h"
-#include "src/mds/common/mds_define.h"
+#include <thread>  //NOLINT
+
 #include "proto/nameserver2.pb.h"
+#include "src/common/concurrent/concurrent.h"
+#include "src/common/timeutility.h"
+#include "src/kvstorageclient/etcd_client.h"
+#include "src/mds/common/mds_define.h"
+#include "src/mds/nameserver2/helper/namespace_helper.h"
 
 namespace curve {
 namespace kvstorage {
@@ -43,7 +45,7 @@ using ::curve::mds::NameSpaceStorageCodec;
 using ::curve::mds::PageFileChunkInfo;
 using ::curve::mds::PageFileSegment;
 
-// 接口测试
+// Interface testing
 class TestEtcdClinetImp : public ::testing::Test {
  protected:
     TestEtcdClinetImp() {}
@@ -63,8 +65,9 @@ class TestEtcdClinetImp : public ::testing::Test {
             ASSERT_TRUE(false);
         } else if (0 == etcdPid) {
             /**
-             *  重要提示！！！！
-             *  fork后，子进程尽量不要用LOG()打印，可能死锁！！！
+             * Important reminder!!!!
+             * After forking, try not to use LOG() printing for child processes,
+             * as it may cause deadlock!!!
              */
             ASSERT_EQ(0,
                       execlp("etcd", "etcd", "--listen-client-urls",
@@ -75,7 +78,7 @@ class TestEtcdClinetImp : public ::testing::Test {
             exit(0);
         }
 
-        // 一定时间内尝试init直到etcd完全起来
+        // Try init for a certain period of time until etcd is fully recovered
         uint64_t now = ::curve::common::TimeUtility::GetTimeofDaySec();
         bool initSuccess = false;
         while (::curve::common::TimeUtility::GetTimeofDaySec() - now <= 50) {
@@ -108,8 +111,8 @@ class TestEtcdClinetImp : public ::testing::Test {
 
 TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
     // 1. put file
-    // - file0~file9 put到etcd中
-    // - file6有快照
+    // - file0~file9 put into etcd
+    // - file6 has a snapshot
     std::map<int, std::string> keyMap;
     std::map<int, std::string> fileName;
     FileInfo fileInfo7, fileInfo8;
@@ -170,7 +173,7 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
         }
     }
 
-    // 2. get file, 可以正确获取并解码file0~file9
+    // 2. get file, which can correctly obtain and decode file0~file9
     for (int i = 0; i < keyMap.size(); i++) {
         std::string out;
         int errCode = client_->Get(keyMap[i], &out);
@@ -180,7 +183,7 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
         ASSERT_EQ(fileName[i], fileinfo.filename());
     }
 
-    // 3. list file, 可以list到file0~file9
+    // 3. list file, which can be listed to file0~file9
     std::vector<std::string> listRes;
     std::vector<std::pair<std::string, std::string>> listRes2;
     int errCode = client_->List("01", "02", &listRes2);
@@ -193,7 +196,8 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
         ASSERT_EQ(fileName[i], finfo.filename());
     }
 
-    // 4. delete file, 删除file0~file4，这部分文件不能再获取到
+    // 4. Delete file, delete file0~file4, these files cannot be retrieved
+    // anymore
     for (int i = 0; i < keyMap.size() / 2; i++) {
         ASSERT_EQ(EtcdErrCode::EtcdOK, client_->Delete(keyMap[i]));
         // can not get delete file
@@ -201,13 +205,13 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
         ASSERT_EQ(EtcdErrCode::EtcdKeyNotExist, client_->Get(keyMap[i], &out));
     }
 
-    // 5. rename file: rename file9 ~ file10, file10本来不存在
-    Operation op1{OpType::OpDelete, const_cast<char *>(keyMap[9].c_str()),
-                  const_cast<char *>(fileInfo9.c_str()),
+    // 5. Rename file: rename file9~file10, file10 does not originally exist
+    Operation op1{OpType::OpDelete, const_cast<char*>(keyMap[9].c_str()),
+                  const_cast<char*>(fileInfo9.c_str()),
                   static_cast<int>(keyMap[9].size()),
                   static_cast<int>(fileInfo9.size())};
-    Operation op2{OpType::OpPut, const_cast<char *>(fileKey10.c_str()),
-                  const_cast<char *>(fileInfo10.c_str()),
+    Operation op2{OpType::OpPut, const_cast<char*>(fileKey10.c_str()),
+                  const_cast<char*>(fileInfo10.c_str()),
                   static_cast<int>(fileKey10.size()),
                   static_cast<int>(fileInfo10.size())};
     std::vector<Operation> ops{op1, op2};
@@ -222,12 +226,12 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
     ASSERT_EQ(fileName10, fileinfo.filename());
 
     // 6. snapshot of keyMap[6]
-    Operation op3{OpType::OpPut, const_cast<char *>(keyMap[6].c_str()),
-                  const_cast<char *>(fileInfo6.c_str()),
+    Operation op3{OpType::OpPut, const_cast<char*>(keyMap[6].c_str()),
+                  const_cast<char*>(fileInfo6.c_str()),
                   static_cast<int>(keyMap[6].size()),
                   static_cast<int>(fileInfo6.size())};
-    Operation op4{OpType::OpPut, const_cast<char *>(snapshotKey6.c_str()),
-                  const_cast<char *>(snapshotInfo6.c_str()),
+    Operation op4{OpType::OpPut, const_cast<char*>(snapshotKey6.c_str()),
+                  const_cast<char*>(snapshotInfo6.c_str()),
                   static_cast<int>(snapshotKey6.size()),
                   static_cast<int>(snapshotInfo6.size())};
     ops.clear();
@@ -258,9 +262,8 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
     ASSERT_EQ("200", out);
 
     // 8. rename file: rename file7 ~ file8
-    Operation op8{OpType::OpDelete, const_cast<char *>(keyMap[7].c_str()),
-                  const_cast<char *>(""), static_cast<int>(keyMap[7].size()),
-                  0};
+    Operation op8{OpType::OpDelete, const_cast<char*>(keyMap[7].c_str()),
+                  const_cast<char*>(""), static_cast<int>(keyMap[7].size()), 0};
     FileInfo newFileInfo7;
     newFileInfo7.CopyFrom(fileInfo7);
     newFileInfo7.set_parentid(fileInfo8.parentid());
@@ -271,17 +274,17 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
     std::string encodeNewFileInfo7;
     ASSERT_TRUE(newFileInfo7.SerializeToString(&encodeNewFileInfo7));
     Operation op9{OpType::OpPut,
-                  const_cast<char *>(encodeNewFileInfo7Key.c_str()),
-                  const_cast<char *>(encodeNewFileInfo7.c_str()),
+                  const_cast<char*>(encodeNewFileInfo7Key.c_str()),
+                  const_cast<char*>(encodeNewFileInfo7.c_str()),
                   static_cast<int>(encodeNewFileInfo7Key.size()),
                   static_cast<int>(encodeNewFileInfo7.size())};
     ops.clear();
     ops.emplace_back(op8);
     ops.emplace_back(op9);
     ASSERT_EQ(EtcdErrCode::EtcdOK, client_->TxnN(ops));
-    // 不能获取 file7
+    // Unable to obtain file7
     ASSERT_EQ(EtcdErrCode::EtcdKeyNotExist, client_->Get(keyMap[7], &out));
-    // 成功获取rename以后的file7
+    // Successfully obtained file7 after renam
     ASSERT_EQ(EtcdErrCode::EtcdOK, client_->Get(keyMap[8], &out));
     ASSERT_TRUE(NameSpaceStorageCodec::DecodeFileInfo(out, &fileinfo));
     ASSERT_EQ(newFileInfo7.filename(), fileinfo.filename());
@@ -304,8 +307,8 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
     ASSERT_EQ(EtcdErrCode::EtcdDeadlineExceeded, client_->TxnN(ops));
 
     client_->SetTimeout(5000);
-    Operation op5{OpType(5), const_cast<char *>(snapshotKey6.c_str()),
-                  const_cast<char *>(snapshotInfo6.c_str()),
+    Operation op5{OpType(5), const_cast<char*>(snapshotKey6.c_str()),
+                  const_cast<char*>(snapshotInfo6.c_str()),
                   static_cast<int>(snapshotKey6.size()),
                   static_cast<int>(snapshotInfo6.size())};
     ops.clear();
@@ -321,7 +324,7 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
 }
 
 TEST_F(TestEtcdClinetImp, test_ListWithLimitAndRevision) {
-    // 准备一批数据
+    // Prepare a batch of data
     // "011" "013" "015" "017" "019"
     for (int i = 1; i <= 9; i += 2) {
         std::string key = std::string("01") + std::to_string(i);
@@ -336,13 +339,13 @@ TEST_F(TestEtcdClinetImp, test_ListWithLimitAndRevision) {
         ASSERT_EQ(EtcdErrCode::EtcdOK, client_->Put(key, value));
     }
 
-    // 获取当前revision
-    // 通过GetCurrentRevision获取
+    // Obtain the current revision
+    // Obtained through GetCurrentRevision
     int64_t curRevision;
     ASSERT_EQ(EtcdErrCode::EtcdOK, client_->GetCurrentRevision(&curRevision));
     LOG(INFO) << "get current revision: " << curRevision;
 
-    // 根据当前revision获取前5个key-value
+    // Obtain the top 5 key values based on the current revision
     std::vector<std::string> out;
     std::string lastKey;
     int res = client_->ListWithLimitAndRevision("01", "", 5, curRevision, &out,
@@ -355,7 +358,7 @@ TEST_F(TestEtcdClinetImp, test_ListWithLimitAndRevision) {
         ASSERT_EQ(value, out[i - 1]);
     }
 
-    // 根据当前revision获取后5个key-value
+    // Obtain the last 5 key values based on the current revision
     out.clear();
     res = client_->ListWithLimitAndRevision(lastKey, "", 5, curRevision, &out,
                                             &lastKey);
@@ -395,37 +398,41 @@ TEST_F(TestEtcdClinetImp, test_CampaignLeader) {
     uint64_t leaderOid;
 
     {
-        // 1. leader1竞选成功，client退出后leader2竞选成功
+        // 1. leader1 successfully ran, but leader2 successfully ran after
+        // client exited
         LOG(INFO) << "test case1 start...";
-        // 启动一个线程竞选leader
+        // Start a thread to run for the leader
         int electionTimeoutMs = 0;
         uint64_t targetOid;
         common::Thread thread1(&EtcdClientImp::CampaignLeader, client_, pfx,
                                leaderName1, sessionnInterSec, electionTimeoutMs,
                                &targetOid);
-        // 等待线程1执行完成, 线程1执行完成就说明竞选成功，
-        // 否则electionTimeoutMs为0的情况下会一直hung在里面
+        // Waiting for thread 1 to complete execution indicates a successful
+        // election, Otherwise, if electionTimeoutMs is 0, they will remain in
+        // it all the time
         thread1.join();
         LOG(INFO) << "thread 1 exit.";
         client_->CloseClient();
 
-        // 启动第二个线程竞选leader
+        // Start the second thread to run for the leader
         auto client2 = std::make_shared<EtcdClientImp>();
         ASSERT_EQ(0, client2->Init(conf, dialtTimeout, retryTimes));
         common::Thread thread2(&EtcdClientImp::CampaignLeader, client2, pfx,
                                leaderName2, sessionnInterSec, electionTimeoutMs,
                                &leaderOid);
-        // 线程1退出后，leader2会当选
+        // After thread1 exits, leader2 will be elected
         thread2.join();
         LOG(INFO) << "thread 2 exit.";
-        // leader2为leader的情况下此时观察leader1的key应该发现session过期
+        // If leader2 is the leader, observing the key of leader1 at this time
+        // should reveal that the session has expired
         ASSERT_EQ(EtcdErrCode::EtcdObserverLeaderInternal,
                   client2->LeaderObserve(targetOid, leaderName1));
         client2->CloseClient();
     }
 
     {
-        // 2. leader1竞选成功后，不退出; leader2竞选超时
+        // 2. After the successful election of leader1, do not withdraw; leader2
+        // campaign timeout
         LOG(INFO) << "test case2 start...";
         int electionTimeoutMs = 1000;
         auto client1 = std::make_shared<EtcdClientImp>();
@@ -436,7 +443,7 @@ TEST_F(TestEtcdClinetImp, test_CampaignLeader) {
         thread1.join();
         LOG(INFO) << "thread 1 exit.";
 
-        // leader2再次竞选
+        // leader2 is running again
         common::Thread thread2(&EtcdClientImp::CampaignLeader, client1, pfx,
                                leaderName2, sessionnInterSec, electionTimeoutMs,
                                &leaderOid);
@@ -446,8 +453,9 @@ TEST_F(TestEtcdClinetImp, test_CampaignLeader) {
     }
 
     {
-        // 3. leader1竞选成功后，删除key; leader2竞选成功; observe leader1改变;
-        //  observer leader2的过程中etcd挂掉
+        // 3. After the successful election of leader1, delete the key; The
+        // leader2 campaign was successful; Observe leader1 changed;
+        //   During the process of observer leader2, etcd crashes
         LOG(INFO) << "test case3 start...";
         uint64_t targetOid;
         int electionTimeoutMs = 0;
@@ -458,17 +466,17 @@ TEST_F(TestEtcdClinetImp, test_CampaignLeader) {
                                &targetOid);
         thread1.join();
         LOG(INFO) << "thread 1 exit.";
-        // leader1卸任leader
+        // leader1 Resignation Leader
         ASSERT_EQ(EtcdErrCode::EtcdLeaderResiginSuccess,
                   client1->LeaderResign(targetOid, 1000));
 
-        // leader2当选
+        // leader2 elected
         common::Thread thread2(&EtcdClientImp::CampaignLeader, client1, pfx,
                                leaderName2, sessionnInterSec, electionTimeoutMs,
                                &leaderOid);
         thread2.join();
 
-        // leader2启动线程observe
+        // leader2 starts thread observe
         common::Thread thread3(&EtcdClientImp::LeaderObserve, client1,
                                targetOid, leaderName2);
         std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -477,7 +485,7 @@ TEST_F(TestEtcdClinetImp, test_CampaignLeader) {
         client1->CloseClient();
         LOG(INFO) << "thread 2 exit.";
 
-        // 使得etcd完全停掉
+        // Make the ETCD completely stop
         std::this_thread::sleep_for(std::chrono::seconds(2));
     }
 }
@@ -490,12 +498,13 @@ TEST_F(TestEtcdClinetImp, test_ListSegment) {
     segment.set_logicalpoolid(11);
     int size = segment.segmentsize() / segment.chunksize();
     for (uint32_t i = 0; i < size; i++) {
-        PageFileChunkInfo *chunkinfo = segment.add_chunks();
+        PageFileChunkInfo* chunkinfo = segment.add_chunks();
         chunkinfo->set_chunkid(i + 1);
         chunkinfo->set_copysetid(i + 1);
     }
 
-    // 放入segment，前三个属于文件1，后四个属于文件2
+    // Place the segment, with the first three belonging to file1 and the last
+    // four belonging to file2
     uint64_t id1 = 101;
     uint64_t id2 = 100001;
     for (uint32_t i = 0; i < 7; ++i) {
@@ -514,7 +523,7 @@ TEST_F(TestEtcdClinetImp, test_ListSegment) {
         LOG(INFO) << segment.startoffset();
     }
 
-    // 获取文件1的segment
+    // Obtain the segment of file1
     std::string startKey = NameSpaceStorageCodec::EncodeSegmentStoreKey(id1, 0);
     std::string endKey =
         NameSpaceStorageCodec::EncodeSegmentStoreKey(id1 + 1, 0);
@@ -527,7 +536,7 @@ TEST_F(TestEtcdClinetImp, test_ListSegment) {
         ASSERT_EQ(i * 1024, segment2.startoffset());
     }
 
-    // 获取文件2的segment
+    // Obtain the segment of file2
     startKey = NameSpaceStorageCodec::EncodeSegmentStoreKey(id2, 0);
     endKey = NameSpaceStorageCodec::EncodeSegmentStoreKey(id2 + 1, 0);
     out.clear();

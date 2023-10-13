@@ -26,22 +26,22 @@
 #include <gflags/gflags.h>
 #include <time.h>
 
-#include <vector>
-#include <string>
-#include <memory>
-#include <iostream>
 #include <cstdint>
 #include <cstring>
+#include <iostream>
+#include <memory>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "proto/nameserver2.pb.h"
 #include "proto/topology.pb.h"
-#include "src/common/timeutility.h"
 #include "src/common/string_util.h"
+#include "src/common/timeutility.h"
 #include "src/mds/common/mds_define.h"
-#include "src/tools/namespace_tool_core.h"
 #include "src/tools/curve_tool.h"
 #include "src/tools/curve_tool_define.h"
+#include "src/tools/namespace_tool_core.h"
 
 using curve::mds::FileInfo;
 using curve::mds::PageFileSegment;
@@ -52,71 +52,72 @@ namespace tool {
 
 class NameSpaceTool : public CurveTool {
  public:
-    explicit NameSpaceTool(std::shared_ptr<NameSpaceToolCore> core) :
-                              core_(core), inited_(false) {}
+    explicit NameSpaceTool(std::shared_ptr<NameSpaceToolCore> core)
+        : core_(core), inited_(false) {}
 
     /**
-     *  @brief 打印用法
-     *  @param command：查询的命令
-     *  @return 无
+     * @brief printing usage
+     * @param command: Query command
+     * @return None
      */
-    void PrintHelp(const std::string &command) override;
+    void PrintHelp(const std::string& command) override;
 
     /**
-     *  @brief 执行命令
-     *  @param command：执行的命令
-     *  @return 成功返回0，失败返回-1
+     * @brief Execute command
+     * @param command: The command executed
+     * @return returns 0 for success, -1 for failure
      */
-    int RunCommand(const std::string &command) override;
+    int RunCommand(const std::string& command) override;
 
     /**
-     *  @brief 返回是否支持该命令
-     *  @param command：执行的命令
-     *  @return true / false
+     * @brief returns whether the command is supported
+     * @param command: The command executed
+     * @return true/false
      */
     static bool SupportCommand(const std::string& command);
 
  private:
-    // 初始化
+    // Initialize
     int Init();
-    // 打印fileInfo和文件占用的实际空间
+    // Print fileInfo and the actual space occupied by the file
     int PrintFileInfoAndActualSize(const std::string& fileName);
 
-    // 打印fileInfo和文件占用的实际空间
+    // Print fileInfo and the actual space occupied by the file
     int PrintFileInfoAndActualSize(const std::string& fullName,
                                    const FileInfo& fileInfo);
 
-    // 打印目录中的文件信息
+    // Print file information in the directory
     int PrintListDir(const std::string& dirName);
 
-    // 打印出文件的segment信息
-    int PrintSegmentInfo(const std::string &fileName);
+    // Print out the segment information of the file
+    int PrintSegmentInfo(const std::string& fileName);
 
-    // 打印fileInfo，把时间转化为易读的格式输出
+    // Print fileInfo and convert the time into a readable format for output
     void PrintFileInfo(const FileInfo& fileInfo);
 
-    // 打印PageFileSegment，把同一个chunk的信息打在同一行
+    // Print PageFileSegment and type information for the same chunk on the same
+    // line
     void PrintSegment(const PageFileSegment& segment);
 
-    // 打印chunk的位置信息
-    int PrintChunkLocation(const std::string& fileName,
-                                     uint64_t offset);
+    // Print the location information of the chunk
+    int PrintChunkLocation(const std::string& fileName, uint64_t offset);
 
-    // 打印文件的分配大小
+    // Allocation size of printed files
     int GetAndPrintAllocSize(const std::string& fileName);
 
-    // 打印目录的file size
+    // Print the file size of the directory
     int GetAndPrintFileSize(const std::string& fileName);
 
-    // 目前curve mds不支持/test/格式的文件名，需要把末尾的/去掉
+    // Currently, curve mds does not support file names in the/test/format, so
+    // the/at the end needs to be removed
     void TrimEndingSlash(std::string* fileName);
 
     int PrintPoolsets();
 
  private:
-    // 核心逻辑
+    // Core logic
     std::shared_ptr<NameSpaceToolCore> core_;
-    // 是否初始化成功过
+    // Has initialization been successful
     bool inited_;
 };
 }  // namespace tool

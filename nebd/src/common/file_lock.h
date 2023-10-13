@@ -28,31 +28,30 @@
 namespace nebd {
 namespace common {
 
-// 文件锁
+// File lock
 class FileLock {
  public:
     explicit FileLock(const std::string& fileName)
-      : fileName_(fileName), fd_(-1) {}
+        : fileName_(fileName), fd_(-1) {}
 
     FileLock() : fileName_(""), fd_(-1) {}
     ~FileLock() = default;
 
     /**
-     * @brief 获取文件锁
-     * @return 成功返回0，失败返回-1
+     * @brief Get file lock
+     * @return returns 0 for success, -1 for failure
      */
     int AcquireFileLock();
 
-
     /**
-     * @brief 释放文件锁
+     * @brief Release file lock
      */
     void ReleaseFileLock();
 
  private:
-    // 锁文件的文件名
+    // Lock the file name of the file
     std::string fileName_;
-    // 锁文件的fd
+    // Lock file fd
     int fd_;
 };
 

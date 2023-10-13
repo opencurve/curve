@@ -20,16 +20,18 @@
  * Author: tongguangxun
  */
 
-#include <gflags/gflags.h>
-
 #include "src/tools/consistency_check.h"
 
+#include <gflags/gflags.h>
+
 DEFINE_string(filename, "", "filename to check consistency");
-DEFINE_bool(check_hash, true, R"(用户需要先确认copyset的applyindex一致之后
-                        再去查copyset内容是不是一致。通常需要先设置
-                        check_hash = false先检查copyset的applyindex是否一致
-                        如果一致了再设置check_hash = true，
-                        检查copyset内容是不是一致)");
+DEFINE_bool(
+    check_hash, true,
+    R"(Users need to confirm whether the apply index of the copyset is consistent
+                        before checking if the copyset content is consistent. Usually, you should first set
+                        check_hash = false to initially verify if the apply index of the copyset is consistent.
+                        Once confirmed, then set check_hash = true,
+                        to check if the copyset content is consistent)");
 DEFINE_uint32(chunkServerBasePort, 8200, "base port of chunkserver");
 DECLARE_string(mdsAddr);
 
@@ -48,8 +50,8 @@ std::ostream& operator<<(std::ostream& os, const CsAddrsType& csAddrs) {
     for (uint32_t i = 0; i < csAddrs.size(); ++i) {
         std::string ip;
         uint32_t port;
-        if (curve::common::NetCommon::SplitAddrToIpPort(csAddrs[i],
-                                                        &ip, &port)) {
+        if (curve::common::NetCommon::SplitAddrToIpPort(csAddrs[i], &ip,
+                                                        &port)) {
             uint32_t csSeq = port - FLAGS_chunkServerBasePort;
             ipVec.emplace_back(ip);
             seqVec.emplace_back(csSeq);
@@ -75,12 +77,11 @@ std::ostream& operator<<(std::ostream& os, const CsAddrsType& csAddrs) {
 }
 
 ConsistencyCheck::ConsistencyCheck(
-                    std::shared_ptr<NameSpaceToolCore> nameSpaceToolCore,
-                    std::shared_ptr<ChunkServerClient> csClient) :
-                        nameSpaceToolCore_(nameSpaceToolCore),
-                        csClient_(csClient),
-                        inited_(false) {
-}
+    std::shared_ptr<NameSpaceToolCore> nameSpaceToolCore,
+    std::shared_ptr<ChunkServerClient> csClient)
+    : nameSpaceToolCore_(nameSpaceToolCore),
+      csClient_(csClient),
+      inited_(false) {}
 
 bool ConsistencyCheck::SupportCommand(const std::string& command) {
     return (command == kCheckConsistencyCmd);
@@ -98,7 +99,7 @@ int ConsistencyCheck::Init() {
     return 0;
 }
 
-int ConsistencyCheck::RunCommand(const std::string &cmd) {
+int ConsistencyCheck::RunCommand(const std::string& cmd) {
     if (Init() != 0) {
         std::cout << "Init ConsistencyCheck failed" << std::endl;
         return -1;
@@ -131,13 +132,15 @@ int ConsistencyCheck::CheckFileConsistency(const std::string& fileName,
     return 0;
 }
 
-void ConsistencyCheck::PrintHelp(const std::string &cmd) {
+void ConsistencyCheck::PrintHelp(const std::string& cmd) {
     if (!SupportCommand(cmd)) {
         std::cout << "Command not supported!" << std::endl;
         return;
     }
     std::cout << "Example: " << std::endl;
-    std::cout << "curve_ops_tool check-consistency -filename=/test [-check_hash=false]"  << std::endl;  // NOLINT
+    std::cout << "curve_ops_tool check-consistency -filename=/test "
+                 "[-check_hash=false]"
+              << std::endl;  // NOLINT
 }
 
 int ConsistencyCheck::FetchFileCopyset(const std::string& fileName,
@@ -160,14 +163,11 @@ int ConsistencyCheck::FetchFileCopyset(const std::string& fileName,
     return 0;
 }
 
-int ConsistencyCheck::CheckCopysetConsistency(
-                                const CopySet copyset,
-                                bool checkHash) {
+int ConsistencyCheck::CheckCopysetConsistency(const CopySet copyset,
+                                              bool checkHash) {
     std::vector<ChunkServerLocation> csLocs;
     int res = nameSpaceToolCore_->GetChunkServerListInCopySet(
-                                                copyset.first,
-                                                copyset.second,
-                                                &csLocs);
+        copyset.first, copyset.second, &csLocs);
     if (res != 0) {
         std::cout << "GetServerList info failed, exit consistency check!"
                   << std::endl;
@@ -180,9 +180,9 @@ int ConsistencyCheck::CheckCopysetConsistency(
         std::string csAddr = hostIp + ":" + std::to_string(port);
         csAddrs.emplace_back(csAddr);
     }
-    // 检查当前copyset的chunkserver内容是否一致
+    // Check if the chunkserver content of the current copyset is consistent
     if (checkHash) {
-        // 先检查apply index是否一致
+        // First, check if the application index is consistent
         res = CheckApplyIndex(copyset, csAddrs);
         if (res != 0) {
             std::cout << "Apply index not match when check hash!" << std::endl;
@@ -195,17 +195,16 @@ int ConsistencyCheck::CheckCopysetConsistency(
 }
 
 int ConsistencyCheck::GetCopysetStatusResponse(
-                        const std::string& csAddr,
-                        const CopySet copyset,
-                        CopysetStatusResponse* response) {
+    const std::string& csAddr, const CopySet copyset,
+    CopysetStatusResponse* response) {
     int res = csClient_->Init(csAddr);
     if (res != 0) {
-        std::cout << "Init chunkserverClient to " << csAddr
-                  << " fail!" << std::endl;
+        std::cout << "Init chunkserverClient to " << csAddr << " fail!"
+                  << std::endl;
         return -1;
     }
     CopysetStatusRequest request;
-    curve::common::Peer *peer = new curve::common::Peer();
+    curve::common::Peer* peer = new curve::common::Peer();
     peer->set_address(csAddr);
     request.set_logicpoolid(copyset.first);
     request.set_copysetid(copyset.second);
@@ -213,8 +212,8 @@ int ConsistencyCheck::GetCopysetStatusResponse(
     request.set_queryhash(false);
     res = csClient_->GetCopysetStatus(request, response);
     if (res != 0) {
-        std::cout << "GetCopysetStatus from " << csAddr
-                  << " fail!" << std::endl;
+        std::cout << "GetCopysetStatus from " << csAddr << " fail!"
+                  << std::endl;
         return -1;
     }
     return 0;
@@ -226,8 +225,7 @@ int ConsistencyCheck::CheckCopysetHash(const CopySet& copyset,
         Chunk chunk(copyset.first, copyset.second, chunkId);
         int res = CheckChunkHash(chunk, csAddrs);
         if (res != 0) {
-            std::cout << "{" << chunk
-                      << "," << csAddrs << "}" << std::endl;
+            std::cout << "{" << chunk << "," << csAddrs << "}" << std::endl;
             return -1;
         }
     }
@@ -242,8 +240,8 @@ int ConsistencyCheck::CheckChunkHash(const Chunk& chunk,
     for (const auto& csAddr : csAddrs) {
         int res = csClient_->Init(csAddr);
         if (res != 0) {
-            std::cout << "Init chunkserverClient to " << csAddr
-                      << " fail!" << std::endl;
+            std::cout << "Init chunkserverClient to " << csAddr << " fail!"
+                      << std::endl;
             return -1;
         }
         res = csClient_->GetChunkHash(chunk, &curHash);
@@ -276,8 +274,8 @@ int ConsistencyCheck::CheckApplyIndex(const CopySet copyset,
         CopysetStatusResponse response;
         int res = GetCopysetStatusResponse(csAddr, copyset, &response);
         if (res != 0) {
-            std::cout << "GetCopysetStatusResponse from " << csAddr
-                      << " fail" << std::endl;
+            std::cout << "GetCopysetStatusResponse from " << csAddr << " fail"
+                      << std::endl;
             ret = -1;
             break;
         }

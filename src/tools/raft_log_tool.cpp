@@ -35,33 +35,31 @@ enum class CheckSumType {
     CHECKSUM_CRC32 = 1,
 };
 
-inline bool VerifyCheckSum(int type,
-                            const char* data, size_t len, uint32_t value) {
+inline bool VerifyCheckSum(int type, const char* data, size_t len,
+                           uint32_t value) {
     CheckSumType checkSunType = static_cast<CheckSumType>(type);
     switch (checkSunType) {
-    case CheckSumType::CHECKSUM_MURMURHASH32:
-        return (value == braft::murmurhash32(data, len));
-    case CheckSumType::CHECKSUM_CRC32:
-        return (value == braft::crc32(data, len));
-    default:
-        std::cout << "Unknown checksum_type=" << type <<std::endl;
-        return false;
+        case CheckSumType::CHECKSUM_MURMURHASH32:
+            return (value == braft::murmurhash32(data, len));
+        case CheckSumType::CHECKSUM_CRC32:
+            return (value == braft::crc32(data, len));
+        default:
+            std::cout << "Unknown checksum_type=" << type << std::endl;
+            return false;
     }
 }
 
 std::ostream& operator<<(std::ostream& os, const EntryHeader& h) {
-    os << "{term=" << h.term << ", type=" << h.type << ", data_len="
-       << h.data_len << ", checksum_type=" << h.checksum_type
+    os << "{term=" << h.term << ", type=" << h.type
+       << ", data_len=" << h.data_len << ", checksum_type=" << h.checksum_type
        << ", data_checksum=" << h.data_checksum << '}';
     return os;
 }
 
-bool EntryHeader::operator== (const EntryHeader& rhs) const {
-    return term == rhs.term
-        && type == rhs.type
-        && checksum_type == rhs.checksum_type
-        && data_len == rhs.data_len
-        && data_checksum == rhs.data_checksum;
+bool EntryHeader::operator==(const EntryHeader& rhs) const {
+    return term == rhs.term && type == rhs.type &&
+           checksum_type == rhs.checksum_type && data_len == rhs.data_len &&
+           data_checksum == rhs.data_checksum;
 }
 
 void RaftLogTool::PrintHelp(const std::string& cmd) {
@@ -87,7 +85,7 @@ bool RaftLogTool::SupportCommand(const std::string& cmd) {
 }
 
 int RaftLogTool::PrintHeaders(const std::string& fileName) {
-    // 从文件名获取firstIndex
+    // Get firstIndex from file name
     int64_t firstIndex;
     int res = ParseFirstIndexFromFileName(fileName, &firstIndex);
     if (res != 0) {
@@ -103,8 +101,8 @@ int RaftLogTool::PrintHeaders(const std::string& fileName) {
     EntryHeader header;
     int64_t curIndex = firstIndex;
     while (parser_->GetNextEntryHeader(&header)) {
-        std::cout << "index = " << curIndex++
-                  << ", Entry Header = " << header << std::endl;
+        std::cout << "index = " << curIndex++ << ", Entry Header = " << header
+                  << std::endl;
     }
     parser_->UnInit();
     if (!parser_->SuccessfullyFinished()) {
@@ -117,16 +115,16 @@ int RaftLogTool::PrintHeaders(const std::string& fileName) {
 int SegmentParser::Init(const std::string& fileName) {
     fd_ = localFS_->Open(fileName.c_str(), O_RDONLY);
     if (fd_ < 0) {
-        std::cout << "Fail to open " << fileName << ", "
-                  << berror() << std::endl;
+        std::cout << "Fail to open " << fileName << ", " << berror()
+                  << std::endl;
         return -1;
     }
 
     // get file size
     struct stat stBuf;
     if (localFS_->Fstat(fd_, &stBuf) != 0) {
-        std::cout << "Fail to get the stat of " << fileName
-                  << ", " << berror() << std::endl;
+        std::cout << "Fail to get the stat of " << fileName << ", " << berror()
+                  << std::endl;
         localFS_->Close(fd_);
         return -1;
     }
@@ -135,9 +133,7 @@ int SegmentParser::Init(const std::string& fileName) {
     return 0;
 }
 
-void SegmentParser::UnInit() {
-    localFS_->Close(fd_);
-}
+void SegmentParser::UnInit() { localFS_->Close(fd_); }
 
 bool SegmentParser::GetNextEntryHeader(EntryHeader* head) {
     if (off_ >= fileLen_) {
@@ -147,12 +143,11 @@ bool SegmentParser::GetNextEntryHeader(EntryHeader* head) {
     const ssize_t n = localFS_->Read(fd_, buf, off_, ENTRY_HEADER_SIZE);
     if (n != (ssize_t)ENTRY_HEADER_SIZE) {
         if (n < 0) {
-            std::cout << "read header from file, fd: " << fd_ << ", offset: "
-                      << off_ << ", " << berror() << std::endl;
+            std::cout << "read header from file, fd: " << fd_
+                      << ", offset: " << off_ << ", " << berror() << std::endl;
         } else {
             std::cout << "Read size not match, header size: "
-                      << ENTRY_HEADER_SIZE << ", read size: "
-                      << n << std::endl;
+                      << ENTRY_HEADER_SIZE << ", read size: " << n << std::endl;
         }
         return false;
     }
@@ -162,19 +157,20 @@ bool SegmentParser::GetNextEntryHeader(EntryHeader* head) {
     uint32_t data_len = 0;
     uint32_t data_checksum = 0;
     uint32_t header_checksum = 0;
-    butil::RawUnpacker(buf).unpack64((uint64_t&)term)
-                  .unpack32(meta_field)
-                  .unpack32(data_len)
-                  .unpack32(data_checksum)
-                  .unpack32(header_checksum);
+    butil::RawUnpacker(buf)
+        .unpack64((uint64_t&)term)
+        .unpack32(meta_field)
+        .unpack32(data_len)
+        .unpack32(data_checksum)
+        .unpack32(header_checksum);
     EntryHeader tmp;
     tmp.term = term;
     tmp.type = meta_field >> 24;
     tmp.checksum_type = (meta_field << 8) >> 24;
     tmp.data_len = data_len;
     tmp.data_checksum = data_checksum;
-    if (!VerifyCheckSum(tmp.checksum_type,
-                        buf, ENTRY_HEADER_SIZE - 4, header_checksum)) {
+    if (!VerifyCheckSum(tmp.checksum_type, buf, ENTRY_HEADER_SIZE - 4,
+                        header_checksum)) {
         std::cout << "Found corrupted header at offset=" << off_
                   << ", header=" << tmp;
         return false;
@@ -189,30 +185,28 @@ bool SegmentParser::GetNextEntryHeader(EntryHeader* head) {
 int RaftLogTool::ParseFirstIndexFromFileName(const std::string& fileName,
                                              int64_t* firstIndex) {
     int match = 0;
-    int64_t lastIndex  = 0;
+    int64_t lastIndex = 0;
     std::string name;
-    auto pos =  fileName.find_last_of("/");
+    auto pos = fileName.find_last_of("/");
     if (pos == std::string::npos) {
         name = fileName;
     } else {
         name = fileName.substr(pos + 1);
     }
-    match = sscanf(name.c_str(), BRAFT_SEGMENT_CLOSED_PATTERN,
-        firstIndex, &lastIndex);
+    match = sscanf(name.c_str(), BRAFT_SEGMENT_CLOSED_PATTERN, firstIndex,
+                   &lastIndex);
     if (match == 2) {
         std::cout << "it is a closed segment, path: " << fileName
                   << " first index: " << *firstIndex
                   << " last index: " << lastIndex << std::endl;
     } else {
-        match = sscanf(name.c_str(), BRAFT_SEGMENT_OPEN_PATTERN,
-            firstIndex);
+        match = sscanf(name.c_str(), BRAFT_SEGMENT_OPEN_PATTERN, firstIndex);
         if (match == 1) {
-            std::cout << "it is a opening segment, path: "
-                      << fileName
+            std::cout << "it is a opening segment, path: " << fileName
                       << " first index: " << *firstIndex << std::endl;
         } else {
-            std::cout << "filename = " << fileName <<
-                         " is not a raft segment pattern!" << std::endl;
+            std::cout << "filename = " << fileName
+                      << " is not a raft segment pattern!" << std::endl;
             return -1;
         }
     }

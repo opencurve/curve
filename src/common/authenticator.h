@@ -30,31 +30,30 @@ namespace common {
 class Authenticator {
  public:
     /**
-     * bref: 获取要进行签名的字符串
-     * @param: date, 当前的时间
-     * @param: owner, 文件所有者
-     * @return: 返回需要进行加密的字符串
+     * bref: Get the string to be signed
+     * @param: date, current time
+     * @param: owner, file owner
+     * @return: Returns the string that needs to be encrypted
      */
     static std::string GetString2Signature(uint64_t date,
-                                          const std::string& owner);
+                                           const std::string& owner);
 
     /**
-     * bref: 为字符串计算签名
-     * @param: String2Signature, 需要进行签名计算的字符串
-     * @param: secretKey, 为计算的秘钥
-     * @return: 返回需要进行签名过后的字符串
+     * bref: Calculate signature for string
+     * @param: String2Signature, a string that requires signature calculation
+     * @param: secretKey, which is the calculated secret key
+     * @return: Returns the string that needs to be signed
      */
     static std::string CalcString2Signature(const std::string& String2Signature,
                                             const std::string& secretKey);
 
  private:
-    static int HMacSha256(const void* key, int key_size,
-                          const void* data, int data_size,
-                          void* digest);
+    static int HMacSha256(const void* key, int key_size, const void* data,
+                          int data_size, void* digest);
 
-    static std::string Base64(const unsigned char *src, size_t sz);
+    static std::string Base64(const unsigned char* src, size_t sz);
 };
-}   // namespace common
-}   // namespace curve
+}  // namespace common
+}  // namespace curve
 
 #endif  // SRC_COMMON_AUTHENTICATOR_H_

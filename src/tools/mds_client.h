@@ -23,55 +23,55 @@
 #ifndef SRC_TOOLS_MDS_CLIENT_H_
 #define SRC_TOOLS_MDS_CLIENT_H_
 
-#include <gflags/gflags.h>
 #include <brpc/channel.h>
+#include <gflags/gflags.h>
 #include <json/json.h>
 
-#include <vector>
 #include <iostream>
-#include <string>
 #include <map>
 #include <memory>
+#include <string>
 #include <unordered_map>
+#include <vector>
 
 #include "proto/nameserver2.pb.h"
-#include "proto/topology.pb.h"
 #include "proto/schedule.pb.h"
+#include "proto/topology.pb.h"
 #include "src/common/authenticator.h"
-#include "src/mds/common/mds_define.h"
+#include "src/common/net_common.h"
 #include "src/common/string_util.h"
 #include "src/common/timeutility.h"
-#include "src/common/net_common.h"
-#include "src/tools/metric_name.h"
-#include "src/tools/metric_client.h"
+#include "src/mds/common/mds_define.h"
 #include "src/tools/common.h"
 #include "src/tools/curve_tool_define.h"
+#include "src/tools/metric_client.h"
+#include "src/tools/metric_name.h"
 
+using curve::common::Authenticator;
+using curve::common::ChunkServerLocation;
+using curve::common::CopysetInfo;
 using curve::mds::FileInfo;
+using curve::mds::PageFileChunkInfo;
 using curve::mds::PageFileSegment;
 using curve::mds::StatusCode;
-using curve::mds::PageFileChunkInfo;
-using curve::mds::topology::kTopoErrCodeSuccess;
-using curve::mds::topology::ChunkServerInfo;
-using curve::common::ChunkServerLocation;
-using curve::mds::topology::CopySetServerInfo;
-using curve::mds::topology::ServerInfo;
-using curve::mds::topology::ZoneInfo;
-using curve::mds::topology::PhysicalPoolInfo;
-using curve::mds::topology::LogicalPoolInfo;
-using curve::common::CopysetInfo;
-using curve::mds::topology::ServerIdType;
-using curve::mds::topology::ZoneIdType;
-using curve::mds::topology::PoolIdType;
-using curve::mds::topology::CopySetIdType;
-using curve::mds::topology::ChunkServerIdType;
-using curve::mds::topology::ChunkServerStatus;
-using curve::mds::topology::ListChunkServerRequest;
-using curve::mds::topology::GetChunkServerInfoRequest;
-using curve::mds::topology::GetCopySetsInChunkServerRequest;
 using curve::mds::schedule::RapidLeaderScheduleRequst;
 using curve::mds::schedule::RapidLeaderScheduleResponse;
-using curve::common::Authenticator;
+using curve::mds::topology::ChunkServerIdType;
+using curve::mds::topology::ChunkServerInfo;
+using curve::mds::topology::ChunkServerStatus;
+using curve::mds::topology::CopySetIdType;
+using curve::mds::topology::CopySetServerInfo;
+using curve::mds::topology::GetChunkServerInfoRequest;
+using curve::mds::topology::GetCopySetsInChunkServerRequest;
+using curve::mds::topology::kTopoErrCodeSuccess;
+using curve::mds::topology::ListChunkServerRequest;
+using curve::mds::topology::LogicalPoolInfo;
+using curve::mds::topology::PhysicalPoolInfo;
+using curve::mds::topology::PoolIdType;
+using curve::mds::topology::ServerIdType;
+using curve::mds::topology::ServerInfo;
+using curve::mds::topology::ZoneIdType;
+using curve::mds::topology::ZoneInfo;
 
 namespace curve {
 namespace tool {
@@ -79,10 +79,10 @@ namespace tool {
 using curve::mds::topology::PoolsetInfo;
 
 enum class GetSegmentRes {
-    kOK = 0,   // 获取segment成功
-    kSegmentNotAllocated = -1,  // segment不存在
-    kFileNotExists = -2,  // 文件不存在
-    kOtherError = -3  // 其他错误
+    kOK = 0,                    // Successfully obtained segment
+    kSegmentNotAllocated = -1,  // segment does not exist
+    kFileNotExists = -2,        // File does not exist
+    kOtherError = -3            // Other errors
 };
 
 using AllocMap = std::unordered_map<PoolIdType, uint64_t>;
@@ -98,93 +98,99 @@ struct CreateFileContext {
 
 class MDSClient {
  public:
-    MDSClient() : currentMdsIndex_(0), userName_(""),
-                  password_(""), isInited_(false) {}
+    MDSClient()
+        : currentMdsIndex_(0), userName_(""), password_(""), isInited_(false) {}
     virtual ~MDSClient() = default;
 
     /**
-     *  @brief 初始化channel
-     *  @param mdsAddr mds的地址，支持多地址，用","分隔
-     *  @return 成功返回0，失败返回-1
+     * @brief Initialize channel
+     * @param mdsAddr Address of mds, supporting multiple addresses separated by
+     * ','
+     * @return returns 0 for success, -1 for failure
      */
     virtual int Init(const std::string& mdsAddr);
 
     /**
-     *  @brief 初始化channel
-     *  @param mdsAddr mds的地址，支持多地址，用","分隔
-     *  @param dummyPort dummy port列表，只输入一个的话
-     *         所有mds用同样的dummy port，用字符串分隔有多个的话
-     *         为每个mds设置不同的dummy port
-     *  @return 成功返回0，失败返回-1
+     * @brief Initialize channel
+     * @param mdsAddr Address of mds, supporting multiple addresses separated by
+     * ','
+     * @param dummyPort dummy port list, if only one is entered
+     *                  All mds use the same dummy port, separated by strings if
+     * there are multiple Set different dummy ports for each mds
+     * @return returns 0 for success, -1 for failure
      */
-    virtual int Init(const std::string& mdsAddr,
-                     const std::string& dummyPort);
+    virtual int Init(const std::string& mdsAddr, const std::string& dummyPort);
 
     /**
-     *  @brief 获取文件fileInfo
-     *  @param fileName 文件名
-     *  @param[out] fileInfo 文件fileInfo，返回值为0时有效
-     *  @return 成功返回0，失败返回-1
+     * @brief Get file fileInfo
+     * @param fileName File name
+     * @param[out] fileInfo file fileInfo, valid when the return value is 0
+     * @return returns 0 for success, -1 for failure
      */
     virtual int GetFileInfo(const std::string& fileName, FileInfo* fileInfo);
 
     /**
-     *  @brief 获取文件或目录分配大小
-     *  @param fileName 文件名
-     *  @param[out] allocSize 文件或目录分配大小，返回值为0时有效
-     *  @param[out] allocMap 文件在各个池子分配的情况
-     *  @return 成功返回0，失败返回-1
+     * @brief Get file or directory allocation size
+     * @param fileName File name
+     * @param[out] allocSize file or directory allocation size, valid when the
+     * return value is 0
+     * @param[out] allocMap Allocation of files in various pools
+     * @return returns 0 for success, -1 for failure
      */
     virtual int GetAllocatedSize(const std::string& fileName,
                                  uint64_t* allocSize,
                                  AllocMap* allocMap = nullptr);
 
     /**
-     *  @brief 获取文件或目录的大小
-     *  @param fileName 文件名
-     *  @param[out] fileSize 文件或目录分配大小，返回值为0时有效
-     *  @return 成功返回0，失败返回-1
+     * @brief Get the size of a file or directory
+     * @param fileName File name
+     * @param[out] fileSize File or directory allocation size, valid when the
+     * return value is 0
+     * @return returns 0 for success, -1 for failure
      */
-    virtual int GetFileSize(const std::string& fileName,
-                            uint64_t* fileSize);
+    virtual int GetFileSize(const std::string& fileName, uint64_t* fileSize);
 
     /**
-     *  @brief 将目录下所有的fileInfo列出来
-     *  @param dirName 目录名
-     *  @param[out] files 目录下的所有文件fileInfo，返回值为0时有效
-     *  @return 成功返回0，失败返回-1
+     * @brief List all fileInfo in the directory
+     * @param dirName directory name
+     * @param[out] files All fileInfo files in the directory are valid when the
+     * return value is 0
+     * @return returns 0 for success, -1 for failure
      */
     virtual int ListDir(const std::string& dirName,
                         std::vector<FileInfo>* files);
 
     /**
-     *  @brief 获取指定偏移的segment放到segment里面
-     *  @param fileName 文件名
-     *  @param offset 偏移值
-     *  @param[out] segment 文件中指定偏移的segmentInfo，返回值为0时有效
-     *  @return 返回GetSegmentRes，区分segment未分配和其他错误
+     * @brief Get the segment with the specified offset and place it in the
+     * segment
+     * @param fileName File name
+     * @param offset offset value
+     * @param[out] segment The segmentInfo of the specified offset in the file
+     * is valid when the return value is 0
+     * @return returns GetSegmentRes, distinguishing between unassigned segments
+     * and other errors
      */
     virtual GetSegmentRes GetSegmentInfo(const std::string& fileName,
-                                 uint64_t offset,
-                                 PageFileSegment* segment);
+                                         uint64_t offset,
+                                         PageFileSegment* segment);
 
     /**
-     *  @brief 删除文件
-     *  @param fileName 文件名
-     *  @param forcedelete 是否强制删除
-     *  @return 成功返回0，失败返回-1
+     * @brief Delete file
+     * @param fileName File name
+     * @param forcedelete: Do you want to force deletion
+     * @return returns 0 for success, -1 for failure
      */
     virtual int DeleteFile(const std::string& fileName,
                            bool forcedelete = false);
 
     /**
-     *  @brief create pageFile or directory
-     *  @param fileName file name or dir name
-     *  @param length 文件长度
-     *  @param normalFile is file or dir
-     *  @param stripeUnit stripe unit size
-     *  @param stripeCount the amount of stripes
-     *  @return 成功返回0，失败返回-1
+     * @brief create pageFile or directory
+     * @param fileName file name or dir name
+     * @param length File length
+     * @param normalFile is file or dir
+     * @param stripeUnit stripe unit size
+     * @param stripeCount the amount of stripes
+     * @return returns 0 for success, -1 for failure
      */
     virtual int CreateFile(const CreateFileContext& context);
 
@@ -195,144 +201,157 @@ class MDSClient {
      *  @return return 0 when success, -1 when fail
      */
     virtual int ListVolumesOnCopyset(
-                        const std::vector<common::CopysetInfo>& copysets,
-                        std::vector<std::string>* fileNames);
+        const std::vector<common::CopysetInfo>& copysets,
+        std::vector<std::string>* fileNames);
 
     /**
-     *  @brief 扩容卷
-     *  @param fileName 文件名
-     *  @param newSize 扩容后的卷大小
-     *  @return 成功返回0，失败返回-1
+     * @brief expansion volume
+     * @param fileName File name
+     * @param newSize The volume size after expansion
+     * @return returns 0 for success, -1 for failure
      */
     virtual int ExtendVolume(const std::string& fileName, uint64_t newSize);
 
     /**
-     *  @brief 列出client的dummyserver的地址
-     *  @param[out] clientAddrs client地址列表，返回0时有效
-     *  @param[out] listClientsInRepo 把数据库里的client也列出来
-     *  @return 成功返回0,失败返回-1
+     * @brief List the address of the client's dummyserver
+     * @param[out] clientAddrs client address list, valid when 0 is returned
+     * @param[out] listClientsInRepo also lists the clients in the database
+     * @return returns 0 for success, -1 for failure
      */
     virtual int ListClient(std::vector<std::string>* clientAddrs,
                            bool listClientsInRepo = false);
 
     /**
-     *  @brief 获取copyset中的chunkserver列表
-     *  @param logicalPoolId 逻辑池id
-     *  @param copysetId copyset id
-     *  @param[out] csLocs chunkserver位置的列表，返回值为0时有效
-     *  @return 成功返回0，失败返回-1
+     * @brief Get the list of chunkservers in the copyset
+     * @param logicalPoolId Logical Pool id
+     * @param copysetId copyset id
+     * @param[out] csLocs List of chunkserver locations, valid when the return
+     * value is 0
+     * @return returns 0 for success, -1 for failure
      */
-    virtual int GetChunkServerListInCopySet(const PoolIdType& logicalPoolId,
-                                     const CopySetIdType& copysetId,
-                                     std::vector<ChunkServerLocation>* csLocs);
+    virtual int GetChunkServerListInCopySet(
+        const PoolIdType& logicalPoolId, const CopySetIdType& copysetId,
+        std::vector<ChunkServerLocation>* csLocs);
 
     /**
-     *  @brief 获取copyset中的chunkserver列表
-     *  @param logicalPoolId 逻辑池id
-     *  @param copysetIds 要查询的copysetId的列表
-     *  @param[out] csServerInfos copyset成员的列表，返回值为0时有效
-     *  @return 成功返回0，失败返回-1
+     * @brief Get the list of chunkservers in the copyset
+     * @param logicalPoolId Logical Pool ID
+     * @param copysetIds List of copysetIds to query
+     * @param[out] csServerInfos A list of  copyset members, valid when the
+     * return value is 0
+     * @return returns 0 for success, -1 for failure
      */
-    virtual int GetChunkServerListInCopySets(const PoolIdType& logicalPoolId,
-                            const std::vector<CopySetIdType>& copysetIds,
-                            std::vector<CopySetServerInfo>* csServerInfos);
+    virtual int GetChunkServerListInCopySets(
+        const PoolIdType& logicalPoolId,
+        const std::vector<CopySetIdType>& copysetIds,
+        std::vector<CopySetServerInfo>* csServerInfos);
 
     /**
-     *  @brief 获取集群中的物理池列表
-     *  @param[out] pools 物理池信息的列表，返回值为0时有效
-     *  @return 成功返回0，失败返回-1
+     * @brief Get a list of physical pools in the cluster
+     * @param[out] pools A list of physical pool information, valid when the
+     * return value is 0
+     * @return returns 0 for success, -1 for failure
      */
     virtual int ListPhysicalPoolsInCluster(
-                        std::vector<PhysicalPoolInfo>* pools);
-
+        std::vector<PhysicalPoolInfo>* pools);
 
     /**
-     *  @brief 获取物理池中的逻辑池列表
-     *  @param id 物理池id
-     *  @param[out] pools 逻辑池信息的列表，返回值为0时有效
-     *  @return 成功返回0，失败返回-1
+     * @brief Get a list of logical pools in the physical pool
+     * @param id Physical pool id
+     * @param[out] pools List of logical pool information, valid when the return
+     * value is 0
+     * @return returns 0 for success, -1 for failure
      */
-    virtual int ListLogicalPoolsInPhysicalPool(const PoolIdType& id,
-                                       std::vector<LogicalPoolInfo>* pools);
+    virtual int ListLogicalPoolsInPhysicalPool(
+        const PoolIdType& id, std::vector<LogicalPoolInfo>* pools);
 
     /**
-     *  @brief 集群中的逻辑池列表
-     *  @param[out] pools 逻辑池信息的列表，返回值为0时有效
-     *  @return 成功返回0，失败返回-1
+     *List of logical pools in the  @brief cluster
+     * @param[out] pools List of logical pool information, valid when the return
+     *value is 0
+     * @return returns 0 for success, -1 for failure
      */
     virtual int ListLogicalPoolsInCluster(std::vector<LogicalPoolInfo>* pools);
 
     /**
-     *  @brief 获取物理池中的zone列表
-     *  @param id 物理池id
-     *  @param[out] zones zone信息的列表，返回值为0时有效
-     *  @return 成功返回0，失败返回-1
+     * @brief to obtain a list of zones in the physical pool
+     * @param id Physical pool id
+     * @param[out] zones A list of zone information, valid when the return value
+     * is 0
+     * @return returns 0 for success, -1 for failure
      */
     virtual int ListZoneInPhysicalPool(const PoolIdType& id,
-                               std::vector<ZoneInfo>* zones);
+                                       std::vector<ZoneInfo>* zones);
 
     /**
-     *  @brief 获取zone中的server列表
-     *  @param id zone id
-     *  @param[out] servers server信息的列表，返回值为0时有效
-     *  @return 成功返回0，失败返回-1
+     * @brief to obtain a list of servers in the zone
+     * @param id zone id
+     * @param[out] servers List of server information, valid when the return
+     * value is 0
+     * @return returns 0 for success, -1 for failure
      */
     virtual int ListServersInZone(const ZoneIdType& id,
-                          std::vector<ServerInfo>* servers);
+                                  std::vector<ServerInfo>* servers);
 
     /**
-     *  @brief 获取server上的chunkserver的列表
-     *  @param id server id
-     *  @param[out] chunkservers chunkserver信息的列表，返回值为0时有效
-     *  @return 成功返回0，失败返回-1
+     * @brief Get a list of chunkservers on the server
+     * @param id server id
+     * @param[out] chunkservers A list of chunkserver information, valid when
+     * the return value is 0
+     * @return returns 0 for success, -1 for failure
      */
-    virtual int ListChunkServersOnServer(const ServerIdType& id,
-                                 std::vector<ChunkServerInfo>* chunkservers);
+    virtual int ListChunkServersOnServer(
+        const ServerIdType& id, std::vector<ChunkServerInfo>* chunkservers);
 
     /**
-     *  @brief 获取server上的chunkserver的列表
-     *  @param ip server ip
-     *  @param[out] chunkservers chunkserver信息的列表，返回值为0时有效
-     *  @return 成功返回0，失败返回-1
+     * @brief Get a list of chunkservers on the server
+     * @param ip server ip
+     * @param[out] chunkservers A list of chunkserver information, valid when
+     * the return value is 0
+     * @return returns 0 for success, -1 for failure
      */
-    virtual int ListChunkServersOnServer(const std::string& ip,
-                                 std::vector<ChunkServerInfo>* chunkservers);
+    virtual int ListChunkServersOnServer(
+        const std::string& ip, std::vector<ChunkServerInfo>* chunkservers);
 
     /**
-     *  @brief 获取chunkserver的详细信息
-     *  @param id chunkserver id
-     *  @param[out] chunkserver chunkserver的详细信息，返回值为0时有效
-     *  @return 成功返回0，失败返回-1
+     * @brief Get detailed information about chunkserver
+     * @param id chunkserver id
+     * @param[out] chunkserver The detailed information of chunkserver is valid
+     * when the return value is 0
+     * @return returns 0 for success, -1 for failure
      */
     virtual int GetChunkServerInfo(const ChunkServerIdType& id,
-                           ChunkServerInfo* chunkserver);
+                                   ChunkServerInfo* chunkserver);
 
     /**
-     *  @brief 获取chunkserver的详细信息
-     *  @param csAddr chunkserver的地址，ip:port的格式
-     *  @param[out] chunkserver chunkserver的详细信息，返回值为0时有效
-     *  @return 成功返回0，失败返回-1
+     * @brief Get detailed information about chunkserver
+     * @param csAddr The address of chunkserver, in the format of ip:port
+     * @param[out] chunkserver The detailed information of chunkserver is valid
+     * when the return value is 0
+     * @return returns 0 for success, -1 for failure
      */
     virtual int GetChunkServerInfo(const std::string& csAddr,
-                           ChunkServerInfo* chunkserver);
+                                   ChunkServerInfo* chunkserver);
 
     /**
-     *  @brief 获取chunkserver上的所有copyset
-     *  @param id chunkserver的id
-     *  @param[out] copysets chunkserver上copyset的详细信息，返回值为0时有效
-     *  @return 成功返回0，失败返回-1
+     * @brief Get all copysets on chunkserver
+     * @param id The id of chunkserver
+     * @param[out] copysets Details of copysets on chunkserver, valid when the
+     * return value is 0
+     * @return returns 0 for success, -1 for failure
      */
     virtual int GetCopySetsInChunkServer(const ChunkServerIdType& id,
-                                 std::vector<CopysetInfo>* copysets);
+                                         std::vector<CopysetInfo>* copysets);
 
     /**
-     *  @brief 获取chunkserver上的所有copyset
-     *  @param csAddr chunkserver的地址，ip:port的格式
-     *  @param[out] copysets chunkserver上copyset的详细信息，返回值为0时有效
-     *  @return 成功返回0，失败返回-1
+     * @brief Get all copysets on chunkserver
+     * @param csAddr The address of chunkserver, in the format of ip: port
+     * @param[out] copysets Details of copysets on chunkserver, valid when the
+     * return value is 0
+     * @return returns 0 for success, -1 for failure
      */
     virtual int GetCopySetsInChunkServer(const std::string& csAddr,
-                                 std::vector<CopysetInfo>* copysets);
+                                         std::vector<CopysetInfo>* copysets);
 
     /**
      * @brief Get all copysets in cluster
@@ -350,32 +369,33 @@ class MDSClient {
      * @param[out] copysetInfo the copyset
      * @return 0 if success, else return -1
      */
-    virtual int GetCopyset(PoolIdType lpid,
-                           CopySetIdType copysetId,
+    virtual int GetCopyset(PoolIdType lpid, CopySetIdType copysetId,
                            CopysetInfo* copysetInfo);
 
     /**
-     *  @brief 列出集群中的所有server
-     *  @param[out] servers server信息的列表，返回值为0时有效
-     *  @return 成功返回0，失败返回-1
+     * @brief List all servers in the cluster
+     * @param[out] servers List of server information, valid when the return
+     * value is 0
+     * @return returns 0 for success, -1 for failure
      */
     virtual int ListServersInCluster(std::vector<ServerInfo>* servers);
 
     /**
-     *  @brief 列出集群中的所有chunkserver
-     *  @param[out] chunkservers server信息的列表，返回值为0时有效
-     *  @return 成功返回0，失败返回-1
+     * @brief List all chunkservers in the cluster
+     * @param[out] chunkservers A list of server information, valid when the
+     * return value is 0
+     * @return returns 0 for success, -1 for failure
      */
     virtual int ListChunkServersInCluster(
-                        std::vector<ChunkServerInfo>* chunkservers);
+        std::vector<ChunkServerInfo>* chunkservers);
 
     /**
      *  @brief list all the chunkservers with poolid in cluster
      *  @param[out] chunkservers chunkserver info
      *  @return succeed return 0; failed return -1;
      */
-    virtual int ListChunkServersInCluster(std::map<PoolIdType,
-                            std::vector<ChunkServerInfo>>* chunkservers);
+    virtual int ListChunkServersInCluster(
+        std::map<PoolIdType, std::vector<ChunkServerInfo>>* chunkservers);
 
     /**
      *  @brief set copysets available flag
@@ -394,57 +414,54 @@ class MDSClient {
     virtual int ListUnAvailCopySets(std::vector<CopysetInfo>* copysets);
 
     /**
-     *  @brief 获取mds的某个metric的值
-     *  @param metricName metric的名字
-     *  @param[out] value metric的值，返回值为0时有效
-     *  @return 成功返回0，失败返回-1
+     * @brief Get the value of a metric for mds
+     * @param metricName The name of the metric
+     * @param[out] value The value of metric is valid when the return value is 0
+     * @return returns 0 for success, -1 for failure
      */
     virtual int GetMetric(const std::string& metricName, uint64_t* value);
 
     /**
-     *  @brief 获取mds的某个metric的值
-     *  @param metricName metric的名子
-     *  @param[out] value metric的值，返回值为0时有效
-     *  @return 成功返回0，失败返回-1
+     * @brief Get the value of a metric for mds
+     * @param metricName  The name of metric
+     * @param[out] value The value of metric is valid when the return value is 0
+     * @return returns 0 for success, -1 for failure
      */
     virtual int GetMetric(const std::string& metricName, std::string* value);
 
     /**
-     *  @brief 设置userName，访问namespace接口的时候调用
-     *  @param userName 用户名
+     * @brief sets userName and calls it when accessing the namespace interface
+     * @param userName username
      */
-    void SetUserName(const std::string& userName) {
-        userName_ = userName;
-    }
+    void SetUserName(const std::string& userName) { userName_ = userName; }
 
     /**
-     *  @brief 设置password，访问namespace接口的时候调用
-     *  @param password 密码
+     * @brief sets the password and calls it when accessing the namespace
+     * interface
+     * @param password password
      */
-    void SetPassword(const std::string& password) {
-        password_ = password;
-    }
+    void SetPassword(const std::string& password) { password_ = password; }
 
     /**
-     *  @brief 获取mds地址列表
-     *  @return mds地址的列表
+     * @brief Get mds address list
+     * @return List of mds addresses
      */
     virtual const std::vector<std::string>& GetMdsAddrVec() const {
         return mdsAddrVec_;
     }
 
     virtual const std::map<std::string, std::string>& GetDummyServerMap()
-                                                        const {
+        const {
         return dummyServerMap_;
     }
 
     /**
-     *  @brief 获取当前mds的地址
+     * @brief Get the address of the current mds
      */
     virtual std::vector<std::string> GetCurrentMds();
 
     /**
-     * @brief 向mds发送rpc触发快速leader均衡
+     * @brief sends rpc to mds to trigger fast leader balancing
      */
     virtual int RapidLeaderSchedule(PoolIdType lpid);
 
@@ -457,23 +474,25 @@ class MDSClient {
     virtual int SetLogicalPoolScanState(PoolIdType lpid, bool scanEnable);
 
     /**
-     *  @brief 获取mds在线状态,
-     *          dummyserver在线且dummyserver记录的listen addr
-     *          与mds地址一致才认为在线
-     *  @param[out] onlineStatus mds在线状态，返回0时有效
-     *  @return 成功返回0,失败返回-1
+     * @brief to obtain mds online status,
+     *          dummyserver is online and the dummyserver records a listen addr
+     *          Only when the address is consistent with the mds address is
+     * considered online
+     * @param[out] onlineStatus mds online status, valid when returned to 0
+     * @return returns 0 for success, -1 for failure
      */
     virtual void GetMdsOnlineStatus(std::map<std::string, bool>* onlineStatus);
 
     /**
-     *  @brief 获取指定chunkserver的恢复状态
-     *  @param[in] cs 需要查询的chunkserver列表
-     *  @param[out] statusMap 返回各chunkserver对应的恢复状态
-     *  @return 成功返回0，失败返回-1
+     * @brief Get the recovery status of the specified chunkserver
+     * @param[in] cs List of chunkservers to query
+     * @param[out] statusMap returns the recovery status corresponding to each
+     * chunkserver
+     * @return returns 0 for success, -1 for failure
      */
     int QueryChunkServerRecoverStatus(
         const std::vector<ChunkServerIdType>& cs,
-        std::map<ChunkServerIdType, bool> *statusMap);
+        std::map<ChunkServerIdType, bool>* statusMap);
 
     virtual int UpdateFileThrottleParams(
         const std::string& fileName, const curve::mds::ThrottleParams& params);
@@ -482,86 +501,88 @@ class MDSClient {
 
  private:
     /**
-     *  @brief 切换mds
-     *  @return 切换成功返回true，所有mds都失败则返回false
+     * @brief switch mds
+     * @return returns true if the switch is successful, and false if all mds
+     * fail
      */
     bool ChangeMDServer();
 
     /**
-     *  @brief 向mds发送RPC，为了复用代码
-     *  @param
-     *  @return 成功返回0，失败返回-1
+     * @brief sends RPC to mds for code reuse
+     * @param
+     * @return returns 0 for success, -1 for failure
      */
     template <typename T, typename Request, typename Response>
     int SendRpcToMds(Request* request, Response* response, T* obp,
-                void (T::*func)(google::protobuf::RpcController*,
-                            const Request*, Response*,
-                            google::protobuf::Closure*));
+                     void (T::*func)(google::protobuf::RpcController*,
+                                     const Request*, Response*,
+                                     google::protobuf::Closure*));
 
     /**
-     *  @brief 获取server上的chunkserver的列表
-     *  @param request 要发送的request
-     *  @param[out] chunkservers chunkserver信息的列表，返回值为0时有效
-     *  @return 成功返回0，失败返回-1
+     * @brief Get a list of chunkservers on the server
+     * @param request The request to be sent
+     * @param[out] chunkservers A list of chunkserver information, valid when
+     * the return value is 0
+     * @return returns 0 for success, -1 for failure
      */
     int ListChunkServersOnServer(ListChunkServerRequest* request,
                                  std::vector<ChunkServerInfo>* chunkservers);
 
     /**
-     *  @brief 获取chunkserver的详细信息
-     *  @param request 要发送的request
-     *  @param[out] chunkserver chunkserver的详细信息，返回值为0时有效
-     *  @return 成功返回0，失败返回-1
+     * @brief Get detailed information about chunkserver
+     * @param request The request to be sent
+     * @param[out] chunkserver The detailed information of chunkserver is valid
+     * when the return value is 0
+     * @return returns 0 for success, -1 for failure
      */
     int GetChunkServerInfo(GetChunkServerInfoRequest* request,
-                                  ChunkServerInfo* chunkserver);
+                           ChunkServerInfo* chunkserver);
 
     /**
-     *  @brief 获取chunkserver的详细信息
-     *  @param request 要发送的request
-     *  @param[out] copysets chunkserver上copyset的详细信息，返回值为0时有效
-     *  @return 成功返回0，失败返回-1
+     * @brief Get detailed information about chunkserver
+     * @param request The request to be sent
+     * @param[out] copysets Details of copysets on chunkserver, valid when the
+     * return value is 0
+     * @return returns 0 for success, -1 for failure
      */
-    int GetCopySetsInChunkServer(
-                            GetCopySetsInChunkServerRequest* request,
-                            std::vector<CopysetInfo>* copysets);
+    int GetCopySetsInChunkServer(GetCopySetsInChunkServerRequest* request,
+                                 std::vector<CopysetInfo>* copysets);
 
     /**
-     *  @brief 初始化dummy server地址
-     *  @param dummyPort dummy server端口列表
-     *  @return 成功返回0，失败返回-1
+     * @brief Initialize dummy server address
+     * @param dummyPort dummy server port list
+     * @return returns 0 for success, -1 for failure
      */
     int InitDummyServerMap(const std::string& dummyPort);
 
     /**
-     *  @brief 通过dummyServer获取mds的监听地址
-     *  @param dummyAddr dummyServer的地址
-     *  @param[out] listenAddr mds的监听地址
-     *  @return 成功返回0，失败返回-1
+     * @brief: Obtain the listening address of mds through dummyServer
+     * @param dummyAddr Address of dummyServer
+     * @param[out] listenAddr mds listening address
+     * @return returns 0 for success, -1 for failure
      */
     int GetListenAddrFromDummyPort(const std::string& dummyAddr,
                                    std::string* listenAddr);
 
-
-    // 填充signature
+    // Fill in the signature
     template <class T>
     void FillUserInfo(T* request);
 
-    // 用于发送http请求的client
+    // client used to send HTTP requests
     MetricClient metricClient_;
-    // 向mds发送RPC的channel
+    // Send RPC channel to mds
     brpc::Channel channel_;
-    // 保存mds地址的vector
+    // Save vector for mds address
     std::vector<std::string> mdsAddrVec_;
-    // 保存mds地址对应的dummy server的地址
+    // Save the address of the dummy server corresponding to the mds address
     std::map<std::string, std::string> dummyServerMap_;
-    // 保存当前mds在mdsAddrVec_中的索引
+    // Save the current mds in mdsAddrVec_ Index in
     int currentMdsIndex_;
-    // 用户名
+    // User name
     std::string userName_;
-    // 密码
+    // Password
     std::string password_;
-    // 避免重复初始化
+    // Avoiding duplicate initialization
     bool isInited_;
 };
 }  // namespace tool

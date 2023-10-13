@@ -21,6 +21,7 @@
  */
 
 #include "src/chunkserver/raftsnapshot/curve_snapshot_attachment.h"
+
 #include "src/common/fs_util.h"
 
 namespace curve {
@@ -31,11 +32,11 @@ CurveSnapshotAttachment::CurveSnapshotAttachment(
     : fileHelper_(fs) {}
 
 void CurveSnapshotAttachment::list_attach_files(
-    std::vector<std::string> *files, const std::string& raftSnapshotPath) {
+    std::vector<std::string>* files, const std::string& raftSnapshotPath) {
     std::string raftBaseDir =
-                    getCurveRaftBaseDir(raftSnapshotPath, RAFT_SNAP_DIR);
+        getCurveRaftBaseDir(raftSnapshotPath, RAFT_SNAP_DIR);
     std::string dataDir;
-    if (raftBaseDir[raftBaseDir.length()-1] != '/') {
+    if (raftBaseDir[raftBaseDir.length() - 1] != '/') {
         dataDir = raftBaseDir + "/" + RAFT_DATA_DIR;
     } else {
         dataDir = raftBaseDir + RAFT_DATA_DIR;
@@ -43,23 +44,23 @@ void CurveSnapshotAttachment::list_attach_files(
 
     std::vector<std::string> snapFiles;
     int rc = fileHelper_.ListFiles(dataDir, nullptr, &snapFiles);
-    // list出错一般认为就是磁盘出现问题了，这种情况直接让进程挂掉
-    // Attention: 这里还需要更仔细考虑
+    // An error in the list is generally believed to be due to a disk issue,
+    // which directly causes the process to crash Attention: More careful
+    // consideration is needed here
     CHECK(rc == 0) << "List dir failed.";
 
     files->clear();
-    // 文件路径格式与snapshot_meta中的格式要相同
+    // File path format and the format in snapshot_meta should be the same
     for (const auto& snapFile : snapFiles) {
         std::string snapApath;
-        // 添加绝对路径
+        // Add absolute path
         snapApath.append(dataDir);
         snapApath.append("/").append(snapFile);
-        std::string filePath = curve::common::CalcRelativePath(
-                                    raftSnapshotPath, snapApath);
+        std::string filePath =
+            curve::common::CalcRelativePath(raftSnapshotPath, snapApath);
         files->emplace_back(filePath);
     }
 }
-
 
 }  // namespace chunkserver
 }  // namespace curve

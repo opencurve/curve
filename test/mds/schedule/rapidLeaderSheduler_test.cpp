@@ -20,20 +20,20 @@
  * Author: lixiaocui
  */
 
-#include "test/mds/schedule/mock_topoAdapter.h"
-#include "test/mds/mock/mock_topology.h"
-#include "test/mds/schedule/common.h"
+#include "src/mds/schedule/operatorFactory.h"
 #include "src/mds/schedule/scheduleMetrics.h"
 #include "src/mds/schedule/scheduler.h"
-#include "src/mds/schedule/operatorFactory.h"
+#include "test/mds/mock/mock_topology.h"
+#include "test/mds/schedule/common.h"
+#include "test/mds/schedule/mock_topoAdapter.h"
 
 using ::curve::mds::topology::MockTopology;
 
 using ::testing::_;
-using ::testing::Return;
 using ::testing::AtLeast;
-using ::testing::SetArgPointee;
 using ::testing::DoAll;
+using ::testing::Return;
+using ::testing::SetArgPointee;
 
 namespace curve {
 namespace mds {
@@ -55,14 +55,17 @@ class TestRapidLeaderSchedule : public ::testing::Test {
 
         auto testCopySetInfo = GetCopySetInfoForTest();
         ChunkServerInfo csInfo1(testCopySetInfo.peers[0], OnlineState::ONLINE,
-            DiskState::DISKNORMAL, ChunkServerStatus::READWRITE,
-            1, 100, 100, ChunkServerStatisticInfo{});
+                                DiskState::DISKNORMAL,
+                                ChunkServerStatus::READWRITE, 1, 100, 100,
+                                ChunkServerStatisticInfo{});
         ChunkServerInfo csInfo2(testCopySetInfo.peers[1], OnlineState::ONLINE,
-            DiskState::DISKNORMAL, ChunkServerStatus::READWRITE,
-            0, 100, 100, ChunkServerStatisticInfo{});
+                                DiskState::DISKNORMAL,
+                                ChunkServerStatus::READWRITE, 0, 100, 100,
+                                ChunkServerStatisticInfo{});
         ChunkServerInfo csInfo3(testCopySetInfo.peers[2], OnlineState::ONLINE,
-            DiskState::DISKNORMAL, ChunkServerStatus::READWRITE,
-            0, 100, 100, ChunkServerStatisticInfo{});
+                                DiskState::DISKNORMAL,
+                                ChunkServerStatus::READWRITE, 0, 100, 100,
+                                ChunkServerStatisticInfo{});
         chunkServerInfos_.emplace_back(csInfo1);
         chunkServerInfos_.emplace_back(csInfo2);
         chunkServerInfos_.emplace_back(csInfo3);
@@ -77,14 +80,14 @@ class TestRapidLeaderSchedule : public ::testing::Test {
 
 TEST_F(TestRapidLeaderSchedule, test_logicalPool_not_exist) {
     std::shared_ptr<RapidLeaderScheduler> rapidLeaderScheduler;
-    // 1. mds没有任何logicalpool
+    // 1. Mds does not have any logicalpool
     {
         rapidLeaderScheduler = std::make_shared<RapidLeaderScheduler>(
             opt_, topoAdapter_, opController_, 2);
         EXPECT_CALL(*topoAdapter_, GetLogicalpools())
             .WillOnce(Return(std::vector<PoolIdType>{}));
         ASSERT_EQ(kScheduleErrCodeInvalidLogicalPool,
-            rapidLeaderScheduler->Schedule());
+                  rapidLeaderScheduler->Schedule());
 
         rapidLeaderScheduler = std::make_shared<RapidLeaderScheduler>(
             opt_, topoAdapter_, opController_, 0);
@@ -93,21 +96,21 @@ TEST_F(TestRapidLeaderSchedule, test_logicalPool_not_exist) {
         ASSERT_EQ(kScheduleErrCodeSuccess, rapidLeaderScheduler->Schedule());
     }
 
-    // 2. mds逻辑池列表中没有指定logicalpool
+    // 2. No logicalpool specified in the mds logical pool list
     {
         rapidLeaderScheduler = std::make_shared<RapidLeaderScheduler>(
             opt_, topoAdapter_, opController_, 2);
         EXPECT_CALL(*topoAdapter_, GetLogicalpools())
             .WillOnce(Return(std::vector<PoolIdType>{1}));
         ASSERT_EQ(kScheduleErrCodeInvalidLogicalPool,
-            rapidLeaderScheduler->Schedule());
+                  rapidLeaderScheduler->Schedule());
     }
 }
 
 TEST_F(TestRapidLeaderSchedule, test_initResource_no_need_schedule) {
     std::shared_ptr<RapidLeaderScheduler> rapidLeaderScheduler;
     {
-        // 1. 指定logicalpool中没有chunkserver
+        // 1. There is no chunkserver in the specified logicalpool
         EXPECT_CALL(*topoAdapter_, GetLogicalpools())
             .WillOnce(Return(std::vector<PoolIdType>{1}));
         EXPECT_CALL(*topoAdapter_, GetChunkServersInLogicalPool(1))
@@ -121,7 +124,7 @@ TEST_F(TestRapidLeaderSchedule, test_initResource_no_need_schedule) {
     }
 
     {
-        // 2. 指定logicalpool中没有copyset
+        // 2. There is no copyset in the specified logicalpool
         EXPECT_CALL(*topoAdapter_, GetLogicalpools())
             .WillOnce(Return(std::vector<PoolIdType>{1}));
         EXPECT_CALL(*topoAdapter_, GetChunkServersInLogicalPool(1))
@@ -141,7 +144,8 @@ TEST_F(TestRapidLeaderSchedule, test_select_target_fail) {
         opt_, topoAdapter_, opController_, 1);
 
     {
-        // 1. copyset的副本数目为1, 不会产生迁移
+        // 1. The number of copies for copyset is 1, and migration will not
+        // occur
         EXPECT_CALL(*topoAdapter_, GetLogicalpools())
             .WillOnce(Return(std::vector<PoolIdType>{1}));
         EXPECT_CALL(*topoAdapter_, GetChunkServersInLogicalPool(1))
@@ -158,16 +162,17 @@ TEST_F(TestRapidLeaderSchedule, test_select_target_fail) {
     }
 
     {
-        // 2. chunkserver上拥有的leader数目最多相差1, 不会产生迁移
+        // 2. The maximum difference in the number of leaders owned on
+        // chunkserver is 1, and migration will not occur
         //      chunkserver-1        chunkserver-2        chunkserver-3
         //      copyset-1(leader)      copyset-1            copyset-1
         EXPECT_CALL(*topoAdapter_, GetLogicalpools())
-        .WillOnce(Return(std::vector<PoolIdType>{1}));
+            .WillOnce(Return(std::vector<PoolIdType>{1}));
         EXPECT_CALL(*topoAdapter_, GetChunkServersInLogicalPool(1))
             .WillOnce(Return(chunkServerInfos_));
         EXPECT_CALL(*topoAdapter_, GetCopySetInfosInLogicalPool(1))
-            .WillOnce(Return(
-                std::vector<CopySetInfo>{GetCopySetInfoForTest()}));
+            .WillOnce(
+                Return(std::vector<CopySetInfo>{GetCopySetInfoForTest()}));
 
         ASSERT_EQ(kScheduleErrCodeSuccess, rapidLeaderScheduler->Schedule());
         ASSERT_EQ(0, opController_->GetOperators().size());
@@ -175,7 +180,7 @@ TEST_F(TestRapidLeaderSchedule, test_select_target_fail) {
 }
 
 TEST_F(TestRapidLeaderSchedule, test_rapid_schedule_success) {
-    // 快速均衡成功
+    // Fast balancing successful
     //      chunkserver-1        chunkserver-2        chunkserver-3
     //      copyset-1(leader)      copyset-1            copyset-1
     //      copyset-2(leader)      copyset-2            copyset-2
@@ -189,7 +194,7 @@ TEST_F(TestRapidLeaderSchedule, test_rapid_schedule_success) {
     auto chunkserverInfosBak = chunkServerInfos_;
     chunkserverInfosBak[0].leaderCount = 3;
     EXPECT_CALL(*topoAdapter_, GetChunkServersInLogicalPool(1))
-            .WillOnce(Return(chunkserverInfosBak));
+        .WillOnce(Return(chunkserverInfosBak));
 
     auto copyset1 = GetCopySetInfoForTest();
     auto copyset2 = GetCopySetInfoForTest();
@@ -197,8 +202,8 @@ TEST_F(TestRapidLeaderSchedule, test_rapid_schedule_success) {
     auto copyset3 = GetCopySetInfoForTest();
     copyset3.id = CopySetKey{1, 3};
     EXPECT_CALL(*topoAdapter_, GetCopySetInfosInLogicalPool(1))
-            .WillOnce(Return(
-                std::vector<CopySetInfo>{copyset1, copyset2, copyset3}));
+        .WillOnce(
+            Return(std::vector<CopySetInfo>{copyset1, copyset2, copyset3}));
     OperatorFactory factory;
     opController_->AddOperator(factory.CreateRemovePeerOperator(
         copyset2, 2, OperatorPriority::NormalPriority));
@@ -206,18 +211,18 @@ TEST_F(TestRapidLeaderSchedule, test_rapid_schedule_success) {
     ASSERT_EQ(kScheduleErrCodeSuccess, rapidLeaderScheduler->Schedule());
     auto operators = opController_->GetOperators();
     ASSERT_EQ(3, operators.size());
-    auto op1 = dynamic_cast<TransferLeader *>(operators[0].step.get());
+    auto op1 = dynamic_cast<TransferLeader*>(operators[0].step.get());
     ASSERT_TRUE(nullptr != op1);
     ASSERT_EQ(2, op1->GetTargetPeer());
     ASSERT_EQ(1, operators[0].copysetID.second);
-    auto op2 = dynamic_cast<TransferLeader *>(operators[2].step.get());
+    auto op2 = dynamic_cast<TransferLeader*>(operators[2].step.get());
     ASSERT_TRUE(nullptr != op2);
     ASSERT_EQ(3, op2->GetTargetPeer());
     ASSERT_EQ(3, operators[2].copysetID.second);
 }
 
 TEST_F(TestRapidLeaderSchedule, test_rapid_schedule_pendding) {
-    // 快速均衡成功
+    // Fast balancing successful
     //      chunkserver-1        chunkserver-2        chunkserver-3
     //      copyset-1(leader)      copyset-1            copyset-1
     //      copyset-2(leader)      copyset-2            copyset-2
@@ -232,7 +237,7 @@ TEST_F(TestRapidLeaderSchedule, test_rapid_schedule_pendding) {
     chunkserverInfosBak[0].leaderCount = 3;
     chunkserverInfosBak[0].status = ChunkServerStatus::PENDDING;
     EXPECT_CALL(*topoAdapter_, GetChunkServersInLogicalPool(1))
-            .WillOnce(Return(chunkserverInfosBak));
+        .WillOnce(Return(chunkserverInfosBak));
 
     auto copyset1 = GetCopySetInfoForTest();
     auto copyset2 = GetCopySetInfoForTest();
@@ -240,8 +245,8 @@ TEST_F(TestRapidLeaderSchedule, test_rapid_schedule_pendding) {
     auto copyset3 = GetCopySetInfoForTest();
     copyset3.id = CopySetKey{1, 3};
     EXPECT_CALL(*topoAdapter_, GetCopySetInfosInLogicalPool(1))
-            .WillOnce(Return(
-                std::vector<CopySetInfo>{copyset1, copyset2, copyset3}));
+        .WillOnce(
+            Return(std::vector<CopySetInfo>{copyset1, copyset2, copyset3}));
 
     ASSERT_EQ(kScheduleErrCodeSuccess, rapidLeaderScheduler->Schedule());
     auto operators = opController_->GetOperators();

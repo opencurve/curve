@@ -26,9 +26,10 @@
 #include <stdint.h>
 #include <sys/time.h>
 #include <sys/types.h>
+
+#include <ctime>
 #include <string>
 #include <vector>
-#include <ctime>
 
 namespace nebd {
 namespace common {
@@ -53,7 +54,8 @@ class TimeUtility {
         return tm.tv_sec;
     }
 
-    // 时间戳转成标准时间输出在standard里面,时间戳单位为秒
+    // Convert the timestamp to standard time and output it in standard, with
+    // the timestamp unit in seconds
     static inline void TimeStampToStandard(time_t timeStamp,
                                            std::string* standard) {
         char now[64];
@@ -64,7 +66,7 @@ class TimeUtility {
     }
 };
 
-}   // namespace common
-}   // namespace nebd
+}  // namespace common
+}  // namespace nebd
 
-#endif   // NEBD_SRC_COMMON_TIMEUTILITY_H_
+#endif  // NEBD_SRC_COMMON_TIMEUTILITY_H_

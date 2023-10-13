@@ -19,27 +19,26 @@
  * File Created: Tuesday, 25th September 2018 2:06:35 pm
  * Author: tongguangxun
  */
-#include <glog/logging.h>
+#include "src/client/metacache.h"
 
 #include <bthread/bthread.h>
+#include <glog/logging.h>
 
+#include <algorithm>
 #include <utility>
 #include <vector>
-#include <algorithm>
 
 #include "proto/cli.pb.h"
-
-#include "src/client/metacache.h"
-#include "src/client/mds_client.h"
 #include "src/client/client_common.h"
+#include "src/client/mds_client.h"
 #include "src/common/concurrent/concurrent.h"
 
 namespace curve {
 namespace client {
 
-using curve::common::WriteLockGuard;
-using curve::common::ReadLockGuard;
 using curve::client::ClientConfig;
+using curve::common::ReadLockGuard;
+using curve::common::WriteLockGuard;
 
 void MetaCache::Init(const MetaCacheOption& metaCacheOpt,
                      MDSClient* mdsclient) {
@@ -87,12 +86,9 @@ bool MetaCache::IsLeaderMayChange(LogicPoolID logicPoolId,
     return flag;
 }
 
-int MetaCache::GetLeader(LogicPoolID logicPoolId,
-                         CopysetID copysetId,
-                         ChunkServerID* serverId,
-                         EndPoint* serverAddr,
-                         bool refresh,
-                         FileMetric* fm) {
+int MetaCache::GetLeader(LogicPoolID logicPoolId, CopysetID copysetId,
+                         ChunkServerID* serverId, EndPoint* serverAddr,
+                         bool refresh, FileMetric* fm) {
     const auto key = CalcLogicPoolCopysetID(logicPoolId, copysetId);
 
     CopysetInfo<ChunkServerID> targetInfo;
@@ -123,7 +119,8 @@ int MetaCache::GetLeader(LogicPoolID logicPoolId,
                       << "logicpool id = " << logicPoolId
                       << ", copyset id = " << copysetId;
 
-            // 重试失败，这时候需要向mds重新拉取最新的copyset信息了
+            // The retry failed. At this point, it is necessary to retrieve the
+            // latest copyset information from mds again
             ret = UpdateCopysetInfoFromMDS(logicPoolId, copysetId);
             if (ret == 0) {
                 continue;
@@ -135,8 +132,8 @@ int MetaCache::GetLeader(LogicPoolID logicPoolId,
 
     if (ret == -1) {
         LOG(WARNING) << "get leader failed after retry!"
-            << ", copyset id = " << copysetId
-            << ", logicpool id = " << logicPoolId;
+                     << ", copyset id = " << copysetId
+                     << ", logicpool id = " << logicPoolId;
         return -1;
     }
 
@@ -148,25 +145,24 @@ int MetaCache::UpdateLeaderInternal(LogicPoolID logicPoolId,
                                     CopysetInfo<ChunkServerID>* toupdateCopyset,
                                     FileMetric* fm) {
     ChunkServerID csid = 0;
-    PeerAddr  leaderaddr;
+    PeerAddr leaderaddr;
     GetLeaderRpcOption rpcOption(metacacheopt_.metacacheGetLeaderRPCTimeOutMS);
-    GetLeaderInfo getLeaderInfo(logicPoolId,
-                        copysetId, toupdateCopyset->csinfos_,
-                        toupdateCopyset->GetCurrentLeaderIndex(),
-                        rpcOption);
-    int ret = ServiceHelper::GetLeader(
-        getLeaderInfo, &leaderaddr, &csid, fm);
+    GetLeaderInfo getLeaderInfo(
+        logicPoolId, copysetId, toupdateCopyset->csinfos_,
+        toupdateCopyset->GetCurrentLeaderIndex(), rpcOption);
+    int ret = ServiceHelper::GetLeader(getLeaderInfo, &leaderaddr, &csid, fm);
 
     if (ret == -1) {
         LOG(WARNING) << "get leader failed!"
-            << ", copyset id = " << copysetId
-            << ", logicpool id = " << logicPoolId;
+                     << ", copyset id = " << copysetId
+                     << ", logicpool id = " << logicPoolId;
         return -1;
     }
 
     ret = toupdateCopyset->UpdateLeaderInfo(leaderaddr);
 
-    // 如果更新失败，说明leader地址不在当前配置组中，从mds获取chunkserver的信息
+    // If the update fails, it indicates that the leader address is not in the
+    // current configuration group. Obtain chunkserver information from MDS
     if (ret == -1 && !leaderaddr.IsEmpty()) {
         CopysetPeerInfo<ChunkServerID> csInfo;
         ret = mdsclient_->GetChunkServerInfo(leaderaddr, &csInfo);
@@ -177,8 +173,8 @@ int MetaCache::UpdateLeaderInternal(LogicPoolID logicPoolId,
             return -1;
         }
 
-        UpdateCopysetInfoIfMatchCurrentLeader(
-            logicPoolId, copysetId, leaderaddr);
+        UpdateCopysetInfoIfMatchCurrentLeader(logicPoolId, copysetId,
+                                              leaderaddr);
         *toupdateCopyset = GetCopysetinfo(logicPoolId, copysetId);
         ret = toupdateCopyset->UpdateLeaderInfo(leaderaddr, csInfo);
     }
@@ -201,18 +197,16 @@ int MetaCache::UpdateCopysetInfoFromMDS(LogicPoolID logicPoolId,
         return -1;
     }
 
-    // 更新chunkserverid到copyset映射关系
+    // Update chunkserverid to copyset mapping relationship
     UpdateChunkserverCopysetInfo(logicPoolId, copysetInfos[0]);
-    // 更新logicpool和copysetid到copysetinfo的映射
+    // Update the mapping of logicpool and copysetid to copysetinfo
     UpdateCopysetInfo(logicPoolId, copysetId, copysetInfos[0]);
 
     return 0;
 }
 
 void MetaCache::UpdateCopysetInfoIfMatchCurrentLeader(
-    LogicPoolID logicPoolId,
-    CopysetID copysetId,
-    const PeerAddr& leaderAddr) {
+    LogicPoolID logicPoolId, CopysetID copysetId, const PeerAddr& leaderAddr) {
     std::vector<CopysetInfo<ChunkServerID>> copysetInfos;
     (void)mdsclient_->GetServerList(logicPoolId, {copysetId}, &copysetInfos);
 
@@ -224,15 +218,15 @@ void MetaCache::UpdateCopysetInfoIfMatchCurrentLeader(
                   << ", copyset id = " << copysetId
                   << ", current leader = " << leaderAddr.ToString();
 
-        // 更新chunkserverid到copyset的映射关系
+        // Update the mapping relationship between chunkserverid and copyset
         UpdateChunkserverCopysetInfo(logicPoolId, copysetInfos[0]);
-        // 更新logicpool和copysetid到copysetinfo的映射
+        // Update the mapping of logicpool and copysetid to copysetinfo
         UpdateCopysetInfo(logicPoolId, copysetId, copysetInfos[0]);
     }
 }
 
 CopysetInfo<ChunkServerID> MetaCache::GetServerList(LogicPoolID logicPoolId,
-                                     CopysetID copysetId) {
+                                                    CopysetID copysetId) {
     const auto key = CalcLogicPoolCopysetID(logicPoolId, copysetId);
     CopysetInfo<ChunkServerID> ret;
 
@@ -250,8 +244,7 @@ CopysetInfo<ChunkServerID> MetaCache::GetServerList(LogicPoolID logicPoolId,
  * the copyset client will call UpdateLeader.
  * return the ChunkServerID to invoker
  */
-int MetaCache::UpdateLeader(LogicPoolID logicPoolId,
-                            CopysetID copysetId,
+int MetaCache::UpdateLeader(LogicPoolID logicPoolId, CopysetID copysetId,
                             const EndPoint& leaderAddr) {
     const auto key = CalcLogicPoolCopysetID(logicPoolId, copysetId);
 
@@ -329,11 +322,13 @@ void MetaCache::SetChunkserverUnstable(ChunkServerID csid) {
             ChunkServerID leaderid;
             if (cpinfo->second.GetCurrentLeaderID(&leaderid)) {
                 if (leaderid == csid) {
-                    // 只设置leaderid为当前serverid的Lcopyset
+                    // Set only the Lcopyset with leaderid as the current
+                    // serverid
                     cpinfo->second.SetLeaderUnstableFlag();
                 }
             } else {
-                // 当前copyset集群信息未知，直接设置LeaderUnStable
+                // The current copyset cluster information is unknown, set
+                // LeaderUnStable directly
                 cpinfo->second.SetLeaderUnstableFlag();
             }
         }
@@ -346,24 +341,24 @@ void MetaCache::AddCopysetIDInfo(ChunkServerID csid,
     chunkserverCopysetIDMap_[csid].emplace(cpidinfo);
 }
 
-void MetaCache::UpdateChunkserverCopysetInfo(LogicPoolID lpid,
-                                 const CopysetInfo<ChunkServerID>& cpinfo) {
+void MetaCache::UpdateChunkserverCopysetInfo(
+    LogicPoolID lpid, const CopysetInfo<ChunkServerID>& cpinfo) {
     ReadLockGuard rdlk(rwlock4CopysetInfo_);
     const auto key = CalcLogicPoolCopysetID(lpid, cpinfo.cpid_);
-    // 先获取原来的chunkserver到copyset映射
+    // First, obtain the original chunkserver to copyset mapping
     auto previouscpinfo = lpcsid2CopsetInfoMap_.find(key);
     if (previouscpinfo != lpcsid2CopsetInfoMap_.end()) {
         std::vector<ChunkServerID> newID;
         std::vector<ChunkServerID> changedID;
 
-        // 先判断当前copyset有没有变更chunkserverid
+        // Determine if the current copyset has changed the chunkserverid
         for (auto iter : previouscpinfo->second.csinfos_) {
             changedID.push_back(iter.peerID);
         }
 
         for (auto iter : cpinfo.csinfos_) {
-            auto it = std::find(changedID.begin(), changedID.end(),
-                                iter.peerID);
+            auto it =
+                std::find(changedID.begin(), changedID.end(), iter.peerID);
             if (it != changedID.end()) {
                 changedID.erase(it);
             } else {
@@ -371,7 +366,7 @@ void MetaCache::UpdateChunkserverCopysetInfo(LogicPoolID lpid,
             }
         }
 
-        // 删除变更的copyset信息
+        // Delete changed copyset information
         for (auto chunkserverid : changedID) {
             {
                 WriteLockGuard wrlk(rwlock4CSCopysetIDMap_);
@@ -382,7 +377,7 @@ void MetaCache::UpdateChunkserverCopysetInfo(LogicPoolID lpid,
             }
         }
 
-        // 更新新的copyset信息到chunkserver
+        // Update new copyset information to chunkserver
         for (auto chunkserverid : newID) {
             WriteLockGuard wrlk(rwlock4CSCopysetIDMap_);
             chunkserverCopysetIDMap_[chunkserverid].emplace(lpid, cpinfo.cpid_);
@@ -390,8 +385,8 @@ void MetaCache::UpdateChunkserverCopysetInfo(LogicPoolID lpid,
     }
 }
 
-CopysetInfo<ChunkServerID> MetaCache::GetCopysetinfo(
-    LogicPoolID lpid, CopysetID csid) {
+CopysetInfo<ChunkServerID> MetaCache::GetCopysetinfo(LogicPoolID lpid,
+                                                     CopysetID csid) {
     ReadLockGuard rdlk(rwlock4CopysetInfo_);
     const auto key = CalcLogicPoolCopysetID(lpid, csid);
     auto cpinfo = lpcsid2CopsetInfoMap_.find(key);
@@ -412,10 +407,8 @@ FileSegment* MetaCache::GetFileSegment(SegmentIndex segmentIndex) {
 
     WriteLockGuard lk(rwlock4Segments_);
     auto ret = segments_.emplace(
-        std::piecewise_construct,
-        std::forward_as_tuple(segmentIndex),
-        std::forward_as_tuple(segmentIndex,
-                              fileInfo_.segmentsize,
+        std::piecewise_construct, std::forward_as_tuple(segmentIndex),
+        std::forward_as_tuple(segmentIndex, fileInfo_.segmentsize,
                               metacacheopt_.discardGranularity));
 
     return &(ret.first->second);
@@ -435,5 +428,5 @@ void MetaCache::CleanChunksInSegment(SegmentIndex segmentIndex) {
     }
 }
 
-}   // namespace client
-}   // namespace curve
+}  // namespace client
+}  // namespace curve

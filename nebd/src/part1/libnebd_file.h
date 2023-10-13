@@ -26,83 +26,89 @@
 #include "nebd/src/part1/libnebd.h"
 
 /**
- *  @brief 初始化nebd，仅在第一次调用的时候真正执行初始化逻辑
- *  @param none
- *  @return 成功返回0，失败返回-1
+ * @brief initializes nebd and only executes the initialization logic on the
+ * first call
+ * @param none
+ * @return returns 0 for success, -1 for failure
  */
 int Init4Nebd(const char* confpath);
 /**
- *  @brief 反初始化nebd
- *  @param none
- *  @return 成功返回0，失败返回-1
+ * @brief uninitialize nebd
+ * @param none
+ * @return returns 0 for success, -1 for failure
  */
 void Uninit4Nebd();
 /**
- *  @brief open文件
- *  @param filename：文件名
- *  @return 成功返回文件fd，失败返回错误码
+ * @brief open file
+ * @param filename: File name
+ * @return successfully returned the file fd, but failed with an error code
  */
 int Open4Nebd(const char* filename, const NebdOpenFlags* flags);
 /**
- *  @brief close文件
- *  @param fd：文件的fd
- *  @return 成功返回0，失败返回错误码
+ * @brief close file
+ * @param fd: fd of the file
+ * @return success returns 0, failure returns error code
  */
 int Close4Nebd(int fd);
 /**
- *  @brief resize文件
- *  @param fd：文件的fd
- *         size：调整后的文件size
- *  @return 成功返回0，失败返回错误码
+ * @brief resize file
+ * @param fd: fd of the file
+ *         size: adjusted file size
+ * @return success returns 0, failure returns error code
  */
 int Extend4Nebd(int fd, int64_t newsize);
 /**
- *  @brief 获取文件size
- *  @param fd：文件的fd
- *  @return 成功返回文件size，失败返回错误码
+ * @brief Get file size
+ * @param fd: fd of the file
+ * @return successfully returned the file size, but failed with an error code
  */
 int64_t GetFileSize4Nebd(int fd);
 
 int64_t GetBlockSize4Nebd(int fd);
 
 /**
- *  @brief discard文件，异步函数
- *  @param fd：文件的fd
- *         context：异步请求的上下文，包含请求所需的信息以及回调
- *  @return 成功返回0，失败返回错误码
+ * @brief discard file, asynchronous function
+ * @param fd: fd of the file
+ *         context: The context of an asynchronous request, including the
+ * information required for the request and the callback
+ * @return success returns 0, failure returns error code
  */
 int Discard4Nebd(int fd, NebdClientAioContext* aioctx);
 /**
- *  @brief 读文件，异步函数
- *  @param fd：文件的fd
- *         context：异步请求的上下文，包含请求所需的信息以及回调
- *  @return 成功返回0，失败返回错误码
+ * @brief Read file, asynchronous function
+ * @param fd: fd of the file
+ *         context: The context of an asynchronous request, including the
+ * information required for the request and the callback
+ * @return success returns 0, failure returns error code
  */
 int AioRead4Nebd(int fd, NebdClientAioContext* aioctx);
 /**
- *  @brief 写文件，异步函数
- *  @param fd：文件的fd
- *         context：异步请求的上下文，包含请求所需的信息以及回调
- *  @return 成功返回0，失败返回错误码
+ * @brief write file, asynchronous function
+ * @param fd: fd of the file
+ *         context: The context of an asynchronous request, including the
+ * information required for the request and the callback
+ * @return success returns 0, failure returns error code
  */
 int AioWrite4Nebd(int fd, NebdClientAioContext* aioctx);
 /**
- *  @brief flush文件，异步函数
- *  @param fd：文件的fd
- *         context：异步请求的上下文，包含请求所需的信息以及回调
- *  @return 成功返回0，失败返回错误码
+ * @brief flush file, asynchronous function
+ * @param fd: fd of the file
+ *         context: The context of an asynchronous request, including the
+ * information required for the request and the callback
+ * @return success returns 0, failure returns error code
  */
 int Flush4Nebd(int fd, NebdClientAioContext* aioctx);
 /**
- *  @brief 获取文件info
- *  @param fd：文件的fd
- *  @return 成功返回文件对象size，失败返回错误码
+ * @brief Get info of the file
+ * @param fd: fd of the file
+ * @return successfully returned the file object size, but failed with an error
+ * code
  */
 int64_t GetInfo4Nebd(int fd);
 /**
- *  @brief 刷新cache，等所有异步请求返回
- *  @param fd：文件的fd
- *  @return 成功返回0，失败返回错误码
+ * @brief refresh cache, wait for all asynchronous requests to return
+ * @param fd: fd of the file
+ * @return success returns 0, failure returns error code
  */
 int InvalidCache4Nebd(int fd);
 

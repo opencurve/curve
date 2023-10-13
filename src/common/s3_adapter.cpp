@@ -47,12 +47,12 @@ namespace {
 // https://github.com/aws/aws-sdk-cpp/issues/1430
 class PreallocatedIOStream : public Aws::IOStream {
  public:
-    PreallocatedIOStream(char *buf, size_t size)
+    PreallocatedIOStream(char* buf, size_t size)
         : Aws::IOStream(new Aws::Utils::Stream::PreallocatedStreamBuf(
-              reinterpret_cast<unsigned char *>(buf), size)) {}
+              reinterpret_cast<unsigned char*>(buf), size)) {}
 
-    PreallocatedIOStream(const char *buf, size_t size)
-        : PreallocatedIOStream(const_cast<char *>(buf), size) {}
+    PreallocatedIOStream(const char* buf, size_t size)
+        : PreallocatedIOStream(const_cast<char*>(buf), size) {}
 
     ~PreallocatedIOStream() {
         // corresponding new in constructor
@@ -83,28 +83,28 @@ void InitS3AdaptorOptionExceptS3InfoOption(Configuration* conf,
     LOG_IF(FATAL, !conf->GetIntValue("s3.http_scheme", &s3Opt->scheme));
     LOG_IF(FATAL, !conf->GetBoolValue("s3.verify_SSL", &s3Opt->verifySsl));
     LOG_IF(FATAL, !conf->GetStringValue("s3.user_agent", &s3Opt->userAgent));
-    LOG_IF(FATAL, !conf->GetIntValue("s3.maxConnections",
-        &s3Opt->maxConnections));
-    LOG_IF(FATAL, !conf->GetIntValue("s3.connectTimeout",
-        &s3Opt->connectTimeout));
-    LOG_IF(FATAL, !conf->GetIntValue("s3.requestTimeout",
-        &s3Opt->requestTimeout));
-    LOG_IF(FATAL, !conf->GetIntValue("s3.asyncThreadNum",
-        &s3Opt->asyncThreadNum));
+    LOG_IF(FATAL,
+           !conf->GetIntValue("s3.maxConnections", &s3Opt->maxConnections));
+    LOG_IF(FATAL,
+           !conf->GetIntValue("s3.connectTimeout", &s3Opt->connectTimeout));
+    LOG_IF(FATAL,
+           !conf->GetIntValue("s3.requestTimeout", &s3Opt->requestTimeout));
+    LOG_IF(FATAL,
+           !conf->GetIntValue("s3.asyncThreadNum", &s3Opt->asyncThreadNum));
     LOG_IF(FATAL, !conf->GetUInt64Value("s3.throttle.iopsTotalLimit",
-        &s3Opt->iopsTotalLimit));
+                                        &s3Opt->iopsTotalLimit));
     LOG_IF(FATAL, !conf->GetUInt64Value("s3.throttle.iopsReadLimit",
-        &s3Opt->iopsReadLimit));
+                                        &s3Opt->iopsReadLimit));
     LOG_IF(FATAL, !conf->GetUInt64Value("s3.throttle.iopsWriteLimit",
-        &s3Opt->iopsWriteLimit));
-    LOG_IF(FATAL, !conf->GetUInt64Value("s3.throttle.bpsTotalMB",
-        &s3Opt->bpsTotalMB));
-    LOG_IF(FATAL, !conf->GetUInt64Value("s3.throttle.bpsReadMB",
-        &s3Opt->bpsReadMB));
-    LOG_IF(FATAL, !conf->GetUInt64Value("s3.throttle.bpsWriteMB",
-        &s3Opt->bpsWriteMB));
+                                        &s3Opt->iopsWriteLimit));
+    LOG_IF(FATAL,
+           !conf->GetUInt64Value("s3.throttle.bpsTotalMB", &s3Opt->bpsTotalMB));
+    LOG_IF(FATAL,
+           !conf->GetUInt64Value("s3.throttle.bpsReadMB", &s3Opt->bpsReadMB));
+    LOG_IF(FATAL,
+           !conf->GetUInt64Value("s3.throttle.bpsWriteMB", &s3Opt->bpsWriteMB));
     LOG_IF(FATAL, !conf->GetBoolValue("s3.useVirtualAddressing",
-        &s3Opt->useVirtualAddressing));
+                                      &s3Opt->useVirtualAddressing));
     LOG_IF(FATAL, !conf->GetStringValue("s3.region", &s3Opt->region));
 
     if (!conf->GetUInt64Value("s3.maxAsyncRequestInflightBytes",
@@ -134,7 +134,7 @@ void S3Adapter::InitExceptFsS3Option(const std::string& path) {
     Init(option);
 }
 
-void S3Adapter::Init(const S3AdapterOption &option) {
+void S3Adapter::Init(const S3AdapterOption& option) {
     auto initSDK = [&]() {
         AWS_SDK_OPTIONS.loggingOptions.logLevel =
             Aws::Utils::Logging::LogLevel(option.loglevel);
@@ -161,11 +161,10 @@ void S3Adapter::Init(const S3AdapterOption &option) {
     clientCfg_->executor =
         Aws::MakeShared<Aws::Utils::Threading::PooledThreadExecutor>(
             "S3Adapter.S3Client", asyncThreadNum);
-    s3Client_ = Aws::New<Aws::S3::S3Client>(AWS_ALLOCATE_TAG,
-            Aws::Auth::AWSCredentials(s3Ak_, s3Sk_),
-            *clientCfg_,
-            Aws::Client::AWSAuthV4Signer::PayloadSigningPolicy::Never,
-            option.useVirtualAddressing);
+    s3Client_ = Aws::New<Aws::S3::S3Client>(
+        AWS_ALLOCATE_TAG, Aws::Auth::AWSCredentials(s3Ak_, s3Sk_), *clientCfg_,
+        Aws::Client::AWSAuthV4Signer::PayloadSigningPolicy::Never,
+        option.useVirtualAddressing);
 
     ReadWriteThrottleParams params;
     params.iopsTotal.limit = option.iopsTotalLimit;
@@ -198,15 +197,12 @@ void S3Adapter::Deinit() {
         delete throttle_;
         throttle_ = nullptr;
     }
-    if (inflightBytesThrottle_ != nullptr)
-        inflightBytesThrottle_.release();
+    if (inflightBytesThrottle_ != nullptr) inflightBytesThrottle_.release();
 }
 
 void S3Adapter::Shutdown() {
     // one program should only call once
-    auto shutdownSDK = [&]() {
-        Aws::ShutdownAPI(AWS_SDK_OPTIONS);
-    };
+    auto shutdownSDK = [&]() { Aws::ShutdownAPI(AWS_SDK_OPTIONS); };
     std::call_once(S3SHUTDOWN_FLAG, shutdownSDK);
 }
 
@@ -232,17 +228,15 @@ int S3Adapter::CreateBucket() {
     request.SetBucket(bucketName_);
     Aws::S3::Model::CreateBucketConfiguration conf;
     conf.SetLocationConstraint(
-            Aws::S3::Model::BucketLocationConstraint::us_east_1);
+        Aws::S3::Model::BucketLocationConstraint::us_east_1);
     request.SetCreateBucketConfiguration(conf);
     auto response = s3Client_->CreateBucket(request);
     if (response.IsSuccess()) {
         return 0;
     } else {
-        LOG(ERROR) << "CreateBucket error:"
-                << bucketName_
-                << "--"
-                << response.GetError().GetExceptionName()
-                << response.GetError().GetMessage();
+        LOG(ERROR) << "CreateBucket error:" << bucketName_ << "--"
+                   << response.GetError().GetExceptionName()
+                   << response.GetError().GetMessage();
         return -1;
     }
 }
@@ -254,11 +248,9 @@ int S3Adapter::DeleteBucket() {
     if (response.IsSuccess()) {
         return 0;
     } else {
-        LOG(ERROR) << "DeleteBucket error:"
-                << bucketName_
-                << "--"
-                << response.GetError().GetExceptionName()
-                << response.GetError().GetMessage();
+        LOG(ERROR) << "DeleteBucket error:" << bucketName_ << "--"
+                   << response.GetError().GetExceptionName()
+                   << response.GetError().GetMessage();
         return -1;
     }
 }
@@ -270,16 +262,14 @@ bool S3Adapter::BucketExist() {
     if (response.IsSuccess()) {
         return true;
     } else {
-        LOG(ERROR) << "HeadBucket error:"
-                << bucketName_
-                << "--"
-                << response.GetError().GetExceptionName()
-                << response.GetError().GetMessage();
+        LOG(ERROR) << "HeadBucket error:" << bucketName_ << "--"
+                   << response.GetError().GetExceptionName()
+                   << response.GetError().GetMessage();
         return false;
     }
 }
 
-int S3Adapter::PutObject(const Aws::String &key, const char *buffer,
+int S3Adapter::PutObject(const Aws::String& key, const char* buffer,
                          const size_t bufferSize) {
     Aws::S3::Model::PutObjectRequest request;
     request.SetBucket(bucketName_);
@@ -303,7 +293,7 @@ int S3Adapter::PutObject(const Aws::String &key, const char *buffer,
     }
 }
 
-int S3Adapter::PutObject(const Aws::String &key, const std::string &data) {
+int S3Adapter::PutObject(const Aws::String& key, const std::string& data) {
     return PutObject(key, data.data(), data.size());
 }
 /*
@@ -351,12 +341,11 @@ void S3Adapter::PutObjectAsync(std::shared_ptr<PutObjectAsyncContext> context) {
         };
 
     Aws::S3::PutObjectResponseReceivedHandler handler =
-        [context](
-            const Aws::S3::S3Client * /*client*/,
-            const Aws::S3::Model::PutObjectRequest & /*request*/,
-            const Aws::S3::Model::PutObjectOutcome &response,
-            const std::shared_ptr<const Aws::Client::AsyncCallerContext>
-                &awsCtx) {
+        [context](const Aws::S3::S3Client* /*client*/,
+                  const Aws::S3::Model::PutObjectRequest& /*request*/,
+                  const Aws::S3::Model::PutObjectOutcome& response,
+                  const std::shared_ptr<const Aws::Client::AsyncCallerContext>&
+                      awsCtx) {
             std::shared_ptr<PutObjectAsyncContext> ctx =
                 std::const_pointer_cast<PutObjectAsyncContext>(
                     std::dynamic_pointer_cast<const PutObjectAsyncContext>(
@@ -382,14 +371,13 @@ void S3Adapter::PutObjectAsync(std::shared_ptr<PutObjectAsyncContext> context) {
     s3Client_->PutObjectAsync(request, handler, context);
 }
 
-int S3Adapter::GetObject(const Aws::String &key,
-                  std::string *data) {
+int S3Adapter::GetObject(const Aws::String& key, std::string* data) {
     Aws::S3::Model::GetObjectRequest request;
     request.SetBucket(bucketName_);
     request.SetKey(key);
     std::stringstream ss;
     if (throttle_) {
-        throttle_->Add(true,  1);
+        throttle_->Add(true, 1);
     }
     auto response = s3Client_->GetObject(request);
     if (response.IsSuccess()) {
@@ -398,15 +386,13 @@ int S3Adapter::GetObject(const Aws::String &key,
         return 0;
     } else {
         LOG(ERROR) << "GetObject error: "
-                << response.GetError().GetExceptionName()
-                << response.GetError().GetMessage();
+                   << response.GetError().GetExceptionName()
+                   << response.GetError().GetMessage();
         return -1;
     }
 }
 
-int S3Adapter::GetObject(const std::string &key,
-                         char *buf,
-                         off_t offset,
+int S3Adapter::GetObject(const std::string& key, char* buf, off_t offset,
                          size_t len) {
     Aws::S3::Model::GetObjectRequest request;
     request.SetBucket(bucketName_);
@@ -425,8 +411,8 @@ int S3Adapter::GetObject(const std::string &key,
         return 0;
     } else {
         LOG(ERROR) << "GetObject error: "
-                << response.GetError().GetExceptionName()
-                << response.GetError().GetMessage();
+                   << response.GetError().GetExceptionName()
+                   << response.GetError().GetMessage();
         return -1;
     }
 }
@@ -453,11 +439,11 @@ void S3Adapter::GetObjectAsync(std::shared_ptr<GetObjectAsyncContext> context) {
         };
 
     Aws::S3::GetObjectResponseReceivedHandler handler =
-        [this](const Aws::S3::S3Client * /*client*/,
-               const Aws::S3::Model::GetObjectRequest & /*request*/,
-               const Aws::S3::Model::GetObjectOutcome &response,
-               const std::shared_ptr<const Aws::Client::AsyncCallerContext>
-                   &awsCtx) {
+        [this](const Aws::S3::S3Client* /*client*/,
+               const Aws::S3::Model::GetObjectRequest& /*request*/,
+               const Aws::S3::Model::GetObjectOutcome& response,
+               const std::shared_ptr<const Aws::Client::AsyncCallerContext>&
+                   awsCtx) {
             std::shared_ptr<GetObjectAsyncContext> ctx =
                 std::const_pointer_cast<GetObjectAsyncContext>(
                     std::dynamic_pointer_cast<const GetObjectAsyncContext>(
@@ -481,7 +467,7 @@ void S3Adapter::GetObjectAsync(std::shared_ptr<GetObjectAsyncContext> context) {
     s3Client_->GetObjectAsync(request, handler, context);
 }
 
-bool S3Adapter::ObjectExist(const Aws::String &key) {
+bool S3Adapter::ObjectExist(const Aws::String& key) {
     Aws::S3::Model::HeadObjectRequest request;
     request.SetBucket(bucketName_);
     request.SetKey(key);
@@ -489,18 +475,14 @@ bool S3Adapter::ObjectExist(const Aws::String &key) {
     if (response.IsSuccess()) {
         return true;
     } else {
-        LOG(ERROR) << "HeadObject error:"
-                << bucketName_
-                << "--"
-                << key
-                << "--"
-                << response.GetError().GetExceptionName()
-                << response.GetError().GetMessage();
+        LOG(ERROR) << "HeadObject error:" << bucketName_ << "--" << key << "--"
+                   << response.GetError().GetExceptionName()
+                   << response.GetError().GetMessage();
         return false;
     }
 }
 
-int S3Adapter::DeleteObject(const Aws::String &key) {
+int S3Adapter::DeleteObject(const Aws::String& key) {
     Aws::S3::Model::DeleteObjectRequest request;
     request.SetBucket(bucketName_);
     request.SetKey(key);
@@ -508,13 +490,9 @@ int S3Adapter::DeleteObject(const Aws::String &key) {
     if (response.IsSuccess()) {
         return 0;
     } else {
-            LOG(ERROR) << "DeleteObject error:"
-                << bucketName_
-                << "--"
-                << key
-                << "--"
-                << response.GetError().GetExceptionName()
-                << response.GetError().GetMessage();
+        LOG(ERROR) << "DeleteObject error:" << bucketName_ << "--" << key
+                   << "--" << response.GetError().GetExceptionName()
+                   << response.GetError().GetMessage();
         return -1;
     }
 }
@@ -554,10 +532,10 @@ int S3Adapter::DeleteObjects(const std::list<Aws::String>& keyList) {
     return 0;
 }
 /*
-    // object元数据单独更新还有问题，需要单独的s3接口来支持
-int S3Adapter::UpdateObjectMeta(const Aws::String &key,
-                    const Aws::Map<Aws::String, Aws::String> &meta) {
-    Aws::S3::Model::PutObjectRequest request;
+// There are still issues with updating the object metadata separately, and a
+separate s3 interface is needed to support it int
+S3Adapter::UpdateObjectMeta(const Aws::String &key, const Aws::Map<Aws::String,
+Aws::String> &meta) { Aws::S3::Model::PutObjectRequest request;
     request.SetBucket(bucketName_);
     request.SetKey(key);
     auto input_data =
@@ -594,7 +572,7 @@ int S3Adapter::GetObjectMeta(const Aws::String &key,
     }
 }
 */
-Aws::String S3Adapter::MultiUploadInit(const Aws::String &key) {
+Aws::String S3Adapter::MultiUploadInit(const Aws::String& key) {
     Aws::S3::Model::CreateMultipartUploadRequest request;
     request.WithBucket(bucketName_).WithKey(key);
     auto response = s3Client_->CreateMultipartUpload(request);
@@ -602,17 +580,14 @@ Aws::String S3Adapter::MultiUploadInit(const Aws::String &key) {
         return response.GetResult().GetUploadId();
     } else {
         LOG(ERROR) << "CreateMultipartUploadRequest error: "
-                << response.GetError().GetMessage();
+                   << response.GetError().GetMessage();
         return "";
     }
 }
 
 Aws::S3::Model::CompletedPart S3Adapter::UploadOnePart(
-    const Aws::String &key,
-    const Aws::String &uploadId,
-    int partNum,
-    int partSize,
-    const char* buf) {
+    const Aws::String& key, const Aws::String& uploadId, int partNum,
+    int partSize, const char* buf) {
     Aws::S3::Model::UploadPartRequest request;
     request.SetBucket(bucketName_);
     request.SetKey(key);
@@ -629,16 +604,18 @@ Aws::S3::Model::CompletedPart S3Adapter::UploadOnePart(
     auto result = s3Client_->UploadPart(request);
     if (result.IsSuccess()) {
         return Aws::S3::Model::CompletedPart()
-            .WithETag(result.GetResult().GetETag()).WithPartNumber(partNum);
+            .WithETag(result.GetResult().GetETag())
+            .WithPartNumber(partNum);
     } else {
         return Aws::S3::Model::CompletedPart()
-                .WithETag("errorTag").WithPartNumber(-1);
+            .WithETag("errorTag")
+            .WithPartNumber(-1);
     }
 }
 
-int S3Adapter::CompleteMultiUpload(const Aws::String &key,
-                const Aws::String &uploadId,
-            const Aws::Vector<Aws::S3::Model::CompletedPart> &cp_v) {
+int S3Adapter::CompleteMultiUpload(
+    const Aws::String& key, const Aws::String& uploadId,
+    const Aws::Vector<Aws::S3::Model::CompletedPart>& cp_v) {
     Aws::S3::Model::CompleteMultipartUploadRequest request;
     request.WithBucket(bucketName_);
     request.SetKey(key);
@@ -650,14 +627,14 @@ int S3Adapter::CompleteMultiUpload(const Aws::String &key,
         return 0;
     } else {
         LOG(ERROR) << "CompleteMultiUpload error: "
-                << response.GetError().GetMessage();
+                   << response.GetError().GetMessage();
         this->AbortMultiUpload(key, uploadId);
         return -1;
     }
 }
 
-int S3Adapter::AbortMultiUpload(const Aws::String &key,
-                                const Aws::String &uploadId) {
+int S3Adapter::AbortMultiUpload(const Aws::String& key,
+                                const Aws::String& uploadId) {
     Aws::S3::Model::AbortMultipartUploadRequest request;
     request.WithBucket(bucketName_);
     request.SetKey(key);

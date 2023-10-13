@@ -23,10 +23,10 @@
 #ifndef SRC_SNAPSHOTCLONESERVER_COMMON_SNAPSHOTCLONE_INFO_H_
 #define SRC_SNAPSHOTCLONESERVER_COMMON_SNAPSHOTCLONE_INFO_H_
 
-#include <vector>
-#include <string>
 #include <map>
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "src/common/snapshotclone/snapshotclone_define.h"
 
@@ -44,10 +44,7 @@ enum class CloneStatus {
     metaInstalled = 7,
 };
 
-enum class CloneFileType {
-    kFile = 0,
-    kSnapshot = 1
-};
+enum class CloneFileType { kFile = 0, kSnapshot = 1 };
 
 enum class CloneStep {
     kCreateCloneFile = 0,
@@ -61,10 +58,10 @@ enum class CloneStep {
     kEnd
 };
 
-// 数据库中clone/recover任务信息
+// Clone/recover task information in the database
 class CloneInfo {
  public:
-  CloneInfo()
+    CloneInfo()
         : type_(CloneTaskType::kClone),
           originId_(0),
           destinationId_(0),
@@ -74,14 +71,10 @@ class CloneInfo {
           nextStep_(CloneStep::kCreateCloneFile),
           status_(CloneStatus::error) {}
 
-  CloneInfo(const TaskIdType &taskId,
-        const std::string &user,
-        CloneTaskType type,
-        const std::string &source,
-        const std::string &destination,
-        const std::string &poolset,
-        CloneFileType fileType,
-        bool isLazy)
+    CloneInfo(const TaskIdType& taskId, const std::string& user,
+              CloneTaskType type, const std::string& source,
+              const std::string& destination, const std::string& poolset,
+              CloneFileType fileType, bool isLazy)
         : taskId_(taskId),
           user_(user),
           type_(type),
@@ -96,19 +89,12 @@ class CloneInfo {
           nextStep_(CloneStep::kCreateCloneFile),
           status_(CloneStatus::cloning) {}
 
-  CloneInfo(const TaskIdType &taskId,
-        const std::string &user,
-        CloneTaskType type,
-        const std::string &source,
-        const std::string &destination,
-        const std::string &poolset,
-        uint64_t originId,
-        uint64_t destinationId,
-        uint64_t time,
-        CloneFileType fileType,
-        bool isLazy,
-        CloneStep nextStep,
-        CloneStatus status)
+    CloneInfo(const TaskIdType& taskId, const std::string& user,
+              CloneTaskType type, const std::string& source,
+              const std::string& destination, const std::string& poolset,
+              uint64_t originId, uint64_t destinationId, uint64_t time,
+              CloneFileType fileType, bool isLazy, CloneStep nextStep,
+              CloneStatus status)
         : taskId_(taskId),
           user_(user),
           type_(type),
@@ -123,146 +109,94 @@ class CloneInfo {
           nextStep_(nextStep),
           status_(status) {}
 
-  TaskIdType GetTaskId() const {
-      return taskId_;
-  }
+    TaskIdType GetTaskId() const { return taskId_; }
 
-  void SetTaskId(const TaskIdType &taskId) {
-      taskId_ = taskId;
-  }
+    void SetTaskId(const TaskIdType& taskId) { taskId_ = taskId; }
 
-  std::string GetUser() const {
-      return user_;
-  }
+    std::string GetUser() const { return user_; }
 
-  void SetUser(const std::string &user) {
-      user_ = user;
-  }
+    void SetUser(const std::string& user) { user_ = user; }
 
-  CloneTaskType GetTaskType() const {
-      return type_;
-  }
+    CloneTaskType GetTaskType() const { return type_; }
 
-  void SetTaskType(CloneTaskType type) {
-      type_ = type;
-  }
+    void SetTaskType(CloneTaskType type) { type_ = type; }
 
-  std::string GetSrc() const {
-      return source_;
-  }
+    std::string GetSrc() const { return source_; }
 
-  void SetSrc(const std::string &source) {
-      source_ = source;
-  }
+    void SetSrc(const std::string& source) { source_ = source; }
 
-  std::string GetDest() const {
-      return destination_;
-  }
+    std::string GetDest() const { return destination_; }
 
-  void SetDest(const std::string &dest) {
-      destination_ = dest;
-  }
+    void SetDest(const std::string& dest) { destination_ = dest; }
 
-  std::string GetPoolset() const {
-      return poolset_;
-  }
+    std::string GetPoolset() const { return poolset_; }
 
-  void SetPoolset(const std::string &poolset) {
-      poolset_ = poolset;
-  }
+    void SetPoolset(const std::string& poolset) { poolset_ = poolset; }
 
-  uint64_t GetOriginId() const {
-      return originId_;
-  }
+    uint64_t GetOriginId() const { return originId_; }
 
-  void SetOriginId(uint64_t originId) {
-      originId_ = originId;
-  }
+    void SetOriginId(uint64_t originId) { originId_ = originId; }
 
-  uint64_t GetDestId() const {
-      return destinationId_;
-  }
+    uint64_t GetDestId() const { return destinationId_; }
 
-  void SetDestId(uint64_t destId) {
-      destinationId_ = destId;
-  }
+    void SetDestId(uint64_t destId) { destinationId_ = destId; }
 
-  uint64_t GetTime() const {
-      return time_;
-  }
+    uint64_t GetTime() const { return time_; }
 
-  void SetTime(uint64_t time) {
-      time_ = time;
-  }
+    void SetTime(uint64_t time) { time_ = time; }
 
-  CloneFileType GetFileType() const {
-      return fileType_;
-  }
+    CloneFileType GetFileType() const { return fileType_; }
 
-  void SetFileType(CloneFileType fileType) {
-      fileType_ = fileType;
-  }
+    void SetFileType(CloneFileType fileType) { fileType_ = fileType; }
 
-  bool GetIsLazy() const {
-      return isLazy_;
-  }
+    bool GetIsLazy() const { return isLazy_; }
 
-  void SetIsLazy(bool flag) {
-      isLazy_ = flag;
-  }
+    void SetIsLazy(bool flag) { isLazy_ = flag; }
 
-  CloneStep GetNextStep() const {
-    return nextStep_;
-  }
+    CloneStep GetNextStep() const { return nextStep_; }
 
-  void SetNextStep(CloneStep nextStep) {
-    nextStep_ = nextStep;
-  }
-  CloneStatus GetStatus() const {
-      return status_;
-  }
+    void SetNextStep(CloneStep nextStep) { nextStep_ = nextStep; }
+    CloneStatus GetStatus() const { return status_; }
 
-  void SetStatus(CloneStatus status) {
-      status_ = status;
-  }
+    void SetStatus(CloneStatus status) { status_ = status; }
 
-    bool SerializeToString(std::string *value) const;
+    bool SerializeToString(std::string* value) const;
 
-    bool ParseFromString(const std::string &value);
+    bool ParseFromString(const std::string& value);
 
  private:
-    // 任务Id
-    TaskIdType  taskId_;
-    // 用户
+    // Task Id
+    TaskIdType taskId_;
+    // Users
     std::string user_;
-    // 克隆或恢复
+    // Clone or Restore
     CloneTaskType type_;
-    // 源文件或快照uuid
+    // Source file or snapshot uuid
     std::string source_;
-    // 目标文件名
+    // Destination File Name
     std::string destination_;
-    // 目标文件所在的poolset
+    // The poolset where the target file is located
     std::string poolset_;
-    // 被恢复的原始文件id, 仅用于恢复
+    // The original file ID that has been restored, for recovery purposes only
     uint64_t originId_;
-    // 目标文件id
+    // Target file id
     uint64_t destinationId_;
-    // 创建时间
+    // Creation time
     uint64_t time_;
-    // 克隆/恢复的文件类型
+    // Clone/Restore File Types
     CloneFileType fileType_;
-    // 是否lazy
+    // Lazy or not
     bool isLazy_;
-    // 克隆进度, 下一个步骤
+    // Clone progress, next step
     CloneStep nextStep_;
-    // 处理的状态
+    // Processing status
     CloneStatus status_;
 };
 
-std::ostream& operator<<(std::ostream& os, const CloneInfo &cloneInfo);
+std::ostream& operator<<(std::ostream& os, const CloneInfo& cloneInfo);
 
-// 快照处理状态
-enum class Status{
+// Snapshot processing status
+enum class Status {
     done = 0,
     pending,
     deleting,
@@ -271,187 +205,127 @@ enum class Status{
     error
 };
 
-// 快照信息
+// Snapshot Information
 class SnapshotInfo {
  public:
     SnapshotInfo()
-        :uuid_(),
-        seqNum_(kUnInitializeSeqNum),
-        chunkSize_(0),
-        segmentSize_(0),
-        fileLength_(0),
-        stripeUnit_(0),
-        stripeCount_(0),
-        time_(0),
-        status_(Status::pending) {}
+        : uuid_(),
+          seqNum_(kUnInitializeSeqNum),
+          chunkSize_(0),
+          segmentSize_(0),
+          fileLength_(0),
+          stripeUnit_(0),
+          stripeCount_(0),
+          time_(0),
+          status_(Status::pending) {}
 
-    SnapshotInfo(UUID uuid,
-            const std::string &user,
-            const std::string &fileName,
-            const std::string &snapshotName)
-        :uuid_(uuid),
-        user_(user),
-        fileName_(fileName),
-        snapshotName_(snapshotName),
-        seqNum_(kUnInitializeSeqNum),
-        chunkSize_(0),
-        segmentSize_(0),
-        fileLength_(0),
-        stripeUnit_(0),
-        stripeCount_(0),
-        time_(0),
-        status_(Status::pending) {}
-    SnapshotInfo(UUID uuid,
-            const std::string &user,
-            const std::string &fileName,
-            const std::string &desc,
-            uint64_t seqnum,
-            uint32_t chunksize,
-            uint64_t segmentsize,
-            uint64_t filelength,
-            uint64_t stripeUnit,
-            uint64_t stripeCount,
-            const std::string& poolset,
-            uint64_t time,
-            Status status)
-        :uuid_(uuid),
-        user_(user),
-        fileName_(fileName),
-        snapshotName_(desc),
-        seqNum_(seqnum),
-        chunkSize_(chunksize),
-        segmentSize_(segmentsize),
-        fileLength_(filelength),
-        stripeUnit_(stripeUnit),
-        stripeCount_(stripeCount),
-        poolset_(poolset),
-        time_(time),
-        status_(status) {}
+    SnapshotInfo(UUID uuid, const std::string& user,
+                 const std::string& fileName, const std::string& snapshotName)
+        : uuid_(uuid),
+          user_(user),
+          fileName_(fileName),
+          snapshotName_(snapshotName),
+          seqNum_(kUnInitializeSeqNum),
+          chunkSize_(0),
+          segmentSize_(0),
+          fileLength_(0),
+          stripeUnit_(0),
+          stripeCount_(0),
+          time_(0),
+          status_(Status::pending) {}
+    SnapshotInfo(UUID uuid, const std::string& user,
+                 const std::string& fileName, const std::string& desc,
+                 uint64_t seqnum, uint32_t chunksize, uint64_t segmentsize,
+                 uint64_t filelength, uint64_t stripeUnit, uint64_t stripeCount,
+                 const std::string& poolset, uint64_t time, Status status)
+        : uuid_(uuid),
+          user_(user),
+          fileName_(fileName),
+          snapshotName_(desc),
+          seqNum_(seqnum),
+          chunkSize_(chunksize),
+          segmentSize_(segmentsize),
+          fileLength_(filelength),
+          stripeUnit_(stripeUnit),
+          stripeCount_(stripeCount),
+          poolset_(poolset),
+          time_(time),
+          status_(status) {}
 
-    void SetUuid(const UUID &uuid) {
-        uuid_ = uuid;
-    }
+    void SetUuid(const UUID& uuid) { uuid_ = uuid; }
 
-    UUID GetUuid() const {
-        return uuid_;
-    }
+    UUID GetUuid() const { return uuid_; }
 
-    void SetUser(const std::string &user) {
-        user_ = user;
-    }
+    void SetUser(const std::string& user) { user_ = user; }
 
-    std::string GetUser() const {
-        return user_;
-    }
+    std::string GetUser() const { return user_; }
 
-    void SetFileName(const std::string &fileName) {
-        fileName_ = fileName;
-    }
+    void SetFileName(const std::string& fileName) { fileName_ = fileName; }
 
-    std::string GetFileName() const {
-        return fileName_;
-    }
+    std::string GetFileName() const { return fileName_; }
 
-    void SetSnapshotName(const std::string &snapshotName) {
+    void SetSnapshotName(const std::string& snapshotName) {
         snapshotName_ = snapshotName;
     }
 
-    std::string GetSnapshotName() const {
-        return snapshotName_;
-    }
+    std::string GetSnapshotName() const { return snapshotName_; }
 
-    void SetSeqNum(uint64_t seqNum) {
-        seqNum_ = seqNum;
-    }
+    void SetSeqNum(uint64_t seqNum) { seqNum_ = seqNum; }
 
-    uint64_t GetSeqNum() const {
-        return seqNum_;
-    }
+    uint64_t GetSeqNum() const { return seqNum_; }
 
-    void SetChunkSize(uint32_t chunkSize) {
-        chunkSize_ = chunkSize;
-    }
+    void SetChunkSize(uint32_t chunkSize) { chunkSize_ = chunkSize; }
 
-    uint32_t GetChunkSize() const {
-        return chunkSize_;
-    }
+    uint32_t GetChunkSize() const { return chunkSize_; }
 
-    void SetSegmentSize(uint64_t segmentSize) {
-        segmentSize_ = segmentSize;
-    }
+    void SetSegmentSize(uint64_t segmentSize) { segmentSize_ = segmentSize; }
 
-    uint64_t GetSegmentSize() const {
-        return segmentSize_;
-    }
+    uint64_t GetSegmentSize() const { return segmentSize_; }
 
-    void SetFileLength(uint64_t fileLength) {
-        fileLength_ = fileLength;
-    }
+    void SetFileLength(uint64_t fileLength) { fileLength_ = fileLength; }
 
-    uint64_t GetFileLength() const {
-        return fileLength_;
-    }
+    uint64_t GetFileLength() const { return fileLength_; }
 
-    void SetStripeUnit(uint64_t stripeUnit) {
-        stripeUnit_ = stripeUnit;
-    }
+    void SetStripeUnit(uint64_t stripeUnit) { stripeUnit_ = stripeUnit; }
 
-    uint64_t GetStripeUnit() const {
-        return stripeUnit_;
-    }
+    uint64_t GetStripeUnit() const { return stripeUnit_; }
 
-    void SetStripeCount(uint64_t stripeCount) {
-        stripeCount_ = stripeCount;
-    }
+    void SetStripeCount(uint64_t stripeCount) { stripeCount_ = stripeCount; }
 
-    uint64_t GetStripeCount() const {
-        return stripeCount_;
-    }
+    uint64_t GetStripeCount() const { return stripeCount_; }
 
-    void SetPoolset(const std::string& poolset) {
-        poolset_ = poolset;
-    }
+    void SetPoolset(const std::string& poolset) { poolset_ = poolset; }
 
-    const std::string& GetPoolset() const {
-        return poolset_;
-    }
+    const std::string& GetPoolset() const { return poolset_; }
 
-    void SetCreateTime(uint64_t createTime) {
-        time_ = createTime;
-    }
+    void SetCreateTime(uint64_t createTime) { time_ = createTime; }
 
-    uint64_t GetCreateTime() const {
-        return time_;
-    }
+    uint64_t GetCreateTime() const { return time_; }
 
-    void SetStatus(Status status) {
-        status_ = status;
-    }
+    void SetStatus(Status status) { status_ = status; }
 
-    Status GetStatus() const {
-        return status_;
-    }
+    Status GetStatus() const { return status_; }
 
-    bool SerializeToString(std::string *value) const;
+    bool SerializeToString(std::string* value) const;
 
-    bool ParseFromString(const std::string &value);
+    bool ParseFromString(const std::string& value);
 
  private:
-    // 快照uuid
+    // Snapshot uuid
     UUID uuid_;
-    // 租户信息
+    // Tenant Information
     std::string user_;
-    // 快照目标文件名
+    // Snapshot Destination File Name
     std::string fileName_;
-    // 快照名
+    // Snapshot Name
     std::string snapshotName_;
-    // 快照版本号
+    // Snapshot version number
     uint64_t seqNum_;
-    // 文件的chunk大小
+    // Chunk size of the file
     uint32_t chunkSize_;
-    // 文件的segment大小
+    // The segment size of the file
     uint64_t segmentSize_;
-    // 文件大小
+    // File size
     uint64_t fileLength_;
     // stripe size
     uint64_t stripeUnit_;
@@ -459,16 +333,15 @@ class SnapshotInfo {
     uint64_t stripeCount_;
     // poolset
     std::string poolset_;
-    // 快照创建时间
+    // Snapshot creation time
     uint64_t time_;
-    // 快照处理的状态
+    // Status of snapshot processing
     Status status_;
 };
 
-std::ostream& operator<<(std::ostream& os, const SnapshotInfo &snapshotInfo);
+std::ostream& operator<<(std::ostream& os, const SnapshotInfo& snapshotInfo);
 
 }  // namespace snapshotcloneserver
 }  // namespace curve
-
 
 #endif  // SRC_SNAPSHOTCLONESERVER_COMMON_SNAPSHOTCLONE_INFO_H_

@@ -28,8 +28,7 @@ namespace chunkserver {
 CloneManager::CloneManager() : isRunning_(false) {}
 
 CloneManager::~CloneManager() {
-    if (isRunning_.load(std::memory_order_acquire))
-        Fini();
+    if (isRunning_.load(std::memory_order_acquire)) Fini();
 }
 
 int CloneManager::Init(const CloneOptions& options) {
@@ -38,9 +37,8 @@ int CloneManager::Init(const CloneOptions& options) {
 }
 
 int CloneManager::Run() {
-    if (isRunning_.load(std::memory_order_acquire))
-        return 0;
-    // 启动线程池
+    if (isRunning_.load(std::memory_order_acquire)) return 0;
+    // Start Thread Pool
     LOG(INFO) << "Begin to run clone manager.";
     tp_ = std::make_shared<TaskThreadPool<>>();
     int ret = tp_->Start(options_.threadNum, options_.queueCapacity);
@@ -56,8 +54,7 @@ int CloneManager::Run() {
 }
 
 int CloneManager::Fini() {
-    if (!isRunning_.load(std::memory_order_acquire))
-        return 0;
+    if (!isRunning_.load(std::memory_order_acquire)) return 0;
 
     LOG(INFO) << "Begin to stop clone manager.";
     isRunning_.store(false, std::memory_order_release);
@@ -69,10 +66,9 @@ int CloneManager::Fini() {
 
 std::shared_ptr<CloneTask> CloneManager::GenerateCloneTask(
     std::shared_ptr<ReadChunkRequest> request,
-    ::google::protobuf::Closure *done) {
-    // 如果core是空的,任务无法被处理,所以返回空
-    if (options_.core == nullptr)
-        return nullptr;
+    ::google::protobuf::Closure* done) {
+    // If the core is empty, the task cannot be processed, so it returns empty
+    if (options_.core == nullptr) return nullptr;
 
     std::shared_ptr<CloneTask> cloneTask =
         std::make_shared<CloneTask>(request, options_.core, done);
@@ -80,11 +76,9 @@ std::shared_ptr<CloneTask> CloneManager::GenerateCloneTask(
 }
 
 bool CloneManager::IssueCloneTask(std::shared_ptr<CloneTask> cloneTask) {
-    if (!isRunning_.load(std::memory_order_acquire))
-        return false;
+    if (!isRunning_.load(std::memory_order_acquire)) return false;
 
-    if (cloneTask == nullptr)
-        return false;
+    if (cloneTask == nullptr) return false;
 
     tp_->Enqueue(cloneTask->Closure());
 

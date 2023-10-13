@@ -20,18 +20,19 @@
  * Author: wudemiao
  */
 
-#include <brpc/controller.h>
-#include <gtest/gtest.h>
-#include <gmock/gmock.h>
-#include <brpc/channel.h>
-#include <butil/iobuf.h>
-
 #include "src/client/request_scheduler.h"
+
+#include <brpc/channel.h>
+#include <brpc/controller.h>
+#include <butil/iobuf.h>
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
 #include "src/client/client_common.h"
-#include "test/client/mock/mock_meta_cache.h"
-#include "test/client/mock/mock_chunkservice.h"
-#include "test/client/mock/mock_request_context.h"
 #include "src/common/concurrent/count_down_event.h"
+#include "test/client/mock/mock_chunkservice.h"
+#include "test/client/mock/mock_meta_cache.h"
+#include "test/client/mock/mock_request_context.h"
 
 namespace curve {
 namespace client {
@@ -49,8 +50,9 @@ TEST(RequestSchedulerTest, fake_server_test) {
     brpc::Server server;
     std::string listenAddr = "127.0.0.1:9109";
     FakeChunkServiceImpl fakeChunkService;
-    ASSERT_EQ(server.AddService(&fakeChunkService,
-                                brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+    ASSERT_EQ(
+        server.AddService(&fakeChunkService, brpc::SERVER_DOESNT_OWN_SERVICE),
+        0);
     brpc::ServerOptions option;
     option.idle_timeout_sec = -1;
     ASSERT_EQ(server.Start(listenAddr.c_str(), &option), 0);
@@ -94,7 +96,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
 
     /* error request schedule test when scheduler not run */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
         reqCtx->writeData_.append(writebuff, len);
@@ -102,17 +104,17 @@ TEST(RequestSchedulerTest, fake_server_test) {
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(0);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
 
-        std::vector<RequestContext *> reqCtxs;
+        std::vector<RequestContext*> reqCtxs;
         reqCtxs.push_back(reqCtx);
         ASSERT_EQ(-1, requestScheduler.ScheduleRequest(reqCtxs));
     }
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
         reqCtx->writeData_.append(writebuff, len);
@@ -120,7 +122,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(0);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
@@ -147,7 +149,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
     const uint64_t len1 = 16;
     /* write should with attachment size */
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
@@ -157,18 +159,18 @@ TEST(RequestSchedulerTest, fake_server_test) {
         reqCtx->rawlength_ = len1;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
 
-        std::vector<RequestContext *> reqCtxs;
+        std::vector<RequestContext*> reqCtxs;
         reqCtxs.push_back(reqCtx);
         ASSERT_EQ(0, requestScheduler.ScheduleRequest(reqCtxs));
         cond.Wait();
     }
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
@@ -177,12 +179,12 @@ TEST(RequestSchedulerTest, fake_server_test) {
         reqCtx->rawlength_ = len1;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
 
-        std::vector<RequestContext *> reqCtxs;
+        std::vector<RequestContext*> reqCtxs;
         reqCtxs.push_back(reqCtx);
         ASSERT_EQ(0, requestScheduler.ScheduleRequest(reqCtxs));
         cond.Wait();
@@ -190,10 +192,9 @@ TEST(RequestSchedulerTest, fake_server_test) {
         ASSERT_EQ(0, reqDone->GetErrorCode());
     }
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->seq_ = sn;
         ::memset(writebuff1, 'a', 8);
@@ -203,21 +204,20 @@ TEST(RequestSchedulerTest, fake_server_test) {
         reqCtx->rawlength_ = len1;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
 
-        std::vector<RequestContext *> reqCtxs;
+        std::vector<RequestContext*> reqCtxs;
         reqCtxs.push_back(reqCtx);
         ASSERT_EQ(0, requestScheduler.ScheduleRequest(reqCtxs));
         cond.Wait();
     }
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->seq_ = sn;
         memset(readbuff1, '0', 16);
@@ -225,12 +225,12 @@ TEST(RequestSchedulerTest, fake_server_test) {
         reqCtx->rawlength_ = len1;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
 
-        std::vector<RequestContext *> reqCtxs;
+        std::vector<RequestContext*> reqCtxs;
         reqCtxs.push_back(reqCtx);
         ASSERT_EQ(0, requestScheduler.ScheduleRequest(reqCtxs));
         cond.Wait();
@@ -258,9 +258,9 @@ TEST(RequestSchedulerTest, fake_server_test) {
     }
 
     // read snapshot
-    // 1. 先 write snapshot
+    // 1. Write snapshot first
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
@@ -272,22 +272,21 @@ TEST(RequestSchedulerTest, fake_server_test) {
         reqCtx->rawlength_ = len1;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
 
-        std::vector<RequestContext *> reqCtxs;
+        std::vector<RequestContext*> reqCtxs;
         reqCtxs.push_back(reqCtx);
         ASSERT_EQ(0, requestScheduler.ScheduleRequest(reqCtxs));
         cond.Wait();
     }
-    // 2. 再 read snapshot 验证一遍
+    // 2. Verify with read snapshot again
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->seq_ = sn;
         memset(readbuff1, '0', 16);
@@ -295,12 +294,12 @@ TEST(RequestSchedulerTest, fake_server_test) {
         reqCtx->rawlength_ = len1;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
 
-        std::vector<RequestContext *> reqCtxs;
+        std::vector<RequestContext*> reqCtxs;
         reqCtxs.push_back(reqCtx);
         ASSERT_EQ(0, requestScheduler.ScheduleRequest(reqCtxs));
         cond.Wait();
@@ -309,47 +308,45 @@ TEST(RequestSchedulerTest, fake_server_test) {
         ASSERT_EQ(reqCtx->readData_, expectReadData);
         ASSERT_EQ(0, reqDone->GetErrorCode());
     }
-    // 3. 在 delete snapshot
+    // 3. In delete snapshot
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::DELETE_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->correctedSeq_ = sn;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len1;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
 
-        std::vector<RequestContext *> reqCtxs;
+        std::vector<RequestContext*> reqCtxs;
         reqCtxs.push_back(reqCtx);
         ASSERT_EQ(0, requestScheduler.ScheduleRequest(reqCtxs));
         cond.Wait();
         ASSERT_EQ(0, reqDone->GetErrorCode());
     }
-    // 4. 重复 delete snapshot
+    // 4. Repeat delete snapshot
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::DELETE_SNAP;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->correctedSeq_ = sn;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len1;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
 
-        std::vector<RequestContext *> reqCtxs;
+        std::vector<RequestContext*> reqCtxs;
         reqCtxs.push_back(reqCtx);
         ASSERT_EQ(0, requestScheduler.ScheduleRequest(reqCtxs));
         cond.Wait();
@@ -357,22 +354,22 @@ TEST(RequestSchedulerTest, fake_server_test) {
                   reqDone->GetErrorCode());
     }
 
-    // 测试 get chunk info
+    // Test get chunk info
     {
         ChunkInfoDetail chunkInfo;
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::GET_CHUNK_INFO;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
         reqCtx->chunkinfodetail_ = &chunkInfo;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
 
-        std::vector<RequestContext *> reqCtxs;
+        std::vector<RequestContext*> reqCtxs;
         reqCtxs.push_back(reqCtx);
         ASSERT_EQ(0, requestScheduler.ScheduleRequest(reqCtxs));
         cond.Wait();
@@ -383,9 +380,9 @@ TEST(RequestSchedulerTest, fake_server_test) {
                   reqDone->GetErrorCode());
     }
 
-    // 测试createClonechunk
+    // Test createClonechunk
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::CREATE_CLONE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
@@ -395,36 +392,35 @@ TEST(RequestSchedulerTest, fake_server_test) {
         reqCtx->location_ = "destination";
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
 
-        std::vector<RequestContext *> reqCtxs;
+        std::vector<RequestContext*> reqCtxs;
         reqCtxs.push_back(reqCtx);
         ASSERT_EQ(0, requestScheduler.ScheduleRequest(reqCtxs));
         cond.Wait();
         ASSERT_EQ(0, reqDone->GetErrorCode());
     }
 
-    // 测试recoverChunk
+    // Testing recoverChunk
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::RECOVER_CHUNK;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->seq_ = sn;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len1;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
 
-        std::vector<RequestContext *> reqCtxs;
+        std::vector<RequestContext*> reqCtxs;
         reqCtxs.push_back(reqCtx);
         ASSERT_EQ(0, requestScheduler.ScheduleRequest(reqCtxs));
         cond.Wait();
@@ -434,7 +430,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
     /* read/write chunk test */
     const int kMaxLoop = 100;
     for (int i = 0; i < kMaxLoop; ++i) {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
@@ -444,22 +440,21 @@ TEST(RequestSchedulerTest, fake_server_test) {
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
 
-        std::vector<RequestContext *> reqCtxs;
+        std::vector<RequestContext*> reqCtxs;
         reqCtxs.push_back(reqCtx);
         ASSERT_EQ(0, requestScheduler.ScheduleRequest(reqCtxs));
         cond.Wait();
     }
 
     for (int i = 0; i < kMaxLoop; ++i) {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         reqCtx->seq_ = sn;
         memset(readbuff, '0', 8);
@@ -467,12 +462,12 @@ TEST(RequestSchedulerTest, fake_server_test) {
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
 
-        std::vector<RequestContext *> reqCtxs;
+        std::vector<RequestContext*> reqCtxs;
         reqCtxs.push_back(reqCtx);
         ASSERT_EQ(0, requestScheduler.ScheduleRequest(reqCtxs));
         cond.Wait();
@@ -482,10 +477,9 @@ TEST(RequestSchedulerTest, fake_server_test) {
         ASSERT_EQ(0, reqDone->GetErrorCode());
     }
     {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::UNKNOWN;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
 
         memset(readbuff, '0', 8);
         // reqCtx->readBuffer_ = readbuff;
@@ -493,23 +487,23 @@ TEST(RequestSchedulerTest, fake_server_test) {
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
 
-        std::vector<RequestContext *> reqCtxs;
+        std::vector<RequestContext*> reqCtxs;
         reqCtxs.push_back(reqCtx);
         ASSERT_EQ(0, requestScheduler.ScheduleRequest(reqCtxs));
         cond.Wait();
         ASSERT_EQ(-1, reqDone->GetErrorCode());
     }
 
-    /* 2. 并发测试 */
+    /* 2. Concurrent testing */
     curve::common::CountDownEvent cond(4 * kMaxLoop);
     auto func = [&]() {
         for (int i = 0; i < kMaxLoop; ++i) {
-            RequestContext *reqCtx = new FakeRequestContext();
+            RequestContext* reqCtx = new FakeRequestContext();
             reqCtx->optype_ = OpType::WRITE;
             reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
@@ -518,7 +512,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
             reqCtx->offset_ = offset + i;
             reqCtx->rawlength_ = len;
 
-            RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+            RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
             reqDone->SetFileMetric(&fm);
             reqDone->SetIOTracker(&iot);
             reqCtx->done_ = reqDone;
@@ -538,10 +532,9 @@ TEST(RequestSchedulerTest, fake_server_test) {
     cond.Wait();
 
     for (int i = 0; i < kMaxLoop; i += 1) {
-        RequestContext *reqCtx = new FakeRequestContext();
+        RequestContext* reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, 1000, copysetId);
-
 
         reqCtx->seq_ = sn;
         memset(readbuff, '0', 8);
@@ -549,7 +542,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
         reqCtx->offset_ = offset + i;
         reqCtx->rawlength_ = len;
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure* reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
         reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
@@ -578,11 +571,11 @@ TEST(RequestSchedulerTest, CommonTest) {
     MetaCache metaCache;
     FileMetric fm("test");
 
-    // scheduleQueueCapacity 设置为 0
+    // scheduleQueueCapacity set to 0
     opt.scheduleQueueCapacity = 0;
     ASSERT_EQ(-1, sche.Init(opt, &metaCache, &fm));
 
-    // threadpoolsize 设置为 0
+    // threadpoolsize set to 0
     opt.scheduleQueueCapacity = 4096;
     opt.scheduleThreadpoolSize = 0;
     ASSERT_EQ(-1, sche.Init(opt, &metaCache, &fm));
@@ -597,5 +590,5 @@ TEST(RequestSchedulerTest, CommonTest) {
     ASSERT_EQ(0, sche.Fini());
 }
 
-}   // namespace client
-}   // namespace curve
+}  // namespace client
+}  // namespace curve

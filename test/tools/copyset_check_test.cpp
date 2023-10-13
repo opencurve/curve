@@ -20,15 +20,17 @@
  * Author: charisu
  */
 
-#include <gtest/gtest.h>
 #include "src/tools/copyset_check.h"
+
+#include <gtest/gtest.h>
+
 #include "src/tools/copyset_check_core.h"
 #include "test/tools/mock/mock_copyset_check_core.h"
 
 using ::testing::_;
+using ::testing::DoAll;
 using ::testing::Return;
 using ::testing::ReturnRef;
-using ::testing::DoAll;
 using ::testing::SetArgPointee;
 
 DECLARE_bool(detail);
@@ -55,26 +57,23 @@ class CopysetCheckTest : public ::testing::Test {
         core_ = std::make_shared<MockCopysetCheckCore>();
         FLAGS_detail = true;
     }
-    void TearDown() {
-        core_ = nullptr;
-    }
+    void TearDown() { core_ = nullptr; }
 
     void GetIoBufForTest(butil::IOBuf* buf, const std::string& gId,
-                                            bool isLeader = false,
-                                            bool noLeader = false,
-                                            bool installingSnapshot = false,
-                                            bool peersLess = false,
-                                            bool gapBig = false,
-                                            bool parseErr = false,
-                                            bool peerOffline = false) {
+                         bool isLeader = false, bool noLeader = false,
+                         bool installingSnapshot = false,
+                         bool peersLess = false, bool gapBig = false,
+                         bool parseErr = false, bool peerOffline = false) {
         butil::IOBufBuilder os;
-        os << "[" << gId <<  "]\r\n";
+        os << "[" << gId << "]\r\n";
         if (peersLess) {
             os << "peers: \r\n";
         } else if (peerOffline) {
-            os << "peers: 127.0.0.1:9191:0 127.0.0.1:9192:0 127.0.0.1:9194:0\r\n";  // NOLINT
+            os << "peers: 127.0.0.1:9191:0 127.0.0.1:9192:0 "
+                  "127.0.0.1:9194:0\r\n";  // NOLINT
         } else {
-            os << "peers: 127.0.0.1:9191:0 127.0.0.1:9192:0 127.0.0.1:9193:0\r\n";  // NOLINT
+            os << "peers: 127.0.0.1:9191:0 127.0.0.1:9192:0 "
+                  "127.0.0.1:9193:0\r\n";  // NOLINT
         }
         os << "storage: [2581, 2580]\n";
         if (parseErr) {
@@ -84,7 +83,9 @@ class CopysetCheckTest : public ::testing::Test {
         }
         os << "state_machine: Idle\r\n";
         if (isLeader) {
-            os << "state: " << "LEADER" << "\r\n";
+            os << "state: "
+               << "LEADER"
+               << "\r\n";
             os << "replicator_123: next_index=";
             if (gapBig) {
                 os << "1000";
@@ -99,26 +100,31 @@ class CopysetCheckTest : public ::testing::Test {
             }
             os << "hc=4211759 ac=1089 ic=0\r\n";
         } else {
-            os << "state: " << "FOLLOWER" << "\r\n";
+            os << "state: "
+               << "FOLLOWER"
+               << "\r\n";
             if (noLeader) {
-                os << "leader: " << "0.0.0.0:0:0\r\n";
+                os << "leader: "
+                   << "0.0.0.0:0:0\r\n";
             } else {
-                os << "leader: " << "127.0.0.1:9192:0\r\n";
+                os << "leader: "
+                   << "127.0.0.1:9192:0\r\n";
             }
         }
         os.move_to(*buf);
     }
 
-    std::map<std::string, std::set<std::string>> res1 =
-                    {{"total", {"4294967396", "4294967397"}}};
-    std::map<std::string, std::set<std::string>> res2 =
-                    {{"total", {"4294967396", "4294967397", "4294967398",
-                               "4294967399", "4294967400", "4294967401"}},
-                     {"installing snapshot", {"4294967397"}},
-                     {"no leader", {"4294967398"}},
-                     {"index gap too big", {"4294967399"}},
-                     {"peers not sufficient", {"4294967400"}},
-                     {"peer not online", {"4294967401"}}};
+    std::map<std::string, std::set<std::string>> res1 = {
+        {"total", {"4294967396", "4294967397"}}};
+    std::map<std::string, std::set<std::string>> res2 = {
+        {"total",
+         {"4294967396", "4294967397", "4294967398", "4294967399", "4294967400",
+          "4294967401"}},
+        {"installing snapshot", {"4294967397"}},
+        {"no leader", {"4294967398"}},
+        {"index gap too big", {"4294967399"}},
+        {"peers not sufficient", {"4294967400"}},
+        {"peer not online", {"4294967401"}}};
     std::set<std::string> serviceExcepCs = {"127.0.0.1:9092"};
     std::set<std::string> copysetExcepCs = {"127.0.0.1:9093"};
     std::set<std::string> emptySet;
@@ -143,29 +149,25 @@ TEST_F(CopysetCheckTest, CheckOneCopyset) {
     copysetCheck.PrintHelp("check-copyset");
     butil::IOBuf iobuf;
     GetIoBufForTest(&iobuf, "4294967396", true);
-    std::vector<std::string> peersInCopyset =
-            {"127.0.0.1:9091", "127.0.0.1:9092", "127.0.0.1:9093"};
+    std::vector<std::string> peersInCopyset = {
+        "127.0.0.1:9091", "127.0.0.1:9092", "127.0.0.1:9093"};
     std::string copysetDetail = iobuf.to_string();
 
-    // Init失败的情况
-    EXPECT_CALL(*core_, Init(_))
-        .Times(1)
-        .WillOnce(Return(-1));
+    // The situation of Init failure
+    EXPECT_CALL(*core_, Init(_)).Times(1).WillOnce(Return(-1));
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-copyset"));
 
-    EXPECT_CALL(*core_, Init(_))
-        .Times(1)
-        .WillOnce(Return(0));
-    // 不支持的命令
+    EXPECT_CALL(*core_, Init(_)).Times(1).WillOnce(Return(0));
+    // Unsupported command
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-nothings"));
     copysetCheck.PrintHelp("check-nothins");
-    // 没有指定逻辑池和copyset的话返回失败
+    // If no logical pool and copyset are specified, a failure is returne
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-copyset"));
     FLAGS_logicalPoolId = 1;
     FLAGS_copysetId = 100;
     copysetCheck.PrintHelp("check-copyset");
 
-    // 健康的情况
+    // Healthy situation
     EXPECT_CALL(*core_, CheckOneCopyset(_, _))
         .Times(1)
         .WillOnce(Return(CheckResult::kHealthy));
@@ -180,7 +182,7 @@ TEST_F(CopysetCheckTest, CheckOneCopyset) {
         .WillOnce(ReturnRef(emptySet));
     ASSERT_EQ(0, copysetCheck.RunCommand("check-copyset"));
 
-    // copyset不健康的情况
+    // The unhealthy situation of copyset
     EXPECT_CALL(*core_, CheckOneCopyset(_, _))
         .Times(1)
         .WillOnce(Return(CheckResult::kLogIndexGapTooBig));
@@ -199,15 +201,13 @@ TEST_F(CopysetCheckTest, CheckOneCopyset) {
 TEST_F(CopysetCheckTest, testCheckChunkServer) {
     CopysetCheck copysetCheck(core_);
     copysetCheck.PrintHelp("check-chunkserver");
-    EXPECT_CALL(*core_, Init(_))
-        .Times(1)
-        .WillOnce(Return(0));
-    // 没有指定chunkserver的话报错
+    EXPECT_CALL(*core_, Init(_)).Times(1).WillOnce(Return(0));
+    // Error reported if chunkserver is not specified
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-chunkserver"));
     copysetCheck.PrintHelp("check-chunkserver");
 
-    // 健康的情况
-    // 通过id查询
+    // Healthy situation
+    // Query by ID
     FLAGS_chunkserverId = 1;
     EXPECT_CALL(*core_, CheckCopysetsOnChunkServer(FLAGS_chunkserverId))
         .Times(1)
@@ -225,11 +225,11 @@ TEST_F(CopysetCheckTest, testCheckChunkServer) {
         .Times(1)
         .WillOnce(ReturnRef(emptySet));
     ASSERT_EQ(0, copysetCheck.RunCommand("check-chunkserver"));
-    // id和地址同时指定，报错
+    // Error reported when both ID and address are specified simultaneously
     FLAGS_chunkserverAddr = "127.0.0.1:8200";
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-chunkserver"));
     FLAGS_chunkserverId = 0;
-    // 通过地址查询
+    // Search through address
     EXPECT_CALL(*core_, CheckCopysetsOnChunkServer(FLAGS_chunkserverAddr))
         .Times(1)
         .WillOnce(Return(0));
@@ -247,7 +247,7 @@ TEST_F(CopysetCheckTest, testCheckChunkServer) {
         .WillOnce(ReturnRef(emptySet));
     ASSERT_EQ(0, copysetCheck.RunCommand("check-chunkserver"));
 
-    // 不健康的情况
+    // Unhealthy situation
     EXPECT_CALL(*core_, CheckCopysetsOnChunkServer(FLAGS_chunkserverAddr))
         .Times(1)
         .WillOnce(Return(-1));
@@ -269,23 +269,20 @@ TEST_F(CopysetCheckTest, testCheckChunkServer) {
 TEST_F(CopysetCheckTest, testCheckServer) {
     CopysetCheck copysetCheck(core_);
     copysetCheck.PrintHelp("check-server");
-    std::vector<std::string> chunkservers =
-            {"127.0.0.1:9091", "127.0.0.1:9092", "127.0.0.1:9093"};
-    EXPECT_CALL(*core_, Init(_))
-        .Times(1)
-        .WillOnce(Return(0));
+    std::vector<std::string> chunkservers = {"127.0.0.1:9091", "127.0.0.1:9092",
+                                             "127.0.0.1:9093"};
+    EXPECT_CALL(*core_, Init(_)).Times(1).WillOnce(Return(0));
 
-    // 没有指定server的话报错
+    // If no server is specified, an error will be reported
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-server"));
     copysetCheck.PrintHelp("check-server");
 
-    // 健康的情况
-    // 通过id查询
+    // Healthy situation
+    // Query by ID
     FLAGS_serverId = 1;
     EXPECT_CALL(*core_, CheckCopysetsOnServer(FLAGS_serverId, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(chunkservers),
-                        Return(0)));
+        .WillOnce(DoAll(SetArgPointee<1>(chunkservers), Return(0)));
     EXPECT_CALL(*core_, GetCopysetsRes())
         .Times(1)
         .WillRepeatedly(ReturnRef(res1));
@@ -299,15 +296,14 @@ TEST_F(CopysetCheckTest, testCheckServer) {
         .Times(1)
         .WillOnce(ReturnRef(emptySet));
     ASSERT_EQ(0, copysetCheck.RunCommand("check-server"));
-    // id和ip同时指定，报错
+    // Error reported when both ID and IP are specified simultaneously
     FLAGS_serverIp = "127.0.0.1";
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-server"));
     FLAGS_serverId = 0;
-    // 通过ip查询
+    // Query through IP
     EXPECT_CALL(*core_, CheckCopysetsOnServer(FLAGS_serverIp, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(chunkservers),
-                        Return(0)));
+        .WillOnce(DoAll(SetArgPointee<1>(chunkservers), Return(0)));
     EXPECT_CALL(*core_, GetCopysetsRes())
         .Times(1)
         .WillRepeatedly(ReturnRef(res1));
@@ -322,7 +318,7 @@ TEST_F(CopysetCheckTest, testCheckServer) {
         .WillOnce(ReturnRef(emptySet));
     ASSERT_EQ(0, copysetCheck.RunCommand("check-server"));
 
-    // 不健康的情况
+    // Unhealthy situation
     EXPECT_CALL(*core_, CheckCopysetsOnServer(FLAGS_serverIp, _))
         .Times(1)
         .WillOnce(Return(-1));
@@ -344,14 +340,10 @@ TEST_F(CopysetCheckTest, testCheckServer) {
 TEST_F(CopysetCheckTest, testCheckCluster) {
     CopysetCheck copysetCheck(core_);
     copysetCheck.PrintHelp("copysets-status");
-    EXPECT_CALL(*core_, Init(_))
-        .Times(1)
-        .WillOnce(Return(0));
+    EXPECT_CALL(*core_, Init(_)).Times(1).WillOnce(Return(0));
 
-    // 健康的情况
-    EXPECT_CALL(*core_, CheckCopysetsInCluster())
-        .Times(1)
-        .WillOnce(Return(0));
+    // Healthy situation
+    EXPECT_CALL(*core_, CheckCopysetsInCluster()).Times(1).WillOnce(Return(0));
     EXPECT_CALL(*core_, GetCopysetsRes())
         .Times(1)
         .WillRepeatedly(ReturnRef(res1));
@@ -366,10 +358,8 @@ TEST_F(CopysetCheckTest, testCheckCluster) {
         .WillOnce(ReturnRef(emptySet));
     ASSERT_EQ(0, copysetCheck.RunCommand(kCopysetsStatusCmd));
 
-    // 不健康的情况
-    EXPECT_CALL(*core_, CheckCopysetsInCluster())
-        .Times(1)
-        .WillOnce(Return(-1));
+    // Unhealthy situation
+    EXPECT_CALL(*core_, CheckCopysetsInCluster()).Times(1).WillOnce(Return(-1));
     EXPECT_CALL(*core_, GetCopysetsRes())
         .Times(1)
         .WillRepeatedly(ReturnRef(res2));
@@ -388,14 +378,12 @@ TEST_F(CopysetCheckTest, testCheckCluster) {
 TEST_F(CopysetCheckTest, testCheckOperator) {
     CopysetCheck copysetCheck(core_);
     copysetCheck.PrintHelp("check-operator");
-    EXPECT_CALL(*core_, Init(_))
-        .Times(1)
-        .WillOnce(Return(0));
+    EXPECT_CALL(*core_, Init(_)).Times(1).WillOnce(Return(0));
 
-    // 1、不支持的operator
+    // 1. Unsupported operator
     FLAGS_opName = "no_operator";
     ASSERT_EQ(-1, copysetCheck.RunCommand(kCheckOperatorCmd));
-    // 2、transfer leader的operator和total的
+    // 2. The operator and total of the transfer leader
     EXPECT_CALL(*core_, CheckOperator(_, FLAGS_leaderOpInterval))
         .Times(2)
         .WillOnce(Return(0))
@@ -404,7 +392,7 @@ TEST_F(CopysetCheckTest, testCheckOperator) {
     ASSERT_EQ(0, copysetCheck.RunCommand(kCheckOperatorCmd));
     FLAGS_opName = kTotalOpName;
     ASSERT_EQ(-1, copysetCheck.RunCommand(kCheckOperatorCmd));
-    // 2、其他operator
+    // 2. Other operators
     EXPECT_CALL(*core_, CheckOperator(_, FLAGS_opIntervalExceptLeader))
         .Times(3)
         .WillOnce(Return(10))
@@ -420,15 +408,11 @@ TEST_F(CopysetCheckTest, testCheckOperator) {
 TEST_F(CopysetCheckTest, PrintMayBrokenVolumes) {
     CopysetCheck copysetCheck(core_);
     copysetCheck.PrintHelp(kListMayBrokenVolumes);
-    EXPECT_CALL(*core_, Init(_))
-        .Times(1)
-        .WillOnce(Return(0));
+    EXPECT_CALL(*core_, Init(_)).Times(1).WillOnce(Return(0));
     // fail
-    EXPECT_CALL(*core_, ListMayBrokenVolumes(_))
-        .WillOnce(Return(-1));
+    EXPECT_CALL(*core_, ListMayBrokenVolumes(_)).WillOnce(Return(-1));
     ASSERT_EQ(-1, copysetCheck.RunCommand(kListMayBrokenVolumes));
-    EXPECT_CALL(*core_, ListMayBrokenVolumes(_))
-        .WillOnce(Return(0));
+    EXPECT_CALL(*core_, ListMayBrokenVolumes(_)).WillOnce(Return(0));
     ASSERT_EQ(0, copysetCheck.RunCommand(kListMayBrokenVolumes));
 }
 
