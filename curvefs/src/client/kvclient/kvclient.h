@@ -22,6 +22,8 @@
 #ifndef CURVEFS_SRC_CLIENT_KVCLIENT_KVCLIENT_H_
 #define CURVEFS_SRC_CLIENT_KVCLIENT_KVCLIENT_H_
 
+#include <libmemcached-1.0/types/return.h>
+
 #include <string>
 
 namespace curvefs {
@@ -49,8 +51,9 @@ class KVClient {
     virtual bool Set(const std::string &key, const char *value,
                      const uint64_t value_len, std::string *errorlog) = 0;
 
-    virtual bool Get(const std::string &key, char *value, uint64_t offset,
-                     uint64_t length, std::string *errorlog) = 0;
+    virtual bool Get(const std::string& key, char* value, uint64_t offset,
+                     uint64_t length, std::string* errorlog,
+                     uint64_t* actLength, memcached_return_t* retCod) = 0;
 };
 
 }  // namespace client

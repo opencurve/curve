@@ -27,10 +27,14 @@
 #include <libmemcached-1.0/memcached.h>
 #include <libmemcached-1.0/types/return.h>
 
+#include <cstdint>
+#include <memory>
 #include <string>
 
-#include "curvefs/src/client/kvclient/kvclient.h"
+#include "absl/memory/memory.h"
 #include "curvefs/proto/topology.pb.h"
+#include "curvefs/src/client/kvclient/kvclient.h"
+#include "curvefs/src/client/metric/client_metric.h"
 
 namespace curvefs {
 
@@ -83,7 +87,9 @@ class MemCachedClient : public KVClient {
     explicit MemCachedClient(memcached_st *cli) : client_(cli) {}
     ~MemCachedClient() { UnInit(); }
 
-    bool Init(const MemcacheClusterInfo &kvcachecluster) {
+    bool Init(const MemcacheClusterInfo& kvcachecluster,
+              const std::string& fsName) {
+        metric_ = absl::make_unique<metric::MemcacheClientMetric>(fsName);
         client_ = memcached(nullptr, 0);
 
         for (int i = 0; i < kvcachecluster.servers_size(); i++) {
@@ -106,8 +112,9 @@ class MemCachedClient : public KVClient {
         }
     }
 
-    bool Set(const std::string &key, const char *value,
-             const uint64_t value_len, std::string *errorlog) override {
+    bool Set(const std::string& key, const char* value,
+             const uint64_t value_len, std::string* errorlog) override {
+        uint64_t start = butil::cpuwide_time_us();
         if (nullptr == tcli) {
             tcli = memcached_clone(nullptr, client_);
         }
@@ -115,17 +122,22 @@ class MemCachedClient : public KVClient {
                                  value_len, 0, 0);
         if (MEMCACHED_SUCCESS == res) {
             VLOG(9) << "Set key = " << key << " OK";
+            metric::CollectMetrics(&metric_->set, value_len,
+                                   butil::cpuwide_time_us() - start);
             return true;
         }
         *errorlog = ResError(res);
         memcached_free(tcli);
         tcli = nullptr;
         LOG(ERROR) << "Set key = " << key << " error = " << *errorlog;
+        metric_->set.eps.count << 1;
         return false;
     }
 
-    bool Get(const std::string &key, char *value, uint64_t offset,
-             uint64_t length, std::string *errorlog) override {
+    bool Get(const std::string& key, char* value, uint64_t offset,
+             uint64_t length, std::string* errorlog, uint64_t* actLength,
+             memcached_return_t* retCode) override {
+        uint64_t start = butil::cpuwide_time_us();
         if (nullptr == tcli) {
             // multi thread use a memcached_st* client is unsafe.
             // should clone it or use memcached_st_pool.
@@ -136,11 +148,19 @@ class MemCachedClient : public KVClient {
         memcached_return_t ue;
         char *res = memcached_get(tcli, key.c_str(), key.length(),
                                   &value_length, &flags, &ue);
+        if (actLength != nullptr) {
+            (*actLength) = value_length;
+        }
+        if (retCode != nullptr) {
+            (*retCode) = ue;
+        }
         if (MEMCACHED_SUCCESS == ue && res != nullptr && value &&
             value_length >= length) {
             VLOG(9) << "Get key = " << key << " OK";
             memcpy(value, res + offset, length);
             free(res);
+            metric::CollectMetrics(&metric_->get, value_length,
+                                   butil::cpuwide_time_us() - start);
             return true;
         }
 
@@ -153,6 +173,7 @@ class MemCachedClient : public KVClient {
           tcli = nullptr;
         }
 
+        metric_->get.eps.count << 1;
         return false;
     }
 
@@ -198,7 +219,8 @@ class MemCachedClient : public KVClient {
 
  private:
     memcached_server_st *server_;
-    memcached_st *client_;
+    memcached_st* client_;
+    std::unique_ptr<metric::MemcacheClientMetric> metric_;
 };
 
 }  //  namespace client

@@ -55,12 +55,14 @@ class MemCachedTest : public ::testing::Test {
         }
 
         std::shared_ptr<MemCachedClient> client(new MemCachedClient());
+        MemcacheClusterInfo info;
+        client->Init(info, "test");
         ASSERT_EQ(true, client->AddServer(hostname, port));
         ASSERT_EQ(true, client->PushServer());
         KVClientManagerOpt opt;
         opt.setThreadPooln = 2;
         opt.getThreadPooln = 2;
-        ASSERT_EQ(true, manager_.Init(opt, client));
+        ASSERT_EQ(true, manager_.Init(opt, client, "test"));
 
         // wait memcached server start
         std::string errorlog;
@@ -114,8 +116,7 @@ TEST_F(MemCachedTest, MultiThreadTask) {
         });
     }
     taskEvent.Wait();
-    ASSERT_EQ(
-        5, manager_.GetClientMetricForTesting()->kvClientSet.latency.count());
+    ASSERT_EQ(5, manager_.GetMetricForTesting()->set.latency.count());
 
     // get
     for (int i = 0; i < 5; i++) {
