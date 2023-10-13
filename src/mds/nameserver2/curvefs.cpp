@@ -115,7 +115,8 @@ bool CurveFS::InitRecycleBinDir() {
         return true;
     } else {
         // internal error
-        LOG(INFO) << "InitRecycleBinDir error ,ret = " << ret;
+        LOG(INFO) << "InitRecycleBinDir error ,ret = "
+                  << PrintStoreStatusByErrorCode(ret);
         return false;
     }
 }
@@ -206,7 +207,8 @@ StatusCode CurveFS::WalkPath(const std::string &fileName,
         } else if (ret == StoreStatus::KeyNotExist) {
             return StatusCode::kFileNotExists;
         } else {
-            LOG(ERROR) << "GetFile error, errcode = " << ret;
+            LOG(ERROR) << "GetFile error, errcode = "
+                       << PrintStoreStatusByErrorCode(ret);
             return StatusCode::kStorageError;
         }
         // assert(fileInfo->parentid() != parentID);
@@ -680,7 +682,7 @@ StatusCode CurveFS::DeleteFile(const std::string & filename, uint64_t fileId,
         if (ret != StoreStatus::OK) {
             LOG(ERROR) << "delete file, file is directory and delete fail"
                        << ", filename = " << filename
-                       << ", ret = " << ret;
+                       << ", ret = " << PrintStoreStatusByErrorCode(ret);
             return StatusCode::kStorageError;
         }
 
@@ -728,8 +730,8 @@ StatusCode CurveFS::DeleteFile(const std::string & filename, uint64_t fileId,
                 storage_->MoveFileToRecycle(fileInfo, recycleFileInfo);
             if (ret1 != StoreStatus::OK) {
                 LOG(ERROR) << "delete file, move file to recycle fail"
-                        << ", filename = " << filename
-                        << ", ret = " << ret1;
+                           << ", filename = " << filename
+                           << ", ret = " << PrintStoreStatusByErrorCode(ret1);
                 return StatusCode::kStorageError;
             }
             LOG(INFO) << "file delete to recyclebin, fileName = " << filename
@@ -877,7 +879,8 @@ StatusCode CurveFS::RecoverFile(const std::string & originFileName,
 
     auto ret1 = storage_->RenameFile(recycleFileInfo, recoverFileInfo);
     if ( ret1 != StoreStatus::OK ) {
-        LOG(ERROR) << "storage_ recoverfile error, error = " << ret1;
+        LOG(ERROR) << "storage_ recoverfile error, error = "
+                   << PrintStoreStatusByErrorCode(ret1);
         return StatusCode::kStorageError;
     }
     return StatusCode::kOK;
@@ -1122,9 +1125,9 @@ StatusCode CurveFS::RenameFile(const std::string & sourceFileName,
                                                         recycleFileInfo);
         if (ret1 != StoreStatus::OK) {
             LOG(ERROR) << "storage_ ReplaceFileAndRecycleOldFile error"
-                        << ", sourceFileName = " << sourceFileName
-                        << ", destFileName = " << destFileName
-                        << ", ret = " << ret1;
+                       << ", sourceFileName = " << sourceFileName
+                       << ", destFileName = " << destFileName
+                       << ", ret = " << PrintStoreStatusByErrorCode(ret1);
 
             return StatusCode::kStorageError;
         }
@@ -1138,7 +1141,8 @@ StatusCode CurveFS::RenameFile(const std::string & sourceFileName,
 
         auto ret = storage_->RenameFile(sourceFileInfo, destFileInfo);
         if ( ret != StoreStatus::OK ) {
-            LOG(ERROR) << "storage_ renamefile error, error = " << ret;
+            LOG(ERROR) << "storage_ renamefile error, error = "
+                       << PrintStoreStatusByErrorCode(ret);
             return StatusCode::kStorageError;
         }
         return StatusCode::kOK;
@@ -1385,8 +1389,8 @@ StatusCode CurveFS::DeAllocateSegment(const std::string& fileName,
     storeRet = storage_->DiscardSegment(fileInfo, segment);
     if (storeRet != StoreStatus::OK) {
         LOG(WARNING) << "Storage CleanSegment return error, filename = "
-                   << fileName << ", offset = " << offset
-                   << ", error = " << storeRet;
+                     << fileName << ", offset = " << offset
+                     << ", error = " << PrintStoreStatusByErrorCode(storeRet);
         return StatusCode::kStorageError;
     }
 
@@ -1508,7 +1512,8 @@ StatusCode CurveFS::ListSnapShotFile(const std::string & fileName,
         storeStatus == StoreStatus::OK) {
         return StatusCode::kOK;
     } else {
-        LOG(ERROR) << fileName << ", storage ListFile return = " << storeStatus;
+        LOG(ERROR) << fileName << ", storage ListFile return = "
+                   << PrintStoreStatusByErrorCode(storeStatus);
         return StatusCode::kStorageError;
     }
 }
@@ -1702,10 +1707,10 @@ StatusCode CurveFS::GetSnapShotFileSegment(
                   << ", offset = " << offset;
         return StatusCode::kSegmentNotAllocated;
     } else {
-        LOG(ERROR) << "get segment fail, KInternalError, ret = " << storeRet
-                  << ", fileInfo.id() = "
-                  << fileInfo.id()
-                  << ", offset = " << offset;
+        LOG(ERROR) << "get segment fail, KInternalError, ret = "
+                   << PrintStoreStatusByErrorCode(storeRet)
+                   << ", fileInfo.id() = " << fileInfo.id()
+                   << ", offset = " << offset;
         return StatusCode::KInternalError;
     }
 }
@@ -2038,7 +2043,8 @@ StatusCode CurveFS::CheckPathOwnerInternal(const std::string &filename,
             LOG(WARNING) << paths[i] << " not exist";
             return StatusCode::kFileNotExists;
         } else {
-            LOG(ERROR) << "GetFile " << paths[i] << " error, errcode = " << ret;
+            LOG(ERROR) << "GetFile " << paths[i] << " error, errcode = "
+                       << PrintStoreStatusByErrorCode(ret);
             return StatusCode::kStorageError;
         }
         tempParentID =  fileInfo.id();
@@ -2393,7 +2399,7 @@ StatusCode CurveFS::ListCloneSourceFileSegments(
                       "filename = "
                    << fileInfo->filename()
                    << ", source file name = " << fileInfo->clonesource()
-                   << ", ret = " << status;
+                   << ", ret = " << PrintStoreStatusByErrorCode(status);
         return StatusCode::kStorageError;
     }
 

@@ -51,6 +51,18 @@ enum class StoreStatus {
 };
 std::ostream& operator << (std::ostream & os, StoreStatus &s);
 
+inline const char* PrintStoreStatusByErrorCode(StoreStatus status) {
+    switch (status) {
+        case StoreStatus::OK:
+            return "OK";
+        case StoreStatus::KeyNotExist:
+            return "KeyNotExist";
+        case StoreStatus::InternalError:
+            return "InternalError";
+        default:
+            return "unknown status";
+    }
+}
 // TODO(hzsunjianliang): may be storage need high level abstraction
 // put the encoding internal, not external
 

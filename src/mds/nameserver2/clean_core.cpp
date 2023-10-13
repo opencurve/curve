@@ -65,11 +65,11 @@ StatusCode CleanCore::CleanSnapShotFile(const FileInfo & fileInfo,
                 correctSn);
             if (ret != 0) {
                 LOG(ERROR) << "CleanSnapShotFile Error: "
-                    << "DeleteChunkSnapshotOrCorrectSn Error"
-                    << ", ret = " << ret
-                    << ", inodeid = " << fileInfo.id()
-                    << ", filename = " << fileInfo.filename()
-                    << ", correctSn = " << correctSn;
+                           << "DeleteChunkSnapshotOrCorrectSn Error"
+                           << ", ret = " << PrintMdsDescByErrorCode(ret)
+                           << ", inodeid = " << fileInfo.id()
+                           << ", filename = " << fileInfo.filename()
+                           << ", correctSn = " << correctSn;
                 progress->SetStatus(TaskStatus::FAILED);
                 return StatusCode::kSnapshotFileDeleteError;
             }
@@ -81,7 +81,8 @@ StatusCode CleanCore::CleanSnapShotFile(const FileInfo & fileInfo,
     StoreStatus ret =  storage_->DeleteSnapshotFile(fileInfo.parentid(),
                                                 fileInfo.filename());
     if (ret != StoreStatus::OK) {
-        LOG(INFO) << "delete snapshotfile error, retCode = " << ret;
+        LOG(INFO) << "delete snapshotfile error, retCode = "
+                  << PrintStoreStatusByErrorCode(ret);
         progress->SetStatus(TaskStatus::FAILED);
         return StatusCode::kSnapshotFileDeleteError;
     } else {
@@ -123,7 +124,7 @@ StatusCode CleanCore::CleanFile(const FileInfo & commonFile,
         int ret = DeleteChunksInSegment(segment, commonFile.seqnum());
         if (ret != 0) {
             LOG(ERROR) << "Clean common File Error: "
-                       << ", ret = " << ret
+                       << ", ret = " << PrintMdsDescByErrorCode(ret)
                        << ", inodeid = " << commonFile.id()
                        << ", filename = " << commonFile.filename()
                        << ", sequenceNum = " << commonFile.seqnum();
@@ -153,7 +154,8 @@ StatusCode CleanCore::CleanFile(const FileInfo & commonFile,
     StoreStatus ret =  storage_->DeleteFile(commonFile.parentid(),
                                                    commonFile.filename());
     if (ret != StoreStatus::OK) {
-        LOG(INFO) << "delete common file error, retCode = " << ret;
+        LOG(INFO) << "delete common file error, retDesc = "
+                  << PrintStoreStatusByErrorCode(ret);
         progress->SetStatus(TaskStatus::FAILED);
         return StatusCode::kCommonFileDeleteError;
     } else {
@@ -185,7 +187,8 @@ StatusCode CleanCore::CleanDiscardSegment(
     int ret = DeleteChunksInSegment(segment, seq);
     if (ret != 0) {
         LOG(ERROR) << "CleanDiscardSegment failed, DeleteChunk Error, ret = "
-                   << ret << ", filename = " << fileInfo.filename()
+                   << PrintMdsDescByErrorCode(ret)
+                   << ", filename = " << fileInfo.filename()
                    << ", inodeid = " << fileInfo.id()
                    << ", segment offset = " << segment.startoffset();
         progress->SetStatus(TaskStatus::FAILED);
@@ -229,7 +232,8 @@ int CleanCore::DeleteChunksInSegment(const PageFileSegment& segment,
             seq);
 
         if (ret != 0) {
-            LOG(ERROR) << "DeleteChunk failed, ret = " << ret
+            LOG(ERROR) << "DeleteChunk failed, ret = "
+                       << PrintMdsDescByErrorCode(ret)
                        << ", logicalpoolid = " << logicalPoolId
                        << ", copysetid = " << segment.chunks()[i].copysetid()
                        << ", chunkid = " << segment.chunks()[i].chunkid()
