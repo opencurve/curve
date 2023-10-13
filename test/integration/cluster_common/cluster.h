@@ -120,7 +120,7 @@ class CurveCluster {
     /**
      * StartSingleMDS starts an mds
      * If need chunkservers with different IPs, please set the ipPort to
-     192.168.200.1:XXXX
+     * 192.168.200.1:XXXX
      *
      * @param[in] id mdsId
      * @param[in] ipPort specifies the ipPort of the mds

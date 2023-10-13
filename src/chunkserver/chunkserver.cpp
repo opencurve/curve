@@ -95,8 +95,7 @@ namespace curve
 
             RegisterCurveSegmentLogStorageOrDie();
 
-            // ==========================Load Configuration
-            // Items===============================//
+            // ==========================Load Configuration Items===============================//
             LOG(INFO) << "Loading Configuration.";
             common::Configuration conf;
             conf.SetConfigPath(FLAGS_conf.c_str());
@@ -116,8 +115,7 @@ namespace curve
             conf.PrintConfig();
             curve::common::ExposeCurveVersion();
 
-            // ============================nitialize each
-            // module==========================//
+            // ============================Initialize each module==========================//
             LOG(INFO) << "Initializing ChunkServer modules";
 
             // Prioritize initializing the metric collection module

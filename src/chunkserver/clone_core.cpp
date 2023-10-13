@@ -223,11 +223,11 @@ int CloneCore::HandleReadRequest(std::shared_ptr<ReadChunkRequest> readRequest,
     CSErrorCode errorCode = dataStore->GetChunkInfo(id, &chunkInfo);
 
     /*
-     *Chunk exists: Check and analyze Bitmap to determine if it can be read
-     *locally Chunk does not exist: if it contains clone information, it will be
-     *read from clonesource, otherwise an error will be returned Because the
-     *upper level ReadChunkRequest::OnApply has already processed NoExist And
-     *the situation where cloneinfo does not exist
+     * Chunk exists: Check and analyze Bitmap to determine if it can be read
+     * locally Chunk does not exist: if it contains clone information, it will be
+     * read from clonesource, otherwise an error will be returned Because the
+     * upper level ReadChunkRequest::OnApply has already processed NoExist And
+     * the situation where cloneinfo does not exist
      */
     switch (errorCode) {
         case CSErrorCode::Success:
