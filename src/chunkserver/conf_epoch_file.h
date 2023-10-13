@@ -59,12 +59,12 @@ class ConfEpochFile {
 
     /**
      * Serialize configuration version information and save it to a snapshot
-     *file. The format is as follows: The 'head' indicates the length and is in
-     *binary format. The rest is in text format for easy viewing when necessary.
-     *'sync' ensures data persistence. |             head            |
-     *Configuration version information | | 8 bytes size_t  | uint32_t  |
-     *Variable length text       | |     length      |   crc32   | logic pool id
-     *| copyset id | epoch| The persistence above is separated by ':'
+     * file. The format is as follows: The 'head' indicates the length and is in
+     * binary format. The rest is in text format for easy viewing when necessary.
+     * 'sync' ensures data persistence. |             head            |
+     * Configuration version information | | 8 bytes size_t  | uint32_t  |
+     * Variable length text       | |     length      |   crc32   | logic pool id
+     * | copyset id | epoch| The persistence above is separated by ':'
      * @param path: File path
      * @param logicPoolID: Logical Pool ID
      * @param copysetID: Copy group ID

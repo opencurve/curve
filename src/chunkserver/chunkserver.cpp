@@ -86,8 +86,7 @@ int ChunkServer::Run(int argc, char** argv) {
 
     RegisterCurveSegmentLogStorageOrDie();
 
-    // ==========================Load Configuration
-    // Items===============================//
+    // ============Load Configuration Items============ //
     LOG(INFO) << "Loading Configuration.";
     common::Configuration conf;
     conf.SetConfigPath(FLAGS_conf.c_str());
@@ -107,8 +106,7 @@ int ChunkServer::Run(int argc, char** argv) {
     conf.ExposeMetric("chunkserver_config");
     curve::common::ExposeCurveVersion();
 
-    // ============================nitialize each
-    // module==========================//
+    // ============Initialize each module============ //
     LOG(INFO) << "Initializing ChunkServer modules";
 
     // Prioritize initializing the metric collection module
@@ -418,8 +416,7 @@ int ChunkServer::Run(int argc, char** argv) {
         }
     }
 
-    // =======================Start each
-    // module==================================//
+    // ==========Start each module==========//
     LOG(INFO) << "ChunkServer starts.";
     /**
      * Placing module startup after RPC service startup is mainly to address
@@ -436,8 +433,7 @@ int ChunkServer::Run(int argc, char** argv) {
     LOG_IF(FATAL, !chunkfilePool->StartCleaning())
         << "Failed to start file pool clean worker.";
 
-    // =======================Wait for the process to
-    // exit==================================//
+    // ==========Wait for the process to exit========== //
     while (!brpc::IsAskedToQuit()) {
         bthread_usleep(1000000L);
     }

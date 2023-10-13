@@ -57,8 +57,8 @@ class Bitmap {
     explicit Bitmap(uint32_t bits);
     /**
      * Constructor when initializing from an existing snapshot file
-     *The constructor will create a new bitmap internally, and then use the
-     *bitmap memcpy in the parameters
+     * The constructor will create a new bitmap internally, and then use the
+     * bitmap memcpy in the parameters
      * @param bits: Bitmap bits
      * @param bitmap: An externally provided bitmap for initialization
      */

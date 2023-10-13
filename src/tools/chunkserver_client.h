@@ -80,22 +80,22 @@ class ChunkServerClient {
     virtual bool CheckChunkServerOnline();
 
     /**
-    *  @brief calls the GetCopysetStatus interface of chunkserver
-    *  @param request Query the request for the copyset
-    *  @param response The response returned contains detailed information about
-    *  the replication group, which is valid when the return value is 0
-    *  @return returns 0 for success, -1 for failure
-    */
+     *  @brief calls the GetCopysetStatus interface of chunkserver
+     *  @param request Query the request for the copyset
+     *  @param response The response returned contains detailed information
+     * about the replication group, which is valid when the return value is 0
+     *  @return returns 0 for success, -1 for failure
+     */
     virtual int GetCopysetStatus(const CopysetStatusRequest& request,
                                  CopysetStatusResponse* response);
 
     /**
-    *  @brief Get the hash value of chunks from chunkserver
-    *  @param chunk The chunk to query
-    *  @param[out] The hash value chunkHash chunk, valid when the return value
-    *  is 0
-    *  @return returns 0 for success, -1 for failure
-    */
+     *  @brief Get the hash value of chunks from chunkserver
+     *  @param chunk The chunk to query
+     *  @param[out] The hash value chunkHash chunk, valid when the return value
+     *  is 0
+     *  @return returns 0 for success, -1 for failure
+     */
     virtual int GetChunkHash(const Chunk& chunk, std::string* chunkHash);
 
  private:
