@@ -61,15 +61,15 @@ using ::curvefs::client::common::kWarmupCacheStorageType;
 using ::curvefs::client::common::kWarmupDataType;
 using ::curvefs::client::common::kWarmupOpType;
 using ::curvefs::client::common::WarmupStorageType;
-using ::curvefs::client::filesystem::AccessLogGuard;
+using ::curvefs::client::logger::AccessLogGuard;
+using ::curvefs::client::logger::InitAccessLog;
+using ::curvefs::client::logger::StrFormat;
 using ::curvefs::client::filesystem::AttrOut;
 using ::curvefs::client::filesystem::EntryOut;
 using ::curvefs::client::filesystem::FileOut;
-using ::curvefs::client::filesystem::InitAccessLog;
 using ::curvefs::client::filesystem::Logger;
 using ::curvefs::client::filesystem::StrAttr;
 using ::curvefs::client::filesystem::StrEntry;
-using ::curvefs::client::filesystem::StrFormat;
 using ::curvefs::client::filesystem::StrMode;
 using ::curvefs::client::metric::ClientOpMetric;
 using ::curvefs::client::metric::InflightGuard;
@@ -1018,5 +1018,5 @@ void FuseOpBmap(fuse_req_t req,
     auto client = Client();
     auto fs = client->GetFileSystem();
 
-    return fs->ReplyError(req, CURVEFS_ERROR::NOTSUPPORT);
+    return fs->ReplyError(req, CURVEFS_ERROR::NOT_SUPPORT);
 }
