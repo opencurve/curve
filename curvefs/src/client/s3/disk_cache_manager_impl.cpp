@@ -98,6 +98,7 @@ int DiskCacheManagerImpl::WriteClosure(
      // set the returned value
     // it is need in CallBack
     context->retCode = ret;
+    context->timer.stop();
     context->cb(context);
     VLOG(9) << "WriteClosure end, name: " << context->key;
     return 0;
