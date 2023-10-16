@@ -126,26 +126,6 @@ using common::FLAGS_fuseClientBurstReadBytesSecs;
 //     fuseClient->InitQosParam();
 // }
 
-void EnableSplice(struct fuse_conn_info* conn) {
-    if (!g_fuseClientOption->enableFuseSplice) {
-        LOG(INFO) << "Fuse splice is disabled";
-        return;
-    }
-
-    if (conn->capable & FUSE_CAP_SPLICE_MOVE) {
-        conn->want |= FUSE_CAP_SPLICE_MOVE;
-        LOG(INFO) << "FUSE_CAP_SPLICE_MOVE enabled";
-    }
-    if (conn->capable & FUSE_CAP_SPLICE_READ) {
-        conn->want |= FUSE_CAP_SPLICE_READ;
-        LOG(INFO) << "FUSE_CAP_SPLICE_READ enabled";
-    }
-    if (conn->capable & FUSE_CAP_SPLICE_WRITE) {
-        conn->want |= FUSE_CAP_SPLICE_WRITE;
-        LOG(INFO) << "FUSE_CAP_SPLICE_WRITE enabled";
-    }
-}
-
 CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
     option_ = option;
 
@@ -261,7 +241,6 @@ void FuseClient::FuseOpDestroy(void *userdata) {
     leaseExecutor_.reset();
 
     struct MountOption *mOpts = (struct MountOption *)userdata;
-    struct MountOption *mOpts = &mountOption_;
     std::string fsName = (mOpts->fsName == nullptr) ? "" : mOpts->fsName;
 
     Mountpoint mountPoint;

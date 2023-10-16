@@ -67,7 +67,6 @@ using ::curvefs::client::logger::StrFormat;
 using ::curvefs::client::filesystem::AttrOut;
 using ::curvefs::client::filesystem::EntryOut;
 using ::curvefs::client::filesystem::FileOut;
-using ::curvefs::client::filesystem::Logger;
 using ::curvefs::client::filesystem::StrAttr;
 using ::curvefs::client::filesystem::StrEntry;
 using ::curvefs::client::filesystem::StrMode;
