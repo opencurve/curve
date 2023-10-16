@@ -126,7 +126,6 @@ using common::FLAGS_fuseClientBurstReadBytesSecs;
 //     fuseClient->InitQosParam();
 // }
 
-/*
 void EnableSplice(struct fuse_conn_info* conn) {
     if (!g_fuseClientOption->enableFuseSplice) {
         LOG(INFO) << "Fuse splice is disabled";
@@ -146,7 +145,6 @@ void EnableSplice(struct fuse_conn_info* conn) {
         LOG(INFO) << "FUSE_CAP_SPLICE_WRITE enabled";
     }
 }
-*/
 
 CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
     option_ = option;
@@ -205,10 +203,10 @@ CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
         }
     }
 
-    //if (warmupManager_ != nullptr) {
-    //    warmupManager_->Init(option);
-    //    warmupManager_->SetFsInfo(fsInfo_);
-    //}
+    if (warmupManager_ != nullptr) {
+        warmupManager_->Init(option);
+        warmupManager_->SetFsInfo(fsInfo_);
+    }
 
     InitQosParam();
 
@@ -217,9 +215,9 @@ CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
 
 
 void FuseClient::UnInit() {
-    //if (warmupManager_ != nullptr) {
-    //    warmupManager_->UnInit();
-    //}
+    if (warmupManager_ != nullptr) {
+        warmupManager_->UnInit();
+    }
 
     delete mdsBase_;
     mdsBase_ = nullptr;
@@ -247,8 +245,6 @@ CURVEFS_ERROR FuseClient::FuseOpInit(void *userdata,
     (void) userdata;
     (void) conn;
     fs_->Run();
-    // EnableSplice(conn);  // FIXME(Wine93): let it work
-    //LOG(INFO) << "FuseOpInit() success, retCode = " << rc;
     return CURVEFS_ERROR::OK;
 }
 
@@ -262,9 +258,9 @@ void FuseClient::FuseOpDestroy(void *userdata) {
 
     // stop lease before umount fs, otherwise, lease request after umount fs
     // will add a mountpoint entry.
-    //leaseExecutor_.reset();
+    leaseExecutor_.reset();
 
-    //struct MountOption *mOpts = (struct MountOption *)userdata;
+    struct MountOption *mOpts = (struct MountOption *)userdata;
     struct MountOption *mOpts = &mountOption_;
     std::string fsName = (mOpts->fsName == nullptr) ? "" : mOpts->fsName;
 
@@ -1400,9 +1396,9 @@ FuseClient::SetMountStatus(const struct MountOption *mountOption) {
     }
 
     init_ = true;
-    //if (warmupManager_ != nullptr) {
-    //    warmupManager_->SetMounted(true);
-    //}
+    if (warmupManager_ != nullptr) {
+        warmupManager_->SetMounted(true);
+    }
     mountOption_ = *mountOption;
     return CURVEFS_ERROR::OK;
 }

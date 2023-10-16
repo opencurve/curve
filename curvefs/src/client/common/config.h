@@ -177,7 +177,6 @@ struct RefreshDataOption {
 };
 
 // { vfs option
-
 struct UserPermissionOption {
     uint32_t uid;
     std::vector<uint32_t> gids;

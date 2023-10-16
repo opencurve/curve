@@ -138,7 +138,6 @@ struct OpMetric {
           ecount(prefix, name + "_error_num") {}
 };
 
-/*
 struct ClientOpMetric {
     static const std::string prefix;
 
@@ -190,9 +189,8 @@ struct ClientOpMetric {
           opFsync(prefix, "opFsync"),
           opFlush(prefix, "opFlush"),
           opRead(prefix, "opRead"),
-          opWrite(prefix, "opWrite"), {}
+          opWrite(prefix, "opWrite") {}
 };
-*/
 
 struct S3MultiManagerMetric {
     static const std::string prefix;
