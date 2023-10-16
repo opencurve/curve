@@ -32,7 +32,7 @@
 
 #include "curvefs/src/client/common/common.h"
 #include "curvefs/src/client/common/config.h"
-#include "curvefs/src/client/filesystem/access_log.h"
+#include "curvefs/src/client/logger/access_log.h"
 #include "curvefs/src/client/filesystem/error.h"
 #include "curvefs/src/client/filesystem/meta.h"
 #include "curvefs/src/client/fuse_client.h"
