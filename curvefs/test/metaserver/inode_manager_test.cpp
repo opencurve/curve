@@ -465,10 +465,10 @@ TEST_F(InodeManagerTest, testGetXAttr) {
     ASSERT_EQ(manager->CreateInode(3, param_, &inode2, logIndex_++),
               MetaStatusCode::OK);
     ASSERT_FALSE(inode2.xattr().empty());
-    ASSERT_EQ(inode2.xattr().find(XATTRFILES)->second, "0");
-    ASSERT_EQ(inode2.xattr().find(XATTRSUBDIRS)->second, "0");
-    ASSERT_EQ(inode2.xattr().find(XATTRENTRIES)->second, "0");
-    ASSERT_EQ(inode2.xattr().find(XATTRFBYTES)->second, "0");
+    ASSERT_EQ(inode2.xattr().find(XATTR_DIR_FILES)->second, "0");
+    ASSERT_EQ(inode2.xattr().find(XATTR_DIR_SUBDIRS)->second, "0");
+    ASSERT_EQ(inode2.xattr().find(XATTR_DIR_ENTRIES)->second, "0");
+    ASSERT_EQ(inode2.xattr().find(XATTR_DIR_FBYTES)->second, "0");
 
     // GET
     XAttr xattr;
@@ -477,16 +477,16 @@ TEST_F(InodeManagerTest, testGetXAttr) {
     ASSERT_EQ(xattr.fsid(), fsId);
     ASSERT_EQ(xattr.inodeid(), inode2.inodeid());
     ASSERT_EQ(xattr.xattrinfos_size(), 4);
-    ASSERT_EQ(xattr.xattrinfos().find(XATTRFILES)->second, "0");
-    ASSERT_EQ(xattr.xattrinfos().find(XATTRSUBDIRS)->second, "0");
-    ASSERT_EQ(xattr.xattrinfos().find(XATTRENTRIES)->second, "0");
-    ASSERT_EQ(xattr.xattrinfos().find(XATTRFBYTES)->second, "0");
+    ASSERT_EQ(xattr.xattrinfos().find(XATTR_DIR_FILES)->second, "0");
+    ASSERT_EQ(xattr.xattrinfos().find(XATTR_DIR_SUBDIRS)->second, "0");
+    ASSERT_EQ(xattr.xattrinfos().find(XATTR_DIR_ENTRIES)->second, "0");
+    ASSERT_EQ(xattr.xattrinfos().find(XATTR_DIR_FBYTES)->second, "0");
 
     // UPDATE
-    inode2.mutable_xattr()->find(XATTRFILES)->second = "1";
-    inode2.mutable_xattr()->find(XATTRSUBDIRS)->second = "1";
-    inode2.mutable_xattr()->find(XATTRENTRIES)->second = "2";
-    inode2.mutable_xattr()->find(XATTRFBYTES)->second = "100";
+    inode2.mutable_xattr()->find(XATTR_DIR_FILES)->second = "1";
+    inode2.mutable_xattr()->find(XATTR_DIR_SUBDIRS)->second = "1";
+    inode2.mutable_xattr()->find(XATTR_DIR_ENTRIES)->second = "2";
+    inode2.mutable_xattr()->find(XATTR_DIR_FBYTES)->second = "100";
     UpdateInodeRequest request = MakeUpdateInodeRequestFromInode(inode2);
     ASSERT_EQ(manager->UpdateInode(request, logIndex_++), MetaStatusCode::OK);
 
@@ -495,10 +495,10 @@ TEST_F(InodeManagerTest, testGetXAttr) {
     ASSERT_EQ(manager->GetXAttr(fsId, inode2.inodeid(), &xattr1),
               MetaStatusCode::OK);
     ASSERT_EQ(xattr1.xattrinfos_size(), 4);
-    ASSERT_EQ(xattr1.xattrinfos().find(XATTRFILES)->second, "1");
-    ASSERT_EQ(xattr1.xattrinfos().find(XATTRSUBDIRS)->second, "1");
-    ASSERT_EQ(xattr1.xattrinfos().find(XATTRENTRIES)->second, "2");
-    ASSERT_EQ(xattr1.xattrinfos().find(XATTRFBYTES)->second, "100");
+    ASSERT_EQ(xattr1.xattrinfos().find(XATTR_DIR_FILES)->second, "1");
+    ASSERT_EQ(xattr1.xattrinfos().find(XATTR_DIR_SUBDIRS)->second, "1");
+    ASSERT_EQ(xattr1.xattrinfos().find(XATTR_DIR_ENTRIES)->second, "2");
+    ASSERT_EQ(xattr1.xattrinfos().find(XATTR_DIR_FBYTES)->second, "100");
 }
 
 TEST_F(InodeManagerTest, testCreateManageInode) {

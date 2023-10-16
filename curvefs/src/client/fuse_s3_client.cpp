@@ -27,6 +27,7 @@
 #include <vector>
 
 #include "curvefs/src/client/kvclient/memcache_client.h"
+#include "curvefs/src/client/filesystem/xattr.h"
 
 namespace curvefs {
 namespace client {
@@ -46,6 +47,7 @@ using curvefs::client::common::FLAGS_supportKVcache;
 using curvefs::client::common::FLAGS_enableCto;
 using curvefs::mds::topology::MemcacheClusterInfo;
 using curvefs::mds::topology::MemcacheServerInfo;
+using ::curvefs::client::filesystem::XATTR_DIR_FBYTES;
 
 CURVEFS_ERROR FuseS3Client::Init(const FuseClientOption &option) {
     FuseClientOption opt(option);
@@ -204,7 +206,7 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
     if (enableSumInDir_ && changeSize != 0) {
         const Inode* inode = inodeWrapper->GetInodeLocked();
         XAttr xattr;
-        xattr.mutable_xattrinfos()->insert({XATTRFBYTES,
+        xattr.mutable_xattrinfos()->insert({XATTR_DIR_FBYTES,
             std::to_string(changeSize)});
         for (const auto &it : inode->parent()) {
             auto tret = xattrManager_->UpdateParentInodeXattr(it, xattr, true);
