@@ -164,8 +164,9 @@ public class CurveFileSystem extends FileSystem {
     public FileStatus[] listStatus(Path path) throws IOException {
         path = makeAbsolute(path);
 
-        if (isFile(path))
+        if (isFile(path)) {
             return new FileStatus[]{getFileStatus(path)};
+        }
 
         String[] dirlist = curve.listdir(path);
         if (dirlist != null) {
@@ -173,9 +174,7 @@ public class CurveFileSystem extends FileSystem {
             for (int i = 0; i < status.length; i++) {
                 status[i] = getFileStatus(new Path(path, dirlist[i]));
             }
-
             curve.shutdown();
-
             return status;
         } else {
             throw new FileNotFoundException("File " + path + " does not exist.");
@@ -223,15 +222,18 @@ public class CurveFileSystem extends FileSystem {
         int flags = CurveFSMount.O_WRONLY | CurveFSMount.O_CREAT;
 
         if (exists) {
-            if (overwrite)
+            if (overwrite) {
                 flags |= CurveFSMount.O_TRUNC;
-            else
+            } else {
                 throw new FileAlreadyExistsException();
+            }
         } else {
             Path parent = path.getParent();
-            if (parent != null)
-                if (!mkdirs(parent))
+            if (parent != null) {
+                if (!mkdirs(parent)) {
                     throw new IOException("mkdirs failed for " + parent.toString());
+                }
+            }
         }
 
         if (progress != null) {
@@ -277,8 +279,9 @@ public class CurveFileSystem extends FileSystem {
         if (parent != null) {
             CurveFSStat stat = new CurveFSStat();
             curve.lstat(parent, stat); // handles FileNotFoundException case
-            if (stat.isFile())
+            if (stat.isFile()) {
                 throw new FileAlreadyExistsException(parent.toString());
+            }
         }
 
         return this.create(path, permission, overwrite,

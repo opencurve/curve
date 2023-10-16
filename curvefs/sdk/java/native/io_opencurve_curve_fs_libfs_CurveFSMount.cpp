@@ -179,7 +179,6 @@ static inline uint32_t fixup_open_flags(jint jflags) {
     return flags;
 }
 
-// TODO(Wine93): use fuse define
 #define CURVEFS_SETATTR_MODE       (1 << 0)
 #define CURVEFS_SETATTR_UID        (1 << 1)
 #define CURVEFS_SETATTR_GID        (1 << 2)
