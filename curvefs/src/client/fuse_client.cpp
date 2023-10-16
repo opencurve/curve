@@ -36,6 +36,7 @@
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/src/client/common/common.h"
 #include "curvefs/src/client/filesystem/error.h"
+#include "curvefs/src/client/filesystem/xattr.h"
 #include "curvefs/src/client/fuse_common.h"
 #include "curvefs/src/client/client_operator.h"
 #include "curvefs/src/client/inode_wrapper.h"
@@ -53,12 +54,22 @@ using ::curvefs::common::S3Info;
 using ::curvefs::common::Volume;
 using ::curvefs::mds::topology::PartitionTxId;
 using ::curvefs::mds::FSStatusCode_Name;
-using ::curvefs::client::common::MAX_XATTR_NAME_LENGTH;
-using ::curvefs::client::common::MAX_XATTR_VALUE_LENGTH;
 using ::curvefs::client::filesystem::ExternalMember;
 using ::curvefs::client::filesystem::DirEntry;
 using ::curvefs::client::filesystem::DirEntryList;
 using ::curvefs::client::filesystem::FileOut;
+using ::curvefs::client::filesystem::MAX_XATTR_NAME_LENGTH;
+using ::curvefs::client::filesystem::MAX_XATTR_VALUE_LENGTH;
+using ::curvefs::client::filesystem::XATTR_DIR_FILES;
+using ::curvefs::client::filesystem::XATTR_DIR_SUBDIRS;
+using ::curvefs::client::filesystem::XATTR_DIR_ENTRIES;
+using ::curvefs::client::filesystem::XATTR_DIR_FBYTES;
+using ::curvefs::client::filesystem::XATTR_DIR_RFILES;
+using ::curvefs::client::filesystem::XATTR_DIR_RFBYTES;
+using ::curvefs::client::filesystem::XATTR_DIR_RSUBDIRS;
+using ::curvefs::client::filesystem::XATTR_DIR_RENTRIES;
+using ::curvefs::client::filesystem::XATTR_DIR_PREFIX;
+using ::curvefs::client::filesystem::IsSpecialXAttr;
 
 #define RETURN_IF_UNSUCCESS(action)                                            \
     do {                                                                       \
@@ -318,7 +329,7 @@ CURVEFS_ERROR FuseClient::HandleOpenFlags(fuse_req_t req,
                 // update parent summary info
                 const Inode *inode = inodeWrapper->GetInodeLocked();
                 XAttr xattr;
-                xattr.mutable_xattrinfos()->insert({XATTRFBYTES,
+                xattr.mutable_xattrinfos()->insert({XATTR_DIR_FBYTES,
                     std::to_string(length)});
                 for (const auto &it : inode->parent()) {
                     auto tret = xattrManager_->UpdateParentInodeXattr(
@@ -463,13 +474,13 @@ CURVEFS_ERROR FuseClient::MakeNode(
     if (enableSumInDir_.load()) {
         // update parent summary info
         XAttr xattr;
-        xattr.mutable_xattrinfos()->insert({XATTRENTRIES, "1"});
+        xattr.mutable_xattrinfos()->insert({XATTR_DIR_ENTRIES, "1"});
         if (type == FsFileType::TYPE_DIRECTORY) {
-            xattr.mutable_xattrinfos()->insert({XATTRSUBDIRS, "1"});
+            xattr.mutable_xattrinfos()->insert({XATTR_DIR_SUBDIRS, "1"});
         } else {
-            xattr.mutable_xattrinfos()->insert({XATTRFILES, "1"});
+            xattr.mutable_xattrinfos()->insert({XATTR_DIR_FILES, "1"});
         }
-        xattr.mutable_xattrinfos()->insert({XATTRFBYTES,
+        xattr.mutable_xattrinfos()->insert({XATTR_DIR_FBYTES,
             std::to_string(inodeWrapper->GetLength())});
         auto tret = xattrManager_->UpdateParentInodeXattr(parent, xattr, true);
         if (tret != CURVEFS_ERROR::OK) {
@@ -542,13 +553,13 @@ CURVEFS_ERROR FuseClient::DeleteNode(uint64_t ino, fuse_ino_t parent,
     if (enableSumInDir_.load()) {
         // update parent summary info
         XAttr xattr;
-        xattr.mutable_xattrinfos()->insert({XATTRENTRIES, "1"});
+        xattr.mutable_xattrinfos()->insert({XATTR_DIR_ENTRIES, "1"});
         if (FsFileType::TYPE_DIRECTORY == type) {
-            xattr.mutable_xattrinfos()->insert({XATTRSUBDIRS, "1"});
+            xattr.mutable_xattrinfos()->insert({XATTR_DIR_SUBDIRS, "1"});
         } else {
-            xattr.mutable_xattrinfos()->insert({XATTRFILES, "1"});
+            xattr.mutable_xattrinfos()->insert({XATTR_DIR_FILES, "1"});
         }
-        xattr.mutable_xattrinfos()->insert({XATTRFBYTES,
+        xattr.mutable_xattrinfos()->insert({XATTR_DIR_FBYTES,
             std::to_string(inodeWrapper->GetLength())});
         auto tret = xattrManager_->UpdateParentInodeXattr(parent, xattr, false);
         if (tret != CURVEFS_ERROR::OK) {
@@ -633,13 +644,13 @@ CURVEFS_ERROR FuseClient::CreateManageNode(fuse_req_t req,
     if (enableSumInDir_.load()) {
         // update parent summary info
         XAttr xattr;
-        xattr.mutable_xattrinfos()->insert({XATTRENTRIES, "1"});
+        xattr.mutable_xattrinfos()->insert({XATTR_DIR_ENTRIES, "1"});
         if (type == FsFileType::TYPE_DIRECTORY) {
-            xattr.mutable_xattrinfos()->insert({XATTRSUBDIRS, "1"});
+            xattr.mutable_xattrinfos()->insert({XATTR_DIR_SUBDIRS, "1"});
         } else {
-            xattr.mutable_xattrinfos()->insert({XATTRFILES, "1"});
+            xattr.mutable_xattrinfos()->insert({XATTR_DIR_FILES, "1"});
         }
-        xattr.mutable_xattrinfos()->insert({XATTRFBYTES,
+        xattr.mutable_xattrinfos()->insert({XATTR_DIR_FBYTES,
             std::to_string(inodeWrapper->GetLength())});
         auto tret = xattrManager_->UpdateParentInodeXattr(parent, xattr, true);
         if (tret != CURVEFS_ERROR::OK) {
@@ -1015,7 +1026,7 @@ CURVEFS_ERROR FuseClient::FuseOpSetAttr(fuse_req_t req,
             // update parent summary info
             const Inode* inode = inodeWrapper->GetInodeLocked();
             XAttr xattr;
-            xattr.mutable_xattrinfos()->insert({XATTRFBYTES,
+            xattr.mutable_xattrinfos()->insert({XATTR_DIR_FBYTES,
                 std::to_string(std::abs(changeSize))});
             bool direction = changeSize > 0;
             for (const auto &it : inode->parent()) {
@@ -1044,7 +1055,8 @@ CURVEFS_ERROR FuseClient::FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino,
     (void)req;
     VLOG(9) << "FuseOpGetXattr, ino: " << ino
             << ", name: " << name << ", size = " << size;
-    if (common::FLAGS_fs_disableXattr) {
+
+    if (option_.fileSystemOption.disableXAttr && !IsSpecialXAttr(name)) {
         return CURVEFS_ERROR::NODATA;
     }
 
@@ -1087,6 +1099,11 @@ CURVEFS_ERROR FuseClient::FuseOpSetXattr(fuse_req_t req, fuse_ino_t ino,
     VLOG(1) << "FuseOpSetXattr ino: " << ino << ", name: " << name
             << ", size = " << size
             << ", strvalue: " << strvalue;
+
+    if (option_.fileSystemOption.disableXAttr && !IsSpecialXAttr(name)) {
+        return CURVEFS_ERROR::NODATA;
+    }
+
     if (strname.length() > MAX_XATTR_NAME_LENGTH  ||
         size > MAX_XATTR_VALUE_LENGTH) {
         LOG(ERROR) << "xattr length is too long, name = " << name
@@ -1135,10 +1152,10 @@ CURVEFS_ERROR FuseClient::FuseOpListXattr(fuse_req_t req, fuse_ino_t ino,
 
     // add summary xattr key
     if (inodeAttr.type() == FsFileType::TYPE_DIRECTORY) {
-        *realSize += strlen(XATTRRFILES) + 1;
-        *realSize += strlen(XATTRRSUBDIRS) + 1;
-        *realSize += strlen(XATTRRENTRIES) + 1;
-        *realSize += strlen(XATTRRFBYTES) + 1;
+        *realSize += strlen(XATTR_DIR_RFILES) + 1;
+        *realSize += strlen(XATTR_DIR_RSUBDIRS) + 1;
+        *realSize += strlen(XATTR_DIR_RENTRIES) + 1;
+        *realSize += strlen(XATTR_DIR_RFBYTES) + 1;
     }
 
     if (size == 0) {
@@ -1150,14 +1167,14 @@ CURVEFS_ERROR FuseClient::FuseOpListXattr(fuse_req_t req, fuse_ino_t ino,
             value += tsize;
         }
         if (inodeAttr.type() == FsFileType::TYPE_DIRECTORY) {
-            memcpy(value, XATTRRFILES, strlen(XATTRRFILES) + 1);
-            value += strlen(XATTRRFILES) + 1;
-            memcpy(value, XATTRRSUBDIRS, strlen(XATTRRSUBDIRS) + 1);
-            value += strlen(XATTRRSUBDIRS) + 1;
-            memcpy(value, XATTRRENTRIES, strlen(XATTRRENTRIES) + 1);
-            value += strlen(XATTRRENTRIES) + 1;
-            memcpy(value, XATTRRFBYTES, strlen(XATTRRFBYTES) + 1);
-            value += strlen(XATTRRFBYTES) + 1;
+            memcpy(value, XATTR_DIR_RFILES, strlen(XATTR_DIR_RFILES) + 1);
+            value += strlen(XATTR_DIR_RFILES) + 1;
+            memcpy(value, XATTR_DIR_RSUBDIRS, strlen(XATTR_DIR_RSUBDIRS) + 1);
+            value += strlen(XATTR_DIR_RSUBDIRS) + 1;
+            memcpy(value, XATTR_DIR_RENTRIES, strlen(XATTR_DIR_RENTRIES) + 1);
+            value += strlen(XATTR_DIR_RENTRIES) + 1;
+            memcpy(value, XATTR_DIR_RFBYTES, strlen(XATTR_DIR_RFBYTES) + 1);
+            value += strlen(XATTR_DIR_RFBYTES) + 1;
         }
         return CURVEFS_ERROR::OK;
     }
@@ -1215,9 +1232,9 @@ CURVEFS_ERROR FuseClient::FuseOpSymlink(fuse_req_t req,
     if (enableSumInDir_.load()) {
         // update parent summary info
         XAttr xattr;
-        xattr.mutable_xattrinfos()->insert({XATTRENTRIES, "1"});
-        xattr.mutable_xattrinfos()->insert({XATTRFILES, "1"});
-        xattr.mutable_xattrinfos()->insert({XATTRFBYTES,
+        xattr.mutable_xattrinfos()->insert({XATTR_DIR_ENTRIES, "1"});
+        xattr.mutable_xattrinfos()->insert({XATTR_DIR_FILES, "1"});
+        xattr.mutable_xattrinfos()->insert({XATTR_DIR_FBYTES,
             std::to_string(inodeWrapper->GetLength())});
         auto tret = xattrManager_->UpdateParentInodeXattr(parent, xattr, true);
         if (tret != CURVEFS_ERROR::OK) {
@@ -1276,9 +1293,9 @@ CURVEFS_ERROR FuseClient::FuseOpLink(fuse_req_t req,
     if (enableSumInDir_.load()) {
         // update parent summary info
         XAttr xattr;
-        xattr.mutable_xattrinfos()->insert({XATTRENTRIES, "1"});
-        xattr.mutable_xattrinfos()->insert({XATTRFILES, "1"});
-        xattr.mutable_xattrinfos()->insert({XATTRFBYTES,
+        xattr.mutable_xattrinfos()->insert({XATTR_DIR_ENTRIES, "1"});
+        xattr.mutable_xattrinfos()->insert({XATTR_DIR_FILES, "1"});
+        xattr.mutable_xattrinfos()->insert({XATTR_DIR_FBYTES,
             std::to_string(inodeWrapper->GetLength())});
         auto tret = xattrManager_->UpdateParentInodeXattr(
             newparent, xattr, true);

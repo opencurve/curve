@@ -200,7 +200,7 @@ class FileSystemBuilder {
         };
 
         option.cto = true;
-        common::FLAGS_fs_disableXattr = option.disableXattr = true;
+        option.disableXAttr = true;
         option.maxNameLength = 255;
         option.blockSize = 0x10000u;
         option.kernelCacheOption = kernelCacheOption;

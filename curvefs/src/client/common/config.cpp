@@ -317,8 +317,7 @@ void InitKVClientManagerOpt(Configuration *conf,
 void InitFileSystemOption(Configuration* c, FileSystemOption* option) {
     c->GetValueFatalIfFail("fs.cto", &option->cto);
     c->GetValueFatalIfFail("fs.cto", &FLAGS_enableCto);
-    c->GetValueFatalIfFail("fs.disableXattr", &option->disableXattr);
-    FLAGS_fs_disableXattr = option->disableXattr;
+    c->GetValueFatalIfFail("fs.disableXAttr", &option->disableXAttr);
     c->GetValueFatalIfFail("fs.maxNameLength", &option->maxNameLength);
     c->GetValueFatalIfFail("fs.accessLogging", &FLAGS_access_logging);
     {  // kernel cache option
