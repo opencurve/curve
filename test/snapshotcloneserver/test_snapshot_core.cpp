@@ -377,10 +377,6 @@ TEST_F(TestSnapshotCoreImpl,
     std::shared_ptr<SnapshotTaskInfo> task =
         std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
-    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
-        .WillOnce(DoAll(
-                    SetArgPointee<2>(seqNum),
-                    Return(LIBCURVE_ERROR::OK)));
 
     FInfo snapInfo;
     snapInfo.seqnum = 100;
@@ -388,11 +384,10 @@ TEST_F(TestSnapshotCoreImpl,
     snapInfo.segmentsize = 2 * snapInfo.chunksize;
     snapInfo.length = 2 * snapInfo.segmentsize;
     snapInfo.ctime = 10;
-    EXPECT_CALL(*client_, GetSnapshot(fileName, user, seqNum, _))
+    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<3>(snapInfo),
+                    SetArgPointee<2>(snapInfo),
                     Return(LIBCURVE_ERROR::OK)));
-
 
     EXPECT_CALL(*metaStore_, CASSnapshot(_, _))
         .WillOnce(Return(kErrCodeSuccess));
@@ -528,9 +523,11 @@ TEST_F(TestSnapshotCoreImpl,
     std::shared_ptr<SnapshotTaskInfo> task =
         std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
+    FInfo snapInfo;
+    snapInfo.seqnum = 100;
     EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<2>(seqNum),
+                    SetArgPointee<2>(snapInfo),
                     Return(-LIBCURVE_ERROR::FAILED)));
 
 
@@ -557,22 +554,16 @@ TEST_F(TestSnapshotCoreImpl,
     std::shared_ptr<SnapshotTaskInfo> task =
         std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
-    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
-        .WillOnce(DoAll(
-                    SetArgPointee<2>(seqNum),
-                    Return(LIBCURVE_ERROR::OK)));
-
-
     FInfo snapInfo;
     snapInfo.seqnum = 100;
     snapInfo.chunksize = 2 * option.chunkSplitSize;
     snapInfo.segmentsize = 2 * snapInfo.chunksize;
     snapInfo.length = 2 * snapInfo.segmentsize;
     snapInfo.ctime = 10;
-    EXPECT_CALL(*client_, GetSnapshot(fileName, user, seqNum, _))
+    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<3>(snapInfo),
-                    Return(-LIBCURVE_ERROR::FAILED)));
+                    SetArgPointee<2>(snapInfo),
+                    Return(LIBCURVE_ERROR::OK)));
 
     EXPECT_CALL(*metaStore_, UpdateSnapshot(_))
         .WillOnce(Return(kErrCodeSuccess));
@@ -596,11 +587,6 @@ TEST_F(TestSnapshotCoreImpl,
     auto snapshotInfoMetric = std::make_shared<SnapshotInfoMetric>(uuid);
     std::shared_ptr<SnapshotTaskInfo> task =
         std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
-    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
-        .WillOnce(DoAll(
-                    SetArgPointee<2>(seqNum),
-                    Return(LIBCURVE_ERROR::OK)));
-
 
     FInfo snapInfo;
     snapInfo.seqnum = 100;
@@ -608,11 +594,10 @@ TEST_F(TestSnapshotCoreImpl,
     snapInfo.segmentsize = 2 * snapInfo.chunksize;
     snapInfo.length = 2 * snapInfo.segmentsize;
     snapInfo.ctime = 10;
-    EXPECT_CALL(*client_, GetSnapshot(fileName, user, seqNum, _))
+    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<3>(snapInfo),
+                    SetArgPointee<2>(snapInfo),
                     Return(LIBCURVE_ERROR::OK)));
-
 
     EXPECT_CALL(*metaStore_, CASSnapshot(_, _))
         .WillOnce(Return(kErrCodeInternalError));
@@ -638,23 +623,16 @@ TEST_F(TestSnapshotCoreImpl,
     auto snapshotInfoMetric = std::make_shared<SnapshotInfoMetric>(uuid);
     std::shared_ptr<SnapshotTaskInfo> task =
         std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
-    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
-        .WillOnce(DoAll(
-                    SetArgPointee<2>(seqNum),
-                    Return(LIBCURVE_ERROR::OK)));
-
-
     FInfo snapInfo;
     snapInfo.seqnum = 100;
     snapInfo.chunksize = 2 * option.chunkSplitSize;
     snapInfo.segmentsize = 2 * snapInfo.chunksize;
     snapInfo.length = 2 * snapInfo.segmentsize;
     snapInfo.ctime = 10;
-    EXPECT_CALL(*client_, GetSnapshot(fileName, user, seqNum, _))
+    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<3>(snapInfo),
+                    SetArgPointee<2>(snapInfo),
                     Return(LIBCURVE_ERROR::OK)));
-
 
     EXPECT_CALL(*metaStore_, CASSnapshot(_, _))
         .WillOnce(Return(kErrCodeInternalError));
@@ -681,24 +659,16 @@ TEST_F(TestSnapshotCoreImpl,
     std::shared_ptr<SnapshotTaskInfo> task =
         std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
-
-    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
-        .WillOnce(DoAll(
-                    SetArgPointee<2>(seqNum),
-                    Return(LIBCURVE_ERROR::OK)));
-
-
     FInfo snapInfo;
     snapInfo.seqnum = 100;
     snapInfo.chunksize = 2 * option.chunkSplitSize;
     snapInfo.segmentsize = 2 * snapInfo.chunksize;
     snapInfo.length = 2 * snapInfo.segmentsize;
     snapInfo.ctime = 10;
-    EXPECT_CALL(*client_, GetSnapshot(fileName, user, seqNum, _))
+    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<3>(snapInfo),
+                    SetArgPointee<2>(snapInfo),
                     Return(LIBCURVE_ERROR::OK)));
-
 
     EXPECT_CALL(*metaStore_, CASSnapshot(_, _))
         .WillOnce(Return(kErrCodeSuccess));
@@ -732,23 +702,16 @@ TEST_F(TestSnapshotCoreImpl,
     std::shared_ptr<SnapshotTaskInfo> task =
         std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
-    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
-        .WillOnce(DoAll(
-                    SetArgPointee<2>(seqNum),
-                    Return(LIBCURVE_ERROR::OK)));
-
-
     FInfo snapInfo;
     snapInfo.seqnum = 100;
     snapInfo.chunksize = 2 * option.chunkSplitSize;
     snapInfo.segmentsize = 2 * snapInfo.chunksize;
     snapInfo.length = 2 * snapInfo.segmentsize;
     snapInfo.ctime = 10;
-    EXPECT_CALL(*client_, GetSnapshot(fileName, user, seqNum, _))
+    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<3>(snapInfo),
+                    SetArgPointee<2>(snapInfo),
                     Return(LIBCURVE_ERROR::OK)));
-
 
     EXPECT_CALL(*metaStore_, CASSnapshot(_, _))
         .WillOnce(Return(kErrCodeSuccess));
@@ -816,24 +779,16 @@ TEST_F(TestSnapshotCoreImpl,
     std::shared_ptr<SnapshotTaskInfo> task =
         std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
-
-    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
-        .WillOnce(DoAll(
-                    SetArgPointee<2>(seqNum),
-                    Return(LIBCURVE_ERROR::OK)));
-
-
     FInfo snapInfo;
     snapInfo.seqnum = 100;
     snapInfo.chunksize = 2 * option.chunkSplitSize;
     snapInfo.segmentsize = 2 * snapInfo.chunksize;
     snapInfo.length = 2 * snapInfo.segmentsize;
     snapInfo.ctime = 10;
-    EXPECT_CALL(*client_, GetSnapshot(fileName, user, seqNum, _))
+    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<3>(snapInfo),
+                    SetArgPointee<2>(snapInfo),
                     Return(LIBCURVE_ERROR::OK)));
-
 
     EXPECT_CALL(*metaStore_, CASSnapshot(_, _))
         .WillOnce(Return(kErrCodeSuccess));
@@ -908,23 +863,16 @@ TEST_F(TestSnapshotCoreImpl,
     std::shared_ptr<SnapshotTaskInfo> task =
         std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
-
-    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
-        .WillOnce(DoAll(
-                    SetArgPointee<2>(seqNum),
-                    Return(LIBCURVE_ERROR::OK)));
-
     FInfo snapInfo;
     snapInfo.seqnum = 100;
     snapInfo.chunksize = 2 * option.chunkSplitSize;
     snapInfo.segmentsize = 2 * snapInfo.chunksize;
     snapInfo.length = 2 * snapInfo.segmentsize;
     snapInfo.ctime = 10;
-    EXPECT_CALL(*client_, GetSnapshot(fileName, user, seqNum, _))
+    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<3>(snapInfo),
+                    SetArgPointee<2>(snapInfo),
                     Return(LIBCURVE_ERROR::OK)));
-
 
     EXPECT_CALL(*metaStore_, CASSnapshot(_, _))
         .WillOnce(Return(kErrCodeSuccess));
@@ -1026,22 +974,16 @@ TEST_F(TestSnapshotCoreImpl,
     std::shared_ptr<SnapshotTaskInfo> task =
         std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
-    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
-        .WillOnce(DoAll(
-                    SetArgPointee<2>(seqNum),
-                    Return(LIBCURVE_ERROR::OK)));
-
     FInfo snapInfo;
     snapInfo.seqnum = 100;
     snapInfo.chunksize = 2 * option.chunkSplitSize;
     snapInfo.segmentsize = 2 * snapInfo.chunksize;
     snapInfo.length = 2 * snapInfo.segmentsize;
     snapInfo.ctime = 10;
-    EXPECT_CALL(*client_, GetSnapshot(fileName, user, seqNum, _))
+    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<3>(snapInfo),
+                    SetArgPointee<2>(snapInfo),
                     Return(LIBCURVE_ERROR::OK)));
-
 
     EXPECT_CALL(*metaStore_, CASSnapshot(_, _))
         .WillOnce(Return(kErrCodeSuccess));
@@ -1157,23 +1099,16 @@ TEST_F(TestSnapshotCoreImpl,
     std::shared_ptr<SnapshotTaskInfo> task =
         std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
-
-    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
-        .WillOnce(DoAll(
-                    SetArgPointee<2>(seqNum),
-                    Return(LIBCURVE_ERROR::OK)));
-
     FInfo snapInfo;
     snapInfo.seqnum = 100;
     snapInfo.chunksize = 2 * option.chunkSplitSize;
     snapInfo.segmentsize = 2 * snapInfo.chunksize;
     snapInfo.length = 2 * snapInfo.segmentsize;
     snapInfo.ctime = 10;
-    EXPECT_CALL(*client_, GetSnapshot(fileName, user, seqNum, _))
+    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<3>(snapInfo),
+                    SetArgPointee<2>(snapInfo),
                     Return(LIBCURVE_ERROR::OK)));
-
 
     EXPECT_CALL(*metaStore_, CASSnapshot(_, _))
         .WillOnce(Return(kErrCodeSuccess));
@@ -1296,23 +1231,16 @@ TEST_F(TestSnapshotCoreImpl,
     std::shared_ptr<SnapshotTaskInfo> task =
         std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
-
-    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
-        .WillOnce(DoAll(
-                    SetArgPointee<2>(seqNum),
-                    Return(LIBCURVE_ERROR::OK)));
-
     FInfo snapInfo;
     snapInfo.seqnum = 100;
     snapInfo.chunksize = 2 * option.chunkSplitSize;
     snapInfo.segmentsize = 2 * snapInfo.chunksize;
     snapInfo.length = 2 * snapInfo.segmentsize;
     snapInfo.ctime = 10;
-    EXPECT_CALL(*client_, GetSnapshot(fileName, user, seqNum, _))
+    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<3>(snapInfo),
+                    SetArgPointee<2>(snapInfo),
                     Return(LIBCURVE_ERROR::OK)));
-
 
     EXPECT_CALL(*metaStore_, CASSnapshot(_, _))
         .WillOnce(Return(kErrCodeSuccess));
@@ -1440,23 +1368,16 @@ TEST_F(TestSnapshotCoreImpl,
     std::shared_ptr<SnapshotTaskInfo> task =
         std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
-
-    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
-        .WillOnce(DoAll(
-                    SetArgPointee<2>(seqNum),
-                    Return(LIBCURVE_ERROR::OK)));
-
     FInfo snapInfo;
     snapInfo.seqnum = 100;
     snapInfo.chunksize = 2 * option.chunkSplitSize;
     snapInfo.segmentsize = 2 * snapInfo.chunksize;
     snapInfo.length = 2 * snapInfo.segmentsize;
     snapInfo.ctime = 10;
-    EXPECT_CALL(*client_, GetSnapshot(fileName, user, seqNum, _))
+    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<3>(snapInfo),
+                    SetArgPointee<2>(snapInfo),
                     Return(LIBCURVE_ERROR::OK)));
-
 
     EXPECT_CALL(*metaStore_, CASSnapshot(_, _))
         .WillOnce(Return(kErrCodeSuccess));
@@ -1586,23 +1507,16 @@ TEST_F(TestSnapshotCoreImpl,
     std::shared_ptr<SnapshotTaskInfo> task =
         std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
-
-    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
-        .WillOnce(DoAll(
-                    SetArgPointee<2>(seqNum),
-                    Return(LIBCURVE_ERROR::OK)));
-
     FInfo snapInfo;
     snapInfo.seqnum = 100;
     snapInfo.chunksize = 2 * option.chunkSplitSize;
     snapInfo.segmentsize = 2 * snapInfo.chunksize;
     snapInfo.length = 2 * snapInfo.segmentsize;
     snapInfo.ctime = 10;
-    EXPECT_CALL(*client_, GetSnapshot(fileName, user, seqNum, _))
+    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<3>(snapInfo),
+                    SetArgPointee<2>(snapInfo),
                     Return(LIBCURVE_ERROR::OK)));
-
 
     EXPECT_CALL(*metaStore_, CASSnapshot(_, _))
         .WillOnce(Return(kErrCodeSuccess));
@@ -1735,23 +1649,16 @@ TEST_F(TestSnapshotCoreImpl,
     std::shared_ptr<SnapshotTaskInfo> task =
         std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
-
-    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
-        .WillOnce(DoAll(
-                    SetArgPointee<2>(seqNum),
-                    Return(LIBCURVE_ERROR::OK)));
-
     FInfo snapInfo;
     snapInfo.seqnum = 100;
     snapInfo.chunksize = 2 * option.chunkSplitSize;
     snapInfo.segmentsize = 2 * snapInfo.chunksize;
     snapInfo.length = 2 * snapInfo.segmentsize;
     snapInfo.ctime = 10;
-    EXPECT_CALL(*client_, GetSnapshot(fileName, user, seqNum, _))
+    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<3>(snapInfo),
+                    SetArgPointee<2>(snapInfo),
                     Return(LIBCURVE_ERROR::OK)));
-
 
     EXPECT_CALL(*metaStore_, CASSnapshot(_, _))
         .WillOnce(Return(kErrCodeSuccess));
@@ -1884,23 +1791,16 @@ TEST_F(TestSnapshotCoreImpl,
     std::shared_ptr<SnapshotTaskInfo> task =
         std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
-
-    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
-        .WillOnce(DoAll(
-                    SetArgPointee<2>(seqNum),
-                    Return(LIBCURVE_ERROR::OK)));
-
     FInfo snapInfo;
     snapInfo.seqnum = 100;
     snapInfo.chunksize = 2 * option.chunkSplitSize;
     snapInfo.segmentsize = 2 * snapInfo.chunksize;
     snapInfo.length = 2 * snapInfo.segmentsize;
     snapInfo.ctime = 10;
-    EXPECT_CALL(*client_, GetSnapshot(fileName, user, seqNum, _))
+    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<3>(snapInfo),
+                    SetArgPointee<2>(snapInfo),
                     Return(LIBCURVE_ERROR::OK)));
-
 
     EXPECT_CALL(*metaStore_, CASSnapshot(_, _))
         .WillOnce(Return(kErrCodeSuccess));
@@ -2600,22 +2500,16 @@ TEST_F(TestSnapshotCoreImpl, TestHandleCreateSnapshotTaskCancelSuccess) {
     std::shared_ptr<SnapshotTaskInfo> task =
         std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
-    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
-        .WillOnce(DoAll(
-                    SetArgPointee<2>(seqNum),
-                    Return(LIBCURVE_ERROR::OK)));
-
     FInfo snapInfo;
     snapInfo.seqnum = 100;
     snapInfo.chunksize = 2 * option.chunkSplitSize;
     snapInfo.segmentsize = 2 * snapInfo.chunksize;
     snapInfo.length = 2 * snapInfo.segmentsize;
     snapInfo.ctime = 10;
-    EXPECT_CALL(*client_, GetSnapshot(fileName, user, seqNum, _))
+    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<3>(snapInfo),
+                    SetArgPointee<2>(snapInfo),
                     Return(LIBCURVE_ERROR::OK)));
-
 
     EXPECT_CALL(*metaStore_, CASSnapshot(_, _))
         .WillOnce(Return(kErrCodeSuccess));
@@ -2769,22 +2663,16 @@ TEST_F(TestSnapshotCoreImpl,
     std::shared_ptr<SnapshotTaskInfo> task =
         std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
-    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
-        .WillOnce(DoAll(
-                    SetArgPointee<2>(seqNum),
-                    Return(LIBCURVE_ERROR::OK)));
-
     FInfo snapInfo;
     snapInfo.seqnum = 100;
     snapInfo.chunksize = 2 * option.chunkSplitSize;
     snapInfo.segmentsize = 2 * snapInfo.chunksize;
     snapInfo.length = 2 * snapInfo.segmentsize;
     snapInfo.ctime = 10;
-    EXPECT_CALL(*client_, GetSnapshot(fileName, user, seqNum, _))
+    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<3>(snapInfo),
+                    SetArgPointee<2>(snapInfo),
                     Return(LIBCURVE_ERROR::OK)));
-
 
     // 此处捕获task，设置cancel
     EXPECT_CALL(*metaStore_, CASSnapshot(_, _))
@@ -2823,22 +2711,16 @@ TEST_F(TestSnapshotCoreImpl,
     std::shared_ptr<SnapshotTaskInfo> task =
         std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
-    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
-        .WillOnce(DoAll(
-                    SetArgPointee<2>(seqNum),
-                    Return(LIBCURVE_ERROR::OK)));
-
     FInfo snapInfo;
     snapInfo.seqnum = 100;
     snapInfo.chunksize = 2 * option.chunkSplitSize;
     snapInfo.segmentsize = 2 * snapInfo.chunksize;
     snapInfo.length = 2 * snapInfo.segmentsize;
     snapInfo.ctime = 10;
-    EXPECT_CALL(*client_, GetSnapshot(fileName, user, seqNum, _))
+    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<3>(snapInfo),
+                    SetArgPointee<2>(snapInfo),
                     Return(LIBCURVE_ERROR::OK)));
-
 
     EXPECT_CALL(*metaStore_, CASSnapshot(_, _))
         .WillOnce(Return(kErrCodeSuccess));
@@ -2930,22 +2812,16 @@ TEST_F(TestSnapshotCoreImpl,
     std::shared_ptr<SnapshotTaskInfo> task =
         std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
-    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
-        .WillOnce(DoAll(
-                    SetArgPointee<2>(seqNum),
-                    Return(LIBCURVE_ERROR::OK)));
-
     FInfo snapInfo;
     snapInfo.seqnum = 100;
     snapInfo.chunksize = 2 * option.chunkSplitSize;
     snapInfo.segmentsize = 2 * snapInfo.chunksize;
     snapInfo.length = 2 * snapInfo.segmentsize;
     snapInfo.ctime = 10;
-    EXPECT_CALL(*client_, GetSnapshot(fileName, user, seqNum, _))
+    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<3>(snapInfo),
+                    SetArgPointee<2>(snapInfo),
                     Return(LIBCURVE_ERROR::OK)));
-
 
     EXPECT_CALL(*metaStore_, CASSnapshot(_, _))
         .WillOnce(Return(kErrCodeSuccess));
@@ -3091,22 +2967,16 @@ TEST_F(TestSnapshotCoreImpl,
     std::shared_ptr<SnapshotTaskInfo> task =
         std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
-    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
-        .WillOnce(DoAll(
-                    SetArgPointee<2>(seqNum),
-                    Return(LIBCURVE_ERROR::OK)));
-
     FInfo snapInfo;
     snapInfo.seqnum = 100;
     snapInfo.chunksize = 2 * option.chunkSplitSize;
     snapInfo.segmentsize = 2 * snapInfo.chunksize;
     snapInfo.length = 2 * snapInfo.segmentsize;
     snapInfo.ctime = 10;
-    EXPECT_CALL(*client_, GetSnapshot(fileName, user, seqNum, _))
+    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<3>(snapInfo),
+                    SetArgPointee<2>(snapInfo),
                     Return(LIBCURVE_ERROR::OK)));
-
 
     EXPECT_CALL(*metaStore_, UpdateSnapshot(_))
         .WillRepeatedly(Return(kErrCodeSuccess));
@@ -3255,22 +3125,16 @@ TEST_F(TestSnapshotCoreImpl,
     std::shared_ptr<SnapshotTaskInfo> task =
         std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
-    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
-        .WillOnce(DoAll(
-                    SetArgPointee<2>(seqNum),
-                    Return(LIBCURVE_ERROR::OK)));
-
     FInfo snapInfo;
     snapInfo.seqnum = 100;
     snapInfo.chunksize = 2 * option.chunkSplitSize;
     snapInfo.segmentsize = 2 * snapInfo.chunksize;
     snapInfo.length = 2 * snapInfo.segmentsize;
     snapInfo.ctime = 10;
-    EXPECT_CALL(*client_, GetSnapshot(fileName, user, seqNum, _))
+    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<3>(snapInfo),
+                    SetArgPointee<2>(snapInfo),
                     Return(LIBCURVE_ERROR::OK)));
-
 
     EXPECT_CALL(*metaStore_, UpdateSnapshot(_))
         .WillRepeatedly(Return(kErrCodeSuccess));

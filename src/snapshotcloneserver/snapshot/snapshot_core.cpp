@@ -40,6 +40,8 @@ namespace curve {
 namespace snapshotcloneserver {
 
 int SnapshotCoreImpl::Init() {
+    stopFlag_ = false;
+
     int ret = threadPool_->Start();
     if (ret < 0) {
         LOG(ERROR) << "SnapshotCoreImpl, thread start fail, ret = " << ret;

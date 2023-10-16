@@ -91,10 +91,11 @@ struct TestClosure : public SnapCloneClosure {
 };
 
 TEST_F(TestCurveFsClientImpl, TestClientInterfaceFail) {
-    uint64_t seq = 0;
-    int ret = client_->CreateSnapshot("file1", "user1", &seq);
+    FInfo snapInfo;
+    int ret = client_->CreateSnapshot("file1", "user1", &snapInfo);
     ASSERT_LT(ret, 0);
-    ret = client_->CreateSnapshot("file1", clientOption_.mdsRootUser, &seq);
+    ret = client_->CreateSnapshot(
+        "file1", clientOption_.mdsRootUser, &snapInfo);
     ASSERT_LT(ret, 0);
 
     ret = client_->DeleteSnapshot("file1", "user1", 1);

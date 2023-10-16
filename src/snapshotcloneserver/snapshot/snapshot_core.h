@@ -36,11 +36,13 @@
 #include "src/snapshotcloneserver/common/config.h"
 #include "src/snapshotcloneserver/common/snapshot_reference.h"
 #include "src/common/concurrent/name_lock.h"
+#include "src/common/concurrent/concurrent.h"
 #include "src/snapshotcloneserver/common/thread_pool.h"
 #include "src/common/interruptible_sleeper.h"
 
 using ::curve::common::NameLock;
 using ::curve::common::InterruptibleSleeper;
+using ::curve::common::Atomic;
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -258,14 +260,18 @@ class SnapshotCoreImpl : public SnapshotCore {
         threadPool_ = std::make_shared<ThreadPool>(
             option.snapshotCoreThreadNum);
       checkPeriod_ = option.localSnapshotBackendCheckIntervalMs;
+      stopFlag_ = true;
     }
 
     int Init();
 
     ~SnapshotCoreImpl() {
-        threadPool_->Stop();
-        checkThread_->join();
-        delete checkThread_;
+        if (!stopFlag_.exchange(true)) {
+            sleeper_.interrupt();
+            checkThread_->join();
+            delete checkThread_;
+            threadPool_->Stop();
+        }
     }
 
     // 公有接口定义见SnapshotCore接口注释
@@ -508,6 +514,7 @@ class SnapshotCoreImpl : public SnapshotCore {
     int checkPeriod_;
     std::list<SnapshotInfo> deletingSnapshots_;
     common::Mutex deletingSnapshotsMutex_;
+    Atomic<bool> stopFlag_;
     InterruptibleSleeper sleeper_;
 
     // 执行并发步骤的线程池

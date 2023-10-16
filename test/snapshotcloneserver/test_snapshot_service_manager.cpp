@@ -29,8 +29,11 @@
 #include "test/snapshotcloneserver/mock_snapshot_server.h"
 #include "src/common/concurrent/count_down_event.h"
 #include "src/snapshotcloneserver/common/snapshotclone_metric.h"
+#include "src/common/curve_version.h"
 
 using curve::common::CountDownEvent;
+using curve::common::kBaseFileVersion;
+
 using ::testing::Return;
 using ::testing::_;
 using ::testing::AnyOf;
@@ -80,6 +83,13 @@ class TestSnapshotServiceManager : public ::testing::Test {
     const std::string &user,
     const std::string &desc,
     UUID uuid) {
+        FInfo fInfo;
+        fInfo.version = kBaseFileVersion;
+        EXPECT_CALL(*core_, GetFileInfo(file, user, _))
+            .WillRepeatedly(DoAll(
+                SetArgPointee<2>(fInfo),
+                Return(kErrCodeSuccess)));
+
         SnapshotInfo info(uuid, user, file, desc);
         EXPECT_CALL(*core_, CreateSnapshotPre(file, user, desc, _))
             .WillOnce(DoAll(
@@ -119,6 +129,13 @@ TEST_F(TestSnapshotServiceManager,
     const std::string desc = "snap1";
     UUID uuid;
     UUID uuidOut = "abc";
+
+    FInfo fInfo;
+    fInfo.version = kBaseFileVersion;
+    EXPECT_CALL(*core_, GetFileInfo(file, user, _))
+        .WillRepeatedly(DoAll(
+            SetArgPointee<2>(fInfo),
+            Return(kErrCodeSuccess)));
 
     SnapshotInfo info(uuidOut, user, file, desc);
     EXPECT_CALL(*core_, CreateSnapshotPre(file, user, desc, _))
@@ -163,6 +180,13 @@ TEST_F(TestSnapshotServiceManager,
     UUID uuid;
     UUID uuidOut = "abc";
 
+    FInfo fInfo;
+    fInfo.version = kBaseFileVersion;
+    EXPECT_CALL(*core_, GetFileInfo(file, user, _))
+        .WillRepeatedly(DoAll(
+            SetArgPointee<2>(fInfo),
+            Return(kErrCodeSuccess)));
+
     SnapshotInfo info(uuidOut, user, file, desc);
     EXPECT_CALL(*core_, CreateSnapshotPre(file, user, desc, _))
         .WillOnce(DoAll(
@@ -186,6 +210,13 @@ TEST_F(TestSnapshotServiceManager,
     UUID uuid;
     UUID uuidOut = "abc";
 
+    FInfo fInfo;
+    fInfo.version = kBaseFileVersion;
+    EXPECT_CALL(*core_, GetFileInfo(file, user, _))
+        .WillRepeatedly(DoAll(
+            SetArgPointee<2>(fInfo),
+            Return(kErrCodeSuccess)));
+
     SnapshotInfo info(uuidOut, user, file, desc);
     EXPECT_CALL(*core_, CreateSnapshotPre(file, user, desc, _))
         .WillOnce(DoAll(
@@ -206,6 +237,13 @@ TEST_F(TestSnapshotServiceManager,
     const std::string user1 = "user1";
     const std::string desc1 = "snap1";
     UUID uuid1 = "uuid1";
+
+    FInfo fInfo;
+    fInfo.version = kBaseFileVersion;
+    EXPECT_CALL(*core_, GetFileInfo(file1, user1, _))
+        .WillRepeatedly(DoAll(
+            SetArgPointee<2>(fInfo),
+            Return(kErrCodeSuccess)));
 
     SnapshotInfo info(uuid1, user1, file1, desc1);
     EXPECT_CALL(*core_, CreateSnapshotPre(file1, user1, desc1, _))
@@ -257,6 +295,13 @@ TEST_F(TestSnapshotServiceManager,
     UUID uuid1 = "uuid1";
     UUID uuid2 = "uuid2";
     UUID uuid3 = "uuid3";
+
+    FInfo fInfo;
+    fInfo.version = kBaseFileVersion;
+    EXPECT_CALL(*core_, GetFileInfo(_, _, _))
+        .WillRepeatedly(DoAll(
+            SetArgPointee<2>(fInfo),
+            Return(kErrCodeSuccess)));
 
     SnapshotInfo info1(uuid1, user, file1, desc1);
     SnapshotInfo info2(uuid2, user, file2, desc2);
@@ -337,6 +382,13 @@ TEST_F(TestSnapshotServiceManager,
     UUID uuid2 = "uuid2";
     UUID uuid3 = "uuid3";
 
+    FInfo fInfo;
+    fInfo.version = kBaseFileVersion;
+    EXPECT_CALL(*core_, GetFileInfo(_, _, _))
+        .WillRepeatedly(DoAll(
+            SetArgPointee<2>(fInfo),
+            Return(kErrCodeSuccess)));
+
     SnapshotInfo info1(uuid1, user, file1, desc1);
     SnapshotInfo info2(uuid2, user, file1, desc2);
     SnapshotInfo info3(uuid3, user, file1, desc3);
@@ -404,6 +456,13 @@ TEST_F(TestSnapshotServiceManager, TestDeleteSnapshotSuccess) {
 
     CountDownEvent cond1(1);
 
+    SnapshotInfo snapInfo(uuid, user, file, desc);
+    snapInfo.SetLocation(LocationType::kLocationS3);
+    EXPECT_CALL(*core_, GetSnapshotInfo(_, _))
+        .WillOnce(DoAll(
+            SetArgPointee<1>(snapInfo),
+            Return(kErrCodeSuccess)));
+
     EXPECT_CALL(*core_, DeleteSnapshotPre(uuid, user, _, _))
         .WillOnce(Return(kErrCodeSuccess));
 
@@ -436,6 +495,13 @@ TEST_F(TestSnapshotServiceManager, TestDeleteSnapshotByCancelSuccess) {
     UUID uuid;
     UUID uuidOut = "abc";
 
+    FInfo fInfo;
+    fInfo.version = kBaseFileVersion;
+    EXPECT_CALL(*core_, GetFileInfo(_, _, _))
+        .WillRepeatedly(DoAll(
+            SetArgPointee<2>(fInfo),
+            Return(kErrCodeSuccess)));
+
     SnapshotInfo info(uuidOut, user, file, desc);
     EXPECT_CALL(*core_, CreateSnapshotPre(file, user, desc, _))
         .WillOnce(DoAll(
@@ -465,6 +531,13 @@ TEST_F(TestSnapshotServiceManager, TestDeleteSnapshotByCancelSuccess) {
     ASSERT_EQ(kErrCodeSuccess, ret);
     ASSERT_EQ(uuid, uuidOut);
 
+    SnapshotInfo snapInfo(uuid, user, file, desc);
+    snapInfo.SetLocation(LocationType::kLocationS3);
+    EXPECT_CALL(*core_, GetSnapshotInfo(_, _))
+        .WillOnce(DoAll(
+            SetArgPointee<1>(snapInfo),
+            Return(kErrCodeSuccess)));
+
     EXPECT_CALL(*core_, DeleteSnapshotPre(uuid, user, _, _))
         .WillOnce(Return(kErrCodeSnapshotCannotDeleteUnfinished));
 
@@ -490,6 +563,13 @@ TEST_F(TestSnapshotServiceManager, TestDeleteSnapshotByCancelByDeleteSuccess) {
     UUID uuid = "uuid1";
 
     CountDownEvent cond1(1);
+
+    SnapshotInfo snapInfo(uuid, user, file, desc);
+    snapInfo.SetLocation(LocationType::kLocationS3);
+    EXPECT_CALL(*core_, GetSnapshotInfo(_, _))
+        .WillOnce(DoAll(
+            SetArgPointee<1>(snapInfo),
+            Return(kErrCodeSuccess)));
 
     EXPECT_CALL(*core_, DeleteSnapshotPre(uuid, user, _, _))
         .WillOnce(Return(kErrCodeSnapshotCannotDeleteUnfinished))
@@ -524,6 +604,13 @@ TEST_F(TestSnapshotServiceManager, TestDeleteSnapshotPreFail) {
     const std::string desc = "snap1";
     UUID uuid = "uuid1";
 
+    SnapshotInfo snapInfo(uuid, user, file, desc);
+    snapInfo.SetLocation(LocationType::kLocationS3);
+    EXPECT_CALL(*core_, GetSnapshotInfo(_, _))
+        .WillOnce(DoAll(
+            SetArgPointee<1>(snapInfo),
+            Return(kErrCodeSuccess)));
+
     EXPECT_CALL(*core_, DeleteSnapshotPre(uuid, user, _, _))
         .WillOnce(Return(kErrCodeInternalError));
 
@@ -538,6 +625,13 @@ TEST_F(TestSnapshotServiceManager, TestDeleteSnapshotPushTaskFail) {
     UUID uuid = "uuid1";
 
     CountDownEvent cond1(1);
+
+    SnapshotInfo snapInfo(uuid, user, file, desc);
+    snapInfo.SetLocation(LocationType::kLocationS3);
+    EXPECT_CALL(*core_, GetSnapshotInfo(_, _))
+        .WillRepeatedly(DoAll(
+            SetArgPointee<1>(snapInfo),
+            Return(kErrCodeSuccess)));
 
     EXPECT_CALL(*core_, DeleteSnapshotPre(uuid, user, _, _))
         .WillRepeatedly(Return(kErrCodeSuccess));
@@ -575,6 +669,13 @@ TEST_F(TestSnapshotServiceManager, TestCreateAndDeleteSnapshotSuccess) {
 
     CountDownEvent cond1(1);
 
+    SnapshotInfo snapInfo(uuid, user, file, desc);
+    snapInfo.SetLocation(LocationType::kLocationS3);
+    EXPECT_CALL(*core_, GetSnapshotInfo(_, _))
+        .WillOnce(DoAll(
+            SetArgPointee<1>(snapInfo),
+            Return(kErrCodeSuccess)));
+
     EXPECT_CALL(*core_, DeleteSnapshotPre(uuid, user, _, _))
         .WillOnce(Return(kErrCodeSuccess));
 
@@ -607,6 +708,13 @@ TEST_F(TestSnapshotServiceManager, TestGetFileSnapshotInfoSuccess) {
     UUID uuid;
     UUID uuidOut = "uuid1";
     uint32_t progress = 50;
+
+    FInfo fInfo;
+    fInfo.version = kBaseFileVersion;
+    EXPECT_CALL(*core_, GetFileInfo(_, _, _))
+        .WillRepeatedly(DoAll(
+            SetArgPointee<2>(fInfo),
+            Return(kErrCodeSuccess)));
 
     SnapshotInfo info(uuidOut, user, file, desc);
     EXPECT_CALL(*core_, CreateSnapshotPre(file, user, desc, _))
@@ -674,6 +782,7 @@ TEST_F(TestSnapshotServiceManager, TestGetFileSnapshotInfoSuccess) {
             ASSERT_EQ(user, s.GetUser());
             ASSERT_EQ(desc, s.GetSnapshotName());
             ASSERT_EQ(Status::pending, s.GetStatus());
+            ASSERT_EQ(progress, v.GetSnapProgress());
         } else if (s.GetUuid() == uuid2) {
             ASSERT_EQ(file2, s.GetFileName());
             ASSERT_EQ(user, s.GetUser());
@@ -726,8 +835,7 @@ TEST_F(TestSnapshotServiceManager, TestGetFileSnapshotInfoFail2) {
 
     std::vector<FileSnapshotInfo> fileSnapInfo;
     int ret = manager_->GetFileSnapshotInfo(file, user, &fileSnapInfo);
-    // ASSERT_EQ(kErrCodeInternalError, ret);
-    ASSERT_EQ(kErrCodeSuccess, ret);
+    ASSERT_EQ(kErrCodeInternalError, ret);
 }
 
 TEST_F(TestSnapshotServiceManager, TestGetSnapshotListByFilterSuccess) {
@@ -737,6 +845,13 @@ TEST_F(TestSnapshotServiceManager, TestGetSnapshotListByFilterSuccess) {
     UUID uuid;
     UUID uuidOut = "uuid1";
     uint32_t progress = 50;
+
+    FInfo fInfo;
+    fInfo.version = kBaseFileVersion;
+    EXPECT_CALL(*core_, GetFileInfo(_, _, _))
+        .WillRepeatedly(DoAll(
+            SetArgPointee<2>(fInfo),
+            Return(kErrCodeSuccess)));
 
     SnapshotInfo info(uuidOut, user, file, desc);
     EXPECT_CALL(*core_, CreateSnapshotPre(file, user, desc, _))
@@ -806,7 +921,7 @@ TEST_F(TestSnapshotServiceManager, TestGetSnapshotListByFilterSuccess) {
             ASSERT_EQ(user, s.GetUser());
             ASSERT_EQ(desc, s.GetSnapshotName());
             ASSERT_EQ(Status::pending, s.GetStatus());
-            // ASSERT_EQ(progress, v.GetSnapProgress());
+            ASSERT_EQ(progress, v.GetSnapProgress());
         } else if (s.GetUuid() == uuid2) {
             ASSERT_EQ(file2, s.GetFileName());
             ASSERT_EQ(user, s.GetUser());
@@ -850,7 +965,7 @@ TEST_F(TestSnapshotServiceManager, TestGetSnapshotListByFilterSuccess) {
             ASSERT_EQ(user, s.GetUser());
             ASSERT_EQ(desc, s.GetSnapshotName());
             ASSERT_EQ(Status::pending, s.GetStatus());
-            // ASSERT_EQ(progress, v.GetSnapProgress());
+            ASSERT_EQ(progress, v.GetSnapProgress());
         } else {
             FAIL() << "should not exist this uuid = "
                    << s.GetUuid();
@@ -876,7 +991,7 @@ TEST_F(TestSnapshotServiceManager, TestGetSnapshotListByFilterSuccess) {
             ASSERT_EQ(user, s.GetUser());
             ASSERT_EQ(desc, s.GetSnapshotName());
             ASSERT_EQ(Status::pending, s.GetStatus());
-            // ASSERT_EQ(progress, v.GetSnapProgress());
+            ASSERT_EQ(progress, v.GetSnapProgress());
         } else if (s.GetUuid() == uuid3) {
             ASSERT_EQ(file, s.GetFileName());
             ASSERT_EQ(user2, s.GetUser());
@@ -998,16 +1113,15 @@ TEST_F(TestSnapshotServiceManager, TestRecoverSnapshotTaskSuccess) {
 
     CountDownEvent cond1(2);
 
-    // EXPECT_CALL(*core_, HandleCreateSnapshotTask(_))
-    //     .WillOnce(Invoke([&cond1] (std::shared_ptr<SnapshotTaskInfo> task) {
-    //         task->GetSnapshotInfo().SetStatus(Status::done);
-    //                         task->Finish();
-    //                         cond1.Signal();
-    //             }));
+    EXPECT_CALL(*core_, HandleCreateSnapshotTask(_))
+        .WillOnce(Invoke([&cond1] (std::shared_ptr<SnapshotTaskInfo> task) {
+            task->GetSnapshotInfo().SetStatus(Status::done);
+                            task->Finish();
+                            cond1.Signal();
+                }));
 
-    EXPECT_CALL(*core_, HandleDeleteSyncSnapshotTask(_)).Times(2)
-        .WillRepeatedly(Invoke([&cond1] (
-            std::shared_ptr<SnapshotTaskInfo> task) {
+    EXPECT_CALL(*core_, HandleDeleteSnapshotTask(_))
+        .WillOnce(Invoke([&cond1] (std::shared_ptr<SnapshotTaskInfo> task) {
             task->GetSnapshotInfo().SetStatus(Status::done);
                             task->Finish();
                             cond1.Signal();
@@ -1058,6 +1172,13 @@ TEST_F(TestSnapshotServiceManager,
     UUID uuid2;
     UUID uuidOut = "abc";
     UUID uuidOut2 = "def";
+
+    FInfo fInfo;
+    fInfo.version = kBaseFileVersion;
+    EXPECT_CALL(*core_, GetFileInfo(_, _, _))
+        .WillRepeatedly(DoAll(
+            SetArgPointee<2>(fInfo),
+            Return(kErrCodeSuccess)));
 
     SnapshotInfo info(uuidOut, user, file, desc);
     SnapshotInfo info2(uuidOut2, user, file, desc);
@@ -1141,6 +1262,13 @@ TEST_F(TestSnapshotServiceManager,
     UUID uuid;
     UUID uuidOut = "abc";
 
+    FInfo fInfo;
+    fInfo.version = kBaseFileVersion;
+    EXPECT_CALL(*core_, GetFileInfo(_, _, _))
+        .WillRepeatedly(DoAll(
+            SetArgPointee<2>(fInfo),
+            Return(kErrCodeSuccess)));
+
     SnapshotInfo info(uuidOut, user, file, desc);
     EXPECT_CALL(*core_, CreateSnapshotPre(file, user, desc, _))
         .WillOnce(DoAll(
@@ -1183,6 +1311,13 @@ TEST_F(TestSnapshotServiceManager,
     const std::string desc = "snap1";
     UUID uuid;
     UUID uuidOut = "abc";
+
+    FInfo fInfo;
+    fInfo.version = kBaseFileVersion;
+    EXPECT_CALL(*core_, GetFileInfo(_, _, _))
+        .WillRepeatedly(DoAll(
+            SetArgPointee<2>(fInfo),
+            Return(kErrCodeSuccess)));
 
     SnapshotInfo info(uuidOut, user, file, desc);
     EXPECT_CALL(*core_, CreateSnapshotPre(file, user, desc, _))

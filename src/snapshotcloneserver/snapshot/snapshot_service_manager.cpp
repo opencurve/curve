@@ -159,9 +159,9 @@ int SnapshotServiceManager::CancelSnapshot(
 }
 
 int SnapshotServiceManager::DeleteSnapshotBySnapshotName(
-    const std::string &file,
+    const std::string &snapshotName,
     const std::string &user,
-    const std::string &snapshotName) {
+    const std::string &file) {
     SnapshotInfo info;
     int ret = core_->GetSnapshotInfo(file, snapshotName, &info);
     if (ret < 0) {
@@ -182,9 +182,10 @@ int SnapshotServiceManager::DeleteSnapshotBySnapshotName(
     }
 }
 
-int SnapshotServiceManager::DeleteSnapshotByUUID(const std::string &file,
+int SnapshotServiceManager::DeleteSnapshot(
+    const std::string &uuid,
     const std::string &user,
-    const std::string &uuid) {
+    const std::string &file) {
     SnapshotInfo info;
     int ret = core_->GetSnapshotInfo(uuid, &info);
     if (ret < 0) {

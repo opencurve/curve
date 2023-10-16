@@ -769,7 +769,7 @@ TEST_F(TestCloneCoreImpl,
     Status status = Status::done;
     SnapshotInfo info(uuid, user, fileName, desc,
         seqnum, chunksize, segmentsize, filelength, 0, 0, "default",
-        time, status);
+        time, status, LocationType::kLocationS3);
 
     EXPECT_CALL(*metaStore_, GetSnapshotInfo(_, _))
         .WillRepeatedly(DoAll(
@@ -1140,7 +1140,7 @@ void TestCloneCoreImpl::MockBuildFileInfoFromSnapshotSuccess(
     Status status = Status::done;
     SnapshotInfo info(uuid, user, fileName, desc,
         seqnum, chunksize, segmentsize, filelength, 0, 0, kDefaultPoolset,
-        time, status);
+        time, status, LocationType::kLocationS3);
 
     EXPECT_CALL(*metaStore_, GetSnapshotInfo(_, _))
         .WillRepeatedly(DoAll(
@@ -1316,7 +1316,7 @@ void TestCloneCoreImpl::MockBuildFileInfoFromSnapshotFail(
     Status status = Status::done;
     SnapshotInfo info(uuid, user, fileName, desc,
         seqnum, chunksize, segmentsize, filelength, 0, 0, "default",
-        time, status);
+        time, status, LocationType::kLocationS3);
 
     EXPECT_CALL(*metaStore_, GetSnapshotInfo(_, _))
         .WillRepeatedly(DoAll(
