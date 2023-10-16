@@ -22,6 +22,8 @@
 
 #include "absl/cleanup/cleanup.h"
 
+#include <utility>
+
 #include "curvefs/src/common/threading.h"
 #include "curvefs/src/metaserver/space/volume_deallocate_worker.h"
 

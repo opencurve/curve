@@ -78,7 +78,7 @@ void Configuration::PrintConfig() {
     LOG(INFO) << std::string(30, '=') << "BEGIN" << std::string(30, '=');
     for (auto &item : config_) {
         LOG(INFO) << item.first << std::string(60 - item.first.size(), ' ')
-                  << ": " << "<" << item.second << ">";
+                  << ": " << item.second;
     }
     LOG(INFO) << std::string(31, '=') << "END" << std::string(31, '=');
 }

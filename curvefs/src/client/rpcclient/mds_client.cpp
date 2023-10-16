@@ -575,7 +575,7 @@ FSStatusCode MdsClientImpl::GetLatestTxId(const GetLatestTxIdRequest& request,
                          << ", errmsg = " << FSStatusCode_Name(rc);
         }
 
-        //VLOG(3) << "GetLatestTxId [response]: " << response->DebugString();
+        VLOG(3) << "GetLatestTxId [response]: " << response->DebugString();
         return rc;
     };
 

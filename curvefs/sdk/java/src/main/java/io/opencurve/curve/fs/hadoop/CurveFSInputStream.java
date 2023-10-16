@@ -152,23 +152,25 @@ public class CurveFSInputStream extends FSInputStream {
      */
     @Override
     public synchronized int read() throws IOException {
-      LOG.trace(
-          "CurveInputStream.read: Reading a single byte from fd " + fileHandle
-          + " by calling general read function");
+        LOG.trace(
+                  "CurveInputStream.read: Reading a single byte from fd " + fileHandle
+                  + " by calling general read function");
 
-      byte result[] = new byte[1];
+        byte result[] = new byte[1];
 
-      if (getPos() >= fileLength) {
-        return -1;
-      }
-      if (-1 == read(result, 0, 1)) {
-        return -1;
-      }
-      if (result[0] < 0) {
-        return 256 + (int) result[0];
-      } else {
-        return result[0];
-      }
+        if (getPos() >= fileLength) {
+            return -1;
+        }
+
+        if (-1 == read(result, 0, 1)) {
+            return -1;
+        }
+
+        if (result[0] < 0) {
+            return 256 + (int) result[0];
+        } else {
+            return result[0];
+        }
     }
 
     /**
@@ -181,57 +183,57 @@ public class CurveFSInputStream extends FSInputStream {
      */
     @Override
     public synchronized int read(byte buf[], int off, int len) throws IOException {
-      LOG.trace(
-          "CurveInputStream.read: Reading " + len + " bytes from fd " + fileHandle);
+        LOG.trace(
+            "CurveInputStream.read: Reading " + len + " bytes from fd " + fileHandle);
 
-      if (closed) {
-        throw new IOException(
-            "CurveInputStream.read: cannot read " + len + " bytes from fd "
-            + fileHandle + ": stream closed");
-      }
-
-      // ensure we're not past the end of the file
-      if (getPos() >= fileLength) {
-        LOG.debug(
-            "CurveInputStream.read: cannot read " + len + " bytes from fd "
-            + fileHandle + ": current position is " + getPos()
-            + " and file length is " + fileLength);
-
-        return -1;
-      }
-
-      int totalRead = 0;
-      int initialLen = len;
-      int read;
-
-      do {
-        read = Math.min(len, bufValid - bufPos);
-        try {
-          System.arraycopy(buffer, bufPos, buf, off, read);
-        } catch (IndexOutOfBoundsException ie) {
-          throw new IOException(
-              "CurveInputStream.read: Indices out of bounds:" + "read length is "
-              + len + ", buffer offset is " + off + ", and buffer size is "
-              + buf.length);
-        } catch (ArrayStoreException ae) {
-          throw new IOException(
-              "Uh-oh, CurveInputStream failed to do an array"
-                  + "copy due to type mismatch...");
-        } catch (NullPointerException ne) {
-          throw new IOException(
-              "CurveInputStream.read: cannot read " + len + "bytes from fd:"
-              + fileHandle + ": buf is null");
+        if (closed) {
+            throw new IOException(
+                "CurveInputStream.read: cannot read " + len + " bytes from fd "
+                + fileHandle + ": stream closed");
         }
-        bufPos += read;
-        len -= read;
-        off += read;
-        totalRead += read;
-      } while (len > 0 && fillBuffer());
 
-      LOG.trace(
-          "CurveInputStream.read: Reading " + initialLen + " bytes from fd "
-          + fileHandle + ": succeeded in reading " + totalRead + " bytes");
-      return totalRead;
+        // ensure we're not past the end of the file
+        if (getPos() >= fileLength) {
+            LOG.debug(
+                "CurveInputStream.read: cannot read " + len + " bytes from fd "
+                + fileHandle + ": current position is " + getPos()
+                + " and file length is " + fileLength);
+
+            return -1;
+        }
+
+        int totalRead = 0;
+        int initialLen = len;
+        int read;
+
+        do {
+            read = Math.min(len, bufValid - bufPos);
+            try {
+                System.arraycopy(buffer, bufPos, buf, off, read);
+            } catch (IndexOutOfBoundsException ie) {
+                throw new IOException(
+                    "CurveInputStream.read: Indices out of bounds:" + "read length is "
+                    + len + ", buffer offset is " + off + ", and buffer size is "
+                    + buf.length);
+            } catch (ArrayStoreException ae) {
+                throw new IOException(
+                    "Uh-oh, CurveInputStream failed to do an array"
+                    + "copy due to type mismatch...");
+            } catch (NullPointerException ne) {
+                throw new IOException(
+                    "CurveInputStream.read: cannot read " + len + "bytes from fd:"
+                    + fileHandle + ": buf is null");
+            }
+            bufPos += read;
+            len -= read;
+            off += read;
+            totalRead += read;
+        } while (len > 0 && fillBuffer());
+
+        LOG.trace(
+            "CurveInputStream.read: Reading " + initialLen + " bytes from fd "
+            + fileHandle + ": succeeded in reading " + totalRead + " bytes");
+        return totalRead;
     }
 
     /**
@@ -239,12 +241,11 @@ public class CurveFSInputStream extends FSInputStream {
      */
     @Override
     public void close() throws IOException {
-      LOG.trace("CurveOutputStream.close:enter");
-      if (!closed) {
-        curve.close(fileHandle);
-
-        closed = true;
-        LOG.trace("CurveOutputStream.close:exit");
-      }
+        LOG.trace("CurveOutputStream.close:enter");
+        if (!closed) {
+            curve.close(fileHandle);
+            closed = true;
+            LOG.trace("CurveOutputStream.close:exit");
+        }
     }
 }

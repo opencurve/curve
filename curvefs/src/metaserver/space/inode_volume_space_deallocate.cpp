@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <iterator>
 #include <unordered_map>
+#include <unordered_set>
 #include "curvefs/src/metaserver/space/inode_volume_space_deallocate.h"
 #include "curvefs/src/client/async_request_closure.h"
 

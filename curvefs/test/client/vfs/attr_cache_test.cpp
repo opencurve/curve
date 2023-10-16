@@ -37,7 +37,6 @@ using ::curvefs::client::filesystem::AttrOption;
 
 class AttrCacheTest : public ::testing::Test {
  protected:
-
     InodeAttr MkAttr(Ino ino, uint64_t length) {
         using ::curvefs::client::filesystem::MkAttr;
         return MkAttr(ino, AttrOption().length(length));

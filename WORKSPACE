@@ -142,7 +142,7 @@ git_repository(
     patches = [
         "//:thirdparties/brpc/brpc.patch",
         "//:thirdparties/brpc/fix-gcc11.patch",
-        "//:thirdparties/brpc/0001-bvar-warning-on-conflict-bvar-name.patch", 
+        "//:thirdparties/brpc/0001-bvar-warning-on-conflict-bvar-name.patch",
     ],
     patch_args = ["-p1"],
 )
@@ -288,7 +288,7 @@ new_local_repository(
     path = "thirdparties/rocksdb",
 )
 
-# JNI
+# jni
 new_local_repository(
     name = "jni",
     build_file = "//:thirdparties/jni.BUILD",

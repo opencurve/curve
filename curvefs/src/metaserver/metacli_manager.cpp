@@ -20,6 +20,8 @@
  * Author: lixiaocui
  */
 
+#include <memory>
+
 #include "curvefs/src/metaserver/metacli_manager.h"
 
 namespace curvefs {

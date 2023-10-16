@@ -38,8 +38,6 @@ namespace logger {
 
 DECLARE_int32(vlog_level);
 
-using ::curvefs::common::FLAGS_vlog_level;
-
 inline void myhandle(int mysignal, siginfo_t *si, void* arg) {}
 
 inline bool InitErrorLog(const std::string& prefix,

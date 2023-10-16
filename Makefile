@@ -60,10 +60,10 @@ list:
 	@bash util/build.sh --stor=$(stor) --list
 
 build:
-	@bash util/build_in_image.sh --stor=$(stor) --only=$(only) --dep=$(dep) --release=$(release) --ci=$(ci) --os=$(os)
+	@bash util/build.sh --stor=$(stor) --only=$(only) --dep=$(dep) --release=$(release) --ci=$(ci) --os=$(os)
 
 dep:
-	@bash util/build_in_image.sh --stor=$(stor) --only="" --dep=1
+	@bash util/build.sh --stor=$(stor) --only="" --dep=1
 
 ci-build:
 	@bash util/build_in_image.sh --stor=$(stor) --only=$(only) --dep=$(dep) --release=$(release) --ci=$(ci) --os=$(os) --sanitizer=$(sanitizer)

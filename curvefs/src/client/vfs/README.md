@@ -2,13 +2,6 @@
 CurveFS VFS Design
 ===
 
-Overview
----
-
-```
-
-```
-
 Permission
 ---
 

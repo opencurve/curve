@@ -10,7 +10,6 @@ build_jni_library() {
         /curve/curvefs/sdk/java/native/ \
         io/opencurve/curve/fs/libfs/CurveFSMount.java
 
-    ## TODO: --compilation_mode=opt --copt -g
     cd /curve &&
     bazel build \
         --config=gcc7-later \
