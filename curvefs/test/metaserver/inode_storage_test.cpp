@@ -314,30 +314,30 @@ TEST_F(InodeStorageTest, testGetXAttr) {
     inode.set_mode(777);
     inode.set_nlink(2);
     inode.set_type(FsFileType::TYPE_DIRECTORY);
-    inode.mutable_xattr()->insert({XATTRFILES, "1"});
-    inode.mutable_xattr()->insert({XATTRSUBDIRS, "1"});
-    inode.mutable_xattr()->insert({XATTRENTRIES, "2"});
-    inode.mutable_xattr()->insert({XATTRFBYTES, "100"});
+    inode.mutable_xattr()->insert({XATTR_DIR_FILES, "1"});
+    inode.mutable_xattr()->insert({XATTR_DIR_SUBDIRS, "1"});
+    inode.mutable_xattr()->insert({XATTR_DIR_ENTRIES, "2"});
+    inode.mutable_xattr()->insert({XATTR_DIR_FBYTES, "100"});
 
-    inode.mutable_xattr()->insert({XATTRRFILES, "100"});
-    inode.mutable_xattr()->insert({XATTRRSUBDIRS, "100"});
-    inode.mutable_xattr()->insert({XATTRRENTRIES, "200"});
-    inode.mutable_xattr()->insert({XATTRRFBYTES, "1000"});
+    inode.mutable_xattr()->insert({XATTR_DIR_RFILES, "100"});
+    inode.mutable_xattr()->insert({XATTR_DIR_RSUBDIRS, "100"});
+    inode.mutable_xattr()->insert({XATTR_DIR_RENTRIES, "200"});
+    inode.mutable_xattr()->insert({XATTR_DIR_RFBYTES, "1000"});
 
     ASSERT_EQ(storage.Insert(inode, logIndex_++), MetaStatusCode::OK);
     XAttr xattr;
     ASSERT_EQ(storage.GetXAttr(Key4Inode(1, 1), &xattr), MetaStatusCode::OK);
     ASSERT_FALSE(xattr.xattrinfos().empty());
 
-    ASSERT_EQ(xattr.xattrinfos().find(XATTRFILES)->second, "1");
-    ASSERT_EQ(xattr.xattrinfos().find(XATTRSUBDIRS)->second, "1");
-    ASSERT_EQ(xattr.xattrinfos().find(XATTRENTRIES)->second, "2");
-    ASSERT_EQ(xattr.xattrinfos().find(XATTRFBYTES)->second, "100");
+    ASSERT_EQ(xattr.xattrinfos().find(XATTR_DIR_FILES)->second, "1");
+    ASSERT_EQ(xattr.xattrinfos().find(XATTR_DIR_SUBDIRS)->second, "1");
+    ASSERT_EQ(xattr.xattrinfos().find(XATTR_DIR_ENTRIES)->second, "2");
+    ASSERT_EQ(xattr.xattrinfos().find(XATTR_DIR_FBYTES)->second, "100");
 
-    ASSERT_EQ(xattr.xattrinfos().find(XATTRRFILES)->second, "100");
-    ASSERT_EQ(xattr.xattrinfos().find(XATTRRSUBDIRS)->second, "100");
-    ASSERT_EQ(xattr.xattrinfos().find(XATTRRENTRIES)->second, "200");
-    ASSERT_EQ(xattr.xattrinfos().find(XATTRRFBYTES)->second, "1000");
+    ASSERT_EQ(xattr.xattrinfos().find(XATTR_DIR_RFILES)->second, "100");
+    ASSERT_EQ(xattr.xattrinfos().find(XATTR_DIR_RSUBDIRS)->second, "100");
+    ASSERT_EQ(xattr.xattrinfos().find(XATTR_DIR_RENTRIES)->second, "200");
+    ASSERT_EQ(xattr.xattrinfos().find(XATTR_DIR_RFBYTES)->second, "1000");
 }
 
 TEST_F(InodeStorageTest, ModifyInodeS3ChunkInfoList) {

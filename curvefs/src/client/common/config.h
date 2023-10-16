@@ -214,7 +214,7 @@ struct DeferSyncOption {
 
 struct FileSystemOption {
     bool cto;
-    bool disableXattr;
+    bool disableXAttr;
     uint32_t maxNameLength;
     uint32_t blockSize = 0x10000u;
     KernelCacheOption kernelCacheOption;

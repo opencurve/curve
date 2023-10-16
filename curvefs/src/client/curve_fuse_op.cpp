@@ -47,6 +47,7 @@
 #include "curvefs/src/common/metric_utils.h"
 #include "src/common/configuration.h"
 #include "src/common/gflags_helper.h"
+#include "curvefs/src/client/filesystem/xattr.h"
 
 using ::curve::common::Configuration;
 using ::curvefs::client::CURVEFS_ERROR;
@@ -77,6 +78,8 @@ using ::curvefs::client::rpcclient::MDSBaseClient;
 using ::curvefs::client::rpcclient::MdsClientImpl;
 using ::curvefs::client::warmup::WarmupProgress;
 using ::curvefs::common::LatencyUpdater;
+using ::curvefs::client::filesystem::IsWarmupXAttr;
+using ::curvefs::client::filesystem::IsListWarmupXAttr;
 
 using ::curvefs::common::FLAGS_vlog_level;
 
@@ -901,21 +904,6 @@ void FuseOpStatFs(fuse_req_t req, fuse_ino_t ino) {
     return fs->ReplyStatfs(req, &stbuf);
 }
 
-const char* warmupXAttr = ::curvefs::client::common::kCurveFsWarmupXAttr;
-const char* warmupListXAttr =
-    ::curvefs::client::common::kCurveFsWarmupXAttrList;
-
-bool IsWamupReq(const char* name) {
-    if (strlen(name) < strlen(warmupXAttr)) {
-        return false;
-    }
-    return strncmp(name, warmupXAttr, strlen(warmupXAttr)) == 0;
-}
-
-bool IsWarmupListReq(const char* name) {
-    return IsWamupReq(name) && strcmp(name, warmupListXAttr) == 0;
-}
-
 void FuseOpSetXattr(fuse_req_t req,
                     fuse_ino_t ino,
                     const char* name,
@@ -930,7 +918,7 @@ void FuseOpSetXattr(fuse_req_t req,
                          ino, name, size, flags, StrErr(rc));
     });
 
-    if (IsWamupReq(name)) {
+    if (IsWarmupXAttr(name)) {
         return TriggerWarmup(req, ino, name, value, size);
     }
     rc = client->FuseOpSetXattr(req, ino, name, value, size, flags);
@@ -951,9 +939,9 @@ void FuseOpGetXattr(fuse_req_t req,
                          ino, name, size, StrErr(rc), value.size());
     });
 
-    if (IsWarmupListReq(name)) {
+    if (IsListWarmupXAttr(name)) {
         return ListWarmup(req, size);
-    } else if (IsWamupReq(name)) {
+    } else if (IsWarmupXAttr(name)) {
         return QueryWarmup(req, ino, size);
     }
 
