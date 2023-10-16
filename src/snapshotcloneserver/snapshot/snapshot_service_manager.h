@@ -219,13 +219,13 @@ class SnapshotServiceManager {
         const std::string &snapshotName,
         UUID *uuid);
 
-    virtual int DeleteSnapshotBySnapshotName(const std::string &file,
+    virtual int DeleteSnapshotBySnapshotName(const std::string &snapshotName,
         const std::string &user,
-        const std::string &snapshotName);
+        const std::string &file);
 
-    virtual int DeleteSnapshotByUUID(const std::string &file,
+    virtual int DeleteSnapshot(const std::string &uuid,
         const std::string &user,
-        const std::string &uuid);
+        const std::string &file);
 
     /**
      * @brief 删除快照服务

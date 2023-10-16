@@ -44,7 +44,7 @@ static const char* kDefaultPoolset = "poolset";
 TEST(TestSnapshotCloneServerCodec, TestSnapInfoEncodeDecodeEqual) {
     SnapshotInfo snapInfo("snapuuid", "snapuser", "file1", "snapxxx", 100,
                         1024, 2048, 4096, 4096, 8, kDefaultPoolset, 0,
-                        Status::pending);
+                        Status::pending, LocationType::kLocationS3);
     SnapshotCloneCodec testObj;
     std::string value;
     ASSERT_TRUE(testObj.EncodeSnapshotData(snapInfo, &value));
@@ -65,6 +65,7 @@ TEST(TestSnapshotCloneServerCodec, TestSnapInfoEncodeDecodeEqual) {
     ASSERT_EQ(snapInfo.GetPoolset(), decodedSnapInfo.GetPoolset());
     ASSERT_EQ(snapInfo.GetCreateTime(), decodedSnapInfo.GetCreateTime());
     ASSERT_EQ(snapInfo.GetStatus(), decodedSnapInfo.GetStatus());
+    ASSERT_EQ(snapInfo.GetLocation(), decodedSnapInfo.GetLocation());
 }
 
 TEST(TestSnapshotCloneServerCodec, TestCloneInfoEncodeDecodeEqual) {

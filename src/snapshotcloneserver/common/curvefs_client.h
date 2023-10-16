@@ -121,6 +121,14 @@ class CurveFsClient {
     virtual int DeleteFile(const std::string &file,
         const std::string &user) = 0;
 
+    virtual int StatFile(const std::string &file,
+        const std::string &user,
+        FileStatInfo *statInfo) = 0;
+
+    virtual int ListDir(const std::string &dir,
+        const std::string &user,
+        std::vector<FileStatInfo> *fileStatInfos) = 0;
+
     /**
      * @brief 创建快照
      *
@@ -395,14 +403,6 @@ class CurveFsClient {
             const std::string &fileName,
             const std::string &user,
             uint64_t fileId) = 0;
-
-    virtual int StatFile(const std::string &file,
-        const std::string &user,
-        FileStatInfo *statInfo) = 0;
-
-    virtual int ListDir(const std::string &dir,
-        const std::string &user,
-        std::vector<FileStatInfo> *fileStatInfos) = 0;
 
     /**
      * @brief 创建目录

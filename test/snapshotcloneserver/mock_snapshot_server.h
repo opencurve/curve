@@ -34,6 +34,7 @@
 #include "src/snapshotcloneserver/clone/clone_core.h"
 #include "src/snapshotcloneserver/snapshot/snapshot_service_manager.h"
 #include "src/snapshotcloneserver/clone/clone_service_manager.h"
+#include "src/snapshotcloneserver/volume/voume_service_manager.h"
 #include "src/snapshotcloneserver/common/config.h"
 #include "src/kvstorageclient/etcd_client.h"
 
@@ -53,17 +54,14 @@ class MockSnapshotCore : public SnapshotCore {
         const std::string &snapshotName,
         SnapshotInfo *snapInfo));
 
-    MOCK_METHOD1(HandleCreateSnapshotTask,
-        void(std::shared_ptr<SnapshotTaskInfo> task));
-
-    MOCK_METHOD4(CreateSyncSnapshotPre,
+    MOCK_METHOD4(CreateLocalSnapshot,
         int(const std::string &file,
         const std::string &user,
         const std::string &snapshotName,
         SnapshotInfo *snapInfo));
 
-    MOCK_METHOD1(HandleCreateSyncSnapshotTask,
-        int(std::shared_ptr<SnapshotTaskInfo> task));
+    MOCK_METHOD1(HandleCreateSnapshotTask,
+        void(std::shared_ptr<SnapshotTaskInfo> task));
 
     MOCK_METHOD4(DeleteSnapshotPre,
         int(UUID uuid,
@@ -71,27 +69,40 @@ class MockSnapshotCore : public SnapshotCore {
         const std::string &fileName,
         SnapshotInfo *snapInfo));
 
-    MOCK_METHOD4(DeleteSyncSnapshotPre,
+    MOCK_METHOD3(DeleteLocalSnapshot,
         int(UUID uuid,
         const std::string &user,
-        const std::string &fileName,
-        SnapshotInfo *snapInfo));
+        const std::string &fileName));
 
     MOCK_METHOD1(HandleDeleteSnapshotTask,
         void(std::shared_ptr<SnapshotTaskInfo> task));
 
-    MOCK_METHOD1(HandleDeleteSyncSnapshotTask,
-        void(std::shared_ptr<SnapshotTaskInfo> task));
+    MOCK_METHOD3(GetFileInfo,
+        int(const std::string &file,
+        const std::string &user,
+        FInfo *fInfo));
 
     MOCK_METHOD2(GetFileSnapshotInfo,
         int(const std::string &file,
         std::vector<SnapshotInfo> *info));
+
+    MOCK_METHOD5(GetLocalSnapshotStatus,
+        int(const std::string &file,
+        const std::string &user,
+        uint64_t seq,
+        Status *status,
+        uint32_t *progress));
 
     MOCK_METHOD1(GetSnapshotList,
         int(std::vector<SnapshotInfo> *list));
 
     MOCK_METHOD2(GetSnapshotInfo,
         int(const UUID uuid, SnapshotInfo *info));
+
+    MOCK_METHOD3(GetSnapshotInfo,
+        int(const std::string &file,
+        const std::string &snapshotName,
+        SnapshotInfo *info));
 
     MOCK_METHOD1(HandleCancelUnSchduledSnapshotTask,
         int(std::shared_ptr<SnapshotTaskInfo> task));
@@ -108,6 +119,10 @@ class MockSnapshotCloneMetaStore : public SnapshotCloneMetaStore {
     MOCK_METHOD2(CASSnapshot, int(const UUID&, CASFunc));
     MOCK_METHOD2(GetSnapshotInfo,
         int(const UUID &uuid, SnapshotInfo *info));
+    MOCK_METHOD3(GetSnapshotInfo,
+        int(const std::string &file,
+        const std::string &snapshotName,
+        SnapshotInfo *info));
     MOCK_METHOD2(GetSnapshotList,
         int(const std::string &filename,
             std::vector<SnapshotInfo> *v));
@@ -171,10 +186,34 @@ class MockCurveFsClient : public CurveFsClient {
  public:
     MOCK_METHOD1(Init, int(const CurveClientOptions &));
     MOCK_METHOD0(UnInit, int());
+
+    MOCK_METHOD6(CreateFile,
+        int(const std::string &file,
+        const std::string &user,
+        uint64_t size,
+        uint64_t stripeUnit,
+        uint64_t stripeCount,
+        const std::string &poolset));
+
+    MOCK_METHOD2(DeleteFile,
+        int(const std::string &file,
+        const std::string &user));
+
+    MOCK_METHOD3(StatFile,
+        int(const std::string &file,
+        const std::string &user,
+        FileStatInfo *statInfo));
+
+    MOCK_METHOD3(ListDir,
+        int(const std::string &dir,
+        const std::string &user,
+        std::vector<FileStatInfo> *fileStatInfos));
+
     MOCK_METHOD3(CreateSnapshot,
         int(const std::string &filename,
         const std::string &user,
-        uint64_t *seq));
+        FInfo* snapInfo));
+
     MOCK_METHOD3(DeleteSnapshot,
         int(const std::string &filename,
             const std::string &user,
@@ -282,6 +321,31 @@ class MockCurveFsClient : public CurveFsClient {
     MOCK_METHOD2(ChangeOwner,
         int(const std::string& filename,
             const std::string& newOwner));
+
+    MOCK_METHOD5(Clone,
+        int(const std::string &snapPath,
+        const std::string &user,
+        const std::string &destination,
+        const std::string &poolset,
+        FInfo* finfo));
+
+    MOCK_METHOD2(Flatten,
+        int(const std::string &file,
+        const std::string &user));
+
+    MOCK_METHOD4(QueryFlattenStatus,
+        int(const std::string &file,
+        const std::string &user,
+        FileStatus* filestatus,
+        uint32_t* progress));
+
+    MOCK_METHOD2(ProtectSnapshot,
+        int(const std::string &snapPath,
+        const std::string user));
+
+    MOCK_METHOD2(UnprotectSnapshot,
+        int(const std::string &snapPath,
+        const std::string user));
 };
 
 class MockSnapshotServiceManager : public SnapshotServiceManager {
@@ -295,13 +359,34 @@ class MockSnapshotServiceManager : public SnapshotServiceManager {
         const std::string &desc,
         UUID *uuid));
 
-    MOCK_METHOD4(CreateSyncSnapshot,
+    MOCK_METHOD4(CreateS3Snapshot,
         int(const std::string &file,
         const std::string &user,
-        const std::string &desc,
+        const std::string &snapshotName,
         UUID *uuid));
 
+    MOCK_METHOD4(CreateLocalSnapshot,
+        int(const std::string &file,
+        const std::string &user,
+        const std::string &snapshotName,
+        UUID *uuid));
+
+    MOCK_METHOD3(DeleteSnapshotBySnapshotName,
+        int(const std::string &snapshotName,
+        const std::string &user,
+        const std::string &file));
+
     MOCK_METHOD3(DeleteSnapshot,
+        int(const UUID &uuid,
+        const std::string &user,
+        const std::string &file));
+
+    MOCK_METHOD3(DeleteS3Snapshot,
+        int(const UUID &uuid,
+        const std::string &user,
+        const std::string &file));
+
+    MOCK_METHOD3(DeleteLocalSnapshot,
         int(const UUID &uuid,
         const std::string &user,
         const std::string &file));
@@ -315,6 +400,12 @@ class MockSnapshotServiceManager : public SnapshotServiceManager {
         int(const std::string &file,
         const std::string &user,
         const UUID &uuid,
+        std::vector<FileSnapshotInfo> *info));
+
+    MOCK_METHOD4(GetFileSnapshotInfoBySnapshotName,
+        int(const std::string &file,
+        const std::string &user,
+        const std::string &snapshotName,
         std::vector<FileSnapshotInfo> *info));
 
     MOCK_METHOD2(GetSnapshotListByFilter,
@@ -385,8 +476,46 @@ class MockCloneServiceManager : public CloneServiceManager {
         std::vector<CloneInfo> *needCheckFiles));
 };
 
+class MockVolumeServiceManager : public VolumeServiceManager {
+ public:
+    MockVolumeServiceManager() :
+        VolumeServiceManager(nullptr) {}
+    ~MockVolumeServiceManager() {}
+
+    MOCK_METHOD6(CreateFile,
+        int(const std::string &file,
+        const std::string &user,
+        uint64_t size,
+        uint64_t stripeUnit,
+        uint64_t stripeCount,
+        const std::string &poolset));
+
+    MOCK_METHOD2(DeleteFile,
+        int(const std::string &file,
+        const std::string &user));
+
+    MOCK_METHOD3(GetFile,
+        int(const std::string &file,
+        const std::string &user,
+        FileInfo *fileInfo));
+
+    MOCK_METHOD3(ListFile,
+        int(const std::string &dir,
+        const std::string &user,
+        std::vector<FileInfo> *fileInfos));
+};
+
 class MockCloneCore : public CloneCore {
  public:
+    MOCK_METHOD5(CloneLocal, int(const std::string &file,
+        const std::string &snapshotName,
+        const std::string &user,
+        const std::string &destination,
+        const std::string &poolset));
+
+    MOCK_METHOD2(FlattenLocal, int(const std::string &file,
+        const std::string &user));
+
     MOCK_METHOD7(CloneOrRecoverPre,
         int(const UUID &source,
         const std::string &user,

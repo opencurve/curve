@@ -55,9 +55,11 @@ class TestSnapshotCloneServiceImpl : public ::testing::Test {
 
         snapshotManager_ = std::make_shared<MockSnapshotServiceManager>();
         cloneManager_ = std::make_shared<MockCloneServiceManager>();
+        volumeManager_ = std::make_shared<MockVolumeServiceManager>();
 
         SnapshotCloneServiceImpl *snapService =
-            new SnapshotCloneServiceImpl(snapshotManager_, cloneManager_);
+            new SnapshotCloneServiceImpl(snapshotManager_, cloneManager_,
+                volumeManager_);
 
         ASSERT_EQ(0, server_->AddService(snapService,
                 brpc::SERVER_OWNS_SERVICE));
@@ -78,6 +80,7 @@ class TestSnapshotCloneServiceImpl : public ::testing::Test {
  protected:
     std::shared_ptr<MockSnapshotServiceManager> snapshotManager_;
     std::shared_ptr<MockCloneServiceManager> cloneManager_;
+    std::shared_ptr<MockVolumeServiceManager> volumeManager_;
     butil::EndPoint listenAddr_;
     brpc::Server *server_;
 };
@@ -88,11 +91,7 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCreateSnapShotSuccess) {
     std::string file = "test";
     std::string snapName = "snap1";
 
-    // EXPECT_CALL(*snapshotManager_, CreateSnapshot(file, user, snapName, _))
-    //     .WillOnce(DoAll(
-    //                 SetArgPointee<3>(uuid),
-    //                 Return(kErrCodeSuccess)));
-    EXPECT_CALL(*snapshotManager_, CreateSyncSnapshot(file, user, snapName, _))
+    EXPECT_CALL(*snapshotManager_, CreateSnapshot(file, user, snapName, _))
         .WillOnce(DoAll(
                     SetArgPointee<3>(uuid),
                     Return(kErrCodeSuccess)));
@@ -215,7 +214,7 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetFileSnapshotInfoSuccess) {
          0,
          "default",
          100,
-         Status::pending);
+         Status::pending, LocationType::kLocationS3);
     info.SetSnapshotInfo(sinfo);
     info.SetSnapProgress(50);
     infoVec.push_back(info);
@@ -355,7 +354,7 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetFileSnapshotListSuccess) {
          0,
          "default",
          100,
-         Status::pending);
+         Status::pending, LocationType::kLocationS3);
     info.SetSnapshotInfo(sinfo);
     info.SetSnapProgress(50);
     infoVec.push_back(info);
@@ -673,12 +672,7 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCreateSnapShotFail) {
     std::string file = "test";
     std::string snapName = "snap1";
 
-    // EXPECT_CALL(*snapshotManager_, CreateSnapshot(file, user, snapName, _))
-    //     .WillOnce(DoAll(
-    //                 SetArgPointee<3>(uuid),
-    //                 Return(kErrCodeInternalError)));
-
-    EXPECT_CALL(*snapshotManager_, CreateSyncSnapshot(file, user, snapName, _))
+    EXPECT_CALL(*snapshotManager_, CreateSnapshot(file, user, snapName, _))
         .WillOnce(DoAll(
                     SetArgPointee<3>(uuid),
                     Return(kErrCodeInternalError)));
