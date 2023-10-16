@@ -26,106 +26,71 @@
 #include <string>
 #include <unordered_map>
 
+#include "curvefs/src/client/curve_fuse_op.h"
 #include "curvefs/src/client/fuse_common.h"
 
-namespace {
-int GetFsInfo(const char* fsName, FsInfo* fsInfo) {
-    MdsClientImpl mdsClient;
-    MDSBaseClient mdsBase;
-    mdsClient.Init(g_fuseClientOption->mdsOpt, &mdsBase);
-
-    std::string fn = (fsName == nullptr) ? "" : fsName;
-    FSStatusCode ret = mdsClient.GetFsInfo(fn, fsInfo);
-    if (ret != FSStatusCode::OK) {
-        if (FSStatusCode::NOT_FOUND == ret) {
-            LOG(ERROR) << "The fsName not exist, fsName = " << fsName;
-            return -1;
-        } else {
-            LOG(ERROR) << "GetFsInfo failed, FSStatusCode = " << ret
-                       << ", FSStatusCode_Name = " << FSStatusCode_Name(ret)
-                       << ", fsName = " << fsName;
-            return -1;
-        }
-    }
-    return 0;
-}
-
-
-// 1. 准备配置
-// 2. 获取 fs 信息
-// 3. 生成客户端，启动
-int InitFuseClient(const struct MountOption *mountOption) {
-    g_clientOpMetric = new ClientOpMetric();
-
-    Configuration conf;
-    conf.SetConfigPath(mountOption->conf);
-    if (!conf.LoadConfig()) {
-        LOG(ERROR) << "LoadConfig failed, confPath = " << mountOption->conf;
-        return -1;
-    }
-    if (mountOption->mdsAddr)
-        conf.SetStringValue("mdsOpt.rpcRetryOpt.addrs", mountOption->mdsAddr);
-
-    conf.PrintConfig();
-
-    g_fuseClientOption = new FuseClientOption();
-    curvefs::client::common::InitFuseClientOption(&conf, g_fuseClientOption);
-
-    std::shared_ptr<FsInfo> fsInfo = std::make_shared<FsInfo>();
-    if (GetFsInfo(mountOption->fsName, fsInfo.get()) != 0) {
-        return -1;
-    }
-
-    std::string fsTypeStr =
-        (mountOption->fsType == nullptr) ? "" : mountOption->fsType;
-    std::string fsTypeMds;
-    if (fsInfo->fstype() == FSType::TYPE_S3) {
-       fsTypeMds = "s3";
-    } else if (fsInfo->fstype() == FSType::TYPE_VOLUME) {
-       fsTypeMds = "volume";
-    }
-
-    if (fsTypeMds != fsTypeStr) {
-        LOG(ERROR) << "The parameter fstype is inconsistent with mds!";
-        return -1;
-    } else if (fsTypeStr == "s3") {
-        g_ClientInstance = new FuseS3Client();
-    } else if (fsTypeStr == "volume") {
-        g_ClientInstance = new FuseVolumeClient();
-    } else {
-        LOG(ERROR) << "unknown fstype! fstype is " << fsTypeStr;
-        return -1;
-    }
-
-    g_ClientInstance->SetFsInfo(fsInfo);
-    CURVEFS_ERROR ret = g_ClientInstance->Init(*g_fuseClientOption);
-    if (ret != CURVEFS_ERROR::OK) {
-        return -1;
-    }
-    ret = g_ClientInstance->Run();
-    if (ret != CURVEFS_ERROR::OK) {
-        return -1;
-    }
-
-    ret = g_ClientInstance->SetMountStatus(mountOption);
-    if (ret != CURVEFS_ERROR::OK) {
-        return -1;
-    }
-
-    return 0;
-}
-
-void UnInitFuseClient() {
-    if (g_ClientInstance) {
-        g_ClientInstance->Fini();
-        g_ClientInstance->UnInit();
-    }
-    delete g_ClientInstance;
-    delete g_fuseClientOption;
-    delete g_clientOpMetric;
-}
-
-}  // namespace
+static const struct fuse_lowlevel_ops curve_ll_oper = {
+    init : FuseOpInit,
+    destroy : FuseOpDestroy,
+    lookup : FuseOpLookup,
+    forget : 0,
+    getattr : FuseOpGetAttr,
+    setattr : FuseOpSetAttr,
+    readlink : FuseOpReadLink,
+    mknod : FuseOpMkNod,
+    mkdir : FuseOpMkDir,
+    unlink : FuseOpUnlink,
+    rmdir : FuseOpRmDir,
+    symlink : FuseOpSymlink,
+    rename : FuseOpRename,
+    link : FuseOpLink,
+    open : FuseOpOpen,
+    read : FuseOpRead,
+    write : FuseOpWrite,
+    flush : FuseOpFlush,
+    release : FuseOpRelease,
+    fsync : FuseOpFsync,
+    opendir : FuseOpOpenDir,
+    #if FUSE_VERSION >= FUSE_MAKE_VERSION(3, 0)
+    readdir : 0,
+    #else
+    readdir : FuseOpReadDir,
+    #endif
+    releasedir : FuseOpReleaseDir,
+    fsyncdir : 0,
+    statfs : FuseOpStatFs,
+    setxattr : FuseOpSetXattr,
+    getxattr : FuseOpGetXattr,
+    listxattr : FuseOpListXattr,
+    removexattr : 0,
+    access : 0,
+    create : FuseOpCreate,
+    getlk : 0,
+    setlk : 0,
+    bmap : FuseOpBmap,
+    #if FUSE_VERSION >= FUSE_MAKE_VERSION(2, 8)
+    ioctl : 0,
+    poll : 0,
+    #endif
+    #if FUSE_VERSION >= FUSE_MAKE_VERSION(2, 9)
+    write_buf : 0,
+    retrieve_reply : 0,
+    forget_multi : 0,
+    flock : 0,
+    fallocate : 0,
+    #endif
+    #if FUSE_VERSION >= FUSE_MAKE_VERSION(3, 0)
+    readdirplus : FuseOpReadDirPlus,
+    #else
+    readdirplus : 0,
+    #endif
+    #if FUSE_VERSION >= FUSE_MAKE_VERSION(3, 4)
+    copy_file_range : 0,
+    #endif
+    #if FUSE_VERSION >= FUSE_MAKE_VERSION(3, 8)
+    lseek : 0
+    #endif
+};
 
 void print_option_help(const char* o, const char* msg) {
     printf("    -o %-20s%s\n", o, msg);
@@ -242,11 +207,6 @@ int main(int argc, char *argv[]) {
 
     printf("Begin to mount fs %s to %s\n", mOpts.fsName, mOpts.mountPoint);
 
-    auto service = std::make_shared<FuseService>(mOpts);
-    ret = service->Run(opts);
-
-
-/*  // 这里接管掉
     se = fuse_session_new(&args, &curve_ll_oper,
                   sizeof(curve_ll_oper), &mOpts);
     if (se == NULL)
@@ -273,7 +233,7 @@ int main(int argc, char *argv[]) {
     LOG(INFO) << "fuse start loop, singlethread = " << opts.singlethread
               << ", max_idle_threads = " << opts.max_idle_threads;
 
-    / Block until ctrl+c or fusermount -u /
+    /* Block until ctrl+c or fusermount -u */
     if (opts.singlethread) {
         ret = fuse_session_loop(se);
     } else {
@@ -281,7 +241,6 @@ int main(int argc, char *argv[]) {
         config.max_idle_threads = opts.max_idle_threads;
         ret = fuse_session_loop_mt(se, &config);
     }
-*/
 
 err_out4:
     fuse_session_unmount(se);

@@ -17,8 +17,7 @@ require_string(const char* name) {
 }
 
 char* get_filesystem_name() {
-    //return require_string(KEY_FSNAME);
-    return "hadoop-001";
+    return require_string(KEY_FSNAME);
 }
 
 

@@ -112,10 +112,7 @@ class FuseClient {
         enableSumInDir_(false),
         warmupManager_(nullptr),
         mdsBase_(nullptr),
-        isStop_(true) {
-        //ExternalMember member(dentryManager_, inodeManager_);
-        //fs_ = std::make_shared<FileSystem>(option_.fileSystemOption, member);
-    }
+        isStop_(true) {}
 
     virtual ~FuseClient() {}
 
@@ -133,10 +130,7 @@ class FuseClient {
             enableSumInDir_(false),
             warmupManager_(warmupManager),
             mdsBase_(nullptr),
-            isStop_(true) {
-        //ExternalMember member(dentryManager_, inodeManager_);
-        //fs_ = std::make_shared<FileSystem>(option_.fileSystemOption, member);
-    }
+            isStop_(true) {}
 
     virtual CURVEFS_ERROR Init(const FuseClientOption &option);
 
@@ -297,9 +291,9 @@ class FuseClient {
     }
 
     void SetMounted(bool mounted) {
-        //if (warmupManager_ != nullptr) {
-        //    warmupManager_->SetMounted(mounted);
-        //}
+        if (warmupManager_ != nullptr) {
+            warmupManager_->SetMounted(mounted);
+        }
     }
 
     std::shared_ptr<FsInfo> GetFsInfo() {
