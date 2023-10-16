@@ -328,7 +328,6 @@ CURVEFS_ERROR FileSystem::Open(Ino ino, FileInfo* fi) {
         return rc;
     }
 
-    /*
     TimeSpec mtime;
     yes = attrWatcher_->GetMtime(ino, &mtime);
     if (!yes) {
@@ -342,7 +341,6 @@ CURVEFS_ERROR FileSystem::Open(Ino ino, FileInfo* fi) {
                      << InodeMtime(inode) << ")";
         return CURVEFS_ERROR::STALE;
     }
-    */
 
     openFiles_->Open(ino, inode);
     return CURVEFS_ERROR::OK;
