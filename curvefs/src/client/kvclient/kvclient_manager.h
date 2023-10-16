@@ -64,7 +64,12 @@ struct SetKVCacheTask {
     explicit SetKVCacheTask(
         const std::string& k, const char* val, const uint64_t len,
         SetKVCacheDone done = [](const std::shared_ptr<SetKVCacheTask>&) {})
-        : key(k), value(val), length(len), res(false), done(std::move(done)) {}
+        : key(k),
+          value(val),
+          length(len),
+          res(false),
+          done(std::move(done)),
+          timer(butil::Timer::STARTED) {}
 };
 
 struct GetKVCacheTask {
@@ -84,7 +89,8 @@ struct GetKVCacheTask {
           offset(off),
           length(len),
           res(false),
-          done(std::move(done)) {}
+          done(std::move(done)),
+          timer(butil::Timer::STARTED) {}
 };
 
 class KVClientManager {

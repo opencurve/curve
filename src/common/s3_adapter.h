@@ -141,7 +141,8 @@ struct GetObjectAsyncContext : public Aws::Client::AsyncCallerContext {
           offset(offset),
           len(len),
           cb(std::move(cb)),
-          type(type) {}
+          type(type),
+          timer(butil::Timer::STARTED) {}
 };
 
 /*
@@ -170,7 +171,8 @@ struct PutObjectAsyncContext : public Aws::Client::AsyncCallerContext {
           buffer(buffer),
           bufferSize(bufferSize),
           cb(std::move(cb)),
-          type(type) {}
+          type(type),
+          timer(butil::Timer::STARTED) {}
 };
 
 class S3Adapter {
