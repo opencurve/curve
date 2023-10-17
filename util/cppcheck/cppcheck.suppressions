@@ -20,6 +20,7 @@ redundantInitialization
 constVariable
 knownConditionTrueFalse:curvefs/src/client/s3/client_s3_cache_manager.cpp
 unusedStructMember:src/chunkserver/raftlog/curve_segment.cpp
+redundantAssignment:src/tools/status_tool.cpp
 
 # portability
 arithOperationsOnVoidPointer
