@@ -88,6 +88,7 @@ DECLARE_uint64(fuseClientBurstReadIopsSecs);
 DECLARE_uint64(fuseClientAvgReadBytes);
 DECLARE_uint64(fuseClientBurstReadBytes);
 DECLARE_uint64(fuseClientBurstReadBytesSecs);
+DECLARE_bool(fs_disableXattr);
 }  // namespace common
 }  // namespace client
 }  // namespace curvefs
@@ -1043,8 +1044,8 @@ CURVEFS_ERROR FuseClient::FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino,
     (void)req;
     VLOG(9) << "FuseOpGetXattr, ino: " << ino
             << ", name: " << name << ", size = " << size;
-    if (option_.fileSystemOption.disableXattr) {
-        return CURVEFS_ERROR::NOSYS;
+    if (common::FLAGS_fs_disableXattr) {
+        return CURVEFS_ERROR::NODATA;
     }
 
     InodeAttr inodeAttr;
