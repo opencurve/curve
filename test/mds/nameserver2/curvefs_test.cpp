@@ -2587,7 +2587,7 @@ TEST_F(CurveFSTest, testGetOrAllocateSegmentForClone) {
         .WillOnce(Return(false));
 
         ASSERT_EQ(curvefs_->GetOrAllocateSegment("/user1/file2",
-                  0, true, clones, &segment), StatusCode::kSegmentAllocateError);
+            0, true, clones, &segment), StatusCode::kSegmentAllocateError);
     }
     // test allocate clone segment, get parent segment exist,
     // CloneChunkSegment success, but put segment failed
