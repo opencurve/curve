@@ -37,6 +37,9 @@
 
 namespace curvefs {
 namespace client {
+namespace common {
+DECLARE_bool(fs_disableXattr);
+}
 namespace filesystem {
 
 using ::curvefs::client::common::KernelCacheOption;
@@ -197,7 +200,7 @@ class FileSystemBuilder {
         };
 
         option.cto = true;
-        option.disableXattr = true;
+        common::FLAGS_fs_disableXattr = option.disableXattr = true;
         option.maxNameLength = 255;
         option.blockSize = 0x10000u;
         option.kernelCacheOption = kernelCacheOption;

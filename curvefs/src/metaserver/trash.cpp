@@ -21,8 +21,10 @@
  */
 
 #include "curvefs/src/metaserver/trash.h"
-#include "src/common/timeutility.h"
+
 #include "curvefs/proto/mds.pb.h"
+#include "curvefs/src/metaserver/inode_storage.h"
+#include "src/common/timeutility.h"
 
 using ::curve::common::TimeUtility;
 
@@ -32,9 +34,18 @@ namespace metaserver {
 using ::curvefs::mds::FsInfo;
 using ::curvefs::mds::FSStatusCode;
 
+bool pass_uint32(const char*, uint32_t value) { return true; }
+DEFINE_uint32(trash_expiredAfterSec, 604800,
+              "time to delete data in the recycle bin");
+DEFINE_uint32(trash_scanPeriodSec, 600, "recycle bin scan interval");
+DEFINE_validator(trash_expiredAfterSec, pass_uint32);
+DEFINE_validator(trash_scanPeriodSec, pass_uint32);
+
 void TrashOption::InitTrashOptionFromConf(std::shared_ptr<Configuration> conf) {
     conf->GetValueFatalIfFail("trash.scanPeriodSec", &scanPeriodSec);
+    FLAGS_trash_scanPeriodSec = scanPeriodSec;
     conf->GetValueFatalIfFail("trash.expiredAfterSec", &expiredAfterSec);
+    FLAGS_trash_expiredAfterSec = expiredAfterSec;
 }
 
 void TrashImpl::Init(const TrashOption &option) {
@@ -129,7 +140,7 @@ bool TrashImpl::NeedDelete(const TrashItem &item) {
     // if fs recycleTimeHour is not 0, return true
     uint64_t recycleTimeHour = GetFsRecycleTimeHour(item.fsId);
     if (recycleTimeHour == 0) {
-        return ((now - item.dtime) >= options_.expiredAfterSec);
+        return ((now - item.dtime) >= FLAGS_trash_expiredAfterSec);
     } else {
         return true;
     }
