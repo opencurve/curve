@@ -38,7 +38,6 @@ namespace client {
  * use curl -L mdsIp:port/flags/avgFlushBytes?setvalue=true
  * for dynamic parameter configuration
  */
-static bool pass_uint32(const char *, uint32_t) { return true; }
 static bool pass_uint64(const char *, uint64_t) { return true; }
 DEFINE_uint64(avgFlushBytes, 83886080, "the write throttle bps of disk cache");
 DEFINE_validator(avgFlushBytes, &pass_uint64);
@@ -53,17 +52,6 @@ DEFINE_uint64(avgReadFileBytes, 83886080,
 DEFINE_validator(avgReadFileBytes, &pass_uint64);
 DEFINE_uint64(avgReadFileIops, 0, "the read throttle iops of disk cache");
 DEFINE_validator(avgReadFileIops, &pass_uint64);
-
-DEFINE_uint32(nearfullRatio, 70, "the nearfull ratio of disk cache");
-DEFINE_validator(nearfullRatio, &pass_uint32);
-DEFINE_uint32(fullRatio, 90, "the nearfull ratio of disk cache");
-DEFINE_validator(fullRatio, &pass_uint32);
-DEFINE_uint32(trimCheckIntervalSec, 5, "trim check interval seconds");
-DEFINE_validator(trimCheckIntervalSec, &pass_uint32);
-DEFINE_uint64(maxUsableSpaceBytes, 107374182400, "max space bytes can use");
-DEFINE_validator(maxUsableSpaceBytes, &pass_uint64);
-DEFINE_uint64(maxFileNums, 1000000, "max file nums can owner");
-DEFINE_validator(maxFileNums, &pass_uint64);
 
 DiskCacheManager::DiskCacheManager(std::shared_ptr<PosixWrapper> posixWrapper,
                                    std::shared_ptr<DiskCacheWrite> cacheWrite,
@@ -92,10 +80,10 @@ int DiskCacheManager::Init(std::shared_ptr<S3Client> client,
     client_ = client;
 
     option_ = option;
-    cacheDir_ = option.diskCacheOpt.cacheDir;
     trimCheckIntervalSec_ = option.diskCacheOpt.trimCheckIntervalSec;
     fullRatio_ = option.diskCacheOpt.fullRatio;
     safeRatio_ = option.diskCacheOpt.safeRatio;
+    cacheDir_ = option.diskCacheOpt.cacheDir;
     maxUsableSpaceBytes_ = option.diskCacheOpt.maxUsableSpaceBytes;
     maxFileNums_ = option.diskCacheOpt.maxFileNums;
     cmdTimeoutSec_ = option.diskCacheOpt.cmdTimeoutSec;
@@ -134,14 +122,8 @@ int DiskCacheManager::Init(std::shared_ptr<S3Client> client,
     FLAGS_burstSecs = option_.diskCacheOpt.burstSecs;
     FLAGS_avgReadFileIops = option_.diskCacheOpt.avgReadFileIops;
     FLAGS_avgReadFileBytes = option_.diskCacheOpt.avgReadFileBytes;
-    InitQosParam();
 
-    FLAGS_trimCheckIntervalSec = option.diskCacheOpt.trimCheckIntervalSec;
-    FLAGS_fullRatio = option.diskCacheOpt.fullRatio;
-    FLAGS_nearfullRatio = option.diskCacheOpt.safeRatio;
-    FLAGS_maxUsableSpaceBytes = option.diskCacheOpt.maxUsableSpaceBytes;
-    FLAGS_maxFileNums = option.diskCacheOpt.maxFileNums;
-    InitTrimParam();
+    InitQosParam();
 
     LOG(INFO) << "DiskCacheManager init success. "
               << ", cache dir is: " << cacheDir_
@@ -163,14 +145,6 @@ void DiskCacheManager::InitQosParam() {
     params.bpsRead = ThrottleParams(FLAGS_avgReadFileBytes, 0, 0);
 
     diskCacheThrottle_.UpdateThrottleParams(params);
-}
-
-void DiskCacheManager::InitTrimParam() {
-    trimCheckIntervalSec_ = FLAGS_trimCheckIntervalSec;
-    fullRatio_ = FLAGS_fullRatio;
-    safeRatio_ = FLAGS_nearfullRatio;
-    maxUsableSpaceBytes_ = FLAGS_maxUsableSpaceBytes;
-    maxFileNums_ = FLAGS_maxFileNums;
 }
 
 int DiskCacheManager::UploadAllCacheWriteFile() {
@@ -409,7 +383,6 @@ void DiskCacheManager::TrimCache() {
         }
         VLOG(9) << "trim thread wake up.";
         InitQosParam();
-        InitTrimParam();
         while (!IsDiskCacheSafe()) {
             SetDiskFsUsedRatio();
             if (!cachedObjName_->GetBack(&cacheKey)) {
