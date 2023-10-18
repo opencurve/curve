@@ -443,7 +443,6 @@ int DiskCacheWrite::RemoveFile(const std::string fileName) {
                    << ", errno = " << errno;
         return -1;
     }
-    cachedObjName_->MoveBack(fileName);
     VLOG(9) << "remove file success, file = " << fileName;
     return 0;
 }
