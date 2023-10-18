@@ -148,16 +148,7 @@ class DiskCacheManager {
         return usedBytes_.load();
     }
 
-    /**
-     * @brief qos param for diskcache
-     */
     void InitQosParam();
-
-    /**
-     * @brief trim param for diskcache
-     */
-    void InitTrimParam();
-
     /**
      * @brief trim cache func.
      */
