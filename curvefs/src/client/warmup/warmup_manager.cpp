@@ -469,12 +469,11 @@ void WarmupManagerS3Impl::WarmUpAllObjs(
                 cond.Signal();
                 return;
             }
-            if (context->retCode >= 0) {
+            if (context->retCode == 0) {
                 VLOG(9) << "Get Object success: " << context->key;
                 PutObjectToCache(key, context);
-                metric::CollectMetrics(&warmupS3Metric_.warmupS3Cached,
-                                       context->len,
-                                       butil::cpuwide_time_us() - start);
+                CollectMetrics(&warmupS3Metric_.warmupS3Cached, context->len,
+                               start);
                 warmupS3Metric_.warmupS3CacheSize << context->len;
                 if (pendingReq.fetch_sub(1, std::memory_order_seq_cst) == 1) {
                     VLOG(6) << "pendingReq is over";
@@ -521,8 +520,12 @@ void WarmupManagerS3Impl::WarmUpAllObjs(
             }
             char* cacheS3 = new char[readLen];
             memset(cacheS3, 0, readLen);
-            auto context = std::make_shared<GetObjectAsyncContext>(
-                name, cacheS3, 0, readLen, cb);
+            auto context = std::make_shared<GetObjectAsyncContext>();
+            context->key = name;
+            context->buf = cacheS3;
+            context->offset = 0;
+            context->len = readLen;
+            context->cb = cb;
             context->retry = 0;
             s3Adaptor_->GetS3Client()->DownloadAsync(context);
         }
@@ -707,6 +710,13 @@ void WarmupManagerS3Impl::PutObjectToCache(
         default:
             LOG_EVERY_N(ERROR, 1000) << "unsupported warmup storage type";
     }
+}
+
+void WarmupManager::CollectMetrics(InterfaceMetric* interface, int count,
+                                   uint64_t start) {
+    interface->bps.count << count;
+    interface->qps.count << 1;
+    interface->latency << (butil::cpuwide_time_us() - start);
 }
 
 bool WarmupManagerS3Impl::GetInodeSubPathParent(
