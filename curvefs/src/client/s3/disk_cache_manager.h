@@ -53,8 +53,6 @@ using curvefs::client::common::S3ClientAdaptorOption;
 using curvefs::common::PosixWrapper;
 using curvefs::common::SysUtils;
 
-constexpr uint32_t kRatioLevel = 100;
-
 class DiskCacheManager {
  public:
     DiskCacheManager(std::shared_ptr<PosixWrapper> posixWrapper,
@@ -94,8 +92,13 @@ class DiskCacheManager {
     int UploadAllCacheWriteFile();
     int UploadWriteCacheByInode(const std::string &inode);
     int ClearReadCache(const std::list<std::string> &files);
+    /**
+     * @brief get use ratio of cache disk
+     * @return the use ratio
+     */
+    int64_t SetDiskFsUsedRatio();
     virtual bool IsDiskCacheFull();
-
+    bool IsDiskCacheSafe();
     /**
      * @brief: start trim thread.
      */
@@ -115,24 +118,6 @@ class DiskCacheManager {
     }
 
  private:
-    FRIEND_TEST(TestDiskCacheManager, UpdateDiskFsUsedRatio);
-    FRIEND_TEST(TestDiskCacheManager, IsDiskCacheSafe);
-    FRIEND_TEST(TestDiskCacheManager, IsDiskCacheSafe_TrimRatio_Full);
-    FRIEND_TEST(TestDiskCacheManager, IsDiskCacheSafe_TrimRatio_Nearfull);
-    FRIEND_TEST(TestDiskCacheManager, IsDiskCacheSafe_TrimRatio_Ok);
-
-    /**
-     * @brief get use ratio of cache disk
-     * @return the use ratio
-     */
-    int64_t UpdateDiskFsUsedRatio();
-    /**
-     * @brief: Determine whether the cache disk exceeds the safety line
-     * @param ratio: Adjust the safety line judged according to ratio, and the
-     * adjusted safety line is safety line*baseRatio/kRatioLevel.
-     */
-    bool IsDiskCacheSafe(uint32_t baseRatio);
-
     /**
      * @brief add the used bytes of disk cache.
      */
@@ -169,15 +154,19 @@ class DiskCacheManager {
     void InitQosParam();
 
     /**
+     * @brief trim param for diskcache
+     */
+    void InitTrimParam();
+
+    /**
      * @brief trim cache func.
      */
     void TrimCache();
 
     /**
-     * @brief whether the cache file is exceed
-     * FLAGS_diskMaxFileNums*baseRatio/kRatioLevel.
+     * @brief whether the cache file is exceed maxFileNums_.
      */
-    bool IsExceedFileNums(uint32_t baseRatio);
+    bool IsExceedFileNums();
 
     /**
      * @brief check whether cache dir does not exist or there is no cache file
@@ -188,6 +177,11 @@ class DiskCacheManager {
     curve::common::Atomic<bool> isRunning_;
     curve::common::InterruptibleSleeper sleeper_;
     curve::common::WaitInterval waitIntervalSec_;
+    uint32_t trimCheckIntervalSec_;
+    uint32_t fullRatio_;
+    uint32_t safeRatio_;
+    uint64_t maxUsableSpaceBytes_;
+    uint64_t maxFileNums_;
     uint32_t objectPrefix_;
     // used bytes of disk cache
     std::atomic<int64_t> usedBytes_;
