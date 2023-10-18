@@ -233,6 +233,8 @@ class WarmupManager {
         return ret;
     }
 
+    void CollectMetrics(InterfaceMetric* interface, int count, uint64_t start);
+
  protected:
     /**
      * @brief Add warmupProcess

@@ -113,7 +113,7 @@ class DiskCacheManagerImpl {
     bool IsDiskCacheFull();
     int WriteReadDirect(const std::string fileName, const char *buf,
                         uint64_t length);
-    void InitMetrics(std::string fsName, std::shared_ptr<S3Metric> s3Metric);
+    void InitMetrics(std::string fsName);
 
     virtual int UploadWriteCacheByInode(const std::string &inode);
 

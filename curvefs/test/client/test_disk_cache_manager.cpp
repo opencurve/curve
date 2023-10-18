@@ -75,7 +75,6 @@ class TestDiskCacheManager : public ::testing::Test {
               (0, std::make_shared<CacheMetrics>("diskcache"));
         diskCacheWrite_->Init(client_, wrapper, "/mnt/test", 0,
                                     1, cachedObjName);
-        s3Metric_ = std::make_shared<S3Metric>();
     }
 
     virtual void TearDown() {
@@ -89,7 +88,6 @@ class TestDiskCacheManager : public ::testing::Test {
     std::shared_ptr<DiskCacheManager> diskCacheManager_;
     std::shared_ptr<MockPosixWrapper> wrapper;
     std::shared_ptr<MockS3Client> client_;
-    std::shared_ptr<S3Metric> s3Metric_;
 };
 
 TEST_F(TestDiskCacheManager, Init) {
@@ -387,7 +385,7 @@ TEST_F(TestDiskCacheManager, TrimRun_1) {
     EXPECT_CALL(*wrapper, stat(NotNull(), NotNull())).WillOnce(Return(-1));
     EXPECT_CALL(*wrapper, mkdir(_, _)).WillOnce(Return(-1));
     diskCacheManager_->Init(client_, option);
-    diskCacheManager_->InitMetrics("test", s3Metric_);
+    diskCacheManager_->InitMetrics("test");
     EXPECT_CALL(*wrapper, statfs(NotNull(), NotNull()))
         .WillRepeatedly(Return(-1));
     (void)diskCacheManager_->TrimRun();
@@ -421,7 +419,7 @@ TEST_F(TestDiskCacheManager, TrimCache_2) {
     EXPECT_CALL(*wrapper, stat(NotNull(), NotNull())).WillOnce(Return(-1));
     EXPECT_CALL(*wrapper, mkdir(_, _)).WillOnce(Return(-1));
     diskCacheManager_->Init(client_, option);
-    diskCacheManager_->InitMetrics("test", s3Metric_);
+    diskCacheManager_->InitMetrics("test");
     diskCacheManager_->AddCache("test");
     (void)diskCacheManager_->TrimRun();
     sleep(6);
@@ -457,7 +455,7 @@ TEST_F(TestDiskCacheManager, TrimCache_4) {
     EXPECT_CALL(*wrapper, mkdir(_, _)).WillOnce(Return(-1));
     option.objectPrefix = 0;
     diskCacheManager_->Init(client_, option);
-    diskCacheManager_->InitMetrics("test", s3Metric_);
+    diskCacheManager_->InitMetrics("test");
     diskCacheManager_->AddCache("test");
     (void)diskCacheManager_->TrimRun();
     sleep(6);
@@ -494,7 +492,7 @@ TEST_F(TestDiskCacheManager, TrimCache_5) {
     EXPECT_CALL(*wrapper, stat(NotNull(), NotNull())).WillOnce(Return(-1));
     EXPECT_CALL(*wrapper, mkdir(_, _)).WillOnce(Return(-1));
     diskCacheManager_->Init(client_, option);
-    diskCacheManager_->InitMetrics("test", s3Metric_);
+    diskCacheManager_->InitMetrics("test");
     diskCacheManager_->AddCache("test");
     (void)diskCacheManager_->TrimRun();
     sleep(6);
@@ -533,8 +531,8 @@ TEST_F(TestDiskCacheManager, TrimCache_noexceed) {
     diskCacheManager_->AddCache("test");
 
     (void)diskCacheManager_->TrimRun();
-    diskCacheManager_->InitMetrics("test", s3Metric_);
-    sleep(6);
+    diskCacheManager_->InitMetrics("test");
+    sleep(3);
     diskCacheManager_->UmountDiskCache();
 }
 
@@ -578,7 +576,7 @@ TEST_F(TestDiskCacheManager, TrimCache_exceed) {
     EXPECT_CALL(*wrapper, stat(NotNull(), _))
         .WillRepeatedly(Return(-1));
     diskCacheManager_->TrimRun();
-    diskCacheManager_->InitMetrics("test", s3Metric_);
+    diskCacheManager_->InitMetrics("test");
     sleep(6);
     diskCacheManager_->UmountDiskCache();
 }

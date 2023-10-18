@@ -23,26 +23,24 @@
 #define CURVEFS_SRC_CLIENT_S3_DISK_CACHE_MANAGER_H_
 
 #include <bthread/mutex.h>
-#include <gtest/gtest_prod.h>
 
 #include <list>
-#include <memory>
-#include <set>
 #include <string>
 #include <vector>
+#include <set>
+#include <memory>
 
-#include "curvefs/src/client/common/config.h"
-#include "curvefs/src/client/metric/client_metric.h"
-#include "curvefs/src/client/s3/client_s3.h"
-#include "curvefs/src/client/s3/disk_cache_read.h"
-#include "curvefs/src/client/s3/disk_cache_write.h"
-#include "curvefs/src/common/utils.h"
-#include "curvefs/src/common/wrap_posix.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/interruptible_sleeper.h"
 #include "src/common/lru_cache.h"
 #include "src/common/throttle.h"
 #include "src/common/wait_interval.h"
+#include "curvefs/src/common/wrap_posix.h"
+#include "curvefs/src/common/utils.h"
+#include "curvefs/src/client/s3/client_s3.h"
+#include "curvefs/src/client/s3/disk_cache_write.h"
+#include "curvefs/src/client/s3/disk_cache_read.h"
+#include "curvefs/src/client/common/config.h"
 namespace curvefs {
 namespace client {
 
@@ -107,8 +105,7 @@ class DiskCacheManager {
      */
     int TrimStop();
 
-    void InitMetrics(const std::string& fsName,
-                     std::shared_ptr<S3Metric> s3Metric);
+    void InitMetrics(const std::string &fsName);
 
     /**
      * @brief: has got the origin used size or not.
@@ -116,8 +113,6 @@ class DiskCacheManager {
     virtual bool IsDiskUsedInited() {
         return diskUsedInit_.load();
     }
-
-    std::shared_ptr<S3Metric> GetS3Metric() { return s3Metric_; }
 
  private:
     FRIEND_TEST(TestDiskCacheManager, UpdateDiskFsUsedRatio);
@@ -208,7 +203,6 @@ class DiskCacheManager {
     std::shared_ptr<S3Client> client_;
     std::shared_ptr<PosixWrapper> posixWrapper_;
     std::shared_ptr<DiskCacheMetric> metric_;
-    std::shared_ptr<S3Metric> s3Metric_;
 
     Throttle diskCacheThrottle_;
 
