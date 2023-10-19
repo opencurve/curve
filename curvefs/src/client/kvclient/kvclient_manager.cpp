@@ -40,7 +40,8 @@ template <typename Metric, typename TaskSharePtr>
 void OnReturn(Metric* metric, const TaskSharePtr task) {
     task->timer.stop();
     if (task->res) {
-        metric::CollectMetrics(metric, task->length, task->timer.u_elapsed());
+        curve::client::CollectMetrics(metric, task->length,
+                                      task->timer.u_elapsed());
     } else {
         metric->eps.count << 1;
     }

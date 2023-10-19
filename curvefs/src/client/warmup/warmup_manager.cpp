@@ -536,9 +536,9 @@ void WarmupManagerS3Impl::WarmUpAllObjs(
             if (context->retCode >= 0) {
                 VLOG(9) << "Get Object success: " << context->key;
                 PutObjectToCache(key, context);
-                metric::CollectMetrics(&warmupS3Metric_.warmupS3Cached,
-                                       context->len,
-                                       butil::cpuwide_time_us() - start);
+                curve::client::CollectMetrics(&warmupS3Metric_.warmupS3Cached,
+                                              context->len,
+                                              butil::cpuwide_time_us() - start);
                 warmupS3Metric_.warmupS3CacheSize << context->len;
                 if (pendingReq.fetch_sub(1, std::memory_order_seq_cst) == 1) {
                     VLOG(6) << "pendingReq is over";

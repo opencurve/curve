@@ -475,8 +475,9 @@ void DiskCacheManager::TrimCache() {
                         << "error is: " << errno;
                     continue;
                 }
-                metric::CollectMetrics(&metric_->trim_, statReadFile.st_size,
-                                       butil::cpuwide_time_us() - start);
+                curve::client::CollectMetrics(&metric_->trim_,
+                                              statReadFile.st_size,
+                                              butil::cpuwide_time_us() - start);
                 UpdateDiskUsedBytes(-statReadFile.st_size);
                 VLOG(6) << "remove disk file success, file is: " << cacheKey;
             }
