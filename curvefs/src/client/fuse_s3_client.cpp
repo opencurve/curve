@@ -20,11 +20,12 @@
  * Author: xuchaojie
  */
 
+#include "curvefs/src/client/fuse_s3_client.h"
 
+#include <cstdint>
 #include <memory>
 #include <vector>
 
-#include "curvefs/src/client/fuse_s3_client.h"
 #include "curvefs/src/client/kvclient/memcache_client.h"
 
 namespace curvefs {
@@ -100,6 +101,8 @@ CURVEFS_ERROR FuseS3Client::Init(const FuseClientOption &option) {
                                inodeManager_, mdsClient_, fsCacheManager,
                                nullptr, kvClientManager_, true);
     }
+    ioLatencyMetric_ = absl::make_unique<metric::FuseS3ClientIOLatencyMetric>(
+        fsInfo_->fsname());
     return ret;
 }
 
@@ -169,14 +172,8 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
         LOG(ERROR) << "s3Adaptor_ write failed, ret = " << wRet;
         return CURVEFS_ERROR::INTERNAL;
     }
-
-    if (fsMetric_.get() != nullptr) {
-        fsMetric_->userWrite.bps.count << wRet;
-        fsMetric_->userWrite.qps.count << 1;
-        uint64_t duration = butil::cpuwide_time_us() - start;
-        fsMetric_->userWrite.latency << duration;
-        fsMetric_->userWriteIoSize.set_value(wRet);
-    }
+    uint64_t mid = butil::cpuwide_time_us();
+    ioLatencyMetric_->writeDataLatency << mid - start;
 
     std::shared_ptr<InodeWrapper> inodeWrapper;
     CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWrapper);
@@ -220,6 +217,15 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
     }
 
     inodeWrapper->GetInodeAttrLocked(&fileOut->attr);
+
+    if (fsMetric_.get() != nullptr) {
+        fsMetric_->userWrite.bps.count << wRet;
+        fsMetric_->userWrite.qps.count << 1;
+        uint64_t duration = butil::cpuwide_time_us() - start;
+        fsMetric_->userWrite.latency << duration;
+        fsMetric_->userWriteIoSize.set_value(wRet);
+    }
+    ioLatencyMetric_->writeAttrLatency << butil::cpuwide_time_us() - mid;
     return ret;
 }
 
@@ -243,6 +249,8 @@ CURVEFS_ERROR FuseS3Client::FuseOpRead(fuse_req_t req, fuse_ino_t ino,
                    << ", inodeid = " << ino;
         return ret;
     }
+    uint64_t mid = butil::cpuwide_time_us();
+    ioLatencyMetric_->readAttrLatency << mid - start;
     uint64_t fileSize = inodeWrapper->GetLength();
 
     size_t len = 0;
@@ -262,6 +270,11 @@ CURVEFS_ERROR FuseS3Client::FuseOpRead(fuse_req_t req, fuse_ino_t ino,
         return CURVEFS_ERROR::INTERNAL;
     }
     *rSize = rRet;
+    ioLatencyMetric_->readDataLatency << butil::cpuwide_time_us() - mid;
+
+    ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
+    inodeWrapper->UpdateTimestampLocked(kAccessTime);
+    inodeManager_->ShipToFlush(inodeWrapper);
 
     if (fsMetric_.get() != nullptr) {
         fsMetric_->userRead.bps.count << rRet;
@@ -270,10 +283,6 @@ CURVEFS_ERROR FuseS3Client::FuseOpRead(fuse_req_t req, fuse_ino_t ino,
         fsMetric_->userRead.latency << duration;
         fsMetric_->userReadIoSize.set_value(rRet);
     }
-
-    ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
-    inodeWrapper->UpdateTimestampLocked(kAccessTime);
-    inodeManager_->ShipToFlush(inodeWrapper);
 
     VLOG(9) << "read end, read size = " << *rSize;
     return ret;

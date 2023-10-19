@@ -368,6 +368,25 @@ void AsyncContextCollectMetrics(
     std::shared_ptr<S3Metric> s3Metric,
     const std::shared_ptr<curve::common::GetObjectAsyncContext>& context);
 
+struct FuseS3ClientIOLatencyMetric {
+    static const std::string prefix;
+
+    std::string fsName;
+
+    bvar::LatencyRecorder readAttrLatency;
+    bvar::LatencyRecorder readDataLatency;
+    bvar::LatencyRecorder writeAttrLatency;
+    bvar::LatencyRecorder writeDataLatency;
+
+    explicit FuseS3ClientIOLatencyMetric(const std::string& name = "")
+        : fsName(!name.empty() ? name
+                               : prefix + curve::common::ToHexString(this)),
+          readAttrLatency(prefix, fsName + "_read_attr_latency"),
+          readDataLatency(prefix, fsName + "_read_data_latency"),
+          writeAttrLatency(prefix, fsName + "_write_attr_latency"),
+          writeDataLatency(prefix, fsName + "_write_data_latency") {}
+};
+
 }  // namespace metric
 }  // namespace client
 }  // namespace curvefs
