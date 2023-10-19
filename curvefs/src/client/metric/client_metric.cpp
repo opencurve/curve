@@ -23,6 +23,7 @@
 #include "curvefs/src/client/metric/client_metric.h"
 
 #include <memory>
+#include <string>
 
 #include "src/client/client_metric.h"
 
@@ -45,6 +46,8 @@ const std::string MemcacheClientMetric::prefix =                   // NOLINT
     "curvefs_memcache_client";                                     // NOLINT
 const std::string S3ChunkInfoMetric::prefix = "inode_s3_chunk_info";  // NOLINT
 const std::string WarmupManagerS3Metric::prefix = "curvefs_warmup";   // NOLINT
+const std::string FuseS3ClientIOLatencyMetric::prefix =               // NOLINT
+    "curvefs_fuse_s3_client";                                         // NOLINT
 
 void AsyncContextCollectMetrics(
     std::shared_ptr<S3Metric> s3Metric,
