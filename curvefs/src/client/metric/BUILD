@@ -26,6 +26,5 @@ cc_library(
         "//external:gflags",
         "//external:bvar",
         "//src/client:curve_client",
-        "//src/common:curve_s3_adapter",
     ],
 )

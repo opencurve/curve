@@ -50,9 +50,8 @@ struct DiskCacheOption {
     DiskCacheType diskCacheType;
     uint64_t trimCheckIntervalSec;
     uint64_t asyncLoadPeriodMs;
-    uint32_t fullRatio;
-    uint32_t safeRatio;
-    uint32_t trimRatio;
+    uint64_t fullRatio;
+    uint64_t safeRatio;
     std::string cacheDir;
     bool forceFlush;
     uint64_t maxUsableSpaceBytes;
@@ -113,7 +112,7 @@ class DiskCacheManagerImpl {
     bool IsDiskCacheFull();
     int WriteReadDirect(const std::string fileName, const char *buf,
                         uint64_t length);
-    void InitMetrics(std::string fsName, std::shared_ptr<S3Metric> s3Metric);
+    void InitMetrics(std::string fsName);
 
     virtual int UploadWriteCacheByInode(const std::string &inode);
 

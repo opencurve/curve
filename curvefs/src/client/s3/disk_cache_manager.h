@@ -23,26 +23,24 @@
 #define CURVEFS_SRC_CLIENT_S3_DISK_CACHE_MANAGER_H_
 
 #include <bthread/mutex.h>
-#include <gtest/gtest_prod.h>
 
 #include <list>
-#include <memory>
-#include <set>
 #include <string>
 #include <vector>
+#include <set>
+#include <memory>
 
-#include "curvefs/src/client/common/config.h"
-#include "curvefs/src/client/metric/client_metric.h"
-#include "curvefs/src/client/s3/client_s3.h"
-#include "curvefs/src/client/s3/disk_cache_read.h"
-#include "curvefs/src/client/s3/disk_cache_write.h"
-#include "curvefs/src/common/utils.h"
-#include "curvefs/src/common/wrap_posix.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/interruptible_sleeper.h"
 #include "src/common/lru_cache.h"
 #include "src/common/throttle.h"
 #include "src/common/wait_interval.h"
+#include "curvefs/src/common/wrap_posix.h"
+#include "curvefs/src/common/utils.h"
+#include "curvefs/src/client/s3/client_s3.h"
+#include "curvefs/src/client/s3/disk_cache_write.h"
+#include "curvefs/src/client/s3/disk_cache_read.h"
+#include "curvefs/src/client/common/config.h"
 namespace curvefs {
 namespace client {
 
@@ -54,8 +52,6 @@ using curve::common::ThrottleParams;
 using curvefs::client::common::S3ClientAdaptorOption;
 using curvefs::common::PosixWrapper;
 using curvefs::common::SysUtils;
-
-constexpr uint32_t kRatioLevel = 100;
 
 class DiskCacheManager {
  public:
@@ -96,8 +92,13 @@ class DiskCacheManager {
     int UploadAllCacheWriteFile();
     int UploadWriteCacheByInode(const std::string &inode);
     int ClearReadCache(const std::list<std::string> &files);
+    /**
+     * @brief get use ratio of cache disk
+     * @return the use ratio
+     */
+    int64_t SetDiskFsUsedRatio();
     virtual bool IsDiskCacheFull();
-
+    bool IsDiskCacheSafe();
     /**
      * @brief: start trim thread.
      */
@@ -107,8 +108,7 @@ class DiskCacheManager {
      */
     int TrimStop();
 
-    void InitMetrics(const std::string& fsName,
-                     std::shared_ptr<S3Metric> s3Metric);
+    void InitMetrics(const std::string &fsName);
 
     /**
      * @brief: has got the origin used size or not.
@@ -117,27 +117,7 @@ class DiskCacheManager {
         return diskUsedInit_.load();
     }
 
-    std::shared_ptr<S3Metric> GetS3Metric() { return s3Metric_; }
-
  private:
-    FRIEND_TEST(TestDiskCacheManager, UpdateDiskFsUsedRatio);
-    FRIEND_TEST(TestDiskCacheManager, IsDiskCacheSafe);
-    FRIEND_TEST(TestDiskCacheManager, IsDiskCacheSafe_TrimRatio_Full);
-    FRIEND_TEST(TestDiskCacheManager, IsDiskCacheSafe_TrimRatio_Nearfull);
-    FRIEND_TEST(TestDiskCacheManager, IsDiskCacheSafe_TrimRatio_Ok);
-
-    /**
-     * @brief get use ratio of cache disk
-     * @return the use ratio
-     */
-    int64_t UpdateDiskFsUsedRatio();
-    /**
-     * @brief: Determine whether the cache disk exceeds the safety line
-     * @param ratio: Adjust the safety line judged according to ratio, and the
-     * adjusted safety line is safety line*baseRatio/kRatioLevel.
-     */
-    bool IsDiskCacheSafe(uint32_t baseRatio);
-
     /**
      * @brief add the used bytes of disk cache.
      */
@@ -168,21 +148,16 @@ class DiskCacheManager {
         return usedBytes_.load();
     }
 
-    /**
-     * @brief qos param for diskcache
-     */
     void InitQosParam();
-
     /**
      * @brief trim cache func.
      */
     void TrimCache();
 
     /**
-     * @brief whether the cache file is exceed
-     * FLAGS_diskMaxFileNums*baseRatio/kRatioLevel.
+     * @brief whether the cache file is exceed maxFileNums_.
      */
-    bool IsExceedFileNums(uint32_t baseRatio);
+    bool IsExceedFileNums();
 
     /**
      * @brief check whether cache dir does not exist or there is no cache file
@@ -193,6 +168,11 @@ class DiskCacheManager {
     curve::common::Atomic<bool> isRunning_;
     curve::common::InterruptibleSleeper sleeper_;
     curve::common::WaitInterval waitIntervalSec_;
+    uint32_t trimCheckIntervalSec_;
+    uint32_t fullRatio_;
+    uint32_t safeRatio_;
+    uint64_t maxUsableSpaceBytes_;
+    uint64_t maxFileNums_;
     uint32_t objectPrefix_;
     // used bytes of disk cache
     std::atomic<int64_t> usedBytes_;
@@ -208,7 +188,6 @@ class DiskCacheManager {
     std::shared_ptr<S3Client> client_;
     std::shared_ptr<PosixWrapper> posixWrapper_;
     std::shared_ptr<DiskCacheMetric> metric_;
-    std::shared_ptr<S3Metric> s3Metric_;
 
     Throttle diskCacheThrottle_;
 

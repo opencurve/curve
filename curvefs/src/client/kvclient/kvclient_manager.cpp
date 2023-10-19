@@ -55,10 +55,9 @@ void KVClientManager::Set(std::shared_ptr<SetKVCacheTask> task) {
         LatencyGuard guard(&kvClientMetric_.kvClientSet.latency);
 
         std::string error_log;
-        task->res =
+        auto res =
             client_->Set(task->key, task->value, task->length, &error_log);
-        task->timer.stop();
-        ONRETURN(Set, task->res);
+        ONRETURN(Set, res);
 
         task->done(task);
     });
@@ -71,7 +70,6 @@ void KVClientManager::Get(std::shared_ptr<GetKVCacheTask> task) {
         std::string error_log;
         task->res = client_->Get(task->key, task->value, task->offset,
                                 task->length, &error_log);
-        task->timer.stop();
         ONRETURN(Get, task->res);
 
         task->done(task);

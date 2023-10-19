@@ -22,8 +22,6 @@
 
 #include "curvefs/src/client/metric/client_metric.h"
 
-#include <memory>
-
 namespace curvefs {
 namespace client {
 namespace metric {
@@ -37,58 +35,9 @@ const std::string S3Metric::prefix = "curvefs_s3";  // NOLINT
 const std::string DiskCacheMetric::prefix = "curvefs_disk_cache";  // NOLINT
 const std::string KVClientMetric::prefix = "curvefs_kvclient";  // NOLINT
 const std::string S3ChunkInfoMetric::prefix = "inode_s3_chunk_info";  // NOLINT
-const std::string WarmupManagerS3Metric::prefix = "curvefs_warmup";   // NOLINT
-
-void CollectMetrics(InterfaceMetric* interface, int count, uint64_t u_elapsed) {
-    interface->bps.count << count;
-    interface->qps.count << 1;
-    interface->latency << u_elapsed;
-}
-
-void AsyncContextCollectMetrics(
-    std::shared_ptr<S3Metric> s3Metric,
-    const std::shared_ptr<curve::common::PutObjectAsyncContext>& context) {
-    if (s3Metric.get() != nullptr) {
-        CollectMetrics(&s3Metric->adaptorWriteS3, context->bufferSize,
-                       context->timer.u_elapsed());
-
-        switch (context->type) {
-            case curve::common::ContextType::Disk:
-                CollectMetrics(&s3Metric->writeToDiskCache, context->bufferSize,
-                               context->timer.u_elapsed());
-                break;
-            case curve::common::ContextType::S3:
-                CollectMetrics(&s3Metric->writeToS3, context->bufferSize,
-                               context->timer.u_elapsed());
-                break;
-            default:
-                break;
-        }
-    }
-}
-
-void AsyncContextCollectMetrics(
-    std::shared_ptr<S3Metric> s3Metric,
-    const std::shared_ptr<curve::common::GetObjectAsyncContext>& context) {
-    if (s3Metric.get() != nullptr) {
-        CollectMetrics(&s3Metric->adaptorReadS3, context->actualLen,
-                       context->timer.u_elapsed());
-
-        switch (context->type) {
-            case curve::common::ContextType::Disk:
-                CollectMetrics(&s3Metric->readFromDiskCache, context->actualLen,
-                               context->timer.u_elapsed());
-                break;
-            case curve::common::ContextType::S3:
-                CollectMetrics(&s3Metric->readFromS3, context->actualLen,
-                               context->timer.u_elapsed());
-                break;
-            default:
-                break;
-        }
-    }
-}
+const std::string WarmupManagerS3Metric::prefix = "curvefs_warmup";  // NOLINT
 
 }  // namespace metric
 }  // namespace client
 }  // namespace curvefs
+

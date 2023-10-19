@@ -19,15 +19,12 @@
  * Created Date: 21-08-13
  * Author: hzwuhongsong
  */
-
-#include <glog/logging.h>
 #include <sys/vfs.h>
 #include <errno.h>
 #include <string>
 #include <cstdio>
 #include <memory>
 #include <list>
-#include <cstdint>
 
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
 #include "curvefs/src/client/s3/disk_cache_manager.h"
@@ -41,8 +38,6 @@ namespace client {
  * use curl -L mdsIp:port/flags/avgFlushBytes?setvalue=true
  * for dynamic parameter configuration
  */
-static bool pass_uint32(const char *, uint32_t) { return true; }
-static bool ValidateRatio(const char *, uint32_t ratio) { return ratio <= 100; }
 static bool pass_uint64(const char *, uint64_t) { return true; }
 DEFINE_uint64(avgFlushBytes, 83886080, "the write throttle bps of disk cache");
 DEFINE_validator(avgFlushBytes, &pass_uint64);
@@ -58,19 +53,6 @@ DEFINE_validator(avgReadFileBytes, &pass_uint64);
 DEFINE_uint64(avgReadFileIops, 0, "the read throttle iops of disk cache");
 DEFINE_validator(avgReadFileIops, &pass_uint64);
 
-DEFINE_uint32(diskNearFullRatio, 70, "the nearfull ratio of disk cache");
-DEFINE_validator(diskNearFullRatio, &ValidateRatio);
-DEFINE_uint32(diskFullRatio, 90, "the nearfull ratio of disk cache");
-DEFINE_validator(diskFullRatio, &ValidateRatio);
-DEFINE_uint32(diskTrimRatio, 50, "the trim ratio when disk nearfull");
-DEFINE_validator(diskTrimRatio, &ValidateRatio);
-DEFINE_uint32(diskTrimCheckIntervalSec, 5, "trim check interval seconds");
-DEFINE_validator(diskTrimCheckIntervalSec, &pass_uint32);
-DEFINE_uint64(diskMaxUsableSpaceBytes, 107374182400, "max space bytes can use");
-DEFINE_validator(diskMaxUsableSpaceBytes, &pass_uint64);
-DEFINE_uint64(diskMaxFileNums, 1000000, "max file nums can owner");
-DEFINE_validator(diskMaxFileNums, &pass_uint64);
-
 DiskCacheManager::DiskCacheManager(std::shared_ptr<PosixWrapper> posixWrapper,
                                    std::shared_ptr<DiskCacheWrite> cacheWrite,
                                    std::shared_ptr<DiskCacheRead> cacheRead) {
@@ -80,7 +62,10 @@ DiskCacheManager::DiskCacheManager(std::shared_ptr<PosixWrapper> posixWrapper,
     isRunning_ = false;
     usedBytes_ = 0;
     diskFsUsedRatio_ = 0;
+    fullRatio_ = 0;
+    safeRatio_ = 0;
     diskUsedInit_ = false;
+    maxUsableSpaceBytes_ = 0;
     objectPrefix_ = 0;
     // cannot limit the size,
     // because cache is been delete must after upload to s3
@@ -95,13 +80,12 @@ int DiskCacheManager::Init(std::shared_ptr<S3Client> client,
     client_ = client;
 
     option_ = option;
-    FLAGS_diskTrimCheckIntervalSec = option.diskCacheOpt.trimCheckIntervalSec;
-    FLAGS_diskFullRatio = option.diskCacheOpt.fullRatio;
-    FLAGS_diskNearFullRatio = option.diskCacheOpt.safeRatio;
-    FLAGS_diskTrimRatio = option.diskCacheOpt.trimRatio;
+    trimCheckIntervalSec_ = option.diskCacheOpt.trimCheckIntervalSec;
+    fullRatio_ = option.diskCacheOpt.fullRatio;
+    safeRatio_ = option.diskCacheOpt.safeRatio;
     cacheDir_ = option.diskCacheOpt.cacheDir;
-    FLAGS_diskMaxUsableSpaceBytes = option.diskCacheOpt.maxUsableSpaceBytes;
-    FLAGS_diskMaxFileNums = option.diskCacheOpt.maxFileNums;
+    maxUsableSpaceBytes_ = option.diskCacheOpt.maxUsableSpaceBytes;
+    maxFileNums_ = option.diskCacheOpt.maxFileNums;
     cmdTimeoutSec_ = option.diskCacheOpt.cmdTimeoutSec;
     objectPrefix_ = option.objectPrefix;
     cacheWrite_->Init(client_, posixWrapper_, cacheDir_, objectPrefix_,
@@ -130,7 +114,7 @@ int DiskCacheManager::Init(std::shared_ptr<S3Client> client,
     // start trim thread
     TrimRun();
 
-    UpdateDiskFsUsedRatio();
+    SetDiskFsUsedRatio();
 
     FLAGS_avgFlushIops = option_.diskCacheOpt.avgFlushIops;
     FLAGS_avgFlushBytes = option_.diskCacheOpt.avgFlushBytes;
@@ -138,16 +122,16 @@ int DiskCacheManager::Init(std::shared_ptr<S3Client> client,
     FLAGS_burstSecs = option_.diskCacheOpt.burstSecs;
     FLAGS_avgReadFileIops = option_.diskCacheOpt.avgReadFileIops;
     FLAGS_avgReadFileBytes = option_.diskCacheOpt.avgReadFileBytes;
+
     InitQosParam();
 
     LOG(INFO) << "DiskCacheManager init success. "
               << ", cache dir is: " << cacheDir_
-              << ", maxUsableSpaceBytes is: " << FLAGS_diskMaxUsableSpaceBytes
-              << ", maxFileNums is: " << FLAGS_diskMaxFileNums
+              << ", maxUsableSpaceBytes is: " << maxUsableSpaceBytes_
+              << ", maxFileNums is: " << maxFileNums_
               << ", cmdTimeoutSec is: " << cmdTimeoutSec_
-              << ", safeRatio is: " << FLAGS_diskNearFullRatio
-              << ", fullRatio is: " << FLAGS_diskFullRatio
-              << ", trimRatio is: " << FLAGS_diskTrimRatio
+              << ", safeRatio is: " << safeRatio_
+              << ", fullRatio is: " << fullRatio_
               << ", disk used bytes: " << GetDiskUsedbytes();
     return 0;
 }
@@ -195,6 +179,9 @@ bool DiskCacheManager::IsCacheClean() {
 
 int DiskCacheManager::UmountDiskCache() {
     LOG(INFO) << "umount disk cache.";
+    if (diskInitThread_.joinable()) {
+        diskInitThread_.join();
+    }
     TrimStop();
     cacheWrite_->AsyncUploadStop();
     LOG_IF(ERROR, !IsCacheClean()) << "umount disk cache error.";
@@ -276,7 +263,7 @@ int DiskCacheManager::LinkWriteToRead(const std::string fileName,
     return cacheRead_->LinkWriteToRead(fileName, fullWriteDir, fullReadDir);
 }
 
-int64_t DiskCacheManager::UpdateDiskFsUsedRatio() {
+int64_t DiskCacheManager::SetDiskFsUsedRatio() {
     struct statfs stat;
     if (posixWrapper_->statfs(cacheDir_.c_str(), &stat) == -1) {
         LOG_EVERY_N(WARNING, 100)
@@ -326,77 +313,53 @@ void DiskCacheManager::SetDiskInitUsedBytes() {
 bool DiskCacheManager::IsDiskCacheFull() {
     int64_t ratio = diskFsUsedRatio_.load();
     uint64_t usedBytes = GetDiskUsedbytes();
-    if (ratio >= FLAGS_diskFullRatio ||
-        usedBytes >= FLAGS_diskMaxUsableSpaceBytes ||
-        IsExceedFileNums(kRatioLevel)) {
+    if (ratio >= fullRatio_ || usedBytes >= maxUsableSpaceBytes_) {
         VLOG(6) << "disk cache is full"
-                << ", ratio is: " << ratio
-                << ", fullRatio is: " << FLAGS_diskFullRatio
-                << ", used bytes is: " << usedBytes;
+                     << ", ratio is: " << ratio << ", fullRatio is: "
+                     << fullRatio_ << ", used bytes is: " << usedBytes;
         waitIntervalSec_.StopWait();
         return true;
     }
-    if (!IsDiskCacheSafe(kRatioLevel)) {
+    if (!IsDiskCacheSafe()) {
         VLOG(6) << "wake up trim thread.";
         waitIntervalSec_.StopWait();
     }
     return false;
 }
 
-bool DiskCacheManager::IsDiskCacheSafe(uint32_t baseRatio) {
-    if (IsExceedFileNums(baseRatio)) {
+bool DiskCacheManager::IsDiskCacheSafe() {
+    if (IsExceedFileNums()) {
         return false;
     }
     int64_t ratio = diskFsUsedRatio_.load();
     uint64_t usedBytes = GetDiskUsedbytes();
-    if ((usedBytes < (FLAGS_diskNearFullRatio * FLAGS_diskMaxUsableSpaceBytes /
-                      kRatioLevel * baseRatio / kRatioLevel)) &&
-        (ratio < FLAGS_diskNearFullRatio * baseRatio / kRatioLevel)) {
+    if ((usedBytes < (safeRatio_ * maxUsableSpaceBytes_ / 100))
+      && (ratio < safeRatio_)) {
         VLOG(9) << "disk cache is safe"
                 << ", usedBytes is: " << usedBytes
-                << ", use ratio is: " << ratio
-                << ", baseRatio is: " << baseRatio;
+                << ", use ratio is: " << ratio;
         return true;
     }
-    VLOG_EVERY_N(6, 1000) << "disk cache is not safe"
-            << ", usedBytes is: " << usedBytes << ", limit is "
-            << FLAGS_diskNearFullRatio * FLAGS_diskMaxUsableSpaceBytes /
-                   kRatioLevel * baseRatio / kRatioLevel
-            << ", use ratio is: " << ratio << ", limit is: "
-            << FLAGS_diskNearFullRatio * baseRatio / kRatioLevel;
+    VLOG(6) << "disk cache is not safe"
+                << ", usedBytes is: " << usedBytes
+                << ", use ratio is: " << ratio;
     return false;
 }
 
 // TODO(wuhongsong):
 // See Also: https://github.com/opencurve/curve/issues/1534
-bool DiskCacheManager::IsExceedFileNums(uint32_t baseRatio) {
+bool DiskCacheManager::IsExceedFileNums() {
     uint64_t fileNums = cachedObjName_->Size();
-    if (fileNums >= FLAGS_diskMaxFileNums * baseRatio / kRatioLevel) {
-        VLOG_EVERY_N(9, 1000) << "disk cache file nums is exceed"
-                << ", fileNums is: " << fileNums
-                << ", maxFileNums is: " << FLAGS_diskMaxFileNums
-                << ", baseRatio is: " << baseRatio;
+    if (fileNums >= maxFileNums_) {
         return true;
     }
     return false;
 }
 
-
-//
-//       ok           nearfull               full
-// |------------|-------------------|----------------------|
-// 0     trimRatio*safeRatio    safeRatio               fullRatio
-//
-// 1. 0<=ok<trimRatio*safeRatio;
-// 2. trimRatio*safeRatio<=nearfull<safeRatio
-// 3. safeRatio<=full<=fullRatio
-// If the status is ok or ok->nearfull does not clean up
-// If the status is full or
-// full->nearfull clean up
 void DiskCacheManager::TrimCache() {
-    const std::chrono::seconds sleepSec(FLAGS_diskTrimCheckIntervalSec);
+    const std::chrono::seconds sleepSec(trimCheckIntervalSec_);
     LOG(INFO) << "trim function start.";
-    waitIntervalSec_.Init(FLAGS_diskTrimCheckIntervalSec * 1000);
+    waitIntervalSec_.Init(trimCheckIntervalSec_ * 1000);
     // trim will start after get the disk size
     while (!IsDiskUsedInited()) {
         if (!isRunning_) {
@@ -406,14 +369,13 @@ void DiskCacheManager::TrimCache() {
     }
     // 1. check cache disk usage every sleepSec seconds.
     // 2. if cache disk is full,
-    //    then remove disk file until cache disk is lower than
-    //    FLAGS_diskNearFullRatio*FLAGS_trimRatio/kRatioLevel.
+    //    then remove disk file until cache disk is lower than safeRatio_.
     std::string cacheReadFullDir, cacheWriteFullDir,
       cacheReadFile, cacheWriteFile, cacheKey;
     cacheReadFullDir = GetCacheReadFullDir();
     cacheWriteFullDir = GetCacheWriteFullDir();
     while (true) {
-        UpdateDiskFsUsedRatio();
+        SetDiskFsUsedRatio();
         waitIntervalSec_.WaitForNextExcution();
         if (!isRunning_) {
             LOG(INFO) << "trim thread end.";
@@ -421,58 +383,56 @@ void DiskCacheManager::TrimCache() {
         }
         VLOG(9) << "trim thread wake up.";
         InitQosParam();
-        if (!IsDiskCacheSafe(kRatioLevel)) {
-            while (!IsDiskCacheSafe(FLAGS_diskTrimRatio)) {
-                UpdateDiskFsUsedRatio();
-                if (!cachedObjName_->GetBack(&cacheKey)) {
-                    VLOG_EVERY_N(9, 1000) << "obj is empty";
-                    break;
-                }
-
-                VLOG(6) << "obj will be removed01: " << cacheKey;
-                cacheReadFile = cacheReadFullDir + "/" +
-                                curvefs::common::s3util::GenPathByObjName(
-                                    cacheKey, objectPrefix_);
-                cacheWriteFile = cacheWriteFullDir + "/" +
-                                 curvefs::common::s3util::GenPathByObjName(
-                                     cacheKey, objectPrefix_);
-                struct stat statFile;
-                int ret = 0;
-                ret = posixWrapper_->stat(cacheWriteFile.c_str(), &statFile);
-                // if file has not been uploaded to S3,
-                // but remove the cache read file,
-                // then read will fail when do cache read,
-                // and then it cannot load the file from S3.
-                // so read is fail.
-                if (ret == 0) {
-                    VLOG(1) << "do not remove this disk file"
-                            << ", file has not been uploaded to S3."
-                            << ", file is: " << cacheKey;
-                    usleep(1000);
-                    continue;
-                }
-                cachedObjName_->Remove(cacheKey);
-                struct stat statReadFile;
-                ret = posixWrapper_->stat(cacheReadFile.c_str(), &statReadFile);
-                if (ret != 0) {
-                    VLOG(0) << "stat disk file error"
-                            << ", file is: " << cacheKey;
-                    continue;
-                }
-                // if remove disk file before delete cache,
-                // then read maybe fail.
-                const char *toDelFile;
-                toDelFile = cacheReadFile.c_str();
-                ret = posixWrapper_->remove(toDelFile);
-                if (ret < 0) {
-                    LOG(ERROR)
-                        << "remove disk file error, file is: " << cacheKey
-                        << "error is: " << errno;
-                    continue;
-                }
-                DecDiskUsedBytes(statReadFile.st_size);
-                VLOG(6) << "remove disk file success, file is: " << cacheKey;
+        while (!IsDiskCacheSafe()) {
+            SetDiskFsUsedRatio();
+            if (!cachedObjName_->GetBack(&cacheKey)) {
+                VLOG(9) << "obj is empty";
+                break;
             }
+
+            VLOG(6) << "obj will be removed01: " << cacheKey;
+            cacheReadFile = cacheReadFullDir + "/" +
+                    curvefs::common::s3util::GenPathByObjName(
+                        cacheKey, objectPrefix_);
+            cacheWriteFile = cacheWriteFullDir + "/" +
+                    curvefs::common::s3util::GenPathByObjName(
+                        cacheKey, objectPrefix_);
+            struct stat statFile;
+            int ret = 0;
+            ret = posixWrapper_->stat(cacheWriteFile.c_str(), &statFile);
+            // if file has not been uploaded to S3,
+            // but remove the cache read file,
+            // then read will fail when do cache read,
+            // and then it cannot load the file from S3.
+            // so read is fail.
+            if (ret == 0) {
+                VLOG(1) << "do not remove this disk file"
+                        << ", file has not been uploaded to S3."
+                        << ", file is: " << cacheKey;
+                usleep(1000);
+                continue;
+            }
+            cachedObjName_->Remove(cacheKey);
+            struct stat statReadFile;
+            ret = posixWrapper_->stat(cacheReadFile.c_str(), &statReadFile);
+            if (ret != 0) {
+                VLOG(0) << "stat disk file error"
+                        << ", file is: " << cacheKey;
+                continue;
+            }
+            // if remove disk file before delete cache,
+            // then read maybe fail.
+            const char *toDelFile;
+            toDelFile = cacheReadFile.c_str();
+            ret = posixWrapper_->remove(toDelFile);
+            if (ret < 0) {
+                LOG(ERROR)
+                    << "remove disk file error, file is: " << cacheKey
+                    << "error is: " << errno;
+                continue;
+            }
+            DecDiskUsedBytes(statReadFile.st_size);
+            VLOG(6) << "remove disk file success, file is: " << cacheKey;
         }
     }
     LOG(INFO) << "trim function end.";
@@ -489,9 +449,6 @@ int DiskCacheManager::TrimRun() {
 }
 
 int DiskCacheManager::TrimStop() {
-    if (diskInitThread_.joinable()) {
-        diskInitThread_.join();
-    }
     if (isRunning_.exchange(false)) {
         LOG(INFO) << "stop DiskCacheManager trim thread...";
         isRunning_ = false;
@@ -505,10 +462,9 @@ int DiskCacheManager::TrimStop() {
     return 0;
 }
 
-void DiskCacheManager::InitMetrics(const std::string& fsName,
-                                   std::shared_ptr<S3Metric> s3Metric) {
+void DiskCacheManager::InitMetrics(const std::string &fsName) {
     metric_ = std::make_shared<DiskCacheMetric>(fsName);
-    cacheWrite_->InitMetrics(metric_, s3Metric);
+    cacheWrite_->InitMetrics(metric_);
     cacheRead_->InitMetrics(metric_);
     // this function move to here from init，
     // Otherwise, you can't get the original metric.
@@ -516,7 +472,6 @@ void DiskCacheManager::InitMetrics(const std::string& fsName,
     // so use a separate thread to do this.
     diskInitThread_ = curve::common::Thread(
       &DiskCacheManager::SetDiskInitUsedBytes, this);
-    s3Metric_ = s3Metric;
 }
 
 }  // namespace client
