@@ -360,8 +360,6 @@ struct WarmupManagerS3Metric {
           warmupS3CacheSize(prefix, "s3_cache_size") {}
 };
 
-void CollectMetrics(InterfaceMetric* interface, int count, uint64_t u_elapsed);
-
 void AsyncContextCollectMetrics(
     std::shared_ptr<S3Metric> s3Metric,
     const std::shared_ptr<curve::common::PutObjectAsyncContext>& context);

@@ -24,9 +24,13 @@
 
 #include <memory>
 
+#include "src/client/client_metric.h"
+
 namespace curvefs {
 namespace client {
 namespace metric {
+
+using curve::client::CollectMetrics;
 
 const std::string MDSClientMetric::prefix = "curvefs_mds_client";  // NOLINT
 const std::string MetaServerClientMetric::prefix = "curvefs_metaserver_client";  // NOLINT
@@ -41,12 +45,6 @@ const std::string MemcacheClientMetric::prefix =                   // NOLINT
     "curvefs_memcache_client";                                     // NOLINT
 const std::string S3ChunkInfoMetric::prefix = "inode_s3_chunk_info";  // NOLINT
 const std::string WarmupManagerS3Metric::prefix = "curvefs_warmup";   // NOLINT
-
-void CollectMetrics(InterfaceMetric* interface, int count, uint64_t u_elapsed) {
-    interface->bps.count << count;
-    interface->qps.count << 1;
-    interface->latency << u_elapsed;
-}
 
 void AsyncContextCollectMetrics(
     std::shared_ptr<S3Metric> s3Metric,

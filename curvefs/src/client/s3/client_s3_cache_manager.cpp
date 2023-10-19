@@ -496,10 +496,12 @@ bool FileCacheManager::ReadKVRequestFromLocalCache(const std::string &name,
     }
 
     if (s3ClientAdaptor_->s3Metric_) {
-        metric::CollectMetrics(&s3ClientAdaptor_->s3Metric_->adaptorReadS3, len,
-                               butil::cpuwide_time_us() - start);
-        metric::CollectMetrics(&s3ClientAdaptor_->s3Metric_->readFromDiskCache,
-                               len, butil::cpuwide_time_us() - start);
+        curve::client::CollectMetrics(
+            &s3ClientAdaptor_->s3Metric_->adaptorReadS3, len,
+            butil::cpuwide_time_us() - start);
+        curve::client::CollectMetrics(
+            &s3ClientAdaptor_->s3Metric_->readFromDiskCache, len,
+            butil::cpuwide_time_us() - start);
     }
     return true;
 }
@@ -515,7 +517,7 @@ bool FileCacheManager::ReadKVRequestFromRemoteCache(const std::string &name,
     CountDownEvent event(1);
     GetKVCacheDone cb = [&](const std::shared_ptr<GetKVCacheTask>& task) {
         if (task->res && s3ClientAdaptor_->s3Metric_ != nullptr) {
-            metric::CollectMetrics(
+            curve::client::CollectMetrics(
                 &s3ClientAdaptor_->s3Metric_->readFromKVCache, task->length,
                 task->timer.u_elapsed());
         }
@@ -543,10 +545,11 @@ bool FileCacheManager::ReadKVRequestFromS3(const std::string &name,
     }
 
     if (s3ClientAdaptor_->s3Metric_) {
-        metric::CollectMetrics(&s3ClientAdaptor_->s3Metric_->adaptorReadS3,
-                               length, butil::cpuwide_time_us() - start);
-        metric::CollectMetrics(&s3ClientAdaptor_->s3Metric_->readFromS3, length,
-                               butil::cpuwide_time_us() - start);
+        curve::client::CollectMetrics(
+            &s3ClientAdaptor_->s3Metric_->adaptorReadS3, length,
+            butil::cpuwide_time_us() - start);
+        curve::client::CollectMetrics(&s3ClientAdaptor_->s3Metric_->readFromS3,
+                                      length, butil::cpuwide_time_us() - start);
     }
 
     return true;
@@ -736,9 +739,9 @@ class AsyncPrefetchCallback {
         }
         if (s3Client_->s3Metric_ != nullptr) {
             // prefetch to disk
-            metric::CollectMetrics(&s3Client_->s3Metric_->writeToDiskCache,
-                                   context->actualLen,
-                                   butil::cpuwide_time_us() - start);
+            curve::client::CollectMetrics(
+                &s3Client_->s3Metric_->writeToDiskCache, context->actualLen,
+                butil::cpuwide_time_us() - start);
         }
         {
             curve::common::LockGuard lg(fileCache->downloadMtx_);
@@ -2369,7 +2372,7 @@ CURVEFS_ERROR DataCache::PrepareFlushTasks(
                 [this](const std::shared_ptr<SetKVCacheTask>& setTask) {
                     if (setTask->res &&
                         s3ClientAdaptor_->s3Metric_ != nullptr) {
-                        metric::CollectMetrics(
+                        curve::client::CollectMetrics(
                             &s3ClientAdaptor_->s3Metric_->writeToKVCache,
                             setTask->length, setTask->timer.u_elapsed());
                     }
@@ -2448,8 +2451,9 @@ void DataCache::FlushTaskExecute(
     SetKVCacheDone kvdone = [&](const std::shared_ptr<SetKVCacheTask> &task) {
         kvTaskEvent.Signal();
         if (task->res && s3ClientAdaptor_->s3Metric_ != nullptr) {
-            metric::CollectMetrics(&s3ClientAdaptor_->s3Metric_->writeToKVCache,
-                                   task->length, task->timer.u_elapsed());
+            curve::client::CollectMetrics(
+                &s3ClientAdaptor_->s3Metric_->writeToKVCache, task->length,
+                task->timer.u_elapsed());
         }
         return;
     };

@@ -145,8 +145,8 @@ int S3ClientAdaptorImpl::Write(uint64_t inodeId, uint64_t offset,
     int ret = fileCacheManager->Write(offset, length, buf);
     fsCacheManager_->DataCacheByteDec(length);
     if (s3Metric_ != nullptr) {
-        metric::CollectMetrics(&s3Metric_->adaptorWrite, ret,
-                               butil::cpuwide_time_us() - start);
+        curve::client::CollectMetrics(&s3Metric_->adaptorWrite, ret,
+                                      butil::cpuwide_time_us() - start);
         s3Metric_->writeSize.set_value(length);
     }
     VLOG(6) << "write end inodeId: " << inodeId << ", ret: " << ret;
@@ -167,8 +167,8 @@ int S3ClientAdaptorImpl::Read(uint64_t inodeId, uint64_t offset,
         return ret;
     }
     if (s3Metric_.get() != nullptr) {
-        metric::CollectMetrics(&s3Metric_->adaptorRead, ret,
-                               butil::cpuwide_time_us() - start);
+        curve::client::CollectMetrics(&s3Metric_->adaptorRead, ret,
+                                      butil::cpuwide_time_us() - start);
         s3Metric_->readSize.set_value(length);
     }
     VLOG(6) << "read end offset:" << offset << ", len:" << length

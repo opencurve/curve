@@ -143,9 +143,9 @@ int DiskCacheWrite::UploadFile(const std::string &name,
          name](const std::shared_ptr<PutObjectAsyncContext>& context) {
             if (context->retCode >= 0) {
                 if (metric_ != nullptr) {
-                    metric::CollectMetrics(&metric_->writeS3,
-                                           context->bufferSize,
-                                           context->timer.u_elapsed());
+                    curve::client::CollectMetrics(&metric_->writeS3,
+                                                  context->bufferSize,
+                                                  context->timer.u_elapsed());
                 }
                 if (s3Metric_ != nullptr) {
                     metric::AsyncContextCollectMetrics(s3Metric_, context);
@@ -403,9 +403,9 @@ int DiskCacheWrite::UploadAllCacheWriteFile() {
             [&, buffer](const std::shared_ptr<PutObjectAsyncContext>& context) {
                 if (context->retCode >= 0) {
                     if (s3Metric_ != nullptr) {
-                        metric::CollectMetrics(&metric_->writeS3,
-                                               context->bufferSize,
-                                               context->timer.u_elapsed());
+                        curve::client::CollectMetrics(
+                            &metric_->writeS3, context->bufferSize,
+                            context->timer.u_elapsed());
                         metric::AsyncContextCollectMetrics(s3Metric_, context);
                     }
                     if (pendingReq.fetch_sub(1, std::memory_order_seq_cst) ==

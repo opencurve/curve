@@ -23,10 +23,14 @@
 #ifndef CURVEFS_SRC_METASERVER_S3_METASERVER_S3_ADAPTOR_H_
 #define CURVEFS_SRC_METASERVER_S3_METASERVER_S3_ADAPTOR_H_
 
-#include <string>
 #include <list>
+#include <memory>
+#include <string>
+
+#include "absl/memory/memory.h"
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/metaserver/s3/metaserver_s3.h"
+#include "src/client/client_metric.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -78,9 +82,18 @@ class S3ClientAdaptor {
     virtual void GetS3ClientAdaptorOption(S3ClientAdaptorOption *option) = 0;
 };
 
+struct S3ClientAdaptorMetric {
+    static const std::string prefix;
+
+    curve::client::InterfaceMetric deleteInode;
+
+    S3ClientAdaptorMetric() : deleteInode(prefix, "_delete_inode") {}
+};
+
 class S3ClientAdaptorImpl : public S3ClientAdaptor {
  public:
     S3ClientAdaptorImpl() {}
+
     ~S3ClientAdaptorImpl() {
         if (client_ != nullptr) {
             delete client_;
@@ -151,6 +164,7 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
     uint64_t batchSize_;
     uint32_t objectPrefix_;
     bool enableBatchDelete_;
+    S3ClientAdaptorMetric metric_;
 };
 }  // namespace metaserver
 }  // namespace curvefs

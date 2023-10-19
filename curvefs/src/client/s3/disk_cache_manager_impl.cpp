@@ -183,8 +183,9 @@ int DiskCacheManagerImpl::Read(const std::string name, char *buf,
             LOG(ERROR) << "download object fail. object name = " << name;
             return ret;
         }
-        metric::CollectMetrics(&diskCacheManager_->GetS3Metric()->readFromS3,
-                               length, butil::cpuwide_time_us() - start);
+        curve::client::CollectMetrics(
+            &diskCacheManager_->GetS3Metric()->readFromS3, length,
+            butil::cpuwide_time_us() - start);
     }
     VLOG(9) << "read success, read name = " << name;
     return ret;

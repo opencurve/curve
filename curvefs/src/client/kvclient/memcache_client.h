@@ -122,8 +122,8 @@ class MemCachedClient : public KVClient {
                                  value_len, 0, 0);
         if (MEMCACHED_SUCCESS == res) {
             VLOG(9) << "Set key = " << key << " OK";
-            metric::CollectMetrics(&metric_->set, value_len,
-                                   butil::cpuwide_time_us() - start);
+            curve::client::CollectMetrics(&metric_->set, value_len,
+                                          butil::cpuwide_time_us() - start);
             return true;
         }
         *errorlog = ResError(res);
@@ -159,8 +159,8 @@ class MemCachedClient : public KVClient {
             VLOG(9) << "Get key = " << key << " OK";
             memcpy(value, res + offset, length);
             free(res);
-            metric::CollectMetrics(&metric_->get, value_length,
-                                   butil::cpuwide_time_us() - start);
+            curve::client::CollectMetrics(&metric_->get, value_length,
+                                          butil::cpuwide_time_us() - start);
             return true;
         }
 
