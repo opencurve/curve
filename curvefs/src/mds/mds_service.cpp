@@ -227,6 +227,40 @@ void MdsServiceImpl::GetFsInfo(::google::protobuf::RpcController *controller,
               << response->ShortDebugString();
 }
 
+void MdsServiceImpl::UpdateFsInfo(
+    ::google::protobuf::RpcController* controller,
+    const ::curvefs::mds::UpdateFsInfoRequest* request,
+    ::curvefs::mds::UpdateFsInfoResponse* response,
+    ::google::protobuf::Closure* done) {
+    (void)controller;
+    brpc::ClosureGuard doneGuard(done);
+
+    LOG(INFO) << "UpdateFsInfo request: " << request->ShortDebugString();
+
+    // request parameter check, we want at least one field that need to change
+    if (!request->has_capacity()) {
+        response->set_statuscode(FSStatusCode::PARAM_ERROR);
+        LOG(WARNING) << "UpdateFsInfo fail, request: "
+                     << request->ShortDebugString() << ", errCode = "
+                     << FSStatusCode_Name(FSStatusCode::PARAM_ERROR);
+        return;
+    }
+
+    FSStatusCode status = fsManager_->UpdateFsInfo(request);
+
+    if (status != FSStatusCode::OK) {
+        response->set_statuscode(status);
+        LOG(ERROR) << "UpdateFsInfo fail, request: "
+                   << request->ShortDebugString()
+                   << ", errCode = " << FSStatusCode_Name(status);
+        return;
+    }
+
+    response->set_statuscode(FSStatusCode::OK);
+    LOG(INFO) << "UpdateFsInfo success, response: "
+              << response->ShortDebugString();
+}
+
 void MdsServiceImpl::DeleteFs(::google::protobuf::RpcController *controller,
                               const ::curvefs::mds::DeleteFsRequest *request,
                               ::curvefs::mds::DeleteFsResponse *response,

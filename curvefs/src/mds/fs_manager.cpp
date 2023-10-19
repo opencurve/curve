@@ -790,6 +790,39 @@ FSStatusCode FsManager::GetFsInfo(const std::string& fsName, uint32_t fsId,
     return FSStatusCode::OK;
 }
 
+FSStatusCode FsManager::UpdateFsInfo(
+    const ::curvefs::mds::UpdateFsInfoRequest* req) {
+    const auto& fsName = req->fsname();
+    NameLockGuard lock(nameLock_, fsName);
+
+    // 1. query fs
+    FsInfoWrapper wrapper;
+    FSStatusCode ret = fsStorage_->Get(fsName, &wrapper);
+    if (ret != FSStatusCode::OK) {
+        LOG(WARNING) << "UpdateFsInfo fail, get fs fail, fsName = " << fsName
+                     << ", errCode = " << FSStatusCode_Name(ret);
+        return ret;
+    }
+
+    // 2. check fs status
+    FsStatus status = wrapper.GetStatus();
+    if (status == FsStatus::NEW) {
+        LOG(WARNING) << "UpdateFsInfo fs is not inited, fsName = " << fsName;
+        return FSStatusCode::NOT_INITED;
+    } else if (status == FsStatus::DELETING) {
+        LOG(WARNING) << "UpdateFsInfo fs is in deleting, fsName = " << fsName;
+        return FSStatusCode::UNDER_DELETING;
+    }
+
+    // 3. update fs info
+    // set capacity
+    if (req->has_capacity()) {
+        wrapper.SetCapacity(req->capacity());
+    }
+
+    return fsStorage_->Update(wrapper);
+}
+
 int FsManager::IsExactlySameOrCreateUnComplete(const std::string& fsName,
                                                FSType fsType,
                                                uint64_t blocksize,
