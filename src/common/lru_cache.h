@@ -839,6 +839,8 @@ void SglLRUCache<K, KeyTraits>::RemoveElement(
     size_--;
 }
 
+#include "src/common/arc_cache.h"
+
 }  // namespace common
 }  // namespace curve
 
