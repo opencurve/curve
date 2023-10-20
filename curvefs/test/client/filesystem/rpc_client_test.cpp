@@ -53,11 +53,11 @@ TEST_F(RPCClientTest, GetAttr_Basic) {
     // CASE 2: inode not exist
     {
         EXPECT_CALL_RETURN_GetInodeAttr(*builder.GetInodeManager(),
-                                        CURVEFS_ERROR::NOTEXIST);
+                                        CURVEFS_ERROR::NOT_EXIST);
 
         InodeAttr attr;
         auto rc = rpc->GetAttr(100, &attr);
-        ASSERT_EQ(rc, CURVEFS_ERROR::NOTEXIST);
+        ASSERT_EQ(rc, CURVEFS_ERROR::NOT_EXIST);
     }
 }
 
@@ -80,11 +80,11 @@ TEST_F(RPCClientTest, Lookup_Basic) {
     // CASE 2: dentry not exist
     {
         EXPECT_CALL_RETURN_GetDentry(*builder.GetDentryManager(),
-                                     CURVEFS_ERROR::NOTEXIST);
+                                     CURVEFS_ERROR::NOT_EXIST);
 
         EntryOut entryOut;
         auto rc = rpc->Lookup(1, "f1", &entryOut);
-        ASSERT_EQ(rc, CURVEFS_ERROR::NOTEXIST);
+        ASSERT_EQ(rc, CURVEFS_ERROR::NOT_EXIST);
     }
 
     // CASE 3: inode not exist
@@ -92,11 +92,11 @@ TEST_F(RPCClientTest, Lookup_Basic) {
         EXPECT_CALL_RETURN_GetDentry(*builder.GetDentryManager(),
                                      CURVEFS_ERROR::OK);
         EXPECT_CALL_RETURN_GetInodeAttr(*builder.GetInodeManager(),
-                                        CURVEFS_ERROR::NOTEXIST);
+                                        CURVEFS_ERROR::NOT_EXIST);
 
         EntryOut entryOut;
         auto rc = rpc->Lookup(1, "f1", &entryOut);
-        ASSERT_EQ(rc, CURVEFS_ERROR::NOTEXIST);
+        ASSERT_EQ(rc, CURVEFS_ERROR::NOT_EXIST);
     }
 }
 
@@ -139,11 +139,11 @@ TEST_F(RPCClientTest, ReadDir_Basic) {
     // CASE 2: inode not exist
     {
         EXPECT_CALL_RETURN_GetInodeAttr(*builder.GetInodeManager(),
-                                        CURVEFS_ERROR::NOTEXIST);
+                                        CURVEFS_ERROR::NOT_EXIST);
 
         InodeAttr attr;
         auto rc = rpc->GetAttr(100, &attr);
-        ASSERT_EQ(rc, CURVEFS_ERROR::NOTEXIST);
+        ASSERT_EQ(rc, CURVEFS_ERROR::NOT_EXIST);
     }
 }
 
@@ -164,11 +164,11 @@ TEST_F(RPCClientTest, Open_Basic) {
     // CASE 2: inode not exist
     {
         EXPECT_CALL_RETURN_GetInode(*builder.GetInodeManager(),
-                                    CURVEFS_ERROR::NOTEXIST);
+                                    CURVEFS_ERROR::NOT_EXIST);
 
         auto inode = MkInode(100);
         auto rc = rpc->Open(100, &inode);
-        ASSERT_EQ(rc, CURVEFS_ERROR::NOTEXIST);
+        ASSERT_EQ(rc, CURVEFS_ERROR::NOT_EXIST);
     }
 }
 

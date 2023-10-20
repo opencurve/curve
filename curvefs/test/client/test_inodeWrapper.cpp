@@ -168,7 +168,7 @@ TEST_F(TestInodeWrapper, testSyncFailed) {
         .WillOnce(Return(MetaStatusCode::NOT_FOUND));
 
     CURVEFS_ERROR ret = inodeWrapper_->Sync();
-    ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret);
+    ASSERT_EQ(CURVEFS_ERROR::NOT_EXIST, ret);
 }
 
 TEST_F(TestInodeWrapper, TestFlushVolumeExtent_NoNeedFlush) {

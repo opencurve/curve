@@ -123,7 +123,7 @@ TEST_F(TestInodeCacheManager, GetInode) {
         .WillOnce(Return(MetaStatusCode::NOT_FOUND));
     std::shared_ptr<InodeWrapper> inodeWrapper;
     CURVEFS_ERROR ret = iCacheManager_->GetInode(inodeId, inodeWrapper);
-    ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret);
+    ASSERT_EQ(CURVEFS_ERROR::NOT_EXIST, ret);
 
     // miss cache and get inode ok, do not need streaming
     EXPECT_CALL(*metaClient_, GetInode(fsId_, inodeId, _, _))
@@ -190,7 +190,7 @@ TEST_F(TestInodeCacheManager, GetInodeAttr) {
         .WillOnce(DoAll(SetArgPointee<2>(attrs), Return(MetaStatusCode::OK)));
 
     CURVEFS_ERROR ret = iCacheManager_->GetInodeAttr(inodeId, &out);
-    ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret);
+    ASSERT_EQ(CURVEFS_ERROR::NOT_EXIST, ret);
 
     ret = iCacheManager_->GetInodeAttr(inodeId, &out);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
@@ -314,7 +314,7 @@ TEST_F(TestInodeCacheManager, BatchGetInodeAttr) {
 
     std::list<InodeAttr> getAttrs;
     CURVEFS_ERROR ret = iCacheManager_->BatchGetInodeAttr(&inodeIds, &getAttrs);
-    ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret);
+    ASSERT_EQ(CURVEFS_ERROR::NOT_EXIST, ret);
 
     ret = iCacheManager_->BatchGetInodeAttr(&inodeIds, &getAttrs);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
@@ -408,7 +408,7 @@ TEST_F(TestInodeCacheManager, BatchGetXAttr) {
 
     std::list<XAttr> getXAttrs;
     CURVEFS_ERROR ret = iCacheManager_->BatchGetXAttr(&inodeIds, &getXAttrs);
-    ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret);
+    ASSERT_EQ(CURVEFS_ERROR::NOT_EXIST, ret);
 
     ret = iCacheManager_->BatchGetXAttr(&inodeIds, &getXAttrs);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);

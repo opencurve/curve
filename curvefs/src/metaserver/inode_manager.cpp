@@ -32,19 +32,19 @@
 #include <utility>
 
 #include "curvefs/proto/metaserver.pb.h"
+#include "curvefs/src/client/filesystem/xattr.h"
 #include "curvefs/src/common/define.h"
 #include "curvefs/src/metaserver/storage/storage.h"
 #include "src/common/concurrent/name_lock.h"
 #include "src/common/timeutility.h"
-#include "curvefs/src/client/filesystem/xattr.h"
 
 using ::curve::common::NameLockGuard;
 using ::curve::common::TimeUtility;
-using ::google::protobuf::util::MessageDifferencer;
-using ::curvefs::client::filesystem::XATTR_DIR_FILES;
-using ::curvefs::client::filesystem::XATTR_DIR_SUBDIRS;
 using ::curvefs::client::filesystem::XATTR_DIR_ENTRIES;
 using ::curvefs::client::filesystem::XATTR_DIR_FBYTES;
+using ::curvefs::client::filesystem::XATTR_DIR_FILES;
+using ::curvefs::client::filesystem::XATTR_DIR_SUBDIRS;
+using ::google::protobuf::util::MessageDifferencer;
 
 #define CHECK_APPLIED()                                                     \
     do {                                                                    \

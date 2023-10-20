@@ -1328,7 +1328,7 @@ index 762c752..11eccc1 100644
    FLAGS_logtostderr = false;
  
 diff --git a/src/signalhandler.cc b/src/signalhandler.cc
-index 9554718..e02bd02 100644
+index 9554718..70cdcbb 100644
 --- a/src/signalhandler.cc
 +++ b/src/signalhandler.cc
 @@ -31,6 +31,22 @@
@@ -1354,7 +1354,16 @@ index 9554718..e02bd02 100644
  #include "utilities.h"
  #include "stacktrace.h"
  #include "symbolize.h"
-@@ -66,7 +82,7 @@ const struct {
+@@ -59,14 +75,16 @@ const struct {
+   int number;
+   const char *name;
+ } kFailureSignals[] = {
++#if !defined(UNINSTALL_SIGSEGV)
+   { SIGSEGV, "SIGSEGV" },
++#endif
+   { SIGILL, "SIGILL" },
+   { SIGFPE, "SIGFPE" },
+   { SIGABRT, "SIGABRT" },
  #if !defined(OS_WINDOWS)
    { SIGBUS, "SIGBUS" },
  #endif

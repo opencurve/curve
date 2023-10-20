@@ -1,0 +1,26 @@
+# I don't like current clang-formtter's specified style and
+# and i think my style is more intuitive than it :),  so I use
+# this file to disable format, let us give some code snippet to prove it:
+#
+# my:
+#   std::vector<TestCase> tests {
+#        { "  abc", "abc" },
+#        { "abc  ", "abc" },
+#        { "  abc  ", "abc" },
+#        { "  a bc  ", "a bc" },
+#        { "a b c", "a b c" },
+#        { "   ", "" },
+#
+#
+# clang-formatter:
+#    std::vector<TestCase> tests{
+#        {"  abc", "abc"},     {"abc  ", "abc"},   {"  abc  ", "abc"},
+#        {"  a bc  ", "a bc"}, {"a b c", "a b c"}, {"   ", ""},
+#    };
+#
+# Maybe you have different opinions, but please have a little mercy for me.
+#
+#                                                   by Wine93, 2023-10-16
+
+DisableFormat: true
+SortIncludes: Never

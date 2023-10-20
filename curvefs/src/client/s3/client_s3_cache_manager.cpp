@@ -232,7 +232,7 @@ CURVEFS_ERROR FsCacheManager::FsSync(bool force) {
                     g_s3MultiManagerMetric->fileManagerNum << -1;
                 }
             }
-        } else if (ret == CURVEFS_ERROR::NOTEXIST) {
+        } else if (ret == CURVEFS_ERROR::NOT_EXIST) {
             iter->second->ReleaseCache();
             WriteLockGuard writeLockGuard(rwLock_);
             auto iter1 = fileCacheManagerMap_.find(iter->first);
@@ -1808,7 +1808,7 @@ CURVEFS_ERROR ChunkCacheManager::Flush(uint64_t inodeId, bool force,
             assert(flushingDataCache_->IsDirty());
             do {
                 ret = flushingDataCache_->Flush(inodeId, toS3);
-                if (ret == CURVEFS_ERROR::NOTEXIST) {
+                if (ret == CURVEFS_ERROR::NOT_EXIST) {
                     LOG(WARNING) << "dataCache flush failed. ret:" << ret
                                  << ",index:" << index_ << ",data chunkpos:"
                                  << flushingDataCache_->GetChunkPos();

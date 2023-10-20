@@ -28,6 +28,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <memory>
 #include <string>
 
 #include "src/client/client_metric.h"
