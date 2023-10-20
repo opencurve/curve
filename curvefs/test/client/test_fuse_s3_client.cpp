@@ -279,7 +279,7 @@ TEST_F(TestFuseS3Client, test_Init_with_cache_size_0) {
 
     // test init when write cache is 0
     opt.s3Opt.s3ClientAdaptorOpt.writeCacheMaxByte = 0;
-    ASSERT_EQ(CURVEFS_ERROR::CACHETOOSMALL, testClient->Init(opt));
+    ASSERT_EQ(CURVEFS_ERROR::CACHE_TOO_SMALL, testClient->Init(opt));
     testClient->UnInit();
 }
 
@@ -398,7 +398,7 @@ TEST_F(TestFuseS3Client, warmUp_Warmfile_error_GetDentry02) {
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
     EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
         .WillOnce(
-            DoAll(SetArgPointee<2>(dentry), Return(CURVEFS_ERROR::NOTEXIST)));
+            DoAll(SetArgPointee<2>(dentry), Return(CURVEFS_ERROR::NOT_EXIST)));
     EXPECT_CALL(*inodeManager_, GetInode(_, _))
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
@@ -462,8 +462,8 @@ TEST_F(TestFuseS3Client, warmUp_fetchDataEnqueue__error_getinode) {
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                        Return(CURVEFS_ERROR::NOTEXIST)));
+        .WillOnce(DoAll(
+            SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::NOT_EXIST)));
 
     size_t len = 20;
     char* tmpbuf = new char[len];
@@ -828,7 +828,7 @@ TEST_F(TestFuseS3Client, warmUp_FetchChildDentry_error_ListDentry) {
     std::list<Dentry> dlist;
     EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
         .WillOnce(
-            DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::NOTEXIST)));
+            DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::NOT_EXIST)));
 
     EXPECT_CALL(*inodeManager_, GetInode(_, _))
         .WillOnce(
@@ -934,13 +934,13 @@ TEST_F(TestFuseS3Client, warmUp_FetchChildDentry_suc_ListDentry) {
                 return CURVEFS_ERROR::OK;
             }
         }
-        return CURVEFS_ERROR::NOTEXIST;
+        return CURVEFS_ERROR::NOT_EXIST;
     };
 
     EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
         .WillOnce(DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)))
         .WillOnce(
-            DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::NOTEXIST)));
+            DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::NOT_EXIST)));
 
     EXPECT_CALL(*inodeManager_, GetInode(_, _))
         .WillOnce(
@@ -1024,7 +1024,7 @@ TEST_F(TestFuseS3Client, warmUp_GetInodeSubPathParent_1depth) {
                 out = inodeWrapperA;
                 return CURVEFS_ERROR::OK;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
     };
 
@@ -1041,7 +1041,7 @@ TEST_F(TestFuseS3Client, warmUp_GetInodeSubPathParent_1depth) {
                 }
                 break;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
         return CURVEFS_ERROR::OK;
     };
@@ -1057,9 +1057,9 @@ TEST_F(TestFuseS3Client, warmUp_GetInodeSubPathParent_1depth) {
                 dentryList->emplace_back(dentryA);
                 return CURVEFS_ERROR::OK;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
-        return CURVEFS_ERROR::NOTEXIST;
+        return CURVEFS_ERROR::NOT_EXIST;
     };
     EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
         .WillOnce(Invoke(ListDentryReplace));
@@ -1120,7 +1120,7 @@ TEST_F(TestFuseS3Client, warmUp_GetInodeSubPathParent_2depth) {
                 }
                 break;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
         return CURVEFS_ERROR::OK;
     };
@@ -1134,7 +1134,7 @@ TEST_F(TestFuseS3Client, warmUp_GetInodeSubPathParent_2depth) {
                 out = inodeWrapperB;
                 return CURVEFS_ERROR::OK;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
     };
 
@@ -1153,9 +1153,9 @@ TEST_F(TestFuseS3Client, warmUp_GetInodeSubPathParent_2depth) {
                 dentryList->emplace_back(dentryB);
                 return CURVEFS_ERROR::OK;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
-        return CURVEFS_ERROR::NOTEXIST;
+        return CURVEFS_ERROR::NOT_EXIST;
     };
     EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
         .WillOnce(Invoke(ListDentryReplace));
@@ -1200,7 +1200,7 @@ TEST_F(TestFuseS3Client, warmUp_GetInodeSubPathParent_getDentryFailed) {
                                Dentry* out) -> CURVEFS_ERROR {
         switch (parent) {
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
         return CURVEFS_ERROR::OK;
     };
@@ -1282,7 +1282,7 @@ TEST_F(TestFuseS3Client, warmUp_GetInodeSubPathParent_3depth) {
                 }
                 break;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
         return CURVEFS_ERROR::OK;
     };
@@ -1299,7 +1299,7 @@ TEST_F(TestFuseS3Client, warmUp_GetInodeSubPathParent_3depth) {
                 out = inodeWrapperC;
                 return CURVEFS_ERROR::OK;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
     };
 
@@ -1314,9 +1314,9 @@ TEST_F(TestFuseS3Client, warmUp_GetInodeSubPathParent_3depth) {
                 dentryList->emplace_back(dentryC);
                 return CURVEFS_ERROR::OK;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
-        return CURVEFS_ERROR::NOTEXIST;
+        return CURVEFS_ERROR::NOT_EXIST;
     };
     EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
         .WillOnce(Invoke(ListDentryReplace));
@@ -1406,7 +1406,7 @@ TEST_F(TestFuseS3Client,
                 }
                 break;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
         return CURVEFS_ERROR::OK;
     };
@@ -1418,7 +1418,7 @@ TEST_F(TestFuseS3Client,
                                   InodeAttr* out) -> CURVEFS_ERROR {
         switch (inodeId) {
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
     };
 
@@ -1507,7 +1507,7 @@ TEST_F(TestFuseS3Client, warmUp_FetchDentry_symLink_getInodeAttrFailed) {
                 }
                 break;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
         return CURVEFS_ERROR::OK;
     };
@@ -1519,7 +1519,7 @@ TEST_F(TestFuseS3Client, warmUp_FetchDentry_symLink_getInodeAttrFailed) {
                                   InodeAttr* out) -> CURVEFS_ERROR {
         switch (inodeId) {
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
     };
 
@@ -1613,7 +1613,7 @@ TEST_F(TestFuseS3Client, warmUp_GetInodeSubPathParent_symLink_1depth) {
                 }
                 break;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
         return CURVEFS_ERROR::OK;
     };
@@ -1628,7 +1628,7 @@ TEST_F(TestFuseS3Client, warmUp_GetInodeSubPathParent_symLink_1depth) {
                 *out = attrC;
                 return CURVEFS_ERROR::OK;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
     };
 
@@ -1644,7 +1644,7 @@ TEST_F(TestFuseS3Client, warmUp_GetInodeSubPathParent_symLink_1depth) {
                 out = inodeWrapperD;
                 return CURVEFS_ERROR::OK;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
     };
 
@@ -1659,9 +1659,9 @@ TEST_F(TestFuseS3Client, warmUp_GetInodeSubPathParent_symLink_1depth) {
                 dentryList->emplace_back(dentryD);
                 return CURVEFS_ERROR::OK;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
-        return CURVEFS_ERROR::NOTEXIST;
+        return CURVEFS_ERROR::NOT_EXIST;
     };
     EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
         .WillOnce(Invoke(ListDentryReplace));
@@ -1758,7 +1758,7 @@ TEST_F(TestFuseS3Client, warmUp_GetInodeSubPathParent_symLink_1depth_samePath) {
                 }
                 break;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
         return CURVEFS_ERROR::OK;
     };
@@ -1773,7 +1773,7 @@ TEST_F(TestFuseS3Client, warmUp_GetInodeSubPathParent_symLink_1depth_samePath) {
                 *out = attrC;
                 return CURVEFS_ERROR::OK;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
     };
 
@@ -1788,7 +1788,7 @@ TEST_F(TestFuseS3Client, warmUp_GetInodeSubPathParent_symLink_1depth_samePath) {
                 out = inodeWrapperD;
                 return CURVEFS_ERROR::OK;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
     };
     EXPECT_CALL(*inodeManager_, GetInode(_, _))
@@ -1802,9 +1802,9 @@ TEST_F(TestFuseS3Client, warmUp_GetInodeSubPathParent_symLink_1depth_samePath) {
                 dentryList->emplace_back(dentryD);
                 return CURVEFS_ERROR::OK;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
-        return CURVEFS_ERROR::NOTEXIST;
+        return CURVEFS_ERROR::NOT_EXIST;
     };
     EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
         .WillOnce(Invoke(ListDentryReplace));
@@ -1901,7 +1901,7 @@ TEST_F(TestFuseS3Client, warmUp_FetchDentry_symLink_1depth_1) {
                 }
                 break;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
         return CURVEFS_ERROR::OK;
     };
@@ -1916,7 +1916,7 @@ TEST_F(TestFuseS3Client, warmUp_FetchDentry_symLink_1depth_1) {
                 *out = attrC;
                 return CURVEFS_ERROR::OK;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
     };
 
@@ -1931,7 +1931,7 @@ TEST_F(TestFuseS3Client, warmUp_FetchDentry_symLink_1depth_1) {
                 out = inodeWrapperB;
                 return CURVEFS_ERROR::OK;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
     };
     EXPECT_CALL(*inodeManager_, GetInode(_, _))
@@ -2025,7 +2025,7 @@ TEST_F(TestFuseS3Client,
                 }
                 break;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
         return CURVEFS_ERROR::OK;
     };
@@ -2040,7 +2040,7 @@ TEST_F(TestFuseS3Client,
                 *out = attrC;
                 return CURVEFS_ERROR::OK;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
     };
 
@@ -2052,7 +2052,7 @@ TEST_F(TestFuseS3Client,
            std::shared_ptr<InodeWrapper>& out) -> CURVEFS_ERROR {
         switch (inodeId) {
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
     };
 
@@ -2156,7 +2156,7 @@ TEST_F(TestFuseS3Client,
                 }
                 break;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
         return CURVEFS_ERROR::OK;
     };
@@ -2171,7 +2171,7 @@ TEST_F(TestFuseS3Client,
                 *out = attrC;
                 return CURVEFS_ERROR::OK;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
     };
 
@@ -2190,7 +2190,7 @@ TEST_F(TestFuseS3Client,
                 out = inodeWrapperC;
                 return CURVEFS_ERROR::OK;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
     };
 
@@ -2300,7 +2300,7 @@ TEST_F(TestFuseS3Client, warmUp_GetInodeSubPathParent_symLink_2depth) {
                 }
                 break;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
         return CURVEFS_ERROR::OK;
     };
@@ -2315,7 +2315,7 @@ TEST_F(TestFuseS3Client, warmUp_GetInodeSubPathParent_symLink_2depth) {
                 *out = attrC;
                 return CURVEFS_ERROR::OK;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
     };
 
@@ -2337,7 +2337,7 @@ TEST_F(TestFuseS3Client, warmUp_GetInodeSubPathParent_symLink_2depth) {
                 out = inodeWrapperD;
                 return CURVEFS_ERROR::OK;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
     };
 
@@ -2352,9 +2352,9 @@ TEST_F(TestFuseS3Client, warmUp_GetInodeSubPathParent_symLink_2depth) {
                 dentryList->emplace_back(dentryD);
                 return CURVEFS_ERROR::OK;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
-        return CURVEFS_ERROR::NOTEXIST;
+        return CURVEFS_ERROR::NOT_EXIST;
     };
     EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
         .WillOnce(Invoke(ListDentryReplace));
@@ -2448,9 +2448,9 @@ TEST_F(TestFuseS3Client, warmUp_GetInodeSubPathParent_symLink_double_point) {
                 }
                 break;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
-        return CURVEFS_ERROR::NOTEXIST;
+        return CURVEFS_ERROR::NOT_EXIST;
     };
 
     EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
@@ -2463,7 +2463,7 @@ TEST_F(TestFuseS3Client, warmUp_GetInodeSubPathParent_symLink_double_point) {
                 *out = attrC;
                 return CURVEFS_ERROR::OK;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
     };
 
@@ -2485,7 +2485,7 @@ TEST_F(TestFuseS3Client, warmUp_GetInodeSubPathParent_symLink_double_point) {
                 out = inodeWrapperC;
                 return CURVEFS_ERROR::OK;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
     };
 
@@ -2503,9 +2503,9 @@ TEST_F(TestFuseS3Client, warmUp_GetInodeSubPathParent_symLink_double_point) {
                 dentryList->emplace_back(dentryA);
                 return CURVEFS_ERROR::OK;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
-        return CURVEFS_ERROR::NOTEXIST;
+        return CURVEFS_ERROR::NOT_EXIST;
     };
     EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
         .WillRepeatedly(Invoke(ListDentryReplace));
@@ -2595,9 +2595,9 @@ TEST_F(TestFuseS3Client,
                 }
                 break;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
-        return CURVEFS_ERROR::NOTEXIST;
+        return CURVEFS_ERROR::NOT_EXIST;
     };
 
     EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
@@ -2610,7 +2610,7 @@ TEST_F(TestFuseS3Client,
                 *out = attrB;
                 return CURVEFS_ERROR::OK;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
     };
 
@@ -2631,7 +2631,7 @@ TEST_F(TestFuseS3Client,
                 out = inodeWrapperB;
                 return CURVEFS_ERROR::OK;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
     };
 
@@ -2649,9 +2649,9 @@ TEST_F(TestFuseS3Client,
                 dentryList->emplace_back(dentryA);
                 return CURVEFS_ERROR::OK;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
-        return CURVEFS_ERROR::NOTEXIST;
+        return CURVEFS_ERROR::NOT_EXIST;
     };
     EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
         .WillRepeatedly(Invoke(ListDentryReplace));
@@ -2759,9 +2759,9 @@ TEST_F(TestFuseS3Client,
                 }
                 break;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
-        return CURVEFS_ERROR::NOTEXIST;
+        return CURVEFS_ERROR::NOT_EXIST;
     };
 
     EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
@@ -2774,7 +2774,7 @@ TEST_F(TestFuseS3Client,
                 *out = attrC;
                 return CURVEFS_ERROR::OK;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
     };
 
@@ -2798,7 +2798,7 @@ TEST_F(TestFuseS3Client,
                 out = inodeWrapperC;
                 return CURVEFS_ERROR::OK;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
     };
 
@@ -2816,9 +2816,9 @@ TEST_F(TestFuseS3Client,
                 dentryList->emplace_back(dentryA);
                 return CURVEFS_ERROR::OK;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
-        return CURVEFS_ERROR::NOTEXIST;
+        return CURVEFS_ERROR::NOT_EXIST;
     };
     EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
         .WillRepeatedly(Invoke(ListDentryReplace));
@@ -2936,9 +2936,9 @@ TEST_F(TestFuseS3Client, warmUp_Fetch_loop) {
                 }
                 break;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
-        return CURVEFS_ERROR::NOTEXIST;
+        return CURVEFS_ERROR::NOT_EXIST;
     };
 
     EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
@@ -2951,7 +2951,7 @@ TEST_F(TestFuseS3Client, warmUp_Fetch_loop) {
                 *out = attrC;
                 return CURVEFS_ERROR::OK;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
     };
 
@@ -2973,7 +2973,7 @@ TEST_F(TestFuseS3Client, warmUp_Fetch_loop) {
                 out = inodeWrapperC;
                 return CURVEFS_ERROR::OK;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
     };
 
@@ -2995,9 +2995,9 @@ TEST_F(TestFuseS3Client, warmUp_Fetch_loop) {
                 dentryList->emplace_back(dentryD);
                 return CURVEFS_ERROR::OK;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
-        return CURVEFS_ERROR::NOTEXIST;
+        return CURVEFS_ERROR::NOT_EXIST;
     };
     EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
         .WillRepeatedly(Invoke(ListDentryReplace));
@@ -3084,7 +3084,7 @@ TEST_F(TestFuseS3Client,
                 }
                 break;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
         return CURVEFS_ERROR::OK;
     };
@@ -3099,7 +3099,7 @@ TEST_F(TestFuseS3Client,
                 *out = attrC;
                 return CURVEFS_ERROR::OK;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
     };
 
@@ -3121,7 +3121,7 @@ TEST_F(TestFuseS3Client,
                 out = inodeWrapperC;
                 return CURVEFS_ERROR::OK;
             default:
-                return CURVEFS_ERROR::NOTEXIST;
+                return CURVEFS_ERROR::NOT_EXIST;
         }
     };
 
@@ -3371,7 +3371,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotSummaryInfo) {
     std::string value;
 
     CURVEFS_ERROR ret = client_->FuseOpGetXattr(req, ino, name, &value, size);
-    ASSERT_EQ(CURVEFS_ERROR::NODATA, ret);
+    ASSERT_EQ(CURVEFS_ERROR::NO_DATA, ret);
 }
 
 TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir) {
@@ -3518,7 +3518,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir_Failed) {
     EXPECT_CALL(*inodeManager_, GetInodeAttr(ino, _))
         .WillOnce(DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
-        .WillOnce(Return(CURVEFS_ERROR::NOTEXIST));
+        .WillOnce(Return(CURVEFS_ERROR::NOT_EXIST));
     ret = client_->FuseOpGetXattr(req, ino, rname, &value, size);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 
@@ -3662,7 +3662,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir_Failed) {
         .WillRepeatedly(
             DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
-        .WillOnce(Return(CURVEFS_ERROR::NOTEXIST));
+        .WillOnce(Return(CURVEFS_ERROR::NOT_EXIST));
     ret = client_->FuseOpGetXattr(req, ino, rname, &value, size);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 
@@ -4069,11 +4069,10 @@ TEST_F(TestFuseS3Client, FuseOpListXattr) {
         .WillOnce(DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)));
     ret = client_->FuseOpListXattr(req, ino, buf, size, &realSize);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
-    auto expected = key.length() + 1
-        + strlen(XATTR_DIR_RFILES) + 1
-        + strlen(XATTR_DIR_RSUBDIRS) + 1
-        + strlen(XATTR_DIR_RENTRIES) + 1
-        + strlen(XATTR_DIR_RFBYTES) + 1;
+    auto expected = key.length() + 1 + strlen(XATTR_DIR_RFILES) + 1 +
+                    strlen(XATTR_DIR_RSUBDIRS) + 1 +
+                    strlen(XATTR_DIR_RENTRIES) + 1 + strlen(XATTR_DIR_RFBYTES) +
+                    1;
     ASSERT_EQ(realSize, expected);
 
     realSize = 0;
@@ -4125,7 +4124,7 @@ TEST_F(TestFuseS3Client, FuseOpSetXattr) {
     EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _))
         .WillOnce(Return(MetaStatusCode::NOT_FOUND));
     ret = client_->FuseOpSetXattr(req, ino, name, value, size, 0);
-    ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret);
+    ASSERT_EQ(CURVEFS_ERROR::NOT_EXIST, ret);
 
     // success
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))

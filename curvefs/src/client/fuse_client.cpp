@@ -23,53 +23,55 @@
 
 #include "curvefs/src/client/fuse_client.h"
 
-#include <list>
 #include <algorithm>
 #include <cstring>
+#include <list>
 #include <memory>
-#include <string>
-#include <vector>
 #include <set>
+#include <string>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
+#include "absl/memory/memory.h"
 #include "curvefs/proto/mds.pb.h"
+#include "curvefs/src/client/client_operator.h"
 #include "curvefs/src/client/common/common.h"
 #include "curvefs/src/client/filesystem/error.h"
 #include "curvefs/src/client/filesystem/xattr.h"
 #include "curvefs/src/client/fuse_common.h"
-#include "curvefs/src/client/client_operator.h"
 #include "curvefs/src/client/inode_wrapper.h"
 #include "curvefs/src/client/warmup/warmup_manager.h"
 #include "curvefs/src/client/xattr_manager.h"
 #include "curvefs/src/common/define.h"
-#include "src/common/net_common.h"
-#include "src/common/dummyserver.h"
 #include "src/client/client_common.h"
-#include "absl/memory/memory.h"
+#include "src/common/dummyserver.h"
+#include "src/common/net_common.h"
 
 #define PORT_LIMIT 65535
 
-using ::curvefs::common::S3Info;
-using ::curvefs::common::Volume;
-using ::curvefs::mds::topology::PartitionTxId;
-using ::curvefs::mds::FSStatusCode_Name;
-using ::curvefs::client::filesystem::ExternalMember;
+using ::curvefs::client::common::FuseClientOption;
 using ::curvefs::client::filesystem::DirEntry;
 using ::curvefs::client::filesystem::DirEntryList;
+using ::curvefs::client::filesystem::ExternalMember;
 using ::curvefs::client::filesystem::FileOut;
+using ::curvefs::client::filesystem::IsSpecialXAttr;
 using ::curvefs::client::filesystem::MAX_XATTR_NAME_LENGTH;
 using ::curvefs::client::filesystem::MAX_XATTR_VALUE_LENGTH;
-using ::curvefs::client::filesystem::XATTR_DIR_FILES;
-using ::curvefs::client::filesystem::XATTR_DIR_SUBDIRS;
 using ::curvefs::client::filesystem::XATTR_DIR_ENTRIES;
 using ::curvefs::client::filesystem::XATTR_DIR_FBYTES;
-using ::curvefs::client::filesystem::XATTR_DIR_RFILES;
-using ::curvefs::client::filesystem::XATTR_DIR_RFBYTES;
-using ::curvefs::client::filesystem::XATTR_DIR_RSUBDIRS;
-using ::curvefs::client::filesystem::XATTR_DIR_RENTRIES;
+using ::curvefs::client::filesystem::XATTR_DIR_FILES;
 using ::curvefs::client::filesystem::XATTR_DIR_PREFIX;
-using ::curvefs::client::filesystem::IsSpecialXAttr;
+using ::curvefs::client::filesystem::XATTR_DIR_RENTRIES;
+using ::curvefs::client::filesystem::XATTR_DIR_RFBYTES;
+using ::curvefs::client::filesystem::XATTR_DIR_RFILES;
+using ::curvefs::client::filesystem::XATTR_DIR_RSUBDIRS;
+using ::curvefs::client::filesystem::XATTR_DIR_SUBDIRS;
+using ::curvefs::common::FSType;
+using ::curvefs::common::S3Info;
+using ::curvefs::common::Volume;
+using ::curvefs::mds::FSStatusCode_Name;
+using ::curvefs::mds::topology::PartitionTxId;
 
 #define RETURN_IF_UNSUCCESS(action)                                            \
     do {                                                                       \
@@ -278,8 +280,8 @@ CURVEFS_ERROR FuseClient::FuseOpLookup(fuse_req_t req,
                                        fuse_ino_t parent,
                                        const char* name,
                                        EntryOut* entryOut) {
-    CURVEFS_ERROR rc = fs_->Lookup(req, parent, name, entryOut);
-    if (rc != CURVEFS_ERROR::OK && rc != CURVEFS_ERROR::NOTEXIST) {
+    CURVEFS_ERROR rc = fs_->Lookup(parent, name, entryOut);
+    if (rc != CURVEFS_ERROR::OK && rc != CURVEFS_ERROR::NOT_EXIST) {
         LOG(ERROR) << "Lookup() failed, retCode = " << rc
                    << ", parent = " << parent << ", name = " << name;
     }
@@ -328,8 +330,8 @@ CURVEFS_ERROR FuseClient::HandleOpenFlags(fuse_req_t req,
                 // update parent summary info
                 const Inode *inode = inodeWrapper->GetInodeLocked();
                 XAttr xattr;
-                xattr.mutable_xattrinfos()->insert({XATTR_DIR_FBYTES,
-                    std::to_string(length)});
+                xattr.mutable_xattrinfos()->insert(
+                    {XATTR_DIR_FBYTES, std::to_string(length)});
                 for (const auto &it : inode->parent()) {
                     auto tret = xattrManager_->UpdateParentInodeXattr(
                         it, xattr, false);
@@ -342,7 +344,7 @@ CURVEFS_ERROR FuseClient::HandleOpenFlags(fuse_req_t req,
             }
             inodeWrapper->GetInodeAttrLocked(&fileOut->attr);
         } else {
-            return CURVEFS_ERROR::NOPERMISSION;
+            return CURVEFS_ERROR::NO_PERMISSION;
         }
     }
     return CURVEFS_ERROR::OK;
@@ -352,7 +354,7 @@ CURVEFS_ERROR FuseClient::FuseOpOpen(fuse_req_t req,
                                      fuse_ino_t ino,
                                      struct fuse_file_info* fi,
                                      FileOut* fileOut) {
-    CURVEFS_ERROR rc = fs_->Open(req, ino, fi);
+    CURVEFS_ERROR rc = fs_->Open(ino, fi);
     if (rc != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "open(" << ino << ") failed, retCode = " << rc;
         return rc;
@@ -399,19 +401,19 @@ CURVEFS_ERROR FuseClient::MakeNode(
     bool internal,
     std::shared_ptr<InodeWrapper>& inodeWrapper) {
     if (strlen(name) > option_.fileSystemOption.maxNameLength) {
-        return CURVEFS_ERROR::NAMETOOLONG;
+        return CURVEFS_ERROR::NAME_TOO_LONG;
     }
 
     // check if node is recycle or under recycle
     if (!internal && strcmp(name, RECYCLENAME) == 0 && parent == ROOTINODEID) {
         LOG(WARNING) << "Can not make node " << RECYCLENAME
                      << " under root dir.";
-        return CURVEFS_ERROR::NOPERMISSION;
+        return CURVEFS_ERROR::NO_PERMISSION;
     }
 
     if (!internal && parent == RECYCLEINODEID) {
         LOG(WARNING) << "Can not make node under recycle.";
-        return CURVEFS_ERROR::NOPERMISSION;
+        return CURVEFS_ERROR::NO_PERMISSION;
     }
 
     const struct fuse_ctx *ctx = fuse_req_ctx(req);
@@ -422,6 +424,7 @@ CURVEFS_ERROR FuseClient::MakeNode(
     } else {
         param.length = 0;
     }
+
     param.uid = ctx->uid;
     param.gid = ctx->gid;
     param.mode = mode;
@@ -479,8 +482,8 @@ CURVEFS_ERROR FuseClient::MakeNode(
         } else {
             xattr.mutable_xattrinfos()->insert({XATTR_DIR_FILES, "1"});
         }
-        xattr.mutable_xattrinfos()->insert({XATTR_DIR_FBYTES,
-            std::to_string(inodeWrapper->GetLength())});
+        xattr.mutable_xattrinfos()->insert(
+            {XATTR_DIR_FBYTES, std::to_string(inodeWrapper->GetLength())});
         auto tret = xattrManager_->UpdateParentInodeXattr(parent, xattr, true);
         if (tret != CURVEFS_ERROR::OK) {
             LOG(ERROR) << "UpdateParentInodeXattr failed,"
@@ -558,8 +561,8 @@ CURVEFS_ERROR FuseClient::DeleteNode(uint64_t ino, fuse_ino_t parent,
         } else {
             xattr.mutable_xattrinfos()->insert({XATTR_DIR_FILES, "1"});
         }
-        xattr.mutable_xattrinfos()->insert({XATTR_DIR_FBYTES,
-            std::to_string(inodeWrapper->GetLength())});
+        xattr.mutable_xattrinfos()->insert(
+            {XATTR_DIR_FBYTES, std::to_string(inodeWrapper->GetLength())});
         auto tret = xattrManager_->UpdateParentInodeXattr(parent, xattr, false);
         if (tret != CURVEFS_ERROR::OK) {
             LOG(WARNING) << "UpdateParentInodeXattr failed,"
@@ -586,7 +589,7 @@ CURVEFS_ERROR FuseClient::CreateManageNode(fuse_req_t req,
                                            ManageInodeType manageType,
                                            EntryOut* entryOut) {
     if (strlen(name) > option_.fileSystemOption.maxNameLength) {
-        return CURVEFS_ERROR::NAMETOOLONG;
+        return CURVEFS_ERROR::NAME_TOO_LONG;
     }
 
     InodeParam param;
@@ -649,8 +652,8 @@ CURVEFS_ERROR FuseClient::CreateManageNode(fuse_req_t req,
         } else {
             xattr.mutable_xattrinfos()->insert({XATTR_DIR_FILES, "1"});
         }
-        xattr.mutable_xattrinfos()->insert({XATTR_DIR_FBYTES,
-            std::to_string(inodeWrapper->GetLength())});
+        xattr.mutable_xattrinfos()->insert(
+            {XATTR_DIR_FBYTES, std::to_string(inodeWrapper->GetLength())});
         auto tret = xattrManager_->UpdateParentInodeXattr(parent, xattr, true);
         if (tret != CURVEFS_ERROR::OK) {
             LOG(ERROR) << "UpdateParentInodeXattr failed,"
@@ -665,12 +668,12 @@ CURVEFS_ERROR FuseClient::CreateManageNode(fuse_req_t req,
 
 CURVEFS_ERROR FuseClient::GetOrCreateRecycleDir(fuse_req_t req, Dentry *out) {
     auto ret = dentryManager_->GetDentry(ROOTINODEID, RECYCLENAME, out);
-    if (ret != CURVEFS_ERROR::OK && ret != CURVEFS_ERROR::NOTEXIST) {
+    if (ret != CURVEFS_ERROR::OK && ret != CURVEFS_ERROR::NOT_EXIST) {
         LOG(ERROR) << "dentryManager_ GetDentry fail, ret = " << ret
                    << ", inode = " << ROOTINODEID
                    << ", name = " << RECYCLENAME;
         return ret;
-    } else if (ret == CURVEFS_ERROR::NOTEXIST) {
+    } else if (ret == CURVEFS_ERROR::NOT_EXIST) {
         LOG(INFO) << "recycle dir is not exist, create " << RECYCLENAME
                   << ", parentid = " << ROOTINODEID;
         EntryOut entryOut;
@@ -707,12 +710,12 @@ CURVEFS_ERROR FuseClient::MoveToRecycle(fuse_req_t req, fuse_ino_t ino,
     uint64_t recycleTimeDirIno;
     ret = dentryManager_->GetDentry(RECYCLEINODEID,
                                         recycleTimeDirName.c_str(), &dentry);
-    if (ret != CURVEFS_ERROR::OK && ret != CURVEFS_ERROR::NOTEXIST) {
+    if (ret != CURVEFS_ERROR::OK && ret != CURVEFS_ERROR::NOT_EXIST) {
         LOG(ERROR) << "dentryManager_ GetDentry fail, ret = " << ret
                    << ", inode = " << RECYCLEINODEID
                    << ", name = " << recycleTimeDirName;
         return ret;
-    } else if (ret == CURVEFS_ERROR::NOTEXIST) {
+    } else if (ret == CURVEFS_ERROR::NOT_EXIST) {
         std::shared_ptr<InodeWrapper> inode;
         bool internal = true;
         ret = MakeNode(req, RECYCLEINODEID, recycleTimeDirName.c_str(),
@@ -771,13 +774,13 @@ bool FuseClient::ShouldMoveToRecycle(fuse_ino_t parent) {
 CURVEFS_ERROR FuseClient::RemoveNode(fuse_req_t req, fuse_ino_t parent,
                                      const char *name, FsFileType type) {
     if (strlen(name) > option_.fileSystemOption.maxNameLength) {
-        return CURVEFS_ERROR::NAMETOOLONG;
+        return CURVEFS_ERROR::NAME_TOO_LONG;
     }
 
     // check if node is recycle or recycle time dir
     if ((strcmp(name, RECYCLENAME) == 0 && parent == ROOTINODEID) ||
          parent == RECYCLEINODEID) {
-        return CURVEFS_ERROR::NOPERMISSION;
+        return CURVEFS_ERROR::NO_PERMISSION;
     }
 
     Dentry dentry;
@@ -802,7 +805,7 @@ CURVEFS_ERROR FuseClient::RemoveNode(fuse_req_t req, fuse_ino_t parent,
         }
         if (!dentryList.empty()) {
             LOG(ERROR) << "rmdir not empty";
-            return CURVEFS_ERROR::NOTEMPTY;
+            return CURVEFS_ERROR::NOT_EMPTY;
         }
     }
 
@@ -829,7 +832,7 @@ CURVEFS_ERROR FuseClient::RemoveNode(fuse_req_t req, fuse_ino_t parent,
 CURVEFS_ERROR FuseClient::FuseOpOpenDir(fuse_req_t req,
                                         fuse_ino_t ino,
                                         struct fuse_file_info* fi) {
-    CURVEFS_ERROR rc = fs_->OpenDir(req, ino, fi);
+    CURVEFS_ERROR rc = fs_->OpenDir(ino, fi);
     if (rc != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "opendir() failed, retCode = " << rc
                    << ", ino = " << ino;
@@ -849,7 +852,7 @@ CURVEFS_ERROR FuseClient::FuseOpReadDir(fuse_req_t req,
     DirBufferHead* buffer = handler->buffer;
     if (!handler->padding) {
         auto entries = std::make_shared<DirEntryList>();
-        CURVEFS_ERROR rc = fs_->ReadDir(req, ino, fi, &entries);
+        CURVEFS_ERROR rc = fs_->ReadDir(ino, fi, &entries);
         if (rc != CURVEFS_ERROR::OK) {
             LOG(ERROR) << "readdir() failed, retCode = " << rc
                        << ", ino = " << ino << ", fh = " << fi->fh;
@@ -879,7 +882,7 @@ CURVEFS_ERROR FuseClient::FuseOpReadDir(fuse_req_t req,
 CURVEFS_ERROR FuseClient::FuseOpReleaseDir(fuse_req_t req,
                                            fuse_ino_t ino,
                                            struct fuse_file_info* fi) {
-    CURVEFS_ERROR rc = fs_->ReleaseDir(req, ino, fi);
+    CURVEFS_ERROR rc = fs_->ReleaseDir(ino, fi);
     if (rc != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "releasedir() failed, retCode = " << rc
                    << ", ino = " << ino;
@@ -898,7 +901,7 @@ CURVEFS_ERROR FuseClient::FuseOpRename(fuse_req_t req, fuse_ino_t parent,
     // is only used in linux interface renameat(), not required by posix,
     // we can ignore it now
     if (flags != 0) {
-        return CURVEFS_ERROR::INVALIDPARAM;
+        return CURVEFS_ERROR::INVALID_PARAM;
     }
 
     uint64_t maxNameLength = option_.fileSystemOption.maxNameLength;
@@ -907,7 +910,7 @@ CURVEFS_ERROR FuseClient::FuseOpRename(fuse_req_t req, fuse_ino_t parent,
                      << ", name len = " << strlen(name) << ", new name = "
                      << newname << ", new name len = " << strlen(newname)
                      << ", maxNameLength = " << maxNameLength;
-        return CURVEFS_ERROR::NAMETOOLONG;
+        return CURVEFS_ERROR::NAME_TOO_LONG;
     }
 
     auto renameOp =
@@ -949,7 +952,7 @@ CURVEFS_ERROR FuseClient::FuseOpGetAttr(fuse_req_t req,
                                         fuse_ino_t ino,
                                         struct fuse_file_info *fi,
                                         AttrOut* attrOut) {
-    CURVEFS_ERROR rc = fs_->GetAttr(req, ino, attrOut);
+    CURVEFS_ERROR rc = fs_->GetAttr(ino, attrOut);
     if (rc != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "getattr() fail, retCode = " << rc
                    << ", ino = " << ino;
@@ -1025,8 +1028,8 @@ CURVEFS_ERROR FuseClient::FuseOpSetAttr(fuse_req_t req,
             // update parent summary info
             const Inode* inode = inodeWrapper->GetInodeLocked();
             XAttr xattr;
-            xattr.mutable_xattrinfos()->insert({XATTR_DIR_FBYTES,
-                std::to_string(std::abs(changeSize))});
+            xattr.mutable_xattrinfos()->insert(
+                {XATTR_DIR_FBYTES, std::to_string(std::abs(changeSize))});
             bool direction = changeSize > 0;
             for (const auto &it : inode->parent()) {
                 auto tret = xattrManager_->UpdateParentInodeXattr(
@@ -1056,7 +1059,8 @@ CURVEFS_ERROR FuseClient::FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino,
             << ", name: " << name << ", size = " << size;
 
     if (option_.fileSystemOption.disableXAttr && !IsSpecialXAttr(name)) {
-        return CURVEFS_ERROR::NODATA;
+        // return CURVEFS_ERROR::NO_DATA;
+        return CURVEFS_ERROR::OK;
     }
 
     InodeAttr inodeAttr;
@@ -1074,7 +1078,6 @@ CURVEFS_ERROR FuseClient::FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino,
         return ret;
     }
 
-    ret = CURVEFS_ERROR::NODATA;
     if (value->length() > 0) {
         if ((size == 0 && value->length() <= MAX_XATTR_VALUE_LENGTH) ||
             (size >= value->length() &&
@@ -1100,7 +1103,8 @@ CURVEFS_ERROR FuseClient::FuseOpSetXattr(fuse_req_t req, fuse_ino_t ino,
             << ", strvalue: " << strvalue;
 
     if (option_.fileSystemOption.disableXAttr && !IsSpecialXAttr(name)) {
-        return CURVEFS_ERROR::NODATA;
+        // return CURVEFS_ERROR::NO_DATA;
+        return CURVEFS_ERROR::OK;
     }
 
     if (strname.length() > MAX_XATTR_NAME_LENGTH  ||
@@ -1186,7 +1190,7 @@ CURVEFS_ERROR FuseClient::FuseOpSymlink(fuse_req_t req,
                                         const char* name,
                                         EntryOut* entryOut) {
     if (strlen(name) > option_.fileSystemOption.maxNameLength) {
-        return CURVEFS_ERROR::NAMETOOLONG;
+        return CURVEFS_ERROR::NAME_TOO_LONG;
     }
     const struct fuse_ctx *ctx = fuse_req_ctx(req);
     InodeParam param;
@@ -1233,8 +1237,8 @@ CURVEFS_ERROR FuseClient::FuseOpSymlink(fuse_req_t req,
         XAttr xattr;
         xattr.mutable_xattrinfos()->insert({XATTR_DIR_ENTRIES, "1"});
         xattr.mutable_xattrinfos()->insert({XATTR_DIR_FILES, "1"});
-        xattr.mutable_xattrinfos()->insert({XATTR_DIR_FBYTES,
-            std::to_string(inodeWrapper->GetLength())});
+        xattr.mutable_xattrinfos()->insert(
+            {XATTR_DIR_FBYTES, std::to_string(inodeWrapper->GetLength())});
         auto tret = xattrManager_->UpdateParentInodeXattr(parent, xattr, true);
         if (tret != CURVEFS_ERROR::OK) {
             LOG(ERROR) << "UpdateParentInodeXattr failed,"
@@ -1254,7 +1258,7 @@ CURVEFS_ERROR FuseClient::FuseOpLink(fuse_req_t req,
                                      FsFileType type,
                                      EntryOut* entryOut) {
     if (strlen(newname) > option_.fileSystemOption.maxNameLength) {
-        return CURVEFS_ERROR::NAMETOOLONG;
+        return CURVEFS_ERROR::NAME_TOO_LONG;
     }
     std::shared_ptr<InodeWrapper> inodeWrapper;
     CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWrapper);
@@ -1294,8 +1298,8 @@ CURVEFS_ERROR FuseClient::FuseOpLink(fuse_req_t req,
         XAttr xattr;
         xattr.mutable_xattrinfos()->insert({XATTR_DIR_ENTRIES, "1"});
         xattr.mutable_xattrinfos()->insert({XATTR_DIR_FILES, "1"});
-        xattr.mutable_xattrinfos()->insert({XATTR_DIR_FBYTES,
-            std::to_string(inodeWrapper->GetLength())});
+        xattr.mutable_xattrinfos()->insert(
+            {XATTR_DIR_FBYTES, std::to_string(inodeWrapper->GetLength())});
         auto tret = xattrManager_->UpdateParentInodeXattr(
             newparent, xattr, true);
         if (tret != CURVEFS_ERROR::OK) {
@@ -1327,7 +1331,7 @@ CURVEFS_ERROR FuseClient::FuseOpReadLink(fuse_req_t req, fuse_ino_t ino,
 CURVEFS_ERROR FuseClient::FuseOpRelease(fuse_req_t req,
                                         fuse_ino_t ino,
                                         struct fuse_file_info *fi) {
-    CURVEFS_ERROR rc = fs_->Release(req, ino);
+    CURVEFS_ERROR rc = fs_->Release(ino);
     if (rc != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "release() failed, ino = " << ino;
     }

@@ -27,6 +27,7 @@
 #include <bvar/bvar.h>
 
 #include <cstdint>
+#include <memory>
 #include <string>
 
 #include "src/client/client_metric.h"

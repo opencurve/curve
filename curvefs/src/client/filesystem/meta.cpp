@@ -123,6 +123,10 @@ std::string StrAttr(AttrOut attrOut) {
     return Attr2Str(attrOut.attr);
 }
 
+std::string StrAttr(InodeAttr attr) {
+    return Attr2Str(attr);
+}
+
 }  // namespace filesystem
 }  // namespace client
 }  // namespace curvefs

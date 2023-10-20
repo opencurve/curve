@@ -32,12 +32,13 @@
 
 #include "curvefs/src/client/common/common.h"
 #include "curvefs/src/client/common/config.h"
-#include "curvefs/src/client/filesystem/access_log.h"
 #include "curvefs/src/client/filesystem/error.h"
 #include "curvefs/src/client/filesystem/meta.h"
+#include "curvefs/src/client/filesystem/xattr.h"
 #include "curvefs/src/client/fuse_client.h"
 #include "curvefs/src/client/fuse_s3_client.h"
 #include "curvefs/src/client/fuse_volume_client.h"
+#include "curvefs/src/client/logger/access_log.h"
 #include "curvefs/src/client/metric/client_metric.h"
 #include "curvefs/src/client/rpcclient/base_client.h"
 #include "curvefs/src/client/rpcclient/mds_client.h"
@@ -47,7 +48,6 @@
 #include "curvefs/src/common/metric_utils.h"
 #include "src/common/configuration.h"
 #include "src/common/gflags_helper.h"
-#include "curvefs/src/client/filesystem/xattr.h"
 
 using ::curve::common::Configuration;
 using ::curvefs::client::CURVEFS_ERROR;
@@ -62,24 +62,23 @@ using ::curvefs::client::common::kWarmupCacheStorageType;
 using ::curvefs::client::common::kWarmupDataType;
 using ::curvefs::client::common::kWarmupOpType;
 using ::curvefs::client::common::WarmupStorageType;
-using ::curvefs::client::filesystem::AccessLogGuard;
 using ::curvefs::client::filesystem::AttrOut;
 using ::curvefs::client::filesystem::EntryOut;
 using ::curvefs::client::filesystem::FileOut;
-using ::curvefs::client::filesystem::InitAccessLog;
-using ::curvefs::client::filesystem::Logger;
+using ::curvefs::client::filesystem::IsListWarmupXAttr;
+using ::curvefs::client::filesystem::IsWarmupXAttr;
 using ::curvefs::client::filesystem::StrAttr;
 using ::curvefs::client::filesystem::StrEntry;
-using ::curvefs::client::filesystem::StrFormat;
 using ::curvefs::client::filesystem::StrMode;
+using ::curvefs::client::logger::AccessLogGuard;
+using ::curvefs::client::logger::InitAccessLog;
+using ::curvefs::client::logger::StrFormat;
 using ::curvefs::client::metric::ClientOpMetric;
 using ::curvefs::client::metric::InflightGuard;
 using ::curvefs::client::rpcclient::MDSBaseClient;
 using ::curvefs::client::rpcclient::MdsClientImpl;
 using ::curvefs::client::warmup::WarmupProgress;
 using ::curvefs::common::LatencyUpdater;
-using ::curvefs::client::filesystem::IsWarmupXAttr;
-using ::curvefs::client::filesystem::IsListWarmupXAttr;
 
 using ::curvefs::common::FLAGS_vlog_level;
 
@@ -1006,5 +1005,5 @@ void FuseOpBmap(fuse_req_t req,
     auto client = Client();
     auto fs = client->GetFileSystem();
 
-    return fs->ReplyError(req, CURVEFS_ERROR::NOTSUPPORT);
+    return fs->ReplyError(req, CURVEFS_ERROR::NOT_SUPPORT);
 }

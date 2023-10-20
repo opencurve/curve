@@ -26,9 +26,9 @@
 
 #define FUSE_USE_VERSION 34
 
-#include <stddef.h>
-#include <fuse3/fuse_lowlevel.h>
 #include <fuse3/fuse.h>
+#include <fuse3/fuse_lowlevel.h>
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {

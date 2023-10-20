@@ -223,7 +223,7 @@ TEST_F(FileCacheManagerTest, test_read_getinode_fail) {
         .WillOnce(DoAll(SetArgPointee<4>(requests), Return()));
     fileCacheManager_->SetChunkCacheManagerForTest(0, mockChunkCacheManager_);
     EXPECT_CALL(*mockInodeManager_, GetInode(_, _))
-        .WillOnce(Return(CURVEFS_ERROR::NOTEXIST));
+        .WillOnce(Return(CURVEFS_ERROR::NOT_EXIST));
     ASSERT_EQ(-1, fileCacheManager_->Read(inodeId, offset, len, buf));
 }
 

@@ -1891,7 +1891,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read3) {
 
 /*
     ------        a     write1
-       ------     b     write2 
+       ------     b     write2
                        flush
                        releaseReadCache
        ---        b     read
@@ -2743,12 +2743,11 @@ TEST_F(ClientS3IntegrationTest, test_fssync_success_and_fail) {
             DoAll(SetArgPointee<2>(chunkId), Return(FSStatusCode::OK)));
 
     EXPECT_CALL(mockInodeManager_, GetInode(_, _))
+        .WillOnce(DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::OK)))
         .WillOnce(
-            DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::OK)))
-        .WillOnce(DoAll(SetArgReferee<1>(inode),
-                        Return(CURVEFS_ERROR::NOTEXIST)))
-        .WillOnce(DoAll(SetArgReferee<1>(inode),
-                        Return(CURVEFS_ERROR::NOTEXIST)));
+            DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::NOT_EXIST)))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::NOT_EXIST)));
     EXPECT_CALL(mockS3Client_, UploadAsync(_))
         .WillRepeatedly(
             Invoke([&](const std::shared_ptr<PutObjectAsyncContext> &context) {

@@ -171,7 +171,7 @@ TEST_F(FileSystemTest, Lookup_Basic) {
                                     CURVEFS_ERROR::OK);
 
     EntryOut entryOut;
-    auto rc = fs->Lookup(Request(), 1, "f1", &entryOut);
+    auto rc = fs->Lookup(1, "f1", &entryOut);
     ASSERT_EQ(rc, CURVEFS_ERROR::OK);
 }
 
@@ -182,8 +182,8 @@ TEST_F(FileSystemTest, Lookup_NameTooLong) {
     }).Build();
 
     EntryOut entryOut;
-    auto rc = fs->Lookup(Request(), 1, std::string(256, 'x'), &entryOut);
-    ASSERT_EQ(rc, CURVEFS_ERROR::NAMETOOLONG);
+    auto rc = fs->Lookup(1, std::string(256, 'x'), &entryOut);
+    ASSERT_EQ(rc, CURVEFS_ERROR::NAME_TOO_LONG);
 }
 
 TEST_F(FileSystemTest, Lookup_NegativeCache) {
@@ -194,14 +194,14 @@ TEST_F(FileSystemTest, Lookup_NegativeCache) {
     }).Build();
 
     EXPECT_CALL_RETURN_GetDentry(*builder.GetDentryManager(),
-                                 CURVEFS_ERROR::NOTEXIST);
+                                 CURVEFS_ERROR::NOT_EXIST);
 
     EntryOut entryOut;
-    auto rc = fs->Lookup(Request(), 1, "f1", &entryOut);
-    ASSERT_EQ(rc, CURVEFS_ERROR::NOTEXIST);
+    auto rc = fs->Lookup(1, "f1", &entryOut);
+    ASSERT_EQ(rc, CURVEFS_ERROR::NOT_EXIST);
 
-    rc = fs->Lookup(Request(), 1, "f1", &entryOut);
-    ASSERT_EQ(rc, CURVEFS_ERROR::NOTEXIST);
+    rc = fs->Lookup(1, "f1", &entryOut);
+    ASSERT_EQ(rc, CURVEFS_ERROR::NOT_EXIST);
 }
 
 TEST_F(FileSystemTest, GetAttr_Basic) {
@@ -218,7 +218,7 @@ TEST_F(FileSystemTest, GetAttr_Basic) {
         });
 
     AttrOut attrOut;
-    auto rc = fs->GetAttr(Request(), 100, &attrOut);
+    auto rc = fs->GetAttr(100, &attrOut);
     ASSERT_EQ(rc, CURVEFS_ERROR::OK);
     ASSERT_EQ(attrOut.attr.inodeid(), 100);
     ASSERT_EQ(attrOut.attr.length(), 4096);
@@ -234,7 +234,7 @@ TEST_F(FileSystemTest, OpenDir_Basic) {
                                     CURVEFS_ERROR::OK);
 
     auto fi = FileInfo();
-    auto rc = fs->OpenDir(Request(), 1, &fi);
+    auto rc = fs->OpenDir(1, &fi);
     ASSERT_EQ(rc, CURVEFS_ERROR::OK);
 }
 
@@ -270,7 +270,7 @@ TEST_F(FileSystemTest, ReadDir_Basic) {
 
     DirEntry dirEntry;
     auto entries = std::make_shared<DirEntryList>();
-    auto rc = fs->ReadDir(Request(), 1, &fi, &entries);
+    auto rc = fs->ReadDir(1, &fi, &entries);
     ASSERT_EQ(rc, CURVEFS_ERROR::OK);
     ASSERT_EQ(entries->Size(), 1);
     ASSERT_TRUE(entries->Get(1, &dirEntry));
@@ -331,7 +331,7 @@ TEST_F(FileSystemTest, ReadDir_CheckEntries) {
             });
 
         auto entries = std::make_shared<DirEntryList>();
-        auto rc = fs->ReadDir(Request(), ino, &fi, &entries);
+        auto rc = fs->ReadDir(ino, &fi, &entries);
         ASSERT_EQ(rc, CURVEFS_ERROR::OK);
         CHECK_ENTRIES(entries);
     }
@@ -340,7 +340,7 @@ TEST_F(FileSystemTest, ReadDir_CheckEntries) {
     {
         // readdir from cache
         auto entries = std::make_shared<DirEntryList>();
-        auto rc = fs->ReadDir(Request(), ino, &fi, &entries);
+        auto rc = fs->ReadDir(ino, &fi, &entries);
         ASSERT_EQ(rc, CURVEFS_ERROR::OK);
         CHECK_ENTRIES(entries);
     }
@@ -351,7 +351,7 @@ TEST_F(FileSystemTest, ReleaseDir_Basic) {
     auto fs = builder.Build();
 
     auto fi = FileInfo();
-    auto rc = fs->ReleaseDir(Request(), 1, &fi);
+    auto rc = fs->ReleaseDir(1, &fi);
     ASSERT_EQ(rc, CURVEFS_ERROR::OK);
 }
 
@@ -369,7 +369,7 @@ TEST_F(FileSystemTest, ReleaseDir_CheckHandler) {
     // CASE 2: releasedir will release handler
     auto fi = FileInfo();
     fi.fh = fh;
-    auto rc = fs->ReleaseDir(Request(), 1, &fi);
+    auto rc = fs->ReleaseDir(1, &fi);
     ASSERT_EQ(rc, CURVEFS_ERROR::OK);
     ASSERT_TRUE(fs->FindHandler(fh) == nullptr);
 }
@@ -393,14 +393,14 @@ TEST_F(FileSystemTest, Open_Basic) {
             });
 
         auto fi = FileInfo();
-        auto rc = fs->Open(Request(), ino, &fi);
+        auto rc = fs->Open(ino, &fi);
         ASSERT_EQ(rc, CURVEFS_ERROR::OK);
     }
 
     // CASE 2: file already opened
     {
         auto fi = FileInfo();
-        auto rc = fs->Open(Request(), ino, &fi);
+        auto rc = fs->Open(ino, &fi);
         ASSERT_EQ(rc, CURVEFS_ERROR::OK);
     }
 }
@@ -423,7 +423,7 @@ TEST_F(FileSystemTest, Open_Stale) {
         });
 
     auto fi = FileInfo();
-    auto rc = fs->Open(Request(), ino, &fi);
+    auto rc = fs->Open(ino, &fi);
     ASSERT_EQ(rc, CURVEFS_ERROR::STALE);
 }
 
@@ -440,14 +440,14 @@ TEST_F(FileSystemTest, Open_StaleForAttrNotFound) {
 
     Ino ino(100);
     auto fi = FileInfo();
-    auto rc = fs->Open(Request(), ino, &fi);
+    auto rc = fs->Open(ino, &fi);
     ASSERT_EQ(rc, CURVEFS_ERROR::STALE);
 }
 
 TEST_F(FileSystemTest, Release_Basic) {
     auto builder = FileSystemBuilder();
     auto fs = builder.Build();
-    auto rc = fs->Release(Request(), 100);
+    auto rc = fs->Release(100);
     ASSERT_EQ(rc, CURVEFS_ERROR::OK);
 }
 
@@ -468,7 +468,7 @@ TEST_F(FileSystemTest, Release_CheckOpenStatus) {
     ASSERT_EQ(inode->GetInodeId(), ino);
 
     // CASE 2: release will close open file
-    auto rc = fs->Release(Request(), 100);
+    auto rc = fs->Release(100);
     ASSERT_EQ(rc, CURVEFS_ERROR::OK);
     yes = openfiles->IsOpened(ino, &out);
     ASSERT_FALSE(yes);

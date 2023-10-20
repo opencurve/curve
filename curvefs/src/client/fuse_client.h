@@ -43,6 +43,7 @@
 #include "curvefs/src/client/common/config.h"
 #include "curvefs/src/client/dentry_cache_manager.h"
 #include "curvefs/src/client/dir_buffer.h"
+#include "curvefs/src/client/filesystem/error.h"
 #include "curvefs/src/client/filesystem/filesystem.h"
 #include "curvefs/src/client/filesystem/meta.h"
 #include "curvefs/src/client/fuse_common.h"
@@ -58,6 +59,7 @@
 #include "curvefs/src/common/fast_align.h"
 #include "curvefs/src/common/s3util.h"
 #include "src/common/concurrent/concurrent.h"
+#include "src/common/configuration.h"
 #include "src/common/throttle.h"
 
 #define DirectIOAlignment 512
@@ -65,10 +67,11 @@
 using ::curve::common::Atomic;
 using ::curve::common::InterruptibleSleeper;
 using ::curve::common::Thread;
+using ::curvefs::client::filesystem::CURVEFS_ERROR;
+using ::curvefs::client::metric::FSMetric;
 using ::curvefs::common::FSType;
 using ::curvefs::metaserver::DentryFlag;
 using ::curvefs::metaserver::ManageInodeType;
-using ::curvefs::client::metric::FSMetric;
 
 namespace curvefs {
 namespace client {
@@ -79,15 +82,16 @@ class WarmupManager;
 }
 
 using common::FuseClientOption;
+using ::curve::common::Configuration;
+using ::curvefs::client::filesystem::AttrOut;
+using ::curvefs::client::filesystem::EntryOut;
+using ::curvefs::client::filesystem::FileOut;
+using ::curvefs::client::filesystem::FileSystem;
 using rpcclient::MDSBaseClient;
 using rpcclient::MdsClient;
 using rpcclient::MdsClientImpl;
 using rpcclient::MetaServerClient;
 using rpcclient::MetaServerClientImpl;
-using ::curvefs::client::filesystem::FileSystem;
-using ::curvefs::client::filesystem::EntryOut;
-using ::curvefs::client::filesystem::AttrOut;
-using ::curvefs::client::filesystem::FileOut;
 
 using curvefs::common::is_aligned;
 
@@ -294,13 +298,9 @@ class FuseClient {
         }
     }
 
-    std::shared_ptr<FsInfo> GetFsInfo() {
-        return fsInfo_;
-    }
+    std::shared_ptr<FsInfo> GetFsInfo() { return fsInfo_; }
 
-    std::shared_ptr<FileSystem> GetFileSystem() {
-        return fs_;
-    }
+    virtual std::shared_ptr<FileSystem> GetFileSystem() { return fs_; }
 
     virtual void FlushAll();
 
