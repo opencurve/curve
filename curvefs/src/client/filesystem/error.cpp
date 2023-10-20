@@ -47,7 +47,7 @@ static const std::map<CURVEFS_ERROR, std::pair<int, std::string>> errors = {
     { CURVEFS_ERROR::MOUNT_POINT_EXIST, { -1, "mount point already exist" } },
     { CURVEFS_ERROR::MOUNT_FAILED, { -1, "mount failed" } },
     { CURVEFS_ERROR::OUT_OF_RANGE, { ERANGE, "out of range" } },
-    { CURVEFS_ERROR::NO_DATA, { ENODATA, "no data available" } },
+    { CURVEFS_ERROR::NODATA, { ENODATA, "no data available" } },
     { CURVEFS_ERROR::IO_ERROR, { EIO, "I/O error" } },
     { CURVEFS_ERROR::STALE, { ESTALE, "stale file handler" } },
     { CURVEFS_ERROR::NOSYS, { ENOSYS, "invalid system call" } },

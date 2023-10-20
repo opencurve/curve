@@ -190,6 +190,7 @@ TEST_F(FileSystemTest, Lookup_NegativeCache) {
     auto builder = FileSystemBuilder();
     auto fs = builder.SetOption([](FileSystemOption* option) {
         option->lookupCacheOption.negativeTimeoutSec = 1;
+        option->lookupCacheOption.minUses = 1;
         option->lookupCacheOption.lruSize = 100000;
     }).Build();
 

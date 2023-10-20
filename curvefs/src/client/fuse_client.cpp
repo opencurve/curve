@@ -1059,8 +1059,7 @@ CURVEFS_ERROR FuseClient::FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino,
             << ", name: " << name << ", size = " << size;
 
     if (option_.fileSystemOption.disableXAttr && !IsSpecialXAttr(name)) {
-        // return CURVEFS_ERROR::NO_DATA;
-        return CURVEFS_ERROR::OK;
+        return CURVEFS_ERROR::NODATA;
     }
 
     InodeAttr inodeAttr;
@@ -1078,6 +1077,7 @@ CURVEFS_ERROR FuseClient::FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino,
         return ret;
     }
 
+    ret = CURVEFS_ERROR::NODATA;
     if (value->length() > 0) {
         if ((size == 0 && value->length() <= MAX_XATTR_VALUE_LENGTH) ||
             (size >= value->length() &&
@@ -1103,8 +1103,7 @@ CURVEFS_ERROR FuseClient::FuseOpSetXattr(fuse_req_t req, fuse_ino_t ino,
             << ", strvalue: " << strvalue;
 
     if (option_.fileSystemOption.disableXAttr && !IsSpecialXAttr(name)) {
-        // return CURVEFS_ERROR::NO_DATA;
-        return CURVEFS_ERROR::OK;
+        return CURVEFS_ERROR::NODATA;
     }
 
     if (strname.length() > MAX_XATTR_NAME_LENGTH  ||

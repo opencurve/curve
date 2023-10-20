@@ -52,7 +52,7 @@ enum class CURVEFS_ERROR {
     MOUNT_POINT_EXIST = -13,
     MOUNT_FAILED = -14,
     OUT_OF_RANGE = -15,
-    NO_DATA = -16,
+    NODATA = -16,
     IO_ERROR = -17,
     CACHE_TOO_SMALL = -18,
     STALE = -19,

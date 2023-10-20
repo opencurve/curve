@@ -3371,7 +3371,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotSummaryInfo) {
     std::string value;
 
     CURVEFS_ERROR ret = client_->FuseOpGetXattr(req, ino, name, &value, size);
-    ASSERT_EQ(CURVEFS_ERROR::NO_DATA, ret);
+    ASSERT_EQ(CURVEFS_ERROR::NODATA, ret);
 }
 
 TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir) {

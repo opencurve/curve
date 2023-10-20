@@ -192,7 +192,7 @@ class FileSystemBuilder {
         auto lookupCacheOption = LookupCacheOption {
             lruSize: 100000,
             negativeTimeoutSec: 0,
-            minUses: 3,
+            minUses: 1,
         };
         auto attrWatcherOption = AttrWatcherOption {
             lruSize: 5000000,

@@ -30,6 +30,10 @@ std::shared_ptr<spdlog::logger> Logger;
 bool inited = false;
 
 bool InitAccessLog(const std::string& prefix) {
+    if (inited) {
+        return true;
+    }
+
     std::string filename = StrFormat("%s/access.%d.log", prefix, getpid());
     Logger = spdlog::daily_logger_mt("fuse_access", filename, 0, 0);
     spdlog::flush_every(std::chrono::seconds(1));
