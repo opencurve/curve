@@ -25,8 +25,7 @@ package peer
 import (
 	"context"
 	"fmt"
-	"strconv"
-	"strings"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/helper"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -99,28 +98,6 @@ func (pCmd *PeerCommand) AddFlags() {
 	config.AddBsCopysetIdRequiredFlag(pCmd.Cmd)
 }
 
-// ParsePeer parse the peer string
-func ParsePeer(peer string) (*common.Peer, *cmderror.CmdError) {
-	cs := strings.Split(peer, ":")
-	if len(cs) != 3 {
-		pErr := cmderror.ErrSplitPeer()
-		pErr.Format(peer)
-		return nil, pErr
-	}
-	id, err := strconv.ParseUint(cs[2], 10, 64)
-	if err != nil {
-		pErr := cmderror.ErrSplitPeer()
-		pErr.Format(peer)
-		return nil, pErr
-	}
-	cs = cs[:2]
-	address := strings.Join(cs, ":")
-	return &common.Peer{
-		Id:      &id,
-		Address: &address,
-	}, nil
-}
-
 func (pCmd *PeerCommand) Init(cmd *cobra.Command, args []string) error {
 	pCmd.opts = Options{}
 
@@ -144,7 +121,7 @@ func (pCmd *PeerCommand) Init(cmd *cobra.Command, args []string) error {
 		pErr.Format("should specified the peer address")
 		return pErr.ToError()
 	}
-	pCmd.resetPeer, e = ParsePeer(args[0])
+	pCmd.resetPeer, e = helper.ParsePeer(args[0])
 	if e != nil {
 		return e.ToError()
 	}
