@@ -18,6 +18,7 @@ SHELL=/bin/bash
 
 pwd := $(shell pwd)
 
+
 # Download and build libetcdclient only when necessary, i.e.,
 # when dependent code is changed.
 # Typically, this target should always be used to avoid unnecessary
@@ -29,9 +30,10 @@ libetcdclient.so libetcdclient.h: # do not use `clean' and `all' targets here as
 
 # Download and build libetcdclient, regardless of whether the code
 # is changed or not.
-all: intall-go install-etcdclient libetcdclient
+all: install-go install-etcdclient libetcdclient
 
-intall-go:
+
+install-go:
 	mkdir -p $(pwd)/tmp
 	cd $(pwd)/tmp && wget -N https://golang.google.cn/dl/go1.12.8.linux-amd64.tar.gz
 	cd $(pwd)/tmp && tar zxvf go1.12.8.linux-amd64.tar.gz
