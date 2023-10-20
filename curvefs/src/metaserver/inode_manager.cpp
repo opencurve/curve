@@ -478,6 +478,15 @@ MetaStatusCode InodeManager::UpdateFsUsed(const UpdateFsUsedRequest& request,
                    << ", ret: " << MetaStatusCode_Name(ret);
     }
 
+    auto iter = fsId2FsUsage_.find(root.fsid());
+    if (iter != fsId2FsUsage_.end()) {
+        iter->second.set_usedbytes(usedBytes + deltaBytes);
+    } else {
+        common::FsUsageInfo info;
+        info.set_usedbytes(usedBytes + deltaBytes);
+        fsId2FsUsage_.insert({root.fsid(), info});
+    }
+
     return ret;
 }
 

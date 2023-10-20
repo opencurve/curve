@@ -26,9 +26,11 @@
 #include <time.h>
 
 #include <atomic>
+#include <cstdint>
 #include <list>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "curvefs/proto/metaserver.pb.h"
@@ -46,6 +48,9 @@ namespace metaserver {
 using FileType2InodeNumMap =
     ::google::protobuf::Map<::google::protobuf::int32,
                             ::google::protobuf::uint64>;
+
+using FsId2FsUsage =
+    google::protobuf::Map<uint32_t, curvefs::common::FsUsageInfo>;
 
 struct InodeParam {
     uint32_t fsId;
@@ -135,6 +140,8 @@ class InodeManager {
     MetaStatusCode UpdateDeallocatableBlockGroup(
         const UpdateDeallocatableBlockGroupRequest& request, int64_t logIndex);
 
+    FsId2FsUsage GetFsId2FsUsage() { return fsId2FsUsage_; }
+
  private:
     void GenerateInodeInternal(uint64_t inodeId, const InodeParam &param,
                                Inode *inode);
@@ -160,6 +167,7 @@ class InodeManager {
     std::shared_ptr<Trash> trash_;
     FileType2InodeNumMap* type2InodeNum_;
     int64_t appliedIndex_;
+    FsId2FsUsage fsId2FsUsage_;
 
     NameLock inodeLock_;
 };

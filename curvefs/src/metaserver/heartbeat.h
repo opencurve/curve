@@ -26,6 +26,7 @@
 #include <braft/node.h>  // NodeImpl
 #include <braft/node_manager.h>
 #include <gtest/gtest_prod.h>
+#include <unordered_map>
 
 #include <atomic>
 #include <map>
@@ -58,6 +59,8 @@ using CopysetNodePtr = std::shared_ptr<CopysetNode>;
 using PeerId = braft::PeerId;
 using TaskStatus = butil::Status;
 using BlockGroupStatInfoMap = std::map<uint32_t, BlockGroupStatInfo>;
+using FsId2FsUsage =
+    google::protobuf::Map<uint32_t, curvefs::common::FsUsageInfo>;
 
 class ResourceCollector;
 

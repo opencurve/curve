@@ -126,6 +126,8 @@ class MockMetaStore : public curvefs::metaserver::MetaStore {
     MOCK_METHOD3(UpdateFsUsed,
                  MetaStatusCode(const UpdateFsUsedRequest*,
                                 UpdateFsUsedResponse*, int64_t logIndex));
+
+    MOCK_METHOD0(GetFsId2FsUsage, FsId2FsUsage());
 };
 
 }  // namespace mock

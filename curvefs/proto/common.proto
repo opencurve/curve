@@ -109,3 +109,7 @@ message CopysetInfo {
     required uint32 poolId = 1;
     required uint32 copysetId = 2;
 }
+
+message FsUsageInfo {
+    required uint64 usedBytes = 1;
+}

@@ -29,6 +29,7 @@ cc_test(
         "//curvefs/src/mds/heartbeat:curvefs_heartbeat_lib",
         "//curvefs/src/mds/topology:curvefs_topology",
         "//curvefs/test/mds/mock:curvefs_mds_mock",
+        "//test/common:common_mock",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
     ],

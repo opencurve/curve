@@ -94,6 +94,7 @@ message MetaServerHeartbeatRequest {
     required uint32 copysetCount = 8;
     required MetaServerSpaceStatus spaceStatus = 9;
     repeated BlockGroupStatInfo blockGroupStatInfos = 10;
+    map<uint32, common.FsUsageInfo> fsId2fsUsage = 11;
 };
 
 message CopySetConf {

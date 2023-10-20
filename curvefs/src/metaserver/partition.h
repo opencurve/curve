@@ -47,6 +47,8 @@ using curvefs::common::PartitionStatus;
 using ::curvefs::metaserver::storage::Iterator;
 using ::curvefs::metaserver::storage::KVStorage;
 using S3ChunkInfoMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
+using FsId2FsUsage =
+    google::protobuf::Map<uint32_t, curvefs::common::FsUsageInfo>;
 
 // skip ROOTINODEID and RECYCLEINODEID
 constexpr uint64_t kMinPartitionStartId = ROOTINODEID + 2;
@@ -214,6 +216,8 @@ class Partition {
             return false;
         }
     }
+
+    FsId2FsUsage GetFsId2FsUsage() { return inodeManager_->GetFsId2FsUsage(); }
 
  private:
     std::shared_ptr<KVStorage> kvStorage_;

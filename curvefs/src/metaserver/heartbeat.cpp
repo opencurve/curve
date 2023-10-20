@@ -268,6 +268,9 @@ int Heartbeat::BuildRequest(HeartbeatRequest* req) {
         // build copyset info
         CopySetInfo *info = req->add_copysetinfos();
         BuildCopysetInfo(info, copyset);
+        // update fsId2FsUsage
+        auto usageMap = copyset->GetFsId2FsUsage();
+        req->mutable_fsid2fsusage()->insert(usageMap.begin(), usageMap.end());
 
         if (copyset->IsLeaderTerm()) {
             // build block group info

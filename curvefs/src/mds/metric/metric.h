@@ -25,16 +25,17 @@
 
 #include <bvar/bvar.h>
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <unordered_map>
 
 #include "curvefs/proto/mds.pb.h"
+#include "curvefs/proto/common.pb.h"
 #include "curvefs/src/mds/common/types.h"
 
 namespace curvefs {
 namespace mds {
-
 // Metric for a filesystem
 // includes filesystem mount number and filesystem mountpoint lists
 class FsMountMetric {
@@ -66,6 +67,18 @@ class FsMountMetric {
     Mutex mtx_;
 
     MountPointMetric mps_;
+};
+
+struct FsUsageMetric {
+    static const std::string prefix;
+
+    std::string fsName;
+    bvar::Status<uint64_t> used;
+
+    explicit FsUsageMetric(const std::string& fsname)
+        : fsName(fsname), used(prefix + "_fs_" + fsname + "_used", 0) {}
+
+    void UpdateUsage(const curvefs::common::FsUsageInfo& usage);
 };
 
 }  // namespace mds

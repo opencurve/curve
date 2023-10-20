@@ -28,6 +28,7 @@
 #include <unordered_map>
 
 #include "curvefs/proto/mds.pb.h"
+#include "curvefs/proto/common.pb.h"
 #include "curvefs/src/mds/common/types.h"
 #include "curvefs/src/mds/metric/metric.h"
 
@@ -43,6 +44,9 @@ class FsMetric {
 
     void OnMount(const std::string& fsname, const Mountpoint& mp);
     void OnUnMount(const std::string& fsname, const Mountpoint& mp);
+    void UpdateFsUsage(const std::string& fsname,
+                       const curvefs::common::FsUsageInfo& usage);
+    void DeleteFsUsage(const std::string& fsname);
 
  private:
     FsMetric() = default;
@@ -52,8 +56,12 @@ class FsMetric {
     FsMetric& operator=(const FsMetric&) = delete;
 
  private:
-    Mutex mtx_;
-    std::unordered_map<std::string, std::unique_ptr<FsMountMetric>> metrics_;
+    Mutex mountMtx_;
+    std::unordered_map<std::string, std::unique_ptr<FsMountMetric>>
+        mountMetrics_;
+    Mutex usageMtx_;
+    std::unordered_map<std::string, std::unique_ptr<FsUsageMetric>>
+        usageMetrics_;
 };
 
 }  // namespace mds

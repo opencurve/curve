@@ -30,6 +30,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/common/rpc_stream.h"
@@ -87,7 +88,8 @@ using ::curvefs::metaserver::storage::Iterator;
 using ::curvefs::common::StreamServer;
 using ::curvefs::common::StreamConnection;
 using S3ChunkInfoMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
-
+using FsId2FsUsage =
+    google::protobuf::Map<uint32_t, curvefs::common::FsUsageInfo>;
 using ::curvefs::metaserver::storage::StorageOptions;
 
 // Dentry and inode related data will be stored in kvstorage
@@ -215,6 +217,8 @@ class MetaStore {
     virtual MetaStatusCode UpdateFsUsed(const UpdateFsUsedRequest* request,
                                         UpdateFsUsedResponse* response,
                                         int64_t logIndex) = 0;
+
+    virtual FsId2FsUsage GetFsId2FsUsage() = 0;
 };
 
 class MetaStoreImpl : public MetaStore {
@@ -329,6 +333,15 @@ class MetaStoreImpl : public MetaStore {
     MetaStatusCode UpdateFsUsed(const UpdateFsUsedRequest* request,
                                 UpdateFsUsedResponse* response,
                                 int64_t logIndex) override;
+
+    FsId2FsUsage GetFsId2FsUsage() override {
+        FsId2FsUsage ret;
+        for (auto const& partition : partitionMap_) {
+            auto usageMap = partition.second->GetFsId2FsUsage();
+            ret.insert(usageMap.begin(), usageMap.end());
+        }
+        return ret;
+    }
 
  private:
     FRIEND_TEST(MetastoreTest, partition);

@@ -26,11 +26,11 @@ namespace curvefs {
 namespace mds {
 
 void FsMetric::OnMount(const std::string& fsname, const Mountpoint& mp) {
-    std::lock_guard<Mutex> lock(mtx_);
+    std::lock_guard<Mutex> lock(mountMtx_);
 
-    auto iter = metrics_.find(fsname);
-    if (iter == metrics_.end()) {
-        auto r = metrics_.emplace(fsname, new FsMountMetric(fsname));
+    auto iter = mountMetrics_.find(fsname);
+    if (iter == mountMetrics_.end()) {
+        auto r = mountMetrics_.emplace(fsname, new FsMountMetric(fsname));
         iter = r.first;
     }
 
@@ -38,14 +38,40 @@ void FsMetric::OnMount(const std::string& fsname, const Mountpoint& mp) {
 }
 
 void FsMetric::OnUnMount(const std::string& fsname, const Mountpoint& mp) {
-    std::lock_guard<Mutex> lock(mtx_);
+    std::lock_guard<Mutex> lock(mountMtx_);
 
-    auto iter = metrics_.find(fsname);
-    if (iter == metrics_.end()) {
+    auto iter = mountMetrics_.find(fsname);
+    if (iter == mountMetrics_.end()) {
         return;
     }
 
     iter->second->OnUnMount(mp);
+}
+
+void FsMetric::UpdateFsUsage(const std::string& fsname,
+                             const curvefs::common::FsUsageInfo& usage) {
+    std::lock_guard<Mutex> lock(usageMtx_);
+    auto iter = usageMetrics_.find(fsname);
+    if (iter == usageMetrics_.end()) {
+        auto r = usageMetrics_.emplace(fsname, new FsUsageMetric(fsname));
+        if (!r.second) {
+            LOG(ERROR) << "insert fs usage metric failed, fsname = " << fsname;
+            return;
+        }
+        iter = r.first;
+    }
+    iter->second->UpdateUsage(usage);
+}
+
+void FsMetric::DeleteFsUsage(const std::string& fsname) {
+    std::lock_guard<Mutex> lock(usageMtx_);
+
+    auto iter = usageMetrics_.find(fsname);
+    if (iter == usageMetrics_.end()) {
+        return;
+    }
+
+    usageMetrics_.erase(iter);
 }
 
 }  // namespace mds

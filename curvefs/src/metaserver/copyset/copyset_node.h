@@ -32,6 +32,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 #include "curvefs/proto/heartbeat.pb.h"
 #include "curvefs/src/metaserver/common/types.h"
@@ -52,6 +53,8 @@ using ::curvefs::common::Peer;
 using ::curvefs::metaserver::MetaStore;
 using ::curve::mds::heartbeat::ConfigChangeType;
 using ::curvefs::mds::heartbeat::BlockGroupStatInfo;
+using FsId2FsUsage =
+    google::protobuf::Map<uint32_t, curvefs::common::FsUsageInfo>;
 
 class CopysetNodeManager;
 
@@ -161,6 +164,10 @@ class CopysetNode : public braft::StateMachine {
                              braft::Closure* done = nullptr);
     virtual void GetConfChange(ConfigChangeType* type, Peer* alterPeer);
     void OnConfChangeComplete();
+
+    virtual FsId2FsUsage GetFsId2FsUsage() {
+        return metaStore_->GetFsId2FsUsage();
+    }
 
  private:
     // Whether current copyset is ready do configuration change
