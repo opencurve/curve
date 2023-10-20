@@ -54,7 +54,7 @@ CURVEFS_ERROR RPCClient::Lookup(Ino parent,
     Dentry dentry;
     CURVEFS_ERROR rc = dentryManager_->GetDentry(parent, name, &dentry);
     if (rc != CURVEFS_ERROR::OK) {
-        if (rc != CURVEFS_ERROR::NOTEXIST) {
+        if (rc != CURVEFS_ERROR::NOT_EXIST) {
             LOG(ERROR) << "rpc(lookup::GetDentry) failed, retCode = " << rc
                        << ", parent = " << parent << ", name = " << name;
         }

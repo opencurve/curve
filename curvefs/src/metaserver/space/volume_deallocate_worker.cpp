@@ -20,10 +20,12 @@
  * Author: lixiaocui
  */
 
-#include "absl/cleanup/cleanup.h"
-
-#include "curvefs/src/common/threading.h"
 #include "curvefs/src/metaserver/space/volume_deallocate_worker.h"
+
+#include <utility>
+
+#include "absl/cleanup/cleanup.h"
+#include "curvefs/src/common/threading.h"
 
 namespace curvefs {
 namespace metaserver {

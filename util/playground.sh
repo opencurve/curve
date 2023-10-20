@@ -18,7 +18,8 @@ echo 'alias ls="ls --color"' >> /home/${USER}/.bashrc
 EOF
 )
 g_install_script=$(cat << EOF
-apt-get -y install rsync golang jq vim python3-pop >/dev/null
+apt-get update
+apt-get -y install tree rsync golang jq vim python3-pip maven >/dev/null
 curl -sSL https://bit.ly/install-xq | sudo bash >/dev/null 2>&1
 pip3 install cpplint >/dev/null 2>/dev/null
 EOF
@@ -33,24 +34,6 @@ parse_cfg() {
     fi
     g_container_name=$(cat < "${g_obm_cfg}" | grep -oP '(?<=container_name: ).*')
     g_container_image=$(cat < "${g_obm_cfg}" | grep -oP '(?<=container_image: ).*')
-    
-    while true 
-    do
-        case "$1" in
-            -v|--version)
-                g_container_image="$2"
-                shift 2
-                ;;
-            --)
-                shift
-                break
-                ;;
-            *)
-                exit 1
-                ;;
-        esac
-    done
-    
 }
 
 create_container() {
@@ -62,8 +45,12 @@ create_container() {
     docker run -v "$(pwd)":${g_worker_dir} \
         -v /var/run/docker.sock:/var/run/docker.sock \
         -dt \
+        --cap-add=SYS_PTRACE \
+        --security-opt seccomp=unconfined \
+        --restart always \
         --env "UID=$(id -u)" \
         --env "USER=${USER}" \
+        --env "TZ=Asia/Shanghai" \
         --hostname "playground" \
         --name "${g_container_name}" \
         --workdir ${g_worker_dir} \

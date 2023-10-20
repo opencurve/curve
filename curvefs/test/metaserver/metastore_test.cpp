@@ -1518,40 +1518,55 @@ TEST_F(MetastoreTest, testBatchGetXAttr) {
     ASSERT_EQ(batchResponse.statuscode(), MetaStatusCode::OK);
     ASSERT_EQ(batchResponse.xattr_size(), 2);
     if (batchResponse.xattr(0).inodeid() == inodeId1) {
-        ASSERT_EQ(batchResponse.xattr(0).xattrinfos()
-            .find(XATTR_DIR_FILES)->second, "1");
-        ASSERT_EQ(batchResponse.xattr(0).xattrinfos()
-            .find(XATTR_DIR_SUBDIRS)->second, "2");
-        ASSERT_EQ(batchResponse.xattr(0).xattrinfos()
-            .find(XATTR_DIR_ENTRIES)->second, "3");
-        ASSERT_EQ(batchResponse.xattr(0).xattrinfos()
-            .find(XATTR_DIR_FBYTES)->second, "100");
-        ASSERT_EQ(batchResponse.xattr(1).xattrinfos()
-            .find(XATTR_DIR_FILES)->second, "0");
-        ASSERT_EQ(batchResponse.xattr(1).xattrinfos()
-            .find(XATTR_DIR_SUBDIRS)->second, "0");
-        ASSERT_EQ(batchResponse.xattr(1).xattrinfos()
-            .find(XATTR_DIR_ENTRIES)->second, "0");
-        ASSERT_EQ(batchResponse.xattr(1).xattrinfos()
-            .find(XATTR_DIR_FBYTES)->second, "0");
-
+        ASSERT_EQ(
+            batchResponse.xattr(0).xattrinfos().find(XATTR_DIR_FILES)->second,
+            "1");
+        ASSERT_EQ(
+            batchResponse.xattr(0).xattrinfos().find(XATTR_DIR_SUBDIRS)->second,
+            "2");
+        ASSERT_EQ(
+            batchResponse.xattr(0).xattrinfos().find(XATTR_DIR_ENTRIES)->second,
+            "3");
+        ASSERT_EQ(
+            batchResponse.xattr(0).xattrinfos().find(XATTR_DIR_FBYTES)->second,
+            "100");
+        ASSERT_EQ(
+            batchResponse.xattr(1).xattrinfos().find(XATTR_DIR_FILES)->second,
+            "0");
+        ASSERT_EQ(
+            batchResponse.xattr(1).xattrinfos().find(XATTR_DIR_SUBDIRS)->second,
+            "0");
+        ASSERT_EQ(
+            batchResponse.xattr(1).xattrinfos().find(XATTR_DIR_ENTRIES)->second,
+            "0");
+        ASSERT_EQ(
+            batchResponse.xattr(1).xattrinfos().find(XATTR_DIR_FBYTES)->second,
+            "0");
     } else {
-        ASSERT_EQ(batchResponse.xattr(1).xattrinfos()
-            .find(XATTR_DIR_FILES)->second, "1");
-        ASSERT_EQ(batchResponse.xattr(1).xattrinfos()
-            .find(XATTR_DIR_SUBDIRS)->second, "2");
-        ASSERT_EQ(batchResponse.xattr(1).xattrinfos()
-            .find(XATTR_DIR_ENTRIES)->second, "3");
-        ASSERT_EQ(batchResponse.xattr(1).xattrinfos()
-            .find(XATTR_DIR_FBYTES)->second, "100");
-        ASSERT_EQ(batchResponse.xattr(0).xattrinfos()
-            .find(XATTR_DIR_FILES)->second, "0");
-        ASSERT_EQ(batchResponse.xattr(0).xattrinfos()
-            .find(XATTR_DIR_SUBDIRS)->second, "0");
-        ASSERT_EQ(batchResponse.xattr(0).xattrinfos()
-            .find(XATTR_DIR_ENTRIES)->second, "0");
-        ASSERT_EQ(batchResponse.xattr(0).xattrinfos()
-            .find(XATTR_DIR_FBYTES)->second, "0");
+        ASSERT_EQ(
+            batchResponse.xattr(1).xattrinfos().find(XATTR_DIR_FILES)->second,
+            "1");
+        ASSERT_EQ(
+            batchResponse.xattr(1).xattrinfos().find(XATTR_DIR_SUBDIRS)->second,
+            "2");
+        ASSERT_EQ(
+            batchResponse.xattr(1).xattrinfos().find(XATTR_DIR_ENTRIES)->second,
+            "3");
+        ASSERT_EQ(
+            batchResponse.xattr(1).xattrinfos().find(XATTR_DIR_FBYTES)->second,
+            "100");
+        ASSERT_EQ(
+            batchResponse.xattr(0).xattrinfos().find(XATTR_DIR_FILES)->second,
+            "0");
+        ASSERT_EQ(
+            batchResponse.xattr(0).xattrinfos().find(XATTR_DIR_SUBDIRS)->second,
+            "0");
+        ASSERT_EQ(
+            batchResponse.xattr(0).xattrinfos().find(XATTR_DIR_ENTRIES)->second,
+            "0");
+        ASSERT_EQ(
+            batchResponse.xattr(0).xattrinfos().find(XATTR_DIR_FBYTES)->second,
+            "0");
     }
 }
 

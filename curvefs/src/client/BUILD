@@ -33,6 +33,19 @@ cc_binary(
 )
 
 cc_library(
+    name = "filesystem",
+    srcs = glob([
+        "filesystem/*.cpp",
+        "filesystem/*.h",
+    ]),
+    copts = CURVE_DEFAULT_COPTS,
+    visibility = ["//visibility:public"],
+    deps = [
+        ":fuse_client_lib",
+    ],
+)
+
+cc_library(
     name = "filesystem_xattr",
     hdrs = ["filesystem/xattr.h"],
     copts = CURVE_DEFAULT_COPTS,
@@ -74,6 +87,7 @@ cc_library(
         "//curvefs/src/common:curvefs_common",
         "//curvefs/src/client/lease:curvefs_lease",
         "//curvefs/src/client/kvclient:memcached_client_lib",
+        "//curvefs/src/client/logger:logger",
         ":filesystem_xattr",
         "//external:brpc",
         "//external:gflags",

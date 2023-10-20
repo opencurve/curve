@@ -124,3 +124,9 @@ docker:
 
 format:
 	@bash util/format.sh $(commit_id)
+
+init-hadoop:
+	@bash util/init-hadoop.sh
+
+sdk:
+	@bash util/sdk.sh

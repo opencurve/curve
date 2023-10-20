@@ -91,6 +91,7 @@ class DirCacheBuilder {
     static DirCacheOption DefaultOption() {
         return DirCacheOption {
             lruSize: 5000000,
+            timeoutSec: 3600,
         };
     }
 
@@ -194,6 +195,7 @@ class FileSystemBuilder {
         auto lookupCacheOption = LookupCacheOption {
             lruSize: 100000,
             negativeTimeoutSec: 0,
+            minUses: 1,
         };
         auto attrWatcherOption = AttrWatcherOption {
             lruSize: 5000000,

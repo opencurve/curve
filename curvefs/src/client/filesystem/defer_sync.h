@@ -51,6 +51,8 @@ class DeferSync {
 
     void Push(const std::shared_ptr<InodeWrapper>& inode);
 
+    bool IsDefered(Ino ino, InodeAttr* attr);
+
  private:
     void SyncTask();
 

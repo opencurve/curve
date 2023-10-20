@@ -61,6 +61,8 @@ class DirEntryList {
 
     bool Get(Ino ino, DirEntry* dirEntry);
 
+    bool At(uint32_t index, DirEntry* dirEntry);
+
     bool UpdateAttr(Ino ino, const InodeAttr& attr);
 
     bool UpdateLength(Ino ino, const InodeAttr& open);

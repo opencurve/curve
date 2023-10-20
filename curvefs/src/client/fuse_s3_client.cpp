@@ -26,8 +26,8 @@
 #include <memory>
 #include <vector>
 
-#include "curvefs/src/client/kvclient/memcache_client.h"
 #include "curvefs/src/client/filesystem/xattr.h"
+#include "curvefs/src/client/kvclient/memcache_client.h"
 
 namespace curvefs {
 namespace client {
@@ -43,11 +43,11 @@ DECLARE_bool(supportKVcache);
 namespace curvefs {
 namespace client {
 
-using curvefs::client::common::FLAGS_supportKVcache;
 using curvefs::client::common::FLAGS_enableCto;
+using curvefs::client::common::FLAGS_supportKVcache;
+using ::curvefs::client::filesystem::XATTR_DIR_FBYTES;
 using curvefs::mds::topology::MemcacheClusterInfo;
 using curvefs::mds::topology::MemcacheServerInfo;
-using ::curvefs::client::filesystem::XATTR_DIR_FBYTES;
 
 CURVEFS_ERROR FuseS3Client::Init(const FuseClientOption &option) {
     FuseClientOption opt(option);
@@ -77,7 +77,7 @@ CURVEFS_ERROR FuseS3Client::Init(const FuseClientOption &option) {
         LOG(ERROR) << "writeCacheMaxByte is too small"
                    << ", at least " << MIN_WRITE_CACHE_SIZE << " (8MB)"
                       ", writeCacheMaxByte = " << writeCacheMaxByte;
-        return CURVEFS_ERROR::CACHETOOSMALL;
+        return CURVEFS_ERROR::CACHE_TOO_SMALL;
     }
 
     auto fsCacheManager = std::make_shared<FsCacheManager>(
@@ -166,7 +166,7 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
     if (fi->flags & O_DIRECT) {
         if (!(is_aligned(off, DirectIOAlignment) &&
               is_aligned(size, DirectIOAlignment)))
-            return CURVEFS_ERROR::INVALIDPARAM;
+            return CURVEFS_ERROR::INVALID_PARAM;
     }
     uint64_t start = butil::cpuwide_time_us();
     int wRet = s3Adaptor_->Write(ino, off, size, buf);
@@ -206,8 +206,8 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
     if (enableSumInDir_ && changeSize != 0) {
         const Inode* inode = inodeWrapper->GetInodeLocked();
         XAttr xattr;
-        xattr.mutable_xattrinfos()->insert({XATTR_DIR_FBYTES,
-            std::to_string(changeSize)});
+        xattr.mutable_xattrinfos()->insert(
+            {XATTR_DIR_FBYTES, std::to_string(changeSize)});
         for (const auto &it : inode->parent()) {
             auto tret = xattrManager_->UpdateParentInodeXattr(it, xattr, true);
             if (tret != CURVEFS_ERROR::OK) {
@@ -240,7 +240,7 @@ CURVEFS_ERROR FuseS3Client::FuseOpRead(fuse_req_t req, fuse_ino_t ino,
     if (fi->flags & O_DIRECT) {
         if (!(is_aligned(off, DirectIOAlignment) &&
               is_aligned(size, DirectIOAlignment)))
-            return CURVEFS_ERROR::INVALIDPARAM;
+            return CURVEFS_ERROR::INVALID_PARAM;
     }
 
     uint64_t start = butil::cpuwide_time_us();

@@ -122,7 +122,7 @@ TEST_F(ClientOperatorTest, Precheck) {
     // CASE 3: check success
     EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
         .WillOnce(Return(CURVEFS_ERROR::OK))
-        .WillOnce(Return(CURVEFS_ERROR::NOTEXIST));
+        .WillOnce(Return(CURVEFS_ERROR::NOT_EXIST));
 
     rc = renameOp_->Precheck();
     ASSERT_EQ(rc, CURVEFS_ERROR::OK);

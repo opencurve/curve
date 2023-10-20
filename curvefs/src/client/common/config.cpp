@@ -48,7 +48,7 @@ DEFINE_validator(fs_disableXattr, [](const char*, bool value) { return true; });
 namespace curvefs {
 namespace client {
 namespace common {
-static bool pass_bool(const char *, bool) { return true; }
+static bool pass_bool(const char*, bool) { return true; }
 DEFINE_bool(enableCto, true, "acheieve cto consistency");
 DEFINE_bool(useFakeS3, false,
             "Use fake s3 to inject more metadata for testing metaserver");
@@ -314,6 +314,40 @@ void InitKVClientManagerOpt(Configuration *conf,
                               &config->getThreadPooln);
 }
 
+void GetGids(
+    Configuration* c, const std::string& key, std::vector<uint32_t>* gids) {
+    std::string str;
+    std::vector<std::string> ss;
+    c->GetValueFatalIfFail(key, &str);
+    curve::common::SplitString(str, ",", &ss);
+    uint32_t gid;
+    for (const auto& s : ss) {
+        LOG_IF(FATAL, !curve::common::StringToUl(s, &gid))
+            << "Invalid `" << key << "`: <" << s << ">";
+        gids->push_back(static_cast<uint32_t>(gid));
+    }
+}
+
+void GetUmask(Configuration* c, const std::string& key, uint16_t* umask) {
+    std::string str;
+    c->GetValueFatalIfFail(key, &str);
+    *umask = stoi(str, 0, 8);
+}
+
+void InitVFSOption(Configuration* c, VFSOption* option) {
+    {  // vfs cache option
+        auto o = &option->vfsCacheOption;
+        c->GetValueFatalIfFail("vfs.entryCache.lruSize", &o->entryCacheLruSize);
+        c->GetValueFatalIfFail("vfs.attrCache.lruSize", &o->attrCacheLruSize);
+    }
+    {  // user permission option
+        auto o = &option->userPermissionOption;
+        c->GetValueFatalIfFail("vfs.userPermission.uid", &o->uid);
+        GetGids(c, "vfs.userPermission.gids", &o->gids);
+        GetUmask(c, "vfs.userPermission.umask", &o->umask);
+    }
+}
+
 void InitFileSystemOption(Configuration* c, FileSystemOption* option) {
     c->GetValueFatalIfFail("fs.cto", &option->cto);
     c->GetValueFatalIfFail("fs.cto", &FLAGS_enableCto);
@@ -383,6 +417,7 @@ void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption) {
     InitLeaseOpt(conf, &clientOption->leaseOpt);
     InitRefreshDataOpt(conf, &clientOption->refreshDataOption);
     InitKVClientManagerOpt(conf, &clientOption->kvClientManagerOpt);
+    InitVFSOption(conf, &clientOption->vfsOption);
     InitFileSystemOption(conf, &clientOption->fileSystemOption);
 
     conf->GetValueFatalIfFail("fuseClient.listDentryLimit",

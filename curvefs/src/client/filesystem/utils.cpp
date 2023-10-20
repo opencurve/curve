@@ -40,7 +40,7 @@ bool IsVolmeFile(const InodeAttr& attr) {
     return attr.type() == FsFileType::TYPE_FILE;
 }
 
-bool IsSymLink(const InodeAttr& attr) {
+bool IsSymlink(const InodeAttr& attr) {
     return attr.type() == FsFileType::TYPE_SYM_LINK;
 }
 
