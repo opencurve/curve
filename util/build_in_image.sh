@@ -5,6 +5,7 @@ set -x
 
 ############################  GLOBAL VARIABLES
 
+g_root="${PWD}"
 g_stor=""
 g_list=0
 g_depend=0
@@ -18,6 +19,7 @@ g_build_opts=(
     "--copt -DHAVE_ZLIB=1"
     "--copt -DGFLAGS_NS=google"
     "--copt -DUSE_BTHREAD_MUTEX"
+    "--copt -DCLIENT_CONF_PATH=\"${g_root}/curvefs/conf/client.conf\""
 )
 
 g_os="debian9"
