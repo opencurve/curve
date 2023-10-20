@@ -8,7 +8,7 @@
 g_obm_cfg=".obm.cfg"
 g_worker_dir="/curve"
 g_container_name="curve-build-playground.master"
-g_container_image="opencurvedocker/curve-base:build-debian9"
+g_container_image="opencurvedocker/curve-base:build-debian11"
 g_init_script=$(cat << EOF
 useradd -m -s /bin/bash -N -u $UID $USER
 echo "${USER} ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers
@@ -26,11 +26,31 @@ EOF
 
 ############################  BASIC FUNCTIONS
 parse_cfg() {
+    local args=`getopt -o v: --long version: -n "playground.sh" -- "$@"`
+    eval set -- "${args}"
     if [ ! -f "${g_obm_cfg}" ]; then
         die "${g_obm_cfg} not found\n"
     fi
     g_container_name=$(cat < "${g_obm_cfg}" | grep -oP '(?<=container_name: ).*')
     g_container_image=$(cat < "${g_obm_cfg}" | grep -oP '(?<=container_image: ).*')
+    
+    while true 
+    do
+        case "$1" in
+            -v|--version)
+                g_container_image="$2"
+                shift 2
+                ;;
+            --)
+                shift
+                break
+                ;;
+            *)
+                exit 1
+                ;;
+        esac
+    done
+    
 }
 
 create_container() {
@@ -61,12 +81,13 @@ enter_container() {
         "${g_container_name}" /bin/bash
 }
 
-############################  MAIN()
+
 main() {
     source "util/basic.sh"
-    parse_cfg
+    parse_cfg "$@"
     create_container
     enter_container
 }
 
+############################  MAIN()
 main "$@"
