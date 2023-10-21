@@ -294,9 +294,11 @@ void CopysetNode::on_apply(braft::Iterator& iter) {
                 std::bind(&MetaOperator::OnApply, metaClosure->GetOperator(),
                           iter.index(), doneGuard.release(),
                           TimeUtility::GetTimeofDayUs());
-            applyQueue_->Push(metaClosure->GetOperator()->HashCode(),
-                              metaClosure->GetOperator()->GetOperatorType(),
-                              std::move(task));
+            applyQueue_->Push(
+                metaClosure->GetOperator()->HashCode(),
+                MetaOperator::Schedule(
+                    metaClosure->GetOperator()->GetOperatorType()),
+                std::move(task));
             timer.stop();
             g_concurrent_apply_wait_latency << timer.u_elapsed();
         } else {
@@ -310,7 +312,8 @@ void CopysetNode::on_apply(braft::Iterator& iter) {
             auto task =
                 std::bind(&MetaOperator::OnApplyFromLog, metaOperator.release(),
                           iter.index(), TimeUtility::GetTimeofDayUs());
-            applyQueue_->Push(hashcode, type, std::move(task));
+            applyQueue_->Push(hashcode, MetaOperator::Schedule(type),
+                              std::move(task));
             timer.stop();
             g_concurrent_apply_from_log_wait_latency << timer.u_elapsed();
         }

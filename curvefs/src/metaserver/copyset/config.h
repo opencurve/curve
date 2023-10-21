@@ -31,14 +31,16 @@
 #include <memory>
 #include <string>
 
-#include "curvefs/src/metaserver/copyset/concurrent_apply_queue.h"
 #include "curvefs/src/metaserver/copyset/trash.h"
 #include "curvefs/src/metaserver/storage/config.h"
+#include "src/chunkserver/concurrent_apply/concurrent_apply.h"
 #include "src/fs/local_filesystem.h"
 
 namespace curvefs {
 namespace metaserver {
 namespace copyset {
+
+using ApplyOption = ::curve::chunkserver::concurrent::ConcurrentApplyOption;
 
 // Options for copyset node and relative modules
 struct CopysetNodeOptions {

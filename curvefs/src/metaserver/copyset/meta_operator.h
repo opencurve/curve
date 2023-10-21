@@ -35,6 +35,8 @@ namespace curvefs {
 namespace metaserver {
 namespace copyset {
 
+using ::curve::chunkserver::concurrent::ApplyTaskType;
+
 class MetaOperator {
  public:
     MetaOperator(CopysetNode* node, google::protobuf::RpcController* cntl,
@@ -102,6 +104,8 @@ class MetaOperator {
     virtual uint64_t HashCode() const = 0;
 
     virtual OperatorType GetOperatorType() const = 0;
+
+    static ApplyTaskType Schedule(OperatorType opType);
 
  private:
     /**

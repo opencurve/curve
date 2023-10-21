@@ -123,10 +123,24 @@ void MetaOperator::FastApplyTask() {
     auto task =
         std::bind(&MetaOperator::OnApply, this, node_->GetAppliedIndex(),
                   new MetaOperatorClosure(this), TimeUtility::GetTimeofDayUs());
-    node_->GetApplyQueue()->Push(HashCode(), GetOperatorType(),
-                                 std::move(task));
+    node_->GetApplyQueue()->Push(
+        HashCode(), MetaOperator::Schedule(GetOperatorType()), std::move(task));
     timer.stop();
     g_concurrent_fast_apply_wait_latency << timer.u_elapsed();
+}
+
+ApplyTaskType MetaOperator::Schedule(OperatorType optype) {
+    switch (optype) {
+        case OperatorType::GetDentry:
+        case OperatorType::ListDentry:
+        case OperatorType::GetInode:
+        case OperatorType::BatchGetInodeAttr:
+        case OperatorType::BatchGetXAttr:
+        case OperatorType::GetVolumeExtent:
+            return ApplyTaskType::READ;
+        default:
+            return ApplyTaskType::WRITE;
+    }
 }
 
 #define OPERATOR_CAN_BY_PASS_PROPOSE(TYPE) \

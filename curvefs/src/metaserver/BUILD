@@ -64,6 +64,7 @@ cc_library(
         "//curvefs/src/client:filesystem_xattr",
         "//external:braft",
         "//src/common:curve_common",
+        "//src/chunkserver/concurrent_apply:chunkserver_concurrent_apply",
         "//src/fs:lfs",
         "//curvefs/src/common:dynamic_vlog",
         "//curvefs/src/common:threading",

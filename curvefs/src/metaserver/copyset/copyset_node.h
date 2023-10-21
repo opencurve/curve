@@ -35,13 +35,13 @@
 
 #include "curvefs/proto/heartbeat.pb.h"
 #include "curvefs/src/metaserver/common/types.h"
-#include "curvefs/src/metaserver/copyset/concurrent_apply_queue.h"
 #include "curvefs/src/metaserver/copyset/conf_epoch_file.h"
 #include "curvefs/src/metaserver/copyset/config.h"
 #include "curvefs/src/metaserver/copyset/copyset_conf_change.h"
 #include "curvefs/src/metaserver/copyset/metric.h"
 #include "curvefs/src/metaserver/copyset/raft_node.h"
 #include "curvefs/src/metaserver/metastore.h"
+#include "src/chunkserver/concurrent_apply/concurrent_apply.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -51,6 +51,8 @@ using ::braft::PeerId;
 using ::curvefs::common::Peer;
 using ::curvefs::metaserver::MetaStore;
 using ::curve::mds::heartbeat::ConfigChangeType;
+using ApplyQueue = ::curve::chunkserver::concurrent::ConcurrentApplyModule;
+using ::curve::chunkserver::concurrent::ApplyTaskType;
 using ::curvefs::mds::heartbeat::BlockGroupStatInfo;
 
 class CopysetNodeManager;
