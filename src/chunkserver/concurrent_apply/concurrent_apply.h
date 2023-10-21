@@ -107,6 +107,7 @@ class CURVE_CACHELINE_ALIGNMENT ConcurrentApplyModule {
      * Flush: finish all task in write threads
      */
     void Flush();
+    void FlushAll();
 
     void Stop();
 
@@ -128,7 +129,7 @@ class CURVE_CACHELINE_ALIGNMENT ConcurrentApplyModule {
         explicit TaskThread(size_t capacity) : tq(capacity) {}
     };
 
-    bool start_;
+    std::atomic<bool> start_;
     int rconcurrentsize_;
     int rqueuedepth_;
     int wconcurrentsize_;
