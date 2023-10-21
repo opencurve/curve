@@ -124,8 +124,11 @@ void ConcurrentApplyModule::Run(ApplyTaskType type, int index) {
 }
 
 void ConcurrentApplyModule::Stop() {
+    if (!start_.exchange(false)) {
+        return;
+    }
+
     LOG(INFO) << "stop ConcurrentApplyModule...";
-    start_ = false;
     auto wakeup = []() {};
     for (auto iter : rapplyMap_) {
         iter.second->tq.Push(wakeup);
@@ -145,13 +148,34 @@ void ConcurrentApplyModule::Stop() {
 }
 
 void ConcurrentApplyModule::Flush() {
+    if (!start_.load(std::memory_order_relaxed)) {
+        return;
+    }
+
     CountDownEvent event(wconcurrentsize_);
-    auto flushtask = [&event]() {
-        event.Signal();
-    };
+    auto flushtask = [&event]() { event.Signal(); };
 
     for (int i = 0; i < wconcurrentsize_; i++) {
         wapplyMap_[i]->tq.Push(flushtask);
+    }
+
+    event.Wait();
+}
+
+void ConcurrentApplyModule::FlushAll() {
+    if (!start_.load(std::memory_order_relaxed)) {
+        return;
+    }
+
+    CountDownEvent event(wconcurrentsize_ + rconcurrentsize_);
+    auto flushtask = [&event]() { event.Signal(); };
+
+    for (int i = 0; i < wconcurrentsize_; i++) {
+        wapplyMap_[i]->tq.Push(flushtask);
+    }
+
+    for (int i = 0; i < rconcurrentsize_; i++) {
+        rapplyMap_[i]->tq.Push(flushtask);
     }
 
     event.Wait();
