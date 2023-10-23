@@ -109,8 +109,9 @@ class TopologyManager {
     virtual void CreatePartitions(const CreatePartitionRequest *request,
                                   CreatePartitionResponse *response);
 
-    virtual void DeleteAbnormalPartition(uint32_t poolId, uint32_t copysetId, uint32_t partitionId,
-                                         const std::set<std::string> &addrs);
+    virtual void DeleteAbnormalPartition(uint32_t poolId, uint32_t copysetId,
+                                         uint32_t partitionId,
+                                         const std::set<std::string>& addrs);
 
     virtual void DeletePartition(const DeletePartitionRequest *request,
                                  DeletePartitionResponse *response);

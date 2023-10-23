@@ -200,9 +200,11 @@ TEST_F(TestTopoUpdater, test_UpdatePartitionTopo_case4) {
     std::set<std::string> copysetMemberAddr;
     EXPECT_CALL(*topologyManager_, GetCopysetMembers(_, _, _))
         .Times(AtMost(3))
-        .WillRepeatedly(DoAll(SetArgPointee<2>(copysetMemberAddr), Return(TopoStatusCode::TOPO_OK)));
+        .WillRepeatedly(DoAll(SetArgPointee<2>(copysetMemberAddr),
+                              Return(TopoStatusCode::TOPO_OK)));
 
-    EXPECT_CALL(*topologyManager_, DeleteAbnormalPartition(_, _, _, _)).Times(1);
+    EXPECT_CALL(*topologyManager_, DeleteAbnormalPartition(_, _, _, _))
+        .Times(1);
 
     std::list<::curvefs::mds::topology::Partition> partitionList;
     partitionList.push_back(partition);

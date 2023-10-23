@@ -222,7 +222,7 @@ void TopoUpdater::UpdatePartitionTopo(
             LOG(WARNING) << "hearbeat report partition which is not in topo"
                          << ", copysetId = " << copySetId
                          << ", partitionId = " << it.GetPartitionId();
-            
+
             const int maxRetries = 3;
             int retries = 0;
 
@@ -230,19 +230,21 @@ void TopoUpdater::UpdatePartitionTopo(
             std::set<std::string> copysetMemberAddr;
             TopoStatusCode ret;
             do {
-                ret = topologyManager_->GetCopysetMembers(it.GetPoolId(), copySetId, &copysetMemberAddr);
+                ret = topologyManager_->GetCopysetMembers(
+                    it.GetPoolId(), copySetId, &copysetMemberAddr);
                 if (ret == TopoStatusCode::TOPO_OK) {
-                break;
-            }
-            ++retries;
+                    break;
+                }
+                ++retries;
             } while (retries < maxRetries);
-            
+
             if (ret != TopoStatusCode::TOPO_OK) {
-                LOG(ERROR) << "GetCopysetMembers failed, poolId = " << it.GetPoolId()
-                        << ", copysetId = " << copySetId;
-            } 
-            else {
-                 topologyManager_->DeleteAbnormalPartition(it.GetPoolId(), copySetId, it.GetPartitionId(), copysetMemberAddr); 
+                LOG(ERROR) << "GetCopysetMembers failed, poolId = "
+                           << it.GetPoolId() << ", copysetId = " << copySetId;
+            } else {
+                topologyManager_->DeleteAbnormalPartition(
+                    it.GetPoolId(), copySetId, it.GetPartitionId(),
+                    copysetMemberAddr); 
             }
             continue;
         }
