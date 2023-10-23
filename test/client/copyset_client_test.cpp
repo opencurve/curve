@@ -26,9 +26,11 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
+#include <memory>
 #include <thread>   //NOLINT
 #include <chrono>   // NOLINT
 
+#include "src/client/auth_client.h"
 #include "src/client/copyset_client.h"
 #include "test/client/mock/mock_meta_cache.h"
 #include "src/common/concurrent/count_down_event.h"
@@ -40,6 +42,7 @@
 #include "test/client/mock/mock_request_scheduler.h"
 #include "src/client/request_closure.h"
 #include "src/client/metacache.h"
+#include "test/client/mock/mock_auth_client.h"
 
 namespace curve {
 namespace client {
@@ -59,12 +62,14 @@ using ::testing::AtLeast;
 using ::testing::SaveArgPointee;
 using curve::client::MetaCache;
 using curve::common::TimeUtility;
+using curve::mds::OpenFileResponse;
 
 class CopysetClientTest : public testing::Test {
  protected:
     virtual void SetUp() {
         listenAddr_ = "127.0.0.1:9109";
         server_ = new brpc::Server();
+        mockAuthClient_ = std::make_shared<MockAuthClient>();
     }
 
     virtual void TearDown() {
@@ -77,6 +82,7 @@ class CopysetClientTest : public testing::Test {
  public:
     std::string listenAddr_;
     brpc::Server *server_;
+    std::shared_ptr<MockAuthClient> mockAuthClient_;
 };
 
 /* TODO(wudemiao) 当前 controller 错误不能通过 mock 返回 */
@@ -178,6 +184,7 @@ TEST_F(CopysetClientTest, normal_test) {
     ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 5000;
     ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
     ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
+    ioSenderOpt.authClient = mockAuthClient_;
 
     CopysetClient copysetClient;
     MockMetaCache mockMetaCache;
@@ -212,6 +219,10 @@ TEST_F(CopysetClientTest, normal_test) {
     FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
     iot.PrepareReadIOBuffers(1);
+
+    Token token;
+    EXPECT_CALL(*mockAuthClient_, GetToken(_, _))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(token), Return(true)));
 
     // write success
     for (int i = 0; i < 10; ++i) {
@@ -427,6 +438,7 @@ TEST_F(CopysetClientTest, write_error_test) {
     ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 5000;
     ioSenderOpt.failRequestOpt.chunkserverMaxRPCTimeoutMS = 3500;
     ioSenderOpt.failRequestOpt.chunkserverMaxRetrySleepIntervalUS = 3500000;
+    ioSenderOpt.authClient = mockAuthClient_;
 
     RequestScheduleOption reqopt;
     reqopt.ioSenderOpt = ioSenderOpt;
@@ -464,6 +476,10 @@ TEST_F(CopysetClientTest, write_error_test) {
 
     FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
+
+    Token token;
+    EXPECT_CALL(*mockAuthClient_, GetToken(_, _))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(token), Return(true)));
 
     /* 非法参数 */
     {
@@ -929,6 +945,7 @@ TEST_F(CopysetClientTest, write_failed_test) {
     ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 5000;
     ioSenderOpt.failRequestOpt.chunkserverMaxRPCTimeoutMS = 1000;
     ioSenderOpt.failRequestOpt.chunkserverMaxRetrySleepIntervalUS = 100000;
+    ioSenderOpt.authClient = mockAuthClient_;
 
     RequestScheduleOption reqopt;
     reqopt.ioSenderOpt = ioSenderOpt;
@@ -965,6 +982,10 @@ TEST_F(CopysetClientTest, write_failed_test) {
 
     FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
+
+    Token token;
+    EXPECT_CALL(*mockAuthClient_, GetToken(_, _))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(token), Return(true)));
 
     /* controller set timeout */
     {
@@ -1068,6 +1089,7 @@ TEST_F(CopysetClientTest, read_failed_test) {
     ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 5000;
     ioSenderOpt.failRequestOpt.chunkserverMaxRPCTimeoutMS = 1000;
     ioSenderOpt.failRequestOpt.chunkserverMaxRetrySleepIntervalUS = 100000;
+    ioSenderOpt.authClient = mockAuthClient_;
 
     RequestScheduleOption reqopt;
     reqopt.ioSenderOpt = ioSenderOpt;
@@ -1102,6 +1124,10 @@ TEST_F(CopysetClientTest, read_failed_test) {
     FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
     iot.PrepareReadIOBuffers(1);
+
+    Token token;
+    EXPECT_CALL(*mockAuthClient_, GetToken(_, _))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(token), Return(true)));
 
     /* controller set timeout */
     {
@@ -1206,6 +1232,7 @@ TEST_F(CopysetClientTest, read_error_test) {
     ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
     ioSenderOpt.failRequestOpt.chunkserverMaxRPCTimeoutMS = 3500;
     ioSenderOpt.failRequestOpt.chunkserverMaxRetrySleepIntervalUS = 3500000;
+    ioSenderOpt.authClient = mockAuthClient_;
 
     RequestScheduleOption reqopt;
     reqopt.ioSenderOpt = ioSenderOpt;
@@ -1241,6 +1268,10 @@ TEST_F(CopysetClientTest, read_error_test) {
     FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
     iot.PrepareReadIOBuffers(1);
+
+    Token token;
+    EXPECT_CALL(*mockAuthClient_, GetToken(_, _))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(token), Return(true)));
 
     /* 非法参数 */
     {
@@ -1704,6 +1735,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
     ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 5000;
     ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
     ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
+    ioSenderOpt.authClient = mockAuthClient_;
 
     CopysetClient copysetClient;
     MockMetaCache mockMetaCache;
@@ -1731,6 +1763,10 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
     FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
+
+    Token token;
+    EXPECT_CALL(*mockAuthClient_, GetToken(_, _))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(token), Return(true)));
 
     /* 非法参数 */
     {
@@ -2128,6 +2164,7 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
     ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 5000;
     ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
     ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
+    ioSenderOpt.authClient = mockAuthClient_;
 
     CopysetClient copysetClient;
     MockMetaCache mockMetaCache;
@@ -2147,6 +2184,10 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
 
     FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
+
+    Token token;
+    EXPECT_CALL(*mockAuthClient_, GetToken(_, _))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(token), Return(true)));
 
     /* 非法参数 */
     {
@@ -2511,6 +2552,7 @@ TEST_F(CopysetClientTest, create_s3_clone_error_test) {
     ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 5000;
     ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
     ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
+    ioSenderOpt.authClient = mockAuthClient_;
 
     CopysetClient copysetClient;
     MockMetaCache mockMetaCache;
@@ -2530,6 +2572,9 @@ TEST_F(CopysetClientTest, create_s3_clone_error_test) {
 
     FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
+    Token token;
+    EXPECT_CALL(*mockAuthClient_, GetToken(_, _))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(token), Return(true)));
 
     /* 非法参数 */
     {
@@ -2879,6 +2924,7 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
     ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 5000;
     ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
     ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
+    ioSenderOpt.authClient = mockAuthClient_;
 
     CopysetClient copysetClient;
     MockMetaCache mockMetaCache;
@@ -2898,6 +2944,10 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
 
     FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
+
+    Token token;
+    EXPECT_CALL(*mockAuthClient_, GetToken(_, _))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(token), Return(true)));
 
     /* 非法参数 */
     {
@@ -3235,6 +3285,7 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
     ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 5000;
     ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
     ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
+    ioSenderOpt.authClient = mockAuthClient_;
 
     CopysetClient copysetClient;
     MockMetaCache mockMetaCache;
@@ -3254,14 +3305,15 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
     FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
 
+    Token token;
+    EXPECT_CALL(*mockAuthClient_, GetToken(_, _))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(token), Return(true)));
+
     /* 非法参数 */
     {
         RequestContext *reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::GET_CHUNK_INFO;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
-
-
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
@@ -3286,9 +3338,6 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
         RequestContext *reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::GET_CHUNK_INFO;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
-
-
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
@@ -3338,9 +3387,6 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
         RequestContext *reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::GET_CHUNK_INFO;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
-
-
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
@@ -3372,9 +3418,6 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
         RequestContext *reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::GET_CHUNK_INFO;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
-
-
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
@@ -3403,9 +3446,6 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
         RequestContext *reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::GET_CHUNK_INFO;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
-
-
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
@@ -3438,9 +3478,6 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
         RequestContext *reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::GET_CHUNK_INFO;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
-
-
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
@@ -3496,9 +3533,6 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
         RequestContext *reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::GET_CHUNK_INFO;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
-
-
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
@@ -3534,9 +3568,6 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
         RequestContext *reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::GET_CHUNK_INFO;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-
-
-
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqDone->SetFileMetric(&fm);
@@ -3729,6 +3760,7 @@ TEST_F(CopysetClientTest, retry_rpc_sleep_test) {
         sleepUsBeforeRetry;
     ioSenderOpt.failRequestOpt.chunkserverMaxRPCTimeoutMS = 3500;
     ioSenderOpt.failRequestOpt.chunkserverMaxRetrySleepIntervalUS = 3500000;
+    ioSenderOpt.authClient = mockAuthClient_;
 
     RequestScheduleOption reqopt;
     reqopt.ioSenderOpt = ioSenderOpt;
@@ -3758,9 +3790,12 @@ TEST_F(CopysetClientTest, retry_rpc_sleep_test) {
     butil::EndPoint leaderAddr;
     std::string leaderStr = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr.c_str(), &leaderAddr);
-
     FileMetric fm("test");
     IOTracker iot(nullptr, nullptr, nullptr, &fm);
+
+    Token token;
+    EXPECT_CALL(*mockAuthClient_, GetToken(_, _))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(token), Return(true)));
 
     {
         // redirect情况下, chunkserver返回新的leader

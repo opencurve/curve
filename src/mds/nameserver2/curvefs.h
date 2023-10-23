@@ -44,7 +44,7 @@
 #include "src/mds/snapshotcloneclient/snapshotclone_client.h"
 #include "src/mds/topology/topology_service_manager.h"
 
-using curve::common::Authenticator;
+using curve::common::Encryptor;
 using curve::mds::snapshotcloneclient::SnapshotCloneClient;
 using curve::common::ChunkServerLocation;
 

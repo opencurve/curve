@@ -28,9 +28,9 @@
 #include <set>
 #include <utility>
 
-#include "src/mds/topology/topology_id_generator.h"
 #include "proto/topology.pb.h"
 #include "src/common/concurrent/concurrent.h"
+#include "src/mds/common/mds_define.h"
 
 namespace curve {
 namespace mds {

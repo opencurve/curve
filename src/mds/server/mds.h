@@ -31,6 +31,7 @@
 #include <memory>
 #include <map>
 
+#include "src/common/authenticator.h"
 #include "src/mds/nameserver2/namespace_storage.h"
 #include "src/mds/nameserver2/namespace_service.h"
 #include "src/mds/nameserver2/curvefs.h"
@@ -58,6 +59,8 @@
 #include "src/common/channel_pool.h"
 #include "src/mds/schedule/scheduleService/scheduleService.h"
 #include "src/common/concurrent/dlock.h"
+#include "src/mds/auth/auth_service.h"
+#include "src/client/auth_client.h"
 
 using ::curve::mds::topology::TopologyChunkAllocatorImpl;
 using ::curve::mds::topology::TopologyServiceImpl;
@@ -84,6 +87,13 @@ using ::curve::election::LeaderElectionOptions;
 using ::curve::election::LeaderElection;
 using ::curve::common::Configuration;
 using ::curve::common::DLockOpts;
+using ::curve::mds::auth::AuthOption;
+using ::curve::common::ServerAuthOption;
+using ::curve::mds::auth::AuthServiceManager;
+using ::curve::mds::auth::AuthNodeImpl;
+using ::curve::mds::auth::AuthServiceImpl;
+using ::curve::mds::auth::AuthStorageEtcd;
+using ::curve::mds::auth::AuthStorage;
 
 namespace curve {
 namespace mds {
@@ -101,7 +111,7 @@ struct MDSOptions {
     int mdsFilelockBucketNum;
 
     FileRecordOptions fileRecordOptions;
-    RootAuthOption authOptions;
+    RootAuthOption rootAuthOptions;
     CurveFSOption curveFSOptions;
     ScheduleOption scheduleOption;
     HeartbeatOption heartbeatOption;
@@ -109,6 +119,12 @@ struct MDSOptions {
     CopysetOption copysetOption;
     ChunkServerClientOption chunkServerClientOption;
     SnapshotCloneClientOption snapshotCloneClientOption;
+    // for auth service
+    AuthOption authOption;
+    // for mds authentication
+    ServerAuthOption serverAuthOption;
+    // for auth client
+    curve::common::AuthClientOption authClientOption;
 };
 
 class MDS {
@@ -152,7 +168,7 @@ class MDS {
  private:
     void InitFileRecordOptions(FileRecordOptions *fileRecordOptions);
 
-    void InitAuthOptions(RootAuthOption *authOptions);
+    void InitRootAuthOptions(RootAuthOption *authOptions);
 
     void InitCurveFSOptions(CurveFSOption *curveFSOptions);
 
@@ -211,6 +227,12 @@ class MDS {
 
     void InitDLockOption(std::shared_ptr<DLockOpts> dlockOpts);
 
+    void InitAuthManagerOption(AuthOption *option);
+
+    void InitMdsAuthOption(ServerAuthOption *option);
+
+    void InitAuthServiceManager(const AuthOption &option);
+
  private:
     // mds configuration items
     std::shared_ptr<Configuration> conf_;
@@ -238,6 +260,9 @@ class MDS {
     char* etcdEndpoints_;
     FileLockManager* fileLockManager_;
     std::shared_ptr<SnapshotCloneClient> snapshotCloneClient_;
+    std::shared_ptr<AuthServiceManager> authServiceManager_;
+    std::shared_ptr<Authenticator> authenticator_;
+    std::shared_ptr<curve::client::AuthClient> authClient_;
 };
 
 bool ParsePoolsetRules(const std::string& str,

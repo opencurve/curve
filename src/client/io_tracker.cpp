@@ -26,6 +26,7 @@
 #include <memory>
 #include <sstream>
 
+#include "proto/chunk.pb.h"
 #include "src/client/splitor.h"
 #include "src/client/iomanager.h"
 #include "src/client/io_tracker.h"
@@ -518,7 +519,8 @@ void IOTracker::Done() {
                 LOG(ERROR) << "file [" << fileMetric_->filename << "]"
                         << ", IO Error, OpType = " << OpTypeToString(type_)
                         << ", offset = " << offset_
-                        << ", length = " << length_;
+                        << ", length = " << length_
+                        << ", errcode = " << errcode_;
             }
         } else {
             if (OpType::CREATE_CLONE == type_ &&
@@ -592,6 +594,9 @@ void IOTracker::ChunkServerErr2LibcurveErr(CHUNK_OP_STATUS errcode,
             break;
         case CHUNK_OP_STATUS::CHUNK_OP_STATUS_EPOCH_TOO_OLD:
             *errout = LIBCURVE_ERROR::EPOCH_TOO_OLD;
+            break;
+        case CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL:
+            *errout = LIBCURVE_ERROR::AUTH_FAILED;
             break;
         default:
             *errout = LIBCURVE_ERROR::FAILED;

@@ -24,8 +24,8 @@
 #include <gmock/gmock.h>
 
 #include "src/mds/topology/topology_storge_etcd.h"
-#include "test/mds/topology/mock_topology.h"
 #include "test/mds/topology/test_topology_helper.h"
+#include "test/mds/mock/mock_kvstorage_client.h"
 
 using ::curve::kvstorage::MockKVStorageClient;
 

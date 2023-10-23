@@ -41,6 +41,7 @@
 #include "src/mds/schedule/scheduleMetrics.h"
 #include "test/mds/schedule/schedulerPOC/mock_topology.h"
 #include "test/mds/mock/mock_topology.h"
+#include "proto/schedule.pb.h"
 
 using ::curve::mds::topology::MockTopology;
 

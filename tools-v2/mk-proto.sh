@@ -6,8 +6,12 @@ protoc --go_out=proto --proto_path=internal/proto \
 protoc --go_out=proto --proto_path=internal/proto \
     internal/proto/curvebs/schedule/statuscode.proto
 ## curvebs
+### proto/auth.proto
+protoc --go_out=proto --proto_path=.. \
+    ../proto/auth.proto
 ### proto/chunk.proto
 protoc --go_out=proto --proto_path=.. \
+    --go_opt=Mproto/auth.proto=github.com/opencurve/curve/tools-v2/proto/proto/auth \
     ../proto/chunk.proto
 ### proto/chunkserver.proto
 protoc --go_out=proto --proto_path=.. \
@@ -39,10 +43,12 @@ protoc --go_out=proto --proto_path=.. \
 protoc --go_out=proto --proto_path=.. \
     --go_opt=Mproto/common.proto=github.com/opencurve/curve/tools-v2/proto/proto/common \
     --go_opt=Mproto/scan.proto=github.com/opencurve/curve/tools-v2/proto/proto/scan \
+    --go_opt=Mproto/auth.proto=github.com/opencurve/curve/tools-v2/proto/proto/auth \
     ../proto/heartbeat.proto
 ### proto/topology
 protoc --go_out=proto --proto_path=.. \
     --go_opt=Mproto/common.proto=github.com/opencurve/curve/tools-v2/proto/proto/common \
+    --go_opt=Mproto/auth.proto=github.com/opencurve/curve/tools-v2/proto/proto/auth \
     ../proto/topology.proto
 ### proto/integrity.proto
 protoc --go_out=proto --proto_path=.. \
@@ -50,9 +56,11 @@ protoc --go_out=proto --proto_path=.. \
 ### proto/nameserver2.proto
 protoc --go_out=proto --proto_path=.. \
     --go_opt=Mproto/common.proto=github.com/opencurve/curve/tools-v2/proto/proto/common \
+    --go_opt=Mproto/auth.proto=github.com/opencurve/curve/tools-v2/proto/proto/auth \
     ../proto/nameserver2.proto
 ### proto/schedule.proto
 protoc --go_out=proto --proto_path=.. \
+    --go_opt=Mproto/auth.proto=github.com/opencurve/curve/tools-v2/proto/proto/auth \
     ../proto/schedule.proto
 ### proto/snapshotcloneserver.proto
 protoc --go_out=proto --proto_path=.. \

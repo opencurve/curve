@@ -42,6 +42,7 @@ cc_library(
         "//proto:nameserver2_cc_proto",
         "//proto:chunkserver-cc-protos",
         "//proto:schedule_cc_proto",
+        "//proto:topology_cc_proto",
         "//src/client:curve_client"
     ],
     visibility = ["//visibility:public"],

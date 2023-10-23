@@ -22,6 +22,10 @@
 
 #include <glog/logging.h>
 #include <map>
+#include <memory>
+#include "src/client/auth_client.h"
+#include "src/client/config_info.h"
+#include "src/common/authenticator.h"
 #include "src/mds/server/mds.h"
 #include "src/mds/nameserver2/helper/namespace_helper.h"
 #include "src/mds/topology/topology_storge_etcd.h"
@@ -31,10 +35,12 @@
 #include "src/common/fast_align.h"
 
 #include "absl/strings/str_split.h"
+#include "src/mds/auth/auth_storage_codec.h"
 
 using ::curve::mds::topology::TopologyStorageEtcd;
 using ::curve::mds::topology::TopologyStorageCodec;
 using ::curve::mds::topology::ChunkServerRegistInfoBuilder;
+using ::curve::common::Authenticator;
 
 namespace curve {
 namespace mds {
@@ -56,7 +62,7 @@ MDS::~MDS() {
 void MDS::InitMdsOptions(std::shared_ptr<Configuration> conf) {
     conf_ = conf;
     InitFileRecordOptions(&options_.fileRecordOptions);
-    InitAuthOptions(&options_.authOptions);
+    InitRootAuthOptions(&options_.rootAuthOptions);
     InitCurveFSOptions(&options_.curveFSOptions);
     InitScheduleOption(&options_.scheduleOption);
     InitHeartbeatOption(&options_.heartbeatOption);
@@ -64,6 +70,11 @@ void MDS::InitMdsOptions(std::shared_ptr<Configuration> conf) {
     InitCopysetOption(&options_.copysetOption);
     InitChunkServerClientOption(&options_.chunkServerClientOption);
     InitSnapshotCloneClientOption(&options_.snapshotCloneClientOption);
+    InitAuthManagerOption(&options_.authOption);
+    InitMdsAuthOption(&options_.serverAuthOption);
+
+    // InitAuthClientOption
+    options_.authClientOption.Load(conf.get());
 
     conf_->GetValueFatalIfFail(
         "mds.segment.alloc.retryInterMs", &options_.retryInterTimes);
@@ -73,12 +84,9 @@ void MDS::InitMdsOptions(std::shared_ptr<Configuration> conf) {
 
     // cache size of namestorage
     conf_->GetValueFatalIfFail("mds.cache.count", &options_.mdsCacheCount);
-
     conf_->GetValueFatalIfFail("mds.listen.addr", &options_.mdsListenAddr);
-
     conf_->GetValueFatalIfFail(
         "mds.dummy.listen.port", &options_.dummyListenPort);
-
     conf_->GetValueFatalIfFail(
         "mds.filelock.bucketNum", &options_.mdsFilelockBucketNum);
 }
@@ -132,6 +140,12 @@ void MDS::Init() {
     LOG_IF(FATAL, !CheckOrInsertChunkSize(etcdClient_.get()))
         << "Check or insert chunk size failed";
 
+    // init auth client
+    curve::client::MetaServerOption metaServerOption;
+    metaServerOption.rpcRetryOpt.addrs = {options_.mdsListenAddr};
+    authClient_ = std::make_shared<curve::client::AuthClient>();
+    authClient_->Init(metaServerOption, options_.authClientOption);
+
     InitSegmentAllocStatistic(options_.retryInterTimes,
                               options_.periodicPersistInterMs);
     InitNameServerStorage(options_.mdsCacheCount);
@@ -143,7 +157,7 @@ void MDS::Init() {
     InitTopologyServiceManager(options_.topologyOption);
     InitCoordinator();
     InitHeartbeatManager();
-
+    InitAuthServiceManager(options_.authOption);
     fileLockManager_ =
         new FileLockManager(options_.mdsFilelockBucketNum);
     inited_ = true;
@@ -213,6 +227,11 @@ void MDS::InitEtcdConf(EtcdConf* etcdConf) {
 }
 
 void MDS::StartServer() {
+    // init authenticator
+    Authenticator::GetInstance().Init(
+        curve::common::ZEROIV,
+        options_.serverAuthOption);
+
     brpc::Server server;
     // add heartbeat service
     HeartbeatServiceImpl heartbeatService(heartbeatManager_);
@@ -237,6 +256,12 @@ void MDS::StartServer() {
     LOG_IF(FATAL, server.AddService(&scheduleService,
                           brpc::SERVER_DOESNT_OWN_SERVICE) != 0)
         << "add scheduleService error";
+
+    // add auth service
+    AuthServiceImpl authService(authServiceManager_);
+    LOG_IF(FATAL, server.AddService(&authService,
+                        brpc::SERVER_DOESNT_OWN_SERVICE) != 0)
+        << "add authService error";
 
     // start rpc server
     brpc::ServerOptions option;
@@ -431,7 +456,8 @@ void MDS::InitSnapshotCloneClientOption(SnapshotCloneClientOption *option) {
     if (!conf_->GetValue("mds.snapshotcloneclient.addr",
         &option->snapshotCloneAddr)) {
             option->snapshotCloneAddr = "";
-        }
+    }
+    option->authClient = authClient_;
 }
 
 void MDS::InitSnapshotCloneClient() {
@@ -493,7 +519,7 @@ void MDS::InitFileRecordOptions(FileRecordOptions *fileRecordOptions) {
         "mds.file.scanIntevalTimeUs", &fileRecordOptions->scanIntervalTimeUs);
 }
 
-void MDS::InitAuthOptions(RootAuthOption *authOptions) {
+void MDS::InitRootAuthOptions(RootAuthOption *authOptions) {
     conf_->GetValueFatalIfFail(
         "mds.auth.rootUserName", &authOptions->rootOwner);
     conf_->GetValueFatalIfFail(
@@ -533,7 +559,7 @@ void MDS::InitCurveFSOptions(CurveFSOption *curveFSOptions) {
 
     InitFileRecordOptions(&curveFSOptions->fileRecordOptions);
 
-    InitAuthOptions(&curveFSOptions->authOptions);
+    InitRootAuthOptions(&curveFSOptions->authOptions);
 
     InitThrottleOption(&curveFSOptions->throttleOption);
 
@@ -588,6 +614,7 @@ void MDS::InitChunkServerClientOption(ChunkServerClientOption *option) {
     conf_->GetValueFatalIfFail(
         "mds.chunkserverclient.updateLeaderRetryIntervalMs",
         &option->updateLeaderRetryIntervalMs);
+    option->authClient = authClient_;
 }
 
 void MDS::InitCoordinator() {
@@ -679,6 +706,43 @@ void MDS::InitHeartbeatOption(HeartbeatOption* heartbeatOption) {
                         &heartbeatOption->offLineTimeOutMs);
     conf_->GetValueFatalIfFail("mds.heartbeat.clean_follower_afterMs",
                         &heartbeatOption->cleanFollowerAfterMs);
+}
+
+void MDS::InitAuthManagerOption(AuthOption *option) {
+    conf_->GetUInt32Value("auth.ticketTimeoutSec",
+        &option->ticketTimeoutSec);
+    conf_->GetValueFatalIfFail("auth.server.key",
+        &option->authKey);
+    LOG_IF(FATAL, !common::Encryptor::AESKeyValid(option->authKey))
+        << "auth.server.key length is invalid";
+}
+
+void MDS::InitMdsAuthOption(ServerAuthOption *option) {
+    conf_->GetBoolValue("auth.enable", &option->enable);
+    if (option->enable) {
+        conf_->GetValueFatalIfFail("auth.key.current", &option->key);
+        LOG_IF(FATAL, !common::Encryptor::AESKeyValid(option->key))
+            << "auth.key.current length is invalid"
+            << ", key length: " << option->key.length();
+        conf_->GetStringValue("auth.key.last", &option->lastKey);
+        if (!option->lastKey.empty()) {
+            LOG_IF(FATAL, !common::Encryptor::AESKeyValid(option->lastKey))
+                << "auth.key.last length is invalid"
+                << ", key length: " << option->lastKey.length();
+        }
+        conf_->GetUInt32Value("auth.lastkey.ttlSec", &option->lastKeyTTL);
+        conf_->GetUInt32Value("auth.request.ttlSec", &option->requestTTL);
+    }
+}
+
+void MDS::InitAuthServiceManager(const AuthOption &option) {
+    auto storage = std::make_shared<AuthStorageEtcd>(etcdClient_);
+    auto authNode = std::make_shared<AuthNodeImpl>(storage);
+    if (!authNode->Init(option)) {
+        LOG(FATAL) << "InitAuthServiceManager failed.";
+    }
+    authServiceManager_ = std::make_shared<AuthServiceManager>(authNode);
+    LOG(INFO) << "init initAuthServiceManager success.";
 }
 
 bool ParsePoolsetRules(const std::string& str,

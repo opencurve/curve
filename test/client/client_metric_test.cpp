@@ -25,12 +25,14 @@
 #include <glog/logging.h>
 
 #include <chrono>   //  NOLINT
+#include <memory>
 #include <thread>   //  NOLINT
 #include <mutex>    //  NOLINT
 #include <condition_variable>   // NOLINT
 
 #include "proto/nameserver2.pb.h"
 #include "include/client/libcurve.h"
+#include "src/client/auth_client.h"
 #include "src/client/client_metric.h"
 #include "src/client/file_instance.h"
 #include "test/client/fake/mock_schedule.h"
@@ -98,7 +100,7 @@ TEST(MetricTest, ChunkServer_MetricTest) {
     mds.CreateCopysetNode(true);
 
     auto nameService = mds.GetMDSService();
-    OpenFileResponse resp;
+    curve::mds::OpenFileResponse resp;
     resp.set_statuscode(curve::mds::StatusCode::kOK);
     auto* session = resp.mutable_protosession();
     session->set_sessionid("xxx");

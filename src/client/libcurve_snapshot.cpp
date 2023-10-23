@@ -23,8 +23,10 @@
 #include "src/client/libcurve_snapshot.h"
 
 #include <glog/logging.h>
+#include <memory>
 
 #include "include/curve_compiler_specific.h"
+#include "src/client/auth_client.h"
 #include "src/client/client_common.h"
 #include "src/client/client_config.h"
 
@@ -37,7 +39,8 @@ int SnapshotClient::Init(const ClientConfigOption& clientopt) {
         "minloglevel", std::to_string(clientopt.loginfo.logLevel).c_str());
     int ret = -LIBCURVE_ERROR::FAILED;
     do {
-        if (mdsclient_.Initialize(clientopt.metaServerOpt) !=
+        if (mdsclient_.Initialize(clientopt.metaServerOpt,
+            clientopt.ioOpt.ioSenderOpt.authClient) !=
             LIBCURVE_ERROR::OK) {
             LOG(ERROR) << "MDSClient init failed!";
             break;
@@ -58,6 +61,13 @@ int SnapshotClient::Init(const std::string &configpath) {
         LOG(ERROR) << "config init failed!";
         return -LIBCURVE_ERROR::FAILED;
     }
+
+    // init auth client
+    auto authClient = std::make_shared<AuthClient>();
+    authClient->Init(
+        clientconfig_.GetFileServiceOption().metaServerOpt,
+        clientconfig_.GetFileServiceOption().authClientOption);
+    clientconfig_.SetAuthClient(authClient);
 
     const auto& fileOpt = clientconfig_.GetFileServiceOption();
     ClientConfigOption opt;

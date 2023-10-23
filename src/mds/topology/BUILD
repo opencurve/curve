@@ -35,5 +35,7 @@ cc_library(
         "//src/mds/common:mds_common",
         "//src/mds/copyset",
         "//src/mds/nameserver2/allocstatistic:alloc_statistic",
+        "//src/common:curve_auth",
+        "//src/client:curve_client",
     ],
 )

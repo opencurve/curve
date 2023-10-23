@@ -30,5 +30,6 @@ cc_library(
         "//external:json",
         "//proto:nameserver2_cc_proto",
         "//src/common/snapshotclone:curve_snapshotclone",
+        "//src/client:curve_client",
     ],
 )

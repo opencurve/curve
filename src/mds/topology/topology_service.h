@@ -39,8 +39,7 @@ class TopologyServiceImpl : public TopologyService {
  public:
     explicit TopologyServiceImpl(
         std::shared_ptr<TopologyServiceManager> topology)
-        : topology_(topology) {
-    }
+        : topology_(topology) {}
 
     virtual ~TopologyServiceImpl() {}
 

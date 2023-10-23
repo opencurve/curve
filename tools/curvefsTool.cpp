@@ -20,10 +20,11 @@
  * Author: xuchaojie
  */
 
-#include "tools/curvefsTool.h"
-
 #include <utility>
-
+#include "tools/curvefsTool.h"
+#include "src/client/auth_client.h"
+#include "src/client/config_info.h"
+#include "src/common/authenticator.h"
 #include "src/common/namespace_define.h"
 
 using ::curve::common::kDefaultPoolsetName;
@@ -112,6 +113,14 @@ int CurvefsTools::Init() {
         }
     }
     mdsAddressIndex_ = -1;
+
+    // init auth client
+    curve::client::MetaServerOption metaOpt;
+    metaOpt.rpcRetryOpt.addrs = mdsAddressStr_;
+    curve::common::AuthClientOption authOpt;
+    // InitAuthClientOption
+    authOpt.Load(&conf);
+    authClient_.Init(metaOpt, authOpt);
     return 0;
 }
 
@@ -175,6 +184,11 @@ int CurvefsTools::HandleCreateLogicalPool() {
         request.set_userpolicy("{\"aaa\":1}");
         request.set_scatterwidth(lgPool.scatterwidth);
         request.set_status(lgPool.status);
+        if (!authClient_.GetToken(curve::common::MDS_ROLE,
+            request.mutable_authtoken())) {
+            LOG(ERROR) << "HandleCreateLogicalPool: GetToken failed";
+            return kRetCodeCommonErr;
+        }
 
         CreateLogicalPoolResponse response;
 
@@ -245,6 +259,11 @@ int CurvefsTools::ListLogicalPool(const std::string& phyPoolName,
     cntl.set_timeout_ms(FLAGS_rpcTimeOutMs);
     cntl.set_log_id(1);
     request.set_physicalpoolname(phyPoolName);
+    if (!authClient_.GetToken(curve::common::MDS_ROLE,
+        request.mutable_authtoken())) {
+        LOG(ERROR) << "ListLogicalPool: GetToken failed";
+        return kRetCodeCommonErr;
+    }
 
     LOG(INFO) << "ListLogicalPool send request: "
               << request.DebugString();
@@ -486,6 +505,11 @@ int CurvefsTools::ListPoolset(std::list<PoolsetInfo>* poolsetInfos) {
     brpc::Controller cntl;
     cntl.set_timeout_ms(FLAGS_rpcTimeOutMs);
     cntl.set_log_id(1);
+    if (!authClient_.GetToken(curve::common::MDS_ROLE,
+        request.mutable_authtoken())) {
+        LOG(ERROR) << "ListPoolset: GetToken failed";
+        return kRetCodeCommonErr;
+    }
 
     LOG(INFO) << "ListPoolset send request: " << request.DebugString();
 
@@ -518,6 +542,11 @@ int CurvefsTools::ListPhysicalPool(
     brpc::Controller cntl;
     cntl.set_timeout_ms(FLAGS_rpcTimeOutMs);
     cntl.set_log_id(1);
+    if (!authClient_.GetToken(curve::common::MDS_ROLE,
+        request.mutable_authtoken())) {
+        LOG(ERROR) << "ListPhysicalPool: GetToken failed";
+        return kRetCodeCommonErr;
+    }
 
     LOG(INFO) << "ListPhysicalPool send request: "
               << request.DebugString();
@@ -560,6 +589,12 @@ int CurvefsTools::ListPhysicalPoolsInPoolset(PoolsetIdType poolsetid,
     cntl.set_timeout_ms(FLAGS_rpcTimeOutMs);
     cntl.set_log_id(1);
 
+    if (!authClient_.GetToken(curve::common::MDS_ROLE,
+        request.mutable_authtoken())) {
+        LOG(ERROR) << "ListPhysicalPool: GetToken failed";
+        return kRetCodeCommonErr;
+    }
+
     LOG(INFO) << "ListPhysicalPoolsInPoolset, send request: "
               << request.DebugString();
 
@@ -592,6 +627,11 @@ int CurvefsTools::AddListPoolZone(PoolIdType poolid,
     ListPoolZoneRequest request;
     ListPoolZoneResponse response;
     request.set_physicalpoolid(poolid);
+    if (!authClient_.GetToken(curve::common::MDS_ROLE,
+        request.mutable_authtoken())) {
+        LOG(ERROR) << "AddListPoolZone: GetToken failed";
+        return kRetCodeCommonErr;
+    }
 
     brpc::Controller cntl;
     cntl.set_timeout_ms(FLAGS_rpcTimeOutMs);
@@ -629,6 +669,12 @@ int CurvefsTools::AddListZoneServer(ZoneIdType zoneid,
     ListZoneServerRequest request;
     ListZoneServerResponse response;
     request.set_zoneid(zoneid);
+    if (!authClient_.GetToken(curve::common::MDS_ROLE,
+        request.mutable_authtoken())) {
+        LOG(ERROR) << "AddListZoneServer: GetToken failed";
+        return kRetCodeCommonErr;
+    }
+
     brpc::Controller cntl;
     cntl.set_timeout_ms(FLAGS_rpcTimeOutMs);
     cntl.set_log_id(1);
@@ -885,6 +931,11 @@ int CurvefsTools::CreatePoolset() {
         request.set_poolsetname(it.name);
         request.set_type(it.type);
         request.set_desc("");
+        if (!authClient_.GetToken(curve::common::MDS_ROLE,
+            request.mutable_authtoken())) {
+            LOG(ERROR) << "CreatePoolset: GetToken failed";
+            return kRetCodeCommonErr;
+        }
 
         PoolsetResponse response;
 
@@ -925,6 +976,11 @@ int CurvefsTools::CreatePhysicalPool() {
         request.set_physicalpoolname(it.physicalPoolName);
         request.set_desc("");
         request.set_poolsetname(it.poolsetName);
+        if (!authClient_.GetToken(curve::common::MDS_ROLE,
+            request.mutable_authtoken())) {
+            LOG(ERROR) << "CreatePhysicalPool: GetToken failed";
+            return kRetCodeCommonErr;
+        }
 
         PhysicalPoolResponse response;
 
@@ -964,6 +1020,11 @@ int CurvefsTools::CreateZone() {
         request.set_zonename(it.zoneName);
         request.set_physicalpoolname(it.physicalPoolName);
         request.set_desc("");
+        if (!authClient_.GetToken(curve::common::MDS_ROLE,
+            request.mutable_authtoken())) {
+            LOG(ERROR) << "CreateZone: GetToken failed";
+            return kRetCodeCommonErr;
+        }
 
         ZoneResponse response;
 
@@ -1016,6 +1077,11 @@ int CurvefsTools::CreateServer() {
         request.set_physicalpoolname(it.physicalPoolName);
         request.set_poolsetname(it.poolsetName);
         request.set_desc("");
+        if (!authClient_.GetToken(curve::common::MDS_ROLE,
+            request.mutable_authtoken())) {
+            LOG(ERROR) << "CreateServer: GetToken failed";
+            return kRetCodeCommonErr;
+        }
 
         ServerRegistResponse response;
 
@@ -1062,6 +1128,11 @@ int CurvefsTools::ClearPhysicalPool() {
     for (auto it : physicalPoolToDel) {
         PhysicalPoolRequest request;
         request.set_physicalpoolid(it);
+        if (!authClient_.GetToken(curve::common::MDS_ROLE,
+            request.mutable_authtoken())) {
+            LOG(ERROR) << "ClearPhysicalPool: GetToken failed";
+            return kRetCodeCommonErr;
+        }
 
         PhysicalPoolResponse response;
 
@@ -1106,6 +1177,11 @@ int CurvefsTools::ClearPoolset() {
     for (const auto& it : poolsetToDel) {
         PoolsetRequest request;
         request.set_poolsetid(it);
+        if (!authClient_.GetToken(curve::common::MDS_ROLE,
+            request.mutable_authtoken())) {
+            LOG(ERROR) << "ClearPoolset: GetToken failed";
+            return kRetCodeCommonErr;
+        }
 
         PoolsetResponse response;
 
@@ -1146,6 +1222,11 @@ int CurvefsTools::ClearZone() {
     for (auto it : zoneToDel) {
         ZoneRequest request;
         request.set_zoneid(it);
+        if (!authClient_.GetToken(curve::common::MDS_ROLE,
+            request.mutable_authtoken())) {
+            LOG(ERROR) << "ClearZone: GetToken failed";
+            return kRetCodeCommonErr;
+        }
 
         ZoneResponse response;
 
@@ -1189,6 +1270,11 @@ int CurvefsTools::ClearServer() {
     for (auto it : serverToDel) {
         DeleteServerRequest request;
         request.set_serverid(it);
+        if (!authClient_.GetToken(curve::common::MDS_ROLE,
+            request.mutable_authtoken())) {
+            LOG(ERROR) << "ClearServer: GetToken failed";
+            return kRetCodeCommonErr;
+        }
 
         DeleteServerResponse response;
 
@@ -1240,6 +1326,11 @@ int CurvefsTools::SetChunkServer() {
         return kRetCodeCommonErr;
     } else {
         LOG(ERROR) << "SetChunkServer param error, unknown chunkserver status";
+        return kRetCodeCommonErr;
+    }
+    if (!authClient_.GetToken(curve::common::MDS_ROLE,
+        request.mutable_authtoken())) {
+        LOG(ERROR) << "SetChunkServer: GetToken failed";
         return kRetCodeCommonErr;
     }
 
@@ -1321,6 +1412,12 @@ int CurvefsTools::SetLogicalPool() {
         LOG(ERROR) << "SetLogicalPool param error, unknown logicalpool status";
         return kRetCodeCommonErr;
     }
+    if (!authClient_.GetToken(curve::common::MDS_ROLE,
+        request.mutable_authtoken())) {
+        LOG(ERROR) << "SetLogicalPool: GetToken failed";
+        return kRetCodeCommonErr;
+    }
+
     SetLogicalPoolResponse response;
     TopologyService_Stub stub(&channel_);
     brpc::Controller cntl;

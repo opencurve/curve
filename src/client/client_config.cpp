@@ -27,6 +27,7 @@
 #include <string>
 #include <vector>
 
+#include "src/common/authenticator.h"
 #include "src/common/net_common.h"
 #include "src/common/string_util.h"
 
@@ -308,6 +309,31 @@ int ClientConfig::Init(const std::string& configpath) {
     LOG_IF(WARNING, ret == false)
         << "config no csBroadCasterOpt.broadCastMaxNum info";
 
+    // init auth client option
+    conf_.GetBoolValue("auth.client.enable",
+        &fileServiceOption_.authClientOption.enable);
+    if (fileServiceOption_.authClientOption.enable) {
+        conf_.GetValueFatalIfFail("auth.client.id",
+            &fileServiceOption_.authClientOption.clientId);
+        conf_.GetValueFatalIfFail("auth.client.key",
+            &fileServiceOption_.authClientOption.key);
+        LOG_IF(FATAL, !common::Encryptor::AESKeyValid(
+            fileServiceOption_.authClientOption.key))
+            << "auth.client.key is invalid, key length: "
+            << fileServiceOption_.authClientOption.key.length();
+        conf_.GetStringValue("auth.client.lastkey",
+            &fileServiceOption_.authClientOption.lastKey);
+        if (!fileServiceOption_.authClientOption.lastKey.empty()) {
+            LOG_IF(FATAL, !common::Encryptor::AESKeyValid(
+                fileServiceOption_.authClientOption.lastKey))
+                << "auth.client.lastkey is invalid, key length: "
+                << fileServiceOption_.authClientOption.lastKey.length();
+        }
+        conf_.GetUInt32Value("auth.client.ticket.refresh.intervalSec",
+            &fileServiceOption_.authClientOption.ticketRefreshIntervalSec);
+        conf_.GetUInt32Value("auth.client.ticket.refresh.threshold",
+            &fileServiceOption_.authClientOption.ticketRefreshThresholdSec);
+    }
     return 0;
 }
 

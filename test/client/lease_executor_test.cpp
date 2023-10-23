@@ -24,10 +24,14 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 #include <brpc/server.h>
+#include <memory>
 
+#include "src/client/auth_client.h"
+#include "src/client/config_info.h"
 #include "src/client/iomanager4file.h"
 #include "src/client/lease_executor.h"
 #include "src/client/mds_client.h"
+#include "src/common/authenticator.h"
 #include "test/client/mock/mock_namespace_service.h"
 
 namespace curve {
@@ -53,6 +57,9 @@ static void MockRefreshSession(::google::protobuf::RpcController* controller,
 }
 
 class LeaseExecutorTest : public ::testing::Test {
+ public:
+    LeaseExecutorTest() : mdsClient_() {}
+
  protected:
     void SetUp() override {
         MetaServerOption mdsOpt;

@@ -23,8 +23,10 @@
 #ifndef SRC_MDS_SNAPSHOTCLONECLIENT_SNAPSHOTCLONE_CLIENT_H_
 #define SRC_MDS_SNAPSHOTCLONECLIENT_SNAPSHOTCLONE_CLIENT_H_
 
+#include <memory>
 #include <string>
 #include <vector>
+#include "src/client/auth_client.h"
 #include "src/common/snapshotclone/snapshotclone_define.h"
 #include "proto/nameserver2.pb.h"  // for retcode StatusCode
 
@@ -37,6 +39,10 @@ namespace snapshotcloneclient {
 
 struct SnapshotCloneClientOption {
     std::string snapshotCloneAddr;
+    std::shared_ptr<curve::client::AuthClient> authClient;
+    SnapshotCloneClientOption()
+        : snapshotCloneAddr(""),
+          authClient(std::make_shared<curve::client::AuthClient>()) {}
 };
 
 struct DestFileInfo {
@@ -47,7 +53,7 @@ struct DestFileInfo {
 class SnapshotCloneClient {
  public:
     SnapshotCloneClient()
-        : addr_(""), inited_(false) {}
+        : inited_(false) {}
 
     virtual ~SnapshotCloneClient() {}
 
@@ -73,7 +79,7 @@ class SnapshotCloneClient {
     virtual bool GetInitStatus();
 
  private:
-    std::string addr_;
+    SnapshotCloneClientOption option_;
     bool inited_;
 };
 

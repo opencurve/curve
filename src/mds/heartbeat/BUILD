@@ -29,6 +29,7 @@ cc_library(
         "//proto:chunkserver-cc-protos",
         "//proto:topology_cc_proto",
         "//src/common:curve_common",
+        "//src/common:curve_auth",
         "//src/common/concurrent:curve_concurrent",
         "//src/mds/schedule",
         "//src/mds/topology",

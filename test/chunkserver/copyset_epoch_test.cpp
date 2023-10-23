@@ -20,7 +20,6 @@
  * Author: wudemiao
  */
 
-
 #include <unistd.h>
 #include <gtest/gtest.h>
 #include <gflags/gflags.h>
@@ -29,6 +28,7 @@
 #include <brpc/channel.h>
 #include <brpc/controller.h>
 #include <brpc/server.h>
+#include <memory>
 
 #include "include/chunkserver/chunkserver_common.h"
 #include "src/chunkserver/copyset_node.h"

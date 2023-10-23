@@ -25,6 +25,7 @@
 #include <glog/logging.h>
 #include <brpc/server.h>
 
+#include <memory>
 #include <mutex>    // NOLINT
 #include <atomic>
 #include <functional>
@@ -32,7 +33,12 @@
 #include <string>
 
 #include "include/client/libcurve.h"
+#include "proto/auth.pb.h"
+#include "proto/topology.pb.h"
+#include "src/client/auth_client.h"
 #include "src/client/client_common.h"
+#include "src/client/config_info.h"
+#include "src/common/authenticator.h"
 #include "test/client/fake/fakeMDS.h"
 #include "src/client/libcurve_file.h"
 #include "src/client/iomanager4chunk.h"
@@ -41,15 +47,17 @@
 extern std::string mdsMetaServerAddr;
 extern std::string configpath;
 
+std::string authClientKey = "5ef3e1a5c95736e0";   // NOLINT
+
 namespace curve {
 namespace client {
 
 class CurveClientUserAuthFail : public ::testing::Test {
  public:
-    void SetUp() override {
-        metaopt.rpcRetryOpt.addrs.push_back("127.0.0.1:9104");
+    void SetUp() {
+        metaopt.rpcRetryOpt.addrs.push_back(mdsMetaServerAddr);
 
-        metaopt.rpcRetryOpt.addrs.push_back("127.0.0.1:9104");
+        metaopt.rpcRetryOpt.addrs.push_back(mdsMetaServerAddr);
         metaopt.rpcRetryOpt.rpcTimeoutMs = 500;
         metaopt.rpcRetryOpt.rpcRetryIntervalUS = 200;
 
@@ -61,19 +69,39 @@ class CurveClientUserAuthFail : public ::testing::Test {
                                        brpc::SERVER_DOESNT_OWN_SERVICE))
             << "Fail to add service";
 
-        LOG(INFO) << "meta server addr = " << mdsMetaServerAddr;
-        ASSERT_EQ(server.Start(mdsMetaServerAddr.c_str(), nullptr), 0);
+        if (server.AddService(&authService,
+                            brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
+            LOG(FATAL) << "Fail to add service";
+        }
+
+        brpc::ServerOptions options;
+        options.idle_timeout_sec = -1;
+        LOG(INFO) << "meta server addr = " << mdsMetaServerAddr.c_str();
+        ASSERT_EQ(server.Start(mdsMetaServerAddr.c_str(), &options), 0);
+
+        curve::common::AuthClientOption authOption;
+        authOption.enable = true;
+        authOption.key = authClientKey;
+        authOption.clientId = "test";
+        MetaServerOption metaServerOpt;
+        metaServerOpt.rpcRetryOpt.addrs = {mdsMetaServerAddr,
+            mdsMetaServerAddr};
+        authClient = std::make_shared<AuthClient>();
+        authClient->Init(metaServerOpt, authOption);
     }
 
-    void TearDown() override {
+    void TearDown() {
+        authClient->Uninit();
         ASSERT_EQ(0, server.Stop(0));
         ASSERT_EQ(0, server.Join());
     }
 
     brpc::Server        server;
     MetaServerOption  metaopt;
+    FakeAuthService authService;
     FakeMDSCurveFSService curvefsservice;
     FakeMDSTopologyService topologyservice;
+    std::shared_ptr<AuthClient> authClient;
 };
 
 TEST_F(CurveClientUserAuthFail, CurveClientUserAuthFailTest) {
@@ -90,8 +118,10 @@ TEST_F(CurveClientUserAuthFail, CurveClientUserAuthFailTest) {
     userinfo.owner = "userinfo";
     UserInfo_t emptyuserinfo;
 
-    std::shared_ptr<MDSClient> mdsclient = std::make_shared<MDSClient>();
-    mdsclient->Initialize(cc.GetFileServiceOption().metaServerOpt);
+    std::shared_ptr<MDSClient> mdsclient =
+        std::make_shared<MDSClient>();
+    mdsclient->Initialize(cc.GetFileServiceOption().metaServerOpt, authClient);
+    cc.SetAuthClient(authClient);
 
     FileInstance fileinstance;
     ASSERT_FALSE(fileinstance.Initialize(filename, mdsclient, emptyuserinfo,
@@ -99,7 +129,6 @@ TEST_F(CurveClientUserAuthFail, CurveClientUserAuthFailTest) {
                                          cc.GetFileServiceOption()));
     ASSERT_TRUE(fileinstance.Initialize(
         filename, mdsclient, userinfo, OpenFlags{}, cc.GetFileServiceOption()));
-
     // set openfile response
     ::curve::mds::OpenFileResponse openresponse;
     curve::mds::FileInfo * finfo = new curve::mds::FileInfo;
@@ -120,12 +149,28 @@ TEST_F(CurveClientUserAuthFail, CurveClientUserAuthFailTest) {
     curvefsservice.SetOpenFile(openfakeret);
 
     // 1. create a File authfailed
-
     ::curve::mds::CreateFileResponse response;
     response.set_statuscode(::curve::mds::StatusCode::kOwnerAuthFail);
     FakeReturn* fakeret
      = new FakeReturn(nullptr, static_cast<void*>(&response));
     curvefsservice.SetCreateFileFakeReturn(fakeret);
+
+    // prepare auth response
+    ::curve::mds::auth::GetTicketResponse ticketresp;
+    ticketresp.set_status(curve::mds::auth::AuthStatusCode::AUTH_OK);
+    ticketresp.set_encticket("123456");
+    curve::mds::auth::TicketAttach attach;
+    attach.set_expiration(curve::common::TimeUtility::GetTimeofDaySec() + 100);
+    attach.set_sessionkey("1122334455667788");
+    std::string attachStr;
+    ASSERT_TRUE(attach.SerializeToString(&attachStr));
+    std::string encAttchStr;
+    ASSERT_EQ(0, curve::common::Encryptor::AESEncrypt(
+        authClientKey, curve::common::ZEROIV, attachStr, &encAttchStr));
+    ticketresp.set_encticketattach(encAttchStr);
+    FakeReturn* authfakeret
+    = new FakeReturn(nullptr, static_cast<void*>(&ticketresp));
+    authService.SetFakeReturn(authfakeret);
 
     size_t len = 4 * 1024 * 1024ul;
     int ret = Create(filename.c_str(), &cuserinfo, len);
@@ -212,7 +257,7 @@ TEST_F(CurveClientUserAuthFail, CurveClientUserAuthFailTest) {
 TEST_F(CurveClientUserAuthFail, CurveSnapClientUserAuthFailTest) {
     ClientConfigOption opt;
     opt.metaServerOpt.rpcRetryOpt.rpcTimeoutMs = 500;
-    opt.metaServerOpt.rpcRetryOpt.addrs.push_back("127.0.0.1:9104");
+    opt.metaServerOpt.rpcRetryOpt.addrs.push_back(mdsMetaServerAddr);
     opt.ioOpt.reqSchdulerOpt.scheduleQueueCapacity = 4096;
     opt.ioOpt.reqSchdulerOpt.scheduleThreadpoolSize = 2;
     opt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
@@ -221,6 +266,7 @@ TEST_F(CurveClientUserAuthFail, CurveSnapClientUserAuthFailTest) {
     opt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = 64;
     opt.ioOpt.reqSchdulerOpt.ioSenderOpt = opt.ioOpt.ioSenderOpt;
     opt.loginfo.logLevel = 0;
+    opt.ioOpt.ioSenderOpt.authClient = authClient;
 
     SnapshotClient cl;
     ASSERT_TRUE(!cl.Init(opt));
@@ -231,6 +277,23 @@ TEST_F(CurveClientUserAuthFail, CurveSnapClientUserAuthFailTest) {
     brpc::Server server;
     uint64_t seq = 1;
     // test create snap
+    // prepare auth response
+    ::curve::mds::auth::GetTicketResponse ticketresp;
+    ticketresp.set_status(curve::mds::auth::AuthStatusCode::AUTH_OK);
+    ticketresp.set_encticket("123456");
+    curve::mds::auth::TicketAttach attach;
+    attach.set_expiration(curve::common::TimeUtility::GetTimeofDaySec() + 100);
+    attach.set_sessionkey("1122334455667788");
+    std::string attachStr;
+    ASSERT_TRUE(attach.SerializeToString(&attachStr));
+    std::string encAttchStr;
+    ASSERT_EQ(0, curve::common::Encryptor::AESEncrypt(
+        authClientKey, curve::common::ZEROIV, attachStr, &encAttchStr));
+    ticketresp.set_encticketattach(encAttchStr);
+    FakeReturn* authfakeret
+     = new FakeReturn(nullptr, static_cast<void*>(&ticketresp));
+    authService.SetFakeReturn(authfakeret);
+
     // normal test
     ::curve::mds::CreateSnapShotResponse response;
     response.set_statuscode(::curve::mds::StatusCode::kOK);
@@ -345,7 +408,7 @@ TEST_F(CurveClientUserAuthFail, CurveSnapClientUserAuthFailTest) {
 TEST_F(CurveClientUserAuthFail, CurveSnapClientRootUserAuthTest) {
     ClientConfigOption opt;
     opt.metaServerOpt.rpcRetryOpt.rpcTimeoutMs = 500;
-    opt.metaServerOpt.rpcRetryOpt.addrs.push_back("127.0.0.1:9104");
+    opt.metaServerOpt.rpcRetryOpt.addrs.push_back(mdsMetaServerAddr);
     opt.ioOpt.reqSchdulerOpt.scheduleQueueCapacity = 4096;
     opt.ioOpt.reqSchdulerOpt.scheduleThreadpoolSize = 2;
     opt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
@@ -354,6 +417,7 @@ TEST_F(CurveClientUserAuthFail, CurveSnapClientRootUserAuthTest) {
     opt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = 64;
     opt.ioOpt.reqSchdulerOpt.ioSenderOpt = opt.ioOpt.ioSenderOpt;
     opt.loginfo.logLevel = 0;
+    opt.ioOpt.ioSenderOpt.authClient = authClient;
 
     SnapshotClient cl;
     ASSERT_TRUE(!cl.Init(opt));
@@ -366,6 +430,23 @@ TEST_F(CurveClientUserAuthFail, CurveSnapClientRootUserAuthTest) {
     brpc::Server server;
     uint64_t seq = 1;
     // test create snap
+    // prepare auth response
+    ::curve::mds::auth::GetTicketResponse ticketresp;
+    ticketresp.set_status(curve::mds::auth::AuthStatusCode::AUTH_OK);
+    ticketresp.set_encticket("123456");
+    curve::mds::auth::TicketAttach attach;
+    attach.set_expiration(curve::common::TimeUtility::GetTimeofDaySec() + 100);
+    attach.set_sessionkey("1122334455667788");
+    std::string attachStr;
+    ASSERT_TRUE(attach.SerializeToString(&attachStr));
+    std::string encAttchStr;
+    ASSERT_EQ(0, curve::common::Encryptor::AESEncrypt(
+        authClientKey, curve::common::ZEROIV, attachStr, &encAttchStr));
+    ticketresp.set_encticketattach(encAttchStr);
+    FakeReturn* authfakeret
+     = new FakeReturn(nullptr, static_cast<void*>(&ticketresp));
+    authService.SetFakeReturn(authfakeret);
+
     // normal test
     ::curve::mds::CreateSnapShotResponse response;
     response.set_statuscode(::curve::mds::StatusCode::kOK);

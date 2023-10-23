@@ -27,7 +27,7 @@
 #include <brpc/controller.h>
 #include <string>
 #include "proto/nameserver2.pb.h"
-#include "src/mds/nameserver2/file_lock.h"
+#include "src/mds/nameserver2/filelock/file_lock.h"
 
 namespace curve {
 namespace mds {

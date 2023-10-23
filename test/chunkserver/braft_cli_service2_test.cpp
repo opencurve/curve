@@ -29,6 +29,7 @@
 #include <brpc/server.h>
 
 #include <iostream>
+#include <memory>
 
 #include "src/chunkserver/copyset_node.h"
 #include "src/chunkserver/copyset_node_manager.h"

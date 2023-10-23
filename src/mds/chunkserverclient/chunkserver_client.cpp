@@ -20,12 +20,13 @@
  * Author: xuchaojie
  */
 
-#include "src/mds/chunkserverclient/chunkserver_client.h"
-
 #include <string>
 #include <chrono>  //NOLINT
 #include <thread>  //NOLINT
 #include <utility>
+#include "src/mds/chunkserverclient/chunkserver_client.h"
+#include "src/client/auth_client.h"
+#include "src/common/authenticator.h"
 
 using ::curve::mds::topology::ChunkServer;
 using ::curve::mds::topology::SplitPeerId;
@@ -42,6 +43,8 @@ using ::curve::chunkserver::CliService2_Stub;
 using ::curve::chunkserver::GetLeaderRequest2;
 using ::curve::chunkserver::GetLeaderResponse2;
 
+using ::curve::client::AuthClient;
+using ::curve::common::CHUNKSERVER_ROLE;
 
 
 namespace curve {
@@ -62,7 +65,7 @@ int ChunkServerClient::DeleteChunkSnapshotOrCorrectSn(
     ChunkService_Stub stub(channelPtr.get());
 
     brpc::Controller cntl;
-    cntl.set_timeout_ms(rpcTimeoutMs_);
+    cntl.set_timeout_ms(option_.rpcTimeoutMs);
 
     ChunkRequest request;
     request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_DELETE_SNAP);
@@ -70,12 +73,20 @@ int ChunkServerClient::DeleteChunkSnapshotOrCorrectSn(
     request.set_copysetid(copysetId);
     request.set_chunkid(chunkId);
     request.set_correctedsn(correctedSn);
+    // add auth token
+    auto isGet = option_.authClient->GetToken(CHUNKSERVER_ROLE,
+        request.mutable_authtoken());
+    if (!isGet) {
+        LOG(ERROR) << "DeleteChunkSnapshotOrCorrectSn failed"
+                    << " when get auth token";
+        return kMdsGetAuthTokenFail;
+    }
 
     ChunkResponse response;
     uint32_t retry = 0;
     do {
         cntl.Reset();
-        cntl.set_timeout_ms(rpcTimeoutMs_);
+        cntl.set_timeout_ms(option_.rpcTimeoutMs);
         stub.DeleteChunkSnapshotOrCorrectSn(&cntl,
             &request,
             &response,
@@ -93,10 +104,10 @@ int ChunkServerClient::DeleteChunkSnapshotOrCorrectSn(
                        << ", retry, time = "
                        << retry;
             std::this_thread::sleep_for(
-                std::chrono::milliseconds(rpcRetryIntervalMs_));
+                std::chrono::milliseconds(option_.rpcRetryIntervalMs));
         }
         retry++;
-    } while (cntl.Failed() && retry < rpcRetryTimes_);
+    } while (cntl.Failed() && retry < option_.rpcRetryTimes);
 
     if (cntl.Failed()) {
         LOG(ERROR) << "Send DeleteChunkSnapshotOrCorrectSn error, retry fail,"
@@ -153,7 +164,7 @@ int ChunkServerClient::DeleteChunk(ChunkServerIdType leaderId,
     ChunkService_Stub stub(channelPtr.get());
 
     brpc::Controller cntl;
-    cntl.set_timeout_ms(rpcTimeoutMs_);
+    cntl.set_timeout_ms(option_.rpcTimeoutMs);
 
     ChunkRequest request;
     request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_DELETE);
@@ -161,12 +172,19 @@ int ChunkServerClient::DeleteChunk(ChunkServerIdType leaderId,
     request.set_copysetid(copysetId);
     request.set_chunkid(chunkId);
     request.set_sn(sn);
+    // add auth token
+    auto isGet = option_.authClient->GetToken(CHUNKSERVER_ROLE,
+        request.mutable_authtoken());
+    if (!isGet) {
+        LOG(ERROR) << "DeleteChunk failed when get auth token";
+        return kMdsGetAuthTokenFail;
+    }
 
     ChunkResponse response;
     uint32_t retry = 0;
     do {
         cntl.Reset();
-        cntl.set_timeout_ms(rpcTimeoutMs_);
+        cntl.set_timeout_ms(option_.rpcTimeoutMs);
         stub.DeleteChunk(&cntl,
             &request,
             &response,
@@ -183,10 +201,10 @@ int ChunkServerClient::DeleteChunk(ChunkServerIdType leaderId,
                        << ", retry, time = "
                        << retry;
             std::this_thread::sleep_for(
-                std::chrono::milliseconds(rpcRetryIntervalMs_));
+                std::chrono::milliseconds(option_.rpcRetryIntervalMs));
         }
         retry++;
-    } while (cntl.Failed() && retry < rpcRetryTimes_);
+    } while (cntl.Failed() && retry < option_.rpcRetryTimes);
 
     if (cntl.Failed()) {
         LOG(ERROR) << "Send DeleteChunk error, retry fail,"
@@ -240,7 +258,7 @@ int ChunkServerClient::GetLeader(ChunkServerIdType csId,
     CliService2_Stub stub(channelPtr.get());
 
     brpc::Controller cntl;
-    cntl.set_timeout_ms(rpcTimeoutMs_);
+    cntl.set_timeout_ms(option_.rpcTimeoutMs);
 
     GetLeaderRequest2 request;
     request.set_logicpoolid(logicalPoolId);
@@ -250,7 +268,7 @@ int ChunkServerClient::GetLeader(ChunkServerIdType csId,
     uint32_t retry = 0;
     do {
         cntl.Reset();
-        cntl.set_timeout_ms(rpcTimeoutMs_);
+        cntl.set_timeout_ms(option_.rpcTimeoutMs);
         stub.GetLeader(&cntl,
             &request,
             &response,
@@ -267,10 +285,10 @@ int ChunkServerClient::GetLeader(ChunkServerIdType csId,
                        << ", retry, time = "
                        << retry;
             std::this_thread::sleep_for(
-                std::chrono::milliseconds(rpcRetryIntervalMs_));
+                std::chrono::milliseconds(option_.rpcRetryIntervalMs));
         }
         retry++;
-    } while (cntl.Failed() && retry < rpcRetryTimes_);
+    } while (cntl.Failed() && retry < option_.rpcRetryTimes);
 
     if (cntl.Failed()) {
         LOG(ERROR) << "Send GetLeader error, retry fail,"

@@ -161,7 +161,7 @@ int TopologyImpl::AddServer(const Server &data) {
 int TopologyImpl::AddChunkServer(const ChunkServer &data) {
     // find the physical pool that the chunkserver belongs to
     PoolIdType belongPhysicalPoolId = UNINTIALIZE_ID;
-    int ret = GetBelongPhysicalPoolIdByServerId(
+    auto ret = GetBelongPhysicalPoolIdByServerId(
         data.GetServerId(), &belongPhysicalPoolId);
     if (ret != kTopoErrCodeSuccess) {
         return ret;
@@ -339,8 +339,8 @@ int TopologyImpl::UpdateLogicalPool(const LogicalPool &data) {
     }
 }
 
-int TopologyImpl::UpdateLogicalPoolAllocateStatus(const AllocateStatus &status,
-                                    PoolIdType id) {
+int TopologyImpl::UpdateLogicalPoolAllocateStatus(
+    const AllocateStatus &status, PoolIdType id) {
     WriteLockGuard wlockLogicalPool(logicalPoolMutex_);
     auto it = logicalPoolMap_.find(id);
     if (it != logicalPoolMap_.end()) {
@@ -356,7 +356,8 @@ int TopologyImpl::UpdateLogicalPoolAllocateStatus(const AllocateStatus &status,
     }
 }
 
-int TopologyImpl::UpdateLogicalPoolScanState(PoolIdType lpid, bool scanEnable) {
+int TopologyImpl::UpdateLogicalPoolScanState(PoolIdType lpid,
+    bool scanEnable) {
     WriteLockGuard wlockLogicalPool(logicalPoolMutex_);
 
     auto iter = logicalPoolMap_.find(lpid);
@@ -437,8 +438,8 @@ int TopologyImpl::UpdateChunkServerTopo(const ChunkServer &data) {
     }
 }
 
-int TopologyImpl::UpdateChunkServerRwState(const ChunkServerStatus &rwState,
-                              ChunkServerIdType id) {
+int TopologyImpl::UpdateChunkServerRwState(
+    const ChunkServerStatus &rwState, ChunkServerIdType id) {
     // find physical pool that it belongs to
     PoolIdType belongPhysicalPoolId = UNINTIALIZE_ID;
     int ret = GetBelongPhysicalPoolId(id, &belongPhysicalPoolId);
@@ -501,7 +502,8 @@ int TopologyImpl::UpdateChunkServerRwState(const ChunkServerStatus &rwState,
     return kTopoErrCodeSuccess;
 }
 
-int TopologyImpl::GetBelongPhysicalPoolIdByServerId(ServerIdType serverId,
+int TopologyImpl::GetBelongPhysicalPoolIdByServerId(
+    ServerIdType serverId,
     PoolIdType *physicalPoolIdOut) {
     *physicalPoolIdOut = UNINTIALIZE_ID;
     Server server;
@@ -536,8 +538,9 @@ int TopologyImpl::GetBelongPhysicalPoolId(ChunkServerIdType csId,
         cs.GetServerId(), physicalPoolIdOut);
 }
 
-int TopologyImpl::UpdateChunkServerOnlineState(const OnlineState &onlineState,
-                                    ChunkServerIdType id) {
+int TopologyImpl::UpdateChunkServerOnlineState(
+    const OnlineState &onlineState,
+    ChunkServerIdType id) {
     ReadLockGuard rlockChunkServerMap(chunkServerMutex_);
     auto it = chunkServerMap_.find(id);
     if (it != chunkServerMap_.end()) {
@@ -550,11 +553,12 @@ int TopologyImpl::UpdateChunkServerOnlineState(const OnlineState &onlineState,
     }
 }
 
-int TopologyImpl::UpdateChunkServerDiskStatus(const ChunkServerState &state,
-                                   ChunkServerIdType id) {
+int TopologyImpl::UpdateChunkServerDiskStatus(
+    const ChunkServerState &state,
+    ChunkServerIdType id) {
     // find physical pool it belongs to
     PoolIdType belongPhysicalPoolId = UNINTIALIZE_ID;
-    int ret = GetBelongPhysicalPoolId(id, &belongPhysicalPoolId);
+    auto ret = GetBelongPhysicalPoolId(id, &belongPhysicalPoolId);
     if (ret != kTopoErrCodeSuccess) {
         return ret;
     }
@@ -590,7 +594,7 @@ int TopologyImpl::UpdateChunkServerDiskStatus(const ChunkServerState &state,
 }
 
 int TopologyImpl::UpdateChunkServerStartUpTime(uint64_t time,
-                     ChunkServerIdType id) {
+    ChunkServerIdType id) {
     ReadLockGuard rlockChunkServerMap(chunkServerMutex_);
     auto it = chunkServerMap_.find(id);
     if (it != chunkServerMap_.end()) {
@@ -1288,7 +1292,8 @@ int TopologyImpl::UpdateCopySetTopo(const CopySetInfo &data) {
     }
 }
 
-int TopologyImpl::SetCopySetAvalFlag(const CopySetKey &key, bool aval) {
+int TopologyImpl::SetCopySetAvalFlag(const CopySetKey &key,
+    bool aval) {
     ReadLockGuard rlockCopySetMap(copySetMutex_);
     auto it = copySetMap_.find(key);
     if (it != copySetMap_.end()) {

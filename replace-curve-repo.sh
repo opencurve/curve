@@ -58,3 +58,9 @@ sed -i "s;https://github.com/fmtlib/fmt/archive/9.1.0.tar.gz;https://curve-build
 
 # curve-nbd
 sed -i "s;https://github.com/opencurve/curve-nbd;https://gitee.com/NetEase_Curve/curve-nbd;g" .gitmodules
+
+# fmt
+sed -i "s;https://github.com/fmtlib/fmt/archive/9.1.0.tar.gz;https://curve-build.nos-eastchina1.126.net/fmt-9.1.0.tar.gz;g" WORKSPACE
+
+# spdlog
+sed -i "s;https://github.com/gabime/spdlog/archive/refs/tags/v1.11.0.tar.gz;https://curve-build.nos-eastchina1.126.net/spdlog-1.11.0.tar.gz;g" WORKSPACE

@@ -37,7 +37,9 @@
 #include <functional>
 #include <condition_variable>    // NOLINT
 #include <string>
+#include <memory>
 
+#include "src/client/auth_client.h"
 #include "src/client/client_config.h"
 #include "test/client/fake/fakeMDS.h"
 #include "src/client/file_instance.h"

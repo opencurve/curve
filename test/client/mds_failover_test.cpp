@@ -52,7 +52,7 @@ namespace client {
 
 // 测试mds failover切换状态机
 TEST(MDSChangeTest, MDSFailoverTest) {
-    RPCExcutorRetryPolicy rpcexcutor;
+    RPCExecutorRetryPolicy rpcexcutor;
 
     MetaServerOption  metaopt;
     metaopt.rpcRetryOpt.addrs.push_back("127.0.0.1:9903");

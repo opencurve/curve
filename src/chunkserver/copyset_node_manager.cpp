@@ -370,7 +370,7 @@ std::shared_ptr<CopysetNode> CopysetNodeManager::CreateCopysetNodeUnlocked(
 }
 
 int CopysetNodeManager::AddService(brpc::Server *server,
-                                   const butil::EndPoint &listenAddress) {
+    const butil::EndPoint &listenAddress) {
     int ret = 0;
     uint64_t maxInflight = 100;
     std::shared_ptr<InflightThrottle> inflightThrottle

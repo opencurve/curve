@@ -28,6 +28,8 @@
 #include <string>
 #include <vector>
 
+#include "src/client/auth_client.h"
+#include "src/common/authenticator.h"
 #include "src/common/crc32.h"
 #include "src/common/string_util.h"
 #include "src/chunkserver/register.h"
@@ -80,6 +82,14 @@ int Register::RegisterToMDS(const ChunkServerMetadata *localMetadata,
     req.set_blocksize(ops_.blockSize);
     req.set_chunksize(ops_.chunkSize);
 
+    // add auth token
+    auto isGet = ops_.authClient->GetToken(curve::common::MDS_ROLE,
+        req.mutable_authtoken());
+    if (!isGet) {
+        LOG(ERROR) << "RegisterToMDS get auth token failed";
+        return -1;
+    }
+
     LOG(INFO) << " Registering to MDS " << mdsEps_[inServiceIndex_]
               << ". internal ip: " << ops_.chunkserverInternalIp
               << ", port: " << ops_.chunkserverPort
@@ -105,7 +115,6 @@ int Register::RegisterToMDS(const ChunkServerMetadata *localMetadata,
         curve::mds::topology::TopologyService_Stub stub(&channel);
 
         stub.RegistChunkServer(&cntl, &req, &resp, nullptr);
-        // TODO(lixiaocui): 后续错误码和mds共享后改成枚举类型
         if (!cntl.Failed() && resp.statuscode() == 0) {
             break;
         } else {
@@ -114,8 +123,8 @@ int Register::RegisterToMDS(const ChunkServerMetadata *localMetadata,
                        << mdsEps_[inServiceIndex_]
                        << ", cntl errorCode: " << cntl.ErrorCode() << ","
                        << " cntl error: " << cntl.ErrorText() << ","
-                       << " statusCode: " << resp.statuscode() << ","
-                       << " going to sleep and try again.";
+                       << " statusCode: " <<  resp.statuscode()
+                       << ", going to sleep and try again.";
             if (cntl.ErrorCode() == EHOSTDOWN ||
                 cntl.ErrorCode() == brpc::ELOGOFF) {
                 inServiceIndex_ = (inServiceIndex_ + 1) % mdsEps_.size();

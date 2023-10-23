@@ -34,6 +34,7 @@ DEPS = [
     "//test/chunkserver:chunkserver_mock",
     "//test/chunkserver/datastore:datastore_mock",
     "//test/chunkserver/datastore:filepool_helper",
+    "//test/common:common_mock",
     "@com_google_googletest//:gtest",
     "@com_google_googletest//:gtest_main",
 ]

@@ -21,6 +21,7 @@
  */
 
 syntax="proto2";
+import "proto/auth.proto";
 package curve.mds.schedule;
 
 option cc_generic_services = true;
@@ -28,6 +29,7 @@ option go_package = "proto/schedule";
 
 message RapidLeaderScheduleRequst {
     required uint32 logicalPoolID = 1;
+    optional auth.Token authToken = 2;
 }
 
 message RapidLeaderScheduleResponse {
@@ -37,6 +39,7 @@ message RapidLeaderScheduleResponse {
 // 如果chunkServerID为空，则返回所有chunkserver的恢复状态
 message QueryChunkServerRecoverStatusRequest {
     repeated uint32 chunkServerID = 1;
+    optional auth.Token authToken = 2;
 }
 
 message QueryChunkServerRecoverStatusResponse {

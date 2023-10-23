@@ -36,6 +36,7 @@
 #include <vector>
 #include <iostream>
 
+#include "src/client/auth_client.h"
 #include "test/integration/cluster_common/cluster.h"
 #include "src/common/string_util.h"
 #include "src/common/timeutility.h"
@@ -52,7 +53,8 @@ using ::curve::client::CreateFileContext;
 
 int CurveCluster::InitMdsClient(const curve::client::MetaServerOption &op) {
     mdsClient_ = std::make_shared<MDSClient>();
-    return mdsClient_->Initialize(op);
+    return mdsClient_->Initialize(op,
+        std::make_shared<curve::client::AuthClient>());
 }
 
 std::vector<char *> VecStr2VecChar(std::vector<std::string> args) {
@@ -390,7 +392,7 @@ bool CurveCluster::WaitForEtcdClusterAvalible(int waitSec) {
         }
     }
 
-    int res;
+    int res = 0;
     std::string cmd = std::string("etcdctl --endpoints=") + endpoint +
                       std::string(" --command-timeout=1s put test test");
     LOG(INFO) << "exec command: " << cmd;

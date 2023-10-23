@@ -23,6 +23,7 @@
 #include <gtest/gtest.h>
 #include <unistd.h>
 #include <brpc/server.h>
+#include <memory>
 
 #include <cstdio>
 #include <cstdlib>

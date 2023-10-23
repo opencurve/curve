@@ -16,6 +16,7 @@
 
 syntax="proto2";
 import "proto/common.proto";
+import "proto/auth.proto";
 package curve.mds;
 
 option cc_generic_services = true;
@@ -170,6 +171,9 @@ enum  StatusCode {
     kEpochTooOld = 140;
     // poolset doesn't exist
     kPoolsetNotExist = 141;
+
+    kAuthFailed = 150;
+
     // 元数据存储错误
     kStorageError = 501;
     // 内部错误
@@ -206,6 +210,7 @@ message CreateFileRequest {
     optional uint64     stripeUnit = 7;
     optional uint64     stripeCount = 8;
     optional string     poolset = 9;
+    optional auth.Token authToken = 10;
 };
 
 message CreateFileResponse {
@@ -219,6 +224,7 @@ message DeleteFileRequest {
     required uint64     date = 4;
     optional uint64     fileId = 5;
     optional bool       forceDelete = 6;
+    optional auth.Token authToken = 7;
 };
 
 message DeleteFileResponse {
@@ -231,6 +237,7 @@ message RecoverFileRequest {
     optional string     signature = 3;
     required uint64     date = 4;
     optional uint64     fileId = 5;
+    optional auth.Token authToken = 6;
 };
 
 message RecoverFileResponse {
@@ -243,6 +250,7 @@ message GetFileInfoRequest {
     required string     owner = 2;
     optional string     signature = 3;
     required uint64     date = 4;
+    optional auth.Token authToken = 5;
 }
 
 message GetFileInfoResponse {
@@ -259,8 +267,8 @@ message GetOrAllocateSegmentRequest {
     required string     owner = 2;
     optional string     signature = 6;
     required uint64     date = 7;
-
     optional uint64     epoch = 8;
+    optional auth.Token authToken = 9;
 }
 
 message GetOrAllocateSegmentResponse {
@@ -274,6 +282,7 @@ message DeAllocateSegmentRequest {
     required uint64 offset = 3;
     optional string signature = 4;
     required uint64 date = 5;
+    optional auth.Token  authToken = 6;
 }
 
 message DeAllocateSegmentResponse {
@@ -283,14 +292,12 @@ message DeAllocateSegmentResponse {
 message RenameFileRequest {
     required string     oldFileName = 1;
     required string     newFileName = 2;
-
     required string     owner = 3;
     optional string     signature = 4;
-    required uint64     date = 7;
-
-
     optional uint64     oldFileID = 5;
     optional uint64     newFileID = 6;
+    required uint64     date = 7;
+    optional auth.Token authToken = 8;
 }
 
 message RenameFileResponse {
@@ -304,6 +311,7 @@ message ExtendFileRequest {
     required string     owner = 2;
     optional string     signature = 4;
     required uint64     date = 5;
+    optional auth.Token authToken = 6;
 }
 
 message ExtendFileResponse {
@@ -321,6 +329,7 @@ message ChangeOwnerRequest {
     required string signature = 4;
     // 用来在mds端重新计算signature
     required uint64 date = 5;
+    optional auth.Token authToken = 6;
 }
 
 // 返回ChangeOwner的执行结果，成功返回statusCode::kOK
@@ -334,6 +343,7 @@ message ListDirRequest {
     required string     owner = 2;
     optional string     signature = 3;
     required uint64     date = 4;
+    optional auth.Token authToken = 5;
 }
 
 message ListDirResponse {
@@ -348,6 +358,7 @@ message CreateSnapShotRequest {
     required string     owner = 2;
     optional string     signature = 3;
     required uint64     date = 4;
+    optional auth.Token authToken = 5;
 }
 
 message CreateSnapShotResponse {
@@ -363,6 +374,7 @@ message ListSnapShotFileInfoRequest {
     required string     owner = 2;
     optional string     signature = 4;
     required uint64     date = 5;
+    optional auth.Token authToken = 6;
 }
 
 message ListSnapShotFileInfoResponse {
@@ -378,6 +390,7 @@ message DeleteSnapShotRequest {
     required string     owner = 2;
     optional string     signature = 4;
     required uint64     date = 5;
+    optional auth.Token authToken = 6;
 }
 
 message DeleteSnapShotResponse {
@@ -393,6 +406,7 @@ message CheckSnapShotStatusRequest {
     required string     owner = 2;
     optional string     signature = 4;
     required uint64     date = 5;
+    optional auth.Token authToken = 6;
 }
 
 // statusCode为kOK时，fileStatus和progress才会赋值
@@ -429,6 +443,7 @@ message OpenFileRequest {
     optional string signature = 3;
     required uint64 date = 4;
     optional string clientVersion = 5;
+    optional auth.Token authToken = 6;
 };
 
 // statusCode返回值，详见StatusCode定义:
@@ -454,6 +469,7 @@ message CloseFileRequest {
 
     optional string     clientIP = 6;
     optional uint32     clientPort = 7;
+    optional auth.Token authToken = 8;
 };
 
 // statusCode返回值，详见StatusCode定义:
@@ -476,6 +492,7 @@ message ReFreshSessionRequest {
     optional string     clientVersion = 6;
     optional string     clientIP = 7;
     optional uint32     clientPort = 8;
+    optional auth.Token authToken = 9;
 }
 
 // statusCode返回值，详见StatusCode定义:
@@ -504,6 +521,7 @@ message  CreateCloneFileRequest {
     optional uint64     stripeUnit = 10;
     optional uint64     stripeCount = 11;
     optional string     poolset = 12;
+    optional auth.Token authToken = 13;
 }
 
 message CreateCloneFileResponse {
@@ -519,6 +537,7 @@ message SetCloneFileStatusRequest {
     required string     owner = 4;
     optional string     signature = 5;
     required uint64     date = 6;
+    optional auth.Token authToken = 7;
 }
 
 message SetCloneFileStatusResponse {
@@ -527,6 +546,7 @@ message SetCloneFileStatusResponse {
 
 message GetAllocatedSizeRequest {
     required string fileName = 1;
+    optional auth.Token authToken = 2;
 }
 
 message GetAllocatedSizeResponse {
@@ -539,6 +559,7 @@ message GetAllocatedSizeResponse {
 
 message GetFileSizeRequest {
     required string fileName = 1;
+    optional auth.Token authToken = 2;
 }
 
 message GetFileSizeResponse {
@@ -554,6 +575,7 @@ message ClientInfo {
 
 message ListClientRequest {
     optional bool listAllClient = 1;
+    optional auth.Token authToken = 2;
 }
 
 message ListClientResponse {
@@ -563,6 +585,7 @@ message ListClientResponse {
 
 message FindFileMountPointRequest {
     required string fileName = 1;
+    optional auth.Token  authToken = 2;
 }
 
 message FindFileMountPointResponse {
@@ -572,6 +595,7 @@ message FindFileMountPointResponse {
 
 message ListVolumesOnCopysetsRequest {
     repeated common.CopysetInfo copysets = 1;
+    optional auth.Token authToken = 2;
 }
 
 message ListVolumesOnCopysetsResponse {
@@ -585,6 +609,7 @@ message UpdateFileThrottleParamsRequest {
     optional string signature = 3;
     required uint64 date = 4;
     required ThrottleParams throttleParams = 5;
+    optional auth.Token authToken = 6;
 }
 
 message UpdateFileThrottleParamsResponse {
@@ -597,6 +622,7 @@ message IncreaseFileEpochRequest {
     required string     owner = 2;
     optional string     signature = 3;
     required uint64     date = 4;
+    optional auth.Token authToken = 5;
 }
 
 message IncreaseFileEpochResponse {

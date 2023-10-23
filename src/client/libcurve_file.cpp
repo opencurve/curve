@@ -36,6 +36,7 @@
 #include "include/client/libcurve.h"
 #include "include/client/libcurve_define.h"
 #include "include/curve_compiler_specific.h"
+#include "src/client/auth_client.h"
 #include "src/client/client_common.h"
 #include "src/client/client_config.h"
 #include "src/client/file_instance.h"
@@ -138,7 +139,8 @@ FileClient::FileClient()
       csClient_(std::make_shared<ChunkServerClient>()),
       csBroadCaster_(std::make_shared<ChunkServerBroadCaster>(csClient_)),
       inited_(false),
-      openedFileNum_("open_file_num_" + common::ToHexString(this)) {}
+      openedFileNum_("open_file_num_" + common::ToHexString(this)),
+      authClient_(std::make_shared<AuthClient>()) {}
 
 int FileClient::Init(const std::string& configpath) {
     if (inited_) {
@@ -156,13 +158,20 @@ int FileClient::Init(const std::string& configpath) {
 
     const auto& fileSvcOpts = clientconfig_.GetFileServiceOption();
 
+    // init auth client
+    authClient_->Init(
+        clientconfig_.GetFileServiceOption().metaServerOpt,
+        clientconfig_.GetFileServiceOption().authClientOption);
+    // pass auth client to request sender
+    clientconfig_.SetAuthClient(authClient_);
+
     static std::once_flag adjustOpenFileLimitFlag;
     std::call_once(adjustOpenFileLimitFlag, AdjustOpenFileSoftLimitToHardLimit,
                    fileSvcOpts.commonOpt.minimalOpenFiles);
 
     auto tmpMdsClient = std::make_shared<MDSClient>();
 
-    auto ret = tmpMdsClient->Initialize(fileSvcOpts.metaServerOpt);
+    auto ret = tmpMdsClient->Initialize(fileSvcOpts.metaServerOpt, authClient_);
     if (LIBCURVE_ERROR::OK != ret) {
         LOG(ERROR) << "Init global mds client failed!";
         return -LIBCURVE_ERROR::FAILED;
@@ -182,7 +191,7 @@ int FileClient::Init(const std::string& configpath) {
 
     mdsClient_ = std::move(tmpMdsClient);
 
-    int rc2 = csClient_->Init(fileSvcOpts.csClientOpt);
+    int rc2 = csClient_->Init(fileSvcOpts.csClientOpt, authClient_);
     if (rc2 != 0) {
         LOG(ERROR) << "Init ChunkServer Client failed!";
         return -LIBCURVE_ERROR::FAILED;
@@ -211,28 +220,42 @@ void FileClient::UnInit() {
     fileserviceFileNameMap_.clear();
 
     mdsClient_.reset();
+
+    authClient_->Uninit();
     inited_ = false;
 }
 
 int FileClient::Open(const std::string &filename, const UserInfo_t &userinfo,
                      const OpenFlags &openflags) {
     LOG(INFO) << "Opening filename: " << filename << ", flags: " << openflags;
-    ClientConfig clientConfig;
-    if (openflags.confPath.empty()) {
-        clientConfig = clientconfig_;
-    } else {
+    ClientConfig clientConfig = clientconfig_;
+    bool sameConf = true;
+    if (!openflags.confPath.empty()) {
+        LOG(INFO) << "openflags confpath is not empty";
+        sameConf = false;
         if (-1 == clientConfig.Init(openflags.confPath)) {
             LOG(ERROR) << "config init client failed!";
             return -LIBCURVE_ERROR::FAILED;
         }
     }
 
-    auto mdsClient = std::make_shared<MDSClient>();
-    auto res = mdsClient->Initialize(
-        clientConfig.GetFileServiceOption().metaServerOpt);
-    if (LIBCURVE_ERROR::OK != res) {
-        LOG(ERROR) << "Init mds client failed!";
-        return -LIBCURVE_ERROR::FAILED;
+    auto mdsClient = mdsClient_;
+    if (!sameConf) {
+        LOG(INFO) << "sameconf is false";
+        // init auth client
+        auto authClient = std::make_shared<AuthClient>();
+        authClient->Init(
+            clientConfig.GetFileServiceOption().metaServerOpt,
+            clientConfig.GetFileServiceOption().authClientOption);
+        // pass auth client to request sender
+        clientConfig.SetAuthClient(authClient);
+        mdsClient = std::make_shared<MDSClient>();
+        auto res = mdsClient->Initialize(
+            clientConfig.GetFileServiceOption().metaServerOpt, authClient);
+        if (LIBCURVE_ERROR::OK != res) {
+            LOG(ERROR) << "Init mds client failed!";
+            return -LIBCURVE_ERROR::FAILED;
+        }
     }
 
     FileInstance *fileserv = FileInstance::NewInitedFileInstance(
@@ -552,7 +575,7 @@ int FileClient::Listdir(const std::string &dirpath, const UserInfo_t &userinfo,
                         std::vector<FileStatInfo> *filestatVec) {
     LIBCURVE_ERROR ret;
     if (mdsClient_ != nullptr) {
-        ret = mdsClient_->Listdir(dirpath, userinfo, filestatVec);
+        ret = mdsClient_->ListDir(dirpath, userinfo, filestatVec);
         LOG_IF(ERROR,
                ret != LIBCURVE_ERROR::OK && ret != LIBCURVE_ERROR::NOTEXIST)
             << "Listdir failed, Path: " << dirpath << ", ret: " << ret;
@@ -1220,6 +1243,10 @@ const char *LibCurveErrorName(LIBCURVE_ERROR err) {
         return "RETRY_UNTIL_SUCCESS";
     case LIBCURVE_ERROR::EPOCH_TOO_OLD:
         return "EPOCH_TOO_OLD";
+    case LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL:
+        return "GET_AUTH_TOKEN_FAIL";
+    case LIBCURVE_ERROR::AUTH_FAILED:
+        return "AUTH_FAILED";
     case LIBCURVE_ERROR::UNKNOWN:
         break;
     }

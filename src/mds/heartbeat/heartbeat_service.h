@@ -27,9 +27,11 @@
 #include <memory>
 
 #include "src/mds/heartbeat/heartbeat_manager.h"
+#include "src/common/authenticator.h"
 #include "proto/heartbeat.pb.h"
 
 using ::curve::mds::heartbeat::HeartbeatManager;
+using ::curve::common::Authenticator;
 
 namespace curve {
 namespace mds {
@@ -39,7 +41,8 @@ class HeartbeatServiceImpl : public HeartbeatService {
  public:
   HeartbeatServiceImpl() = default;
   explicit HeartbeatServiceImpl(
-      std::shared_ptr<HeartbeatManager> heartbeatManager);
+      std::shared_ptr<HeartbeatManager> heartbeatManager) :
+      heartbeatManager_(heartbeatManager) {}
   ~HeartbeatServiceImpl() override = default;
 
   void ChunkServerHeartbeat(

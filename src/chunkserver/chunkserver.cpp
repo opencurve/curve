@@ -37,6 +37,9 @@
 #include "src/chunkserver/braft_cli_service.h"
 #include "src/chunkserver/braft_cli_service2.h"
 #include "src/chunkserver/chunkserver_helper.h"
+#include "src/client/auth_client.h"
+#include "src/client/config_info.h"
+#include "src/common/authenticator.h"
 #include "src/common/concurrent/task_thread_pool.h"
 #include "src/common/uri_parser.h"
 #include "src/chunkserver/raftsnapshot/curve_snapshot_attachment.h"
@@ -51,6 +54,8 @@ using ::curve::fs::LocalFsFactory;
 using ::curve::fs::FileSystemType;
 using ::curve::chunkserver::concurrent::ConcurrentApplyModule;
 using ::curve::common::UriParser;
+using ::curve::common::Authenticator;
+using ::curve::common::Encryptor;
 
 DEFINE_string(conf, "ChunkServer.conf", "Path of configuration file");
 DEFINE_string(chunkServerIp, "127.0.0.1", "chunkserver ip");
@@ -104,7 +109,6 @@ int ChunkServer::Run(int argc, char** argv) {
 
     // 打印参数
     conf.PrintConfig();
-    conf.ExposeMetric("chunkserver_config");
     curve::common::ExposeCurveVersion();
 
     // ============================初始化各模块==========================//
@@ -170,6 +174,54 @@ int ChunkServer::Run(int argc, char** argv) {
         }
     }
 
+    // init server auth option
+    curve::common::ServerAuthOption serverAuthOption;
+    conf.GetBoolValue("auth.enable", &serverAuthOption.enable);
+    if (serverAuthOption.enable) {
+        conf.GetValueFatalIfFail("auth.key.current", &serverAuthOption.key);
+        LOG_IF(FATAL, !Encryptor::AESKeyValid(serverAuthOption.key))
+            << "auth.key.current length is invalid"
+            << ", key length: " << serverAuthOption.key.length();
+        conf.GetStringValue("auth.key.last", &serverAuthOption.lastKey);
+        if (!serverAuthOption.lastKey.empty()) {
+            LOG_IF(FATAL, !Encryptor::AESKeyValid(serverAuthOption.lastKey))
+                << "auth.key.last length is invalid"
+                << ", key length: " << serverAuthOption.lastKey.length();
+        }
+        conf.GetUInt32Value("auth.lastkey.ttlSec",
+            &serverAuthOption.lastKeyTTL);
+        conf.GetUInt32Value("auth.request.ttlSec",
+            &serverAuthOption.requestTTL);
+    }
+    // init authenticator
+    Authenticator::GetInstance().Init(curve::common::ZEROIV,
+        serverAuthOption);
+    // init auth client
+    std::string mdsAddrs;
+    LOG_IF(FATAL, !conf.GetStringValue("mds.listen.addr",
+        &mdsAddrs));
+    curve::common::AuthClientOption authClientOption;
+    conf.GetBoolValue("auth.client.enable", &authClientOption.enable);
+    if (authClientOption.enable) {
+        conf.GetValueFatalIfFail("auth.client.id",
+            &authClientOption.clientId);
+        conf.GetValueFatalIfFail("auth.key.current", &authClientOption.key);
+        LOG_IF(FATAL, !Encryptor::AESKeyValid(authClientOption.key))
+            << "auth.key.current length is invalid"
+            << ", key length: " << authClientOption.key.length();
+        conf.GetStringValue("auth.key.last", &authClientOption.lastKey);
+        conf.GetUInt32Value("auth.client.ticket.refresh.intervalSec",
+            &authClientOption.ticketRefreshIntervalSec);
+        conf.GetUInt32Value("auth.client.ticket.refresh.threshold",
+            &authClientOption.ticketRefreshThresholdSec);
+        authClientOption.clientId = curve::common::CHUNKSERVER_ROLE;
+    }
+    curve::client::MetaServerOption metaServerOption;
+    curve::common::SplitString(mdsAddrs, ",",
+        &metaServerOption.rpcRetryOpt.addrs);
+    authClient_ = std::make_shared<curve::client::AuthClient>();
+    authClient_->Init(metaServerOption, authClientOption);
+
     // 远端拷贝管理模块选项
     CopyerOptions copyerOptions;
     InitCopyerOptions(&conf, &copyerOptions);
@@ -199,6 +251,7 @@ int ChunkServer::Run(int argc, char** argv) {
     registerOptions.chunkFilepool = chunkfilePool;
     registerOptions.blockSize = chunkfilePool->GetFilePoolOpt().blockSize;
     registerOptions.chunkSize = chunkfilePool->GetFilePoolOpt().fileSize;
+    registerOptions.authClient = authClient_;
     Register registerMDS(registerOptions);
     ChunkServerMetadata metadata;
     ChunkServerMetadata localMetadata;
@@ -305,6 +358,7 @@ int ChunkServer::Run(int argc, char** argv) {
     heartbeatOptions.chunkserverId = metadata.id();
     heartbeatOptions.chunkserverToken = metadata.token();
     heartbeatOptions.scanManager = &scanManager_;
+    heartbeatOptions.authClient = authClient_;
     LOG_IF(FATAL, heartbeat_.Init(heartbeatOptions) != 0)
         << "Failed to init Heartbeat manager.";
 
@@ -323,7 +377,7 @@ int ChunkServer::Run(int argc, char** argv) {
     // We need call braft::add_service to add endPoint to braft::NodeManager
     braft::add_service(&server, endPoint);
 
-    // copyset service
+    // copyset service, no auth now
     CopysetServiceImpl copysetService(copysetNodeManager_);
     int ret = server.AddService(&copysetService,
                         brpc::SERVER_DOESNT_OWN_SERVICE);
@@ -349,7 +403,7 @@ int ChunkServer::Run(int argc, char** argv) {
                         brpc::SERVER_DOESNT_OWN_SERVICE);
     CHECK(0 == ret) << "Fail to add ChunkService";
 
-    // We need to replace braft::CliService with our own implementation
+    // We need to replace braft::CliService with our own implementation, no auth now  // NOLINT
     auto service = server.FindServiceByName("CliService");
     ret = server.RemoveService(service);
     CHECK(0 == ret) << "Fail to remove braft::CliService";
@@ -358,13 +412,13 @@ int ChunkServer::Run(int argc, char** argv) {
                         brpc::SERVER_DOESNT_OWN_SERVICE);
     CHECK(0 == ret) << "Fail to add BRaftCliService";
 
-    // braftclient service
+    // braftclient service, no auth now  // NOLINT
     BRaftCliServiceImpl2 braftCliService2;
     ret = server.AddService(&braftCliService2,
                         brpc::SERVER_DOESNT_OWN_SERVICE);
     CHECK(0 == ret) << "Fail to add BRaftCliService2";
 
-    // We need to replace braft::FileServiceImpl with our own implementation
+    // We need to replace braft::FileServiceImpl with our own implementation, no auth now  // NOLINT
     service = server.FindServiceByName("FileService");
     ret = server.RemoveService(service);
     CHECK(0 == ret) << "Fail to remove braft::FileService";
@@ -373,13 +427,13 @@ int ChunkServer::Run(int argc, char** argv) {
         brpc::SERVER_DOESNT_OWN_SERVICE);
     CHECK(0 == ret) << "Fail to add CurveFileService";
 
-    // chunkserver service
+    // chunkserver service, no auth now  // NOLINT
     ChunkServerServiceImpl chunkserverService(copysetNodeManager_);
     ret = server.AddService(&chunkserverService,
         brpc::SERVER_DOESNT_OWN_SERVICE);
     CHECK(0 == ret) << "Fail to add ChunkServerService";
 
-    // scan copyset service
+    // scan copyset service, no auth now  // NOLINT
     ScanServiceImpl scanCopysetService(&scanManager_);
     ret = server.AddService(&scanCopysetService,
         brpc::SERVER_DOESNT_OWN_SERVICE);

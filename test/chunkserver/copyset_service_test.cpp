@@ -28,6 +28,7 @@
 #include <brpc/server.h>
 
 #include <cstdint>
+#include <memory>
 
 #include "src/chunkserver/trash.h"
 #include "src/chunkserver/copyset_node.h"
@@ -95,7 +96,6 @@ TEST_F(CopysetServiceTest, basic) {
 
     brpc::Server server;
     butil::EndPoint addr(butil::IP_ANY, port);
-
     ASSERT_EQ(0, copysetNodeManager->AddService(&server, addr));
     ASSERT_EQ(0, server.Start(port, NULL));
 
@@ -237,7 +237,6 @@ TEST_F(CopysetServiceTest, basic2) {
 
     brpc::Server server;
     butil::EndPoint addr(butil::IP_ANY, port);
-
     ASSERT_EQ(0, copysetNodeManager->AddService(&server, addr));
     ASSERT_EQ(0, server.Start(port, NULL));
 
@@ -431,6 +430,7 @@ TEST_F(CopysetServiceTest, basic2) {
             ASSERT_EQ(1, response.epoch());
             ASSERT_FALSE(response.has_hash());
         }
+
         {
             // query hash为true
             std::string peerStr("127.0.0.1:9040:0");

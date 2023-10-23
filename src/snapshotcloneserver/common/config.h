@@ -27,6 +27,7 @@
 #include<string>
 #include <vector>
 #include "src/common/concurrent/dlock.h"
+#include "src/common/authenticator.h"
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -96,6 +97,9 @@ struct SnapshotCloneServerOptions {
     uint32_t backEndReferenceFuncScanIntervalMs;
     // dlock options
     DLockOpts dlockOpts;
+
+    // auth option
+    curve::common::ServerAuthOption serverAuthOption;
 };
 
 }  // namespace snapshotcloneserver

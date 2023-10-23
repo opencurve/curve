@@ -24,8 +24,11 @@
 #define SRC_CLIENT_CONFIG_INFO_H_
 
 #include <stdint.h>
+#include <memory>
 #include <string>
 #include <vector>
+#include "src/client/auth_client.h"
+#include "src/common/authenticator.h"
 
 namespace curve {
 namespace client {
@@ -46,35 +49,6 @@ struct LogInfo {
  */
 struct InFlightIOCntlInfo {
     uint64_t fileMaxInFlightRPCNum = 2048;
-};
-
-struct MetaServerOption {
-    uint64_t mdsMaxRetryMS = 8000;
-    struct RpcRetryOption {
-        // rpc max timeout
-        uint64_t maxRPCTimeoutMS = 2000;
-        // rpc normal timeout
-        uint64_t rpcTimeoutMs = 500;
-        // rpc retry interval
-        uint32_t rpcRetryIntervalUS = 50000;
-        // retry maxFailedTimesBeforeChangeAddr at a server
-        uint32_t maxFailedTimesBeforeChangeAddr = 5;
-
-        /**
-         * When the failed times except RPC error
-         * greater than mdsNormalRetryTimesBeforeTriggerWait,
-         * it will trigger wait strategy, and sleep long time before retry
-         */
-        uint64_t maxRetryMsInIOPath = 86400000;  // 1 day
-
-        // if the overall timeout passed by the user is 0, that means retry
-        // until success. First try normalRetryTimesBeforeTriggerWait times,
-        // then repeatedly sleep waitSleepMs and try once
-        uint64_t normalRetryTimesBeforeTriggerWait = 3;  // 3 times
-        uint64_t waitSleepMs = 10000;                    // 10 seconds
-
-        std::vector<std::string> addrs;
-    } rpcRetryOpt;
 };
 
 /**
@@ -161,6 +135,10 @@ struct FailureRequestOption {
 struct IOSenderOption {
     InFlightIOCntlInfo inflightOpt;
     FailureRequestOption failRequestOpt;
+    std::shared_ptr<AuthClient> authClient;
+    IOSenderOption() {
+        authClient = std::make_shared<AuthClient>();
+    }
 };
 
 /**
@@ -324,6 +302,7 @@ struct FileServiceOption {
     MetaServerOption metaServerOpt;
     ChunkServerClientRetryOptions csClientOpt;
     ChunkServerBroadCasterOption csBroadCasterOpt;
+    curve::common::AuthClientOption authClientOption;
 };
 
 }  // namespace client

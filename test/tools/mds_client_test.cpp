@@ -23,10 +23,12 @@
 #include <gtest/gtest.h>
 #include <brpc/server.h>
 #include <string>
+#include "proto/auth.pb.h"
 #include "src/tools/mds_client.h"
 #include "test/tools/mock/mock_namespace_service.h"
 #include "test/tools/mock/mock_topology_service.h"
 #include "test/tools/mock/mock_schedule_service.h"
+#include "test/tools/mock/mock_auth_service.h"
 
 using curve::mds::schedule::QueryChunkServerRecoverStatusRequest;
 using curve::mds::schedule::QueryChunkServerRecoverStatusResponse;
@@ -53,6 +55,15 @@ using curve::mds::topology::SetCopysetsAvailFlagRequest;
 using curve::mds::topology::SetCopysetsAvailFlagResponse;
 using curve::mds::topology::SetLogicalPoolScanStateRequest;
 using curve::mds::topology::SetLogicalPoolScanStateResponse;
+using curve::mds::auth::AddKeyRequest;
+using curve::mds::auth::AddKeyResponse;
+using curve::mds::auth::DeleteKeyRequest;
+using curve::mds::auth::DeleteKeyResponse;
+using curve::mds::auth::UpdateKeyRequest;
+using curve::mds::auth::UpdateKeyResponse;
+using curve::mds::auth::GetKeyRequest;
+using curve::mds::auth::GetKeyResponse;
+using curve::mds::auth::AuthStatusCode;
 
 using ::testing::_;
 using ::testing::DoAll;
@@ -81,26 +92,19 @@ class ToolMDSClientTest : public ::testing::Test {
         nameService = new curve::mds::MockNameService();
         topoService = new curve::mds::topology::MockTopologyService();
         scheduleService = new curve::mds::schedule::MockScheduleService();
+        authService = new curve::mds::auth::MockAuthService();
         ASSERT_EQ(0, server->AddService(nameService,
                                         brpc::SERVER_DOESNT_OWN_SERVICE));
         ASSERT_EQ(0, server->AddService(topoService,
                                         brpc::SERVER_DOESNT_OWN_SERVICE));
         ASSERT_EQ(0, server->AddService(scheduleService,
                                         brpc::SERVER_DOESNT_OWN_SERVICE));
+        ASSERT_EQ(0, server->AddService(authService,
+                                        brpc::SERVER_DOESNT_OWN_SERVICE));
         ASSERT_EQ(0, server->Start("127.0.0.1:9192", nullptr));
         brpc::StartDummyServerAt(9193);
 
         // 初始化mds client
-        curve::mds::topology::ListPhysicalPoolResponse response;
-        response.set_statuscode(kTopoErrCodeSuccess);
-        EXPECT_CALL(*topoService, ListPhysicalPool(_, _, _, _))
-            .WillOnce(DoAll(
-                SetArgPointee<2>(response),
-                Invoke([](RpcController *controller,
-                          const ListPhysicalPoolRequest *request,
-                          ListPhysicalPoolResponse *response, Closure *done) {
-                    brpc::ClosureGuard doneGuard(done);
-                })));
         ASSERT_EQ(0, mdsClient.Init(mdsAddr, "9194,9193"));
     }
     void TearDown() {
@@ -114,6 +118,8 @@ class ToolMDSClientTest : public ::testing::Test {
         topoService = nullptr;
         delete scheduleService;
         scheduleService = nullptr;
+        delete authService;
+        authService = nullptr;
     }
 
     void GetFileInfoForTest(uint64_t id, FileInfo *fileInfo) {
@@ -210,6 +216,7 @@ class ToolMDSClientTest : public ::testing::Test {
     curve::mds::MockNameService *nameService;
     curve::mds::topology::MockTopologyService *topoService;
     curve::mds::schedule::MockScheduleService *scheduleService;
+    curve::mds::auth::MockAuthService *authService;
     MDSClient mdsClient;
     const uint64_t kChunkSize = 16777216;
     const uint64_t DefaultSegmentSize = 1024 * 1024 * 1024;
@@ -1555,6 +1562,167 @@ TEST_F(ToolMDSClientTest, ListUnAvailCopySets) {
                       ListUnAvailCopySetsResponse *response,
                       Closure *done) { brpc::ClosureGuard doneGuard(done); })));
     ASSERT_EQ(0, mdsClient.ListUnAvailCopySets(&copysets));
+}
+
+TEST_F(ToolMDSClientTest, AddKey) {
+    // send rpc fail
+    EXPECT_CALL(*authService, AddKey(_, _, _, _))
+        .Times(6)
+        .WillRepeatedly(
+            Invoke([](RpcController *controller, const AddKeyRequest *request,
+                      AddKeyResponse *response, Closure *done) {
+                brpc::ClosureGuard doneGuard(done);
+                brpc::Controller *cntl =
+                    dynamic_cast<brpc::Controller *>(controller);
+                cntl->SetFailed("test");
+            }));
+    ASSERT_EQ(-1, mdsClient.AddKey("key"));
+
+    // return code not ok
+    AddKeyResponse response;
+    response.set_status(AuthStatusCode::AUTH_STORE_KEY_FAILED);
+    EXPECT_CALL(*authService, AddKey(_, _, _, _))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(response),
+            Invoke([](RpcController *controller, const AddKeyRequest *request,
+                      AddKeyResponse *response, Closure *done) {
+                brpc::ClosureGuard doneGuard(done);
+            })));
+    ASSERT_EQ(-1, mdsClient.AddKey("key"));
+
+    // normal
+    response.set_status(AuthStatusCode::AUTH_OK);
+    EXPECT_CALL(*authService, AddKey(_, _, _, _))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(response),
+            Invoke([](RpcController *controller, const AddKeyRequest *request,
+                      AddKeyResponse *response, Closure *done) {
+                brpc::ClosureGuard doneGuard(done);
+            })));
+    ASSERT_EQ(0, mdsClient.AddKey("key"));
+}
+
+TEST_F(ToolMDSClientTest, DeleteKey) {
+    // send rpc fail
+    EXPECT_CALL(*authService, DeleteKey(_, _, _, _))
+        .Times(6)
+        .WillRepeatedly(
+            Invoke([](RpcController *controller,
+                      const DeleteKeyRequest *request,
+                      DeleteKeyResponse *response, Closure *done) {
+                brpc::ClosureGuard doneGuard(done);
+                brpc::Controller *cntl =
+                    dynamic_cast<brpc::Controller *>(controller);
+                cntl->SetFailed("test");
+            }));
+    ASSERT_EQ(-1, mdsClient.DelKey("user"));
+
+    // return code not ok
+    DeleteKeyResponse response;
+    response.set_status(AuthStatusCode::AUTH_STORE_KEY_FAILED);
+    EXPECT_CALL(*authService, DeleteKey(_, _, _, _))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(response),
+            Invoke([](RpcController *controller,
+                      const DeleteKeyRequest *request,
+                      DeleteKeyResponse *response, Closure *done) {
+                brpc::ClosureGuard doneGuard(done);
+            })));
+    ASSERT_EQ(-1, mdsClient.DelKey("user"));
+
+    // normal
+    response.set_status(AuthStatusCode::AUTH_OK);
+    EXPECT_CALL(*authService, DeleteKey(_, _, _, _))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(response),
+            Invoke([](RpcController *controller,
+                      const DeleteKeyRequest *request,
+                      DeleteKeyResponse *response, Closure *done) {
+                brpc::ClosureGuard doneGuard(done);
+            })));
+    ASSERT_EQ(0, mdsClient.DelKey("user"));
+}
+
+TEST_F(ToolMDSClientTest, GetKey) {
+    // send rpc fail
+    EXPECT_CALL(*authService, GetKey(_, _, _, _))
+        .Times(6)
+        .WillRepeatedly(
+            Invoke([](RpcController *controller,
+                      const GetKeyRequest *request,
+                      GetKeyResponse *response, Closure *done) {
+                brpc::ClosureGuard doneGuard(done);
+                brpc::Controller *cntl =
+                    dynamic_cast<brpc::Controller *>(controller);
+                cntl->SetFailed("test");
+            }));
+    std::string key;
+    ASSERT_EQ(-1, mdsClient.GetKey("user", &key));
+
+    // return code not ok
+    GetKeyResponse response;
+    response.set_status(AuthStatusCode::AUTH_STORE_KEY_FAILED);
+    EXPECT_CALL(*authService, GetKey(_, _, _, _))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(response),
+            Invoke([](RpcController *controller, const GetKeyRequest *request,
+                      GetKeyResponse *response, Closure *done) {
+                brpc::ClosureGuard doneGuard(done);
+            })));
+    ASSERT_EQ(-1, mdsClient.GetKey("user", &key));
+
+    // normal
+    response.set_status(AuthStatusCode::AUTH_OK);
+    response.set_enckey("key");
+    EXPECT_CALL(*authService, GetKey(_, _, _, _))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(response),
+            Invoke([](RpcController *controller, const GetKeyRequest *request,
+                      GetKeyResponse *response, Closure *done) {
+                brpc::ClosureGuard doneGuard(done);
+            })));
+    ASSERT_EQ(0, mdsClient.GetKey("user", &key));
+}
+
+TEST_F(ToolMDSClientTest, UpdateKey) {
+    // send rpc fail
+    EXPECT_CALL(*authService, UpdateKey(_, _, _, _))
+        .Times(6)
+        .WillRepeatedly(
+            Invoke([](RpcController *controller,
+                      const UpdateKeyRequest *request,
+                      UpdateKeyResponse *response, Closure *done) {
+                brpc::ClosureGuard doneGuard(done);
+                brpc::Controller *cntl =
+                    dynamic_cast<brpc::Controller *>(controller);
+                cntl->SetFailed("test");
+            }));
+    ASSERT_EQ(-1, mdsClient.UpdateKey("key"));
+
+    // return code not ok
+    UpdateKeyResponse response;
+    response.set_status(AuthStatusCode::AUTH_STORE_KEY_FAILED);
+    EXPECT_CALL(*authService, UpdateKey(_, _, _, _))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(response),
+            Invoke([](RpcController *controller,
+                      const UpdateKeyRequest *request,
+                      UpdateKeyResponse *response, Closure *done) {
+                brpc::ClosureGuard doneGuard(done);
+            })));
+    ASSERT_EQ(-1, mdsClient.UpdateKey("key"));
+
+    // normal
+    response.set_status(AuthStatusCode::AUTH_OK);
+    EXPECT_CALL(*authService, UpdateKey(_, _, _, _))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(response),
+            Invoke([](RpcController *controller,
+                      const UpdateKeyRequest *request,
+                      UpdateKeyResponse *response, Closure *done) {
+                brpc::ClosureGuard doneGuard(done);
+            })));
+    ASSERT_EQ(0, mdsClient.UpdateKey("key"));
 }
 
 }  // namespace tool

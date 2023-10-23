@@ -38,6 +38,7 @@
 #include <list>
 
 #include "proto/topology.pb.h"
+#include "src/client/auth_client.h"
 #include "src/mds/common/mds_define.h"
 #include "src/common/string_util.h"
 #include "src/common/configuration.h"
@@ -160,6 +161,7 @@ class CurvefsTools {
     int mdsAddressIndex_;
     brpc::Channel channel_;
     Json::Value clusterMap_;
+    curve::client::AuthClient authClient_;
 };
 
 }  // namespace topology

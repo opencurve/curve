@@ -46,6 +46,8 @@ const int kRpcFail = -5;
 const int kCsClientReturnFail = -5;
 // error code: chunkserver offline
 const int kCsClientCSOffline = -6;
+// get auth token failed
+const int kMdsGetAuthTokenFail = -7;
 
 // kStaledRequestTimeIntervalUs indicates the expiration time of the request
 // to prevent the request from being intercepted and played back
@@ -103,6 +105,7 @@ const int kTopoErrCodeLogicalPoolExist = -19;
 const int kTopoErrCodePoolsetNotFound = -20;
 const int kTopoErrCodeCannotDeleteDefaultPoolset = -21;
 const int kTopoErrCodeConflictBlockSizeAndChunkSize = -22;
+const int kTopoErrCodeAuthFail = -23;
 
 }  // namespace topology
 }  // namespace mds
@@ -119,6 +122,7 @@ const int kScheduleErrCodeSuccess = 0;
 const int kScheduleErrCodeInvalidLogicalPool = -1;
 // QueryChunkServerRecoverStatus Error Code
 const int kScheduleErrInvalidQueryChunkserverID = -2;
+const int kScheduleErrAuthFail = -3;
 
 }  // namespace schedule
 }  // namespace mds

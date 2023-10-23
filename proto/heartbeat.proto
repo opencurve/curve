@@ -23,6 +23,7 @@
 syntax = "proto2";
 import "proto/common.proto";
 import "proto/scan.proto";
+import "proto/auth.proto";
 package curve.mds.heartbeat;
 
 option cc_generic_services = true;
@@ -109,6 +110,8 @@ message ChunkServerHeartbeatRequest {
     // chunkServer相关的统计信息
     optional ChunkServerStatisticInfo stats = 12;
     optional string version = 13;
+    // auth information
+    optional auth.Token authToken = 14;
 };
 
 enum ConfigChangeType {
@@ -162,6 +165,7 @@ enum HeartbeatStatusCode {
     hbRequestNoCopyset = 6;
     // copyset转换为topology格式失败
     hbAnalyseCopysetError = 7;
+    hbAuthFailed = 8;
 }
 
 message ChunkServerHeartbeatResponse {

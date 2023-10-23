@@ -25,8 +25,8 @@
 #include <string>
 #include <memory>
 #include <utility>
+#include "src/common/authenticator.h"
 #include "src/mds/nameserver2/curvefs.h"
-#include "src/mds/nameserver2/file_lock.h"
 #include "src/common/string_util.h"
 #include "src/common/timeutility.h"
 #include "src/mds/nameserver2/helper/namespace_helper.h"
@@ -35,14 +35,28 @@ namespace curve {
 namespace mds {
 
 using curve::common::ExpiredTime;
+using curve::common::Authenticator;
+
+#define VERIFY_CREDENTIAL(request, response) \
+    do { \
+        if (!Authenticator::GetInstance().VerifyCredential( \
+            request->authtoken())) { \
+            LOG(WARNING) << __func__ << " auth failed, request = " \
+                << request->ShortDebugString(); \
+            response->set_statuscode(StatusCode::kAuthFailed); \
+            return; \
+        } \
+    } while (false)
 
 void NameSpaceService::CreateFile(::google::protobuf::RpcController* controller,
                        const ::curve::mds::CreateFileRequest* request,
                        ::curve::mds::CreateFileResponse* response,
                        ::google::protobuf::Closure* done) {
+    // TODO(all): use access log guard instead
+    ExpiredTime expiredTime;
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
+    VERIFY_CREDENTIAL(request, response);
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
@@ -58,7 +72,6 @@ void NameSpaceService::CreateFile(::google::protobuf::RpcController* controller,
               << ", CreateFile request: " << request->ShortDebugString();
 
     FileWriteLockGuard guard(fileLockManager_, request->filename());
-
     std::string signature;
     if (request->has_signature()) {
         signature = request->signature();
@@ -102,7 +115,6 @@ void NameSpaceService::CreateFile(::google::protobuf::RpcController* controller,
                 << ", StatusCode_Name = " << StatusCode_Name(retCode)
                 << ", cost " << expiredTime.ExpiredMs() << " ms";
         }
-
         return;
     } else {
         response->set_statuscode(StatusCode::kOK);
@@ -117,9 +129,10 @@ void NameSpaceService::DeleteFile(::google::protobuf::RpcController* controller,
                        const ::curve::mds::DeleteFileRequest* request,
                        ::curve::mds::DeleteFileResponse* response,
                        ::google::protobuf::Closure* done) {
+    ExpiredTime expiredTime;
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
+    VERIFY_CREDENTIAL(request, response);
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
@@ -129,12 +142,7 @@ void NameSpaceService::DeleteFile(::google::protobuf::RpcController* controller,
         return;
     }
 
-    LOG(INFO) << "logid = " << cntl->log_id()
-        << ", DeleteFile request, filename = " << request->filename()
-        << " forDeleteFlag = " << request->forcedelete();
-
     FileWriteLockGuard guard(fileLockManager_, request->filename());
-
     std::string signature;
     if (request->has_signature()) {
         signature = request->signature();
@@ -200,9 +208,10 @@ void NameSpaceService::RecoverFile(
                        const ::curve::mds::RecoverFileRequest* request,
                        ::curve::mds::RecoverFileResponse* response,
                        ::google::protobuf::Closure* done) {
+    ExpiredTime expiredTime;
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
+    VERIFY_CREDENTIAL(request, response);
 
     // check the filename is valid
     if (!isPathValid(request->filename())) {
@@ -212,9 +221,6 @@ void NameSpaceService::RecoverFile(
                      << request->filename();
         return;
     }
-
-    LOG(INFO) << "logid = " << cntl->log_id()
-        << ", RecoverFile request, filename = " << request->filename();
 
     // find the recoverFile in the RecycleBin
     FileInfo recoverFileInfo;
@@ -257,8 +263,7 @@ void NameSpaceService::RecoverFile(
     }
 
     retCode = kCurveFS.CheckRecycleFileOwner(recoverFileName,
-                                      request->owner(), signature,
-                                      request->date());
+        request->owner(), signature, request->date());
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
         if (google::ERROR != GetMdsLogLevel(retCode)) {
@@ -276,9 +281,9 @@ void NameSpaceService::RecoverFile(
     }
 
     retCode = kCurveFS.CheckDestinationOwner(
-                                        recoverFileInfo.originalfullpathname(),
-                                        request->owner(), signature,
-                                        request->date());
+        recoverFileInfo.originalfullpathname(),
+        request->owner(), signature,
+        request->date());
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
         if (google::ERROR != GetMdsLogLevel(retCode)) {
@@ -329,9 +334,10 @@ void NameSpaceService::GetFileInfo(
                         const ::curve::mds::GetFileInfoRequest* request,
                         ::curve::mds::GetFileInfoResponse* response,
                         ::google::protobuf::Closure* done) {
+    ExpiredTime expiredTime;
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
+    VERIFY_CREDENTIAL(request, response);
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
@@ -346,7 +352,6 @@ void NameSpaceService::GetFileInfo(
                            << request->filename();
 
     FileReadLockGuard guard(fileLockManager_, request->filename());
-
     std::string signature;
     if (request->has_signature()) {
         signature = request->signature();
@@ -403,9 +408,10 @@ void NameSpaceService::GetOrAllocateSegment(
                     const ::curve::mds::GetOrAllocateSegmentRequest* request,
                     ::curve::mds::GetOrAllocateSegmentResponse* response,
                     ::google::protobuf::Closure* done) {
+    ExpiredTime expiredTime;
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
+    VERIFY_CREDENTIAL(request, response);
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
@@ -417,13 +423,7 @@ void NameSpaceService::GetOrAllocateSegment(
         return;
     }
 
-    LOG(INFO) << "logid = " << cntl->log_id()
-        << ", GetOrAllocateSegment request, filename = " << request->filename()
-        << ", offset = " << request->offset() << ", allocateTag = "
-        << request->allocateifnotexist();
-
     FileWriteLockGuard guard(fileLockManager_, request->filename());
-
     std::string signature;
     if (request->has_signature()) {
         signature = request->signature();
@@ -510,10 +510,10 @@ void NameSpaceService::DeAllocateSegment(
     const ::curve::mds::DeAllocateSegmentRequest* request,
     ::curve::mds::DeAllocateSegmentResponse* response,
     ::google::protobuf::Closure* done) {
+    ExpiredTime expiredTime;
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    butil::Timer timer;
-    timer.start();
+    VERIFY_CREDENTIAL(request, response);
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
@@ -523,11 +523,7 @@ void NameSpaceService::DeAllocateSegment(
         return;
     }
 
-    LOG(INFO) << "logid = " << cntl->log_id() << ", DeAllocateSegment request, "
-              << request->ShortDebugString();
-
     FileWriteLockGuard guard(fileLockManager_, request->filename());
-
     std::string signature;
     if (request->has_signature()) {
         signature = request->signature();
@@ -549,14 +545,11 @@ void NameSpaceService::DeAllocateSegment(
                        << request->ShortDebugString()
                        << ", retCode = " << retCode;
         }
-
         return;
     }
 
-    retCode =
-        kCurveFS.DeAllocateSegment(request->filename(), request->offset());
-
-    timer.stop();
+    retCode = kCurveFS.DeAllocateSegment(request->filename(),
+                                         request->offset());
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
         if (google::ERROR != GetMdsLogLevel(retCode)) {
@@ -565,22 +558,21 @@ void NameSpaceService::DeAllocateSegment(
                          << request->ShortDebugString()
                          << ", statusCode = " << retCode
                          << ", StatusCode_Name = " << StatusCode_Name(retCode)
-                         << ", cost " << timer.m_elapsed(0.0) << " ms";
+                         << ", cost " << expiredTime.ExpiredMs() << " ms";
         } else {
             LOG(ERROR) << "logid = " << cntl->log_id()
                        << ", DeAllocateSegment fail, "
                        << request->ShortDebugString()
                        << ", statusCode = " << retCode
                        << ", StatusCode_Name = " << StatusCode_Name(retCode)
-                       << ", cost " << timer.m_elapsed(0.0) << " ms";
+                       << ", cost " << expiredTime.ExpiredMs() << " ms";
         }
     } else {
         response->set_statuscode(StatusCode::kOK);
         LOG(INFO) << "logid = " << cntl->log_id() << ", DeAllocateSegment ok, "
                   << request->ShortDebugString() << ", cost "
-                  << timer.m_elapsed(0.0) << " ms";
+                  << expiredTime.ExpiredMs() << " ms";
     }
-
     return;
 }
 
@@ -588,9 +580,10 @@ void NameSpaceService::RenameFile(::google::protobuf::RpcController* controller,
                          const ::curve::mds::RenameFileRequest* request,
                          ::curve::mds::RenameFileResponse* response,
                          ::google::protobuf::Closure* done) {
+    ExpiredTime expiredTime;
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
+    VERIFY_CREDENTIAL(request, response);
 
     // IsRenamePathValid determines whether the rename path is able to lock
     // case like this is not allow: rename /a/b -> /b or rename /a/b -> /a.
@@ -606,13 +599,8 @@ void NameSpaceService::RenameFile(::google::protobuf::RpcController* controller,
         return;
     }
 
-    LOG(INFO) << "logid = " << cntl->log_id()
-        << ", RenameFile request, oldfilename = " << request->oldfilename()
-        << ", newfilename = " << request->newfilename();
-
     FileWriteLockGuard guard(fileLockManager_, request->oldfilename(),
-                                               request->newfilename());
-
+                            request->newfilename());
     std::string signature;
     if (request->has_signature()) {
         signature = request->signature();
@@ -704,9 +692,10 @@ void NameSpaceService::ExtendFile(::google::protobuf::RpcController* controller,
                     const ::curve::mds::ExtendFileRequest* request,
                     ::curve::mds::ExtendFileResponse* response,
                     ::google::protobuf::Closure* done) {
+    ExpiredTime expiredTime;
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
+    VERIFY_CREDENTIAL(request, response);
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
@@ -717,12 +706,7 @@ void NameSpaceService::ExtendFile(::google::protobuf::RpcController* controller,
         return;
     }
 
-    LOG(INFO) << "logid = " << cntl->log_id()
-              << ", ExtendFile request, filename = " << request->filename()
-              << ", newsize = " << request->newsize();
-
     FileWriteLockGuard guard(fileLockManager_, request->filename());
-
     std::string signature;
     if (request->has_signature()) {
         signature = request->signature();
@@ -775,7 +759,6 @@ void NameSpaceService::ExtendFile(::google::protobuf::RpcController* controller,
                   << ", newsize = " << request->newsize() << ", cost "
                   << expiredTime.ExpiredMs() << " ms";
     }
-
     return;
 }
 
@@ -784,9 +767,10 @@ void NameSpaceService::ChangeOwner(
                        const ::curve::mds::ChangeOwnerRequest* request,
                        ::curve::mds::ChangeOwnerResponse* response,
                        ::google::protobuf::Closure* done) {
+    ExpiredTime expiredTime;
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
+    VERIFY_CREDENTIAL(request, response);
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
@@ -797,12 +781,7 @@ void NameSpaceService::ChangeOwner(
         return;
     }
 
-    LOG(INFO) << "logid = " << cntl->log_id()
-              << ", ChangeOwner request, filename = " << request->filename()
-              << ", newOwner = " << request->newowner();
-
     FileWriteLockGuard guard(fileLockManager_, request->filename());
-
     StatusCode retCode;
     // interface ChangeOwner() is only capable for root user
     retCode = kCurveFS.CheckRootOwner(request->filename(), request->rootowner(),
@@ -850,7 +829,6 @@ void NameSpaceService::ChangeOwner(
                   << ", newOwner = " << request->newowner() << ", cost "
                   << expiredTime.ExpiredMs() << " ms";
     }
-
     return;
 }
 
@@ -858,9 +836,10 @@ void NameSpaceService::ListDir(::google::protobuf::RpcController* controller,
                        const ::curve::mds::ListDirRequest* request,
                        ::curve::mds::ListDirResponse* response,
                        ::google::protobuf::Closure* done) {
+    ExpiredTime expiredTime;
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
+    VERIFY_CREDENTIAL(request, response);
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
@@ -870,11 +849,7 @@ void NameSpaceService::ListDir(::google::protobuf::RpcController* controller,
         return;
     }
 
-    LOG(INFO) << "logid = " << cntl->log_id()
-        << ", ListDir request, filename = " << request->filename();
-
     FileReadLockGuard guard(fileLockManager_, request->filename());
-
     std::string signature;
     if (request->has_signature()) {
         signature = request->signature();
@@ -936,9 +911,10 @@ void NameSpaceService::IncreaseFileEpoch(
     const ::curve::mds::IncreaseFileEpochRequest* request,
     ::curve::mds::IncreaseFileEpochResponse* response,
     ::google::protobuf::Closure* done) {
+    ExpiredTime expiredTime;
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
+    VERIFY_CREDENTIAL(request, response);
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
@@ -949,11 +925,7 @@ void NameSpaceService::IncreaseFileEpoch(
         return;
     }
 
-    LOG(INFO) << "logid = " << cntl->log_id()
-        << ", IncreaseFileEpoch request, filename = " << request->filename();
-
     FileReadLockGuard guard(fileLockManager_, request->filename());
-
     std::string signature;
     if (request->has_signature()) {
         signature = request->signature();
@@ -1014,9 +986,10 @@ void NameSpaceService::CreateSnapShot(
                        const ::curve::mds::CreateSnapShotRequest* request,
                        ::curve::mds::CreateSnapShotResponse* response,
                        ::google::protobuf::Closure* done) {
+    ExpiredTime expiredTime;
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
+    VERIFY_CREDENTIAL(request, response);
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
@@ -1026,12 +999,7 @@ void NameSpaceService::CreateSnapShot(
         return;
     }
 
-    LOG(INFO) << "logid = " << cntl->log_id()
-              << ", CreateSnapShot request, filename = "
-              << request->filename();
-
     FileWriteLockGuard guard(fileLockManager_, request->filename());
-
     std::string signature;
     if (request->has_signature()) {
         signature = request->signature();
@@ -1073,7 +1041,6 @@ void NameSpaceService::CreateSnapShot(
                        << ", StatusCode_Name = " << StatusCode_Name(retCode)
                        << ", cost " << expiredTime.ExpiredMs() << " ms";
         }
-
     } else {
         response->set_statuscode(StatusCode::kOK);
         LOG(INFO) << "logid = " << cntl->log_id()
@@ -1089,9 +1056,10 @@ void NameSpaceService::ListSnapShot(
                     const ::curve::mds::ListSnapShotFileInfoRequest* request,
                     ::curve::mds::ListSnapShotFileInfoResponse* response,
                     ::google::protobuf::Closure* done) {
+    ExpiredTime expiredTime;
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
+    VERIFY_CREDENTIAL(request, response);
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
@@ -1101,12 +1069,7 @@ void NameSpaceService::ListSnapShot(
         return;
     }
 
-    LOG(INFO) << "logid = " << cntl->log_id()
-              << ", ListSnapShot request, filename = "
-              << request->filename();
-
     FileReadLockGuard guard(fileLockManager_, request->filename());
-
     std::string signature;
     if (request->has_signature()) {
         signature = request->signature();
@@ -1128,14 +1091,12 @@ void NameSpaceService::ListSnapShot(
                 << ", owner = " << request->owner()
                 << ", statusCode = " << retCode;
         }
-
         return;
     }
 
     std::vector<FileInfo> snapShotFiles;
     retCode = kCurveFS.ListSnapShotFile(request->filename(),
-                                &snapShotFiles);
-
+                                        &snapShotFiles);
     if (retCode == StatusCode::kOK) {
         auto size =  request->seq_size();
         for (int i = 0; i != size; i++) {
@@ -1182,9 +1143,10 @@ void NameSpaceService::DeleteSnapShot(
                     const ::curve::mds::DeleteSnapShotRequest* request,
                     ::curve::mds::DeleteSnapShotResponse* response,
                     ::google::protobuf::Closure* done) {
+    ExpiredTime expiredTime;
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
+    VERIFY_CREDENTIAL(request, response);
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
@@ -1194,13 +1156,7 @@ void NameSpaceService::DeleteSnapShot(
         return;
     }
 
-    LOG(INFO) << "logid = " << cntl->log_id()
-              << ", DeleteSnapShot request, filename = "
-              << request->filename()
-              << ", seq = " << request->seq();
-
     FileWriteLockGuard guard(fileLockManager_, request->filename());
-
     std::string signature;
     if (request->has_signature()) {
         signature = request->signature();
@@ -1227,7 +1183,6 @@ void NameSpaceService::DeleteSnapShot(
 
     retCode =  kCurveFS.DeleteFileSnapShotFile(request->filename(),
                                     request->seq(), nullptr);
-
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
         if (google::ERROR != GetMdsLogLevel(retCode)) {
@@ -1256,9 +1211,10 @@ void NameSpaceService::CheckSnapShotStatus(
                     const ::curve::mds::CheckSnapShotStatusRequest* request,
                     ::curve::mds::CheckSnapShotStatusResponse* response,
                     ::google::protobuf::Closure* done) {
+    ExpiredTime expiredTime;
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
+    VERIFY_CREDENTIAL(request, response);
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
@@ -1270,7 +1226,6 @@ void NameSpaceService::CheckSnapShotStatus(
     }
 
     FileReadLockGuard guard(fileLockManager_, request->filename());
-
     std::string signature;
     if (request->has_signature()) {
         signature = request->signature();
@@ -1329,7 +1284,6 @@ void NameSpaceService::CheckSnapShotStatus(
                   << ", statusCode = " << retCode << ", cost "
                   << expiredTime.ExpiredMs() << " ms";
     }
-
     return;
 }
 
@@ -1338,9 +1292,10 @@ void NameSpaceService::GetSnapShotFileSegment(
                     const ::curve::mds::GetOrAllocateSegmentRequest* request,
                     ::curve::mds::GetOrAllocateSegmentResponse* response,
                     ::google::protobuf::Closure* done) {
+    ExpiredTime expiredTime;
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
+    VERIFY_CREDENTIAL(request, response);
 
     if ( !request->has_seqnum() ) {
         response->set_statuscode(StatusCode::kParaError);
@@ -1361,14 +1316,7 @@ void NameSpaceService::GetSnapShotFileSegment(
         return;
     }
 
-    LOG(INFO) << "logid = " << cntl->log_id()
-              << ", GetSnapShotFileSegment request, filename = "
-              << request->filename()
-              << " offset = " << request->offset()
-              << ", seqnum = " << request->seqnum();
-
     FileReadLockGuard guard(fileLockManager_, request->filename());
-
     std::string signature;
     if (request->has_signature()) {
         signature = request->signature();
@@ -1428,7 +1376,6 @@ void NameSpaceService::GetSnapShotFileSegment(
                   << ", statusCode = " << retCode << ", cost "
                   << expiredTime.ExpiredMs() << " ms";
     }
-
     return;
 }
 
@@ -1436,13 +1383,13 @@ void NameSpaceService::OpenFile(::google::protobuf::RpcController* controller,
                     const ::curve::mds::OpenFileRequest* request,
                     ::curve::mds::OpenFileResponse* response,
                     ::google::protobuf::Closure* done) {
+    ExpiredTime expiredTime;
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
+    VERIFY_CREDENTIAL(request, response);
 
     std::string clientIP = butil::ip2str(cntl->remote_side().ip).c_str();
     uint32_t clientPort = cntl->remote_side().port;
-
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
         LOG(WARNING) << "logid = " << cntl->log_id()
@@ -1452,13 +1399,7 @@ void NameSpaceService::OpenFile(::google::protobuf::RpcController* controller,
         return;
     }
 
-    LOG(INFO) << "logid = " << cntl->log_id()
-        << ", OpenFile request, filename = " << request->filename()
-        << ", clientip = " << clientIP
-        << ", clientport = " << clientPort;
-
     FileWriteLockGuard guard(fileLockManager_, request->filename());
-
     std::string signature;
     if (request->has_signature()) {
         signature = request->signature();
@@ -1540,13 +1481,13 @@ void NameSpaceService::CloseFile(::google::protobuf::RpcController* controller,
                     const ::curve::mds::CloseFileRequest* request,
                     ::curve::mds::CloseFileResponse* response,
                     ::google::protobuf::Closure* done) {
+    ExpiredTime expiredTime;
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
+    VERIFY_CREDENTIAL(request, response);
 
     std::string clientIP = butil::ip2str(cntl->remote_side().ip).c_str();
     uint32_t clientPort = cntl->remote_side().port;
-
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
         LOG(WARNING) << "logid = " << cntl->log_id()
@@ -1558,14 +1499,7 @@ void NameSpaceService::CloseFile(::google::protobuf::RpcController* controller,
         return;
     }
 
-    LOG(INFO) << "logid = " << cntl->log_id()
-        << ", CloseFile request, filename = " << request->filename()
-        << ", sessionid = " << request->sessionid()
-        << ", clientip = " << clientIP
-        << ", clientport = " << clientPort;
-
     FileWriteLockGuard guard(fileLockManager_, request->filename());
-
     std::string signature;
     if (request->has_signature()) {
         signature = request->signature();
@@ -1625,7 +1559,6 @@ void NameSpaceService::CloseFile(::google::protobuf::RpcController* controller,
                   << ", clientport = " << clientPort << ", cost "
                   << expiredTime.ExpiredMs() << " ms";
     }
-
     return;
 }
 
@@ -1634,9 +1567,18 @@ void NameSpaceService::RefreshSession(
                     const ::curve::mds::ReFreshSessionRequest* request,
                     ::curve::mds::ReFreshSessionResponse* response,
                     ::google::protobuf::Closure* done) {
+    ExpiredTime expiredTime;
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
+    // auth, failed need set sessionid
+    if (!Authenticator::GetInstance().VerifyCredential(
+        request->authtoken())) {
+        LOG(ERROR) << "RefreshSession auth failed, request = "
+                   << request->ShortDebugString();
+        response->set_statuscode(StatusCode::kAuthFailed);
+        response->set_sessionid(request->sessionid());
+        return;
+    }
 
     std::string clientIP = butil::ip2str(cntl->remote_side().ip).c_str();
     std::string clientVersion;
@@ -1659,16 +1601,7 @@ void NameSpaceService::RefreshSession(
         return;
     }
 
-    DVLOG(6) << "logid = " << cntl->log_id()
-        << ", RefreshSession request, filename = " << request->filename()
-        << ", sessionid = " << request->sessionid()
-        << ", date = " << request->date()
-        << ", signature = " << request->signature()
-        << ", clientip = " << clientIP
-        << ", clientport = " << clientPort;
-
     FileReadLockGuard guard(fileLockManager_, request->filename());
-
     std::string signature;
     if (request->has_signature()) {
         signature = request->signature();
@@ -1749,7 +1682,6 @@ void NameSpaceService::RefreshSession(
             << ", clientport = " << clientPort
             << ", cost = " << expiredTime.ExpiredMs() << " ms";
     }
-
     return;
 }
 
@@ -1788,21 +1720,14 @@ void NameSpaceService::CreateCloneFile(
                        const ::curve::mds::CreateCloneFileRequest* request,
                        ::curve::mds::CreateCloneFileResponse* response,
                        ::google::protobuf::Closure* done) {
+    ExpiredTime expiredTime;
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
-
-    LOG(INFO) << "logid = " << cntl->log_id()
-            << ", CreateCloneFile request, filename = " << request->filename()
-            << ", filetype = " << request->filetype()
-            << ", filelength = " << request->filelength()
-            << ", seq = " << request->seq()
-            << ", owner = " << request->owner()
-            << ", chunksize = " << request->chunksize();
+    VERIFY_CREDENTIAL(request, response);
 
     // chunksize must be set
     if (!request->has_chunksize()) {
-        LOG(INFO) << "logid = " << cntl->log_id()
+        LOG(ERROR) << "logid = " << cntl->log_id()
             << "CreateCloneFile error, chunksize not setted"
             << ". filename = " << request->filename();
         response->set_statuscode(StatusCode::kParaError);
@@ -1816,13 +1741,10 @@ void NameSpaceService::CreateCloneFile(
     }
 
     FileWriteLockGuard guard(fileLockManager_, request->filename());
-
-
     // check authority
     StatusCode ret = kCurveFS.CheckPathOwner(request->filename(),
                                              request->owner(),
                                              signature, request->date());
-
     if (ret != StatusCode::kOK) {
         response->set_statuscode(ret);
         if (google::ERROR != GetMdsLogLevel(ret)) {
@@ -1882,14 +1804,10 @@ void NameSpaceService::SetCloneFileStatus(
                        const ::curve::mds::SetCloneFileStatusRequest* request,
                        ::curve::mds::SetCloneFileStatusResponse* response,
                        ::google::protobuf::Closure* done) {
+    ExpiredTime expiredTime;
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
-
-    LOG(INFO) << "logid = " << cntl->log_id()
-        << ", SetCloneFileStatus request, filename = " << request->filename()
-        << ", set filestatus = " << request->filestatus()
-        << ", has_fileid = " << request->has_fileid();
+    VERIFY_CREDENTIAL(request, response);
 
     uint64_t fileID = request->fileid();
     if (!request->has_fileid()) {
@@ -1903,9 +1821,7 @@ void NameSpaceService::SetCloneFileStatus(
         signature = request->signature();
     }
 
-
     FileWriteLockGuard guard(fileLockManager_, request->filename());
-
     StatusCode ret = kCurveFS.CheckPathOwner(request->filename(),
                                              request->owner(),
                                              signature, request->date());
@@ -1961,12 +1877,10 @@ void NameSpaceService::GetAllocatedSize(
                        const ::curve::mds::GetAllocatedSizeRequest* request,
                        ::curve::mds::GetAllocatedSizeResponse* response,
                        ::google::protobuf::Closure* done) {
+    ExpiredTime expiredTime;
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
-
-    LOG(INFO) << "logid = " << cntl->log_id()
-        << ", GetAllocatedSize request, fileName = " << request->filename();
+    VERIFY_CREDENTIAL(request, response);
 
     StatusCode retCode;
     AllocatedSize allocSize;
@@ -1988,8 +1902,7 @@ void NameSpaceService::GetAllocatedSize(
         LOG(INFO) << "logid = " << cntl->log_id()
                   << ", GetAllocatedSize ok, fileName = " << request->filename()
                   << ", allocatedSize = " << response->allocatedsize() / kGB
-                  << "GB"
-                  << ", cost " << expiredTime.ExpiredMs() << " ms";
+                  << "GB, cost " << expiredTime.ExpiredMs() << " ms";
     }
     return;
 }
@@ -2001,10 +1914,7 @@ void NameSpaceService::GetFileSize(
                        ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-
-
-    LOG(INFO) << "logid = " << cntl->log_id()
-        << ", GetFileSize request, fileName = " << request->filename();
+    VERIFY_CREDENTIAL(request, response);
 
     StatusCode retCode;
     uint64_t fileSize = 0;
@@ -2031,12 +1941,10 @@ void NameSpaceService::ListClient(
                         const ::curve::mds::ListClientRequest* request,
                         ::curve::mds::ListClientResponse* response,
                         ::google::protobuf::Closure* done) {
+    ExpiredTime expiredTime;
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
-
-    LOG(INFO) << "logid = " << cntl->log_id()
-              << ", ListClient request = " << request->ShortDebugString();
+    VERIFY_CREDENTIAL(request, response);
 
     StatusCode retCode;
     std::vector<ClientInfo> clientInfos;
@@ -2068,13 +1976,10 @@ void NameSpaceService::FindFileMountPoint(
     const ::curve::mds::FindFileMountPointRequest* request,
     ::curve::mds::FindFileMountPointResponse* response,
     ::google::protobuf::Closure* done) {
+    ExpiredTime expiredTime;
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
-
-    LOG(INFO) << "logid = " << cntl->log_id()
-              << ", FindFileMountPoint request, fileName = "
-              << request->filename();
+    VERIFY_CREDENTIAL(request, response);
 
     StatusCode retCode;
     std::vector<ClientInfo> infos;
@@ -2109,8 +2014,7 @@ void NameSpaceService::ListVolumesOnCopysets(
                 ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    LOG(INFO) << "logid = " << cntl->log_id()
-              << ", ListAllVolumesOnCopysets request";
+    VERIFY_CREDENTIAL(request, response);
 
     std::vector<std::string> fileNames;
     std::vector<common::CopysetInfo> copysets;
@@ -2140,9 +2044,10 @@ void NameSpaceService::UpdateFileThrottleParams(
     const ::curve::mds::UpdateFileThrottleParamsRequest* request,
     ::curve::mds::UpdateFileThrottleParamsResponse* response,
     ::google::protobuf::Closure* done) {
+    ExpiredTime expiredTime;
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    ExpiredTime expiredTime;
+    VERIFY_CREDENTIAL(request, response);
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
@@ -2153,14 +2058,7 @@ void NameSpaceService::UpdateFileThrottleParams(
         return;
     }
 
-    LOG(INFO) << "logid = " << cntl->log_id()
-              << ", UpdateFileThrottleParams request, filename = "
-              << request->filename() << ", update "
-              << ThrottleType_Name(request->throttleparams().type()) << " to "
-              << request->throttleparams().ShortDebugString();
-
     FileWriteLockGuard guard(fileLockManager_, request->filename());
-
     std::string signature;
     if (request->has_signature()) {
         signature = request->signature();
@@ -2212,7 +2110,6 @@ void NameSpaceService::UpdateFileThrottleParams(
                   << request->filename() << ", cost " << expiredTime.ExpiredMs()
                   << " ms";
     }
-
     return;
 }
 

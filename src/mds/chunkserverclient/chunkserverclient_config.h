@@ -23,7 +23,9 @@
 #ifndef SRC_MDS_CHUNKSERVERCLIENT_CHUNKSERVERCLIENT_CONFIG_H_
 #define SRC_MDS_CHUNKSERVERCLIENT_CHUNKSERVERCLIENT_CONFIG_H_
 
+#include <memory>
 #include <string>
+#include "src/client/auth_client.h"
 
 namespace curve {
 namespace mds {
@@ -35,12 +37,14 @@ struct ChunkServerClientOption {
     uint32_t rpcRetryIntervalMs;
     uint32_t updateLeaderRetryTimes;
     uint32_t updateLeaderRetryIntervalMs;
+    std::shared_ptr<curve::client::AuthClient> authClient;
     ChunkServerClientOption()
         : rpcTimeoutMs(500),
           rpcRetryTimes(10),
           rpcRetryIntervalMs(500),
           updateLeaderRetryTimes(3),
-          updateLeaderRetryIntervalMs(5000) {}
+          updateLeaderRetryIntervalMs(5000),
+          authClient(std::make_shared<curve::client::AuthClient>()) {}
 };
 
 }  // namespace chunkserverclient

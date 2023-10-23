@@ -27,11 +27,13 @@
 #include <chrono>              // NOLINT
 #include <condition_variable>  // NOLINT
 #include <iostream>
+#include <memory>
 #include <mutex>  // NOLINT
 #include <string>
 #include <thread>  //NOLINT
 
 #include "include/client/libcurve.h"
+#include "src/client/auth_client.h"
 #include "src/client/chunk_closure.h"
 #include "src/client/client_common.h"
 #include "src/client/file_instance.h"

@@ -23,8 +23,6 @@
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
-// #include <brpc/controller.h>
-// #include <brpc/channel.h>
 #include <brpc/server.h>
 #include "src/mds/snapshotcloneclient/snapshotclone_client.h"
 #include "test/mds/mock/mock_snapshotcloneserver.h"

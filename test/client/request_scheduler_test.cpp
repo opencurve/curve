@@ -26,8 +26,11 @@
 #include <brpc/channel.h>
 #include <butil/iobuf.h>
 
+#include "src/client/auth_client.h"
+#include "src/client/config_info.h"
 #include "src/client/request_scheduler.h"
 #include "src/client/client_common.h"
+#include "src/common/authenticator.h"
 #include "test/client/mock/mock_meta_cache.h"
 #include "test/client/mock/mock_chunkservice.h"
 #include "test/client/mock/mock_request_context.h"

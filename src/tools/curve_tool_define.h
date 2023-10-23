@@ -120,6 +120,12 @@ const char kStorage[] = "storage";
 const char kSnapshot[] = "snapshot";
 const char kNextIndex[] = "next_index";
 
+// auth tool
+const char kAuthKeyAdd[] = "auth-key-add";
+const char kAuthKeyDelete[] = "auth-key-delete";
+const char kAuthKeyGet[] = "auth-key-get";
+const char kAuthKeyUpdate[] = "auth-key-update";
+
 const int kDefaultMdsDummyPort = 6667;
 
 }  // namespace tool

@@ -30,6 +30,7 @@ cc_library(
         "//proto:topology_cc_proto",
         "//src/common:curve_common",
         "//src/mds/topology",
+        "//proto:schedule_cc_proto",
     ],
 )
 

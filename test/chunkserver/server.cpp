@@ -24,6 +24,7 @@
 #include <gflags/gflags.h>
 #include <butil/at_exit.h>
 #include <brpc/server.h>
+#include <memory>
 
 #include "src/chunkserver/copyset_node_manager.h"
 #include "src/chunkserver/copyset_node.h"

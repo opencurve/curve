@@ -20,15 +20,18 @@
  * Author: xuchaojie
  */
 
-#include "src/client/chunkserver_client.h"
-
 #include <brpc/channel.h>
 #include <bthread/bthread.h>
 #include <algorithm>
 #include <memory>
+#include "src/client/chunkserver_client.h"
+#include "proto/chunk.pb.h"
+#include "src/client/auth_client.h"
+#include "src/common/authenticator.h"
 
 using curve::chunkserver::ChunkService_Stub;
 using curve::chunkserver::CHUNK_OP_STATUS;
+using curve::common::CHUNKSERVER_ROLE;
 
 namespace curve {
 namespace client {
@@ -38,7 +41,6 @@ int ChunkServerClient::UpdateFileEpoch(
     ChunkServerClientClosure *done) {
     brpc::ClosureGuard doneGuard(done);
     std::unique_ptr<UpdateEpochContext> ctx(new UpdateEpochContext);
-
     int ret = 0;
     if (!cs.externalAddr.IsEmpty()) {
         ret = ctx->channel.Init(cs.externalAddr.addr_, NULL);
@@ -64,6 +66,12 @@ int ChunkServerClient::UpdateFileEpoch(
 
     ctx->request.set_fileid(fileId);
     ctx->request.set_epoch(epoch);
+    auto isGet = authClient_->GetToken(CHUNKSERVER_ROLE,
+        ctx->request.mutable_authtoken());
+    if (!isGet) {
+        LOG(ERROR) << "UpdateFileEpoch get auth token fail";
+        return -LIBCURVE_ERROR::GET_AUTH_TOKEN_FAIL;
+    }
 
     ctx->done = done;
     ctx->curTry = 1;  // 1 for current try
@@ -132,6 +140,15 @@ void ChunkServerClient::OnUpdateFileEpochReturned(
                              << ", Message: "
                              << ctx->response.DebugString();
                 ctx->done->SetErrCode(-LIBCURVE_ERROR::EPOCH_TOO_OLD);
+                break;
+            case CHUNK_OP_STATUS::CHUNK_OP_STATUS_AUTH_FAIL:
+                LOG(ERROR) << "Received UpdateEpoch Response [log_id="
+                           << ctx->cntl.log_id()
+                           << "] from " << ctx->cntl.remote_side()
+                           << " to " << ctx->cntl.local_side()
+                           << ", Message: "
+                           << ctx->response.DebugString();
+                ctx->done->SetErrCode(-LIBCURVE_ERROR::AUTH_FAILED);
                 break;
             default:
                 LOG(ERROR) << "can't reach here!";

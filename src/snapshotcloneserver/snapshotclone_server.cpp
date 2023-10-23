@@ -19,17 +19,20 @@
  * Created Date: Monday March 9th 2020
  * Author: hzsunjianliang
  */
+
 #include <glog/logging.h>
 #include <brpc/server.h>
 #include <gflags/gflags.h>
-#include <string>
+#include <cstddef>
 #include <memory>
-
+#include <string>
+#include "src/common/authenticator.h"
 #include "src/common/snapshotclone/snapshotclone_define.h"
 #include "src/snapshotcloneserver/snapshotclone_server.h"
 #include "src/common/curve_version.h"
 
 using LeaderElectionOptions = ::curve::election::LeaderElectionOptions;
+using curve::common::Authenticator;
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -113,6 +116,22 @@ void InitSnapshotCloneServerOptions(std::shared_ptr<Configuration> conf,
                         &(serverOption->dlockOpts.ctx_timeoutMS));
     conf->GetValueFatalIfFail("etcd.dlock.ttlSec",
                         &(serverOption->dlockOpts.ttlSec));
+    // init auth option
+    conf->GetBoolValue("auth.enable", &serverOption->serverAuthOption.enable);
+    if (serverOption->serverAuthOption.enable) {
+        conf->GetValueFatalIfFail("auth.key.current",
+            &serverOption->serverAuthOption.key);
+        LOG_IF(FATAL, !common::Encryptor::AESKeyValid(
+            serverOption->serverAuthOption.key))
+            << "auth.key.current length is invalid"
+            << ", key length: " << serverOption->serverAuthOption.key.length();
+        conf->GetStringValue("auth.key.last",
+            &serverOption->serverAuthOption.lastKey);
+        conf->GetUInt32Value("auth.lastkey.ttlSec",
+            &serverOption->serverAuthOption.lastKeyTTL);
+        conf->GetUInt32Value("auth.request.ttlSec",
+            &serverOption->serverAuthOption.requestTTL);
+    }
 }
 
 void InitEtcdConf(std::shared_ptr<Configuration> conf, EtcdConf* etcdConf) {
@@ -307,6 +326,12 @@ bool SnapShotCloneServer::Init() {
         LOG(ERROR) << "CloneServiceManager init fail.";
         return false;
     }
+
+    // init authenticator
+    Authenticator::GetInstance().Init(
+        curve::common::ZEROIV,
+        snapshotCloneServerOptions_.serverOption.serverAuthOption);
+
     service_ = std::make_shared<SnapshotCloneServiceImpl>(
             snapshotServiceManager_,
             cloneServiceManager_);
