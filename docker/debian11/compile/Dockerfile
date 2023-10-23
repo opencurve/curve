@@ -120,4 +120,11 @@ RUN wget ${GITHUB_PROXY}https://github.com/bazelbuild/bazelisk/releases/download
     chmod +x /usr/bin/minio && \
     mkdir -p /data/minio/ /data/log/curve/ /etc/nebd /etc/curve/ && \
     chmod 0777 /data/log/curve/ /data/minio/ /etc/nebd /etc/curve/
+
+# install clang-format-14
+RUN echo "deb http://mirrors.tuna.tsinghua.edu.cn/llvm-apt/bullseye/ llvm-toolchain-bullseye-14 main" > /etc/apt/sources.list.d/llvm.list && \
+    wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add - && \
+    apt-get update && apt-get install clang-format-14 -y --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
+
 ENV PATH=$PATH:/usr/local/go/bin
