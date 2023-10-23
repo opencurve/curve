@@ -11,6 +11,7 @@ import re
 
 CURVEFS_TOOL = "curvefs_tool"
 JSON_PATH = "/tmp/topology.json"
+PLUGIN_PATH = "plugin"
 HOSTNAME_PORT_REGEX = r"[^\"\ ]\S*:\d+"
 IP_PORT_REGEX = r"[0-9]+(?:\.[0-9]+){3}:\d+"
 
@@ -97,6 +98,16 @@ def unitValue(lables, targets):
         unit["targets"] = targets
     return unit
 
+def loadPlugin():
+    # load *.json file in plugin dir
+    # merge to one json
+    data = []
+    for filename in os.listdir(PLUGIN_PATH):
+        if filename.endswith('.json'):
+            with open(os.path.join(PLUGIN_PATH, filename)) as f:
+                plugin_data = json.load(f)
+                data.append(unitValue(plugin_data["labels"], plugin_data["targets"])
+    return data
 
 def refresh():
     targets = []
@@ -113,6 +124,8 @@ def refresh():
     # load client
     client = loadClient()
     targets.append(client)
+    plugin = loadPlugin()
+    targets += plugin
 
     with open(targetPath+'.new', 'w', 0o777) as fd:
         json.dump(targets, fd, indent=4)
