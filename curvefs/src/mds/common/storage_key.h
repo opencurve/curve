@@ -43,6 +43,8 @@ const char CHUNKID_NAME_KEY_PREFIX[] = "fs_03";
 const char CHUNKID_NAME_KEY_END[] = "fs_04";
 const char BLOCKGROUP_KEY_PREFIX[] = "fs_04";
 const char BLOCKGROUP_KEY_END[] = "fs_05";
+const char FS_USAGE_KEY_PREFIX[] = "fs_05";
+const char FS_USAGE_KEY_END[] = "fs_06";
 
 constexpr uint32_t COMMON_PREFIX_LENGTH = 5;
 

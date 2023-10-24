@@ -70,6 +70,12 @@ class FsStorage {
 
     virtual uint64_t NextFsId() = 0;
     virtual void GetAll(std::vector<FsInfoWrapper>* fsInfoVec) = 0;
+
+    virtual FSStatusCode SetFsUsage(const std::string& fsName,
+                                    const FsUsage& usage) = 0;
+    virtual FSStatusCode GetFsUsage(const std::string& fsName, FsUsage* fsUsage,
+                                    bool fromCache) = 0;
+    virtual FSStatusCode DeleteFsUsage(const std::string& fsName) = 0;
 };
 
 class MemoryFsStorage : public FsStorage {
@@ -170,11 +176,20 @@ class MemoryFsStorage : public FsStorage {
      */
     void GetAll(std::vector<FsInfoWrapper>* fsInfoVec) override;
 
+    FSStatusCode SetFsUsage(const std::string& fsName,
+                            const FsUsage& usage) override;
+    FSStatusCode GetFsUsage(const std::string& fsName, FsUsage*,
+                            bool fromCache) override;
+    FSStatusCode DeleteFsUsage(const std::string& fsName) override;
+
  private:
     std::unordered_map<std::string, FsInfoWrapper> fsInfoMap_;
     curve::common::RWLock rwLock_;
 
     std::atomic<uint64_t> id_;
+
+    std::unordered_map<std::string, curvefs::mds::FsUsage> fsUsageMap_;
+    curve::common::RWLock fsUsedUsageLock_;
 };
 
 // Persist all data to kvstorage and cache all fsinfo in memory
@@ -203,6 +218,12 @@ class PersisKVStorage : public FsStorage {
     uint64_t NextFsId() override;
 
     void GetAll(std::vector<FsInfoWrapper>* fsInfoVec) override;
+
+    FSStatusCode SetFsUsage(const std::string& fsName,
+                            const FsUsage& usage) override;
+    FSStatusCode GetFsUsage(const std::string& fsName, FsUsage*,
+                            bool fromCache) override;
+    FSStatusCode DeleteFsUsage(const std::string& fsName) override;
 
  private:
     bool LoadAllFs();
@@ -234,6 +255,10 @@ class PersisKVStorage : public FsStorage {
 
     // from fs id to fs name
     std::unordered_map<uint64_t, std::string> idToName_;
+
+    // fs usage cache map
+    std::unordered_map<std::string, curvefs::mds::FsUsage> fsUsageCache_;
+    mutable RWLock fsUsageCacheMutex_;
 };
 
 }  // namespace mds
