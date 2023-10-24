@@ -47,7 +47,7 @@ const int kCsClientReturnFail = -5;
 // error code: chunkserver offline
 const int kCsClientCSOffline = -6;
 
-inline const char* PrintMdsDescByErrorCode(int code) {
+const char* PrintMdsDescByErrorCode(int code) {
     switch (code) {
         case kMdsSuccess:
             return "MDS execution succeeded";
@@ -124,6 +124,59 @@ const int kTopoErrCodeLogicalPoolExist = -19;
 const int kTopoErrCodePoolsetNotFound = -20;
 const int kTopoErrCodeCannotDeleteDefaultPoolset = -21;
 const int kTopoErrCodeConflictBlockSizeAndChunkSize = -22;
+
+const char* PrintTopoErrCodeDescription(int code) {
+    switch (code) {
+        case kTopoErrCodeSuccess:
+            return "kTopoErrCodeSuccess";
+        case kTopoErrCodeInternalError:
+            return "kTopoErrCodeInternalError";
+        case kTopoErrCodeInvalidParam:
+            return "kTopoErrCodeInvalidParam";
+        case kTopoErrCodeInitFail:
+            return "kTopoErrCodeInitFail";
+        case kTopoErrCodeStorgeFail:
+            return "kTopoErrCodeStorgeFail";
+        case kTopoErrCodeIdDuplicated:
+            return "kTopoErrCodeIdDuplicated";
+        case kTopoErrCodeChunkServerNotFound:
+            return "kTopoErrCodeChunkServerNotFound";
+        case kTopoErrCodeServerNotFound:
+            return "kTopoErrCodeServerNotFound";
+        case kTopoErrCodeZoneNotFound:
+            return "kTopoErrCodeZoneNotFound";
+        case kTopoErrCodePhysicalPoolNotFound:
+            return "kTopoErrCodePhysicalPoolNotFound";
+        case kTopoErrCodeLogicalPoolNotFound:
+            return "kTopoErrCodeLogicalPoolNotFound";
+        case kTopoErrCodeCopySetNotFound:
+            return "kTopoErrCodeCopySetNotFound";
+        case kTopoErrCodeGenCopysetErr:
+            return "kTopoErrCodeGenCopysetErr";
+        case kTopoErrCodeAllocateIdFail:
+            return "kTopoErrCodeAllocateIdFail";
+        case kTopoErrCodeCannotRemoveWhenNotEmpty:
+            return "kTopoErrCodeCannotRemoveWhenNotEmpty";
+        case kTopoErrCodeIpPortDuplicated:
+            return "kTopoErrCodeIpPortDuplicated";
+        case kTopoErrCodeNameDuplicated:
+            return "kTopoErrCodeNameDuplicated";
+        case kTopoErrCodeCreateCopysetNodeOnChunkServerFail:
+            return "kTopoErrCodeCreateCopysetNodeOnChunkServerFail";
+        case kTopoErrCodeCannotRemoveNotRetired:
+            return "kTopoErrCodeCannotRemoveNotRetired";
+        case kTopoErrCodeLogicalPoolExist:
+            return "kTopoErrCodeLogicalPoolExist";
+        case kTopoErrCodePoolsetNotFound:
+            return "kTopoErrCodePoolsetNotFound";
+        case kTopoErrCodeCannotDeleteDefaultPoolset:
+            return "kTopoErrCodeCannotDeleteDefaultPoolset";
+        case kTopoErrCodeConflictBlockSizeAndChunkSize:
+            return "kTopoErrCodeConflictBlockSizeAndChunkSize";
+        default:
+            return "undefined status";
+    }
+}
 
 }  // namespace topology
 }  // namespace mds

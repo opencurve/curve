@@ -89,8 +89,7 @@ bool CleanManager::RecoverCleanTasks(void) {
     std::vector<FileInfo> snapShotFiles;
     StoreStatus ret = storage_->LoadSnapShotFile(&snapShotFiles);
     if (ret != StoreStatus::OK) {
-        LOG(ERROR) << "Load SnapShotFile error, ret = "
-                   << PrintStoreStatusByErrorCode(ret);
+        LOG(ERROR) << "Load SnapShotFile error, ret = " << ret;
         return false;
     }
 
@@ -105,8 +104,7 @@ bool CleanManager::RecoverCleanTasks(void) {
     StoreStatus ret1 = storage_->ListFile(RECYCLEBININODEID,
                         RECYCLEBININODEID + 1, &commonFiles);
     if (ret1 != StoreStatus::OK) {
-        LOG(ERROR) << "Load recylce bin file error, ret = "
-                   << PrintStoreStatusByErrorCode(ret1);
+        LOG(ERROR) << "Load recylce bin file error, ret = " << ret1;
         return false;
     }
 

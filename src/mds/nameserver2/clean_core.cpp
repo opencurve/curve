@@ -81,8 +81,7 @@ StatusCode CleanCore::CleanSnapShotFile(const FileInfo & fileInfo,
     StoreStatus ret =  storage_->DeleteSnapshotFile(fileInfo.parentid(),
                                                 fileInfo.filename());
     if (ret != StoreStatus::OK) {
-        LOG(INFO) << "delete snapshotfile error, retCode = "
-                  << PrintStoreStatusByErrorCode(ret);
+        LOG(INFO) << "delete snapshotfile error, retCode = " << ret;
         progress->SetStatus(TaskStatus::FAILED);
         return StatusCode::kSnapshotFileDeleteError;
     } else {
@@ -154,8 +153,7 @@ StatusCode CleanCore::CleanFile(const FileInfo & commonFile,
     StoreStatus ret =  storage_->DeleteFile(commonFile.parentid(),
                                                    commonFile.filename());
     if (ret != StoreStatus::OK) {
-        LOG(INFO) << "delete common file error, retDesc = "
-                  << PrintStoreStatusByErrorCode(ret);
+        LOG(INFO) << "delete common file error, retDesc = " << ret;
         progress->SetStatus(TaskStatus::FAILED);
         return StatusCode::kCommonFileDeleteError;
     } else {
