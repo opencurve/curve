@@ -3939,6 +3939,8 @@ TEST_F(TestFuseS3Client, FuseOpUnlink_EnableSummary) {
         std::make_shared<InodeWrapper>(parentInode, metaClient_);
 
     EXPECT_CALL(*inodeManager_, GetInode(_, _))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
         .WillOnce(DoAll(SetArgReferee<1>(parentInodeWrapper),
                         Return(CURVEFS_ERROR::OK)))
         .WillOnce(
