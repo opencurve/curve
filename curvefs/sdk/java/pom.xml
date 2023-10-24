@@ -13,7 +13,7 @@
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <hadoop.version>2.7.3</hadoop.version>
+        <hadoop.version>3.2.4</hadoop.version>
         <libcurvefs.version>0.80.5</libcurvefs.version>
         <flink.version>1.15.4</flink.version>
     </properties>
