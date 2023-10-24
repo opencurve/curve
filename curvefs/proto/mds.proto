@@ -180,17 +180,24 @@ message ListClusterFsInfoResponse {
     repeated FsInfo fsInfo = 1;
 }
 
+message FsDelta {
+    optional int64 bytes = 1;
+}
+
 message RefreshSessionRequest {
     repeated topology.PartitionTxId txIds = 1;
     // used for client timeout
     required string fsName = 2;
     required Mountpoint mountpoint = 3;
+    optional FsDelta fsDelta = 4;
 }
 
 message RefreshSessionResponse {
     required FSStatusCode statusCode = 1;
     repeated topology.PartitionTxId latestTxIdList = 2;
     optional bool enableSumInDir = 3;
+    optional uint64 fsCapacity = 4;
+    optional uint64 fsUsedBytes = 5;
 }
 
 message DLockValue {

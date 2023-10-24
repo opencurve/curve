@@ -27,6 +27,7 @@
 #include "curvefs/proto/space.pb.h"
 #include "curvefs/src/client/rpcclient/mds_client.h"
 #include "curvefs/src/common/metric_utils.h"
+#include "curvefs/src/client/rpcclient/fsdelta_updater.h"
 
 namespace curvefs {
 namespace client {
@@ -513,6 +514,10 @@ MdsClientImpl::RefreshSession(const std::vector<PartitionTxId> &txIds,
         *request.mutable_txids() = {txIds.begin(), txIds.end()};
         request.set_fsname(fsName);
         *request.mutable_mountpoint() = mountpoint;
+        curvefs::mds::FsDelta fsDelta;
+        fsDelta.set_bytes(FsDeltaUpdater::GetInstance().GetDeltaBytesAndReset());
+        *request.mutable_fsdelta() = std::move(fsDelta);
+
         mdsbasecli_->RefreshSession(request, &response, cntl, channel);
         if (cntl->Failed()) {
             mdsClientMetric_.refreshSession.eps.count << 1;
