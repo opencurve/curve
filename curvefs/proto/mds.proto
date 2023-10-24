@@ -105,6 +105,10 @@ message FsInfo {
     optional uint32 recycleTimeHour =15;
 }
 
+message FsUsage {
+    optional uint64 usedBytes = 1;
+}
+
 message GetFsInfoResponse {
     required FSStatusCode statusCode = 1;
     optional FsInfo fsInfo = 2;
