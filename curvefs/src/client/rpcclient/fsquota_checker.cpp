@@ -14,20 +14,35 @@
  *  limitations under the License.
  */
 
+#include "curvefs/src/client/rpcclient/fsquota_checker.h"
 #include "curvefs/src/client/rpcclient/fsdelta_updater.h"
 
 namespace curvefs {
+
 namespace client {
 
-void FsDeltaUpdater::UpdateDeltaBytes(int64_t deltaBytes) {
-    deltaBytes_.fetch_add(deltaBytes);
+void FsQuotaChecker::Init() {
+    fsCapacityCache_.store(0);
+    fsUsedBytesCache_.store(0);
 }
 
-int64_t FsDeltaUpdater::GetDeltaBytesAndReset() {
-    return deltaBytes_.exchange(0);
+bool FsQuotaChecker::QuotaBytesCheck(uint64_t incBytes) {
+    uint64_t capacity = fsCapacityCache_.load();
+    uint64_t usedBytes = fsUsedBytesCache_.load();
+    // quota disabled
+    if (capacity == 0) {
+        return true;
+    }
+    // need consider local delta
+    auto localDelta = FsDeltaUpdater::GetInstance().GetDeltaBytes();
+    return capacity - usedBytes >= localDelta + incBytes;
 }
 
-int64_t FsDeltaUpdater::GetDeltaBytes() { return deltaBytes_.load(); }
+void FsQuotaChecker::UpdateQuotaCache(uint64_t capacity, uint64_t usedBytes) {
+    fsCapacityCache_.store(capacity);
+    fsUsedBytesCache_.store(usedBytes);
+}
 
 }  // namespace client
+
 }  // namespace curvefs
