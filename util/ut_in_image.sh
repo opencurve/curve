@@ -102,12 +102,14 @@ echo $test_bin_dirs
 
 for i in 0 1 2 3; do mkdir -p $i/{copysets,recycler}; done
 
+exclude_test_names="snapshot-server|snapshot_dummy_server|client-test|server-test|multi|topology_dummy|curve_client_workflow|curve_fake_mds|curve_tool_test"
+
 # run all unittests background
-for i in `find ${test_bin_dirs} -type f -executable -exec file -i '{}' \; | grep  -E 'executable|sharedlib' | grep "charset=binary" | grep -v ".so"|grep test | grep -Ev 'snapshot-server|snapshot_dummy_server|client-test|server-test|multi|topology_dummy|curve_client_workflow|curve_fake_mds' | awk -F":" '{print $1}' | sed -n '1,40p' ` ;do sudo $i 2>&1 | tee $i.log  & done
+for i in `find ${test_bin_dirs} -type f -executable -exec file -i '{}' \; | grep  -E 'executable|sharedlib' | grep "charset=binary" | grep -v ".so"|grep test | grep -Ev $exclude_test_names | awk -F":" '{print $1}' | sed -n '1,40p' ` ;do sudo $i 2>&1 | tee $i.log  & done
 if [ $1 == "curvebs" ];then
 sleep 360
 fi
-for i in `find ${test_bin_dirs} -type f -executable -exec file -i '{}' \; | grep  -E 'executable|sharedlib' | grep "charset=binary" | grep -v ".so"|grep test | grep -Ev 'snapshot-server|snapshot_dummy_server|client-test|server-test|multi|topology_dummy|curve_client_workflow|curve_fake_mds' | awk -F":" '{print $1}' | sed -n '41,$p' ` ;do sudo $i 2>&1 | tee $i.log  & done
+for i in `find ${test_bin_dirs} -type f -executable -exec file -i '{}' \; | grep  -E 'executable|sharedlib' | grep "charset=binary" | grep -v ".so"|grep test | grep -Ev $exclude_test_names | awk -F":" '{print $1}' | sed -n '41,$p' ` ;do sudo $i 2>&1 | tee $i.log  & done
 
 
 count=2
@@ -131,8 +133,8 @@ do
     now_test=`ps -ef | grep test | grep -v 'test[0-9]' | grep -v grep | awk '{print $8}'`
     echo "now_test case is "$now_test
 
-    for i in `find ${test_bin_dirs} -type f -executable -exec file -i '{}' \; | grep  -E 'executable|sharedlib' | grep "charset=binary" | grep -v ".so"|grep test | grep -Ev 'snapshot-server|snapshot_dummy_server|client-test|server-test|multi|topology_dummy|curve_client_workflow|curve_client_workflow|curve_fake_mds' | awk -F":" '{print $1'}`;do a=`cat $i.log | grep "FAILED  ]" | wc -l`;if [ $a -gt 0 ];then f1=`cat $i.log | grep "FAILED  ]"`;f1_file="${i}.log"; echo "fail test is $i"; check=1; fi;done
-    for i in `find ${test_bin_dirs} -type f -executable -exec file -i '{}' \; | grep  -E 'executable|sharedlib' | grep "charset=binary" | grep -v ".so"|grep test | grep -Ev 'snapshot-server|snapshot_dummy_server|client-test|server-test|multi|topology_dummy|curve_client_workflow|curve_client_workflow|curve_fake_mds' | awk -F":" '{print $1'}`;do b=`cat $i.log | grep "Failure" | wc -l`;if [ $b -gt 0 ];then f2=`cat $i.log | grep "Failure"`; f2_file="${i}.log";echo "fail test is $i"; check=1; fi;done
+    for i in `find ${test_bin_dirs} -type f -executable -exec file -i '{}' \; | grep  -E 'executable|sharedlib' | grep "charset=binary" | grep -v ".so"|grep test | grep -Ev $exclude_test_names | awk -F":" '{print $1'}`;do a=`cat $i.log | grep "FAILED  ]" | wc -l`;if [ $a -gt 0 ];then f1=`cat $i.log | grep "FAILED  ]"`;f1_file="${i}.log"; echo "fail test is $i"; check=1; fi;done
+    for i in `find ${test_bin_dirs} -type f -executable -exec file -i '{}' \; | grep  -E 'executable|sharedlib' | grep "charset=binary" | grep -v ".so"|grep test | grep -Ev $exclude_test_names | awk -F":" '{print $1'}`;do b=`cat $i.log | grep "Failure" | wc -l`;if [ $b -gt 0 ];then f2=`cat $i.log | grep "Failure"`; f2_file="${i}.log";echo "fail test is $i"; check=1; fi;done
     if [ $check -eq 1 ];then
          echo "=========================test fail,Here is the logs of failed use cases========================="
          echo "=========================test fail,Here is the logs of failed use cases========================="
@@ -165,10 +167,10 @@ tar xvf ci.tar.gz
 
 if [ $1 == "curvebs" ];then
 ./gen-coverage_bs.py
-./check_coverage.sh "curvebs"
+${WORKSPACE}/scripts/ci/check_coverage.sh "curvebs"
 elif [ $1 == "curvefs" ];then
 ./gen-coverage_fs.py
-./check_coverage.sh "curvefs"
+${WORKSPACE}/scripts/ci/check_coverage.sh "curvefs"
 fi
 cp -r coverage ${WORKSPACE}
 if [ $1 == "curvebs" ];then

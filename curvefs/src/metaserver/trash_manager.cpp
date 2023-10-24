@@ -27,6 +27,8 @@
 namespace curvefs {
 namespace metaserver {
 
+DECLARE_uint32(trash_scanPeriodSec);
+
 int TrashManager::Run() {
     if (isStop_.exchange(false)) {
         recycleThread_ =
@@ -48,9 +50,9 @@ void TrashManager::Fini() {
 }
 
 void TrashManager::ScanLoop() {
-     while (sleeper_.wait_for(std::chrono::seconds(options_.scanPeriodSec))) {
-         ScanEveryTrash();
-     }
+    while (sleeper_.wait_for(std::chrono::seconds(FLAGS_trash_scanPeriodSec))) {
+        ScanEveryTrash();
+    }
 }
 
 void TrashManager::ScanEveryTrash() {

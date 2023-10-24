@@ -31,6 +31,7 @@ import (
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/query"
 	status "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/status"
 	umount "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/umount"
+	update "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/update"
 	usage "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/usage"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/warmup"
 	"github.com/spf13/cobra"
@@ -53,6 +54,7 @@ func (fsCmd *CurveFsCommand) AddSubCommands() {
 		create.NewCreateCommand(),
 		check.NewCheckCommand(),
 		warmup.NewWarmupCommand(),
+		update.NewUpdateCommand(),
 	)
 }
 

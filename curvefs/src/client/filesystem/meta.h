@@ -171,6 +171,8 @@ std::string StrEntry(EntryOut entryOut);
 
 std::string StrAttr(AttrOut attrOut);
 
+std::string StrAttr(InodeAttr attr);
+
 }  // namespace filesystem
 }  // namespace client
 }  // namespace curvefs

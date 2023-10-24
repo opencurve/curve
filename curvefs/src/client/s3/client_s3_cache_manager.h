@@ -27,19 +27,19 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
-#include <set>
 
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/client/filesystem/error.h"
+#include "curvefs/src/client/inode_wrapper.h"
+#include "curvefs/src/client/kvclient/kvclient_manager.h"
 #include "curvefs/src/client/s3/client_s3.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/concurrent/task_thread_pool.h"
-#include "curvefs/src/client/kvclient/kvclient_manager.h"
-#include "curvefs/src/client/inode_wrapper.h"
 
 using curve::common::ReadLockGuard;
 using curve::common::RWLock;
@@ -370,12 +370,13 @@ class FileCacheManager {
     void WriteChunk(uint64_t index, uint64_t chunkPos, uint64_t writeLen,
                     const char *dataBuf);
     void GenerateS3Request(ReadRequest request,
-                           const S3ChunkInfoList &s3ChunkInfoList,
-                           char *dataBuf, std::vector<S3ReadRequest> *requests,
+                           const S3ChunkInfoList& s3ChunkInfoList,
+                           char* dataBuf, std::vector<S3ReadRequest>* requests,
                            uint64_t fsId, uint64_t inodeId);
 
     void PrefetchS3Objs(
-        const std::vector<std::pair<std::string, uint64_t>> &prefetchObjs);
+        const std::vector<std::pair<std::string, uint64_t>>& prefetchObjs,
+        bool fromS3 = true);
 
     void HandleReadRequest(const ReadRequest &request,
                            const S3ChunkInfo &s3ChunkInfo,
@@ -403,9 +404,11 @@ class FileCacheManager {
 
     // miss read from memory read/write cache, need read from
     // kv(localdisk/remote cache/s3)
-    int GenerateKVRequest(const std::shared_ptr<InodeWrapper> &inodeWrapper,
-                          const std::vector<ReadRequest> &readRequest,
-                          char *dataBuf, std::vector<S3ReadRequest> *kvRequest);
+    int GenerateKVRequest(const std::shared_ptr<InodeWrapper>& inodeWrapper,
+                          const std::vector<ReadRequest>& readRequest,
+                          char* dataBuf, std::vector<S3ReadRequest>* kvRequest);
+
+    bool IsCachedInLocal(const std::string name);
 
     enum class ReadStatus {
         OK = 0,

@@ -87,6 +87,8 @@ struct InterfaceMetric {
           latency(prefix, name + "_lat") {}
 };
 
+void CollectMetrics(InterfaceMetric* interface, int count, uint64_t u_elapsed);
+
 struct DiscardMetric {
     explicit DiscardMetric(const std::string& prefix)
         : totalSuccess(prefix, "discard_total_success"),

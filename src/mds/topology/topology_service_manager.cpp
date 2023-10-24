@@ -1795,6 +1795,25 @@ void TopologyServiceManager::ConvertCopyset(const CopySetInfo& in,
     out->set_lastscanconsistent(in.GetLastScanConsistent());
 }
 
+void TopologyServiceManager::ListChunkFormatStatus(
+    const ListChunkFormatStatusRequest* request,
+    ListChunkFormatStatusResponse* response) {
+    std::vector<ChunkServerIdType> chunkserverlist =
+        topology_->GetChunkServerInCluster();
+    for (auto& id : chunkserverlist) {
+        ChunkServer cs;
+        ChunkServerStat stat;
+        if (topology_->GetChunkServer(id, &cs) &&
+            topoStat_->GetChunkServerStat(id, &stat)) {
+            ChunkFormatStatus* status = response->add_chunkformatstatus();
+            status->set_chunkserverid(id);
+            status->set_ip(cs.GetHostIp());
+            status->set_port(cs.GetPort());
+            status->set_formatpercent(stat.chunkFilepoolFormatPercent);
+        }
+    }
+}
+
 }  // namespace topology
 }  // namespace mds
 }  // namespace curve

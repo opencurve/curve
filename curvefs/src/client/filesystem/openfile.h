@@ -30,6 +30,7 @@
 #include "curvefs/src/client/filesystem/meta.h"
 #include "curvefs/src/client/filesystem/defer_sync.h"
 #include "curvefs/src/client/filesystem/dir_cache.h"
+#include "curvefs/src/client/filesystem/metric.h"
 
 namespace curvefs {
 namespace client {
@@ -77,6 +78,7 @@ class OpenFiles {
     OpenFilesOption option_;
     std::shared_ptr<DeferSync> deferSync_;
     std::shared_ptr<LRUType> files_;
+    std::shared_ptr<OpenfilesMetric> metric_;
 };
 
 }  // namespace filesystem

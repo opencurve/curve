@@ -31,8 +31,9 @@ OpenFiles::OpenFiles(OpenFilesOption option,
                      std::shared_ptr<DeferSync> deferSync)
     : rwlock_(),
       option_(option),
-      deferSync_(deferSync),
-      files_(std::make_shared<LRUType>(option.lruSize)) {
+      deferSync_(deferSync) {
+    files_ = std::make_shared<LRUType>(option.lruSize);
+    metric_ = std::make_shared<OpenfilesMetric>();
     LOG(INFO) << "Using openfile lru cache, capacity " << option.lruSize;
 }
 
@@ -48,6 +49,7 @@ void OpenFiles::Delete(Ino ino,
         deferSync_->Push(file->inode);
     }
     files_->Remove(ino);
+    metric_->AddOpenfiles(-1);
 
     VLOG(1) << "Delete open file cache: ino = " << ino
             << ", refs = " << file->refs
@@ -81,6 +83,7 @@ void OpenFiles::Open(Ino ino, std::shared_ptr<InodeWrapper> inode) {
     file = std::make_shared<OpenFile>(inode);
     file->refs++;
     files_->Put(ino, file);
+    metric_->AddOpenfiles(1);
 
     VLOG(1) << "Insert open file cache: ino = " << ino
             << ", refs = " << file->refs

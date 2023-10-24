@@ -532,15 +532,19 @@ bool TopologyImpl::GetMetaServer(MetaServerIdType metaserverId,
 bool TopologyImpl::GetMetaServer(const std::string &hostIp, uint32_t port,
                                  MetaServer *out) const {
     ReadLockGuard rlockMetaServerMap(metaServerMutex_);
+    bool find = false;
     for (auto it = metaServerMap_.begin(); it != metaServerMap_.end(); it++) {
         ReadLockGuard rlockMetaServer(it->second.GetRWLockRef());
         if (it->second.GetInternalIp() == hostIp &&
             it->second.GetInternalPort() == port) {
             *out = it->second;
-            return true;
+            find = true;
+            if (it->second.GetOnlineState() == OnlineState::ONLINE) {
+                return find;
+            }
         }
     }
-    return false;
+    return find;
 }
 
 TopoStatusCode TopologyImpl::AddPartition(const Partition &data) {
@@ -565,6 +569,8 @@ TopoStatusCode TopologyImpl::AddPartition(const Partition &data) {
 
                 // update fs partition number
                 clusterInfo_.AddPartitionIndexOfFs(data.GetFsId());
+                clusterInfo_.UpdateFsNextInodeId(data.GetFsId(),
+                                                 data.GetIdEnd());
                 if (!storage_->StorageClusterInfo(clusterInfo_)) {
                     LOG(ERROR) << "AddPartitionIndexOfFs failed, fsId = "
                                << data.GetFsId();
@@ -1043,6 +1049,12 @@ TopoStatusCode TopologyImpl::Init(const TopologyOption &option) {
         return TopoStatusCode::TOPO_STORGE_FAIL;
     }
     idGenerator_->initPartitionIdGenerator(maxPartitionId);
+
+    // update fs next inodeId
+    for (const auto& p : partitionMap_) {
+        clusterInfo_.UpdateFsNextInodeId(p.second.GetFsId(),
+                                         p.second.GetIdEnd());
+    }
 
     // MemcacheCluster
     MemcacheClusterIdType maxMemcacheClusterId;
@@ -1626,8 +1638,14 @@ uint32_t TopologyImpl::GetPartitionIndexOfFS(FsIdType fsId) {
     return clusterInfo_.GetPartitionIndexOfFS(fsId);
 }
 
+uint64_t TopologyImpl::GetFsNextInodeId(FsIdType fsId) {
+    ReadLockGuard rlock(clusterMutex_);
+    return clusterInfo_.GetFsNextInodeId(fsId);
+}
+
 std::vector<CopySetInfo> TopologyImpl::ListCopysetInfo() const {
     std::vector<CopySetInfo> ret;
+    ReadLockGuard rlockCopySet(copySetMutex_);
     for (auto const &i : copySetMap_) {
         ret.emplace_back(i.second);
     }

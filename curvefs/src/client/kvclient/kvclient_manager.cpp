@@ -21,27 +21,38 @@
  */
 
 #include "curvefs/src/client/kvclient/kvclient_manager.h"
+
 #include <memory>
+
+#include "absl/memory/memory.h"
+#include "curvefs/src/client/metric/client_metric.h"
 #include "src/client/client_metric.h"
 #include "src/common/concurrent/count_down_event.h"
 
 using curve::client::LatencyGuard;
 using curve::common::CountDownEvent;
-using curvefs::client::metric::KVClientMetric;
+using curvefs::client::metric::KVClientManagerMetric;
 
 namespace curvefs {
 namespace client {
 
-#define ONRETURN(TYPE, RES)                                                    \
-    if (RES) {                                                                 \
-        kvClientMetric_.kvClient##TYPE.qps.count << 1;                        \
-    } else {                                                                   \
-        kvClientMetric_.kvClient##TYPE.eps.count << 1;                        \
-    }                                                                          \
+template <typename Metric, typename TaskSharePtr>
+void OnReturn(Metric* metric, const TaskSharePtr task) {
+    task->timer.stop();
+    if (task->res) {
+        curve::client::CollectMetrics(metric, task->length,
+                                      task->timer.u_elapsed());
+    } else {
+        metric->eps.count << 1;
+    }
+    task->done(task);
+}
 
-bool KVClientManager::Init(const KVClientManagerOpt &config,
-                           const std::shared_ptr<KVClient> &kvclient) {
+bool KVClientManager::Init(const KVClientManagerOpt& config,
+                           const std::shared_ptr<KVClient>& kvclient,
+                           const std::string& fsName) {
     client_ = kvclient;
+    kvClientManagerMetric_ = absl::make_unique<KVClientManagerMetric>(fsName);
     return threadPool_.Start(config.setThreadPooln) == 0;
 }
 
@@ -52,30 +63,69 @@ void KVClientManager::Uninit() {
 
 void KVClientManager::Set(std::shared_ptr<SetKVCacheTask> task) {
     threadPool_.Enqueue([task, this]() {
-        LatencyGuard guard(&kvClientMetric_.kvClientSet.latency);
-
         std::string error_log;
         task->res =
             client_->Set(task->key, task->value, task->length, &error_log);
-        task->timer.stop();
-        ONRETURN(Set, task->res);
-
-        task->done(task);
+        if (task->res) {
+            kvClientManagerMetric_->count << 1;
+        }
+        OnReturn(&kvClientManagerMetric_->set, task);
     });
+}
+
+void UpdateHitMissMetric(memcached_return_t retCode,
+                         KVClientManagerMetric* metric) {
+    // https://awesomized.github.io/libmemcached/libmemcached/memcached_return_t.html
+    switch (retCode) {
+        case MEMCACHED_SUCCESS:
+            metric->hit << 1;
+            break;
+        case MEMCACHED_DATA_DOES_NOT_EXIST:
+            // The data requested with the key given was not found.
+        case MEMCACHED_DATA_EXISTS:
+            // The data requested with the key given was not found.
+        case MEMCACHED_DELETED:
+            // The object requested by the key has been deleted.
+        case MEMCACHED_NOTFOUND:
+            // The object requested was not found.
+            metric->miss << 1;
+            break;
+        default:
+            break;
+    }
 }
 
 void KVClientManager::Get(std::shared_ptr<GetKVCacheTask> task) {
     threadPool_.Enqueue([task, this]() {
-        LatencyGuard guard(&kvClientMetric_.kvClientGet.latency);
-
         std::string error_log;
+        memcached_return_t retCode;
         task->res = client_->Get(task->key, task->value, task->offset,
-                                task->length, &error_log);
-        task->timer.stop();
-        ONRETURN(Get, task->res);
-
-        task->done(task);
+                                 task->valueLength, &error_log, &task->length,
+                                 &retCode);
+        UpdateHitMissMetric(retCode, kvClientManagerMetric_.get());
+        OnReturn(&kvClientManagerMetric_->get, task);
     });
+}
+
+void KVClientManager::Enqueue(std::shared_ptr<GetObjectAsyncContext> context) {
+    auto task = [this, context]() { this->GetKvCache(context); };
+    threadPool_.Enqueue(task);
+}
+
+int KVClientManager::GetKvCache(
+    std::shared_ptr<GetObjectAsyncContext> context) {
+    VLOG(9) << "GetKvCache start: " << context->key;
+    std::string error_log;
+    memcached_return_t retCode;
+    uint64_t actLength = 0;
+    context->retCode =
+        !client_->Get(context->key, context->buf, context->offset, context->len,
+                      &error_log, &actLength, &retCode);
+    context->actualLen = actLength;
+    context->cb(nullptr, context);
+    VLOG(9) << "GetKvCache end: " << context->key << ", " << context->retCode
+            << ", " << context->actualLen;
+    return 0;
 }
 
 }  // namespace client

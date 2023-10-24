@@ -24,13 +24,14 @@
 #ifndef CURVEFS_SRC_CLIENT_FUSE_S3_CLIENT_H_
 #define CURVEFS_SRC_CLIENT_FUSE_S3_CLIENT_H_
 
+#include <list>
 #include <memory>
 #include <string>
-#include <list>
-#include <vector>
 #include <utility>
+#include <vector>
 
 #include "curvefs/src/client/fuse_client.h"
+#include "curvefs/src/client/metric/client_metric.h"
 #include "curvefs/src/client/s3/client_s3_cache_manager.h"
 #include "curvefs/src/client/warmup/warmup_manager.h"
 #include "curvefs/src/volume/common.h"
@@ -133,6 +134,7 @@ class FuseS3Client : public FuseClient {
     // s3 adaptor
     std::shared_ptr<S3ClientAdaptor> s3Adaptor_;
     std::shared_ptr<KVClientManager> kvClientManager_;
+    std::unique_ptr<metric::FuseS3ClientIOLatencyMetric> ioLatencyMetric_;
 
     static constexpr auto MIN_WRITE_CACHE_SIZE = 8 * kMiB;
 };

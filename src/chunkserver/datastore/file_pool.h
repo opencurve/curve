@@ -25,19 +25,20 @@
 
 #include <glog/logging.h>
 
-#include <set>
-#include <mutex>  // NOLINT
-#include <vector>
-#include <string>
-#include <memory>
-#include <deque>
 #include <atomic>
+#include <condition_variable>
+#include <deque>
+#include <memory>
+#include <mutex>  // NOLINT
+#include <set>
+#include <string>
+#include <vector>
 
+#include "include/curve_compiler_specific.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/interruptible_sleeper.h"
 #include "src/common/throttle.h"
 #include "src/fs/local_filesystem.h"
-#include "include/curve_compiler_specific.h"
 
 using curve::fs::LocalFileSystem;
 using curve::common::Thread;
@@ -65,6 +66,17 @@ struct FilePoolOptions {
     // retry times for get file
     uint16_t    retryTimes;
 
+    bool allocatedByPercent;
+    uint32_t allocatedPercent;
+    uint32_t preAllocateNum;
+    uint64_t filePoolSize;
+    uint32_t formatThreadNum;
+
+    std::string copysetDir;
+    std::string recycleDir;
+
+    std::function<bool(const std::string&)> isAllocated;
+
     FilePoolOptions() {
         getFileFromPool = true;
         needClean = false;
@@ -75,6 +87,11 @@ struct FilePoolOptions {
         metaPageSize = 0;
         retryTimes = 5;
         blockSize = 0;
+        allocatedByPercent = false;
+        allocatedPercent = 0;
+        preAllocateNum = 0;
+        filePoolSize = 0;
+        formatThreadNum = 1;
         ::memset(metaPath, 0, 256);
         ::memset(filePoolDir, 0, 256);
     }
@@ -87,7 +104,8 @@ struct FilePoolState {
     uint64_t    cleanChunksLeft = 0;
     // How many pre-allocated chunks are not used by the datastore
     uint64_t    preallocatedChunksLeft = 0;
-
+    // Total num of chunks in the datastore
+    uint64_t chunkNum;
     // chunksize
     uint32_t    chunkSize = 0;
     // metapage size
@@ -124,6 +142,12 @@ struct FilePoolMeta {
           filePoolPath(filepool) {}
 
     uint32_t Crc32() const;
+};
+
+struct ChunkFormatStat {
+    std::atomic<bool> isWrong{false};
+    std::atomic<uint32_t> allocateChunkNum{0};
+    uint32_t preAllocateNum = 0;
 };
 
 class FilePoolHelper {
@@ -168,7 +192,7 @@ class FilePoolHelper {
 class CURVE_CACHELINE_ALIGNMENT FilePool {
  public:
     explicit FilePool(std::shared_ptr<LocalFileSystem> fsptr);
-    virtual ~FilePool() = default;
+    virtual ~FilePool();
 
     /**
      * Initialization function
@@ -237,12 +261,30 @@ class CURVE_CACHELINE_ALIGNMENT FilePool {
      */
     bool StopCleaning();
 
+    /**
+     * @brief: Wait for format thread done.
+     * @return: Return true if success.
+     */
+    bool WaitoFormatDoneForTesting();
+
+    /**
+     * @brief: Get the format status of FilePool
+     * @return: Return the format status.
+     */
+    virtual const ChunkFormatStat& GetChunkFormatStat() const;
+
  private:
     // Traverse the pre-allocated chunk information from the
     // chunkfile pool directory
     bool ScanInternal();
-    // Check whether the chunkfile pool pre-allocation is legal
+    // Prepare for format.
+    bool PrepareFormat();
+    //
     bool CheckValid();
+    // Count the num of files that has been allocated.
+    uint64_t CountAllocatedNum(const std::string& path);
+    // Check whether pool file is legal.
+    bool CheckPoolFile(const std::string& file);
     /**
      * Perform metapage assignment for the new chunkfile
      * @param: sourcepath is the file path to be written
@@ -282,6 +324,19 @@ class CURVE_CACHELINE_ALIGNMENT FilePool {
      */
     bool CleaningChunk();
 
+    int FormatTask(uint64_t indexOffset, std::atomic<uint32_t>* allocatIndex);
+
+    /**
+     * @brief: The function of thread for formatting chunk
+     */
+    int FormatWorker();
+
+    /**
+     * @brief: Stop thread for formatting chunk
+     * @return: Return true if success, otherwise return false
+     */
+    bool StopFormatting();
+
     /**
      * @brief: The function of thread for cleaning chunk
      */
@@ -299,6 +354,9 @@ class CURVE_CACHELINE_ALIGNMENT FilePool {
 
     // Protect dirtyChunks_, cleanChunks_
     std::mutex mtx_;
+
+    // Wait for GetChunk
+    std::condition_variable cond_;
 
     // Current FilePool pre-allocated files, folder path
     std::string currentdir_;
@@ -331,8 +389,20 @@ class CURVE_CACHELINE_ALIGNMENT FilePool {
     // The throttle iops for cleaning chunk (4KB/IO)
     Throttle cleanThrottle_;
 
+    // Whether the format thread is alive
+    Atomic<bool> formatAlived_{true};
+
+    // Thread for format chunks.
+    Thread formatThread_;
+
+    // Stat for format chunks.
+    ChunkFormatStat formatStat_;
+
     // Sleeper for cleaning chunk thread
     InterruptibleSleeper cleanSleeper_;
+
+    // Sleeper for formatting chunk thread
+    InterruptibleSleeper formatSleeper_;
 
     // The buffer for write chunk file
     std::unique_ptr<char[]> writeBuffer_;

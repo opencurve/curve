@@ -489,13 +489,9 @@ bool S3Adapter::ObjectExist(const Aws::String &key) {
     if (response.IsSuccess()) {
         return true;
     } else {
-        LOG(ERROR) << "HeadObject error:"
-                << bucketName_
-                << "--"
-                << key
-                << "--"
-                << response.GetError().GetExceptionName()
-                << response.GetError().GetMessage();
+        LOG(WARNING) << "HeadObject error:" << bucketName_ << "--" << key
+                     << "--" << response.GetError().GetExceptionName()
+                     << response.GetError().GetMessage();
         return false;
     }
 }
@@ -508,13 +504,9 @@ int S3Adapter::DeleteObject(const Aws::String &key) {
     if (response.IsSuccess()) {
         return 0;
     } else {
-            LOG(ERROR) << "DeleteObject error:"
-                << bucketName_
-                << "--"
-                << key
-                << "--"
-                << response.GetError().GetExceptionName()
-                << response.GetError().GetMessage();
+        LOG(WARNING) << "DeleteObject error:" << bucketName_ << "--" << key
+                     << "--" << response.GetError().GetExceptionName()
+                     << response.GetError().GetMessage();
         return -1;
     }
 }

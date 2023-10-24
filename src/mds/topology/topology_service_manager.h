@@ -198,6 +198,10 @@ class TopologyServiceManager {
         ChunkServerIdType id,
         const std::vector<CopySetInfo> &copysetInfos);
 
+    virtual void ListChunkFormatStatus(
+        const ListChunkFormatStatusRequest* request,
+        ListChunkFormatStatusResponse* response);
+
  private:
     /**
     * @brief create copyset for logical pool

@@ -172,7 +172,7 @@ TEST_F(FsCacheManagerTest, test_fsSync_not_exist) {
 
     auto fileCache = std::make_shared<MockFileCacheManager>();
     EXPECT_CALL(*fileCache, Flush(_, _))
-        .WillOnce(Return(CURVEFS_ERROR::NOTEXIST));
+        .WillOnce(Return(CURVEFS_ERROR::NOT_EXIST));
     fsCacheManager_->SetFileCacheManagerForTest(inodeId, fileCache);
     ASSERT_EQ(fileCache, fsCacheManager_->FindFileCacheManager(inodeId));
     ASSERT_EQ(CURVEFS_ERROR::OK, fsCacheManager_->FsSync(true));

@@ -82,6 +82,9 @@ runlog/
 !curve-snapshotcloneserver-nginx/app/lib
 !nebd/nebd-package/usr/bin
 
+# build output
+build
+
 # mac
 .DS_Store
 
@@ -166,3 +169,11 @@ test/integration/snapshotcloneserver/config/*.conf
 
 *.deb
 *.whl
+
+*.class
+curvefs/sdk/java/target/
+curvefs/sdk/java/native/build
+curvefs/sdk/libcurvefs/examples/bin
+curvefs/sdk/output/
+hadoop-test/
+nnbench-test/

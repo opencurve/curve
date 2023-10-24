@@ -57,6 +57,7 @@ const char kClientListCmd[] = "client-list";
 const char kSnapshotCloneStatusCmd[] = "snapshot-clone-status";
 const char kClusterStatusCmd[] = "cluster-status";
 const char kScanStatusCmd[] = "scan-status";
+const char kFormatStatusCmd[] = "format-status";
 
 // NameSpaceTool相关命令
 const char kGetCmd[] = "get";

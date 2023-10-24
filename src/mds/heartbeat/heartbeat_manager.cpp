@@ -137,6 +137,11 @@ void HeartbeatManager::UpdateChunkServerStatistics(
             stat.chunkFilepoolSize = request.stats().chunkfilepoolsize();
         }
 
+        if (request.stats().has_chunkfilepoolformatpercent()) {
+            stat.chunkFilepoolFormatPercent =
+                request.stats().chunkfilepoolformatpercent();  // NOLINT
+        }
+
         for (int i = 0; i < request.copysetinfos_size(); i++) {
             CopysetStat cstat;
             cstat.logicalPoolId = request.copysetinfos(i).logicalpoolid();

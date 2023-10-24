@@ -110,6 +110,7 @@ const std::vector<std::string> chunkserverConfigOptions{
     std::string("mds.listen.addr=") + kMdsIpPort,
     std::string("curve.config_path=") + kCsClientConfigPath,
     std::string("s3.config_path=") + kS3ConfigPath,
+    "chunkfilepool.allocated_by_percent=false",
     "walfilepool.use_chunk_file_pool=false",
     "walfilepool.enable_get_segment_from_pool=false",
     "global.block_size=4096",

@@ -145,16 +145,14 @@ message UmountFsResponse {
     required FSStatusCode statusCode = 1;
 }
 
-/* UpdateFsInfoRequest comment now
 message UpdateFsInfoRequest {
     required string fsName = 1;
-    // todo
+    optional uint64 capacity = 2;
 }
+
 message UpdateFsInfoResponse {
     required FSStatusCode statusCode = 1;
-    optional FsInfo fsInfo = 2;
 }
-*/
 
 message DeleteFsRequest {
     required string fsName = 1;
@@ -232,7 +230,7 @@ service MdsService {
     rpc UmountFs(UmountFsRequest) returns (UmountFsResponse);
     // TODO(chengyi01): move to GetFssInfo
     rpc GetFsInfo(GetFsInfoRequest) returns (GetFsInfoResponse);
-    // rpc UpdateFsInfo(UpdateFsInfoRequest) returns (UpdateFsInfoResponse);
+    rpc UpdateFsInfo(UpdateFsInfoRequest) returns (UpdateFsInfoResponse);
     rpc DeleteFs(DeleteFsRequest) returns (DeleteFsResponse);
     rpc AllocateS3Chunk(AllocateS3ChunkRequest) returns (AllocateS3ChunkResponse);
     rpc ListClusterFsInfo (ListClusterFsInfoRequest) returns (ListClusterFsInfoResponse);

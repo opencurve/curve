@@ -32,6 +32,7 @@
 #include <utility>
 
 #include "curvefs/proto/metaserver.pb.h"
+#include "curvefs/src/client/filesystem/xattr.h"
 #include "curvefs/src/common/define.h"
 #include "curvefs/src/metaserver/storage/storage.h"
 #include "src/common/concurrent/name_lock.h"
@@ -39,6 +40,10 @@
 
 using ::curve::common::NameLockGuard;
 using ::curve::common::TimeUtility;
+using ::curvefs::client::filesystem::XATTR_DIR_ENTRIES;
+using ::curvefs::client::filesystem::XATTR_DIR_FBYTES;
+using ::curvefs::client::filesystem::XATTR_DIR_FILES;
+using ::curvefs::client::filesystem::XATTR_DIR_SUBDIRS;
 using ::google::protobuf::util::MessageDifferencer;
 
 #define CHECK_APPLIED()                                                     \
@@ -196,10 +201,10 @@ void InodeManager::GenerateInodeInternal(uint64_t inodeId,
     if (FsFileType::TYPE_DIRECTORY == param.type) {
         inode->set_nlink(2);
         // set summary xattr
-        inode->mutable_xattr()->insert({XATTRFILES, "0"});
-        inode->mutable_xattr()->insert({XATTRSUBDIRS, "0"});
-        inode->mutable_xattr()->insert({XATTRENTRIES, "0"});
-        inode->mutable_xattr()->insert({XATTRFBYTES, "0"});
+        inode->mutable_xattr()->insert({XATTR_DIR_FILES, "0"});
+        inode->mutable_xattr()->insert({XATTR_DIR_SUBDIRS, "0"});
+        inode->mutable_xattr()->insert({XATTR_DIR_ENTRIES, "0"});
+        inode->mutable_xattr()->insert({XATTR_DIR_FBYTES, "0"});
     } else {
         inode->set_nlink(1);
     }

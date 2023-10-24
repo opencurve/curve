@@ -55,6 +55,8 @@ struct ClusterInformation {
     std::string clusterId;
     // <fsId, partition index of this fs>
     std::map<uint32_t, uint32_t> partitionIndexs;
+    // <fsId, next inode id>
+    std::unordered_map<uint32_t, uint64_t> fsNextInodeId;
 
     ClusterInformation() = default;
     explicit ClusterInformation(const std::string &clusterId)
@@ -74,6 +76,14 @@ struct ClusterInformation {
 
     void AddPartitionIndexOfFs(uint32_t fsId) {
         partitionIndexs[fsId]++;
+    }
+
+    void UpdateFsNextInodeId(uint32_t fsId, uint64_t inodeId) {
+        fsNextInodeId[fsId] = std::max(fsNextInodeId[fsId], inodeId);
+    }
+
+    uint64_t GetFsNextInodeId(uint32_t fsId) {
+        return fsNextInodeId[fsId] == 0 ? 0 : fsNextInodeId[fsId] + 1;
     }
 
     bool SerializeToString(std::string *value) const;

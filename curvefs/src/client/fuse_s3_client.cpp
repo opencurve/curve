@@ -20,11 +20,13 @@
  * Author: xuchaojie
  */
 
+#include "curvefs/src/client/fuse_s3_client.h"
 
+#include <cstdint>
 #include <memory>
 #include <vector>
 
-#include "curvefs/src/client/fuse_s3_client.h"
+#include "curvefs/src/client/filesystem/xattr.h"
 #include "curvefs/src/client/kvclient/memcache_client.h"
 
 namespace curvefs {
@@ -41,8 +43,9 @@ DECLARE_bool(supportKVcache);
 namespace curvefs {
 namespace client {
 
-using curvefs::client::common::FLAGS_supportKVcache;
 using curvefs::client::common::FLAGS_enableCto;
+using curvefs::client::common::FLAGS_supportKVcache;
+using ::curvefs::client::filesystem::XATTR_DIR_FBYTES;
 using curvefs::mds::topology::MemcacheClusterInfo;
 using curvefs::mds::topology::MemcacheServerInfo;
 
@@ -74,7 +77,7 @@ CURVEFS_ERROR FuseS3Client::Init(const FuseClientOption &option) {
         LOG(ERROR) << "writeCacheMaxByte is too small"
                    << ", at least " << MIN_WRITE_CACHE_SIZE << " (8MB)"
                       ", writeCacheMaxByte = " << writeCacheMaxByte;
-        return CURVEFS_ERROR::CACHETOOSMALL;
+        return CURVEFS_ERROR::CACHE_TOO_SMALL;
     }
 
     auto fsCacheManager = std::make_shared<FsCacheManager>(
@@ -100,6 +103,8 @@ CURVEFS_ERROR FuseS3Client::Init(const FuseClientOption &option) {
                                inodeManager_, mdsClient_, fsCacheManager,
                                nullptr, kvClientManager_, true);
     }
+    ioLatencyMetric_ = absl::make_unique<metric::FuseS3ClientIOLatencyMetric>(
+        fsInfo_->fsname());
     return ret;
 }
 
@@ -116,14 +121,14 @@ bool FuseS3Client::InitKVCache(const KVClientManagerOpt &opt) {
 
     // init kvcache client
     auto memcacheClient = std::make_shared<MemCachedClient>();
-    if (!memcacheClient->Init(kvcachecluster)) {
+    if (!memcacheClient->Init(kvcachecluster, fsInfo_->fsname())) {
         LOG(ERROR) << "FLAGS_supportKVcache = " << FLAGS_supportKVcache
                    << ", but init memcache client fail";
         return false;
     }
 
     kvClientManager_ = std::make_shared<KVClientManager>();
-    if (!kvClientManager_->Init(opt, memcacheClient)) {
+    if (!kvClientManager_->Init(opt, memcacheClient, fsInfo_->fsname())) {
         LOG(ERROR) << "FLAGS_supportKVcache = " << FLAGS_supportKVcache
                    << ", but init kvClientManager fail";
         return false;
@@ -161,7 +166,7 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
     if (fi->flags & O_DIRECT) {
         if (!(is_aligned(off, DirectIOAlignment) &&
               is_aligned(size, DirectIOAlignment)))
-            return CURVEFS_ERROR::INVALIDPARAM;
+            return CURVEFS_ERROR::INVALID_PARAM;
     }
     uint64_t start = butil::cpuwide_time_us();
     int wRet = s3Adaptor_->Write(ino, off, size, buf);
@@ -169,14 +174,8 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
         LOG(ERROR) << "s3Adaptor_ write failed, ret = " << wRet;
         return CURVEFS_ERROR::INTERNAL;
     }
-
-    if (fsMetric_.get() != nullptr) {
-        fsMetric_->userWrite.bps.count << wRet;
-        fsMetric_->userWrite.qps.count << 1;
-        uint64_t duration = butil::cpuwide_time_us() - start;
-        fsMetric_->userWrite.latency << duration;
-        fsMetric_->userWriteIoSize.set_value(wRet);
-    }
+    uint64_t mid = butil::cpuwide_time_us();
+    ioLatencyMetric_->writeDataLatency << mid - start;
 
     std::shared_ptr<InodeWrapper> inodeWrapper;
     CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWrapper);
@@ -207,8 +206,8 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
     if (enableSumInDir_ && changeSize != 0) {
         const Inode* inode = inodeWrapper->GetInodeLocked();
         XAttr xattr;
-        xattr.mutable_xattrinfos()->insert({XATTRFBYTES,
-            std::to_string(changeSize)});
+        xattr.mutable_xattrinfos()->insert(
+            {XATTR_DIR_FBYTES, std::to_string(changeSize)});
         for (const auto &it : inode->parent()) {
             auto tret = xattrManager_->UpdateParentInodeXattr(it, xattr, true);
             if (tret != CURVEFS_ERROR::OK) {
@@ -220,6 +219,15 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
     }
 
     inodeWrapper->GetInodeAttrLocked(&fileOut->attr);
+
+    if (fsMetric_.get() != nullptr) {
+        fsMetric_->userWrite.bps.count << wRet;
+        fsMetric_->userWrite.qps.count << 1;
+        uint64_t duration = butil::cpuwide_time_us() - start;
+        fsMetric_->userWrite.latency << duration;
+        fsMetric_->userWriteIoSize.set_value(wRet);
+    }
+    ioLatencyMetric_->writeAttrLatency << butil::cpuwide_time_us() - mid;
     return ret;
 }
 
@@ -232,7 +240,7 @@ CURVEFS_ERROR FuseS3Client::FuseOpRead(fuse_req_t req, fuse_ino_t ino,
     if (fi->flags & O_DIRECT) {
         if (!(is_aligned(off, DirectIOAlignment) &&
               is_aligned(size, DirectIOAlignment)))
-            return CURVEFS_ERROR::INVALIDPARAM;
+            return CURVEFS_ERROR::INVALID_PARAM;
     }
 
     uint64_t start = butil::cpuwide_time_us();
@@ -243,6 +251,8 @@ CURVEFS_ERROR FuseS3Client::FuseOpRead(fuse_req_t req, fuse_ino_t ino,
                    << ", inodeid = " << ino;
         return ret;
     }
+    uint64_t mid = butil::cpuwide_time_us();
+    ioLatencyMetric_->readAttrLatency << mid - start;
     uint64_t fileSize = inodeWrapper->GetLength();
 
     size_t len = 0;
@@ -262,6 +272,11 @@ CURVEFS_ERROR FuseS3Client::FuseOpRead(fuse_req_t req, fuse_ino_t ino,
         return CURVEFS_ERROR::INTERNAL;
     }
     *rSize = rRet;
+    ioLatencyMetric_->readDataLatency << butil::cpuwide_time_us() - mid;
+
+    ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
+    inodeWrapper->UpdateTimestampLocked(kAccessTime);
+    inodeManager_->ShipToFlush(inodeWrapper);
 
     if (fsMetric_.get() != nullptr) {
         fsMetric_->userRead.bps.count << rRet;
@@ -270,10 +285,6 @@ CURVEFS_ERROR FuseS3Client::FuseOpRead(fuse_req_t req, fuse_ino_t ino,
         fsMetric_->userRead.latency << duration;
         fsMetric_->userReadIoSize.set_value(rRet);
     }
-
-    ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
-    inodeWrapper->UpdateTimestampLocked(kAccessTime);
-    inodeManager_->ShipToFlush(inodeWrapper);
 
     VLOG(9) << "read end, read size = " << *rSize;
     return ret;

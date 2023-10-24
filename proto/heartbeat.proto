@@ -89,6 +89,8 @@ message ChunkServerStatisticInfo {
     required uint64 chunkSizeTrashedBytes = 7;
     // chunkfilepool的大小
     optional uint64 chunkFilepoolSize = 8;
+    // percentage of chunkfilepool formatting
+    optional uint32 chunkFilepoolFormatPercent = 9;
 };
 
 message ChunkServerHeartbeatRequest {

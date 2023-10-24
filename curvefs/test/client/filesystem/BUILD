@@ -21,14 +21,7 @@ cc_test(
     srcs = glob([
         "*.cpp",
         "*.h",
-        "helper/*.h",
-        "helper/*.cpp",
     ]),
     copts = CURVE_TEST_COPTS,
-    deps = [
-        "//curvefs/src/client:fuse_client_lib",
-        "//curvefs/test/client:mock",
-        "@com_google_googletest//:gtest",
-        "@com_google_googletest//:gtest_main",
-    ],
+    deps = [ "//curvefs/test/client/filesystem/helper:helper" ],
 )

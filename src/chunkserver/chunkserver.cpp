@@ -20,30 +20,31 @@
  * Author: lixiaocui
  */
 
-#include <glog/logging.h>
+#include "src/chunkserver/chunkserver.h"
 
-#include <butil/endpoint.h>
 #include <braft/builtin_service_impl.h>
 #include <braft/raft_service.h>
 #include <braft/storage.h>
+#include <butil/endpoint.h>
+#include <glog/logging.h>
 
 #include <memory>
 
-#include "src/chunkserver/chunkserver.h"
+#include "src/chunkserver/braft_cli_service.h"
+#include "src/chunkserver/braft_cli_service2.h"
+#include "src/chunkserver/chunk_service.h"
+#include "src/chunkserver/chunkserver_helper.h"
 #include "src/chunkserver/chunkserver_metrics.h"
 #include "src/chunkserver/chunkserver_service.h"
 #include "src/chunkserver/copyset_service.h"
-#include "src/chunkserver/chunk_service.h"
-#include "src/chunkserver/braft_cli_service.h"
-#include "src/chunkserver/braft_cli_service2.h"
-#include "src/chunkserver/chunkserver_helper.h"
-#include "src/common/concurrent/task_thread_pool.h"
-#include "src/common/uri_parser.h"
-#include "src/chunkserver/raftsnapshot/curve_snapshot_attachment.h"
-#include "src/chunkserver/raftsnapshot/curve_file_service.h"
-#include "src/chunkserver/raftsnapshot/curve_snapshot_storage.h"
 #include "src/chunkserver/raftlog/curve_segment_log_storage.h"
+#include "src/chunkserver/raftsnapshot/curve_file_service.h"
+#include "src/chunkserver/raftsnapshot/curve_snapshot_attachment.h"
+#include "src/chunkserver/raftsnapshot/curve_snapshot_storage.h"
+#include "src/common/bytes_convert.h"
+#include "src/common/concurrent/task_thread_pool.h"
 #include "src/common/curve_version.h"
+#include "src/common/uri_parser.h"
 
 using ::curve::fs::LocalFileSystem;
 using ::curve::fs::LocalFileSystemOption;
@@ -65,6 +66,10 @@ DEFINE_string(raftSnapshotUri, "curve://./0/copysets", "raft snapshot uri");
 DEFINE_string(raftLogUri, "curve://./0/copysets", "raft log uri");
 DEFINE_string(recycleUri, "local://./0/recycler" , "recycle uri");
 DEFINE_string(chunkFilePoolDir, "./0/", "chunk file pool location");
+DEFINE_int32(chunkFilePoolAllocatedPercent, 80,
+             "format percent for chunkfillpool.");
+DEFINE_uint32(chunkFormatThreadNum, 1,
+              "number of threads while file pool formatting");
 DEFINE_string(chunkFilePoolMetaPath,
     "./chunkfilepool.meta", "chunk file pool meta path");
 DEFINE_string(logPath, "./0/chunkserver.log-", "log file path");
@@ -479,8 +484,6 @@ void ChunkServer::Stop() {
     brpc::AskToQuit();
 }
 
-
-
 void ChunkServer::InitChunkFilePoolOptions(
     common::Configuration *conf, FilePoolOptions *chunkFilePoolOptions) {
     LOG_IF(FATAL, !conf->GetUInt32Value("global.chunk_size",
@@ -513,12 +516,55 @@ void ChunkServer::InitChunkFilePoolOptions(
             "chunkfilepool.meta_path", &metaUri));
         ::memcpy(
             chunkFilePoolOptions->metaPath, metaUri.c_str(), metaUri.size());
+
+        std::string chunkFilePoolUri;
+        LOG_IF(FATAL, !conf->GetStringValue("chunkfilepool.chunk_file_pool_dir",
+                                            &chunkFilePoolUri));
+
+        ::memcpy(chunkFilePoolOptions->filePoolDir, chunkFilePoolUri.c_str(),
+                 chunkFilePoolUri.size());
+        std::string pool_size;
+        LOG_IF(FATAL, !conf->GetStringValue(
+                          "chunkfilepool.chunk_file_pool_size", &pool_size));
+        LOG_IF(FATAL, !curve::common::ToNumbericByte(
+                          pool_size, &chunkFilePoolOptions->filePoolSize));
+        LOG_IF(FATAL,
+               !conf->GetBoolValue("chunkfilepool.allocated_by_percent",
+                                   &chunkFilePoolOptions->allocatedByPercent));
+        LOG_IF(FATAL,
+               !conf->GetUInt32Value("chunkfilepool.allocate_percent",
+                                     &chunkFilePoolOptions->allocatedPercent));
+        LOG_IF(FATAL, !conf->GetUInt32Value(
+                          "chunkfilepool.chunk_file_pool_format_thread_num",
+                          &chunkFilePoolOptions->formatThreadNum));
         LOG_IF(FATAL, !conf->GetBoolValue("chunkfilepool.clean.enable",
             &chunkFilePoolOptions->needClean));
-        LOG_IF(FATAL, !conf->GetUInt32Value("chunkfilepool.clean.bytes_per_write",  // NOLINT
-            &chunkFilePoolOptions->bytesPerWrite));
+        LOG_IF(FATAL,
+               !conf->GetUInt32Value("chunkfilepool.clean.bytes_per_write",
+                                     &chunkFilePoolOptions->bytesPerWrite));
         LOG_IF(FATAL, !conf->GetUInt32Value("chunkfilepool.clean.throttle_iops",
             &chunkFilePoolOptions->iops4clean));
+
+        std::string copysetUri;
+        LOG_IF(FATAL,
+               !conf->GetStringValue("copyset.raft_snapshot_uri", &copysetUri));
+        curve::common::UriParser::ParseUri(copysetUri,
+                                           &chunkFilePoolOptions->copysetDir);
+
+        std::string recycleUri;
+        LOG_IF(FATAL,
+               !conf->GetStringValue("copyset.recycler_uri", &recycleUri));
+        curve::common::UriParser::ParseUri(recycleUri,
+                                           &chunkFilePoolOptions->recycleDir);
+
+        bool useChunkFilePoolAsWalPool;
+        LOG_IF(FATAL, !conf->GetBoolValue("walfilepool.use_chunk_file_pool",
+                                          &useChunkFilePoolAsWalPool));
+
+        chunkFilePoolOptions->isAllocated = [=](const std::string& filename) {
+            return Trash::IsChunkOrSnapShotFile(filename) ||
+                   (useChunkFilePoolAsWalPool && Trash::IsWALFile(filename));
+        };
 
         if (0 == chunkFilePoolOptions->bytesPerWrite
             || chunkFilePoolOptions->bytesPerWrite > 1 * 1024 * 1024
@@ -565,6 +611,36 @@ void ChunkServer::InitWalFilePoolOptions(
         std::string metaUri;
         LOG_IF(FATAL, !conf->GetStringValue(
             "walfilepool.meta_path", &metaUri));
+
+        std::string pool_size;
+        LOG_IF(FATAL, !conf->GetStringValue("walfilepool.chunk_file_pool_size",
+                                            &pool_size));
+        LOG_IF(FATAL, !curve::common::ToNumbericByte(
+                          pool_size, &walPoolOptions->filePoolSize));
+        LOG_IF(FATAL, !conf->GetUInt64Value("walfilepool.wal_file_pool_size",
+                                            &walPoolOptions->filePoolSize));
+        LOG_IF(FATAL, !conf->GetBoolValue("walfilepool.allocated_by_percent",
+                                          &walPoolOptions->allocatedByPercent));
+        LOG_IF(FATAL, !conf->GetUInt32Value("walfilepool.allocated_percent",
+                                            &walPoolOptions->allocatedPercent));
+        LOG_IF(FATAL, !conf->GetUInt32Value("walfilepool.thread_num",
+                                            &walPoolOptions->formatThreadNum));
+
+        std::string copysetUri;
+        LOG_IF(FATAL,
+               !conf->GetStringValue("copyset.raft_log_uri", &copysetUri));
+        curve::common::UriParser::ParseUri(copysetUri,
+                                           &walPoolOptions->copysetDir);
+
+        std::string recycleUri;
+        LOG_IF(FATAL,
+               !conf->GetStringValue("copyset.recycler_uri", &recycleUri));
+        curve::common::UriParser::ParseUri(recycleUri,
+                                           &walPoolOptions->recycleDir);
+
+        walPoolOptions->isAllocated = [](const string& filename) {
+            return Trash::IsWALFile(filename);
+        };
         ::memcpy(
             walPoolOptions->metaPath, metaUri.c_str(), metaUri.size());
     }
@@ -831,6 +907,16 @@ void ChunkServer::LoadConfigFromCmdline(common::Configuration *conf) {
     } else {
         LOG(FATAL)
         << "chunkFilePoolDir must be set when run chunkserver in command.";
+    }
+
+    if (GetCommandLineFlagInfo("chunkFilePoolAllocatedPercent", &info)) {
+        conf->SetUInt32Value("chunkfilepool.allocate_percent",
+                             FLAGS_chunkFilePoolAllocatedPercent);
+    }
+
+    if (GetCommandLineFlagInfo("chunkFormatThreadNum", &info)) {
+        conf->SetUInt64Value("chunkfilepool.chunk_file_pool_format_thread_num",
+                             FLAGS_chunkFormatThreadNum);
     }
 
     if (GetCommandLineFlagInfo("chunkFilePoolMetaPath", &info) &&
