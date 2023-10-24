@@ -47,6 +47,7 @@
 #include "src/client/client_common.h"
 #include "src/common/dummyserver.h"
 #include "src/common/net_common.h"
+#include "curvefs/src/client/rpcclient/fsdelta_updater.h"
 
 #define PORT_LIMIT 65535
 
@@ -199,6 +200,8 @@ CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
         warmupManager_->Init(option);
         warmupManager_->SetFsInfo(fsInfo_);
     }
+
+    FsDeltaUpdater::GetInstance().Init();
 
     InitQosParam();
 
@@ -810,6 +813,18 @@ CURVEFS_ERROR FuseClient::RemoveNode(fuse_req_t req, fuse_ino_t parent,
         }
     }
 
+    int64_t deltaBytes = 0;
+    {
+        std::shared_ptr<InodeWrapper> inodeWrapper;
+        ret = inodeManager_->GetInode(ino, inodeWrapper);
+        if (ret != CURVEFS_ERROR::OK) {
+            LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
+                       << ", inodeid = " << ino;
+            return ret;
+        }
+        deltaBytes = -1 * inodeWrapper->GetLength();
+    }
+
     // check if inode should move to recycle
     if (ShouldMoveToRecycle(parent)) {
         ret = MoveToRecycle(req, ino, parent, name, type);
@@ -826,6 +841,8 @@ CURVEFS_ERROR FuseClient::RemoveNode(fuse_req_t req, fuse_ino_t parent,
             return ret;
         }
     }
+
+    FsDeltaUpdater::GetInstance().UpdateDeltaBytes(deltaBytes);
 
     return CURVEFS_ERROR::OK;
 }

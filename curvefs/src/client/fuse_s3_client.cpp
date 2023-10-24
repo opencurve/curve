@@ -28,6 +28,7 @@
 
 #include "curvefs/src/client/filesystem/xattr.h"
 #include "curvefs/src/client/kvclient/memcache_client.h"
+#include "curvefs/src/client/rpcclient/fsdelta_updater.h"
 
 namespace curvefs {
 namespace client {
@@ -193,6 +194,9 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
     if (inodeWrapper->GetLengthLocked() < off + *wSize) {
         changeSize = off + *wSize - inodeWrapper->GetLengthLocked();
         inodeWrapper->SetLengthLocked(off + *wSize);
+        if (!FsQuotaChecker::GetInstance().QuotaBytesCheck(changeSize)) {
+            return CURVEFS_ERROR::NO_SPACE;
+        }
     }
 
     inodeWrapper->UpdateTimestampLocked(kModifyTime | kChangeTime);
@@ -217,6 +221,8 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
             }
         }
     }
+
+    FsDeltaUpdater::GetInstance().UpdateDeltaBytes(changeSize);
 
     inodeWrapper->GetInodeAttrLocked(&fileOut->attr);
 
