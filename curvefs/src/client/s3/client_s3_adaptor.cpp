@@ -32,6 +32,7 @@
 #include "absl/memory/memory.h"
 #include "curvefs/src/common/s3util.h"
 #include "curvefs/src/client/rpcclient/fsdelta_updater.h"
+#include "curvefs/src/client/rpcclient/fsquota_checker.h"
 
 namespace curvefs {
 namespace client {
@@ -229,6 +230,10 @@ CURVEFS_ERROR S3ClientAdaptorImpl::Truncate(InodeWrapper *inodeWrapper,
     } else {
         VLOG(6) << "Truncate size:" << size << " more than fileSize"
                 << fileSize;
+        deltaBytes = size - fileSize;
+        if (!FsQuotaChecker::GetInstance().QuotaBytesCheck(deltaBytes)) {
+            return CURVEFS_ERROR::NO_SPACE;
+        }
         uint64_t offset = fileSize;
         uint64_t len = size - fileSize;
         uint64_t index = offset / chunkSize_;
@@ -278,7 +283,6 @@ CURVEFS_ERROR S3ClientAdaptorImpl::Truncate(InodeWrapper *inodeWrapper,
             offset += n;
             chunkId++;
         }
-        deltaBytes = size - fileSize;
     }
     FsDeltaUpdater::GetInstance().UpdateDeltaBytes(deltaBytes);
     return CURVEFS_ERROR::OK;

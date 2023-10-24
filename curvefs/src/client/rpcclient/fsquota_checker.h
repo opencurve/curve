@@ -14,20 +14,34 @@
  *  limitations under the License.
  */
 
-#include "curvefs/src/client/rpcclient/fsdelta_updater.h"
+#ifndef CURVEFS_SRC_CLIENT_RPCCLIENT_FSQUOTA_CHECKER_H_
+#define CURVEFS_SRC_CLIENT_RPCCLIENT_FSQUOTA_CHECKER_H_
+
+#include <atomic>
 
 namespace curvefs {
 namespace client {
 
-void FsDeltaUpdater::UpdateDeltaBytes(int64_t deltaBytes) {
-    deltaBytes_.fetch_add(deltaBytes);
-}
+class FsQuotaChecker {
+ public:
+    static FsQuotaChecker& GetInstance() {
+        static FsQuotaChecker instance_;
+        return instance_;
+    }
 
-int64_t FsDeltaUpdater::GetDeltaBytesAndReset() {
-    return deltaBytes_.exchange(0);
-}
+    void Init();
 
-int64_t FsDeltaUpdater::GetDeltaBytes() { return deltaBytes_.load(); }
+    bool QuotaBytesCheck(uint64_t incBytes);
+
+    void UpdateQuotaCache(uint64_t capacity, uint64_t usedBytes);
+
+ private:
+    std::atomic<uint64_t> fsCapacityCache_;
+    std::atomic<uint64_t> fsUsedBytesCache_;
+};
 
 }  // namespace client
+
 }  // namespace curvefs
+
+#endif  // CURVEFS_SRC_CLIENT_RPCCLIENT_FSQUOTA_CHECKER_H_

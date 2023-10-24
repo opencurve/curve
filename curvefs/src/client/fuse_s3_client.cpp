@@ -29,6 +29,7 @@
 #include "curvefs/src/client/filesystem/xattr.h"
 #include "curvefs/src/client/kvclient/memcache_client.h"
 #include "curvefs/src/client/rpcclient/fsdelta_updater.h"
+#include "curvefs/src/client/rpcclient/fsquota_checker.h"
 
 namespace curvefs {
 namespace client {

@@ -35,6 +35,8 @@ class FsDeltaUpdater {
 
     int64_t GetDeltaBytesAndReset();
 
+    int64_t GetDeltaBytes();
+
  private:
     uint32_t fsId_;
     std::atomic<int64_t> deltaBytes_;

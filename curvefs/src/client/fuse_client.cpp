@@ -48,6 +48,7 @@
 #include "src/common/dummyserver.h"
 #include "src/common/net_common.h"
 #include "curvefs/src/client/rpcclient/fsdelta_updater.h"
+#include "curvefs/src/client/rpcclient/fsquota_checker.h"
 
 #define PORT_LIMIT 65535
 
@@ -202,6 +203,7 @@ CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
     }
 
     FsDeltaUpdater::GetInstance().Init();
+    FsQuotaChecker::GetInstance().Init();
 
     InitQosParam();
 

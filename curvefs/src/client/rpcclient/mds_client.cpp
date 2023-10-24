@@ -28,6 +28,7 @@
 #include "curvefs/src/client/rpcclient/mds_client.h"
 #include "curvefs/src/common/metric_utils.h"
 #include "curvefs/src/client/rpcclient/fsdelta_updater.h"
+#include "curvefs/src/client/rpcclient/fsquota_checker.h"
 
 namespace curvefs {
 namespace client {
@@ -542,6 +543,10 @@ MdsClientImpl::RefreshSession(const std::vector<PartitionTxId> &txIds,
             enableSumInDir->store(response.enablesumindir());
             LOG(INFO) << "update enableSumInDir to "
                       << response.enablesumindir();
+        }
+        if (response.has_fscapacity() && response.has_fsusedbytes()) {
+            FsQuotaChecker::GetInstance().UpdateQuotaCache(
+                response.fscapacity(), response.fsusedbytes());
         }
 
         return ret;
