@@ -33,6 +33,7 @@ cc_library(
         "//curvefs/src/common:curvefs_common",
         "//curvefs/src/mds/codec:fs_mds_codec",
         "//curvefs/src/mds/idgenerator:fs_mds_idgenerator",
+        "//curvefs/src/mds/metric:fs_mds_metric",
         "//src/common:curve_common",
         "//src/common/concurrent:curve_concurrent",
         "//src/idgenerator",

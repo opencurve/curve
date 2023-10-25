@@ -592,6 +592,7 @@ FSStatusCode FsManager::DeleteFs(const std::string& fsName) {
                          << ", ret = " << FSStatusCode_Name(ret);
             // do not abort deletion
         }
+        FsMetric::GetInstance().DeleteFsUsage(fsName);
     }
 
     return FSStatusCode::OK;
@@ -832,7 +833,11 @@ FSStatusCode FsManager::UpdateFsInfo(
         wrapper.SetCapacity(req->capacity());
     }
 
-    return fsStorage_->Update(wrapper);
+    ret = fsStorage_->Update(wrapper);
+    if (ret == FSStatusCode::OK) {
+        FsMetric::GetInstance().SetCapacity(fsName, req->capacity());
+    }
+    return ret;
 }
 
 int FsManager::IsExactlySameOrCreateUnComplete(const std::string& fsName,
@@ -904,7 +909,11 @@ FSStatusCode FsManager::UpdateFsUsedBytes(
     auto ret = fsStorage_->GetFsUsage(fsName, &usage, true);
     if (ret == FSStatusCode::NOT_FOUND) {
         usage.set_usedbytes(deltaBytes);
-        return fsStorage_->SetFsUsage(fsName, usage);
+        ret = fsStorage_->SetFsUsage(fsName, usage);
+        if (ret == FSStatusCode::OK) {
+            FsMetric::GetInstance().SetFsUsage(fsName, usage);
+        }
+        return ret;
     }
 
     if (ret != FSStatusCode::OK) {
@@ -918,7 +927,11 @@ FSStatusCode FsManager::UpdateFsUsedBytes(
     } else {
         usage.set_usedbytes(usage.usedbytes() + deltaBytes);
     }
-    return fsStorage_->SetFsUsage(fsName, usage);
+    ret = fsStorage_->SetFsUsage(fsName, usage);
+    if (ret == FSStatusCode::OK) {
+        FsMetric::GetInstance().SetFsUsage(fsName, usage);
+    }
+    return ret;
 }
 
 void FsManager::RefreshSession(const RefreshSessionRequest* request,

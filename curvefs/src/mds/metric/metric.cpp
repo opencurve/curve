@@ -34,6 +34,8 @@
 namespace curvefs {
 namespace mds {
 
+const std::string FsUsageMetric::prefix = "fs_usage_info";  // NOLINT
+
 void FsMountMetric::OnMount(const Mountpoint& mp) {
     std::string key = Key(mp);
 
@@ -66,6 +68,10 @@ void FsMountMetric::OnUnMount(const Mountpoint& mp) {
 std::string FsMountMetric::Key(const Mountpoint& mp) {
     return "fs_mount_" + fsname_ + "_" + mp.hostname() + "_" +
            std::to_string(mp.port()) + "_" + mp.path();
+}
+
+void FsUsageMetric::SetUsage(const FsUsage& usage) {
+    usedBytes_.set_value(usage.usedbytes());
 }
 
 }  // namespace mds

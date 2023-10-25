@@ -25,6 +25,7 @@
 
 #include <bvar/bvar.h>
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -34,7 +35,6 @@
 
 namespace curvefs {
 namespace mds {
-
 // Metric for a filesystem
 // includes filesystem mount number and filesystem mountpoint lists
 class FsMountMetric {
@@ -59,13 +59,26 @@ class FsMountMetric {
     // current number of fs mountpoints
     bvar::Adder<int64_t> count_;
 
-    using MountPointMetric =
-        std::unordered_map<std::string,
-                           std::unique_ptr<bvar::Status<std::string>>>;
+    using MountPointMetric = std::unordered_map<std::string,
+        std::unique_ptr<bvar::Status<std::string>>>;
     // protect mps_
     Mutex mtx_;
 
     MountPointMetric mps_;
+};
+
+struct FsUsageMetric {
+    static const std::string prefix;
+
+    std::string fsname_;
+    bvar::Status<uint64_t> usedBytes_;
+    bvar::Status<uint64_t> capacityBytes_;
+
+    explicit FsUsageMetric(const std::string& fsname)
+        : fsname_(fsname), usedBytes_(prefix + "_fs_" + fsname + "_used", 0) {}
+
+    void SetUsage(const FsUsage& usage);
+    void SetCapacity(uint64_t capacity) { capacityBytes_.set_value(capacity); }
 };
 
 }  // namespace mds
