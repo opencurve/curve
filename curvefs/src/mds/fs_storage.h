@@ -71,10 +71,10 @@ class FsStorage {
     virtual uint64_t NextFsId() = 0;
     virtual void GetAll(std::vector<FsInfoWrapper>* fsInfoVec) = 0;
 
-    virtual FSStatusCode SetFsUsage(const std::string& fsName,
-                                    const FsUsage& usage) = 0;
-    virtual FSStatusCode GetFsUsage(const std::string& fsName, FsUsage* fsUsage,
-                                    bool fromCache) = 0;
+    virtual FSStatusCode SetFsUsage(
+        const std::string& fsName, const FsUsage& usage) = 0;
+    virtual FSStatusCode GetFsUsage(
+        const std::string& fsName, FsUsage* fsUsage, bool fromCache) = 0;
     virtual FSStatusCode DeleteFsUsage(const std::string& fsName) = 0;
 };
 
@@ -176,10 +176,10 @@ class MemoryFsStorage : public FsStorage {
      */
     void GetAll(std::vector<FsInfoWrapper>* fsInfoVec) override;
 
-    FSStatusCode SetFsUsage(const std::string& fsName,
-                            const FsUsage& usage) override;
-    FSStatusCode GetFsUsage(const std::string& fsName, FsUsage*,
-                            bool fromCache) override;
+    FSStatusCode SetFsUsage(
+        const std::string& fsName, const FsUsage& usage) override;
+    FSStatusCode GetFsUsage(
+        const std::string& fsName, FsUsage*, bool fromCache) override;
     FSStatusCode DeleteFsUsage(const std::string& fsName) override;
 
  private:
@@ -219,10 +219,10 @@ class PersisKVStorage : public FsStorage {
 
     void GetAll(std::vector<FsInfoWrapper>* fsInfoVec) override;
 
-    FSStatusCode SetFsUsage(const std::string& fsName,
-                            const FsUsage& usage) override;
-    FSStatusCode GetFsUsage(const std::string& fsName, FsUsage*,
-                            bool fromCache) override;
+    FSStatusCode SetFsUsage(
+        const std::string& fsName, const FsUsage& usage) override;
+    FSStatusCode GetFsUsage(
+        const std::string& fsName, FsUsage*, bool fromCache) override;
     FSStatusCode DeleteFsUsage(const std::string& fsName) override;
 
  private:

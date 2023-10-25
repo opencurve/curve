@@ -3941,12 +3941,12 @@ TEST_F(TestFuseS3Client, FuseOpUnlink_EnableSummary) {
     EXPECT_CALL(*inodeManager_, GetInode(_, _))
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
-        .WillOnce(DoAll(SetArgReferee<1>(parentInodeWrapper),
-                        Return(CURVEFS_ERROR::OK)))
+        .WillOnce(DoAll(
+            SetArgReferee<1>(parentInodeWrapper), Return(CURVEFS_ERROR::OK)))
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
-        .WillOnce(DoAll(SetArgReferee<1>(parentInodeWrapper),
-                        Return(CURVEFS_ERROR::OK)));
+        .WillOnce(DoAll(
+            SetArgReferee<1>(parentInodeWrapper), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*metaClient_, GetInodeAttr(_, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(attr), Return(MetaStatusCode::OK)));
     EXPECT_CALL(*metaClient_, UpdateInodeAttr(_, _, _))

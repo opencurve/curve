@@ -41,14 +41,14 @@
 #include "curvefs/src/client/filesystem/xattr.h"
 #include "curvefs/src/client/fuse_common.h"
 #include "curvefs/src/client/inode_wrapper.h"
+#include "curvefs/src/client/rpcclient/fsdelta_updater.h"
+#include "curvefs/src/client/rpcclient/fsquota_checker.h"
 #include "curvefs/src/client/warmup/warmup_manager.h"
 #include "curvefs/src/client/xattr_manager.h"
 #include "curvefs/src/common/define.h"
 #include "src/client/client_common.h"
 #include "src/common/dummyserver.h"
 #include "src/common/net_common.h"
-#include "curvefs/src/client/rpcclient/fsdelta_updater.h"
-#include "curvefs/src/client/rpcclient/fsquota_checker.h"
 
 #define PORT_LIMIT 65535
 

@@ -159,15 +159,15 @@ void MemoryFsStorage::GetAll(std::vector<FsInfoWrapper>* fsInfoVec) {
     }
 }
 
-FSStatusCode MemoryFsStorage::SetFsUsage(const std::string& fsName,
-                                         const FsUsage& fsUsage) {
+FSStatusCode MemoryFsStorage::SetFsUsage(
+    const std::string& fsName, const FsUsage& fsUsage) {
     WriteLockGuard writeLockGuard(fsUsedUsageLock_);
     fsUsageMap_[fsName] = fsUsage;
     return FSStatusCode::OK;
 }
 
-FSStatusCode MemoryFsStorage::GetFsUsage(const std::string& fsName,
-                                         FsUsage* usage, bool fromCache) {
+FSStatusCode MemoryFsStorage::GetFsUsage(
+    const std::string& fsName, FsUsage* usage, bool fromCache) {
     ReadLockGuard readLockGuard(fsUsedUsageLock_);
     auto it = fsUsageMap_.find(fsName);
     if (it == fsUsageMap_.end()) {
@@ -502,8 +502,8 @@ void PersisKVStorage::GetAll(std::vector<FsInfoWrapper>* fsInfoVec) {
     }
 }
 
-FSStatusCode PersisKVStorage::SetFsUsage(const std::string& fsName,
-                                         const FsUsage& usage) {
+FSStatusCode PersisKVStorage::SetFsUsage(
+    const std::string& fsName, const FsUsage& usage) {
     std::string key = codec::EncodeFsUsageKey(fsName);
     std::string value;
     if (!codec::EncodeProtobufMessage(usage, &value)) {
@@ -521,8 +521,8 @@ FSStatusCode PersisKVStorage::SetFsUsage(const std::string& fsName,
     return FSStatusCode::OK;
 }
 
-FSStatusCode PersisKVStorage::GetFsUsage(const std::string& fsName,
-                                         FsUsage* usage, bool fromCache) {
+FSStatusCode PersisKVStorage::GetFsUsage(
+    const std::string& fsName, FsUsage* usage, bool fromCache) {
     if (fromCache) {
         ReadLockGuard lock(fsUsageCacheMutex_);
         if (fsUsageCache_.find(fsName) != fsUsageCache_.end()) {

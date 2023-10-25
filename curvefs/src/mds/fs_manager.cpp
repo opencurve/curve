@@ -896,8 +896,8 @@ void FsManager::GetAllFsInfo(
     LOG(INFO) << "get all fsinfo.";
 }
 
-FSStatusCode FsManager::UpdateFsUsedBytes(const std::string& fsName,
-                                          int64_t deltaBytes) {
+FSStatusCode FsManager::UpdateFsUsedBytes(
+    const std::string& fsName, int64_t deltaBytes) {
     WriteLockGuard wlock(fsUsageMutex_);
 
     FsUsage usage;
