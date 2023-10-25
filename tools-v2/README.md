@@ -56,6 +56,7 @@ A tool for CurveFS & CurveBs.
           - [list chunkserver](#list-chunkserver)
           - [list scan-status](#list-scan-status)
           - [list may-broken-vol](#list-may-broken-vol)
+          - [list snapshot](#list-snapshot)
       - [clean-recycle](#clean-recycle)
       - [query](#query-1)
           - [query file](#query-file)
@@ -1303,6 +1304,27 @@ Output:
 +----------+
 |   test   |        
 +----------+
+```
+
+###### list snapshot
+
+list curvebs snapshot
+
+Usage:
+
+```bash
+curve bs list snapshot
+```
+
+Output:
+
+```bash
++--------------------------------------+--------------+------+--------+----------------+-------------+----------+---------------------+---------------+
+|              SNAPSHOTID              | SNAPSHOTNAME | USER | STATUS | SNAPSHOTSEQNUM | FILELENGTH  | PROGRESS |     CREATETIME      |     FILE      |
++--------------------------------------+--------------+------+--------+----------------+-------------+----------+---------------------+---------------+
+| 807fdac2-5b47-42dc-b884-a4f33b0f2a1a | testsnap     | root | 0      | 1              | 10737418240 | 100      | 2023-10-15 16:16:31 | /test/test111 |
++--------------------------------------+--------------+------+--------+----------------+-------------+----------+---------------------+               +
+| 204a5316-99cd-44b7-bc58-be6a547b8469 | testsnap1    | root | 0      | 2              | 10737418240 | 100      | 2023-10-25 09:22:12 |               |
 ```
 
 #### clean-recycle

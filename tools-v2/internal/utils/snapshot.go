@@ -25,6 +25,7 @@ package cobrautil
 import (
 	"fmt"
 	"net/url"
+	"strings"
 )
 
 const (
@@ -42,6 +43,7 @@ const (
 	QueryOffset      = "Offset"
 	QueryStatus      = "Status"
 	QueryType        = "Type"
+	QueryFile        = "File"
 
 	ActionClone               = "Clone"
 	ActionRecover             = "Recover"
@@ -56,6 +58,8 @@ const (
 
 	ResultCode    = "Code"
 	ResultSuccess = "0"
+	Limit         = "100"
+	Offset        = "0"
 )
 
 func NewSnapshotQuerySubUri(params map[string]any) string {
@@ -69,4 +73,20 @@ func NewSnapshotQuerySubUri(params map[string]any) string {
 	}
 
 	return "/SnapshotCloneService?" + values.Encode()
+}
+
+func NewSubUri(params map[string]any) string {
+	values := strings.Builder{}
+	for key, value := range params {
+		if value != "" {
+			values.WriteString(key)
+			values.WriteString("=")
+			values.WriteString(value.(string))
+			values.WriteString("&")
+		}
+	}
+	str := values.String()
+	encodedParams := str[:len(str)-1]
+	subUri := fmt.Sprintf("/SnapshotCloneService?%s", encodedParams)
+	return subUri
 }
