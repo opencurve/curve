@@ -31,14 +31,14 @@ namespace curvefs {
 namespace mds {
 namespace codec {
 
-using ::curvefs::mds::COMMON_PREFIX_LENGTH;
-using ::curvefs::mds::FS_NAME_KEY_PREFIX;
-using ::curvefs::mds::BLOCKGROUP_KEY_PREFIX;
-using ::curvefs::mds::BLOCKGROUP_KEY_END;
-using ::curvefs::mds::FS_USAGE_KEY_PREFIX;
-using ::curvefs::mds::FS_USAGE_KEY_END;
 using ::curve::common::EncodeBigEndian;
 using ::curve::common::EncodeBigEndian_uint32;
+using ::curvefs::mds::BLOCKGROUP_KEY_END;
+using ::curvefs::mds::BLOCKGROUP_KEY_PREFIX;
+using ::curvefs::mds::COMMON_PREFIX_LENGTH;
+using ::curvefs::mds::FS_NAME_KEY_PREFIX;
+using ::curvefs::mds::FS_USAGE_KEY_END;
+using ::curvefs::mds::FS_USAGE_KEY_PREFIX;
 
 std::string EncodeFsName(const std::string& fsName) {
     std::string key;

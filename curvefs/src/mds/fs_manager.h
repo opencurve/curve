@@ -253,8 +253,8 @@ class FsManager {
 
     bool TestS3(const std::string& fsName);
 
-    FSStatusCode UpdateFsUsedBytes(const std::string& fsName,
-                                   int64_t deltaBytes);
+    FSStatusCode UpdateFsUsedBytes(
+        const std::string& fsName, int64_t deltaBytes);
 
  private:
     std::shared_ptr<FsStorage> fsStorage_;

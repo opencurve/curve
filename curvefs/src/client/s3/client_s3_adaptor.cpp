@@ -30,9 +30,9 @@
 #include <utility>
 
 #include "absl/memory/memory.h"
-#include "curvefs/src/common/s3util.h"
 #include "curvefs/src/client/rpcclient/fsdelta_updater.h"
 #include "curvefs/src/client/rpcclient/fsquota_checker.h"
+#include "curvefs/src/common/s3util.h"
 
 namespace curvefs {
 namespace client {
