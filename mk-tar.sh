@@ -87,7 +87,7 @@ function create_python_wheel() {
 }
 
 function build_curvefs_python() {
-    for bin in "/usr/bin/python3" "/usr/bin/python2"; do
+    for bin in "/usr/bin/python3"; do
         if [ ! -f ${bin} ]; then
             echo "${bin} not exist"
             continue
@@ -189,7 +189,7 @@ then
     echo "build phase1 failed"
     exit
 fi
-bash ./curvefs_python/configure.sh python2
+bash ./curvefs_python/configure.sh python3
 if [ $? -ne 0 ]
 then
     echo "configure failed"
@@ -216,7 +216,7 @@ then
     echo "build phase1 failed"
     exit
 fi
-bash ./curvefs_python/configure.sh python2
+bash ./curvefs_python/configure.sh python3
 if [ $? -ne 0 ]
 then
     echo "configure failed"
