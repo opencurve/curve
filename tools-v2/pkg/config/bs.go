@@ -142,6 +142,9 @@ const (
 	VIPER_CURVEBS_DEST                = "curvebs.dest"
 	CURVEBS_TASKID                    = "taskid"
 	VIPER_CURVEBS_TASKID              = "curvebs.taskid"
+	CURVEBS_SNAPSHOT_ID               = "snapshotid"
+	VIPER_CURVEBS_SNAPSHOT_ID         = "curvebs.snapshotqid"
+	CURVEBS_DEFAULT_SNAPSHOT_ID       = "*"
 	CURVEBS_FAILED                    = "failed"
 	VIPER_CURVEBS_FAILED              = "curvebs.failed"
 	CURVEBS_CHUNK_SIZE				  = "chunksize"
@@ -202,6 +205,7 @@ var (
 		CURVEBS_SRC:                 VIPER_CURVEBS_SRC,
 		CURVEBS_DEST:                VIPER_CURVEBS_DEST,
 		CURVEBS_TASKID:              VIPER_CURVEBS_TASKID,
+		CURVEBS_SNAPSHOT_ID:         VIPER_CURVEBS_SNAPSHOT_ID,
 		CURVEBS_FAILED:              VIPER_CURVEBS_FAILED,
 		CURVEBS_CHUNK_SIZE:			 VIPER_CURVEBS_CHUNK_SIZE,
 		CURVEBS_CHECK_HASH:			 VIPER_CURVEBS_CHECK_HASH,
@@ -229,6 +233,7 @@ var (
 		CURVEBS_LOGIC_POOL_ID:  CURVEBS_DEFAULT_LOGIC_POOL_ID,
 		CURVEBS_COPYSET_ID:     CURVEBS_DEFAULT_COPYSET_ID,
 		CURVEBS_CHECK_HASH:		CURVEBS_DEFAULT_CHECK_HASH,
+		CURVEBS_SNAPSHOT_ID:    CURVEBS_DEFAULT_SNAPSHOT_ID,
 	}
 )
 
@@ -664,6 +669,10 @@ func AddBsUserRequireFlag(cmd *cobra.Command) {
 
 func AddBsTaskIDRequireFlag(cmd *cobra.Command) {
 	AddBsStringRequiredFlag(cmd, CURVEBS_TASKID, "task id")
+}
+
+func AddBsSnapshotIDOptionFlag(cmd *cobra.Command) {
+	AddBsStringOptionFlag(cmd, CURVEBS_SNAPSHOT_ID, "snapshot seqId")
 }
 
 // get stingslice flag
