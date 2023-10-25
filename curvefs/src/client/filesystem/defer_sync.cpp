@@ -81,6 +81,17 @@ void DeferSync::Push(const std::shared_ptr<InodeWrapper>& inode) {
     inodes_.emplace_back(inode);
 }
 
+bool DeferSync::IsDefered(Ino ino, InodeAttr* attr) {
+    LockGuard lk(mutex_);
+    for (const auto& inode : inodes_) {
+        if (inode->GetInodeId() == ino) {
+            inode->GetInodeAttr(attr);
+            return true;
+        }
+    }
+    return false;
+}
+
 }  // namespace filesystem
 }  // namespace client
 }  // namespace curvefs

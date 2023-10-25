@@ -136,6 +136,7 @@ cc_test(
     copts = CURVE_TEST_COPTS,
     deps = [
         "//curvefs/src/metaserver:curvefs_metaserver",
+        "//curvefs/src/client/logger:logger",
         "@com_google_googletest//:gtest_main",
         "@com_google_googletest//:gtest",
         "//external:brpc",

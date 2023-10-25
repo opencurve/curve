@@ -30,6 +30,24 @@ using ::curvefs::mds::topology::TopoStatusCode;
 using ::curve::common::WriteLockGuard;
 using std::chrono::milliseconds;
 
+// the maximun peroid that heartbeat is missed without
+// setting the metaserver to offline status and alarm.
+// scheduling will depend on this status of metaserver
+DEFINE_uint64(heartbeat_offlineTimeoutMs, 1800000,
+              "the maximun peroid that heartbeat is missed without setting the "
+              "metaserver to offline status and alarm.");
+
+// network jitter is unavoidable, and for this reason
+// background process will alarm during the inspection once it
+// finds out that heartbeat is missed after heartbeatMissTimeOut peroid
+DEFINE_uint64(
+    heartbeat_missTimeoutMs, 30000,
+    "background process will alarm during the inspection once it finds out "
+    "that heartbeat is missed after heartbeatMissTimeOut peroid");
+DEFINE_validator(heartbeat_offlineTimeoutMs, [](const char*, uint64_t value) {
+    return value >= FLAGS_heartbeat_missTimeoutMs;
+});
+
 namespace curvefs {
 namespace mds {
 namespace heartbeat {
@@ -68,7 +86,8 @@ bool MetaserverHealthyChecker::MetaServerStateNeedUpdate(
         return false;
     }
 
-    bool shouldUnstable = (timePass < milliseconds(option_.offLineTimeOutMs));
+    bool shouldUnstable =
+        (timePass < milliseconds(FLAGS_heartbeat_offlineTimeoutMs));
     if (shouldUnstable) {
         if (OnlineState::UNSTABLE != info.state) {
             LOG(WARNING) << "metaserver " << info.msId << " is unstable. "

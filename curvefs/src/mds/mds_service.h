@@ -65,6 +65,11 @@ class MdsServiceImpl : public MdsService {
                    GetFsInfoResponse* response,
                    ::google::protobuf::Closure* done);
 
+    void UpdateFsInfo(::google::protobuf::RpcController* controller,
+                      const UpdateFsInfoRequest* request,
+                      UpdateFsInfoResponse* response,
+                      ::google::protobuf::Closure* done);
+
     void DeleteFs(::google::protobuf::RpcController* controller,
                   const DeleteFsRequest* request,
                   DeleteFsResponse* response,

@@ -20,12 +20,15 @@
  * Author: lixiaocui
  */
 
+#include "curvefs/src/client/rpcclient/mds_client.h"
+
 #include <map>
 #include <utility>
 #include <vector>
 
 #include "curvefs/proto/space.pb.h"
-#include "curvefs/src/client/rpcclient/mds_client.h"
+#include "curvefs/src/client/rpcclient/fsdelta_updater.h"
+#include "curvefs/src/client/rpcclient/fsquota_checker.h"
 #include "curvefs/src/common/metric_utils.h"
 
 namespace curvefs {
@@ -513,6 +516,11 @@ MdsClientImpl::RefreshSession(const std::vector<PartitionTxId> &txIds,
         *request.mutable_txids() = {txIds.begin(), txIds.end()};
         request.set_fsname(fsName);
         *request.mutable_mountpoint() = mountpoint;
+        curvefs::mds::FsDelta fsDelta;
+        fsDelta.set_bytes(
+            FsDeltaUpdater::GetInstance().GetDeltaBytesAndReset());
+        *request.mutable_fsdelta() = std::move(fsDelta);
+
         mdsbasecli_->RefreshSession(request, &response, cntl, channel);
         if (cntl->Failed()) {
             mdsClientMetric_.refreshSession.eps.count << 1;
@@ -537,6 +545,10 @@ MdsClientImpl::RefreshSession(const std::vector<PartitionTxId> &txIds,
             enableSumInDir->store(response.enablesumindir());
             LOG(INFO) << "update enableSumInDir to "
                       << response.enablesumindir();
+        }
+        if (response.has_fscapacity() && response.has_fsusedbytes()) {
+            FsQuotaChecker::GetInstance().UpdateQuotaCache(
+                response.fscapacity(), response.fsusedbytes());
         }
 
         return ret;

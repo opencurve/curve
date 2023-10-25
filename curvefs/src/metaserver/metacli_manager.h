@@ -24,6 +24,9 @@
 #define CURVEFS_SRC_METASERVER_METACLI_MANAGER_H_
 
 #include <map>
+#include <memory>
+#include <utility>
+
 #include "curvefs/src/client/rpcclient/mds_client.h"
 #include "curvefs/src/client/rpcclient/metaserver_client.h"
 

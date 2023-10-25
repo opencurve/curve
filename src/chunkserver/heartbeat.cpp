@@ -268,10 +268,21 @@ int Heartbeat::BuildRequest(HeartbeatRequest* req) {
                                 * walSegmentFileSize;
     uint64_t chunkPoolSize = options_.chunkFilePool->Size() *
                 options_.chunkFilePool->GetFilePoolOpt().fileSize;
+
+    // compute format progress rate.
+    const ChunkFormatStat& formatStat =
+        options_.chunkFilePool->GetChunkFormatStat();  // NOLINT
+
     stats->set_chunkfilepoolsize(chunkPoolSize);
     stats->set_chunksizeusedbytes(usedChunkSize+usedWalSegmentSize);
     stats->set_chunksizeleftbytes(leftChunkSize+leftWalSegmentSize);
     stats->set_chunksizetrashedbytes(trashedChunkSize);
+    if (formatStat.preAllocateNum != 0) {
+        stats->set_chunkfilepoolformatpercent(
+            100 * formatStat.allocateChunkNum / formatStat.preAllocateNum);
+    } else {
+        stats->set_chunkfilepoolformatpercent(100);
+    }
     req->set_allocated_stats(stats);
 
     size_t cap, avail;
@@ -391,7 +402,8 @@ int Heartbeat::SendHeartbeat(const HeartbeatRequest& request,
             cntl.ErrorCode() == brpc::ELOGOFF ||
             cntl.ErrorCode() == brpc::ERPCTIMEDOUT) {
             LOG(WARNING) << "current mds: " << mdsEps_[inServiceIndex_]
-                         << " is shutdown or going to quit";
+                         << " is shutdown or going to quit,"
+                         << cntl.ErrorText();
             inServiceIndex_ = (inServiceIndex_ + 1) % mdsEps_.size();
             LOG(INFO) << "next heartbeat switch to "
                       << mdsEps_[inServiceIndex_];

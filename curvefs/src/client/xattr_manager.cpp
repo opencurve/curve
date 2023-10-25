@@ -22,7 +22,9 @@
  */
 
 #include "curvefs/src/client/xattr_manager.h"
+
 #include "curvefs/src/client/common/common.h"
+#include "curvefs/src/client/filesystem/xattr.h"
 #include "src/common/string_util.h"
 
 namespace curvefs {
@@ -31,16 +33,25 @@ namespace client {
 using ::curve::common::StringToUll;
 using ::curve::common::Thread;
 using ::curvefs::client::common::AddUllStringToFirst;
+using ::curvefs::client::filesystem::XATTR_DIR_ENTRIES;
+using ::curvefs::client::filesystem::XATTR_DIR_FBYTES;
+using ::curvefs::client::filesystem::XATTR_DIR_FILES;
+using ::curvefs::client::filesystem::XATTR_DIR_PREFIX;
+using ::curvefs::client::filesystem::XATTR_DIR_RENTRIES;
+using ::curvefs::client::filesystem::XATTR_DIR_RFBYTES;
+using ::curvefs::client::filesystem::XATTR_DIR_RFILES;
+using ::curvefs::client::filesystem::XATTR_DIR_RSUBDIRS;
+using ::curvefs::client::filesystem::XATTR_DIR_SUBDIRS;
 
 bool IsSummaryInfo(const char *name) {
-    return std::strstr(name, SUMMARYPREFIX);
+    return std::strstr(name, XATTR_DIR_PREFIX);
 }
 
 bool IsOneLayer(const char *name) {
-    if (std::strcmp(name, XATTRFILES) == 0 ||
-        std::strcmp(name, XATTRSUBDIRS) == 0 ||
-        std::strcmp(name, XATTRENTRIES) == 0 ||
-        std::strcmp(name, XATTRFBYTES) == 0) {
+    if (std::strcmp(name, XATTR_DIR_FILES) == 0 ||
+        std::strcmp(name, XATTR_DIR_SUBDIRS) == 0 ||
+        std::strcmp(name, XATTR_DIR_ENTRIES) == 0 ||
+        std::strcmp(name, XATTR_DIR_FBYTES) == 0) {
         return true;
     }
     return false;
@@ -77,13 +88,13 @@ CURVEFS_ERROR XattrManager::CalOneLayerSumInfo(InodeAttr* attr) {
             summaryInfo.entries++;
             summaryInfo.fbytes += it.length();
         }
-        (*attr->mutable_xattr())[XATTRFILES] =
+        (*attr->mutable_xattr())[XATTR_DIR_FILES] =
             std::to_string(summaryInfo.files);
-        (*attr->mutable_xattr())[XATTRSUBDIRS] =
+        (*attr->mutable_xattr())[XATTR_DIR_SUBDIRS] =
             std::to_string(summaryInfo.subdirs);
-        (*attr->mutable_xattr())[XATTRENTRIES] =
+        (*attr->mutable_xattr())[XATTR_DIR_ENTRIES] =
             std::to_string(summaryInfo.entries);
-        (*attr->mutable_xattr())[XATTRFBYTES] =
+        (*attr->mutable_xattr())[XATTR_DIR_FBYTES] =
             std::to_string(summaryInfo.fbytes + attr->length());
     }
     return ret;
@@ -91,8 +102,8 @@ CURVEFS_ERROR XattrManager::CalOneLayerSumInfo(InodeAttr* attr) {
 
 CURVEFS_ERROR XattrManager::FastCalOneLayerSumInfo(InodeAttr *attr) {
     if (!AddUllStringToFirst(
-        &(attr->mutable_xattr()->find(XATTRFBYTES)->second),
-        attr->length(), true)) {
+            &(attr->mutable_xattr()->find(XATTR_DIR_FBYTES)->second),
+            attr->length(), true)) {
         return CURVEFS_ERROR::INTERNAL;
     }
     return CURVEFS_ERROR::OK;
@@ -265,13 +276,13 @@ CURVEFS_ERROR XattrManager::CalAllLayerSumInfo(InodeAttr *attr) {
         summaryInfo.fbytes -= it.second;
     }
 
-    attr->mutable_xattr()->insert({XATTRRFILES,
-        std::to_string(summaryInfo.files)});
-    attr->mutable_xattr()->insert({XATTRRSUBDIRS,
-        std::to_string(summaryInfo.subdirs)});
-    attr->mutable_xattr()->insert({XATTRRENTRIES,
-        std::to_string(summaryInfo.entries)});
-    attr->mutable_xattr()->insert({XATTRRFBYTES,
+    attr->mutable_xattr()->insert(
+        {XATTR_DIR_RFILES, std::to_string(summaryInfo.files)});
+    attr->mutable_xattr()->insert(
+        {XATTR_DIR_RSUBDIRS, std::to_string(summaryInfo.subdirs)});
+    attr->mutable_xattr()->insert(
+        {XATTR_DIR_RENTRIES, std::to_string(summaryInfo.entries)});
+    attr->mutable_xattr()->insert({XATTR_DIR_RFBYTES,
         std::to_string(summaryInfo.fbytes + attr->length())});
     return CURVEFS_ERROR::OK;
 }
@@ -305,30 +316,38 @@ void XattrManager::ConcurrentGetInodeXattr(
             if (tret == CURVEFS_ERROR::OK) {
                 SummaryInfo summaryInfo;
                 for (const auto &it : xattrs) {
-                    if (it.xattrinfos().count(XATTRFILES)) {
-                        if (!AddUllStringToFirst(&summaryInfo.files,
-                            it.xattrinfos().find(XATTRFILES)->second)) {
+                    if (it.xattrinfos().count(XATTR_DIR_FILES)) {
+                        if (!AddUllStringToFirst(
+                                &summaryInfo.files, it.xattrinfos()
+                                                        .find(XATTR_DIR_FILES)
+                                                        ->second)) {
                             ret->store(false);
                             return;
                         }
                     }
-                    if (it.xattrinfos().count(XATTRSUBDIRS)) {
+                    if (it.xattrinfos().count(XATTR_DIR_SUBDIRS)) {
                         if (!AddUllStringToFirst(&summaryInfo.subdirs,
-                            it.xattrinfos().find(XATTRSUBDIRS)->second)) {
+                                it.xattrinfos()
+                                    .find(XATTR_DIR_SUBDIRS)
+                                    ->second)) {
                             ret->store(false);
                             return;
                         }
                     }
-                    if (it.xattrinfos().count(XATTRENTRIES)) {
+                    if (it.xattrinfos().count(XATTR_DIR_ENTRIES)) {
                         if (!AddUllStringToFirst(&summaryInfo.entries,
-                            it.xattrinfos().find(XATTRENTRIES)->second)) {
+                                it.xattrinfos()
+                                    .find(XATTR_DIR_ENTRIES)
+                                    ->second)) {
                             ret->store(false);
                             return;
                         }
                     }
-                    if (it.xattrinfos().count(XATTRFBYTES)) {
-                        if (!AddUllStringToFirst(&summaryInfo.fbytes,
-                            it.xattrinfos().find(XATTRFBYTES)->second)) {
+                    if (it.xattrinfos().count(XATTR_DIR_FBYTES)) {
+                        if (!AddUllStringToFirst(
+                                &summaryInfo.fbytes, it.xattrinfos()
+                                                         .find(XATTR_DIR_FBYTES)
+                                                         ->second)) {
                             ret->store(false);
                             return;
                         }
@@ -336,18 +355,22 @@ void XattrManager::ConcurrentGetInodeXattr(
                 }
                 // record summary info to target inode
                 std::lock_guard<std::mutex> guard(*inodeMutex);
-                if (!(AddUllStringToFirst(
-                    &(attr->mutable_xattr()->find(XATTRRFILES)->second),
-                    summaryInfo.files, true) &&
-                    AddUllStringToFirst(
-                    &(attr->mutable_xattr()->find(XATTRRSUBDIRS)->second),
-                    summaryInfo.subdirs, true) &&
-                    AddUllStringToFirst(
-                    &(attr->mutable_xattr()->find(XATTRRENTRIES)->second),
-                    summaryInfo.entries, true) &&
-                    AddUllStringToFirst(
-                    &(attr->mutable_xattr()->find(XATTRRFBYTES)->second),
-                    summaryInfo.fbytes, true))) {
+                if (!(AddUllStringToFirst(&(attr->mutable_xattr()
+                                                  ->find(XATTR_DIR_RFILES)
+                                                  ->second),
+                          summaryInfo.files, true) &&
+                        AddUllStringToFirst(&(attr->mutable_xattr()
+                                                    ->find(XATTR_DIR_RSUBDIRS)
+                                                    ->second),
+                            summaryInfo.subdirs, true) &&
+                        AddUllStringToFirst(&(attr->mutable_xattr()
+                                                    ->find(XATTR_DIR_RENTRIES)
+                                                    ->second),
+                            summaryInfo.entries, true) &&
+                        AddUllStringToFirst(&(attr->mutable_xattr()
+                                                    ->find(XATTR_DIR_RFBYTES)
+                                                    ->second),
+                            summaryInfo.fbytes, true))) {
                     ret->store(false);
                     return;
                 }
@@ -368,20 +391,20 @@ CURVEFS_ERROR XattrManager::FastCalAllLayerSumInfo(InodeAttr *attr) {
     iStack.emplace(ino);
     // add the size of itself first
     if (!AddUllStringToFirst(
-            &(attr->mutable_xattr()->find(XATTRFBYTES)->second),
+            &(attr->mutable_xattr()->find(XATTR_DIR_FBYTES)->second),
             attr->length(), true)) {
         return CURVEFS_ERROR::INTERNAL;
     }
 
     // add first layer summary to all layer summary info
-    attr->mutable_xattr()->insert({XATTRRFILES,
-        attr->xattr().find(XATTRFILES)->second});
-    attr->mutable_xattr()->insert({XATTRRSUBDIRS,
-        attr->xattr().find(XATTRSUBDIRS)->second});
-    attr->mutable_xattr()->insert({XATTRRENTRIES,
-        attr->xattr().find(XATTRENTRIES)->second});
-    attr->mutable_xattr()->insert({XATTRRFBYTES,
-        attr->xattr().find(XATTRFBYTES)->second});
+    attr->mutable_xattr()->insert(
+        {XATTR_DIR_RFILES, attr->xattr().find(XATTR_DIR_FILES)->second});
+    attr->mutable_xattr()->insert(
+        {XATTR_DIR_RSUBDIRS, attr->xattr().find(XATTR_DIR_SUBDIRS)->second});
+    attr->mutable_xattr()->insert(
+        {XATTR_DIR_RENTRIES, attr->xattr().find(XATTR_DIR_ENTRIES)->second});
+    attr->mutable_xattr()->insert(
+        {XATTR_DIR_RFBYTES, attr->xattr().find(XATTR_DIR_FBYTES)->second});
 
     std::vector<Thread> threadpool;
     Atomic<uint32_t> inflightNum(0);
@@ -512,14 +535,14 @@ CURVEFS_ERROR XattrManager::UpdateParentXattrAfterRename(uint64_t parent,
             return rc;
         }
         XAttr xattr;
-        xattr.mutable_xattrinfos()->insert({XATTRENTRIES, "1"});
+        xattr.mutable_xattrinfos()->insert({XATTR_DIR_ENTRIES, "1"});
         if (dentry.type() == FsFileType::TYPE_DIRECTORY) {
-            xattr.mutable_xattrinfos()->insert({XATTRSUBDIRS, "1"});
+            xattr.mutable_xattrinfos()->insert({XATTR_DIR_SUBDIRS, "1"});
         } else {
-            xattr.mutable_xattrinfos()->insert({XATTRFILES, "1"});
+            xattr.mutable_xattrinfos()->insert({XATTR_DIR_FILES, "1"});
         }
-        xattr.mutable_xattrinfos()->insert({XATTRFBYTES,
-            std::to_string(inodeWrapper->GetLength())});
+        xattr.mutable_xattrinfos()->insert(
+            {XATTR_DIR_FBYTES, std::to_string(inodeWrapper->GetLength())});
 
         // update src parent
         rc = UpdateParentInodeXattr(parent, xattr, false);
@@ -547,14 +570,14 @@ CURVEFS_ERROR XattrManager::UpdateParentXattrAfterRename(uint64_t parent,
     renameOp->GetOldInode(&oldInode, &oldInodeSize, &oldInodeType);
     if (oldInode != 0 && oldInodeSize >= 0) {
         XAttr xattr;
-        xattr.mutable_xattrinfos()->insert({XATTRENTRIES, "1"});
+        xattr.mutable_xattrinfos()->insert({XATTR_DIR_ENTRIES, "1"});
         if (oldInodeType == FsFileType::TYPE_DIRECTORY) {
-            xattr.mutable_xattrinfos()->insert({XATTRSUBDIRS, "1"});
+            xattr.mutable_xattrinfos()->insert({XATTR_DIR_SUBDIRS, "1"});
         } else {
-            xattr.mutable_xattrinfos()->insert({XATTRFILES, "1"});
+            xattr.mutable_xattrinfos()->insert({XATTR_DIR_FILES, "1"});
         }
-        xattr.mutable_xattrinfos()->insert({XATTRFBYTES,
-            std::to_string(oldInodeSize)});
+        xattr.mutable_xattrinfos()->insert(
+            {XATTR_DIR_FBYTES, std::to_string(oldInodeSize)});
 
         rc = UpdateParentInodeXattr(newparent, xattr, false);
         if (rc != CURVEFS_ERROR::OK) {

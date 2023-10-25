@@ -21,12 +21,21 @@
  */
 
 #include "curvefs/src/metaserver/s3/metaserver_s3_adaptor.h"
-#include <list>
+
 #include <algorithm>
+#include <cstdint>
+#include <list>
+#include <string>
+
 #include "curvefs/src/common/s3util.h"
+#include "src/client/client_metric.h"
 
 namespace curvefs {
 namespace metaserver {
+
+const std::string S3ClientAdaptorMetric::prefix =  // NOLINT
+    "curvefs_metaserver_s3_client_adaptor";        // NOLINT
+
 void S3ClientAdaptorImpl::Init(const S3ClientAdaptorOption &option,
                                S3Client *client) {
     blockSize_ = option.blockSize;
@@ -48,12 +57,21 @@ void S3ClientAdaptorImpl::Reinit(const S3ClientAdaptorOption& option,
     client_->Reinit(ak, sk, endpoint, bucketName);
 }
 
-int S3ClientAdaptorImpl::Delete(const Inode &inode) {
+int S3ClientAdaptorImpl::Delete(const Inode& inode) {
+    int ret = 0;
+    uint64_t start = butil::cpuwide_time_us();
     if (enableBatchDelete_) {
-        return DeleteInodeByDeleteBatchChunk(inode);
+        ret = DeleteInodeByDeleteBatchChunk(inode);
     } else {
-        return DeleteInodeByDeleteSingleChunk(inode);
+        ret = DeleteInodeByDeleteSingleChunk(inode);
     }
+    if (ret == 0) {
+        curve::client::CollectMetrics(&metric_.deleteInode, inode.length(),
+                                      butil::cpuwide_time_us() - start);
+    } else {
+        metric_.deleteInode.eps.count << 1;
+    }
+    return ret;
 }
 
 int S3ClientAdaptorImpl::DeleteInodeByDeleteSingleChunk(const Inode &inode) {

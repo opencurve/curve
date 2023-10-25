@@ -85,17 +85,20 @@ struct ChunkServerStat {
     uint64_t chunkSizeTrashedBytes;
     // Size of chunkfilepool
     uint64_t chunkFilepoolSize;
+    // Rate of chunkfilepool format
+    uint32_t chunkFilepoolFormatPercent;
 
     // Copyset statistic
     std::vector<CopysetStat> copysetStats;
 
-    ChunkServerStat() :
-        leaderCount(0),
-        copysetCount(0),
-        readRate(0),
-        writeRate(0),
-        readIOPS(0),
-        writeIOPS(0) {}
+    ChunkServerStat()
+        : leaderCount(0),
+          copysetCount(0),
+          readRate(0),
+          writeRate(0),
+          readIOPS(0),
+          writeIOPS(0),
+          chunkFilepoolFormatPercent(0) {}
 };
 
 /**

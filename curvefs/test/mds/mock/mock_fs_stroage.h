@@ -57,6 +57,10 @@ class MockFsStorage : public FsStorage {
     MOCK_METHOD1(Exist, bool(const std::string&));
     MOCK_METHOD0(NextFsId, uint64_t());
     MOCK_METHOD1(GetAll, void(std::vector<FsInfoWrapper>* fsInfoVec));
+    MOCK_METHOD2(SetFsUsage, FSStatusCode(const std::string&, const FsUsage&));
+    MOCK_METHOD3(
+        GetFsUsage, FSStatusCode(const std::string&, FsUsage*, bool fromCache));
+    MOCK_METHOD1(DeleteFsUsage, FSStatusCode(const std::string&));
 };
 
 }  // namespace mds

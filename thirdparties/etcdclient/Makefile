@@ -18,16 +18,29 @@ SHELL=/bin/bash
 
 pwd := $(shell pwd)
 
-all: intall-go install-etcdclient libetcdclient
 
-intall-go:
+# Download and build libetcdclient only when necessary, i.e.,
+# when dependent code is changed.
+# Typically, this target should always be used to avoid unnecessary
+# rebuilds.
+build: libetcdclient.so libetcdclient.h expose-session-for-election.patch etcdclient.go objectManager.go
+
+libetcdclient.so libetcdclient.h: # do not use `clean' and `all' targets here as they will always be built
+	$(MAKE) clean all
+
+# Download and build libetcdclient, regardless of whether the code
+# is changed or not.
+all: install-go install-etcdclient libetcdclient
+
+
+install-go:
 	mkdir -p $(pwd)/tmp
 	cd $(pwd)/tmp && wget -N https://golang.google.cn/dl/go1.12.8.linux-amd64.tar.gz
 	cd $(pwd)/tmp && tar zxvf go1.12.8.linux-amd64.tar.gz
 
 install-etcdclient:
 	mkdir -p $(pwd)/tmp/gosrc/src/go.etcd.io
-	cd $(pwd)/tmp/gosrc/src/go.etcd.io && git clone --branch v3.4.0 https://gitee.com/mirrors/etcd
+	cd $(pwd)/tmp/gosrc/src/go.etcd.io && git clone --branch v3.4.0 --depth=1 https://gitee.com/mirrors/etcd
 	cd $(pwd)/tmp/gosrc/src/go.etcd.io/etcd && cp $(pwd)/expose-session-for-election.patch . && patch -p1 < expose-session-for-election.patch
 
 vendorpath := $(pwd)/tmp/gosrc/src/go.etcd.io/etcd/vendor
@@ -39,7 +52,6 @@ libetcdclient:
 	mv $(vendorpath)/golang.org $(pwd)/tmp/gosrc/src/
 	mv $(vendorpath)/github.com $(pwd)/tmp/gosrc/src/
 	$(pwd)/tmp/go/bin/go build -buildmode=c-shared -o libetcdclient.so ${pwd}/tmp/gosrc/src/etcdclient.go ${pwd}/tmp/gosrc/src/objectManager.go
-
 
 clean:
 	rm -fr $(pwd)/tmp

@@ -81,9 +81,17 @@ class MockDiskCacheManagerImpl : public DiskCacheManagerImpl {
     }
     ~MockDiskCacheManagerImpl() {}
 
-    MOCK_METHOD1(UploadWriteCacheByInode, int(const std::string &inode));
-    MOCK_METHOD1(ClearReadCache, int(const std::list<std::string> &files));
+    MOCK_METHOD1(Init, int(const S3ClientAdaptorOption option));
+    MOCK_METHOD1(UploadWriteCacheByInode, int(const std::string& inode));
+    MOCK_METHOD1(ClearReadCache, int(const std::list<std::string>& files));
     MOCK_METHOD1(IsCached, bool(const std::string));
+    MOCK_METHOD0(UmountDiskCache, int());
+    MOCK_METHOD3(WriteReadDirect, int(const std::string fileName,
+                                      const char* buf, uint64_t length));
+    MOCK_METHOD3(Write,
+                 int(const std::string name, const char* buf, uint64_t length));
+    MOCK_METHOD4(Read, int(const std::string name, char* buf, uint64_t offset,
+                           uint64_t length));
 };
 
 }  // namespace client

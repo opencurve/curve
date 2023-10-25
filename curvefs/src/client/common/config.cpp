@@ -39,6 +39,8 @@ namespace curvefs {
 namespace client {
 namespace common {
 DECLARE_bool(useFakeS3);
+DEFINE_bool(fs_disableXattr, false, "disable xattr");
+DEFINE_validator(fs_disableXattr, [](const char*, bool value) { return true; });
 }  // namespace common
 }  // namespace client
 }  // namespace curvefs
@@ -46,11 +48,13 @@ DECLARE_bool(useFakeS3);
 namespace curvefs {
 namespace client {
 namespace common {
+static bool pass_bool(const char*, bool) { return true; }
 DEFINE_bool(enableCto, true, "acheieve cto consistency");
 DEFINE_bool(useFakeS3, false,
             "Use fake s3 to inject more metadata for testing metaserver");
 DEFINE_bool(supportKVcache, false, "use kvcache to speed up sharing");
 DEFINE_bool(access_logging, true, "enable access log");
+DEFINE_validator(access_logging, &pass_bool);
 
 /**
  * use curl -L fuseclient:port/flags/fuseClientAvgWriteBytes?setvalue=true
@@ -225,6 +229,16 @@ void InitS3Option(Configuration *conf, S3Option *s3Opt) {
                               &s3Opt->s3ClientAdaptorOpt.writeCacheMaxByte);
     conf->GetValueFatalIfFail("s3.readCacheMaxByte",
                               &s3Opt->s3ClientAdaptorOpt.readCacheMaxByte);
+    conf->GetValueFatalIfFail("s3.memClusterToLocal",
+                              &s3Opt->s3ClientAdaptorOpt.memClusterToLocal);
+    conf->GetValueFatalIfFail("s3.s3ToLocal",
+                              &s3Opt->s3ClientAdaptorOpt.s3ToLocal);
+    conf->GetValueFatalIfFail("s3.bigIoSize",
+                              &s3Opt->s3ClientAdaptorOpt.bigIoSize);
+    conf->GetValueFatalIfFail("s3.bigIoRetryTimes",
+                              &s3Opt->s3ClientAdaptorOpt.bigIoRetryTimes);
+    conf->GetValueFatalIfFail("s3.bigIoRetryIntervalUs",
+                              &s3Opt->s3ClientAdaptorOpt.bigIoRetryIntervalUs);
     conf->GetValueFatalIfFail("s3.readCacheThreads",
                               &s3Opt->s3ClientAdaptorOpt.readCacheThreads);
     conf->GetValueFatalIfFail("s3.nearfullRatio",
@@ -238,6 +252,7 @@ void InitS3Option(Configuration *conf, S3Option *s3Opt) {
                               &s3Opt->s3ClientAdaptorOpt.readRetryIntervalMs);
     ::curve::common::InitS3AdaptorOptionExceptS3InfoOption(conf,
                                                            &s3Opt->s3AdaptrOpt);
+
     InitDiskCacheOption(conf, &s3Opt->s3ClientAdaptorOpt.diskCacheOpt);
 }
 
@@ -299,10 +314,44 @@ void InitKVClientManagerOpt(Configuration *conf,
                               &config->getThreadPooln);
 }
 
+void GetGids(
+    Configuration* c, const std::string& key, std::vector<uint32_t>* gids) {
+    std::string str;
+    std::vector<std::string> ss;
+    c->GetValueFatalIfFail(key, &str);
+    curve::common::SplitString(str, ",", &ss);
+    uint32_t gid;
+    for (const auto& s : ss) {
+        LOG_IF(FATAL, !curve::common::StringToUl(s, &gid))
+            << "Invalid `" << key << "`: <" << s << ">";
+        gids->push_back(static_cast<uint32_t>(gid));
+    }
+}
+
+void GetUmask(Configuration* c, const std::string& key, uint16_t* umask) {
+    std::string str;
+    c->GetValueFatalIfFail(key, &str);
+    *umask = stoi(str, 0, 8);
+}
+
+void InitVFSOption(Configuration* c, VFSOption* option) {
+    {  // vfs cache option
+        auto o = &option->vfsCacheOption;
+        c->GetValueFatalIfFail("vfs.entryCache.lruSize", &o->entryCacheLruSize);
+        c->GetValueFatalIfFail("vfs.attrCache.lruSize", &o->attrCacheLruSize);
+    }
+    {  // user permission option
+        auto o = &option->userPermissionOption;
+        c->GetValueFatalIfFail("vfs.userPermission.uid", &o->uid);
+        GetGids(c, "vfs.userPermission.gids", &o->gids);
+        GetUmask(c, "vfs.userPermission.umask", &o->umask);
+    }
+}
+
 void InitFileSystemOption(Configuration* c, FileSystemOption* option) {
     c->GetValueFatalIfFail("fs.cto", &option->cto);
     c->GetValueFatalIfFail("fs.cto", &FLAGS_enableCto);
-    c->GetValueFatalIfFail("fs.disableXattr", &option->disableXattr);
+    c->GetValueFatalIfFail("fs.disableXAttr", &option->disableXAttr);
     c->GetValueFatalIfFail("fs.maxNameLength", &option->maxNameLength);
     c->GetValueFatalIfFail("fs.accessLogging", &FLAGS_access_logging);
     {  // kernel cache option
@@ -368,6 +417,7 @@ void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption) {
     InitLeaseOpt(conf, &clientOption->leaseOpt);
     InitRefreshDataOpt(conf, &clientOption->refreshDataOption);
     InitKVClientManagerOpt(conf, &clientOption->kvClientManagerOpt);
+    InitVFSOption(conf, &clientOption->vfsOption);
     InitFileSystemOption(conf, &clientOption->fileSystemOption);
 
     conf->GetValueFatalIfFail("fuseClient.listDentryLimit",

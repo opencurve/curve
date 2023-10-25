@@ -265,6 +265,9 @@ var (
 	ErrGetClusterFsInfo = func() *CmdError {
 		return NewInternalCmdError(8, "get cluster fs info failed, the error is: \n%s")
 	}
+	ErrUpdateClusterFsInfo = func() *CmdError {
+		return NewInternalCmdError(9, "update cluster fs info failed, the error is: \n%s")
+	}
 	ErrGetAddr = func() *CmdError {
 		return NewInternalCmdError(9, "invalid %s addr is: %s")
 	}
@@ -480,6 +483,9 @@ var (
 	}
 	ErrListWarmup = func() *CmdError {
 		return NewInternalCmdError(74, "list warmup progress fail, err: %s")
+	}
+	ErrBsGetFormatStatus = func() *CmdError {
+		return NewInternalCmdError(75, "get format status fail, err: %s")
 	}
 
 	// http error

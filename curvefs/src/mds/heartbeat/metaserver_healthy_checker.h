@@ -23,18 +23,24 @@
 #ifndef CURVEFS_SRC_MDS_HEARTBEAT_METASERVER_HEALTHY_CHECKER_H_
 #define CURVEFS_SRC_MDS_HEARTBEAT_METASERVER_HEALTHY_CHECKER_H_
 
-#include <chrono> //NOLINT
-#include <memory>
+#include <gflags/gflags_declare.h>
+
+#include <chrono>  //NOLINT
 #include <map>
-#include "curvefs/src/mds/common/types.h"
-#include "curvefs/src/mds/common/mds_define.h"
-#include "curvefs/src/mds/topology/topology.h"
+#include <memory>
+
 #include "curvefs/proto/topology.pb.h"
+#include "curvefs/src/mds/common/mds_define.h"
+#include "curvefs/src/mds/common/types.h"
+#include "curvefs/src/mds/topology/topology.h"
 
 using ::std::chrono::steady_clock;
 using ::curvefs::mds::topology::MetaServerIdType;
 using ::curvefs::mds::topology::Topology;
 using ::curvefs::mds::topology::OnlineState;
+
+DECLARE_uint64(heartbeat_offlineTimeoutMs);
+DECLARE_uint64(heartbeat_missTimeoutMs);
 
 namespace curvefs {
 namespace mds {
@@ -45,8 +51,20 @@ struct HeartbeatOption {
                     uint64_t heartbeatMissTimeout,
                     uint64_t offLineTimeout) {
         this->heartbeatIntervalMs = heartbeatInterval;
-        this->heartbeatMissTimeOutMs = heartbeatMissTimeout;
-        this->offLineTimeOutMs = offLineTimeout;
+        FLAGS_heartbeat_missTimeoutMs = this->heartbeatMissTimeOutMs =
+            heartbeatMissTimeout;
+        FLAGS_heartbeat_offlineTimeoutMs = this->offLineTimeOutMs =
+            offLineTimeout;
+    }
+
+    explicit HeartbeatOption(const HeartbeatOption& option)
+        : heartbeatIntervalMs(option.heartbeatIntervalMs),
+          heartbeatMissTimeOutMs(option.heartbeatMissTimeOutMs),
+          offLineTimeOutMs(option.offLineTimeOutMs),
+          cleanFollowerAfterMs(option.cleanFollowerAfterMs),
+          mdsStartTime(option.mdsStartTime) {
+        FLAGS_heartbeat_offlineTimeoutMs = offLineTimeOutMs;
+        FLAGS_heartbeat_missTimeoutMs = heartbeatMissTimeOutMs;
     }
 
     // heartbeatIntervalMs: normal heartbeat interval.
@@ -90,9 +108,9 @@ struct HeartbeatInfo {
 
 class MetaserverHealthyChecker {
  public:
-    MetaserverHealthyChecker(
-        HeartbeatOption option, const std::shared_ptr<Topology> &topo) :
-        option_(option), topo_(topo) {}
+    MetaserverHealthyChecker(const HeartbeatOption& option,
+                             const std::shared_ptr<Topology>& topo)
+        : option_(option), topo_(topo) {}
     ~MetaserverHealthyChecker() {}
 
     /**

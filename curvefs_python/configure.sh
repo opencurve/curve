@@ -35,6 +35,12 @@ if [ $# -ge 1 ]; then
     PYTHON_VER=$1
 fi
 
+bazelbin="bazel-bin"
+if [ -n "$BAZEL_BIN" ]; then
+    bazelbin=$BAZEL_BIN
+fi
+echo "bazel-bin path is $bazelbin"
+
 echo "configure for ${PYTHON_VER}"
 
 if [ "${PYTHON_VER}" = "python2" ] || [ "${PYTHON_VER}" = "python3" ]; then
@@ -61,7 +67,7 @@ libs=`cat BUILD | tr -d "[:blank:]" | grep "^\"-l" | sed 's/[",]//g' | awk '{ pr
 
 rm -rf tmplib
 mkdir tmplib
-for i in `find $curve_path/bazel-bin/|grep -w so|grep -v solib|grep -v params`
+for i in `find $curve_path/$bazelbin/|grep -w so|grep -v solib|grep -v params`
   do
     basename=$(basename $i)
     linkname=`echo $basename | awk -F'.' '{ print $1 }' | awk '{ print substr($0, 4) }'`

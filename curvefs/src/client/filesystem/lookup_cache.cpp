@@ -83,7 +83,7 @@ bool LookupCache::Put(Ino parent, const std::string& name) {
     if (yes) {
         entry.uses++;
     } else {
-        entry.uses = 0;
+        entry.uses = 1;
     }
 
     entry.expireTime = Now() + TimeSpec(option_.negativeTimeoutSec, 0);

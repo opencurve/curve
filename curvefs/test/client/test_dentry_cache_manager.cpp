@@ -92,7 +92,7 @@ TEST_F(TestDentryCacheManager, GetDentry) {
                 Return(MetaStatusCode::OK)));
 
     CURVEFS_ERROR ret = dCacheManager_->GetDentry(parent, name, &out);
-    ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret);
+    ASSERT_EQ(CURVEFS_ERROR::NOT_EXIST, ret);
 
     ret = dCacheManager_->GetDentry(parent, name, &out);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);

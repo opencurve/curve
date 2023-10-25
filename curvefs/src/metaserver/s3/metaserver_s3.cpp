@@ -50,11 +50,12 @@ int S3ClientImpl::Delete(const std::string& name) {
     ret = s3Adapter_->DeleteObject(aws_key);
     if (ret < 0) {
         // -1
-        LOG(ERROR) << "delete object: " << aws_key << " get error:" << ret;
         if (!s3Adapter_->ObjectExist(aws_key)) {
             // the aws_key is not exist
             // may delete by others
             ret = 1;
+        } else {
+            LOG(ERROR) << "delete object: " << aws_key << " get error:" << ret;
         }
     } else {
         // 0

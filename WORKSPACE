@@ -142,7 +142,7 @@ git_repository(
     patches = [
         "//:thirdparties/brpc/brpc.patch",
         "//:thirdparties/brpc/fix-gcc11.patch",
-        "//:thirdparties/brpc/0001-bvar-warning-on-conflict-bvar-name.patch", 
+        "//:thirdparties/brpc/0001-bvar-warning-on-conflict-bvar-name.patch",
     ],
     patch_args = ["-p1"],
 )
@@ -191,7 +191,6 @@ new_local_repository(
     build_file = "//:thirdparties/memcache/memcache.BUILD",
     path = "thirdparties/memcache/libmemcached-1.1.2",
 )
-
 
 http_archive(
     name = "aws",
@@ -259,6 +258,21 @@ http_archive(
   build_file = "//:thirdparties/spdlog.BUILD",
 )
 
+# incbin
+new_git_repository(
+    name = "incbin",
+    remote = "https://github.com/graphitemaster/incbin.git",
+    commit = "6e576cae5ab5810f25e2631f2e0b80cbe7dc8cbf",
+    build_file = "//:thirdparties/incbin.BUILD",
+)
+
+# config
+new_local_repository(
+    name = "config",
+    build_file = "//:thirdparties/config.BUILD",
+    path = "thirdparties/config",
+)
+
 # Bazel platform rules.
 http_archive(
     name = "platforms",
@@ -272,6 +286,13 @@ new_local_repository(
     name = "rocksdb",
     build_file = "//:thirdparties/rocksdb.BUILD",
     path = "thirdparties/rocksdb",
+)
+
+# jni
+new_local_repository(
+    name = "jni",
+    build_file = "//:thirdparties/jni.BUILD",
+    path = "thirdparties",
 )
 
 # Hedron's Compile Commands Extractor for Bazel

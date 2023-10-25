@@ -31,12 +31,14 @@ namespace curvefs {
 namespace mds {
 namespace codec {
 
-using ::curvefs::mds::COMMON_PREFIX_LENGTH;
-using ::curvefs::mds::FS_NAME_KEY_PREFIX;
-using ::curvefs::mds::BLOCKGROUP_KEY_PREFIX;
-using ::curvefs::mds::BLOCKGROUP_KEY_END;
 using ::curve::common::EncodeBigEndian;
 using ::curve::common::EncodeBigEndian_uint32;
+using ::curvefs::mds::BLOCKGROUP_KEY_END;
+using ::curvefs::mds::BLOCKGROUP_KEY_PREFIX;
+using ::curvefs::mds::COMMON_PREFIX_LENGTH;
+using ::curvefs::mds::FS_NAME_KEY_PREFIX;
+using ::curvefs::mds::FS_USAGE_KEY_END;
+using ::curvefs::mds::FS_USAGE_KEY_PREFIX;
 
 std::string EncodeFsName(const std::string& fsName) {
     std::string key;
@@ -60,6 +62,18 @@ std::string EncodeBlockGroupKey(uint32_t fsId, uint64_t offset) {
 
     EncodeBigEndian_uint32(&key[COMMON_PREFIX_LENGTH], fsId);
     EncodeBigEndian(&key[COMMON_PREFIX_LENGTH + sizeof(fsId)], offset);
+
+    return key;
+}
+
+std::string EncodeFsUsageKey(const std::string& fsName) {
+    std::string key;
+
+    std::string fsUsage = fsName + "_usage";
+    key.resize(COMMON_PREFIX_LENGTH + fsUsage.size());
+
+    memcpy(&key[0], FS_USAGE_KEY_PREFIX, COMMON_PREFIX_LENGTH);
+    memcpy(&key[COMMON_PREFIX_LENGTH], fsUsage.data(), fsUsage.size());
 
     return key;
 }

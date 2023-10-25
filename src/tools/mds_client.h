@@ -47,28 +47,31 @@
 #include "src/tools/common.h"
 #include "src/tools/curve_tool_define.h"
 
+using curve::common::ChunkServerLocation;
+using curve::common::CopysetInfo;
 using curve::mds::FileInfo;
+using curve::mds::PageFileChunkInfo;
 using curve::mds::PageFileSegment;
 using curve::mds::StatusCode;
-using curve::mds::PageFileChunkInfo;
-using curve::mds::topology::kTopoErrCodeSuccess;
-using curve::mds::topology::ChunkServerInfo;
-using curve::common::ChunkServerLocation;
-using curve::mds::topology::CopySetServerInfo;
-using curve::mds::topology::ServerInfo;
-using curve::mds::topology::ZoneInfo;
-using curve::mds::topology::PhysicalPoolInfo;
-using curve::mds::topology::LogicalPoolInfo;
-using curve::common::CopysetInfo;
-using curve::mds::topology::ServerIdType;
-using curve::mds::topology::ZoneIdType;
-using curve::mds::topology::PoolIdType;
-using curve::mds::topology::CopySetIdType;
+using curve::mds::topology::ChunkFormatStatus;
 using curve::mds::topology::ChunkServerIdType;
+using curve::mds::topology::ChunkServerInfo;
 using curve::mds::topology::ChunkServerStatus;
-using curve::mds::topology::ListChunkServerRequest;
+using curve::mds::topology::CopySetIdType;
+using curve::mds::topology::CopySetServerInfo;
 using curve::mds::topology::GetChunkServerInfoRequest;
 using curve::mds::topology::GetCopySetsInChunkServerRequest;
+using curve::mds::topology::kTopoErrCodeSuccess;
+using curve::mds::topology::ListChunkFormatStatusRequest;
+using curve::mds::topology::ListChunkServerRequest;
+using curve::mds::topology::LogicalPoolInfo;
+using curve::mds::topology::PhysicalPoolInfo;
+using curve::mds::topology::PoolIdType;
+using curve::mds::topology::ServerIdType;
+using curve::mds::topology::ServerInfo;
+using curve::mds::topology::ZoneIdType;
+using curve::mds::topology::ZoneInfo;
+
 using curve::mds::schedule::RapidLeaderScheduleRequst;
 using curve::mds::schedule::RapidLeaderScheduleResponse;
 using curve::common::Authenticator;
@@ -479,6 +482,8 @@ class MDSClient {
         const std::string& fileName, const curve::mds::ThrottleParams& params);
 
     int ListPoolset(std::vector<PoolsetInfo>* poolsets);
+
+    int ListChunkFormatStatus(std::vector<ChunkFormatStatus>* formatStatuses);
 
  private:
     /**

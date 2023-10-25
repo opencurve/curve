@@ -187,6 +187,9 @@ class FsManager {
     FSStatusCode GetFsInfo(const std::string& fsName, uint32_t fsId,
                            FsInfo* fsInfo);
 
+    FSStatusCode UpdateFsInfo(
+        const ::curvefs::mds::UpdateFsInfoRequest* request);
+
     void GetAllFsInfo(::google::protobuf::RepeatedPtrField<
                       ::curvefs::mds::FsInfo>* fsInfoVec);
 
@@ -250,6 +253,9 @@ class FsManager {
 
     bool TestS3(const std::string& fsName);
 
+    FSStatusCode UpdateFsUsedBytes(
+        const std::string& fsName, int64_t deltaBytes);
+
  private:
     std::shared_ptr<FsStorage> fsStorage_;
     std::shared_ptr<SpaceManager> spaceManager_;
@@ -271,6 +277,8 @@ class FsManager {
     // <mountpoint, <fsname,last update time>>
     std::map<std::string, std::pair<std::string, uint64_t>> mpTimeRecorder_;
     mutable RWLock recorderMutex_;
+    // fsuage update lock
+    mutable RWLock fsUsageMutex_;
 };
 }  // namespace mds
 }  // namespace curvefs

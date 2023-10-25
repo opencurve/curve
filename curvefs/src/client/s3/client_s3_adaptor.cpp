@@ -20,19 +20,44 @@
  * Author: huyao
  */
 
+#include "curvefs/src/client/s3/client_s3_adaptor.h"
+
 #include <brpc/channel.h>
 #include <brpc/controller.h>
+
 #include <algorithm>
 #include <list>
 #include <utility>
 
 #include "absl/memory/memory.h"
-#include "curvefs/src/client/s3/client_s3_adaptor.h"
+#include "curvefs/src/client/rpcclient/fsdelta_updater.h"
+#include "curvefs/src/client/rpcclient/fsquota_checker.h"
 #include "curvefs/src/common/s3util.h"
 
 namespace curvefs {
-
 namespace client {
+
+/**
+ * use curl -L mdsIp:port/flags/memClusterToLocal?setvalue=true
+ * for dynamic parameter configuration
+ */
+static bool pass_uint32(const char*, uint32_t) { return true; }
+static bool pass_bool(const char*, bool) { return true; }
+DEFINE_bool(memClusterToLocal, true,
+            "The data in the cache cluster download to local");
+DEFINE_validator(memClusterToLocal, &pass_bool);
+DEFINE_bool(s3ToLocal, true, "The data in the s3 storage download to local");
+DEFINE_validator(s3ToLocal, &pass_bool);
+DEFINE_uint32(
+    bigIoSize, 131072,
+    "read size bigger than this value will read until prefetch is finished");
+DEFINE_validator(bigIoSize, &pass_uint32);
+DEFINE_uint32(bigIoRetryTimes, 100, "retry times when read big io failed");
+DEFINE_validator(bigIoRetryTimes, &pass_uint32);
+DEFINE_uint32(bigIoRetryIntervalUs, 100,
+              "retry interval when read big io failed");
+DEFINE_validator(bigIoRetryIntervalUs, &pass_uint32);
+
 CURVEFS_ERROR
 S3ClientAdaptorImpl::Init(
     const S3ClientAdaptorOption &option, std::shared_ptr<S3Client> client,
@@ -49,12 +74,17 @@ S3ClientAdaptorImpl::Init(
         LOG(ERROR) << "chunkSize:" << chunkSize_
                    << " is not integral multiple for the blockSize:"
                    << blockSize_;
-        return CURVEFS_ERROR::INVALIDPARAM;
+        return CURVEFS_ERROR::INVALID_PARAM;
     }
     prefetchBlocks_ = option.prefetchBlocks;
     prefetchExecQueueNum_ = option.prefetchExecQueueNum;
     diskCacheType_ = option.diskCacheOpt.diskCacheType;
     memCacheNearfullRatio_ = option.nearfullRatio;
+    FLAGS_memClusterToLocal = option.memClusterToLocal;
+    FLAGS_s3ToLocal = option.s3ToLocal;
+    FLAGS_bigIoSize = option.bigIoSize;
+    FLAGS_bigIoRetryTimes = option.bigIoRetryTimes;
+    FLAGS_bigIoRetryIntervalUs = option.bigIoRetryIntervalUs;
     throttleBaseSleepUs_ = option.baseSleepUs;
     flushIntervalSec_ = option.flushIntervalSec;
     chunkFlushThreads_ = option.chunkFlushThreads;
@@ -100,7 +130,13 @@ S3ClientAdaptorImpl::Init(
               << ", readCacheMaxByte: " << option.readCacheMaxByte
               << ", readCacheThreads: " << option.readCacheThreads
               << ", nearfullRatio: " << option.nearfullRatio
-              << ", baseSleepUs: " << option.baseSleepUs;
+              << ", baseSleepUs: " << option.baseSleepUs
+              << ", memClusterToLocal: " << FLAGS_memClusterToLocal
+              << ", s3ToLocal: " << FLAGS_s3ToLocal
+              << ", bigIoSize: " << FLAGS_bigIoSize
+              << ", bigIoRetryTimes: " << FLAGS_bigIoRetryTimes
+              << ", bigIoRetryIntervalUs: " << FLAGS_bigIoRetryIntervalUs;
+
     // start chunk flush threads
     taskPool_.Start(chunkFlushThreads_);
     return CURVEFS_ERROR::OK;
@@ -145,8 +181,8 @@ int S3ClientAdaptorImpl::Write(uint64_t inodeId, uint64_t offset,
     int ret = fileCacheManager->Write(offset, length, buf);
     fsCacheManager_->DataCacheByteDec(length);
     if (s3Metric_ != nullptr) {
-        metric::CollectMetrics(&s3Metric_->adaptorWrite, ret,
-                               butil::cpuwide_time_us() - start);
+        curve::client::CollectMetrics(&s3Metric_->adaptorWrite, ret,
+                                      butil::cpuwide_time_us() - start);
         s3Metric_->writeSize.set_value(length);
     }
     VLOG(6) << "write end inodeId: " << inodeId << ", ret: " << ret;
@@ -167,8 +203,8 @@ int S3ClientAdaptorImpl::Read(uint64_t inodeId, uint64_t offset,
         return ret;
     }
     if (s3Metric_.get() != nullptr) {
-        metric::CollectMetrics(&s3Metric_->adaptorRead, ret,
-                               butil::cpuwide_time_us() - start);
+        curve::client::CollectMetrics(&s3Metric_->adaptorRead, ret,
+                                      butil::cpuwide_time_us() - start);
         s3Metric_->readSize.set_value(length);
     }
     VLOG(6) << "read end offset:" << offset << ", len:" << length
@@ -181,6 +217,7 @@ CURVEFS_ERROR S3ClientAdaptorImpl::Truncate(InodeWrapper *inodeWrapper,
     const auto *inode = inodeWrapper->GetInodeLocked();
     uint64_t fileSize = inode->length();
 
+    int64_t deltaBytes = 0;
     if (size < fileSize) {
         VLOG(6) << "Truncate size:" << size
                 << " less than fileSize:" << fileSize;
@@ -188,12 +225,15 @@ CURVEFS_ERROR S3ClientAdaptorImpl::Truncate(InodeWrapper *inodeWrapper,
             fsCacheManager_->FindOrCreateFileCacheManager(fsId_,
                                                           inode->inodeid());
         fileCacheManager->TruncateCache(size, fileSize);
-        return CURVEFS_ERROR::OK;
+        deltaBytes = -1 * (fileSize - size);
     } else if (size == fileSize) {
-        return CURVEFS_ERROR::OK;
     } else {
         VLOG(6) << "Truncate size:" << size << " more than fileSize"
                 << fileSize;
+        deltaBytes = size - fileSize;
+        if (!FsQuotaChecker::GetInstance().QuotaBytesCheck(deltaBytes)) {
+            return CURVEFS_ERROR::NO_SPACE;
+        }
         uint64_t offset = fileSize;
         uint64_t len = size - fileSize;
         uint64_t index = offset / chunkSize_;
@@ -243,8 +283,9 @@ CURVEFS_ERROR S3ClientAdaptorImpl::Truncate(InodeWrapper *inodeWrapper,
             offset += n;
             chunkId++;
         }
-        return CURVEFS_ERROR::OK;
     }
+    FsDeltaUpdater::GetInstance().UpdateDeltaBytes(deltaBytes);
+    return CURVEFS_ERROR::OK;
 }
 
 void S3ClientAdaptorImpl::ReleaseCache(uint64_t inodeId) {

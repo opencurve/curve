@@ -295,7 +295,7 @@ TEST_F(TestFuseVolumeClient, FuseOpLookupNameTooLong) {
     EntryOut entryOut;
     CURVEFS_ERROR ret = client_->FuseOpLookup(req, parent, name.c_str(),
                                               &entryOut);
-    ASSERT_EQ(CURVEFS_ERROR::NAMETOOLONG, ret);
+    ASSERT_EQ(CURVEFS_ERROR::NAME_TOO_LONG, ret);
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpWrite) {
@@ -522,7 +522,7 @@ TEST_F(TestFuseVolumeClient, FuseOpCreateNameTooLong) {
     EntryOut entryOut;
     CURVEFS_ERROR ret = client_->FuseOpCreate(req, parent, name, mode, &fi,
                                               &entryOut);
-    ASSERT_EQ(CURVEFS_ERROR::NAMETOOLONG, ret);
+    ASSERT_EQ(CURVEFS_ERROR::NAME_TOO_LONG, ret);
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpUnlink) {
@@ -569,8 +569,10 @@ TEST_F(TestFuseVolumeClient, FuseOpUnlink) {
         std::make_shared<InodeWrapper>(parentInode, metaClient_);
 
     EXPECT_CALL(*inodeManager_, GetInode(_, _))
-        .WillOnce(DoAll(SetArgReferee<1>(parentInodeWrapper),
-                        Return(CURVEFS_ERROR::OK)))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(DoAll(
+            SetArgReferee<1>(parentInodeWrapper), Return(CURVEFS_ERROR::OK)))
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*metaClient_, GetInodeAttr(_, _, _))
@@ -630,8 +632,10 @@ TEST_F(TestFuseVolumeClient, FuseOpRmDir) {
         std::make_shared<InodeWrapper>(parentInode, metaClient_);
 
     EXPECT_CALL(*inodeManager_, GetInode(_, _))
-        .WillOnce(DoAll(SetArgReferee<1>(parentInodeWrapper),
-                        Return(CURVEFS_ERROR::OK)))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(DoAll(
+            SetArgReferee<1>(parentInodeWrapper), Return(CURVEFS_ERROR::OK)))
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*metaClient_, GetInodeAttr(_, _, _))
@@ -695,11 +699,15 @@ TEST_F(TestFuseVolumeClient, FuseOpUnlinkFailed) {
         std::make_shared<InodeWrapper>(parentInode, metaClient_);
 
     EXPECT_CALL(*inodeManager_, GetInode(_, _))
-        .WillOnce(DoAll(SetArgReferee<1>(parentInodeWrapper),
-                        Return(CURVEFS_ERROR::OK)))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(DoAll(
+            SetArgReferee<1>(parentInodeWrapper), Return(CURVEFS_ERROR::OK)))
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL))
-        .WillOnce(DoAll(SetArgReferee<1>(parentInodeWrapper),
-                        Return(CURVEFS_ERROR::OK)))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(DoAll(
+            SetArgReferee<1>(parentInodeWrapper), Return(CURVEFS_ERROR::OK)))
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*metaClient_, GetInodeAttr(_, _, _))
@@ -726,7 +734,7 @@ TEST_F(TestFuseVolumeClient, FuseOpUnlinkNameTooLong) {
     std::string name = "aaaaaaaaaaaaaaaaaaaaa";
 
     CURVEFS_ERROR ret = client_->FuseOpUnlink(req, parent, name.c_str());
-    ASSERT_EQ(CURVEFS_ERROR::NAMETOOLONG, ret);
+    ASSERT_EQ(CURVEFS_ERROR::NAME_TOO_LONG, ret);
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpOpenDir) {
@@ -878,7 +886,7 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameBasic) {
     EXPECT_CALL(*dentryManager_, GetDentry(parent, name, _))
         .WillOnce(DoAll(SetArgPointee<2>(dentry), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*dentryManager_, GetDentry(newparent, newname, _))
-        .WillOnce(Return(CURVEFS_ERROR::NOTEXIST));
+        .WillOnce(Return(CURVEFS_ERROR::NOT_EXIST));
 
     // step4: prepare tx
     EXPECT_CALL(*metaClient_, PrepareRenameTx(_))
@@ -1124,7 +1132,7 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameOverwriteDir) {
 
     auto rc = client_->FuseOpRename(req, parent, name.c_str(), newparent,
                                     newname.c_str(), flags);
-    ASSERT_EQ(rc, CURVEFS_ERROR::NOTEMPTY);
+    ASSERT_EQ(rc, CURVEFS_ERROR::NOT_EMPTY);
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpRenameNameTooLong) {
@@ -1140,15 +1148,15 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameNameTooLong) {
     CURVEFS_ERROR ret = client_->FuseOpRename(req, parent, name1.c_str(),
                                               newparent, newname1.c_str(),
                                               flags);
-    ASSERT_EQ(CURVEFS_ERROR::NAMETOOLONG, ret);
+    ASSERT_EQ(CURVEFS_ERROR::NAME_TOO_LONG, ret);
 
     ret = client_->FuseOpRename(req, parent, name1.c_str(), newparent,
                                 newname2.c_str(), flags);
-    ASSERT_EQ(CURVEFS_ERROR::NAMETOOLONG, ret);
+    ASSERT_EQ(CURVEFS_ERROR::NAME_TOO_LONG, ret);
 
     ret = client_->FuseOpRename(req, parent, name2.c_str(), newparent,
                                 newname1.c_str(), flags);
-    ASSERT_EQ(CURVEFS_ERROR::NAMETOOLONG, ret);
+    ASSERT_EQ(CURVEFS_ERROR::NAME_TOO_LONG, ret);
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpRenameParallel) {
@@ -1520,7 +1528,7 @@ TEST_F(TestFuseVolumeClient, FuseOpSymlinkNameTooLong) {
     EntryOut entryOut;
     CURVEFS_ERROR ret = client_->FuseOpSymlink(req, link, parent, name,
                                                &entryOut);
-    ASSERT_EQ(CURVEFS_ERROR::NAMETOOLONG, ret);
+    ASSERT_EQ(CURVEFS_ERROR::NAME_TOO_LONG, ret);
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpLink) {

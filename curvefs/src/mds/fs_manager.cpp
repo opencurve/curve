@@ -582,6 +582,18 @@ FSStatusCode FsManager::DeleteFs(const std::string& fsName) {
         return FSStatusCode::UNKNOWN_ERROR;
     }
 
+    // 4. remove from usage cache and etcd
+    {
+        WriteLockGuard wlock(fsUsageMutex_);
+        fsStorage_->DeleteFsUsage(fsName);
+        if (ret != FSStatusCode::OK) {
+            LOG(WARNING) << "DeleteFsUsage failed"
+                         << ", fsName = " << fsName
+                         << ", ret = " << FSStatusCode_Name(ret);
+            // do not abort deletion
+        }
+    }
+
     return FSStatusCode::OK;
 }
 
@@ -790,6 +802,39 @@ FSStatusCode FsManager::GetFsInfo(const std::string& fsName, uint32_t fsId,
     return FSStatusCode::OK;
 }
 
+FSStatusCode FsManager::UpdateFsInfo(
+    const ::curvefs::mds::UpdateFsInfoRequest* req) {
+    const auto& fsName = req->fsname();
+    NameLockGuard lock(nameLock_, fsName);
+
+    // 1. query fs
+    FsInfoWrapper wrapper;
+    FSStatusCode ret = fsStorage_->Get(fsName, &wrapper);
+    if (ret != FSStatusCode::OK) {
+        LOG(WARNING) << "UpdateFsInfo fail, get fs fail, fsName = " << fsName
+                     << ", errCode = " << FSStatusCode_Name(ret);
+        return ret;
+    }
+
+    // 2. check fs status
+    FsStatus status = wrapper.GetStatus();
+    if (status == FsStatus::NEW) {
+        LOG(WARNING) << "UpdateFsInfo fs is not inited, fsName = " << fsName;
+        return FSStatusCode::NOT_INITED;
+    } else if (status == FsStatus::DELETING) {
+        LOG(WARNING) << "UpdateFsInfo fs is in deleting, fsName = " << fsName;
+        return FSStatusCode::UNDER_DELETING;
+    }
+
+    // 3. update fs info
+    // set capacity
+    if (req->has_capacity()) {
+        wrapper.SetCapacity(req->capacity());
+    }
+
+    return fsStorage_->Update(wrapper);
+}
+
 int FsManager::IsExactlySameOrCreateUnComplete(const std::string& fsName,
                                                FSType fsType,
                                                uint64_t blocksize,
@@ -851,6 +896,31 @@ void FsManager::GetAllFsInfo(
     LOG(INFO) << "get all fsinfo.";
 }
 
+FSStatusCode FsManager::UpdateFsUsedBytes(
+    const std::string& fsName, int64_t deltaBytes) {
+    WriteLockGuard wlock(fsUsageMutex_);
+
+    FsUsage usage;
+    auto ret = fsStorage_->GetFsUsage(fsName, &usage, true);
+    if (ret == FSStatusCode::NOT_FOUND) {
+        usage.set_usedbytes(deltaBytes);
+        return fsStorage_->SetFsUsage(fsName, usage);
+    }
+
+    if (ret != FSStatusCode::OK) {
+        LOG(WARNING) << "UpdateFsUsedBytes fail, get fs usage fail, fsName = "
+                     << fsName << ", errCode = " << FSStatusCode_Name(ret);
+        return ret;
+    }
+
+    if (deltaBytes < 0 && usage.usedbytes() < -deltaBytes) {
+        usage.set_usedbytes(0);
+    } else {
+        usage.set_usedbytes(usage.usedbytes() + deltaBytes);
+    }
+    return fsStorage_->SetFsUsage(fsName, usage);
+}
+
 void FsManager::RefreshSession(const RefreshSessionRequest* request,
     RefreshSessionResponse* response) {
     if (request->txids_size() != 0) {
@@ -875,6 +945,24 @@ void FsManager::RefreshSession(const RefreshSessionRequest* request,
     }
 
     response->set_enablesumindir(wrapper.ProtoFsInfo().enablesumindir());
+
+    // collect fs delta reported by client
+    if (request->has_fsdelta()) {
+        const auto& delta = request->fsdelta();
+        if (delta.has_bytes()) {
+            ret = UpdateFsUsedBytes(request->fsname(), delta.bytes());
+            if (ret != FSStatusCode::OK) {
+                LOG(WARNING)
+                    << "UpdateFsUsedBytes fail, fsName = " << request->fsname()
+                    << ", errCode = " << FSStatusCode_Name(ret);
+            }
+        }
+    }
+    // set response
+    response->set_fscapacity(wrapper.GetCapacity());
+    FsUsage usage;
+    fsStorage_->GetFsUsage(request->fsname(), &usage, true);
+    response->set_fsusedbytes(usage.usedbytes());
 }
 
 FSStatusCode FsManager::ReloadFsVolumeSpace() {

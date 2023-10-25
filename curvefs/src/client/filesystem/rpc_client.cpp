@@ -54,7 +54,7 @@ CURVEFS_ERROR RPCClient::Lookup(Ino parent,
     Dentry dentry;
     CURVEFS_ERROR rc = dentryManager_->GetDentry(parent, name, &dentry);
     if (rc != CURVEFS_ERROR::OK) {
-        if (rc != CURVEFS_ERROR::NOTEXIST) {
+        if (rc != CURVEFS_ERROR::NOT_EXIST) {
             LOG(ERROR) << "rpc(lookup::GetDentry) failed, retCode = " << rc
                        << ", parent = " << parent << ", name = " << name;
         }
@@ -79,6 +79,10 @@ CURVEFS_ERROR RPCClient::ReadDir(Ino ino,
     if (rc != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "rpc(readdir::ListDentry) failed, retCode = " << rc
                    << ", ino = " << ino;
+        return rc;
+    } else if (dentries.size() == 0) {
+        VLOG(3) << "rpc(readdir::ListDentry) success and directory is empty"
+                << ", ino = " << ino;
         return rc;
     }
 

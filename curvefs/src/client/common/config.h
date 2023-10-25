@@ -25,9 +25,10 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
-#include "curvefs/src/client/common/common.h"
 #include "curvefs/proto/common.pb.h"
+#include "curvefs/src/client/common/common.h"
 #include "src/client/config_info.h"
 #include "src/common/configuration.h"
 #include "src/common/s3_adapter.h"
@@ -127,6 +128,11 @@ struct S3ClientAdaptorOption {
     uint32_t flushIntervalSec;
     uint64_t writeCacheMaxByte;
     uint64_t readCacheMaxByte;
+    bool memClusterToLocal;
+    bool s3ToLocal;
+    uint32_t bigIoSize;
+    uint32_t bigIoRetryTimes;
+    uint32_t bigIoRetryIntervalUs;
     uint32_t readCacheThreads;
     uint32_t nearfullRatio;
     uint32_t baseSleepUs;
@@ -175,6 +181,24 @@ struct RefreshDataOption {
     uint32_t refreshDataIntervalSec = 30;
 };
 
+// { vfs option
+struct UserPermissionOption {
+    uint32_t uid;
+    std::vector<uint32_t> gids;
+    uint16_t umask;
+};
+
+struct VFSCacheOption {
+    uint32_t entryCacheLruSize;
+    uint32_t attrCacheLruSize;
+};
+
+struct VFSOption {
+    VFSCacheOption vfsCacheOption;
+    UserPermissionOption userPermissionOption;
+};
+// }
+
 // { filesystem option
 struct KernelCacheOption {
     uint32_t entryTimeoutSec;
@@ -214,7 +238,7 @@ struct DeferSyncOption {
 
 struct FileSystemOption {
     bool cto;
-    bool disableXattr;
+    bool disableXAttr;
     uint32_t maxNameLength;
     uint32_t blockSize = 0x10000u;
     KernelCacheOption kernelCacheOption;
@@ -239,6 +263,7 @@ struct FuseClientOption {
     LeaseOpt leaseOpt;
     RefreshDataOption refreshDataOption;
     KVClientManagerOpt kvClientManagerOpt;
+    VFSOption vfsOption;
     FileSystemOption fileSystemOption;
 
     uint32_t listDentryLimit;

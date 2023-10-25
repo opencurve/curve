@@ -32,12 +32,13 @@
 
 #include "curvefs/src/client/common/common.h"
 #include "curvefs/src/client/common/config.h"
-#include "curvefs/src/client/filesystem/access_log.h"
 #include "curvefs/src/client/filesystem/error.h"
 #include "curvefs/src/client/filesystem/meta.h"
+#include "curvefs/src/client/filesystem/xattr.h"
 #include "curvefs/src/client/fuse_client.h"
 #include "curvefs/src/client/fuse_s3_client.h"
 #include "curvefs/src/client/fuse_volume_client.h"
+#include "curvefs/src/client/logger/access_log.h"
 #include "curvefs/src/client/metric/client_metric.h"
 #include "curvefs/src/client/rpcclient/base_client.h"
 #include "curvefs/src/client/rpcclient/mds_client.h"
@@ -61,16 +62,17 @@ using ::curvefs::client::common::kWarmupCacheStorageType;
 using ::curvefs::client::common::kWarmupDataType;
 using ::curvefs::client::common::kWarmupOpType;
 using ::curvefs::client::common::WarmupStorageType;
-using ::curvefs::client::filesystem::AccessLogGuard;
 using ::curvefs::client::filesystem::AttrOut;
 using ::curvefs::client::filesystem::EntryOut;
 using ::curvefs::client::filesystem::FileOut;
-using ::curvefs::client::filesystem::InitAccessLog;
-using ::curvefs::client::filesystem::Logger;
+using ::curvefs::client::filesystem::IsListWarmupXAttr;
+using ::curvefs::client::filesystem::IsWarmupXAttr;
 using ::curvefs::client::filesystem::StrAttr;
 using ::curvefs::client::filesystem::StrEntry;
-using ::curvefs::client::filesystem::StrFormat;
 using ::curvefs::client::filesystem::StrMode;
+using ::curvefs::client::logger::AccessLogGuard;
+using ::curvefs::client::logger::InitAccessLog;
+using ::curvefs::client::logger::StrFormat;
 using ::curvefs::client::metric::ClientOpMetric;
 using ::curvefs::client::metric::InflightGuard;
 using ::curvefs::client::rpcclient::MDSBaseClient;
@@ -901,21 +903,6 @@ void FuseOpStatFs(fuse_req_t req, fuse_ino_t ino) {
     return fs->ReplyStatfs(req, &stbuf);
 }
 
-const char* warmupXAttr = ::curvefs::client::common::kCurveFsWarmupXAttr;
-const char* warmupListXAttr =
-    ::curvefs::client::common::kCurveFsWarmupXAttrList;
-
-bool IsWamupReq(const char* name) {
-    if (strlen(name) < strlen(warmupXAttr)) {
-        return false;
-    }
-    return strncmp(name, warmupXAttr, strlen(warmupXAttr)) == 0;
-}
-
-bool IsWarmupListReq(const char* name) {
-    return IsWamupReq(name) && strcmp(name, warmupListXAttr) == 0;
-}
-
 void FuseOpSetXattr(fuse_req_t req,
                     fuse_ino_t ino,
                     const char* name,
@@ -930,7 +917,7 @@ void FuseOpSetXattr(fuse_req_t req,
                          ino, name, size, flags, StrErr(rc));
     });
 
-    if (IsWamupReq(name)) {
+    if (IsWarmupXAttr(name)) {
         return TriggerWarmup(req, ino, name, value, size);
     }
     rc = client->FuseOpSetXattr(req, ino, name, value, size, flags);
@@ -951,9 +938,9 @@ void FuseOpGetXattr(fuse_req_t req,
                          ino, name, size, StrErr(rc), value.size());
     });
 
-    if (IsWarmupListReq(name)) {
+    if (IsListWarmupXAttr(name)) {
         return ListWarmup(req, size);
-    } else if (IsWamupReq(name)) {
+    } else if (IsWarmupXAttr(name)) {
         return QueryWarmup(req, ino, size);
     }
 
@@ -1018,5 +1005,5 @@ void FuseOpBmap(fuse_req_t req,
     auto client = Client();
     auto fs = client->GetFileSystem();
 
-    return fs->ReplyError(req, CURVEFS_ERROR::NOTSUPPORT);
+    return fs->ReplyError(req, CURVEFS_ERROR::NOT_SUPPORT);
 }

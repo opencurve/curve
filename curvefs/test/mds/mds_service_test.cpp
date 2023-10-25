@@ -898,5 +898,59 @@ TEST_F(MdsServiceTest, test_success_delete_fs_after_umounting_all_paths) {
     }
 }
 
+TEST_F(MdsServiceTest, test_update_fsinfo_success) {
+    FsInfo fs;
+
+    auto get = [&]() {
+        cntl.Reset();
+        GetFsInfoRequest getRequest;
+        GetFsInfoResponse getResponse;
+        getRequest.set_fsid(fsinfo1.fsid());
+        stub_->GetFsInfo(&cntl, &getRequest, &getResponse, nullptr);
+        if (!cntl.Failed()) {
+            ASSERT_EQ(getResponse.statuscode(), FSStatusCode::OK);
+            fs = getResponse.fsinfo();
+        } else {
+            LOG(ERROR) << "error = " << cntl.ErrorText();
+            ASSERT_TRUE(false);
+        }
+    };
+
+    // 1. check current fsinfo
+    get();
+    ASSERT_EQ(fs.capacity(), fsinfo1.capacity());
+
+    // 2. update fsinfo
+    cntl.Reset();
+    UpdateFsInfoRequest updateRequest;
+    UpdateFsInfoResponse updateResponse;
+    updateRequest.set_fsname(fsinfo1.fsname());
+    updateRequest.set_capacity(0);
+    stub_->UpdateFsInfo(&cntl, &updateRequest, &updateResponse, nullptr);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(updateResponse.statuscode(), FSStatusCode::OK);
+    } else {
+        LOG(ERROR) << "error = " << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
+    // 3. check updated fsinfo
+    get();
+    ASSERT_EQ(fs.capacity(), 0);
+}
+
+TEST_F(MdsServiceTest, test_update_fsinfo_parameter_error) {
+    UpdateFsInfoRequest updateRequest;
+    UpdateFsInfoResponse updateResponse;
+    updateRequest.set_fsname(fsinfo1.fsname());
+    stub_->UpdateFsInfo(&cntl, &updateRequest, &updateResponse, nullptr);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(updateResponse.statuscode(), FSStatusCode::PARAM_ERROR);
+    } else {
+        LOG(ERROR) << "error = " << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+}
+
 }  // namespace mds
 }  // namespace curvefs

@@ -38,7 +38,7 @@ TEST_F(UtilsTest, IsDir) {
     ASSERT_TRUE(IsDir(attr));
     ASSERT_FALSE(IsS3File(attr));
     ASSERT_FALSE(IsVolmeFile(attr));
-    ASSERT_FALSE(IsSymLink(attr));
+    ASSERT_FALSE(IsSymlink(attr));
 }
 
 TEST_F(UtilsTest, IsS3File) {
@@ -48,7 +48,7 @@ TEST_F(UtilsTest, IsS3File) {
     ASSERT_FALSE(IsDir(attr));
     ASSERT_TRUE(IsS3File(attr));
     ASSERT_FALSE(IsVolmeFile(attr));
-    ASSERT_FALSE(IsSymLink(attr));
+    ASSERT_FALSE(IsSymlink(attr));
 }
 
 TEST_F(UtilsTest, IsVolmeFile) {
@@ -58,17 +58,17 @@ TEST_F(UtilsTest, IsVolmeFile) {
     ASSERT_FALSE(IsDir(attr));
     ASSERT_FALSE(IsS3File(attr));
     ASSERT_TRUE(IsVolmeFile(attr));
-    ASSERT_FALSE(IsSymLink(attr));
+    ASSERT_FALSE(IsSymlink(attr));
 }
 
-TEST_F(UtilsTest, IsSymLink) {
+TEST_F(UtilsTest, IsSymlink) {
     InodeAttr attr;
     attr.set_type(FsFileType::TYPE_SYM_LINK);
 
     ASSERT_FALSE(IsDir(attr));
     ASSERT_FALSE(IsS3File(attr));
     ASSERT_FALSE(IsVolmeFile(attr));
-    ASSERT_TRUE(IsSymLink(attr));
+    ASSERT_TRUE(IsSymlink(attr));
 }
 
 TEST_F(UtilsTest, AttrMtime) {

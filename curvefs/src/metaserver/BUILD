@@ -61,6 +61,7 @@ cc_library(
         "//curvefs/src/metaserver/common:fs_metaserver_common",
         "//curvefs/src/volume:volume",
         "//curvefs/src/client:fuse_client_lib",
+        "//curvefs/src/client:filesystem_xattr",
         "//external:braft",
         "//src/common:curve_common",
         "//src/fs:lfs",

@@ -23,7 +23,7 @@
     # 编译curve release2.5 
     $ cd /编译路径/curve
     $ bash replace-curve-repo.sh
-    $ bash mk-tar.sh
+    $ make tar dep=1
     # 编译完成所需的二进制和ansile脚本，用于部署curvebs客户端
     $ cd /编译路径/curve/build
     $ ls 

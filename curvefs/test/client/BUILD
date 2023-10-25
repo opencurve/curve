@@ -93,6 +93,7 @@ cc_test(
                    "file_cache_manager_test.cpp",
                    "chunk_cache_manager_test.cpp",
                    "data_cache_test.cpp",
+                   "client_prefetch_test.cpp",
                    "client_s3_adaptor_Integration.cpp",
                    "client_memcache_test.cpp",
                  ],
@@ -143,4 +144,27 @@ cc_test(
     linkopts = ["-lmemcached"],
     copts = CURVE_TEST_COPTS,
     visibility = ["//visibility:public"],
+)
+
+cc_test(
+    name = "curvefs_client_prefetch_test",
+    srcs = glob([
+        "main.cpp",
+        "client_prefetch_test.cpp",
+        "*.h",
+    ]),
+    copts = CURVE_TEST_COPTS,
+    defines = ["UNIT_TEST"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//external:gtest",
+         "//curvefs/src/client:fuse_client_lib",
+        "//curvefs/proto:metaserver_cc_proto",
+        "//curvefs/proto:mds_cc_proto",
+        "//curvefs/proto:space_cc_proto",
+        "//curvefs/test/client/rpcclient:rpcclient_test_mock",
+        "//test/client/mock:client_mock_lib",
+    ],
+    linkopts = [
+                "-L/usr/local/lib/x86_64-linux-gnu"],
 )

@@ -26,7 +26,9 @@
 
 #include <bvar/bvar.h>
 
+#include <atomic>
 #include <cstdint>
+#include <memory>
 #include <string>
 
 #include "src/client/client_metric.h"
@@ -275,27 +277,69 @@ struct S3Metric {
           writeSize(prefix, fsName + "_adaptor_write_size", 0) {}
 };
 
+template <typename Tp>
+uint64_t LoadAtomicValue(void* atomValue) {
+    std::atomic<Tp>* bytes = reinterpret_cast<std::atomic<Tp>*>(atomValue);
+    return static_cast<uint64_t>(bytes->load());
+}
+
 struct DiskCacheMetric {
     static const std::string prefix;
 
     std::string fsName;
     InterfaceMetric writeS3;
-    bvar::Status<uint64_t> diskUsedBytes;
+    bvar::PassiveStatus<uint64_t> usedBytes_;
+    bvar::PassiveStatus<uint64_t> totalBytes_;
+    InterfaceMetric trim_;
 
-    explicit DiskCacheMetric(const std::string &name = "")
+    explicit DiskCacheMetric(const std::string& name = "",
+                             std::atomic<int64_t>* usedBytes = nullptr,
+                             std::atomic<int64_t>* totalBytes = nullptr)
         : fsName(!name.empty() ? name
                                : prefix + curve::common::ToHexString(this)),
           writeS3(prefix, fsName + "_write_s3"),
-          diskUsedBytes(prefix, fsName + "_diskcache_usedbytes", 0) {}
+          usedBytes_(prefix, fsName + "_diskcache_usedbytes",
+                     LoadAtomicValue<int64_t>, usedBytes),
+          totalBytes_(prefix, fsName + "_diskcache_totalbytes",
+                      LoadAtomicValue<int64_t>, totalBytes),
+          trim_(prefix, fsName + "_diskcache_trim") {}
 };
 
-struct KVClientMetric {
+struct KVClientManagerMetric {
     static const std::string prefix;
-    InterfaceMetric kvClientGet;
-    InterfaceMetric kvClientSet;
 
-    KVClientMetric()
-        : kvClientGet(prefix, "get"), kvClientSet(prefix, "set") {}
+    std::string fsName;
+    InterfaceMetric get;
+    InterfaceMetric set;
+    // kvcache count
+    bvar::Adder<uint64_t> count;
+    // kvcache hit
+    bvar::Adder<uint64_t> hit;
+    // kvcache miss
+    bvar::Adder<uint64_t> miss;
+
+    explicit KVClientManagerMetric(const std::string& name = "")
+        : fsName(!name.empty() ? name
+                               : prefix + curve::common::ToHexString(this)),
+          get(prefix, fsName + "_get"),
+          set(prefix, fsName + "_set"),
+          count(prefix, fsName + "_count"),
+          hit(prefix, fsName + "_hit"),
+          miss(prefix, fsName + "_miss") {}
+};
+
+struct MemcacheClientMetric {
+    static const std::string prefix;
+
+    std::string fsName;
+    InterfaceMetric get;
+    InterfaceMetric set;
+
+    explicit MemcacheClientMetric(const std::string& name = "")
+        : fsName(!name.empty() ? name
+                               : prefix + curve::common::ToHexString(this)),
+          get(prefix, fsName + "_get"),
+          set(prefix, fsName + "_set") {}
 };
 
 struct S3ChunkInfoMetric {
@@ -317,8 +361,6 @@ struct WarmupManagerS3Metric {
           warmupS3CacheSize(prefix, "s3_cache_size") {}
 };
 
-void CollectMetrics(InterfaceMetric* interface, int count, uint64_t start);
-
 void AsyncContextCollectMetrics(
     std::shared_ptr<S3Metric> s3Metric,
     const std::shared_ptr<curve::common::PutObjectAsyncContext>& context);
@@ -326,6 +368,25 @@ void AsyncContextCollectMetrics(
 void AsyncContextCollectMetrics(
     std::shared_ptr<S3Metric> s3Metric,
     const std::shared_ptr<curve::common::GetObjectAsyncContext>& context);
+
+struct FuseS3ClientIOLatencyMetric {
+    static const std::string prefix;
+
+    std::string fsName;
+
+    bvar::LatencyRecorder readAttrLatency;
+    bvar::LatencyRecorder readDataLatency;
+    bvar::LatencyRecorder writeAttrLatency;
+    bvar::LatencyRecorder writeDataLatency;
+
+    explicit FuseS3ClientIOLatencyMetric(const std::string& name = "")
+        : fsName(!name.empty() ? name
+                               : prefix + curve::common::ToHexString(this)),
+          readAttrLatency(prefix, fsName + "_read_attr_latency"),
+          readDataLatency(prefix, fsName + "_read_data_latency"),
+          writeAttrLatency(prefix, fsName + "_write_attr_latency"),
+          writeDataLatency(prefix, fsName + "_write_data_latency") {}
+};
 
 }  // namespace metric
 }  // namespace client

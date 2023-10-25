@@ -22,6 +22,8 @@
 
 #include "curvefs/src/metaserver/metacli_manager.h"
 
+#include <memory>
+
 namespace curvefs {
 namespace metaserver {
 

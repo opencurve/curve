@@ -73,6 +73,25 @@ class Trash {
     */
     uint32_t GetChunkNum() {return chunkNum_.load();}
 
+    /**
+     * @brief is WAL or not ?
+     *
+     * @param fileName file name
+     *
+     * @retval true yes
+     * @retval false no
+     */
+    static bool IsWALFile(const std::string& fileName);
+
+    /*
+     * @brief IsChunkOrSnapShotFile 是否为chunk或snapshot文件
+     *
+     * @param[in] chunkName 文件名
+     *
+     * @return true-符合chunk或snapshot文件命名规则
+     */
+    static bool IsChunkOrSnapShotFile(const std::string& chunkName);
+
  private:
     /*
     * @brief DeleteEligibleFileInTrashInterval 每隔一段时间进行trash物理空间回收
@@ -97,15 +116,6 @@ class Trash {
     * @return true-符合copyset目录命名规则
     */
     bool IsCopysetInTrash(const std::string &dirName);
-
-    /*
-    * @brief IsChunkOrSnapShotFile 是否为chunk或snapshot文件
-    *
-    * @param[in] chunkName 文件名
-    *
-    * @return true-符合chunk或snapshot文件命名规则
-    */
-    bool IsChunkOrSnapShotFile(const std::string &chunkName);
 
     /*
     * @brief Recycle Chunkfile and wal file in Copyset
@@ -134,19 +144,7 @@ class Trash {
      * @retval true   success
      * @retval false  failure
      */
-    bool RecycleWAL(
-        const std::string &filepath, const std::string &filename);
-
-
-    /**
-     * @brief is WAL or not ?
-     *
-     * @param fileName file name
-     *
-     * @retval true yes
-     * @retval false no
-     */
-    bool IsWALFile(const std::string &fileName);
+    bool RecycleWAL(const std::string& filepath, const std::string& filename);
 
     /*
     * @brief 统计copyset目录中的chunk个数

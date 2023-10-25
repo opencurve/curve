@@ -42,8 +42,8 @@ docker run --rm -v $(pwd):/curve -w /curve -v ${HOME}:${HOME} --user $(id -u ${U
 # (Optional for Chinese mainland) Replace external dependencies with domestic download points or mirror warehouses, which can speed up compilation： bash replace-curve-repo.sh
 
 # before curve v2.0
-bash mk-tar.sh （compile curvebs and make tar package）
-bash mk-deb.sh （compile curvebs and make debian package）
+make tar dep=1 （compile curvebs and make tar package）
+make deb dep=1 （compile curvebs and make debian package）
 
 # (current) after curve v2.0
 # compile curvebs:
@@ -56,7 +56,7 @@ make build stor=fs dep=1
 make dep stor=fs && make build stor=fs
 ```
 
-**Note:** `mk-tar.sh` and `mk-deb.sh` are used for compiling and packaging curve v2.0. They are no longer maintained after v2.0.
+**Note:** `make tar` and `make deb` are used for compiling and packaging curve v2.0. They are no longer maintained after v2.0.
 
 ## Compile on a physical machine
 
@@ -82,8 +82,8 @@ For dependencies, you can refer to the installation steps in [dockerfile](../../
 git clone https://github.com/opencurve/curve.git or git clone https://gitee.com/mirrors/curve.git
 # (Mainland China optional) Replace external dependencies with domestic download points or mirror warehouses, which can speed up compilation： bash replace-curve-repo.sh
 # before curve v2.0
-bash mk-tar.sh （compile curvebs and make tar package）
-bash mk-deb.sh （compile curvebs and make debian package）
+make tar dep=1 （compile curvebs and make tar package）
+make deb dep=1 （compile curvebs and make debian package）
 
 # (current) after curve v2.0
 # compile curvebs:

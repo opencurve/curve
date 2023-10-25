@@ -24,7 +24,10 @@
 #define CURVEFS_TEST_CLIENT_MOCK_KVCLIENT_H_
 
 #include <gmock/gmock.h>
+
+#include <cstdint>
 #include <string>
+
 #include "curvefs/src/client/kvclient/kvclient.h"
 
 namespace curvefs {
@@ -36,8 +39,9 @@ class MockKVClient : public KVClient {
 
     MOCK_METHOD4(Set, bool(const std::string &, const char *, const uint64_t,
                            std::string *));
-    MOCK_METHOD5(Get, bool(const std::string &, char *, uint64_t, uint64_t,
-                           std::string *));
+    MOCK_METHOD7(Get,
+                 bool(const std::string&, char*, uint64_t, uint64_t,
+                      std::string*, uint64_t*, memcached_return_t* retCod));
 };
 
 }  // namespace client

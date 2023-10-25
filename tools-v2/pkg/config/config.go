@@ -134,6 +134,10 @@ func AddShowErrorPFlag(cmd *cobra.Command) {
 	}
 }
 
+func AddFsCapacityFlag(cmd *cobra.Command) {
+	AddStringOptionFlag(cmd, "capacity", "capacity of the filesystem")
+}
+
 // Align the flag (changed) in the caller with the callee
 func AlignFlagsValue(caller *cobra.Command, callee *cobra.Command, flagNames []string) {
 	callee.Flags().VisitAll(func(flag *pflag.Flag) {

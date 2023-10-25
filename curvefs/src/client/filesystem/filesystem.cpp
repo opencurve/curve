@@ -234,30 +234,34 @@ FileSystemMember FileSystem::BorrowMember() {
 }
 
 // fuse request*
-CURVEFS_ERROR FileSystem::Lookup(Request req,
-                                 Ino parent,
+CURVEFS_ERROR FileSystem::Lookup(Ino parent,
                                  const std::string& name,
                                  EntryOut* entryOut) {
     if (name.size() > option_.maxNameLength) {
-        return CURVEFS_ERROR::NAMETOOLONG;
+        return CURVEFS_ERROR::NAME_TOO_LONG;
     }
 
     bool yes = negative_->Get(parent, name);
     if (yes) {
-        return CURVEFS_ERROR::NOTEXIST;
+        return CURVEFS_ERROR::NOT_EXIST;
     }
 
     auto rc = rpc_->Lookup(parent, name, entryOut);
     if (rc == CURVEFS_ERROR::OK) {
         negative_->Delete(parent, name);
-    } else if (rc == CURVEFS_ERROR::NOTEXIST) {
+    } else if (rc == CURVEFS_ERROR::NOT_EXIST) {
         negative_->Put(parent, name);
     }
     return rc;
 }
 
-CURVEFS_ERROR FileSystem::GetAttr(Request req, Ino ino, AttrOut* attrOut) {
+CURVEFS_ERROR FileSystem::GetAttr(Ino ino, AttrOut* attrOut) {
     InodeAttr attr;
+    if (!option_.cto && deferSync_->IsDefered(ino, &attr)) {
+        *attrOut = AttrOut(attr);
+        return CURVEFS_ERROR::OK;
+    }
+
     auto rc = rpc_->GetAttr(ino, &attr);
     if (rc == CURVEFS_ERROR::OK) {
         *attrOut = AttrOut(attr);
@@ -265,7 +269,7 @@ CURVEFS_ERROR FileSystem::GetAttr(Request req, Ino ino, AttrOut* attrOut) {
     return rc;
 }
 
-CURVEFS_ERROR FileSystem::OpenDir(Request req, Ino ino, FileInfo* fi) {
+CURVEFS_ERROR FileSystem::OpenDir(Ino ino, FileInfo* fi) {
     InodeAttr attr;
     CURVEFS_ERROR rc = rpc_->GetAttr(ino, &attr);
     if (rc != CURVEFS_ERROR::OK) {
@@ -287,8 +291,7 @@ CURVEFS_ERROR FileSystem::OpenDir(Request req, Ino ino, FileInfo* fi) {
     return CURVEFS_ERROR::OK;
 }
 
-CURVEFS_ERROR FileSystem::ReadDir(Request req,
-                                  Ino ino,
+CURVEFS_ERROR FileSystem::ReadDir(Ino ino,
                                   FileInfo* fi,
                                   std::shared_ptr<DirEntryList>* entries) {
     bool yes = dirCache_->Get(ino, entries);
@@ -306,12 +309,12 @@ CURVEFS_ERROR FileSystem::ReadDir(Request req,
     return CURVEFS_ERROR::OK;
 }
 
-CURVEFS_ERROR FileSystem::ReleaseDir(Request req, Ino ino, FileInfo* fi) {
+CURVEFS_ERROR FileSystem::ReleaseDir(Ino ino, FileInfo* fi) {
     ReleaseHandler(fi->fh);
     return CURVEFS_ERROR::OK;
 }
 
-CURVEFS_ERROR FileSystem::Open(Request req, Ino ino, FileInfo* fi) {
+CURVEFS_ERROR FileSystem::Open(Ino ino, FileInfo* fi) {
     std::shared_ptr<InodeWrapper> inode;
     bool yes = openFiles_->IsOpened(ino, &inode);
     if (yes) {
@@ -343,7 +346,7 @@ CURVEFS_ERROR FileSystem::Open(Request req, Ino ino, FileInfo* fi) {
     return CURVEFS_ERROR::OK;
 }
 
-CURVEFS_ERROR FileSystem::Release(Request req, Ino ino) {
+CURVEFS_ERROR FileSystem::Release(Ino ino) {
     openFiles_->Close(ino);
     return CURVEFS_ERROR::OK;
 }
