@@ -29,6 +29,7 @@
 #include <vector>
 
 #include "curvefs/src/mds/codec/codec.h"
+#include "curvefs/src/mds/metric/fs_metric.h"
 
 namespace curvefs {
 namespace mds {
@@ -409,6 +410,9 @@ bool PersisKVStorage::LoadAllFs() {
         {
             WriteLockGuard lock(fsUsageCacheMutex_);
             fsUsageCache_[fsInfo.fsname()] = fsUsage;
+            FsMetric::GetInstance().SetFsUsage(fsInfo.fsname(), fsUsage);
+            FsMetric::GetInstance().SetCapacity(
+                fsInfo.fsname(), fsInfo.capacity());
         }
     }
 

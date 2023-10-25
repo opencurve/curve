@@ -1,0 +1,1014 @@
+{
+    "annotations": {
+        "list": [
+            {
+                "builtIn": 1,
+                "datasource": {
+                    "type": "grafana",
+                    "uid": "-- Grafana --"
+                },
+                "enable": true,
+                "hide": true,
+                "iconColor": "rgba(0, 211, 255, 1)",
+                "name": "Annotations & Alerts",
+                "type": "dashboard"
+            }
+        ]
+    },
+    "description": "Curvefs cluster",
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "id": 9,
+    "links": [],
+    "liveNow": false,
+    "panels": [
+        {
+            "collapsed": true,
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 0
+            },
+            "id": 2,
+            "panels": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "PBFA97CFB590B2093"
+                    },
+                    "fieldConfig": {
+                        "defaults": {
+                            "color": {
+                                "mode": "palette-classic"
+                            },
+                            "custom": {
+                                "hideFrom": {
+                                    "legend": false,
+                                    "tooltip": false,
+                                    "viz": false
+                                }
+                            },
+                            "mappings": [],
+                            "unit": "bytes"
+                        },
+                        "overrides": []
+                    },
+                    "gridPos": {
+                        "h": 16,
+                        "w": 12,
+                        "x": 0,
+                        "y": 1
+                    },
+                    "id": 7,
+                    "interval": "1s",
+                    "options": {
+                        "legend": {
+                            "displayMode": "list",
+                            "placement": "bottom",
+                            "showLegend": true
+                        },
+                        "pieType": "pie",
+                        "reduceOptions": {
+                            "calcs": [
+                                "lastNotNull"
+                            ],
+                            "fields": "",
+                            "values": false
+                        },
+                        "tooltip": {
+                            "mode": "single",
+                            "sort": "none"
+                        }
+                    },
+                    "pluginVersion": "10.1.4",
+                    "targets": [
+                        {
+                            "datasource": {
+                                "type": "prometheus",
+                                "uid": "PBFA97CFB590B2093"
+                            },
+                            "disableTextWrap": false,
+                            "editorMode": "code",
+                            "exemplar": false,
+                            "expr": "{__name__=~\"fs_usage_info_fs_[[fsName:regex]]_used\", job=\"mds\"}",
+                            "fullMetaSearch": false,
+                            "includeNullMetadata": true,
+                            "instant": false,
+                            "interval": "",
+                            "legendFormat": "__auto",
+                            "range": true,
+                            "refId": "A",
+                            "useBackend": false
+                        }
+                    ],
+                    "title": "fs used",
+                    "type": "piechart"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "PBFA97CFB590B2093"
+                    },
+                    "fieldConfig": {
+                        "defaults": {
+                            "color": {
+                                "mode": "palette-classic"
+                            },
+                            "custom": {
+                                "axisCenteredZero": false,
+                                "axisColorMode": "text",
+                                "axisLabel": "",
+                                "axisPlacement": "auto",
+                                "barAlignment": 0,
+                                "drawStyle": "line",
+                                "fillOpacity": 10,
+                                "gradientMode": "none",
+                                "hideFrom": {
+                                    "legend": false,
+                                    "tooltip": false,
+                                    "viz": false
+                                },
+                                "insertNulls": false,
+                                "lineInterpolation": "linear",
+                                "lineStyle": {
+                                    "fill": "solid"
+                                },
+                                "lineWidth": 1,
+                                "pointSize": 5,
+                                "scaleDistribution": {
+                                    "type": "linear"
+                                },
+                                "showPoints": "auto",
+                                "spanNulls": false,
+                                "stacking": {
+                                    "group": "A",
+                                    "mode": "none"
+                                },
+                                "thresholdsStyle": {
+                                    "mode": "off"
+                                }
+                            },
+                            "displayName": "cluster total used",
+                            "mappings": [],
+                            "thresholds": {
+                                "mode": "absolute",
+                                "steps": [
+                                    {
+                                        "color": "green",
+                                        "value": null
+                                    },
+                                    {
+                                        "color": "red",
+                                        "value": 80
+                                    }
+                                ]
+                            },
+                            "unit": "bytes"
+                        },
+                        "overrides": []
+                    },
+                    "gridPos": {
+                        "h": 8,
+                        "w": 12,
+                        "x": 12,
+                        "y": 1
+                    },
+                    "id": 5,
+                    "interval": "1s",
+                    "options": {
+                        "legend": {
+                            "calcs": [
+                                "mean",
+                                "max",
+                                "min"
+                            ],
+                            "displayMode": "table",
+                            "placement": "bottom",
+                            "showLegend": true
+                        },
+                        "tooltip": {
+                            "mode": "multi",
+                            "sort": "none"
+                        }
+                    },
+                    "pluginVersion": "10.1.4",
+                    "targets": [
+                        {
+                            "datasource": {
+                                "type": "prometheus",
+                                "uid": "PBFA97CFB590B2093"
+                            },
+                            "editorMode": "code",
+                            "exemplar": true,
+                            "expr": "sum({__name__=~\"fs_usage_info_fs_[[fsName:regex]]_used\",job=\"mds\"})",
+                            "interval": "",
+                            "legendFormat": "",
+                            "range": true,
+                            "refId": "A"
+                        }
+                    ],
+                    "title": "cluster total used",
+                    "type": "timeseries"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "PBFA97CFB590B2093"
+                    },
+                    "fieldConfig": {
+                        "defaults": {
+                            "color": {
+                                "mode": "palette-classic"
+                            },
+                            "custom": {
+                                "axisCenteredZero": false,
+                                "axisColorMode": "text",
+                                "axisLabel": "",
+                                "axisPlacement": "auto",
+                                "barAlignment": 0,
+                                "drawStyle": "line",
+                                "fillOpacity": 10,
+                                "gradientMode": "none",
+                                "hideFrom": {
+                                    "legend": false,
+                                    "tooltip": false,
+                                    "viz": false
+                                },
+                                "insertNulls": false,
+                                "lineInterpolation": "linear",
+                                "lineStyle": {
+                                    "fill": "solid"
+                                },
+                                "lineWidth": 1,
+                                "pointSize": 5,
+                                "scaleDistribution": {
+                                    "type": "linear"
+                                },
+                                "showPoints": "auto",
+                                "spanNulls": false,
+                                "stacking": {
+                                    "group": "A",
+                                    "mode": "none"
+                                },
+                                "thresholdsStyle": {
+                                    "mode": "off"
+                                }
+                            },
+                            "mappings": [],
+                            "thresholds": {
+                                "mode": "absolute",
+                                "steps": [
+                                    {
+                                        "color": "green",
+                                        "value": null
+                                    },
+                                    {
+                                        "color": "red",
+                                        "value": 80
+                                    }
+                                ]
+                            },
+                            "unit": "bytes"
+                        },
+                        "overrides": []
+                    },
+                    "gridPos": {
+                        "h": 8,
+                        "w": 12,
+                        "x": 12,
+                        "y": 9
+                    },
+                    "id": 4,
+                    "interval": "1s",
+                    "options": {
+                        "legend": {
+                            "calcs": [
+                                "mean",
+                                "max",
+                                "min"
+                            ],
+                            "displayMode": "table",
+                            "placement": "bottom",
+                            "showLegend": true
+                        },
+                        "tooltip": {
+                            "mode": "multi",
+                            "sort": "none"
+                        }
+                    },
+                    "pluginVersion": "10.1.4",
+                    "targets": [
+                        {
+                            "datasource": {
+                                "type": "prometheus",
+                                "uid": "PBFA97CFB590B2093"
+                            },
+                            "disableTextWrap": false,
+                            "editorMode": "code",
+                            "exemplar": false,
+                            "expr": "{__name__=~\"fs_usage_info_fs_[[fsName:regex]]_used\", job=\"mds\"}",
+                            "fullMetaSearch": false,
+                            "includeNullMetadata": true,
+                            "instant": false,
+                            "interval": "",
+                            "legendFormat": "__auto",
+                            "range": true,
+                            "refId": "A",
+                            "useBackend": false
+                        }
+                    ],
+                    "title": "fs used",
+                    "type": "timeseries"
+                },
+                {
+                    "aliasColors": {},
+                    "bars": false,
+                    "dashLength": 10,
+                    "dashes": false,
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "PBFA97CFB590B2093"
+                    },
+                    "fieldConfig": {
+                        "defaults": {
+                            "unit": "none"
+                        },
+                        "overrides": []
+                    },
+                    "fill": 1,
+                    "fillGradient": 0,
+                    "gridPos": {
+                        "h": 8,
+                        "w": 12,
+                        "x": 0,
+                        "y": 17
+                    },
+                    "hiddenSeries": false,
+                    "id": 8,
+                    "interval": "1s",
+                    "legend": {
+                        "alignAsTable": true,
+                        "avg": true,
+                        "current": false,
+                        "max": true,
+                        "min": true,
+                        "show": true,
+                        "total": false,
+                        "values": true
+                    },
+                    "lines": true,
+                    "linewidth": 1,
+                    "nullPointMode": "null",
+                    "options": {
+                        "alertThreshold": true
+                    },
+                    "percentage": false,
+                    "pluginVersion": "10.1.4",
+                    "pointradius": 2,
+                    "points": false,
+                    "renderer": "flot",
+                    "seriesOverrides": [],
+                    "spaceLength": 10,
+                    "stack": false,
+                    "steppedLine": false,
+                    "targets": [
+                        {
+                            "datasource": {
+                                "type": "prometheus",
+                                "uid": "PBFA97CFB590B2093"
+                            },
+                            "editorMode": "code",
+                            "exemplar": true,
+                            "expr": "{__name__=~\"topology_fs_id_[[fsId:regex]]_.*inode_num\",job=\"mds\"}",
+                            "interval": "",
+                            "legendFormat": "",
+                            "range": true,
+                            "refId": "A"
+                        }
+                    ],
+                    "thresholds": [],
+                    "timeRegions": [],
+                    "title": "inode_num_by_type",
+                    "tooltip": {
+                        "shared": true,
+                        "sort": 0,
+                        "value_type": "individual"
+                    },
+                    "transformations": [
+                        {
+                            "id": "sortBy",
+                            "options": {}
+                        }
+                    ],
+                    "type": "graph",
+                    "xaxis": {
+                        "mode": "time",
+                        "show": true,
+                        "values": []
+                    },
+                    "yaxes": [
+                        {
+                            "format": "none",
+                            "logBase": 1,
+                            "show": true
+                        },
+                        {
+                            "format": "short",
+                            "logBase": 1,
+                            "show": true
+                        }
+                    ],
+                    "yaxis": {
+                        "align": false
+                    }
+                },
+                {
+                    "aliasColors": {},
+                    "bars": false,
+                    "dashLength": 10,
+                    "dashes": false,
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "PBFA97CFB590B2093"
+                    },
+                    "fieldConfig": {
+                        "defaults": {
+                            "unit": "none"
+                        },
+                        "overrides": []
+                    },
+                    "fill": 1,
+                    "fillGradient": 0,
+                    "gridPos": {
+                        "h": 8,
+                        "w": 12,
+                        "x": 12,
+                        "y": 17
+                    },
+                    "hiddenSeries": false,
+                    "id": 13,
+                    "interval": "1s",
+                    "legend": {
+                        "alignAsTable": true,
+                        "avg": true,
+                        "current": false,
+                        "max": true,
+                        "min": true,
+                        "show": true,
+                        "total": false,
+                        "values": true
+                    },
+                    "lines": true,
+                    "linewidth": 1,
+                    "nullPointMode": "null",
+                    "options": {
+                        "alertThreshold": true
+                    },
+                    "percentage": false,
+                    "pluginVersion": "10.1.4",
+                    "pointradius": 2,
+                    "points": false,
+                    "renderer": "flot",
+                    "seriesOverrides": [],
+                    "spaceLength": 10,
+                    "stack": false,
+                    "steppedLine": false,
+                    "targets": [
+                        {
+                            "datasource": {
+                                "type": "prometheus",
+                                "uid": "PBFA97CFB590B2093"
+                            },
+                            "editorMode": "code",
+                            "exemplar": true,
+                            "expr": "sum({__name__=~\"topology_fs_id_[0-9]*_inode_num\",job=\"mds\"})",
+                            "interval": "",
+                            "legendFormat": "",
+                            "range": true,
+                            "refId": "A"
+                        }
+                    ],
+                    "thresholds": [],
+                    "timeRegions": [],
+                    "title": "cluster inode",
+                    "tooltip": {
+                        "shared": true,
+                        "sort": 0,
+                        "value_type": "individual"
+                    },
+                    "transformations": [
+                        {
+                            "id": "sortBy",
+                            "options": {}
+                        }
+                    ],
+                    "type": "graph",
+                    "xaxis": {
+                        "mode": "time",
+                        "show": true,
+                        "values": []
+                    },
+                    "yaxes": [
+                        {
+                            "format": "none",
+                            "logBase": 1,
+                            "show": true
+                        },
+                        {
+                            "format": "short",
+                            "logBase": 1,
+                            "show": true
+                        }
+                    ],
+                    "yaxis": {
+                        "align": false
+                    }
+                },
+                {
+                    "aliasColors": {},
+                    "bars": false,
+                    "dashLength": 10,
+                    "dashes": false,
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "PBFA97CFB590B2093"
+                    },
+                    "fieldConfig": {
+                        "defaults": {
+                            "unit": "none"
+                        },
+                        "overrides": []
+                    },
+                    "fill": 1,
+                    "fillGradient": 0,
+                    "gridPos": {
+                        "h": 8,
+                        "w": 12,
+                        "x": 0,
+                        "y": 25
+                    },
+                    "hiddenSeries": false,
+                    "id": 10,
+                    "interval": "1s",
+                    "legend": {
+                        "alignAsTable": true,
+                        "avg": true,
+                        "current": false,
+                        "max": true,
+                        "min": true,
+                        "show": true,
+                        "total": false,
+                        "values": true
+                    },
+                    "lines": true,
+                    "linewidth": 1,
+                    "nullPointMode": "null",
+                    "options": {
+                        "alertThreshold": true
+                    },
+                    "percentage": false,
+                    "pluginVersion": "10.1.4",
+                    "pointradius": 2,
+                    "points": false,
+                    "renderer": "flot",
+                    "seriesOverrides": [],
+                    "spaceLength": 10,
+                    "stack": false,
+                    "steppedLine": false,
+                    "targets": [
+                        {
+                            "datasource": {
+                                "type": "prometheus",
+                                "uid": "PBFA97CFB590B2093"
+                            },
+                            "editorMode": "code",
+                            "exemplar": true,
+                            "expr": "sum({__name__=~\"topology_.*_type_file_inode_num\",job=\"mds\"})",
+                            "interval": "",
+                            "legendFormat": "",
+                            "range": true,
+                            "refId": "A"
+                        }
+                    ],
+                    "thresholds": [],
+                    "timeRegions": [],
+                    "title": "cluster file inode",
+                    "tooltip": {
+                        "shared": true,
+                        "sort": 0,
+                        "value_type": "individual"
+                    },
+                    "transformations": [
+                        {
+                            "id": "sortBy",
+                            "options": {}
+                        }
+                    ],
+                    "type": "graph",
+                    "xaxis": {
+                        "mode": "time",
+                        "show": true,
+                        "values": []
+                    },
+                    "yaxes": [
+                        {
+                            "format": "none",
+                            "logBase": 1,
+                            "show": true
+                        },
+                        {
+                            "format": "short",
+                            "logBase": 1,
+                            "show": true
+                        }
+                    ],
+                    "yaxis": {
+                        "align": false
+                    }
+                },
+                {
+                    "aliasColors": {},
+                    "bars": false,
+                    "dashLength": 10,
+                    "dashes": false,
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "PBFA97CFB590B2093"
+                    },
+                    "fieldConfig": {
+                        "defaults": {
+                            "unit": "none"
+                        },
+                        "overrides": []
+                    },
+                    "fill": 1,
+                    "fillGradient": 0,
+                    "gridPos": {
+                        "h": 8,
+                        "w": 12,
+                        "x": 12,
+                        "y": 25
+                    },
+                    "hiddenSeries": false,
+                    "id": 9,
+                    "interval": "1s",
+                    "legend": {
+                        "alignAsTable": true,
+                        "avg": true,
+                        "current": false,
+                        "max": true,
+                        "min": true,
+                        "show": true,
+                        "total": false,
+                        "values": true
+                    },
+                    "lines": true,
+                    "linewidth": 1,
+                    "nullPointMode": "null",
+                    "options": {
+                        "alertThreshold": true
+                    },
+                    "percentage": false,
+                    "pluginVersion": "10.1.4",
+                    "pointradius": 2,
+                    "points": false,
+                    "renderer": "flot",
+                    "seriesOverrides": [],
+                    "spaceLength": 10,
+                    "stack": false,
+                    "steppedLine": false,
+                    "targets": [
+                        {
+                            "datasource": {
+                                "type": "prometheus",
+                                "uid": "PBFA97CFB590B2093"
+                            },
+                            "editorMode": "code",
+                            "exemplar": true,
+                            "expr": "sum({__name__=~\"topology_.*_type_directory_inode_num\",job=\"mds\"})",
+                            "interval": "",
+                            "legendFormat": "",
+                            "range": true,
+                            "refId": "A"
+                        }
+                    ],
+                    "thresholds": [],
+                    "timeRegions": [],
+                    "title": "cluster directory inode",
+                    "tooltip": {
+                        "shared": true,
+                        "sort": 0,
+                        "value_type": "individual"
+                    },
+                    "transformations": [
+                        {
+                            "id": "sortBy",
+                            "options": {}
+                        }
+                    ],
+                    "type": "graph",
+                    "xaxis": {
+                        "mode": "time",
+                        "show": true,
+                        "values": []
+                    },
+                    "yaxes": [
+                        {
+                            "format": "none",
+                            "logBase": 1,
+                            "show": true
+                        },
+                        {
+                            "format": "short",
+                            "logBase": 1,
+                            "show": true
+                        }
+                    ],
+                    "yaxis": {
+                        "align": false
+                    }
+                },
+                {
+                    "aliasColors": {},
+                    "bars": false,
+                    "dashLength": 10,
+                    "dashes": false,
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "PBFA97CFB590B2093"
+                    },
+                    "fieldConfig": {
+                        "defaults": {
+                            "unit": "none"
+                        },
+                        "overrides": []
+                    },
+                    "fill": 1,
+                    "fillGradient": 0,
+                    "gridPos": {
+                        "h": 8,
+                        "w": 12,
+                        "x": 0,
+                        "y": 33
+                    },
+                    "hiddenSeries": false,
+                    "id": 12,
+                    "interval": "1s",
+                    "legend": {
+                        "alignAsTable": true,
+                        "avg": true,
+                        "current": false,
+                        "max": true,
+                        "min": true,
+                        "show": true,
+                        "total": false,
+                        "values": true
+                    },
+                    "lines": true,
+                    "linewidth": 1,
+                    "nullPointMode": "null",
+                    "options": {
+                        "alertThreshold": true
+                    },
+                    "percentage": false,
+                    "pluginVersion": "10.1.4",
+                    "pointradius": 2,
+                    "points": false,
+                    "renderer": "flot",
+                    "seriesOverrides": [],
+                    "spaceLength": 10,
+                    "stack": false,
+                    "steppedLine": false,
+                    "targets": [
+                        {
+                            "datasource": {
+                                "type": "prometheus",
+                                "uid": "PBFA97CFB590B2093"
+                            },
+                            "editorMode": "code",
+                            "exemplar": true,
+                            "expr": "sum({__name__=~\"topology_.*_type_sym_link_inode_num\",job=\"mds\"})",
+                            "interval": "",
+                            "legendFormat": "",
+                            "range": true,
+                            "refId": "A"
+                        }
+                    ],
+                    "thresholds": [],
+                    "timeRegions": [],
+                    "title": "cluster sym_link inode",
+                    "tooltip": {
+                        "shared": true,
+                        "sort": 0,
+                        "value_type": "individual"
+                    },
+                    "transformations": [
+                        {
+                            "id": "sortBy",
+                            "options": {}
+                        }
+                    ],
+                    "type": "graph",
+                    "xaxis": {
+                        "mode": "time",
+                        "show": true,
+                        "values": []
+                    },
+                    "yaxes": [
+                        {
+                            "format": "none",
+                            "logBase": 1,
+                            "show": true
+                        },
+                        {
+                            "format": "short",
+                            "logBase": 1,
+                            "show": true
+                        }
+                    ],
+                    "yaxis": {
+                        "align": false
+                    }
+                },
+                {
+                    "aliasColors": {},
+                    "bars": false,
+                    "dashLength": 10,
+                    "dashes": false,
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "PBFA97CFB590B2093"
+                    },
+                    "fieldConfig": {
+                        "defaults": {
+                            "unit": "none"
+                        },
+                        "overrides": []
+                    },
+                    "fill": 1,
+                    "fillGradient": 0,
+                    "gridPos": {
+                        "h": 8,
+                        "w": 12,
+                        "x": 12,
+                        "y": 33
+                    },
+                    "hiddenSeries": false,
+                    "id": 11,
+                    "interval": "1s",
+                    "legend": {
+                        "alignAsTable": true,
+                        "avg": true,
+                        "current": false,
+                        "max": true,
+                        "min": true,
+                        "show": true,
+                        "total": false,
+                        "values": true
+                    },
+                    "lines": true,
+                    "linewidth": 1,
+                    "nullPointMode": "null",
+                    "options": {
+                        "alertThreshold": true
+                    },
+                    "percentage": false,
+                    "pluginVersion": "10.1.4",
+                    "pointradius": 2,
+                    "points": false,
+                    "renderer": "flot",
+                    "seriesOverrides": [],
+                    "spaceLength": 10,
+                    "stack": false,
+                    "steppedLine": false,
+                    "targets": [
+                        {
+                            "datasource": {
+                                "type": "prometheus",
+                                "uid": "PBFA97CFB590B2093"
+                            },
+                            "editorMode": "code",
+                            "exemplar": true,
+                            "expr": "sum({__name__=~\"topology_.*_type_s3_inode_num\",job=\"mds\"})",
+                            "interval": "",
+                            "legendFormat": "",
+                            "range": true,
+                            "refId": "A"
+                        }
+                    ],
+                    "thresholds": [],
+                    "timeRegions": [],
+                    "title": "cluster s3 inode",
+                    "tooltip": {
+                        "shared": true,
+                        "sort": 0,
+                        "value_type": "individual"
+                    },
+                    "transformations": [
+                        {
+                            "id": "sortBy",
+                            "options": {}
+                        }
+                    ],
+                    "type": "graph",
+                    "xaxis": {
+                        "mode": "time",
+                        "show": true,
+                        "values": []
+                    },
+                    "yaxes": [
+                        {
+                            "format": "none",
+                            "logBase": 1,
+                            "show": true
+                        },
+                        {
+                            "format": "short",
+                            "logBase": 1,
+                            "show": true
+                        }
+                    ],
+                    "yaxis": {
+                        "align": false
+                    }
+                }
+            ],
+            "title": "fs usage",
+            "type": "row"
+        }
+    ],
+    "refresh": "5s",
+    "schemaVersion": 38,
+    "style": "dark",
+    "tags": [],
+    "templating": {
+        "list": [
+            {
+                "current": {
+                    "selected": false,
+                    "text": "All",
+                    "value": "$__all"
+                },
+                "datasource": {
+                    "type": "prometheus",
+                    "uid": "PBFA97CFB590B2093"
+                },
+                "definition": "{__name__=~\"fs_usage_info_fs_.*_used\",job=\"mds\"}",
+                "hide": 0,
+                "includeAll": true,
+                "label": "fsName",
+                "multi": false,
+                "name": "fsName",
+                "options": [],
+                "query": {
+                    "query": "{__name__=~\"fs_usage_info_fs_.*_used\",job=\"mds\"}",
+                    "refId": "PrometheusVariableQueryEditor-VariableQuery"
+                },
+                "refresh": 1,
+                "regex": "/fs_usage_info_fs_(.*)_used.*/",
+                "skipUrlSync": false,
+                "sort": 0,
+                "type": "query"
+            },
+            {
+                "current": {
+                    "selected": false,
+                    "text": "All",
+                    "value": "$__all"
+                },
+                "datasource": {
+                    "type": "prometheus",
+                    "uid": "PBFA97CFB590B2093"
+                },
+                "definition": "{__name__=~\"topology_fs_id_[0-9]*_inode_num\",job=\"mds\"}",
+                "hide": 0,
+                "includeAll": true,
+                "label": "fsId",
+                "multi": false,
+                "name": "fsId",
+                "options": [],
+                "query": {
+                    "query": "{__name__=~\"topology_fs_id_[0-9]*_inode_num\",job=\"mds\"}",
+                    "refId": "PrometheusVariableQueryEditor-VariableQuery"
+                },
+                "refresh": 1,
+                "regex": "/topology_fs_id_([0-9]*)_inode_num.*/",
+                "skipUrlSync": false,
+                "sort": 0,
+                "type": "query"
+            }
+        ]
+    },
+    "time": {
+        "from": "now-1h",
+        "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "",
+    "title": "cluster",
+    "uid": "c57406c1-8262-4bf8-85c4-f4f65f336f96",
+    "version": 1,
+    "weekStart": ""
+}

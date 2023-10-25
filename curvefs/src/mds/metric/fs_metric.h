@@ -43,6 +43,9 @@ class FsMetric {
 
     void OnMount(const std::string& fsname, const Mountpoint& mp);
     void OnUnMount(const std::string& fsname, const Mountpoint& mp);
+    void SetFsUsage(const std::string& fsname, const FsUsage& usage);
+    void SetCapacity(const std::string& fsname, uint64_t capacity);
+    void DeleteFsUsage(const std::string& fsname);
 
  private:
     FsMetric() = default;
@@ -51,9 +54,16 @@ class FsMetric {
     FsMetric(const FsMetric&) = delete;
     FsMetric& operator=(const FsMetric&) = delete;
 
+    std::unordered_map<std::string, std::unique_ptr<FsUsageMetric>>::iterator
+    GetFsnameUsageMetricIter(const std::string& fsname);
+
  private:
-    Mutex mtx_;
-    std::unordered_map<std::string, std::unique_ptr<FsMountMetric>> metrics_;
+    Mutex mountMtx_;
+    std::unordered_map<std::string, std::unique_ptr<FsMountMetric>>
+        mountMetrics_;
+    Mutex usageMtx_;
+    std::unordered_map<std::string, std::unique_ptr<FsUsageMetric>>
+        usageMetrics_;
 };
 
 }  // namespace mds
