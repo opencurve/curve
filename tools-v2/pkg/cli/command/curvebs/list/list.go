@@ -32,6 +32,7 @@ import (
 	may_broken_vol "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/may-broken-vol"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/scanstatus"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/server"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/snapshot"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/space"
 	"github.com/spf13/cobra"
 )
@@ -53,6 +54,7 @@ func (listCmd *ListCommand) AddSubCommands() {
 		scanstatus.NewScanStatusCommand(),
 		may_broken_vol.NewMayBrokenVolCommand(),
 		formatstatus.NewFormatStatusCommand(),
+		snapshot.NewSnapShotCommand(),
 	)
 }
 

@@ -49,6 +49,7 @@ const (
 	ROW_FILE_NAME            = "fileName"
 	ROW_FILE_SIZE            = "fileSize"
 	ROW_FILE_TYPE            = "fileType"
+	ROW_FILE_LENGTH          = "fileLength"
 	ROW_FS_ID                = "fsId"
 	ROW_FS_NAME              = "fsName"
 	ROW_FS_TYPE              = "fsType"
@@ -140,6 +141,10 @@ const (
 	ROW_UNHEALTHY_COPYSET       = "unhealthyCopyset"
 	ROW_UNHEALTHY_COPYSET_RATIO = "unhealthyCopysetRatio"
 	ROW_EXT_ADDR                = "extAddr"
+
+	ROW_SNAPSHOT_ID     = "snapshotId"
+	ROW_SNAPSHOT_NAME   = "snapshotName"
+	ROW_SNAPSHOT_SEQNUM = "snapshotSeqNum"
 
 	// s3
 	ROW_S3CHUNKINFO_CHUNKID = "s3ChunkId"
