@@ -93,16 +93,6 @@ CSChunkFile_V2::CSChunkFile_V2(std::shared_ptr<LocalFileSystem> lfs,
 }
 
 CSChunkFile_V2::~CSChunkFile_V2() {
-    if (fd_ >= 0) {
-        lfs_->Close(fd_);
-    }
-
-    if (metric_ != nullptr) {
-        metric_->chunkFileCount << -1;
-        if (isCloneChunk_) {
-            metric_->cloneChunkCount << -1;
-        }
-    }
 }
 
 CSErrorCode CSChunkFile_V2::Open(bool createFile) {
