@@ -70,20 +70,6 @@ Curve CI 使用```cpplint```检查更改的代码,
   ```bash
   $ cpplint --filter=-build/c++11 --quiet --recursive your_path
   ```
-- 本地执行clang-format-diff对提交部分代码进行检查:
-  ```
-  $ make format
-  # or
-  $ make format commit_id=$(commit_id) # commit_id为某一个提交的sha，默认commit_id为HEAD^
-  ```
-  > 如果需要对部分代码禁用格式检查，可以在开始处添加 `// clang-format off` 或 `/* clang-format off */` 注释，结尾处添加 `// clang-format on` 或 `/* clang-format on */` 注释
-  > ```cpp
-  > int formatted_code;
-  > // clang-format off
-  >    void unformatted_code      ;
-  > // clang-format on
-  > void formatted_code_again;
-  > ```
 
 对于 PR 我们有如下要求：
 
