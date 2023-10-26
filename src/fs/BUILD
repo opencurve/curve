@@ -17,12 +17,9 @@
 cc_library(
     name = "lfs",
     srcs = glob([
-                "*.cpp",
-                "ext4_filesystem_impl.h",
-                "ext4_util.h",
-                "wrap_posix.h"
+                "*.cpp"
            ]),
-    hdrs = ["local_filesystem.h","fs_common.h"],
+    hdrs = ["local_filesystem.h","fs_common.h","wrap_posix.h","ext4_filesystem_impl.h","xfs_filesystem_impl.h"],
     linkopts = ([
         "-std=c++11",
     ]),

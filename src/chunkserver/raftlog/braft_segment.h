@@ -98,6 +98,13 @@ class BraftSegment : public Segment {
         return _segment->file_name();
     }
 
+    int currut_fd() override {
+        return 0;
+    }
+    bool get_meta_info(const int64_t index, off_t* offset, size_t* length, int64_t* term) override {
+        return false;
+    };
+
  private:
     scoped_refptr<braft::Segment> _segment;
 };

@@ -104,6 +104,7 @@ int ChunkServer::Run(int argc, char** argv) {
     curve::common::ExposeCurveVersion();
 
     // ============================初始化各模块==========================//
+    LOG(INFO) << "zyb xfs mod ChunkServer";
     LOG(INFO) << "Initializing ChunkServer modules";
 
     LOG_IF(FATAL, !conf.GetUInt32Value("global.min_io_alignment",
@@ -128,7 +129,7 @@ int ChunkServer::Run(int argc, char** argv) {
 
     // 初始化本地文件系统
     std::shared_ptr<LocalFileSystem> fs(
-        LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));
+        LocalFsFactory::CreateFs(FileSystemType::XFS, ""));
     LocalFileSystemOption lfsOption;
     LOG_IF(FATAL, !conf.GetBoolValue(
         "fs.enable_renameat2", &lfsOption.enableRenameat2));

@@ -20,7 +20,7 @@ load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 
 git_repository(
     name = "com_github_baidu_braft",
-    remote = "https://github.com/baidu/braft",
+    remote = "https://ghproxy.com/https://github.com/baidu/braft",
     commit = "e255c0e4b18d1a8a5d484d4b647f41ff1385ef1e",
 )
 
@@ -36,7 +36,7 @@ http_archive(
     name = "com_google_protobuf",
     sha256 = "cef7f1b5a7c5fba672bec2a319246e8feba471f04dcebfe362d55930ee7c1c30",
     strip_prefix = "protobuf-3.5.0",
-    urls = ["https://github.com/google/protobuf/archive/v3.5.0.zip"],
+    urls = ["https://ghproxy.com/https://github.com/google/protobuf/archive/v3.5.0.zip"],
 )
 
 bind(
@@ -48,7 +48,7 @@ bind(
 new_git_repository(
     name = "com_google_googletest",
     build_file = "bazel/gmock.BUILD",
-    remote = "https://github.com/google/googletest",
+    remote = "https://ghproxy.com/https://github.com/google/googletest",
     tag = "release-1.8.0",
 )
 
@@ -61,7 +61,7 @@ bind(
 # brpc内BUILD文件在依赖glog时, 直接指定的依赖是"@com_github_google_glog//:glog"
 git_repository(
     name = "com_github_google_glog",
-    remote = "https://github.com/google/glog",
+    remote = "https://ghproxy.com/https://github.com/google/glog",
     commit = "4cc89c9e2b452db579397887c37f302fb28f6ca1",
     patch_args = ["-p1"],
     patches = ["//:thirdparties/glog/glog.patch"],
@@ -91,7 +91,7 @@ new_http_archive(
     name = "com_github_google_leveldb",
     build_file = "bazel/leveldb.BUILD",
     strip_prefix = "leveldb-a53934a3ae1244679f812d998a4f16f2c7f309a6",
-    url = "https://github.com/google/leveldb/archive/a53934a3ae1244679f812d998a4f16f2c7f309a6.tar.gz",
+    url = "https://ghproxy.com/https://github.com/google/leveldb/archive/a53934a3ae1244679f812d998a4f16f2c7f309a6.tar.gz",
 )
 
 bind(
@@ -101,7 +101,7 @@ bind(
 
 git_repository(
     name = "com_github_apache_brpc",
-    remote = "https://github.com/apache/incubator-brpc",
+    remote = "https://ghproxy.com/https://github.com/apache/incubator-brpc",
     commit = "1b9e00641cbec1c8803da6a1f7f555398c954cb0",
     patches = ["//:thirdparties/brpc/brpc.patch"],
     patch_args = ["-p1"],
@@ -131,7 +131,7 @@ bind(
 new_git_repository(
     name = "jsoncpp",
     build_file = "bazel/jsoncpp.BUILD",
-    remote = "https://github.com/open-source-parsers/jsoncpp.git",
+    remote = "https://ghproxy.com/https://github.com/open-source-parsers/jsoncpp.git",
     tag = "1.8.4",
 )
 

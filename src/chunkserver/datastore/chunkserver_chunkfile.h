@@ -168,6 +168,12 @@ class CSChunkFile {
                       off_t offset,
                       size_t length,
                       uint32_t* cost);
+    CSErrorCode WriteWithClone(SequenceNum sn,
+                                const int wal_fd,
+                                off_t wal_offset,
+                                size_t wal_length,
+                                off_t data_offset,
+                                uint32_t* cost);
 
     CSErrorCode Sync();
 
@@ -322,6 +328,34 @@ class CSChunkFile {
         }
         return rc;
     }
+
+    inline int writeDataWithClone(int src_fd, off_t src_offset, size_t src_length, off_t dest_offset) {
+        int rc = lfs_->WriteWithClone(fd_, src_fd, src_offset, src_length, dest_offset + pageSize_);
+        if (rc < 0) {
+            LOG(ERROR) << "WriteWithClone failed: " 
+                        << " fd " << fd
+                        << " src_fd " << src_fd
+                        << " src_offset " << src_offset
+                        << " src_length " << src_length
+                        << " dest_offset " << dest_offset;
+                        << " pageSize_ " << pageSize_;
+            return rc;
+        }
+        // If it is a clone chunk, you need to determine whether you need to
+        // change the bitmap and update the metapage
+        if (isCloneChunk_) {
+            uint32_t beginIndex = dest_offset / pageSize_;
+            uint32_t endIndex = (dest_offset + src_length - 1) / pageSize_;
+            for (uint32_t i = beginIndex; i <= endIndex; ++i) {
+                // record dirty page
+                if (!metaPage_.bitmap->Test(i)) {
+                    dirtyPages_.insert(i);
+                }
+            }
+        }
+        return rc;
+    }
+    
 
     inline int writeData(const butil::IOBuf& buf, off_t offset, size_t length) {
         int rc = lfs_->Write(fd_, buf, offset + pageSize_, length);

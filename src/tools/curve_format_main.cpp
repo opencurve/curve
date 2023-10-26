@@ -134,7 +134,7 @@ int AllocateFiles(AllocateStruct* allocatestruct) {
         }
         int fd = ret;
 
-        ret = allocatestruct->fsptr->Fallocate(fd, 0, 0,
+        ret = allocatestruct->fsptr->Fallocate(fd, FALLOC_FL_ZERO_RANGE, 0,
                                         FLAGS_fileSize + FLAGS_metaPagSize);
         if (ret < 0) {
             allocatestruct->fsptr->Close(fd);
@@ -143,7 +143,8 @@ int AllocateFiles(AllocateStruct* allocatestruct) {
             break;
         }
 
-        if (FLAGS_needWriteZero) {
+        //if (FLAGS_needWriteZero) {
+        if (false) {
             ret = allocatestruct->fsptr->Write(fd, data, 0,
                 FLAGS_fileSize + FLAGS_metaPagSize);
             if (ret < 0) {

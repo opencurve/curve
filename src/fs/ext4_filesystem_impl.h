@@ -42,6 +42,7 @@ class Ext4FileSystemImpl : public LocalFileSystem {
     virtual ~Ext4FileSystemImpl();
     static std::shared_ptr<Ext4FileSystemImpl> getInstance();
     void SetPosixWrapper(std::shared_ptr<PosixWrapper> wrapper);
+    explicit Ext4FileSystemImpl(std::shared_ptr<PosixWrapper>);
 
     int Init(const LocalFileSystemOption& option) override;
     int Statfs(const string& path, struct FileSystemInfo* info) override;
@@ -55,6 +56,11 @@ class Ext4FileSystemImpl : public LocalFileSystem {
     int Read(int fd, char* buf, uint64_t offset, int length) override;
     int Write(int fd, const char* buf, uint64_t offset, int length) override;
     int Write(int fd, butil::IOBuf buf, uint64_t offset, int length) override;
+    int WriteWithClone(int fd,
+                        int src_fd,
+                        uint64_t src_offset,
+                        int src_length,
+                        uint64_t dest_offset) { return -1; }
     int Sync(int fd) override;
     int Append(int fd, const char* buf, int length) override;
     int Fallocate(int fd, int op, uint64_t offset,
@@ -63,7 +69,6 @@ class Ext4FileSystemImpl : public LocalFileSystem {
     int Fsync(int fd) override;
 
  private:
-    explicit Ext4FileSystemImpl(std::shared_ptr<PosixWrapper>);
     int DoRename(const string& oldPath,
                  const string& newPath,
                  unsigned int flags) override;

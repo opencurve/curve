@@ -146,6 +146,14 @@ class BAIDU_CACHELINE_ALIGNMENT CurveSegment:
     }
 
     std::string file_name() override;
+
+    int currut_fd() override {
+        if (FLAGS_enableWalDirectWrite) 
+            return _direct_fd;
+        else
+            return _fd;
+    }
+    bool get_meta_info(const int64_t index, off_t* offset, size_t* length, int64_t* term) override;
  private:
     struct LogMeta {
         off_t offset;

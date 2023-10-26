@@ -224,6 +224,15 @@ class CSDataStore {
                                 uint32_t* cost,
                                 const std::string & cloneSourceLocation = "");
 
+    virtual CSErrorCode WriteChunkWithClone(ChunkID id,
+                                            SequenceNum sn,
+                                            int wal_fd,
+                                            off_t wal_offset,
+                                            size_t wal_length,
+                                            off_t data_offset,
+                                            uint32_t* cost,
+                                            const std::string & cloneSourceLocation = "");
+
 
     virtual CSErrorCode SyncChunk(ChunkID id);
 

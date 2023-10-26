@@ -163,6 +163,22 @@ class CurveSegmentLogStorage : public braft::LogStorage {
 
     LogStorageStatus GetStatus();
 
+    int get_segment_fd(const int64_t index) {
+        scoped_refptr<Segment> ptr;
+        if (get_segment(index, &ptr) != 0) {
+            return -1;
+        }
+        return ptr->currut_fd();
+    }
+
+    bool get_segment_meta_info(const int64_t index, off_t* offset, size_t* length, int64_t* term) {
+        scoped_refptr<Segment> ptr;
+        if (get_segment(index, &ptr) != 0) {
+            return false;
+        }
+        return ptr->get_meta_info(index, offset, length, term);
+    }
+
  private:
     scoped_refptr<Segment> open_segment(size_t to_write);
     int save_meta(const int64_t log_index);

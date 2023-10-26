@@ -29,6 +29,7 @@ namespace fs {
 enum class FileSystemType {
     // SFS,
     EXT4,
+    XFS,
 };
 
 struct FileSystemInfo {

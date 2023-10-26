@@ -71,6 +71,9 @@ class Segment : public butil::RefCountedThreadSafe<Segment> {
     virtual int64_t last_index() const = 0;
 
     virtual std::string file_name() = 0;
+
+    virtual int currut_fd() = 0;
+    virtual bool get_meta_info(const int64_t index, off_t* offset, size_t* length, int64_t* term) = 0;
 };
 
 }  // namespace chunkserver

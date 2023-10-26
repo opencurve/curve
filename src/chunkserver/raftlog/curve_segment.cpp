@@ -50,7 +50,7 @@ namespace curve {
 namespace chunkserver {
 
 DEFINE_bool(raftSyncSegments, true, "call fsync when a segment is closed");
-DEFINE_bool(enableWalDirectWrite, true, "enable wal direct write or not");
+DEFINE_bool(enableWalDirectWrite, false, "enable wal direct write or not");
 DEFINE_uint32(walAlignSize, 4096, "wal align size to write");
 
 int CurveSegment::create() {
@@ -583,6 +583,17 @@ int64_t CurveSegment::get_term(const int64_t index) const {
         return 0;
     }
     return meta.term;
+}
+
+bool CurveSegment::get_meta_info(const int64_t index, off_t* offset, size_t* length, int64_t* term) {
+    LogMeta meta;
+    if (_get_meta(index, &meta) != 0) {
+        return false;
+    }
+    *offset = meta.offset;
+    *length = meta.length;
+    *term = meta.term;
+    return true;
 }
 
 int CurveSegment::close(bool will_sync) {

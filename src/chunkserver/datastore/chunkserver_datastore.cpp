@@ -254,6 +254,53 @@ CSErrorCode CSDataStore::WriteChunk(ChunkID id,
     return CSErrorCode::Success;
 }
 
+CSErrorCode CSDataStore::WriteChunkWithClone(ChunkID id,
+                                            SequenceNum sn,
+                                            int wal_fd,
+                                            off_t wal_offset,
+                                            size_t wal_length,
+                                            off_t data_offset,
+                                            uint32_t* cost,
+                                            const std::string & cloneSourceLocation)  {
+    // The requested sequence number is not allowed to be 0, when snapsn=0,
+    // it will be used as the basis for judging that the snapshot does not exist
+    if (sn == kInvalidSeq) {
+        LOG(ERROR) << "Sequence num should not be zero."
+                   << "ChunkID = " << id;
+        return CSErrorCode::InvalidArgError;
+    }
+    auto chunkFile = metaCache_.Get(id);
+    // If the chunk file does not exist, create the chunk file first
+    if (chunkFile == nullptr) {
+        ChunkOptions options;
+        options.id = id;
+        options.sn = sn;
+        options.baseDir = baseDir_;
+        options.chunkSize = chunkSize_;
+        options.location = cloneSourceLocation;
+        options.pageSize = pageSize_;
+        options.metric = metric_;
+        options.enableOdsyncWhenOpenChunkFile = enableOdsyncWhenOpenChunkFile_;
+        CSErrorCode errorCode = CreateChunkFile(options, &chunkFile);
+        if (errorCode != CSErrorCode::Success) {
+            return errorCode;
+        }
+    }
+    // write chunk file
+    CSErrorCode errorCode = chunkFile->WriteWithClone(sn,
+                                                    wal_fd,
+                                                    wal_offset,
+                                                    wal_length,
+                                                    data_offset,
+                                                    cost);
+    if (errorCode != CSErrorCode::Success) {
+        LOG(WARNING) << "Write chunk file failed."
+                     << "ChunkID = " << id;
+        return errorCode;
+    }
+    return CSErrorCode::Success;
+}
+
 CSErrorCode CSDataStore::SyncChunk(ChunkID id) {
     auto chunkFile = metaCache_.Get(id);
     if (chunkFile == nullptr) {

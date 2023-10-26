@@ -160,6 +160,12 @@ class LocalFileSystem {
      */
     virtual int Write(int fd, const char* buf, uint64_t offset, int length) = 0;
 
+    virtual int WriteWithClone(int fd,
+                                int src_fd,
+                                uint64_t src_offset,
+                                int src_length,
+                                uint64_t dest_offset) = 0;
+
     /**
      * 向文件指定区域写入数据
      * @param fd：文件句柄id，通过Open接口获取

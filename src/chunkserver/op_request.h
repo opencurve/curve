@@ -33,6 +33,7 @@
 #include "include/chunkserver/chunkserver_common.h"
 #include "src/chunkserver/concurrent_apply/concurrent_apply.h"
 #include "src/chunkserver/datastore/define.h"
+#include "src/chunkserver/copyset_node.h"
 
 using ::google::protobuf::RpcController;
 using ::curve::chunkserver::concurrent::ConcurrentApplyModule;
@@ -94,6 +95,12 @@ class ChunkOpRequest : public std::enable_shared_from_this<ChunkOpRequest> {
     virtual void OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                                 const ChunkRequest &request,
                                 const butil::IOBuf &data) = 0;
+
+    virtual void OnApplyFromLogIndex(std::shared_ptr<CSDataStore> datastore,
+                                    CurveSegmentLogStorage* logStorage,
+                                    const ChunkRequest &request,
+                                    const uint64_t index,
+                                    const butil::IOBuf &data) = 0;
 
     /**
      * 返回request的done成员
@@ -197,6 +204,11 @@ class DeleteChunkRequest : public ChunkOpRequest {
     void OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                         const ChunkRequest &request,
                         const butil::IOBuf &data) override;
+    void OnApplyFromLogIndex(std::shared_ptr<CSDataStore> datastore,
+                            CurveSegmentLogStorage* logStorage,
+                            const ChunkRequest &request,
+                            const uint64_t index,
+                            const butil::IOBuf &data) override {}
 };
 
 class ReadChunkRequest : public ChunkOpRequest {
@@ -220,6 +232,11 @@ class ReadChunkRequest : public ChunkOpRequest {
     void OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                         const ChunkRequest &request,
                         const butil::IOBuf &data) override;
+    void OnApplyFromLogIndex(std::shared_ptr<CSDataStore> datastore,
+                            CurveSegmentLogStorage* logStorage,
+                            const ChunkRequest &request,
+                            const uint64_t index,
+                            const butil::IOBuf &data) override {}
 
     const ChunkRequest* GetChunkRequest() {
         return request_;
@@ -259,6 +276,11 @@ class WriteChunkRequest : public ChunkOpRequest {
     void OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                         const ChunkRequest &request,
                         const butil::IOBuf &data) override;
+    void OnApplyFromLogIndex(std::shared_ptr<CSDataStore> datastore,
+                            CurveSegmentLogStorage* logStorage,
+                            const ChunkRequest &request,
+                            const uint64_t index,
+                            const butil::IOBuf &data) override;
 };
 
 class ReadSnapshotRequest : public ChunkOpRequest {
@@ -281,6 +303,11 @@ class ReadSnapshotRequest : public ChunkOpRequest {
     void OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                         const ChunkRequest &request,
                         const butil::IOBuf &data) override;
+    void OnApplyFromLogIndex(std::shared_ptr<CSDataStore> datastore,
+                            CurveSegmentLogStorage* logStorage,
+                            const ChunkRequest &request,
+                            const uint64_t index,
+                            const butil::IOBuf &data) override {}
 };
 
 class DeleteSnapshotRequest : public ChunkOpRequest {
@@ -303,6 +330,11 @@ class DeleteSnapshotRequest : public ChunkOpRequest {
     void OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                         const ChunkRequest &request,
                         const butil::IOBuf &data) override;
+    void OnApplyFromLogIndex(std::shared_ptr<CSDataStore> datastore,
+                            CurveSegmentLogStorage* logStorage,
+                            const ChunkRequest &request,
+                            const uint64_t index,
+                            const butil::IOBuf &data) override {}
 };
 
 class CreateCloneChunkRequest : public ChunkOpRequest {
@@ -325,6 +357,11 @@ class CreateCloneChunkRequest : public ChunkOpRequest {
     void OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                         const ChunkRequest &request,
                         const butil::IOBuf &data) override;
+    void OnApplyFromLogIndex(std::shared_ptr<CSDataStore> datastore,
+                            CurveSegmentLogStorage* logStorage,
+                            const ChunkRequest &request,
+                            const uint64_t index,
+                            const butil::IOBuf &data) override {}
 };
 
 class PasteChunkInternalRequest : public ChunkOpRequest {
@@ -352,6 +389,11 @@ class PasteChunkInternalRequest : public ChunkOpRequest {
     void OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                         const ChunkRequest &request,
                         const butil::IOBuf &data) override;
+    void OnApplyFromLogIndex(std::shared_ptr<CSDataStore> datastore,
+                            CurveSegmentLogStorage* logStorage,
+                            const ChunkRequest &request,
+                            const uint64_t index,
+                            const butil::IOBuf &data) override {}
 
  private:
     butil::IOBuf data_;

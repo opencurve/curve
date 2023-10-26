@@ -96,6 +96,19 @@ ssize_t PosixWrapper::pwrite(int fd,
     return ::pwrite(fd, buf, count, offset);
 }
 
+int PosixWrapper::ficlonerange(int fd,
+                                int src_fd,
+                                off_t src_offset,
+                                size_t src_length,
+                                off_t dest_offset) {
+    struct file_clone_range fcr;
+    fcr.src_fd = src_fd;
+    fcr.src_offset = src_offset;
+    fcr.src_length = src_length;
+    fcr.dest_offset = dest_offset;
+    return ::ioctl(fd, FICLONERANGE, &fcr);
+}
+
 int PosixWrapper::fdatasync(int fd) {
     return ::fdatasync(fd);
 }
@@ -105,7 +118,8 @@ int PosixWrapper::fstat(int fd, struct stat *buf) {
 }
 
 int PosixWrapper::fallocate(int fd, int mode, off_t offset, off_t len) {
-    return ::posix_fallocate(fd, offset, len);
+    //return ::posix_fallocate(fd, offset, len);
+    return ::fallocate(fd, mode, offset, len);
 }
 
 int PosixWrapper::fsync(int fd) {

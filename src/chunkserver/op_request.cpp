@@ -439,6 +439,7 @@ void WriteChunkRequest::OnApply(uint64_t index,
                                 ::google::protobuf::Closure *done) {
     brpc::ClosureGuard doneGuard(done);
     uint32_t cost;
+    CSErrorCode ret = CSErrorCode::InternalError;
 
     std::string  cloneSourceLocation;
     if (existCloneInfo(request_)) {
@@ -447,13 +448,69 @@ void WriteChunkRequest::OnApply(uint64_t index,
                             request_->clonefileoffset());
     }
 
-    auto ret = datastore_->WriteChunk(request_->chunkid(),
-                                      request_->sn(),
-                                      cntl_->request_attachment(),
-                                      request_->offset(),
-                                      request_->size(),
-                                      &cost,
-                                      cloneSourceLocation);
+    if (request_->size() < 128 * 4096) {
+        ret = datastore_->WriteChunk(request_->chunkid(),
+                                    request_->sn(),
+                                    cntl_->request_attachment(),
+                                    request_->offset(),
+                                    request_->size(),
+                                    &cost,
+                                    cloneSourceLocation);
+    } else if (common::is_aligned(request_->offset(), 4096) &&
+               common::is_aligned(request_->size(), 4096)) {
+
+        off_t wal_offset =0;
+        size_t wal_length =0;
+        int64_t wal_term = 0;
+        off_t data_offset = request_->offset();
+        
+        int wal_fd = node_->GetLogStorage()->get_segment_fd(index);
+        int meta_ret = node_->GetLogStorage()->get_segment_meta_info(index, &wal_offset, &wal_length, &wal_term);
+
+        if (wal_length != request_->size() + 4096 ||
+            wal_fd <= 0 || 
+            meta_ret == false) {
+
+            LOG(WARNING) << "zyb OnApply error: "
+                        << " logic pool id: " << request_->logicpoolid()
+                        << " copyset id: " << request_->copysetid()
+                        << " sn: " << request_->sn()
+                        << " chunkid: " << request_->chunkid()
+                        << " data_size: " << request_->size()
+                        << " data_offset: " << request_->offset()
+                        << " index: " << index
+                        << " wal_fd: " << wal_fd
+                        << " wal_offset: " << wal_offset
+                        << " wal_length: " << wal_length
+                        << " wal_term: " << wal_term
+                        << " meta_ret: " << meta_ret;
+            response_->set_status(
+                CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
+            return;
+        }
+
+        ret = datastore_->WriteChunkWithClone(request_->chunkid(),
+                                                request_->sn(),
+                                                wal_fd,
+                                                wal_offset,
+                                                wal_length,
+                                                data_offset,
+                                                &cost,
+                                                cloneSourceLocation);
+    } else {
+        uint32_t aoffset = common::align_down(request_->offset(), 4096);
+        uint32_t alength = common::align_down(request_->size(), 4096);
+        LOG(ERROR) << "zyb split OnApply error: "
+                    << " logic pool id: " << request_->logicpoolid()
+                    << " copyset id: " << request_->copysetid()
+                    << " sn: " << request_->sn()
+                    << " chunkid: " << request_->chunkid()
+                    << " data_size: " << request_->size()
+                    << " data_offset: " << request_->offset()
+                    << " index: " << index
+                    << " aoffset: " << aoffset
+                    << " alength: " << alength;
+    }
 
     if (CSErrorCode::Success == ret) {
         response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
@@ -511,7 +568,6 @@ void WriteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                             request.clonefileoffset());
     }
 
-
     auto ret = datastore->WriteChunk(request.chunkid(),
                                      request.sn(),
                                      data,
@@ -519,6 +575,115 @@ void WriteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                                      request.size(),
                                      &cost,
                                      cloneSourceLocation);
+     if (CSErrorCode::Success == ret) {
+         return;
+     } else if (CSErrorCode::BackwardRequestError == ret) {
+        LOG(WARNING) << "write failed: "
+                     << " logic pool id: " << request.logicpoolid()
+                     << " copyset id: " << request.copysetid()
+                     << " chunkid: " << request.chunkid()
+                     << " data size: " << request.size()
+                     << " data store return: " << ret;
+    } else if (CSErrorCode::InternalError == ret ||
+               CSErrorCode::CrcCheckError == ret ||
+               CSErrorCode::FileFormatError == ret) {
+        LOG(FATAL) << "write failed: "
+                   << " logic pool id: " << request.logicpoolid()
+                   << " copyset id: " << request.copysetid()
+                   << " chunkid: " << request.chunkid()
+                   << " data size: " << request.size()
+                   << " data store return: " << ret;
+    } else {
+        LOG(ERROR) << "write failed: "
+                   << " logic pool id: " << request.logicpoolid()
+                   << " copyset id: " << request.copysetid()
+                   << " chunkid: " << request.chunkid()
+                   << " data size: " << request.size()
+                   << " data store return: " << ret;
+    }
+}
+
+void WriteChunkRequest::OnApplyFromLogIndex(std::shared_ptr<CSDataStore> datastore,
+                                            CurveSegmentLogStorage* logStorage,
+                                            const ChunkRequest &request,
+                                            const uint64_t index,
+                                            const butil::IOBuf &data) {
+    // NOTE: 处理过程中优先使用参数传入的datastore/request
+    uint32_t cost;
+    CSErrorCode ret = CSErrorCode::InternalError;
+    std::string  cloneSourceLocation;
+    if (existCloneInfo(&request)) {
+        auto func = ::curve::common::LocationOperator::GenerateCurveLocation;
+        cloneSourceLocation =  func(request.clonefilesource(),
+                            request.clonefileoffset());
+    }
+
+
+    if (request.size() < 128 * 4096) {
+        //only using writechunk
+        ret = datastore->WriteChunk(request.chunkid(),
+                                     request.sn(),
+                                     data,
+                                     request.offset(),
+                                     request.size(),
+                                     &cost,
+                                     cloneSourceLocation);
+
+    } else if (common::is_aligned(request.offset(), 4096) &&
+               common::is_aligned(request.size(), 4096)) {
+        //only using clone
+        off_t wal_offset;
+        size_t wal_length;
+        int64_t wal_term;
+        off_t data_offset = request.offset();
+
+        
+        int wal_fd = logStorage->get_segment_fd(index);
+        int meta_ret = logStorage->get_segment_meta_info(index, &wal_offset, &wal_length, &wal_term);
+
+        if (wal_length != request.size() + 4096 ||
+            wal_fd <= 0 || 
+            meta_ret == false) {
+            LOG(WARNING) << "zyb prep clone OnApplyFromLogIndex error: "
+                        << " logic pool id: " << request.logicpoolid()
+                        << " copyset id: " << request.copysetid()
+                        << " chunkid: " << request.chunkid()
+                        << " sn: " << request.sn()
+                        << " data_size: " << request.size()
+                        << " data_offset: " << request.offset()
+                        << " index: " << index
+                        << " wal_fd: " << wal_fd
+                        << " wal_offset: " << wal_offset
+                        << " wal_length: " << wal_length
+                        << " wal_term: " << wal_term
+                        << " meta_ret: " << meta_ret;
+            return;
+        }
+        ret = datastore->WriteChunkWithClone(request.chunkid(),
+                                                request.sn(),
+                                                wal_fd,
+                                                wal_offset,
+                                                wal_length,
+                                                data_offset,
+                                                &cost,
+                                                cloneSourceLocation);
+    } else {
+        //split the request, clone for 4096 align part, writechunk for the rest
+        uint32_t aoffset = common::align_down(request.offset(), 4096);
+        uint32_t alength = common::align_down(request.size(), 4096);
+
+        LOG(WARNING) << "zyb spilt  OnApplyFromLogIndex error: "
+                    << " logic pool id: " << request.logicpoolid()
+                    << " copyset id: " << request.copysetid()
+                    << " chunkid: " << request.chunkid()
+                    << " sn: " << request.sn()
+                    << " data_size: " << request.size()
+                    << " data_offset: " << request.offset()
+                    << " index: " << index
+                    << " aoffset: " << aoffset
+                    << " alength: " << alength;
+        return;
+    }
      if (CSErrorCode::Success == ret) {
          return;
      } else if (CSErrorCode::BackwardRequestError == ret) {

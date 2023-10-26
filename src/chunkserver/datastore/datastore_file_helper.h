@@ -30,18 +30,20 @@
 
 #include "src/fs/local_filesystem.h"
 #include "src/fs/ext4_filesystem_impl.h"
+#include "src/fs/xfs_filesystem_impl.h"
 
 namespace curve {
 namespace chunkserver {
 
 using curve::fs::LocalFileSystem;
 using curve::fs::Ext4FileSystemImpl;
+using curve::fs::XfsFileSystemImpl;
 
 class DatastoreFileHelper {
  public:
     DatastoreFileHelper() {
         // Use Ext4FileSystemImpl by default
-        fs_ = Ext4FileSystemImpl::getInstance();
+        fs_ = XfsFileSystemImpl::getInstance();
     }
 
     explicit DatastoreFileHelper(std::shared_ptr<LocalFileSystem> fs)

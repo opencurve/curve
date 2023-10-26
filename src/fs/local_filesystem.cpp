@@ -24,6 +24,7 @@
 
 #include "src/fs/local_filesystem.h"
 #include "src/fs/ext4_filesystem_impl.h"
+#include "src/fs/xfs_filesystem_impl.h"
 #include "src/fs/wrap_posix.h"
 
 namespace curve {
@@ -35,6 +36,8 @@ std::shared_ptr<LocalFileSystem> LocalFsFactory::CreateFs(
     std::shared_ptr<LocalFileSystem> localFs;
     if (type == FileSystemType::EXT4) {
         localFs = Ext4FileSystemImpl::getInstance();
+    } else if (type == FileSystemType::XFS) {
+        localFs = XfsFileSystemImpl::getInstance();
     } else {
         LOG(ERROR) << "Unknown filesystem type.";
         return nullptr;

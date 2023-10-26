@@ -32,6 +32,7 @@
 #include <dirent.h>
 #include <linux/fs.h>
 #include <string>
+#include <sys/ioctl.h>
 
 namespace curve {
 namespace fs {
@@ -59,6 +60,11 @@ class PosixWrapper {
                            const void *buf,
                            size_t count,
                            off_t offset);
+    virtual int ficlonerange(int fd,
+                            int src_fd,
+                            off_t src_offset,
+                            size_t src_length,
+                            off_t dest_offset);
     virtual int fdatasync(int fd);
     virtual int fstat(int fd, struct stat *buf);
     virtual int fallocate(int fd, int mode, off_t offset, off_t len);
