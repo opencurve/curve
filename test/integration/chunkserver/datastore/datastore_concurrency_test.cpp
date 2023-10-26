@@ -35,9 +35,6 @@ class ConcurrencyTestSuit : public DatastoreIntegrationBase {
     ~ConcurrencyTestSuit() {}
 };
 
-// TODO(dxiang): this unit test is suitable for the new version of datastore
-//      and will be modified later dxiang@corp.netease.com
-#if 0
 TEST_F(ConcurrencyTestSuit, ConcurrencyTest) {
     off_t offset = 0;
     size_t length = PAGE_SIZE;
@@ -146,7 +143,6 @@ TEST_F(ConcurrencyTestSuit, ConcurrencyTest) {
         t.join();
     }
 }
-#endif
 
 }  // namespace chunkserver
 }  // namespace curve

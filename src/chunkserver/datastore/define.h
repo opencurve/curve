@@ -29,6 +29,7 @@
 
 #include "include/chunkserver/chunkserver_common.h"
 #include "src/common/bitmap.h"
+#include "src/common/curve_version.h"
 
 // switch on/off memory sanity check
 #define MEMORY_SANITY_CHECK
@@ -45,7 +46,7 @@ using CSSnapshotPtr = std::shared_ptr<CSSnapshot>;
 
 using curve::common::Bitmap;
 
-const uint8_t FORMAT_VERSION = 1;
+const uint8_t FORMAT_VERSION = uint8_t (curve::common::kSupportLocalSnapshotFileVersion);
 const SequenceNum kInvalidSeq = 0;
 
 DECLARE_uint32(minIoAlignment);

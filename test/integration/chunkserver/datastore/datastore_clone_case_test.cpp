@@ -34,10 +34,7 @@ class CloneTestSuit : public DatastoreIntegrationBase {
     CloneTestSuit() {}
     ~CloneTestSuit() {}
 };
-// TODO(dxiang): this unit test is suitable for the new version of datastore
-//      and will be modified later dxiang@corp.netease.com
 
-#if 0
 /**
  * 克隆场景测试
  */
@@ -413,7 +410,6 @@ TEST_F(CloneTestSuit, RecoverTest) {
     ASSERT_EQ(false, info.isClone);
     ASSERT_EQ(nullptr, info.bitmap);
 }
-#endif
 
 }  // namespace chunkserver
 }  // namespace curve

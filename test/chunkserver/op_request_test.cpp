@@ -482,6 +482,7 @@ TEST(ChunkOpRequestTest, OnApplyErrorTest) {
     }
     // delete snapshot: data store error
     {
+        testing::FLAGS_gtest_death_test_style = "threadsafe";
         ChunkRequest request;
         ChunkResponse response;
         request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_DELETE_SNAP);

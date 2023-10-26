@@ -54,6 +54,10 @@ CSDataStore::CSDataStore(std::shared_ptr<LocalFileSystem> lfs,
     // ((chunkSize / blocksize + 8 -1 ) >> 3) <= (metaPageSize - 128)
     CHECK(metaPageSize_ >= 512) << "Create datastore failed"
         << ", metaPageSize = " << metaPageSize_;
+    // if blockSize_ is 0, then set it to 4K
+    if (blockSize_ == 0) {
+        blockSize_ = 4 * 1024;
+    }
     CHECK(((chunkSize_ / blockSize_ + 8 - 1) >> 3) <= (metaPageSize_ - 128))
         << "Create datastore failed"
         << ", chunkSize = " << chunkSize_ << ", blockSize = " << blockSize_
@@ -142,6 +146,7 @@ CSErrorCode CSDataStore::DeleteChunk(
 
     auto chunkFile = metaCache_.Get(id);
     if (chunkFile != nullptr) {
+        uint8_t ver = chunkFile->getVerison();
         CSErrorCode errorCode = chunkFile->Delete(sn);
         if (errorCode != CSErrorCode::Success) {
             LOG(WARNING) << "Delete chunk file failed."
@@ -150,12 +155,14 @@ CSErrorCode CSDataStore::DeleteChunk(
         }
         metaCache_.Remove(id);
 
-        // remove itself from the clone cache
-        cloneCache_.Remove(chunkFile->getVirtualId(), chunkFile->getFileID());
+        if (ver != curve::common::kBaseFileVersion) {
+            // remove itself from the clone cache
+            cloneCache_.Remove(chunkFile->getVirtualId(), chunkFile->getFileID());
 
-        uint64_t cloneno = chunkFile->getCloneNumber();
-        if (cloneno > 0) {
-            cloneFileMap_.Remove(id);
+            uint64_t cloneno = chunkFile->getCloneNumber();
+            if (cloneno > 0) {
+                cloneFileMap_.Remove(id);
+            }
         }
     }
     return CSErrorCode::Success;
@@ -173,6 +180,22 @@ CSErrorCode CSDataStore::DeleteSnapshotChunk(
             LOG(WARNING) << "Delete snapshot chunk or correct sn failed."
                          << "ChunkID = " << id
                          << ", snapSn = " << snapSn;
+            return errorCode;
+        }
+    }
+    return CSErrorCode::Success;
+}
+
+// inorder to support the old protocol version
+CSErrorCode CSDataStore::DeleteSnapshotChunkOrCorrectSn(
+    ChunkID id, SequenceNum correctedSn) {
+    auto chunkFile = metaCache_.Get(id);
+    if (chunkFile != nullptr) {
+        CSErrorCode errorCode = chunkFile->DeleteSnapshotOrCorrectSn(correctedSn);  // NOLINT
+        if (errorCode != CSErrorCode::Success) {
+            LOG(WARNING) << "Delete snapshot chunk or correct sn failed."
+                         << "ChunkID = " << id
+                         << ", correctedSn = " << correctedSn;
             return errorCode;
         }
     }
@@ -201,57 +224,6 @@ CSErrorCode CSDataStore::ReadChunk(ChunkID id,
 CSChunkFilePtr CSDataStore::GetCloneCache(
     ChunkID virtualid, uint64_t cloneno) {
     return cloneCache_.Get(virtualid, cloneno);
-}
-
-// for search from small to big
-struct CloneInfos CSDataStore::getParentClone(
-    std::vector<struct CloneInfos>& clones, uint64_t cloneNo) {
-    struct CloneInfos prev_clone;
-
-    // use iterator to traverse the vector
-    for (auto it = clones.begin(); it != clones.end(); it++) {
-        if (it->cloneNo == cloneNo) {
-            if (it == clones.begin()) {
-                prev_clone = *clones.begin();
-                prev_clone.cloneNo = 0;
-            }
-            return prev_clone;
-        }
-        prev_clone = *it;
-    }
-
-    prev_clone = *clones.begin();
-    prev_clone.cloneNo = 0;
-
-    return prev_clone;
-}
-
-// for search from big to small
-struct CloneInfos CSDataStore::getParentClone(
-    std::vector<struct CloneInfos>& clones,
-    std::vector<struct CloneInfos>::iterator& ptr) {
-    struct CloneInfos parent_clone;
-    std::vector<struct CloneInfos>::iterator ptr_next;
-    // if the ptr is the end of the vector,
-    // return build a clone with cloneNo = 0, means no parent
-    if (ptr == clones.end()) {
-        parent_clone.cloneNo = 0;
-        return parent_clone;
-    } else {
-        ptr++;
-
-        if (ptr == clones.end()) {
-            parent_clone.cloneNo = 0;
-            return parent_clone;
-        } else {
-            parent_clone = *ptr;
-            ptr_next = std::next(ptr, 1);
-            if ((ptr_next == clones.end()) && (parent_clone.cloneNo != 0)) {
-                parent_clone.cloneNo = 0;
-            }
-        }
-    }
-    return parent_clone;
 }
 
 // searchChunkForObj is a func to search the obj
@@ -586,6 +558,24 @@ CSErrorCode CSDataStore::ReadSnapshotChunk(ChunkID id,
     return CSErrorCode::Success;
 }
 
+CSErrorCode CSDataStore::ReadSnapshotChunk(ChunkID id,
+                                           SequenceNum sn,
+                                           char * buf,
+                                           off_t offset,
+                                           size_t length) {
+    auto chunkFile = metaCache_.Get(id);
+    if (chunkFile == nullptr) {
+        return CSErrorCode::ChunkNotExistError;
+    }
+    CSErrorCode errorCode =
+        chunkFile->ReadSpecifiedChunk(sn, buf, offset, length);
+    if (errorCode != CSErrorCode::Success) {
+        LOG(WARNING) << "Read snapshot chunk failed."
+                     << "ChunkID = " << id;
+    }
+    return errorCode;
+}
+
 // It is ensured that if snap chunk exists, the chunk must exist.
 // 1. snap chunk is generated from COW, thus chunk must exist.
 // 2. discard will not delete chunk if there is snapshot.
@@ -616,7 +606,8 @@ CSChunkFilePtr CSDataStore::GetChunkFile(ChunkID id) {
 }
 
 CSErrorCode CSDataStore::CreateChunkFile(const ChunkOptions & options,
-                                         CSChunkFilePtr* chunkFile) {
+                                         CSChunkFilePtr* chunkFile,
+                                         uint32_t version) {
         if (!options.location.empty() &&
             options.location.size() > locationLimit_) {
             LOG(ERROR) << "Location is too long."
@@ -626,9 +617,19 @@ CSErrorCode CSDataStore::CreateChunkFile(const ChunkOptions & options,
                        << ", location limit size = " << locationLimit_;
             return CSErrorCode::InvalidArgError;
         }
-        auto tempChunkFile = std::make_shared<CSChunkFile>(lfs_,
+
+        // Create the CSChunkFile object according to the version
+        CSChunkFilePtr tempChunkFile = nullptr;
+        if (version == curve::common::kBaseFileVersion) {
+            tempChunkFile = std::make_shared<CSChunkFile>(lfs_,
                                                   chunkFilePool_,
                                                   options);
+        } else {
+            tempChunkFile = std::make_shared<CSChunkFile_V2>(lfs_,
+                                                  chunkFilePool_,
+                                                  options);
+        }
+
         CSErrorCode errorCode = tempChunkFile->Open(true);
         if (errorCode != CSErrorCode::Success) {
             LOG(WARNING) << "Create chunk file failed."
@@ -649,10 +650,12 @@ CSErrorCode CSDataStore::CreateChunkFile(const ChunkOptions & options,
         }
 
         *chunkFile = tempChunkFile;
-        // insert the chunkfile into the cloneCache_
-        cloneCache_.Set(options.virtualId, options.fileId, tempChunkFile);
-        if (options.cloneNo > 0) {
-            cloneFileMap_.Insert(options.id, options.cloneNo);
+        if (version != curve::common::kBaseFileVersion) {
+            // insert the chunkfile into the cloneCache_
+            cloneCache_.Set(options.virtualId, options.fileId, tempChunkFile);
+            if (options.cloneNo > 0) {
+                cloneFileMap_.Insert(options.id, options.cloneNo);
+            }
         }
 
         return CSErrorCode::Success;
@@ -683,7 +686,8 @@ CSErrorCode CSDataStore::FlattenChunk(ChunkID id, SequenceNum sn,
         // , because the clone chunk does not have the location
         options.location = "";
         options.enableOdsyncWhenOpenChunkFile = enableOdsyncWhenOpenChunkFile_;
-        errorCode = CreateChunkFile(options, &chunkFile);
+        errorCode = CreateChunkFile(options, &chunkFile,
+                    curve::common::kSupportLocalSnapshotFileVersion);
         if (errorCode != CSErrorCode::Success) {
             return errorCode;
         }
@@ -707,7 +711,8 @@ CSErrorCode CSDataStore::WriteChunk(ChunkID id, SequenceNum sn,
     const butil::IOBuf& buf, off_t offset, size_t length,
     uint64_t chunkIndex, uint64_t fileID,
     uint32_t* cost, std::shared_ptr<SnapContext> ctx,
-    const std::unique_ptr<CloneContext>& cloneCtx) {
+    const std::unique_ptr<CloneContext>& cloneCtx,
+    uint32_t version) {
     CSErrorCode errorCode = CSErrorCode::Success;
 
     // for debug, just print the writechunk and its parameters
@@ -745,7 +750,7 @@ CSErrorCode CSDataStore::WriteChunk(ChunkID id, SequenceNum sn,
         // the location need to initialize to empty,
         // because the clone chunk does not have the location
         options.location = "";
-        errorCode = CreateChunkFile(options, &chunkFile);
+        errorCode = CreateChunkFile(options, &chunkFile, version);
         if (errorCode != CSErrorCode::Success) {
             return errorCode;
         }
@@ -795,7 +800,8 @@ CSErrorCode CSDataStore::WriteChunk(ChunkID id,
                             uint64_t fileID,
                             uint32_t* cost,
                             std::shared_ptr<SnapContext> ctx,
-                            const std::string & cloneSourceLocation)  {
+                            const std::string & cloneSourceLocation,
+                            uint32_t version)  {
     // for debug, just print the writechunk and its parameters
     DVLOG(3) << "WriteChunk id = " << id << ", sn = " << sn
              << ", offset = " << offset << ", length = " << length
@@ -828,18 +834,27 @@ CSErrorCode CSDataStore::WriteChunk(ChunkID id,
         options.virtualId = chunkIndex;
         options.fileId = fileID;
         options.cloneNo = 0;
-        CSErrorCode errorCode = CreateChunkFile(options, &chunkFile);
+        CSErrorCode errorCode = CreateChunkFile(options, &chunkFile, version);
         if (errorCode != CSErrorCode::Success) {
             return errorCode;
         }
     }
     // write chunk file
-    CSErrorCode errorCode = chunkFile->Write(sn,
-                                             buf,
-                                             offset,
-                                             length,
-                                             cost,
-                                             ctx);
+    CSErrorCode errorCode = CSErrorCode::Success;
+    if (curve::common::kBaseFileVersion == version) {
+        errorCode = chunkFile->Write(sn,
+                                buf,
+                                offset,
+                                length,
+                                cost);
+    } else {
+        errorCode = chunkFile->Write(sn,
+                                buf,
+                                offset,
+                                length,
+                                cost,
+                                ctx);
+    }
     if (errorCode != CSErrorCode::Success) {
         LOG(WARNING) << "Write chunk file failed."
                      << "ChunkID = " << id;
@@ -894,7 +909,8 @@ CSErrorCode CSDataStore::CreateCloneChunk(ChunkID id,
         options.metaPageSize = metaPageSize_;
         options.blockSize_shift = BLOCK_SIZE_SHIFT;
         options.metric = metric_;
-        CSErrorCode errorCode = CreateChunkFile(options, &chunkFile);
+        CSErrorCode errorCode = CreateChunkFile(options, &chunkFile, 
+                                curve::common::kBaseFileVersion);
         if (errorCode != CSErrorCode::Success) {
             return errorCode;
         }
@@ -955,20 +971,6 @@ CSErrorCode CSDataStore::GetChunkInfo(ChunkID id,
     return CSErrorCode::Success;
 }
 
-CSErrorCode CSDataStore::GetCloneInfo(
-    ChunkID id, uint64_t virtualId, uint64_t cloneNo) {
-    auto chunkFile = metaCache_.Get(id);
-    if (chunkFile == nullptr) {
-        LOG(INFO) << "Get GetCloneInfo failed, Chunk not exists."
-                  << "ChunkID = " << id;
-        return CSErrorCode::ChunkNotExistError;
-    }
-
-    chunkFile->GetCloneInfo(virtualId, cloneNo);
-
-    return CSErrorCode::Success;
-}
-
 CSErrorCode CSDataStore::GetChunkHash(ChunkID id,
                                       off_t offset,
                                       size_t length,
@@ -1008,10 +1010,35 @@ CSErrorCode CSDataStore::loadChunkFile(ChunkID id) {
         options.cloneNo = 0;
         options.location = "";
         options.enableOdsyncWhenOpenChunkFile = enableOdsyncWhenOpenChunkFile_;
-        CSChunkFilePtr chunkFilePtr =
-            std::make_shared<CSChunkFile>(lfs_,
-                                          chunkFilePool_,
-                                          options);
+
+        uint8_t version = 0;
+        int rc = CSChunkFile::getVersion(lfs_, baseDir_, id);
+        // if getVersion failer just return InternalError
+        if (rc < 0) {
+            LOG(ERROR) << "loadChunkFile getVersion failed,"
+                       << " ChunkID = " << id
+                       << " rc = " << rc;
+            return CSErrorCode::InternalError;
+        } else {
+            version = (uint8_t)rc;
+        }
+        if ((0 == version) || (version > FORMAT_VERSION)) {
+            LOG(ERROR) << "loadChunkFile failed, ChunkID = " << id
+                       << "invalid version" << version;
+            return CSErrorCode::InternalError;
+        }
+
+        CSChunkFilePtr chunkFilePtr;
+        if (version == curve::common::kBaseFileVersion) {
+            chunkFilePtr = std::make_shared<CSChunkFile>(lfs_,
+                            chunkFilePool_,
+                            options);
+        } else {
+            chunkFilePtr = std::make_shared<CSChunkFile_V2>(lfs_,
+                            chunkFilePool_,
+                            options);
+        }
+
         CSErrorCode errorCode = chunkFilePtr->Open(false);
         if (errorCode != CSErrorCode::Success)
             return errorCode;
@@ -1020,13 +1047,15 @@ CSErrorCode CSDataStore::loadChunkFile(ChunkID id) {
         auto tmp = metaCache_.Set(id, chunkFilePtr);
         // if tmp equal means that insert success
         if (tmp == chunkFilePtr) {
-            auto tmpptr = cloneCache_.Set(chunkFilePtr->getVirtualId(),
-                chunkFilePtr->getFileID(), chunkFilePtr);
-            assert(tmpptr == chunkFilePtr);
+            if (version != curve::common::kBaseFileVersion) {
+                auto tmpptr = cloneCache_.Set(chunkFilePtr->getVirtualId(),
+                    chunkFilePtr->getFileID(), chunkFilePtr);
+                assert(tmpptr == chunkFilePtr);
 
-            uint64_t cloneno = chunkFilePtr->getCloneNumber();
-            if (cloneno > 0) {
-                cloneFileMap_.Insert(id, cloneno);
+                uint64_t cloneno = chunkFilePtr->getCloneNumber();
+                if (cloneno > 0) {
+                    cloneFileMap_.Insert(id, cloneno);
+                }
             }
         } else {  // some have already insert the chunkfile into the metaCache
             // loadChunkFile failed, need to return error

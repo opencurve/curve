@@ -319,15 +319,19 @@ void ReadChunkRequest::OnApply(uint64_t index,
 
     CSChunkInfo chunkInfo;
     CSErrorCode errorCode = CSErrorCode::Success;
+    uint8_t version = 0;
 
-    if ((false == request_->has_originfileid()) ||
-        (request_->originfileid() == 0)) {
-        errorCode = datastore_->GetChunkInfo(request_->chunkid(),
-                                                        &chunkInfo);
+    if (false == request_->has_version()) {
+        version = (uint8_t) curve::common::kBaseFileVersion;
+    } else {
+        version = (uint8_t)request_->version();
     }
 
-    // need to set NeedClone() to false, use new protocol
-    if ("" == chunkInfo.location) {  // if is new protocol or not clone chunk
+    if (curve::common::kBaseFileVersion == version) {
+        errorCode = datastore_->GetChunkInfo(request_->chunkid(),
+                                &chunkInfo);
+    } else {
+        // need to set NeedClone() to false, use new protocol
         chunkInfo.isClone = false;
     }
 
@@ -375,16 +379,6 @@ void ReadChunkRequest::OnApply(uint64_t index,
         }
         // 如果是ReadChunk请求还需要从本地读取数据
         if (request_->optype() == CHUNK_OP_TYPE::CHUNK_OP_READ) {
-            if ((false == request_->has_originfileid()) ||
-                (request_->originfileid() == 0)) {
-                // not clone chunk, the bitmap is to be nullptr
-                // compatiable with old version
-                // need to judge that location is ""
-                // if location is "", do assert code
-                if ("" == chunkInfo.location) {
-                    assert(chunkInfo.bitmap == nullptr);
-                }
-            }
             ReadChunk();
         }
         // 如果是recover请求，说明请求区域已经被写过了，可以直接返回成功
@@ -530,18 +524,41 @@ void WriteChunkRequest::OnApply(uint64_t index,
                             request_->clonefileoffset());
     }
 
+    uint32_t req_ver = 0;
+    // get the version of the request
+    if (false == request_->has_version()) {
+        req_ver = curve::common::kBaseFileVersion;
+    } else {
+        req_ver = request_->version();
+    }
+
     if ((false == request_->has_originfileid()) ||
         (request_->originfileid() == 0)) {
-        ret = datastore_->WriteChunk(request_->chunkid(),
-            request_->sn(),
-            cntl_->request_attachment(),
-            request_->offset(),
-            request_->size(),
-            request_->chunkindex(),
-            request_->fileid(),
-            &cost,
-            std::make_shared<SnapContext>(getSnapIds(request_)),
-            cloneSourceLocation);
+        if (curve::common::kBaseFileVersion == req_ver) {
+            ret = datastore_->WriteChunk(request_->chunkid(),
+                request_->sn(),
+                cntl_->request_attachment(),
+                request_->offset(),
+                request_->size(),
+                request_->chunkindex(),
+                request_->fileid(),
+                &cost,
+                nullptr,
+                cloneSourceLocation,
+                req_ver);
+        } else {
+            ret = datastore_->WriteChunk(request_->chunkid(),
+                request_->sn(),
+                cntl_->request_attachment(),
+                request_->offset(),
+                request_->size(),
+                request_->chunkindex(),
+                request_->fileid(),
+                &cost,
+                std::make_shared<SnapContext>(getSnapIds(request_)),
+                cloneSourceLocation,
+                req_ver);
+        }
     } else {
         std::unique_ptr<struct CloneContext> ctx(new CloneContext());
 
@@ -582,7 +599,8 @@ void WriteChunkRequest::OnApply(uint64_t index,
             request_->fileid(),
             &cost,
             std::make_shared<SnapContext>(getSnapIds(request_)),
-            ctx);
+            ctx,
+            req_ver);
     }
 
     if (CSErrorCode::Success == ret) {
@@ -641,19 +659,42 @@ void WriteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                             request.clonefileoffset());
     }
 
+    // get the version of the request
+    uint32_t req_ver = 0;
+    if (false == request.has_version()) {
+        req_ver = curve::common::kBaseFileVersion;
+    } else {
+        req_ver = request.version();
+    }
+
     CSErrorCode ret = CSErrorCode::Success;
     if ((false == request.has_originfileid()) ||
         (request.originfileid() == 0)) {
-    auto ret = datastore->WriteChunk(request.chunkid(),
-        request.sn(),
-        data,
-        request.offset(),
-        request.size(),
-        request.chunkindex(),
-        request.fileid(),
-        &cost,
-        std::make_shared<SnapContext>(getSnapIds(&request)),
-        cloneSourceLocation);
+        if (curve::common::kBaseFileVersion == req_ver) {
+            ret = datastore->WriteChunk(request.chunkid(),
+                request.sn(),
+                data,
+                request.offset(),
+                request.size(),
+                request.chunkindex(),
+                request.fileid(),
+                &cost,
+                nullptr,
+                cloneSourceLocation,
+                req_ver);
+        } else {
+            ret = datastore->WriteChunk(request.chunkid(),
+                request.sn(),
+                data,
+                request.offset(),
+                request.size(),
+                request.chunkindex(),
+                request.fileid(),
+                &cost,
+                std::make_shared<SnapContext>(getSnapIds(&request)),
+                cloneSourceLocation,
+                req_ver);
+        }
     } else {
         std::unique_ptr<struct CloneContext> ctx(new CloneContext());
 
@@ -695,7 +736,8 @@ void WriteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
             request.fileid(),
             &cost,
             std::make_shared<SnapContext>(getSnapIds(&request)),
-            ctx);
+            ctx,
+            req_ver);
     }
 
      if (CSErrorCode::Success == ret) {
@@ -735,54 +777,67 @@ void ReadSnapshotRequest::OnApply(uint64_t index,
     readBuffer = new(std::nothrow)char[size];
     CHECK(nullptr != readBuffer) << "new readBuffer failed, "
                                  << errno << ":" << strerror(errno);
-
-    if ((false == request_->has_originfileid()) ||
-        (request_->originfileid() == 0)) {
-        ret = datastore_->ReadSnapshotChunk(request_->chunkid(),
-             request_->sn(),
-             readBuffer,
-             request_->offset(),
-             request_->size(),
-             std::make_shared<SnapContext>(getSnapIds(request_)));
+    uint32_t version = 0;
+    if (false == request_->has_version()) {
+        version = curve::common::kBaseFileVersion;
     } else {
-        std::unique_ptr<CloneContext> ctx(new CloneContext());
-
-        ctx->cloneNo = request_->fileid();
-        ctx->rootId = request_->originfileid();
-        ctx->virtualId = request_->chunkindex();
-        ctx->clones.reserve(CLONEINFOS_VECTOR_SIZE);
-        for (int i = 0; i < request_->clones_size(); i++) {
-            uint64_t tno = request_->clones(i).fileid();
-            uint64_t tsn = request_->clones(i).clonesn();
-
-            struct CloneInfos cfo(tno, tsn);
-            ctx->clones.push_back(cfo);
-        }
-
-        string clonesinfo = "";
-        for (int i = 0; i < ctx->clones.size(); i++) {
-            clonesinfo += " clone no: " + std::to_string(ctx->clones[i].cloneNo)
-                + " clone sn: " + std::to_string(ctx->clones[i].cloneSn);
-        }
-        DVLOG(3) << "ReadSnapshotRequest::OnApply info: "
-                  << " logic pool id: " << request_->logicpoolid()
-                  << " copyset id: " << request_->copysetid()
-                  << " chunkid: " << request_->chunkid()
-                  << " sn: " << request_->sn()
-                  << " offset: " << request_->offset()
-                  << " data size: " << request_->size()
-                  << " clone no: " << request_->fileid()
-                  << " root id: " << request_->originfileid()
-                  << " virtual id: " << request_->chunkindex()
-                  << " clones info: " << clonesinfo;
-
+        version = request_->version();
+    }
+    if (version == curve::common::kBaseFileVersion) {
         ret = datastore_->ReadSnapshotChunk(request_->chunkid(),
             request_->sn(),
             readBuffer,
             request_->offset(),
-            request_->size(),
-            std::make_shared<SnapContext>(getSnapIds(request_)),
-            ctx);
+            request_->size());
+    } else {
+        if ((false == request_->has_originfileid()) ||
+            (request_->originfileid() == 0)) {
+            ret = datastore_->ReadSnapshotChunk(request_->chunkid(),
+                request_->sn(),
+                readBuffer,
+                request_->offset(),
+                request_->size(),
+                std::make_shared<SnapContext>(getSnapIds(request_)));
+        } else {
+            std::unique_ptr<CloneContext> ctx(new CloneContext());
+
+            ctx->cloneNo = request_->fileid();
+            ctx->rootId = request_->originfileid();
+            ctx->virtualId = request_->chunkindex();
+            ctx->clones.reserve(CLONEINFOS_VECTOR_SIZE);
+            for (int i = 0; i < request_->clones_size(); i++) {
+                uint64_t tno = request_->clones(i).fileid();
+                uint64_t tsn = request_->clones(i).clonesn();
+
+                struct CloneInfos cfo(tno, tsn);
+                ctx->clones.push_back(cfo);
+            }
+
+            string clonesinfo = "";
+            for (int i = 0; i < ctx->clones.size(); i++) {
+                clonesinfo += " clone no: " + std::to_string(ctx->clones[i].cloneNo)
+                    + " clone sn: " + std::to_string(ctx->clones[i].cloneSn);
+            }
+            DVLOG(3) << "ReadSnapshotRequest::OnApply info: "
+                    << " logic pool id: " << request_->logicpoolid()
+                    << " copyset id: " << request_->copysetid()
+                    << " chunkid: " << request_->chunkid()
+                    << " sn: " << request_->sn()
+                    << " offset: " << request_->offset()
+                    << " data size: " << request_->size()
+                    << " clone no: " << request_->fileid()
+                    << " root id: " << request_->originfileid()
+                    << " virtual id: " << request_->chunkindex()
+                    << " clones info: " << clonesinfo;
+
+            ret = datastore_->ReadSnapshotChunk(request_->chunkid(),
+                request_->sn(),
+                readBuffer,
+                request_->offset(),
+                request_->size(),
+                std::make_shared<SnapContext>(getSnapIds(request_)),
+                ctx);
+        }
     }
 
     butil::IOBuf wrapper;
@@ -854,9 +909,22 @@ void ReadSnapshotRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
 void DeleteSnapshotRequest::OnApply(uint64_t index,
                                     ::google::protobuf::Closure *done) {
     brpc::ClosureGuard doneGuard(done);
-    CSErrorCode ret = datastore_->DeleteSnapshotChunk(
-        request_->chunkid(), request_->snapsn(),
-        std::make_shared<SnapContext>(getSnapIds(request_)));
+    uint32_t ver;
+    CSErrorCode ret;
+    if (false == request_->has_version()) {
+        ver = curve::common::kBaseFileVersion;
+    } else {
+        ver = request_->version();
+    }
+    if (ver == curve::common::kBaseFileVersion) {
+        ret = datastore_->DeleteSnapshotChunkOrCorrectSn(
+            request_->chunkid(), request_->snapsn());
+    } else {
+        ret = datastore_->DeleteSnapshotChunk(
+            request_->chunkid(), request_->snapsn(),
+            std::make_shared<SnapContext>(getSnapIds(request_)));
+    }
+    
     if (CSErrorCode::Success == ret) {
         response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
         node_->UpdateAppliedIndex(index);
