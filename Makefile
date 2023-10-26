@@ -11,7 +11,7 @@ tag?= "curvebs:unknown"
 case?= "*"
 os?= "debian11"
 ci?=0
-commit_id="HEAD^"
+
 define help_msg
 ## build curvebs
 	make build stor=bs dep=1
@@ -121,9 +121,6 @@ test:
 
 docker:
 	@bash util/docker.sh --os=$(os) --ci=$(ci)
-
-format:
-	@bash util/format.sh $(commit_id)
 
 init-hadoop:
 	@bash util/init-hadoop.sh
