@@ -47,7 +47,7 @@ cc_test(
     srcs = [
         "filepool_unittest.cpp",
         "filepool_mock_unittest.cpp",
-#        "datastore_mock_unittest.cpp",
+        "datastore_mock_unittest.cpp",
         "datastore_unittest_main.cpp",
         "file_helper_unittest.cpp",
     ],

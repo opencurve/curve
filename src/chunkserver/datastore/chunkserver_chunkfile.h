@@ -31,7 +31,6 @@
 #include <functional>
 #include <memory>
 #include <condition_variable>
-#include <map>
 
 #include "include/curve_compiler_specific.h"
 #include "include/chunkserver/chunkserver_common.h"
@@ -60,6 +59,9 @@ class CSSnapshot;
 struct DataStoreMetric;
 class CSDataStore;
 
+// The CloneInfos vector size is 16, which is used to store the clone structure
+// < cloneNo, sn > means that the clone info is < fileId, snapshot version >
+// CLONEINFOS_VECTOR_SIZE is used for the initial size of the vector
 #define CLONEINFOS_VECTOR_SIZE 16
 struct CloneInfos {
     uint64_t cloneNo;
@@ -73,6 +75,13 @@ struct CloneInfos {
     }
 };
 
+// The CloneContext structure is used to store the clone context information
+// of the clone chunk, used by client to tell chunkserver the clone and snapshot tree
+// structure of the clone chunk
+// the @rootId is the fileid of the root file
+// the @cloneNo is the fileid of the clone file
+// the @virtualId is the chunkIndex of the chunk
+// the @clones is the clone tree structure from leaf to root
 struct CloneContext {
     ChunkID rootId;
     uint64_t cloneNo;
@@ -100,24 +109,9 @@ struct ChunkFileMetaPage {
     // Indicates the location information of the data source,
     // if it is not CloneChunk, it is empty
     string location;
-
     // Indicates the state of the page in the current Chunk,
     // if it is not CloneChunk, it is nullptr
     std::shared_ptr<Bitmap> bitmap;
-
-    ChunkFileMetaPage() : version(FORMAT_VERSION)
-                        , sn(0)
-                        , correctedSn(0)
-                        , location("")
-                        , bitmap(nullptr)
-                        , cloneNo(0)
-                        , virtualId(0)
-                        , fileId(0) {}
-    ChunkFileMetaPage(const ChunkFileMetaPage& metaPage);
-    ChunkFileMetaPage& operator = (const ChunkFileMetaPage& metaPage);
-
-    void encode(char* buf);
-    CSErrorCode decode(const char* buf);
 
     // if it is a clone chunk the cloneNo
     // indicate the clone no in the root chunk
@@ -129,13 +123,15 @@ struct ChunkFileMetaPage {
     uint64_t    virtualId;
     // the fileid of the chunk itself
     uint64_t    fileId;
-    // bool isclone;
-    // just for clone chunk, the parent chunk's sn and the parent chunk's id
-    // if the parentChunkId is -1 then that it is not a CloneChunk
-    // std::vector<struct CloneInfos> clones;
 
-    // just remember the snap vector Ctx of the ChunkFile
-    std::vector<SequenceNum> snapCtx;
+    ChunkFileMetaPage() {}
+
+    ChunkFileMetaPage(const ChunkFileMetaPage& metaPage);
+
+    ChunkFileMetaPage& operator = (const ChunkFileMetaPage& metaPage);
+
+    void encode(char* buf);
+    CSErrorCode decode(const char* buf);
 };
 
 struct ChunkOptions {
@@ -160,10 +156,13 @@ struct ChunkOptions {
     bool enableOdsyncWhenOpenChunkFile;
     // datastore internal statistical metric
     std::shared_ptr<DataStoreMetric> metric;
-
+    // if it is a clone chunk the cloneNo = clone file fileid
     uint64_t        cloneNo;
+    // chunk Index of the clone chunk or the original chunk
     uint64_t        virtualId;
+    // the fileid of the chunk itself
     uint64_t        fileId;
+    // the shift of the blocksize
     uint32_t        blockSize_shift;
 
     ChunkOptions() : id(0)
@@ -183,13 +182,23 @@ struct ChunkOptions {
 
 class CSChunkFile {
  public:
-    friend class CSSnapshots;
- public:
+    CSChunkFile() {
+        snapshot_ = nullptr;
+    }
     CSChunkFile(std::shared_ptr<LocalFileSystem> lfs,
                 std::shared_ptr<FilePool> chunkFilePool,
                 const ChunkOptions& options);
     virtual ~CSChunkFile();
 
+    /*
+    * get chunkfile version
+    * @param lfs: local file system
+    * @param dir: chunkfile dir
+    * @param id: chunkfile id
+    */
+    static int getVersion(std::shared_ptr<LocalFileSystem> lfs,
+                std::string dir,
+                SequenceNum id);
     /**
      * When a Chunk file is found when Datastore is initialized, this
      * interface will be called to initialize the Chunk file
@@ -199,8 +208,7 @@ class CSChunkFile {
      *              file
      * @return returns the error code
      */
-    CSErrorCode Open(bool createFile);
-
+    virtual CSErrorCode Open(bool createFile);
     /**
      * Called when a snapshot file is found during Datastore initialization
      * Load the metapage of the snapshot file into the memory inside the
@@ -210,7 +218,44 @@ class CSChunkFile {
      * @param sn: the sequence number of the snapshot file to be loaded
      * @return: return error code
      */
-    CSErrorCode LoadSnapshot(SequenceNum sn);
+    virtual CSErrorCode LoadSnapshot(SequenceNum sn);
+     /**
+     * Called when a snapshot file is deleted
+     * and merged to a non-existent snapshot file.
+     * Write lock should NOT be added
+     * @param sn: the sequence number of the snapshot file to be loaded
+     * @return: return error code
+     */
+    virtual CSErrorCode loadSnapshot(SequenceNum sn) {
+        // should not be called log error
+        LOG(ERROR) << "loadSnapshot not supported in this version";
+        return CSErrorCode::IncompatibleError;
+    }
+    /**
+     * Write chunk files
+     * The Write interface is called when raft apply, and there is no multiple
+     * concurrency between Writes.
+     * But it may be concurrent with other operations such as Read and Delete,
+     * add write lock
+     * @param sn: The file sequence number of the current write request
+     * @param buf: data requested to be written
+     * @param offset: The offset position of the request to write
+     * @param length: The length of the data requested to be written
+     * @param cost: The actual number of IOs generated by this request,
+     * used for QOS control
+     * @param ctx: snapshot context
+     * @return: return error code
+     */
+    virtual CSErrorCode Write(SequenceNum sn,
+                      const butil::IOBuf& buf,
+                      off_t offset,
+                      size_t length,
+                      uint32_t* cost,
+                      std::shared_ptr<SnapContext> ctx) {
+        // This Write not supported in this version
+        LOG(ERROR) << "Write not supported in this version";
+        return CSErrorCode::IncompatibleError;
+    }
     /**
      * Write chunk files
      * The Write interface is called when raft apply, and there is no multiple
@@ -229,22 +274,49 @@ class CSChunkFile {
                       const butil::IOBuf& buf,
                       off_t offset,
                       size_t length,
-                      uint32_t* cost,
-                      std::shared_ptr<SnapContext> ctx = nullptr);
-
-    CSErrorCode cloneWrite(SequenceNum sn,
+                      uint32_t* cost);
+    /**
+     * Flatten Clone Chunk
+     * @param sn: The sn version of the current chunk snapshot
+     * @param offset: The offset position of the request to begin flatten
+     * @param length: The length of the data requested to be flatten
+     * @param cloneCtx: clone context
+     * @param datastore: datastore
+     * @return: return error code
+     */
+    virtual CSErrorCode flattenWrite(SequenceNum sn,
+                        off_t offset, size_t length,
+                        const std::unique_ptr<CloneContext>& cloneCtx,
+                        CSDataStore* datastore) {
+        // flattenWrite not supported in this version
+        LOG(ERROR) << "flattenWrite not supported in this version";
+        return CSErrorCode::IncompatibleError;                
+    }
+    /**
+     * Write the data of the clone chunk
+     * @param sn: The sn version of the current chunk snapshot
+     * @param buf: data requested to be written
+     * @param offset: The offset position of the request to write
+     * @param length: The length of the data requested to be written
+     * @param cost: The actual number of IOs generated by this request,
+     * used for QOS control
+     * @param cloneCtx: clone context
+     * @param datastore: datastore
+     * @param ctx: snapshot context
+     * @return: return error code
+     */
+    virtual CSErrorCode cloneWrite(SequenceNum sn,
                         const butil::IOBuf& buf,
                         off_t offset,
                         size_t length,
                         uint32_t* cost,
                         const std::unique_ptr<CloneContext>& cloneCtx,
                         CSDataStore* datastore,
-                        std::shared_ptr<SnapContext> ctx = nullptr);
-
-    CSErrorCode flattenWrite(SequenceNum sn,
-                        off_t offset, size_t length,
-                        const std::unique_ptr<CloneContext>& cloneCtx,
-                        CSDataStore* datastore);
+                        std::shared_ptr<SnapContext> ctx = nullptr) {
+        // cloneWrite not supported in this version
+        LOG(ERROR) << "cloneWrite not supported in this version";
+        return CSErrorCode::IncompatibleError;
+    };
 
     CSErrorCode Sync();
 
@@ -258,7 +330,7 @@ class CSChunkFile {
      * @param length: the length of the data requested for Paste
      * @return: return error code
      */
-    CSErrorCode Paste(const char * buf, off_t offset, size_t length);
+    virtual CSErrorCode Paste(const char * buf, off_t offset, size_t length);
     /**
      * Read chunk files
      * There may be concurrency, add read lock
@@ -268,15 +340,6 @@ class CSChunkFile {
      * @return: return error code
      */
     CSErrorCode Read(char * buf, off_t offset, size_t length);
-
-    /**
-     * Read chunk meta data
-     * There may be concurrency, add read lock
-     * @param buf: the data read
-     * @return: return error code
-     */
-    CSErrorCode ReadMetaPage(char * buf);
-
     /**
      * Read the chunk of the specified Sequence
      * There may be concurrency, add read lock
@@ -287,7 +350,7 @@ class CSChunkFile {
      * @param length: The length of the snapshot data requested to be read
      * @return: return error code
      */
-    CSErrorCode ReadSpecifiedChunk(SequenceNum sn,
+    virtual CSErrorCode ReadSpecifiedChunk(SequenceNum sn,
                                    char * buf,
                                    off_t offset,
                                    size_t length);
@@ -298,7 +361,7 @@ class CSChunkFile {
      * @param: The file sequence number when calling the DeleteChunk interface
      * @return: return error code
      */
-    CSErrorCode Delete(SequenceNum sn);
+    virtual CSErrorCode Delete(SequenceNum sn);
     /**
      * Delete snapshots generated during this dump or left over from history.
      * If no snapshot is generated during the dump, modify the correctedSn of
@@ -312,15 +375,76 @@ class CSChunkFile {
      *  snapshot.
      * @return: return error code
      */
-    CSErrorCode DeleteSnapshot(SequenceNum snapSn,
-        std::shared_ptr<SnapContext> ctx = nullptr);
+    CSErrorCode DeleteSnapshotOrCorrectSn(SequenceNum correctedSn);
+    /* In order to call the v2 DeleteSnapshot method
+     * @param correctedSn: The sequence number of the chunk that needs to be
+     * delete
+     * @param ctx: snapshot context
+    */
+    virtual CSErrorCode DeleteSnapshot(SequenceNum correctedSn, 
+            std::shared_ptr<SnapContext> ctx);
+    /* In order to call the v2 DivideObjInfoByIndex
+     * to find the chunkfile has which data in the range, 
+     * the data in the range but not in the chunkfile
+     * are put into the notInRanges
+     * @param sn: The sequence number of the chunk that needs 
+     * @param range: the range of the data to find
+     * @param notInRanges: the range of the data not in the chunkfile
+     * @param objInfos: the data in the chunkfile
+    */
+    virtual bool DivideObjInfoByIndex(SequenceNum sn,
+                        std::vector<BitRange>& range,  // NOLINT
+                        std::vector<BitRange>& notInRanges,  // NOLINT
+                        std::vector<ObjectInfo>& objInfos) {
+        return false;
+    }
+    /* In order to call the v2 DivideObjInfoByIndex without lock
+     * @param sn: The sequence number of the chunk that needs
+     * @param range: the range of the data to find
+     * @param notInRanges: the range of the data not in the chunkfile
+     * @param objInfos: the data in the chunkfile
+    */
+    virtual bool DivideObjInfoByIndexLockless(SequenceNum sn,
+                        std::vector<BitRange>& range,  // NOLINT
+                        std::vector<BitRange>& notInRanges,  // NOLINT
+                        std::vector<ObjectInfo>& objInfos) {
+        return false;
+    }
+    /**
+     * In order to call the v2 DivideSnapshotObjInfoByIndex
+     * @param sn: The sequence number of the snapshot
+     * @param range: the range of the data to find
+     * @param notInRanges: the range of the data not in the snapshot
+     * @param objInfos: the data in the snapshot
+     */
+    virtual bool DivideSnapshotObjInfoByIndex(SequenceNum sn,
+                        std::vector<BitRange>& range,  // NOLINT
+                        std::vector<BitRange>& notInRanges,  // NOLINT
+                        std::vector<ObjectInfo>& objInfos) {
+        return false;
+    }
+    /**
+     * In order to call the v2 ReadSpecifiedSnap
+     * @param sn: The sequence number of the snapshot
+     * @param snap: the snapshot
+     * @param buff: the data in the snapshot
+     * @param offset: the offset of the data in the snapshot
+     * @param length: the length of the data in the snapshot
+     */
+    virtual CSErrorCode ReadSpecifiedSnap(SequenceNum sn,
+                        CSSnapshot* snap,
+                        char* buff,
+                        off_t offset,
+                        size_t length) {
+        // ReadSpecifiedSnap not supported in this version
+        LOG(ERROR) << "ReadSpecifiedSnap not supported in this version";
+        return CSErrorCode::IncompatibleError;
+    }
     /**
      * Get chunk info
      * @param[out]: the chunk info getted
      */
-    void GetInfo(CSChunkInfo* info);
-
-    void GetCloneInfo(uint64_t virtualId, uint64_t cloneNo);
+    virtual void GetInfo(CSChunkInfo* info);
     /**
      * Get the hash value of the chunk, this interface is used for test
      * @param[out]: chunk hash value
@@ -329,17 +453,6 @@ class CSChunkFile {
     CSErrorCode GetHash(off_t offset,
                         size_t length,
                         std::string *hash);
-    /**
-     * Get chunkFileMetaPage
-     * @return: metapage
-     */
-    virtual const ChunkFileMetaPage& GetChunkFileMetaPage() {
-        return metaPage_;
-    }
-
-    void SetChunkFileMetaPage(ChunkFileMetaPage metaPage) {
-        metaPage_ = metaPage;
-    }
 
     void SetSyncInfo(std::shared_ptr<std::atomic<uint64_t>> rate,
         std::shared_ptr<std::condition_variable> cond) {
@@ -351,90 +464,28 @@ class CSChunkFile {
         return chunkId_;
     }
 
-    uint64_t getCloneNumber() {
-        return metaPage_.cloneNo;
+    virtual uint64_t getCloneNumber() {
+        return 0;
     }
 
-    ChunkID getVirtualId() {
-        return metaPage_.virtualId;
+    virtual ChunkID getVirtualId() {
+        return 0;
     }
 
-    uint64_t getFileID() {
-        return metaPage_.fileId;
+    virtual uint64_t getFileID() {
+        return 0;
     }
 
-    CSErrorCode writeDataDirect(
-        const butil::IOBuf& buf, off_t offset, size_t length);
-
-    bool DivideObjInfoByIndex(SequenceNum sn,
-                        std::vector<BitRange>& range,  // NOLINT
-                        std::vector<BitRange>& notInRanges,  // NOLINT
-                        std::vector<ObjectInfo>& objInfos);  // NOLINT
-
-    bool DivideObjInfoByIndexLockless(SequenceNum sn,
-                        std::vector<BitRange>& range,  // NOLINT
-                        std::vector<BitRange>& notInRanges,  // NOLINT
-                        std::vector<ObjectInfo>& objInfos);  // NOLINT
-
-    bool DivideSnapshotObjInfoByIndex(SequenceNum sn,
-                        std::vector<BitRange>& range,  // NOLINT
-                        std::vector<BitRange>& notInRanges,  // NOLINT
-                        std::vector<ObjectInfo>& objInfos);  // NOLINT
-
-    CSErrorCode ReadSpecifiedSnap(SequenceNum sn,
-                        CSSnapshot* snap,
-                        char* buff,
-                        off_t offset,
-                        size_t length);
+    uint8_t getVerison() {
+        return metaPage_.version;
+    }
 
     // default synclimit
     static uint64_t syncChunkLimits_;
     // high threshold limit
     static uint64_t syncThreshold_;
 
-    int FindExtraReadFromParent(std::vector<File_ObjectInfoPtr>& objIns,  // NOLINT
-                                CSChunkFilePtr& chunkFile,  // NOLINT
-                                off_t offset,
-                                size_t length);
-
-    void MergeObjectForRead(std::map<int32_t, Offset_InfoPtr>& objmap,  // NOLINT
-                            std::vector<File_ObjectInfoPtr>& objIns,  // NOLINT
-                            CSChunkFilePtr& chunkFile);  // NOLINT
-
-    CSErrorCode writeSnapData(SequenceNum sn,
-                            const butil::IOBuf& buf,
-                            off_t offset,
-                            size_t length,
-                            uint32_t* cost,
-                            std::shared_ptr<SnapContext> ctx = nullptr);
-
- private:
-     /**
-     * Called when a snapshot file is deleted
-     * and merged to a non-existent snapshot file.
-     * Write lock should NOT be added
-     * @param sn: the sequence number of the snapshot file to be loaded
-     * @return: return error code
-     */
-    CSErrorCode loadSnapshot(SequenceNum sn);
-    /**
-     * Determine whether you need to create a new snapshot
-     * @param sn: write request sequence number
-     * @return: true means to create a snapshot;
-     *          false means no need to create a snapshot
-     */
-    bool needCreateSnapshot(SequenceNum sn, std::shared_ptr<SnapContext> ctx);
-    /**
-     * To create a snapshot chunk
-     * @param sn: sequence number of the snapshot
-     */
-    CSErrorCode createSnapshot(SequenceNum sn);
-    /**
-     * Determine whether to copy on write
-     * @param sn: write request sequence number
-     * @return: true means cow is required; false means cow is not required
-     */
-    bool needCow(SequenceNum sn, std::shared_ptr<SnapContext> ctx);
+ protected:
     /**
      * Persist metapage
      * @param metaPage: the metapage that needs to be persisted to disk,
@@ -447,14 +498,15 @@ class CSChunkFile {
      * Load metapage into memory
      */
     CSErrorCode loadMetaPage();
-    /**
-     * Copy the uncopied data in the specified area from the chunk file
-     * to the snapshot file
-     * @param offset: the starting offset of the write data area
-     * @param length: the length of the write data area
-     * @return: return error code
-     */
-    CSErrorCode copy2Snapshot(off_t offset, size_t length);
+ 
+    inline int readMetaPage(char* buf) {
+        return lfs_->Read(fd_, buf, 0, metaPageSize_);
+    }
+
+    inline int writeMetaPage(const char* buf) {
+        return lfs_->Write(fd_, buf, 0, metaPageSize_);
+    }
+
     /**
      * Update the bitmap of the clone chunk
      * If all pages have been written, the clone chunk will be converted
@@ -464,19 +516,11 @@ class CSChunkFile {
 
     inline string path() {
         return baseDir_ + "/" +
-                FileNameOperator::GenerateChunkFileName(chunkId_);
+                    FileNameOperator::GenerateChunkFileName(chunkId_);
     }
 
     inline uint32_t fileSize() const {
         return metaPageSize_ + size_;
-    }
-
-    inline int readMetaPage(char* buf) {
-        return lfs_->Read(fd_, buf, 0, metaPageSize_);
-    }
-
-    inline int writeMetaPage(const char* buf) {
-        return lfs_->Write(fd_, buf, 0, metaPageSize_);
     }
 
     inline int readData(char* buf, off_t offset, size_t length) {
@@ -545,7 +589,30 @@ class CSChunkFile {
         return syncChunkLimits_;
     }
 
- private:
+ private: //options of snapshot
+    /**
+     * Determine whether you need to create a new snapshot
+     * @param sn: write request sequence number
+     * @return: true means to create a snapshot;
+     *          false means no need to create a snapshot
+     */
+    bool needCreateSnapshot(SequenceNum sn);
+    /**
+     * Determine whether to copy on write
+     * @param sn: write request sequence number
+     * @return: true means cow is required; false means cow is not required
+     */
+    bool needCow(SequenceNum sn);
+    /**
+     * Copy the uncopied data in the specified area from the chunk file
+     * to the snapshot file
+     * @param offset: the starting offset of the write data area
+     * @param length: the length of the write data area
+     * @return: return error code
+     */
+    CSErrorCode copy2Snapshot(off_t offset, size_t length);
+
+ protected:
     // to notify syncThread
     std::shared_ptr<std::condition_variable> cvar_;
     // the sum of every chunkfile length
@@ -553,10 +620,9 @@ class CSChunkFile {
     // file descriptor of chunk file
     int fd_;
     // The logical size of the chunk, not including metapage
-    ChunkSizeType   size_;
-    ChunkSizeType   blockSize_;
-    PageSizeType    metaPageSize_;
-    uint32_t        blockSize_shift_;
+    ChunkSizeType size_;
+    ChunkSizeType blockSize_;
+    PageSizeType metaPageSize_;
     // chunk id
     ChunkID chunkId_;
     // The directory where the chunk is located
@@ -570,8 +636,6 @@ class CSChunkFile {
     std::set<uint32_t> dirtyPages_;
     // read-write lock
     RWLock rwLock_;
-    // Snapshot file pointer
-    std::shared_ptr<CSSnapshots> snapshots_;
     // Rely on FilePool to create and delete files
     std::shared_ptr<FilePool> chunkFilePool_;
     // Rely on the local file system to manipulate files
@@ -580,6 +644,10 @@ class CSChunkFile {
     std::shared_ptr<DataStoreMetric> metric_;
     // enable O_DSYNC When Open ChunkFile
     bool enableOdsyncWhenOpenChunkFile_;
+
+ private: //options of snapshot
+    // Snapshot file pointer
+    CSSnapshot* snapshot_;
 };
 }  // namespace chunkserver
 }  // namespace curve

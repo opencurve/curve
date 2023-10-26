@@ -35,9 +35,6 @@ class BasicTestSuit : public DatastoreIntegrationBase {
     ~BasicTestSuit() {}
 };
 
-// TODO(dxiang): this unit test is suitable for the new version of datastore
-//      and will be modified later dxiang@corp.netease.com
-#if 0
 /**
  * 基本功能测试验证
  * 读、写、删、获取文件信息
@@ -172,8 +169,7 @@ TEST_F(BasicTestSuit, BasicTest) {
                                        iobuf1_1_4,
                                        offset,
                                        length,
-                                       nullptr,
-                                       SnapContext::build_empty());
+                                       nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
     // 没被写过的区域也可以读，但是不保证读到的数据内容
@@ -196,7 +192,6 @@ TEST_F(BasicTestSuit, BasicTest) {
     ASSERT_EQ(errorCode, CSErrorCode::ChunkNotExistError);
     ASSERT_FALSE(lfs_->FileExists(chunkPath));
 }
-#endif
 
 }  // namespace chunkserver
 }  // namespace curve

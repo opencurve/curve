@@ -545,8 +545,7 @@ TEST_F(CSMetricTest, CountTest) {
     butil::IOBuf dataBuf;
     dataBuf.append(buf, PAGE_SIZE);
     ASSERT_EQ(CSErrorCode::Success,
-              datastore->WriteChunk(id, seq, dataBuf, offset, length, id, 1,
-                  nullptr, SnapContext::build_empty()));
+              datastore->WriteChunk(id, seq, dataBuf, offset, length, nullptr));
     ASSERT_EQ(1, copysetMetric->GetChunkCount());
     ASSERT_EQ(0, copysetMetric->GetSnapshotCount());
     ASSERT_EQ(0, copysetMetric->GetCloneChunkCount());
@@ -555,18 +554,16 @@ TEST_F(CSMetricTest, CountTest) {
     ASSERT_EQ(0, metric_->GetTotalCloneChunkCount());
 
     // 增加版本号，生成快照
-    std::shared_ptr<SnapContext> ctx(new SnapContext({seq}));
     seq = 2;
     ASSERT_EQ(CSErrorCode::Success,
-    datastore->WriteChunk(
-        id, seq, dataBuf, offset, length, id, 1, nullptr, ctx));
+              datastore->WriteChunk(id, seq, dataBuf, offset, length, nullptr));
     ASSERT_EQ(1, copysetMetric->GetChunkCount());
     ASSERT_EQ(1, copysetMetric->GetSnapshotCount());
     ASSERT_EQ(0, copysetMetric->GetCloneChunkCount());
 
     // 删除快照
     ASSERT_EQ(CSErrorCode::Success,
-              datastore->DeleteSnapshotChunk(id, ctx->getLatest(), ctx));
+              datastore->DeleteSnapshotChunkOrCorrectSn(id, seq));
     ASSERT_EQ(1, copysetMetric->GetChunkCount());
     ASSERT_EQ(0, copysetMetric->GetSnapshotCount());
     ASSERT_EQ(0, copysetMetric->GetCloneChunkCount());
@@ -588,8 +585,7 @@ TEST_F(CSMetricTest, CountTest) {
     butil::IOBuf dataBuf2;
     dataBuf.append(buf2, CHUNK_SIZE);
     ASSERT_EQ(CSErrorCode::Success,
-              datastore->WriteChunk(id2, 1, dataBuf, 0, CHUNK_SIZE, id2, 1
-                  , nullptr, SnapContext::build_empty()));
+              datastore->WriteChunk(id2, 1, dataBuf, 0, CHUNK_SIZE, nullptr));
     delete[] buf2;
     ASSERT_EQ(3, copysetMetric->GetChunkCount());
     ASSERT_EQ(0, copysetMetric->GetSnapshotCount());

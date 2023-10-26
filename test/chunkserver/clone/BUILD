@@ -16,7 +16,6 @@
 #TODO: this unit test is suitable for the new version of datastore
 #      and will be modified later dxiang@corp.netease.com
 
-"""
 cc_test(
     name = "clone_test",
     srcs = glob([
@@ -57,4 +56,3 @@ cc_library(
             ],
     visibility = ["//visibility:public"],
 )
-"""

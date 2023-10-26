@@ -274,38 +274,48 @@ uint64_t CopysetNode::GetHashCode(const ChunkRequest* request) {
     uint64_t filedid = 0;
     uint64_t chunkindex = 0;
 
-    // judge if has originfileId
-    if (request->has_originfileid()) {
-        // for clone file, it has originfileId,
-        // all file with same originfileid need to serialize
-        switch (request->optype()) {
-        case CHUNK_OP_DELETE:
-        case CHUNK_OP_WRITE:
-        case CHUNK_OP_DELETE_SNAP:
-        case CHUNK_OP_FLATTEN:
-            filedid = request->originfileid();
-            chunkindex = request->chunkindex();
-            hashcode = filedid ^ (chunkindex << 1);
-            break;
+    uint32_t version = 0;
+    if (false == request->has_version()) {
+        version = curve::common::kBaseFileVersion;
+    } else {
+        version = request->version();
+    }
+    if (version == curve::common::kBaseFileVersion) {
+        hashcode = std::hash<uint64_t>{} (request->fileid());
+    } else {
+        // judge if has originfileId
+        if (request->has_originfileid()) {
+            // for clone file, it has originfileId,
+            // all file with same originfileid need to serialize
+            switch (request->optype()) {
+            case CHUNK_OP_DELETE:
+            case CHUNK_OP_WRITE:
+            case CHUNK_OP_DELETE_SNAP:
+            case CHUNK_OP_FLATTEN:
+                filedid = request->originfileid();
+                chunkindex = request->chunkindex();
+                hashcode = filedid ^ (chunkindex << 1);
+                break;
 
-        default:
-            hashcode = std::hash<uint64_t>{} (request->fileid());
-            break;
-        }
-    } else {  // has no originfileId it is the origin file just use the fileid
-        switch (request->optype()) {
-        case CHUNK_OP_DELETE:
-        case CHUNK_OP_WRITE:
-        case CHUNK_OP_DELETE_SNAP:
-        case CHUNK_OP_FLATTEN:
-            filedid = request->fileid();
-            chunkindex = request->chunkindex();
-            hashcode = filedid ^ (chunkindex << 1);
-            break;
+            default:
+                hashcode = std::hash<uint64_t>{} (request->fileid());
+                break;
+            }
+        } else {  // has no originfileId it is the origin file just use the fileid
+            switch (request->optype()) {
+            case CHUNK_OP_DELETE:
+            case CHUNK_OP_WRITE:
+            case CHUNK_OP_DELETE_SNAP:
+            case CHUNK_OP_FLATTEN:
+                filedid = request->fileid();
+                chunkindex = request->chunkindex();
+                hashcode = filedid ^ (chunkindex << 1);
+                break;
 
-        default:
-            hashcode = std::hash<uint64_t>{} (request->fileid());
-            break;
+            default:
+                hashcode = std::hash<uint64_t>{} (request->fileid());
+                break;
+            }
         }
     }
 

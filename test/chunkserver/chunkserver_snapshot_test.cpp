@@ -385,7 +385,7 @@ TEST_F(ChunkServerSnapshotTest, OneNode) {
     expectResp.set_lastindex(commitedIndex);
     expectResp.set_diskindex(commitedIndex);
     expectResp.set_epoch(1);
-    expectResp.set_hash("966136955");
+    expectResp.set_hash("3049021227");
     CopysetStatusVerify(leaderId, logicPoolId, copysetId, &expectResp);
 }
 
@@ -467,7 +467,7 @@ TEST_F(ChunkServerSnapshotTest, OneNodeShutdown) {
     expectResp.set_lastindex(commitedIndex);
     expectResp.set_diskindex(commitedIndex);
     expectResp.set_epoch(2);
-    expectResp.set_hash("966136955");
+    expectResp.set_hash("3049021227");
 
     CopysetStatusVerify(leaderId, logicPoolId, copysetId, &expectResp);
 }
