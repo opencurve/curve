@@ -102,11 +102,14 @@ def loadPlugin():
     # load *.json file in plugin dir
     # merge to one json
     data = []
-    for filename in os.listdir(PLUGIN_PATH):
-        if filename.endswith('.json'):
-            with open(os.path.join(PLUGIN_PATH, filename)) as f:
-                plugin_data = json.load(f)
-                data.append(unitValue(plugin_data["labels"], plugin_data["targets"])
+    if os.path.isdir(PLUGIN_PATH):
+        for filename in os.listdir(PLUGIN_PATH):
+            if filename.endswith('.json'):
+                with open(os.path.join(PLUGIN_PATH, filename)) as f:
+                    plugin_data = json.load(f)
+                    if len(plugin_data) == 0:
+                        continue
+                    data.append(unitValue(plugin_data["labels"], plugin_data["targets"]))
     return data
 
 def refresh():
