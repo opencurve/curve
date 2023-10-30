@@ -37,7 +37,7 @@ class ARCCache : public LRUCacheInterface<K, V> {
  public:
     ARCCache(int64_t max_count,
              std::shared_ptr<CacheMetrics> cacheMetrics = nullptr)
-        : c_(max_count/2), p_(0), cacheMetrics_(cacheMetrics) {}
+        : c_(max_count), p_(0), cacheMetrics_(cacheMetrics) {}
 
     void Put(const K& key, const V& value);
     bool Put(const K& key, const V& value, V* eliminated);
@@ -158,7 +158,7 @@ class ARCCache : public LRUCacheInterface<K, V> {
             map.erase(map_iter);
         }
 
-        int Count() const { return map.size(); }
+        int64_t Count() const { return map.size(); }
     };
 
     struct T {
@@ -238,7 +238,7 @@ class ARCCache : public LRUCacheInterface<K, V> {
             map_iter->second.list_iter = --list.end();
         }
 
-        int Count() const { return map.size(); }
+        int64_t Count() const { return map.size(); }
 
         tmap_iter GetLRU() const { return list.begin()->map_iter; }
     };
@@ -260,6 +260,15 @@ class ARCCache : public LRUCacheInterface<K, V> {
         b->Insert(map_iter->first);
         t->Remove(std::move(map_iter), nullptr);
         return true;
+    }
+
+    bool IsCacheFull() const {
+        return t1_.count() + t2_.count() == c_;
+    }
+
+    void SetP(int64_t p) {
+        if (IsCacheFull())
+            p_ = p;
     }
 
     bool Replace(const K& k, V* eliminated);
@@ -324,13 +333,7 @@ bool ARCCache<K, V, KeyTraits, ValueTraits>::Put(const K& key, const V& value,
 
     bmap_iter b_it;
     if (b1_.Find(key, &b_it)) {
-        if (b1_.Count() >= b2_.Count()) {
-            p_ += 1;
-        } else {
-            p_ += b2_.Count() / b1_.Count();
-        }
-        if (p_ > c_) p_ = c_;
-
+        SetP(std::min(c_, p_ + std::max(b2_.Count()/b1_.Count(), 1)));
         ret = Replace(key, eliminated);
         b1_.Remove(std::move(b_it), cacheMetrics_.get());
         t2_.Insert(key, value, cacheMetrics_.get());
@@ -338,20 +341,14 @@ bool ARCCache<K, V, KeyTraits, ValueTraits>::Put(const K& key, const V& value,
     }
 
     if (b2_.Find(key, &b_it)) {
-        if (b2_.Count() >= b1_.Count()) {
-            p_ -= 1;
-        } else {
-            p_ -= b1_.Count() / b2_.Count();
-        }
-        if (p_ < 0) p_ = 0;
-
+        SetP(std::max(0, p_ - std::max(b1_.Count()/b2_.Count(), 1)));
         ret = Replace(key, eliminated);
         b2_.Remove(std::move(b_it), cacheMetrics_.get());
         t2_.Insert(key, value, cacheMetrics_.get());
         return ret;
     }
 
-    if (t1_.Count() + b1_.Count() == c_) {
+    if (IsCacheFull() && t1_.Count() + b1_.Count() == c_) {
         if (t1_.Count() < c_) {
             b1_.RemoveLRU(cacheMetrics_.get());
             ret = Replace(key, eliminated);
@@ -372,11 +369,16 @@ bool ARCCache<K, V, KeyTraits, ValueTraits>::Put(const K& key, const V& value,
 template <typename K, typename V, typename KeyTraits, typename ValueTraits>
 bool ARCCache<K, V, KeyTraits, ValueTraits>::Replace(const K& k,
                                                      V* eliminated) {
+    if (!IsCacheFull()) {
+        return false;
+    }
     if (t1_.Count() != 0 &&
         ((t1_.Count() > p_) || (b2_.Find(k, nullptr) && t1_.Count() == p_))) {
         return Move_T_B(&t1_, &b1_, eliminated);
-    } else {
+    } else if (t2_.Count() > 0) {
         return Move_T_B(&t2_, &b2_, eliminated);
+    } else {
+        return Move_T_B(&t1_, &b1_, eliminated);
     }
 }
 
@@ -386,6 +388,7 @@ uint64_t ARCCache<K, V, KeyTraits, ValueTraits>::Size() {
     return t1_.Count() + t2_.Count();
 }
 
+// This operation Detach the key from cache
 template <typename K, typename V, typename KeyTraits, typename ValueTraits>
 void ARCCache<K, V, KeyTraits, ValueTraits>::Remove(const K& key) {
     ::curve::common::WriteLockGuard guard(lock_);
@@ -394,6 +397,14 @@ void ARCCache<K, V, KeyTraits, ValueTraits>::Remove(const K& key) {
         tmap_iter it;
         if (t->Find(key, &it)) {
             t->Remove(std::move(it), cacheMetrics_.get());
+            return;
+        }
+    }
+    B* bs[]{&b1_, &b2_};
+    for (auto b : bs) {
+        bmap_iter it;
+        if (b->Find(key, &it)) {
+            b->Remove(std::move(it), cacheMetrics_.get());
             return;
         }
     }
