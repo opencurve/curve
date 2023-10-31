@@ -23,12 +23,30 @@
 #ifndef SRC_COMMON_CONCURRENT_RW_LOCK_H_
 #define SRC_COMMON_CONCURRENT_RW_LOCK_H_
 
-#include <pthread.h>
 #include <assert.h>
-#include <glog/logging.h>
 #include <bthread/bthread.h>
+#include <glog/logging.h>
+#include <pthread.h>
+#include <sys/types.h>  // gettid
 
+#include "include/curve_compiler_specific.h"
 #include "src/common/uncopyable.h"
+
+// Due to the mixed use of bthread and pthread in some cases, acquiring another
+// bthread lock(mutex/rwlock) after acquiring a write lock on a pthread rwlock
+// may result in switching the bthread coroutine, and then the operation of
+// releasing the previous write lock in the other pthread will not take effect
+// (implying that the write lock is still held), thus causing a deadlock.
+
+// Check pthread rwlock tid between wrlock and unlock
+#if defined(ENABLE_CHECK_PTHREAD_WRLOCK_TID) && \
+    (ENABLE_CHECK_PTHREAD_WRLOCK_TID == 1)
+#define CURVE_CHECK_PTHREAD_WRLOCK_TID 1
+#elif !defined(ENABLE_CHECK_PTHREAD_WRLOCK_TID)
+#define CURVE_CHECK_PTHREAD_WRLOCK_TID 1
+#else
+#define CURVE_CHECK_PTHREAD_WRLOCK_TID 0
+#endif
 
 namespace curve {
 namespace common {
@@ -51,10 +69,21 @@ class PthreadRWLockBase : public RWLockBase {
     void WRLock() override {
         int ret = pthread_rwlock_wrlock(&rwlock_);
         CHECK(0 == ret) << "wlock failed: " << ret << ", " << strerror(ret);
+#if CURVE_CHECK_PTHREAD_WRLOCK_TID
+        tid_ = gettid();
+#endif
     }
 
     int TryWRLock() override {
-        return pthread_rwlock_trywrlock(&rwlock_);
+        int ret = pthread_rwlock_trywrlock(&rwlock_);
+        if (CURVE_UNLIKELY(ret != 0)) {
+            return ret;
+        }
+
+#if CURVE_CHECK_PTHREAD_WRLOCK_TID
+        tid_ = gettid();
+#endif
+        return 0;
     }
 
     void RDLock() override {
@@ -67,6 +96,19 @@ class PthreadRWLockBase : public RWLockBase {
     }
 
     void Unlock() override {
+#if CURVE_CHECK_PTHREAD_WRLOCK_TID
+        if (tid_ != 0) {
+            const pid_t current = gettid();
+            // If CHECK here is triggered, please look at the comments at the
+            // beginning of the file.
+            // In the meantime, the simplest solution might be to use
+            // `BthreadRWLock` locks everywhere.
+            CHECK(tid_ == current)
+                << ", tid has changed, previous tid: " << tid_
+                << ", current tid: " << current;
+            tid_ = 0;
+        }
+#endif
         pthread_rwlock_unlock(&rwlock_);
     }
 
@@ -76,7 +118,13 @@ class PthreadRWLockBase : public RWLockBase {
 
     pthread_rwlock_t rwlock_;
     pthread_rwlockattr_t rwlockAttr_;
+
+#if CURVE_CHECK_PTHREAD_WRLOCK_TID
+    pid_t tid_ = 0;
+#endif
 };
+
+#undef CURVE_CHECK_PTHREAD_WRLOCK_TID
 
 class RWLock : public PthreadRWLockBase {
  public:
@@ -122,7 +170,7 @@ class BthreadRWLock : public RWLockBase {
     }
 
     int TryWRLock() override {
-        // not support yet
+        LOG(WARNING) << "TryWRLock not support yet";
         return EINVAL;
     }
 
@@ -132,7 +180,7 @@ class BthreadRWLock : public RWLockBase {
     }
 
     int TryRDLock() override {
-        // not support yet
+        LOG(WARNING) << "TryRDLock not support yet";
         return EINVAL;
     }
 
