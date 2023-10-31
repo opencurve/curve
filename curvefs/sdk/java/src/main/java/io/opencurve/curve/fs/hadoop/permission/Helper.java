@@ -22,12 +22,12 @@
 
 package io.opencurve.curve.fs.hadoop.permission;
 
-import com.sun.jna.Library;
-import com.sun.jna.Native;
-import com.sun.jna.Pointer;
-import com.sun.jna.Structure;
-import io.opencurve.curve.fs.hadoop.permission.Helper.CLibrary.passwd;
-import io.opencurve.curve.fs.hadoop.permission.Helper.CLibrary.group;
+//import com.sun.jna.Library;
+//import com.sun.jna.Native;
+//import com.sun.jna.Pointer;
+//import com.sun.jna.Structure;
+//import io.opencurve.curve.fs.hadoop.permission.Helper.CLibrary.passwd;
+//import io.opencurve.curve.fs.hadoop.permission.Helper.CLibrary.group;
 
 import java.util.Arrays;
 import java.util.List;
@@ -44,6 +44,7 @@ class Entry {
 }
 
 public class Helper {
+    /*
     public interface CLibrary extends Library {
         CLibrary INSTANCE = (CLibrary)Native.loadLibrary("c", CLibrary.class);
         passwd getpwent();
@@ -80,8 +81,10 @@ public class Helper {
             }
         }
     }
+    */
 
     public static List<Entry> getAllUsers() {
+        /*
         CLibrary lib = CLibrary.INSTANCE;
         List<Entry> users = new ArrayList<Entry>();
         passwd usr = new passwd();
@@ -90,9 +93,14 @@ public class Helper {
         }
         lib.endpwent();
         return users;
+        */
+
+        List<Entry> users = new ArrayList<Entry>();
+        return users;
     }
 
     public static List<Entry> getAllGroups() {
+        /*
         CLibrary lib = CLibrary.INSTANCE;
         List<Entry> groups = new ArrayList<Entry>();
         group grp = new group();
@@ -100,6 +108,9 @@ public class Helper {
             groups.add(new Entry(grp.gr_name, grp.gr_gid));
         }
         lib.endgrent();
+        return groups;
+        */
+        List<Entry> groups = new ArrayList<Entry>();
         return groups;
     }
 }

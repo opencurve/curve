@@ -32,23 +32,29 @@ import io.opencurve.curve.fs.libfs.CurveFSMount;
 import io.opencurve.curve.fs.libfs.CurveFSStat;
 import io.opencurve.curve.fs.libfs.CurveFSStatVFS;
 import io.opencurve.curve.fs.hadoop.permission.Permission;
+import io.opencurve.curve.fs.common.AccessLogger;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
 
-public class CurveFileSystem extends FileSystem {
+public class CurveFileSystem extends FilterFileSystem {
     private static final Log LOG = LogFactory.getLog(CurveFileSystem.class);
+    private static final AccessLogger logger =
+        new AccessLogger("CurveFileSystem", 0);
 
     private URI uri;
     private Path workingDir;
     private CurveFSProto curve = null;
     private Permission perm = null;
 
-    public CurveFileSystem() {}
+    public CurveFileSystem() {
+        logger.log("CurveFileSystem");
+    }
 
     public CurveFileSystem(Configuration conf) {
+        logger.log("CurveFileSystem", "conf");
         setConf(conf);
     }
 
@@ -60,15 +66,19 @@ public class CurveFileSystem extends FileSystem {
     }
 
     public URI getUri() {
+        logger.log("getUri");
         return uri;
     }
 
     public String getScheme() {
+        logger.log("getScheme");
         return uri.getScheme();
     }
 
     @Override
     public void initialize(URI uri, Configuration conf) throws IOException {
+        logger.log("initializ", uri);
+
         super.initialize(uri, conf);
 
         if (curve == null) {
@@ -85,8 +95,9 @@ public class CurveFileSystem extends FileSystem {
         this.workingDir = getHomeDirectory();
     }
 
-
     public FSDataInputStream open(Path path, int bufferSize) throws IOException {
+        logger.log("open", path, bufferSize);
+
         path = makeAbsolute(path);
 
         // throws filenotfoundexception if path is a directory
@@ -102,11 +113,14 @@ public class CurveFileSystem extends FileSystem {
 
     @Override
     public void close() throws IOException {
+        logger.log("close");
         super.close();  // this method does stuff, make sure it's run!
         curve.shutdown();
     }
 
     public FSDataOutputStream append(Path path, int bufferSize, Progressable progress) throws IOException {
+        logger.log("append", path, bufferSize);
+
         path = makeAbsolute(path);
 
         if (progress != null) {
@@ -123,16 +137,19 @@ public class CurveFileSystem extends FileSystem {
     }
 
     public Path getWorkingDirectory() {
+        logger.log("getWorkingDirectory");
         return workingDir;
     }
 
     @Override
     public void setWorkingDirectory(Path dir) {
+        logger.log("setWorkingDirectory", dir);
         workingDir = makeAbsolute(dir);
     }
 
     @Override
     public boolean mkdirs(Path path, FsPermission perms) throws IOException {
+        logger.log("mkdirs");
         path = makeAbsolute(path);
         curve.mkdirs(path, (int) perms.toShort());
         return true;
@@ -140,11 +157,14 @@ public class CurveFileSystem extends FileSystem {
 
     @Override
     public boolean mkdirs(Path f) throws IOException {
+        logger.log("mkdirs", f);
         FsPermission perms = FsPermission.getDirDefault().applyUMask(FsPermission.getUMask(getConf()));;
         return mkdirs(f, perms);
     }
 
     public FileStatus getFileStatus(Path path) throws IOException {
+        logger.log("getFileStatus", path);
+
         path = makeAbsolute(path);
 
         CurveFSStat stat = new CurveFSStat();
@@ -162,6 +182,8 @@ public class CurveFileSystem extends FileSystem {
 
 
     public FileStatus[] listStatus(Path path) throws IOException {
+        logger.log("listStatus", path);
+
         path = makeAbsolute(path);
 
         if (isFile(path)) {
@@ -174,22 +196,23 @@ public class CurveFileSystem extends FileSystem {
             for (int i = 0; i < status.length; i++) {
                 status[i] = getFileStatus(new Path(path, dirlist[i]));
             }
-            curve.shutdown();
             return status;
         } else {
             throw new FileNotFoundException("File " + path + " does not exist.");
         }
-
     }
 
     @Override
     public void setPermission(Path path, FsPermission permission) throws IOException {
+        logger.log("setPermission", path, permission);
         path = makeAbsolute(path);
         curve.chmod(path, permission.toShort());
     }
 
     @Override
     public void setTimes(Path path, long mtime, long atime) throws IOException {
+        logger.log("setTimes", path, mtime, atime);
+
         path = makeAbsolute(path);
 
         CurveFSStat stat = new CurveFSStat();
@@ -210,6 +233,7 @@ public class CurveFileSystem extends FileSystem {
 
     public FSDataOutputStream create(Path path, FsPermission permission, boolean overwrite, int bufferSize,
                                      short replication, long blockSize, Progressable progress) throws IOException {
+        logger.log("create", path);
 
         path = makeAbsolute(path);
 
@@ -252,6 +276,8 @@ public class CurveFileSystem extends FileSystem {
 
     @Override
     public void setOwner(Path path, String username, String groupname) throws IOException {
+        logger.log("setOwner", path, username, groupname);
+
         CurveFSStat stat = new CurveFSStat();
         curve.lstat(path, stat);
 
@@ -272,6 +298,8 @@ public class CurveFileSystem extends FileSystem {
                                                  boolean overwrite,
                                                  int bufferSize, short replication, long blockSize,
                                                  Progressable progress) throws IOException {
+        logger.log("createNonRecursive", path);
+
         path = makeAbsolute(path);
 
         Path parent = path.getParent();
@@ -290,6 +318,8 @@ public class CurveFileSystem extends FileSystem {
 
     @Override
     public boolean rename(Path src, Path dst) throws IOException {
+        logger.log("rename", src, dst);
+
         src = makeAbsolute(src);
         dst = makeAbsolute(dst);
 
@@ -315,10 +345,12 @@ public class CurveFileSystem extends FileSystem {
 
     @Deprecated
     public boolean delete(Path path) throws IOException {
+        logger.log("delete", path);
         return delete(path, false);
     }
 
     public boolean delete(Path path, boolean recursive) throws IOException {
+        logger.log("delete", path, recursive);
         path = makeAbsolute(path);
 
         /* path exists? */
@@ -357,6 +389,8 @@ public class CurveFileSystem extends FileSystem {
 
     @Override
     public FsStatus getStatus(Path p) throws IOException {
+        logger.log("getStatus", p);
+
         CurveFSStatVFS stat = new CurveFSStatVFS();
         curve.statfs(p, stat);
 
@@ -368,21 +402,25 @@ public class CurveFileSystem extends FileSystem {
 
     @Override
     public short getDefaultReplication() {
+        logger.log("getDefaultReplication");
         return 1;
     }
 
     @Override
     public long getDefaultBlockSize() {
+        logger.log("getDefaultBlockSize");
         return super.getDefaultBlockSize();
     }
 
     @Override
     protected int getDefaultPort() {
+        logger.log("getDefaultPort");
         return super.getDefaultPort();
     }
 
     @Override
     public String getCanonicalServiceName() {
+        logger.log("getCanonicalServiceName");
         return null; // Does not support Token
     }
 }

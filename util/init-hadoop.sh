@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
-g_hadoop_prefix="/home/${USER}/.local/hadoop"
+g_hadoop_prefix="${HOME}/.local/hadoop"
 g_hadoop_etc="${g_hadoop_prefix}/etc/hadoop/core-site.xml"
 
 # hadoop
 mkdir -p "${g_hadoop_prefix}"
-sudo mkdir -p "/data/logs/curvefs"
-sudo chown ${USER} -R "/data/logs/curvefs"
+#sudo mkdir -p "/data/logs/curvefs"
+#sudo chown ${USER} -R "/data/logs/curvefs"
 wget https://curveadm.nos-eastchina1.126.net/T/hadoop-3.3.6.tar.gz -O /tmp/hadoop-3.3.6.tar.gz
 tar -zxvf /tmp/hadoop-3.3.6.tar.gz --strip-components=1 -C "${g_hadoop_prefix}"
 

@@ -21,6 +21,7 @@
  */
 package io.opencurve.curve.fs.libfs;
 
+import io.opencurve.curve.fs.common.AccessLogger;
 import java.io.IOException;
 
 public class CurveFSMount {
@@ -85,144 +86,131 @@ public class CurveFSMount {
     public static final int SETATTR_MTIME = 8;
     public static final int SETATTR_ATIME = 16;
 
-    private static final String CURVEFS_DEBUG_ENV_VAR = "CURVEFS_DEBUG";
-    private static final String CLASS_NAME = "io.opencurve.curve.fs.CurveFSMount";
-
     private long instancePtr;
-
-    private static void accessLog(String name, String... args) {
-        String value = System.getenv(CURVEFS_DEBUG_ENV_VAR);
-        if (!Boolean.valueOf(value)) {
-            return;
-        }
-
-        String params = String.join(",", args);
-        String message = String.format("%s.%s(%s)", CLASS_NAME, name, params);
-        System.out.println(message);
-    }
+    private static final AccessLogger logger = new AccessLogger("CurveFSMount", 2);
 
     static {
-        accessLog("loadLibrary");
+        logger.log("loadLibrary");
         try {
             CurveFSNativeLoader.getInstance().loadLibrary();
         } catch(Exception e) {}
     }
 
     protected void finalize() throws Throwable {
-        accessLog("finalize");
+        logger.log("finalize");
     }
 
     public CurveFSMount() {
-        accessLog("CurveMount");
+        logger.log("CurveMount");
         instancePtr = nativeCurveFSCreate();
     }
 
     public void confSet(String key, String value) {
-        accessLog("confSet", key, value);
+        logger.log("confSet", key, value);
         nativeCurveFSConfSet(instancePtr, key, value);
     }
 
     public void mount(String fsname, String mountpoint) throws IOException {
-        accessLog("mount");
+        logger.log("mount", fsname, mountpoint);
         nativeCurveFSMount(instancePtr, fsname, mountpoint);
     }
 
     public void umount(String fsname, String mountpoint) throws IOException {
-        accessLog("umount");
+        logger.log("umount", fsname, mountpoint);
         nativeCurveFSUmount(instancePtr, fsname, mountpoint);
     }
 
     public void shutdown() throws IOException {
-        accessLog("shutdown");
+        logger.log("shutdown");
     }
 
     // directory*
     public void mkdirs(String path, int mode) throws IOException {
-        accessLog("mkdirs", path.toString());
+        logger.log("mkdirs", path);
         nativeCurveFSMkDirs(instancePtr, path, mode);
     }
 
     public void rmdir(String path) throws IOException {
-        accessLog("rmdir", path.toString());
+        logger.log("rmdir", path);
         nativeCurveFSRmDir(instancePtr, path);
     }
 
     public String[] listdir(String path) throws IOException {
-        accessLog("listdir", path.toString());
+        logger.log("listdir", path);
         return nativeCurveFSListDir(instancePtr, path);
     }
 
     // file*
     public int open(String path, int flags, int mode) throws IOException {
-        accessLog("open", path.toString());
+        logger.log("open", path);
         return nativeCurveFSOpen(instancePtr, path, flags, mode);
     }
 
     public long lseek(int fd, long offset, int whence) throws IOException {
-        accessLog("lseek", String.valueOf(fd), String.valueOf(offset), String.valueOf(whence));
+        logger.log("lseek", fd, offset, whence);
         return nativeCurveFSLSeek(instancePtr, fd, offset, whence);
     }
 
     public int read(int fd, byte[] buf, long size, long offset) throws IOException {
-        accessLog("read", String.valueOf(fd), String.valueOf(size), String.valueOf(size));
+        logger.log("read", fd, size, size);
         long rc = nativieCurveFSRead(instancePtr, fd, buf, size, offset);
         return (int) rc;
     }
 
     public int write(int fd, byte[] buf, long size, long offset) throws IOException {
-        accessLog("write", String.valueOf(fd), String.valueOf(size), String.valueOf(size));
+        logger.log("write", fd, size, size);
         long rc = nativieCurveFSWrite(instancePtr, fd, buf, size, offset);
         return (int) rc;
     }
 
     public void fsync(int fd) throws IOException {
-        accessLog("fsync", String.valueOf(fd));
+        logger.log("fsync", fd);
         nativeCurveFSFSync(instancePtr, fd);
     }
 
     public void close(int fd) throws IOException {
-        accessLog("close", String.valueOf(fd));
+        logger.log("close", fd);
         nativeCurveFSClose(instancePtr, fd);
     }
 
     public void unlink(String path) throws IOException {
-        accessLog("unlink", path.toString());
+        logger.log("unlink", path);
         nativeCurveFSUnlink(instancePtr, path);
     }
 
     // others
     public void statfs(String path, CurveFSStatVFS statvfs) throws IOException {
-        accessLog("statfs", path.toString());
+        logger.log("statfs", path);
         nativeCurveFSStatFs(instancePtr, statvfs);
     }
 
     public void lstat(String path, CurveFSStat stat) throws IOException {
-        accessLog("lstat", path.toString());
+        logger.log("lstat", path);
         nativeCurveFSLstat(instancePtr, path, stat);
     }
 
     public void fstat(int fd, CurveFSStat stat) throws IOException {
-        accessLog("fstat", String.valueOf(fd));
+        logger.log("fstat", fd);
         nativeCurveFSFStat(instancePtr, fd, stat);
     }
 
     public void setattr(String path, CurveFSStat stat, int mask) throws IOException {
-        accessLog("setattr", path.toString());
+        logger.log("setattr", path);
         nativeCurveFSSetAttr(instancePtr, path, stat, mask);
     }
 
     public void chmod(String path, int mode) throws IOException {
-        accessLog("chmod", path.toString());
+        logger.log("chmod", path);
         nativeCurveFSChmod(instancePtr, path, mode);
     }
 
     public void chown(String path, int uid, int gid) throws IOException {
-        accessLog("chown", path.toString(), String.valueOf(uid), String.valueOf(gid));
+        logger.log("chown", path, uid, gid);
         nativeCurveFSChown(instancePtr, path, uid, gid);
     }
 
     public void rename(String src, String dst) throws IOException {
-        accessLog("rename", src.toString(), dst.toString());
+        logger.log("rename", src, dst);
         nativeCurveFSRename(instancePtr, src, dst);
     }
 }
