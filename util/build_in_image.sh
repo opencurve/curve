@@ -182,9 +182,9 @@ build_target() {
     local target_array
     if [ "$g_stor" == "bs" ]; then
         if [[ "$g_target" = "*" ]]; then
-            target_array=("-- //... -//curvefs/...")
+            target_array=("-- //...")
         else
-            target_array=($(bazel query 'kind("cc_(test|binary)", //... -//curvefs/...)' | grep -E "$g_target"))
+            target_array=($(bazel query 'kind("cc_(test|binary)", //...)' | grep -E "$g_target"))
         fi
     elif [ "$g_stor" == "fs" ]; then
         if [[ "$g_target" = "*" ]]; then
