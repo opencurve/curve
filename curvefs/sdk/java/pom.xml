@@ -30,6 +30,9 @@
             <resource>
                 <directory>native/build</directory>
             </resource>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
         </resources>
     </build>
 
