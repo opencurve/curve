@@ -22,9 +22,8 @@
 
 package io.opencurve.curve.fs.hadoop;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
+import io.opencurve.curve.fs.common.StackLogger;
 import io.opencurve.curve.fs.libfs.CurveFSMount;
 
 import java.io.IOException;
@@ -42,6 +41,8 @@ import java.io.OutputStream;
  *  much more.
  */
 public class CurveFSOutputStream extends OutputStream {
+    private static final StackLogger logger = new StackLogger("CurveFSOutputStream", 0);
+
     private boolean closed;
 
     private CurveFSProto curve;
@@ -58,6 +59,7 @@ public class CurveFSOutputStream extends OutputStream {
      */
     public CurveFSOutputStream(Configuration conf, CurveFSProto curvefs,
                                int fh, int bufferSize) {
+        logger.log("CurveFSOutputStream", fh, bufferSize);
         curve = curvefs;
         fileHandle = fh;
         closed = false;
@@ -68,6 +70,8 @@ public class CurveFSOutputStream extends OutputStream {
      * Close the Curve file handle if close() wasn't explicitly called.
      */
     protected void finalize() throws Throwable {
+        logger.log("finalize");
+
         try {
             if (!closed) {
                 close();
@@ -91,12 +95,15 @@ public class CurveFSOutputStream extends OutputStream {
      * @return The file offset in bytes.
      */
     public synchronized long getPos() throws IOException {
+        logger.log("getPos");
         checkOpen();
         return curve.lseek(fileHandle, 0, CurveFSMount.SEEK_CUR);
     }
 
     @Override
     public synchronized void write(int b) throws IOException {
+        logger.log("write", b);
+
         byte buf[] = new byte[1];
         buf[0] = (byte) b;
         write(buf, 0, 1);
@@ -104,6 +111,7 @@ public class CurveFSOutputStream extends OutputStream {
 
     @Override
     public synchronized void write(byte buf[], int off, int len) throws IOException {
+        logger.log("write", off, len);
         checkOpen();
 
         while (len > 0) {
@@ -159,6 +167,8 @@ public class CurveFSOutputStream extends OutputStream {
 
     @Override
     public synchronized void flush() throws IOException {
+        logger.log("flush");
+
         checkOpen();
         flushBuffer(); // buffer -> libcurvefs
         curve.fsync(fileHandle); // libcurvefs -> cluster
@@ -166,6 +176,7 @@ public class CurveFSOutputStream extends OutputStream {
 
     @Override
     public synchronized void close() throws IOException {
+        logger.log("close");
         checkOpen();
         flush();
         curve.close(fileHandle);

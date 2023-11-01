@@ -27,6 +27,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSInputStream;
 import io.opencurve.curve.fs.libfs.CurveFSMount;
+import io.opencurve.curve.fs.common.StackLogger;
 
 import java.io.IOException;
 
@@ -37,6 +38,7 @@ import java.io.IOException;
  */
 public class CurveFSInputStream extends FSInputStream {
     private static final Log LOG = LogFactory.getLog(CurveFSInputStream.class);
+    private static final StackLogger logger = new StackLogger("CurveFSInputStream", 0);
     private boolean closed;
 
     private int fileHandle;
@@ -59,21 +61,25 @@ public class CurveFSInputStream extends FSInputStream {
      */
     public CurveFSInputStream(Configuration conf, CurveFSProto curvefs,
                               int fh, long flength, int bufferSize) {
-      // Whoever's calling the constructor is responsible for doing the actual curve_open
-      // call and providing the file handle.
-      fileLength = flength;
-      fileHandle = fh;
-      closed = false;
-      curve = curvefs;
-      buffer = new byte[1<<21];
-      LOG.debug("CurveInputStream constructor: initializing stream with fh "
-                + fh + " and file length " + flength);
+        logger.log("CurveFSInputStream");
+
+        // Whoever's calling the constructor is responsible for doing the actual curve_open
+        // call and providing the file handle.
+        fileLength = flength;
+        fileHandle = fh;
+        closed = false;
+        curve = curvefs;
+        buffer = new byte[1<<21];
+        LOG.debug("CurveInputStream constructor: initializing stream with fh "
+                  + fh + " and file length " + flength);
     }
 
     /** Curve likes things to be closed before it shuts down,
      * so closing the IOStream stuff voluntarily in a finalizer is good
      */
     protected void finalize() throws Throwable {
+        logger.log("finalize");
+
         try {
             if (!closed) {
                 close();
@@ -84,6 +90,8 @@ public class CurveFSInputStream extends FSInputStream {
     }
 
     private synchronized boolean fillBuffer() throws IOException {
+        logger.log("fillBuffer");
+
         bufValid = curve.read(fileHandle, buffer, buffer.length, -1);
         bufPos = 0;
         if (bufValid < 0) {
@@ -118,6 +126,8 @@ public class CurveFSInputStream extends FSInputStream {
     }
 
     public synchronized void seek(long targetPos) throws IOException {
+        logger.log("seek", targetPos);
+
         LOG.trace("CurveInputStream.seek: Seeking to position " + targetPos + " on fd "
                   + fileHandle);
         if (targetPos > fileLength) {
@@ -143,6 +153,7 @@ public class CurveFSInputStream extends FSInputStream {
      * @return false.
      */
     public synchronized boolean seekToNewSource(long targetPos) {
+        logger.log("seekToNewSource", targetPos);
         return false;
     }
 
@@ -152,6 +163,7 @@ public class CurveFSInputStream extends FSInputStream {
      */
     @Override
     public synchronized int read() throws IOException {
+        logger.log("read");
         LOG.trace(
                   "CurveInputStream.read: Reading a single byte from fd " + fileHandle
                   + " by calling general read function");
@@ -183,6 +195,8 @@ public class CurveFSInputStream extends FSInputStream {
      */
     @Override
     public synchronized int read(byte buf[], int off, int len) throws IOException {
+        logger.log("read", off, len);
+
         LOG.trace(
             "CurveInputStream.read: Reading " + len + " bytes from fd " + fileHandle);
 
@@ -241,6 +255,8 @@ public class CurveFSInputStream extends FSInputStream {
      */
     @Override
     public void close() throws IOException {
+        logger.log("close");
+
         LOG.trace("CurveOutputStream.close:enter");
         if (!closed) {
             curve.close(fileHandle);
