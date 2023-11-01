@@ -26,6 +26,8 @@ cc_binary(
     copts = CURVE_DEFAULT_COPTS,
     linkopts = [
         "-Wl,-rpath=/tmp/libcurvefs,--disable-new-dtags",
+        "-L/usr/lib/x86_64-linux-gnu/",
+        "-lhashkit",
     ],
     deps = [
         "@com_google_absl//absl/cleanup",
