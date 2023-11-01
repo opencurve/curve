@@ -124,7 +124,7 @@ class CurveSegmentLogStorage : public braft::LogStorage {
 
     // first log index in log
     virtual int64_t first_log_index() {
-        return _first_log_index.load(butil::memory_order_acquire);
+        return _first_log_index.load(butil::memory_order_seq_cst);
     }
 
     // last log index in log
@@ -171,12 +171,17 @@ class CurveSegmentLogStorage : public braft::LogStorage {
         return ptr->currut_fd();
     }
 
-    bool get_segment_meta_info(const int64_t index, off_t* offset, size_t* length, int64_t* term) {
+    bool get_segment_meta_info(const int64_t index, int* fd, off_t* offset, size_t* length, int64_t* term) {
         scoped_refptr<Segment> ptr;
         if (get_segment(index, &ptr) != 0) {
             return false;
         }
-        return ptr->get_meta_info(index, offset, length, term);
+        if (ptr->get_meta_info(index, offset, length, term)) {
+            *fd = ptr->currut_fd();
+            return true;
+        } else {
+            return false;
+        }
     }
 
  private:

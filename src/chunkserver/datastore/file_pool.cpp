@@ -292,7 +292,8 @@ int FilePool::GetFile(const std::string& targetpath, char* metapage) {
             } else if (ret < 0) {
                 LOG(ERROR) << "file rename failed, " << srcpath.c_str();
             } else {
-                LOG(INFO) << "get file " << targetpath
+                LOG(INFO) << "rename file " << srcpath 
+                          << " to " << targetpath
                           << " success! now pool size = "
                           << tmpChunkvec_.size();
                 break;

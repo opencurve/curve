@@ -227,6 +227,10 @@ CSErrorCode CSChunkFile::Open(bool createFile) {
         return CSErrorCode::InternalError;
     }
     fd_ = rc;
+    LOG(INFO) << "Open chunk file success."
+              << " filepath = " << chunkFilePath
+              << " enableOdsyncWhenOpenChunkFile_ = " << enableOdsyncWhenOpenChunkFile_
+              << " fd = " << fd_;
     struct stat fileInfo;
     rc = lfs_->Fstat(fd_, &fileInfo);
     if (rc < 0) {

@@ -142,15 +142,12 @@ class BAIDU_CACHELINE_ALIGNMENT CurveSegment:
     }
 
     int64_t last_index() const override {
-        return _last_index.load(butil::memory_order_consume);
+        return _last_index.load(butil::memory_order_seq_cst);
     }
 
     std::string file_name() override;
 
     int currut_fd() override {
-        if (FLAGS_enableWalDirectWrite) 
-            return _direct_fd;
-        else
             return _fd;
     }
     bool get_meta_info(const int64_t index, off_t* offset, size_t* length, int64_t* term) override;

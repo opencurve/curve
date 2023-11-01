@@ -58,6 +58,8 @@ namespace chunkserver {
 
 const size_t kEntryHeaderSize = 28;
 
+const size_t kWalHeaderSize = 4096;
+
 enum CheckSumType {
     CHECKSUM_MURMURHASH32 = 0,
     CHECKSUM_CRC32 = 1,

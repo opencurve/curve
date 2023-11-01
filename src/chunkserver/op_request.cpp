@@ -38,6 +38,8 @@
 namespace curve {
 namespace chunkserver {
 
+const size_t kWalHeaderSize = 4096;
+
 ChunkOpRequest::ChunkOpRequest() :
     datastore_(nullptr),
     node_(nullptr),
@@ -130,6 +132,10 @@ int ChunkOpRequest::Encode(const ChunkRequest *request,
     if (data != nullptr) {
         log->append(*data);
     }
+    LOG(INFO) << "zyb attachment data_length: " << data->size()
+              << " encode log_length: " << log->size()
+              << " request data_length: " << request->size()
+              << " request data_offset: " << request->offset();
 
     return 0;
 }
@@ -449,6 +455,14 @@ void WriteChunkRequest::OnApply(uint64_t index,
     }
 
     if (request_->size() < 128 * 4096) {
+        LOG(INFO) << "zyb OnApply WriteChunk info: "
+                    << " group id: " << ToGroupIdString(request_->logicpoolid(), request_->copysetid())
+                    << " sn: " << request_->sn()
+                    << " chunkid: " << request_->chunkid()
+                    << " data_length: " << request_->size()
+                    << " data_offset: " << request_->offset()
+                    << " index: " << index;
+
         ret = datastore_->WriteChunk(request_->chunkid(),
                                     request_->sn(),
                                     cntl_->request_attachment(),
@@ -459,24 +473,41 @@ void WriteChunkRequest::OnApply(uint64_t index,
     } else if (common::is_aligned(request_->offset(), 4096) &&
                common::is_aligned(request_->size(), 4096)) {
 
+        int wal_fd = 0;
         off_t wal_offset =0;
         size_t wal_length =0;
         int64_t wal_term = 0;
+        size_t data_length = request_->size();
         off_t data_offset = request_->offset();
         
-        int wal_fd = node_->GetLogStorage()->get_segment_fd(index);
-        int meta_ret = node_->GetLogStorage()->get_segment_meta_info(index, &wal_offset, &wal_length, &wal_term);
+        bool meta_ret = node_->GetLogStorage()->get_segment_meta_info(index, &wal_fd, &wal_offset, &wal_length, &wal_term);
 
-        if (wal_length != request_->size() + 4096 ||
+        LOG(INFO) << "zyb OnApply info: "
+                    << " group id: " << ToGroupIdString(request_->logicpoolid(), request_->copysetid())
+                    << " sn: " << request_->sn()
+                    << " chunkid: " << request_->chunkid()
+                    << " request data_length: " << request_->size()
+                    << " request data_offset: " << request_->offset()
+                    << " data_size: " << cntl_->request_attachment().size()
+                    << " index: " << index
+                    << " wal_fd: " << wal_fd
+                    << " wal_offset: " << wal_offset
+                    << " wal_length: " << wal_length
+                    << " wal_term: " << wal_term
+                    << " meta_ret: " << meta_ret;
+
+        if (common::is_aligned(wal_offset, 4096) == false ||
+            common::is_aligned(wal_length, 4096) == false ||
+            common::is_aligned(data_offset, 4096) == false ||
+            common::is_aligned(data_length, 4096) == false ||
             wal_fd <= 0 || 
             meta_ret == false) {
 
-            LOG(WARNING) << "zyb OnApply error: "
-                        << " logic pool id: " << request_->logicpoolid()
-                        << " copyset id: " << request_->copysetid()
+            LOG(WARNING) << "zyb OnApply pre clone error: "
+                        << " group id: " << ToGroupIdString(request_->logicpoolid(), request_->copysetid())
                         << " sn: " << request_->sn()
                         << " chunkid: " << request_->chunkid()
-                        << " data_size: " << request_->size()
+                        << " data_length: " << request_->size()
                         << " data_offset: " << request_->offset()
                         << " index: " << index
                         << " wal_fd: " << wal_fd
@@ -492,8 +523,8 @@ void WriteChunkRequest::OnApply(uint64_t index,
         ret = datastore_->WriteChunkWithClone(request_->chunkid(),
                                                 request_->sn(),
                                                 wal_fd,
-                                                wal_offset,
-                                                wal_length,
+                                                wal_offset + kWalHeaderSize,
+                                                wal_length - kWalHeaderSize,
                                                 data_offset,
                                                 &cost,
                                                 cloneSourceLocation);
@@ -501,8 +532,7 @@ void WriteChunkRequest::OnApply(uint64_t index,
         uint32_t aoffset = common::align_down(request_->offset(), 4096);
         uint32_t alength = common::align_down(request_->size(), 4096);
         LOG(ERROR) << "zyb split OnApply error: "
-                    << " logic pool id: " << request_->logicpoolid()
-                    << " copyset id: " << request_->copysetid()
+                    << " group id: " << ToGroupIdString(request_->logicpoolid(), request_->copysetid())
                     << " sn: " << request_->sn()
                     << " chunkid: " << request_->chunkid()
                     << " data_size: " << request_->size()
@@ -632,25 +662,41 @@ void WriteChunkRequest::OnApplyFromLogIndex(std::shared_ptr<CSDataStore> datasto
     } else if (common::is_aligned(request.offset(), 4096) &&
                common::is_aligned(request.size(), 4096)) {
         //only using clone
-        off_t wal_offset;
-        size_t wal_length;
-        int64_t wal_term;
+        int wal_fd = 0;
+        off_t wal_offset = 0;
+        size_t wal_length = 0;
+        int64_t wal_term = 0;
+        size_t data_length = request.size();
         off_t data_offset = request.offset();
-
         
-        int wal_fd = logStorage->get_segment_fd(index);
-        int meta_ret = logStorage->get_segment_meta_info(index, &wal_offset, &wal_length, &wal_term);
+        bool meta_ret = logStorage->get_segment_meta_info(index, &wal_fd, &wal_offset, &wal_length, &wal_term);
 
-        if (wal_length != request.size() + 4096 ||
+        LOG(INFO) << "zyb  OnApplyFromLogIndex info: "
+                    << " group id: " << ToGroupIdString(request.logicpoolid(), request.copysetid())
+                    << " chunkid: " << request.chunkid()
+                    << " sn: " << request.sn()
+                    << " request data_offset: " << request.offset()
+                    << " request data_length: " << request.size()
+                    << " data_size: " << data.size()
+                    << " index: " << index
+                    << " wal_fd: " << wal_fd
+                    << " wal_offset: " << wal_offset
+                    << " wal_length: " << wal_length
+                    << " wal_term: " << wal_term
+                    << " meta_ret: " << meta_ret;
+
+        if (common::is_aligned(wal_offset, 4096) == false ||
+            common::is_aligned(wal_length, 4096) == false ||
+            common::is_aligned(data_offset, 4096) == false ||
+            common::is_aligned(data_length, 4096) == false ||
             wal_fd <= 0 || 
             meta_ret == false) {
             LOG(WARNING) << "zyb prep clone OnApplyFromLogIndex error: "
-                        << " logic pool id: " << request.logicpoolid()
-                        << " copyset id: " << request.copysetid()
+                        << " group id: " << ToGroupIdString(request.logicpoolid(), request.copysetid())
                         << " chunkid: " << request.chunkid()
                         << " sn: " << request.sn()
-                        << " data_size: " << request.size()
                         << " data_offset: " << request.offset()
+                        << " data_length: " << request.size()
                         << " index: " << index
                         << " wal_fd: " << wal_fd
                         << " wal_offset: " << wal_offset
@@ -662,8 +708,8 @@ void WriteChunkRequest::OnApplyFromLogIndex(std::shared_ptr<CSDataStore> datasto
         ret = datastore->WriteChunkWithClone(request.chunkid(),
                                                 request.sn(),
                                                 wal_fd,
-                                                wal_offset,
-                                                wal_length,
+                                                wal_offset + kWalHeaderSize,
+                                                wal_length - kWalHeaderSize,
                                                 data_offset,
                                                 &cost,
                                                 cloneSourceLocation);
@@ -672,9 +718,8 @@ void WriteChunkRequest::OnApplyFromLogIndex(std::shared_ptr<CSDataStore> datasto
         uint32_t aoffset = common::align_down(request.offset(), 4096);
         uint32_t alength = common::align_down(request.size(), 4096);
 
-        LOG(WARNING) << "zyb spilt  OnApplyFromLogIndex error: "
-                    << " logic pool id: " << request.logicpoolid()
-                    << " copyset id: " << request.copysetid()
+        LOG(WARNING) << "zyb split  OnApplyFromLogIndex error: "
+                    << " group id: " << ToGroupIdString(request.logicpoolid(), request.copysetid())
                     << " chunkid: " << request.chunkid()
                     << " sn: " << request.sn()
                     << " data_size: " << request.size()

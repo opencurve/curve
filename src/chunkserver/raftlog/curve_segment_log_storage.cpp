@@ -245,11 +245,11 @@ int CurveSegmentLogStorage::list_segments(bool is_empty) {
                 << " last_log_index: " << last_log_index;
             return -1;
         } else if (last_log_index == -1 &&
-                    _first_log_index.load(butil::memory_order_acquire)
+                    _first_log_index.load(butil::memory_order_seq_cst)
                     < segment->first_index()) {
             LOG(WARNING) << "closed segment has hole, path: " << _path
                 << " first_log_index: "
-                << _first_log_index.load(butil::memory_order_relaxed)
+                << _first_log_index.load(butil::memory_order_seq_cst)
                 << " first_index: " << segment->first_index()
                 << " last_index: " << segment->last_index();
             return -1;
@@ -257,7 +257,7 @@ int CurveSegmentLogStorage::list_segments(bool is_empty) {
                    _first_log_index > segment->last_index()) {
             LOG(WARNING) << "closed segment need discard, path: " << _path
                 << " first_log_index: "
-                << _first_log_index.load(butil::memory_order_relaxed)
+                << _first_log_index.load(butil::memory_order_seq_cst)
                 << " first_index: " << segment->first_index()
                 << " last_index: " << segment->last_index();
             segment->unlink();
@@ -270,17 +270,17 @@ int CurveSegmentLogStorage::list_segments(bool is_empty) {
     }
     if (_open_segment) {
         if (last_log_index == -1 &&
-            _first_log_index.load(butil::memory_order_relaxed) <
+            _first_log_index.load(butil::memory_order_seq_cst) <
                                         _open_segment->first_index()) {
         LOG(WARNING) << "open segment has hole, path: " << _path
             << " first_log_index: "
-            << _first_log_index.load(butil::memory_order_relaxed)
+            << _first_log_index.load(butil::memory_order_seq_cst)
             << " first_index: " << _open_segment->first_index();
         } else if (last_log_index != -1 &&
                         _open_segment->first_index() != last_log_index + 1) {
             LOG(WARNING) << "open segment has hole, path: " << _path
                 << " first_log_index: "
-                << _first_log_index.load(butil::memory_order_relaxed)
+                << _first_log_index.load(butil::memory_order_seq_cst)
                 << " first_index: " << _open_segment->first_index();
         }
         CHECK_LE(last_log_index, _open_segment->last_index());
@@ -305,7 +305,7 @@ int CurveSegmentLogStorage::load_segments(
             return ret;
         }
         _last_log_index.store(segment->last_index(),
-                                    butil::memory_order_release);
+                                    butil::memory_order_seq_cst);
     }
 
     // open segment
@@ -325,7 +325,7 @@ int CurveSegmentLogStorage::load_segments(
             _open_segment = NULL;
         } else {
             _last_log_index.store(_open_segment->last_index(),
-                                 butil::memory_order_release);
+                                 butil::memory_order_seq_cst);
         }
         do {
             if (dynamic_cast<BraftSegment *>(_open_segment.get()) != nullptr) {
@@ -352,7 +352,7 @@ int CurveSegmentLogStorage::load_segments(
 }
 
 int64_t CurveSegmentLogStorage::last_log_index() {
-    return _last_log_index.load(butil::memory_order_acquire);
+    return _last_log_index.load(butil::memory_order_seq_cst);
 }
 
 braft::LogEntry* CurveSegmentLogStorage::get_entry(const int64_t index) {
@@ -369,6 +369,8 @@ int CurveSegmentLogStorage::get_segment(int64_t index,
     int64_t first_index = first_log_index();
     int64_t last_index = last_log_index();
     if (first_index == last_index + 1) {
+        LOG(WARNING) << "Log is empty, first_log_index: " << first_index
+            << " last_log_index: " << last_index;
         return -1;
     }
     if (index < first_index || index > last_index + 1) {
@@ -378,6 +380,8 @@ int CurveSegmentLogStorage::get_segment(int64_t index,
             << " last_log_index: " << last_index;
         return -1;
     } else if (index == last_index + 1) {
+        LOG(WARNING) << "Attempted to access entry " << index
+            << " which is the next entry of last_log_index: " << last_index;
         return -1;
     }
 
@@ -405,7 +409,7 @@ int64_t CurveSegmentLogStorage::get_term(const int64_t index) {
 
 int CurveSegmentLogStorage::append_entry(const braft::LogEntry* entry) {
     scoped_refptr<Segment> segment =
-                open_segment(entry->data.size() + kEntryHeaderSize);
+                open_segment(entry->data.size() + kWalHeaderSize);
     if (NULL == segment) {
         return EIO;
     }
@@ -416,7 +420,11 @@ int CurveSegmentLogStorage::append_entry(const braft::LogEntry* entry) {
     if (EEXIST == ret && entry->id.term != get_term(entry->id.index)) {
         return EINVAL;
     }
-    _last_log_index.fetch_add(1, butil::memory_order_release);
+    _last_log_index.fetch_add(1, butil::memory_order_seq_cst);
+    LOG(INFO) << "zyb: log append_entry " << _path << " index: " << entry->id.index
+              << " term: " << entry->id.term
+              << " _first_log_index: " << first_log_index()
+              << " _last_log_index: " << last_log_index();
 
     return segment->sync(_enable_sync);
 }
@@ -426,7 +434,7 @@ int CurveSegmentLogStorage::append_entries(
     if (entries.empty()) {
         return 0;
     }
-    if (_last_log_index.load(butil::memory_order_relaxed) + 1
+    if (_last_log_index.load(butil::memory_order_seq_cst) + 1
             != entries.front()->id.index) {
         LOG(FATAL) << "There's gap between appending entries and"
                    << " _last_log_index path: " << _path;
@@ -437,7 +445,7 @@ int CurveSegmentLogStorage::append_entries(
         braft::LogEntry* entry = entries[i];
 
         scoped_refptr<Segment> segment =
-                    open_segment(entry->data.size() + kEntryHeaderSize);
+                    open_segment(entry->data.size() + kWalHeaderSize);
         if (NULL == segment) {
             return i;
         }
@@ -445,19 +453,24 @@ int CurveSegmentLogStorage::append_entries(
         if (0 != ret) {
             return i;
         }
-        _last_log_index.fetch_add(1, butil::memory_order_release);
+        _last_log_index.fetch_add(1, butil::memory_order_seq_cst);
         last_segment = segment;
     }
     last_segment->sync(_enable_sync);
+    LOG(INFO) << "zyb 2: log append_entry " << _path 
+            << " index begin: " << entries.front()->id.index
+            << " index end: " << entries.back()->id.index
+            << " _first_log_index: " << first_log_index()
+            << " _last_log_index: " << last_log_index();
     return entries.size();
 }
 
 int CurveSegmentLogStorage::truncate_prefix(const int64_t first_index_kept) {
     // segment files
-    if (_first_log_index.load(butil::memory_order_acquire) >=
+    if (_first_log_index.load(butil::memory_order_seq_cst) >=
                                                     first_index_kept) {
       BRAFT_VLOG << "Nothing is going to happen since _first_log_index="
-                     << _first_log_index.load(butil::memory_order_relaxed)
+                     << _first_log_index.load(butil::memory_order_seq_cst)
                      << " >= first_index_kept="
                      << first_index_kept;
         return 0;
@@ -504,7 +517,7 @@ void CurveSegmentLogStorage::pop_segments(
     popped->clear();
     popped->reserve(32);
     BAIDU_SCOPED_LOCK(_mutex);
-    _first_log_index.store(first_index_kept, butil::memory_order_release);
+    _first_log_index.store(first_index_kept, butil::memory_order_seq_cst);
     for (SegmentMap::iterator it = _segments.begin(); it != _segments.end();) {
         scoped_refptr<Segment>& segment = it->second;
         if (segment->last_index() < first_index_kept) {
@@ -527,6 +540,9 @@ void CurveSegmentLogStorage::pop_segments(
         // _log_storage is empty
         _last_log_index.store(first_index_kept - 1);
     }
+    LOG(INFO) << "zyb: log pop_segments first_index_kept: " << first_index_kept
+                << " _first_log_index: " << first_log_index()
+                << " _last_log_index: " << last_log_index();
 }
 
 void CurveSegmentLogStorage::pop_segments_from_back(
@@ -537,7 +553,7 @@ void CurveSegmentLogStorage::pop_segments_from_back(
     popped->reserve(32);
     *last_segment = NULL;
     BAIDU_SCOPED_LOCK(_mutex);
-    _last_log_index.store(last_index_kept, butil::memory_order_release);
+    _last_log_index.store(last_index_kept, butil::memory_order_seq_cst);
     if (_open_segment) {
         if (_open_segment->first_index() <= last_index_kept) {
             *last_segment = _open_segment;
@@ -565,8 +581,11 @@ void CurveSegmentLogStorage::pop_segments_from_back(
         // all the logs have been cleared, the we move _first_log_index to the
         // next index
         _first_log_index.store(last_index_kept + 1,
-                                butil::memory_order_release);
+                                butil::memory_order_seq_cst);
     }
+    LOG(INFO) << "zyb: log pop_segments_from_back last_index_kept: " << last_index_kept
+                << " _first_log_index: " << first_log_index()
+                << " _last_log_index: " << last_log_index();
 }
 
 int CurveSegmentLogStorage::truncate_suffix(const int64_t last_index_kept) {
@@ -578,8 +597,8 @@ int CurveSegmentLogStorage::truncate_suffix(const int64_t last_index_kept) {
     int ret = -1;
 
     if (last_segment) {
-        if (_first_log_index.load(butil::memory_order_relaxed) <=
-            _last_log_index.load(butil::memory_order_relaxed)) {
+        if (_first_log_index.load(butil::memory_order_seq_cst) <=
+            _last_log_index.load(butil::memory_order_seq_cst)) {
             truncate_last_segment = true;
         } else {
             // trucate_prefix() and truncate_suffix() to discard entire logs
@@ -633,8 +652,8 @@ int CurveSegmentLogStorage::reset(const int64_t next_log_index) {
         popped.push_back(_open_segment);
         _open_segment = NULL;
     }
-    _first_log_index.store(next_log_index, butil::memory_order_relaxed);
-    _last_log_index.store(next_log_index - 1, butil::memory_order_relaxed);
+    _first_log_index.store(next_log_index, butil::memory_order_seq_cst);
+    _last_log_index.store(next_log_index - 1, butil::memory_order_seq_cst);
     lck.unlock();
     // NOTE: see the comments in truncate_prefix
     if (save_meta(next_log_index) != 0) {

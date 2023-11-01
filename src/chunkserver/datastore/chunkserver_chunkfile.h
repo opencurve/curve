@@ -333,11 +333,11 @@ class CSChunkFile {
         int rc = lfs_->WriteWithClone(fd_, src_fd, src_offset, src_length, dest_offset + pageSize_);
         if (rc < 0) {
             LOG(ERROR) << "WriteWithClone failed: " 
-                        << " fd " << fd
+                        << " fd " << fd_
                         << " src_fd " << src_fd
                         << " src_offset " << src_offset
                         << " src_length " << src_length
-                        << " dest_offset " << dest_offset;
+                        << " dest_offset " << dest_offset
                         << " pageSize_ " << pageSize_;
             return rc;
         }

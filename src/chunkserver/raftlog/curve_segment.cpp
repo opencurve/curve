@@ -50,7 +50,7 @@ namespace curve {
 namespace chunkserver {
 
 DEFINE_bool(raftSyncSegments, true, "call fsync when a segment is closed");
-DEFINE_bool(enableWalDirectWrite, false, "enable wal direct write or not");
+DEFINE_bool(enableWalDirectWrite, true, "enable wal direct write or not");
 DEFINE_uint32(walAlignSize, 4096, "wal align size to write");
 
 int CurveSegment::create() {
@@ -195,7 +195,7 @@ int CurveSegment::load(braft::ConfigurationManager* configuration_manager) {
         entry_off += skip_len;
     }
 
-    const int64_t last_index = _last_index.load(butil::memory_order_relaxed);
+    const int64_t last_index = _last_index.load(butil::memory_order_seq_cst);
     if (ret == 0 && !_is_open) {
         if (actual_last_index < last_index) {
             LOG(ERROR) << "data lost in a full segment, path: " << _path
@@ -305,7 +305,7 @@ std::string CurveSegment::file_name() {
 int CurveSegment::_load_entry(off_t offset, EntryHeader* head,
                               butil::IOBuf* data, size_t size_hint) const {
     butil::IOPortal buf;
-    size_t to_read = std::max(size_hint, kEntryHeaderSize);
+    size_t to_read = std::max(size_hint, kWalHeaderSize);
     const ssize_t n = braft::file_pread(&buf, _fd, offset, to_read);
     if (n != (ssize_t)to_read) {
         return n < 0 ? -1 : 1;
@@ -343,22 +343,22 @@ int CurveSegment::_load_entry(off_t offset, EntryHeader* head,
         *head = tmp;
     }
     if (data != NULL) {
-        if (buf.length() < kEntryHeaderSize + data_real_len) {
-            const size_t to_read = kEntryHeaderSize + data_real_len
+        if (buf.length() < kWalHeaderSize - data_hdr + data_real_len) {
+            const size_t to_read = kWalHeaderSize + data_real_len
                                                     - buf.length();
             const ssize_t n = braft::file_pread(&buf, _fd,
                                     offset + buf.length(), to_read);
             if (n != (ssize_t)to_read) {
                 return n < 0 ? -1 : 1;
             }
-        } else if (buf.length() > kEntryHeaderSize + data_real_len) {
-            buf.pop_back(buf.length() - kEntryHeaderSize - data_real_len);
+        } else if (buf.length() > kWalHeaderSize - data_hdr + data_real_len) {
+            buf.pop_back(buf.length() - kWalHeaderSize - data_real_len);
         }
-        CHECK_EQ(buf.length(), kEntryHeaderSize + data_real_len);
-        buf.pop_front(kEntryHeaderSize);
+        CHECK_EQ(buf.length(), kWalHeaderSize - data_hdr + data_real_len);
+        buf.pop_front(kWalHeaderSize - data_hdr);
         if (!verify_checksum(tmp.checksum_type, buf, tmp.data_checksum)) {
             LOG(ERROR) << "Found corrupted data at offset="
-                       << offset + kEntryHeaderSize
+                       << offset + kWalHeaderSize
                        << " header=" << tmp
                        << " path: " << _path;
             return -1;
@@ -372,7 +372,7 @@ int CurveSegment::append(const braft::LogEntry* entry) {
     if (BAIDU_UNLIKELY(!entry || !_is_open)) {
         return EINVAL;
     } else if (entry->id.index !=
-                    _last_index.load(butil::memory_order_consume) + 1) {
+                    _last_index.load(butil::memory_order_seq_cst) + 1) {
         CHECK(false) << "entry->index=" << entry->id.index
                   << " _last_index=" << _last_index
                   << " _first_index=" << _first_index;
@@ -400,17 +400,29 @@ int CurveSegment::append(const braft::LogEntry* entry) {
                    << ", path: " << _path;
         return -1;
     }
+    butil::IOBuf raw_data;
+    raw_data.append(data);
+
+    uint32_t metaSize = 0;
+    raw_data.cutn(&metaSize, sizeof(uint32_t));
+    metaSize = butil::NetToHost32(metaSize);
+    raw_data.pop_front(metaSize);
+    size_t data_hdr = data.size() - raw_data.size();
+    CHECK_EQ(data_hdr, metaSize + sizeof(uint32_t));
+
     uint32_t data_check_sum = get_checksum(_checksum_type, data);
     uint32_t real_length = data.length();
-    size_t to_write = kEntryHeaderSize + data.length();
-    uint32_t zero_bytes_num = 0;
+    uint32_t raw_length = raw_data.length();
+    CHECK_EQ(raw_length, real_length - data_hdr);
+    //size_t to_write = data.length();
+    //uint32_t zero_bytes_num = 0;
     // 4KB alignment
-    if (to_write % FLAGS_walAlignSize != 0) {
-        zero_bytes_num = (to_write / FLAGS_walAlignSize + 1) *
-                                        FLAGS_walAlignSize - to_write;
-    }
-    data.resize(data.length() + zero_bytes_num);
-    to_write = kEntryHeaderSize + data.length();
+    // if (real_length % FLAGS_walAlignSize != 0) {
+    //     zero_bytes_num = (real_length / FLAGS_walAlignSize + 1) *
+    //                                     FLAGS_walAlignSize - real_length;
+    // }
+    //data.resize(data.length() + zero_bytes_num);
+    size_t to_write = kWalHeaderSize + raw_length;
     CHECK_LE(data.length(), 1ul << 56ul);
     char* write_buf = nullptr;
     if (FLAGS_enableWalDirectWrite) {
@@ -419,7 +431,7 @@ int CurveSegment::append(const braft::LogEntry* entry) {
         LOG_IF(FATAL, ret < 0 || write_buf == nullptr)
         << "posix_memalign WAL write buffer failed " << strerror(ret);
     } else {
-        write_buf = new char[kEntryHeaderSize];
+        write_buf = new char[kWalHeaderSize];
     }
 
     const uint32_t meta_field = (entry->type << 24) | (_checksum_type << 16);
@@ -431,8 +443,9 @@ int CurveSegment::append(const braft::LogEntry* entry) {
           .pack32(data_check_sum);
     packer.pack32(get_checksum(
                   _checksum_type, write_buf, kEntryHeaderSize - 4));
+    data.copy_to(write_buf + kWalHeaderSize - data_hdr, data_hdr);
     if (FLAGS_enableWalDirectWrite) {
-        data.copy_to(write_buf + kEntryHeaderSize, real_length);
+        data.copy_to(write_buf + kWalHeaderSize, raw_length, data_hdr);
         int ret = ::pwrite(_direct_fd, write_buf, to_write, _meta.bytes);
         free(write_buf);
         if (ret != to_write) {
@@ -441,14 +454,16 @@ int CurveSegment::append(const braft::LogEntry* entry) {
         }
     } else {
         butil::IOBuf header;
-        header.append(write_buf, kEntryHeaderSize);
+        header.append(write_buf, kWalHeaderSize);
         delete write_buf;
         butil::IOBuf* pieces[2] = { &header, &data };
         size_t start = 0;
         ssize_t written = 0;
+        off_t offset = 0;
+
         while (written < (ssize_t)to_write) {
-            const ssize_t n = butil::IOBuf::cut_multiple_into_file_descriptor(
-                    _fd, pieces + start, ARRAY_SIZE(pieces) - start);
+            const ssize_t n = butil::IOBuf::pcut_multiple_into_file_descriptor(
+                    _fd, offset, pieces + start, ARRAY_SIZE(pieces) - start);
             if (n < 0) {
                 LOG(ERROR) << "Fail to write to fd=" << _fd
                            << ", path: " << _path << berror();
@@ -457,14 +472,28 @@ int CurveSegment::append(const braft::LogEntry* entry) {
             written += n;
             for (; start < ARRAY_SIZE(pieces) && pieces[start]->empty();
                     ++start) {}
+            if (start == ARRAY_SIZE(pieces)) {
+                offset += data_hdr;
+            }
         }
     }
     {
         BAIDU_SCOPED_LOCK(_mutex);
         _offset_and_term.push_back(std::make_pair(_meta.bytes, entry->id.term));
-        _last_index.fetch_add(1, butil::memory_order_relaxed);
+        _last_index.fetch_add(1, butil::memory_order_seq_cst);
         _meta.bytes += to_write;
     }
+    LOG(INFO) << "wal append, path: " << _path
+              << ", entry->id: " << entry->id
+              << ", entry->type: " << entry->type
+              << ", old _meta.bytes: " << (_meta.bytes - to_write)
+              << ", real_length: " << real_length
+              << ", raw_length: " << raw_length
+              << ", data_hdr: " << data_hdr
+              << ", to_write: " << to_write
+              << ", new _meta.bytes: " << _meta.bytes
+              << ", _last_index: " << _last_index.load()
+              << ", _first_index: " << _first_index;
     return _update_meta_page();
 }
 
@@ -551,16 +580,16 @@ braft::LogEntry* CurveSegment::get(const int64_t index) const {
 
 int CurveSegment::_get_meta(int64_t index, LogMeta* meta) const {
     BAIDU_SCOPED_LOCK(_mutex);
-    if (index > _last_index.load(butil::memory_order_relaxed)
+    if (index > _last_index.load(butil::memory_order_seq_cst)
                     || index < _first_index) {
         // out of range
         BRAFT_VLOG << "_last_index="
-                   << _last_index.load(butil::memory_order_relaxed)
+                   << _last_index.load(butil::memory_order_seq_cst)
                    << " _first_index=" << _first_index;
         return -1;
     } else if (_last_index == _first_index - 1) {
         BRAFT_VLOG << "_last_index="
-                   << _last_index.load(butil::memory_order_relaxed)
+                   << _last_index.load(butil::memory_order_seq_cst)
                    << " _first_index=" << _first_index;
         // empty
         return -1;
@@ -568,7 +597,7 @@ int CurveSegment::_get_meta(int64_t index, LogMeta* meta) const {
     int64_t meta_index = index - _first_index;
     int64_t entry_cursor = _offset_and_term[meta_index].first;
     int64_t next_cursor = (index <
-                        _last_index.load(butil::memory_order_relaxed))
+                        _last_index.load(butil::memory_order_seq_cst))
                       ? _offset_and_term[meta_index + 1].first : _meta.bytes;
     DCHECK_LT(entry_cursor, next_cursor);
     meta->offset = entry_cursor;
@@ -610,6 +639,7 @@ int CurveSegment::close(bool will_sync) {
               << " last_index: " << _last_index
               << " raft_sync_segments: " << FLAGS_raftSyncSegments
               << " will_sync: " << will_sync
+              << " enableWalDirectWrite: " << FLAGS_enableWalDirectWrite
               << " path: " << new_path;
     int ret = 0;
     if (_last_index > _first_index) {
@@ -728,7 +758,7 @@ int CurveSegment::truncate(const int64_t last_index_kept) {
     lck.lock();
     // update memory var
     _offset_and_term.resize(first_truncate_in_offset);
-    _last_index.store(last_index_kept, butil::memory_order_relaxed);
+    _last_index.store(last_index_kept, butil::memory_order_seq_cst);
     _meta.bytes = truncate_size;
     return 0;
 }

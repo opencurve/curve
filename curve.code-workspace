@@ -73,7 +73,10 @@
 			"*.inc": "cpp",
 			"cerrno": "cpp",
 			"string_view": "cpp",
-			"valarray": "cpp"
+			"valarray": "cpp",
+			"forward_list": "cpp",
+			"any": "cpp",
+			"optional": "cpp"
 		}
 	}
 }
