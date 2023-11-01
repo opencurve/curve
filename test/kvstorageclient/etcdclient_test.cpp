@@ -279,8 +279,11 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
     ASSERT_EQ(newFileInfo7.filename(), fileinfo.filename());
     ASSERT_EQ(newFileInfo7.filetype(), fileinfo.filetype());
 
+    // 8.5 test 3 op is ok
+    ops.emplace_back(op4);
+    ASSERT_EQ(EtcdErrCode::EtcdOK, client_->TxnN(ops));
+
     // 9. test more Txn err
-    ops.emplace_back(op8);
     ops.emplace_back(op9);
     ASSERT_EQ(EtcdErrCode::EtcdInvalidArgument, client_->TxnN(ops));
 

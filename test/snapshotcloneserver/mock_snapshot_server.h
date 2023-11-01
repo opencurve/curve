@@ -29,12 +29,13 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <map>
 
 #include "src/snapshotcloneserver/snapshot/snapshot_core.h"
 #include "src/snapshotcloneserver/clone/clone_core.h"
 #include "src/snapshotcloneserver/snapshot/snapshot_service_manager.h"
 #include "src/snapshotcloneserver/clone/clone_service_manager.h"
-#include "src/snapshotcloneserver/volume/voume_service_manager.h"
+#include "src/snapshotcloneserver/volume/volume_service_manager.h"
 #include "src/snapshotcloneserver/common/config.h"
 #include "src/kvstorageclient/etcd_client.h"
 
@@ -82,8 +83,9 @@ class MockSnapshotCore : public SnapshotCore {
         const std::string &user,
         FInfo *fInfo));
 
-    MOCK_METHOD2(GetFileSnapshotInfo,
+    MOCK_METHOD3(GetFileSnapshotInfo,
         int(const std::string &file,
+        const std::string &user,
         std::vector<SnapshotInfo> *info));
 
     MOCK_METHOD5(GetLocalSnapshotStatus,
@@ -218,6 +220,12 @@ class MockCurveFsClient : public CurveFsClient {
         int(const std::string &filename,
             const std::string &user,
             uint64_t seq));
+
+    MOCK_METHOD3(ListSnapshot,
+        int(const std::string &filename,
+        const std::string &user,
+        std::map<uint64_t, FInfo> *snapif));
+
     MOCK_METHOD4(GetSnapshot,
         int(const std::string &filename,
             const std::string &user,

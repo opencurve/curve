@@ -114,14 +114,19 @@ class CurveFSTest: public ::testing::Test {
         kMiniFileLength = curvefs_->GetMinFileLength();
         kMaxFileLength = curvefs_->GetMaxFileLength();
         curvefs_->Run();
-
-        ON_CALL(*topology_, GetPoolsetNameInCluster(_))
-            .WillByDefault(
-                Return(std::vector<std::string>{kDefaultPoolsetName}));
     }
 
     void TearDown() override {
         curvefs_->Uninit();
+        storage_ = nullptr;
+        inodeIdGenerator_ = nullptr;
+        mockChunkAllocator_ = nullptr;
+        mockcleanManager_ = nullptr;
+        fileRecordManager_ = nullptr;
+        allocStatistic_ = nullptr;
+        topology_ = nullptr;
+        snapshotClient_ = nullptr;
+        mockFlattenManager_ = nullptr;
     }
 
     CurveFS *curvefs_;
@@ -144,6 +149,10 @@ class CurveFSTest: public ::testing::Test {
 };
 
 TEST_F(CurveFSTest, testCreateFile1) {
+    ON_CALL(*topology_, GetPoolsetNameInCluster(_))
+        .WillByDefault(
+            Return(std::vector<std::string>{kDefaultPoolsetName}));
+
     EXPECT_CALL(*topology_, GetPoolset(Matcher<const std::string&>(_), _))
         .WillRepeatedly(Return(true));
 
@@ -257,6 +266,10 @@ TEST_F(CurveFSTest, testCreateFile1) {
 }
 
 TEST_F(CurveFSTest, testCreateStripeFile) {
+    ON_CALL(*topology_, GetPoolsetNameInCluster(_))
+        .WillByDefault(
+            Return(std::vector<std::string>{kDefaultPoolsetName}));
+
     EXPECT_CALL(*topology_, GetPoolset(Matcher<const std::string&>(_), _))
         .WillRepeatedly(Return(true));
     {
@@ -311,6 +324,10 @@ TEST_F(CurveFSTest, testCreateStripeFile) {
 }
 
 TEST_F(CurveFSTest, testCreateFileWithPoolset) {
+    ON_CALL(*topology_, GetPoolsetNameInCluster(_))
+        .WillByDefault(
+            Return(std::vector<std::string>{kDefaultPoolsetName}));
+
     EXPECT_CALL(*topology_, GetPoolset(Matcher<const std::string&>(_), _))
         .WillRepeatedly(Return(true));
     const std::map<PoolIdType, double> spacePools{
@@ -4070,6 +4087,10 @@ TEST_F(CurveFSTest, testCheckFileOwner) {
 
 
 TEST_F(CurveFSTest, testCreateCloneFile) {
+    ON_CALL(*topology_, GetPoolsetNameInCluster(_))
+        .WillByDefault(
+            Return(std::vector<std::string>{kDefaultPoolsetName}));
+
     // test parm error
     ASSERT_EQ(curvefs_->CreateCloneFile("/file1", "owner1",
                 FileType::INODE_DIRECTORY, kMiniFileLength, kStartSeqNum,
@@ -4577,6 +4598,9 @@ TEST_F(CurveFSTest, ListAllVolumesOnCopyset) {
 
 // test clone
 TEST_F(CurveFSTest, Clone) {
+    ON_CALL(*topology_, GetPoolsetNameInCluster(_))
+        .WillByDefault(
+            Return(std::vector<std::string>{kDefaultPoolsetName}));
     // walk dst path fail
     {
         std::string dstFile1 = "/dir1/dst1";

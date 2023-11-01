@@ -436,6 +436,14 @@ class MDSClient : public MDSClientBase,
      */
     void UnInitialize();
 
+    /**
+     * 将mds侧错误码对应到libcurve错误码
+     * @param: statecode为mds一侧错误码
+     * @param[out]: 出参errcode为libcurve一侧的错误码
+     */
+    void MDSStatusCode2LibcurveError(const ::curve::mds::StatusCode& statcode,
+                                     LIBCURVE_ERROR* errcode);
+
  protected:
     class MDSRPCExcutor {
      public:
@@ -550,14 +558,6 @@ class MDSClient : public MDSClientBase,
         // 这里直接用uint64即可，在可预测的范围内，不会溢出
         std::atomic<uint64_t> cntlID_;
     };
-
-    /**
-     * 将mds侧错误码对应到libcurve错误码
-     * @param: statecode为mds一侧错误码
-     * @param[out]: 出参errcode为libcurve一侧的错误码
-     */
-    void MDSStatusCode2LibcurveError(const ::curve::mds::StatusCode& statcode,
-                                     LIBCURVE_ERROR* errcode);
 
  private:
     // 初始化标志，放置重复初始化

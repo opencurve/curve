@@ -134,16 +134,14 @@ class NameSpaceServiceTest : public ::testing::Test {
         kMaxFileLength = kCurveFS.GetMaxFileLength();
         kCurveFS.Run();
 
-        ON_CALL(*topology_, GetPoolsetNameInCluster(_))
-            .WillByDefault(Return(std::vector<std::string>{kDefaultPoolset}));
-
         std::this_thread::sleep_for(std::chrono::microseconds(
             11 * fileRecordOptions.fileRecordExpiredTimeUs));
     }
 
     void TearDown() override {
         kCurveFS.Uninit();
-
+        topology_ = nullptr;
+        allocStatistic_ = nullptr;
         if (cleanManager_ != nullptr) {
             ASSERT_EQ(cleanManager_->Stop(), true);
         }
@@ -176,6 +174,9 @@ class NameSpaceServiceTest : public ::testing::Test {
 };
 
 TEST_F(NameSpaceServiceTest, test1) {
+    ON_CALL(*topology_, GetPoolsetNameInCluster(_))
+        .WillByDefault(Return(std::vector<std::string>{kDefaultPoolset}));
+
     brpc::Server server;
 
     // start server
@@ -1073,6 +1074,9 @@ TEST_F(NameSpaceServiceTest, test1) {
 }
 
 TEST_F(NameSpaceServiceTest, snapshottests) {
+    ON_CALL(*topology_, GetPoolsetNameInCluster(_))
+        .WillByDefault(Return(std::vector<std::string>{kDefaultPoolset}));
+
     brpc::Server server;
 
     // start server
@@ -1325,6 +1329,9 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
 }
 
 TEST_F(NameSpaceServiceTest, deletefiletests) {
+    ON_CALL(*topology_, GetPoolsetNameInCluster(_))
+        .WillByDefault(Return(std::vector<std::string>{kDefaultPoolset}));
+
     brpc::Server server;
 
     // start server
@@ -1831,6 +1838,9 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
 }
 
 TEST_F(NameSpaceServiceTest, isPathValid) {
+    ON_CALL(*topology_, GetPoolsetNameInCluster(_))
+        .WillByDefault(Return(std::vector<std::string>{kDefaultPoolset}));
+
     // start server
     NameSpaceService namespaceService(new FileLockManager(8));
     ASSERT_EQ(isPathValid("/"), true);
@@ -1856,6 +1866,9 @@ TEST_F(NameSpaceServiceTest, isPathValid) {
 }
 
 TEST_F(NameSpaceServiceTest, clonetest) {
+    ON_CALL(*topology_, GetPoolsetNameInCluster(_))
+        .WillByDefault(Return(std::vector<std::string>{kDefaultPoolset}));
+
     brpc::Server server;
 
     // start server
@@ -2114,6 +2127,9 @@ TEST_F(NameSpaceServiceTest, ListVolumesOnCopysets) {
 }
 
 TEST_F(NameSpaceServiceTest, testRecoverFile) {
+    ON_CALL(*topology_, GetPoolsetNameInCluster(_))
+        .WillByDefault(Return(std::vector<std::string>{kDefaultPoolset}));
+
     brpc::Server server;
 
     // start server

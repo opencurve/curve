@@ -269,7 +269,7 @@ int SnapshotServiceManager::GetFileSnapshotInfo(const std::string &file,
     const std::string &user,
     std::vector<FileSnapshotInfo> *info) {
     std::vector<SnapshotInfo> snapInfos;
-    int ret = core_->GetFileSnapshotInfo(file, &snapInfos);
+    int ret = core_->GetFileSnapshotInfo(file, user, &snapInfos);
     if (ret < 0) {
         LOG(ERROR) << "GetFileSnapshotInfo error, "
                    << " ret = " << ret
@@ -299,6 +299,16 @@ int SnapshotServiceManager::GetFileSnapshotInfoById(const std::string &file,
     if ((!file.empty()) && (snap.GetFileName() != file)) {
         return kErrCodeFileNameNotMatch;
     }
+    if (LocationType::kLocationCurve == snap.GetLocation()) {
+        FileSnapshotInfo fileSnapInfo;
+        ret = GetLocalSnapshotInfoInner(snap, &fileSnapInfo);
+        if (kErrCodeSuccess == ret) {
+            info->push_back(fileSnapInfo);
+            return kErrCodeSuccess;
+        } else {
+            return ret;
+        }
+    }
     snapInfos.push_back(snap);
     return GetFileSnapshotInfoInner(snapInfos, user, info);
 }
@@ -324,8 +334,44 @@ int SnapshotServiceManager::GetFileSnapshotInfoBySnapshotName(
     if (snap.GetUser() != user) {
         return kErrCodeInvalidUser;
     }
+    if (LocationType::kLocationCurve == snap.GetLocation()) {
+        FileSnapshotInfo fileSnapInfo;
+        ret = GetLocalSnapshotInfoInner(snap, &fileSnapInfo);
+        if (kErrCodeSuccess == ret) {
+            info->push_back(fileSnapInfo);
+            return kErrCodeSuccess;
+        } else {
+            return ret;
+        }
+    }
     snapInfos.push_back(snap);
     return GetFileSnapshotInfoInner(snapInfos, user, info);
+}
+
+int SnapshotServiceManager::GetLocalSnapshotInfoInner(
+    const SnapshotInfo &snap,
+    FileSnapshotInfo *info) {
+    Status st;
+    uint32_t progress;
+    int ret = core_->GetLocalSnapshotStatus(snap.GetFileName(),
+        snap.GetUser(),
+        snap.GetSeqNum(),
+        &st, &progress);
+    if (kErrCodeSuccess == ret) {
+        SnapshotInfo newInfo = snap;
+        newInfo.SetStatus(st);
+        *info = FileSnapshotInfo(newInfo, progress);
+        return ret;
+    } else if (kErrCodeFileNotExist == ret) {
+        return ret;
+    } else {
+        LOG(ERROR) << "GetLocalSnapshotStatus error, "
+                   << " ret = " << ret
+                   << ", file = " << snap.GetFileName()
+                   << ", user = " << snap.GetUser()
+                   << ", seq = " << snap.GetSeqNum();
+        return ret;
+    }
 }
 
 int SnapshotServiceManager::GetFileSnapshotInfoInner(
@@ -350,27 +396,16 @@ int SnapshotServiceManager::GetFileSnapshotInfoInner(
                 case Status::errorDeleting:
                 case Status::pending: {
                     if (LocationType::kLocationCurve == snap.GetLocation()) {
-                        Status st;
-                        uint32_t progress;
-                        ret = core_->GetLocalSnapshotStatus(snap.GetFileName(),
-                            snap.GetUser(),
-                            snap.GetSeqNum(),
-                            &st, &progress);
+                        FileSnapshotInfo fileSnapInfo;
+                        ret = GetLocalSnapshotInfoInner(snap, &fileSnapInfo);
                         if (kErrCodeSuccess == ret) {
-                            SnapshotInfo newInfo = snap;
-                            newInfo.SetStatus(st);
-                            info->emplace_back(newInfo, progress);
-                            continue;
+                            info->emplace_back(fileSnapInfo);
                         } else if (kErrCodeFileNotExist == ret) {
-                            continue;
+                            // do nothing
                         } else {
-                            LOG(ERROR) << "GetLocalSnapshotStatus error, "
-                                       << " ret = " << ret
-                                       << ", file = " << snap.GetFileName()
-                                       << ", user = " << snap.GetUser()
-                                       << ", seq = " << snap.GetSeqNum();
                             return ret;
                         }
+                        continue;
                     }
 
                     UUID uuid = snap.GetUuid();

@@ -32,6 +32,16 @@ class MockTopologyService : public mds::topology::TopologyService {
                       const curve::mds::topology::ListPoolsetRequest* request,
                       curve::mds::topology::ListPoolsetResponse* response,
                       ::google::protobuf::Closure* done));
+    MOCK_METHOD4(ListChunkServer,
+        void(::google::protobuf::RpcController* controller,
+             const curve::mds::topology::ListChunkServerRequest* request,
+             curve::mds::topology::ListChunkServerResponse* response,
+             ::google::protobuf::Closure* done));
+    MOCK_METHOD4(GetChunkServer,
+        void(::google::protobuf::RpcController* controller,
+             const curve::mds::topology::GetChunkServerInfoRequest* request,
+             curve::mds::topology::GetChunkServerInfoResponse* response,
+             ::google::protobuf::Closure* done));
 };
 
 }  // namespace client

@@ -179,6 +179,7 @@ class SnapshotCore {
      * @return 错误码
      */
     virtual int GetFileSnapshotInfo(const std::string &file,
+        const std::string &user,
         std::vector<SnapshotInfo> *info) = 0;
 
     /**
@@ -305,6 +306,7 @@ class SnapshotCoreImpl : public SnapshotCore {
         FInfo *fInfo) override;
 
     int GetFileSnapshotInfo(const std::string &file,
+        const std::string &user,
         std::vector<SnapshotInfo> *info) override;
 
     int GetLocalSnapshotStatus(const std::string &file,
@@ -512,8 +514,6 @@ class SnapshotCoreImpl : public SnapshotCore {
     // checking local snapshot deleting
     common::Thread *checkThread_;
     int checkPeriod_;
-    std::list<SnapshotInfo> deletingSnapshots_;
-    common::Mutex deletingSnapshotsMutex_;
     Atomic<bool> stopFlag_;
     InterruptibleSleeper sleeper_;
 

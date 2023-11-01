@@ -20,6 +20,8 @@
  * Author: xuchaojie
  */
 
+#include <map>
+
 #include "src/snapshotcloneserver/common/curvefs_client.h"
 #include "src/common/curve_define.h"
 
@@ -125,6 +127,16 @@ int CurveFsClientImpl::DeleteSnapshot(const std::string &filename,
     RetryHelper retryHelper(method, condition);
     return retryHelper.RetryTimeSecAndReturn(clientMethodRetryTimeSec_,
         clientMethodRetryIntervalMs_);
+}
+
+int CurveFsClientImpl::ListSnapshot(const std::string &filename,
+    const std::string &user,
+    std::map<uint64_t, FInfo> *snapif) {
+    UserInfo userInfo = GetUserInfo(user);
+    std::vector<uint64_t> seqvec;
+    int ret = snapClient_->ListSnapShot(filename,
+        userInfo, &seqvec, snapif);
+    return ret;
 }
 
 int CurveFsClientImpl::GetSnapshot(

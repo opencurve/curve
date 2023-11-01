@@ -62,24 +62,15 @@ int CloneCoreImpl::CloneLocal(const std::string &file,
         poolset, &finfo);
     ret = LibCurveErrToSnapshotCloneErr(ret);
     if (kErrCodeFileExist == ret) {
-        if ((finfo.cloneSource == file) &&
-            (finfo.owner == user) &&
-            (poolset.empty() || poolset == finfo.poolset)) {
-            return kErrCodeSuccess;
-        } else {
-            LOG(WARNING) << "Clone fail, ret = " << ret
-                         << ", file = " << file
-                         << ", snapshotName = " << snapshotName
-                         << ", user = " << user
-                         << ", destination = " << destination
-                         << ", exist finfo.cloneSource: "
-                         << finfo.cloneSource
-                         << ", finfo.owner: " << finfo.owner
-                         << ", poolset = " << poolset;
-            return kErrCodeFileExist;
-        }
+        LOG(INFO) << "CloneLocal find file exist"
+                  << ", file = " << file
+                  << ", snapshotName = " << snapshotName
+                  << ", user = " << user
+                  << ", destination = " << destination
+                  << ", poolset = " << poolset;
+        return kErrCodeSuccess;
     } else if (ret != kErrCodeSuccess) {
-        LOG(ERROR) << "Clone fail, ret = " << ret
+        LOG(ERROR) << "CloneLocal fail, ret = " << ret
                    << ", file = " << file
                    << ", snapshotName = " << snapshotName
                    << ", user = " << user
@@ -88,7 +79,7 @@ int CloneCoreImpl::CloneLocal(const std::string &file,
         return ret;
     }
 
-    LOG(INFO) << "Clone success, ret = " << ret
+    LOG(INFO) << "CloneLocal success, ret = " << ret
               << ", file = " << file
               << ", snapshotName = " << snapshotName
               << ", user = " << user

@@ -58,12 +58,12 @@ int SnapshotCoreImpl::Init() {
 
 void SnapshotCoreImpl::CheckLocalSnapshot() {
     while (sleeper_.wait_for(std::chrono::milliseconds(checkPeriod_))) {
-        std::list<SnapshotInfo> tmp;
-        {
-            curve::common::LockGuard lockGuard(deletingSnapshotsMutex_);
-            tmp.swap(deletingSnapshots_);
-        }
+        std::vector<SnapshotInfo> tmp;
+        metaStore_->GetSnapshotList(&tmp);
         for (auto it = tmp.begin(); it != tmp.end(); ++it) {
+            if (it->GetLocation() != LocationType::kLocationCurve) {
+                continue;
+            }
             NameLockGuard lockGuard(snapshotNameLock_, it->GetFileName());
             Status status;
             uint32_t progress;
@@ -76,8 +76,8 @@ void SnapshotCoreImpl::CheckLocalSnapshot() {
                 ret = metaStore_->DeleteSnapshot(it->GetUuid());
                 if (kErrCodeSuccess == ret) {
                     tmp.erase(it);
-                    LOG(INFO) << "DeleteSnapshot success, uuid = "
-                              << "snap.GetUuid()"
+                    LOG(INFO) << "DeleteSnapshot from metastore success"
+                              << ", uuid = " << it->GetUuid()
                               << ", fileName = " << it->GetFileName()
                               << ", user = " << it->GetUser()
                               << ", snapName = " << it->GetSnapshotName()
@@ -92,7 +92,7 @@ void SnapshotCoreImpl::CheckLocalSnapshot() {
                                << ", seqNum = " << it->GetSeqNum();
                 }
             } else if (kErrCodeSuccess == ret) {
-                // deleting
+                // exist
             } else {
                 LOG(ERROR) << "GetLocalSnapshotStatus error"
                            << ", ret = " << ret
@@ -102,10 +102,6 @@ void SnapshotCoreImpl::CheckLocalSnapshot() {
                            << ", snapName = " << it->GetSnapshotName()
                            << ", seqNum = " << it->GetSeqNum();
             }
-        }
-        {
-            curve::common::LockGuard lockGuard(deletingSnapshotsMutex_);
-            deletingSnapshots_.splice(deletingSnapshots_.end(), tmp);
         }
     }
 }
@@ -177,32 +173,30 @@ int SnapshotCoreImpl::CreateSnapshotPre(const std::string &file,
     return kErrCodeSuccess;
 }
 
+SnapshotInfo BuildNewSnapshotInfo(const std::string &file,
+    const std::string &user,
+    const std::string &snapshotName,
+    const FInfo &fi) {
+    UUID uuid = UUIDGenerator().GenerateUUID();
+    SnapshotInfo info(uuid, user, file, snapshotName);
+    info.SetLocation(LocationType::kLocationCurve);
+    info.SetSeqNum(fi.seqnum);
+    info.SetChunkSize(fi.chunksize);
+    info.SetSegmentSize(fi.segmentsize);
+    info.SetFileLength(fi.length);
+    info.SetStripeUnit(fi.stripeUnit);
+    info.SetStripeCount(fi.stripeCount);
+    info.SetPoolset(fi.poolset);
+    info.SetCreateTime(fi.ctime);
+    info.SetStatus(Status::done);
+    return info;
+}
+
 int SnapshotCoreImpl::CreateLocalSnapshot(const std::string &file,
     const std::string &user,
     const std::string &snapshotName,
     SnapshotInfo *snapInfo) {
     NameLockGuard lockGuard(snapshotNameLock_, file);
-    std::vector<SnapshotInfo> fileInfo;
-    metaStore_->GetSnapshotList(file, &fileInfo);
-    int snapshotNum = fileInfo.size();
-    if (snapshotNum >= maxSnapshotLimit_) {
-        LOG(ERROR) << "Snapshot count reach the max limit.";
-        return kErrCodeSnapshotCountReachLimit;
-    }
-
-    for (const auto& snap : fileInfo) {
-        if ((snap.GetUser() == user) &&
-            (snap.GetSnapshotName() == snapshotName)) {
-            LOG(INFO) << "CreateLocalSnapshot find same snap"
-                      << ", file = " << file
-                      << ", user = " << user
-                      << ", snapshotName = " << snapshotName
-                      << ", Exist SnapInfo : " << snap;
-            *snapInfo = snap;
-            return kErrCodeSuccess;
-        }
-    }
-
     std::string snapPath = MakeSnapshotPath(file, snapshotName);
     FInfo fi;
     int ret =
@@ -218,42 +212,78 @@ int SnapshotCoreImpl::CreateLocalSnapshot(const std::string &file,
         return ret;
     }
 
+    if (kErrCodeFileExist == ret) {
+        if (fi.filestatus != FileStatus::Created) {
+            LOG(ERROR) << "CreateLocalSnapshot find exist snapshot"
+                       << ", maybe snapshot is deleting"
+                       << ", file = " << file
+                       << ", user = " << user
+                       << ", snapshotName = " << snapshotName
+                       << ", snap file status = "
+                       << static_cast<int>(fi.filestatus);
+            return kErrCodeFileExist;
+        }
+
+        LOG(INFO) << "CreateLocalSnapshot find exist snapshot"
+                  << ", file = " << file
+                  << ", user = " << user
+                  << ", snapshotName = " << snapshotName
+                  << ", snap file status = "
+                  << static_cast<int>(fi.filestatus);
+    }
+
     ret = client_->ProtectSnapshot(snapPath, user);
     ret = LibCurveErrToSnapshotCloneErr(ret);
     if (ret != kErrCodeSuccess) {
         LOG(ERROR) << "ProtectSnapshot fail, ret = " << ret
                    << ", file = " << file
-                   << ", snapshotName = " << snapshotName
-                   << ", user = " << user;
+                   << ", user = " << user
+                   << ", snapshotName = " << snapshotName;
         return ret;
     }
 
     uint64_t seqNum = fi.seqnum;
-
-    UUID uuid = UUIDGenerator().GenerateUUID();
-    SnapshotInfo info(uuid, user, file, snapshotName);
-    info.SetLocation(LocationType::kLocationCurve);
-    info.SetSeqNum(seqNum);
-    info.SetChunkSize(fi.chunksize);
-    info.SetSegmentSize(fi.segmentsize);
-    info.SetFileLength(fi.length);
-    info.SetStripeUnit(fi.stripeUnit);
-    info.SetStripeCount(fi.stripeCount);
-    info.SetPoolset(fi.poolset);
-    info.SetCreateTime(fi.ctime);
-    info.SetStatus(Status::done);
-    ret = metaStore_->AddSnapshot(info);
-    if (ret < 0) {
-        LOG(ERROR) << "AddSnapshot error,"
-                   << " ret = " << ret
-                   << ", uuid = " << uuid
-                   << ", fileName = " << file
-                   << ", snapshotName = " << snapshotName;
-        return ret;
+    ret = metaStore_->GetSnapshotInfo(file, snapshotName, snapInfo);
+    if (ret == 0) {
+        LOG(INFO) << "CreateLocalSnapshot find exist snapInfo"
+                  << ", file = " << file
+                  << ", user = " << user
+                  << ", snapshotName = " << snapshotName
+                  << ", seqNum = " << seqNum
+                  << ", Exist SnapInfo : " << *snapInfo;
+        // exist old deleteing SnapshotInfo, replace it
+        if (snapInfo->GetSeqNum() != seqNum) {
+            ret = metaStore_->DeleteSnapshot(snapInfo->GetUuid());
+            if (ret < 0) {
+                LOG(ERROR) << "DeleteSnapshot error,"
+                           << " ret = " << ret
+                           << ", uuid = " << snapInfo->GetUuid()
+                           << ", fileName = " << file
+                           << ", snapshotName = " << snapshotName;
+                return kErrCodeInternalError;
+            }
+        } else {
+            return kErrCodeSuccess;
+        }
     }
-    *snapInfo = info;
-    LOG(INFO) << "CreateSnapshot on curvefs success, seq = " << seqNum
-              << ", uuid = " << uuid;
+
+    *snapInfo = BuildNewSnapshotInfo(file, user, snapshotName, fi);
+    // maybe exist old deleteing snapInfo, use UpdateSnapshot
+    ret = metaStore_->AddSnapshot(*snapInfo);
+    if (ret < 0) {
+        LOG(ERROR) << "UpdateSnapshot error,"
+                   << " ret = " << ret
+                   << ", uuid = " << snapInfo->GetUuid()
+                   << ", fileName = " << file
+                   << ", user = " << user
+                   << ", snapshotName = " << snapshotName;
+        return kErrCodeInternalError;
+    }
+    LOG(INFO) << "CreateLocalSnapshot success, seq = " << seqNum
+              << ", uuid = " << snapInfo->GetUuid()
+              << ", fileName = " << file
+              << ", user = " << user
+              << ", snapshotName = " << snapshotName;
     return kErrCodeSuccess;
 }
 
@@ -1067,19 +1097,36 @@ int SnapshotCoreImpl::DeleteLocalSnapshot(
     SnapshotInfo snapInfo;
     int ret = metaStore_->GetSnapshotInfo(uuid, &snapInfo);
     if (ret < 0) {
+        LOG(INFO) << "DeleteLocalSnapshot found snapInfo not exist"
+                  << ", uuid = " << uuid
+                  << ", user = " << user
+                  << ", fileName = " << fileName;
         return kErrCodeSuccess;
     }
     if (snapInfo.GetUser() != user) {
-        LOG(ERROR) << "Can not delete snapshot by different user.";
+        LOG(ERROR) << "Can not delete snapshot by different user."
+                   << ", uuid = " << uuid
+                   << ", user = " << user
+                   << ", fileName = " << fileName
+                   << ", SnapInfo : " << snapInfo;
         return kErrCodeInvalidUser;
     }
     if ((!fileName.empty()) &&
         (fileName != snapInfo.GetFileName())) {
-        LOG(ERROR) << "Can not delete, fileName is not matched.";
+        LOG(ERROR) << "Can not delete, fileName is not matched."
+                   << ", uuid = " << uuid
+                   << ", user = " << user
+                   << ", fileName = " << fileName
+                   << ", SnapInfo : " << snapInfo;
         return kErrCodeFileNameNotMatch;
     }
 
     if (snapInfo.GetStatus() == Status::deleting) {
+        LOG(INFO) << "DeleteLocalSnapshot found snapInfo is deleting"
+                  << ", uuid = " << uuid
+                  << ", user = " << user
+                  << ", fileName = " << fileName
+                  << ", SnapInfo : " << snapInfo;
         return kErrCodeSuccess;
     }
 
@@ -1088,6 +1135,23 @@ int SnapshotCoreImpl::DeleteLocalSnapshot(
     ret = client_->UnprotectSnapshot(snapPath, user);
     ret = LibCurveErrToSnapshotCloneErr(ret);
     if (ret != kErrCodeSuccess) {
+        if (kErrCodeFileNotExist == ret) {
+            LOG(INFO) << "UnprotectSnapshot file not exist, ret = " << ret
+                      << ", file = " << fileName
+                      << ", snapshotName = " << snapshotName
+                      << ", user = " << user
+                      << ", uuid = " << uuid;
+            ret = metaStore_->DeleteSnapshot(uuid);
+            if (ret < 0) {
+                LOG(ERROR) << "DeleteSnapshot fail, ret = " << ret
+                           << ", file = " << fileName
+                           << ", snapshotName = " << snapshotName
+                           << ", user = " << user
+                           << ", uuid = " << uuid;
+                return kErrCodeInternalError;
+            }
+            return kErrCodeSuccess;
+        }
         LOG(ERROR) << "UnprotectSnapshot fail, ret = " << ret
                    << ", file = " << fileName
                    << ", snapshotName = " << snapshotName
@@ -1099,8 +1163,26 @@ int SnapshotCoreImpl::DeleteLocalSnapshot(
     uint64_t seq = snapInfo.GetSeqNum();
     ret = client_->DeleteSnapshot(fileName, user, seq);
     ret = LibCurveErrToSnapshotCloneErr(ret);
-    if (ret != kErrCodeSuccess &&
-        ret != kErrCodeFileNotExist) {
+    if (ret != kErrCodeSuccess) {
+        if (kErrCodeFileNotExist == ret) {
+            LOG(INFO) << "DeleteSnapshot file not exist, ret = " << ret
+                      << ", file = " << fileName
+                      << ", snapshotName = " << snapshotName
+                      << ", user = " << user
+                      << ", seq = " << seq
+                      << ", uuid = " << uuid;
+            ret = metaStore_->DeleteSnapshot(uuid);
+            if (ret < 0) {
+                LOG(ERROR) << "DeleteSnapshot fail, ret = " << ret
+                           << ", file = " << fileName
+                           << ", snapshotName = " << snapshotName
+                           << ", user = " << user
+                           << ", seq = " << seq
+                           << ", uuid = " << uuid;
+                return kErrCodeInternalError;
+            }
+            return kErrCodeSuccess;
+        }
         LOG(ERROR) << "DeleteSnapshot fail, ret = " << ret
                    << ", file = " << fileName
                    << ", snapshotName = " << snapshotName
@@ -1116,10 +1198,8 @@ int SnapshotCoreImpl::DeleteLocalSnapshot(
         LOG(ERROR) << "UpdateSnapshot error,"
                    << " ret = " << ret
                    << ", uuid = " << uuid;
-        return ret;
+        return kErrCodeInternalError;
     }
-    curve::common::LockGuard deletingLockGuard(deletingSnapshotsMutex_);
-    deletingSnapshots_.emplace_back(snapInfo);
     return kErrCodeSuccess;
 }
 
@@ -1297,8 +1377,32 @@ int SnapshotCoreImpl::GetFileInfo(const std::string &file,
 }
 
 int SnapshotCoreImpl::GetFileSnapshotInfo(const std::string &file,
+    const std::string &user,
     std::vector<SnapshotInfo> *info) {
     metaStore_->GetSnapshotList(file, info);
+    if (!info->empty()) {
+        if (info->front().GetLocation() == LocationType::kLocationCurve) {
+            std::map<uint64_t, FInfo> snapif;
+            int ret = client_->ListSnapshot(file, user, &snapif);
+            if (ret != kErrCodeSuccess) {
+                LOG(ERROR) << "ListSnapshot encounter an error"
+                           << ", ret = " << ret
+                           << ", file = " << file;
+                return ret;
+            }
+            for (auto it = info->begin(); it != info->end();) {
+                auto snap = snapif.find(it->GetSeqNum());
+                if (snap == snapif.end()) {
+                    it = info->erase(it);
+                } else {
+                    if (FileStatus::Deleting == snap->second.filestatus) {
+                        it->SetStatus(Status::deleting);
+                    }
+                    it++;
+                }
+            }
+        }
+    }
     return kErrCodeSuccess;
 }
 
