@@ -36,6 +36,8 @@
 namespace curve {
 namespace client {
 
+using curve::mds::StatusCode;
+
 using ::testing::_;
 using ::testing::DoAll;
 using ::testing::Invoke;
@@ -821,6 +823,395 @@ TEST_F(MDSClientTest, TestRecoverFile) {
                                   Invoke(FakeRpcService<false>{})));
         ASSERT_EQ(LIBCURVE_ERROR::OK,
                   mdsClient_.RecoverFile(fileName, userInfo, fileId));
+    }
+}
+
+TEST_F(MDSClientTest, TestProtectSnapShot) {
+    std::string snapFileName = "/test1@snap1";
+    UserInfo_t userinfo;
+    // controller failed
+    {
+        EXPECT_CALL(mockNameService_, ProtectSnapShot(_, _, _, _))
+            .WillRepeatedly(Invoke(FakeRpcService<true>{}));
+        ASSERT_EQ(LIBCURVE_ERROR::FAILED,
+                  mdsClient_.ProtectSnapShot(snapFileName, userinfo));
+    }
+    // rpc response failed
+    {
+        curve::mds::ProtectSnapShotResponse response;
+        response.set_statuscode(curve::mds::StatusCode::kFileNotExists);
+        EXPECT_CALL(mockNameService_, ProtectSnapShot(_, _, _, _))
+            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
+                                  Invoke(FakeRpcService<false>{})));
+        ASSERT_EQ(LIBCURVE_ERROR::NOTEXIST,
+                  mdsClient_.ProtectSnapShot(snapFileName, userinfo));
+    }
+    // success
+    {
+        curve::mds::ProtectSnapShotResponse response;
+        response.set_statuscode(curve::mds::StatusCode::kOK);
+        EXPECT_CALL(mockNameService_, ProtectSnapShot(_, _, _, _))
+            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
+                                  Invoke(FakeRpcService<false>{})));
+        ASSERT_EQ(LIBCURVE_ERROR::OK,
+                  mdsClient_.ProtectSnapShot(snapFileName, userinfo));
+    }
+}
+
+TEST_F(MDSClientTest, TestUnprotectSnapShot) {
+    std::string snapFileName = "/test1@snap1";
+    UserInfo_t userinfo;
+    // controller failed
+    {
+        EXPECT_CALL(mockNameService_, UnprotectSnapShot(_, _, _, _))
+            .WillRepeatedly(Invoke(FakeRpcService<true>{}));
+        ASSERT_EQ(LIBCURVE_ERROR::FAILED,
+                  mdsClient_.UnprotectSnapShot(snapFileName, userinfo));
+    }
+    // rpc response failed
+    {
+        curve::mds::UnprotectSnapShotResponse response;
+        response.set_statuscode(curve::mds::StatusCode::kFileNotExists);
+        EXPECT_CALL(mockNameService_, UnprotectSnapShot(_, _, _, _))
+            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
+                                  Invoke(FakeRpcService<false>{})));
+        ASSERT_EQ(LIBCURVE_ERROR::NOTEXIST,
+                  mdsClient_.UnprotectSnapShot(snapFileName, userinfo));
+    }
+    // success
+    {
+        curve::mds::UnprotectSnapShotResponse response;
+        response.set_statuscode(curve::mds::StatusCode::kOK);
+        EXPECT_CALL(mockNameService_, UnprotectSnapShot(_, _, _, _))
+            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
+                                  Invoke(FakeRpcService<false>{})));
+        ASSERT_EQ(LIBCURVE_ERROR::OK,
+                  mdsClient_.UnprotectSnapShot(snapFileName, userinfo));
+    }
+}
+
+TEST_F(MDSClientTest, TestClone) {
+    std::string source = "/test1@snap1";
+    std::string destination = "/test2";
+    UserInfo_t userinfo;
+    std::string poolset = "test";
+    FInfo fileinfo;
+    // controller failed
+    {
+        EXPECT_CALL(mockNameService_, Clone(_, _, _, _))
+            .WillRepeatedly(Invoke(FakeRpcService<true>{}));
+        ASSERT_EQ(LIBCURVE_ERROR::FAILED,
+                  mdsClient_.Clone(source, destination,
+                        userinfo, poolset, &fileinfo));
+    }
+    // rpc response failed
+    {
+        curve::mds::CloneResponse response;
+        response.set_statuscode(curve::mds::StatusCode::kFileNotExists);
+        EXPECT_CALL(mockNameService_, Clone(_, _, _, _))
+            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
+                                  Invoke(FakeRpcService<false>{})));
+        ASSERT_EQ(LIBCURVE_ERROR::NOTEXIST,
+                  mdsClient_.Clone(source, destination,
+                        userinfo, poolset, &fileinfo));
+    }
+    // success
+    {
+        curve::mds::CloneResponse response;
+        response.set_statuscode(curve::mds::StatusCode::kOK);
+        EXPECT_CALL(mockNameService_, Clone(_, _, _, _))
+            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
+                                  Invoke(FakeRpcService<false>{})));
+        ASSERT_EQ(LIBCURVE_ERROR::OK,
+                  mdsClient_.Clone(source, destination,
+                        userinfo, poolset, &fileinfo));
+    }
+    // dest exist success
+    {
+        curve::mds::CloneResponse response;
+        response.set_statuscode(curve::mds::StatusCode::kFileExists);
+        EXPECT_CALL(mockNameService_, Clone(_, _, _, _))
+            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
+                                  Invoke(FakeRpcService<false>{})));
+        ASSERT_EQ(LIBCURVE_ERROR::EXISTS,
+                  mdsClient_.Clone(source, destination,
+                        userinfo, poolset, &fileinfo));
+    }
+}
+
+TEST_F(MDSClientTest, TestFlatten) {
+    std::string fileName = "/test1";
+    UserInfo_t userinfo;
+    // controller failed
+    {
+        EXPECT_CALL(mockNameService_, Flatten(_, _, _, _))
+            .WillRepeatedly(Invoke(FakeRpcService<true>{}));
+        ASSERT_EQ(LIBCURVE_ERROR::FAILED,
+                  mdsClient_.Flatten(fileName, userinfo));
+    }
+    // rpc response failed
+    {
+        curve::mds::FlattenResponse response;
+        response.set_statuscode(curve::mds::StatusCode::kFileNotExists);
+        EXPECT_CALL(mockNameService_, Flatten(_, _, _, _))
+            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
+                                  Invoke(FakeRpcService<false>{})));
+        ASSERT_EQ(LIBCURVE_ERROR::NOTEXIST,
+                  mdsClient_.Flatten(fileName, userinfo));
+    }
+    // success
+    {
+        curve::mds::FlattenResponse response;
+        response.set_statuscode(curve::mds::StatusCode::kOK);
+        EXPECT_CALL(mockNameService_, Flatten(_, _, _, _))
+            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
+                                  Invoke(FakeRpcService<false>{})));
+        ASSERT_EQ(LIBCURVE_ERROR::OK,
+                  mdsClient_.Flatten(fileName, userinfo));
+    }
+}
+
+TEST_F(MDSClientTest, TestQueryFlattenStatus) {
+    std::string fileName = "/test1";
+    UserInfo_t userinfo;
+    FileStatus status;
+    uint32_t progress;
+    // controller failed
+    {
+        EXPECT_CALL(mockNameService_, QueryFlattenStatus(_, _, _, _))
+            .WillRepeatedly(Invoke(FakeRpcService<true>{}));
+        ASSERT_EQ(LIBCURVE_ERROR::FAILED,
+                  mdsClient_.QueryFlattenStatus(fileName, userinfo,
+                        &status, &progress));
+    }
+    // rpc response failed
+    {
+        curve::mds::QueryFlattenStatusResponse response;
+        response.set_statuscode(curve::mds::StatusCode::kFileNotExists);
+        EXPECT_CALL(mockNameService_, QueryFlattenStatus(_, _, _, _))
+            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
+                                  Invoke(FakeRpcService<false>{})));
+        ASSERT_EQ(LIBCURVE_ERROR::NOTEXIST,
+                  mdsClient_.QueryFlattenStatus(fileName, userinfo,
+                      &status, &progress));
+    }
+    // success
+    {
+        curve::mds::QueryFlattenStatusResponse response;
+        response.set_statuscode(curve::mds::StatusCode::kOK);
+        EXPECT_CALL(mockNameService_, QueryFlattenStatus(_, _, _, _))
+            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
+                                  Invoke(FakeRpcService<false>{})));
+        ASSERT_EQ(LIBCURVE_ERROR::OK,
+                  mdsClient_.QueryFlattenStatus(fileName, userinfo,
+                        &status, &progress));
+    }
+}
+
+TEST_F(MDSClientTest, TestListdir) {
+    std::string dirpath = "/dir1";
+    UserInfo_t userinfo;
+    std::vector<FileStatInfo> files;
+    // controller failed
+    {
+        EXPECT_CALL(mockNameService_, ListDir(_, _, _, _))
+            .WillRepeatedly(Invoke(FakeRpcService<true>{}));
+        ASSERT_EQ(LIBCURVE_ERROR::FAILED,
+                  mdsClient_.Listdir(dirpath, userinfo, &files));
+    }
+    // rpc response failed
+    {
+        curve::mds::ListDirResponse response;
+        response.set_statuscode(curve::mds::StatusCode::kDirNotExist);
+        EXPECT_CALL(mockNameService_, ListDir(_, _, _, _))
+            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
+                                  Invoke(FakeRpcService<false>{})));
+        ASSERT_EQ(LIBCURVE_ERROR::NOTEXIST,
+                  mdsClient_.Listdir(dirpath, userinfo, &files));
+    }
+    // success
+    {
+        curve::mds::ListDirResponse response;
+        response.set_statuscode(curve::mds::StatusCode::kOK);
+        auto fileinfo = response.add_fileinfo();
+        EXPECT_CALL(mockNameService_, ListDir(_, _, _, _))
+            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
+                                  Invoke(FakeRpcService<false>{})));
+        ASSERT_EQ(LIBCURVE_ERROR::OK,
+                  mdsClient_.Listdir(dirpath, userinfo, &files));
+        ASSERT_EQ(1, files.size());
+    }
+}
+
+TEST_F(MDSClientTest, TestGetChunkServerInfo) {
+    ChunkServerAddr csAdd;
+    CopysetPeerInfo cspInfo;
+    // controller failed
+    {
+        EXPECT_CALL(mockTopoService_, GetChunkServer(_, _, _, _))
+            .WillRepeatedly(Invoke(FakeRpcService<true>{}));
+        ASSERT_EQ(LIBCURVE_ERROR::FAILED,
+                  mdsClient_.GetChunkServerInfo(csAdd, &cspInfo));
+    }
+    // chunkserverInfo is null
+    {
+        ASSERT_EQ(LIBCURVE_ERROR::FAILED,
+                  mdsClient_.GetChunkServerInfo(csAdd, nullptr));
+    }
+    // csAdd invalid
+    {
+        ASSERT_EQ(LIBCURVE_ERROR::FAILED,
+                  mdsClient_.GetChunkServerInfo(csAdd, &cspInfo));
+    }
+    curve::client::EndPoint ep;
+    butil::str2endpoint("127.0.0.1", 9102, &ep);
+    csAdd = ChunkServerAddr(ep);
+    // rpc response failed
+    {
+        curve::mds::topology::GetChunkServerInfoResponse response;
+        response.set_statuscode(-1);
+        EXPECT_CALL(mockTopoService_, GetChunkServer(_, _, _, _))
+            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
+                                  Invoke(FakeRpcService<false>{})));
+        ASSERT_EQ(LIBCURVE_ERROR::FAILED,
+                  mdsClient_.GetChunkServerInfo(csAdd, &cspInfo));
+    }
+    // success
+    {
+        curve::mds::topology::GetChunkServerInfoResponse response;
+        response.set_statuscode(0);
+        response.mutable_chunkserverinfo()->set_chunkserverid(1);
+        response.mutable_chunkserverinfo()->set_disktype("ssd");
+        response.mutable_chunkserverinfo()->set_hostip("127.0.0.1");
+        response.mutable_chunkserverinfo()->set_port(9102);
+        response.mutable_chunkserverinfo()->set_status(
+            curve::mds::topology::ChunkServerStatus::READWRITE);
+        response.mutable_chunkserverinfo()->set_diskstatus(
+            curve::mds::topology::DiskState::DISKNORMAL);
+        response.mutable_chunkserverinfo()->set_onlinestate(
+            curve::mds::topology::OnlineState::ONLINE);
+        response.mutable_chunkserverinfo()->set_mountpoint("/data");
+        response.mutable_chunkserverinfo()->set_diskcapacity(1000000000);
+        response.mutable_chunkserverinfo()->set_diskused(100000000);
+        EXPECT_CALL(mockTopoService_, GetChunkServer(_, _, _, _))
+            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
+                                  Invoke(FakeRpcService<false>{})));
+        ASSERT_EQ(LIBCURVE_ERROR::OK,
+                  mdsClient_.GetChunkServerInfo(csAdd, &cspInfo));
+    }
+    // has externalip
+    {
+        curve::mds::topology::GetChunkServerInfoResponse response;
+        response.set_statuscode(0);
+        response.mutable_chunkserverinfo()->set_chunkserverid(1);
+        response.mutable_chunkserverinfo()->set_disktype("ssd");
+        response.mutable_chunkserverinfo()->set_hostip("127.0.0.1");
+        response.mutable_chunkserverinfo()->set_port(9102);
+        response.mutable_chunkserverinfo()->set_status(
+            curve::mds::topology::ChunkServerStatus::READWRITE);
+        response.mutable_chunkserverinfo()->set_diskstatus(
+            curve::mds::topology::DiskState::DISKNORMAL);
+        response.mutable_chunkserverinfo()->set_onlinestate(
+            curve::mds::topology::OnlineState::ONLINE);
+        response.mutable_chunkserverinfo()->set_mountpoint("/data");
+        response.mutable_chunkserverinfo()->set_diskcapacity(1000000000);
+        response.mutable_chunkserverinfo()->set_diskused(100000000);
+        response.mutable_chunkserverinfo()->set_externalip("127.0.0.1");
+        EXPECT_CALL(mockTopoService_, GetChunkServer(_, _, _, _))
+            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
+                                  Invoke(FakeRpcService<false>{})));
+        ASSERT_EQ(LIBCURVE_ERROR::OK,
+                  mdsClient_.GetChunkServerInfo(csAdd, &cspInfo));
+    }
+}
+
+TEST_F(MDSClientTest, TestListChunkServerInServer) {
+    std::string serverIp = "127.0.0.1";
+    std::vector<ChunkServerID> csVec;
+    // controller failed
+    {
+        EXPECT_CALL(mockTopoService_, ListChunkServer(_, _, _, _))
+            .WillRepeatedly(Invoke(FakeRpcService<true>{}));
+        ASSERT_EQ(LIBCURVE_ERROR::FAILED,
+                  mdsClient_.ListChunkServerInServer(serverIp, &csVec));
+    }
+    // rpc response failed
+    {
+        curve::mds::topology::ListChunkServerResponse response;
+        response.set_statuscode(-1);
+        EXPECT_CALL(mockTopoService_, ListChunkServer(_, _, _, _))
+            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
+                                  Invoke(FakeRpcService<false>{})));
+        ASSERT_EQ(LIBCURVE_ERROR::FAILED,
+                  mdsClient_.ListChunkServerInServer(serverIp, &csVec));
+    }
+    // success
+    {
+        curve::mds::topology::ListChunkServerResponse response;
+        response.set_statuscode(0);
+        auto csinfo = response.add_chunkserverinfos();
+        csinfo->set_chunkserverid(1);
+        csinfo->set_disktype("ssd");
+        csinfo->set_hostip("127.0.0.1");
+        csinfo->set_port(9102);
+        csinfo->set_status(
+            curve::mds::topology::ChunkServerStatus::READWRITE);
+        csinfo->set_diskstatus(
+            curve::mds::topology::DiskState::DISKNORMAL);
+        csinfo->set_onlinestate(
+            curve::mds::topology::OnlineState::ONLINE);
+        csinfo->set_mountpoint("/data");
+        csinfo->set_diskcapacity(1000000000);
+        csinfo->set_diskused(100000000);
+        EXPECT_CALL(mockTopoService_, ListChunkServer(_, _, _, _))
+            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
+                                  Invoke(FakeRpcService<false>{})));
+        ASSERT_EQ(LIBCURVE_ERROR::OK,
+                  mdsClient_.ListChunkServerInServer(serverIp, &csVec));
+        ASSERT_EQ(1, csVec.size());
+        ASSERT_EQ(1, csVec[0]);
+    }
+}
+
+TEST_F(MDSClientTest, TestMDSStatusCode2LibcurveError) {
+    std::vector<std::pair<StatusCode, LIBCURVE_ERROR>> test_data{
+        {StatusCode::kOK, LIBCURVE_ERROR::OK},
+        {StatusCode::kFileExists, LIBCURVE_ERROR::EXISTS},
+        {StatusCode::kSnapshotFileNotExists, LIBCURVE_ERROR::NOTEXIST},
+        {StatusCode::kFileNotExists, LIBCURVE_ERROR::NOTEXIST},
+        {StatusCode::kDirNotExist, LIBCURVE_ERROR::NOTEXIST},
+        {StatusCode::kPoolsetNotExist, LIBCURVE_ERROR::NOTEXIST},
+        {StatusCode::kSegmentNotAllocated, LIBCURVE_ERROR::NOT_ALLOCATE},
+        {StatusCode::kShrinkBiggerFile, LIBCURVE_ERROR::NO_SHRINK_BIGGER_FILE},
+        {StatusCode::kNotSupported, LIBCURVE_ERROR::NOT_SUPPORT},
+        {StatusCode::kOwnerAuthFail, LIBCURVE_ERROR::AUTHFAIL},
+        {StatusCode::kSnapshotFileDeleteError, LIBCURVE_ERROR::DELETE_ERROR},
+        {StatusCode::kFileUnderSnapShot, LIBCURVE_ERROR::UNDER_SNAPSHOT},
+        {StatusCode::kFileNotUnderSnapShot, LIBCURVE_ERROR::NOT_UNDERSNAPSHOT},
+        {StatusCode::kSnapshotDeleting, LIBCURVE_ERROR::DELETING},
+        {StatusCode::kDirNotEmpty, LIBCURVE_ERROR::NOT_EMPTY},
+        {StatusCode::kFileOccupied, LIBCURVE_ERROR::FILE_OCCUPIED},
+        {StatusCode::kSessionNotExist, LIBCURVE_ERROR::SESSION_NOT_EXIST},
+        {StatusCode::kParaError, LIBCURVE_ERROR::PARAM_ERROR},
+        {StatusCode::kStorageError, LIBCURVE_ERROR::INTERNAL_ERROR},
+        {StatusCode::kFileLengthNotSupported,
+            LIBCURVE_ERROR::LENGTH_NOT_SUPPORT},
+        {StatusCode::kCloneStatusNotMatch,
+            LIBCURVE_ERROR::STATUS_NOT_MATCH},
+        {StatusCode::kDeleteFileBeingCloned,
+            LIBCURVE_ERROR::DELETE_BEING_CLONED},
+        {StatusCode::kClientVersionNotMatch,
+            LIBCURVE_ERROR::CLIENT_NOT_SUPPORT_SNAPSHOT},
+        {StatusCode::kSnapshotFrozen,
+            LIBCURVE_ERROR::SNAPSTHO_FROZEN},
+        {StatusCode::KInternalError,
+            LIBCURVE_ERROR::UNKNOWN},
+    };
+
+    for (auto& data : test_data) {
+        LIBCURVE_ERROR out;
+        mdsClient_.MDSStatusCode2LibcurveError(data.first, &out);
+        ASSERT_EQ(data.second, out);
     }
 }
 

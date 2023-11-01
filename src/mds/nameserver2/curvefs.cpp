@@ -162,6 +162,8 @@ void CurveFS::Uninit() {
     allocStatistic_ = nullptr;
     fileRecordManager_ = nullptr;
     snapshotCloneClient_ = nullptr;
+    flattenManager_ = nullptr;
+    topology_ = nullptr;
 }
 
 void CurveFS::InitRootFile(void) {

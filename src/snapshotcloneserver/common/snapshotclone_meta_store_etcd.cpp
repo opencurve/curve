@@ -58,20 +58,34 @@ int SnapshotCloneMetaStoreEtcd::AddSnapshot(const SnapshotInfo &info) {
     }
 
     WriteLockGuard guard(snapInfos_mutex);
-    int errCode = client_->Put(key, value);
-    if (errCode != EtcdErrCode::EtcdOK) {
-        LOG(ERROR) << "Put snapInfo into etcd err"
-                   << ", errcode = " << errCode
+
+    auto search = snapInfos_.find(info.GetUuid());
+    if (search != snapInfos_.end()) {
+        LOG(ERROR) << "AddSnapshot err, uuid already exist"
                    << ", snapInfo : " << info;
         return -1;
+    } else {
+        std::string snapPath = MakeSnapshotKey(info.GetFileName(),
+            info.GetSnapshotName());
+        auto search2 = snapInfosByName_.find(snapPath);
+        if (search2 != snapInfosByName_.end()) {
+            LOG(ERROR) << "AddSnapshot err, snap name already exist"
+                       << ", snapInfo : " << info;
+            return -1;
+        }
+
+        int errCode = client_->Put(key, value);
+        if (errCode != EtcdErrCode::EtcdOK) {
+            LOG(ERROR) << "Put snapInfo into etcd err"
+                       << ", errcode = " << errCode
+                       << ", snapInfo : " << info;
+            return -1;
+        }
+
+        auto item = std::make_shared<SnapshotInfo>(info);
+        snapInfos_.emplace(info.GetUuid(), item);
+        snapInfosByName_.emplace(snapPath, item);
     }
-
-    auto item = std::make_shared<SnapshotInfo>(info);
-    snapInfos_.emplace(info.GetUuid(), item);
-
-    std::string snapPath = MakeSnapshotKey(info.GetFileName(),
-        info.GetSnapshotName());
-    snapInfosByName_.emplace(snapPath, item);
     return 0;
 }
 

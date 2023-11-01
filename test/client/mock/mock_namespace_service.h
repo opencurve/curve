@@ -33,6 +33,43 @@ namespace mds {
 
 class MockNameService : public CurveFSService {
  public:
+    // ProtectSnapShot
+    MOCK_METHOD4(ProtectSnapShot,
+        void(::google::protobuf::RpcController* controller,
+            const ::curve::mds::ProtectSnapShotRequest* request,
+            ::curve::mds::ProtectSnapShotResponse* response,
+            ::google::protobuf::Closure* done));
+    // UnprotectSnapShot
+    MOCK_METHOD4(UnprotectSnapShot,
+        void(::google::protobuf::RpcController* controller,
+            const ::curve::mds::UnprotectSnapShotRequest* request,
+            ::curve::mds::UnprotectSnapShotResponse* response,
+            ::google::protobuf::Closure* done));
+    // clone
+    MOCK_METHOD4(Clone,
+        void(::google::protobuf::RpcController* controller,
+            const ::curve::mds::CloneRequest* request,
+            ::curve::mds::CloneResponse* response,
+            ::google::protobuf::Closure* done));
+    // flatten
+    MOCK_METHOD4(Flatten,
+        void(::google::protobuf::RpcController* controller,
+            const ::curve::mds::FlattenRequest* request,
+            ::curve::mds::FlattenResponse* response,
+            ::google::protobuf::Closure* done));
+    // query flatten status
+    MOCK_METHOD4(QueryFlattenStatus,
+        void(::google::protobuf::RpcController* controller,
+            const ::curve::mds::QueryFlattenStatusRequest* request,
+            ::curve::mds::QueryFlattenStatusResponse* response,
+            ::google::protobuf::Closure* done));
+    // children
+    MOCK_METHOD4(Children,
+        void(::google::protobuf::RpcController* controller,
+            const ::curve::mds::ChildrenRequest* request,
+            ::curve::mds::ChildrenResponse* response,
+            ::google::protobuf::Closure* done));
+
     MOCK_METHOD4(OpenFile, void(google::protobuf::RpcController* cntl,
                                 const OpenFileRequest* request,
                                 OpenFileResponse* response,
@@ -78,6 +115,12 @@ class MockNameService : public CurveFSService {
                       const curve::mds::ReFreshSessionRequest* request,
                       curve::mds::ReFreshSessionResponse* response,
                       ::google::protobuf::Closure* done));
+
+    MOCK_METHOD4(ListDir,
+        void(::google::protobuf::RpcController* controller,
+            const ::curve::mds::ListDirRequest* request,
+            ::curve::mds::ListDirResponse* response,
+            ::google::protobuf::Closure* done));
 
     MOCK_METHOD4(IncreaseFileEpoch,
                  void(::google::protobuf::RpcController* controller,

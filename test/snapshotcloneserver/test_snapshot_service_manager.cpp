@@ -766,8 +766,8 @@ TEST_F(TestSnapshotServiceManager, TestGetFileSnapshotInfoSuccess) {
     snap4.SetStatus(Status::error);
     snapInfo.push_back(snap4);
 
-    EXPECT_CALL(*core_, GetFileSnapshotInfo(file, _))
-        .WillOnce(DoAll(SetArgPointee<1>(snapInfo),
+    EXPECT_CALL(*core_, GetFileSnapshotInfo(file, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(snapInfo),
                 Return(kErrCodeSuccess)));
 
     std::vector<FileSnapshotInfo> fileSnapInfo;
@@ -809,8 +809,8 @@ TEST_F(TestSnapshotServiceManager, TestGetFileSnapshotInfoFail) {
     UUID uuid = "uuid1";
 
     std::vector<SnapshotInfo> snapInfo;
-    EXPECT_CALL(*core_, GetFileSnapshotInfo(file, _))
-        .WillOnce(DoAll(SetArgPointee<1>(snapInfo),
+    EXPECT_CALL(*core_, GetFileSnapshotInfo(file, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(snapInfo),
                 Return(kErrCodeInternalError)));
 
     std::vector<FileSnapshotInfo> fileSnapInfo;
@@ -829,8 +829,8 @@ TEST_F(TestSnapshotServiceManager, TestGetFileSnapshotInfoFail2) {
     snap1.SetStatus(Status::pending);
     snapInfo.push_back(snap1);
 
-    EXPECT_CALL(*core_, GetFileSnapshotInfo(file, _))
-        .WillRepeatedly(DoAll(SetArgPointee<1>(snapInfo),
+    EXPECT_CALL(*core_, GetFileSnapshotInfo(file, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(snapInfo),
                 Return(kErrCodeSuccess)));
 
     std::vector<FileSnapshotInfo> fileSnapInfo;

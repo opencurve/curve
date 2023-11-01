@@ -613,8 +613,14 @@ LIBCURVE_ERROR MDSClient::ListSnapShot(const std::string& filename,
             snapif->insert(std::make_pair(tempInfo.seqnum, tempInfo));
         }
 
-        if (response.fileinfo_size() != seq->size()) {
-            LOG(WARNING) << "some snapshot info not found!";
+        if ((response.fileinfo_size() != seq->size()) &&
+            (seq->size() != 0)) {
+            LOG(WARNING) << "some snapshot info not found!"
+                         << ", filename = " << filename
+                         << ", owner = " << userinfo.owner
+                         << ", seq->size() = " << seq->size()
+                         << ", response.fileinfo_size() = "
+                         << response.fileinfo_size();
             return LIBCURVE_ERROR::NOTEXIST;
         }
 

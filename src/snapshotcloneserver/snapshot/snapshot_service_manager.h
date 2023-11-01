@@ -332,6 +332,10 @@ class SnapshotServiceManager {
         const std::string &user,
         std::vector<FileSnapshotInfo> *info);
 
+    int GetLocalSnapshotInfoInner(
+        const SnapshotInfo &snap,
+        FileSnapshotInfo *info);
+
     /**
      * @brief 根据快照信息获取快照任务信息
      *

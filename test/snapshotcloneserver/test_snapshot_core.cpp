@@ -358,7 +358,7 @@ TEST_F(TestSnapshotCoreImpl,
     EXPECT_CALL(*metaStore_, GetSnapshotList(file, _))
         .WillOnce(Return(kErrCodeSuccess));
 
-    int ret = core_->GetFileSnapshotInfo(file, &info);
+    int ret = core_->GetFileSnapshotInfo(file, "user1", &info);
     ASSERT_EQ(kErrCodeSuccess, ret);
 }
 
@@ -3272,6 +3272,301 @@ TEST_F(TestSnapshotCoreImpl,
 
     ASSERT_TRUE(task->IsFinish());
     ASSERT_EQ(Status::error, task->GetSnapshotInfo().GetStatus());
+}
+
+TEST_F(TestSnapshotCoreImpl,
+    TestCreateLocalSnapshot) {
+    std::string file = "/file1";
+    std::string user = "curve";
+    std::string snapshotName = "snap1";
+    SnapshotInfo snapInfo;
+    // CreateSnapshot in mds failed
+    {
+        EXPECT_CALL(*client_, CreateSnapshot(_, _, _))
+            .WillOnce(Return(-LIBCURVE_ERROR::AUTHFAIL));
+        ASSERT_EQ(kErrCodeInvalidUser,
+            core_->CreateLocalSnapshot(file, user, snapshotName, &snapInfo));
+    }
+    // exist old deleting snapshot
+    {
+        FInfo fi;
+        fi.filestatus = FileStatus::Deleting;
+        EXPECT_CALL(*client_, CreateSnapshot(_, _, _))
+            .WillOnce(DoAll(SetArgPointee<2>(fi),
+                Return(-LIBCURVE_ERROR::EXISTS)));
+        ASSERT_EQ(kErrCodeFileExist,
+            core_->CreateLocalSnapshot(file, user, snapshotName, &snapInfo));
+    }
+    // CreateSnapshot exist success
+    {
+        FInfo fi;
+        fi.filestatus = FileStatus::Created;
+        fi.seqnum = 1;
+        EXPECT_CALL(*client_, CreateSnapshot(_, _, _))
+            .WillOnce(DoAll(SetArgPointee<2>(fi),
+                Return(-LIBCURVE_ERROR::EXISTS)));
+        EXPECT_CALL(*client_, ProtectSnapshot(_, _))
+            .WillOnce(Return(LIBCURVE_ERROR::OK));
+        SnapshotInfo snapInfo;
+        snapInfo.SetSeqNum(1);
+        EXPECT_CALL(*metaStore_, GetSnapshotInfo(_, _, _))
+            .WillOnce(DoAll(SetArgPointee<2>(snapInfo),
+                        Return(0)));
+        ASSERT_EQ(kErrCodeSuccess,
+            core_->CreateLocalSnapshot(file, user, snapshotName, &snapInfo));
+    }
+    // CreateSnapshot exist old snapshotInfo, delete & add success
+    {
+        FInfo fi;
+        fi.filestatus = FileStatus::Created;
+        fi.seqnum = 1;
+        EXPECT_CALL(*client_, CreateSnapshot(_, _, _))
+            .WillOnce(DoAll(SetArgPointee<2>(fi),
+                Return(-LIBCURVE_ERROR::EXISTS)));
+        EXPECT_CALL(*client_, ProtectSnapshot(_, _))
+            .WillOnce(Return(LIBCURVE_ERROR::OK));
+        SnapshotInfo snapInfo;
+        snapInfo.SetSeqNum(2);
+        EXPECT_CALL(*metaStore_, GetSnapshotInfo(_, _, _))
+            .WillOnce(DoAll(SetArgPointee<2>(snapInfo),
+                        Return(0)));
+        EXPECT_CALL(*metaStore_, DeleteSnapshot(_))
+            .WillOnce(Return(0));
+        EXPECT_CALL(*metaStore_, AddSnapshot(_))
+            .WillOnce(Return(0));
+        ASSERT_EQ(kErrCodeSuccess,
+            core_->CreateLocalSnapshot(file, user, snapshotName, &snapInfo));
+    }
+    // CreateSnapshot exist old snapshotInfo, delete failed
+    {
+        FInfo fi;
+        fi.filestatus = FileStatus::Created;
+        fi.seqnum = 1;
+        EXPECT_CALL(*client_, CreateSnapshot(_, _, _))
+            .WillOnce(DoAll(SetArgPointee<2>(fi),
+                Return(-LIBCURVE_ERROR::EXISTS)));
+        EXPECT_CALL(*client_, ProtectSnapshot(_, _))
+            .WillOnce(Return(LIBCURVE_ERROR::OK));
+        SnapshotInfo snapInfo;
+        snapInfo.SetSeqNum(2);
+        EXPECT_CALL(*metaStore_, GetSnapshotInfo(_, _, _))
+            .WillOnce(DoAll(SetArgPointee<2>(snapInfo),
+                        Return(0)));
+        EXPECT_CALL(*metaStore_, DeleteSnapshot(_))
+            .WillOnce(Return(-1));
+        ASSERT_EQ(kErrCodeInternalError,
+            core_->CreateLocalSnapshot(file, user, snapshotName, &snapInfo));
+    }
+    // ProtectSnapshot failed
+    {
+        FInfo fi;
+        EXPECT_CALL(*client_, CreateSnapshot(_, _, _))
+            .WillOnce(DoAll(SetArgPointee<2>(fi),
+                Return(LIBCURVE_ERROR::OK)));
+        EXPECT_CALL(*client_, ProtectSnapshot(_, _))
+            .WillOnce(Return(-LIBCURVE_ERROR::NOTEXIST));
+        ASSERT_EQ(kErrCodeFileNotExist,
+            core_->CreateLocalSnapshot(file, user, snapshotName, &snapInfo));
+    }
+    // AddSnapshot to metastore failed
+    {
+        FInfo fi;
+        EXPECT_CALL(*client_, CreateSnapshot(_, _, _))
+            .WillOnce(DoAll(SetArgPointee<2>(fi),
+                Return(LIBCURVE_ERROR::OK)));
+        EXPECT_CALL(*client_, ProtectSnapshot(_, _))
+            .WillOnce(Return(LIBCURVE_ERROR::OK));
+        EXPECT_CALL(*metaStore_, GetSnapshotInfo(_, _, _))
+            .WillOnce(Return(-1));
+        EXPECT_CALL(*metaStore_, AddSnapshot(_))
+            .WillOnce(Return(-1));
+        ASSERT_EQ(kErrCodeInternalError,
+            core_->CreateLocalSnapshot(file, user, snapshotName, &snapInfo));
+    }
+    // CreateSnapshot on mds exist, AddSnapshot success
+    {
+        FInfo fi;
+        fi.filestatus = FileStatus::Created;
+        fi.seqnum = 1;
+        EXPECT_CALL(*client_, CreateSnapshot(_, _, _))
+            .WillOnce(DoAll(SetArgPointee<2>(fi),
+                Return(-LIBCURVE_ERROR::EXISTS)));
+        EXPECT_CALL(*client_, ProtectSnapshot(_, _))
+            .WillOnce(Return(LIBCURVE_ERROR::OK));
+        EXPECT_CALL(*metaStore_, GetSnapshotInfo(_, _, _))
+            .WillOnce(Return(-1));
+        EXPECT_CALL(*metaStore_, AddSnapshot(_))
+            .WillOnce(Return(0));
+        ASSERT_EQ(kErrCodeSuccess,
+            core_->CreateLocalSnapshot(file, user, snapshotName, &snapInfo));
+    }
+}
+
+TEST_F(TestSnapshotCoreImpl, TestDeleteLocalSnapshot) {
+    std::string uuid = "xxx";
+    std::string user = "user1";
+    std::string fileName = "/file1";
+    // get snapshot info not exist
+    {
+        SnapshotInfo snapInfo;
+        EXPECT_CALL(*metaStore_, GetSnapshotInfo(_, _))
+            .WillOnce(Return(-1));
+        ASSERT_EQ(kErrCodeSuccess,
+            core_->DeleteLocalSnapshot(uuid, user, fileName));
+    }
+    // user not match
+    {
+        SnapshotInfo snapInfo;
+        snapInfo.SetUser("user2");
+        EXPECT_CALL(*metaStore_, GetSnapshotInfo(_, _))
+            .WillOnce(DoAll(SetArgPointee<1>(snapInfo),
+                        Return(0)));
+        ASSERT_EQ(kErrCodeInvalidUser,
+            core_->DeleteLocalSnapshot(uuid, user, fileName));
+    }
+    // file not match
+    {
+        SnapshotInfo snapInfo;
+        snapInfo.SetUser(user);
+        snapInfo.SetFileName("/file2");
+        EXPECT_CALL(*metaStore_, GetSnapshotInfo(_, _))
+            .WillOnce(DoAll(SetArgPointee<1>(snapInfo),
+                        Return(0)));
+        ASSERT_EQ(kErrCodeFileNameNotMatch,
+            core_->DeleteLocalSnapshot(uuid, user, fileName));
+    }
+    // already deleting, success
+    {
+        SnapshotInfo snapInfo;
+        snapInfo.SetUser(user);
+        snapInfo.SetFileName(fileName);
+        snapInfo.SetStatus(Status::deleting);
+        EXPECT_CALL(*metaStore_, GetSnapshotInfo(_, _))
+            .WillOnce(DoAll(SetArgPointee<1>(snapInfo),
+                        Return(0)));
+        ASSERT_EQ(kErrCodeSuccess,
+            core_->DeleteLocalSnapshot(uuid, user, fileName));
+    }
+    // UnprotectSnapshot find file not exist, success
+    {
+        SnapshotInfo snapInfo;
+        snapInfo.SetUser(user);
+        snapInfo.SetFileName(fileName);
+        snapInfo.SetStatus(Status::done);
+        EXPECT_CALL(*metaStore_, GetSnapshotInfo(_, _))
+            .WillOnce(DoAll(SetArgPointee<1>(snapInfo),
+                        Return(0)));
+        EXPECT_CALL(*client_, UnprotectSnapshot(_, _))
+            .WillOnce(Return(-LIBCURVE_ERROR::NOTEXIST));
+        EXPECT_CALL(*metaStore_, DeleteSnapshot(_))
+            .WillOnce(Return(0));
+        ASSERT_EQ(kErrCodeSuccess,
+            core_->DeleteLocalSnapshot(uuid, user, fileName));
+    }
+    // UnprotectSnapshot find file not exist, but delete snapInfo failed
+    {
+        SnapshotInfo snapInfo;
+        snapInfo.SetUser(user);
+        snapInfo.SetFileName(fileName);
+        snapInfo.SetStatus(Status::done);
+        EXPECT_CALL(*metaStore_, GetSnapshotInfo(_, _))
+            .WillOnce(DoAll(SetArgPointee<1>(snapInfo),
+                        Return(0)));
+        EXPECT_CALL(*client_, UnprotectSnapshot(_, _))
+            .WillOnce(Return(-LIBCURVE_ERROR::NOTEXIST));
+        EXPECT_CALL(*metaStore_, DeleteSnapshot(_))
+            .WillOnce(Return(-1));
+        ASSERT_EQ(kErrCodeInternalError,
+            core_->DeleteLocalSnapshot(uuid, user, fileName));
+    }
+    // delete snapshot in mds failed
+    {
+        SnapshotInfo snapInfo;
+        snapInfo.SetUser(user);
+        snapInfo.SetFileName(fileName);
+        snapInfo.SetStatus(Status::done);
+        EXPECT_CALL(*metaStore_, GetSnapshotInfo(_, _))
+            .WillOnce(DoAll(SetArgPointee<1>(snapInfo),
+                        Return(0)));
+        EXPECT_CALL(*client_, UnprotectSnapshot(_, _))
+            .WillOnce(Return(LIBCURVE_ERROR::OK));
+        EXPECT_CALL(*client_, DeleteSnapshot(_, _, _))
+            .WillOnce(Return(-LIBCURVE_ERROR::FAILED));
+        ASSERT_EQ(kErrCodeInternalError,
+            core_->DeleteLocalSnapshot(uuid, user, fileName));
+    }
+    // delete snapshot in mds find not exist, DeleteSnapshot failed
+    {
+        SnapshotInfo snapInfo;
+        snapInfo.SetUser(user);
+        snapInfo.SetFileName(fileName);
+        snapInfo.SetStatus(Status::done);
+        EXPECT_CALL(*metaStore_, GetSnapshotInfo(_, _))
+            .WillOnce(DoAll(SetArgPointee<1>(snapInfo),
+                        Return(0)));
+        EXPECT_CALL(*client_, UnprotectSnapshot(_, _))
+            .WillOnce(Return(LIBCURVE_ERROR::OK));
+        EXPECT_CALL(*client_, DeleteSnapshot(_, _, _))
+            .WillOnce(Return(-LIBCURVE_ERROR::NOTEXIST));
+        EXPECT_CALL(*metaStore_, DeleteSnapshot(_))
+            .WillOnce(Return(-1));
+        ASSERT_EQ(kErrCodeInternalError,
+            core_->DeleteLocalSnapshot(uuid, user, fileName));
+    }
+    // delete snapshot in mds find not exist, DeleteSnapshot success
+    {
+        SnapshotInfo snapInfo;
+        snapInfo.SetUser(user);
+        snapInfo.SetFileName(fileName);
+        snapInfo.SetStatus(Status::done);
+        EXPECT_CALL(*metaStore_, GetSnapshotInfo(_, _))
+            .WillOnce(DoAll(SetArgPointee<1>(snapInfo),
+                        Return(0)));
+        EXPECT_CALL(*client_, UnprotectSnapshot(_, _))
+            .WillOnce(Return(LIBCURVE_ERROR::OK));
+        EXPECT_CALL(*client_, DeleteSnapshot(_, _, _))
+            .WillOnce(Return(-LIBCURVE_ERROR::NOTEXIST));
+        EXPECT_CALL(*metaStore_, DeleteSnapshot(_))
+            .WillOnce(Return(0));
+        ASSERT_EQ(kErrCodeSuccess,
+            core_->DeleteLocalSnapshot(uuid, user, fileName));
+    }
+    // delete snapshot in mds success, updatesnapshot failed
+    {
+        SnapshotInfo snapInfo;
+        snapInfo.SetUser(user);
+        snapInfo.SetFileName(fileName);
+        snapInfo.SetStatus(Status::done);
+        EXPECT_CALL(*metaStore_, GetSnapshotInfo(_, _))
+            .WillOnce(DoAll(SetArgPointee<1>(snapInfo),
+                        Return(0)));
+        EXPECT_CALL(*client_, UnprotectSnapshot(_, _))
+            .WillOnce(Return(LIBCURVE_ERROR::OK));
+        EXPECT_CALL(*client_, DeleteSnapshot(_, _, _))
+            .WillOnce(Return(LIBCURVE_ERROR::OK));
+        EXPECT_CALL(*metaStore_, UpdateSnapshot(_))
+            .WillOnce(Return(-1));
+        ASSERT_EQ(kErrCodeInternalError,
+            core_->DeleteLocalSnapshot(uuid, user, fileName));
+    }
+    // delete snapshot in mds success
+    {
+        SnapshotInfo snapInfo;
+        snapInfo.SetUser(user);
+        snapInfo.SetFileName(fileName);
+        snapInfo.SetStatus(Status::done);
+        EXPECT_CALL(*metaStore_, GetSnapshotInfo(_, _))
+            .WillOnce(DoAll(SetArgPointee<1>(snapInfo),
+                        Return(0)));
+        EXPECT_CALL(*client_, UnprotectSnapshot(_, _))
+            .WillOnce(Return(LIBCURVE_ERROR::OK));
+        EXPECT_CALL(*client_, DeleteSnapshot(_, _, _))
+            .WillOnce(Return(LIBCURVE_ERROR::OK));
+        EXPECT_CALL(*metaStore_, UpdateSnapshot(_))
+            .WillOnce(Return(0));
+        ASSERT_EQ(kErrCodeSuccess,
+            core_->DeleteLocalSnapshot(uuid, user, fileName));
+    }
 }
 
 }  // namespace snapshotcloneserver

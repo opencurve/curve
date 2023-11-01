@@ -46,7 +46,7 @@
 #include "src/snapshotcloneserver/snapshot/snapshot_service_manager.h"
 #include "src/snapshotcloneserver/clone/clone_service_manager.h"
 #include "src/snapshotcloneserver/common/snapshotclone_meta_store_etcd.h"
-#include "src/snapshotcloneserver/volume/voume_service_manager.h"
+#include "src/snapshotcloneserver/volume/volume_service_manager.h"
 
 namespace curve {
 namespace snapshotcloneserver {

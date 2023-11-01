@@ -24,11 +24,12 @@
 #define SRC_SNAPSHOTCLONESERVER_COMMON_CURVEFS_CLIENT_H_
 
 
-#include<string>
+#include <string>
 #include <vector>
 #include <memory>
 #include <chrono>  //NOLINT
 #include <thread>  //NOLINT
+#include <map>
 #include "proto/nameserver2.pb.h"
 #include "proto/chunk.pb.h"
 
@@ -154,6 +155,19 @@ class CurveFsClient {
     virtual int DeleteSnapshot(const std::string &filename,
         const std::string &user,
         uint64_t seq) = 0;
+
+    /**
+     * @brief 获取快照文件信息
+     *
+     * @param filename 文件名
+     * @param user 用户名
+     * @param[out] snapInfos 快照文件信息
+     *
+     * @return 错误码
+     */
+    virtual int ListSnapshot(const std::string &filename,
+        const std::string &user,
+        std::map<uint64_t, FInfo> *snapif) = 0;
 
     /**
      * @brief 获取快照文件信息
@@ -511,6 +525,10 @@ class CurveFsClientImpl : public CurveFsClient {
     int DeleteSnapshot(const std::string &filename,
         const std::string &user,
         uint64_t seq) override;
+
+    int ListSnapshot(const std::string &filename,
+        const std::string &user,
+        std::map<uint64_t, FInfo> *snapif) override;
 
     int GetSnapshot(const std::string &filename,
         const std::string &user,

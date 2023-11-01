@@ -20,7 +20,7 @@
  * Author: xuchaojie
  */
 
-#include "src/snapshotcloneserver/volume/voume_service_manager.h"
+#include "src/snapshotcloneserver/volume/volume_service_manager.h"
 
 #include <memory>
 #include <string>
@@ -40,8 +40,17 @@ int VolumeServiceManager::CreateFile(const std::string &file,
     int ret = client_->CreateFile(file, user, size, stripeUnit, stripeCount,
         poolset);
     ret = LibCurveErrToSnapshotCloneErr(ret);
-    if (ret != kErrCodeSuccess &&
-        ret != kErrCodeFileExist) {
+    if (ret != kErrCodeSuccess) {
+        if (kErrCodeFileExist == ret) {
+            LOG(INFO) << "CreateFile found file exist, "
+                      << ", file = " << file
+                      << ", user = " << user
+                      << ", size = " << size
+                      << ", stripeUnit = " << stripeUnit
+                      << ", stripeCount = " << stripeCount
+                      << ", poolset = " << poolset;
+            return kErrCodeSuccess;
+        }
         LOG(ERROR) << "CreateFile fail, ret = " << ret
                    << ", file = " << file
                    << ", user = " << user
@@ -64,8 +73,13 @@ int VolumeServiceManager::DeleteFile(const std::string &file,
     const std::string &user) {
     int ret = client_->DeleteFile(file, user);
     ret = LibCurveErrToSnapshotCloneErr(ret);
-    if (ret != kErrCodeSuccess &&
-        ret != kErrCodeFileNotExist) {
+    if (ret != kErrCodeSuccess) {
+        if (kErrCodeFileNotExist == ret) {
+            LOG(INFO) << "DeleteFile found file not exist, "
+                      << ", file = " << file
+                      << ", user = " << user;
+            return kErrCodeSuccess;
+        }
         LOG(ERROR) << "DeleteFile fail, ret = " << ret
                    << ", file = " << file
                    << ", user = " << user;
@@ -83,6 +97,12 @@ int VolumeServiceManager::GetFile(const std::string &file,
     int ret = client_->StatFile(file, user, &statInfo);
     ret = LibCurveErrToSnapshotCloneErr(ret);
     if (ret != kErrCodeSuccess) {
+        if (kErrCodeFileNotExist == ret) {
+            LOG(INFO) << "StatFile found file not exist, "
+                      << ", file = " << file
+                      << ", user = " << user;
+            return kErrCodeFileNotExist;
+        }
         LOG(ERROR) << "StatFile fail, ret = " << ret
                    << ", file = " << file
                    << ", user = " << user;
@@ -103,6 +123,12 @@ int VolumeServiceManager::BuildFileInfo(const std::string &file,
         int ret = client_->QueryFlattenStatus(
             file, user, &fileStatus, &progress);
         if (ret != LIBCURVE_ERROR::OK) {
+            if (ret == -LIBCURVE_ERROR::NOTEXIST) {
+                LOG(INFO) << "QueryFlattenStatus fail, file not exist, ret = "
+                          << ret << ", file = " << file
+                          << ", user = " << user;
+                return kErrCodeFileNotExist;
+            }
             LOG(ERROR) << "QueryFlattenStatus fail, ret = " << ret
                        << ", file = " << file
                        << ", user = " << user;
@@ -124,9 +150,10 @@ int VolumeServiceManager::BuildFileInfo(const std::string &file,
         fileInfo->SetFileInfoType(FileInfoType::directory);
         fileInfo->SetProgress(100);
     } else {
-        fileInfo->SetFileInfoStatus(FileInfoStatus::done);
-        fileInfo->SetFileInfoType(FileInfoType::unknown);
-        fileInfo->SetProgress(100);
+        LOG(ERROR) << "unexpected file type, file = " << file
+                   << ", user = " << user
+                   << ", filetype = " << statInfo.filetype;
+        return kErrCodeInternalError;
     }
     return kErrCodeSuccess;
 }
@@ -155,6 +182,13 @@ int VolumeServiceManager::ListFile(const std::string &dir,
         int ret = BuildFileInfo(fullPathName, user, statInfo,
             &fileInfo);
         if (ret != kErrCodeSuccess) {
+            if (ret == kErrCodeFileNotExist) {
+                LOG(INFO) << "BuildFileInfo found file not exist, ret = "
+                          << ret << ", user = " << user
+                          << ", dir = " << dir
+                          << ", filename = " << statInfo.filename;
+                continue;
+            }
             LOG(ERROR) << "BuildFileInfo fail, ret = " << ret
                        << ", user = " << user
                        << ", dir = " << dir
