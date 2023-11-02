@@ -457,11 +457,11 @@ int CurveSegmentLogStorage::append_entries(
         last_segment = segment;
     }
     last_segment->sync(_enable_sync);
-    LOG(INFO) << "zyb 2: log append_entry " << _path 
-            << " index begin: " << entries.front()->id.index
-            << " index end: " << entries.back()->id.index
-            << " _first_log_index: " << first_log_index()
-            << " _last_log_index: " << last_log_index();
+    // LOG(INFO) << "zyb 2: log append_entry " << _path 
+    //         << " index begin: " << entries.front()->id.index
+    //         << " index end: " << entries.back()->id.index
+    //         << " _first_log_index: " << first_log_index()
+    //         << " _last_log_index: " << last_log_index();
     return entries.size();
 }
 

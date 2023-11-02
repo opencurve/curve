@@ -343,7 +343,7 @@ int CurveSegment::_load_entry(off_t offset, EntryHeader* head,
         *head = tmp;
     }
     if (data != NULL) {
-        if (buf.length() < kWalHeaderSize - data_hdr + data_real_len) {
+        if (buf.length() < kWalHeaderSize + data_real_len) {
             const size_t to_read = kWalHeaderSize + data_real_len
                                                     - buf.length();
             const ssize_t n = braft::file_pread(&buf, _fd,
@@ -351,11 +351,11 @@ int CurveSegment::_load_entry(off_t offset, EntryHeader* head,
             if (n != (ssize_t)to_read) {
                 return n < 0 ? -1 : 1;
             }
-        } else if (buf.length() > kWalHeaderSize - data_hdr + data_real_len) {
+        } else if (buf.length() > kWalHeaderSize + data_real_len) {
             buf.pop_back(buf.length() - kWalHeaderSize - data_real_len);
         }
-        CHECK_EQ(buf.length(), kWalHeaderSize - data_hdr + data_real_len);
-        buf.pop_front(kWalHeaderSize - data_hdr);
+        CHECK_EQ(buf.length(), kWalHeaderSize + data_real_len);
+        buf.pop_front(kWalHeaderSize - data_len + data_real_len);
         if (!verify_checksum(tmp.checksum_type, buf, tmp.data_checksum)) {
             LOG(ERROR) << "Found corrupted data at offset="
                        << offset + kWalHeaderSize
@@ -408,12 +408,17 @@ int CurveSegment::append(const braft::LogEntry* entry) {
     metaSize = butil::NetToHost32(metaSize);
     raw_data.pop_front(metaSize);
     size_t data_hdr = data.size() - raw_data.size();
-    CHECK_EQ(data_hdr, metaSize + sizeof(uint32_t));
 
     uint32_t data_check_sum = get_checksum(_checksum_type, data);
-    uint32_t real_length = data.length();
-    uint32_t raw_length = raw_data.length();
-    CHECK_EQ(raw_length, real_length - data_hdr);
+    uint32_t real_length = data.length() - data_hdr;
+    // uint32_t raw_length = raw_data.length();
+    // LOG(INFO) << "zyb wal append 1: path " << _path
+    //           << ", data_length: " << data.length()
+    //           << ", real_length: " << real_length
+    //           << ", data_hdr: " << data_hdr
+    //           << ", raw_length: " << raw_length
+    //           << ", metaSize: " << metaSize;
+
     //size_t to_write = data.length();
     //uint32_t zero_bytes_num = 0;
     // 4KB alignment
@@ -422,7 +427,7 @@ int CurveSegment::append(const braft::LogEntry* entry) {
     //                                     FLAGS_walAlignSize - real_length;
     // }
     //data.resize(data.length() + zero_bytes_num);
-    size_t to_write = kWalHeaderSize + raw_length;
+    size_t to_write = kWalHeaderSize + real_length;
     CHECK_LE(data.length(), 1ul << 56ul);
     char* write_buf = nullptr;
     if (FLAGS_enableWalDirectWrite) {
@@ -445,7 +450,7 @@ int CurveSegment::append(const braft::LogEntry* entry) {
                   _checksum_type, write_buf, kEntryHeaderSize - 4));
     data.copy_to(write_buf + kWalHeaderSize - data_hdr, data_hdr);
     if (FLAGS_enableWalDirectWrite) {
-        data.copy_to(write_buf + kWalHeaderSize, raw_length, data_hdr);
+        data.copy_to(write_buf + kWalHeaderSize, real_length, data_hdr);
         int ret = ::pwrite(_direct_fd, write_buf, to_write, _meta.bytes);
         free(write_buf);
         if (ret != to_write) {
@@ -483,17 +488,17 @@ int CurveSegment::append(const braft::LogEntry* entry) {
         _last_index.fetch_add(1, butil::memory_order_seq_cst);
         _meta.bytes += to_write;
     }
-    LOG(INFO) << "wal append, path: " << _path
-              << ", entry->id: " << entry->id
-              << ", entry->type: " << entry->type
-              << ", old _meta.bytes: " << (_meta.bytes - to_write)
-              << ", real_length: " << real_length
-              << ", raw_length: " << raw_length
-              << ", data_hdr: " << data_hdr
-              << ", to_write: " << to_write
-              << ", new _meta.bytes: " << _meta.bytes
-              << ", _last_index: " << _last_index.load()
-              << ", _first_index: " << _first_index;
+    // LOG(INFO) << "zyb wal append 2, path: " << _path
+    //           << ", entry->id: " << entry->id
+    //           << ", entry->type: " << entry->type
+    //           << ", old _meta.bytes: " << (_meta.bytes - to_write)
+    //           << ", data_length: " << data.length()
+    //           << ", real_length: " << real_length
+    //           << ", data_hdr: " << data_hdr
+    //           << ", to_write: " << to_write
+    //           << ", new _meta.bytes: " << _meta.bytes
+    //           << ", _last_index: " << _last_index.load()
+    //           << ", _first_index: " << _first_index;
     return _update_meta_page();
 }
 

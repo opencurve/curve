@@ -101,12 +101,12 @@ int PosixWrapper::ficlonerange(int fd,
                                 off_t src_offset,
                                 size_t src_length,
                                 off_t dest_offset) {
-    LOG(INFO) << "zyb xfs Posix FICLONERANGE: "
-              << " fd " << fd
-              << " src_fd " << src_fd
-              << " src_offset " << src_offset
-              << " src_length " << src_length
-              << " dest_offset " << dest_offset;
+    // LOG(INFO) << "zyb xfs Posix FICLONERANGE: "
+    //           << " fd " << fd
+    //           << " src_fd " << src_fd
+    //           << " src_offset " << src_offset
+    //           << " src_length " << src_length
+    //           << " dest_offset " << dest_offset;
     struct file_clone_range fcr;
     fcr.src_fd = src_fd;
     fcr.src_offset = src_offset;
