@@ -95,6 +95,8 @@ A tool for CurveFS & CurveBs.
         - [check consistency](#check-consistency)
       - [snapshot](#snapshot)
         - [snapshot copyset](#snapshot-copyset)
+      - [stop](#stop)
+        - [stop snapshot](#stop-snapshot)
   - [Comparison of old and new commands](#comparison-of-old-and-new-commands)
     - [curve fs](#curve-fs)
     - [curve bs](#curve-bs)
@@ -1969,6 +1971,30 @@ Output:
 +----------------+         +
 | **.*.*.**:8202 |         |
 +----------------+---------+
+```
+
+#### stop
+
+##### stop snapshot
+
+stop snapshot in curve bs
+
+Usage:
+
+```shell
+curve bs stop snapshot
+```
+
+Output:
+
+```shell
++--------------------------------------+--------------+---------+
+|              SNAPSHOTID              | SNAPSHOTNAME | RESULT  |
++--------------------------------------+--------------+---------+
+| 9aa2b4c5-f27b-40a2-82c9-4e0ad6093567 | testsnap     | success |
++--------------------------------------+--------------+---------+
+| 0171a33b-17b7-4215-9f00-6d8de2686f77 | testsnap1    | success |
++--------------------------------------+--------------+---------+
 ```
 
 ## Comparison of old and new commands
