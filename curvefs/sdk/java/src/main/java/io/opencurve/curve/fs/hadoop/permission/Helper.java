@@ -90,6 +90,9 @@ public class Helper {
         }
         lib.endpwent();
         return users;
+
+        //List<Entry> users = new ArrayList<Entry>();
+        //return users;
     }
 
     public static List<Entry> getAllGroups() {
@@ -101,5 +104,8 @@ public class Helper {
         }
         lib.endgrent();
         return groups;
+
+        //List<Entry> groups = new ArrayList<Entry>();
+        //return groups;
     }
 }

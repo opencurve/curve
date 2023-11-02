@@ -19,9 +19,9 @@ public class StackLogger {
         return formatter.format(new Date());
     }
 
-    private int getIndex() {
-        long id = Thread.currentThread().getId();
-    }
+    //private int getIndex() {
+    //    long id = Thread.currentThread().getId();
+    //}
 
     public void log(String fn, Object... args) {
         String value = System.getenv(CURVEFS_DEBUG_ENV_VAR);

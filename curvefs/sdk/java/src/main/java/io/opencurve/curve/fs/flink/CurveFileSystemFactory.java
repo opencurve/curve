@@ -1,5 +1,6 @@
 package io.opencurve.curve.fs.flink;
 
+import io.opencurve.curve.fs.common.StackLogger;
 import io.opencurve.curve.fs.hadoop.CurveFileSystem;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemFactory;
@@ -11,32 +12,25 @@ import java.net.URI;
 
 public class CurveFileSystemFactory implements FileSystemFactory {
     private org.apache.hadoop.conf.Configuration conf;
-
     private static final String CURVE_FS_CONFIG_PREFIXES = "curvefs.";
     private static final String FLINK_CONFIG_PREFIXES = "fs.";
     public static String SCHEME = "curvefs";
+    private static final StackLogger logger =
+        new StackLogger("CurveFileSystemFactory", 0);
 
     @Override
     public void configure(org.apache.flink.configuration.Configuration config) {
         conf = new Configuration();
-        if (config != null) {
-            for (String key : config.keySet()) {
-                if (key.startsWith(CURVE_FS_CONFIG_PREFIXES) || key.startsWith(FLINK_CONFIG_PREFIXES)) {
-                    String value = config.getString(key, null);
-                    if (value != null) {
-                        if (CurveFileSystem.class.getCanonicalName().equals(value.trim())) {
-                            SCHEME = key.split("\\.")[1];
-                        }
-                        conf.set(key, value);
-                    }
-                }
-            }
-        }
+        config.keySet()
+                .stream()
+                .filter(key -> key.startsWith(CURVE_FS_CONFIG_PREFIXES) || key.startsWith(FLINK_CONFIG_PREFIXES))
+                .forEach(key -> conf.set(key, config.getString(key, "")));
     }
 
     @Override
     public String getScheme() {
-        return SCHEME;
+        logger.log("getScheme");
+        return "hdfs";
     }
 
     @Override
