@@ -28,6 +28,8 @@ import (
 )
 
 func NewQuerySubUri(params map[string]any) string {
+	params[QueryVersion] = Version
+
 	values := strings.Builder{}
 	for key, value := range params {
 		if value != "" && value != nil {
