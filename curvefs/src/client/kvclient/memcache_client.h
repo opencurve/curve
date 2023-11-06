@@ -121,7 +121,7 @@ class MemCachedClient : public KVClient {
         auto res = memcached_set(tcli, key.c_str(), key.length(), value,
                                  value_len, 0, 0);
         if (MEMCACHED_SUCCESS == res) {
-            VLOG(9) << "Set key = " << key << " OK";
+            VLOG(9) << "Set key: " << key << ", OK";
             curve::client::CollectMetrics(&metric_->set, value_len,
                                           butil::cpuwide_time_us() - start);
             return true;
@@ -129,7 +129,7 @@ class MemCachedClient : public KVClient {
         *errorlog = ResError(res);
         memcached_free(tcli);
         tcli = nullptr;
-        LOG(ERROR) << "Set key = " << key << " error = " << *errorlog;
+        LOG(ERROR) << "Set key: " << key << ", error: " << *errorlog;
         metric_->set.eps.count << 1;
         return false;
     }
@@ -154,9 +154,17 @@ class MemCachedClient : public KVClient {
         if (retCode != nullptr) {
             (*retCode) = ue;
         }
-        if (MEMCACHED_SUCCESS == ue && res != nullptr && value &&
-            value_length >= length) {
-            VLOG(9) << "Get key = " << key << " OK";
+
+        // Sometimes the s3 object size is not known,
+        // so the default is to download the object in the block size.
+        if (value_length < length) {
+            LOG_EVERY_N(WARNING, 100)
+                << "Get key: " << key << ", value_length: " << value_length
+                << ", length: " << length;
+        }
+
+        if (MEMCACHED_SUCCESS == ue && res != nullptr && value) {
+            VLOG(9) << "Get key: " << key << ", OK";
             memcpy(value, res + offset, length);
             free(res);
             curve::client::CollectMetrics(&metric_->get, value_length,
@@ -166,9 +174,9 @@ class MemCachedClient : public KVClient {
 
         *errorlog = ResError(ue);
         if (ue != MEMCACHED_NOTFOUND) {
-          LOG(ERROR) << "Get key = " << key << " error = " << *errorlog
-                     << ", get_value_len = " << value_length
-                     << ", expect_value_len = " << length;
+          LOG(ERROR) << "Get key: " << key << ", error: " << *errorlog
+                     << ", get_value_len: " << value_length
+                     << ", expect_value_len: " << length;
           free(res);
           memcached_free(tcli);
           tcli = nullptr;
@@ -194,7 +202,7 @@ class MemCachedClient : public KVClient {
         if (MEMCACHED_SUCCESS == res) {
             return true;
         }
-        LOG(ERROR) << "client add " << hostname << " " << port << " error";
+        LOG(ERROR) << "client add: " << hostname << ", " << port << ", error";
         return false;
     }
 
