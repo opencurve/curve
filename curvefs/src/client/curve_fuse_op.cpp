@@ -23,7 +23,10 @@
 
 #include "curvefs/src/client/curve_fuse_op.h"
 
+#include <fmt/format.h>
+
 #include <cstring>
+#include <functional>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -66,6 +69,7 @@ using ::curvefs::client::common::WarmupStorageType;
 using ::curvefs::client::filesystem::AttrOut;
 using ::curvefs::client::filesystem::EntryOut;
 using ::curvefs::client::filesystem::FileOut;
+using ::curvefs::client::filesystem::IsCheckXAttr;
 using ::curvefs::client::filesystem::IsListWarmupXAttr;
 using ::curvefs::client::filesystem::IsWarmupXAttr;
 using ::curvefs::client::filesystem::StrAttr;
@@ -237,16 +241,18 @@ void UnInitFuseClient() {
 int AddWarmupTask(curvefs::client::common::WarmupType type, fuse_ino_t key,
                   const std::string& path,
                   curvefs::client::common::WarmupStorageType storageType,
-                  const std::string& mount_point, const std::string& root) {
+                  const std::string& mount_point, const std::string& root,
+                  bool check = false) {
     int ret = 0;
     bool result = true;
     switch (type) {
     case curvefs::client::common::WarmupType::kWarmupTypeList:
-        result = g_ClientInstance->PutWarmFilelistTask(key, storageType, path,
-                                                       mount_point, root);
-        break;
+            result = g_ClientInstance->PutWarmFilelistTask(
+                key, storageType, path, mount_point, root, check);
+            break;
     case curvefs::client::common::WarmupType::kWarmupTypeSingle:
-        result = g_ClientInstance->PutWarmFileTask(key, path, storageType);
+        result =
+            g_ClientInstance->PutWarmFileTask(key, path, storageType, check);
         break;
     default:
         // not support add warmup type (warmup single file/dir or filelist)
@@ -289,6 +295,18 @@ void QueryWarmupTask(fuse_ino_t key, std::string *data) {
                 std::to_string(progress.GetTotal());
     }
     VLOG(9) << "Warmup [" << key << "]" << *data;
+}
+
+void QueryCheckCachedTask(fuse_ino_t key, std::string* data) {
+    WarmupProgress progress;
+    bool ret = g_ClientInstance->GetCheckCachedProgress(key, &progress);
+    if (!ret) {
+        *data = "no check task or not warmup yet";
+    } else {
+        *data =
+            fmt::format("{}/{}", progress.GetFinished(), progress.GetTotal());
+    }
+    VLOG(9) << "check cached [" << key << "]" << *data;
 }
 
 void ListWarmupTasks(std::string* data) {
@@ -344,9 +362,15 @@ int Warmup(fuse_ino_t key, const char* name, const std::string& values) {
     }
 
     int ret = 0;
+    bool check = false;
+    if (curvefs::client::common::GetWarmupOpType(warmupOpType) ==
+        curvefs::client::common::WarmupOpType::kWarmupOpCheck) {
+        check = true;
+    }
 
     switch (curvefs::client::common::GetWarmupOpType(warmupOpType)) {
-        case curvefs::client::common::WarmupOpType::kWarmupOpAdd: {
+        case curvefs::client::common::WarmupOpType::kWarmupOpCheck:
+        case curvefs::client::common::WarmupOpType::kWarmupOpAdd : {
             if (opTypePath.size() !=
                 curvefs::client::common::kWarmupAddArgsNum) {
                 LOG(ERROR)
@@ -373,7 +397,7 @@ int Warmup(fuse_ino_t key, const char* name, const std::string& values) {
             ret = AddWarmupTask(
                 curvefs::client::common::GetWarmupType(warmupDataType), key,
                 entryFilePathInClient, storageType, mountPointInCurvefs,
-                rootPathInCurvefs);
+                rootPathInCurvefs, check);
             break;
         }
         case curvefs::client::common::WarmupOpType::kWarmupOpCancel: {
@@ -440,6 +464,17 @@ void QueryWarmup(fuse_req_t req, fuse_ino_t ino, size_t size) {
 
     std::string data;
     QueryWarmupTask(ino, &data);
+    if (size == 0) {
+        return fs->ReplyXattr(req, data.length());
+    }
+    return fs->ReplyBuffer(req, data.data(), data.length());
+}
+
+void QueryCheckCached(fuse_req_t req, fuse_ino_t ino, size_t size) {
+    auto fs = Client()->GetFileSystem();
+
+    std::string data;
+    QueryCheckCachedTask(ino, &data);
     if (size == 0) {
         return fs->ReplyXattr(req, data.length());
     }
@@ -944,6 +979,8 @@ void FuseOpGetXattr(fuse_req_t req,
         return ListWarmup(req, size);
     } else if (IsWarmupXAttr(name)) {
         return QueryWarmup(req, ino, size);
+    } else if (IsCheckXAttr(name)) {
+        return QueryCheckCached(req, ino, size);
     }
 
     rc = Client()->FuseOpGetXattr(req, ino, name, &value, size);

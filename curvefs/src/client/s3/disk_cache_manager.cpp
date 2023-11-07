@@ -403,7 +403,7 @@ void DiskCacheManager::TrimCache() {
     waitIntervalSec_.Init(FLAGS_diskTrimCheckIntervalSec * 1000);
     // trim will start after get the disk size
     while (!IsDiskUsedInited()) {
-        if (!isRunning_) {
+        if (!isRunning_.load()) {
             return;
         }
         waitIntervalSec_.WaitForNextExcution();
@@ -506,7 +506,7 @@ int DiskCacheManager::TrimStop() {
     }
     if (isRunning_.exchange(false)) {
         LOG(INFO) << "stop DiskCacheManager trim thread...";
-        isRunning_ = false;
+        // isRunning_ = false; // useless?
         waitIntervalSec_.StopWait();
         backEndThread_.join();
         LOG(INFO) << "stop DiskCacheManager trim thread ok.";

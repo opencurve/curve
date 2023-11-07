@@ -80,6 +80,7 @@ std::ostream &operator<<(std::ostream &os, MetaServerOpType optype) {
 
 const char kCurveFsWarmupOpAdd[] = "add";
 const char kCurveFsWarmupOpCancel[] = "cancel";
+const char kCurveFsWarmupOpCheck[] = "check";
 const char kCurveFsWarmupTypeList[] = "list";
 const char kCurveFsWarmupTypeSingle[] = "single";
 
@@ -89,6 +90,8 @@ WarmupOpType GetWarmupOpType(const std::string& op) {
         ret = WarmupOpType::kWarmupOpAdd;
     } else if (op == kCurveFsWarmupOpCancel) {
         ret = WarmupOpType::kWarmupOpCancel;
+    } else if (op == kCurveFsWarmupOpCheck) {
+        ret = WarmupOpType::kWarmupOpCheck;
     }
     return ret;
 }

@@ -68,11 +68,13 @@ std::ostream &operator<<(std::ostream &os, MetaServerOpType optype);
 constexpr size_t kMinWarmupOpArgsNum = 1;
 constexpr size_t kWarmupAddArgsNum = 6;
 constexpr size_t kWarmupCancelArgsNum = 2;
+constexpr size_t kWarmupCheckArgsNum = 6;
 
 enum class WarmupOpType {
     kWarmupOpUnknown = 0,
     kWarmupOpAdd = 1,
     kWarmupOpCancel = 2,
+    kWarmupOpCheck = 3,
 };
 
 WarmupOpType GetWarmupOpType(const std::string& op);

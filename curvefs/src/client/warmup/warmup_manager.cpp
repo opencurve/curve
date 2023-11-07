@@ -30,6 +30,7 @@
 #include <atomic>
 #include <cstdint>
 #include <deque>
+#include <functional>
 #include <list>
 #include <memory>
 #include <string>
@@ -55,24 +56,27 @@ using curve::common::WriteLockGuard;
 
 #define ROOT_PATH_NAME "/"
 
-static bool pass_uint32(const char*, uint32_t) { return true; }
+static bool pass_uint32(const char*, uint32_t) {
+    return true;
+}
 DEFINE_uint32(warmupMaxSymLink, 1 << 2,
               "The maximum number of times to parse sym link");
 DEFINE_validator(warmupMaxSymLink, &pass_uint32);
+DEFINE_uint32(warmupDoneTimeoutSecond, 5,
+              "Timeout after completion of warmup task");
+DEFINE_validator(warmupDoneTimeoutSecond, &pass_uint32);
 
-bool WarmupManagerS3Impl::AddWarmupFilelist(fuse_ino_t key,
-                                            WarmupStorageType type,
-                                            const std::string& path,
-                                            const std::string& mount_point,
-                                            const std::string& root) {
+bool WarmupManagerS3Impl::AddWarmupFilelist(
+    fuse_ino_t key, WarmupStorageType type, const std::string& path,
+    const std::string& mount_point, const std::string& root, bool check) {
     if (!mounted_.load(std::memory_order_acquire)) {
         LOG(ERROR) << "not mounted";
         return false;
     }
     // add warmup Progress
     WriteLockGuard lock(inode2ProgressMutex_);
-    if (AddWarmupProcessLocked(key, path, type)) {
-        LOG(INFO) << "add warmup list task:" << key;
+    if (AddWarmupProcessLocked(key, path, type, check)) {
+        LOG(INFO) << "add warmup list task:" << key << " is check: " << check;
         WriteLockGuard lock(warmupFilelistDequeMutex_);
         auto iter = FindWarmupFilelistByKeyLocked(key);
         if (iter == warmupFilelistDeque_.end()) {
@@ -91,15 +95,15 @@ bool WarmupManagerS3Impl::AddWarmupFilelist(fuse_ino_t key,
 }
 
 bool WarmupManagerS3Impl::AddWarmupFile(fuse_ino_t key, const std::string& path,
-                                        WarmupStorageType type) {
+                                        WarmupStorageType type, bool check) {
     if (!mounted_.load(std::memory_order_acquire)) {
         LOG(ERROR) << "not mounted";
         return false;
     }
     // add warmup Progress
     WriteLockGuard lock(inode2ProgressMutex_);
-    if (AddWarmupProcessLocked(key, path, type)) {
-        LOG(INFO) << "add warmup single task:" << key;
+    if (AddWarmupProcessLocked(key, path, type, check)) {
+        LOG(INFO) << "add warmup single task:" << key << " is check: " << check;
         FetchDentryEnqueue(key, path);
     }
     return true;
@@ -402,6 +406,28 @@ void WarmupManagerS3Impl::TravelChunks(
     fuse_ino_t key, fuse_ino_t ino, const S3ChunkInfoMapType& s3ChunkInfoMap) {
     VLOG(9) << "travel chunk start: " << ino
             << ", size: " << s3ChunkInfoMap.size();
+    std::function<void(fuse_ino_t,
+                       const std::list<std::pair<std::string, uint64_t>>&)>
+        taskObjectsFunc;
+    {
+        ReadLockGuard lock(inode2ProgressMutex_);
+        auto iter = FindWarmupProgressByKeyLocked(key);
+        if (iter->second.IsCachedTask()) {
+            taskObjectsFunc =
+                [this](
+                    fuse_ino_t key,
+                    const std::list<std::pair<std::string, uint64_t>>& list) {
+                    CheckCachedAllObjs(key, list);
+                };
+        } else {
+            taskObjectsFunc =
+                [this](
+                    fuse_ino_t key,
+                    const std::list<std::pair<std::string, uint64_t>>& list) {
+                    WarmUpAllObjs(key, list);
+                };
+        }
+    }
     for (auto const& infoIter : s3ChunkInfoMap) {
         VLOG(9) << "travel chunk: " << infoIter.first;
         std::list<std::pair<std::string, uint64_t>> prefetchObjs;
@@ -415,8 +441,8 @@ void WarmupManagerS3Impl::TravelChunks(
                 LOG(ERROR) << "no such warmup progress: " << key;
             }
         }
-        auto task = [this, key, prefetchObjs]() {
-            WarmUpAllObjs(key, prefetchObjs);
+        auto task = [key, prefetchObjs, taskObjectsFunc]() {
+            taskObjectsFunc(key, prefetchObjs);
         };
         AddFetchS3objectsTask(key, task);
     }
@@ -656,11 +682,28 @@ void WarmupManagerS3Impl::ScanCleanFetchS3ObjectsPool() {
 
 void WarmupManagerS3Impl::ScanCleanWarmupProgress() {
     // clean done warmupProgress
-    ReadLockGuard lock(inode2ProgressMutex_);
+    WriteLockGuard lock(inode2ProgressMutex_);
     for (auto iter = inode2Progress_.begin(); iter != inode2Progress_.end();) {
         if (ProgressDone(iter->first)) {
-            LOG(INFO) << "warmup task: " << iter->first << " done!";
-            iter = inode2Progress_.erase(iter);
+            if (!iter->second.IsCachedTask() ||
+                (iter->second.IsDoneTimerStart() &&
+                 !iter->second.IsQuerying() &&
+                 iter->second.GetDoneTimerSecond() >=
+                     FLAGS_warmupDoneTimeoutSecond)) {
+                // Tasks that are not cache query can be deleted
+                // The task of check-cache can be deleted if it times out
+                // and is not in the query state.
+                LOG(INFO) << "warmup task: " << iter->first << " done! "
+                          << iter->second.ToString() << " "
+                          << " is check: " << iter->second.IsCachedTask();
+                iter = inode2Progress_.erase(iter);
+            } else if (!iter->second.IsDoneTimerStart()) {
+                // check task is done and not start timer
+                // don't delete util turn to not cached task or outtime
+                iter->second.DoneTimerStart();
+                // start the timer
+                iter->second.SignalCheckTask();
+            }
         } else {
             ++iter;
         }
@@ -907,6 +950,56 @@ bool WarmupManagerS3Impl::GetInodeSubPathParent(
         return getInodeName(parent, *ret, lastPath);
     } else {
         return false;
+    }
+}
+
+void WarmupManagerS3Impl::CheckCachedAllObjs(
+    fuse_ino_t key,
+    const std::list<std::pair<std::string, uint64_t>>& prefetchObjs) {
+    std::function<void(const std::string&)> checkFunc;
+    auto checkDisk = [this, key](const std::string& name) {
+        if (s3Adaptor_->GetDiskCacheManager()->IsCached(name)) {
+            ReadLockGuard lock(inode2ProgressMutex_);
+            auto iterProgress = FindWarmupProgressByKeyLocked(key);
+            if (iterProgress != inode2Progress_.end()) {
+                iterProgress->second.FinishedPlusOne();
+            }
+        }
+    };
+
+    ExistKVCacheDone cb =
+        [this, key](const std::shared_ptr<ExistKVCacheTask>& context) {
+            if (context->res == true) {
+                ReadLockGuard lock(inode2ProgressMutex_);
+                auto iterProgress = FindWarmupProgressByKeyLocked(key);
+                if (iterProgress != inode2Progress_.end()) {
+                    iterProgress->second.FinishedPlusOne();
+                }
+            }
+        };
+    auto checkKvCache = [this, cb](const std::string& name) {
+        std::shared_ptr<ExistKVCacheTask> task =
+            std::make_shared<ExistKVCacheTask>(name, cb);
+        kvClientManager_->Exist(task);
+    };
+    {
+        ReadLockGuard lock(inode2ProgressMutex_);
+        auto iterProgress = FindWarmupProgressByKeyLocked(key);
+        switch (iterProgress->second.GetStorageType()) {
+            case curvefs::client::common::WarmupStorageType::
+                kWarmupStorageTypeDisk:
+                checkFunc = checkDisk;
+                break;
+            case curvefs::client::common::WarmupStorageType::
+                kWarmupStorageTypeKvClient:
+                checkFunc = checkKvCache;
+                break;
+            default:
+                break;
+        }
+    }
+    for (auto const& obj : prefetchObjs) {
+        checkFunc(obj.first);
     }
 }
 

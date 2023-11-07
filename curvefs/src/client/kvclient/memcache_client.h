@@ -23,8 +23,10 @@
 #ifndef CURVEFS_SRC_CLIENT_KVCLIENT_MEMCACHE_CLIENT_H_
 #define CURVEFS_SRC_CLIENT_KVCLIENT_MEMCACHE_CLIENT_H_
 
+#include <fmt/format.h>
 #include <glog/logging.h>
 #include <libmemcached-1.0/memcached.h>
+#include <libmemcached-1.0/server.h>
 #include <libmemcached-1.0/types/return.h>
 
 #include <cstdint>
@@ -90,7 +92,7 @@ class MemCachedClient : public KVClient {
     bool Init(const MemcacheClusterInfo& kvcachecluster,
               const std::string& fsName) {
         metric_ = absl::make_unique<metric::MemcacheClientMetric>(fsName);
-        client_ = memcached(nullptr, 0);
+        // client_ = memcached(nullptr, 0);
 
         for (int i = 0; i < kvcachecluster.servers_size(); i++) {
             if (!AddServer(kvcachecluster.servers(i).ip(),
@@ -146,7 +148,7 @@ class MemCachedClient : public KVClient {
         uint32_t flags = 0;
         size_t value_length = 0;
         memcached_return_t ue;
-        char *res = memcached_get(tcli, key.c_str(), key.length(),
+        char* res = memcached_get(tcli, key.c_str(), key.length(),
                                   &value_length, &flags, &ue);
         if (actLength != nullptr) {
             (*actLength) = value_length;
@@ -177,6 +179,9 @@ class MemCachedClient : public KVClient {
         metric_->get.eps.count << 1;
         return false;
     }
+
+    // get key exist or not
+    bool Exist(const std::string& key);
 
     // transform the res to a error string
     const std::string ResError(const memcached_return_t res) {

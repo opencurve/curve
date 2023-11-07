@@ -128,5 +128,12 @@ int KVClientManager::GetKvCache(
     return 0;
 }
 
+void KVClientManager::Exist(std::shared_ptr<ExistKVCacheTask> task) {
+    threadPool_.Enqueue([task, this]() {
+        task->res = client_->Exist(task->key);
+        OnReturn(&kvClientManagerMetric_->exist, task);
+    });
+}
+
 }  // namespace client
 }  // namespace curvefs

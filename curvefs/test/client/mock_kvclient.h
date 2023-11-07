@@ -42,6 +42,7 @@ class MockKVClient : public KVClient {
     MOCK_METHOD7(Get,
                  bool(const std::string&, char*, uint64_t, uint64_t,
                       std::string*, uint64_t*, memcached_return_t* retCod));
+    MOCK_METHOD1(Exist, bool(const std::string&));
 };
 
 }  // namespace client
