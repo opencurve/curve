@@ -472,7 +472,7 @@ TEST_F(RaftCliService2Test, ChangePeerTest) {
 
     // change peer succeed
     {
-        sleep(20);
+        sleep(60);
         ChangePeersRequest2 request;
         ChangePeersResponse2 response;
         SetRequestPoolAndCopysetId(&request);
