@@ -26,6 +26,7 @@
 #include <assert.h>
 #include <stdint.h>
 
+#include <algorithm>
 #include <list>
 #include <memory>
 #include <unordered_map>
@@ -35,9 +36,17 @@ template <typename K, typename V, typename KeyTraits = CacheTraits<K>,
           typename ValueTraits = CacheTraits<V>>
 class ARCCache : public LRUCacheInterface<K, V> {
  public:
-    ARCCache(int64_t max_count,
+    struct ArcSizeInfo {
+        uint64_t b1, t1;
+        uint64_t b2, t2;
+
+        uint64_t BSize() const { return b1 + b2; }
+        uint64_t TSize() const { return t1 + t2; }
+    };
+
+    ARCCache(uint64_t max_count,
              std::shared_ptr<CacheMetrics> cacheMetrics = nullptr)
-        : c_(max_count/2), p_(0), cacheMetrics_(cacheMetrics) {}
+        : c_(max_count), p_(0), cacheMetrics_(cacheMetrics) {}
 
     void Put(const K& key, const V& value);
     bool Put(const K& key, const V& value, V* eliminated);
@@ -49,8 +58,13 @@ class ARCCache : public LRUCacheInterface<K, V> {
     bool GetLast(const V value, K* key);
     bool GetLast(K* key, V* value);
     bool GetLast(K* key, V* value, bool (*f)(const V& value));
+    uint64_t Capacity() const { return c_; }
+    ArcSizeInfo ArcSize() const;
 
  private:
+    ARCCache(const ARCCache&) = delete;
+    void operator=(const ARCCache&) = delete;
+
     struct BMapVal;
     struct TMapVal;
     struct BListVal;
@@ -69,33 +83,27 @@ class ARCCache : public LRUCacheInterface<K, V> {
     struct BMapVal {
         blist_iter list_iter;
 
-        BMapVal() {}
-        BMapVal(const BMapVal& o) { list_iter = o.list_iter; }
-        BMapVal& operator=(const BMapVal& o) { list_iter = o.list_iter; }
+        BMapVal() = default;
+        BMapVal(const BMapVal& o) = default;
+        BMapVal& operator=(const BMapVal& o) = default;
         BMapVal(const blist_iter& iter)  // NOLINT
             : list_iter(iter) {}
     };
     struct TMapVal {
         tlist_iter list_iter;
 
-        TMapVal() {}
-        TMapVal(const TMapVal& o) { list_iter = o.list_iter; }
-        TMapVal& operator=(const TMapVal& o) {
-            list_iter = o.list_iter;
-            return *this;
-        }
+        TMapVal() = default;
+        TMapVal(const TMapVal& o) = default;
+        TMapVal& operator=(const TMapVal& o) = default;
         TMapVal(const tlist_iter& iter)  // NOLINT
             : list_iter(iter) {}
     };
     struct BListVal {
         bmap_iter map_iter;
 
-        BListVal() {}
-        BListVal(const BListVal& o) { map_iter = o.map_iter; }
-        BListVal& operator=(const BListVal& o) {
-            map_iter = o.map_iter;
-            return *this;
-        }
+        BListVal() = default;
+        BListVal(const BListVal& o) = default;
+        BListVal& operator=(const BListVal& o) = default;
         BListVal(const bmap_iter& iter)  // NOLINT
             :map_iter(iter) {}
     };
@@ -103,20 +111,13 @@ class ARCCache : public LRUCacheInterface<K, V> {
         tmap_iter map_iter;
         V value;
 
-        TListVal() {}
-        TListVal(const TListVal& o) {
-            map_iter = o.map_iter;
-            value = o.value;
-        }
+        TListVal() = default;
+        TListVal(const TListVal& o) = default;
         TListVal(const tmap_iter& iter, const V& v)
             : map_iter(iter), value(v) {}
         TListVal(const V& v)  // NOLINT
             : value(v) {}
-        TListVal& operator=(const TListVal& o) {
-            map_iter = o.map_iter;
-            value = o.value;
-            return *this;
-        }
+        TListVal& operator=(const TListVal& o) = default;
     };
 
     struct B {
@@ -158,7 +159,7 @@ class ARCCache : public LRUCacheInterface<K, V> {
             map.erase(map_iter);
         }
 
-        int Count() const { return map.size(); }
+        uint64_t Count() const { return map.size(); }
     };
 
     struct T {
@@ -238,7 +239,7 @@ class ARCCache : public LRUCacheInterface<K, V> {
             map_iter->second.list_iter = --list.end();
         }
 
-        int Count() const { return map.size(); }
+        uint64_t Count() const { return map.size(); }
 
         tmap_iter GetLRU() const { return list.begin()->map_iter; }
     };
@@ -262,11 +263,33 @@ class ARCCache : public LRUCacheInterface<K, V> {
         return true;
     }
 
+    bool IsCacheFull() const {
+        return t1_.Count() + t2_.Count() == c_;
+    }
+
+    void IncreaseP(uint64_t delta) {
+        if (!IsCacheFull())
+            return;
+        if (delta > c_ - p_)
+            p_ = c_;
+        else
+            p_ += delta;
+    }
+
+    void DecreaseP(uint64_t delta) {
+        if (!IsCacheFull())
+            return;
+        if (delta > p_)
+            p_ = 0;
+        else
+            p_ -= delta;
+    }
+
     bool Replace(const K& k, V* eliminated);
 
-    ::curve::common::RWLock lock_;
-    int64_t c_;
-    int64_t p_;
+    mutable ::curve::common::RWLock lock_;
+    uint64_t c_;
+    uint64_t p_;
     B b1_, b2_;
     T t1_, t2_;
     std::shared_ptr<CacheMetrics> cacheMetrics_;
@@ -315,21 +338,23 @@ bool ARCCache<K, V, KeyTraits, ValueTraits>::Put(const K& key, const V& value,
     if (t1_.Find(key, &it)) {
         t2_.Insert(key, value, nullptr);
         t1_.Remove(std::move(it), nullptr);
+        if (cacheMetrics_ != nullptr) {
+            cacheMetrics_->OnCacheHit();
+        }
         return false;
     }
     if (t2_.Find(key, &it)) {
         t2_.Touch(it, &value, cacheMetrics_.get());
+        if (cacheMetrics_ != nullptr) {
+            cacheMetrics_->OnCacheHit();
+        }
         return false;
     }
 
     bmap_iter b_it;
     if (b1_.Find(key, &b_it)) {
-        if (b1_.Count() >= b2_.Count()) {
-            p_ += 1;
-        } else {
-            p_ += b2_.Count() / b1_.Count();
-        }
-        if (p_ > c_) p_ = c_;
+        uint64_t delta = std::min((uint64_t)1, b2_.Count() / b1_.Count());
+        IncreaseP(delta);
 
         ret = Replace(key, eliminated);
         b1_.Remove(std::move(b_it), cacheMetrics_.get());
@@ -338,12 +363,8 @@ bool ARCCache<K, V, KeyTraits, ValueTraits>::Put(const K& key, const V& value,
     }
 
     if (b2_.Find(key, &b_it)) {
-        if (b2_.Count() >= b1_.Count()) {
-            p_ -= 1;
-        } else {
-            p_ -= b1_.Count() / b2_.Count();
-        }
-        if (p_ < 0) p_ = 0;
+        uint64_t delta = std::max((uint64_t)1, b1_.Count() / b2_.Count());
+        DecreaseP(delta);
 
         ret = Replace(key, eliminated);
         b2_.Remove(std::move(b_it), cacheMetrics_.get());
@@ -351,7 +372,7 @@ bool ARCCache<K, V, KeyTraits, ValueTraits>::Put(const K& key, const V& value,
         return ret;
     }
 
-    if (t1_.Count() + b1_.Count() == c_) {
+    if (IsCacheFull() && t1_.Count() + b1_.Count() == c_) {
         if (t1_.Count() < c_) {
             b1_.RemoveLRU(cacheMetrics_.get());
             ret = Replace(key, eliminated);
@@ -361,7 +382,13 @@ bool ARCCache<K, V, KeyTraits, ValueTraits>::Put(const K& key, const V& value,
     } else if (t1_.Count() + b1_.Count() < c_) {
         auto total = t1_.Count() + b1_.Count() + t2_.Count() + b2_.Count();
         if (total >= c_) {
-            if (total == 2 * c_) b2_.RemoveLRU(cacheMetrics_.get());
+            if (total == 2 * c_) {
+                if (b2_.Count() > 0) {
+                    b2_.RemoveLRU(cacheMetrics_.get());
+                } else {
+                    b1_.RemoveLRU(cacheMetrics_.get());
+                }
+            }
             Replace(key, eliminated);
         }
     }
@@ -372,11 +399,16 @@ bool ARCCache<K, V, KeyTraits, ValueTraits>::Put(const K& key, const V& value,
 template <typename K, typename V, typename KeyTraits, typename ValueTraits>
 bool ARCCache<K, V, KeyTraits, ValueTraits>::Replace(const K& k,
                                                      V* eliminated) {
+    if (!IsCacheFull()) {
+        return false;
+    }
     if (t1_.Count() != 0 &&
         ((t1_.Count() > p_) || (b2_.Find(k, nullptr) && t1_.Count() == p_))) {
         return Move_T_B(&t1_, &b1_, eliminated);
-    } else {
+    } else if (t2_.Count() > 0) {
         return Move_T_B(&t2_, &b2_, eliminated);
+    } else {
+        return Move_T_B(&t1_, &b1_, eliminated);
     }
 }
 
@@ -387,6 +419,16 @@ uint64_t ARCCache<K, V, KeyTraits, ValueTraits>::Size() {
 }
 
 template <typename K, typename V, typename KeyTraits, typename ValueTraits>
+typename ARCCache<K, V, KeyTraits, ValueTraits>::ArcSizeInfo
+ARCCache<K, V, KeyTraits, ValueTraits>::ArcSize() const {
+    ::curve::common::ReadLockGuard guard(lock_);
+
+    return {b1_.Count(), t1_.Count(),
+            b2_.Count(), t2_.Count()};
+}
+
+// This operation detach the key from cache
+template <typename K, typename V, typename KeyTraits, typename ValueTraits>
 void ARCCache<K, V, KeyTraits, ValueTraits>::Remove(const K& key) {
     ::curve::common::WriteLockGuard guard(lock_);
     T* ts[]{&t1_, &t2_};
@@ -394,6 +436,14 @@ void ARCCache<K, V, KeyTraits, ValueTraits>::Remove(const K& key) {
         tmap_iter it;
         if (t->Find(key, &it)) {
             t->Remove(std::move(it), cacheMetrics_.get());
+            return;
+        }
+    }
+    B* bs[]{&b1_, &b2_};
+    for (auto b : bs) {
+        bmap_iter it;
+        if (b->Find(key, &it)) {
+            b->Remove(std::move(it), cacheMetrics_.get());
             return;
         }
     }
