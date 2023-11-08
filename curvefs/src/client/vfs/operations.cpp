@@ -114,13 +114,12 @@ CURVEFS_ERROR OperationsImpl::Create(Ino parent,
                                  mode, fi, entryOut);
 }
 
-CURVEFS_ERROR OperationsImpl::Open(Ino ino, uint32_t flags) {
-    FileOut fileOut;
+CURVEFS_ERROR OperationsImpl::Open(Ino ino, uint32_t flags, FileOut* fileOut) {
     auto ctx = NewFuseContext();
     auto req = ctx->GetRequest();
     auto fi = ctx->GetFileInfo();
     fi->flags = flags;
-    return client_->FuseOpOpen(req, ino, fi, &fileOut);
+    return client_->FuseOpOpen(req, ino, fi, fileOut);
 }
 
 CURVEFS_ERROR OperationsImpl::Read(Ino ino,

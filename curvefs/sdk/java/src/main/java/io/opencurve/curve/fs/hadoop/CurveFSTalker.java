@@ -25,9 +25,9 @@ package io.opencurve.curve.fs.hadoop;
 import org.apache.commons.logging.Log;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
-import io.opencurve.curve.fs.libfs.CurveFSMount;
-import io.opencurve.curve.fs.libfs.CurveFSStat;
-import io.opencurve.curve.fs.libfs.CurveFSStatVFS;
+import io.opencurve.curve.fs.libfs.CurveFsMount;
+import io.opencurve.curve.fs.libfs.CurveFsMount.Stat;
+import io.opencurve.curve.fs.libfs.CurveFsMount.StatVFS;
 
 import java.util.UUID;
 import java.io.FileNotFoundException;
@@ -36,7 +36,7 @@ import java.net.URI;
 import java.util.Map;
 
 class CurveFSTalker extends CurveFSProto {
-    private CurveFSMount mount;
+    private CurveFsMount mount;
     private String fsname = null;
     private String mountpoint = null;
     private boolean inited = false;
@@ -69,7 +69,7 @@ class CurveFSTalker extends CurveFSProto {
 
     @Override
     void initialize(URI uri, Configuration conf) throws IOException {
-        mount = new CurveFSMount();
+        mount = new CurveFsMount();
         loadCfg(conf);
         if (null == fsname || fsname.isEmpty()) {
             throw new IOException("curvefs.name is not set");
@@ -100,13 +100,13 @@ class CurveFSTalker extends CurveFSProto {
 
     @Override
     String[] listdir(Path path) throws IOException {
-        CurveFSStat stat = new CurveFSStat();
+        Stat stat = new Stat();
         try {
             mount.lstat(tostr(path), stat);
         } catch (FileNotFoundException e) {
             return null;
         }
-        if (!stat.isDir()) {
+        if (!stat.isDirectory) {
             return null;
         }
 
@@ -149,7 +149,7 @@ class CurveFSTalker extends CurveFSProto {
     }
 
     @Override
-    void statfs(Path path, CurveFSStatVFS stat) throws IOException {
+    void statfs(Path path, StatVFS stat) throws IOException {
         mount.statfs(tostr(path), stat);
     }
 

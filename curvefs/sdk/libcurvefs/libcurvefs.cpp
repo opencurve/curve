@@ -25,6 +25,7 @@
 
 using ::curvefs::client::filesystem::CURVEFS_ERROR;
 using ::curvefs::client::filesystem::SysErr;
+using ::curvefs::client::vfs::File;
 using ::curvefs::client::vfs::DirStream;
 using ::curvefs::client::vfs::DirEntry;
 
@@ -133,7 +134,8 @@ int curvefs_closedir(uintptr_t instance_ptr, dir_stream_t* dir_stream) {
 int curvefs_open(uintptr_t instance_ptr,
                  const char* path,
                  uint32_t flags,
-                 uint16_t mode) {
+                 uint16_t mode,
+                 file_t* file) {
     CURVEFS_ERROR rc;
     auto mount = get_instance(instance_ptr);
     if (flags & O_CREAT) {
@@ -143,12 +145,8 @@ int curvefs_open(uintptr_t instance_ptr,
         }
     }
 
-    uint64_t fd = 0;
-    rc = mount->vfs->Open(path, flags, mode, &fd);
-    if (rc != CURVEFS_ERROR::OK) {
-        return SysErr(rc);
-    }
-    return static_cast<int>(fd);
+    rc = mount->vfs->Open(path, flags, mode, file);
+    return SysErr(rc);
 }
 
 int curvefs_lseek(uintptr_t instance_ptr,

@@ -77,7 +77,8 @@ static void setup_field_ids(JNIEnv* env) {
 
     /* Cache CurveStat fields */
 
-    curvestat_cls = env->FindClass("io/opencurve/curve/fs/libfs/CurveFSStat");
+    curvestat_cls =
+        env->FindClass("io/opencurve/curve/fs/libfs/CurveFSMount$Stat");
     if (!curvestat_cls) {
         return;
     }
@@ -157,7 +158,7 @@ static void fill_curvestatvfs(JNIEnv* env,
     env->SetLongField(j_curvestatvfs, curvestatvfs_namemax_fid, st.f_namemax);
 }
 
-/* Map io_opencurve_curve_fs_libfs_CurveFSMount_O_* open flags to values in libc */
+// Map io_opencurve_curve_fs_libfs_CurveFSMount_O_* open flags to values in libc
 static inline uint32_t fixup_open_flags(jint jflags) {
     uint32_t flags = 0;
 
@@ -232,7 +233,7 @@ static void handle_error(JNIEnv* env, int rc) {
             THROW(env, "org/apache/hadoop/fs/FileAlreadyExistsException", "");
             return;
         case ENOTDIR:
-            THROW(env, "org/apache/hadoop/fs/ParentNotDirectoryException", "");
+            THROW(env, "io/opencurve/curve/fs/libfs/CurveFsException$NotADirectoryException", "");
             return;
         default:
             break;

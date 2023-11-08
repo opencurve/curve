@@ -37,6 +37,7 @@ namespace vfs {
 using ::curvefs::metaserver::InodeAttr;
 using ::curvefs::client::filesystem::EntryOut;
 using ::curvefs::client::filesystem::AttrOut;
+using ::curvefs::client::filesystem::FileOut;
 using ::curvefs::client::filesystem::DirEntry;
 using ::curvefs::client::filesystem::TimeSpec;
 using ::curvefs::client::filesystem::DirEntryList;
@@ -44,6 +45,11 @@ using ::curvefs::client::filesystem::DirEntryList;
 using Ino = uint64_t;
 
 const Ino ROOT_INO = ::curvefs::ROOTINODEID;
+
+struct File {
+    uint64_t fd;
+    uint64_t length;
+};
 
 struct DirStream {
     Ino ino;

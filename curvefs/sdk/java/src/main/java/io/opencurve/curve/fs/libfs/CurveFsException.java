@@ -16,18 +16,23 @@
 
 /*
  * Project: Curve
- * Created Date: 2023-07-07
+ * Created Date: 2023-11-08
  * Author: Jingli Chen (Wine93)
  */
 
 package io.opencurve.curve.fs.libfs;
 
-public class CurveFSStatVFS {
-    public long bsize;
-    public long frsize;
-    public long blocks;
-    public long bavail;
-    public long files;
-    public long fsid;
-    public long namemax;
+import java.io.IOException;
+
+public class CurveFsException extends IOException {
+    public static class NotADirectoryException extends IOException {
+        public NotADirectoryException() {
+            super();
+        }
+
+        public NotADirectoryException(String s) {
+            super(s);
+        }
+    }
 }
+

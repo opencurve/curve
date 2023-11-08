@@ -47,16 +47,22 @@ typedef struct {
 #endif  // __cplusplus
 
 // Must be synchronized with DirStream if changed
+
 typedef struct {
-    uint64_t ino;
-    uint64_t fh;
-    uint64_t offset;
-} dir_stream_t;
+    uint64_t fd;
+    uint64_t length;
+} file_t;
 
 typedef struct {
     struct stat stat;
     char name[256];
 } dirent_t;
+
+typedef struct {
+    uint64_t ino;
+    uint64_t fh;
+    uint64_t offset;
+} dir_stream_t;
 
 #ifdef __cplusplus
 extern "C" {
@@ -100,7 +106,8 @@ int curvefs_closedir(uintptr_t instance_ptr, dir_stream_t* dir_stream);
 int curvefs_open(uintptr_t instance_ptr,
                  const char* path,
                  uint32_t flags,
-                 uint16_t mode);
+                 uint16_t mode,
+                 file_t* file);
 
 int curvefs_lseek(uintptr_t instance_ptr,
                   int fd,

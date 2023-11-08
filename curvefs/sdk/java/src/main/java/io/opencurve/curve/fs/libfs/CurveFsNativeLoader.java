@@ -33,23 +33,23 @@ import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.archivers.ArchiveEntry;
 import org.apache.commons.compress.utils.IOUtils;
 
-public class CurveFSNativeLoader {
+public class CurveFsNativeLoader {
     boolean initialized = false;
-    private static final CurveFSNativeLoader instance = new CurveFSNativeLoader();
+    private static final CurveFsNativeLoader instance = new CurveFsNativeLoader();
 
     private static final String TMP_DIR = "/tmp";
     private static final String CURVEFS_LIBRARY_PATH = "/tmp/libcurvefs";
     private static final String RESOURCE_TAR_NAME = "libcurvefs.tar";
     private static final String JNI_LIBRARY_NAME = "libcurvefs_jni.so";
 
-    private CurveFSNativeLoader() {}
+    private CurveFsNativeLoader() {}
 
-    public static CurveFSNativeLoader getInstance() {
+    public static CurveFsNativeLoader getInstance() {
         return instance;
     }
 
     public long getJarModifiedTime() throws IOException {
-        URL location = CurveFSNativeLoader.class.getProtectionDomain().getCodeSource().getLocation();
+        URL location = CurveFsNativeLoader.class.getProtectionDomain().getCodeSource().getLocation();
         URLConnection conn = location.openConnection();
         return conn.getLastModified();
     }
@@ -74,7 +74,7 @@ public class CurveFSNativeLoader {
         reader.close();
     }
 
-    public void loadJniLibrary() throws IOException {
+    public void loadJNILibrary() throws IOException {
         File libFile = new File(CURVEFS_LIBRARY_PATH, JNI_LIBRARY_NAME);
         System.load(libFile.getAbsolutePath());
     }
@@ -87,12 +87,12 @@ public class CurveFSNativeLoader {
         long jarModifiedTime = getJarModifiedTime();
         File libDir = new File(CURVEFS_LIBRARY_PATH);
         if (libDir.exists() && libDir.lastModified() == jarModifiedTime) {
-            loadJniLibrary();
+            loadJNILibrary();
             initialized = true;
             return;
         }
 
-        InputStream reader = CurveFSNativeLoader.class.getResourceAsStream("/" + RESOURCE_TAR_NAME);
+        InputStream reader = CurveFsNativeLoader.class.getResourceAsStream("/" + RESOURCE_TAR_NAME);
         if (reader == null) {
             throw new IOException("Cannot get resource " + RESOURCE_TAR_NAME + " from Jar file.");
         }
@@ -100,7 +100,7 @@ public class CurveFSNativeLoader {
         reader.close();
 
         libDir.setLastModified(jarModifiedTime);
-        loadJniLibrary();
+        loadJNILibrary();
         initialized = true;
     }
 }

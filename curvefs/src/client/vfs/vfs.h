@@ -75,7 +75,7 @@ class VFS {
     CURVEFS_ERROR Open(const std::string& path,
                        uint32_t flags,
                        uint16_t mode,
-                       uint64_t* fd);
+                       File* file);
 
     CURVEFS_ERROR LSeek(uint64_t fd, uint64_t offset, int whence);
 
@@ -109,6 +109,10 @@ class VFS {
 
     CURVEFS_ERROR Rename(const std::string& oldpath,
                          const std::string& newpath);
+
+    CURVEFS_ERROR Remove(const std::string& path);
+
+    CURVEFS_ERROR RemoveAll(const std::string& path);
 
     // utility
     void Attr2Stat(InodeAttr* attr, struct stat* stat);

@@ -26,7 +26,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSInputStream;
-import io.opencurve.curve.fs.libfs.CurveFSMount;
+import io.opencurve.curve.fs.libfs.CurveFsMount;
+import io.opencurve.curve.fs.libfs.CurveFsProto;
 
 import java.io.IOException;
 
@@ -35,8 +36,8 @@ import java.io.IOException;
  * An {@link FSInputStream} for a CurveFileSystem and corresponding
  * Curve instance.
  */
-public class CurveFSInputStream extends FSInputStream {
-    private static final Log LOG = LogFactory.getLog(CurveFSInputStream.class);
+public class CurveFsInputStream extends FSInputStream {
+    private static final Log LOG = LogFactory.getLog(CurveFsInputStream.class);
     private boolean closed;
 
     private int fileHandle;
@@ -57,7 +58,7 @@ public class CurveFSInputStream extends FSInputStream {
      * @param flength The current length of the file. If the length changes
      * you will need to close and re-open it to access the new data.
      */
-    public CurveFSInputStream(Configuration conf, CurveFSProto curvefs,
+    public CurveFsInputStream(Configuration conf, CurveFsProto curvefs,
                               int fh, long flength, int bufferSize) {
       fileLength = flength;
       fileHandle = fh;
@@ -90,7 +91,7 @@ public class CurveFSInputStream extends FSInputStream {
 
             bufValid = 0;
 
-            curve.lseek(fileHandle, curvePos, CurveFSMount.SEEK_SET);
+            curve.lseek(fileHandle, curvePos, CurveFsMount.SEEK_SET);
             throw new IOException("Failed to fill read buffer! Error code:" + err);
         }
         curvePos += bufValid;
@@ -127,7 +128,7 @@ public class CurveFSInputStream extends FSInputStream {
         }
         long oldPos = curvePos;
 
-        curvePos = curve.lseek(fileHandle, targetPos, CurveFSMount.SEEK_SET);
+        curvePos = curve.lseek(fileHandle, targetPos, CurveFsMount.SEEK_SET);
         bufValid = 0;
         bufPos = 0;
         if (curvePos < 0) {

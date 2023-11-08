@@ -25,7 +25,8 @@ package io.opencurve.curve.fs.hadoop;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
-import io.opencurve.curve.fs.libfs.CurveFSMount;
+import io.opencurve.curve.fs.libfs.CurveFsMount;
+import io.opencurve.curve.fs.libfs.CurveFsProto;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -41,7 +42,7 @@ import java.io.OutputStream;
  *  libcurvefs. Currently it might be useful to reduce JNI crossings, but not
  *  much more.
  */
-public class CurveFSOutputStream extends OutputStream {
+public class CurveFsOutputStream extends OutputStream {
     private boolean closed;
 
     private CurveFSProto curve;
@@ -56,7 +57,7 @@ public class CurveFSOutputStream extends OutputStream {
      * @param conf The FileSystem configuration.
      * @param fh The Curve filehandle to connect to.
      */
-    public CurveFSOutputStream(Configuration conf, CurveFSProto curvefs,
+    public CurveFsOutputStream(Configuration conf, CurveFsProto curvefs,
                                int fh, int bufferSize) {
         curve = curvefs;
         fileHandle = fh;
@@ -92,7 +93,7 @@ public class CurveFSOutputStream extends OutputStream {
      */
     public synchronized long getPos() throws IOException {
         checkOpen();
-        return curve.lseek(fileHandle, 0, CurveFSMount.SEEK_CUR);
+        return curve.lseek(fileHandle, 0, CurveFsMount.SEEK_CUR);
     }
 
     @Override

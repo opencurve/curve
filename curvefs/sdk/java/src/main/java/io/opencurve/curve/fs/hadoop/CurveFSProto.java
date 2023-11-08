@@ -55,3 +55,8 @@ abstract class CurveFSProto {
     abstract void chown(Path path, int uid, int gid) throws IOException;
     abstract void rename(Path src, Path dst) throws IOException;
 }
+
+
+
+
+

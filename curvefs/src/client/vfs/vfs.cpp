@@ -196,6 +196,8 @@ CURVEFS_ERROR VFS::OpenDir(const std::string& path, DirStream* stream) {
     rc = Lookup(path, true, &entry);
     if (rc != CURVEFS_ERROR::OK) {
         return rc;
+    } else if (!IsDir(entry.attr)) {
+        return CURVEFS_ERROR::NOT_A_DIRECTORY;
     }
 
     rc = permission_->Check(entry.attr, Permission::WANT_READ);
@@ -277,7 +279,7 @@ CURVEFS_ERROR VFS::Create(const std::string& path, uint16_t mode) {
 CURVEFS_ERROR VFS::Open(const std::string& path,
                         uint32_t flags,
                         uint16_t mode,
-                        uint64_t* fd) {
+                        File* file) {
     Entry entry;
     CURVEFS_ERROR rc;
     AccessLogGuard log([&](){
@@ -295,16 +297,19 @@ CURVEFS_ERROR VFS::Open(const std::string& path,
         return rc;
     }
 
-    rc = op_->Open(entry.ino, flags);
+    FileOut fileOut;
+    rc = op_->Open(entry.ino, flags, &fileOut);
     if (rc != CURVEFS_ERROR::OK) {
         return rc;
     }
 
     uint64_t offset = 0;
+    uint64_t length = fileOut.attr.length();
     if (flags & O_APPEND) {
-        offset = entry.attr.length();
+        offset = length;
     }
-    *fd = handlers_->NextHandler(entry.ino, offset);
+    file->fd = handlers_->NextHandler(entry.ino, offset);
+    file->length = length;
     return CURVEFS_ERROR::OK;
 }
 
@@ -674,6 +679,61 @@ CURVEFS_ERROR VFS::Rename(const std::string& oldpath,
     if (rc == CURVEFS_ERROR::OK) {
         PurgeEntryCache(oldParent.ino, filepath::Filename(oldpath));
         PurgeEntryCache(newParent.ino, filepath::Filename(newpath));
+    }
+    return rc;
+}
+
+CURVEFS_ERROR VFS::Remove(const std::string& path) {
+    CURVEFS_ERROR rc;
+    AccessLogGuard log([&](){
+        return StrFormat("removeall (%s): %s", path, StrErr(rc));
+    });
+
+    Entry parent;
+    rc = Lookup(filepath::ParentDir(path), true, &parent);
+    if (rc != CURVEFS_ERROR::OK) {
+        return rc;
+    }
+
+    rc = permission_->Check(parent.attr, Permission::WANT_WRITE);
+    if (rc != CURVEFS_ERROR::OK) {
+        return rc;
+    }
+
+    Entry entry;
+    rc = Lookup(filepath::ParentDir(path), true, &entry);
+    if (rc != CURVEFS_ERROR::OK) {
+        return rc;
+    }
+
+    if (IsDir(entry.attr)) {
+        rc = op_->RmDir(parent.ino, filepath::Filename(path));
+    } else {
+        rc = op_->Unlink(parent.ino, filepath::Filename(path));
+    }
+    return rc;
+}
+
+CURVEFS_ERROR VFS::RemoveAll(const std::string& path) {
+    Entry parent;
+    CURVEFS_ERROR rc;
+    AccessLogGuard log([&](){
+        return StrFormat("removeall (%s): %s", path, StrErr(rc));
+    });
+
+    rc = Lookup(filepath::ParentDir(path), true, &parent);
+    if (rc != CURVEFS_ERROR::OK) {
+        return rc;
+    }
+
+    rc = permission_->Check(parent.attr, Permission::WANT_WRITE);
+    if (rc != CURVEFS_ERROR::OK) {
+        return rc;
+    }
+
+    rc = op_->Unlink(parent.ino, filepath::Filename(path));
+    if (rc == CURVEFS_ERROR::OK) {
+        PurgeEntryCache(parent.ino, filepath::Filename(path));
     }
     return rc;
 }
