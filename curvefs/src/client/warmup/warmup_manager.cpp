@@ -70,7 +70,8 @@ bool WarmupManagerS3Impl::AddWarmupFilelist(fuse_ino_t key,
         return false;
     }
     // add warmup Progress
-    if (AddWarmupProcess(key, path, type)) {
+    WriteLockGuard lock(inode2ProgressMutex_);
+    if (AddWarmupProcessLocked(key, path, type)) {
         LOG(INFO) << "add warmup list task:" << key;
         WriteLockGuard lock(warmupFilelistDequeMutex_);
         auto iter = FindWarmupFilelistByKeyLocked(key);
@@ -96,7 +97,8 @@ bool WarmupManagerS3Impl::AddWarmupFile(fuse_ino_t key, const std::string& path,
         return false;
     }
     // add warmup Progress
-    if (AddWarmupProcess(key, path, type)) {
+    WriteLockGuard lock(inode2ProgressMutex_);
+    if (AddWarmupProcessLocked(key, path, type)) {
         LOG(INFO) << "add warmup single task:" << key;
         FetchDentryEnqueue(key, path);
     }
