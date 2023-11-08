@@ -91,6 +91,7 @@ message FileInfo {
     optional bool isProtected = 24;  // for snapshot
     repeated string children = 25;
     optional uint32 version = 26;
+    optional bool readonly = 27;
 }
 
 // status code
@@ -434,6 +435,7 @@ message CloneRequest {
     required uint64     date = 5;
 
     optional string     poolset = 6;
+    optional bool       readonly = 7;
 }
 
 message CloneResponse {

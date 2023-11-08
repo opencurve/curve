@@ -201,15 +201,10 @@ class MockCurveFsClient : public CurveFsClient {
         int(const std::string &file,
         const std::string &user));
 
-    MOCK_METHOD3(StatFile,
-        int(const std::string &file,
-        const std::string &user,
-        FileStatInfo *statInfo));
-
     MOCK_METHOD3(ListDir,
         int(const std::string &dir,
         const std::string &user,
-        std::vector<FileStatInfo> *fileStatInfos));
+        std::vector<FInfo_t> *finfoVec));
 
     MOCK_METHOD3(CreateSnapshot,
         int(const std::string &filename,
@@ -330,11 +325,12 @@ class MockCurveFsClient : public CurveFsClient {
         int(const std::string& filename,
             const std::string& newOwner));
 
-    MOCK_METHOD5(Clone,
+    MOCK_METHOD6(Clone,
         int(const std::string &snapPath,
         const std::string &user,
         const std::string &destination,
         const std::string &poolset,
+        bool readonlyFlag,
         FInfo* finfo));
 
     MOCK_METHOD2(Flatten,
@@ -515,11 +511,12 @@ class MockVolumeServiceManager : public VolumeServiceManager {
 
 class MockCloneCore : public CloneCore {
  public:
-    MOCK_METHOD5(CloneLocal, int(const std::string &file,
+    MOCK_METHOD6(CloneLocal, int(const std::string &file,
         const std::string &snapshotName,
         const std::string &user,
         const std::string &destination,
-        const std::string &poolset));
+        const std::string &poolset,
+        bool readonlyFlag));
 
     MOCK_METHOD2(FlattenLocal, int(const std::string &file,
         const std::string &user));

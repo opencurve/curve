@@ -162,6 +162,7 @@ class SnapshotClient {
             const std::string& destination,
             const UserInfo_t& userinfo,
             const std::string& poolset,
+            bool readonly,
             FInfo* finfo);
 
   int Flatten(const std::string& filename,

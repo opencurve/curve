@@ -2138,6 +2138,7 @@ StatusCode CurveFS::Clone(const std::string &fileName,
         const std::string &srcFileName,
         const std::string &snapName,
         const std::string &poolset,
+        bool readonly,
         FileInfo *fileInfo) {
     std::string poolsetDst = poolset;
     auto ret = CheckOrAssignPoolset(fileName, &poolsetDst);
@@ -2222,6 +2223,7 @@ StatusCode CurveFS::Clone(const std::string &fileName,
     fileInfo->set_blocksize(snapFileInfo.blocksize());
 
     fileInfo->set_version(kSupportLocalSnapshotFileVersion);
+    fileInfo->set_readonly(readonly);
 
     fileInfo->set_clonesn(snapFileInfo.seqnum());
 

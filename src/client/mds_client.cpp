@@ -986,10 +986,11 @@ LIBCURVE_ERROR MDSClient::Clone(const std::string& source,
         const std::string& destination,
         const UserInfo_t& userinfo,
         const std::string& poolset,
+        bool readonly,
         FInfo* fileinfo) {
     auto task = RPCTaskDefine {
         CloneResponse response;
-        MDSClientBase::Clone(source, destination, userinfo, poolset,
+        MDSClientBase::Clone(source, destination, userinfo, poolset, readonly,
                              &response, cntl, channel);
         if (cntl->Failed()) {
             LOG(WARNING) << "Clone failed, errcorde = "
@@ -1431,7 +1432,7 @@ LIBCURVE_ERROR MDSClient::ChangeOwner(const std::string& filename,
 
 LIBCURVE_ERROR MDSClient::Listdir(const std::string& dirpath,
                                   const UserInfo_t& userinfo,
-                                  std::vector<FileStatInfo>* filestatVec) {
+                                  std::vector<FInfo_t>* finfoVec) {
     auto task = RPCTaskDefine {
         ListDirResponse response;
         mdsClientMetric_.listDir.qps.count << 1;
@@ -1459,22 +1460,11 @@ LIBCURVE_ERROR MDSClient::Listdir(const std::string& dirpath,
         if (retcode == LIBCURVE_ERROR::OK) {
             int fileinfoNum = response.fileinfo_size();
             for (int i = 0; i < fileinfoNum; i++) {
-                FileInfo finfo = response.fileinfo(i);
-                FileStatInfo_t filestat;
-                filestat.id = finfo.id();
-                filestat.length = finfo.length();
-                filestat.parentid = finfo.parentid();
-                filestat.filetype = static_cast<FileType>(finfo.filetype());
-                filestat.ctime = finfo.ctime();
-                filestat.blocksize = finfo.blocksize();
-                filestat.stripeUnit = finfo.stripeunit();
-                filestat.stripeCount = finfo.stripecount();
-                memset(filestat.owner, 0, NAME_MAX_SIZE);
-                memcpy(filestat.owner, finfo.owner().c_str(), NAME_MAX_SIZE);
-                memset(filestat.filename, 0, NAME_MAX_SIZE);
-                memcpy(filestat.filename, finfo.filename().c_str(),
-                       NAME_MAX_SIZE);
-                filestatVec->push_back(filestat);
+                FInfo_t fi;
+                FileEpoch_t fEpoch;
+                ServiceHelper::ProtoFileInfo2Local(
+                    response.fileinfo(i), &fi, &fEpoch);
+                finfoVec->push_back(fi);
             }
         }
         return retcode;

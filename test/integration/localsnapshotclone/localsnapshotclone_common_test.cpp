@@ -466,6 +466,7 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotOnceAndClone) {
     FInfo finfo;
     ASSERT_EQ(0, snapClient_->Clone(testFile1Snap1, testFile1Clone1, userinfo1,
             "",
+            false,
             &finfo));
 
     ASSERT_TRUE(CheckFileData(testFile1Clone1, testUser1_, fakeData));
@@ -474,6 +475,7 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotOnceAndClone) {
     FInfo finfo2;
     ASSERT_EQ(0, snapClient_->Clone(testFile1Snap1, testFile1Clone2, userinfo1,
             "",
+            false,
             &finfo));
     ASSERT_TRUE(CheckFileData(testFile1Clone2, testUser1_, fakeData));
 
@@ -547,6 +549,7 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshot3TimesAndClone) {
     FInfo finfo;
     ASSERT_EQ(0, snapClient_->Clone(testFile2Snap1, testFile2Clone1, userinfo1,
             "",
+            false,
             &finfo));
 
     ASSERT_TRUE(CheckFileData(testFile2Clone1, testUser1_, fakeData));
@@ -556,6 +559,7 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshot3TimesAndClone) {
     FInfo finfo2;
     ASSERT_EQ(0, snapClient_->Clone(testFile2Snap2, testFile2Clone2, userinfo1,
             "",
+            false,
             &finfo2));
 
     ASSERT_TRUE(CheckFileData(testFile2Clone2, testUser1_, fakeData2));
@@ -565,6 +569,7 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshot3TimesAndClone) {
     FInfo finfo3;
     ASSERT_EQ(0, snapClient_->Clone(testFile2Snap3, testFile2Clone3, userinfo1,
             "",
+            false,
             &finfo3));
 
     ASSERT_TRUE(CheckFileData(testFile2Clone3, testUser1_, fakeData3));
@@ -630,6 +635,7 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotAndClone3Times) {
     FInfo finfo;
     ASSERT_EQ(0, snapClient_->Clone(testFile3Snap1, testFile3Clone1, userinfo1,
             "",
+            false,
             &finfo));
     ASSERT_TRUE(CheckFileData(testFile3Clone1, testUser1_, fakeData));
 
@@ -660,6 +666,7 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotAndClone3Times) {
     ASSERT_EQ(0, snapClient_->Clone(
         testFile3Clone1Snap1, testFile3Clone11, userinfo1,
         "",
+        false,
         &finfo2));
     ASSERT_TRUE(CheckFileData(testFile3Clone11, testUser1_, fakeData3));
 
@@ -691,6 +698,7 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotAndClone3Times) {
     ASSERT_EQ(0, snapClient_->Clone(
         testFile3Clone11Snap1, testFile3Clone111, userinfo1,
         "",
+        false,
         &finfo3));
     ASSERT_TRUE(CheckFileData(testFile3Clone111, testUser1_, fakeData2));
 
@@ -761,6 +769,7 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotAndCloneEmpty) {
     FInfo finfo;
     ASSERT_EQ(0, snapClient_->Clone(testFile4Snap1, testFile4Clone1, userinfo1,
             "",
+            false,
             &finfo));
     ASSERT_TRUE(CheckFileData(testFile4Clone1, testUser1_, fakeData));
 
@@ -776,6 +785,7 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotAndCloneEmpty) {
     ASSERT_EQ(0, snapClient_->Clone(
         testFile4Clone1Snap1, testFile4Clone11, userinfo1,
         "",
+        false,
         &finfo2));
     ASSERT_TRUE(CheckFileData(testFile4Clone11, testUser1_, fakeData));
 
@@ -813,6 +823,7 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotEmptyAndClone) {
     FInfo finfo;
     ASSERT_EQ(0, snapClient_->Clone(testFile5Snap1, testFile5Clone1, userinfo1,
             "",
+            false,
             &finfo));
     ASSERT_TRUE(CheckFileData(testFile5Clone1, testUser1_, fakeDataNull));
 
@@ -829,6 +840,7 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotEmptyAndClone) {
     ASSERT_EQ(0, snapClient_->Clone(
         testFile5Clone1Snap1, testFile5Clone11, userinfo1,
         "",
+        false,
         &finfo2));
     ASSERT_TRUE(CheckFileData(testFile5Clone11, testUser1_, fakeDataNull));
 
@@ -836,6 +848,42 @@ TEST_F(LocalSnapshotCloneTest, TestSnapshotEmptyAndClone) {
     std::string fakeDataa(4096, 'a');
     ASSERT_TRUE(WriteFile(testFile5Clone11, testUser1_, fakeDataa));
     ASSERT_TRUE(CheckFileData(testFile5Clone11, testUser1_, fakeDataa));
+}
+
+TEST_F(LocalSnapshotCloneTest, TestReadOnlyClone) {
+    std::string testFile6_ = "/ItUser1/file6";
+    std::string testFile6Clone1 = "/ItUser1/file6clone1";
+
+    // 创建testFile6
+    std::string fakeDataNull(4096, '\0');
+    ASSERT_TRUE(CreateFile(testFile6_, testUser1_));
+
+    // 对testFile6 打快照
+    std::string testFile6Snap1 = testFile6_ + "@snap1";
+    FInfo snapInfo;
+    UserInfo_t userinfo1;
+    userinfo1.owner = testUser1_;
+    ASSERT_EQ(0, snapClient_->CreateSnapShot(
+        testFile6Snap1, userinfo1, &snapInfo));
+
+    // 对testFile6 写x
+    std::string fakeDatax(4096, 'x');
+    ASSERT_TRUE(WriteFile(testFile6_, testUser1_, fakeDatax));
+    ASSERT_TRUE(CheckFileData(testFile6_, testUser1_, fakeDatax));
+
+    ASSERT_EQ(0, snapClient_->ProtectSnapShot(testFile6Snap1, userinfo1));
+    // 从testFile6 快照克隆出testFile6Clone1, 并断言数据为null
+    FInfo finfo;
+    ASSERT_EQ(0, snapClient_->Clone(testFile6Snap1, testFile6Clone1, userinfo1,
+            "",
+            true,
+            &finfo));
+    ASSERT_TRUE(CheckFileData(testFile6Clone1, testUser1_, fakeDataNull));
+
+    // 尝试写testFile6Clone1，返回错误
+    std::string fakeDataa(4096, 'a');
+    ASSERT_FALSE(WriteFile(testFile6Clone1, testUser1_, fakeDataa));
+    ASSERT_TRUE(CheckFileData(testFile6Clone1, testUser1_, fakeDataNull));
 }
 
 

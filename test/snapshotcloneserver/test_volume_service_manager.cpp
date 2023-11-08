@@ -35,6 +35,7 @@ using ::testing::SetArgPointee;
 using ::testing::Invoke;
 using ::testing::DoAll;
 using ::testing::Property;
+using curve::client::FInfo_t;
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -137,10 +138,10 @@ TEST_F(TestVolumeServiceManager, TestDeleteFile) {
 TEST_F(TestVolumeServiceManager, TestGetFile) {
     // is INODE_PAGEFILE, success
     {
-        FileStatInfo statInfo;
-        statInfo.filetype = FileType::INODE_PAGEFILE;
-        EXPECT_CALL(*client_, StatFile(_, _, _))
-            .WillOnce(DoAll(SetArgPointee<2>(statInfo),
+        FInfo_t finfo;
+        finfo.filetype = FileType::INODE_PAGEFILE;
+        EXPECT_CALL(*client_, GetFileInfo(_, _, _))
+            .WillOnce(DoAll(SetArgPointee<2>(finfo),
                             Return(LIBCURVE_ERROR::OK)));
         FileInfo fileInfo;
         int ret = volumeServiceManager_->GetFile("test", "test", &fileInfo);
@@ -152,10 +153,10 @@ TEST_F(TestVolumeServiceManager, TestGetFile) {
 
     // is INODE_DIRECTORY, success
     {
-        FileStatInfo statInfo;
-        statInfo.filetype = FileType::INODE_DIRECTORY;
-        EXPECT_CALL(*client_, StatFile(_, _, _))
-            .WillOnce(DoAll(SetArgPointee<2>(statInfo),
+        FInfo_t finfo;
+        finfo.filetype = FileType::INODE_DIRECTORY;
+        EXPECT_CALL(*client_, GetFileInfo(_, _, _))
+            .WillOnce(DoAll(SetArgPointee<2>(finfo),
                             Return(LIBCURVE_ERROR::OK)));
         FileInfo fileInfo;
         int ret = volumeServiceManager_->GetFile("test", "test", &fileInfo);
@@ -166,10 +167,10 @@ TEST_F(TestVolumeServiceManager, TestGetFile) {
     }
     // is INODE_CLONE_PAGEFILE, success
     {
-        FileStatInfo statInfo;
-        statInfo.filetype = FileType::INODE_CLONE_PAGEFILE;
-        EXPECT_CALL(*client_, StatFile(_, _, _))
-            .WillOnce(DoAll(SetArgPointee<2>(statInfo),
+        FInfo_t finfo;
+        finfo.filetype = FileType::INODE_CLONE_PAGEFILE;
+        EXPECT_CALL(*client_, GetFileInfo(_, _, _))
+            .WillOnce(DoAll(SetArgPointee<2>(finfo),
                             Return(LIBCURVE_ERROR::OK)));
 
         uint64_t progress = 50;
@@ -187,10 +188,10 @@ TEST_F(TestVolumeServiceManager, TestGetFile) {
     }
     // is INODE_CLONE_PAGEFILE, success 2
     {
-        FileStatInfo statInfo;
-        statInfo.filetype = FileType::INODE_CLONE_PAGEFILE;
-        EXPECT_CALL(*client_, StatFile(_, _, _))
-            .WillOnce(DoAll(SetArgPointee<2>(statInfo),
+        FInfo_t finfo;
+        finfo.filetype = FileType::INODE_CLONE_PAGEFILE;
+        EXPECT_CALL(*client_, GetFileInfo(_, _, _))
+            .WillOnce(DoAll(SetArgPointee<2>(finfo),
                             Return(LIBCURVE_ERROR::OK)));
 
         uint64_t progress = 0;
@@ -208,10 +209,10 @@ TEST_F(TestVolumeServiceManager, TestGetFile) {
     }
     // UNKNOWN file type, failed
     {
-        FileStatInfo statInfo;
-        statInfo.filetype = FileType::INODE_SNAPSHOT_PAGEFILE;
-        EXPECT_CALL(*client_, StatFile(_, _, _))
-            .WillOnce(DoAll(SetArgPointee<2>(statInfo),
+        FInfo_t finfo;
+        finfo.filetype = FileType::INODE_SNAPSHOT_PAGEFILE;
+        EXPECT_CALL(*client_, GetFileInfo(_, _, _))
+            .WillOnce(DoAll(SetArgPointee<2>(finfo),
                             Return(LIBCURVE_ERROR::OK)));
 
         FileInfo fileInfo;
@@ -220,7 +221,7 @@ TEST_F(TestVolumeServiceManager, TestGetFile) {
     }
     // stat file failed
     {
-        EXPECT_CALL(*client_, StatFile(_, _, _))
+        EXPECT_CALL(*client_, GetFileInfo(_, _, _))
             .WillOnce(Return(-LIBCURVE_ERROR::AUTHFAIL));
         FileInfo fileInfo;
         int ret = volumeServiceManager_->GetFile("test", "test", &fileInfo);
@@ -228,10 +229,10 @@ TEST_F(TestVolumeServiceManager, TestGetFile) {
     }
     // QueryFlattenStatus failed
     {
-        FileStatInfo statInfo;
-        statInfo.filetype = FileType::INODE_CLONE_PAGEFILE;
-        EXPECT_CALL(*client_, StatFile(_, _, _))
-            .WillOnce(DoAll(SetArgPointee<2>(statInfo),
+        FInfo_t finfo;
+        finfo.filetype = FileType::INODE_CLONE_PAGEFILE;
+        EXPECT_CALL(*client_, GetFileInfo(_, _, _))
+            .WillOnce(DoAll(SetArgPointee<2>(finfo),
                             Return(LIBCURVE_ERROR::OK)));
 
         uint64_t progress = 0;
@@ -244,10 +245,10 @@ TEST_F(TestVolumeServiceManager, TestGetFile) {
     }
     // QueryFlattenStatus failed 2
     {
-        FileStatInfo statInfo;
-        statInfo.filetype = FileType::INODE_CLONE_PAGEFILE;
-        EXPECT_CALL(*client_, StatFile(_, _, _))
-            .WillOnce(DoAll(SetArgPointee<2>(statInfo),
+        FInfo_t finfo;
+        finfo.filetype = FileType::INODE_CLONE_PAGEFILE;
+        EXPECT_CALL(*client_, GetFileInfo(_, _, _))
+            .WillOnce(DoAll(SetArgPointee<2>(finfo),
                             Return(LIBCURVE_ERROR::OK)));
 
         uint64_t progress = 0;
@@ -263,9 +264,9 @@ TEST_F(TestVolumeServiceManager, TestGetFile) {
 TEST_F(TestVolumeServiceManager, TestListFile) {
     // success
     {
-        std::vector<FileStatInfo> statInfos;
+        std::vector<FInfo_t> finfos;
         EXPECT_CALL(*client_, ListDir(_, _, _))
-            .WillOnce(DoAll(SetArgPointee<2>(statInfos),
+            .WillOnce(DoAll(SetArgPointee<2>(finfos),
                             Return(LIBCURVE_ERROR::OK)));
 
         std::vector<FileInfo> out;
@@ -275,16 +276,16 @@ TEST_F(TestVolumeServiceManager, TestListFile) {
     }
     // success 2
     {
-        std::vector<FileStatInfo> statInfos;
-        FileStatInfo statInfo1;
-        statInfo1.filetype = FileType::INODE_DIRECTORY;
-        statInfos.push_back(statInfo1);
+        std::vector<FInfo_t> finfos;
+        FInfo_t finfo1;
+        finfo1.filetype = FileType::INODE_DIRECTORY;
+        finfos.push_back(finfo1);
 
-        FileStatInfo statInfo2;
-        statInfo2.filetype = FileType::INODE_CLONE_PAGEFILE;
-        statInfos.push_back(statInfo2);
+        FInfo_t finfo2;
+        finfo2.filetype = FileType::INODE_CLONE_PAGEFILE;
+        finfos.push_back(finfo2);
         EXPECT_CALL(*client_, ListDir(_, _, _))
-            .WillOnce(DoAll(SetArgPointee<2>(statInfos),
+            .WillOnce(DoAll(SetArgPointee<2>(finfos),
                             Return(LIBCURVE_ERROR::OK)));
 
         uint64_t progress = 0;
@@ -298,9 +299,9 @@ TEST_F(TestVolumeServiceManager, TestListFile) {
     }
     // ListDir Failed
     {
-        std::vector<FileStatInfo> statInfos;
+        std::vector<FInfo_t> finfos;
         EXPECT_CALL(*client_, ListDir(_, _, _))
-            .WillOnce(DoAll(SetArgPointee<2>(statInfos),
+            .WillOnce(DoAll(SetArgPointee<2>(finfos),
                             Return(-LIBCURVE_ERROR::AUTHFAIL)));
 
         std::vector<FileInfo> out;
@@ -309,16 +310,16 @@ TEST_F(TestVolumeServiceManager, TestListFile) {
     }
     // success 2
     {
-        std::vector<FileStatInfo> statInfos;
-        FileStatInfo statInfo1;
-        statInfo1.filetype = FileType::INODE_DIRECTORY;
-        statInfos.push_back(statInfo1);
+        std::vector<FInfo_t> finfos;
+        FInfo_t finfo1;
+        finfo1.filetype = FileType::INODE_DIRECTORY;
+        finfos.push_back(finfo1);
 
-        FileStatInfo statInfo2;
-        statInfo2.filetype = FileType::INODE_CLONE_PAGEFILE;
-        statInfos.push_back(statInfo2);
+        FInfo_t finfo2;
+        finfo2.filetype = FileType::INODE_CLONE_PAGEFILE;
+        finfos.push_back(finfo2);
         EXPECT_CALL(*client_, ListDir(_, _, _))
-            .WillOnce(DoAll(SetArgPointee<2>(statInfos),
+            .WillOnce(DoAll(SetArgPointee<2>(finfos),
                             Return(LIBCURVE_ERROR::OK)));
 
         uint64_t progress = 0;

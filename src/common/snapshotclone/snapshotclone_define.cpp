@@ -66,6 +66,7 @@ const char* kStripeUnitStr = "StripeUnit";
 const char* kStripeCountStr = "StripeCount";
 const char* kPoolSetStr = "PoolSet";
 const char* kDirStr = "Dir";
+const char* kReadonlyStr = "Readonly";
 
 const char* kCodeStr = "Code";
 const char* kMessageStr = "Message";

@@ -92,6 +92,8 @@ enum LIBCURVE_ERROR {
     RETRY_UNTIL_SUCCESS = 30,
     // EPOCH_TOO_OLD
     EPOCH_TOO_OLD = 31,
+    // READONLY
+    READONLY = 32,
 
     // unknown error
     UNKNOWN                 = 100

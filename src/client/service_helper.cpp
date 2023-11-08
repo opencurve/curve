@@ -100,6 +100,10 @@ void ServiceHelper::ProtoFileInfo2Local(const curve::mds::FileInfo& finfo,
         fi->version = 0;
     }
 
+    if (finfo.has_readonly()) {
+        fi->readonly = finfo.readonly();
+    }
+
     fEpoch->fileId = finfo.id();
     if (finfo.has_epoch()) {
         fEpoch->epoch = finfo.epoch();

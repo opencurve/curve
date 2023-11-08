@@ -361,6 +361,7 @@ void MDSClientBase::Clone(const std::string& source,
     const std::string& destination,
     const UserInfo_t& userinfo,
     const std::string& poolset,
+    bool readonly,
     CloneResponse* response,
     brpc::Controller* cntl,
     brpc::Channel* channel) {
@@ -370,6 +371,7 @@ void MDSClientBase::Clone(const std::string& source,
 
     request.set_snapfilename(source);
     request.set_poolset(poolset);
+    request.set_readonly(readonly);
 
     LOG(INFO) << "Clone: source = " << source
               << ", destination = " << destination

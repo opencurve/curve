@@ -54,7 +54,8 @@ class CloneCore {
         const std::string &snapshotName,
         const std::string &user,
         const std::string &destination,
-        const std::string &poolset) = 0;
+        const std::string &poolset,
+        bool readonlyFlag) = 0;
 
     virtual int FlattenLocal(const std::string &file,
         const std::string &user) = 0;
@@ -259,7 +260,8 @@ class CloneCoreImpl : public CloneCore {
         const std::string &snapshotName,
         const std::string &user,
         const std::string &destination,
-        const std::string &poolset) override;
+        const std::string &poolset,
+        bool readonlyFlag) override;
 
     int FlattenLocal(const std::string &file,
         const std::string &user) override;

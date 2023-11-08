@@ -596,6 +596,8 @@ void SnapshotCloneServiceImpl::HandleCloneAction(
         bcntl->http_request().uri().GetQuery(kFileStr);
     const std::string *name =
         bcntl->http_request().uri().GetQuery(kNameStr);
+    const std::string *readonly =
+        bcntl->http_request().uri().GetQuery(kReadonlyStr);
 
     if ((version == nullptr) ||
         (user == nullptr) ||
@@ -617,19 +619,34 @@ void SnapshotCloneServiceImpl::HandleCloneAction(
         (!file->empty()) &&
         (name != nullptr) &&
         (!name->empty())) {
+        bool readonlyFlag = false;
+        if ((readonly != nullptr) &&
+            (!readonly->empty()) &&
+            (!CheckBoolParamter(readonly, &readonlyFlag))) {
+            HandleBadRequestError(bcntl, requestId);
+            LOG(INFO) << "SnapshotCloneServiceImpl Return : "
+                      << "action = Clone"
+                      << ", requestId = " << requestId
+                      << ", context = " << bcntl->response_attachment();
+            return;
+        }
+
         LOG(INFO) << "Clone:"
                   << " Version = " << *version
                   << ", User = " << *user
                   << ", File = " << *file
                   << ", Name = " << *name
                   << ", Destination = " << *destination
+                  << ", Readonly = " << readonlyFlag
                   << ", Poolset = " << (poolset != nullptr ? *poolset : "")
                   << ", requestId = " << requestId;
+
         int ret = cloneManager_->CloneLocal(*file,
             *name,
             *user,
             *destination,
-            (poolset != nullptr ? *poolset : ""));
+            (poolset != nullptr ? *poolset : ""),
+            readonlyFlag);
         if (ret < 0) {
             bcntl->http_response().set_status_code(
                 brpc::HTTP_STATUS_INTERNAL_SERVER_ERROR);

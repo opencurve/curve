@@ -1758,10 +1758,10 @@ TEST_F(TestCloneCoreImpl,
     std::string poolset = "";
     // client clone failed
     {
-        EXPECT_CALL(*client_, Clone(_, _, _, _, _))
+        EXPECT_CALL(*client_, Clone(_, _, _, _, _, _))
             .WillOnce(Return(-LIBCURVE_ERROR::AUTHFAIL));
         ASSERT_EQ(core_->CloneLocal(file, snapshotName, user, destination,
-            poolset), kErrCodeInvalidUser);
+            poolset, false), kErrCodeInvalidUser);
     }
     // file exist success
     {
@@ -1769,11 +1769,11 @@ TEST_F(TestCloneCoreImpl,
         finfo.cloneSource = file;
         finfo.owner = user;
         finfo.poolset = "";
-        EXPECT_CALL(*client_, Clone(_, _, _, _, _))
-            .WillOnce(DoAll(SetArgPointee<4>(finfo),
+        EXPECT_CALL(*client_, Clone(_, _, _, _, _, _))
+            .WillOnce(DoAll(SetArgPointee<5>(finfo),
                 Return(-LIBCURVE_ERROR::EXISTS)));
         ASSERT_EQ(core_->CloneLocal(file, snapshotName, user, destination,
-            poolset), kErrCodeSuccess);
+            poolset, false), kErrCodeSuccess);
     }
     // clone success
     {
@@ -1781,11 +1781,11 @@ TEST_F(TestCloneCoreImpl,
         finfo.cloneSource = file;
         finfo.owner = user;
         finfo.poolset = "";
-        EXPECT_CALL(*client_, Clone(_, _, _, _, _))
-            .WillOnce(DoAll(SetArgPointee<4>(finfo),
+        EXPECT_CALL(*client_, Clone(_, _, _, _, _, _))
+            .WillOnce(DoAll(SetArgPointee<5>(finfo),
                 Return(LIBCURVE_ERROR::OK)));
         ASSERT_EQ(core_->CloneLocal(file, snapshotName, user, destination,
-            poolset), kErrCodeSuccess);
+            poolset, false), kErrCodeSuccess);
     }
 }
 

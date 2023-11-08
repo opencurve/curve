@@ -246,7 +246,8 @@ class CloneServiceManager {
         const std::string &snapshotName,
         const std::string &user,
         const std::string &destination,
-        const std::string &poolset);
+        const std::string &poolset,
+        bool readonlyFlag);
 
     /**
      * @brief local flatten
