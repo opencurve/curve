@@ -47,7 +47,7 @@ const int kCsClientReturnFail = -5;
 // error code: chunkserver offline
 const int kCsClientCSOffline = -6;
 
-const char* PrintMdsDescByErrorCode(int code) {
+inline char* MdsErrCodeToName(int code) {
     switch (code) {
         case kMdsSuccess:
             return "MDS execution succeeded";
@@ -125,7 +125,7 @@ const int kTopoErrCodePoolsetNotFound = -20;
 const int kTopoErrCodeCannotDeleteDefaultPoolset = -21;
 const int kTopoErrCodeConflictBlockSizeAndChunkSize = -22;
 
-const char* PrintTopoErrCodeDescription(int code) {
+inline const char* TopoErrCodeToName(int code) {
     switch (code) {
         case kTopoErrCodeSuccess:
             return "kTopoErrCodeSuccess";

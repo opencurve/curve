@@ -66,7 +66,7 @@ StatusCode CleanCore::CleanSnapShotFile(const FileInfo & fileInfo,
             if (ret != 0) {
                 LOG(ERROR) << "CleanSnapShotFile Error: "
                            << "DeleteChunkSnapshotOrCorrectSn Error"
-                           << ", ret = " << PrintMdsDescByErrorCode(ret)
+                           << ", ret = " << MdsErrCodeToName(ret)
                            << ", inodeid = " << fileInfo.id()
                            << ", filename = " << fileInfo.filename()
                            << ", correctSn = " << correctSn;
@@ -123,7 +123,7 @@ StatusCode CleanCore::CleanFile(const FileInfo & commonFile,
         int ret = DeleteChunksInSegment(segment, commonFile.seqnum());
         if (ret != 0) {
             LOG(ERROR) << "Clean common File Error: "
-                       << ", ret = " << PrintMdsDescByErrorCode(ret)
+                       << ", ret = " << MdsErrCodeToName(ret)
                        << ", inodeid = " << commonFile.id()
                        << ", filename = " << commonFile.filename()
                        << ", sequenceNum = " << commonFile.seqnum();
@@ -185,7 +185,7 @@ StatusCode CleanCore::CleanDiscardSegment(
     int ret = DeleteChunksInSegment(segment, seq);
     if (ret != 0) {
         LOG(ERROR) << "CleanDiscardSegment failed, DeleteChunk Error, ret = "
-                   << PrintMdsDescByErrorCode(ret)
+                   << MdsErrCodeToName(ret)
                    << ", filename = " << fileInfo.filename()
                    << ", inodeid = " << fileInfo.id()
                    << ", segment offset = " << segment.startoffset();
@@ -231,7 +231,7 @@ int CleanCore::DeleteChunksInSegment(const PageFileSegment& segment,
 
         if (ret != 0) {
             LOG(ERROR) << "DeleteChunk failed, ret = "
-                       << PrintMdsDescByErrorCode(ret)
+                       << MdsErrCodeToName(ret)
                        << ", logicalpoolid = " << logicalPoolId
                        << ", copysetid = " << segment.chunks()[i].copysetid()
                        << ", chunkid = " << segment.chunks()[i].chunkid()

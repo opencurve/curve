@@ -27,7 +27,7 @@
 
 using std::chrono::milliseconds;
 using ::curve::mds::heartbeat::ConfigChangeInfo;
-using ::curve::mds::topology::PrintTopoErrCodeDescription;
+using ::curve::mds::topology::TopoErrCodeToName;
 
 namespace curve {
 namespace mds {
@@ -67,7 +67,7 @@ bool CopysetConfGenerator::GenCopysetConf(
                         << reportCopySetInfo.GetLogicalPoolId()
                         << "," << reportCopySetInfo.GetId()
                         << ") got error code: "
-                        << PrintTopoErrCodeDescription(updateCode);
+                        << TopoErrCodeToName(updateCode);
                 return false;
             } else {
                 // update to memory successfully

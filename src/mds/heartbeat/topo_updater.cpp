@@ -23,7 +23,7 @@
 #include <glog/logging.h>
 #include "src/mds/heartbeat/topo_updater.h"
 
-using curve::mds::topology::PrintTopoErrCodeDescription;
+using curve::mds::topology::TopoErrCodeToName;
 
 namespace curve {
 namespace mds {
@@ -181,7 +181,7 @@ void TopoUpdater::UpdateTopo(const CopySetInfo &reportCopySetInfo) {
                        << reportCopySetInfo.GetLogicalPoolId()
                        << "," << reportCopySetInfo.GetId()
                        << ") got error code: "
-                       << PrintTopoErrCodeDescription(updateCode);
+                       << TopoErrCodeToName(updateCode);
             return;
         }
     }

@@ -115,7 +115,7 @@ void HeartbeatManager::UpdateChunkServerDiskStatus(
         request.chunkserverid());
     if (ret != curve::mds::topology::kTopoErrCodeSuccess) {
         LOG(ERROR) << "heartbeat UpdateDiskStatus get an error, ret ="
-                   << curve::mds::topology::PrintTopoErrCodeDescription(ret);
+                   << curve::mds::topology::TopoErrCodeToName(ret);
     }
 }
 
