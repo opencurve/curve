@@ -29,6 +29,7 @@ import io.opencurve.curve.fs.libfs.CurveFSMount;
 import io.opencurve.curve.fs.libfs.CurveFSStat;
 import io.opencurve.curve.fs.libfs.CurveFSStatVFS;
 
+import java.util.UUID;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
@@ -37,6 +38,7 @@ import java.util.Map;
 class CurveFSTalker extends CurveFSProto {
     private CurveFSMount mount;
     private String fsname = null;
+    private String mountpoint = null;
     private boolean inited = false;
 
     private static final String PREFIX_KEY = "curvefs";
@@ -72,14 +74,15 @@ class CurveFSTalker extends CurveFSProto {
         if (null == fsname || fsname.isEmpty()) {
             throw new IOException("curvefs.name is not set");
         }
-        mount.mount(fsname, "/");
+        mountpoint = UUID.randomUUID().toString();
+        mount.mount(fsname, mountpoint);
         inited = true;
     }
 
     @Override
     void shutdown() throws IOException {
         if (inited) {
-            mount.umount(fsname, "/");
+            mount.umount(fsname, mountpoint);
             mount = null;
             inited = false;
         }
