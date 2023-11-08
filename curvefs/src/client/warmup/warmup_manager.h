@@ -285,9 +285,8 @@ class WarmupManager {
      * @return true
      * @return false warmupProcess has been added
      */
-    virtual bool AddWarmupProcess(fuse_ino_t key, const std::string& path,
-                                  WarmupStorageType type) {
-        WriteLockGuard lock(inode2ProgressMutex_);
+    virtual bool AddWarmupProcessLocked(fuse_ino_t key, const std::string& path,
+                                        WarmupStorageType type) {
         auto retPg = inode2Progress_.emplace(key, WarmupProgress(type, path));
         return retPg.second;
     }
