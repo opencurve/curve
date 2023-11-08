@@ -64,7 +64,7 @@ public class CurveFileSystem extends FileSystem {
     }
 
     public String getScheme() {
-        return uri.getScheme();
+        return "hdfs";
     }
 
     @Override
@@ -85,7 +85,6 @@ public class CurveFileSystem extends FileSystem {
         this.workingDir = getHomeDirectory();
     }
 
-
     public FSDataInputStream open(Path path, int bufferSize) throws IOException {
         path = makeAbsolute(path);
 
@@ -103,7 +102,6 @@ public class CurveFileSystem extends FileSystem {
     @Override
     public void close() throws IOException {
         super.close();  // this method does stuff, make sure it's run!
-        curve.shutdown();
     }
 
     public FSDataOutputStream append(Path path, int bufferSize, Progressable progress) throws IOException {
@@ -174,12 +172,10 @@ public class CurveFileSystem extends FileSystem {
             for (int i = 0; i < status.length; i++) {
                 status[i] = getFileStatus(new Path(path, dirlist[i]));
             }
-            curve.shutdown();
             return status;
         } else {
             throw new FileNotFoundException("File " + path + " does not exist.");
         }
-
     }
 
     @Override
@@ -210,7 +206,6 @@ public class CurveFileSystem extends FileSystem {
 
     public FSDataOutputStream create(Path path, FsPermission permission, boolean overwrite, int bufferSize,
                                      short replication, long blockSize, Progressable progress) throws IOException {
-
         path = makeAbsolute(path);
 
         boolean exists = exists(path);
