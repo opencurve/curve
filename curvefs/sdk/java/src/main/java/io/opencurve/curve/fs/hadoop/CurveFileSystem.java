@@ -59,12 +59,14 @@ public class CurveFileSystem extends FileSystem {
         return new Path(workingDir, path);
     }
 
+    @Override
     public URI getUri() {
         return uri;
     }
 
+    @Override
     public String getScheme() {
-        return uri.getScheme();
+        return "hdfs";
     }
 
     @Override
@@ -85,14 +87,12 @@ public class CurveFileSystem extends FileSystem {
         this.workingDir = getHomeDirectory();
     }
 
-
+    @Override
     public FSDataInputStream open(Path path, int bufferSize) throws IOException {
         path = makeAbsolute(path);
 
-        // throws filenotfoundexception if path is a directory
         int fd = curve.open(path, CurveFSMount.O_RDONLY, 0);
 
-        /* get file size */
         CurveFSStat stat = new CurveFSStat();
         curve.fstat(fd, stat);
 
@@ -102,10 +102,11 @@ public class CurveFileSystem extends FileSystem {
 
     @Override
     public void close() throws IOException {
-        super.close();  // this method does stuff, make sure it's run!
+        super.close();
         curve.shutdown();
     }
 
+    @Override
     public FSDataOutputStream append(Path path, int bufferSize, Progressable progress) throws IOException {
         path = makeAbsolute(path);
 
@@ -122,6 +123,7 @@ public class CurveFileSystem extends FileSystem {
         return new FSDataOutputStream(ostream, statistics);
     }
 
+    @Override
     public Path getWorkingDirectory() {
         return workingDir;
     }
@@ -144,6 +146,7 @@ public class CurveFileSystem extends FileSystem {
         return mkdirs(f, perms);
     }
 
+    @Override
     public FileStatus getFileStatus(Path path) throws IOException {
         path = makeAbsolute(path);
 
@@ -160,7 +163,7 @@ public class CurveFileSystem extends FileSystem {
         return status;
     }
 
-
+    @Override
     public FileStatus[] listStatus(Path path) throws IOException {
         path = makeAbsolute(path);
 
@@ -174,12 +177,10 @@ public class CurveFileSystem extends FileSystem {
             for (int i = 0; i < status.length; i++) {
                 status[i] = getFileStatus(new Path(path, dirlist[i]));
             }
-            curve.shutdown();
             return status;
         } else {
             throw new FileNotFoundException("File " + path + " does not exist.");
         }
-
     }
 
     @Override
@@ -208,9 +209,9 @@ public class CurveFileSystem extends FileSystem {
         curve.setattr(path, stat, mask);
     }
 
+    @Override
     public FSDataOutputStream create(Path path, FsPermission permission, boolean overwrite, int bufferSize,
                                      short replication, long blockSize, Progressable progress) throws IOException {
-
         path = makeAbsolute(path);
 
         boolean exists = exists(path);
@@ -268,6 +269,7 @@ public class CurveFileSystem extends FileSystem {
     }
 
     @Deprecated
+    @Override
     public FSDataOutputStream createNonRecursive(Path path, FsPermission permission,
                                                  boolean overwrite,
                                                  int bufferSize, short replication, long blockSize,
@@ -278,7 +280,7 @@ public class CurveFileSystem extends FileSystem {
 
         if (parent != null) {
             CurveFSStat stat = new CurveFSStat();
-            curve.lstat(parent, stat); // handles FileNotFoundException case
+            curve.lstat(parent, stat);
             if (stat.isFile()) {
                 throw new FileAlreadyExistsException(parent.toString());
             }
@@ -314,14 +316,15 @@ public class CurveFileSystem extends FileSystem {
     }
 
     @Deprecated
+    @Override
     public boolean delete(Path path) throws IOException {
         return delete(path, false);
     }
 
+    @Override
     public boolean delete(Path path, boolean recursive) throws IOException {
         path = makeAbsolute(path);
 
-        /* path exists? */
         FileStatus status;
         try {
             status = getFileStatus(path);
@@ -329,13 +332,11 @@ public class CurveFileSystem extends FileSystem {
             return false;
         }
 
-        /* we're done if its a file */
         if (status.isFile()) {
             curve.unlink(path);
             return true;
         }
 
-        /* get directory contents */
         FileStatus[] dirlist = listStatus(path);
         if (dirlist == null) {
             return false;
@@ -383,6 +384,6 @@ public class CurveFileSystem extends FileSystem {
 
     @Override
     public String getCanonicalServiceName() {
-        return null; // Does not support Token
+        return null;
     }
 }

@@ -59,8 +59,6 @@ public class CurveFSInputStream extends FSInputStream {
      */
     public CurveFSInputStream(Configuration conf, CurveFSProto curvefs,
                               int fh, long flength, int bufferSize) {
-      // Whoever's calling the constructor is responsible for doing the actual curve_open
-      // call and providing the file handle.
       fileLength = flength;
       fileHandle = fh;
       closed = false;
@@ -73,6 +71,7 @@ public class CurveFSInputStream extends FSInputStream {
     /** Curve likes things to be closed before it shuts down,
      * so closing the IOStream stuff voluntarily in a finalizer is good
      */
+    @Override
     protected void finalize() throws Throwable {
         try {
             if (!closed) {
@@ -91,7 +90,6 @@ public class CurveFSInputStream extends FSInputStream {
 
             bufValid = 0;
 
-            // attempt to reset to old position. If it fails, too bad.
             curve.lseek(fileHandle, curvePos, CurveFSMount.SEEK_SET);
             throw new IOException("Failed to fill read buffer! Error code:" + err);
         }
@@ -102,6 +100,7 @@ public class CurveFSInputStream extends FSInputStream {
     /*
      * Get the current position of the stream.
      */
+    @Override
     public synchronized long getPos() throws IOException {
         return curvePos - bufValid + bufPos;
     }
@@ -117,6 +116,7 @@ public class CurveFSInputStream extends FSInputStream {
         return (int) (fileLength - getPos());
     }
 
+    @Override
     public synchronized void seek(long targetPos) throws IOException {
         LOG.trace("CurveInputStream.seek: Seeking to position " + targetPos + " on fd "
                   + fileHandle);
@@ -142,6 +142,7 @@ public class CurveFSInputStream extends FSInputStream {
      * they'll be dealt with before anybody even tries to call this method!
      * @return false.
      */
+    @Override
     public synchronized boolean seekToNewSource(long targetPos) {
         return false;
     }
