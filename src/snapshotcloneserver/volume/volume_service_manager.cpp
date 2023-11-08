@@ -93,8 +93,8 @@ int VolumeServiceManager::DeleteFile(const std::string &file,
 int VolumeServiceManager::GetFile(const std::string &file,
     const std::string &user,
     FileInfo *fileInfo) {
-    FileStatInfo statInfo;
-    int ret = client_->StatFile(file, user, &statInfo);
+    FInfo_t fi;
+    int ret = client_->GetFileInfo(file, user, &fi);
     ret = LibCurveErrToSnapshotCloneErr(ret);
     if (ret != kErrCodeSuccess) {
         if (kErrCodeFileNotExist == ret) {
@@ -108,16 +108,16 @@ int VolumeServiceManager::GetFile(const std::string &file,
                    << ", user = " << user;
         return ret;
     }
-    return BuildFileInfo(file, user, statInfo, fileInfo);
+    return BuildFileInfo(file, user, fi, fileInfo);
 }
 
 int VolumeServiceManager::BuildFileInfo(const std::string &file,
     const std::string &user,
-    const FileStatInfo &statInfo,
+    const FInfo_t &fInfo,
     FileInfo *fileInfo) {
     fileInfo->SetFileName(file);
-    fileInfo->SetFileStatInfo(statInfo);
-    if (FileType::INODE_CLONE_PAGEFILE == statInfo.filetype) {
+    fileInfo->SetFileStatInfo(fInfo);
+    if (FileType::INODE_CLONE_PAGEFILE == fInfo.filetype) {
         FileStatus fileStatus;
         uint32_t progress;
         int ret = client_->QueryFlattenStatus(
@@ -141,18 +141,18 @@ int VolumeServiceManager::BuildFileInfo(const std::string &file,
         }
         fileInfo->SetFileInfoType(FileInfoType::file);
         fileInfo->SetProgress(progress);
-    } else if (FileType::INODE_PAGEFILE == statInfo.filetype) {
+    } else if (FileType::INODE_PAGEFILE == fInfo.filetype) {
         fileInfo->SetFileInfoStatus(FileInfoStatus::done);
         fileInfo->SetFileInfoType(FileInfoType::file);
         fileInfo->SetProgress(100);
-    } else if (FileType::INODE_DIRECTORY == statInfo.filetype) {
+    } else if (FileType::INODE_DIRECTORY == fInfo.filetype) {
         fileInfo->SetFileInfoStatus(FileInfoStatus::done);
         fileInfo->SetFileInfoType(FileInfoType::directory);
         fileInfo->SetProgress(100);
     } else {
         LOG(ERROR) << "unexpected file type, file = " << file
                    << ", user = " << user
-                   << ", filetype = " << statInfo.filetype;
+                   << ", filetype = " << fInfo.filetype;
         return kErrCodeInternalError;
     }
     return kErrCodeSuccess;
@@ -161,8 +161,8 @@ int VolumeServiceManager::BuildFileInfo(const std::string &file,
 int VolumeServiceManager::ListFile(const std::string &dir,
     const std::string &user,
     std::vector<FileInfo> *fileInfos) {
-    std::vector<FileStatInfo> statInfos;
-    int ret = client_->ListDir(dir, user, &statInfos);
+    std::vector<FInfo_t> finfos;
+    int ret = client_->ListDir(dir, user, &finfos);
     ret = LibCurveErrToSnapshotCloneErr(ret);
     if (ret != kErrCodeSuccess) {
         LOG(ERROR) << "ListFile fail, ret = " << ret
@@ -171,28 +171,28 @@ int VolumeServiceManager::ListFile(const std::string &dir,
         return ret;
     }
 
-    for (const auto &statInfo : statInfos) {
+    for (const auto &finfo : finfos) {
         FileInfo fileInfo;
         std::string fullPathName;
         if (dir[dir.size() - 1] == '/') {
-            fullPathName = dir + statInfo.filename;
+            fullPathName = dir + finfo.filename;
         } else {
-            fullPathName = dir + "/" + statInfo.filename;
+            fullPathName = dir + "/" + finfo.filename;
         }
-        int ret = BuildFileInfo(fullPathName, user, statInfo,
+        int ret = BuildFileInfo(fullPathName, user, finfo,
             &fileInfo);
         if (ret != kErrCodeSuccess) {
             if (ret == kErrCodeFileNotExist) {
                 LOG(INFO) << "BuildFileInfo found file not exist, ret = "
                           << ret << ", user = " << user
                           << ", dir = " << dir
-                          << ", filename = " << statInfo.filename;
+                          << ", filename = " << finfo.filename;
                 continue;
             }
             LOG(ERROR) << "BuildFileInfo fail, ret = " << ret
                        << ", user = " << user
                        << ", dir = " << dir
-                       << ", filename = " << statInfo.filename;
+                       << ", filename = " << finfo.filename;
             return ret;
         }
         fileInfos->push_back(fileInfo);

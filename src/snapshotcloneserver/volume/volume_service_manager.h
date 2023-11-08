@@ -65,12 +65,13 @@ class FileInfo {
         return fileType_;
     }
 
-    void SetFileStatInfo(const FileStatInfo &fileStatInfo) {
-        user_ = std::string(fileStatInfo.owner);
-        ctime_ = fileStatInfo.ctime;
-        fileLength_ = fileStatInfo.length;
-        stripeUnit_ = fileStatInfo.stripeUnit;
-        stripeCount_ = fileStatInfo.stripeCount;
+    void SetFileStatInfo(const FInfo_t &fInfo) {
+        user_ = std::string(fInfo.owner);
+        ctime_ = fInfo.ctime;
+        fileLength_ = fInfo.length;
+        stripeUnit_ = fInfo.stripeUnit;
+        stripeCount_ = fInfo.stripeCount;
+        readonly_ = fInfo.readonly;
     }
 
     void SetFileInfoStatus(FileInfoStatus status) {
@@ -98,6 +99,7 @@ class FileInfo {
         fileInfo["FileLength"] = fileLength_;
         fileInfo["StripeUnit"] = stripeUnit_;
         fileInfo["StripeCount"] = stripeCount_;
+        fileInfo["Readonly"] = readonly_;
         fileInfo["Status"] = static_cast<int>(status_);
         fileInfo["Progress"] = progress_;
         return fileInfo;
@@ -111,6 +113,7 @@ class FileInfo {
     uint64_t        fileLength_;
     uint64_t        stripeUnit_;
     uint64_t        stripeCount_;
+    bool readonly_;
     FileInfoStatus      status_;
     uint32_t progress_;
 };
@@ -144,7 +147,7 @@ class VolumeServiceManager {
  private:
     int BuildFileInfo(const std::string &file,
         const std::string &user,
-        const FileStatInfo &statInfo,
+        const FInfo_t &fInfo,
         FileInfo *fileInfo);
 
  private:

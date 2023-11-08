@@ -1670,11 +1670,17 @@ void NameSpaceService::Clone(::google::protobuf::RpcController* controller,
         return;
     }
 
+    bool readonly = false;
+    if (request->has_readonly()) {
+        readonly = request->readonly();
+    }
+
     ret = kCurveFS.Clone(request->filename(),
                                     request->owner(),
                                     srcFileName,
                                     snapName,
                                     request->poolset(),
+                                    readonly,
                                     response->mutable_fileinfo());
     response->set_statuscode(ret);
     if (ret != StatusCode::kOK) {

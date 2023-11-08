@@ -169,6 +169,7 @@ FileInfo类型说明
 | StripeUnit | uint64 | 条带的宽度, 默认为0，无条带 |
 | StripeCount | uint64 | 条带数量, 默认为0， 无条带 | 
 | Status     | enum   | 卷的状态, 0:done, 1:flattening, 2:unflattened |
+| Readonly   | bool   | 是否只读                                                     |
 | Progress   | uint32 | 完成百分比, flattening状态时则表示百分比进度  |
 
 ##### 示例
@@ -489,6 +490,7 @@ Content-Length: xxx
 | File        | string | 是       | 卷路径 |
 | Name        | string | 是       | 快照名                 |
 | Destination | string | 是       | 克隆目标路径         |
+| Readonly    | bool   | 否       | 是否克隆成只读卷     |
 
 ##### 响应
 

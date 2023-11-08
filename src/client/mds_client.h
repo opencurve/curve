@@ -290,6 +290,7 @@ class MDSClient : public MDSClientBase,
             const std::string& destination,
             const UserInfo_t& userinfo,
             const std::string& poolset,
+            bool readonly,
             FInfo* finfo);
 
     // flatten
@@ -402,7 +403,7 @@ class MDSClient : public MDSClientBase,
      */
     LIBCURVE_ERROR Listdir(const std::string& dirpath,
                            const UserInfo_t& userinfo,
-                           std::vector<FileStatInfo>* filestatVec);
+                           std::vector<FInfo_t>* filestatVec);
 
     /**
      * 向mds注册client metric监听的地址和端口

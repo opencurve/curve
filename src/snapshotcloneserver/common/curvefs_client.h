@@ -47,6 +47,7 @@ using ::curve::client::ChunkID;
 using ::curve::client::ChunkInfoDetail;
 using ::curve::client::ChunkIDInfo;
 using ::curve::client::FInfo;
+using ::curve::client::FInfo_t;
 using ::curve::client::FileStatus;
 using ::curve::client::SnapCloneClosure;
 using ::curve::client::UserInfo;
@@ -122,13 +123,9 @@ class CurveFsClient {
     virtual int DeleteFile(const std::string &file,
         const std::string &user) = 0;
 
-    virtual int StatFile(const std::string &file,
-        const std::string &user,
-        FileStatInfo *statInfo) = 0;
-
     virtual int ListDir(const std::string &dir,
         const std::string &user,
-        std::vector<FileStatInfo> *fileStatInfos) = 0;
+        std::vector<FInfo_t> *finfoVec) = 0;
 
     /**
      * @brief 创建快照
@@ -456,6 +453,7 @@ class CurveFsClient {
         const std::string &user,
         const std::string &destination,
         const std::string &poolset,
+        bool readonlyFlag,
         FInfo* finfo) = 0;
 
     /**
@@ -510,13 +508,9 @@ class CurveFsClientImpl : public CurveFsClient {
     int DeleteFile(const std::string &file,
         const std::string &user) override;
 
-    int StatFile(const std::string &file,
-        const std::string &user,
-        FileStatInfo *statInfo) override;
-
     int ListDir(const std::string &dir,
         const std::string &user,
-        std::vector<FileStatInfo> *fileStatInfos) override;
+        std::vector<FInfo_t> *finfoVec) override;
 
     int CreateSnapshot(const std::string &filename,
         const std::string &user,
@@ -630,6 +624,7 @@ class CurveFsClientImpl : public CurveFsClient {
         const std::string &user,
         const std::string &destination,
         const std::string &poolset,
+        bool readonlyFlag,
         FInfo* finfo) override;
 
     int Flatten(const std::string &file,

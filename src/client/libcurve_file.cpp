@@ -53,6 +53,7 @@
 bool globalclientinited_ = false;
 curve::client::FileClient* globalclient = nullptr;
 
+using curve::client::FInfo_t;
 using curve::client::UserInfo;
 using ::curve::common::FLAGS_vlog_level;
 
@@ -545,9 +546,10 @@ int FileClient::StatFile(int fd, FileStatInfo *finfo) {
     return LIBCURVE_ERROR::OK;
 }
 
-int FileClient::StatFile(const std::string &filename,
-                         const UserInfo_t &userinfo, FileStatInfo *finfo) {
-    FInfo_t fi;
+
+int FileClient::GetFileInfo(const std::string& filename,
+                        const UserInfo_t& userinfo,
+                        FInfo_t* finfo) {
     FileEpoch_t fEpoch;
     int ret;
     uint64_t sn = 0;
@@ -559,7 +561,7 @@ int FileClient::StatFile(const std::string &filename,
             << ", realfilename: " << realfilename;
     }
     if (mdsClient_ != nullptr) {
-        ret = mdsClient_->GetFileInfo(realfilename, userinfo, &fi, &fEpoch);
+        ret = mdsClient_->GetFileInfo(realfilename, userinfo, finfo, &fEpoch);
         LOG_IF(ERROR, ret != LIBCURVE_ERROR::OK)
             << "StatFile failed, filename: " << realfilename << ", ret" << ret;
     } else {
@@ -567,24 +569,46 @@ int FileClient::StatFile(const std::string &filename,
         return -LIBCURVE_ERROR::FAILED;
     }
 
+    return -ret;
+}
+
+int FileClient::StatFile(const std::string &filename,
+                         const UserInfo_t &userinfo, FileStatInfo *finfo) {
+    FInfo_t fi;
+    int ret = GetFileInfo(filename, userinfo, &fi);
     if (ret == LIBCURVE_ERROR::OK) {
         BuildFileStatInfo(fi, finfo);
     }
-
     return -ret;
 }
 
 int FileClient::Listdir(const std::string& dirpath,
-    const UserInfo_t& userinfo, std::vector<FileStatInfo>* filestatVec) {
+                         const UserInfo_t& userinfo,
+                         std::vector<FInfo_t>* finfoVec) {
     LIBCURVE_ERROR ret;
     if (mdsClient_ != nullptr) {
-        ret = mdsClient_->Listdir(dirpath, userinfo, filestatVec);
+        ret = mdsClient_->Listdir(dirpath, userinfo, finfoVec);
         LOG_IF(ERROR,
                ret != LIBCURVE_ERROR::OK && ret != LIBCURVE_ERROR::NOTEXIST)
             << "Listdir failed, Path: " << dirpath << ", ret: " << ret;
     } else {
         LOG(ERROR) << "global mds client not inited!";
         return -LIBCURVE_ERROR::FAILED;
+    }
+    return -ret;
+}
+
+int FileClient::Listdir(const std::string& dirpath,
+    const UserInfo_t& userinfo, std::vector<FileStatInfo>* filestatVec) {
+    std::vector<FInfo_t> finfoVec;
+    int ret = Listdir(dirpath, userinfo, &finfoVec);
+
+    if (ret == LIBCURVE_ERROR::OK) {
+        for (auto& fi : finfoVec) {
+            FileStatInfo filestat;
+            BuildFileStatInfo(fi, &filestat);
+            filestatVec->push_back(filestat);
+        }
     }
     return -ret;
 }

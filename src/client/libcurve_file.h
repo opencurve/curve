@@ -243,6 +243,35 @@ class FileClient {
       */
     virtual int StatFile(int fd, FileStatInfo* finfo);
 
+
+    /**
+     * @brief get file info
+     *
+     * @param filename  file name
+     * @param userinfo  user info
+     * @param finfo fileInfo returned
+     *
+     * @return: returns int::ok if success,
+     *          otherwise returns an error code less than 0
+     */
+    virtual int GetFileInfo(const std::string& filename,
+                            const UserInfo_t& userinfo,
+                            FInfo_t* finfo);
+
+    /**
+     * @brief list file info of dir
+     *
+     * @param dirpath  dir path
+     * @param userinfo  user info
+     * @param finfoVec  fileInfo vector returned
+     *
+     * @return returns int::ok if success,
+     *         otherwise returns an error code less than 0
+     */
+    virtual int Listdir(const std::string& dirpath,
+                        const UserInfo_t& userinfo,
+                        std::vector<FInfo_t>* finfoVec);
+
     /**
      * 变更owner
      * @param: filename待变更的文件名

@@ -426,6 +426,7 @@ class CurveFS {
             const std::string &srcFileName,
             const std::string &snapName,
             const std::string &poolset,
+            bool readonly,
             FileInfo *fileInfo);
 
     // flatten

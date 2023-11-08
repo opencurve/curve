@@ -178,9 +178,10 @@ int SnapshotClient::Clone(const std::string& source,
         const std::string& destination,
         const UserInfo_t& userinfo,
         const std::string& poolset,
+        bool readonly,
         FInfo* finfo) {
     LIBCURVE_ERROR ret = mdsclient_.Clone(
-        source, destination, userinfo, poolset, finfo);
+        source, destination, userinfo, poolset, readonly, finfo);
     return -ret;
 }
 

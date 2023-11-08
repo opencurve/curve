@@ -311,6 +311,7 @@ class MDSClientBase {
          const std::string& destination,
          const UserInfo_t& userinfo,
          const std::string& poolset,
+         bool readonly,
          CloneResponse* response,
          brpc::Controller* cntl,
          brpc::Channel* channel);

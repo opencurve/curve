@@ -116,7 +116,12 @@ int FileInstance::Read(char* buf, off_t offset, size_t length) {
 int FileInstance::Write(const char *buf, off_t offset, size_t len) {
     if (CURVE_UNLIKELY(readonly_)) {
         DVLOG(9) << "open with read only, do not support write!";
-        return -1;
+        return -LIBCURVE_ERROR::READONLY;
+    }
+
+    if (finfo_.readonly) {
+        DVLOG(9) << "file is readonly, can not write!";
+        return -LIBCURVE_ERROR::READONLY;
     }
 
     if (CURVE_UNLIKELY(!CheckAlign(offset, len, blocksize_))) {
@@ -150,6 +155,11 @@ int FileInstance::AioWrite(CurveAioContext *aioctx, UserDataType dataType) {
     if (CURVE_UNLIKELY(readonly_)) {
         DVLOG(9) << "open with read only, do not support write!";
         return -1;
+    }
+
+    if (finfo_.readonly) {
+        DVLOG(9) << "file is readonly, can not write!";
+        return -LIBCURVE_ERROR::READONLY;
     }
 
     if (CURVE_UNLIKELY(

@@ -468,18 +468,11 @@ int CurveFsClientImpl::DeleteFile(const std::string &file,
     return fileClient_->Unlink(file, userInfo);
 }
 
-int CurveFsClientImpl::StatFile(const std::string &file,
-    const std::string &user,
-    FileStatInfo *statInfo) {
-    UserInfo userInfo = GetUserInfo(user);
-    return fileClient_->StatFile(file, userInfo, statInfo);
-}
-
 int CurveFsClientImpl::ListDir(const std::string &dir,
     const std::string &user,
-    std::vector<FileStatInfo> *fileStatInfos) {
+    std::vector<FInfo_t> *finfoVec) {
     UserInfo userInfo = GetUserInfo(mdsRootUser_);
-    return fileClient_->Listdir(dir, userInfo, fileStatInfos);
+    return fileClient_->Listdir(dir, userInfo, finfoVec);
 }
 
 int CurveFsClientImpl::ChangeOwner(const std::string& filename,
@@ -502,10 +495,11 @@ int CurveFsClientImpl::Clone(const std::string &snapPath,
     const std::string &user,
     const std::string &destination,
     const std::string &poolset,
+    bool readonlyFlag,
     FInfo* finfo) {
     UserInfo userInfo = GetUserInfo(user);
     return snapClient_->Clone(snapPath, destination,
-            userInfo, poolset, finfo);
+            userInfo, poolset, readonlyFlag, finfo);
 }
 
 int CurveFsClientImpl::Flatten(const std::string &file,

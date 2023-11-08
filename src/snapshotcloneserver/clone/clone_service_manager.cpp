@@ -62,11 +62,12 @@ int CloneServiceManager::CloneLocal(const std::string &file,
     const std::string &snapshotName,
     const std::string &user,
     const std::string &destination,
-    const std::string &poolset) {
+    const std::string &poolset,
+    bool readonlyFlag) {
     // 加锁防止并发
     NameLockGuard lockDestFileGuard(*destFileLock_, destination);
     int ret = cloneCore_->CloneLocal(file, snapshotName, user,
-        destination, poolset);
+        destination, poolset, readonlyFlag);
     if (ret < 0) {
         LOG(INFO) << "CloneLocal error"
                   << ", ret = " << ret
@@ -74,7 +75,8 @@ int CloneServiceManager::CloneLocal(const std::string &file,
                   << ", snapshotName = " << snapshotName
                   << ", user = " << user
                   << ", destination = " << destination
-                  << ", poolset = " << poolset;
+                  << ", poolset = " << poolset
+                  << ", readonlyFlag = " << readonlyFlag;
     }
     return ret;
 }

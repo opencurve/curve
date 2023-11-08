@@ -902,7 +902,7 @@ TEST_F(MDSClientTest, TestClone) {
             .WillRepeatedly(Invoke(FakeRpcService<true>{}));
         ASSERT_EQ(LIBCURVE_ERROR::FAILED,
                   mdsClient_.Clone(source, destination,
-                        userinfo, poolset, &fileinfo));
+                        userinfo, poolset, false, &fileinfo));
     }
     // rpc response failed
     {
@@ -913,7 +913,7 @@ TEST_F(MDSClientTest, TestClone) {
                                   Invoke(FakeRpcService<false>{})));
         ASSERT_EQ(LIBCURVE_ERROR::NOTEXIST,
                   mdsClient_.Clone(source, destination,
-                        userinfo, poolset, &fileinfo));
+                        userinfo, poolset, false, &fileinfo));
     }
     // success
     {
@@ -924,7 +924,7 @@ TEST_F(MDSClientTest, TestClone) {
                                   Invoke(FakeRpcService<false>{})));
         ASSERT_EQ(LIBCURVE_ERROR::OK,
                   mdsClient_.Clone(source, destination,
-                        userinfo, poolset, &fileinfo));
+                        userinfo, poolset, false, &fileinfo));
     }
     // dest exist success
     {
@@ -935,7 +935,7 @@ TEST_F(MDSClientTest, TestClone) {
                                   Invoke(FakeRpcService<false>{})));
         ASSERT_EQ(LIBCURVE_ERROR::EXISTS,
                   mdsClient_.Clone(source, destination,
-                        userinfo, poolset, &fileinfo));
+                        userinfo, poolset, false, &fileinfo));
     }
 }
 
@@ -1011,7 +1011,7 @@ TEST_F(MDSClientTest, TestQueryFlattenStatus) {
 TEST_F(MDSClientTest, TestListdir) {
     std::string dirpath = "/dir1";
     UserInfo_t userinfo;
-    std::vector<FileStatInfo> files;
+    std::vector<FInfo_t> files;
     // controller failed
     {
         EXPECT_CALL(mockNameService_, ListDir(_, _, _, _))

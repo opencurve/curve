@@ -68,6 +68,7 @@ extern const char* kStripeUnitStr;
 extern const char* kStripeCountStr;
 extern const char* kPoolSetStr;
 extern const char* kDirStr;
+extern const char* kReadonlyStr;
 
 // json key
 extern const char* kCodeStr;

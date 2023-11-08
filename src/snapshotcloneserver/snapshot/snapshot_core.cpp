@@ -60,8 +60,9 @@ void SnapshotCoreImpl::CheckLocalSnapshot() {
     while (sleeper_.wait_for(std::chrono::milliseconds(checkPeriod_))) {
         std::vector<SnapshotInfo> tmp;
         metaStore_->GetSnapshotList(&tmp);
-        for (auto it = tmp.begin(); it != tmp.end(); ++it) {
+        for (auto it = tmp.begin(); it != tmp.end();) {
             if (it->GetLocation() != LocationType::kLocationCurve) {
+                ++it;
                 continue;
             }
             NameLockGuard lockGuard(snapshotNameLock_, it->GetFileName());
@@ -75,13 +76,14 @@ void SnapshotCoreImpl::CheckLocalSnapshot() {
             if (kErrCodeFileNotExist == ret) {
                 ret = metaStore_->DeleteSnapshot(it->GetUuid());
                 if (kErrCodeSuccess == ret) {
-                    tmp.erase(it);
+                    it = tmp.erase(it);
                     LOG(INFO) << "DeleteSnapshot from metastore success"
                               << ", uuid = " << it->GetUuid()
                               << ", fileName = " << it->GetFileName()
                               << ", user = " << it->GetUser()
                               << ", snapName = " << it->GetSnapshotName()
                               << ", seqNum = " << it->GetSeqNum();
+                    continue;
                 } else {
                     LOG(ERROR) << "DeleteSnapshot from metastore error"
                                << ", ret = " << ret
@@ -102,6 +104,7 @@ void SnapshotCoreImpl::CheckLocalSnapshot() {
                            << ", snapName = " << it->GetSnapshotName()
                            << ", seqNum = " << it->GetSeqNum();
             }
+            ++it;
         }
     }
 }

@@ -55,11 +55,12 @@ int CloneCoreImpl::CloneLocal(const std::string &file,
     const std::string &snapshotName,
     const std::string &user,
     const std::string &destination,
-    const std::string &poolset) {
+    const std::string &poolset,
+    bool readonlyFlag) {
     std::string snapPath = MakeSnapshotPath(file, snapshotName);
     FInfo finfo;
     int ret = client_->Clone(snapPath, user, destination,
-        poolset, &finfo);
+        poolset, readonlyFlag, &finfo);
     ret = LibCurveErrToSnapshotCloneErr(ret);
     if (kErrCodeFileExist == ret) {
         LOG(INFO) << "CloneLocal find file exist"
