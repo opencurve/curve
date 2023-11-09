@@ -22,6 +22,7 @@
 #include <glog/logging.h>
 #include <gflags/gflags.h>
 #include "src/snapshotcloneserver/snapshotclone_server.h"
+#include "src/common/log_util.h"
 
 DEFINE_string(conf, "conf/snapshot_clone_server.conf", "snapshot&clone server config file path");  //NOLINT
 DEFINE_string(addr, "127.0.0.1:5555", "snapshotcloneserver address");
@@ -80,6 +81,7 @@ int main(int argc, char **argv) {
     LoadConfigFromCmdline(conf.get());
     conf->PrintConfig();
     conf->ExposeMetric("snapshot_clone_server_config");
+    curve::common::DisableLoggingToStdErr();
     google::InitGoogleLogging(argv[0]);
     snapshotcloneserver_main(conf);
 }

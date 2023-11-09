@@ -24,6 +24,7 @@
 #include <glog/logging.h>
 
 #include "curvefs/src/mds/mds.h"
+#include "src/common/log_util.h"
 #include "src/common/configuration.h"
 #include "curvefs/src/common/dynamic_vlog.h"
 
@@ -64,6 +65,7 @@ int main(int argc, char **argv) {
     }
 
     // initialize logging module
+    curve::common::DisableLoggingToStdErr();
     google::InitGoogleLogging(argv[0]);
 
     conf->PrintConfig();

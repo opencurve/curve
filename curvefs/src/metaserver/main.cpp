@@ -29,6 +29,7 @@
 #include "src/common/configuration.h"
 #include "curvefs/src/common/dynamic_vlog.h"
 #include "curvefs/src/common/threading.h"
+#include "src/common/log_util.h"
 
 DEFINE_string(confPath, "curvefs/conf/metaserver.conf", "metaserver confPath");
 DEFINE_string(ip, "127.0.0.1", "metasetver listen ip");
@@ -126,6 +127,7 @@ int main(int argc, char **argv) {
     FLAGS_vlog_level = FLAGS_v;
 
     // initialize logging module
+    curve::common::DisableLoggingToStdErr();
     google::InitGoogleLogging(argv[0]);
 
     conf->PrintConfig();
