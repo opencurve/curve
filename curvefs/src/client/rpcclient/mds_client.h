@@ -112,12 +112,15 @@ class MdsClient {
     virtual FSStatusCode AllocS3ChunkId(uint32_t fsId, uint32_t idNum,
                                         uint64_t *chunkId) = 0;
 
-    virtual FSStatusCode
-    RefreshSession(const std::vector<PartitionTxId> &txIds,
-                   std::vector<PartitionTxId> *latestTxIdList,
-                   const std::string& fsName,
-                   const Mountpoint& mountpoint,
-                   std::atomic<bool>* enableSumInDir) = 0;
+    virtual FSStatusCode RefreshSession(
+        const std::vector<PartitionTxId> &txIds,
+        std::vector<PartitionTxId> *latestTxIdList, const std::string &fsName,
+        const Mountpoint &mountpoint, std::atomic<bool> *enableSumInDir,
+        const std::string &mdsAddrs, std::string *mdsAddrsOverride) = 0;
+
+    virtual std::string GetMdsAddrs() = 0;
+
+    virtual void SetMdsAddrs(const std::string &mdsAddrs) = 0;
 
     virtual FSStatusCode GetLatestTxId(uint32_t fsId,
                                        std::vector<PartitionTxId>* txIds) = 0;
@@ -203,9 +206,15 @@ class MdsClientImpl : public MdsClient {
 
     FSStatusCode RefreshSession(const std::vector<PartitionTxId> &txIds,
                                 std::vector<PartitionTxId> *latestTxIdList,
-                                const std::string& fsName,
-                                const Mountpoint& mountpoint,
-                                std::atomic<bool>* enableSumInDir) override;
+                                const std::string &fsName,
+                                const Mountpoint &mountpoint,
+                                std::atomic<bool> *enableSumInDir,
+                                const std::string &mdsAddrs,
+                                std::string *mdsAddrsOverride) override;
+
+    std::string GetMdsAddrs() override;
+
+    void SetMdsAddrs(const std::string &mdsAddrs) override;
 
     FSStatusCode GetLatestTxId(uint32_t fsId,
                                std::vector<PartitionTxId>* txIds) override;

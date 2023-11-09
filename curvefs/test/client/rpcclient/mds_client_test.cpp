@@ -839,6 +839,7 @@ TEST_F(MdsClientImplTest, RefreshSession) {
     // out
     std::vector<PartitionTxId> out;
     std::atomic<bool>* enableSumInDir = new std::atomic<bool> (true);
+    std::string mdsAddrsOverride;
     RefreshSessionResponse response;
 
     {
@@ -846,8 +847,9 @@ TEST_F(MdsClientImplTest, RefreshSession) {
         response.set_statuscode(FSStatusCode::OK);
         EXPECT_CALL(mockmdsbasecli_, RefreshSession(_, _, _, _))
             .WillOnce(SetArgPointee<1>(response));
-        ASSERT_FALSE(mdsclient_.RefreshSession(txIds, &out,
-                                fsName, mountpoint, enableSumInDir));
+        ASSERT_FALSE(mdsclient_.RefreshSession(txIds, &out, fsName, mountpoint,
+                                               enableSumInDir, std::string(),
+                                               &mdsAddrsOverride));
         ASSERT_TRUE(out.empty());
     }
 
@@ -857,8 +859,9 @@ TEST_F(MdsClientImplTest, RefreshSession) {
         *response.mutable_latesttxidlist() = {txIds.begin(), txIds.end()};
         EXPECT_CALL(mockmdsbasecli_, RefreshSession(_, _, _, _))
             .WillOnce(SetArgPointee<1>(response));
-        ASSERT_FALSE(mdsclient_.RefreshSession(txIds, &out,
-                            fsName, mountpoint, enableSumInDir));
+        ASSERT_FALSE(mdsclient_.RefreshSession(txIds, &out, fsName, mountpoint,
+                                               enableSumInDir, std::string(),
+                                               &mdsAddrsOverride));
         ASSERT_EQ(1, out.size());
         ASSERT_TRUE(
             google::protobuf::util::MessageDifferencer::Equals(out[0], tmp))
@@ -874,8 +877,9 @@ TEST_F(MdsClientImplTest, RefreshSession) {
         EXPECT_CALL(mockmdsbasecli_, RefreshSession(_, _, _, _))
             .WillRepeatedly(Invoke(RefreshSessionRpcFailed));
         ASSERT_EQ(FSStatusCode::RPC_ERROR,
-            mdsclient_.RefreshSession(txIds, &out, fsName, mountpoint,
-            enableSumInDir));
+                  mdsclient_.RefreshSession(txIds, &out, fsName, mountpoint,
+                                            enableSumInDir, std::string(),
+                                            &mdsAddrsOverride));
     }
 }
 

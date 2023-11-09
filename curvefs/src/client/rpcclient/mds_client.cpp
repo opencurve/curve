@@ -25,6 +25,7 @@
 #include <map>
 #include <utility>
 #include <vector>
+#include "absl/strings/str_join.h"
 
 #include "curvefs/proto/space.pb.h"
 #include "curvefs/src/client/rpcclient/fsdelta_updater.h"
@@ -500,12 +501,11 @@ FSStatusCode MdsClientImpl::AllocS3ChunkId(uint32_t fsId, uint32_t idNum,
     return ReturnError(rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS));
 }
 
-FSStatusCode
-MdsClientImpl::RefreshSession(const std::vector<PartitionTxId> &txIds,
-                              std::vector<PartitionTxId> *latestTxIdList,
-                              const std::string& fsName,
-                              const Mountpoint& mountpoint,
-                              std::atomic<bool>* enableSumInDir) {
+FSStatusCode MdsClientImpl::RefreshSession(
+    const std::vector<PartitionTxId> &txIds,
+    std::vector<PartitionTxId> *latestTxIdList, const std::string &fsName,
+    const Mountpoint &mountpoint, std::atomic<bool> *enableSumInDir,
+    const std::string &mdsAddrs, std::string *mdsAddrsOverride) {
     auto task = RPCTask {
         (void)addrindex;
         (void)rpctimeoutMS;
@@ -520,6 +520,7 @@ MdsClientImpl::RefreshSession(const std::vector<PartitionTxId> &txIds,
         fsDelta.set_bytes(
             FsDeltaUpdater::GetInstance().GetDeltaBytesAndReset());
         *request.mutable_fsdelta() = std::move(fsDelta);
+        request.set_mdsaddrs(mdsAddrs);
 
         mdsbasecli_->RefreshSession(request, &response, cntl, channel);
         if (cntl->Failed()) {
@@ -550,11 +551,29 @@ MdsClientImpl::RefreshSession(const std::vector<PartitionTxId> &txIds,
             FsQuotaChecker::GetInstance().UpdateQuotaCache(
                 response.fscapacity(), response.fsusedbytes());
         }
-
+        if (response.has_mdsaddrsoverride()) {
+            *mdsAddrsOverride = response.mdsaddrsoverride();
+        }
         return ret;
     };
 
     return ReturnError(rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS));
+}
+
+std::string MdsClientImpl::GetMdsAddrs() {
+    auto option = rpcexcutor_.GetOption();
+    return absl::StrJoin(option.addrs, ",");
+}
+
+void MdsClientImpl::SetMdsAddrs(const std::string &mdsAddrs) {
+    std::vector<std::string> mdsAddrsVec = {};
+    curve::common::SplitString(mdsAddrs, ",", &mdsAddrsVec);
+    if (!mdsAddrsVec.empty()) {
+        auto option = rpcexcutor_.GetOption();
+        option.addrs = mdsAddrsVec;
+        rpcexcutor_.SetOption(option);
+        LOG(WARNING) << "update mdsAddrs to " << mdsAddrs;
+    }
 }
 
 FSStatusCode MdsClientImpl::GetLatestTxId(const GetLatestTxIdRequest& request,

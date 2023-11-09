@@ -179,7 +179,11 @@ int RPCExcutorRetryPolicy::GetNextMDSIndex(bool needChangeMDS,
     if (std::atomic_compare_exchange_strong(
             &currentWorkingMDSAddrIndex_, lastWorkingindex,
             currentWorkingMDSAddrIndex_.load())) {
-        int size = retryOpt_.addrs.size();
+        int size;
+        {
+            ReadLockGuard lock(retryOptLock_);
+            size = retryOpt_.addrs.size();
+        }
         nextMDSIndex =
             needChangeMDS ? (currentRetryIndex + 1) % size : currentRetryIndex;
     } else {
@@ -191,10 +195,14 @@ int RPCExcutorRetryPolicy::GetNextMDSIndex(bool needChangeMDS,
 
 int RPCExcutorRetryPolicy::ExcuteTask(int mdsindex, uint64_t rpcTimeOutMS,
                                       RPCFunc task) {
-    assert(mdsindex >= 0 &&
-           mdsindex < static_cast<int>(retryOpt_.addrs.size()));
-
-    const std::string &mdsaddr = retryOpt_.addrs[mdsindex];
+    std::string mdsaddr;
+    {
+        ReadLockGuard lock(retryOptLock_);
+        // happen when mds scaling down
+        if (mdsindex >= static_cast<int>(retryOpt_.addrs.size()))
+            return -brpc::ELOGOFF;
+        mdsaddr = retryOpt_.addrs[mdsindex];
+    }
 
     brpc::Channel channel;
     int ret = channel.Init(mdsaddr.c_str(), nullptr);

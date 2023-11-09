@@ -194,6 +194,7 @@ message RefreshSessionRequest {
     required string fsName = 2;
     required Mountpoint mountpoint = 3;
     optional FsDelta fsDelta = 4;
+    optional string mdsAddrs = 5;
 }
 
 message RefreshSessionResponse {
@@ -202,6 +203,7 @@ message RefreshSessionResponse {
     optional bool enableSumInDir = 3;
     optional uint64 fsCapacity = 4;
     optional uint64 fsUsedBytes = 5;
+    optional string mdsAddrsOverride = 6;
 }
 
 message DLockValue {

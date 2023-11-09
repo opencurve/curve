@@ -992,6 +992,15 @@ void FsManager::RefreshSession(const RefreshSessionRequest* request,
     FsUsage usage;
     fsStorage_->GetFsUsage(request->fsname(), &usage, true);
     response->set_fsusedbytes(usage.usedbytes());
+    {
+        ReadLockGuard lock(clientMdsAddrsOverrideMutex_);
+        VLOG(6) << "clientMdsAddrsOverride_ = " << clientMdsAddrsOverride_
+                << ", request->mdsaddrs() = " << request->mdsaddrs();
+        if (!clientMdsAddrsOverride_.empty() && request->has_mdsaddrs() &&
+            request->mdsaddrs() != clientMdsAddrsOverride_) {
+            response->set_mdsaddrsoverride(clientMdsAddrsOverride_);
+        }
+    }
 }
 
 FSStatusCode FsManager::ReloadFsVolumeSpace() {
@@ -1294,6 +1303,13 @@ bool FsManager::FillVolumeInfo(common::Volume* volume) {
     volume->set_volumesize(size);
     volume->set_extendalignment(alignment);
     return true;
+}
+
+void FsManager::SetClientMdsAddrsOverride(const std::string& addrs) {
+    // always add active mds to override to improve availability
+    auto addrsWithActiveMds = addrs + "," + option_.mdsListenAddr;
+    WriteLockGuard lock(clientMdsAddrsOverrideMutex_);
+    clientMdsAddrsOverride_ = addrsWithActiveMds;
 }
 
 }  // namespace mds
