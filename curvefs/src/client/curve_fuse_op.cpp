@@ -48,6 +48,7 @@
 #include "curvefs/src/common/metric_utils.h"
 #include "src/common/configuration.h"
 #include "src/common/gflags_helper.h"
+#include "src/common/log_util.h"
 
 using ::curve::common::Configuration;
 using ::curvefs::client::CURVEFS_ERROR;
@@ -152,6 +153,7 @@ int InitLog(const char *confPath, const char *argv0) {
     FLAGS_vlog_level = FLAGS_v;
 
     // initialize logging module
+    curve::common::DisableLoggingToStdErr();
     google::InitGoogleLogging(argv0);
 
     bool succ = InitAccessLog(FLAGS_log_dir);

@@ -45,6 +45,7 @@
 #include "src/common/concurrent/task_thread_pool.h"
 #include "src/common/curve_version.h"
 #include "src/common/uri_parser.h"
+#include "src/common/log_util.h"
 
 using ::curve::fs::LocalFileSystem;
 using ::curve::fs::LocalFileSystemOption;
@@ -105,6 +106,7 @@ int ChunkServer::Run(int argc, char** argv) {
     LoadConfigFromCmdline(&conf);
 
     // 初始化日志模块
+    curve::common::DisableLoggingToStdErr();
     google::InitGoogleLogging(argv[0]);
 
     // 打印参数
