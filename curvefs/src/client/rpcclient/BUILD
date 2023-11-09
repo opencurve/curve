@@ -39,5 +39,6 @@ cc_library(
         "//src/client:curve_client",
         "@com_google_absl//absl/cleanup",
         "@com_google_absl//absl/types:optional",
+        "@com_google_absl//absl/strings",
     ],
 )

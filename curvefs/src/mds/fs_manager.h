@@ -74,6 +74,7 @@ struct FsManagerOption {
     uint32_t spaceReloadConcurrency = 10;
     uint32_t clientTimeoutSec = 20;
     curve::common::S3AdapterOption s3AdapterOption;
+    std::string mdsListenAddr;
 };
 
 class FsManager {
@@ -210,6 +211,8 @@ class FsManager {
     bool GetClientAliveTime(const std::string& mountpoint,
         std::pair<std::string, uint64_t>* out);
 
+    void SetClientMdsAddrsOverride(const std::string& addrs);
+
  private:
      // return 0: ExactlySame; 1: uncomplete, -1: neither
     int IsExactlySameOrCreateUnComplete(const std::string& fsName,
@@ -279,6 +282,9 @@ class FsManager {
     mutable RWLock recorderMutex_;
     // fsuage update lock
     mutable RWLock fsUsageMutex_;
+    // client mds addrs override
+    std::string clientMdsAddrsOverride_;
+    mutable RWLock clientMdsAddrsOverrideMutex_;
 };
 }  // namespace mds
 }  // namespace curvefs
