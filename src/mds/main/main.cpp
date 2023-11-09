@@ -24,6 +24,7 @@
 
 #include "src/mds/server/mds.h"
 #include "src/mds/common/mds_define.h"
+#include "src/common/log_util.h"
 
 DEFINE_string(confPath, "conf/mds.conf", "mds confPath");
 DEFINE_string(mdsAddr, "127.0.0.1:6666", "mds listen addr");
@@ -107,6 +108,7 @@ int main(int argc, char **argv) {
     }
 
     // initialize logging module
+    curve::common::DisableLoggingToStdErr();
     google::InitGoogleLogging(argv[0]);
 
     // reset SIGPIPE handler
