@@ -106,12 +106,18 @@ class MockMdsClient : public MdsClient {
                  bool(uint32_t fsID,
                       std::vector<PartitionInfo>* partitionInfos));
 
-    MOCK_METHOD5(RefreshSession,
-                 FSStatusCode(const std::vector<PartitionTxId> &txIds,
-                              std::vector<PartitionTxId> *latestTxIdList,
+    MOCK_METHOD7(RefreshSession,
+                 FSStatusCode(const std::vector<PartitionTxId>& txIds,
+                              std::vector<PartitionTxId>* latestTxIdList,
                               const std::string& fsName,
                               const Mountpoint& mountpoint,
-                              std::atomic<bool>* enableSumInDir));
+                              std::atomic<bool>* enableSumInDir,
+                              const std::string& mdsAddrs,
+                              std::string* mdsAddrsOverride));
+
+    MOCK_METHOD0(GetMdsAddrs, std::string());
+
+    MOCK_METHOD1(SetMdsAddrs, void(const std::string& mdsAddrs));
 
     MOCK_METHOD4(AllocateVolumeBlockGroup,
                  SpaceErrCode(uint32_t,

@@ -48,7 +48,13 @@ class RPCExcutorRetryPolicy {
     RPCExcutorRetryPolicy()
         : retryOpt_(), currentWorkingMDSAddrIndex_(0), cntlID_(1) {}
 
+    MetaServerOption::RpcRetryOption GetOption() {
+        ReadLockGuard lock(retryOptLock_);
+        return retryOpt_;
+    }
+
     void SetOption(const MetaServerOption::RpcRetryOption &option) {
+        WriteLockGuard lock(retryOptLock_);
         retryOpt_ = option;
     }
     using RPCFunc = std::function<int(int addrindex, uint64_t rpctimeoutMS,
@@ -147,6 +153,7 @@ class RPCExcutorRetryPolicy {
  private:
     // 执行rpc时必要的配置信息
     MetaServerOption::RpcRetryOption retryOpt_;
+    BthreadRWLock retryOptLock_;
 
     // 记录上一次重试过的leader信息
     std::atomic<int> currentWorkingMDSAddrIndex_;

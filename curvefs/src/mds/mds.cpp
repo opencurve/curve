@@ -163,6 +163,7 @@ void MDS::InitFsManagerOptions(FsManagerOption* fsManagerOption) {
            "default value: "
         << fsManagerOption->spaceReloadConcurrency;
 
+    fsManagerOption->mdsListenAddr = conf_->GetStringValue("mds.listen.addr");
     ::curve::common::InitS3AdaptorOptionExceptS3InfoOption(
         conf_.get(), &fsManagerOption->s3AdapterOption);
 }

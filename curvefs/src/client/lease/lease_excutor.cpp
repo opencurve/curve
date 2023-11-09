@@ -77,9 +77,11 @@ bool LeaseExecutor::RefreshLease() {
 
     // refresh from mds
     std::vector<PartitionTxId> latestTxIdList;
-    FSStatusCode ret = mdsCli_->RefreshSession(txIds, &latestTxIdList,
-                                               fsName_, mountpoint_,
-                                               enableSumInDir_);
+    std::string mdsAddrs = mdsCli_->GetMdsAddrs();
+    std::string mdsAddrsOverride;
+    FSStatusCode ret =
+        mdsCli_->RefreshSession(txIds, &latestTxIdList, fsName_, mountpoint_,
+                                enableSumInDir_, mdsAddrs, &mdsAddrsOverride);
     if (ret != FSStatusCode::OK) {
         LOG(ERROR) << "LeaseExecutor refresh session fail, ret = " << ret
                    << ", errorName = " << FSStatusCode_Name(ret);
@@ -91,6 +93,8 @@ bool LeaseExecutor::RefreshLease() {
                   [&](const PartitionTxId &item) {
                       metaCache_->SetTxId(item.partitionid(), item.txid());
                   });
+    // update mds addrs
+    mdsCli_->SetMdsAddrs(mdsAddrsOverride);
     return true;
 }
 
