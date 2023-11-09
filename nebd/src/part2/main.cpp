@@ -24,12 +24,14 @@
 #include <unistd.h>
 #include <glog/logging.h>
 #include "nebd/src/part2/nebd_server.h"
+#include "src/common/log_util.h"
 
 DEFINE_string(confPath, "/etc/nebd/nebd-server.conf", "nebd server conf path");
 
 int main(int argc, char* argv[]) {
     // 解析参数
     google::ParseCommandLineFlags(&argc, &argv, false);
+    curve::common::DisableLoggingToStdErr();
     google::InitGoogleLogging(argv[0]);
     std::string confPath = FLAGS_confPath.c_str();
 
