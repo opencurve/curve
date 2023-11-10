@@ -427,6 +427,10 @@ void DiskCacheManager::TrimCache() {
         InitQosParam();
         if (!IsDiskCacheSafe(kRatioLevel)) {
             while (!IsDiskCacheSafe(FLAGS_diskTrimRatio)) {
+                if (!isRunning_) {
+                    LOG(INFO) << "trim thread end.";
+                    return;
+                }
                 UpdateDiskFsUsedRatio();
                 if (!cachedObjName_->GetBack(&cacheKey)) {
                     VLOG_EVERY_N(9, 1000) << "obj is empty";
