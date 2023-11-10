@@ -12,6 +12,7 @@ import (
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/delete/file"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/delete/peer"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/delete/snapshot"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/delete/volume"
 )
 
@@ -26,6 +27,7 @@ func (dCmd *DeleteCommand) AddSubCommands() {
 		file.NewFileCommand(),
 		peer.NewCommand(),
 		volume.NewVolumeCommand(),
+		snapshot.NewSnapShotCommand(),
 	)
 }
 
