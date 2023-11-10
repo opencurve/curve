@@ -16,7 +16,7 @@
 
 /*
  * Project: CurveCli
- * Created Date: 2023-11-02
+ * Created Date: 2023-11-10
  * Author: ZackSoul
  */
 package snapshot
@@ -29,13 +29,14 @@ import (
 	snapshotutil "github.com/opencurve/curve/tools-v2/internal/utils/snapshot"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	listSnapshot "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/snapshot"
+	stopSnapShot "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/stop/snapshot"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
 	"github.com/spf13/cobra"
 )
 
 const (
-	snapshotExample = `$ curve bs stop snapshot`
+	snapshotExample = `$ curve bs delete snapshot --path /test111/test222 --user root --snapshotFailed=false`
 )
 
 type SnapShotCommand struct {
@@ -43,22 +44,23 @@ type SnapShotCommand struct {
 	snapshotAddrs []string
 	timeout       time.Duration
 
-	user string
-	file string
-	uuid string
+	user   string
+	file   string
+	uuid   string
+	failed bool
 }
 
 var _ basecmd.FinalCurveCmdFunc = (*SnapShotCommand)(nil)
 
 func NewSnapShotCommand() *cobra.Command {
-	return NewStopSnapShotCommand().Cmd
+	return NewDeleteSnapShotCommand().Cmd
 }
 
-func NewStopSnapShotCommand() *SnapShotCommand {
+func NewDeleteSnapShotCommand() *SnapShotCommand {
 	snapShotCommand := &SnapShotCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
 			Use:     "snapshot",
-			Short:   "stop snapshot in curvebs",
+			Short:   "delete snapshot in curvebs",
 			Example: snapshotExample,
 		},
 	}
@@ -73,11 +75,13 @@ func (sCmd *SnapShotCommand) AddFlags() {
 	config.AddBsUserOptionFlag(sCmd.Cmd)
 	config.AddBsSnapshotIDOptionFlag(sCmd.Cmd)
 	config.AddBsPathOptionFlag(sCmd.Cmd)
+	config.AddBsSnapshotFailedOptionFlag(sCmd.Cmd)
 }
 
 func (sCmd *SnapShotCommand) Init(cmd *cobra.Command, args []string) error {
 	snapshotAddrs, err := config.GetBsSnapshotAddrSlice(sCmd.Cmd)
-	if err.TypeCode() != cmderror.CODE_SUCCESS || len(snapshotAddrs) == 0 {
+	if err.TypeCode() != cmderror.CODE_SUCCESS {
+		sCmd.Error = err
 		return err.ToError()
 	}
 	sCmd.snapshotAddrs = snapshotAddrs
@@ -85,6 +89,7 @@ func (sCmd *SnapShotCommand) Init(cmd *cobra.Command, args []string) error {
 	sCmd.user = config.GetBsFlagString(sCmd.Cmd, config.CURVEBS_USER)
 	sCmd.file = config.GetBsFlagString(sCmd.Cmd, config.CURVEBS_PATH)
 	sCmd.uuid = config.GetBsFlagString(sCmd.Cmd, config.CURVEBS_SNAPSHOT_ID)
+	sCmd.failed = config.GetBsFlagBool(sCmd.Cmd, config.CURVEBS_SNAPSHOT_FAILED)
 	header := []string{
 		cobrautil.ROW_SNAPSHOT_ID,
 		cobrautil.ROW_SNAPSHOT_NAME,
@@ -110,7 +115,10 @@ func (sCmd *SnapShotCommand) RunCommand(cmd *cobra.Command, args []string) error
 		snapshotutil.QueryLimit:  snapshotutil.Limit,
 		snapshotutil.QueryOffset: snapshotutil.Offset,
 	}
-	if sCmd.uuid != "*" {
+	if sCmd.failed {
+		params[snapshotutil.QueryStatus] = snapshotutil.ErrSnaphshot
+	}
+	if sCmd.uuid != snapshotutil.DefaultSnapID {
 		params[snapshotutil.QueryUUID] = sCmd.uuid
 	}
 	snapshotsList, err := listSnapshot.ListSnapShot(sCmd.snapshotAddrs, sCmd.timeout, params)
@@ -120,11 +128,11 @@ func (sCmd *SnapShotCommand) RunCommand(cmd *cobra.Command, args []string) error
 	}
 	rows := make([]map[string]string, 0)
 	if len(snapshotsList) == 0 {
-		rows = append(rows, EmptyOutPut())
+		rows = append(rows, stopSnapShot.EmptyOutPut())
 	} else {
 		for _, snapshot := range snapshotsList {
 			row := make(map[string]string)
-			err := StopSnapShot(sCmd.snapshotAddrs, sCmd.timeout, snapshot)
+			err := DeleteSnapShot(sCmd.snapshotAddrs, sCmd.timeout, snapshot)
 			row[cobrautil.ROW_SNAPSHOT_ID] = snapshot.UUID
 			row[cobrautil.ROW_SNAPSHOT_NAME] = snapshot.Name
 			if err.TypeCode() == cmderror.CODE_SUCCESS {
@@ -138,6 +146,13 @@ func (sCmd *SnapShotCommand) RunCommand(cmd *cobra.Command, args []string) error
 		}
 	}
 	list := cobrautil.ListMap2ListSortByKeys(rows, sCmd.Header, []string{cobrautil.ROW_SNAPSHOT_NAME, cobrautil.ROW_SNAPSHOT_ID})
+	var emptyList [][]string = [][]string{}
+	if len(snapshotsList) == 0 {
+		sCmd.TableNew.AppendBulk(emptyList)
+		sCmd.Result = rows
+		sCmd.Error = cmderror.Success()
+		return nil
+	}
 	sCmd.TableNew.AppendBulk(list)
 	sCmd.Result = rows
 	sCmd.Error = cmderror.Success()
@@ -148,9 +163,9 @@ func (sCmd *SnapShotCommand) ResultPlainOutput() error {
 	return output.FinalCmdOutputPlain(&sCmd.FinalCurveCmd)
 }
 
-func StopSnapShot(addrs []string, timeout time.Duration, snapshot *snapshotutil.SnapshotInfo) *cmderror.CmdError {
+func DeleteSnapShot(addrs []string, timeout time.Duration, snapshot *snapshotutil.SnapshotInfo) *cmderror.CmdError {
 	params := map[string]any{
-		snapshotutil.QueryAction: snapshotutil.ActionCancelSnapshot,
+		snapshotutil.QueryAction: snapshotutil.ActionDeleteSnapshot,
 		snapshotutil.QueryUser:   snapshot.User,
 		snapshotutil.QueryUUID:   snapshot.UUID,
 		snapshotutil.QueryFile:   snapshot.File,
@@ -159,19 +174,4 @@ func StopSnapShot(addrs []string, timeout time.Duration, snapshot *snapshotutil.
 	metric := basecmd.NewMetric(addrs, subUri, timeout)
 	_, err := basecmd.QueryMetric(metric)
 	return err
-}
-
-func EmptyOutPut() map[string]string {
-	emptyResult := "-"
-	keys := []string{
-		cobrautil.ROW_SNAPSHOT_ID,
-		cobrautil.ROW_SNAPSHOT_NAME,
-		cobrautil.ROW_RESULT,
-		cobrautil.ROW_REASON,
-	}
-	row := make(map[string]string)
-	for _, key := range keys {
-		row[key] = emptyResult
-	}
-	return row
 }
