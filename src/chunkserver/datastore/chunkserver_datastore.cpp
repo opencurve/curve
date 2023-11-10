@@ -301,6 +301,21 @@ CSErrorCode CSDataStore::WriteChunkWithClone(ChunkID id,
     return CSErrorCode::Success;
 }
 
+CSErrorCode CSDataStore::UnshareChunk(ChunkID id) {
+    auto chunkFile = metaCache_.Get(id);
+    if (chunkFile == nullptr) {
+        LOG(WARNING) << "UnshareChunk not exist, ChunkID = " << id;
+        return CSErrorCode::Success;
+    }
+    CSErrorCode errorCode = chunkFile->UnshareClone();
+    if (errorCode != CSErrorCode::Success) {
+        LOG(WARNING) << "UnshareChunk file failed."
+                     << "ChunkID = " << id;
+        return errorCode;
+    }
+    return CSErrorCode::Success;
+}
+
 CSErrorCode CSDataStore::SyncChunk(ChunkID id) {
     auto chunkFile = metaCache_.Get(id);
     if (chunkFile == nullptr) {

@@ -511,8 +511,10 @@ void WriteChunkRequest::OnApply(uint64_t index,
                                         data_offset,
                                         &cost,
                                         cloneSourceLocation);
+                if (CSErrorCode::Success == ret)
+                    node_->ShipToSync(request_->chunkid());
             }
-        } while (--retry >= 0);
+        } while (--retry > 0);
 
     } else {
         uint32_t aoffset = common::align_down(request_->offset(), 4096);
@@ -569,7 +571,7 @@ void WriteChunkRequest::OnApply(uint64_t index,
     auto maxIndex =
         (index > node_->GetAppliedIndex() ? index : node_->GetAppliedIndex());
     response_->set_appliedindex(maxIndex);
-    node_->ShipToSync(request_->chunkid());
+    //node_->ShipToSync(request_->chunkid());
 }
 
 void WriteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
@@ -687,7 +689,7 @@ void WriteChunkRequest::OnApplyFromLogIndex(std::shared_ptr<CSDataStore> datasto
                                                     &cost,
                                                     cloneSourceLocation);
             }
-        } while (--retry >= 0);
+        } while (--retry > 0);
     } else {
         //split the request, clone for 4096 align part, writechunk for the rest
         uint32_t aoffset = common::align_down(request.offset(), 4096);

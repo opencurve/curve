@@ -142,10 +142,15 @@ CSErrorCode ChunkFileMetaPage::decode(const char* buf) {
     return CSErrorCode::Success;
 }
 
+uint64_t CSChunkFile::syncChunkLimits_ = 2 * 1024 * 1024;
+uint64_t CSChunkFile::syncThreshold_ = 64 * 1024;
+
 CSChunkFile::CSChunkFile(std::shared_ptr<LocalFileSystem> lfs,
                          std::shared_ptr<FilePool> chunkFilePool,
                          const ChunkOptions& options)
-    : fd_(-1),
+    : cvar_(nullptr),
+      chunkrate_(nullptr),
+      fd_(-1),
       size_(options.chunkSize),
       pageSize_(options.pageSize),
       chunkId_(options.id),
@@ -539,6 +544,20 @@ CSErrorCode CSChunkFile::WriteWithClone(SequenceNum sn,
                    << ",chunk sn: " << metaPage_.sn;
         return errorCode;
     }
+    if (chunkrate_.get() && cvar_.get()) {
+        *chunkrate_ += length;
+        uint64_t res = *chunkrate_;
+        // if single write size > syncThreshold, for cache friend to
+        // delay to sync.
+        auto actualSyncChunkLimits = MayUpdateWriteLimits(res);
+        if (*chunkrate_ >= actualSyncChunkLimits &&
+                chunkrate_->compare_exchange_weak(res, 0)) {
+            LOG(INFO) << "chunk unshare, chunkid = " << chunkId_
+                      << ", clone length = " << length
+                      << ", chunkrate = " << res;
+            cvar_->notify_one();
+        }
+    }
     return CSErrorCode::Success;
 }
 
@@ -547,6 +566,28 @@ CSErrorCode CSChunkFile::Sync() {
     int rc = SyncData();
     if (rc < 0) {
         LOG(ERROR) << "Sync data failed, "
+                   << "ChunkID:" << chunkId_;
+        return CSErrorCode::InternalError;
+    }
+    return CSErrorCode::Success;
+}
+
+CSErrorCode CSChunkFile::UnshareClone(off_t offset, size_t length) {
+    WriteLockGuard writeGuard(rwLock_);
+    int rc = UnshareCloneData(offset, length);
+    if (rc < 0) {
+        LOG(ERROR) << "UnshareCloneData failed, "
+                   << "ChunkID:" << chunkId_;
+        return CSErrorCode::InternalError;
+    }
+    return CSErrorCode::Success;
+}
+
+CSErrorCode CSChunkFile::UnshareClone() {
+    WriteLockGuard writeGuard(rwLock_);
+    int rc = UnshareCloneData(0, size_);
+    if (rc < 0) {
+        LOG(ERROR) << "UnshareCloneData failed, "
                    << "ChunkID:" << chunkId_;
         return CSErrorCode::InternalError;
     }
