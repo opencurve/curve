@@ -77,6 +77,7 @@ A tool for CurveFS & CurveBs.
         - [delete volume](#delete-volume)
           - [delete volume clone](#delete-volume-clone)
           - [delete volume recover](#delete-volume-recover)
+        - [delete snapshot](#delete-snapshot)
       - [update](#update)
         - [update peer](#update-peer)
         - [update leader](#update-leader)
@@ -1690,6 +1691,28 @@ Output:
 +------+--------------------------------------+--------------------------------------+-------+---------+--------+
 ```
 
+##### delete snapshot
+
+delete the snapshot in curvebs
+
+Usage:
+
+```shell
+curve bs delete snapshot --path /test111/test222 --user root --snapshotFailed=false
+```
+
+Output:
+
+```shell
++--------------------------------------+--------------+---------+--------+
+|              SNAPSHOTID              | SNAPSHOTNAME | RESULT  | REASON |
++--------------------------------------+--------------+---------+--------+
+| 3b9d14c2-79a2-4454-9b0a-6cb7477956db | testsnap1    | success | null   |
++--------------------------------------+--------------+---------+--------+
+| 2a94fb51-e985-4e98-a34c-f02aef8e97b5 | testsnap2    | success | null   |
++--------------------------------------+--------------+---------+--------+
+```
+
 #### update
 
 ##### update peer
@@ -2009,13 +2032,13 @@ curve bs stop snapshot
 Output:
 
 ```shell
-+--------------------------------------+--------------+---------+
-|              SNAPSHOTID              | SNAPSHOTNAME | RESULT  |
-+--------------------------------------+--------------+---------+
-| 9aa2b4c5-f27b-40a2-82c9-4e0ad6093567 | testsnap     | success |
-+--------------------------------------+--------------+---------+
-| 0171a33b-17b7-4215-9f00-6d8de2686f77 | testsnap1    | success |
-+--------------------------------------+--------------+---------+
++--------------------------------------+--------------+---------+--------+
+|              SNAPSHOTID              | SNAPSHOTNAME | RESULT  | REASON |
++--------------------------------------+--------------+---------+--------+
+| 3b9d14c2-79a2-4454-9b0a-6cb7477956db | testsnap1    | success | null   |
++--------------------------------------+--------------+---------+--------+
+| 2a94fb51-e985-4e98-a34c-f02aef8e97b5 | testsnap2    | success | null   |
++--------------------------------------+--------------+---------+--------+
 ```
 
 ## Comparison of old and new commands

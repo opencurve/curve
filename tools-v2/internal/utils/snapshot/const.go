@@ -54,4 +54,7 @@ const (
 	ResultSuccess = "0"
 	Limit         = "100"
 	Offset        = "0"
+
+	ErrSnaphshot  = "5"
+	DefaultSnapID = "*"
 )
