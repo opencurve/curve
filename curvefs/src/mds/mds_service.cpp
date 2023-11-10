@@ -365,5 +365,20 @@ void MdsServiceImpl::CommitTx(::google::protobuf::RpcController *controller,
     VLOG(3) << "CommitTx [response]: " << request->DebugString();
 }
 
+void MdsServiceImpl::SetClientMdsAddrsOverride(
+    ::google::protobuf::RpcController *controller,
+    const ::curvefs::mds::SetClientMdsAddrsOverrideRequest *request,
+    ::curvefs::mds::SetClientMdsAddrsOverrideResponse *response,
+    ::google::protobuf::Closure *done) {
+    (void)controller;
+    brpc::ClosureGuard guard(done);
+    VLOG(3) << "SetClientMdsAddrsOverride [request]: "
+            << request->DebugString();
+    fsManager_->SetClientMdsAddrsOverride(request->clientmdsaddrsoverride());
+    response->set_statuscode(FSStatusCode::OK);
+    VLOG(3) << "SetClientMdsAddrsOverride [response]: "
+            << response->DebugString();
+}
+
 }  // namespace mds
 }  // namespace curvefs

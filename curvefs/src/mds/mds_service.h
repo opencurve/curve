@@ -101,6 +101,12 @@ class MdsServiceImpl : public MdsService {
                   CommitTxResponse* response,
                   ::google::protobuf::Closure* done);
 
+    void SetClientMdsAddrsOverride(
+        ::google::protobuf::RpcController* controller,
+        const SetClientMdsAddrsOverrideRequest* request,
+        SetClientMdsAddrsOverrideResponse* response,
+        ::google::protobuf::Closure* done);
+
  private:
     std::shared_ptr<FsManager> fsManager_;
     std::shared_ptr<ChunkIdAllocator> chunkIdAllocator_;
