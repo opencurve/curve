@@ -236,6 +236,14 @@ message CommitTxResponse {
     required FSStatusCode statusCode = 1;
 }
 
+message SetClientMdsAddrsOverrideRequest {
+    required string clientMdsAddrsOverride = 1;
+}
+
+message SetClientMdsAddrsOverrideResponse {
+    required FSStatusCode statusCode = 1;
+}
+
 service MdsService {
     // fs interface
     rpc CreateFs(CreateFsRequest) returns (CreateFsResponse);
@@ -253,4 +261,7 @@ service MdsService {
 
     // client lease
     rpc RefreshSession(RefreshSessionRequest) returns (RefreshSessionResponse);
+
+    // client mds addrs override, for mds migration
+    rpc SetClientMdsAddrsOverride(SetClientMdsAddrsOverrideRequest) returns (SetClientMdsAddrsOverrideResponse);
 }
