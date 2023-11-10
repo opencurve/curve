@@ -573,6 +573,19 @@ var (
 		}
 		return NewRpcReultCmdError(statusCode, message)
 	}
+	ErrUpdateFs = func(statusCode int) *CmdError {
+		var message string
+		code := mds.FSStatusCode(statusCode)
+		switch code {
+		case mds.FSStatusCode_OK:
+			message = "success"
+		case mds.FSStatusCode_NOT_FOUND:
+			message = "fs not found!"
+		default:
+			message = fmt.Sprintf("update fs failed!, error is %s", mds.FSStatusCode_name[int32(code)])
+		}
+		return NewRpcReultCmdError(statusCode, message)
+	}
 	ErrGetCopysetsInfo = func(statusCode int) *CmdError {
 		code := topology.TopoStatusCode(statusCode)
 		message := fmt.Sprintf("get copysets info failed: status code is %s", code.String())
