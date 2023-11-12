@@ -76,12 +76,14 @@ func (mCmd *MdsCommand) Init(cmd *cobra.Command, args []string) error {
 	// set main addr
 	mainAddrs, addrErr := config.GetFsMdsAddrSlice(mCmd.Cmd)
 	if addrErr.TypeCode() != cmderror.CODE_SUCCESS {
+		mCmd.Error = addrErr
 		return fmt.Errorf(addrErr.Message)
 	}
 
 	// set dummy addr
 	dummyAddrs, addrErr := config.GetFsMdsDummyAddrSlice(mCmd.Cmd)
 	if addrErr.TypeCode() != cmderror.CODE_SUCCESS {
+		mCmd.Error = addrErr
 		return fmt.Errorf(addrErr.Message)
 	}
 	for _, addr := range dummyAddrs {

@@ -379,15 +379,12 @@ var (
 	ErrBsListZone = func() *CmdError {
 		return NewInternalCmdError(39, "list zone fail. the error is %s")
 	}
-
 	ErrBsDeleteFile = func() *CmdError {
 		return NewInternalCmdError(40, "delete file fail. the error is %s")
 	}
-
 	ErrRespTypeNoExpected = func() *CmdError {
 		return NewInternalCmdError(41, "the response type is not as expected, should be: %s")
 	}
-
 	ErrGetPeer = func() *CmdError {
 		return NewInternalCmdError(42, "invalid peer args, err: %s")
 	}
@@ -486,6 +483,21 @@ var (
 	}
 	ErrBsGetFormatStatus = func() *CmdError {
 		return NewInternalCmdError(75, "get format status fail, err: %s")
+	}
+	ErrBsGetSegmentInfo = func() *CmdError {
+		return NewInternalCmdError(76, "get segment info fail, err: %s")
+	}
+	ErrBsGetChunkHash = func() *CmdError {
+		return NewInternalCmdError(77, "get chunk hash fail, err: %s")
+	}
+	ErrBsListSnaspshot = func(requestId, code, message string) *CmdError {
+		return NewInternalCmdError(78, fmt.Sprintf("list snapshot fail, requestId: %s, code: %s, message: %s", requestId, code, message))
+	}
+	ErrBsGetCloneRecover = func() *CmdError {
+		return NewInternalCmdError(79, "get clone-recover fail, err: %s")
+	}
+	ErrInvalidMetaServerAddr = func() *CmdError {
+		return NewInternalCmdError(80, "invalid metaserver external addr: %s")
 	}
 
 	// http error
