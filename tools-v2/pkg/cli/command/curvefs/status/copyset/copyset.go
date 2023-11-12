@@ -74,11 +74,10 @@ func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
 		poolIdVec = append(poolIdVec, fmt.Sprintf("%d", info.GetPoolId()))
 	}
 	if len(copysetIdVec) == 0 {
-		var err error
 		cCmd.Error = cmderror.ErrSuccess()
 		cCmd.Result = "No copyset found"
 		cCmd.health = cobrautil.HEALTH_OK
-		return err
+		return nil
 	}
 	copysetIds := strings.Join(copysetIdVec, ",")
 	poolIds := strings.Join(poolIdVec, ",")

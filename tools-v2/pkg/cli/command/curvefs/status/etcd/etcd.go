@@ -83,6 +83,7 @@ func (eCmd *EtcdCommand) Init(cmd *cobra.Command, args []string) error {
 	// set main addr
 	etcdAddrs, addrErr := config.GetFsEtcdAddrSlice(eCmd.Cmd)
 	if addrErr.TypeCode() != cmderror.CODE_SUCCESS {
+		eCmd.Error = addrErr
 		return fmt.Errorf(addrErr.Message)
 	}
 	for _, addr := range etcdAddrs {
