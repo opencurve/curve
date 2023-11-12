@@ -88,7 +88,9 @@ func (mCmd *MetaserverCommand) Init(cmd *cobra.Command, args []string) error {
 
 	for i, addr := range externalAddrs {
 		if !config.IsValidAddr(addr) {
-			return fmt.Errorf("invalid metaserver external addr: %s", addr)
+			mCmd.Error = cmderror.ErrInvalidMetaServerAddr()
+			mCmd.Error.Format(addr)
+			return fmt.Errorf(mCmd.Error.Message)
 		}
 
 		// set metrics
