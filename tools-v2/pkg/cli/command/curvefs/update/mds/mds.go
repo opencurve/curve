@@ -14,34 +14,31 @@
  *  limitations under the License.
  */
 
-package update
+package mds
 
 import (
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
-	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/update/fs"
-	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/update/mds"
 	"github.com/spf13/cobra"
 )
 
-type UpdateCommand struct {
+type MdsCommand struct {
 	basecmd.MidCurveCmd
 }
 
-var _ basecmd.MidCurveCmdFunc = (*UpdateCommand)(nil) // check interface
+var _ basecmd.MidCurveCmdFunc = (*MdsCommand)(nil) // check interface
 
-func (updateCmd *UpdateCommand) AddSubCommands() {
-	updateCmd.Cmd.AddCommand(
-		fs.NewFsCommand(),
-		mds.NewMdsCommand(),
+func (mdsCmd *MdsCommand) AddSubCommands() {
+	mdsCmd.Cmd.AddCommand(
+		NewSetClientMdsAddrsOverrideCommand(),
 	)
 }
 
-func NewUpdateCommand() *cobra.Command {
-	updateCmd := &UpdateCommand{
+func NewMdsCommand() *cobra.Command {
+	mdsCmd := &MdsCommand{
 		basecmd.MidCurveCmd{
-			Use:   "update",
-			Short: "update resources in the curvefs",
+			Use:   "mds",
+			Short: "mds resources in the curvefs",
 		},
 	}
-	return basecmd.NewMidCurveCli(&updateCmd.MidCurveCmd, updateCmd)
+	return basecmd.NewMidCurveCli(&mdsCmd.MidCurveCmd, mdsCmd)
 }
