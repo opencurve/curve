@@ -165,7 +165,6 @@ class TestFuseS3Client : public ::testing::Test {
         InitOptionBasic(&fuseClientOption_);
         InitFSInfo(client_);
         fuseClientOption_.s3Opt.s3AdaptrOpt.asyncThreadNum = 1;
-        fuseClientOption_.s3Opt.s3AdaptrOpt.userAgent = "S3 Browser";
         fuseClientOption_.dummyServerStartPort = 5000;
         fuseClientOption_.fileSystemOption.maxNameLength = 20u;
         fuseClientOption_.listDentryThreads = 2;
@@ -208,7 +207,6 @@ class TestFuseS3Client : public ::testing::Test {
         opt->s3Opt.s3ClientAdaptorOpt.readCacheThreads = 2;
         opt->s3Opt.s3ClientAdaptorOpt.writeCacheMaxByte = 838860800;
         opt->s3Opt.s3AdaptrOpt.asyncThreadNum = 1;
-        opt->s3Opt.s3AdaptrOpt.userAgent = "S3 Browser";
         opt->dummyServerStartPort = 5000;
         opt->fileSystemOption.maxNameLength = 20u;
         opt->listDentryThreads = 2;

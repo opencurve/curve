@@ -79,7 +79,6 @@ struct S3AdapterOption {
     std::string logPrefix;
     int scheme;
     bool verifySsl;
-    std::string userAgent;
     int maxConnections;
     int connectTimeout;
     int requestTimeout;
@@ -351,8 +350,6 @@ class S3Adapter {
                                  const Aws::String &uploadId);
     void SetBucketName(const Aws::String &name) { bucketName_ = name; }
     Aws::String GetBucketName() { return bucketName_; }
-
-    Aws::Client::ClientConfiguration *GetConfig() { return clientCfg_; }
 
  private:
     class AsyncRequestInflightBytesThrottle {

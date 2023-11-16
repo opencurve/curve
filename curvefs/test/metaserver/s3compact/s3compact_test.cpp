@@ -186,7 +186,6 @@ TEST_F(S3CompactTest, test_S3AdapterManager) {
     opt.bucketName = "";
     opt.scheme = 0;
     opt.verifySsl = false;
-    opt.userAgent = "S3 Browser";
     opt.maxConnections = 32;
     opt.connectTimeout = 60000;
     opt.requestTimeout = 10000;

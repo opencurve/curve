@@ -82,7 +82,6 @@ void InitS3AdaptorOptionExceptS3InfoOption(Configuration* conf,
     LOG_IF(FATAL, !conf->GetStringValue("s3.logPrefix", &s3Opt->logPrefix));
     LOG_IF(FATAL, !conf->GetIntValue("s3.http_scheme", &s3Opt->scheme));
     LOG_IF(FATAL, !conf->GetBoolValue("s3.verify_SSL", &s3Opt->verifySsl));
-    LOG_IF(FATAL, !conf->GetStringValue("s3.user_agent", &s3Opt->userAgent));
     LOG_IF(FATAL, !conf->GetIntValue("s3.maxConnections",
         &s3Opt->maxConnections));
     LOG_IF(FATAL, !conf->GetIntValue("s3.connectTimeout",
@@ -150,7 +149,8 @@ void S3Adapter::Init(const S3AdapterOption &option) {
     clientCfg_ = Aws::New<Aws::Client::ClientConfiguration>(AWS_ALLOCATE_TAG);
     clientCfg_->scheme = Aws::Http::Scheme(option.scheme);
     clientCfg_->verifySSL = option.verifySsl;
-    clientCfg_->userAgent = option.userAgent.c_str();
+    //clientCfg_->userAgent = conf_.GetStringValue("s3.user_agent_conf").c_str();  //NOLINT
+    clientCfg_->userAgent = "S3 Browser";
     clientCfg_->region = option.region.c_str();
     clientCfg_->maxConnections = option.maxConnections;
     clientCfg_->connectTimeoutMs = option.connectTimeout;
