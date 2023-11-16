@@ -166,9 +166,9 @@ class MemCachedClient : public KVClient {
 
         *errorlog = ResError(ue);
         if (ue != MEMCACHED_NOTFOUND) {
-          LOG(ERROR) << "Get key = " << key << " error = " << *errorlog
-                     << ", get_value_len = " << value_length
-                     << ", expect_value_len = " << length;
+          LOG_EVERY_N(WARNING, 1000) << "Get key = " << key
+            << " error = " << *errorlog << ", get_value_len = "
+            << value_length << ", expect_value_len = " << length;
           free(res);
           memcached_free(tcli);
           tcli = nullptr;
