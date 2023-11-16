@@ -58,6 +58,7 @@ typedef struct FileStatInfo {
     uint64_t        stripeUnit;
     uint64_t        stripeCount;
     uint32_t        blocksize;
+    bool            readonly;
 } FileStatInfo_t;
 
 // 存储用户信息

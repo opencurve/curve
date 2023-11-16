@@ -769,6 +769,7 @@ void FileClient::BuildFileStatInfo(const FInfo_t &fi, FileStatInfo *finfo) {
     finfo->filetype = fi.filetype;
     finfo->stripeUnit = fi.stripeUnit;
     finfo->stripeCount = fi.stripeCount;
+    finfo->readonly = fi.readonly;
 
     memcpy(finfo->filename, fi.filename.c_str(),
                std::min(sizeof(finfo->filename), fi.filename.size() + 1));
