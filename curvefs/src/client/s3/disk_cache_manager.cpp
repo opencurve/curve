@@ -418,6 +418,7 @@ void DiskCacheManager::TrimCache() {
     cacheWriteFullDir = GetCacheWriteFullDir();
     while (true) {
         UpdateDiskFsUsedRatio();
+        waitIntervalSec_.Init(FLAGS_diskTrimCheckIntervalSec * 1000);
         waitIntervalSec_.WaitForNextExcution();
         if (!isRunning_) {
             LOG(INFO) << "trim thread end.";
