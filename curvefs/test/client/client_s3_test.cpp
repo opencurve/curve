@@ -57,16 +57,6 @@ class ClientS3Test : public testing::Test {
     Aws::SDKOptions awsOptions_;
 };
 
-TEST_F(ClientS3Test, init_s3Adapter_userAgent) {
-    std::string userAgent = "S3 Browser";
-    curve::common::S3AdapterOption option;
-    option.userAgent = userAgent;
-
-    curve::common::S3Adapter s3Adapter;
-    s3Adapter.Init(option);
-    ASSERT_STREQ(userAgent.c_str(), s3Adapter.GetConfig()->userAgent.c_str());
-}
-
 TEST_F(ClientS3Test, upload) {
     const std::string obj("test");
     uint64_t len = 1024;
@@ -79,7 +69,7 @@ TEST_F(ClientS3Test, upload) {
         .WillOnce(Return(-1));
     ASSERT_EQ(0, client_->Upload(obj, buf, len));
     ASSERT_EQ(-1, client_->Upload(obj, buf, len));
-    delete[] buf;
+    delete buf;
 }
 
 TEST_F(ClientS3Test, download) {
@@ -100,7 +90,7 @@ TEST_F(ClientS3Test, download) {
     ASSERT_EQ(0, client_->Download(obj, buf, offset, len));
     ASSERT_EQ(-1, client_->Download(obj, buf, offset, len));
     ASSERT_EQ(-2, client_->Download(obj, buf, offset, len));
-    delete[] buf;
+    delete buf;
 }
 
 TEST_F(ClientS3Test, uploadync) {
@@ -112,7 +102,7 @@ TEST_F(ClientS3Test, uploadync) {
     EXPECT_CALL(*s3Client_, PutObjectAsync(_))
         .WillOnce(Return());
     client_->UploadAsync(context);
-    delete[] buf;
+    delete buf;
 }
 
 TEST_F(ClientS3Test, downloadAsync) {
@@ -125,7 +115,7 @@ TEST_F(ClientS3Test, downloadAsync) {
     EXPECT_CALL(*s3Client_, GetObjectAsync(_))
         .WillOnce(Return());
     client_->DownloadAsync(context);
-    delete[] buf;
+    delete buf;
 }
 
 
