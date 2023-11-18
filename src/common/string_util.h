@@ -35,6 +35,7 @@
 #include <glog/logging.h>
 #include <string>
 #include <vector>
+#include <algorithm>
 #include <stdexcept>
 
 namespace curve {
@@ -163,6 +164,27 @@ inline std::string ToHexString(void* p) {
     std::ostringstream oss;
     oss << p;
     return oss.str();
+}
+
+// trim from start (in place)
+inline void LTrim(std::string &s) { // NOLINT
+  s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](const char &ch) {
+            return !std::isspace(ch);
+          }));
+}
+
+// trim from end (in place)
+inline void RTrim(std::string &s) { // NOLINT
+  s.erase(std::find_if(s.rbegin(), s.rend(),
+                       [](const char &ch) { return !std::isspace(ch); })
+              .base(),
+          s.end());
+}
+
+// trim from both ends (in place)
+inline void Trim(std::string &s) { // NOLINT
+  LTrim(s);
+  RTrim(s);
 }
 
 }  // namespace common
