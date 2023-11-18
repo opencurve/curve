@@ -21,13 +21,14 @@
  *          2018/08/30  Wenyu Zhou   Initial version
  */
 
-#include "src/common/configuration.h"
-
 #include <glog/logging.h>
-#include <iostream>
-#include <fstream>
-#include <sstream>
 #include <algorithm>
+#include <fstream>
+#include <iostream>
+#include <sstream>
+
+#include "src/common/configuration.h"
+#include "src/common/string_util.h"
 
 namespace curve {
 namespace common {
@@ -38,16 +39,17 @@ bool Configuration::LoadConfig() {
     if (cFile.is_open()) {
         std::string line;
         while (getline(cFile, line)) {
-            // FIXME: may not remove middle spaces
-            line.erase(std::remove_if(line.begin(), line.end(), isspace),
-                       line.end());
+            Trim(line);
             if (line.empty() || line[0] == '#') continue;
 
             int delimiterPos = line.find("=");
             std::string key = line.substr(0, delimiterPos);
+            Trim(key);
+
             int commentPos = line.find("#");
             std::string value = line.substr(delimiterPos + 1,
                                             commentPos - delimiterPos - 1);
+            Trim(value);
             SetValue(key, value);
         }
     } else {
