@@ -28,7 +28,7 @@
 namespace curve {
 namespace common {
 
-TEST(Common, SpliteString) {
+TEST(Common, SplitString) {
     const struct {std::string path; std::string sep;
         const int size; std::vector<std::string> items;}
     testCases[] = {
@@ -59,5 +59,54 @@ TEST(Common, StringToUll) {
     str = "ffff";
     ASSERT_FALSE(StringToUll(str, &out));
 }
+
+TEST(StringUtilTest, LTrim) {
+  std::array<std::array<std::string, 2>, 4> cases = {
+    std::array<std::string, 2>{"hello", "hello"},
+    std::array<std::string, 2>{"", ""},
+    std::array<std::string, 2>{"  ", ""},
+    std::array<std::string, 2>{"  hello", "hello"},
+  };
+
+  for (auto &c : cases) {
+    curve::common::LTrim(c[0]);
+    EXPECT_EQ(c[0], c[1]);
+  }
+}
+
+TEST(StringUtilTest, RTrim) {
+  std::array<std::array<std::string, 2>, 4> cases = {
+    std::array<std::string, 2>{"hello", "hello"},
+    std::array<std::string, 2>{"", ""},
+    std::array<std::string, 2>{"  ", ""},
+    std::array<std::string, 2>{"hello  ", "hello"},
+  };
+
+  for (auto &c : cases) {
+    curve::common::RTrim(c[0]);
+    EXPECT_EQ(c[0], c[1]);
+  }
+}
+
+TEST(StringUtilTest, Trim) {
+  std::array<std::array<std::string, 2>, 10> cases = {
+      std::array<std::string, 2>{"hello", "hello"},
+      std::array<std::string, 2>{"   hello", "hello"},
+      std::array<std::string, 2>{"hello    ", "hello"},
+      std::array<std::string, 2>{"    hello  ", "hello"},
+      std::array<std::string, 2>{"S3 Browser", "S3 Browser"},
+      std::array<std::string, 2>{"S3 Browser  ", "S3 Browser"},
+      std::array<std::string, 2>{"   S3 Browser", "S3 Browser"},
+      std::array<std::string, 2>{" S3 Browser  ", "S3 Browser"},
+      std::array<std::string, 2>{"    ", ""},
+      std::array<std::string, 2>{"", ""},
+  };
+
+  for (auto &c : cases) {
+    curve::common::Trim(c[0]);
+    EXPECT_EQ(c[0], c[1]);
+  }
+}
+
 }  // namespace common
 }  // namespace curve
