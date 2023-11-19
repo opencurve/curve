@@ -30,6 +30,8 @@
 #include <utility>
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/client/filesystem/error.h"
+#include "curvefs/src/client/filesystem/utils.h"
+#include "curvefs/src/client/filesystem/defer_sync.h"
 #include "curvefs/src/client/inode_wrapper.h"
 
 using ::curvefs::metaserver::Inode;
@@ -47,9 +49,72 @@ namespace curvefs {
 namespace client {
 
 using ::curvefs::client::filesystem::ToFSError;
+using ::curvefs::client::filesystem::AttrCtime;
 
 using NameLockGuard = ::curve::common::GenericNameLockGuard<Mutex>;
 using curvefs::client::common::FLAGS_enableCto;
+
+#define RETURN_IF_CTO_ON() \
+    do {                   \
+        if (cto_) {        \
+            return;        \
+        }                  \
+    } while (0)
+
+DeferWatcher::DeferWatcher(bool cto, std::shared_ptr<DeferSync> deferSync)
+    : cto_(cto),
+      deferSync_(deferSync),
+      deferAttrs_() {}
+
+void DeferWatcher::PreGetAttrs(const std::set<uint64_t>& inos) {
+    RETURN_IF_CTO_ON();
+    InodeAttr attr;
+    std::shared_ptr<InodeWrapper> inode;
+    for (const auto& ino : inos) {
+        bool yes = deferSync_->IsDefered(ino, &inode);
+        if (!yes) {
+            continue;
+        }
+        inode->GetInodeAttr(&attr);
+        deferAttrs_.emplace(ino, attr);
+    }
+}
+
+bool DeferWatcher::TryUpdate(InodeAttr* attr) {
+    Ino ino = attr->inodeid();
+    auto iter = deferAttrs_.find(ino);
+    if (iter == deferAttrs_.end()) {
+        return false;
+    }
+
+    auto& defered = iter->second;
+    if (AttrCtime(*attr) > AttrCtime(defered)) {
+        return false;
+    }
+    *attr = defered;
+    return true;
+}
+
+void DeferWatcher::PostGetAttrs(std::list<InodeAttr>* attrs) {
+    RETURN_IF_CTO_ON();
+    if (deferAttrs_.size() == 0) {
+        return;
+    }
+    for (auto& attr : *attrs) {
+        TryUpdate(&attr);
+    }
+}
+
+void DeferWatcher::PostGetAttrs(std::map<uint64_t, InodeAttr>* attrs) {
+    RETURN_IF_CTO_ON();
+    if (deferAttrs_.size() == 0) {
+        return;
+    }
+    for (auto& item : *attrs) {
+        auto& attr = item.second;
+        TryUpdate(&attr);
+    }
+}
 
 #define GET_INODE_REMOTE(FSID, INODEID, OUT, STREAMING)                        \
     MetaStatusCode ret = metaClient_->GetInode(FSID, INODEID, OUT, STREAMING); \
@@ -76,6 +141,11 @@ InodeCacheManagerImpl::GetInode(uint64_t inodeId,
         return CURVEFS_ERROR::OK;
     }
 
+    bool cto = FLAGS_enableCto;
+    if (!cto && deferSync_->IsDefered(inodeId, &out)) {
+        return CURVEFS_ERROR::OK;
+    }
+
     // get inode from metaserver
     Inode inode;
     bool streaming = false;
@@ -97,6 +167,11 @@ CURVEFS_ERROR InodeCacheManagerImpl::GetInodeAttr(uint64_t inodeId,
     std::set<uint64_t> inodeIds;
     std::list<InodeAttr> attrs;
     inodeIds.emplace(inodeId);
+
+    bool cto = FLAGS_enableCto;
+    auto watcher = std::make_shared<DeferWatcher>(cto, deferSync_);
+    watcher->PreGetAttrs(inodeIds);
+
     MetaStatusCode ret =
         metaClient_->BatchGetInodeAttr(fsId_, inodeIds, &attrs);
     if (MetaStatusCode::OK != ret) {
@@ -113,6 +188,7 @@ CURVEFS_ERROR InodeCacheManagerImpl::GetInodeAttr(uint64_t inodeId,
         return CURVEFS_ERROR::INTERNAL;
     }
 
+    watcher->PostGetAttrs(&attrs);
     *out = *attrs.begin();
     return CURVEFS_ERROR::OK;
 }
@@ -124,6 +200,10 @@ CURVEFS_ERROR InodeCacheManagerImpl::BatchGetInodeAttr(
         return CURVEFS_ERROR::OK;
     }
 
+    bool cto = FLAGS_enableCto;
+    auto watcher = std::make_shared<DeferWatcher>(cto, deferSync_);
+    watcher->PreGetAttrs(*inodeIds);
+
     MetaStatusCode ret = metaClient_->BatchGetInodeAttr(fsId_, *inodeIds,
         attrs);
     if (MetaStatusCode::OK != ret) {
@@ -131,6 +211,7 @@ CURVEFS_ERROR InodeCacheManagerImpl::BatchGetInodeAttr(
                    << ret << ", MetaStatusCode_Name = "
                    << MetaStatusCode_Name(ret);
     }
+    watcher->PostGetAttrs(attrs);
     return ToFSError(ret);
 }
 
@@ -143,6 +224,10 @@ CURVEFS_ERROR InodeCacheManagerImpl::BatchGetInodeAttrAsync(
     if (inodeIds->empty()) {
         return CURVEFS_ERROR::OK;
     }
+
+    bool cto = FLAGS_enableCto;
+    auto watcher = std::make_shared<DeferWatcher>(cto, deferSync_);
+    watcher->PreGetAttrs(*inodeIds);
 
     // split inodeIds by partitionId and batch limit
     std::vector<std::vector<uint64_t>> inodeGroups;
@@ -168,6 +253,7 @@ CURVEFS_ERROR InodeCacheManagerImpl::BatchGetInodeAttrAsync(
 
     // wait for all sudrequest finished
     cond->Wait();
+    watcher->PostGetAttrs(attrs);
     return CURVEFS_ERROR::OK;
 }
 

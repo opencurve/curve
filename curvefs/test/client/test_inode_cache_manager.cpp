@@ -35,6 +35,7 @@
 #include "curvefs/src/client/filesystem/defer_sync.h"
 #include "curvefs/src/client/filesystem/openfile.h"
 #include "curvefs/src/client/filesystem/dir_cache.h"
+#include "curvefs/test/client/filesystem/helper/helper.h"
 
 namespace curvefs {
 namespace client {
@@ -66,6 +67,13 @@ using ::curvefs::client::common::OpenFilesOption;
 using ::curvefs::client::filesystem::DeferSync;
 using ::curvefs::client::filesystem::DirCache;
 using ::curvefs::client::filesystem::OpenFiles;
+using ::curvefs::client::filesystem::DeferSyncBuilder;
+using ::curvefs::client::filesystem::MkInode;
+using ::curvefs::client::filesystem::MkAttr;
+using ::curvefs::client::filesystem::InodeOption;
+using ::curvefs::client::filesystem::AttrOption;
+
+class DeferWatcherTest : public ::testing::Test {};
 
 class TestInodeCacheManager : public ::testing::Test {
  protected:
@@ -80,7 +88,7 @@ class TestInodeCacheManager : public ::testing::Test {
         RefreshDataOption option;
         option.maxDataSize = 1;
         option.refreshDataIntervalSec = 0;
-        auto deferSync = std::make_shared<DeferSync>(DeferSyncOption());
+        auto deferSync = std::make_shared<DeferSync>(true, DeferSyncOption());
         auto openFiles = std::make_shared<OpenFiles>(
             OpenFilesOption(), deferSync);
         iCacheManager_->Init(option, openFiles, deferSync);
@@ -97,6 +105,87 @@ class TestInodeCacheManager : public ::testing::Test {
     uint32_t fsId_ = 888;
     uint32_t timeout_ = 3;
 };
+
+TEST_F(DeferWatcherTest, Basic_cto) {
+    auto builder = DeferSyncBuilder();
+    auto deferSync = builder.SetOption([&](bool* cto, DeferSyncOption* option) {
+        *cto = true;
+        option->delay = 3;
+    }).Build();
+    deferSync->Start();
+    deferSync->Push(MkInode(100, InodeOption().length(1024).ctime(123, 456)));
+
+    auto watcher = std::make_shared<DeferWatcher>(false, deferSync);
+    std::set<uint64_t> inos { 100 };
+    watcher->PreGetAttrs(inos);
+
+    InodeAttr attr = MkAttr(100, AttrOption().length(0).ctime(123, 455));
+    std::list<InodeAttr> attrs;
+    attrs.emplace_back(attr);  // mock get attr from remote
+    watcher->PostGetAttrs(&attrs);
+
+    InodeAttr out = attrs.front();
+    ASSERT_EQ(out.length(), 0);
+    ASSERT_EQ(out.ctime(), 123);
+    ASSERT_EQ(out.ctime_ns(), 455);
+
+    deferSync->Stop();
+}
+
+TEST_F(DeferWatcherTest, Basic) {
+    auto builder = DeferSyncBuilder();
+    auto deferSync = builder.SetOption([&](bool* cto, DeferSyncOption* option) {
+        *cto = false;
+        option->delay = 3;
+    }).Build();
+    deferSync->Start();
+    deferSync->Push(MkInode(100, InodeOption().length(1024).ctime(123, 456)));
+
+    auto watcher = std::make_shared<DeferWatcher>(false, deferSync);
+    std::set<uint64_t> inos { 100 };
+    watcher->PreGetAttrs(inos);
+
+    // CASE 1: attr ctime < defered ctime => update success
+    {
+        InodeAttr attr = MkAttr(100, AttrOption().length(0).ctime(123, 455));
+        std::list<InodeAttr> attrs;
+        attrs.emplace_back(attr);  // mock get attr from remote
+        watcher->PostGetAttrs(&attrs);
+
+        InodeAttr out = attrs.front();
+        ASSERT_EQ(out.length(), 1024);
+        ASSERT_EQ(out.ctime(), 123);
+        ASSERT_EQ(out.ctime_ns(), 456);
+    }
+
+    // CASE 2: attr ctime > defered ctime => update failed
+    {
+        InodeAttr attr = MkAttr(100, AttrOption().length(0).ctime(123, 457));
+        std::list<InodeAttr> attrs;
+        attrs.emplace_back(attr);  // mock get attr from remote
+        watcher->PostGetAttrs(&attrs);
+
+        InodeAttr out = attrs.front();
+        ASSERT_EQ(out.length(), 0);
+        ASSERT_EQ(out.ctime(), 123);
+        ASSERT_EQ(out.ctime_ns(), 457);
+    }
+
+    // CASE 3: another interface
+    {
+        InodeAttr attr = MkAttr(100, AttrOption().length(0).ctime(123, 455));
+        std::map<uint64_t, InodeAttr> attrs;
+        attrs.emplace(100, attr);  // mock get attr from remote
+        watcher->PostGetAttrs(&attrs);
+
+        InodeAttr out = attrs[100];
+        ASSERT_EQ(out.length(), 1024);
+        ASSERT_EQ(out.ctime(), 123);
+        ASSERT_EQ(out.ctime_ns(), 456);
+    }
+
+    deferSync->Stop();
+}
 
 TEST_F(TestInodeCacheManager, GetInode) {
     uint64_t inodeId = 100;
