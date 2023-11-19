@@ -3,7 +3,7 @@
 # Usage:
 #   tmpl.sh DSV SOURCE DESTINATION
 # Example:
-#   tmpl.sh = /usr/local/metaserver.conf /tmp/metaserver.con
+#   tmpl.sh = /usr/local/metaserver.conf /tmp/metaserver.conf
 
 g_dsv=$1
 g_src=$2
