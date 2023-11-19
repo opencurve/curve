@@ -31,7 +31,8 @@ namespace filesystem {
 
 FileSystem::FileSystem(FileSystemOption option, ExternalMember member)
     : option_(option), member(member) {
-    deferSync_ = std::make_shared<DeferSync>(option.deferSyncOption);
+    deferSync_ = std::make_shared<DeferSync>(option.cto,
+                                             option.deferSyncOption);
     negative_ = std::make_shared<LookupCache>(option.lookupCacheOption);
     dirCache_ = std::make_shared<DirCache>(option.dirCacheOption);
     openFiles_ = std::make_shared<OpenFiles>(option_.openFilesOption,
@@ -257,11 +258,6 @@ CURVEFS_ERROR FileSystem::Lookup(Ino parent,
 
 CURVEFS_ERROR FileSystem::GetAttr(Ino ino, AttrOut* attrOut) {
     InodeAttr attr;
-    if (!option_.cto && deferSync_->IsDefered(ino, &attr)) {
-        *attrOut = AttrOut(attr);
-        return CURVEFS_ERROR::OK;
-    }
-
     auto rc = rpc_->GetAttr(ino, &attr);
     if (rc == CURVEFS_ERROR::OK) {
         *attrOut = AttrOut(attr);
@@ -319,7 +315,7 @@ CURVEFS_ERROR FileSystem::Open(Ino ino, FileInfo* fi) {
     bool yes = openFiles_->IsOpened(ino, &inode);
     if (yes) {
         openFiles_->Open(ino, inode);
-        // fi->keep_cache = 1;
+        // fi->keep_cache = 1;  // FIXME(Wine93): let it works.
         return CURVEFS_ERROR::OK;
     }
 
