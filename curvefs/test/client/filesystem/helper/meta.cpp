@@ -76,8 +76,18 @@ AttrOption AttrOption::ctime(uint64_t seconds, uint32_t naoSeconds) {
     return *this;
 }
 
+InodeOption InodeOption::ctime(uint64_t seconds, uint32_t naoSeconds) {
+    ctime_ = TimeSpec(seconds, naoSeconds);
+    return *this;
+}
+
 InodeOption InodeOption::mtime(uint64_t seconds, uint32_t naoSeconds) {
     mtime_ = TimeSpec(seconds, naoSeconds);
+    return *this;
+}
+
+InodeOption InodeOption::length(uint64_t length) {
+    length_ = length;
     return *this;
 }
 
@@ -109,8 +119,11 @@ InodeAttr MkAttr(Ino ino, AttrOption option) {
 std::shared_ptr<InodeWrapper> MkInode(Ino ino, InodeOption option) {
     Inode inode;
     inode.set_inodeid(ino);
+    inode.set_ctime(option.ctime_.seconds);
+    inode.set_ctime_ns(option.ctime_.nanoSeconds);
     inode.set_mtime(option.mtime_.seconds);
     inode.set_mtime_ns(option.mtime_.nanoSeconds);
+    inode.set_length(option.length_);
     return std::make_shared<InodeWrapper>(inode, option.metaClient_);
 }
 

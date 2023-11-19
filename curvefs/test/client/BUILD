@@ -110,6 +110,7 @@ cc_test(
         "//curvefs/proto:mds_cc_proto",
         "//curvefs/proto:space_cc_proto",
         "//curvefs/test/volume/mock",
+        "//curvefs/test/client/filesystem/helper:helper",
    ],
    linkopts = ["-lfuse3",
                "-L/usr/local/lib/x86_64-linux-gnu"],
