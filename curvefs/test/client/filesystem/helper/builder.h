@@ -46,7 +46,7 @@ using ::curvefs::client::common::KernelCacheOption;
 
 class DeferSyncBuilder {
  public:
-    using Callback = std::function<void(DeferSyncOption* option)>;
+    using Callback = std::function<void(bool* cto, DeferSyncOption* option)>;
 
     static DeferSyncOption DefaultOption() {
         return DeferSyncOption {
@@ -57,17 +57,18 @@ class DeferSyncBuilder {
 
  public:
     DeferSyncBuilder()
-        : option_(DefaultOption()),
+        : cto_(true),
+          option_(DefaultOption()),
           dentryManager_(std::make_shared<MockDentryCacheManager>()),
           inodeManager_(std::make_shared<MockInodeCacheManager>()) {}
 
     DeferSyncBuilder SetOption(Callback callback) {
-        callback(&option_);
+        callback(&cto_, &option_);
         return *this;
     }
 
     std::shared_ptr<DeferSync> Build() {
-        return std::make_shared<DeferSync>(option_);
+        return std::make_shared<DeferSync>(cto_, option_);
     }
 
     std::shared_ptr<MockDentryCacheManager> GetDentryManager() {
@@ -79,6 +80,7 @@ class DeferSyncBuilder {
     }
 
  private:
+    bool cto_;
     DeferSyncOption option_;
     std::shared_ptr<MockDentryCacheManager> dentryManager_;
     std::shared_ptr<MockInodeCacheManager> inodeManager_;
