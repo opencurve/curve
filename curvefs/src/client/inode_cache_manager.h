@@ -46,6 +46,7 @@
 #include "curvefs/src/client/common/config.h"
 #include "curvefs/src/client/filesystem/openfile.h"
 #include "curvefs/src/client/filesystem/defer_sync.h"
+#include "absl/container/btree_map.h"
 
 using ::curve::common::LRUCache;
 using ::curve::common::CacheMetrics;
@@ -66,6 +67,7 @@ using rpcclient::BatchGetInodeAttrDone;
 using curve::common::CountDownEvent;
 using metric::S3ChunkInfoMetric;
 using common::RefreshDataOption;
+using ::curvefs::client::filesystem::Ino;
 using ::curvefs::client::filesystem::OpenFiles;
 using ::curvefs::client::filesystem::DeferSync;
 
@@ -114,6 +116,25 @@ class InodeCacheManager {
 
  protected:
     uint32_t fsId_;
+};
+
+class DeferWatcher {
+ public:
+    DeferWatcher(bool cto, std::shared_ptr<DeferSync> deferSync);
+
+    void PreGetAttrs(const std::set<uint64_t>& inos);
+
+    void PostGetAttrs(std::list<InodeAttr>* attrs);
+
+    void PostGetAttrs(std::map<uint64_t, InodeAttr>* attrs);
+
+ private:
+    bool TryUpdate(InodeAttr* attr);
+
+ private:
+    bool cto_;
+    std::shared_ptr<DeferSync> deferSync_;
+    absl::btree_map<Ino, InodeAttr> deferAttrs_;
 };
 
 class InodeCacheManagerImpl : public InodeCacheManager,
