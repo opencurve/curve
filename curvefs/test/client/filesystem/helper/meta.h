@@ -71,14 +71,17 @@ struct AttrOption {
 class InodeOption {
  public:
     InodeOption() = default;
+    InodeOption ctime(uint64_t seconds, uint32_t naoSeconds);
     InodeOption mtime(uint64_t seconds, uint32_t naoSeconds);
+    InodeOption length(uint64_t length);
     InodeOption metaClient(std::shared_ptr<MetaServerClient> metaClient);
 
  private:
     friend std::shared_ptr<InodeWrapper> MkInode(Ino ino, InodeOption option);
 
  private:
-    TimeSpec mtime_;
+    TimeSpec ctime_, mtime_;
+    uint64_t length_;
     std::shared_ptr<MetaServerClient> metaClient_;
 };
 
