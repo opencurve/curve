@@ -107,23 +107,15 @@ int RPCExcutorRetryPolicy::PreProcessBeforeRetry(int status, bool retryUnlimit,
     bool rpcTimeout = false;
     bool needChangeMDS = false;
 
-    // If retryUnlimit is set, sleep a long time to retry no matter what the
-    // error it is.
-    if (retryUnlimit) {
-        if (++(*normalRetryCount) >
-            retryOpt_.normalRetryTimesBeforeTriggerWait) {
-            bthread_usleep(retryOpt_.waitSleepMs * 1000);
-        }
-
-        // 1. 访问存在的IP地址，但无人监听：ECONNREFUSED
-        // 2. 正常发送RPC情况下，对端进程挂掉了：EHOSTDOWN
-        // 3. 对端server调用了Stop：ELOGOFF
-        // 4. 对端链接已关闭：ECONNRESET
-        // 5. 在一个mds节点上rpc失败超过限定次数
-        // 在这几种场景下，主动切换mds。
-    } else if (status == -EHOSTDOWN || status == -ECONNRESET ||
-               status == -ECONNREFUSED || status == -brpc::ELOGOFF ||
-               *curMDSRetryCount >= retryOpt_.maxFailedTimesBeforeChangeAddr) {
+    // 1. 访问存在的IP地址，但无人监听：ECONNREFUSED
+    // 2. 正常发送RPC情况下，对端进程挂掉了：EHOSTDOWN
+    // 3. 对端server调用了Stop：ELOGOFF
+    // 4. 对端链接已关闭：ECONNRESET
+    // 5. 在一个mds节点上rpc失败超过限定次数
+    // 在这几种场景下，主动切换mds。
+    if (status == -EHOSTDOWN || status == -ECONNRESET ||
+        status == -ECONNREFUSED || status == -brpc::ELOGOFF ||
+        *curMDSRetryCount >= retryOpt_.maxFailedTimesBeforeChangeAddr) {
         needChangeMDS = true;
 
         // 在开启健康检查的情况下，在底层tcp连接失败时
@@ -140,6 +132,13 @@ int RPCExcutorRetryPolicy::PreProcessBeforeRetry(int status, bool retryUnlimit,
         *timeOutMS *= 2;
         *timeOutMS = std::min(*timeOutMS, retryOpt_.maxRPCTimeoutMS);
         *timeOutMS = std::max(*timeOutMS, retryOpt_.rpcTimeoutMs);
+    // If retryUnlimit is set, sleep a long time to retry no matter what the
+    // error it is.
+    } else if (retryUnlimit) {
+        if (++(*normalRetryCount) >
+            retryOpt_.normalRetryTimesBeforeTriggerWait) {
+            bthread_usleep(retryOpt_.waitSleepMs * 1000);
+        }
     }
 
     // 获取下一次需要重试的mds索引
