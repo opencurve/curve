@@ -124,7 +124,6 @@ func RecoverFile(caller *cobra.Command) (*nameserver2.RecoverFileResponse, *cmde
 	return rCmd.Response, cmderror.Success()
 }
 
-// NewCommand return the mid cli
 func NewRecoverFileCommand() *RecoverCommand {
 	RecoverCommand := &RecoverCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{},
