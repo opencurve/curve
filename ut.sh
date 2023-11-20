@@ -86,7 +86,7 @@ get_options() {
 main() {
     get_options "$@"
 
-    sudo docker run --rm -w /var/lib/jenkins/workspace/curve/curve_multijob/ -v /var/lib/jenkins:/var/lib/jenkins -v $(pwd):/var/lib/jenkins/workspace/curve/curve_multijob/ -v ${HOME}:${HOME}  --user $(id -u ${USER}):$(id -g ${USER}) -v /etc/passwd:/etc/passwd:ro -v /etc/group:/etc/group:ro -v /etc/sudoers:/etc/sudoers:ro -v /etc/shadow:/etc/shadow:ro --ulimit core=-1 --privileged opencurvedocker/curve-base:build-$g_os bash util/ut_in_image.sh "$@"
+    sudo docker run --rm -w /var/lib/jenkins/workspace/curve/curve_multijob/ -v /var/lib/jenkins:/var/lib/jenkins -v $(pwd):/var/lib/jenkins/workspace/curve/curve_multijob/ -e BUILD_NUMBER=$BUILD_NUMBER -v ${HOME}:${HOME}  --user $(id -u ${USER}):$(id -g ${USER}) -v /etc/passwd:/etc/passwd:ro -v /etc/group:/etc/group:ro -v /etc/sudoers:/etc/sudoers:ro -v /etc/shadow:/etc/shadow:ro --ulimit core=-1 --privileged opencurvedocker/curve-base:build-$g_os bash util/ut_in_image.sh "$@"
 }
 
 ############################  MAIN()
