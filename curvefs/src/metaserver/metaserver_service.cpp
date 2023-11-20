@@ -33,26 +33,30 @@ static bvar::LatencyRecorder g_oprequest_in_service_before_propose_latency(
 namespace curvefs {
 namespace metaserver {
 
-using ::curvefs::metaserver::copyset::GetDentryOperator;
-using ::curvefs::metaserver::copyset::ListDentryOperator;
-using ::curvefs::metaserver::copyset::CreateDentryOperator;
-using ::curvefs::metaserver::copyset::DeleteDentryOperator;
-using ::curvefs::metaserver::copyset::GetInodeOperator;
 using ::curvefs::metaserver::copyset::BatchGetInodeAttrOperator;
 using ::curvefs::metaserver::copyset::BatchGetXAttrOperator;
+using ::curvefs::metaserver::copyset::CheckTxStatusOperator;
+using ::curvefs::metaserver::copyset::CommitTxOperator;
+using ::curvefs::metaserver::copyset::CreateDentryOperator;
 using ::curvefs::metaserver::copyset::CreateInodeOperator;
-using ::curvefs::metaserver::copyset::CreateRootInodeOperator;
 using ::curvefs::metaserver::copyset::CreateManageInodeOperator;
-using ::curvefs::metaserver::copyset::UpdateInodeOperator;
-using ::curvefs::metaserver::copyset::GetOrModifyS3ChunkInfoOperator;
-using ::curvefs::metaserver::copyset::DeleteInodeOperator;
-using ::curvefs::metaserver::copyset::UpdateInodeS3VersionOperator;
 using ::curvefs::metaserver::copyset::CreatePartitionOperator;
+using ::curvefs::metaserver::copyset::CreateRootInodeOperator;
+using ::curvefs::metaserver::copyset::DeleteDentryOperator;
+using ::curvefs::metaserver::copyset::DeleteInodeOperator;
 using ::curvefs::metaserver::copyset::DeletePartitionOperator;
-using ::curvefs::metaserver::copyset::PrepareRenameTxOperator;
+using ::curvefs::metaserver::copyset::GetDentryOperator;
+using ::curvefs::metaserver::copyset::GetInodeOperator;
+using ::curvefs::metaserver::copyset::GetOrModifyS3ChunkInfoOperator;
 using ::curvefs::metaserver::copyset::GetVolumeExtentOperator;
-using ::curvefs::metaserver::copyset::UpdateVolumeExtentOperator;
+using ::curvefs::metaserver::copyset::ListDentryOperator;
+using ::curvefs::metaserver::copyset::PrepareRenameTxOperator;
+using ::curvefs::metaserver::copyset::PrewriteRenameTxOperator;
+using ::curvefs::metaserver::copyset::ResolveTxLockOperator;
 using ::curvefs::metaserver::copyset::UpdateDeallocatableBlockGroupOperator;
+using ::curvefs::metaserver::copyset::UpdateInodeOperator;
+using ::curvefs::metaserver::copyset::UpdateInodeS3VersionOperator;
+using ::curvefs::metaserver::copyset::UpdateVolumeExtentOperator;
 
 namespace {
 
@@ -267,16 +271,6 @@ void MetaServerServiceImpl::DeletePartition(
         request->copysetid());
 }
 
-void MetaServerServiceImpl::PrepareRenameTx(
-    google::protobuf::RpcController* controller,
-    const PrepareRenameTxRequest* request, PrepareRenameTxResponse* response,
-    google::protobuf::Closure* done) {
-    OperatorHelper helper(copysetNodeManager_, inflightThrottle_);
-    helper.operator()<PrepareRenameTxOperator>(controller, request, response,
-                                               done, request->poolid(),
-                                               request->copysetid());
-}
-
 void MetaServerServiceImpl::GetVolumeExtent(
     ::google::protobuf::RpcController* controller,
     const GetVolumeExtentRequest* request,
@@ -308,6 +302,50 @@ void MetaServerServiceImpl::UpdateDeallocatableBlockGroup(
     helper.operator()<UpdateDeallocatableBlockGroupOperator>(
         controller, request, response, done, request->poolid(),
         request->copysetid());
+}
+
+void MetaServerServiceImpl::PrepareRenameTx(
+    google::protobuf::RpcController* controller,
+    const PrepareRenameTxRequest* request, PrepareRenameTxResponse* response,
+    google::protobuf::Closure* done) {
+    OperatorHelper helper(copysetNodeManager_, inflightThrottle_);
+    helper.operator()<PrepareRenameTxOperator>(controller, request, response,
+        done, request->poolid(), request->copysetid());
+}
+
+void MetaServerServiceImpl::PrewriteRenameTx(
+    google::protobuf::RpcController* controller,
+    const PrewriteRenameTxRequest* request, PrewriteRenameTxResponse* response,
+    google::protobuf::Closure* done) {
+    OperatorHelper helper(copysetNodeManager_, inflightThrottle_);
+    helper.operator()<PrewriteRenameTxOperator>(controller, request, response,
+        done, request->poolid(), request->copysetid());
+}
+
+void MetaServerServiceImpl::CheckTxStatus(
+    google::protobuf::RpcController* controller,
+    const CheckTxStatusRequest* request, CheckTxStatusResponse* response,
+    google::protobuf::Closure* done) {
+    OperatorHelper helper(copysetNodeManager_, inflightThrottle_);
+    helper.operator()<CheckTxStatusOperator>(controller, request, response,
+        done, request->poolid(), request->copysetid());
+}
+
+void MetaServerServiceImpl::ResolveTxLock(
+    google::protobuf::RpcController* controller,
+    const ResolveTxLockRequest* request, ResolveTxLockResponse* response,
+    google::protobuf::Closure* done) {
+    OperatorHelper helper(copysetNodeManager_, inflightThrottle_);
+    helper.operator()<ResolveTxLockOperator>(controller, request, response,
+        done, request->poolid(), request->copysetid());
+}
+
+void MetaServerServiceImpl::CommitTx(
+    google::protobuf::RpcController* controller, const CommitTxRequest* request,
+    CommitTxResponse* response, google::protobuf::Closure* done) {
+    OperatorHelper helper(copysetNodeManager_, inflightThrottle_);
+    helper.operator()<CommitTxOperator>(controller, request, response, done,
+        request->poolid(), request->copysetid());
 }
 
 }  // namespace metaserver

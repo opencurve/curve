@@ -32,8 +32,8 @@
 #include "curvefs/src/client/filesystem/meta.h"
 #include "curvefs/src/client/filesystem/filesystem.h"
 #include "curvefs/test/client/mock_metaserver_client.h"
-#include "curvefs/test/client/mock_inode_cache_manager.h"
-#include "curvefs/test/client/mock_dentry_cache_mamager.h"
+#include "curvefs/test/client/mock_inode_manager.h"
+#include "curvefs/test/client/mock_dentry_mamager.h"
 
 namespace curvefs {
 namespace client {

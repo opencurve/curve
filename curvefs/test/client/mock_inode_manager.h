@@ -20,8 +20,8 @@
  * Author: xuchaojie
  */
 
-#ifndef CURVEFS_TEST_CLIENT_MOCK_INODE_CACHE_MANAGER_H_
-#define CURVEFS_TEST_CLIENT_MOCK_INODE_CACHE_MANAGER_H_
+#ifndef CURVEFS_TEST_CLIENT_MOCK_INODE_MANAGER_H_
+#define CURVEFS_TEST_CLIENT_MOCK_INODE_MANAGER_H_
 
 #include <gmock/gmock.h>
 #include <cstdint>
@@ -30,7 +30,7 @@
 #include <list>
 #include <map>
 
-#include "curvefs/src/client/inode_cache_manager.h"
+#include "curvefs/src/client/inode_manager.h"
 
 namespace curvefs {
 namespace client {
@@ -77,4 +77,4 @@ class MockInodeCacheManager : public InodeCacheManager {
 }  // namespace curvefs
 
 
-#endif  // CURVEFS_TEST_CLIENT_MOCK_INODE_CACHE_MANAGER_H_
+#endif  // CURVEFS_TEST_CLIENT_MOCK_INODE_MANAGER_H_

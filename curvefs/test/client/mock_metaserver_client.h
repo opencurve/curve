@@ -55,18 +55,19 @@ class MockMetaServerClient : public MetaServerClient {
 
     MOCK_METHOD2(SetTxId, void(uint32_t partitionId, uint64_t txId));
 
-    MOCK_METHOD4(GetDentry, MetaStatusCode(uint32_t fsId, uint64_t inodeid,
-                  const std::string &name, Dentry *out));
+    MOCK_METHOD(MetaStatusCode, GetDentry, (uint32_t fsId, uint64_t inodeid,
+        const std::string &name, Dentry *out, TxLock* txLockOut), (override));
 
-    MOCK_METHOD6(ListDentry, MetaStatusCode(uint32_t fsId, uint64_t inodeid,
+    MOCK_METHOD(MetaStatusCode, ListDentry, (uint32_t fsId, uint64_t inodeid,
             const std::string &last, uint32_t count, bool onlyDir,
-            std::list<Dentry> *dentryList));
+            std::list<Dentry> *dentryList, TxLock* txLockOut), (override));
 
-    MOCK_METHOD1(CreateDentry, MetaStatusCode(const Dentry &dentry));
+    MOCK_METHOD(MetaStatusCode, CreateDentry, (
+        const Dentry &dentry, TxLock* txLockOut), (override));
 
-    MOCK_METHOD4(DeleteDentry, MetaStatusCode(
+    MOCK_METHOD(MetaStatusCode, DeleteDentry, (
             uint32_t fsId, uint64_t inodeid, const std::string &name,
-            FsFileType type));
+            FsFileType type, TxLock* txLockOut), (override));
 
     MOCK_METHOD1(PrepareRenameTx,
                  MetaStatusCode(const std::vector<Dentry>& dentrys));
@@ -161,6 +162,23 @@ class MockMetaServerClient : public MetaServerClient {
     MOCK_METHOD3(UpdateDeallocatableBlockGroup,
                  MetaStatusCode(uint32_t, uint64_t,
                                 DeallocatableBlockGroupMap *));
+
+    MOCK_METHOD(MetaStatusCode, PrewriteRenameTx,
+        (const std::vector<Dentry>& dentrys,
+        const TxLock& txLockIn, TxLock* txLockOut), (override));
+
+    MOCK_METHOD(MetaStatusCode, CheckTxStatus, (uint32_t fsId, uint64_t inodeId,
+        const std::string& primaryKey, uint64_t startTs, uint64_t curTimestamp),
+        (override));
+
+    MOCK_METHOD(MetaStatusCode, ResolveTxLock, (const Dentry& dentry,
+        uint64_t startTs, uint64_t commitTs), (override));
+
+    MOCK_METHOD(MetaStatusCode, CommitTx, (const std::vector<Dentry>& dentrys,
+        uint64_t startTs, uint64_t commitTs), (override));
+
+    MOCK_METHOD(bool, GetPartitionId, (uint32_t fsId, uint64_t inodeId,
+        PartitionID *partitionId), (override));
 };
 
 }  // namespace rpcclient

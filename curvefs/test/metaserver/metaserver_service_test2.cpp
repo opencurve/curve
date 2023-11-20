@@ -92,6 +92,10 @@ TEST_F(MetaServerServiceTest2, ServiceOverload) {
     TEST_SERVICE_OVERLOAD(CreatePartition);
     TEST_SERVICE_OVERLOAD(DeletePartition);
     TEST_SERVICE_OVERLOAD(PrepareRenameTx);
+    TEST_SERVICE_OVERLOAD(PrewriteRenameTx);
+    TEST_SERVICE_OVERLOAD(CheckTxStatus);
+    TEST_SERVICE_OVERLOAD(ResolveTxLock);
+    TEST_SERVICE_OVERLOAD(CommitTx);
     TEST_SERVICE_OVERLOAD(GetVolumeExtent);
     TEST_SERVICE_OVERLOAD(UpdateVolumeExtent);
     TEST_SERVICE_OVERLOAD(UpdateDeallocatableBlockGroup);
@@ -130,6 +134,10 @@ TEST_F(MetaServerServiceTest2, CopysetNodeNotFound) {
     TEST_COPYSETNODE_NOTFOUND(CreatePartition);
     TEST_COPYSETNODE_NOTFOUND(DeletePartition);
     TEST_COPYSETNODE_NOTFOUND(PrepareRenameTx);
+    TEST_COPYSETNODE_NOTFOUND(PrewriteRenameTx);
+    TEST_COPYSETNODE_NOTFOUND(CheckTxStatus);
+    TEST_COPYSETNODE_NOTFOUND(ResolveTxLock);
+    TEST_COPYSETNODE_NOTFOUND(CommitTx);
     TEST_COPYSETNODE_NOTFOUND(GetVolumeExtent);
     TEST_COPYSETNODE_NOTFOUND(UpdateVolumeExtent);
     TEST_COPYSETNODE_NOTFOUND(UpdateDeallocatableBlockGroup);

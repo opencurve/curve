@@ -45,8 +45,12 @@ using curvefs::metaserver::BatchGetInodeAttrRequest;
 using curvefs::metaserver::BatchGetInodeAttrResponse;
 using curvefs::metaserver::BatchGetXAttrRequest;
 using curvefs::metaserver::BatchGetXAttrResponse;
+using curvefs::metaserver::CheckTxStatusRequest;
+using curvefs::metaserver::CheckTxStatusResponse;
 using curvefs::metaserver::GetOrModifyS3ChunkInfoRequest;
 using curvefs::metaserver::GetOrModifyS3ChunkInfoResponse;
+using curvefs::metaserver::ResolveTxLockRequest;
+using curvefs::metaserver::ResolveTxLockResponse;
 
 namespace curvefs {
 namespace client {
@@ -56,6 +60,10 @@ using GetDentryExcutor = TaskExecutor;
 using ListDentryExcutor = TaskExecutor;
 using DeleteDentryExcutor = TaskExecutor;
 using PrepareRenameTxExcutor = TaskExecutor;
+using PrewriteRenameTxExcutor = TaskExecutor;
+using CheckTxStatusExcutor = TaskExecutor;
+using ResolveTxLockExcutor = TaskExecutor;
+using CommitTxExcutor = TaskExecutor;
 using DeleteInodeExcutor = TaskExecutor;
 using UpdateInodeExcutor = TaskExecutor;
 using GetInodeExcutor = TaskExecutor;
@@ -119,9 +127,15 @@ void MetaServerClientImpl::SetTxId(uint32_t partitionId, uint64_t txId) {
     metaCache_->SetTxId(partitionId, txId);
 }
 
+bool MetaServerClientImpl::GetPartitionId(uint32_t fsId, uint64_t inodeId,
+    PartitionID *partitionId) {
+    return metaCache_->GetPartitionIdByInodeId(fsId, inodeId, partitionId);
+}
+
 MetaStatusCode MetaServerClientImpl::GetDentry(uint32_t fsId, uint64_t inodeid,
                                                const std::string &name,
-                                               Dentry *out) {
+                                               Dentry *out,
+                                               TxLock* txLockOut) {
     auto task = RPCTask {
         (void)taskExecutorDone;
         metric_.getDentry.qps.count << 1;
@@ -150,6 +164,9 @@ MetaStatusCode MetaServerClientImpl::GetDentry(uint32_t fsId, uint64_t inodeid,
         MetaStatusCode ret = response.statuscode();
 
         if (ret != MetaStatusCode::OK) {
+            if (ret == MetaStatusCode::TX_KEY_LOCKED) {
+                *txLockOut = response.txlock();
+            }
             LOG_IF(WARNING, ret != MetaStatusCode::NOT_FOUND)
                 << "GetDentry: fsId = " << fsId << ", inodeid = " << inodeid
                 << ", name = " << name << ", errcode = " << ret
@@ -171,8 +188,7 @@ MetaStatusCode MetaServerClientImpl::GetDentry(uint32_t fsId, uint64_t inodeid,
     };
 
     auto taskCtx = std::make_shared<TaskContext>(MetaServerOpType::GetDentry,
-                                                 task, fsId, inodeid, false,
-                                                 opt_.enableRenameParallel);
+        task, fsId, inodeid, false, opt_.enableRenameParallel);
     GetDentryExcutor excutor(opt_, metaCache_, channelManager_,
                              std::move(taskCtx));
     return ConvertToMetaStatusCode(excutor.DoRPCTask());
@@ -181,7 +197,8 @@ MetaStatusCode MetaServerClientImpl::GetDentry(uint32_t fsId, uint64_t inodeid,
 MetaStatusCode MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
                                                 const std::string &last,
                                                 uint32_t count, bool onlyDir,
-                                                std::list<Dentry> *dentryList) {
+                                                std::list<Dentry> *dentryList,
+                                                TxLock* txLockOut) {
     auto task = RPCTask {
         (void)taskExecutorDone;
         metric_.listDentry.qps.count << 1;
@@ -212,6 +229,9 @@ MetaStatusCode MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
 
         MetaStatusCode ret = response.statuscode();
         if (ret != MetaStatusCode::OK) {
+            if (ret == MetaStatusCode::TX_KEY_LOCKED) {
+                *txLockOut = response.txlock();
+            }
             LOG(WARNING) << "ListDentry: fsId = " << fsId
                          << ", inodeid = " << inodeid << ", last = " << last
                          << ", count = " << count << ", onlyDir = " << onlyDir
@@ -229,14 +249,14 @@ MetaStatusCode MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
     };
 
     auto taskCtx = std::make_shared<TaskContext>(MetaServerOpType::ListDentry,
-                                                 task, fsId, inodeid, false,
-                                                 opt_.enableRenameParallel);
+        task, fsId, inodeid, false, opt_.enableRenameParallel);
     ListDentryExcutor excutor(opt_, metaCache_, channelManager_,
                               std::move(taskCtx));
     return ConvertToMetaStatusCode(excutor.DoRPCTask());
 }
 
-MetaStatusCode MetaServerClientImpl::CreateDentry(const Dentry &dentry) {
+MetaStatusCode MetaServerClientImpl::CreateDentry(
+    const Dentry &dentry, TxLock* txLockOut) {
     auto task = RPCTask {
         (void)taskExecutorDone;
         metric_.createDentry.qps.count << 1;
@@ -274,7 +294,11 @@ MetaStatusCode MetaServerClientImpl::CreateDentry(const Dentry &dentry) {
         }
 
         MetaStatusCode ret = response.statuscode();
+
         if (ret != MetaStatusCode::OK) {
+            if (ret == MetaStatusCode::TX_KEY_LOCKED) {
+                *txLockOut = response.txlock();
+            }
             LOG(WARNING) << "CreateDentry:  dentry = " << dentry.DebugString()
                          << ", errcode = " << ret
                          << ", errmsg = " << MetaStatusCode_Name(ret);
@@ -298,9 +322,8 @@ MetaStatusCode MetaServerClientImpl::CreateDentry(const Dentry &dentry) {
 }
 
 MetaStatusCode MetaServerClientImpl::DeleteDentry(uint32_t fsId,
-                                                  uint64_t inodeid,
-                                                  const std::string &name,
-                                                  FsFileType type) {
+    uint64_t inodeid, const std::string &name, FsFileType type,
+    TxLock* txLockOut) {
     auto task = RPCTask {
         (void)taskExecutorDone;
         metric_.deleteDentry.qps.count << 1;
@@ -330,6 +353,9 @@ MetaStatusCode MetaServerClientImpl::DeleteDentry(uint32_t fsId,
 
         MetaStatusCode ret = response.statuscode();
         if (ret != MetaStatusCode::OK) {
+            if (ret == MetaStatusCode::TX_KEY_LOCKED) {
+                *txLockOut = response.txlock();
+            }
             LOG(WARNING) << "DeleteDentry:  fsid = " << fsId
                          << ", inodeid = " << inodeid << ", name = " << name
                          << ", errcode = " << ret
@@ -342,22 +368,21 @@ MetaStatusCode MetaServerClientImpl::DeleteDentry(uint32_t fsId,
     };
 
     auto taskCtx = std::make_shared<TaskContext>(MetaServerOpType::DeleteDentry,
-                                                 task, fsId, inodeid, false,
-                                                 opt_.enableRenameParallel);
+        task, fsId, inodeid, false, opt_.enableRenameParallel);
     DeleteDentryExcutor excutor(opt_, metaCache_, channelManager_,
                                 std::move(taskCtx));
     return ConvertToMetaStatusCode(excutor.DoRPCTask());
 }
 
-MetaStatusCode
-MetaServerClientImpl::PrepareRenameTx(const std::vector<Dentry> &dentrys) {
+MetaStatusCode MetaServerClientImpl::PrepareRenameTx(
+    const std::vector<Dentry> &dentrys) {
     auto task = RPCTask {
         (void)txId;
         (void)taskExecutorDone;
         metric_.prepareRenameTx.qps.count << 1;
         LatencyUpdater updater(&metric_.prepareRenameTx.latency);
-        PrepareRenameTxRequest request;
-        PrepareRenameTxResponse response;
+        curvefs::metaserver::PrepareRenameTxRequest request;
+        curvefs::metaserver::PrepareRenameTxResponse response;
         request.set_poolid(poolID);
         request.set_copysetid(copysetID);
         request.set_partitionid(partitionID);
@@ -392,6 +417,167 @@ MetaServerClientImpl::PrepareRenameTx(const std::vector<Dentry> &dentrys) {
         MetaServerOpType::PrepareRenameTx, task, fsId, inodeId);
     PrepareRenameTxExcutor excutor(opt_, metaCache_, channelManager_,
                                    std::move(taskCtx));
+    return ConvertToMetaStatusCode(excutor.DoRPCTask());
+}
+
+MetaStatusCode MetaServerClientImpl::PrewriteRenameTx(
+    const std::vector<Dentry>& dentrys,
+    const TxLock& txLockIn, TxLock* txLockOut) {
+    auto task = RPCTask {
+        (void)txId;
+        (void)taskExecutorDone;
+        metric_.prewriteRenameTx.qps.count << 1;
+        LatencyUpdater updater(&metric_.prewriteRenameTx.latency);
+        PrewriteRenameTxRequest request;
+        PrewriteRenameTxResponse response;
+        request.set_poolid(poolID);
+        request.set_copysetid(copysetID);
+        request.set_partitionid(partitionID);
+        *request.mutable_dentrys() = {dentrys.begin(), dentrys.end()};
+        *request.mutable_txlock() = txLockIn;
+
+        curvefs::metaserver::MetaServerService_Stub stub(channel);
+        stub.PrewriteRenameTx(cntl, &request, &response, nullptr);
+
+        if (cntl->Failed()) {
+            metric_.prewriteRenameTx.eps.count << 1;
+            LOG(WARNING) << "PrewriteRenameTx Failed, errorcode = "
+                         << cntl->ErrorCode()
+                         << ", error content:" << cntl->ErrorText()
+                         << ", request = " << request.DebugString()
+                         << ", log id = " << cntl->log_id();
+            return -cntl->ErrorCode();
+        }
+
+        MetaStatusCode ret = response.statuscode();
+        if (ret != MetaStatusCode::OK) {
+            LOG(WARNING) << "PrewriteRenameTx: ret = " << ret
+                         << ", errmsg = " << MetaStatusCode_Name(ret);
+        } else {
+            *txLockOut = response.txlock();
+        }
+
+        VLOG(6) << "PrewriteRenameTx done, request: " << request.DebugString()
+                << "response: " << response.DebugString();
+        return ret;
+    };
+    auto taskCtx = std::make_shared<TaskContext>(
+        MetaServerOpType::PrewriteRenameTx, task, dentrys[0].fsid(),
+        dentrys[0].parentinodeid());
+    PrewriteRenameTxExcutor excutor(opt_, metaCache_, channelManager_,
+                                    std::move(taskCtx));
+    return ConvertToMetaStatusCode(excutor.DoRPCTask());
+}
+
+MetaStatusCode MetaServerClientImpl::CheckTxStatus(uint32_t fsId,
+    uint64_t inodeId, const std::string& primaryKey, uint64_t startTs,
+    uint64_t curTimestamp) {
+    auto task = RPCTask {
+        (void)txId;
+        (void)taskExecutorDone;
+        metric_.checkTxStatus.qps.count << 1;
+        LatencyUpdater updater(&metric_.checkTxStatus.latency);
+        CheckTxStatusRequest request;
+        CheckTxStatusResponse response;
+        request.set_poolid(poolID);
+        request.set_copysetid(copysetID);
+        request.set_partitionid(partitionID);
+        request.set_primarykey(primaryKey);
+        request.set_startts(startTs);
+        request.set_curtimestamp(curTimestamp);
+
+        curvefs::metaserver::MetaServerService_Stub stub(channel);
+        stub.CheckTxStatus(cntl, &request, &response, nullptr);
+
+        if (cntl->Failed()) {
+            metric_.checkTxStatus.eps.count << 1;
+            LOG(WARNING) << "CheckTxStatus failed"
+                         << ", errorCode = " << cntl->ErrorCode()
+                         << ", errorText = " << cntl->ErrorText()
+                         << ", request = " << request.DebugString()
+                         << ", logId = " << cntl->log_id();
+            return -cntl->ErrorCode();
+        }
+
+        return response.statuscode();
+    };
+    auto taskCtx = std::make_shared<TaskContext>(
+        MetaServerOpType::CheckTxStatus, task, fsId, inodeId);
+    CheckTxStatusExcutor excutor(
+        opt_, metaCache_, channelManager_, std::move(taskCtx));
+    return ConvertToMetaStatusCode(excutor.DoRPCTask());
+}
+
+MetaStatusCode MetaServerClientImpl::ResolveTxLock(const Dentry& dentry,
+    uint64_t startTs, uint64_t commitTs) {
+    auto task = RPCTask {
+        (void)txId;
+        (void)taskExecutorDone;
+        metric_.resolveTxLock.qps.count << 1;
+        LatencyUpdater updater(&metric_.resolveTxLock.latency);
+        ResolveTxLockRequest request;
+        ResolveTxLockResponse response;
+        request.set_poolid(poolID);
+        request.set_copysetid(copysetID);
+        request.set_partitionid(partitionID);
+        *request.mutable_dentry() = dentry;
+        request.set_startts(startTs);
+        request.set_committs(commitTs);
+
+        curvefs::metaserver::MetaServerService_Stub stub(channel);
+        stub.ResolveTxLock(cntl, &request, &response, nullptr);
+
+        if (cntl->Failed()) {
+            metric_.resolveTxLock.eps.count << 1;
+            LOG(WARNING) << "ResolveTxLock failed"
+                         << ", errorCode = " << cntl->ErrorCode()
+                         << ", errorText = " << cntl->ErrorText()
+                         << ", logId = " << cntl->log_id();
+            return -cntl->ErrorCode();
+        }
+        return response.statuscode();
+    };
+    auto taskCtx =
+        std::make_shared<TaskContext>(MetaServerOpType::ResolveTxLock, task,
+            dentry.fsid(), dentry.parentinodeid());
+    ResolveTxLockExcutor excutor(
+        opt_, metaCache_, channelManager_, std::move(taskCtx));
+    return ConvertToMetaStatusCode(excutor.DoRPCTask());
+}
+
+MetaStatusCode MetaServerClientImpl::CommitTx(
+    const std::vector<Dentry>& dentrys, uint64_t startTs, uint64_t commitTs) {
+    auto task = RPCTask {
+        (void)txId;
+        (void)taskExecutorDone;
+        metric_.commitTx.qps.count << 1;
+        LatencyUpdater updater(&metric_.commitTx.latency);
+        curvefs::metaserver::CommitTxRequest request;
+        curvefs::metaserver::CommitTxResponse response;
+        request.set_poolid(poolID);
+        request.set_copysetid(copysetID);
+        request.set_partitionid(partitionID);
+        *request.mutable_dentrys() = {dentrys.begin(), dentrys.end()};
+        request.set_startts(startTs);
+        request.set_committs(commitTs);
+
+        curvefs::metaserver::MetaServerService_Stub stub(channel);
+        stub.CommitTx(cntl, &request, &response, nullptr);
+
+        if (cntl->Failed()) {
+            metric_.commitTx.eps.count << 1;
+            LOG(WARNING) << "CommitTx failed"
+                         << ", errorCode = " << cntl->ErrorCode()
+                         << ", errorText = " << cntl->ErrorText()
+                         << ", logId = " << cntl->log_id();
+            return -cntl->ErrorCode();
+        }
+        return response.statuscode();
+    };
+    auto taskCtx = std::make_shared<TaskContext>(MetaServerOpType::CommitTx,
+        task, dentrys[0].fsid(), dentrys[0].parentinodeid());
+    CommitTxExcutor excutor(
+        opt_, metaCache_, channelManager_, std::move(taskCtx));
     return ConvertToMetaStatusCode(excutor.DoRPCTask());
 }
 

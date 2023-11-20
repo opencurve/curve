@@ -21,8 +21,8 @@
  * Author: xuchaojie
  */
 
-#ifndef CURVEFS_SRC_CLIENT_DENTRY_CACHE_MANAGER_H_
-#define CURVEFS_SRC_CLIENT_DENTRY_CACHE_MANAGER_H_
+#ifndef CURVEFS_SRC_CLIENT_DENTRY_MANAGER_H_
+#define CURVEFS_SRC_CLIENT_DENTRY_MANAGER_H_
 
 #include <cstdint>
 #include <memory>
@@ -33,6 +33,7 @@
 #include <utility>
 
 #include "curvefs/src/client/rpcclient/metaserver_client.h"
+#include "curvefs/src/client/rpcclient/mds_client.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/concurrent/name_lock.h"
 #include "curvefs/src/client/filesystem/error.h"
@@ -44,6 +45,7 @@ namespace client {
 
 using rpcclient::MetaServerClient;
 using rpcclient::MetaServerClientImpl;
+using rpcclient::MdsClient;
 using ::curvefs::client::filesystem::CURVEFS_ERROR;
 
 static const char* kDentryKeyDelimiter = ":";
@@ -56,6 +58,8 @@ class DentryCacheManager {
     void SetFsId(uint32_t fsId) {
         fsId_ = fsId;
     }
+
+    virtual void Init(std::shared_ptr<MdsClient> mdsClient) = 0;
 
     virtual CURVEFS_ERROR GetDentry(uint64_t parent,
         const std::string &name, Dentry *out) = 0;
@@ -70,6 +74,9 @@ class DentryCacheManager {
         std::list<Dentry> *dentryList, uint32_t limit,
         bool onlyDir = false, uint32_t nlink = 0) = 0;
 
+    virtual MetaStatusCode CheckAndResolveTx(const Dentry& dentry,
+        const TxLock& txLock, uint64_t timestamp, uint64_t commitTs) = 0;
+
  protected:
     uint32_t fsId_;
 };
@@ -82,6 +89,10 @@ class DentryCacheManagerImpl : public DentryCacheManager {
     explicit DentryCacheManagerImpl(
         const std::shared_ptr<MetaServerClient> &metaClient)
       : metaClient_(metaClient) {}
+
+    void Init(std::shared_ptr<MdsClient> mdsClient) override {
+        mdsClient_ = mdsClient;
+    }
 
     CURVEFS_ERROR GetDentry(uint64_t parent,
         const std::string &name, Dentry *out) override;
@@ -96,11 +107,22 @@ class DentryCacheManagerImpl : public DentryCacheManager {
         std::list<Dentry> *dentryList, uint32_t limit,
         bool dirOnly = false, uint32_t nlink = 0) override;
 
+    MetaStatusCode CheckAndResolveTx(const Dentry& dentry, const TxLock& txLock,
+        uint64_t timestamp, uint64_t commitTs) override;
+
     std::string GetDentryCacheKey(uint64_t parent, const std::string &name) {
         return std::to_string(parent) + kDentryKeyDelimiter + name;
     }
 
  private:
+    MetaStatusCode CheckTxStatus(const std::string primaryKey, uint64_t startTs,
+        uint64_t curTimestamp);
+
+    MetaStatusCode ResolveTxLock(const Dentry& dentry, uint64_t startTs,
+        uint64_t commitTs = 0);
+
+ private:
+    std::shared_ptr<MdsClient> mdsClient_;
     std::shared_ptr<MetaServerClient> metaClient_;
     curve::common::GenericNameLock<Mutex> nameLock_;
 };
@@ -108,4 +130,4 @@ class DentryCacheManagerImpl : public DentryCacheManager {
 }  // namespace client
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_CLIENT_DENTRY_CACHE_MANAGER_H_
+#endif  // CURVEFS_SRC_CLIENT_DENTRY_MANAGER_H_

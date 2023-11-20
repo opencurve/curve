@@ -34,18 +34,18 @@ namespace curvefs {
 namespace mds {
 namespace topology {
 
-using curvefs::mds::POOLKEYPREFIX;
-using curvefs::mds::POOLKEYEND;
-using curvefs::mds::ZONEKEYPREFIX;
-using curvefs::mds::ZONEKEYEND;
-using curvefs::mds::SERVERKEYPREFIX;
-using curvefs::mds::SERVERKEYEND;
-using curvefs::mds::METASERVERKEYPREFIX;
-using curvefs::mds::METASERVERKEYEND;
-using curvefs::mds::CLUSTERINFOKEY;
-using curvefs::mds::COPYSETKEYPREFIX;
-using curvefs::mds::COPYSETKEYEND;
 using curve::common::EncodeBigEndian;
+using curvefs::mds::CLUSTER_KEY;
+using curvefs::mds::COPYSET_KEY_END;
+using curvefs::mds::COPYSET_KEY_PREFIX;
+using curvefs::mds::METASERVER_KEY_END;
+using curvefs::mds::METASERVER_KEY_PREFIX;
+using curvefs::mds::POOL_KEY_END;
+using curvefs::mds::POOL_KEY_PREFIX;
+using curvefs::mds::SERVER_KEY_END;
+using curvefs::mds::SERVER_KEY_PREFIX;
+using curvefs::mds::ZONE_KEY_END;
+using curvefs::mds::ZONE_KEY_PREFIX;
 
 class TopologyStorageCodec {
  public:

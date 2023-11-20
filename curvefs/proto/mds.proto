@@ -244,6 +244,14 @@ message SetClientMdsAddrsOverrideResponse {
     required FSStatusCode statusCode = 1;
 }
 
+message TsoRequest {}
+
+message TsoResponse {
+    required FSStatusCode statusCode = 1;
+    optional uint64 ts = 2;  // transaction sequence number
+    optional uint64 timestamp = 3;
+}
+
 service MdsService {
     // fs interface
     rpc CreateFs(CreateFsRequest) returns (CreateFsResponse);
@@ -258,6 +266,8 @@ service MdsService {
 
     rpc GetLatestTxId(GetLatestTxIdRequest) returns (GetLatestTxIdResponse);
     rpc CommitTx(CommitTxRequest) returns (CommitTxResponse);
+
+    rpc Tso(TsoRequest) returns (TsoResponse);
 
     // client lease
     rpc RefreshSession(RefreshSessionRequest) returns (RefreshSessionResponse);

@@ -68,6 +68,14 @@ const char* OperatorTypeName(OperatorType type) {
             return "UpdateVolumeExtent";
         case OperatorType::UpdateDeallocatableBlockGroup:
             return "UpdateDeallocatableBlockGroup";
+        case OperatorType::PrewriteRenameTx:
+            return "PrewriteRenameTx";
+        case OperatorType::CheckTxStatus:
+            return "CheckTxStatus";
+        case OperatorType::ResolveTxLock:
+            return "ResolveTxLock";
+        case OperatorType::CommitTx:
+            return "CommitTx";
         // Add new case before `OperatorType::OperatorTypeMax`
         case OperatorType::OperatorTypeMax:
             break;

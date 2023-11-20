@@ -31,7 +31,7 @@
 
 #include "absl/meta/type_traits.h"
 #include "curvefs/src/client/filesystem/error.h"
-#include "curvefs/src/client/inode_cache_manager.h"
+#include "curvefs/src/client/inode_manager.h"
 #include "curvefs/src/client/inode_wrapper.h"
 #include "curvefs/src/client/volume/extent_cache.h"
 #include "curvefs/src/client/volume/utils.h"

@@ -20,18 +20,22 @@
  * Author: Jingli Chen (Wine93)
  */
 
+#include "curvefs/src/client/client_operator.h"
+
 #include <list>
 
-#include "src/common/uuid.h"
-#include "curvefs/src/client/client_operator.h"
 #include "curvefs/src/client/filesystem/error.h"
+#include "curvefs/src/metaserver/storage/converter.h"
+#include "src/common/uuid.h"
 namespace curvefs {
 namespace client {
 
 using ::curve::common::UUIDGenerator;
-using ::curvefs::metaserver::DentryFlag;
-using ::curvefs::mds::topology::PartitionTxId;
 using ::curvefs::client::filesystem::ToFSError;
+using ::curvefs::mds::topology::PartitionTxId;
+using ::curvefs::metaserver::DentryFlag;
+using ::curvefs::metaserver::TxLock;
+using ::curvefs::metaserver::storage::Key4Dentry;
 
 #define LOG_ERROR(action, rc) \
     LOG(ERROR) << action << " failed, retCode = " << rc \
@@ -60,6 +64,7 @@ RenameOperator::RenameOperator(uint32_t fsId,
       dstTxId_(0),
       oldInodeId_(0),
       oldInodeSize_(-1),
+      startTs_(0),
       dentryManager_(dentryManager),
       inodeManager_(inodeManager),
       metaClient_(metaClient),
@@ -77,6 +82,7 @@ std::string RenameOperator::DebugString() {
        << ", srcPartitionId = " << srcPartitionId_
        << ", dstPartitionId = " << dstPartitionId_
        << ", srcTxId = " << srcTxId_ << ", dstTxId_ = " << dstTxId_
+       << ", startTs = " << startTs_
        << ", oldInodeId = " << oldInodeId_
        << ", srcDentry = [" << srcDentry_.ShortDebugString() << "]"
        << ", dstDentry = [" << dstDentry_.ShortDebugString() << "]"
@@ -194,7 +200,6 @@ CURVEFS_ERROR RenameOperator::RecordOldInodeInfo() {
             return CURVEFS_ERROR::NOT_EXIST;
         }
     }
-
     return CURVEFS_ERROR::OK;
 }
 
@@ -204,7 +209,6 @@ CURVEFS_ERROR RenameOperator::PrepareRenameTx(
     if (rc != MetaStatusCode::OK) {
         LOG_ERROR("PrepareRenameTx", rc);
     }
-
     return ToFSError(rc);
 }
 
@@ -267,6 +271,118 @@ CURVEFS_ERROR RenameOperator::CommitTx() {
     }
     if (rc != FSStatusCode::OK) {
         LOG_ERROR("CommitTx", rc);
+        return CURVEFS_ERROR::INTERNAL;
+    }
+    return CURVEFS_ERROR::OK;
+}
+
+CURVEFS_ERROR RenameOperator::PrewriteRenameTx(
+    const std::vector<Dentry>& dentrys, const TxLock& txLockIn) {
+    TxLock txLockOut;
+    uint32_t dcount = 0;
+    auto rc = metaClient_->PrewriteRenameTx(dentrys, txLockIn, &txLockOut);
+    while (rc == MetaStatusCode::TX_KEY_LOCKED) {
+        dcount += txLockOut.index();
+        auto rt = dentryManager_->CheckAndResolveTx(dentrys[dcount],
+            txLockOut, txLockIn.timestamp(), txLockIn.startts());
+        if (rt != MetaStatusCode::OK) {
+            LOG_ERROR("CheckAndResolveTx", rt);
+            return CURVEFS_ERROR::INTERNAL;
+        }
+        if (dcount < dentrys.size()) {
+            rc = metaClient_->PrewriteRenameTx(std::vector<Dentry>(
+                dentrys.begin() + dcount, dentrys.end()),
+                txLockIn, &txLockOut);
+        } else {
+            break;
+        }
+    }
+    if (rc != MetaStatusCode::OK) {
+        LOG_ERROR("PrewriteRenameTx", rc);
+        return CURVEFS_ERROR::INTERNAL;
+    }
+    return CURVEFS_ERROR::OK;
+}
+
+CURVEFS_ERROR RenameOperator::PrewriteTx() {
+    uint64_t timestamp;
+    auto rc = mdsClient_->Tso(&startTs_, &timestamp);
+    if (rc != FSStatusCode::OK) {
+        LOG_ERROR("start Tso", rc);
+        return CURVEFS_ERROR::INTERNAL;
+    }
+
+    dentry_ = Dentry(srcDentry_);
+    dentry_.set_flag(DentryFlag::DELETE_MARK_FLAG);
+    dentry_.set_type(srcDentry_.type());
+    dentry_.set_txid(startTs_);
+
+    newDentry_ = Dentry(srcDentry_);
+    newDentry_.set_parentinodeid(newParentId_);
+    newDentry_.set_name(newname_);
+    newDentry_.set_type(srcDentry_.type());
+    newDentry_.set_txid(startTs_);
+
+    Key4Dentry key4Dentry(
+        dentry_.fsid(), dentry_.parentinodeid(), dentry_.name());
+    std::string primaryKey = key4Dentry.SerializeToString();
+
+    TxLock txLockIn;
+    txLockIn.set_primarykey(primaryKey);
+    txLockIn.set_startts(startTs_);
+    txLockIn.set_timestamp(timestamp);
+
+    if (!metaClient_->GetPartitionId(dentry_.fsid(), dentry_.parentinodeid(),
+        &srcPartitionId_) || !metaClient_->GetPartitionId(newDentry_.fsid(),
+        newDentry_.parentinodeid(), &dstPartitionId_)) {
+        LOG_ERROR("GetPartitionId", rc);
+        return CURVEFS_ERROR::INTERNAL;
+    }
+
+    // note: do not prewrite concurrently, the tx write table clear logic based primary key prewrite first  // NOLINT
+    CURVEFS_ERROR rt = CURVEFS_ERROR::OK;
+    std::vector<Dentry> dentrys{dentry_};
+    if (srcPartitionId_ == dstPartitionId_) {
+        dentrys.push_back(newDentry_);
+        rt = PrewriteRenameTx(dentrys, txLockIn);
+    } else {
+        rt = PrewriteRenameTx(dentrys, txLockIn);
+        if (rt == CURVEFS_ERROR::OK) {
+            dentrys[0] = newDentry_;
+            rt = PrewriteRenameTx(dentrys, txLockIn);
+        }
+    }
+    if (rt != CURVEFS_ERROR::OK) {
+        LOG_ERROR("PrepPrewriteTxareTx", rc);
+        return rt;
+    }
+    return CURVEFS_ERROR::OK;
+}
+
+CURVEFS_ERROR RenameOperator::CommitTxV2() {
+    uint64_t commitTs;
+    uint64_t timestamp;
+    auto rc = mdsClient_->Tso(&commitTs, &timestamp);
+    if (rc != FSStatusCode::OK) {
+        LOG_ERROR("CommitTxV2 Tso", rc);
+        return CURVEFS_ERROR::INTERNAL;
+    }
+
+    MetaStatusCode rt = MetaStatusCode::OK;
+    std::vector<Dentry> dentrys{dentry_};
+    if (srcPartitionId_ == dstPartitionId_) {
+        dentrys.push_back(newDentry_);
+        rt = metaClient_->CommitTx(dentrys, startTs_, commitTs);
+    } else {
+        rt = metaClient_->CommitTx(dentrys, startTs_, commitTs);
+        if (rt == MetaStatusCode::OK) {
+            dentrys[0] = newDentry_;
+            // do not need check second key commit result
+            metaClient_->CommitTx(dentrys, startTs_, commitTs);
+        }
+    }
+    if (rt != MetaStatusCode::OK) {
+        LOG_ERROR("CommitTx", rt);
         return CURVEFS_ERROR::INTERNAL;
     }
     return CURVEFS_ERROR::OK;
@@ -413,8 +529,6 @@ CURVEFS_ERROR RenameOperator::UpdateInodeCtime() {
         LOG_ERROR("UpdateInodeCtime", rc);
         return rc;
     }
-
-    LOG(INFO) << "UpdateInodeCtime inodeid = " << srcDentry_.inodeid();
     return rc;
 }
 

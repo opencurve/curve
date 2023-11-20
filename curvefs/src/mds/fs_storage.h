@@ -37,6 +37,7 @@
 #include "src/common/concurrent/rw_lock.h"
 #include "src/idgenerator/etcd_id_generator.h"
 #include "src/kvstorageclient/etcd_client.h"
+#include "curvefs/src/mds/idgenerator/ts_id_generator.h"
 
 namespace curvefs {
 namespace mds {
@@ -76,6 +77,8 @@ class FsStorage {
     virtual FSStatusCode GetFsUsage(
         const std::string& fsName, FsUsage* fsUsage, bool fromCache) = 0;
     virtual FSStatusCode DeleteFsUsage(const std::string& fsName) = 0;
+
+    virtual FSStatusCode Tso(uint64_t* ts, uint64_t* timestamp) = 0;
 };
 
 class MemoryFsStorage : public FsStorage {
@@ -182,6 +185,8 @@ class MemoryFsStorage : public FsStorage {
         const std::string& fsName, FsUsage*, bool fromCache) override;
     FSStatusCode DeleteFsUsage(const std::string& fsName) override;
 
+    FSStatusCode Tso(uint64_t* ts, uint64_t* timestamp) override;
+
  private:
     std::unordered_map<std::string, FsInfoWrapper> fsInfoMap_;
     curve::common::RWLock rwLock_;
@@ -190,6 +195,8 @@ class MemoryFsStorage : public FsStorage {
 
     std::unordered_map<std::string, curvefs::mds::FsUsage> fsUsageMap_;
     curve::common::RWLock fsUsedUsageLock_;
+
+    std::atomic<uint64_t> tsId_;
 };
 
 // Persist all data to kvstorage and cache all fsinfo in memory
@@ -225,6 +232,8 @@ class PersisKVStorage : public FsStorage {
         const std::string& fsName, FsUsage*, bool fromCache) override;
     FSStatusCode DeleteFsUsage(const std::string& fsName) override;
 
+    FSStatusCode Tso(uint64_t* ts, uint64_t* timestamp) override;
+
  private:
     bool LoadAllFs();
 
@@ -259,6 +268,8 @@ class PersisKVStorage : public FsStorage {
     // fs usage cache map
     std::unordered_map<std::string, curvefs::mds::FsUsage> fsUsageCache_;
     mutable RWLock fsUsageCacheMutex_;
+
+    std::unique_ptr<TsIdGenerator> tsIdGen_;
 };
 
 }  // namespace mds

@@ -87,7 +87,8 @@ bool RecycleCleaner::DeleteNode(const Dentry& dentry) {
     LOG(INFO) << "RecycleCleaner DeleteNode, " << dentry.ShortDebugString();
     // Code refers to the implementation of fuse_client.cpp DeleteNode()
     // 1. delete dentry
-    auto ret = metaClient_->DeleteDentry(fsId, parent, name, type);
+    TxLock txLockOut;
+    auto ret = metaClient_->DeleteDentry(fsId, parent, name, type, &txLockOut);
     if (ret != MetaStatusCode::OK) {
         LOG(WARNING) << "delete dentry fail, ret = " << MetaStatusCode_Name(ret)
                      << ", dentry: " << dentry.ShortDebugString();
@@ -189,8 +190,9 @@ bool RecycleCleaner::DeleteDirRecursive(const Dentry& dentry) {
     while (true) {
         // 1. list dir
         std::list<Dentry> dentryList;
+        TxLock txLockOut;
         auto ret = metaClient_->ListDentry(fsId, inodeid, last, limit_, onlyDir,
-                                           &dentryList);
+                                           &dentryList, &txLockOut);
         if (ret != MetaStatusCode::OK) {
             LOG(WARNING) << "DeleteDirRecursive list dentry fail, ret = "
                          << MetaStatusCode_Name(ret)
@@ -305,14 +307,17 @@ bool RecycleCleaner::ScanRecycle() {
     Dentry dentry;
     dentry.set_fsid(partition_->GetFsId());
     dentry.set_parentinodeid(RECYCLEINODEID);
+    // TODO(ALL): fix it when rewrite recycle
+    // get txid will not be needed in tx v2
     dentry.set_txid(GetTxId());
     uint32_t count = 0;
     uint32_t timeoutCount = 0;
     while (true) {
         dentry.set_name(last);
         std::vector<Dentry> tempDentrys;
-        auto ret =
-            partition_->ListDentry(dentry, &tempDentrys, limit_, onlyDir);
+        TxLock txLockOut;
+        auto ret = partition_->ListDentry(
+            dentry, &tempDentrys, limit_, onlyDir, &txLockOut);
         if (ret != MetaStatusCode::OK) {
             LOG(WARNING) << "Scan recycle, list dentry fail, dentry = "
                          << dentry.ShortDebugString();

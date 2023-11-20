@@ -76,26 +76,24 @@ class MdsServiceImpl : public MdsService {
                   ::google::protobuf::Closure* done);
 
     void AllocateS3Chunk(::google::protobuf::RpcController* controller,
-                         const ::curvefs::mds::AllocateS3ChunkRequest* request,
-                         ::curvefs::mds::AllocateS3ChunkResponse* response,
-                         ::google::protobuf::Closure* done);
+        const AllocateS3ChunkRequest* request,
+        AllocateS3ChunkResponse* response, ::google::protobuf::Closure* done);
 
-    void ListClusterFsInfo(
-        ::google::protobuf::RpcController* controller,
-        const ::curvefs::mds::ListClusterFsInfoRequest* request,
-        ::curvefs::mds::ListClusterFsInfoResponse* response,
+    void ListClusterFsInfo(::google::protobuf::RpcController* controller,
+        const ListClusterFsInfoRequest* request,
+        ListClusterFsInfoResponse* response, ::google::protobuf::Closure* done);
+
+    void RefreshSession(::google::protobuf::RpcController* controller,
+        const RefreshSessionRequest* request, RefreshSessionResponse* response,
         ::google::protobuf::Closure* done);
 
-    void RefreshSession(::google::protobuf::RpcController *controller,
-                        const ::curvefs::mds::RefreshSessionRequest *request,
-                        ::curvefs::mds::RefreshSessionResponse *response,
-                        ::google::protobuf::Closure *done);
-
+    // reserved for compatibility
     void GetLatestTxId(::google::protobuf::RpcController* controller,
                        const GetLatestTxIdRequest* request,
                        GetLatestTxIdResponse* response,
                        ::google::protobuf::Closure* done);
 
+    // reserved for compatibility
     void CommitTx(::google::protobuf::RpcController* controller,
                   const CommitTxRequest* request,
                   CommitTxResponse* response,
@@ -105,6 +103,10 @@ class MdsServiceImpl : public MdsService {
         ::google::protobuf::RpcController* controller,
         const SetClientMdsAddrsOverrideRequest* request,
         SetClientMdsAddrsOverrideResponse* response,
+        ::google::protobuf::Closure* done);
+
+    void Tso(::google::protobuf::RpcController* controller,
+        const TsoRequest* request, TsoResponse* response,
         ::google::protobuf::Closure* done);
 
  private:

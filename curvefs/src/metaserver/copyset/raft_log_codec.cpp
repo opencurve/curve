@@ -154,6 +154,18 @@ std::unique_ptr<MetaOperator> RaftLogCodec::Decode(CopysetNode* node,
         case OperatorType::PrepareRenameTx:
             return ParseFromRaftLog<PrepareRenameTxOperator,
                                     PrepareRenameTxRequest>(node, type, meta);
+        case OperatorType::PrewriteRenameTx:
+            return ParseFromRaftLog<PrewriteRenameTxOperator,
+                PrewriteRenameTxRequest>(node, type, meta);
+        case OperatorType::CheckTxStatus:
+            return ParseFromRaftLog<CheckTxStatusOperator,
+                CheckTxStatusRequest>(node, type, meta);
+        case OperatorType::ResolveTxLock:
+            return ParseFromRaftLog<ResolveTxLockOperator,
+                ResolveTxLockRequest>(node, type, meta);
+        case OperatorType::CommitTx:
+            return ParseFromRaftLog<CommitTxOperator, CommitTxRequest>(
+                node, type, meta);
         case OperatorType::GetOrModifyS3ChunkInfo:
             return ParseFromRaftLog<GetOrModifyS3ChunkInfoOperator,
                                     GetOrModifyS3ChunkInfoRequest>(

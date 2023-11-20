@@ -21,7 +21,7 @@
  * Author: xuchaojie
  */
 
-#include "curvefs/src/client/inode_cache_manager.h"
+#include "curvefs/src/client/inode_manager.h"
 
 #include <glog/logging.h>
 #include <cstdint>

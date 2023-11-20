@@ -29,6 +29,7 @@
 #include "curvefs/src/metaserver/storage/rocksdb_storage.h"
 #include "curvefs/test/metaserver/storage/utils.h"
 #include "src/fs/ext4_filesystem_impl.h"
+#include "src/common/timeutility.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -38,6 +39,9 @@ using ::curvefs::metaserver::storage::NameGenerator;
 using ::curvefs::metaserver::storage::RandomStoragePath;
 using ::curvefs::metaserver::storage::RocksDBStorage;
 using ::curvefs::metaserver::storage::StorageOptions;
+using ::curvefs::metaserver::storage::Status;
+using ::curvefs::metaserver::storage::Key4Dentry;
+using ::curvefs::metaserver::storage::Key4TxWrite;
 
 namespace {
 auto localfs = curve::fs::Ext4FileSystemImpl::getInstance();
@@ -55,6 +59,8 @@ class DentryStorageTest : public ::testing::Test {
         kvStorage_ = std::make_shared<RocksDBStorage>(options);
         ASSERT_TRUE(kvStorage_->Open());
         logIndex_ = 0;
+        table4TxWrite_ = nameGenerator_->GetTxWriteTableName();
+        table4TxLock_ = nameGenerator_->GetTxLockTableName();
     }
 
     void TearDown() override {
@@ -108,11 +114,25 @@ class DentryStorageTest : public ::testing::Test {
         ASSERT_EQ(lhs, rhs);
     }
 
+    std::string DentryKey(const Dentry& dentry) {
+        Key4Dentry key(dentry.fsid(), dentry.parentinodeid(), dentry.name());
+        return conv_.SerializeToString(key);
+    }
+
+    std::string TxWriteKey(const Dentry& dentry, uint64_t ts) {
+        Key4TxWrite key(dentry.fsid(), dentry.parentinodeid(),
+            dentry.name(), ts);
+        return conv_.SerializeToString(key);
+    }
+
  protected:
     std::string dataDir_;
     std::shared_ptr<NameGenerator> nameGenerator_;
     std::shared_ptr<KVStorage> kvStorage_;
     int64_t logIndex_;
+    Converter conv_;
+    std::string table4TxWrite_;
+    std::string table4TxLock_;
 };
 
 TEST_F(DentryStorageTest, Insert) {
@@ -572,6 +592,255 @@ TEST_F(DentryStorageTest, HandleTx) {
     ASSERT_EQ(storage.Get(&dentry), MetaStatusCode::OK);
     ASSERT_EQ(dentry.inodeid(), 1);
 }
+
+TEST_F(DentryStorageTest, PrewriteTx) {
+    DentryStorage storage(kvStorage_, nameGenerator_, 0);
+    ASSERT_TRUE(storage.Init());
+
+    // 1. prepare original dentry
+    // { fsId, parentId, name, txId, inodeId, deleteMarkFlag }
+    Dentry dentry = GenDentry(1, 1, "A", 0, 2, false);
+    ASSERT_EQ(storage.Insert(dentry, logIndex_++), MetaStatusCode::OK);
+    ASSERT_EQ(storage.Size(), 1);
+
+    // 2. prepare prewrite dentry
+    uint64_t startTs = 2;
+    Dentry dentryA = GenDentry(1, 1, "A", startTs, 2, true);
+    Dentry dentryB = GenDentry(1, 1, "B", startTs, 3, false);
+    std::vector<Dentry> dentrys = {dentryA, dentryB};
+    TxLock txLock;
+    txLock.set_primarykey(DentryKey(dentryA));
+    txLock.set_startts(startTs);
+    txLock.set_timestamp(curve::common::TimeUtility::GetTimeofDayMs());
+
+    // 2.1 write conflict
+    TxLock outLock;
+    TxWrite txWrite;
+    txWrite.set_startts(startTs);
+    txWrite.set_kind(TxWriteKind::Commit);
+    Status s = kvStorage_->SSet(table4TxWrite_,
+        TxWriteKey(dentry, startTs + 1), txWrite);
+    ASSERT_TRUE(s.ok());
+    ASSERT_EQ(storage.PrewriteTx(dentrys, txLock, logIndex_++, &outLock),
+              MetaStatusCode::TX_WRITE_CONFLICT);
+    s = kvStorage_->SDel(table4TxWrite_, TxWriteKey(dentry, startTs + 1));
+    ASSERT_TRUE(s.ok());
+
+    // 2.2 key locked and IDEMPOTENCE OK
+    s = kvStorage_->SSet(table4TxLock_, DentryKey(dentryA), txLock);
+    ASSERT_TRUE(s.ok());
+    ASSERT_EQ(storage.PrewriteTx(dentrys, txLock, logIndex_++, &outLock),
+              MetaStatusCode::OK);
+    s = kvStorage_->SDel(table4TxLock_, DentryKey(dentryA));
+    ASSERT_TRUE(s.ok());
+
+    // 2.3 key locked
+    TxLock preLock(txLock);
+    preLock.set_startts(startTs + 1);
+    s = kvStorage_->SSet(table4TxLock_, DentryKey(dentryA), preLock);
+    ASSERT_TRUE(s.ok());
+    ASSERT_EQ(storage.PrewriteTx(dentrys, txLock, logIndex_++, &outLock),
+              MetaStatusCode::TX_KEY_LOCKED);
+    s = kvStorage_->SDel(table4TxLock_, DentryKey(dentryA));
+    ASSERT_TRUE(s.ok());
+
+    // 2.4 prewrite success
+    ASSERT_EQ(storage.PrewriteTx(
+        std::vector<Dentry>(dentrys.begin() + outLock.index(), dentrys.end()),
+        txLock, logIndex_++, &outLock), MetaStatusCode::OK);
+    ASSERT_EQ(storage.Size(), 3);
+    Dentry entryOut;
+    entryOut.set_fsid(1);
+    entryOut.set_parentinodeid(1);
+    entryOut.set_name("A");
+    ASSERT_EQ(storage.Get(&entryOut), MetaStatusCode::OK);
+    ASSERT_TRUE(dentry == entryOut);
+    entryOut.set_name("B");
+    ASSERT_EQ(storage.Get(&entryOut), MetaStatusCode::NOT_FOUND);
+}
+
+TEST_F(DentryStorageTest, CheckTxStatus) {
+    DentryStorage storage(kvStorage_, nameGenerator_, 0);
+    ASSERT_TRUE(storage.Init());
+
+    // 1. tx lock exist, tx timeout
+    uint64_t startTs = 1;
+    uint64_t now = curve::common::TimeUtility::GetTimeofDayMs();
+    Dentry dentry = GenDentry(1, 1, "A", startTs, 2, false);
+    TxLock txLock;
+    txLock.set_primarykey(DentryKey(dentry));
+    txLock.set_startts(startTs);
+    txLock.set_timestamp(now - 10);
+    txLock.set_ttl(5);
+    Status s = kvStorage_->SSet(table4TxLock_, DentryKey(dentry), txLock);
+    ASSERT_TRUE(s.ok());
+    ASSERT_EQ(
+        storage.CheckTxStatus(DentryKey(dentry), startTs, now, logIndex_++),
+        MetaStatusCode::TX_TIMEOUT);
+
+    // 2. tx lock exist, tx in progress
+    txLock.set_timestamp(now);
+    s = kvStorage_->SSet(table4TxLock_, DentryKey(dentry), txLock);
+    ASSERT_TRUE(s.ok());
+    ASSERT_EQ(
+        storage.CheckTxStatus(DentryKey(dentry), startTs, now, logIndex_++),
+        MetaStatusCode::TX_INPROGRESS);
+    s = kvStorage_->SDel(table4TxLock_, DentryKey(dentry));
+    ASSERT_TRUE(s.ok());
+
+    // 3. tx lock not exist, tx write not exit, committed
+    ASSERT_EQ(
+        storage.CheckTxStatus(DentryKey(dentry), startTs, now, logIndex_++),
+        MetaStatusCode::TX_COMMITTED);
+    TxWrite txWrite;
+    txWrite.set_startts(startTs);
+    txWrite.set_kind(TxWriteKind::Commit);
+    s = kvStorage_->SSet(table4TxWrite_,
+        TxWriteKey(dentry, startTs + 1), txWrite);
+    ASSERT_TRUE(s.ok());
+    ASSERT_EQ(
+        storage.CheckTxStatus(DentryKey(dentry), startTs, now, logIndex_++),
+        MetaStatusCode::TX_COMMITTED);
+
+    // 4. tx lock not exist, rollbacked
+    txWrite.set_kind(TxWriteKind::Rollback);
+    s = kvStorage_->SSet(table4TxWrite_, TxWriteKey(dentry, startTs), txWrite);
+    ASSERT_TRUE(s.ok());
+    ASSERT_EQ(
+        storage.CheckTxStatus(DentryKey(dentry), startTs, now, logIndex_++),
+        MetaStatusCode::TX_ROLLBACKED);
+}
+
+TEST_F(DentryStorageTest, ResolveTxLock) {
+    DentryStorage storage(kvStorage_, nameGenerator_, 0);
+    ASSERT_TRUE(storage.Init());
+
+    uint64_t preTxStartTs = 1;
+    uint64_t startTs = 10;
+    uint64_t commitTs = 11;
+    uint64_t now = curve::common::TimeUtility::GetTimeofDayMs();
+    Dentry dentry = GenDentry(1, 1, "A", startTs, 2, false);
+
+    // 1. tx lock not exist
+    ASSERT_EQ(storage.ResolveTxLock(dentry, preTxStartTs, commitTs,
+        logIndex_++), MetaStatusCode::OK);
+
+    // 2. roll forward
+    // 2.1 tx lock exist but startts mismatch
+    TxLock preTxLock;
+    preTxLock.set_primarykey(DentryKey(dentry));
+    preTxLock.set_startts(preTxStartTs + 1);
+    preTxLock.set_timestamp(now-100);
+    Status s = kvStorage_->SSet(table4TxLock_, DentryKey(dentry), preTxLock);
+    ASSERT_TRUE(s.ok());
+    ASSERT_EQ(storage.ResolveTxLock(dentry, preTxStartTs, commitTs,
+        logIndex_++), MetaStatusCode::TX_MISMATCH);
+    // 2.2 success
+    preTxLock.set_startts(preTxStartTs);
+    s = kvStorage_->SSet(table4TxLock_, DentryKey(dentry), preTxLock);
+    ASSERT_TRUE(s.ok());
+    ASSERT_EQ(storage.ResolveTxLock(dentry, preTxStartTs, commitTs,
+        logIndex_++), MetaStatusCode::OK);
+    TxLock lockOut;
+    s = kvStorage_->SGet(table4TxLock_, DentryKey(dentry), &lockOut);
+    ASSERT_TRUE(s.IsNotFound());
+    TxWrite txWriteOut;
+    s = kvStorage_->SGet(table4TxWrite_, TxWriteKey(dentry, commitTs),
+        &txWriteOut);
+    ASSERT_TRUE(s.ok());
+    ASSERT_EQ(txWriteOut.kind(), TxWriteKind::Commit);
+    ASSERT_EQ(txWriteOut.startts(), preTxStartTs);
+    TS tsOut;
+    s = kvStorage_->SGet(table4TxWrite_, "latestCommit", &tsOut);
+    ASSERT_TRUE(s.ok());
+    ASSERT_EQ(tsOut.ts(), commitTs);
+
+    // 3. roll backward
+    // prepare rollback site
+    TxLock txLock(preTxLock);
+    txLock.set_startts(startTs);
+    s = kvStorage_->SSet(table4TxLock_, DentryKey(dentry), txLock);
+    ASSERT_TRUE(s.ok());
+    dentry.set_txid(startTs);
+    ASSERT_EQ(storage.Insert(dentry, logIndex_++), MetaStatusCode::OK);
+    ASSERT_EQ(storage.Size(), 1);
+    ASSERT_EQ(storage.ResolveTxLock(dentry, startTs, 0,
+        logIndex_++), MetaStatusCode::OK);
+    s = kvStorage_->SGet(table4TxLock_, DentryKey(dentry), &lockOut);
+    ASSERT_TRUE(s.IsNotFound());
+    ASSERT_EQ(storage.Size(), 0);
+    s = kvStorage_->SGet(table4TxWrite_, TxWriteKey(dentry, startTs),
+        &txWriteOut);
+    ASSERT_TRUE(s.ok());
+    ASSERT_EQ(txWriteOut.kind(), TxWriteKind::Rollback);
+    ASSERT_EQ(txWriteOut.startts(), startTs);
+}
+
+TEST_F(DentryStorageTest, CommitTx) {
+    DentryStorage storage(kvStorage_, nameGenerator_, 0);
+    ASSERT_TRUE(storage.Init());
+
+    uint64_t startTs = 1;
+    uint64_t commitTs = 2;
+    uint64_t now = curve::common::TimeUtility::GetTimeofDayMs();
+    Dentry dentryA = GenDentry(1, 1, "A", startTs, 2, true);
+    Dentry dentryB = GenDentry(1, 1, "B", startTs, 2, false);
+
+    // 1. tx lock not exist
+    ASSERT_EQ(storage.CommitTx(
+        {dentryA, dentryB}, startTs, commitTs, logIndex_++),
+        MetaStatusCode::OK);
+    TS tsOut;
+    Status s = kvStorage_->SGet(table4TxWrite_, "latestCommit", &tsOut);
+    ASSERT_TRUE(s.ok());
+    ASSERT_EQ(tsOut.ts(), startTs);
+    // 2. tx lock exist, but startts mismatch
+    TxLock txLock;
+    txLock.set_primarykey(DentryKey(dentryA));
+    txLock.set_startts(startTs + 1);
+    txLock.set_timestamp(now - 100);
+    s = kvStorage_->SSet(table4TxLock_, DentryKey(dentryA), txLock);
+    ASSERT_TRUE(s.ok());
+    ASSERT_EQ(storage.CommitTx(
+        {dentryA, dentryB}, startTs, commitTs, logIndex_++),
+        MetaStatusCode::TX_MISMATCH);
+    // 3. commit success
+    TxLock txLockA;
+    txLockA.set_primarykey(DentryKey(dentryA));
+    txLockA.set_startts(startTs);
+    txLockA.set_timestamp(now - 100);
+    s = kvStorage_->SSet(table4TxLock_, DentryKey(dentryA), txLockA);
+    ASSERT_TRUE(s.ok());
+    TxLock txLockB;
+    txLockB.set_primarykey(DentryKey(dentryB));
+    txLockB.set_startts(startTs);
+    txLockB.set_timestamp(now - 100);
+    s = kvStorage_->SSet(table4TxLock_, DentryKey(dentryB), txLockB);
+    ASSERT_TRUE(s.ok());
+    ASSERT_EQ(storage.CommitTx(
+        {dentryA, dentryB}, startTs, commitTs, logIndex_++),
+        MetaStatusCode::OK);
+    TxLock lockOut;
+    s = kvStorage_->SGet(table4TxLock_, DentryKey(dentryA), &lockOut);
+    ASSERT_TRUE(s.IsNotFound());
+    s = kvStorage_->SGet(table4TxLock_, DentryKey(dentryB), &lockOut);
+    ASSERT_TRUE(s.IsNotFound());
+    TxWrite txWriteOut;
+    s = kvStorage_->SGet(table4TxWrite_, TxWriteKey(dentryA, commitTs),
+        &txWriteOut);
+    ASSERT_TRUE(s.ok());
+    ASSERT_EQ(txWriteOut.kind(), TxWriteKind::Commit);
+    ASSERT_EQ(txWriteOut.startts(), startTs);
+    s = kvStorage_->SGet(table4TxWrite_, TxWriteKey(dentryB, commitTs),
+        &txWriteOut);
+    ASSERT_TRUE(s.ok());
+    ASSERT_EQ(txWriteOut.kind(), TxWriteKind::Commit);
+    ASSERT_EQ(txWriteOut.startts(), startTs);
+    s = kvStorage_->SGet(table4TxWrite_, "latestCommit", &tsOut);
+    ASSERT_TRUE(s.ok());
+    ASSERT_EQ(tsOut.ts(), startTs);
+}
+
 
 }  // namespace metaserver
 }  // namespace curvefs

@@ -38,17 +38,30 @@
 namespace curvefs {
 namespace metaserver {
 
+namespace storage {
+    DECLARE_int32(tx_lock_ttl_ms);
+}
+
 using ::curve::common::ReadLockGuard;
 using ::curve::common::StringStartWith;
 using ::curve::common::WriteLockGuard;
 using ::curvefs::metaserver::storage::Key4Dentry;
 using ::curvefs::metaserver::storage::Prefix4AllDentry;
 using ::curvefs::metaserver::storage::Prefix4SameParentDentry;
+using ::curvefs::metaserver::storage::Prefix4TxWrite;
+using ::curvefs::metaserver::storage::Key4TxWrite;
 using ::curvefs::metaserver::storage::Status;
+using ::curvefs::metaserver::storage::FLAGS_tx_lock_ttl_ms;
+
+const char* DentryStorage::kDentryAppliedKey("dentry");
+const char* DentryStorage::kDentryCountKey("count");
+const char* DentryStorage::kHandleTxKey("handleTx");
+const char* DentryStorage::kPendingTxKey("pendingTx");
+const char* DentryStorage::kTxLatestCommit("latestCommit");
 
 bool operator==(const Dentry& lhs, const Dentry& rhs) {
     return EQUAL(fsid) && EQUAL(parentinodeid) && EQUAL(name) && EQUAL(txid) &&
-           EQUAL(inodeid) && EQUAL(flag);
+           EQUAL(inodeid);
 }
 
 bool operator<(const Dentry& lhs, const Dentry& rhs) {
@@ -65,6 +78,9 @@ static bool HasDeleteMarkFlag(const Dentry& dentry) {
     return (dentry.flag() & DentryFlag::DELETE_MARK_FLAG) != 0;
 }
 
+/*
+* DentryVector is a wrapper of DentryVec
+*/
 DentryVector::DentryVector(DentryVec* vec)
     : vec_(vec), nPendingAdd_(0), nPendingDel_(0) {}
 
@@ -114,6 +130,9 @@ void DentryVector::Confirm(uint64_t* count) {
     *count = *count + nPendingAdd_ - nPendingDel_;
 }
 
+/*
+* DentryList
+*/
 DentryList::DentryList(std::vector<Dentry>* list, uint32_t limit,
                        const std::string& exclude, uint64_t maxTxId,
                        bool onlyDir)
@@ -124,7 +143,7 @@ DentryList::DentryList(std::vector<Dentry>* list, uint32_t limit,
       maxTxId_(maxTxId),
       onlyDir_(onlyDir) {}
 
-void DentryList::PushBack(DentryVec* vec) {
+void DentryList::PushBack(DentryVec* vec, bool* realEntry) {
     // NOTE: it's a cheap operation becacuse the size of
     // dentryVec must less than 2
     BTree dentrys;
@@ -148,28 +167,22 @@ void DentryList::PushBack(DentryVec* vec) {
         }
         return;
     }
+    *realEntry = true;
     list_->push_back(*last);
     VLOG(9) << "Push dentry, dentry = (" << last->ShortDebugString() << ")";
 }
 
-uint32_t DentryList::Size() { return size_; }
-
-bool DentryList::IsFull() { return limit_ != 0 && size_ >= limit_; }
-
-const char* DentryStorage::kDentryAppliedKey("dentry");
-const char* DentryStorage::kDentryCountKey("count");
-const char* DentryStorage::kHandleTxKey("handleTx");
-const char* DentryStorage::kPendingTxKey("pendingTx");
-
-bool DentryStorage::Init() {
-    auto s = GetDentryCount(&nDentry_);
-    if (s.ok() || s.IsNotFound()) {
-        s = GetHandleTxIndex(&handleTxIndex_);
-        return s.ok() || s.IsNotFound();
-    }
-    return false;
+uint32_t DentryList::Size() {
+    return size_;
 }
 
+bool DentryList::IsFull() {
+    return limit_ != 0 && size_ >= limit_;
+}
+
+/*
+* DentryStorage
+*/
 DentryStorage::DentryStorage(std::shared_ptr<KVStorage> kvStorage,
                              std::shared_ptr<NameGenerator> nameGenerator,
                              uint64_t nDentry)
@@ -178,13 +191,35 @@ DentryStorage::DentryStorage(std::shared_ptr<KVStorage> kvStorage,
       table4AppliedIndex_(nameGenerator->GetAppliedIndexTableName()),
       table4Transaction_(nameGenerator->GetTransactionTableName()),
       table4DentryCount_(nameGenerator->GetDentryCountTableName()),
+      table4TxLock_(nameGenerator->GetTxLockTableName()),
+      table4TxWrite_(nameGenerator->GetTxWriteTableName()),
       handleTxIndex_(-1),
       nDentry_(nDentry),
-      conv_() {
+      conv_(),
+      latestCommit_(0) {
     // NOTE: for compatibility with older versions
     // we cannot ignore `nDentry` argument
     // try get dentry count for rocksdb
     // if we got it, replace old value
+}
+
+bool DentryStorage::Init() {
+    auto s = GetDentryCount(&nDentry_);
+    if (!s.ok() && !s.IsNotFound()) {
+        LOG(ERROR) << "Get dentry count failed, status = " << s.ToString();
+        return false;
+    }
+    s = GetHandleTxIndex(&handleTxIndex_);
+    if (!s.ok() && !s.IsNotFound()) {
+        LOG(ERROR) << "Get handle tx index failed, status = " << s.ToString();
+        return false;
+    }
+    s = GetLatestCommit(&latestCommit_);
+    if (!s.ok() && !s.IsNotFound()) {
+        LOG(ERROR) << "Get latest commit failed, status = " << s.ToString();
+        return false;
+    }
+    return true;
 }
 
 std::string DentryStorage::DentryKey(const Dentry& dentry) {
@@ -192,121 +227,9 @@ std::string DentryStorage::DentryKey(const Dentry& dentry) {
     return conv_.SerializeToString(key);
 }
 
-bool DentryStorage::CompressDentry(storage::StorageTransaction* txn,
-                                   DentryVec* vec, BTree* dentrys,
-                                   uint64_t* outCount) {
-    DentryVector vector(vec);
-    std::vector<Dentry> deleted;
-    if (dentrys->size() == 2) {
-        deleted.push_back(*dentrys->begin());
-    }
-    if (HasDeleteMarkFlag(*dentrys->rbegin())) {
-        deleted.push_back(*dentrys->rbegin());
-    }
-    for (const auto& dentry : deleted) {
-        vector.Delete(dentry);
-    }
-    const char* step = "Compress dentry from transaction";
-    Status s;
-    std::string skey = DentryKey(*dentrys->begin());
-    do {
-        if (vec->dentrys_size() == 0) {  // delete directly
-            s = txn->SDel(table4Dentry_, skey);
-        } else {
-            s = txn->SSet(table4Dentry_, skey, *vec);
-        }
-        if (!s.ok()) {
-            break;
-        }
-        uint64_t countCopy = *outCount;
-        vector.Confirm(&countCopy);
-        s = SetDentryCount(txn, countCopy);
-        if (!s.ok()) {
-            step = "Insert dentry count to transaction";
-            break;
-        }
-        *outCount = countCopy;
-        return true;
-    } while (false);
-    LOG(ERROR) << step << " failed, status = " << s.ToString();
-    return false;
-}
-
-// NOTE: Find() return the dentry which has the latest txid,
-// and it will clean the old txid's dentry if you specify compress to true
-MetaStatusCode DentryStorage::Find(const Dentry& in, Dentry* out,
-                                   DentryVec* vec) {
-    std::string skey = DentryKey(in);
-    Status s = kvStorage_->SGet(table4Dentry_, skey, vec);
-    if (s.IsNotFound()) {
-        return MetaStatusCode::NOT_FOUND;
-    } else if (!s.ok()) {
-        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
-    }
-
-    // status = OK
-    BTree dentrys;
-    DentryVector vector(vec);
-    vector.Filter(in.txid(), &dentrys);
-    size_t size = dentrys.size();
-    if (size > 2) {
-        LOG(ERROR) << "There are more than 2 dentrys";
-        return MetaStatusCode::NOT_FOUND;
-    } else if (size == 0) {
-        return MetaStatusCode::NOT_FOUND;
-    }
-
-    // size == 1 || size == 2
-    MetaStatusCode rc;
-    if (HasDeleteMarkFlag(*dentrys.rbegin())) {
-        rc = MetaStatusCode::NOT_FOUND;
-    } else {
-        rc = MetaStatusCode::OK;
-        *out = *dentrys.rbegin();
-    }
-    return rc;
-}
-
-// NOTE: Find() return the dentry which has the latest txid,
-// and it will clean the old txid's dentry if you specify compressOutCount to
-// non-nullptr compressOutCount must point to a variable that value is equal
-// with `nDentry_`
-MetaStatusCode DentryStorage::Find(storage::StorageTransaction* txn,
-                                   const Dentry& in, Dentry* out,
-                                   DentryVec* vec, uint64_t* compressOutCount) {
-    std::string skey = DentryKey(in);
-    Status s = txn->SGet(table4Dentry_, skey, vec);
-    if (s.IsNotFound()) {
-        return MetaStatusCode::NOT_FOUND;
-    } else if (!s.ok()) {
-        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
-    }
-    // status = OK
-    BTree dentrys;
-    DentryVector vector(vec);
-    vector.Filter(in.txid(), &dentrys);
-    size_t size = dentrys.size();
-    if (size > 2) {
-        LOG(ERROR) << "There are more than 2 dentrys";
-        return MetaStatusCode::NOT_FOUND;
-    } else if (size == 0) {
-        return MetaStatusCode::NOT_FOUND;
-    }
-
-    // size == 1 || size == 2
-    MetaStatusCode rc;
-    if (HasDeleteMarkFlag(*dentrys.rbegin())) {
-        rc = MetaStatusCode::NOT_FOUND;
-    } else {
-        rc = MetaStatusCode::OK;
-        *out = *dentrys.rbegin();
-    }
-
-    if (compressOutCount != nullptr &&
-        !CompressDentry(txn, vec, &dentrys, compressOutCount)) {
-        rc = MetaStatusCode::STORAGE_INTERNAL_ERROR;
-    }
-    return rc;
+std::string DentryStorage::TxWriteKey(const Dentry& dentry, uint64_t ts) {
+    Key4TxWrite key(dentry.fsid(), dentry.parentinodeid(), dentry.name(), ts);
+    return conv_.SerializeToString(key);
 }
 
 MetaStatusCode DentryStorage::GetAppliedIndex(int64_t* index) {
@@ -406,226 +329,147 @@ storage::Status DentryStorage::GetHandleTxIndex(int64_t* index) {
     return s;
 }
 
-MetaStatusCode DentryStorage::Insert(const Dentry& dentry, int64_t logIndex) {
-    WriteLockGuard lg(rwLock_);
-
-    Dentry out;
-    DentryVec vec;
-    std::shared_ptr<storage::StorageTransaction> txn;
-    storage::Status s;
-    const char* step = "Begin transaction";
-    do {
-        txn = kvStorage_->BeginTransaction();
-        if (txn == nullptr) {
-            break;
-        }
-        uint64_t count = nDentry_;
-        s = SetAppliedIndex(txn.get(), logIndex);
-        if (!s.ok()) {
-            step = "Insert applied index to transaction";
-            break;
-        }
-        MetaStatusCode rc = Find(txn.get(), dentry, &out, &vec, &count);
-        if (rc == MetaStatusCode::OK) {
-            auto s = txn->Commit();
-            if (!s.ok()) {
-                step = "Commit compress dentry transaction";
-                break;
-            }
-            // if compress is success
-            // we use output dentry count to replace old one
-            nDentry_ = count;
-            if (BelongSomeOne(out, dentry)) {
-                return MetaStatusCode::IDEMPOTENCE_OK;
-            }
-            return MetaStatusCode::DENTRY_EXIST;
-        } else if (rc != MetaStatusCode::NOT_FOUND) {
-            step = "Find dentry failed";
-            break;
-        }
-        // rc == MetaStatusCode::NOT_FOUND
-
-        // NOTE: `count` maybe already written by `Find()` in here
-        // so we continue use `count` in follow operations
-        DentryVector vector(&vec);
-        vector.Insert(dentry);
-        std::string skey = DentryKey(dentry);
-        s = txn->SSet(table4Dentry_, skey, vec);
-        if (!s.ok()) {
-            step = "Insert dentry to transaction";
-            break;
-        }
-        vector.Confirm(&count);
-        s = SetDentryCount(txn.get(), count);
-        if (!s.ok()) {
-            step = "Insert dentry count to transaction";
-            break;
-        }
-        s = txn->Commit();
-        if (!s.ok()) {
-            step = "Insert dentry";
-            break;
-        }
-        nDentry_ = count;
-        return MetaStatusCode::OK;
-    } while (false);
-    LOG(ERROR) << step << " failed, status = " << s.ToString();
-    if (txn != nullptr && !txn->Rollback().ok()) {
-        LOG(ERROR) << "Rollback insert dentry transaction failed, status = "
-                   << s.ToString();
+bool DentryStorage::CompressDentry(storage::StorageTransaction* txn,
+                                   DentryVec* vec, BTree* dentrys,
+                                   uint64_t* outCount) {
+    DentryVector vector(vec);
+    std::vector<Dentry> deleted;
+    if (dentrys->size() == 2) {
+        deleted.push_back(*dentrys->begin());
     }
-    return MetaStatusCode::STORAGE_INTERNAL_ERROR;
-}
-
-MetaStatusCode DentryStorage::Insert(const DentryVec& vec, bool merge,
-                                     int64_t logIndex) {
-    WriteLockGuard lg(rwLock_);
-
+    if (HasDeleteMarkFlag(*dentrys->rbegin())) {
+        deleted.push_back(*dentrys->rbegin());
+    }
+    for (const auto& dentry : deleted) {
+        vector.Delete(dentry);
+    }
+    const char* step = "Compress dentry from transaction";
     Status s;
-    DentryVec oldVec;
-    std::string skey = DentryKey(vec.dentrys(0));
-    std::shared_ptr<storage::StorageTransaction> txn;
-    const char* step = "Begin transaction";
+    std::string skey = DentryKey(*dentrys->begin());
     do {
-        txn = kvStorage_->BeginTransaction();
-        if (txn == nullptr) {
-            break;
-        }
-        if (merge) {  // for old version dumpfile (v1)
-            s = txn->SGet(table4Dentry_, skey, &oldVec);
-            if (s.IsNotFound()) {
-                // do nothing
-            } else if (!s.ok()) {
-                step = "Find old version from transaction";
-                break;
-            }
-        }
-        DentryVector vector(&oldVec);
-        vector.Merge(vec);
-        s = txn->SSet(table4Dentry_, skey, oldVec);
-        if (!s.ok()) {
-            step = "Insert dentry vector to tranasction";
-            break;
-        }
-        s = SetAppliedIndex(txn.get(), logIndex);
-        if (!s.ok()) {
-            step = "Insert applied index to tranasction";
-            break;
-        }
-        uint64_t count = nDentry_;
-        vector.Confirm(&count);
-        s = SetDentryCount(txn.get(), count);
-        if (!s.ok()) {
-            step = "Insert dentry count to transaction";
-            break;
-        }
-        s = txn->Commit();
-        if (!s.ok()) {
-            step = "Insert dentry vector";
-            break;
-        }
-        nDentry_ = count;
-        return MetaStatusCode::OK;
-    } while (false);
-    LOG(ERROR) << step << " failed, status = " << s.ToString();
-    if (txn != nullptr && !txn->Rollback().ok()) {
-        LOG(ERROR) << "Rollback insert dentry transaction failed, status = "
-                   << s.ToString();
-    }
-    return MetaStatusCode::STORAGE_INTERNAL_ERROR;
-}
-
-MetaStatusCode DentryStorage::Delete(const Dentry& dentry, int64_t logIndex) {
-    WriteLockGuard lg(rwLock_);
-
-    Dentry out;
-    DentryVec vec;
-    const char* step = "Begin transaction";
-    std::shared_ptr<storage::StorageTransaction> txn;
-    storage::Status s;
-    do {
-        txn = kvStorage_->BeginTransaction();
-        if (txn == nullptr) {
-            break;
-        }
-        uint64_t count = nDentry_;
-        s = SetAppliedIndex(txn.get(), logIndex);
-        if (!s.ok()) {
-            step = "Insert applied index to transaction";
-            break;
-        }
-        MetaStatusCode rc = Find(txn.get(), dentry, &out, &vec, &count);
-        if (rc == MetaStatusCode::NOT_FOUND) {
-            // NOTE: we should commit transaction
-            // even if rc is NOT_FOUND
-            // because Find() maybe write dentry count to rocksdb
-            s = txn->Commit();
-            if (!s.ok()) {
-                step = "Commit transaction";
-                break;
-            }
-            nDentry_ = count;
-            return MetaStatusCode::NOT_FOUND;
-        } else if (rc != MetaStatusCode::OK) {
-            step = "Find dentry";
-            break;
-        }
-        DentryVector vector(&vec);
-        vector.Delete(out);
-        std::string skey = DentryKey(dentry);
-        if (vec.dentrys_size() == 0) {
+        if (vec->dentrys_size() == 0) {  // delete directly
             s = txn->SDel(table4Dentry_, skey);
         } else {
-            s = txn->SSet(table4Dentry_, skey, vec);
+            s = txn->SSet(table4Dentry_, skey, *vec);
         }
         if (!s.ok()) {
-            step = "Delete dentry vector from transaction";
             break;
         }
-        // NOTE: we should use count variable instead of nDentry_
-        // (it means that we should not reset count to nDentry_)
-        // count is newest version of dentry count
-        vector.Confirm(&count);
-        s = SetDentryCount(txn.get(), count);
+        uint64_t countCopy = *outCount;
+        vector.Confirm(&countCopy);
+        s = SetDentryCount(txn, countCopy);
         if (!s.ok()) {
-            step = "Insert applied index to transaction";
+            step = "Insert dentry count to transaction";
             break;
         }
-        s = txn->Commit();
-        if (!s.ok()) {
-            step = "Delete dentry vector";
-            break;
-        }
-        nDentry_ = count;
-        return MetaStatusCode::OK;
+        *outCount = countCopy;
+        return true;
     } while (false);
     LOG(ERROR) << step << " failed, status = " << s.ToString();
-    if (txn != nullptr && !txn->Rollback().ok()) {
-        LOG(ERROR) << "Rollback transaction failed";
-    }
-    return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    return false;
 }
 
-MetaStatusCode DentryStorage::Get(Dentry* dentry) {
-    ReadLockGuard lg(rwLock_);
+// NOTE: Find() return the dentry which has the latest txid,
+// and it will clean the old txid's dentry if you specify compressOutCount to
+// non-nullptr compressOutCount must point to a variable that value is equal
+// with `nDentry_`
+MetaStatusCode DentryStorage::Find(storage::StorageTransaction* txn,
+                                   const Dentry& in, Dentry* out,
+                                   DentryVec* vec, uint64_t* compressOutCount,
+                                   TxLock* txLock) {
+    std::string skey = DentryKey(in);
+    Status s;
+    // check tx lock on dentry
+    if (txLock != nullptr) {
+        s = txn->SGet(table4TxLock_, skey, txLock);
+        if (s.ok()) {
+            return MetaStatusCode::TX_KEY_LOCKED;
+        } else if (!s.IsNotFound()) {
+            return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+        }
+    }
 
-    Dentry out;
-    DentryVec vec;
-    MetaStatusCode rc = Find(*dentry, &out, &vec);
-    if (rc == MetaStatusCode::NOT_FOUND) {
+    s = txn->SGet(table4Dentry_, skey, vec);
+    if (s.IsNotFound()) {
         return MetaStatusCode::NOT_FOUND;
-    } else if (rc != MetaStatusCode::OK) {
+    } else if (!s.ok()) {
         return MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
 
-    // MetaStatusCode::OK
-    *dentry = out;
-    return MetaStatusCode::OK;
+    // status = OK
+    // txId here means latest dentry version
+    uint64_t txId = latestCommit_ > 0 ? latestCommit_ : in.txid();
+    BTree dentrys;
+    DentryVector vector(vec);
+    vector.Filter(txId, &dentrys);
+    size_t size = dentrys.size();
+
+    if (size > 2) {
+        LOG(ERROR) << "There are more than 2 dentrys";
+        return MetaStatusCode::NOT_FOUND;
+    } else if (size == 0) {
+        return MetaStatusCode::NOT_FOUND;
+    }
+
+    // size == 1 || size == 2
+    MetaStatusCode rc;
+    if (HasDeleteMarkFlag(*dentrys.rbegin())) {
+        rc = MetaStatusCode::NOT_FOUND;
+    } else {
+        rc = MetaStatusCode::OK;
+        *out = *dentrys.rbegin();
+    }
+
+    if (compressOutCount != nullptr &&
+        !CompressDentry(txn, vec, &dentrys, compressOutCount)) {
+        rc = MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    }
+    return rc;
+}
+
+#define ON_ERROR(msg)                                  \
+    do                                                 \
+    {                                                  \
+        LOG(ERROR) << msg;                             \
+        if (txn != nullptr && !txn->Rollback().ok()) { \
+            LOG(ERROR) << "Rollback transaction fail"; \
+        }                                              \
+        return rc;                                     \
+    } while (false)
+
+#define ON_COMMIT()                                                       \
+    do                                                                    \
+    {                                                                     \
+        s = txn->Commit();                                                \
+        if (!s.ok()) {                                                    \
+            rc = MetaStatusCode::STORAGE_INTERNAL_ERROR;                  \
+            ON_ERROR("Commit transaction failed, " + s.ToString());       \
+        }                                                                 \
+        nDentry_ = count;                                                 \
+        return rc;                                                        \
+    } while (false)
+
+
+MetaStatusCode DentryStorage::Get(Dentry* dentry, TxLock* txLock) {
+    ReadLockGuard lg(rwLock_);
+    Status s;
+    uint64_t count = nDentry_;
+    MetaStatusCode rc = MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    std::shared_ptr<storage::StorageTransaction> txn;
+    txn = kvStorage_->BeginTransaction();
+    if (txn == nullptr) {
+        ON_ERROR("Begin transaction failed");
+    }
+
+    DentryVec vec;
+    rc = Find(txn.get(), *dentry, dentry, &vec, nullptr, txLock);
+    ON_COMMIT();
 }
 
 MetaStatusCode DentryStorage::List(const Dentry& dentry,
                                    std::vector<Dentry>* dentrys, uint32_t limit,
-                                   bool onlyDir) {
+                                   bool onlyDir,
+                                   TxLock* txLock) {
     // TODO(all): consider store dir dentry and file dentry separately
     ReadLockGuard lg(rwLock_);
 
@@ -643,7 +487,7 @@ MetaStatusCode DentryStorage::List(const Dentry& dentry,
     Prefix4SameParentDentry prefix(fsId, parentInodeId);
     std::string sprefix = conv_.SerializeToString(prefix);  // "1:1:"
     Key4Dentry key(fsId, parentInodeId, name);
-    std::string lower = conv_.SerializeToString(key);  // "1:1:", "1:1:/a/b/c"
+    std::string lower = conv_.SerializeToString(key);  // "1:1:", "1:1:dir"
 
     // 3. iterator key/value pair one by one
     auto iterator = kvStorage_->SSeek(table4Dentry_, lower);
@@ -652,8 +496,10 @@ MetaStatusCode DentryStorage::List(const Dentry& dentry,
         return MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
 
+    // get newest dentry version
+    uint64_t txId = latestCommit_ > 0 ? latestCommit_ : dentry.txid();
     DentryVec current;
-    DentryList list(dentrys, limit, name, dentry.txid(), onlyDir);
+    DentryList list(dentrys, limit, name, txId, onlyDir);
     butil::Timer time;
     uint32_t seekTimes = 0;
     time.start();
@@ -667,81 +513,209 @@ MetaStatusCode DentryStorage::List(const Dentry& dentry,
             return MetaStatusCode::PARSE_FROM_STRING_FAILED;
         }
 
-        list.PushBack(&current);
+        bool realEntry = false;
+        list.PushBack(&current, &realEntry);
+        // check dentry tx lock
+        if (txLock != nullptr && realEntry) {
+            Status s = kvStorage_->SGet(table4TxLock_, skey, txLock);
+            if (s.ok()) {
+                return MetaStatusCode::TX_KEY_LOCKED;
+            } else if (!s.IsNotFound()) {
+                return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+            }
+        }
+
         if (list.IsFull()) {
             break;
         }
     }
     time.stop();
     VLOG(1) << "ListDentry request: dentry = (" << dentry.ShortDebugString()
-            << ")"
-            << ", onlyDir = " << onlyDir << ", limit = " << limit
+            << "), onlyDir = " << onlyDir << ", limit = " << limit
             << ", lower key = " << lower << ", seekTimes = " << seekTimes
             << ", dentrySize = " << dentrys->size()
             << ", costUs = " << time.u_elapsed();
     return MetaStatusCode::OK;
 }
 
+MetaStatusCode DentryStorage::Insert(
+    const Dentry& dentry, int64_t logIndex, TxLock* txLock) {
+    WriteLockGuard lg(rwLock_);
+    storage::Status s;
+    uint64_t count = nDentry_;
+    MetaStatusCode rc = MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    std::shared_ptr<storage::StorageTransaction> txn;
+    txn = kvStorage_->BeginTransaction();
+    if (txn == nullptr) {
+        ON_ERROR("Begin transaction failed");
+    }
+    // 1. set applied index
+    s = SetAppliedIndex(txn.get(), logIndex);
+    if (!s.ok()) {
+        ON_ERROR("Insert applied index to transaction");
+    }
+    // find dentry
+    Dentry out;
+    DentryVec vec;
+    rc = Find(txn.get(), dentry, &out, &vec, &count, txLock);
+    if (rc == MetaStatusCode::TX_KEY_LOCKED) {
+        ON_COMMIT();
+    }
+    if (rc == MetaStatusCode::OK) {
+        if (BelongSomeOne(out, dentry)) {
+            rc = MetaStatusCode::IDEMPOTENCE_OK;
+        } else {
+            rc = MetaStatusCode::DENTRY_EXIST;
+        }
+        ON_COMMIT();
+    } else if (rc != MetaStatusCode::NOT_FOUND) {
+        ON_ERROR("Find dentry failed");
+    }
+    // rc == MetaStatusCode::NOT_FOUND
+    DentryVector vector(&vec);
+    vector.Insert(dentry);
+    s = txn->SSet(table4Dentry_, DentryKey(dentry), vec);
+    if (!s.ok()) {
+        ON_ERROR("Insert dentry to transaction");
+    }
+    vector.Confirm(&count);
+    s = SetDentryCount(txn.get(), count);
+    if (!s.ok()) {
+        ON_ERROR("Insert dentry count to transaction");
+    }
+    rc = MetaStatusCode::OK;
+    ON_COMMIT();
+}
+
+MetaStatusCode DentryStorage::Insert(const DentryVec& vec, bool merge,
+                                     int64_t logIndex) {
+    WriteLockGuard lg(rwLock_);
+    storage::Status s;
+    uint64_t count = nDentry_;
+    MetaStatusCode rc = MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    std::shared_ptr<storage::StorageTransaction> txn;
+    txn = kvStorage_->BeginTransaction();
+    if (txn == nullptr) {
+        ON_ERROR("Begin transaction failed");
+    }
+
+    DentryVec oldVec;
+    std::string skey = DentryKey(vec.dentrys(0));
+    if (merge) {  // for old version dumpfile (v1)
+        s = txn->SGet(table4Dentry_, skey, &oldVec);
+        if (s.IsNotFound()) {
+            // do nothing
+        } else if (!s.ok()) {
+            ON_ERROR("Find old version from transaction");
+        }
+    }
+    DentryVector vector(&oldVec);
+    vector.Merge(vec);
+    s = txn->SSet(table4Dentry_, skey, oldVec);
+    if (!s.ok()) {
+        ON_ERROR("Insert dentry vector to tranasction");
+    }
+    s = SetAppliedIndex(txn.get(), logIndex);
+    if (!s.ok()) {
+        ON_ERROR("Insert applied index to tranasction");
+    }
+    vector.Confirm(&count);
+    s = SetDentryCount(txn.get(), count);
+    if (!s.ok()) {
+        ON_ERROR("Insert dentry count to transaction");
+    }
+    rc = MetaStatusCode::OK;
+    ON_COMMIT();
+}
+
+MetaStatusCode DentryStorage::Delete(
+    const Dentry& dentry, int64_t logIndex, TxLock* txLock) {
+    WriteLockGuard lg(rwLock_);
+    Status s;
+    uint64_t count = nDentry_;
+    MetaStatusCode rc = MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    std::shared_ptr<storage::StorageTransaction> txn;
+    txn = kvStorage_->BeginTransaction();
+    if (txn == nullptr) {
+        ON_ERROR("Begin transaction failed");
+    }
+    s = SetAppliedIndex(txn.get(), logIndex);
+    if (!s.ok()) {
+        ON_ERROR("Insert applied index to transaction");
+    }
+    Dentry out;
+    DentryVec vec;
+    rc = Find(txn.get(), dentry, &out, &vec, &count, txLock);
+    if (rc == MetaStatusCode::TX_KEY_LOCKED) {
+        ON_COMMIT();
+    }
+    if (rc == MetaStatusCode::NOT_FOUND) {
+        ON_COMMIT();
+    } else if (rc != MetaStatusCode::OK) {
+        ON_ERROR("Find dentry failed");
+    }
+    // OK
+    DentryVector vector(&vec);
+    vector.Delete(out);
+    std::string skey = DentryKey(dentry);
+    if (vec.dentrys_size() == 0) {
+        s = txn->SDel(table4Dentry_, skey);
+    } else {
+        s = txn->SSet(table4Dentry_, skey, vec);
+    }
+    if (!s.ok()) {
+        ON_ERROR("Delete dentry vector from transaction");
+    }
+    // NOTE: we should use count variable instead of nDentry_
+    // (it means that we should not reset count to nDentry_)
+    // count is newest version of dentry count
+    vector.Confirm(&count);
+    s = SetDentryCount(txn.get(), count);
+    if (!s.ok()) {
+        ON_ERROR("Insert dentry count to transaction");
+    }
+    rc = MetaStatusCode::OK;
+    ON_COMMIT();
+}
+
 MetaStatusCode DentryStorage::PrepareTx(
     const std::vector<Dentry>& dentrys,
     const metaserver::TransactionRequest& txRequest, int64_t logIndex) {
     WriteLockGuard lg(rwLock_);
-    uint64_t count = nDentry_;
     Status s;
-    const char* step = "Begin transaction";
+    uint64_t count = nDentry_;
+    MetaStatusCode rc = MetaStatusCode::STORAGE_INTERNAL_ERROR;
     std::shared_ptr<storage::StorageTransaction> txn;
-    do {
-        txn = kvStorage_->BeginTransaction();
-        if (txn == nullptr) {
-            break;
-        }
-        bool quit = false;
-        for (const auto& dentry : dentrys) {
-            DentryVec vec;
-            DentryVector vector(&vec);
-            std::string skey = DentryKey(dentry);
-            s = txn->SGet(table4Dentry_, skey, &vec);
-            if (!s.ok() && !s.IsNotFound()) {
-                step = "Get dentry from transaction";
-                quit = true;
-                break;
-            }
-            // OK || NOT_FOUND
-            vector.Insert(dentry);
-            s = txn->SSet(table4Dentry_, skey, vec);
-            if (!s.ok()) {
-                step = "Insert dentry to transaction";
-                quit = true;
-                break;
-            }
-            vector.Confirm(&count);
-        }
-        if (quit) {
-            break;
-        }
-        s = SetAppliedIndex(txn.get(), logIndex);
-        if (!s.ok()) {
-            step = "Insert applied index to transaction";
-            break;
-        }
-        s = SetPendingTx(txn.get(), txRequest);
-        if (!s.ok()) {
-            step = "Insert tx request to transaction";
-            break;
-        }
-        s = txn->Commit();
-        if (!s.ok()) {
-            step = "Commit transaction";
-            break;
-        }
-        nDentry_ = count;
-        return MetaStatusCode::OK;
-    } while (false);
-    LOG(ERROR) << step << " failed, status = " << s.ToString();
-    if (txn != nullptr && !txn->Rollback().ok()) {
-        LOG(ERROR) << "Rollback transaction fail";
+    txn = kvStorage_->BeginTransaction();
+    if (txn == nullptr) {
+        ON_ERROR("Begin transaction failed");
     }
-    return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    for (const auto& dentry : dentrys) {
+        DentryVec vec;
+        DentryVector vector(&vec);
+        std::string skey = DentryKey(dentry);
+        s = txn->SGet(table4Dentry_, skey, &vec);
+        if (!s.ok() && !s.IsNotFound()) {
+            ON_ERROR("Get dentry from transaction");
+        }
+        // OK || NOT_FOUND
+        vector.Insert(dentry);
+        s = txn->SSet(table4Dentry_, skey, vec);
+        if (!s.ok()) {
+            ON_ERROR("Insert dentry to transaction");
+        }
+        vector.Confirm(&count);
+    }
+    s = SetAppliedIndex(txn.get(), logIndex);
+    if (!s.ok()) {
+        ON_ERROR("Insert applied index to transaction");
+    }
+    s = SetPendingTx(txn.get(), txRequest);
+    if (!s.ok()) {
+        ON_ERROR("Insert tx request to transaction");
+    }
+    rc = MetaStatusCode::OK;
+    ON_COMMIT();
 }
 
 MetaStatusCode DentryStorage::CommitTx(const std::vector<Dentry>& dentrys,
@@ -760,53 +734,31 @@ MetaStatusCode DentryStorage::CommitTx(const std::vector<Dentry>& dentrys,
     }
     WriteLockGuard lg(rwLock_);
     Status s;
-    const char* step = "Begin transaction";
+    uint64_t count = nDentry_;
+    MetaStatusCode rc = MetaStatusCode::STORAGE_INTERNAL_ERROR;
     std::shared_ptr<storage::StorageTransaction> txn;
-    do {
-        txn = kvStorage_->BeginTransaction();
-        if (txn == nullptr) {
-            break;
-        }
-        uint64_t count = nDentry_;
-        bool quit = false;
-        for (const auto& dentry : dentrys) {
-            Dentry out;
-            DentryVec vec;
-            std::string skey = DentryKey(dentry);
-            MetaStatusCode rc = MetaStatusCode::OK;
-            rc = Find(txn.get(), dentry, &out, &vec, &count);
-            if (rc != MetaStatusCode::OK && rc != MetaStatusCode::NOT_FOUND) {
-                step = "Find dentry from transaction";
-                quit = true;
-                break;
-            }
-        }
-        if (quit) {
-            break;
-        }
-        s = SetHandleTxIndex(txn.get(), logIndex);
-        if (!s.ok()) {
-            step = "Insert handle tx index to transaction";
-            break;
-        }
-        s = ClearPendingTx(txn.get());
-        if (!s.ok()) {
-            step = "Delete pending tx from transaction";
-            break;
-        }
-        s = txn->Commit();
-        if (!s.ok()) {
-            step = "Commit transaction";
-            break;
-        }
-        nDentry_ = count;
-        return MetaStatusCode::OK;
-    } while (false);
-    LOG(ERROR) << step << " failed, status = " << s.ToString();
-    if (txn != nullptr && !txn->Rollback().ok()) {
-        LOG(ERROR) << "Rollback transaction failed";
+    txn = kvStorage_->BeginTransaction();
+    if (txn == nullptr) {
+        ON_ERROR("Begin transaction failed");
     }
-    return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    for (const auto& dentry : dentrys) {
+        Dentry out;
+        DentryVec vec;
+        rc = Find(txn.get(), dentry, &out, &vec, &count, nullptr);
+        if (rc != MetaStatusCode::OK && rc != MetaStatusCode::NOT_FOUND) {
+            ON_ERROR("Find dentry from transaction");
+        }
+    }
+    s = SetHandleTxIndex(txn.get(), logIndex);
+    if (!s.ok()) {
+        ON_ERROR("Insert handle tx index to transaction");
+    }
+    s = ClearPendingTx(txn.get());
+    if (!s.ok()) {
+        ON_ERROR("Delete pending tx from transaction");
+    }
+    rc = MetaStatusCode::OK;
+    ON_COMMIT();
 }
 
 MetaStatusCode DentryStorage::RollbackTx(const std::vector<Dentry>& dentrys,
@@ -825,70 +777,47 @@ MetaStatusCode DentryStorage::RollbackTx(const std::vector<Dentry>& dentrys,
     }
     WriteLockGuard lg(rwLock_);
     Status s;
-    const char* step = "Begin transaction";
+    uint64_t count = nDentry_;
+    MetaStatusCode rc = MetaStatusCode::STORAGE_INTERNAL_ERROR;
     std::shared_ptr<storage::StorageTransaction> txn;
-    do {
-        txn = kvStorage_->BeginTransaction();
-        if (txn == nullptr) {
-            break;
-        }
-        uint64_t count = nDentry_;
-        bool quit = false;
-        for (const auto& dentry : dentrys) {
-            DentryVec vec;
-            DentryVector vector(&vec);
-            std::string skey = DentryKey(dentry);
-            s = txn->SGet(table4Dentry_, skey, &vec);
-            if (!s.ok() && !s.IsNotFound()) {
-                step = "Find dentry";
-                quit = true;
-                break;
-            }
-            // OK || NOT_FOUND
-            vector.Delete(dentry);
-            if (vec.dentrys_size() == 0) {  // delete directly
-                s = txn->SDel(table4Dentry_, skey);
-            } else {
-                s = txn->SSet(table4Dentry_, skey, vec);
-            }
-            if (!s.ok()) {
-                step = "Delete dentry from transaction";
-                quit = true;
-                break;
-            }
-            vector.Confirm(&count);
-        }
-        if (quit) {
-            break;
-        }
-        s = SetDentryCount(txn.get(), count);
-        if (!s.ok()) {
-            step = "Insert dentry count to transaction";
-            break;
-        }
-        s = SetHandleTxIndex(txn.get(), logIndex);
-        if (!s.ok()) {
-            step = "Insert handle tx index to transaction";
-            break;
-        }
-        s = ClearPendingTx(txn.get());
-        if (!s.ok()) {
-            step = "Delete pending tx from transaction";
-            break;
-        }
-        s = txn->Commit();
-        if (!s.ok()) {
-            step = "Commit transaction";
-            break;
-        }
-        nDentry_ = count;
-        return MetaStatusCode::OK;
-    } while (false);
-    LOG(ERROR) << step << " failed, status = " << s.ToString();
-    if (txn != nullptr && !txn->Rollback().ok()) {
-        LOG(ERROR) << "Rollback transaction failed";
+    txn = kvStorage_->BeginTransaction();
+    if (txn == nullptr) {
+        ON_ERROR("Begin transaction failed");
     }
-    return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    for (const auto& dentry : dentrys) {
+        DentryVec vec;
+        DentryVector vector(&vec);
+        std::string skey = DentryKey(dentry);
+        s = txn->SGet(table4Dentry_, skey, &vec);
+        if (!s.ok() && !s.IsNotFound()) {
+            ON_ERROR("Get dentry from transaction");
+        }
+        // OK || NOT_FOUND
+        vector.Delete(dentry);
+        if (vec.dentrys_size() == 0) {  // delete directly
+            s = txn->SDel(table4Dentry_, skey);
+        } else {
+            s = txn->SSet(table4Dentry_, skey, vec);
+        }
+        if (!s.ok()) {
+            ON_ERROR("Delete dentry from transaction");
+        }
+        vector.Confirm(&count);
+    }
+    s = SetDentryCount(txn.get(), count);
+    if (!s.ok()) {
+        ON_ERROR("Insert dentry count to transaction");
+    }
+    s = SetHandleTxIndex(txn.get(), logIndex);
+    if (!s.ok()) {
+        ON_ERROR("Insert handle tx index to transaction");
+    }
+    s = ClearPendingTx(txn.get());
+    if (!s.ok()) {
+        ON_ERROR("Delete pending tx from transaction");
+    }
+    rc = MetaStatusCode::OK;
+    ON_COMMIT();
 }
 
 std::shared_ptr<Iterator> DentryStorage::GetAll() {
@@ -932,6 +861,16 @@ MetaStatusCode DentryStorage::Clear() {
         LOG(ERROR) << "Clear dentry table failed, status = " << s.ToString();
         return MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
+    s = kvStorage_->SClear(table4TxWrite_);
+    if (!s.ok()) {
+        LOG(ERROR) << "Clear tx write table failed, status = " << s.ToString();
+        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    }
+    s = kvStorage_->SClear(table4TxLock_);
+    if (!s.ok()) {
+        LOG(ERROR) << "Clear tx lock table failed, status = " << s.ToString();
+        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    }
     std::shared_ptr<storage::StorageTransaction> txn;
     const char* step = "Begin transaction";
     do {
@@ -972,6 +911,394 @@ MetaStatusCode DentryStorage::Clear() {
     }
     LOG(ERROR) << step << " failed, status = " << s.ToString();
     return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+}
+
+MetaStatusCode DentryStorage::GetLastTxWriteTs(storage::StorageTransaction* txn,
+    const Dentry& dentry, uint64_t* commitTs) {
+    // 1. prepare seek lower key
+    Prefix4TxWrite prefix;
+    prefix.fsId = dentry.fsid();
+    prefix.parentInodeId = dentry.parentinodeid();
+    prefix.name = dentry.name();
+    std::string sprefix = conv_.SerializeToString(prefix);  // "1:1:name/"
+
+    // 2. iterator key/value pair one by one
+    auto iterator = txn->SSeek(table4TxWrite_, sprefix);
+    if (iterator->Status() < 0) {
+        LOG(ERROR) << "failed to get iterator for prefix" << sprefix;
+        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    }
+
+    std::string lastWriteKey;
+    std::vector<std::string> toDelete;
+    butil::Timer time;
+    uint32_t seekTimes = 0;
+    uint32_t compressCount = 0;
+    time.start();
+    for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
+        seekTimes++;
+        lastWriteKey = iterator->Key();
+        TxWrite value;
+        if (!iterator->ParseFromValue(&value)) {
+            LOG(ERROR) << "parse value failed, key = " << lastWriteKey;
+            return MetaStatusCode::PARSE_FROM_STRING_FAILED;
+        }
+        if (value.kind() == TxWriteKind::Rollback) {
+            continue;
+        }
+        toDelete.push_back(lastWriteKey);
+    }
+    time.stop();
+
+    if (seekTimes == 0) {
+        *commitTs = 0;
+        return MetaStatusCode::OK;
+    }
+    Key4TxWrite key;
+    if (!conv_.ParseFromString(lastWriteKey, &key)) {
+        LOG(ERROR) << "parse key failed, key = " << lastWriteKey;
+        return MetaStatusCode::PARSE_FROM_STRING_FAILED;
+    }
+    *commitTs = key.ts;
+    compressCount = toDelete.size() == 0 ? 0 : toDelete.size() - 1;
+    for (int i = 0; i < compressCount; i++) {
+        auto s = txn->SDel(table4TxWrite_, toDelete[i]);
+        if (!s.ok()) {
+            LOG(ERROR) << "delete tx write failed, key = " << toDelete[i];
+            return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+        }
+    }
+    VLOG(1)   << "GetLastTxWriteTs request: dentry = ("
+              << dentry.ShortDebugString() << ")"
+              << ", lower key = " << sprefix << ", seekTimes = " << seekTimes
+              << ", costUs = " << time.u_elapsed()
+              << ", compressCount = " << compressCount;
+    return MetaStatusCode::OK;
+}
+
+storage::Status DentryStorage::GetLatestCommit(uint64_t* statTs) {
+    TS commitTs;
+    Status s = kvStorage_->SGet(table4TxWrite_, kTxLatestCommit, &commitTs);
+    if (s.ok()) {
+        *statTs = commitTs.ts();
+    }
+    return s;
+}
+
+storage::Status DentryStorage::SetLatestCommit(
+    storage::StorageTransaction* txn, uint64_t ts) {
+    if (latestCommit_ >= ts) {
+        return Status::OK();
+    }
+    TS commitTs;
+    commitTs.set_ts(ts);
+    Status s = txn->SSet(table4TxWrite_, kTxLatestCommit, commitTs);
+    if (s.ok()) {
+        latestCommit_ = ts;
+    }
+    return s;
+}
+
+// based on tx lock not exist
+MetaStatusCode DentryStorage::CheckTxStatus(storage::StorageTransaction* txn,
+    const std::string& primaryKey, uint64_t ts) {
+    Key4Dentry key;
+    if (!key.ParseFromString(primaryKey)) {
+        return MetaStatusCode::PARSE_FROM_STRING_FAILED;
+    }
+    Key4TxWrite wkey(key.fsId, key.parentInodeId, key.name, ts);
+    std::string skey = wkey.SerializeToString();
+    TxWrite txWrite;
+    Status s = txn->SGet(table4TxWrite_, skey, &txWrite);
+    if (s.IsNotFound()) {
+        return MetaStatusCode::TX_COMMITTED;
+    } else if (!s.ok()) {
+        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    }
+
+    // status = OK
+    if (txWrite.startts() == ts && txWrite.kind() == TxWriteKind::Rollback) {
+        return MetaStatusCode::TX_ROLLBACKED;
+    }
+    return MetaStatusCode::TX_COMMITTED;
+}
+
+storage::Status DentryStorage::SetTxWrite(storage::StorageTransaction* txn,
+    const std::string& key, const TxWrite& txWrite) {
+    return txn->SSet(table4TxWrite_, key, txWrite);
+}
+
+storage::Status DentryStorage::GetTxLock(
+    storage::StorageTransaction* txn, const std::string& key, TxLock* out) {
+    return txn->SGet(table4TxLock_, key, out);
+}
+
+storage::Status DentryStorage::SetTxLock(storage::StorageTransaction* txn,
+    const std::string& key, const TxLock& txLock) {
+    return txn->SSet(table4TxLock_, key, txLock);
+}
+
+storage::Status DentryStorage::DelTxLock(
+    storage::StorageTransaction* txn, const std::string& key) {
+    return txn->SDel(table4TxLock_, key);
+}
+
+MetaStatusCode DentryStorage::WriteTx(storage::StorageTransaction* txn,
+    const Dentry& dentry, TxLock txLock, uint64_t* count) {
+    // 1. set tx lock
+    txLock.set_ttl(FLAGS_tx_lock_ttl_ms);
+    Status s = SetTxLock(txn, DentryKey(dentry), txLock);
+    if (!s.ok()) {
+        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    }
+    // 2. set dentry data and compress old version data
+    Dentry out;
+    DentryVec vec;
+    auto rc = Find(txn, dentry, &out, &vec, count, nullptr);
+    if (rc != MetaStatusCode::OK && rc != MetaStatusCode::NOT_FOUND) {
+        return rc;
+    }
+    DentryVector vector(&vec);
+    VLOG(3) << "WriteTx before insert = " << vec.DebugString();
+    vector.Insert(dentry);
+    VLOG(3) << "WriteTx after insert = " << vec.DebugString();
+    s = txn->SSet(table4Dentry_, DentryKey(dentry), vec);
+    if (!s.ok()) {
+        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    }
+    vector.Confirm(count);
+    s = SetDentryCount(txn, *count);
+    if (!s.ok()) {
+        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    }
+    return MetaStatusCode::OK;
+}
+
+MetaStatusCode DentryStorage::PrewriteTx(const std::vector<Dentry>& dentrys,
+    TxLock txLock, int64_t logIndex, TxLock* out) {
+    WriteLockGuard lg(rwLock_);
+    Status s;
+    uint64_t count = nDentry_;
+    MetaStatusCode rc = MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    std::shared_ptr<storage::StorageTransaction> txn;
+    txn = kvStorage_->BeginTransaction();
+    if (txn == nullptr) {
+        ON_ERROR("Begin transaction failed");
+    }
+    // 1. set applied index
+    s = SetAppliedIndex(txn.get(), logIndex);
+    if (!s.ok()) {
+        ON_ERROR("Insert applied index to transaction failed");
+    }
+    for (int i = 0; i < dentrys.size(); i++) {
+        // 2. check write confict
+        uint64_t commitTs = 0;
+        if (MetaStatusCode::OK !=
+            GetLastTxWriteTs(txn.get(), dentrys[i], &commitTs)) {
+            ON_ERROR("Get last tx write ts failed");
+        }
+        if (commitTs >= txLock.startts()) {
+            rc = MetaStatusCode::TX_WRITE_CONFLICT;
+            ON_ERROR("Tx write conflict");
+        }
+        // 3. check tx lock
+        s = GetTxLock(txn.get(), DentryKey(dentrys[i]), out);
+        if (s.ok()) {
+            if (out->startts() == txLock.startts()) {
+                continue;
+            }
+            out->set_index(i);
+            rc = MetaStatusCode::TX_KEY_LOCKED;
+            ON_COMMIT();
+        } else if (!s.IsNotFound()) {
+            ON_ERROR("Get tx lock failed");
+        }
+        // 4. write tx
+        if (WriteTx(txn.get(), dentrys[i], txLock, &count)
+            != MetaStatusCode::OK) {
+            ON_ERROR("Write tx failed");
+        }
+    }
+    rc = MetaStatusCode::OK;
+    ON_COMMIT();
+}
+
+MetaStatusCode DentryStorage::CheckTxStatus(const std::string& primaryKey,
+    uint64_t startTs, uint64_t curTimestamp, int64_t logIndex) {
+    WriteLockGuard lg(rwLock_);
+    Status s;
+    uint64_t count = nDentry_;
+    MetaStatusCode rc = MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    std::shared_ptr<storage::StorageTransaction> txn;
+    txn = kvStorage_->BeginTransaction();
+    if (txn == nullptr) {
+        ON_ERROR("Begin transaction failed");
+    }
+    // 1. set applied index
+    s = SetAppliedIndex(txn.get(), logIndex);
+    if (!s.ok()) {
+        ON_ERROR("Insert applied index to transaction failed");
+    }
+    // 2. check tx lock
+    TxLock txLock;
+    s = GetTxLock(txn.get(), primaryKey, &txLock);
+    if (s.ok()) {
+        // inprogress or timeout
+        if (curTimestamp > txLock.timestamp() + txLock.ttl()) {
+            rc = MetaStatusCode::TX_TIMEOUT;
+            ON_COMMIT();
+        } else {
+            rc = MetaStatusCode::TX_INPROGRESS;
+            ON_COMMIT();
+        }
+    } else if (s.IsNotFound()) {
+        // committed or rollbacked
+        rc = CheckTxStatus(txn.get(), primaryKey, startTs);
+        ON_COMMIT();
+    } else {
+        ON_ERROR("Get tx lock failed");
+    }
+    rc = MetaStatusCode::OK;
+    ON_COMMIT();
+}
+
+MetaStatusCode DentryStorage::ResolveTxLock(const Dentry& dentry,
+    uint64_t startTs, uint64_t commitTs, int64_t logIndex) {
+    WriteLockGuard lg(rwLock_);
+    Status s;
+    uint64_t count = nDentry_;
+    MetaStatusCode rc = MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    std::shared_ptr<storage::StorageTransaction> txn;
+    txn = kvStorage_->BeginTransaction();
+    if (txn == nullptr) {
+        ON_ERROR("Begin transaction failed");
+    }
+    // 1. set applied index
+    s = SetAppliedIndex(txn.get(), logIndex);
+    if (!s.ok()) {
+        ON_ERROR("Insert applied index to transaction failed");
+    }
+    TxLock outLock;
+    s = GetTxLock(txn.get(), DentryKey(dentry), &outLock);
+    if (s.IsNotFound()) {
+        rc = MetaStatusCode::OK;
+        ON_COMMIT();
+    } else if (!s.ok()) {
+        ON_ERROR("Get tx lock failed");
+    }
+    if (outLock.startts() != startTs) {
+        rc = MetaStatusCode::TX_MISMATCH;
+        ON_ERROR("tx lock mismatch");
+    }
+    // roll forward
+    if (commitTs > 0) {
+        if (!DelTxLock(txn.get(), DentryKey(dentry)).ok()) {
+            ON_ERROR("Delete tx lock failed");
+        }
+        TxWrite txWrite;
+        txWrite.set_startts(startTs);
+        txWrite.set_kind(TxWriteKind::Commit);
+        if (!SetTxWrite(txn.get(),
+            TxWriteKey(dentry, commitTs), txWrite).ok()) {
+            ON_ERROR("Set tx write failed");
+        }
+        // update latest commit
+        if (!SetLatestCommit(txn.get(), commitTs).ok()) {
+            ON_ERROR("update latest commit failed");
+        }
+    } else {
+        // 1. delete tx lock
+        if (!DelTxLock(txn.get(), DentryKey(dentry)).ok()) {
+            ON_ERROR("Delete tx lock failed");
+        }
+        // 2. delete tx data with startTs
+        DentryVec vec;
+        DentryVector vector(&vec);
+        std::string skey = DentryKey(dentry);
+        s = txn->SGet(table4Dentry_, skey, &vec);
+        if (!s.ok() && !s.IsNotFound()) {
+            ON_ERROR("Get dentry from transaction failed");
+        }
+        // OK || NOT_FOUND
+        Dentry preDentry(dentry);
+        preDentry.set_txid(startTs);
+        vector.Delete(preDentry);
+        if (vec.dentrys_size() == 0) {  // delete directly
+            s = txn->SDel(table4Dentry_, skey);
+        } else {
+            s = txn->SSet(table4Dentry_, skey, vec);
+        }
+        if (!s.ok()) {
+            ON_ERROR("Delete dentry from transaction failed");
+        }
+        vector.Confirm(&count);
+        // 3. set tx write
+        TxWrite txWrite;
+        txWrite.set_startts(startTs);
+        txWrite.set_kind(TxWriteKind::Rollback);
+        if (!SetTxWrite(
+            txn.get(), TxWriteKey(dentry, startTs), txWrite).ok()) {
+            ON_ERROR("Set tx write failed");
+        }
+    }
+    rc = MetaStatusCode::OK;
+    ON_COMMIT();
+}
+
+MetaStatusCode DentryStorage::CommitTx(const std::vector<Dentry>& dentrys,
+    uint64_t startTs, uint64_t commitTs, int64_t logIndex) {
+    WriteLockGuard lg(rwLock_);
+    Status s;
+    uint64_t count = nDentry_;
+    MetaStatusCode rc = MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    std::shared_ptr<storage::StorageTransaction> txn;
+    txn = kvStorage_->BeginTransaction();
+    if (txn == nullptr) {
+        ON_ERROR("Begin transaction failed");
+    }
+    // 1. set applied index
+    s = SetAppliedIndex(txn.get(), logIndex);
+    if (!s.ok()) {
+        ON_ERROR("Insert applied index to transaction failed");
+    }
+    for (const auto& dentry : dentrys) {
+        // check tx lock
+        TxLock txLock;
+        s = GetTxLock(txn.get(), DentryKey(dentry), &txLock);
+        if (s.IsNotFound()) {
+            // commited or rollbacked
+            rc = CheckTxStatus(txn.get(), DentryKey(dentry), startTs);
+            if (rc == MetaStatusCode::TX_COMMITTED) {
+                continue;
+            } else {
+                ON_ERROR("tx have been rollbacked when commit");
+            }
+        } else if (!s.ok()) {
+            ON_ERROR("Get tx lock failed");
+        }
+        if (txLock.startts() != startTs) {
+            rc = MetaStatusCode::TX_MISMATCH;
+            ON_ERROR("tx lock mismatch");
+        }
+        // set tx write
+        TxWrite txWrite;
+        txWrite.set_startts(startTs);
+        txWrite.set_kind(TxWriteKind::Commit);
+        if (!SetTxWrite(
+            txn.get(), TxWriteKey(dentry, commitTs), txWrite).ok()) {
+            ON_ERROR("Set tx write failed");
+        }
+        // delete tx lock
+        if (!DelTxLock(txn.get(), DentryKey(dentry)).ok()) {
+            ON_ERROR("Delete tx lock failed");
+        }
+    }
+    // update latest commit
+    if (!SetLatestCommit(txn.get(), startTs).ok()) {
+        ON_ERROR("update latest commit failed");
+    }
+    rc = MetaStatusCode::OK;
+    ON_COMMIT();
 }
 
 }  // namespace metaserver

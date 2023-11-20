@@ -45,26 +45,27 @@ const char BLOCKGROUP_KEY_PREFIX[] = "fs_04";
 const char BLOCKGROUP_KEY_END[] = "fs_05";
 const char FS_USAGE_KEY_PREFIX[] = "fs_05";
 const char FS_USAGE_KEY_END[] = "fs_06";
+const char TS_INFO_KEY_PREFIX[] = "fs_07";
 
 constexpr uint32_t COMMON_PREFIX_LENGTH = 5;
 
-const char POOLKEYPREFIX[] = "fs_1001";
-const char POOLKEYEND[] = "fs_1002";
-const char ZONEKEYPREFIX[] = "fs_1002";
-const char ZONEKEYEND[] = "fs_1003";
-const char SERVERKEYPREFIX[] = "fs_1003";
-const char SERVERKEYEND[] = "fs_1004";
-const char METASERVERKEYPREFIX[] = "fs_1004";
-const char METASERVERKEYEND[] = "fs_1005";
-const char CLUSTERINFOKEY[] = "fs_1006";
-const char COPYSETKEYPREFIX[] = "fs_1007";
-const char COPYSETKEYEND[] = "fs_1008";
-const char PARTITIONKEYPREFIX[] = "fs_1008";
-const char PARTITIONKEYEND[] = "fs_1009";
-const char MEMCACHECLUSTERKEYPREFIX[] = "fs_1009";
-const char MEMCACHECLUSTERKEYEND[] = "fs_1010";
-const char FS2MEMCACHECLUSTERKEYPREFIX[] = "fs_1010";
-const char FS2MEMCACHECLUSTERKEYEND[] = "fs_1011";
+const char POOL_KEY_PREFIX[] = "fs_1001";
+const char POOL_KEY_END[] = "fs_1002";
+const char ZONE_KEY_PREFIX[] = "fs_1002";
+const char ZONE_KEY_END[] = "fs_1003";
+const char SERVER_KEY_PREFIX[] = "fs_1003";
+const char SERVER_KEY_END[] = "fs_1004";
+const char METASERVER_KEY_PREFIX[] = "fs_1004";
+const char METASERVER_KEY_END[] = "fs_1005";
+const char CLUSTER_KEY[] = "fs_1006";
+const char COPYSET_KEY_PREFIX[] = "fs_1007";
+const char COPYSET_KEY_END[] = "fs_1008";
+const char PARTITION_KEY_PREFIX[] = "fs_1008";
+const char PARTITION_KEY_END[] = "fs_1009";
+const char MEMCACHE_CLUSTER_KEY_PREFIX[] = "fs_1009";
+const char MEMCACHE_CLUSTER_KEY_END[] = "fs_1010";
+const char FS_2_MEMCACHE_CLUSTER_KEY_PREFIX[] = "fs_1010";
+const char FS_2_MEMCACHE_CLUSTER_KEY_END[] = "fs_1011";
 
 constexpr uint32_t TOPOLOGY_PREFIX_LENGTH = 7;
 

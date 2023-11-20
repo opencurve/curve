@@ -25,8 +25,8 @@
 
 #include <memory>
 
-#include "curvefs/src/client/dentry_cache_manager.h"
-#include "curvefs/src/client/inode_cache_manager.h"
+#include "curvefs/src/client/dentry_manager.h"
+#include "curvefs/src/client/inode_manager.h"
 #include "curvefs/src/client/xattr_manager.h"
 
 namespace curvefs {

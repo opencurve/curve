@@ -30,7 +30,7 @@
 #include "curvefs/src/client/kvclient/kvclient_manager.h"
 #include "src/common/curve_define.h"
 #include "curvefs/test/client/mock_client_s3.h"
-#include "curvefs/test/client/mock_inode_cache_manager.h"
+#include "curvefs/test/client/mock_inode_manager.h"
 #include "curvefs/test/client/mock_metaserver_service.h"
 #include "curvefs/test/client/mock_kvclient.h"
 #include "curvefs/test/client/rpcclient/mock_mds_client.h"

@@ -203,6 +203,8 @@ class FsManager {
     void CommitTx(const CommitTxRequest* request,
                   CommitTxResponse* response);
 
+    void Tso(const TsoRequest* request, TsoResponse* response);
+
     // periodically check if the mount point is alive
     void BackEndCheckMountPoint();
     void CheckMountPoint();

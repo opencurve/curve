@@ -197,10 +197,8 @@ void InitExcutorOption(const std::shared_ptr<Configuration>& conf,
                               &opts->minRetryTimesForceTimeoutBackoff);
     conf->GetValueFatalIfFail("excutorOpt.maxRetryTimesBeforeConsiderSuspend",
                               &opts->maxRetryTimesBeforeConsiderSuspend);
-    conf->GetValueFatalIfFail("excutorOpt.batchInodeAttrLimit",
-                              &opts->batchInodeAttrLimit);
-    conf->GetValueFatalIfFail("excutorOpt.enableMultiMountPointRename",
-                              &opts->enableRenameParallel);
+    conf->GetValueFatalIfFail(
+        "excutorOpt.batchInodeAttrLimit", &opts->batchInodeAttrLimit);
 }
 
 void InitMetaCacheOption(const std::shared_ptr<Configuration>& conf,

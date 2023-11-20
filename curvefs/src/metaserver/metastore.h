@@ -155,6 +155,19 @@ class MetaStore {
         const PrepareRenameTxRequest* request,
         PrepareRenameTxResponse* response, int64_t logIndex) = 0;
 
+    virtual MetaStatusCode PrewriteRenameTx(
+        const PrewriteRenameTxRequest* request,
+        PrewriteRenameTxResponse* response, int64_t logIndex) = 0;
+
+    virtual MetaStatusCode CheckTxStatus(const CheckTxStatusRequest* request,
+        CheckTxStatusResponse* response, int64_t logIndex) = 0;
+
+    virtual MetaStatusCode ResolveTxLock(const ResolveTxLockRequest* request,
+        ResolveTxLockResponse* response, int64_t logIndex) = 0;
+
+    virtual MetaStatusCode CommitTx(const CommitTxRequest* request,
+        CommitTxResponse* response, int64_t logIndex) = 0;
+
     // inode
     virtual MetaStatusCode CreateInode(const CreateInodeRequest* request,
                                        CreateInodeResponse* response,
@@ -260,6 +273,18 @@ class MetaStoreImpl : public MetaStore {
     MetaStatusCode PrepareRenameTx(const PrepareRenameTxRequest* request,
                                    PrepareRenameTxResponse* response,
                                    int64_t logIndex) override;
+
+    MetaStatusCode PrewriteRenameTx(const PrewriteRenameTxRequest* request,
+        PrewriteRenameTxResponse* response, int64_t logIndex) override;
+
+    MetaStatusCode CheckTxStatus(const CheckTxStatusRequest* request,
+        CheckTxStatusResponse* response, int64_t logIndex) override;
+
+    MetaStatusCode ResolveTxLock(const ResolveTxLockRequest* request,
+        ResolveTxLockResponse* response, int64_t logIndex) override;
+
+    MetaStatusCode CommitTx(const CommitTxRequest* request,
+        CommitTxResponse* response, int64_t logIndex) override;
 
     // inode
     MetaStatusCode CreateInode(const CreateInodeRequest* request,

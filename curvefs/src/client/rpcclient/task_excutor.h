@@ -45,13 +45,19 @@ using ::curvefs::client::common::ExcutorOpt;
 using ::curvefs::client::common::MetaserverID;
 using ::curvefs::client::common::MetaServerOpType;
 using ::curvefs::common::PartitionInfo;
-using ::curvefs::metaserver::MetaStatusCode;
-using ::google::protobuf::RepeatedPtrField;
 using ::curvefs::metaserver::Inode;
 using ::curvefs::metaserver::InodeAttr;
+using ::curvefs::metaserver::MetaStatusCode;
+using ::google::protobuf::RepeatedPtrField;
+using ::curvefs::client::common::FLAGS_TxVersion;
 
 namespace curvefs {
 namespace client {
+
+namespace common {
+    DECLARE_int32(TxVersion);
+}  // namespace common
+
 namespace rpcclient {
 
 class TaskExecutorDone;
@@ -60,10 +66,9 @@ MetaStatusCode ConvertToMetaStatusCode(int retcode);
 
 class TaskContext {
  public:
-    using RpcFunc = std::function<int(
-        LogicPoolID poolID, CopysetID copysetID, PartitionID partitionID,
-        uint64_t txId, brpc::Channel *channel,
-        brpc::Controller *cntl, TaskExecutorDone *done)>;
+    using RpcFunc = std::function<int(LogicPoolID poolID, CopysetID copysetID,
+        PartitionID partitionID, uint64_t txId, brpc::Channel* channel,
+        brpc::Controller* cntl, TaskExecutorDone* done)>;
 
     TaskContext() = default;
     TaskContext(MetaServerOpType type,
@@ -77,7 +82,7 @@ class TaskContext {
           fsID(fsid),
           inodeID(inodeid),
           streaming(streaming),
-          refreshTxId(refreshTxId) {}
+          refreshTxId(FLAGS_TxVersion == 1 ? refreshTxId : false) {}
 
     std::string TaskContextStr() {
         std::ostringstream oss;

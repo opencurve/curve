@@ -25,8 +25,8 @@
 #include <gtest/gtest.h>
 
 #include "curvefs/src/client/client_operator.h"
-#include "curvefs/test/client/mock_dentry_cache_mamager.h"
-#include "curvefs/test/client/mock_inode_cache_manager.h"
+#include "curvefs/test/client/mock_dentry_mamager.h"
+#include "curvefs/test/client/mock_inode_manager.h"
 #include "curvefs/test/client/mock_metaserver_client.h"
 #include "curvefs/test/client/rpcclient/mock_mds_client.h"
 
@@ -188,6 +188,86 @@ TEST_F(ClientOperatorTest, CommitTx) {
         .WillOnce(Return(FSStatusCode::OK));
 
     rc = renameOp_->CommitTx();
+    ASSERT_EQ(rc, CURVEFS_ERROR::OK);
+}
+
+TEST_F(ClientOperatorTest, PrewriteTx) {
+    CURVEFS_ERROR rc = CURVEFS_ERROR::OK;
+    // 1. tso failed
+    EXPECT_CALL(*mdsClient_, Tso(_, _))
+        .WillOnce(Return(FSStatusCode::UNKNOWN_ERROR));
+    rc = renameOp_->PrewriteTx();
+    ASSERT_EQ(rc, CURVEFS_ERROR::INTERNAL);
+    // 2. GetPartitionId failed
+    EXPECT_CALL(*mdsClient_, Tso(_, _))
+        .WillOnce(Return(FSStatusCode::OK))
+        .WillOnce(Return(FSStatusCode::OK));
+    EXPECT_CALL(*metaClient_, GetPartitionId(_, _, _))
+        .WillOnce(Return(false))
+        .WillOnce(Return(true))
+        .WillOnce(Return(false));
+    rc = renameOp_->PrewriteTx();
+    ASSERT_EQ(rc, CURVEFS_ERROR::INTERNAL);
+    rc = renameOp_->PrewriteTx();
+    ASSERT_EQ(rc, CURVEFS_ERROR::INTERNAL);
+    // 3. PrewriteRenameTx failed
+    EXPECT_CALL(*mdsClient_, Tso(_, _))
+        .WillOnce(Return(FSStatusCode::OK));
+    EXPECT_CALL(*metaClient_, GetPartitionId(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(1), Return(true)))
+        .WillOnce(DoAll(SetArgPointee<2>(2), Return(true)));
+    EXPECT_CALL(*metaClient_, PrewriteRenameTx(_, _, _))
+        .WillOnce(Return(MetaStatusCode::STORAGE_INTERNAL_ERROR));
+    rc = renameOp_->PrewriteTx();
+    ASSERT_EQ(rc, CURVEFS_ERROR::INTERNAL);
+    // 4. PrewriteRenameTx key is locked and CheckAndResolveTx failed
+    EXPECT_CALL(*mdsClient_, Tso(_, _))
+        .WillOnce(Return(FSStatusCode::OK));
+    EXPECT_CALL(*metaClient_, GetPartitionId(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(1), Return(true)))
+        .WillOnce(DoAll(SetArgPointee<2>(2), Return(true)));
+    EXPECT_CALL(*metaClient_, PrewriteRenameTx(_, _, _))
+        .WillOnce(Return(MetaStatusCode::TX_KEY_LOCKED));
+    EXPECT_CALL(*dentryManager_, CheckAndResolveTx(_, _, _, _))
+        .WillOnce(Return(MetaStatusCode::STORAGE_INTERNAL_ERROR));
+    rc = renameOp_->PrewriteTx();
+    ASSERT_EQ(rc, CURVEFS_ERROR::INTERNAL);
+    // 5. PrewriteRenameTx key is locked and CheckAndResolveTx success
+    EXPECT_CALL(*mdsClient_, Tso(_, _))
+        .WillOnce(Return(FSStatusCode::OK));
+    EXPECT_CALL(*metaClient_, GetPartitionId(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(1), Return(true)))
+        .WillOnce(DoAll(SetArgPointee<2>(2), Return(true)));
+    EXPECT_CALL(*metaClient_, PrewriteRenameTx(_, _, _))
+        .WillOnce(Return(MetaStatusCode::TX_KEY_LOCKED))
+        .WillOnce(Return(MetaStatusCode::OK))
+        .WillOnce(Return(MetaStatusCode::OK));
+    EXPECT_CALL(*dentryManager_, CheckAndResolveTx(_, _, _, _))
+        .WillOnce(Return(MetaStatusCode::OK));
+    rc = renameOp_->PrewriteTx();
+    ASSERT_EQ(rc, CURVEFS_ERROR::OK);
+}
+
+TEST_F(ClientOperatorTest, CommitTxV2) {
+    CURVEFS_ERROR rc = CURVEFS_ERROR::OK;
+    // 1. tso failed
+    EXPECT_CALL(*mdsClient_, Tso(_, _))
+        .WillOnce(Return(FSStatusCode::UNKNOWN_ERROR));
+    rc = renameOp_->CommitTxV2();
+    ASSERT_EQ(rc, CURVEFS_ERROR::INTERNAL);
+    // 2. CommitTx failed
+    EXPECT_CALL(*mdsClient_, Tso(_, _))
+        .WillOnce(Return(FSStatusCode::OK));
+    EXPECT_CALL(*metaClient_, CommitTx(_, _, _))
+        .WillOnce(Return(MetaStatusCode::STORAGE_INTERNAL_ERROR));
+    rc = renameOp_->CommitTxV2();
+    ASSERT_EQ(rc, CURVEFS_ERROR::INTERNAL);
+    // 3. CommitTx success
+    EXPECT_CALL(*mdsClient_, Tso(_, _))
+        .WillOnce(Return(FSStatusCode::OK));
+    EXPECT_CALL(*metaClient_, CommitTx(_, _, _))
+        .WillOnce(Return(MetaStatusCode::OK));
+    rc = renameOp_->CommitTxV2();
     ASSERT_EQ(rc, CURVEFS_ERROR::OK);
 }
 

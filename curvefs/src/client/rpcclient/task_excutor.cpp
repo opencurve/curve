@@ -29,8 +29,8 @@
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/common/define.h"
 
-using ::curvefs::metaserver::MetaStatusCode;
 using ::curvefs::RECYCLEINODEID;
+using ::curvefs::metaserver::MetaStatusCode;
 
 namespace curvefs {
 namespace client {
@@ -160,6 +160,10 @@ bool TaskExecutor::OnReturn(int retCode) {
             needRetry = true;
             break;
 
+        case MetaStatusCode::TX_INPROGRESS:
+            needRetry = true;
+            break;
+
         default:
             break;
         }
@@ -233,9 +237,8 @@ int TaskExecutor::ExcuteTask(brpc::Channel *channel,
     task_->cntl_.Reset();
     task_->cntl_.set_timeout_ms(task_->rpcTimeoutMs);
     return task_->rpctask(task_->target.groupID.poolID,
-                          task_->target.groupID.copysetID,
-                          task_->target.partitionID, task_->target.txId,
-                          channel, &task_->cntl_, done);
+        task_->target.groupID.copysetID, task_->target.partitionID,
+        task_->target.txId, channel, &task_->cntl_, done);
 }
 
 void TaskExecutor::OnSuccess() {}

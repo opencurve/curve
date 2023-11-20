@@ -33,6 +33,7 @@ namespace codec {
 
 using ::curve::common::EncodeBigEndian;
 using ::curve::common::EncodeBigEndian_uint32;
+using ::curve::common::DecodeBigEndian_uint32;
 using ::curvefs::mds::BLOCKGROUP_KEY_END;
 using ::curvefs::mds::BLOCKGROUP_KEY_PREFIX;
 using ::curvefs::mds::COMMON_PREFIX_LENGTH;

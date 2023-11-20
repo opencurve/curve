@@ -105,6 +105,8 @@ DEFINE_uint64(fuseClientBurstReadIopsSecs, 180,
               "the times that Read burst iops can continue");
 DEFINE_validator(fuseClientBurstReadIopsSecs, &pass_uint64);
 
+DEFINE_int32(TxVersion, 1, "tx version");
+
 void InitMdsOption(Configuration *conf, MdsOption *mdsOpt) {
     conf->GetValueFatalIfFail("mdsOpt.mdsMaxRetryMS", &mdsOpt->mdsMaxRetryMS);
     conf->GetValueFatalIfFail("mdsOpt.rpcRetryOpt.maxRPCTimeoutMS",
@@ -428,6 +430,8 @@ void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption) {
                               &clientOption->dummyServerStartPort);
     conf->GetValueFatalIfFail("fuseClient.enableMultiMountPointRename",
                               &clientOption->enableMultiMountPointRename);
+    conf->GetIntValue("fuseClient.txVersion",
+                      &FLAGS_TxVersion);
     conf->GetValueFatalIfFail("fuseClient.downloadMaxRetryTimes",
                               &clientOption->downloadMaxRetryTimes);
     conf->GetValueFatalIfFail("fuseClient.warmupThreadsNum",

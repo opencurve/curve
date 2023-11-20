@@ -80,7 +80,7 @@ message PartitionInfo {
     // partition manage inodeid range [start, end]
     required uint64 start = 5;
     required uint64 end = 6;
-    required uint64 txId = 7;
+    optional uint64 txId = 7;
     optional uint64 nextId = 8;
     // status can change from READWRITE to READONLY, but can not chanage from READONLY to READWRITE
     // READWRITE/READONLY can change to DELETING, but DELETING can not change to READWRITE/READONLY

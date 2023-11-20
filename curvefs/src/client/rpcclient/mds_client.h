@@ -141,6 +141,8 @@ class MdsClient {
                      const std::string& uuid,
                      uint64_t sequence) = 0;
 
+    virtual FSStatusCode Tso(uint64_t* ts, uint64_t* timestamp) = 0;
+
     // allocate block group
     virtual SpaceErrCode AllocateVolumeBlockGroup(
         uint32_t fsId,
@@ -234,6 +236,8 @@ class MdsClientImpl : public MdsClient {
                      const std::string& uuid,
                      uint64_t sequence) override;
 
+    FSStatusCode Tso(uint64_t* ts, uint64_t* timestamp) override;
+
     // allocate block group
     SpaceErrCode AllocateVolumeBlockGroup(
         uint32_t fsId,
@@ -242,11 +246,9 @@ class MdsClientImpl : public MdsClient {
         std::vector<curvefs::mds::space::BlockGroup> *groups) override;
 
     // acquire block group
-    SpaceErrCode AcquireVolumeBlockGroup(
-        uint32_t fsId,
-        uint64_t blockGroupOffset,
-        const std::string &owner,
-        curvefs::mds::space::BlockGroup *groups) override;
+    SpaceErrCode AcquireVolumeBlockGroup(uint32_t fsId,
+        uint64_t blockGroupOffset, const std::string& owner,
+        curvefs::mds::space::BlockGroup* groups) override;
 
     // release block group
     SpaceErrCode ReleaseVolumeBlockGroup(

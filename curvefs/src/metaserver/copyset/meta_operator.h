@@ -470,31 +470,12 @@ class DeletePartitionOperator : public MetaOperator {
     void OnFailed(MetaStatusCode code) override;
 };
 
-class PrepareRenameTxOperator : public MetaOperator {
- public:
-    using MetaOperator::MetaOperator;
-
-    void OnApply(int64_t index, google::protobuf::Closure* done,
-                 uint64_t startTimeUs) override;
-
-    void OnApplyFromLog(int64_t index, uint64_t startTimeUs) override;
-
-    uint64_t HashCode() const override;
-
-    OperatorType GetOperatorType() const override;
-
- private:
-    void Redirect() override;
-
-    void OnFailed(MetaStatusCode code) override;
-};
-
 class GetVolumeExtentOperator : public MetaOperator {
  public:
     using MetaOperator::MetaOperator;
 
     void OnApply(int64_t index, google::protobuf::Closure* done,
-                 uint64_t startTimeUs) override;
+        uint64_t startTimeUs) override;
 
     void OnApplyFromLog(int64_t index, uint64_t startTimeUs) override;
 
@@ -515,7 +496,7 @@ class UpdateVolumeExtentOperator : public MetaOperator {
     using MetaOperator::MetaOperator;
 
     void OnApply(int64_t index, google::protobuf::Closure* done,
-                 uint64_t startTimeUs) override;
+        uint64_t startTimeUs) override;
 
     void OnApplyFromLog(int64_t index, uint64_t startTimeUs) override;
 
@@ -530,6 +511,103 @@ class UpdateVolumeExtentOperator : public MetaOperator {
 };
 
 class UpdateDeallocatableBlockGroupOperator : public MetaOperator {
+ public:
+    using MetaOperator::MetaOperator;
+
+    void OnApply(int64_t index, google::protobuf::Closure* done,
+        uint64_t startTimeUs) override;
+
+    void OnApplyFromLog(int64_t index, uint64_t startTimeUs) override;
+
+    uint64_t HashCode() const override;
+
+    OperatorType GetOperatorType() const override;
+
+ private:
+    void Redirect() override;
+
+    void OnFailed(MetaStatusCode code) override;
+};
+
+class PrepareRenameTxOperator : public MetaOperator {
+ public:
+    using MetaOperator::MetaOperator;
+
+    void OnApply(int64_t index, google::protobuf::Closure* done,
+                 uint64_t startTimeUs) override;
+
+    void OnApplyFromLog(int64_t index, uint64_t startTimeUs) override;
+
+    uint64_t HashCode() const override;
+
+    OperatorType GetOperatorType() const override;
+
+ private:
+    void Redirect() override;
+
+    void OnFailed(MetaStatusCode code) override;
+};
+
+class PrewriteRenameTxOperator : public MetaOperator {
+ public:
+    using MetaOperator::MetaOperator;
+
+    void OnApply(int64_t index, google::protobuf::Closure* done,
+        uint64_t startTimeUs) override;
+
+    void OnApplyFromLog(int64_t index, uint64_t startTimeUs) override;
+
+    uint64_t HashCode() const override;
+
+    OperatorType GetOperatorType() const override;
+
+ private:
+    void Redirect() override;
+
+    void OnFailed(MetaStatusCode code) override;
+};
+
+class CheckTxStatusOperator : public MetaOperator {
+ public:
+    using MetaOperator::MetaOperator;
+
+    void OnApply(int64_t index, google::protobuf::Closure* done,
+                 uint64_t startTimeUs) override;
+
+    void OnApplyFromLog(int64_t index, uint64_t startTimeUs) override;
+
+    uint64_t HashCode() const override;
+
+    OperatorType GetOperatorType() const override;
+
+ private:
+    void Redirect() override;
+
+    void OnFailed(MetaStatusCode code) override;
+
+    bool CanBypassPropose() const override;
+};
+
+class ResolveTxLockOperator : public MetaOperator {
+ public:
+    using MetaOperator::MetaOperator;
+
+    void OnApply(int64_t index, google::protobuf::Closure* done,
+                 uint64_t startTimeUs) override;
+
+    void OnApplyFromLog(int64_t index, uint64_t startTimeUs) override;
+
+    uint64_t HashCode() const override;
+
+    OperatorType GetOperatorType() const override;
+
+ private:
+    void Redirect() override;
+
+    void OnFailed(MetaStatusCode code) override;
+};
+
+class CommitTxOperator : public MetaOperator {
  public:
     using MetaOperator::MetaOperator;
 

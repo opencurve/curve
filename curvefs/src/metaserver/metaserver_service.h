@@ -108,11 +108,6 @@ class MetaServerServiceImpl : public MetaServerService {
                          DeletePartitionResponse* response,
                          google::protobuf::Closure* done) override;
 
-    void PrepareRenameTx(google::protobuf::RpcController* controller,
-                         const PrepareRenameTxRequest* request,
-                         PrepareRenameTxResponse* response,
-                         google::protobuf::Closure* done) override;
-
     void GetVolumeExtent(::google::protobuf::RpcController* controller,
                          const GetVolumeExtentRequest* request,
                          GetVolumeExtentResponse* response,
@@ -128,6 +123,29 @@ class MetaServerServiceImpl : public MetaServerService {
         const UpdateDeallocatableBlockGroupRequest *request,
         UpdateDeallocatableBlockGroupResponse *response,
         ::google::protobuf::Closure *done) override;
+
+    // reserved for compatibility
+    void PrepareRenameTx(google::protobuf::RpcController* controller,
+        const PrepareRenameTxRequest* request,
+        PrepareRenameTxResponse* response,
+        google::protobuf::Closure* done) override;
+
+    void PrewriteRenameTx(google::protobuf::RpcController* controller,
+        const PrewriteRenameTxRequest* request,
+        PrewriteRenameTxResponse* response,
+        google::protobuf::Closure* done) override;
+
+    void CheckTxStatus(google::protobuf::RpcController* controller,
+        const CheckTxStatusRequest* request, CheckTxStatusResponse* response,
+        google::protobuf::Closure* done) override;
+
+    void ResolveTxLock(google::protobuf::RpcController* controller,
+        const ResolveTxLockRequest* request, ResolveTxLockResponse* response,
+        google::protobuf::Closure* done) override;
+
+    void CommitTx(google::protobuf::RpcController* controller,
+        const CommitTxRequest* request, CommitTxResponse* response,
+        google::protobuf::Closure* done) override;
 
  private:
     CopysetNodeManager* copysetNodeManager_;

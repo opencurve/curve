@@ -35,6 +35,10 @@
 namespace curvefs {
 namespace metaserver {
 
+namespace storage {
+    DECLARE_int32(tx_lock_ttl_ms);
+}
+
 using ::curvefs::metaserver::storage::KVStorage;
 using ::curvefs::metaserver::storage::RandomStoragePath;
 using ::curvefs::metaserver::storage::RocksDBStorage;
@@ -196,6 +200,142 @@ TEST_F(DentryManagerTest, HandleRenameTx) {
     rc = txManager_->HandleRenameTx(dentrys, logIndex_++);
     ASSERT_EQ(rc, MetaStatusCode::OK);
     ASSERT_EQ(dentryStorage_->Size(), 1);
+}
+
+TEST_F(DentryManagerTest, PrewriteRenameTx) {
+    TxLock txLockIn;
+    TxLock txLockOut;
+    int64_t logIndex = 1;
+    uint64_t startTs = 2;
+    uint64_t commitTs = 3;
+    Dentry dentryA = GenDentry(1, 0, "A", startTs, 1, false);
+    // 1. prewrite success
+    std::vector<Dentry> dentrys = std::vector<Dentry>{dentryA};
+    txLockIn.set_primarykey(storage::Key4Dentry(1, 0, "A").SerializeToString());
+    txLockIn.set_startts(startTs);
+    txLockIn.set_timestamp(100);
+    auto rc = dentryManager_->PrewriteRenameTx(dentrys, txLockIn, logIndex,
+                                               &txLockOut);
+    ASSERT_EQ(rc, MetaStatusCode::OK);
+    // 2. tx locked
+    txLockIn.set_startts(1);
+    rc = dentryManager_->PrewriteRenameTx(dentrys, txLockIn, logIndex,
+                                          &txLockOut);
+    ASSERT_EQ(rc, MetaStatusCode::TX_KEY_LOCKED);
+    ASSERT_EQ(txLockOut.startts(), startTs);
+    ASSERT_EQ(txLockOut.primarykey(), txLockIn.primarykey());
+    // 3. tx write conflict
+    rc = dentryManager_->CommitTx(dentrys, startTs, commitTs, logIndex++);
+    ASSERT_EQ(rc, MetaStatusCode::OK);
+    rc = dentryManager_->PrewriteRenameTx(dentrys, txLockIn, logIndex,
+                                          &txLockOut);
+    ASSERT_EQ(rc, MetaStatusCode::TX_WRITE_CONFLICT);
+}
+
+TEST_F(DentryManagerTest, CheckTxStatus) {
+    storage::FLAGS_tx_lock_ttl_ms = 100;
+
+    TxLock txLockIn;
+    TxLock txLockOut;
+    int64_t logIndex = 1;
+    uint64_t startTs = 2;
+    uint64_t commitTs = 3;
+    Dentry dentryA = GenDentry(1, 0, "A", startTs, 1, false);
+    std::vector<Dentry> dentrys = std::vector<Dentry>{dentryA};
+    txLockIn.set_primarykey(storage::Key4Dentry(1, 0, "A").SerializeToString());
+    txLockIn.set_startts(startTs);
+    txLockIn.set_timestamp(1000);
+    auto rc = dentryManager_->PrewriteRenameTx(dentrys, txLockIn, logIndex,
+                                               &txLockOut);
+    ASSERT_EQ(rc, MetaStatusCode::OK);
+
+    // timeout
+    rc = dentryManager_->CheckTxStatus(txLockIn.primarykey(), startTs, 1500,
+                                       logIndex);
+    ASSERT_EQ(rc, MetaStatusCode::TX_TIMEOUT);
+    // inprogress
+    rc = dentryManager_->CheckTxStatus(txLockIn.primarykey(), startTs, 1050,
+                                       logIndex);
+    ASSERT_EQ(rc, MetaStatusCode::TX_INPROGRESS);
+    // commited
+    rc = dentryManager_->CommitTx(dentrys, startTs, commitTs, logIndex++);
+    ASSERT_EQ(rc, MetaStatusCode::OK);
+    rc = dentryManager_->CheckTxStatus(txLockIn.primarykey(), startTs, 1500,
+                                       logIndex);
+    ASSERT_EQ(rc, MetaStatusCode::TX_COMMITTED);
+}
+
+
+TEST_F(DentryManagerTest, ResolveTxLock) {
+    TxLock txLockIn;
+    TxLock txLockOut;
+    int64_t logIndex = 1;
+    uint64_t startTs = 2;
+    uint64_t commitTs = 3;
+    Dentry dentryA = GenDentry(1, 0, "A", startTs, 1, false);
+    std::vector<Dentry> dentrys = std::vector<Dentry>{dentryA};
+    txLockIn.set_primarykey(storage::Key4Dentry(1, 0, "A").SerializeToString());
+    txLockIn.set_startts(startTs);
+    txLockIn.set_timestamp(1000);
+
+    // 1. tx lock not exist
+    auto rc = dentryManager_->ResolveTxLock(dentryA, startTs, commitTs,
+                                            logIndex++);
+    ASSERT_EQ(rc, MetaStatusCode::OK);
+    // 2. tx lock exist, but startts not match
+    rc = dentryManager_->PrewriteRenameTx(dentrys, txLockIn, logIndex++,
+                                               &txLockOut);
+    ASSERT_EQ(rc, MetaStatusCode::OK);
+    rc = dentryManager_->ResolveTxLock(dentryA, startTs + 1, commitTs,
+                                            logIndex++);
+    ASSERT_EQ(rc, MetaStatusCode::TX_MISMATCH);
+    // 3. roll forward success
+    rc = dentryManager_->ResolveTxLock(dentryA, startTs, commitTs, logIndex++);
+    ASSERT_EQ(rc, MetaStatusCode::OK);
+    rc = dentryManager_->CheckTxStatus(txLockIn.primarykey(), startTs, 1500,
+                                       logIndex++);
+    ASSERT_EQ(rc, MetaStatusCode::TX_COMMITTED);
+    // 4. roll back success
+    dentrys[0].set_txid(startTs + 2);
+    txLockIn.set_startts(startTs + 2);
+    commitTs++;
+    rc = dentryManager_->PrewriteRenameTx(dentrys, txLockIn, logIndex++,
+                                          &txLockOut);
+    ASSERT_EQ(rc, MetaStatusCode::OK);
+    rc = dentryManager_->ResolveTxLock(dentryA, startTs + 2, 0, logIndex++);
+    ASSERT_EQ(rc, MetaStatusCode::OK);
+    rc = dentryManager_->CheckTxStatus(txLockIn.primarykey(), startTs + 2, 1500,
+                                       logIndex++);
+    ASSERT_EQ(rc, MetaStatusCode::TX_ROLLBACKED);
+}
+
+TEST_F(DentryManagerTest, CommitTx) {
+    TxLock txLockIn;
+    TxLock txLockOut;
+    int64_t logIndex = 1;
+    uint64_t startTs = 2;
+    uint64_t commitTs = 3;
+    Dentry dentryA = GenDentry(1, 0, "A", startTs, 1, false);
+    std::vector<Dentry> dentrys = std::vector<Dentry>{dentryA};
+
+    // 1. tx lock not exist
+    auto rc = dentryManager_->CommitTx(dentrys, startTs, commitTs, logIndex++);
+    ASSERT_EQ(rc, MetaStatusCode::OK);
+    // 2. tx lock exist, but startts not match
+    txLockIn.set_primarykey(storage::Key4Dentry(1, 0, "A").SerializeToString());
+    txLockIn.set_startts(startTs);
+    txLockIn.set_timestamp(1000);
+    rc = dentryManager_->PrewriteRenameTx(dentrys, txLockIn, logIndex++,
+                                               &txLockOut);
+    ASSERT_EQ(rc, MetaStatusCode::OK);
+    rc = dentryManager_->CommitTx(dentrys, startTs + 1, commitTs, logIndex++);
+    ASSERT_EQ(rc, MetaStatusCode::TX_MISMATCH);
+    // 3. commit success
+    rc = dentryManager_->CommitTx(dentrys, startTs, commitTs, logIndex++);
+    ASSERT_EQ(rc, MetaStatusCode::OK);
+    rc = dentryManager_->CheckTxStatus(txLockIn.primarykey(), startTs, 1500,
+                                       logIndex++);
+    ASSERT_EQ(rc, MetaStatusCode::TX_COMMITTED);
 }
 
 }  // namespace metaserver

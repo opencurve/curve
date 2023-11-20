@@ -40,7 +40,7 @@ bool TopologyStorageEtcd::LoadPool(
     std::vector<std::string> out;
     poolMap->clear();
     *maxPoolId = 0;
-    int errCode = client_->List(POOLKEYPREFIX, POOLKEYEND, &out);
+    int errCode = client_->List(POOL_KEY_PREFIX, POOL_KEY_END, &out);
     if (errCode == EtcdErrCode::EtcdKeyNotExist) {
         return true;
     }
@@ -76,7 +76,7 @@ bool TopologyStorageEtcd::LoadZone(
     std::vector<std::string> out;
     zoneMap->clear();
     *maxZoneId = 0;
-    int errCode = client_->List(ZONEKEYPREFIX, ZONEKEYEND, &out);
+    int errCode = client_->List(ZONE_KEY_PREFIX, ZONE_KEY_END, &out);
     if (errCode == EtcdErrCode::EtcdKeyNotExist) {
         return true;
     }
@@ -112,7 +112,7 @@ bool TopologyStorageEtcd::LoadServer(
     std::vector<std::string> out;
     serverMap->clear();
     *maxServerId = 0;
-    int errCode = client_->List(SERVERKEYPREFIX, SERVERKEYEND, &out);
+    int errCode = client_->List(SERVER_KEY_PREFIX, SERVER_KEY_END, &out);
     if (errCode == EtcdErrCode::EtcdKeyNotExist) {
         return true;
     }
@@ -148,7 +148,8 @@ bool TopologyStorageEtcd::LoadMetaServer(
     std::vector<std::string> out;
     metaServerMap->clear();
     *maxMetaServerId = 0;
-    int errCode = client_->List(METASERVERKEYPREFIX, METASERVERKEYEND, &out);
+    int errCode =
+        client_->List(METASERVER_KEY_PREFIX, METASERVER_KEY_END, &out);
     if (errCode == EtcdErrCode::EtcdKeyNotExist) {
         return true;
     }
@@ -185,7 +186,7 @@ bool TopologyStorageEtcd::LoadCopySet(
     std::vector<std::string> out;
     copySetMap->clear();
     copySetIdMaxMap->clear();
-    int errCode = client_->List(COPYSETKEYPREFIX, COPYSETKEYEND, &out);
+    int errCode = client_->List(COPYSET_KEY_PREFIX, COPYSET_KEY_END, &out);
     if (errCode == EtcdErrCode::EtcdKeyNotExist) {
         return true;
     }
@@ -223,7 +224,7 @@ bool TopologyStorageEtcd::LoadPartition(
     std::vector<std::string> out;
     partitionMap->clear();
     *maxPartitionId = 0;
-    int errCode = client_->List(PARTITIONKEYPREFIX, PARTITIONKEYEND, &out);
+    int errCode = client_->List(PARTITION_KEY_PREFIX, PARTITION_KEY_END, &out);
     if (errCode == EtcdErrCode::EtcdKeyNotExist) {
         return true;
     }
@@ -508,7 +509,7 @@ bool TopologyStorageEtcd::UpdatePartitions(
 bool TopologyStorageEtcd::LoadClusterInfo(
     std::vector<ClusterInformation> *info) {
     std::string value;
-    int errCode = client_->Get(CLUSTERINFOKEY, &value);
+    int errCode = client_->Get(CLUSTER_KEY, &value);
     if (errCode == EtcdErrCode::EtcdKeyNotExist) {
         return true;
     }
@@ -528,7 +529,7 @@ bool TopologyStorageEtcd::LoadClusterInfo(
 }
 
 bool TopologyStorageEtcd::StorageClusterInfo(const ClusterInformation &info) {
-    std::string key = CLUSTERINFOKEY;
+    std::string key = CLUSTER_KEY;
     std::string value;
     if (codec_->EncodeClusterInfoData(info, &value)
         != true) {
@@ -551,8 +552,8 @@ bool TopologyStorageEtcd::LoadMemcacheCluster(
     std::vector<std::string> out;
     memcacheClusterMap->clear();
     *maxMemCacheClusterId = 0;
-    int errCode =
-        client_->List(MEMCACHECLUSTERKEYPREFIX, MEMCACHECLUSTERKEYEND, &out);
+    int errCode = client_->List(
+        MEMCACHE_CLUSTER_KEY_PREFIX, MEMCACHE_CLUSTER_KEY_END, &out);
     if (errCode == EtcdErrCode::EtcdKeyNotExist) {
         return true;
     }
@@ -617,8 +618,8 @@ bool TopologyStorageEtcd::LoadFs2MemcacheCluster(
     std::unordered_map<FsIdType, MemcacheClusterIdType>* fs2MemcacheCluster) {
     std::vector<std::pair<std::string, std::string>> out;
     fs2MemcacheCluster->clear();
-    int errCode = client_->List(FS2MEMCACHECLUSTERKEYPREFIX,
-                                FS2MEMCACHECLUSTERKEYEND, &out);
+    int errCode = client_->List(
+        FS_2_MEMCACHE_CLUSTER_KEY_PREFIX, FS_2_MEMCACHE_CLUSTER_KEY_END, &out);
     if (errCode == EtcdErrCode::EtcdKeyNotExist) {
         return true;
     }

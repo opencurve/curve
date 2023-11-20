@@ -952,5 +952,21 @@ TEST_F(MdsServiceTest, test_update_fsinfo_parameter_error) {
     }
 }
 
+TEST_F(MdsServiceTest, test_tso) {
+    TsoRequest tsoRequest;
+    TsoResponse tsoResponse;
+    for (int i = 1; i < 5; i++) {
+        cntl.Reset();
+        stub_->Tso(&cntl, &tsoRequest, &tsoResponse, nullptr);
+        if (!cntl.Failed()) {
+            ASSERT_EQ(tsoResponse.statuscode(), FSStatusCode::OK);
+            ASSERT_EQ(tsoResponse.ts(), i);
+        } else {
+            LOG(ERROR) << "error = " << cntl.ErrorText();
+            ASSERT_TRUE(false);
+        }
+    }
+}
+
 }  // namespace mds
 }  // namespace curvefs

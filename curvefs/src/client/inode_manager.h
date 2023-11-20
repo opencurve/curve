@@ -21,8 +21,8 @@
  * Author: xuchaojie
  */
 
-#ifndef CURVEFS_SRC_CLIENT_INODE_CACHE_MANAGER_H_
-#define CURVEFS_SRC_CLIENT_INODE_CACHE_MANAGER_H_
+#ifndef CURVEFS_SRC_CLIENT_INODE_MANAGER_H_
+#define CURVEFS_SRC_CLIENT_INODE_MANAGER_H_
 
 #include <cstdint>
 #include <memory>
@@ -242,4 +242,4 @@ class BatchGetInodeAttrAsyncDone : public BatchGetInodeAttrDone {
 }  // namespace client
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_CLIENT_INODE_CACHE_MANAGER_H_
+#endif  // CURVEFS_SRC_CLIENT_INODE_MANAGER_H_
