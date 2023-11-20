@@ -20,42 +20,44 @@
  * Author: charisu
  */
 #include "src/tools/copyset_check.h"
+
 #include "src/tools/common.h"
 #include "src/tools/metric_name.h"
 
 DEFINE_bool(detail, false, "list the copyset detail or not");
 DEFINE_uint32(chunkserverId, 0, "chunkserver id");
-DEFINE_string(chunkserverAddr, "", "if specified, chunkserverId is not required");  // NOLINT
+DEFINE_string(chunkserverAddr, "",
+              "if specified, chunkserverId is not required");  // NOLINT
 DEFINE_uint32(serverId, 0, "server id");
 DEFINE_string(serverIp, "", "server ip");
 DEFINE_string(opName, curve::tool::kTotalOpName, "operator name");
 DECLARE_string(mdsAddr);
-DEFINE_uint64(opIntervalExceptLeader, 5, "Operator generation interval other "
-                                         "than transfer leader");
+DEFINE_uint64(opIntervalExceptLeader, 5,
+              "Operator generation interval other "
+              "than transfer leader");
 DEFINE_uint64(leaderOpInterval, 30,
-                        "tranfer leader operator generation interval");
+              "tranfer leader operator generation interval");
 
 namespace curve {
 namespace tool {
-#define CHECK_ONLY_ONE_SHOULD_BE_SPECIFIED(flagname1, flagname2)             \
-    do {                                                                     \
-        if ((FLAGS_ ## flagname1).empty() && (FLAGS_ ## flagname2) == 0) {   \
-            std::cout << # flagname1 << " OR " << # flagname2                \
-                      " should be secified!" << std::endl;                   \
-            return -1;                                                       \
-        }                                                                    \
-        if (!(FLAGS_ ## flagname1).empty() && (FLAGS_ ## flagname2) != 0) {  \
-            std::cout << "Only one of " # flagname1 << " OR " << # flagname2 \
-                      " should be secified!" << std::endl;                   \
-            return -1;                                                       \
-        }                                                                    \
-    } while (0);                                                             \
+#define CHECK_ONLY_ONE_SHOULD_BE_SPECIFIED(flagname1, flagname2)         \
+    do {                                                                 \
+        if ((FLAGS_##flagname1).empty() && (FLAGS_##flagname2) == 0) {   \
+            std::cout << #flagname1 << " OR "                            \
+                      << #flagname2 " should be secified!" << std::endl; \
+            return -1;                                                   \
+        }                                                                \
+        if (!(FLAGS_##flagname1).empty() && (FLAGS_##flagname2) != 0) {  \
+            std::cout << "Only one of " #flagname1 << " OR "             \
+                      << #flagname2 " should be secified!" << std::endl; \
+            return -1;                                                   \
+        }                                                                \
+    } while (0);
 
 bool CopysetCheck::SupportCommand(const std::string& command) {
-    return (command == kCheckCopysetCmd || command == kCheckChunnkServerCmd
-            || command == kCheckServerCmd || command == kCopysetsStatusCmd
-            || command == kCheckOperatorCmd
-            || command == kListMayBrokenVolumes);
+    return (command == kCheckCopysetCmd || command == kCheckChunnkServerCmd ||
+            command == kCheckServerCmd || command == kCopysetsStatusCmd ||
+            command == kCheckOperatorCmd || command == kListMayBrokenVolumes);
 }
 
 int CopysetCheck::Init() {
@@ -76,7 +78,7 @@ int CopysetCheck::RunCommand(const std::string& command) {
         return -1;
     }
     if (command == kCheckCopysetCmd) {
-        // 检查某个copyset的状态
+        // Check the status of a copyset
         if (FLAGS_logicalPoolId == 0 || FLAGS_copysetId == 0) {
             std::cout << "logicalPoolId AND copysetId should be specified!"
                       << std::endl;
@@ -84,7 +86,7 @@ int CopysetCheck::RunCommand(const std::string& command) {
         }
         return CheckCopyset();
     } else if (command == kCheckChunnkServerCmd) {
-        // 检查某个chunkserver上的所有copyset
+        // Check all copysets on a certain chunkserver
         CHECK_ONLY_ONE_SHOULD_BE_SPECIFIED(chunkserverAddr, chunkserverId);
         return CheckChunkServer();
     } else if (command == kCheckServerCmd) {
@@ -159,8 +161,8 @@ int CopysetCheck::CheckServer() {
     if (FLAGS_detail) {
         PrintDetail();
         std::ostream_iterator<std::string> out(std::cout, ", ");
-        std::cout << "unhealthy chunkserver list (total: "
-                  << unhealthyCs.size() <<"): {";
+        std::cout << "unhealthy chunkserver list (total: " << unhealthyCs.size()
+                  << "): {";
         std::copy(unhealthyCs.begin(), unhealthyCs.end(), out);
         std::cout << "}" << std::endl;
     }
@@ -188,11 +190,10 @@ int CopysetCheck::CheckOperator(const std::string& opName) {
     } else {
         res = core_->CheckOperator(opName, FLAGS_opIntervalExceptLeader);
     }
-     if (res < 0) {
+    if (res < 0) {
         std::cout << "Check operator fail!" << std::endl;
     } else {
-        std::cout << "Operator num is "
-                  << res << std::endl;
+        std::cout << "Operator num is " << res << std::endl;
         res = 0;
     }
     return res;
@@ -202,27 +203,33 @@ void CopysetCheck::PrintHelp(const std::string& command) {
     std::cout << "Example: " << std::endl << std::endl;
     if (command == kCheckCopysetCmd) {
         std::cout << "curve_ops_tool check-copyset -logicalPoolId=2 "
-            << "-copysetId=101 [-mdsAddr=127.0.0.1:6666] [-margin=1000] "
-            << "[-confPath=/etc/curve/tools.conf]" << std::endl << std::endl;  // NOLINT
+                  << "-copysetId=101 [-mdsAddr=127.0.0.1:6666] [-margin=1000] "
+                  << "[-confPath=/etc/curve/tools.conf]" << std::endl
+                  << std::endl;  // NOLINT
     } else if (command == kCheckChunnkServerCmd) {
-        std::cout << "curve_ops_tool check-chunkserver "
+        std::cout
+            << "curve_ops_tool check-chunkserver "
             << "-chunkserverId=1 [-mdsAddr=127.0.0.1:6666] [-margin=1000] "
             << "[-confPath=/etc/curve/tools.conf]" << std::endl;
         std::cout << "curve_ops_tool check-chunkserver "
-            << "[-mdsAddr=127.0.0.1:6666] "
-            << "[-chunkserverAddr=127.0.0.1:8200] [-margin=1000] "
-            << "[-confPath=/etc/curve/tools.conf]" << std::endl << std::endl;  // NOLINT
+                  << "[-mdsAddr=127.0.0.1:6666] "
+                  << "[-chunkserverAddr=127.0.0.1:8200] [-margin=1000] "
+                  << "[-confPath=/etc/curve/tools.conf]" << std::endl
+                  << std::endl;  // NOLINT
     } else if (command == kCheckServerCmd) {
         std::cout << "curve_ops_tool check-server -serverId=1 "
-            << "[-mdsAddr=127.0.0.1:6666] [-margin=1000] "
-            << "[-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
+                  << "[-mdsAddr=127.0.0.1:6666] [-margin=1000] "
+                  << "[-confPath=/etc/curve/tools.conf]"
+                  << std::endl;  // NOLINT
         std::cout << "curve_ops_tool check-server [-mdsAddr=127.0.0.1:6666] "
-            << "[-serverIp=127.0.0.1] [-margin=1000] "
-            << "[-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
+                  << "[-serverIp=127.0.0.1] [-margin=1000] "
+                  << "[-confPath=/etc/curve/tools.conf]"
+                  << std::endl;  // NOLINT
     } else if (command == kCopysetsStatusCmd) {
         std::cout << "curve_ops_tool copysets-status [-mdsAddr=127.0.0.1:6666] "
                   << "[-margin=1000] [-operatorMaxPeriod=30] [-checkOperator] "
-                  << "[-confPath=/etc/curve/tools.conf]" << std::endl << std::endl;  // NOLINT
+                  << "[-confPath=/etc/curve/tools.conf]" << std::endl
+                  << std::endl;  // NOLINT
     } else if (command == kCheckOperatorCmd) {
         std::cout << "curve_ops_tool check-operator -opName=" << kTotalOpName
                   << "/" << kChangeOpName << "/" << kAddOpName << "/"
@@ -233,26 +240,32 @@ void CopysetCheck::PrintHelp(const std::string& command) {
         std::cout << "Command not supported!" << std::endl;
     }
     std::cout << std::endl;
-    std::cout << "Standard of healthy is no copyset in the following state:" << std::endl;  // NOLINT
+    std::cout << "Standard of healthy is no copyset in the following state:"
+              << std::endl;  // NOLINT
     std::cout << "1、copyset has no leader" << std::endl;
     std::cout << "2、number of replicas less than expected" << std::endl;
     std::cout << "3、some replicas not online" << std::endl;
     std::cout << "4、installing snapshot" << std::endl;
     std::cout << "5、gap of log index between peers exceed margin" << std::endl;
-    std::cout << "6、for check-cluster, it will also check whether the mds is scheduling if -checkOperator specified"  // NOLINT
-                "(if no operators in operatorMaxPeriod, it considered healthy)" << std::endl;  // NOLINT
-    std::cout << "By default, if the number of replicas is less than 3, it is considered unhealthy, "   // NOLINT
-                 "you can change it by specify -replicasNum" << std::endl;
-    std::cout << "The order is sorted by priority, if the former is satisfied, the rest will not be checked" << std::endl;  // NOLINT
+    std::cout << "6、for check-cluster, it will also check whether the mds is "
+                 "scheduling if -checkOperator specified"  // NOLINT
+                 "(if no operators in operatorMaxPeriod, it considered healthy)"
+              << std::endl;  // NOLINT
+    std::cout << "By default, if the number of replicas is less than 3, it is "
+                 "considered unhealthy, "  // NOLINT
+                 "you can change it by specify -replicasNum"
+              << std::endl;
+    std::cout << "The order is sorted by priority, if the former is satisfied, "
+                 "the rest will not be checked"
+              << std::endl;  // NOLINT
 }
-
 
 void CopysetCheck::PrintStatistic() {
     const auto& statistics = core_->GetCopysetStatistics();
     std::cout << "total copysets: " << statistics.totalNum
               << ", unhealthy copysets: " << statistics.unhealthyNum
-              << ", unhealthy_ratio: "
-              << statistics.unhealthyRatio * 100 << "%" << std::endl;
+              << ", unhealthy_ratio: " << statistics.unhealthyRatio * 100 << "%"
+              << std::endl;
 }
 
 void CopysetCheck::PrintDetail() {
@@ -282,7 +295,7 @@ void CopysetCheck::PrintDetail() {
         PrintCopySet(item.second);
     }
     std::cout << std::endl;
-    // 打印有问题的chunkserver
+    // Printing problematic chunkservers
     PrintExcepChunkservers();
 }
 
@@ -300,32 +313,30 @@ void CopysetCheck::PrintCopySet(const std::set<std::string>& set) {
         }
         PoolIdType lgId = GetPoolID(groupId);
         CopySetIdType csId = GetCopysetID(groupId);
-        std::cout << "(grouId: " << gid << ", logicalPoolId: "
-                  << std::to_string(lgId) << ", copysetId: "
-                  << std::to_string(csId) << ")";
+        std::cout << "(grouId: " << gid
+                  << ", logicalPoolId: " << std::to_string(lgId)
+                  << ", copysetId: " << std::to_string(csId) << ")";
     }
     std::cout << "}" << std::endl;
 }
 
 void CopysetCheck::PrintExcepChunkservers() {
-    auto serviceExceptionChunkServers =
-                        core_->GetServiceExceptionChunkServer();
+    auto serviceExceptionChunkServers = core_->GetServiceExceptionChunkServer();
     if (!serviceExceptionChunkServers.empty()) {
         std::ostream_iterator<std::string> out(std::cout, ", ");
         std::cout << "service-exception chunkservers (total: "
                   << serviceExceptionChunkServers.size() << "): {";
         std::copy(serviceExceptionChunkServers.begin(),
-                        serviceExceptionChunkServers.end(), out);
+                  serviceExceptionChunkServers.end(), out);
         std::cout << "}" << std::endl;
     }
-    auto copysetLoadExceptionCS =
-                    core_->GetCopysetLoadExceptionChunkServer();
+    auto copysetLoadExceptionCS = core_->GetCopysetLoadExceptionChunkServer();
     if (!copysetLoadExceptionCS.empty()) {
         std::ostream_iterator<std::string> out(std::cout, ", ");
         std::cout << "copyset-load-exception chunkservers (total: "
                   << copysetLoadExceptionCS.size() << "): {";
-        std::copy(copysetLoadExceptionCS.begin(),
-                        copysetLoadExceptionCS.end(), out);
+        std::copy(copysetLoadExceptionCS.begin(), copysetLoadExceptionCS.end(),
+                  out);
         std::cout << "}" << std::endl;
     }
 }

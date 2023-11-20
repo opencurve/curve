@@ -20,22 +20,22 @@
  * Author: tongguangxun
  */
 
-#include <gtest/gtest.h>
-#include <glog/logging.h>
 #include <gflags/gflags.h>
+#include <glog/logging.h>
+#include <gtest/gtest.h>
 
-#include <map>
-#include <cmath>
-#include <mutex>   // NOLINT
-#include <thread>  // NOLINT
-#include <string>
-#include <numeric>
 #include <algorithm>
-#include <condition_variable>  // NOLINT
+#include <cmath>
+#include <condition_variable> // NOLINT
+#include <map>
+#include <mutex> // NOLINT
+#include <numeric>
+#include <string>
+#include <thread> // NOLINT
 
-#include "src/common/timeutility.h"
 #include "include/client/libcurve.h"
 #include "src/client/inflight_controller.h"
+#include "src/common/timeutility.h"
 #include "test/integration/client/common/file_operation.h"
 #include "test/integration/cluster_common/cluster.h"
 #include "test/util/config_generator.h"
@@ -51,11 +51,11 @@ bool testIORead = false;
 
 using curve::CurveCluster;
 const std::vector<std::string> mdsConf{
-    { "--confPath=./conf/mds.conf" },
-    { "--log_dir=./runlog/MDSExceptionTest" },
-    { "--mdsDbName=module_exception_curve_mds" },
-    { "--sessionInterSec=20" },
-    { "--etcdAddr=127.0.0.1:22230" },
+    {"--confPath=./conf/mds.conf"},
+    {"--log_dir=./runlog/MDSExceptionTest"},
+    {"--mdsDbName=module_exception_curve_mds"},
+    {"--sessionInterSec=20"},
+    {"--etcdAddr=127.0.0.1:22230"},
 };
 
 const std::vector<std::string> chunkserverConf1{
@@ -124,9 +124,9 @@ const std::vector<std::string> chunkserverConf3{
     {"-walFilePoolDir=./moduleException3/walfilepool/"},
     {"-walFilePoolMetaPath=./moduleException3/walfilepool.meta"}};
 
-std::string mdsaddr =                                   // NOLINT
-    "127.0.0.1:22222,127.0.0.1:22223,127.0.0.1:22224";  // NOLINT
-std::string logpath = "./runlog/MDSExceptionTest";      // NOLINT
+std::string mdsaddr =                                  // NOLINT
+    "127.0.0.1:22222,127.0.0.1:22223,127.0.0.1:22224"; // NOLINT
+std::string logpath = "./runlog/MDSExceptionTest";     // NOLINT
 
 const std::vector<std::string> clientConf{
     std::string("mds.listen.addr=") + mdsaddr,
@@ -135,9 +135,11 @@ const std::vector<std::string> clientConf{
     std::string("chunkserver.opMaxRetry=10"),
 };
 
-class MDSModuleException : public ::testing::Test {
- public:
-    void SetUp() {
+class MDSModuleException : public ::testing::Test
+{
+public:
+    void SetUp()
+    {
         std::string confPath = "./test/integration/client/config/client.conf";
         system("mkdir ./runlog/MDSExceptionTest");
         system("rm -rf module_exception_test_mds.etcd");
@@ -149,14 +151,15 @@ class MDSModuleException : public ::testing::Test {
         cluster->PrepareConfig<curve::ClientConfigGenerator>(confPath,
                                                              clientConf);
 
-        // 1. 启动etcd
+        // 1. Start etcd
         pid_t pid = cluster->StartSingleEtcd(
             1, "127.0.0.1:22230", "127.0.0.1:22231",
             std::vector<std::string>{"--name=module_exception_test_mds"});
         LOG(INFO) << "etcd 1 started on 127.0.0.1:22230:22231, pid = " << pid;
         ASSERT_GT(pid, 0);
 
-        // 2. 先启动一个mds，让其成为leader，然后再启动另外两个mds节点
+        // 2. Start one mds first, make it a leader, and then start the other
+        // two mds nodes
         pid =
             cluster->StartSingleMDS(0, "127.0.0.1:22222", 22240, mdsConf, true);
         LOG(INFO) << "mds 0 started on 127.0.0.1:22222, pid = " << pid;
@@ -173,7 +176,7 @@ class MDSModuleException : public ::testing::Test {
         ASSERT_GT(pid, 0);
         std::this_thread::sleep_for(std::chrono::seconds(8));
 
-        // 3. 创建物理池
+        // 3. Creating a physical pool
         std::string createPPCmd = std::string("./bazel-bin/tools/curvefsTool") +
                                   std::string(
                                       " -cluster_map=./test/integration/client/"
@@ -189,14 +192,16 @@ class MDSModuleException : public ::testing::Test {
         LOG(INFO) << "exec cmd: " << createPPCmd;
         int ret = 0;
         int retry = 0;
-        while (retry < 5) {
+        while (retry < 5)
+        {
             ret = system(createPPCmd.c_str());
-            if (ret == 0) break;
+            if (ret == 0)
+                break;
             retry++;
         }
         ASSERT_EQ(ret, 0);
 
-        // 4. 创建chunkserver
+        // 4. Create chunkserver
         pid = cluster->StartSingleChunkServer(1, "127.0.0.1:22225",
                                               chunkserverConf1);
         LOG(INFO) << "chunkserver 1 started on 127.0.0.1:22225, pid = " << pid;
@@ -212,7 +217,8 @@ class MDSModuleException : public ::testing::Test {
 
         std::this_thread::sleep_for(std::chrono::seconds(5));
 
-        // 5. 创建逻辑池, 并睡眠一段时间让底层copyset先选主
+        // 5. Create a logical pool and sleep for a period of time to let the
+        // underlying copyset select the primary first
         std::string createLPCmd =
             std::string("./bazel-bin/tools/curvefsTool") +
             std::string(
@@ -226,22 +232,24 @@ class MDSModuleException : public ::testing::Test {
 
         ret = 0;
         retry = 0;
-        while (retry < 5) {
+        while (retry < 5)
+        {
             ret = system(createLPCmd.c_str());
-            if (ret == 0) break;
+            if (ret == 0)
+                break;
             retry++;
         }
         ASSERT_EQ(ret, 0);
 
-        // 6. 初始化client配置
+        // 6. Initialize client configuration
         ret = Init(confPath.c_str());
         ASSERT_EQ(ret, 0);
 
-        // 7. 创建一个文件
+        // 7. Create a file
         fd = curve::test::FileCommonOperation::Open("/test1", "curve");
         ASSERT_NE(fd, -1);
 
-        // 8. 先睡眠10s，让chunkserver选出leader
+        // 8. Sleep for 10 seconds first and let chunkserver select the leader
         std::this_thread::sleep_for(std::chrono::seconds(5));
 
         ipmap[0] = "127.0.0.1:22222";
@@ -253,7 +261,8 @@ class MDSModuleException : public ::testing::Test {
         configmap[2] = mdsConf;
     }
 
-    void TearDown() {
+    void TearDown()
+    {
         ::Close(fd);
         UnInit();
 
@@ -263,22 +272,28 @@ class MDSModuleException : public ::testing::Test {
         system("rm -rf moduleException1 moduleException2 moduleException3");
     }
 
-    void CreateOpenFileBackend() {
+    void CreateOpenFileBackend()
+    {
         createDone = false;
         createOrOpenFailed = false;
-        auto func = [&]() {
+        auto func = [&]()
+        {
             static int num = 0;
-            for (int i = num; i < num + 20; i++) {
+            for (int i = num; i < num + 20; i++)
+            {
                 std::string filename = "/" + std::to_string(i);
                 LOG(INFO) << "now create file: " << filename;
                 int ret =
                     curve::test::FileCommonOperation::Open(filename, "curve");
                 ret == -1 ? createOrOpenFailed = true : 0;
 
-                if (ret != -1) {
+                if (ret != -1)
+                {
                     ::Close(ret);
                     std::this_thread::sleep_for(std::chrono::milliseconds(500));
-                } else {
+                }
+                else
+                {
                     break;
                 }
             }
@@ -293,44 +308,55 @@ class MDSModuleException : public ::testing::Test {
         t.detach();
     }
 
-    void WaitBackendCreateDone() {
+    void WaitBackendCreateDone()
+    {
         std::unique_lock<std::mutex> lk(createMtx);
-        createCV.wait(lk, [&]() { return createDone; });
+        createCV.wait(lk, [&]()
+                      { return createDone; });
     }
 
     /**
-     * 监测client io能否在预期时间内正常下发
-     * @param: off是当前需要下发IO的偏移
-     * @param: size是下发io的大小
-     * @param: predictTimeS是预期在多少秒内IO可以恢复
-     * @param[out]: failCount为当前io下发中错误返回的数量
-     * @return: 如果io在预期时间内嫩够正常下发，则返true，否则返回false
+     * Monitor whether client io can be issued normally within the expected time
+     * @param: off is the offset that currently requires issuing IO
+     * @param: size is the size of the distributed io
+     * @param: predictTimeS is the expected number of seconds in which IO can be
+     * restored
+     * @param[out]: failCount is the number of error returns in the current io
+     * distribution
+     * @return: If the io is issued normally within the expected time, return
+     * true; otherwise, return false
      */
-    bool MonitorResume(uint64_t off, uint64_t size, uint64_t predictTimeS) {
+    bool MonitorResume(uint64_t off, uint64_t size, uint64_t predictTimeS)
+    {
         inflightContl.SetMaxInflightNum(16);
         resumeFlag = false;
         ioFailedCount = 0;
 
-        auto wcb = [](CurveAioContext* context) {
+        auto wcb = [](CurveAioContext *context)
+        {
             inflightContl.DecremInflightNum();
-            if (context->ret == context->length) {
+            if (context->ret == context->length)
+            {
                 std::unique_lock<std::mutex> lk(resumeMtx);
                 resumeFlag = true;
                 resumeCV.notify_all();
-            } else {
+            }
+            else
+            {
                 ioFailedCount++;
             }
             LOG(INFO) << "end aiowrite with ret = " << context->ret;
             delete context;
         };
 
-        char* writebuf = new char[size];
+        char *writebuf = new char[size];
         memset(writebuf, 'a', size);
-        auto iofunc = [&]() {
+        auto iofunc = [&]()
+        {
             std::this_thread::sleep_for(std::chrono::seconds(predictTimeS));
             inflightContl.WaitInflightComeBack();
 
-            CurveAioContext* context = new CurveAioContext;
+            CurveAioContext *context = new CurveAioContext;
             context->op = LIBCURVE_OP::LIBCURVE_OP_WRITE;
             context->offset = off;
             context->length = size;
@@ -352,7 +378,7 @@ class MDSModuleException : public ::testing::Test {
             ret = resumeFlag;
         }
 
-        // 唤醒io线程
+        // Wake up IO thread
         iothread.join();
         inflightContl.WaitInflightAllComeBack();
 
@@ -360,25 +386,28 @@ class MDSModuleException : public ::testing::Test {
         return ret;
     }
 
-    /**下发一个写请求
-     * @param: offset是当前需要下发IO的偏移
-     * @param: size是下发IO的大小
-     * @return: IO是否下发成功
+    /** Send a write request
+     * @param: offset is the offset that currently requires issuing IO
+     * @param: size is the size of the issued IO
+     * @return: Whether the IO was successfully issued
      */
-    bool SendAioWriteRequest(uint64_t offset, uint64_t size) {
+    bool SendAioWriteRequest(uint64_t offset, uint64_t size)
+    {
         writeIOReturnFlag = false;
 
-        auto writeCallBack = [](CurveAioContext* context) {
-            // 无论IO是否成功，只要返回，就置为true
+        auto writeCallBack = [](CurveAioContext *context)
+        {
+            // Regardless of whether IO is successful or not, as long as it
+            // returns, it is set to true
             writeIOReturnFlag = true;
-            char* buffer = reinterpret_cast<char*>(context->buf);
+            char *buffer = reinterpret_cast<char *>(context->buf);
             delete[] buffer;
             delete context;
         };
 
-        char* buffer = new char[size];
+        char *buffer = new char[size];
         memset(buffer, 'a', size);
-        CurveAioContext* context = new CurveAioContext();
+        CurveAioContext *context = new CurveAioContext();
         context->op = LIBCURVE_OP::LIBCURVE_OP_WRITE;
         context->offset = offset;
         context->length = size;
@@ -388,26 +417,30 @@ class MDSModuleException : public ::testing::Test {
         return AioWrite(fd, context) == 0;
     }
 
-    /** 下发一个写请求并读取进行数据验证
-     *  @param: fd 卷fd
-     *  @param: 当前需要下发io的偏移
-     *  @param：下发io的大小
-     *  @return: 数据是否一致
-    */
-    void VerifyDataConsistency(int fd, uint64_t offset, uint64_t size) {
-        char* writebuf = new char[size];
-        char* readbuf = new char[size];
+    /** Send a write request and read for data validation
+     * @param: fd volume fd
+     * @param: The offset that currently needs to be issued for IO
+     * @param: The size of the distributed IO
+     * @return: Whether the data is consistent
+     */
+    void VerifyDataConsistency(int fd, uint64_t offset, uint64_t size)
+    {
+        char *writebuf = new char[size];
+        char *readbuf = new char[size];
         unsigned int i;
 
-        LOG(INFO) << "VerifyDataConsistency(): offset " <<
-                                offset << ", size " << size;
-        for (i = 0; i < size; i++) {
+        LOG(INFO) << "VerifyDataConsistency(): offset " << offset << ", size "
+                  << size;
+        for (i = 0; i < size; i++)
+        {
             writebuf[i] = ('a' + std::rand() % 26);
         }
 
-        // 开始写
-        auto wcb = [](CurveAioContext* context) {
-            if (context->ret == context->length) {
+        // Start writing
+        auto wcb = [](CurveAioContext *context)
+        {
+            if (context->ret == context->length)
+            {
                 testIOWrite = true;
             }
             std::unique_lock<std::mutex> lk(resumeMtx);
@@ -415,8 +448,10 @@ class MDSModuleException : public ::testing::Test {
             delete context;
         };
 
-        auto writefunc = [&]() {
-            CurveAioContext* context = new CurveAioContext;;
+        auto writefunc = [&]()
+        {
+            CurveAioContext *context = new CurveAioContext;
+            ;
             context->op = LIBCURVE_OP::LIBCURVE_OP_WRITE;
             context->offset = offset;
             context->length = size;
@@ -434,9 +469,11 @@ class MDSModuleException : public ::testing::Test {
         writeThread.join();
         ASSERT_TRUE(testIOWrite);
 
-        // 开始读
-        auto rcb = [](CurveAioContext* context) {
-            if (context->ret == context->length) {
+        // Start reading
+        auto rcb = [](CurveAioContext *context)
+        {
+            if (context->ret == context->length)
+            {
                 testIORead = true;
             }
             std::unique_lock<std::mutex> lk(resumeMtx);
@@ -444,8 +481,10 @@ class MDSModuleException : public ::testing::Test {
             delete context;
         };
 
-        auto readfunc = [&]() {
-            CurveAioContext* context = new CurveAioContext;;
+        auto readfunc = [&]()
+        {
+            CurveAioContext *context = new CurveAioContext;
+            ;
             context->op = LIBCURVE_OP::LIBCURVE_OP_READ;
             context->offset = offset;
             context->length = size;
@@ -471,53 +510,63 @@ class MDSModuleException : public ::testing::Test {
 
     int fd;
 
-    // 是否出现挂卸载失败
+    // Whether mounting or unmounting fails.
     bool createOrOpenFailed;
     bool createDone;
     std::mutex createMtx;
     std::condition_variable createCV;
 
-    CurveCluster* cluster;
+    CurveCluster *cluster;
 
     std::map<int, std::string> ipmap;
     std::map<int, std::vector<std::string>> configmap;
 };
 
 #define segment_size 1 * 1024 * 1024 * 1024ul
-// 测试环境拓扑：在单节点上启动一个client、三个chunkserver、三个mds、一个etcd
+// Test environment topology: Start one client, three chunkservers, three mds,
+// and one etcd on a single node
 
-TEST_F(MDSModuleException, MDSExceptionTest) {
+TEST_F(MDSModuleException, MDSExceptionTest)
+{
     LOG(INFO) << "current case: KillOneInserviceMDSThenRestartTheMDS";
     /********** KillOneInserviceMDSThenRestartTheMDS *************/
-    // 1. 重启一台正在服务的mds
-    // 2.预期
-    //    a. 集群状态正常时：client读写请求可以正常下发
-    //    b. 关闭一台mds，在mds服务切换到另一台mds之前，
-    //       client 新写IO会hang，挂卸载服务会异常
-    //    c. mds服务切换后，预期client IO无影响，挂卸载服务正常
-    //    d. 重新拉起mds，client IO无影响
-    // 1. 集群最初状态，io正常下发
+    // 1. Restarting a currently serving MDS.
+    // 2. Expectations:
+    //    a. When the cluster is in a normal state, client read and write
+    //    requests can be issued normally. b. When shutting down an MDS, before
+    //    the MDS service switches to another MDS,
+    //       new write IO from clients will hang, and mount/unmount services
+    //       will behave abnormally.
+    //    c. After the MDS service switches, it is expected that client IO will
+    //    be unaffected, and mount/unmount services will be normal. d. When
+    //    bringing the MDS back up, client IO will be unaffected.
+    // 1. In the initial state of the cluster, IO can be issued normally.
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
-    // 2. kill一台正在服务的mds，在启动的时候第一台mds当选leader
+    // 2. Kill an MDS that is currently in service, and when it is started, the
+    // first MDS is selected as the leader
     int serviceMDSID = 0;
     cluster->CurrentServiceMDS(&serviceMDSID);
     ASSERT_EQ(0, cluster->StopMDS(serviceMDSID));
 
-    // 3. 启动后台挂卸载线程，预期挂卸载会出现失败
+    // 3. Start the background suspend and unload thread, and expect the suspend
+    // and unload to fail
     CreateOpenFileBackend();
 
-    // 4. 启动后台io监测, 从下一个segment开始写，使其触发getorallocate逻辑
-    //    follower mds在session过期后重新续约后集群正常服务（20s续约）
+    // 4. Start background IO monitoring and start writing from the next segment
+    // to trigger the getorallocate logic
+    //    follower mds cluster normal service after renewing session expiration
+    //    (20s renewal)
     ASSERT_TRUE(MonitorResume(segment_size, 4096, 25));
 
-    // 5. 等待后台挂卸载监测结束
+    // 5. Waiting for the end of backend suspension and uninstallation
+    // monitoring
     WaitBackendCreateDone();
 
-    // 6. 判断当前挂卸载情况
+    // 6. Determine the current suspension and uninstallation situation
     ASSERT_TRUE(createOrOpenFailed);
 
-    // 7. 拉起被kill的进程
+    // 7. Pulling up the process of being killed
     pid_t pid = cluster->StartSingleMDS(serviceMDSID, ipmap[serviceMDSID],
                                         22240 + serviceMDSID,
                                         configmap[serviceMDSID], false);
@@ -525,85 +574,103 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
               << ", pid = " << pid;
     ASSERT_GT(pid, 0);
 
-    // 8. 再拉起被kill的mds，对集群没有影响
+    // 8. Pulling up the killed mds again has no impact on the cluster
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
     LOG(INFO) << "current case: KillOneNotInserviceMDSThenRestartTheMDS";
     /*********** KillOneNotInserviceMDSThenRestartTheMDS *******/
-    // 1. 重启一台不在服务的mds
-    // 2.预期
-    //    a. 集群状态正常时：client读写请求可以正常下发
-    //    b. 关闭一台不在服务的mds，预期client IO无影响，挂卸载服务正常
-    // 1. 集群最初状态，io正常下发
+    // 1. Restart an MDS that is not in service
+    // 2. Expectations
+    //      a. When the cluster status is normal: client read and write requests
+    //      can be issued normally b. Turn off an MDS that is not in service,
+    //      expect no impact on client IO, and suspend and uninstall the service
+    //      normally
+    // 1. The initial state of the cluster, IO is issued normally
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
-    // 2. kill一台不在服务的mds，在启动的时候第一台mds当选leader, kill第二台
+    // 2. Kill an MDS that is not in service. When starting, the first MDS is
+    // selected as the leader, and kill the second MDS
     serviceMDSID = 0;
     cluster->CurrentServiceMDS(&serviceMDSID);
     int killid = (serviceMDSID + 1) % 3;
     ASSERT_EQ(0, cluster->StopMDS(killid));
 
-    // 3. 启动后台挂卸载线程，预期挂卸载服务不会受影响
+    // 3. Start the backend suspend and uninstall thread, and it is expected
+    // that the suspend and uninstall service will not be affected
     CreateOpenFileBackend();
 
-    // 4. 启动后台io监测, 从下一个segment开始写，使其触发getorallocate逻辑
-    //    follower mds在session过期后重新续约后集群正常服务（20s续约）
+    // 4. Start background IO monitoring and start writing from the next segment
+    // to trigger the getorallocate logic
+    //    follower mds cluster normal service after renewing session expiration
+    //    (20s renewal)
     ASSERT_TRUE(MonitorResume(2 * segment_size, 4096, 25));
 
-    // 5. 等待挂卸载监测结束
+    // 5. Waiting for the end of suspend/unload monitoring
     WaitBackendCreateDone();
 
-    // 6. 挂卸载服务正常
+    // 6. Hanging and uninstalling service is normal
     ASSERT_FALSE(createOrOpenFailed);
 
-    // 7. 拉起被kill的进程
+    // 7. Pulling up the process of being killed
     pid = cluster->StartSingleMDS(killid, ipmap[killid], 22240 + killid,
                                   configmap[killid], false);
     LOG(INFO) << "mds " << killid << " started on " << ipmap[killid]
               << ", pid = " << pid;
     ASSERT_GT(pid, 0);
 
-    // 8. 再拉起被kill的mds，对集群没有影响
+    // 8. Pulling up the killed mds again has no impact on the cluster
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
     LOG(INFO) << "current case: hangOneInserviceMDSThenResumeTheMDS";
     /************ hangOneInserviceMDSThenResumeTheMDS ********/
-    // 1. hang一台正在服务的mds
-    // 2.预期
-    //    a. 集群状态正常时：client读写请求可以正常下发
-    //    b. mds hang期间且在与etcd续约超时之前，这时候新写IO会失败，
-    //       因为新写触发getorallocate，这个RPC发到mds会出现一直超时，然后重试
-    //       最后重试失败。
-    //    c. client session续约时长总比mds与etcd之间续约时长大，所以在
-    //       session续约失败之前mds预期可以完成切换，所以client的session
-    //       不会过期，覆盖写不会出现异常。
-    //    d. 恢复被hang的mds，预期对client io无影响
-    // 0. 先睡眠一段时间等待mds集群选出leader
+    // 1. Hang one of the currently serving MDS.
+    // 2. Expectations:
+    //    a. When the cluster is in a normal state, client read and write
+    //    requests can be issued normally. b. During the MDS hang period and
+    //    before the lease renewal with etcd times out, new write IO will fail.
+    //       This is because a new write triggers getorallocate, and the RPC
+    //       sent to the MDS will keep timing out, leading to retries that
+    //       eventually fail.
+    //    c. The client session renewal duration is longer than the lease
+    //    renewal duration between MDS and etcd.
+    //       So, MDS is expected to complete the switch before session renewal
+    //       failure occurs. Therefore, the client's session will not expire,
+    //       and overwrite writes will not result in exceptions.
+    //    d. When the hung MDS is restored, it is expected to have no impact on
+    //    client IO.
+    // 0. First, sleep for a period of time to allow the MDS cluster to elect a
+    // leader.
     std::this_thread::sleep_for(std::chrono::seconds(10));
 
-    // 1. 集群最初状态，io正常下发
+    // 1. The initial state of the cluster, IO is issued normally
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
-    // 2. hang一台正在服务的mds，在启动的时候第一台mds当选leader
+    // 2. Hang an MDS that is currently in service, and when it is started, the
+    // first MDS is selected as the leader
     serviceMDSID = 0;
     cluster->CurrentServiceMDS(&serviceMDSID);
     ASSERT_EQ(0, cluster->HangMDS(serviceMDSID));
 
-    // 3. 启动后台挂卸载线程，预期挂卸载会出现失败
+    // 3. Start the background suspend and unload thread, and expect the suspend
+    // and unload to fail
     CreateOpenFileBackend();
 
-    // 4. 启动后台io监测, 从下一个segment开始写，使其触发getorallocate逻辑
-    //    follower mds在session过期后重新续约后集群正常服务（20s续约）
+    // 4. Start background IO monitoring and start writing from the next segment
+    // to trigger the getorallocate logic
+    //    follower mds cluster normal service after renewing session expiration
+    //    (20s renewal)
     auto ret = MonitorResume(3 * segment_size, 4096, 25);
-    if (!ret) {
+    if (!ret)
+    {
         ASSERT_EQ(0, cluster->RecoverHangMDS(serviceMDSID));
         ASSERT_TRUE(false);
     }
 
-    // 5. 等待后台挂卸载监测结束
+    // 5. Waiting for the end of backend suspension and uninstallation
+    // monitoring
     WaitBackendCreateDone();
 
-    // 6. 判断当前挂卸载情况
+    // 6. Determine the current suspension and uninstallation situation
     ASSERT_EQ(0, cluster->RecoverHangMDS(serviceMDSID));
     ASSERT_EQ(0, cluster->StopMDS(serviceMDSID));
     pid = cluster->StartSingleMDS(serviceMDSID, ipmap[serviceMDSID],
@@ -614,39 +681,46 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
     ASSERT_GT(pid, 0);
     ASSERT_TRUE(createOrOpenFailed);
 
-    // 7. 再拉起被kill的mds，对集群没有影响
+    // 7. Pulling up the killed mds again has no impact on the cluster
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
     LOG(INFO) << "current case: hangOneNotInserviceMDSThenResumeTheMDS";
     /********** hangOneNotInserviceMDSThenResumeTheMDS ***********/
-    // 1. hang一台不在服务的mds
-    // 2.预期
-    //    a. 集群状态正常时：client读写请求可以正常下发
-    //    b. hang一台不在服务的mds，预期client IO无影响，挂卸载服务正常
-    // 1. 集群最初状态，io正常下发
+    // 1. Hang an out of service MDS
+    // 2. Expectations
+    //      a. When the cluster status is normal: client read and write requests
+    //      can be issued normally b. Hang an MDS that is not in service,
+    //      expecting no impact on client IO, and suspending and uninstalling
+    //      the service is normal
+    // 1. The initial state of the cluster, IO is issued normally
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
-    // 2. hang一台不在服务的mds，在启动的时候第一台mds当选leader, hang第二台
+    // 2. Hang an MDS that is not in service. When starting, the first MDS is
+    // selected as the leader, and hang the second MDS
     serviceMDSID = 0;
     cluster->CurrentServiceMDS(&serviceMDSID);
     int hangid = (serviceMDSID + 1) % 3;
     ASSERT_EQ(0, cluster->HangMDS(hangid));
 
-    // 3. 启动后台挂卸载线程，预期挂卸载服务不会受影响
+    // 3. Start the backend suspend and uninstall thread, and it is expected
+    // that the suspend and uninstall service will not be affected
     CreateOpenFileBackend();
 
-    // 4. 启动后台iops监测, 从下一个segment开始写，使其触发getorallocate逻辑
-    //    follower mds在session过期后重新续约后集群正常服务（20s续约)
+    // 4. Start backend iops monitoring and start writing from the next segment
+    // to trigger getorallocate logic
+    //    follower mds cluster normal service after renewing session expiration
+    //    (20s renewal)
     ret = MonitorResume(4 * segment_size, 4096, 25);
-    if (!ret) {
+    if (!ret)
+    {
         ASSERT_EQ(0, cluster->RecoverHangMDS(hangid));
         ASSERT_TRUE(false);
     }
 
-    // 5. 等待挂卸载监测结束
+    // 5. Waiting for the end of suspend/unload monitoring
     WaitBackendCreateDone();
 
-    // 6. 挂卸载服务正常
+    // 6. Hanging and uninstalling service is normal
     ASSERT_EQ(0, cluster->RecoverHangMDS(hangid));
     ASSERT_EQ(0, cluster->StopMDS(hangid));
     pid = cluster->StartSingleMDS(hangid, ipmap[hangid], 22240 + hangid,
@@ -657,42 +731,50 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
 
     ASSERT_FALSE(createOrOpenFailed);
 
-    // 7. 集群没有影响
+    // 7. Cluster has no impact
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
     LOG(INFO) << "current case: KillTwoInserviceMDSThenRestartTheMDS";
     /************* KillTwoInserviceMDSThenRestartTheMDS ***********/
-    // 1. 重启两台mds，其中一台正在服务的mds
-    // 2.预期
-    //    a. 集群状态正常时：client读写请求可以正常下发
-    //    b. 关闭两台mds，在mds服务切换到另一台mds之前，
-    //       client 新写IO会出现失败，挂卸载服务会异常
-    //    c. mds服务切换后，预期client IO恢复，挂卸载服务正常
-    //    d. 重新拉起mds，client IO无影响
-    // 1. 集群最初状态，io正常下发
+    // 1. Restart two MDS nodes, one of which is currently serving.
+    // 2. Expectations:
+    //    a. When the cluster is in a normal state, client read and write
+    //    requests can be issued normally. b. When shutting down two MDS nodes,
+    //    before the MDS service switches to another MDS,
+    //       new write IO from clients will fail, and mount/unmount services
+    //       will behave abnormally.
+    //    c. After the MDS service switches, it is expected that client IO will
+    //    recover, and mount/unmount services will be normal. d. When bringing
+    //    the MDS nodes back up, client IO will be unaffected.
+    // 1. In the initial state of the cluster, IO can be issued normally.
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
-    // 2. kill两台mds，在启动的时候第一台mds当选leader, kill前二台
+    // 2. Kill two MDSs. When starting, the first MDS is selected as the leader,
+    // and kill the first two MDSs
     serviceMDSID = 0;
     cluster->CurrentServiceMDS(&serviceMDSID);
     int secondid = (serviceMDSID + 1) % 3;
     ASSERT_EQ(0, cluster->StopMDS(serviceMDSID));
     ASSERT_EQ(0, cluster->StopMDS(secondid));
 
-    // 3. 启动后台挂卸载线程，预期挂卸载服务会受影响
+    // 3. Starting the backend suspend and uninstall thread, it is expected that
+    // the suspend and uninstall service will be affected
     CreateOpenFileBackend();
 
-    // 4. 启动后台io监测, 从下一个segment开始写，使其触发getorallocate逻辑
-    //    follower mds在session过期后重新续约后集群正常服务（20s续约）
+    // 4. Start background IO monitoring and start writing from the next segment
+    // to trigger the getorallocate logic
+    //    follower mds cluster normal service after renewing session expiration
+    //    (20s renewal)
     ASSERT_TRUE(MonitorResume(5 * segment_size, 4096, 25));
 
-    // 5. 等待后台挂卸载监测结束
+    // 5. Waiting for the end of backend suspension and uninstallation
+    // monitoring
     WaitBackendCreateDone();
 
-    // 6. 判断当前挂卸载情况
+    // 6. Determine the current suspension and uninstallation situation
     ASSERT_TRUE(createOrOpenFailed);
 
-    // 7. 拉起被kill的进程
+    // 7. Pulling up the process of being killed
     pid = cluster->StartSingleMDS(serviceMDSID, ipmap[serviceMDSID],
                                   22240 + serviceMDSID, configmap[serviceMDSID],
                                   false);
@@ -700,10 +782,10 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
               << ", pid = " << pid;
     ASSERT_GT(pid, 0);
 
-    // 8. 再拉起被kill的mds，对集群没有影响
+    // 8. Pulling up the killed mds again has no impact on the cluster
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
-    // 9. 拉起被kill的其他mds
+    // 9. Pull up other mds killed
     pid = cluster->StartSingleMDS(secondid, ipmap[secondid], 22240 + secondid,
                                   configmap[secondid], false);
     LOG(INFO) << "mds " << secondid << " started on " << ipmap[secondid]
@@ -712,18 +794,22 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
 
     LOG(INFO) << "current case: KillTwoNotInserviceMDSThenRestartTheMDS";
     /******** KillTwoNotInserviceMDSThenRestartTheMDS ***********/
-    // 1. 重启两台mds，其中两台都不在服务
-    // 2.预期
-    //    a. 集群状态正常时：client读写请求可以正常下发
-    //    b. 关闭两台mds，预期client IO无影响，挂卸载服务正常
-    //    c. 重启这两台mds，client IO无影响
-    // 1. 集群最初状态，io正常下发
+    // 1. Restart two MDS nodes, with both nodes not currently serving.
+    // 2. Expectations:
+    //    a. When the cluster is in a normal state, client read and write
+    //    requests can be issued normally. b. When shutting down two MDS nodes,
+    //    it is expected that client IO will be unaffected, and mount/unmount
+    //    services will be normal. c. When restarting these two MDS nodes, it is
+    //    expected that client IO will be unaffected.
+    // 1. In the initial state of the cluster, IO can be issued normally.
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
-    // 2. 启动后台挂卸载线程，预期挂卸载服务会受影响
+    // 2. Starting the backend suspend and uninstall thread, it is expected that
+    // the suspend and uninstall service will be affected
     CreateOpenFileBackend();
 
-    // 3. kill两台mds，在启动的时候第一台mds当选leader, kill后二台
+    // 3. Kill two MDSs. When starting, the first MDS is selected as the leader,
+    // and kill the second two MDSs
     serviceMDSID = 0;
     cluster->CurrentServiceMDS(&serviceMDSID);
     int tempid_1 = (serviceMDSID + 1) % 3;
@@ -731,27 +817,28 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
     ASSERT_EQ(0, cluster->StopMDS(tempid_1));
     ASSERT_EQ(0, cluster->StopMDS(tempid_2));
 
-    // 4. 启动后台io监测, 从下一个segment开始写，使其触发getorallocate逻辑
-    //    不在服务的mds被kill对集群没有影响
+    // 4. Start background IO monitoring and start writing from the next segment
+    // to trigger the getorallocate logic
+    // Killing mds that are not in service has no impact on the cluster
     ASSERT_TRUE(MonitorResume(6 * segment_size, 4096, 10));
 
-    // 5. 等待挂卸载监测结束
+    // 5. Waiting for the end of suspend/unload monitoring
     WaitBackendCreateDone();
 
-    // 6. 挂卸载服务正常
+    // 6. Hanging and uninstalling service is normal
     ASSERT_FALSE(createOrOpenFailed);
 
-    // 7. 拉起被kill的进程
+    // 7. Pulling up the process of being killed
     pid = cluster->StartSingleMDS(tempid_1, ipmap[tempid_1], 22240 + tempid_1,
                                   configmap[tempid_1], false);
     LOG(INFO) << "mds " << tempid_1 << " started on " << ipmap[tempid_1]
               << ", pid = " << pid;
     ASSERT_GT(pid, 0);
 
-    // 8. 集群没有影响
+    // 8. Cluster has no impact
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
-    // 9. 拉起其他mds，使集群恢复正常
+    // 9. Pull up other mds to restore the cluster to normal
     pid = cluster->StartSingleMDS(tempid_2, ipmap[tempid_2], 22240 + tempid_2,
                                   configmap[tempid_2], false);
     LOG(INFO) << "mds " << tempid_2 << " started on " << ipmap[tempid_2]
@@ -760,17 +847,24 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
 
     LOG(INFO) << "current case: hangTwoInserviceMDSThenResumeTheMDS";
     /******** hangTwoInserviceMDSThenResumeTheMDS ************/
-    // 1. hang两台mds，其中包含一台正在服务的mds，然后恢复
-    // 2.预期
-    //    a. 集群状态正常时：client读写请求可以正常下发
-    //    b. mds hang期间且在与etcd续约超时之前，这时候新写IO会失败，
-    //       因为新写触发getorallocate，这个RPC发到mds会出现一直超时，然后重试
-    //       最后重试失败。
-    //    c. client session续约时长总比mds与etcd之间续约时长大，所以在
-    //       session续约失败之前mds预期可以完成切换，所以client的session
-    //       不会过期，覆盖写不会出现异常。
-    //    d. 恢复被hang的mds，预期对client io无影响
-    // 1. hang两台mds，在启动的时候第一台mds当选leader, hang前二台
+    // 1. Hang two MDS nodes, one of which is currently serving, and then
+    // recover them.
+    // 2. Expectations:
+    //    a. When the cluster is in a normal state, client read and write
+    //    requests can be issued normally. b. During the MDS hang period and
+    //    before the lease renewal with etcd times out, new write IO will fail.
+    //       This is because a new write triggers getorallocate, and the RPC
+    //       sent to the MDS will keep timing out, leading to retries that
+    //       eventually fail.
+    //    c. The client session renewal duration is longer than the lease
+    //    renewal duration between MDS and etcd.
+    //       So, MDS is expected to complete the switch before session renewal
+    //       failure occurs. Therefore, the client's session will not expire,
+    //       and overwrite writes will not result in exceptions.
+    //    d. When the hung MDS nodes are recovered, it is expected to have no
+    //    impact on client IO.
+    // 1. Hang two MDS nodes, with the first MDS being elected as leader during
+    // startup, and both being hung before the process.
     serviceMDSID = 0;
     cluster->CurrentServiceMDS(&serviceMDSID);
     tempid_1 = serviceMDSID;
@@ -778,25 +872,30 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
     ASSERT_EQ(0, cluster->HangMDS(tempid_1));
     ASSERT_EQ(0, cluster->HangMDS(tempid_2));
 
-    // 2. 启动后台挂卸载线程，预期挂卸载服务会受影响
+    // 2. Starting the backend suspend and uninstall thread, it is expected that
+    // the suspend and uninstall service will be affected
     CreateOpenFileBackend();
 
     LOG(INFO) << "monitor resume start!";
-    // 4. 启动后台io监测, 从下一个segment开始写，使其触发getorallocate逻辑
-    //    follower mds在session过期后重新续约后集群正常服务（20s续约）
+    // 4. Start background IO monitoring and start writing from the next segment
+    // to trigger the getorallocate logic
+    //    follower mds cluster normal service after renewing session expiration
+    //    (20s renewal)
     ret = MonitorResume(7 * segment_size, 4096, 25);
-    if (!ret) {
+    if (!ret)
+    {
         ASSERT_EQ(0, cluster->RecoverHangMDS(tempid_1));
         ASSERT_EQ(0, cluster->RecoverHangMDS(tempid_2));
         ASSERT_TRUE(false);
     }
 
     LOG(INFO) << "monitor resume done!";
-    // 5. 等待后台挂卸载监测结束
+    // 5. Waiting for the end of backend suspension and uninstallation
+    // monitoring
     WaitBackendCreateDone();
     LOG(INFO) << "wait backend create thread done!";
 
-    // 6. 判断当前挂卸载情况
+    // 6. Determine the current suspension and uninstallation situation
     ASSERT_EQ(0, cluster->RecoverHangMDS(tempid_1));
     ASSERT_EQ(0, cluster->RecoverHangMDS(tempid_2));
     ASSERT_EQ(0, cluster->StopMDS(tempid_1));
@@ -814,20 +913,24 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
     ASSERT_GT(pid, 0);
     ASSERT_TRUE(createOrOpenFailed);
 
-    // 7. 再拉起被hang的mds，对集群没有影响
+    // 7. Pulling up the hung mds again has no impact on the cluster
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
     LOG(INFO) << "current case: hangTwoNotInserviceMDSThenResumeTheMDS";
     /********** hangTwoNotInserviceMDSThenResumeTheMDS ********/
-    // 1. hang两台mds，其中不包含正在服务的mds，然后恢复
-    // 2.预期
-    //    a. 集群状态正常时：client读写请求可以正常下发
-    //    b. hang一台不在服务的mds，预期client IO无影响，挂卸载服务正常
-    //    c. 恢复这两台mds，client IO无影响
-    // 1. 集群最初状态，io正常下发
+    // 1. Hang two MDS nodes, neither of which is currently serving, and then
+    // recover them.
+    // 2. Expectations:
+    //    a. When the cluster is in a normal state, client read and write
+    //    requests can be issued normally. b. Hang one MDS node that is not
+    //    currently serving. It is expected that client IO will be unaffected,
+    //    and mount/unmount services will behave normally. c. When these two MDS
+    //    nodes are recovered, client IO is expected to be unaffected.
+    // 1. In the initial state of the cluster, IO can be issued normally.
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
-    // 2. hang两台mds，在启动的时候第一台mds当选leader, kill后二台
+    // 2. Hang two mds, the first mds is selected as the leader when starting,
+    // and kill the second two mds
     serviceMDSID = 0;
     cluster->CurrentServiceMDS(&serviceMDSID);
     tempid_1 = (serviceMDSID + 1) % 3;
@@ -835,22 +938,25 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
     ASSERT_EQ(0, cluster->HangMDS(tempid_1));
     ASSERT_EQ(0, cluster->HangMDS(tempid_2));
 
-    // 3. 启动后台挂卸载线程，预期挂卸载服务会受影响
+    // 3. Starting the backend suspend and uninstall thread, it is expected that
+    // the suspend and uninstall service will be affected
     CreateOpenFileBackend();
 
-    // 4. 启动后台io监测, 从下一个segment开始写，使其触发getorallocate逻辑
-    //    不在服务的mds被kill对集群没有影响
+    // 4. Start background IO monitoring and start writing from the next segment
+    // to trigger the getorallocate logic
+    // Killing mds that are not in service has no impact on the cluster
     ret = MonitorResume(8 * segment_size, 4096, 10);
-    if (!ret) {
+    if (!ret)
+    {
         ASSERT_EQ(0, cluster->RecoverHangMDS(tempid_1));
         ASSERT_EQ(0, cluster->RecoverHangMDS(tempid_2));
         ASSERT_TRUE(false);
     }
 
-    // 5. 等待挂卸载监测结束
+    // 5. Waiting for the end of suspend/unload monitoring
     WaitBackendCreateDone();
 
-    // 6. 挂卸载服务正常
+    // 6. Hanging and uninstalling service is normal
     ASSERT_EQ(0, cluster->RecoverHangMDS(tempid_1));
     ASSERT_EQ(0, cluster->RecoverHangMDS(tempid_2));
     ASSERT_EQ(0, cluster->StopMDS(tempid_1));
@@ -868,178 +974,197 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
     ASSERT_GT(pid, 0);
     ASSERT_FALSE(createOrOpenFailed);
 
-    // 7. 集群没有影响
+    // 7. Cluster has no impact
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
     LOG(INFO) << "current case: KillThreeMDSThenRestartTheMDS";
     /********* KillThreeMDSThenRestartTheMDS *********/
-    // 1. 重启三台mds
-    // 2.预期
-    //    a. 集群状态正常：client读写请求可以正常下发
-    //    b. kill三台mds：client 在session过期之后出现IO 失败
-    //    c. client session过期之前这段时间的新写会失败，覆盖写不影响
-    //    d. 恢复其中hang的一台mds：client session重新续约成功，io恢复正常
-    //    e. 恢复另外两台hang的mds，client io无影响
+    // 1. Restart three MDS nodes.
+    // 2. Expectations:
+    //    a. When the cluster is in a normal state, client read and write
+    //    requests can be issued normally. b. Kill all three MDS nodes: Client
+    //    IO failures occur after session expiration. c. During the period
+    //    before the client session expires, new writes will fail, but overwrite
+    //    writes will not be affected. d. Recover one of the hung MDS nodes:
+    //    Client session renewal succeeds, and IO returns to normal. e. Recover
+    //    the other two hung MDS nodes: Client IO remains unaffected.
 
-    // 1. kill三台mds
+    // 1. Kill three MDSs
     ASSERT_EQ(0, cluster->StopAllMDS());
-    // 确保mds确实退出了
+    // Ensure that the mds has indeed exited
     std::this_thread::sleep_for(std::chrono::seconds(10));
 
-    // 2. 启动后台挂卸载线程，预期挂卸载服务会受影响
+    // 2. Starting the backend suspend and uninstall thread, it is expected that
+    // the suspend and uninstall service will be affected
     CreateOpenFileBackend();
 
-    // 3. 下发一个io，sleep一段时间后判断是否返回
-    //    由于从下一个segment开始写，使其触发getorallocate逻辑
-    //    MDS全部不在服务，写请求一直hang，无法返回
+    // 3. Send an IO and sleep for a period of time to determine whether to
+    // return
+    //    Due to writing from the next segment, it triggers the getorallocate
+    //    logic MDS is no longer in service, write requests are constantly
+    //    hanging, unable to return
     ASSERT_TRUE(SendAioWriteRequest(9 * segment_size, 4096));
     std::this_thread::sleep_for(std::chrono::seconds(30));
     ASSERT_FALSE(writeIOReturnFlag);
 
-    // 4. 等待后台挂卸载监测结束
+    // 4. Waiting for the end of backend suspension and uninstallation
+    // monitoring
     WaitBackendCreateDone();
 
-    // 5. 判断当前挂卸载情况
+    // 5. Determine the current suspension and uninstallation situation
     ASSERT_TRUE(createOrOpenFailed);
 
-    // 6. 拉起被kill的进程
+    // 6. Pulling up the process of being killed
     pid = -1;
-    while (pid < 0) {
+    while (pid < 0)
+    {
         pid =
             cluster->StartSingleMDS(0, "127.0.0.1:22222", 22240, mdsConf, true);
         LOG(INFO) << "mds 0 started on 127.0.0.1:22222, pid = " << pid;
         std::this_thread::sleep_for(std::chrono::seconds(3));
     }
 
-    // 7. 检测上次IO是否返回
+    // 7. Check if the last IO returned
     std::this_thread::sleep_for(std::chrono::seconds(20));
     ASSERT_TRUE(writeIOReturnFlag);
 
-    // 8. 新的mds开始提供服务
+    // 8. New mds starts offering services
     ASSERT_TRUE(MonitorResume(segment_size, 4096, 10));
 
-    // 9. 再拉起被kill的进程
+    // 9. Pull up the process of being killed again
     pid = cluster->StartSingleMDS(1, "127.0.0.1:22223", 22229, mdsConf, false);
     LOG(INFO) << "mds 1 started on 127.0.0.1:22223, pid = " << pid;
     ASSERT_GT(pid, 0);
 
-    // 10. 对集群没有影响
+    // 10. No impact on the cluster
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
-    // 11. 拉起其他被kill的mds
+    // 11. Pull up other killed mds
     pid = cluster->StartSingleMDS(2, "127.0.0.1:22224", 22232, mdsConf, false);
     LOG(INFO) << "mds 2 started on 127.0.0.1:22224, pid = " << pid;
     ASSERT_GT(pid, 0);
 
     LOG(INFO) << "current case: hangThreeMDSThenResumeTheMDS";
     /********** hangThreeMDSThenResumeTheMDS **************/
-    // 1. hang三台mds，然后恢复
-    // 2.预期
-    //    a. 集群状态正常：client读写请求可以正常下发
-    //    b. hang三台mds：client 在session过期之后出现IO hang
-    //    c. client session过期之前这段时间的新写会一直hang，覆盖写不影响
-    //    e. 恢复其中hang的一台mds：client session重新续约成功，io恢复正常
-    //    f. 恢复另外两台hang的mds，client io无影响
-    // 1. 集群最初状态，io正常下发
+    // 1. Hang three MDS nodes and then recover them.
+    // 2. Expectations:
+    //    a. When the cluster is in a normal state, client read and write
+    //    requests can be issued normally. b. Hang three MDS nodes: Client IO
+    //    hangs after the session expires. c. During the period before the
+    //    client session expires, new writes will hang continuously, but
+    //    overwrite writes will not be affected. e. Recover one of the hung MDS
+    //    nodes: Client session renewal succeeds, and IO returns to normal. f.
+    //    Recover the other two hung MDS nodes: Client IO remains unaffected.
+    // 1. In the initial state of the cluster, IO can be issued normally.
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
-    // 2. hang三台mds
+    // 2. Hang Three MDSs
     ASSERT_EQ(0, cluster->HangMDS(0));
     ASSERT_EQ(0, cluster->HangMDS(1));
     ASSERT_EQ(0, cluster->HangMDS(2));
 
-    // 3. 启动后台挂卸载线程，预期挂卸载服务会受影响
+    // 3. Starting the backend suspend and uninstall thread, it is expected that
+    // the suspend and uninstall service will be affected
     CreateOpenFileBackend();
 
-    // 4. 下发一个io，sleep一段时间后判断是否返回
-    //    由于从下一个segment开始写，使其触发getorallocate逻辑
-    //    MDS全部不在服务，写请求一直hang，无法返回
+    // 4. Send an IO and sleep for a period of time to determine whether to
+    // return
+    //      Due to writing from the next segment, it triggers the getorallocate
+    //      logic MDS is no longer in service, write requests are constantly
+    //      hanging, unable to return
     ASSERT_TRUE(SendAioWriteRequest(10 * segment_size, 4096));
     std::this_thread::sleep_for(std::chrono::seconds(3));
     ret = writeIOReturnFlag;
-    if (ret) {
+    if (ret)
+    {
         ASSERT_EQ(0, cluster->RecoverHangMDS(2));
         ASSERT_EQ(0, cluster->RecoverHangMDS(1));
         ASSERT_EQ(0, cluster->RecoverHangMDS(0));
         ASSERT_TRUE(false);
     }
 
-    // 5. 等待监测结束
+    // 5. Waiting for monitoring to end
     WaitBackendCreateDone();
 
-    // 6. 判断当前挂卸载情况
-    if (!createOrOpenFailed) {
+    // 6. Determine the current suspension and uninstallation situation
+    if (!createOrOpenFailed)
+    {
         ASSERT_EQ(0, cluster->RecoverHangMDS(2));
         ASSERT_EQ(0, cluster->RecoverHangMDS(1));
         ASSERT_EQ(0, cluster->RecoverHangMDS(0));
         ASSERT_TRUE(false);
     }
 
-    // 7. 拉起被hang的进程, 有可能hang的进程因为长时间未与etcd握手，
-    //    导致其被拉起后就退出了，所以这里在recover之后再启动该mds，
-    //    这样保证集群中至少有一个mds在提供服务
+    // 7. Pulling up the process being hung may result in the process not
+    // shaking hands with ETCD for a long time,
+    //    After it was pulled up, it exited, so the mds was restarted after
+    //    recover, This ensures that at least one mds in the cluster is
+    //    providing services
     ASSERT_EQ(0, cluster->RecoverHangMDS(1));
     ASSERT_EQ(0, cluster->StopMDS(1));
 
     pid = -1;
-    while (pid < 0) {
+    while (pid < 0)
+    {
         pid =
             cluster->StartSingleMDS(1, "127.0.0.1:22223", 22229, mdsConf, true);
         LOG(INFO) << "mds 1 started on 127.0.0.1:22223, pid = " << pid;
         std::this_thread::sleep_for(std::chrono::seconds(3));
     }
 
-    // 检测上次IO是否返回
+    // Check if the last IO returned
     std::this_thread::sleep_for(std::chrono::seconds(20));
     ASSERT_TRUE(writeIOReturnFlag);
 
-    // 8. 新的mds开始提供服务
+    // 8. New mds starts offering services
     ret = MonitorResume(segment_size, 4096, 1);
-    if (!ret) {
+    if (!ret)
+    {
         ASSERT_EQ(0, cluster->RecoverHangMDS(2));
         ASSERT_EQ(0, cluster->RecoverHangMDS(0));
         ASSERT_TRUE(false);
     }
 
-    // 9. 再拉起被hang的进程
+    // 9. Pull up the process of being hung again
     ASSERT_EQ(0, cluster->RecoverHangMDS(2));
     ASSERT_EQ(0, cluster->RecoverHangMDS(0));
 
-    // 10. 对集群没有影响
+    // 10. No impact on the cluster
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 }
 
-TEST_F(MDSModuleException, StripeMDSExceptionTest) {
+TEST_F(MDSModuleException, StripeMDSExceptionTest)
+{
     LOG(INFO) << "current case: StripeMDSExceptionTest";
-    // 1. 创建一个条带的卷
-    int stripefd = curve::test::FileCommonOperation::Open("/test2",
-                                       "curve", 1024 * 1024, 8);
+    // 1. Create a striped volume
+    int stripefd = curve::test::FileCommonOperation::Open("/test2", "curve",
+                                                          1024 * 1024, 8);
     ASSERT_NE(stripefd, -1);
     uint64_t offset = std::rand() % 5 * segment_size;
 
-    // 2. 进行数据的读写校验
-    VerifyDataConsistency(stripefd, offset, 128 *1024 *1024);
+    // 2. Perform data read and write verification
+    VerifyDataConsistency(stripefd, offset, 128 * 1024 * 1024);
     std::this_thread::sleep_for(std::chrono::seconds(60));
-    // 3. kill 一台当前为leader的mds
+    // 3. Kill an MDS that is currently the leader
     LOG(INFO) << "stop mds.";
     int serviceMDSID = 0;
     cluster->CurrentServiceMDS(&serviceMDSID);
     ASSERT_EQ(0, cluster->StopMDS(serviceMDSID));
-    // 4. 启动后台挂卸载线程
+    // 4. Start the background suspend and unload thread
     CreateOpenFileBackend();
 
-    // 5. 继续随机写数据进行校验
+    // 5. Continue to randomly write data for verification
     offset = std::rand() % 5 * segment_size;
     LOG(INFO) << "when stop mds, write and read data.";
-    VerifyDataConsistency(stripefd, offset, 128 *1024 *1024);
+    VerifyDataConsistency(stripefd, offset, 128 * 1024 * 1024);
 
-    // 6. 等待挂卸载检测结果
+    // 6. Waiting for the results of pending uninstallation detection
     WaitBackendCreateDone();
 
-    // 7. 挂卸载服务正常
+    // 7. Hanging and uninstalling service is normal
     ASSERT_TRUE(createOrOpenFailed);
 
-    LOG(INFO) <<"start mds.";
+    LOG(INFO) << "start mds.";
     pid_t pid = cluster->StartSingleMDS(serviceMDSID, ipmap[serviceMDSID],
                                         22240 + serviceMDSID,
                                         configmap[serviceMDSID], false);
@@ -1047,10 +1172,9 @@ TEST_F(MDSModuleException, StripeMDSExceptionTest) {
               << ", pid = " << pid;
     ASSERT_GT(pid, 0);
 
-
     LOG(INFO) << "start mds, write and read data.";
     offset = std::rand() % 5 * segment_size;
-    VerifyDataConsistency(stripefd, offset, 128 *1024 *1024);
+    VerifyDataConsistency(stripefd, offset, 128 * 1024 * 1024);
 
     ::Close(stripefd);
 }

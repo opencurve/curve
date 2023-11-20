@@ -20,29 +20,30 @@
  * Author: lixiaocui
  */
 
-#include <json2pb/pb_to_json.h>
-#include <json2pb/json_to_pb.h>
+#include "src/chunkserver/register.h"
+
 #include <brpc/channel.h>
 #include <fcntl.h>
+#include <json2pb/json_to_pb.h>
+#include <json2pb/pb_to_json.h>
 
 #include <string>
 #include <vector>
 
+#include "proto/topology.pb.h"
+#include "src/chunkserver/chunkserver_helper.h"
 #include "src/common/crc32.h"
 #include "src/common/string_util.h"
-#include "src/chunkserver/register.h"
 #include "src/common/uri_parser.h"
-#include "src/chunkserver/chunkserver_helper.h"
-#include "proto/topology.pb.h"
 
 namespace curve {
 namespace chunkserver {
-Register::Register(const RegisterOptions &ops) {
+Register::Register(const RegisterOptions& ops) {
     this->ops_ = ops;
 
-    // 解析mds的多个地址
+    // Parsing multiple addresses of mds
     ::curve::common::SplitString(ops.mdsListenAddr, ",", &mdsEps_);
-    // 检验每个地址的合法性
+    // Verify the legality of each address
     for (auto addr : mdsEps_) {
         butil::EndPoint endpt;
         if (butil::str2endpoint(addr.c_str(), &endpt) < 0) {
@@ -52,9 +53,9 @@ Register::Register(const RegisterOptions &ops) {
     inServiceIndex_ = 0;
 }
 
-int Register::RegisterToMDS(const ChunkServerMetadata *localMetadata,
-                            ChunkServerMetadata *metadata,
-                            const std::shared_ptr<EpochMap> &epochMap) {
+int Register::RegisterToMDS(const ChunkServerMetadata* localMetadata,
+                            ChunkServerMetadata* metadata,
+                            const std::shared_ptr<EpochMap>& epochMap) {
     ::curve::mds::topology::ChunkServerRegistRequest req;
     ::curve::mds::topology::ChunkServerRegistResponse resp;
     req.set_disktype(ops_.chunkserverDiskType);
@@ -105,7 +106,8 @@ int Register::RegisterToMDS(const ChunkServerMetadata *localMetadata,
         curve::mds::topology::TopologyService_Stub stub(&channel);
 
         stub.RegistChunkServer(&cntl, &req, &resp, nullptr);
-        // TODO(lixiaocui): 后续错误码和mds共享后改成枚举类型
+        // TODO(lixiaocui): Change to enumeration type after sharing error codes
+        // and mds in the future
         if (!cntl.Failed() && resp.statuscode() == 0) {
             break;
         } else {
@@ -158,7 +160,7 @@ int Register::RegisterToMDS(const ChunkServerMetadata *localMetadata,
     return 0;
 }
 
-int Register::PersistChunkServerMeta(const ChunkServerMetadata &metadata) {
+int Register::PersistChunkServerMeta(const ChunkServerMetadata& metadata) {
     int fd;
     std::string metaFile =
         curve::common::UriParser::GetPathFromUri(ops_.chunkserverMetaUri);

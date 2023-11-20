@@ -27,8 +27,8 @@ DEFINE_string(password, "", "password of administrator");
 namespace curve {
 namespace tool {
 
-NameSpaceToolCore::NameSpaceToolCore(std::shared_ptr<MDSClient> client) :
-                                            client_(client) {
+NameSpaceToolCore::NameSpaceToolCore(std::shared_ptr<MDSClient> client)
+    : client_(client) {
     client_->SetUserName(FLAGS_userName);
     client_->SetPassword(FLAGS_password);
 }
@@ -37,7 +37,7 @@ int NameSpaceToolCore::Init(const std::string& mdsAddr) {
     return client_->Init(mdsAddr);
 }
 
-int NameSpaceToolCore::GetFileInfo(const std::string &fileName,
+int NameSpaceToolCore::GetFileInfo(const std::string& fileName,
                                    FileInfo* fileInfo) {
     return client_->GetFileInfo(fileName, fileInfo);
 }
@@ -48,11 +48,10 @@ int NameSpaceToolCore::ListDir(const std::string& dirName,
 }
 
 int NameSpaceToolCore::GetChunkServerListInCopySet(
-                                    const PoolIdType& logicalPoolId,
-                                    const CopySetIdType& copysetId,
-                                    std::vector<ChunkServerLocation>* csLocs) {
-    return client_->GetChunkServerListInCopySet(logicalPoolId,
-                                                copysetId, csLocs);
+    const PoolIdType& logicalPoolId, const CopySetIdType& copysetId,
+    std::vector<ChunkServerLocation>* csLocs) {
+    return client_->GetChunkServerListInCopySet(logicalPoolId, copysetId,
+                                                csLocs);
 }
 
 int NameSpaceToolCore::DeleteFile(const std::string& fileName,
@@ -65,7 +64,7 @@ int NameSpaceToolCore::CreateFile(const CreateFileContext& ctx) {
 }
 
 int NameSpaceToolCore::ExtendVolume(const std::string& fileName,
-                                     uint64_t newSize) {
+                                    uint64_t newSize) {
     return client_->ExtendVolume(fileName, newSize);
 }
 int NameSpaceToolCore::GetAllocatedSize(const std::string& fileName,
@@ -85,7 +84,7 @@ int NameSpaceToolCore::GetFileSize(const std::string& fileName,
 }
 
 int NameSpaceToolCore::GetFileSegments(const std::string& fileName,
-                                  std::vector<PageFileSegment>* segments) {
+                                       std::vector<PageFileSegment>* segments) {
     FileInfo fileInfo;
     int res = GetFileInfo(fileName, &fileInfo);
     if (res != 0) {
@@ -96,28 +95,30 @@ int NameSpaceToolCore::GetFileSegments(const std::string& fileName,
 }
 
 int NameSpaceToolCore::GetFileSegments(const std::string& fileName,
-                                  const FileInfo& fileInfo,
-                                  std::vector<PageFileSegment>* segments) {
-    // 只能获取page file的segment
+                                       const FileInfo& fileInfo,
+                                       std::vector<PageFileSegment>* segments) {
+    // Only segments of page files can be obtained
     if (fileInfo.filetype() != curve::mds::FileType::INODE_PAGEFILE) {
         std::cout << "It is not a page file!" << std::endl;
         return -1;
     }
 
-    // 获取文件的segment数，并打印每个segment的详细信息
+    // Obtain the number of segments in the file and print detailed information
+    // for each segment
     uint64_t segmentNum = fileInfo.length() / fileInfo.segmentsize();
     uint64_t segmentSize = fileInfo.segmentsize();
     for (uint64_t i = 0; i < segmentNum; i++) {
         // load  segment
         PageFileSegment segment;
-        GetSegmentRes res = client_->GetSegmentInfo(fileName,
-                                    i * segmentSize, &segment);
+        GetSegmentRes res =
+            client_->GetSegmentInfo(fileName, i * segmentSize, &segment);
         if (res == GetSegmentRes::kOK) {
             segments->emplace_back(segment);
         } else if (res == GetSegmentRes::kSegmentNotAllocated) {
             continue;
         } else if (res == GetSegmentRes::kFileNotExists) {
-            // 查询过程中文件被删掉了，清空segment并返回0
+            // uring the query process, the file was deleted, the segment was
+            // cleared, and 0 was returned
             segments->clear();
             return 0;
         } else {
@@ -137,8 +138,7 @@ int NameSpaceToolCore::CleanRecycleBin(const std::string& dirName,
         return -1;
     }
 
-    auto needDelete = [](const FileInfo &fileInfo,
-                         uint64_t now,
+    auto needDelete = [](const FileInfo& fileInfo, uint64_t now,
                          uint64_t expireTime) -> bool {
         auto filename = fileInfo.filename();
         std::vector<std::string> items;
@@ -147,9 +147,9 @@ int NameSpaceToolCore::CleanRecycleBin(const std::string& dirName,
         uint64_t dtime;
         auto n = items.size();
         auto id = std::to_string(fileInfo.id());
-        if (n >= 2 && items[n - 2] == id
-            && ::curve::common::StringToUll(items[n - 1], &dtime)
-            && now - dtime < expireTime) {
+        if (n >= 2 && items[n - 2] == id &&
+            ::curve::common::StringToUll(items[n - 1], &dtime) &&
+            now - dtime < expireTime) {
             return false;
         }
 
@@ -210,10 +210,9 @@ int NameSpaceToolCore::UpdateFileThrottle(const std::string& fileName,
     return client_->UpdateFileThrottleParams(fileName, params);
 }
 
-int NameSpaceToolCore::QueryChunkCopyset(const std::string& fileName,
-                                     uint64_t offset,
-                                     uint64_t* chunkId,
-                                     std::pair<uint32_t, uint32_t>* copyset) {
+int NameSpaceToolCore::QueryChunkCopyset(
+    const std::string& fileName, uint64_t offset, uint64_t* chunkId,
+    std::pair<uint32_t, uint32_t>* copyset) {
     if (!chunkId || !copyset) {
         std::cout << "The argument is a null pointer!" << std::endl;
         return -1;
@@ -229,11 +228,11 @@ int NameSpaceToolCore::QueryChunkCopyset(const std::string& fileName,
         return -1;
     }
     uint64_t segmentSize = fileInfo.segmentsize();
-    // segment对齐的offset
+    // segment aligned offset
     uint64_t segOffset = (offset / segmentSize) * segmentSize;
     PageFileSegment segment;
-    GetSegmentRes segRes = client_->GetSegmentInfo(fileName,
-                                                segOffset, &segment);
+    GetSegmentRes segRes =
+        client_->GetSegmentInfo(fileName, segOffset, &segment);
     if (segRes != GetSegmentRes::kOK) {
         if (segRes == GetSegmentRes::kSegmentNotAllocated) {
             std::cout << "Chunk has not been allocated!" << std::endl;
@@ -243,7 +242,7 @@ int NameSpaceToolCore::QueryChunkCopyset(const std::string& fileName,
             return -1;
         }
     }
-    // 在segment里面的chunk的索引
+    // Index of chunk in segment
     if (segment.chunksize() == 0) {
         std::cout << "No chunks in segment!" << std::endl;
         return -1;

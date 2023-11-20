@@ -18,30 +18,30 @@ Used port list:
 
 # client
 
-    9101: session service 测试
-    9102: applyindex service 测试
-    9103: snapshot service 测试
-    9104: client端其他测试
-    9105: client workflow测试mds占用
-    9106: client workflow测试chunkserver占用
-    9107: client workflow测试chunkserver占用
-    9108: client workflow测试chunkserver占用
-    9109: request scheduler测试占用
-    9110/9111/9112: TestLibcbdLibcurve测试占用
-    9115/9116/9117: TestLibcurveInterface测试占用
+    9101: session service testing
+    9102: applyindex service testing
+    9103: snapshot service testing
+    9104: Other client testing
+    9105: client workflow testing, MDS usage
+    9106: client workflow testing, Chunkserver usage
+    9107: client workflow testing, Chunkserver usage
+    9108: client workflow testing, Chunkserver usage
+    9109: request scheduler testing usage
+    9110/9111/9112: TestLibcbdLibcurve testing usage
+    9115/9116/9117: TestLibcurveInterface testing usage
 
-    9120: mds 接口测试
-    9121: mds 接口测试
-    9122: mds 接口测试
-    9123: mds 接口测试
-    9130: metric测试
-    9131: metric测试
-    9132: metric测试
-    9140: metric测试
-    9141: metric测试
-    9142: metric测试
-    9150/9151 ChunkserverUnstableTest
-    19151/19110/19111/19112 curveClient测试
+    9120: MDS interface testing
+    9121: MDS interface testing
+    9122: MDS interface testing
+    9123: MDS interface testing
+    9130: metric testing
+    9131: metric testing
+    9132: metric testing
+    9140: metric testing
+    9141: metric testing
+    9142: metric testing
+    9150/9151: ChunkserverUnstableTest
+    19151/19110/19111/19112: curveClient testing
 
     client_test_unittest: 21000
 

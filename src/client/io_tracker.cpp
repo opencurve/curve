@@ -20,21 +20,22 @@
  * Author: tongguangxun
  */
 
+#include "src/client/io_tracker.h"
+
 #include <glog/logging.h>
 
 #include <algorithm>
 #include <memory>
 #include <sstream>
 
-#include "src/client/splitor.h"
-#include "src/client/iomanager.h"
-#include "src/client/io_tracker.h"
-#include "src/client/request_scheduler.h"
-#include "src/client/request_closure.h"
-#include "src/common/timeutility.h"
-#include "src/client/source_reader.h"
-#include "src/client/metacache_struct.h"
 #include "src/client/discard_task.h"
+#include "src/client/iomanager.h"
+#include "src/client/metacache_struct.h"
+#include "src/client/request_closure.h"
+#include "src/client/request_scheduler.h"
+#include "src/client/source_reader.h"
+#include "src/client/splitor.h"
+#include "src/common/timeutility.h"
 
 namespace curve {
 namespace client {
@@ -44,24 +45,22 @@ using curve::chunkserver::CHUNK_OP_STATUS;
 std::atomic<uint64_t> IOTracker::tracekerID_(1);
 DiscardOption IOTracker::discardOption_;
 
-IOTracker::IOTracker(IOManager* iomanager,
-                     MetaCache* mc,
-                     RequestScheduler* scheduler,
-                     FileMetric* clientMetric,
+IOTracker::IOTracker(IOManager* iomanager, MetaCache* mc,
+                     RequestScheduler* scheduler, FileMetric* clientMetric,
                      bool disableStripe)
     : mc_(mc),
       scheduler_(scheduler),
       iomanager_(iomanager),
       fileMetric_(clientMetric),
       disableStripe_(disableStripe) {
-    id_         = tracekerID_.fetch_add(1, std::memory_order_relaxed);
-    scc_        = nullptr;
-    aioctx_     = nullptr;
-    data_       = nullptr;
-    type_       = OpType::UNKNOWN;
-    errcode_    = LIBCURVE_ERROR::OK;
-    offset_     = 0;
-    length_     = 0;
+    id_ = tracekerID_.fetch_add(1, std::memory_order_relaxed);
+    scc_ = nullptr;
+    aioctx_ = nullptr;
+    data_ = nullptr;
+    type_ = OpType::UNKNOWN;
+    errcode_ = LIBCURVE_ERROR::OK;
+    offset_ = 0;
+    length_ = 0;
     reqlist_.clear();
     reqcount_.store(0, std::memory_order_release);
     opStartTimePoint_ = curve::common::TimeUtility::GetTimeofDayUs();
@@ -162,8 +161,7 @@ int IOTracker::ReadFromSource(const std::vector<RequestContext*>& reqCtxVec,
 
 void IOTracker::StartWrite(const void* buf, off_t offset, size_t length,
                            MDSClient* mdsclient, const FInfo_t* fileInfo,
-                           const FileEpoch* fEpoch,
-                           Throttle* throttle) {
+                           const FileEpoch* fEpoch, Throttle* throttle) {
     data_ = const_cast<void*>(buf);
     offset_ = offset;
     length_ = length;
@@ -190,8 +188,7 @@ void IOTracker::StartAioWrite(CurveAioContext* ctx, MDSClient* mdsclient,
 }
 
 void IOTracker::DoWrite(MDSClient* mdsclient, const FInfo_t* fileInfo,
-                        const FileEpoch* fEpoch,
-                        Throttle* throttle) {
+                        const FileEpoch* fEpoch, Throttle* throttle) {
     if (nullptr == data_) {
         ReturnOnFail();
         return;
@@ -199,8 +196,7 @@ void IOTracker::DoWrite(MDSClient* mdsclient, const FInfo_t* fileInfo,
 
     switch (userDataType_) {
         case UserDataType::RawBuffer:
-            writeData_.append_user_data(data_, length_,
-                                        TrivialDeleter);
+            writeData_.append_user_data(data_, length_, TrivialDeleter);
             break;
         case UserDataType::IOBuffer:
             writeData_ = *reinterpret_cast<const butil::IOBuf*>(data_);
@@ -211,9 +207,9 @@ void IOTracker::DoWrite(MDSClient* mdsclient, const FInfo_t* fileInfo,
         throttle->Add(false, length_);
     }
 
-    int ret = Splitor::IO2ChunkRequests(this, mc_, &reqlist_, &writeData_,
-                                        offset_, length_,
-                                        mdsclient, fileInfo, fEpoch);
+    int ret =
+        Splitor::IO2ChunkRequests(this, mc_, &reqlist_, &writeData_, offset_,
+                                  length_, mdsclient, fileInfo, fEpoch);
     if (ret == 0) {
         uint32_t subIoIndex = 0;
 
@@ -284,14 +280,14 @@ void IOTracker::DoDiscard(MDSClient* mdsClient, const FInfo* fileInfo,
     Done();
 }
 
-void IOTracker::ReadSnapChunk(const ChunkIDInfo &cinfo,
-    uint64_t seq, uint64_t offset, uint64_t len,
-    char *buf, SnapCloneClosure* scc) {
-    scc_    = scc;
-    data_   = buf;
+void IOTracker::ReadSnapChunk(const ChunkIDInfo& cinfo, uint64_t seq,
+                              uint64_t offset, uint64_t len, char* buf,
+                              SnapCloneClosure* scc) {
+    scc_ = scc;
+    data_ = buf;
     offset_ = offset;
     length_ = len;
-    type_   = OpType::READ_SNAP;
+    type_ = OpType::READ_SNAP;
 
     int ret = -1;
     do {
@@ -316,8 +312,8 @@ void IOTracker::ReadSnapChunk(const ChunkIDInfo &cinfo,
     }
 }
 
-void IOTracker::DeleteSnapChunkOrCorrectSn(const ChunkIDInfo &cinfo,
-    uint64_t correctedSeq) {
+void IOTracker::DeleteSnapChunkOrCorrectSn(const ChunkIDInfo& cinfo,
+                                           uint64_t correctedSeq) {
     type_ = OpType::DELETE_SNAP;
 
     int ret = -1;
@@ -343,8 +339,8 @@ void IOTracker::DeleteSnapChunkOrCorrectSn(const ChunkIDInfo &cinfo,
     }
 }
 
-void IOTracker::GetChunkInfo(const ChunkIDInfo &cinfo,
-    ChunkInfoDetail *chunkInfo) {
+void IOTracker::GetChunkInfo(const ChunkIDInfo& cinfo,
+                             ChunkInfoDetail* chunkInfo) {
     type_ = OpType::GET_CHUNK_INFO;
 
     int ret = -1;
@@ -384,10 +380,10 @@ void IOTracker::CreateCloneChunk(const std::string& location,
             break;
         }
 
-        newreqNode->seq_         = sn;
-        newreqNode->chunksize_   = chunkSize;
-        newreqNode->location_    = location;
-        newreqNode->correctedSeq_  = correntSn;
+        newreqNode->seq_ = sn;
+        newreqNode->chunksize_ = chunkSize;
+        newreqNode->location_ = location;
+        newreqNode->correctedSeq_ = correntSn;
         FillCommonFields(cinfo, newreqNode);
 
         reqlist_.push_back(newreqNode);
@@ -415,8 +411,8 @@ void IOTracker::RecoverChunk(const ChunkIDInfo& cinfo, uint64_t offset,
             break;
         }
 
-        newreqNode->rawlength_   = len;
-        newreqNode->offset_      = offset;
+        newreqNode->rawlength_ = len;
+        newreqNode->offset_ = offset;
         FillCommonFields(cinfo, newreqNode);
 
         reqlist_.push_back(newreqNode);
@@ -433,8 +429,8 @@ void IOTracker::RecoverChunk(const ChunkIDInfo& cinfo, uint64_t offset,
 }
 
 void IOTracker::FillCommonFields(ChunkIDInfo idinfo, RequestContext* req) {
-    req->optype_      = type_;
-    req->idinfo_      = idinfo;
+    req->optype_ = type_;
+    req->idinfo_ = idinfo;
     req->done_->SetIOTracker(this);
 }
 
@@ -459,9 +455,7 @@ void IOTracker::InitDiscardOption(const DiscardOption& opt) {
     discardOption_ = opt;
 }
 
-int IOTracker::Wait() {
-    return iocv_.Wait();
-}
+int IOTracker::Wait() { return iocv_.Wait(); }
 
 void IOTracker::Done() {
     if (type_ == OpType::READ || type_ == OpType::WRITE) {
@@ -510,15 +504,15 @@ void IOTracker::Done() {
         MetricHelper::IncremUserEPSCount(fileMetric_, type_);
         if (type_ == OpType::READ || type_ == OpType::WRITE) {
             if (LIBCURVE_ERROR::EPOCH_TOO_OLD == errcode_) {
-                LOG(WARNING) << "file [" << fileMetric_->filename << "]"
-                        << ", epoch too old, OpType = " << OpTypeToString(type_)
-                        << ", offset = " << offset_
-                        << ", length = " << length_;
+                LOG(WARNING)
+                    << "file [" << fileMetric_->filename << "]"
+                    << ", epoch too old, OpType = " << OpTypeToString(type_)
+                    << ", offset = " << offset_ << ", length = " << length_;
             } else {
                 LOG(ERROR) << "file [" << fileMetric_->filename << "]"
-                        << ", IO Error, OpType = " << OpTypeToString(type_)
-                        << ", offset = " << offset_
-                        << ", length = " << length_;
+                           << ", IO Error, OpType = " << OpTypeToString(type_)
+                           << ", offset = " << offset_
+                           << ", length = " << length_;
             }
         } else {
             if (OpType::CREATE_CLONE == type_ &&
@@ -533,13 +527,13 @@ void IOTracker::Done() {
 
     DestoryRequestList();
 
-    // scc_和aioctx都为空的时候肯定是个同步调用
+    // When both scc_ and aioctx are empty, it is definitely a synchronous call.
     if (scc_ == nullptr && aioctx_ == nullptr) {
         iocv_.Complete(ToReturnCode());
         return;
     }
 
-    // 异步函数调用，在此处发起回调
+    // Asynchronous function call, where a callback is initiated
     if (aioctx_ != nullptr) {
         aioctx_->ret = ToReturnCode();
         aioctx_->cb(aioctx_);
@@ -548,7 +542,7 @@ void IOTracker::Done() {
         scc_->Run();
     }
 
-    // 回收当前io tracker
+    // Recycle the current io tracker
     iomanager_->HandleAsyncIOResponse(this);
 }
 
@@ -565,12 +559,13 @@ void IOTracker::ReturnOnFail() {
 }
 
 void IOTracker::ChunkServerErr2LibcurveErr(CHUNK_OP_STATUS errcode,
-    LIBCURVE_ERROR* errout) {
+                                           LIBCURVE_ERROR* errout) {
     switch (errcode) {
         case CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS:
             *errout = LIBCURVE_ERROR::OK;
             break;
-        // chunk或者copyset对于用户来说是透明的，所以直接返回错误
+        // Chunks or copysets are transparent to users, so they directly return
+        // errors
         case CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST:
         case CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST:
             *errout = LIBCURVE_ERROR::NOTEXIST;
@@ -599,5 +594,5 @@ void IOTracker::ChunkServerErr2LibcurveErr(CHUNK_OP_STATUS errcode,
     }
 }
 
-}   // namespace client
-}   // namespace curve
+}  // namespace client
+}  // namespace curve

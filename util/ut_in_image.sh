@@ -133,8 +133,8 @@ do
     now_test=`ps -ef | grep test | grep -v 'test[0-9]' | grep -v grep | awk '{print $8}'`
     echo "now_test case is "$now_test
 
-    for i in `find ${test_bin_dirs} -type f -executable -exec file -i '{}' \; | grep  -E 'executable|sharedlib' | grep "charset=binary" | grep -v ".so"|grep test | grep -Ev $exclude_test_names | awk -F":" '{print $1'}`;do a=`cat $i.log | grep "FAILED  ]" | wc -l`;if [ $a -gt 0 ];then f1=`cat $i.log | grep "FAILED  ]"`;f1_file="${i}.log"; echo "fail test is $i"; check=1; fi;done
-    for i in `find ${test_bin_dirs} -type f -executable -exec file -i '{}' \; | grep  -E 'executable|sharedlib' | grep "charset=binary" | grep -v ".so"|grep test | grep -Ev $exclude_test_names | awk -F":" '{print $1'}`;do b=`cat $i.log | grep "Failure" | wc -l`;if [ $b -gt 0 ];then f2=`cat $i.log | grep "Failure"`; f2_file="${i}.log";echo "fail test is $i"; check=1; fi;done
+    for i in `find ${test_bin_dirs} -type f -executable -exec file -i '{}' \; | grep  -E 'executable|sharedlib' | grep "charset=binary" | grep -v ".so"|grep test | grep -Ev $exclude_test_names | awk -F":" '{print $1'}`;do a=`cat $i.log | grep -a "FAILED  ]" | wc -l`;if [ $a -gt 0 ];then f1=`cat $i.log | grep -a "FAILED  ]"`;f1_file="${i}.log"; echo "fail test is $i"; check=1; fi;done
+    for i in `find ${test_bin_dirs} -type f -executable -exec file -i '{}' \; | grep  -E 'executable|sharedlib' | grep "charset=binary" | grep -v ".so"|grep test | grep -Ev $exclude_test_names | awk -F":" '{print $1'}`;do b=`cat $i.log | grep -a "Failure" | wc -l`;if [ $b -gt 0 ];then f2=`cat $i.log | grep -a "Failure"`; f2_file="${i}.log";echo "fail test is $i"; check=1; fi;done
     if [ $check -eq 1 ];then
          echo "=========================test fail,Here is the logs of failed use cases========================="
          echo "=========================test fail,Here is the logs of failed use cases========================="

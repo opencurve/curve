@@ -24,27 +24,25 @@
 #define TEST_CHUNKSERVER_FAKE_DATASTORE_H_
 
 #include <memory>
-#include <string>
 #include <set>
+#include <string>
 #include <vector>
 
-#include "src/chunkserver/datastore/chunkserver_datastore.h"
 #include "include/chunkserver/chunkserver_common.h"
+#include "src/chunkserver/datastore/chunkserver_datastore.h"
 
 namespace curve {
 namespace chunkserver {
 
+using curve::fs::FileSystemType;
 using curve::fs::LocalFileSystem;
 using curve::fs::LocalFsFactory;
-using curve::fs::FileSystemType;
 
 class FakeCSDataStore : public CSDataStore {
  public:
     FakeCSDataStore(DataStoreOptions options,
-                    std::shared_ptr<LocalFileSystem> fs) :
-        CSDataStore(fs,
-                    std::make_shared<FilePool>(fs),
-                    options) {
+                    std::shared_ptr<LocalFileSystem> fs)
+        : CSDataStore(fs, std::make_shared<FilePool>(fs), options) {
         chunk_ = new (std::nothrow) char[options.chunkSize];
         ::memset(chunk_, 0, options.chunkSize);
         sn_ = 0;
@@ -93,10 +91,7 @@ class FakeCSDataStore : public CSDataStore {
         }
     }
 
-    CSErrorCode ReadChunk(ChunkID id,
-                          SequenceNum sn,
-                          char *buf,
-                          off_t offset,
+    CSErrorCode ReadChunk(ChunkID id, SequenceNum sn, char* buf, off_t offset,
                           size_t length) override {
         CSErrorCode errorCode = HasInjectError();
         if (errorCode != CSErrorCode::Success) {
@@ -105,18 +100,15 @@ class FakeCSDataStore : public CSDataStore {
         if (chunkIds_.find(id) == chunkIds_.end()) {
             return CSErrorCode::ChunkNotExistError;
         }
-        ::memcpy(buf, chunk_+offset, length);
+        ::memcpy(buf, chunk_ + offset, length);
         if (HasInjectError()) {
             return CSErrorCode::InternalError;
         }
         return CSErrorCode::Success;
     }
 
-    CSErrorCode ReadSnapshotChunk(ChunkID id,
-                                  SequenceNum sn,
-                                  char *buf,
-                                  off_t offset,
-                                  size_t length) override {
+    CSErrorCode ReadSnapshotChunk(ChunkID id, SequenceNum sn, char* buf,
+                                  off_t offset, size_t length) override {
         CSErrorCode errorCode = HasInjectError();
         if (errorCode != CSErrorCode::Success) {
             return errorCode;
@@ -124,32 +116,26 @@ class FakeCSDataStore : public CSDataStore {
         if (chunkIds_.find(id) == chunkIds_.end()) {
             return CSErrorCode::ChunkNotExistError;
         }
-        ::memcpy(buf, chunk_+offset, length);
+        ::memcpy(buf, chunk_ + offset, length);
         return CSErrorCode::Success;
     }
 
-    CSErrorCode WriteChunk(ChunkID id,
-                           SequenceNum sn,
-                           const butil::IOBuf& buf,
-                           off_t offset,
-                           size_t length,
-                           uint32_t *cost,
-                           const std::string & csl = "") override {
+    CSErrorCode WriteChunk(ChunkID id, SequenceNum sn, const butil::IOBuf& buf,
+                           off_t offset, size_t length, uint32_t* cost,
+                           const std::string& csl = "") override {
         CSErrorCode errorCode = HasInjectError();
         if (errorCode != CSErrorCode::Success) {
             return errorCode;
         }
-        ::memcpy(chunk_+offset, buf.to_string().c_str(), length);
+        ::memcpy(chunk_ + offset, buf.to_string().c_str(), length);
         *cost = length;
         chunkIds_.insert(id);
         sn_ = sn;
         return CSErrorCode::Success;
     }
 
-    CSErrorCode CreateCloneChunk(ChunkID id,
-                                 SequenceNum sn,
-                                 SequenceNum correctedSn,
-                                 ChunkSizeType size,
+    CSErrorCode CreateCloneChunk(ChunkID id, SequenceNum sn,
+                                 SequenceNum correctedSn, ChunkSizeType size,
                                  const string& location) override {
         CSErrorCode errorCode = HasInjectError();
         if (errorCode != CSErrorCode::Success) {
@@ -160,9 +146,7 @@ class FakeCSDataStore : public CSDataStore {
         return CSErrorCode::Success;
     }
 
-    CSErrorCode PasteChunk(ChunkID id,
-                           const char * buf,
-                           off_t offset,
+    CSErrorCode PasteChunk(ChunkID id, const char* buf, off_t offset,
                            size_t length) {
         CSErrorCode errorCode = HasInjectError();
         if (errorCode != CSErrorCode::Success) {
@@ -171,12 +155,11 @@ class FakeCSDataStore : public CSDataStore {
         if (chunkIds_.find(id) == chunkIds_.end()) {
             return CSErrorCode::ChunkNotExistError;
         }
-        ::memcpy(chunk_+offset, buf, length);
+        ::memcpy(chunk_ + offset, buf, length);
         return CSErrorCode::Success;
     }
 
-    CSErrorCode GetChunkInfo(ChunkID id,
-                             CSChunkInfo* info) override {
+    CSErrorCode GetChunkInfo(ChunkID id, CSChunkInfo* info) override {
         CSErrorCode errorCode = HasInjectError();
         if (errorCode != CSErrorCode::Success) {
             return errorCode;
@@ -190,10 +173,8 @@ class FakeCSDataStore : public CSDataStore {
         }
     }
 
-    CSErrorCode GetChunkHash(ChunkID id,
-                             off_t offset,
-                             size_t length,
-                             std::string *hash) {
+    CSErrorCode GetChunkHash(ChunkID id, off_t offset, size_t length,
+                             std::string* hash) {
         uint32_t crc32c = 0;
         if (chunkIds_.find(id) != chunkIds_.end()) {
             crc32c = curve::common::CRC32(chunk_ + offset, length);
@@ -213,14 +194,14 @@ class FakeCSDataStore : public CSDataStore {
         if (errorCode == CSErrorCode::Success) {
             return error_;
         } else {
-            // 注入错误自动恢复
+            // Automatic recovery of injection errors
             error_ = CSErrorCode::Success;
             return errorCode;
         }
     }
 
  private:
-    char *chunk_;
+    char* chunk_;
     std::set<ChunkID> chunkIds_;
     bool snapDeleteFlag_;
     SequenceNum sn_;
@@ -234,14 +215,14 @@ class FakeFilePool : public FilePool {
         : FilePool(lfs) {}
     ~FakeFilePool() {}
 
-    bool Initialize(const FilePoolOptions &cfop) {
+    bool Initialize(const FilePoolOptions& cfop) {
         LOG(INFO) << "FakeFilePool init success";
         return true;
     }
-    int GetChunk(const std::string &chunkpath, char *metapage) { return 0; }
-    int RecycleChunk(const std::string &chunkpath) { return 0; }
+    int GetChunk(const std::string& chunkpath, char* metapage) { return 0; }
+    int RecycleChunk(const std::string& chunkpath) { return 0; }
     size_t Size() { return 4; }
-    void UnInitialize() { }
+    void UnInitialize() {}
 };
 
 }  // namespace chunkserver

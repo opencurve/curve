@@ -20,20 +20,22 @@
  * Author: yangyaokai
  */
 
+#include "src/common/bitmap.h"
+
 #include <glog/logging.h>
 #include <memory.h>
-#include <utility>
+
 #include <string>
-#include "src/common/bitmap.h"
+#include <utility>
 
 namespace curve {
 namespace common {
 
-std::string BitRangeVecToString(const std::vector<BitRange> &ranges) {
+std::string BitRangeVecToString(const std::vector<BitRange>& ranges) {
     std::stringstream ss;
     for (uint32_t i = 0; i < ranges.size(); ++i) {
         if (i != 0) {
-            ss <<  ", ";
+            ss << ", ";
         }
         ss << "(" << ranges[i].beginIndex << "," << ranges[i].endIndex << ")";
     }
@@ -44,14 +46,14 @@ const uint32_t Bitmap::NO_POS = 0xFFFFFFFF;
 
 Bitmap::Bitmap(uint32_t bits) : bits_(bits) {
     int count = unitCount();
-    bitmap_ = new(std::nothrow) char[count];
+    bitmap_ = new (std::nothrow) char[count];
     CHECK(bitmap_ != nullptr) << "allocate bitmap failed.";
     memset(bitmap_, 0, count);
 }
 
 Bitmap::Bitmap(uint32_t bits, const char* bitmap) : bits_(bits) {
     int count = unitCount();
-    bitmap_ = new(std::nothrow) char[count];
+    bitmap_ = new (std::nothrow) char[count];
     CHECK(bitmap_ != nullptr) << "allocate bitmap failed.";
     if (bitmap != nullptr) {
         memcpy(bitmap_, bitmap, count);
@@ -64,7 +66,7 @@ Bitmap::Bitmap(uint32_t bits, char* bitmap, bool transfer) : bits_(bits) {
     int count = unitCount();
 
     if (!transfer) {
-        bitmap_ = new(std::nothrow) char[count];
+        bitmap_ = new (std::nothrow) char[count];
         CHECK(bitmap_ != nullptr) << "allocate bitmap failed.";
         if (bitmap != nullptr) {
             memcpy(bitmap_, bitmap, count);
@@ -87,18 +89,17 @@ Bitmap::~Bitmap() {
 Bitmap::Bitmap(const Bitmap& bitmap) {
     bits_ = bitmap.Size();
     int count = unitCount();
-    bitmap_ = new(std::nothrow) char[count];
+    bitmap_ = new (std::nothrow) char[count];
     CHECK(bitmap_ != nullptr) << "allocate bitmap failed.";
     memcpy(bitmap_, bitmap.GetBitmap(), count);
 }
 
-Bitmap& Bitmap::operator = (const Bitmap& bitmap) {
-    if (this == &bitmap)
-        return *this;
+Bitmap& Bitmap::operator=(const Bitmap& bitmap) {
+    if (this == &bitmap) return *this;
     delete[] bitmap_;
     bits_ = bitmap.Size();
     int count = unitCount();
-    bitmap_ = new(std::nothrow) char[count];
+    bitmap_ = new (std::nothrow) char[count];
     CHECK(bitmap_ != nullptr) << "allocate bitmap failed.";
     memcpy(bitmap_, bitmap.GetBitmap(), count);
     return *this;
@@ -118,23 +119,19 @@ Bitmap& Bitmap::operator=(Bitmap&& other) noexcept {
     return *this;
 }
 
-bool Bitmap::operator == (const Bitmap& bitmap) const {
-    if (bits_ != bitmap.Size())
-        return false;
+bool Bitmap::operator==(const Bitmap& bitmap) const {
+    if (bits_ != bitmap.Size()) return false;
     return 0 == memcmp(bitmap_, bitmap.GetBitmap(), unitCount());
 }
 
-bool Bitmap::operator != (const Bitmap& bitmap) const {
+bool Bitmap::operator!=(const Bitmap& bitmap) const {
     return !(*this == bitmap);
 }
 
-void Bitmap::Set() {
-    memset(bitmap_, 0xff, unitCount());
-}
+void Bitmap::Set() { memset(bitmap_, 0xff, unitCount()); }
 
 void Bitmap::Set(uint32_t index) {
-    if (index < bits_)
-        bitmap_[indexOfUnit(index)] |= mask(index);
+    if (index < bits_) bitmap_[indexOfUnit(index)] |= mask(index);
 }
 
 void Bitmap::Set(uint32_t startIndex, uint32_t endIndex) {
@@ -144,13 +141,10 @@ void Bitmap::Set(uint32_t startIndex, uint32_t endIndex) {
     }
 }
 
-void Bitmap::Clear() {
-    memset(bitmap_, 0, unitCount());
-}
+void Bitmap::Clear() { memset(bitmap_, 0, unitCount()); }
 
 void Bitmap::Clear(uint32_t index) {
-    if (index < bits_)
-        bitmap_[indexOfUnit(index)] &= ~mask(index);
+    if (index < bits_) bitmap_[indexOfUnit(index)] &= ~mask(index);
 }
 
 void Bitmap::Clear(uint32_t startIndex, uint32_t endIndex) {
@@ -169,106 +163,93 @@ bool Bitmap::Test(uint32_t index) const {
 
 uint32_t Bitmap::NextSetBit(uint32_t index) const {
     for (; index < bits_; ++index) {
-        if (Test(index))
-            break;
+        if (Test(index)) break;
     }
-    if (index >= bits_)
-        index = NO_POS;
+    if (index >= bits_) index = NO_POS;
     return index;
 }
 
 uint32_t Bitmap::NextSetBit(uint32_t startIndex, uint32_t endIndex) const {
     uint32_t index = startIndex;
-    // bitmap中最后一个bit的index值
+    // The index value of the last bit in the bitmap
     uint32_t lastIndex = bits_ - 1;
-    // endIndex值不能超过lastIndex
-    if (endIndex > lastIndex)
-        endIndex = lastIndex;
+    // The endIndex value cannot exceed lastIndex
+    if (endIndex > lastIndex) endIndex = lastIndex;
     for (; index <= endIndex; ++index) {
-        if (Test(index))
-            break;
+        if (Test(index)) break;
     }
-    if (index > endIndex)
-        index = NO_POS;
+    if (index > endIndex) index = NO_POS;
     return index;
 }
 
 uint32_t Bitmap::NextClearBit(uint32_t index) const {
     for (; index < bits_; ++index) {
-        if (!Test(index))
-            break;
+        if (!Test(index)) break;
     }
-    if (index >= bits_)
-        index = NO_POS;
+    if (index >= bits_) index = NO_POS;
     return index;
 }
 
 uint32_t Bitmap::NextClearBit(uint32_t startIndex, uint32_t endIndex) const {
     uint32_t index = startIndex;
     uint32_t lastIndex = bits_ - 1;
-    // endIndex值不能超过lastIndex
-    if (endIndex > lastIndex)
-        endIndex = lastIndex;
+    // The endIndex value cannot exceed lastIndex
+    if (endIndex > lastIndex) endIndex = lastIndex;
     for (; index <= endIndex; ++index) {
-        if (!Test(index))
-            break;
+        if (!Test(index)) break;
     }
-    if (index > endIndex)
-        index = NO_POS;
+    if (index > endIndex) index = NO_POS;
     return index;
 }
 
-void Bitmap::Divide(uint32_t startIndex,
-                    uint32_t endIndex,
+void Bitmap::Divide(uint32_t startIndex, uint32_t endIndex,
                     vector<BitRange>* clearRanges,
                     vector<BitRange>* setRanges) const {
-    // endIndex的值不能小于startIndex
-    if (endIndex < startIndex)
-        return;
+    // The value of endIndex cannot be less than startIndex
+    if (endIndex < startIndex) return;
 
-    // endIndex值不能超过lastIndex
+    // The endIndex value cannot exceed lastIndex
     uint32_t lastIndex = bits_ - 1;
-    if (endIndex > lastIndex)
-        endIndex = lastIndex;
+    if (endIndex > lastIndex) endIndex = lastIndex;
 
     BitRange clearRange;
     BitRange setRange;
     vector<BitRange> tmpClearRanges;
     vector<BitRange> tmpSetRanges;
-    // 下一个位为0的index
+    // Next index with 0 bits
     uint32_t nextClearIndex;
-    // 下一个位为1的index
+    // Next index with bit 1
     uint32_t nextSetIndex;
 
-    // 划分所有range
+    // Divide all ranges
     while (startIndex != NO_POS) {
         nextClearIndex = NextClearBit(startIndex, endIndex);
-        // 1.存放当前clear index之前的 set range
-        //   nextClearIndex如果等于startIndex说明前面没有 set range
+        // 1. Store the set range before the current clear index
+        //   If nextClearIndex is equal to startIndex, it indicates that there
+        //   is no set range before it
         if (nextClearIndex != startIndex) {
             setRange.beginIndex = startIndex;
-            // nextClearIndex等于NO_POS说明已经找到末尾
-            // 最后一块连续区域是 set range
-            setRange.endIndex = nextClearIndex == NO_POS
-                              ? endIndex
-                              : nextClearIndex - 1;
+            // nextClearIndex equals NO_POS description has found the end
+            // The last continuous area is set range
+            setRange.endIndex =
+                nextClearIndex == NO_POS ? endIndex : nextClearIndex - 1;
             tmpSetRanges.push_back(setRange);
         }
-        if (nextClearIndex == NO_POS)
-            break;
+        if (nextClearIndex == NO_POS) break;
 
         nextSetIndex = NextSetBit(nextClearIndex, endIndex);
-        // 2.存放当前set index之前的 clear range
-        //   能到这一步说明前面肯定存在clear range，所以不用像第1步一样做判断
+        // 2. Store the clear range before the current set index
+        //   Being able to reach this step indicates that there must be a clear
+        //   range ahead, so there is no need to make a judgment like in step 1
         clearRange.beginIndex = nextClearIndex;
-        clearRange.endIndex = nextSetIndex == NO_POS
-                            ? endIndex
-                            : nextSetIndex - 1;
+        clearRange.endIndex =
+            nextSetIndex == NO_POS ? endIndex : nextSetIndex - 1;
         tmpClearRanges.push_back(clearRange);
         startIndex = nextSetIndex;
     }
 
-    // 根据参数中的clearRanges和setRanges指针是否为空返回结果
+    // Returns a result based on whether the clearRanges and setRanges pointers
+    // in the parameters are empty
     if (clearRanges != nullptr) {
         *clearRanges = std::move(tmpClearRanges);
     }
@@ -277,13 +258,9 @@ void Bitmap::Divide(uint32_t startIndex,
     }
 }
 
-uint32_t Bitmap::Size() const {
-    return bits_;
-}
+uint32_t Bitmap::Size() const { return bits_; }
 
-const char* Bitmap::GetBitmap() const {
-    return bitmap_;
-}
+const char* Bitmap::GetBitmap() const { return bitmap_; }
 
 }  // namespace common
 }  // namespace curve

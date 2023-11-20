@@ -21,9 +21,9 @@
  *          2018/12/23  Wenyu Zhou   Initial version
  */
 
-#include <gtest/gtest.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <gtest/gtest.h>
 
 #include "include/chunkserver/chunkserver_common.h"
 #include "src/chunkserver/chunkserver.h"
@@ -31,7 +31,7 @@
 #include "test/chunkserver/heartbeat_test_common.h"
 #include "test/integration/common/config_generator.h"
 
-static const char *param[3][15] = {
+static const char* param[3][15] = {
     {
         "heartbeat_test",
         "-chunkServerIp=127.0.0.1",
@@ -89,7 +89,7 @@ using ::curve::chunkserver::ChunkServer;
 
 butil::AtExitManager atExitManager;
 
-static int RunChunkServer(int i, int argc, char **argv) {
+static int RunChunkServer(int i, int argc, char** argv) {
     auto chunkserver = new curve::chunkserver::ChunkServer();
     if (chunkserver == nullptr) {
         LOG(ERROR) << "Failed to create chunkserver " << i;
@@ -104,7 +104,7 @@ static int RunChunkServer(int i, int argc, char **argv) {
     return 0;
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     int ret;
     pid_t pids[3];
     testing::InitGoogleTest(&argc, argv);
@@ -133,10 +133,11 @@ int main(int argc, char *argv[]) {
             LOG(FATAL) << "Failed to create chunkserver process 0";
         } else if (pids[i] == 0) {
             /*
-             * RunChunkServer内部会调用LOG(), 有较低概率因不兼容fork()而卡死
+             * RunChunkServer will call LOG() internally, with a low probability
+             * of getting stuck due to incompatible fork()
              */
-            return RunChunkServer(i, sizeof(param[i]) / sizeof(char *),
-                                  const_cast<char **>(param[i]));
+            return RunChunkServer(i, sizeof(param[i]) / sizeof(char*),
+                                  const_cast<char**>(param[i]));
         }
     }
 
@@ -148,8 +149,9 @@ int main(int argc, char *argv[]) {
             LOG(FATAL) << "Failed to create test proccess";
         } else if (pid == 0) {
             /*
-             * RUN_ALL_TESTS内部可能会调用LOG(),
-             * 有较低概率因不兼容fork()而卡死
+             * LOG() may be called internally in RUN_ALL_TESTS,
+             * There is a low probability of getting stuck due to incompatible
+             * fork()
              */
             ret = RUN_ALL_TESTS();
             return ret;
@@ -171,10 +173,11 @@ int main(int argc, char *argv[]) {
             LOG(FATAL) << "Failed to restart chunkserver process 1";
         } else if (pid == 0) {
             /*
-             * RunChunkServer内部会调用LOG(), 有较低概率因不兼容fork()而卡死
+             * RunChunkServer will call LOG() internally, with a low probability
+             * of getting stuck due to incompatible fork()
              */
-            ret = RunChunkServer(1, sizeof(param[1]) / sizeof(char *),
-                                 const_cast<char **>(param[1]));
+            ret = RunChunkServer(1, sizeof(param[1]) / sizeof(char*),
+                                 const_cast<char**>(param[1]));
             return ret;
         }
         sleep(2);

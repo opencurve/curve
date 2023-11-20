@@ -1,4 +1,4 @@
-# 服务的名称
+# Name of service
 service_name:
 leader_ip:
 all_ip:

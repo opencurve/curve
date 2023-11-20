@@ -23,431 +23,451 @@
 #ifndef TEST_INTEGRATION_CLUSTER_COMMON_CLUSTER_H_
 #define TEST_INTEGRATION_CLUSTER_COMMON_CLUSTER_H_
 
-#include <string>
 #include <map>
-#include <vector>
 #include <memory>
-#include "src/client/mds_client.h"
+#include <string>
+#include <vector>
+
 #include "src/client/config_info.h"
-#include "test/util/config_generator.h"
+#include "src/client/mds_client.h"
 #include "src/snapshotcloneserver/common/snapshotclone_meta_store_etcd.h"
+#include "test/util/config_generator.h"
 
-using ::curve::snapshotcloneserver::SnapshotCloneMetaStoreEtcd;
 using ::curve::client::MDSClient;
+using ::curve::snapshotcloneserver::SnapshotCloneMetaStoreEtcd;
 
-namespace curve {
+namespace curve
+{
 
-#define RETURN_IF_NOT_ZERO(x)                                                  \
-    do {                                                                       \
-        int ret = (x);                                                         \
-        if (ret != 0) {                                                        \
-            LOG(ERROR) << __FILE__ << ":" << __LINE__                          \
-                       << "-> get non-ZERO, return -1";                        \
-            return ret;                                                        \
-        }                                                                      \
+#define RETURN_IF_NOT_ZERO(x)                           \
+    do                                                  \
+    {                                                   \
+        int ret = (x);                                  \
+        if (ret != 0)                                   \
+        {                                               \
+            LOG(ERROR) << __FILE__ << ":" << __LINE__   \
+                       << "-> get non-ZERO, return -1"; \
+            return ret;                                 \
+        }                                               \
     } while (0)
 
-#define RETURN_IF_FALSE(x)                                                     \
-    do {                                                                       \
-        bool ret = (x);                                                        \
-        if (!ret) {                                                            \
-            LOG(ERROR) << __FILE__ << ":" << __LINE__                          \
-                       << "-> get FALSE, return -1";                           \
-            return -1;                                                         \
-        }                                                                      \
+#define RETURN_IF_FALSE(x)                            \
+    do                                                \
+    {                                                 \
+        bool ret = (x);                               \
+        if (!ret)                                     \
+        {                                             \
+            LOG(ERROR) << __FILE__ << ":" << __LINE__ \
+                       << "-> get FALSE, return -1";  \
+            return -1;                                \
+        }                                             \
     } while (0)
 
-class CurveCluster {
- public:
-    /**
-     * CurveCluster 构造函数
-     *
-     * @param[in] netWorkSegment 网桥的网络地址，默认为"192.168.200."
-     * @param[in] nsPrefix 网络命名空间的前缀，默认为"integ_"
-     */
-    CurveCluster(const std::string &netWorkSegment = "192.168.200.",
-                 const std::string &nsPrefix = "integ_")
-        : networkSegment_(netWorkSegment), nsPrefix_(nsPrefix) {}
+    class CurveCluster
+    {
+    public:
+        /**
+         * CurveCluster constructor
+         *
+         * @param[in] netWorkSegment The network address of the bridge, which
+         * defaults to "192.168.200."
+         * @param[in] nsPrefix The prefix of the network namespace, which defaults
+         * to "integ_"
+         */
+        CurveCluster(const std::string &netWorkSegment = "192.168.200.",
+                     const std::string &nsPrefix = "integ_")
+            : networkSegment_(netWorkSegment), nsPrefix_(nsPrefix) {}
 
-    /**
-     * InitMdsClient 初始化mdsclient， 用于和mds交互
-     *
-     * @param op 参数设置
-     * @return 0.成功; 非0.失败
-     */
-    int InitMdsClient(const curve::client::MetaServerOption &op);
+        /**
+         * InitMdsClient initializes mdsclient for interaction with mds
+         *
+         * @param op parameter setting
+         * @return 0. Success; Non 0. Failure
+         */
+        int InitMdsClient(const curve::client::MetaServerOption &op);
 
+        /**
+         * @brief Initialize metastore
+         *
+         * @param[in] etcdEndpoints etcd client's IP port
+         *
+         * @return returns an error code
+         */
+        int InitSnapshotCloneMetaStoreEtcd(const std::string &etcdEndpoints);
 
-    /**
-     * @brief 初始化metastore
-     *
-     * @param[in] etcdEndpoints etcd client的ip port
-     *
-     * @return 返回错误码
-     */
-    int InitSnapshotCloneMetaStoreEtcd(
-        const std::string &etcdEndpoints);
+        /**
+         * If BuildNet needs to use a different IP to start the chunkserver,
+         * This function needs to be called first in the SetUp of the test case
+         * @return 0. Success; Non 0. Failure
+         */
+        int BuildNetWork();
 
-    /**
-     * BuildNetWork 如果需要是用不同的ip来起chunkserver,
-     * 需要在测试用例的SetUp中先 调用该函数
-     * @return 0.成功; 非0.失败
-     */
-    int BuildNetWork();
+        /**
+         * StopCluster stops all processes in the cluster
+         * @return 0.Success; -1.Failure
+         */
+        int StopCluster();
 
-    /**
-     * StopCluster 停止该集群中所有的进程
-     * @return 0.成功; -1.失败
-     */
-    int StopCluster();
+        /**
+         * @brief Generate configuration files for each module
+         *
+         * @tparam T any ConfigGenerator
+         * @param configPath Configuration file path
+         * @param options Configuration items modified
+         */
+        template <class T>
+        void PrepareConfig(const std::string &configPath,
+                           const std::vector<std::string> &options)
+        {
+            T gentor(configPath);
+            gentor.SetConfigOptions(options);
+            gentor.Generate();
+        }
 
-    /**
-     * @brief 生成各模块配置文件
-     *
-     * @tparam T 任一ConfigGenerator
-     * @param configPath 配置文件路径
-     * @param options 修改的配置项
-     */
-    template<class T>
-    void PrepareConfig(const std::string &configPath,
-                       const std::vector<std::string> &options) {
-        T gentor(configPath);
-        gentor.SetConfigOptions(options);
-        gentor.Generate();
-    }
+        /**
+         * StartSingleMDS starts an mds
+         * If need chunkservers with different IPs, please set the ipPort to
+         * 192.168.200.1:XXXX
+         *
+         * @param[in] id mdsId
+         * @param[in] ipPort specifies the ipPort of the mds
+         * @param[in] mdsConf mds startup parameter item, example:
+         *   const std::vector<std::string> mdsConf{
+                {"--graceful_quit_on_sigterm"},
+                {"--confPath=./test/integration/cluster_common/mds.basic.conf"},
+            };
+         * @param[in] expectLeader is the expected leader expected
+         * @return success returns pid; Failure returns -1
+         */
+        int StartSingleMDS(int id, const std::string &ipPort, int dummyPort,
+                           const std::vector<std::string> &mdsConf,
+                           bool expectLeader);
 
-    /**
-     * StartSingleMDS 启动一个mds
-     * 如果需要不同ip的chunkserver,ipPort请设置为192.168.200.1:XXXX
-     *
-     * @param[in] id mdsId
-     * @param[in] ipPort 指定mds的ipPort
-     * @param[in] mdsConf mds启动参数项, 示例：
-     *   const std::vector<std::string> mdsConf{
-            {"--graceful_quit_on_sigterm"},
-            {"--confPath=./test/integration/cluster_common/mds.basic.conf"},
-        };
-     * @param[in] expectLeader 是否预期是leader
-     * @return 成功则返回pid; 失败则返回-1
-     */
-    int StartSingleMDS(int id, const std::string &ipPort, int dummyPort,
-                       const std::vector<std::string> &mdsConf,
-                       bool expectLeader);
+        /**
+         * StopMDS stops the specified id's mds
+         * @return 0.Success; -1.Failure
+         */
+        int StopMDS(int id);
 
-    /**
-     * StopMDS 停止指定id的mds
-     * @return 0.成功; -1.失败
-     */
-    int StopMDS(int id);
+        /**
+         * StopAllMDS stops all mds
+         * @return 0.Success; -1.Failure
+         */
+        int StopAllMDS();
 
-    /**
-     * StopAllMDS 停止所有mds
-     * @return 0.成功; -1.失败
-     */
-    int StopAllMDS();
+        /**
+         * @brief Start a snapshotcloneserver
+         *
+         * @param id The ID of snapshotclone server
+         * @param ipPort IP Port
+         * @param snapshot clone Conf parameter item
+         * @return success returns pid; Failure returns -1
+         */
+        int StartSnapshotCloneServer(
+            int id, const std::string &ipPort,
+            const std::vector<std::string> &snapshotcloneConf);
 
-    /**
-     * @brief 启动一个snapshotcloneserver
-     *
-     * @param id snapshotcloneserver 的Id
-     * @param ipPort ip端口
-     * @param snapshotcloneConf 参数项
-     * @return 成功则返回pid; 失败则返回-1
-     */
-    int
-    StartSnapshotCloneServer(int id, const std::string &ipPort,
-                             const std::vector<std::string> &snapshotcloneConf);
+        /**
+         * @brief Stop the snapshotcloneserver for the specified Id
+         *
+         * @param id The ID of the snapshotcloneserver
+         * @param force Use kill -9 when it is true
+         * @return returns 0 for success, -1 for failure
+         */
+        int StopSnapshotCloneServer(int id, bool force = false);
 
-    /**
-     * @brief 停止指定Id的snapshotcloneserver
-     *
-     * @param id snapshotcloneserver的id
-     * @param force 为true时使用kill -9
-     * @return 成功返回0，失败返回-1
-     */
-    int StopSnapshotCloneServer(int id, bool force = false);
+        /**
+         * @brief: Restart the snapshotcloneserver with the specified Id
+         *
+         * @param id The ID of the snapshotcloneserver
+         * @param force Use kill -9 when it is true
+         * @return success returns pid; Failure returns -1
+         */
+        int RestartSnapshotCloneServer(int id, bool force = false);
 
-    /**
-     * @brief 重启指定Id的snapshotcloneserver
-     *
-     * @param id snapshotcloneserver的id
-     * @param force 为true时使用kill -9
-     * @return 成功则返回pid; 失败则返回-1
-     */
-    int RestartSnapshotCloneServer(int id, bool force = false);
+        /**
+         * @brief Stop all snapshotcloneserver
+         * @return returns 0 for success, -1 for failure
+         */
+        int StopAllSnapshotCloneServer();
 
-    /**
-     * @brief 停止所有的snapshotcloneserver
-     * @return 成功返回0，失败返回-1
-     */
-    int StopAllSnapshotCloneServer();
+        /**
+         * StartSingleEtcd starts an etcd node
+         *
+         * @param clientIpPort
+         * @param peerIpPort
+         * @param etcdConf etcd startup parameter, it is recommended to specify the
+         * name according to the module to prevent concurrent runtime conflicts
+         *      std::vector<std::string>{"--name basic_test_start_stop_module1"}
+         * @return success returns pid; Failure returns -1
+         */
+        int StartSingleEtcd(int id, const std::string &clientIpPort,
+                            const std::string &peerIpPort,
+                            const std::vector<std::string> &etcdConf);
 
-    /**
-     * StartSingleEtcd 启动一个etcd节点
-     *
-     * @param clientIpPort
-     * @param peerIpPort
-     * @param etcdConf etcd启动项参数, 建议按照模块指定name,防止并发运行时冲突
-     *      std::vector<std::string>{"--name basic_test_start_stop_module1"}
-     * @return 成功则返回pid; 失败则返回-1
-     */
-    int StartSingleEtcd(int id, const std::string &clientIpPort,
-                        const std::string &peerIpPort,
-                        const std::vector<std::string> &etcdConf);
+        /**
+         * WaitForEtcdClusterAvalible
+         * Wait for the ETCD cluster leader election to be successful and available
+         * for a certain period of time
+         */
+        bool WaitForEtcdClusterAvalible(int waitSec = 20);
 
-    /**
-     * WaitForEtcdClusterAvalible
-     * 在一定时间内等待etcd集群leader选举成功，处于可用状态
-     */
-    bool WaitForEtcdClusterAvalible(int waitSec = 20);
+        /**
+         * StopEtcd stops the etcd node with the specified id
+         * @return 0.Success; -1.Failure
+         */
+        int StopEtcd(int id);
 
-    /**
-     * StopEtcd 停止指定id的etcd节点
-     * @return 0.成功; -1.失败
-     */
-    int StopEtcd(int id);
+        /**
+         * StopAllEtcd stops all etcd nodes
+         * @return 0.Success; -1.Failure
+         */
+        int StopAllEtcd();
 
-    /**
-     * StopAllEtcd 停止所有etcd节点
-     * @return 0.成功; -1.失败
-     */
-    int StopAllEtcd();
+        /**
+         * @brief Format FilePool
+         *
+         * @param filePooldir FilePool directory
+         * @param filePoolmetapath FilePool metadata directory
+         * @param filesystemPath file system directory
+         * @param size FilePool size (GB)
+         * @return returns 0 for success, -1 for failure
+         */
+        int FormatFilePool(const std::string &filePooldir,
+                           const std::string &filePoolmetapath,
+                           const std::string &filesystemPath, uint32_t size);
 
-    /**
-     * @brief 格式化FilePool
-     *
-     * @param filePooldir FilePool目录
-     * @param filePoolmetapath FilePool元数据目录
-     * @param filesystemPath 文件系统目录
-     * @param size FilePool size (GB)
-     * @return 成功返回0，失败返回-1
-     */
-    int FormatFilePool(const std::string &filePooldir,
-                       const std::string &filePoolmetapath,
-                       const std::string &filesystemPath, uint32_t size);
+        /**
+         * StartSingleChunkServer starts a chunkserver node
+         *
+         * @param[in] id
+         * @param[in] ipPort
+         * @param[in] chunkserverConf chunkserver startup item, example:
+         *  const std::vector<std::string> chunkserverConf1{
+                {"--graceful_quit_on_sigterm"},
+                {"-chunkServerStoreUri=local://./basic1/"},
+                {"-chunkServerMetaUri=local://./basic1/chunkserver.dat"},
+                {"-copySetUri=local://./basic1/copysets"},
+                {"-recycleUri=local://./basic1/recycler"},
+                {"-chunkFilePoolDir=./basic1/chunkfilepool/"},
+                {"-chunkFilePoolMetaPath=./basic1/chunkfilepool.meta"},
+                {"-conf=./test/integration/cluster_common/chunkserver.basic.conf"},
+                {"-raft_sync_segments=true"},
+            };
+            It is recommended to also use the abbreviation of the module for the
+         file name. The file name should not be too long, otherwise registering to
+         the database will fail
+         * @return success returns pid; Failure returns -1
+         */
+        int StartSingleChunkServer(int id, const std::string &ipPort,
+                                   const std::vector<std::string> &chunkserverConf);
 
-    /**
-     * StartSingleChunkServer 启动一个chunkserver节点
-     *
-     * @param[in] id
-     * @param[in] ipPort
-     * @param[in] chunkserverConf chunkserver启动项，示例:
-     *  const std::vector<std::string> chunkserverConf1{
-            {"--graceful_quit_on_sigterm"},
-            {"-chunkServerStoreUri=local://./basic1/"},
-            {"-chunkServerMetaUri=local://./basic1/chunkserver.dat"},
-            {"-copySetUri=local://./basic1/copysets"},
-            {"-recycleUri=local://./basic1/recycler"},
-            {"-chunkFilePoolDir=./basic1/chunkfilepool/"},
-            {"-chunkFilePoolMetaPath=./basic1/chunkfilepool.meta"},
-            {"-conf=./test/integration/cluster_common/chunkserver.basic.conf"},
-            {"-raft_sync_segments=true"},
-        };
-        建议文件名也按模块的缩写来，文件名不能太长，否则注册到数据库会失败
-     * @return 成功则返回pid; 失败则返回-1
-     */
-    int StartSingleChunkServer(int id, const std::string &ipPort,
-                               const std::vector<std::string> &chunkserverConf);
+        /**
+         * StartSingleChunkServer Starts a chunkserver with the specified id in the
+         * network namespace No need to specify ipPort
+         *
+         * @param id
+         * @param chunkserverConf, same as the example of StartSingleChunkServer
+         * @return success returns pid; Failure returns -1
+         */
+        int StartSingleChunkServerInBackground(
+            int id, const std::vector<std::string> &chunkserverConf);
 
-    /**
-     * StartSingleChunkServer 在网络命名空间内启动一个指定id的chunkserver
-     *                        无需指定ipPort
-     *
-     * @param id
-     * @param chunkserverConf, 同StartSingleChunkServer的示例
-     * @return 成功则返回pid; 失败则返回-1
-     */
-    int StartSingleChunkServerInBackground(
-        int id, const std::vector<std::string> &chunkserverConf);
+        /**
+         * StopChunkServer stops the chunkserver process with the specified id
+         * @return 0.Success; -1.Failure
+         */
+        int StopChunkServer(int id);
 
-    /**
-     * StopChunkServer 停掉指定id的chunkserver进程
-     * @return 0.成功; -1.失败
-     */
-    int StopChunkServer(int id);
+        /**
+         * StopAllChunkServer Stop all chunkserver
+         * @return 0.Success; -1.Failure
+         */
+        int StopAllChunkServer();
 
-    /**
-     * StopAllChunkServer 停止所有chunkserver
-     * @return 0.成功; -1.失败
-     */
-    int StopAllChunkServer();
+        /**
+         * PreparePhysicalPool Create Physical Pool
+         *
+         * @param[in] id Send command to the specified mds with id
+         * @param[in] clusterMap topology information, example:
+         * ./test/integration/cluster_common/cluster_common_topo_1.txt (different
+         * IPs)
+         * ./test/integration/cluster_common/cluster_common_topo_2.txt
+         *  (The same IP address must be distinguished by adding a port,
+         *      The chunkserver must also be the same as the ipPort of the server in
+         * the clusterMap)
+         * @return 0.Success; -1.Failure
+         */
+        int PreparePhysicalPool(int mdsId, const std::string &clusterMap);
 
-    /**
-     * PreparePhysicalPool 创建物理池
-     *
-     * @param[in] id 给指定id的mds发送命令
-     * @param[in] clusterMap 拓扑信息，示例：
-     * ./test/integration/cluster_common/cluster_common_topo_1.txt (不同ip)
-     * ./test/integration/cluster_common/cluster_common_topo_2.txt
-     *  (相同ip, 一定要加上port加以区分,
-     *      chunkserver也必须和clusterMap中server的ipPort相同)
-     * @return 0.成功; -1.失败
-     */
-    int PreparePhysicalPool(int mdsId, const std::string &clusterMap);
+        /**
+         * @return 0.Success; -1.Failure
+         */
+        int PrepareLogicalPool(int mdsId, const std::string &clusterMap);
 
-    /**
-     * @return 0.成功; -1.失败
-     */
-    int PrepareLogicalPool(int mdsId, const std::string &clusterMap);
+        /**
+         * MDSIpPort retrieves the mds address of the specified id
+         */
+        std::string MDSIpPort(int id);
 
-    /**
-     * MDSIpPort 获取指定id的mds地址
-     */
-    std::string MDSIpPort(int id);
+        /**
+         * EtcdClientIpPort retrieves the etcd client address for the specified id
+         */
+        std::string EtcdClientIpPort(int id);
 
-    /**
-     * EtcdClientIpPort 获取指定id的etcd client地址
-     */
-    std::string EtcdClientIpPort(int id);
+        /**
+         * EtcdPeersIpPort retrieves the etcd Peers address of the specified id
+         */
+        std::string EtcdPeersIpPort(int id);
 
-    /**
-     * EtcdPeersIpPort 获取指定id的etcd peers地址
-     */
-    std::string EtcdPeersIpPort(int id);
+        /**
+         * ChunkServerIpPort retrieves the chunkserver address for the specified id
+         */
+        std::string ChunkServerIpPort(int id);
 
-    /**
-     * ChunkServerIpPort 获取指定id的chunkserver地址
-     */
-    std::string ChunkServerIpPort(int id);
+        /**
+         * HangMDS hang resides in the specified mds process
+         * @return 0.Success; -1.Failure
+         */
+        int HangMDS(int id);
 
-    /**
-     * HangMDS hang住指定mds进程
-     * @return 0.成功; -1.失败
-     */
-    int HangMDS(int id);
+        /**
+         * RecoverHangMDS restores the mds process where hang resides
+         * @return 0.Success; -1.Failure
+         */
+        int RecoverHangMDS(int id);
 
-    /**
-     * RecoverHangMDS 恢复hang住的mds进程
-     * @return 0.成功; -1.失败
-     */
-    int RecoverHangMDS(int id);
+        /**
+         * HangEtcd hang lives in the specified etcd process
+         * @return 0.Success; -1.Failure
+         */
+        int HangEtcd(int id);
 
-    /**
-     * HangEtcd hang住指定etcd进程
-     * @return 0.成功; -1.失败
-     */
-    int HangEtcd(int id);
+        /**
+         * RecoverHangEtcd recovers the mds process where hang resides
+         * @return 0.Success; -1.Failure
+         */
+        int RecoverHangEtcd(int id);
 
-    /**
-     * RecoverHangEtcd 恢复hang住的mds进程
-     * @return 0.成功; -1.失败
-     */
-    int RecoverHangEtcd(int id);
+        /**
+         * HangChunkServer hang resides in the specified chunkserver process
+         * @return 0.Success; -1.Failure
+         */
+        int HangChunkServer(int id);
 
-    /**
-     * HangChunkServer hang住指定chunkserver进程
-     * @return 0.成功; -1.失败
-     */
-    int HangChunkServer(int id);
+        /**
+         * RecoverHangChunkServer Restores the chunkserver process where hang
+         * resides
+         * @return 0.Success; -1.Failure
+         */
+        int RecoverHangChunkServer(int id);
 
-    /**
-     * RecoverHangChunkServer 恢复hang住的chunkserver进程
-     * @return 0.成功; -1.失败
-     */
-    int RecoverHangChunkServer(int id);
+        /**
+         * CurrentServiceMDS obtains the mds that are currently providing services
+         *
+         * @param[out] curId is currently serving the mds number
+         *
+         * @return true indicates that there are serving mds, while false indicates
+         * that there are no serving mds
+         */
+        bool CurrentServiceMDS(int *curId);
 
-    /**
-     * CurrentServiceMDS 获取当前正在提供服务的mds
-     *
-     * @param[out] curId 当前正在服务的mds编号
-     *
-     * @return true表示有正在服务的mds, false表示没有正在服务的mds
-     */
-    bool CurrentServiceMDS(int *curId);
+        /**
+         * CreateFile creates a file in Curve.
+         *
+         * @param[in] user User
+         * @param[in] pwd Password
+         * @param[in] fileName File name
+         * @param[in] fileSize File size
+         * @param[in] normalFile Whether it is a normal file
+         * @return 0. Success; -1. Failure
+         */
+        int CreateFile(const std::string &user, const std::string &pwd,
+                       const std::string &fileName, uint64_t fileSize = 0,
+                       bool normalFile = true, const std::string &poolset = "");
 
-    /**
-     * CreateFile 在curve中创建文件
-     *
-     * @param[in] user 用户
-     * @param[in] pwd 密码
-     * @param[in] fileName 文件名
-     * @param[in] fileSize 文件大小
-     * @param[in] normalFile 是否为normal file
-     * @return 0.成功; -1.失败
-     */
-    int CreateFile(const std::string &user, const std::string &pwd,
-                   const std::string &fileName, uint64_t fileSize = 0,
-                   bool normalFile = true, const std::string& poolset = "");
+    private:
+        /**
+         * ProbePort checks if the specified ipPort is in a listening state.
+         *
+         * @param[in] ipPort The specified ipPort value.
+         * @param[in] timeoutMs The timeout for probing in milliseconds.
+         * @param[in] expectOpen Whether it is expected to be in a listening state.
+         *
+         * @return 0 indicates that the probing meets the expected condition within
+         * the specified time. -1 indicates that the probing does not meet the
+         * expected condition within the specified time.
+         */
+        int ProbePort(const std::string &ipPort, int64_t timeoutMs,
+                      bool expectOpen);
 
- private:
-    /**
-     * ProbePort 探测指定ipPort是否处于监听状态
-     *
-     * @param[in] ipPort 指定的ipPort值
-     * @param[in] timeoutMs 探测的超时时间，单位是ms
-     * @param[in] expectOpen 是否希望是监听状态
-     *
-     * @return 0表示指定时间内的探测符合预期. -1表示指定时间内的探测不符合预期
-     */
-    int ProbePort(const std::string &ipPort, int64_t timeoutMs,
-                  bool expectOpen);
+        /**
+         * ChunkServerIpPortInBackground
+         *      Used to generate chunkserver ipPort when chunkservers with different
+         * IPs are required
+         */
+        std::string ChunkServerIpPortInBackground(int id);
 
-    /**
-     * ChunkServerIpPortInBackground
-     *      在需要不同ip的chunkserver的情况下，用于生成chunkserver ipPort
-     */
-    std::string ChunkServerIpPortInBackground(int id);
+        /**
+         * HangProcess hang
+         *
+         * @param pid process id
+         * @return 0.Success; -1.Failure
+         */
+        int HangProcess(pid_t pid);
 
-    /**
-     * HangProcess hang住一个进程
-     *
-     * @param pid 进程id
-     * @return 0.成功; -1.失败
-     */
-    int HangProcess(pid_t pid);
+        /**
+         * RecoverHangProcess
+         *
+         * @param pid process id
+         * @return 0.Success; -1.Failure
+         */
+        int RecoverHangProcess(pid_t pid);
 
-    /**
-     * RecoverHangProcess 恢复hang住的进程
-     *
-     * @param pid 进程id
-     * @return 0.成功; -1.失败
-     */
-    int RecoverHangProcess(pid_t pid);
+    private:
+        // Network number
+        std::string networkSegment_;
 
- private:
-    // 网络号
-    std::string networkSegment_;
+        // Network namespace prefix
+        std::string nsPrefix_;
 
-    // 网络命名空间前缀
-    std::string nsPrefix_;
+        // The process number corresponding to the ID of the mds
+        std::map<int, pid_t> mdsPidMap_;
 
-    // mds的id对应的进程号
-    std::map<int, pid_t> mdsPidMap_;
+        // The ipport corresponding to the ID of the mds
+        std::map<int, std::string> mdsIpPort_;
 
-    // mds的id对应的ipport
-    std::map<int, std::string> mdsIpPort_;
+        // The pid corresponding to the snapshotcloneserver id
+        std::map<int, pid_t> snapPidMap_;
 
-    // snapshotcloneserver id对应的pid
-    std::map<int, pid_t> snapPidMap_;
+        // The ipPort corresponding to the snapshotcloneserver ID
+        std::map<int, std::string> snapIpPort_;
 
-    // snapshotcloneserver id对应的ipPort
-    std::map<int, std::string> snapIpPort_;
+        // Conf corresponding to snapshotcloneserver id
+        std::map<int, std::vector<std::string>> snapConf_;
 
-    // snapshotcloneserver id对应的conf
-    std::map<int, std::vector<std::string>> snapConf_;
+        // The process number corresponding to the id of ETCD
+        std::map<int, pid_t> etcdPidMap_;
 
-    // etcd的id对应的进程号
-    std::map<int, pid_t> etcdPidMap_;
+        // The client ipport corresponding to the id of ETCD
+        std::map<int, std::string> etcdClientIpPort_;
 
-    // etcd的id对应的client ipport
-    std::map<int, std::string> etcdClientIpPort_;
+        // Peer ipport corresponding to the id of ETCD
+        std::map<int, std::string> etcdPeersIpPort_;
 
-    // etcd的id对应的peer ipport
-    std::map<int, std::string> etcdPeersIpPort_;
+        // The process number corresponding to the id of chunkserver
+        std::map<int, pid_t> chunkserverPidMap_;
 
-    // chunkserver的id对应的进程号
-    std::map<int, pid_t> chunkserverPidMap_;
+        // The IP port corresponding to the ID of the chunkserver
+        std::map<int, std::string> chunkserverIpPort_;
 
-    // chunkserver的id对应的ipport
-    std::map<int, std::string> chunkserverIpPort_;
+        // mdsClient
+        std::shared_ptr<MDSClient> mdsClient_;
 
-    // mdsClient
-    std::shared_ptr<MDSClient> mdsClient_;
+    public:
+        // SnapshotCloneMetaStore for filling data during testing
+        std::shared_ptr<SnapshotCloneMetaStoreEtcd> metaStore_;
+    };
+} // namespace curve
 
- public:
-    // SnapshotCloneMetaStore用于测试过程中灌数据
-    std::shared_ptr<SnapshotCloneMetaStoreEtcd> metaStore_;
-};
-}  // namespace curve
-
-#endif  // TEST_INTEGRATION_CLUSTER_COMMON_CLUSTER_H_
+#endif // TEST_INTEGRATION_CLUSTER_COMMON_CLUSTER_H_

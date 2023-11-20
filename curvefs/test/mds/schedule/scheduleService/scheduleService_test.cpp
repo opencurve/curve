@@ -20,6 +20,8 @@
  * @Author: chenwei
  */
 
+#include "curvefs/src/mds/schedule/scheduleService/scheduleService.h"
+
 #include <brpc/channel.h>
 #include <brpc/controller.h>
 #include <brpc/server.h>
@@ -27,17 +29,16 @@
 #include <gtest/gtest.h>
 
 #include "curvefs/proto/schedule.pb.h"
-#include "curvefs/src/mds/schedule/scheduleService/scheduleService.h"
 #include "curvefs/test/mds/mock/mock_coordinator.h"
 
 namespace curvefs {
 namespace mds {
 namespace schedule {
 
-using ::testing::Return;
 using ::testing::_;
-using ::testing::SetArgPointee;
 using ::testing::DoAll;
+using ::testing::Return;
+using ::testing::SetArgPointee;
 
 class TestScheduleService : public ::testing::Test {
  protected:
@@ -45,7 +46,7 @@ class TestScheduleService : public ::testing::Test {
         server_ = new brpc::Server();
 
         coordinator_ = std::make_shared<MockCoordinator>();
-        ScheduleServiceImpl *scheduleService =
+        ScheduleServiceImpl* scheduleService =
             new ScheduleServiceImpl(coordinator_);
         ASSERT_EQ(
             0, server_->AddService(scheduleService, brpc::SERVER_OWNS_SERVICE));
@@ -63,7 +64,7 @@ class TestScheduleService : public ::testing::Test {
  protected:
     std::shared_ptr<MockCoordinator> coordinator_;
     butil::EndPoint listenAddr_;
-    brpc::Server *server_;
+    brpc::Server* server_;
 };
 
 TEST_F(TestScheduleService, test_QueryMetaServerRecoverStatus) {
@@ -75,7 +76,7 @@ TEST_F(TestScheduleService, test_QueryMetaServerRecoverStatus) {
     request.add_metaserverid(1);
     QueryMetaServerRecoverStatusResponse response;
 
-    // 1. 查询metaserver恢复状态返回成功
+    // 1. Querying metaserver recovery status returned success
     {
         std::map<MetaServerIdType, bool> expectRes{{1, 1}};
         EXPECT_CALL(*coordinator_, QueryMetaServerRecoverStatus(
@@ -91,7 +92,7 @@ TEST_F(TestScheduleService, test_QueryMetaServerRecoverStatus) {
         ASSERT_TRUE(response.recoverstatusmap().begin()->second);
     }
 
-    // 2. 传入的metaserverid不合法
+    // 2. The metaserverid passed in is illegal
     {
         std::map<MetaServerIdType, bool> expectRes{{1, 1}};
         EXPECT_CALL(*coordinator_, QueryMetaServerRecoverStatus(

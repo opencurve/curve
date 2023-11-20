@@ -23,54 +23,51 @@
 #ifndef SRC_SNAPSHOTCLONESERVER_SNAPSHOT_SNAPSHOT_TASK_MANAGER_H_
 #define SRC_SNAPSHOTCLONESERVER_SNAPSHOT_SNAPSHOT_TASK_MANAGER_H_
 
-#include <memory>
-#include <map>
 #include <atomic>
-#include <string>
 #include <list>
+#include <map>
+#include <memory>
+#include <string>
 #include <thread>  // NOLINT
 
-#include "src/snapshotcloneserver/snapshot/snapshot_task.h"
-#include "src/snapshotcloneserver/common/thread_pool.h"
 #include "src/common/concurrent/rw_lock.h"
 #include "src/common/snapshotclone/snapshotclone_define.h"
 #include "src/snapshotcloneserver/common/config.h"
 #include "src/snapshotcloneserver/common/snapshotclone_metric.h"
+#include "src/snapshotcloneserver/common/thread_pool.h"
 #include "src/snapshotcloneserver/snapshot/snapshot_core.h"
+#include "src/snapshotcloneserver/snapshot/snapshot_task.h"
 
-using ::curve::common::RWLock;
-using ::curve::common::ReadLockGuard;
-using ::curve::common::WriteLockGuard;
 using ::curve::common::Mutex;
+using ::curve::common::ReadLockGuard;
+using ::curve::common::RWLock;
+using ::curve::common::WriteLockGuard;
 
 namespace curve {
 namespace snapshotcloneserver {
 
 /**
- * @brief 快照任务管理器类
+ * @brief Snapshot Task Manager Class
  */
 class SnapshotTaskManager {
  public:
-     /**
-      * @brief 默认构造函数
-      */
-    SnapshotTaskManager(
-        std::shared_ptr<SnapshotCore> core,
-        std::shared_ptr<SnapshotMetric> snapshotMetric)
+    /**
+     * @brief default constructor
+     */
+    SnapshotTaskManager(std::shared_ptr<SnapshotCore> core,
+                        std::shared_ptr<SnapshotMetric> snapshotMetric)
         : isStop_(true),
           core_(core),
           snapshotMetric_(snapshotMetric),
           snapshotTaskManagerScanIntervalMs_(0) {}
 
     /**
-     * @brief 析构函数
+     * @brief destructor
      */
-    ~SnapshotTaskManager() {
-        Stop();
-    }
+    ~SnapshotTaskManager() { Stop(); }
 
     int Init(std::shared_ptr<ThreadPool> pool,
-        const SnapshotCloneServerOptions &option) {
+             const SnapshotCloneServerOptions& option) {
         snapshotTaskManagerScanIntervalMs_ =
             option.snapshotTaskManagerScanIntervalMs;
         threadpool_ = pool;
@@ -78,88 +75,92 @@ class SnapshotTaskManager {
     }
 
     /**
-     * @brief 启动
+     * @brief start
      *
-     * @return 错误码
+     * @return error code
      */
     int Start();
 
     /**
-     * @brief 停止服务
+     * @brief Stop service
      *
      */
     void Stop();
 
     /**
-     * @brief 添加任务
+     * @brief Add Task
      *
-     * @param task 快照任务
+     * @param task snapshot task
      *
-     * @return 错误码
+     * @return error code
      */
     int PushTask(std::shared_ptr<SnapshotTask> task);
 
     /**
-     * @brief 获取任务
+     * @brief Get Task
      *
-     * @param taskId 任务id
+     * @param taskId Task ID
      *
-     * @return 快照任务指针
+     * @return Snapshot Task Pointer
      */
-    std::shared_ptr<SnapshotTask> GetTask(const TaskIdType &taskId) const;
+    std::shared_ptr<SnapshotTask> GetTask(const TaskIdType& taskId) const;
 
     /**
-     * @brief 取消任务
+     * @brief Cancel Task
      *
-     * @param taskId 任务id
+     * @param taskId Task ID
      *
-     * @return 错误码
+     * @return error code
      */
-    int CancelTask(const TaskIdType &taskId);
+    int CancelTask(const TaskIdType& taskId);
 
  private:
     /**
-     * @brief 后台线程执行函数
+     * @brief Background Thread Execution Function
      *
-     * 定期执行扫描等待队列函数与扫描工作队列函数。
+     * Regularly execute the scan wait queue function and scan work queue
+     * function
      */
     void BackEndThreadFunc();
     /**
-     * @brief 扫描等待任务队列函数
+     * @brief Scan Waiting Task Queue Function
      *
-     * 扫描等待队列，判断工作队列中当前文件
-     * 是否有正在执行的快照，若没有则放入工作队列
+     * Scan the waiting queue to determine the current file in the work queue
+     * Check if there is an active snapshot; if not, place it in the work queue
      *
      */
     void ScanWaitingTask();
     /**
-     * @brief 扫描工作队列函数
+     * @brief Scan Work Queue Function
      *
-     * 扫描工作队列，判断工作队列中当前
-     * 快照任务是否已完成，若完成则移出工作队列
+     * Scan the work queue to determine the current status in the work queue
+     * Check if the snapshot task has been completed; if completed, remove it
+     * from the work queue
      *
      */
     void ScanWorkingTask();
 
  private:
-    // 后端线程
+    // Backend Thread
     std::thread backEndThread;
 
-    // id->快照任务表
+    // Id ->Snapshot Task Table
     std::map<TaskIdType, std::shared_ptr<SnapshotTask> > taskMap_;
     mutable RWLock taskMapLock_;
 
-    // 快照等待队列
+    // Snapshot waiting queue
     std::list<std::shared_ptr<SnapshotTask> > waitingTasks_;
     mutable Mutex waitingTasksLock_;
 
-    // 快照工作队列,实际是个map，其中key是文件名，以便于查询
+    // The snapshot work queue is actually a map, where key is the file name for
+    // easy query
     std::map<std::string, std::shared_ptr<SnapshotTask> > workingTasks_;
     mutable Mutex workingTasksLock_;
 
     std::shared_ptr<ThreadPool> threadpool_;
 
-    // 当前任务管理是否停止，用于支持start，stop功能
+    // Indicates whether the current task management is stopped, used to support
+    // start and stop functions.
     std::atomic_bool isStop_;
 
     // snapshot core
@@ -168,7 +169,8 @@ class SnapshotTaskManager {
     // metric
     std::shared_ptr<SnapshotMetric> snapshotMetric_;
 
-    // 快照后台线程扫描等待队列和工作队列的扫描周期(单位：ms)
+    // Scanning cycle of snapshot background thread scanning waiting queue and
+    // work queue (unit: ms)
     int snapshotTaskManagerScanIntervalMs_;
 };
 

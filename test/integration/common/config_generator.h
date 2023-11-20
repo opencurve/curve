@@ -40,7 +40,7 @@ class CSTConfigGenerator : public ConfigGenerator {
     CSTConfigGenerator() {}
     ~CSTConfigGenerator() {}
     bool Init(const std::string& port) {
-        // 加载配置文件模板
+        // Load Configuration File Template
         config_.SetConfigPath(DEFAULT_CHUNKSERVER_CONF);
         if (!config_.LoadConfig()) {
             return false;

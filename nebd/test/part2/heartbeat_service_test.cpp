@@ -20,13 +20,15 @@
  * Author: charisu
  */
 
-#include <gtest/gtest.h>
+#include "nebd/src/part2/heartbeat_service.h"
+
 #include <brpc/channel.h>
 #include <brpc/server.h>
+#include <gtest/gtest.h>
+
 #include <string>
 
 #include "nebd/proto/heartbeat.pb.h"
-#include "nebd/src/part2/heartbeat_service.h"
 #include "nebd/test/part2/mock_heartbeat_manager.h"
 using ::testing::_;
 using ::testing::Return;
@@ -41,15 +43,15 @@ class HeartbeatServiceTest : public ::testing::Test {
     void SetUp() override {
         heartbeatManager_ = std::make_shared<MockHeartbeatManager>();
     }
-    std::shared_ptr<MockHeartbeatManager>  heartbeatManager_;
+    std::shared_ptr<MockHeartbeatManager> heartbeatManager_;
 };
 
 TEST_F(HeartbeatServiceTest, KeepAlive) {
-    // 启动server
+    // Start server
     brpc::Server server;
     NebdHeartbeatServiceImpl heartbeatService(heartbeatManager_);
     ASSERT_EQ(0, server.AddService(&heartbeatService,
-                        brpc::SERVER_DOESNT_OWN_SERVICE));
+                                   brpc::SERVER_DOESNT_OWN_SERVICE));
     brpc::ServerOptions option;
     option.idle_timeout_sec = -1;
     ASSERT_EQ(0, server.StartAtSockFile(kSockFile_.c_str(), &option));
@@ -68,7 +70,7 @@ TEST_F(HeartbeatServiceTest, KeepAlive) {
     nebd::client::NebdHeartbeatService_Stub stub(&channel);
     brpc::Controller cntl;
 
-    // 正常情况
+    // Normal situation
     EXPECT_CALL(*heartbeatManager_, UpdateFileTimestamp(_, _))
         .Times(3)
         .WillRepeatedly(Return(true));
@@ -76,7 +78,7 @@ TEST_F(HeartbeatServiceTest, KeepAlive) {
     ASSERT_FALSE(cntl.Failed());
     ASSERT_EQ(nebd::client::RetCode::kOK, response.retcode());
 
-    // 有文件更新时间戳失败
+    // Failed to update timestamp with file
     EXPECT_CALL(*heartbeatManager_, UpdateFileTimestamp(_, _))
         .Times(3)
         .WillOnce(Return(false))
@@ -86,14 +88,14 @@ TEST_F(HeartbeatServiceTest, KeepAlive) {
     ASSERT_FALSE(cntl.Failed());
     ASSERT_EQ(nebd::client::RetCode::kNoOK, response.retcode());
 
-    // 停止server
+    // Stop server
     server.Stop(0);
     server.Join();
 }
 }  // namespace server
 }  // namespace nebd
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

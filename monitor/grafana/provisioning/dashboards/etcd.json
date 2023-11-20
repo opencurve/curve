@@ -2464,7 +2464,7 @@
           "definition": "etcd_server_has_leader",
           "hide": 0,
           "includeAll": true,
-          "label": "主机",
+          "label": "Host",
           "multi": true,
           "name": "instance",
           "options": [],

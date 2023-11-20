@@ -24,19 +24,19 @@
 
 #include <glog/logging.h>
 
-#include <string>
 #include <memory>
+#include <string>
 #include <vector>
 
-#include "src/snapshotcloneserver/common/snapshotclone_metric.h"
+#include "include/curve_compiler_specific.h"
 #include "src/common/snapshotclone/snapshotclone_define.h"
 #include "src/common/string_util.h"
-#include "include/curve_compiler_specific.h"
+#include "src/snapshotcloneserver/common/snapshotclone_metric.h"
 
 namespace curve {
 namespace snapshotcloneserver {
 
-int CloneServiceManager::Init(const SnapshotCloneServerOptions &option) {
+int CloneServiceManager::Init(const SnapshotCloneServerOptions& option) {
     dlockOpts_ = std::make_shared<DLockOpts>(option.dlockOpts);
     std::shared_ptr<ThreadPool> stage1Pool =
         std::make_shared<ThreadPool>(option.stage1PoolThreadNum);
@@ -45,8 +45,8 @@ int CloneServiceManager::Init(const SnapshotCloneServerOptions &option) {
     std::shared_ptr<ThreadPool> commonPool =
         std::make_shared<ThreadPool>(option.commonPoolThreadNum);
     cloneServiceManagerBackend_->Init(
-                option.backEndReferenceRecordScanIntervalMs,
-                option.backEndReferenceFuncScanIntervalMs);
+        option.backEndReferenceRecordScanIntervalMs,
+        option.backEndReferenceFuncScanIntervalMs);
     return cloneTaskMgr_->Init(stage1Pool, stage2Pool, commonPool, option);
 }
 
@@ -60,38 +60,34 @@ void CloneServiceManager::Stop() {
     cloneServiceManagerBackend_->Stop();
 }
 
-int CloneServiceManager::CloneFile(const UUID &source,
-    const std::string &user,
-    const std::string &destination,
-    const std::string &poolset,
-    bool lazyFlag,
-    std::shared_ptr<CloneClosure> closure,
-    TaskIdType *taskId) {
-    // 加锁防止并发
+int CloneServiceManager::CloneFile(const UUID& source, const std::string& user,
+                                   const std::string& destination,
+                                   const std::string& poolset, bool lazyFlag,
+                                   std::shared_ptr<CloneClosure> closure,
+                                   TaskIdType* taskId) {
+    // Locking to prevent concurrency
     NameLockGuard lockDestFileGuard(*destFileLock_, destination);
     brpc::ClosureGuard guard(closure.get());
     closure->SetDestFileLock(destFileLock_);
     closure->SetDestFileName(destination);
     lockDestFileGuard.Release();
     CloneInfo cloneInfo;
-    int ret = cloneCore_->CloneOrRecoverPre(
-        source, user, destination, lazyFlag,
-        CloneTaskType::kClone, poolset, &cloneInfo);
+    int ret = cloneCore_->CloneOrRecoverPre(source, user, destination, lazyFlag,
+                                            CloneTaskType::kClone, poolset,
+                                            &cloneInfo);
     if (ret < 0) {
         if (kErrCodeTaskExist == ret) {
-            // 任务已存在的情况下返回成功，使接口幂等
+            // Returns success if the task already exists, making the interface
+            // idempotent
             *taskId = cloneInfo.GetTaskId();
             closure->SetTaskId(*taskId);
             closure->SetErrCode(kErrCodeSuccess);
             return kErrCodeSuccess;
         }
         LOG(ERROR) << "CloneOrRecoverPre error"
-                   << ", ret = " << ret
-                   << ", source = " << source
-                   << ", user = " << user
-                   << ", destination = " << destination
-                   << ", lazyFlag = " << lazyFlag
-                   << ", poolset = " << poolset;
+                   << ", ret = " << ret << ", source = " << source
+                   << ", user = " << user << ", destination = " << destination
+                   << ", lazyFlag = " << lazyFlag << ", poolset = " << poolset;
         closure->SetErrCode(ret);
         return ret;
     }
@@ -106,35 +102,31 @@ int CloneServiceManager::CloneFile(const UUID &source,
     return ret;
 }
 
-int CloneServiceManager::RecoverFile(const UUID &source,
-    const std::string &user,
-    const std::string &destination,
-    bool lazyFlag,
-    std::shared_ptr<CloneClosure> closure,
-    TaskIdType *taskId) {
-    // 加锁防止并发
+int CloneServiceManager::RecoverFile(
+    const UUID& source, const std::string& user, const std::string& destination,
+    bool lazyFlag, std::shared_ptr<CloneClosure> closure, TaskIdType* taskId) {
+    // Locking to prevent concurrency
     NameLockGuard lockDestFileGuard(*destFileLock_, destination);
     brpc::ClosureGuard guard(closure.get());
     closure->SetDestFileLock(destFileLock_);
     closure->SetDestFileName(destination);
     lockDestFileGuard.Release();
     CloneInfo cloneInfo;
-    int ret = cloneCore_->CloneOrRecoverPre(
-        source, user, destination, lazyFlag,
-        CloneTaskType::kRecover, "", &cloneInfo);
+    int ret =
+        cloneCore_->CloneOrRecoverPre(source, user, destination, lazyFlag,
+                                      CloneTaskType::kRecover, "", &cloneInfo);
     if (ret < 0) {
         if (kErrCodeTaskExist == ret) {
-            // 任务已存在的情况下返回成功，使接口幂等
+            // Returns success if the task already exists, making the interface
+            // idempotent
             *taskId = cloneInfo.GetTaskId();
             closure->SetTaskId(*taskId);
             closure->SetErrCode(kErrCodeSuccess);
             return kErrCodeSuccess;
         }
         LOG(ERROR) << "CloneOrRecoverPre error"
-                   << ", ret = " << ret
-                   << ", source = " << source
-                   << ", user = " << user
-                   << ", destination = " << destination
+                   << ", ret = " << ret << ", source = " << source
+                   << ", user = " << user << ", destination = " << destination
                    << ", lazyFlag = " << lazyFlag;
         closure->SetErrCode(ret);
         return ret;
@@ -151,29 +143,23 @@ int CloneServiceManager::RecoverFile(const UUID &source,
 }
 
 int CloneServiceManager::BuildAndPushCloneOrRecoverLazyTask(
-    CloneInfo cloneInfo,
-    std::shared_ptr<CloneClosure> closure) {
+    CloneInfo cloneInfo, std::shared_ptr<CloneClosure> closure) {
     brpc::ClosureGuard guard(closure.get());
     TaskIdType taskId = cloneInfo.GetTaskId();
-    auto cloneInfoMetric =
-        std::make_shared<CloneInfoMetric>(taskId);
+    auto cloneInfoMetric = std::make_shared<CloneInfoMetric>(taskId);
     closure->SetTaskId(taskId);
 
     std::shared_ptr<CloneTaskInfo> taskInfo =
-        std::make_shared<CloneTaskInfo>(cloneInfo,
-                    cloneInfoMetric, closure);
+        std::make_shared<CloneTaskInfo>(cloneInfo, cloneInfoMetric, closure);
     taskInfo->UpdateMetric();
 
     std::shared_ptr<CloneTask> task =
-        std::make_shared<CloneTask>(
-            taskId, taskInfo, cloneCore_);
+        std::make_shared<CloneTask>(taskId, taskInfo, cloneCore_);
     int ret = cloneTaskMgr_->PushStage1Task(task);
     if (ret < 0) {
         LOG(ERROR) << "CloneTaskMgr Push Task error"
-                   << ", ret = " << ret
-                   << ", going to remove task info.";
-        int ret2 = cloneCore_->HandleRemoveCloneOrRecoverTask(
-            taskInfo);
+                   << ", ret = " << ret << ", going to remove task info.";
+        int ret2 = cloneCore_->HandleRemoveCloneOrRecoverTask(taskInfo);
         if (ret2 < 0) {
             LOG(ERROR) << "CloneServiceManager has encouter an internal error,"
                        << "remove taskInfo fail !";
@@ -186,29 +172,23 @@ int CloneServiceManager::BuildAndPushCloneOrRecoverLazyTask(
 }
 
 int CloneServiceManager::BuildAndPushCloneOrRecoverNotLazyTask(
-    CloneInfo cloneInfo,
-    std::shared_ptr<CloneClosure> closure) {
+    CloneInfo cloneInfo, std::shared_ptr<CloneClosure> closure) {
     brpc::ClosureGuard guard(closure.get());
     TaskIdType taskId = cloneInfo.GetTaskId();
-    auto cloneInfoMetric =
-        std::make_shared<CloneInfoMetric>(taskId);
+    auto cloneInfoMetric = std::make_shared<CloneInfoMetric>(taskId);
     closure->SetTaskId(taskId);
 
     std::shared_ptr<CloneTaskInfo> taskInfo =
-        std::make_shared<CloneTaskInfo>(cloneInfo,
-                cloneInfoMetric, nullptr);
+        std::make_shared<CloneTaskInfo>(cloneInfo, cloneInfoMetric, nullptr);
     taskInfo->UpdateMetric();
 
     std::shared_ptr<CloneTask> task =
-        std::make_shared<CloneTask>(
-            taskId, taskInfo, cloneCore_);
+        std::make_shared<CloneTask>(taskId, taskInfo, cloneCore_);
     int ret = cloneTaskMgr_->PushCommonTask(task);
     if (ret < 0) {
         LOG(ERROR) << "CloneTaskMgr Push Task error"
-                   << ", ret = " << ret
-                   << ", going to remove task info.";
-        int ret2 = cloneCore_->HandleRemoveCloneOrRecoverTask(
-            taskInfo);
+                   << ", ret = " << ret << ", going to remove task info.";
+        int ret2 = cloneCore_->HandleRemoveCloneOrRecoverTask(taskInfo);
         if (ret2 < 0) {
             LOG(ERROR) << "CloneServiceManager has encouter an internal error,"
                        << "remove taskInfo fail !";
@@ -218,17 +198,15 @@ int CloneServiceManager::BuildAndPushCloneOrRecoverNotLazyTask(
     return kErrCodeSuccess;
 }
 
-int CloneServiceManager::Flatten(
-    const std::string &user,
-    const TaskIdType &taskId) {
+int CloneServiceManager::Flatten(const std::string& user,
+                                 const TaskIdType& taskId) {
     CloneInfo cloneInfo;
     int ret = cloneCore_->FlattenPre(user, taskId, &cloneInfo);
     if (kErrCodeTaskExist == ret) {
         return kErrCodeSuccess;
     } else if (ret < 0) {
         LOG(ERROR) << "FlattenPre error"
-                   << ", ret = " << ret
-                   << ", user = " << user
+                   << ", ret = " << ret << ", user = " << user
                    << ", taskId = " << taskId;
         return ret;
     }
@@ -240,10 +218,10 @@ int CloneServiceManager::Flatten(
         dlock_ = std::make_shared<DLock>(*dlockOpts_);
         if (0 == dlock_->Init()) {
             LOG(ERROR) << "Init DLock error"
-                    << ", pfx = " << dlockOpts_->pfx
-                    << ", retryTimes = " << dlockOpts_->retryTimes
-                    << ", timeout = " << dlockOpts_->ctx_timeoutMS
-                    << ", ttl = " << dlockOpts_->ttlSec;
+                       << ", pfx = " << dlockOpts_->pfx
+                       << ", retryTimes = " << dlockOpts_->retryTimes
+                       << ", timeout = " << dlockOpts_->ctx_timeoutMS
+                       << ", ttl = " << dlockOpts_->ttlSec;
             return kErrCodeInternalError;
         }
     }
@@ -253,11 +231,9 @@ int CloneServiceManager::Flatten(
     closure->SetDLock(dlock_);
 
     std::shared_ptr<CloneTaskInfo> taskInfo =
-        std::make_shared<CloneTaskInfo>(
-            cloneInfo, cloneInfoMetric, closure);
-    std::shared_ptr<CloneTask> task =
-        std::make_shared<CloneTask>(
-            cloneInfo.GetTaskId(), taskInfo, cloneCore_);
+        std::make_shared<CloneTaskInfo>(cloneInfo, cloneInfoMetric, closure);
+    std::shared_ptr<CloneTask> task = std::make_shared<CloneTask>(
+        cloneInfo.GetTaskId(), taskInfo, cloneCore_);
     ret = cloneTaskMgr_->PushStage2Task(task);
     if (ret < 0) {
         LOG(ERROR) << "CloneTaskMgr Push Stage2 Task error"
@@ -267,8 +243,8 @@ int CloneServiceManager::Flatten(
     return kErrCodeSuccess;
 }
 
-int CloneServiceManager::GetCloneTaskInfo(const std::string &user,
-    std::vector<TaskCloneInfo> *info) {
+int CloneServiceManager::GetCloneTaskInfo(const std::string& user,
+                                          std::vector<TaskCloneInfo>* info) {
     std::vector<CloneInfo> cloneInfos;
     int ret = cloneCore_->GetCloneInfoList(&cloneInfos);
     if (ret < 0) {
@@ -280,16 +256,14 @@ int CloneServiceManager::GetCloneTaskInfo(const std::string &user,
 }
 
 int CloneServiceManager::GetCloneTaskInfoById(
-    const std::string &user,
-    const TaskIdType &taskId,
-    std::vector<TaskCloneInfo> *info) {
+    const std::string& user, const TaskIdType& taskId,
+    std::vector<TaskCloneInfo>* info) {
     std::vector<CloneInfo> cloneInfos;
     CloneInfo cloneInfo;
     int ret = cloneCore_->GetCloneInfo(taskId, &cloneInfo);
     if (ret < 0) {
         LOG(ERROR) << "GetCloneInfo fail"
-                   << ", ret = " << ret
-                   << ", taskId = " << taskId;
+                   << ", ret = " << ret << ", taskId = " << taskId;
         return kErrCodeFileNotExist;
     }
     if (cloneInfo.GetUser() != user) {
@@ -300,23 +274,20 @@ int CloneServiceManager::GetCloneTaskInfoById(
 }
 
 int CloneServiceManager::GetCloneTaskInfoByName(
-    const std::string &user,
-    const std::string &fileName,
-    std::vector<TaskCloneInfo> *info) {
+    const std::string& user, const std::string& fileName,
+    std::vector<TaskCloneInfo>* info) {
     std::vector<CloneInfo> cloneInfos;
     int ret = cloneCore_->GetCloneInfoByFileName(fileName, &cloneInfos);
     if (ret < 0) {
         LOG(ERROR) << "GetCloneInfoByFileName fail"
-                   << ", ret = " << ret
-                   << ", fileName = " << fileName;
+                   << ", ret = " << ret << ", fileName = " << fileName;
         return kErrCodeFileNotExist;
     }
     return GetCloneTaskInfoInner(cloneInfos, user, info);
 }
 
 int CloneServiceManager::GetCloneTaskInfoByFilter(
-        const CloneFilterCondition &filter,
-        std::vector<TaskCloneInfo> *info) {
+    const CloneFilterCondition& filter, std::vector<TaskCloneInfo>* info) {
     std::vector<CloneInfo> cloneInfos;
     int ret = cloneCore_->GetCloneInfoList(&cloneInfos);
     if (ret < 0) {
@@ -327,9 +298,9 @@ int CloneServiceManager::GetCloneTaskInfoByFilter(
     return GetCloneTaskInfoInner(cloneInfos, filter, info);
 }
 
-int CloneServiceManager::GetCloneRefStatus(const std::string &src,
-        CloneRefStatus *refStatus,
-        std::vector<CloneInfo> *needCheckFiles) {
+int CloneServiceManager::GetCloneRefStatus(
+    const std::string& src, CloneRefStatus* refStatus,
+    std::vector<CloneInfo>* needCheckFiles) {
     std::vector<CloneInfo> cloneInfos;
     int ret = cloneCore_->GetCloneInfoList(&cloneInfos);
     if (ret < 0) {
@@ -338,10 +309,10 @@ int CloneServiceManager::GetCloneRefStatus(const std::string &src,
     }
 
     *refStatus = CloneRefStatus::kNoRef;
-    for (auto &cloneInfo : cloneInfos) {
+    for (auto& cloneInfo : cloneInfos) {
         if (cloneInfo.GetSrc() == src) {
             switch (cloneInfo.GetStatus()) {
-                case CloneStatus::done :
+                case CloneStatus::done:
                 case CloneStatus::error: {
                     break;
                 }
@@ -370,14 +341,13 @@ int CloneServiceManager::GetCloneRefStatus(const std::string &src,
 }
 
 int CloneServiceManager::GetCloneTaskInfoInner(
-    std::vector<CloneInfo> cloneInfos,
-    CloneFilterCondition filter,
-    std::vector<TaskCloneInfo> *info) {
+    std::vector<CloneInfo> cloneInfos, CloneFilterCondition filter,
+    std::vector<TaskCloneInfo>* info) {
     int ret = kErrCodeSuccess;
-    for (auto &cloneInfo : cloneInfos) {
+    for (auto& cloneInfo : cloneInfos) {
         if (filter.IsMatchCondition(cloneInfo)) {
             switch (cloneInfo.GetStatus()) {
-                case CloneStatus::done : {
+                case CloneStatus::done: {
                     info->emplace_back(cloneInfo, kProgressCloneComplete);
                     break;
                 }
@@ -395,7 +365,7 @@ int CloneServiceManager::GetCloneTaskInfoInner(
                         cloneTaskMgr_->GetTask(taskId);
                     if (task != nullptr) {
                         info->emplace_back(cloneInfo,
-                            task->GetTaskInfo()->GetProgress());
+                                           task->GetTaskInfo()->GetProgress());
                     } else {
                         TaskCloneInfo tcInfo;
                         ret = GetFinishedCloneTask(taskId, &tcInfo);
@@ -421,14 +391,13 @@ int CloneServiceManager::GetCloneTaskInfoInner(
 }
 
 int CloneServiceManager::GetCloneTaskInfoInner(
-    std::vector<CloneInfo> cloneInfos,
-    const std::string &user,
-    std::vector<TaskCloneInfo> *info) {
+    std::vector<CloneInfo> cloneInfos, const std::string& user,
+    std::vector<TaskCloneInfo>* info) {
     int ret = kErrCodeSuccess;
-    for (auto &cloneInfo : cloneInfos) {
+    for (auto& cloneInfo : cloneInfos) {
         if (cloneInfo.GetUser() == user) {
             switch (cloneInfo.GetStatus()) {
-                case CloneStatus::done : {
+                case CloneStatus::done: {
                     info->emplace_back(cloneInfo, kProgressCloneComplete);
                     break;
                 }
@@ -446,7 +415,7 @@ int CloneServiceManager::GetCloneTaskInfoInner(
                         cloneTaskMgr_->GetTask(taskId);
                     if (task != nullptr) {
                         info->emplace_back(cloneInfo,
-                            task->GetTaskInfo()->GetProgress());
+                                           task->GetTaskInfo()->GetProgress());
                     } else {
                         TaskCloneInfo tcInfo;
                         ret = GetFinishedCloneTask(taskId, &tcInfo);
@@ -471,7 +440,7 @@ int CloneServiceManager::GetCloneTaskInfoInner(
     return kErrCodeSuccess;
 }
 
-bool CloneFilterCondition::IsMatchCondition(const CloneInfo &cloneInfo) {
+bool CloneFilterCondition::IsMatchCondition(const CloneInfo& cloneInfo) {
     if (user_ != nullptr && *user_ != cloneInfo.GetUser()) {
         return false;
     }
@@ -489,45 +458,39 @@ bool CloneFilterCondition::IsMatchCondition(const CloneInfo &cloneInfo) {
     }
 
     int status;
-    if (status_ != nullptr
-        && common::StringToInt(*status_, &status) == false) {
+    if (status_ != nullptr && common::StringToInt(*status_, &status) == false) {
         return false;
     }
 
-    if (status_ != nullptr
-        && common::StringToInt(*status_, &status) == true
-        && status != static_cast<int>(cloneInfo.GetStatus())) {
+    if (status_ != nullptr && common::StringToInt(*status_, &status) == true &&
+        status != static_cast<int>(cloneInfo.GetStatus())) {
         return false;
     }
 
     int type;
-    if (type_ != nullptr
-        && common::StringToInt(*type_, &type) == false) {
+    if (type_ != nullptr && common::StringToInt(*type_, &type) == false) {
         return false;
     }
 
-    if (type_ != nullptr
-        && common::StringToInt(*type_, &type) == true
-        && type != static_cast<int>(cloneInfo.GetTaskType())) {
+    if (type_ != nullptr && common::StringToInt(*type_, &type) == true &&
+        type != static_cast<int>(cloneInfo.GetTaskType())) {
         return false;
     }
 
     return true;
 }
 
-int CloneServiceManager::GetFinishedCloneTask(
-    const TaskIdType &taskId,
-    TaskCloneInfo *taskCloneInfoOut) {
+int CloneServiceManager::GetFinishedCloneTask(const TaskIdType& taskId,
+                                              TaskCloneInfo* taskCloneInfoOut) {
     CloneInfo newInfo;
     int ret = cloneCore_->GetCloneInfo(taskId, &newInfo);
     if (ret < 0) {
         LOG(ERROR) << "GetCloneInfo fail"
-                   << ", ret = " << ret
-                   << ", taskId = " << taskId;
+                   << ", ret = " << ret << ", taskId = " << taskId;
         return ret;
     }
     switch (newInfo.GetStatus()) {
-        case CloneStatus::done : {
+        case CloneStatus::done: {
             taskCloneInfoOut->SetCloneInfo(newInfo);
             taskCloneInfoOut->SetCloneProgress(kProgressCloneComplete);
             break;
@@ -544,32 +507,29 @@ int CloneServiceManager::GetFinishedCloneTask(
         }
         default:
             LOG(ERROR) << "can not reach here!"
-                       << " status = " << static_cast<int>(
-                               newInfo.GetStatus());
-            // 当更新数据库失败时，有可能进入这里
+                       << " status = " << static_cast<int>(newInfo.GetStatus());
+            // When updating the database fails, it is possible to enter here
             return kErrCodeInternalError;
     }
     return kErrCodeSuccess;
 }
 
-int CloneServiceManager::CleanCloneTask(const std::string &user,
-    const TaskIdType &taskId) {
+int CloneServiceManager::CleanCloneTask(const std::string& user,
+                                        const TaskIdType& taskId) {
     CloneInfo cloneInfo;
     int ret = cloneCore_->CleanCloneOrRecoverTaskPre(user, taskId, &cloneInfo);
     if (kErrCodeTaskExist == ret) {
         return kErrCodeSuccess;
     } else if (ret < 0) {
         LOG(ERROR) << "CleanCloneOrRecoverTaskPre fail"
-                   << ", ret = " << ret
-                   << ", user = " << user
+                   << ", ret = " << ret << ", user = " << user
                    << ", taskid = " << taskId;
         return ret;
     }
     std::shared_ptr<CloneTaskInfo> taskInfo =
         std::make_shared<CloneTaskInfo>(cloneInfo, nullptr, nullptr);
-    std::shared_ptr<CloneCleanTask> task =
-        std::make_shared<CloneCleanTask>(
-            cloneInfo.GetTaskId(), taskInfo, cloneCore_);
+    std::shared_ptr<CloneCleanTask> task = std::make_shared<CloneCleanTask>(
+        cloneInfo.GetTaskId(), taskInfo, cloneCore_);
     ret = cloneTaskMgr_->PushCommonTask(task);
     if (ret < 0) {
         LOG(ERROR) << "Push Task error, "
@@ -579,40 +539,40 @@ int CloneServiceManager::CleanCloneTask(const std::string &user,
     return kErrCodeSuccess;
 }
 
-int CloneServiceManager::RecoverCloneTaskInternal(const CloneInfo &cloneInfo) {
+int CloneServiceManager::RecoverCloneTaskInternal(const CloneInfo& cloneInfo) {
     auto cloneInfoMetric =
         std::make_shared<CloneInfoMetric>(cloneInfo.GetTaskId());
     auto closure = std::make_shared<CloneClosure>();
     std::shared_ptr<CloneTaskInfo> taskInfo =
-        std::make_shared<CloneTaskInfo>(
-            cloneInfo, cloneInfoMetric, closure);
+        std::make_shared<CloneTaskInfo>(cloneInfo, cloneInfoMetric, closure);
     taskInfo->UpdateMetric();
-    std::shared_ptr<CloneTask> task =
-        std::make_shared<CloneTask>(
-            cloneInfo.GetTaskId(), taskInfo, cloneCore_);
+    std::shared_ptr<CloneTask> task = std::make_shared<CloneTask>(
+        cloneInfo.GetTaskId(), taskInfo, cloneCore_);
     bool isLazy = cloneInfo.GetIsLazy();
     int ret = kErrCodeSuccess;
-    // Lazy 克隆/恢复
+    // Lazy Clone/Restore
     if (isLazy) {
         CloneStep step = cloneInfo.GetNextStep();
-        // 处理kRecoverChunk,kCompleteCloneFile,kEnd这三个阶段的Push到stage2Pool
-        // 如果克隆source类型是file，阶段为kCreateCloneChunk和kCreateCloneMeta也需要push到stage2Pool  // NOLINT
+        // Process the Push to stage2Pool for the three stages of
+        // kRecoverChunk,kCompleteCloneFile, and kEnd If the clone source type
+        // is file and the stages are kCreateCloneChunk and kCreateCloneMeta,
+        // they also need to be pushed to stage2Pool// NOLINT
         if (CloneStep::kRecoverChunk == step ||
-            CloneStep::kCompleteCloneFile == step ||
-            CloneStep::kEnd == step ||
-            (CloneStep::kCreateCloneChunk == step
-                && cloneInfo.GetFileType() == CloneFileType::kFile) ||
-            (CloneStep::kCreateCloneMeta == step
-                && cloneInfo.GetFileType() == CloneFileType::kFile)) {
+            CloneStep::kCompleteCloneFile == step || CloneStep::kEnd == step ||
+            (CloneStep::kCreateCloneChunk == step &&
+             cloneInfo.GetFileType() == CloneFileType::kFile) ||
+            (CloneStep::kCreateCloneMeta == step &&
+             cloneInfo.GetFileType() == CloneFileType::kFile)) {
             ret = cloneTaskMgr_->PushStage2Task(task);
             if (ret < 0) {
                 LOG(ERROR) << "CloneTaskMgr Push Stage2 Task error"
                            << ", ret = " << ret;
                 return ret;
             }
-        // 否则push到stage1Pool
+            // Otherwise, push to stage1Pool
         } else {
-            // stage1的task包含了异步的请求的返回，需要加锁
+            // The task of stage1 contains the return of asynchronous requests
+            // that require locking
             std::string destination = cloneInfo.GetDest();
             NameLockGuard lockDestFileGuard(*destFileLock_, destination);
             closure->SetDestFileLock(destFileLock_);
@@ -625,7 +585,7 @@ int CloneServiceManager::RecoverCloneTaskInternal(const CloneInfo &cloneInfo) {
                 return ret;
             }
         }
-    // 非Lazy 克隆/恢复push到commonPool
+        // Non Lazy clone/restore push to commonPool
     } else {
         ret = cloneTaskMgr_->PushCommonTask(task);
         if (ret < 0) {
@@ -637,13 +597,11 @@ int CloneServiceManager::RecoverCloneTaskInternal(const CloneInfo &cloneInfo) {
     return kErrCodeSuccess;
 }
 
-int CloneServiceManager::RecoverCleanTaskInternal(const CloneInfo &cloneInfo) {
+int CloneServiceManager::RecoverCleanTaskInternal(const CloneInfo& cloneInfo) {
     std::shared_ptr<CloneTaskInfo> taskInfo =
-        std::make_shared<CloneTaskInfo>(
-            cloneInfo, nullptr, nullptr);
-    std::shared_ptr<CloneTask> task =
-        std::make_shared<CloneTask>(
-            cloneInfo.GetTaskId(), taskInfo, cloneCore_);
+        std::make_shared<CloneTaskInfo>(cloneInfo, nullptr, nullptr);
+    std::shared_ptr<CloneTask> task = std::make_shared<CloneTask>(
+        cloneInfo.GetTaskId(), taskInfo, cloneCore_);
     int ret = cloneTaskMgr_->PushCommonTask(task);
     if (ret < 0) {
         LOG(ERROR) << "CloneTaskMgr Push Task error"
@@ -660,26 +618,26 @@ int CloneServiceManager::RecoverCloneTask() {
         LOG(ERROR) << "GetCloneInfoList fail";
         return ret;
     }
-    for (auto &cloneInfo : list) {
+    for (auto& cloneInfo : list) {
         switch (cloneInfo.GetStatus()) {
             case CloneStatus::retrying: {
-                // 重置重试任务的状态
+                // Reset the status of the retry task
                 if (cloneInfo.GetTaskType() == CloneTaskType::kClone) {
                     cloneInfo.SetStatus(CloneStatus::cloning);
                 } else {
                     cloneInfo.SetStatus(CloneStatus::recovering);
                 }
             }
-            FALLTHROUGH_INTENDED;
+                FALLTHROUGH_INTENDED;
             case CloneStatus::cloning:
             case CloneStatus::recovering: {
-                // 建立快照或镜像的引用关系
+                // Establishing a reference relationship for a snapshot or
+                // mirror
                 if (CloneFileType::kSnapshot == cloneInfo.GetFileType()) {
                     cloneCore_->GetSnapshotRef()->IncrementSnapshotRef(
                         cloneInfo.GetSrc());
                 } else {
-                    cloneCore_->GetCloneRef()->IncrementRef(
-                        cloneInfo.GetSrc());
+                    cloneCore_->GetCloneRef()->IncrementRef(cloneInfo.GetSrc());
                 }
                 ret = RecoverCloneTaskInternal(cloneInfo);
                 if (ret < 0) {
@@ -696,13 +654,13 @@ int CloneServiceManager::RecoverCloneTask() {
                 break;
             }
             case CloneStatus::metaInstalled: {
-                // metaInstalled 状态下的克隆对文件仍然有依赖，需要建立引用关系
+                // Clones in MetaInstalled state still have dependencies on
+                // files and need to establish a reference relationship
                 if (CloneFileType::kSnapshot == cloneInfo.GetFileType()) {
                     cloneCore_->GetSnapshotRef()->IncrementSnapshotRef(
                         cloneInfo.GetSrc());
                 } else {
-                    cloneCore_->GetCloneRef()->IncrementRef(
-                        cloneInfo.GetSrc());
+                    cloneCore_->GetCloneRef()->IncrementRef(cloneInfo.GetSrc());
                 }
                 break;
             }
@@ -713,52 +671,59 @@ int CloneServiceManager::RecoverCloneTask() {
     return kErrCodeSuccess;
 }
 
-// 当clone处于matainstall状态，且克隆卷已经删除的情况下，原卷的引用计数没有减。
-// 这个后台线程处理函数周期性的检查这个场景，如果发现有clone处于metaintalled状态
-// 且克隆卷已经删除，就去删除这条无效的clone信息，并减去原卷的引用计数。
-// 如果原卷是镜像且引用计数减为0，还需要去mds把原卷的状态改为created。
+// When the clone is in a matainstall state and the clone volume has been
+// deleted, the reference count of the original volume does not decrease. This
+// backend thread processing function periodically checks this scenario, and if
+// any clones are found to be in the 'metaled' state If the clone volume has
+// been deleted, delete the invalid clone information and subtract the reference
+// count of the original volume. If the original volume is a mirror and the
+// reference count is reduced to 0, it is necessary to go to MDS to change the
+// status of the original volume to created.
 void CloneServiceManagerBackendImpl::Func() {
     LOG(INFO) << "CloneServiceManager BackEndReferenceScanFunc start";
     while (!isStop_.load()) {
         std::vector<CloneInfo> cloneInfos;
         int ret = cloneCore_->GetCloneInfoList(&cloneInfos);
         if (ret < 0) {
-            LOG(WARNING) << "GetCloneInfoList fail" << ", ret = " << ret;
+            LOG(WARNING) << "GetCloneInfoList fail"
+                         << ", ret = " << ret;
         }
 
         int deleteCount = 0;
-        for (auto &it : cloneInfos) {
-            if (it.GetStatus() == CloneStatus::metaInstalled
-                    && it.GetIsLazy() == true) {
-                // 检查destination在不在
+        for (auto& it : cloneInfos) {
+            if (it.GetStatus() == CloneStatus::metaInstalled &&
+                it.GetIsLazy() == true) {
+                // Check if the destination is available
                 if (it.GetTaskType() == CloneTaskType::kClone) {
                     ret = cloneCore_->CheckFileExists(it.GetDest(),
-                                        it.GetDestId());
+                                                      it.GetDestId());
                 } else {
-                    // rename时，inodeid恢复成
+                    // When renaming, the inodeid is restored to
                     ret = cloneCore_->CheckFileExists(it.GetDest(),
-                                        it.GetOriginId());
+                                                      it.GetOriginId());
                 }
 
                 if (ret == kErrCodeFileNotExist) {
-                    // 如果克隆卷是metaInstalled状态，且destination文件不存在，
-                    // 删除这条cloneInfo，并减引用计数
+                    // If the cloned volume is in a metaInstalled state and the
+                    // destination file does not exist, Delete this cloneInfo
+                    // and subtract the reference count
                     TaskIdType taskId = it.GetTaskId();
                     CloneInfo cloneInfo;
                     ret = cloneCore_->GetCloneInfo(taskId, &cloneInfo);
                     if (ret != kErrCodeSuccess) {
-                        // cloneInfo已经不存在了
+                        // CloneInfo no longer exists
                         continue;
                     }
 
-                    // 再次检查cloneInfo是否是metaInstalled状态
+                    // Check again if cloneInfo is in the metaInstalled state
                     if (cloneInfo.GetStatus() != CloneStatus::metaInstalled) {
                         continue;
                     }
                     ret = cloneCore_->HandleDeleteCloneInfo(cloneInfo);
                     if (ret != kErrCodeSuccess) {
-                        LOG(WARNING) << "HandleDeleteCloneInfo fail, ret = "
-                                     << ret << ", cloneInfo = " << cloneInfo;
+                        LOG(WARNING)
+                            << "HandleDeleteCloneInfo fail, ret = " << ret
+                            << ", cloneInfo = " << cloneInfo;
                     } else {
                         deleteCount++;
                     }
@@ -771,14 +736,14 @@ void CloneServiceManagerBackendImpl::Func() {
         LOG(INFO) << "backend scan list, size = " << cloneInfos.size()
                   << ", delete clone record count = " << deleteCount;
 
-        // 控制每轮扫描间隔
+        // Control the scanning interval of each round
         roundWaitInterval_.WaitForNextExcution();
     }
     LOG(INFO) << "CloneServiceManager BackEndReferenceScanFunc exit";
 }
 
 void CloneServiceManagerBackendImpl::Init(uint32_t recordIntevalMs,
-                                uint32_t roundIntevalMs) {
+                                          uint32_t roundIntevalMs) {
     recordWaitInterval_.Init(recordIntevalMs);
     roundWaitInterval_.Init(roundIntevalMs);
 

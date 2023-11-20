@@ -25,8 +25,8 @@
 namespace curve {
 namespace chunkserver {
 
-const string baseDir = "./data_int_str";    // NOLINT
-const string poolDir = "./chunkfilepool_int_str";  // NOLINT
+const string baseDir = "./data_int_str";                     // NOLINT
+const string poolDir = "./chunkfilepool_int_str";            // NOLINT
 const string poolMetaPath = "./chunkfilepool_int_str.meta";  // NOLINT
 
 class StressTestSuit : public DatastoreIntegrationBase {
@@ -64,7 +64,7 @@ TEST_F(StressTestSuit, StressTest) {
 
     auto RunStress = [&](int threadNum, int rwPercent, int ioNum) {
         uint64_t beginTime = TimeUtility::GetTimeofDayUs();
-        Thread *threads = new Thread[threadNum];
+        Thread* threads = new Thread[threadNum];
         int readThreadNum = threadNum * rwPercent / 100;
         int ioNumAvg = ioNum / threadNum;
         int idRange = 100;
@@ -92,27 +92,27 @@ TEST_F(StressTestSuit, StressTest) {
 
     printf("===============TEST WRITE==================\n");
 
-    // 测试单线程性能
+    // Testing Single Thread Performance
     RunStress(1, 0, 10000);
-    // 10个线程
+    // 10 threads
     RunStress(10, 0, 50000);
-    // 50个线程
+    // 50 threads
     RunStress(50, 0, 100000);
 
     printf("===============TEST READ==================\n");
-    // 测试单线程性能
+    // Testing Single Thread Performance
     RunStress(1, 100, 10000);
-    // 10个线程
+    // 10 threads
     RunStress(10, 100, 50000);
-    // 50个线程
+    // 50 threads
     RunStress(50, 100, 100000);
 
     printf("===============TEST READWRITE==================\n");
-    // 测试单线程性能
+    // Testing Single Thread Performance
     RunStress(1, 50, 10000);
-    // 10个线程
+    // 10 threads
     RunStress(10, 50, 50000);
-    // 50个线程
+    // 50 threads
     RunStress(50, 50, 100000);
 }
 

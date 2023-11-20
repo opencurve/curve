@@ -43,43 +43,45 @@ enum class OriginType {
 class LocationOperator {
  public:
     /**
-     * 生成s3的location
-     * location格式:${objectname}@s3
-     * @param objectName:s3上object的名称
-     * @return:生成的location
+     * Generate location for s3
+     * location format: ${objectname}@s3
+     * @param objectName: The name of the object on s3
+     * @return: Generated location
      */
     static std::string GenerateS3Location(const std::string& objectName);
     /**
-     * 生成curve的location
-     * location格式:${filename}:${offset}@cs
+     * Generate the location of the curve
+     * location format: ${filename}:${offset}@cs
      */
     static std::string GenerateCurveLocation(const std::string& fileName,
                                              off_t offset);
     /**
-     * 解析数据源的位置信息
-     * location格式:
-     * s3示例：${objectname}@s3
-     * curve示例：${filename}:${offset}@cs
+     * Parsing the location information of data sources
+     * location format:
+     * example of s3: ${objectname}@s3
+     * curve example: ${filename}:${offset}@cs
      *
-     * @param location[in]:数据源的位置，其格式为originPath@originType
-     * @param originPath[out]:表示数据源在源端的路径
-     * @return:返回OriginType，表示源数据的源端类型是s3还是curve
-     *         如果路径格式不正确或者originType无法识别，则返回InvalidOrigin
+     * @param location[in]: The location of the data source, in the format
+     * originPath@originType
+     * @param originPath[out]: represents the path of the data source on the
+     * source side
+     * @return: Returns OriginType, indicating whether the source side type of
+     * the source data is s3 or curve If the path format is incorrect or the
+     * originType is not recognized, InvalidOrigin is returned
      */
     static OriginType ParseLocation(const std::string& location,
                                     std::string* originPath);
 
     /**
-     * 解析curvefs的originPath
-     * 格式:${filename}:${offset}
-     * @param originPath[in]:数据源在curvefs上的路径
-     * @param fileName[out]:数据源所属文件名
-     * @param offset[out]:数据源在文件中的偏移
-     * @return: 解析成功返回true，失败返回false
+     * Parsing the originPath of curves
+     * Format: ${filename}:${offset}
+     * @param originPath[in]: The path of the data source on curves
+     * @param fileName[out]: The file name to which the data source belongs
+     * @param offset[out]: The offset of the data source in the file
+     * @return: Successful parsing returns true, while failure returns false
      */
     static bool ParseCurveChunkPath(const std::string& originPath,
-                                    std::string* fileName,
-                                    off_t* offset);
+                                    std::string* fileName, off_t* offset);
 };
 
 }  // namespace common

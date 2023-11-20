@@ -23,27 +23,27 @@
 #ifndef SRC_COMMON_NET_COMMON_H_
 #define SRC_COMMON_NET_COMMON_H_
 
-#include <stdlib.h>
-#include <netdb.h>
-#include <netinet/in.h>    // in_addr
-#include <arpa/inet.h>     // inet_pton, inet_ntop
+#include <arpa/inet.h>  // inet_pton, inet_ntop
 #include <glog/logging.h>
+#include <netdb.h>
+#include <netinet/in.h>  // in_addr
+#include <stdlib.h>
+
 #include <string>
 
 namespace curve {
 namespace common {
 class NetCommon {
  public:
-    // addr形式为"ip:port"
+    // The form of addr is "ip:port"
     static bool CheckAddressValid(const std::string& addr) {
         std::string ip;
         uint32_t port;
         return SplitAddrToIpPort(addr, &ip, &port);
     }
 
-    // addr形式为"ip:port"
-    static bool SplitAddrToIpPort(const std::string& addr,
-                                  std::string* ipstr,
+    // The form of addr is "ip:port"
+    static bool SplitAddrToIpPort(const std::string& addr, std::string* ipstr,
                                   uint32_t* port) {
         size_t splitpos = addr.find(":");
         if (splitpos == std::string::npos) {
@@ -91,7 +91,7 @@ class NetCommon {
         return true;
     }
 };
-}   // namespace common
-}   // namespace curve
+}  // namespace common
+}  // namespace curve
 
 #endif  // SRC_COMMON_NET_COMMON_H_

@@ -19,11 +19,12 @@
  * File Created: Saturday, 23rd February 2019 1:41:31 pm
  * Author: tongguangxun
  */
+#include "src/client/lease_executor.h"
+
 #include <glog/logging.h>
 
-#include "src/common/timeutility.h"
-#include "src/client/lease_executor.h"
 #include "src/client/service_helper.h"
+#include "src/common/timeutility.h"
 
 using curve::common::TimeUtility;
 
@@ -145,9 +146,7 @@ void LeaseExecutor::Stop() {
     }
 }
 
-bool LeaseExecutor::LeaseValid() {
-    return isleaseAvaliable_.load();
-}
+bool LeaseExecutor::LeaseValid() { return isleaseAvaliable_.load(); }
 
 void LeaseExecutor::IncremRefreshFailed() {
     failedrefreshcount_.fetch_add(1);
@@ -190,7 +189,7 @@ void LeaseExecutor::ResetRefreshSessionTask() {
         return;
     }
 
-    // 等待前一个任务退出
+    // Waiting for the previous task to exit
     task_->Stop();
     task_->WaitTaskExit();
 
@@ -203,5 +202,5 @@ void LeaseExecutor::ResetRefreshSessionTask() {
     isleaseAvaliable_.store(true);
 }
 
-}   // namespace client
-}   // namespace curve
+}  // namespace client
+}  // namespace curve

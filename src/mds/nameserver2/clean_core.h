@@ -25,12 +25,13 @@
 
 #include <memory>
 #include <string>
-#include "src/mds/nameserver2/namespace_storage.h"
-#include "src/mds/common/mds_define.h"
-#include "src/mds/nameserver2/task_progress.h"
+
 #include "src/mds/chunkserverclient/copyset_client.h"
-#include "src/mds/topology/topology.h"
+#include "src/mds/common/mds_define.h"
 #include "src/mds/nameserver2/allocstatistic/alloc_statistic.h"
+#include "src/mds/nameserver2/namespace_storage.h"
+#include "src/mds/nameserver2/task_progress.h"
+#include "src/mds/topology/topology.h"
 
 using ::curve::mds::chunkserverclient::CopysetClient;
 using ::curve::mds::topology::Topology;
@@ -41,30 +42,32 @@ namespace mds {
 class CleanCore {
  public:
     CleanCore(std::shared_ptr<NameServerStorage> storage,
-        std::shared_ptr<CopysetClient> copysetClient,
-        std::shared_ptr<AllocStatistic> allocStatistic)
+              std::shared_ptr<CopysetClient> copysetClient,
+              std::shared_ptr<AllocStatistic> allocStatistic)
         : storage_(storage),
           copysetClient_(copysetClient),
           allocStatistic_(allocStatistic) {}
 
     /**
-     * @brief 删除快照文件，更新task状态
-     * @param snapShotFile: 需要清理的snapshot文件
-     * @param progress: CleanSnapShotFile接口属于时间较长的偏异步任务
-     *                  这里传入进度进行跟踪反馈
+     * @brief Delete the snapshot file and update the task status
+     * @param snapShotFile: The snapshot file that needs to be cleaned
+     * @param progress: The CleanSnapShotFile interface is a relatively
+     * asynchronous task that takes a long time Here, progress is transmitted
+     * for tracking and feedback
      */
-    StatusCode CleanSnapShotFile(const FileInfo & snapShotFile,
+    StatusCode CleanSnapShotFile(const FileInfo& snapShotFile,
                                  TaskProgress* progress);
 
     /**
-     * @brief 删除普通文件，更新task状态
-     * @param commonFile: 需要清理的普通文件
-     * @param progress: CleanFile接口属于时间较长的偏异步任务
-     *                  这里传入进度进行跟踪反馈
-     * @return 是否执行成功，成功返回StatusCode::kOK
+     * @brief Delete regular files and update task status
+     * @param commonFile: A regular file that needs to be cleaned
+     * @param progress: The CleanFile interface is a relatively asynchronous
+     * task that takes a long time Here, progress is transmitted for tracking
+     * and feedback
+     * @return whether the execution was successful, and if successful, return
+     * StatusCode::kOK
      */
-    StatusCode CleanFile(const FileInfo & commonFile,
-                        TaskProgress* progress);
+    StatusCode CleanFile(const FileInfo& commonFile, TaskProgress* progress);
 
     /**
      * @brief clean discarded segment and chunks
@@ -85,4 +88,4 @@ class CleanCore {
 }  // namespace mds
 }  // namespace curve
 
-#endif   // SRC_MDS_NAMESERVER2_CLEAN_CORE_H_
+#endif  // SRC_MDS_NAMESERVER2_CLEAN_CORE_H_

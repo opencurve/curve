@@ -32,22 +32,21 @@ std::string LocationOperator::GenerateS3Location(
     return location;
 }
 
-std::string LocationOperator::GenerateCurveLocation(
-    const std::string& fileName, off_t offset) {
+std::string LocationOperator::GenerateCurveLocation(const std::string& fileName,
+                                                    off_t offset) {
     std::string location(fileName);
     location.append(kOriginPathSeprator)
-            .append(std::to_string(offset))
-            .append(kOriginTypeSeprator)
-            .append(CURVE_TYPE);
+        .append(std::to_string(offset))
+        .append(kOriginTypeSeprator)
+        .append(CURVE_TYPE);
     return location;
 }
 
-OriginType LocationOperator::ParseLocation(
-    const std::string& location, std::string* originPath) {
-    // 找到最后一个“@”,不能简单用SplitString
-    // 因为不能保证OriginPath中不包含“@”
-    std::string::size_type pos =
-        location.find_last_of(kOriginTypeSeprator);
+OriginType LocationOperator::ParseLocation(const std::string& location,
+                                           std::string* originPath) {
+    // Found the last '@', cannot simply use SplitString
+    // Because it cannot be guaranteed that OriginPath does not contain '@'
+    std::string::size_type pos = location.find_last_of(kOriginTypeSeprator);
     if (std::string::npos == pos) {
         return OriginType::InvalidOrigin;
     }
@@ -67,18 +66,17 @@ OriginType LocationOperator::ParseLocation(
     return type;
 }
 
-bool LocationOperator::ParseCurveChunkPath(
-     const std::string& originPath, std::string* fileName, off_t* offset) {
-    std::string::size_type pos =
-        originPath.find_last_of(kOriginPathSeprator);
+bool LocationOperator::ParseCurveChunkPath(const std::string& originPath,
+                                           std::string* fileName,
+                                           off_t* offset) {
+    std::string::size_type pos = originPath.find_last_of(kOriginPathSeprator);
     if (std::string::npos == pos) {
         return false;
     }
 
     std::string file = originPath.substr(0, pos);
     std::string offStr = originPath.substr(pos + 1);
-    if (file.empty() || offStr.empty())
-        return false;
+    if (file.empty() || offStr.empty()) return false;
 
     if (fileName != nullptr) {
         *fileName = file;

@@ -28,8 +28,9 @@
 
 DEFINE_string(fileName, "", "file name");
 DEFINE_string(dirName, "", "directory name");
-DEFINE_string(expireTime, "7d", "Time for file in recyclebin exceed expire time "  // NOLINT
-                                "will be deleted (default: 7d)");
+DEFINE_string(expireTime, "7d",
+              "Time for file in recyclebin exceed expire time "  // NOLINT
+              "will be deleted (default: 7d)");
 DEFINE_bool(forcedelete, false, "force delete file or not");
 DEFINE_uint64(fileLength, 20, "file length (GB)");
 DEFINE_uint64(newSize, 30, "the new size of expanded volume(GB)");
@@ -37,11 +38,14 @@ DEFINE_string(poolset, "", "specify the poolset name");
 DEFINE_bool(isTest, false, "is unit test or not");
 DEFINE_uint64(offset, 0, "offset to query chunk location");
 DEFINE_uint64(rpc_timeout, 3000, "millisecond for rpc timeout");
-DEFINE_bool(showAllocSize, true, "If specified, the allocated size will not be computed");  // NOLINT
-DEFINE_bool(showFileSize, true, "If specified, the file size will not be computed");  // NOLINT
+DEFINE_bool(showAllocSize, true,
+            "If specified, the allocated size will not be computed");  // NOLINT
+DEFINE_bool(showFileSize, true,
+            "If specified, the file size will not be computed");  // NOLINT
 DECLARE_string(mdsAddr);
-DEFINE_bool(showAllocMap, false, "If specified, the allocated size in each"
-                                 " logical pool will be print");
+DEFINE_bool(showAllocMap, false,
+            "If specified, the allocated size in each"
+            " logical pool will be print");
 
 DEFINE_string(throttleType, "", "throttle type");
 DEFINE_uint64(limit, 0, "throttle limit");
@@ -66,19 +70,15 @@ int NameSpaceTool::Init() {
 }
 
 bool NameSpaceTool::SupportCommand(const std::string& command) {
-    return (command == kGetCmd || command == kListCmd
-                               || command == kSegInfoCmd
-                               || command == kDeleteCmd
-                               || command == kCreateCmd
-                               || command == kExtendCmd
-                               || command == kCleanRecycleCmd
-                               || command == kChunkLocatitonCmd
-                               || command == kUpdateThrottle
-                               || command == kListPoolsets);
+    return (command == kGetCmd || command == kListCmd ||
+            command == kSegInfoCmd || command == kDeleteCmd ||
+            command == kCreateCmd || command == kExtendCmd ||
+            command == kCleanRecycleCmd || command == kChunkLocatitonCmd ||
+            command == kUpdateThrottle || command == kListPoolsets);
 }
 
-// 根据命令行参数选择对应的操作
-int NameSpaceTool::RunCommand(const std::string &cmd) {
+// Select the corresponding operation based on command line parameters
+int NameSpaceTool::RunCommand(const std::string& cmd) {
     if (Init() != 0) {
         std::cout << "Init NameSpaceTool failed" << std::endl;
         return -1;
@@ -92,12 +92,12 @@ int NameSpaceTool::RunCommand(const std::string &cmd) {
     } else if (cmd == kSegInfoCmd) {
         return PrintSegmentInfo(fileName);
     } else if (cmd == kDeleteCmd) {
-        // 单元测试不判断输入
+        // Unit testing does not judge input
         if (FLAGS_isTest) {
             return core_->DeleteFile(fileName, FLAGS_forcedelete);
         }
-        std::cout << "Are you sure you want to delete "
-                  << fileName << "?" << "(yes/no)" << std::endl;
+        std::cout << "Are you sure you want to delete " << fileName << "?"
+                  << "(yes/no)" << std::endl;
         std::string str;
         std::cin >> str;
         if (str == "yes") {
@@ -163,29 +163,71 @@ int NameSpaceTool::RunCommand(const std::string &cmd) {
     }
 }
 
-void NameSpaceTool::PrintHelp(const std::string &cmd) {
+void NameSpaceTool::PrintHelp(const std::string& cmd) {
     std::cout << "Example: " << std::endl;
     if (cmd == kGetCmd || cmd == kListCmd) {
-        std::cout << "curve_ops_tool " << cmd << " -fileName=/test [-mdsAddr=127.0.0.1:6666]"  // NOLINT
-                            " [-showAllocSize=false] [-showFileSize=false] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
+        std::cout << "curve_ops_tool " << cmd
+                  << " -fileName=/test [-mdsAddr=127.0.0.1:6666]"  // NOLINT
+                     " [-showAllocSize=false] [-showFileSize=false] "
+                     "[-confPath=/etc/curve/tools.conf]"
+                  << std::endl;  // NOLINT
     } else if (cmd == kSegInfoCmd) {
-        std::cout << "curve_ops_tool " << cmd << " -fileName=/test [-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
+        std::cout << "curve_ops_tool " << cmd
+                  << " -fileName=/test [-mdsAddr=127.0.0.1:6666] "
+                     "[-confPath=/etc/curve/tools.conf]"
+                  << std::endl;  // NOLINT
     } else if (cmd == kCleanRecycleCmd) {
-        std::cout << "curve_ops_tool " << cmd << " [-fileName=/cinder] [-expireTime=1(s|m|h|d|M|y)] [-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
-        std::cout << "If -fileName is specified, delete the files in recyclebin that the original directory is fileName" << std::endl;  // NOLINT
-        std::cout << "expireTime: s=second, m=minute, h=hour, d=day, M=month, y=year" << std::endl;  // NOLINT
+        std::cout
+            << "curve_ops_tool " << cmd
+            << " [-fileName=/cinder] [-expireTime=1(s|m|h|d|M|y)] "
+               "[-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]"
+            << std::endl;  // NOLINT
+        std::cout << "If -fileName is specified, delete the files in "
+                     "recyclebin that the original directory is fileName"
+                  << std::endl;  // NOLINT
+        std::cout
+            << "expireTime: s=second, m=minute, h=hour, d=day, M=month, y=year"
+            << std::endl;  // NOLINT
     } else if (cmd == kCreateCmd) {
-        std::cout << "curve_ops_tool " << cmd << " -fileName=/test -userName=test -password=123 -fileLength=20 [--poolset=default] [-stripeUnit=32768] [-stripeCount=32]  [-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
-        std::cout << "curve_ops_tool " << cmd << " -dirName=/dir -userName=test -password=123 [-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
-        std::cout << "The first example can create a volume and the second create a directory." << std::endl;  // NOLINT
+        std::cout
+            << "curve_ops_tool " << cmd
+            << " -fileName=/test -userName=test -password=123 -fileLength=20 "
+               "[--poolset=default] [-stripeUnit=32768] [-stripeCount=32]  "
+               "[-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]"
+            << std::endl;  // NOLINT
+        std::cout
+            << "curve_ops_tool " << cmd
+            << " -dirName=/dir -userName=test -password=123 "
+               "[-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]"
+            << std::endl;  // NOLINT
+        std::cout << "The first example can create a volume and the second "
+                     "create a directory."
+                  << std::endl;  // NOLINT
     } else if (cmd == kExtendCmd) {
-        std::cout << "curve_ops_tool " << cmd << " -fileName=/test -userName=test -password=123 -newSize=30  [-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
+        std::cout
+            << "curve_ops_tool " << cmd
+            << " -fileName=/test -userName=test -password=123 -newSize=30  "
+               "[-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]"
+            << std::endl;  // NOLINT
     } else if (cmd == kDeleteCmd) {
-        std::cout << "curve_ops_tool " << cmd << " -fileName=/test -userName=test -password=123 -forcedelete=true  [-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
+        std::cout << "curve_ops_tool " << cmd
+                  << " -fileName=/test -userName=test -password=123 "
+                     "-forcedelete=true  [-mdsAddr=127.0.0.1:6666] "
+                     "[-confPath=/etc/curve/tools.conf]"
+                  << std::endl;  // NOLINT
     } else if (cmd == kChunkLocatitonCmd) {
-        std::cout << "curve_ops_tool " << cmd << " -fileName=/test -offset=16777216 [-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
+        std::cout
+            << "curve_ops_tool " << cmd
+            << " -fileName=/test -offset=16777216 [-mdsAddr=127.0.0.1:6666] "
+               "[-confPath=/etc/curve/tools.conf]"
+            << std::endl;  // NOLINT
     } else if (cmd == kUpdateThrottle) {
-        std::cout << "curve_ops_tool " << cmd << " -fileName=/test -throttleType=(IOPS_TOTAL|IOPS_READ|IOPS_WRITE|BPS_TOTAL|BPS_READ|BPS_WRITE) -limit=20000 [-burst=30000] [-burstLength=10]" << std::endl;  // NOLINT
+        std::cout
+            << "curve_ops_tool " << cmd
+            << " -fileName=/test "
+               "-throttleType=(IOPS_TOTAL|IOPS_READ|IOPS_WRITE|BPS_TOTAL|BPS_"
+               "READ|BPS_WRITE) -limit=20000 [-burst=30000] [-burstLength=10]"
+            << std::endl;  // NOLINT
     } else {
         std::cout << "command not found!" << std::endl;
     }
@@ -204,7 +246,8 @@ int NameSpaceTool::PrintFileInfoAndActualSize(const std::string& fullName,
                                               const FileInfo& fileInfo) {
     PrintFileInfo(fileInfo);
     int ret = GetAndPrintAllocSize(fullName);
-    // 如果是目录的话，计算目录中的文件大小(用户创建时指定的)
+    // If it is a directory, calculate the file size in the directory (specified
+    // by the user when creating it)
     if (fileInfo.filetype() == curve::mds::FileType::INODE_DIRECTORY) {
         ret = GetAndPrintFileSize(fullName);
     }
@@ -255,14 +298,14 @@ void NameSpaceTool::PrintFileInfo(const FileInfo& fileInfo) {
     curve::common::SplitString(fileInfoStr, "\n", &items);
     for (const auto& item : items) {
         if (item.compare(0, 5, "ctime") == 0) {
-            // ctime是微妙，打印的时候只打印到秒
+            // CTIME is subtle, printing only takes seconds
             time_t ctime = fileInfo.ctime() / 1000000;
             std::string standard;
             curve::common::TimeUtility::TimeStampToStandard(ctime, &standard);
             std::cout << "ctime: " << standard << std::endl;
             continue;
         }
-        // 把length转换成GB
+        // Convert length to GB
         if (item.compare(0, 6, "length") == 0) {
             uint64_t length = fileInfo.length();
             double fileSize = static_cast<double>(length) / curve::mds::kGB;
@@ -315,15 +358,15 @@ int NameSpaceTool::PrintPoolsets() {
 
     for (const auto& poolset : poolsets) {
         const std::string str = absl::StrFormat(
-                "id: %3d, name: %s, type: %s, desc: `%s`", poolset.poolsetid(),
-                poolset.poolsetname(), poolset.type(), poolset.desc());
+            "id: %3d, name: %s, type: %s, desc: `%s`", poolset.poolsetid(),
+            poolset.poolsetname(), poolset.type(), poolset.desc());
         std::cout << str << std::endl;
     }
 
     return 0;
 }
 
-int NameSpaceTool::PrintSegmentInfo(const std::string &fileName) {
+int NameSpaceTool::PrintSegmentInfo(const std::string& fileName) {
     std::vector<PageFileSegment> segments;
     if (core_->GetFileSegments(fileName, &segments) != 0) {
         std::cout << "GetFileSegments fail!" << std::endl;
@@ -358,14 +401,13 @@ void NameSpaceTool::PrintSegment(const PageFileSegment& segment) {
         if (segment.chunks(i).has_copysetid()) {
             copysetId = segment.chunks(i).copysetid();
         }
-        std::cout << "chunkID: " << chunkId << ", copysetID: "
-                                 << copysetId << std::endl;
+        std::cout << "chunkID: " << chunkId << ", copysetID: " << copysetId
+                  << std::endl;
     }
 }
 
-
 int NameSpaceTool::PrintChunkLocation(const std::string& fileName,
-                                     uint64_t offset) {
+                                      uint64_t offset) {
     uint64_t chunkId;
     std::pair<uint32_t, uint32_t> copyset;
     if (core_->QueryChunkCopyset(fileName, offset, &chunkId, &copyset) != 0) {
@@ -375,13 +417,12 @@ int NameSpaceTool::PrintChunkLocation(const std::string& fileName,
     uint32_t logicPoolId = copyset.first;
     uint32_t copysetId = copyset.second;
     uint64_t groupId = (static_cast<uint64_t>(logicPoolId) << 32) | copysetId;
-    std::cout << "chunkId: " << chunkId
-              << ", logicalPoolId: " << logicPoolId
-              << ", copysetId: " << copysetId
-              << ", groupId: " << groupId << std::endl;
+    std::cout << "chunkId: " << chunkId << ", logicalPoolId: " << logicPoolId
+              << ", copysetId: " << copysetId << ", groupId: " << groupId
+              << std::endl;
     std::vector<ChunkServerLocation> csLocs;
-    int res = core_->GetChunkServerListInCopySet(logicPoolId,
-                                    copysetId, &csLocs);
+    int res =
+        core_->GetChunkServerListInCopySet(logicPoolId, copysetId, &csLocs);
     if (res != 0) {
         std::cout << "GetChunkServerListInCopySet fail!" << std::endl;
         return -1;
@@ -400,7 +441,7 @@ int NameSpaceTool::PrintChunkLocation(const std::string& fileName,
 }
 
 void NameSpaceTool::TrimEndingSlash(std::string* fileName) {
-    // 如果最后面有/，去掉
+    // If there is/at the end, remove it
     if (fileName->size() > 1 && fileName->back() == '/') {
         fileName->pop_back();
     }

@@ -20,26 +20,28 @@
  * Author: lixiaocui
  */
 
-#include <netinet/in.h>
+#include "test/integration/cluster_common/cluster.h"
+
 #include <arpa/inet.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <stdlib.h>
 #include <errno.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
+#include <netinet/in.h>
+#include <stdlib.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+
+#include <chrono>  //NOLINT
+#include <iostream>
+#include <memory>
 #include <string>
 #include <thread>  //NOLINT
-#include <chrono>  //NOLINT
-#include <memory>
 #include <utility>
 #include <vector>
-#include <iostream>
 
-#include "test/integration/cluster_common/cluster.h"
+#include "src/client/client_common.h"
 #include "src/common/string_util.h"
 #include "src/common/timeutility.h"
-#include "src/client/client_common.h"
 #include "src/kvstorageclient/etcd_client.h"
 
 using ::curve::client::UserInfo_t;
@@ -50,29 +52,29 @@ namespace curve {
 
 using ::curve::client::CreateFileContext;
 
-int CurveCluster::InitMdsClient(const curve::client::MetaServerOption &op) {
+int CurveCluster::InitMdsClient(const curve::client::MetaServerOption& op) {
     mdsClient_ = std::make_shared<MDSClient>();
     return mdsClient_->Initialize(op);
 }
 
-std::vector<char *> VecStr2VecChar(std::vector<std::string> args) {
-    std::vector<char *> argv(args.size() + 1);       // for the NULL terminator
+std::vector<char*> VecStr2VecChar(std::vector<std::string> args) {
+    std::vector<char*> argv(args.size() + 1);        // for the NULL terminator
     for (std::size_t i = 0; i < args.size(); ++i) {  // not include cmd
-        argv[i] = new char[args[i].size()+1];
+        argv[i] = new char[args[i].size() + 1];
         snprintf(argv[i], args[i].size() + 1, "%s", args[i].c_str());
     }
     argv[args.size()] = NULL;
     return argv;
 }
 
-void ClearArgv(const std::vector<char *> &argv) {
-    for (auto const &item : argv) {
-        delete [] item;
+void ClearArgv(const std::vector<char*>& argv) {
+    for (auto const& item : argv) {
+        delete[] item;
     }
 }
 
 int CurveCluster::InitSnapshotCloneMetaStoreEtcd(
-    const std::string &etcdEndpoints) {
+    const std::string& etcdEndpoints) {
     EtcdConf conf;
     conf.Endpoints = new char[etcdEndpoints.size()];
     std::memcpy(conf.Endpoints, etcdEndpoints.c_str(), etcdEndpoints.size());
@@ -88,8 +90,8 @@ int CurveCluster::InitSnapshotCloneMetaStoreEtcd(
     }
     auto codec = std::make_shared<SnapshotCloneCodec>();
 
-    metaStore_ = std::make_shared<SnapshotCloneMetaStoreEtcd>(etcdClient,
-        codec);
+    metaStore_ =
+        std::make_shared<SnapshotCloneMetaStoreEtcd>(etcdClient, codec);
     if (metaStore_->Init() < 0) {
         LOG(ERROR) << "metaStore init fail.";
         return -1;
@@ -106,17 +108,13 @@ int CurveCluster::StopCluster() {
     LOG(INFO) << "stop cluster begin...";
 
     int ret = 0;
-    if (StopAllMDS() < 0)
-        ret = -1;
+    if (StopAllMDS() < 0) ret = -1;
 
-    if (StopAllChunkServer() < 0)
-        ret = -1;
+    if (StopAllChunkServer() < 0) ret = -1;
 
-    if (StopAllSnapshotCloneServer() < 0)
-        ret = -1;
+    if (StopAllSnapshotCloneServer() < 0) ret = -1;
 
-    if (StopAllEtcd() < 0)
-        ret = -1;
+    if (StopAllEtcd() < 0) ret = -1;
 
     if (!ret)
         LOG(INFO) << "success stop cluster";
@@ -125,9 +123,9 @@ int CurveCluster::StopCluster() {
     return ret;
 }
 
-int CurveCluster::StartSingleMDS(int id, const std::string &ipPort,
+int CurveCluster::StartSingleMDS(int id, const std::string& ipPort,
                                  int dummyPort,
-                                 const std::vector<std::string> &mdsConf,
+                                 const std::vector<std::string>& mdsConf,
                                  bool expectLeader) {
     LOG(INFO) << "start mds " << ipPort << " begin...";
     pid_t pid = ::fork();
@@ -135,20 +133,21 @@ int CurveCluster::StartSingleMDS(int id, const std::string &ipPort,
         LOG(ERROR) << "start mds " << ipPort << " fork failed";
         return -1;
     } else if (0 == pid) {
-        // 在子进程中起一个mds
+        // Start an mds in a child process
         // ./bazel-bin/src/mds/main/curvemds
         std::vector<std::string> args;
         args.emplace_back("./bazel-bin/src/mds/main/curvemds");
         args.emplace_back("--mdsAddr=" + ipPort);
         args.emplace_back("--dummyPort=" + std::to_string(dummyPort));
-        for (auto &item : mdsConf) {
+        for (auto& item : mdsConf) {
             args.emplace_back(item);
         }
 
-        std::vector<char *> argv = VecStr2VecChar(args);
+        std::vector<char*> argv = VecStr2VecChar(args);
         /**
-         *  重要提示！！！！
-         *  fork后，子进程尽量不要用LOG()打印，可能死锁！！！
+         * Important reminder!!!!
+         * After forking, try not to use LOG() printing for child processes, as
+         * it may cause deadlock!!!
          */
         execv("./bazel-bin/src/mds/main/curvemds", argv.data());
         ClearArgv(argv);
@@ -221,26 +220,27 @@ int CurveCluster::StopAllMDS() {
 }
 
 int CurveCluster::StartSnapshotCloneServer(
-    int id, const std::string &ipPort,
-    const std::vector<std::string> &snapshotcloneConf) {
+    int id, const std::string& ipPort,
+    const std::vector<std::string>& snapshotcloneConf) {
     LOG(INFO) << "start snapshotcloneserver " << ipPort << " begin ...";
     pid_t pid = ::fork();
     if (0 > pid) {
         LOG(ERROR) << "start snapshotcloneserver " << ipPort << " fork failed";
         return -1;
     } else if (0 == pid) {
-        // 在子进程中起一个snapshotcloneserver
+        // Starting a snapshotcloneserver in a child process
         std::vector<std::string> args;
         args.emplace_back(
             "./bazel-bin/src/snapshotcloneserver/snapshotcloneserver");
         args.emplace_back("--addr=" + ipPort);
-        for (auto &item : snapshotcloneConf) {
+        for (auto& item : snapshotcloneConf) {
             args.emplace_back(item);
         }
-        std::vector<char *> argv = VecStr2VecChar(args);
+        std::vector<char*> argv = VecStr2VecChar(args);
         /**
-         *  重要提示！！！！
-         *  fork后，子进程尽量不要用LOG()打印，可能死锁！！！
+         * Important reminder!!!!
+         * After forking, try not to use LOG() printing for child processes, as
+         * it may cause deadlock!!!
          */
         execv("./bazel-bin/src/snapshotcloneserver/snapshotcloneserver",
               argv.data());
@@ -317,19 +317,18 @@ int CurveCluster::StopAllSnapshotCloneServer() {
     int ret = 0;
     auto tempMap = snapPidMap_;
     for (auto pair : tempMap) {
-        if (StopSnapshotCloneServer(pair.first) < 0)
-            ret = -1;
+        if (StopSnapshotCloneServer(pair.first) < 0) ret = -1;
     }
 
-    // 等待进程完全退出
+    // Wait for the process to completely exit
     ::sleep(2);
     LOG(INFO) << "stop all snapshotcloneservver end.";
     return ret;
 }
 
-int CurveCluster::StartSingleEtcd(int id, const std::string &clientIpPort,
-                                  const std::string &peerIpPort,
-                                  const std::vector<std::string> &etcdConf) {
+int CurveCluster::StartSingleEtcd(int id, const std::string& clientIpPort,
+                                  const std::string& peerIpPort,
+                                  const std::vector<std::string>& etcdConf) {
     LOG(INFO) << "start etcd " << clientIpPort << " begin...";
 
     pid_t pid = ::fork();
@@ -337,7 +336,7 @@ int CurveCluster::StartSingleEtcd(int id, const std::string &clientIpPort,
         LOG(ERROR) << "start etcd " << id << " fork failed";
         return -1;
     } else if (0 == pid) {
-        // 在子进程中起一个etcd
+        // Start an ETCD in a child process
         // ip netns exec integ_etcd1 etcd
         std::vector<std::string> args{"etcd"};
         args.emplace_back("--listen-peer-urls=http://" + peerIpPort);
@@ -348,14 +347,15 @@ int CurveCluster::StartSingleEtcd(int id, const std::string &clientIpPort,
         args.emplace_back("--initial-cluster-token=etcd-cluster-1");
         args.emplace_back("--election-timeout=3000");
         args.emplace_back("--heartbeat-interval=300");
-        for (auto &item : etcdConf) {
+        for (auto& item : etcdConf) {
             args.push_back(item);
         }
 
-        std::vector<char *> argv = VecStr2VecChar(args);
+        std::vector<char*> argv = VecStr2VecChar(args);
         /**
-         *  重要提示！！！！
-         *  fork后，子进程尽量不要用LOG()打印，可能死锁！！！
+         * Important reminder!!!!
+         * After forking, try not to use LOG() printing for child processes, as
+         * it may cause deadlock!!!
          */
         execvp("etcd", argv.data());
         ClearArgv(argv);
@@ -380,7 +380,7 @@ bool CurveCluster::WaitForEtcdClusterAvalible(int waitSec) {
         return false;
     } else {
         int i = 0;
-        for (auto &item : etcdClientIpPort_) {
+        for (auto& item : etcdClientIpPort_) {
             i++;
             if (i == etcdClientIpPort_.size()) {
                 endpoint += "http://" + item.second;
@@ -464,9 +464,9 @@ int CurveCluster::StopAllEtcd() {
     return ret;
 }
 
-int CurveCluster::FormatFilePool(const std::string &filePooldir,
-                                 const std::string &filePoolmetapath,
-                                 const std::string &filesystempath,
+int CurveCluster::FormatFilePool(const std::string& filePooldir,
+                                 const std::string& filePoolmetapath,
+                                 const std::string& filesystempath,
                                  uint32_t size) {
     LOG(INFO) << "FormatFilePool begin...";
 
@@ -475,8 +475,7 @@ int CurveCluster::FormatFilePool(const std::string &filePooldir,
                       " -filePoolMetaPath=" + filePoolmetapath +
                       " -fileSystemPath=" + filesystempath +
                       " -allocateByPercent=false -preAllocateNum=" +
-                      std::to_string(size * 300) +
-                      " -needWriteZero=false";
+                      std::to_string(size * 300) + " -needWriteZero=false";
 
     RETURN_IF_NOT_ZERO(system(cmd.c_str()));
 
@@ -485,8 +484,8 @@ int CurveCluster::FormatFilePool(const std::string &filePooldir,
 }
 
 int CurveCluster::StartSingleChunkServer(
-    int id, const std::string &ipPort,
-    const std::vector<std::string> &chunkserverConf) {
+    int id, const std::string& ipPort,
+    const std::vector<std::string>& chunkserverConf) {
     LOG(INFO) << "start chunkserver " << id << ", " << ipPort << " begin...";
     std::vector<std::string> split;
     ::curve::common::SplitString(ipPort, ":", &split);
@@ -500,19 +499,20 @@ int CurveCluster::StartSingleChunkServer(
         LOG(ERROR) << "start chunkserver " << id << " fork failed";
         return -1;
     } else if (0 == pid) {
-        // 在子进程中起一个chunkserver
+        // Starting a chunkserver in a child process
         std::vector<std::string> args;
         args.emplace_back("./bazel-bin/src/chunkserver/chunkserver");
         args.emplace_back("-chunkServerIp=" + split[0]);
         args.emplace_back("-chunkServerPort=" + split[1]);
-        for (auto &item : chunkserverConf) {
+        for (auto& item : chunkserverConf) {
             args.emplace_back(item);
         }
 
-        std::vector<char *> argv = VecStr2VecChar(args);
+        std::vector<char*> argv = VecStr2VecChar(args);
         /**
-         *  重要提示！！！！
-         *  fork后，子进程尽量不要用LOG()打印，可能死锁！！！
+         * Important reminder!!!!
+         * After forking, try not to use LOG() printing for child processes, as
+         * it may cause deadlock!!!
          */
         execv("./bazel-bin/src/chunkserver/chunkserver", argv.data());
         ClearArgv(argv);
@@ -530,7 +530,7 @@ int CurveCluster::StartSingleChunkServer(
 }
 
 int CurveCluster::StartSingleChunkServerInBackground(
-    int id, const std::vector<std::string> &chunkserverConf) {
+    int id, const std::vector<std::string>& chunkserverConf) {
     std::vector<std::string> ipPort;
     ::curve::common::SplitString(ChunkServerIpPortInBackground(id), ":",
                                  &ipPort);
@@ -547,7 +547,7 @@ int CurveCluster::StartSingleChunkServerInBackground(
         LOG(ERROR) << "start chunkserver " << id << " fork failed";
         return -1;
     } else if (0 == pid) {
-        // 在子进程中起一个chunkserver
+        // Starting a chunkserver in a child process
         std::vector<std::string> args;
         args.emplace_back("netns");
         args.emplace_back("exec");
@@ -555,13 +555,14 @@ int CurveCluster::StartSingleChunkServerInBackground(
         args.emplace_back("./bazel-bin/src/chunkserver/chunkserver");
         args.emplace_back("-chunkServerIp=" + ipPort[0]);
         args.emplace_back("-chunkServerPort=" + ipPort[1]);
-        for (auto &item : chunkserverConf) {
+        for (auto& item : chunkserverConf) {
             args.emplace_back(item);
         }
-        std::vector<char *> argv = VecStr2VecChar(args);
+        std::vector<char*> argv = VecStr2VecChar(args);
         /**
-         *  重要提示！！！！
-         *  fork后，子进程尽量不要用LOG()打印，可能死锁！！！
+         * Important reminder!!!!
+         * After forking, try not to use LOG() printing for child processes, as
+         * it may cause deadlock!!!
          */
         execvp("ip", argv.data());
         ClearArgv(argv);
@@ -723,7 +724,7 @@ std::string CurveCluster::ChunkServerIpPortInBackground(int id) {
 }
 
 int CurveCluster::PreparePhysicalPool(int mdsId,
-                                      const std::string &clusterMap) {
+                                      const std::string& clusterMap) {
     LOG(INFO) << "create physicalpool begin...";
 
     std::string createPPCmd = std::string("./bazel-bin/tools/curvefsTool") +
@@ -741,15 +742,14 @@ int CurveCluster::PreparePhysicalPool(int mdsId,
     return 0;
 }
 
-int CurveCluster::PrepareLogicalPool(int mdsId, const std::string &clusterMap) {
+int CurveCluster::PrepareLogicalPool(int mdsId, const std::string& clusterMap) {
     LOG(INFO) << "create logicalpool begin...";
 
-    std::string createLPCmd =
-        std::string("./bazel-bin/tools/curvefsTool") +
-        std::string(" -cluster_map=") + clusterMap +
-        std::string(" -mds_addr=") + MDSIpPort(mdsId) +
-        std::string(" -op=create_logicalpool") +
-        std::string(" -stderrthreshold=0 -minloglevel=0");
+    std::string createLPCmd = std::string("./bazel-bin/tools/curvefsTool") +
+                              std::string(" -cluster_map=") + clusterMap +
+                              std::string(" -mds_addr=") + MDSIpPort(mdsId) +
+                              std::string(" -op=create_logicalpool") +
+                              std::string(" -stderrthreshold=0 -minloglevel=0");
 
     LOG(INFO) << "exec cmd: " << createLPCmd;
     RETURN_IF_NOT_ZERO(system(createLPCmd.c_str()));
@@ -758,7 +758,7 @@ int CurveCluster::PrepareLogicalPool(int mdsId, const std::string &clusterMap) {
     return 0;
 }
 
-bool CurveCluster::CurrentServiceMDS(int *curId) {
+bool CurveCluster::CurrentServiceMDS(int* curId) {
     for (auto mdsId : mdsPidMap_) {
         if (0 == ProbePort(mdsIpPort_[mdsId.first], 20000, true)) {
             *curId = mdsId.first;
@@ -772,8 +772,8 @@ bool CurveCluster::CurrentServiceMDS(int *curId) {
     return false;
 }
 
-int CurveCluster::CreateFile(const std::string &user, const std::string &pwd,
-                             const std::string &fileName, uint64_t fileSize,
+int CurveCluster::CreateFile(const std::string& user, const std::string& pwd,
+                             const std::string& fileName, uint64_t fileSize,
                              bool normalFile, const std::string& poolset) {
     LOG(INFO) << "create file: " << fileName << ", size: " << fileSize
               << " begin...";
@@ -785,13 +785,12 @@ int CurveCluster::CreateFile(const std::string &user, const std::string &pwd,
     context.length = fileSize;
     context.poolset = poolset;
 
-    RETURN_IF_NOT_ZERO(
-        mdsClient_->CreateFile(context));
+    RETURN_IF_NOT_ZERO(mdsClient_->CreateFile(context));
     LOG(INFO) << "success create file";
     return 0;
 }
 
-int CurveCluster::ProbePort(const std::string &ipPort, int64_t timeoutMs,
+int CurveCluster::ProbePort(const std::string& ipPort, int64_t timeoutMs,
                             bool expectOpen) {
     int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (-1 == socket_fd) {
@@ -819,7 +818,7 @@ int CurveCluster::ProbePort(const std::string &ipPort, int64_t timeoutMs,
     uint64_t start = ::curve::common::TimeUtility::GetTimeofDayMs();
     while (::curve::common::TimeUtility::GetTimeofDayMs() - start < timeoutMs) {
         int connectRes =
-            connect(socket_fd, (struct sockaddr *)&addr, sizeof(addr));
+            connect(socket_fd, (struct sockaddr*)&addr, sizeof(addr));
         if (expectOpen && connectRes == 0) {
             LOG(INFO) << "probe " << ipPort << " success.";
             close(socket_fd);

@@ -20,11 +20,12 @@
  * Author: yangyaokai
  */
 
-#include <unordered_map>
+#include "nebd/src/part2/heartbeat_manager.h"
+
 #include <string>
+#include <unordered_map>
 
 #include "nebd/src/common/timeutility.h"
-#include "nebd/src/part2/heartbeat_manager.h"
 
 namespace nebd {
 namespace server {
@@ -69,7 +70,7 @@ void HeartbeatManager::UpdateNebdClientInfo(int pid, const std::string& version,
     const auto& iter = nebdClients_.find(pid);
     if (iter == nebdClients_.end()) {
         nebdClients_[pid] =
-                std::make_shared<NebdClientInfo>(pid, version, timestamp);
+            std::make_shared<NebdClientInfo>(pid, version, timestamp);
         nebdClientNum_ << 1;
     } else {
         nebdClients_[pid]->timeStamp = timestamp;
@@ -79,8 +80,8 @@ void HeartbeatManager::UpdateNebdClientInfo(int pid, const std::string& version,
 }
 
 void HeartbeatManager::CheckTimeoutFunc() {
-    while (sleeper_.wait_for(
-        std::chrono::milliseconds(checkTimeoutIntervalMs_))) {
+    while (
+        sleeper_.wait_for(std::chrono::milliseconds(checkTimeoutIntervalMs_))) {
         LOG_EVERY_N(INFO, 60 * 1000 / checkTimeoutIntervalMs_)
             << "Checking timeout, file status: "
             << fileManager_->DumpAllFileStatus();
@@ -107,24 +108,24 @@ void HeartbeatManager::CheckTimeoutFunc() {
 bool HeartbeatManager::CheckNeedClosed(NebdFileEntityPtr entity) {
     uint64_t curTime = TimeUtility::GetTimeofDayMs();
     uint64_t interval = curTime - entity->GetFileTimeStamp();
-    // 文件如果是opened状态，并且已经超时，则需要调用close
-    bool needClose = entity->GetFileStatus() == NebdFileStatus::OPENED
-                     && interval > (uint64_t)1000 * heartbeatTimeoutS_;
+    // If the file is in an open state and has timed out, you need to call close
+    bool needClose = entity->GetFileStatus() == NebdFileStatus::OPENED &&
+                     interval > (uint64_t)1000 * heartbeatTimeoutS_;
     return needClose;
 }
 
 std::ostream& operator<<(std::ostream& os, NebdClientInfo* info) {
     std::string standardTime;
     TimeUtility::TimeStampToStandard(info->timeStamp / 1000, &standardTime);
-    os << "pid: " << info->pid << ", version: "
-       << info->version.GetValueByKey(kVersion)
+    os << "pid: " << info->pid
+       << ", version: " << info->version.GetValueByKey(kVersion)
        << ", last time received heartbeat: " << standardTime;
     return os;
 }
 
 void HeartbeatManager::RemoveTimeoutNebdClient() {
     WriteLockGuard writeLock(rwLock_);
-    auto iter =  nebdClients_.begin();
+    auto iter = nebdClients_.begin();
     while (iter != nebdClients_.end()) {
         uint64_t curTime = TimeUtility::GetTimeofDayMs();
         uint64_t interval = curTime - iter->second->timeStamp;

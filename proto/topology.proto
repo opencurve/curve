@@ -415,7 +415,7 @@ message CreateLogicalPoolRequest {
     required LogicalPoolType type = 4;
     required bytes redundanceAndPlaceMentPolicy = 5;  //json body
     required bytes userPolicy = 6;                    //json body
-    optional uint32 scatterWidth = 7;      //生成copyset依据的scatterWidth平均值
+    optional uint32 scatterWidth = 7;      // Generate copyset based on the average scatterWidth value
     optional AllocateStatus status = 8;
 }
 

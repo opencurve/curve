@@ -23,86 +23,89 @@
 #ifndef NEBD_SRC_COMMON_NAME_LOCK_H_
 #define NEBD_SRC_COMMON_NAME_LOCK_H_
 
+#include <atomic>
+#include <memory>
+#include <mutex> // NOLINT
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include <memory>
-#include <atomic>
-#include <mutex>  // NOLINT
 
 #include "nebd/src/common/uncopyable.h"
 
-namespace nebd {
-namespace common {
+namespace nebd
+{
+    namespace common
+    {
 
-class NameLock : public Uncopyable {
- public:
-    explicit NameLock(int bucketNum = 256);
+        class NameLock : public Uncopyable
+        {
+        public:
+            explicit NameLock(int bucketNum = 256);
 
-    /**
-     * @brief 对指定string加锁
-     *
-     * @param lockStr 被加锁的string
-     */
-    void Lock(const std::string &lockStr);
+            /**
+             * @brief locks the specified string
+             *
+             * @param lockStr locked string
+             */
+            void Lock(const std::string &lockStr);
 
-    /**
-     * @brief 尝试指定sting加锁
-     *
-     * @param lockStr 被加锁的string
-     *
-     * @retval 成功
-     * @retval 失败
-     */
-    bool TryLock(const std::string &lockStr);
+            /**
+             * @brief Attempt to specify sting lock
+             *
+             * @param lockStr locked string
+             *
+             * @retval succeeded
+             * @retval failed
+             */
+            bool TryLock(const std::string &lockStr);
 
-    /**
-     * @brief 对指定string解锁
-     *
-     * @param lockStr 被加锁的string
-     */
-    void Unlock(const std::string &lockStr);
+            /**
+             * @brief unlocks the specified string
+             *
+             * @param lockStr locked string
+             */
+            void Unlock(const std::string &lockStr);
 
+        private:
+            struct LockEntry
+            {
+                std::atomic<uint32_t> ref_;
+                std::mutex lock_;
+            };
+            using LockEntryPtr = std::shared_ptr<LockEntry>;
 
- private:
-    struct LockEntry {
-        std::atomic<uint32_t> ref_;
-        std::mutex lock_;
-    };
-    using LockEntryPtr = std::shared_ptr<LockEntry>;
+            struct LockBucket
+            {
+                std::mutex mu;
+                std::unordered_map<std::string, LockEntryPtr> lockMap;
+            };
+            using LockBucketPtr = std::shared_ptr<LockBucket>;
 
-    struct LockBucket {
-        std::mutex mu;
-        std::unordered_map<std::string, LockEntryPtr> lockMap;
-    };
-    using LockBucketPtr = std::shared_ptr<LockBucket>;
+            int GetBucketOffset(const std::string &lockStr);
 
-    int GetBucketOffset(const std::string &lockStr);
+        private:
+            std::vector<LockBucketPtr> locks_;
+        };
 
- private:
-    std::vector<LockBucketPtr> locks_;
-};
+        class NameLockGuard : public Uncopyable
+        {
+        public:
+            NameLockGuard(NameLock &lock, const std::string &lockStr)
+                : // NOLINT
+                  lock_(lock),
+                  lockStr_(lockStr)
+            {
+                lock_.Lock(lockStr_);
+            }
 
-class NameLockGuard : public Uncopyable {
- public:
-    NameLockGuard(NameLock &lock, const std::string &lockStr) :  //NOLINT
-        lock_(lock),
-        lockStr_(lockStr) {
-        lock_.Lock(lockStr_);
-    }
+            ~NameLockGuard() { lock_.Unlock(lockStr_); }
 
-    ~NameLockGuard() {
-        lock_.Unlock(lockStr_);
-    }
+        private:
+            NameLock &lock_;
+            std::string lockStr_;
+        };
 
- private:
-    NameLock &lock_;
-    std::string lockStr_;
-};
+    } // namespace common
+} // namespace nebd
 
-
-}   // namespace common
-}   // namespace nebd
-
-
-#endif  // NEBD_SRC_COMMON_NAME_LOCK_H_
+#endif // NEBD_SRC_COMMON_NAME_LOCK_H_

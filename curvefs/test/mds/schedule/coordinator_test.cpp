@@ -21,22 +21,24 @@
  */
 
 #include "curvefs/src/mds/schedule/coordinator.h"
+
 #include <glog/logging.h>
+
 #include "curvefs/src/mds/common/mds_define.h"
+#include "curvefs/test/mds/mock/mock_topoAdapter.h"
 #include "curvefs/test/mds/mock/mock_topology.h"
 #include "curvefs/test/mds/schedule/common.h"
-#include "curvefs/test/mds/mock/mock_topoAdapter.h"
 
-using ::curvefs::mds::topology::MockTopology;
 using ::curvefs::mds::schedule::ScheduleOption;
+using ::curvefs::mds::topology::MockTopology;
 using ::curvefs::mds::topology::TopologyIdGenerator;
-using ::curvefs::mds::topology::TopologyTokenGenerator;
 using ::curvefs::mds::topology::TopologyStorage;
+using ::curvefs::mds::topology::TopologyTokenGenerator;
 using ::std::chrono::steady_clock;
+using ::testing::_;
+using ::testing::DoAll;
 using ::testing::Return;
 using ::testing::SetArgPointee;
-using ::testing::DoAll;
-using ::testing::_;
 
 using ::curvefs::mds::topology::UNINITIALIZE_ID;
 
@@ -51,7 +53,7 @@ class CoordinatorTest : public ::testing::Test {
 
     void SetUp() override {
         topo_ = std::make_shared<MockTopology>(idGenerator_, tokenGenerator_,
-                                              storage_);
+                                               storage_);
         metric_ = std::make_shared<ScheduleMetrics>(topo_);
         topoAdapter_ = std::make_shared<MockTopoAdapter>();
         coordinator_ = std::make_shared<Coordinator>(topoAdapter_);
@@ -132,7 +134,7 @@ TEST_F(CoordinatorTest, test_AddPeer_CopySetHeartbeat) {
             .WillOnce(DoAll(SetArgPointee<1>(info), Return(true)));
         ASSERT_EQ(UNINITIALIZE_ID,
                   coordinator_->CopySetHeartbeat(testCopySetInfo,
-                                                ConfigChangeInfo{}, &res));
+                                                 ConfigChangeInfo{}, &res));
     }
     {
         // 2. test copySet has operator and not execute
@@ -149,20 +151,20 @@ TEST_F(CoordinatorTest, test_AddPeer_CopySetHeartbeat) {
         Operator opRes;
         ASSERT_TRUE(
             coordinator_->GetOpController()->GetOperatorById(info.id, &opRes));
-        // 第一次下发配置
+        // First configuration distribution
         ASSERT_EQ(4, coordinator_->CopySetHeartbeat(testCopySetInfo,
-                                                   ConfigChangeInfo{}, &res));
+                                                    ConfigChangeInfo{}, &res));
         ASSERT_EQ("127.0.0.1:9000:0", res.configchangeitem().address());
         ASSERT_EQ(ConfigChangeType::ADD_PEER, res.type());
 
-        // 第二次获取metaserver失败
+        // Failed to obtain metaserver for the second time
         ASSERT_EQ(UNINITIALIZE_ID,
                   coordinator_->CopySetHeartbeat(testCopySetInfo,
-                                                ConfigChangeInfo{}, &res));
+                                                 ConfigChangeInfo{}, &res));
     }
 
     {
-        // 3. 下发配置，但candidate是offline状态
+        // 3. Distribute configuration, but candidate is in offline status
         EXPECT_CALL(*topoAdapter_, CopySetFromTopoToSchedule(_, _))
             .Times(2)
             .WillRepeatedly(DoAll(SetArgPointee<1>(info), Return(true)));
@@ -174,19 +176,19 @@ TEST_F(CoordinatorTest, test_AddPeer_CopySetHeartbeat) {
 
         ASSERT_EQ(UNINITIALIZE_ID,
                   coordinator_->CopySetHeartbeat(testCopySetInfo,
-                                                ConfigChangeInfo{}, &res));
+                                                 ConfigChangeInfo{}, &res));
         Operator opRes;
         ASSERT_FALSE(
             coordinator_->GetOpController()->GetOperatorById(info.id, &opRes));
         csInfo.state = OnlineState::ONLINE;
 
-        // 获取不到metaserver的信息
+        // Unable to obtain information on metaserver
         ASSERT_TRUE(coordinator_->GetOpController()->AddOperator(testOperator));
         EXPECT_CALL(*topoAdapter_, GetMetaServerInfo(_, _))
             .WillOnce(Return(false));
         ASSERT_EQ(UNINITIALIZE_ID,
                   coordinator_->CopySetHeartbeat(testCopySetInfo,
-                                                ConfigChangeInfo{}, &res));
+                                                 ConfigChangeInfo{}, &res));
         ASSERT_FALSE(
             coordinator_->GetOpController()->GetOperatorById(info.id, &opRes));
     }
@@ -204,7 +206,7 @@ TEST_F(CoordinatorTest, test_AddPeer_CopySetHeartbeat) {
             .WillOnce(DoAll(SetArgPointee<1>(info), Return(true)));
         ASSERT_EQ(UNINITIALIZE_ID,
                   coordinator_->CopySetHeartbeat(testCopySetInfo,
-                                                info.configChangeInfo, &res));
+                                                 info.configChangeInfo, &res));
     }
 
     {
@@ -217,7 +219,7 @@ TEST_F(CoordinatorTest, test_AddPeer_CopySetHeartbeat) {
         ASSERT_TRUE(coordinator_->GetOpController()->AddOperator(testOperator));
         ASSERT_EQ(UNINITIALIZE_ID,
                   coordinator_->CopySetHeartbeat(testCopySetInfo,
-                                                ConfigChangeInfo{}, &res));
+                                                 ConfigChangeInfo{}, &res));
     }
 
     {
@@ -228,7 +230,7 @@ TEST_F(CoordinatorTest, test_AddPeer_CopySetHeartbeat) {
             .WillOnce(DoAll(SetArgPointee<1>(info), Return(true)));
         ASSERT_EQ(UNINITIALIZE_ID,
                   coordinator_->CopySetHeartbeat(testCopySetInfo,
-                                                ConfigChangeInfo{}, &res));
+                                                 ConfigChangeInfo{}, &res));
     }
 
     {
@@ -237,7 +239,7 @@ TEST_F(CoordinatorTest, test_AddPeer_CopySetHeartbeat) {
             .WillOnce(Return(false));
         ASSERT_EQ(UNINITIALIZE_ID,
                   coordinator_->CopySetHeartbeat(testCopySetInfo,
-                                                ConfigChangeInfo{}, &res));
+                                                 ConfigChangeInfo{}, &res));
     }
 }
 
@@ -270,7 +272,7 @@ TEST_F(CoordinatorTest, test_ChangePeer_CopySetHeartbeat) {
             .WillOnce(DoAll(SetArgPointee<1>(info), Return(true)));
         ASSERT_EQ(UNINITIALIZE_ID,
                   coordinator_->CopySetHeartbeat(testCopySetInfo,
-                                                ConfigChangeInfo{}, &res));
+                                                 ConfigChangeInfo{}, &res));
     }
     {
         // 2. test copySet has operator and not execute
@@ -289,21 +291,21 @@ TEST_F(CoordinatorTest, test_ChangePeer_CopySetHeartbeat) {
         Operator opRes;
         ASSERT_TRUE(
             coordinator_->GetOpController()->GetOperatorById(info.id, &opRes));
-        // 第一次下发配置
+        // First configuration distribution
         ASSERT_EQ(4, coordinator_->CopySetHeartbeat(testCopySetInfo,
-                                                   ConfigChangeInfo{}, &res));
+                                                    ConfigChangeInfo{}, &res));
         ASSERT_EQ("127.0.0.1:9000:0", res.configchangeitem().address());
         ASSERT_EQ("127.0.0.1:9001:0", res.oldpeer().address());
         ASSERT_EQ(ConfigChangeType::CHANGE_PEER, res.type());
 
-        // 第二次获取metaserver失败
+        // Failed to obtain metaserver for the second time
         ASSERT_EQ(UNINITIALIZE_ID,
                   coordinator_->CopySetHeartbeat(testCopySetInfo,
-                                                ConfigChangeInfo{}, &res));
+                                                 ConfigChangeInfo{}, &res));
     }
 
     {
-        // 3. 下发配置，但candidate是offline状态
+        // 3. Distribute configuration, but candidate is in offline status
         EXPECT_CALL(*topoAdapter_, CopySetFromTopoToSchedule(_, _))
             .Times(2)
             .WillRepeatedly(DoAll(SetArgPointee<1>(info), Return(true)));
@@ -315,19 +317,19 @@ TEST_F(CoordinatorTest, test_ChangePeer_CopySetHeartbeat) {
 
         ASSERT_EQ(UNINITIALIZE_ID,
                   coordinator_->CopySetHeartbeat(testCopySetInfo,
-                                                ConfigChangeInfo{}, &res));
+                                                 ConfigChangeInfo{}, &res));
         Operator opRes;
         ASSERT_FALSE(
             coordinator_->GetOpController()->GetOperatorById(info.id, &opRes));
         csInfo.state = OnlineState::ONLINE;
 
-        // 获取不到metaserver的信息
+        // Unable to obtain information on metaserver
         ASSERT_TRUE(coordinator_->GetOpController()->AddOperator(testOperator));
         EXPECT_CALL(*topoAdapter_, GetMetaServerInfo(_, _))
             .WillOnce(Return(false));
         ASSERT_EQ(UNINITIALIZE_ID,
                   coordinator_->CopySetHeartbeat(testCopySetInfo,
-                                                ConfigChangeInfo{}, &res));
+                                                 ConfigChangeInfo{}, &res));
         ASSERT_FALSE(
             coordinator_->GetOpController()->GetOperatorById(info.id, &opRes));
     }
@@ -345,7 +347,7 @@ TEST_F(CoordinatorTest, test_ChangePeer_CopySetHeartbeat) {
             .WillOnce(DoAll(SetArgPointee<1>(info), Return(true)));
         ASSERT_EQ(UNINITIALIZE_ID,
                   coordinator_->CopySetHeartbeat(testCopySetInfo,
-                                                info.configChangeInfo, &res));
+                                                 info.configChangeInfo, &res));
     }
 
     {
@@ -358,7 +360,7 @@ TEST_F(CoordinatorTest, test_ChangePeer_CopySetHeartbeat) {
         ASSERT_TRUE(coordinator_->GetOpController()->AddOperator(testOperator));
         ASSERT_EQ(UNINITIALIZE_ID,
                   coordinator_->CopySetHeartbeat(testCopySetInfo,
-                                                ConfigChangeInfo{}, &res));
+                                                 ConfigChangeInfo{}, &res));
     }
 
     {
@@ -369,7 +371,7 @@ TEST_F(CoordinatorTest, test_ChangePeer_CopySetHeartbeat) {
             .WillOnce(DoAll(SetArgPointee<1>(info), Return(true)));
         ASSERT_EQ(UNINITIALIZE_ID,
                   coordinator_->CopySetHeartbeat(testCopySetInfo,
-                                                ConfigChangeInfo{}, &res));
+                                                 ConfigChangeInfo{}, &res));
     }
 
     {
@@ -378,7 +380,7 @@ TEST_F(CoordinatorTest, test_ChangePeer_CopySetHeartbeat) {
             .WillOnce(Return(false));
         ASSERT_EQ(UNINITIALIZE_ID,
                   coordinator_->CopySetHeartbeat(testCopySetInfo,
-                                                ConfigChangeInfo{}, &res));
+                                                 ConfigChangeInfo{}, &res));
     }
 }
 
@@ -386,15 +388,16 @@ TEST_F(CoordinatorTest, test_MetaserverGoingToAdd) {
     ScheduleOption scheduleOption;
     scheduleOption.operatorConcurrent = 4;
     coordinator_->InitScheduler(scheduleOption,
-                               std::make_shared<ScheduleMetrics>(topo_));
+                                std::make_shared<ScheduleMetrics>(topo_));
 
     {
-        // 1. copyset上没有要变更的operator
+        // 1. There are no operators to change on the copyset
         ASSERT_FALSE(coordinator_->MetaserverGoingToAdd(1, CopySetKey{1, 1}));
     }
 
     {
-        // 2. copyset上有leader变更，并且目的leader为metaserver-1
+        // 2. There is a leader change on the copyset and the target leader is
+        // metaserver-1
         Operator testOperator(
             1, CopySetKey{1, 1}, OperatorPriority::NormalPriority,
             steady_clock::now(), std::make_shared<TransferLeader>(2, 1));
@@ -403,7 +406,7 @@ TEST_F(CoordinatorTest, test_MetaserverGoingToAdd) {
     }
 
     {
-        // 3. copyset上有remove peer操作
+        // 3. There is a remove peer operation on the copyset
         Operator testOperator(
             1, CopySetKey{1, 2}, OperatorPriority::NormalPriority,
             steady_clock::now(), std::make_shared<RemovePeer>(1));
@@ -412,7 +415,8 @@ TEST_F(CoordinatorTest, test_MetaserverGoingToAdd) {
     }
 
     {
-        // 4. copyset上有add peer操作, target不是1
+        // 4. There is an add peer operation on the copyset, but the target is
+        // not 1
         Operator testOperator(
             1, CopySetKey{1, 3}, OperatorPriority::NormalPriority,
             steady_clock::now(), std::make_shared<AddPeer>(2));
@@ -421,7 +425,7 @@ TEST_F(CoordinatorTest, test_MetaserverGoingToAdd) {
     }
 
     {
-        // 5. copyset上有add peer操作, target是1
+        // 5. There is an add peer operation on the copyset, with a target of 1
         Operator testOperator(
             1, CopySetKey{1, 4}, OperatorPriority::NormalPriority,
             steady_clock::now(), std::make_shared<AddPeer>(1));
@@ -430,7 +434,8 @@ TEST_F(CoordinatorTest, test_MetaserverGoingToAdd) {
     }
 
     {
-        // 6. copyset上有change peer操作，target不是1
+        // 6. There is a change peer operation on the copyset, but the target is
+        // not 1
         Operator testOperator(
             1, CopySetKey{1, 5}, OperatorPriority::NormalPriority,
             steady_clock::now(), std::make_shared<ChangePeer>(4, 2));
@@ -439,7 +444,8 @@ TEST_F(CoordinatorTest, test_MetaserverGoingToAdd) {
     }
 
     {
-        // 7. copyset上有change peer操作，target是1
+        // 7. There is a change peer operation on the copyset, with a target of
+        // 1
         Operator testOperator(
             1, CopySetKey{1, 6}, OperatorPriority::NormalPriority,
             steady_clock::now(), std::make_shared<ChangePeer>(4, 1));
@@ -449,7 +455,7 @@ TEST_F(CoordinatorTest, test_MetaserverGoingToAdd) {
 }
 
 TEST_F(CoordinatorTest, test_SchedulerSwitch) {
-    ScheduleOption scheduleOption =  GetTrueScheduleOption();
+    ScheduleOption scheduleOption = GetTrueScheduleOption();
     scheduleOption.copysetSchedulerIntervalSec = 0;
     scheduleOption.leaderSchedulerIntervalSec = 0;
     scheduleOption.recoverSchedulerIntervalSec = 0;
@@ -459,7 +465,7 @@ TEST_F(CoordinatorTest, test_SchedulerSwitch) {
     EXPECT_CALL(*topoAdapter_, Getpools()).Times(0);
     EXPECT_CALL(*topoAdapter_, GetMetaServerInfos()).Times(0);
 
-    // 设置flag都为false
+    // Set flags to false
     gflags::SetCommandLineOption("enableCopySetScheduler", "false");
     gflags::SetCommandLineOption("enableRecoverScheduler", "false");
     gflags::SetCommandLineOption("enableLeaderScheduler", "false");
@@ -471,18 +477,18 @@ TEST_F(CoordinatorTest, test_SchedulerSwitch) {
 
 TEST_F(CoordinatorTest, test_QueryMetaServerRecoverStatus) {
     /*
-    场景：
-    metaserver1: offline 有恢复op
-    metaserver2: offline 没有恢复op,没有candidate,有其他op
-    metaserver3: offline 有candidate
+    Scenario:
+    metaserver1: offline has recovery op
+    metaserver2: offline has no recovery op, no candidate, and other op
+    metaserver3: offline has a candidate
     metaserver4: online
     metaserver4: online
     */
-    // 获取option
+    // Get option
     ScheduleOption scheduleOption = GetFalseScheduleOption();
     coordinator_->InitScheduler(scheduleOption, metric_);
 
-    // 构造metaserver
+    // Construct metaserver
     std::vector<MetaServerInfo> metaserverInfos;
     std::vector<PeerInfo> peerInfos;
     for (int i = 1; i <= 6; i++) {
@@ -497,7 +503,7 @@ TEST_F(CoordinatorTest, test_QueryMetaServerRecoverStatus) {
         peerInfos.emplace_back(peer);
     }
 
-    // 构造op
+    // Construct op
     Operator opForCopySet1(1, CopySetKey{1, 1}, OperatorPriority::HighPriority,
                            steady_clock::now(),
                            std::make_shared<ChangePeer>(1, 4));
@@ -508,7 +514,7 @@ TEST_F(CoordinatorTest, test_QueryMetaServerRecoverStatus) {
         steady_clock::now(), std::make_shared<TransferLeader>(2, 4));
     ASSERT_TRUE(coordinator_->GetOpController()->AddOperator(opForCopySet2));
 
-    // 构造copyset
+    // Construct a copyset
     std::vector<PeerInfo> peersFor2({peerInfos[1], peerInfos[3], peerInfos[4]});
     CopySetInfo copyset2(CopySetKey{1, 2}, 1, 4, peersFor2, ConfigChangeInfo{});
 
@@ -523,7 +529,7 @@ TEST_F(CoordinatorTest, test_QueryMetaServerRecoverStatus) {
     CopySetInfo copyset3(CopySetKey{1, 3}, 1, 4, peersFor3,
                          configChangeInfoForCS3);
 
-    // 1. 查询所有metaserver
+    // 1. Query all metaservers
     {
         EXPECT_CALL(*topoAdapter_, GetMetaServerInfos())
             .WillOnce(Return(metaserverInfos));
@@ -545,7 +551,7 @@ TEST_F(CoordinatorTest, test_QueryMetaServerRecoverStatus) {
         ASSERT_FALSE(statusMap[6]);
     }
 
-    // 2. 查询指定metaserver, 但metaserver不存在
+    // 2. Query specified metaserver, but metaserver does not exist
     {
         EXPECT_CALL(*topoAdapter_, GetMetaServerInfo(7, _))
             .WillOnce(Return(false));
@@ -556,7 +562,7 @@ TEST_F(CoordinatorTest, test_QueryMetaServerRecoverStatus) {
                       std::vector<MetaServerIdType>{7}, &statusMap));
     }
 
-    // 3. 查询指定metaserver, 不在恢复中
+    // 3. Query specified metaserver, not in recovery
     {
         EXPECT_CALL(*topoAdapter_, GetMetaServerInfo(6, _))
             .WillOnce(

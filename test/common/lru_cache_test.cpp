@@ -20,11 +20,13 @@
  * Author: xuchaojie,lixiaocui
  */
 
-#include <gtest/gtest.h>
+#include "src/common/lru_cache.h"
+
 #include <glog/logging.h>
+#include <gtest/gtest.h>
+
 #include <cstdint>
 
-#include "src/common/lru_cache.h"
 #include "src/common/timeutility.h"
 
 namespace curve {
@@ -33,26 +35,26 @@ namespace common {
 TEST(TestCacheMetrics, testall) {
     CacheMetrics cacheMetrics("LRUCache");
 
-    // 1. 新增数据项
+    // 1. Add Data Item
     cacheMetrics.UpdateAddToCacheCount();
     ASSERT_EQ(1, cacheMetrics.cacheCount.get_value());
 
     cacheMetrics.UpdateAddToCacheBytes(1000);
     ASSERT_EQ(1000, cacheMetrics.cacheBytes.get_value());
 
-    // 2. 移除数据项
+    // 2. Remove Data Item
     cacheMetrics.UpdateRemoveFromCacheCount();
     ASSERT_EQ(0, cacheMetrics.cacheCount.get_value());
 
     cacheMetrics.UpdateRemoveFromCacheBytes(200);
     ASSERT_EQ(800, cacheMetrics.cacheBytes.get_value());
 
-    // 3. cache命中
+    // 3. cache hit
     ASSERT_EQ(0, cacheMetrics.cacheHit.get_value());
     cacheMetrics.OnCacheHit();
     ASSERT_EQ(1, cacheMetrics.cacheHit.get_value());
 
-    // 4. cache未命中
+    // 4. cache Misses
     ASSERT_EQ(0, cacheMetrics.cacheMiss.get_value());
     cacheMetrics.OnCacheMiss();
     ASSERT_EQ(1, cacheMetrics.cacheMiss.get_value());
@@ -60,10 +62,10 @@ TEST(TestCacheMetrics, testall) {
 
 TEST(CaCheTest, test_cache_with_capacity_limit) {
     int maxCount = 5;
-    auto cache = std::make_shared<LRUCache<std::string, std::string>>(maxCount,
-        std::make_shared<CacheMetrics>("LruCache"));
+    auto cache = std::make_shared<LRUCache<std::string, std::string>>(
+        maxCount, std::make_shared<CacheMetrics>("LruCache"));
 
-    // 1. 测试 put/get
+    // 1. Test put/get
     uint64_t cacheSize = 0;
     for (int i = 1; i <= maxCount + 1; i++) {
         std::string eliminated;
@@ -74,8 +76,8 @@ TEST(CaCheTest, test_cache_with_capacity_limit) {
         } else {
             cacheSize +=
                 std::to_string(i).size() * 2 - std::to_string(1).size() * 2;
-            ASSERT_EQ(
-                cacheSize, cache->GetCacheMetrics()->cacheBytes.get_value());
+            ASSERT_EQ(cacheSize,
+                      cache->GetCacheMetrics()->cacheBytes.get_value());
         }
 
         std::string res;
@@ -83,7 +85,7 @@ TEST(CaCheTest, test_cache_with_capacity_limit) {
         ASSERT_EQ(std::to_string(i), res);
     }
 
-    // 2. 第一个元素被剔出
+    // 2. The first element is removed
     std::string res;
     ASSERT_FALSE(cache->Get(std::to_string(1), &res));
     for (int i = 2; i <= maxCount + 1; i++) {
@@ -91,17 +93,17 @@ TEST(CaCheTest, test_cache_with_capacity_limit) {
         ASSERT_EQ(std::to_string(i), res);
     }
 
-    // 3. 测试删除元素
-    // 删除不存在的元素
+    // 3. Test Delete Element
+    // Delete non-existent elements
     cache->Remove("1");
-    // 删除list中存在的元素
+    // Delete elements present in the list
     cache->Remove("2");
     ASSERT_FALSE(cache->Get("2", &res));
     cacheSize -= std::to_string(2).size() * 2;
     ASSERT_EQ(maxCount - 1, cache->GetCacheMetrics()->cacheCount.get_value());
     ASSERT_EQ(cacheSize, cache->GetCacheMetrics()->cacheBytes.get_value());
 
-    // 4. 重复put
+    // 4. Repeat put
     std::string eliminated;
     cache->Put("4", "hello", &eliminated);
     ASSERT_TRUE(cache->Get("4", &res));
@@ -116,7 +118,7 @@ TEST(CaCheTest, test_cache_with_capacity_no_limit) {
     auto cache = std::make_shared<LRUCache<std::string, std::string>>(
         std::make_shared<CacheMetrics>("LruCache"));
 
-    // 1. 测试 put/get
+    // 1. Test put/get
     std::string res;
     for (int i = 1; i <= 10; i++) {
         std::string eliminated;
@@ -125,7 +127,7 @@ TEST(CaCheTest, test_cache_with_capacity_no_limit) {
         ASSERT_EQ(std::to_string(i), res);
     }
 
-    // 2. 测试元素删除
+    // 2. Test element deletion
     cache->Remove("1");
     ASSERT_FALSE(cache->Get("1", &res));
 }
@@ -192,9 +194,7 @@ TEST(CaCheTest, TestCacheGetLastKV) {
     ASSERT_EQ(1, k);
     ASSERT_EQ(1, v);
 }
-bool TestFunction(const int& a) {
-    return a > 1;
-}
+bool TestFunction(const int& a) { return a > 1; }
 TEST(CaCheTest, TestCacheGetLastKVWithFunction) {
     auto cache = std::make_shared<LRUCache<int, int>>(
         std::make_shared<CacheMetrics>("LruCache"));
@@ -228,10 +228,10 @@ TEST(SglCaCheTest, TestGetBefore) {
 
 TEST(SglCaCheTest, test_cache_with_capacity_limit) {
     int maxCount = 5;
-    auto cache = std::make_shared<SglLRUCache<std::string>>(maxCount,
-        std::make_shared<CacheMetrics>("LruCache"));
+    auto cache = std::make_shared<SglLRUCache<std::string>>(
+        maxCount, std::make_shared<CacheMetrics>("LruCache"));
 
-    // 1. 测试 put/IsCached
+    // 1. Test put/IsCached
     uint64_t cacheSize = 0;
     for (int i = 1; i <= maxCount; i++) {
         cache->Put(std::to_string(i));
@@ -240,19 +240,19 @@ TEST(SglCaCheTest, test_cache_with_capacity_limit) {
         ASSERT_TRUE(cache->IsCached(std::to_string(i)));
     }
 
-    // 2. 第一个元素被剔出
+    // 2. The first element is removed
     cache->Put(std::to_string(11));
     ASSERT_FALSE(cache->IsCached(std::to_string(1)));
 
-    // 3. 测试删除元素
-    // 删除不存在的元素
+    // 3. Test Delete Element
+    // Delete non-existent elements
     cache->Remove("1");
-    // 删除list中存在的元素
+    // Delete elements present in the list
     cache->Remove("2");
     ASSERT_FALSE(cache->IsCached("2"));
     ASSERT_EQ(maxCount - 1, cache->GetCacheMetrics()->cacheCount.get_value());
 
-    // 4. 重复put
+    // 4. Repeat put
     cache->Put("4");
     ASSERT_TRUE(cache->IsCached("4"));
     ASSERT_EQ(maxCount - 1, cache->GetCacheMetrics()->cacheCount.get_value());
@@ -262,7 +262,7 @@ TEST(SglCaCheTest, test_cache_with_capacity_no_limit) {
     auto cache = std::make_shared<SglLRUCache<std::string>>(
         std::make_shared<CacheMetrics>("LruCache"));
 
-    // 1. 测试 put/IsCached
+    // 1. Test put/IsCached
     std::string res;
     for (int i = 1; i <= 10; i++) {
         std::string eliminated;
@@ -271,7 +271,7 @@ TEST(SglCaCheTest, test_cache_with_capacity_no_limit) {
         ASSERT_FALSE(cache->IsCached(std::to_string(100)));
     }
 
-    // 2. 测试元素删除
+    // 2. Test element deletion
     cache->Remove("1");
     ASSERT_FALSE(cache->IsCached("1"));
 }
@@ -315,7 +315,7 @@ TEST(TimedCaCheTest, test_base) {
             ASSERT_EQ(i, cache->GetCacheMetrics()->cacheCount.get_value());
         } else {
             ASSERT_EQ(maxCount,
-                cache->GetCacheMetrics()->cacheCount.get_value());
+                      cache->GetCacheMetrics()->cacheCount.get_value());
         }
         std::string res;
         ASSERT_TRUE(cache->Get(std::to_string(i), &res));
@@ -355,5 +355,3 @@ TEST(TimedCaCheTest, test_timeout) {
 
 }  // namespace common
 }  // namespace curve
-
-

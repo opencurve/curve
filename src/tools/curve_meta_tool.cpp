@@ -40,8 +40,7 @@ std::ostream& operator<<(std::ostream& os, const vector<BitRange>& ranges) {
         }
         uint64_t startOff = ranges[i].beginIndex * FLAGS_pageSize;
         uint64_t endOff = (ranges[i].endIndex + 1) * FLAGS_pageSize;
-        os << "[" <<  startOff << ","
-                  << endOff << ")";
+        os << "[" << startOff << "," << endOff << ")";
     }
     return os;
 }
@@ -105,26 +104,24 @@ int CurveMetaTool::RunCommand(const std::string& cmd) {
     }
 }
 
-
-
 int CurveMetaTool::PrintChunkMeta(const std::string& chunkFileName) {
-    // 打开chunk文件
-    int fd = localFS_->Open(chunkFileName.c_str(), O_RDONLY|O_NOATIME);
+    // Open chunk file
+    int fd = localFS_->Open(chunkFileName.c_str(), O_RDONLY | O_NOATIME);
     if (fd < 0) {
-        std::cout << "Fail to open " << chunkFileName << ", "
-                  << berror() << std::endl;
+        std::cout << "Fail to open " << chunkFileName << ", " << berror()
+                  << std::endl;
         return -1;
     }
 
-    // 读取chunk头部
+    // Read chunk header
     std::unique_ptr<char[]> buf(new char[FLAGS_pageSize]);
     memset(buf.get(), 0, FLAGS_pageSize);
     int rc = localFS_->Read(fd, buf.get(), 0, FLAGS_pageSize);
     localFS_->Close(fd);
     if (rc != static_cast<int64_t>(FLAGS_pageSize)) {
         if (rc < 0) {
-            std::cout << "Fail to read metaPage from "
-                  << chunkFileName << ", " << berror() << std::endl;
+            std::cout << "Fail to read metaPage from " << chunkFileName << ", "
+                      << berror() << std::endl;
         } else {
             std::cout << "Read size not match, page size: " << FLAGS_pageSize
                       << ", read size: " << rc << ", " << berror() << std::endl;
@@ -138,29 +135,29 @@ int CurveMetaTool::PrintChunkMeta(const std::string& chunkFileName) {
         return -1;
     }
 
-    // 打印metaPage
+    // Print MetaPage
     std::cout << metaPage;
     return 0;
 }
 
 int CurveMetaTool::PrintSnapshotMeta(const std::string& snapFileName) {
-    // 打开快照文件
-    int fd = localFS_->Open(snapFileName.c_str(), O_RDONLY|O_NOATIME);
+    // Open snapshot file
+    int fd = localFS_->Open(snapFileName.c_str(), O_RDONLY | O_NOATIME);
     if (fd < 0) {
-        std::cout << "Fail to open " << snapFileName << ", "
-                  << berror() << std::endl;
+        std::cout << "Fail to open " << snapFileName << ", " << berror()
+                  << std::endl;
         return -1;
     }
 
-    // 读取快照文件头部
+    // Read snapshot file header
     std::unique_ptr<char[]> buf(new char[FLAGS_pageSize]);
     memset(buf.get(), 0, FLAGS_pageSize);
     int rc = localFS_->Read(fd, buf.get(), 0, FLAGS_pageSize);
     localFS_->Close(fd);
     if (rc != static_cast<int64_t>(FLAGS_pageSize)) {
         if (rc < 0) {
-            std::cout << "Fail to read metaPage from "
-                  << snapFileName << ", " << berror() << std::endl;
+            std::cout << "Fail to read metaPage from " << snapFileName << ", "
+                      << berror() << std::endl;
         } else {
             std::cout << "Read size not match, page size: " << FLAGS_pageSize
                       << ", read size: " << rc << std::endl;
@@ -174,7 +171,7 @@ int CurveMetaTool::PrintSnapshotMeta(const std::string& snapFileName) {
         return -1;
     }
 
-    // 打印metaPage
+    // Print MetaPage
     std::cout << metaPage;
     return 0;
 }

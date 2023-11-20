@@ -20,23 +20,21 @@
  * Author: wudemiao
  */
 
-#include <vector>
 #include "src/tools/curve_cli.h"
+
+#include <vector>
+
 #include "src/tools/common.h"
 
-DEFINE_int32(timeout_ms,
-             -1, "Timeout (in milliseconds) of the operation");
-DEFINE_int32(max_retry,
-             3, "Max retry times of each operation");
-DEFINE_string(conf,
-              "127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0",
+DEFINE_int32(timeout_ms, -1, "Timeout (in milliseconds) of the operation");
+DEFINE_int32(max_retry, 3, "Max retry times of each operation");
+DEFINE_string(conf, "127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0",
               "Initial configuration of the replication group");
-DEFINE_string(peer,
-              "", "Id of the operating peer");
-DEFINE_string(new_conf,
-              "", "new conf to reset peer");
-DEFINE_bool(remove_copyset, false, "Whether need to remove broken copyset "
-                                   "after remove peer (default: false)");
+DEFINE_string(peer, "", "Id of the operating peer");
+DEFINE_string(new_conf, "", "new conf to reset peer");
+DEFINE_bool(remove_copyset, false,
+            "Whether need to remove broken copyset "
+            "after remove peer (default: false)");
 
 DEFINE_bool(affirm, true,
             "If true, command line interactive affirmation is required."
@@ -45,26 +43,22 @@ DECLARE_string(mdsAddr);
 
 namespace curve {
 namespace tool {
-#define CHECK_FLAG(flagname)                                            \
-    do {                                                                \
-        if ((FLAGS_ ## flagname).empty()) {                             \
-            std::cout << __FUNCTION__ << " requires --" # flagname      \
-                      << std::endl;                                     \
-            return -1;                                                  \
-        }                                                               \
-    } while (0);                                                        \
-
+#define CHECK_FLAG(flagname)                                      \
+    do {                                                          \
+        if ((FLAGS_##flagname).empty()) {                         \
+            std::cout << __FUNCTION__ << " requires --" #flagname \
+                      << std::endl;                               \
+            return -1;                                            \
+        }                                                         \
+    } while (0);
 
 bool CurveCli::SupportCommand(const std::string& command) {
-    return  (command == kResetPeerCmd || command == kRemovePeerCmd
-                                      || command == kTransferLeaderCmd
-                                      || command == kDoSnapshot
-                                      || command == kDoSnapshotAll);
+    return (command == kResetPeerCmd || command == kRemovePeerCmd ||
+            command == kTransferLeaderCmd || command == kDoSnapshot ||
+            command == kDoSnapshotAll);
 }
 
-int CurveCli::Init() {
-    return mdsClient_->Init(FLAGS_mdsAddr);
-}
+int CurveCli::Init() { return mdsClient_->Init(FLAGS_mdsAddr); }
 
 butil::Status CurveCli::DeleteBrokenCopyset(braft::PeerId peerId,
                                             const LogicPoolID& poolId,
@@ -121,13 +115,13 @@ int CurveCli::RemovePeer() {
     }
 
     // STEP 1: remove peer
-    butil::Status status = curve::chunkserver::RemovePeer(
-        poolId, copysetId, conf, peer, opt);
+    butil::Status status =
+        curve::chunkserver::RemovePeer(poolId, copysetId, conf, peer, opt);
     auto succ = status.ok();
-    std::cout << "Remove peer " << peerId << " for copyset("
-              << poolId << ", " << copysetId << ") "
-              << (succ ? "success" : "fail") << ", original conf: " << conf
-              << ", status: " << status << std::endl;
+    std::cout << "Remove peer " << peerId << " for copyset(" << poolId << ", "
+              << copysetId << ") " << (succ ? "success" : "fail")
+              << ", original conf: " << conf << ", status: " << status
+              << std::endl;
 
     if (!succ || !FLAGS_remove_copyset) {
         return succ ? 0 : -1;
@@ -138,8 +132,8 @@ int CurveCli::RemovePeer() {
     succ = status.ok();
     std::cout << "Delete copyset(" << poolId << ", " << copysetId << ")"
               << " in " << peerId << (succ ? "success" : "fail")
-              << ", original conf: " << conf
-              << ", status: " << status << std::endl;
+              << ", original conf: " << conf << ", status: " << status
+              << std::endl;
 
     return succ ? 0 : -1;
 }
@@ -164,25 +158,19 @@ int CurveCli::TransferLeader() {
     opt.timeout_ms = FLAGS_timeout_ms;
     opt.max_retry = FLAGS_max_retry;
     butil::Status st = curve::chunkserver::TransferLeader(
-                                    FLAGS_logicalPoolId,
-                                    FLAGS_copysetId,
-                                    conf,
-                                    targetPeer,
-                                    opt);
+        FLAGS_logicalPoolId, FLAGS_copysetId, conf, targetPeer, opt);
     if (!st.ok()) {
         std::cout << "Transfer leader of copyset "
-                  << "(" << FLAGS_logicalPoolId << ", "
-                  << FLAGS_copysetId << ")"
-                  << " to " << targetPeerId
-                  << " fail, original conf: " << conf
+                  << "(" << FLAGS_logicalPoolId << ", " << FLAGS_copysetId
+                  << ")"
+                  << " to " << targetPeerId << " fail, original conf: " << conf
                   << ", detail: " << st << std::endl;
         return -1;
     }
     std::cout << "Transfer leader of copyset "
-                  << "(" << FLAGS_logicalPoolId << ", "
-                  << FLAGS_copysetId << ")"
-                  << " to " << targetPeerId
-                  << " success, original conf: " << conf << std::endl;
+              << "(" << FLAGS_logicalPoolId << ", " << FLAGS_copysetId << ")"
+              << " to " << targetPeerId << " success, original conf: " << conf
+              << std::endl;
     return 0;
 }
 
@@ -217,13 +205,14 @@ int CurveCli::ResetPeer() {
     }
     curve::common::Peer requestPeer;
     requestPeer.set_address(requestPeerId.to_string());
-    // 目前reset peer只支持reset为1一个副本，不支持增加副本，
-    // 因为不能通过工具在chunkserver上创建copyset
+    // Currently, reset peer only supports resetting to 1 replica and does not
+    // support adding replicas, Because it is not possible to create a copyset
+    // on chunkserver through tools
     if (newConf.size() != 1) {
         std::cout << "New conf can only specify one peer!" << std::endl;
         return -1;
     }
-    // 新的配置必须包含发送RPC的peer
+    // The new configuration must include a peer that sends RPC
     if (*newConf.begin() != requestPeerId) {
         std::cout << "New conf must include the target peer!" << std::endl;
         return -1;
@@ -233,25 +222,20 @@ int CurveCli::ResetPeer() {
     opt.max_retry = FLAGS_max_retry;
 
     butil::Status st = curve::chunkserver::ResetPeer(
-                                FLAGS_logicalPoolId,
-                                FLAGS_copysetId,
-                                newConf,
-                                requestPeer,
-                                opt);
+        FLAGS_logicalPoolId, FLAGS_copysetId, newConf, requestPeer, opt);
     if (!st.ok()) {
         std::cout << "Reset peer of copyset "
-                  << "(" << FLAGS_logicalPoolId << ", "
-                  << FLAGS_copysetId << ")"
+                  << "(" << FLAGS_logicalPoolId << ", " << FLAGS_copysetId
+                  << ")"
                   << " to " << newConf
                   << " fail, requestPeer: " << requestPeerId
                   << ", detail: " << st << std::endl;
         return -1;
     }
     std::cout << "Reset peer of copyset "
-              << "(" << FLAGS_logicalPoolId << ", "
-              << FLAGS_copysetId << ")"
-              << " to " << newConf
-              << " success, requestPeer: " << requestPeerId << std::endl;
+              << "(" << FLAGS_logicalPoolId << ", " << FLAGS_copysetId << ")"
+              << " to " << newConf << " success, requestPeer: " << requestPeerId
+              << std::endl;
     return 0;
 }
 
@@ -274,15 +258,12 @@ int CurveCli::DoSnapshot(uint32_t lgPoolId, uint32_t copysetId,
     braft::cli::CliOptions opt;
     opt.timeout_ms = FLAGS_timeout_ms;
     opt.max_retry = FLAGS_max_retry;
-    butil::Status st = curve::chunkserver::Snapshot(
-                                FLAGS_logicalPoolId,
-                                FLAGS_copysetId,
-                                peer,
-                                opt);
+    butil::Status st = curve::chunkserver::Snapshot(FLAGS_logicalPoolId,
+                                                    FLAGS_copysetId, peer, opt);
     if (!st.ok()) {
         std::cout << "Do snapshot of copyset "
-                  << "(" << FLAGS_logicalPoolId << ", "
-                  << FLAGS_copysetId << ")"
+                  << "(" << FLAGS_logicalPoolId << ", " << FLAGS_copysetId
+                  << ")"
                   << " fail, requestPeer: " << peer.address()
                   << ", detail: " << st << std::endl;
         return -1;
@@ -301,8 +282,8 @@ int CurveCli::DoSnapshotAll() {
         braft::cli::CliOptions opt;
         opt.timeout_ms = FLAGS_timeout_ms;
         opt.max_retry = FLAGS_max_retry;
-        std::string csAddr = chunkserver.hostip() + ":" +
-                                std::to_string(chunkserver.port());
+        std::string csAddr =
+            chunkserver.hostip() + ":" + std::to_string(chunkserver.port());
         curve::common::Peer peer;
         peer.set_address(csAddr);
         butil::Status st = curve::chunkserver::SnapshotAll(peer, opt);
@@ -315,17 +296,27 @@ int CurveCli::DoSnapshotAll() {
     return res;
 }
 
-void CurveCli::PrintHelp(const std::string &cmd) {
+void CurveCli::PrintHelp(const std::string& cmd) {
     std::cout << "Example " << std::endl;
     if (cmd == kResetPeerCmd) {
-        std::cout << "curve_ops_tool " << cmd << " -logicalPoolId=1 -copysetId=10001 -peer=127.0.0.1:8080:0 "  // NOLINT
-        "-new_conf=127.0.0.1:8080:0 -max_retry=3 -timeout_ms=100" << std::endl;  // NOLINT
+        std::cout << "curve_ops_tool " << cmd
+                  << " -logicalPoolId=1 -copysetId=10001 "
+                     "-peer=127.0.0.1:8080:0 "  // NOLINT
+                     "-new_conf=127.0.0.1:8080:0 -max_retry=3 -timeout_ms=100"
+                  << std::endl;  // NOLINT
     } else if (cmd == kRemovePeerCmd || cmd == kTransferLeaderCmd) {
-        std::cout << "curve_ops_tool " << cmd << " -logicalPoolId=1 -copysetId=10001 -peer=127.0.0.1:8080:0 "  // NOLINT
-        "-conf=127.0.0.1:8080:0,127.0.0.1:8081:0,127.0.0.1:8082:0 -max_retry=3 -timeout_ms=100 -remove_copyset=true/false" << std::endl;  // NOLINT
+        std::cout << "curve_ops_tool " << cmd
+                  << " -logicalPoolId=1 -copysetId=10001 "
+                     "-peer=127.0.0.1:8080:0 "  // NOLINT
+                     "-conf=127.0.0.1:8080:0,127.0.0.1:8081:0,127.0.0.1:8082:0 "
+                     "-max_retry=3 -timeout_ms=100 -remove_copyset=true/false"
+                  << std::endl;  // NOLINT
     } else if (cmd == kDoSnapshot) {
-        std::cout << "curve_ops_tool " << cmd << " -logicalPoolId=1 -copysetId=10001 -peer=127.0.0.1:8080:0 "  // NOLINT
-        "-max_retry=3 -timeout_ms=100" << std::endl;
+        std::cout << "curve_ops_tool " << cmd
+                  << " -logicalPoolId=1 -copysetId=10001 "
+                     "-peer=127.0.0.1:8080:0 "  // NOLINT
+                     "-max_retry=3 -timeout_ms=100"
+                  << std::endl;
     } else if (cmd == kDoSnapshotAll) {
         std::cout << "curve_ops_tool " << cmd << std::endl;
     } else {
@@ -333,7 +324,7 @@ void CurveCli::PrintHelp(const std::string &cmd) {
     }
 }
 
-int CurveCli::RunCommand(const std::string &cmd) {
+int CurveCli::RunCommand(const std::string& cmd) {
     if (Init() != 0) {
         std::cout << "Init CurveCli tool failed" << std::endl;
         return -1;
@@ -358,4 +349,3 @@ int CurveCli::RunCommand(const std::string &cmd) {
 }
 }  // namespace tool
 }  // namespace curve
-

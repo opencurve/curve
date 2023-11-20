@@ -22,27 +22,27 @@
 
 #include "test/chunkserver/chunkserver_test_util.h"
 
-#include <wait.h>
-#include <glog/logging.h>
-#include <bthread/bthread.h>
 #include <brpc/channel.h>
 #include <brpc/controller.h>
 #include <brpc/server.h>
+#include <bthread/bthread.h>
 #include <butil/endpoint.h>
 #include <butil/string_printf.h>
+#include <glog/logging.h>
+#include <wait.h>
 
 #include <memory>
 #include <string>
 #include <utility>
 
-#include "src/common/concurrent/task_thread_pool.h"
-#include "src/common/crc32.h"
+#include "src/chunkserver/cli.h"
+#include "src/chunkserver/concurrent_apply/concurrent_apply.h"
 #include "src/chunkserver/copyset_node.h"
 #include "src/chunkserver/copyset_node_manager.h"
-#include "src/chunkserver/cli.h"
-#include "test/chunkserver/fake_datastore.h"
+#include "src/common/concurrent/task_thread_pool.h"
+#include "src/common/crc32.h"
 #include "src/common/uri_parser.h"
-#include "src/chunkserver/concurrent_apply/concurrent_apply.h"
+#include "test/chunkserver/fake_datastore.h"
 
 using ::curve::chunkserver::concurrent::ConcurrentApplyOption;
 using ::curve::common::UriParser;
@@ -50,25 +50,22 @@ using ::curve::common::UriParser;
 namespace curve {
 namespace chunkserver {
 
-std::string Exec(const char *cmd) {
-    FILE *pipe = popen(cmd, "r");
+std::string Exec(const char* cmd) {
+    FILE* pipe = popen(cmd, "r");
     if (!pipe) return "ERROR";
     char buffer[4096];
     std::string result = "";
     while (!feof(pipe)) {
-        if (fgets(buffer, 1024, pipe) != NULL)
-            result += buffer;
+        if (fgets(buffer, 1024, pipe) != NULL) result += buffer;
     }
     pclose(pipe);
     return result;
 }
 
-std::shared_ptr<FilePool> InitFilePool(std::shared_ptr<LocalFileSystem> fsptr,    //NOLINT
-                                                 int chunkfileCount,
-                                                 int chunkfileSize,
-                                                 int metaPageSize,
-                                                 std::string poolpath,
-                                                 std::string metaPath) {
+std::shared_ptr<FilePool> InitFilePool(
+    std::shared_ptr<LocalFileSystem> fsptr,  // NOLINT
+    int chunkfileCount, int chunkfileSize, int metaPageSize,
+    std::string poolpath, std::string metaPath) {
     auto filePoolPtr = std::make_shared<FilePool>(fsptr);
     if (filePoolPtr == nullptr) {
         LOG(FATAL) << "allocate chunkfile pool failed!";
@@ -76,10 +73,10 @@ std::shared_ptr<FilePool> InitFilePool(std::shared_ptr<LocalFileSystem> fsptr,  
     int count = 1;
     std::string dirname = poolpath;
     while (count <= chunkfileCount) {
-        std::string  filename = poolpath + std::to_string(count);
+        std::string filename = poolpath + std::to_string(count);
         fsptr->Mkdir(poolpath);
         int fd = fsptr->Open(filename.c_str(), O_RDWR | O_CREAT);
-        char *data = new char[chunkfileSize + 4096];
+        char* data = new char[chunkfileSize + 4096];
         memset(data, 'a', chunkfileSize + 4096);
         fsptr->Write(fd, data, 0, chunkfileSize + 4096);
         fsptr->Close(fd);
@@ -87,7 +84,7 @@ std::shared_ptr<FilePool> InitFilePool(std::shared_ptr<LocalFileSystem> fsptr,  
         delete[] data;
     }
     /**
-     * 持久化FilePool meta file
+     * Persisting FilePool meta file
      */
 
     FilePoolMeta meta;
@@ -107,11 +104,8 @@ std::shared_ptr<FilePool> InitFilePool(std::shared_ptr<LocalFileSystem> fsptr,  
     return filePoolPtr;
 }
 
-int StartChunkserver(const char *ip,
-                     int port,
-                     const char *copysetdir,
-                     const char *confs,
-                     const int snapshotInterval,
+int StartChunkserver(const char* ip, int port, const char* copysetdir,
+                     const char* confs, const int snapshotInterval,
                      const int electionTimeoutMs) {
     LOG(INFO) << "Going to start chunk server";
 
@@ -123,13 +117,14 @@ int StartChunkserver(const char *ip,
         return -1;
     }
     if (server.Start(port, NULL) != 0) {
-        LOG(ERROR) << "Fail to start Server, port: " << port << ", errno: "
-                   << errno << ", " << strerror(errno);
+        LOG(ERROR) << "Fail to start Server, port: " << port
+                   << ", errno: " << errno << ", " << strerror(errno);
         return -1;
     }
     LOG(INFO) << "start rpc server success";
 
-    std::shared_ptr<LocalFileSystem> fs(LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));    //NOLINT
+    std::shared_ptr<LocalFileSystem> fs(
+        LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));  // NOLINT
     const uint32_t kMaxChunkSize = 16 * 1024 * 1024;
     CopysetNodeOptions copysetNodeOptions;
     copysetNodeOptions.ip = ip;
@@ -188,12 +183,10 @@ int StartChunkserver(const char *ip,
     CopysetID copysetId = 100001;
     CopysetNodeManager::GetInstance().Init(copysetNodeOptions);
     CopysetNodeManager::GetInstance().Run();
-    CHECK(CopysetNodeManager::GetInstance().CreateCopysetNode(logicPoolId,
-                                                              copysetId,
-                                                              peers));
+    CHECK(CopysetNodeManager::GetInstance().CreateCopysetNode(
+        logicPoolId, copysetId, peers));
     auto copysetNode = CopysetNodeManager::GetInstance().GetCopysetNode(
-        logicPoolId,
-        copysetId);
+        logicPoolId, copysetId);
     DataStoreOptions options;
     options.baseDir = "./test-temp";
     options.chunkSize = 16 * 1024 * 1024;
@@ -214,18 +207,16 @@ int StartChunkserver(const char *ip,
     return 0;
 }
 
-butil::Status WaitLeader(const LogicPoolID &logicPoolId,
-                         const CopysetID &copysetId,
-                         const Configuration &conf,
-                         PeerId *leaderId,
-                         int electionTimeoutMs) {
+butil::Status WaitLeader(const LogicPoolID& logicPoolId,
+                         const CopysetID& copysetId, const Configuration& conf,
+                         PeerId* leaderId, int electionTimeoutMs) {
     butil::Status status;
     const int kMaxLoop = (5 * electionTimeoutMs) / 100;
     for (int i = 0; i < kMaxLoop; ++i) {
         status = GetLeader(logicPoolId, copysetId, conf, leaderId);
         if (status.ok()) {
             /**
-             * 等待 flush noop entry
+             * Waiting for flush noop entry
              */
             ::usleep(electionTimeoutMs * 1000);
             return status;
@@ -239,14 +230,14 @@ butil::Status WaitLeader(const LogicPoolID &logicPoolId,
     return status;
 }
 
-TestCluster::TestCluster(const std::string &clusterName,
+TestCluster::TestCluster(const std::string& clusterName,
                          const LogicPoolID logicPoolID,
                          const CopysetID copysetID,
-                         const std::vector<PeerId> &peers) :
-    clusterName_(clusterName),
-    snapshotIntervalS_(1),
-    electionTimeoutMs_(1000),
-    catchupMargin_(10) {
+                         const std::vector<PeerId>& peers)
+    : clusterName_(clusterName),
+      snapshotIntervalS_(1),
+      electionTimeoutMs_(1000),
+      catchupMargin_(10) {
     logicPoolID_ = logicPoolID;
     copysetID_ = copysetID;
     for (auto it = peers.begin(); it != peers.end(); ++it) {
@@ -255,10 +246,8 @@ TestCluster::TestCluster(const std::string &clusterName,
     }
 }
 
-int TestCluster::StartPeer(const PeerId &peerId,
-                           const bool empty,
-                           bool getChunkFromPool,
-                           bool createChunkFilePool) {
+int TestCluster::StartPeer(const PeerId& peerId, const bool empty,
+                           bool getChunkFromPool, bool createChunkFilePool) {
     LOG(INFO) << "going start peer: " << peerId.to_string();
     auto it = peersMap_.find(peerId.to_string());
     if (it != peersMap_.end()) {
@@ -299,30 +288,29 @@ int TestCluster::StartPeer(const PeerId &peerId,
         LOG(ERROR) << "start peer fork failed";
         return -1;
     } else if (0 == pid) {
-        /* 在子进程起一个 ChunkServer */
-        StartPeerNode(peer->options, peer->conf,
-                      getChunkFromPool, createChunkFilePool);
+        /*Starting a ChunkServer in a child process*/
+        StartPeerNode(peer->options, peer->conf, getChunkFromPool,
+                      createChunkFilePool);
         exit(0);
     }
 
     LOG(INFO) << "Start peer success, pid: " << pid;
     peer->pid = pid;
     peer->state = PeerNodeState::RUNNING;
-    peersMap_.insert(std::pair<std::string,
-                               std::unique_ptr<PeerNode>>(peerId.to_string(),
-                                                          std::move(peer)));
+    peersMap_.insert(std::pair<std::string, std::unique_ptr<PeerNode>>(
+        peerId.to_string(), std::move(peer)));
     return 0;
 }
 
-int TestCluster::ShutdownPeer(const PeerId &peerId) {
+int TestCluster::ShutdownPeer(const PeerId& peerId) {
     LOG(INFO) << "going to shutdown peer: " << peerId.to_string();
     auto it = peersMap_.find(peerId.to_string());
     if (it != peersMap_.end()) {
         int waitState;
         if (0 != kill(it->second->pid, SIGINT)) {
             LOG(ERROR) << "Stop peer: " << peerId.to_string() << "failed,"
-                       << "errno: " << errno << ", error str: "
-                       << strerror(errno);
+                       << "errno: " << errno
+                       << ", error str: " << strerror(errno);
             return -1;
         }
         waitpid(it->second->pid, &waitState, 0);
@@ -335,7 +323,7 @@ int TestCluster::ShutdownPeer(const PeerId &peerId) {
     }
 }
 
-int TestCluster::StopPeer(const PeerId &peerId) {
+int TestCluster::StopPeer(const PeerId& peerId) {
     auto it = peersMap_.find(peerId.to_string());
     if (it != peersMap_.end()) {
         if (it->second->state != PeerNodeState::RUNNING) {
@@ -345,8 +333,8 @@ int TestCluster::StopPeer(const PeerId &peerId) {
         }
         if (0 != kill(it->second->pid, SIGSTOP)) {
             LOG(ERROR) << "Hang peer: " << peerId.to_string() << "failed,"
-                       << "errno: " << errno << ", error str: "
-                       << strerror(errno);
+                       << "errno: " << errno
+                       << ", error str: " << strerror(errno);
             return -1;
         }
         it->second->state = PeerNodeState::STOP;
@@ -358,7 +346,7 @@ int TestCluster::StopPeer(const PeerId &peerId) {
     }
 }
 
-int TestCluster::ContPeer(const PeerId &peerId) {
+int TestCluster::ContPeer(const PeerId& peerId) {
     auto it = peersMap_.find(peerId.to_string());
     if (it != peersMap_.end()) {
         if (it->second->state != PeerNodeState::STOP) {
@@ -368,8 +356,8 @@ int TestCluster::ContPeer(const PeerId &peerId) {
         }
         if (0 != kill(it->second->pid, SIGCONT)) {
             LOG(ERROR) << "Cont peer: " << peerId.to_string() << "failed,"
-                       << "errno: " << errno << ", error str: "
-                       << strerror(errno);
+                       << "errno: " << errno
+                       << ", error str: " << strerror(errno);
             return -1;
         }
         it->second->state = PeerNodeState::RUNNING;
@@ -381,10 +369,10 @@ int TestCluster::ContPeer(const PeerId &peerId) {
     }
 }
 
-int TestCluster::WaitLeader(PeerId *leaderId) {
+int TestCluster::WaitLeader(PeerId* leaderId) {
     butil::Status status;
     /**
-     * 等待选举结束
+     * Waiting for the election to end
      */
     ::usleep(2 * electionTimeoutMs_ * 1000);
     const int kMaxLoop = (3 * electionTimeoutMs_) / 100;
@@ -393,8 +381,10 @@ int TestCluster::WaitLeader(PeerId *leaderId) {
         status = GetLeader(logicPoolID_, copysetID_, conf_, leaderId);
         if (status.ok()) {
             /**
-             * 由于选举之后还需要提交应用 noop entry 之后才能提供服务，
-             * 所以这里需要等待 noop apply，这里等太短，可能容易失败，后期改进
+             * Due to the need to submit the application noop entry after the
+             * election to provide services, So we need to wait for the noop
+             * application here. If the wait time is too short, it may be easy
+             * to fail, so we need to improve it later
              */
             usleep(electionTimeoutMs_ * 1000);
             LOG(INFO) << "Wait leader success, leader is: "
@@ -417,9 +407,7 @@ int TestCluster::StopAllPeers() {
     return 0;
 }
 
-const Configuration TestCluster::CopysetConf() const {
-    return conf_;
-}
+const Configuration TestCluster::CopysetConf() const { return conf_; }
 
 int TestCluster::SetsnapshotIntervalS(int snapshotIntervalS) {
     snapshotIntervalS_ = snapshotIntervalS;
@@ -441,7 +429,7 @@ int TestCluster::StartPeerNode(CopysetNodeOptions options,
                                bool enableGetchunkFromPool,
                                bool createChunkFilePool) {
     /**
-     * 用于注释，说明 cmd format
+     * Used for annotation to explain the cmd format
      */
     std::string cmdFormat = R"(
         ./bazel-bin/test/chunkserver/server-test
@@ -466,7 +454,7 @@ int TestCluster::StartPeerNode(CopysetNodeOptions options,
         confStr += it->to_string();
         confStr += ",";
     }
-    // 去掉最后的逗号
+    // Remove the last comma
     confStr.pop_back();
 
     std::string cmd_dir("./bazel-bin/test/chunkserver/server-test");
@@ -478,28 +466,22 @@ int TestCluster::StartPeerNode(CopysetNodeOptions options,
     std::string confs;
     butil::string_printf(&confs, "-conf=%s", confStr.c_str());
     std::string copyset_dir;
-    butil::string_printf(&copyset_dir,
-                         "-copyset_dir=%s",
+    butil::string_printf(&copyset_dir, "-copyset_dir=%s",
                          options.chunkDataUri.c_str());
     std::string election_timeout_ms;
-    butil::string_printf(&election_timeout_ms,
-                         "-election_timeout_ms=%d",
+    butil::string_printf(&election_timeout_ms, "-election_timeout_ms=%d",
                          options.electionTimeoutMs);
     std::string snapshot_interval_s;
-    butil::string_printf(&snapshot_interval_s,
-                         "-snapshot_interval_s=%d",
+    butil::string_printf(&snapshot_interval_s, "-snapshot_interval_s=%d",
                          options.snapshotIntervalS);
     std::string catchup_margin;
-    butil::string_printf(&catchup_margin,
-                         "-catchup_margin=%d",
+    butil::string_printf(&catchup_margin, "-catchup_margin=%d",
                          options.catchupMargin);
     std::string getchunk_from_pool;
-    butil::string_printf(&getchunk_from_pool,
-                         "-enable_getchunk_from_pool=%d",
+    butil::string_printf(&getchunk_from_pool, "-enable_getchunk_from_pool=%d",
                          enableGetchunkFromPool);
     std::string create_pool;
-    butil::string_printf(&create_pool,
-                         "-create_chunkfilepool=%d",
+    butil::string_printf(&create_pool, "-create_chunkfilepool=%d",
                          createChunkFilePool);
     std::string logic_pool_id;
     butil::string_printf(&logic_pool_id, "-logic_pool_id=%d", logicPoolID_);
@@ -508,59 +490,51 @@ int TestCluster::StartPeerNode(CopysetNodeOptions options,
     std::string raft_sync;
     butil::string_printf(&raft_sync, "-raft_sync=%s", "true");
 
-    char *arg[] = {
-        const_cast<char *>(cmd.c_str()),
-        const_cast<char *>(ip.c_str()),
-        const_cast<char *>(port.c_str()),
-        const_cast<char *>(confs.c_str()),
-        const_cast<char *>(copyset_dir.c_str()),
-        const_cast<char *>(election_timeout_ms.c_str()),
-        const_cast<char *>(snapshot_interval_s.c_str()),
-        const_cast<char *>(catchup_margin.c_str()),
-        const_cast<char *>(logic_pool_id.c_str()),
-        const_cast<char *>(copyset_id.c_str()),
-        const_cast<char *>(getchunk_from_pool.c_str()),
-        const_cast<char *>(create_pool.c_str()),
-        NULL
-    };
+    char* arg[] = {const_cast<char*>(cmd.c_str()),
+                   const_cast<char*>(ip.c_str()),
+                   const_cast<char*>(port.c_str()),
+                   const_cast<char*>(confs.c_str()),
+                   const_cast<char*>(copyset_dir.c_str()),
+                   const_cast<char*>(election_timeout_ms.c_str()),
+                   const_cast<char*>(snapshot_interval_s.c_str()),
+                   const_cast<char*>(catchup_margin.c_str()),
+                   const_cast<char*>(logic_pool_id.c_str()),
+                   const_cast<char*>(copyset_id.c_str()),
+                   const_cast<char*>(getchunk_from_pool.c_str()),
+                   const_cast<char*>(create_pool.c_str()),
+                   NULL};
 
     ::execv(cmd_dir.c_str(), arg);
 
     return 0;
 }
 
-const std::string TestCluster::CopysetDirWithProtocol(const PeerId &peerId) {
+const std::string TestCluster::CopysetDirWithProtocol(const PeerId& peerId) {
     std::string copysetdir;
-    butil::string_printf(&copysetdir,
-                         "local://./%s-%d-%d",
+    butil::string_printf(&copysetdir, "local://./%s-%d-%d",
                          butil::ip2str(peerId.addr.ip).c_str(),
-                         peerId.addr.port,
-                         0);
+                         peerId.addr.port, 0);
     return copysetdir;
 }
 
-const std::string TestCluster::CopysetDirWithoutProtocol(const PeerId &peerId) {
+const std::string TestCluster::CopysetDirWithoutProtocol(const PeerId& peerId) {
     std::string copysetdir;
-    butil::string_printf(&copysetdir,
-                         "./%s-%d-%d",
+    butil::string_printf(&copysetdir, "./%s-%d-%d",
                          butil::ip2str(peerId.addr.ip).c_str(),
-                         peerId.addr.port,
-                         0);
+                         peerId.addr.port, 0);
     return copysetdir;
 }
 
-const std::string TestCluster::RemoveCopysetDirCmd(const PeerId &peerId) {
+const std::string TestCluster::RemoveCopysetDirCmd(const PeerId& peerId) {
     std::string cmd;
-    butil::string_printf(&cmd,
-                         "rm -fr %s-%d-%d",
+    butil::string_printf(&cmd, "rm -fr %s-%d-%d",
                          butil::ip2str(peerId.addr.ip).c_str(),
-                         peerId.addr.port,
-                         0);
+                         peerId.addr.port, 0);
     return cmd;
 }
 
 LogicPoolID TestCluster::logicPoolID_ = 0;
-CopysetID   TestCluster::copysetID_ = 0;
+CopysetID TestCluster::copysetID_ = 0;
 
 }  // namespace chunkserver
 }  // namespace curve

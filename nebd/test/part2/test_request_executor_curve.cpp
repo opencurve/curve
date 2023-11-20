@@ -21,36 +21,30 @@
  */
 
 #include <gtest/gtest.h>
-#include "nebd/src/part2/request_executor_curve.h"
-#include "nebd/test/part2/mock_curve_client.h"
 
 #include "nebd/proto/client.pb.h"
 #include "nebd/proto/heartbeat.pb.h"
 #include "nebd/src/part2/file_service.h"
+#include "nebd/src/part2/request_executor_curve.h"
+#include "nebd/test/part2/mock_curve_client.h"
 
 namespace nebd {
 namespace server {
 
-using ::testing::Return;
 using ::testing::_;
-using ::testing::SetArgPointee;
 using ::testing::DoAll;
-using ::testing::SaveArg;
 using ::testing::Invoke;
+using ::testing::Return;
+using ::testing::SaveArg;
+using ::testing::SetArgPointee;
 
 class TestReuqestExecutorCurveClosure : public google::protobuf::Closure {
  public:
     TestReuqestExecutorCurveClosure() : runned_(false) {}
     ~TestReuqestExecutorCurveClosure() {}
-    void Run() {
-        runned_ = true;
-    }
-    bool IsRunned() {
-        return runned_;
-    }
-    void Reset() {
-        runned_ = false;
-    }
+    void Run() { runned_ = true; }
+    bool IsRunned() { return runned_; }
+    void Reset() { runned_ = false; }
 
  private:
     bool runned_;
@@ -60,7 +54,7 @@ void NebdUnitTestCallback(NebdServerAioContext* context) {
     std::cout << "callback" << std::endl;
 }
 
-class TestReuqestExecutorCurve  : public ::testing::Test {
+class TestReuqestExecutorCurve : public ::testing::Test {
  protected:
     void SetUp() {
         curveClient_ = std::make_shared<MockCurveClient>();
@@ -77,7 +71,7 @@ TEST_F(TestReuqestExecutorCurve, test_Open) {
     std::string fileName("cbd:pool1//cinder/volume-1234_cinder_:/client.conf");
     std::string curveFileName("/cinder/volume-1234_cinder_");
 
-    // 1. 传入的fileName解析失败
+    // 1. Failed to parse the passed in fileName
     {
         std::string errFileName("cbd:pool1/:");
         EXPECT_CALL(*curveClient_, Open(fileName, _)).Times(0);
@@ -86,23 +80,21 @@ TEST_F(TestReuqestExecutorCurve, test_Open) {
         ASSERT_TRUE(nullptr == ret);
     }
 
-    // 2. curveclient open失败
+    // 2. Curveclient open failed
     {
-        EXPECT_CALL(*curveClient_, Open(curveFileName, _))
-            .WillOnce(Return(-1));
+        EXPECT_CALL(*curveClient_, Open(curveFileName, _)).WillOnce(Return(-1));
         std::shared_ptr<NebdFileInstance> ret =
             executor.Open(fileName, nullptr);
         ASSERT_TRUE(nullptr == ret);
     }
 
-    // 3. open成功
+    // 3. Open successful
     {
-        EXPECT_CALL(*curveClient_, Open(curveFileName, _))
-            .WillOnce(Return(1));
+        EXPECT_CALL(*curveClient_, Open(curveFileName, _)).WillOnce(Return(1));
         std::shared_ptr<NebdFileInstance> ret =
             executor.Open(fileName, nullptr);
         ASSERT_TRUE(nullptr != ret);
-        auto *curveIns = dynamic_cast<CurveFileInstance *>(ret.get());
+        auto* curveIns = dynamic_cast<CurveFileInstance*>(ret.get());
         ASSERT_TRUE(nullptr != curveIns);
         ASSERT_EQ(curveFileName, curveIns->fileName);
         ASSERT_EQ(1, curveIns->fd);
@@ -117,16 +109,16 @@ TEST_F(TestReuqestExecutorCurve, test_ReOpen) {
     std::string fileName("cbd:pool1//cinder/volume-1234_cinder_:/client.conf");
     std::string curveFileName("/cinder/volume-1234_cinder_");
 
-    // 1. 传入的fileName解析失败
+    // 1. Failed to parse the passed in fileName
     {
         std::string errFileName("cbd:pool1/:");
         EXPECT_CALL(*curveClient_, Open(_, _)).Times(0);
-        std::shared_ptr<NebdFileInstance> ret = executor.Reopen(
-            errFileName, xattr);
+        std::shared_ptr<NebdFileInstance> ret =
+            executor.Reopen(errFileName, xattr);
         ASSERT_TRUE(nullptr == ret);
     }
 
-    // 2. repoen失败
+    // 2. repoen failed
     {
         EXPECT_CALL(*curveClient_, ReOpen(curveFileName, _))
             .WillOnce(Return(-1));
@@ -135,14 +127,14 @@ TEST_F(TestReuqestExecutorCurve, test_ReOpen) {
         ASSERT_TRUE(nullptr == ret);
     }
 
-    // 3. reopen成功
+    // 3. reopen successful
     {
         EXPECT_CALL(*curveClient_, ReOpen(curveFileName, _))
             .WillOnce(Return(1));
-         std::shared_ptr<NebdFileInstance> ret =
+        std::shared_ptr<NebdFileInstance> ret =
             executor.Reopen(fileName, xattr);
         ASSERT_TRUE(nullptr != ret);
-        auto *curveIns = dynamic_cast<CurveFileInstance *>(ret.get());
+        auto* curveIns = dynamic_cast<CurveFileInstance*>(ret.get());
         ASSERT_TRUE(nullptr != curveIns);
         ASSERT_EQ(curveFileName, curveIns->fileName);
         ASSERT_EQ(1, curveIns->fd);
@@ -153,14 +145,14 @@ TEST_F(TestReuqestExecutorCurve, test_ReOpen) {
 TEST_F(TestReuqestExecutorCurve, test_Close) {
     auto executor = CurveRequestExecutor::GetInstance();
 
-    // 1. nebdFileIns不是CurveFileInstance类型, close失败
+    // 1. nebdFileIns is not of type CurveFileInstance, close failed
     {
         auto nebdFileIns = new NebdFileInstance();
         EXPECT_CALL(*curveClient_, Close(_)).Times(0);
         ASSERT_EQ(-1, executor.Close(nebdFileIns));
     }
 
-    // 2. nebdFileIns中的fd<0, close失败
+    // 2. fd<0 in nebdFileIns, close failed
     {
         auto curveFileIns = new CurveFileInstance();
         curveFileIns->fd = -1;
@@ -168,7 +160,7 @@ TEST_F(TestReuqestExecutorCurve, test_Close) {
         ASSERT_EQ(-1, executor.Close(curveFileIns));
     }
 
-    // 3. 调用curveclient的close接口失败， close失败
+    // 3. Calling the close interface of curveclient failed, close failed
     {
         auto curveFileIns = new CurveFileInstance();
         curveFileIns->fd = 1;
@@ -177,7 +169,7 @@ TEST_F(TestReuqestExecutorCurve, test_Close) {
         ASSERT_EQ(-1, executor.Close(curveFileIns));
     }
 
-    // 4. close成功
+    // 4. close successful
     {
         auto curveFileIns = new CurveFileInstance();
         curveFileIns->fd = 1;
@@ -191,21 +183,21 @@ TEST_F(TestReuqestExecutorCurve, test_Extend) {
     auto executor = CurveRequestExecutor::GetInstance();
     std::string curveFilename("/cinder/volume-1234_cinder_");
 
-    // 1. nebdFileIns不是CurveFileInstance类型, extend失败
+    // 1. nebdFileIns is not of type CurveFileInstance, extend failed
     {
         auto nebdFileIns = new NebdFileInstance();
         EXPECT_CALL(*curveClient_, Extend(_, _)).Times(0);
         ASSERT_EQ(-1, executor.Extend(nebdFileIns, 1));
     }
 
-    // 2. nebdFileIns中的fileName为空, extend失败
+    // 2. FileName in nebdFileIns is empty, extend failed
     {
         auto curveFileIns = new CurveFileInstance();
         EXPECT_CALL(*curveClient_, Extend(_, _)).Times(0);
         ASSERT_EQ(-1, executor.Extend(curveFileIns, 1));
     }
 
-    // 3. 调用curveclient的extend接口失败， extend失败
+    // 3. Calling the extend interface of curveclient failed, extend failed
     {
         auto curveFileIns = new CurveFileInstance();
         curveFileIns->fileName = curveFilename;
@@ -214,7 +206,7 @@ TEST_F(TestReuqestExecutorCurve, test_Extend) {
         ASSERT_EQ(-1, executor.Extend(curveFileIns, 1));
     }
 
-    // 4. extend成功
+    // 4. extend successful
     {
         auto curveFileIns = new CurveFileInstance();
         curveFileIns->fileName = curveFilename;
@@ -229,43 +221,40 @@ TEST_F(TestReuqestExecutorCurve, test_GetInfo) {
     NebdFileInfo fileInfo;
     int curveFd = 123;
 
-    // 1. nebdFileIns不是CurveFileInstance类型, stat失败
+    // 1. nebdFileIns is not of type CurveFileInstance, stat failed
     {
         auto nebdFileIns = new NebdFileInstance();
         EXPECT_CALL(*curveClient_, StatFile(curveFd, _)).Times(0);
         ASSERT_EQ(-1, executor.GetInfo(nebdFileIns, &fileInfo));
     }
 
-    // 2. nebdFileIns中的fd为空, stat失败
+    // 2. Fd in nebdFileIns is empty, stat failed
     {
         auto curveFileIns = new CurveFileInstance();
         EXPECT_CALL(*curveClient_, StatFile(curveFd, _)).Times(0);
         ASSERT_EQ(-1, executor.GetInfo(curveFileIns, &fileInfo));
     }
 
-
-    // 3. 调用curveclient的stat接口失败, stat失败
+    // 3. Calling the stat interface of curveclient failed, stat failed
     {
         auto curveFileIns = new CurveFileInstance();
         curveFileIns->fd = curveFd;
-        EXPECT_CALL(*curveClient_, StatFile(curveFd, _))
-            .WillOnce(Return(-1));
+        EXPECT_CALL(*curveClient_, StatFile(curveFd, _)).WillOnce(Return(-1));
         ASSERT_EQ(-1, executor.GetInfo(curveFileIns, &fileInfo));
     }
 
-    // 4. stat成功
+    // 4. stat successful
     {
         const uint64_t size = 10ull * 1024 * 1024 * 1024;
         const uint32_t blocksize = 4096;
         auto curveFileIns = new CurveFileInstance();
         curveFileIns->fd = curveFd;
         EXPECT_CALL(*curveClient_, StatFile(curveFd, _))
-            .WillOnce(Invoke(
-                [size, blocksize](int /*fd*/, FileStatInfo* info) {
-                    info->length = size;
-                    info->blocksize = blocksize;
-                    return 0;
-                }));
+            .WillOnce(Invoke([size, blocksize](int /*fd*/, FileStatInfo* info) {
+                info->length = size;
+                info->blocksize = blocksize;
+                return 0;
+            }));
         ASSERT_EQ(0, executor.GetInfo(curveFileIns, &fileInfo));
         ASSERT_EQ(size, fileInfo.size);
         ASSERT_EQ(blocksize, fileInfo.block_size);
@@ -278,14 +267,14 @@ TEST_F(TestReuqestExecutorCurve, test_AioRead) {
     aiotcx.cb = NebdUnitTestCallback;
     std::string curveFilename("/cinder/volume-1234_cinder_");
 
-    // 1. nebdFileIns不是CurveFileInstance类型, 异步读失败
+    // 1. nebdFileIns is not of type CurveFileInstance, asynchronous read failed
     {
         auto nebdFileIns = new NebdFileInstance();
         EXPECT_CALL(*curveClient_, AioRead(_, _, _)).Times(0);
         ASSERT_EQ(-1, executor.AioRead(nebdFileIns, &aiotcx));
     }
 
-    // 2. nebdFileIns中的fd<0, 异步读失败
+    // 2. fd<0 in nebdFileIns, asynchronous read failed
     {
         auto curveFileIns = new CurveFileInstance();
         curveFileIns->fd = -1;
@@ -293,7 +282,8 @@ TEST_F(TestReuqestExecutorCurve, test_AioRead) {
         ASSERT_EQ(-1, executor.AioRead(curveFileIns, &aiotcx));
     }
 
-    // 3. 调用curveclient的AioRead接口失败， 异步读失败
+    // 3. Calling the AioRead interface of curveclient failed, asynchronous read
+    // failed
     {
         auto curveFileIns = new CurveFileInstance();
         aiotcx.size = 1;
@@ -307,15 +297,14 @@ TEST_F(TestReuqestExecutorCurve, test_AioRead) {
         ASSERT_EQ(-1, executor.AioRead(curveFileIns, &aiotcx));
     }
 
-    // 4. 异步读取成功
+    // 4. Asynchronous read successful
     {
         auto curveFileIns = new CurveFileInstance();
         curveFileIns->fd = 1;
         curveFileIns->fileName = curveFilename;
         CurveAioContext* curveCtx;
         EXPECT_CALL(*curveClient_, AioRead(1, _, _))
-            .WillOnce(DoAll(SaveArg<1>(&curveCtx),
-                            Return(LIBCURVE_ERROR::OK)));
+            .WillOnce(DoAll(SaveArg<1>(&curveCtx), Return(LIBCURVE_ERROR::OK)));
         ASSERT_EQ(0, executor.AioRead(curveFileIns, &aiotcx));
         curveCtx->cb(curveCtx);
     }
@@ -327,14 +316,15 @@ TEST_F(TestReuqestExecutorCurve, test_AioWrite) {
     aiotcx.cb = NebdUnitTestCallback;
     std::string curveFilename("/cinder/volume-1234_cinder_");
 
-    // 1. nebdFileIns不是CurveFileInstance类型, 异步写失败
+    // 1. nebdFileIns is not of type CurveFileInstance, asynchronous write
+    // failed
     {
         auto nebdFileIns = new NebdFileInstance();
         EXPECT_CALL(*curveClient_, AioWrite(_, _, _)).Times(0);
         ASSERT_EQ(-1, executor.AioWrite(nebdFileIns, &aiotcx));
     }
 
-    // 2. nebdFileIns中的fd<0, 异步写失败
+    // 2. fd<0 in nebdFileIns, asynchronous write failed
     {
         auto curveFileIns = new CurveFileInstance();
         curveFileIns->fd = -1;
@@ -342,7 +332,8 @@ TEST_F(TestReuqestExecutorCurve, test_AioWrite) {
         ASSERT_EQ(-1, executor.AioWrite(curveFileIns, &aiotcx));
     }
 
-    // 3. 调用curveclient的AioWrite接口失败， 异步写失败
+    // 3. Calling the AioWrite interface of curveclient failed, asynchronous
+    // write failed
     {
         auto curveFileIns = new CurveFileInstance();
         aiotcx.size = 1;
@@ -356,15 +347,14 @@ TEST_F(TestReuqestExecutorCurve, test_AioWrite) {
         ASSERT_EQ(-1, executor.AioWrite(curveFileIns, &aiotcx));
     }
 
-    // 4. 异步写入成功
+    // 4. Asynchronous write successful
     {
         auto curveFileIns = new CurveFileInstance();
         curveFileIns->fd = 1;
         curveFileIns->fileName = curveFilename;
         CurveAioContext* curveCtx;
         EXPECT_CALL(*curveClient_, AioWrite(1, _, _))
-            .WillOnce(DoAll(SaveArg<1>(&curveCtx),
-                            Return(LIBCURVE_ERROR::OK)));
+            .WillOnce(DoAll(SaveArg<1>(&curveCtx), Return(LIBCURVE_ERROR::OK)));
         ASSERT_EQ(0, executor.AioWrite(curveFileIns, &aiotcx));
         curveCtx->cb(curveCtx);
     }
@@ -379,8 +369,7 @@ TEST_F(TestReuqestExecutorCurve, test_Discard) {
     // 1. not an curve volume
     {
         std::unique_ptr<NebdFileInstance> nebdFileIns(new NebdFileInstance());
-        EXPECT_CALL(*curveClient_, AioDiscard(_, _))
-            .Times(0);
+        EXPECT_CALL(*curveClient_, AioDiscard(_, _)).Times(0);
         ASSERT_EQ(-1, executor.Discard(nebdFileIns.get(), &aioctx));
     }
 
@@ -389,8 +378,7 @@ TEST_F(TestReuqestExecutorCurve, test_Discard) {
         std::unique_ptr<CurveFileInstance> curveFileIns(
             new CurveFileInstance());
         curveFileIns->fd = -1;
-        EXPECT_CALL(*curveClient_, AioDiscard(_, _))
-            .Times(0);
+        EXPECT_CALL(*curveClient_, AioDiscard(_, _)).Times(0);
         ASSERT_EQ(-1, executor.Discard(curveFileIns.get(), &aioctx));
     }
 
@@ -419,8 +407,7 @@ TEST_F(TestReuqestExecutorCurve, test_Discard) {
         curveFileIns->fileName = curveFilename;
         CurveAioContext* curveCtx;
         EXPECT_CALL(*curveClient_, AioDiscard(_, _))
-            .WillOnce(DoAll(SaveArg<1>(&curveCtx),
-                            Return(LIBCURVE_ERROR::OK)));
+            .WillOnce(DoAll(SaveArg<1>(&curveCtx), Return(LIBCURVE_ERROR::OK)));
         ASSERT_EQ(0, executor.Discard(curveFileIns.get(), &aioctx));
         curveCtx->cb(curveCtx);
     }
@@ -448,13 +435,13 @@ TEST_F(TestReuqestExecutorCurve, test_InvalidCache) {
     auto executor = CurveRequestExecutor::GetInstance();
     std::string curveFilename("/cinder/volume-1234_cinder_");
 
-    // 1. nebdFileIns不是CurveFileInstance类型, 不合法
+    // 1. nebdFileIns is not of type CurveFileInstance, illegal
     {
         auto nebdFileIns = new NebdFileInstance();
         ASSERT_EQ(-1, executor.InvalidCache(nebdFileIns));
     }
 
-    // 2. fd<0, 不合法
+    // 2. fd<0, illegal
     {
         auto curveFileIns = new CurveFileInstance();
         curveFileIns->fileName = curveFilename;
@@ -462,14 +449,14 @@ TEST_F(TestReuqestExecutorCurve, test_InvalidCache) {
         ASSERT_EQ(-1, executor.InvalidCache(curveFileIns));
     }
 
-    // 3. filename为空，不合法
+    // 3. The filename is empty and illegal
     {
         auto curveFileIns = new CurveFileInstance();
         curveFileIns->fd = 1;
         ASSERT_EQ(-1, executor.InvalidCache(curveFileIns));
     }
 
-    // 4. 合法
+    // 4. legitimate
     {
         auto curveFileIns = new CurveFileInstance();
         curveFileIns->fd = 1;
@@ -478,11 +465,10 @@ TEST_F(TestReuqestExecutorCurve, test_InvalidCache) {
     }
 }
 
-
 TEST(TestFileNameParser, test_Parse) {
     std::string fileName("cbd:pool1//cinder/volume-1234_cinder_:/client.conf");
-    std::pair<std::string, std::string> res(
-        "/cinder/volume-1234_cinder_", "/client.conf");
+    std::pair<std::string, std::string> res("/cinder/volume-1234_cinder_",
+                                            "/client.conf");
     ASSERT_EQ(res, FileNameParser::Parse(fileName));
 
     fileName = "cbd:pool1//cinder/volume-1234_cinder_";
@@ -500,11 +486,10 @@ TEST(TestFileNameParser, test_Parse) {
     ASSERT_EQ(res, FileNameParser::Parse(fileName));
 }
 
-
 }  // namespace server
 }  // namespace nebd
 
-int main(int argc, char ** argv) {
+int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     ::testing::InitGoogleMock(&argc, argv);
     return RUN_ALL_TESTS();

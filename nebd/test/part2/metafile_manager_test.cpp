@@ -20,11 +20,13 @@
  * Author: charisu
  */
 
+#include "nebd/src/part2/metafile_manager.h"
+
 #include <gtest/gtest.h>
 #include <json/json.h>
+
 #include <fstream>
 
-#include "nebd/src/part2/metafile_manager.h"
 #include "nebd/test/part2/mock_posix_wrapper.h"
 
 using ::testing::_;
@@ -37,8 +39,7 @@ const char metaPath[] = "/tmp/nebd-test-metafilemanager.meta";
 
 void FillCrc(Json::Value* root) {
     std::string jsonString = root->toStyledString();
-    uint32_t crc = nebd::common::CRC32(jsonString.c_str(),
-                                       jsonString.size());
+    uint32_t crc = nebd::common::CRC32(jsonString.c_str(), jsonString.size());
     (*root)[kCRC] = crc;
 }
 
@@ -61,19 +62,19 @@ TEST_F(MetaFileManagerTest, nomaltest) {
     NebdMetaFileManager metaFileManager;
     ASSERT_EQ(metaFileManager.Init(option), 0);
     std::vector<NebdFileMeta> fileMetas;
-    // 文件不存在
+    // File does not exist
     ASSERT_EQ(0, metaFileManager.ListFileMeta(&fileMetas));
     ASSERT_TRUE(fileMetas.empty());
 
-    // 添加两条记录，curve和test各一
+    // Add two records, one for curve and one for test
     NebdFileMeta fileMeta1;
     fileMeta1.fileName = "test:volume1";
     fileMeta1.fd = 1;
     ASSERT_EQ(0, metaFileManager.UpdateFileMeta(fileMeta1.fileName, fileMeta1));
-    // 使用相同的内容Update
+    // Update using the same content
     ASSERT_EQ(0, metaFileManager.UpdateFileMeta(fileMeta1.fileName, fileMeta1));
 
-    // 插入不同的meta
+    // Insert different meta
     NebdFileMeta fileMeta2;
     fileMeta2.fileName = "cbd:volume2";
     fileMeta2.fd = 2;
@@ -89,9 +90,9 @@ TEST_F(MetaFileManagerTest, nomaltest) {
 
     // remove meta
     ASSERT_EQ(0, metaFileManager.RemoveFileMeta(fileMeta2.fileName));
-    // remove 不存在的meta
+    // remove non-existent meta
     ASSERT_EQ(0, metaFileManager.RemoveFileMeta("unknown"));
-    // 校验结果
+    // Verification results
     fileMetas.clear();
     ASSERT_EQ(0, metaFileManager.ListFileMeta(&fileMetas));
     ASSERT_EQ(1, fileMetas.size());
@@ -111,35 +112,28 @@ TEST_F(MetaFileManagerTest, UpdateMetaFailTest) {
     fileMetaMap.emplace(fileMeta.fileName, fileMeta);
     std::vector<NebdFileMeta> fileMetas;
 
-    // open临时文件失败
-    EXPECT_CALL(*wrapper_, open(_, _, _))
-        .WillOnce(Return(-1));
+    // Open temporary file failed
+    EXPECT_CALL(*wrapper_, open(_, _, _)).WillOnce(Return(-1));
     ASSERT_EQ(-1, metaFileManager.UpdateFileMeta(fileMeta.fileName, fileMeta));
     ASSERT_EQ(0, metaFileManager.ListFileMeta(&fileMetas));
     ASSERT_EQ(0, fileMetas.size());
 
-    // 写入临时文件失败
-    EXPECT_CALL(*wrapper_, open(_, _, _))
-        .WillOnce(Return(1));
-    EXPECT_CALL(*wrapper_, pwrite(_, _, _, _))
-        .WillOnce(Return(0));
-    EXPECT_CALL(*wrapper_, close(_))
-    .Times(1);
+    // Failed to write temporary file
+    EXPECT_CALL(*wrapper_, open(_, _, _)).WillOnce(Return(1));
+    EXPECT_CALL(*wrapper_, pwrite(_, _, _, _)).WillOnce(Return(0));
+    EXPECT_CALL(*wrapper_, close(_)).Times(1);
     ASSERT_EQ(-1, metaFileManager.UpdateFileMeta(fileMeta.fileName, fileMeta));
     ASSERT_EQ(0, metaFileManager.ListFileMeta(&fileMetas));
     ASSERT_EQ(0, fileMetas.size());
 
-    // rename失败
+    // Rename failed
     NebdMetaFileParser parser;
     Json::Value root = parser.ConvertFileMetasToJson(fileMetaMap);
-    EXPECT_CALL(*wrapper_, open(_, _, _))
-        .WillOnce(Return(1));
+    EXPECT_CALL(*wrapper_, open(_, _, _)).WillOnce(Return(1));
     EXPECT_CALL(*wrapper_, pwrite(_, _, _, _))
         .WillOnce(Return(root.toStyledString().size()));
-    EXPECT_CALL(*wrapper_, close(_))
-    .Times(1);
-    EXPECT_CALL(*wrapper_, rename(_, _))
-        .WillOnce(Return(-1));
+    EXPECT_CALL(*wrapper_, close(_)).Times(1);
+    EXPECT_CALL(*wrapper_, rename(_, _)).WillOnce(Return(-1));
     ASSERT_EQ(-1, metaFileManager.UpdateFileMeta(fileMeta.fileName, fileMeta));
     ASSERT_EQ(0, metaFileManager.ListFileMeta(&fileMetas));
     ASSERT_EQ(0, fileMetas.size());
@@ -160,15 +154,12 @@ TEST_F(MetaFileManagerTest, RemoveMetaFailTest) {
     NebdMetaFileParser parser;
     Json::Value root = parser.ConvertFileMetasToJson(fileMetaMap);
 
-    // 先插入一条数据
-    EXPECT_CALL(*wrapper_, open(_, _, _))
-        .WillOnce(Return(1));
+    // Insert a piece of data first
+    EXPECT_CALL(*wrapper_, open(_, _, _)).WillOnce(Return(1));
     EXPECT_CALL(*wrapper_, pwrite(_, _, _, _))
         .WillOnce(Return(root.toStyledString().size()));
-    EXPECT_CALL(*wrapper_, close(_))
-    .Times(1);
-    EXPECT_CALL(*wrapper_, rename(_, _))
-        .WillOnce(Return(0));
+    EXPECT_CALL(*wrapper_, close(_)).Times(1);
+    EXPECT_CALL(*wrapper_, rename(_, _)).WillOnce(Return(0));
     ASSERT_EQ(0, metaFileManager.UpdateFileMeta(fileMeta.fileName, fileMeta));
     ASSERT_EQ(0, metaFileManager.ListFileMeta(&fileMetas));
     ASSERT_EQ(1, fileMetas.size());
@@ -176,33 +167,26 @@ TEST_F(MetaFileManagerTest, RemoveMetaFailTest) {
     fileMetaMap.erase(fileMeta.fileName);
     root = parser.ConvertFileMetasToJson(fileMetaMap);
 
-    // open临时文件失败
-    EXPECT_CALL(*wrapper_, open(_, _, _))
-        .WillOnce(Return(-1));
+    // Open temporary file failed
+    EXPECT_CALL(*wrapper_, open(_, _, _)).WillOnce(Return(-1));
     ASSERT_EQ(-1, metaFileManager.RemoveFileMeta(fileMeta.fileName));
     ASSERT_EQ(0, metaFileManager.ListFileMeta(&fileMetas));
     ASSERT_EQ(1, fileMetas.size());
 
-    // 写入临时文件失败
-    EXPECT_CALL(*wrapper_, open(_, _, _))
-        .WillOnce(Return(1));
-    EXPECT_CALL(*wrapper_, pwrite(_, _, _, _))
-        .WillOnce(Return(0));
-    EXPECT_CALL(*wrapper_, close(_))
-    .Times(1);
+    // Failed to write temporary file
+    EXPECT_CALL(*wrapper_, open(_, _, _)).WillOnce(Return(1));
+    EXPECT_CALL(*wrapper_, pwrite(_, _, _, _)).WillOnce(Return(0));
+    EXPECT_CALL(*wrapper_, close(_)).Times(1);
     ASSERT_EQ(-1, metaFileManager.RemoveFileMeta(fileMeta.fileName));
     ASSERT_EQ(0, metaFileManager.ListFileMeta(&fileMetas));
     ASSERT_EQ(1, fileMetas.size());
 
-    // rename失败
-    EXPECT_CALL(*wrapper_, open(_, _, _))
-        .WillOnce(Return(1));
+    // Rename failed
+    EXPECT_CALL(*wrapper_, open(_, _, _)).WillOnce(Return(1));
     EXPECT_CALL(*wrapper_, pwrite(_, _, _, _))
         .WillOnce(Return(root.toStyledString().size()));
-    EXPECT_CALL(*wrapper_, close(_))
-    .Times(1);
-    EXPECT_CALL(*wrapper_, rename(_, _))
-        .WillOnce(Return(-1));
+    EXPECT_CALL(*wrapper_, close(_)).Times(1);
+    EXPECT_CALL(*wrapper_, rename(_, _)).WillOnce(Return(-1));
     ASSERT_EQ(-1, metaFileManager.RemoveFileMeta(fileMeta.fileName));
     ASSERT_EQ(0, metaFileManager.ListFileMeta(&fileMetas));
     ASSERT_EQ(1, fileMetas.size());
@@ -215,7 +199,7 @@ TEST(MetaFileParserTest, Parse) {
     Json::Value volumes;
     FileMetaMap fileMetas;
 
-    // 正常情况
+    // Normal situation
     volume[kFileName] = "cbd:volume1";
     volume[kFd] = 1;
     volumes.append(volume);
@@ -225,18 +209,19 @@ TEST(MetaFileParserTest, Parse) {
     FillCrc(&root);
     ASSERT_EQ(0, parser.Parse(root, &fileMetas));
 
-    // 空指针
+    // Null pointer
     ASSERT_EQ(-1, parser.Parse(root, nullptr));
 
-    // crc校验不正确
+    // Incorrect crc verification
     root[kCRC] = root[kCRC].asUInt() + 1;
     ASSERT_EQ(-1, parser.Parse(root, &fileMetas));
 
-     // 没有crc字段
+    // No crc field
     root.removeMember(kCRC);
     ASSERT_EQ(-1, parser.Parse(root, &fileMetas));
 
-    // 没有volumes字段或volumes字段是null,不应该报错
+    // There is no volumes field or the volumes field is null, and an error
+    // should not be reported
     root.clear();
     root["key"] = "value";
     FillCrc(&root);
@@ -249,7 +234,7 @@ TEST(MetaFileParserTest, Parse) {
     ASSERT_EQ(0, parser.Parse(root, &fileMetas));
     ASSERT_TRUE(fileMetas.empty());
 
-    // 记录中没有filename
+    // There is no filename in the record
     volume.clear();
     volumes.clear();
     root.clear();
@@ -259,7 +244,7 @@ TEST(MetaFileParserTest, Parse) {
     FillCrc(&root);
     ASSERT_EQ(-1, parser.Parse(root, &fileMetas));
 
-    // 记录中没有fd
+    // The record does not contain an 'fd'.
     volume.clear();
     volumes.clear();
     root.clear();
@@ -273,7 +258,7 @@ TEST(MetaFileParserTest, Parse) {
 }  // namespace server
 }  // namespace nebd
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

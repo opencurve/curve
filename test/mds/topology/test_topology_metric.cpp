@@ -21,24 +21,24 @@
  */
 
 #include <bvar/bvar.h>
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include "src/mds/topology/topology_metric.h"
-#include "test/mds/topology/mock_topology.h"
 #include "test/mds/mock/mock_alloc_statistic.h"
 #include "test/mds/mock/mock_topology.h"
+#include "test/mds/topology/mock_topology.h"
 
 namespace curve {
 namespace mds {
 namespace topology {
 
-using ::testing::Return;
 using ::testing::_;
 using ::testing::AnyOf;
-using ::testing::SetArgPointee;
-using ::testing::Invoke;
 using ::testing::DoAll;
+using ::testing::Invoke;
+using ::testing::Return;
+using ::testing::SetArgPointee;
 
 class TestTopologyMetric : public ::testing::Test {
  public:
@@ -48,10 +48,9 @@ class TestTopologyMetric : public ::testing::Test {
         idGenerator_ = std::make_shared<MockIdGenerator>();
         tokenGenerator_ = std::make_shared<MockTokenGenerator>();
         storage_ = std::make_shared<MockStorage>();
-        // 使用真实的topology
+        // Using real topology
         topology_ = std::make_shared<TopologyImpl>(idGenerator_,
-                                               tokenGenerator_,
-                                               storage_);
+                                                   tokenGenerator_, storage_);
 
         topologyStat_ = std::make_shared<MockTopologyStat>();
         allocStatistic_ = std::make_shared<MockAllocStatistic>();
@@ -76,122 +75,87 @@ class TestTopologyMetric : public ::testing::Test {
                            const std::string& type = "SSD",
                            const std::string& desc = "descPoolset") {
         Poolset poolset(pid, name, type, desc);
-        EXPECT_CALL(*storage_, StoragePoolset(_))
-            .WillOnce(Return(true));
+        EXPECT_CALL(*storage_, StoragePoolset(_)).WillOnce(Return(true));
 
         int ret = topology_->AddPoolset(poolset);
         ASSERT_EQ(kTopoErrCodeSuccess, ret);
     }
 
-    void PrepareAddLogicalPool(PoolIdType id = 0x01,
-            const std::string &name = "testLogicalPool",
-            PoolIdType phyPoolId = 0x11,
-            LogicalPoolType  type = PAGEFILE,
-            const LogicalPool::RedundanceAndPlaceMentPolicy &rap =
-                LogicalPool::RedundanceAndPlaceMentPolicy(),
-            const LogicalPool::UserPolicy &policy = LogicalPool::UserPolicy(),
-            uint64_t createTime = 0x888
-            ) {
-        LogicalPool pool(id,
-                name,
-                phyPoolId,
-                type,
-                rap,
-                policy,
-                createTime,
-                true,
-                true);
+    void PrepareAddLogicalPool(
+        PoolIdType id = 0x01, const std::string& name = "testLogicalPool",
+        PoolIdType phyPoolId = 0x11, LogicalPoolType type = PAGEFILE,
+        const LogicalPool::RedundanceAndPlaceMentPolicy& rap =
+            LogicalPool::RedundanceAndPlaceMentPolicy(),
+        const LogicalPool::UserPolicy& policy = LogicalPool::UserPolicy(),
+        uint64_t createTime = 0x888) {
+        LogicalPool pool(id, name, phyPoolId, type, rap, policy, createTime,
+                         true, true);
 
-        EXPECT_CALL(*storage_, StorageLogicalPool(_))
-            .WillOnce(Return(true));
+        EXPECT_CALL(*storage_, StorageLogicalPool(_)).WillOnce(Return(true));
 
         int ret = topology_->AddLogicalPool(pool);
         ASSERT_EQ(kTopoErrCodeSuccess, ret)
             << "should have PrepareAddPhysicalPool()";
     }
 
-
     void PrepareAddPhysicalPool(PoolIdType id = 0x11,
-                 const std::string &name = "testPhysicalPool",
-                 PoolsetIdType pid = 0x61,
-                 const std::string &desc = "descPhysicalPool") {
-        PhysicalPool pool(id,
-                name,
-                pid,
-                desc);
-        EXPECT_CALL(*storage_, StoragePhysicalPool(_))
-            .WillOnce(Return(true));
+                                const std::string& name = "testPhysicalPool",
+                                PoolsetIdType pid = 0x61,
+                                const std::string& desc = "descPhysicalPool") {
+        PhysicalPool pool(id, name, pid, desc);
+        EXPECT_CALL(*storage_, StoragePhysicalPool(_)).WillOnce(Return(true));
 
         int ret = topology_->AddPhysicalPool(pool);
         ASSERT_EQ(kTopoErrCodeSuccess, ret);
     }
 
     void PrepareAddZone(ZoneIdType id = 0x21,
-            const std::string &name = "testZone",
-            PoolIdType physicalPoolId = 0x11,
-            const std::string &desc = "descZone") {
+                        const std::string& name = "testZone",
+                        PoolIdType physicalPoolId = 0x11,
+                        const std::string& desc = "descZone") {
         Zone zone(id, name, physicalPoolId, desc);
-        EXPECT_CALL(*storage_, StorageZone(_))
-            .WillOnce(Return(true));
+        EXPECT_CALL(*storage_, StorageZone(_)).WillOnce(Return(true));
         int ret = topology_->AddZone(zone);
-        ASSERT_EQ(kTopoErrCodeSuccess, ret) <<
-            "should have PrepareAddPhysicalPool()";
+        ASSERT_EQ(kTopoErrCodeSuccess, ret)
+            << "should have PrepareAddPhysicalPool()";
     }
 
     void PrepareAddServer(ServerIdType id = 0x31,
-           const std::string &hostName = "testServer",
-           const std::string &internalHostIp = "testInternalIp",
-           const std::string &externalHostIp = "testExternalIp",
-           ZoneIdType zoneId = 0x21,
-           PoolIdType physicalPoolId = 0x11,
-           const std::string &desc = "descServer") {
-        Server server(id,
-                hostName,
-                internalHostIp,
-                0,
-                externalHostIp,
-                0,
-                zoneId,
-                physicalPoolId,
-                desc);
-        EXPECT_CALL(*storage_, StorageServer(_))
-            .WillOnce(Return(true));
+                          const std::string& hostName = "testServer",
+                          const std::string& internalHostIp = "testInternalIp",
+                          const std::string& externalHostIp = "testExternalIp",
+                          ZoneIdType zoneId = 0x21,
+                          PoolIdType physicalPoolId = 0x11,
+                          const std::string& desc = "descServer") {
+        Server server(id, hostName, internalHostIp, 0, externalHostIp, 0,
+                      zoneId, physicalPoolId, desc);
+        EXPECT_CALL(*storage_, StorageServer(_)).WillOnce(Return(true));
         int ret = topology_->AddServer(server);
         ASSERT_EQ(kTopoErrCodeSuccess, ret) << "should have PrepareAddZone()";
     }
 
     void PrepareAddChunkServer(ChunkServerIdType id = 0x41,
-                const std::string &token = "testToken",
-                const std::string &diskType = "nvme",
-                ServerIdType serverId = 0x31,
-                const std::string &hostIp = "testInternalIp",
-                uint32_t port = 0,
-                const std::string &diskPath = "/") {
-            ChunkServer cs(id,
-                    token,
-                    diskType,
-                    serverId,
-                    hostIp,
-                    port,
-                    diskPath);
-            ChunkServerState st;
-            st.SetDiskCapacity(100 * 1024);
-            st.SetDiskUsed(10 * 1024);
-            cs.SetChunkServerState(st);
-            EXPECT_CALL(*storage_, StorageChunkServer(_))
-                .WillOnce(Return(true));
+                               const std::string& token = "testToken",
+                               const std::string& diskType = "nvme",
+                               ServerIdType serverId = 0x31,
+                               const std::string& hostIp = "testInternalIp",
+                               uint32_t port = 0,
+                               const std::string& diskPath = "/") {
+        ChunkServer cs(id, token, diskType, serverId, hostIp, port, diskPath);
+        ChunkServerState st;
+        st.SetDiskCapacity(100 * 1024);
+        st.SetDiskUsed(10 * 1024);
+        cs.SetChunkServerState(st);
+        EXPECT_CALL(*storage_, StorageChunkServer(_)).WillOnce(Return(true));
         int ret = topology_->AddChunkServer(cs);
         ASSERT_EQ(kTopoErrCodeSuccess, ret) << "should have PrepareAddServer()";
     }
 
-    void PrepareAddCopySet(CopySetIdType copysetId,
-        PoolIdType logicalPoolId,
-        const std::set<ChunkServerIdType> &members) {
-        CopySetInfo cs(logicalPoolId,
-            copysetId);
+    void PrepareAddCopySet(CopySetIdType copysetId, PoolIdType logicalPoolId,
+                           const std::set<ChunkServerIdType>& members) {
+        CopySetInfo cs(logicalPoolId, copysetId);
         cs.SetCopySetMembers(members);
-        EXPECT_CALL(*storage_, StorageCopySet(_))
-            .WillOnce(Return(true));
+        EXPECT_CALL(*storage_, StorageCopySet(_)).WillOnce(Return(true));
         int ret = topology_->AddCopySet(cs);
         ASSERT_EQ(kTopoErrCodeSuccess, ret)
             << "should have PrepareAddLogicalPool()";
@@ -207,7 +171,7 @@ class TestTopologyMetric : public ::testing::Test {
     std::shared_ptr<TopologyMetricService> testObj_;
 };
 
-TEST_F(TestTopologyMetric,  TestUpdateTopologyMetricsOneLogicalPool) {
+TEST_F(TestTopologyMetric, TestUpdateTopologyMetricsOneLogicalPool) {
     PoolsetIdType poolsetId = 0x61;
     PoolIdType logicalPoolId = 0x01;
     PoolIdType physicalPoolId = 0x11;
@@ -229,13 +193,12 @@ TEST_F(TestTopologyMetric,  TestUpdateTopologyMetricsOneLogicalPool) {
     rap.pageFileRAP.replicaNum = 3;
 
     PrepareAddLogicalPool(logicalPoolId, "logicalPool1", physicalPoolId,
-        PAGEFILE, rap);
+                          PAGEFILE, rap);
     std::set<ChunkServerIdType> replicas;
     replicas.insert(0x41);
     replicas.insert(0x42);
     replicas.insert(0x43);
     PrepareAddCopySet(copysetId, logicalPoolId, replicas);
-
 
     ChunkServerStat stat1;
     CopysetStat cstat1;
@@ -258,12 +221,10 @@ TEST_F(TestTopologyMetric,  TestUpdateTopologyMetricsOneLogicalPool) {
     stat1.copysetStats.push_back(cstat1);
 
     EXPECT_CALL(*topologyStat_, GetChunkServerStat(_, _))
-        .WillRepeatedly(DoAll(SetArgPointee<1>(stat1),
-            Return(true)));
+        .WillRepeatedly(DoAll(SetArgPointee<1>(stat1), Return(true)));
 
     EXPECT_CALL(*allocStatistic_, GetAllocByLogicalPool(_, _))
-        .WillOnce(DoAll(SetArgPointee<1>(20 * 1024),
-                Return(true)));
+        .WillOnce(DoAll(SetArgPointee<1>(20 * 1024), Return(true)));
 
     testObj_->UpdateTopologyMetrics();
 
@@ -283,9 +244,9 @@ TEST_F(TestTopologyMetric,  TestUpdateTopologyMetricsOneLogicalPool) {
     ASSERT_EQ(1024, gChunkServerMetrics[0x41]->chunkSizeUsedBytes.get_value());
     ASSERT_EQ(1024, gChunkServerMetrics[0x41]->chunkSizeLeftBytes.get_value());
     ASSERT_EQ(1024,
-        gChunkServerMetrics[0x41]->chunkSizeTrashedBytes.get_value());
+              gChunkServerMetrics[0x41]->chunkSizeTrashedBytes.get_value());
     ASSERT_EQ(1024 * 3,
-        gChunkServerMetrics[0x41]->chunkSizeTotalBytes.get_value());
+              gChunkServerMetrics[0x41]->chunkSizeTotalBytes.get_value());
 
     ASSERT_EQ(2, gChunkServerMetrics[0x42]->scatterWidth.get_value());
     ASSERT_EQ(1, gChunkServerMetrics[0x42]->copysetNum.get_value());
@@ -301,9 +262,9 @@ TEST_F(TestTopologyMetric,  TestUpdateTopologyMetricsOneLogicalPool) {
     ASSERT_EQ(1024, gChunkServerMetrics[0x42]->chunkSizeUsedBytes.get_value());
     ASSERT_EQ(1024, gChunkServerMetrics[0x42]->chunkSizeLeftBytes.get_value());
     ASSERT_EQ(1024,
-        gChunkServerMetrics[0x42]->chunkSizeTrashedBytes.get_value());
+              gChunkServerMetrics[0x42]->chunkSizeTrashedBytes.get_value());
     ASSERT_EQ(1024 * 3,
-        gChunkServerMetrics[0x42]->chunkSizeTotalBytes.get_value());
+              gChunkServerMetrics[0x42]->chunkSizeTotalBytes.get_value());
 
     ASSERT_EQ(2, gChunkServerMetrics[0x43]->scatterWidth.get_value());
     ASSERT_EQ(1, gChunkServerMetrics[0x43]->copysetNum.get_value());
@@ -319,43 +280,75 @@ TEST_F(TestTopologyMetric,  TestUpdateTopologyMetricsOneLogicalPool) {
     ASSERT_EQ(1024, gChunkServerMetrics[0x43]->chunkSizeUsedBytes.get_value());
     ASSERT_EQ(1024, gChunkServerMetrics[0x43]->chunkSizeLeftBytes.get_value());
     ASSERT_EQ(1024,
-        gChunkServerMetrics[0x43]->chunkSizeTrashedBytes.get_value());
+              gChunkServerMetrics[0x43]->chunkSizeTrashedBytes.get_value());
     ASSERT_EQ(1024 * 3,
-        gChunkServerMetrics[0x43]->chunkSizeTotalBytes.get_value());
+              gChunkServerMetrics[0x43]->chunkSizeTotalBytes.get_value());
 
     ASSERT_EQ(1, gLogicalPoolMetrics.size());
-    ASSERT_EQ(3, gLogicalPoolMetrics[logicalPoolId]->serverNum.get_value()); //NOLINT
-    ASSERT_EQ(3, gLogicalPoolMetrics[logicalPoolId]->chunkServerNum.get_value()); //NOLINT
-    ASSERT_EQ(1, gLogicalPoolMetrics[logicalPoolId]->copysetNum.get_value()); //NOLINT
-    ASSERT_EQ(2, gLogicalPoolMetrics[logicalPoolId]->scatterWidthAvg.get_value()); //NOLINT
-    ASSERT_EQ(0, gLogicalPoolMetrics[logicalPoolId]->scatterWidthVariance.get_value()); //NOLINT
-    ASSERT_EQ(0, gLogicalPoolMetrics[logicalPoolId]->scatterWidthStandardDeviation.get_value()); //NOLINT
-    ASSERT_EQ(0, gLogicalPoolMetrics[logicalPoolId]->scatterWidthRange.get_value()); //NOLINT
-    ASSERT_EQ(2, gLogicalPoolMetrics[logicalPoolId]->scatterWidthMin.get_value()); //NOLINT
-    ASSERT_EQ(2, gLogicalPoolMetrics[logicalPoolId]->scatterWidthMax.get_value()); //NOLINT
-    ASSERT_EQ(1, gLogicalPoolMetrics[logicalPoolId]->copysetNumAvg.get_value()); //NOLINT
-    ASSERT_EQ(0, gLogicalPoolMetrics[logicalPoolId]->copysetNumVariance.get_value()); //NOLINT
-    ASSERT_EQ(0, gLogicalPoolMetrics[logicalPoolId]->copysetNumStandardDeviation.get_value()); //NOLINT
-    ASSERT_EQ(0, gLogicalPoolMetrics[logicalPoolId]->copysetNumRange.get_value()); //NOLINT
-    ASSERT_EQ(1, gLogicalPoolMetrics[logicalPoolId]->copysetNumMin.get_value()); //NOLINT
-    ASSERT_EQ(1, gLogicalPoolMetrics[logicalPoolId]->copysetNumMax.get_value()); //NOLINT
-    ASSERT_EQ(0, gLogicalPoolMetrics[logicalPoolId]->leaderNumAvg.get_value()); //NOLINT
-    ASSERT_EQ(0, gLogicalPoolMetrics[logicalPoolId]->leaderNumVariance.get_value()); //NOLINT
-    ASSERT_EQ(0, gLogicalPoolMetrics[logicalPoolId]->leaderNumStandardDeviation.get_value()); //NOLINT
-    ASSERT_EQ(0, gLogicalPoolMetrics[logicalPoolId]->leaderNumRange.get_value()); //NOLINT
-    ASSERT_EQ(0, gLogicalPoolMetrics[logicalPoolId]->leaderNumMin.get_value()); //NOLINT
-    ASSERT_EQ(0, gLogicalPoolMetrics[logicalPoolId]->leaderNumMax.get_value()); //NOLINT
-    ASSERT_EQ(100 * 1024 * 3, gLogicalPoolMetrics[logicalPoolId]->diskCapacity.get_value()); //NOLINT
-    ASSERT_EQ(20 * 1024 * 3, gLogicalPoolMetrics[logicalPoolId]->diskAlloc.get_value()); //NOLINT
-    ASSERT_EQ(10 * 1024 * 3, gLogicalPoolMetrics[logicalPoolId]->diskUsed.get_value()); //NOLINT
+    ASSERT_EQ(
+        3,
+        gLogicalPoolMetrics[logicalPoolId]->serverNum.get_value());  // NOLINT
+    ASSERT_EQ(3, gLogicalPoolMetrics[logicalPoolId]
+                     ->chunkServerNum.get_value());  // NOLINT
+    ASSERT_EQ(
+        1,
+        gLogicalPoolMetrics[logicalPoolId]->copysetNum.get_value());  // NOLINT
+    ASSERT_EQ(2, gLogicalPoolMetrics[logicalPoolId]
+                     ->scatterWidthAvg.get_value());  // NOLINT
+    ASSERT_EQ(0, gLogicalPoolMetrics[logicalPoolId]
+                     ->scatterWidthVariance.get_value());  // NOLINT
+    ASSERT_EQ(0, gLogicalPoolMetrics[logicalPoolId]
+                     ->scatterWidthStandardDeviation.get_value());  // NOLINT
+    ASSERT_EQ(0, gLogicalPoolMetrics[logicalPoolId]
+                     ->scatterWidthRange.get_value());  // NOLINT
+    ASSERT_EQ(2, gLogicalPoolMetrics[logicalPoolId]
+                     ->scatterWidthMin.get_value());  // NOLINT
+    ASSERT_EQ(2, gLogicalPoolMetrics[logicalPoolId]
+                     ->scatterWidthMax.get_value());  // NOLINT
+    ASSERT_EQ(1, gLogicalPoolMetrics[logicalPoolId]
+                     ->copysetNumAvg.get_value());  // NOLINT
+    ASSERT_EQ(0, gLogicalPoolMetrics[logicalPoolId]
+                     ->copysetNumVariance.get_value());  // NOLINT
+    ASSERT_EQ(0, gLogicalPoolMetrics[logicalPoolId]
+                     ->copysetNumStandardDeviation.get_value());  // NOLINT
+    ASSERT_EQ(0, gLogicalPoolMetrics[logicalPoolId]
+                     ->copysetNumRange.get_value());  // NOLINT
+    ASSERT_EQ(1, gLogicalPoolMetrics[logicalPoolId]
+                     ->copysetNumMin.get_value());  // NOLINT
+    ASSERT_EQ(1, gLogicalPoolMetrics[logicalPoolId]
+                     ->copysetNumMax.get_value());  // NOLINT
+    ASSERT_EQ(0, gLogicalPoolMetrics[logicalPoolId]
+                     ->leaderNumAvg.get_value());  // NOLINT
+    ASSERT_EQ(0, gLogicalPoolMetrics[logicalPoolId]
+                     ->leaderNumVariance.get_value());  // NOLINT
+    ASSERT_EQ(0, gLogicalPoolMetrics[logicalPoolId]
+                     ->leaderNumStandardDeviation.get_value());  // NOLINT
+    ASSERT_EQ(0, gLogicalPoolMetrics[logicalPoolId]
+                     ->leaderNumRange.get_value());  // NOLINT
+    ASSERT_EQ(0, gLogicalPoolMetrics[logicalPoolId]
+                     ->leaderNumMin.get_value());  // NOLINT
+    ASSERT_EQ(0, gLogicalPoolMetrics[logicalPoolId]
+                     ->leaderNumMax.get_value());  // NOLINT
+    ASSERT_EQ(100 * 1024 * 3, gLogicalPoolMetrics[logicalPoolId]
+                                  ->diskCapacity.get_value());  // NOLINT
+    ASSERT_EQ(
+        20 * 1024 * 3,
+        gLogicalPoolMetrics[logicalPoolId]->diskAlloc.get_value());  // NOLINT
+    ASSERT_EQ(
+        10 * 1024 * 3,
+        gLogicalPoolMetrics[logicalPoolId]->diskUsed.get_value());  // NOLINT
 
-    ASSERT_EQ(1024 * 3,
+    ASSERT_EQ(
+        1024 * 3,
         gLogicalPoolMetrics[logicalPoolId]->chunkSizeUsedBytes.get_value());
-    ASSERT_EQ(1024 * 3,
+    ASSERT_EQ(
+        1024 * 3,
         gLogicalPoolMetrics[logicalPoolId]->chunkSizeLeftBytes.get_value());
-    ASSERT_EQ(1024 * 3,
+    ASSERT_EQ(
+        1024 * 3,
         gLogicalPoolMetrics[logicalPoolId]->chunkSizeTrashedBytes.get_value());
-    ASSERT_EQ(1024 * 9,
+    ASSERT_EQ(
+        1024 * 9,
         gLogicalPoolMetrics[logicalPoolId]->chunkSizeTotalBytes.get_value());
 
     ASSERT_EQ(3, gLogicalPoolMetrics[logicalPoolId]->readIOPS.get_value());
@@ -372,7 +365,7 @@ TEST_F(TestTopologyMetric,  TestUpdateTopologyMetricsOneLogicalPool) {
     ASSERT_EQ(1, gClusterMetrics->copysetNum.get_value());
 }
 
-TEST_F(TestTopologyMetric,  TestUpdateTopologyMetricsCleanRetired) {
+TEST_F(TestTopologyMetric, TestUpdateTopologyMetricsCleanRetired) {
     PrepareAddPoolset();
     PoolIdType logicalPoolId = 0x01;
     PoolIdType physicalPoolId = 0x11;
@@ -396,7 +389,6 @@ TEST_F(TestTopologyMetric,  TestUpdateTopologyMetricsCleanRetired) {
     replicas.insert(0x43);
     PrepareAddCopySet(copysetId, logicalPoolId, replicas);
 
-
     ChunkServerStat stat1;
     CopysetStat cstat1;
     stat1.leaderCount = 1;
@@ -414,8 +406,7 @@ TEST_F(TestTopologyMetric,  TestUpdateTopologyMetricsCleanRetired) {
     stat1.copysetStats.push_back(cstat1);
 
     EXPECT_CALL(*topologyStat_, GetChunkServerStat(_, _))
-        .WillRepeatedly(DoAll(SetArgPointee<1>(stat1),
-            Return(true)));
+        .WillRepeatedly(DoAll(SetArgPointee<1>(stat1), Return(true)));
 
     testObj_->UpdateTopologyMetrics();
 

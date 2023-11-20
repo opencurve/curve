@@ -100,7 +100,7 @@
             "thresholds": "1,2",
             "timeFrom": null,
             "timeShift": null,
-            "title": "进程运行时间",
+            "title": "Process runtime",
             "type": "singlestat",
             "valueFontSize": "80%",
             "valueMaps": [
@@ -161,7 +161,7 @@
             "timeFrom": null,
             "timeRegions": [],
             "timeShift": null,
-            "title": "cpu使用率",
+            "title": "CPU usage rate",
             "tooltip": {
               "shared": true,
               "sort": 0,
@@ -199,7 +199,7 @@
             }
           }
         ],
-        "title": "进程资源",
+        "title": "Process Resources",
         "type": "row"
       },
       {
@@ -212,12 +212,12 @@
         },
         "id": 12,
         "panels": [],
-        "title": "任务信息",
+        "title": "Task Information",
         "type": "row"
       },
       {
         "columns": [],
-        "description": "当前快照任务的信息",
+        "description": "Information about the current snapshot task",
         "fontSize": "100%",
         "gridPos": {
           "h": 9,
@@ -470,13 +470,13 @@
         ],
         "timeFrom": null,
         "timeShift": null,
-        "title": "快照任务表",
+        "title": "Snapshot Task Table",
         "transform": "table",
         "type": "table"
       },
       {
         "columns": [],
-        "description": "当前克隆任务的信息",
+        "description": "Information about the current cloning task",
         "fontSize": "100%",
         "gridPos": {
           "h": 9,
@@ -800,7 +800,7 @@
         ],
         "timeFrom": null,
         "timeShift": null,
-        "title": "克隆任务表",
+        "title": "Clone Task Table",
         "transform": "table",
         "type": "table"
       },
@@ -810,7 +810,7 @@
         "dashLength": 10,
         "dashes": false,
         "decimals": 0,
-        "description": "快照数量统计",
+        "description": "Number of Snapshots Statistics",
         "fill": 1,
         "gridPos": {
           "h": 8,
@@ -856,7 +856,7 @@
         "timeFrom": null,
         "timeRegions": [],
         "timeShift": null,
-        "title": "快照数量统计",
+        "title": "Number of Snapshots Statistics",
         "tooltip": {
           "shared": true,
           "sort": 0,
@@ -901,7 +901,7 @@
         "dashLength": 10,
         "dashes": false,
         "decimals": 0,
-        "description": "快照数量统计",
+        "description": "Number of Snapshots Statistics",
         "fill": 1,
         "gridPos": {
           "h": 8,
@@ -947,7 +947,7 @@
         "timeFrom": null,
         "timeRegions": [],
         "timeShift": null,
-        "title": "克隆数量统计",
+        "title": "Clone Count Statistics",
         "tooltip": {
           "shared": true,
           "sort": 0,
@@ -1002,7 +1002,7 @@
           "definition": "{__name__=~\"snapshotcloneserver_.*\"}",
           "hide": 0,
           "includeAll": false,
-          "label": "主机",
+          "label": "Host",
           "multi": false,
           "name": "instance",
           "options": [],

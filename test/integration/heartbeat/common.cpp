@@ -21,44 +21,44 @@
  */
 
 #include "test/integration/heartbeat/common.h"
+
 #include "test/mds/mock/mock_alloc_statistic.h"
 
 namespace curve {
 namespace mds {
 
-void HeartbeatIntegrationCommon::PrepareAddPoolset(
-    const Poolset &poolset) {
+void HeartbeatIntegrationCommon::PrepareAddPoolset(const Poolset& poolset) {
     int ret = topology_->AddPoolset(poolset);
     EXPECT_EQ(topology::kTopoErrCodeSuccess, ret);
 }
 
 void HeartbeatIntegrationCommon::PrepareAddLogicalPool(
-    const LogicalPool &lpool) {
+    const LogicalPool& lpool) {
     int ret = topology_->AddLogicalPool(lpool);
     EXPECT_EQ(topology::kTopoErrCodeSuccess, ret)
         << "should have PrepareAddLogicalPool()";
 }
 
 void HeartbeatIntegrationCommon::PrepareAddPhysicalPool(
-    const PhysicalPool &ppool) {
+    const PhysicalPool& ppool) {
     int ret = topology_->AddPhysicalPool(ppool);
     EXPECT_EQ(topology::kTopoErrCodeSuccess, ret);
 }
 
-void HeartbeatIntegrationCommon::PrepareAddZone(const Zone &zone) {
+void HeartbeatIntegrationCommon::PrepareAddZone(const Zone& zone) {
     int ret = topology_->AddZone(zone);
     EXPECT_EQ(topology::kTopoErrCodeSuccess, ret)
         << "should have PrepareAddPhysicalPool()";
 }
 
-void HeartbeatIntegrationCommon::PrepareAddServer(const Server &server) {
+void HeartbeatIntegrationCommon::PrepareAddServer(const Server& server) {
     int ret = topology_->AddServer(server);
     EXPECT_EQ(topology::kTopoErrCodeSuccess, ret)
         << "should have PrepareAddZone()";
 }
 
 void HeartbeatIntegrationCommon::PrepareAddChunkServer(
-    const ChunkServer &chunkserver) {
+    const ChunkServer& chunkserver) {
     ChunkServer cs(chunkserver);
     cs.SetOnlineState(OnlineState::ONLINE);
     int ret = topology_->AddChunkServer(cs);
@@ -68,7 +68,7 @@ void HeartbeatIntegrationCommon::PrepareAddChunkServer(
 
 void HeartbeatIntegrationCommon::PrepareAddCopySet(
     CopySetIdType copysetId, PoolIdType logicalPoolId,
-    const std::set<ChunkServerIdType> &members) {
+    const std::set<ChunkServerIdType>& members) {
     CopySetInfo cs(logicalPoolId, copysetId);
     cs.SetCopySetMembers(members);
     int ret = topology_->AddCopySet(cs);
@@ -78,10 +78,10 @@ void HeartbeatIntegrationCommon::PrepareAddCopySet(
 
 void HeartbeatIntegrationCommon::UpdateCopysetTopo(
     CopySetIdType copysetId, PoolIdType logicalPoolId, uint64_t epoch,
-    ChunkServerIdType leader, const std::set<ChunkServerIdType> &members,
+    ChunkServerIdType leader, const std::set<ChunkServerIdType>& members,
     ChunkServerIdType candidate) {
     ::curve::mds::topology::CopySetInfo copysetInfo;
-    ASSERT_TRUE(topology_->GetCopySet(CopySetKey{ logicalPoolId, copysetId },
+    ASSERT_TRUE(topology_->GetCopySet(CopySetKey{logicalPoolId, copysetId},
                                       &copysetInfo));
     copysetInfo.SetEpoch(epoch);
     copysetInfo.SetLeader(leader);
@@ -93,8 +93,8 @@ void HeartbeatIntegrationCommon::UpdateCopysetTopo(
 }
 
 void HeartbeatIntegrationCommon::SendHeartbeat(
-    const ChunkServerHeartbeatRequest &request, bool expectFailed,
-    ChunkServerHeartbeatResponse *response) {
+    const ChunkServerHeartbeatRequest& request, bool expectFailed,
+    ChunkServerHeartbeatResponse* response) {
     // init brpc client
     brpc::Channel channel;
     ASSERT_EQ(0, channel.Init(listenAddr_.c_str(), NULL));
@@ -109,7 +109,7 @@ void HeartbeatIntegrationCommon::SendHeartbeat(
 }
 
 void HeartbeatIntegrationCommon::BuildBasicChunkServerRequest(
-    ChunkServerIdType id, ChunkServerHeartbeatRequest *req) {
+    ChunkServerIdType id, ChunkServerHeartbeatRequest* req) {
     ChunkServer out;
     EXPECT_TRUE(topology_->GetChunkServer(id, &out))
         << "get chunkserver: " << id << " fail";
@@ -139,7 +139,7 @@ void HeartbeatIntegrationCommon::BuildBasicChunkServerRequest(
 }
 
 void HeartbeatIntegrationCommon::AddCopySetToRequest(
-    ChunkServerHeartbeatRequest *req, const CopySetInfo &csInfo,
+    ChunkServerHeartbeatRequest* req, const CopySetInfo& csInfo,
     ConfigChangeType type) {
     auto info = req->add_copysetinfos();
     info->set_logicalpoolid(csInfo.GetLogicalPoolId());
@@ -170,7 +170,7 @@ void HeartbeatIntegrationCommon::AddCopySetToRequest(
             << "get chunkserver: " << csInfo.GetCandidate() << " error";
         std::string ipport =
             out.GetHostIp() + ":" + std::to_string(out.GetPort()) + ":0";
-        ConfigChangeInfo *confChxInfo = new ConfigChangeInfo();
+        ConfigChangeInfo* confChxInfo = new ConfigChangeInfo();
         auto replica = new ::curve::common::Peer();
         replica->set_address(ipport.c_str());
         confChxInfo->set_allocated_peer(replica);
@@ -180,13 +180,13 @@ void HeartbeatIntegrationCommon::AddCopySetToRequest(
     }
 }
 
-void HeartbeatIntegrationCommon::AddOperatorToOpController(const Operator &op) {
+void HeartbeatIntegrationCommon::AddOperatorToOpController(const Operator& op) {
     auto opController = coordinator_->GetOpController();
     ASSERT_TRUE(opController->AddOperator(op));
 }
 
 void HeartbeatIntegrationCommon::RemoveOperatorFromOpController(
-    const CopySetKey &id) {
+    const CopySetKey& id) {
     auto opController = coordinator_->GetOpController();
     opController->RemoveOperator(id);
 }
@@ -243,11 +243,11 @@ void HeartbeatIntegrationCommon::PrepareBasicCluseter() {
     PrepareAddChunkServer(cs3);
 
     // add copyset
-    PrepareAddCopySet(1, 1, std::set<ChunkServerIdType>{ 1, 2, 3 });
+    PrepareAddCopySet(1, 1, std::set<ChunkServerIdType>{1, 2, 3});
 }
 
 void HeartbeatIntegrationCommon::InitHeartbeatOption(
-    Configuration *conf, HeartbeatOption *heartbeatOption) {
+    Configuration* conf, HeartbeatOption* heartbeatOption) {
     heartbeatOption->heartbeatIntervalMs =
         conf->GetIntValue("mds.heartbeat.intervalMs");
     heartbeatOption->heartbeatMissTimeOutMs =
@@ -259,7 +259,7 @@ void HeartbeatIntegrationCommon::InitHeartbeatOption(
 }
 
 void HeartbeatIntegrationCommon::InitSchedulerOption(
-    Configuration *conf, ScheduleOption *scheduleOption) {
+    Configuration* conf, ScheduleOption* scheduleOption) {
     scheduleOption->enableCopysetScheduler =
         conf->GetBoolValue("mds.enable.copyset.scheduler");
     scheduleOption->enableLeaderScheduler =
@@ -305,22 +305,20 @@ void HeartbeatIntegrationCommon::BuildBasicCluster() {
     auto idGen = std::make_shared<DefaultIdGenerator>();
     auto tokenGen = std::make_shared<DefaultTokenGenerator>();
 
-    auto topologyStorage =
-        std::make_shared<topology::FakeTopologyStorage>();
+    auto topologyStorage = std::make_shared<topology::FakeTopologyStorage>();
     topology_ =
         std::make_shared<TopologyImpl>(idGen, tokenGen, topologyStorage);
     ASSERT_EQ(kTopoErrCodeSuccess, topology_->Init(topologyOption));
 
     // init topology manager
-    topologyStat_ =
-        std::make_shared<TopologyStatImpl>(topology_);
+    topologyStat_ = std::make_shared<TopologyStatImpl>(topology_);
     topologyStat_->Init();
     auto copysetManager = std::make_shared<CopysetManager>(CopysetOption());
     auto allocStat = std::make_shared<MockAllocStatistic>();
     auto topologyServiceManager = std::make_shared<TopologyServiceManager>(
         topology_, topologyStat_, nullptr, copysetManager, nullptr);
 
-    // 初始化basic集群
+    // Initialize basic cluster
     PrepareBasicCluseter();
 
     // init coordinator
@@ -341,7 +339,7 @@ void HeartbeatIntegrationCommon::BuildBasicCluster() {
     heartbeatManager_->Init();
     heartbeatManager_->Run();
 
-    // 启动心跳rpc
+    // Start heartbeat rpc
     listenAddr_ = conf_.GetStringValue("mds.listen.addr");
     heartbeatService_ =
         std::make_shared<HeartbeatServiceImpl>(heartbeatManager_);

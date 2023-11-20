@@ -25,8 +25,8 @@
 namespace curve {
 namespace chunkserver {
 
-const string baseDir = "./data_int_con";    // NOLINT
-const string poolDir = "./chunkfilepool_int_con";  // NOLINT
+const string baseDir = "./data_int_con";                     // NOLINT
+const string poolDir = "./chunkfilepool_int_con";            // NOLINT
 const string poolMetaPath = "./chunkfilepool_int_con.meta";  // NOLINT
 
 class ConcurrencyTestSuit : public DatastoreIntegrationBase {
@@ -46,9 +46,8 @@ TEST_F(ConcurrencyTestSuit, ConcurrencyTest) {
     const int kThreadNum = 10;
 
     auto readFunc = [&](ChunkID id) {
-        // 五分之一概率增加版本号
-        if (rand_r(&seed) % 5 == 0)
-            ++sn;
+        // One fifth probability of increasing version number
+        if (rand_r(&seed) % 5 == 0) ++sn;
         uint64_t pageIndex = rand_r(&seed) % (CHUNK_SIZE / PAGE_SIZE);
         offset = pageIndex * PAGE_SIZE;
         dataStore_->ReadChunk(id, sn, buf, offset, length);
@@ -60,9 +59,7 @@ TEST_F(ConcurrencyTestSuit, ConcurrencyTest) {
         dataStore_->WriteChunk(id, sn, buf, offset, length, nullptr);
     };
 
-    auto deleteFunc = [&](ChunkID id) {
-        dataStore_->DeleteChunk(id, sn);
-    };
+    auto deleteFunc = [&](ChunkID id) { dataStore_->DeleteChunk(id, sn); };
 
     auto deleteSnapFunc = [&](ChunkID id) {
         dataStore_->DeleteSnapshotChunkOrCorrectSn(id, sn);
@@ -107,7 +104,7 @@ TEST_F(ConcurrencyTestSuit, ConcurrencyTest) {
     Thread threads[kThreadNum];
 
     printf("===============TEST CHUNK1===================\n");
-    // 测试并发对同一chunk进行随机操作
+    // Testing concurrent random operations on the same chunk
     for (int i = 0; i < kThreadNum; ++i) {
         threads[i] = std::thread(Run, 1, kLoopNum);
     }
@@ -118,7 +115,7 @@ TEST_F(ConcurrencyTestSuit, ConcurrencyTest) {
 
     printf("===============TEST RANDOM==================\n");
 
-    // 测试并发对不同chunk进行随机操作
+    // Test and perform random operations on different chunks simultaneously
     int idRange = 10;
     for (int i = 0; i < kThreadNum; ++i) {
         threads[i] = std::thread(Run, idRange, kLoopNum);

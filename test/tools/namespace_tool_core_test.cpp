@@ -20,18 +20,20 @@
  * Author: charisu
  */
 
-#include <gtest/gtest.h>
-#include "src/common/timeutility.h"
 #include "src/tools/namespace_tool_core.h"
+
+#include <gtest/gtest.h>
+
+#include "src/common/timeutility.h"
 #include "test/tools/mock/mock_mds_client.h"
 
-using ::testing::_;
-using ::testing::Return;
-using ::testing::DoAll;
-using ::testing::SetArgPointee;
-using ::testing::SaveArg;
-using curve::tool::GetSegmentRes;
 using curve::tool::CreateFileContext;
+using curve::tool::GetSegmentRes;
+using ::testing::_;
+using ::testing::DoAll;
+using ::testing::Return;
+using ::testing::SaveArg;
+using ::testing::SetArgPointee;
 
 DECLARE_bool(isTest);
 DECLARE_string(fileName);
@@ -39,12 +41,8 @@ DECLARE_uint64(offset);
 
 class NameSpaceToolCoreTest : public ::testing::Test {
  protected:
-    void SetUp() {
-        client_ = std::make_shared<curve::tool::MockMDSClient>();
-    }
-    void TearDown() {
-        client_ = nullptr;
-    }
+    void SetUp() { client_ = std::make_shared<curve::tool::MockMDSClient>(); }
+    void TearDown() { client_ = nullptr; }
 
     void GetFileInfoForTest(FileInfo* fileInfo) {
         fileInfo->set_id(1);
@@ -98,14 +96,11 @@ TEST_F(NameSpaceToolCoreTest, GetFileInfo) {
 
     EXPECT_CALL(*client_, GetFileInfo(_, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(expected),
-                        Return(0)));
+        .WillOnce(DoAll(SetArgPointee<1>(expected), Return(0)));
     ASSERT_EQ(0, namespaceTool.GetFileInfo(fileName, &fileInfo));
     ASSERT_EQ(expected.DebugString(), fileInfo.DebugString());
 
-    EXPECT_CALL(*client_, GetFileInfo(_, _))
-        .Times(1)
-        .WillOnce(Return(-1));
+    EXPECT_CALL(*client_, GetFileInfo(_, _)).Times(1).WillOnce(Return(-1));
     ASSERT_EQ(-1, namespaceTool.GetFileInfo(fileName, &fileInfo));
 }
 
@@ -122,17 +117,14 @@ TEST_F(NameSpaceToolCoreTest, ListDir) {
 
     EXPECT_CALL(*client_, ListDir(_, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(expected),
-                        Return(0)));
+        .WillOnce(DoAll(SetArgPointee<1>(expected), Return(0)));
     ASSERT_EQ(0, namespaceTool.ListDir(fileName, &files));
     ASSERT_EQ(expected.size(), files.size());
     for (uint64_t i = 0; i < expected.size(); ++i) {
         ASSERT_EQ(expected[i].DebugString(), files[i].DebugString());
     }
 
-    EXPECT_CALL(*client_, ListDir(_, _))
-        .Times(1)
-        .WillOnce(Return(-1));
+    EXPECT_CALL(*client_, ListDir(_, _)).Times(1).WillOnce(Return(-1));
     ASSERT_EQ(-1, namespaceTool.ListDir(fileName, &files));
 }
 
@@ -140,14 +132,12 @@ TEST_F(NameSpaceToolCoreTest, CreateFile) {
     curve::tool::NameSpaceToolCore namespaceTool(client_);
     std::string fileName = "/test";
     uint64_t length = 5 * segmentSize;
-    uint64_t stripeUnit = 32 * 1024 *1024;
+    uint64_t stripeUnit = 32 * 1024 * 1024;
     uint64_t stripeCount = 32;
     std::string pstName = "";
 
-    // 1、正常情况
-    EXPECT_CALL(*client_, CreateFile(_))
-        .Times(1)
-        .WillOnce(Return(0));
+    // 1. Normal situation
+    EXPECT_CALL(*client_, CreateFile(_)).Times(1).WillOnce(Return(0));
 
     CreateFileContext context;
     context.type = curve::mds::FileType::INODE_PAGEFILE;
@@ -159,10 +149,8 @@ TEST_F(NameSpaceToolCoreTest, CreateFile) {
 
     ASSERT_EQ(0, namespaceTool.CreateFile(context));
 
-    // 2、创建失败
-    EXPECT_CALL(*client_, CreateFile(_))
-        .Times(1)
-        .WillOnce(Return(-1));
+    // 2. Creation failed
+    EXPECT_CALL(*client_, CreateFile(_)).Times(1).WillOnce(Return(-1));
     ASSERT_EQ(-1, namespaceTool.CreateFile(context));
 }
 
@@ -170,16 +158,12 @@ TEST_F(NameSpaceToolCoreTest, ExtendVolume) {
     curve::tool::NameSpaceToolCore namespaceTool(client_);
     std::string fileName = "/test";
     uint64_t length = 10 * segmentSize;
-    // 1、正常情况
-    EXPECT_CALL(*client_, ExtendVolume(_, _))
-        .Times(1)
-        .WillOnce(Return(0));
+    // 1. Normal situation
+    EXPECT_CALL(*client_, ExtendVolume(_, _)).Times(1).WillOnce(Return(0));
     ASSERT_EQ(0, namespaceTool.ExtendVolume(fileName, length));
 
-    // 2、创建失败
-    EXPECT_CALL(*client_, ExtendVolume(_, _))
-        .Times(1)
-        .WillOnce(Return(-1));
+    // 2. Creation failed
+    EXPECT_CALL(*client_, ExtendVolume(_, _)).Times(1).WillOnce(Return(-1));
     ASSERT_EQ(-1, namespaceTool.ExtendVolume(fileName, length));
 }
 
@@ -188,16 +172,12 @@ TEST_F(NameSpaceToolCoreTest, DeleteFile) {
     std::string fileName = "/test";
     bool forceDelete = false;
 
-    // 1、正常情况
-    EXPECT_CALL(*client_, DeleteFile(_, _))
-        .Times(1)
-        .WillOnce(Return(0));
+    // 1. Normal situation
+    EXPECT_CALL(*client_, DeleteFile(_, _)).Times(1).WillOnce(Return(0));
     ASSERT_EQ(0, namespaceTool.DeleteFile(fileName, forceDelete));
 
-    // 2、创建失败
-    EXPECT_CALL(*client_, DeleteFile(_, _))
-        .Times(1)
-        .WillOnce(Return(-1));
+    // 2. Creation failed
+    EXPECT_CALL(*client_, DeleteFile(_, _)).Times(1).WillOnce(Return(-1));
     ASSERT_EQ(-1, namespaceTool.DeleteFile(fileName, forceDelete));
 }
 
@@ -213,23 +193,22 @@ TEST_F(NameSpaceToolCoreTest, GetChunkServerListInCopySet) {
         expected.emplace_back(csLoc);
     }
 
-    // 1、正常情况
+    // 1. Normal situation
     EXPECT_CALL(*client_, GetChunkServerListInCopySet(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(expected),
-                        Return(0)));
+        .WillOnce(DoAll(SetArgPointee<2>(expected), Return(0)));
     ASSERT_EQ(0, namespaceTool.GetChunkServerListInCopySet(logicalPoolId,
-                                                        copysetId, &csLocs));
+                                                           copysetId, &csLocs));
     ASSERT_EQ(expected.size(), csLocs.size());
     for (uint64_t i = 0; i < expected.size(); ++i) {
         ASSERT_EQ(expected[i].DebugString(), csLocs[i].DebugString());
     }
-    // 2、失败
+    // 2. Failure
     EXPECT_CALL(*client_, GetChunkServerListInCopySet(_, _, _))
         .Times(1)
         .WillOnce(Return(-1));
-    ASSERT_EQ(-1, namespaceTool.GetChunkServerListInCopySet(logicalPoolId,
-                                                        copysetId, &csLocs));
+    ASSERT_EQ(-1, namespaceTool.GetChunkServerListInCopySet(
+                      logicalPoolId, copysetId, &csLocs));
 }
 
 TEST_F(NameSpaceToolCoreTest, CleanRecycleBin) {
@@ -274,18 +253,14 @@ TEST_F(NameSpaceToolCoreTest, CleanRecycleBin) {
     // CASE 1: clean recycle bin success
     EXPECT_CALL(*client_, ListDir(_, _))
         .Times(1)
-        .WillRepeatedly(DoAll(SetArgPointee<1>(files),
-                              Return(0)));
-    EXPECT_CALL(*client_, DeleteFile(_, _))
-        .Times(7)
-        .WillRepeatedly(Return(0));
+        .WillRepeatedly(DoAll(SetArgPointee<1>(files), Return(0)));
+    EXPECT_CALL(*client_, DeleteFile(_, _)).Times(7).WillRepeatedly(Return(0));
     ASSERT_EQ(0, namespaceTool.CleanRecycleBin("/", parseArg("0s")));
 
     // CASE 2: clean recycle bin fail
     EXPECT_CALL(*client_, ListDir(_, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(files),
-                        Return(0)));
+        .WillOnce(DoAll(SetArgPointee<1>(files), Return(0)));
     EXPECT_CALL(*client_, DeleteFile(_, _))
         .Times(7)
         .WillOnce(Return(-1))
@@ -293,47 +268,35 @@ TEST_F(NameSpaceToolCoreTest, CleanRecycleBin) {
     ASSERT_EQ(-1, namespaceTool.CleanRecycleBin("/", parseArg("0s")));
 
     // CASE 3: list dir fail
-    EXPECT_CALL(*client_, ListDir(_, _))
-        .Times(1)
-        .WillOnce(Return(-1));
+    EXPECT_CALL(*client_, ListDir(_, _)).Times(1).WillOnce(Return(-1));
     ASSERT_EQ(-1, namespaceTool.CleanRecycleBin("/", parseArg("0s")));
 
     // CASE 4: clean recycle bin with expireTime is "3s"
     EXPECT_CALL(*client_, ListDir(_, _))
         .Times(1)
-        .WillRepeatedly(DoAll(SetArgPointee<1>(files),
-                              Return(0)));
-    EXPECT_CALL(*client_, DeleteFile(_, _))
-        .Times(6)
-        .WillRepeatedly(Return(0));
+        .WillRepeatedly(DoAll(SetArgPointee<1>(files), Return(0)));
+    EXPECT_CALL(*client_, DeleteFile(_, _)).Times(6).WillRepeatedly(Return(0));
     ASSERT_EQ(0, namespaceTool.CleanRecycleBin("/", parseArg("3s")));
 
     // CASE 5: clean recycle bin with expireTime is "3m"
     EXPECT_CALL(*client_, ListDir(_, _))
         .Times(1)
-        .WillRepeatedly(DoAll(SetArgPointee<1>(files),
-                              Return(0)));
-    EXPECT_CALL(*client_, DeleteFile(_, _))
-        .Times(5)
-        .WillRepeatedly(Return(0));
+        .WillRepeatedly(DoAll(SetArgPointee<1>(files), Return(0)));
+    EXPECT_CALL(*client_, DeleteFile(_, _)).Times(5).WillRepeatedly(Return(0));
     ASSERT_EQ(0, namespaceTool.CleanRecycleBin("/", parseArg("3m")));
 
     // CASE 6: clean recycle bin with expireTime is "3d"
     EXPECT_CALL(*client_, ListDir(_, _))
         .Times(1)
-        .WillRepeatedly(DoAll(SetArgPointee<1>(files),
-                              Return(0)));
-    EXPECT_CALL(*client_, DeleteFile(_, _))
-        .Times(3)
-        .WillRepeatedly(Return(0));
+        .WillRepeatedly(DoAll(SetArgPointee<1>(files), Return(0)));
+    EXPECT_CALL(*client_, DeleteFile(_, _)).Times(3).WillRepeatedly(Return(0));
     ASSERT_EQ(0, namespaceTool.CleanRecycleBin("/", parseArg("3d")));
 
     // CASE 7: clean recycle bin with different dirname
     auto cleanByDir = [&](const std::string& dirname, int deleteTimes) {
         EXPECT_CALL(*client_, ListDir(_, _))
             .Times(1)
-            .WillRepeatedly(DoAll(SetArgPointee<1>(files),
-                                  Return(0)));
+            .WillRepeatedly(DoAll(SetArgPointee<1>(files), Return(0)));
 
         EXPECT_CALL(*client_, DeleteFile(_, _))
             .Times(deleteTimes)
@@ -352,10 +315,9 @@ TEST_F(NameSpaceToolCoreTest, CleanRecycleBin) {
     cleanByDir("/", 7);
 }
 
-
 TEST_F(NameSpaceToolCoreTest, GetAllocatedSize) {
     curve::tool::NameSpaceToolCore namespaceTool(client_);
-    // 1、正常情况
+    // 1. Normal situation
     uint64_t allocSize;
     EXPECT_CALL(*client_, GetAllocatedSize(_, _, _))
         .Times(1)
@@ -374,38 +336,33 @@ TEST_F(NameSpaceToolCoreTest, QueryChunkCopyset) {
     uint64_t chunkId;
     std::pair<uint32_t, uint32_t> copyset;
 
-    // 正常情况
+    // Normal situation
     EXPECT_CALL(*client_, GetFileInfo(_, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo),
-                        Return(0)));
+        .WillOnce(DoAll(SetArgPointee<1>(fileInfo), Return(0)));
     EXPECT_CALL(*client_, GetSegmentInfo(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(segment),
-                        Return(GetSegmentRes::kOK)));
-    ASSERT_EQ(0, namespaceTool.QueryChunkCopyset(fileName, offset,
-                                            &chunkId, &copyset));
+        .WillOnce(DoAll(SetArgPointee<2>(segment), Return(GetSegmentRes::kOK)));
+    ASSERT_EQ(0, namespaceTool.QueryChunkCopyset(fileName, offset, &chunkId,
+                                                 &copyset));
     ASSERT_EQ(2001, chunkId);
     ASSERT_EQ(1, copyset.first);
     ASSERT_EQ(1001, copyset.second);
 
-    // GetFileInfo失败
-    EXPECT_CALL(*client_, GetFileInfo(_, _))
-        .Times(1)
-        .WillOnce(Return(-1));
-    ASSERT_EQ(-1, namespaceTool.QueryChunkCopyset(fileName, offset,
-                                            &chunkId, &copyset));
+    // GetFileInfo failed
+    EXPECT_CALL(*client_, GetFileInfo(_, _)).Times(1).WillOnce(Return(-1));
+    ASSERT_EQ(-1, namespaceTool.QueryChunkCopyset(fileName, offset, &chunkId,
+                                                  &copyset));
 
-    // GetSegmentInfo失败
+    // GetSegmentInfo failed
     EXPECT_CALL(*client_, GetFileInfo(_, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo),
-                        Return(0)));
+        .WillOnce(DoAll(SetArgPointee<1>(fileInfo), Return(0)));
     EXPECT_CALL(*client_, GetSegmentInfo(_, _, _))
         .Times(1)
         .WillOnce(Return(GetSegmentRes::kOtherError));
-    ASSERT_EQ(-1, namespaceTool.QueryChunkCopyset(fileName, offset,
-                                            &chunkId, &copyset));
+    ASSERT_EQ(-1, namespaceTool.QueryChunkCopyset(fileName, offset, &chunkId,
+                                                  &copyset));
 }
 
 TEST_F(NameSpaceToolCoreTest, GetFileSegments) {
@@ -417,33 +374,29 @@ TEST_F(NameSpaceToolCoreTest, GetFileSegments) {
     PageFileSegment expected;
     GetSegmentForTest(&expected);
 
-    // 1、正常情况
+    // 1. Normal situation
     EXPECT_CALL(*client_, GetFileInfo(_, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo),
-                        Return(0)));
+        .WillOnce(DoAll(SetArgPointee<1>(fileInfo), Return(0)));
     EXPECT_CALL(*client_, GetSegmentInfo(_, _, _))
         .Times(5)
         .WillOnce(Return(GetSegmentRes::kSegmentNotAllocated))
-        .WillRepeatedly(DoAll(SetArgPointee<2>(expected),
-                        Return(GetSegmentRes::kOK)));
+        .WillRepeatedly(
+            DoAll(SetArgPointee<2>(expected), Return(GetSegmentRes::kOK)));
     ASSERT_EQ(0, namespaceTool.GetFileSegments(fileName, &segments));
     ASSERT_EQ(4, segments.size());
     for (uint64_t i = 0; i < segments.size(); ++i) {
         ASSERT_EQ(expected.DebugString(), segments[i].DebugString());
     }
 
-    // 2、GetFileInfo失败的情况
-    EXPECT_CALL(*client_, GetFileInfo(_, _))
-        .Times(1)
-        .WillOnce(Return(-1));
+    // 2. The situation of GetFileInfo failure
+    EXPECT_CALL(*client_, GetFileInfo(_, _)).Times(1).WillOnce(Return(-1));
     ASSERT_EQ(-1, namespaceTool.GetFileSegments(fileName, &segments));
 
-    // 3、获取segment失败
+    // 3. Failed to obtain segment
     EXPECT_CALL(*client_, GetFileInfo(_, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo),
-                        Return(0)));
+        .WillOnce(DoAll(SetArgPointee<1>(fileInfo), Return(0)));
     EXPECT_CALL(*client_, GetSegmentInfo(_, _, _))
         .Times(1)
         .WillOnce(Return(GetSegmentRes::kOtherError));
@@ -452,11 +405,9 @@ TEST_F(NameSpaceToolCoreTest, GetFileSegments) {
 
 TEST_F(NameSpaceToolCoreTest, GetFileSize) {
     curve::tool::NameSpaceToolCore namespaceTool(client_);
-    // 1、正常情况
+    // 1. Normal situation
     uint64_t size;
-    EXPECT_CALL(*client_, GetFileSize(_, _))
-        .Times(1)
-        .WillOnce(Return(0));
+    EXPECT_CALL(*client_, GetFileSize(_, _)).Times(1).WillOnce(Return(0));
     ASSERT_EQ(0, namespaceTool.GetFileSize("/test", &size));
 }
 
@@ -465,8 +416,7 @@ TEST_F(NameSpaceToolCoreTest, TestUpdateThrottle) {
 
     // 1. throttle type is invalid
     {
-        EXPECT_CALL(*client_, UpdateFileThrottleParams(_, _))
-            .Times(0);
+        EXPECT_CALL(*client_, UpdateFileThrottleParams(_, _)).Times(0);
 
         ASSERT_EQ(-1, namespaceTool.UpdateFileThrottle("/test", "hello", 10000,
                                                        0, 0));
@@ -476,11 +426,10 @@ TEST_F(NameSpaceToolCoreTest, TestUpdateThrottle) {
     {
         curve::mds::ThrottleParams params;
         EXPECT_CALL(*client_, UpdateFileThrottleParams(_, _))
-            .WillOnce(
-                DoAll(SaveArg<1>(&params), Return(0)));
+            .WillOnce(DoAll(SaveArg<1>(&params), Return(0)));
 
         ASSERT_EQ(0, namespaceTool.UpdateFileThrottle("/test", "BPS_TOTAL",
-                                                       10000, -1, -1));
+                                                      10000, -1, -1));
         ASSERT_EQ(10000, params.limit());
         ASSERT_FALSE(params.has_burst());
         ASSERT_FALSE(params.has_burstlength());
@@ -489,8 +438,7 @@ TEST_F(NameSpaceToolCoreTest, TestUpdateThrottle) {
     // 3. burst lower than limit
     {
         curve::mds::ThrottleParams params;
-        EXPECT_CALL(*client_, UpdateFileThrottleParams(_, _))
-            .Times(0);
+        EXPECT_CALL(*client_, UpdateFileThrottleParams(_, _)).Times(0);
 
         ASSERT_EQ(-1, namespaceTool.UpdateFileThrottle("/test", "BPS_TOTAL",
                                                        10000, 5000, -1));
@@ -504,7 +452,7 @@ TEST_F(NameSpaceToolCoreTest, TestUpdateThrottle) {
             .WillOnce(DoAll(SaveArg<1>(&params), Return(0)));
 
         ASSERT_EQ(0, namespaceTool.UpdateFileThrottle("/test", "BPS_TOTAL",
-                                                       10000, 50000, -1));
+                                                      10000, 50000, -1));
         ASSERT_EQ(10000, params.limit());
         ASSERT_EQ(50000, params.burst());
         ASSERT_EQ(1, params.burstlength());
@@ -518,7 +466,7 @@ TEST_F(NameSpaceToolCoreTest, TestUpdateThrottle) {
             .WillOnce(DoAll(SaveArg<1>(&params), Return(0)));
 
         ASSERT_EQ(0, namespaceTool.UpdateFileThrottle("/test", "BPS_TOTAL",
-                                                       10000, 50000, 10));
+                                                      10000, 50000, 10));
         ASSERT_EQ(10000, params.limit());
         ASSERT_EQ(50000, params.burst());
         ASSERT_EQ(10, params.burstlength());

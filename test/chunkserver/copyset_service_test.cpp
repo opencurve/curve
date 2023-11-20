@@ -20,35 +20,34 @@
  * Author: wudemiao
  */
 
-#include <gtest/gtest.h>
-#include <gflags/gflags.h>
-#include <bthread/bthread.h>
 #include <brpc/channel.h>
 #include <brpc/controller.h>
 #include <brpc/server.h>
+#include <bthread/bthread.h>
+#include <gflags/gflags.h>
+#include <gtest/gtest.h>
 
 #include <cstdint>
 
-#include "src/chunkserver/trash.h"
+#include "proto/chunk.pb.h"
+#include "proto/copyset.pb.h"
+#include "src/chunkserver/cli.h"
 #include "src/chunkserver/copyset_node.h"
 #include "src/chunkserver/copyset_node_manager.h"
-#include "src/chunkserver/cli.h"
-#include "proto/copyset.pb.h"
-#include "proto/chunk.pb.h"
+#include "src/chunkserver/trash.h"
 
 namespace curve {
 namespace chunkserver {
 
 using curve::fs::FileSystemType;
 
-static std::string Exec(const char *cmd) {
-    FILE *pipe = popen(cmd, "r");
+static std::string Exec(const char* cmd) {
+    FILE* pipe = popen(cmd, "r");
     if (!pipe) return "ERROR";
     char buffer[4096];
     std::string result = "";
     while (!feof(pipe)) {
-        if (fgets(buffer, 1024, pipe) != NULL)
-            result += buffer;
+        if (fgets(buffer, 1024, pipe) != NULL) result += buffer;
     }
     pclose(pipe);
     return result;
@@ -72,9 +71,7 @@ class CopysetServiceTest : public testing::Test {
         trash_->Init(opt);
     }
 
-    void TearDown() {
-        Exec(rmCmd.c_str());
-    }
+    void TearDown() { Exec(rmCmd.c_str()); }
 
  protected:
     std::string testDir;
@@ -87,7 +84,7 @@ class CopysetServiceTest : public testing::Test {
 butil::AtExitManager atExitManager;
 
 TEST_F(CopysetServiceTest, basic) {
-    CopysetNodeManager *copysetNodeManager = &CopysetNodeManager::GetInstance();
+    CopysetNodeManager* copysetNodeManager = &CopysetNodeManager::GetInstance();
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 100002;
     std::string ip = "127.0.0.1";
@@ -99,7 +96,8 @@ TEST_F(CopysetServiceTest, basic) {
     ASSERT_EQ(0, copysetNodeManager->AddService(&server, addr));
     ASSERT_EQ(0, server.Start(port, NULL));
 
-    std::shared_ptr<LocalFileSystem> fs(LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));    //NOLINT
+    std::shared_ptr<LocalFileSystem> fs(
+        LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));  // NOLINT
     ASSERT_TRUE(nullptr != fs);
 
     butil::string_printf(&copysetDir, copysetDirPattern.c_str(), port);
@@ -115,8 +113,7 @@ TEST_F(CopysetServiceTest, basic) {
     copysetNodeOptions.raftSnapshotUri = copysetDir;
     copysetNodeOptions.concurrentapply = new ConcurrentApplyModule();
     copysetNodeOptions.localFileSystem = fs;
-    copysetNodeOptions.chunkFilePool =
-        std::make_shared<FilePool>(fs);
+    copysetNodeOptions.chunkFilePool = std::make_shared<FilePool>(fs);
     copysetNodeOptions.trash = trash_;
     copysetNodeOptions.enableOdsyncWhenOpenChunkFile = true;
     ASSERT_EQ(0, copysetNodeManager->Init(copysetNodeOptions));
@@ -128,7 +125,7 @@ TEST_F(CopysetServiceTest, basic) {
         LOG(FATAL) << "Fail to init channel to " << peerId.addr;
     }
 
-    /* 测试创建一个新的 copyset */
+    /* Test creating a new copyset */
     CopysetService_Stub stub(&channel);
     {
         brpc::Controller cntl;
@@ -149,7 +146,7 @@ TEST_F(CopysetServiceTest, basic) {
                   COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
     }
 
-    /* 测试创建一个重复 copyset */
+    /* Test creating a duplicate copyset */
     {
         brpc::Controller cntl;
         cntl.set_timeout_ms(3000);
@@ -169,7 +166,7 @@ TEST_F(CopysetServiceTest, basic) {
                   response.status());
     }
 
-    /* 非法参数测试 */
+    /* Illegal parameter testing */
     {
         brpc::Controller cntl;
         cntl.set_timeout_ms(3000);
@@ -213,8 +210,8 @@ TEST_F(CopysetServiceTest, basic) {
         ASSERT_EQ(response.status(), COPYSET_OP_STATUS_FAILURE_UNKNOWN);
 
         // CASE 3: delete broken copyset success
-        ASSERT_TRUE(copysetNodeManager->
-                    DeleteCopysetNode(logicPoolId, copysetId));
+        ASSERT_TRUE(
+            copysetNodeManager->DeleteCopysetNode(logicPoolId, copysetId));
         cntl.Reset();
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
@@ -228,8 +225,8 @@ TEST_F(CopysetServiceTest, basic) {
 }
 
 TEST_F(CopysetServiceTest, basic2) {
-    /********************* 设置初始环境 ***********************/
-    CopysetNodeManager *copysetNodeManager = &CopysetNodeManager::GetInstance();
+    /********************* Set Up Initial Environment ***********************/
+    CopysetNodeManager* copysetNodeManager = &CopysetNodeManager::GetInstance();
     LogicPoolID logicPoolId = 2;
     CopysetID copysetId = 100003;
     std::string ip = "127.0.0.1";
@@ -241,7 +238,8 @@ TEST_F(CopysetServiceTest, basic2) {
     ASSERT_EQ(0, copysetNodeManager->AddService(&server, addr));
     ASSERT_EQ(0, server.Start(port, NULL));
 
-    std::shared_ptr<LocalFileSystem> fs(LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));    //NOLINT
+    std::shared_ptr<LocalFileSystem> fs(
+        LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));  // NOLINT
     ASSERT_TRUE(nullptr != fs);
 
     butil::string_printf(&copysetDir, copysetDirPattern.c_str(), port);
@@ -257,8 +255,7 @@ TEST_F(CopysetServiceTest, basic2) {
     copysetNodeOptions.raftSnapshotUri = copysetDir;
     copysetNodeOptions.concurrentapply = new ConcurrentApplyModule();
     copysetNodeOptions.localFileSystem = fs;
-    copysetNodeOptions.chunkFilePool =
-        std::make_shared<FilePool>(fs);
+    copysetNodeOptions.chunkFilePool = std::make_shared<FilePool>(fs);
     copysetNodeOptions.enableOdsyncWhenOpenChunkFile = true;
     ASSERT_EQ(0, copysetNodeManager->Init(copysetNodeOptions));
     ASSERT_EQ(0, copysetNodeManager->Run());
@@ -269,9 +266,9 @@ TEST_F(CopysetServiceTest, basic2) {
         LOG(FATAL) << "Fail to init channel to " << peerId.addr;
     }
 
-    /********************** 跑测试cases ************************/
+    /********************** Run Test Cases ************************/
 
-    /* 测试创建一个新的 copyset */
+    /* Test creating a new copyset */
     CopysetService_Stub stub(&channel);
     {
         brpc::Controller cntl;
@@ -279,15 +276,15 @@ TEST_F(CopysetServiceTest, basic2) {
 
         CopysetRequest2 request;
         CopysetResponse2 response;
-        Copyset *copyset;
+        Copyset* copyset;
         copyset = request.add_copysets();
         copyset->set_logicpoolid(logicPoolId);
         copyset->set_copysetid(copysetId);
-        Peer *peer1 = copyset->add_peers();
+        Peer* peer1 = copyset->add_peers();
         peer1->set_address("127.0.0.1:9040:0");
-        Peer *peer2 = copyset->add_peers();
+        Peer* peer2 = copyset->add_peers();
         peer2->set_address("127.0.0.1:9041:0");
-        Peer *peer3 = copyset->add_peers();
+        Peer* peer3 = copyset->add_peers();
         peer3->set_address("127.0.0.1:9042:0");
 
         stub.CreateCopysetNode2(&cntl, &request, &response, nullptr);
@@ -298,22 +295,22 @@ TEST_F(CopysetServiceTest, basic2) {
                   COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
     }
 
-    /* 测试创建一个重复 copyset */
+    /* Test creating a duplicate copyset */
     {
         brpc::Controller cntl;
         cntl.set_timeout_ms(3000);
 
         CopysetRequest2 request;
         CopysetResponse2 response;
-        Copyset *copyset;
+        Copyset* copyset;
         copyset = request.add_copysets();
         copyset->set_logicpoolid(logicPoolId);
         copyset->set_copysetid(copysetId);
-        Peer *peer1 = copyset->add_peers();
+        Peer* peer1 = copyset->add_peers();
         peer1->set_address("127.0.0.1:9040:0");
-        Peer *peer2 = copyset->add_peers();
+        Peer* peer2 = copyset->add_peers();
         peer2->set_address("127.0.0.1:9041:0");
-        Peer *peer3 = copyset->add_peers();
+        Peer* peer3 = copyset->add_peers();
         peer3->set_address("127.0.0.1:9042:0");
 
         stub.CreateCopysetNode2(&cntl, &request, &response, nullptr);
@@ -324,7 +321,7 @@ TEST_F(CopysetServiceTest, basic2) {
                   response.status());
     }
 
-    /* 创建多个copyset */
+    /* Create multiple copysets */
     {
         brpc::Controller cntl;
         cntl.set_timeout_ms(3000);
@@ -332,31 +329,31 @@ TEST_F(CopysetServiceTest, basic2) {
         CopysetRequest2 request;
         CopysetResponse2 response;
 
-        // 准备第1个copyset
+        // Prepare the first copyset
         {
-            Copyset *copyset;
+            Copyset* copyset;
             copyset = request.add_copysets();
             copyset->set_logicpoolid(logicPoolId);
             copyset->set_copysetid(copysetId + 1);
-            Peer *peer1 = copyset->add_peers();
+            Peer* peer1 = copyset->add_peers();
             peer1->set_address("127.0.0.1:9040:0");
-            Peer *peer2 = copyset->add_peers();
+            Peer* peer2 = copyset->add_peers();
             peer2->set_address("127.0.0.1:9041:0");
-            Peer *peer3 = copyset->add_peers();
+            Peer* peer3 = copyset->add_peers();
             peer3->set_address("127.0.0.1:9042:0");
         }
 
-        // 准备第2个copyset
+        // Prepare the second copyset
         {
-            Copyset *copyset;
+            Copyset* copyset;
             copyset = request.add_copysets();
             copyset->set_logicpoolid(logicPoolId);
             copyset->set_copysetid(copysetId + 2);
-            Peer *peer1 = copyset->add_peers();
+            Peer* peer1 = copyset->add_peers();
             peer1->set_address("127.0.0.1:9040:0");
-            Peer *peer2 = copyset->add_peers();
+            Peer* peer2 = copyset->add_peers();
             peer2->set_address("127.0.0.1:9041:0");
-            Peer *peer3 = copyset->add_peers();
+            Peer* peer3 = copyset->add_peers();
             peer3->set_address("127.0.0.1:9042:0");
         }
 
@@ -370,18 +367,18 @@ TEST_F(CopysetServiceTest, basic2) {
 
     // get status
     {
-        // 创建一个copyset
+        // Create a copyset
         {
             brpc::Controller cntl;
             cntl.set_timeout_ms(3000);
             CopysetRequest2 request;
             CopysetResponse2 response;
 
-            Copyset *copyset;
+            Copyset* copyset;
             copyset = request.add_copysets();
             copyset->set_logicpoolid(logicPoolId);
             copyset->set_copysetid(copysetId + 3);
-            Peer *peer1 = copyset->add_peers();
+            Peer* peer1 = copyset->add_peers();
             peer1->set_address("127.0.0.1:9040:0");
 
             stub.CreateCopysetNode2(&cntl, &request, &response, nullptr);
@@ -392,11 +389,11 @@ TEST_F(CopysetServiceTest, basic2) {
                       COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
         }
 
-        // 睡眠等待leader产生
+        // Sleep waiting for leader generation
         ::usleep(2 * 1000 * 1000);
 
         {
-            // query hash为false
+            // query hash is false
             std::string peerStr("127.0.0.1:9040:0");
             brpc::Controller cntl;
             cntl.set_timeout_ms(3000);
@@ -404,7 +401,7 @@ TEST_F(CopysetServiceTest, basic2) {
             CopysetStatusResponse response;
             request.set_logicpoolid(logicPoolId);
             request.set_copysetid(copysetId + 3);
-            Peer *peer = new Peer();
+            Peer* peer = new Peer();
             request.set_allocated_peer(peer);
             peer->set_address(peerStr);
             request.set_queryhash(false);
@@ -432,7 +429,7 @@ TEST_F(CopysetServiceTest, basic2) {
             ASSERT_FALSE(response.has_hash());
         }
         {
-            // query hash为true
+            // query hash is true
             std::string peerStr("127.0.0.1:9040:0");
             brpc::Controller cntl;
             cntl.set_timeout_ms(3000);
@@ -440,7 +437,7 @@ TEST_F(CopysetServiceTest, basic2) {
             CopysetStatusResponse response;
             request.set_logicpoolid(logicPoolId);
             request.set_copysetid(copysetId + 3);
-            Peer *peer = new Peer();
+            Peer* peer = new Peer();
             request.set_allocated_peer(peer);
             peer->set_address(peerStr);
             request.set_queryhash(true);
@@ -476,4 +473,3 @@ TEST_F(CopysetServiceTest, basic2) {
 
 }  // namespace chunkserver
 }  // namespace curve
-
