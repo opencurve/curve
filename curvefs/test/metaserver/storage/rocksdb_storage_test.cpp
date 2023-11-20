@@ -116,32 +116,32 @@ TEST_F(RocksDBStorageTest, OpenCloseTest) {
 
     ASSERT_TRUE(kvStorage_->Close());
 
-    s = kvStorage_->HSet("partition:1", "key1", Value("value1"));
+    s = kvStorage_->HSet("1:1", "key1", Value("value1"));
     ASSERT_TRUE(s.IsDBClosed());
-    s = kvStorage_->HGet("partition:1", "key1", &value);
+    s = kvStorage_->HGet("1:1", "key1", &value);
     ASSERT_TRUE(s.IsDBClosed());
-    s = kvStorage_->HDel("partition:1", "key1");
+    s = kvStorage_->HDel("1:1", "key1");
     ASSERT_TRUE(s.IsDBClosed());
-    iterator = kvStorage_->HGetAll("partition:1");
+    iterator = kvStorage_->HGetAll("1:1");
     ASSERT_EQ(iterator->Status(), -1);
-    size = kvStorage_->HSize("partition:1");
+    size = kvStorage_->HSize("1:1");
     ASSERT_EQ(size, 0);
-    s = kvStorage_->HClear("partition:1");
+    s = kvStorage_->HClear("1:1");
     ASSERT_TRUE(s.IsDBClosed());
 
-    s = kvStorage_->SSet("partition:1", "key1", Value("value1"));
+    s = kvStorage_->SSet("3:1", "key1", Value("value1"));
     ASSERT_TRUE(s.IsDBClosed());
-    s = kvStorage_->SGet("partition:1", "key1", &value);
+    s = kvStorage_->SGet("3:1", "key1", &value);
     ASSERT_TRUE(s.IsDBClosed());
-    s = kvStorage_->SDel("partition:1", "key1");
+    s = kvStorage_->SDel("3:1", "key1");
     ASSERT_TRUE(s.IsDBClosed());
-    iterator = kvStorage_->SGetAll("partition:1");
+    iterator = kvStorage_->SGetAll("3:1");
     ASSERT_EQ(iterator->Status(), -1);
-    iterator = kvStorage_->SSeek("partition:1", "key1");
+    iterator = kvStorage_->SSeek("3:1", "key1");
     ASSERT_EQ(iterator->Status(), -1);
-    size = kvStorage_->SSize("partition:1");
+    size = kvStorage_->SSize("3:1");
     ASSERT_EQ(size, 0);
-    s = kvStorage_->SClear("partition:1");
+    s = kvStorage_->SClear("3:1");
     ASSERT_TRUE(s.IsDBClosed());
 }
 
@@ -250,14 +250,14 @@ TEST_F(RocksDBStorageTest, TestCheckpointAndRecover) {
     ASSERT_TRUE(kvStorage_->Open());
 
     // put some values
-    auto s = kvStorage_->SSet("1", "1", Value("1"));
-    s = kvStorage_->SSet("2", "2", Value("2"));
-    s = kvStorage_->SSet("3", "3", Value("3"));
-    s = kvStorage_->SSet("4", "4", Value("4"));
-    s = kvStorage_->SSet("5", "5", Value("5"));
-    s = kvStorage_->SSet("6", "6", Value("6"));
-    s = kvStorage_->SSet("7", "7", Value("7"));
-    s = kvStorage_->SDel("3", "3");
+    auto s = kvStorage_->SSet("1:1", "1", Value("1"));
+    s = kvStorage_->SSet("1:2", "2", Value("2"));
+    s = kvStorage_->SSet("1:3", "3", Value("3"));
+    s = kvStorage_->SSet("1:4", "4", Value("4"));
+    s = kvStorage_->SSet("1:5", "5", Value("5"));
+    s = kvStorage_->SSet("1:6", "6", Value("6"));
+    s = kvStorage_->SSet("1:7", "7", Value("7"));
+    s = kvStorage_->SDel("1:3", "3");
 
     ASSERT_TRUE(s.ok()) << s.ToString();
 
@@ -269,28 +269,28 @@ TEST_F(RocksDBStorageTest, TestCheckpointAndRecover) {
 
     // get values that checkpoint should have
     Dentry dummyDentry;
-    kvStorage_->SGet("1", "1", &dummyDentry);
+    kvStorage_->SGet("1:1", "1", &dummyDentry);
     EXPECT_EQ(Value("1"), dummyDentry)
         << "Expect: " << Value("1").ShortDebugString()
         << ", actual: " << dummyDentry.ShortDebugString();
 
-    kvStorage_->SGet("2", "2", &dummyDentry);
+    kvStorage_->SGet("1:2", "2", &dummyDentry);
     EXPECT_EQ(Value("2"), dummyDentry);
 
     // "3" is deleted
-    s = kvStorage_->SGet("3", "3", &dummyDentry);
+    s = kvStorage_->SGet("1:3", "3", &dummyDentry);
     EXPECT_TRUE(s.IsNotFound()) << s.ToString();
 
-    kvStorage_->SGet("4", "4", &dummyDentry);
+    kvStorage_->SGet("1:4", "4", &dummyDentry);
     EXPECT_EQ(Value("4"), dummyDentry);
 
-    kvStorage_->SGet("5", "5", &dummyDentry);
+    kvStorage_->SGet("1:5", "5", &dummyDentry);
     EXPECT_EQ(Value("5"), dummyDentry);
 
-    kvStorage_->SGet("6", "6", &dummyDentry);
+    kvStorage_->SGet("1:6", "6", &dummyDentry);
     EXPECT_EQ(Value("6"), dummyDentry);
 
-    kvStorage_->SGet("7", "7", &dummyDentry);
+    kvStorage_->SGet("1:7", "7", &dummyDentry);
     EXPECT_EQ(Value("7"), dummyDentry);
 }
 

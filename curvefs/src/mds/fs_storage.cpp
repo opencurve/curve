@@ -30,6 +30,7 @@
 
 #include "curvefs/src/mds/codec/codec.h"
 #include "curvefs/src/mds/metric/fs_metric.h"
+#include "src/common/timeutility.h"
 
 namespace curvefs {
 namespace mds {
@@ -40,6 +41,7 @@ using ::curve::kvstorage::KVStorageClient;
 bool MemoryFsStorage::Init() {
     WriteLockGuard writeLockGuard(rwLock_);
     fsInfoMap_.clear();
+    tsId_.store(1);
     return true;
 }
 
@@ -186,6 +188,12 @@ FSStatusCode MemoryFsStorage::DeleteFsUsage(const std::string& fsName) {
     return FSStatusCode::OK;
 }
 
+FSStatusCode MemoryFsStorage::Tso(uint64_t* ts, uint64_t* timestamp) {
+    *timestamp = curve::common::TimeUtility::GetTimeofDayMs();
+    *ts = tsId_.fetch_add(1, std::memory_order_relaxed);
+    return FSStatusCode::OK;
+}
+
 PersisKVStorage::PersisKVStorage(
     const std::shared_ptr<curve::kvstorage::KVStorageClient>& storage)
     : storage_(storage),
@@ -193,7 +201,8 @@ PersisKVStorage::PersisKVStorage(
       fsLock_(),
       fs_(),
       idToNameLock_(),
-      idToName_() {}
+      idToName_(),
+      tsIdGen_(new TsIdGenerator(storage_)) {}
 
 PersisKVStorage::~PersisKVStorage() = default;
 
@@ -207,8 +216,11 @@ FSStatusCode PersisKVStorage::Get(uint64_t fsId, FsInfoWrapper* fsInfo) {
 }
 
 bool PersisKVStorage::Init() {
-    bool ret = LoadAllFs();
-    return ret;
+    if (!LoadAllFs()) {
+        LOG(ERROR) << "Load all fs failed";
+        return false;
+    }
+    return true;
 }
 
 void PersisKVStorage::Uninit() {}
@@ -568,6 +580,15 @@ FSStatusCode PersisKVStorage::DeleteFsUsage(const std::string& fsName) {
         return FSStatusCode::INTERNAL_ERROR;
     }
     return FSStatusCode::OK;
+}
+
+FSStatusCode PersisKVStorage::Tso(uint64_t* ts, uint64_t* timestamp) {
+    *timestamp = curve::common::TimeUtility::CLockRealTimeMs();
+    if (tsIdGen_->GenTsId(ts)) {
+        return FSStatusCode::OK;
+    }
+    LOG(ERROR) << "Gen ts failed";
+    return FSStatusCode::INTERNAL_ERROR;
 }
 
 }  // namespace mds

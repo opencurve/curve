@@ -27,8 +27,8 @@
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/client/fuse_volume_client.h"
 #include "curvefs/src/common/define.h"
-#include "curvefs/test/client/mock_dentry_cache_mamager.h"
-#include "curvefs/test/client/mock_inode_cache_manager.h"
+#include "curvefs/test/client/mock_dentry_mamager.h"
+#include "curvefs/test/client/mock_inode_manager.h"
 #include "curvefs/test/client/rpcclient/mock_mds_client.h"
 #include "curvefs/test/client/mock_metaserver_client.h"
 #include "curvefs/test/client/mock_volume_storage.h"
@@ -602,6 +602,11 @@ TEST_F(TestFuseVolumeClient, FuseOpRmDir) {
     EXPECT_CALL(*dentryManager_, GetDentry(parent, name, _))
         .WillOnce(DoAll(SetArgPointee<2>(dentry), Return(CURVEFS_ERROR::OK)));
 
+    std::list<Dentry> dentryList;
+    EXPECT_CALL(*dentryManager_, ListDentry(inodeid, _, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<1>(dentryList),
+            Return(CURVEFS_ERROR::OK)));
+
     EXPECT_CALL(*dentryManager_,
         DeleteDentry(parent, name, FsFileType::TYPE_DIRECTORY))
         .WillOnce(Return(CURVEFS_ERROR::OK));
@@ -705,12 +710,15 @@ TEST_F(TestFuseVolumeClient, FuseOpUnlinkFailed) {
     EXPECT_CALL(*metaClient_, UpdateInodeAttr(_, _, _))
         .WillOnce(Return(MetaStatusCode::UNKNOWN_ERROR));
 
+    // get dentry internal failed
     CURVEFS_ERROR ret = client_->FuseOpUnlink(req, parent, name.c_str());
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 
+    // delete dentry internal failed
     ret = client_->FuseOpUnlink(req, parent, name.c_str());
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 
+    // get inode internal failed
     ret = client_->FuseOpUnlink(req, parent, name.c_str());
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 

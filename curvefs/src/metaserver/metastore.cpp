@@ -377,10 +377,13 @@ MetaStatusCode MetaStoreImpl::CreateDentry(const CreateDentryRequest* request,
     GET_PARTITION_OR_RETURN(partition);
     Time tm;
     GET_TIME_FROM_REQUEST(tm);
-    MetaStatusCode status =
-        partition->CreateDentry(request->dentry(), tm, logIndex);
-    response->set_statuscode(status);
-    return status;
+    TxLock txLock;
+    auto rc = partition->CreateDentry(request->dentry(), tm, logIndex, &txLock);
+    response->set_statuscode(rc);
+    if (rc == MetaStatusCode::TX_KEY_LOCKED) {
+        *response->mutable_txlock() = std::move(txLock);
+    }
+    return rc;
 }
 
 MetaStatusCode MetaStoreImpl::GetDentry(const GetDentryRequest* request,
@@ -403,10 +406,13 @@ MetaStatusCode MetaStoreImpl::GetDentry(const GetDentryRequest* request,
     dentry.set_name(name);
     dentry.set_txid(txId);
 
-    auto rc = partition->GetDentry(&dentry);
+    TxLock txLock;
+    auto rc = partition->GetDentry(&dentry, &txLock);
     response->set_statuscode(rc);
     if (rc == MetaStatusCode::OK) {
         *response->mutable_dentry() = std::move(dentry);
+    } else if (rc == MetaStatusCode::TX_KEY_LOCKED) {
+        *response->mutable_txlock() = std::move(txLock);
     }
     return rc;
 }
@@ -432,8 +438,12 @@ MetaStatusCode MetaStoreImpl::DeleteDentry(const DeleteDentryRequest* request,
 
     Time tm;
     GET_TIME_FROM_REQUEST(tm);
-    auto rc = partition->DeleteDentry(dentry, tm, logIndex);
+    TxLock txLock;
+    auto rc = partition->DeleteDentry(dentry, tm, logIndex, &txLock);
     response->set_statuscode(rc);
+    if (rc == MetaStatusCode::TX_KEY_LOCKED) {
+        *response->mutable_txlock() = std::move(txLock);
+    }
     return rc;
 }
 
@@ -464,11 +474,15 @@ MetaStatusCode MetaStoreImpl::ListDentry(const ListDentryRequest* request,
     }
 
     std::vector<Dentry> dentrys;
-    auto rc =
-        partition->ListDentry(dentry, &dentrys, request->count(), onlyDir);
+    TxLock txLock;
+    auto rc = partition->ListDentry(
+        dentry, &dentrys, request->count(), onlyDir, &txLock);
     response->set_statuscode(rc);
     if (rc == MetaStatusCode::OK && !dentrys.empty()) {
         *response->mutable_dentrys() = {dentrys.begin(), dentrys.end()};
+    }
+    if (rc == MetaStatusCode::TX_KEY_LOCKED) {
+        *response->mutable_txlock() = std::move(txLock);
     }
     return rc;
 }
@@ -489,6 +503,59 @@ MetaStatusCode MetaStoreImpl::PrepareRenameTx(
     }
     response->set_statuscode(rc);
     return rc;
+}
+
+MetaStatusCode MetaStoreImpl::PrewriteRenameTx(
+    const PrewriteRenameTxRequest* request, PrewriteRenameTxResponse* response,
+    int64_t logIndex) {
+    MetaStatusCode rc;
+    std::shared_ptr<Partition> partition;
+    GET_PARTITION_OR_RETURN(partition);
+    TxLock txLock;
+    std::vector<Dentry> dentrys{request->dentrys().begin(),
+                                request->dentrys().end()};
+    rc = partition->PrewriteRenameTx(
+        dentrys, request->txlock(), logIndex, &txLock);
+    response->set_statuscode(rc);
+    if (rc == MetaStatusCode::TX_KEY_LOCKED) {
+        *response->mutable_txlock() = std::move(txLock);
+    }
+    return rc;
+}
+
+MetaStatusCode MetaStoreImpl::CheckTxStatus(const CheckTxStatusRequest* request,
+    CheckTxStatusResponse* response, int64_t logIndex) {
+    MetaStatusCode rc;
+    std::shared_ptr<Partition> partition;
+    GET_PARTITION_OR_RETURN(partition);
+    rc = partition->CheckTxStatus(request->primarykey(), request->startts(),
+        request->curtimestamp(), logIndex);
+    response->set_statuscode(rc);
+    return MetaStatusCode::OK;
+}
+
+MetaStatusCode MetaStoreImpl::ResolveTxLock(const ResolveTxLockRequest* request,
+    ResolveTxLockResponse* response, int64_t logIndex) {
+    MetaStatusCode rc;
+    std::shared_ptr<Partition> partition;
+    GET_PARTITION_OR_RETURN(partition);
+    rc = partition->ResolveTxLock(request->dentry(),
+        request->startts(), request->committs(), logIndex);
+    response->set_statuscode(rc);
+    return MetaStatusCode::OK;
+}
+
+MetaStatusCode MetaStoreImpl::CommitTx(const CommitTxRequest* request,
+    CommitTxResponse* response, int64_t logIndex) {
+    MetaStatusCode rc;
+    std::shared_ptr<Partition> partition;
+    GET_PARTITION_OR_RETURN(partition);
+    std::vector<Dentry> dentrys{request->dentrys().begin(),
+                                request->dentrys().end()};
+    rc = partition->CommitTx(dentrys, request->startts(),
+        request->committs(), logIndex);
+    response->set_statuscode(rc);
+    return MetaStatusCode::OK;
 }
 
 // inode

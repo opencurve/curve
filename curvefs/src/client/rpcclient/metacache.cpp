@@ -102,7 +102,7 @@ bool MetaCache::GetTarget(uint32_t fsID, uint64_t inodeID,
         }
 
         if (!GetCopysetIDwithInodeID(inodeID, &target->groupID,
-                                     &target->partitionID, &target->txId)) {
+            &target->partitionID, &target->txId)) {
             LOG(ERROR) << "{fsid:" << fsID << ", inodeid:" << inodeID
                        << "} do not find partition";
             return false;
@@ -496,9 +496,7 @@ bool MetaCache::SelectPartition(CopysetTarget *target) {
 }
 
 bool MetaCache::GetCopysetIDwithInodeID(uint64_t inodeID,
-                                        CopysetGroupID *groupID,
-                                        PartitionID *partitionID,
-                                        uint64_t *txId) {
+    CopysetGroupID* groupID, PartitionID* partitionID, uint64_t *txId) {
     ReadLockGuard rl(rwlock4Partitions_);
     for (auto iter = partitionInfos_.begin(); iter != partitionInfos_.end();
          ++iter) {

@@ -45,17 +45,17 @@
 #include "absl/types/optional.h"
 
 using ::curvefs::client::metric::MetaServerClientMetric;
+using ::curvefs::common::StreamClient;
+using ::curvefs::common::StreamStatus;
+using ::curvefs::metaserver::DeallocatableBlockGroup;
 using ::curvefs::metaserver::Dentry;
 using ::curvefs::metaserver::FsFileType;
 using ::curvefs::metaserver::Inode;
 using ::curvefs::metaserver::InodeAttr;
-using ::curvefs::metaserver::XAttr;
-using ::curvefs::metaserver::MetaStatusCode;
 using ::curvefs::metaserver::S3ChunkInfoList;
-using ::curvefs::metaserver::DeallocatableBlockGroup;
-using ::curvefs::common::StreamStatus;
-using ::curvefs::common::StreamClient;
 using ::curvefs::metaserver::Time;
+using ::curvefs::metaserver::TxLock;
+using ::curvefs::metaserver::XAttr;
 
 using DeallocatableBlockGroupMap = std::map<uint64_t, DeallocatableBlockGroup>;
 using S3ChunkInfoMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
@@ -94,21 +94,35 @@ class MetaServerClient {
     virtual void SetTxId(uint32_t partitionId, uint64_t txId) = 0;
 
     virtual MetaStatusCode GetDentry(uint32_t fsId, uint64_t inodeid,
-                                     const std::string &name, Dentry *out) = 0;
+        const std::string &name, Dentry *out, TxLock* txLockOut) = 0;
 
     virtual MetaStatusCode ListDentry(uint32_t fsId, uint64_t inodeid,
                                       const std::string &last, uint32_t count,
                                       bool onlyDir,
-                                      std::list<Dentry> *dentryList) = 0;
+                                      std::list<Dentry> *dentryList,
+                                      TxLock* txLockOut) = 0;
 
-    virtual MetaStatusCode CreateDentry(const Dentry &dentry) = 0;
+    virtual MetaStatusCode CreateDentry(
+        const Dentry &dentry, TxLock* txLockOut) = 0;
 
     virtual MetaStatusCode DeleteDentry(uint32_t fsId, uint64_t inodeid,
-                                        const std::string &name,
-                                        FsFileType type) = 0;
+        const std::string &name, FsFileType type, TxLock* txLockOut) = 0;
 
     virtual MetaStatusCode
     PrepareRenameTx(const std::vector<Dentry> &dentrys) = 0;
+
+    virtual MetaStatusCode PrewriteRenameTx(const std::vector<Dentry>& dentrys,
+        const TxLock& txLockIn, TxLock* txLockOut) = 0;
+
+    virtual MetaStatusCode CheckTxStatus(uint32_t fsId, uint64_t inodeId,
+        const std::string& primaryKey, uint64_t startTs,
+        uint64_t curTimestamp) = 0;
+
+    virtual MetaStatusCode ResolveTxLock(const Dentry& dentry,
+        uint64_t startTs, uint64_t commitTs) = 0;
+
+    virtual MetaStatusCode CommitTx(const std::vector<Dentry>& dentry,
+        uint64_t startTs, uint64_t commitTs) = 0;
 
     virtual MetaStatusCode GetInode(uint32_t fsId, uint64_t inodeid,
                                     Inode *out, bool* streaming) = 0;
@@ -185,6 +199,9 @@ class MetaServerClient {
     virtual MetaStatusCode
     UpdateDeallocatableBlockGroup(uint32_t fsId, uint64_t inodeId,
                                   DeallocatableBlockGroupMap *statistic) = 0;
+
+    virtual bool GetPartitionId(uint32_t fsId, uint64_t inodeId,
+                                PartitionID* partitionId) = 0;
 };
 
 class MetaServerClientImpl : public MetaServerClient {
@@ -202,20 +219,34 @@ class MetaServerClientImpl : public MetaServerClient {
     void SetTxId(uint32_t partitionId, uint64_t txId) override;
 
     MetaStatusCode GetDentry(uint32_t fsId, uint64_t inodeid,
-                             const std::string &name, Dentry *out) override;
+        const std::string &name, Dentry *out, TxLock* txLockOut) override;
 
     MetaStatusCode ListDentry(uint32_t fsId, uint64_t inodeid,
                               const std::string &last, uint32_t count,
                               bool onlyDir,
-                              std::list<Dentry> *dentryList) override;
+                              std::list<Dentry> *dentryList,
+                              TxLock* txLockOut) override;
 
-    MetaStatusCode CreateDentry(const Dentry &dentry) override;
+    MetaStatusCode CreateDentry(
+        const Dentry &dentry, TxLock* txLockOut) override;
 
     MetaStatusCode DeleteDentry(uint32_t fsId, uint64_t inodeid,
-                                const std::string &name,
-                                FsFileType type) override;
+        const std::string &name, FsFileType type, TxLock* txLockOut) override;
 
     MetaStatusCode PrepareRenameTx(const std::vector<Dentry> &dentrys) override;
+
+    MetaStatusCode PrewriteRenameTx(const std::vector<Dentry>& dentrys,
+        const TxLock& txLockIn, TxLock* txLockOut) override;
+
+    MetaStatusCode CheckTxStatus(uint32_t fsId, uint64_t inodeId,
+        const std::string& primaryKey, uint64_t startTs,
+        uint64_t curTimestamp) override;
+
+    MetaStatusCode ResolveTxLock(const Dentry& dentry,
+        uint64_t startTs, uint64_t commitTs) override;
+
+    MetaStatusCode CommitTx(const std::vector<Dentry>& dentrys,
+        uint64_t startTs, uint64_t commitTs) override;
 
     MetaStatusCode GetInode(uint32_t fsId, uint64_t inodeid,
                             Inode *out, bool* streaming) override;
@@ -294,6 +325,9 @@ class MetaServerClientImpl : public MetaServerClient {
         uint32_t fsId, uint64_t inodeId,
         DeallocatableBlockGroupMap *statistic) override;
 
+    bool GetPartitionId(uint32_t fsId, uint64_t inodeId,
+        PartitionID *partitionId) override;
+
  private:
     MetaStatusCode UpdateInode(const UpdateInodeRequest &request,
                                bool internal = false);
@@ -317,6 +351,7 @@ class MetaServerClientImpl : public MetaServerClient {
     StreamClient streamClient_;
     MetaServerClientMetric metric_;
 };
+
 }  // namespace rpcclient
 }  // namespace client
 }  // namespace curvefs

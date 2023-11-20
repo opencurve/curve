@@ -436,5 +436,25 @@ TEST_F(FsManagerTest2, checkFsName) {
     EXPECT_FALSE(FsManager::CheckFsName("curve-test--01"));
 }
 
+TEST_F(FsManagerTest2, test_tso) {
+    // Tso success
+    TsoRequest request;
+    TsoResponse response;
+    EXPECT_CALL(*storage_, Tso(_, _)).
+        WillOnce(DoAll(SetArgPointee<0>(1),
+                       SetArgPointee<1>(100),
+                       Return(FSStatusCode::OK)));
+    fsManager_->Tso(&request, &response);
+    ASSERT_EQ(response.statuscode(), FSStatusCode::OK);
+    ASSERT_EQ(response.ts(), 1);
+    ASSERT_EQ(response.timestamp(), 100);
+
+    // Tso failed
+    EXPECT_CALL(*storage_, Tso(_, _)).
+        WillOnce(Return(FSStatusCode::INTERNAL_ERROR));
+    fsManager_->Tso(&request, &response);
+    ASSERT_EQ(response.statuscode(), FSStatusCode::INTERNAL_ERROR);
+}
+
 }  // namespace mds
 }  // namespace curvefs

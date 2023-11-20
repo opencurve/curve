@@ -49,6 +49,15 @@ enum MetaStatusCode {
     RPC_STREAM_ERROR = 25;
     INODE_S3_META_TOO_LARGE = 26;
     STORAGE_CLOSED = 27;
+    // tx v2 related
+    TX_FAILED = 28;
+    TX_WRITE_CONFLICT = 29;
+    TX_KEY_LOCKED = 30;
+    TX_COMMITTED = 31;
+    TX_ROLLBACKED = 32;
+    TX_TIMEOUT = 33;
+    TX_INPROGRESS = 34;
+    TX_MISMATCH = 35;
 }
 
 // dentry interface
@@ -59,7 +68,7 @@ message GetDentryRequest {
     required uint32 fsId = 4;
     required uint64 parentInodeId = 5;
     required string name = 6;
-    required uint64 txId = 7;
+    optional uint64 txId = 7;
     optional uint64 appliedIndex = 8;
 }
 
@@ -74,7 +83,8 @@ message Dentry {
     required uint64 inodeId = 2;
     required uint64 parentInodeId = 3;
     required string name = 4;
-    required uint64 txId = 5;
+    // reused txId as ts in tx v2 for compatibility in metaserver
+    optional uint64 txId = 5;
     optional uint32 flag = 6;
     optional FsFileType type = 7;
     optional uint64 txSequence = 8;
@@ -88,6 +98,7 @@ message GetDentryResponse {
     required MetaStatusCode statusCode = 1;
     optional Dentry dentry = 2;
     optional uint64 appliedIndex = 3;
+    optional TxLock txLock = 4;
 }
 
 message ListDentryRequest {
@@ -96,7 +107,7 @@ message ListDentryRequest {
     required uint32 partitionId = 3;
     required uint32 fsId = 4;
     required uint64 dirInodeId = 5;
-    required uint64 txId = 6;
+    optional uint64 txId = 6;
     optional string last = 7;     // the name of last entry
     optional uint32 count = 8;    // the number of entry required
     optional bool onlyDir = 9;
@@ -107,6 +118,7 @@ message ListDentryResponse {
     required MetaStatusCode statusCode = 1;
     repeated Dentry dentrys = 2;
     optional uint64 appliedIndex = 3;
+    optional TxLock txLock = 4;
 }
 
 message CreateDentryRequest {
@@ -120,6 +132,7 @@ message CreateDentryRequest {
 message CreateDentryResponse {
     required MetaStatusCode statusCode = 1;
     optional uint64 appliedIndex = 2;
+    optional TxLock txLock = 3;
 }
 
 message DeleteDentryRequest {
@@ -127,7 +140,7 @@ message DeleteDentryRequest {
     required uint32 copysetId = 2;
     required uint32 partitionId = 3;
     required uint32 fsId = 4;
-    required uint64 txId = 5;
+    optional uint64 txId = 5;
     required uint64 parentInodeId = 6;
     required string name = 7;
     optional FsFileType type = 8;
@@ -137,6 +150,7 @@ message DeleteDentryRequest {
 message DeleteDentryResponse {
     required MetaStatusCode statusCode = 1;
     optional uint64 appliedIndex = 2;
+    optional TxLock txLock = 3;
 }
 
 message PrepareRenameTxRequest {
@@ -156,6 +170,85 @@ message TransactionRequest {
 }
 
 message PrepareRenameTxResponse {
+    required MetaStatusCode statusCode = 1;
+    optional uint64 appliedIndex = 2;
+}
+
+message TxLock {
+    required string primaryKey = 1;
+    required uint64 startTs = 2;
+    required uint64 timestamp = 3;
+    optional uint32 index = 4;
+    optional int32 ttl = 5;
+}
+
+enum TxWriteKind {
+    Commit = 1;
+    Rollback = 2;
+}
+
+message TS {
+    required uint64 ts = 1;
+}
+
+message TxWrite {
+    required uint64 startTs = 1;
+    required TxWriteKind kind = 2;
+}
+
+message PrewriteRenameTxRequest {
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+    required uint32 partitionId = 3;
+    repeated Dentry dentrys = 4;
+    required TxLock txLock = 5;
+}
+
+message PrewriteRenameTxResponse {
+    required MetaStatusCode statusCode = 1;
+    repeated Dentry dentrys = 2;
+    optional TxLock txLock = 3;
+    optional uint64 appliedIndex = 4;
+}
+
+message CheckTxStatusRequest {
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+    required uint32 partitionId = 3;
+    required string primaryKey = 4;
+    required uint64 startTs = 5;
+    required uint64 curTimestamp = 6;
+}
+
+message CheckTxStatusResponse {
+    required MetaStatusCode statusCode = 1;
+    optional uint64 appliedIndex = 2;
+}
+
+message ResolveTxLockRequest {
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+    required uint32 partitionId = 3;
+    required Dentry dentry = 4;
+    required uint64 startTs = 5;
+    required uint64 commitTs = 6;
+}
+
+message ResolveTxLockResponse {
+    required MetaStatusCode statusCode = 1;
+    optional uint64 appliedIndex = 2;
+}
+
+message CommitTxRequest {
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+    required uint32 partitionId = 3;
+    repeated Dentry dentrys = 4;
+    required uint64 startTs = 5;
+    required uint64 commitTs = 6;
+}
+
+message CommitTxResponse {
     required MetaStatusCode statusCode = 1;
     optional uint64 appliedIndex = 2;
 }
@@ -539,6 +632,11 @@ service MetaServerService {
     rpc CreateDentry(CreateDentryRequest) returns (CreateDentryResponse);
     rpc DeleteDentry(DeleteDentryRequest) returns (DeleteDentryResponse);
     rpc PrepareRenameTx(PrepareRenameTxRequest) returns (PrepareRenameTxResponse);
+    // tx v2
+    rpc PrewriteRenameTx(PrewriteRenameTxRequest) returns (PrewriteRenameTxResponse);
+    rpc CheckTxStatus(CheckTxStatusRequest) returns (CheckTxStatusResponse);
+    rpc ResolveTxLock(ResolveTxLockRequest) returns (ResolveTxLockResponse);
+    rpc CommitTx(CommitTxRequest) returns (CommitTxResponse);
 
     // inode interface
     rpc GetInode(GetInodeRequest) returns (GetInodeResponse);

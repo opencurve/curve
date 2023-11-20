@@ -213,7 +213,7 @@ TEST_F(RecycleCleanerTest, delete_node_test) {
 
     // delete dentry fail
     {
-        EXPECT_CALL(*metaClient_, DeleteDentry(_, _, _, _))
+        EXPECT_CALL(*metaClient_, DeleteDentry(_, _, _, _, _))
             .WillOnce(Return(MetaStatusCode::UNKNOWN_ERROR));
 
         ASSERT_FALSE(cleaner_->DeleteNode(dentry));
@@ -221,7 +221,7 @@ TEST_F(RecycleCleanerTest, delete_node_test) {
 
     // get parent inode fail
     {
-        EXPECT_CALL(*metaClient_, DeleteDentry(_, _, _, _))
+        EXPECT_CALL(*metaClient_, DeleteDentry(_, _, _, _, _))
             .WillOnce(Return(MetaStatusCode::OK));
         EXPECT_CALL(*metaClient_, GetInode(_, _, _, _))
             .WillOnce(Return(MetaStatusCode::UNKNOWN_ERROR));
@@ -231,7 +231,7 @@ TEST_F(RecycleCleanerTest, delete_node_test) {
 
     // update parent inode fail
     {
-        EXPECT_CALL(*metaClient_, DeleteDentry(_, _, _, _))
+        EXPECT_CALL(*metaClient_, DeleteDentry(_, _, _, _, _))
             .WillOnce(Return(MetaStatusCode::OK));
         EXPECT_CALL(*metaClient_, GetInode(_, _, _, _))
             .WillOnce(Return(MetaStatusCode::OK));
@@ -243,7 +243,7 @@ TEST_F(RecycleCleanerTest, delete_node_test) {
 
     // get inode fail
     {
-        EXPECT_CALL(*metaClient_, DeleteDentry(_, _, _, _))
+        EXPECT_CALL(*metaClient_, DeleteDentry(_, _, _, _, _))
             .WillOnce(Return(MetaStatusCode::OK));
         EXPECT_CALL(*metaClient_, GetInode(_, _, _, _))
             .WillOnce(Return(MetaStatusCode::OK))
@@ -258,7 +258,7 @@ TEST_F(RecycleCleanerTest, delete_node_test) {
     {
         Inode inode;
         inode.set_nlink(0);
-        EXPECT_CALL(*metaClient_, DeleteDentry(_, _, _, _))
+        EXPECT_CALL(*metaClient_, DeleteDentry(_, _, _, _, _))
             .WillOnce(Return(MetaStatusCode::OK));
         EXPECT_CALL(*metaClient_, GetInode(_, _, _, _))
             .WillOnce(Return(MetaStatusCode::OK))
@@ -274,7 +274,7 @@ TEST_F(RecycleCleanerTest, delete_node_test) {
     {
         Inode inode;
         inode.set_nlink(1);
-        EXPECT_CALL(*metaClient_, DeleteDentry(_, _, _, _))
+        EXPECT_CALL(*metaClient_, DeleteDentry(_, _, _, _, _))
             .WillOnce(Return(MetaStatusCode::OK));
         EXPECT_CALL(*metaClient_, GetInode(_, _, _, _))
             .WillOnce(Return(MetaStatusCode::OK))
@@ -292,7 +292,7 @@ TEST_F(RecycleCleanerTest, delete_node_test) {
     {
         Inode inode;
         inode.set_nlink(1);
-        EXPECT_CALL(*metaClient_, DeleteDentry(_, _, _, _))
+        EXPECT_CALL(*metaClient_, DeleteDentry(_, _, _, _, _))
             .WillOnce(Return(MetaStatusCode::OK));
         EXPECT_CALL(*metaClient_, GetInode(_, _, _, _))
             .WillOnce(Return(MetaStatusCode::OK))
@@ -406,7 +406,7 @@ TEST_F(RecycleCleanerTest, scan_recycle_test6) {
     LOG(INFO) << "create dentry1 " << dentry1.ShortDebugString();
     LOG(INFO) << "create dentry2 " << dentry2.ShortDebugString();
 
-    EXPECT_CALL(*metaClient_, ListDentry(_, _, _, _, _, _))
+    EXPECT_CALL(*metaClient_, ListDentry(_, _, _, _, _, _, _))
         .WillOnce(Return(MetaStatusCode::OK));
 
     ASSERT_FALSE(cleaner_->ScanRecycle());

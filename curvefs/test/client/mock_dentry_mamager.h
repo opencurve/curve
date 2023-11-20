@@ -20,14 +20,15 @@
  * Author: xuchaojie
  */
 
-#ifndef CURVEFS_TEST_CLIENT_MOCK_DENTRY_CACHE_MAMAGER_H_
-#define CURVEFS_TEST_CLIENT_MOCK_DENTRY_CACHE_MAMAGER_H_
+#ifndef CURVEFS_TEST_CLIENT_MOCK_DENTRY_MAMAGER_H_
+#define CURVEFS_TEST_CLIENT_MOCK_DENTRY_MAMAGER_H_
 
 #include <gmock/gmock.h>
 #include <cstdint>
 #include <string>
 #include <list>
-#include "curvefs/src/client/dentry_cache_manager.h"
+#include <memory>
+#include "curvefs/src/client/dentry_manager.h"
 
 namespace curvefs {
 namespace client {
@@ -36,6 +37,8 @@ class MockDentryCacheManager : public DentryCacheManager {
  public:
     MockDentryCacheManager() {}
     ~MockDentryCacheManager() {}
+
+    MOCK_METHOD(void, Init, (std::shared_ptr<MdsClient> mdsClient), (override));
 
     MOCK_METHOD3(GetDentry, CURVEFS_ERROR(uint64_t parent,
         const std::string &name, Dentry *out));
@@ -51,10 +54,14 @@ class MockDentryCacheManager : public DentryCacheManager {
                                            uint32_t limit,
                                            bool onlyDir,
                                            uint32_t nlink));
+
+    MOCK_METHOD(MetaStatusCode, CheckAndResolveTx, (const Dentry& dentry,
+        const TxLock& txLock, uint64_t timestamp, uint64_t commitTs),
+        (override));
 };
 
 
 }  // namespace client
 }  // namespace curvefs
 
-#endif  // CURVEFS_TEST_CLIENT_MOCK_DENTRY_CACHE_MAMAGER_H_
+#endif  // CURVEFS_TEST_CLIENT_MOCK_DENTRY_MAMAGER_H_

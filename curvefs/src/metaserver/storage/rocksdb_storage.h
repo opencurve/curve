@@ -43,7 +43,7 @@
 #include "curvefs/src/metaserver/storage/utils.h"
 #include "curvefs/src/metaserver/storage/storage.h"
 #include "curvefs/src/metaserver/storage/rocksdb_perf.h"
-#include "curvefs/src/metaserver/storage/rocksdb_storage.h"
+#include "curvefs/src/metaserver/storage/converter.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -64,6 +64,15 @@ using ROCKSDB_NAMESPACE::NewBloomFilterPolicy;
 using ROCKSDB_NAMESPACE::NewFixedPrefixTransform;
 using ROCKSDB_NAMESPACE::NewBlockBasedTableFactory;
 using STORAGE_TYPE = KVStorage::STORAGE_TYPE;
+
+enum class ColumnFamilyType : uint8_t {
+    kUnordered = 0,
+    kOrdered = 1,
+    kTx = 2,
+
+    // unknown type
+    kUnknown = 255,
+};
 
 // NOTE: The HSize() and SSize() is an expensive operation for rocksdb storage,
 // you should only invoke it in test cases.
@@ -132,33 +141,30 @@ class RocksDBStorage : public KVStorage, public StorageTransaction {
     bool Recover(const std::string& dir) override;
 
  private:
-    ColumnFamilyHandle* GetColumnFamilyHandle(bool ordered);
+    ColumnFamilyHandle* GetColumnFamilyHandle(ColumnFamilyType type);
 
     static size_t GetKeyPrefixLength();
 
     static std::string ToInternalName(const std::string& name,
-                                      bool ordered,
+                                      ColumnFamilyType type,
                                       bool start);
 
     std::string ToInternalKey(const std::string& name,
                               const std::string& key,
-                              bool ordered);
+                              ColumnFamilyType type);
 
     std::string ToUserKey(const std::string& ikey);
 
     Status Get(const std::string& name,
                const std::string& key,
-               ValueType* value,
-               bool ordered);
+               ValueType* value);
 
     Status Set(const std::string& name,
                const std::string& key,
-               const ValueType& value,
-               bool ordered);
+               const ValueType& value);
 
     Status Del(const std::string& name,
-               const std::string& key,
-               bool ordered);
+               const std::string& key);
 
     std::shared_ptr<Iterator> Seek(const std::string& name,
                                    const std::string& prefix);
@@ -166,11 +172,11 @@ class RocksDBStorage : public KVStorage, public StorageTransaction {
     // TODO(@Wine93): We do not support transactions for the
     // below 3 methods, maybe we should return Status::NotSupported
     // when user invoke it in transaction.
-    std::shared_ptr<Iterator> GetAll(const std::string& name, bool ordered);
+    std::shared_ptr<Iterator> GetAll(const std::string& name);
 
-    size_t Size(const std::string& name, bool ordered);
+    size_t Size(const std::string& name);
 
-    Status Clear(const std::string& name, bool ordered);
+    Status Clear(const std::string& name);
 
  private:
     friend class RocksDBStorageIterator;
@@ -210,48 +216,48 @@ class RocksDBStorage : public KVStorage, public StorageTransaction {
 inline Status RocksDBStorage::HGet(const std::string& name,
                                    const std::string& key,
                                    ValueType* value) {
-    return Get(name, key, value, false);
+    return Get(name, key, value);
 }
 
 inline Status RocksDBStorage::HSet(const std::string& name,
                                    const std::string& key,
                                    const ValueType& value) {
-    return Set(name, key, value, false);
+    return Set(name, key, value);
 }
 
 inline Status RocksDBStorage::HDel(const std::string& name,
                                    const std::string& key)  {
-    return Del(name, key, false);
+    return Del(name, key);
 }
 
 inline std::shared_ptr<Iterator> RocksDBStorage::HGetAll(
     const std::string& name) {
-    return GetAll(name, false);
+    return GetAll(name);
 }
 
 inline size_t RocksDBStorage::HSize(const std::string& name) {
-    return Size(name, false);
+    return Size(name);
 }
 
 inline Status RocksDBStorage::HClear(const std::string& name) {
-    return Clear(name, false);
+    return Clear(name);
 }
 
 inline Status RocksDBStorage::SGet(const std::string& name,
                                    const std::string& key,
                                    ValueType* value) {
-    return Get(name, key, value, true);
+    return Get(name, key, value);
 }
 
 inline Status RocksDBStorage::SSet(const std::string& name,
                                    const std::string& key,
                                    const ValueType& value) {
-    return Set(name, key, value, true);
+    return Set(name, key, value);
 }
 
 inline Status RocksDBStorage::SDel(const std::string& name,
                                    const std::string& key) {
-    return Del(name, key, true);
+    return Del(name, key);
 }
 
 inline std::shared_ptr<Iterator> RocksDBStorage::SSeek(
@@ -261,15 +267,15 @@ inline std::shared_ptr<Iterator> RocksDBStorage::SSeek(
 
 inline std::shared_ptr<Iterator> RocksDBStorage::SGetAll(
     const std::string& name) {
-    return GetAll(name, true);
+    return GetAll(name);
 }
 
 inline size_t RocksDBStorage::SSize(const std::string& name) {
-    return Size(name, true);
+    return Size(name);
 }
 
 inline Status RocksDBStorage::SClear(const std::string& name) {
-    return Clear(name, true);
+    return Clear(name);
 }
 
 class RocksDBStorageIterator : public Iterator {
@@ -278,13 +284,13 @@ class RocksDBStorageIterator : public Iterator {
                            std::string prefix,
                            size_t size,
                            int status,
-                           bool ordered)
+                           ColumnFamilyType type)
         : storage_(storage),
           prefix_(std::move(prefix)),
           size_(size),
           status_(status),
           prefixChecking_(true),
-          ordered_(ordered),
+          type_(type),
           iter_(nullptr) {
         RocksDBPerfGuard guard(OP_GET_SNAPSHOT);
         if (status_ == 0) {
@@ -324,7 +330,7 @@ class RocksDBStorageIterator : public Iterator {
     }
 
     void SeekToFirst() {
-        auto handler = storage_->GetColumnFamilyHandle(ordered_);
+        auto handler = storage_->GetColumnFamilyHandle(type_);
         {
             RocksDBPerfGuard guard(OP_GET_ITERATOR);
             if (storage_->InTransaction_) {
@@ -379,7 +385,7 @@ class RocksDBStorageIterator : public Iterator {
     uint64_t size_;
     int status_;
     bool prefixChecking_;
-    bool ordered_;
+    ColumnFamilyType type_;
     std::unique_ptr<rocksdb::Iterator> iter_;
     rocksdb::ReadOptions readOptions_;
 };

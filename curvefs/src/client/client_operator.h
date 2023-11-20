@@ -27,13 +27,15 @@
 #include <vector>
 #include <memory>
 
-#include "curvefs/src/client/inode_cache_manager.h"
-#include "curvefs/src/client/dentry_cache_manager.h"
+#include "curvefs/src/client/inode_manager.h"
+#include "curvefs/src/client/dentry_manager.h"
 #include "curvefs/src/client/rpcclient/mds_client.h"
 
 namespace curvefs {
 namespace client {
 
+using ::curvefs::metaserver::MetaStatusCode;
+using ::curvefs::metaserver::TxLock;
 using rpcclient::MdsClient;
 
 class RenameOperator {
@@ -56,6 +58,8 @@ class RenameOperator {
     CURVEFS_ERROR LinkDestParentInode();
     CURVEFS_ERROR PrepareTx();
     CURVEFS_ERROR CommitTx();
+    CURVEFS_ERROR PrewriteTx();
+    CURVEFS_ERROR CommitTxV2();
     CURVEFS_ERROR UnlinkSrcParentInode();
     void UnlinkOldInode();
     CURVEFS_ERROR UpdateInodeParent();
@@ -85,6 +89,9 @@ class RenameOperator {
 
     CURVEFS_ERROR PrepareRenameTx(const std::vector<Dentry>& dentrys);
 
+    CURVEFS_ERROR PrewriteRenameTx(
+        const std::vector<Dentry>& dentrys, const TxLock& txLockIn);
+
     CURVEFS_ERROR LinkInode(uint64_t inodeId, uint64_t parent = 0);
 
     CURVEFS_ERROR UnLinkInode(uint64_t inodeId, uint64_t parent = 0);
@@ -107,6 +114,7 @@ class RenameOperator {
     // if dest exist, record the size and type of file or empty dir
     int64_t oldInodeSize_;
     FsFileType oldInodeType_;
+    uint64_t startTs_;  // tx sequence number
     Dentry srcDentry_;
     Dentry dstDentry_;
     Dentry dentry_;

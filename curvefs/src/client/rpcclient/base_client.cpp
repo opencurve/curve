@@ -167,6 +167,12 @@ void MDSBaseClient::CommitTx(const CommitTxRequest& request,
     stub.CommitTx(cntl, &request, response, nullptr);
 }
 
+void MDSBaseClient::Tso(const TsoRequest& request, TsoResponse* response,
+    brpc::Controller* cntl, brpc::Channel* channel) {
+    curvefs::mds::MdsService_Stub stub(channel);
+    stub.Tso(cntl, &request, response, nullptr);
+}
+
 // TODO(all): do we really need pass `fsId` all the time?
 //            each curve-fuse process only mount one filesystem
 void MDSBaseClient::AllocateVolumeBlockGroup(

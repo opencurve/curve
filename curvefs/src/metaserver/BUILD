@@ -27,6 +27,9 @@ cc_library(
         ["copyset/*.cpp"],
     ) + glob(
         ["storage/*.cpp"],
+        exclude = [
+            "storage/converter.cpp",
+        ],
     ) + glob(
         ["streaming/*.cpp"],
     ) + glob(
@@ -40,6 +43,9 @@ cc_library(
         ["copyset/*.h"],
     ) + glob(
         ["storage/*.h"],
+        exclude = [
+            "storage/converter.h",
+        ],
     ) + glob(
         ["streaming/*.h"],
     ) + glob(
@@ -51,6 +57,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":metaserver_s3_lib",
+        ":metaserver_storage_conv",
         "//curvefs/proto:cli2_cc_proto",
         "//curvefs/proto:copyset_cc_proto",
         "//curvefs/proto:curvefs_heartbeat_cc_proto",
@@ -74,6 +81,21 @@ cc_library(
         "@com_google_absl//absl/utility",
         "@com_google_protobuf//:protobuf",
         "//external:gtest",
+    ],
+)
+
+cc_library(
+    name = "metaserver_storage_conv",
+    srcs = ["storage/converter.cpp"],
+    hdrs = ["storage/converter.h",
+            "storage/common.h",],
+    copts = CURVE_DEFAULT_COPTS,
+    visibility = ["//visibility:public"],
+    deps = [
+        "//external:glog",
+        "//src/common:curve_common",
+        "//curvefs/proto:metaserver_cc_proto",
+        "@com_google_absl//absl/container:btree",
     ],
 )
 

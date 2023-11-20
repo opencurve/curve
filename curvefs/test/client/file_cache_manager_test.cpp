@@ -26,7 +26,7 @@
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
 #include "curvefs/src/client/s3/client_s3_cache_manager.h"
 #include "curvefs/test/client/mock_client_s3_cache_manager.h"
-#include "curvefs/test/client/mock_inode_cache_manager.h"
+#include "curvefs/test/client/mock_inode_manager.h"
 #include "curvefs/test/client/mock_client_s3.h"
 #include "src/common/concurrent/task_thread_pool.h"
 

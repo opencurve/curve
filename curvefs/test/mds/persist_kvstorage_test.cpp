@@ -122,6 +122,17 @@ class PersistKVStorageTest : public ::testing::Test {
     std::shared_ptr<MockKVStorageClient> storageCli_;
 };
 
+#define DO_INIT(storage, storageCli_)                                          \
+    do {                                                                       \
+        std::vector<std::pair<std::string, std::string>> encoded =             \
+            PrepareFsInfoSamples();                                            \
+        EXPECT_CALL(*storageCli_, List(_, _, Matcher<decltype(encoded)*>(_)))  \
+            .WillOnce(                                                         \
+                DoAll(SetArgPointee<2>(encoded), Return(EtcdErrCode::EtcdOK)));\
+        EXPECT_CALL(*storageCli_, Get(_, _))                                   \
+            .WillRepeatedly(Return(EtcdErrCode::EtcdOK));                      \
+    } while (false)
+
 TEST_F(PersistKVStorageTest, TestInit) {
     // list from storage failed
     {
@@ -152,14 +163,7 @@ TEST_F(PersistKVStorageTest, TestInit) {
 
     {
         PersisKVStorage storage(storageCli_);
-
-        std::vector<std::pair<std::string, std::string>> encoded =
-            PrepareFsInfoSamples();
-
-        EXPECT_CALL(*storageCli_, List(_, _, Matcher<decltype(encoded)*>(_)))
-            .WillOnce(
-                DoAll(SetArgPointee<2>(encoded), Return(EtcdErrCode::EtcdOK)));
-
+        DO_INIT(storage, storageCli_);
         EXPECT_TRUE(storage.Init());
 
         EXPECT_TRUE(storage.Exist(1));
@@ -185,6 +189,8 @@ TEST_F(PersistKVStorageTest, TestGetAndExist) {
         EXPECT_CALL(*storageCli_, List(_, _, Matcher<decltype(encoded)*>(_)))
             .WillOnce(
                 DoAll(SetArgPointee<2>(encoded), Return(EtcdErrCode::EtcdOK)));
+        EXPECT_CALL(*storageCli_, Get(_, _))
+            .WillRepeatedly(Return(EtcdErrCode::EtcdOK));
 
         EXPECT_TRUE(storage.Init());
         EXPECT_FALSE(storage.Exist(1));
@@ -197,14 +203,9 @@ TEST_F(PersistKVStorageTest, TestGetAndExist) {
 
     {
         PersisKVStorage storage(storageCli_);
-        std::vector<std::pair<std::string, std::string>> encoded =
-            PrepareFsInfoSamples();
-
-        EXPECT_CALL(*storageCli_, List(_, _, Matcher<decltype(encoded)*>(_)))
-            .WillOnce(
-                DoAll(SetArgPointee<2>(encoded), Return(EtcdErrCode::EtcdOK)));
-
+        DO_INIT(storage, storageCli_);
         EXPECT_TRUE(storage.Init());
+
         EXPECT_TRUE(storage.Exist(1));
         EXPECT_TRUE(storage.Exist("hello"));
         EXPECT_TRUE(storage.Exist(2));
@@ -290,16 +291,11 @@ TEST_F(PersistKVStorageTest, TestInsert) {
     // fs already exists
     {
         PersisKVStorage storage(storageCli_);
-        std::vector<std::pair<std::string, std::string>> encoded =
-            PrepareFsInfoSamples();
+        DO_INIT(storage, storageCli_);
+        EXPECT_TRUE(storage.Init());
 
-        EXPECT_CALL(*storageCli_, List(_, _, Matcher<decltype(encoded)*>(_)))
-            .WillOnce(
-                DoAll(SetArgPointee<2>(encoded), Return(EtcdErrCode::EtcdOK)));
         EXPECT_CALL(*storageCli_, Put(_, _))
             .Times(0);
-
-        EXPECT_TRUE(storage.Init());
 
         FsInfoWrapper wrapper;
         EXPECT_EQ(FSStatusCode::OK, storage.Get("hello", &wrapper));
@@ -310,17 +306,12 @@ TEST_F(PersistKVStorageTest, TestInsert) {
 
     // kvstorage error
     {
-        PersisKVStorage storage(storageCli_);
-        std::vector<std::pair<std::string, std::string>> encoded =
-            PrepareFsInfoSamples();
+       PersisKVStorage storage(storageCli_);
+        DO_INIT(storage, storageCli_);
+        EXPECT_TRUE(storage.Init());
 
-        EXPECT_CALL(*storageCli_, List(_, _, Matcher<decltype(encoded)*>(_)))
-            .WillOnce(
-                DoAll(SetArgPointee<2>(encoded), Return(EtcdErrCode::EtcdOK)));
         EXPECT_CALL(*storageCli_, Put(_, _))
             .WillOnce(Return(EtcdErrCode::EtcdInternal));
-
-        EXPECT_TRUE(storage.Init());
 
         FsInfoWrapper wrapper;
         EXPECT_EQ(FSStatusCode::OK, storage.Get("hello", &wrapper));
@@ -337,16 +328,11 @@ TEST_F(PersistKVStorageTest, TestInsert) {
     // kvstorage persist ok
     {
         PersisKVStorage storage(storageCli_);
-        std::vector<std::pair<std::string, std::string>> encoded =
-            PrepareFsInfoSamples();
+        DO_INIT(storage, storageCli_);
+        EXPECT_TRUE(storage.Init());
 
-        EXPECT_CALL(*storageCli_, List(_, _, Matcher<decltype(encoded)*>(_)))
-            .WillOnce(
-                DoAll(SetArgPointee<2>(encoded), Return(EtcdErrCode::EtcdOK)));
         EXPECT_CALL(*storageCli_, Put(_, _))
             .WillOnce(Return(EtcdErrCode::EtcdOK));
-
-        EXPECT_TRUE(storage.Init());
 
         FsInfoWrapper wrapper;
         EXPECT_EQ(FSStatusCode::OK, storage.Get("hello", &wrapper));
@@ -370,16 +356,11 @@ TEST_F(PersistKVStorageTest, TestUpdate) {
     // fs not found
     {
         PersisKVStorage storage(storageCli_);
-        std::vector<std::pair<std::string, std::string>> encoded =
-            PrepareFsInfoSamples();
+        DO_INIT(storage, storageCli_);
+        EXPECT_TRUE(storage.Init());
 
-        EXPECT_CALL(*storageCli_, List(_, _, Matcher<decltype(encoded)*>(_)))
-            .WillOnce(
-                DoAll(SetArgPointee<2>(encoded), Return(EtcdErrCode::EtcdOK)));
         EXPECT_CALL(*storageCli_, Put(_, _))
             .Times(0);
-
-        EXPECT_TRUE(storage.Init());
 
         FsInfoWrapper wrapper;
         EXPECT_EQ(FSStatusCode::OK, storage.Get("hello", &wrapper));
@@ -395,16 +376,11 @@ TEST_F(PersistKVStorageTest, TestUpdate) {
     // fs id mismatch
     {
         PersisKVStorage storage(storageCli_);
-        std::vector<std::pair<std::string, std::string>> encoded =
-            PrepareFsInfoSamples();
+        DO_INIT(storage, storageCli_);
+        EXPECT_TRUE(storage.Init());
 
-        EXPECT_CALL(*storageCli_, List(_, _, Matcher<decltype(encoded)*>(_)))
-            .WillOnce(
-                DoAll(SetArgPointee<2>(encoded), Return(EtcdErrCode::EtcdOK)));
         EXPECT_CALL(*storageCli_, Put(_, _))
             .Times(0);
-
-        EXPECT_TRUE(storage.Init());
 
         FsInfoWrapper wrapper;
         EXPECT_EQ(FSStatusCode::OK, storage.Get("hello", &wrapper));
@@ -420,16 +396,11 @@ TEST_F(PersistKVStorageTest, TestUpdate) {
     // storage failed
     {
         PersisKVStorage storage(storageCli_);
-        std::vector<std::pair<std::string, std::string>> encoded =
-            PrepareFsInfoSamples();
+        DO_INIT(storage, storageCli_);
+        EXPECT_TRUE(storage.Init());
 
-        EXPECT_CALL(*storageCli_, List(_, _, Matcher<decltype(encoded)*>(_)))
-            .WillOnce(
-                DoAll(SetArgPointee<2>(encoded), Return(EtcdErrCode::EtcdOK)));
         EXPECT_CALL(*storageCli_, Put(_, _))
             .WillOnce(Return(EtcdErrCode::EtcdInternal));
-
-        EXPECT_TRUE(storage.Init());
 
         FsInfoWrapper wrapper;
         EXPECT_EQ(FSStatusCode::OK, storage.Get("hello", &wrapper));
@@ -449,16 +420,11 @@ TEST_F(PersistKVStorageTest, TestUpdate) {
     // storage ok
     {
         PersisKVStorage storage(storageCli_);
-        std::vector<std::pair<std::string, std::string>> encoded =
-            PrepareFsInfoSamples();
+        DO_INIT(storage, storageCli_);
+        EXPECT_TRUE(storage.Init());
 
-        EXPECT_CALL(*storageCli_, List(_, _, Matcher<decltype(encoded)*>(_)))
-            .WillOnce(
-                DoAll(SetArgPointee<2>(encoded), Return(EtcdErrCode::EtcdOK)));
         EXPECT_CALL(*storageCli_, Put(_, _))
             .WillOnce(Return(EtcdErrCode::EtcdOK));
-
-        EXPECT_TRUE(storage.Init());
 
         FsInfoWrapper wrapper;
         EXPECT_EQ(FSStatusCode::OK, storage.Get("hello", &wrapper));
@@ -480,34 +446,22 @@ TEST_F(PersistKVStorageTest, TestDelete) {
     // fs not found
     {
         PersisKVStorage storage(storageCli_);
-        std::vector<std::pair<std::string, std::string>> encoded =
-            PrepareFsInfoSamples();
-
-        EXPECT_CALL(*storageCli_, List(_, _, Matcher<decltype(encoded)*>(_)))
-            .WillOnce(
-                DoAll(SetArgPointee<2>(encoded), Return(EtcdErrCode::EtcdOK)));
-        EXPECT_CALL(*storageCli_, Delete(_))
-            .Times(0);
-
+        DO_INIT(storage, storageCli_);
         EXPECT_TRUE(storage.Init());
 
+        EXPECT_CALL(*storageCli_, Delete(_))
+            .Times(0);
         EXPECT_EQ(FSStatusCode::NOT_FOUND, storage.Delete("bvar"));
     }
 
     // storage failed
     {
         PersisKVStorage storage(storageCli_);
-        std::vector<std::pair<std::string, std::string>> encoded =
-            PrepareFsInfoSamples();
-
-        EXPECT_CALL(*storageCli_, List(_, _, Matcher<decltype(encoded)*>(_)))
-            .WillOnce(
-                DoAll(SetArgPointee<2>(encoded), Return(EtcdErrCode::EtcdOK)));
-        EXPECT_CALL(*storageCli_, Delete(_))
-            .WillOnce(Return(EtcdErrCode::EtcdInternal));
-
+        DO_INIT(storage, storageCli_);
         EXPECT_TRUE(storage.Init());
 
+        EXPECT_CALL(*storageCli_, Delete(_))
+            .WillOnce(Return(EtcdErrCode::EtcdInternal));
         EXPECT_EQ(FSStatusCode::STORAGE_ERROR, storage.Delete("hello"));
         EXPECT_TRUE(storage.Exist("hello"));
         EXPECT_TRUE(storage.Exist(1));
@@ -516,17 +470,11 @@ TEST_F(PersistKVStorageTest, TestDelete) {
     // storage ok
     {
         PersisKVStorage storage(storageCli_);
-        std::vector<std::pair<std::string, std::string>> encoded =
-            PrepareFsInfoSamples();
-
-        EXPECT_CALL(*storageCli_, List(_, _, Matcher<decltype(encoded)*>(_)))
-            .WillOnce(
-                DoAll(SetArgPointee<2>(encoded), Return(EtcdErrCode::EtcdOK)));
-        EXPECT_CALL(*storageCli_, Delete(_))
-            .WillOnce(Return(EtcdErrCode::EtcdOK));
-
+        DO_INIT(storage, storageCli_);
         EXPECT_TRUE(storage.Init());
 
+        EXPECT_CALL(*storageCli_, Delete(_))
+            .WillOnce(Return(EtcdErrCode::EtcdOK));
         EXPECT_EQ(FSStatusCode::OK, storage.Delete("hello"));
         EXPECT_FALSE(storage.Exist("hello"));
         EXPECT_FALSE(storage.Exist(1));
@@ -535,5 +483,51 @@ TEST_F(PersistKVStorageTest, TestDelete) {
         EXPECT_TRUE(storage.Exist(2));
     }
 }
+
+TEST_F(PersistKVStorageTest, TestTso) {
+    uint64_t ts;
+    uint64_t timestamp;
+    // tsid not exist
+    {
+        PersisKVStorage storage(storageCli_);
+        // get failed
+        EXPECT_CALL(*storageCli_, Get(_, _))
+            .WillOnce(Return(EtcdErrCode::EtcdUnknown));
+        ASSERT_EQ(FSStatusCode::INTERNAL_ERROR,
+                storage.Tso(&ts, &timestamp));
+        // CompareAndSwap failed
+        EXPECT_CALL(*storageCli_, Get(_, _))
+            .WillOnce(Return(EtcdErrCode::EtcdKeyNotExist));
+        EXPECT_CALL(*storageCli_, CompareAndSwap(_, _, _))
+            .WillOnce(Return(EtcdErrCode::EtcdUnknown));
+        ASSERT_EQ(FSStatusCode::INTERNAL_ERROR,
+                storage.Tso(&ts, &timestamp));
+        // success
+        EXPECT_CALL(*storageCli_, Get(_, _))
+            .WillOnce(Return(EtcdErrCode::EtcdKeyNotExist));
+        EXPECT_CALL(*storageCli_, CompareAndSwap(_, _, _))
+            .WillOnce(Return(EtcdErrCode::EtcdOK));
+        for (int i = 1; i < 5; i++) {
+            ASSERT_EQ(FSStatusCode::OK, storage.Tso(&ts, &timestamp));
+            ASSERT_EQ(ts, i);
+        }
+    }
+    // txid exist
+    {
+        PersisKVStorage storage(storageCli_);
+        uint64_t tsId = 10000;
+        // success
+        EXPECT_CALL(*storageCli_, Get(_, _))
+            .WillOnce(DoAll(SetArgPointee<1>(std::to_string(tsId)),
+                Return(EtcdErrCode::EtcdOK)));
+        EXPECT_CALL(*storageCli_, CompareAndSwap(_, _, _))
+            .WillOnce(Return(EtcdErrCode::EtcdOK));
+        for (int i = 1; i < 5; i++) {
+            ASSERT_EQ(FSStatusCode::OK, storage.Tso(&ts, &timestamp));
+            ASSERT_EQ(ts, i + tsId);
+        }
+    }
+}
+
 }  // namespace mds
 }  // namespace curvefs

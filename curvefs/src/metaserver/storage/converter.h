@@ -38,6 +38,7 @@ class MetaStoreFStream;
 namespace storage {
 
 enum KEY_TYPE : unsigned char {
+    kTypeUnknown = 0,
     kTypeInode = 1,
     kTypeS3ChunkInfo = 2,
     kTypeDentry = 3,
@@ -49,7 +50,9 @@ enum KEY_TYPE : unsigned char {
     kTypeAppliedIndex = 9,
     kTypeTransaction = 10,
     kTypeInodeCount = 11,
-    kTypeDentryCount = 12
+    kTypeDentryCount = 12,
+    kTypeTxLock = 13,
+    kTypeTxWrite = 14
 };
 
 // NOTE: you must generate all table name by NameGenerator class for
@@ -83,7 +86,13 @@ class NameGenerator {
 
     std::string GetDentryCountTableName() const;
 
+    std::string GetTxLockTableName() const;
+
+    std::string GetTxWriteTableName() const;
+
     static size_t GetFixedLength();
+
+    static KEY_TYPE DecodeKeyType(const std::string& name);
 
  private:
     std::string Format(KEY_TYPE type, uint32_t partitionId);
@@ -100,6 +109,8 @@ class NameGenerator {
     std::string tableName4Transaction_;
     std::string tableName4InodeCount_;
     std::string tableName4DentryCount_;
+    std::string tableName4TxLock_;
+    std::string tableName4TxWrite_;
 };
 
 class StorageKey {
@@ -126,6 +137,8 @@ class StorageKey {
  *   Key4InodeAuxInfo                 : kTypeInodeAuxInfo:fsId:inodeId
  *   Key4DeallocatableBlockGroup      : kTypeBlockGroup:fsId:volumeOffset
  *   Prefix4AllDeallocatableBlockGroup: kTypeBlockGroup:
+ *   Key4TxWrite                      : kTypeTxWrite:parentInodeId:name/ts
+ *   Prefix4TxWrite                   : kTypeTxWrite:parentInodeId:name/
  */
 
 class Key4Inode : public StorageKey {
@@ -288,6 +301,41 @@ class Prefix4AllDentry : public StorageKey {
 
  private:
     static const KEY_TYPE keyType_ = kTypeDentry;
+};
+
+class Key4TxWrite : public Key4Dentry {
+ public:
+    Key4TxWrite() = default;
+
+    Key4TxWrite(uint32_t fsId, uint64_t parentInodeId,
+                 const std::string& name, uint64_t ts) :
+                 Key4Dentry(fsId, parentInodeId, name), ts(ts) {}
+
+    std::string SerializeToString() const override;
+
+    bool ParseFromString(const std::string& value) override;
+
+ public:
+    uint64_t ts;
+
+ private:
+    static const KEY_TYPE keyType_ = kTypeTxWrite;
+};
+
+class Prefix4TxWrite : public Key4Dentry {
+ public:
+    Prefix4TxWrite() = default;
+
+    Prefix4TxWrite(uint32_t fsId, uint64_t parentInodeId,
+                 const std::string& name) :
+                 Key4Dentry(fsId, parentInodeId, name) {}
+
+    std::string SerializeToString() const override;
+
+    bool ParseFromString(const std::string& value) override;
+
+ private:
+    static const KEY_TYPE keyType_ = kTypeTxWrite;
 };
 
 class Key4VolumeExtentSlice : public StorageKey {

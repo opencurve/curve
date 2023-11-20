@@ -63,6 +63,12 @@ using ::curvefs::metaserver::BatchGetXAttrRequest;
 using ::curvefs::metaserver::BatchGetXAttrResponse;
 using ::curvefs::metaserver::UpdateDeallocatableBlockGroupRequest;
 using ::curvefs::metaserver::UpdateDeallocatableBlockGroupResponse;
+using ::curvefs::metaserver::PrepareRenameTxRequest;
+using ::curvefs::metaserver::PrepareRenameTxResponse;
+using ::curvefs::metaserver::CheckTxStatusRequest;
+using ::curvefs::metaserver::CheckTxStatusResponse;
+using ::curvefs::metaserver::ResolveTxLockRequest;
+using ::curvefs::metaserver::ResolveTxLockResponse;
 using ::curvefs::common::StreamServer;
 using ::curvefs::common::StreamOptions;
 using ::curvefs::common::StreamConnection;
@@ -134,6 +140,7 @@ TEST_F(MetaServerClientImplTest, test_GetDentry) {
     // out
     Dentry out;
     uint64_t txID = 1;
+    TxLock txLockOut;
 
     // set response
     curvefs::metaserver::GetDentryResponse response;
@@ -151,8 +158,11 @@ TEST_F(MetaServerClientImplTest, test_GetDentry) {
             Invoke(SetRpcService<GetDentryRequest, GetDentryResponse, true>));
     EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
         .WillRepeatedly(DoAll(SetArgPointee<2>(target_),  Return(true)));
+    EXPECT_CALL(*mockMetacache_.get(), GetTargetLeader(_, _))
+        .WillRepeatedly(Return(true));
 
-    MetaStatusCode status = metaserverCli_.GetDentry(fsID, inodeID, name, &out);
+    MetaStatusCode status = metaserverCli_.GetDentry(
+        fsID, inodeID, name, &out, &txLockOut);
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 
     // test1: get dentry ok
@@ -165,7 +175,7 @@ TEST_F(MetaServerClientImplTest, test_GetDentry) {
     EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(target_), Return(true)));
 
-    status = metaserverCli_.GetDentry(fsID, inodeID, name, &out);
+    status = metaserverCli_.GetDentry(fsID, inodeID, name, &out, &txLockOut);
     ASSERT_EQ(MetaStatusCode::OK, status);
     ASSERT_TRUE(google::protobuf::util::MessageDifferencer::Equals(out, *d))
         << "out:\n"
@@ -175,7 +185,7 @@ TEST_F(MetaServerClientImplTest, test_GetDentry) {
     // test2: get dentry get target fail
     EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
         .WillRepeatedly(Return(false));
-    status = metaserverCli_.GetDentry(fsID, inodeID, name, &out);
+    status = metaserverCli_.GetDentry(fsID, inodeID, name, &out, &txLockOut);
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 
     // test3: get dentry over load and fail retry ok
@@ -192,12 +202,32 @@ TEST_F(MetaServerClientImplTest, test_GetDentry) {
             DoAll(SetArgPointee<2>(response),
                   Invoke(SetRpcService<GetDentryRequest, GetDentryResponse>)));
 
-    status = metaserverCli_.GetDentry(fsID, inodeID, name, &out);
+    status = metaserverCli_.GetDentry(fsID, inodeID, name, &out, &txLockOut);
     ASSERT_EQ(MetaStatusCode::OK, status);
 
-    // test4: test response do not have dentry
-    response.clear_dentry();
+    // test4: test dentry has tx lock
+    TxLock txLock;
+    txLock.set_primarykey("key");
+    txLock.set_startts(1);
+    txLock.set_timestamp(100);
+    response.set_statuscode(MetaStatusCode::TX_KEY_LOCKED);
+    *response.mutable_txlock() = txLock;
+    EXPECT_CALL(mockMetaServerService_, GetDentry(_, _, _, _))
+        .WillOnce(
+            DoAll(SetArgPointee<2>(response),
+                  Invoke(SetRpcService<GetDentryRequest, GetDentryResponse>)));
 
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(target_), Return(true)));
+
+    status = metaserverCli_.GetDentry(fsID, inodeID, name, &out, &txLockOut);
+    ASSERT_EQ(MetaStatusCode::TX_KEY_LOCKED, status);
+    ASSERT_TRUE(google::protobuf::util::MessageDifferencer::Equals(txLockOut,
+                                                                   txLock));
+
+    // test5: test response do not have dentry
+    response.set_statuscode(MetaStatusCode::OK);
+    response.clear_dentry();
     EXPECT_CALL(mockMetaServerService_, GetDentry(_, _, _, _))
         .WillRepeatedly(
             DoAll(SetArgPointee<2>(response),
@@ -206,7 +236,7 @@ TEST_F(MetaServerClientImplTest, test_GetDentry) {
     EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
         .WillRepeatedly(DoAll(SetArgPointee<2>(target_), Return(true)));
 
-    status = metaserverCli_.GetDentry(fsID, inodeID, name, &out);
+    status = metaserverCli_.GetDentry(fsID, inodeID, name, &out, &txLockOut);
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 }
 
@@ -220,6 +250,7 @@ TEST_F(MetaServerClientImplTest, test_ListDentry) {
     // out
     std::list<Dentry> out;
     uint64_t txID = 10;
+    TxLock txLockOut;
 
     curvefs::metaserver::ListDentryResponse response;
     auto *d = response.add_dentrys();
@@ -235,11 +266,33 @@ TEST_F(MetaServerClientImplTest, test_ListDentry) {
             Invoke(SetRpcService<ListDentryRequest, ListDentryResponse, true>));
     EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
         .WillRepeatedly(DoAll(SetArgPointee<2>(target_), Return(true)));
+    EXPECT_CALL(*mockMetacache_.get(), GetTargetLeader(_, _))
+            .WillRepeatedly(Return(true));
 
-    MetaStatusCode status =
-        metaserverCli_.ListDentry(fsID, inodeID, last, count, onlyDir, &out);
+    MetaStatusCode status = metaserverCli_.ListDentry(
+        fsID, inodeID, last, count, onlyDir, &out, &txLockOut);
 
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
+
+    // test: dentry has tx lock
+    TxLock txLock;
+    txLock.set_primarykey("key");
+    txLock.set_startts(1);
+    txLock.set_timestamp(100);
+    response.set_statuscode(MetaStatusCode::TX_KEY_LOCKED);
+    *response.mutable_txlock() = txLock;
+    EXPECT_CALL(mockMetaServerService_, ListDentry(_, _, _, _))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(response),
+            Invoke(SetRpcService<ListDentryRequest, ListDentryResponse>)));
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(target_), Return(true)));
+
+    status = metaserverCli_.ListDentry(
+        fsID, inodeID, last, count, onlyDir, &out, &txLockOut);
+    ASSERT_EQ(MetaStatusCode::TX_KEY_LOCKED, status);
+    ASSERT_TRUE(
+        google::protobuf::util::MessageDifferencer::Equals(txLockOut, txLock));
 
     // test1: list dentry ok
     response.set_statuscode(MetaStatusCode::OK);
@@ -251,7 +304,7 @@ TEST_F(MetaServerClientImplTest, test_ListDentry) {
         .WillOnce(DoAll(SetArgPointee<2>(target_), Return(true)));
 
     status = metaserverCli_.ListDentry(
-        fsID, inodeID, last, count, onlyDir, &out);
+        fsID, inodeID, last, count, onlyDir, &out, &txLockOut);
     ASSERT_EQ(MetaStatusCode::OK, status);
     ASSERT_EQ(1, out.size());
     ASSERT_TRUE(
@@ -274,7 +327,7 @@ TEST_F(MetaServerClientImplTest, test_ListDentry) {
             SetArgPointee<2>(response),
             Invoke(SetRpcService<ListDentryRequest, ListDentryResponse>)));
     status = metaserverCli_.ListDentry(
-        fsID, inodeID, last, count, onlyDir, &out);
+        fsID, inodeID, last, count, onlyDir, &out, &txLockOut);
     ASSERT_EQ(MetaStatusCode::OK, status);
 
     // test3: test response do not have dentrys
@@ -288,7 +341,7 @@ TEST_F(MetaServerClientImplTest, test_ListDentry) {
         .WillRepeatedly(DoAll(SetArgPointee<2>(target_), Return(true)));
 
     status = metaserverCli_.ListDentry(
-        fsID, inodeID, last, count, onlyDir, &out);
+        fsID, inodeID, last, count, onlyDir, &out, &txLockOut);
     ASSERT_EQ(MetaStatusCode::OK, status);
 }
 
@@ -302,8 +355,7 @@ TEST_F(MetaServerClientImplTest, test_CreateDentry_rpc_error) {
     d.set_txid(10);
 
     // out
-    butil::EndPoint target;
-    butil::str2endpoint(addr_.c_str(), &target);
+    TxLock txLockOut;
 
     curvefs::metaserver::CreateDentryResponse response;
 
@@ -316,11 +368,11 @@ TEST_F(MetaServerClientImplTest, test_CreateDentry_rpc_error) {
         .Times(1 + opt_.maxRetry)
         .WillRepeatedly(Return(true));
 
-    MetaStatusCode status = metaserverCli_.CreateDentry(d);
+    MetaStatusCode status = metaserverCli_.CreateDentry(d, &txLockOut);
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 }
 
-TEST_F(MetaServerClientImplTest, test_CreateDentry_create_dentry_ok) {
+TEST_F(MetaServerClientImplTest, test_CreateDentry_ok) {
     // in
     Dentry d;
     d.set_fsid(1);
@@ -330,8 +382,7 @@ TEST_F(MetaServerClientImplTest, test_CreateDentry_create_dentry_ok) {
     d.set_txid(10);
 
     // out
-    butil::EndPoint target;
-    butil::str2endpoint(addr_.c_str(), &target);
+    TxLock txLockOut;
 
     curvefs::metaserver::CreateDentryResponse response;
 
@@ -343,8 +394,42 @@ TEST_F(MetaServerClientImplTest, test_CreateDentry_create_dentry_ok) {
     EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(target_), Return(true)));
 
-    auto status = metaserverCli_.CreateDentry(d);
+    auto status = metaserverCli_.CreateDentry(d, &txLockOut);
     ASSERT_EQ(MetaStatusCode::OK, status);
+}
+
+TEST_F(MetaServerClientImplTest, test_CreateDentry_tx_locked) {
+    // in
+    Dentry d;
+    d.set_fsid(1);
+    d.set_inodeid(2);
+    d.set_parentinodeid(1);
+    d.set_name("test11");
+    d.set_txid(10);
+
+    // out
+    TxLock txLockOut;
+
+    curvefs::metaserver::CreateDentryResponse response;
+
+    TxLock txLock;
+    txLock.set_primarykey("key");
+    txLock.set_startts(1);
+    txLock.set_timestamp(100);
+    response.set_statuscode(MetaStatusCode::TX_KEY_LOCKED);
+    *response.mutable_txlock() = txLock;
+
+    EXPECT_CALL(mockMetaServerService_, CreateDentry(_, _, _, _))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(response),
+            Invoke(SetRpcService<CreateDentryRequest, CreateDentryResponse>)));
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(target_), Return(true)));
+
+    auto status = metaserverCli_.CreateDentry(d, &txLockOut);
+    ASSERT_EQ(MetaStatusCode::TX_KEY_LOCKED, status);
+    ASSERT_TRUE(
+        google::protobuf::util::MessageDifferencer::Equals(txLockOut, txLock));
 }
 
 TEST_F(MetaServerClientImplTest, test_CreateDentry_copyset_not_exist) {
@@ -357,8 +442,7 @@ TEST_F(MetaServerClientImplTest, test_CreateDentry_copyset_not_exist) {
     d.set_txid(10);
 
     // out
-    butil::EndPoint target;
-    butil::str2endpoint(addr_.c_str(), &target);
+    TxLock txLockOut;
 
     curvefs::metaserver::CreateDentryResponse response;
 
@@ -380,7 +464,7 @@ TEST_F(MetaServerClientImplTest, test_CreateDentry_copyset_not_exist) {
     EXPECT_CALL(*mockMetacache_.get(), GetTargetLeader(_, _))
         .WillOnce(Return(true));
 
-    auto status = metaserverCli_.CreateDentry(d);
+    auto status = metaserverCli_.CreateDentry(d, &txLockOut);
     ASSERT_EQ(MetaStatusCode::OK, status);
 }
 
@@ -390,10 +474,7 @@ TEST_F(MetaServerClientImplTest, test_DeleteDentry) {
     uint64_t inodeid = 2;
     std::string name = "test";
 
-    // out
-    butil::EndPoint target;
-    butil::str2endpoint(addr_.c_str(), &target);
-
+    TxLock txLockOut;
     curvefs::metaserver::DeleteDentryResponse response;
 
     // test1: delete dentry ok
@@ -405,9 +486,11 @@ TEST_F(MetaServerClientImplTest, test_DeleteDentry) {
             Invoke(SetRpcService<DeleteDentryRequest, DeleteDentryResponse>)));
     EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(target_), Return(true)));
+    EXPECT_CALL(*mockMetacache_.get(), GetTargetLeader(_, _))
+            .WillRepeatedly(Return(true));
 
     MetaStatusCode status = metaserverCli_.DeleteDentry(
-        fsid, inodeid, name, FsFileType::TYPE_FILE);
+        fsid, inodeid, name, FsFileType::TYPE_FILE, &txLockOut);
     ASSERT_EQ(MetaStatusCode::OK, status);
 
     // test2: rpc error
@@ -418,7 +501,7 @@ TEST_F(MetaServerClientImplTest, test_DeleteDentry) {
         .WillRepeatedly(DoAll(SetArgPointee<2>(target_), Return(true)));
 
     status = metaserverCli_.DeleteDentry(
-            fsid, inodeid, name, FsFileType::TYPE_FILE);
+            fsid, inodeid, name, FsFileType::TYPE_FILE, &txLockOut);
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 
     // test3: delete response with unknown error
@@ -430,8 +513,29 @@ TEST_F(MetaServerClientImplTest, test_DeleteDentry) {
     EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
         .WillRepeatedly(DoAll(SetArgPointee<2>(target_), Return(true)));
     status = metaserverCli_.DeleteDentry(
-            fsid, inodeid, name, FsFileType::TYPE_FILE);
+            fsid, inodeid, name, FsFileType::TYPE_FILE, &txLockOut);
     ASSERT_EQ(MetaStatusCode::UNKNOWN_ERROR, status);
+
+    // test: delete dentry with tx lock
+    TxLock txLock;
+    txLock.set_primarykey("key");
+    txLock.set_startts(1);
+    txLock.set_timestamp(100);
+    response.set_statuscode(MetaStatusCode::TX_KEY_LOCKED);
+    *response.mutable_txlock() = txLock;
+
+    EXPECT_CALL(mockMetaServerService_, DeleteDentry(_, _, _, _))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(response),
+            Invoke(SetRpcService<DeleteDentryRequest, DeleteDentryResponse>)));
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(target_), Return(true)));
+
+    status = metaserverCli_.DeleteDentry(
+        fsid, inodeid, name, FsFileType::TYPE_FILE, &txLockOut);
+    ASSERT_EQ(MetaStatusCode::TX_KEY_LOCKED, status);
+    ASSERT_TRUE(
+        google::protobuf::util::MessageDifferencer::Equals(txLockOut, txLock));
 }
 
 TEST_F(MetaServerClientImplTest, PrepareRenameTx) {
@@ -443,6 +547,8 @@ TEST_F(MetaServerClientImplTest, PrepareRenameTx) {
     dentry.set_name("A");
     dentry.set_txid(4);
 
+    EXPECT_CALL(*mockMetacache_.get(), GetTargetLeader(_, _))
+            .WillRepeatedly(Return(true));
     EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
         .WillRepeatedly(DoAll(SetArgPointee<2>(target_), Return(true)));
 
@@ -475,6 +581,190 @@ TEST_F(MetaServerClientImplTest, PrepareRenameTx) {
 
     dentrys = std::vector<Dentry>{dentry};
     rc = metaserverCli_.PrepareRenameTx(dentrys);
+    ASSERT_EQ(rc, MetaStatusCode::RPC_ERROR);
+}
+
+TEST_F(MetaServerClientImplTest, PrewriteRenameTx) {
+    curvefs::metaserver::PrewriteRenameTxResponse response;
+    Dentry dentry;
+    dentry.set_fsid(1);
+    dentry.set_inodeid(2);
+    dentry.set_parentinodeid(3);
+    dentry.set_name("A");
+    TxLock txLockIn;
+    TxLock txLockOut;
+    txLockIn.set_primarykey("key");
+    txLockIn.set_startts(1);
+    txLockIn.set_timestamp(100);
+
+    EXPECT_CALL(*mockMetacache_.get(), GetTargetLeader(_, _))
+            .WillRepeatedly(Return(true));
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(target_), Return(true)));
+
+    // CASE 1: PrewriteRenameTx success
+    response.set_statuscode(MetaStatusCode::OK);
+    EXPECT_CALL(mockMetaServerService_, PrewriteRenameTx(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(response),
+                        Invoke(SetRpcService<PrewriteRenameTxRequest,
+                                             PrewriteRenameTxResponse>)));
+
+    auto dentrys = std::vector<Dentry>{dentry};
+    auto rc = metaserverCli_.PrewriteRenameTx(dentrys, txLockIn, &txLockOut);
+    ASSERT_EQ(rc, MetaStatusCode::OK);
+
+    // CASE 2: PrewriteRenameTx fail
+    response.set_statuscode(MetaStatusCode::STORAGE_INTERNAL_ERROR);
+    EXPECT_CALL(mockMetaServerService_, PrewriteRenameTx(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(response),
+                        Invoke(SetRpcService<PrewriteRenameTxRequest,
+                                             PrewriteRenameTxResponse>)));
+
+    dentrys = std::vector<Dentry>{dentry};
+    rc = metaserverCli_.PrewriteRenameTx(dentrys, txLockIn, &txLockOut);
+    ASSERT_EQ(rc, MetaStatusCode::STORAGE_INTERNAL_ERROR);
+
+    // CASE 3: RPC error
+    EXPECT_CALL(mockMetaServerService_, PrewriteRenameTx(_, _, _, _))
+        .WillRepeatedly(Invoke(SetRpcService<PrewriteRenameTxRequest,
+                                             PrewriteRenameTxResponse, true>));
+
+    dentrys = std::vector<Dentry>{dentry};
+    rc = metaserverCli_.PrewriteRenameTx(dentrys, txLockIn, &txLockOut);
+    ASSERT_EQ(rc, MetaStatusCode::RPC_ERROR);
+}
+
+TEST_F(MetaServerClientImplTest, CheckTxStatus) {
+    curvefs::metaserver::CheckTxStatusResponse response;
+    uint32_t poolId = 1;
+    uint64_t inodeId = 1;
+    std::string primaryKey = "key";
+    uint64_t startTs = 1;
+    uint64_t curTimestamp = 100;
+
+    EXPECT_CALL(*mockMetacache_.get(), GetTargetLeader(_, _))
+            .WillRepeatedly(Return(true));
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(target_), Return(true)));
+
+    // CASE 1: CheckTxStatus success
+    response.set_statuscode(MetaStatusCode::OK);
+    EXPECT_CALL(mockMetaServerService_, CheckTxStatus(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(response),
+                        Invoke(SetRpcService<CheckTxStatusRequest,
+                                             CheckTxStatusResponse>)));
+
+    auto rc = metaserverCli_.CheckTxStatus(poolId, inodeId, primaryKey,
+                                           startTs, curTimestamp);
+    ASSERT_EQ(rc, MetaStatusCode::OK);
+
+    // CASE 2: CheckTxStatus fail
+    response.set_statuscode(MetaStatusCode::STORAGE_INTERNAL_ERROR);
+    EXPECT_CALL(mockMetaServerService_, CheckTxStatus(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(response),
+                        Invoke(SetRpcService<CheckTxStatusRequest,
+                                             CheckTxStatusResponse>)));
+
+    rc = metaserverCli_.CheckTxStatus(poolId, inodeId, primaryKey, startTs,
+                                      curTimestamp);
+    ASSERT_EQ(rc, MetaStatusCode::STORAGE_INTERNAL_ERROR);
+
+    // CASE 3: RPC error
+    EXPECT_CALL(mockMetaServerService_, CheckTxStatus(_, _, _, _))
+        .WillRepeatedly(Invoke(SetRpcService<CheckTxStatusRequest,
+                                             CheckTxStatusResponse, true>));
+
+    rc = metaserverCli_.CheckTxStatus(poolId, inodeId, primaryKey, startTs,
+                                      curTimestamp);
+    ASSERT_EQ(rc, MetaStatusCode::RPC_ERROR);
+}
+
+TEST_F(MetaServerClientImplTest, ResolveTxLock) {
+    curvefs::metaserver::ResolveTxLockResponse response;
+    Dentry dentry;
+    dentry.set_fsid(1);
+    dentry.set_inodeid(2);
+    dentry.set_parentinodeid(3);
+    dentry.set_name("A");
+    uint64_t startTs = 1;
+
+    EXPECT_CALL(*mockMetacache_.get(), GetTargetLeader(_, _))
+            .WillRepeatedly(Return(true));
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(target_), Return(true)));
+
+    // CASE 1: ResolveTxLock success
+    response.set_statuscode(MetaStatusCode::OK);
+    EXPECT_CALL(mockMetaServerService_, ResolveTxLock(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(response),
+                        Invoke(SetRpcService<ResolveTxLockRequest,
+                                             ResolveTxLockResponse>)));
+
+    auto rc = metaserverCli_.ResolveTxLock(dentry, startTs, true);
+    ASSERT_EQ(rc, MetaStatusCode::OK);
+
+    // CASE 2: ResolveTxLock fail
+    response.set_statuscode(MetaStatusCode::STORAGE_INTERNAL_ERROR);
+    EXPECT_CALL(mockMetaServerService_, ResolveTxLock(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(response),
+                        Invoke(SetRpcService<ResolveTxLockRequest,
+                                             ResolveTxLockResponse>)));
+
+    rc = metaserverCli_.ResolveTxLock(dentry, startTs, true);
+    ASSERT_EQ(rc, MetaStatusCode::STORAGE_INTERNAL_ERROR);
+
+    // CASE 3: RPC error
+    EXPECT_CALL(mockMetaServerService_, ResolveTxLock(_, _, _, _))
+        .WillRepeatedly(Invoke(SetRpcService<ResolveTxLockRequest,
+                                             ResolveTxLockResponse, true>));
+
+    rc = metaserverCli_.ResolveTxLock(dentry, startTs, true);
+    ASSERT_EQ(rc, MetaStatusCode::RPC_ERROR);
+}
+
+TEST_F(MetaServerClientImplTest, CommitTx) {
+    curvefs::metaserver::CommitTxResponse response;
+    Dentry dentry;
+    dentry.set_fsid(1);
+    dentry.set_inodeid(2);
+    dentry.set_parentinodeid(3);
+    dentry.set_name("A");
+    uint64_t startTs = 1;
+    uint64_t commitTs = 2;
+
+    EXPECT_CALL(*mockMetacache_.get(), GetTargetLeader(_, _))
+            .WillRepeatedly(Return(true));
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(target_), Return(true)));
+
+    // CASE 1: CommitTx success
+    response.set_statuscode(MetaStatusCode::OK);
+    EXPECT_CALL(mockMetaServerService_, CommitTx(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(response),
+            Invoke(SetRpcService<curvefs::metaserver::CommitTxRequest,
+                                 curvefs::metaserver::CommitTxResponse>)));
+
+    auto dentrys = std::vector<Dentry>{dentry};
+    auto rc = metaserverCli_.CommitTx(dentrys, startTs, commitTs);
+    ASSERT_EQ(rc, MetaStatusCode::OK);
+
+    // CASE 2: CommitTx fail
+    response.set_statuscode(MetaStatusCode::STORAGE_INTERNAL_ERROR);
+    EXPECT_CALL(mockMetaServerService_, CommitTx(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(response),
+            Invoke(SetRpcService<curvefs::metaserver::CommitTxRequest,
+                                 curvefs::metaserver::CommitTxResponse>)));
+
+    rc = metaserverCli_.CommitTx(dentrys, startTs, commitTs);
+    ASSERT_EQ(rc, MetaStatusCode::STORAGE_INTERNAL_ERROR);
+
+    // CASE 3: RPC error
+    EXPECT_CALL(mockMetaServerService_, CommitTx(_, _, _, _))
+        .WillRepeatedly(Invoke(SetRpcService<
+            curvefs::metaserver::CommitTxRequest,
+            curvefs::metaserver::CommitTxResponse, true>));
+
+    rc = metaserverCli_.CommitTx(dentrys, startTs, commitTs);
     ASSERT_EQ(rc, MetaStatusCode::RPC_ERROR);
 }
 
@@ -514,6 +804,8 @@ TEST_F(MetaServerClientImplTest, test_GetInode) {
             Invoke(SetRpcService<GetInodeRequest, GetInodeResponse, true>));
     EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
         .WillRepeatedly(DoAll(SetArgPointee<2>(target_),  Return(true)));
+    EXPECT_CALL(*mockMetacache_.get(), GetTargetLeader(_, _))
+            .WillRepeatedly(Return(true));
 
     MetaStatusCode status = metaserverCli_.GetInode(
         fsid, inodeid, &out, &streaming);
@@ -587,6 +879,8 @@ TEST_F(MetaServerClientImplTest, test_UpdateInodeAttr) {
             SetRpcService<UpdateInodeRequest, UpdateInodeResponse, true>));
     EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
         .WillRepeatedly(DoAll(SetArgPointee<2>(target_), Return(true)));
+    EXPECT_CALL(*mockMetacache_.get(), GetTargetLeader(_, _))
+            .WillRepeatedly(Return(true));
 
     MetaStatusCode status = metaserverCli_.UpdateInodeAttr(
         inode.fsid(), inode.inodeid(), ToInodeAttr(inode));
@@ -786,6 +1080,8 @@ TEST_F(MetaServerClientImplTest, test_CreateInode) {
             SetRpcService<CreateInodeRequest, CreateInodeResponse, true>));
     EXPECT_CALL(*mockMetacache_.get(), SelectTarget(_, _))
         .WillRepeatedly(Return(true));
+    EXPECT_CALL(*mockMetacache_.get(), GetTargetLeader(_, _))
+            .WillRepeatedly(Return(true));
     MetaStatusCode status = metaserverCli_.CreateInode(inode, &out);
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 
@@ -844,6 +1140,8 @@ TEST_F(MetaServerClientImplTest, test_DeleteInode) {
             SetRpcService<DeleteInodeRequest, DeleteInodeResponse, true>));
     EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
         .WillRepeatedly(DoAll(SetArgPointee<2>(target_), Return(true)));
+    EXPECT_CALL(*mockMetacache_.get(), GetTargetLeader(_, _))
+            .WillRepeatedly(Return(true));
     MetaStatusCode status = metaserverCli_.DeleteInode(fsId, inodeid);
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 
@@ -917,6 +1215,8 @@ TEST_F(MetaServerClientImplTest, test_BatchGetInodeAttr) {
             BatchGetInodeAttrResponse, true>));
     EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
         .WillRepeatedly(DoAll(SetArgPointee<2>(target_), Return(true)));
+    EXPECT_CALL(*mockMetacache_.get(), GetTargetLeader(_, _))
+            .WillRepeatedly(Return(true));
 
     MetaStatusCode status = metaserverCli_.BatchGetInodeAttr(
         fsid, inodeIds, &attr);
@@ -993,6 +1293,8 @@ TEST_F(MetaServerClientImplTest, test_BatchGetXAttr) {
             BatchGetXAttrResponse, true>));
     EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _))
         .WillRepeatedly(DoAll(SetArgPointee<2>(target_), Return(true)));
+    EXPECT_CALL(*mockMetacache_.get(), GetTargetLeader(_, _))
+            .WillRepeatedly(Return(true));
 
     MetaStatusCode status = metaserverCli_.BatchGetXAttr(
         fsid, inodeIds, &xattr);

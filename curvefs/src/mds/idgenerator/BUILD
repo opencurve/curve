@@ -18,7 +18,8 @@ load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
 
 cc_library(
     name = "fs_mds_idgenerator",
-    hdrs = ["fs_id_generator.h"],
+    hdrs = ["fs_id_generator.h",
+            "ts_id_generator.h"],
     copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [

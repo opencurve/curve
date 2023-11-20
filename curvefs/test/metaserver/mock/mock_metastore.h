@@ -122,6 +122,21 @@ class MockMetaStore : public curvefs::metaserver::MetaStore {
                  MetaStatusCode(const UpdateDeallocatableBlockGroupRequest*,
                                 UpdateDeallocatableBlockGroupResponse*,
                                 int64_t logIndex));
+
+    MOCK_METHOD(MetaStatusCode, PrewriteRenameTx,
+        (const PrewriteRenameTxRequest* request,
+        PrewriteRenameTxResponse* response, int64_t logIndex), (override));
+
+    MOCK_METHOD(MetaStatusCode, CheckTxStatus,
+        (const CheckTxStatusRequest* request,
+        CheckTxStatusResponse* response, int64_t logIndex), (override));
+
+    MOCK_METHOD(MetaStatusCode, ResolveTxLock,
+        (const ResolveTxLockRequest* request,
+        ResolveTxLockResponse* response, int64_t logIndex), (override));
+
+    MOCK_METHOD(MetaStatusCode, CommitTx, (const CommitTxRequest* request,
+        CommitTxResponse* response, int64_t logIndex), (override));
 };
 
 }  // namespace mock

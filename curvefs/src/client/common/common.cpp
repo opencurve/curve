@@ -45,6 +45,18 @@ std::ostream &operator<<(std::ostream &os, MetaServerOpType optype) {
     case MetaServerOpType::PrepareRenameTx:
         os << "PrepareRenameTx";
         break;
+    case MetaServerOpType::PrewriteRenameTx:
+        os << "PrewriteRenameTx";
+        break;
+    case MetaServerOpType::CheckTxStatus:
+        os << "CheckTxStatus";
+        break;
+    case MetaServerOpType::ResolveTxLock:
+        os << "ResolveTxLock";
+        break;
+    case MetaServerOpType::CommitTx:
+        os << "CommitTx";
+        break;
     case MetaServerOpType::GetInode:
         os << "GetInode";
         break;

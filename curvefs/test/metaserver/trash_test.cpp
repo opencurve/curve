@@ -46,6 +46,9 @@ using ::testing::Invoke;
 namespace curvefs {
 namespace metaserver {
 
+DECLARE_uint32(trash_scanPeriodSec);
+DECLARE_uint32(trash_expiredAfterSec);
+
 namespace {
 auto localfs = curve::fs::Ext4FileSystemImpl::getInstance();
 }
@@ -84,6 +87,7 @@ class TestTrash : public ::testing::Test {
     }
 
     void TearDown() override {
+        trashManager_->Fini();
         inodeStorage_ = nullptr;
         trashManager_ = nullptr;
         ASSERT_TRUE(kvStorage_->Close());
@@ -223,8 +227,6 @@ TEST_F(TestTrash, testAdd3ItemAndDelete) {
 
     ASSERT_EQ(0, trashManager_->Size());
     ASSERT_EQ(inodeStorage_->Size(), 0);
-
-    trashManager_->Fini();
 }
 
 }  // namespace metaserver

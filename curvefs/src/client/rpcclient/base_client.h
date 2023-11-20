@@ -57,11 +57,11 @@ using curvefs::metaserver::GetInodeResponse;
 using curvefs::metaserver::Inode;
 using curvefs::metaserver::ListDentryRequest;
 using curvefs::metaserver::ListDentryResponse;
-using curvefs::metaserver::PrepareRenameTxRequest;
-using curvefs::metaserver::PrepareRenameTxResponse;
+using curvefs::metaserver::ManageInodeType;
+using curvefs::metaserver::PrewriteRenameTxRequest;
+using curvefs::metaserver::PrewriteRenameTxResponse;
 using curvefs::metaserver::UpdateInodeRequest;
 using curvefs::metaserver::UpdateInodeResponse;
-using curvefs::metaserver::ManageInodeType;
 
 using curvefs::common::FSType;
 using curvefs::common::PartitionInfo;
@@ -84,6 +84,8 @@ using curvefs::mds::CommitTxRequest;
 using curvefs::mds::CommitTxResponse;
 using curvefs::mds::RefreshSessionRequest;
 using curvefs::mds::RefreshSessionResponse;
+using curvefs::mds::TsoRequest;
+using curvefs::mds::TsoResponse;
 using curvefs::mds::UmountFsRequest;
 using curvefs::mds::UmountFsResponse;
 
@@ -196,6 +198,9 @@ class MDSBaseClient {
                           CommitTxResponse* response,
                           brpc::Controller* cntl,
                           brpc::Channel* channel);
+
+    virtual void Tso(const TsoRequest& request, TsoResponse* response,
+        brpc::Controller* cntl, brpc::Channel* channel);
 
     virtual void AllocateVolumeBlockGroup(uint32_t fsId,
                                           uint32_t count,

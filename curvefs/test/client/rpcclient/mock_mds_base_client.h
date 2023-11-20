@@ -123,6 +123,9 @@ class MockMDSBaseClient : public MDSBaseClient {
                  void(uint32_t fsId,
                       AllocOrGetMemcacheClusterResponse* response,
                       brpc::Controller* cntl, brpc::Channel* channel));
+
+    MOCK_METHOD(void, Tso, (const TsoRequest& request, TsoResponse* response,
+        brpc::Controller* cntl, brpc::Channel* channel), (override));
 };
 }  // namespace rpcclient
 }  // namespace client

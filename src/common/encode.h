@@ -54,6 +54,11 @@ inline void EncodeBigEndian_uint32(char* buf, uint32_t value) {
     buf[3] = value & 0xff;
 }
 
+inline uint32_t DecodeBigEndian_uint32(const char* buf) {
+    return (uint32_t(buf[0]) << 24) | (uint32_t(buf[1]) << 16) |
+           (uint32_t(buf[2]) << 8) | uint32_t(buf[3]);
+}
+
 }  // namespace common
 }  // namespace curve
 

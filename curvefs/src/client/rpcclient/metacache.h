@@ -54,7 +54,14 @@ using ::curvefs::common::PartitionStatus;
 
 namespace curvefs {
 namespace client {
+
+namespace common {
+    DECLARE_int32(TxVersion);
+}  // namespace common
+
 namespace rpcclient {
+
+using curvefs::client::common::FLAGS_TxVersion;
 
 struct CopysetGroupID {
     LogicPoolID poolID = 0;
@@ -83,8 +90,9 @@ struct CopysetTarget {
 
     bool IsValid() const {
         return groupID.poolID != 0 && groupID.copysetID != 0 &&
-               partitionID != 0 && txId != 0 && metaServerID != 0 &&
-               endPoint.ip != butil::IP_ANY && endPoint.port != 0;
+               partitionID != 0 && metaServerID != 0 &&
+               endPoint.ip != butil::IP_ANY && endPoint.port != 0 &&
+               (FLAGS_TxVersion != 1 || txId != 0);
     }
 
     void Reset() {
@@ -179,8 +187,8 @@ class MetaCache {
     bool SelectPartition(CopysetTarget *target);
 
     // get info from partitionMap or copysetMap
-    bool GetCopysetIDwithInodeID(uint64_t inodeID, CopysetGroupID *groupID,
-                                 PartitionID *patitionID, uint64_t *txId);
+    bool GetCopysetIDwithInodeID(uint64_t inodeID, CopysetGroupID* groupID,
+        PartitionID* patitionID, uint64_t *txId);
 
     bool GetCopysetInfowithCopySetID(const CopysetGroupID &groupID,
                                      CopysetInfo<MetaserverID> *targetInfo);

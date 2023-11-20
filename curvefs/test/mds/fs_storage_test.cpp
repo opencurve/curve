@@ -23,6 +23,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <google/protobuf/util/message_differencer.h>
+#include "curvefs/test/mds/mock/mock_kvstorage_client.h"
 
 using ::testing::AtLeast;
 using ::testing::StrEq;
@@ -50,6 +51,8 @@ class FSStorageTest : public ::testing::Test {
 
 TEST_F(FSStorageTest, test1) {
     MemoryFsStorage storage;
+    ASSERT_TRUE(storage.Init());
+
     common::Volume volume;
     uint32_t fsId = 1;
     uint64_t rootInodeId = 1;
@@ -115,6 +118,15 @@ TEST_F(FSStorageTest, test1) {
     ASSERT_EQ(FSStatusCode::NOT_FOUND, storage.Delete(fs1.GetFsName()));
     ASSERT_EQ(FSStatusCode::OK, storage.Delete(fs5.GetFsName()));
     ASSERT_EQ(FSStatusCode::NOT_FOUND, storage.Delete(fs5.GetFsName()));
+
+    // test tso
+    uint64_t ts;
+    uint64_t timestamp;
+    for (int i = 1; i < 5; i++) {
+        ASSERT_EQ(FSStatusCode::OK, storage.Tso(&ts, &timestamp));
+        ASSERT_EQ(ts, i);
+    }
 }
+
 }  // namespace mds
 }  // namespace curvefs

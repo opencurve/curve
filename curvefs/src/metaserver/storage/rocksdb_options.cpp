@@ -98,6 +98,14 @@ DEFINE_int32(rocksdb_ordered_cf_max_write_buffer_number,
              2,
              "Number of writer buffer for ordered column family");
 
+DEFINE_int64(rocksdb_tx_cf_write_buffer_size,
+             64ULL << 20,
+             "Writer buffer size for tx column family");
+
+DEFINE_int32(rocksdb_tx_cf_max_write_buffer_number,
+             2,
+             "Number of writer buffer for tx column family");
+
 DEFINE_int32(rocksdb_max_write_buffer_size_to_maintain,
              20ULL << 20,
              "The target number of write history bytes to hold in memory");
@@ -106,6 +114,10 @@ DEFINE_int32(rocksdb_stats_dump_period_sec,
              180,
              "Dump rocksdb.stats to LOG every stats_dump_period_sec");
 
+DEFINE_int32(tx_lock_ttl_ms,
+             5000,
+             "tx lock timeout after ttl ms");
+
 namespace {
 
 std::shared_ptr<rocksdb::Cache> rocksdbBlockCache;
@@ -113,6 +125,7 @@ std::shared_ptr<rocksdb::WriteBufferManager> rocksdbWriteBufferManager;
 std::shared_ptr<MetricEventListener> metricEventListener;
 
 const char* const kOrderedColumnFamilyName = "ordered_column_family";
+const char* const kTxColumnFamilyName = "tx_column_family";
 
 void CreateBlockCacheAndWriterBufferManager() {
     static std::once_flag createBlockCache;
@@ -208,10 +221,18 @@ void InitRocksdbOptions(
     unorderedCfOptions.max_write_buffer_number =
         FLAGS_rocksdb_unordered_cf_max_write_buffer_number;
 
+    rocksdb::ColumnFamilyOptions txCfOptions = defaultCfOptions;
+    txCfOptions.write_buffer_size =
+        FLAGS_rocksdb_tx_cf_write_buffer_size;
+    txCfOptions.max_write_buffer_number =
+        FLAGS_rocksdb_tx_cf_max_write_buffer_number;
+
     columnFamilies->push_back(rocksdb::ColumnFamilyDescriptor{
         rocksdb::kDefaultColumnFamilyName, unorderedCfOptions});
     columnFamilies->push_back(rocksdb::ColumnFamilyDescriptor{
         kOrderedColumnFamilyName, orderedCfOptions});
+    columnFamilies->push_back(rocksdb::ColumnFamilyDescriptor{
+        kTxColumnFamilyName, txCfOptions});
 }
 
 void ParseRocksdbOptions(curve::common::Configuration* conf) {
@@ -260,6 +281,14 @@ void ParseRocksdbOptions(curve::common::Configuration* conf) {
                "storage.rocksdb.ordered_max_write_buffer_number",
                &FLAGS_rocksdb_ordered_cf_max_write_buffer_number,
                /*fatalIfMissing*/ false);
+    dummy.Load(conf, "rocksdb_tx_cf_write_buffer_size",
+               "storage.rocksdb.tx_cf_write_buffer_size",
+               &FLAGS_rocksdb_tx_cf_write_buffer_size,
+               /*fatalIfMissing*/ false);
+    dummy.Load(conf, "rocksdb_tx_cf_max_write_buffer_number",
+               "storage.rocksdb.tx_cf_max_write_buffer_number",
+               &FLAGS_rocksdb_tx_cf_max_write_buffer_number,
+               /*fatalIfMissing*/ false);
     dummy.Load(conf, "rocksdb_max_write_buffer_size_to_maintain",
                "storage.rocksdb.max_write_buffer_size_to_maintain",
                &FLAGS_rocksdb_max_write_buffer_size_to_maintain,
@@ -267,6 +296,9 @@ void ParseRocksdbOptions(curve::common::Configuration* conf) {
     dummy.Load(conf, "rocksdb_stats_dump_period_sec",
                "storage.rocksdb.stats_dump_period_sec",
                &FLAGS_rocksdb_stats_dump_period_sec, /*fatalIfMissing*/ false);
+    dummy.Load(conf, "tx_lock_ttl_ms",
+               "storage.tx_lock_ttl_ms",
+               &FLAGS_tx_lock_ttl_ms, /*fatalIfMissing*/ false);
 }
 
 }  // namespace storage

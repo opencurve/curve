@@ -1056,6 +1056,51 @@ TEST_F(MdsClientImplTest, test_SetMdsAddrs) {
     ASSERT_EQ(mdsclient_.GetMdsAddrs(), addr_new);
 }
 
+TEST_F(MdsClientImplTest, Tso) {
+    curvefs::mds::TsoResponse response;
+
+    // CASE 1: Tso success
+    response.set_statuscode(FSStatusCode::OK);
+    response.set_ts(1);
+    response.set_timestamp(100);
+    EXPECT_CALL(mockmdsbasecli_, Tso(_, _, _, _))
+        .WillOnce(SetArgPointee<1>(response));
+
+    uint64_t ts;
+    uint64_t timestamp;
+    auto rc = mdsclient_.Tso(&ts, &timestamp);
+    ASSERT_EQ(rc, FSStatusCode::OK);
+    ASSERT_EQ(ts, 1);
+    ASSERT_EQ(timestamp, 100);
+
+    // CASE 2: Tso fail
+    response.set_statuscode(FSStatusCode::UNKNOWN_ERROR);
+    EXPECT_CALL(mockmdsbasecli_, Tso(_, _, _, _))
+        .WillOnce(SetArgPointee<1>(response));
+
+    rc = mdsclient_.Tso(&ts, &timestamp);
+    ASSERT_EQ(rc, FSStatusCode::UNKNOWN_ERROR);
+
+    // CASE 3: RPC error, retry until success
+    int count = 0;
+    EXPECT_CALL(mockmdsbasecli_, Tso(_, _, _, _))
+        .Times(6)
+        .WillRepeatedly(
+            Invoke([&](const TsoRequest& request,
+                       TsoResponse *response,
+                       brpc::Controller *cntl,
+                       brpc::Channel *channel) {
+                if (++count <= 5) {
+                    cntl->SetFailed(112, "Not connected to");
+                } else {
+                    response->set_statuscode(FSStatusCode::OK);
+                }
+            }));
+
+    rc = mdsclient_.Tso(&ts, &timestamp);
+    ASSERT_EQ(rc, FSStatusCode::OK);
+}
+
 }  // namespace rpcclient
 }  // namespace client
 }  // namespace curvefs

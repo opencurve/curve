@@ -703,6 +703,38 @@ FSStatusCode MdsClientImpl::CommitTxWithLock(
     return CommitTx(request);
 }
 
+FSStatusCode MdsClientImpl::Tso(uint64_t* ts, uint64_t* timestamp) {
+    auto task = RPCTask {
+        (void)addrindex;
+        (void)rpctimeoutMS;
+        mdsClientMetric_.tso.qps.count << 1;
+        LatencyUpdater updater(&mdsClientMetric_.tso.latency);
+        TsoRequest request;
+        TsoResponse response;
+        mdsbasecli_->Tso(request, &response, cntl, channel);
+        if (cntl->Failed()) {
+            mdsClientMetric_.tso.eps.count << 1;
+            LOG(WARNING) << "Tso Failed, errorcode = " << cntl->ErrorCode()
+                         << ", error content:" << cntl->ErrorText()
+                         << ", log id = " << cntl->log_id();
+            return -cntl->ErrorCode();
+        }
+
+        FSStatusCode ret = response.statuscode();
+        if (ret != FSStatusCode::OK) {
+            LOG(ERROR) << "Tso: errcode = " << ret
+                       << ", errmsg = " << FSStatusCode_Name(ret);
+            return ret;
+        } else {
+            *ts = response.ts();
+            *timestamp = response.timestamp();
+        }
+        return ret;
+    };
+    // for rpc error or failed/timeout, we will retry until success
+    return ReturnError(rpcexcutor_.DoRPCTask(task, 0));
+}
+
 FSStatusCode MdsClientImpl::ReturnError(int retcode) {
     // rpc error convert to FSStatusCode::RPC_ERROR
     if (retcode < 0) {

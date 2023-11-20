@@ -61,7 +61,6 @@ message ClusterInfoData {
     required string clusterId = 1;
     // <fsId, partitionIndex of this fs>
     map<uint32, uint32> partitionIndexs = 2;
-    
 }
 
 message PoolData {
