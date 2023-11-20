@@ -66,7 +66,7 @@ void TrashImpl::Add(uint32_t fsId, uint64_t inodeId, uint32_t dtime) {
         return;
     }
     trashItems_.push_back(item);
-    VLOG(6) << "Add Trash Item success, item.fsId = " << item.fsId
+    VLOG(9) << "add trash item success, item.fsId = " << item.fsId
             << ", item.inodeId = " << item.inodeId
             << ", item.dtime = " << item.dtime;
 }
@@ -78,11 +78,13 @@ void TrashImpl::ScanTrash() {
         LockGuard lgItems(itemsMutex_);
         trashItems_.swap(temp);
     }
-
     for (auto it = temp.begin(); it != temp.end();) {
         if (isStop_) {
             return;
         }
+        VLOG(9) << "ScanTrash , " << "item.fsId = " << it->fsId
+                << ", item.inodeId = " << it->inodeId
+                << ", item.dtime = " << it->dtime;
         if (NeedDelete(*it)) {
             MetaStatusCode ret = DeleteInodeAndData(*it);
             if (MetaStatusCode::NOT_FOUND == ret) {

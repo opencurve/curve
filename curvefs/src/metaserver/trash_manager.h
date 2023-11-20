@@ -27,6 +27,8 @@
 #include <list>
 #include <memory>
 
+#include "src/common/string_util.h"
+
 #include "src/common/concurrent/concurrent.h"
 #include "curvefs/src/metaserver/trash.h"
 
@@ -52,6 +54,15 @@ class TrashManager {
                   << partitionId;
     }
 
+    void BuildAbortTrash(const std::shared_ptr<KVStorage>  &kvStorage, const std::shared_ptr<Trash> &trash) {
+        curve::common::WriteLockGuard lg(rwLock_);
+        trash->Init(options_);
+        abortTrash_ = trash;
+        kvStorage_ = kvStorage;
+        BuildTrashItems();
+        LOG(INFO) << "build abort trash";
+    }
+
     void Remove(uint32_t partitionId);
 
     void Init(const TrashOption &options) {
@@ -66,6 +77,8 @@ class TrashManager {
 
     void ListItems(std::list<TrashItem> *items);
 
+    void BuildTrashItems();
+
  private:
     void ScanLoop();
 
@@ -79,6 +92,15 @@ class TrashManager {
     InterruptibleSleeper sleeper_;
 
     std::map<uint32_t, std::shared_ptr<Trash>> trashs_;
+/**
+ * 在metastorage的Load函数中新建trash，并进行初始化
+ *
+ *在ScanEveryTrash函数中，获取abortTrash_中的所有item，然后调用deleteinodeanddata*
+*/
+// 新建一个Trash，处理因重启导致的需要重新trash的问题
+// 注意除了新建，还需要init
+    std::shared_ptr<Trash> abortTrash_;
+    std::shared_ptr<KVStorage> kvStorage_;
     curve::common::RWLock rwLock_;
 };
 

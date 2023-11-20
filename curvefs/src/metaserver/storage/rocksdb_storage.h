@@ -79,6 +79,8 @@ class RocksDBStorage : public KVStorage, public StorageTransaction {
 
     bool Close() override;
 
+    void LoadAll(std::list<std::string>& item) override;
+
     STORAGE_TYPE Type() override;
 
     StorageOptions GetStorageOptions() const override;
@@ -92,6 +94,10 @@ class RocksDBStorage : public KVStorage, public StorageTransaction {
                 const std::string& key,
                 const ValueType& value) override;
 
+    Status HSetDeleting(const std::string& name,
+                const std::string& key,
+                const ValueType& value) override;
+
     Status HDel(const std::string& name, const std::string& key) override;
 
     std::shared_ptr<Iterator> HGetAll(const std::string& name) override;
@@ -100,6 +106,8 @@ class RocksDBStorage : public KVStorage, public StorageTransaction {
 
     Status HClear(const std::string& name) override;
 
+    std::shared_ptr<Iterator> GetPrefix(const std::string& prefix,
+                                                 bool ordered) override;
     // ordered
     Status SGet(const std::string& name,
                 const std::string& key,
@@ -152,6 +160,11 @@ class RocksDBStorage : public KVStorage, public StorageTransaction {
                bool ordered);
 
     Status Set(const std::string& name,
+               const std::string& key,
+               const ValueType& value,
+               bool ordered);
+
+    Status SetDeleting(const std::string& name,
                const std::string& key,
                const ValueType& value,
                bool ordered);
@@ -217,6 +230,12 @@ inline Status RocksDBStorage::HSet(const std::string& name,
                                    const std::string& key,
                                    const ValueType& value) {
     return Set(name, key, value, false);
+}
+
+inline Status RocksDBStorage::HSetDeleting(const std::string& name,
+                                   const std::string& key,
+                                   const ValueType& value) {
+    return SetDeleting(name, key, value, false);
 }
 
 inline Status RocksDBStorage::HDel(const std::string& name,

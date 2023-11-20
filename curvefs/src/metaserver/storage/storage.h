@@ -23,6 +23,7 @@
 #ifndef CURVEFS_SRC_METASERVER_STORAGE_STORAGE_H_
 #define CURVEFS_SRC_METASERVER_STORAGE_STORAGE_H_
 
+#include <list>
 #include <string>
 #include <memory>
 #include <vector>
@@ -50,6 +51,15 @@ class BaseStorage {
     virtual Status HSet(const std::string& name,
                         const std::string& key,
                         const ValueType& value) = 0;
+
+    virtual Status HSetDeleting(const std::string& name,
+                const std::string& key,
+                const ValueType& value){return Status::NotSupported();};
+
+    virtual std::shared_ptr<Iterator> GetPrefix(
+        const std::string& prefix, bool ordered) {
+          return nullptr;
+    }
 
     virtual Status HDel(const std::string& name, const std::string& key) = 0;
 
@@ -100,6 +110,8 @@ class KVStorage : public BaseStorage {
     virtual bool Open() = 0;
 
     virtual bool Close() = 0;
+
+    virtual  void LoadAll(std::list<std::string>& item) {};
 
     virtual StorageOptions GetStorageOptions() const = 0;
 
