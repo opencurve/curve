@@ -99,6 +99,7 @@ cc_library(
         "//curvefs/src/common:metric_utils",
         "//curvefs/src/common:dynamic_vlog",
         "//curvefs/src/common:threading",
+        "//curvefs/src/metaserver:metaserver_storage_conv",
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/synchronization",

@@ -56,22 +56,23 @@ class Partition {
     Partition(PartitionInfo partition, std::shared_ptr<KVStorage> kvStorage,
               bool startCompact = true, bool startVolumeDeallocate = true);
     Partition() = default;
+    bool Init();
 
     // dentry
-    MetaStatusCode CreateDentry(
-        const Dentry& dentry, const Time& tm, int64_t logIndex);
+    MetaStatusCode CreateDentry(const Dentry& dentry,
+        const Time& tm, int64_t logIndex, TxLock* txLock = nullptr);
 
     MetaStatusCode LoadDentry(
         const DentryVec& vec, bool merge, int64_t logIndex);
 
-    MetaStatusCode DeleteDentry(
-        const Dentry& dentry, const Time& tm, int64_t logIndex);
+    MetaStatusCode DeleteDentry(const Dentry& dentry,
+        const Time& tm, int64_t logIndex, TxLock* txLock = nullptr);
 
-    MetaStatusCode GetDentry(Dentry* dentry);
+    MetaStatusCode GetDentry(Dentry* dentry, TxLock* txLock = nullptr);
 
     MetaStatusCode ListDentry(const Dentry& dentry,
                               std::vector<Dentry>* dentrys, uint32_t limit,
-                              bool onlyDir = false);
+                              bool onlyDir = false, TxLock* txLock = nullptr);
 
     void ClearDentry();
 
@@ -84,7 +85,17 @@ class Partition {
 
     void SerializeRenameTx(const RenameTx& in, PrepareRenameTxRequest* out);
 
-    bool Init();
+    MetaStatusCode PrewriteRenameTx(const std::vector<Dentry>& dentrys,
+        const TxLock& txLock, int64_t logIndex, TxLock* out);
+
+    MetaStatusCode CheckTxStatus(const std::string& primaryKey,
+        uint64_t startTs, uint64_t curTimestamp, int64_t logIndex);
+
+    MetaStatusCode ResolveTxLock(const Dentry& dentry, uint64_t startTs,
+        uint64_t commitTs, int64_t logIndex);
+
+    MetaStatusCode CommitTx(const std::vector<Dentry>& dentrys,
+        uint64_t startTs, uint64_t commitTs, int64_t logIndex);
 
     // inode
     MetaStatusCode CreateInode(const InodeParam& param, Inode* inode,

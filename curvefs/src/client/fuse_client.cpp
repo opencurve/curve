@@ -104,6 +104,8 @@ DECLARE_uint64(fuseClientAvgReadBytes);
 DECLARE_uint64(fuseClientBurstReadBytes);
 DECLARE_uint64(fuseClientBurstReadBytesSecs);
 DECLARE_bool(fs_disableXattr);
+
+DECLARE_int32(TxVersion);
 }  // namespace common
 }  // namespace client
 }  // namespace curvefs
@@ -157,6 +159,8 @@ CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
     leaseExecutor_ = absl::make_unique<LeaseExecutor>(option.leaseOpt,
                                                       metaCache, mdsClient_,
                                                       &enableSumInDir_);
+
+    dentryManager_->Init(mdsClient_);
 
     xattrManager_ = std::make_shared<XattrManager>(inodeManager_,
         dentryManager_, option_.listDentryLimit, option_.listDentryThreads);
@@ -895,38 +899,63 @@ CURVEFS_ERROR FuseClient::FuseOpRename(fuse_req_t req, fuse_ino_t parent,
         return CURVEFS_ERROR::NAME_TOO_LONG;
     }
 
-    auto renameOp =
-        RenameOperator(fsInfo_->fsid(), fsInfo_->fsname(),
-                       parent, name, newparent, newname,
-                       dentryManager_, inodeManager_, metaClient_, mdsClient_,
-                       option_.enableMultiMountPointRename);
+    auto renameOp = RenameOperator(fsInfo_->fsid(), fsInfo_->fsname(), parent,
+        name, newparent, newname, dentryManager_, inodeManager_, metaClient_,
+        mdsClient_, option_.enableMultiMountPointRename);
 
-    curve::common::LockGuard lg(renameMutex_);
     CURVEFS_ERROR rc = CURVEFS_ERROR::OK;
-    VLOG(3) << "FuseOpRename [start]: " << renameOp.DebugString();
-    RETURN_IF_UNSUCCESS(GetTxId);
-    RETURN_IF_UNSUCCESS(Precheck);
-    RETURN_IF_UNSUCCESS(RecordOldInodeInfo);
-    // Do not move LinkDestParentInode behind CommitTx.
-    // If so, the nlink will be lost when the machine goes down
-    RETURN_IF_UNSUCCESS(LinkDestParentInode);
-    RETURN_IF_UNSUCCESS(PrepareTx);
-    RETURN_IF_UNSUCCESS(CommitTx);
-    VLOG(3) << "FuseOpRename [success]: " << renameOp.DebugString();
-    // Do not check UnlinkSrcParentInode, beause rename is already success
-    renameOp.UnlinkSrcParentInode();
-    renameOp.UnlinkOldInode();
-    if (parent != newparent) {
-        renameOp.UpdateInodeParent();
-    }
-    renameOp.UpdateInodeCtime();
-    renameOp.UpdateCache();
+    if (common::FLAGS_TxVersion == 1) {
+        curve::common::LockGuard lg(renameMutex_);
+        VLOG(3) << "FuseOpRename [start]: " << renameOp.DebugString();
+        RETURN_IF_UNSUCCESS(GetTxId);
+        RETURN_IF_UNSUCCESS(Precheck);
+        RETURN_IF_UNSUCCESS(RecordOldInodeInfo);
+        // Do not move LinkDestParentInode behind CommitTx.
+        // If so, the nlink will be lost when the machine goes down
+        RETURN_IF_UNSUCCESS(LinkDestParentInode);
+        RETURN_IF_UNSUCCESS(PrepareTx);
+        RETURN_IF_UNSUCCESS(CommitTx);
+        VLOG(3) << "FuseOpRename [success]: " << renameOp.DebugString();
+        // Do not check UnlinkSrcParentInode, beause rename is already success
+        renameOp.UnlinkSrcParentInode();
+        renameOp.UnlinkOldInode();
+        if (parent != newparent) {
+            renameOp.UpdateInodeParent();
+        }
+        renameOp.UpdateInodeCtime();
+        renameOp.UpdateCache();
 
-    if (enableSumInDir_.load()) {
-        xattrManager_->UpdateParentXattrAfterRename(
-            parent, newparent, newname, &renameOp);
-    }
+        if (enableSumInDir_.load()) {
+            xattrManager_->UpdateParentXattrAfterRename(
+                parent, newparent, newname, &renameOp);
+        }
+    } else if (common::FLAGS_TxVersion == 2) {
+        VLOG(3) << "FuseOpRename [start]: " << renameOp.DebugString();
+        RETURN_IF_UNSUCCESS(Precheck);
+        RETURN_IF_UNSUCCESS(RecordOldInodeInfo);
+        // Do not move LinkDestParentInode behind CommitTx.
+        // If so, the nlink will be lost when the machine goes down
+        RETURN_IF_UNSUCCESS(LinkDestParentInode);
+        RETURN_IF_UNSUCCESS(PrewriteTx);
+        RETURN_IF_UNSUCCESS(CommitTxV2);
+        VLOG(3) << "FuseOpRename [success]: " << renameOp.DebugString();
+        // Do not check UnlinkSrcParentInode, beause rename is already success
+        renameOp.UnlinkSrcParentInode();
+        renameOp.UnlinkOldInode();
+        if (parent != newparent) {
+            renameOp.UpdateInodeParent();
+        }
+        renameOp.UpdateInodeCtime();
 
+        if (enableSumInDir_.load()) {
+            xattrManager_->UpdateParentXattrAfterRename(
+                parent, newparent, newname, &renameOp);
+        }
+    } else {
+        LOG(ERROR) << "FuseOpRename not support tx version: "
+                   << common::FLAGS_TxVersion;
+        return CURVEFS_ERROR::NOT_SUPPORT;
+    }
     return rc;
 }
 

@@ -27,7 +27,7 @@
 
 #include "curvefs/src/client/filesystem/error.h"
 #include "curvefs/src/client/filesystem/meta.h"
-#include "curvefs/test/client/mock_inode_cache_manager.h"
+#include "curvefs/test/client/mock_inode_manager.h"
 #include "curvefs/test/client/mock_metaserver_client.h"
 #include "curvefs/test/volume/mock/mock_block_device_client.h"
 #include "curvefs/test/volume/mock/mock_space_manager.h"

@@ -42,24 +42,38 @@ class DentryManager {
 
     bool Init();
 
-    MetaStatusCode CreateDentry(const Dentry& dentry, int64_t logIndex);
+    MetaStatusCode CreateDentry(const Dentry& dentry, int64_t logIndex,
+        TxLock* txLock = nullptr);
 
     // only invoked from snapshot loadding
     MetaStatusCode CreateDentry(const DentryVec& vec, bool merge,
                                 int64_t logIndex);
 
-    MetaStatusCode DeleteDentry(const Dentry& dentry, int64_t logIndex);
+    MetaStatusCode DeleteDentry(const Dentry& dentry, int64_t logIndex,
+        TxLock* txLock = nullptr);
 
-    MetaStatusCode GetDentry(Dentry* dentry);
+    MetaStatusCode GetDentry(Dentry* dentry, TxLock* txLock = nullptr);
 
     MetaStatusCode ListDentry(const Dentry& dentry,
                               std::vector<Dentry>* dentrys, uint32_t limit,
-                              bool onlyDir = false);
+                              bool onlyDir = false, TxLock* txLock = nullptr);
 
     void ClearDentry();
 
     MetaStatusCode HandleRenameTx(const std::vector<Dentry>& dentrys,
                                   int64_t logIndex);
+
+    MetaStatusCode PrewriteRenameTx(const std::vector<Dentry>& dentrys,
+        const TxLock& txLock, int64_t logIndex, TxLock* out);
+
+    MetaStatusCode CheckTxStatus(const std::string& primaryKey,
+        uint64_t startTs, uint64_t curTimestamp, int64_t logIndex);
+
+    MetaStatusCode ResolveTxLock(const Dentry& dentry,
+        uint64_t startTs, uint64_t commitTs, int64_t logIndex);
+
+    MetaStatusCode CommitTx(const std::vector<Dentry>& dentrys,
+        uint64_t startTs, uint64_t commitTs, int64_t logIndex);
 
  private:
     void Log4Dentry(const std::string& request, const Dentry& dentry);

@@ -783,7 +783,7 @@ void TestMixOperator(std::shared_ptr<KVStorage> kvStorage) {
     // CASE 1: get
     s = kvStorage->HGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.IsNotFound());
-    s = kvStorage->SGet(TableName(1), "key1", &value);
+    s = kvStorage->SGet(TableName(2), "key1", &value);
     ASSERT_TRUE(s.IsNotFound());
 
     // CASE 2: set
@@ -793,25 +793,25 @@ void TestMixOperator(std::shared_ptr<KVStorage> kvStorage) {
     s = kvStorage->HGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.ok());
     ASSERT_EQ(value, Value("value1"));
-    s = kvStorage->SGet(TableName(1), "key1", &value);
+    s = kvStorage->SGet(TableName(2), "key1", &value);
     ASSERT_TRUE(s.IsNotFound());
 
     // CASE 3: del
     s = kvStorage->HDel(TableName(1), "key1");
     ASSERT_TRUE(s.ok());
-    s = kvStorage->SDel(TableName(1), "key1");
+    s = kvStorage->SDel(TableName(2), "key1");
     ASSERT_TRUE(s.ok());
-    s = kvStorage->SSet(TableName(1), "key1", Value("value1"));
+    s = kvStorage->SSet(TableName(2), "key1", Value("value1"));
     ASSERT_TRUE(s.ok());
 
     s = kvStorage->HGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.IsNotFound());
-    s = kvStorage->SGet(TableName(1), "key1", &value);
+    s = kvStorage->SGet(TableName(2), "key1", &value);
     ASSERT_TRUE(s.ok());
     ASSERT_EQ(value, Value("value1"));
 
     // CASE 4: range
-    iterator = kvStorage->SSeek(TableName(1), "key1");
+    iterator = kvStorage->SSeek(TableName(2), "key1");
     ASSERT_EQ(iterator->Status(), 0);
     size = 0;
     for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
@@ -825,22 +825,22 @@ void TestMixOperator(std::shared_ptr<KVStorage> kvStorage) {
     // CASE 5: clear
     s = kvStorage->HClear(TableName(1));
     ASSERT_TRUE(s.ok());
-    s = kvStorage->SClear(TableName(1));
+    s = kvStorage->SClear(TableName(2));
     ASSERT_TRUE(s.ok());
 
     s = kvStorage->HGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.IsNotFound());
-    s = kvStorage->SGet(TableName(1), "key1", &value);
+    s = kvStorage->SGet(TableName(2), "key1", &value);
     ASSERT_TRUE(s.IsNotFound());
 
     // CASE 6: size
     s = kvStorage->HSet(TableName(1), "key1", Value("value1"));
     ASSERT_TRUE(s.ok());
-    s = kvStorage->SSet(TableName(1), "key2", Value("value2"));
+    s = kvStorage->SSet(TableName(2), "key2", Value("value2"));
     ASSERT_TRUE(s.ok());
 
     ASSERT_EQ(kvStorage->HSize(TableName(1)), 1);
-    ASSERT_EQ(kvStorage->SSize(TableName(1)), 1);
+    ASSERT_EQ(kvStorage->SSize(TableName(2)), 1);
 }
 
 void TestTransaction(std::shared_ptr<KVStorage> kvStorage) {

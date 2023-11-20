@@ -57,6 +57,12 @@ class TimeUtility {
         return localtime(&now)->tm_hour;
     }
 
+    static uint64_t CLockRealTimeMs() {
+        struct timespec now;
+        clock_gettime(CLOCK_REALTIME, &now);
+        return now.tv_sec * 1000L + now.tv_nsec / 1000000;
+    }
+
     // 时间戳转成标准时间输出在standard里面,时间戳单位为秒
     static inline void TimeStampToStandard(time_t timeStamp,
                                            std::string* standard) {

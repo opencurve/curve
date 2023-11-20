@@ -138,6 +138,9 @@ class MockMdsClient : public MdsClient {
 
     MOCK_METHOD2(AllocOrGetMemcacheCluster,
                  bool(uint32_t, curvefs::mds::topology::MemcacheClusterInfo*));
+
+    MOCK_METHOD(FSStatusCode, Tso, (uint64_t*, uint64_t*),
+        (override));
 };
 }  // namespace rpcclient
 }  // namespace client

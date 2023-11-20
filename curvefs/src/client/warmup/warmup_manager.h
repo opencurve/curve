@@ -40,9 +40,9 @@
 #include <vector>
 
 #include "curvefs/src/client/common/common.h"
-#include "curvefs/src/client/dentry_cache_manager.h"
+#include "curvefs/src/client/dentry_manager.h"
 #include "curvefs/src/client/fuse_common.h"
-#include "curvefs/src/client/inode_cache_manager.h"
+#include "curvefs/src/client/inode_manager.h"
 #include "curvefs/src/client/kvclient/kvclient_manager.h"
 #include "curvefs/src/client/metric/client_metric.h"
 #include "curvefs/src/client/rpcclient/metaserver_client.h"

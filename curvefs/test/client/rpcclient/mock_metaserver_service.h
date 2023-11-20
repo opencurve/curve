@@ -66,6 +66,30 @@ class MockMetaServerService : public curvefs::metaserver::MetaServerService {
              ::curvefs::metaserver::PrepareRenameTxResponse* response,
              ::google::protobuf::Closure* done));
 
+    MOCK_METHOD(void, PrewriteRenameTx,
+        (::google::protobuf::RpcController* controller,
+        const ::curvefs::metaserver::PrewriteRenameTxRequest* request,
+        ::curvefs::metaserver::PrewriteRenameTxResponse* response,
+        ::google::protobuf::Closure* done), (override));
+
+    MOCK_METHOD(void, CheckTxStatus,
+        (::google::protobuf::RpcController* controller,
+        const ::curvefs::metaserver::CheckTxStatusRequest* request,
+        ::curvefs::metaserver::CheckTxStatusResponse* response,
+        ::google::protobuf::Closure* done), (override));
+
+    MOCK_METHOD(void, ResolveTxLock,
+        (::google::protobuf::RpcController* controller,
+        const ::curvefs::metaserver::ResolveTxLockRequest* request,
+        ::curvefs::metaserver::ResolveTxLockResponse* response,
+        ::google::protobuf::Closure* done), (override));
+
+    MOCK_METHOD(void, CommitTx,
+        (::google::protobuf::RpcController* controller,
+        const ::curvefs::metaserver::CommitTxRequest* request,
+        ::curvefs::metaserver::CommitTxResponse* response,
+        ::google::protobuf::Closure* done), (override));
+
     MOCK_METHOD4(GetInode,
                  void(::google::protobuf::RpcController *controller,
                       const ::curvefs::metaserver::GetInodeRequest *request,

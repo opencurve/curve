@@ -1317,5 +1317,19 @@ void FsManager::SetClientMdsAddrsOverride(const std::string& addrs) {
     clientMdsAddrsOverride_ = addrsWithActiveMds;
 }
 
+void FsManager::Tso(const TsoRequest* request, TsoResponse* response) {
+    uint64_t ts;
+    uint64_t timestamp;
+    auto ret = fsStorage_->Tso(&ts, &timestamp);
+    if (ret != FSStatusCode::OK) {
+        LOG(ERROR) << "Tso fail, ret = " << FSStatusCode_Name(ret);
+        response->set_statuscode(ret);
+        return;
+    }
+    response->set_ts(ts);
+    response->set_timestamp(timestamp);
+    response->set_statuscode(ret);
+}
+
 }  // namespace mds
 }  // namespace curvefs

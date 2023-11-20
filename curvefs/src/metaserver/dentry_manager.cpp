@@ -76,10 +76,10 @@ void DentryManager::Log4Code(const std::string& request, MetaStatusCode rc) {
 }
 
 MetaStatusCode DentryManager::CreateDentry(const Dentry& dentry,
-                                           int64_t logIndex) {
+    int64_t logIndex, TxLock* txLock) {
     CHECK_APPLIED();
     Log4Dentry("CreateDentry", dentry);
-    MetaStatusCode rc = dentryStorage_->Insert(dentry, logIndex);
+    MetaStatusCode rc = dentryStorage_->Insert(dentry, logIndex, txLock);
     Log4Code("CreateDentry", rc);
     return rc;
 }
@@ -95,26 +95,28 @@ MetaStatusCode DentryManager::CreateDentry(const DentryVec& vec, bool merge,
 }
 
 MetaStatusCode DentryManager::DeleteDentry(const Dentry& dentry,
-                                           int64_t logIndex) {
+    int64_t logIndex, TxLock* txLock) {
     CHECK_APPLIED();
     Log4Dentry("DeleteDentry", dentry);
-    MetaStatusCode rc = dentryStorage_->Delete(dentry, logIndex);
+    MetaStatusCode rc = dentryStorage_->Delete(dentry, logIndex, txLock);
     Log4Code("DeleteDentry", rc);
     return rc;
 }
 
-MetaStatusCode DentryManager::GetDentry(Dentry* dentry) {
+MetaStatusCode DentryManager::GetDentry(Dentry* dentry, TxLock* txLock) {
     Log4Dentry("GetDentry", *dentry);
-    MetaStatusCode rc = dentryStorage_->Get(dentry);
+    MetaStatusCode rc = dentryStorage_->Get(dentry, txLock);
     Log4Code("GetDentry", rc);
     return rc;
 }
 
 MetaStatusCode DentryManager::ListDentry(const Dentry& dentry,
                                          std::vector<Dentry>* dentrys,
-                                         uint32_t limit, bool onlyDir) {
+                                         uint32_t limit, bool onlyDir,
+                                         TxLock* txLock) {
     Log4Dentry("ListDentry", dentry);
-    MetaStatusCode rc = dentryStorage_->List(dentry, dentrys, limit, onlyDir);
+    MetaStatusCode rc = dentryStorage_->List(
+        dentry, dentrys, limit, onlyDir, txLock);
     Log4Code("ListDentry", rc);
     return rc;
 }
@@ -131,6 +133,95 @@ MetaStatusCode DentryManager::HandleRenameTx(const std::vector<Dentry>& dentrys,
     }
     auto rc = txManager_->HandleRenameTx(dentrys, logIndex);
     Log4Code("HandleRenameTx", rc);
+    return rc;
+}
+
+MetaStatusCode DentryManager::PrewriteRenameTx(
+    const std::vector<Dentry>& dentrys,
+    const TxLock& txLock, int64_t logIndex, TxLock* out) {
+    std::stringstream ss;
+    for (const auto& dentry : dentrys) {
+        ss << dentry.ShortDebugString() << ", ";
+    }
+    VLOG(1) << "PrewriteRenameTx request, dentrys = (" << ss.str()
+            << "), txLock = ("<< txLock.ShortDebugString() << ")";
+    auto rc = dentryStorage_->PrewriteTx(dentrys, txLock, logIndex, out);
+    if (rc != MetaStatusCode::OK && rc != MetaStatusCode::TX_WRITE_CONFLICT
+        && rc != MetaStatusCode::TX_KEY_LOCKED) {
+        LOG(ERROR) << "PrewriteRenameTx failed, dentrys = (" << ss.str()
+                   << "), inLock = (" << txLock.ShortDebugString()
+                   << "), retCode = " << MetaStatusCode_Name(rc);
+    } else {
+        VLOG(1) << "PrewriteRenameTx success, dentrys = (" << ss.str()
+                << "), inLock = ("<< txLock.ShortDebugString() << ")"
+                << ", outLock = (" << out->ShortDebugString() << ")"
+                << ", status = " << MetaStatusCode_Name(rc);
+    }
+    return rc;
+}
+
+MetaStatusCode DentryManager::CheckTxStatus(const std::string& primaryKey,
+    uint64_t startTs, uint64_t curTimestamp, int64_t logIndex) {
+    LOG(INFO) << "CheckTxStatus request, primaryKey = " << primaryKey
+              << ", startTs = " << startTs
+              << ", curTimestamp = " << curTimestamp;
+    auto rc = dentryStorage_->CheckTxStatus(primaryKey, startTs, curTimestamp,
+        logIndex);
+    if (rc != MetaStatusCode::TX_COMMITTED &&
+        rc != MetaStatusCode::TX_ROLLBACKED &&
+        rc != MetaStatusCode::TX_INPROGRESS) {
+        LOG(ERROR) << "CheckTxStatus failed, primaryKey = " << primaryKey
+                   << ", startTs = " << startTs
+                   << ", curTimestamp = " << curTimestamp
+                   << ", retCode = " << MetaStatusCode_Name(rc);
+    } else {
+        LOG(INFO) << "CheckTxStatus success, primaryKey = " << primaryKey
+                  << ", startTs = " << startTs
+                  << ", curTimestamp = " << curTimestamp;
+    }
+    return rc;
+}
+
+MetaStatusCode DentryManager::ResolveTxLock(const Dentry& dentry,
+    uint64_t startTs, uint64_t commitTs, int64_t logIndex) {
+    LOG(INFO) << "ResolveTxLock request, dentry = ("
+              << dentry.ShortDebugString() << "), startTs = " << startTs
+              << ", commitTs = " << commitTs;
+    auto rc = dentryStorage_->ResolveTxLock(
+        dentry, startTs, commitTs, logIndex);
+    if (rc != MetaStatusCode::OK) {
+        LOG(ERROR) << "ResolveTxLock failed, dentry = ("
+                   << dentry.ShortDebugString() << "), startTs = " << startTs
+                   << ", commitTs = " << commitTs
+                   << ", retCode = " << MetaStatusCode_Name(rc);
+    } else {
+        LOG(INFO) << "ResolveTxLock success, dentry = ("
+                  << dentry.ShortDebugString() << "), startTs = " << startTs
+                  << ", commitTs = " << commitTs;
+    }
+    return rc;
+}
+
+MetaStatusCode DentryManager::CommitTx(const std::vector<Dentry>& dentrys,
+    uint64_t startTs, uint64_t commitTs, int64_t logIndex) {
+    std::stringstream ss;
+    for (const auto& dentry : dentrys) {
+        ss << dentry.ShortDebugString() << ", ";
+    }
+    VLOG(1) << "CommitTx request, dentrys = (" << ss.str()
+            << "), startTs = " << startTs
+            << ", commitTs = " << commitTs;
+    auto rc = dentryStorage_->CommitTx(dentrys, startTs, commitTs, logIndex);
+    if (rc != MetaStatusCode::OK) {
+        LOG(ERROR) << "CommitTx failed, dentrys = (" << ss.str()
+                   << "), startTs = " << startTs
+                   << ", commitTs = " << commitTs
+                   << ", retCode = " << MetaStatusCode_Name(rc);
+    } else {
+        VLOG(1) << "CommitTx success, dentrys = (" << ss.str()
+                << "), startTs = " << startTs
+                << ", commitTs = " << commitTs;
+    }
     return rc;
 }
 

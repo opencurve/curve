@@ -30,12 +30,12 @@ namespace curvefs {
 namespace mds {
 namespace topology {
 
-using curvefs::mds::FS2MEMCACHECLUSTERKEYPREFIX;
-using curvefs::mds::MEMCACHECLUSTERKEYEND;
-using curvefs::mds::MEMCACHECLUSTERKEYPREFIX;
+using curvefs::mds::FS_2_MEMCACHE_CLUSTER_KEY_PREFIX;
+using curvefs::mds::MEMCACHE_CLUSTER_KEY_END;
+using curvefs::mds::MEMCACHE_CLUSTER_KEY_PREFIX;
 
 std::string TopologyStorageCodec::EncodePoolKey(PoolIdType id) {
-    std::string key = POOLKEYPREFIX;
+    std::string key = POOL_KEY_PREFIX;
     size_t prefixLen = TOPOLOGY_PREFIX_LENGTH;
     key.resize(prefixLen + sizeof(uint64_t));
     EncodeBigEndian(&(key[prefixLen]), id);
@@ -53,7 +53,7 @@ bool TopologyStorageCodec::DecodePoolData(const std::string &value,
 }
 
 std::string TopologyStorageCodec::EncodeZoneKey(ZoneIdType id) {
-    std::string key = ZONEKEYPREFIX;
+    std::string key = ZONE_KEY_PREFIX;
     size_t prefixLen = TOPOLOGY_PREFIX_LENGTH;
     key.resize(prefixLen + sizeof(uint64_t));
     EncodeBigEndian(&(key[prefixLen]), id);
@@ -71,7 +71,7 @@ bool TopologyStorageCodec::DecodeZoneData(const std::string &value,
 }
 
 std::string TopologyStorageCodec::EncodeServerKey(ServerIdType id) {
-    std::string key = SERVERKEYPREFIX;
+    std::string key = SERVER_KEY_PREFIX;
     size_t prefixLen = TOPOLOGY_PREFIX_LENGTH;
     key.resize(prefixLen + sizeof(uint64_t));
     EncodeBigEndian(&(key[prefixLen]), id);
@@ -89,7 +89,7 @@ bool TopologyStorageCodec::DecodeServerData(const std::string &value,
 }
 
 std::string TopologyStorageCodec::EncodeMetaServerKey(MetaServerIdType id) {
-    std::string key = METASERVERKEYPREFIX;
+    std::string key = METASERVER_KEY_PREFIX;
     size_t prefixLen = TOPOLOGY_PREFIX_LENGTH;
     key.resize(prefixLen + sizeof(uint64_t));
     EncodeBigEndian(&(key[prefixLen]), id);
@@ -107,7 +107,7 @@ bool TopologyStorageCodec::DecodeMetaServerData(const std::string &value,
 }
 
 std::string TopologyStorageCodec::EncodeCopySetKey(const CopySetKey &id) {
-    std::string key = COPYSETKEYPREFIX;
+    std::string key = COPYSET_KEY_PREFIX;
     size_t prefixLen = TOPOLOGY_PREFIX_LENGTH;
     key.resize(prefixLen + sizeof(uint64_t) + sizeof(uint64_t));
     EncodeBigEndian(&(key[prefixLen]), id.first);
@@ -126,7 +126,7 @@ bool TopologyStorageCodec::DecodeCopySetData(const std::string &value,
 }
 
 std::string TopologyStorageCodec::EncodePartitionKey(PartitionIdType id) {
-    std::string key = PARTITIONKEYPREFIX;
+    std::string key = PARTITION_KEY_PREFIX;
     size_t prefixLen = TOPOLOGY_PREFIX_LENGTH;
     key.resize(prefixLen + sizeof(uint64_t));
     EncodeBigEndian(&(key[prefixLen]), id);
@@ -155,7 +155,7 @@ bool TopologyStorageCodec::DecodeClusterInfoData(const std::string &value,
 
 std::string TopologyStorageCodec::EncodeMemcacheClusterKey(
     MetaServerIdType id) {
-    std::string key = MEMCACHECLUSTERKEYPREFIX;
+    std::string key = MEMCACHE_CLUSTER_KEY_PREFIX;
     size_t prefixLen = TOPOLOGY_PREFIX_LENGTH;
     key.resize(prefixLen + sizeof(uint64_t));
     EncodeBigEndian(&(key[prefixLen]), id);
@@ -173,7 +173,7 @@ bool TopologyStorageCodec::DecodeMemcacheClusterData(const std::string& value,
 }
 
 std::string TopologyStorageCodec::EncodeFs2MemcacheClusterKey(FsIdType fsId) {
-    std::string key = FS2MEMCACHECLUSTERKEYPREFIX;
+    std::string key = FS_2_MEMCACHE_CLUSTER_KEY_PREFIX;
     size_t prefixLen = TOPOLOGY_PREFIX_LENGTH;
     key.resize(prefixLen + sizeof(uint64_t));
     EncodeBigEndian(&(key[prefixLen]), fsId);

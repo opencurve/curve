@@ -119,9 +119,9 @@ Partition::Partition(PartitionInfo partition,
     } while (0)
 
 MetaStatusCode Partition::CreateDentry(const Dentry& dentry, const Time& tm,
-                                       int64_t logIndex) {
+                                       int64_t logIndex, TxLock* txLock) {
     PRECHECK(dentry.fsid(), dentry.parentinodeid());
-    MetaStatusCode ret = dentryManager_->CreateDentry(dentry, logIndex);
+    MetaStatusCode ret = dentryManager_->CreateDentry(dentry, logIndex, txLock);
     if (MetaStatusCode::OK == ret) {
         if (dentry.has_type()) {
             return inodeManager_->UpdateInodeWhenCreateOrRemoveSubNode(
@@ -163,11 +163,12 @@ MetaStatusCode Partition::LoadDentry(const DentryVec& vec, bool merge,
     return rc;
 }
 
-MetaStatusCode Partition::DeleteDentry(
-    const Dentry& dentry, const Time& tm, int64_t logIndex) {
-    PRECHECK(dentry.fsid(), dentry.parentinodeid());
 
-    MetaStatusCode ret = dentryManager_->DeleteDentry(dentry, logIndex);
+MetaStatusCode Partition::DeleteDentry(const Dentry& dentry,
+    const Time& tm, int64_t logIndex, TxLock* txLock) {
+    PRECHECK(dentry.fsid(), dentry.parentinodeid());
+    MetaStatusCode ret = dentryManager_->DeleteDentry(
+        dentry, logIndex, txLock);
     if (MetaStatusCode::OK == ret) {
         if (dentry.has_type()) {
             return inodeManager_->UpdateInodeWhenCreateOrRemoveSubNode(
@@ -193,16 +194,18 @@ MetaStatusCode Partition::DeleteDentry(
     }
 }
 
-MetaStatusCode Partition::GetDentry(Dentry* dentry) {
+MetaStatusCode Partition::GetDentry(Dentry* dentry, TxLock* txLock) {
     PRECHECK(dentry->fsid(), dentry->parentinodeid());
-    return dentryManager_->GetDentry(dentry);
+    return dentryManager_->GetDentry(dentry, txLock);
 }
 
 MetaStatusCode Partition::ListDentry(const Dentry& dentry,
                                      std::vector<Dentry>* dentrys,
-                                     uint32_t limit, bool onlyDir) {
+                                     uint32_t limit, bool onlyDir,
+                                     TxLock* txLock) {
     PRECHECK(dentry.fsid(), dentry.parentinodeid());
-    return dentryManager_->ListDentry(dentry, dentrys, limit, onlyDir);
+    return dentryManager_->ListDentry(
+        dentry, dentrys, limit, onlyDir, txLock);
 }
 
 void Partition::ClearDentry() { dentryManager_->ClearDentry(); }
@@ -255,6 +258,35 @@ bool Partition::FindPendingTx(PrepareRenameTxRequest* pendingTx) {
 
     SerializeRenameTx(renameTx, pendingTx);
     return true;
+}
+
+MetaStatusCode Partition::PrewriteRenameTx(const std::vector<Dentry>& dentrys,
+    const TxLock& txLock, int64_t logIndex, TxLock* out) {
+    for (const auto& it : dentrys) {
+        PRECHECK(it.fsid(), it.parentinodeid());
+    }
+    return dentryManager_->PrewriteRenameTx(dentrys, txLock, logIndex, out);
+}
+
+MetaStatusCode Partition::CheckTxStatus(const std::string& primaryKey,
+    uint64_t startTs, uint64_t curTimestamp, int64_t logIndex) {
+    return dentryManager_->CheckTxStatus(primaryKey, startTs, curTimestamp,
+        logIndex);
+}
+
+MetaStatusCode Partition::ResolveTxLock(const Dentry& dentry,
+    uint64_t startTs, uint64_t commitTs, int64_t logIndex) {
+    PRECHECK(dentry.fsid(), dentry.parentinodeid());
+    return dentryManager_->ResolveTxLock(dentry, startTs,
+        commitTs, logIndex);
+}
+
+MetaStatusCode Partition::CommitTx(const std::vector<Dentry>& dentrys,
+    uint64_t startTs, uint64_t commitTs, int64_t logIndex) {
+    for (const auto& it : dentrys) {
+        PRECHECK(it.fsid(), it.parentinodeid());
+    }
+    return dentryManager_->CommitTx(dentrys, startTs, commitTs, logIndex);
 }
 
 // inode
