@@ -9,7 +9,7 @@
 **CNCF基金会的沙箱托管项目**
 
 #### [English](README.md) | 简体中文
-### 📄 [文档](https://github.com/opencurve/curve/tree/master/docs) || 🌐 [官网](https://www.opencurve.io/Curve/HOME) || 🏠 [论坛](https://ask.opencurve.io/t/topic/7)
+### 📄 [文档](https://docs.opencurve.io/) || 🌐 [官网](https://www.opencurve.io/Curve/HOME) || 🏠 [论坛](https://ask.opencurve.io/t/topic/7)
 <div align=left>
 
 <div class="column" align="middle">
