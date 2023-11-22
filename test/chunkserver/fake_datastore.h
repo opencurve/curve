@@ -172,7 +172,8 @@ class FakeCSDataStore : public CSDataStore {
             uint32_t *cost,
             std::shared_ptr<SnapContext> ctx,
             const std::string & csl = "",
-            uint32_t version = curve::common::kSupportLocalSnapshotFileVersion) override {
+            uint32_t version =
+                curve::common::kSupportLocalSnapshotFileVersion) override {
         CSErrorCode errorCode = HasInjectError();
         if (errorCode != CSErrorCode::Success) {
             return errorCode;

@@ -40,11 +40,12 @@ const char PEER_STRING[] = "127.0.0.1:8200:0";
 
 class FakeConcurrentApplyModule : public ConcurrentApplyModule {
  public:
- #if 0
+#if 0
     FakeConcurrentApplyModule() {
-        const curve::chunkserver::concurrent::ConcurrentApplyOption option(1, 10, 1, 10);
+        const curve::chunkserver::concurrent::ConcurrentApplyOption option(
+            1, 10, 1, 10);
         ConcurrentApplyModule::Init(option);
-        
+
         return;
     }
 #endif

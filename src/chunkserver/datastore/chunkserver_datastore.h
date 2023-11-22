@@ -462,7 +462,6 @@ class CSDataStore {
         ChunkID id, SequenceNum sn, const butil::IOBuf& buf, off_t offset,
         size_t length, uint32_t *cost,
         const std::string &cloneSourceLocation = "") {
-
         uint64_t chunkIndex = 0;
         uint64_t fileID = 0;
         return WriteChunk(id, sn, buf, offset, length,

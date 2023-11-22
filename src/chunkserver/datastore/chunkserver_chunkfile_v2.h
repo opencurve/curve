@@ -68,7 +68,7 @@ class CSChunkFile_V2 : public CSChunkFile {
     CSChunkFile_V2(std::shared_ptr<LocalFileSystem> lfs,
                 std::shared_ptr<FilePool> chunkFilePool,
                 const ChunkOptions& options);
-    virtual ~CSChunkFile_V2() override;
+    ~CSChunkFile_V2() override;
 
     /**
      * When a Chunk file is found when Datastore is initialized, this
@@ -79,7 +79,7 @@ class CSChunkFile_V2 : public CSChunkFile {
      *              file
      * @return returns the error code
      */
-    virtual CSErrorCode Open(bool createFile) override;
+    CSErrorCode Open(bool createFile) override;
 
     /**
      * Called when a snapshot file is found during Datastore initialization
@@ -90,7 +90,7 @@ class CSChunkFile_V2 : public CSChunkFile {
      * @param sn: the sequence number of the snapshot file to be loaded
      * @return: return error code
      */
-    virtual CSErrorCode LoadSnapshot(SequenceNum sn) override;
+    CSErrorCode LoadSnapshot(SequenceNum sn) override;
      /**
      * Called when a snapshot file is deleted
      * and merged to a non-existent snapshot file.
@@ -98,7 +98,7 @@ class CSChunkFile_V2 : public CSChunkFile {
      * @param sn: the sequence number of the snapshot file to be loaded
      * @return: return error code
      */
-    virtual CSErrorCode loadSnapshot(SequenceNum sn) override;
+    CSErrorCode loadSnapshot(SequenceNum sn) override;
     /**
      * Write chunk files
      * The Write interface is called when raft apply, and there is no multiple
@@ -114,14 +114,14 @@ class CSChunkFile_V2 : public CSChunkFile {
      * @param ctx: snapshot context
      * @return: return error code
      */
-    virtual CSErrorCode Write(SequenceNum sn,
+    CSErrorCode Write(SequenceNum sn,
                       const butil::IOBuf& buf,
                       off_t offset,
                       size_t length,
                       uint32_t* cost,
                       std::shared_ptr<SnapContext> ctx) override;
 
-    virtual CSErrorCode cloneWrite(SequenceNum sn,
+    CSErrorCode cloneWrite(SequenceNum sn,
                         const butil::IOBuf& buf,
                         off_t offset,
                         size_t length,
@@ -138,7 +138,7 @@ class CSChunkFile_V2 : public CSChunkFile {
      * @param datastore: datastore
      * @return: return error code
      */
-    virtual CSErrorCode flattenWrite(SequenceNum sn,
+    CSErrorCode flattenWrite(SequenceNum sn,
                         off_t offset, size_t length,
                         const std::unique_ptr<CloneContext>& cloneCtx,
                         CSDataStore* datastore) override;
@@ -153,7 +153,7 @@ class CSChunkFile_V2 : public CSChunkFile {
      * @param length: the length of the data requested for Paste
      * @return: return error code
      */
-    virtual CSErrorCode Paste(const char * buf, off_t offset, size_t length) override {
+    CSErrorCode Paste(const char * buf, off_t offset, size_t length) override {
         // The Paste interface is not supported in the current version
         // LOG the error and return
         LOG(ERROR) << "Paste interface is not supported in the current version";
@@ -169,7 +169,7 @@ class CSChunkFile_V2 : public CSChunkFile {
      * @param length: The length of the snapshot data requested to be read
      * @return: return error code
      */
-    virtual CSErrorCode ReadSpecifiedChunk(SequenceNum sn,
+    CSErrorCode ReadSpecifiedChunk(SequenceNum sn,
                                    char * buf,
                                    off_t offset,
                                    size_t length) override;
@@ -180,7 +180,7 @@ class CSChunkFile_V2 : public CSChunkFile {
      * @param: The file sequence number when calling the DeleteChunk interface
      * @return: return error code
      */
-    virtual CSErrorCode Delete(SequenceNum sn) override;
+    CSErrorCode Delete(SequenceNum sn) override;
     /**
      * Delete snapshots generated during this dump or left over from history.
      * If no snapshot is generated during the dump, modify the correctedSn of
@@ -194,42 +194,42 @@ class CSChunkFile_V2 : public CSChunkFile {
      *  snapshot.
      * @return: return error code
      */
-    virtual CSErrorCode DeleteSnapshot(SequenceNum snapSn,
+    CSErrorCode DeleteSnapshot(SequenceNum snapSn,
         std::shared_ptr<SnapContext> ctx = nullptr) override;
     /**
      * Get chunk info
      * @param[out]: the chunk info getted
      */
-    virtual void GetInfo(CSChunkInfo* info) override;
+    void GetInfo(CSChunkInfo* info) override;
 
     uint64_t getCloneNumber() override {
         return metaPage_.cloneNo;
     }
 
-    virtual ChunkID getVirtualId() override {
+    ChunkID getVirtualId() override {
         return metaPage_.virtualId;
     }
 
-    virtual uint64_t getFileID() override {
+    uint64_t getFileID() override {
         return metaPage_.fileId;
     }
 
-    virtual bool DivideObjInfoByIndex(SequenceNum sn,
+    bool DivideObjInfoByIndex(SequenceNum sn,
                         std::vector<BitRange>& range,  // NOLINT
                         std::vector<BitRange>& notInRanges,  // NOLINT
                         std::vector<ObjectInfo>& objInfos) override;  // NOLINT
 
-    virtual bool DivideObjInfoByIndexLockless(SequenceNum sn,
+    bool DivideObjInfoByIndexLockless(SequenceNum sn,
                         std::vector<BitRange>& range,  // NOLINT
                         std::vector<BitRange>& notInRanges,  // NOLINT
                         std::vector<ObjectInfo>& objInfos) override;  // NOLINT
 
-    virtual bool DivideSnapshotObjInfoByIndex(SequenceNum sn,
+    bool DivideSnapshotObjInfoByIndex(SequenceNum sn,
                         std::vector<BitRange>& range,  // NOLINT
                         std::vector<BitRange>& notInRanges,  // NOLINT
                         std::vector<ObjectInfo>& objInfos) override;  // NOLINT
 
-    virtual CSErrorCode ReadSpecifiedSnap(SequenceNum sn,
+    CSErrorCode ReadSpecifiedSnap(SequenceNum sn,
                         CSSnapshot* snap,
                         char* buff,
                         off_t offset,
@@ -242,7 +242,7 @@ class CSChunkFile_V2 : public CSChunkFile {
     void MergeObjectForRead(std::map<int32_t, Offset_InfoPtr>& objmap,  // NOLINT
                             std::vector<File_ObjectInfoPtr>& objIns);  // NOLINT
 
-    // Write the data to the chunk file and 
+    // Write the data to the chunk file and
     // copy original data to the snapshot file
     // @param sn: the sequence number of the snapshot file to be loaded
     // @param buf: the data requested to be written
@@ -257,7 +257,7 @@ class CSChunkFile_V2 : public CSChunkFile {
                             size_t length,
                             uint32_t* cost,
                             std::shared_ptr<SnapContext> ctx = nullptr);
-    
+
     // Read frome parent and flatten the current chunk
     // @param sn: the sequence number of the snapshot file to be loaded
     // @param buf: the data requested to be written
@@ -271,7 +271,7 @@ class CSChunkFile_V2 : public CSChunkFile {
                             const std::unique_ptr<CloneContext>& cloneCtx,
                             CSDataStore* datastore);
 
-    // Snapshot or clone OBJ_SIZE is maybe different from write block size 
+    // Snapshot or clone OBJ_SIZE is maybe different from write block size
     // OBJ_SIZE maybe 64KB, block size maybe 4KB / 512B
     // OBJ_SIZE alreadys bigger than block size
     // MergeParentAndWrite is used for read the parent obj and merge with

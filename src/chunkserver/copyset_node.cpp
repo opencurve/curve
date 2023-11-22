@@ -301,7 +301,8 @@ uint64_t CopysetNode::GetHashCode(const ChunkRequest* request) {
                 hashcode = std::hash<uint64_t>{} (request->fileid());
                 break;
             }
-        } else {  // has no originfileId it is the origin file just use the fileid
+        // has no originfileId it is the origin file just use the fileid
+        } else {
             switch (request->optype()) {
             case CHUNK_OP_DELETE:
             case CHUNK_OP_WRITE:

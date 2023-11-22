@@ -54,7 +54,7 @@ TEST(FileInstanceTest, CommonTest) {
     FileInstance fi4;
     ASSERT_TRUE(fi4.Initialize("/test", mdsclient, userInfo, OpenFlags{},
                                FileServiceOption{}, true));
-    ASSERT_EQ(-1, fi4.Write("", 0, 0));
+    ASSERT_EQ(-LIBCURVE_ERROR::READONLY, fi4.Write("", 0, 0));
 
     fi4.UnInitialize();
 }
