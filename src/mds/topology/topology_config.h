@@ -46,6 +46,8 @@ struct TopologyOption {
     int choosePoolPolicy;
     // enable LogicalPool ALLOW/DENY status
     bool enableLogicalPoolStatus;
+    // allocate segment by 0:logicalpool/1:pyhsicalpool/2:both
+    int allocateSegmentStrategy;
 
     TopologyOption()
         : TopologyUpdateToRepoSec(0),
@@ -54,7 +56,8 @@ struct TopologyOption {
           CreateCopysetRpcRetrySleepTimeMs(500),
           UpdateMetricIntervalSec(0),
           choosePoolPolicy(0),
-          enableLogicalPoolStatus(false) {}
+          enableLogicalPoolStatus(false),
+          allocateSegmentStrategy(2) {}
 };
 
 }  // namespace topology

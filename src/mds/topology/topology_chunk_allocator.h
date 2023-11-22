@@ -48,6 +48,12 @@ enum class ChoosePoolPolicy {
     kWeight,
 };
 
+enum class AllocateSegmentStrategy {
+    kLogicalPool = 0,
+    kPhysicalPool,
+    kBoth,
+};
+
 class TopologyChunkAllocator {
  public:
     TopologyChunkAllocator() {}
@@ -85,7 +91,10 @@ class TopologyChunkAllocatorImpl : public TopologyChunkAllocator {
         chunkFilePoolAllocHelp_(chunkFilePoolAllocHelp),
         available_(option.PoolUsagePercentLimit),
         policy_(static_cast<ChoosePoolPolicy>(option.choosePoolPolicy)),
-        enableLogicalPoolStatus_(option.enableLogicalPoolStatus) {
+        enableLogicalPoolStatus_(option.enableLogicalPoolStatus),
+        allocateSegmentStrategy_(
+            static_cast<AllocateSegmentStrategy>(
+                option.allocateSegmentStrategy)) {
         std::srand(std::time(nullptr));
     }
     ~TopologyChunkAllocatorImpl() {}
@@ -180,6 +189,8 @@ class TopologyChunkAllocatorImpl : public TopologyChunkAllocator {
     ChoosePoolPolicy policy_;
     // enableLogicalPoolStatus
     bool enableLogicalPoolStatus_;
+    // allocate segment stragegy
+    AllocateSegmentStrategy allocateSegmentStrategy_;
 };
 
 /**
