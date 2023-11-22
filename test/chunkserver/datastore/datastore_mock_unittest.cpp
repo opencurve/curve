@@ -139,7 +139,7 @@ class CSDataStore_test
                                     shared_ptr<Bitmap> bitmap = nullptr,
                                     const std::string& location = "") {
             ChunkFileMetaPage metaPage;
-            //metaPage.version = FORMAT_VERSION;
+            // metaPage.version = FORMAT_VERSION;
             metaPage.version = curve::common::kBaseFileVersion;
             metaPage.sn = sn;
             metaPage.correctedSn = correctedSn;

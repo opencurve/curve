@@ -19,6 +19,9 @@
  * File Created: Thursday, 6th September 2018 10:49:53 am
  * Author: yangyaokai
  */
+
+#include "src/chunkserver/datastore/chunkserver_chunkfile_v2.h"
+
 #include <fcntl.h>
 #include <algorithm>
 #include <memory>
@@ -61,7 +64,8 @@ CSChunkFile_V2::CSChunkFile_V2(std::shared_ptr<LocalFileSystem> lfs,
     }
 
     snapshots_ = std::make_shared<CSSnapshots>(options.blockSize);
-    metaPage_.version = uint8_t (curve::common::kSupportLocalSnapshotFileVersion);
+    metaPage_.version = uint8_t(
+        curve::common::kSupportLocalSnapshotFileVersion);
     metaPage_.sn = options.sn;
     metaPage_.correctedSn = 0;
     metaPage_.location = "";
@@ -341,8 +345,8 @@ CSErrorCode CSChunkFile_V2::writeSnapData(SequenceNum sn,
 
 // Find the OBJ need to read from Parent
 // and update the objInfos
-// <offset, length> 
-// if OBJ is on the left of <offset, length> need read 
+// <offset, length>
+// if OBJ is on the left of <offset, length> need read
 // if OBJ is in the middle of <offset, length>
 // if OBJ is on the right of <offset, length> need read
 // @param objIns: the objInfos of the clone file
@@ -417,10 +421,11 @@ int CSChunkFile_V2::FindExtraReadFromParent(
 // Merge the address adjacent OBJS of diffent Parents together
 // for example the <0, 64KB> in snapshot 1 and <64KB, 64KB> in snapshot 2
 // can get <0, 128KB>  --> <1, 0, 64KB> and <2, 64KB, 64KB>
-// @param objmap: the output merge map of the objs 
+// @param objmap: the output merge map of the objs
 // @param objIns: the input objInfos of the clone file
-void CSChunkFile_V2::MergeObjectForRead(std::map<int32_t, Offset_InfoPtr>& objmap,
-                                     std::vector<File_ObjectInfoPtr>& objIns) {
+void CSChunkFile_V2::MergeObjectForRead(
+    std::map<int32_t, Offset_InfoPtr>& objmap,
+    std::vector<File_ObjectInfoPtr>& objIns) {
     for (auto& tmpo : objIns) {
         if (tmpo->fileptr.get() != this) {
             for (auto& tmpi : tmpo->obj_infos) {
@@ -542,7 +547,7 @@ bool CSChunkFile_V2::isAlignWithObjSize(off_t offset, size_t length) {
     return false;
 }
 
-// Snapshot or clone OBJ_SIZE is maybe different from write block size 
+// Snapshot or clone OBJ_SIZE is maybe different from write block size
 // OBJ_SIZE maybe 64KB, block size maybe 4KB / 512B
 // OBJ_SIZE alreadys bigger than block size
 // MergeParentAndWrite is used for read the parent obj and merge with
@@ -553,7 +558,6 @@ CSErrorCode CSChunkFile_V2::MergeParentAndWrite(SequenceNum sn,
                             size_t length,
                             const std::unique_ptr<CloneContext>& cloneCtx,
                             CSDataStore* datastore) {
-
     CSErrorCode errorCode = CSErrorCode::Success;
 
     // Judge that the clonefile has the data in <beginIndex, endIndex>
@@ -572,13 +576,13 @@ CSErrorCode CSChunkFile_V2::MergeParentAndWrite(SequenceNum sn,
                         << ",chunk sn: " << metaPage_.sn
                         << ", rc = " << rc;
             return CSErrorCode::InternalError;
-        }        
+        }
         return errorCode;
     }
 
     uint32_t beginIndex = offset >> OBJ_SIZE_SHIFT;
     uint32_t endIndex = (offset + length - 1) >> OBJ_SIZE_SHIFT;
-    off_t offsetHeader = offset; 
+    off_t offsetHeader = offset;
     size_t realLength = length;
     bool needHeader = false;
     bool needTail = false;
@@ -601,14 +605,16 @@ CSErrorCode CSChunkFile_V2::MergeParentAndWrite(SequenceNum sn,
                 cloneCtx, datastore, true);
             auto objHeader = objIns.begin();
             fileobjHeader = std::move(*objHeader);
-            if (fileobjHeader->fileptr.get() != this) {//need read from parent
+            if (fileobjHeader->fileptr.get() != this) {
+                // need read from parent
                 offsetHeader = beginIndex << OBJ_SIZE_SHIFT;
                 needHeader = true;
             }
         }
     }
 
-    if (endIndex == beginIndex) {// have only one object
+    if (endIndex == beginIndex) {
+        // have only one object
         if (true == needHeader) {
             realLength = OBJ_SIZE;
         } else {
@@ -621,7 +627,8 @@ CSErrorCode CSChunkFile_V2::MergeParentAndWrite(SequenceNum sn,
                 cloneCtx, datastore, true);
             auto objTail = objInsTail.begin();
             fileobjTail = std::move(*objTail);
-            if (fileobjTail->fileptr.get() != this) {//need read from parent
+            if (fileobjTail->fileptr.get() != this) {
+                // need read from parent
                 realLength = ((endIndex + 1) << OBJ_SIZE_SHIFT) - offsetHeader;
                 needTail = true;
             }
@@ -707,7 +714,6 @@ CSErrorCode CSChunkFile_V2::flattenWriteInternal(SequenceNum sn,
                             size_t length,
                             const std::unique_ptr<CloneContext>& cloneCtx,
                             CSDataStore* datastore) {
-
     CSErrorCode errorCode = CSErrorCode::Success;
 
     // Judge that the clonefile has the data in <beginIndex, endIndex>
@@ -1002,7 +1008,6 @@ CSErrorCode CSChunkFile_V2::flattenWrite(SequenceNum sn,
 }
 
 CSErrorCode CSChunkFile_V2::createSnapshot(SequenceNum sn) {
-
     if (snapshots_->contains(sn)) {
         return CSErrorCode::Success;
     }

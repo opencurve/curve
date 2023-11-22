@@ -76,7 +76,8 @@ struct CloneInfos {
 };
 
 // The CloneContext structure is used to store the clone context information
-// of the clone chunk, used by client to tell chunkserver the clone and snapshot tree
+// of the clone chunk, used by client to
+// tell chunkserver the clone and snapshot tree
 // structure of the clone chunk
 // the @rootId is the fileid of the root file
 // the @cloneNo is the fileid of the clone file
@@ -290,7 +291,7 @@ class CSChunkFile {
                         CSDataStore* datastore) {
         // flattenWrite not supported in this version
         LOG(ERROR) << "flattenWrite not supported in this version";
-        return CSErrorCode::IncompatibleError;                
+        return CSErrorCode::IncompatibleError;
     }
     /**
      * Write the data of the clone chunk
@@ -316,7 +317,7 @@ class CSChunkFile {
         // cloneWrite not supported in this version
         LOG(ERROR) << "cloneWrite not supported in this version";
         return CSErrorCode::IncompatibleError;
-    };
+    }
 
     CSErrorCode Sync();
 
@@ -381,13 +382,13 @@ class CSChunkFile {
      * delete
      * @param ctx: snapshot context
     */
-    virtual CSErrorCode DeleteSnapshot(SequenceNum correctedSn, 
+    virtual CSErrorCode DeleteSnapshot(SequenceNum correctedSn,
             std::shared_ptr<SnapContext> ctx);
     /* In order to call the v2 DivideObjInfoByIndex
-     * to find the chunkfile has which data in the range, 
+     * to find the chunkfile has which data in the range,
      * the data in the range but not in the chunkfile
      * are put into the notInRanges
-     * @param sn: The sequence number of the chunk that needs 
+     * @param sn: The sequence number of the chunk that needs
      * @param range: the range of the data to find
      * @param notInRanges: the range of the data not in the chunkfile
      * @param objInfos: the data in the chunkfile
@@ -395,7 +396,7 @@ class CSChunkFile {
     virtual bool DivideObjInfoByIndex(SequenceNum sn,
                         std::vector<BitRange>& range,  // NOLINT
                         std::vector<BitRange>& notInRanges,  // NOLINT
-                        std::vector<ObjectInfo>& objInfos) {
+                        std::vector<ObjectInfo>& objInfos) {  // NOLINT
         return false;
     }
     /* In order to call the v2 DivideObjInfoByIndex without lock
@@ -407,7 +408,7 @@ class CSChunkFile {
     virtual bool DivideObjInfoByIndexLockless(SequenceNum sn,
                         std::vector<BitRange>& range,  // NOLINT
                         std::vector<BitRange>& notInRanges,  // NOLINT
-                        std::vector<ObjectInfo>& objInfos) {
+                        std::vector<ObjectInfo>& objInfos) {  // NOLINT
         return false;
     }
     /**
@@ -420,7 +421,7 @@ class CSChunkFile {
     virtual bool DivideSnapshotObjInfoByIndex(SequenceNum sn,
                         std::vector<BitRange>& range,  // NOLINT
                         std::vector<BitRange>& notInRanges,  // NOLINT
-                        std::vector<ObjectInfo>& objInfos) {
+                        std::vector<ObjectInfo>& objInfos) {  // NOLINT
         return false;
     }
     /**
@@ -498,7 +499,7 @@ class CSChunkFile {
      * Load metapage into memory
      */
     CSErrorCode loadMetaPage();
- 
+
     inline int readMetaPage(char* buf) {
         return lfs_->Read(fd_, buf, 0, metaPageSize_);
     }
@@ -589,7 +590,7 @@ class CSChunkFile {
         return syncChunkLimits_;
     }
 
- private: //options of snapshot
+ private:  // options of snapshot
     /**
      * Determine whether you need to create a new snapshot
      * @param sn: write request sequence number
@@ -645,7 +646,7 @@ class CSChunkFile {
     // enable O_DSYNC When Open ChunkFile
     bool enableOdsyncWhenOpenChunkFile_;
 
- private: //options of snapshot
+ private:  // options of snapshot
     // Snapshot file pointer
     CSSnapshot* snapshot_;
 };

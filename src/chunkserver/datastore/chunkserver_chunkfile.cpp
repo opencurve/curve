@@ -33,7 +33,7 @@ namespace chunkserver {
 ChunkFileMetaPage::ChunkFileMetaPage(const ChunkFileMetaPage& metaPage) {
     version = metaPage.version;
     sn = metaPage.sn;
-    if (version <= curve::common::kBaseFileVersion) { //old version metaPage
+    if (version <= curve::common::kBaseFileVersion) {  // old version metaPage
         correctedSn = metaPage.correctedSn;
         location = metaPage.location;
     } else {
@@ -43,7 +43,7 @@ ChunkFileMetaPage::ChunkFileMetaPage(const ChunkFileMetaPage& metaPage) {
         virtualId = metaPage.virtualId;
         fileId = metaPage.fileId;
     }
-    
+
     if (metaPage.bitmap != nullptr) {
         bitmap = std::make_shared<Bitmap>(metaPage.bitmap->Size(),
                                           metaPage.bitmap->GetBitmap());
@@ -58,7 +58,7 @@ ChunkFileMetaPage& ChunkFileMetaPage::operator =(
         return *this;
     version = metaPage.version;
     sn = metaPage.sn;
-    if (version <= curve::common::kBaseFileVersion) { //old version metaPage
+    if (version <= curve::common::kBaseFileVersion) {  // old version metaPage
         correctedSn = metaPage.correctedSn;
         location = metaPage.location;
     } else {
@@ -81,7 +81,8 @@ ChunkFileMetaPage& ChunkFileMetaPage::operator =(
 void ChunkFileMetaPage::encode(char* buf) {
     size_t len = 0;
 
-    if (version <= uint8_t (curve::common::kBaseFileVersion)) { //old version metaPage
+    if (version <= uint8_t(curve::common::kBaseFileVersion)) {
+        // old version metaPage
         memcpy(buf, &version, sizeof(version));
         len += sizeof(version);
         memcpy(buf + len, &sn, sizeof(sn));
@@ -91,7 +92,8 @@ void ChunkFileMetaPage::encode(char* buf) {
         size_t loc_size = location.size();
         memcpy(buf + len, &loc_size, sizeof(loc_size));
         len += sizeof(loc_size);
-        // CloneChunk need serialized location information and bitmap information
+        // CloneChunk need serialized location information
+        // and bitmap information
         if (loc_size > 0) {
             memcpy(buf + len, location.c_str(), loc_size);
             len += loc_size;
@@ -102,7 +104,8 @@ void ChunkFileMetaPage::encode(char* buf) {
             memcpy(buf + len, bitmap->GetBitmap(), bitmapBytes);
             len += bitmapBytes;
         }
-    } else { //new version metaPage
+    } else {
+        // new version metaPage
         memcpy(buf, &version, sizeof(version));
         len += sizeof(version);
         memcpy(buf + len, &sn, sizeof(sn));
@@ -114,7 +117,8 @@ void ChunkFileMetaPage::encode(char* buf) {
         memcpy(buf + len, &fileId, sizeof(fileId));
         len += sizeof(fileId);
 
-        // CloneChunk need serialized location information and bitmap information
+        // CloneChunk need serialized location information
+        // and bitmap information
         if (cloneNo > 0) {
             int32_t bMark = 0;
             if (nullptr == bitmap) {
@@ -145,7 +149,7 @@ CSErrorCode ChunkFileMetaPage::decode(const char* buf) {
     memcpy(&version, buf, sizeof(version));
     len += sizeof(version);
 
-    if (version <= uint8_t (curve::common::kBaseFileVersion)) {
+    if (version <= uint8_t(curve::common::kBaseFileVersion)) {
         memcpy(&sn, buf + len, sizeof(sn));
         len += sizeof(sn);
         memcpy(&correctedSn, buf + len, sizeof(correctedSn));
@@ -211,7 +215,8 @@ CSErrorCode ChunkFileMetaPage::decode(const char* buf) {
 
     // TODO(yyk) check version compatibility, currrent simple error handing,
     // need detailed implementation later
-    if (version > FORMAT_VERSION) { // version bigger than FORMAT_VERSION, some error happened
+    if (version > FORMAT_VERSION) {
+        // version bigger than FORMAT_VERSION, some error happened
         LOG(ERROR) << "File format version incompatible."
                     << "file version: "
                     << static_cast<uint32_t>(version)
@@ -244,7 +249,7 @@ CSChunkFile::CSChunkFile(std::shared_ptr<LocalFileSystem> lfs,
       enableOdsyncWhenOpenChunkFile_(options.enableOdsyncWhenOpenChunkFile) {
     CHECK(!baseDir_.empty()) << "Create chunk file failed";
     CHECK(lfs_ != nullptr) << "Create chunk file failed";
-    metaPage_.version = uint8_t (curve::common::kBaseFileVersion);
+    metaPage_.version = uint8_t(curve::common::kBaseFileVersion);
     metaPage_.sn = options.sn;
     metaPage_.correctedSn = options.correctedSn;
     metaPage_.location = options.location;
@@ -288,7 +293,6 @@ CSChunkFile::~CSChunkFile() {
 */
 int CSChunkFile::getVersion(std::shared_ptr<LocalFileSystem> lfs,
             std::string dir, SequenceNum id) {
-
     uint8_t version = 0;
     std::string path = dir + "/" +
         FileNameOperator::GenerateChunkFileName(id);
@@ -301,7 +305,7 @@ int CSChunkFile::getVersion(std::shared_ptr<LocalFileSystem> lfs,
     }
 
     int rc = 0;
-    rc = lfs->Read(fd, (char*)&version, 0, 1);
+    rc = lfs->Read(fd, reinterpret_cast<char*>(&version), 0, 1);
     if (rc < 0) {
         LOG(ERROR) << "read chunkfile version failed, path = " << path
                     << ", errcode = " << rc;
@@ -777,7 +781,7 @@ CSErrorCode CSChunkFile::Delete(SequenceNum sn)  {
     return CSErrorCode::Success;
 }
 
-CSErrorCode CSChunkFile::DeleteSnapshot(SequenceNum correctedSn, 
+CSErrorCode CSChunkFile::DeleteSnapshot(SequenceNum correctedSn,
             std::shared_ptr<SnapContext> ctx) {
     return DeleteSnapshotOrCorrectSn(correctedSn);
 }

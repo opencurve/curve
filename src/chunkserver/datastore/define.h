@@ -46,7 +46,8 @@ using CSSnapshotPtr = std::shared_ptr<CSSnapshot>;
 
 using curve::common::Bitmap;
 
-const uint8_t FORMAT_VERSION = uint8_t (curve::common::kSupportLocalSnapshotFileVersion);
+const uint8_t FORMAT_VERSION =
+    uint8_t(curve::common::kSupportLocalSnapshotFileVersion);
 const SequenceNum kInvalidSeq = 0;
 
 DECLARE_uint32(minIoAlignment);

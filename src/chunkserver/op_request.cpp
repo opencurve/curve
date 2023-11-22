@@ -815,7 +815,8 @@ void ReadSnapshotRequest::OnApply(uint64_t index,
 
             string clonesinfo = "";
             for (int i = 0; i < ctx->clones.size(); i++) {
-                clonesinfo += " clone no: " + std::to_string(ctx->clones[i].cloneNo)
+                clonesinfo += " clone no: " +
+                    std::to_string(ctx->clones[i].cloneNo)
                     + " clone sn: " + std::to_string(ctx->clones[i].cloneSn);
             }
             DVLOG(3) << "ReadSnapshotRequest::OnApply info: "
@@ -924,7 +925,7 @@ void DeleteSnapshotRequest::OnApply(uint64_t index,
             request_->chunkid(), request_->snapsn(),
             std::make_shared<SnapContext>(getSnapIds(request_)));
     }
-    
+
     if (CSErrorCode::Success == ret) {
         response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
         node_->UpdateAppliedIndex(index);

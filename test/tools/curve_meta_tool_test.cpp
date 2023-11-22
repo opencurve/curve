@@ -141,7 +141,7 @@ TEST_F(CurveMetaToolTest, PrintSnapshotMeta) {
     ASSERT_EQ(-1, curveMetaTool.RunCommand("snapshot-meta"));
     // 4、成功chunk
     SnapshotMetaPage metaPage;
-    metaPage.version = 1;
+    metaPage.version = curve::chunkserver::FORMAT_VERSION;
     metaPage.sn = 1;
     metaPage.damaged = false;
     uint32_t size = CHUNK_SIZE / PAGE_SIZE;

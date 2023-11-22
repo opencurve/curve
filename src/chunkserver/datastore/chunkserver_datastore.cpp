@@ -157,7 +157,8 @@ CSErrorCode CSDataStore::DeleteChunk(
 
         if (ver != curve::common::kBaseFileVersion) {
             // remove itself from the clone cache
-            cloneCache_.Remove(chunkFile->getVirtualId(), chunkFile->getFileID());
+            cloneCache_.Remove(chunkFile->getVirtualId(),
+                chunkFile->getFileID());
 
             uint64_t cloneno = chunkFile->getCloneNumber();
             if (cloneno > 0) {
@@ -909,7 +910,7 @@ CSErrorCode CSDataStore::CreateCloneChunk(ChunkID id,
         options.metaPageSize = metaPageSize_;
         options.blockSize_shift = BLOCK_SIZE_SHIFT;
         options.metric = metric_;
-        CSErrorCode errorCode = CreateChunkFile(options, &chunkFile, 
+        CSErrorCode errorCode = CreateChunkFile(options, &chunkFile,
                                 curve::common::kBaseFileVersion);
         if (errorCode != CSErrorCode::Success) {
             return errorCode;

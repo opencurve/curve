@@ -680,7 +680,8 @@ TEST_F(CSCloneRecoverTest, CloneFromCurveByReadChunk) {
      */
     ASSERT_EQ(0,
               verify.VerifyGetChunkInfo(cloneChunk1, sn1, NULL_SN, string("")));
-    #if 0 //new version of chunkserver will return CHUNK_OP_STATUS_SUCCESS
+    #if 0
+    // new version of chunkserver will return CHUNK_OP_STATUS_SUCCESS
     ASSERT_EQ(CHUNK_OP_STATUS_FAILURE_UNKNOWN,
               verify.VerifyWriteChunk(cloneChunk1, sn2, 0, 8 * KB, temp.c_str(),
                                       nullptr));
@@ -800,7 +801,8 @@ TEST_F(CSCloneRecoverTest, CloneFromCurveByReadChunkWhenLazyAlloc) {
                                       cloneData1.get(), CURVEFS_FILENAME, 0));
     ASSERT_EQ(0,
               verify.VerifyGetChunkInfo(cloneChunk1, sn1, NULL_SN, string("")));
-    #if 0 //new version of chunkserver will return CHUNK_OP_STATUS_SUCCESS
+    #if 0
+    // new version of chunkserver will return CHUNK_OP_STATUS_SUCCESS
     ASSERT_EQ(CHUNK_OP_STATUS_FAILURE_UNKNOWN,
               verify.VerifyWriteChunk(cloneChunk1, sn2, 0, 8 * KB, temp.c_str(),
                                       nullptr));
@@ -913,7 +915,8 @@ TEST_F(CSCloneRecoverTest, CloneFromS3ByReadChunk) {
      */
     ASSERT_EQ(0,
               verify.VerifyGetChunkInfo(cloneChunk1, sn1, NULL_SN, string("")));
-    #if 0 //new version of chunkserver will return CHUNK_OP_STATUS_SUCCESS
+    #if 0
+    // new version of chunkserver will return CHUNK_OP_STATUS_SUCCESS
     ASSERT_EQ(CHUNK_OP_STATUS_FAILURE_UNKNOWN,
               verify.VerifyWriteChunk(cloneChunk1, sn2, 0, 8 * KB, temp.c_str(),
                                       nullptr));
@@ -1065,7 +1068,8 @@ TEST_F(CSCloneRecoverTest, RecoverFromS3ByReadChunk) {
      */
     ASSERT_EQ(0,
               verify.VerifyGetChunkInfo(cloneChunk1, sn3, NULL_SN, string("")));
-    #if 0 //new version of chunkserver will return CHUNK_OP_STATUS_SUCCESS
+    #if 0
+    // new version of chunkserver will return CHUNK_OP_STATUS_SUCCESS
     ASSERT_EQ(CHUNK_OP_STATUS_FAILURE_UNKNOWN,
               verify.VerifyWriteChunk(cloneChunk1, sn4, 0, 8 * KB, temp.c_str(),
                                       nullptr));
