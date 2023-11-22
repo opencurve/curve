@@ -251,10 +251,25 @@ void TopologyChunkAllocatorImpl::GetRemainingSpaceInLogicalPool(
                   << ", isSomeCSFull: " << isSomeCSFull
                   << "}";
 
-        if ((diskRemianning > 0) &&
-            (allocRemainning > 0) &&
-            !isSomeCSFull) {
-            (*enoughSpacePools)[pid] = diskRemianning;
+        switch (allocateSegmentStrategy_) {
+            case AllocateSegmentStrategy::kLogicalPool:
+                if (allocRemainning > 0) {
+                    (*enoughSpacePools)[pid] = allocRemainning;
+                }
+                break;
+            case AllocateSegmentStrategy::kPhysicalPool:
+                if ((diskRemianning > 0) &&
+                    !isSomeCSFull) {
+                    (*enoughSpacePools)[pid] = diskRemianning;
+                }
+                break;
+            default:
+                if ((diskRemianning > 0) &&
+                    (allocRemainning > 0) &&
+                    !isSomeCSFull) {
+                    (*enoughSpacePools)[pid] = diskRemianning;
+                }
+                break;
         }
     }
 }
