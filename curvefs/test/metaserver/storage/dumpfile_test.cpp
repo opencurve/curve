@@ -39,6 +39,7 @@ namespace storage {
 
 using Hash = std::unordered_map<std::string, std::string>;
 
+namespace {
 class HashIterator : public Iterator {
  public:
     explicit HashIterator(Hash* hash)
@@ -56,6 +57,7 @@ class HashIterator : public Iterator {
     Hash::iterator iter_;
     Hash* hash_;
 };
+}  // namespace
 
 class DumpFileTest : public ::testing::Test {
  protected:
