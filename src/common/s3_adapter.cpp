@@ -305,8 +305,8 @@ int S3Adapter::PutObject(const Aws::String &key, const char *buffer,
     }
 }
 
-int S3Adapter::PutObject(const Aws::String &key, const std::string &data) {
-    return PutObject(key, data.data(), data.size());
+int S3Adapter::PutObject(const Aws::String &key, const std::string &data, const PutObjectOptions &options) {
+    return PutObject(key, data.data(), data.size(), options);
 }
 /*
     int S3Adapter::GetObject(const Aws::String &key,

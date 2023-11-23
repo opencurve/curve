@@ -96,7 +96,7 @@ int DiskCacheManager::Init(std::shared_ptr<S3Client> client,
                            const S3ClientAdaptorOption option) {
     LOG(INFO) << "DiskCacheManager init start.";
     client_ = client;
-
+    
     option_ = option;
     FLAGS_diskTrimCheckIntervalSec = option.diskCacheOpt.trimCheckIntervalSec;
     FLAGS_diskFullRatio = option.diskCacheOpt.fullRatio;
@@ -108,7 +108,7 @@ int DiskCacheManager::Init(std::shared_ptr<S3Client> client,
     cmdTimeoutSec_ = option.diskCacheOpt.cmdTimeoutSec;
     objectPrefix_ = option.objectPrefix;
     cacheWrite_->Init(client_, posixWrapper_, cacheDir_, objectPrefix_,
-        option.diskCacheOpt.asyncLoadPeriodMs, cachedObjName_);
+        option.diskCacheOpt.asyncLoadPeriodMs, cachedObjName_, option.storageClass);
     cacheRead_->Init(posixWrapper_, cacheDir_, objectPrefix_);
     int ret;
     ret = CreateDir();

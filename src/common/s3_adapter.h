@@ -103,6 +103,7 @@ struct S3InfoOption {
     uint64_t blockSize;
     uint64_t chunkSize;
     uint32_t objectPrefix;
+    Aws::S3::Model::StorageClass storageClass;
 };
 
 struct PutObjectOptions {
@@ -266,7 +267,7 @@ class S3Adapter {
      * @param 数据内容
      * @return:0 上传成功/ -1 上传失败
      */
-    virtual int PutObject(const Aws::String &key, const std::string &data);
+    virtual int PutObject(const Aws::String &key, const std::string &data, const PutObjectOptions& options = PutObjectOptions{});
     virtual void PutObjectAsync(std::shared_ptr<PutObjectAsyncContext> context);
     /**
      * Get object from s3,
@@ -411,9 +412,10 @@ class FakeS3Adapter : public S3Adapter {
         return 0;
     }
 
-    int PutObject(const Aws::String &key, const std::string &data) override {
+    int PutObject(const Aws::String &key, const std::string &data, const curve::common::PutObjectOptions& options) override {
         (void)key;
         (void)data;
+        (void)options;
         return 0;
     }
 

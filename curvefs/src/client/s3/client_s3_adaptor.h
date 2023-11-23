@@ -156,6 +156,10 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
         return objectPrefix_;
     }
 
+    Aws::S3::Model::StorageClass GetStorageClass() {
+        return storageClass_;
+    }
+
     std::shared_ptr<FsCacheManager> GetFsCacheManager() {
         return fsCacheManager_;
     }
@@ -281,6 +285,7 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
     uint32_t maxReadRetryIntervalMs_;
     uint32_t readRetryIntervalMs_;
     uint32_t objectPrefix_;
+    Aws::S3::Model::StorageClass storageClass_;
     Thread bgFlushThread_;
     std::atomic<bool> toStop_;
     std::mutex mtx_;

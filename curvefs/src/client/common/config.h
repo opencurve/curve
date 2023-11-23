@@ -140,6 +140,7 @@ struct S3ClientAdaptorOption {
     uint32_t readRetryIntervalMs;
     uint32_t objectPrefix;
     DiskCacheOption diskCacheOpt;
+    Aws::S3::Model::StorageClass storageClass;
 };
 
 struct S3Option {
