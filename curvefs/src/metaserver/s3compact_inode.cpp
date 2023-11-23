@@ -36,6 +36,7 @@
 #include "curvefs/src/common/s3util.h"
 #include "curvefs/src/metaserver/copyset/copyset_node_manager.h"
 #include "curvefs/src/metaserver/copyset/meta_operator.h"
+#include "curvefs/src/metaserver/mds/fsinfo_manager.h"
 
 using curve::common::Configuration;
 using curve::common::InitS3AdaptorOptionExceptS3InfoOption;
@@ -344,6 +345,16 @@ int CompactInodeJob::WriteFullChunk(
     const auto& blockSize = ctx.blockSize;
     const auto& chunkSize = ctx.chunkSize;
     const auto& newOff = newChunkInfo.newOff;
+    FsInfo fsInfo;
+    auto ok = FsInfoManager::GetInstance().GetFsInfo(ctx.fsId, &fsInfo);
+    if (!ok) {
+        LOG(ERROR) << "WriteFullChunk failed, fsId "
+                   << ctx.fsId << " not exist";
+        return ok;
+    }
+    const auto& s3Info = fsInfo.detail().s3info();
+    curve::common::PutObjectOptions putObjectOption;
+    putObjectOption.storageClass = s3Info.has_storageclass() ? Aws::S3::Model::StorageClass(s3Info.storageclass()) : Aws::S3::Model::StorageClass::NOT_SET;
     uint64_t offRoundDown = newOff / chunkSize * chunkSize;
     uint64_t startIndex = (newOff - newOff / chunkSize * chunkSize) / blockSize;
     for (uint64_t index = startIndex;
@@ -361,7 +372,8 @@ int CompactInodeJob::WriteFullChunk(
                 << s3objEnd << "]";
         ret = ctx.s3adapter->PutObject(
             aws_key,
-            fullChunk.substr(s3objBegin - newOff, s3objEnd - s3objBegin + 1));
+            fullChunk.substr(s3objBegin - newOff, s3objEnd - s3objBegin + 1),
+            putObjectOption);
         if (ret != 0) {
             LOG(WARNING) << "s3compact: put s3 object " << objName << " failed";
             return ret;
