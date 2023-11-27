@@ -95,7 +95,7 @@ namespace curve
 
             RegisterCurveSegmentLogStorageOrDie();
 
-            // ==========================Load Configuration Items===============================//
+            // ==========================Load ConfigurationItems===============================//
             LOG(INFO) << "Loading Configuration.";
             common::Configuration conf;
             conf.SetConfigPath(FLAGS_conf.c_str());
@@ -439,8 +439,7 @@ namespace curve
                 }
             }
 
-            // =======================Start each
-            // module==================================//
+            // =======================Start each module==================================//
             LOG(INFO) << "ChunkServer starts.";
             /**
              * Placing module startup after RPC service startup is mainly to address
@@ -457,8 +456,7 @@ namespace curve
             LOG_IF(FATAL, !chunkfilePool->StartCleaning())
                 << "Failed to start file pool clean worker.";
 
-            // =======================Wait for the process to
-            // exit==================================//
+            // =======================Wait for the process to exit==================================//
             while (!brpc::IsAskedToQuit())
             {
                 bthread_usleep(1000000L);
