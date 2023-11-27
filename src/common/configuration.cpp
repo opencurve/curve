@@ -30,26 +30,137 @@
 #include "src/common/configuration.h"
 #include "src/common/string_util.h"
 
-namespace curve {
-namespace common {
+namespace curve
+{
+    namespace common
+    {
 
-bool Configuration::LoadConfig() {
-    std::ifstream cFile(confFile_);
+        bool Configuration::LoadConfig()
+        {
+            std::ifstream cFile(confFile_);
 
-    if (cFile.is_open()) {
-        std::string line;
-        while (getline(cFile, line)) {
-            Trim(line);
-            if (line.empty() || line[0] == '#') continue;
+            if (cFile.is_open())
+            {
+                std::string line;
+                while (getline(cFile, line))
+                {
+                    Trim(line);
+                    if (line.empty() || line[0] == '#')
+                        continue;
 
-            int delimiterPos = line.find("=");
-            std::string key = line.substr(0, delimiterPos);
-            Trim(key);
+                    int delimiterPos = line.find("=");
+                    std::string key = line.substr(0, delimiterPos);
+                    Trim(key);
 
-            int commentPos = line.find("#");
-            std::string value = line.substr(delimiterPos + 1,
-                                            commentPos - delimiterPos - 1);
-            Trim(value);
+                    int commentPos = line.find("#");
+                    std::string value = line.substr(delimiterPos + 1,
+                                                    commentPos - delimiterPos - 1);
+                    Trim(value);
+                    SetValue(key, value);
+                }
+            }
+            else
+            {
+                LOG(ERROR) << "Open config file '" << confFile_
+                           << "' failed: " << strerror(errno);
+                return false;
+            }
+
+            return true;
+        }
+
+        bool Configuration::SaveConfig()
+        {
+            // Currently, only the configuration is saved, and the comments and other
+            // contents of the original file are ignored
+            // TODO(yyk): In the future, consider changing to the original file format
+            // without changing, only modifying the configuration values
+            std::ofstream wStream(confFile_);
+            if (wStream.is_open())
+            {
+                for (auto &pair : config_)
+                {
+                    wStream << pair.first << "=" << pair.second << std::endl;
+                }
+                wStream.close();
+            }
+            else
+            {
+                return false;
+            }
+            return true;
+        }
+
+        void Configuration::PrintConfig()
+        {
+            LOG(INFO) << std::string(30, '=') << "BEGIN" << std::string(30, '=');
+            for (auto &item : config_)
+            {
+                LOG(INFO) << item.first << std::string(60 - item.first.size(), ' ')
+                          << ": " << item.second;
+            }
+            LOG(INFO) << std::string(31, '=') << "END" << std::string(31, '=');
+        }
+
+        void Configuration::ExposeMetric(const std::string &exposeName)
+        {
+            if (!exposeName_.empty())
+            {
+                LOG(WARNING) << "Config metric has been exposed.";
+                return;
+            }
+            exposeName_ = exposeName;
+
+            for (auto &config : config_)
+            {
+                UpdateMetricIfExposed(config.first, config.second);
+            }
+        }
+
+        void Configuration::UpdateMetricIfExposed(const std::string &key,
+                                                  const std::string &value)
+        {
+            if (exposeName_.empty())
+            {
+                return;
+            }
+
+            auto it = configMetric_.find(key);
+            // If the configuration item does not exist, create a new configuration item
+            if (it == configMetric_.end())
+            {
+                ConfigItemPtr configItem = std::make_shared<StringStatus>();
+                configItem->ExposeAs(exposeName_, key);
+                configMetric_[key] = configItem;
+            }
+            // Update Configuration Items
+            configMetric_[key]->Set("conf_name", key);
+            configMetric_[key]->Set("conf_value", value);
+            configMetric_[key]->Update();
+        }
+
+        std::map<std::string, std::string> Configuration::ListConfig() const
+        {
+            return config_;
+        }
+
+        void Configuration::SetConfigPath(const std::string &path) { confFile_ = path; }
+
+        std::string Configuration::GetConfigPath() { return confFile_; }
+
+        std::string Configuration::GetStringValue(const std::string &key)
+        {
+            return GetValue(key);
+        }
+
+        bool Configuration::GetStringValue(const std::string &key, std::string *out)
+        {
+            return GetValue(key, out);
+        }
+
+        void Configuration::SetStringValue(const std::string &key,
+                                           const std::string &value)
+        {
             SetValue(key, value);
         }
     } else {
@@ -71,12 +182,6 @@ bool Configuration::SaveConfig() {
         for (auto& pair : config_) {
             wStream << pair.first << "=" << pair.second << std::endl;
         }
-        wStream.close();
-    } else {
-        return false;
-    }
-    return true;
-}
 
 void Configuration::PrintConfig() {
     LOG(INFO) << std::string(30, '=') << "BEGIN" << std::string(30, '=');
@@ -257,15 +362,28 @@ bool Configuration::GetBoolValue(const std::string& key, bool* out) {
             *out = true;
             return true;
         }
-        if (isfalse) {
-            *out = false;
-            return true;
-        }
-        return false;
-    }
 
-    return false;
-}
+        bool Configuration::GetUInt32Value(const std::string &key, uint32_t *out)
+        {
+            std::string res;
+            if (GetValue(key, &res))
+            {
+                *out = std::stoul(res);
+                return true;
+            }
+            return false;
+        }
+
+        bool Configuration::GetUInt64Value(const std::string &key, uint64_t *out)
+        {
+            std::string res;
+            if (GetValue(key, &res))
+            {
+                *out = std::stoull(res);
+                return true;
+            }
+            return false;
+        }
 
 void Configuration::SetBoolValue(const std::string& key, const bool value) {
     SetValue(key, std::to_string(value));
@@ -281,8 +399,8 @@ bool Configuration::GetValue(const std::string& key, std::string* out) {
         return true;
     }
 
-    return false;
-}
+            return false;
+        }
 
 void Configuration::SetValue(const std::string& key, const std::string& value) {
     config_[key] = value;
@@ -327,5 +445,108 @@ void Configuration::GetValueFatalIfFail(const std::string& key, double* value) {
         << "Get " << key << " from " << confFile_ << " fail";
 }
 
-}  // namespace common
-}  // namespace curve
+            bool istrue = (svalue == "true") || (svalue == "yes") || (svalue == "1");
+            bool isfalse = (svalue == "false") || (svalue == "no") || (svalue == "0");
+            bool ret = istrue ? true : isfalse ? false
+                                               : defaultvalue;
+            return ret;
+        }
+
+        bool Configuration::GetBoolValue(const std::string &key, bool *out)
+        {
+            std::string res;
+            if (GetValue(key, &res))
+            {
+                transform(res.begin(), res.end(), res.begin(), ::tolower);
+                bool istrue = (res == "true") || (res == "yes") || (res == "1");
+                bool isfalse = (res == "false") || (res == "no") || (res == "0");
+                if (istrue)
+                {
+                    *out = true;
+                    return true;
+                }
+                if (isfalse)
+                {
+                    *out = false;
+                    return true;
+                }
+                return false;
+            }
+
+            return false;
+        }
+
+        void Configuration::SetBoolValue(const std::string &key, const bool value)
+        {
+            SetValue(key, std::to_string(value));
+        }
+
+        std::string Configuration::GetValue(const std::string &key)
+        {
+            return config_[key];
+        }
+
+        bool Configuration::GetValue(const std::string &key, std::string *out)
+        {
+            if (config_.find(key) != config_.end())
+            {
+                *out = config_[key];
+                return true;
+            }
+
+            return false;
+        }
+
+        void Configuration::SetValue(const std::string &key, const std::string &value)
+        {
+            config_[key] = value;
+            UpdateMetricIfExposed(key, value);
+        }
+
+        void Configuration::GetValueFatalIfFail(const std::string &key, int *value)
+        {
+            LOG_IF(FATAL, !GetIntValue(key, value))
+                << "Get " << key << " from " << confFile_ << " fail";
+        }
+
+        void Configuration::GetValueFatalIfFail(const std::string &key,
+                                                std::string *value)
+        {
+            LOG_IF(FATAL, !GetStringValue(key, value))
+                << "Get " << key << " from " << confFile_ << " fail";
+        }
+
+        void Configuration::GetValueFatalIfFail(const std::string &key, bool *value)
+        {
+            LOG_IF(FATAL, !GetBoolValue(key, value))
+                << "Get " << key << " from " << confFile_ << " fail";
+        }
+
+        void Configuration::GetValueFatalIfFail(const std::string &key,
+                                                uint32_t *value)
+        {
+            LOG_IF(FATAL, !GetUInt32Value(key, value))
+                << "Get " << key << " from " << confFile_ << " fail";
+        }
+
+        void Configuration::GetValueFatalIfFail(const std::string &key,
+                                                uint64_t *value)
+        {
+            LOG_IF(FATAL, !GetUInt64Value(key, value))
+                << "Get " << key << " from " << confFile_ << " fail";
+        }
+
+        void Configuration::GetValueFatalIfFail(const std::string &key, float *value)
+        {
+            LOG_IF(FATAL, !GetFloatValue(key, value))
+                << "Get " << key << " from " << confFile_ << " fail";
+        }
+
+        void Configuration::GetValueFatalIfFail(const std::string &key, double *value)
+        {
+            LOG_IF(FATAL, !GetDoubleValue(key, value))
+                << "Get " << key << " from " << confFile_ << " fail";
+        }
+
+    } // namespace common
+} // namespace curve
