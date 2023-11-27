@@ -21,6 +21,7 @@
  */
 
 #include "src/chunkserver/chunk_closure.h"
+
 #include <memory>
 
 namespace curve {
@@ -28,21 +29,23 @@ namespace chunkserver {
 
 void ChunkClosure::Run() {
     /**
-     * 在Run结束之后，自动析构自己，这样可以避免
-     * 析构函数漏调
+     * After the completion of Run, automatically destruct
+     * itself to prevent any missed destructor calls.
      */
     std::unique_ptr<ChunkClosure> selfGuard(this);
     /**
-     * 确保done能够被调用，目的是保证rpc一定会返回
+     * Ensure that done can be called to ensure that rpc will definitely return
      */
     brpc::ClosureGuard doneGuard(request_->Closure());
     /**
-     * 尽管在request propose给copyset的之前已经
-     * 对leader身份进行了确认，但是在copyset处理
-     * request的时候，当前copyset的身份还是有可能
-     * 变成非leader，所以需要判断ChunkClosure被调
-     * 用的时候，request的status，如果 ok，说明是
-     * 正常的apply处理，否则将请求转发
+     * Although the identity of the leader has been confirmed
+     * before proposing the request to the copyset, during the
+     * processing of the request by the copyset, the current
+     * identity of the copyset may still change to a non-leader.
+     * Therefore, it is necessary to check the status of the
+     * request when ChunkClosure is invoked. If it is 'ok', it
+     * indicates a normal apply processing; otherwise, the
+     * request should be forwarded.
      */
     if (status().ok()) {
         return;
@@ -61,13 +64,13 @@ void ScanChunkClosure::Run() {
         case CHUNK_OP_STATUS_CHUNK_NOTEXIST:
             LOG(WARNING) << "scan chunk failed, read chunk not exist. "
                          << request_->ShortDebugString();
-        break;
+            break;
         case CHUNK_OP_STATUS_FAILURE_UNKNOWN:
             LOG(ERROR) << "scan chunk failed, read chunk unknown failure. "
                        << request_->ShortDebugString();
-        break;
-    default:
-        break;
+            break;
+        default:
+            break;
     }
 }
 

@@ -23,18 +23,19 @@
 #ifndef SRC_CHUNKSERVER_CHUNKSERVER_H_
 #define SRC_CHUNKSERVER_CHUNKSERVER_H_
 
-#include <string>
 #include <memory>
-#include "src/common/configuration.h"
+#include <string>
+
+#include "src/chunkserver/chunkserver_metrics.h"
+#include "src/chunkserver/clone_manager.h"
+#include "src/chunkserver/concurrent_apply/concurrent_apply.h"
 #include "src/chunkserver/copyset_node_manager.h"
 #include "src/chunkserver/heartbeat.h"
-#include "src/chunkserver/scan_manager.h"
-#include "src/chunkserver/clone_manager.h"
 #include "src/chunkserver/register.h"
-#include "src/chunkserver/trash.h"
-#include "src/chunkserver/chunkserver_metrics.h"
-#include "src/chunkserver/concurrent_apply/concurrent_apply.h"
+#include "src/chunkserver/scan_manager.h"
 #include "src/chunkserver/scan_service.h"
+#include "src/chunkserver/trash.h"
+#include "src/common/configuration.h"
 
 using ::curve::chunkserver::concurrent::ConcurrentApplyOption;
 
@@ -43,81 +44,84 @@ namespace chunkserver {
 class ChunkServer {
  public:
     /**
-     * @brief 初始化Chunkserve各子模块
+     * @brief Initialize Chunkserve sub modules
      *
-     * @param[in] argc 命令行参数总数
-     * @param[in] argv 命令行参数列表
+     * @param[in] argc Total number of command line arguments
+     * @param[in] argv command line argument list
      *
-     * @return 0表示成功，非0失败
+     * @return 0 indicates success, non 0 indicates failure
      */
     int Run(int argc, char** argv);
 
     /**
-     * @brief 停止chunkserver，结束各子模块
+     * @brief: Stop chunkserver and end each sub module
      */
     void Stop();
 
  private:
-    void InitChunkFilePoolOptions(common::Configuration *conf,
-        FilePoolOptions *chunkFilePoolOptions);
+    void InitChunkFilePoolOptions(common::Configuration* conf,
+                                  FilePoolOptions* chunkFilePoolOptions);
 
-    void InitWalFilePoolOptions(common::Configuration *conf,
-        FilePoolOptions *walPoolOption);
+    void InitWalFilePoolOptions(common::Configuration* conf,
+                                FilePoolOptions* walPoolOption);
 
-    void InitConcurrentApplyOptions(common::Configuration *conf,
-        ConcurrentApplyOption *concurrentApplyOption);
+    void InitConcurrentApplyOptions(
+        common::Configuration* conf,
+        ConcurrentApplyOption* concurrentApplyOption);
 
-    void InitCopysetNodeOptions(common::Configuration *conf,
-        CopysetNodeOptions *copysetNodeOptions);
+    void InitCopysetNodeOptions(common::Configuration* conf,
+                                CopysetNodeOptions* copysetNodeOptions);
 
-    void InitCopyerOptions(common::Configuration *conf,
-        CopyerOptions *copyerOptions);
+    void InitCopyerOptions(common::Configuration* conf,
+                           CopyerOptions* copyerOptions);
 
-    void InitCloneOptions(common::Configuration *conf,
-        CloneOptions *cloneOptions);
+    void InitCloneOptions(common::Configuration* conf,
+                          CloneOptions* cloneOptions);
 
-    void InitScanOptions(common::Configuration *conf,
-        ScanManagerOptions *scanOptions);
+    void InitScanOptions(common::Configuration* conf,
+                         ScanManagerOptions* scanOptions);
 
-    void InitHeartbeatOptions(common::Configuration *conf,
-        HeartbeatOptions *heartbeatOptions);
+    void InitHeartbeatOptions(common::Configuration* conf,
+                              HeartbeatOptions* heartbeatOptions);
 
-    void InitRegisterOptions(common::Configuration *conf,
-        RegisterOptions *registerOptions);
+    void InitRegisterOptions(common::Configuration* conf,
+                             RegisterOptions* registerOptions);
 
-    void InitTrashOptions(common::Configuration *conf,
-        TrashOptions *trashOptions);
+    void InitTrashOptions(common::Configuration* conf,
+                          TrashOptions* trashOptions);
 
-    void InitMetricOptions(common::Configuration *conf,
-        ChunkServerMetricOptions *metricOptions);
+    void InitMetricOptions(common::Configuration* conf,
+                           ChunkServerMetricOptions* metricOptions);
 
-    void LoadConfigFromCmdline(common::Configuration *conf);
+    void LoadConfigFromCmdline(common::Configuration* conf);
 
-    int GetChunkServerMetaFromLocal(const std::string &storeUri,
-        const std::string &metaUri,
-        const std::shared_ptr<LocalFileSystem> &fs,
-        ChunkServerMetadata *metadata);
+    int GetChunkServerMetaFromLocal(const std::string& storeUri,
+                                    const std::string& metaUri,
+                                    const std::shared_ptr<LocalFileSystem>& fs,
+                                    ChunkServerMetadata* metadata);
 
-    int ReadChunkServerMeta(const std::shared_ptr<LocalFileSystem> &fs,
-        const std::string &metaUri, ChunkServerMetadata *metadata);
+    int ReadChunkServerMeta(const std::shared_ptr<LocalFileSystem>& fs,
+                            const std::string& metaUri,
+                            ChunkServerMetadata* metadata);
 
  private:
-    // copysetNodeManager_ 管理chunkserver上所有copysetNode
+    // copysetNodeManager_ Manage all copysetNodes on the chunkserver
     CopysetNodeManager* copysetNodeManager_;
 
-    // cloneManager_ 管理克隆任务
+    // cloneManager_ Manage Clone Tasks
     CloneManager cloneManager_;
 
     // scan copyset manager
     ScanManager scanManager_;
 
-    // heartbeat_ 负责向mds定期发送心跳，并下发心跳中任务
+    // heartbeat_ Responsible for regularly sending heartbeat to MDS and issuing
+    // tasks in the heartbeat
     Heartbeat heartbeat_;
 
-    // trash_ 定期回收垃圾站中的物理空间
+    // trash_ Regularly recycle physical space in the garbage bin
     std::shared_ptr<Trash> trash_;
 
-    // install snapshot流控
+    // install snapshot flow control
     scoped_refptr<SnapshotThrottle> snapshotThrottle_;
 };
 
@@ -125,4 +129,3 @@ class ChunkServer {
 }  // namespace curve
 
 #endif  // SRC_CHUNKSERVER_CHUNKSERVER_H_
-

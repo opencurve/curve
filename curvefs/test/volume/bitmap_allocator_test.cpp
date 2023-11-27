@@ -18,9 +18,8 @@
 
 #include <gtest/gtest.h>
 
-#include "curvefs/test/volume/common.h"
-
 #include "absl/memory/memory.h"
+#include "curvefs/test/volume/common.h"
 
 namespace curvefs {
 namespace volume {
@@ -100,7 +99,7 @@ TEST_F(BitmapAllocatorTest, AllocFromBitmap) {
 
         Extents expected = {
             Extent(opt_.startOffset + opt_.length * opt_.smallAllocProportion,
-                    allocSize)};
+                   allocSize)};
 
         ASSERT_EQ(expected, exts);
 
@@ -225,7 +224,7 @@ TEST_F(BitmapAllocatorTest, TestMarkUsedRandom) {
     uint64_t off = opt_.startOffset;
     uint64_t usedSize = 0;
 
-    // 对于每一个 size per bit，随机其中一部分设置
+    // For each size per bit, randomly set a portion of it
     auto select = [this, &usedSize](uint64_t startOffset) {
         auto off = rand_r(&seed) * 4096 % opt_.sizePerBit;
         auto len = rand_r(&seed) * 4096 % opt_.sizePerBit;

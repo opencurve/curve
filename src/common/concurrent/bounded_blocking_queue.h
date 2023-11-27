@@ -23,12 +23,12 @@
 #ifndef SRC_COMMON_CONCURRENT_BOUNDED_BLOCKING_QUEUE_H_
 #define SRC_COMMON_CONCURRENT_BOUNDED_BLOCKING_QUEUE_H_
 
-#include <cassert>
-#include <cstdio>
-#include <condition_variable>   //NOLINT
-#include <deque>
-#include <mutex>                //NOLINT
 #include <atomic>
+#include <cassert>
+#include <condition_variable>  //NOLINT
+#include <cstdio>
+#include <deque>
+#include <mutex>  //NOLINT
 #include <utility>
 
 #include "src/common/uncopyable.h"
@@ -36,18 +36,17 @@
 namespace curve {
 namespace common {
 
-template<typename T>
+template <typename T>
 class BBQItem {
  public:
-    explicit BBQItem(const T &t, bool stop = false)
-        : item_(t) {
+    explicit BBQItem(const T& t, bool stop = false) : item_(t) {
         stop_.store(stop, std::memory_order_release);
     }
-    BBQItem(const BBQItem &bbqItem) {
+    BBQItem(const BBQItem& bbqItem) {
         item_ = bbqItem.item_;
         stop_.store(bbqItem.stop_, std::memory_order_release);
     }
-    BBQItem &operator=(const BBQItem &bbqItem) {
+    BBQItem& operator=(const BBQItem& bbqItem) {
         if (&bbqItem == this) {
             return *this;
         }
@@ -56,13 +55,9 @@ class BBQItem {
         return *this;
     }
 
-    bool IsStop() const {
-        return stop_.load(std::memory_order_acquire);
-    }
+    bool IsStop() const { return stop_.load(std::memory_order_acquire); }
 
-    T Item() {
-        return item_;
-    }
+    T Item() { return item_; }
 
  private:
     T item_;
@@ -70,18 +65,13 @@ class BBQItem {
 };
 
 /**
- * 有 capacity 限制的阻塞队列，线程安全
+ * Blocking queues with capacity restrictions, thread safe
  */
-template<typename T>
+template <typename T>
 class BoundedBlockingDeque : public Uncopyable {
  public:
     BoundedBlockingDeque()
-        : mutex_(),
-          notEmpty_(),
-          notFull_(),
-          deque_(),
-          capacity_(0) {
-    }
+        : mutex_(), notEmpty_(), notFull_(), deque_(), capacity_(0) {}
 
     int Init(const int capacity) {
         if (0 >= capacity) {
@@ -91,7 +81,7 @@ class BoundedBlockingDeque : public Uncopyable {
         return 0;
     }
 
-    void PutBack(const T &x) {
+    void PutBack(const T& x) {
         std::unique_lock<std::mutex> guard(mutex_);
         while (deque_.size() == capacity_) {
             notFull_.wait(guard);
@@ -100,7 +90,7 @@ class BoundedBlockingDeque : public Uncopyable {
         notEmpty_.notify_one();
     }
 
-    void PutFront(const T &x) {
+    void PutFront(const T& x) {
         std::unique_lock<std::mutex> guard(mutex_);
         while (deque_.size() == capacity_) {
             notFull_.wait(guard);

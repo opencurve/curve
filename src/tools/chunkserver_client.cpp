@@ -28,11 +28,10 @@ namespace curve {
 namespace tool {
 
 std::ostream& operator<<(std::ostream& os, const Chunk& chunk) {
-    uint64_t groupId = (static_cast<uint64_t>(chunk.logicPoolId) << 32) |
-                                                    chunk.copysetId;
+    uint64_t groupId =
+        (static_cast<uint64_t>(chunk.logicPoolId) << 32) | chunk.copysetId;
     os << "logicalPoolId:" << chunk.logicPoolId
-       << ",copysetId:" << chunk.copysetId
-       << ",groupId:" << groupId
+       << ",copysetId:" << chunk.copysetId << ",groupId:" << groupId
        << ",chunkId:" << chunk.chunkId;
     return os;
 }
@@ -40,8 +39,8 @@ std::ostream& operator<<(std::ostream& os, const Chunk& chunk) {
 int ChunkServerClient::Init(const std::string& csAddr) {
     csAddr_ = csAddr;
     if (channel_.Init(csAddr.c_str(), nullptr) != 0) {
-        std::cout << "Init channel to chunkserver: " << csAddr
-                  << " failed!" << std::endl;
+        std::cout << "Init channel to chunkserver: " << csAddr << " failed!"
+                  << std::endl;
         return -1;
     }
     return 0;
@@ -69,7 +68,7 @@ int ChunkServerClient::GetRaftStatus(butil::IOBuf* iobuf) {
         }
         retryTimes++;
     }
-    // 只打最后一次失败的原因
+    // Outputs only the reason for the last failure.
     std::cout << "Send RPC to chunkserver fail, error content: "
               << cntl.ErrorText() << std::endl;
     return -1;
@@ -97,9 +96,8 @@ bool ChunkServerClient::CheckChunkServerOnline() {
     return false;
 }
 
-int ChunkServerClient::GetCopysetStatus(
-                                const CopysetStatusRequest& request,
-                                CopysetStatusResponse* response) {
+int ChunkServerClient::GetCopysetStatus(const CopysetStatusRequest& request,
+                                        CopysetStatusResponse* response) {
     brpc::Controller cntl;
     curve::chunkserver::CopysetService_Stub stub(&channel_);
     uint64_t retryTimes = 0;
@@ -112,17 +110,16 @@ int ChunkServerClient::GetCopysetStatus(
             continue;
         }
         if (response->status() !=
-                        COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS) {
+            COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS) {
             std::cout << "GetCopysetStatus fail, request: "
                       << request.DebugString()
-                      << ", errCode: "
-                      << response->status() << std::endl;
+                      << ", errCode: " << response->status() << std::endl;
             return -1;
         } else {
             return 0;
         }
     }
-    // 只打最后一次失败的原因
+    // Outputs only the reason for the last failure.
     std::cout << "Send RPC to chunkserver fail, error content: "
               << cntl.ErrorText() << std::endl;
     return -1;
@@ -151,15 +148,14 @@ int ChunkServerClient::GetChunkHash(const Chunk& chunk,
         if (response.status() != CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS) {
             std::cout << "GetCopysetStatus fail, request: "
                       << request.DebugString()
-                      << ", errCode: "
-                      << response.status() << std::endl;
+                      << ", errCode: " << response.status() << std::endl;
             return -1;
         } else {
             *chunkHash = response.hash();
             return 0;
         }
     }
-    // 只打最后一次失败的原因
+    // Outputs only the reason for the last failure.
     std::cout << "Send RPC to chunkserver fail, error content: "
               << cntl.ErrorText() << std::endl;
     return -1;

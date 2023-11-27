@@ -22,8 +22,8 @@
 
 #include "nebd/src/part1/async_request_closure.h"
 
-#include <glog/logging.h>
 #include <bthread/bthread.h>
+#include <glog/logging.h>
 
 #include <algorithm>
 #include <memory>
@@ -40,11 +40,10 @@ void AsyncRequestClosure::Run() {
         int64_t sleepUs = GetRpcRetryIntervalUs(aioCtx->retryCount);
         LOG_EVERY_SECOND(WARNING)
             << OpTypeToString(aioCtx->op) << " rpc failed"
-            << ", error = " << cntl.ErrorText()
-            << ", fd = " << fd
+            << ", error = " << cntl.ErrorText() << ", fd = " << fd
             << ", log id = " << cntl.log_id()
-            << ", retryCount = " << aioCtx->retryCount
-            << ", sleep " << (sleepUs / 1000) << " ms";
+            << ", retryCount = " << aioCtx->retryCount << ", sleep "
+            << (sleepUs / 1000) << " ms";
         bthread_usleep(sleepUs);
         Retry();
     } else {
@@ -52,7 +51,7 @@ void AsyncRequestClosure::Run() {
         if (nebd::client::RetCode::kOK == retCode) {
             DVLOG(6) << OpTypeToString(aioCtx->op) << " success, fd = " << fd;
 
-            // 读请求复制数据
+            // Read Request Copy Data
             if (aioCtx->op == LIBAIO_OP::LIBAIO_OP_READ) {
                 cntl.response_attachment().copy_to(
                     aioCtx->buf, cntl.response_attachment().size());
@@ -73,8 +72,8 @@ void AsyncRequestClosure::Run() {
 }
 
 int64_t AsyncRequestClosure::GetRpcRetryIntervalUs(int64_t retryCount) const {
-    // EHOSTDOWN: 找不到可用的server。
-    // server可能停止服务了，也可能正在退出中(返回了ELOGOFF)
+    // EHOSTDOWN: Unable to find an available server.
+    // The server may have stopped serving or may be exiting (returning ELOGOFF)
     if (cntl.ErrorCode() == EHOSTDOWN) {
         return requestOption_.rpcHostDownRetryIntervalUs;
     }
@@ -83,10 +82,9 @@ int64_t AsyncRequestClosure::GetRpcRetryIntervalUs(int64_t retryCount) const {
         return requestOption_.rpcRetryIntervalUs;
     }
 
-    return std::max(
-        requestOption_.rpcRetryIntervalUs,
-        std::min(requestOption_.rpcRetryIntervalUs * retryCount,
-                 requestOption_.rpcRetryMaxIntervalUs));
+    return std::max(requestOption_.rpcRetryIntervalUs,
+                    std::min(requestOption_.rpcRetryIntervalUs * retryCount,
+                             requestOption_.rpcRetryMaxIntervalUs));
 }
 
 void AsyncRequestClosure::Retry() const {
