@@ -108,8 +108,9 @@ func (sCmd *SpaceCommand) updateTable() {
 	row[cobrautil.ROW_TOTAL] = fmt.Sprintf("%d", spaceInfo.GetSize())
 	row[cobrautil.ROW_USED] = fmt.Sprintf("%d", spaceInfo.GetSize()-spaceInfo.GetAvailable())
 	row[cobrautil.ROW_FREE] = fmt.Sprintf("%d", spaceInfo.GetAvailable())
-	row[cobrautil.ROW_FILE_NUM] = fmt.Sprintf("%d", 1)
-	row[cobrautil.ROW_INODE_NUM] = fmt.Sprintf("%d", 2)
+	// TODO: Get file_num and inode_num info by Rpc
+	row[cobrautil.ROW_FILE_NUM] = fmt.Sprintf("%d", 0)
+	row[cobrautil.ROW_INODE_NUM] = fmt.Sprintf("%d", 0)
 
 	list := cobrautil.Map2List(row, sCmd.Header)
 	sCmd.TableNew.Append(list)
