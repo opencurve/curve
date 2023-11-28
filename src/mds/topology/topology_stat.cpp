@@ -56,7 +56,17 @@ void TopologyStatImpl::UpdateChunkServerStat(ChunkServerIdType csId,
         int64_t diffUsed = stat.chunkSizeUsedBytes -
             it->second.chunkSizeUsedBytes;
         physicalPoolStats_[belongPhysicalPoolId].chunkFilePoolUsed += diffUsed;
-
+        VLOG(3) << "UpdateChunkServerStat, chunkserver stat update,"
+                  << " chunkserverId = "
+                  << csId
+                  << ", chunkFilePoolSize = "
+                  << stat.chunkFilepoolSize
+                  << ", chunkFilePoolUsed = "
+                  << stat.chunkSizeUsedBytes
+                  << ", diff = "
+                  << diff
+                  << ", diffUsed = "
+                  << diffUsed;
         if (chunkFilePoolAllocHelp_->GetUseChunkFilepool()) {
             if (stat.chunkSizeUsedBytes >
                     (stat.chunkFilepoolSize * available / 100)) {

@@ -73,8 +73,6 @@ struct FilePoolState {
     uint32_t    metaPageSize = 0;
     // io alignment
     uint32_t    blockSize = 0;
-    // filepool Capacity
-    uint64_t   capacity = 0;
 };
 
 struct FilePoolMeta {
@@ -172,8 +170,6 @@ class CURVE_CACHELINE_ALIGNMENT FilePool {
      * Get the current chunkfile pool size
      */
     virtual size_t Size();
-
-    virtual size_t Capacity();
 
     /**
      * Get the allocation status of FilePool
