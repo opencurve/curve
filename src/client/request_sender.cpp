@@ -115,8 +115,11 @@ int RequestSender::WriteChunk(RequestContext *ctx,
     request.set_chunkindex(ctx->chunkIndex_);
     request.set_version(ctx->version_);
 
-    if (ctx->filetype_ == FileType::INODE_CLONE_PAGEFILE) {
+    if (ctx->originFileId_ != 0) {
         request.set_originfileid(ctx->originFileId_);
+    }
+
+    if (ctx->filetype_ == FileType::INODE_CLONE_PAGEFILE) {
         for (int i = 0; i < ctx->cloneChain_.size(); i++) {
             auto cinfo = request.add_clones();
             cinfo->set_fileid(ctx->cloneChain_[i].fileId);

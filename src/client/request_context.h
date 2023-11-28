@@ -123,8 +123,8 @@ struct CURVE_CACHELINE_ALIGNMENT RequestContext {
 
     FileType            filetype_;
     std::vector<CloneInfo> cloneChain_;
-    uint64_t            originFileId_;
-    uint64_t            chunkIndex_;
+    uint64_t            originFileId_ = 0;
+    uint64_t            chunkIndex_ = 0;
 
     uint32_t version_;
 
