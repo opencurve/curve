@@ -66,6 +66,7 @@ void TrashManager::ScanEveryTrash() {
             pair.second->ScanTrash();
         }
     }
+    abortTrash_->ScanTrash();
 }
 
 void TrashManager::Remove(uint32_t partitionId) {
@@ -94,6 +95,22 @@ void TrashManager::ListItems(std::list<TrashItem> *items) {
         pair.second->ListItems(&newItems);
         items->splice(items->end(), newItems);
     }
+}
+
+void TrashManager::BuildTrashItems() {
+    VLOG(3) << "build trash items start.";
+    std::list<std::string> items;
+    kvStorage_->LoadAll(items);
+    std::vector<std::string> names;
+    int size = 0;
+    for (auto iter: items) {
+        curve::common::SplitString(iter , ":", &names);
+        VLOG(3) << "build trash items: " << iter << ", size: " << ++size
+            << ", " << names[names.size() - 1 ] << ", " << names[names.size() - 2 ] ;
+        abortTrash_->Add(std::stoull(names[names.size() - 2 ]),
+          std::stoull(names[names.size() - 1 ]), 0);
+    }
+    VLOG(3) << "build trash items over.";
 }
 
 }  // namespace metaserver

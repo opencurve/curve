@@ -60,6 +60,7 @@ using KVStorage = ::curvefs::metaserver::storage::KVStorage;
 using Key4S3ChunkInfoList = ::curvefs::metaserver::storage::Key4S3ChunkInfoList;
 
 using ::curvefs::metaserver::storage::MemoryStorage;
+using ::curvefs::metaserver::storage::NameGenerator;
 using ::curvefs::metaserver::storage::RocksDBStorage;
 using ::curvefs::metaserver::storage::StorageOptions;
 
@@ -87,6 +88,8 @@ MetaStoreImpl::MetaStoreImpl(copyset::CopysetNode *node,
       storageOptions_(storageOptions) {}
 
 bool MetaStoreImpl::Load(const std::string &pathname) {
+LOG(ERROR) << "whs load start";
+
     // Load from raft snap file to memory
     WriteLockGuard writeLockGuard(rwLock_);
     MetaStoreFStream fstream(&partitionMap_, kvStorage_,
@@ -147,6 +150,9 @@ bool MetaStoreImpl::Load(const std::string &pathname) {
     }
 
     startCompacts();
+
+
+LOG(ERROR) << "whs load end";
     return true;
 }
 
@@ -859,7 +865,33 @@ bool MetaStoreImpl::InitStorage() {
         return false;
     }
 
-    return kvStorage_->Open();
+
+    if (!kvStorage_->Open()) {
+        return false;
+    }
+
+    return true;
+}
+
+void MetaStoreImpl::BuildTrashList() {
+
+    std::shared_ptr<NameGenerator> nameGen = std::make_shared<NameGenerator>(0);
+
+    std::shared_ptr<InodeStorage> inodeStorage =
+        std::make_shared<InodeStorage>(kvStorage_, nameGen, 1);
+
+    auto trash = std::make_shared<TrashImpl>(inodeStorage);
+
+    TrashManager::GetInstance().BuildAbortTrash(kvStorage_, trash);
+}
+
+void MetaStoreImpl::LoadAll() {
+    LOG(ERROR) << "InitStorage start";
+     //    kvStorage_->LoadAll();
+    LOG(ERROR) << "InitStorage start01";
+
+    BuildTrashList();
+    LOG(ERROR) << "InitStorage start02";
 }
 
 }  // namespace metaserver
