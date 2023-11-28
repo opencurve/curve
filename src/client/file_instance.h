@@ -118,12 +118,10 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
 
     /**
      * @brief 获取当前instance对应的文件信息
-     *
+     * @param force whether force to get file info from mds
      * @return 当前instance对应文件的信息
      */
-    FInfo GetCurrentFileInfo() const {
-        return finfo_;
-    }
+    FInfo GetCurrentFileInfo(bool force = false);
 
     static FileInstance* NewInitedFileInstance(
         const FileServiceOption& fileServiceOption,

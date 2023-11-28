@@ -475,7 +475,7 @@ int FileClient::StatFile(int fd, FileStatInfo *finfo) {
             return -LIBCURVE_ERROR::FAILED;
         }
         FileInstance *instance = fileserviceMap_[fd];
-        fi = instance->GetCurrentFileInfo();
+        fi = instance->GetCurrentFileInfo(/*force=*/true);
     }
     BuildFileStatInfo(fi, finfo);
 
