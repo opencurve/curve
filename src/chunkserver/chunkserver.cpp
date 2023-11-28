@@ -299,6 +299,7 @@ int ChunkServer::Run(int argc, char** argv) {
     heartbeatOptions.chunkFilePool = chunkfilePool;
     heartbeatOptions.chunkserverId = metadata.id();
     heartbeatOptions.chunkserverToken = metadata.token();
+    heartbeatOptions.useChunkFilePoolAsWalPool = useChunkFilePoolAsWalPool;
     LOG_IF(FATAL, heartbeat_.Init(heartbeatOptions) != 0)
         << "Failed to init Heartbeat manager.";
 

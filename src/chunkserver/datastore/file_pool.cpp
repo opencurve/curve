@@ -524,7 +524,6 @@ bool FilePool::ScanInternal() {
         }
     }
 
-    currentState_.capacity = tmpvec.size();
     currentState_.preallocatedChunksLeft = tmpvec.size();
 
     std::unique_lock<std::mutex> lk(mtx_);
@@ -537,10 +536,6 @@ bool FilePool::ScanInternal() {
 size_t FilePool::Size() {
     std::unique_lock<std::mutex> lk(mtx_);
     return tmpChunkvec_.size();
-}
-
-size_t FilePool::Capacity() {
-    return currentState_.capacity;
 }
 
 FilePoolState FilePool::GetState() const {

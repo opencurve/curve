@@ -1237,7 +1237,7 @@ CSErrorCode CSChunkFile_V2::Delete(SequenceNum sn)  {
     if (ret < 0)
         return CSErrorCode::InternalError;
 
-    DVLOG(9) << "Chunk deleted."
+    LOG(INFO) << "Chunk deleted."
               << "ChunkID: " << chunkId_
               << ", request sn: " << sn
               << ", chunk sn: " << metaPage_.sn;
