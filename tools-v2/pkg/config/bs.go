@@ -147,11 +147,11 @@ const (
 	CURVEBS_DEFAULT_SNAPSHOT_ID       = "*"
 	CURVEBS_FAILED                    = "failed"
 	VIPER_CURVEBS_FAILED              = "curvebs.failed"
-	CURVEBS_CHUNK_SIZE				  = "chunksize"
-	VIPER_CURVEBS_CHUNK_SIZE		  = "curvebs.chunksize"
-	CURVEBS_CHECK_HASH				  = "checkhash"
-	VIPER_CURVEBS_CHECK_HASH		  = "curvebs.checkhash"
-	CURVEBS_DEFAULT_CHECK_HASH		  = false
+	CURVEBS_CHUNK_SIZE                = "chunksize"
+	VIPER_CURVEBS_CHUNK_SIZE          = "curvebs.chunksize"
+	CURVEBS_CHECK_HASH                = "checkhash"
+	VIPER_CURVEBS_CHECK_HASH          = "curvebs.checkhash"
+	CURVEBS_DEFAULT_CHECK_HASH        = false
 )
 
 var (
@@ -207,8 +207,8 @@ var (
 		CURVEBS_TASKID:              VIPER_CURVEBS_TASKID,
 		CURVEBS_SNAPSHOT_ID:         VIPER_CURVEBS_SNAPSHOT_ID,
 		CURVEBS_FAILED:              VIPER_CURVEBS_FAILED,
-		CURVEBS_CHUNK_SIZE:			 VIPER_CURVEBS_CHUNK_SIZE,
-		CURVEBS_CHECK_HASH:			 VIPER_CURVEBS_CHECK_HASH,
+		CURVEBS_CHUNK_SIZE:          VIPER_CURVEBS_CHUNK_SIZE,
+		CURVEBS_CHECK_HASH:          VIPER_CURVEBS_CHECK_HASH,
 	}
 
 	BSFLAG2DEFAULT = map[string]interface{}{
@@ -232,7 +232,7 @@ var (
 		CURVEBS_ALL:            CURVEBS_DEFAULT_ALL,
 		CURVEBS_LOGIC_POOL_ID:  CURVEBS_DEFAULT_LOGIC_POOL_ID,
 		CURVEBS_COPYSET_ID:     CURVEBS_DEFAULT_COPYSET_ID,
-		CURVEBS_CHECK_HASH:		CURVEBS_DEFAULT_CHECK_HASH,
+		CURVEBS_CHECK_HASH:     CURVEBS_DEFAULT_CHECK_HASH,
 		CURVEBS_SNAPSHOT_ID:    CURVEBS_DEFAULT_SNAPSHOT_ID,
 	}
 )
@@ -675,8 +675,8 @@ func AddBsSnapshotIDOptionFlag(cmd *cobra.Command) {
 	AddBsStringOptionFlag(cmd, CURVEBS_SNAPSHOT_ID, "snapshot seqId")
 }
 
-func AddBsTaskTypeOptionFlag(cmd *cobra.Command) {
-	AddBsStringOptionFlag(cmd, CURVEBS_TYPE, "only query target type (clone or recover)")
+func AddBsSnapshotIDRequiredFlag(cmd *cobra.Command) {
+	AddBsStringRequiredFlag(cmd, CURVEBS_SNAPSHOT_ID, "snapshot id")
 }
 
 // get stingslice flag
