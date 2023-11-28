@@ -55,38 +55,55 @@ void TrashImpl::Init(const TrashOption &option) {
     isStop_ = false;
 }
 
-void TrashImpl::Add(uint32_t fsId, uint64_t inodeId, uint32_t dtime) {
+void TrashImpl::Add(uint32_t fsId, uint64_t inodeId, uint32_t dtime, bool deleted) {
     TrashItem item;
     item.fsId = fsId;
     item.inodeId = inodeId;
     item.dtime = dtime;
+    item.deleted = deleted;
 
     LockGuard lg(itemsMutex_);
     if (isStop_) {
         return;
     }
     trashItems_.push_back(item);
-    VLOG(6) << "Add Trash Item success, item.fsId = " << item.fsId
+    VLOG(0) << "whs add trash item success, item.fsId = " << item.fsId
             << ", item.inodeId = " << item.inodeId
-            << ", item.dtime = " << item.dtime;
+            << ", item.dtime = " << item.dtime
+            << ", item.deleted = " << item.deleted;
 }
 
 void TrashImpl::ScanTrash() {
+    VLOG(0) << "whs ScanTrash start.";
     LockGuard lgScan(scanMutex_);
     std::list<TrashItem> temp;
     {
         LockGuard lgItems(itemsMutex_);
         trashItems_.swap(temp);
     }
+    for (auto it = temp.begin(); it != temp.end(); it++) {
+        VLOG(0) << "11whs ScanTrash , " << "item.fsId = " << it->fsId
+                << ", item.inodeId = " << it->inodeId
+                << ", item.dtime = " << it->dtime << ", " << temp.size() << ", " << it->deleted;
+    }
 
     for (auto it = temp.begin(); it != temp.end();) {
         if (isStop_) {
+            VLOG(0) << "whs ScanTrash stop.";
             return;
         }
+        VLOG(0) << "whs  ScanTrash , " << "item.fsId = " << it->fsId
+                << ", item.inodeId = " << it->inodeId
+                << ", item.dtime = " << it->dtime;
         if (NeedDelete(*it)) {
             MetaStatusCode ret = DeleteInodeAndData(*it);
             if (MetaStatusCode::NOT_FOUND == ret) {
+                  VLOG(0) << "whs ScanTrash, inode not exist, fsId = " << it->fsId
+                        << ", inodeId = " << it->inodeId;
+                ClearDeleted(*it);
                 it = temp.erase(it);
+                VLOG(0) << "whs ScanTrash, inode not exist, fsId = " << it->fsId
+                        << ", inodeId = " << it->inodeId;
                 continue;
             }
             if (ret != MetaStatusCode::OK) {
@@ -96,18 +113,45 @@ void TrashImpl::ScanTrash() {
                 it++;
                 continue;
             }
-            VLOG(6) << "Trash Delete Inode, fsId = " << it->fsId
+            VLOG(0) << "whs Trash Delete Inode, fsId = " << it->fsId
                     << ", inodeId = " << it->inodeId;
+            ClearDeleted(*it);
             it = temp.erase(it);
         } else {
+            VLOG(0) << "whs ScanTrash, inode not expired, fsId = " << it->fsId
+                    << ", inodeId = " << it->inodeId;
             it++;
         }
     }
 
     {
+
         LockGuard lgItems(itemsMutex_);
+
+         for (auto it = temp.begin(); it != temp.end(); it++) {
+        VLOG(0) << "00whs ScanTrash , " << "item.fsId = " << it->fsId
+                << ", item.inodeId = " << it->inodeId
+                << ", item.dtime = " << it->dtime;
+    }
+
+
         trashItems_.splice(trashItems_.end(), temp);
     }
+    VLOG(0) << "whs ScanTrash end.";
+
+}
+
+MetaStatusCode TrashImpl::ClearDeleted(const TrashItem &item) {
+    if (item.deleted) {
+        VLOG(0) << "ClearDeleted: " << item.fsId << ", " << item.inodeId
+                << ", " << item.dtime << ", " << item.deleted ;
+        inodeStorage_->ClearDelKey(Key4Inode(item.fsId, item.inodeId));
+    } else {
+
+           VLOG(0) << "ClearDeleted: " << item.fsId << ", " << item.inodeId
+                << ", " << item.dtime << ", " << item.deleted ;
+    }
+    return MetaStatusCode::OK;
 }
 
 void TrashImpl::StopScan() {
@@ -176,7 +220,8 @@ uint64_t TrashImpl::GetFsRecycleTimeHour(uint32_t fsId) {
     return recycleTimeHour;
 }
 
-MetaStatusCode TrashImpl::DeleteInodeAndData(const TrashItem &item) {
+MetaStatusCode TrashImpl::
+DeleteInodeAndData(const TrashItem &item) {
     Inode inode;
     MetaStatusCode ret =
         inodeStorage_->Get(Key4Inode(item.fsId, item.inodeId), &inode);
@@ -230,9 +275,11 @@ MetaStatusCode TrashImpl::DeleteInodeAndData(const TrashItem &item) {
         if (inode.s3chunkinfomap().empty()) {
             LOG(WARNING) << "GetInode chunklist empty, fsId = " << item.fsId
                 << ", inodeId = " << item.inodeId;
+            // Todo(hzwuhongsong ：the s3chunkinfomap is empty too as empty file
+            // empty file will never be deleted
             return MetaStatusCode::NOT_FOUND;
         }
-        VLOG(9) << "DeleteInodeAndData, inode: "
+        VLOG(0) << "whs: DeleteInodeAndData, inode: "
             << inode.ShortDebugString();
         int retVal = s3Adaptor_->Delete(inode);
         if (retVal != 0) {

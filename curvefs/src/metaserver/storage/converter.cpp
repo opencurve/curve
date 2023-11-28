@@ -23,6 +23,7 @@
 #include <inttypes.h>
 #include <glog/logging.h>
 
+#include <bitset>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -118,9 +119,37 @@ size_t NameGenerator::GetFixedLength() {
 }
 
 std::string NameGenerator::Format(KEY_TYPE type, uint32_t partitionId) {
+    VLOG(0) << "whs NameGenerator::Format, " << partitionId;
     char buf[sizeof(partitionId)];
     std::memcpy(buf, reinterpret_cast<char*>(&partitionId), sizeof(buf));
+    VLOG(0) << "whs NameGenerator::Format1, " << buf;
+
+   uint32_t num = *reinterpret_cast<uint32_t*>(buf);
+
+    VLOG(0) << "whs NameGenerator::Format1.1, " << num << ", " << sizeof(buf) << ", " << sizeof(partitionId) << sizeof(int);
+    std::string partitionIdStr = std::to_string(partitionId);
+    VLOG(0) << "whs NameGenerator::Format2, " << partitionIdStr;
+
+    absl::string_view tmp = absl::string_view(buf, sizeof(buf));
+
+    std::string tmp2(tmp);
+        VLOG(0) << "whs NameGenerator::Format4, " << tmp2;
+
+    std::string binaryValue = std::bitset<sizeof(int) * 8>(partitionId).to_string();
+        VLOG(0) << "whs NameGenerator::Format5, " << binaryValue;
+
+    // std::bitset<sizeof(int) * 8> bitsetValue(tmp2);
+    // uint32_t p = bitsetValue.to_ulong();
+
+
+
+   // int p2 = bitsetValue.to_ulong();
+
+
+
     return absl::StrCat(type, kDelimiter, absl::string_view(buf, sizeof(buf)));
+    // return absl::StrCat(type, kDelimiter, partitionIdStr);
+    // return absl::StrCat(type, kDelimiter, binaryValue);
 }
 
 Key4Inode::Key4Inode() : fsId(0), inodeId(0) {}

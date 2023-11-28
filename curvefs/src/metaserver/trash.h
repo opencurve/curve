@@ -51,10 +51,12 @@ struct TrashItem {
     uint32_t fsId;
     uint64_t inodeId;
     uint32_t dtime;
+    bool deleted;
     TrashItem()
         : fsId(0),
           inodeId(0),
-          dtime(0) {}
+          dtime(0),
+          deleted(false) {}
 };
 
 struct TrashOption {
@@ -78,7 +80,7 @@ class Trash {
 
     virtual void Init(const TrashOption &option) = 0;
 
-    virtual void Add(uint32_t fsId, uint64_t inodeId, uint32_t dtime) = 0;
+    virtual void Add(uint32_t fsId, uint64_t inodeId, uint32_t dtime, bool deleted = false) = 0;
 
     virtual void ListItems(std::list<TrashItem> *items) = 0;
 
@@ -98,7 +100,7 @@ class TrashImpl : public Trash {
 
     void Init(const TrashOption &option) override;
 
-    void Add(uint32_t fsId, uint64_t inodeId, uint32_t dtime) override;
+    void Add(uint32_t fsId, uint64_t inodeId, uint32_t dtime, bool deleted) override;
 
     void ListItems(std::list<TrashItem> *items) override;
 
@@ -114,6 +116,8 @@ class TrashImpl : public Trash {
     MetaStatusCode DeleteInodeAndData(const TrashItem &item);
 
     uint64_t GetFsRecycleTimeHour(uint32_t fsId);
+
+    MetaStatusCode ClearDeleted(const TrashItem &item);
 
  private:
     std::shared_ptr<InodeStorage> inodeStorage_;

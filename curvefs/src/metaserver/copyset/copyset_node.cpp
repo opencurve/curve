@@ -161,6 +161,7 @@ bool CopysetNode::Init(const CopysetNodeOptions& options) {
 }
 
 bool CopysetNode::Start() {
+    VLOG(3) << "copyset is starting, copyset: " << name_;
     if (!raftNode_) {
         LOG(ERROR) << "RaftNode didn't created, copyset: " << name_;
         return false;
@@ -170,8 +171,8 @@ bool CopysetNode::Start() {
         LOG(ERROR) << "Fail to init raft node, copyset: " << name_;
         return false;
     }
-
-    LOG(INFO) << "Run copyset success, copyset: " << name_;
+    metaStore_->LoadDeletedInodes();
+    VLOG(3) << "copyset start success, copyset: " << name_;
     return true;
 }
 

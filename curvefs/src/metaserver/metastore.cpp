@@ -25,6 +25,7 @@
 #include <glog/logging.h>
 #include <sys/types.h>
 
+#include <bitset>
 #include <memory>
 #include <thread>  // NOLINT
 #include <unordered_map>
@@ -60,6 +61,7 @@ using KVStorage = ::curvefs::metaserver::storage::KVStorage;
 using Key4S3ChunkInfoList = ::curvefs::metaserver::storage::Key4S3ChunkInfoList;
 
 using ::curvefs::metaserver::storage::MemoryStorage;
+using ::curvefs::metaserver::storage::NameGenerator;
 using ::curvefs::metaserver::storage::RocksDBStorage;
 using ::curvefs::metaserver::storage::StorageOptions;
 
@@ -87,6 +89,8 @@ MetaStoreImpl::MetaStoreImpl(copyset::CopysetNode *node,
       storageOptions_(storageOptions) {}
 
 bool MetaStoreImpl::Load(const std::string &pathname) {
+LOG(ERROR) << "whs load start";
+
     // Load from raft snap file to memory
     WriteLockGuard writeLockGuard(rwLock_);
     MetaStoreFStream fstream(&partitionMap_, kvStorage_,
@@ -147,6 +151,9 @@ bool MetaStoreImpl::Load(const std::string &pathname) {
     }
 
     startCompacts();
+
+
+LOG(ERROR) << "whs load end";
     return true;
 }
 
@@ -863,7 +870,37 @@ bool MetaStoreImpl::InitStorage() {
         return false;
     }
 
-    return kvStorage_->Open();
+
+    if (!kvStorage_->Open()) {
+        return false;
+    }
+
+    return true;
+}
+
+void MetaStoreImpl::LoadDeletedInodes() {
+    LOG(ERROR) << "InitStorage start";
+    std::list<std::string> items;
+    // whs: 好像很慢很慢, 11条目录都加载了好久
+    kvStorage_->LoadDeletedInodes(items);
+    VLOG(3) << "build trash items size: " << items.size();
+    std::vector<std::string> names;
+    for (auto iter : items) {
+        curve::common::SplitString(iter , ":", &names);
+        char* tmp = const_cast<char*>(names[2].c_str());
+        uint32_t partitionId = *reinterpret_cast<uint32_t*>(tmp);
+        VLOG(0) << "whs partitionId: " << partitionId;
+        std::shared_ptr<Trash> trash =
+          TrashManager::GetInstance().GetTrash(partitionId);
+        if (nullptr == trash) {
+            VLOG(0) << "whs trash is null: " << partitionId;
+            continue;
+        }
+        trash->Add(std::stoul(names[names.size() - 2 ]),
+          std::stoull(names[names.size() - 1 ]), 0, true);
+    }
+
+    VLOG(3) << "build trash items over.";
 }
 
 }  // namespace metaserver

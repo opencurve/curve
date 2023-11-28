@@ -185,6 +185,77 @@ MetaStatusCode InodeStorage::Insert(const Inode& inode, int64_t logIndex) {
     return MetaStatusCode::STORAGE_INTERNAL_ERROR;
 }
 
+MetaStatusCode InodeStorage::UpdateDeletingKey(const Inode& inode, int64_t logIndex) {
+    WriteLockGuard lg(rwLock_);
+    Key4Inode key(inode.fsid(), inode.inodeid());
+    std::string skey = conv_.SerializeToString(key);
+    VLOG(0) << "whs update deleting key, " << inode.inodeid();
+    const char* step = "Begin transaction";
+    std::shared_ptr<storage::StorageTransaction> txn;
+    txn = kvStorage_->BeginTransaction();
+    if (txn == nullptr) {
+        LOG(ERROR) << "Begin transaction failed";
+        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    }
+    auto rc = txn->HSetDeleting(table4Inode_, skey , inode);
+    step = "insert inode ";
+    if (rc.ok()) {
+        // delete key
+       // rc = DeleteInternal(txn.get(), key);
+       // 这里的删除只能最后删除，不然在DeleteInodeAndData中有问题
+       //  rc = txn->HDel(table4Inode_, skey);
+        step = "delete inode ";
+    }
+     if (rc.ok()) {
+        rc = SetAppliedIndex(txn.get(), logIndex);
+        step = "Insert applied index to transaction";
+    }
+    if (rc.ok()) {
+        rc = txn->Commit();
+        step = "commit";
+    }
+    if (rc.ok()) {
+        VLOG(0) << "set deleting key ok";
+        return MetaStatusCode::OK;
+    }
+    LOG(ERROR) << step << "failed, status = " << rc.ToString();
+    if (txn != nullptr && !txn->Rollback().ok()) {
+        LOG(ERROR) << "Rollback delete inode transaction failed, status = "
+                   << rc.ToString();
+    }
+    return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+}
+
+MetaStatusCode InodeStorage::ClearDelKey(const Key4Inode& key) {
+    WriteLockGuard lg(rwLock_);
+    std::string skey = conv_.SerializeToString(key);
+    VLOG(0) << "clear deleting key start, " << skey;
+    std::shared_ptr<storage::StorageTransaction> txn = nullptr;
+    const char* step = "Begin transaction";
+    txn = kvStorage_->BeginTransaction();
+    if (txn == nullptr) {
+        LOG(ERROR) << "Begin transaction failed";
+        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    }
+    step = "Delete inode from transaction";
+    auto s = txn->HClearDeleting(table4Inode_, skey);
+    if (s.ok()) {
+        step = "Delete inode";
+        s = txn->Commit();
+    }
+    if (s.ok()) {
+        VLOG(0) << "clear deleting key ok";
+        return MetaStatusCode::OK;
+    }
+    LOG(ERROR) << step << " failed, status = " << s.ToString();
+    if (txn != nullptr && !txn->Rollback().ok()) {
+        LOG(ERROR) << "Rollback delete inode transaction failed, status = "
+                   << s.ToString();
+    }
+    return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+
+}
+
 MetaStatusCode InodeStorage::Get(const Key4Inode& key, Inode* inode) {
     ReadLockGuard lg(rwLock_);
     std::string skey = conv_.SerializeToString(key);
@@ -471,7 +542,6 @@ MetaStatusCode InodeStorage::Clear() {
     // because if we fail stop, we will replay
     // raft logs and clear it again
     WriteLockGuard lg(rwLock_);
-
     Status s = kvStorage_->HClear(table4Inode_);
     if (!s.ok()) {
         LOG(ERROR) << "InodeStorage clear inode table failed, status = "
@@ -492,7 +562,6 @@ MetaStatusCode InodeStorage::Clear() {
             << s.ToString();
         return MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
-
     s = kvStorage_->HClear(table4InodeAuxInfo_);
     if (!s.ok()) {
         LOG(ERROR)

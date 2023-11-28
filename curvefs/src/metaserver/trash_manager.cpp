@@ -56,6 +56,7 @@ void TrashManager::ScanLoop() {
 }
 
 void TrashManager::ScanEveryTrash() {
+    VLOG(0) << "whs scan trash start.";
     std::map<uint32_t, std::shared_ptr<Trash>> temp;
     {
         curve::common::ReadLockGuard lg(rwLock_);
