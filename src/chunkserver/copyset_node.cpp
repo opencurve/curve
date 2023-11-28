@@ -281,7 +281,7 @@ uint64_t CopysetNode::GetHashCode(const ChunkRequest* request) {
         version = request->version();
     }
     if (version == curve::common::kBaseFileVersion) {
-        hashcode = std::hash<uint64_t>{} (request->fileid());
+        hashcode = std::hash<uint64_t>{} (request->chunkid());
     } else {
         // judge if has originfileId
         if (request->has_originfileid()) {
@@ -298,7 +298,7 @@ uint64_t CopysetNode::GetHashCode(const ChunkRequest* request) {
                 break;
 
             default:
-                hashcode = std::hash<uint64_t>{} (request->fileid());
+                hashcode = std::hash<uint64_t>{} (request->chunkid());
                 break;
             }
         // has no originfileId it is the origin file just use the fileid
@@ -314,7 +314,7 @@ uint64_t CopysetNode::GetHashCode(const ChunkRequest* request) {
                 break;
 
             default:
-                hashcode = std::hash<uint64_t>{} (request->fileid());
+                hashcode = std::hash<uint64_t>{} (request->chunkid());
                 break;
             }
         }

@@ -206,11 +206,10 @@ bool Splitor::AssignInternal(IOTracker* iotracker, MetaCache* metaCache,
             ctx->sourceInfo_ =
                 CalcRequestSourceInfo(iotracker, metaCache, chunkidx);
         }
-        if (fileInfo->filetype == FileType::INODE_CLONE_PAGEFILE) {
-            ret = AssignCloneFileInfo(
-                iotracker, &templist, mdsclient,
-                fileInfo, chunkidx, chunkIdInfo);
-        }
+
+        ret = AssignCloneFileInfo(
+            iotracker, &templist, mdsclient,
+            fileInfo, chunkidx, chunkIdInfo);
 
         targetlist->insert(targetlist->end(), templist.begin(),
                             templist.end());
@@ -454,8 +453,11 @@ int Splitor::AssignCloneFileInfo(IOTracker* iotracker,
     ChunkIndex chunkidx,
     const ChunkIDInfo &chunkIdInfo) {
     for (auto& ctx : *targetlist) {
+        // always take originFileId
         ctx->originFileId_ = chunkIdInfo.originFileId_;
-        ctx->cloneChain_ = fileInfo->cloneChain;
+        if (fileInfo->filetype == FileType::INODE_CLONE_PAGEFILE) {
+            ctx->cloneChain_ = fileInfo->cloneChain;
+        }
     }
     return 0;
 }

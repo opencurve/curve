@@ -219,6 +219,15 @@ void DeleteChunkRequest::OnApply(uint64_t index,
 void DeleteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                                         const ChunkRequest &request,
                                         const butil::IOBuf &data) {
+    uint64_t originfiledid = request.originfileid();
+    uint64_t filedid = request.fileid();
+    VLOG(9) << "DeleteChunkRequest::OnApplyFromLog: "
+            << " logic pool id: " << request.logicpoolid()
+            << " copyset id: " << request.copysetid()
+            << " chunkid: " << request.chunkid()
+            << " originfileid: " << originfiledid
+            << " fileid: " << filedid
+            << " version: " << request.version();
     // NOTE: 处理过程中优先使用参数传入的datastore/request
     auto ret = datastore->DeleteChunk(request.chunkid(),
         request.sn(),
@@ -650,6 +659,15 @@ void WriteChunkRequest::OnApply(uint64_t index,
 void WriteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                                        const ChunkRequest &request,
                                        const butil::IOBuf &data) {
+    uint64_t originfiledid = request.originfileid();
+    uint64_t filedid = request.fileid();
+    VLOG(9) << "WriteChunkRequest::OnApplyFromLog: "
+            << " logic pool id: " << request.logicpoolid()
+            << " copyset id: " << request.copysetid()
+            << " chunkid: " << request.chunkid()
+            << " originfileid: " << originfiledid
+            << " fileid: " << filedid
+            << " version: " << request.version();
     // NOTE: 处理过程中优先使用参数传入的datastore/request
     uint32_t cost;
     std::string  cloneSourceLocation;
