@@ -70,6 +70,7 @@ struct HeartbeatOptions {
     uint32_t                port;
     uint32_t                intervalSec;
     uint32_t                timeout;
+    bool                    useChunkFilePoolAsWalPool;
     CopysetNodeManager*     copysetNodeManager;
 
     std::shared_ptr<LocalFileSystem> fs;

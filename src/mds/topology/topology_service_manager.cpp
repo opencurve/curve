@@ -82,13 +82,9 @@ void TopologyServiceManager::RegistChunkServer(
 
     std::string hostIp = request->hostip();
     uint32_t port = request->port();
-    ChunkServerStat stat;
     bool useChunkFilePoolAsWalPool = false;
     uint32_t useChunkFilePoolAsWalPoolReserve;
     bool useChunkFilepool = false;
-    if (request->has_chunkfilepoolsize()) {
-        stat.chunkFilepoolSize = request->chunkfilepoolsize();
-    }
     if (request->has_usechunkfilepoolaswalpool()) {
         useChunkFilepool = true;
         useChunkFilePoolAsWalPool = request->usechunkfilepoolaswalpool();
@@ -135,7 +131,7 @@ void TopologyServiceManager::RegistChunkServer(
             response->set_statuscode(kTopoErrCodeSuccess);
             response->set_chunkserverid(cs.GetId());
             response->set_token(cs.GetToken());
-            topoStat_->UpdateChunkServerStat(cs.GetId(), stat);
+
             topologyChunkAllocator_->UpdateChunkFilePoolAllocConfig(
                 useChunkFilepool, useChunkFilePoolAsWalPool,
                 useChunkFilePoolAsWalPoolReserve);
@@ -172,8 +168,6 @@ void TopologyServiceManager::RegistChunkServer(
         response->set_statuscode(kTopoErrCodeSuccess);
         response->set_chunkserverid(cs.GetId());
         response->set_token(cs.GetToken());
-        topoStat_->UpdateChunkServerStat(cs.GetId(),
-                    stat);
         topologyChunkAllocator_->UpdateChunkFilePoolAllocConfig(
             useChunkFilepool, useChunkFilePoolAsWalPool,
             useChunkFilePoolAsWalPoolReserve);
@@ -253,6 +247,9 @@ void TopologyServiceManager::RegistChunkServer(
         response->set_token(chunkserver.GetToken());
         ChunkServerStat stat;
         stat.chunkFilepoolSize = request->chunkfilepoolsize();
+        stat.chunkSizeUsedBytes = 0;
+        stat.chunkSizeLeftBytes = stat.chunkFilepoolSize;
+        stat.chunkSizeTrashedBytes = 0;
         topoStat_->UpdateChunkServerStat(chunkserver.GetId(), stat);
         topologyChunkAllocator_->UpdateChunkFilePoolAllocConfig(
                 useChunkFilepool, useChunkFilePoolAsWalPool,
